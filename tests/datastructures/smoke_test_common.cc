@@ -61,7 +61,7 @@ namespace mt_kahypar {
 
         void verifyGainCache(DynamicPartitionedHypergraph& partitioned_hypergraph) {
 
-            ASSERT(partitioned_hypergraph.checkTrackedPartitionInformation());
+            ASSERT_TRUE(partitioned_hypergraph.checkTrackedPartitionInformation());
 
             const PartitionID k = partitioned_hypergraph.k();
             utils::Randomize& rand = utils::Randomize::instance();
@@ -76,6 +76,7 @@ namespace mt_kahypar {
             }
             HyperedgeWeight km1_after = compute_km1(partitioned_hypergraph);
             ASSERT_EQ(expected_gain, km1_before - km1_after) << V(expected_gain) << V(km1_before) << V(km1_after);
+
         }
 
         void verifyNumIncidentCutHyperedges(const DynamicPartitionedHypergraph& partitioned_hypergraph) {

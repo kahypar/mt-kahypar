@@ -52,30 +52,22 @@ namespace mt_kahypar {
         AsyncLPRefiner & operator= (const AsyncLPRefiner &) = delete;
         AsyncLPRefiner & operator= (AsyncLPRefiner &&) = delete;
 
-        ~AsyncLPRefiner() override {
-            // Expect all AsyncLPRefiners between Refinement tasks (relevant for initial partitioning) to be built and destroyed
-            // simultaneously, so when one gets destroyed, all should be done with any refinement calls and therefore, all
-            // flags on the shared anti-duplicator arrays should have been reset
-
-            HEAVY_REFINEMENT_ASSERT(_next_active.checkAllFalse());
-            HEAVY_REFINEMENT_ASSERT(_visited_he.checkAllFalse());
-        }
+        ~AsyncLPRefiner() override = default;
 
     private:
 
         bool refineImpl(PartitionedHypergraph& hypergraph,
                         const parallel::scalable_vector<HypernodeID>& refinement_nodes,
                         metrics::ThreadSafeMetrics& best_metrics,
-                        double,
-                        ds::StreamingVector<HypernodeID>& moved_nodes) final ;
+                        double) final ;
 
         void resetForGroup(ds::ContractionGroupID groupID) override;
 
-        void labelPropagation(PartitionedHypergraph &hypergraph, MovedNodes &moved_nodes);
+        void labelPropagation(PartitionedHypergraph &hypergraph);
 
         bool labelPropagationRound(PartitionedHypergraph &hypergraph,
                                    NextActiveNodes &next_active_nodes,
-                                   VisitedEdges &visited_edges, MovedNodes &moved_nodes);
+                                   VisitedEdges &visited_edges);
 
         template<typename F>
         bool moveVertex(PartitionedHypergraph& hypergraph,
@@ -122,7 +114,7 @@ namespace mt_kahypar {
                                     if ( _visited_he.compare_and_set_to_true(he) ) {
                                         visited_edges.push_back(he);
                                         for (const HypernodeID& pin : hypergraph.pins(he)) {
-                                            //Make sure that pin is not in the intermediate state between being
+                                            // Make sure that pin is not in the intermediate state between being
                                             // reactivated as pin and being enabled that occurs during uncontraction
                                             if (!hypergraph.nodeIsEnabled(pin)) continue;
                                             if (_next_active.compare_and_set_to_true(pin)) {

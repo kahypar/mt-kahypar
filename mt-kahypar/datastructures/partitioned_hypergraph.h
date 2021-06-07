@@ -171,7 +171,8 @@ private:
       auto part_id = [&](const HypernodeID hn) {return partID(hn);};
       auto conn_set = [&](const HyperedgeID he) {return _connectivity_set.connectivitySet(he);};
       auto is_node_enabled = [&](const HypernodeID hn) {return nodeIsEnabled(hn);};
-      return {part_id, conn_set, is_node_enabled};
+      auto pin_count_in_part = [&](const HyperedgeID he, const PartitionID p) {return pinCountInPart(he, p);};
+      return {part_id, conn_set, is_node_enabled, pin_count_in_part};
   }
 
   // ####################### General Hypergraph Stats ######################
@@ -403,7 +404,7 @@ private:
           // of hyperedge he does not decrease the connectivity any more after the
           // uncontraction => b(u) -= w(he)
           const HyperedgeWeight edge_weight = edgeWeight(he);
-          _gain_cache.updateForUncontractCaseOne(he, edge_weight, v, block, pin_count_in_part_after, pins(he));
+            _gain_cache.updateForUncontractCaseOne(he, edge_weight, v, block, pin_count_in_part_after, pins(he));
         }
       },
       [&](const HypernodeID u, const HypernodeID v, const HyperedgeID he) {
@@ -412,7 +413,7 @@ private:
         if ( _is_gain_cache_initialized ) {
           const PartitionID block = partID(u);
           const HyperedgeWeight edge_weight = edgeWeight(he);
-          _gain_cache.updateForUncontractCaseTwo(he, edge_weight, u, v, block, pinCountInPart(he, block));
+          _gain_cache.updateForUncontractCaseTwo(he, edge_weight, u, v, pinCountInPart(he, block));
         }
       });
   }
@@ -429,6 +430,7 @@ private:
       }
 
       _hg->uncontract(group, [&](const HypernodeID u, const HypernodeID v, const HyperedgeID he) {
+                                        // (This is always called by _hg while he is locked by _hg->acquireHyperedge(he))
                                         // In this case, u and v are incident to hyperedge he after uncontraction
                                         const PartitionID block = partID(u);
                                         _pin_count_update_ownership[he].lock();
@@ -442,16 +444,17 @@ private:
                                             // of hyperedge he does not decrease the connectivity any more after the
                                             // uncontraction => b(u) -= w(he)
                                             const HyperedgeWeight edge_weight = edgeWeight(he);
-                                            _gain_cache.updateForUncontractCaseOne(he, edge_weight,v,block,pin_count_in_part_after, pins(he));
+                                            _gain_cache.updateForUncontractCaseOne(he, edge_weight, v, block, pin_count_in_part_after, pins(he));
                                         }
                                     },
                                     [&](const HypernodeID u, const HypernodeID v, const HyperedgeID he) {
+                                        // (This is always called by _hg while he is locked by _hg->acquireHyperedge(he))
                                         // In this case, u is replaced by v in hyperedge he
                                         // => Pin counts of hyperedge he does not change
                                         if (_is_gain_cache_initialized) {
                                             const PartitionID block = partID(u);
                                             const HyperedgeWeight edge_weight = edgeWeight(he);
-                                            _gain_cache.updateForUncontractCaseTwo(he, edge_weight, u, v, block, pinCountInPart(he, block));
+                                            _gain_cache.updateForUncontractCaseTwo(he, edge_weight, u, v, pinCountInPart(he, block));
                                         }
                                     });
   }
@@ -565,7 +568,9 @@ private:
     setOnlyNodePart(u, p);
     _part_weights[p].fetch_add(nodeWeight(u), std::memory_order_relaxed);
     for (HyperedgeID he : incidentEdges(u)) {
+      lockHyperedge(he);
       incrementPinCountInPartWithoutGainUpdate(he, p);
+      unlockHyperedge(he);
     }
   }
 
@@ -686,6 +691,10 @@ private:
     return _gain_cache.moveFromBenefit(u);
   }
 
+  HyperedgeWeight moveFromBenefit(const HypernodeID u, const PartitionID p) const {
+      return _gain_cache.moveFromBenefit(u, p);
+  }
+
   HyperedgeWeight moveToPenalty(const HypernodeID u, PartitionID p) const {
     //ASSERT(_is_gain_cache_initialized, "Gain cache is not initialized");
     return _gain_cache.moveToPenalty(u, p);
@@ -747,11 +756,10 @@ private:
           HyperedgeWeight& incident_edges_weight,
           vec<HyperedgeWeight>& l_move_to_penalty) {
       HyperedgeWeight edge_weight = edgeWeight(he);
-      if (pinCountInPart(he, block_of_u) == 1) {
-        l_move_from_benefit[block_of_u] += edge_weight;
-      }
-
       for (const PartitionID block : connectivitySet(he)) {
+        if (pinCountInPart(he, block) == 1) {
+          l_move_from_benefit[block] += edge_weight;
+        }
         l_move_to_penalty[block] += edge_weight;
       }
       incident_edges_weight += edge_weight;
@@ -1137,12 +1145,14 @@ private:
                                                                     const PartitionID from,
                                                                     const PartitionID to,
                                                                     const DeltaFunction& delta_func) {
+    lockHyperedge(he);
     ASSERT(he < _pin_count_update_ownership.size());
     _pin_count_update_ownership[he].lock();
     const HypernodeID pin_count_in_from_part_after = decrementPinCountInPartWithoutGainUpdate(he, from);
     const HypernodeID pin_count_in_to_part_after = incrementPinCountInPartWithoutGainUpdate(he, to);
     _pin_count_update_ownership[he].unlock();
     delta_func(he, edgeWeight(he), edgeSize(he), pin_count_in_from_part_after, pin_count_in_to_part_after);
+    unlockHyperedge(he);
   }
 
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
@@ -1169,6 +1179,17 @@ private:
     return pin_count_after;
   }
 
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
+  void lockHyperedge(const HyperedgeID he) {
+//      _he_ownership[he].lock();
+      _hg->acquireHyperedge(he);
+  }
+
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
+  void unlockHyperedge(const HyperedgeID he) {
+//      _he_ownership[he].unlock();
+      _hg->releaseHyperedge(he);
+  }
 
   // ! Indicate wheater gain cache is initialized
   bool _is_gain_cache_initialized;

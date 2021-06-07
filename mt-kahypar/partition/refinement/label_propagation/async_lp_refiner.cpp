@@ -15,8 +15,7 @@ namespace mt_kahypar {
     bool AsyncLPRefiner<LocalGainPolicy>::refineImpl(PartitionedHypergraph &hypergraph,
                                                      const parallel::scalable_vector <mt_kahypar::HypernodeID> &refinement_nodes,
                                                      metrics::ThreadSafeMetrics &best_metrics,
-                                                     double,
-                                                     ds::StreamingVector<HypernodeID>& moved_nodes) {
+                                                     double) {
         ASSERT(_contraction_group_id != ds::invalidGroupID, "ContractionGroupID (Owner-ID) for locking is invalid.");
         ASSERT(!refinement_nodes.empty(), "AsyncLPRefiner will not work without given seed refinement nodes. Cannot be used "
                                           "solely for rebalancing or for global refinement!");
@@ -28,7 +27,7 @@ namespace mt_kahypar {
         _gain.reset();
 
         // Perform Label Propagation
-        labelPropagation(hypergraph, moved_nodes);
+        labelPropagation(hypergraph);
 
         // Update global part weight and sizes
         double imbalance;
@@ -54,7 +53,7 @@ namespace mt_kahypar {
     }
 
     template <template <typename> class LocalGainPolicy>
-    void AsyncLPRefiner<LocalGainPolicy>::labelPropagation(PartitionedHypergraph &hypergraph, MovedNodes &moved_nodes) {
+    void AsyncLPRefiner<LocalGainPolicy>::labelPropagation(PartitionedHypergraph &hypergraph) {
         NextActiveNodes next_active_nodes;
         VisitedEdges visited_edges;
         for (size_t i = 0; i < _context.refinement.label_propagation.maximum_iterations; ++i) {
@@ -64,7 +63,7 @@ namespace mt_kahypar {
                     "lp_round_" + std::to_string(i), "Label Propagation Round " + std::to_string(i), true);
 
             if ( !_active_nodes.empty() ) {
-                labelPropagationRound(hypergraph, next_active_nodes, visited_edges, moved_nodes);
+                labelPropagationRound(hypergraph, next_active_nodes, visited_edges);
             }
 
             _active_nodes = next_active_nodes;
@@ -105,7 +104,7 @@ namespace mt_kahypar {
     template <template <typename> class LocalGainPolicy>
     bool AsyncLPRefiner<LocalGainPolicy>::labelPropagationRound(PartitionedHypergraph &hypergraph,
                                                                 NextActiveNodes &next_active_nodes,
-                                                                VisitedEdges &visited_edges, MovedNodes &moved_nodes) {
+                                                                VisitedEdges &visited_edges) {
 
         // This function is passed as lambda to the changeNodePart function and used
         // to calculate the "real" delta of a move (in terms of the used objective function).
@@ -127,9 +126,7 @@ namespace mt_kahypar {
             const HypernodeID hn = _active_nodes[j];
             bool acquired = _lock_manager->tryToAcquireLock(hn, _contraction_group_id);
             if (acquired) {
-                if ( moveVertex(hypergraph, hn, next_active_nodes, visited_edges, objective_delta) ) {
-                    moved_nodes.stream(hn);
-                } else {
+                if ( ! moveVertex(hypergraph, hn, next_active_nodes, visited_edges, objective_delta) ) {
                     converged = false;
                 }
                 _lock_manager->strongReleaseLock(hn, _contraction_group_id);
@@ -144,9 +141,7 @@ namespace mt_kahypar {
             const HypernodeID hn = retry_nodes[j];
             bool acquired = _lock_manager->tryToAcquireLock(hn, _contraction_group_id);
             if (acquired) {
-                if ( moveVertex(hypergraph, hn, next_active_nodes, visited_edges, objective_delta) ) {
-                    moved_nodes.stream(hn);
-                } else {
+                if ( ! moveVertex(hypergraph, hn, next_active_nodes, visited_edges, objective_delta) ) {
                     converged = false;
                 }
                 _lock_manager->strongReleaseLock(hn, _contraction_group_id);

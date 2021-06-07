@@ -942,6 +942,18 @@ class StaticHypergraph {
     }
   }
 
+  // ! Boilerplate method definition
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
+  void acquireHyperedge(const HyperedgeID) {
+      // noop
+  }
+
+  // ! Boilerplate method definition
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
+  void releaseHyperedge(const HyperedgeID) {
+      // noop
+  }
+
   // ! Number of hypernodes
   HypernodeID _num_hypernodes;
   // ! Number of removed hypernodes

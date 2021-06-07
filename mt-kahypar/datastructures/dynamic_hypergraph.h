@@ -149,7 +149,7 @@ class DynamicHypergraph {
           ++current_batch;
         }
       } else {
-        while ( _current_batch_sizes[current_batch] > 0 ) {
+        while (current_batch < _current_batch_sizes.size() && _current_batch_sizes[current_batch] > 0 ) {
           ++current_batch;
         }
       }

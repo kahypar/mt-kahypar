@@ -78,10 +78,9 @@ public:
                 const parallel::scalable_vector<HypernodeID>& refinement_nodes,
                 metrics::ThreadSafeMetrics& best_metrics,
                 const double time_limit,
-                ds::ContractionGroupID groupID,
-                ds::StreamingVector<HypernodeID>& moved_nodes) {
+                ds::ContractionGroupID groupID) {
         resetForGroup(groupID);
-        return refineImpl(hypergraph, refinement_nodes, best_metrics, time_limit, moved_nodes);
+        return refineImpl(hypergraph, refinement_nodes, best_metrics, time_limit);
     }
 
     virtual ~IAsyncRefiner() = default;
@@ -94,8 +93,7 @@ private:
     virtual bool refineImpl(PartitionedHypergraph& hypergraph,
                             const parallel::scalable_vector<HypernodeID>& refinement_nodes,
                             metrics::ThreadSafeMetrics& best_metrics,
-                            const double time_limit,
-                            ds::StreamingVector<HypernodeID>& moved_nodes) = 0;
+                            const double time_limit) = 0;
 
     virtual void resetForGroup(ds::ContractionGroupID groupID) = 0;
 

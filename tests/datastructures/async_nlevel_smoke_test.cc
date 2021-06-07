@@ -215,11 +215,14 @@ namespace mt_kahypar {
                     }
                 }
 
+                ASSERT(partitioned_hypergraph.checkTrackedPartitionInformation());
+
                 versionedPools.pop_back();
 
                 if (!removed_hyperedges.empty()) {
                     utils::Timer::instance().start_timer(timer_key("restore_parallel_nets"), "Restore Parallel Nets");
                     partitioned_hypergraph.restoreSinglePinAndParallelNets(removed_hyperedges.back());
+                    ASSERT(partitioned_hypergraph.checkTrackedPartitionInformation());
                     removed_hyperedges.pop_back();
                     utils::Timer::instance().stop_timer(timer_key("restore_parallel_nets"));
                 }
@@ -227,6 +230,22 @@ namespace mt_kahypar {
             utils::Timer::instance().stop_timer(timer_key("async_uncontractions"));
 
             return coarsest_hypergraph;
+        }
+
+        void verifyGainCacheParallel(DynamicPartitionedHypergraph& partitioned_hypergraph) {
+
+            ASSERT_TRUE(partitioned_hypergraph.checkTrackedPartitionInformation());
+
+            const PartitionID k = partitioned_hypergraph.k();
+            utils::Randomize& rand = utils::Randomize::instance();
+            partitioned_hypergraph.doParallelForAllNodes([&](const HypernodeID hn) {
+                const PartitionID from = partitioned_hypergraph.partID(hn);
+                PartitionID to = rand.getRandomInt(0, k - 1, sched_getcpu());
+                if ( from == to ) to = (to + 1) % k;
+                partitioned_hypergraph.changeNodePartWithGainCacheUpdate(hn, from, to);
+            });
+
+            ASSERT_TRUE(partitioned_hypergraph.checkTrackedPartitionInformation());
         }
 
         TEST(AAsyncNlevel, SimulatesContractionsAndAsynchPoolUncontractions) {
@@ -269,6 +288,8 @@ namespace mt_kahypar {
             if (debug) LOG << "Verify gain cache of hypergraphs";
             verifyGainCache(sequential_phg);
             verifyGainCache(parallel_phg);
+            verifyGainCacheParallel(sequential_phg);
+            verifyGainCacheParallel(parallel_phg);
 
             if (debug) LOG << "Verify number of incident cut hyperedges";
             verifyNumIncidentCutHyperedges(sequential_phg);

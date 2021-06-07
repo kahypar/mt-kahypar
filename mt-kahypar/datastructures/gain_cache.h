@@ -11,6 +11,7 @@ namespace mt_kahypar::ds {
     using PartIDFunc = std::function<PartitionID(const HypernodeID)>;
     using ConnSetFunc = std::function<IteratorRange<ConnectivitySets::Iterator> (const HyperedgeID)>;
     using NodeEnabledFunc = std::function<bool(const HypernodeID)>;
+    using PinCountInPartFunc = std::function<HypernodeID(const HyperedgeID, const PartitionID)>;
     struct HGQueryFunctions {
         // ! Function to query the current partition of a hypernode
         PartIDFunc part_id;
@@ -20,10 +21,10 @@ namespace mt_kahypar::ds {
 
         // ! Function to query whether a hypernode is currently enabled
         NodeEnabledFunc is_node_enabled;
-    };
 
-    using PinAssertions = std::function<void(const HypernodeID)>;
-    #define NOOP_PIN_ASSERTIONS [](const HypernodeID) {}
+        // ! Function to query the number of pins of a Hyperedge in a part
+        PinCountInPartFunc pin_count_in_part;
+    };
 
 template<class MoveFromBenefitCache = Mandatory, class MoveToPenaltyCache = Mandatory>
 class GainCacheFacade {
@@ -86,6 +87,11 @@ public:
         return _benefit_cache.moveFromBenefit(u,m);
     }
 
+    MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
+    HyperedgeWeight moveFromBenefit(const HypernodeID u, const PartitionID p, std::memory_order m = std::memory_order_relaxed) const {
+        return _benefit_cache.moveFromBenefit(u,p,m);
+    }
+
     // ! Not safe to call while moving/uncontracting
     MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
     void storeRecomputedMoveFromBenefits(const HypernodeID u, vec<HyperedgeWeight>& benefits, std::memory_order m = std::memory_order_relaxed) {
@@ -111,15 +117,15 @@ public:
                                     const PartitionID block, const HypernodeID pin_count_in_part_after,
                                     IteratorRange<PinIteratorT> pins) {
         _penalty_cache.updateForUncontractCaseOne(he, we, v);
-        _benefit_cache.updateForUncontractCaseOne(we, v, block, pin_count_in_part_after, pins);
+        _benefit_cache.updateForUncontractCaseOne(he, we, v, block, pin_count_in_part_after, pins);
     }
 
     MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
     void updateForUncontractCaseTwo(const HyperedgeID he, const HyperedgeWeight we, const HypernodeID u,
-                                    const HypernodeID v, const PartitionID block,
+                                    const HypernodeID v,
                                     const HypernodeID pin_count_in_part_after) {
         _penalty_cache.updateForUncontractCaseTwo(he, we, u, v);
-        _benefit_cache.updateForUncontractCaseTwo(we, u, v, block, pin_count_in_part_after);
+        _benefit_cache.updateForUncontractCaseTwo(he, we, u, v, pin_count_in_part_after);
     }
 
     MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
@@ -208,6 +214,12 @@ public:
     }
 
     MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
+    HyperedgeWeight moveFromBenefit(const HypernodeID, const PartitionID, std::memory_order m = std::memory_order_relaxed) const {
+        unused(m);
+        ERROR("moveFromBenefit(HypernodeID, PartitionID) not supported on AggregatedBenefitCache.");
+    }
+
+    MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
     void storeRecomputedMoveFromBenefits(const HypernodeID u, vec<HyperedgeWeight>& benefit_aggregator, std::memory_order m = std::memory_order_relaxed) {
         auto block_of_u = _hg_query_funcs->part_id(u);
         _move_from_benefit[u].store(benefit_aggregator[block_of_u], m);
@@ -223,8 +235,10 @@ public:
 
     template<class PinIteratorT>
     MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
-    void updateForUncontractCaseOne(const HyperedgeWeight we, const HypernodeID v, const PartitionID block,
+    void updateForUncontractCaseOne(const HyperedgeID, const HyperedgeWeight we, const HypernodeID v,
+                                    const PartitionID block,
                                     const HypernodeID pin_count_in_part_after, IteratorRange<PinIteratorT> pins) {
+
         if ( pin_count_in_part_after == 2 ) {
             // u might be replaced by an other vertex in the batch
             // => search for other pin of the corresponding block and
@@ -240,8 +254,8 @@ public:
     }
 
     MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
-    void updateForUncontractCaseTwo(const HyperedgeWeight we, const HypernodeID u, const HypernodeID v,
-                                    const PartitionID, const HypernodeID pin_count_in_block) {
+    void updateForUncontractCaseTwo(const HyperedgeID, const HyperedgeWeight we, const HypernodeID u, const HypernodeID v,
+                                    const HypernodeID pin_count_in_block) {
         // Since u is no longer incident to hyperedge he its contribution for decreasing
         // the connectivity of he is shifted to vertex v => b(u) -= w(e), b(v) += w(e).
         if ( pin_count_in_block == 1 ) {
@@ -262,20 +276,20 @@ public:
                        const PartitionID from, const HypernodeID pin_count_in_from_part_after,
                        const PartitionID to, const HypernodeID pin_count_in_to_part_after) {
         if (pin_count_in_from_part_after == 1) {
-            doForEnabledPins(pins,[&](HypernodeID u) {
+            for (const auto& u :pins) {
                 nodeGainAssertions(u, from);
                 if (_hg_query_funcs->part_id(u) == from) {
                     _move_from_benefit[u].fetch_add(we, std::memory_order_relaxed);
                 }
-            });
+            }
         }
         if (pin_count_in_to_part_after == 2) {
-            doForEnabledPins(pins,[&](HypernodeID u) {
+            for (const auto& u :pins) {
                 nodeGainAssertions(u, to);
                 if (_hg_query_funcs->part_id(u) == to) {
                     _move_from_benefit[u].fetch_sub(we, std::memory_order_relaxed);
                 }
-            });
+            }
         }
     }
 
@@ -367,6 +381,11 @@ public:
     }
 
     MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
+    HyperedgeWeight moveFromBenefit(const HypernodeID u, const PartitionID p, std::memory_order m = std::memory_order_relaxed) const {
+        return _move_from_benefit[benefit_index(u, p)].load(m);
+    }
+
+    MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
     void storeRecomputedMoveFromBenefits(const HypernodeID u, vec<HyperedgeWeight>& benefit_aggregator, std::memory_order m = std::memory_order_relaxed) {
         for (PartitionID i = 0; i < _k; ++i) {
             _move_from_benefit[benefit_index(u,i)].store(benefit_aggregator[i], m);
@@ -377,23 +396,26 @@ public:
     void initializeEntry(const HypernodeID u, vec<HyperedgeWeight>& benefit_aggregator) {
         for (PartitionID i = 0; i < _k; ++i) {
             _move_from_benefit[benefit_index(u,i)].store(benefit_aggregator[i], std::memory_order_relaxed);
-            // Reset entry to zero
+            // Reset entry to zero so aggregator can be reused
             benefit_aggregator[i] = 0;
         }
     }
 
     template<class PinIteratorT>
     MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
-    void updateForUncontractCaseOne(const HyperedgeWeight we, const HypernodeID v, const PartitionID block,
+    void updateForUncontractCaseOne(const HyperedgeID he, const HyperedgeWeight we, const HypernodeID v,
+                                    const PartitionID block,
                                     const HypernodeID pin_count_in_part_after, IteratorRange<PinIteratorT> pins) {
+
+        // Calculate and add contribution of he to the benefit of the uncontracted node v
+        addContributionOfHEToNodeBenefit(v, he, we);
+
         // In this case, u and v are incident to hyperedge he after uncontraction
         if ( pin_count_in_part_after == 2 ) {
-            // u might be replaced by an other vertex in the batch
-            // => search for other pin of the corresponding block and
-            // subtract edge weight.
-            for ( const auto& pin : pins) {
-                // Reduce benefits for all pins in he for this block (except v as it never had the benefit added)
-                if ( pin != v) {
+            // Reduce benefits for all pins in he for this block but exclude pins that are not enabled yet
+            // (including v), as they never got the benefit to begin with
+            for (const auto& pin : pins) {
+                if (pin != v) {
                     _move_from_benefit[benefit_index(pin, block)].sub_fetch(we, std::memory_order_relaxed);
                 }
             }
@@ -401,18 +423,20 @@ public:
     }
 
     MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
-    void updateForUncontractCaseTwo(const HyperedgeWeight we, const HypernodeID u, const HypernodeID v,
-                                    const PartitionID block, const HypernodeID pin_count_in_block) {
+    void updateForUncontractCaseTwo(const HyperedgeID he, const HyperedgeWeight we, const HypernodeID u, const HypernodeID v,
+                                    const HypernodeID) {
+
         // In this case, u is replaced by v in hyperedge he
         // => Pin counts of hyperedge he does not change
         // Since u is no longer incident to hyperedge he its contribution for decreasing
         // the connectivity of he is shifted to vertex v => b(u) -= w(e), b(v) += w(e).
-        if ( pin_count_in_block == 1 ) {
-            // Benefit for all pins in the hyperedge still exists, only now u is no longer in the HE but v is so transfer
-            // benefit
-            _move_from_benefit[benefit_index(u,block)].sub_fetch(we, std::memory_order_relaxed);
-            _move_from_benefit[benefit_index(v,block)].add_fetch(we, std::memory_order_relaxed);
-        }
+        // (v already got the benefit in the call to addContributionOfHEToNodeBenefit so just remove benefits from u)
+
+        // Remove benefits contributed by this hyperedge from u as it no longer belongs to the hyperedge
+        removeContributionOfHEFromNodeBenefit(u, he, we);
+
+        // Add benefits contributed by this hyperedge to the benefit of the uncontracted node v
+        addContributionOfHEToNodeBenefit(v, he, we);
     }
 
     MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
@@ -427,27 +451,27 @@ public:
                        const PartitionID from, const HypernodeID pin_count_in_from_part_after,
                        const PartitionID to, const HypernodeID pin_count_in_to_part_after) {
         if (pin_count_in_from_part_after == 0) {
-            doForEnabledPins(pins,[&](HypernodeID u){
+            for (const auto& u :pins) {
                 nodeGainAssertions(u, from);
-                _move_from_benefit[benefit_index(u, from)].sub_fetch(we, std::memory_order_relaxed);
-            });
+                _move_from_benefit[benefit_index(u, from)].fetch_sub(we, std::memory_order_relaxed);
+            }
         } else if (pin_count_in_from_part_after == 1) {
-            doForEnabledPins(pins,[&](HypernodeID u) {
+            for (const auto& u :pins) {
                 nodeGainAssertions(u, from);
                 _move_from_benefit[benefit_index(u, from)].fetch_add(we, std::memory_order_relaxed);
-            });
+            }
         }
 
         if (pin_count_in_to_part_after == 1) {
-            doForEnabledPins(pins,[&](HypernodeID u) {
+            for (const auto& u :pins) {
                 nodeGainAssertions(u, to);
                 _move_from_benefit[benefit_index(u, to)].fetch_add(we, std::memory_order_relaxed);
-            });
+            }
         } else if (pin_count_in_to_part_after == 2) {
-            doForEnabledPins(pins,[&](HypernodeID u) {
+            for (const auto& u :pins) {
                 nodeGainAssertions(u, to);
                 _move_from_benefit[benefit_index(u, to)].fetch_sub(we, std::memory_order_relaxed);
-            });
+            }
         }
     }
 
@@ -456,6 +480,26 @@ private:
     MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
     size_t benefit_index(const HypernodeID u, const PartitionID p) const {
         return size_t(u) * size_t(_k)  + size_t(p);
+    }
+
+    MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
+    void addContributionOfHEToNodeBenefit(HypernodeID v, HyperedgeID he, HyperedgeWeight we) {
+        // Add benefit for all blocks in the connectivity set of he
+        for (const auto& p : _hg_query_funcs->connectivity_set(he)) {
+            if (_hg_query_funcs->pin_count_in_part(he, p) == 1) {
+                _move_from_benefit[benefit_index(v, p)].add_fetch(we, std::memory_order_relaxed);
+            }
+        }
+    }
+
+    MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
+    void removeContributionOfHEFromNodeBenefit(HypernodeID u, HyperedgeID he, HyperedgeWeight we) {
+        // Remove benefit for all blocks in the connectivity set of he
+        for (const auto& p : _hg_query_funcs->connectivity_set(he)) {
+            if (_hg_query_funcs->pin_count_in_part(he, p) == 1) {
+                _move_from_benefit[benefit_index(u, p)].sub_fetch(we, std::memory_order_relaxed);
+            }
+        }
     }
 
     template<typename PinIteratorT, typename F>
@@ -472,7 +516,7 @@ private:
         unused(u);
         unused(p);
         ASSERT(u < _num_nodes, "Hypernode" << u << "does not exist");
-        ASSERT(_hg_query_funcs->is_node_enabled(u), "Hypernode" << u << "is disabled");
+//        ASSERT(_hg_query_funcs->is_node_enabled(u), "Hypernode" << u << "is disabled");
         ASSERT(p != kInvalidPartition && p < _k);
         ASSERT(isValidEntry(u,p));
     }
@@ -601,19 +645,18 @@ public:
     void updateForMove(const HyperedgeWeight we, IteratorRange<PinIteratorT> pins,
                        const PartitionID from, const HypernodeID pin_count_in_from_part_after,
                        const PartitionID to, const HypernodeID pin_count_in_to_part_after) {
-        // Filter pin iterator to only enabled pins
         if (pin_count_in_from_part_after == 0) {
-            doForEnabledPins(pins,[&](HypernodeID u) {
+            for (const auto& u :pins) {
                 nodeGainAssertions(u, from);
                 _move_to_penalty[penalty_index(u, from)].fetch_sub(we, std::memory_order_relaxed);
-            });
+            }
         }
 
         if (pin_count_in_to_part_after == 1) {
-            doForEnabledPins(pins,[&](HypernodeID u) {
+            for (const auto& u :pins) {
                 nodeGainAssertions(u, to);
                 _move_to_penalty[penalty_index(u, to)].fetch_add(we, std::memory_order_relaxed);
-            });
+            }
         }
     }
 
@@ -633,7 +676,7 @@ private:
         unused(u);
         unused(p);
         ASSERT(u < _num_nodes, "Hypernode" << u << "does not exist");
-        ASSERT(_hg_query_funcs->is_node_enabled(u), "Hypernode" << u << "is disabled");
+//        ASSERT(_hg_query_funcs->is_node_enabled(u), "Hypernode" << u << "is disabled");
         ASSERT(p != kInvalidPartition && p < _k);
         ASSERT(isValidEntry(u,p));
     }

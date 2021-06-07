@@ -42,6 +42,7 @@ class NLevelCoarsenerBase {
   static constexpr bool enable_heavy_assert = true;
 
   using ParallelHyperedgeVector = parallel::scalable_vector<parallel::scalable_vector<ParallelHyperedge>>;
+  using AsyncRefinersETS = tbb::enumerable_thread_specific<std::unique_ptr<IAsyncRefiner>>;
 
  public:
   NLevelCoarsenerBase(Hypergraph& hypergraph,
@@ -103,9 +104,7 @@ class NLevelCoarsenerBase {
   void uncoarsenAsyncTask(ds::TreeGroupPool *pool, tbb::task_group &uncoarsen_tg,
                           CAtomic<size_t> &total_uncontractions,
                           metrics::ThreadSafeMetrics &current_metrics, bool force_measure_timings,
-                          ds::StreamingVector <HypernodeID> &moved_nodes,
-                          ds::ThreadSafeFlagArray <HypernodeID> &node_anti_duplicator,
-                          ds::ThreadSafeFlagArray <HyperedgeID> &edge_anti_duplicator);
+                          AsyncRefinersETS &async_lp_refiners);
 
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE bool uncontractGroupAsyncSubtask(const ds::ContractionGroup &group,
                                    ds::ContractionGroupID groupID,
@@ -114,10 +113,7 @@ class NLevelCoarsenerBase {
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE bool
   refineGroupAsyncSubtask(const ds::ContractionGroup &group, ds::ContractionGroupID groupID,
                           metrics::ThreadSafeMetrics &current_metrics,
-                          bool force_measure_timings,
-                          ds::StreamingVector <HypernodeID> &moved_nodes,
-                          ds::ThreadSafeFlagArray <HypernodeID> &node_anti_duplicator,
-                          ds::ThreadSafeFlagArray <HyperedgeID> &edge_anti_duplicator);
+                          bool force_measure_timings, IAsyncRefiner *async_lp);
 
  protected:
   kahypar::Metrics computeMetrics(PartitionedHypergraph& phg) {
@@ -156,8 +152,7 @@ class NLevelCoarsenerBase {
                                const parallel::scalable_vector <HypernodeID> &refinement_nodes,
                                IAsyncRefiner *async_lp, ds::ContractionGroupID group_id,
                                metrics::ThreadSafeMetrics &current_metrics,
-                               const bool force_measure_timings,
-                               ds::StreamingVector <HypernodeID> &moved_nodes);
+                               const bool force_measure_timings);
 
   void globalRefine(PartitionedHypergraph& partitioned_hypergraph,
                     std::unique_ptr<IRefiner>& fm,
@@ -206,27 +201,6 @@ class NLevelCoarsenerBase {
 
   // ! A lock manager for locks on hypernodes used in asynchronous n-level uncoarsening
   std::unique_ptr<ds::GroupLockManager> _lock_manager_for_async;
-
-  // ! Static references to all thread-local refiners created in asynchronous uncoarsening. As the thread-local refiners
-  // ! are implicitly static and their lifetime lasts until program exit, it is necessary to manually delete them whenever one
-  // ! call to doAsynchronousUncoarsening() finishes by calling reset() on the unique_ptr's. On the next call to
-  // ! doAsynchronousUncoarsening() the threads will realize they each need a new Refiner and build one into the
-  // ! previously declared unique_ptr. The memory overhead for this in the case of different threads being used for
-  // ! different calls to doAsynchronousUncoarsening() should not be large as used Refiners get destroyed, i.e. the only
-  // ! overhead is from this vector itself which holds as many pointers as there are threads used in asynchronous uncoarsening.
-  static tbb::concurrent_vector<std::unique_ptr<IAsyncRefiner>*> _thread_local_refiner_ptrs;
-
-  static void destroy_thread_local_refiners() {
-      for (std::unique_ptr<IAsyncRefiner>* refiner_ptr : _thread_local_refiner_ptrs) {
-          refiner_ptr->reset();
-      }
-      _thread_local_refiner_ptrs.clear();
-  }
-  static void register_thread_local_refiner_ptr(std::unique_ptr<IAsyncRefiner>* refiner_ptr) {
-      if (std::find(_thread_local_refiner_ptrs.begin(), _thread_local_refiner_ptrs.end(), refiner_ptr) == _thread_local_refiner_ptrs.end()) {
-          _thread_local_refiner_ptrs.push_back(refiner_ptr);
-      }
-  }
 
 };
 }  // namespace mt_kahypar

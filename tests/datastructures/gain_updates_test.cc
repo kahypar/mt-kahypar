@@ -74,6 +74,33 @@ TEST(GainUpdates, Example1) {
   ASSERT_EQ(phg.km1Gain(6, 0, 1), 0);
 }
 
+TEST(GainUpdates, SingleChangeNodePart) {
+    PartitionID k = 2;
+    HyperedgeWeight edge_weights[] = {1};
+    DynamicHypergraph hypergraph(
+            DynamicHypergraphFactory::construct(TBBNumaArena::GLOBAL_TASK_GROUP,2, 1,
+                                                {{0, 1}},
+                                                edge_weights,
+                                                nullptr,
+                                                true));
+    PartitionedHypergraph<DynamicHypergraph, DynamicHypergraphFactory, HeavyGainCache> phg(k, hypergraph);
+
+    phg.setNodePart(0, 0);
+    phg.setNodePart(1, 1);
+    ASSERT_TRUE(phg.checkTrackedPartitionInformation());
+
+    phg.initializeGainCache();
+    ASSERT_TRUE(phg.checkTrackedPartitionInformation());
+
+    ASSERT_EQ(phg.moveFromBenefit(0, 0), 1);
+    ASSERT_EQ(phg.moveFromBenefit(0, 1), 1);
+    ASSERT_EQ(phg.moveFromBenefit(1, 0), 1);
+    ASSERT_EQ(phg.moveFromBenefit(1, 1), 1);
+
+    phg.changeNodePartWithGainCacheUpdate(0, 0, 1);
+    ASSERT_TRUE(phg.checkTrackedPartitionInformation());
+    }
+
 
 }  // namespace ds
 }  // namespace mt_kahypar
