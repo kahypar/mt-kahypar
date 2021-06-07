@@ -351,8 +351,6 @@ namespace mt_kahypar {
         return a - b;
       };
 
-      LOG << V(p1) << V(p2) << V(p1_begin) << V(p1_end) << V(p2_begin) << V(p2_begin) << (lb_p1) << V(ub_p2);
-
       auto best_prefix = findBestPrefixesRecursive(p1_begin, p1_end, p2_begin, p2_end,
                                                    p1_begin - 1, p2_begin - 1, lb_p1, ub_p2);
 
@@ -360,11 +358,10 @@ namespace mt_kahypar {
       swap_prefix[index(p1, p2)] = best_prefix.first;
       swap_prefix[index(p2, p1)] = best_prefix.second;
       HypernodeWeight best_balance = balance(best_prefix.first - 1, best_prefix.second - 1);
-      LOG << V(best_prefix.first) << V(best_prefix.second) << V(best_balance);
+      assert(best_balance <= ub_p2 && best_balance >= lb_p1);
       __atomic_fetch_sub(&part_weights[p1], best_balance, __ATOMIC_RELAXED);
       __atomic_fetch_add(&part_weights[p2], best_balance, __ATOMIC_RELAXED);
     }
-    LOG << "block-pair handling done";
 
     moves.clear();
     Gain actual_gain = applyMovesIf(phg, sorted_moves, num_moves, [&](size_t pos) {
@@ -402,12 +399,12 @@ namespace mt_kahypar {
           HypernodeWeight lb_p1, HypernodeWeight ub_p2)
   {
     auto balance = [&](size_t p1_ind, size_t p2_ind) {
-      assert(p1_ind < p1_end);
-      assert(p2_ind < p2_end);
-      assert(p1_ind >= p1_invalid);
-      assert(p2_ind >= p2_invalid);
-      assert(p1_ind < cumulative_node_weights.size());
-      assert(p2_ind < cumulative_node_weights.size());
+      assert(p1_ind == p1_invalid || p1_ind < p1_end);
+      assert(p1_ind >= p1_invalid || p1_invalid == (0UL - 1));
+      assert(p2_ind == p2_invalid || p2_ind < p2_end);
+      assert(p2_ind >= p2_invalid || p2_invalid == (0UL - 1));
+      assert(p1_ind == p1_invalid || p1_ind < cumulative_node_weights.size());
+      assert(p2_ind == p2_invalid || p2_ind < cumulative_node_weights.size());
       const auto a = (p1_ind == p1_invalid) ? 0 : cumulative_node_weights[p1_ind];
       const auto b = (p2_ind == p2_invalid) ? 0 : cumulative_node_weights[p2_ind];
       return a - b;
@@ -420,7 +417,7 @@ namespace mt_kahypar {
 
     const size_t n_p1 = p1_end - p1_begin, n_p2 = p2_end - p2_begin;
 
-    static constexpr size_t sequential_cutoff = 5000;
+    static constexpr size_t sequential_cutoff = 2000;
     if (n_p1 < sequential_cutoff && n_p2 < sequential_cutoff) {
       while (true) {
         if (is_feasible(p1_end - 1, p2_end - 1)) { return std::make_pair(p1_end, p2_end); }
