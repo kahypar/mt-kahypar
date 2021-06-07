@@ -353,7 +353,7 @@ namespace mt_kahypar {
 
       auto best_prefix = findBestPrefixesRecursive(p1_begin, p1_end, p2_begin, p2_end,
                                                    p1_begin - 1, p2_begin - 1, lb_p1, ub_p2);
-
+      assert(best_prefix == findBestPrefixesSequentially(p1_begin, p1_end, p2_begin, p2_end, lb_p1, ub_p2));
 
       swap_prefix[index(p1, p2)] = best_prefix.first;
       swap_prefix[index(p2, p1)] = best_prefix.second;
@@ -476,6 +476,12 @@ namespace mt_kahypar {
       });
       return right.first != invalid_pos ? right : left;
     }
+  }
+
+  std::pair<size_t, size_t> DeterministicLabelPropagationRefiner::findBestPrefixesSequentially(
+          size_t p1_begin, size_t p1_end, size_t p2_begin, size_t p2_end, HypernodeWeight lb_p1, HypernodeWeight ub_p2)
+  {
+
   }
 
   Gain DeterministicLabelPropagationRefiner::applyMovesSortedByGainWithRecalculation(PartitionedHypergraph& phg) {

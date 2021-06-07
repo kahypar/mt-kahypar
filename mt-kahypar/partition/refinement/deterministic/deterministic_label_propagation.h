@@ -74,6 +74,10 @@ private:
           size_t p1_inv, size_t p2_inv,
           HypernodeWeight lb_p1, HypernodeWeight ub_p2);
 
+  // used for verification
+  std::pair<size_t, size_t> findBestPrefixesSequentially(size_t p1_begin, size_t p1_end, size_t p2_begin, size_t p2_end,
+                                                         HypernodeWeight lb_p1, HypernodeWeight ub_p2);
+
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
   void calculateAndSaveBestMove(PartitionedHypergraph& phg, HypernodeID u) {
     assert(u < phg.initialNumNodes());
