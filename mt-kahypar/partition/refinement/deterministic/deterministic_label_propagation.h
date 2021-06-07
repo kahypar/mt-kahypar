@@ -53,7 +53,7 @@ public:
   
 private:
   static constexpr bool debug = false;
-  static constexpr size_t invalid_pos = std::numeric_limits<size_t>::max();
+  static constexpr size_t invalid_pos = std::numeric_limits<size_t>::max() / 2;
 
   bool refineImpl(PartitionedHypergraph& hypergraph, const vec<HypernodeID>& refinement_nodes,
                   kahypar::Metrics& best_metrics, double) final ;
@@ -75,8 +75,8 @@ private:
 
   // used for verification
   std::pair<size_t, size_t> findBestPrefixesSequentially(
-          const PartitionedHypergraph& phg, size_t p1_begin, size_t p1_end,
-          size_t p2_begin, size_t p2_end, HypernodeWeight lb_p1, HypernodeWeight ub_p2);
+          size_t p1_begin, size_t p1_end, size_t p2_begin, size_t p2_end, size_t p1_inv, size_t p2_inv,
+          HypernodeWeight lb_p1, HypernodeWeight ub_p2);
 
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
   void calculateAndSaveBestMove(PartitionedHypergraph& phg, HypernodeID u) {

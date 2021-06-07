@@ -353,8 +353,14 @@ namespace mt_kahypar {
 
       auto best_prefix = findBestPrefixesRecursive(p1_begin, p1_end, p2_begin, p2_end,
                                                    p1_begin - 1, p2_begin - 1, lb_p1, ub_p2);
-      assert(best_prefix == findBestPrefixesSequentially(phg, p1_begin, p1_end, p2_begin, p2_end, lb_p1, ub_p2));
 
+      assert(best_prefix == findBestPrefixesSequentially(p1_begin, p1_end, p2_begin, p2_end,
+                                                         p1_begin - 1, p2_begin - 1, lb_p1, ub_p2));
+      if (best_prefix.first == invalid_pos) {
+        // represents no solution found (and recursive version didn't move all the way to the start of the range)
+        // --> replace with starts of ranges (represents no moves applied)
+        best_prefix = std::make_pair(p1_begin, p2_begin);
+      }
       swap_prefix[index(p1, p2)] = best_prefix.first;
       swap_prefix[index(p2, p1)] = best_prefix.second;
       HypernodeWeight best_balance = balance(best_prefix.first - 1, best_prefix.second - 1);
@@ -419,17 +425,7 @@ namespace mt_kahypar {
 
     static constexpr size_t sequential_cutoff = 2000;
     if (n_p1 < sequential_cutoff && n_p2 < sequential_cutoff) {
-      while (true) {
-        if (is_feasible(p1_end - 1, p2_end - 1)) { return std::make_pair(p1_end, p2_end); }
-        if (balance(p1_end - 1, p2_end - 1) < 0) {
-          if (p2_end == p2_begin) { break; }
-          p2_end--;
-        } else {
-          if (p1_end == p1_begin) { break; }
-          p1_end--;
-        }
-      }
-      return std::make_pair(invalid_pos, invalid_pos);
+      return findBestPrefixesSequentially(p1_begin, p1_end, p2_begin, p2_end, p1_invalid, p2_invalid, lb_p1, ub_p2);
     }
 
     const auto c = cumulative_node_weights.begin();
@@ -479,46 +475,31 @@ namespace mt_kahypar {
   }
 
   std::pair<size_t, size_t> DeterministicLabelPropagationRefiner::findBestPrefixesSequentially(
-          const PartitionedHypergraph& phg, size_t p1_begin, size_t p1_end, 
-          size_t p2_begin, size_t p2_end, HypernodeWeight lb_p1, HypernodeWeight ub_p2)
+          size_t p1_begin, size_t p1_end, size_t p2_begin, size_t p2_end, size_t p1_inv, size_t p2_inv,
+          HypernodeWeight lb_p1, HypernodeWeight ub_p2)
   {
+    auto balance = [&](size_t p1_ind, size_t p2_ind) {
+      const auto a = (p1_ind == p1_inv) ? 0 : cumulative_node_weights[p1_ind];
+      const auto b = (p2_ind == p2_inv) ? 0 : cumulative_node_weights[p2_ind];
+      return a - b;
+    };
 
-    int64_t balance = 0;
-    std::pair<size_t, size_t> best{0, 0};
+    auto is_feasible = [&](size_t p1_ind, size_t p2_ind) {
+      const HypernodeWeight bal = balance(p1_ind, p2_ind);
+      return lb_p1 <= bal && bal <= ub_p2;
+    };
 
-    // gain > 0 first. alternate depending on balance
-    while (p1_begin < p1_end && p2_begin < p2_end) {
-      if (balance < 0) {
-        // perform next move from p1 to p2
-        balance += phg.nodeWeight(sorted_moves[p1_begin++].node);
+    while (true) {
+      if (is_feasible(p1_end - 1, p2_end - 1)) { return std::make_pair(p1_end, p2_end); }
+      if (balance(p1_end - 1, p2_end - 1) < 0) {
+        if (p2_end == p2_begin) { break; }
+        p2_end--;
       } else {
-        // perform next move from p2 to p1
-        balance -= phg.nodeWeight(sorted_moves[p2_begin++].node);
-      }
-
-      if (balance <= ub_p2 && balance >= lb_p1) {
-        best = {p1_begin, p2_end};
+        if (p1_end == p1_begin) { break; }
+        p1_end--;
       }
     }
-
-    // if one sequence is depleted or gain == 0. only do rebalancing in the other direction
-    if (p2_begin == p2_end) {
-      while (p1_begin < p1_end && balance <= ub_p2) {
-        balance += phg.nodeWeight(sorted_moves[p1_begin++].node);
-        if (balance <= ub_p2 && balance >= lb_p1) {
-          best = {p1_begin, p2_end};
-        }
-      }
-    }
-    if (p1_begin == p1_end) {
-      while (p2_begin < p2_end && balance >= lb_p1) {
-        balance -= phg.nodeWeight(sorted_moves[p2_begin++].node);
-        if (balance <= ub_p2 && balance >= lb_p1) {
-          best = {p1_begin, p2_end};
-        }
-      }
-    }
-    return best;
+    return std::make_pair(invalid_pos, invalid_pos);
   }
 
   Gain DeterministicLabelPropagationRefiner::applyMovesSortedByGainWithRecalculation(PartitionedHypergraph& phg) {
