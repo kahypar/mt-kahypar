@@ -312,7 +312,8 @@ namespace mt_kahypar {
 
     // swap_prefix[index(p1,p2)] stores the first position of moves to revert out of the sequence of moves from p1 to p2
     vec<size_t> swap_prefix(max_key, 0);
-    vec<HypernodeWeight> part_weight_deltas(k, 0);
+    vec<HypernodeWeight> part_weights(k, 0);
+    for (PartitionID i = 0; i < phg.k(); ++i) { part_weights[i] = phg.partWeight(i); }
 
     tbb::parallel_for(0UL, relevant_block_pairs.size(), [&](size_t bp_index) {
       // sort both directions by gain (alternative: gain / weight?)
@@ -338,8 +339,8 @@ namespace mt_kahypar {
     });
 
     for (const auto& [p1,p2] : relevant_block_pairs) {
-      HypernodeWeight lb_p1 = (phg.partWeight(p1) + part_weight_deltas[p1]) - context.partition.max_part_weights[p1],
-                      ub_p2 = context.partition.max_part_weights[p2] - (phg.partWeight(p2) + part_weight_deltas[p2]);
+      HypernodeWeight lb_p1 = (part_weights[p1]) - context.partition.max_part_weights[p1],
+                      ub_p2 = context.partition.max_part_weights[p2] - (part_weights[p2]);
 
       size_t p1_begin = positions[index(p1, p2)], p1_end = positions[index(p1, p2) + 1],
              p2_begin = positions[index(p2, p1)], p2_end = positions[index(p2, p1) + 1];
@@ -360,8 +361,8 @@ namespace mt_kahypar {
       swap_prefix[index(p2, p1)] = best_prefix.second;
       HypernodeWeight best_balance = balance(best_prefix.first - 1, best_prefix.second - 1);
       LOG << V(best_prefix.first) << V(best_prefix.second) << V(best_balance);
-      __atomic_fetch_add(&part_weight_deltas[p1], best_balance, __ATOMIC_RELAXED);
-      __atomic_fetch_sub(&part_weight_deltas[p2], best_balance, __ATOMIC_RELAXED);
+      __atomic_fetch_sub(&part_weights[p1], best_balance, __ATOMIC_RELAXED);
+      __atomic_fetch_add(&part_weights[p2], best_balance, __ATOMIC_RELAXED);
     }
     LOG << "block-pair handling done";
 
