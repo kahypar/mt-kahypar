@@ -66,26 +66,28 @@ Building Mt-KaHyPar
 
 The build produces two executables, which will be located in `build/mt-kahypar/application/`:
 
-- `MtKaHyParFast`: A scalable hypergraph partitioner that computes good partitions very fast
-- `MtKaHyParStrong`: A scalable hypergraph partitioner that computes high-quality partitions
+- `MtKaHyParFast`: computes good partitions very fast
+- `MtKaHyParStrong`: computes high-quality partitions in reasonable time (using n levels)
 
 Running Mt-KaHyPar
 -----------
 
 Mt-KaHyPar has several configuration parameters. We recommend to use our presets which are located in the `config` folder:
 
-- `fast_preset.ini`: Contains the default parameters for Mt-KaHyPar Fast (`MtKaHyParFast`)
-- `strong_preset.ini`: Contains the default parameters for Mt-KaHyPar Strong (`MtKaHyParStrong`)
+- `default_preset.ini`: default parameters for Mt-KaHyPar Fast (`MtKaHyParFast`)
+- `speed_deterministic_preset.ini`: parameters to make Mt-KaHyPar Fast (`MtKaHyParFast`) deterministic
+- `quality_preset.ini`: default parameters for Mt-KaHyPar Strong (`MtKaHyParStrong`)
 
+Deterministic mode is only supported for Mt-KaHyPar Fast, not Strong.
 If you want to change parameters manually, please run `./MtKaHyParFast --help` or `./MtKaHyParStrong --help` for a detailed description of the different program options. We use the [hMetis format](http://glaros.dtc.umn.edu/gkhome/fetch/sw/hmetis/manual.pdf) for the input hypergraph file as well as the partition output file.
 
 To run Mt-KaHyPar Fast, you can use the following command:
 
-    ./MtKaHyParFast -h <path-to-hgr> -p <path to fast_preset.ini> -t <# threads> -k <# blocks> -e <imbalance (e.g. 0.03)> -o km1 -m direct
+    ./MtKaHyParFast -h <path-to-hgr> -p <path to default_preset.ini> -t <# threads> -k <# blocks> -e <imbalance (e.g. 0.03)> -o km1 -m direct
 
 To run Mt-KaHyPar Strong, you can use the following command:
 
-    ./MtKaHyParStrong -h <path-to-hgr> -p <path to strong_preset.ini> -t <# threads> -k <# blocks> -e <imbalance (e.g. 0.03)> -o km1 -m direct
+    ./MtKaHyParStrong -h <path-to-hgr> -p <path to quality_preset.ini> -t <# threads> -k <# blocks> -e <imbalance (e.g. 0.03)> -o km1 -m direct
 
 The partition output file will be placed in the same folder as the input hypergraph file. If you want to change the default partition output folder, add the command line parameter `--partition-output-folder=path/to/folder`. There is also an option to disable writing the partition file `--write-partition-file=false`. Further, there are several useful options that can provide you with additional insights during and after the partitioning process:
 - `--show-detailed-timings=true`: Shows detailed subtimings of each multilevel phase at the end of the partitioning process
@@ -259,7 +261,7 @@ If you use Mt-KaHyPar in an academic setting please cite the appropriate papers.
 If you are interested in a commercial license, please contact me.
 
     // Mt-KaHyPar Fast
-    @inproceedings{MT-KAHYPAR-FAST,
+    @inproceedings{mt-kahypar-d,
       title     = {Scalable Shared-Memory Hypergraph Partitioning},
       author    = {Gottesbüren, Lars and
                    Heuer, Tobias and
@@ -269,6 +271,17 @@ If you are interested in a commercial license, please contact me.
       pages     = {16--30},
       year      = {2021},
       publisher = {SIAM}
+    }
+
+    // Mt-KaHyPar Strong (Technical Report - Under Review)
+    @article{mt-kahypar-q,
+      title     = {Shared-Memory n-level Hypergraph Partitioning},
+      author    = {Gottesbüren, Lars and
+                   Heuer, Tobias and
+                   Sanders, Peter and
+                   Schlag, Sebastian},
+      journal   = {arXiv preprint arXiv:2104.08107},
+      year      = {2021}
     }
 
 Contributing

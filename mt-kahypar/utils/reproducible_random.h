@@ -225,8 +225,6 @@ protected:
   std::array<std::mt19937::result_type, num_buckets> seeds;
 };
 
-// TODO make prng exchangeable via template parameters everywhere
-
 template<typename IntegralT, typename GetBucketCallable = PrecomputeBucketOpt>
 class ParallelPermutation : public ParallelShuffle<IntegralT, GetBucketCallable> {
 public:

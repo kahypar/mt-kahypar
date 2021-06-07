@@ -201,7 +201,7 @@ struct FMSharedData {
         FMSharedData(
                 numNodes,
                 context.partition.k,
-                TBBNumaArena::instance().total_number_of_threads(),
+                TBBInitializer::instance().total_number_of_threads(),
                 getNumberOfPQHandles(context, numNodes)
                 )  { }
 

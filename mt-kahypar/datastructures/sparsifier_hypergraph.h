@@ -48,12 +48,10 @@ class SparsifierHypergraph {
   using PinIterator = parallel::scalable_vector<HypernodeID>::const_iterator;
 
  public:
-  SparsifierHypergraph(const Hypergraph& hypergraph,
-                       const TaskGroupID task_group_id) :
+  SparsifierHypergraph(const Hypergraph& hypergraph) :
     _num_nodes(hypergraph.initialNumNodes()),
     _num_removed_nodes(0),
     _num_edges(hypergraph.initialNumEdges()),
-    _task_group_id(task_group_id),
     _edge_vector(),
     _hyperedge_weight(),
     _he_included_in_sparsified_hg(),
@@ -65,12 +63,10 @@ class SparsifierHypergraph {
   }
 
   SparsifierHypergraph(const HypernodeID num_hypernodes,
-                       const HyperedgeID num_hyperedges,
-                       const TaskGroupID task_group_id) :
+                       const HyperedgeID num_hyperedges) :
     _num_nodes(num_hypernodes),
     _num_removed_nodes(0),
     _num_edges(num_hyperedges),
-    _task_group_id(task_group_id),
     _edge_vector(),
     _hyperedge_weight(),
     _he_included_in_sparsified_hg(),
@@ -228,7 +224,7 @@ class SparsifierHypergraph {
 
     const HypernodeID num_hypernodes = hn_prefix_sum.total_sum();
     const HyperedgeID num_hyperedges = he_prefix_sum.total_sum();
-    SparsifierHypergraph sparsified_hypergraph(num_hypernodes, num_hyperedges, _task_group_id);
+    SparsifierHypergraph sparsified_hypergraph(num_hypernodes, num_hyperedges);
     tbb::parallel_invoke([&] {
       tbb::parallel_for(ID(0), _num_edges, [&](const HyperedgeID e) {
         if ( he_prefix_sum.value(e) ) {
@@ -246,7 +242,8 @@ class SparsifierHypergraph {
       });
     });
 
-    return HypergraphFactory::construct(num_hypernodes, num_hyperedges,
+    return HypergraphFactory::construct(
+      num_hypernodes, num_hyperedges,
       sparsified_hypergraph._edge_vector,
       sparsified_hypergraph._hyperedge_weight.data(),
       sparsified_hypergraph._hypernode_weight.data());
@@ -308,7 +305,6 @@ class SparsifierHypergraph {
   const HypernodeID _num_nodes;
   tbb::enumerable_thread_specific<HypernodeID> _num_removed_nodes;
   const HyperedgeID _num_edges;
-  const TaskGroupID _task_group_id;
 
   // Hyperedges
   HyperedgeVector _edge_vector;

@@ -33,18 +33,18 @@
 #include "mt-kahypar/partition/refinement/fm/strategies/recompute_gain_strategy.h"
 #include "mt-kahypar/partition/refinement/fm/strategies/gain_cache_on_demand_strategy.h"
 
-#define REGISTER_LP_REFINER(id, refiner, t)                                                                            \
-  static kahypar::meta::Registrar<LabelPropagationFactory> JOIN(register_ ## refiner, t)(                              \
-    id,                                                                                                                \
-    [](Hypergraph& hypergraph, const Context& context, const TaskGroupID task_group_id) -> IRefiner* {                 \
-    return new refiner(hypergraph, context, task_group_id);                                                            \
+#define REGISTER_LP_REFINER(id, refiner, t)                                                     \
+  static kahypar::meta::Registrar<LabelPropagationFactory> JOIN(register_ ## refiner, t)(       \
+    id,                                                                                         \
+    [](Hypergraph& hypergraph, const Context& context) -> IRefiner* {                           \
+    return new refiner(hypergraph, context);                                                    \
   })
 
-#define REGISTER_FM_REFINER(id, refiner, t)                                                                            \
-  static kahypar::meta::Registrar<FMFactory> JOIN(register_ ## refiner, t)(                                            \
-    id,                                                                                                                \
-    [](Hypergraph& hypergraph, const Context& context, const TaskGroupID task_group_id) -> IRefiner* {                 \
-    return new refiner(hypergraph, context, task_group_id);                                                            \
+#define REGISTER_FM_REFINER(id, refiner, t)                                                     \
+  static kahypar::meta::Registrar<FMFactory> JOIN(register_ ## refiner, t)(                     \
+    id,                                                                                         \
+    [](Hypergraph& hypergraph, const Context& context) -> IRefiner* {                           \
+    return new refiner(hypergraph, context);                                                    \
   })
 
 namespace mt_kahypar {

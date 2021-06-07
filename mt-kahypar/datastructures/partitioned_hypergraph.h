@@ -93,8 +93,8 @@ private:
   }
 
   explicit PartitionedHypergraph(const PartitionID k,
-                                 const TaskGroupID,
-                                 Hypergraph& hypergraph) :
+                                 Hypergraph& hypergraph,
+                                 parallel_tag_t) :
     _is_gain_cache_initialized(false),
     _k(k),
     _hg(&hypergraph),
@@ -690,7 +690,7 @@ private:
   // ! Initializes the partition of the hypergraph, if block ids are assigned with
   // ! setOnlyNodePart(...). In that case, block weights and pin counts in part for
   // ! each hyperedge must be initialized explicitly here.
-  void initializePartition(const TaskGroupID ) {
+  void initializePartition() {
     tbb::parallel_invoke(
             [&] { initializeBlockWeights(); },
             [&] { initializePinCountInPart(); }
@@ -933,7 +933,7 @@ private:
   // ! If cut_net_splitting is activated, hyperedges that span more than one block (cut nets) are split, which is used for the connectivity metric.
   // ! Otherwise cut nets are discarded (cut metric).
   std::pair<Hypergraph, parallel::scalable_vector<HypernodeID> > extract(
-          const TaskGroupID& task_group_id, PartitionID block,
+          PartitionID block,
           bool cut_net_splitting,
           bool stable_construction_of_incident_edges) {
     ASSERT(block != kInvalidPartition && block < _k);

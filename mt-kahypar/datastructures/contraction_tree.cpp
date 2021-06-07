@@ -178,7 +178,7 @@ void ContractionTree::finalize(const size_t num_versions) {
 // ####################### Copy #######################
 
 // ! Copy contraction tree in parallel
-ContractionTree ContractionTree::copy(const TaskGroupID) {
+ContractionTree ContractionTree::copy(parallel_tag_t) {
   ContractionTree tree;
 
   tree._num_hypernodes = _num_hypernodes;

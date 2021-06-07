@@ -34,9 +34,10 @@ class DeterministicMultilevelCoarsener :  public ICoarsener,
                                           private MultilevelCoarsenerBase
 {
 public:
-  DeterministicMultilevelCoarsener(Hypergraph& hypergraph, const Context& context, const TaskGroupID task_group_id,
+  DeterministicMultilevelCoarsener(Hypergraph& hypergraph,
+                                   const Context& context,
                                    const bool top_level) :
-    Base(hypergraph, context, task_group_id, top_level),
+    Base(hypergraph, context, top_level),
     propositions(hypergraph.initialNumNodes()),
     cluster_weight(hypergraph.initialNumNodes(), 0),
     opportunistic_cluster_weight(hypergraph.initialNumNodes(), 0),
@@ -50,10 +51,6 @@ public:
   }
 
 private:
-  using Base = MultilevelCoarsenerBase;
-  using Base::_context;
-  using Base::_task_group_id;
-
   struct Proposition {
     HypernodeID node = kInvalidHypernode, cluster = kInvalidHypernode;
     HypernodeWeight weight = 0;
@@ -61,14 +58,7 @@ private:
 
   static constexpr bool debug = false;
 
-  utils::ParallelPermutation<HypernodeID> permutation;
-  vec<HypernodeID> propositions;
-  vec<HypernodeWeight> cluster_weight, opportunistic_cluster_weight;
-  ds::BufferedVector<HypernodeID> nodes_in_too_heavy_clusters;
 
-
-  tbb::enumerable_thread_specific<ds::SparseMap<HypernodeID, double>> default_rating_maps;
-  tbb::enumerable_thread_specific<vec<HypernodeID>> ties;
 
   HypernodeID currentLevelContractionLimit() {
     const auto& hg = currentHypergraph();
@@ -95,6 +85,16 @@ private:
   PartitionedHypergraph& coarsestPartitionedHypergraphImpl() override {
     return Base::currentPartitionedHypergraph();
   }
+
+  using Base = MultilevelCoarsenerBase;
+  using Base::_context;
+
+  utils::ParallelPermutation<HypernodeID> permutation;
+  vec<HypernodeID> propositions;
+  vec<HypernodeWeight> cluster_weight, opportunistic_cluster_weight;
+  ds::BufferedVector<HypernodeID> nodes_in_too_heavy_clusters;
+  tbb::enumerable_thread_specific<ds::SparseMap<HypernodeID, double>> default_rating_maps;
+  tbb::enumerable_thread_specific<vec<HypernodeID>> ties;
 
 };
 }

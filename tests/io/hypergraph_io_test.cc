@@ -36,8 +36,7 @@ class AHypergraphReader : public Test {
     hypergraph() { }
 
   void readHypergraph(const std::string& filename) {
-    hypergraph = readHypergraphFile(
-      filename, TBBNumaArena::GLOBAL_TASK_GROUP);
+    hypergraph = readHypergraphFile(filename);
   }
 
   void verifyIncidentNets(const std::vector< std::set<HyperedgeID> >& references) {

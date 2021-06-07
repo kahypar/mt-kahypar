@@ -50,7 +50,7 @@ class ALouvain : public ds::HypergraphFixture<Hypergraph, HypergraphFactory> {
 
     graph = std::make_unique<Graph>(hypergraph, LouvainEdgeWeight::uniform);
     karate_club_hg = io::readHypergraphFile(
-      context.partition.graph_filename, TBBNumaArena::GLOBAL_TASK_GROUP);
+      context.partition.graph_filename);
     karate_club_graph = std::make_unique<Graph>(karate_club_hg, LouvainEdgeWeight::uniform);
   }
 
@@ -171,12 +171,13 @@ TEST_F(ALouvain, KarateClubTest) {
       return run_parallel_louvain(*karate_club_graph, context, true);
     });
 #endif
-  std::vector<PartitionID> expected_comm = { 1, 1, 1, 1, 0, 0, 0, 1, 3, 1, 0, 1, 1, 1, 3, 3, 0, 1,
+  ds::Clustering expected_comm = { 1, 1, 1, 1, 0, 0, 0, 1, 3, 1, 0, 1, 1, 1, 3, 3, 0, 1,
                                              3, 1, 3, 1, 3, 2, 2, 2, 3, 2, 2, 3, 3, 2, 3, 3 };
 
-  for ( const NodeID u : karate_club_graph->nodes() ) {
-    ASSERT_EQ(expected_comm[u], communities[u]);
-  }
+  karate_club_graph = std::make_unique<Graph>(karate_club_hg, LouvainEdgeWeight::uniform);
+  ASSERT_EQ(expected_comm, communities);
+  ASSERT_EQ(metrics::modularity(*karate_club_graph, communities),
+            metrics::modularity(*karate_club_graph, expected_comm));
 }
 
 }  // namespace mt_kahypar

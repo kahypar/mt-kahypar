@@ -32,7 +32,8 @@ namespace mt_kahypar {
 
 class DeterministicLabelPropagationRefiner final : public IRefiner {
 public:
-  explicit DeterministicLabelPropagationRefiner(Hypergraph& hypergraph, const Context& context, TaskGroupID ) :
+  explicit DeterministicLabelPropagationRefiner(Hypergraph& hypergraph,
+                                                const Context& context) :
       context(context),
       compute_gains(context.partition.k),
       moves(hypergraph.initialNumNodes()),   // TODO make smaller --> max round size
@@ -50,7 +51,7 @@ public:
     }
 
   }
-  
+
 private:
   static constexpr bool debug = false;
   static constexpr size_t invalid_pos = std::numeric_limits<size_t>::max() / 2;
@@ -98,6 +99,16 @@ private:
     }
   }
 
+  struct RecalculationData {
+    MoveID first_in, last_out;
+    HypernodeID remaining_pins;
+    RecalculationData() :
+            first_in(std::numeric_limits<MoveID>::max()),
+            last_out(std::numeric_limits<MoveID>::min()),
+            remaining_pins(0)
+    { }
+  };
+
   const Context& context;
   tbb::enumerable_thread_specific<Km1GainComputer> compute_gains;
   ds::BufferedVector<Move> moves;
@@ -110,15 +121,6 @@ private:
   vec<CAtomic<uint32_t>> last_moved_in_round;
   uint32_t round = 0;
 
-  struct RecalculationData {
-    MoveID first_in, last_out;
-    HypernodeID remaining_pins;
-    RecalculationData() :
-            first_in(std::numeric_limits<MoveID>::max()),
-            last_out(std::numeric_limits<MoveID>::min()),
-            remaining_pins(0)
-    { }
-  };
 
   tbb::enumerable_thread_specific< vec<RecalculationData> > ets_recalc_data;
   vec<CAtomic<uint32_t>> last_recalc_round;

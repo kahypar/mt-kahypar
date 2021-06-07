@@ -179,7 +179,6 @@ class InitialPartitioningDataContainer {
 
     LocalInitialPartitioningHypergraph(Hypergraph& hypergraph,
                                        const Context& context,
-                                       const TaskGroupID task_group_id,
                                        GlobalInitialPartitioningStats& global_stats,
                                        const bool disable_fm) :
       _partitioned_hypergraph(context.partition.k, hypergraph),
@@ -204,7 +203,7 @@ class InitialPartitioningDataContainer {
       } else if ( _context.refinement.label_propagation.algorithm != LabelPropagationAlgorithm::do_nothing ) {
         // In case of a direct-kway initial partition we instantiate the LP refiner
         _label_propagation = LabelPropagationFactory::getInstance().createObject(
-          _context.refinement.label_propagation.algorithm, hypergraph, _context, task_group_id);
+          _context.refinement.label_propagation.algorithm, hypergraph, _context);
       }
     }
 
@@ -344,22 +343,21 @@ class InitialPartitioningDataContainer {
  public:
   InitialPartitioningDataContainer(PartitionedHypergraph& hypergraph,
                                     const Context& context,
-                                    const TaskGroupID task_group_id,
                                     const bool disable_fm = false) :
-      _partitioned_hg(hypergraph),
-      _context(context),
-      _task_group_id(task_group_id),
-      _disable_fm(disable_fm),
-      _global_stats(context),
-      _local_hg([&] { return construct_local_partitioned_hypergraph(); }),
-      _local_kway_pq(_context.partition.k),
-      _is_local_pq_initialized(false),
-      _local_hn_visited(_context.partition.k * hypergraph.initialNumNodes()),
-      _local_he_visited(_context.partition.k * hypergraph.initialNumEdges()),
-      _local_unassigned_hypernodes(),
-      _local_unassigned_hypernode_pointer(std::numeric_limits<size_t>::max()),
-      _max_pop_size(_context.initial_partitioning.population_size)
-  {
+    _partitioned_hg(hypergraph),
+    _context(context),
+    _disable_fm(disable_fm),
+    _global_stats(context),
+    _local_hg([&] {
+      return construct_local_partitioned_hypergraph();
+    }),
+    _local_kway_pq(_context.partition.k),
+    _is_local_pq_initialized(false),
+    _local_hn_visited(_context.partition.k * hypergraph.initialNumNodes()),
+    _local_he_visited(_context.partition.k * hypergraph.initialNumEdges()),
+    _local_unassigned_hypernodes(),
+    _local_unassigned_hypernode_pointer(std::numeric_limits<size_t>::max()),
+    _max_pop_size(_context.initial_partitioning.population_size)  {
     // Setup Label Propagation IRefiner Config for Initial Partitioning
     _context.refinement = _context.initial_partitioning.refinement;
     _context.refinement.label_propagation.execute_sequential = true;
@@ -636,7 +634,7 @@ class InitialPartitioningDataContainer {
       best_feasible_objective = best->_result._objective;
     }
 
-    _partitioned_hg.initializePartition(_task_group_id);
+    _partitioned_hg.initializePartition();
     ASSERT(best_feasible_objective == metrics::objective(_partitioned_hg, _context.partition.objective, false),
            V(best_feasible_objective) << V(metrics::objective(_partitioned_hg, _context.partition.objective, false)));
     utils::InitialPartitioningStats::instance().add_initial_partitioning_result(best_flat_algo, number_of_threads, stats);
@@ -645,12 +643,11 @@ class InitialPartitioningDataContainer {
  private:
   LocalInitialPartitioningHypergraph construct_local_partitioned_hypergraph() {
     return LocalInitialPartitioningHypergraph(
-      _partitioned_hg.hypergraph(), _context, _task_group_id, _global_stats, _disable_fm);
+      _partitioned_hg.hypergraph(), _context, _global_stats, _disable_fm);
   }
 
   PartitionedHypergraph& _partitioned_hg;
-  Context _context;   // TODO why is this a copy? only for label propagation refinement parameters? ...
-  const TaskGroupID _task_group_id;
+  Context _context;
   const bool _disable_fm;
 
   GlobalInitialPartitioningStats _global_stats;

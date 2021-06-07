@@ -36,8 +36,7 @@ using IPTaskList = vec< std::tuple<InitialPartitioningAlgorithm, int, int> >;
 class PoolInitialPartitionerContinuation : public tbb::task {
 public:
   PoolInitialPartitionerContinuation(PartitionedHypergraph& hypergraph,
-                                     const Context& context,
-                                     const TaskGroupID task_group_id);
+                                     const Context& context);
 
   tbb::task* execute() override ;
 
@@ -62,14 +61,12 @@ class PoolInitialPartitioner : public tbb::task {
 
  public:
   PoolInitialPartitioner(PartitionedHypergraph& hypergraph,
-                         const Context& context,
-                         const TaskGroupID task_group_id);
+                         const Context& context);
 
   tbb::task* execute() override ;
 
  private:
   PartitionedHypergraph& _hg;
   const Context& _context;
-  const TaskGroupID _task_group_id;
 };
 } // namespace mt_kahypar
