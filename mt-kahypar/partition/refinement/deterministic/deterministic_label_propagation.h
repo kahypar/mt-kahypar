@@ -43,7 +43,7 @@ public:
       active_nodes(0),
       ets_recalc_data( vec<RecalculationData>(context.partition.k) ),
       max_num_nodes(hypergraph.initialNumNodes()),
-      max_num_edges(hypergraph.initialNumEdges()),
+      max_num_edges(hypergraph.initialNumEdges())
   {
     if (context.refinement.deterministic_refinement.use_active_node_set) {
       active_nodes.adapt_capacity(hypergraph.initialNumNodes());
