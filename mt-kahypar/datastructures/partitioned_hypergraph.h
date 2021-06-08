@@ -76,6 +76,7 @@ private:
   using HyperedgeIterator = typename Hypergraph::HyperedgeIterator;
   using IncidenceIterator = typename Hypergraph::IncidenceIterator;
   using IncidentNetsIterator = typename Hypergraph::IncidentNetsIterator;
+  using PartitionBitSet = IterableBitSet<PartitionID>;
 
   PartitionedHypergraph() = default;
 
@@ -281,6 +282,30 @@ private:
     ASSERT(_hg->edgeIsEnabled(e), "Hyperedge" << e << "is disabled");
     ASSERT(e < _hg->initialNumEdges(), "Hyperedge" << e << "does not exist");
     return _connectivity_set.connectivitySet(e);
+  }
+
+  // ! Fills a given iterable bitset with bits according to the current connectivity set of a hyperedge e. Can only be
+  // ! used while a lock on pin count updates is held to prevent intermittent changes to the connectivity set.
+  void takeConnectivitySetSnapshot(const HyperedgeID e, PartitionBitSet& bitset) const {
+      ASSERT(_hg->edgeIsEnabled(e), "Hyperedge" << e << "is disabled");
+      ASSERT(e < _hg->initialNumEdges(), "Hyperedge" << e << "does not exist");
+      ASSERT(bitset.size() == _k);
+      HEAVY_REFINEMENT_ASSERT(bitset.begin() == bitset.end()); // Assert no bits set already, costly with large k
+      for (const auto& p : _connectivity_set.connectivitySet(e)) {
+          bitset.set_true(p);
+      }
+  }
+
+  // ! Fills a given iterable bitset with bits marking any block that currently includes exactly one pin of a hyperedge e.
+  // ! Can only be used while a lock on pin count updates is held to prevent intermittent changes to the connectivity set.
+  void takeBlocksWithOnePinSnapshot(const HyperedgeID e, PartitionBitSet& bitset) const {
+      ASSERT(_hg->edgeIsEnabled(e), "Hyperedge" << e << "is disabled");
+      ASSERT(e < _hg->initialNumEdges(), "Hyperedge" << e << "does not exist");
+      ASSERT(bitset.size() == _k);
+      HEAVY_REFINEMENT_ASSERT(bitset.begin() == bitset.end()); // Assert no bits set already, costly with large k
+      for (const auto& p : _connectivity_set.connectivitySet(e)) {
+          bitset.set_true(p);
+      }
   }
 
   // ####################### Hypernode Information #######################

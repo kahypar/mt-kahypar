@@ -795,11 +795,9 @@ namespace mt_kahypar {
       });
       _phg.initializePartition(_task_group_id);
 
-      // todo mlaupichler: Reset this to use the check:
-      //  Always initializing gain cache in order to develop gain cache handling in LP
-//      if ( _context.refinement.fm.algorithm == FMAlgorithm::fm_gain_cache ) {
+      if ( _context.refinement.fm.algorithm == FMAlgorithm::fm_gain_cache ) {
           _phg.initializeGainCache();
-//      }
+      }
 
       ASSERT(metrics::objective(_compactified_phg, _context.partition.objective) ==
              metrics::objective(_phg, _context.partition.objective),

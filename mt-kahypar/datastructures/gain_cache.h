@@ -5,6 +5,7 @@
 #pragma once
 
 #include "mt-kahypar/datastructures/hypergraph_common.h"
+#include "mt-kahypar/datastructures/async/iterable_bit_set.h"
 
 namespace mt_kahypar::ds {
 
@@ -430,7 +431,6 @@ public:
         // => Pin counts of hyperedge he does not change
         // Since u is no longer incident to hyperedge he its contribution for decreasing
         // the connectivity of he is shifted to vertex v => b(u) -= w(e), b(v) += w(e).
-        // (v already got the benefit in the call to addContributionOfHEToNodeBenefit so just remove benefits from u)
 
         // Remove benefits contributed by this hyperedge from u as it no longer belongs to the hyperedge
         removeContributionOfHEFromNodeBenefit(u, he, we);

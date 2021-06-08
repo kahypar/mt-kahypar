@@ -39,6 +39,7 @@ set(StrongAsyncTestsDatastructuresSources
         gain_updates_test.cc
         incident_net_array_test.cc
         smoke_test_common.cc
+        iterable_bit_set_test.cc
         )
 
 target_sources(mt_kahypar_strong_tests PRIVATE ${StrongTestsDatastructuresSources})
