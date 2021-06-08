@@ -358,6 +358,7 @@ namespace mt_kahypar {
       __atomic_fetch_add(&part_weights[p2], best_balance, __ATOMIC_RELAXED);
     };
 
+    std::shuffle(relevant_block_pairs.begin(), relevant_block_pairs.end(), prng);
     for (const auto& [p1, p2] : relevant_block_pairs) {
       HypernodeWeight lb_p1 = (part_weights[p1]) - context.partition.max_part_weights[p1],
                       ub_p2 = context.partition.max_part_weights[p2] - (part_weights[p2]);

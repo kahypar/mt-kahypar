@@ -43,7 +43,8 @@ public:
       active_nodes(0),
       ets_recalc_data( vec<RecalculationData>(context.partition.k) ),
       max_num_nodes(hypergraph.initialNumNodes()),
-      max_num_edges(hypergraph.initialNumEdges())
+      max_num_edges(hypergraph.initialNumEdges()),
+      prng(context.partition.seed + hypergraph.initialNumNodes())
   {
     if (context.refinement.deterministic_refinement.use_active_node_set) {
       active_nodes.adapt_capacity(hypergraph.initialNumNodes());
@@ -121,12 +122,13 @@ private:
   vec<CAtomic<uint32_t>> last_moved_in_round;
   uint32_t round = 0;
 
-
   tbb::enumerable_thread_specific< vec<RecalculationData> > ets_recalc_data;
   vec<CAtomic<uint32_t>> last_recalc_round;
   vec<MoveID> move_pos_of_node;
   uint32_t recalc_round = 1;
   size_t max_num_nodes = 0, max_num_edges = 0;
+
+  std::mt19937 prng;
 };
 
 }
