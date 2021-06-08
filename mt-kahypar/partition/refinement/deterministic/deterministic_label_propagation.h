@@ -44,7 +44,6 @@ public:
       ets_recalc_data( vec<RecalculationData>(context.partition.k) ),
       max_num_nodes(hypergraph.initialNumNodes()),
       max_num_edges(hypergraph.initialNumEdges()),
-      prng(context.partition.seed + hypergraph.initialNumNodes())
   {
     if (context.refinement.deterministic_refinement.use_active_node_set) {
       active_nodes.adapt_capacity(hypergraph.initialNumNodes());
@@ -128,7 +127,6 @@ private:
   uint32_t recalc_round = 1;
   size_t max_num_nodes = 0, max_num_edges = 0;
 
-  std::mt19937 prng;
 };
 
 }
