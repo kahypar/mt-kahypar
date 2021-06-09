@@ -357,14 +357,15 @@ namespace mt_kahypar {
       __atomic_fetch_add(&part_weights[p2], best_balance, __ATOMIC_RELAXED);
     };
 
+    /*
     std::shuffle(relevant_block_pairs.begin(), relevant_block_pairs.end(), prng);
     for (const auto& [p1, p2] : relevant_block_pairs) {
       HypernodeWeight lb_p1 = (part_weights[p1]) - context.partition.max_part_weights[p1],
                       ub_p2 = context.partition.max_part_weights[p2] - (part_weights[p2]);
       approve_block_pair(p1, p2, lb_p1, ub_p2);
     }
+    */
 
-    /*
     tbb::parallel_for(0UL, relevant_block_pairs.size(), [&](size_t bp_index) {
       const auto [p1, p2] = relevant_block_pairs[bp_index];
       HypernodeWeight budget_p1 = context.partition.max_part_weights[p1] - phg.partWeight(p1),
@@ -373,7 +374,7 @@ namespace mt_kahypar {
               slack_p2 = budget_p2 / std::max(1UL, involvements[p2]);
       approve_block_pair(p1, p2, -slack_p1, slack_p2);
     });
-    */
+
     
     moves.clear();
     Gain actual_gain = applyMovesIf(phg, sorted_moves, num_moves, [&](size_t pos) {
