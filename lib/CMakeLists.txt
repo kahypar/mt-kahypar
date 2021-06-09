@@ -1,30 +1,35 @@
 include(GNUInstallDirs)
 
-add_library(mtkahypar SHARED libmtkahypar.cc)
-target_link_libraries(mtkahypar ${Boost_LIBRARIES})
-target_compile_definitions(mtkahypar PUBLIC MT_KAHYPAR_LIBRARY_MODE)
+# Library MT-KaHyPar Fast
+add_library(mtkahyparfast SHARED libmtkahypar.cc)
+target_link_libraries(mtkahyparfast ${Boost_LIBRARIES})
+target_compile_definitions(mtkahyparfast PUBLIC MT_KAHYPAR_LIBRARY_MODE)
 
-set(TARGETS_WANTING_ALL_SOURCES ${TARGETS_WANTING_ALL_SOURCES} mtkahypar PARENT_SCOPE)
+# Library MT-KaHyPar Strong
+add_library(mtkahyparstrong SHARED libmtkahypar.cc)
+target_link_libraries(mtkahyparstrong ${Boost_LIBRARIES})
+target_compile_definitions(mtkahyparstrong PUBLIC MT_KAHYPAR_LIBRARY_MODE)
+target_compile_definitions(mtkahyparstrong PUBLIC USE_STRONG_PARTITIONER)
 
-set_target_properties(mtkahypar PROPERTIES
+set(TARGETS_WANTING_ALL_SOURCES ${TARGETS_WANTING_ALL_SOURCES} mtkahyparfast mtkahyparstrong PARENT_SCOPE)
+
+set_target_properties(mtkahyparfast PROPERTIES
+    PUBLIC_HEADER ../include/libmtkahypar.h)
+set_target_properties(mtkahyparstrong PROPERTIES
     PUBLIC_HEADER ../include/libmtkahypar.h)
 
-target_include_directories(mtkahypar PRIVATE ../include)
+target_include_directories(mtkahyparfast PRIVATE ../include)
+target_include_directories(mtkahyparstrong PRIVATE ../include)
 
-configure_file(libmtkahypar.pc.in libmtkahypar.pc @ONLY)
+configure_file(libmtkahyparfast.pc.in libmtkahyparfast.pc @ONLY)
+configure_file(libmtkahyparstrong.pc.in libmtkahyparstrong.pc @ONLY)
 
-if(WIN32)
-	install(TARGETS mtkahypar
-		RUNTIME DESTINATION ${CMAKE_INSTALL_LIBDIR}
-		PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
-else()
-	install(TARGETS mtkahypar
-		LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
-		PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
-endif()
+install(TARGETS mtkahyparfast mtkahyparstrong
+  LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+  PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
 
-install(FILES ${CMAKE_BINARY_DIR}/lib/libmtkahypar.pc
-       DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/pkgconfig)
+install(FILES ${CMAKE_BINARY_DIR}/lib/libmtkahyparfast.pc ${CMAKE_BINARY_DIR}/lib/libmtkahyparstrong.pc
+        DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/pkgconfig)
 
 configure_file(cmake_uninstall.cmake.in cmake_uninstall.cmake IMMEDIATE @ONLY)
 
@@ -34,4 +39,4 @@ add_custom_target(install.mtkahypar
     ${CMAKE_COMMAND}
     -DBUILD_TYPE=${CMAKE_BUILD_TYPE}
     -P ${CMAKE_BINARY_DIR}/cmake_install.cmake)
-ADD_DEPENDENCIES(install.mtkahypar mtkahypar)
+ADD_DEPENDENCIES(install.mtkahypar mtkahyparfast mtkahyparstrong)
