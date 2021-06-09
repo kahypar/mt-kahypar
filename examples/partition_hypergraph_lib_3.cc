@@ -4,10 +4,10 @@
 
 #include "tbb/parallel_invoke.h"
 
-#include <libkahypar.h>
+#include <libmtkahypar.h>
 
 // Install library interface via 'sudo make install.library' in build folder
-// Compile with: g++ -std=c++14 -DNDEBUG -O3 partition_hypergraph_lib_3.cc -o example_3 -lkahypar -ltbb
+// Compile with: g++ -std=c++14 -DNDEBUG -O3 partition_hypergraph_lib_3.cc -o example_3 -lmtkahypar -ltbb
 int main(int argc, char* argv[]) {
 
   // Initialize thread pool with 8 threads and NUMA allocation policy INTERLEAVED

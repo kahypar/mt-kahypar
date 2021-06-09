@@ -42,7 +42,7 @@ namespace parallel {
  * Memory chunks can be registered with a key and all memory
  * chunks can be collectively allocated in parallel.
  */
-class MemoryPool {
+class MemoryPoolT {
 
   static constexpr bool debug = false;
   static constexpr size_t kInvalidMemoryChunk = std::numeric_limits<size_t>::max();
@@ -210,18 +210,18 @@ class MemoryPool {
 
 
  public:
-  MemoryPool(const MemoryPool&) = delete;
-  MemoryPool & operator= (const MemoryPool &) = delete;
+  MemoryPoolT(const MemoryPoolT&) = delete;
+  MemoryPoolT & operator= (const MemoryPoolT &) = delete;
 
-  MemoryPool(MemoryPool&&) = delete;
-  MemoryPool & operator= (MemoryPool &&) = delete;
+  MemoryPoolT(MemoryPoolT&&) = delete;
+  MemoryPoolT & operator= (MemoryPoolT &&) = delete;
 
-  ~MemoryPool() {
+  ~MemoryPoolT() {
     free_memory_chunks();
   }
 
-  static MemoryPool& instance() {
-    static MemoryPool instance;
+  static MemoryPoolT& instance() {
+    static MemoryPoolT instance;
     return instance;
   }
 
@@ -571,7 +571,7 @@ class MemoryPool {
   }
 
  private:
-  explicit MemoryPool() :
+  explicit MemoryPoolT() :
     _memory_mutex(),
     _is_initialized(false),
     _page_size(sysconf(_SC_PAGE_SIZE)),
@@ -737,6 +737,107 @@ class MemoryPool {
   bool _use_minimum_allocation_size;
   bool _use_unused_memory_chunks;
 };
+
+/**
+ * Currently, the memory pool only works if we partition one instance at a time.
+ * However, when using the library interface, it is possible that several
+ * instances are partitioned simultanously. Therefore, we disable the memory
+ * pool in case we compile the library interface.
+ */
+class DoNothingMemoryPool {
+
+ public:
+  DoNothingMemoryPool(const DoNothingMemoryPool&) = delete;
+  DoNothingMemoryPool & operator= (const DoNothingMemoryPool &) = delete;
+
+  DoNothingMemoryPool(DoNothingMemoryPool&&) = delete;
+  DoNothingMemoryPool & operator= (DoNothingMemoryPool &&) = delete;
+
+  static DoNothingMemoryPool& instance() {
+    static DoNothingMemoryPool instance;
+    return instance;
+  }
+
+  bool isInitialized() const {
+    return true;
+  }
+
+  void register_memory_group(const std::string&,
+                             const size_t) { }
+
+  void register_memory_chunk(const std::string&,
+                             const std::string&,
+                             const size_t,
+                             const size_t) { }
+  void register_memory_chunk(const std::string&,
+                             const std::string&,
+                             const size_t,
+                             const size_t,
+                             const int) { }
+
+  template<typename TBBInitializer>
+  void allocate_memory_chunks() { }
+  template<typename TBBInitializer>
+  void allocate_memory_chunks(const bool) { }
+
+  char* request_mem_chunk(const std::string&,
+                          const std::string&,
+                          const size_t,
+                          const size_t) {
+    return nullptr;
+  }
+
+  char* request_unused_mem_chunk(const size_t,
+                                 const size_t) {
+    return nullptr;
+  }
+  char* request_unused_mem_chunk(const size_t,
+                                 const size_t,
+                                 const bool) {
+    return nullptr;
+  }
+
+  char* mem_chunk(const std::string&,
+                  const std::string&) {
+    return nullptr;
+  }
+  void release_mem_chunk(const std::string&,
+                         const std::string&) { }
+
+  void release_mem_group(const std::string&) { }
+
+  void reset() { }
+
+  void free_memory_chunks() {}
+
+  // ! Only for testing
+  void deactivate_round_robin_assignment() { }
+
+  // ! Only for testing
+  void deactivate_minimum_allocation_size() { }
+
+  void activate_unused_memory_allocations() { }
+
+  void deactivate_unused_memory_allocations() { }
+
+  size_t size_in_bytes(const std::string&,
+                       const std::string&) {
+    return 0;
+  }
+
+  void memory_consumption(utils::MemoryTreeNode*) const { }
+
+  void explain_optimizations() const { }
+
+ private:
+  DoNothingMemoryPool() { }
+};
+
+#ifdef MT_KAHYPAR_LIBRARY_MODE
+using MemoryPool = DoNothingMemoryPool;
+#else
+using MemoryPool = MemoryPoolT;
+#endif
 
 }  // namespace parallel
 }  // namespace mt_kahypar

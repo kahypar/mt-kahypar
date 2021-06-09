@@ -2,10 +2,10 @@
 #include <vector>
 #include <iostream>
 
-#include <libkahypar.h>
+#include <libmtkahypar.h>
 
 // Install library interface via 'sudo make install.library' in build folder
-// Compile with: g++ -std=c++14 -DNDEBUG -O3 partition_hypergraph_lib_2.cc -o example_2 -lkahypar
+// Compile with: g++ -std=c++14 -DNDEBUG -O3 partition_hypergraph_lib_2.cc -o example_2 -lmtkahypar
 int main(int argc, char* argv[]) {
 
   // Initialize thread pool with 8 threads and NUMA allocation policy INTERLEAVED

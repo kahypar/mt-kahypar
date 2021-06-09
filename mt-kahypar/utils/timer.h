@@ -32,7 +32,7 @@
 
 namespace mt_kahypar {
 namespace utils {
-class Timer {
+class TimerT {
   static constexpr bool debug = false;
 
   using HighResClockTimepoint = std::chrono::time_point<std::chrono::high_resolution_clock>;
@@ -146,14 +146,14 @@ class Timer {
   using LocalActiveTimingStack = tbb::enumerable_thread_specific<ActiveTimingStack>;
 
  public:
-  Timer(const Timer&) = delete;
-  Timer & operator= (const Timer &) = delete;
+  TimerT(const TimerT&) = delete;
+  TimerT & operator= (const TimerT &) = delete;
 
-  Timer(Timer&&) = delete;
-  Timer & operator= (Timer &&) = delete;
+  TimerT(TimerT&&) = delete;
+  TimerT & operator= (TimerT &&) = delete;
 
-  static Timer& instance(bool show_detailed_timings = false) {
-    static Timer instance;
+  static TimerT& instance(bool show_detailed_timings = false) {
+    static TimerT instance;
     instance._show_detailed_timings = show_detailed_timings;
     return instance;
   }
@@ -279,7 +279,7 @@ class Timer {
     }
   }
 
-  friend std::ostream & operator<< (std::ostream& str, const Timer& timer);
+  friend std::ostream & operator<< (std::ostream& str, const TimerT& timer);
 
   double get(std::string key) const {
     for (const auto& x : _timings) {
@@ -292,7 +292,7 @@ class Timer {
   }
 
  private:
-  explicit Timer() :
+  explicit TimerT() :
     _timing_mutex(),
     _timings(),
     _active_timings(),
@@ -318,38 +318,38 @@ class Timer {
   size_t _max_output_depth;
 };
 
-inline char Timer::TOP_LEVEL_PREFIX[] = " + ";
-inline char Timer::SUB_LEVEL_PREFIX[] = " + ";
+inline char TimerT::TOP_LEVEL_PREFIX[] = " + ";
+inline char TimerT::SUB_LEVEL_PREFIX[] = " + ";
 
-inline std::ostream & operator<< (std::ostream& str, const Timer& timer) {
-  std::vector<Timer::Timing> timings;
+inline std::ostream & operator<< (std::ostream& str, const TimerT& timer) {
+  std::vector<TimerT::Timing> timings;
   for (const auto& timing : timer._timings) {
     timings.emplace_back(timing.second);
   }
   std::sort(timings.begin(), timings.end(),
-            [&](const Timer::Timing& lhs, const Timer::Timing& rhs) {
+            [&](const TimerT::Timing& lhs, const TimerT::Timing& rhs) {
         return lhs.order() < rhs.order();
       });
 
-  auto print = [&](std::ostream& str, const Timer::Timing& timing, int level) {
+  auto print = [&](std::ostream& str, const TimerT::Timing& timing, int level) {
                  std::string prefix = "";
-                 prefix += level == 0 ? std::string(Timer::TOP_LEVEL_PREFIX, Timer::TOP_LEVEL_PREFIX_LENGTH) :
-                           std::string(Timer::TOP_LEVEL_PREFIX_LENGTH, ' ');
-                 prefix += level > 0 ? std::string(Timer::SUB_LEVEL_PREFIX_LENGTH * (level - 1), ' ') : "";
-                 prefix += level > 0 ? std::string(Timer::SUB_LEVEL_PREFIX, Timer::SUB_LEVEL_PREFIX_LENGTH) : "";
+                 prefix += level == 0 ? std::string(TimerT::TOP_LEVEL_PREFIX, TimerT::TOP_LEVEL_PREFIX_LENGTH) :
+                           std::string(TimerT::TOP_LEVEL_PREFIX_LENGTH, ' ');
+                 prefix += level > 0 ? std::string(TimerT::SUB_LEVEL_PREFIX_LENGTH * (level - 1), ' ') : "";
+                 prefix += level > 0 ? std::string(TimerT::SUB_LEVEL_PREFIX, TimerT::SUB_LEVEL_PREFIX_LENGTH) : "";
                  size_t length = prefix.size() + timing.description().size();
                  str << prefix
                      << timing.description();
-                 if (length < Timer::MAX_LINE_LENGTH) {
-                   str << std::string(Timer::MAX_LINE_LENGTH - length, ' ');
+                 if (length < TimerT::MAX_LINE_LENGTH) {
+                   str << std::string(TimerT::MAX_LINE_LENGTH - length, ' ');
                  }
                  str << " = " << timing.timing() << " s\n";
                };
 
-  std::function<void(std::ostream&, const Timer::Timing&, int)> dfs =
-    [&](std::ostream& str, const Timer::Timing& parent, int level) {
+  std::function<void(std::ostream&, const TimerT::Timing&, int)> dfs =
+    [&](std::ostream& str, const TimerT::Timing& parent, int level) {
       if ( level <= timer._max_output_depth ) {
-        for (const Timer::Timing& timing : timings) {
+        for (const TimerT::Timing& timing : timings) {
           if (timing.parent() == parent.key()) {
             print(str, timing, level);
             dfs(str, timing, level + 1);
@@ -358,7 +358,7 @@ inline std::ostream & operator<< (std::ostream& str, const Timer& timer) {
       }
     };
 
-  for (const Timer::Timing& timing : timings) {
+  for (const TimerT::Timing& timing : timings) {
     if (timing.is_root()) {
       print(str, timing, 0);
       if (timer._show_detailed_timings) {
@@ -369,5 +369,55 @@ inline std::ostream & operator<< (std::ostream& str, const Timer& timer) {
 
   return str;
 }
+
+class DoNothingTimer {
+
+ public:
+  DoNothingTimer(const DoNothingTimer&) = delete;
+  DoNothingTimer & operator= (const DoNothingTimer &) = delete;
+
+  DoNothingTimer(DoNothingTimer&&) = delete;
+  DoNothingTimer & operator= (DoNothingTimer &&) = delete;
+
+  static DoNothingTimer& instance(bool show_detailed_timings = false) {
+    static DoNothingTimer instance;
+    return instance;
+  }
+
+  void setMaximumOutputDepth(const size_t) { }
+  bool isEnabled() const { return false; }
+  void enable() { }
+  void disable() { }
+  void clear() { }
+
+  void start_timer(const std::string&, const std::string&) { }
+  void start_timer(const std::string&, const std::string&, bool) { }
+  void start_timer(const std::string&, const std::string&, bool, bool) { }
+
+  void stop_timer(const std::string&) { }
+  void stop_timer(const std::string&, bool) { }
+
+  void serialize(std::ostream&) { }
+
+  friend std::ostream & operator<< (std::ostream& str, const DoNothingTimer&);
+
+  double get(std::string key) const {
+    return 0.0;
+  }
+
+ private:
+  explicit DoNothingTimer() { }
+};
+
+inline std::ostream & operator<< (std::ostream& str, const DoNothingTimer&) {
+  return str;
+}
+
+#ifdef MT_KAHYPAR_LIBRARY_MODE
+using Timer = DoNothingTimer;
+#else
+using Timer = TimerT;
+#endif
+
 }  // namespace utils
 }  // namespace mt_kahypar
