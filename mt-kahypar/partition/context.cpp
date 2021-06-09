@@ -405,31 +405,7 @@ namespace mt_kahypar {
                   partition.max_part_weights.size());
     }
 
-
     shared_memory.static_balancing_work_packages = std::clamp(shared_memory.static_balancing_work_packages, 4UL, 256UL);
-
-    if ( partition.deterministic ) {
-      coarsening.algorithm = CoarseningAlgorithm::deterministic_multilevel_coarsener;
-
-      // disable FM until we have a deterministic version
-      refinement.fm.algorithm = FMAlgorithm::do_nothing;
-      initial_partitioning.refinement.fm.algorithm = FMAlgorithm::do_nothing;
-
-      // disable adaptive IP
-      initial_partitioning.use_adaptive_ip_runs = false;
-
-
-      // switch silently
-      auto lp_algo = refinement.label_propagation.algorithm;
-      if ( lp_algo != LabelPropagationAlgorithm::do_nothing && lp_algo != LabelPropagationAlgorithm::deterministic ) {
-        refinement.label_propagation.algorithm = LabelPropagationAlgorithm::deterministic;
-      }
-
-      lp_algo = initial_partitioning.refinement.label_propagation.algorithm;
-      if ( lp_algo != LabelPropagationAlgorithm::do_nothing && lp_algo != LabelPropagationAlgorithm::deterministic ) {
-        initial_partitioning.refinement.label_propagation.algorithm = LabelPropagationAlgorithm::deterministic;
-      }
-    }
   }
 
   std::ostream & operator<< (std::ostream& str, const Context& context) {

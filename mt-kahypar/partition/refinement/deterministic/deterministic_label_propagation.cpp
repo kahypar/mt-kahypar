@@ -253,7 +253,6 @@ namespace mt_kahypar {
 
     // if that decreased solution quality, revert it all
     if (gain < 0) {
-      DBG << "Kommando zurück" << V(gain) << V(num_moves) << V(num_reverted_moves);
       gain += applyMovesIf(phg, moves.getData(), num_moves, [&](size_t pos) {
         if (moves[pos].isValid()) {
           std::swap(moves[pos].from, moves[pos].to);
@@ -389,7 +388,6 @@ namespace mt_kahypar {
 
     // revert everything if that decreased solution quality
     if (actual_gain < 0) {
-      DBG << "Kommando zurück" << V(actual_gain);
       actual_gain += applyMovesIf(phg, sorted_moves, num_moves, [&](size_t pos) {
         if (pos < swap_prefix[index(sorted_moves[pos].from, sorted_moves[pos].to)]) {
           std::swap(sorted_moves[pos].from, sorted_moves[pos].to);

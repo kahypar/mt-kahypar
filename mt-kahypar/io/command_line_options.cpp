@@ -52,8 +52,8 @@ namespace mt_kahypar {
     options.add_options()
             ("help", "show help message")
             ("deterministic", po::value<bool>(&context.partition.deterministic)->value_name("<bool>")->default_value(false),
-             "Shortcut to enables deterministic partitioning mode, where results are reproducible across runs. "
-             "If set, the specific deterministic subroutines don't need to be set manually.")
+             "Enables determinism in preprocessing in initial partitioning. "
+             "Coarsening and refinement routines must still be set to the deterministic versions.")
             ("verbose,v", po::value<bool>(&context.partition.verbose_output)->value_name("<bool>")->default_value(true),
              "Verbose main partitioning output")
             ("write-partition-file",
