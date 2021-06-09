@@ -52,9 +52,9 @@ class AInitialPartitionerTest : public Test {
     context() {
 
     if ( context.partition.paradigm == Paradigm::multilevel ) {
-      parseIniToContext(context, "../config/fast_preset.ini");
+      parseIniToContext(context, "../config/default_preset.ini");
     } else {
-      parseIniToContext(context, "../config/strong_preset.ini");
+      parseIniToContext(context, "../config/quality_preset.ini");
     }
 
     context.partition.graph_filename = "../tests/instances/contracted_unweighted_ibm01.hgr";

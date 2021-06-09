@@ -41,12 +41,14 @@ class GreedyInitialPartitioner : public tbb::task {
   GreedyInitialPartitioner(const InitialPartitioningAlgorithm algorithm,
                             InitialPartitioningDataContainer& ip_data,
                             const Context& context,
-                            const int seed) :
+                            const int seed, const int tag) :
     _algorithm(algorithm),
     _ip_data(ip_data),
     _context(context),
     _default_block(PQSelectionPolicy::getDefaultBlock()),
-    _rng(seed) { }
+    _rng(seed),
+    _tag(tag)
+    { }
 
   tbb::task* execute() override {
     if ( _ip_data.should_initial_partitioner_run(_algorithm) ) {
@@ -55,6 +57,7 @@ class GreedyInitialPartitioner : public tbb::task {
       KWayPriorityQueue& kway_pq = _ip_data.local_kway_priority_queue();
       kahypar::ds::FastResetFlagArray<>& hyperedges_in_queue =
         _ip_data.local_hyperedge_fast_reset_flag_array();
+
 
       // Experiments have shown that some pq selection policies work better
       // if we preassign all vertices to a block and than execute the greedy
@@ -70,7 +73,7 @@ class GreedyInitialPartitioner : public tbb::task {
       }
 
       // Insert start vertices into its corresponding PQs
-      _ip_data.reset_unassigned_hypernodes();
+      _ip_data.reset_unassigned_hypernodes(_rng);
       parallel::scalable_vector<HypernodeID> start_nodes =
         PseudoPeripheralStartNodes::computeStartNodes(_ip_data, _context, _default_block, _rng);
       ASSERT(static_cast<size_t>(_context.partition.k) == start_nodes.size());
@@ -135,9 +138,10 @@ class GreedyInitialPartitioner : public tbb::task {
         }
       }
 
+
       HighResClockTimepoint end = std::chrono::high_resolution_clock::now();
       double time = std::chrono::duration<double>(end - start).count();
-      _ip_data.commit(_algorithm, time);
+      _ip_data.commit(_algorithm, _rng, _tag, time);
     }
     return nullptr;
   }
@@ -238,6 +242,7 @@ class GreedyInitialPartitioner : public tbb::task {
   const Context& _context;
   const PartitionID _default_block;
   std::mt19937 _rng;
+  const int _tag;
 };
 
 } // namespace mt_kahypar

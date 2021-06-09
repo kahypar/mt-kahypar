@@ -233,7 +233,8 @@ TEST_F(AGraph, HasCorrectAdjacentVertices6d) {
 
 TEST_F(AGraph, ConstructsAHypergraphWhichIsAGraph) {
   Hypergraph graph_hg = HypergraphFactory::construct(
-    5, 6, { { 0, 1 }, { 0, 2 }, {1, 2}, { 2, 3 }, { 2, 4 }, { 3, 4 } } );
+    5, 6,
+    { { 0, 1 }, { 0, 2 }, {1, 2}, { 2, 3 }, { 2, 4 }, { 3, 4 } } );
   Graph graph(graph_hg, LouvainEdgeWeight::uniform);
   ASSERT_EQ(4, graph.max_degree());
   verifyArcIterator(graph, 0, {1, 2}, {1.0, 1.0});
@@ -255,7 +256,7 @@ Clustering clustering(const std::vector<PartitionID>& communities) {
 TEST_F(AGraph, ContractCommunities1) {
   Graph graph(hypergraph, LouvainEdgeWeight::uniform);
   Clustering communities = clustering( { 3, 3, 3, 2, 2, 4, 4, 3, 3, 2, 4 } );
-  Graph coarse_graph = graph.contract(communities);
+  Graph coarse_graph = graph.contract(communities, false);
 
   ASSERT_EQ(graph.totalVolume(), coarse_graph.totalVolume());
   ASSERT_EQ(2, coarse_graph.max_degree());
@@ -271,7 +272,7 @@ TEST_F(AGraph, ContractCommunities1) {
 TEST_F(AGraph, ContractCommunities2) {
   Graph graph(hypergraph, LouvainEdgeWeight::uniform);
   Clustering communities = clustering( { 7, 7, 2, 9, 9, 2, 2, 7, 9, 9, 2 } );
-  Graph coarse_graph = graph.contract(communities);
+  Graph coarse_graph = graph.contract(communities, false);
 
   ASSERT_EQ(graph.totalVolume(), coarse_graph.totalVolume());
   ASSERT_EQ(2, coarse_graph.max_degree());
@@ -287,7 +288,7 @@ TEST_F(AGraph, ContractCommunities2) {
 TEST_F(AGraph, ContractCommunities3) {
   Graph graph(hypergraph, LouvainEdgeWeight::uniform);
   Clustering communities = clustering( { 5, 5, 7, 3, 3, 9, 9, 7, 5, 3, 9 });
-  Graph coarse_graph = graph.contract(communities);
+  Graph coarse_graph = graph.contract(communities, false);
 
   ASSERT_EQ(graph.totalVolume(), coarse_graph.totalVolume());
   ASSERT_EQ(2, coarse_graph.max_degree());
@@ -305,7 +306,7 @@ TEST_F(AGraph, ContractCommunities3) {
 TEST_F(AGraph, ContractCommunities4) {
   Graph graph(hypergraph, LouvainEdgeWeight::uniform);
   Clustering communities = clustering({ 0, 0, 1, 1, 2, 2, 3, 4, 4, 5, 5 });
-  Graph coarse_graph = graph.contract(communities);
+  Graph coarse_graph = graph.contract(communities, false);
 
   ASSERT_EQ(graph.totalVolume(), coarse_graph.totalVolume());
   ASSERT_EQ(3, coarse_graph.max_degree());
@@ -327,7 +328,7 @@ TEST_F(AGraph, ContractCommunities4) {
 TEST_F(AGraph, ContractCommunities5) {
   Graph graph(hypergraph, LouvainEdgeWeight::uniform);
   Clustering communities = clustering({ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 });
-  Graph coarse_graph = graph.contract(communities);
+  Graph coarse_graph = graph.contract(communities, false);
 
   ASSERT_EQ(graph.totalVolume(), coarse_graph.totalVolume());
   ASSERT_EQ(0,  coarse_graph.max_degree());
@@ -340,9 +341,9 @@ TEST_F(AGraph, ContractCommunities5) {
 TEST_F(AGraph, HasSameTotalVolumeAfterTwoContractions) {
   Graph graph(hypergraph, LouvainEdgeWeight::uniform);
   Clustering communities = clustering( { 3, 3, 3, 2, 2, 4, 4, 3, 3, 2, 4 } );
-  Graph coarse_graph = graph.contract(communities);
+  Graph coarse_graph = graph.contract(communities, false);
   communities = clustering( { 0, 1, 2 } );
-  Graph coarse_coarse_graph = coarse_graph.contract(communities);
+  Graph coarse_coarse_graph = coarse_graph.contract(communities, false);
 
   ASSERT_EQ(coarse_coarse_graph.totalVolume(), coarse_graph.totalVolume());
   ASSERT_EQ(7,  coarse_coarse_graph.nodeVolume(0));

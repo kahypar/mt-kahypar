@@ -103,7 +103,6 @@ namespace mt_kahypar::multilevel {
       _partitioned_hg = _coarsener->uncoarsen(label_propagation, fm);
       utils::Timer::instance().stop_timer("refinement");
 
-      io::printPartitioningResults(_partitioned_hg, _context, "Local Search Results:");
       return nullptr;
     }
 
@@ -196,7 +195,6 @@ namespace mt_kahypar::multilevel {
 
         if ( _context.initial_partitioning.mode == InitialPartitioningMode::direct ) {
           disableTimerAndStats();
-          // TODO move into IP algos
           PoolInitialPartitionerContinuation& ip_continuation = *new(allocate_continuation())
                   PoolInitialPartitionerContinuation(phg, _ip_context);
           spawn_initial_partitioner(ip_continuation);

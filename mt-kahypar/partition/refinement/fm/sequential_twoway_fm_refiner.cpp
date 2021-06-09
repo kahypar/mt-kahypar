@@ -22,16 +22,19 @@
 
 #include "mt-kahypar/partition/metrics.h"
 #include "mt-kahypar/partition/refinement/fm/stop_rule.h"
-#include "mt-kahypar/utils/randomize.h"
 
 namespace mt_kahypar {
 
-bool SequentialTwoWayFmRefiner::refine(kahypar::Metrics& best_metrics) {
+bool SequentialTwoWayFmRefiner::refine(kahypar::Metrics& best_metrics, std::mt19937& prng) {
 
   // Activate all border nodes
   _pq.clear();
   _border_vertices.initialize(_phg);
-  utils::Randomize::instance().shuffleVector(_nodes, sched_getcpu());
+  _nodes.clear();
+  for (HypernodeID hn : _phg.nodes()) {
+    _nodes.push_back(hn);
+  }
+  std::shuffle(_nodes.begin(), _nodes.end(), prng);
   for ( const HypernodeID& hn : _nodes ) {
     _vertex_state[hn] = VertexState::INACTIVE;
     activate(hn);

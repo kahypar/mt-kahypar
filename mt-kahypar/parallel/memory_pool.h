@@ -274,7 +274,7 @@ class MemoryPoolT {
     }
     const size_t num_memory_segments = _memory_chunks.size();
     tbb::parallel_for(0UL, num_memory_segments, [&](const size_t i) {
-      if ( _memory_chunks[i].allocate() ) {
+      if (_memory_chunks[i].allocate()) {
         DBG << "Allocate memory chunk of size"
             << size_in_megabyte(_memory_chunks[i].size_in_bytes()) << "MB";
       }

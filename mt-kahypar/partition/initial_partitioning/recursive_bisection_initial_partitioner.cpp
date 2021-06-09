@@ -424,7 +424,8 @@ namespace mt_kahypar {
     // Extracts the block of the hypergraph which we recursively want to partition as
     // seperate unpartitioned hypergraph.
     bool cut_net_splitting = _context.partition.objective == kahypar::Objective::km1;
-    auto copy_hypergraph = _hg.extract(_block, cut_net_splitting);
+    auto copy_hypergraph = _hg.extract(_block, cut_net_splitting,
+                                       _context.preprocessing.stable_construction_of_incident_edges);
     Hypergraph& rb_hypergraph = copy_hypergraph.first;
     auto& mapping = copy_hypergraph.second;
 

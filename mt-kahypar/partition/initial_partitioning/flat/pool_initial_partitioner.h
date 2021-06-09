@@ -31,7 +31,7 @@ namespace mt_kahypar {
 
 
 // IP algorithm and random seed
-using IPTaskList = vec< std::pair<InitialPartitioningAlgorithm, int> >;
+using IPTaskList = vec< std::tuple<InitialPartitioningAlgorithm, int, int> >;
 
 class PoolInitialPartitionerContinuation : public tbb::task {
 public:
