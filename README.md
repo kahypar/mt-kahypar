@@ -146,7 +146,7 @@ Using the Library Interfaces
 We provide a simple C-style interface to use Mt-KaHyPar as a library.  The library can be built and installed via
 
 ```sh
-sudo make install.mtkahypar
+make install.mtkahypar # use sudo to install system-wide
 ```
 
 and can be used like this:
