@@ -100,7 +100,7 @@ namespace mt_kahypar {
 
     // Allocate Memory
     utils::Timer::instance().start_timer("memory_pool_allocation", "Memory Pool Allocation");
-    pool.allocate_memory_chunks<TBBInitializer>();
+    pool.allocate_memory_chunks();
     utils::Timer::instance().stop_timer("memory_pool_allocation");
   }
 

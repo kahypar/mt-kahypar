@@ -311,7 +311,6 @@ add_custom_target(MtKaHyPar
   COMMAND $(MAKE) MtKaHyParFast
   COMMAND $(MAKE) MtKaHyParStrong)
 
-add_custom_target(tests
-  COMMAND $(MAKE) mt_kahypar_tests
+add_custom_target(mt_kahypar_tests
   COMMAND $(MAKE) mt_kahypar_fast_tests
   COMMAND $(MAKE) mt_kahypar_strong_tests)

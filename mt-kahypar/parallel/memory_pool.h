@@ -75,11 +75,9 @@ class MemoryPoolT {
   // ! Represents a memory chunk.
   struct MemoryChunk {
 
-    explicit MemoryChunk(const int node,
-                         const size_t num_elements,
+    explicit MemoryChunk(const size_t num_elements,
                          const size_t size) :
       _chunk_mutex(),
-      _node(node),
       _num_elements(num_elements),
       _size(size),
       _initial_size(size * num_elements),
@@ -92,7 +90,6 @@ class MemoryPoolT {
 
     MemoryChunk(MemoryChunk&& other) :
       _chunk_mutex(),
-      _node(other._node),
       _num_elements(other._num_elements),
       _size(other._size),
       _initial_size(other._initial_size),
@@ -183,8 +180,6 @@ class MemoryPoolT {
     }
 
     std::mutex _chunk_mutex;
-    // ! NUMA node of memory chunk
-    int _node;
     // ! Number of elements to allocate
     size_t _num_elements;
     // ! Data type size in bytes
@@ -249,28 +244,26 @@ class MemoryPoolT {
   void register_memory_chunk(const std::string& group,
                              const std::string& key,
                              const size_t num_elements,
-                             const size_t size,
-                             const int node = 0) {
+                             const size_t size) {
     std::unique_lock<std::shared_timed_mutex> lock(_memory_mutex);
     if ( _memory_groups.find(group) != _memory_groups.end() ) {
       MemoryGroup& mem_group = _memory_groups.at(group);
       const size_t memory_id = _memory_chunks.size();
       if ( !mem_group.containsKey(key) ) {
         mem_group.insert(key, memory_id);
-        _memory_chunks.emplace_back(node, num_elements, size);
+        _memory_chunks.emplace_back(num_elements, size);
         DBG << "Registers memory chunk (" << group << "," << key << ")"
             << "of" <<  size_in_megabyte(num_elements * size) << "MB"
-            << "on NUMA node" << node << "in memory pool";
+            << "in memory pool";
       }
     }
   }
 
   // ! Allocates all registered memory chunks in parallel
-  template<typename TBBInitializer>
   void allocate_memory_chunks(const bool optimize_allocations = true) {
     std::unique_lock<std::shared_timed_mutex> lock(_memory_mutex);
     if ( optimize_allocations ) {
-      optimize_memory_allocations<TBBInitializer>();
+      optimize_memory_allocations();
     }
     const size_t num_memory_segments = _memory_chunks.size();
     tbb::parallel_for(0UL, num_memory_segments, [&](const size_t i) {
@@ -618,65 +611,59 @@ class MemoryPoolT {
   // ! the memory chunks of a group are not required any more
   // ! (release_memory_group), than the memory chunks are transfered
   // ! to next group.
-  template<typename TBBInitializer>
   void optimize_memory_allocations() {
     using MemGroup = std::pair<std::string, size_t>; // <Group ID, Stage>
     using MemChunk = std::pair<size_t, size_t>; // <Memory ID, Size in Bytes>
 
-    const int used_numa_nodes = TBBInitializer::instance().num_used_numa_nodes();
-    for ( int node = 0; node < used_numa_nodes; ++node ) {
-      // Sort memory groups according to stage
-      std::vector<MemGroup> mem_groups;
-      for ( const auto& mem_group : _memory_groups ) {
-        mem_groups.push_back(std::make_pair(mem_group.first, mem_group.second._stage));
+    // Sort memory groups according to stage
+    std::vector<MemGroup> mem_groups;
+    for ( const auto& mem_group : _memory_groups ) {
+      mem_groups.push_back(std::make_pair(mem_group.first, mem_group.second._stage));
+    }
+    std::sort(mem_groups.begin(), mem_groups.end(),
+      [&](const MemGroup& lhs, const MemGroup& rhs) {
+      return lhs.second < rhs.second;
+    });
+
+    auto fill_mem_chunks = [&](std::vector<MemChunk>& mem_chunks,
+                              const std::string group) {
+      for ( const auto& key : _memory_groups.at(group)._key_to_memory_id ) {
+        const size_t memory_id = key.second;
+        const MemoryChunk& memory_chunk = _memory_chunks[memory_id];
+        const size_t size_in_bytes = memory_chunk._num_elements * memory_chunk._size;
+        mem_chunks.push_back(std::make_pair(memory_id, size_in_bytes));
       }
-      std::sort(mem_groups.begin(), mem_groups.end(),
-        [&](const MemGroup& lhs, const MemGroup& rhs) {
-        return lhs.second < rhs.second;
-      });
+      std::sort(mem_chunks.begin(), mem_chunks.end(),
+        [&](const MemChunk& lhs, const MemChunk& rhs) {
+          return lhs.second < rhs.second || (lhs.second == rhs.second && lhs.first < rhs.first );
+        });
+    };
 
-      auto fill_mem_chunks = [&](std::vector<MemChunk>& mem_chunks,
-                                const std::string group) {
-        for ( const auto& key : _memory_groups.at(group)._key_to_memory_id ) {
-          const size_t memory_id = key.second;
-          const MemoryChunk& memory_chunk = _memory_chunks[memory_id];
-          if ( memory_chunk._node == node ) {
-            const size_t size_in_bytes = memory_chunk._num_elements * memory_chunk._size;
-            mem_chunks.push_back(std::make_pair(memory_id, size_in_bytes));
-          }
+    if ( !mem_groups.empty() ) {
+      std::vector<MemChunk> lhs_mem_chunks;
+      fill_mem_chunks(lhs_mem_chunks, mem_groups[0].first);
+      for ( size_t i = 1; i < mem_groups.size(); ++i /* i = stage */ ) {
+        // lhs_mem_chunks contains all memory chunks corresponding
+        // to a stage j with j < i that are not matched (in increasing
+        // order of its size in bytes). rhs_mem_chunks contains all memory
+        // chunks of stage i (in increasing order of its size in bytes).
+        // Memory chunks are matched greedily according to their size
+        // in bytes => to biggest memory chunks of both groups are
+        // matched.
+        std::vector<MemChunk> rhs_mem_chunks;
+        fill_mem_chunks(rhs_mem_chunks, mem_groups[i].first);
+        while ( !lhs_mem_chunks.empty() && !rhs_mem_chunks.empty() ) {
+          const size_t lhs_mem_id = lhs_mem_chunks.back().first;
+          const size_t rhs_mem_id = rhs_mem_chunks.back().first;
+          ASSERT(lhs_mem_id != rhs_mem_id);
+          ASSERT(lhs_mem_id < _memory_chunks.size());
+          ASSERT(rhs_mem_id < _memory_chunks.size());
+          _memory_chunks[lhs_mem_id]._next_memory_chunk_id = rhs_mem_id;
+          _memory_chunks[rhs_mem_id]._defer_allocation = true;
+          lhs_mem_chunks.pop_back();
+          rhs_mem_chunks.pop_back();
         }
-        std::sort(mem_chunks.begin(), mem_chunks.end(),
-          [&](const MemChunk& lhs, const MemChunk& rhs) {
-            return lhs.second < rhs.second || (lhs.second == rhs.second && lhs.first < rhs.first );
-          });
-      };
-
-      if ( !mem_groups.empty() ) {
-        std::vector<MemChunk> lhs_mem_chunks;
-        fill_mem_chunks(lhs_mem_chunks, mem_groups[0].first);
-        for ( size_t i = 1; i < mem_groups.size(); ++i /* i = stage */ ) {
-          // lhs_mem_chunks contains all memory chunks corresponding
-          // to a stage j with j < i that are not matched (in increasing
-          // order of its size in bytes). rhs_mem_chunks contains all memory
-          // chunks of stage i (in increasing order of its size in bytes).
-          // Memory chunks are matched greedily according to their size
-          // in bytes => to biggest memory chunks of both groups are
-          // matched.
-          std::vector<MemChunk> rhs_mem_chunks;
-          fill_mem_chunks(rhs_mem_chunks, mem_groups[i].first);
-          while ( !lhs_mem_chunks.empty() && !rhs_mem_chunks.empty() ) {
-            const size_t lhs_mem_id = lhs_mem_chunks.back().first;
-            const size_t rhs_mem_id = rhs_mem_chunks.back().first;
-            ASSERT(lhs_mem_id != rhs_mem_id);
-            ASSERT(lhs_mem_id < _memory_chunks.size());
-            ASSERT(rhs_mem_id < _memory_chunks.size());
-            _memory_chunks[lhs_mem_id]._next_memory_chunk_id = rhs_mem_id;
-            _memory_chunks[rhs_mem_id]._defer_allocation = true;
-            lhs_mem_chunks.pop_back();
-            rhs_mem_chunks.pop_back();
-          }
-          fill_mem_chunks(lhs_mem_chunks, mem_groups[i].first);
-        }
+        fill_mem_chunks(lhs_mem_chunks, mem_groups[i].first);
       }
     }
 
@@ -769,15 +756,8 @@ class DoNothingMemoryPool {
                              const std::string&,
                              const size_t,
                              const size_t) { }
-  void register_memory_chunk(const std::string&,
-                             const std::string&,
-                             const size_t,
-                             const size_t,
-                             const int) { }
 
-  template<typename TBBInitializer>
   void allocate_memory_chunks() { }
-  template<typename TBBInitializer>
   void allocate_memory_chunks(const bool) { }
 
   char* request_mem_chunk(const std::string&,
