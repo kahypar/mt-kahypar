@@ -63,6 +63,8 @@ class StaticHypergraph {
   using AtomicHypernodeWeight = parallel::IntegralAtomicWrapper<HypernodeWeight>;
   using UncontractionFunction = std::function<void (const HypernodeID, const HypernodeID, const HyperedgeID)>;
   #define NOOP_BATCH_FUNC [] (const HypernodeID, const HypernodeID, const HyperedgeID) { }
+  using PinCountUpdateLockFunction = std::function<void(const HyperedgeID)>;
+  #define NOOP_PIN_COUNT_LOCK_FUNC [] (const HyperedgeID) { }
 
   /**
    * Represents a hypernode of the hypergraph and contains all information
@@ -733,9 +735,11 @@ class StaticHypergraph {
 
   void uncontract(const ContractionGroup&,
                   const UncontractionFunction& case_one_func = NOOP_BATCH_FUNC,
-                  const UncontractionFunction& case_two_func= NOOP_BATCH_FUNC) {
+                  const UncontractionFunction& case_two_func= NOOP_BATCH_FUNC,
+                  const PinCountUpdateLockFunction& lock_pin_count_update_ownership = NOOP_PIN_COUNT_LOCK_FUNC) {
       unused(case_one_func);
       unused(case_two_func);
+      unused(lock_pin_count_update_ownership);
       ERROR("uncontract(ContractionGroup&, ...) is not supported in static hypergraph.");
 
   }

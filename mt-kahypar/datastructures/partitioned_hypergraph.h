@@ -58,6 +58,11 @@ private:
   using DeltaFunction = std::function<void (const HyperedgeID, const HyperedgeWeight, const HypernodeID, const HypernodeID, const HypernodeID)>;
   #define NOOP_FUNC [] (const HyperedgeID, const HyperedgeWeight, const HypernodeID, const HypernodeID, const HypernodeID) { }
 
+  struct NoOpGainCacheUpdateFunc {
+      template<typename PinIteratorT>
+      void operator() (const HyperedgeWeight, IteratorRange<PinIteratorT>, const PartitionID, const HypernodeID, const PartitionID, const HypernodeID) {}
+  };
+
   // REVIEW NOTE: Can't we use a lambda in changeNodePart. And write a second function that calls the first with a lambda that does nothing.
   // Then we could guarantee inlining
   // This would also reduce the code/documentation copy-pasta for with or without gain updates
@@ -76,7 +81,6 @@ private:
   using HyperedgeIterator = typename Hypergraph::HyperedgeIterator;
   using IncidenceIterator = typename Hypergraph::IncidenceIterator;
   using IncidentNetsIterator = typename Hypergraph::IncidentNetsIterator;
-  using PartitionBitSet = IterableBitSet<PartitionID>;
 
   PartitionedHypergraph() = default;
 
@@ -284,30 +288,6 @@ private:
     return _connectivity_set.connectivitySet(e);
   }
 
-  // ! Fills a given iterable bitset with bits according to the current connectivity set of a hyperedge e. Can only be
-  // ! used while a lock on pin count updates is held to prevent intermittent changes to the connectivity set.
-  void takeConnectivitySetSnapshot(const HyperedgeID e, PartitionBitSet& bitset) const {
-      ASSERT(_hg->edgeIsEnabled(e), "Hyperedge" << e << "is disabled");
-      ASSERT(e < _hg->initialNumEdges(), "Hyperedge" << e << "does not exist");
-      ASSERT(bitset.size() == _k);
-      HEAVY_REFINEMENT_ASSERT(bitset.begin() == bitset.end()); // Assert no bits set already, costly with large k
-      for (const auto& p : _connectivity_set.connectivitySet(e)) {
-          bitset.set_true(p);
-      }
-  }
-
-  // ! Fills a given iterable bitset with bits marking any block that currently includes exactly one pin of a hyperedge e.
-  // ! Can only be used while a lock on pin count updates is held to prevent intermittent changes to the connectivity set.
-  void takeBlocksWithOnePinSnapshot(const HyperedgeID e, PartitionBitSet& bitset) const {
-      ASSERT(_hg->edgeIsEnabled(e), "Hyperedge" << e << "is disabled");
-      ASSERT(e < _hg->initialNumEdges(), "Hyperedge" << e << "does not exist");
-      ASSERT(bitset.size() == _k);
-      HEAVY_REFINEMENT_ASSERT(bitset.begin() == bitset.end()); // Assert no bits set already, costly with large k
-      for (const auto& p : _connectivity_set.connectivitySet(e)) {
-          bitset.set_true(p);
-      }
-  }
-
   // ####################### Hypernode Information #######################
 
   // ! Weight of a vertex
@@ -452,36 +432,87 @@ private:
           const PartitionID part_id = partID(memento.u);
           ASSERT(part_id != kInvalidPartition && part_id < _k);
           setOnlyNodePart(memento.v, part_id);
-      }
+     }
 
-      _hg->uncontract(group, [&](const HypernodeID u, const HypernodeID v, const HyperedgeID he) {
-                                        // (This is always called by _hg while he is locked by _hg->acquireHyperedge(he))
-                                        // In this case, u and v are incident to hyperedge he after uncontraction
-                                        const PartitionID block = partID(u);
-                                        _pin_count_update_ownership[he].lock();
-                                        const HypernodeID pin_count_in_part_after = incrementPinCountInPartWithoutGainUpdate(
-                                                he, block);
-                                        ASSERT(pin_count_in_part_after > 1, V(u) << V(v) << V(he));
-                                        _pin_count_update_ownership[he].unlock();
+     auto get_local_conn_set_bitset = [&] () -> PartitionBitSet& {
+         std::unique_ptr<PartitionBitSet>& conn_set_bitset = _conn_set_snapshots.local();
+         if (!conn_set_bitset) conn_set_bitset = std::make_unique<PartitionBitSet>(_k);
+         ASSERT(conn_set_bitset->size() == _k);
+         return *conn_set_bitset;
+     };
 
-                                        if (_is_gain_cache_initialized) {
-                                            // If u was the only pin of hyperedge he in its block before then moving out vertex u
-                                            // of hyperedge he does not decrease the connectivity any more after the
-                                            // uncontraction => b(u) -= w(he)
-                                            const HyperedgeWeight edge_weight = edgeWeight(he);
-                                            _gain_cache.updateForUncontractCaseOne(he, edge_weight, v, block, pin_count_in_part_after, pins(he));
-                                        }
-                                    },
-                                    [&](const HypernodeID u, const HypernodeID v, const HyperedgeID he) {
-                                        // (This is always called by _hg while he is locked by _hg->acquireHyperedge(he))
-                                        // In this case, u is replaced by v in hyperedge he
-                                        // => Pin counts of hyperedge he does not change
-                                        if (_is_gain_cache_initialized) {
-                                            const PartitionID block = partID(u);
-                                            const HyperedgeWeight edge_weight = edgeWeight(he);
-                                            _gain_cache.updateForUncontractCaseTwo(he, edge_weight, u, v, pinCountInPart(he, block));
-                                        }
-                                    });
+     auto get_local_parts_with_one_pin_bitset = [&] () -> PartitionBitSet& {
+         std::unique_ptr<PartitionBitSet>& parts_with_one_pin_bitset = _parts_with_one_pin_snapshots.local();
+         if (!parts_with_one_pin_bitset) parts_with_one_pin_bitset = std::make_unique<PartitionBitSet>(_k);
+         ASSERT(parts_with_one_pin_bitset->size() == _k);
+         return *parts_with_one_pin_bitset;
+     };
+
+     auto takeConnectivitySetSnapshots = [&] (const HyperedgeID he, PartitionBitSet& conn_set_bitset,
+             PartitionBitSet& parts_with_one_pin_bitset) {
+         HEAVY_REFINEMENT_ASSERT(conn_set_bitset.begin() == conn_set_bitset.end());
+         HEAVY_REFINEMENT_ASSERT(parts_with_one_pin_bitset.begin() == parts_with_one_pin_bitset.end());
+         for (const auto& p : connectivitySet(he)) {
+             conn_set_bitset.set_true(p);
+             if (pinCountInPart(he, p) == 1) {
+                 parts_with_one_pin_bitset.set_true(p);
+             }
+         }
+     };
+
+     _hg->uncontract(group,
+                      [&](const HypernodeID u, const HypernodeID v, const HyperedgeID he) {
+                            // (This is always called while pin count update ownership for he has been locked by _hg->uncontract();
+                            // release that lock here at right point)
+                            // In this case, u and v are incident to hyperedge he after uncontraction
+
+                          // Update pin count and take snapshot of pin state for gain cache update. This way the gain
+                          // cache does not have to be updated within the lock.
+                          const PartitionID block = partID(u);
+                          const HypernodeID pin_count_in_part_after = incrementPinCountInPartWithoutGainUpdate(
+                                  he, block);
+                          ASSERT(pin_count_in_part_after > 1, V(u) << V(v) << V(he));
+                          if (_is_gain_cache_initialized) {
+
+                              PartitionBitSet& conn_set = get_local_conn_set_bitset();
+                              PartitionBitSet& parts_with_one_pin = get_local_parts_with_one_pin_bitset();
+                              takeConnectivitySetSnapshots(he, conn_set, parts_with_one_pin);
+                              auto pins_snapshot = pins(he);
+                              _pin_count_update_ownership[he].unlock();
+
+                              // If u was the only pin of hyperedge he in its block before then moving out vertex u
+                              // of hyperedge he does not decrease the connectivity any more after the
+                              // uncontraction => b(u) -= w(he)
+                              const HyperedgeWeight edge_weight = edgeWeight(he);
+                              _gain_cache.updateForUncontractCaseOne(edge_weight, v, block,
+                                                                     pin_count_in_part_after, pins_snapshot,
+                                                                     conn_set, parts_with_one_pin);
+                          } else {
+                              _pin_count_update_ownership[he].unlock();
+                          }
+                          },
+                      [&](const HypernodeID u, const HypernodeID v, const HyperedgeID he) {
+                          // (This is always called while pin count update ownership for he has been locked by _hg->uncontract();
+                          // release that lock here at right point)
+                          // In this case, u is replaced by v in hyperedge he
+                          // => Pin counts of hyperedge he does not change
+                          if (_is_gain_cache_initialized) {
+                              PartitionBitSet& conn_set = get_local_conn_set_bitset();
+                              PartitionBitSet& parts_with_one_pin = get_local_parts_with_one_pin_bitset();
+                              takeConnectivitySetSnapshots(he, conn_set, parts_with_one_pin);
+                              _pin_count_update_ownership[he].unlock();
+
+                              // In this case only v was part of hyperedge e before and
+                              // u must be replaced by v in hyperedge e
+                              const HyperedgeWeight edge_weight = edgeWeight(he);
+                              _gain_cache.updateForUncontractCaseTwo(edge_weight, u, v, conn_set, parts_with_one_pin);
+                          } else {
+                              _pin_count_update_ownership[he].unlock();
+                          }
+                      },
+                      [&](const HyperedgeID he) {
+                            _pin_count_update_ownership[he].lock();
+     });
   }
 
 
@@ -602,13 +633,15 @@ private:
   // ! Changes the block id of vertex u from block 'from' to block 'to'
   // ! Returns true, if move of vertex u to corresponding block succeeds.
 
-  template<typename SuccessFunc, typename DeltaFunc>
+  template<typename SuccessFunc, typename DeltaFunc, typename GainCacheUpdateFunc>
   bool changeNodePart(const HypernodeID u,
                       PartitionID from,
                       PartitionID to,
                       HypernodeWeight max_weight_to,
                       SuccessFunc&& report_success,
-                      DeltaFunc&& delta_func) {
+                      DeltaFunc&& delta_func,
+                      GainCacheUpdateFunc&& gain_cache_update_func,
+                      bool concurrent_uncontractions = false) {
       assert(nodeIsEnabled(u));
       assert(partID(u) == from);
       assert(from != to);
@@ -619,7 +652,11 @@ private:
       _part_ids[u] = to;
       report_success();
       for ( const HyperedgeID he : incidentEdges(u) ) {
-        updatePinCountOfHyperedge(he, from, to, delta_func);
+          if (concurrent_uncontractions) {
+              asyncUpdatePinCountOfHyperedge(he, from, to, delta_func, gain_cache_update_func);
+          } else {
+              updatePinCountOfHyperedge(he, from, to, delta_func, gain_cache_update_func);
+          }
       }
       return true;
     } else {
@@ -630,13 +667,46 @@ private:
   }
 
   // curry
+  template<typename SuccessFunc, typename DeltaFunc>
   bool changeNodePart(const HypernodeID u,
                       PartitionID from,
                       PartitionID to,
-                      const DeltaFunction& delta_func = NOOP_FUNC) {
-    return changeNodePart(u, from, to,
-      std::numeric_limits<HypernodeWeight>::max(), []{}, delta_func);
+                      HypernodeWeight max_weight_to,
+                      SuccessFunc&& report_success,
+                      DeltaFunc&& delta_func,
+                      bool concurrent_uncontractions = false) {
+     return changeNodePart(u, from, to, max_weight_to, report_success, delta_func, NoOpGainCacheUpdateFunc(), concurrent_uncontractions);
   }
+
+  // curry
+  bool changeNodePart(const HypernodeID u,
+                      PartitionID from,
+                      PartitionID to,
+                      const DeltaFunction& delta_func = NOOP_FUNC,
+                      bool concurrent_uncontractions = false) {
+    return changeNodePart(u, from, to,
+      std::numeric_limits<HypernodeWeight>::max(), []{}, delta_func, concurrent_uncontractions);
+  }
+
+
+    template <typename PinIteratorT>
+    MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
+    void gainCacheUpdate(const HyperedgeWeight we, IteratorRange<PinIteratorT> pins,
+                         const PartitionID from, const HypernodeID pin_count_in_from_part_after,
+                         const PartitionID to, const HypernodeID pin_count_in_to_part_after) {
+
+        _gain_cache.updateForMove(we, pins, from, pin_count_in_from_part_after, to, pin_count_in_to_part_after);
+    }
+
+    // ! Overload to satisfy GainCacheStrategy::deltaGainUpdates(). Not suited for concurrent uncontractions
+    MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
+    void gainCacheUpdate(const HyperedgeID he, const HyperedgeWeight we,
+                         const PartitionID from, const HypernodeID pin_count_in_from_part_after,
+                         const PartitionID to, const HypernodeID pin_count_in_to_part_after) {
+
+        _gain_cache.updateForMove(we, pins(he), from, pin_count_in_from_part_after, to, pin_count_in_to_part_after);
+    }
+
 
   // Make sure not to call phg.gainCacheUpdate(..) in delta_func for changeNodePartWithGainCacheUpdate
   template<typename SuccessFunc, typename DeltaFunc>
@@ -645,21 +715,24 @@ private:
                                          PartitionID to,
                                          HypernodeWeight max_weight_to,
                                          SuccessFunc&& report_success,
-                                         DeltaFunc&& delta_func) {
+                                         DeltaFunc&& delta_func,
+                                         bool concurrent_uncontractions = false) {
     //ASSERT(_is_gain_cache_initialized, "Gain cache is not initialized");
 
-    auto my_delta_func = [&](const HyperedgeID he, const HyperedgeWeight edge_weight, const HypernodeID edge_size,
-            const HypernodeID pin_count_in_from_part_after, const HypernodeID pin_count_in_to_part_after) {
-      delta_func(he, edge_weight, edge_size, pin_count_in_from_part_after, pin_count_in_to_part_after);
-      gainCacheUpdate(he, edge_weight, from, pin_count_in_from_part_after, to, pin_count_in_to_part_after);
+    auto gain_cache_update = [&](const HyperedgeWeight edge_weight, IteratorRange<IncidenceIterator> pins,
+                        const PartitionID from, const HypernodeID pin_count_in_from_part_after,
+                        const PartitionID to, const HypernodeID pin_count_in_to_part_after) {
+        gainCacheUpdate(edge_weight, pins, from, pin_count_in_from_part_after, to, pin_count_in_to_part_after);
     };
-    return changeNodePart(u, from, to, max_weight_to, report_success, my_delta_func);
+
+    return changeNodePart(u, from, to, max_weight_to, report_success, delta_func, gain_cache_update, concurrent_uncontractions);
 
   }
 
-  bool changeNodePartWithGainCacheUpdate(const HypernodeID u, PartitionID from, PartitionID to) {
+  bool changeNodePartWithGainCacheUpdate(const HypernodeID u, PartitionID from, PartitionID to,
+                                         bool concurrent_uncontractions = false) {
     return changeNodePartWithGainCacheUpdate(u, from, to, std::numeric_limits<HypernodeWeight>::max(), [] { },
-                                             NoOpDeltaFunc());
+                                             NoOpDeltaFunc(), concurrent_uncontractions);
   }
 
   // ! Weight of a block
@@ -1094,13 +1167,6 @@ private:
     _k = 0;
   }
 
-  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
-  void gainCacheUpdate(const HyperedgeID he, const HyperedgeWeight we,
-                       const PartitionID from, const HypernodeID pin_count_in_from_part_after,
-                       const PartitionID to, const HypernodeID pin_count_in_to_part_after) {
-
-      _gain_cache.updateForMove(we, pins(he), from, pin_count_in_from_part_after, to, pin_count_in_to_part_after);
-  }
 
  private:
 
@@ -1166,18 +1232,38 @@ private:
   }
 
   // ! Updates pin count in part using a spinlock.
+  template<typename DeltaFunc, typename GainCacheUpdateFunc>
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE void updatePinCountOfHyperedge(const HyperedgeID he,
                                                                     const PartitionID from,
                                                                     const PartitionID to,
-                                                                    const DeltaFunction& delta_func) {
-    lockHyperedge(he);
+                                                                    DeltaFunc& delta_func,
+                                                                    GainCacheUpdateFunc& gain_cache_update_func) {
     ASSERT(he < _pin_count_update_ownership.size());
     _pin_count_update_ownership[he].lock();
     const HypernodeID pin_count_in_from_part_after = decrementPinCountInPartWithoutGainUpdate(he, from);
     const HypernodeID pin_count_in_to_part_after = incrementPinCountInPartWithoutGainUpdate(he, to);
     _pin_count_update_ownership[he].unlock();
     delta_func(he, edgeWeight(he), edgeSize(he), pin_count_in_from_part_after, pin_count_in_to_part_after);
-    unlockHyperedge(he);
+    gain_cache_update_func(edgeWeight(he), pins(he), from, pin_count_in_from_part_after, to, pin_count_in_to_part_after);
+  }
+
+    // ! Updates pin count in part using a spinlock. In this variant for asynchronous uncoarsening the pins of the
+    // ! hyperedge are stored within the pin count update lock in order to make the gain cache update work on the right
+    // ! pins (outside of the lock)
+  template<typename DeltaFunc, typename GainCacheUpdateFunc>
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE void asyncUpdatePinCountOfHyperedge(const HyperedgeID he,
+                                                                         const PartitionID from,
+                                                                         const PartitionID to,
+                                                                         DeltaFunc& delta_func,
+                                                                         GainCacheUpdateFunc& gain_cache_update_func) {
+      ASSERT(he < _pin_count_update_ownership.size());
+      _pin_count_update_ownership[he].lock();
+      const HypernodeID pin_count_in_from_part_after = decrementPinCountInPartWithoutGainUpdate(he, from);
+      const HypernodeID pin_count_in_to_part_after = incrementPinCountInPartWithoutGainUpdate(he, to);
+      auto pins_snapshot = pins(he);
+      _pin_count_update_ownership[he].unlock();
+      delta_func(he, edgeWeight(he), edgeSize(he), pin_count_in_from_part_after, pin_count_in_to_part_after);
+      gain_cache_update_func(edgeWeight(he), pins_snapshot, from, pin_count_in_from_part_after, to, pin_count_in_to_part_after);
   }
 
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
@@ -1254,6 +1340,10 @@ private:
   // ! In order to update the pin count of a hyperedge thread-safe, a thread must acquire
   // ! the ownership of a hyperedge via a CAS operation.
   Array<SpinLock> _pin_count_update_ownership;
+
+  // ! Thread-local PartitionBitSets used for snapshots of connectivity sets in asynchronous uncoarsening
+  tbb::enumerable_thread_specific<std::unique_ptr<PartitionBitSet>> _conn_set_snapshots;
+  tbb::enumerable_thread_specific<std::unique_ptr<PartitionBitSet>> _parts_with_one_pin_snapshots;
 };
 
 } // namespace ds

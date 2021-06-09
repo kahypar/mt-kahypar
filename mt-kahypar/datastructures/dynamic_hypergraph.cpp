@@ -341,7 +341,8 @@ VersionedPoolVector DynamicHypergraph::createUncontractionGroupPoolsForVersions(
 
 void DynamicHypergraph::uncontract(const ContractionGroup& group,
                                    const UncontractionFunction& case_one_func,
-                                   const UncontractionFunction& case_two_func) {
+                                   const UncontractionFunction& case_two_func,
+                                   const PinCountUpdateLockFunction& lock_pin_count_update_ownership) {
 
     // Restore contracted vertices as pins of hyperedges
     for(auto &memento: group) {
@@ -350,22 +351,20 @@ void DynamicHypergraph::uncontract(const ContractionGroup& group,
         ASSERT(hypernode(memento.v).isDisabled(), "Hypernode " << memento.v << " is not invalid");
 
         _incident_nets.uncontract(memento.u, memento.v,[&](const HyperedgeID e) {
-            // In that case, u and v were both previously part of hyperedge e.
-
-            acquireHyperedge(e);
+            // In this case, u and v were both previously part of hyperedge e.
+            lock_pin_count_update_ownership(e);
             reactivatePinForSingleUncontraction(e,memento.v);
+            // Make sure case_one_func releases the pin count update ownership lock on e again
             case_one_func(memento.u, memento.v, e);
-            releaseHyperedge(e);
         }, [&](const HyperedgeID e) {
-            // In that case only v was part of hyperedge e before and
+            // In this case only v was part of hyperedge e before and
             // u must be replaced by v in hyperedge e
             const size_t slot_of_u = findPositionOfPinInIncidenceArray(memento.u, e);
 
-            acquireHyperedge(e);
+            lock_pin_count_update_ownership(e);
             ASSERT(_incidence_array[slot_of_u] == memento.u);
             _incidence_array[slot_of_u] = memento.v;
             case_two_func(memento.u, memento.v, e);
-            releaseHyperedge(e);
         }, [&](const HypernodeID u) {
             acquireHypernode(u);
         }, [&](const HypernodeID u) {

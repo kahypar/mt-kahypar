@@ -881,7 +881,7 @@ namespace mt_kahypar {
           HEAVY_REFINEMENT_ASSERT(node_anti_duplicator->checkAllFalse());
           HEAVY_REFINEMENT_ASSERT(edge_anti_duplicator->checkAllFalse());
           HEAVY_REFINEMENT_ASSERT(_hg.verifyIncidenceArrayAndIncidentNets());
-          if (_context.type == kahypar::ContextType::main) HEAVY_REFINEMENT_ASSERT(_phg.checkTrackedPartitionInformation());
+          HEAVY_REFINEMENT_ASSERT(_phg.checkTrackedPartitionInformation());
           HEAVY_REFINEMENT_ASSERT(metrics::objective(_phg, _context.partition.objective) ==
                                   current_metrics.getMetric(kahypar::Mode::direct_kway, _context.partition.objective),
                                   V(current_metrics.getMetric(kahypar::Mode::direct_kway, _context.partition.objective))
@@ -898,7 +898,7 @@ namespace mt_kahypar {
               _removed_hyperedges_batches.pop_back();
               utils::Timer::instance().stop_timer("restore_single_pin_and_parallel_nets", force_measure_timings);
               HEAVY_REFINEMENT_ASSERT(_hg.verifyIncidenceArrayAndIncidentNets());
-              if (_context.type == kahypar::ContextType::main) HEAVY_REFINEMENT_ASSERT(_phg.checkTrackedPartitionInformation());
+              HEAVY_REFINEMENT_ASSERT(_phg.checkTrackedPartitionInformation());
 
               // Perform refinement on all vertices
               const double time_limit = refinementTimeLimit(_context, _round_coarsening_times.back());

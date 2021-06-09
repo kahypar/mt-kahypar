@@ -162,4 +162,7 @@ private:
 
 };
 
+
+using PartitionBitSet = IterableBitSet<PartitionID>;
+
 } // end namespace mt_kahypar::ds
