@@ -6,8 +6,9 @@
 
 #include <libmtkahypar.h>
 
-// Install library interface via 'sudo make install.library' in build folder
-// Compile with: g++ -std=c++14 -DNDEBUG -O3 partition_hypergraph_lib_3.cc -o example_3 -lmtkahypar -ltbb
+// Install library interface via 'sudo make install.mtkahypar' in build folder
+// Compile with: g++ -std=c++14 -DNDEBUG -O3 parallel_partition_two_hypergraphs.cc -o example_3 -lmtkahyparfast -ltbb
+// or flag "-lmtkahyparstrong", if you want to use our strong hypergraph partitioner
 int main(int argc, char* argv[]) {
 
   // Initialize thread pool with 8 threads and NUMA allocation policy INTERLEAVED
@@ -15,11 +16,10 @@ int main(int argc, char* argv[]) {
 
   // Load context from file
   mt_kahypar_context_t* context = mt_kahypar_context_new();
-  mt_kahypar_configure_context_from_file(context, "../config/fast_preset.ini");
+  // Use "../config/quality_preset.ini", if compiled with flag "-lmtkahyparstrong"
+  mt_kahypar_configure_context_from_file(context, "../config/default_preset.ini");
 
   // Setup Hypergraph
-
-
   mt_kahypar_hyperedge_weight_t objective_1 = 0;
   mt_kahypar_hyperedge_weight_t objective_2 = 0;
 

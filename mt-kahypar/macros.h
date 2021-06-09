@@ -107,6 +107,10 @@
 #define WARNING(msg) LOG << YELLOW << "[WARNING]" << END << msg
 #define ERROR(msg) LOG << RED << "[ERROR]" << END << msg; std::exit(-1)
 
+#ifdef MT_KAHYPAR_LIBRARY_MODE
+#define ALGO_SWITCH(warning_msg, error_msg, context_variable, alternative_value) \
+  ERROR(error_msg);
+#else
 #define ALGO_SWITCH(warning_msg, error_msg, context_variable, alternative_value) \
   WARNING(warning_msg);                                                          \
   char answer = 'N';                                                             \
@@ -117,3 +121,5 @@
   } else {                                                                       \
     ERROR(error_msg);                                                            \
   }
+#endif
+
