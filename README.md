@@ -146,7 +146,7 @@ Using the Library Interfaces
 We provide a simple C-style interface to use Mt-KaHyPar as a library.  The library can be built and installed via
 
 ```sh
-make install.library
+sudo make install.mtkahypar
 ```
 
 and can be used like this:
@@ -232,19 +232,25 @@ mt_kahypar_read_hypergraph_from_file("path/to/hypergraph/file", &num_vertices, &
   &hyperedge_indices, &hyperedges, &hyperedge_weights, &hypernode_weights);
 ```
 
-To compile the program using `g++` run:
+To compile the program using `g++` and our fast hypergraph partitioner (Mt-KaHyPar Fast) run:
 
 ```sh
-g++ -std=c++17 -DNDEBUG -O3 your_program.cc -o your_program -lkahypar
+g++ -std=c++17 -DNDEBUG -O3 your_program.cc -o your_program -lmtkahyparfast
+```
+
+To compile the program using `g++` and our strong hypergraph partitioner (Mt-KaHyPar Strong) run:
+
+```sh
+g++ -std=c++17 -DNDEBUG -O3 your_program.cc -o your_program -lmtkahyparstrong
 ```
 
 To remove the library from your system use the provided uninstall target:
 
 ```sh
-make uninstall-kahypar
+make uninstall-mtkahypar
 ```
 
-Note, our library interfaces uses Mt-KaHyPar Fast. We are currently working on a solution to also integrate Mt-KaHyPar Strong.
+You can find detailed examples how to use our library interface in the folder `examples`.
 
 Bug Reports
 -----------
