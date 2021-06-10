@@ -157,8 +157,15 @@ struct NLevelGlobalFMParameters {
 
 std::ostream& operator<<(std::ostream& out, const NLevelGlobalFMParameters& params);
 
+struct FlowParameters {
+  double alpha = 0.0;
+};
+
+std::ostream& operator<<(std::ostream& out, const FlowParameters& params);
+
 struct AdvancedRefinementParameters {
   AdvancedRefinementAlgorithm algorithm = AdvancedRefinementAlgorithm::do_nothing;
+  FlowParameters flows { };
   size_t num_threads_per_search = 0;
   size_t num_cut_edges_per_block_pair = 0;
   size_t max_bfs_distance = 0;

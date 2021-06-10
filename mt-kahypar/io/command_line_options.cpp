@@ -427,7 +427,10 @@ namespace mt_kahypar {
              "maximum distance from a cut hyperedge to any vertex of the problem.")
             ("r-sort-cut-hes",
              po::value<bool>(&context.refinement.advanced.sort_cut_hes)->value_name("<bool>"),
-             "Sort cut hyperedges of each block pair in increasing order of their distance to each other in quotient graph.");
+             "Sort cut hyperedges of each block pair in increasing order of their distance to each other in quotient graph.")
+            ("r-flow-scaling",
+             po::value<double>(&context.refinement.advanced.flows.alpha)->value_name("<double>"),
+             "Size constraint for flow problem: (1 + alpha * epsilon) * c(V) / k - c(V_1) (alpha = r-flow-scaling)");
     return options;
   }
 

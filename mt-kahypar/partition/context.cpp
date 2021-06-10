@@ -141,6 +141,12 @@ namespace mt_kahypar {
     return out;
   }
 
+  std::ostream& operator<<(std::ostream& out, const FlowParameters& params) {
+    out << "  Flow Parameters: \n";
+    out << "    Flow Scaling:                     " << params.alpha << std::endl;
+    return out;
+  }
+
   std::ostream& operator<<(std::ostream& out, const AdvancedRefinementParameters& params) {
     out << "  Advanced Refinement Parameters: \n";
     out << "    Algorithm:                        " << params.algorithm << std::endl;
@@ -150,6 +156,10 @@ namespace mt_kahypar {
       out << "    Maximum BFS Distance:             " << params.max_bfs_distance << std::endl;
       out << "    Sort Cut HEs:                     " << std::boolalpha << params.sort_cut_hes << std::endl;
       out << std::flush;
+
+      if ( params.algorithm == AdvancedRefinementAlgorithm::flows ) {
+        out << "\n" << params.flows;
+      }
     }
     return out;
   }

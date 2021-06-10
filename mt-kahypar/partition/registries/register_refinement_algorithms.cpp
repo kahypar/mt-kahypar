@@ -26,6 +26,7 @@
 #include "mt-kahypar/partition/factories.h"
 #include "mt-kahypar/partition/refinement/do_nothing_refiner.h"
 #include "mt-kahypar/partition/refinement/advanced/do_nothing_refiner.h"
+#include "mt-kahypar/partition/refinement/advanced/flows/flow_refiner.h"
 #include "mt-kahypar/partition/refinement/label_propagation/label_propagation_refiner.h"
 #include "mt-kahypar/partition/refinement/deterministic/deterministic_label_propagation.h"
 #include "mt-kahypar/partition/refinement/fm/multitry_kway_fm.h"
@@ -72,5 +73,6 @@ REGISTER_FM_REFINER(FMAlgorithm::fm_recompute_gain, MultiTryKWayFMWithGainRecomp
 REGISTER_FM_REFINER(FMAlgorithm::do_nothing, DoNothingRefiner, 2);
 
 REGISTER_ADVANCED_REFINER(AdvancedRefinementAlgorithm::do_nothing, DoNothingAdvancedRefiner, 3);
+REGISTER_ADVANCED_REFINER(AdvancedRefinementAlgorithm::flows, FlowRefiner, Flows);
 
 }  // namespace mt_kahypar
