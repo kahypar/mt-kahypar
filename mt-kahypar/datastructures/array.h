@@ -182,7 +182,7 @@ class Array {
   Array(const Array&) = delete;
   Array & operator= (const Array &) = delete;
 
-  Array(Array&& other) :
+  Array(Array&& other) noexcept :
     _group(std::move(other._group)),
     _key(std::move(other._key)),
     _size(other._size),
@@ -193,7 +193,7 @@ class Array {
     other._underlying_data = nullptr;
   }
 
-  Array & operator=(Array&& other) {
+  Array & operator=(Array&& other) noexcept {
     _group = std::move(other._group);
     _key = std::move(other._key);
     _size = other._size;
