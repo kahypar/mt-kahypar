@@ -23,7 +23,6 @@ namespace mt_kahypar {
         using ActiveNodes = std::vector<HypernodeID>;
         using NextActiveNodes = std::vector<HypernodeID>;
         using VisitedEdges = std::vector<HyperedgeID>;
-        using MovedNodes = ds::StreamingVector<HypernodeID>;
 
         static constexpr bool debug = false;
         static constexpr bool enable_heavy_assert = true;
