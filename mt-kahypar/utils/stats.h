@@ -168,7 +168,7 @@ class StatsT {
     _stats.clear();
   }
 
-  friend std::ostream & operator<< (std::ostream& str, const Stats& stats);
+  friend std::ostream & operator<< (std::ostream& str, const StatsT& stats);
 
  private:
   explicit StatsT() :
