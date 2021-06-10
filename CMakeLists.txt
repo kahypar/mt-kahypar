@@ -20,6 +20,8 @@ include_directories(SYSTEM ${gtest_SOURCE_DIR}/../googlemock/include ${gtest_SOU
 
 #include KaHyPar
 include_directories(external_tools/kahypar)
+#include WHFC
+include_directories(external_tools/WHFC)
 
 option(KAHYPAR_USE_MINIMAL_BOOST
   "Download boost automatically and compile required libraries." OFF)
