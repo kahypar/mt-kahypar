@@ -84,7 +84,7 @@ class Graph {
   }
 
   // ! Iterator over all adjacent vertices of u
-  // ! If 'n' is set, than only an iterator over the first n elements is returned
+  // ! If 'n' is set, then only an iterator over the first n elements is returned
   IteratorRange<AdjacenceIterator> arcsOf(const NodeID u,
                                           const size_t n = std::numeric_limits<size_t>::max()) const {
     ASSERT(u < _num_nodes);
@@ -134,7 +134,13 @@ class Graph {
    * coarse graph. Finally, the weights of each multiedge in that temporary graph
    * are aggregated and the result is written to the final contracted graph.
    */
-  Graph contract(Clustering& communities);
+  Graph contract(Clustering& communities, bool low_memory);
+
+  Graph contract_low_memory(Clustering& communities);
+
+  void allocateContractionBuffers() {
+    _tmp_graph_buffer = new TmpGraphBuffer(_num_nodes, _num_arcs);
+  }
 
  private:
   Graph();
@@ -154,10 +160,12 @@ class Graph {
 
   ArcWeight computeNodeVolume(const NodeID u) {
     ASSERT(u < _num_nodes);
+    ArcWeight x = 0.0;
     for (const Arc& arc : arcsOf(u)) {
-      _node_volumes[u] += arc.weight;
+      x += arc.weight;
     }
-    return _node_volumes[u];
+    _node_volumes[u] = x;
+    return x;
   }
 
   // ! Number of nodes

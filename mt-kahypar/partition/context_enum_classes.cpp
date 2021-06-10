@@ -71,6 +71,7 @@ namespace mt_kahypar {
   std::ostream & operator<< (std::ostream& os, const CoarseningAlgorithm& algo) {
     switch (algo) {
       case CoarseningAlgorithm::multilevel_coarsener: return os << "multilevel_coarsener";
+      case CoarseningAlgorithm::deterministic_multilevel_coarsener: return os << "deterministic_multilevel_coarsener";
       case CoarseningAlgorithm::nlevel_coarsener: return os << "nlevel_coarsener";
       case CoarseningAlgorithm::UNDEFINED: return os << "UNDEFINED";
         // omit default case to trigger compiler warning for missing cases
@@ -140,6 +141,7 @@ namespace mt_kahypar {
     switch (algo) {
       case LabelPropagationAlgorithm::label_propagation_km1: return os << "label_propagation_km1";
       case LabelPropagationAlgorithm::label_propagation_cut: return os << "label_propagation_cut";
+      case LabelPropagationAlgorithm::deterministic: return os << "deterministic";
       case LabelPropagationAlgorithm::do_nothing: return os << "lp_do_nothing";
         // omit default case to trigger compiler warning for missing cases
     }
@@ -200,6 +202,8 @@ namespace mt_kahypar {
       return CoarseningAlgorithm::multilevel_coarsener;
     } else if (type == "nlevel_coarsener") {
       return CoarseningAlgorithm::nlevel_coarsener;
+    } else if (type == "deterministic_multilevel_coarsener") {
+      return CoarseningAlgorithm::deterministic_multilevel_coarsener;
     }
     ERROR("Illegal option: " + type);
     return CoarseningAlgorithm::UNDEFINED;
@@ -278,6 +282,8 @@ namespace mt_kahypar {
       return LabelPropagationAlgorithm::label_propagation_km1;
     } else if (type == "label_propagation_cut") {
       return LabelPropagationAlgorithm::label_propagation_cut;
+    } else if (type == "deterministic") {
+      return LabelPropagationAlgorithm::deterministic;
     } else if (type == "do_nothing") {
       return LabelPropagationAlgorithm::do_nothing;
     }

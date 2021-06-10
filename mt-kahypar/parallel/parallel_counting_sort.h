@@ -25,8 +25,8 @@
 #include <iostream>
 #include <numeric>
 #include <vector>
+#include <cassert>
 
-#include "mt-kahypar/macros.h"
 #include "mt-kahypar/parallel/chunking.h"
 #include "mt-kahypar/parallel/parallel_prefix_sum.h"
 
@@ -37,8 +37,6 @@ namespace mt_kahypar::parallel {
 template <class InputRange, class OutputRange, class KeyFunc>
 vec<uint32_t> counting_sort(const InputRange& input, OutputRange& output,
                             size_t max_num_buckets, KeyFunc& get_bucket, size_t num_tasks) {
-  using T = typename InputRange::value_type;
-  static_assert(std::is_same<typename OutputRange::value_type, T>::value);
 
   vec<uint32_t> global_bucket_begins(max_num_buckets + 2, 0);
 
@@ -58,24 +56,33 @@ vec<uint32_t> counting_sort(const InputRange& input, OutputRange& output,
     });
 
     // prefix sum local bucket sizes for local offsets
-    tbb::parallel_for(tbb::blocked_range<size_t>(0, max_num_buckets, 1 << 10), [&](size_t bucket) {
-      for (size_t i = 1; i < num_tasks; ++i) {
-        thread_local_bucket_ends[i][bucket] += thread_local_bucket_ends[i - 1][bucket]; // EVIL for locality!
+    if (max_num_buckets > 1 << 10) {
+      tbb::parallel_for(0UL, max_num_buckets, [&](size_t bucket) {
+        for (size_t i = 1; i < num_tasks; ++i) {
+          thread_local_bucket_ends[i][bucket] += thread_local_bucket_ends[i - 1][bucket]; // EVIL for locality!
+        }
+      });
+    } else {
+      for (size_t bucket = 0; bucket < max_num_buckets; ++bucket) {
+        for (size_t i = 1; i < num_tasks; ++i) {
+          thread_local_bucket_ends[i][bucket] += thread_local_bucket_ends[i - 1][bucket]; // EVIL for locality!
+        }
       }
-    });
+    }
 
     // prefix sum over bucket
-    ASSERT(global_bucket_begins.size()  >= thread_local_bucket_ends.back().size() + 1);
+    assert(global_bucket_begins.size()  >= thread_local_bucket_ends.back().size() + 1);
     parallel_prefix_sum(thread_local_bucket_ends.back().cbegin(), thread_local_bucket_ends.back().cend(),
                         global_bucket_begins.begin() + 1,
-                        std::plus<uint32_t>(), 0);
+                        std::plus<>(), 0);
 
     // element assignment
     tbb::parallel_for(size_t(0), num_tasks, [&](const size_t taskID) {
       vec<uint32_t>& bucketEnds = thread_local_bucket_ends[taskID];
-      for (auto[i,last] = chunking::bounds(taskID, n, chunk_size); i < last; ++i) {
-        size_t bucket = get_bucket(input[i]);
-        output[global_bucket_begins[bucket] + (--bucketEnds[bucket])] = input[i];
+      // reverse iteration makes the algorithm stable
+      for (auto [first,i] = chunking::bounds(taskID, n, chunk_size); i > first; --i) {
+        size_t bucket = get_bucket(input[i-1]);
+        output[global_bucket_begins[bucket] + (--bucketEnds[bucket])] = input[i-1];
       }
     });
 

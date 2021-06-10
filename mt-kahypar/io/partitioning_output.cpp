@@ -517,7 +517,6 @@ namespace mt_kahypar::io {
       LOG << "\n********************************************************************************";
       LOG << "*                             Partitioning Result                              *";
       LOG << "********************************************************************************";
-      printObjectives(hypergraph, context, elapsed_seconds);
 
       if ( context.partition.show_advanced_cut_analysis ) {
         LOG << "\nCut Matrix: ";
@@ -529,6 +528,8 @@ namespace mt_kahypar::io {
         LOG << "\nConnected Cut Hyperedge Analysis: ";
         printConnectedCutHyperedgeAnalysis(hypergraph);
       }
+
+      printObjectives(hypergraph, context, elapsed_seconds);
 
       LOG << "\nPartition sizes and weights: ";
       printPartWeightsAndSizes(hypergraph, context);

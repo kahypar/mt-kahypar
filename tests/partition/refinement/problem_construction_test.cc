@@ -48,10 +48,9 @@ class AProblemConstruction : public Test {
     context.refinement.advanced.max_bfs_distance = 2;
 
     // Read hypergraph
-    hg = io::readHypergraphFile(
-      context.partition.graph_filename, TBBNumaArena::GLOBAL_TASK_GROUP);
+    hg = io::readHypergraphFile(context.partition.graph_filename);
     phg = PartitionedHypergraph(
-      context.partition.k, TBBNumaArena::GLOBAL_TASK_GROUP, hg);
+      context.partition.k, hg, parallel_tag_t());
     context.setupPartWeights(hg.totalWeight());
 
     // Read Partition
@@ -60,7 +59,7 @@ class AProblemConstruction : public Test {
     phg.doParallelForAllNodes([&](const HypernodeID& hn) {
       phg.setOnlyNodePart(hn, partition[hn]);
     });
-    phg.initializePartition(TBBNumaArena::GLOBAL_TASK_GROUP);
+    phg.initializePartition();
 
     AdvancedRefinerMockControl::instance().reset();
     AdvancedRefinerMockControl::instance().max_prob_size_func = [&](ProblemStats& stats) {
@@ -130,7 +129,7 @@ void verifyThatVertexSetAreDisjoint(const vec<HypernodeID>& nodes_1, const vec<H
 
 TEST_F(AProblemConstruction, GrowAnAdvancedRefinementProblemAroundTwoBlocks1) {
   ProblemConstruction constructor(hg, context);
-  AdvancedRefinerAdapter refiner(hg, context, TBBNumaArena::GLOBAL_TASK_GROUP);
+  AdvancedRefinerAdapter refiner(hg, context);
   QuotientGraph qg(hg, context);
   qg.initialize(phg);
 
@@ -145,7 +144,7 @@ TEST_F(AProblemConstruction, GrowAnAdvancedRefinementProblemAroundTwoBlocks1) {
 
 TEST_F(AProblemConstruction, GrowAnAdvancedRefinementProblemAroundTwoBlocks2) {
   ProblemConstruction constructor(hg, context);
-  AdvancedRefinerAdapter refiner(hg, context, TBBNumaArena::GLOBAL_TASK_GROUP);
+  AdvancedRefinerAdapter refiner(hg, context);
   QuotientGraph qg(hg, context);
   qg.initialize(phg);
 
@@ -160,7 +159,7 @@ TEST_F(AProblemConstruction, GrowAnAdvancedRefinementProblemAroundTwoBlocks2) {
 
 TEST_F(AProblemConstruction, GrowTwoAdvancedRefinementProblemAroundTwoBlocksSimultanously) {
   ProblemConstruction constructor(hg, context);
-  AdvancedRefinerAdapter refiner(hg, context, TBBNumaArena::GLOBAL_TASK_GROUP);
+  AdvancedRefinerAdapter refiner(hg, context);
   QuotientGraph qg(hg, context);
   qg.initialize(phg);
 
@@ -185,7 +184,7 @@ TEST_F(AProblemConstruction, GrowTwoAdvancedRefinementProblemAroundTwoBlocksSimu
 TEST_F(AProblemConstruction, GrowAnAdvancedRefinementProblemAroundFourBlocks1) {
   AdvancedRefinerMockControl::instance().max_num_blocks = 4;
   ProblemConstruction constructor(hg, context);
-  AdvancedRefinerAdapter refiner(hg, context, TBBNumaArena::GLOBAL_TASK_GROUP);
+  AdvancedRefinerAdapter refiner(hg, context);
   QuotientGraph qg(hg, context);
   qg.initialize(phg);
 
@@ -201,7 +200,7 @@ TEST_F(AProblemConstruction, GrowAnAdvancedRefinementProblemAroundFourBlocks1) {
 TEST_F(AProblemConstruction, GrowAnAdvancedRefinementProblemAroundFourBlocks2) {
   AdvancedRefinerMockControl::instance().max_num_blocks = 4;
   ProblemConstruction constructor(hg, context);
-  AdvancedRefinerAdapter refiner(hg, context, TBBNumaArena::GLOBAL_TASK_GROUP);
+  AdvancedRefinerAdapter refiner(hg, context);
   QuotientGraph qg(hg, context);
   qg.initialize(phg);
 
@@ -218,7 +217,7 @@ TEST_F(AProblemConstruction, GrowAnAdvancedRefinementProblemAroundFourBlocks2) {
 TEST_F(AProblemConstruction, GrowTwoAdvancedRefinementProblemAroundFourBlocksSimultanously) {
   AdvancedRefinerMockControl::instance().max_num_blocks = 4;
   ProblemConstruction constructor(hg, context);
-  AdvancedRefinerAdapter refiner(hg, context, TBBNumaArena::GLOBAL_TASK_GROUP);
+  AdvancedRefinerAdapter refiner(hg, context);
   QuotientGraph qg(hg, context);
   qg.initialize(phg);
 

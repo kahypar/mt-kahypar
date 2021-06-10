@@ -71,12 +71,12 @@ void mt_kahypar_initialize_thread_pool(const size_t num_threads,
   }
 
   // Initialize TBB task arenas on numa nodes
-  mt_kahypar::TBBNumaArena::instance(P);
+  mt_kahypar::TBBInitializer::instance(P);
 
   if ( interleaved_allocations ) {
     // We set the membind policy to interleaved allocations in order to
     // distribute allocations evenly across NUMA nodes
-    hwloc_cpuset_t cpuset = mt_kahypar::TBBNumaArena::instance().used_cpuset();
+    hwloc_cpuset_t cpuset = mt_kahypar::TBBInitializer::instance().used_cpuset();
     mt_kahypar::parallel::HardwareTopology<>::instance().activate_interleaved_membind_policy(cpuset);
     hwloc_bitmap_free(cpuset);
   }
@@ -176,8 +176,7 @@ void mt_kahypar_partition(const mt_kahypar_hypernode_id_t num_vertices,
 
   // Contruct Hypergraph
   mt_kahypar::Hypergraph hypergraph = mt_kahypar::HypergraphFactory::construct(
-    mt_kahypar::TBBNumaArena::GLOBAL_TASK_GROUP, num_vertices, num_hyperedges,
-    edge_vector, hyperedge_weights, vertex_weights);
+    num_vertices, num_hyperedges, edge_vector, hyperedge_weights, vertex_weights);
 
   // Initialize Memory Pool
   if ( mt_kahypar::parallel::MemoryPool::instance().isInitialized() ) {

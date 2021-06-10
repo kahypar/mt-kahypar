@@ -69,12 +69,11 @@ class AdvancedRefinementScheduler final : public IRefiner {
 
 public:
   explicit AdvancedRefinementScheduler(const Hypergraph& hg,
-                                       const Context& context,
-                                       const TaskGroupID task_group_id) :
+                                       const Context& context) :
     _phg(nullptr),
     _context(context),
     _quotient_graph(hg, context),
-    _refiner(hg, context, task_group_id),
+    _refiner(hg, context),
     _constructor(hg, context),
     _was_moved(hg.initialNumNodes(), uint8_t(false)),
     _part_weights_lock(),

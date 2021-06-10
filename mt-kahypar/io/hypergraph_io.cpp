@@ -93,11 +93,11 @@ namespace mt_kahypar::io {
   }
 
   void readHGRHeader(char* mapped_file,
-                            size_t& pos,
-                            const size_t length,
-                            HyperedgeID& num_hyperedges,
-                            HypernodeID& num_hypernodes,
-                            mt_kahypar::Type& type) {
+                     size_t& pos,
+                     const size_t length,
+                     HyperedgeID& num_hyperedges,
+                     HypernodeID& num_hypernodes,
+                     mt_kahypar::Type& type) {
     // Skip comments
     while ( mapped_file[pos] == '%' ) {
       goto_next_line(mapped_file, pos, length);
@@ -254,11 +254,11 @@ namespace mt_kahypar::io {
   }
 
   void readHypernodeWeights(char* mapped_file,
-                                   size_t& pos,
-                                   const size_t length,
-                                   const HypernodeID num_hypernodes,
-                                   const mt_kahypar::Type type,
-                                   parallel::scalable_vector<HypernodeWeight>& hypernodes_weight) {
+                            size_t& pos,
+                            const size_t length,
+                            const HypernodeID num_hypernodes,
+                            const mt_kahypar::Type type,
+                            parallel::scalable_vector<HypernodeWeight>& hypernodes_weight) {
     utils::Timer::instance().start_timer("parse_hypernode_weights", "Parse Hypernode Weights");
     bool has_hypernode_weights = type == mt_kahypar::Type::NodeWeights ||
                                  type == mt_kahypar::Type::EdgeAndNodeWeights ?
@@ -276,12 +276,12 @@ namespace mt_kahypar::io {
 
 
   void readHypergraphFile(const std::string& filename,
-                                        HyperedgeID& num_hyperedges,
-                                        HypernodeID& num_hypernodes,
-                                        HyperedgeID& num_removed_single_pin_hyperedges,
-                                        HyperedgeVector& hyperedges,
-                                        parallel::scalable_vector<HyperedgeWeight>& hyperedges_weight,
-                                        parallel::scalable_vector<HypernodeWeight>& hypernodes_weight) {
+                          HyperedgeID& num_hyperedges,
+                          HypernodeID& num_hypernodes,
+                          HyperedgeID& num_removed_single_pin_hyperedges,
+                          HyperedgeVector& hyperedges,
+                          parallel::scalable_vector<HyperedgeWeight>& hyperedges_weight,
+                          parallel::scalable_vector<HypernodeWeight>& hypernodes_weight) {
     ASSERT(!filename.empty(), "No filename for hypergraph file specified");
     mt_kahypar::utils::Timer::instance().start_timer(
             "construct_hypergraph_from_file", "Construct Hypergraph from File");
@@ -308,8 +308,7 @@ namespace mt_kahypar::io {
   }
 
   Hypergraph readHypergraphFile(const std::string& filename,
-                                              const TaskGroupID task_group_id,
-                                              const bool stable_construction_of_incident_edges) {
+                                const bool stable_construction_of_incident_edges) {
     // Read Hypergraph File
     HyperedgeID num_hyperedges = 0;
     HypernodeID num_hypernodes = 0;
@@ -323,7 +322,7 @@ namespace mt_kahypar::io {
     // Construct Hypergraph
     utils::Timer::instance().start_timer("construct_hypergraph", "Construct Hypergraph");
     Hypergraph hypergraph = HypergraphFactory::construct(
-            task_group_id, num_hypernodes, num_hyperedges,
+            num_hypernodes, num_hyperedges,
             hyperedges, hyperedges_weight.data(), hypernodes_weight.data(),
             stable_construction_of_incident_edges);
     hypergraph.setNumRemovedHyperedges(num_removed_single_pin_hyperedges);

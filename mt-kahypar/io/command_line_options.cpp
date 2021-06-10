@@ -51,10 +51,13 @@ namespace mt_kahypar {
     po::options_description options("General Options", num_columns);
     options.add_options()
             ("help", "show help message")
+            ("deterministic", po::value<bool>(&context.partition.deterministic)->value_name("<bool>")->default_value(false),
+             "Shortcut to enables deterministic partitioning mode, where results are reproducible across runs. "
+             "If set, the specific deterministic subroutines don't need to be set manually.")
             ("verbose,v", po::value<bool>(&context.partition.verbose_output)->value_name("<bool>")->default_value(true),
              "Verbose main partitioning output")
             ("write-partition-file",
-             po::value<bool>(&context.partition.write_partition_file)->value_name("<bool>")->default_value(true),
+             po::value<bool>(&context.partition.write_partition_file)->value_name("<bool>")->default_value(false),
              "If true, then partition output file is generated")
             ("partition-output-folder",
              po::value<std::string>(&context.partition.graph_partition_output_folder)->value_name("<string>"),
@@ -126,7 +129,7 @@ namespace mt_kahypar {
              "data structure is independent of scheduling during construction.")
             ("p-enable-community-detection",
              po::value<bool>(&context.preprocessing.use_community_detection)->value_name("<bool>")->default_value(true),
-             "If true, community detection is used as preprocessing step to restrict contractions to densly coupled regioins in coarsening phase")
+             "If true, community detection is used as preprocessing step to restrict contractions to densely coupled regions in coarsening phase")
             ("p-louvain-edge-weight-function",
              po::value<std::string>()->value_name("<string>")->notifier(
                      [&](const std::string& type) {
@@ -142,6 +145,10 @@ namespace mt_kahypar {
              po::value<uint32_t>(&context.preprocessing.community_detection.max_pass_iterations)->value_name(
                      "<uint32_t>")->default_value(5),
              "Maximum number of iterations over all nodes of one louvain pass")
+            ("p-louvain-low-memory-contraction",
+             po::value<bool>(&context.preprocessing.community_detection.low_memory_contraction)->value_name(
+                     "<bool>")->default_value(false),
+             "Maximum number of iterations over all nodes of one louvain pass")
             ("p-louvain-min-vertex-move-fraction",
              po::value<long double>(&context.preprocessing.community_detection.min_vertex_move_fraction)->value_name(
                      "<long double>")->default_value(0.01),
@@ -149,7 +156,11 @@ namespace mt_kahypar {
             ("p-vertex-degree-sampling-threshold",
              po::value<size_t>(&context.preprocessing.community_detection.vertex_degree_sampling_threshold)->value_name(
                      "<size_t>")->default_value(std::numeric_limits<size_t>::max()),
-             "If set, then neighbors of a vertex are sampled during rating if its degree is greater than this threshold.");
+             "If set, then neighbors of a vertex are sampled during rating if its degree is greater than this threshold.")
+            ("p-num-sub-rounds",
+             po::value<size_t>(&context.preprocessing.community_detection.num_sub_rounds_deterministic)->value_name(
+                     "<size_t>")->default_value(16),
+             "Number of sub-rounds used for deterministic community detection in preprocessing.");
     return options;
   }
 
@@ -163,7 +174,10 @@ namespace mt_kahypar {
                        context.coarsening.algorithm = mt_kahypar::coarseningAlgorithmFromString(ctype);
                      })->default_value("multilevel_coarsener"),
              "Coarsening Algorithm:\n"
-             " - multilevel_coarsener")
+             " - multilevel_coarsener"
+             " - nlevel_coarsener"
+             " - deterministic_multilevel_coarsener"
+             )
             ("c-use-adaptive-edge-size",
              po::value<bool>(&context.coarsening.use_adaptive_edge_size)->value_name("<bool>")->default_value(true),
              "If true, the rating function uses the number of distinct cluster IDs of a net as edge size rather\n"
@@ -226,7 +240,11 @@ namespace mt_kahypar {
             ("c-vertex-degree-sampling-threshold",
              po::value<size_t>(&context.coarsening.vertex_degree_sampling_threshold)->value_name(
                      "<size_t>")->default_value(std::numeric_limits<size_t>::max()),
-             "If set, then neighbors of a vertex are sampled during rating if its degree is greater than this threshold.");
+             "If set, then neighbors of a vertex are sampled during rating if its degree is greater than this threshold.")
+            ("c-num-sub-rounds",
+             po::value<size_t>(&context.coarsening.num_sub_rounds_deterministic)->value_name(
+                     "<size_t>")->default_value(16),
+             "Number of sub-rounds used for deterministic coarsening.");
     return options;
   }
 
@@ -262,12 +280,23 @@ namespace mt_kahypar {
              "Label Propagation Algorithm:\n"
              "- label_propagation_km1\n"
              "- label_propagation_cut\n"
+             "- deterministic\n"
              "- do_nothing")
             ((initial_partitioning ? "i-r-lp-maximum-iterations" : "r-lp-maximum-iterations"),
              po::value<size_t>((!initial_partitioning ? &context.refinement.label_propagation.maximum_iterations :
                                 &context.initial_partitioning.refinement.label_propagation.maximum_iterations))->value_name(
                      "<size_t>")->default_value(5),
              "Maximum number of label propagation rounds")
+            ((initial_partitioning ? "i-r-sync-lp-sub-rounds" : "r-sync-lp-sub-rounds"),
+             po::value<size_t>((!initial_partitioning ? &context.refinement.deterministic_refinement.num_sub_rounds_sync_lp :
+                                &context.initial_partitioning.refinement.deterministic_refinement.num_sub_rounds_sync_lp))->value_name(
+                     "<size_t>")->default_value(5),
+             "Number of sub-rounds for deterministic synchronous label propagation")
+            ((initial_partitioning ? "i-r-sync-lp-active-nodeset" : "r-sync-lp-active-nodeset"),
+             po::value<bool>((!initial_partitioning ? &context.refinement.deterministic_refinement.use_active_node_set :
+                                &context.initial_partitioning.refinement.deterministic_refinement.use_active_node_set))->value_name(
+                     "<bool>")->default_value(true),
+             "Number of sub-rounds for deterministic synchronous label propagation")
             ((initial_partitioning ? "i-r-lp-rebalancing" : "r-lp-rebalancing"),
              po::value<bool>((!initial_partitioning ? &context.refinement.label_propagation.rebalancing :
                               &context.initial_partitioning.refinement.label_propagation.rebalancing))->value_name(
@@ -440,6 +469,10 @@ namespace mt_kahypar {
              po::value<size_t>(&context.initial_partitioning.min_adaptive_ip_runs)->value_name("<size_t>")->default_value(5),
              "If adaptive IP runs is enabled, than each initial partitioner performs minimum min_adaptive_ip_runs runs before\n"
              "it decides if it should terminate.")
+            ("i-population-size",
+             po::value<size_t>(&context.initial_partitioning.population_size)->value_name("<size_t>")->default_value(16),
+             "Size of population of flat bipartitions to perform secondary FM refinement on in deterministic mode."
+             "Values < num threads are set to num threads. Does not affect behavior in non-deterministic mode.")
             ("i-perform-refinement-on-best-partitions",
              po::value<bool>(&context.initial_partitioning.perform_refinement_on_best_partitions)->value_name("<bool>")->default_value(false),
              "If true, then we perform an additional refinement on the best thread local partitions after IP.")
@@ -506,6 +539,13 @@ namespace mt_kahypar {
             ("s-num-threads,t",
              po::value<size_t>(&context.shared_memory.num_threads)->value_name("<size_t>"),
              "Number of Threads")
+            ("s-static-balancing-work-packages",
+             po::value<size_t>(&context.shared_memory.static_balancing_work_packages)->value_name("<size_t>"),
+             "Some sub-routines (sorting, shuffling) used in the deterministic presets employ static load balancing."
+             "This parameter sets the number of work packages, in order to achieve deterministic results across different numbers of threads."
+             "The default value is 128, and these sub-routines have little work, so there should rarely be a reason to change it. Max value is 256."
+             "It does not affect the non-deterministic configs, unless you activate one of the deterministic algorithms."
+            )
             ("s-use-localized-random-shuffle",
              po::value<bool>(&context.shared_memory.use_localized_random_shuffle)->value_name("<bool>"),
              "If true, localized parallel random shuffle is performed.")
@@ -652,6 +692,10 @@ namespace mt_kahypar {
             + ".KaHyPar";
     context.partition.graph_community_filename =
             context.partition.graph_filename + ".community";
+
+    if (context.partition.deterministic) {
+      context.preprocessing.stable_construction_of_incident_edges = true;
+    }
   }
 
 
@@ -696,6 +740,10 @@ namespace mt_kahypar {
 
     po::store(po::parse_config_file(file, ini_line_options, true), cmd_vm);
     po::notify(cmd_vm);
+
+    if (context.partition.deterministic) {
+      context.preprocessing.stable_construction_of_incident_edges = true;
+    }
   }
 
 }

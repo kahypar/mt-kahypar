@@ -176,12 +176,9 @@ class SequentialTwoWayFmRefiner {
     _he_state(phg.initialNumEdges(), HEState::FREE) {
     ASSERT(_context.partition.k == 2);
     _pq.initialize(_phg.initialNumNodes());
-    for ( const HypernodeID& hn : phg.nodes() ) {
-      _nodes.push_back(hn);
-    }
   }
 
-  bool refine(kahypar::Metrics& best_metrics);
+  bool refine(kahypar::Metrics& best_metrics, std::mt19937& prng);
 
  private:
 

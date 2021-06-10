@@ -77,8 +77,7 @@ namespace mt_kahypar {
               && fm.findMoves(phg, task_id, num_seeds)) { /* keep running*/ }
         sharedData.finishedTasks.fetch_add(1, std::memory_order_relaxed);
       };
-      size_t num_tasks = std::min(num_border_nodes, context.shared_memory.num_threads);
-      ASSERT(static_cast<int>(num_tasks) <= TBBNumaArena::instance().total_number_of_threads());
+      size_t num_tasks = std::min(num_border_nodes, size_t(TBBInitializer::instance().total_number_of_threads()));
       for (size_t i = 0; i < num_tasks; ++i) {
         tg.run(std::bind(task, i));
       }
@@ -158,7 +157,7 @@ namespace mt_kahypar {
       tbb::parallel_for(tbb::blocked_range<HypernodeID>(0, phg.initialNumNodes()),
         [&](const tbb::blocked_range<HypernodeID>& r) {
           const int task_id = tbb::this_task_arena::current_thread_index();
-          ASSERT(task_id >= 0 && task_id < TBBNumaArena::instance().total_number_of_threads());
+          ASSERT(task_id >= 0 && task_id < TBBInitializer::instance().total_number_of_threads());
           for (HypernodeID u = r.begin(); u < r.end(); ++u) {
             if (phg.nodeIsEnabled(u) && phg.isBorderNode(u)) {
               sharedData.refinementNodes.safe_push(u, task_id);
@@ -170,7 +169,7 @@ namespace mt_kahypar {
       tbb::parallel_for(0UL, refinement_nodes.size(), [&](const size_t i) {
         const HypernodeID u = refinement_nodes[i];
         const int task_id = tbb::this_task_arena::current_thread_index();
-        ASSERT(task_id >= 0 && task_id < TBBNumaArena::instance().total_number_of_threads());
+        ASSERT(task_id >= 0 && task_id < TBBInitializer::instance().total_number_of_threads());
         if (phg.nodeIsEnabled(u) && phg.isBorderNode(u)) {
           sharedData.refinementNodes.safe_push(u, task_id);
         }

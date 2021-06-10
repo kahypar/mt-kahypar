@@ -38,10 +38,10 @@
 namespace mt_kahypar {
 
 using HypergraphSparsifierFactory = kahypar::meta::Factory<SimiliarNetCombinerStrategy,
-                                                           IHypergraphSparsifier* (*)(const Context&, const TaskGroupID)>;
+                                                           IHypergraphSparsifier* (*)(const Context&)>;
 
 using CoarsenerFactory = kahypar::meta::Factory<CoarseningAlgorithm,
-                                                ICoarsener* (*)(Hypergraph&, const Context&, const TaskGroupID, const bool)>;
+                                                ICoarsener* (*)(Hypergraph&, const Context&, const bool)>;
 
 using MultilevelCoarsenerDispatcher = kahypar::meta::StaticMultiDispatchFactory<MultilevelCoarsener,
                                                                                 ICoarsener,
@@ -56,14 +56,14 @@ using NLevelCoarsenerDispatcher = kahypar::meta::StaticMultiDispatchFactory<NLev
                                                                                                         AcceptancePolicies> >;
 
 using InitialPartitionerFactory = kahypar::meta::Factory<InitialPartitioningMode,
-                                                         IInitialPartitioner* (*)(PartitionedHypergraph&, const Context&, const bool, const TaskGroupID)>;
+                                                         IInitialPartitioner* (*)(PartitionedHypergraph&, const Context&, const bool)>;
 
 using LabelPropagationFactory = kahypar::meta::Factory<LabelPropagationAlgorithm,
-                                                       IRefiner* (*)(Hypergraph&, const Context&, const TaskGroupID)>;
+                                                       IRefiner* (*)(Hypergraph&, const Context&)>;
 
 using FMFactory = kahypar::meta::Factory<FMAlgorithm,
-                                         IRefiner* (*)(Hypergraph&, const Context&, const TaskGroupID)>;
+                                         IRefiner* (*)(Hypergraph&, const Context&)>;
 
 using AdvancedRefinementFactory = kahypar::meta::Factory<AdvancedRefinementAlgorithm,
-                                  IAdvancedRefiner* (*)(const Hypergraph&, const Context&, const TaskGroupID)>;
+                                  IAdvancedRefiner* (*)(const Hypergraph&, const Context&)>;
 }  // namespace mt_kahypar

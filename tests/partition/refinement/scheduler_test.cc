@@ -34,9 +34,9 @@ namespace mt_kahypar {
 class AAdvancedRefinementScheduler : public Test {
  public:
   AAdvancedRefinementScheduler() :
-    hg(HypergraphFactory::construct(TBBNumaArena::GLOBAL_TASK_GROUP,
-      7 , 4, { {0, 2}, {0, 1, 3, 4}, {3, 4, 6}, {2, 5, 6} }, nullptr, nullptr, true)),
-    phg(2, TBBNumaArena::GLOBAL_TASK_GROUP, hg),
+    hg(HypergraphFactory::construct(7 , 4,
+      { {0, 2}, {0, 1, 3, 4}, {3, 4, 6}, {2, 5, 6} }, nullptr, nullptr, true)),
+    phg(2, hg, parallel_tag_t()),
     context() {
     context.partition.k = 2;
     context.partition.perfect_balance_part_weights.assign(2, 3);
@@ -56,7 +56,7 @@ class AAdvancedRefinementScheduler : public Test {
     phg.setOnlyNodePart(4, 1);
     phg.setOnlyNodePart(5, 1);
     phg.setOnlyNodePart(6, 1);
-    phg.initializePartition(TBBNumaArena::GLOBAL_TASK_GROUP);
+    phg.initializePartition();
   }
 
   Hypergraph hg;
@@ -88,7 +88,7 @@ void verifyPartWeights(const vec<HypernodeWeight> actual_weights,
 }
 
 TEST_F(AAdvancedRefinementScheduler, MovesOneVertex) {
-  AdvancedRefinementScheduler refiner(hg, context, TBBNumaArena::GLOBAL_TASK_GROUP);
+  AdvancedRefinementScheduler refiner(hg, context);
   refiner.initialize(phg);
   MoveSequence sequence { { MOVE(3, 0, 1) }, 1 };
 
@@ -100,7 +100,7 @@ TEST_F(AAdvancedRefinementScheduler, MovesOneVertex) {
 }
 
 TEST_F(AAdvancedRefinementScheduler, MovesVerticesWithIntermediateBalanceViolation) {
-  AdvancedRefinementScheduler refiner(hg, context, TBBNumaArena::GLOBAL_TASK_GROUP);
+  AdvancedRefinementScheduler refiner(hg, context);
   refiner.initialize(phg);
   MoveSequence sequence { { MOVE(5, 1, 0), MOVE(1, 0, 1), MOVE(3, 0, 1) }, 1 };
 
@@ -114,7 +114,7 @@ TEST_F(AAdvancedRefinementScheduler, MovesVerticesWithIntermediateBalanceViolati
 }
 
 TEST_F(AAdvancedRefinementScheduler, MovesAVertexThatWorsenSolutionQuality) {
-  AdvancedRefinementScheduler refiner(hg, context, TBBNumaArena::GLOBAL_TASK_GROUP);
+  AdvancedRefinementScheduler refiner(hg, context);
   refiner.initialize(phg);
   MoveSequence sequence { { MOVE(0, 0, 1) }, 1 };
 
@@ -126,7 +126,7 @@ TEST_F(AAdvancedRefinementScheduler, MovesAVertexThatWorsenSolutionQuality) {
 }
 
 TEST_F(AAdvancedRefinementScheduler, MovesAVertexThatViolatesBalanceConstraint) {
-  AdvancedRefinementScheduler refiner(hg, context, TBBNumaArena::GLOBAL_TASK_GROUP);
+  AdvancedRefinementScheduler refiner(hg, context);
   refiner.initialize(phg);
   MoveSequence sequence { { MOVE(4, 1, 0) }, 1 };
 
@@ -139,7 +139,7 @@ TEST_F(AAdvancedRefinementScheduler, MovesAVertexThatViolatesBalanceConstraint) 
 
 TEST_F(AAdvancedRefinementScheduler, MovesTwoVerticesConcurrently) {
   context.partition.max_part_weights.assign(2, 5);
-  AdvancedRefinementScheduler refiner(hg, context, TBBNumaArena::GLOBAL_TASK_GROUP);
+  AdvancedRefinementScheduler refiner(hg, context);
   refiner.initialize(phg);
 
   MoveSequence sequence_1 { { MOVE(3, 0, 1) }, 1 };
@@ -161,7 +161,7 @@ TEST_F(AAdvancedRefinementScheduler, MovesTwoVerticesConcurrently) {
 }
 
 TEST_F(AAdvancedRefinementScheduler, MovesTwoVerticesConcurrentlyWhereOneViolateBalanceConstraint) {
-  AdvancedRefinementScheduler refiner(hg, context, TBBNumaArena::GLOBAL_TASK_GROUP);
+  AdvancedRefinementScheduler refiner(hg, context);
   refiner.initialize(phg);
 
   MoveSequence sequence_1 { { MOVE(3, 0, 1) }, 1 };
@@ -215,10 +215,9 @@ class AnAdvancedRefinementEndToEnd : public Test {
     context.refinement.advanced.max_bfs_distance = 2;
 
     // Read hypergraph
-    hg = io::readHypergraphFile(
-      context.partition.graph_filename, TBBNumaArena::GLOBAL_TASK_GROUP);
+    hg = io::readHypergraphFile(context.partition.graph_filename);
     phg = PartitionedHypergraph(
-      context.partition.k, TBBNumaArena::GLOBAL_TASK_GROUP, hg);
+      context.partition.k, hg, parallel_tag_t());
     context.setupPartWeights(hg.totalWeight());
 
     // Read Partition
@@ -227,7 +226,7 @@ class AnAdvancedRefinementEndToEnd : public Test {
     phg.doParallelForAllNodes([&](const HypernodeID& hn) {
       phg.setOnlyNodePart(hn, partition[hn]);
     });
-    phg.initializePartition(TBBNumaArena::GLOBAL_TASK_GROUP);
+    phg.initializePartition();
 
     AdvancedRefinerMockControl::instance().reset();
     // Define maximum problem size function
@@ -287,7 +286,7 @@ class AnAdvancedRefinementEndToEnd : public Test {
 
 TEST_F(AnAdvancedRefinementEndToEnd, SmokeTestWithTwoBlocksPerRefiner) {
   const bool debug = false;
-  AdvancedRefinementScheduler scheduler(hg, context, TBBNumaArena::GLOBAL_TASK_GROUP);
+  AdvancedRefinementScheduler scheduler(hg, context);
 
   kahypar::Metrics metrics;
   metrics.cut = metrics::hyperedgeCut(phg);
@@ -320,7 +319,7 @@ TEST_F(AnAdvancedRefinementEndToEnd, SmokeTestWithTwoBlocksPerRefiner) {
 TEST_F(AnAdvancedRefinementEndToEnd, SmokeTestWithFourBlocksPerRefiner) {
   const bool debug = false;
   AdvancedRefinerMockControl::instance().max_num_blocks = 4;
-  AdvancedRefinementScheduler scheduler(hg, context, TBBNumaArena::GLOBAL_TASK_GROUP);
+  AdvancedRefinementScheduler scheduler(hg, context);
 
   kahypar::Metrics metrics;
   metrics.cut = metrics::hyperedgeCut(phg);

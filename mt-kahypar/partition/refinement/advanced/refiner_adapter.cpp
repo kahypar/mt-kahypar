@@ -115,7 +115,7 @@ void AdvancedRefinerAdapter::reset() {
 
 void AdvancedRefinerAdapter::initializeRefiner(std::unique_ptr<IAdvancedRefiner>& refiner) {
   refiner = AdvancedRefinementFactory::getInstance().createObject(
-    _context.refinement.advanced.algorithm, _hg, _context, _task_group_id);
+    _context.refinement.advanced.algorithm, _hg, _context);
 }
 
 }

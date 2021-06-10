@@ -38,19 +38,20 @@ std::vector<std::string> target_structs =
   { "PartitioningParameters", "CommunityDetectionParameters", "CommunityRedistributionParameters",
     "PreprocessingParameters", "RatingParameters", "CoarseningParameters", "InitialPartitioningParameters",
     "SparsificationParameters", "LabelPropagationParameters", "FMParameters", "NLevelGlobalFMParameters",
-    "AdvancedRefinementParameters", "RefinementParameters", "SharedMemoryParameters" };
+    "AdvancedRefinementParameters", "RefinementParameters", "SharedMemoryParameters", "DeterministicRefinement" };
 
 std::unordered_map<std::string, std::string> target_struct_prefix =
   { {"PartitioningParameters", ""}, {"CommunityDetectionParameters", "community_"}, {"CommunityRedistributionParameters", "community_redistribution_"},
     {"PreprocessingParameters", ""}, {"RatingParameters", "rating_"}, {"CoarseningParameters", "coarsening_"},
     {"InitialPartitioningParameters", "initial_partitioning_"}, {"SparsificationParameters", "sparsification_"},
     {"LabelPropagationParameters", "lp_"}, {"FMParameters", "fm_"}, {"NLevelGlobalFMParameters", "global_fm_"},
-    {"AdvancedRefinementParameters", "advanced_"}, {"RefinementParameters", ""}, {"SharedMemoryParameters", ""} };
+    {"AdvancedRefinementParameters", "advanced_"}, {"RefinementParameters", ""}, {"SharedMemoryParameters", ""},
+    {"DeterministicRefinement", "sync_lp_"} };
 
 std::set<std::string> excluded_members =
   { "verbose_output", "show_detailed_timings", "show_detailed_clustering_timings", "timings_output_depth", "show_memory_consumption", "show_advanced_cut_analysis", "enable_progress_bar", "sp_process_output",
     "measure_detailed_uncontraction_timings", "write_partition_file", "graph_partition_output_folder", "graph_partition_filename", "graph_community_filename", "community_detection",
-    "community_redistribution", "coarsening_rating", "label_propagation", "lp_execute_sequential",
+    "community_redistribution", "coarsening_rating", "label_propagation", "lp_execute_sequential", "deterministic_refinement",
     "snapshot_interval", "initial_partitioning_refinement", "initial_partitioning_sparsification", "initial_partitioning_enabled_ip_algos",
     "stable_construction_of_incident_edges", "fm", "global_fm", "advanced", "csv_output", "preset_file", "degree_of_parallelism" };
 
@@ -191,12 +192,15 @@ TEST(ASqlPlotSerializerTest, ChecksIfSomeParametersFromContextAreMissing) {
   std::string result = serializer::serialize(dummy_partitioned_hypergraph, dummy_context, elapsed_seconds);
   std::set<std::string> members_result = get_all_members_from_result_line(result);
   std::vector<std::string> members_context = get_all_members_in_context();
+  bool any_error = false;
   for ( const std::string& member : members_context ) {
     if ( !check_if_member_is_contained_in_result_line(member, members_result) ) {
-      ERROR("Context member" << member << "not found in result line."
-        << "Maybe it has a different name or should be excluded from this test.");
+      any_error = true;
+      LOG << "Context member" << member << "not found in result line."
+        << "Maybe it has a different name or should be excluded from this test.";
     }
   }
+  ASSERT_FALSE(any_error);
 }
 
 TEST(CSVTest, HeaderAndRowContainSameNumberOfColumns) {

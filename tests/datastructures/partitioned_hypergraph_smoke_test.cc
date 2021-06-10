@@ -57,8 +57,8 @@ class AConcurrentHypergraph : public Test {
   {
     int cpu_id = sched_getcpu();
     underlying_hypergraph = io::readHypergraphFile(
-      "../tests/instances/contracted_ibm01.hgr", TBBNumaArena::GLOBAL_TASK_GROUP);
-    hypergraph = mt_kahypar::PartitionedHypergraph(k, TBBNumaArena::GLOBAL_TASK_GROUP, underlying_hypergraph);
+      "../tests/instances/contracted_ibm01.hgr");
+    hypergraph = mt_kahypar::PartitionedHypergraph(k, underlying_hypergraph, parallel_tag_t());
     for (const HypernodeID& hn : hypergraph.nodes()) {
       PartitionID id = utils::Randomize::instance().getRandomInt(0, k - 1, cpu_id);
       hypergraph.setNodePart(hn, id);

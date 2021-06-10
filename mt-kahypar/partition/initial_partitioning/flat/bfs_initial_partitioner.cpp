@@ -27,23 +27,24 @@ namespace mt_kahypar {
 
 tbb::task* BFSInitialPartitioner::execute() {
     if ( _ip_data.should_initial_partitioner_run(InitialPartitioningAlgorithm::bfs) ) {
+
       HighResClockTimepoint start = std::chrono::high_resolution_clock::now();
       PartitionedHypergraph& hypergraph = _ip_data.local_partitioned_hypergraph();
       kahypar::ds::FastResetFlagArray<>& hypernodes_in_queue =
-        _ip_data.local_hypernode_fast_reset_flag_array();
+              _ip_data.local_hypernode_fast_reset_flag_array();
       kahypar::ds::FastResetFlagArray<>& hyperedges_in_queue =
-        _ip_data.local_hyperedge_fast_reset_flag_array();
+              _ip_data.local_hyperedge_fast_reset_flag_array();
 
-      _ip_data.reset_unassigned_hypernodes();
+      _ip_data.reset_unassigned_hypernodes(_rng);
       parallel::scalable_vector<HypernodeID> start_nodes =
-        PseudoPeripheralStartNodes::computeStartNodes(_ip_data, _context, kInvalidPartition, _rng);
+              PseudoPeripheralStartNodes::computeStartNodes(_ip_data, _context, kInvalidPartition, _rng);
 
       // Insert each start node for each block into its corresponding queue
       hypernodes_in_queue.reset();
       hyperedges_in_queue.reset();
       parallel::scalable_vector<Queue> queues(_context.partition.k);
 
-      for ( PartitionID block = 0; block < _context.partition.k; ++block ) {
+      for (PartitionID block = 0; block < _context.partition.k; ++block) {
         queues[block].push(start_nodes[block]);
         markHypernodeAsInQueue(hypergraph, hypernodes_in_queue, start_nodes[block], block);
       }
@@ -54,16 +55,16 @@ tbb::task* BFSInitialPartitioner::execute() {
       // Once a block is on turn, it pops it first hypernode and pushes
       // all adjacent vertices into its queue.
       const HypernodeID current_num_nodes =
-        hypergraph.initialNumNodes() - hypergraph.numRemovedHypernodes();
-      while ( num_assigned_hypernodes < current_num_nodes ) {
-        for ( PartitionID block = 0; block < _context.partition.k; ++block ) {
+              hypergraph.initialNumNodes() - hypergraph.numRemovedHypernodes();
+      while (num_assigned_hypernodes < current_num_nodes) {
+        for (PartitionID block = 0; block < _context.partition.k; ++block) {
           HypernodeID hn = kInvalidHypernode;
 
-          while ( !queues[block].empty() ) {
+          while (!queues[block].empty()) {
             const HypernodeID next_hn = queues[block].front();
             queues[block].pop();
 
-            if ( hypergraph.partID(next_hn) == kInvalidPartition ) {
+            if (hypergraph.partID(next_hn) == kInvalidPartition) {
               // Hypernode is assigned to the current block, if it is not
               // assigned to an other block and if the assignment does not
               // violate the balanced constraint.
@@ -71,25 +72,25 @@ tbb::task* BFSInitialPartitioner::execute() {
               // we take the last unassigned hypernode popped from the queue.
               // Note, in that case the balanced constraint will be violated.
               hn = next_hn;
-              if ( fitsIntoBlock(hypergraph, hn, block) ) {
+              if (fitsIntoBlock(hypergraph, hn, block)) {
                 break;
               }
             }
           }
 
-          if ( hn == kInvalidHypernode ) {
+          if (hn == kInvalidHypernode) {
             // Special case, in case all hypernodes in the queue are already
             // assigned to an other block or the hypergraph is unconnected, we
             // choose an new unassigned hypernode (if one exists)
             hn = _ip_data.get_unassigned_hypernode();
           }
 
-          if ( hn != kInvalidHypernode ) {
+          if (hn != kInvalidHypernode) {
             ASSERT(hypergraph.partID(hn) == kInvalidPartition, V(block) << V(hypergraph.partID(hn)));
             hypergraph.setNodePart(hn, block);
             ++num_assigned_hypernodes;
             pushIncidentHypernodesIntoQueue(hypergraph, _context, queues[block],
-              hypernodes_in_queue, hyperedges_in_queue, hn, block);
+                                            hypernodes_in_queue, hyperedges_in_queue, hn, block);
           } else {
             ASSERT(queues[block].empty());
           }
@@ -98,7 +99,7 @@ tbb::task* BFSInitialPartitioner::execute() {
 
       HighResClockTimepoint end = std::chrono::high_resolution_clock::now();
       double time = std::chrono::duration<double>(end - start).count();
-      _ip_data.commit(InitialPartitioningAlgorithm::bfs, time);
+      _ip_data.commit(InitialPartitioningAlgorithm::bfs, _rng, _tag, time);
     }
     return nullptr;
 }

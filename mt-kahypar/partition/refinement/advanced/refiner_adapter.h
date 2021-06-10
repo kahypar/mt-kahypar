@@ -36,11 +36,9 @@ class AdvancedRefinerAdapter {
 
 public:
   explicit AdvancedRefinerAdapter(const Hypergraph& hg,
-                                  const Context& context,
-                                  const TaskGroupID task_group_id) :
+                                  const Context& context) :
     _hg(hg),
     _context(context),
-    _task_group_id(task_group_id),
     _refiner_lock(),
     _num_unused_refiners(0),
     _refiner(),
@@ -100,7 +98,6 @@ private:
 
   const Hypergraph& _hg;
   const Context& _context;
-  const TaskGroupID _task_group_id;
 
   SpinLock _refiner_lock;
   // ! Number of unused refiners

@@ -33,8 +33,7 @@ namespace {
 
 Hypergraph createTestHypergraph() {
   const std::vector<HyperedgeWeight> hyperedge_weight = { 2, 3, 1, 4, 5, 6 };
-  return HypergraphFactory::construct(TBBNumaArena::GLOBAL_TASK_GROUP,
-    7, 6, { {0, 2}, {0, 1, 3, 4}, {3, 4, 6}, {2, 5, 6}, {0, 3, 5}, {0, 1, 2} },
+  return HypergraphFactory::construct(7, 6, { {0, 2}, {0, 1, 3, 4}, {3, 4, 6}, {2, 5, 6}, {0, 3, 5}, {0, 1, 2} },
     hyperedge_weight.data());
 }
 

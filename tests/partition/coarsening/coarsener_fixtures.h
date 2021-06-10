@@ -38,8 +38,7 @@ class ACoarsener : public Test {
 
  public:
   ACoarsener() :
-    hypergraph(HypergraphFactory::construct(TBBNumaArena::GLOBAL_TASK_GROUP,
-      16, 18, { { 0, 1 }, { 0, 1, 3 }, { 1, 2, 3 }, { 2, 3, 4 }, { 2, 4 },
+    hypergraph(HypergraphFactory::construct(16, 18, { { 0, 1 }, { 0, 1, 3 }, { 1, 2, 3 }, { 2, 3, 4 }, { 2, 4 },
                 { 4, 5 }, { 4, 5, 7 }, { 5, 6, 7 }, { 6, 7, 8 }, { 6, 8 },
                 { 8, 9 }, { 8, 9, 11 }, { 9, 10, 11 }, { 10, 11, 12 }, { 10, 12 },
                 { 12, 13 }, { 12, 13, 15 }, { 13, 14, 15 } })),

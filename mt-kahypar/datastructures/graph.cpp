@@ -30,6 +30,7 @@
 #include "mt-kahypar/parallel/parallel_prefix_sum.h"
 #include "mt-kahypar/parallel/atomic_wrapper.h"
 #include "mt-kahypar/utils/timer.h"
+#include "mt-kahypar/parallel/parallel_counting_sort.h"
 
 namespace mt_kahypar::ds {
 
@@ -85,7 +86,7 @@ namespace mt_kahypar::ds {
     _indices(std::move(other._indices)),
     _arcs(std::move(other._arcs)),
     _node_volumes(std::move(other._node_volumes)),
-    _tmp_graph_buffer(std::move(other._tmp_graph_buffer)) {
+    _tmp_graph_buffer(other._tmp_graph_buffer) {
     other._num_nodes = 0;
     other._num_arcs = 0;
     other._total_volume = 0;
@@ -116,6 +117,92 @@ namespace mt_kahypar::ds {
     }
   }
 
+  Graph Graph::contract_low_memory(Clustering& communities) {
+    // map cluster IDs to consecutive range
+    vec<NodeID> mapping(numNodes(), 0);   // TODO use memory pool?
+    tbb::parallel_for(0UL, numNodes(), [&](NodeID u) { mapping[communities[u]] = 1; });
+    parallel_prefix_sum(mapping.begin(), mapping.begin() + numNodes(), mapping.begin(), std::plus<>(), 0);
+    NodeID num_coarse_nodes = mapping[numNodes() - 1];
+    // apply mapping to cluster IDs. subtract one because prefix sum is inclusive
+    tbb::parallel_for(0UL, numNodes(), [&](NodeID u) { communities[u] = mapping[communities[u]] - 1; });
+
+    // sort nodes by cluster
+    auto get_cluster = [&](NodeID u) { assert(u < communities.size()); return communities[u]; };
+    vec<NodeID> nodes_sorted_by_cluster(std::move(mapping));    // reuse memory from mapping since it's no longer needed
+    auto cluster_bounds = parallel::counting_sort(nodes(), nodes_sorted_by_cluster, num_coarse_nodes,
+                                                  get_cluster, TBBInitializer::instance().total_number_of_threads());
+
+    Graph coarse_graph;
+    coarse_graph._num_nodes = num_coarse_nodes;
+    coarse_graph._indices.resize(num_coarse_nodes + 1);
+    coarse_graph._node_volumes.resize(num_coarse_nodes);
+    coarse_graph._total_volume = totalVolume();
+
+    struct ClearList {
+      vec<NodeID> used;
+      vec<ArcWeight> values;
+
+      ClearList(size_t n) : values(n, 0.0) { }
+    };
+    tbb::enumerable_thread_specific<ClearList> clear_lists(num_coarse_nodes);
+    tbb::enumerable_thread_specific<size_t> local_max_degree(0);
+
+    // first pass generating unique coarse arcs to determine coarse node degrees
+    tbb::parallel_for(0U, num_coarse_nodes, [&](NodeID cu) {
+      auto& clear_list = clear_lists.local();
+      ArcWeight volume_cu = 0.0;
+      for (auto i = cluster_bounds[cu]; i < cluster_bounds[cu + 1]; ++i) {
+        NodeID fu = nodes_sorted_by_cluster[i];
+        volume_cu += nodeVolume(fu);
+        for (const Arc& arc : arcsOf(fu)) {
+          NodeID cv = get_cluster(arc.head);
+          if (cv != cu && clear_list.values[cv] == 0.0) {
+            clear_list.used.push_back(cv);
+            clear_list.values[cv] = 1.0;
+          }
+        }
+      }
+      coarse_graph._indices[cu + 1] = clear_list.used.size();
+      local_max_degree.local() = std::max(local_max_degree.local(), clear_list.used.size());
+      for (const NodeID cv : clear_list.used) {
+        clear_list.values[cv] = 0.0;
+      }
+      clear_list.used.clear();
+      coarse_graph._node_volumes[cu] = volume_cu;
+    });
+
+    // prefix sum coarse node degrees for offsets to write the coarse arcs in second pass
+    parallel_prefix_sum(coarse_graph._indices.begin(), coarse_graph._indices.end(), coarse_graph._indices.begin(), std::plus<>(), 0UL);
+    size_t num_coarse_arcs = coarse_graph._indices.back();
+    coarse_graph._arcs.resize(num_coarse_arcs);
+    coarse_graph._num_arcs = num_coarse_arcs;
+    coarse_graph._max_degree = local_max_degree.combine([](size_t lhs, size_t rhs) { return std::max(lhs, rhs); });
+
+    // second pass generating unique coarse arcs
+    tbb::parallel_for(0U, num_coarse_nodes, [&](NodeID cu) {
+      auto& clear_list = clear_lists.local();
+      for (auto i = cluster_bounds[cu]; i < cluster_bounds[cu+1]; ++i) {
+        for (const Arc& arc : arcsOf(nodes_sorted_by_cluster[i])) {
+          NodeID cv = get_cluster(arc.head);
+          if (cv != cu) {
+            if (clear_list.values[cv] == 0.0) {
+              clear_list.used.push_back(cv);
+            }
+            clear_list.values[cv] += arc.weight;
+          }
+        }
+      }
+      size_t pos = coarse_graph._indices[cu];
+      for (const NodeID cv : clear_list.used) {
+        coarse_graph._arcs[pos++] = Arc(cv, clear_list.values[cv]);
+        clear_list.values[cv] = 0.0;
+      }
+      clear_list.used.clear();
+    });
+
+    return coarse_graph;
+  }
+
 
   /*!
  * Contracts the graph based on the community structure passed as argument.
@@ -125,10 +212,15 @@ namespace mt_kahypar::ds {
  * coarse graph. Finally, the weights of each multiedge in that temporary graph
  * are aggregated and the result is written to the final contracted graph.
  */
-  Graph Graph::contract(Clustering& communities) {
+  Graph Graph::contract(Clustering& communities, bool low_memory) {
+    if (low_memory) {
+      return contract_low_memory(communities);
+    }
     ASSERT(canBeUsed());
     ASSERT(_num_nodes == communities.size());
-    ASSERT(_tmp_graph_buffer);
+    if ( !_tmp_graph_buffer ) {
+      allocateContractionBuffers();
+    }
     Graph coarse_graph;
     coarse_graph._total_volume = _total_volume;
 
@@ -169,7 +261,7 @@ namespace mt_kahypar::ds {
     tbb::parallel_for(0U, static_cast<NodeID>(_num_nodes), [&](const NodeID u) {
       const NodeID coarse_u = communities[u];
       ASSERT(static_cast<size_t>(coarse_u) < coarse_graph._num_nodes);
-      coarse_node_volumes[coarse_u] += nodeVolume(u);
+      coarse_node_volumes[coarse_u] += nodeVolume(u);     // not deterministic!
       for ( const Arc& arc : arcsOf(u) ) {
         const NodeID coarse_v = communities[arc.head];
         if ( coarse_u != coarse_v ) {
@@ -208,10 +300,10 @@ namespace mt_kahypar::ds {
     tbb::parallel_for(0U, static_cast<NodeID>(coarse_graph._num_nodes), [&](const NodeID u) {
       const size_t tmp_arc_start = tmp_indices_prefix_sum[u];
       const size_t tmp_arc_end = tmp_indices_prefix_sum[u + 1];
-      std::sort(tmp_arcs.begin() + tmp_arc_start, tmp_arcs.begin() + tmp_arc_end,
-                [&](const Arc& lhs, const Arc& rhs) {
-                  return lhs.head < rhs.head;
-                });
+      // commented out comparison is needed for deterministic arc weights
+      // auto comp = [](const Arc& lhs, const Arc& rhs) { return std::tie(lhs.head, lhs.weight) < std::tie(rhs.head, rhs.weight); };
+      auto comp = [](const Arc& lhs, const Arc& rhs) { return lhs.head < rhs.head; };
+      std::sort(tmp_arcs.begin() + tmp_arc_start, tmp_arcs.begin() + tmp_arc_end, comp);
 
       size_t arc_rep = tmp_arc_start;
       size_t degree = tmp_arc_start < tmp_arc_end ? 1 : 0;
@@ -248,7 +340,7 @@ namespace mt_kahypar::ds {
         if ( valid_arcs_prefix_sum.value(i) ) {
           const size_t pos = valid_arcs_prefix_sum[i];
           ASSERT(pos < coarse_graph._num_arcs);
-          coarse_graph._arcs[pos] = std::move(tmp_arcs[i]);
+          coarse_graph._arcs[pos] = tmp_arcs[i];
         }
       });
     }, [&] {
@@ -316,14 +408,21 @@ namespace mt_kahypar::ds {
       constructBipartiteGraph(hypergraph, edge_weight_func);
     }
 
-    // Compute node volumes and total volume
     utils::Timer::instance().start_timer("compute_node_volumes", "Compute Node Volumes");
-    _total_volume = 0.0;
-    tbb::enumerable_thread_specific<ArcWeight> local_total_volume(0.0);
-    tbb::parallel_for(0U, static_cast<NodeID>(numNodes()), [&](const NodeID u) {
-      local_total_volume.local() += computeNodeVolume(u);
-    });
-    _total_volume = local_total_volume.combine(std::plus<ArcWeight>());
+    // deterministic reduce of node volumes since double addition is not commutative or associative
+    // node volumes are computed in for loop because deterministic reduce does not have dynamic load balancing
+    // whereas for loop does. this important since each node incurs O(degree) time
+    tbb::parallel_for(0U, NodeID(numNodes()), [&](NodeID u) { computeNodeVolume(u); });
+
+    auto aggregate_volume = [&](const tbb::blocked_range<NodeID>& r, ArcWeight partial_volume) -> ArcWeight {
+      for (NodeID u = r.begin(); u < r.end(); ++u) {
+        partial_volume += nodeVolume(u);
+      }
+      return partial_volume;
+    };
+    auto r = tbb::blocked_range<NodeID>(0U, numNodes(), 1000);
+    _total_volume = tbb::parallel_deterministic_reduce(r, 0.0, aggregate_volume, std::plus<>());
+
     utils::Timer::instance().stop_timer("compute_node_volumes");
   }
 
@@ -333,7 +432,6 @@ namespace mt_kahypar::ds {
     _indices.resize("Preprocessing", "indices", _num_nodes + 1);
     _arcs.resize("Preprocessing", "arcs", _num_arcs);
     _node_volumes.resize("Preprocessing", "node_volumes", _num_nodes);
-    _tmp_graph_buffer = new TmpGraphBuffer(_num_nodes, _num_arcs);
 
     // Initialize data structure
     utils::Timer::instance().start_timer("compute_node_degrees", "Compute Node Degrees");
@@ -402,7 +500,6 @@ namespace mt_kahypar::ds {
     _indices.resize("Preprocessing", "indices", _num_nodes + 1);
     _arcs.resize("Preprocessing", "arcs", _num_arcs);
     _node_volumes.resize("Preprocessing", "node_volumes", _num_nodes);
-    _tmp_graph_buffer = new TmpGraphBuffer(_num_nodes, _num_arcs);
 
     // Initialize data structure
     utils::Timer::instance().start_timer("compute_node_degrees", "Compute Node Degrees");

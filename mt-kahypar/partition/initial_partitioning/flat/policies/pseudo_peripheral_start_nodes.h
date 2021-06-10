@@ -103,8 +103,7 @@ class PseudoPeripheralStartNodes {
               hypernodes_in_queue.set(hn, true);
             }
           }
-          const int rand_idx = utils::Randomize::instance().getRandomInt(
-            0, non_touched_hypernodes.size() - 1, sched_getcpu());
+          const int rand_idx = std::uniform_int_distribution<>(0, non_touched_hypernodes.size() - 1)(rng);
           last_hypernode_touched = non_touched_hypernodes[rand_idx];
         }
       }

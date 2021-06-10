@@ -73,8 +73,7 @@ class AdvancedRefinerMock final : public IAdvancedRefiner {
 
  public:
   explicit AdvancedRefinerMock(const Hypergraph&,
-                               const Context& context,
-                               const TaskGroupID) :
+                               const Context& context) :
     _context(context),
     _max_num_blocks(AdvancedRefinerMockControl::instance().max_num_blocks),
     _num_threads(0),
@@ -117,11 +116,11 @@ class AdvancedRefinerMock final : public IAdvancedRefiner {
   MaxProblemSizeFunc _max_prob_size_func;
 };
 
-#define REGISTER_ADVANCED_REFINER(id, refiner)                                                                            \
-  static kahypar::meta::Registrar<AdvancedRefinementFactory> register_ ## refiner(                                            \
-    id,                                                                                                           \
-    [](const Hypergraph& hypergraph, const Context& context, const TaskGroupID task_group_id) -> IAdvancedRefiner* {    \
-    return new refiner(hypergraph, context, task_group_id);                                                                      \
+#define REGISTER_ADVANCED_REFINER(id, refiner)                                          \
+  static kahypar::meta::Registrar<AdvancedRefinementFactory> register_ ## refiner(      \
+    id,                                                                                 \
+    [](const Hypergraph& hypergraph, const Context& context) -> IAdvancedRefiner* {     \
+    return new refiner(hypergraph, context);                                            \
   })
 
 REGISTER_ADVANCED_REFINER(AdvancedRefinementAlgorithm::mock, AdvancedRefinerMock);

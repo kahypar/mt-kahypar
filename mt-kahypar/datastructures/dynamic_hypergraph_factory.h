@@ -41,8 +41,7 @@ class DynamicHypergraphFactory {
 
 
  public:
-  static DynamicHypergraph construct(const TaskGroupID task_group_id,
-                                    const HypernodeID num_hypernodes,
+  static DynamicHypergraph construct(const HypernodeID num_hypernodes,
                                     const HyperedgeID num_hyperedges,
                                     const HyperedgeVector& edge_vector,
                                     const HyperedgeWeight* hyperedge_weight = nullptr,
@@ -54,8 +53,7 @@ class DynamicHypergraphFactory {
    * a consecutive range of IDs.
    */
   static std::pair<DynamicHypergraph,
-                   parallel::scalable_vector<HypernodeID> > compactify(const TaskGroupID task_group_id,
-                                                                       const DynamicHypergraph& hypergraph);
+                   parallel::scalable_vector<HypernodeID> > compactify(const DynamicHypergraph& hypergraph);
 
  private:
   DynamicHypergraphFactory() { }

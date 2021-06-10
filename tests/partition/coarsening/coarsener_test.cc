@@ -33,19 +33,19 @@ using Coarsener = MultilevelCoarsener<HeavyEdgeScore, NoWeightPenalty, BestRatin
 
 TEST_F(ACoarsener, DecreasesNumberOfPins) {
   context.coarsening.contraction_limit = 4;
-  Coarsener coarsener(hypergraph, context, TBBNumaArena::GLOBAL_TASK_GROUP, true);
+  Coarsener coarsener(hypergraph, context, true);
   decreasesNumberOfPins(coarsener, 6);
 }
 
 TEST_F(ACoarsener, DecreasesNumberOfHyperedges) {
   context.coarsening.contraction_limit = 4;
-  Coarsener coarsener(hypergraph, context, TBBNumaArena::GLOBAL_TASK_GROUP, true);
+  Coarsener coarsener(hypergraph, context, true);
   decreasesNumberOfHyperedges(coarsener, 3);
 }
 
 TEST_F(ACoarsener, RemovesHyperedgesOfSizeOneDuringCoarsening) {
   context.coarsening.contraction_limit = 4;
-  Coarsener coarsener(hypergraph, context, TBBNumaArena::GLOBAL_TASK_GROUP, true);
+  Coarsener coarsener(hypergraph, context, true);
   doCoarsening(coarsener);
   auto& hypergraph = coarsener.coarsestHypergraph();
   for ( const HyperedgeID& he : hypergraph.edges() ) {
@@ -55,7 +55,7 @@ TEST_F(ACoarsener, RemovesHyperedgesOfSizeOneDuringCoarsening) {
 
 TEST_F(ACoarsener, RemovesParallelHyperedgesDuringCoarsening) {
   context.coarsening.contraction_limit = 4;
-  Coarsener coarsener(hypergraph, context, TBBNumaArena::GLOBAL_TASK_GROUP, true);
+  Coarsener coarsener(hypergraph, context, true);
   doCoarsening(coarsener);
   auto& hypergraph = coarsener.coarsestHypergraph();
   for ( const HyperedgeID& he : hypergraph.edges() ) {
@@ -65,7 +65,7 @@ TEST_F(ACoarsener, RemovesParallelHyperedgesDuringCoarsening) {
 
 TEST_F(ACoarsener, ProjectsPartitionBackToOriginalHypergraph) {
   context.coarsening.contraction_limit = 4;
-  Coarsener coarsener(hypergraph, context, TBBNumaArena::GLOBAL_TASK_GROUP, false);
+  Coarsener coarsener(hypergraph, context, false);
   doCoarsening(coarsener);
   PartitionedHyperGraph& coarsest_partitioned_hypergraph =
     coarsener.coarsestPartitionedHypergraph();

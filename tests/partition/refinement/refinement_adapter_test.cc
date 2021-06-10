@@ -32,9 +32,9 @@ namespace mt_kahypar {
 class AAdvancedRefinementAdapter : public Test {
  public:
   AAdvancedRefinementAdapter() :
-    hg(HypergraphFactory::construct(TBBNumaArena::GLOBAL_TASK_GROUP,
-      7 , 4, { {0, 2}, {0, 1, 3, 4}, {3, 4, 6}, {2, 5, 6} }, nullptr, nullptr, true)),
-    phg(2, TBBNumaArena::GLOBAL_TASK_GROUP, hg),
+    hg(HypergraphFactory::construct(7 , 4, {
+       {0, 2}, {0, 1, 3, 4}, {3, 4, 6}, {2, 5, 6} }, nullptr, nullptr, true)),
+    phg(2, hg, parallel_tag_t()),
     context() {
     context.partition.k = 2;
     context.partition.perfect_balance_part_weights.assign(2, 3);
@@ -53,7 +53,7 @@ class AAdvancedRefinementAdapter : public Test {
     phg.setOnlyNodePart(4, 1);
     phg.setOnlyNodePart(5, 1);
     phg.setOnlyNodePart(6, 1);
-    phg.initializePartition(TBBNumaArena::GLOBAL_TASK_GROUP);
+    phg.initializePartition();
   }
 
   Hypergraph hg;
@@ -79,8 +79,7 @@ void executeConcurrent(F f1, K f2) {
 
 TEST_F(AAdvancedRefinementAdapter, FailsToRegisterMoreSearchesIfAllAreUsed) {
   context.refinement.advanced.num_threads_per_search = 4;
-  refiner = std::make_unique<AdvancedRefinerAdapter>(
-    hg, context, TBBNumaArena::GLOBAL_TASK_GROUP);
+  refiner = std::make_unique<AdvancedRefinerAdapter>(hg, context);
 
   ASSERT_TRUE(refiner->registerNewSearch(0, phg));
   ASSERT_TRUE(refiner->registerNewSearch(1, phg));
@@ -89,8 +88,7 @@ TEST_F(AAdvancedRefinementAdapter, FailsToRegisterMoreSearchesIfAllAreUsed) {
 
 TEST_F(AAdvancedRefinementAdapter, UseCorrectNumberOfThreadsForSearch1) {
   context.refinement.advanced.num_threads_per_search = 5;
-  refiner = std::make_unique<AdvancedRefinerAdapter>(
-    hg, context, TBBNumaArena::GLOBAL_TASK_GROUP);
+  refiner = std::make_unique<AdvancedRefinerAdapter>(hg, context);
   ASSERT_EQ(2, refiner->numAvailableRefiner());
   ASSERT_EQ(0, refiner->numUsedThreads());
 
@@ -107,8 +105,7 @@ TEST_F(AAdvancedRefinementAdapter, UseCorrectNumberOfThreadsForSearch1) {
 
 TEST_F(AAdvancedRefinementAdapter, UseCorrectNumberOfThreadsForSearch2) {
   context.refinement.advanced.num_threads_per_search = 5;
-  refiner = std::make_unique<AdvancedRefinerAdapter>(
-    hg, context, TBBNumaArena::GLOBAL_TASK_GROUP);
+  refiner = std::make_unique<AdvancedRefinerAdapter>(hg, context);
   ASSERT_EQ(2, refiner->numAvailableRefiner());
   ASSERT_EQ(0, refiner->numUsedThreads());
 

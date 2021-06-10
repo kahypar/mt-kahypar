@@ -49,10 +49,8 @@ class AQuotientGraph : public Test {
     context.refinement.advanced.max_bfs_distance = 2;
 
     // Read hypergraph
-    hg = io::readHypergraphFile(
-      context.partition.graph_filename, TBBNumaArena::GLOBAL_TASK_GROUP);
-    phg = PartitionedHypergraph(
-      context.partition.k, TBBNumaArena::GLOBAL_TASK_GROUP, hg);
+    hg = io::readHypergraphFile(context.partition.graph_filename);
+    phg = PartitionedHypergraph(context.partition.k, hg, parallel_tag_t());
     context.setupPartWeights(hg.totalWeight());
 
     // Read Partition
@@ -61,7 +59,7 @@ class AQuotientGraph : public Test {
     phg.doParallelForAllNodes([&](const HypernodeID& hn) {
       phg.setOnlyNodePart(hn, partition[hn]);
     });
-    phg.initializePartition(TBBNumaArena::GLOBAL_TASK_GROUP);
+    phg.initializePartition();
   }
 
   Hypergraph hg;
@@ -71,7 +69,7 @@ class AQuotientGraph : public Test {
 
 TEST_F(AQuotientGraph, SimulatesBlockScheduling) {
   AdvancedRefinerMockControl::instance().max_num_blocks = 2;
-  AdvancedRefinerAdapter refiner(hg, context, TBBNumaArena::GLOBAL_TASK_GROUP);
+  AdvancedRefinerAdapter refiner(hg, context);
   QuotientGraph qg(hg, context);
   qg.initialize(phg);
   const bool debug = false;
@@ -121,7 +119,7 @@ TEST_F(AQuotientGraph, SimulatesBlockScheduling) {
 
 TEST_F(AQuotientGraph, SimulatesBlockSchedulingWithSuccessfulSearches) {
   AdvancedRefinerMockControl::instance().max_num_blocks = 2;
-  AdvancedRefinerAdapter refiner(hg, context, TBBNumaArena::GLOBAL_TASK_GROUP);
+  AdvancedRefinerAdapter refiner(hg, context);
   QuotientGraph qg(hg, context);
   qg.initialize(phg);
   const bool debug = false;
@@ -179,7 +177,7 @@ TEST_F(AQuotientGraph, SimulatesBlockSchedulingWithSuccessfulSearches) {
 
 TEST_F(AQuotientGraph, SimulatesBlockSchedulingWithSearchesThatRequestFourBlocks) {
   AdvancedRefinerMockControl::instance().max_num_blocks = 4;
-  AdvancedRefinerAdapter refiner(hg, context, TBBNumaArena::GLOBAL_TASK_GROUP);
+  AdvancedRefinerAdapter refiner(hg, context);
   QuotientGraph qg(hg, context);
   qg.initialize(phg);
 
@@ -223,7 +221,7 @@ TEST_F(AQuotientGraph, SimulatesBlockSchedulingWithSearchesThatRequestFourBlocks
 
 TEST_F(AQuotientGraph, SimulatesBlockSchedulingWithSearchesThatRequestFourBlocksWithSuccessfullSearches) {
   AdvancedRefinerMockControl::instance().max_num_blocks = 4;
-  AdvancedRefinerAdapter refiner(hg, context, TBBNumaArena::GLOBAL_TASK_GROUP);
+  AdvancedRefinerAdapter refiner(hg, context);
   QuotientGraph qg(hg, context);
   qg.initialize(phg);
 

@@ -13,7 +13,7 @@ int main(int argc, char* argv[]) {
 
   // Load context from file
   mt_kahypar_context_t* context = mt_kahypar_context_new();
-  mt_kahypar_configure_context_from_file(context, "../config/quality_preset.ini");
+  mt_kahypar_configure_context_from_file(context, "../config/fast_preset.ini");
 
   // Setup Hypergraph
   const mt_kahypar_hypernode_id_t num_vertices = 7;
@@ -54,7 +54,7 @@ int main(int argc, char* argv[]) {
                	       nullptr /* unit vertex_weights */, hyperedge_weights.get(),
                	       hyperedge_indices.get(), hyperedges.get(),
        	               &objective, context, partition.data(),
-                       false /* verbose output */ );
+                       true /* verbose output */ );
 
   // Print objective and block of each vertex
   std::cout << "Objective: " << objective << std::endl;
