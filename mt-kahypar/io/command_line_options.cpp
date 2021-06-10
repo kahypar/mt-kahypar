@@ -296,7 +296,12 @@ namespace mt_kahypar {
              po::value<bool>((!initial_partitioning ? &context.refinement.deterministic_refinement.use_active_node_set :
                                 &context.initial_partitioning.refinement.deterministic_refinement.use_active_node_set))->value_name(
                      "<bool>")->default_value(true),
-             "Number of sub-rounds for deterministic synchronous label propagation")
+             "Use active nodeset in synchronous label propagation")
+            ((initial_partitioning ? "i-r-sync-lp-recalculate-gains-on-second-apply" : "r-sync-lp-recalculate-gains-on-second-apply"),
+             po::value<bool>((!initial_partitioning ? &context.refinement.deterministic_refinement.recalculate_gains_on_second_apply :
+                              &context.initial_partitioning.refinement.deterministic_refinement.recalculate_gains_on_second_apply))->value_name(
+                     "<bool>")->default_value(false),
+             "Recalculate gains for second attempt at applying moves in synchronous label propagation")
             ((initial_partitioning ? "i-r-lp-rebalancing" : "r-lp-rebalancing"),
              po::value<bool>((!initial_partitioning ? &context.refinement.label_propagation.rebalancing :
                               &context.initial_partitioning.refinement.label_propagation.rebalancing))->value_name(
