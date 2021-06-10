@@ -27,7 +27,7 @@
 
 namespace mt_kahypar {
 namespace utils {
-class Stats {
+class StatsT {
   static constexpr bool debug = false;
 
  public:
@@ -116,14 +116,14 @@ class Stats {
   };
 
  public:
-  Stats(const Stats&) = delete;
-  Stats & operator= (const Stats &) = delete;
+  StatsT(const StatsT&) = delete;
+  StatsT & operator= (const StatsT &) = delete;
 
-  Stats(Stats&&) = delete;
-  Stats & operator= (Stats &&) = delete;
+  StatsT(StatsT&&) = delete;
+  StatsT & operator= (StatsT &&) = delete;
 
-  static Stats& instance() {
-    static Stats instance;
+  static StatsT& instance() {
+    static StatsT instance;
     return instance;
   }
 
@@ -171,7 +171,7 @@ class Stats {
   friend std::ostream & operator<< (std::ostream& str, const Stats& stats);
 
  private:
-  explicit Stats() :
+  explicit StatsT() :
     _stat_mutex(),
     _stats(),
     _enable(true) { }
@@ -181,21 +181,21 @@ class Stats {
   bool _enable;
 };
 
-inline std::ostream & operator<< (std::ostream& str, const Stats::Stat& stat) {
+inline std::ostream & operator<< (std::ostream& str, const StatsT::Stat& stat) {
   switch (stat._type) {
-    case Stats::Type::BOOLEAN:
+    case StatsT::Type::BOOLEAN:
       str << std::boolalpha << stat._value_1;
       break;
-    case Stats::Type::INT32:
+    case StatsT::Type::INT32:
       str << stat._value_2;
       break;
-    case Stats::Type::INT64:
+    case StatsT::Type::INT64:
       str << stat._value_3;
       break;
-    case Stats::Type::FLOAT:
+    case StatsT::Type::FLOAT:
       str << stat._value_4;
       break;
-    case Stats::Type::DOUBLE:
+    case StatsT::Type::DOUBLE:
       str << stat._value_5;
       break;
     default:
@@ -204,7 +204,7 @@ inline std::ostream & operator<< (std::ostream& str, const Stats::Stat& stat) {
   return str;
 }
 
-inline std::ostream & operator<< (std::ostream& str, const Stats& stats) {
+inline std::ostream & operator<< (std::ostream& str, const StatsT& stats) {
   std::vector<std::string> keys;
   for (const auto& stat : stats._stats) {
     keys.emplace_back(stat.first);
@@ -216,5 +216,44 @@ inline std::ostream & operator<< (std::ostream& str, const Stats& stats) {
   }
   return str;
 }
+
+class DoNothingStats {
+ public:
+  DoNothingStats(const DoNothingStats&) = delete;
+  DoNothingStats & operator= (const DoNothingStats &) = delete;
+
+  DoNothingStats(DoNothingStats&&) = delete;
+  DoNothingStats & operator= (DoNothingStats &&) = delete;
+
+  static DoNothingStats& instance() {
+    static DoNothingStats instance;
+    return instance;
+  }
+
+  void enable() { }
+  void disable() { }
+
+  template <typename T>
+  void add_stat(const std::string&, const T) { }
+
+  template <typename T>
+  void update_stat(const std::string&, const T) { }
+
+  friend std::ostream & operator<< (std::ostream& str, const DoNothingStats& stats);
+
+ private:
+  explicit DoNothingStats() { }
+};
+
+inline std::ostream & operator<< (std::ostream& str, const DoNothingStats&) {
+  return str;
+}
+
+#ifdef MT_KAHYPAR_LIBRARY_MODE
+using Stats = DoNothingStats;
+#else
+using Stats = StatsT;
+#endif
+
 }  // namespace utils
 }  // namespace mt_kahypar
