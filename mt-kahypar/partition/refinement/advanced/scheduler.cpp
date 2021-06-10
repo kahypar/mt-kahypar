@@ -59,7 +59,6 @@ bool AdvancedRefinementScheduler::refineImpl(
     while ( !_quotient_graph.terminate() ) {
       SearchID search_id = _quotient_graph.requestNewSearch(_refiner);
       if ( search_id != QuotientGraph::INVALID_SEARCH_ID ) {
-
         utils::Timer::instance().start_timer("construct_problem", "Construct Problem", true);
         const vec<HypernodeID> refinement_nodes =
           _constructor.construct(search_id, _quotient_graph, _refiner, phg);

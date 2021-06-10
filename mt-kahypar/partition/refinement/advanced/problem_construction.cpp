@@ -200,9 +200,9 @@ vec<HypernodeID> ProblemConstruction::construct(const SearchID search_id,
 
 void ProblemConstruction::releaseNodes(const SearchID search_id,
                                        const vec<HypernodeID>& nodes) {
-  tbb::parallel_for(0UL, nodes.size(), [&](const size_t i) {
+  for ( size_t i = 0; i < nodes.size(); ++i ) {
     release_vertex(search_id, nodes[i]);
-  });
+  }
 }
 
 } // namespace mt_kahypar

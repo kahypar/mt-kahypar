@@ -21,6 +21,8 @@
 
 #pragma once
 
+#include "tbb/concurrent_vector.h"
+
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/refinement/advanced/i_advanced_refiner.h"
@@ -105,7 +107,7 @@ private:
   // ! Available refiners
   vec<std::unique_ptr<IAdvancedRefiner>> _refiner;
   // ! Mapping from search id to refiner
-  vec<IAdvancedRefiner*> _search_to_refiner;
+  tbb::concurrent_vector<IAdvancedRefiner*> _search_to_refiner;
 
   SpinLock _num_used_threads_lock;
   // ! Number of used threads
