@@ -73,6 +73,11 @@ class ProblemStats {
     return _num_pins;
   }
 
+  PartitionID block(const PartitionID idx) const {
+    ASSERT(static_cast<size_t>(idx) < _contained_blocks.size());
+    return _contained_blocks[idx];
+  }
+
   bool isBlockContained(const PartitionID block) const {
     return _block_to_idx[block] != INVALID_IDX;
   }

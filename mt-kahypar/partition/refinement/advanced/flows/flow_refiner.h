@@ -20,8 +20,11 @@
 
 #pragma once
 
+#include "datastructure/flow_hypergraph_builder.h"
+
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/refinement/advanced/i_advanced_refiner.h"
+#include "mt-kahypar/datastructures/sparse_map.h"
 
 namespace mt_kahypar {
 
@@ -29,11 +32,27 @@ class FlowRefiner final : public IAdvancedRefiner {
 
   static constexpr bool debug = false;
 
+  struct FlowProblem {
+    whfc::Node source;
+    whfc::Node sink;
+    HyperedgeWeight total_cut;
+    HyperedgeWeight non_removable_cut;
+  };
+
  public:
   explicit FlowRefiner(const Hypergraph&,
                        const Context& context) :
+    _phg(nullptr),
     _context(context),
-    _num_threads(0) { }
+    _num_threads(0),
+    _scaling(1.0 + _context.refinement.advanced.flows.alpha *
+      std::min(0.05, _context.partition.epsilon)),
+    _block_0(kInvalidPartition),
+    _block_1(kInvalidPartition),
+    _flow_hg(),
+    _node_to_whfc(),
+    _visited_hes() {
+  }
 
   FlowRefiner(const FlowRefiner&) = delete;
   FlowRefiner(FlowRefiner&&) = delete;
@@ -45,15 +64,20 @@ class FlowRefiner final : public IAdvancedRefiner {
  protected:
 
  private:
-  void initializeImpl(const PartitionedHypergraph&) {
-
+  void initializeImpl(const PartitionedHypergraph& phg) {
+    _phg = &phg;
+    _block_0 = kInvalidPartition;
+    _block_1 = kInvalidPartition;
+    _flow_hg.clear();
+    _node_to_whfc.clear();
+    _visited_hes.clear();
   }
 
-  MoveSequence refineImpl(const PartitionedHypergraph&,
-                          const vec<HypernodeID>& refinement_nodes) {
-     // LOG << V(refinement_nodes.size());
-     return MoveSequence { { }, 0 };
-  }
+  MoveSequence refineImpl(const PartitionedHypergraph& phg,
+                          const vec<HypernodeID>& refinement_nodes);
+
+  FlowProblem constructFlowHypergraph(const PartitionedHypergraph& phg,
+                                      const vec<HypernodeID>& refinement_nodes);
 
   PartitionID maxNumberOfBlocksPerSearchImpl() const {
     return 2;
@@ -63,11 +87,24 @@ class FlowRefiner final : public IAdvancedRefiner {
     _num_threads = num_threads;
   }
 
-  bool isMaximumProblemSizeReachedImpl(ProblemStats& stats) const {
-    return stats.numNodes() >= 200;
+  bool isMaximumProblemSizeReachedImpl(ProblemStats& stats) const;
+
+  bool canHyperedgeBeDropped(const PartitionedHypergraph& phg,
+                             const HyperedgeID he) {
+    return _context.partition.objective == kahypar::Objective::cut &&
+      phg.pinCountInPart(he, _block_0) + phg.pinCountInPart(he, _block_1) < phg.edgeSize(he);
   }
 
+  const PartitionedHypergraph* _phg;
   const Context& _context;
   size_t _num_threads;
+  double _scaling;
+
+  mutable PartitionID _block_0;
+  mutable PartitionID _block_1;
+  whfc::FlowHypergraphBuilder _flow_hg;
+
+  ds::DynamicSparseMap<HypernodeID, whfc::Node> _node_to_whfc;
+  ds::DynamicSparseSet<HyperedgeID> _visited_hes;
 };
 }  // namespace mt_kahypar

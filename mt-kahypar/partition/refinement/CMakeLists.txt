@@ -3,6 +3,7 @@ set(RefinementSources
         advanced/problem_construction.cpp
         advanced/scheduler.cpp
         advanced/quotient_graph.cpp
+        advanced/flows/flow_refiner.cpp
         fm/multitry_kway_fm.cpp
         fm/localized_kway_fm_core.cpp
         fm/global_rollback.cpp
