@@ -37,4 +37,5 @@ external_tools/*
 .vscode/*
 example_1
 example_2
+example_3
 config/nlevel_interleaved_preset.ini

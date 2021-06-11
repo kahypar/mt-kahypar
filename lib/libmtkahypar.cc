@@ -178,12 +178,6 @@ void mt_kahypar_partition(const mt_kahypar_hypernode_id_t num_vertices,
   mt_kahypar::Hypergraph hypergraph = mt_kahypar::HypergraphFactory::construct(
     num_vertices, num_hyperedges, edge_vector, hyperedge_weights, vertex_weights);
 
-  // Initialize Memory Pool
-  if ( mt_kahypar::parallel::MemoryPool::instance().isInitialized() ) {
-    mt_kahypar::parallel::MemoryPool::instance().free_memory_chunks();
-  }
-  mt_kahypar::register_memory_pool(hypergraph, context);
-
   // Partition Hypergraph
   mt_kahypar::PartitionedHypergraph partitioned_hypergraph =
     mt_kahypar::partition(hypergraph, context);
