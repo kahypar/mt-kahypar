@@ -26,6 +26,7 @@ namespace mt_kahypar {
 MoveSequence FlowRefiner::refineImpl(const PartitionedHypergraph& phg,
                                      const vec<HypernodeID>& refinement_nodes) {
   MoveSequence sequence { { }, 0 };
+  // Construct flow network that contains all vertices given in refinement nodes
   FlowProblem flow_problem = constructFlowHypergraph(phg, refinement_nodes);
   if ( flow_problem.total_cut - flow_problem.non_removable_cut > 0 ) {
     // Set maximum allowed block weights for block 0 and 1
