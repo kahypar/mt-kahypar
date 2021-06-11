@@ -457,6 +457,13 @@ namespace mt_kahypar {
     }
   }
 
+  void Context::setupThreadsPerAdvancedSearch() {
+    if ( refinement.advanced.algorithm == AdvancedRefinementAlgorithm::flows ) {
+      refinement.advanced.num_threads_per_search =
+        std::max(shared_memory.num_threads / partition.k, 1UL );
+    }
+  }
+
   std::ostream & operator<< (std::ostream& str, const Context& context) {
     str << "*******************************************************************************\n"
         << "*                            Partitioning Context                             *\n"

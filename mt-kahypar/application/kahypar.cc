@@ -38,6 +38,7 @@ int main(int argc, char* argv[]) {
   if (context.partition.verbose_output) {
     mt_kahypar::io::printBanner();
   }
+  context.setupThreadsPerAdvancedSearch();
 
   mt_kahypar::utils::Randomize::instance().setSeed(context.partition.seed);
   if ( context.shared_memory.use_localized_random_shuffle ) {
