@@ -65,7 +65,7 @@ bool AdvancedRefinementScheduler::refineImpl(
         _quotient_graph.finalizeConstruction(search_id);
         utils::Timer::instance().stop_timer("construct_problem");
 
-        bool success = false;
+        bool improved_solution = false;
         if ( refinement_nodes.size() > 0 ) {
           utils::Timer::instance().start_timer("refine_problem", "Refine Problem", true);
           ++_stats.num_refinements;
@@ -76,13 +76,13 @@ bool AdvancedRefinementScheduler::refineImpl(
             utils::Timer::instance().start_timer("apply_moves", "Apply Moves", true);
             HyperedgeWeight delta = applyMoves(sequence);
             overall_delta -= delta;
-            success = sequence.state == MoveSequenceState::SUCCESS;
+            improved_solution = sequence.state == MoveSequenceState::SUCCESS && delta > 0;
             utils::Timer::instance().stop_timer("apply_moves");
           }
         }
 
         _constructor.releaseNodes(search_id, refinement_nodes);
-        _quotient_graph.finalizeSearch(search_id, success);
+        _quotient_graph.finalizeSearch(search_id, improved_solution);
         _refiner.finalizeSearch(search_id);
       }
     }
@@ -255,13 +255,11 @@ HyperedgeWeight AdvancedRefinementScheduler::applyMoves(MoveSequence& sequence) 
         // Rollback would violate balance constraint => Worst Case
         ++_stats.failed_updates_due_to_conflicting_moves_without_rollback;
         sequence.state = MoveSequenceState::WORSEN_SOLUTION_QUALITY_WITHOUT_ROLLBACK;
-        addCutHyperedgesToQuotientGraph(_quotient_graph, new_cut_hes);
       }
     } else {
       ++_stats.num_improvements;
       _stats.correct_expected_improvement += (improvement == sequence.expected_improvement);
       sequence.state = MoveSequenceState::SUCCESS;
-      addCutHyperedgesToQuotientGraph(_quotient_graph, new_cut_hes);
       DBG << "Successfully applied move sequence to hypergraph ("
           << "Moved Nodes =" << sequence.moves.size()
           << ", Expected Improvement =" << sequence.expected_improvement
@@ -272,6 +270,10 @@ HyperedgeWeight AdvancedRefinementScheduler::applyMoves(MoveSequence& sequence) 
     sequence.state = MoveSequenceState::VIOLATES_BALANCE_CONSTRAINT;
     DBG << RED << "Move sequence violated balance constraint ( Expected Improvement ="
         << sequence.expected_improvement << ")" << END;
+  }
+
+  if ( sequence.state == MoveSequenceState::SUCCESS && improvement > 0 ) {
+    addCutHyperedgesToQuotientGraph(_quotient_graph, new_cut_hes);
   }
 
   _stats.total_improvement += improvement;
