@@ -159,6 +159,7 @@ std::ostream& operator<<(std::ostream& out, const NLevelGlobalFMParameters& para
 
 struct FlowParameters {
   double alpha = 0.0;
+  bool find_most_balanced_cut = false;
 };
 
 std::ostream& operator<<(std::ostream& out, const FlowParameters& params);

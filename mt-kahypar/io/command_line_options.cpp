@@ -430,7 +430,10 @@ namespace mt_kahypar {
              "Sort cut hyperedges of each block pair in increasing order of their distance to each other in quotient graph.")
             ("r-flow-scaling",
              po::value<double>(&context.refinement.advanced.flows.alpha)->value_name("<double>"),
-             "Size constraint for flow problem: (1 + alpha * epsilon) * c(V) / k - c(V_1) (alpha = r-flow-scaling)");
+             "Size constraint for flow problem: (1 + alpha * epsilon) * c(V) / k - c(V_1) (alpha = r-flow-scaling)")
+            ("r-flow-find-most-balanced-cut",
+             po::value<bool>(&context.refinement.advanced.flows.find_most_balanced_cut)->value_name("<bool>"),
+             "If true, than hyperflowcutter searches for the most balanced minimum cut.");
     return options;
   }
 

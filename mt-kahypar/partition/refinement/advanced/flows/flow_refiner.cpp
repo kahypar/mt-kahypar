@@ -19,15 +19,49 @@
  *
  ******************************************************************************/
 
-
 #include "mt-kahypar/partition/refinement/advanced/flows/flow_refiner.h"
 
 namespace mt_kahypar {
 
 MoveSequence FlowRefiner::refineImpl(const PartitionedHypergraph& phg,
                                      const vec<HypernodeID>& refinement_nodes) {
-  constructFlowHypergraph(phg, refinement_nodes);
-  return MoveSequence { { }, 0 };
+  MoveSequence sequence { { }, 0 };
+  FlowProblem flow_problem = constructFlowHypergraph(phg, refinement_nodes);
+  if ( flow_problem.total_cut - flow_problem.non_removable_cut > 0 ) {
+    // Set maximum allowed block weights for block 0 and 1
+    _hfc.cs.setMaxBlockWeight(0, std::max(
+      flow_problem.weight_of_block_0, _context.partition.max_part_weights[_block_0]));
+    _hfc.cs.setMaxBlockWeight(1, std::max(
+      flow_problem.weight_of_block_1, _context.partition.max_part_weights[_block_1]));
+
+    _hfc.upperFlowBound = flow_problem.total_cut - flow_problem.non_removable_cut;
+    _hfc.reset();
+    // Solve max-flow min-cut problem
+    bool flowcutter_succeeded =
+      _hfc.runUntilBalancedOrFlowBoundExceeded(flow_problem.source, flow_problem.sink);
+    if ( flowcutter_succeeded ) {
+      // We apply the solution if it either improves the cut or the balance of
+      // the bipartition induced by the two blocks
+      HyperedgeWeight new_cut = flow_problem.non_removable_cut + _hfc.cs.flowValue;
+      const bool improved_solution = new_cut < flow_problem.total_cut ||
+        ( new_cut == flow_problem.total_cut &&
+          static_cast<HypernodeWeight>(std::max(_hfc.cs.n.sourceWeight, _hfc.cs.n.targetWeight)) <
+          std::max(flow_problem.weight_of_block_0, flow_problem.weight_of_block_1));
+
+      // Extract move sequence
+      if ( improved_solution ) {
+        sequence.expected_improvement = flow_problem.total_cut - new_cut;
+        for ( const HypernodeID& hn : refinement_nodes ) {
+          const PartitionID from = phg.partID(hn);
+          const PartitionID to = _hfc.cs.n.isSource(_node_to_whfc[hn]) ? _block_0 : _block_1;
+          if ( from != to ) {
+            sequence.moves.push_back(Move { from, to, hn, kInvalidGain });
+          }
+        }
+      }
+    }
+  }
+  return sequence;
 }
 
 FlowRefiner::FlowProblem FlowRefiner::constructFlowHypergraph(const PartitionedHypergraph& phg,
@@ -61,6 +95,8 @@ FlowRefiner::FlowProblem FlowRefiner::constructFlowHypergraph(const PartitionedH
   flow_problem.sink = flow_hn++;
   _flow_hg.addNode(whfc::NodeWeight(std::max(0, phg.partWeight(_block_0) - weight_block_0)));
   _flow_hg.addNode(whfc::NodeWeight(std::max(0, phg.partWeight(_block_1) - weight_block_1)));
+  flow_problem.weight_of_block_0 = _flow_hg.nodeWeight(flow_problem.source) + weight_block_0;
+  flow_problem.weight_of_block_1 = _flow_hg.nodeWeight(flow_problem.sink) + weight_block_1;
 
   // Add hyperedge to flow network and configure source and sink
   for ( const auto& entry : _visited_hes ) {

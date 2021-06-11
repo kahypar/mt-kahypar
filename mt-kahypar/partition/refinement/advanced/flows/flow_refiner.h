@@ -21,6 +21,8 @@
 #pragma once
 
 #include "datastructure/flow_hypergraph_builder.h"
+#include "algorithm/hyperflowcutter.h"
+#include "algorithm/dinic.h"
 
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/refinement/advanced/i_advanced_refiner.h"
@@ -37,10 +39,12 @@ class FlowRefiner final : public IAdvancedRefiner {
     whfc::Node sink;
     HyperedgeWeight total_cut;
     HyperedgeWeight non_removable_cut;
+    HypernodeWeight weight_of_block_0;
+    HypernodeWeight weight_of_block_1;
   };
 
  public:
-  explicit FlowRefiner(const Hypergraph&,
+  explicit FlowRefiner(const Hypergraph& hg,
                        const Context& context) :
     _phg(nullptr),
     _context(context),
@@ -49,9 +53,15 @@ class FlowRefiner final : public IAdvancedRefiner {
       std::min(0.05, _context.partition.epsilon)),
     _block_0(kInvalidPartition),
     _block_1(kInvalidPartition),
-    _flow_hg(),
+    // TODO(heuer): use empty constructor and initialize internal datastructures
+    // based on the size of the constructed flow network
+    _flow_hg(hg.initialNumNodes(), hg.initialNumEdges(), hg.initialNumPins()),
+    _hfc(_flow_hg, context.partition.seed),
     _node_to_whfc(),
     _visited_hes() {
+    _hfc.find_most_balanced =
+      _context.refinement.advanced.flows.find_most_balanced_cut;
+    _hfc.timer.active = false;
   }
 
   FlowRefiner(const FlowRefiner&) = delete;
@@ -103,6 +113,7 @@ class FlowRefiner final : public IAdvancedRefiner {
   mutable PartitionID _block_0;
   mutable PartitionID _block_1;
   whfc::FlowHypergraphBuilder _flow_hg;
+  whfc::HyperFlowCutter<whfc::Dinic> _hfc;
 
   ds::DynamicSparseMap<HypernodeID, whfc::Node> _node_to_whfc;
   ds::DynamicSparseSet<HyperedgeID> _visited_hes;
