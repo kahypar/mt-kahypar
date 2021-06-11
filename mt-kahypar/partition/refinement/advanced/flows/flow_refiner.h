@@ -44,7 +44,7 @@ class FlowRefiner final : public IAdvancedRefiner {
   };
 
  public:
-  explicit FlowRefiner(const Hypergraph& hg,
+  explicit FlowRefiner(const Hypergraph&,
                        const Context& context) :
     _phg(nullptr),
     _context(context),
@@ -53,9 +53,7 @@ class FlowRefiner final : public IAdvancedRefiner {
       std::min(0.05, _context.partition.epsilon)),
     _block_0(kInvalidPartition),
     _block_1(kInvalidPartition),
-    // TODO(heuer): use empty constructor and initialize internal datastructures
-    // based on the size of the constructed flow network
-    _flow_hg(hg.initialNumNodes(), hg.initialNumEdges(), hg.initialNumPins()),
+    _flow_hg(),
     _hfc(_flow_hg, context.partition.seed),
     _node_to_whfc(),
     _visited_hes() {
