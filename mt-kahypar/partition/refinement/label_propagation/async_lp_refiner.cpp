@@ -41,7 +41,6 @@ namespace mt_kahypar {
         Gain delta = _gain.delta();
         ASSERT(delta <= 0, "LP refiner worsen solution quality");
 
-//        HEAVY_REFINEMENT_ASSERT(hypergraph.checkTrackedPartitionInformation());
 //        HEAVY_REFINEMENT_ASSERT(current_metric + delta == metrics::objective(hypergraph, _context.partition.objective, false),
 //                                V(current_metric) << V(delta) <<
 //                                                  V(metrics::objective(hypergraph, _context.partition.objective, false)));
@@ -57,10 +56,6 @@ namespace mt_kahypar {
         NextActiveNodes next_active_nodes;
         VisitedEdges visited_edges;
         for (size_t i = 0; i < _context.refinement.label_propagation.maximum_iterations; ++i) {
-            DBG << "Starting Label Propagation Round" << i;
-
-            utils::Timer::instance().start_timer(
-                    "lp_round_" + std::to_string(i), "Label Propagation Round " + std::to_string(i), true);
 
             if ( !_active_nodes.empty() ) {
                 labelPropagationRound(hypergraph, next_active_nodes, visited_edges);
@@ -72,12 +67,14 @@ namespace mt_kahypar {
                 std::sort(next_active_nodes.begin(),next_active_nodes.end());
                 return std::adjacent_find(next_active_nodes.begin(), next_active_nodes.end()) != next_active_nodes.end();
             };
+            unused(has_node_duplicates);
             ASSERT(! has_node_duplicates());
 
             auto has_edge_duplicates = [&]() -> bool {
                 std::sort(visited_edges.begin(), visited_edges.end());
                 return std::adjacent_find(visited_edges.begin(), visited_edges.end()) != visited_edges.end();
             };
+            unused(has_edge_duplicates);
             ASSERT(! has_edge_duplicates());
 
             // Linear reset of anti-duplicator flags that were set in the last round
@@ -92,8 +89,6 @@ namespace mt_kahypar {
 
             next_active_nodes.clear();
             visited_edges.clear();
-
-            utils::Timer::instance().stop_timer("lp_round_" + std::to_string(i));
 
             if ( _active_nodes.empty() ) {
                 break;

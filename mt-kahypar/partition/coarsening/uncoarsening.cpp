@@ -869,6 +869,11 @@ namespace mt_kahypar {
       });
 
       while (!_group_pools_for_versions.empty()) {
+
+          utils::Timer::instance().start_timer("uncontract_and_refine_version",
+                                               "Uncontracting and Refining Version", false,
+                                               force_measure_timings);
+
           ASSERT(_phg.version() == _removed_hyperedges_batches.size());
           ds::TreeGroupPool* pool = _group_pools_for_versions.back().get();
           ASSERT(_phg.version() == pool->getVersion());
@@ -900,7 +905,7 @@ namespace mt_kahypar {
                                   V(current_metrics.getMetric(kahypar::Mode::direct_kway, _context.partition.objective))
                                   << V(metrics::objective(_phg, _context.partition.objective)));
 
-
+          utils::Timer::instance().stop_timer("uncontract_and_refine_version", force_measure_timings);
 
           // Restore single-pin and parallel nets to continue with the next version
           if ( !_removed_hyperedges_batches.empty() ) {
@@ -1125,10 +1130,8 @@ namespace mt_kahypar {
 
           if (async_lp &&
                _context.refinement.label_propagation.algorithm != LabelPropagationAlgorithm::do_nothing ) {
-              utils::Timer::instance().start_timer("label_propagation", "Label Propagation", false, force_measure_timings);
               improvement_found |= async_lp->refine(partitioned_hypergraph,
                                                     refinement_nodes, current_metrics, std::numeric_limits<double>::max(), group_id);
-              utils::Timer::instance().stop_timer("label_propagation", force_measure_timings);
           }
 
           if ( !_context.refinement.refine_until_no_improvement ) {
