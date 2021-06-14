@@ -29,7 +29,6 @@ MoveSequence FlowRefiner::refineImpl(const PartitionedHypergraph& phg,
   // Construct flow network that contains all vertices given in refinement nodes
   FlowProblem flow_problem = constructFlowHypergraph(phg, refinement_nodes);
   if ( flow_problem.total_cut - flow_problem.non_removable_cut > 0 ) {
-    _hfc.cs.borderNodes.distance.distance.assign(_flow_hg.numNodes(), 0);
     // Set maximum allowed block weights for block 0 and 1
     _hfc.cs.setMaxBlockWeight(0, std::max(
       flow_problem.weight_of_block_0, _context.partition.max_part_weights[_block_0]));
