@@ -127,7 +127,7 @@ class ProblemStats {
     // Increment stats
     size_t idx = _block_to_idx[block];
     ASSERT(idx != INVALID_IDX && _contained_blocks[idx] == block);
-    const HypernodeWeight node_weight = phg.nodeWeight(0);
+    const HypernodeWeight node_weight = phg.nodeWeight(hn);
     ++_num_nodes_in_block[idx];
     _node_weight_of_block[idx] += node_weight;
     ++_num_nodes;
