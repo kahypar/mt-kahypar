@@ -53,6 +53,7 @@ struct BlockPairStats {
 
   bool is_one_block_underloaded;
   CAtomic<HyperedgeWeight> cut_he_weight;
+  CAtomic<size_t> num_acitve_searches;
 };
 
 struct BlockPairStatsComparator {
@@ -76,6 +77,7 @@ class QuotientGraph {
   struct QuotientGraphEdge {
     QuotientGraphEdge() :
       blocks(),
+      ownership(INVALID_SEARCH_ID),
       first_valid_entry(0),
       cut_hes(),
       stats() { }
@@ -87,11 +89,28 @@ class QuotientGraph {
 
     void reset(const bool is_one_block_underloaded);
 
-    bool is_active() {
+    bool isActive() {
       return ( cut_hes.size() - first_valid_entry ) > 0;
     }
 
+    bool isAcquired() const {
+      return ownership.load() != INVALID_SEARCH_ID;
+    }
+
+    bool acquire(const SearchID search_id) {
+      SearchID expected = INVALID_SEARCH_ID;
+      SearchID desired = search_id;
+      return ownership.compare_exchange_strong(expected, desired);
+    }
+
+    void release(const SearchID search_id) {
+      unused(search_id);
+      ASSERT(ownership.load() == search_id);
+      ownership.store(INVALID_SEARCH_ID);
+    }
+
     BlockPair blocks;
+    CAtomic<SearchID> ownership;
     size_t first_valid_entry;
     tbb::concurrent_vector<HyperedgeID> cut_hes;
     BlockPairStats stats;
@@ -146,6 +165,7 @@ public:
     _block_scheduler(),
     _num_active_searches(0),
     _searches(),
+    _num_active_searches_on_blocks(context.partition.k, CAtomic<size_t>(0)),
     _local_bfs(hg.initialNumNodes(), hg.initialNumEdges()) {
     for ( PartitionID i = 0; i < _context.partition.k; ++i ) {
       for ( PartitionID j = i + 1; j < _context.partition.k; ++j ) {
@@ -239,16 +259,16 @@ public:
    * blocks of the quotient graph and includes the edge from the
    * overloaded to the underloaded block.
    */
-  /*vec<BlockPair> extendWithPath(const PartitionID overloaded_block,
+  vec<BlockPair> extendWithPath(const PartitionID overloaded_block,
                                 const PartitionID underloaded_block,
-                                const size_t num_additional_blocks);*/
+                                const size_t num_additional_blocks);
 
   /**
    * Tries to find a cycle that includes num_additional_blocks + 2
    * blocks of the quotient graph and includes the edge 'initial_blocks'.
    */
-  /*vec<BlockPair> extendWithCycle(const BlockPair initial_blocks,
-                                 const size_t num_additional_blocks);*/
+  vec<BlockPair> extendWithCycle(const BlockPair initial_blocks,
+                                 const size_t num_additional_blocks);
 
   /**
    * The idea is to sort the cut hyperedges of a block pair (i,j)
@@ -316,6 +336,9 @@ public:
   CAtomic<size_t> _num_active_searches;
   // ! Information about searches that are currently running
   tbb::concurrent_vector<Search> _searches;
+
+  // ! Number of active searches on each block
+  vec<CAtomic<size_t>> _num_active_searches_on_blocks;
 
   // ! BFS data required to sort cut hyperedges
   tbb::enumerable_thread_specific<BFSData> _local_bfs;

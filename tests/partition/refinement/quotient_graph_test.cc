@@ -170,7 +170,7 @@ TEST_F(AQuotientGraph, SimulatesBlockSchedulingWithSuccessfulSearches) {
   // Each edge should be scheduled once
   for ( PartitionID i = 0; i < context.partition.k; ++i ) {
     for ( PartitionID j = i + 1; j < context.partition.k; ++j ) {
-      ASSERT_EQ(0, cut_he_weights[i][j]);
+      EXPECT_EQ(0, cut_he_weights[i][j]) << V(i) << " " << V(j);
     }
   }
 }
