@@ -291,6 +291,7 @@ class InitialPartitioningDataContainer {
 
     void copyPartition(vec<PartitionID>& partition_store) const {
       for (HypernodeID node : _partitioned_hypergraph.nodes()) {
+        ASSERT(_partitioned_hypergraph.partID(node) != kInvalidPartition);
         partition_store[node] = _partitioned_hypergraph.partID(node);
       }
     }
@@ -484,7 +485,6 @@ class InitialPartitioningDataContainer {
           _best_partitions[0].first = my_result;
           std::pop_heap(_best_partitions.begin(), _best_partitions.end(), comp);
           std::push_heap(_best_partitions.begin(), _best_partitions.end(), comp);
-          assert(std::is_heap(_best_partitions.begin(), _best_partitions.end(), comp));
         }
         _pop_lock.unlock();
       }
@@ -492,7 +492,6 @@ class InitialPartitioningDataContainer {
       if (my_ip_data._result.is_other_better(my_result, eps)) {
         my_ip_data._result = my_result;
         my_ip_data.copyPartition(my_ip_data._partition);
-        assert(std::all_of(my_ip_data._partition.begin(), my_ip_data._partition.end(), [&](PartitionID p) { return p != kInvalidPartition; }));
       }
     }
     my_ip_data._partitioned_hypergraph.resetPartition();
