@@ -32,14 +32,12 @@
 namespace mt_kahypar {
 
 bool operator==(const BlockPairStats& lhs, const BlockPairStats& rhs) {
-  return lhs.num_active_searches == rhs.num_active_searches &&
-    lhs.is_one_block_underloaded == rhs.is_one_block_underloaded &&
-    lhs.cut_he_weight == rhs.cut_he_weight;
+  return lhs.is_one_block_underloaded == rhs.is_one_block_underloaded &&
+         lhs.cut_he_weight == rhs.cut_he_weight;
 }
 
 std::ostream& operator<<(std::ostream& out, const BlockPairStats& stats) {
-  out << "Num Active Searches = " << stats.num_active_searches << ", "
-      << "Is One Block Underloaded = " << std::boolalpha << stats.is_one_block_underloaded << ", "
+  out << "Is One Block Underloaded = " << std::boolalpha << stats.is_one_block_underloaded << ", "
       << "Cut Hyperedge Weight = " << stats.cut_he_weight;
   return out;
 }
@@ -58,7 +56,6 @@ HyperedgeID QuotientGraph::QuotientGraphEdge::pop_hyperedge() {
 void QuotientGraph::QuotientGraphEdge::reset(const bool is_one_block_underloaded) {
   cut_hes.clear();
   first_valid_entry = 0;
-  stats.num_active_searches.store(0, std::memory_order_relaxed);
   stats.is_one_block_underloaded = is_one_block_underloaded;
   stats.cut_he_weight.store(0, std::memory_order_relaxed);
 }
@@ -67,24 +64,21 @@ SearchID QuotientGraph::requestNewSearch(AdvancedRefinerAdapter& refiner) {
   ASSERT(_phg);
   SearchID search_id = INVALID_SEARCH_ID;
   if ( !_block_scheduler.empty() ) {
-    _heap_lock.lock();
-    if ( !_block_scheduler.empty() ) {
+    BlockPair blocks { kInvalidPartition, kInvalidPartition };
+    bool success = _block_scheduler.try_pop(blocks);
+    if ( success ) {
       ++_num_active_searches;
-      // Retrieve block pair for next search
-      const size_t part_index = _block_scheduler.top();
-      const BlockPair blocks = blockPairFromIndex(part_index);
-      _block_scheduler.pop();
       // Create new search
-      search_id = _searches.size();
+      search_id = _current_search_id++;
       _searches.emplace_back();
-      _searches.back().addBlockPair(blocks);
+      _searches[search_id].addBlockPair(blocks);
 
       // Associate refiner with search id
-      const bool success = refiner.registerNewSearch(search_id, *_phg);
+      bool success = refiner.registerNewSearch(search_id, *_phg);
       ASSERT(success); unused(success);
 
-      // Extend with additional
-      const PartitionID num_blocks = refiner.maxNumberOfBlocks(search_id);
+      // Extend with additional blocks
+      /*const PartitionID num_blocks = refiner.maxNumberOfBlocks(search_id);
       if ( num_blocks > 2 ) {
         vec<BlockPair> additional_blocks;
         if ( isOneBlockUnderloaded(blocks.i, blocks.j) ) {
@@ -124,34 +118,8 @@ SearchID QuotientGraph::requestNewSearch(AdvancedRefinerAdapter& refiner) {
           ASSERT(_block_scheduler.contains(part_index));
           _block_scheduler.remove(part_index);
         }
-      }
-
-      // Increment number of active searches for each edge in the quotient graph
-      // that contains one of the used blocks in the search
-      auto increment_num_active_searches = [&](const PartitionID i, const PartitionID j) {
-        ++_quotient_graph[i][j].stats.num_active_searches;
-        const size_t part_index = index(_quotient_graph[i][j]);
-        if ( _block_scheduler.contains(part_index) ) {
-          const BlockPairStats tmp_stats = _quotient_graph[i][j].stats;
-          _block_scheduler.updateKey(part_index, tmp_stats);
-        }
-      };
-
-      vec<bool> used_blocks(_context.partition.k, false);
-      for ( const BlockPair& blocks : _searches.back().block_pairs ) {
-        used_blocks[blocks.i] = true;
-        used_blocks[blocks.j] = true;
-        increment_num_active_searches(blocks.i, blocks.j);
-      }
-      for ( PartitionID i = 0; i < _context.partition.k; ++i ) {
-        for ( PartitionID j = i + 1; j < _context.partition.k; ++j ) {
-          if ( used_blocks[i] || used_blocks[j] ) {
-            increment_num_active_searches(i, j);
-          }
-        }
-      }
+      }*/
     }
-    _heap_lock.unlock();
   }
   return search_id;
 }
@@ -218,12 +186,7 @@ void QuotientGraph::finalizeConstruction(const SearchID search_id) {
   for ( const BlockPair& blocks : _searches[search_id].block_pairs ) {
     QuotientGraphEdge& qg_edge = _quotient_graph[blocks.i][blocks.j];
     if ( qg_edge.is_active() ) {
-      _heap_lock.lock();
-      const size_t part_index = index(qg_edge);
-      ASSERT(!_block_scheduler.contains(part_index));
-      const BlockPairStats tmp_stats = qg_edge.stats;
-      _block_scheduler.push(part_index, tmp_stats);
-      _heap_lock.unlock();
+      _block_scheduler.push(blocks);
     }
   }
 }
@@ -233,23 +196,6 @@ void QuotientGraph::finalizeSearch(const SearchID search_id,
   ASSERT(_phg);
   ASSERT(search_id < _searches.size());
   ASSERT(_searches[search_id].is_finalized);
-  // Decrement number of active searches for each edge in the quotient graph
-  // that contains one of the used blocks in the search
-  vec<bool> used_blocks(_context.partition.k, false);
-  for ( const BlockPair& blocks : _searches[search_id].block_pairs ) {
-    used_blocks[blocks.i] = true;
-    used_blocks[blocks.j] = true;
-    ASSERT(_quotient_graph[blocks.i][blocks.j].stats.num_active_searches > 0);
-    --_quotient_graph[blocks.i][blocks.j].stats.num_active_searches;
-  }
-  for ( PartitionID i = 0; i < _context.partition.k; ++i ) {
-    for ( PartitionID j = i + 1; j < _context.partition.k; ++j ) {
-      if ( used_blocks[i] || used_blocks[j] ) {
-        ASSERT(_quotient_graph[i][j].stats.num_active_searches > 0, V(i) << V(j));
-        --_quotient_graph[i][j].stats.num_active_searches;
-      }
-    }
-  }
 
   if ( success ) {
     // If the search improves the quality of the partition, we reinsert
@@ -267,8 +213,6 @@ void QuotientGraph::finalizeSearch(const SearchID search_id,
     }
   }
 
-  // Update all entries of the heap
-  fullHeapUpdate();
   --_num_active_searches;
 }
 
@@ -279,6 +223,7 @@ void QuotientGraph::initialize(const PartitionedHypergraph& phg) {
   resetQuotientGraphEdges();
   _block_scheduler.clear();
   _num_active_searches.store(0, std::memory_order_relaxed);
+  _current_search_id.store(0, std::memory_order_relaxed);
   _searches.clear();
 
   // Find all cut hyperedges between the blocks
@@ -293,14 +238,24 @@ void QuotientGraph::initialize(const PartitionedHypergraph& phg) {
     }
   });
 
-  // Initalize block scheduler heap
+  // Initalize block scheduler queue
+  std::vector<BlockPair> active_blocks;
   for ( PartitionID i = 0; i < _context.partition.k; ++i ) {
     for ( PartitionID j = i + 1; j < _context.partition.k; ++j ) {
       if ( _quotient_graph[i][j].is_active() ) {
-        _block_scheduler.push(
-          index(_quotient_graph[i][j]), _quotient_graph[i][j].stats);
+        active_blocks.emplace_back(BlockPair {i, j});
       }
     }
+  }
+  BlockPairStatsComparator comparator;
+  std::sort(active_blocks.begin(), active_blocks.end(),
+    [&](const BlockPair& lhs, const BlockPair& rhs) {
+      return comparator(
+        _quotient_graph[lhs.i][lhs.j].stats,
+        _quotient_graph[rhs.i][rhs.j].stats);
+  });
+  for ( const BlockPair& blocks : active_blocks ) {
+    _block_scheduler.push(blocks);
   }
 
   // Sort cut hyperedges of each block
@@ -314,25 +269,6 @@ void QuotientGraph::initialize(const PartitionedHypergraph& phg) {
   }
 }
 
-void QuotientGraph::fullHeapUpdate() {
-  ASSERT(_phg);
-  _heap_lock.lock();
-  for ( PartitionID i = 0; i < _context.partition.k; ++i ) {
-    for ( PartitionID j = i + 1; j < _context.partition.k; ++j ) {
-      QuotientGraphEdge& qg_edge = _quotient_graph[i][j];
-      const size_t part_index = index(qg_edge);
-      qg_edge.stats.is_one_block_underloaded = isOneBlockUnderloaded(i, j);
-      const BlockPairStats tmp_stats = qg_edge.stats;
-      if ( _block_scheduler.contains(part_index) ) {
-        _block_scheduler.updateKey(part_index, tmp_stats);
-      } else if ( qg_edge.is_active() && qg_edge.stats.num_active_searches == 0 ) {
-        _block_scheduler.push(part_index, tmp_stats);
-      }
-    }
-  }
-  _heap_lock.unlock();
-}
-
 void QuotientGraph::resetQuotientGraphEdges() {
   for ( PartitionID i = 0; i < _context.partition.k; ++i ) {
     for ( PartitionID j = i + 1; j < _context.partition.k; ++j ) {
@@ -341,7 +277,7 @@ void QuotientGraph::resetQuotientGraphEdges() {
   }
 }
 
-vec<BlockPair> QuotientGraph::extendWithPath(const PartitionID overloaded_block,
+/*vec<BlockPair> QuotientGraph::extendWithPath(const PartitionID overloaded_block,
                                              const PartitionID underloaded_block,
                                              const size_t num_additional_blocks) {
   vec<BlockPair> best_path;
@@ -387,9 +323,9 @@ vec<BlockPair> QuotientGraph::extendWithPath(const PartitionID overloaded_block,
   dfs(overloaded_block);
   dfs(underloaded_block);
   return best_path;
-}
+}*/
 
-vec<BlockPair> QuotientGraph::extendWithCycle(const BlockPair initial_blocks,
+/*vec<BlockPair> QuotientGraph::extendWithCycle(const BlockPair initial_blocks,
                                               const size_t num_additional_blocks) {
   vec<BlockPair> best_cycle;
   double best_rating = 0.0;
@@ -440,7 +376,7 @@ vec<BlockPair> QuotientGraph::extendWithCycle(const BlockPair initial_blocks,
   dfs(initial_blocks.j, initial_blocks.i, initial_blocks.j);
 
   return best_cycle;
-}
+}*/
 
 void QuotientGraph::sortCutHyperedges(const PartitionID i,
                                       const PartitionID j,

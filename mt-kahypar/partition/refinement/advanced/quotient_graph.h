@@ -21,10 +21,9 @@
 
 #pragma once
 
+#include "tbb/concurrent_queue.h"
 #include "tbb/concurrent_vector.h"
 #include "tbb/enumerable_thread_specific.h"
-
-#include "kahypar/datastructure/binary_heap.h"
 
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/context.h"
@@ -49,85 +48,24 @@ struct BlockPairCutHyperedges {
 
 struct BlockPairStats {
   BlockPairStats() :
-    num_active_searches(0),
     is_one_block_underloaded(false),
     cut_he_weight(0) { }
 
-  BlockPairStats(bool /* sentinel */) :
-    num_active_searches(std::numeric_limits<int>::min()),
-    is_one_block_underloaded(false),
-    cut_he_weight(0) { }
-
-
-  CAtomic<int> num_active_searches;
   bool is_one_block_underloaded;
   CAtomic<HyperedgeWeight> cut_he_weight;
 };
 
 struct BlockPairStatsComparator {
   bool operator()(const BlockPairStats& lhs, const BlockPairStats& rhs) const {
-    return lhs.num_active_searches > rhs.num_active_searches ||
-      ( lhs.num_active_searches == rhs.num_active_searches &&
-        lhs.is_one_block_underloaded < rhs.is_one_block_underloaded ) ||
-      ( lhs.num_active_searches == rhs.num_active_searches &&
-        lhs.is_one_block_underloaded == rhs.is_one_block_underloaded &&
-        lhs.cut_he_weight < rhs.cut_he_weight );
+    return lhs.is_one_block_underloaded > rhs.is_one_block_underloaded ||
+      ( lhs.is_one_block_underloaded == rhs.is_one_block_underloaded &&
+        lhs.cut_he_weight > rhs.cut_he_weight );
   }
 };
 
 bool operator==(const BlockPairStats& lhs, const BlockPairStats& rhs);
 
 std::ostream& operator<<(std::ostream& out, const BlockPairStats& stats);
-
-} // namespace mt_kahypar
-
-namespace kahypar::ds {
-
-class BlockPairStatsHeap;
-
-// Traits specialization for block pair stats heap:
-template<>
-class BinaryHeapTraits<BlockPairStatsHeap>{
- public:
-  using IDType = size_t;
-  using KeyType = mt_kahypar::BlockPairStats;
-  using Comparator = mt_kahypar::BlockPairStatsComparator;
-
-  static KeyType sentinel() {
-    return mt_kahypar::BlockPairStats(true);
-  }
-};
-
-class BlockPairStatsHeap final : public BinaryHeapBase<BlockPairStatsHeap>{
-  using Base = BinaryHeapBase<BlockPairStatsHeap>;
-  friend Base;
-
- public:
-  using IDType = typename BinaryHeapTraits<BlockPairStatsHeap>::IDType;
-  using KeyType = typename BinaryHeapTraits<BlockPairStatsHeap>::KeyType;
-
-  // Second parameter is used to satisfy EnhancedBucketPQ interface
-  explicit BlockPairStatsHeap(const IDType& storage_initializer) :
-    Base(storage_initializer) { }
-
-  friend void swap(BlockPairStatsHeap& a, BlockPairStatsHeap& b) {
-    using std::swap;
-    swap(static_cast<Base&>(a), static_cast<Base&>(b));
-  }
-
- protected:
-  inline void decreaseKeyImpl(const size_t handle) {
-    Base::upHeap(handle);
-  }
-
-  inline void increaseKeyImpl(const size_t handle) {
-    Base::downHeap(handle);
-  }
-};
-
-} // namespace kahypar::ds
-
-namespace mt_kahypar {
 
 class QuotientGraph {
 
@@ -195,8 +133,6 @@ class QuotientGraph {
     vec<int> distance;
   };
 
-  using BlockSchedulingHeap = kahypar::ds::BlockPairStatsHeap;
-
 public:
   static constexpr SearchID INVALID_SEARCH_ID = std::numeric_limits<SearchID>::max();
 
@@ -206,8 +142,8 @@ public:
     _context(context),
     _quotient_graph(context.partition.k,
       vec<QuotientGraphEdge>(context.partition.k)),
-    _heap_lock(),
-    _block_scheduler(_context.partition.k * _context.partition.k),
+    _current_search_id(0),
+    _block_scheduler(),
     _num_active_searches(0),
     _searches(),
     _local_bfs(hg.initialNumNodes(), hg.initialNumEdges()) {
@@ -295,7 +231,6 @@ public:
   }
 
  private:
-  void fullHeapUpdate();
 
   void resetQuotientGraphEdges();
 
@@ -304,16 +239,16 @@ public:
    * blocks of the quotient graph and includes the edge from the
    * overloaded to the underloaded block.
    */
-  vec<BlockPair> extendWithPath(const PartitionID overloaded_block,
+  /*vec<BlockPair> extendWithPath(const PartitionID overloaded_block,
                                 const PartitionID underloaded_block,
-                                const size_t num_additional_blocks);
+                                const size_t num_additional_blocks);*/
 
   /**
    * Tries to find a cycle that includes num_additional_blocks + 2
    * blocks of the quotient graph and includes the edge 'initial_blocks'.
    */
-  vec<BlockPair> extendWithCycle(const BlockPair initial_blocks,
-                                 const size_t num_additional_blocks);
+  /*vec<BlockPair> extendWithCycle(const BlockPair initial_blocks,
+                                 const size_t num_additional_blocks);*/
 
   /**
    * The idea is to sort the cut hyperedges of a block pair (i,j)
@@ -325,19 +260,6 @@ public:
   void sortCutHyperedges(const PartitionID i,
                          const PartitionID j,
                          BFSData& bfs_data);
-
-  size_t index(const QuotientGraphEdge& edge) {
-    return edge.blocks.i + _context.partition.k * edge.blocks.j;
-  }
-
-  BlockPair blockPairFromIndex(const size_t index) {
-    const PartitionID block_1 = index % _context.partition.k;
-    ASSERT((index - block_1) % _context.partition.k == 0);
-    const PartitionID block_2 = (index - block_1) / _context.partition.k;
-    ASSERT(block_2 < _context.partition.k);
-    ASSERT(block_1 < block_2);
-    return BlockPair { block_1, block_2 };
-  }
 
   bool isOneBlockUnderloaded(const PartitionID i, const PartitionID j) {
     ASSERT(_phg);
@@ -386,10 +308,9 @@ public:
   // ! of the block pair which its represents.
   vec<vec<QuotientGraphEdge>> _quotient_graph;
 
-  SpinLock _heap_lock;
-  // ! Heap that contains all block pairs.
-  // ! Block pair on top of the heap is scheduled next.
-  BlockSchedulingHeap _block_scheduler;
+  CAtomic<SearchID> _current_search_id;
+  // ! Queue that contains all block pairs.
+  tbb::concurrent_queue<BlockPair> _block_scheduler;
 
   // ! Number of active searches
   CAtomic<size_t> _num_active_searches;
