@@ -69,12 +69,14 @@ SearchID QuotientGraph::requestNewSearch(AdvancedRefinerAdapter& refiner) {
     if ( success ) {
       ++_num_active_searches;
       // Create new search
-      search_id = _current_search_id++;
+      _queue_lock.lock();
+      search_id = _searches.size();
       _searches.emplace_back();
+      _queue_lock.unlock();
       _searches[search_id].addBlockPair(blocks);
 
       // Associate refiner with search id
-      bool success = refiner.registerNewSearch(search_id, *_phg);
+      success = refiner.registerNewSearch(search_id, *_phg);
       ASSERT(success); unused(success);
 
       // Extend with additional blocks
@@ -223,7 +225,6 @@ void QuotientGraph::initialize(const PartitionedHypergraph& phg) {
   resetQuotientGraphEdges();
   _block_scheduler.clear();
   _num_active_searches.store(0, std::memory_order_relaxed);
-  _current_search_id.store(0, std::memory_order_relaxed);
   _searches.clear();
 
   // Find all cut hyperedges between the blocks

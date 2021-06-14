@@ -142,7 +142,7 @@ public:
     _context(context),
     _quotient_graph(context.partition.k,
       vec<QuotientGraphEdge>(context.partition.k)),
-    _current_search_id(0),
+    _queue_lock(),
     _block_scheduler(),
     _num_active_searches(0),
     _searches(),
@@ -308,7 +308,7 @@ public:
   // ! of the block pair which its represents.
   vec<vec<QuotientGraphEdge>> _quotient_graph;
 
-  CAtomic<SearchID> _current_search_id;
+  SpinLock _queue_lock;
   // ! Queue that contains all block pairs.
   tbb::concurrent_queue<BlockPair> _block_scheduler;
 
