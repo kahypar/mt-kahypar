@@ -36,7 +36,7 @@ namespace mt_kahypar {
 namespace ds {
 
 // ! Recomputes the total weight of the hypergraph (parallel)
-void DynamicHypergraph::updateTotalWeight(const TaskGroupID) {
+void DynamicHypergraph::updateTotalWeight(parallel_tag_t) {
   _total_weight = tbb::parallel_reduce(tbb::blocked_range<HypernodeID>(ID(0), _num_hypernodes), 0,
     [this](const tbb::blocked_range<HypernodeID>& range, HypernodeWeight init) {
       HypernodeWeight weight = init;
@@ -602,7 +602,7 @@ void DynamicHypergraph::restoreSinglePinAndParallelNets(const parallel::scalable
 }
 
 // ! Copy dynamic hypergraph in parallel
-DynamicHypergraph DynamicHypergraph::copy(const TaskGroupID task_group_id) {
+DynamicHypergraph DynamicHypergraph::copy(parallel_tag_t) {
   DynamicHypergraph hypergraph;
 
   hypergraph._num_hypernodes = _num_hypernodes;
@@ -623,7 +623,7 @@ DynamicHypergraph DynamicHypergraph::copy(const TaskGroupID task_group_id) {
       sizeof(Hypernode) * _hypernodes.size());
   }, [&] {
     tbb::parallel_invoke([&] {
-      hypergraph._incident_nets = _incident_nets.copy(task_group_id);
+      hypergraph._incident_nets = _incident_nets.copy(parallel_tag_t());
     }, [&] {
       hypergraph._acquired_hns.resize(_acquired_hns.size());
       tbb::parallel_for(ID(0), _num_hypernodes, [&](const HypernodeID& hn) {
@@ -631,7 +631,7 @@ DynamicHypergraph DynamicHypergraph::copy(const TaskGroupID task_group_id) {
       });
     });
   }, [&] {
-    hypergraph._contraction_tree = _contraction_tree.copy(task_group_id);
+    hypergraph._contraction_tree = _contraction_tree.copy(parallel_tag_t());
   }, [&] {
     hypergraph._hyperedges.resize(_hyperedges.size());
     memcpy(hypergraph._hyperedges.data(), _hyperedges.data(),

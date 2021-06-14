@@ -65,7 +65,8 @@ class DegreeZeroHypernodeRemover {
     // Sort degree-zero vertices in decreasing order of their weight
     tbb::parallel_sort(_removed_hns.begin(), _removed_hns.end(),
       [&](const HypernodeID& lhs, const HypernodeID& rhs) {
-        return hypergraph.nodeWeight(lhs) > hypergraph.nodeWeight(rhs);
+        return hypergraph.nodeWeight(lhs) > hypergraph.nodeWeight(rhs)
+                || (hypergraph.nodeWeight(lhs) == hypergraph.nodeWeight(rhs) && lhs > rhs);
       });
     // Sort blocks of partition in increasing order of their weight
     parallel::scalable_vector<PartitionID> blocks(_context.partition.k, 0);

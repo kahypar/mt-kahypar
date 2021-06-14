@@ -44,7 +44,7 @@ Requirements
 The Multi-Threaded Karlsruhe Hypergraph Partitioning Framework requires:
 
   - A 64-bit Linux operating system.
-  - A modern, ![C++14](https://img.shields.io/badge/C++-17-blue.svg?style=flat)-ready compiler such as `g++` version 7 or higher or `clang` version 11.0.3 or higher.
+  - A modern, ![C++17](https://img.shields.io/badge/C++-17-blue.svg?style=flat)-ready compiler such as `g++` version 7 or higher or `clang` version 11.0.3 or higher.
  - The [cmake][cmake] build system (>= 3.16).
  - The [Boost - Program Options][Boost.Program_options] library and the boost header files (>= 1.48).
  - The [Intel Thread Building Blocks][tbb] library (TBB)
@@ -66,26 +66,28 @@ Building Mt-KaHyPar
 
 The build produces two executables, which will be located in `build/mt-kahypar/application/`:
 
-- `MtKaHyParFast`: A scalable hypergraph partitioner that computes good partitions very fast
-- `MtKaHyParStrong`: A scalable hypergraph partitioner that computes high-quality partitions
+- `MtKaHyParFast`: computes good partitions very fast
+- `MtKaHyParStrong`: computes high-quality partitions in reasonable time (using n levels)
 
 Running Mt-KaHyPar
 -----------
 
 Mt-KaHyPar has several configuration parameters. We recommend to use our presets which are located in the `config` folder:
 
-- `fast_preset.ini`: Contains the default parameters for Mt-KaHyPar Fast (`MtKaHyParFast`)
-- `strong_preset.ini`: Contains the default parameters for Mt-KaHyPar Strong (`MtKaHyParStrong`)
+- `default_preset.ini`: default parameters for Mt-KaHyPar Fast (`MtKaHyParFast`)
+- `speed_deterministic_preset.ini`: parameters to make Mt-KaHyPar Fast (`MtKaHyParFast`) deterministic
+- `quality_preset.ini`: default parameters for Mt-KaHyPar Strong (`MtKaHyParStrong`)
 
+Deterministic mode is only supported for Mt-KaHyPar Fast, not Strong.
 If you want to change parameters manually, please run `./MtKaHyParFast --help` or `./MtKaHyParStrong --help` for a detailed description of the different program options. We use the [hMetis format](http://glaros.dtc.umn.edu/gkhome/fetch/sw/hmetis/manual.pdf) for the input hypergraph file as well as the partition output file.
 
 To run Mt-KaHyPar Fast, you can use the following command:
 
-    ./MtKaHyParFast -h <path-to-hgr> -p <path to fast_preset.ini> -t <# threads> -k <# blocks> -e <imbalance (e.g. 0.03)> -o km1 -m direct
+    ./MtKaHyParFast -h <path-to-hgr> -p <path to default_preset.ini> -t <# threads> -k <# blocks> -e <imbalance (e.g. 0.03)> -o km1 -m direct
 
 To run Mt-KaHyPar Strong, you can use the following command:
 
-    ./MtKaHyParStrong -h <path-to-hgr> -p <path to strong_preset.ini> -t <# threads> -k <# blocks> -e <imbalance (e.g. 0.03)> -o km1 -m direct
+    ./MtKaHyParStrong -h <path-to-hgr> -p <path to quality_preset.ini> -t <# threads> -k <# blocks> -e <imbalance (e.g. 0.03)> -o km1 -m direct
 
 The partition output file will be placed in the same folder as the input hypergraph file. If you want to change the default partition output folder, add the command line parameter `--partition-output-folder=path/to/folder`. There is also an option to disable writing the partition file `--write-partition-file=false`. Further, there are several useful options that can provide you with additional insights during and after the partitioning process:
 - `--show-detailed-timings=true`: Shows detailed subtimings of each multilevel phase at the end of the partitioning process
@@ -144,7 +146,7 @@ Using the Library Interfaces
 We provide a simple C-style interface to use Mt-KaHyPar as a library.  The library can be built and installed via
 
 ```sh
-make install.library
+make install.mtkahypar # use sudo to install system-wide
 ```
 
 and can be used like this:
@@ -230,19 +232,25 @@ mt_kahypar_read_hypergraph_from_file("path/to/hypergraph/file", &num_vertices, &
   &hyperedge_indices, &hyperedges, &hyperedge_weights, &hypernode_weights);
 ```
 
-To compile the program using `g++` run:
+To compile the program using `g++` and our fast hypergraph partitioner (Mt-KaHyPar Fast) run:
 
 ```sh
-g++ -std=c++17 -DNDEBUG -O3 your_program.cc -o your_program -lkahypar
+g++ -std=c++17 -DNDEBUG -O3 your_program.cc -o your_program -lmtkahyparfast
+```
+
+To compile the program using `g++` and our strong hypergraph partitioner (Mt-KaHyPar Strong) run:
+
+```sh
+g++ -std=c++17 -DNDEBUG -O3 your_program.cc -o your_program -lmtkahyparstrong
 ```
 
 To remove the library from your system use the provided uninstall target:
 
 ```sh
-make uninstall-kahypar
+make uninstall-mtkahypar
 ```
 
-Note, our library interfaces uses Mt-KaHyPar Fast. We are currently working on a solution to also integrate Mt-KaHyPar Strong.
+You can find detailed examples how to use our library interface in the folder `examples`.
 
 Bug Reports
 -----------
@@ -259,7 +267,7 @@ If you use Mt-KaHyPar in an academic setting please cite the appropriate papers.
 If you are interested in a commercial license, please contact me.
 
     // Mt-KaHyPar Fast
-    @inproceedings{MT-KAHYPAR-FAST,
+    @inproceedings{mt-kahypar-d,
       title     = {Scalable Shared-Memory Hypergraph Partitioning},
       author    = {Gottesbüren, Lars and
                    Heuer, Tobias and
@@ -271,16 +279,27 @@ If you are interested in a commercial license, please contact me.
       publisher = {SIAM}
     }
 
+    // Mt-KaHyPar Strong (Technical Report - Under Review)
+    @article{mt-kahypar-q,
+      title     = {Shared-Memory n-level Hypergraph Partitioning},
+      author    = {Gottesbüren, Lars and
+                   Heuer, Tobias and
+                   Sanders, Peter and
+                   Schlag, Sebastian},
+      journal   = {arXiv preprint arXiv:2104.08107},
+      year      = {2021}
+    }
+
 Contributing
 ------------
 If you are interested in contributing to the Mt-KaHyPar framework
 feel free to contact us or create an issue on the
-[issue tracking system](https://github.com/kittobi1992/mt-kahypar/issues).
+[issue tracking system](https://github.com/kahypar/mt-kahypar/issues).
 
 [cmake]: http://www.cmake.org/ "CMake tool"
 [Boost.Program_options]: http://www.boost.org/doc/libs/1_58_0/doc/html/program_options.html
 [tbb]: https://software.intel.com/content/www/us/en/develop/tools/threading-building-blocks.html
 [hwloc]: https://www.open-mpi.org/projects/hwloc/
-[LF]: https://github.com/kittobi1992/mt-kahypar/blob/master/LICENSE "Licence"
+[LF]: https://github.com/kahypar/mt-kahypar/blob/master/LICENSE "License"
 [SetA]: http://algo2.iti.kit.edu/heuer/alenex21/instances.html?benchmark=set_a
 [SetB]: http://algo2.iti.kit.edu/heuer/alenex21/instances.html?benchmark=set_b

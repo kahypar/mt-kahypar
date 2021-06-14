@@ -50,7 +50,7 @@ class ALouvain : public ds::HypergraphFixture<Hypergraph, HypergraphFactory> {
 
     graph = std::make_unique<Graph>(hypergraph, LouvainEdgeWeight::uniform);
     karate_club_hg = io::readHypergraphFile(
-      context.partition.graph_filename, TBBNumaArena::GLOBAL_TASK_GROUP);
+      context.partition.graph_filename);
     karate_club_graph = std::make_unique<Graph>(karate_club_hg, LouvainEdgeWeight::uniform);
   }
 
@@ -74,7 +74,7 @@ TEST_F(ALouvain, ComputesMaxGainMove1) {
   ds::Clustering communities = clustering( { 0, 1, 0, 2, 3, 4, 5, 1, 2, 3, 4 } );
   plm.initializeClusterVolumes(*graph, communities);
   PartitionID to = plm.computeMaxGainCluster(
-    *graph, communities, 7, plm._local_large_incident_cluster_weight.local());
+    *graph, communities, 7, plm.non_sampling_incident_cluster_weights.local());
   ASSERT_EQ(0, to);
 }
 
@@ -83,7 +83,7 @@ TEST_F(ALouvain, ComputesMaxGainMove2) {
   ds::Clustering communities = clustering( { 0, 1, 0, 3, 3, 4, 5, 1, 2, 3, 4 } );
   plm.initializeClusterVolumes(*graph, communities);
   PartitionID to = plm.computeMaxGainCluster(
-    *graph, communities, 8, plm._local_large_incident_cluster_weight.local());
+    *graph, communities, 8, plm.non_sampling_incident_cluster_weights.local());
   ASSERT_EQ(3, to);
 }
 
@@ -92,7 +92,7 @@ TEST_F(ALouvain, ComputesMaxGainMove3) {
   ds::Clustering communities = clustering( { 0, 1, 0, 2, 3, 4, 5, 1, 2, 3, 4 } );
   plm.initializeClusterVolumes(*graph, communities);
   PartitionID to = plm.computeMaxGainCluster(
-    *graph, communities, 8, plm._local_large_incident_cluster_weight.local());
+    *graph, communities, 8, plm.non_sampling_incident_cluster_weights.local());
   ASSERT_EQ(2, to);
 }
 
@@ -101,7 +101,7 @@ TEST_F(ALouvain, ComputesMaxGainMove4) {
   ds::Clustering communities = clustering( { 0, 1, 0, 2, 3, 4, 5, 1, 2, 3, 4 } );
   plm.initializeClusterVolumes(*graph, communities);
   PartitionID to = plm.computeMaxGainCluster(
-    *graph, communities, 9, plm._local_large_incident_cluster_weight.local());
+    *graph, communities, 9, plm.non_sampling_incident_cluster_weights.local());
   ASSERT_EQ(3, to);
 }
 
@@ -110,7 +110,7 @@ TEST_F(ALouvain, ComputesMaxGainMove5) {
   ds::Clustering communities = clustering( { 0, 1, 0, 2, 2, 4, 5, 1, 2, 3, 4 } );
   plm.initializeClusterVolumes(*graph, communities);
   PartitionID to = plm.computeMaxGainCluster(
-    *graph, communities, 9, plm._local_large_incident_cluster_weight.local());
+    *graph, communities, 9, plm.non_sampling_incident_cluster_weights.local());
   ASSERT_EQ(2, to);
 }
 
@@ -119,7 +119,7 @@ TEST_F(ALouvain, ComputesMaxGainMove6) {
   ds::Clustering communities = clustering( { 0, 1, 0, 2, 2, 4, 5, 1, 2, 3, 4 } );
   plm.initializeClusterVolumes(*graph, communities);
   PartitionID to = plm.computeMaxGainCluster(
-    *graph, communities, 10, plm._local_large_incident_cluster_weight.local());
+    *graph, communities, 10, plm.non_sampling_incident_cluster_weights.local());
   ASSERT_EQ(4, to);
 }
 
@@ -128,7 +128,7 @@ TEST_F(ALouvain, ComputesMaxGainMove7) {
   ds::Clustering communities = clustering( { 0, 1, 0, 2, 2, 4, 0, 1, 2, 3, 4 } );
   plm.initializeClusterVolumes(*graph, communities);
   PartitionID to = plm.computeMaxGainCluster(
-    *graph, communities, 10, plm._local_large_incident_cluster_weight.local());
+    *graph, communities, 10, plm.non_sampling_incident_cluster_weights.local());
   ASSERT_EQ(0, to);
 }
 
@@ -137,7 +137,7 @@ TEST_F(ALouvain, ComputesMaxGainMove8) {
   ds::Clustering communities = clustering( { 0, 1, 0, 2, 2, 4, 0, 1, 1, 3, 4 } );
   plm.initializeClusterVolumes(*graph, communities);
   PartitionID to = plm.computeMaxGainCluster(
-    *graph, communities, 0, plm._local_large_incident_cluster_weight.local());
+    *graph, communities, 0, plm.non_sampling_incident_cluster_weights.local());
   ASSERT_EQ(1, to);
 }
 
@@ -146,7 +146,7 @@ TEST_F(ALouvain, ComputesMaxGainMove9) {
   ds::Clustering communities = clustering( { 0, 1, 0, 2, 2, 4, 0, 1, 3, 3, 4 } );
   plm.initializeClusterVolumes(*graph, communities);
   PartitionID to = plm.computeMaxGainCluster(
-    *graph, communities, 4, plm._local_large_incident_cluster_weight.local());
+    *graph, communities, 4, plm.non_sampling_incident_cluster_weights.local());
   ASSERT_EQ(3, to);
 }
 
@@ -155,7 +155,7 @@ TEST_F(ALouvain, ComputesMaxGainMove10) {
   ds::Clustering communities = clustering( { 0, 1, 0, 2, 2, 0, 4, 1, 3, 3, 4 } );
   plm.initializeClusterVolumes(*graph, communities);
   PartitionID to = plm.computeMaxGainCluster(
-    *graph, communities, 6, plm._local_large_incident_cluster_weight.local());
+    *graph, communities, 6, plm.non_sampling_incident_cluster_weights.local());
   ASSERT_EQ(4, to);
 }
 
@@ -171,12 +171,13 @@ TEST_F(ALouvain, KarateClubTest) {
       return run_parallel_louvain(*karate_club_graph, context, true);
     });
 #endif
-  std::vector<PartitionID> expected_comm = { 1, 1, 1, 1, 0, 0, 0, 1, 3, 1, 0, 1, 1, 1, 3, 3, 0, 1,
+  ds::Clustering expected_comm = { 1, 1, 1, 1, 0, 0, 0, 1, 3, 1, 0, 1, 1, 1, 3, 3, 0, 1,
                                              3, 1, 3, 1, 3, 2, 2, 2, 3, 2, 2, 3, 3, 2, 3, 3 };
 
-  for ( const NodeID u : karate_club_graph->nodes() ) {
-    ASSERT_EQ(expected_comm[u], communities[u]);
-  }
+  karate_club_graph = std::make_unique<Graph>(karate_club_hg, LouvainEdgeWeight::uniform);
+  ASSERT_EQ(expected_comm, communities);
+  ASSERT_EQ(metrics::modularity(*karate_club_graph, communities),
+            metrics::modularity(*karate_club_graph, expected_comm));
 }
 
 }  // namespace mt_kahypar

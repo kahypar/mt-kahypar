@@ -26,7 +26,7 @@
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
 #include "mt-kahypar/datastructures/array.h"
 #include "mt-kahypar/parallel/hardware_topology.h"
-#include "mt-kahypar/parallel/tbb_numa_arena.h"
+#include "mt-kahypar/parallel/tbb_initializer.h"
 #include "tests/parallel/topology_mock.h"
 
 using ::testing::Test;
@@ -36,7 +36,7 @@ namespace ds {
 
 using TopoMock = mt_kahypar::parallel::TopologyMock<2>;
 using HwTopology = mt_kahypar::parallel::HardwareTopology<TopoMock, parallel::topology_t, parallel::node_t>;
-using TBB = mt_kahypar::parallel::TBBNumaArena<HwTopology, false>;
+using TBB = mt_kahypar::parallel::TBBInitializer<HwTopology, false>;
 
 TEST(AArray, WritesAnValueToStrippedVector1) {
   Array<int> vec(256, 0);
@@ -195,7 +195,7 @@ TEST(AArray, IsInitializedWithMemoryChunkFromMemoryPool) {
   parallel::MemoryPool::instance().deactivate_minimum_allocation_size();
   parallel::MemoryPool::instance().register_memory_group("TEST_GROUP", 1);
   parallel::MemoryPool::instance().register_memory_chunk("TEST_GROUP", "TEST_CHUNK", 5, sizeof(size_t));
-  parallel::MemoryPool::instance().allocate_memory_chunks<TBB>();
+  parallel::MemoryPool::instance().allocate_memory_chunks();
 
   Array<size_t> vec("TEST_GROUP", "TEST_CHUNK", 5);
   ASSERT_EQ(parallel::MemoryPool::instance().mem_chunk("TEST_GROUP", "TEST_CHUNK"), (char *) vec.data());
@@ -208,7 +208,7 @@ TEST(AArray, IsInitializedWithSeveralMemoryChunksFromMemoryPool) {
   parallel::MemoryPool::instance().register_memory_group("TEST_GROUP", 1);
   parallel::MemoryPool::instance().register_memory_chunk("TEST_GROUP", "TEST_CHUNK_1", 5, sizeof(size_t));
   parallel::MemoryPool::instance().register_memory_chunk("TEST_GROUP", "TEST_CHUNK_2", 5, sizeof(size_t));
-  parallel::MemoryPool::instance().allocate_memory_chunks<TBB>();
+  parallel::MemoryPool::instance().allocate_memory_chunks();
 
   Array<size_t> vec_1("TEST_GROUP", "TEST_CHUNK_1", 5);
   Array<size_t> vec_2("TEST_GROUP", "TEST_CHUNK_2", 5);
@@ -223,7 +223,7 @@ TEST(AArray, ReleasesMemoryChunkFromMemoryPoolInDestructor) {
   parallel::MemoryPool::instance().deactivate_minimum_allocation_size();
   parallel::MemoryPool::instance().register_memory_group("TEST_GROUP", 1);
   parallel::MemoryPool::instance().register_memory_chunk("TEST_GROUP", "TEST_CHUNK", 5, sizeof(size_t));
-  parallel::MemoryPool::instance().allocate_memory_chunks<TBB>();
+  parallel::MemoryPool::instance().allocate_memory_chunks();
 
   {
     Array<size_t> vec("TEST_GROUP", "TEST_CHUNK", 5);
@@ -240,7 +240,7 @@ TEST(AArray, AllocatesOwnMemoryIfNotAvailableInMemoryPool) {
   parallel::MemoryPool::instance().deactivate_minimum_allocation_size();
   parallel::MemoryPool::instance().register_memory_group("TEST_GROUP", 1);
   parallel::MemoryPool::instance().register_memory_chunk("TEST_GROUP", "TEST_CHUNK", 5, sizeof(size_t));
-  parallel::MemoryPool::instance().allocate_memory_chunks<TBB>();
+  parallel::MemoryPool::instance().allocate_memory_chunks();
 
   Array<size_t> vec("TEST_GROUP", "OTHER_CHUNK", 5);
   ASSERT_NE(nullptr, vec.data());
@@ -253,7 +253,7 @@ TEST(AArray, AllocatesOwnMemoryOnOverAllocationInMemoryPool) {
   parallel::MemoryPool::instance().deactivate_minimum_allocation_size();
   parallel::MemoryPool::instance().register_memory_group("TEST_GROUP", 1);
   parallel::MemoryPool::instance().register_memory_chunk("TEST_GROUP", "TEST_CHUNK", 5, sizeof(size_t));
-  parallel::MemoryPool::instance().allocate_memory_chunks<TBB>();
+  parallel::MemoryPool::instance().allocate_memory_chunks();
 
   Array<size_t> vec("TEST_GROUP", "TEST_CHUNK", 10);
   ASSERT_NE(nullptr, vec.data());
@@ -266,7 +266,7 @@ TEST(AArray, AllocatesOwnMemoryIfAlreadyRequestedInMemoryPool) {
   parallel::MemoryPool::instance().deactivate_minimum_allocation_size();
   parallel::MemoryPool::instance().register_memory_group("TEST_GROUP", 1);
   parallel::MemoryPool::instance().register_memory_chunk("TEST_GROUP", "TEST_CHUNK", 5, sizeof(size_t));
-  parallel::MemoryPool::instance().allocate_memory_chunks<TBB>();
+  parallel::MemoryPool::instance().allocate_memory_chunks();
 
   Array<size_t> vec_1("TEST_GROUP", "TEST_CHUNK", 5);
   Array<size_t> vec_2("TEST_GROUP", "TEST_CHUNK", 5);

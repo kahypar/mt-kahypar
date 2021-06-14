@@ -52,9 +52,9 @@ class AInitialPartitionerTest : public Test {
     context() {
 
     if ( context.partition.paradigm == Paradigm::multilevel ) {
-      parseIniToContext(context, "../config/fast_preset.ini");
+      parseIniToContext(context, "../config/default_preset.ini");
     } else {
-      parseIniToContext(context, "../config/strong_preset.ini");
+      parseIniToContext(context, "../config/quality_preset.ini");
     }
 
     context.partition.graph_filename = "../tests/instances/contracted_unweighted_ibm01.hgr";
@@ -92,15 +92,15 @@ class AInitialPartitionerTest : public Test {
 
     // Read hypergraph
     hypergraph = io::readHypergraphFile(
-      "../tests/instances/contracted_unweighted_ibm01.hgr", TBBNumaArena::GLOBAL_TASK_GROUP);
+      "../tests/instances/contracted_unweighted_ibm01.hgr");
     partitioned_hypergraph = PartitionedHypergraph(
-      context.partition.k, TBBNumaArena::GLOBAL_TASK_GROUP, hypergraph);
+      context.partition.k, hypergraph, parallel_tag_t());
     context.setupPartWeights(hypergraph.totalWeight());
     context.setupContractionLimit(hypergraph.totalWeight());
     assignCommunities();
 
     initial_partitioner = std::make_unique<InitialPartitioner>(
-      partitioned_hypergraph, context, true, TBBNumaArena::GLOBAL_TASK_GROUP);
+      partitioned_hypergraph, context, true);
   }
 
   void assignCommunities() {

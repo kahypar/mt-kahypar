@@ -28,12 +28,11 @@ namespace mt_kahypar {
         static constexpr bool enable_heavy_assert = true;
 
     public:
-        explicit AsyncLPRefiner(Hypergraph &hypergraph, const Context &context, const TaskGroupID task_group_id,
+        explicit AsyncLPRefiner(Hypergraph &hypergraph, const Context &context,
                                 ds::GroupLockManager *lockManager,
                                 ds::ThreadSafeFlagArray <HypernodeID> &node_anti_duplicator,
                                 ds::ThreadSafeFlagArray <HyperedgeID> &edge_anti_duplicator) :
         _context(context),
-        _task_group_id(task_group_id),
         _gain(context),
         _active_nodes(),
         _contraction_group_id(ds::invalidGroupID),
@@ -41,6 +40,7 @@ namespace mt_kahypar {
         _rng(),
         _next_active(node_anti_duplicator),
         _visited_he(edge_anti_duplicator) {
+            unused(hypergraph);
             ASSERT(_next_active.size() == hypergraph.initialNumNodes());
             ASSERT(_visited_he.size() == hypergraph.initialNumEdges());
         }
@@ -161,7 +161,6 @@ namespace mt_kahypar {
         }
 
         const Context& _context;
-        const TaskGroupID _task_group_id;
         GainCalculator _gain;
         ActiveNodes _active_nodes;
         // todo mlaupichler The AsyncLPRefiner should not be bound so tightly to the idea of ContractionGroups. Use a template argument for the OwnerID (also in the _lock_manager pointer) in order to allow any OwnerID for the locking.

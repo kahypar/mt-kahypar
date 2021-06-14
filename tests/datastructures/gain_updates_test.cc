@@ -77,13 +77,13 @@ TEST(GainUpdates, Example1) {
 TEST(GainUpdates, SingleChangeNodePart) {
     PartitionID k = 2;
     HyperedgeWeight edge_weights[] = {1};
-    DynamicHypergraph hypergraph(
-            DynamicHypergraphFactory::construct(TBBNumaArena::GLOBAL_TASK_GROUP,2, 1,
+    Hypergraph hypergraph(
+            HypergraphFactory::construct(2, 1,
                                                 {{0, 1}},
                                                 edge_weights,
                                                 nullptr,
                                                 true));
-    PartitionedHypergraph<DynamicHypergraph, DynamicHypergraphFactory, HeavyGainCache> phg(k, hypergraph);
+    PartitionedHypergraph<Hypergraph, HypergraphFactory, GainCache> phg(k, hypergraph);
 
     phg.setNodePart(0, 0);
     phg.setNodePart(1, 1);

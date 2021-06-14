@@ -50,10 +50,11 @@ namespace mt_kahypar {
 
   std::ostream & operator<< (std::ostream& str, const CommunityDetectionParameters& params) {
     str << "  Community Detection Parameters:" << std::endl;
-    str << "    Edge Weight Function:             " << params.edge_weight_function << std::endl;
-    str << "    Maximum Louvain-Pass Iterations:  " << params.max_pass_iterations << std::endl;
-    str << "    Minimum Vertex Move Fraction:     " << params.min_vertex_move_fraction << std::endl;
-    str << "    Vertex Degree Sampling Threshold: " << params.vertex_degree_sampling_threshold << std::endl;
+    str << "    Edge Weight Function:                " << params.edge_weight_function << std::endl;
+    str << "    Maximum Louvain-Pass Iterations:     " << params.max_pass_iterations << std::endl;
+    str << "    Minimum Vertex Move Fraction:        " << params.min_vertex_move_fraction << std::endl;
+    str << "    Vertex Degree Sampling Threshold:    " << params.vertex_degree_sampling_threshold << std::endl;
+    str << "    Number of subrounds (deterministic): " << params.num_sub_rounds_deterministic << std::endl;
     return str;
   }
 
@@ -94,6 +95,7 @@ namespace mt_kahypar {
     str << "  Minimum Shrink Factor:              " << params.minimum_shrink_factor << std::endl;
     str << "  Maximum Shrink Factor:              " << params.maximum_shrink_factor << std::endl;
     str << "  Vertex Degree Sampling Threshold:   " << params.vertex_degree_sampling_threshold << std::endl;
+    str << "  Number of subrounds (deterministic):" << params.num_sub_rounds_deterministic << std::endl;
     str << std::endl << params.rating;
     return str;
   }
@@ -136,6 +138,14 @@ namespace mt_kahypar {
       out << "    Num Seed Nodes:                   " << params.num_seed_nodes << std::endl;
       out << "    Obey Minimal Parallelism:         " << std::boolalpha << params.obey_minimal_parallelism << std::endl;
     }
+    return out;
+  }
+
+  std::ostream& operator<<(std::ostream& out, const DeterministicRefinementParameters& params) {
+    out << "    Number of sub-rounds for Sync LP:  " << params.num_sub_rounds_sync_lp << std::endl;
+    out << "    Use active node set:               " << std::boolalpha << params.use_active_node_set << std::endl;
+    out << "    recalculate gains on second apply: " << std::boolalpha
+        << params.recalculate_gains_on_second_apply << std::endl;
     return out;
   }
 
@@ -192,7 +202,7 @@ namespace mt_kahypar {
   std::ostream & operator<< (std::ostream& str, const SharedMemoryParameters& params) {
     str << "Shared Memory Parameters:             " << std::endl;
     str << "  Number of Threads:                  " << params.num_threads << std::endl;
-    str << "  Number of used NUMA nodes:          " << TBBNumaArena::instance().num_used_numa_nodes() << std::endl;
+    str << "  Number of used NUMA nodes:          " << TBBInitializer::instance().num_used_numa_nodes() << std::endl;
     str << "  Use Localized Random Shuffle:       " << std::boolalpha << params.use_localized_random_shuffle << std::endl;
     str << "  Random Shuffle Block Size:          " << params.shuffle_block_size << std::endl;
     return str;
@@ -399,6 +409,32 @@ namespace mt_kahypar {
                   "Number of parts is not equal to k!",
                   partition.k,
                   partition.max_part_weights.size());
+    }
+
+
+    shared_memory.static_balancing_work_packages = std::clamp(shared_memory.static_balancing_work_packages, 4UL, 256UL);
+
+    if ( partition.deterministic ) {
+      coarsening.algorithm = CoarseningAlgorithm::deterministic_multilevel_coarsener;
+
+      // disable FM until we have a deterministic version
+      refinement.fm.algorithm = FMAlgorithm::do_nothing;
+      initial_partitioning.refinement.fm.algorithm = FMAlgorithm::do_nothing;
+
+      // disable adaptive IP
+      initial_partitioning.use_adaptive_ip_runs = false;
+
+
+      // switch silently
+      auto lp_algo = refinement.label_propagation.algorithm;
+      if ( lp_algo != LabelPropagationAlgorithm::do_nothing && lp_algo != LabelPropagationAlgorithm::deterministic ) {
+        refinement.label_propagation.algorithm = LabelPropagationAlgorithm::deterministic;
+      }
+
+      lp_algo = initial_partitioning.refinement.label_propagation.algorithm;
+      if ( lp_algo != LabelPropagationAlgorithm::do_nothing && lp_algo != LabelPropagationAlgorithm::deterministic ) {
+        initial_partitioning.refinement.label_propagation.algorithm = LabelPropagationAlgorithm::deterministic;
+      }
     }
   }
 

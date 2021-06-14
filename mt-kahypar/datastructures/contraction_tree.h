@@ -299,7 +299,7 @@ class ContractionTree {
   // ####################### Copy #######################
 
   // ! Copy contraction tree in parallel
-  ContractionTree copy(const TaskGroupID);
+  ContractionTree copy(parallel_tag_t);
 
   // ! Copy contraction tree sequentially
   ContractionTree copy();

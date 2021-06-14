@@ -36,11 +36,11 @@ public:
     GainCacheFacade() = default;
 
     // Default empty constructor to get size zero gain cache to allow subsequent parallel construction with parallel_resize()
-    explicit GainCacheFacade(const TaskGroupID task_group_id, HGQueryFunctions* hg_query_funcs) :
+    explicit GainCacheFacade(HGQueryFunctions* hg_query_funcs, parallel_tag_t) :
         _num_nodes(0),
         _k(kInvalidPartition),
-        _benefit_cache(task_group_id, hg_query_funcs),
-        _penalty_cache(task_group_id, hg_query_funcs) {}
+        _benefit_cache(hg_query_funcs, parallel_tag_t()),
+        _penalty_cache(hg_query_funcs, parallel_tag_t()) {}
 
     GainCacheFacade(const HypernodeID num_nodes, const PartitionID k, HGQueryFunctions* hg_query_funcs) :
         _num_nodes(num_nodes),
@@ -195,7 +195,7 @@ public:
 
     AggregatedBenefitCache() = default;
 
-    AggregatedBenefitCache(const TaskGroupID, HGQueryFunctions* hg_query_funcs) :
+    AggregatedBenefitCache(HGQueryFunctions* hg_query_funcs, parallel_tag_t) :
         _num_nodes(0),
         _k(kInvalidPartition),
         _hg_query_funcs(hg_query_funcs),
@@ -377,7 +377,7 @@ public:
 
     FullBenefitCache() = default;
 
-    FullBenefitCache(const TaskGroupID, HGQueryFunctions* hg_query_funcs) :
+    FullBenefitCache(HGQueryFunctions* hg_query_funcs, parallel_tag_t) :
             _num_nodes(0),
             _k(kInvalidPartition),
             _hg_query_funcs(hg_query_funcs),
@@ -600,7 +600,7 @@ public:
 
     FullPenaltyCache() = default;
 
-    FullPenaltyCache(const TaskGroupID, HGQueryFunctions* hg_query_funcs) :
+    FullPenaltyCache(HGQueryFunctions* hg_query_funcs, parallel_tag_t) :
         _num_nodes(0),
         _k(kInvalidPartition),
         _hg_query_funcs(hg_query_funcs),

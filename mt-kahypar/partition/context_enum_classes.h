@@ -55,6 +55,7 @@ enum class SimiliarNetCombinerStrategy : uint8_t {
 
 enum class CoarseningAlgorithm : uint8_t {
   multilevel_coarsener,
+  deterministic_multilevel_coarsener,
   nlevel_coarsener,
   UNDEFINED
 };
@@ -101,6 +102,7 @@ enum class InitialPartitioningMode : uint8_t {
 enum class LabelPropagationAlgorithm : uint8_t {
   label_propagation_km1,
   label_propagation_cut,
+  deterministic,
   do_nothing
 };
 

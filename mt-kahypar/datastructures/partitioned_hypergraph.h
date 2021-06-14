@@ -102,8 +102,8 @@ private:
   }
 
   explicit PartitionedHypergraph(const PartitionID k,
-                                 const TaskGroupID task_group_id,
-                                 Hypergraph& hypergraph) :
+                                 Hypergraph& hypergraph,
+                                 parallel_tag_t) :
     _is_gain_cache_initialized(false),
     _k(k),
     _hg(&hypergraph),
@@ -112,7 +112,7 @@ private:
     _pins_in_part(),
     _connectivity_set(0, 0),
     _hg_query_funcs(std::make_unique<HGQueryFunctions>(makeQueryFunctionsObject())),
-    _gain_cache(task_group_id, _hg_query_funcs.get()),
+    _gain_cache(_hg_query_funcs.get(), parallel_tag_t()),
     _pin_count_update_ownership() {
     tbb::parallel_invoke([&] {
       _part_ids.resize(
@@ -826,7 +826,7 @@ private:
   // ! Initializes the partition of the hypergraph, if block ids are assigned with
   // ! setOnlyNodePart(...). In that case, block weights and pin counts in part for
   // ! each hyperedge must be initialized explicitly here.
-  void initializePartition(const TaskGroupID ) {
+  void initializePartition() {
     tbb::parallel_invoke(
             [&] { initializeBlockWeights(); },
             [&] { initializePinCountInPart(); }
@@ -1087,7 +1087,10 @@ private:
   // ! It also returns a vertex-mapping from the original hypergraph to the sub-hypergraph.
   // ! If cut_net_splitting is activated, hyperedges that span more than one block (cut nets) are split, which is used for the connectivity metric.
   // ! Otherwise cut nets are discarded (cut metric).
-  std::pair<Hypergraph, parallel::scalable_vector<HypernodeID> > extract(const TaskGroupID& task_group_id, PartitionID block, bool cut_net_splitting) {
+  std::pair<Hypergraph, parallel::scalable_vector<HypernodeID> > extract(
+          PartitionID block,
+          bool cut_net_splitting,
+          bool stable_construction_of_incident_edges) {
     ASSERT(block != kInvalidPartition && block < _k);
 
     // Compactify vertex ids
@@ -1140,9 +1143,8 @@ private:
     });
 
     // Construct hypergraph
-    Hypergraph extracted_hypergraph = HypergraphFactory::construct(
-            task_group_id, num_hypernodes, num_hyperedges,
-            edge_vector, hyperedge_weight.data(), hypernode_weight.data());
+    Hypergraph extracted_hypergraph = HypergraphFactory::construct(num_hypernodes, num_hyperedges,
+            edge_vector, hyperedge_weight.data(), hypernode_weight.data(), stable_construction_of_incident_edges);
 
     // Set community ids
     doParallelForAllNodes([&](const HypernodeID& hn) {

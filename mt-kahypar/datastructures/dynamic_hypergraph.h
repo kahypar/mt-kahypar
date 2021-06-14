@@ -639,7 +639,7 @@ class DynamicHypergraph {
   }
 
   // ! Recomputes the total weight of the hypergraph (parallel)
-  void updateTotalWeight(const TaskGroupID);
+  void updateTotalWeight(parallel_tag_t);
 
   // ! Recomputes the total weight of the hypergraph (sequential)
   void updateTotalWeight();
@@ -835,8 +835,7 @@ class DynamicHypergraph {
 
   // ####################### Contract / Uncontract #######################
 
-  DynamicHypergraph contract(parallel::scalable_vector<HypernodeID>&,
-                             const TaskGroupID) {
+  DynamicHypergraph contract(parallel::scalable_vector<HypernodeID>&) {
     ERROR("contract(c, id) is not supported in dynamic hypergraph");
     return DynamicHypergraph();
   }
@@ -1009,7 +1008,7 @@ class DynamicHypergraph {
   // ####################### Copy #######################
 
   // ! Copy dynamic hypergraph in parallel
-  DynamicHypergraph copy(const TaskGroupID task_group_id);
+  DynamicHypergraph copy(parallel_tag_t);
 
   // ! Copy dynamic hypergraph sequential
   DynamicHypergraph copy();

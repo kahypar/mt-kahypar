@@ -6,6 +6,7 @@ set(RefinementSources
         label_propagation/label_propagation_refiner.cpp
         rebalancing/rebalancer.cpp
         label_propagation/async_lp_refiner.cpp
+        deterministic/deterministic_label_propagation.cpp
         )
 
 foreach(modtarget IN LISTS TARGETS_WANTING_ALL_SOURCES)

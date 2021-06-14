@@ -56,21 +56,22 @@ class ATwoWayFmRefiner : public Test {
 
     // Read hypergraph
     hypergraph = io::readHypergraphFile(
-      "../tests/instances/contracted_ibm01.hgr", TBBNumaArena::GLOBAL_TASK_GROUP);
+      "../tests/instances/contracted_ibm01.hgr");
     partitioned_hypergraph = PartitionedHypergraph(
-      context.partition.k, TBBNumaArena::GLOBAL_TASK_GROUP, hypergraph);
+      context.partition.k, hypergraph, parallel_tag_t());
     context.setupPartWeights(hypergraph.totalWeight());
     initialPartition();
 
     refiner = std::make_unique<SequentialTwoWayFmRefiner>(partitioned_hypergraph, context);
+    prng = std::make_unique<std::mt19937>(420);
   }
 
   void initialPartition() {
     Context ip_context(context);
     ip_context.refinement.label_propagation.algorithm = LabelPropagationAlgorithm::do_nothing;
-    InitialPartitioningDataContainer ip_data(partitioned_hypergraph, ip_context, TBBNumaArena::GLOBAL_TASK_GROUP);
+    InitialPartitioningDataContainer ip_data(partitioned_hypergraph, ip_context);
     BFSInitialPartitioner& initial_partitioner = *new(tbb::task::allocate_root())
-      BFSInitialPartitioner(InitialPartitioningAlgorithm::bfs, ip_data, ip_context, 420);
+      BFSInitialPartitioner(InitialPartitioningAlgorithm::bfs, ip_data, ip_context, 420, 0);
     tbb::task::spawn_root_and_wait(initial_partitioner);
     ip_data.apply();
     metrics.km1 = metrics::km1(partitioned_hypergraph);
@@ -83,40 +84,41 @@ class ATwoWayFmRefiner : public Test {
   Context context;
   std::unique_ptr<SequentialTwoWayFmRefiner> refiner;
   kahypar::Metrics metrics;
+  std::unique_ptr<std::mt19937> prng;
 };
 
 static constexpr double EPS = 0.05;
 
 TEST_F(ATwoWayFmRefiner, UpdatesImbalanceCorrectly) {
-  refiner->refine(metrics);
+  refiner->refine(metrics, *prng);
   ASSERT_DOUBLE_EQ(metrics::imbalance(partitioned_hypergraph, context), metrics.imbalance);
 }
 
 TEST_F(ATwoWayFmRefiner, DoesNotViolateBalanceConstraint) {
-  refiner->refine(metrics);
+  refiner->refine(metrics, *prng);
   ASSERT_LE(metrics.imbalance, context.partition.epsilon + EPS);
 }
 
 TEST_F(ATwoWayFmRefiner, UpdatesMetricsCorrectly) {
-  refiner->refine(metrics);
+  refiner->refine(metrics, *prng);
   ASSERT_EQ(metrics::objective(partitioned_hypergraph, context.partition.objective),
             metrics.getMetric(kahypar::Mode::direct_kway, context.partition.objective));
 }
 
 TEST_F(ATwoWayFmRefiner, DoesNotWorsenSolutionQuality) {
   HyperedgeWeight objective_before = metrics::objective(partitioned_hypergraph, context.partition.objective);
-  refiner->refine(metrics);
+    refiner->refine(metrics, *prng);
   ASSERT_LE(metrics.getMetric(kahypar::Mode::direct_kway, context.partition.objective), objective_before);
 }
 
 TEST_F(ATwoWayFmRefiner, DoesProduceCorrectMetricIfExecutedSeveralTimes) {
-  refiner->refine(metrics);
+  refiner->refine(metrics, *prng);
   ASSERT_EQ(metrics::objective(partitioned_hypergraph, context.partition.objective),
             metrics.getMetric(kahypar::Mode::direct_kway, context.partition.objective));
 
   partitioned_hypergraph.resetPartition();
   initialPartition();
-  refiner->refine(metrics);
+  refiner->refine(metrics, *prng);
   ASSERT_EQ(metrics::objective(partitioned_hypergraph, context.partition.objective),
             metrics.getMetric(kahypar::Mode::direct_kway, context.partition.objective));
 }

@@ -22,19 +22,21 @@
 #pragma once
 
 
-
 #include "mt-kahypar/datastructures/sparse_map.h"
+#include "mt-kahypar/datastructures/buffered_vector.h"
 
 #include "mt-kahypar/macros.h"
 #include "mt-kahypar/datastructures/graph.h"
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/parallel/atomic_wrapper.h"
 #include "mt-kahypar/utils/randomize.h"
+#include "mt-kahypar/utils/reproducible_random.h"
+
 
 #include "gtest/gtest_prod.h"
 
 namespace mt_kahypar::metrics {
-  double modularity(const Graph& graph, ds::Clustering& communities);
+  double modularity(const Graph& graph, const ds::Clustering& communities);
 }
 
 namespace mt_kahypar::community_detection {
@@ -42,9 +44,6 @@ namespace mt_kahypar::community_detection {
 
 class ParallelLocalMovingModularity {
  private:
-  static constexpr bool advancedGainAdjustment = false;
-
-  using AtomicArcWeight = parallel::AtomicWrapper<ArcWeight>;
   using LargeIncidentClusterWeights = ds::FixedSizeSparseMap<PartitionID, ArcWeight>;
   using CacheEfficientIncidentClusterWeights = ds::FixedSizeSparseMap<PartitionID, ArcWeight>;
 
@@ -55,21 +54,33 @@ class ParallelLocalMovingModularity {
   ParallelLocalMovingModularity(const Context& context,
                                          size_t numNodes,
                                          const bool disable_randomization = false) :
-    _context(context),
-    _max_degree(numNodes),
-    _vertex_degree_sampling_threshold(context.preprocessing.community_detection.vertex_degree_sampling_threshold),
-    _cluster_volumes(numNodes),
-    _local_small_incident_cluster_weight(0),
-    _local_large_incident_cluster_weight([&] {
-      return construct_large_incident_cluster_weight_map();
-    }),
-    _disable_randomization(disable_randomization) { }
+          _context(context),
+          _max_degree(numNodes),
+          _vertex_degree_sampling_threshold(context.preprocessing.community_detection.vertex_degree_sampling_threshold),
+          _cluster_volumes(numNodes),
+          non_sampling_incident_cluster_weights(numNodes),
+          _disable_randomization(disable_randomization),
+          prng(context.partition.seed),
+          volume_updates_to(0),
+          volume_updates_from(0)
+  { }
 
   ~ParallelLocalMovingModularity();
 
   bool localMoving(Graph& graph, ds::Clustering& communities);
 
  private:
+  size_t parallelNonDeterministicRound(const Graph& graph, ds::Clustering& communities);
+  size_t synchronousParallelRound(const Graph& graph, ds::Clustering& communities);
+  size_t sequentialRound(const Graph& graph, ds::Clustering& communities);
+
+  struct ClearList {
+    vec<double> weights;
+    vec<PartitionID> used;
+    ClearList(size_t n) : weights(n) { }
+  };
+
+
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE bool ratingsFitIntoSmallSparseMap(const Graph& graph,
                                                                        const HypernodeID u)  {
     static constexpr size_t cache_efficient_map_size = CacheEfficientIncidentClusterWeights::MAP_SIZE / 3UL;
@@ -84,46 +95,54 @@ class ParallelLocalMovingModularity {
   // ! Only for testing
   void initializeClusterVolumes(const Graph& graph, ds::Clustering& communities);
 
-  template<typename Map>
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE PartitionID computeMaxGainCluster(const Graph& graph,
-                                                                       ds::Clustering& communities,
+                                                                       const ds::Clustering& communities,
+                                                                       const NodeID u) {
+    return computeMaxGainCluster(graph, communities, u, non_sampling_incident_cluster_weights.local());
+  }
+
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE PartitionID computeMaxGainCluster(const Graph& graph,
+                                                                       const ds::Clustering& communities,
                                                                        const NodeID u,
-                                                                       Map& incident_cluster_weights) {
-    PartitionID from = communities[u];
+                                                                       ClearList& incident_cluster_weights) {
+    const PartitionID from = communities[u];
     PartitionID bestCluster = communities[u];
 
+    auto& weights = incident_cluster_weights.weights;
+    auto& used = incident_cluster_weights.used;
+
     for (const Arc& arc : graph.arcsOf(u, _vertex_degree_sampling_threshold)) {
-      incident_cluster_weights[communities[arc.head]] += arc.weight;
+      const auto cv = communities[arc.head];
+      if (weights[cv] == 0.0) used.push_back(cv);
+      weights[cv] += arc.weight;
     }
 
-    const ArcWeight volume_from = _cluster_volumes[from];
+    const ArcWeight volume_from = _cluster_volumes[from].load(std::memory_order_relaxed);
     const ArcWeight volU = graph.nodeVolume(u);
-    const ArcWeight weight_from = incident_cluster_weights[from];
+    const ArcWeight weight_from = weights[from];
 
     const double volMultiplier = _vol_multiplier_div_by_node_vol * volU;
     double bestGain = weight_from - volMultiplier * (volume_from - volU);
-    for (const auto& clusterWeight : incident_cluster_weights) {
-      PartitionID to = clusterWeight.key;
+    double best_weight_to = weight_from;
+    for (const auto to : used) {
       // if from == to, we would have to remove volU from volume_to as well.
       // just skip it. it has (adjusted) gain zero.
-      if (from == to) {
-        continue;
+      if (from != to) {
+        double gain = modularityGain(weights[to], _cluster_volumes[to].load(std::memory_order_relaxed), volMultiplier);
+        if (gain > bestGain) {
+          bestCluster = to;
+          bestGain = gain;
+          best_weight_to = weights[to];
+        }
       }
-
-      const ArcWeight volume_to = _cluster_volumes[to],
-        weight_to = incident_cluster_weights.get(to);
-
-      double gain = modularityGain(weight_to, volume_to, volMultiplier);
-
-      if (gain > bestGain) {
-        bestCluster = to;
-        bestGain = gain;
-      }
+      weights[to] = 0.0;
     }
+    used.clear();
 
-    HEAVY_PREPROCESSING_ASSERT(verifyGain(graph, communities, u, bestCluster, bestGain, incident_cluster_weights));
+    // changing communities and volumes in parallel causes non-determinism in debug mode
 
-    incident_cluster_weights.clear();
+    unused(best_weight_to);
+    HEAVY_PREPROCESSING_ASSERT(verifyGain(graph, communities, u, bestCluster, bestGain, weight_from, best_weight_to));
 
     return bestCluster;
   }
@@ -145,8 +164,9 @@ class ParallelLocalMovingModularity {
         volume_node * (volume_from - volume_node));
   }
 
-  template<typename Map>
-  bool verifyGain(const Graph& graph, ds::Clustering& communities, NodeID u, PartitionID to, double gain, const Map& icw);
+
+  bool verifyGain(const Graph& graph, const ds::Clustering& communities, NodeID u, PartitionID to, double gain,
+                  double weight_from, double weight_to);
 
   static std::pair<ArcWeight, ArcWeight> intraClusterWeightsAndSumOfSquaredClusterVolumes(const Graph& graph, const ds::Clustering& communities);
 
@@ -155,10 +175,22 @@ class ParallelLocalMovingModularity {
   const size_t _vertex_degree_sampling_threshold;
   double _reciprocal_total_volume = 0.0;
   double _vol_multiplier_div_by_node_vol = 0.0;
-  parallel::scalable_vector<AtomicArcWeight> _cluster_volumes;
-  tbb::enumerable_thread_specific<CacheEfficientIncidentClusterWeights> _local_small_incident_cluster_weight;
-  tbb::enumerable_thread_specific<LargeIncidentClusterWeights> _local_large_incident_cluster_weight;
+  vec<parallel::AtomicWrapper<ArcWeight>> _cluster_volumes;
+  tbb::enumerable_thread_specific<ClearList> non_sampling_incident_cluster_weights;
   const bool _disable_randomization;
+
+  utils::ParallelPermutation<HypernodeID> permutation;
+  std::mt19937 prng;
+
+  struct ClusterMove {
+    PartitionID cluster;
+    NodeID node;
+    bool operator< (const ClusterMove& o) const {
+      return std::tie(cluster, node) < std::tie(o.cluster, o.node);
+    }
+  };
+  ds::BufferedVector<ClusterMove> volume_updates_to, volume_updates_from;
+
 
 
   FRIEND_TEST(ALouvain, ComputesMaxGainMove1);

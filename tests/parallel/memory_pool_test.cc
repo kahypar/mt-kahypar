@@ -25,7 +25,7 @@
 
 #include "mt-kahypar/parallel/memory_pool.h"
 #include "mt-kahypar/parallel/hardware_topology.h"
-#include "mt-kahypar/parallel/tbb_numa_arena.h"
+#include "mt-kahypar/parallel/tbb_initializer.h"
 #include "tests/parallel/topology_mock.h"
 
 using ::testing::Test;
@@ -35,7 +35,7 @@ namespace parallel {
 
 using TopoMock = mt_kahypar::parallel::TopologyMock<2>;
 using HwTopology = mt_kahypar::parallel::HardwareTopology<TopoMock, parallel::topology_t, parallel::node_t>;
-using TBB = mt_kahypar::parallel::TBBNumaArena<HwTopology, false>;
+using TBB = mt_kahypar::parallel::TBBInitializer<HwTopology, false>;
 
 
 template <class F, class K>
@@ -66,7 +66,7 @@ static void setupMemoryPool(const bool optimize_allocations) {
   MemoryPool::instance().register_memory_group("TEST_GROUP_2", 2);
   MemoryPool::instance().register_memory_chunk("TEST_GROUP_2", "TEST_CHUNK_1", 5, sizeof(double));
   MemoryPool::instance().register_memory_chunk("TEST_GROUP_2", "TEST_CHUNK_2", 5, sizeof(size_t));
-  MemoryPool::instance().allocate_memory_chunks<TBB>(optimize_allocations);
+  MemoryPool::instance().allocate_memory_chunks(optimize_allocations);
 }
 
 TEST(AMemoryPool, AllocatesMemory) {
@@ -177,7 +177,7 @@ TEST(AMemoryPool, AllocatesMemoryWithOptimizedAllocationUsage) {
   MemoryPool::instance().register_memory_chunk("TEST_GROUP_3", "TEST_CHUNK_1", 10, sizeof(char));
   MemoryPool::instance().register_memory_chunk("TEST_GROUP_3", "TEST_CHUNK_2", 10, sizeof(char));
   MemoryPool::instance().register_memory_chunk("TEST_GROUP_3", "TEST_CHUNK_3", 4, sizeof(char));
-  MemoryPool::instance().allocate_memory_chunks<TBB>(true);
+  MemoryPool::instance().allocate_memory_chunks(true);
 
   ASSERT_NE(nullptr, MemoryPool::instance().mem_chunk("TEST_GROUP_1", "TEST_CHUNK_1"));
   ASSERT_EQ(14, MemoryPool::instance().size_in_bytes("TEST_GROUP_1", "TEST_CHUNK_1"));
@@ -213,7 +213,7 @@ TEST(AMemoryPool, MemoryIsTransferedToNextGroupIfGroupIsReleased1) {
   MemoryPool::instance().register_memory_chunk("TEST_GROUP_3", "TEST_CHUNK_1", 10, sizeof(char));
   MemoryPool::instance().register_memory_chunk("TEST_GROUP_3", "TEST_CHUNK_2", 10, sizeof(char));
   MemoryPool::instance().register_memory_chunk("TEST_GROUP_3", "TEST_CHUNK_3", 4, sizeof(char));
-  MemoryPool::instance().allocate_memory_chunks<TBB>(true);
+  MemoryPool::instance().allocate_memory_chunks(true);
 
   MemoryPool::instance().release_mem_group("TEST_GROUP_1");
 
@@ -251,7 +251,7 @@ TEST(AMemoryPool, MemoryIsTransferedToNextGroupIfGroupIsReleased2) {
   MemoryPool::instance().register_memory_chunk("TEST_GROUP_3", "TEST_CHUNK_1", 10, sizeof(char));
   MemoryPool::instance().register_memory_chunk("TEST_GROUP_3", "TEST_CHUNK_2", 10, sizeof(char));
   MemoryPool::instance().register_memory_chunk("TEST_GROUP_3", "TEST_CHUNK_3", 4, sizeof(char));
-  MemoryPool::instance().allocate_memory_chunks<TBB>(true);
+  MemoryPool::instance().allocate_memory_chunks(true);
 
   MemoryPool::instance().release_mem_group("TEST_GROUP_1");
   MemoryPool::instance().release_mem_group("TEST_GROUP_2");
@@ -291,7 +291,7 @@ TEST(AMemoryPool, RequestsAnUnsedChunk1) {
   MemoryPool::instance().register_memory_chunk("TEST_GROUP_3", "TEST_CHUNK_1", 10, sizeof(char));
   MemoryPool::instance().register_memory_chunk("TEST_GROUP_3", "TEST_CHUNK_2", 10, sizeof(char));
   MemoryPool::instance().register_memory_chunk("TEST_GROUP_3", "TEST_CHUNK_3", 4, sizeof(char));
-  MemoryPool::instance().allocate_memory_chunks<TBB>(true);
+  MemoryPool::instance().allocate_memory_chunks(true);
 
   ASSERT_NE(nullptr, MemoryPool::instance().request_unused_mem_chunk(5, sizeof(char), false));
   ASSERT_NE(nullptr, MemoryPool::instance().request_unused_mem_chunk(4, sizeof(char), false));
@@ -314,7 +314,7 @@ TEST(AMemoryPool, RequestsAnUnsedChunk2) {
   MemoryPool::instance().register_memory_chunk("TEST_GROUP_3", "TEST_CHUNK_1", 10, sizeof(char));
   MemoryPool::instance().register_memory_chunk("TEST_GROUP_3", "TEST_CHUNK_2", 10, sizeof(char));
   MemoryPool::instance().register_memory_chunk("TEST_GROUP_3", "TEST_CHUNK_3", 4, sizeof(char));
-  MemoryPool::instance().allocate_memory_chunks<TBB>(true);
+  MemoryPool::instance().allocate_memory_chunks(true);
 
   MemoryPool::instance().release_mem_group("TEST_GROUP_1");
 
@@ -333,7 +333,7 @@ TEST(AMemoryPool, RequestsAnUnsedChunk3) {
   MemoryPool::instance().register_memory_group("TEST_GROUP_2", 2);
   MemoryPool::instance().register_memory_chunk("TEST_GROUP_2", "TEST_CHUNK_1", 4, sizeof(char));
   MemoryPool::instance().register_memory_chunk("TEST_GROUP_2", "TEST_CHUNK_2", 14, sizeof(char));
-  MemoryPool::instance().allocate_memory_chunks<TBB>(true);
+  MemoryPool::instance().allocate_memory_chunks(true);
 
   ASSERT_NE(nullptr, MemoryPool::instance().request_unused_mem_chunk(4, sizeof(char), false));
   ASSERT_EQ(nullptr, MemoryPool::instance().request_unused_mem_chunk(1, sizeof(char), false));
@@ -359,7 +359,7 @@ TEST(AMemoryPool, MemoryPoolIsCorrectlyResetted) {
   MemoryPool::instance().register_memory_chunk("TEST_GROUP_3", "TEST_CHUNK_1", 10, sizeof(char));
   MemoryPool::instance().register_memory_chunk("TEST_GROUP_3", "TEST_CHUNK_2", 10, sizeof(char));
   MemoryPool::instance().register_memory_chunk("TEST_GROUP_3", "TEST_CHUNK_3", 4, sizeof(char));
-  MemoryPool::instance().allocate_memory_chunks<TBB>(true);
+  MemoryPool::instance().allocate_memory_chunks(true);
 
   MemoryPool::instance().release_mem_group("TEST_GROUP_1");
   MemoryPool::instance().release_mem_group("TEST_GROUP_2");

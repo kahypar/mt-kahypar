@@ -1,6 +1,7 @@
 #pragma once
 
-#include <cstdint>
+#include <cstddef>
+#include <algorithm>
 
 namespace mt_kahypar::parallel::chunking {
   template <typename T1, typename T2>

@@ -31,7 +31,6 @@ namespace mt_kahypar {
     }
   };
 
-
   class SpawnInitialPartitionerTaskList : public tbb::task {
 
   public:
@@ -40,16 +39,16 @@ namespace mt_kahypar {
                                     IPTaskList ip_tasks) :
             _ip_data(ip_data),
             _context(context),
-            _ip_tasks(ip_tasks) { }
+            _ip_tasks(std::move(ip_tasks)) { }
 
     tbb::task* execute() override {
       DoNothingContinuation& task_continuation = *new(allocate_continuation()) DoNothingContinuation();
       task_continuation.set_ref_count(_ip_tasks.size());
       // Spawn Initial Partitioner Tasks
-      for ( const auto& [algorithm, seed] : _ip_tasks ) {
+      for ( const auto& [algorithm, seed, tag] : _ip_tasks ) {
         std::unique_ptr<tbb::task> initial_partitioner_ptr =
                 FlatInitialPartitionerFactory::getInstance().createObject(
-                        algorithm, &task_continuation, algorithm, _ip_data, _context, seed);
+                        algorithm, &task_continuation, algorithm, _ip_data, _context, seed, tag);
         tbb::task* initial_partitioner = initial_partitioner_ptr.release();
         tbb::task::spawn(*initial_partitioner);
       }
@@ -64,9 +63,8 @@ namespace mt_kahypar {
 
 
   PoolInitialPartitionerContinuation::PoolInitialPartitionerContinuation(PartitionedHypergraph& hypergraph,
-                                     const Context& context,
-                                     const TaskGroupID task_group_id) :
-          _ip_data(hypergraph, context, task_group_id),
+                                                                         const Context& context) :
+          _ip_data(hypergraph, context),
           _context(context),
           _ip_task_lists(context.shared_memory.num_threads) {
 
@@ -83,8 +81,8 @@ namespace mt_kahypar {
       if ( context.initial_partitioning.enabled_ip_algos[i] ) {
         auto algorithm = static_cast<InitialPartitioningAlgorithm>(i);
         for ( size_t j = 0; j < _context.initial_partitioning.runs; ++j ) {
-          _ip_task_lists[task_list_idx].emplace_back(algorithm, rng());
-          task_list_idx = (task_list_idx + 1) % _context.shared_memory.num_threads;
+          _ip_task_lists[task_list_idx % _context.shared_memory.num_threads].emplace_back(algorithm, rng(), task_list_idx);
+          task_list_idx++;
         }
       }
     }
@@ -109,20 +107,18 @@ namespace mt_kahypar {
       // tasks are more evenly distributed among the tbb task queues of all threads.
       tbb::task::spawn(*new(continuation_task.allocate_child())
               SpawnInitialPartitionerTaskList(
-              continuation_task._ip_data, context, continuation_task._ip_task_lists[i]));
+              continuation_task._ip_data, context, std::move(continuation_task._ip_task_lists[i])));
     }
   }
 
   PoolInitialPartitioner::PoolInitialPartitioner(PartitionedHypergraph& hypergraph,
-                         const Context& context,
-                         const TaskGroupID task_group_id) :
+                         const Context& context) :
           _hg(hypergraph),
-          _context(context),
-          _task_group_id(task_group_id) { }
+          _context(context) { }
 
   tbb::task* PoolInitialPartitioner::execute() {
     PoolInitialPartitionerContinuation& ip_continuation = *new(allocate_continuation())
-            PoolInitialPartitionerContinuation(_hg, _context, _task_group_id);
+            PoolInitialPartitionerContinuation(_hg, _context);
     spawn_initial_partitioner(ip_continuation);
     return nullptr;
   }

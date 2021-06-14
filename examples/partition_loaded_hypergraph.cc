@@ -2,10 +2,11 @@
 #include <vector>
 #include <iostream>
 
-#include <libkahypar.h>
+#include <libmtkahypar.h>
 
-// Install library interface via 'sudo make install.library' in build folder
-// Compile with: g++ -std=c++14 -DNDEBUG -O3 partition_hypergraph_lib_2.cc -o example_2 -lkahypar
+// Install library interface via 'sudo make install.mtkahypar' in build folder
+// Compile with: g++ -std=c++14 -DNDEBUG -O3 partition_loaded_hypergraph.cc -o example_2 -lmtkahyparfast
+// or flag "-lmtkahyparstrong", if you want to use our strong hypergraph partitioner
 int main(int argc, char* argv[]) {
 
   // Initialize thread pool with 8 threads and NUMA allocation policy INTERLEAVED
@@ -13,7 +14,8 @@ int main(int argc, char* argv[]) {
 
   // Load context from file
   mt_kahypar_context_t* context = mt_kahypar_context_new();
-  mt_kahypar_configure_context_from_file(context, "../config/quality_preset.ini");
+  // Use "../config/quality_preset.ini", if compiled with flag "-lmtkahyparstrong"
+  mt_kahypar_configure_context_from_file(context, "../config/default_preset.ini");
 
   // Setup Hypergraph
   mt_kahypar_hypernode_id_t num_vertices = 0;
@@ -22,7 +24,7 @@ int main(int argc, char* argv[]) {
   mt_kahypar_hyperedge_id_t* hyperedges(nullptr);
   mt_kahypar_hypernode_weight_t* hypernode_weights(nullptr);
   mt_kahypar_hyperedge_weight_t* hyperedge_weights(nullptr);
-  mt_kahypar_read_hypergraph_from_file("contracted_ibm01.hgr", &num_vertices, &num_hyperedges,
+  mt_kahypar_read_hypergraph_from_file("ibm01.hgr", &num_vertices, &num_hyperedges,
     &hyperedge_indices, &hyperedges, &hyperedge_weights, &hypernode_weights);
 
   const double imbalance = 0.03;
@@ -38,7 +40,7 @@ int main(int argc, char* argv[]) {
                	       nullptr /* unit vertex_weights */, hyperedge_weights,
                	       hyperedge_indices, hyperedges,
        	               &objective, context, partition.data(),
-                       false /* verbose output */ );
+                       true /* verbose output */ );
 
   // Print objective
   std::cout << "Objective: " << objective << std::endl;

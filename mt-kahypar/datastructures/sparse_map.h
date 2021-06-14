@@ -98,7 +98,6 @@ class SparseMapBase {
     return _dense + _size;
   }
 
-
   void clear() {
     static_cast<Derived*>(this)->clearImpl();
   }

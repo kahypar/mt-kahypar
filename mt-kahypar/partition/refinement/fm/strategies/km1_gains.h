@@ -28,13 +28,18 @@ struct Km1GainComputer {
 
   template<typename PHG>
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
-  void computeGainsFromScratch(const PHG& phg, const HypernodeID u) {
-    for (size_t i = 0; i < gains.size(); ++i) {
-      gains[i] = 0;
-    }
+  void computeGains(const PHG& phg, const HypernodeID u) {
+    clear();
+    Gain internal_weight = computeGainsPlusInternalWeight(phg, u);
+    for (Gain& x : gains) { x -= internal_weight; }
+  }
 
+  template<typename PHG>
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
+  Gain computeGainsPlusInternalWeight(const PHG& phg, const HypernodeID u) {
+    assert(std::all_of(gains.begin(), gains.end(), [](const Gain& g) { return g == 0; }));
     const PartitionID from = phg.partID(u);
-    Gain internal_weight = 0;   // weighted affinity with part(u) after u would be moved
+    Gain internal_weight = 0;   // weight that will not be removed from the objective
     for (HyperedgeID e : phg.incidentEdges(u)) {
       HyperedgeWeight edge_weight = phg.edgeWeight(e);
       if (phg.pinCountInPart(e, from) > 1) {
@@ -54,26 +59,25 @@ struct Km1GainComputer {
         }
       }
     }
-
-    for (size_t i = 0; i < gains.size(); ++i) {
-      gains[i] -= internal_weight;
-    }
+    return internal_weight;
   }
 
+  void clear() {
+    std::fill(gains.begin(), gains.end(), 0);
+  }
 
   template<typename PHG>
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
   std::pair<PartitionID, HyperedgeWeight> computeBestTargetBlock(const PHG& phg,
                                                                  const HypernodeID u,
                                                                  const std::vector<HypernodeWeight>& max_part_weights) {
-    computeGainsFromScratch(phg, u);
-
     const HypernodeWeight weight_of_u = phg.nodeWeight(u);
     const PartitionID from = phg.partID(u);
+    const Gain internal_weight = computeGainsPlusInternalWeight(phg, u);
     PartitionID best_target = kInvalidPartition;
     HypernodeWeight best_target_weight = std::numeric_limits<HypernodeWeight>::max();
     Gain best_gain = std::numeric_limits<Gain>::min();
-    for (PartitionID target = 0; target < phg.k(); ++target) {
+    for (PartitionID target = 0; target < int(gains.size()); ++target) {
       if (target != from) {
         const HypernodeWeight target_weight = phg.partWeight(target);
         const Gain gain = gains[target];
@@ -84,12 +88,46 @@ struct Km1GainComputer {
           best_target_weight = target_weight;
         }
       }
+      gains[target] = 0;
     }
 
+    best_gain -= internal_weight;
+    return std::make_pair(best_target, best_gain);
+  }
+
+  std::pair<PartitionID, HyperedgeWeight> computeBestTargetBlockIgnoringBalance(const PartitionedHypergraph& phg,
+                                                                                const HypernodeID u) {
+    const PartitionID from = phg.partID(u);
+    const Gain internal_weight = computeGainsPlusInternalWeight(phg, u);
+    PartitionID best_target = kInvalidPartition;
+    Gain best_gain = std::numeric_limits<Gain>::min();
+    for (PartitionID target = 0; target < int(gains.size()); ++target) {
+      if (target != from && gains[target] > best_gain) {
+        best_gain = gains[target];
+        best_target = target;
+      }
+      gains[target] = 0;
+    }
+    best_gain -= internal_weight;
     return std::make_pair(best_target, best_gain);
   }
 
 
   vec<Gain> gains;
 };
+
+struct TwoWayGainComputer {
+  static Gain gainToOtherBlock(const PartitionedHypergraph& phg, const HypernodeID u) {
+    Gain gain = 0;
+    const PartitionID from = phg.partID(u);
+    for (HyperedgeID e : phg.incidentEdges(u)) {
+      const auto pcip = phg.pinCountInPart(e, from);
+      const auto weight = phg.edgeWeight(e);
+      if (pcip == 1) { gain += weight; }
+      else if (pcip == phg.edgeSize(e)) { gain -= weight; }
+    }
+    return gain;
+  }
+};
+
 }
