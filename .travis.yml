@@ -36,6 +36,10 @@ matrix:
             - moreutils
             - linux-tools-common
             - linux-tools-generic
+      before_install:
+        - sudo add-apt-repository -y ppa:mhier/libboost-latest
+        - sudo apt-get -q update
+        - sudo apt-get -y install libboost1.70-dev
 
     # gcc 7 - Linux Debug Build
     - env:
@@ -50,6 +54,10 @@ matrix:
        - KAHYPAR_USE_64_BIT_IDS="OFF"
       os: linux
       addons: *gcc7
+      before_install:
+        - sudo add-apt-repository -y ppa:mhier/libboost-latest
+        - sudo apt-get -q update
+        - sudo apt-get -y install libboost1.70-dev
 
 install:
   - DEPS_DIR="${HOME}/deps"
