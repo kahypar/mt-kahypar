@@ -28,7 +28,6 @@ matrix:
             - g++-7
             - lcov
             - gcovr
-            - libboost-program-options-dev
             - libnuma-dev
             - numactl
             - libtbb-dev
