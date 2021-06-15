@@ -544,9 +544,9 @@ namespace mt_kahypar {
   }
 
   namespace {
-    NLevelGlobalRefinementParameters applyGlobalFMParameters(const FMParameters& fm,
-                                                             const NLevelGlobalRefinementParameters global) {
-      NLevelGlobalRefinementParameters tmp_global_fm;
+    NLevelGlobalFMParameters applyGlobalFMParameters(const FMParameters& fm,
+                                                             const NLevelGlobalFMParameters global) {
+      NLevelGlobalFMParameters tmp_global_fm;
       tmp_global_fm.num_seed_nodes = fm.num_seed_nodes;
       tmp_global_fm.obey_minimal_parallelism = fm.obey_minimal_parallelism;
       fm.num_seed_nodes = global.num_seed_nodes;
@@ -560,52 +560,51 @@ namespace mt_kahypar {
                                          std::unique_ptr<IRefiner>& advanced,
                                          kahypar::Metrics& current_metrics,
                                          const double time_limit) {
-    if ( _context.refinement.global.use_global_refinement ) {
-      if ( debug && _top_level ) {
-        io::printHypergraphInfo(partitioned_hypergraph.hypergraph(), "Refinement Hypergraph", false);
-        DBG << "Start Refinement - km1 = " << current_metrics.km1
-            << ", imbalance = " << current_metrics.imbalance;
+    if ( debug && _top_level ) {
+      io::printHypergraphInfo(partitioned_hypergraph.hypergraph(), "Refinement Hypergraph", false);
+      DBG << "Start Refinement - km1 = " << current_metrics.km1
+          << ", imbalance = " << current_metrics.imbalance;
+    }
+
+    // Apply global FM parameters to FM context and temporary store old fm context
+    NLevelGlobalFMParameters tmp_global_fm = applyGlobalFMParameters(
+      _context.refinement.fm, _context.refinement.global_fm);
+    bool improvement_found = true;
+    while( improvement_found ) {
+      improvement_found = false;
+
+      if ( _context.refinement.global_fm.use_global_fm &&
+            fm && _context.refinement.fm.algorithm != FMAlgorithm::do_nothing ) {
+        utils::Timer::instance().start_timer("global_fm", "Global FM", false, _top_level);
+        improvement_found |= fm->refine(partitioned_hypergraph, {}, current_metrics, time_limit);
+        utils::Timer::instance().stop_timer("global_fm", _top_level);
       }
 
-      // Apply global FM parameters to FM context and temporary store old fm context
-      NLevelGlobalRefinementParameters tmp_global_fm = applyGlobalFMParameters(
-        _context.refinement.fm, _context.refinement.global);
-      bool improvement_found = true;
-      while( improvement_found ) {
-        improvement_found = false;
+      if ( advanced && _context.refinement.advanced.algorithm != AdvancedRefinementAlgorithm::do_nothing ) {
+        utils::Timer::instance().start_timer("initialize_advanced_refiner", "Initialize Advanced Refiner", false, _top_level);
+        advanced->initialize(partitioned_hypergraph);
+        utils::Timer::instance().stop_timer("initialize_advanced_refiner", _top_level);
 
-        if ( fm && _context.refinement.fm.algorithm != FMAlgorithm::do_nothing ) {
-          utils::Timer::instance().start_timer("global_fm", "Global FM", false, _top_level);
-          improvement_found |= fm->refine(partitioned_hypergraph, {}, current_metrics, time_limit);
-          utils::Timer::instance().stop_timer("global_fm", _top_level);
-        }
-
-        if ( advanced && _context.refinement.advanced.algorithm != AdvancedRefinementAlgorithm::do_nothing ) {
-          utils::Timer::instance().start_timer("initialize_advanced_refiner", "Initialize Advanced Refiner", false, _top_level);
-          advanced->initialize(partitioned_hypergraph);
-          utils::Timer::instance().stop_timer("initialize_advanced_refiner", _top_level);
-
-          utils::Timer::instance().start_timer("advanced_refiner", "Advanced Refiner", false, _top_level);
-          improvement_found |= advanced->refine(partitioned_hypergraph, {}, current_metrics, time_limit);
-          utils::Timer::instance().stop_timer("advanced_refiner", _top_level);
-        }
-
-        if ( _top_level ) {
-          ASSERT(current_metrics.km1 == metrics::km1(partitioned_hypergraph),
-                "Actual metric" << V(metrics::km1(partitioned_hypergraph))
-                                << "does not match the metric updated by the refiners" << V(current_metrics.km1));
-        }
-
-        if ( !_context.refinement.global.refine_until_no_improvement ) {
-          break;
-        }
+        utils::Timer::instance().start_timer("advanced_refiner", "Advanced Refiner", false, _top_level);
+        improvement_found |= advanced->refine(partitioned_hypergraph, {}, current_metrics, time_limit);
+        utils::Timer::instance().stop_timer("advanced_refiner", _top_level);
       }
-      // Reset FM context
-      applyGlobalFMParameters(_context.refinement.fm, tmp_global_fm);
 
-      if ( _top_level) {
-        DBG << "--------------------------------------------------\n";
+      if ( _top_level ) {
+        ASSERT(current_metrics.km1 == metrics::km1(partitioned_hypergraph),
+              "Actual metric" << V(metrics::km1(partitioned_hypergraph))
+                              << "does not match the metric updated by the refiners" << V(current_metrics.km1));
       }
+
+      if ( !_context.refinement.global_fm.refine_until_no_improvement ) {
+        break;
+      }
+    }
+    // Reset FM context
+    applyGlobalFMParameters(_context.refinement.fm, tmp_global_fm);
+
+    if ( _top_level) {
+      DBG << "--------------------------------------------------\n";
     }
   }
 

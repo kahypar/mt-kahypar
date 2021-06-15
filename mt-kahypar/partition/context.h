@@ -148,14 +148,14 @@ struct FMParameters {
 
 std::ostream& operator<<(std::ostream& out, const FMParameters& params);
 
-struct NLevelGlobalRefinementParameters {
-  bool use_global_refinement = false;   // TODO this should be renamed to something more appropriate: e.g. log_level_fm or refine_after_coarsening_pass
+struct NLevelGlobalFMParameters {
+  bool use_global_fm = false;   // TODO this should be renamed to something more appropriate: e.g. log_level_fm or refine_after_coarsening_pass
   bool refine_until_no_improvement = false;
   size_t num_seed_nodes = 0;
   bool obey_minimal_parallelism = false;
 };
 
-std::ostream& operator<<(std::ostream& out, const NLevelGlobalRefinementParameters& params);
+std::ostream& operator<<(std::ostream& out, const NLevelGlobalFMParameters& params);
 
 struct FlowParameters {
   double alpha = 0.0;
@@ -189,7 +189,7 @@ struct RefinementParameters {
   LabelPropagationParameters label_propagation;
   FMParameters fm;
   DeterministicRefinementParameters deterministic_refinement;
-  NLevelGlobalRefinementParameters global;
+  NLevelGlobalFMParameters global_fm;
   AdvancedRefinementParameters advanced;
   bool refine_until_no_improvement = false;
   size_t max_batch_size = std::numeric_limits<size_t>::max();

@@ -124,7 +124,9 @@ FlowRefiner::FlowProblem FlowRefiner::constructFlowHypergraph(const PartitionedH
         // from the cut with the current flow problem => remove he from flow problem
         _flow_hg.removeCurrentHyperedge();
         flow_problem.non_removable_cut += he_weight;
-      } else if ( connectToSource ) {
+      }
+      // TODO: according to lars, add source or sink to start of each pin-list
+      else if ( connectToSource ) {
         _flow_hg.addPin(flow_problem.source);
       } else if ( connectToSink ) {
         _flow_hg.addPin(flow_problem.sink);
