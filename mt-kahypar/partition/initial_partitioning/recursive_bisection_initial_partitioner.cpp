@@ -373,6 +373,7 @@ namespace mt_kahypar {
       }
       bisection_context.setupContractionLimit(total_weight);
       bisection_context.setupSparsificationParameters();
+      bisection_context.setupThreadsPerAdvancedSearch();
 
       return bisection_context;
     }

@@ -403,42 +403,56 @@ namespace mt_kahypar {
     return options;
   }
 
-  po::options_description createAdvancedRefinementOptionsDescription(Context& context, const int num_columns) {
+  po::options_description createAdvancedRefinementOptionsDescription(Context& context,
+                                                                     const int num_columns,
+                                                                     const bool initial_partitioning) {
     po::options_description options("Initial Partitioning Options", num_columns);
     options.add_options()
-            ("r-advanced-algo",
+            ((initial_partitioning ? "i-r-advanced-algo" : "r-advanced-algo"),
              po::value<std::string>()->value_name("<string>")->notifier(
-                     [&](const std::string& algo) {
-                       context.refinement.advanced.algorithm = advancedRefinementAlgorithmFromString(algo);
+                     [&, initial_partitioning](const std::string& algo) {
+                       if ( initial_partitioning ) {
+                        context.initial_partitioning.refinement.advanced.algorithm = advancedRefinementAlgorithmFromString(algo);
+                       } else {
+                        context.refinement.advanced.algorithm = advancedRefinementAlgorithmFromString(algo);
+                       }
                      })->default_value("do_nothing"),
              "Advanced Refinement Algorithms:\n"
              "- do_nothing\n"
              "- ilp\n"
              "- flows")
-            ("r-num-threads-per-search",
-             po::value<size_t>(&context.refinement.advanced.num_threads_per_search)->value_name("<size_t>"),
+            ((initial_partitioning ? "i-r-num-threads-per-search" : "r-num-threads-per-search"),
+             po::value<size_t>((initial_partitioning ? &context.initial_partitioning.refinement.advanced.num_threads_per_search :
+                      &context.refinement.advanced.num_threads_per_search))->value_name("<size_t>"),
              "Number of threads per search.")
-            ("r-num-cut-hes-per-block-pair",
-             po::value<size_t>(&context.refinement.advanced.num_cut_edges_per_block_pair)->value_name("<size_t>"),
+            ((initial_partitioning ? "i-r-num-cut-hes-per-block-pair" : "r-num-cut-hes-per-block-pair"),
+             po::value<size_t>((initial_partitioning ? &context.initial_partitioning.refinement.advanced.num_cut_edges_per_block_pair :
+                      &context.refinement.advanced.num_cut_edges_per_block_pair))->value_name("<size_t>"),
              "Number of cut hyperedges that are requested to construct an advanced refinement problem.")
-            ("r-max-bfs-distance",
-             po::value<size_t>(&context.refinement.advanced.max_bfs_distance)->value_name("<size_t>"),
+            ((initial_partitioning ? "i-r-max-bfs-distance" : "r-max-bfs-distance"),
+             po::value<size_t>((initial_partitioning ? &context.initial_partitioning.refinement.advanced.max_bfs_distance :
+                      &context.refinement.advanced.max_bfs_distance))->value_name("<size_t>"),
              "Advanced refinement problems are constructed via BFS search. The maximum BFS distance is the\n"
              "maximum distance from a cut hyperedge to any vertex of the problem.")
-            ("r-skip-small-cuts",
-             po::value<bool>(&context.refinement.advanced.skip_small_cuts)->value_name("<bool>"),
+            ((initial_partitioning ? "i-r-skip-small-cuts" : "r-skip-small-cuts"),
+             po::value<bool>((initial_partitioning ? &context.initial_partitioning.refinement.advanced.skip_small_cuts :
+                      &context.refinement.advanced.skip_small_cuts))->value_name("<bool>"),
              "If true, than blocks with a cut <= 10 are not considered for refinement")
-            ("r-skip-unpromising-blocks",
-             po::value<bool>(&context.refinement.advanced.skip_unpromising_blocks)->value_name("<bool>"),
+            ((initial_partitioning ? "i-r-skip-unpromising-blocks" : "r-skip-unpromising-blocks"),
+             po::value<bool>((initial_partitioning ? &context.initial_partitioning.refinement.advanced.skip_unpromising_blocks :
+                      &context.refinement.advanced.skip_unpromising_blocks))->value_name("<bool>"),
              "If true, than blocks for which we never found an improvement are skipped")
-            ("r-sort-cut-hes",
-             po::value<bool>(&context.refinement.advanced.sort_cut_hes)->value_name("<bool>"),
+            ((initial_partitioning ? "i-r-sort-cut-hes" : "r-sort-cut-hes"),
+             po::value<bool>((initial_partitioning ? &context.initial_partitioning.refinement.advanced.sort_cut_hes :
+                      &context.refinement.advanced.sort_cut_hes))->value_name("<bool>"),
              "Sort cut hyperedges of each block pair in increasing order of their distance to each other in quotient graph.")
-            ("r-flow-scaling",
-             po::value<double>(&context.refinement.advanced.flows.alpha)->value_name("<double>"),
+            ((initial_partitioning ? "i-r-flow-scaling" : "r-flow-scaling"),
+             po::value<double>((initial_partitioning ? &context.initial_partitioning.refinement.advanced.flows.alpha :
+                      &context.refinement.advanced.flows.alpha))->value_name("<double>"),
              "Size constraint for flow problem: (1 + alpha * epsilon) * c(V) / k - c(V_1) (alpha = r-flow-scaling)")
-            ("r-flow-find-most-balanced-cut",
-             po::value<bool>(&context.refinement.advanced.flows.find_most_balanced_cut)->value_name("<bool>"),
+            ((initial_partitioning ? "i-r-flow-find-most-balanced-cut" : "r-flow-find-most-balanced-cut"),
+             po::value<bool>((initial_partitioning ? &context.initial_partitioning.refinement.advanced.flows.find_most_balanced_cut :
+                      &context.refinement.advanced.flows.find_most_balanced_cut))->value_name("<bool>"),
              "If true, than hyperflowcutter searches for the most balanced minimum cut.");
     return options;
   }
@@ -503,6 +517,7 @@ namespace mt_kahypar {
                      "<size_t>")->default_value(5),
              "Initial block size used for label propagation initial partitioner");
     options.add(createRefinementOptionsDescription(context, num_columns, true));
+    options.add(createAdvancedRefinementOptionsDescription(context, num_columns, true));
     return options;
   }
 
@@ -623,7 +638,7 @@ namespace mt_kahypar {
     po::options_description refinement_options =
             createRefinementOptionsDescription(context, num_columns, false);
     po::options_description advanced_refinement_options =
-            createAdvancedRefinementOptionsDescription(context, num_columns);
+            createAdvancedRefinementOptionsDescription(context, num_columns, false);
 #ifdef KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES
     po::options_description sparsification_options =
     createSparsificationOptionsDescription(context, num_columns);
@@ -729,7 +744,7 @@ namespace mt_kahypar {
     po::options_description refinement_options =
             createRefinementOptionsDescription(context, num_columns, false);
     po::options_description advanced_refinement_options =
-            createAdvancedRefinementOptionsDescription(context, num_columns);
+            createAdvancedRefinementOptionsDescription(context, num_columns, false);
 #ifdef KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES
     po::options_description sparsification_options =
     createSparsificationOptionsDescription(context, num_columns);

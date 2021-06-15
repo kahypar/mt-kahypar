@@ -111,7 +111,7 @@ namespace mt_kahypar {
 
     // Initialize Advanced Refinement Scheduler
     std::unique_ptr<IRefiner> advanced(nullptr);
-    if ( _top_level && _context.refinement.advanced.algorithm != AdvancedRefinementAlgorithm::do_nothing ) {
+    if ( _context.refinement.advanced.algorithm != AdvancedRefinementAlgorithm::do_nothing ) {
       advanced = std::make_unique<AdvancedRefinementScheduler>(_hg, _context);
     }
 
@@ -242,7 +242,7 @@ namespace mt_kahypar {
 
     // Initialize Advanced Refinement Scheduler
     std::unique_ptr<IRefiner> advanced(nullptr);
-    if ( _top_level && _context.refinement.advanced.algorithm != AdvancedRefinementAlgorithm::do_nothing ) {
+    if ( _context.refinement.advanced.algorithm != AdvancedRefinementAlgorithm::do_nothing ) {
       advanced = std::make_unique<AdvancedRefinementScheduler>(_hg, _context);
     }
 
