@@ -224,6 +224,15 @@ namespace mt_kahypar::ds
             });
         }
 
+        size_t getTotalNumUncontractions() {
+            size_t num = 0;
+            auto range = all();
+            for (ContractionGroupID id = range.begin(); id != range.end(); ++id) {
+                num += group(id).size();
+            }
+            return num;
+        }
+
     private:
 
         BlockedGroupIDIterator all() const {

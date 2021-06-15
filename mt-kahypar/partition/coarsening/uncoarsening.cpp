@@ -675,8 +675,7 @@ namespace mt_kahypar {
 
 
   bool
-  NLevelCoarsenerBase::uncontractGroupAsyncSubtask(const ds::ContractionGroup &group, ds::ContractionGroupID groupID,
-                                                   CAtomic<size_t> &total_uncontractions) {
+  NLevelCoarsenerBase::uncontractGroupAsyncSubtask(const ds::ContractionGroup &group, ds::ContractionGroupID groupID) {
 
       // Attempt to acquire lock for representative of the group. If the lock cannot be
       // acquired, revert to previous state and attempt to pick an id again
@@ -690,8 +689,6 @@ namespace mt_kahypar {
 
       // Release lock (Locks will be reacquired for moves during refinement)
       _lock_manager_for_async->strongReleaseLock(group.getRepresentative(), groupID);
-
-      total_uncontractions.fetch_add(group.size(), std::memory_order_acq_rel);
 
       auto repr_part_id = _phg.partID(group.getRepresentative());
       ASSERT(repr_part_id != kInvalidPartition);
@@ -740,7 +737,6 @@ namespace mt_kahypar {
   }
 
   void NLevelCoarsenerBase::uncoarsenAsyncTask(ds::TreeGroupPool *pool, tbb::task_group &uncoarsen_tg,
-                                               CAtomic<size_t> &total_uncontractions,
                                                metrics::ThreadSafeMetrics &current_metrics, bool force_measure_timings,
                                                AsyncRefinersETS &async_lp_refiners) {
 
@@ -752,7 +748,7 @@ namespace mt_kahypar {
           ASSERT(groupID != ds::invalidGroupID);
           const ds::ContractionGroup &group = pool->group(groupID);
 
-          bool uncontracted = uncontractGroupAsyncSubtask(group, groupID, total_uncontractions);
+          bool uncontracted = uncontractGroupAsyncSubtask(group, groupID);
           // If uncontraction failed, reactivate the groupID in the pool and pick a new groupID to work on (This
           // might pick the same groupID again but that is equivalent to trying to uncontract until it works which
           // it eventually will)
@@ -777,7 +773,7 @@ namespace mt_kahypar {
               for (auto it = suc_begin + 1; it < suc_end; ++it) {
                   pool->activate(*it);
                   uncoarsen_tg.run([&](){
-                      uncoarsenAsyncTask(pool, uncoarsen_tg, total_uncontractions, current_metrics,
+                      uncoarsenAsyncTask(pool, uncoarsen_tg, current_metrics,
                                          force_measure_timings,async_lp_refiners);
                   });
               }
@@ -850,9 +846,9 @@ namespace mt_kahypar {
 
       tbb::task_group uncoarsen_tg;
 
-      CAtomic<size_t> total_uncontractions(0);
       auto node_anti_duplicator = std::make_unique<ds::ThreadSafeFlagArray<HypernodeID>>(_phg.initialNumNodes());
       auto edge_anti_duplicator = std::make_unique<ds::ThreadSafeFlagArray<HyperedgeID>>(_phg.initialNumEdges());
+      size_t total_uncontractions = 0;
 
       // Thread specific asynchronous LP refiners that are constructed on demand using the finit lambda with factory call.
       // Indirectly managed through unique_ptr's so the type of gain policy can be abstracted still (tbb:ets needs a
@@ -878,23 +874,22 @@ namespace mt_kahypar {
           ds::TreeGroupPool* pool = _group_pools_for_versions.back().get();
           ASSERT(_phg.version() == pool->getVersion());
 
-          size_t num_uncontractions_before_pool = total_uncontractions.load(std::memory_order_acquire);
+          size_t num_uncontractions = pool->getTotalNumUncontractions();
 
           size_t num_roots = pool->getNumActive();
           for (size_t i = 0; i < num_roots; ++i) {
               uncoarsen_tg.run([&](){
-                  uncoarsenAsyncTask(pool, uncoarsen_tg, total_uncontractions, current_metrics,
+                  uncoarsenAsyncTask(pool, uncoarsen_tg, current_metrics,
                                      force_measure_timings,async_lp_refiners);
               });
           }
           uncoarsen_tg.wait();
 
-          size_t num_uncontractions = total_uncontractions.load(std::memory_order_acquire) - num_uncontractions_before_pool;
-
           // Update Progress Bar
           uncontraction_progress.setObjective(current_metrics.getMetric(
                   _context.partition.mode, _context.partition.objective));
           uncontraction_progress += num_uncontractions;
+          total_uncontractions += num_uncontractions;
 
           HEAVY_REFINEMENT_ASSERT(node_anti_duplicator->checkAllFalse());
           HEAVY_REFINEMENT_ASSERT(edge_anti_duplicator->checkAllFalse());
@@ -936,7 +931,7 @@ namespace mt_kahypar {
 
       size_t total_num_nodes = _hg.initialNumNodes();
       size_t num_nodes_after_coarsening = _compactified_hg.initialNumNodes();
-      ASSERT(total_num_nodes == total_uncontractions.load(std::memory_order_acquire) + num_nodes_after_coarsening);
+      ASSERT(total_num_nodes == total_uncontractions + num_nodes_after_coarsening);
       auto checkAllAssignedAndNoneLocked = [&](){
           for (HypernodeID i = 0; i < _hg.initialNumNodes(); ++i) {
               if(_phg.partID(i) == kInvalidPartition) return false;
@@ -944,6 +939,7 @@ namespace mt_kahypar {
           }
           return true;
       };
+      unused(checkAllAssignedAndNoneLocked);
       HEAVY_REFINEMENT_ASSERT(checkAllAssignedAndNoneLocked());
 
       // Top-Level Refinement on all vertices

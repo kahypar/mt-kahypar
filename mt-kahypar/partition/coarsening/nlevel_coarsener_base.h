@@ -100,13 +100,11 @@ class NLevelCoarsenerBase {
                                                   std::unique_ptr<IRefiner>& fm);
 
   void uncoarsenAsyncTask(ds::TreeGroupPool *pool, tbb::task_group &uncoarsen_tg,
-                          CAtomic<size_t> &total_uncontractions,
                           metrics::ThreadSafeMetrics &current_metrics, bool force_measure_timings,
                           AsyncRefinersETS &async_lp_refiners);
 
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE bool uncontractGroupAsyncSubtask(const ds::ContractionGroup &group,
-                                   ds::ContractionGroupID groupID,
-                                   CAtomic<size_t> &total_uncontractions);
+                                   ds::ContractionGroupID groupID);
 
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE bool
   refineGroupAsyncSubtask(const ds::ContractionGroup &group, ds::ContractionGroupID groupID,

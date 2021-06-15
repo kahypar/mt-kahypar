@@ -423,6 +423,35 @@ private:
       });
   }
 
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
+  PartitionBitSet& getLocalConnSetBitSet() {
+      std::unique_ptr<PartitionBitSet>& conn_set_bitset = _conn_set_snapshots.local();
+      if (!conn_set_bitset) conn_set_bitset = std::make_unique<PartitionBitSet>(_k);
+      ASSERT(conn_set_bitset->size() == _k);
+      return *conn_set_bitset;
+  }
+
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
+  PartitionBitSet& getLocalPartsWithOnePinBitSet() {
+      std::unique_ptr<PartitionBitSet>& parts_with_one_pin_bitset = _parts_with_one_pin_snapshots.local();
+      if (!parts_with_one_pin_bitset) parts_with_one_pin_bitset = std::make_unique<PartitionBitSet>(_k);
+      ASSERT(parts_with_one_pin_bitset->size() == _k);
+      return *parts_with_one_pin_bitset;
+  }
+
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
+  void takeConnectivitySetSnapshots(const HyperedgeID he, PartitionBitSet& conn_set_bitset,
+                                    PartitionBitSet& parts_with_one_pin_bitset) {
+      HEAVY_REFINEMENT_ASSERT(conn_set_bitset.begin() == conn_set_bitset.end());
+      HEAVY_REFINEMENT_ASSERT(parts_with_one_pin_bitset.begin() == parts_with_one_pin_bitset.end());
+      for (const auto& p : connectivitySet(he)) {
+          conn_set_bitset.set_true(p);
+          if (pinCountInPart(he, p) == 1) {
+              parts_with_one_pin_bitset.set_true(p);
+          }
+      }
+  }
+
   void uncontract(const ContractionGroup& group) {
 
       // Set block ids of contraction partners
@@ -433,32 +462,6 @@ private:
           ASSERT(part_id != kInvalidPartition && part_id < _k);
           setOnlyNodePart(memento.v, part_id);
      }
-
-     auto get_local_conn_set_bitset = [&] () -> PartitionBitSet& {
-         std::unique_ptr<PartitionBitSet>& conn_set_bitset = _conn_set_snapshots.local();
-         if (!conn_set_bitset) conn_set_bitset = std::make_unique<PartitionBitSet>(_k);
-         ASSERT(conn_set_bitset->size() == _k);
-         return *conn_set_bitset;
-     };
-
-     auto get_local_parts_with_one_pin_bitset = [&] () -> PartitionBitSet& {
-         std::unique_ptr<PartitionBitSet>& parts_with_one_pin_bitset = _parts_with_one_pin_snapshots.local();
-         if (!parts_with_one_pin_bitset) parts_with_one_pin_bitset = std::make_unique<PartitionBitSet>(_k);
-         ASSERT(parts_with_one_pin_bitset->size() == _k);
-         return *parts_with_one_pin_bitset;
-     };
-
-     auto takeConnectivitySetSnapshots = [&] (const HyperedgeID he, PartitionBitSet& conn_set_bitset,
-             PartitionBitSet& parts_with_one_pin_bitset) {
-         HEAVY_REFINEMENT_ASSERT(conn_set_bitset.begin() == conn_set_bitset.end());
-         HEAVY_REFINEMENT_ASSERT(parts_with_one_pin_bitset.begin() == parts_with_one_pin_bitset.end());
-         for (const auto& p : connectivitySet(he)) {
-             conn_set_bitset.set_true(p);
-             if (pinCountInPart(he, p) == 1) {
-                 parts_with_one_pin_bitset.set_true(p);
-             }
-         }
-     };
 
      _hg->uncontract(group,
                       [&](const HypernodeID u, const HypernodeID v, const HyperedgeID he) {
@@ -474,8 +477,8 @@ private:
                           ASSERT(pin_count_in_part_after > 1, V(u) << V(v) << V(he));
                           if (_is_gain_cache_initialized) {
 
-                              PartitionBitSet& conn_set = get_local_conn_set_bitset();
-                              PartitionBitSet& parts_with_one_pin = get_local_parts_with_one_pin_bitset();
+                              PartitionBitSet& conn_set = getLocalConnSetBitSet();
+                              PartitionBitSet& parts_with_one_pin = getLocalPartsWithOnePinBitSet();
                               takeConnectivitySetSnapshots(he, conn_set, parts_with_one_pin);
                               auto pins_snapshot = pins(he);
                               _pin_count_update_ownership[he].unlock();
@@ -497,8 +500,8 @@ private:
                           // In this case, u is replaced by v in hyperedge he
                           // => Pin counts of hyperedge he does not change
                           if (_is_gain_cache_initialized) {
-                              PartitionBitSet& conn_set = get_local_conn_set_bitset();
-                              PartitionBitSet& parts_with_one_pin = get_local_parts_with_one_pin_bitset();
+                              PartitionBitSet& conn_set = getLocalConnSetBitSet();
+                              PartitionBitSet& parts_with_one_pin = getLocalPartsWithOnePinBitSet();
                               takeConnectivitySetSnapshots(he, conn_set, parts_with_one_pin);
                               _pin_count_update_ownership[he].unlock();
 
@@ -1238,8 +1241,8 @@ private:
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE void updatePinCountOfHyperedge(const HyperedgeID he,
                                                                     const PartitionID from,
                                                                     const PartitionID to,
-                                                                    DeltaFunc& delta_func,
-                                                                    GainCacheUpdateFunc& gain_cache_update_func) {
+                                                                    DeltaFunc&& delta_func,
+                                                                    GainCacheUpdateFunc&& gain_cache_update_func) {
     ASSERT(he < _pin_count_update_ownership.size());
     _pin_count_update_ownership[he].lock();
     const HypernodeID pin_count_in_from_part_after = decrementPinCountInPartWithoutGainUpdate(he, from);
@@ -1256,8 +1259,8 @@ private:
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE void asyncUpdatePinCountOfHyperedge(const HyperedgeID he,
                                                                          const PartitionID from,
                                                                          const PartitionID to,
-                                                                         DeltaFunc& delta_func,
-                                                                         GainCacheUpdateFunc& gain_cache_update_func) {
+                                                                         DeltaFunc&& delta_func,
+                                                                         GainCacheUpdateFunc&& gain_cache_update_func) {
       ASSERT(he < _pin_count_update_ownership.size());
       _pin_count_update_ownership[he].lock();
       const HypernodeID pin_count_in_from_part_after = decrementPinCountInPartWithoutGainUpdate(he, from);
