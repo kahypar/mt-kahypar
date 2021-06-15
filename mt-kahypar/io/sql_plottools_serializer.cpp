@@ -121,10 +121,10 @@ std::string serialize(const PartitionedHypergraph& hypergraph,
         << " fm_time_limit_factor=" << context.refinement.fm.time_limit_factor
         << " fm_obey_minimal_parallelism=" << std::boolalpha << context.refinement.fm.obey_minimal_parallelism
         << " fm_shuffle=" << std::boolalpha << context.refinement.fm.shuffle
-        << " global_fm_use_global_fm=" << std::boolalpha << context.refinement.global_fm.use_global_fm
-        << " global_fm_refine_until_no_improvement=" << std::boolalpha << context.refinement.global_fm.refine_until_no_improvement
-        << " global_fm_num_seed_nodes=" << context.refinement.global_fm.num_seed_nodes
-        << " global_fm_obey_minimal_parallelism=" << std::boolalpha << context.refinement.global_fm.obey_minimal_parallelism
+        << " global_use_global_refinement=" << std::boolalpha << context.refinement.global.use_global_refinement
+        << " global_refine_until_no_improvement=" << std::boolalpha << context.refinement.global.refine_until_no_improvement
+        << " global_num_seed_nodes=" << context.refinement.global.num_seed_nodes
+        << " global_obey_minimal_parallelism=" << std::boolalpha << context.refinement.global.obey_minimal_parallelism
         << " advanced_algorithm=" << context.refinement.advanced.algorithm
         << " advanced_num_threads_per_search=" << context.refinement.advanced.num_threads_per_search
         << " advanced_num_cut_edges_per_block_pair=" << context.refinement.advanced.num_cut_edges_per_block_pair

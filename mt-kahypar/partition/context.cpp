@@ -130,10 +130,9 @@ namespace mt_kahypar {
     return out;
   }
 
-  std::ostream& operator<<(std::ostream& out, const NLevelGlobalFMParameters& params) {
-    out << "  Boundary FM Parameters: \n";
-    out << "    Use Global FM:                    " << std::boolalpha << params.use_global_fm << std::endl;
-    if ( params.use_global_fm ) {
+  std::ostream& operator<<(std::ostream& out, const NLevelGlobalRefinementParameters& params) {
+    if ( params.use_global_refinement ) {
+      out << "  Boundary FM Parameters: \n";
       out << "    Refine Until No Improvement:      " << std::boolalpha << params.refine_until_no_improvement << std::endl;
       out << "    Num Seed Nodes:                   " << params.num_seed_nodes << std::endl;
       out << "    Obey Minimal Parallelism:         " << std::boolalpha << params.obey_minimal_parallelism << std::endl;
@@ -183,7 +182,7 @@ namespace mt_kahypar {
     str << "\n" << params.label_propagation;
     str << "\n" << params.fm;
 #ifdef USE_STRONG_PARTITIONER
-    str << "\n" << params.global_fm;
+    str << "\n" << params.global;
 #endif
     str << "\n" << params.advanced;
     return str;

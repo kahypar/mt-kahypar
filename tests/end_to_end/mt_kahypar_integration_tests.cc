@@ -171,10 +171,10 @@ TYPED_TEST_CASE(MtKaHyPar, TestConfigs);
 void partitionHypergraph(Hypergraph& hypergraph, Context& context) {
   if (context.partition.objective != kahypar::Objective::km1) {
     context.refinement.fm.algorithm = mt_kahypar::FMAlgorithm::do_nothing;
-    context.refinement.global_fm.use_global_fm = false;
+    context.refinement.global.use_global_refinement = false;
 
     context.initial_partitioning.refinement.fm.algorithm = mt_kahypar::FMAlgorithm::do_nothing;
-    context.initial_partitioning.refinement.global_fm.use_global_fm = false;
+    context.initial_partitioning.refinement.global.use_global_refinement = false;
   }
   mt_kahypar::register_memory_pool(hypergraph, context);
 

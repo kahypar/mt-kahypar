@@ -7,6 +7,7 @@
 #include "mt-kahypar/utils/stats.h"
 #include "mt-kahypar/utils/timer.h"
 
+#include "mt-kahypar/partition/refinement/advanced/scheduler.h"
 #include "mt-kahypar/partition/refinement/rebalancing/rebalancer.h"
 #include "mt-kahypar/partition/metrics.h"
 #include "mt-kahypar/io/partitioning_output.h"
@@ -109,7 +110,7 @@ namespace mt_kahypar {
     uncontraction_progress += coarsest_hg.initialNumNodes();
 
     // Initialize Advanced Refinement Scheduler
-    std::unique_ptr<AdvancedRefinementScheduler> advanced(nullptr);
+    std::unique_ptr<IRefiner> advanced(nullptr);
     if ( _top_level && _context.refinement.advanced.algorithm != AdvancedRefinementAlgorithm::do_nothing ) {
       advanced = std::make_unique<AdvancedRefinementScheduler>(_hg, _context);
     }
@@ -239,6 +240,12 @@ namespace mt_kahypar {
             V(metrics::imbalance(_phg, _context)));
     utils::Timer::instance().stop_timer("initialize_partition");
 
+    // Initialize Advanced Refinement Scheduler
+    std::unique_ptr<IRefiner> advanced(nullptr);
+    if ( _top_level && _context.refinement.advanced.algorithm != AdvancedRefinementAlgorithm::do_nothing ) {
+      advanced = std::make_unique<AdvancedRefinementScheduler>(_hg, _context);
+    }
+
     utils::ProgressBar uncontraction_progress(_hg.initialNumNodes(),
       _context.partition.objective == kahypar::Objective::km1 ? current_metrics.km1 : current_metrics.cut,
       _context.partition.verbose_output && _context.partition.enable_progress_bar && !debug);
@@ -345,7 +352,7 @@ namespace mt_kahypar {
 
         // Perform refinement on all vertices
         const double time_limit = refinementTimeLimit(_context, _round_coarsening_times.back());
-        globalRefine(_phg, fm, current_metrics, time_limit);
+        globalRefine(_phg, fm, advanced, current_metrics, time_limit);
         uncontraction_progress.setObjective(current_metrics.getMetric(
           _context.partition.mode, _context.partition.objective));
         _round_coarsening_times.pop_back();
@@ -357,7 +364,7 @@ namespace mt_kahypar {
     const HyperedgeWeight objective_before = current_metrics.getMetric(
       _context.partition.mode, _context.partition.objective);
     const double time_limit = refinementTimeLimit(_context, _round_coarsening_times.back());
-    globalRefine(_phg, fm, current_metrics, time_limit);
+    globalRefine(_phg, fm, advanced, current_metrics, time_limit);
     _round_coarsening_times.pop_back();
     ASSERT(_round_coarsening_times.size() == 0);
     const HyperedgeWeight objective_after = current_metrics.getMetric(
@@ -426,7 +433,7 @@ namespace mt_kahypar {
           PartitionedHypergraph& partitioned_hypergraph,
           std::unique_ptr<IRefiner>& label_propagation,
           std::unique_ptr<IRefiner>& fm,
-          std::unique_ptr<AdvancedRefinementScheduler>& advanced,
+          std::unique_ptr<IRefiner>& advanced,
           kahypar::Metrics& current_metrics,
           const double time_limit) {
 
@@ -537,22 +544,23 @@ namespace mt_kahypar {
   }
 
   namespace {
-    NLevelGlobalFMParameters applyGlobalFMParameters(const FMParameters& fm,
-                                                     const NLevelGlobalFMParameters global_fm) {
-      NLevelGlobalFMParameters tmp_global_fm;
+    NLevelGlobalRefinementParameters applyGlobalFMParameters(const FMParameters& fm,
+                                                             const NLevelGlobalRefinementParameters global) {
+      NLevelGlobalRefinementParameters tmp_global_fm;
       tmp_global_fm.num_seed_nodes = fm.num_seed_nodes;
       tmp_global_fm.obey_minimal_parallelism = fm.obey_minimal_parallelism;
-      fm.num_seed_nodes = global_fm.num_seed_nodes;
-      fm.obey_minimal_parallelism = global_fm.obey_minimal_parallelism;
+      fm.num_seed_nodes = global.num_seed_nodes;
+      fm.obey_minimal_parallelism = global.obey_minimal_parallelism;
       return tmp_global_fm;
     }
   } // namespace
 
   void NLevelCoarsenerBase::globalRefine(PartitionedHypergraph& partitioned_hypergraph,
                                          std::unique_ptr<IRefiner>& fm,
+                                         std::unique_ptr<IRefiner>& advanced,
                                          kahypar::Metrics& current_metrics,
                                          const double time_limit) {
-    if ( _context.refinement.global_fm.use_global_fm ) {
+    if ( _context.refinement.global.use_global_refinement ) {
       if ( debug && _top_level ) {
         io::printHypergraphInfo(partitioned_hypergraph.hypergraph(), "Refinement Hypergraph", false);
         DBG << "Start Refinement - km1 = " << current_metrics.km1
@@ -560,8 +568,8 @@ namespace mt_kahypar {
       }
 
       // Apply global FM parameters to FM context and temporary store old fm context
-      NLevelGlobalFMParameters tmp_global_fm = applyGlobalFMParameters(
-        _context.refinement.fm, _context.refinement.global_fm);
+      NLevelGlobalRefinementParameters tmp_global_fm = applyGlobalFMParameters(
+        _context.refinement.fm, _context.refinement.global);
       bool improvement_found = true;
       while( improvement_found ) {
         improvement_found = false;
@@ -572,13 +580,23 @@ namespace mt_kahypar {
           utils::Timer::instance().stop_timer("global_fm", _top_level);
         }
 
+        if ( advanced && _context.refinement.advanced.algorithm != AdvancedRefinementAlgorithm::do_nothing ) {
+          utils::Timer::instance().start_timer("initialize_advanced_refiner", "Initialize Advanced Refiner", false, _top_level);
+          advanced->initialize(partitioned_hypergraph);
+          utils::Timer::instance().stop_timer("initialize_advanced_refiner", _top_level);
+
+          utils::Timer::instance().start_timer("advanced_refiner", "Advanced Refiner", false, _top_level);
+          improvement_found |= advanced->refine(partitioned_hypergraph, {}, current_metrics, time_limit);
+          utils::Timer::instance().stop_timer("advanced_refiner", _top_level);
+        }
+
         if ( _top_level ) {
           ASSERT(current_metrics.km1 == metrics::km1(partitioned_hypergraph),
                 "Actual metric" << V(metrics::km1(partitioned_hypergraph))
                                 << "does not match the metric updated by the refiners" << V(current_metrics.km1));
         }
 
-        if ( !_context.refinement.global_fm.refine_until_no_improvement ) {
+        if ( !_context.refinement.global.refine_until_no_improvement ) {
           break;
         }
       }
