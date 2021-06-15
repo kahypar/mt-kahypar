@@ -155,6 +155,7 @@ namespace mt_kahypar {
       out << "    Number of Cut HEs Per Block Pair: " << params.num_cut_edges_per_block_pair << std::endl;
       out << "    Maximum BFS Distance:             " << params.max_bfs_distance << std::endl;
       out << "    Skip Small Cuts:                  " << std::boolalpha << params.skip_small_cuts << std::endl;
+      out << "    Skip Unpromising Blocks:          " << std::boolalpha << params.skip_unpromising_blocks << std::endl;
       out << "    Sort Cut HEs:                     " << std::boolalpha << params.sort_cut_hes << std::endl;
       out << std::flush;
 

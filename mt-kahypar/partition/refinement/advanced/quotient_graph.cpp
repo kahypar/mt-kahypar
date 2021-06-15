@@ -38,7 +38,8 @@ bool operator==(const BlockPairStats& lhs, const BlockPairStats& rhs) {
 
 std::ostream& operator<<(std::ostream& out, const BlockPairStats& stats) {
   out << "Is One Block Underloaded = " << std::boolalpha << stats.is_one_block_underloaded << ", "
-      << "Cut Hyperedge Weight = " << stats.cut_he_weight;
+      << "Cut Hyperedge Weight = " << stats.cut_he_weight << ", "
+      << "Num Improvements = " << stats.num_improvements;
   return out;
 }
 
@@ -59,6 +60,7 @@ void QuotientGraph::QuotientGraphEdge::reset(const bool is_one_block_underloaded
   first_valid_entry = 0;
   stats.is_one_block_underloaded = is_one_block_underloaded;
   stats.cut_he_weight.store(0, std::memory_order_relaxed);
+  stats.round.store(0, std::memory_order_relaxed);
 }
 
 SearchID QuotientGraph::requestNewSearch(AdvancedRefinerAdapter& refiner) {
@@ -67,7 +69,7 @@ SearchID QuotientGraph::requestNewSearch(AdvancedRefinerAdapter& refiner) {
   if ( !_block_scheduler.empty() ) {
     _queue_lock.lock();
     BlockPair blocks { kInvalidPartition, kInvalidPartition };
-    bool success = _block_scheduler.try_pop(blocks);
+    bool success = popBlockPairFromQueue(blocks);
     const SearchID tmp_search_id = _searches.size();
     if ( success && _quotient_graph[blocks.i][blocks.j].acquire(tmp_search_id) ) {
       ++_num_active_searches;
@@ -174,6 +176,22 @@ vec<BlockPairCutHyperedges> QuotientGraph::requestCutHyperedges(const SearchID s
   return block_pair_cut_hes;
 }
 
+bool QuotientGraph::popBlockPairFromQueue(BlockPair& blocks) {
+  blocks.i = kInvalidPartition;
+  blocks.j = kInvalidPartition;
+  while ( _block_scheduler.try_pop(blocks) ) {
+    if ( !_context.refinement.advanced.skip_unpromising_blocks ||
+         ( _quotient_graph[blocks.i][blocks.j].stats.round == 0 ||
+           _quotient_graph[blocks.i][blocks.j].stats.num_improvements > 0 ) ) {
+      break;
+    } else {
+      blocks.i = kInvalidPartition;
+      blocks.j = kInvalidPartition;
+    }
+  }
+  return blocks.i != kInvalidPartition && blocks.j != kInvalidPartition;
+}
+
 void QuotientGraph::addNewCutHyperedge(const HyperedgeID he,
                                        const PartitionID block) {
   ASSERT(_phg);
@@ -205,15 +223,16 @@ void QuotientGraph::finalizeSearch(const SearchID search_id,
   ASSERT(search_id < _searches.size());
   ASSERT(_searches[search_id].is_finalized);
 
-  if ( success ) {
+  ASSERT(_searches[search_id].block_pairs.size() == _searches[search_id].used_cut_hes.size());
+  for ( size_t i = 0; i < _searches[search_id].block_pairs.size(); ++i ) {
+    const BlockPair& blocks = _searches[search_id].block_pairs[i];
+    --_num_active_searches_on_blocks[blocks.i];
+    --_num_active_searches_on_blocks[blocks.j];
+    QuotientGraphEdge& qg_edge = _quotient_graph[blocks.i][blocks.j];
+    if ( success ) {
     // If the search improves the quality of the partition, we reinsert
     // all hyperedges that were used by the search and are still cut.
-    ASSERT(_searches[search_id].block_pairs.size() == _searches[search_id].used_cut_hes.size());
-    for ( size_t i = 0; i < _searches[search_id].block_pairs.size(); ++i ) {
-      const BlockPair& blocks = _searches[search_id].block_pairs[i];
-      --_num_active_searches_on_blocks[blocks.i];
-      --_num_active_searches_on_blocks[blocks.j];
-      QuotientGraphEdge& qg_edge = _quotient_graph[blocks.i][blocks.j];
+      ++qg_edge.stats.num_improvements;
       const bool was_active_before = qg_edge.isActive();
       for ( const HyperedgeID& he : _searches[search_id].used_cut_hes[i] ) {
         if ( _phg->pinCountInPart(he, blocks.i) > 0 &&
@@ -226,6 +245,7 @@ void QuotientGraph::finalizeSearch(const SearchID search_id,
         _block_scheduler.push(blocks);
       }
     }
+    ++qg_edge.stats.round;
   }
 
   --_num_active_searches;

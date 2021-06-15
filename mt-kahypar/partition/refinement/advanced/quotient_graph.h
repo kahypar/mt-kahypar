@@ -49,11 +49,16 @@ struct BlockPairCutHyperedges {
 struct BlockPairStats {
   BlockPairStats() :
     is_one_block_underloaded(false),
-    cut_he_weight(0) { }
+    cut_he_weight(0),
+    num_acitve_searches(0),
+    round(0),
+    num_improvements(0) { }
 
   bool is_one_block_underloaded;
   CAtomic<HyperedgeWeight> cut_he_weight;
   CAtomic<size_t> num_acitve_searches;
+  CAtomic<size_t> round;
+  CAtomic<size_t> num_improvements;
 };
 
 struct BlockPairStatsComparator {
@@ -170,7 +175,7 @@ public:
     _num_active_searches(0),
     _searches(),
     _num_active_searches_on_blocks(context.partition.k, CAtomic<size_t>(0)),
-    _local_bfs(hg.initialNumNodes(), hg.initialNumEdges()) {
+    _local_bfs(hg.initialNumNodes(), hg.initialNumEdges())  {
     for ( PartitionID i = 0; i < _context.partition.k; ++i ) {
       for ( PartitionID j = i + 1; j < _context.partition.k; ++j ) {
         _quotient_graph[i][j].blocks.i = i;
@@ -257,6 +262,8 @@ public:
  private:
 
   void resetQuotientGraphEdges(const PartitionedHypergraph& phg);
+
+  bool popBlockPairFromQueue(BlockPair& blocks);
 
   /**
    * Tries to find a path that includes num_additional_blocks + 2

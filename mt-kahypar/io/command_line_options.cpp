@@ -428,6 +428,9 @@ namespace mt_kahypar {
             ("r-skip-small-cuts",
              po::value<bool>(&context.refinement.advanced.skip_small_cuts)->value_name("<bool>"),
              "If true, than blocks with a cut <= 10 are not considered for refinement")
+            ("r-skip-unpromising-blocks",
+             po::value<bool>(&context.refinement.advanced.skip_unpromising_blocks)->value_name("<bool>"),
+             "If true, than blocks for which we never found an improvement are skipped")
             ("r-sort-cut-hes",
              po::value<bool>(&context.refinement.advanced.sort_cut_hes)->value_name("<bool>"),
              "Sort cut hyperedges of each block pair in increasing order of their distance to each other in quotient graph.")

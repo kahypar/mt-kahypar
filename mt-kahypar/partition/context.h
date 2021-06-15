@@ -171,6 +171,7 @@ struct AdvancedRefinementParameters {
   size_t num_cut_edges_per_block_pair = 0;
   size_t max_bfs_distance = 0;
   bool skip_small_cuts = false;
+  bool skip_unpromising_blocks = false;
   bool sort_cut_hes = false;
 };
 
