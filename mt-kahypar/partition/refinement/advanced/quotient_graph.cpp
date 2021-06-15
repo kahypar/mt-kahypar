@@ -235,7 +235,7 @@ void QuotientGraph::initialize(const PartitionedHypergraph& phg) {
   _phg = &phg;
 
   // Reset internal members
-  resetQuotientGraphEdges();
+  resetQuotientGraphEdges(phg);
   _block_scheduler.clear();
   _num_active_searches.store(0, std::memory_order_relaxed);
   _searches.clear();
@@ -285,10 +285,12 @@ void QuotientGraph::initialize(const PartitionedHypergraph& phg) {
   }
 }
 
-void QuotientGraph::resetQuotientGraphEdges() {
+void QuotientGraph::resetQuotientGraphEdges(const PartitionedHypergraph& phg) {
+  const bool skip_small_cuts = !isInputHypergraph(phg) && _context.refinement.advanced.skip_small_cuts;
   for ( PartitionID i = 0; i < _context.partition.k; ++i ) {
     for ( PartitionID j = i + 1; j < _context.partition.k; ++j ) {
       _quotient_graph[i][j].reset(isOneBlockUnderloaded(i, j));
+      _quotient_graph[i][j].skip_small_cuts = skip_small_cuts;
     }
   }
 }

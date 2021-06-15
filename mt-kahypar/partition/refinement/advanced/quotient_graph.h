@@ -76,6 +76,7 @@ class QuotientGraph {
   // ! Represents an edge of the quotient graph
   struct QuotientGraphEdge {
     QuotientGraphEdge() :
+      skip_small_cuts(false),
       blocks(),
       ownership(INVALID_SEARCH_ID),
       first_valid_entry(0),
@@ -90,7 +91,8 @@ class QuotientGraph {
     void reset(const bool is_one_block_underloaded);
 
     bool isActive() {
-      return ( cut_hes.size() - first_valid_entry ) > 0;
+      return ( !skip_small_cuts && stats.cut_he_weight > 0 ) ||
+             ( skip_small_cuts && stats.cut_he_weight > 10 );
     }
 
     bool isAcquired() const {
@@ -109,6 +111,7 @@ class QuotientGraph {
       ownership.store(INVALID_SEARCH_ID);
     }
 
+    bool skip_small_cuts;
     BlockPair blocks;
     CAtomic<SearchID> ownership;
     size_t first_valid_entry;
@@ -159,6 +162,7 @@ public:
                          const Context& context) :
     _phg(nullptr),
     _context(context),
+    _initial_num_nodes(hg.initialNumNodes()),
     _quotient_graph(context.partition.k,
       vec<QuotientGraphEdge>(context.partition.k)),
     _queue_lock(),
@@ -252,7 +256,7 @@ public:
 
  private:
 
-  void resetQuotientGraphEdges();
+  void resetQuotientGraphEdges(const PartitionedHypergraph& phg);
 
   /**
    * Tries to find a path that includes num_additional_blocks + 2
@@ -292,6 +296,10 @@ public:
              _phg->partWeight(j) < _context.partition.perfect_balance_part_weights[j] );
   }
 
+  bool isInputHypergraph(const PartitionedHypergraph& phg) const {
+    return phg.initialNumNodes() == _initial_num_nodes;
+  }
+
   // Only for testing
   bool verifyCycle(vec<BlockPair> cycle) {
     // Order block pairs such that they form an continous cycle
@@ -323,6 +331,7 @@ public:
 
   const PartitionedHypergraph* _phg;
   const Context& _context;
+  const HypernodeID _initial_num_nodes;
 
   // ! Each edge contains stats and the cut hyperedges
   // ! of the block pair which its represents.
