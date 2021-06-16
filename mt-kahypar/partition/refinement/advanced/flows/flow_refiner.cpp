@@ -71,31 +71,35 @@ FlowRefiner::FlowProblem FlowRefiner::constructFlowHypergraph(const PartitionedH
   FlowProblem flow_problem;
   flow_problem.total_cut = 0;
   flow_problem.non_removable_cut = 0;
+
   // Add refinement nodes to flow network
   whfc::Node flow_hn(0);
   HypernodeWeight weight_block_0 = 0;
   HypernodeWeight weight_block_1 = 0;
-  for ( const HypernodeID& u : refinement_nodes) {
-    const HypernodeWeight u_weight = phg.nodeWeight(u);
-    _node_to_whfc[u] = flow_hn++;
-    _flow_hg.addNode(whfc::NodeWeight(u_weight));
-    if ( phg.partID(u) == _block_0 ) {
-      weight_block_0 += u_weight;
-    } else {
-      ASSERT(phg.partID(u) == _block_1);
-      weight_block_1 += u_weight;
+  auto add_nodes = [&](const PartitionID block, HypernodeWeight& weight_of_block) {
+    for ( const HypernodeID& u : refinement_nodes) {
+      ASSERT(phg.partID(u) == _block_0 || phg.partID(u) == _block_1);
+      if ( phg.partID(u) == block ) {
+        const HypernodeWeight u_weight = phg.nodeWeight(u);
+        _node_to_whfc[u] = flow_hn++;
+        _flow_hg.addNode(whfc::NodeWeight(u_weight));
+        weight_of_block += u_weight;
+        for ( const HyperedgeID& he : phg.incidentEdges(u) ) {
+          _visited_hes[he] = ds::EmptyStruct { };
+        }
+      }
     }
-    for ( const HyperedgeID& he : phg.incidentEdges(u) ) {
-      _visited_hes[he] = ds::EmptyStruct { };
-    }
-  }
-  // TODO(heuer): As mentioned by Lars, this could be a potentially source for bad quality.
-  // In KaHyPar, the source has label 0 and the sink has label greater than all nodes in block 0.
-  // Some weird implementation details might cause here some quality issues.
+  };
+  // Add source nodes
   flow_problem.source = flow_hn++;
+  _flow_hg.addNode(whfc::NodeWeight(0));
+  add_nodes(_block_0, weight_block_0);
+  _flow_hg.nodeWeight(flow_problem.source) = whfc::NodeWeight(std::max(0, phg.partWeight(_block_0) - weight_block_0));
+  // Add sink nodes
   flow_problem.sink = flow_hn++;
-  _flow_hg.addNode(whfc::NodeWeight(std::max(0, phg.partWeight(_block_0) - weight_block_0)));
-  _flow_hg.addNode(whfc::NodeWeight(std::max(0, phg.partWeight(_block_1) - weight_block_1)));
+  _flow_hg.addNode(whfc::NodeWeight(0));
+  add_nodes(_block_1, weight_block_1);
+  _flow_hg.nodeWeight(flow_problem.sink) = whfc::NodeWeight(std::max(0, phg.partWeight(_block_1) - weight_block_1));
   flow_problem.weight_of_block_0 = _flow_hg.nodeWeight(flow_problem.source) + weight_block_0;
   flow_problem.weight_of_block_1 = _flow_hg.nodeWeight(flow_problem.sink) + weight_block_1;
 
@@ -103,6 +107,7 @@ FlowRefiner::FlowProblem FlowRefiner::constructFlowHypergraph(const PartitionedH
   for ( const auto& entry : _visited_hes ) {
     const HyperedgeID he = entry.key;
     if ( !canHyperedgeBeDropped(phg, he) ) {
+      _tmp_pins.clear();
       const HyperedgeWeight he_weight = phg.edgeWeight(he);
       _flow_hg.startHyperedge(whfc::Flow(he_weight));
       bool connectToSource = false;
@@ -112,7 +117,7 @@ FlowRefiner::FlowProblem FlowRefiner::constructFlowHypergraph(const PartitionedH
       }
       for ( const HypernodeID& pin : phg.pins(he) ) {
         if ( _node_to_whfc.contains(pin) ) {
-          _flow_hg.addPin(_node_to_whfc[pin]);
+          _tmp_pins.push_back(pin);
         } else {
           connectToSource |= phg.partID(pin) == _block_0;
           connectToSink |= phg.partID(pin) == _block_1;
@@ -124,12 +129,17 @@ FlowRefiner::FlowProblem FlowRefiner::constructFlowHypergraph(const PartitionedH
         // from the cut with the current flow problem => remove he from flow problem
         _flow_hg.removeCurrentHyperedge();
         flow_problem.non_removable_cut += he_weight;
-      }
-      // TODO: according to lars, add source or sink to start of each pin-list
-      else if ( connectToSource ) {
-        _flow_hg.addPin(flow_problem.source);
-      } else if ( connectToSink ) {
-        _flow_hg.addPin(flow_problem.sink);
+      } else {
+        // According to Lars: Adding to source or sink to the start of
+        // each pin list improves running time
+        if ( connectToSource ) {
+          _flow_hg.addPin(flow_problem.source);
+        } else if ( connectToSink ) {
+          _flow_hg.addPin(flow_problem.sink);
+        }
+        for ( const HypernodeID& pin : _tmp_pins ) {
+          _flow_hg.addPin(_node_to_whfc[pin]);
+        }
       }
     }
   }
@@ -140,7 +150,7 @@ FlowRefiner::FlowProblem FlowRefiner::constructFlowHypergraph(const PartitionedH
     flow_problem.non_removable_cut = 0;
     flow_problem.total_cut = 0;
   } else {
-  _flow_hg.finalize();
+    _flow_hg.finalize();
   }
   return flow_problem;
 }

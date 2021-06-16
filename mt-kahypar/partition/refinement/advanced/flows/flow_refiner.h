@@ -56,7 +56,8 @@ class FlowRefiner final : public IAdvancedRefiner {
     _flow_hg(),
     _hfc(_flow_hg, context.partition.seed),
     _node_to_whfc(),
-    _visited_hes() {
+    _visited_hes(),
+    _tmp_pins() {
     _hfc.find_most_balanced =
       _context.refinement.advanced.flows.find_most_balanced_cut;
     _hfc.timer.active = false;
@@ -115,5 +116,6 @@ class FlowRefiner final : public IAdvancedRefiner {
 
   ds::DynamicSparseMap<HypernodeID, whfc::Node> _node_to_whfc;
   ds::DynamicSparseSet<HyperedgeID> _visited_hes;
+  vec<HypernodeID> _tmp_pins;
 };
 }  // namespace mt_kahypar
