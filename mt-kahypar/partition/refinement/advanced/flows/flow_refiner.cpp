@@ -225,7 +225,7 @@ void FlowRefiner::determineDistanceFromCut(const PartitionedHypergraph& phg,
     }
   }
   _hfc.cs.borderNodes.distance[source] = -(max_dist_source + 1);
-  _hfc.cs.borderNodes.distance[sink] = max_dist_sink + 1;;
+  _hfc.cs.borderNodes.distance[sink] = max_dist_sink + 1;
 }
 
 bool FlowRefiner::isMaximumProblemSizeReachedImpl(ProblemStats& stats) const {
