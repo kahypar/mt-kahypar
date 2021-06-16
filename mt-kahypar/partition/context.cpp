@@ -144,6 +144,7 @@ namespace mt_kahypar {
     out << "  Flow Parameters: \n";
     out << "    Flow Scaling:                     " << params.alpha << std::endl;
     out << "    Find Most Balanced Cut:           " << std::boolalpha << params.find_most_balanced_cut << std::endl;
+    out << "    Determine Distance From Cut:      " << std::boolalpha << params.determine_distance_from_cut << std::endl;
     return out;
   }
 

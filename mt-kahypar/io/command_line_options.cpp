@@ -453,7 +453,11 @@ namespace mt_kahypar {
             ((initial_partitioning ? "i-r-flow-find-most-balanced-cut" : "r-flow-find-most-balanced-cut"),
              po::value<bool>((initial_partitioning ? &context.initial_partitioning.refinement.advanced.flows.find_most_balanced_cut :
                       &context.refinement.advanced.flows.find_most_balanced_cut))->value_name("<bool>"),
-             "If true, than hyperflowcutter searches for the most balanced minimum cut.");
+             "If true, than hyperflowcutter searches for the most balanced minimum cut.")
+            ((initial_partitioning ? "i-r-determine-distance-from-cut" : "r-determine-distance-from-cut"),
+             po::value<bool>((initial_partitioning ? &context.initial_partitioning.refinement.advanced.flows.determine_distance_from_cut :
+                      &context.refinement.advanced.flows.determine_distance_from_cut))->value_name("<bool>"),
+             "If true, than flow refiner determines distance of each node from cut which improves the piercing heuristic used in WHFC.");
     return options;
   }
 

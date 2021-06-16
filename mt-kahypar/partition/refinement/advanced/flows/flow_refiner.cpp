@@ -72,6 +72,10 @@ FlowRefiner::FlowProblem FlowRefiner::constructFlowHypergraph(const PartitionedH
   flow_problem.total_cut = 0;
   flow_problem.non_removable_cut = 0;
 
+  if ( _context.refinement.advanced.flows.determine_distance_from_cut ) {
+    _cut_hes.clear();
+  }
+
   // Add refinement nodes to flow network
   whfc::Node flow_hn(0);
   HypernodeWeight weight_block_0 = 0;
@@ -86,6 +90,11 @@ FlowRefiner::FlowProblem FlowRefiner::constructFlowHypergraph(const PartitionedH
         weight_of_block += u_weight;
         for ( const HyperedgeID& he : phg.incidentEdges(u) ) {
           _visited_hes[he] = ds::EmptyStruct { };
+          if ( _context.refinement.advanced.flows.determine_distance_from_cut &&
+               phg.pinCountInPart(he, _block_0) > 0 && phg.pinCountInPart(he, _block_1) > 0 &&
+               !_visited_hes.contains(he) ) {
+            _cut_hes.push_back(he);
+          }
         }
       }
     }
@@ -144,6 +153,12 @@ FlowRefiner::FlowProblem FlowRefiner::constructFlowHypergraph(const PartitionedH
     }
   }
 
+  if ( _context.refinement.advanced.flows.determine_distance_from_cut ) {
+    // Determine the distance of each node contained in the flow network from the cut.
+    // This technique improves piercing decision within the WHFC framework.
+    determineDistanceFromCut(phg, flow_problem.source, flow_problem.sink);
+  }
+
   if ( _flow_hg.nodeWeight(flow_problem.source) == 0 ||
        _flow_hg.nodeWeight(flow_problem.sink) == 0 ) {
     // Source or sink not connected to vertices in the flow problem
@@ -153,6 +168,64 @@ FlowRefiner::FlowProblem FlowRefiner::constructFlowHypergraph(const PartitionedH
     _flow_hg.finalize();
   }
   return flow_problem;
+}
+
+void FlowRefiner::determineDistanceFromCut(const PartitionedHypergraph& phg,
+                                           const whfc::Node source,
+                                           const whfc::Node sink) {
+  _hfc.cs.borderNodes.distance.distance.assign(_flow_hg.numNodes(), whfc::HopDistance(0));
+  _visited_hes.clear();
+  _visited_hns.clear();
+
+  // Initialize bfs queue with vertices contained in cut hyperedges
+  parallel::scalable_queue<HypernodeID> q;
+  parallel::scalable_queue<HypernodeID> next_q;
+  for ( const HyperedgeID& he : _cut_hes ) {
+    for ( const HypernodeID& pin : phg.pins(he) ) {
+      if ( _node_to_whfc.contains(pin) && !_visited_hns.contains(pin) ) {
+        q.push(pin);
+        _visited_hns[pin] = ds::EmptyStruct { };
+      }
+    }
+    _visited_hes[he] = ds::EmptyStruct { };
+  }
+
+  // Perform BFS to determine distance of each vertex from cut
+  whfc::HopDistance dist(1);
+  whfc::HopDistance max_dist_source(0);
+  whfc::HopDistance max_dist_sink(0);
+  while ( !q.empty() ) {
+    const HypernodeID u = q.front();
+    q.pop();
+
+    if ( phg.partID(u) == _block_0 ) {
+      _hfc.cs.borderNodes.distance[_node_to_whfc[u]] = -dist;
+      max_dist_source = std::max(max_dist_source, dist);
+    } else {
+      ASSERT(phg.partID(u) == _block_1);
+      _hfc.cs.borderNodes.distance[_node_to_whfc[u]] = dist;
+      max_dist_sink = std::max(max_dist_sink, dist);
+    }
+
+    for ( const HyperedgeID& he : phg.incidentEdges(u) ) {
+      if ( !_visited_hes.contains(he) ) {
+        for ( const HypernodeID& pin : phg.pins(he) ) {
+          if ( _node_to_whfc.contains(pin) && !_visited_hns.contains(pin) ) {
+            next_q.push(pin);
+            _visited_hns[pin] = ds::EmptyStruct { };
+          }
+        }
+        _visited_hes[he] = ds::EmptyStruct { };
+      }
+    }
+
+    if ( q.empty() ) {
+      std::swap(q, next_q);
+      ++dist;
+    }
+  }
+  _hfc.cs.borderNodes.distance[source] = -(max_dist_source + 1);
+  _hfc.cs.borderNodes.distance[sink] = max_dist_sink + 1;;
 }
 
 bool FlowRefiner::isMaximumProblemSizeReachedImpl(ProblemStats& stats) const {

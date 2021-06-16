@@ -27,6 +27,7 @@
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/refinement/advanced/i_advanced_refiner.h"
 #include "mt-kahypar/datastructures/sparse_map.h"
+#include "mt-kahypar/parallel/stl/scalable_queue.h"
 
 namespace mt_kahypar {
 
@@ -56,8 +57,10 @@ class FlowRefiner final : public IAdvancedRefiner {
     _flow_hg(),
     _hfc(_flow_hg, context.partition.seed),
     _node_to_whfc(),
+    _visited_hns(),
     _visited_hes(),
-    _tmp_pins() {
+    _tmp_pins(),
+    _cut_hes() {
     _hfc.find_most_balanced =
       _context.refinement.advanced.flows.find_most_balanced_cut;
     _hfc.timer.active = false;
@@ -88,6 +91,10 @@ class FlowRefiner final : public IAdvancedRefiner {
   FlowProblem constructFlowHypergraph(const PartitionedHypergraph& phg,
                                       const vec<HypernodeID>& refinement_nodes);
 
+  void determineDistanceFromCut(const PartitionedHypergraph& phg,
+                                const whfc::Node source,
+                                const whfc::Node sink);
+
   PartitionID maxNumberOfBlocksPerSearchImpl() const {
     return 2;
   }
@@ -115,7 +122,9 @@ class FlowRefiner final : public IAdvancedRefiner {
   whfc::HyperFlowCutter<whfc::Dinic> _hfc;
 
   ds::DynamicSparseMap<HypernodeID, whfc::Node> _node_to_whfc;
+  ds::DynamicSparseSet<HypernodeID> _visited_hns;
   ds::DynamicSparseSet<HyperedgeID> _visited_hes;
   vec<HypernodeID> _tmp_pins;
+  vec<HyperedgeID> _cut_hes;
 };
 }  // namespace mt_kahypar
