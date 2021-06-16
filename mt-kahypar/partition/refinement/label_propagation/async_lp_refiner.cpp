@@ -39,7 +39,7 @@ namespace mt_kahypar {
         HyperedgeWeight current_metric = best_metrics.getMetric(
                 kahypar::Mode::direct_kway, _context.partition.objective);
         Gain delta = _gain.delta();
-        ASSERT(delta <= 0, "LP refiner worsen solution quality");
+        ASSERT(delta <= 0, "LP refiner worsen solution quality" << V(delta));
 
 //        HEAVY_REFINEMENT_ASSERT(current_metric + delta == metrics::objective(hypergraph, _context.partition.objective, false),
 //                                V(current_metric) << V(delta) <<
@@ -53,42 +53,45 @@ namespace mt_kahypar {
 
     template <template <typename> class LocalGainPolicy>
     void AsyncLPRefiner<LocalGainPolicy>::labelPropagation(PartitionedHypergraph &hypergraph) {
-        NextActiveNodes next_active_nodes;
-        VisitedEdges visited_edges;
+
         for (size_t i = 0; i < _context.refinement.label_propagation.maximum_iterations; ++i) {
 
+            _next_active_nodes.clear();
+            _visited_edges.clear();
+
             if ( !_active_nodes.empty() ) {
-                labelPropagationRound(hypergraph, next_active_nodes, visited_edges);
+                labelPropagationRound(hypergraph, _next_active_nodes, _visited_edges);
             }
 
-            _active_nodes = next_active_nodes;
+            _active_nodes = _next_active_nodes;
 
             auto has_node_duplicates = [&]() -> bool {
-                std::sort(next_active_nodes.begin(),next_active_nodes.end());
-                return std::adjacent_find(next_active_nodes.begin(), next_active_nodes.end()) != next_active_nodes.end();
+                std::sort(_next_active_nodes.begin(),_next_active_nodes.end());
+                return std::adjacent_find(_next_active_nodes.begin(), _next_active_nodes.end()) != _next_active_nodes.end();
             };
             unused(has_node_duplicates);
-            ASSERT(! has_node_duplicates());
+            HEAVY_REFINEMENT_ASSERT(! has_node_duplicates());
 
             auto has_edge_duplicates = [&]() -> bool {
-                std::sort(visited_edges.begin(), visited_edges.end());
-                return std::adjacent_find(visited_edges.begin(), visited_edges.end()) != visited_edges.end();
+                std::sort(_visited_edges.begin(), _visited_edges.end());
+                return std::adjacent_find(_visited_edges.begin(), _visited_edges.end()) != _visited_edges.end();
             };
             unused(has_edge_duplicates);
-            ASSERT(! has_edge_duplicates());
+            HEAVY_REFINEMENT_ASSERT(! has_edge_duplicates());
 
             // Linear reset of anti-duplicator flags that were set in the last round
-            for (auto hn : next_active_nodes) {
-                bool reset = _next_active.compare_and_set_to_false(hn);
+            for (const auto& hn : _next_active_nodes) {
+                ASSERT(_next_active->isSet(hn), V(hn));
+                bool reset = _next_active->compare_and_set_to_false(hn);
+                unused(reset);
                 ASSERT(reset);
             }
-            for (auto he : visited_edges) {
-                bool reset = _visited_he.compare_and_set_to_false(he);
+            for (const auto& he : _visited_edges) {
+                ASSERT(_visited_he->isSet(he), V(he));
+                bool reset = _visited_he->compare_and_set_to_false(he);
+                unused(reset);
                 ASSERT(reset);
             }
-
-            next_active_nodes.clear();
-            visited_edges.clear();
 
             if ( _active_nodes.empty() ) {
                 break;

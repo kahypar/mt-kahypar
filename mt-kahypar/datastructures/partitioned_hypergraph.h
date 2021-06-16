@@ -452,6 +452,17 @@ private:
       }
   }
 
+  // ! Debug purposes, todo mlaupichler remove
+  void lockHyperedgePinCountLock(const HyperedgeID he) {
+      _pin_count_update_ownership[he].lock();
+  }
+
+
+  // ! Debug purposes, todo mlaupichler remove
+  void unlockHyperedgePinCountLock(const HyperedgeID he) {
+      _pin_count_update_ownership[he].unlock();
+  }
+
   void uncontract(const ContractionGroup& group) {
 
       // Set block ids of contraction partners

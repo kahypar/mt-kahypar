@@ -45,8 +45,8 @@
   static kahypar::meta::Registrar<AsyncLPRefinerFactory> JOIN(register_ ## refiner, t)(                                \
     id,                                                                                                                \
     [](Hypergraph& hypergraph, const Context& context,                                \
-    ds::GroupLockManager *lockManager, ds::ThreadSafeFlagArray<HypernodeID>& node_anti_duplicator,                     \
-    ds::ThreadSafeFlagArray<HyperedgeID>& edge_anti_duplicator) -> IAsyncRefiner* {                                    \
+    ds::GroupLockManager *lockManager, ds::ThreadSafeFlagArray<HypernodeID>* node_anti_duplicator,                     \
+    ds::ThreadSafeFlagArray<HyperedgeID>* edge_anti_duplicator) -> IAsyncRefiner* {                                    \
     return new refiner(hypergraph, context, lockManager, node_anti_duplicator, edge_anti_duplicator);   \
   })
 

@@ -13,8 +13,12 @@ namespace mt_kahypar::ds {
         static constexpr bool debug = false;
         static constexpr bool enable_heavy_assert = true;
 
+        using UnderlyingAtomic = CAtomic<bool>;
+
     public:
-        explicit ThreadSafeFlagArray(IndexType size) : _data(size, CAtomic<bool>(false)) {}
+        explicit ThreadSafeFlagArray(IndexType size) : _size(size), _data(std::make_unique<UnderlyingAtomic[]>(size)) {
+            init();
+        }
         ThreadSafeFlagArray(const ThreadSafeFlagArray&) = delete;
         ThreadSafeFlagArray& operator= (const ThreadSafeFlagArray&) = delete;
 
@@ -25,40 +29,54 @@ namespace mt_kahypar::ds {
             HEAVY_REFINEMENT_ASSERT(checkAllFalse());
         }
 
+        void init(const bool initialiser = false) {
+            for ( size_t i = 0; i < _size; ++i ) {
+                _data[i].store(initialiser, std::memory_order_relaxed);
+            }
+        }
+
         IndexType size() {
-            return _data.size();
+            return _size;
         }
 
-        bool compare_and_set_to_true(IndexType idx) {
+        bool compare_and_set_to_true(const IndexType& idx) {
             ASSERT(idx < size());
-            bool expected = _data[idx].load(std::memory_order_relaxed);
-            bool desired = true;
-            return expected != desired && _data[idx].compare_exchange_strong(expected, desired);
+            auto expected = _data[idx].load(std::memory_order_relaxed);
+            auto desired = true;
+            return expected != desired && _data[idx].compare_exchange_strong(expected, desired,
+                                                      /* memory order for write on success: */ std::memory_order_seq_cst,
+                                                      /* memory order for load on fail: */ std::memory_order_relaxed);
         }
 
-        bool compare_and_set_to_false(IndexType idx) {
+        bool compare_and_set_to_false(const IndexType& idx) {
             ASSERT(idx < size());
-            bool expected = _data[idx].load(std::memory_order_relaxed);
-            bool desired = false;
-            return expected != desired && _data[idx].compare_exchange_strong(expected, desired);
+            auto expected = _data[idx].load(std::memory_order_relaxed);
+            auto desired = false;
+            return expected != desired && _data[idx].compare_exchange_strong(expected, desired,
+                    /* memory order for write on success: */ std::memory_order_seq_cst,
+                    /* memory order for load on fail: */ std::memory_order_relaxed);
         }
 
-        bool loadAt(IndexType idx) {
+        bool isSet(IndexType idx) {
             ASSERT(idx < size());
             return _data[idx].load(std::memory_order_relaxed);
         }
 
-        bool operator[](IndexType idx) {
-            return loadAt(idx);
-        }
+//        bool operator[](IndexType idx) {
+//            return isSet(idx);
+//        }
 
         // ! Only for testing
         bool checkAllFalse() {
-            return std::all_of(_data.begin(),_data.end(), [&](const CAtomic<bool>& flag){return !flag.load(std::memory_order_relaxed);});
+            for (IndexType i = 0; i < _size; ++i) {
+                if (_data[i].load(std::memory_order_relaxed)) return false;
+            }
+            return true;
         }
 
     private:
-        Array<CAtomic<bool>> _data;
+        const IndexType _size;
+        std::unique_ptr<UnderlyingAtomic[]> _data;
     };
 
 } // namespace mt_kahypar::ds

@@ -1,6 +1,7 @@
 .idea
 cmake-build-debug/*
 cmake-build-release/*
+cmake-build-relwithdebinfo/*
 clang-debug/*
 *.hpp~
 *.cpp~

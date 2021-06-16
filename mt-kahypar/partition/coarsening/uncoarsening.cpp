@@ -503,8 +503,8 @@ namespace mt_kahypar {
 
           size_t num_uncontractions = 0;
           ds::StreamingVector<HypernodeID> moved_nodes_placeholder;
-          std::unique_ptr<ds::ThreadSafeFlagArray<HypernodeID>> node_anti_duplicator;
-          std::unique_ptr<ds::ThreadSafeFlagArray<HyperedgeID>> edge_anti_duplicator;
+          auto node_anti_duplicator = std::make_unique<ds::ThreadSafeFlagArray<HypernodeID>>(_phg.initialNumNodes());
+          auto edge_anti_duplicator = std::make_unique<ds::ThreadSafeFlagArray<HyperedgeID>>(_phg.initialNumEdges());
 
           while (pool->hasActive()) {
               ds::ContractionGroupID groupID = ds::invalidGroupID;
@@ -555,15 +555,14 @@ namespace mt_kahypar {
                           _phg.hypergraph(),
                           _context,
                           _lock_manager_for_async.get(),
-                          *node_anti_duplicator,
-                          *edge_anti_duplicator);
+                          node_anti_duplicator.get(),
+                          edge_anti_duplicator.get());
 //                  localLPRefiner->initialize(_phg);
 
                   // Do only label propagation
                   metrics::ThreadSafeMetrics ts_metrics;
                   ts_metrics.unsafeStoreMetrics(current_metrics);
-                  localizedRefineForAsync(_phg, refinement_nodes, localLPRefiner.get(), groupID, ts_metrics,
-                                          force_measure_timings);
+                  localizedRefineForAsync(_phg, refinement_nodes, localLPRefiner.get(), groupID, ts_metrics);
                   moved_nodes_placeholder.clear_sequential();
                   current_metrics = ts_metrics.unsafeLoadMetrics();
               }
@@ -703,7 +702,7 @@ namespace mt_kahypar {
 
   bool NLevelCoarsenerBase::refineGroupAsyncSubtask(const ds::ContractionGroup &group, ds::ContractionGroupID groupID,
                                                     metrics::ThreadSafeMetrics &current_metrics,
-                                                    bool force_measure_timings, IAsyncRefiner *async_lp) {
+                                                    IAsyncRefiner *async_lp) {
 
       // Extract refinement seeds
       auto begin = ds::GroupNodeIDIterator::getAtBegin(group);
@@ -729,15 +728,14 @@ namespace mt_kahypar {
                  "After extracting seeds one of the seeds is not enabled or not assigned the right partition!");
 
           // Do only label propagation
-          localizedRefineForAsync(_phg, refinement_nodes, async_lp, groupID, current_metrics,
-                                  force_measure_timings);
+          localizedRefineForAsync(_phg, refinement_nodes, async_lp, groupID, current_metrics);
       }
 
       return true;
   }
 
   void NLevelCoarsenerBase::uncoarsenAsyncTask(ds::TreeGroupPool *pool, tbb::task_group &uncoarsen_tg,
-                                               metrics::ThreadSafeMetrics &current_metrics, bool force_measure_timings,
+                                               metrics::ThreadSafeMetrics &current_metrics,
                                                AsyncRefinersETS &async_lp_refiners) {
 
       ds::ContractionGroupID groupID = ds::invalidGroupID;
@@ -760,7 +758,7 @@ namespace mt_kahypar {
 
           IAsyncRefiner* local_async_lp = async_lp_refiners.local().get();
 
-          refineGroupAsyncSubtask(group, groupID, current_metrics, force_measure_timings, local_async_lp);
+          refineGroupAsyncSubtask(group, groupID, current_metrics, local_async_lp);
 
           // If the group has successors, have this task continue with the first successor, activate the
           // other successors (i.e. put them in the queue) and spawn tasks for them. If the group has no
@@ -773,8 +771,7 @@ namespace mt_kahypar {
               for (auto it = suc_begin + 1; it < suc_end; ++it) {
                   pool->activate(*it);
                   uncoarsen_tg.run([&](){
-                      uncoarsenAsyncTask(pool, uncoarsen_tg, current_metrics,
-                                         force_measure_timings,async_lp_refiners);
+                      uncoarsenAsyncTask(pool, uncoarsen_tg, current_metrics, async_lp_refiners);
                   });
               }
           } else {
@@ -860,8 +857,8 @@ namespace mt_kahypar {
                   _phg.hypergraph(),
                   _context,
                   _lock_manager_for_async.get(),
-                  *node_anti_duplicator,
-                  *edge_anti_duplicator);
+                  node_anti_duplicator.get(),
+                  edge_anti_duplicator.get());
       });
 
       while (!_group_pools_for_versions.empty()) {
@@ -879,8 +876,7 @@ namespace mt_kahypar {
           size_t num_roots = pool->getNumActive();
           for (size_t i = 0; i < num_roots; ++i) {
               uncoarsen_tg.run([&](){
-                  uncoarsenAsyncTask(pool, uncoarsen_tg, current_metrics,
-                                     force_measure_timings,async_lp_refiners);
+                  uncoarsenAsyncTask(pool, uncoarsen_tg, current_metrics, async_lp_refiners);
               });
           }
           uncoarsen_tg.wait();
@@ -891,8 +887,8 @@ namespace mt_kahypar {
           uncontraction_progress += num_uncontractions;
           total_uncontractions += num_uncontractions;
 
-          HEAVY_REFINEMENT_ASSERT(node_anti_duplicator->checkAllFalse());
-          HEAVY_REFINEMENT_ASSERT(edge_anti_duplicator->checkAllFalse());
+//          HEAVY_REFINEMENT_ASSERT(node_anti_duplicator->checkAllFalse());
+//          HEAVY_REFINEMENT_ASSERT(edge_anti_duplicator->checkAllFalse());
           HEAVY_REFINEMENT_ASSERT(_hg.verifyIncidenceArrayAndIncidentNets());
           HEAVY_REFINEMENT_ASSERT(_phg.checkTrackedPartitionInformation());
           HEAVY_REFINEMENT_ASSERT(metrics::objective(_phg, _context.partition.objective) ==
@@ -1117,8 +1113,7 @@ namespace mt_kahypar {
   void NLevelCoarsenerBase::localizedRefineForAsync(PartitionedHypergraph &partitioned_hypergraph,
                                                     const parallel::scalable_vector <HypernodeID> &refinement_nodes,
                                                     IAsyncRefiner *async_lp, ds::ContractionGroupID group_id,
-                                                    metrics::ThreadSafeMetrics &current_metrics,
-                                                    const bool force_measure_timings) {
+                                                    metrics::ThreadSafeMetrics &current_metrics) {
 
       bool improvement_found = true;
       while( improvement_found ) {

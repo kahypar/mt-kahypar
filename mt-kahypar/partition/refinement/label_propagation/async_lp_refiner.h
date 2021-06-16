@@ -29,9 +29,9 @@ namespace mt_kahypar {
 
     public:
         explicit AsyncLPRefiner(Hypergraph &hypergraph, const Context &context,
-                                ds::GroupLockManager *lockManager,
-                                ds::ThreadSafeFlagArray <HypernodeID> &node_anti_duplicator,
-                                ds::ThreadSafeFlagArray <HyperedgeID> &edge_anti_duplicator) :
+                                ds::GroupLockManager* const lockManager,
+                                ds::ThreadSafeFlagArray<HypernodeID>* const node_anti_duplicator,
+                                ds::ThreadSafeFlagArray<HyperedgeID>* const edge_anti_duplicator) :
         _context(context),
         _gain(context),
         _active_nodes(),
@@ -41,8 +41,8 @@ namespace mt_kahypar {
         _next_active(node_anti_duplicator),
         _visited_he(edge_anti_duplicator) {
             unused(hypergraph);
-            ASSERT(_next_active.size() == hypergraph.initialNumNodes());
-            ASSERT(_visited_he.size() == hypergraph.initialNumEdges());
+//            ASSERT(_next_active->size() == hypergraph.initialNumNodes());
+//            ASSERT(_visited_he->size() == hypergraph.initialNumEdges());
         }
 
         AsyncLPRefiner(const AsyncLPRefiner&) = delete;
@@ -110,20 +110,28 @@ namespace mt_kahypar {
                             for (const HyperedgeID& he : hypergraph.incidentEdges(hn)) {
                                 if ( hypergraph.edgeSize(he) <=
                                      ID(_context.refinement.label_propagation.hyperedge_size_activation_threshold) ) {
-                                    if ( _visited_he.compare_and_set_to_true(he) ) {
+                                    if ( _visited_he->compare_and_set_to_true(he)) {
                                         visited_edges.push_back(he);
-                                        for (const HypernodeID& pin : hypergraph.pins(he)) {
+                                        // The pins being updated by concurrent uncontractions prevents a range based
+                                        // for loop over pins here. No idea why but for(const auto& pin : hypergraph.pins(he)) would not work.
+                                        // If at some point some assertions regarding the _next_active locks cryptically fail again,
+                                        // reconsider locking the hyperedges on the hypergraph while getting the pin range for example
+//                                        hypergraph.lockHyperedgePinCountLock(he);
+                                        auto pins = hypergraph.pins(he);
+                                        for (auto it = pins.begin(); it != pins.end(); ++it) {
+                                            HypernodeID pin = *it;
                                             // Make sure that pin is not in the intermediate state between being
                                             // reactivated as pin and being enabled that occurs during uncontraction
                                             if (!hypergraph.nodeIsEnabled(pin)) continue;
-                                            if (_next_active.compare_and_set_to_true(pin)) {
+                                            if (_next_active->compare_and_set_to_true(pin)) {
                                                 next_active_nodes.push_back(pin);
                                             }
                                         }
+//                                        hypergraph.unlockHyperedgePinCountLock(he);
                                     }
                                 }
                             }
-                            if ( _next_active.compare_and_set_to_true(hn) ) {
+                            if ( _next_active->compare_and_set_to_true(hn) ) {
                                 next_active_nodes.push_back(hn);
                             }
                             is_moved = true;
@@ -170,14 +178,17 @@ namespace mt_kahypar {
 
         // ! A pointer to the LockManager that is used by uncontraction and refinement operations during the entire
         // uncoarsening.
-        ds::GroupLockManager* _lock_manager;
+        ds::GroupLockManager* const _lock_manager;
 
         // ! Mersenne-twister random number generator for shuffling vectors
         std::mt19937 _rng;
 
         // ! Anti-duplicator flag-arrays that are shared with other refiners
-        ds::ThreadSafeFlagArray<HypernodeID>& _next_active;
-        ds::ThreadSafeFlagArray<HyperedgeID>& _visited_he;
+        ds::ThreadSafeFlagArray<HypernodeID>* const _next_active;
+        ds::ThreadSafeFlagArray<HyperedgeID>* const _visited_he;
+
+        NextActiveNodes _next_active_nodes;
+        VisitedEdges _visited_edges;
 
     };
 
