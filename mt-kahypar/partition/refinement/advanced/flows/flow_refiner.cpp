@@ -89,12 +89,12 @@ FlowRefiner::FlowProblem FlowRefiner::constructFlowHypergraph(const PartitionedH
         _flow_hg.addNode(whfc::NodeWeight(u_weight));
         weight_of_block += u_weight;
         for ( const HyperedgeID& he : phg.incidentEdges(u) ) {
-          _visited_hes[he] = ds::EmptyStruct { };
           if ( _context.refinement.advanced.flows.determine_distance_from_cut &&
                phg.pinCountInPart(he, _block_0) > 0 && phg.pinCountInPart(he, _block_1) > 0 &&
                !_visited_hes.contains(he) ) {
             _cut_hes.push_back(he);
           }
+          _visited_hes[he] = ds::EmptyStruct { };
         }
       }
     }
