@@ -287,7 +287,12 @@ bool AdvancedRefinementScheduler::partWeightUpdate(const vec<HypernodeWeight>& p
   _part_weights_lock.lock();
   PartitionID i = 0;
   for ( ; i < _context.partition.k; ++i ) {
-    if ( _part_weights[i] + multiplier * part_weight_deltas[i] > _context.partition.max_part_weights[i] ) {
+    if ( part_weight_deltas[i] != 0 &&
+        _part_weights[i] + multiplier * part_weight_deltas[i] >
+        _context.partition.max_part_weights[i] ) {
+      DBG << "Move sequence violated balance constraint of block" << i
+          << "(Max =" << _context.partition.max_part_weights[i]
+          << ", Actual =" << (_part_weights[i] + multiplier * part_weight_deltas[i]) << ")";
       // Move Sequence Violates Balance Constraint => Rollback
       --i;
       for ( ; i >= 0; --i ) {
