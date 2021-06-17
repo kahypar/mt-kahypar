@@ -130,6 +130,23 @@ SearchID QuotientGraph::requestNewSearch(AdvancedRefinerAdapter& refiner) {
     }
     _queue_lock.unlock();
   }
+
+  if ( search_id != INVALID_SEARCH_ID ) {
+    // Lock blocks of search for problem construction
+    // TODO: This is only temporarly for experiments
+    vec<PartitionID> blocks_of_search;
+    for ( const BlockPair& blocks : _searches[search_id].block_pairs ) {
+      blocks_of_search.push_back(blocks.i);
+      blocks_of_search.push_back(blocks.j);
+    }
+    std::sort(blocks_of_search.begin(), blocks_of_search.end());
+    blocks_of_search.erase(std::unique(blocks_of_search.begin(), blocks_of_search.end()), blocks_of_search.end());
+    std::sort(blocks_of_search.begin(), blocks_of_search.end());
+    for ( const PartitionID block : blocks_of_search ) {
+      _block_lock[block].lock();
+    }
+  }
+
   return search_id;
 }
 
@@ -214,6 +231,20 @@ void QuotientGraph::finalizeConstruction(const SearchID search_id) {
     if ( qg_edge.isActive() ) {
       _block_scheduler.push(blocks);
     }
+  }
+
+  // Unlock blocks of search after problem construction
+  // TODO: This is only temporarly for experiments
+  vec<PartitionID> blocks_of_search;
+  for ( const BlockPair& blocks : _searches[search_id].block_pairs ) {
+    blocks_of_search.push_back(blocks.i);
+    blocks_of_search.push_back(blocks.j);
+  }
+  std::sort(blocks_of_search.begin(), blocks_of_search.end());
+  blocks_of_search.erase(std::unique(blocks_of_search.begin(), blocks_of_search.end()), blocks_of_search.end());
+  std::sort(blocks_of_search.begin(), blocks_of_search.end());
+  for ( const PartitionID block : blocks_of_search ) {
+    _block_lock[block].unlock();
   }
 }
 
