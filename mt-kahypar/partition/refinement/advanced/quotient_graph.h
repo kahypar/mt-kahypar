@@ -175,8 +175,7 @@ public:
     _num_active_searches(0),
     _searches(),
     _num_active_searches_on_blocks(context.partition.k, CAtomic<size_t>(0)),
-    _local_bfs(hg.initialNumNodes(), hg.initialNumEdges()),
-    _block_lock(context.partition.k, SpinLock())  {
+    _local_bfs(hg.initialNumNodes(), hg.initialNumEdges()) {
     for ( PartitionID i = 0; i < _context.partition.k; ++i ) {
       for ( PartitionID j = i + 1; j < _context.partition.k; ++j ) {
         _quotient_graph[i][j].blocks.i = i;
@@ -359,8 +358,6 @@ public:
 
   // ! BFS data required to sort cut hyperedges
   tbb::enumerable_thread_specific<BFSData> _local_bfs;
-
-  vec<SpinLock> _block_lock;
 };
 
 }  // namespace kahypar
