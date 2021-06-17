@@ -60,8 +60,8 @@ void ProblemConstruction::BFSData::add_pins_of_hyperedge_to_queue(
       for ( const HypernodeID& pin : phg.pins(he) ) {
         const PartitionID block = phg.partID(pin);
         if ( !stats.isLocked(block) &&
-            (blocks.i == block || blocks.j == block) &&
-            !visited_hn[pin] ) {
+             (blocks.i == block || blocks.j == block) &&
+             !visited_hn[pin] ) {
           next_queue[blocks.i == block ? 0 : 1].push(pin);
           visited_hn[pin] = true;
         }

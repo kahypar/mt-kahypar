@@ -75,11 +75,6 @@ namespace ds {
   using Clustering = vec<PartitionID>;
 }
 
-struct BlockPair {
-  PartitionID i = kInvalidPartition;
-  PartitionID j = kInvalidPartition;
-};
-
 struct Move {
   PartitionID from = kInvalidPartition;
   PartitionID to = kInvalidPartition;
@@ -109,7 +104,6 @@ enum class MoveSequenceState : uint8_t {
 struct MoveSequence {
   vec<Move> moves;
   Gain expected_improvement; // >= 0
-  Gain real_improvement;
   MoveSequenceState state = MoveSequenceState::IN_PROGRESS;
 };
 

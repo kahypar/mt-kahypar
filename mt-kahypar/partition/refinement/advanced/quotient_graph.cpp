@@ -127,8 +127,6 @@ SearchID QuotientGraph::requestNewSearch(AdvancedRefinerAdapter& refiner) {
         ++_num_active_searches_on_blocks[blocks.i];
         ++_num_active_searches_on_blocks[blocks.j];
       }
-
-      refiner.setBlockPairs(search_id, _searches[search_id].block_pairs);
     }
     _queue_lock.unlock();
   }

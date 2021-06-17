@@ -78,10 +78,11 @@ class FlowRefiner final : public IAdvancedRefiner {
  private:
   void initializeImpl(const PartitionedHypergraph& phg) {
     _phg = &phg;
+    _block_0 = kInvalidPartition;
+    _block_1 = kInvalidPartition;
     _flow_hg.clear();
     _node_to_whfc.clear();
     _visited_hes.clear();
-    _visited_hns.clear();
   }
 
   MoveSequence refineImpl(const PartitionedHypergraph& phg,
@@ -93,12 +94,6 @@ class FlowRefiner final : public IAdvancedRefiner {
   void determineDistanceFromCut(const PartitionedHypergraph& phg,
                                 const whfc::Node source,
                                 const whfc::Node sink);
-
-  void setBlockPairsImpl(const vec<BlockPair>& blocks) {
-    ASSERT(blocks.size() == 1);
-    _block_0 = blocks[0].i;
-    _block_1 = blocks[0].j;
-  }
 
   PartitionID maxNumberOfBlocksPerSearchImpl() const {
     return 2;

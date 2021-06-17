@@ -55,8 +55,7 @@ bool AdvancedRefinerAdapter::registerNewSearch(const SearchID search_id,
 
 MoveSequence AdvancedRefinerAdapter::refine(const SearchID search_id,
                                             const PartitionedHypergraph& phg,
-                                            const vec<HypernodeID>& refinement_nodes,
-                                            const bool retry) {
+                                            const vec<HypernodeID>& refinement_nodes) {
   ASSERT(static_cast<size_t>(search_id) < _search_to_refiner.size());
   ASSERT(_search_to_refiner[search_id]);
 
@@ -71,19 +70,9 @@ MoveSequence AdvancedRefinerAdapter::refine(const SearchID search_id,
   // Perform refinement
   ASSERT(num_free_threads > 0);
   _search_to_refiner[search_id]->setNumThreadsForSearch(num_free_threads);
-  if ( retry ) {
-    _search_to_refiner[search_id]->initialize(phg);
-  }
   MoveSequence moves = _search_to_refiner[search_id]->refine(phg, refinement_nodes);
   _num_used_threads -= num_free_threads;
   return moves;
-}
-
-void AdvancedRefinerAdapter::setBlockPairs(const SearchID search_id,
-                                           const vec<BlockPair>& blocks) {
-  ASSERT(static_cast<size_t>(search_id) < _search_to_refiner.size());
-  ASSERT(_search_to_refiner[search_id]);
-  return _search_to_refiner[search_id]->setBlockPairs(blocks);
 }
 
 bool AdvancedRefinerAdapter::isMaximumProblemSizeReached(const SearchID search_id,

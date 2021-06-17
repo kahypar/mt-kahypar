@@ -90,7 +90,7 @@ void verifyPartWeights(const vec<HypernodeWeight> actual_weights,
 TEST_F(AAdvancedRefinementScheduler, MovesOneVertex) {
   AdvancedRefinementScheduler refiner(hg, context);
   refiner.initialize(phg);
-  MoveSequence sequence { { MOVE(3, 0, 1) }, 1, 0 };
+  MoveSequence sequence { { MOVE(3, 0, 1) }, 1 };
 
   const HyperedgeWeight improvement = refiner.applyMoves(sequence);
   ASSERT_EQ(sequence.state, MoveSequenceState::SUCCESS);
@@ -102,7 +102,7 @@ TEST_F(AAdvancedRefinementScheduler, MovesOneVertex) {
 TEST_F(AAdvancedRefinementScheduler, MovesVerticesWithIntermediateBalanceViolation) {
   AdvancedRefinementScheduler refiner(hg, context);
   refiner.initialize(phg);
-  MoveSequence sequence { { MOVE(5, 1, 0), MOVE(1, 0, 1), MOVE(3, 0, 1) }, 1, 0 };
+  MoveSequence sequence { { MOVE(5, 1, 0), MOVE(1, 0, 1), MOVE(3, 0, 1) }, 1 };
 
   const HyperedgeWeight improvement = refiner.applyMoves(sequence);
   ASSERT_EQ(sequence.state, MoveSequenceState::SUCCESS);
@@ -116,7 +116,7 @@ TEST_F(AAdvancedRefinementScheduler, MovesVerticesWithIntermediateBalanceViolati
 TEST_F(AAdvancedRefinementScheduler, MovesAVertexThatWorsenSolutionQuality) {
   AdvancedRefinementScheduler refiner(hg, context);
   refiner.initialize(phg);
-  MoveSequence sequence { { MOVE(0, 0, 1) }, 1, 0 };
+  MoveSequence sequence { { MOVE(0, 0, 1) }, 1 };
 
   const HyperedgeWeight improvement = refiner.applyMoves(sequence);
   ASSERT_EQ(sequence.state, MoveSequenceState::WORSEN_SOLUTION_QUALITY);
@@ -128,7 +128,7 @@ TEST_F(AAdvancedRefinementScheduler, MovesAVertexThatWorsenSolutionQuality) {
 TEST_F(AAdvancedRefinementScheduler, MovesAVertexThatViolatesBalanceConstraint) {
   AdvancedRefinementScheduler refiner(hg, context);
   refiner.initialize(phg);
-  MoveSequence sequence { { MOVE(4, 1, 0) }, 1, 0 };
+  MoveSequence sequence { { MOVE(4, 1, 0) }, 1 };
 
   const HyperedgeWeight improvement = refiner.applyMoves(sequence);
   ASSERT_EQ(sequence.state, MoveSequenceState::VIOLATES_BALANCE_CONSTRAINT);
@@ -142,8 +142,8 @@ TEST_F(AAdvancedRefinementScheduler, MovesTwoVerticesConcurrently) {
   AdvancedRefinementScheduler refiner(hg, context);
   refiner.initialize(phg);
 
-  MoveSequence sequence_1 { { MOVE(3, 0, 1) }, 1, 0 };
-  MoveSequence sequence_2 { { MOVE(5, 1, 0) }, 0, 0 };
+  MoveSequence sequence_1 { { MOVE(3, 0, 1) }, 1 };
+  MoveSequence sequence_2 { { MOVE(5, 1, 0) }, 0 };
   HypernodeWeight improvement_1 = 0, improvement_2 = 0;
   executeConcurrent([&] {
     improvement_1 = refiner.applyMoves(sequence_1);
@@ -164,8 +164,8 @@ TEST_F(AAdvancedRefinementScheduler, MovesTwoVerticesConcurrentlyWhereOneViolate
   AdvancedRefinementScheduler refiner(hg, context);
   refiner.initialize(phg);
 
-  MoveSequence sequence_1 { { MOVE(3, 0, 1) }, 1, 0 };
-  MoveSequence sequence_2 { { MOVE(1, 0, 1) }, 0, 0 };
+  MoveSequence sequence_1 { { MOVE(3, 0, 1) }, 1 };
+  MoveSequence sequence_2 { { MOVE(1, 0, 1) }, 0 };
   HypernodeWeight improvement_1 = 0, improvement_2 = 0;
   executeConcurrent([&] {
     improvement_1 = refiner.applyMoves(sequence_1);
@@ -245,7 +245,7 @@ class AnAdvancedRefinementEndToEnd : public Test {
     AdvancedRefinerMockControl::instance().refine_func = [&](const PartitionedHypergraph& phg,
                                                              const vec<HypernodeID>& nodes,
                                                              const size_t) {
-      MoveSequence sequence { {}, 0, 0 };
+      MoveSequence sequence { {}, 0 };
       for ( const HypernodeID& hn : nodes ) {
         Move move = mover->computeMaxGainMove(phg, hn);
         ASSERT(move.from == phg.partID(hn));

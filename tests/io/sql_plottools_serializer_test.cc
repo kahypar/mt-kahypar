@@ -45,7 +45,7 @@ std::unordered_map<std::string, std::string> target_struct_prefix =
   { {"PartitioningParameters", ""}, {"CommunityDetectionParameters", "community_"}, {"CommunityRedistributionParameters", "community_redistribution_"},
     {"PreprocessingParameters", ""}, {"RatingParameters", "rating_"}, {"CoarseningParameters", "coarsening_"},
     {"InitialPartitioningParameters", "initial_partitioning_"}, {"SparsificationParameters", "sparsification_"},
-    {"LabelPropagationParameters", "lp_"}, {"FMParameters", "fm_"}, {"NLevelGlobalFMParameters", "global_fm_"},
+    {"LabelPropagationParameters", "lp_"}, {"FMParameters", "fm_"}, {"NLevelGlobalFMParameters", "global_fm"},
     {"AdvancedRefinementParameters", "advanced_"}, {"RefinementParameters", ""}, {"SharedMemoryParameters", ""},
     {"DeterministicRefinement", "sync_lp_"}, {"FlowParameters", "flow_"} };
 

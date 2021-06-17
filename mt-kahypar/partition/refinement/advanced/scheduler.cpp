@@ -55,11 +55,6 @@ bool AdvancedRefinementScheduler::refineImpl(
 
   utils::Timer::instance().start_timer("advanced_refinement_scheduling", "Advanced Refinement Scheduling");
   std::atomic<HyperedgeWeight> overall_delta(0);
-  auto apply_moves = [&](MoveSequence& sequence) {
-    sequence.real_improvement = applyMoves(sequence);
-    overall_delta -= sequence.real_improvement;
-    return sequence.state == MoveSequenceState::SUCCESS && sequence.real_improvement > 0;
-  };
   tbb::parallel_for(0UL, _refiner.numAvailableRefiner(), [&](const size_t) {
     while ( !_quotient_graph.terminate() ) {
       SearchID search_id = _quotient_graph.requestNewSearch(_refiner);
@@ -79,33 +74,10 @@ bool AdvancedRefinementScheduler::refineImpl(
 
           if ( !sequence.moves.empty() ) {
             utils::Timer::instance().start_timer("apply_moves", "Apply Moves", true);
-            improved_solution = apply_moves(sequence);
+            HyperedgeWeight delta = applyMoves(sequence);
+            overall_delta -= delta;
+            improved_solution = sequence.state == MoveSequenceState::SUCCESS && delta > 0;
             utils::Timer::instance().stop_timer("apply_moves");
-
-            // If move sequence violated the balance constraint or worsen solution quality
-            // and also the expected improvement of refiner is positive, we retry.
-            if ( ( sequence.state == MoveSequenceState::VIOLATES_BALANCE_CONSTRAINT ||
-                   sequence.state == MoveSequenceState::WORSEN_SOLUTION_QUALITY ) &&
-                 sequence.expected_improvement > 0 ) {
-              utils::Timer::instance().start_timer("retries", "Retries", true);
-              for ( size_t i = 0; i < _context.refinement.advanced.max_retries; ++i ) {
-                ++_stats.num_refinements;
-                sequence = _refiner.refine(search_id, phg, refinement_nodes, true /* retry */);
-
-                if ( !sequence.moves.empty() ) {
-                  improved_solution = apply_moves(sequence);
-                  if ( improved_solution ) {
-                    DBG << GREEN << "Retry" << (i + 1) << ": " "SUCCESS" << V(sequence.real_improvement) << END;
-                    break;
-                  }
-                }
-
-                if ( !improved_solution ) {
-                  DBG << RED << "Retry" << (i + 1) << ": " << V(sequence.real_improvement) << END;
-                }
-              }
-              utils::Timer::instance().stop_timer("retries");
-            }
           }
         }
 
