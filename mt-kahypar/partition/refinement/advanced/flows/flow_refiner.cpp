@@ -25,7 +25,7 @@ namespace mt_kahypar {
 
 MoveSequence FlowRefiner::refineImpl(const PartitionedHypergraph& phg,
                                      const vec<HypernodeID>& refinement_nodes) {
-  MoveSequence sequence { { }, 0 };
+  MoveSequence sequence { { }, 0, 0 };
   // Construct flow network that contains all vertices given in refinement nodes
   FlowProblem flow_problem = constructFlowHypergraph(phg, refinement_nodes);
   if ( flow_problem.total_cut - flow_problem.non_removable_cut > 0 ) {
@@ -231,8 +231,8 @@ void FlowRefiner::determineDistanceFromCut(const PartitionedHypergraph& phg,
 bool FlowRefiner::isMaximumProblemSizeReachedImpl(ProblemStats& stats) const {
   ASSERT(_phg);
   ASSERT(stats.numContainedBlocks() == 2);
-  _block_0 = stats.block(0);
-  _block_1 = stats.block(1);
+  ASSERT(_block_0 == stats.block(0));
+  ASSERT(_block_1 == stats.block(1));
   const HypernodeWeight max_weight_0 =
     _scaling * _context.partition.perfect_balance_part_weights[_block_1] - _phg->partWeight(_block_1);
   const HypernodeWeight max_weight_1 =

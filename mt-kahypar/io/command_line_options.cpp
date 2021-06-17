@@ -434,6 +434,10 @@ namespace mt_kahypar {
                       &context.refinement.advanced.max_bfs_distance))->value_name("<size_t>"),
              "Advanced refinement problems are constructed via BFS search. The maximum BFS distance is the\n"
              "maximum distance from a cut hyperedge to any vertex of the problem.")
+            ((initial_partitioning ? "i-r-max-retries" : "r-max-retries"),
+             po::value<size_t>((initial_partitioning ? &context.initial_partitioning.refinement.advanced.max_retries :
+                      &context.refinement.advanced.max_retries))->value_name("<size_t>"),
+             "If we fail to apply a move sequence due to concurrent writes to the data structure, we retry it max-retries times.")
             ((initial_partitioning ? "i-r-skip-small-cuts" : "r-skip-small-cuts"),
              po::value<bool>((initial_partitioning ? &context.initial_partitioning.refinement.advanced.skip_small_cuts :
                       &context.refinement.advanced.skip_small_cuts))->value_name("<bool>"),

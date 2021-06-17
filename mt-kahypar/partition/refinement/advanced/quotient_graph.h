@@ -32,11 +32,6 @@
 
 namespace mt_kahypar {
 
-struct BlockPair {
-  PartitionID i = kInvalidPartition;
-  PartitionID j = kInvalidPartition;
-};
-
 struct BlockPairCutHyperedges {
   BlockPairCutHyperedges() :
     blocks(),

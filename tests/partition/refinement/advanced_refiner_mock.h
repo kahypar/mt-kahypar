@@ -35,7 +35,7 @@ using MaxProblemSizeFunc = std::function<bool(ProblemStats&)>;
 
 class AdvancedRefinerMockControl {
 
-  #define NOOP_REFINE_FUNC [] (const PartitionedHypergraph&, const vec<HypernodeID>&, const size_t) { return MoveSequence { {}, 0 }; }
+  #define NOOP_REFINE_FUNC [] (const PartitionedHypergraph&, const vec<HypernodeID>&, const size_t) { return MoveSequence { {}, 0, 0 }; }
   #define NOOP_MAX_PROB_SIZE_FUNC [&] (ProblemStats&) { return false; }
 
  public:
@@ -96,6 +96,8 @@ class AdvancedRefinerMock final : public IAdvancedRefiner {
                           const vec<HypernodeID>& refinement_nodes) {
     return _refine_func(phg, refinement_nodes, _num_threads);
   }
+
+  void setBlockPairsImpl(const vec<BlockPair>&) { }
 
   PartitionID maxNumberOfBlocksPerSearchImpl() const {
     return _max_num_blocks;

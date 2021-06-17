@@ -66,7 +66,11 @@ public:
 
   MoveSequence refine(const SearchID search_id,
                       const PartitionedHypergraph& phg,
-                      const vec<HypernodeID>& refinement_nodes);
+                      const vec<HypernodeID>& refinement_nodes,
+                      const bool retry = false);
+
+  void setBlockPairs(const SearchID search_id,
+                     const vec<BlockPair>& blocks);
 
   // ! Returns wheather or not more nodes can be added to problem
   // ! of the refiner associated with the corresponding search id

@@ -42,8 +42,10 @@ class DoNothingAdvancedRefiner final : public IAdvancedRefiner {
 
   MoveSequence refineImpl(const PartitionedHypergraph&,
                   const vec<HypernodeID>&) override final {
-    return MoveSequence { {}, 0 };
+    return MoveSequence { {}, 0, 0 };
   }
+
+  void setBlockPairsImpl(const vec<BlockPair>&) {}
 
   PartitionID maxNumberOfBlocksPerSearchImpl() const {
     return 2;

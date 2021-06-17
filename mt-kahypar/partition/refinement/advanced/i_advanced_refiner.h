@@ -48,6 +48,10 @@ class IAdvancedRefiner {
     return refineImpl(hypergraph, refinement_nodes);
   }
 
+  void setBlockPairs(const vec<BlockPair>& blocks) {
+    setBlockPairsImpl(blocks);
+  }
+
   // ! Returns the maximum number of blocks that can be refined
   // ! per search with this refinement algorithm
   PartitionID maxNumberOfBlocksPerSearch() const {
@@ -73,6 +77,8 @@ class IAdvancedRefiner {
 
   virtual MoveSequence refineImpl(const PartitionedHypergraph& hypergraph,
                                   const vec<HypernodeID>& refinement_nodes) = 0;
+
+  virtual void setBlockPairsImpl(const vec<BlockPair>& blocks) = 0;
 
   virtual PartitionID maxNumberOfBlocksPerSearchImpl() const = 0;
 
