@@ -89,6 +89,13 @@ bool AdvancedRefinementScheduler::refineImpl(
   });
   utils::Timer::instance().stop_timer("advanced_refinement_scheduling");
 
+  DBG << "Num Refinements =" << _stats.num_refinements;
+  DBG << "Num Improvements =" << _stats.num_improvements;
+  DBG << "Failed due to Balance Constraint =" << _stats.failed_updates_due_to_balance_constraint;
+  DBG << "Failed due to Conflicting Moves =" << _stats.failed_updates_due_to_conflicting_moves;
+  DBG << "Total Improvement =" << _stats.total_improvement;
+  DBG << "---------------------------------------------------------------";
+
   // Update metrics statistics
   HyperedgeWeight current_metric = best_metrics.getMetric(
     kahypar::Mode::direct_kway, _context.partition.objective);

@@ -35,8 +35,8 @@ MoveSequence FlowRefiner::refineImpl(const PartitionedHypergraph& phg,
     _hfc.cs.setMaxBlockWeight(1, std::max(
       flow_problem.weight_of_block_1, _context.partition.max_part_weights[_block_1]));
 
-    _hfc.upperFlowBound = flow_problem.total_cut - flow_problem.non_removable_cut;
     _hfc.reset();
+    _hfc.upperFlowBound = flow_problem.total_cut - flow_problem.non_removable_cut;
     // Solve max-flow min-cut problem
     bool flowcutter_succeeded =
       _hfc.runUntilBalancedOrFlowBoundExceeded(flow_problem.source, flow_problem.sink);
