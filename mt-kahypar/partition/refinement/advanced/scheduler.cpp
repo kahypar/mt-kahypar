@@ -128,6 +128,8 @@ void AdvancedRefinementScheduler::initializeImpl(PartitionedHypergraph& phg)  {
   // Initialize Part Weights
   for ( PartitionID i = 0; i < _context.partition.k; ++i ) {
     _part_weights[i] = phg.partWeight(i);
+    _max_part_weights[i] = std::max(
+      phg.partWeight(i), _context.partition.max_part_weights[i]);
   }
 
   _stats.reset();
@@ -294,11 +296,9 @@ bool AdvancedRefinementScheduler::partWeightUpdate(const vec<HypernodeWeight>& p
   _part_weights_lock.lock();
   PartitionID i = 0;
   for ( ; i < _context.partition.k; ++i ) {
-    if ( part_weight_deltas[i] != 0 &&
-        _part_weights[i] + multiplier * part_weight_deltas[i] >
-        _context.partition.max_part_weights[i] ) {
+    if ( _part_weights[i] + multiplier * part_weight_deltas[i] > _max_part_weights[i] ) {
       DBG << "Move sequence violated balance constraint of block" << i
-          << "(Max =" << _context.partition.max_part_weights[i]
+          << "(Max =" << _max_part_weights[i]
           << ", Actual =" << (_part_weights[i] + multiplier * part_weight_deltas[i]) << ")";
       // Move Sequence Violates Balance Constraint => Rollback
       --i;

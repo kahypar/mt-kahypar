@@ -33,7 +33,7 @@ namespace mt_kahypar {
 
 class AdvancedRefinementScheduler final : public IRefiner {
 
-  static constexpr bool debug = false;
+  static constexpr bool debug = true;
   static constexpr bool enable_heavy_assert = false;
 
   struct RefinementStats {
@@ -78,6 +78,7 @@ public:
     _was_moved(hg.initialNumNodes(), uint8_t(false)),
     _part_weights_lock(),
     _part_weights(context.partition.k, 0),
+    _max_part_weights(context.partition.k, 0),
     _stats() { }
 
   AdvancedRefinementScheduler(const AdvancedRefinementScheduler&) = delete;
@@ -139,6 +140,7 @@ private:
   // ! Maintains the part weights of each block
   SpinLock _part_weights_lock;
   vec<HypernodeWeight> _part_weights;
+  vec<HypernodeWeight> _max_part_weights;
 
   // ! Contains refinement statistics
   RefinementStats _stats;
