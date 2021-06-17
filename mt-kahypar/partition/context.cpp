@@ -462,7 +462,8 @@ namespace mt_kahypar {
   void Context::setupThreadsPerAdvancedSearch() {
     if ( refinement.advanced.algorithm == AdvancedRefinementAlgorithm::flows ) {
       refinement.advanced.num_threads_per_search =
-        std::max(shared_memory.num_threads / partition.k, 1UL );
+        std::max(shared_memory.num_threads / partition.k,
+          std::max(refinement.advanced.num_threads_per_search, 1UL ) );
     }
   }
 
