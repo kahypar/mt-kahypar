@@ -6,6 +6,8 @@ set(RefinementSources
         label_propagation/label_propagation_refiner.cpp
         rebalancing/rebalancer.cpp
         label_propagation/async_lp_refiner.cpp
+        fm/async_kway_fm_core.cpp
+        fm/async_fm_refiner.cpp
         deterministic/deterministic_label_propagation.cpp
         )
 

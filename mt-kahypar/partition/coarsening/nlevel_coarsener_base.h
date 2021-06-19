@@ -93,22 +93,20 @@ class NLevelCoarsenerBase {
   PartitionedHypergraph&& doUncoarsen(std::unique_ptr<IRefiner>& label_propagation,
                                       std::unique_ptr<IRefiner>& fm);
 
-  PartitionedHypergraph&& doSequentialUncoarsen(std::unique_ptr<IRefiner>& label_propagation,
-                                                std::unique_ptr<IRefiner>& fm);
-
   PartitionedHypergraph&& doAsynchronousUncoarsen(std::unique_ptr<IRefiner>& label_propagation,
                                                   std::unique_ptr<IRefiner>& fm);
 
   void uncoarsenAsyncTask(ds::TreeGroupPool *pool, tbb::task_group &uncoarsen_tg,
                           metrics::ThreadSafeMetrics &current_metrics,
-                          AsyncRefinersETS &async_lp_refiners);
+                          AsyncRefinersETS &async_lp_refiners, AsyncRefinersETS &async_fm_refiners);
 
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE bool uncontractGroupAsyncSubtask(const ds::ContractionGroup &group,
                                    ds::ContractionGroupID groupID);
 
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE bool
   refineGroupAsyncSubtask(const ds::ContractionGroup &group, ds::ContractionGroupID groupID,
-                          metrics::ThreadSafeMetrics &current_metrics, IAsyncRefiner *async_lp);
+                          metrics::ThreadSafeMetrics &current_metrics, IAsyncRefiner *async_lp,
+                          IAsyncRefiner *async_fm);
 
  protected:
   kahypar::Metrics computeMetrics(PartitionedHypergraph& phg) {
@@ -145,8 +143,8 @@ class NLevelCoarsenerBase {
 
   void localizedRefineForAsync(PartitionedHypergraph &partitioned_hypergraph,
                                const parallel::scalable_vector <HypernodeID> &refinement_nodes,
-                               IAsyncRefiner *async_lp, ds::ContractionGroupID group_id,
-                               metrics::ThreadSafeMetrics &current_metrics);
+                               IAsyncRefiner *async_lp, IAsyncRefiner* async_fm,
+                               ds::ContractionGroupID group_id, metrics::ThreadSafeMetrics &current_metrics);
 
   void globalRefine(PartitionedHypergraph& partitioned_hypergraph,
                     std::unique_ptr<IRefiner>& fm,

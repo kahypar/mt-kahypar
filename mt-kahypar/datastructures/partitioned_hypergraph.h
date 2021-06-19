@@ -452,13 +452,12 @@ private:
       }
   }
 
-  // ! Debug purposes, todo mlaupichler remove
+  // ! Debug purposes
   void lockHyperedgePinCountLock(const HyperedgeID he) {
       _pin_count_update_ownership[he].lock();
   }
 
-
-  // ! Debug purposes, todo mlaupichler remove
+  // ! Debug purposes
   void unlockHyperedgePinCountLock(const HyperedgeID he) {
       _pin_count_update_ownership[he].unlock();
   }

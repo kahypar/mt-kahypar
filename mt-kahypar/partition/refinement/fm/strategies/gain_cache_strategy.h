@@ -74,7 +74,10 @@ public:
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
   void updateGain(const PHG& phg, const HypernodeID v, const Move& move) {
     const PartitionID pv = phg.partID(v);
-    ASSERT(vertexPQs[pv].contains(v));
+    if (!vertexPQs[pv].contains(v)) {
+      ASSERT(std::any_of(vertexPQs.begin(), vertexPQs.end(),[&](const VertexPriorityQueue& pq){return pq.contains(v);}), "No PQ contains " << V(v));
+    }
+    ASSERT(vertexPQs[pv].contains(v), V(v) << " is in the wrong PQ!");
     const PartitionID designatedTargetV = sharedData.targetPart[v];
     Gain gain = 0;
     PartitionID newTarget = kInvalidPartition;

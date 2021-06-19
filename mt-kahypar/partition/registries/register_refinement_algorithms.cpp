@@ -20,15 +20,16 @@
  ******************************************************************************/
 
 
-#include <mt-kahypar/partition/refinement/label_propagation/async_lp_refiner.h>
 #include "kahypar/meta/registrar.h"
 #include "mt-kahypar/partition/context.h"
 
 #include "mt-kahypar/partition/factories.h"
 #include "mt-kahypar/partition/refinement/do_nothing_refiner.h"
 #include "mt-kahypar/partition/refinement/label_propagation/label_propagation_refiner.h"
+#include "mt-kahypar/partition/refinement/label_propagation/async_lp_refiner.h"
 #include "mt-kahypar/partition/refinement/deterministic/deterministic_label_propagation.h"
 #include "mt-kahypar/partition/refinement/fm/multitry_kway_fm.h"
+#include "mt-kahypar/partition/refinement/fm/async_fm_refiner.h"
 #include "mt-kahypar/partition/refinement/fm/strategies/gain_cache_strategy.h"
 #include "mt-kahypar/partition/refinement/fm/strategies/gain_delta_strategy.h"
 #include "mt-kahypar/partition/refinement/fm/strategies/recompute_gain_strategy.h"
@@ -57,6 +58,14 @@
     return new refiner(hypergraph, context);                                                    \
   })
 
+#define REGISTER_ASYNC_FM_REFINER(id, refiner, t)                                                 \
+  static kahypar::meta::Registrar<AsyncFMRefinerFactory> JOIN(register_ ## refiner, t)(        \
+      id,                                                                                         \
+      [](Hypergraph &hypergraph, const Context &context, ds::GroupLockManager *const lock_manager,\
+         FMSharedData &shared_data) -> IAsyncRefiner* {                                           \
+        return new refiner(hypergraph, context, lock_manager, shared_data);                       \
+      })
+
 namespace mt_kahypar {
 REGISTER_LP_REFINER(LabelPropagationAlgorithm::label_propagation_cut, LabelPropagationCutRefiner, Cut);
 REGISTER_LP_REFINER(LabelPropagationAlgorithm::label_propagation_km1, LabelPropagationKm1Refiner, Km1);
@@ -76,5 +85,15 @@ REGISTER_FM_REFINER(FMAlgorithm::do_nothing, DoNothingRefiner, 2);
 REGISTER_ASYNC_LP_REFINER(LabelPropagationAlgorithm::label_propagation_cut, AsyncLPCutRefiner, Cut);
 REGISTER_ASYNC_LP_REFINER(LabelPropagationAlgorithm::label_propagation_km1, AsyncLPKm1Refiner, Km1);
 REGISTER_ASYNC_LP_REFINER(LabelPropagationAlgorithm::do_nothing, DoNothingAsyncRefiner, 3);
+
+using AsyncKWayFMWithGainCache = AsyncFMRefiner<GainCacheStrategy>;
+using AsyncKWayFMWithGainGacheOnDemand = AsyncFMRefiner<GainCacheOnDemandStrategy>;
+using AsyncKWayFMWithGainDelta = AsyncFMRefiner<GainDeltaStrategy>;
+using AsyncKWayFMWithGainRecomputation = AsyncFMRefiner<RecomputeGainStrategy>;
+REGISTER_ASYNC_FM_REFINER(FMAlgorithm::fm_gain_cache, AsyncKWayFMWithGainCache, FMWithGainCache);
+REGISTER_ASYNC_FM_REFINER(FMAlgorithm::fm_gain_cache_on_demand, AsyncKWayFMWithGainGacheOnDemand, FMWithGainCacheOnDemand);
+REGISTER_ASYNC_FM_REFINER(FMAlgorithm::fm_gain_delta, AsyncKWayFMWithGainDelta, FMWithGainDelta);
+REGISTER_ASYNC_FM_REFINER(FMAlgorithm::fm_recompute_gain, AsyncKWayFMWithGainRecomputation, FMWithGainRecomputation);
+REGISTER_ASYNC_FM_REFINER(FMAlgorithm::do_nothing, DoNothingAsyncRefiner, 4);
 
 }  // namespace mt_kahypar

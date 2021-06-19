@@ -20,6 +20,7 @@
 
 #pragma once
 
+#include <mt-kahypar/partition/refinement/fm/fm_commons.h>
 #include "kahypar/meta/abstract_factory.h"
 #include "kahypar/meta/static_multi_dispatch_factory.h"
 #include "kahypar/meta/typelist.h"
@@ -66,5 +67,9 @@ using FMFactory = kahypar::meta::Factory<FMAlgorithm,
 using AsyncLPRefinerFactory = kahypar::meta::Factory<LabelPropagationAlgorithm,
     IAsyncRefiner* (*)(Hypergraph&, const Context&, ds::GroupLockManager*,
                        ds::ThreadSafeFlagArray<HypernodeID>*, ds::ThreadSafeFlagArray<HyperedgeID>*)>;
+
+using AsyncFMRefinerFactory = kahypar::meta::Factory<FMAlgorithm,
+    IAsyncRefiner* (*)(Hypergraph&, const Context&, ds::GroupLockManager *const,
+                       FMSharedData&)>;
 
 }  // namespace mt_kahypar

@@ -14,7 +14,7 @@
 
 namespace mt_kahypar::ds {
 
-    /// Class template for a ILockManager based on an array of atomic wrappers for the given OwnerID type using the
+    /// Class template for a LockManager based on an array of atomic wrappers for the given OwnerID type using the
     /// given LockedID type as indices.
     template<typename LockedID = Mandatory, typename OwnerID = Mandatory>
     class ArrayLockManager {

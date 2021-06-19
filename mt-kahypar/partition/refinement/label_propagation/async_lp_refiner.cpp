@@ -36,15 +36,8 @@ namespace mt_kahypar {
         } while (!best_metrics.update_imbalance_strong(imbalance));
 
         // Update metrics statistics
-        HyperedgeWeight current_metric = best_metrics.getMetric(
-                kahypar::Mode::direct_kway, _context.partition.objective);
         Gain delta = _gain.delta();
         ASSERT(delta <= 0, "LP refiner worsen solution quality" << V(delta));
-
-//        HEAVY_REFINEMENT_ASSERT(current_metric + delta == metrics::objective(hypergraph, _context.partition.objective, false),
-//                                V(current_metric) << V(delta) <<
-//                                                  V(metrics::objective(hypergraph, _context.partition.objective, false)));
-
         best_metrics.fetch_add(delta, kahypar::Mode::direct_kway, _context.partition.objective);
         utils::Stats::instance().update_stat("lp_improvement", std::abs(delta));
         return delta < 0;
