@@ -62,7 +62,7 @@ void DeterministicMultilevelCoarsener::coarsenImpl() {
       // each vertex finds a cluster it wants to join
       tbb::parallel_for(first, last, [&](size_t pos) {
         const HypernodeID u = permutation.at(pos);
-        if (cluster_weight[u] == hg.nodeWeight(u) && hg.nodeIsEnabled(u)) {
+        if (hg.nodeIsEnabled(u) && cluster_weight[u] == hg.nodeWeight(u)) {
           calculatePreferredTargetCluster(u, clusters);
         }
       });
@@ -102,9 +102,10 @@ void DeterministicMultilevelCoarsener::coarsenImpl() {
       break;
     }
     performMultilevelContraction(std::move(clusters), pass_start_time);
+    ASSERT(currentNumNodes() == num_nodes - hg.numRemovedHypernodes());
   }
 
-  progress_bar += (initial_num_nodes - progress_bar.count());   // fill to 100% 
+  progress_bar += (initial_num_nodes - progress_bar.count());   // fill to 100%
   progress_bar.disable();
   finalize();
 }
