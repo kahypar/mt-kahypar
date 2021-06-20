@@ -6,6 +6,7 @@
 #define KAHYPAR_ASYNC_LP_REFINER_H
 
 #include <mt-kahypar/partition/refinement/i_refiner.h>
+#include "mt-kahypar/partition/refinement/async_refiners_common.h"
 #include <mt-kahypar/partition/refinement/policies/local_gain_policy.h>
 #include <mt-kahypar/datastructures/async/array_lock_manager.h>
 #include <mt-kahypar/datastructures/thread_safe_fast_reset_flag_array.h>
@@ -28,10 +29,10 @@ namespace mt_kahypar {
         static constexpr bool enable_heavy_assert = true;
 
     public:
-        explicit AsyncLPRefiner(Hypergraph &hypergraph, const Context &context,
-                                ds::GroupLockManager* const lockManager,
-                                ds::ThreadSafeFlagArray<HypernodeID>* const node_anti_duplicator,
-                                ds::ThreadSafeFlagArray<HyperedgeID>* const edge_anti_duplicator) :
+        explicit AsyncLPRefiner(Hypergraph &hypergraph, const Context &context, ds::GroupLockManager *const lockManager,
+                                ds::ThreadSafeFlagArray <HypernodeID> *const node_anti_duplicator,
+                                ds::ThreadSafeFlagArray <HyperedgeID> *const edge_anti_duplicator,
+                                AsyncNodeTracker *const fm_node_tracker) :
         _context(context),
         _gain(context),
         _active_nodes(),
@@ -39,7 +40,8 @@ namespace mt_kahypar {
         _lock_manager(lockManager),
         _rng(),
         _next_active(node_anti_duplicator),
-        _visited_he(edge_anti_duplicator) {
+        _visited_he(edge_anti_duplicator),
+        _fm_node_tracker(fm_node_tracker) {
             unused(hypergraph);
 //            ASSERT(_next_active->size() == hypergraph.initialNumNodes());
 //            ASSERT(_visited_he->size() == hypergraph.initialNumEdges());
@@ -95,6 +97,7 @@ namespace mt_kahypar {
                     PartitionID to = best_move.to;
 
                     Gain delta_before = _gain.localDelta();
+                    ASSERT(_fm_node_tracker->owner(hn) == _contraction_group_id);
                     bool changed_part = changeNodePart(hypergraph, hn, from, to, objective_delta);
                     if (changed_part) {
                         // In case the move to block 'to' was successful, we verify that the "real" gain
@@ -173,11 +176,11 @@ namespace mt_kahypar {
         ActiveNodes _active_nodes;
         // todo mlaupichler The AsyncLPRefiner should not be bound so tightly to the idea of ContractionGroups. Use a template argument for the OwnerID (also in the _lock_manager pointer) in order to allow any OwnerID for the locking.
         // ! The ID of the contraction group that the seed refinement nodes are from. Used as an identifier for locking
-        // nodes so uncontracting and refinement of a contraction group use the same locks.
+        // ! nodes so uncontracting and refinement of a contraction group use the same locks.
         ds::ContractionGroupID _contraction_group_id;
 
         // ! A pointer to the LockManager that is used by uncontraction and refinement operations during the entire
-        // uncoarsening.
+        // ! uncoarsening.
         ds::GroupLockManager* const _lock_manager;
 
         // ! Mersenne-twister random number generator for shuffling vectors
@@ -185,7 +188,14 @@ namespace mt_kahypar {
 
         // ! Anti-duplicator flag-arrays that are shared with other refiners
         ds::ThreadSafeFlagArray<HypernodeID>* const _next_active;
+        // todo: The fact that the hyperedge flag-array is shared means that if a thread stalls for a long time,
+        //  it prevents other threads from using the HE. This was not a problem in the regular LP as the threads share
+        //  active nodes there
         ds::ThreadSafeFlagArray<HyperedgeID>* const _visited_he;
+
+        // ! Node tracker used by concurrent FM searches. To prevent messing with FM PQs the LP refiner cannot move
+        // ! nodes that are held by an FM search.
+        AsyncNodeTracker* const _fm_node_tracker;
 
         NextActiveNodes _next_active_nodes;
         VisitedEdges _visited_edges;

@@ -221,8 +221,8 @@ namespace mt_kahypar {
 #include "mt-kahypar/partition/refinement/fm/strategies/gain_cache_on_demand_strategy.h"
 
 namespace mt_kahypar {
-  template class MultiTryKWayFM<GainCacheStrategy>;
-  template class MultiTryKWayFM<GainDeltaStrategy>;
-  template class MultiTryKWayFM<RecomputeGainStrategy>;
-  template class MultiTryKWayFM<GainCacheOnDemandStrategy>;
+  template class MultiTryKWayFM<GainCacheStrategy<FMSharedData>>;
+  template class MultiTryKWayFM<GainDeltaStrategy<FMSharedData>>;
+  template class MultiTryKWayFM<RecomputeGainStrategy<FMSharedData>>;
+  template class MultiTryKWayFM<GainCacheOnDemandStrategy<FMSharedData>>;
 }

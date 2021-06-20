@@ -135,10 +135,17 @@ struct NodeTracker {
     deactivatedNodeMarker = ++highestActiveSearchID;
     releasedMarker = deactivatedNodeMarker - 1;
   }
+
+  bool claimedFirstTime(HypernodeID, SearchID previous_search_of_v) {
+    return previous_search_of_v != releasedMarker;
+  }
+
 };
 
 
 struct FMSharedData {
+
+  using ConcreteSearchID = SearchID;
 
   // ! Nodes to initialize the localized FM searches with
   WorkContainer<HypernodeID> refinementNodes;

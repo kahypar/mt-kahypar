@@ -569,7 +569,7 @@ namespace mt_kahypar {
       });
       _phg.initializePartition();
 
-      if ( _context.refinement.fm.algorithm == FMAlgorithm::fm_gain_cache ) {
+      if ( _context.refinement.fm.algorithm == FMAlgorithm::fm_gain_cache) {
           _phg.initializeGainCache();
       }
 
@@ -617,9 +617,10 @@ namespace mt_kahypar {
     // Indirectly managed through unique_ptr's so the type of gain policy can be abstracted still (tbb:ets needs a
     // complete type as its template parameter). However, unique_ptr's destroy their pointee when they are destroyed,
     // so refiners are destructed properly when the lifetime of the tbb::ets object ends.
-
+    auto fm_shared_data = std::make_unique<AsyncFMSharedData>(_phg.initialNumNodes(), _context);
     auto node_anti_duplicator = std::make_unique<ds::ThreadSafeFlagArray<HypernodeID>>(_phg.initialNumNodes());
     auto edge_anti_duplicator = std::make_unique<ds::ThreadSafeFlagArray<HyperedgeID>>(_phg.initialNumEdges());
+
     AsyncRefinersETS async_lp_refiners ([&] {
           return AsyncLPRefinerFactory::getInstance().createObject(
                   _context.refinement.label_propagation.algorithm,
@@ -627,10 +628,10 @@ namespace mt_kahypar {
                   _context,
                   _lock_manager_for_async.get(),
                   node_anti_duplicator.get(),
-                  edge_anti_duplicator.get());
+                  edge_anti_duplicator.get(),
+                  &fm_shared_data->nodeTracker);
       });
 
-    auto fm_shared_data = std::make_unique<FMSharedData>(_phg.initialNumNodes(), _context);
     AsyncRefinersETS async_fm_refiners ([&]{
           return AsyncFMRefinerFactory::getInstance().createObject(
              _context.refinement.fm.algorithm,
@@ -668,6 +669,7 @@ namespace mt_kahypar {
 
 //          HEAVY_REFINEMENT_ASSERT(node_anti_duplicator->checkAllFalse());
 //          HEAVY_REFINEMENT_ASSERT(edge_anti_duplicator->checkAllFalse());
+          HEAVY_REFINEMENT_ASSERT(fm_shared_data->nodeTracker.checkNoneLocked());
           HEAVY_REFINEMENT_ASSERT(_hg.verifyIncidenceArrayAndIncidentNets());
           HEAVY_REFINEMENT_ASSERT(_phg.checkTrackedPartitionInformation());
           HEAVY_REFINEMENT_ASSERT(metrics::objective(_phg, _context.partition.objective) ==

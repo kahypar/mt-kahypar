@@ -66,10 +66,11 @@ using FMFactory = kahypar::meta::Factory<FMAlgorithm,
 
 using AsyncLPRefinerFactory = kahypar::meta::Factory<LabelPropagationAlgorithm,
     IAsyncRefiner* (*)(Hypergraph&, const Context&, ds::GroupLockManager*,
-                       ds::ThreadSafeFlagArray<HypernodeID>*, ds::ThreadSafeFlagArray<HyperedgeID>*)>;
+                       ds::ThreadSafeFlagArray<HypernodeID>*, ds::ThreadSafeFlagArray<HyperedgeID>*,
+                           AsyncNodeTracker* const)>;
 
 using AsyncFMRefinerFactory = kahypar::meta::Factory<FMAlgorithm,
     IAsyncRefiner* (*)(Hypergraph&, const Context&, ds::GroupLockManager *const,
-                       FMSharedData&)>;
+                       AsyncFMSharedData&)>;
 
 }  // namespace mt_kahypar

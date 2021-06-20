@@ -25,6 +25,7 @@
 
 
 namespace mt_kahypar {
+  template<typename SharedData>
   class GainDeltaStrategy {
   public:
 
@@ -35,7 +36,7 @@ namespace mt_kahypar {
 
     GainDeltaStrategy(const Context& context,
                           HypernodeID numNodes,
-                          FMSharedData& sharedData,
+                          SharedData& sharedData,
                           FMStats& runStats) :
             context(context),
             k(context.partition.k),
@@ -52,7 +53,7 @@ namespace mt_kahypar {
 
     template<typename PHG>
     MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
-    void insertIntoPQ(const PHG& phg, const HypernodeID v, const SearchID ) {
+    void insertIntoPQ(const PHG& phg, const HypernodeID v, const typename SharedData::ConcreteSearchID ) {
       gc.computeGains(phg, v);
       for (PartitionID i = 0; i < k; ++i) {
         if (i != phg.partID(v)) {
@@ -233,7 +234,7 @@ namespace mt_kahypar {
 
     FMStats& runStats;
 
-    FMSharedData& sharedData;
+    SharedData& sharedData;
 
     vec<VertexPriorityQueue> vertexPQs;
 

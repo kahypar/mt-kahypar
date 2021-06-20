@@ -115,27 +115,41 @@ namespace mt_kahypar {
         parallel::scalable_vector<HypernodeID> retry_nodes;
         for ( size_t j = 0; j < _active_nodes.size(); ++j ) {
             const HypernodeID hn = _active_nodes[j];
+            bool tried_to_move = false;
+            // Lock node while moving to prevent concurrent uncontractions
             bool acquired = _lock_manager->tryToAcquireLock(hn, _contraction_group_id);
             if (acquired) {
+              // Lock node in FM node tracker to make sure not to mess up PQs in any FM search
+              bool locked_for_fm = _fm_node_tracker->tryAcquireNode(hn, _contraction_group_id);
+              if (locked_for_fm) {
+                tried_to_move = true;
                 if ( ! moveVertex(hypergraph, hn, next_active_nodes, visited_edges, objective_delta) ) {
-                    converged = false;
+                  converged = false;
                 }
-                _lock_manager->strongReleaseLock(hn, _contraction_group_id);
-            } else {
-                retry_nodes.push_back(hn);
+                _fm_node_tracker->releaseNode(hn, _contraction_group_id);
+              }
+              _lock_manager->strongReleaseLock(hn, _contraction_group_id);
+            }
+            if (!tried_to_move) {
+              retry_nodes.push_back(hn);
             }
         }
 
         // Retry acquiring lock and moving exactly once
-        // todo mlaupichler: This is arbitrary, perhaps add CL option to set how often we retry here
+        // todo mlaupichler: Number of retries is arbitrary, perhaps add CL option to set how often we retry here
         for ( size_t j = 0; j < retry_nodes.size(); ++j ) {
             const HypernodeID hn = retry_nodes[j];
             bool acquired = _lock_manager->tryToAcquireLock(hn, _contraction_group_id);
             if (acquired) {
+              // Lock node in FM node tracker to make sure not to mess up PQs in any FM search
+              bool locked_for_fm = _fm_node_tracker->tryAcquireNode(hn, _contraction_group_id);
+              if (locked_for_fm) {
                 if ( ! moveVertex(hypergraph, hn, next_active_nodes, visited_edges, objective_delta) ) {
-                    converged = false;
+                  converged = false;
                 }
-                _lock_manager->strongReleaseLock(hn, _contraction_group_id);
+                _fm_node_tracker->releaseNode(hn, _contraction_group_id);
+              }
+              _lock_manager->strongReleaseLock(hn, _contraction_group_id);
             }
         }
 

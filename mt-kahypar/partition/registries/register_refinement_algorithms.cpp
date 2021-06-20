@@ -42,13 +42,14 @@
     return new refiner(hypergraph, context);                                                    \
   })
 
-#define REGISTER_ASYNC_LP_REFINER(id, refiner, t)                                                                      \
-  static kahypar::meta::Registrar<AsyncLPRefinerFactory> JOIN(register_ ## refiner, t)(                                \
-    id,                                                                                                                \
-    [](Hypergraph& hypergraph, const Context& context,                                \
-    ds::GroupLockManager *lockManager, ds::ThreadSafeFlagArray<HypernodeID>* node_anti_duplicator,                     \
-    ds::ThreadSafeFlagArray<HyperedgeID>* edge_anti_duplicator) -> IAsyncRefiner* {                                    \
-    return new refiner(hypergraph, context, lockManager, node_anti_duplicator, edge_anti_duplicator);   \
+#define REGISTER_ASYNC_LP_REFINER(id, refiner, t)                                                                       \
+  static kahypar::meta::Registrar<AsyncLPRefinerFactory> JOIN(register_ ## refiner, t)(                                 \
+    id,                                                                                                                 \
+    [](Hypergraph& hypergraph, const Context& context,                                                                  \
+    ds::GroupLockManager *lockManager, ds::ThreadSafeFlagArray<HypernodeID>* node_anti_duplicator,                      \
+    ds::ThreadSafeFlagArray<HyperedgeID>* edge_anti_duplicator, AsyncNodeTracker *const fm_node_tracker)                \
+    -> IAsyncRefiner* {                                                                                                 \
+    return new refiner(hypergraph, context, lockManager, node_anti_duplicator, edge_anti_duplicator, fm_node_tracker);  \
   })
 
 #define REGISTER_FM_REFINER(id, refiner, t)                                                     \
@@ -62,7 +63,7 @@
   static kahypar::meta::Registrar<AsyncFMRefinerFactory> JOIN(register_ ## refiner, t)(        \
       id,                                                                                         \
       [](Hypergraph &hypergraph, const Context &context, ds::GroupLockManager *const lock_manager,\
-         FMSharedData &shared_data) -> IAsyncRefiner* {                                           \
+         AsyncFMSharedData &shared_data) -> IAsyncRefiner* {                                           \
         return new refiner(hypergraph, context, lock_manager, shared_data);                       \
       })
 
@@ -72,10 +73,10 @@ REGISTER_LP_REFINER(LabelPropagationAlgorithm::label_propagation_km1, LabelPropa
 REGISTER_LP_REFINER(LabelPropagationAlgorithm::deterministic, DeterministicLabelPropagationRefiner, Km1);
 REGISTER_LP_REFINER(LabelPropagationAlgorithm::do_nothing, DoNothingRefiner, 1);
 
-using MultiTryKWayFMWithGainGache = MultiTryKWayFM<GainCacheStrategy>;
-using MultiTryKWayFMWithGainGacheOnDemand = MultiTryKWayFM<GainCacheOnDemandStrategy>;
-using MultiTryKWayFMWithGainDelta = MultiTryKWayFM<GainDeltaStrategy>;
-using MultiTryKWayFMWithGainRecomputation = MultiTryKWayFM<RecomputeGainStrategy>;
+using MultiTryKWayFMWithGainGache = MultiTryKWayFM<GainCacheStrategy<FMSharedData>>;
+using MultiTryKWayFMWithGainGacheOnDemand = MultiTryKWayFM<GainCacheOnDemandStrategy<FMSharedData>>;
+using MultiTryKWayFMWithGainDelta = MultiTryKWayFM<GainDeltaStrategy<FMSharedData>>;
+using MultiTryKWayFMWithGainRecomputation = MultiTryKWayFM<RecomputeGainStrategy<FMSharedData>>;
 REGISTER_FM_REFINER(FMAlgorithm::fm_gain_cache, MultiTryKWayFMWithGainGache, FMWithGainCache);
 REGISTER_FM_REFINER(FMAlgorithm::fm_gain_cache_on_demand, MultiTryKWayFMWithGainGacheOnDemand, FMWithGainCacheOnDemand);
 REGISTER_FM_REFINER(FMAlgorithm::fm_gain_delta, MultiTryKWayFMWithGainDelta, FMWithGainDelta);
@@ -86,10 +87,10 @@ REGISTER_ASYNC_LP_REFINER(LabelPropagationAlgorithm::label_propagation_cut, Asyn
 REGISTER_ASYNC_LP_REFINER(LabelPropagationAlgorithm::label_propagation_km1, AsyncLPKm1Refiner, Km1);
 REGISTER_ASYNC_LP_REFINER(LabelPropagationAlgorithm::do_nothing, DoNothingAsyncRefiner, 3);
 
-using AsyncKWayFMWithGainCache = AsyncFMRefiner<GainCacheStrategy>;
-using AsyncKWayFMWithGainGacheOnDemand = AsyncFMRefiner<GainCacheOnDemandStrategy>;
-using AsyncKWayFMWithGainDelta = AsyncFMRefiner<GainDeltaStrategy>;
-using AsyncKWayFMWithGainRecomputation = AsyncFMRefiner<RecomputeGainStrategy>;
+using AsyncKWayFMWithGainCache = AsyncFMRefiner<GainCacheStrategy<AsyncFMSharedData>>;
+using AsyncKWayFMWithGainGacheOnDemand = AsyncFMRefiner<GainCacheOnDemandStrategy<AsyncFMSharedData>>;
+using AsyncKWayFMWithGainDelta = AsyncFMRefiner<GainDeltaStrategy<AsyncFMSharedData>>;
+using AsyncKWayFMWithGainRecomputation = AsyncFMRefiner<RecomputeGainStrategy<AsyncFMSharedData>>;
 REGISTER_ASYNC_FM_REFINER(FMAlgorithm::fm_gain_cache, AsyncKWayFMWithGainCache, FMWithGainCache);
 REGISTER_ASYNC_FM_REFINER(FMAlgorithm::fm_gain_cache_on_demand, AsyncKWayFMWithGainGacheOnDemand, FMWithGainCacheOnDemand);
 REGISTER_ASYNC_FM_REFINER(FMAlgorithm::fm_gain_delta, AsyncKWayFMWithGainDelta, FMWithGainDelta);

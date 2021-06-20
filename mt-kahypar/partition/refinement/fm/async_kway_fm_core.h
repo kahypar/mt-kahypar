@@ -23,6 +23,7 @@
 
 #include <mt-kahypar/partition/context.h>
 #include <mt-kahypar/partition/metrics.h>
+#include <mt-kahypar/partition/refinement/async_refiners_common.h>
 
 #include "mt-kahypar/datastructures/delta_partitioned_hypergraph.h"
 #include "mt-kahypar/datastructures/sparse_map.h"
@@ -38,10 +39,9 @@ private:
     static constexpr bool enable_heavy_assert = true;
 
 public:
-  explicit AsyncKWayFM(const Context& context, HypernodeID numNodes, FMSharedData& sharedData,
+  explicit AsyncKWayFM(const Context& context, HypernodeID numNodes, AsyncFMSharedData& sharedData,
                        ds::GroupLockManager * const lock_manager) :
           context(context),
-          thisSearch(0),
           k(context.partition.k),
           deltaPhg(context.partition.k),
           neighborDeduplicator(numNodes, 0),
@@ -49,7 +49,8 @@ public:
           sharedData(sharedData),
           lock_manager(lock_manager),
           contraction_group_id(ds::invalidGroupID),
-          _km1_delta(0)
+          _km1_delta(0),
+          attempted_to_move(numNodes)
           {}
 
   // ! Finds a sequence of moves, applies the best prefix and returns the actual km1 improvement of that prefix.
@@ -96,9 +97,6 @@ private:
 
   const Context& context;
 
-  // ! Unique search id associated with the current local search
-  SearchID thisSearch;
-
   // ! Number of blocks
   PartitionID k;
 
@@ -120,13 +118,20 @@ private:
 
   FMStrategy fm_strategy;
 
-  FMSharedData& sharedData;
+  AsyncFMSharedData& sharedData;
 
+  // ! Used to hold a lock on all nodes that are in the move sequence that this local search is calculating.
+  // ! Prevents those nodes from being
   ds::GroupLockManager* const lock_manager;
 
+  // ! ID of the contraction group that the current local search is based on. Identifies a local search run.
   ds::ContractionGroupID contraction_group_id;
 
+  // ! Used to keep track of the total gain of all moves in this local search run
   Gain _km1_delta;
+
+  // ! Nodes which have been attempted to move in this local search run
+  kahypar::ds::FastResetFlagArray<> attempted_to_move;
 
 };
 

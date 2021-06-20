@@ -7,12 +7,19 @@
 
 
 #include <mt-kahypar/datastructures/hypergraph_common.h>
+#include <mt-kahypar/utils/memory_tree.h>
 #include "mt-kahypar/parallel/atomic_wrapper.h"
 #include "mt-kahypar/utils/range.h"
 #include "kahypar/meta/mandatory.h"
 #include "async_common.h"
+//#include "mt-kahypar/partition/refinement/async_refiners_common.h"
 
-namespace mt_kahypar::ds {
+namespace mt_kahypar {
+
+    //Forward declaration
+    class AsyncNodeTracker;
+
+namespace ds {
 
     /// Class template for a LockManager based on an array of atomic wrappers for the given OwnerID type using the
     /// given LockedID type as indices.
@@ -155,7 +162,25 @@ namespace mt_kahypar::ds {
             ASSERT(released && "Strong release of multiple locks failed.");
         }
 
+        void memoryConsumption(utils::MemoryTreeNode* parent) const {
+          ASSERT(parent);
+
+          utils::MemoryTreeNode* lock_manager_node = parent->addChild("Array Lock Manager");
+          lock_manager_node->updateSize(_size * sizeof(OwnerID));
+        }
+
+        // ! Only for testing
+        bool checkNoneLocked() {
+            CAtomic<uint8_t> none_locked(uint8_t(true));
+            tbb::parallel_for(LockedID(0), _size, [&](const LockedID& id){
+                if (isLocked(id)) none_locked.fetch_and(uint8_t(false));
+            });
+            return bool(none_locked.load(std::memory_order_relaxed));
+        }
+
     private:
+
+        friend class mt_kahypar::AsyncNodeTracker;
 
         void init() {
             const OwnerID initializer = _invalid_owner_id;
@@ -178,7 +203,8 @@ namespace mt_kahypar::ds {
     using GroupLockManager = ArrayLockManager<HypernodeID, ContractionGroupID>;
     using GroupEdgeLockManager = ArrayLockManager<HyperedgeID, ContractionGroupID>;
 
-} // namespace mt_kahypar::ds
+}
+}// namespace mt_kahypar::ds
 
 
 

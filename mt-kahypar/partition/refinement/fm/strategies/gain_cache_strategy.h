@@ -39,6 +39,7 @@ namespace mt_kahypar {
    *
    */
 
+template<typename SharedData>
 class GainCacheStrategy {
 public:
 
@@ -50,7 +51,7 @@ public:
 
   GainCacheStrategy(const Context& context,
                     HypernodeID numNodes,
-                    FMSharedData& sharedData,
+                    SharedData& sharedData,
                     FMStats& runStats) :
       context(context),
       runStats(runStats),
@@ -62,9 +63,10 @@ public:
 
   template<typename PHG>
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
-  void insertIntoPQ(const PHG& phg, const HypernodeID v, const SearchID ) {
+  void insertIntoPQ(const PHG& phg, const HypernodeID v, const typename SharedData::ConcreteSearchID ) {
     const PartitionID pv = phg.partID(v);
     auto [target, gain] = computeBestTargetBlock(phg, v);
+    ASSERT(pv != target);
     sharedData.targetPart[v] = target;
     vertexPQs[pv].insert(v, gain);  // blockPQ updates are done later, collectively.
     runStats.pushes++;
@@ -108,9 +110,11 @@ public:
     while (true) {
       const PartitionID from = blockPQ.top();
       const HypernodeID u = vertexPQs[from].top();
+      ASSERT(phg.partID(u) == from, V(phg.partID(u)) << ", " << V(from));
       const Gain estimated_gain = vertexPQs[from].topKey();
       ASSERT(estimated_gain == blockPQ.topKey());
       auto [to, gain] = computeBestTargetBlock(phg, u);
+      ASSERT(from != to);
 
       if (gain >= estimated_gain) { // accept any gain that is at least as good
         m.node = u; m.to = to; m.from = from;
@@ -196,6 +200,7 @@ private:
     HypernodeWeight best_to_weight = from_weight - wu;
     for (PartitionID i = 0; i < phg.k(); ++i) {
       if (i != from) {
+        ASSERT(from == phg.partID(u));
         const HypernodeWeight to_weight = phg.partWeight(i);
         const HyperedgeWeight penalty = phg.moveToPenalty(u, i);
         if ( ( penalty < to_penalty || ( penalty == to_penalty && to_weight < best_to_weight ) ) &&
@@ -208,6 +213,7 @@ private:
     }
     const Gain gain = to != kInvalidPartition ? phg.moveFromBenefit(u) - to_penalty
                                               : std::numeric_limits<HyperedgeWeight>::min();
+    ASSERT(from != to);
     return std::make_pair(to, gain);
   }
 
@@ -243,7 +249,7 @@ private:
   FMStats& runStats;
 
 protected:
-  FMSharedData& sharedData;
+  SharedData& sharedData;
 
 private:
 

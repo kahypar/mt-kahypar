@@ -66,37 +66,37 @@ class IRefiner {
                           const double time_limit) = 0;
 };
 
-class IAsyncRefiner {
+    class IAsyncRefiner {
 
-public:
-    IAsyncRefiner(const IAsyncRefiner&) = delete;
-    IAsyncRefiner(IAsyncRefiner&&) = delete;
-    IAsyncRefiner & operator= (const IAsyncRefiner &) = delete;
-    IAsyncRefiner & operator= (IAsyncRefiner &&) = delete;
+    public:
+        IAsyncRefiner(const IAsyncRefiner&) = delete;
+        IAsyncRefiner(IAsyncRefiner&&) = delete;
+        IAsyncRefiner & operator= (const IAsyncRefiner &) = delete;
+        IAsyncRefiner & operator= (IAsyncRefiner &&) = delete;
 
-    bool refine(PartitionedHypergraph& hypergraph,
-                const parallel::scalable_vector<HypernodeID>& refinement_nodes,
-                metrics::ThreadSafeMetrics& best_metrics,
-                const double time_limit,
-                ds::ContractionGroupID groupID) {
-        resetForGroup(groupID);
-        return refineImpl(hypergraph, refinement_nodes, best_metrics, time_limit);
-    }
+        bool refine(PartitionedHypergraph& hypergraph,
+                    const parallel::scalable_vector<HypernodeID>& refinement_nodes,
+                    metrics::ThreadSafeMetrics& best_metrics,
+                    const double time_limit,
+                    ds::ContractionGroupID groupID) {
+          resetForGroup(groupID);
+          return refineImpl(hypergraph, refinement_nodes, best_metrics, time_limit);
+        }
 
-    virtual ~IAsyncRefiner() = default;
+        virtual ~IAsyncRefiner() = default;
 
-protected:
+    protected:
 
-    IAsyncRefiner() = default;
-private:
+        IAsyncRefiner() = default;
+    private:
 
-    virtual bool refineImpl(PartitionedHypergraph& hypergraph,
-                            const parallel::scalable_vector<HypernodeID>& refinement_nodes,
-                            metrics::ThreadSafeMetrics& best_metrics,
-                            const double time_limit) = 0;
+        virtual bool refineImpl(PartitionedHypergraph& hypergraph,
+                                const parallel::scalable_vector<HypernodeID>& refinement_nodes,
+                                metrics::ThreadSafeMetrics& best_metrics,
+                                const double time_limit) = 0;
 
-    virtual void resetForGroup(ds::ContractionGroupID groupID) = 0;
+        virtual void resetForGroup(ds::ContractionGroupID groupID) = 0;
 
-};
+    };
 
 }  // namespace mt_kahypar

@@ -25,16 +25,22 @@
 
 namespace mt_kahypar {
 
-  class GainCacheOnDemandStrategy : public GainCacheStrategy {
+
+  template<typename SharedData>
+  class GainCacheOnDemandStrategy : public GainCacheStrategy<SharedData> {
+
+      using Base = GainCacheStrategy<SharedData>;
+      using Base::sharedData;
+
   public:
 
     static constexpr bool maintain_gain_cache_between_rounds = false;
 
     GainCacheOnDemandStrategy(const Context& context,
                               HypernodeID numNodes,
-                              FMSharedData& sharedData,
+                              SharedData& sharedData,
                               FMStats& runStats) :
-            GainCacheStrategy(context, numNodes, sharedData, runStats),
+            Base(context, numNodes, sharedData, runStats),
             gainCacheInitMemBenefits(context.partition.k, 0),
             gainCacheInitMemPenalties(context.partition.k, 0)
     { }
@@ -42,16 +48,16 @@ namespace mt_kahypar {
     // conflicting signatures. derived does not have const qualifier for PHG. base has const. compiler doesn't complain, so probably fine.
     template<typename PHG>
     MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
-    void insertIntoPQ(PHG& phg, const HypernodeID v, const SearchID previous_search_of_v) {
-      if (sharedData.nodeTracker.releasedMarker != previous_search_of_v) {
+    void insertIntoPQ(PHG& phg, const HypernodeID v, const typename SharedData::ConcreteSearchID previous_search_of_v) {
+      if (sharedData.nodeTracker.claimedFirstTime(v, previous_search_of_v)) {
         // node is claimed for the first time in this fm round --> initialize gain cache entry
         phg.initializeGainCacheEntry(v, gainCacheInitMemBenefits, gainCacheInitMemPenalties);
       }
-      GainCacheStrategy::insertIntoPQ(phg, v, previous_search_of_v);
+      Base::insertIntoPQ(phg, v, previous_search_of_v);
     }
 
     void memoryConsumption(utils::MemoryTreeNode *parent) const {
-      GainCacheStrategy::memoryConsumption(parent);
+      Base::memoryConsumption(parent);
       parent->addChild("Initial Gain Comp", gainCacheInitMemPenalties.size() * sizeof(Gain));
     }
 

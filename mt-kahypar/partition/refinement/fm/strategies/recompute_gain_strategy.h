@@ -26,6 +26,7 @@
 
 namespace mt_kahypar {
 
+  template<typename SharedData>
   class RecomputeGainStrategy {
   public:
 
@@ -36,7 +37,7 @@ namespace mt_kahypar {
 
     RecomputeGainStrategy(const Context& context,
                       HypernodeID numNodes,
-                      FMSharedData& sharedData,
+                          SharedData& sharedData,
                       FMStats& runStats) :
             context(context),
             runStats(runStats),
@@ -47,7 +48,7 @@ namespace mt_kahypar {
 
     template<typename PHG>
     MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
-    void insertIntoPQ(const PHG& phg, const HypernodeID v, const SearchID ) {
+    void insertIntoPQ(const PHG& phg, const HypernodeID v, const typename SharedData::ConcreteSearchID ) {
       auto [target, gain] = gc.computeBestTargetBlock(phg, v, context.partition.max_part_weights);
       sharedData.targetPart[v] = target;
       pq.insert(v, gain);
@@ -112,12 +113,11 @@ namespace mt_kahypar {
 
     FMStats& runStats;
 
-    FMSharedData& sharedData;
+    SharedData& sharedData;
 
     VertexPriorityQueue pq;
 
     Km1GainComputer gc;
   };
-
 
 }

@@ -333,8 +333,8 @@ namespace mt_kahypar {
 #include <mt-kahypar/partition/refinement/fm/strategies/gain_cache_on_demand_strategy.h>
 
 namespace mt_kahypar {
-  template class LocalizedKWayFM<GainCacheStrategy>;
-  template class LocalizedKWayFM<GainDeltaStrategy>;
-  template class LocalizedKWayFM<RecomputeGainStrategy>;
-  template class LocalizedKWayFM<GainCacheOnDemandStrategy>;
+  template class LocalizedKWayFM<GainCacheStrategy<FMSharedData>>;
+  template class LocalizedKWayFM<GainDeltaStrategy<FMSharedData>>;
+  template class LocalizedKWayFM<RecomputeGainStrategy<FMSharedData>>;
+  template class LocalizedKWayFM<GainCacheOnDemandStrategy<FMSharedData>>;
 }

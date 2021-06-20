@@ -5,6 +5,7 @@
 #pragma once
 
 #include <mt-kahypar/partition/refinement/i_refiner.h>
+#include <mt-kahypar/partition/refinement/async_refiners_common.h>
 #include "async_kway_fm_core.h"
 
 namespace mt_kahypar {
@@ -20,7 +21,7 @@ private:
 public:
 
     AsyncFMRefiner(Hypergraph &hypergraph, const Context &context, ds::GroupLockManager *const lock_manager,
-                   FMSharedData &shared_data) :
+                   AsyncFMSharedData &shared_data) :
       _context(context),
       _fm(std::make_unique<AsyncKWayFM<FMStrategy>>(
           context, hypergraph.initialNumNodes(), shared_data, lock_manager)) {}

@@ -28,12 +28,13 @@ namespace mt_kahypar {
 
     _km1_delta = 0;
     localMoves.clear();
-    thisSearch = ++sharedData.nodeTracker.highestActiveSearchID;
+    attempted_to_move.reset();
 
     for (const auto& seedNode : refinement_nodes ) {
-      SearchID previousSearchOfSeedNode = sharedData.nodeTracker.searchOfNode[seedNode].load(std::memory_order_relaxed);
-      if (sharedData.nodeTracker.tryAcquireNode(seedNode, thisSearch)) {
-        fm_strategy.insertIntoPQ(phg, seedNode, previousSearchOfSeedNode);
+      if (sharedData.nodeTracker.tryAcquireNode(seedNode, contraction_group_id)) {
+        // Third parameter is only needed by gain cache on demand strategy which currently does not work with async so
+        // just give any value
+        fm_strategy.insertIntoPQ(phg, seedNode, ds::invalidGroupID);
       }
     }
 
@@ -52,10 +53,12 @@ namespace mt_kahypar {
           sharedData.deltaExceededMemoryConstraints = true;
         }
       }
-      return _km1_delta;
-    } else {
-      return _km1_delta;
     }
+
+
+
+    contraction_group_id = ds::invalidGroupID;
+    return _km1_delta;
   }
 
   template<typename Partition>
@@ -85,11 +88,11 @@ namespace mt_kahypar {
         auto pin_range = phg.pins(e);
         for (auto it = pin_range.begin(); it != pin_range.end(); ++it) {
           const HypernodeID v = *it;
-          if (neighborDeduplicator[v] != deduplicationTime) {
-            SearchID searchOfV = sharedData.nodeTracker.searchOfNode[v].load(std::memory_order_acq_rel);
-            if (searchOfV == thisSearch) {
+          if (!attempted_to_move[v] && neighborDeduplicator[v] != deduplicationTime) {
+            SearchID searchOfV = sharedData.nodeTracker.owner(v);
+            if (searchOfV == contraction_group_id) {
               fm_strategy.updateGain(phg, v, move);
-            } else if (sharedData.nodeTracker.tryAcquireNode(v, thisSearch)) {
+            } else if (sharedData.nodeTracker.tryAcquireNode(v, contraction_group_id)) {
               fm_strategy.insertIntoPQ(phg, v, searchOfV);
             }
             neighborDeduplicator[v] = deduplicationTime;
@@ -151,8 +154,10 @@ namespace mt_kahypar {
 
       auto reinsert_nodes = [&](const std::vector<HypernodeID>& nodes) {
           for (const auto& node : nodes) {
-            SearchID previousSearchOfNode = sharedData.nodeTracker.searchOfNode[node].load(std::memory_order_relaxed);
-            fm_strategy.insertIntoPQ(phg, node, previousSearchOfNode);
+            ASSERT(sharedData.nodeTracker.owner(node) == contraction_group_id);
+            // Third parameter is only needed by gain cache on demand strategy which currently does not work with async so
+            // just give any value
+            fm_strategy.insertIntoPQ(phg, node, ds::invalidGroupID);
           }
       };
 
@@ -199,7 +204,9 @@ namespace mt_kahypar {
       ASSERT(move.isValid());
       ASSERT(lock_manager->isHeldBy(move.node, contraction_group_id));
 
-      sharedData.nodeTracker.deactivateNode(move.node, thisSearch);
+      // Mark this node to prevent attempting to move it again
+      attempted_to_move.set(move.node, true);
+
       bool moved = false;
       if (move.to != kInvalidPartition) {
         if constexpr (use_delta) {
@@ -249,6 +256,7 @@ namespace mt_kahypar {
         }
       } else {
         // Release lock on move node if the move does not go through
+        sharedData.nodeTracker.releaseNode(move.node, contraction_group_id);
         lock_manager->strongReleaseLock(move.node, contraction_group_id);
       }
     }
@@ -266,10 +274,10 @@ namespace mt_kahypar {
       revertToBestLocalPrefix(phg, bestImprovementIndex);
     }
 
-    releaseLocksForLocalMovedNodes();
 
     runStats.estimated_improvement = bestImprovement;
     fm_strategy.clearPQs(bestImprovementIndex);
+    releaseLocksForLocalMovedNodes();
     runStats.merge(stats);
   }
 
@@ -411,6 +419,7 @@ namespace mt_kahypar {
   template<typename FMStrategy>
   void AsyncKWayFM<FMStrategy>::releaseLocksForLocalMovedNodes() {
     for (const auto& local_move : localMoves) {
+      sharedData.nodeTracker.releaseNode(local_move.node, contraction_group_id);
       lock_manager->strongReleaseLock(local_move.node, contraction_group_id);
     }
   }
@@ -425,8 +434,8 @@ namespace mt_kahypar {
 #include <mt-kahypar/partition/refinement/fm/strategies/gain_cache_on_demand_strategy.h>
 
 namespace mt_kahypar {
-  template class AsyncKWayFM<GainCacheStrategy>;
-  template class AsyncKWayFM<GainDeltaStrategy>;
-  template class AsyncKWayFM<RecomputeGainStrategy>;
-  template class AsyncKWayFM<GainCacheOnDemandStrategy>;
+  template class AsyncKWayFM<GainCacheStrategy<AsyncFMSharedData>>;
+  template class AsyncKWayFM<GainDeltaStrategy<AsyncFMSharedData>>;
+  template class AsyncKWayFM<RecomputeGainStrategy<AsyncFMSharedData>>;
+  template class AsyncKWayFM<GainCacheOnDemandStrategy<AsyncFMSharedData>>;
 }

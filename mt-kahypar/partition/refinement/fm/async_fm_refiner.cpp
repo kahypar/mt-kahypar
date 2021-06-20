@@ -50,8 +50,8 @@ namespace mt_kahypar {
 #include "mt-kahypar/partition/refinement/fm/strategies/gain_cache_on_demand_strategy.h"
 
 namespace mt_kahypar {
-    template class AsyncFMRefiner<GainCacheStrategy>;
-    template class AsyncFMRefiner<GainDeltaStrategy>;
-    template class AsyncFMRefiner<RecomputeGainStrategy>;
-    template class AsyncFMRefiner<GainCacheOnDemandStrategy>;
+    template class AsyncFMRefiner<GainCacheStrategy<AsyncFMSharedData>>;
+    template class AsyncFMRefiner<GainDeltaStrategy<AsyncFMSharedData>>;
+    template class AsyncFMRefiner<RecomputeGainStrategy<AsyncFMSharedData>>;
+    template class AsyncFMRefiner<GainCacheOnDemandStrategy<AsyncFMSharedData>>;
 }
