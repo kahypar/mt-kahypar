@@ -82,7 +82,7 @@ private:
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
   void calculateAndSaveBestMove(PartitionedHypergraph& phg, HypernodeID u) {
     assert(u < phg.initialNumNodes());
-    if (!phg.isBorderNode(u)) return;
+    if (!phg.nodeIsEnabled(u) || !phg.isBorderNode(u)) return;
     //auto [to, gain] = compute_gains.local().computeBestTargetBlock(phg, u, context.partition.max_part_weights);
     auto [to, gain] = compute_gains.local().computeBestTargetBlockIgnoringBalance(phg, u);
     if (gain > 0 && to != kInvalidPartition) {    // depending on apply moves function we might do gain >= 0
@@ -92,7 +92,7 @@ private:
 
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
   void calculateAndSaveBestMoveTwoWay(PartitionedHypergraph& phg, HypernodeID u) {
-    if (!phg.isBorderNode(u)) return;
+    if (!phg.nodeIsEnabled(u) || !phg.isBorderNode(u)) return;
     const Gain gain = TwoWayGainComputer::gainToOtherBlock(phg, u);
     if (gain > 0) {
       moves.push_back_buffered({ phg.partID(u), 1 - phg.partID(u), u, gain });
@@ -130,4 +130,3 @@ private:
 };
 
 }
-
