@@ -27,6 +27,7 @@
 #include "mt-kahypar/utils/memory_tree.h"
 
 #include <tbb/parallel_reduce.h>
+#include <tbb/parallel_sort.h>
 
 namespace mt_kahypar::ds {
 
@@ -287,6 +288,10 @@ namespace mt_kahypar::ds {
           // Update number of incident nets of high degree vertex
           const size_t contracted_size = incident_nets_pos.load() - incident_nets_start;
           tmp_hypernodes[coarse_hn].setSize(contracted_size);
+
+          // sort for determinism
+          tbb::parallel_sort(tmp_incident_nets.begin() + incident_nets_start,
+                             tmp_incident_nets.begin() + incident_nets_start + contracted_size);
         }
         duplicate_incident_nets_map.free();
       }
@@ -488,10 +493,6 @@ namespace mt_kahypar::ds {
                     tmp_incident_nets.data() + tmp_incident_nets_start,
                     sizeof(HyperedgeID) * hn.size());
         hn.setFirstEntry(incident_nets_start);
-
-        // still need to sort here because high degree vertex handling does not insert in deterministic order
-        std::sort(hypergraph._incident_nets.begin() + hn.firstEntry(),
-                  hypergraph._incident_nets.begin() + hn.firstInvalidEntry());
       });
       utils::Timer::instance().stop_timer("setup_incident_nets");
       utils::Timer::instance().stop_timer("setup_hypernodes");
