@@ -5,6 +5,7 @@
 #pragma once
 
 #include <mt-kahypar/datastructures/priority_queue.h>
+#include <mt-kahypar/datastructures/async/array_lock_manager.h>
 
 namespace mt_kahypar {
 
