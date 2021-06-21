@@ -33,7 +33,7 @@ namespace mt_kahypar {
 
 class FlowRefiner final : public IAdvancedRefiner {
 
-  static constexpr bool debug = true;
+  static constexpr bool debug = false;
 
   struct FlowProblem {
     whfc::Node source;
