@@ -96,6 +96,7 @@ bool AdvancedRefinementScheduler::refineImpl(
   DBG << "Total Improvement =" << _stats.total_improvement;
   DBG << "---------------------------------------------------------------";
 
+
   // Update metrics statistics
   HyperedgeWeight current_metric = best_metrics.getMetric(
     kahypar::Mode::direct_kway, _context.partition.objective);

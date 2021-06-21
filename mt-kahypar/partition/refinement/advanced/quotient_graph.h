@@ -84,6 +84,7 @@ class QuotientGraph {
       skip_small_cuts(false),
       blocks(),
       ownership(INVALID_SEARCH_ID),
+      in_queue(false),
       first_valid_entry(0),
       cut_hes(),
       stats() { }
@@ -116,9 +117,22 @@ class QuotientGraph {
       ownership.store(INVALID_SEARCH_ID);
     }
 
+    bool markAsInQueue() {
+      bool expected = false;
+      bool desired = true;
+      return in_queue.compare_exchange_strong(expected, desired);
+    }
+
+    bool markAsNotInQueue() {
+      bool expected = true;
+      bool desired = false;
+      return in_queue.compare_exchange_strong(expected, desired);
+    }
+
     bool skip_small_cuts;
     BlockPair blocks;
     CAtomic<SearchID> ownership;
+    CAtomic<bool> in_queue;
     size_t first_valid_entry;
     tbb::concurrent_vector<HyperedgeID> cut_hes;
     BlockPairStats stats;
@@ -264,6 +278,8 @@ public:
   void resetQuotientGraphEdges(const PartitionedHypergraph& phg);
 
   bool popBlockPairFromQueue(BlockPair& blocks);
+
+  bool pushBlockPairIntoQueue(const BlockPair& blocks);
 
   /**
    * Tries to find a path that includes num_additional_blocks + 2
