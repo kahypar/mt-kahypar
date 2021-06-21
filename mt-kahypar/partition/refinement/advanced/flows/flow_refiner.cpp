@@ -53,10 +53,12 @@ MoveSequence FlowRefiner::refineImpl(const PartitionedHypergraph& phg,
       if ( improved_solution ) {
         sequence.expected_improvement = flow_problem.total_cut - new_cut;
         for ( const HypernodeID& hn : refinement_nodes ) {
-          const PartitionID from = phg.partID(hn);
-          const PartitionID to = _hfc.cs.n.isSource(_node_to_whfc[hn]) ? _block_0 : _block_1;
-          if ( from != to ) {
-            sequence.moves.push_back(Move { from, to, hn, kInvalidGain });
+          if ( _node_to_whfc.contains(hn) ) {
+            const PartitionID from = phg.partID(hn);
+            const PartitionID to = _hfc.cs.n.isSource(_node_to_whfc[hn]) ? _block_0 : _block_1;
+            if ( from != to ) {
+              sequence.moves.push_back(Move { from, to, hn, kInvalidGain });
+            }
           }
         }
       }
@@ -82,7 +84,6 @@ FlowRefiner::FlowProblem FlowRefiner::constructFlowHypergraph(const PartitionedH
   HypernodeWeight weight_block_1 = 0;
   auto add_nodes = [&](const PartitionID block, HypernodeWeight& weight_of_block) {
     for ( const HypernodeID& u : refinement_nodes) {
-      ASSERT(phg.partID(u) == _block_0 || phg.partID(u) == _block_1);
       if ( phg.partID(u) == block ) {
         const HypernodeWeight u_weight = phg.nodeWeight(u);
         _node_to_whfc[u] = flow_hn++;
@@ -198,11 +199,11 @@ void FlowRefiner::determineDistanceFromCut(const PartitionedHypergraph& phg,
     const HypernodeID u = q.front();
     q.pop();
 
-    if ( phg.partID(u) == _block_0 ) {
+    const PartitionID block_of_u = phg.partID(u);
+    if ( block_of_u == _block_0 ) {
       _hfc.cs.borderNodes.distance[_node_to_whfc[u]] = -dist;
       max_dist_source = std::max(max_dist_source, dist);
-    } else {
-      ASSERT(phg.partID(u) == _block_1);
+    } else if ( block_of_u == _block_1 ) {
       _hfc.cs.borderNodes.distance[_node_to_whfc[u]] = dist;
       max_dist_sink = std::max(max_dist_sink, dist);
     }

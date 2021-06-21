@@ -168,20 +168,23 @@ bool changeNodePart(PartitionedHypergraph& phg,
 
 template<typename F>
 void applyMoveSequence(PartitionedHypergraph& phg,
-                       const MoveSequence& sequence,
+                       MoveSequence& sequence,
                        const F& objective_delta,
                        const bool is_nlevel,
                        vec<uint8_t>& was_moved,
                        vec<NewCutHyperedge>& new_cut_hes) {
-  for ( const Move& move : sequence.moves ) {
-    changeNodePart(phg, move.node, move.from, move.to, objective_delta, is_nlevel);
-    was_moved[move.node] = uint8_t(true);
-    // If move increases the pin count of some hyperedges in block 'move.to' to one 1
-    // we set the corresponding block here.
-    int i = new_cut_hes.size() - 1;
-    while ( i >= 0 && new_cut_hes[i].block == kInvalidPartition ) {
-      new_cut_hes[i].block = move.to;
-      --i;
+  for ( Move& move : sequence.moves ) {
+    move.from = phg.partID(move.node);
+    if ( move.from != move.to ) {
+      changeNodePart(phg, move.node, move.from, move.to, objective_delta, is_nlevel);
+      was_moved[move.node] = uint8_t(true);
+      // If move increases the pin count of some hyperedges in block 'move.to' to one 1
+      // we set the corresponding block here.
+      int i = new_cut_hes.size() - 1;
+      while ( i >= 0 && new_cut_hes[i].block == kInvalidPartition ) {
+        new_cut_hes[i].block = move.to;
+        --i;
+      }
     }
   }
 }
@@ -192,8 +195,10 @@ void revertMoveSequence(PartitionedHypergraph& phg,
                         const F& objective_delta,
                         const bool is_nlevel) {
   for ( const Move& move : sequence.moves ) {
-    ASSERT(phg.partID(move.node) == move.to);
-    changeNodePart(phg, move.node, move.to, move.from, objective_delta, is_nlevel);
+    if ( move.from != move.to ) {
+      ASSERT(phg.partID(move.node) == move.to);
+      changeNodePart(phg, move.node, move.to, move.from, objective_delta, is_nlevel);
+    }
   }
 }
 
@@ -209,6 +214,12 @@ void addCutHyperedgesToQuotientGraph(QuotientGraph& quotient_graph,
 
 HyperedgeWeight AdvancedRefinementScheduler::applyMoves(MoveSequence& sequence) {
   ASSERT(_phg);
+
+  // TODO: currently we lock the applyMoves method, if overlapping search is enabled.
+  // => find something smarter here
+  if ( _context.refinement.advanced.use_overlapping_searches ) {
+    _apply_moves_lock.lock();
+  }
 
   // Compute Part Weight Deltas
   vec<HypernodeWeight> part_weight_deltas(_context.partition.k, 0);
@@ -280,6 +291,10 @@ HyperedgeWeight AdvancedRefinementScheduler::applyMoves(MoveSequence& sequence) 
     sequence.state = MoveSequenceState::VIOLATES_BALANCE_CONSTRAINT;
     DBG << RED << "Move sequence violated balance constraint ( Expected Improvement ="
         << sequence.expected_improvement << ")" << END;
+  }
+
+  if ( _context.refinement.advanced.use_overlapping_searches ) {
+    _apply_moves_lock.unlock();
   }
 
   if ( sequence.state == MoveSequenceState::SUCCESS && improvement > 0 ) {

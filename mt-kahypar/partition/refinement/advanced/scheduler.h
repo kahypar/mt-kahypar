@@ -79,7 +79,8 @@ public:
     _part_weights_lock(),
     _part_weights(context.partition.k, 0),
     _max_part_weights(context.partition.k, 0),
-    _stats() { }
+    _stats(),
+    _apply_moves_lock() { }
 
   AdvancedRefinementScheduler(const AdvancedRefinementScheduler&) = delete;
   AdvancedRefinementScheduler(AdvancedRefinementScheduler&&) = delete;
@@ -144,6 +145,8 @@ private:
 
   // ! Contains refinement statistics
   RefinementStats _stats;
+
+  SpinLock _apply_moves_lock;
 };
 
 }  // namespace kahypar

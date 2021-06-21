@@ -173,6 +173,7 @@ struct AdvancedRefinementParameters {
   size_t max_bfs_distance = 0;
   bool skip_small_cuts = false;
   bool skip_unpromising_blocks = false;
+  bool use_overlapping_searches = false;
   bool sort_cut_hes = false;
 };
 

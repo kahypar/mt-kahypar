@@ -121,8 +121,9 @@ class ProblemStats {
     }
   }
 
-  void addNode(const HypernodeID hn, const PartitionedHypergraph& phg) {
-    const PartitionID block = phg.partID(hn);
+  void addNode(const HypernodeID hn,
+               const PartitionID block,
+               const PartitionedHypergraph& phg) {
     ASSERT(!_locked_blocks[block]);
     // Increment stats
     size_t idx = _block_to_idx[block];
