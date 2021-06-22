@@ -175,13 +175,13 @@ bool changeNodePart(PartitionedHypergraph& phg,
 
 template<typename F>
 void applyMoveSequence(PartitionedHypergraph& phg,
-                       MoveSequence& sequence,
+                       const MoveSequence& sequence,
                        const F& objective_delta,
                        const bool is_nlevel,
                        vec<uint8_t>& was_moved,
                        vec<NewCutHyperedge>& new_cut_hes) {
-  for ( Move& move : sequence.moves ) {
-    move.from = phg.partID(move.node);
+  for ( const Move& move : sequence.moves ) {
+    ASSERT(move.from == phg.partID(move.node));
     if ( move.from != move.to ) {
       changeNodePart(phg, move.node, move.from, move.to, objective_delta, is_nlevel);
       was_moved[move.node] = uint8_t(true);
@@ -231,14 +231,13 @@ HyperedgeWeight AdvancedRefinementScheduler::applyMoves(const SearchID search_id
 
   // Compute Part Weight Deltas
   vec<HypernodeWeight> part_weight_deltas(_context.partition.k, 0);
-  for ( const Move& move : sequence.moves ) {
-    ASSERT(move.from != kInvalidPartition && move.from < _context.partition.k);
-    ASSERT(move.to != kInvalidPartition && move.to < _context.partition.k);
-    ASSERT(move.from != move.to);
-    ASSERT(_phg->partID(move.node) == move.from);
-    const HypernodeWeight node_weight = _phg->nodeWeight(move.node);
-    part_weight_deltas[move.from] -= node_weight;
-    part_weight_deltas[move.to] += node_weight;
+  for ( Move& move : sequence.moves ) {
+    move.from = _phg->partID(move.node);
+    if ( move.from != move.to ) {
+      const HypernodeWeight node_weight = _phg->nodeWeight(move.node);
+      part_weight_deltas[move.from] -= node_weight;
+      part_weight_deltas[move.to] += node_weight;
+    }
   }
 
   HyperedgeWeight improvement = 0;
