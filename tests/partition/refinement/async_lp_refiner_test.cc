@@ -105,14 +105,17 @@ class AAsynchLPRefiner : public Test {
 
     node_anti_duplicator = std::make_unique<ds::ThreadSafeFlagArray<HypernodeID>>(hypergraph.initialNumNodes());
     edge_anti_duplicator = std::make_unique<ds::ThreadSafeFlagArray<HyperedgeID>>(hypergraph.initialNumEdges());
+    fm_node_tracker_dummy = std::make_unique<AsyncNodeTracker>();
+    fm_node_tracker_dummy->resize(hypergraph.initialNumNodes());
 
     refiner = AsyncLPRefinerFactory::getInstance().createObject(
             context.refinement.label_propagation.algorithm,
             partitioned_hypergraph.hypergraph(),
             context,
             lock_manager.get(),
-            *node_anti_duplicator,
-            *edge_anti_duplicator
+            node_anti_duplicator.get(),
+            edge_anti_duplicator.get(),
+            fm_node_tracker_dummy.get()
             );
   }
 
@@ -161,6 +164,7 @@ class AAsynchLPRefiner : public Test {
   ds::ContractionGroupID contraction_group_id;
   std::unique_ptr<ds::ThreadSafeFlagArray<HypernodeID>> node_anti_duplicator;
   std::unique_ptr<ds::ThreadSafeFlagArray<HyperedgeID>> edge_anti_duplicator;
+  std::unique_ptr<AsyncNodeTracker> fm_node_tracker_dummy;
 };
 
 template <typename Config>

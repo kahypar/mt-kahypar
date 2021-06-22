@@ -110,7 +110,7 @@ namespace mt_kahypar {
             utils::Timer::instance().stop_timer(timer_key("create_uncontraction_pools"));
 
             utils::Timer::instance().start_timer(timer_key("create_lock_manager"), "Create Lock Manager");
-            auto lockManager = new ArrayLockManager<HypernodeID,ContractionGroupID>(hypergraph.initialNumNodes(),invalidGroupID);
+            auto lockManager = new GroupLockManager (hypergraph.initialNumNodes(),invalidGroupID);
             utils::Timer::instance().stop_timer(timer_key("create_lock_manager"));
 
             utils::Timer::instance().start_timer(timer_key("async_uncontractions"), "Asynchronous Uncontractions");

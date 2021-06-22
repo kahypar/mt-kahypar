@@ -118,9 +118,9 @@ namespace mt_kahypar {
     }
 
     // ! perform delta gain updates for vertices that are in our search. uses the PQs as gain store
-    template<typename PHG>
+    template<typename PHG, typename PinIteratorT>
     MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
-    void deltaGainUpdates(PHG& phg, const HyperedgeID he, const HyperedgeWeight edge_weight,
+    void deltaGainUpdates(PHG& phg, const HyperedgeWeight edge_weight, IteratorRange<PinIteratorT> pins,
                           const PartitionID from, const HypernodeID pin_count_in_from_part_after,
                           const PartitionID to, const HypernodeID pin_count_in_to_part_after) {
 
@@ -143,7 +143,7 @@ namespace mt_kahypar {
       // gain = moveFromBenefit - moveToPenalty
 
       if (pin_count_in_from_part_after == 1) {
-        for (HypernodeID u : phg.pins(he)) {
+        for (HypernodeID u : pins) {
           if (phg.partID(u) == from && in_search(u)) {
             // move from benefit increased --> gain increased
             for (PartitionID i = 0; i < k; ++i) {
@@ -154,7 +154,7 @@ namespace mt_kahypar {
           }
         }
       } else if (pin_count_in_from_part_after == 0) {
-        for (HypernodeID u : phg.pins(he)) {
+        for (HypernodeID u : pins) {
           // moveToPenalty increased --> gain decreased
           if (in_search(u)) {
             decrease(u, from);
@@ -163,14 +163,14 @@ namespace mt_kahypar {
       }
 
       if (pin_count_in_to_part_after == 1) {
-        for (HypernodeID u : phg.pins(he)) {
+        for (HypernodeID u : pins) {
           // moveToPenalty decreased --> gain increased
           if (in_search(u))  {
             increase(u, to);
           }
         }
       } else if (pin_count_in_to_part_after == 2) {
-        for (HypernodeID u : phg.pins(he)) {
+        for (HypernodeID u : pins) {
           if (phg.partID(u) == to && in_search(u)) {
             // move from benefit decreased --> gain decreased
             for (PartitionID i = 0; i < k; ++i) {

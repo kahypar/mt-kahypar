@@ -121,6 +121,11 @@ class DeltaPartitionedHypergraph {
     return _phg->nodeDegree(u);
   }
 
+  bool nodeIsEnabled(const HypernodeID u) const {
+    ASSERT(_phg);
+    return _phg->nodeIsEnabled(u);
+  }
+
   // ####################### Hyperedge Information #######################
 
   // ! Number of pins of a hyperedge
@@ -178,34 +183,35 @@ class DeltaPartitionedHypergraph {
                                          const HypernodeWeight max_weight_to) {
     auto delta_gain_func = [&]( HyperedgeID he, HyperedgeWeight edge_weight,
                                 HypernodeID ,HypernodeID pcip_from, HypernodeID pcip_to ) {
-      gainCacheUpdate(he, edge_weight, from, pcip_from, to, pcip_to);
+      gainCacheUpdate(edge_weight, pins(he), from, pcip_from, to, pcip_to);
     };
     return changeNodePart(u, from, to, max_weight_to, delta_gain_func);
   }
 
-  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
-  void gainCacheUpdate(const HyperedgeID he, const HyperedgeWeight we,
-                       const PartitionID from, const HypernodeID pin_count_in_from_part_after,
-                       const PartitionID to, const HypernodeID pin_count_in_to_part_after) {
+    template <typename PinIteratorT>
+    MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
+    void gainCacheUpdate(const HyperedgeWeight we, IteratorRange<PinIteratorT> pins,
+                         const PartitionID from, const HypernodeID pin_count_in_from_part_after,
+                         const PartitionID to, const HypernodeID pin_count_in_to_part_after) {
 
     if (pin_count_in_from_part_after == 1) {
-      for (HypernodeID u : pins(he)) {
+      for (HypernodeID u : pins) {
         if (partID(u) == from) {
           _move_from_benefit_delta[u] += we;
         }
       }
     } else if (pin_count_in_from_part_after == 0) {
-      for (HypernodeID u : pins(he)) {
+      for (HypernodeID u : pins) {
         _move_to_penalty_delta[penalty_index(u, from)] += we;
       }
     }
 
     if (pin_count_in_to_part_after == 1) {
-      for (HypernodeID u : pins(he)) {
+      for (HypernodeID u : pins) {
         _move_to_penalty_delta[penalty_index(u, to)] -= we;
       }
     } else if (pin_count_in_to_part_after == 2) {
-      for (HypernodeID u : pins(he)) {
+      for (HypernodeID u : pins) {
         if (partID(u) == to) {
           _move_from_benefit_delta[u] -= we;
         }

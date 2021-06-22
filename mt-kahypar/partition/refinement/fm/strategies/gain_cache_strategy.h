@@ -158,12 +158,12 @@ public:
   // We're letting the FM details implementation decide what happens here, since some may not want to do gain cache updates,
   // but rather update gains in their PQs or something
 
-  template<typename PHG>
+  template<typename PHG, typename PinIteratorT>
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
-  void deltaGainUpdates(PHG& phg, const HyperedgeID he, const HyperedgeWeight edge_weight,
+  void deltaGainUpdates(PHG& phg, const HyperedgeWeight edge_weight, IteratorRange<PinIteratorT> pins,
                         const PartitionID from, const HypernodeID pin_count_in_from_part_after,
                         const PartitionID to, const HypernodeID pin_count_in_to_part_after) {
-    phg.gainCacheUpdate(he, edge_weight, from, pin_count_in_from_part_after, to, pin_count_in_to_part_after);
+    phg.gainCacheUpdate(edge_weight, pins, from, pin_count_in_from_part_after, to, pin_count_in_to_part_after);
   }
 
   void memoryConsumption(utils::MemoryTreeNode *parent) const {

@@ -163,10 +163,10 @@ namespace mt_kahypar {
             bool success = false;
             if ( _context.partition.paradigm == Paradigm::nlevel && phg.isGainCacheInitialized()) {
                 success = phg.changeNodePartWithGainCacheUpdate(hn, from, to,
-                                                                _context.partition.max_part_weights[to], [] { }, objective_delta);
+                                                                _context.partition.max_part_weights[to], [] { }, objective_delta, true);
             } else {
                 success = phg.changeNodePart(hn, from, to,
-                                             _context.partition.max_part_weights[to], []{}, objective_delta);
+                                             _context.partition.max_part_weights[to], []{}, objective_delta, true);
             }
             return success;
         }

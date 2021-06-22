@@ -29,6 +29,7 @@ namespace mt_kahypar {
     _km1_delta = 0;
     localMoves.clear();
     attempted_to_move.reset();
+    runStats.clear();
 
     for (const auto& seedNode : refinement_nodes ) {
       if (sharedData.nodeTracker.tryAcquireNode(seedNode, contraction_group_id)) {
@@ -39,23 +40,10 @@ namespace mt_kahypar {
     }
 
     if (runStats.pushes > 0) {
-      if (sharedData.deltaExceededMemoryConstraints) {
-        deltaPhg.dropMemory();
-      }
-
-      if (context.refinement.fm.perform_moves_global || sharedData.deltaExceededMemoryConstraints) {
-        internalFindMoves<false>(phg);
-      } else {
         deltaPhg.clear();
         deltaPhg.setPartitionedHypergraph(&phg);
-        internalFindMoves<true>(phg);
-        if (deltaPhg.combinedMemoryConsumption() > sharedData.deltaMemoryLimitPerThread) {
-          sharedData.deltaExceededMemoryConstraints = true;
-        }
-      }
+        internalFindMoves(phg);
     }
-
-
 
     contraction_group_id = ds::invalidGroupID;
     return _km1_delta;
@@ -88,6 +76,9 @@ namespace mt_kahypar {
         auto pin_range = phg.pins(e);
         for (auto it = pin_range.begin(); it != pin_range.end(); ++it) {
           const HypernodeID v = *it;
+          // Skip nodes that are not enabled to prevent inserting nodes that are in the intermediate state of
+          // uncontraction where they are in the incidence array but not yet enabled
+          if (!phg.nodeIsEnabled(v)) continue;
           if (!attempted_to_move[v] && neighborDeduplicator[v] != deduplicationTime) {
             SearchID searchOfV = sharedData.nodeTracker.owner(v);
             if (searchOfV == contraction_group_id) {
@@ -111,14 +102,13 @@ namespace mt_kahypar {
 
 
   template<typename FMStrategy>
-  template<bool use_delta>
   void AsyncKWayFM<FMStrategy>::internalFindMoves(PartitionedHypergraph& phg) {
     StopRule stopRule(phg.initialNumNodes());
     Move move;
 
     auto delta_func = [&](const HyperedgeID he,
                           const HyperedgeWeight edge_weight,
-                          const HypernodeID edge_size,
+                          const HypernodeID,
                           const HypernodeID pin_count_in_from_part_after,
                           const HypernodeID pin_count_in_to_part_after) {
       // Gains of the pins of a hyperedge can only change in the following situations.
@@ -127,15 +117,8 @@ namespace mt_kahypar {
         edgesWithGainChanges.push_back(he);
       }
 
-      if constexpr (use_delta) {
-        fm_strategy.deltaGainUpdates(deltaPhg, he, edge_weight, move.from, pin_count_in_from_part_after,
+      fm_strategy.deltaGainUpdates(deltaPhg, edge_weight, deltaPhg.pins(he), move.from, pin_count_in_from_part_after,
                                      move.to, pin_count_in_to_part_after);
-      } else {
-        fm_strategy.deltaGainUpdates(phg, he, edge_weight, move.from, pin_count_in_from_part_after,
-                                     move.to, pin_count_in_to_part_after);
-        _km1_delta += km1Delta(he, edge_weight, edge_size, pin_count_in_from_part_after, pin_count_in_to_part_after);
-      }
-
     };
 
     // we can almost make this function take a generic partitioned hypergraph
@@ -152,77 +135,22 @@ namespace mt_kahypar {
 
     while (!stopRule.searchShouldStop()) {
 
-      auto reinsert_nodes = [&](const std::vector<HypernodeID>& nodes) {
-          for (const auto& node : nodes) {
-            ASSERT(sharedData.nodeTracker.owner(node) == contraction_group_id);
-            // Third parameter is only needed by gain cache on demand strategy which currently does not work with async so
-            // just give any value
-            fm_strategy.insertIntoPQ(phg, node, ds::invalidGroupID);
-          }
-      };
-
-      // Find the next best move and attempt to lock the moved node until it works for a move. Then reinsert all nodes
-      // for which locking failed.
-      bool move_found = true;
-      bool acquired_lock = false;
-      std::vector<HypernodeID> nodes_to_reinsert;
-      while (!acquired_lock) {
-        if constexpr (use_delta) {
-          move_found = fm_strategy.findNextMove(deltaPhg, move);
-        } else {
-          move_found = fm_strategy.findNextMove(phg, move);
-        }
-
-        if (!move_found) {
-          if (nodes_to_reinsert.empty()) {
-            // This means actually no moves are left
-            break;
-          } else {
-            // This means for all moves the attempt to lock the node failed. Reinsert all and try again.
-            // This is equivalent to waiting for a node from any move to become lockable.
-            reinsert_nodes(nodes_to_reinsert);
-            nodes_to_reinsert.clear();
-            continue;
-          }
-        }
-
-        ASSERT(move_found);
-        acquired_lock = lock_manager->tryToAcquireLock(move.node, contraction_group_id);
-        if (!acquired_lock) {
-          nodes_to_reinsert.push_back(move.node);
-        }
-      }
-
-      reinsert_nodes(nodes_to_reinsert);
-
-      if (!move_found) {
-        // Stop the search when no moves are left at all
-        ASSERT(nodes_to_reinsert.empty());
-        break;
-      }
+      //Attempt to find the next move. If none can be found then stop this search.
+      bool move_found = fm_strategy.findNextMove(phg, move);
+      if (!move_found) break;
 
       ASSERT(move.isValid());
-      ASSERT(lock_manager->isHeldBy(move.node, contraction_group_id));
 
       // Mark this node to prevent attempting to move it again
       attempted_to_move.set(move.node, true);
 
       bool moved = false;
       if (move.to != kInvalidPartition) {
-        if constexpr (use_delta) {
-          heaviestPartWeight = heaviestPartAndWeight(deltaPhg).second;
-          fromWeight = deltaPhg.partWeight(move.from);
-          toWeight = deltaPhg.partWeight(move.to);
-          moved = deltaPhg.changeNodePart(move.node, move.from, move.to,
+        heaviestPartWeight = heaviestPartAndWeight(deltaPhg).second;
+        fromWeight = deltaPhg.partWeight(move.from);
+        toWeight = deltaPhg.partWeight(move.to);
+        moved = deltaPhg.changeNodePart(move.node, move.from, move.to,
                                           context.partition.max_part_weights[move.to], delta_func);
-        } else {
-          heaviestPartWeight = heaviestPartAndWeight(phg).second;
-          fromWeight = phg.partWeight(move.from);
-          toWeight = phg.partWeight(move.to);
-          moved = phg.changeNodePart(move.node, move.from, move.to,
-                                     context.partition.max_part_weights[move.to],
-                                     [&] {}, delta_func);
-        }
       }
 
       if (moved) {
@@ -240,44 +168,27 @@ namespace mt_kahypar {
           bestImprovement = estimatedImprovement;
           bestImprovementIndex = localMoves.size();
 
-          if constexpr (use_delta) {
-            applyBestLocalPrefixToSharedPartition(phg, bestImprovementIndex, bestImprovement, true /* apply all moves */);
-            bestImprovementIndex = 0;
-            releaseLocksForLocalMovedNodes();
-            localMoves.clear();
-            deltaPhg.clear();   // clear hashtables, save memory :)
-          }
+          applyBestLocalPrefixToSharedPartition(phg, bestImprovementIndex, bestImprovement, true /* apply all moves */);
+          bestImprovementIndex = 0;
+          releaseMoveLocksForLocalMovedNodes();
+          localMoves.clear();
+          deltaPhg.clear();   // clear hashtables, save memory :)
         }
 
-        if constexpr (use_delta) {
-          acquireOrUpdateNeighbors(deltaPhg, move);
-        } else {
-          acquireOrUpdateNeighbors(phg, move);
-        }
+        acquireOrUpdateNeighbors(deltaPhg, move);
+
       } else {
-        // Release lock on move node if the move does not go through
+        // Release move lock on node of move if the move does not go through
         sharedData.nodeTracker.releaseNode(move.node, contraction_group_id);
-        lock_manager->strongReleaseLock(move.node, contraction_group_id);
       }
     }
 
-    HEAVY_REFINEMENT_ASSERT(
-        std::all_of(localMoves.begin(), localMoves.end(),
-                    [&](const auto& local_move) {
-                        return lock_manager->isHeldBy(local_move.node, contraction_group_id);
-                    }));
-
-    if constexpr (use_delta) {
-      std::tie(bestImprovement, bestImprovementIndex) =
-              applyBestLocalPrefixToSharedPartition(phg, bestImprovementIndex, bestImprovement, false);
-    } else {
-      revertToBestLocalPrefix(phg, bestImprovementIndex);
-    }
-
+    std::tie(bestImprovement, bestImprovementIndex) =
+        applyBestLocalPrefixToSharedPartition(phg, bestImprovementIndex, bestImprovement, false);
 
     runStats.estimated_improvement = bestImprovement;
     fm_strategy.clearPQs(bestImprovementIndex);
-    releaseLocksForLocalMovedNodes();
+    releaseMoveLocksForLocalMovedNodes();
     runStats.merge(stats);
   }
 
@@ -309,17 +220,22 @@ namespace mt_kahypar {
       Move& local_move = localMoves[i];
       attributed_gain = 0;
 
+      // Prevent concurrent uncontractions for call to changeNodePart() with uncontraction lock
+      lockUncontractionLockWithWaiting(local_move.node);
+
       if constexpr (FMStrategy::uses_gain_cache) {
         phg.changeNodePartWithGainCacheUpdate(local_move.node, local_move.from, local_move.to,
                                               std::numeric_limits<HypernodeWeight>::max(),
                                               [&] {},
-                                              delta_gain_func);
+                                              delta_gain_func, true);
       } else {
         phg.changeNodePart(local_move.node, local_move.from, local_move.to,
                            std::numeric_limits<HypernodeWeight>::max(),
                            [&] {},
-                           delta_gain_func);
+                           delta_gain_func, true);
       }
+
+      uncontraction_locks->strongReleaseLock(local_move.node, contraction_group_id);
 
       _km1_delta += attributed_gain;
       attributed_gain = -attributed_gain; // delta func yields negative sum of improvements, i.e. negative values mean improvements
@@ -344,17 +260,22 @@ namespace mt_kahypar {
         Move& m = localMoves[i];
         attributed_gain = 0;
 
+        // Prevent concurrent uncontractions for call to changeNodePart() with uncontraction lock
+        lockUncontractionLockWithWaiting(m.node);
+
         if constexpr (FMStrategy::uses_gain_cache) {
           phg.changeNodePartWithGainCacheUpdate(m.node, m.to, m.from,
                                                 std::numeric_limits<HypernodeWeight>::max(),
                                                 [&] {},
-                                                delta_gain_func);
+                                                delta_gain_func, true);
         } else {
           phg.changeNodePart(m.node, m.to, m.from,
                              std::numeric_limits<HypernodeWeight>::max(),
                              [&] {},
-                             delta_gain_func);
+                             delta_gain_func, true);
         }
+
+        uncontraction_locks->strongReleaseLock(m.node, contraction_group_id);
 
         _km1_delta += attributed_gain;
 
@@ -363,38 +284,6 @@ namespace mt_kahypar {
       return std::make_pair(best_improvement_from_attributed_gains, best_index_from_attributed_gains);
     } else {
       return std::make_pair(best_improvement_locally_observed, best_index_locally_observed);
-    }
-  }
-
-  template<typename FMStrategy>
-  void AsyncKWayFM<FMStrategy>::revertToBestLocalPrefix(PartitionedHypergraph& phg, size_t bestGainIndex) {
-
-    auto delta_gain_func = [&](const HyperedgeID he,
-                               const HyperedgeWeight edge_weight,
-                               const HypernodeID edge_size,
-                               const HypernodeID pin_count_in_from_part_after,
-                               const HypernodeID pin_count_in_to_part_after) {
-        _km1_delta += km1Delta(he, edge_weight, edge_size,
-                                    pin_count_in_from_part_after, pin_count_in_to_part_after);
-    };
-
-    runStats.local_reverts += localMoves.size() - bestGainIndex;
-    while (localMoves.size() > bestGainIndex) {
-//      Move& m = sharedData.moveTracker.getMove(localMoves.back().second);
-      Move& m = localMoves.back();
-      if constexpr (FMStrategy::uses_gain_cache) {
-        phg.changeNodePartWithGainCacheUpdate(m.node, m.to, m.from,
-                                              std::numeric_limits<HypernodeWeight>::max(),
-                                              [&] {},
-                                              delta_gain_func);
-      } else {
-        phg.changeNodePart(m.node, m.to, m.from,
-                           std::numeric_limits<HypernodeWeight>::max(),
-                           [&] {},
-                           delta_gain_func);
-      }
-      m.invalidate();
-      localMoves.pop_back();
     }
   }
 
@@ -417,12 +306,16 @@ namespace mt_kahypar {
   }
 
   template<typename FMStrategy>
-  void AsyncKWayFM<FMStrategy>::releaseLocksForLocalMovedNodes() {
+  void AsyncKWayFM<FMStrategy>::releaseMoveLocksForLocalMovedNodes() {
     for (const auto& local_move : localMoves) {
       sharedData.nodeTracker.releaseNode(local_move.node, contraction_group_id);
-      lock_manager->strongReleaseLock(local_move.node, contraction_group_id);
     }
   }
+
+    template<typename FMStrategy>
+    void AsyncKWayFM<FMStrategy>::lockUncontractionLockWithWaiting(const HypernodeID& hn) {
+      while (!uncontraction_locks->tryToAcquireLock(hn, contraction_group_id)){/* keep trying to lock */}
+    }
 
 }   // namespace mt_kahypar
 

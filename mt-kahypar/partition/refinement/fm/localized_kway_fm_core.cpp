@@ -120,10 +120,10 @@ namespace mt_kahypar {
       }
 
       if constexpr (use_delta) {
-        fm_strategy.deltaGainUpdates(deltaPhg, he, edge_weight, move.from, pin_count_in_from_part_after,
+        fm_strategy.deltaGainUpdates(deltaPhg, edge_weight, deltaPhg.pins(he), move.from, pin_count_in_from_part_after,
                                      move.to, pin_count_in_to_part_after);
       } else {
-        fm_strategy.deltaGainUpdates(phg, he, edge_weight, move.from, pin_count_in_from_part_after,
+        fm_strategy.deltaGainUpdates(phg, edge_weight, phg.pins(he), move.from, pin_count_in_from_part_after,
                                      move.to, pin_count_in_to_part_after);
       }
 

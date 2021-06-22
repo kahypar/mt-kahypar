@@ -97,6 +97,24 @@ namespace mt_kahypar {
                                                                 NextActiveNodes &next_active_nodes,
                                                                 VisitedEdges &visited_edges) {
 
+        struct held_locks {
+            bool locked_for_fm;
+            bool locked_for_uncontractions;
+        };
+
+        auto acquire_both_locks = [&](const HypernodeID hn) -> held_locks {
+          if (_fm_node_tracker->tryAcquireNode(hn, _contraction_group_id)) {
+            bool locked_for_uncontractions = _lock_manager->tryToAcquireLock(hn, _contraction_group_id);
+            return {true, locked_for_uncontractions};
+          }
+          return {false, false};
+        };
+
+        auto release_held_locks = [&](const HypernodeID hn, const held_locks& locks) {
+          if (locks.locked_for_uncontractions) _lock_manager->strongReleaseLock(hn, _contraction_group_id);
+          if (locks.locked_for_fm) _fm_node_tracker->releaseNode(hn, _contraction_group_id);
+        };
+
         // This function is passed as lambda to the changeNodePart function and used
         // to calculate the "real" delta of a move (in terms of the used objective function).
         auto objective_delta = [&](const HyperedgeID he,
@@ -116,20 +134,14 @@ namespace mt_kahypar {
         for ( size_t j = 0; j < _active_nodes.size(); ++j ) {
             const HypernodeID hn = _active_nodes[j];
             bool tried_to_move = false;
-            // Lock node while moving to prevent concurrent uncontractions
-            bool acquired = _lock_manager->tryToAcquireLock(hn, _contraction_group_id);
-            if (acquired) {
-              // Lock node in FM node tracker to make sure not to mess up PQs in any FM search
-              bool locked_for_fm = _fm_node_tracker->tryAcquireNode(hn, _contraction_group_id);
-              if (locked_for_fm) {
+            auto locks = acquire_both_locks(hn);
+            if (locks.locked_for_fm && locks.locked_for_uncontractions) {
                 tried_to_move = true;
                 if ( ! moveVertex(hypergraph, hn, next_active_nodes, visited_edges, objective_delta) ) {
                   converged = false;
                 }
-                _fm_node_tracker->releaseNode(hn, _contraction_group_id);
-              }
-              _lock_manager->strongReleaseLock(hn, _contraction_group_id);
             }
+            release_held_locks(hn, locks);
             if (!tried_to_move) {
               retry_nodes.push_back(hn);
             }
@@ -139,18 +151,13 @@ namespace mt_kahypar {
         // todo mlaupichler: Number of retries is arbitrary, perhaps add CL option to set how often we retry here
         for ( size_t j = 0; j < retry_nodes.size(); ++j ) {
             const HypernodeID hn = retry_nodes[j];
-            bool acquired = _lock_manager->tryToAcquireLock(hn, _contraction_group_id);
-            if (acquired) {
-              // Lock node in FM node tracker to make sure not to mess up PQs in any FM search
-              bool locked_for_fm = _fm_node_tracker->tryAcquireNode(hn, _contraction_group_id);
-              if (locked_for_fm) {
-                if ( ! moveVertex(hypergraph, hn, next_active_nodes, visited_edges, objective_delta) ) {
-                  converged = false;
-                }
-                _fm_node_tracker->releaseNode(hn, _contraction_group_id);
+            auto locks = acquire_both_locks(hn);
+            if (locks.locked_for_fm && locks.locked_for_uncontractions) {
+              if ( ! moveVertex(hypergraph, hn, next_active_nodes, visited_edges, objective_delta) ) {
+                converged = false;
               }
-              _lock_manager->strongReleaseLock(hn, _contraction_group_id);
             }
+            release_held_locks(hn, locks);
         }
 
 //        HEAVY_REFINEMENT_ASSERT(hypergraph.checkTrackedPartitionInformation());

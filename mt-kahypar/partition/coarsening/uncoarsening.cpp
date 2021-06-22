@@ -487,11 +487,15 @@ namespace mt_kahypar {
           auto repr_part_id = _phg.partID(group.getRepresentative());
           ASSERT(repr_part_id != kInvalidPartition);
           ASSERT(std::all_of(refinement_nodes.begin(), refinement_nodes.end(),
-                             [&](const HypernodeID &hn) {
-                                 return _hg.nodeIsEnabled(hn)
-                                        && _phg.partID(hn) == repr_part_id;
-                             }),
-                 "After extracting seeds one of the seeds is not enabled or not assigned the right partition!");
+                           [&](const HypernodeID &hn) {
+                               return _hg.nodeIsEnabled(hn);
+                           }),
+               "After extracting seeds one of the seeds is not enabled!");
+//          ASSERT(std::all_of(refinement_nodes.begin(), refinement_nodes.end(),
+//                             [&](const HypernodeID &hn) {
+//                                 return _phg.partID(hn) == repr_part_id;
+//                             }),
+//                 "After extracting seeds one of the seeds is not in the same part as the representative!");
 
           localizedRefineForAsync(_phg, refinement_nodes, async_lp, async_fm, groupID, current_metrics);
       }
@@ -706,9 +710,9 @@ namespace mt_kahypar {
       node_anti_duplicator.reset();
       edge_anti_duplicator.reset();
 
-      size_t total_num_nodes = _hg.initialNumNodes();
+      size_t total_num_nodes = _hg.initialNumNodes() - _hg.numRemovedHypernodes();
       size_t num_nodes_after_coarsening = _compactified_hg.initialNumNodes();
-      ASSERT(total_num_nodes == total_uncontractions + num_nodes_after_coarsening);
+      ASSERT(total_num_nodes == total_uncontractions + num_nodes_after_coarsening, V(total_num_nodes) << ", " << V(total_uncontractions) << ", " << V(num_nodes_after_coarsening));
       auto checkAllAssignedAndNoneLocked = [&](){
           for (HypernodeID i = 0; i < _hg.initialNumNodes(); ++i) {
               if(_phg.partID(i) == kInvalidPartition) return false;

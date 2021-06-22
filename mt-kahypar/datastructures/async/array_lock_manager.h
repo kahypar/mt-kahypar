@@ -201,7 +201,6 @@ namespace ds {
     };
 
     using GroupLockManager = ArrayLockManager<HypernodeID, ContractionGroupID>;
-    using GroupEdgeLockManager = ArrayLockManager<HyperedgeID, ContractionGroupID>;
 
 }
 }// namespace mt_kahypar::ds

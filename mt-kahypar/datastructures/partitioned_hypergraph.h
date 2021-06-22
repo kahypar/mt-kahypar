@@ -702,24 +702,13 @@ private:
   }
 
 
-    template <typename PinIteratorT>
-    MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
-    void gainCacheUpdate(const HyperedgeWeight we, IteratorRange<PinIteratorT> pins,
+  template <typename PinIteratorT>
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
+  void gainCacheUpdate(const HyperedgeWeight we, IteratorRange<PinIteratorT> pins,
                          const PartitionID from, const HypernodeID pin_count_in_from_part_after,
                          const PartitionID to, const HypernodeID pin_count_in_to_part_after) {
-
-        _gain_cache.updateForMove(we, pins, from, pin_count_in_from_part_after, to, pin_count_in_to_part_after);
-    }
-
-    // ! Overload to satisfy GainCacheStrategy::deltaGainUpdates(). Not suited for concurrent uncontractions
-    MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
-    void gainCacheUpdate(const HyperedgeID he, const HyperedgeWeight we,
-                         const PartitionID from, const HypernodeID pin_count_in_from_part_after,
-                         const PartitionID to, const HypernodeID pin_count_in_to_part_after) {
-
-        _gain_cache.updateForMove(we, pins(he), from, pin_count_in_from_part_after, to, pin_count_in_to_part_after);
-    }
-
+    _gain_cache.updateForMove(we, pins, from, pin_count_in_from_part_after, to, pin_count_in_to_part_after);
+  }
 
   // Make sure not to call phg.gainCacheUpdate(..) in delta_func for changeNodePartWithGainCacheUpdate
   template<typename SuccessFunc, typename DeltaFunc>
@@ -918,6 +907,7 @@ private:
         }
         return true;
     };
+    unused(check_mfb_zero);
     HEAVY_REFINEMENT_ASSERT(check_mfb_zero());
 
     // Compute gain of all high degree vertices parallel (sequential for over all high degree vertices)

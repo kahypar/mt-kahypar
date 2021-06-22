@@ -41,16 +41,16 @@ private:
 public:
   explicit AsyncKWayFM(const Context& context, HypernodeID numNodes, AsyncFMSharedData& sharedData,
                        ds::GroupLockManager * const lock_manager) :
-          context(context),
-          k(context.partition.k),
-          deltaPhg(context.partition.k),
-          neighborDeduplicator(numNodes, 0),
-          fm_strategy(context, numNodes, sharedData, runStats),
-          sharedData(sharedData),
-          lock_manager(lock_manager),
-          contraction_group_id(ds::invalidGroupID),
-          _km1_delta(0),
-          attempted_to_move(numNodes)
+      context(context),
+      k(context.partition.k),
+      deltaPhg(context.partition.k),
+      neighborDeduplicator(numNodes, 0),
+      fm_strategy(context, numNodes, sharedData, runStats),
+      sharedData(sharedData),
+      uncontraction_locks(lock_manager),
+      contraction_group_id(ds::invalidGroupID),
+      _km1_delta(0),
+      attempted_to_move(numNodes)
           {}
 
   // ! Finds a sequence of moves, applies the best prefix and returns the actual km1 improvement of that prefix.
@@ -73,7 +73,6 @@ private:
   //void internalFindMovesOnDeltaHypergraph(PartitionedHypergraph& phg, FMSharedData& sharedData);
 
 
-  template<bool use_delta>
   void internalFindMoves(PartitionedHypergraph& phg);
 
   template<typename PHG>
@@ -87,11 +86,9 @@ private:
                                                                 const Gain best_improvement_locally_observed,
                                                                 bool apply_all_moves);
 
-  // ! Rollback to the best improvement found during local search in case we applied moves
-  // ! directly on the global partitioned hypergraph.
-  void revertToBestLocalPrefix(PartitionedHypergraph& phg, size_t bestGainIndex);
+  void releaseMoveLocksForLocalMovedNodes();
 
-  void releaseLocksForLocalMovedNodes();
+  void lockUncontractionLockWithWaiting(const HypernodeID& hn);
 
  private:
 
@@ -120,9 +117,9 @@ private:
 
   AsyncFMSharedData& sharedData;
 
-  // ! Used to hold a lock on all nodes that are in the move sequence that this local search is calculating.
-  // ! Prevents those nodes from being
-  ds::GroupLockManager* const lock_manager;
+  // ! Used to hold a lock on nodes while they are being moved on the hypergraph.
+  // ! Prevents concurrent uncontractions on those moved nodes.
+  ds::GroupLockManager* const uncontraction_locks;
 
   // ! ID of the contraction group that the current local search is based on. Identifies a local search run.
   ds::ContractionGroupID contraction_group_id;

@@ -95,11 +95,11 @@ namespace mt_kahypar {
       pq.clear();
     }
 
-    template<typename PHG>
+    template<typename PHG, typename PinIteratorT>
     MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
-    void deltaGainUpdates(PHG& , const HyperedgeID , const HyperedgeWeight ,
-                          const PartitionID , const HypernodeID ,
-                          const PartitionID , const HypernodeID ) {
+    void deltaGainUpdates(PHG&, const HyperedgeWeight, IteratorRange<PinIteratorT>,
+                            const PartitionID, const HypernodeID,
+                            const PartitionID, const HypernodeID) {
       // do nothing!
     }
 

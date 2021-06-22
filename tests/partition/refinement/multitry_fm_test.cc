@@ -35,7 +35,7 @@ using ::testing::Test;
 namespace mt_kahypar {
 
 class MultiTryFMTest : public ::testing::TestWithParam<PartitionID> {
-  using Refiner = MultiTryKWayFM<GainCacheStrategy>;
+  using Refiner = MultiTryKWayFM<GainCacheStrategy<FMSharedData>>;
 
   public:
     MultiTryFMTest() :

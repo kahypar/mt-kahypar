@@ -78,20 +78,12 @@ namespace mt_kahypar {
         // ! Stores the designated target part of a vertex, i.e. the part with the highest gain to which moving is feasible
         vec<PartitionID> targetPart;
 
-        // ! Switch to applying moves directly if the use of local delta partitions exceeded a memory limit
-        bool deltaExceededMemoryConstraints = false;
-        size_t deltaMemoryLimitPerThread = 0;
-
         const bool release_nodes = true;
-        bool perform_moves_global = true;
 
-        AsyncFMSharedData(size_t numNodes = 0, PartitionID numParts = 0, size_t numThreads = 0, size_t numPQHandles = 0) :
+        explicit AsyncFMSharedData(size_t numNodes = 0, PartitionID numParts = 0, size_t numPQHandles = 0) :
           vertexPQHandles(), //numPQHandles, invalid_position),
           numParts(numParts),
           targetPart() {
-
-          // 128 * 3/2 GB --> roughly 1.5 GB per thread on our biggest machine
-          deltaMemoryLimitPerThread = 128UL * (1UL << 30) * 3 / ( 2 * std::max(1UL, numThreads) );
 
           tbb::parallel_invoke( [&] {
               nodeTracker.resize(numNodes);
@@ -106,11 +98,10 @@ namespace mt_kahypar {
             AsyncFMSharedData(
             numNodes,
             context.partition.k,
-            TBBInitializer::instance().total_number_of_threads(),
             getNumberOfPQHandles(context, numNodes))  { }
 
 
-        size_t getNumberOfPQHandles(const Context& context, size_t numNodes) {
+        static size_t getNumberOfPQHandles(const Context& context, size_t numNodes) {
           if (context.refinement.fm.algorithm == FMAlgorithm::fm_gain_delta) {
             return numNodes * context.partition.k;
           } else {
