@@ -229,7 +229,8 @@ size_t QuotientGraph::acquireUsedCutHyperedges(const SearchID& search_id, const 
     const size_t end_idx = qg_edge.cut_hes.size();
     for ( size_t j = start_idx; j < end_idx; ++j ) {
       CutHyperedge& cut_he = qg_edge.cut_hes[j];
-      if ( used_hes[cut_he.he] && cut_he.acquire() ) {
+      if ( used_hes[cut_he.he] ) {
+        cut_he.acquire();
         _searches[search_id].used_cut_hes[i].push_back(cut_he.he);
         ++additional_cut_hes;
       }
