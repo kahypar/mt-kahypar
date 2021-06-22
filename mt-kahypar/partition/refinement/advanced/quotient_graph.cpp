@@ -185,11 +185,19 @@ bool QuotientGraph::popBlockPairFromQueue(BlockPair& blocks) {
   blocks.j = kInvalidPartition;
   while ( _block_scheduler.try_pop(blocks) ) {
     _quotient_graph[blocks.i][blocks.j].markAsNotInQueue();
-    if ( !_context.refinement.advanced.skip_unpromising_blocks ||
+    const bool is_promising_block_pair =
+         !_context.refinement.advanced.skip_unpromising_blocks ||
          ( _quotient_graph[blocks.i][blocks.j].stats.round == 0 ||
-           _quotient_graph[blocks.i][blocks.j].stats.num_improvements > 0 ) ) {
+           _quotient_graph[blocks.i][blocks.j].stats.num_improvements > 0 );
+    const bool not_too_many_concurrent_searches =
+      _num_active_searches_on_blocks[blocks.i] < _context.refinement.advanced.max_concurrency_per_block &&
+      _num_active_searches_on_blocks[blocks.j] < _context.refinement.advanced.max_concurrency_per_block;
+    if ( is_promising_block_pair && not_too_many_concurrent_searches ) {
       break;
     } else {
+      if ( is_promising_block_pair && !not_too_many_concurrent_searches ) {
+        _block_scheduler.push(blocks);
+      }
       blocks.i = kInvalidPartition;
       blocks.j = kInvalidPartition;
     }

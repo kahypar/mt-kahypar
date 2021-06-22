@@ -434,6 +434,10 @@ namespace mt_kahypar {
                       &context.refinement.advanced.max_bfs_distance))->value_name("<size_t>"),
              "Advanced refinement problems are constructed via BFS search. The maximum BFS distance is the\n"
              "maximum distance from a cut hyperedge to any vertex of the problem.")
+            ((initial_partitioning ? "i-r-max-conurrency-per-block" : "r-max-conurrency-per-block"),
+             po::value<size_t>((initial_partitioning ? &context.initial_partitioning.refinement.advanced.max_concurrency_per_block :
+                      &context.refinement.advanced.max_concurrency_per_block))->value_name("<size_t>"),
+             "Maximum refiner working concurrently on one block.")
             ((initial_partitioning ? "i-r-skip-small-cuts" : "r-skip-small-cuts"),
              po::value<bool>((initial_partitioning ? &context.initial_partitioning.refinement.advanced.skip_small_cuts :
                       &context.refinement.advanced.skip_small_cuts))->value_name("<bool>"),
