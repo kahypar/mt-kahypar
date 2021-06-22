@@ -196,7 +196,7 @@ bool QuotientGraph::popBlockPairFromQueue(BlockPair& blocks) {
       break;
     } else {
       if ( is_promising_block_pair && !not_too_many_concurrent_searches ) {
-        _block_scheduler.push(blocks);
+        pushBlockPairIntoQueue(blocks);
       }
       blocks.i = kInvalidPartition;
       blocks.j = kInvalidPartition;
