@@ -26,13 +26,17 @@
 
 namespace mt_kahypar {
 
-void ProblemConstruction::BFSData::reset() {
+void ProblemConstruction::BFSData::clearQueues() {
   current_distance = 0;
   last_queue_idx = 0;
   while ( !queue[0].empty() ) queue[0].pop();
   while ( !queue[1].empty() ) queue[1].pop();
   while ( !next_queue[0].empty() ) next_queue[0].pop();
   while ( !next_queue[1].empty() ) next_queue[1].pop();
+}
+
+void ProblemConstruction::BFSData::reset() {
+  clearQueues();
   std::fill(visited_hn.begin(), visited_hn.end(), false);
   std::fill(visited_he.begin(), visited_he.end(), false);
 }
@@ -71,6 +75,12 @@ void ProblemConstruction::BFSData::add_pins_of_hyperedge_to_queue(
   }
 }
 
+void ProblemConstruction::ConstructionData::reset() {
+  for ( size_t i = 0; i < used_slots; ++i ) {
+    bfs[i].reset();
+  }
+}
+
 void ProblemConstruction::ConstructionData::initialize(
   const vec<BlockPairCutHyperedges>& initial_cut_hes,
   const ProblemStats& stats,
@@ -79,7 +89,7 @@ void ProblemConstruction::ConstructionData::initialize(
   used_slots = initial_cut_hes.size();
   while ( bfs.size() <= used_slots ) bfs.emplace_back(_num_nodes, _num_edges);
   for ( size_t i = 0; i < used_slots; ++i ) {
-    bfs[i].reset();
+    bfs[i].clearQueues();
     bfs[i].blocks = initial_cut_hes[i].blocks;
     for ( const HyperedgeID& he : initial_cut_hes[i].cut_hes ) {
       bfs[i].add_pins_of_hyperedge_to_queue(
@@ -133,6 +143,7 @@ vec<HypernodeID> ProblemConstruction::construct(const SearchID search_id,
 
   ConstructionData& data = _local_data.local();
   ProblemStats& stats = _local_stats.local();
+  data.reset();
   stats.reset();
   for ( const BlockPair& blocks : quotient_graph.getBlockPairs(search_id) ) {
     stats.addBlock(blocks.i);

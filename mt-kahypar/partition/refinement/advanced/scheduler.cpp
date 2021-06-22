@@ -103,6 +103,15 @@ bool AdvancedRefinementScheduler::refineImpl(
   DBG << "Total Improvement =" << _stats.total_improvement;
   DBG << "---------------------------------------------------------------";
 
+  ASSERT([&]() {
+    for ( PartitionID i = 0; i < _context.partition.k; ++i ) {
+      if ( _part_weights[i] != phg.partWeight(i) ) {
+        LOG << V(_part_weights[i]) << V(phg.partWeight(i));
+        return false;
+      }
+    }
+    return true;
+  }(), "Concurrent part weight updates failed!");
 
   // Update metrics statistics
   HyperedgeWeight current_metric = best_metrics.getMetric(
@@ -284,6 +293,11 @@ HyperedgeWeight AdvancedRefinementScheduler::applyMoves(const SearchID search_id
         // Rollback would violate balance constraint => Worst Case
         ++_stats.failed_updates_due_to_conflicting_moves_without_rollback;
         sequence.state = MoveSequenceState::WORSEN_SOLUTION_QUALITY_WITHOUT_ROLLBACK;
+        DBG << RED << "Rollback of move sequence violated balance constraint ( Moved Nodes ="
+            << sequence.moves.size()
+            << ", Expected Improvement =" << sequence.expected_improvement
+            << ", Real Improvement =" << improvement
+            << ", Search ID =" << search_id << ")" << END;
       }
     } else {
       ++_stats.num_improvements;

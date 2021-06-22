@@ -53,6 +53,8 @@ class ProblemConstruction {
       visited_hn(num_nodes, false),
       visited_he(num_edges, false) { }
 
+    void clearQueues();
+
     void reset();
 
     void pop_hypernode(HypernodeID& hn);
@@ -99,6 +101,8 @@ class ProblemConstruction {
       used_slots(0),
       last_idx(0),
       bfs() { }
+
+    void reset();
 
     void initialize(const vec<BlockPairCutHyperedges>& initial_cut_hes,
                     const ProblemStats& stats,
