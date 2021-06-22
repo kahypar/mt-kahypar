@@ -22,6 +22,7 @@
 #include "mt-kahypar/partition/refinement/advanced/scheduler.h"
 
 #include "mt-kahypar/partition/metrics.h"
+#include "mt-kahypar/io/partitioning_output.h"
 #include "mt-kahypar/utils/stats.h"
 #include "mt-kahypar/utils/timer.h"
 
@@ -53,12 +54,18 @@ bool AdvancedRefinementScheduler::refineImpl(
   unused(phg);
   ASSERT(_phg == &phg);
 
+  if ( debug ) {
+    DBG << "Cut Matrix:";
+    io::printCutMatrix(phg);
+  }
+
   utils::Timer::instance().start_timer("advanced_refinement_scheduling", "Advanced Refinement Scheduling");
   std::atomic<HyperedgeWeight> overall_delta(0);
   tbb::parallel_for(0UL, _refiner.numAvailableRefiner(), [&](const size_t) {
     while ( !_quotient_graph.terminate() ) {
       SearchID search_id = _quotient_graph.requestNewSearch(_refiner);
       if ( search_id != QuotientGraph::INVALID_SEARCH_ID ) {
+        DBG << "Start search" << search_id << "( Blocks =" << blocksOfSearch(search_id) << ", Thread =" << sched_getcpu() << ")";
         utils::Timer::instance().start_timer("construct_problem", "Construct Problem", true);
         const vec<HypernodeID> refinement_nodes =
           _constructor.construct(search_id, _quotient_graph, _refiner, phg);
@@ -74,7 +81,7 @@ bool AdvancedRefinementScheduler::refineImpl(
 
           if ( !sequence.moves.empty() ) {
             utils::Timer::instance().start_timer("apply_moves", "Apply Moves", true);
-            HyperedgeWeight delta = applyMoves(sequence);
+            HyperedgeWeight delta = applyMoves(search_id, sequence);
             overall_delta -= delta;
             improved_solution = sequence.state == MoveSequenceState::SUCCESS && delta > 0;
             utils::Timer::instance().stop_timer("apply_moves");
@@ -212,7 +219,8 @@ void addCutHyperedgesToQuotientGraph(QuotientGraph& quotient_graph,
 
 } // namespace
 
-HyperedgeWeight AdvancedRefinementScheduler::applyMoves(MoveSequence& sequence) {
+HyperedgeWeight AdvancedRefinementScheduler::applyMoves(const SearchID search_id, MoveSequence& sequence) {
+  unused(search_id);
   ASSERT(_phg);
 
   // TODO: currently we lock the applyMoves method, if overlapping search is enabled.
@@ -268,7 +276,8 @@ HyperedgeWeight AdvancedRefinementScheduler::applyMoves(MoveSequence& sequence) 
         // Move sequence worsen solution quality => Rollback
         DBG << RED << "Move sequence worsen solution quality ("
             << "Expected Improvement =" << sequence.expected_improvement
-            << ", Real Improvement =" << improvement << ")" << END;
+            << ", Real Improvement =" << improvement
+            << ", Search ID =" << search_id << ")" << END;
         revertMoveSequence(*_phg, sequence, delta_func, is_nlevel);
         ++_stats.failed_updates_due_to_conflicting_moves;
         sequence.state = MoveSequenceState::WORSEN_SOLUTION_QUALITY;
@@ -281,16 +290,19 @@ HyperedgeWeight AdvancedRefinementScheduler::applyMoves(MoveSequence& sequence) 
       ++_stats.num_improvements;
       _stats.correct_expected_improvement += (improvement == sequence.expected_improvement);
       sequence.state = MoveSequenceState::SUCCESS;
-      DBG << "Successfully applied move sequence to hypergraph ("
+      DBG << GREEN << "SUCCESS -"
           << "Moved Nodes =" << sequence.moves.size()
           << ", Expected Improvement =" << sequence.expected_improvement
-          << ", Real Improvement =" << improvement << ")";
+          << ", Real Improvement =" << improvement
+          << ", Search ID =" << search_id << END;
     }
   } else {
     ++_stats.failed_updates_due_to_balance_constraint;
     sequence.state = MoveSequenceState::VIOLATES_BALANCE_CONSTRAINT;
-    DBG << RED << "Move sequence violated balance constraint ( Expected Improvement ="
-        << sequence.expected_improvement << ")" << END;
+    DBG << RED << "Move sequence violated balance constraint ( Moved Nodes ="
+        << sequence.moves.size()
+        << ", Expected Improvement =" << sequence.expected_improvement
+        << ", Search ID =" << search_id << ")" << END;
   }
 
   if ( _context.refinement.advanced.use_overlapping_searches ) {

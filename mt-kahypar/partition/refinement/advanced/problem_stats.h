@@ -176,4 +176,20 @@ class ProblemStats {
   vec<bool> _visited_hes;
 };
 
+inline std::ostream& operator<<(std::ostream& out, const ProblemStats& stats) {
+  out << "[Nodes=" << stats.numNodes()
+      << ", Edges=" << stats.numEdges()
+      << ", Pins=" << stats.numPins()
+      << ", Blocks=( ";
+  for ( const PartitionID block : stats.containedBlocks() ) {
+    out << block << " ";
+  }
+  out << "), Weights=( ";
+  for ( const PartitionID block : stats.containedBlocks() ) {
+    out << stats.nodeWeightOfBlock(block) << " ";
+  }
+  out << ")]";
+  return out;
+}
+
 }  // namespace kahypar

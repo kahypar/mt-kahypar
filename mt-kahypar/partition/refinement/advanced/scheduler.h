@@ -94,7 +94,7 @@ public:
    * the balance constaint and not worsen solution quality.
    * Returns, improvement in solution quality.
    */
-  HyperedgeWeight applyMoves(MoveSequence& sequence);
+  HyperedgeWeight applyMoves(const SearchID search_id, MoveSequence& sequence);
 
   /**
    * Returns the current weight of each block.
@@ -120,6 +120,14 @@ private:
 
   bool partWeightUpdate(const vec<HypernodeWeight>& part_weight_deltas,
                         const bool rollback);
+
+  std::string blocksOfSearch(const SearchID search_id) {
+    std::string blocks = "";
+    for ( const BlockPair& block_pair : _quotient_graph.getBlockPairs(search_id) ) {
+      blocks += " (" + std::to_string(block_pair.i) + "," + std::to_string(block_pair.j) + ")";
+    }
+    return blocks;
+  }
 
   PartitionedHypergraph* _phg;
   const Context& _context;

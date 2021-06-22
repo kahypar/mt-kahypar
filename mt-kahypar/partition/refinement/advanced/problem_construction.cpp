@@ -142,6 +142,7 @@ vec<HypernodeID> ProblemConstruction::construct(const SearchID search_id,
   const size_t num_block_pairs = quotient_graph.numBlockPairs(search_id);
   // We vertices to the problem as long as the associated refiner notifies the
   // construction algorithm that the maximum problem size is reached
+  size_t requested_hyperedges = 0;
   while ( !refiner.isMaximumProblemSizeReached(search_id, stats) ) {
 
     // We initialize the BFS with a fixed number of cut hyperedges running
@@ -149,6 +150,9 @@ vec<HypernodeID> ProblemConstruction::construct(const SearchID search_id,
     const vec<BlockPairCutHyperedges> initial_cut_hes =
       quotient_graph.requestCutHyperedges(search_id, num_block_pairs *
         _context.refinement.advanced.num_cut_edges_per_block_pair);
+    for ( const BlockPairCutHyperedges& block_cut_hes : initial_cut_hes ) {
+      requested_hyperedges += block_cut_hes.cut_hes.size();
+    }
     data.initialize(initial_cut_hes, stats, phg);
     // Special case, if they are no cut hyperedges left
     // between the involved blocks
@@ -194,6 +198,10 @@ vec<HypernodeID> ProblemConstruction::construct(const SearchID search_id,
       }
     }
   }
+
+  DBG << "Search ID =" << search_id
+      << ", Used Cut HEs =" << requested_hyperedges
+      << "-" << stats;
 
   return nodes;
 }

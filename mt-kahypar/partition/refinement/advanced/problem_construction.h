@@ -37,6 +37,8 @@ namespace mt_kahypar {
 
 class ProblemConstruction {
 
+  static constexpr bool debug = false;
+
   /**
    * Contains data required to grow two region around
    * the cut of two blocks of the partition.

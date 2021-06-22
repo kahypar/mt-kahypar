@@ -26,6 +26,7 @@
 namespace mt_kahypar::io {
   void printStripe();
   void printBanner();
+  void printCutMatrix(const PartitionedHypergraph& hypergraph);
   void printHypergraphInfo(const Hypergraph& hypergraph,
                            const std::string& name,
                            const bool show_memory_consumption);
