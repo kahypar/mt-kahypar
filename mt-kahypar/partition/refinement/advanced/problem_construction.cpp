@@ -199,6 +199,7 @@ vec<HypernodeID> ProblemConstruction::construct(const SearchID search_id,
     }
   }
 
+  requested_hyperedges += quotient_graph.acquireUsedCutHyperedges(search_id, stats._visited_hes);
   DBG << "Search ID =" << search_id
       << ", Used Cut HEs =" << requested_hyperedges
       << "-" << stats;
@@ -208,8 +209,10 @@ vec<HypernodeID> ProblemConstruction::construct(const SearchID search_id,
 
 void ProblemConstruction::releaseNodes(const SearchID search_id,
                                        const vec<HypernodeID>& nodes) {
-  for ( size_t i = 0; i < nodes.size(); ++i ) {
-    release_vertex(search_id, nodes[i]);
+  if ( !_context.refinement.advanced.use_overlapping_searches ) {
+    for ( size_t i = 0; i < nodes.size(); ++i ) {
+      release_vertex(search_id, nodes[i]);
+    }
   }
 }
 

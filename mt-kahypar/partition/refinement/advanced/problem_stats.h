@@ -173,6 +173,7 @@ class ProblemStats {
   HyperedgeID _num_edges;
   HypernodeID _num_pins;
 
+ public:
   vec<bool> _visited_hes;
 };
 

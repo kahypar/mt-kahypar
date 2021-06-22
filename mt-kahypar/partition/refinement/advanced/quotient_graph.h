@@ -78,6 +78,17 @@ class QuotientGraph {
   static constexpr bool debug = false;
   static constexpr bool enable_heavy_assert = false;
 
+  struct CutHyperedge {
+    HyperedgeID he;
+    CAtomic<bool> acquired;
+
+    bool acquire() {
+      bool expected = false;
+      bool desired = true;
+      return acquired.compare_exchange_strong(expected, desired);
+    }
+  };
+
   // ! Represents an edge of the quotient graph
   struct QuotientGraphEdge {
     QuotientGraphEdge() :
@@ -92,7 +103,7 @@ class QuotientGraph {
     void add_hyperedge(const HyperedgeID he,
                        const HyperedgeWeight weight);
 
-    HyperedgeID pop_hyperedge();
+    CutHyperedge& pop_hyperedge();
 
     void reset(const bool is_one_block_underloaded);
 
@@ -134,7 +145,7 @@ class QuotientGraph {
     CAtomic<SearchID> ownership;
     CAtomic<bool> in_queue;
     size_t first_valid_entry;
-    tbb::concurrent_vector<HyperedgeID> cut_hes;
+    tbb::concurrent_vector<CutHyperedge> cut_hes;
     BlockPairStats stats;
   };
 
@@ -240,6 +251,8 @@ public:
    */
   void addNewCutHyperedge(const HyperedgeID he,
                           const PartitionID block);
+
+  size_t acquireUsedCutHyperedges(const SearchID& search_id, const vec<bool>& used_hes);
 
   /**
    * Notify the quotient graph that the construction of the corresponding

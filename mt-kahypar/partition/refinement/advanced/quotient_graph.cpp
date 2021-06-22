@@ -45,11 +45,11 @@ std::ostream& operator<<(std::ostream& out, const BlockPairStats& stats) {
 
 void QuotientGraph::QuotientGraphEdge::add_hyperedge(const HyperedgeID he,
                                                      const HyperedgeWeight weight) {
-  cut_hes.push_back(he);
+  cut_hes.push_back(CutHyperedge { he, CAtomic<bool>(false) });
   stats.cut_he_weight += weight;
 }
 
-HyperedgeID QuotientGraph::QuotientGraphEdge::pop_hyperedge() {
+QuotientGraph::CutHyperedge& QuotientGraph::QuotientGraphEdge::pop_hyperedge() {
   ASSERT(isActive());
   return cut_hes[first_valid_entry++];
 }
@@ -157,16 +157,19 @@ vec<BlockPairCutHyperedges> QuotientGraph::requestCutHyperedges(const SearchID s
       const BlockPair& blocks = block_pair_cut_hes[i].blocks;
       QuotientGraphEdge& qg_edge = _quotient_graph[blocks.i][blocks.j];
       if ( qg_edge.isActive() ) {
-        const HyperedgeID he = qg_edge.pop_hyperedge();
+        CutHyperedge& cut_he = qg_edge.pop_hyperedge();
+        const HyperedgeID he = cut_he.he;
         qg_edge.stats.cut_he_weight -= _phg->edgeWeight(he);
-        // Note, we only consider hyperedges that contains pins of both blocks.
-        // There might be some edges which were initially cut, but were removed due
-        // to vertex moves. Thus, we remove them lazily here.
-        if ( _phg->pinCountInPart(he, blocks.i) > 0 &&
-             _phg->pinCountInPart(he, blocks.j) > 0 ) {
-          block_pair_cut_hes[i].cut_hes.push_back(he);
-          _searches[search_id].used_cut_hes[i].push_back(he);
-          ++num_edges;
+        if ( cut_he.acquire() ) {
+          // Note, we only consider hyperedges that contains pins of both blocks.
+          // There might be some edges which were initially cut, but were removed due
+          // to vertex moves. Thus, we remove them lazily here.
+          if ( _phg->pinCountInPart(he, blocks.i) > 0 &&
+              _phg->pinCountInPart(he, blocks.j) > 0 ) {
+            block_pair_cut_hes[i].cut_hes.push_back(he);
+            _searches[search_id].used_cut_hes[i].push_back(he);
+            ++num_edges;
+          }
         }
       } else {
         --num_active_block_pairs;
@@ -214,6 +217,25 @@ void QuotientGraph::addNewCutHyperedge(const HyperedgeID he,
         .add_hyperedge(he, _phg->edgeWeight(he));
     }
   }
+}
+
+size_t QuotientGraph::acquireUsedCutHyperedges(const SearchID& search_id, const vec<bool>& used_hes) {
+  ASSERT(search_id < _searches.size());
+  size_t additional_cut_hes = 0;
+  for ( size_t i = 0; i < _searches[search_id].block_pairs.size(); ++i ) {
+    const BlockPair& blocks = _searches[search_id].block_pairs[i];
+    QuotientGraphEdge& qg_edge = _quotient_graph[blocks.i][blocks.j];
+    const size_t start_idx = qg_edge.first_valid_entry;
+    const size_t end_idx = qg_edge.cut_hes.size();
+    for ( size_t j = start_idx; j < end_idx; ++j ) {
+      CutHyperedge& cut_he = qg_edge.cut_hes[j];
+      if ( used_hes[cut_he.he] && cut_he.acquire() ) {
+        _searches[search_id].used_cut_hes[i].push_back(cut_he.he);
+        ++additional_cut_hes;
+      }
+    }
+  }
+  return additional_cut_hes;
 }
 
 void QuotientGraph::finalizeConstruction(const SearchID search_id) {
@@ -469,7 +491,8 @@ void QuotientGraph::sortCutHyperedges(const PartitionID i,
   };
 
   // Start BFS
-  for ( const HyperedgeID& he : _quotient_graph[i][j].cut_hes ) {
+  for ( const CutHyperedge& cut_he : _quotient_graph[i][j].cut_hes ) {
+    const HyperedgeID he = cut_he.he;
     if ( bfs_data.distance[he] == -1 ) {
       bfs(he);
     }
@@ -477,12 +500,12 @@ void QuotientGraph::sortCutHyperedges(const PartitionID i,
 
   // Sort all cut hyperedges according to their distance label
   std::sort(_quotient_graph[i][j].cut_hes.begin(), _quotient_graph[i][j].cut_hes.end(),
-    [&](const HyperedgeID& lhs, const HyperedgeID& rhs) {
-      ASSERT(bfs_data.distance[lhs] != -1);
-      ASSERT(bfs_data.distance[rhs] != -1);
-      const int distance_lhs = bfs_data.distance[lhs];
-      const int distance_rhs = bfs_data.distance[rhs];
-      return distance_lhs < distance_rhs || (distance_lhs == distance_rhs && lhs < rhs);
+    [&](const CutHyperedge& lhs, const CutHyperedge& rhs) {
+      ASSERT(bfs_data.distance[lhs.he] != -1);
+      ASSERT(bfs_data.distance[rhs.he] != -1);
+      const int distance_lhs = bfs_data.distance[lhs.he];
+      const int distance_rhs = bfs_data.distance[rhs.he];
+      return distance_lhs < distance_rhs || (distance_lhs == distance_rhs && lhs.he < rhs.he);
     });
 }
 
