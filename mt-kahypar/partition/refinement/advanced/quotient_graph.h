@@ -340,7 +340,7 @@ public:
 
   bool popBlockPairFromQueue(BlockPair& blocks);
 
-  bool pushBlockPairIntoQueue(const BlockPair& blocks);
+  bool pushBlockPairIntoQueue(const BlockPair& blocks, const bool acquire_lock = true);
 
   void updateBlockSchedulerQueue(const BlockPair& blocks,
                                  const bool start_search,

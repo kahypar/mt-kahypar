@@ -159,9 +159,9 @@ bool QuotientGraph::popBlockPairFromQueue(BlockPair& blocks) {
   return blocks.i != kInvalidPartition && blocks.j != kInvalidPartition;
 }
 
-bool QuotientGraph::pushBlockPairIntoQueue(const BlockPair& blocks) {
+bool QuotientGraph::pushBlockPairIntoQueue(const BlockPair& blocks, const bool acquire_lock) {
   bool success = false;
-  _pq_lock.lock();
+  if ( acquire_lock ) _pq_lock.lock();
   const QuotientGraphEdge& qg_edge = _quotient_graph[blocks.i][blocks.j];
   const size_t block_key = index(blocks);
   const bool not_contained_and_active = qg_edge.isActive() && !_block_scheduler.contains(block_key);
@@ -173,7 +173,7 @@ bool QuotientGraph::pushBlockPairIntoQueue(const BlockPair& blocks) {
     _block_scheduler.push(block_key, qg_edge.stats);
     success = true;
   }
-  _pq_lock.unlock();
+  if ( acquire_lock ) _pq_lock.unlock();
   return success;
 }
 
@@ -191,6 +191,8 @@ void QuotientGraph::updateBlockSchedulerQueue(const BlockPair& blocks,
     const size_t tmp_block_key = index(tmp_blocks);
     if ( _block_scheduler.contains(tmp_block_key) ) {
       _block_scheduler.updateKey(tmp_block_key, _quotient_graph[tmp_blocks.i][tmp_blocks.j].stats);
+    } else {
+      pushBlockPairIntoQueue(tmp_blocks, false);
     }
   };
   update_block_pair(blocks);
@@ -271,9 +273,9 @@ void QuotientGraph::finalizeSearch(const SearchID search_id,
           qg_edge.add_hyperedge(he, _phg->edgeWeight(he));
         }
       }
-      // In case the block pair becomes active, we reinsert it into the queue
-      pushBlockPairIntoQueue(blocks);
     }
+    // In case the block pair becomes active, we reinsert it into the queue
+    pushBlockPairIntoQueue(blocks);
   }
 
   for ( size_t i = 0; i < _searches[search_id].block_pairs.size(); ++i ) {
@@ -311,20 +313,8 @@ void QuotientGraph::initialize(const PartitionedHypergraph& phg) {
   for ( PartitionID i = 0; i < _context.partition.k; ++i ) {
     for ( PartitionID j = i + 1; j < _context.partition.k; ++j ) {
       _quotient_graph[i][j].stats.initial_cut_he_weight = _quotient_graph[i][j].cut_he_weight;
-      if ( _quotient_graph[i][j].isActive() ) {
-        active_blocks.emplace_back(BlockPair {i, j});
-      }
+      pushBlockPairIntoQueue(BlockPair { i, j });
     }
-  }
-  BlockPairStatsComparator comparator;
-  std::sort(active_blocks.begin(), active_blocks.end(),
-    [&](const BlockPair& lhs, const BlockPair& rhs) {
-      return comparator(
-        _quotient_graph[lhs.i][lhs.j].stats,
-        _quotient_graph[rhs.i][rhs.j].stats);
-  });
-  for ( const BlockPair& blocks : active_blocks ) {
-    pushBlockPairIntoQueue(blocks);
   }
 
   // Sort cut hyperedges of each block
