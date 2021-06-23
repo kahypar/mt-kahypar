@@ -51,7 +51,9 @@ class LabelPropagationRefiner final : public IRefiner {
     _active_nodes(),
     _active_node_was_moved(hypergraph.initialNumNodes(), uint8_t(false)),
     _next_active(hypergraph.initialNumNodes()),
-    _visited_he(hypergraph.initialNumEdges()) { }
+    _visited_he(hypergraph.initialNumEdges()),
+    _num_attempted_moves(0),
+    _num_moved_nodes(0) { }
 
   LabelPropagationRefiner(const LabelPropagationRefiner&) = delete;
   LabelPropagationRefiner(LabelPropagationRefiner&&) = delete;
@@ -170,6 +172,9 @@ class LabelPropagationRefiner final : public IRefiner {
   parallel::scalable_vector<uint8_t> _active_node_was_moved;
   ds::ThreadSafeFastResetFlagArray<> _next_active;
   kahypar::ds::FastResetFlagArray<> _visited_he;
+
+  HypernodeID _num_attempted_moves;
+  CAtomic<HypernodeID> _num_moved_nodes;
 };
 
 using LabelPropagationKm1Refiner = LabelPropagationRefiner<Km1Policy>;

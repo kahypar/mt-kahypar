@@ -36,8 +36,10 @@ namespace mt_kahypar {
 
         Move computeMaxGainMove(HyperGraph& hypergraph,
                                 const HypernodeID hn,
+                                const int cpu_id,
                                 const bool rebalance = false) {
-            return static_cast<Derived*>(this)->computeMaxGainMoveImpl(hypergraph, hn, rebalance);
+            ASSERT(cpu_id >= 0);
+            return static_cast<Derived*>(this)->computeMaxGainMoveImpl(hypergraph, hn, cpu_id, rebalance);
         }
 
         inline void computeDeltaForHyperedge(const HyperedgeID he,
@@ -85,6 +87,7 @@ namespace mt_kahypar {
 
         Move computeMaxGainMoveImpl(HyperGraph& hypergraph,
                                     const HypernodeID hn,
+                                    const int cpu_id,
                                     const bool rebalance) {
             HEAVY_REFINEMENT_ASSERT([&] {
                 for (PartitionID k = 0; k < _context.partition.k; ++k) {
@@ -123,7 +126,6 @@ namespace mt_kahypar {
 
             Move best_move { from, from, hn, rebalance ? std::numeric_limits<Gain>::max() : 0 };
             HypernodeWeight hn_weight = hypergraph.nodeWeight(hn);
-            int cpu_id = sched_getcpu();
             utils::Randomize& rand = utils::Randomize::instance();
             for (PartitionID to = 0; to < _context.partition.k; ++to) {
                 if (from != to) {
@@ -173,6 +175,7 @@ namespace mt_kahypar {
 
         Move computeMaxGainMoveImpl(HyperGraph& hypergraph,
                                     const HypernodeID hn,
+                                    const int cpu_id,
                                     const bool rebalance) {
             HEAVY_REFINEMENT_ASSERT([&] {
                 for (PartitionID k = 0; k < _context.partition.k; ++k) {
@@ -209,7 +212,6 @@ namespace mt_kahypar {
 
             Move best_move { from, from, hn, rebalance ? std::numeric_limits<Gain>::max() : 0 };
             HypernodeWeight hn_weight = hypergraph.nodeWeight(hn);
-            int cpu_id = sched_getcpu();
             utils::Randomize& rand = utils::Randomize::instance();
             for (PartitionID to = 0; to < _context.partition.k; ++to) {
                 if (from != to) {

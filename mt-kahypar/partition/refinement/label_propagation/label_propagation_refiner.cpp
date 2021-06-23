@@ -39,11 +39,18 @@ namespace mt_kahypar {
     _gain.reset();
     _next_active.reset();
 
+    _num_attempted_moves = 0;
+    _num_moved_nodes.store(0, std::memory_order_acq_rel);
+
     // Initialize set of active vertices
     initializeActiveNodes(hypergraph, refinement_nodes);
 
     // Perform Label Propagation
     labelPropagation(hypergraph);
+
+    // Update stats about activated and moved nodes in this LP call
+    utils::Stats::instance().update_stat("lp_attempted_moves", static_cast<int64_t>(_num_attempted_moves));
+    utils::Stats::instance().update_stat("lp_moved_nodes", static_cast<int64_t>(_num_moved_nodes));
 
     // Update global part weight and sizes
     best_metrics.imbalance = metrics::imbalance(hypergraph, _context);
@@ -73,6 +80,8 @@ namespace mt_kahypar {
     NextActiveNodes next_active_nodes;
     for (size_t i = 0; i < _context.refinement.label_propagation.maximum_iterations; ++i) {
       DBG << "Starting Label Propagation Round" << i;
+
+      _num_attempted_moves += _active_nodes.size();
 
       utils::Timer::instance().start_timer(
               "lp_round_" + std::to_string(i), "Label Propagation Round " + std::to_string(i), true);
@@ -124,6 +133,7 @@ namespace mt_kahypar {
         const HypernodeID hn = _active_nodes[j];
         if ( moveVertex(hypergraph, hn, next_active_nodes, objective_delta) ) {
           _active_node_was_moved[j] = uint8_t(true);
+          _num_moved_nodes.fetch_add(1, std::memory_order_relaxed);
         } else {
           converged = false;
         }
@@ -136,6 +146,7 @@ namespace mt_kahypar {
         const HypernodeID hn = _active_nodes[j];
         if ( moveVertex(hypergraph, hn, next_active_nodes, objective_delta) ) {
           _active_node_was_moved[j] = uint8_t(true);
+          _num_moved_nodes.fetch_add(1, std::memory_order_relaxed);
         } else {
           converged = false;
         }

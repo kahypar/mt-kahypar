@@ -369,6 +369,9 @@ namespace mt_kahypar {
       _hierarchy.pop_back();
     }
 
+    // todo mlaupichler remove debug
+    std::cout << utils::Stats::instance() << std::endl;
+
     // Top-Level Refinement on all vertices
     const HyperedgeWeight objective_before = current_metrics.getMetric(
       _context.partition.mode, _context.partition.objective);
@@ -707,11 +710,16 @@ namespace mt_kahypar {
           _group_pools_for_versions.pop_back();
       }
 
+      // todo mlaupichler remove debug
+      std::cout << utils::Stats::instance() << std::endl;
+
       node_anti_duplicator.reset();
       edge_anti_duplicator.reset();
 
       size_t total_num_nodes = _hg.initialNumNodes() - _hg.numRemovedHypernodes();
       size_t num_nodes_after_coarsening = _compactified_hg.initialNumNodes();
+      unused(total_num_nodes);
+      unused(num_nodes_after_coarsening);
       ASSERT(total_num_nodes == total_uncontractions + num_nodes_after_coarsening, V(total_num_nodes) << ", " << V(total_uncontractions) << ", " << V(num_nodes_after_coarsening));
       auto checkAllAssignedAndNoneLocked = [&](){
           for (HypernodeID i = 0; i < _hg.initialNumNodes(); ++i) {

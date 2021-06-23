@@ -22,12 +22,20 @@ namespace mt_kahypar {
         ASSERT(std::all_of(refinement_nodes.begin(),refinement_nodes.end(),[&](const HypernodeID& hn) {return hypergraph.nodeIsEnabled(hn);})
                && "Not all given seed nodes are enabled!");
 
+        _num_attempted_moves = 0;
+        _num_moved_nodes = 0;
+
         _active_nodes.assign(refinement_nodes.begin(), refinement_nodes.end());
 
         _gain.reset();
+        _current_cpu_id = sched_getcpu();
 
         // Perform Label Propagation
         labelPropagation(hypergraph);
+
+        // Update stats about activated and moved nodes in this LP call
+        utils::Stats::instance().update_stat("lp_attempted_moves", static_cast<int64_t>(_num_attempted_moves));
+        utils::Stats::instance().update_stat("lp_moved_nodes", static_cast<int64_t>(_num_moved_nodes));
 
         // Update global part weight and sizes
         double imbalance;
@@ -40,6 +48,9 @@ namespace mt_kahypar {
         ASSERT(delta <= 0, "LP refiner worsen solution quality" << V(delta));
         best_metrics.fetch_add(delta, kahypar::Mode::direct_kway, _context.partition.objective);
         utils::Stats::instance().update_stat("lp_improvement", std::abs(delta));
+
+        _current_cpu_id = invalid_cpu_id;
+
         return delta < 0;
 
     }
@@ -136,8 +147,11 @@ namespace mt_kahypar {
             bool tried_to_move = false;
             auto locks = acquire_both_locks(hn);
             if (locks.locked_for_fm && locks.locked_for_uncontractions) {
+                ++_num_attempted_moves;
                 tried_to_move = true;
-                if ( ! moveVertex(hypergraph, hn, next_active_nodes, visited_edges, objective_delta) ) {
+                if (moveVertex(hypergraph, hn, next_active_nodes, visited_edges, objective_delta)) {
+                  ++_num_moved_nodes;
+                } else {
                   converged = false;
                 }
             }
@@ -153,7 +167,10 @@ namespace mt_kahypar {
             const HypernodeID hn = retry_nodes[j];
             auto locks = acquire_both_locks(hn);
             if (locks.locked_for_fm && locks.locked_for_uncontractions) {
-              if ( ! moveVertex(hypergraph, hn, next_active_nodes, visited_edges, objective_delta) ) {
+              ++_num_attempted_moves;
+              if (moveVertex(hypergraph, hn, next_active_nodes, visited_edges, objective_delta)) {
+                ++_num_moved_nodes;
+              } else {
                 converged = false;
               }
             }

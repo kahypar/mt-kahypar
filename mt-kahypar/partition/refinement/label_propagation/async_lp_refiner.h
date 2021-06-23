@@ -28,20 +28,25 @@ namespace mt_kahypar {
         static constexpr bool debug = false;
         static constexpr bool enable_heavy_assert = true;
 
+        static constexpr int invalid_cpu_id = -1;
+
     public:
         explicit AsyncLPRefiner(Hypergraph &hypergraph, const Context &context, ds::GroupLockManager *const lockManager,
                                 ds::ThreadSafeFlagArray <HypernodeID> *const node_anti_duplicator,
                                 ds::ThreadSafeFlagArray <HyperedgeID> *const edge_anti_duplicator,
                                 AsyncNodeTracker *const fm_node_tracker) :
-        _context(context),
-        _gain(context),
-        _active_nodes(),
-        _contraction_group_id(ds::invalidGroupID),
-        _lock_manager(lockManager),
-        _rng(),
-        _next_active(node_anti_duplicator),
-        _visited_he(edge_anti_duplicator),
-        _fm_node_tracker(fm_node_tracker) {
+            _context(context),
+            _gain(context),
+            _active_nodes(),
+            _contraction_group_id(ds::invalidGroupID),
+            _lock_manager(lockManager),
+            _rng(),
+            _next_active(node_anti_duplicator),
+            _visited_he(edge_anti_duplicator),
+            _fm_node_tracker(fm_node_tracker),
+            _current_cpu_id(invalid_cpu_id),
+            _num_attempted_moves(0),
+            _num_moved_nodes(0) {
             unused(hypergraph);
 //            ASSERT(_next_active->size() == hypergraph.initialNumNodes());
 //            ASSERT(_visited_he->size() == hypergraph.initialNumEdges());
@@ -81,7 +86,7 @@ namespace mt_kahypar {
             if ( hypergraph.isBorderNode(hn) ) {
                 ASSERT(hypergraph.nodeIsEnabled(hn));
 
-                Move best_move = _gain.computeMaxGainMove(hypergraph, hn);
+                Move best_move = _gain.computeMaxGainMove(hypergraph, hn, _current_cpu_id);
                 // We perform a move if it either improves the solution quality or, in case of a
                 // zero gain move, the balance of the solution.
                 const bool positive_gain = best_move.gain < 0;
@@ -199,6 +204,11 @@ namespace mt_kahypar {
 
         NextActiveNodes _next_active_nodes;
         VisitedEdges _visited_edges;
+
+        int _current_cpu_id;
+
+        HypernodeID _num_attempted_moves;
+        HypernodeID _num_moved_nodes;
 
     };
 
