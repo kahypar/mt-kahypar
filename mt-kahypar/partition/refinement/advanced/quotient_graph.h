@@ -21,6 +21,8 @@
 
 #pragma once
 
+#include "kahypar/datastructure/binary_heap.h"
+
 #include "tbb/concurrent_queue.h"
 #include "tbb/concurrent_vector.h"
 #include "tbb/enumerable_thread_specific.h"
@@ -48,30 +50,84 @@ struct BlockPairCutHyperedges {
 
 struct BlockPairStats {
   BlockPairStats() :
-    is_one_block_underloaded(false),
-    cut_he_weight(0),
-    num_acitve_searches(0),
-    round(0),
-    num_improvements(0) { }
+    initial_cut_he_weight(0),
+    num_acitve_searches_on_block_pair(0),
+    max_active_searches_on_one_block(0) { }
 
-  bool is_one_block_underloaded;
-  CAtomic<HyperedgeWeight> cut_he_weight;
-  CAtomic<size_t> num_acitve_searches;
-  CAtomic<size_t> round;
-  CAtomic<size_t> num_improvements;
+  BlockPairStats(bool /* sentinel */) :
+    initial_cut_he_weight(std::numeric_limits<HyperedgeWeight>::max()),
+    num_acitve_searches_on_block_pair(std::numeric_limits<size_t>::min()),
+    max_active_searches_on_one_block(std::numeric_limits<size_t>::min()) { }
+
+  HyperedgeWeight initial_cut_he_weight;
+  CAtomic<size_t> num_acitve_searches_on_block_pair;
+  size_t max_active_searches_on_one_block;
 };
 
 struct BlockPairStatsComparator {
   bool operator()(const BlockPairStats& lhs, const BlockPairStats& rhs) const {
-    return lhs.is_one_block_underloaded > rhs.is_one_block_underloaded ||
-      ( lhs.is_one_block_underloaded == rhs.is_one_block_underloaded &&
-        lhs.cut_he_weight > rhs.cut_he_weight );
+    return lhs.max_active_searches_on_one_block > rhs.max_active_searches_on_one_block ||
+      ( lhs.max_active_searches_on_one_block == rhs.max_active_searches_on_one_block &&
+        lhs.num_acitve_searches_on_block_pair > rhs.num_acitve_searches_on_block_pair ) ||
+      ( lhs.max_active_searches_on_one_block == rhs.max_active_searches_on_one_block &&
+        lhs.num_acitve_searches_on_block_pair == rhs.num_acitve_searches_on_block_pair &&
+        lhs.initial_cut_he_weight < rhs.initial_cut_he_weight );
   }
 };
 
 bool operator==(const BlockPairStats& lhs, const BlockPairStats& rhs);
 
 std::ostream& operator<<(std::ostream& out, const BlockPairStats& stats);
+
+} // namespace mt_kahypar
+
+namespace kahypar::ds {
+
+class BlockPairStatsHeap;
+
+// Traits specialization for block pair stats heap:
+template<>
+class BinaryHeapTraits<BlockPairStatsHeap>{
+ public:
+  using IDType = size_t;
+  using KeyType = mt_kahypar::BlockPairStats;
+  using Comparator = mt_kahypar::BlockPairStatsComparator;
+
+  static KeyType sentinel() {
+    return mt_kahypar::BlockPairStats(true);
+  }
+};
+
+class BlockPairStatsHeap final : public BinaryHeapBase<BlockPairStatsHeap>{
+  using Base = BinaryHeapBase<BlockPairStatsHeap>;
+  friend Base;
+
+ public:
+  using IDType = typename BinaryHeapTraits<BlockPairStatsHeap>::IDType;
+  using KeyType = typename BinaryHeapTraits<BlockPairStatsHeap>::KeyType;
+
+  // Second parameter is used to satisfy EnhancedBucketPQ interface
+  explicit BlockPairStatsHeap(const IDType& storage_initializer) :
+    Base(storage_initializer) { }
+
+  friend void swap(BlockPairStatsHeap& a, BlockPairStatsHeap& b) {
+    using std::swap;
+    swap(static_cast<Base&>(a), static_cast<Base&>(b));
+  }
+
+ protected:
+  inline void decreaseKeyImpl(const size_t handle) {
+    Base::upHeap(handle);
+  }
+
+  inline void increaseKeyImpl(const size_t handle) {
+    Base::downHeap(handle);
+  }
+};
+
+} // namespace kahypar::ds
+
+namespace mt_kahypar {
 
 class QuotientGraph {
 
@@ -95,21 +151,23 @@ class QuotientGraph {
       skip_small_cuts(false),
       blocks(),
       ownership(INVALID_SEARCH_ID),
-      in_queue(false),
       first_valid_entry(0),
       cut_hes(),
-      stats() { }
+      stats(),
+      cut_he_weight(0),
+      round(0),
+      num_improvements(0) { }
 
     void add_hyperedge(const HyperedgeID he,
                        const HyperedgeWeight weight);
 
     CutHyperedge& pop_hyperedge();
 
-    void reset(const bool is_one_block_underloaded);
+    void reset();
 
-    bool isActive() {
-      return ( !skip_small_cuts && stats.cut_he_weight > 0 ) ||
-             ( skip_small_cuts && stats.cut_he_weight > 10 );
+    bool isActive() const {
+      return ( !skip_small_cuts && cut_he_weight > 0 ) ||
+             ( skip_small_cuts && cut_he_weight > 10 );
     }
 
     bool isAcquired() const {
@@ -128,25 +186,15 @@ class QuotientGraph {
       ownership.store(INVALID_SEARCH_ID);
     }
 
-    bool markAsInQueue() {
-      bool expected = false;
-      bool desired = true;
-      return in_queue.compare_exchange_strong(expected, desired);
-    }
-
-    bool markAsNotInQueue() {
-      bool expected = true;
-      bool desired = false;
-      return in_queue.compare_exchange_strong(expected, desired);
-    }
-
     bool skip_small_cuts;
     BlockPair blocks;
     CAtomic<SearchID> ownership;
-    CAtomic<bool> in_queue;
     size_t first_valid_entry;
     tbb::concurrent_vector<CutHyperedge> cut_hes;
     BlockPairStats stats;
+    CAtomic<HyperedgeWeight> cut_he_weight;
+    CAtomic<size_t> round;
+    CAtomic<size_t> num_improvements;
   };
 
   // Contains information required by a local search
@@ -195,8 +243,8 @@ public:
     _initial_num_nodes(hg.initialNumNodes()),
     _quotient_graph(context.partition.k,
       vec<QuotientGraphEdge>(context.partition.k)),
-    _queue_lock(),
-    _block_scheduler(),
+    _pq_lock(),
+    _block_scheduler(context.partition.k * context.partition.k),
     _num_active_searches(0),
     _searches(),
     _num_active_searches_on_blocks(context.partition.k, CAtomic<size_t>(0)),
@@ -283,7 +331,7 @@ public:
     ASSERT(i < j);
     ASSERT(0 <= i && i < _context.partition.k);
     ASSERT(0 <= j && j < _context.partition.k);
-    return _quotient_graph[i][j].stats.cut_he_weight;
+    return _quotient_graph[i][j].cut_he_weight;
   }
 
  private:
@@ -294,21 +342,9 @@ public:
 
   bool pushBlockPairIntoQueue(const BlockPair& blocks);
 
-  /**
-   * Tries to find a path that includes num_additional_blocks + 2
-   * blocks of the quotient graph and includes the edge from the
-   * overloaded to the underloaded block.
-   */
-  vec<BlockPair> extendWithPath(const PartitionID overloaded_block,
-                                const PartitionID underloaded_block,
-                                const size_t num_additional_blocks);
-
-  /**
-   * Tries to find a cycle that includes num_additional_blocks + 2
-   * blocks of the quotient graph and includes the edge 'initial_blocks'.
-   */
-  vec<BlockPair> extendWithCycle(const BlockPair initial_blocks,
-                                 const size_t num_additional_blocks);
+  void updateBlockSchedulerQueue(const BlockPair& blocks,
+                                 const bool start_search,
+                                 const bool acquire_lock);
 
   /**
    * The idea is to sort the cut hyperedges of a block pair (i,j)
@@ -321,48 +357,21 @@ public:
                          const PartitionID j,
                          BFSData& bfs_data);
 
-  bool isOneBlockUnderloaded(const PartitionID i, const PartitionID j) {
-    ASSERT(_phg);
-    ASSERT(i >= 0 && i < _context.partition.k);
-    ASSERT(j >= 0 && j < _context.partition.k);
-    ASSERT(i != j);
-    return ( _phg->partWeight(i) < _context.partition.perfect_balance_part_weights[i] &&
-             _phg->partWeight(j) >= _context.partition.perfect_balance_part_weights[j] ) ||
-           ( _phg->partWeight(i) >= _context.partition.perfect_balance_part_weights[i] &&
-             _phg->partWeight(j) < _context.partition.perfect_balance_part_weights[j] );
-  }
-
   bool isInputHypergraph(const PartitionedHypergraph& phg) const {
     return phg.initialNumNodes() == _initial_num_nodes;
   }
 
-  // Only for testing
-  bool verifyCycle(vec<BlockPair> cycle) {
-    // Order block pairs such that they form an continous cycle
-    for ( size_t i = 1; i < cycle.size(); ++i ) {
-      bool found = false;
-      size_t j = i;
-      for ( ; j < cycle.size(); ++j ) {
-        if ( cycle[j].i == cycle[i - 1].j || cycle[j].j == cycle[i - 1].j ) {
-          found = true;
-          std::swap(cycle[i], cycle[j]);
-          if ( cycle[i].j == cycle[i - 1].j ) std::swap(cycle[i].i, cycle[i].j);
-          break;
-        }
-      }
+  size_t index(const BlockPair& blocks) const {
+    return blocks.i + _context.partition.k * blocks.j;
+  }
 
-      if ( !found ) {
-        return false;
-      }
-    }
-
-    if ( cycle[0].i != cycle.back().j ) {
-      LOG << "First and last block of cycle do not match"
-          << V(cycle[0].i) << V(cycle.back().j);
-      return false;
-    } else {
-      return true;
-    }
+  BlockPair blockPairFromIndex(const size_t index) const {
+    const PartitionID block_1 = index % _context.partition.k;
+    ASSERT((index - block_1) % _context.partition.k == 0);
+    const PartitionID block_2 = (index - block_1) / _context.partition.k;
+    ASSERT(block_2 < _context.partition.k);
+    ASSERT(block_1 < block_2);
+    return BlockPair { block_1, block_2 };
   }
 
   const PartitionedHypergraph* _phg;
@@ -373,9 +382,9 @@ public:
   // ! of the block pair which its represents.
   vec<vec<QuotientGraphEdge>> _quotient_graph;
 
-  SpinLock _queue_lock;
+  SpinLock _pq_lock;
   // ! Queue that contains all block pairs.
-  tbb::concurrent_queue<BlockPair> _block_scheduler;
+  kahypar::ds::BlockPairStatsHeap _block_scheduler;
 
   // ! Number of active searches
   CAtomic<size_t> _num_active_searches;
