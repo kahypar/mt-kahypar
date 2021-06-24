@@ -93,8 +93,8 @@ private:
   }
 
   explicit PartitionedHypergraph(const PartitionID k,
-                                 const TaskGroupID,
-                                 Hypergraph& hypergraph) :
+                                 Hypergraph& hypergraph,
+                                 parallel_tag_t) :
     _is_gain_cache_initialized(false),
     _k(k),
     _hg(&hypergraph),
@@ -543,11 +543,11 @@ private:
                       HypernodeWeight max_weight_to,
                       SuccessFunc&& report_success,
                       DeltaFunc&& delta_func) {
-      assert(partID(u) == from);
-      assert(from != to);
-      const HypernodeWeight wu = nodeWeight(u);
-      const HypernodeWeight to_weight_after = _part_weights[to].add_fetch(wu, std::memory_order_relaxed);
-      const HypernodeWeight from_weight_after = _part_weights[from].fetch_sub(wu, std::memory_order_relaxed);
+    assert(partID(u) == from);
+    assert(from != to);
+    const HypernodeWeight wu = nodeWeight(u);
+    const HypernodeWeight to_weight_after = _part_weights[to].add_fetch(wu, std::memory_order_relaxed);
+    const HypernodeWeight from_weight_after = _part_weights[from].fetch_sub(wu, std::memory_order_relaxed);
     if ( to_weight_after <= max_weight_to && from_weight_after > 0 ) {
       _part_ids[u] = to;
       report_success();
@@ -690,7 +690,7 @@ private:
   // ! Initializes the partition of the hypergraph, if block ids are assigned with
   // ! setOnlyNodePart(...). In that case, block weights and pin counts in part for
   // ! each hyperedge must be initialized explicitly here.
-  void initializePartition(const TaskGroupID ) {
+  void initializePartition() {
     tbb::parallel_invoke(
             [&] { initializeBlockWeights(); },
             [&] { initializePinCountInPart(); }
@@ -932,7 +932,10 @@ private:
   // ! It also returns a vertex-mapping from the original hypergraph to the sub-hypergraph.
   // ! If cut_net_splitting is activated, hyperedges that span more than one block (cut nets) are split, which is used for the connectivity metric.
   // ! Otherwise cut nets are discarded (cut metric).
-  std::pair<Hypergraph, parallel::scalable_vector<HypernodeID> > extract(const TaskGroupID& task_group_id, PartitionID block, bool cut_net_splitting) {
+  std::pair<Hypergraph, parallel::scalable_vector<HypernodeID> > extract(
+          PartitionID block,
+          bool cut_net_splitting,
+          bool stable_construction_of_incident_edges) {
     ASSERT(block != kInvalidPartition && block < _k);
 
     // Compactify vertex ids
@@ -985,9 +988,8 @@ private:
     });
 
     // Construct hypergraph
-    Hypergraph extracted_hypergraph = HypergraphFactory::construct(
-            task_group_id, num_hypernodes, num_hyperedges,
-            edge_vector, hyperedge_weight.data(), hypernode_weight.data());
+    Hypergraph extracted_hypergraph = HypergraphFactory::construct(num_hypernodes, num_hyperedges,
+            edge_vector, hyperedge_weight.data(), hypernode_weight.data(), stable_construction_of_incident_edges);
 
     // Set community ids
     doParallelForAllNodes([&](const HypernodeID& hn) {

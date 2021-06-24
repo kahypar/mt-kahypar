@@ -39,8 +39,7 @@ namespace mt_kahypar::multilevel {
     RefinementTask(Hypergraph& hypergraph,
                    PartitionedHypergraph& partitioned_hypergraph,
                    const Context& context,
-                   const bool top_level,
-                   const TaskGroupID task_group_id) :
+                   const bool top_level) :
             _coarsener(nullptr),
             _sparsifier(nullptr),
             _ip_context(context),
@@ -48,14 +47,13 @@ namespace mt_kahypar::multilevel {
             _hg(hypergraph),
             _partitioned_hg(partitioned_hypergraph),
             _context(context),
-            _top_level(top_level),
-            _task_group_id(task_group_id) {
+            _top_level(top_level) {
       // Must be empty, because final partitioned hypergraph
       // is moved into this object
       _coarsener = CoarsenerFactory::getInstance().createObject(
-              _context.coarsening.algorithm, _hg, _context, _task_group_id, _top_level);
+              _context.coarsening.algorithm, _hg, _context, _top_level);
       _sparsifier = HypergraphSparsifierFactory::getInstance().createObject(
-              _context.sparsification.similiar_net_combiner_strategy, _context, _task_group_id);
+              _context.sparsification.similiar_net_combiner_strategy, _context);
 
       // Switch refinement context from IP to main
       _ip_context.refinement = _context.initial_partitioning.refinement;
@@ -96,16 +94,15 @@ namespace mt_kahypar::multilevel {
       std::unique_ptr<IRefiner> label_propagation =
               LabelPropagationFactory::getInstance().createObject(
                       _context.refinement.label_propagation.algorithm,
-                      _hg, _context, _task_group_id);
+                      _hg, _context);
       std::unique_ptr<IRefiner> fm =
               FMFactory::getInstance().createObject(
                       _context.refinement.fm.algorithm,
-                      _hg, _context, _task_group_id);
+                      _hg, _context);
 
       _partitioned_hg = _coarsener->uncoarsen(label_propagation, fm);
       utils::Timer::instance().stop_timer("refinement");
 
-      io::printPartitioningResults(_partitioned_hg, _context, "Local Search Results:");
       return nullptr;
     }
 
@@ -128,7 +125,6 @@ namespace mt_kahypar::multilevel {
     PartitionedHypergraph& _partitioned_hg;
     const Context& _context;
     const bool _top_level;
-    const TaskGroupID _task_group_id;
   };
 
   class CoarseningTask : public tbb::task {
@@ -141,7 +137,6 @@ namespace mt_kahypar::multilevel {
                    DegreeZeroHypernodeRemover& degree_zero_hn_remover,
                    ICoarsener& coarsener,
                    const bool top_level,
-                   const TaskGroupID task_group_id,
                    const bool vcycle) :
             _hg(hypergraph),
             _sparsifier(sparsifier),
@@ -150,7 +145,6 @@ namespace mt_kahypar::multilevel {
             _degree_zero_hn_remover(degree_zero_hn_remover),
             _coarsener(coarsener),
             _top_level(top_level),
-            _task_group_id(task_group_id),
             _vcycle(vcycle) { }
 
     tbb::task* execute() override {
@@ -201,16 +195,14 @@ namespace mt_kahypar::multilevel {
 
         if ( _context.initial_partitioning.mode == InitialPartitioningMode::direct ) {
           disableTimerAndStats();
-          // TODO move into IP algos
           PoolInitialPartitionerContinuation& ip_continuation = *new(allocate_continuation())
-                  PoolInitialPartitionerContinuation(
-                  phg, _ip_context, _task_group_id);
+                  PoolInitialPartitionerContinuation(phg, _ip_context);
           spawn_initial_partitioner(ip_continuation);
         } else {
           std::unique_ptr<IInitialPartitioner> initial_partitioner =
                   InitialPartitionerFactory::getInstance().createObject(
                           _ip_context.initial_partitioning.mode, phg,
-                          _ip_context, _top_level, _task_group_id);
+                          _ip_context, _top_level);
           initial_partitioner->initialPartition();
         }
       } else {
@@ -221,7 +213,7 @@ namespace mt_kahypar::multilevel {
           ASSERT(part_id != kInvalidPartition && part_id < _context.partition.k);
           phg.setOnlyNodePart(hn, part_id);
         });
-        phg.initializePartition(_task_group_id);
+        phg.initializePartition();
       }
     }
 
@@ -240,7 +232,6 @@ namespace mt_kahypar::multilevel {
     DegreeZeroHypernodeRemover& _degree_zero_hn_remover;
     ICoarsener& _coarsener;
     const bool _top_level;
-    const TaskGroupID _task_group_id;
     const bool _vcycle;
   };
 
@@ -250,18 +241,17 @@ namespace mt_kahypar::multilevel {
                                            PartitionedHypergraph& partitioned_hypergraph,
                                            const Context& context,
                                            const bool top_level,
-                                           const TaskGroupID task_group_id,
                                            const bool vcycle,
                                            tbb::task& parent) {
     // The coarsening task is first executed and once it finishes the
     // refinement task continues (without blocking)
     RefinementTask& refinement_task = *new(parent.allocate_continuation())
-            RefinementTask(hypergraph, partitioned_hypergraph, context, top_level, task_group_id);
+            RefinementTask(hypergraph, partitioned_hypergraph, context, top_level);
     refinement_task.set_ref_count(1);
     CoarseningTask& coarsening_task = *new(refinement_task.allocate_child()) CoarseningTask(
             hypergraph, *refinement_task._sparsifier,
             context, refinement_task._ip_context, refinement_task._degree_zero_hn_remover,
-            *refinement_task._coarsener, top_level, task_group_id, vcycle);
+            *refinement_task._coarsener, top_level, vcycle);
     tbb::task::spawn(coarsening_task);
   }
 
@@ -272,19 +262,17 @@ namespace mt_kahypar::multilevel {
                                PartitionedHypergraph& partitioned_hypergraph,
                                const Context& context,
                                const bool top_level,
-                               const TaskGroupID task_group_id,
                                const bool vcycle) :
             _hg(hypergraph),
             _partitioned_hg(partitioned_hypergraph),
             _context(context),
             _top_level(top_level),
-            _task_group_id(task_group_id),
             _vcycle(vcycle) { }
 
     tbb::task* execute() override {
       spawn_multilevel_partitioner(
               _hg, _partitioned_hg, _context, _top_level,
-              _task_group_id, _vcycle, *this);
+              _vcycle, *this);
       return nullptr;
     }
 
@@ -293,16 +281,15 @@ namespace mt_kahypar::multilevel {
     PartitionedHypergraph& _partitioned_hg;
     const Context& _context;
     const bool _top_level;
-    const TaskGroupID _task_group_id;
     const bool _vcycle;
   };
 
 
-PartitionedHypergraph partition(Hypergraph& hypergraph, const Context& context, const bool top_level,
-                                const TaskGroupID task_group_id, const bool vcycle) {
+PartitionedHypergraph partition(Hypergraph& hypergraph, const Context& context,
+                                const bool top_level, const bool vcycle) {
   PartitionedHypergraph partitioned_hypergraph;
   MultilevelPartitioningTask& multilevel_task = *new(tbb::task::allocate_root())
-          MultilevelPartitioningTask(hypergraph, partitioned_hypergraph, context, top_level, task_group_id, vcycle);
+          MultilevelPartitioningTask(hypergraph, partitioned_hypergraph, context, top_level, vcycle);
   tbb::task::spawn_root_and_wait(multilevel_task);
   return partitioned_hypergraph;
 }
@@ -311,11 +298,11 @@ PartitionedHypergraph partition(Hypergraph& hypergraph, const Context& context, 
 
 void partition_async(Hypergraph& hypergraph, PartitionedHypergraph& partitioned_hypergraph,
                      const Context& context, const bool top_level,
-                     const TaskGroupID task_group_id, tbb::task* parent) {
+                     tbb::task* parent) {
   ASSERT(parent);
   spawn_multilevel_partitioner(
           hypergraph, partitioned_hypergraph, context,
-          top_level, task_group_id, false, *parent);
+          top_level, false, *parent);
 }
 
 }

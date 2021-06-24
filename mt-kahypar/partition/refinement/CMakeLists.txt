@@ -5,6 +5,7 @@ set(RefinementSources
         fm/sequential_twoway_fm_refiner.cpp
         label_propagation/label_propagation_refiner.cpp
         rebalancing/rebalancer.cpp
+        deterministic/deterministic_label_propagation.cpp
         )
 
 foreach(modtarget IN LISTS TARGETS_WANTING_ALL_SOURCES)

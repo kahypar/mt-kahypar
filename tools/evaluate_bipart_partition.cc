@@ -52,7 +52,7 @@ void readBipartPartitionFile(const std::string& bipart_partition_file,
         hypergraph.setOnlyNodePart(hn - 1, block);
       }
     }
-    hypergraph.initializePartition(0);
+    hypergraph.initializePartition();
     file.close();
   } else {
     std::cerr << "Error: File not found: " << std::endl;

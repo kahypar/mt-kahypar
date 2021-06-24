@@ -134,7 +134,7 @@ TEST_F(AStaticHypergraph, ModifiesNodeWeight) {
   hypergraph.setNodeWeight(6, 2);
   ASSERT_EQ(2, hypergraph.nodeWeight(0));
   ASSERT_EQ(2, hypergraph.nodeWeight(6));
-    hypergraph.computeAndSetTotalNodeWeight(TBBNumaArena::GLOBAL_TASK_GROUP);
+  hypergraph.computeAndSetTotalNodeWeight(parallel_tag_t());
   ASSERT_EQ(9, hypergraph.totalWeight());
 }
 
@@ -234,7 +234,7 @@ TEST_F(AStaticHypergraph, RemovesAHyperedgeFromTheHypergraph4) {
 }
 
 TEST_F(AStaticHypergraph, ComparesStatsIfCopiedParallel) {
-  StaticHypergraph copy_hg = hypergraph.copy(TBBNumaArena::GLOBAL_TASK_GROUP);
+  StaticHypergraph copy_hg = hypergraph.copy(parallel_tag_t());
   ASSERT_EQ(hypergraph.initialNumNodes(), copy_hg.initialNumNodes());
   ASSERT_EQ(hypergraph.initialNumEdges(), copy_hg.initialNumEdges());
   ASSERT_EQ(hypergraph.initialNumPins(), copy_hg.initialNumPins());
@@ -254,7 +254,7 @@ TEST_F(AStaticHypergraph, ComparesStatsIfCopiedSequential) {
 }
 
 TEST_F(AStaticHypergraph, ComparesIncidentNetsIfCopiedParallel) {
-  StaticHypergraph copy_hg = hypergraph.copy(TBBNumaArena::GLOBAL_TASK_GROUP);
+  StaticHypergraph copy_hg = hypergraph.copy(parallel_tag_t());
   verifyIncidentNets(copy_hg, 0, { 0, 1 });
   verifyIncidentNets(copy_hg, 1, { 1 });
   verifyIncidentNets(copy_hg, 2, { 0, 3 });
@@ -276,7 +276,7 @@ TEST_F(AStaticHypergraph, ComparesIncidentNetsIfCopiedSequential) {
 }
 
 TEST_F(AStaticHypergraph, ComparesPinsOfHyperedgesIfCopiedParallel) {
-  StaticHypergraph copy_hg = hypergraph.copy(TBBNumaArena::GLOBAL_TASK_GROUP);
+  StaticHypergraph copy_hg = hypergraph.copy(parallel_tag_t());
   verifyPins(copy_hg, { 0, 1, 2, 3 },
     { {0, 2}, {0, 1, 3, 4}, {3, 4, 6}, {2, 5, 6} });
 }
@@ -289,7 +289,7 @@ TEST_F(AStaticHypergraph, ComparesPinsOfHyperedgesIfCopiedSequential) {
 
 TEST_F(AStaticHypergraph, ComparesCommunityIdsIfCopiedParallel) {
   assignCommunityIds();
-  StaticHypergraph copy_hg = hypergraph.copy(TBBNumaArena::GLOBAL_TASK_GROUP);
+  StaticHypergraph copy_hg = hypergraph.copy(parallel_tag_t());
   ASSERT_EQ(hypergraph.communityID(0), copy_hg.communityID(0));
   ASSERT_EQ(hypergraph.communityID(1), copy_hg.communityID(1));
   ASSERT_EQ(hypergraph.communityID(2), copy_hg.communityID(2));
@@ -313,8 +313,7 @@ TEST_F(AStaticHypergraph, ComparesCommunityIdsIfCopiedSequential) {
 
 TEST_F(AStaticHypergraph, ContractsCommunities1) {
   parallel::scalable_vector<HypernodeID> c_mapping = {1, 4, 1, 5, 5, 4, 5};
-  StaticHypergraph c_hypergraph = hypergraph.contract(
-    c_mapping, TBBNumaArena::GLOBAL_TASK_GROUP);
+  StaticHypergraph c_hypergraph = hypergraph.contract(c_mapping);
 
   // Verify Mapping
   ASSERT_EQ(0, c_mapping[0]);
@@ -349,8 +348,7 @@ TEST_F(AStaticHypergraph, ContractsCommunities1) {
 
 TEST_F(AStaticHypergraph, ContractsCommunities2) {
   parallel::scalable_vector<HypernodeID> c_mapping = {1, 4, 1, 5, 5, 6, 5};
-  StaticHypergraph c_hypergraph = hypergraph.contract(
-    c_mapping, TBBNumaArena::GLOBAL_TASK_GROUP);
+  StaticHypergraph c_hypergraph = hypergraph.contract(c_mapping);
 
   // Verify Mapping
   ASSERT_EQ(0, c_mapping[0]);
@@ -388,8 +386,7 @@ TEST_F(AStaticHypergraph, ContractsCommunities2) {
 
 TEST_F(AStaticHypergraph, ContractsCommunities3) {
   parallel::scalable_vector<HypernodeID> c_mapping = {2, 2, 0, 5, 5, 1, 1};
-  StaticHypergraph c_hypergraph = hypergraph.contract(
-    c_mapping, TBBNumaArena::GLOBAL_TASK_GROUP);
+  StaticHypergraph c_hypergraph = hypergraph.contract(c_mapping);
 
   // Verify Mapping
   ASSERT_EQ(2, c_mapping[0]);
@@ -431,11 +428,10 @@ TEST_F(AStaticHypergraph, ContractsCommunities3) {
 TEST_F(AStaticHypergraph, ContractsCommunitiesWithDisabledHypernodes) {
   hypergraph.disableHypernode(0);
   hypergraph.disableHypernode(6);
-  hypergraph.computeAndSetTotalNodeWeight(TBBNumaArena::GLOBAL_TASK_GROUP);
+  hypergraph.computeAndSetTotalNodeWeight(parallel_tag_t());
 
   parallel::scalable_vector<HypernodeID> c_mapping = {0, 1, 1, 2, 2, 2, 6};
-  StaticHypergraph c_hypergraph = hypergraph.contract(
-    c_mapping, TBBNumaArena::GLOBAL_TASK_GROUP);
+  StaticHypergraph c_hypergraph = hypergraph.contract(c_mapping);
 
   // Verify Mapping
   ASSERT_EQ(0, c_mapping[1]);
@@ -468,8 +464,7 @@ TEST_F(AStaticHypergraph, ContractsCommunitiesWithDisabledHyperedges) {
   hypergraph.disableHyperedge(3);
 
   parallel::scalable_vector<HypernodeID> c_mapping = {0, 0, 0, 1, 1, 2, 3};
-  StaticHypergraph c_hypergraph = hypergraph.contract(
-    c_mapping, TBBNumaArena::GLOBAL_TASK_GROUP);
+  StaticHypergraph c_hypergraph = hypergraph.contract(c_mapping);
 
   // Verify Mapping
   ASSERT_EQ(0, c_mapping[0]);
@@ -509,8 +504,7 @@ TEST_F(AStaticHypergraph, ContractsCommunitiesWithDisabledHyperedges) {
 TEST_F(AStaticHypergraph, ContractCommunitiesIfCommunityInformationAreAvailable) {
   assignCommunityIds();
   parallel::scalable_vector<HypernodeID> c_mapping = {0, 0, 1, 2, 2, 3, 3};
-  StaticHypergraph c_hypergraph = hypergraph.contract(
-    c_mapping, TBBNumaArena::GLOBAL_TASK_GROUP);
+  StaticHypergraph c_hypergraph = hypergraph.contract(c_mapping);
 
   // Verify Community Ids
   ASSERT_EQ(0, c_hypergraph.communityID(0));

@@ -28,10 +28,7 @@
 
 #include <tbb/parallel_reduce.h>
 
-
 namespace mt_kahypar::ds {
-
-  // TODO split contraction into multiple functions!
 
 
   /*!
@@ -55,9 +52,7 @@ namespace mt_kahypar::ds {
    * \param communities Community structure that should be contracted
    * \param task_group_id Task Group ID
    */
-  StaticHypergraph StaticHypergraph::contract(
-          parallel::scalable_vector<HypernodeID>& communities,
-          const TaskGroupID /* task_group_id */) {
+  StaticHypergraph StaticHypergraph::contract(parallel::scalable_vector<HypernodeID>& communities) {
 
     ASSERT(communities.size() == _num_hypernodes);
 
@@ -65,7 +60,7 @@ namespace mt_kahypar::ds {
       allocateTmpContractionBuffer();
     }
 
-    // AUXILLIARY BUFFERS - Reused during multilevel hierarchy to prevent expensive allocations
+    // Auxiliary buffers - reused during multilevel hierarchy to prevent expensive allocations
     Array<size_t>& mapping = _tmp_contraction_buffer->mapping;
     Array<Hypernode>& tmp_hypernodes = _tmp_contraction_buffer->tmp_hypernodes;
     IncidentNets& tmp_incident_nets = _tmp_contraction_buffer->tmp_incident_nets;
@@ -126,7 +121,6 @@ namespace mt_kahypar::ds {
       ASSERT(hn < communities.size());
       return communities[hn];
     };
-
 
     doParallelForAllNodes([&](const HypernodeID& hn) {
       const HypernodeID coarse_hn = map_to_coarse_hypergraph(hn);
@@ -340,7 +334,7 @@ namespace mt_kahypar::ds {
       auto& hyperedge_bucket = hyperedge_hash_map.getBucket(bucket);
       std::sort(hyperedge_bucket.begin(), hyperedge_bucket.end(),
                 [&](const ContractedHyperedgeInformation& lhs, const ContractedHyperedgeInformation& rhs) {
-                  return lhs.hash < rhs.hash || (lhs.hash == rhs.hash && lhs.size < rhs.size);
+                  return std::tie(lhs.hash, lhs.size, lhs.he) < std::tie(rhs.hash, rhs.size, rhs.he);
                 });
 
       // Parallel Hyperedge Detection
@@ -514,7 +508,7 @@ namespace mt_kahypar::ds {
 
 
   // ! Copy static hypergraph in parallel
-  StaticHypergraph StaticHypergraph::copy(const TaskGroupID /* task_group_id */) {
+  StaticHypergraph StaticHypergraph::copy(parallel_tag_t) {
     StaticHypergraph hypergraph;
 
     hypergraph._num_hypernodes = _num_hypernodes;
@@ -593,7 +587,7 @@ namespace mt_kahypar::ds {
   }
 
   // ! Computes the total node weight of the hypergraph
-  void StaticHypergraph::computeAndSetTotalNodeWeight(const TaskGroupID) {
+  void StaticHypergraph::computeAndSetTotalNodeWeight(parallel_tag_t) {
     _total_weight = tbb::parallel_reduce(tbb::blocked_range<HypernodeID>(ID(0), _num_hypernodes), 0,
                                          [this](const tbb::blocked_range<HypernodeID>& range, HypernodeWeight init) {
                                            HypernodeWeight weight = init;

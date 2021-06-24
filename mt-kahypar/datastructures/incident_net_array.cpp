@@ -303,7 +303,7 @@ void IncidentNetArray::restoreIncidentNets(const HypernodeID u,
   ASSERT(verifyIteratorPointers(u), "Iterator pointers of vertex" << u << "are corrupted");
 }
 
-IncidentNetArray IncidentNetArray::copy(const TaskGroupID) {
+IncidentNetArray IncidentNetArray::copy(parallel_tag_t) {
   IncidentNetArray incident_nets;
   incident_nets._num_hypernodes = _num_hypernodes;
   incident_nets._size_in_bytes = _size_in_bytes;

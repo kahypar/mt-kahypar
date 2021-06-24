@@ -37,10 +37,11 @@ class BFSInitialPartitioner : public tbb::task {
   BFSInitialPartitioner(const InitialPartitioningAlgorithm,
                          InitialPartitioningDataContainer& ip_data,
                          const Context& context,
-                         const int seed) :
+                         const int seed, const int tag) :
     _ip_data(ip_data),
     _context(context),
-    _rng(seed) { }
+    _rng(seed),
+    _tag(tag) { }
 
   tbb::task* execute() override ;
 
@@ -80,6 +81,7 @@ class BFSInitialPartitioner : public tbb::task {
   InitialPartitioningDataContainer& _ip_data;
   const Context& _context;
   std::mt19937 _rng;
+  const int _tag;
 };
 
 

@@ -21,34 +21,36 @@
 
 
 #include "kahypar/meta/registrar.h"
-
 #include "mt-kahypar/partition/context.h"
+
 #include "mt-kahypar/partition/factories.h"
 #include "mt-kahypar/partition/refinement/do_nothing_refiner.h"
 #include "mt-kahypar/partition/refinement/label_propagation/label_propagation_refiner.h"
+#include "mt-kahypar/partition/refinement/deterministic/deterministic_label_propagation.h"
 #include "mt-kahypar/partition/refinement/fm/multitry_kway_fm.h"
 #include "mt-kahypar/partition/refinement/fm/strategies/gain_cache_strategy.h"
 #include "mt-kahypar/partition/refinement/fm/strategies/gain_delta_strategy.h"
 #include "mt-kahypar/partition/refinement/fm/strategies/recompute_gain_strategy.h"
 #include "mt-kahypar/partition/refinement/fm/strategies/gain_cache_on_demand_strategy.h"
 
-#define REGISTER_LP_REFINER(id, refiner, t)                                                                            \
-  static kahypar::meta::Registrar<LabelPropagationFactory> JOIN(register_ ## refiner, t)(                              \
-    id,                                                                                                                \
-    [](Hypergraph& hypergraph, const Context& context, const TaskGroupID task_group_id) -> IRefiner* {                 \
-    return new refiner(hypergraph, context, task_group_id);                                                            \
+#define REGISTER_LP_REFINER(id, refiner, t)                                                     \
+  static kahypar::meta::Registrar<LabelPropagationFactory> JOIN(register_ ## refiner, t)(       \
+    id,                                                                                         \
+    [](Hypergraph& hypergraph, const Context& context) -> IRefiner* {                           \
+    return new refiner(hypergraph, context);                                                    \
   })
 
-#define REGISTER_FM_REFINER(id, refiner, t)                                                                            \
-  static kahypar::meta::Registrar<FMFactory> JOIN(register_ ## refiner, t)(                                            \
-    id,                                                                                                                \
-    [](Hypergraph& hypergraph, const Context& context, const TaskGroupID task_group_id) -> IRefiner* {                 \
-    return new refiner(hypergraph, context, task_group_id);                                                            \
+#define REGISTER_FM_REFINER(id, refiner, t)                                                     \
+  static kahypar::meta::Registrar<FMFactory> JOIN(register_ ## refiner, t)(                     \
+    id,                                                                                         \
+    [](Hypergraph& hypergraph, const Context& context) -> IRefiner* {                           \
+    return new refiner(hypergraph, context);                                                    \
   })
 
 namespace mt_kahypar {
 REGISTER_LP_REFINER(LabelPropagationAlgorithm::label_propagation_cut, LabelPropagationCutRefiner, Cut);
 REGISTER_LP_REFINER(LabelPropagationAlgorithm::label_propagation_km1, LabelPropagationKm1Refiner, Km1);
+REGISTER_LP_REFINER(LabelPropagationAlgorithm::deterministic, DeterministicLabelPropagationRefiner, Km1);
 REGISTER_LP_REFINER(LabelPropagationAlgorithm::do_nothing, DoNothingRefiner, 1);
 
 using MultiTryKWayFMWithGainGache = MultiTryKWayFM<GainCacheStrategy>;

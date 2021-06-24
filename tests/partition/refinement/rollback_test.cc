@@ -40,7 +40,7 @@ namespace mt_kahypar {
 //#ifndef USE_STRONG_PARTITIONER
 
 TEST(RollbackTests, GainRecalculationAndRollsbackCorrectly) {
-  Hypergraph hg = io::readHypergraphFile("../tests/instances/twocenters.hgr", 0);
+  Hypergraph hg = io::readHypergraphFile("../tests/instances/twocenters.hgr");
   PartitionID k = 2;
 
 
@@ -97,7 +97,7 @@ TEST(RollbackTests, GainRecalculationAndRollsbackCorrectly) {
 
 
 TEST(RollbackTests, GainRecalculation2) {
-  Hypergraph hg = io::readHypergraphFile("../tests/instances/twocenters.hgr", 0);
+  Hypergraph hg = io::readHypergraphFile("../tests/instances/twocenters.hgr");
   PartitionID k = 2;
   PartitionedHypergraph phg(k, hg);
   phg.setNodePart(0, 1);

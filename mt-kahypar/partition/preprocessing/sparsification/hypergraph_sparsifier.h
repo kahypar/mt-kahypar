@@ -80,11 +80,9 @@ class HypergraphSparsifier : public IHypergraphSparsifier {
   static constexpr bool enable_heavy_assert = false;
 
  public:
-  HypergraphSparsifier(const Context& context,
-                        const TaskGroupID task_group_id) :
+  HypergraphSparsifier(const Context& context) :
     Base(),
     _context(context),
-    _task_group_id(task_group_id),
     _sparsified_hg(),
     _sparsified_partitioned_hg(),
     _mapping() { }
@@ -110,7 +108,7 @@ class HypergraphSparsifier : public IHypergraphSparsifier {
 
   void sparsifyImpl(const Hypergraph& hypergraph) override final {
     ASSERT(_context.useSparsification());
-    SparsifierHypergraph sparsified_hypergraph(hypergraph, _task_group_id);
+    SparsifierHypergraph sparsified_hypergraph(hypergraph);
 
     // #################### STAGE 1 ####################
     // Heavy Hyperedge Removal
@@ -146,7 +144,7 @@ class HypergraphSparsifier : public IHypergraphSparsifier {
     _sparsified_hg = sparsified_hypergraph.sparsify();
     _mapping = sparsified_hypergraph.getMapping();
     _sparsified_partitioned_hg = PartitionedHypergraph(
-      _context.partition.k, _task_group_id, _sparsified_hg);
+      _context.partition.k, _sparsified_hg, parallel_tag_t());
     utils::Timer::instance().stop_timer("construct_sparsified_hypergraph");
   }
 
@@ -315,7 +313,6 @@ class HypergraphSparsifier : public IHypergraphSparsifier {
   }
 
   const Context& _context;
-  const TaskGroupID _task_group_id;
 
   Hypergraph _sparsified_hg;
   PartitionedHypergraph _sparsified_partitioned_hg;
