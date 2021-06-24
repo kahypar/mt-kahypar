@@ -60,6 +60,14 @@ namespace mt_kahypar {
 
         ~AsyncLPRefiner() override = default;
 
+        int64_t getNumTotalAttemptedMoves() const override {
+          return _num_attempted_moves;
+        }
+
+        int64_t getNumTotalMovedNodes() const override {
+          return _num_moved_nodes;
+        }
+
     private:
 
         bool refineImpl(PartitionedHypergraph& hypergraph,
@@ -207,8 +215,11 @@ namespace mt_kahypar {
 
         int _current_cpu_id;
 
-        HypernodeID _num_attempted_moves;
-        HypernodeID _num_moved_nodes;
+        // Statistics counters that track the number of attempted and actually executed moves across all refine calls
+        // for this AsyncLPRefiner
+        int64_t _num_attempted_moves;
+        int64_t _num_moved_nodes;
+
 
     };
 

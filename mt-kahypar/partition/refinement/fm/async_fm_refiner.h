@@ -26,6 +26,14 @@ public:
       _fm(std::make_unique<AsyncKWayFM<FMStrategy>>(
           context, hypergraph.initialNumNodes(), shared_data, lock_manager)) {}
 
+    int64_t getNumTotalAttemptedMoves() const override {
+      ERROR("Number of moves currently not tracked in Async FM Refiner.");
+    }
+
+    int64_t getNumTotalMovedNodes() const override {
+      ERROR("Number of moves currently not tracked in Async FM Refiner.");
+    }
+
 private:
 
     bool refineImpl(PartitionedHypergraph &hypergraph, const parallel::scalable_vector <HypernodeID> &refinement_nodes,

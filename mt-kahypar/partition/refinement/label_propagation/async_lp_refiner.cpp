@@ -22,9 +22,6 @@ namespace mt_kahypar {
         ASSERT(std::all_of(refinement_nodes.begin(),refinement_nodes.end(),[&](const HypernodeID& hn) {return hypergraph.nodeIsEnabled(hn);})
                && "Not all given seed nodes are enabled!");
 
-        _num_attempted_moves = 0;
-        _num_moved_nodes = 0;
-
         _active_nodes.assign(refinement_nodes.begin(), refinement_nodes.end());
 
         _gain.reset();
@@ -33,9 +30,8 @@ namespace mt_kahypar {
         // Perform Label Propagation
         labelPropagation(hypergraph);
 
-        // Update stats about activated and moved nodes in this LP call
-        utils::Stats::instance().update_stat("lp_attempted_moves", static_cast<int64_t>(_num_attempted_moves));
-        utils::Stats::instance().update_stat("lp_moved_nodes", static_cast<int64_t>(_num_moved_nodes));
+//        utils::Stats::instance().update_stat("lp_attempted_moves", static_cast<int64_t>(_num_attempted_moves));
+//        utils::Stats::instance().update_stat("lp_moved_nodes", static_cast<int64_t>(_num_moved_nodes));
 
         // Update global part weight and sizes
         double imbalance;

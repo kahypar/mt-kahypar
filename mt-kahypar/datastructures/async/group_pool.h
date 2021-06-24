@@ -5,6 +5,7 @@
 #pragma once
 
 #include <queue>
+#include <tbb/concurrent_queue.h>
 #include "uncontraction_group_tree.h"
 #include "mt-kahypar/datastructures/async/async_common.h"
 
@@ -142,8 +143,10 @@ namespace mt_kahypar::ds
          */
         explicit ConcurrentQueueGroupPool(std::unique_ptr<GroupHierarchy> hierarchy)
                 : _hierarchy(hierarchy.release()),
-                _queue_lock(),
-                _active_ids(_cmp){
+//                _queue_lock(),
+//                _active_ids(_cmp)
+                  _active_ids()
+                {
             auto roots = _hierarchy->roots();
             for(auto r: roots) {
                 activate(r);
@@ -240,64 +243,70 @@ namespace mt_kahypar::ds
         }
 
         bool tryInsertActive(ContractionGroupID id) {
-            bool locked = _queue_lock.tryLock();
-            if (locked) {
-                _active_ids.push(id);
-                _queue_lock.unlock();
-            }
-            return locked;
+//            bool locked = _queue_lock.tryLock();
+//            if (locked) {
+//                _active_ids.push(id);
+//                _queue_lock.unlock();
+//            }
+//            return locked;
+              _active_ids.push(id);
+              return true;
         }
 
+
         bool tryPopActive(ContractionGroupID& destination) {
-            bool locked = _queue_lock.tryLock();
-            if (locked) {
-                destination = _active_ids.top();
-                _active_ids.pop();
-                _queue_lock.unlock();
-            }
-            return locked;
+//            bool locked = _queue_lock.tryLock();
+//            if (locked) {
+//                destination = _active_ids.top();
+//                _active_ids.pop();
+//                _queue_lock.unlock();
+//            }
+//            return locked;
+              return _active_ids.try_pop(destination);
         }
 
         void insertActive(ContractionGroupID id) {
-            _queue_lock.lock();
+//            _queue_lock.lock();
             _active_ids.push(id);
-            _queue_lock.unlock();
+//            _queue_lock.unlock();
         }
 
         void popActive(ContractionGroupID& destination) {
-            _queue_lock.lock();
-            destination = _active_ids.top();
-            _active_ids.pop();
-            _queue_lock.unlock();
+//            _queue_lock.lock();
+//            destination = _active_ids.top();
+//            _active_ids.pop();
+//            _queue_lock.unlock();
+            while (!_active_ids.try_pop(destination)) {/* continue trying to pop */}
         }
 
         ContractionGroupID unsafeNumActive() {
-            _queue_lock.lock();
-            ContractionGroupID num_active = _active_ids.size();
-            _queue_lock.unlock();
+//            _queue_lock.lock();
+            ContractionGroupID num_active = _active_ids.unsafe_size();
+//            _queue_lock.unlock();
             return num_active;
         }
 
         bool unsafeEmpty() {
-            _queue_lock.lock();
+//            _queue_lock.lock();
             bool empty = _active_ids.empty();
-            _queue_lock.unlock();
+//            _queue_lock.unlock();
             return empty;
         }
 
-        using DepthCompare = std::function<bool (ContractionGroupID, ContractionGroupID)>;
+//        using DepthCompare = std::function<bool (ContractionGroupID, ContractionGroupID)>;
 
         // Used to compare groups by their depth in the GroupHierarchy. The comparator for std::priority queue has to be
         // true if id1 < id2 in the queue but std::priority_queue emits the largest elements first, so here we reverse
         // the ordering in order to emit the smallest depth group first.
-        DepthCompare _cmp = [&](ContractionGroupID id1, ContractionGroupID id2) {
-            return _hierarchy->depth(id1) > _hierarchy->depth(id2);
-        };
+//        DepthCompare _cmp = [&](ContractionGroupID id1, ContractionGroupID id2) {
+//            return _hierarchy->depth(id1) > _hierarchy->depth(id2);
+//        };
 
         std::unique_ptr<GroupHierarchy> _hierarchy;
 
-        SpinLock _queue_lock;
-        std::priority_queue<ContractionGroupID, std::vector<ContractionGroupID>, DepthCompare> _active_ids;
+//        SpinLock _queue_lock;
+//        std::priority_queue<ContractionGroupID, std::vector<ContractionGroupID>, DepthCompare> _active_ids;
+        tbb::concurrent_queue<ContractionGroupID> _active_ids;
 
     };
 

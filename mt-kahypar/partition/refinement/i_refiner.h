@@ -85,6 +85,9 @@ class IRefiner {
 
         virtual ~IAsyncRefiner() = default;
 
+        virtual int64_t getNumTotalAttemptedMoves() const = 0;
+        virtual int64_t getNumTotalMovedNodes() const = 0;
+
     protected:
 
         IAsyncRefiner() = default;

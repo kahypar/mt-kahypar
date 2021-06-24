@@ -458,6 +458,7 @@ namespace mt_kahypar {
       _lock_manager_for_async->strongReleaseLock(group.getRepresentative(), groupID);
 
       auto repr_part_id = _phg.partID(group.getRepresentative());
+      unused(repr_part_id);
       ASSERT(repr_part_id != kInvalidPartition);
       ASSERT(std::all_of(ds::GroupNodeIDIterator::getAtBegin(group),
                          ds::GroupNodeIDIterator::getAtEnd(group),
@@ -710,11 +711,21 @@ namespace mt_kahypar {
           _group_pools_for_versions.pop_back();
       }
 
-      // todo mlaupichler remove debug
-      std::cout << utils::Stats::instance() << std::endl;
-
       node_anti_duplicator.reset();
       edge_anti_duplicator.reset();
+
+      int64_t total_lp_attempted_moves = 0;
+      int64_t total_lp_moved_nodes = 0;
+      // Calculate total LP attempted moves and actual moves and update stats
+      for (const auto & async_lp_refiner : async_lp_refiners) {
+          total_lp_attempted_moves += async_lp_refiner->getNumTotalAttemptedMoves();
+          total_lp_moved_nodes += async_lp_refiner->getNumTotalMovedNodes();
+      }
+
+      utils::Stats::instance().update_stat("lp_attempted_moves", static_cast<int64_t>(total_lp_attempted_moves));
+      utils::Stats::instance().update_stat("lp_moved_nodes", static_cast<int64_t>(total_lp_moved_nodes));
+      std::cout << "Total LP attempted moves: " << total_lp_attempted_moves << std::endl;
+      std::cout << "Total LP moves: " << total_lp_moved_nodes << std::endl;
 
       size_t total_num_nodes = _hg.initialNumNodes() - _hg.numRemovedHypernodes();
       size_t num_nodes_after_coarsening = _compactified_hg.initialNumNodes();

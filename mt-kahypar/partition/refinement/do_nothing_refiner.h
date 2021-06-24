@@ -57,6 +57,14 @@ class DoNothingRefiner final : public IRefiner {
         DoNothingAsyncRefiner & operator= (const DoNothingAsyncRefiner &) = delete;
         DoNothingAsyncRefiner & operator= (DoNothingAsyncRefiner &&) = delete;
 
+        int64_t getNumTotalAttemptedMoves() const override {
+          return 0;
+        }
+
+        int64_t getNumTotalMovedNodes() const override {
+          return 0;
+        }
+
     private:
 
         bool refineImpl(PartitionedHypergraph&,
