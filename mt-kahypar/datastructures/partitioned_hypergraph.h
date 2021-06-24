@@ -524,7 +524,7 @@ private:
                           }
                       },
                       [&](const HyperedgeID he) {
-                            _pin_count_update_ownership[he].lock();
+                            return _pin_count_update_ownership[he].tryLock();
      });
   }
 

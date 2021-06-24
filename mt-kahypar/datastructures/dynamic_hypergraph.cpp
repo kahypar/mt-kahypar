@@ -240,6 +240,7 @@ void DynamicHypergraph::uncontract(const Batch& batch,
         acquireHyperedge(e);
         case_one_func(memento.u, memento.v, e);
         releaseHyperedge(e);
+        return true;
       }, [&](const HyperedgeID e) {
         // In that case only v was part of hyperedge e before and
         // u must be replaced by v in hyperedge e
@@ -250,6 +251,7 @@ void DynamicHypergraph::uncontract(const Batch& batch,
         _incidence_array[slot_of_u] = memento.v;
         case_two_func(memento.u, memento.v, e);
         releaseHyperedge(e);
+        return true;
       }, [&](const HypernodeID u) {
         acquireHypernode(u);
       }, [&](const HypernodeID u) {
@@ -342,7 +344,7 @@ VersionedPoolVector DynamicHypergraph::createUncontractionGroupPoolsForVersions(
 void DynamicHypergraph::uncontract(const ContractionGroup& group,
                                    const UncontractionFunction& case_one_func,
                                    const UncontractionFunction& case_two_func,
-                                   const PinCountUpdateLockFunction& lock_pin_count_update_ownership) {
+                                   const PinCountUpdateLockFunction& try_lock_pin_count_update) {
 
     // Restore contracted vertices as pins of hyperedges
     for(auto &memento: group) {
@@ -352,19 +354,22 @@ void DynamicHypergraph::uncontract(const ContractionGroup& group,
 
         _incident_nets.uncontract(memento.u, memento.v,[&](const HyperedgeID e) {
             // In this case, u and v were both previously part of hyperedge e.
-            lock_pin_count_update_ownership(e);
+            if (!try_lock_pin_count_update(e)) return false;
             reactivatePinForSingleUncontraction(e,memento.v);
             // Make sure case_one_func releases the pin count update ownership lock on e again
             case_one_func(memento.u, memento.v, e);
+            return true;
         }, [&](const HyperedgeID e) {
             // In this case only v was part of hyperedge e before and
             // u must be replaced by v in hyperedge e
             const size_t slot_of_u = findPositionOfPinInIncidenceArray(memento.u, e);
 
-            lock_pin_count_update_ownership(e);
+            // todo try moving findPositionOfPin... into the lock as every fail on the lock induces overhead for that call
+            if (!try_lock_pin_count_update(e)) return false;
             ASSERT(_incidence_array[slot_of_u] == memento.u);
             _incidence_array[slot_of_u] = memento.v;
             case_two_func(memento.u, memento.v, e);
+            return true;
         }, [&](const HypernodeID u) {
             acquireHypernode(u);
         }, [&](const HypernodeID u) {

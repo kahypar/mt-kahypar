@@ -66,8 +66,8 @@ class DynamicHypergraph {
   using UncontractionFunction = std::function<void (const HypernodeID, const HypernodeID, const HyperedgeID)>;
   #define NOOP_BATCH_FUNC [] (const HypernodeID, const HypernodeID, const HyperedgeID) { }
 
-  using PinCountUpdateLockFunction = std::function<void(const HyperedgeID)>;
-    #define NOOP_PIN_COUNT_LOCK_FUNC [] (const HyperedgeID) { }
+  using PinCountUpdateLockFunction = std::function<bool (const HyperedgeID)>;
+    #define NOOP_PIN_COUNT_LOCK_FUNC [] (const HyperedgeID) {return true;}
 
   /*!
   * This struct is used during multilevel coarsening to efficiently
@@ -874,7 +874,7 @@ class DynamicHypergraph {
   void uncontract(const ContractionGroup& group,
                   const UncontractionFunction& case_one_func = NOOP_BATCH_FUNC,
                   const UncontractionFunction& case_two_func = NOOP_BATCH_FUNC,
-                  const PinCountUpdateLockFunction& lock_pin_count_update_ownership = NOOP_PIN_COUNT_LOCK_FUNC);
+                  const PinCountUpdateLockFunction& try_lock_pin_count_update = NOOP_PIN_COUNT_LOCK_FUNC);
 
   /**
    * Uncontracts a batch of contractions in parallel. The batches must be uncontracted exactly

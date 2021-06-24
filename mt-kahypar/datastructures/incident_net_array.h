@@ -89,8 +89,8 @@ class IncidentNetArray {
 
   using AcquireLockFunc = std::function<void (const HypernodeID)>;
   using ReleaseLockFunc = std::function<void (const HypernodeID)>;
-  using CaseOneFunc = std::function<void (const HyperedgeID)>;
-  using CaseTwoFunc = std::function<void (const HyperedgeID)>;
+  using CaseOneFunc = std::function<bool (const HyperedgeID)>;
+  using CaseTwoFunc = std::function<bool (const HyperedgeID)>;
   #define NOOP_LOCK_FUNC [] (const HypernodeID) { }
 
   static_assert(sizeof(char) == 1);

@@ -370,7 +370,7 @@ namespace mt_kahypar {
     }
 
     // todo mlaupichler remove debug
-    std::cout << utils::Stats::instance() << std::endl;
+//    std::cout << utils::Stats::instance() << std::endl;
 
     // Top-Level Refinement on all vertices
     const HyperedgeWeight objective_before = current_metrics.getMetric(
@@ -724,8 +724,8 @@ namespace mt_kahypar {
 
       utils::Stats::instance().update_stat("lp_attempted_moves", static_cast<int64_t>(total_lp_attempted_moves));
       utils::Stats::instance().update_stat("lp_moved_nodes", static_cast<int64_t>(total_lp_moved_nodes));
-      std::cout << "Total LP attempted moves: " << total_lp_attempted_moves << std::endl;
-      std::cout << "Total LP moves: " << total_lp_moved_nodes << std::endl;
+//      std::cout << "Total LP attempted moves: " << total_lp_attempted_moves << std::endl;
+//      std::cout << "Total LP moves: " << total_lp_moved_nodes << std::endl;
 
       size_t total_num_nodes = _hg.initialNumNodes() - _hg.numRemovedHypernodes();
       size_t num_nodes_after_coarsening = _compactified_hg.initialNumNodes();

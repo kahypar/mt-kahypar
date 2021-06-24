@@ -578,10 +578,10 @@ private:
         return benefit_index(u, p) < size();
     }
 
-    // ! Total number of nodes that penalties are stored for
+    // ! Total number of nodes that benefits are stored for
     HypernodeID _num_nodes;
 
-    // ! Number of partitions that penalties are stored for
+    // ! Number of partitions that benefits are stored for
     PartitionID _k;
 
     // ! Functions used to query information about the current state of the hypergraph

@@ -31,7 +31,7 @@ namespace mt_kahypar {
 
       // Update metrics statistics
 //      ASSERT(delta <= 0, "Async FM refiner worsen solution quality" << V(delta));
-      if (delta > 0) std::cout << "FM Delta > 0:\t" << delta << std::endl;
+//      if (delta > 0) std::cout << "FM Delta > 0:\t" << delta << std::endl;
       best_metrics.fetch_add(delta, kahypar::Mode::direct_kway, kahypar::Objective::km1);
       utils::Stats::instance().update_stat("fm_improvement", std::abs(delta));
       return delta < 0;
