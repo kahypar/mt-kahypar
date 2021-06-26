@@ -294,8 +294,9 @@ VersionedPoolVector DynamicHypergraph::createUncontractionGroupPoolsForVersions(
     if ( !test ) {
         utils::Timer::instance().start_timer("prepare_hg_for_uncontraction", "Prepare HG For Uncontraction");
 
-        size_t invalidDepth = std::numeric_limits<size_t>::max();
-        parallel::scalable_vector<size_t> node_depths(_num_hypernodes, invalidDepth);
+
+      _node_depths = std::make_unique<Array<HypernodeID>>(_num_hypernodes, invalidDepth);
+      Array<HypernodeID>& node_depths = *_node_depths;
 
         // Store the pool index (=version) of each vertex in its hypernode data structure
         // ATTENTION! The batch index of a hypernode is somewhat abused here to store the pool index instead.
@@ -344,7 +345,7 @@ VersionedPoolVector DynamicHypergraph::createUncontractionGroupPoolsForVersions(
 void DynamicHypergraph::uncontract(const ContractionGroup& group,
                                    const UncontractionFunction& case_one_func,
                                    const UncontractionFunction& case_two_func,
-                                   const PinCountUpdateLockFunction& try_lock_pin_count_update) {
+                                   const PinCountUpdateLockFunction& lock_pin_count_update) {
 
     // Restore contracted vertices as pins of hyperedges
     for(auto &memento: group) {
@@ -354,7 +355,9 @@ void DynamicHypergraph::uncontract(const ContractionGroup& group,
 
         _incident_nets.uncontract(memento.u, memento.v,[&](const HyperedgeID e) {
             // In this case, u and v were both previously part of hyperedge e.
-            if (!try_lock_pin_count_update(e)) return false;
+//            if (!try_lock_pin_count_update(e)) return false;
+
+            lock_pin_count_update(e);
             reactivatePinForSingleUncontraction(e,memento.v);
             // Make sure case_one_func releases the pin count update ownership lock on e again
             case_one_func(memento.u, memento.v, e);
@@ -362,10 +365,10 @@ void DynamicHypergraph::uncontract(const ContractionGroup& group,
         }, [&](const HyperedgeID e) {
             // In this case only v was part of hyperedge e before and
             // u must be replaced by v in hyperedge e
-            const size_t slot_of_u = findPositionOfPinInIncidenceArray(memento.u, e);
 
-            // todo try moving findPositionOfPin... into the lock as every fail on the lock induces overhead for that call
-            if (!try_lock_pin_count_update(e)) return false;
+            const size_t slot_of_u = findPositionOfPinInIncidenceArray(memento.u, e);
+//            if (!try_lock_pin_count_update(e)) return false;
+            lock_pin_count_update(e);
             ASSERT(_incidence_array[slot_of_u] == memento.u);
             _incidence_array[slot_of_u] = memento.v;
             case_two_func(memento.u, memento.v, e);
@@ -949,24 +952,44 @@ void DynamicHypergraph::reactivatePinForSingleUncontraction(const HyperedgeID he
     ASSERT(pos != first_of_next_he);
     ASSERT(_incidence_array[pos] == v);
 
-    // Move v to the beginning of the invalid entries and move up other pins by one spot up to the spot where v was before,
-    // so afterwards it can be activated by increasing the size of active pins by one
-    auto cur_val = v;
-    auto next = first_invalid_entry;
-    auto after_pos = pos + 1;
-    while (next != after_pos) {
-        auto next_val = _incidence_array[next];
-        _incidence_array[next] = cur_val;
-        cur_val = next_val;
-        ++next;
+    if (pos != first_invalid_entry) {
+
+    // At this point v has to be moved to the beginning of the invalid part of the incidence array so it can be activated
+    // by increasing the stored number of pins (edgeSize) by one. The invalid part of the incidence array is initially
+    // sorted by version of the pin and depth of the pin (the version of all pins concerned here has to be the same so
+    // we are interested in depth). The array should remain sorted after this.
+
+    // Case 1: v and the pin at the beginning of the invalid part have the same depth
+    // => Simply swap their places in the array
+    // Case 2: v and the pin at the beginning of the invalid part have different depths
+    // => Move v to the beginning and move up all pins between the beginning and pos by one
+
+      ASSERT(_node_depths);
+      auto depth_of_first_invalid = (*_node_depths)[_incidence_array[first_invalid_entry]];
+      auto depth_of_v = (*_node_depths)[v];
+      if (depth_of_first_invalid == depth_of_v) {
+        auto tmp = _incidence_array[first_invalid_entry];
+        _incidence_array[first_invalid_entry] = v;
+        _incidence_array[pos] = tmp;
+//        if (pos != first_invalid_entry + 1) {
+//          _count_where_depth_helped.fetch_add(1, std::memory_order_relaxed);
+//        } else {
+//          _count_where_depth_did_not_help.fetch_add(1, std::memory_order_relaxed);
+//        }
+      } else {
+        auto cur_val = v;
+        auto next = first_invalid_entry;
+        auto after_pos = pos + 1;
+        while (next != after_pos) {
+          auto next_val = _incidence_array[next];
+          _incidence_array[next] = cur_val;
+          cur_val = next_val;
+          ++next;
+        }
+        ASSERT(cur_val == v);
+//        _count_where_depth_did_not_help.fetch_add(1, std::memory_order_relaxed);
+      }
     }
-    ASSERT(cur_val == v);
-//
-//    if (pos != first_invalid_entry) {
-//        auto oldFirst = _incidence_array[first_invalid_entry];
-//        _incidence_array[first_invalid_entry] = v;
-//        _incidence_array[pos] = oldFirst;
-//    }
 
     ASSERT(_incidence_array[first_invalid_entry] == v);
     const size_t edge_size = edgeSize(he);

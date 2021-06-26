@@ -9,7 +9,6 @@
 #include "mt-kahypar/datastructures/contraction_tree.h"
 #include "mt-kahypar/datastructures/hypergraph_common.h"
 #include "mt-kahypar/datastructures/async/async_common.h"
-#include "mt-kahypar/datastructures/async/i_uncontraction_group_hierarchy.h"
 
 namespace mt_kahypar::ds {
 
@@ -62,7 +61,7 @@ namespace mt_kahypar::ds {
                 return _group;
             }
 
-            const size_t& getDepth() const {
+            const HypernodeID& getDepth() const {
                 return _depth;
             }
 
@@ -74,7 +73,7 @@ namespace mt_kahypar::ds {
             // the contained group
             ContractionGroup _group;
             // depth in the UncontractionGroupTree (where roots have depth 0)
-            size_t _depth;
+            HypernodeID _depth;
         };
 
     public:
@@ -90,7 +89,7 @@ namespace mt_kahypar::ds {
             return _tree[id].getGroup();
         }
 
-        const size_t& depth(ContractionGroupID id) const {
+        const HypernodeID& depth(ContractionGroupID id) const {
             ASSERT(id < _num_group_nodes);
             return _tree[id].getDepth();
         }
@@ -178,10 +177,7 @@ namespace mt_kahypar::ds {
         // ! (ContractionGroupIDs are only unique within a version and the respective hierarchy but combined with
         // ! information about which version a node has been contracted in, the right hierarchy and depth can be found.)
 //        std::unique_ptr<parallel::scalable_vector<ContractionGroupID>> _node_to_group_map;
-//    public:
-//        static void resetNodeToGroupMap(HypernodeID num_hypernodes) {
-//            _node_to_group_map = std::make_unique<parallel::scalable_vector<ContractionGroupID>>(num_hypernodes,invalidGroupID);
-//        }
+
 
     };
 

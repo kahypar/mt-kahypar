@@ -31,7 +31,8 @@ private:
         BitReference& operator=(const BitReference&) = delete;
         BitReference operator=(BitReference&&) = delete;
 
-        operator bool() const {return (*_block_ptr) & (Block(1) << _bit_offset);}
+        // Implicit conversion to bool operator
+        operator bool() const {return (*_block_ptr) & (Block(1) << _bit_offset);} // NOLINT(google-explicit-constructor)
         BitReference& operator=(const bool bit) {
             setBit(bit);
             return *this;
@@ -57,8 +58,19 @@ public:
             _n(n),
             _blocks("Refinement", "bit_set", n / BITS_PER_BLOCK + (n % BITS_PER_BLOCK == 0 ? 0 : 1), true, false) {}
 
+    IterableBitSet() : _n(0), _blocks("Refinement", "bit_set", 0) {}
+
+    void resize(IndexType n) {
+      _n = n;
+      _blocks.resize("Refinement", "bit_set", n / BITS_PER_BLOCK + (n % BITS_PER_BLOCK == 0 ? 0 : 1), true, false);
+    }
+
     IndexType size() {
         return _n;
+    }
+
+    size_t size_in_bytes() const {
+      return static_cast<size_t>(sizeof(Block)) * static_cast<size_t>(_blocks.size());
     }
 
     bool isSet(const IndexType i) const {
@@ -157,7 +169,7 @@ public:
 
 private:
 
-    const IndexType _n;
+    IndexType _n;
     Array<Block> _blocks;
 
 };

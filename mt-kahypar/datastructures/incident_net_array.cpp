@@ -262,32 +262,34 @@ void IncidentNetArray::restoreIncidentNets(const HypernodeID u,
     ASSERT(head->current_version > 0);
     const HypernodeID new_version = --head->current_version;
 
-    std::list<HyperedgeID> case_func_retry_edges;
+    // todo mlaupichler: remove commented out parts if round-robin waiting is deemed unnecessary by Tobias and Lars
+//    std::list<HyperedgeID> case_func_retry_edges;
 
     // Iterate over all active entries and call case_two_func
     // => After an uncontraction only u was part of them not its representative
     for ( Entry* current_entry = firstEntry(current_u);
           current_entry != lastEntry(current_u);
           ++current_entry ) {
-      bool case_func_success = case_two_func(current_entry->e);
-      if (!case_func_success) case_func_retry_edges.push_back(current_entry->e);
+      case_two_func(current_entry->e);
+//      bool case_func_success = case_two_func(current_entry->e);
+//      if (!case_func_success) case_func_retry_edges.push_back(current_entry->e);
     }
 
-    // Reattempt case_two_func for all edges it did not work for until it does (case_two_func only fails because
-    // of locking in asynchronous uncoarsening so eventually it will work for any hyperedge)
-    auto it = case_func_retry_edges.begin();
-    while (!case_func_retry_edges.empty()) {
-      const HyperedgeID he = *it;
-      bool case_func_success = case_two_func(he);
-      if (case_func_success) {
-        it = case_func_retry_edges.erase(it);
-      } else {
-        ++it;
-      }
-      if (it == case_func_retry_edges.end()) {
-        it = case_func_retry_edges.begin();
-      }
-    }
+//    // Reattempt case_two_func for all edges it did not work for until it does (case_two_func only fails because
+//    // of locking in asynchronous uncoarsening so eventually it will work for any hyperedge)
+//    auto it = case_func_retry_edges.begin();
+//    while (!case_func_retry_edges.empty()) {
+//      const HyperedgeID he = *it;
+//      bool case_func_success = case_two_func(he);
+//      if (case_func_success) {
+//        it = case_func_retry_edges.erase(it);
+//      } else {
+//        ++it;
+//      }
+//      if (it == case_func_retry_edges.end()) {
+//        it = case_func_retry_edges.begin();
+//      }
+//    }
 
     // Iterate over non-active entries (and activate them) until the version number
     // is not equal to the new version of the list
@@ -298,28 +300,29 @@ void IncidentNetArray::restoreIncidentNets(const HypernodeID u,
       if ( current_entry->version == new_version ) {
         ++head->size;
         ++head_u->degree;
-        bool case_func_success = case_one_func(current_entry->e);
-        if (!case_func_success) case_func_retry_edges.push_back(current_entry->e);
+        case_one_func(current_entry->e);
+//        bool case_func_success = case_one_func(current_entry->e);
+//        if (!case_func_success) case_func_retry_edges.push_back(current_entry->e);
       } else {
         break;
       }
     }
 
-    // Reattempt case_one_func for all edges it did not work for until it does (case_one_func only fails because
-    // of locking in asynchronous uncoarsening so eventually it will work for any hyperedge)
-    it = case_func_retry_edges.begin();
-    while (!case_func_retry_edges.empty()) {
-      const HyperedgeID he = *it;
-      bool case_func_success = case_one_func(he);
-      if (case_func_success) {
-        it = case_func_retry_edges.erase(it);
-      } else {
-        ++it;
-      }
-      if (it == case_func_retry_edges.end()) {
-        it = case_func_retry_edges.begin();
-      }
-    }
+//    // Reattempt case_one_func for all edges it did not work for until it does (case_one_func only fails because
+//    // of locking in asynchronous uncoarsening so eventually it will work for any hyperedge)
+//    it = case_func_retry_edges.begin();
+//    while (!case_func_retry_edges.empty()) {
+//      const HyperedgeID he = *it;
+//      bool case_func_success = case_one_func(he);
+//      if (case_func_success) {
+//        it = case_func_retry_edges.erase(it);
+//      } else {
+//        ++it;
+//      }
+//      if (it == case_func_retry_edges.end()) {
+//        it = case_func_retry_edges.begin();
+//      }
+//    }
 
     // Restore iterator double-linked list which only contains
     // non-empty incident net lists

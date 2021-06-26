@@ -66,7 +66,7 @@ class DynamicHypergraph {
   using UncontractionFunction = std::function<void (const HypernodeID, const HypernodeID, const HyperedgeID)>;
   #define NOOP_BATCH_FUNC [] (const HypernodeID, const HypernodeID, const HyperedgeID) { }
 
-  using PinCountUpdateLockFunction = std::function<bool (const HyperedgeID)>;
+  using PinCountUpdateLockFunction = std::function<void (const HyperedgeID)>;
     #define NOOP_PIN_COUNT_LOCK_FUNC [] (const HyperedgeID) {return true;}
 
   /*!
@@ -1234,6 +1234,15 @@ private:
   // ! Atomic bool vector used to acquire unique ownership of hypernodes
   OwnershipVector _acquired_hns;
 
+  // ! Depths of nodes in the uncontraction hierarchy (only used in asynchronous uncoarsening)
+  std::unique_ptr<Array<HypernodeID>> _node_depths;
+
+public:
+//  // todo mlaupichler remove this debug counter
+//  CAtomic<HypernodeID> _count_where_depth_helped;
+//  CAtomic<HypernodeID> _count_where_depth_did_not_help;
+
+private:
 
   // ! Hyperedges
   Array<Hyperedge> _hyperedges;

@@ -169,7 +169,7 @@ namespace mt_kahypar::ds
             return _hierarchy->group(id);
         }
 
-        const size_t& depth(ContractionGroupID id) const {
+        const HypernodeID& depth(ContractionGroupID id) const {
             return _hierarchy->depth(id);
         }
 

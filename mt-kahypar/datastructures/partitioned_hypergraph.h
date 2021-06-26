@@ -97,7 +97,9 @@ private:
     _hg_query_funcs(std::make_unique<HGQueryFunctions>(makeQueryFunctionsObject())),
     _gain_cache(hypergraph.initialNumNodes(), k, _hg_query_funcs.get()),
     _pin_count_update_ownership(
-        "Refinement", "pin_count_update_ownership", hypergraph.initialNumEdges(), true, false) {
+        "Refinement", "pin_count_update_ownership", hypergraph.initialNumEdges(), true, false),
+    _conn_set_snapshots(_k),
+    _parts_with_one_pin_snapshots(_k) {
     _part_ids.assign(hypergraph.initialNumNodes(), kInvalidPartition, false);
   }
 
@@ -113,7 +115,9 @@ private:
     _connectivity_set(0, 0),
     _hg_query_funcs(std::make_unique<HGQueryFunctions>(makeQueryFunctionsObject())),
     _gain_cache(_hg_query_funcs.get(), parallel_tag_t()),
-    _pin_count_update_ownership() {
+    _pin_count_update_ownership(),
+    _conn_set_snapshots(_k),
+    _parts_with_one_pin_snapshots(_k)  {
     tbb::parallel_invoke([&] {
       _part_ids.resize(
         "Refinement", "vertex_part_info", hypergraph.initialNumNodes());
@@ -144,7 +148,9 @@ private:
     _connectivity_set(std::move(other._connectivity_set)),
     _hg_query_funcs(std::make_unique<HGQueryFunctions>(makeQueryFunctionsObject())),
     _gain_cache(std::move(other._gain_cache)),
-    _pin_count_update_ownership(std::move(other._pin_count_update_ownership)) {
+    _pin_count_update_ownership(std::move(other._pin_count_update_ownership)),
+    _conn_set_snapshots(_k),
+    _parts_with_one_pin_snapshots(_k)  {
 
       // Reset query functions for GainCache (so references point to functions in new PHG)
       _gain_cache.assignHGQueryFunctions(_hg_query_funcs.get());
@@ -425,18 +431,18 @@ private:
 
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
   PartitionBitSet& getLocalConnSetBitSet() {
-      std::unique_ptr<PartitionBitSet>& conn_set_bitset = _conn_set_snapshots.local();
-      if (!conn_set_bitset) conn_set_bitset = std::make_unique<PartitionBitSet>(_k);
-      ASSERT(conn_set_bitset->size() == _k);
-      return *conn_set_bitset;
+      PartitionBitSet& conn_set_bitset = _conn_set_snapshots.local();
+//      if (!conn_set_bitset) conn_set_bitset = std::make_unique<PartitionBitSet>(_k);
+      ASSERT(conn_set_bitset.size() == _k);
+      return conn_set_bitset;
   }
 
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
   PartitionBitSet& getLocalPartsWithOnePinBitSet() {
-      std::unique_ptr<PartitionBitSet>& parts_with_one_pin_bitset = _parts_with_one_pin_snapshots.local();
-      if (!parts_with_one_pin_bitset) parts_with_one_pin_bitset = std::make_unique<PartitionBitSet>(_k);
-      ASSERT(parts_with_one_pin_bitset->size() == _k);
-      return *parts_with_one_pin_bitset;
+      PartitionBitSet& parts_with_one_pin_bitset = _parts_with_one_pin_snapshots.local();
+//      if (!parts_with_one_pin_bitset) parts_with_one_pin_bitset = std::make_unique<PartitionBitSet>(_k);
+      ASSERT(parts_with_one_pin_bitset.size() == _k);
+      return parts_with_one_pin_bitset;
   }
 
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
@@ -524,7 +530,7 @@ private:
                           }
                       },
                       [&](const HyperedgeID he) {
-                            return _pin_count_update_ownership[he].tryLock();
+                            _pin_count_update_ownership[he].lock();
      });
   }
 
@@ -1082,6 +1088,15 @@ private:
     parent->addChild("Pin Count In Part", _pins_in_part.size_in_bytes());
     parent->addChild("Gain Cache", _gain_cache.size_in_bytes());
     parent->addChild("HE Ownership", sizeof(SpinLock) * _hg->initialNumNodes());
+
+    size_t size_of_snapshot_bitsets = 0;
+    for (const auto& bitset_ptr : _conn_set_snapshots) {
+      size_of_snapshot_bitsets += bitset_ptr.size_in_bytes();
+    }
+    for (const auto& bitset_ptr : _parts_with_one_pin_snapshots) {
+      size_of_snapshot_bitsets += bitset_ptr.size_in_bytes();
+    }
+    parent->addChild("Connectivity Set Snapshots", size_of_snapshot_bitsets);
   }
 
   // ####################### Extract Block #######################
@@ -1347,8 +1362,8 @@ private:
   Array<SpinLock> _pin_count_update_ownership;
 
   // ! Thread-local PartitionBitSets used for snapshots of connectivity sets in asynchronous uncoarsening
-  tbb::enumerable_thread_specific<std::unique_ptr<PartitionBitSet>> _conn_set_snapshots;
-  tbb::enumerable_thread_specific<std::unique_ptr<PartitionBitSet>> _parts_with_one_pin_snapshots;
+  tbb::enumerable_thread_specific<PartitionBitSet> _conn_set_snapshots;
+  tbb::enumerable_thread_specific<PartitionBitSet> _parts_with_one_pin_snapshots;
 };
 
 } // namespace ds

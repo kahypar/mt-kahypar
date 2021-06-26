@@ -620,6 +620,9 @@ namespace mt_kahypar {
 
     size_t total_uncontractions = 0;
 
+//    _phg.hypergraph()._count_where_depth_helped = CAtomic<HypernodeID>(0);
+//    _phg.hypergraph()._count_where_depth_did_not_help = CAtomic<HypernodeID>(0);
+
 
     // Thread specific asynchronous refiners that are constructed on demand using the finit lambda with factory call.
     // Indirectly managed through unique_ptr's so the type of gain policy can be abstracted still (tbb:ets needs a
@@ -710,6 +713,14 @@ namespace mt_kahypar {
 
           _group_pools_for_versions.pop_back();
       }
+
+//      //todo mlaupichler remove debug
+//      if (_context.type == kahypar::ContextType::main) {
+//        HypernodeID total_reactivations_for_single_pin = _phg.hypergraph()._count_where_depth_helped + _phg.hypergraph()._count_where_depth_did_not_help;
+//        double percentage_where_depth_helped = ((double)_phg.hypergraph()._count_where_depth_helped) / ((double)total_reactivations_for_single_pin) * 100.0;
+//        std::cout << std::setprecision(2) << std::fixed;
+//        std::cout << "Depth helped in " << percentage_where_depth_helped << " % of cases." << std::endl;
+//      }
 
       node_anti_duplicator.reset();
       edge_anti_duplicator.reset();

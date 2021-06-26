@@ -3,6 +3,7 @@
 //
 
 #include "smoke_test_common.h"
+#include "gtest/gtest.h"
 
 namespace mt_kahypar {
     namespace ds {

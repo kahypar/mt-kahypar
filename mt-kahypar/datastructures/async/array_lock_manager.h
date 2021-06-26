@@ -107,6 +107,7 @@ namespace ds {
                 auto rev = lockedIDs.begin();
                 while (rev != lastAcquired) {
                     bool revSuccess = tryToReleaseLock(*rev, ownerID);
+                    unused(revSuccess);
                     ASSERT(revSuccess);
                     ++rev;
                 }
@@ -145,6 +146,9 @@ namespace ds {
         void strongAcquireLock(LockedID lockedID, OwnerID ownerID) {
             bool acquired = tryToAcquireLock(lockedID, ownerID);
             ASSERT(acquired && "Strong acquire of lock failed.");
+            if (!acquired) {
+              ERROR("strongAcquireLock() failed! Aborting.");
+            }
         }
 
         /// Releases lock with given lockedID and owner ownerID with the strong expectation that the operation will work.
@@ -152,6 +156,9 @@ namespace ds {
         void strongReleaseLock(LockedID lockedID, OwnerID ownerID) {
             bool released = tryToReleaseLock(lockedID, ownerID);
             ASSERT(released && "Strong release of lock failed.");
+            if (!released) {
+              ERROR("strongReleaseLock() failed! Aborting.");
+            }
         }
 
         /// Releases locks with given lockedIDs and owner ownerID with the strong expectation that the operation will work.
@@ -160,6 +167,9 @@ namespace ds {
         void strongReleaseMultipleLocks(IteratorRange<LockedIDIteratorT> lockedIDs, OwnerID ownerID) {
             bool released = tryToReleaseMultipleLocks(lockedIDs, ownerID);
             ASSERT(released && "Strong release of multiple locks failed.");
+            if (!released) {
+              ERROR("strongReleaseMultipleLocks() failed! Aborting.");
+            }
         }
 
         void memoryConsumption(utils::MemoryTreeNode* parent) const {

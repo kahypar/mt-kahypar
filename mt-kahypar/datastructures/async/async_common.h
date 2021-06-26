@@ -21,6 +21,7 @@ namespace mt_kahypar::ds {
     using ContractionIterator = std::vector<Contraction>::const_iterator;
 
     static constexpr ContractionGroupID invalidGroupID = std::numeric_limits<ContractionGroupID>::max();
+    static constexpr HypernodeID invalidDepth = std::numeric_limits<HypernodeID>::max();
 
 
     /// Represents a group of (un-)contractions that have been contracted simultaneously with the same representative.
