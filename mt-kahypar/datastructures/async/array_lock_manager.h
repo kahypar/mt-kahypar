@@ -12,7 +12,6 @@
 #include "mt-kahypar/utils/range.h"
 #include "kahypar/meta/mandatory.h"
 #include "async_common.h"
-//#include "mt-kahypar/partition/refinement/async_refiners_common.h"
 
 namespace mt_kahypar {
 
@@ -36,7 +35,7 @@ namespace ds {
         /// \param invalidOwnerID a distinct OwnerID that an ArrayLockManager instantiated with this constructor
         /// will consider an unassigned or invalid owner.
         ArrayLockManager(LockedID size, OwnerID invalidOwnerID)
-            : _invalid_owner_id(invalidOwnerID), _size(size), _v(std::make_unique<UnderlyingType[]>(size)) {
+            : _size(size), _v(std::make_unique<UnderlyingType[]>(size)), _invalid_owner_id(invalidOwnerID) {
             init();
         }
 

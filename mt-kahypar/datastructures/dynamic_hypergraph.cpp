@@ -720,6 +720,7 @@ void DynamicHypergraph::memoryConsumption(utils::MemoryTreeNode* parent) const {
   parent->addChild("Hyperedge Ownership Vector", sizeof(bool) * _acquired_hes.size());
   parent->addChild("Bitsets",
     ( _num_hyperedges * _he_bitset.size() ) / 8UL + sizeof(uint16_t) * _num_hyperedges);
+  if (_node_depths) parent->addChild("Node Depths", _num_hypernodes * sizeof(HypernodeID));
 
   utils::MemoryTreeNode* contraction_tree_node = parent->addChild("Contraction Tree");
   _contraction_tree.memoryConsumption(contraction_tree_node);

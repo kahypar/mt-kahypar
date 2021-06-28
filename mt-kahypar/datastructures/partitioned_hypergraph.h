@@ -432,7 +432,6 @@ private:
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
   PartitionBitSet& getLocalConnSetBitSet() {
       PartitionBitSet& conn_set_bitset = _conn_set_snapshots.local();
-//      if (!conn_set_bitset) conn_set_bitset = std::make_unique<PartitionBitSet>(_k);
       ASSERT(conn_set_bitset.size() == _k);
       return conn_set_bitset;
   }
@@ -440,7 +439,6 @@ private:
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
   PartitionBitSet& getLocalPartsWithOnePinBitSet() {
       PartitionBitSet& parts_with_one_pin_bitset = _parts_with_one_pin_snapshots.local();
-//      if (!parts_with_one_pin_bitset) parts_with_one_pin_bitset = std::make_unique<PartitionBitSet>(_k);
       ASSERT(parts_with_one_pin_bitset.size() == _k);
       return parts_with_one_pin_bitset;
   }

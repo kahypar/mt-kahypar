@@ -306,6 +306,7 @@ namespace mt_kahypar {
   }
 
   template<typename FMStrategy>
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
   void AsyncKWayFM<FMStrategy>::releaseMoveLocksForLocalMovedNodes() {
     for (const auto& local_move : localMoves) {
       sharedData.nodeTracker.releaseNode(local_move.node, contraction_group_id);
@@ -313,6 +314,7 @@ namespace mt_kahypar {
   }
 
     template<typename FMStrategy>
+    MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
     void AsyncKWayFM<FMStrategy>::lockUncontractionLockWithWaiting(const HypernodeID& hn) {
       while (!uncontraction_locks->tryToAcquireLock(hn, contraction_group_id)){/* keep trying to lock */}
     }

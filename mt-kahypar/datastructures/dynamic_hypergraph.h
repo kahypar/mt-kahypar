@@ -1233,16 +1233,8 @@ private:
   IncidentNetArray _incident_nets;
   // ! Atomic bool vector used to acquire unique ownership of hypernodes
   OwnershipVector _acquired_hns;
-
   // ! Depths of nodes in the uncontraction hierarchy (only used in asynchronous uncoarsening)
   std::unique_ptr<Array<HypernodeID>> _node_depths;
-
-public:
-//  // todo mlaupichler remove this debug counter
-//  CAtomic<HypernodeID> _count_where_depth_helped;
-//  CAtomic<HypernodeID> _count_where_depth_did_not_help;
-
-private:
 
   // ! Hyperedges
   Array<Hyperedge> _hyperedges;
