@@ -153,12 +153,14 @@ class DeltaPartitionedHypergraph {
     ASSERT(_phg);
     assert(partID(u) == from);
     assert(from != to);
+    ASSERT(_phg->nodeIsEnabled(u));
     const HypernodeWeight wu = _phg->nodeWeight(u);
     if ( partWeight(to) + wu <= max_weight_to ) {
       _part_ids_delta[u] = to;
       _part_weights_delta[to] += wu;
       _part_weights_delta[from] -= wu;
-      for ( const HyperedgeID& he : _phg->incidentEdges(u) ) {
+      auto inc_edges = _phg->incidentEdges(u);
+      for ( const HyperedgeID& he : inc_edges ) {
         const HypernodeID pin_count_in_from_part_after = decrementPinCountInPart(he, from);
         const HypernodeID pin_count_in_to_part_after = incrementPinCountInPart(he, to);
         delta_func(he, _phg->edgeWeight(he), _phg->edgeSize(he), pin_count_in_from_part_after, pin_count_in_to_part_after);

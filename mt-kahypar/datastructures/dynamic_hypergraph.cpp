@@ -351,7 +351,7 @@ void DynamicHypergraph::uncontract(const ContractionGroup& group,
     for(auto &memento: group) {
 
         ASSERT(!hypernode(memento.u).isDisabled(), "Hypernode " << memento.u << " is disabled");
-        ASSERT(hypernode(memento.v).isDisabled(), "Hypernode " << memento.v << " is not invalid");
+        ASSERT(hypernode(memento.v).isDisabled(), "Hypernode " << memento.v << " is already enabled while trying to uncontract it.");
 
         _incident_nets.uncontract(memento.u, memento.v,[&](const HyperedgeID e) {
             // In this case, u and v were both previously part of hyperedge e.

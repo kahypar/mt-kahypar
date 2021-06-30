@@ -121,11 +121,6 @@ namespace mt_kahypar {
                                      move.to, pin_count_in_to_part_after);
     };
 
-    // we can almost make this function take a generic partitioned hypergraph
-    // we would have to add the success func to the interface of DeltaPhg (and then ignore it there...)
-    // and do the local rollback outside this function
-
-
     size_t bestImprovementIndex = 0;
     Gain estimatedImprovement = 0;
     Gain bestImprovement = 0;
@@ -136,7 +131,7 @@ namespace mt_kahypar {
     while (!stopRule.searchShouldStop()) {
 
       //Attempt to find the next move. If none can be found then stop this search.
-      bool move_found = fm_strategy.findNextMove(phg, move);
+      bool move_found = fm_strategy.findNextMove(deltaPhg, move);
       if (!move_found) break;
 
       ASSERT(move.isValid());
@@ -235,7 +230,7 @@ namespace mt_kahypar {
                            delta_gain_func, true);
       }
 
-      uncontraction_locks->strongReleaseLock(local_move.node, contraction_group_id);
+//      uncontraction_locks->strongReleaseLock(local_move.node, contraction_group_id);
 
       _km1_delta += attributed_gain;
       attributed_gain = -attributed_gain; // delta func yields negative sum of improvements, i.e. negative values mean improvements
@@ -251,6 +246,8 @@ namespace mt_kahypar {
       runStats.best_prefix_mismatch++;
     }
 
+    std::pair<Gain, size_t> result;
+
     // kind of double rollback, if attributed gains say we overall made things worse
     if (!apply_all_moves && improvement_from_attributed_gains < 0) {
       // always using the if-branch gave similar results
@@ -261,7 +258,7 @@ namespace mt_kahypar {
         attributed_gain = 0;
 
         // Prevent concurrent uncontractions for call to changeNodePart() with uncontraction lock
-        lockUncontractionLockWithWaiting(m.node);
+//        lockUncontractionLockWithWaiting(m.node);
 
         if constexpr (FMStrategy::uses_gain_cache) {
           phg.changeNodePartWithGainCacheUpdate(m.node, m.to, m.from,
@@ -275,16 +272,23 @@ namespace mt_kahypar {
                              delta_gain_func, true);
         }
 
-        uncontraction_locks->strongReleaseLock(m.node, contraction_group_id);
+//        uncontraction_locks->strongReleaseLock(m.node, contraction_group_id);
 
         _km1_delta += attributed_gain;
 
         m.invalidate();
       }
-      return std::make_pair(best_improvement_from_attributed_gains, best_index_from_attributed_gains);
+      result = std::make_pair(best_improvement_from_attributed_gains, best_index_from_attributed_gains);
     } else {
-      return std::make_pair(best_improvement_locally_observed, best_index_locally_observed);
+      result = std::make_pair(best_improvement_locally_observed, best_index_locally_observed);
     }
+
+    // Release uncontraction locks, i.e. allow the nodes to be uncontracted again once the best prefix has been applied
+    for (size_t i = 0; i < best_index_locally_observed; ++i) {
+      uncontraction_locks->strongReleaseLock(localMoves[i].node, contraction_group_id);
+    }
+
+    return result;
   }
 
   template<typename FMStrategy>

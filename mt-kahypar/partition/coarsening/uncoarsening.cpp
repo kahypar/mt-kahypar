@@ -219,7 +219,9 @@ namespace mt_kahypar {
 
       // Switch to asynchronous uncoarsening if the option is set
       if (_context.uncoarsening.use_asynchronous_uncoarsening) {
-            return doAsynchronousUncoarsen(label_propagation, fm);
+            // Global Label Propagation not needed in asynch case, clear the memory
+            label_propagation.reset();
+            return doAsynchronousUncoarsen(fm);
       }
 
 
@@ -463,7 +465,7 @@ namespace mt_kahypar {
       ASSERT(std::all_of(ds::GroupNodeIDIterator::getAtBegin(group),
                          ds::GroupNodeIDIterator::getAtEnd(group),
                          [&](const HypernodeID &hn) {
-                             return _hg.nodeIsEnabled(hn) && _phg.partID(hn) == repr_part_id;
+                             return _hg.nodeIsEnabled(hn) && _phg.partID(hn) != kInvalidPartition;
                          }),
              "After uncontracting a group, either the representative or any of the contracted nodes is not enabled or not assigned a partition!");
       return true;
@@ -489,6 +491,7 @@ namespace mt_kahypar {
       if (!refinement_nodes.empty()) {
 
           auto repr_part_id = _phg.partID(group.getRepresentative());
+          unused(repr_part_id);
           ASSERT(repr_part_id != kInvalidPartition);
           ASSERT(std::all_of(refinement_nodes.begin(), refinement_nodes.end(),
                            [&](const HypernodeID &hn) {
@@ -556,8 +559,7 @@ namespace mt_kahypar {
 
   }
 
-  PartitionedHypergraph&& NLevelCoarsenerBase::doAsynchronousUncoarsen(std::unique_ptr<IRefiner>& label_propagation,
-                                                    std::unique_ptr<IRefiner>& fm) {
+  PartitionedHypergraph&& NLevelCoarsenerBase::doAsynchronousUncoarsen(std::unique_ptr<IRefiner>& global_fm) {
 
       ASSERT(_is_finalized);
       metrics::ThreadSafeMetrics current_metrics = initializeForAsync(_compactified_phg);
@@ -597,11 +599,8 @@ namespace mt_kahypar {
       uncontraction_progress += _compactified_hg.initialNumNodes();
 
       // Initialize Refiner for global refinement
-      if ( label_propagation ) {
-          label_propagation->initialize(_phg);
-      }
-      if ( fm ) {
-          fm->initialize(_phg);
+      if ( global_fm ) {
+        global_fm->initialize(_phg);
       }
 
       // Perform uncontractions version by version
@@ -701,7 +700,7 @@ namespace mt_kahypar {
               // Perform refinement on all vertices
               const double time_limit = refinementTimeLimit(_context, _round_coarsening_times.back());
               tmp_unsafe_metrics = current_metrics.unsafeLoadMetrics();
-              globalRefine(_phg, fm, tmp_unsafe_metrics, time_limit);
+              globalRefine(_phg, global_fm, tmp_unsafe_metrics, time_limit);
               current_metrics.unsafeStoreMetrics(tmp_unsafe_metrics);
               uncontraction_progress.setObjective(current_metrics.getMetric(
                       _context.partition.mode, _context.partition.objective));
@@ -732,22 +731,33 @@ namespace mt_kahypar {
       unused(total_num_nodes);
       unused(num_nodes_after_coarsening);
       ASSERT(total_num_nodes == total_uncontractions + num_nodes_after_coarsening, V(total_num_nodes) << ", " << V(total_uncontractions) << ", " << V(num_nodes_after_coarsening));
-      auto checkAllAssignedAndNoneLocked = [&](){
-          for (HypernodeID i = 0; i < _hg.initialNumNodes(); ++i) {
-              if(_phg.partID(i) == kInvalidPartition) return false;
-              if(_lock_manager_for_async->isLocked(i)) return false;
-          }
-          return true;
+      auto checkAllAssigned = [&](){
+          CAtomic<uint8_t> all_assigned(uint8_t(true));
+          _hg.doParallelForAllNodes([&](const HypernodeID& i) {
+              if(_phg.partID(i) == kInvalidPartition) {
+                std::cout << "Node " << i << " has an invalid partition." << std::endl;
+                all_assigned.fetch_and(uint8_t(false), std::memory_order_relaxed);
+              }
+          });
+          return (bool) all_assigned.load(std::memory_order_relaxed);
       };
-      unused(checkAllAssignedAndNoneLocked);
-      HEAVY_REFINEMENT_ASSERT(checkAllAssignedAndNoneLocked());
+      unused(checkAllAssigned);
+      HEAVY_REFINEMENT_ASSERT(checkAllAssigned());
+      auto checkNoneLocked = [&](){
+        for (HypernodeID i = 0; i < _hg.initialNumNodes(); ++i) {
+          if(_lock_manager_for_async->isLocked(i)) return false;
+        }
+        return true;
+      };
+      unused(checkNoneLocked);
+      HEAVY_REFINEMENT_ASSERT(checkNoneLocked());
 
       // Top-Level Refinement on all vertices
       const HyperedgeWeight objective_before = current_metrics.getMetric(
               _context.partition.mode, _context.partition.objective);
       const double time_limit = refinementTimeLimit(_context, _round_coarsening_times.back());
       tmp_unsafe_metrics = current_metrics.unsafeLoadMetrics();
-      globalRefine(_phg, fm, tmp_unsafe_metrics, time_limit);
+      globalRefine(_phg, global_fm, tmp_unsafe_metrics, time_limit);
       current_metrics.unsafeStoreMetrics(tmp_unsafe_metrics);
       _round_coarsening_times.pop_back();
       ASSERT(_round_coarsening_times.size() == 0);

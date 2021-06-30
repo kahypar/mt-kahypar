@@ -99,7 +99,8 @@ private:
     _pin_count_update_ownership(
         "Refinement", "pin_count_update_ownership", hypergraph.initialNumEdges(), true, false),
     _conn_set_snapshots(_k),
-    _parts_with_one_pin_snapshots(_k) {
+    _parts_with_one_pin_snapshots(_k),
+    _pins_snapshots(_hg->maxEdgeSize(),invalidNode) {
     _part_ids.assign(hypergraph.initialNumNodes(), kInvalidPartition, false);
   }
 
@@ -117,7 +118,8 @@ private:
     _gain_cache(_hg_query_funcs.get(), parallel_tag_t()),
     _pin_count_update_ownership(),
     _conn_set_snapshots(_k),
-    _parts_with_one_pin_snapshots(_k)  {
+    _parts_with_one_pin_snapshots(_k),
+    _pins_snapshots(_hg->maxEdgeSize(), invalidNode)  {
     tbb::parallel_invoke([&] {
       _part_ids.resize(
         "Refinement", "vertex_part_info", hypergraph.initialNumNodes());
@@ -149,8 +151,9 @@ private:
     _hg_query_funcs(std::make_unique<HGQueryFunctions>(makeQueryFunctionsObject())),
     _gain_cache(std::move(other._gain_cache)),
     _pin_count_update_ownership(std::move(other._pin_count_update_ownership)),
-    _conn_set_snapshots(_k),
-    _parts_with_one_pin_snapshots(_k)  {
+    _conn_set_snapshots(std::move(other._conn_set_snapshots)),
+    _parts_with_one_pin_snapshots(std::move(other._parts_with_one_pin_snapshots)),
+    _pins_snapshots(std::move(other._pins_snapshots))  {
 
       // Reset query functions for GainCache (so references point to functions in new PHG)
       _gain_cache.assignHGQueryFunctions(_hg_query_funcs.get());
@@ -166,6 +169,9 @@ private:
       _connectivity_set = std::move(other._connectivity_set);
       _gain_cache = std::move(other._gain_cache);
       _pin_count_update_ownership = std::move(other._pin_count_update_ownership);
+      _conn_set_snapshots = std::move(other._conn_set_snapshots);
+      _parts_with_one_pin_snapshots = std::move(other._parts_with_one_pin_snapshots);
+      _pins_snapshots = std::move(other._pins_snapshots);
 
       // Reset query functions for GainCache (so references point to functions in this PHG)
       _hg_query_funcs = std::make_unique<HGQueryFunctions>(makeQueryFunctionsObject());
@@ -456,13 +462,30 @@ private:
       }
   }
 
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
+  IteratorRange<HypernodeID*> takePinsSnapshot(const HyperedgeID he) {
+    std::vector<HypernodeID>& pins_snapshot = _pins_snapshots.local();
+//    pins_snapshot.clear();
+    auto pin_range = pins(he);
+    HypernodeID* ptr_to_begin = &(*pin_range.begin());
+    HypernodeID num_pins = pin_range.end() - pin_range.begin();
+    ASSERT(num_pins <= pins_snapshot.size());
+    std::memcpy(pins_snapshot.data(), ptr_to_begin, static_cast<size_t>(num_pins) * sizeof(HypernodeID));
+//    for (const auto& pin : pins(he)) {
+//      pins_snapshot[cur_num_pins] = pin;
+//      cur_num_pins++;
+//    }
+
+    return IteratorRange(pins_snapshot.data(), pins_snapshot.data() + num_pins);
+  }
+
   // ! Debug purposes
-  void lockHyperedgePinCountLock(const HyperedgeID he) {
+  [[maybe_unused]] void lockHyperedgePinCountLock(const HyperedgeID he) {
       _pin_count_update_ownership[he].lock();
   }
 
   // ! Debug purposes
-  void unlockHyperedgePinCountLock(const HyperedgeID he) {
+  [[maybe_unused]] void unlockHyperedgePinCountLock(const HyperedgeID he) {
       _pin_count_update_ownership[he].unlock();
   }
 
@@ -494,7 +517,7 @@ private:
                               PartitionBitSet& conn_set = getLocalConnSetBitSet();
                               PartitionBitSet& parts_with_one_pin = getLocalPartsWithOnePinBitSet();
                               takeConnectivitySetSnapshots(he, conn_set, parts_with_one_pin);
-                              auto pins_snapshot = pins(he);
+                              auto pins_snapshot = takePinsSnapshot(he);
                               _pin_count_update_ownership[he].unlock();
 
                               // If u was the only pin of hyperedge he in its block before then moving out vertex u
@@ -504,6 +527,7 @@ private:
                               _gain_cache.updateForUncontractCaseOne(edge_weight, v, block,
                                                                      pin_count_in_part_after, pins_snapshot,
                                                                      conn_set, parts_with_one_pin);
+
                           } else {
                               _pin_count_update_ownership[he].unlock();
                           }
@@ -641,9 +665,9 @@ private:
     setOnlyNodePart(u, p);
     _part_weights[p].fetch_add(nodeWeight(u), std::memory_order_relaxed);
     for (HyperedgeID he : incidentEdges(u)) {
-      lockHyperedge(he);
+      _pin_count_update_ownership[he].lock();
       incrementPinCountInPartWithoutGainUpdate(he, p);
-      unlockHyperedge(he);
+      _pin_count_update_ownership[he].unlock();
     }
   }
 
@@ -662,6 +686,8 @@ private:
       assert(nodeIsEnabled(u));
       assert(partID(u) == from);
       assert(from != to);
+      ASSERT(from != kInvalidPartition);
+      ASSERT(to != kInvalidPartition);
       const HypernodeWeight wu = nodeWeight(u);
       const HypernodeWeight to_weight_after = _part_weights[to].add_fetch(wu, std::memory_order_relaxed);
       const HypernodeWeight from_weight_after = _part_weights[from].fetch_sub(wu, std::memory_order_relaxed);
@@ -714,6 +740,20 @@ private:
     _gain_cache.updateForMove(we, pins, from, pin_count_in_from_part_after, to, pin_count_in_to_part_after);
   }
 
+  struct GainCacheUpdateFuncWrapper {
+
+        explicit GainCacheUpdateFuncWrapper(PartitionedHypergraph& caller) : _parent_phg(caller) {}
+
+        PartitionedHypergraph& _parent_phg;
+
+        template<typename PinIteratorT>
+        void operator() (const HyperedgeWeight edge_weight, IteratorRange<PinIteratorT> pins,
+                         const PartitionID from, const HypernodeID pin_count_in_from_part_after,
+                         const PartitionID to, const HypernodeID pin_count_in_to_part_after) {
+          _parent_phg.gainCacheUpdate(edge_weight, pins, from, pin_count_in_from_part_after, to, pin_count_in_to_part_after);
+        }
+  };
+
   // Make sure not to call phg.gainCacheUpdate(..) in delta_func for changeNodePartWithGainCacheUpdate
   template<typename SuccessFunc, typename DeltaFunc>
   bool changeNodePartWithGainCacheUpdate(const HypernodeID u,
@@ -723,15 +763,15 @@ private:
                                          SuccessFunc&& report_success,
                                          DeltaFunc&& delta_func,
                                          bool concurrent_uncontractions = false) {
-    //ASSERT(_is_gain_cache_initialized, "Gain cache is not initialized");
+    ASSERT(_is_gain_cache_initialized, "Gain cache is not initialized");
 
-    auto gain_cache_update = [&](const HyperedgeWeight edge_weight, IteratorRange<IncidenceIterator> pins,
+    auto gain_cache_update = [&](const HyperedgeWeight edge_weight, IteratorRange<std::vector<HypernodeID>::const_iterator> pins,
                         const PartitionID from, const HypernodeID pin_count_in_from_part_after,
                         const PartitionID to, const HypernodeID pin_count_in_to_part_after) {
         gainCacheUpdate(edge_weight, pins, from, pin_count_in_from_part_after, to, pin_count_in_to_part_after);
     };
 
-    return changeNodePart(u, from, to, max_weight_to, report_success, delta_func, gain_cache_update, concurrent_uncontractions);
+    return changeNodePart(u, from, to, max_weight_to, report_success, delta_func, GainCacheUpdateFuncWrapper(*this), concurrent_uncontractions);
 
   }
 
@@ -1278,7 +1318,7 @@ private:
       _pin_count_update_ownership[he].lock();
       const HypernodeID pin_count_in_from_part_after = decrementPinCountInPartWithoutGainUpdate(he, from);
       const HypernodeID pin_count_in_to_part_after = incrementPinCountInPartWithoutGainUpdate(he, to);
-      auto pins_snapshot = pins(he);
+      auto pins_snapshot = takePinsSnapshot(he);
       _pin_count_update_ownership[he].unlock();
       delta_func(he, edgeWeight(he), edgeSize(he), pin_count_in_from_part_after, pin_count_in_to_part_after);
       gain_cache_update_func(edgeWeight(he), pins_snapshot, from, pin_count_in_from_part_after, to, pin_count_in_to_part_after);
@@ -1362,6 +1402,7 @@ private:
   // ! Thread-local PartitionBitSets used for snapshots of connectivity sets in asynchronous uncoarsening
   tbb::enumerable_thread_specific<PartitionBitSet> _conn_set_snapshots;
   tbb::enumerable_thread_specific<PartitionBitSet> _parts_with_one_pin_snapshots;
+  tbb::enumerable_thread_specific<std::vector<HypernodeID>> _pins_snapshots;
 };
 
 } // namespace ds

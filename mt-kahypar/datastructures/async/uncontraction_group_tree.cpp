@@ -166,6 +166,7 @@ namespace mt_kahypar::ds {
         // Same as any horizontal branch, except the parentGroupID is the next free available ID, so the first group in the horizontal
         // branch becomes its own parent (i.e. a root)
         auto num_roots = _roots.size();
+        unused(num_roots);
         insertHorizontalBranch(childrenIt,_num_group_nodes,parentHypernode);
         ASSERT(_roots.size() == num_roots+1);
     }

@@ -93,8 +93,7 @@ class NLevelCoarsenerBase {
   PartitionedHypergraph&& doUncoarsen(std::unique_ptr<IRefiner>& label_propagation,
                                       std::unique_ptr<IRefiner>& fm);
 
-  PartitionedHypergraph&& doAsynchronousUncoarsen(std::unique_ptr<IRefiner>& label_propagation,
-                                                  std::unique_ptr<IRefiner>& fm);
+  PartitionedHypergraph&& doAsynchronousUncoarsen(std::unique_ptr<IRefiner>& global_fm);
 
   void uncoarsenAsyncTask(ds::TreeGroupPool *pool, tbb::task_group &uncoarsen_tg,
                           metrics::ThreadSafeMetrics &current_metrics,
