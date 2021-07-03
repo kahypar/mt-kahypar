@@ -346,19 +346,19 @@ class DeltaPartitionedHypergraph {
   vec< HypernodeWeight > _part_weights_delta;
 
   // ! Stores for each locally moved node, its new block id
-  DynamicSparseMap<HypernodeID, PartitionID> _part_ids_delta;
+  DynamicFlatMap<HypernodeID, PartitionID> _part_ids_delta;
 
   // ! Stores the delta of each locally touched pin count entry
   // ! relative to the _pins_in_part member in '_phg'
-  DynamicSparseMap<size_t, int32_t> _pins_in_part_delta;
+  DynamicFlatMap<size_t, int32_t> _pins_in_part_delta;
 
   // ! Stores the delta of each locally touched move to penalty entry
   // ! relative to the _move_to_penalty member in '_phg'
-  DynamicSparseMap<size_t, HyperedgeWeight> _move_to_penalty_delta;
+  DynamicFlatMap<size_t, HyperedgeWeight> _move_to_penalty_delta;
 
   // ! Stores the delta of each locally touched move from benefit entry
   // ! relative to the _move_from_benefit member in '_phg'
-  DynamicSparseMap<HypernodeID, HyperedgeWeight> _move_from_benefit_delta;
+  DynamicFlatMap<HypernodeID, HyperedgeWeight> _move_from_benefit_delta;
 };
 
 } // namespace ds

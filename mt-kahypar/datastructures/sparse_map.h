@@ -639,5 +639,157 @@ struct EmptyStruct { };
 
 template<typename Key> using DynamicSparseSet = DynamicSparseMap<Key, EmptyStruct>;
 
+template <typename Key = Mandatory,
+          typename Value = Mandatory>
+class DynamicFlatMap {
+
+  struct MapElement {
+    Key key;
+    Value value;
+    uint32_t timestamp;
+  };
+
+ public:
+
+  static constexpr size_t MAP_SIZE = 32768; // Size of sparse map is approx. 1 MB
+
+  static_assert(MAP_SIZE && ((MAP_SIZE & (MAP_SIZE - 1)) == 0UL), "Size of map is not a power of two!");
+
+  explicit DynamicFlatMap(const size_t capacity = MAP_SIZE) :
+    _data(nullptr),
+    _size(0),
+    _capacity(0),
+    _timestamp(1) {
+    allocate(align_to_next_power_of_two(capacity));
+  }
+
+  DynamicFlatMap(const DynamicFlatMap&) = delete;
+  DynamicFlatMap& operator= (const DynamicFlatMap& other) = delete;
+
+  DynamicFlatMap(DynamicFlatMap&& other) :
+    _data(std::move(other._data)),
+    _size(other._size),
+    _capacity(other._capacity),
+    _timestamp(other._timestamp) {
+    other._data = nullptr;
+    other._size = 0;
+    other._capacity = 0;
+  }
+
+  ~DynamicFlatMap() = default;
+
+  size_t capacity() const {
+    return _capacity;
+  }
+
+  size_t size() const {
+    return _size;
+  }
+
+  bool contains(const Key key) const {
+    MapElement* s = find(key);
+    return containsValidElement(key, s);
+  }
+
+  Value& operator[] (const Key key) {
+    MapElement* s = find(key);
+    if (containsValidElement(key, s)) {
+      return s->value;
+    } else {
+      if (_size + 1 > _capacity / 5UL) {
+        grow();
+        s = find(key);
+      }
+      *s = MapElement { key, Value(), _timestamp };
+      _size++;
+      return s->value;
+    }
+  }
+
+  const Value& get(const Key key) const {
+    ASSERT(contains(key));
+    return find(key)->value;
+  }
+
+  const Value* get_if_contained(const Key key) const {
+    MapElement* s = find(key);
+    if (containsValidElement(key, s)) {
+      return &s->value;
+    } else {
+      return nullptr;
+    }
+  }
+
+  void clear() {
+    _size = 0;
+    ++_timestamp;
+  }
+
+  void freeInternalData() {
+    _size = 0;
+    _timestamp = 0;
+    _data = nullptr;
+  }
+
+  size_t size_in_bytes() const {
+    return _capacity * sizeof(MapElement);
+  }
+
+ private:
+  inline MapElement* find(const Key key) const {
+    size_t hash = key & (_capacity - 1);
+    while (_data[hash].timestamp == _timestamp ) {
+      if (_data[hash].key == key) {
+        return &_data[hash];
+      }
+      hash = (hash + 1) & (_capacity - 1);
+    }
+    return &_data[hash];
+  }
+
+  inline bool containsValidElement(const Key key,
+                                   const MapElement* s) const {
+    unused(key);
+    ASSERT(s);
+    const bool is_contained = s->timestamp == _timestamp;
+    ASSERT(!is_contained || s->key == key);
+    return is_contained;
+  }
+
+  void allocate(const size_t capacity) {
+    _capacity = capacity;
+    _data = std::make_unique<MapElement[]>(_capacity);
+    memset(_data.get(), 0, _capacity * sizeof(MapElement));
+  }
+
+  void grow() {
+    const size_t capacity = 2UL * _capacity;
+    std::unique_ptr<MapElement[]> old_data = std::move(_data);
+    const MapElement* old_data_begin = old_data.get();
+    const MapElement* old_data_end = old_data.get() + _capacity;
+    allocate(capacity);
+
+    rehash(old_data_begin, old_data_end);
+  }
+
+  void rehash(const MapElement* old_data_begin, const MapElement* old_data_end) {
+    for (const MapElement* element = old_data_begin; element < old_data_end; ++element) {
+      if (element->timestamp == _timestamp) {
+        MapElement* slot = find(element->key);
+        *slot = MapElement { element->key, element->value, _timestamp };
+      }
+    }
+  }
+
+  size_t align_to_next_power_of_two(const size_t size) const {
+    return std::pow(2.0, std::ceil(std::log2(static_cast<double>(size))));
+  }
+
+  std::unique_ptr<MapElement[]> _data;
+  size_t _size;
+  size_t _capacity;
+  uint32_t _timestamp;
+};
+
 } // namespace ds
 } // namespace mt_kahypar
