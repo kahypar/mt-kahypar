@@ -463,10 +463,10 @@ private:
   }
 
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
-  IteratorRange<HypernodeID*> takePinsSnapshot(const HyperedgeID he) {
+  IteratorRange<HypernodeID*> takeVolatilePinsSnapshot(const HyperedgeID he) {
     std::vector<HypernodeID>& pins_snapshot = _pins_snapshots.local();
 //    pins_snapshot.clear();
-    auto pin_range = pins(he);
+    auto pin_range = _hg->volatile_pins(he);
     HypernodeID* ptr_to_begin = &(*pin_range.begin());
     HypernodeID num_pins = pin_range.end() - pin_range.begin();
     ASSERT(num_pins <= pins_snapshot.size());
@@ -479,6 +479,15 @@ private:
     return IteratorRange(pins_snapshot.data(), pins_snapshot.data() + num_pins);
   }
 
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
+  IteratorRange<IncidenceIterator> takeStablePinsSnapshot(const HyperedgeID he) const {
+    return _hg->stable_pins(he);
+  }
+
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE IteratorRange<PinSnapshotIterator> takePinsSnapshot(const HyperedgeID he) {
+    return PinSnapshotIterator::stitchPinIterators(takeStablePinsSnapshot(he), takeVolatilePinsSnapshot(he));
+  }
+
   // ! Debug purposes
   [[maybe_unused]] void lockHyperedgePinCountLock(const HyperedgeID he) {
       _pin_count_update_ownership[he].lock();
@@ -489,7 +498,8 @@ private:
       _pin_count_update_ownership[he].unlock();
   }
 
-  void uncontract(const ContractionGroup& group) {
+  void uncontract(const ContractionGroup& group,
+                  const ContractionGroupID groupID) {
 
       // Set block ids of contraction partners
      for (auto& memento : group) {
@@ -501,6 +511,7 @@ private:
      }
 
      _hg->uncontract(group,
+                     groupID,
                       [&](const HypernodeID u, const HypernodeID v, const HyperedgeID he) {
                             // (This is always called while pin count update ownership for he has been locked by _hg->uncontract();
                             // release that lock here at right point)

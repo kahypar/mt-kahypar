@@ -21,10 +21,8 @@
 #include "mt-kahypar/datastructures/dynamic_hypergraph.h"
 
 #include "tbb/blocked_range.h"
-#include "tbb/parallel_scan.h"
 #include "tbb/parallel_sort.h"
 #include "tbb/parallel_reduce.h"
-#include "tbb/concurrent_queue.h"
 
 #include "mt-kahypar/parallel/stl/scalable_queue.h"
 #include "mt-kahypar/datastructures/concurrent_bucket_map.h"
@@ -278,25 +276,25 @@ VersionedPoolVector DynamicHypergraph::createUncontractionGroupPoolsForVersions(
 
     ASSERT(_contraction_tree.isFinalized());
     utils::Timer::instance().start_timer("create_uncontraction_group_pools", "Create Uncontraction Group Pools For All Versions");
-//    UncontractionGroupTree::resetNodeToGroupMap(_num_hypernodes);
-    VersionedPoolVector poolVector;
-    poolVector.resize(num_versions);
-    for (size_t v = 0; v < num_versions; ++v) {
-        // Make hierarchy for version v and a pool for that version from the hierarchy. Ownership of the hierarchy is with the pool (i.e. it gets deleted when the pool is deleted).
-        auto groupHierarchy = new UncontractionGroupTree(_contraction_tree, v);
-        auto pool = std::make_unique<TreeGroupPool>(std::unique_ptr<UncontractionGroupTree>{groupHierarchy});
+    VersionedPoolVector poolVector(num_versions);
+    _uncontraction_hierarchies = Array<const UncontractionGroupTree*>(num_versions);
+    tbb::parallel_for(0UL, num_versions, [&](const size_t v) {
+        // Make hierarchy for version v and a pool for that version from the hierarchy.
+        // Ownership of the hierarchy is with the pool (i.e. it gets deleted when the pool is deleted).
+        auto groupHierarchy = std::make_unique<UncontractionGroupTree>(_contraction_tree, v);
+        auto pool = std::make_unique<TreeGroupPool>(std::move(groupHierarchy));
         ASSERT(v < poolVector.size());
         // Pass ownership of the pool to the pool vector
         poolVector[v] = std::move(pool);
-    }
+        _uncontraction_hierarchies[v] = poolVector[v]->getPtrToHierarchyForQueries();
+    });
     utils::Timer::instance().stop_timer("create_uncontraction_group_pools");
 
     if ( !test ) {
         utils::Timer::instance().start_timer("prepare_hg_for_uncontraction", "Prepare HG For Uncontraction");
 
 
-      _node_depths = std::make_unique<Array<HypernodeID>>(_num_hypernodes, invalidDepth);
-      Array<HypernodeID>& node_depths = *_node_depths;
+      _node_depths = Array<HypernodeID>(_num_hypernodes, invalidDepth);
 
         // Store the pool index (=version) of each vertex in its hypernode data structure
         // ATTENTION! The batch index of a hypernode is somewhat abused here to store the pool index instead.
@@ -308,9 +306,9 @@ VersionedPoolVector DynamicHypergraph::createUncontractionGroupPoolsForVersions(
             pool->doParallelForAllGroupIDs([&](const ContractionGroupID& groupID) {
                 const auto& group = pool->group(groupID);
                 for ( const Memento& memento : group) {
-                    ASSERT(memento.v < _num_hypernodes && node_depths[memento.v] == invalidDepth);
+                    ASSERT(memento.v < _num_hypernodes && _node_depths[memento.v] == invalidDepth);
                     hypernode(memento.v).setBatchIndex(version);
-                    node_depths[memento.v] = pool->depth(groupID);
+                    _node_depths[memento.v] = _uncontraction_hierarchies[pool->getVersion()]->depth(groupID);
                 }
             });
         });
@@ -325,30 +323,56 @@ VersionedPoolVector DynamicHypergraph::createUncontractionGroupPoolsForVersions(
                       _incidence_array.begin() + last_invalid_entry,
                       [&](const HypernodeID u, const HypernodeID v) {
                           ASSERT(hypernode(u).batchIndex() != std::numeric_limits<HypernodeID>::max(),
-                                 "Hypernode" << u << "is not contained in the uncontraction hierarchy");
+                                 "Hypernode" << u << "is not contained in any version");
                           ASSERT(hypernode(v).batchIndex() != std::numeric_limits<HypernodeID>::max(),
-                                 "Hypernode" << v << "is not contained in the uncontraction hierarchy");
+                                 "Hypernode" << v << "is not contained in any version");
+                          ASSERT(u < _node_depths.size() && v < _node_depths.size());
                           auto version_u = hypernode(u).batchIndex();
                           auto version_v = hypernode(v).batchIndex();
-                          auto depth_u = node_depths[u];
-                          auto depth_v = node_depths[v];
+                          auto depth_u = _node_depths[u];
+                          auto depth_v = _node_depths[v];
                           return version_u > version_v || (version_u == version_v && depth_u < depth_v);
                       });
         });
+
         utils::Timer::instance().stop_timer("prepare_hg_for_uncontraction");
     }
 
     return poolVector;
 }
 
+void DynamicHypergraph::movePinToStablePinsAndIncreaseOffset(const HyperedgeID he, const size_t previous_pin_index) {
+
+  ASSERT(previous_pin_index >= hyperedge(he).firstEntry() && previous_pin_index < hyperedge(he).firstInvalidEntry());
+
+  size_t first_volatile_entry = hyperedge(he).firstEntry() + _num_stable_active_pins[he];
+
+  HypernodeID pin_to_move = _incidence_array[previous_pin_index];
+  _incidence_array[previous_pin_index] = _incidence_array[first_volatile_entry];
+  _incidence_array[first_volatile_entry] = pin_to_move;
+
+  ++_num_stable_active_pins[he];
+
+  ASSERT(_incidence_array[hyperedge(he).firstEntry() + _num_stable_active_pins[he] - 1] == pin_to_move);
+
+}
+
 
 void DynamicHypergraph::uncontract(const ContractionGroup& group,
+                                   const ContractionGroupID groupID,
                                    const UncontractionFunction& case_one_func,
                                    const UncontractionFunction& case_two_func,
                                    const PinCountUpdateLockFunction& lock_pin_count_update) {
 
+    size_t current_version = version();
+    ASSERT(_uncontraction_hierarchies[current_version]);
+    const auto* hierarchy = _uncontraction_hierarchies[current_version];
+
     // Restore contracted vertices as pins of hyperedges
-    for(auto &memento: group) {
+    for(auto it = group.begin(); it != group.end(); ++it) {
+
+        const auto& memento = *it;
+        const bool last_uncontraction_of_u = (hierarchy->isLastContractionGroupOfRepresentative(groupID) && (it + 1 == group.end()));
 
         ASSERT(!hypernode(memento.u).isDisabled(), "Hypernode " << memento.u << " is disabled");
         ASSERT(hypernode(memento.v).isDisabled(), "Hypernode " << memento.v << " is already enabled while trying to uncontract it.");
@@ -359,6 +383,18 @@ void DynamicHypergraph::uncontract(const ContractionGroup& group,
 
             lock_pin_count_update(e);
             reactivatePinForSingleUncontraction(e,memento.v);
+            // Check if u became stable with this uncontraction and/or if v is initially stable and if so move them in the
+            // incidence array accordingly
+            if (last_uncontraction_of_u) {
+              size_t slot_of_u = _incidence_array.size();
+              if (tryToFindPositionOfVolatileActivePin(memento.u, e, slot_of_u)) {
+                movePinToStablePinsAndIncreaseOffset(e, slot_of_u);
+              }
+            }
+            if (hierarchy->isInitiallyStableNode(memento.v)) {
+              ASSERT(hyperedge(e).firstInvalidEntry() - 1 >= hyperedge(e).firstEntry());
+              movePinToStablePinsAndIncreaseOffset(e, hyperedge(e).firstInvalidEntry() - 1);
+            }
             // Make sure case_one_func releases the pin count update ownership lock on e again
             case_one_func(memento.u, memento.v, e);
             return true;
@@ -366,11 +402,16 @@ void DynamicHypergraph::uncontract(const ContractionGroup& group,
             // In this case only v was part of hyperedge e before and
             // u must be replaced by v in hyperedge e
 
-            const size_t slot_of_u = findPositionOfPinInIncidenceArray(memento.u, e);
 //            if (!try_lock_pin_count_update(e)) return false;
             lock_pin_count_update(e);
+            const size_t slot_of_u = findPositionOfPinInIncidenceArray(memento.u, e);
             ASSERT(_incidence_array[slot_of_u] == memento.u);
             _incidence_array[slot_of_u] = memento.v;
+            // Check if v is initially stable and if so move it in the incidence array accordingly
+            if (hierarchy->isInitiallyStableNode(memento.v)) {
+              movePinToStablePinsAndIncreaseOffset(e, slot_of_u);
+            }
+
             case_two_func(memento.u, memento.v, e);
             return true;
         }, [&](const HypernodeID u) {
@@ -720,7 +761,7 @@ void DynamicHypergraph::memoryConsumption(utils::MemoryTreeNode* parent) const {
   parent->addChild("Hyperedge Ownership Vector", sizeof(bool) * _acquired_hes.size());
   parent->addChild("Bitsets",
     ( _num_hyperedges * _he_bitset.size() ) / 8UL + sizeof(uint16_t) * _num_hyperedges);
-  if (_node_depths) parent->addChild("Node Depths", _num_hypernodes * sizeof(HypernodeID));
+  parent->addChild("Node Depths For Async Uncoarsening", _num_hypernodes * sizeof(HypernodeID));
 
   utils::MemoryTreeNode* contraction_tree_node = parent->addChild("Contraction Tree");
   _contraction_tree.memoryConsumption(contraction_tree_node);
@@ -765,23 +806,31 @@ bool DynamicHypergraph::verifyIncidenceArrayAndIncidentNets() {
   return success;
 }
 
-//bool DynamicHypergraph::verifyIncidenceArraySortedness(VersionedPoolVector &pools) {
-//
-//    bool all_sorted = true;
-//    doParallelForAllEdges([&](const HyperedgeID& he) {
-//        auto begin = _incidence_array.begin() + hyperedge(he).firstInvalidEntry();
-//        auto end = _incidence_array.begin() + hyperedge(he+1).firstEntry();
-//        bool sorted = std::is_sorted(begin, end, [&](const HypernodeID u, const HypernodeID v) {
-//            auto version_u = hypernode(u).batchIndex();
-//            auto version_v = hypernode(v).batchIndex();
-//            auto depth_u = hypernode(u).depth();
-//            auto depth_v = hypernode(v).depth();
-//            return version_u > version_v || (version_u == version_v && depth_u < depth_v);
-//        });
-//        all_sorted &= sorted;
-//    });
-//    return all_sorted;
-//}
+bool DynamicHypergraph::verifyIncidenceArraySortedness() {
+
+    bool all_sorted = true;
+    doParallelForAllEdges([&](const HyperedgeID& he) {
+        ASSERT(he < _num_stable_active_pins.size());
+        size_t first_inactive = hyperedge(he).firstInvalidEntry();
+        size_t first_of_next_he = hyperedge(he + 1).firstEntry();
+        auto begin_inactive = _incidence_array.begin() + first_inactive;
+        auto end_inactive = _incidence_array.begin() + first_of_next_he;
+        bool sorted = std::is_sorted(begin_inactive, end_inactive, [&](const HypernodeID u, const HypernodeID v) {
+            ASSERT(hypernode(u).batchIndex() != std::numeric_limits<HypernodeID>::max(),
+                   "Hypernode" << u << "is not contained in any version");
+            ASSERT(hypernode(v).batchIndex() != std::numeric_limits<HypernodeID>::max(),
+                   "Hypernode" << v << "is not contained in any version");
+            ASSERT(u < _node_depths.size() && v < _node_depths.size());
+            auto version_u = hypernode(u).batchIndex();
+            auto version_v = hypernode(v).batchIndex();
+            auto depth_u = _node_depths[u];
+            auto depth_v = _node_depths[v];
+            return version_u > version_v || (version_u == version_v && depth_u < depth_v);
+        });
+        all_sorted &= sorted;
+    });
+    return all_sorted;
+}
 
 /**!
  * Contracts a previously registered contraction. The contraction of u and v is
@@ -965,9 +1014,10 @@ void DynamicHypergraph::reactivatePinForSingleUncontraction(const HyperedgeID he
     // Case 2: v and the pin at the beginning of the invalid part have different depths
     // => Move v to the beginning and move up all pins between the beginning and pos by one
 
-      ASSERT(_node_depths);
-      auto depth_of_first_invalid = (*_node_depths)[_incidence_array[first_invalid_entry]];
-      auto depth_of_v = (*_node_depths)[v];
+      ASSERT(_incidence_array[first_invalid_entry] < _node_depths.size());
+      ASSERT(v < _node_depths.size());
+      auto depth_of_first_invalid = _node_depths[_incidence_array[first_invalid_entry]];
+      auto depth_of_v = _node_depths[v];
       if (depth_of_first_invalid == depth_of_v) {
         auto tmp = _incidence_array[first_invalid_entry];
         _incidence_array[first_invalid_entry] = v;
@@ -1013,6 +1063,22 @@ size_t DynamicHypergraph::findPositionOfPinInIncidenceArray(const HypernodeID u,
   ASSERT(slot_of_u != first_invalid_entry,
     "Hypernode" << u << "is not incident to hyperedge" << he);
   return slot_of_u;
+}
+
+bool DynamicHypergraph::tryToFindPositionOfVolatileActivePin(const HypernodeID hn, const HyperedgeID he,
+                                                               size_t &position) {
+  ASSERT(he < _num_stable_active_pins.size());
+  const size_t first_volatile_active = hyperedge(he).firstEntry() + _num_stable_active_pins[he];
+  const size_t first_invalid = hyperedge(he).firstInvalidEntry();
+  position = first_volatile_active;
+  for ( ; position < first_invalid; ++position ) {
+    if ( hn == _incidence_array[position] ) {
+      return true;
+    }
+  }
+
+  ASSERT(position == first_invalid);
+  return false;
 }
 
 bool DynamicHypergraph::verifyBatchIndexAssignments(
@@ -1250,7 +1316,38 @@ BatchVector DynamicHypergraph::createBatchUncontractionHierarchyForVersion(Batch
   return batches;
 }
 
+void DynamicHypergraph::sortStableActivePinsToBeginning() {
+
+  _num_stable_active_pins = Array<HypernodeID>(_num_hyperedges,0);
+
+  auto isStable = [&] (const HypernodeID hn) {
+    return _uncontraction_hierarchies[version()]->isInitiallyStableNode(hn);
+  };
+
+  // Sort the valid part of each hyperedge: Sort initially stable active pins to the beginning of the
+  // incidence array for the hyperedge in order to allow snapshots of the range of stable active pins by
+  // (begin, end) range removing the need to copy that part of the incidence array when taking a pin snapshot
+  tbb::parallel_for(ID(0), _num_hyperedges, [&](const HyperedgeID& he) {
+      const size_t first_valid_entry = hyperedge(he).firstEntry();
+      const size_t first_invalid_entry = hyperedge(he).firstInvalidEntry();
+      std::sort(_incidence_array.begin() + first_valid_entry,
+                _incidence_array.begin() + first_invalid_entry,
+                [&](const HypernodeID u, const HypernodeID v) {
+                    return isStable(u) && !isStable(v);
+                });
+      // Find out how many stable pins there are and set offsets accordingly
+      HypernodeID num_stable = 0;
+      size_t idx = first_valid_entry;
+      while(idx < first_invalid_entry && isStable(_incidence_array[idx])) {
+        ++num_stable;
+        ++idx;
+      }
+      ASSERT(he < _num_stable_active_pins.size());
+      _num_stable_active_pins[he] = num_stable;
+  });
+
+}
 
 
-} // namespace ds
+    } // namespace ds
 } // namespace mt_kahypar

@@ -8,6 +8,7 @@
 #include "mt-kahypar/datastructures/hypergraph_common.h"
 #include "tbb/blocked_range.h"
 #include "mt-kahypar/utils/range.h"
+#include "mt-kahypar/datastructures/array.h"
 
 #include "boost/iterator/iterator_adaptor.hpp"
 
@@ -32,28 +33,32 @@ namespace mt_kahypar::ds {
 
     private:
 
-        const std::vector<Contraction> _contractions;
+        std::vector<Contraction> _contractions;
         const HypernodeID _representative;
 
         /// Check that group is not empty and that all contractions have the same representative
-        bool sanityCheck() {
+        bool sanityCheck() const {
             if (empty()) return false;
-            auto repr = _contractions.at(0).u;
+            auto repr = _contractions.front().u;
             return std::all_of(_contractions.begin(),_contractions.end(),[repr](Contraction c){return c.u == repr;});
         };
 
-        static std::vector<Contraction> sortInitializerList(std::initializer_list<Contraction>& init) {
-            std::vector<Contraction> init_vec(init);
-            std::sort(init_vec.begin(),init_vec.end());
-            return init_vec;
+//        static std::vector<Contraction> sortInitializerList(std::initializer_list<Contraction>& init) {
+//            std::vector<Contraction> init_vec(init);
+//            std::sort(init_vec.begin(),init_vec.end());
+//            return init_vec;
+//        }
+//
+//        static std::vector<Contraction>& sortInitializerVector(std::vector<Contraction>& init) {
+//            std::sort(init.begin(), init.end());
+//            return init;
+//        }
+
+        void sortContractions() {
+            std::sort(_contractions.begin(), _contractions.end());
         }
 
-        static std::vector<Contraction>& sortInitializerVector(std::vector<Contraction>& init) {
-            std::sort(init.begin(), init.end());
-            return init;
-        }
-
-        HypernodeID extractRepresentative () {
+        HypernodeID extractRepresentative() {
             ASSERT(sanityCheck());
             return _contractions.front().u;
         }
@@ -69,15 +74,23 @@ namespace mt_kahypar::ds {
         bool empty() const {return _contractions.empty();};
         uint64_t size() const {return _contractions.size();};
 
-        Contraction at(int i) const {return _contractions.at(i);};
+        Contraction at(const int i) const {return _contractions.at(i);};
 
-        ContractionGroup(std::initializer_list<Contraction> init) : _contractions(sortInitializerList(init)), _representative(extractRepresentative()) {};
+        ContractionGroup(std::initializer_list<Contraction> init) : _contractions(init), _representative(extractRepresentative()) {
+            sortContractions();
+        };
 
-        explicit ContractionGroup(std::vector<Contraction> init) : _contractions(std::move(sortInitializerVector(init))), _representative(extractRepresentative()) {};
+        explicit ContractionGroup(std::vector<Contraction>&& init) : _contractions(std::move(init)), _representative(extractRepresentative()) {
+            sortContractions();
+        };
 
-        ContractionGroup(ContractionGroup& other) = delete;
+        ContractionGroup(ContractionGroup&& other)  noexcept :
+            _contractions(std::move(other._contractions)),
+            _representative(other._representative) {}
+
         ContractionGroup(const ContractionGroup& other) = delete;
-        ContractionGroup(ContractionGroup&& other) = delete;
+        ContractionGroup& operator=(const ContractionGroup& other) = delete;
+        ContractionGroup& operator=(ContractionGroup&& other) = delete;
 
         HypernodeID getRepresentative() const {
             return _representative;
@@ -199,6 +212,104 @@ namespace mt_kahypar::ds {
 
         bool _atRepresentative;
         ContractionToNodeIDIteratorAdaptor _contracted_it;
+    };
+
+    /// An iterator through a pin snapshot taken for asynchronous uncoarsening. Stitches together a iterator through
+    /// stable pins given by a range in the incidence array and an iterator through a vector that contains a copy of
+    /// volatile pins.
+    class PinSnapshotIterator : public std::iterator<
+            std::forward_iterator_tag, // category
+            HypernodeID,    // value type
+            std::ptrdiff_t, // difference type
+            const HypernodeID*, //pointer type
+            HypernodeID // reference type
+    > {
+    private:
+        using IncidenceIterator = typename Array<HypernodeID>::iterator;
+        using ConstIncidenceIterator = typename Array<HypernodeID>::const_iterator;
+
+    public:
+
+        // Factory method that gets a PinSnapshotIterator range from given stable and volatile ranges
+        static IteratorRange<PinSnapshotIterator> stitchPinIterators(IteratorRange<ConstIncidenceIterator> stable_pins_range,
+                                                      IteratorRange<HypernodeID*> volatile_pins_range) {
+          return IteratorRange<PinSnapshotIterator>(
+                  PinSnapshotIterator(stable_pins_range.begin(),stable_pins_range.end(),volatile_pins_range.begin()),
+                  PinSnapshotIterator(volatile_pins_range.end(), stable_pins_range.end(), volatile_pins_range.begin()));
+        }
+
+        // Prefix increment
+        PinSnapshotIterator& operator++() {
+          if (_it_in_stable_range) {
+            ASSERT(_stable_it != _end_of_stable);
+            ++_stable_it;
+            if (_stable_it == _end_of_stable) {
+              _it_in_stable_range = false;
+              ASSERT(_volatile_it == _begin_of_volatile);
+            }
+          } else {
+            ++_volatile_it;
+          }
+          return *this;
+        }
+
+        // Postfix increment
+        PinSnapshotIterator operator++(int) {
+          PinSnapshotIterator retval = *this;
+          ++(*this);
+          return retval;
+        }
+
+        // Equality operator.
+        bool operator==(const PinSnapshotIterator& other) const {
+          if (_end_of_stable != other._end_of_stable) return false;
+          if (_begin_of_volatile != other._begin_of_volatile) return false;
+          return (_stable_it == other._stable_it && _volatile_it == other._volatile_it);
+        }
+
+        // Inequality operator
+        bool operator!=(const PinSnapshotIterator& other) const {
+          return !(*this == other);
+        }
+
+        // Dereference operator
+        HypernodeID operator*() const {
+          if (_it_in_stable_range) {
+            ASSERT(_stable_it != _end_of_stable);
+            return *_stable_it;
+          } else {
+            return *_volatile_it;
+          }
+        }
+
+    private:
+
+        // Constructs a iterator at begin_of_stable
+        PinSnapshotIterator(const ConstIncidenceIterator& begin_of_stable,
+                            const ConstIncidenceIterator& end_of_stable,
+                            HypernodeID* const begin_of_volatile) :
+                            _it_in_stable_range(begin_of_stable != end_of_stable),
+                            _stable_it(begin_of_stable),
+                            _volatile_it(begin_of_volatile),
+                            _end_of_stable(end_of_stable),
+                            _begin_of_volatile(begin_of_volatile) {}
+
+        // Constructs a iterator at end_of_volatile
+        PinSnapshotIterator(HypernodeID* const end_of_volatile,
+                            const ConstIncidenceIterator& end_of_stable,
+                            HypernodeID* const begin_of_volatile) :
+                _it_in_stable_range(false),
+                _stable_it(end_of_stable),
+                _volatile_it(end_of_volatile),
+                _end_of_stable(end_of_stable),
+                _begin_of_volatile(begin_of_volatile) {}
+
+        bool _it_in_stable_range;
+        IncidenceIterator _stable_it;
+        HypernodeID* _volatile_it;
+
+        const IncidenceIterator _end_of_stable;
+        HypernodeID* const _begin_of_volatile;
     };
 
 }

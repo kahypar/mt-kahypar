@@ -732,6 +732,20 @@ class StaticHypergraph {
       return { };
   }
 
+  template<typename PinPredicate>
+  void sortStableActivePinsToBeginning(PinPredicate &&isStable) {
+    unused(isStable);
+    ERROR("sortStableActivePinsToBeginning() is not supported in static hypergraph.");
+  }
+
+  IteratorRange<IncidenceIterator> stable_pins(const HyperedgeID) const {
+    ERROR("stable_pins() is not supported in static hypergraph.");
+  }
+
+  IteratorRange<IncidenceIterator> volatile_pins(const HyperedgeID) const {
+    ERROR("volatile_pins() is not supported in static hypergraph.");
+  }
+
   void uncontract(const ContractionGroup&,
                   const UncontractionFunction& case_one_func = NOOP_BATCH_FUNC,
                   const UncontractionFunction& case_two_func= NOOP_BATCH_FUNC,

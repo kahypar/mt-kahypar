@@ -31,23 +31,33 @@ namespace mt_kahypar::ds {
     private:
         struct GroupNode {
         public:
-            GroupNode(std::vector<Contraction>& contractions, size_t version, ContractionGroupID parent, size_t depth) : _parentGroup(parent),
-                                                                                    _version(version), _group(contractions), _depth(depth) {}
+            GroupNode(std::vector<Contraction>&& contractions, const size_t version,
+                      const ContractionGroupID parent,
+                      const size_t depth) :
+                        _parentGroup(parent), _version(version),
+                        _group(std::move(contractions)), _depth(depth) {}
 
-            GroupNode(GroupNode& other) :
+//            GroupNode(GroupNode& other) :
+//                _parentGroup(other._parentGroup),
+//                _version(other._version),
+//                _group(std::vector<Contraction>(other._group.begin(),other._group.end())),
+//                _depth(other._depth){}
+//
+//            GroupNode(const GroupNode& other) :
+//                    _parentGroup(other._parentGroup),
+//                    _version(other._version),
+//                    _group(std::vector<Contraction>(other._group.begin(),other._group.end())),
+//                    _depth(other._depth) {}
+
+            GroupNode(GroupNode&& other)  noexcept :
                 _parentGroup(other._parentGroup),
                 _version(other._version),
-                _group(std::vector<Contraction>(other._group.begin(),other._group.end())),
-                _depth(other._depth){}
+                _group(std::move(other._group)),
+                _depth(other._depth) {}
 
-            GroupNode(const GroupNode& other) :
-                    _parentGroup(other._parentGroup),
-                    _version(other._version),
-                    _group(std::vector<Contraction>(other._group.begin(),other._group.end())),
-                    _depth(other._depth) {}
-
-            GroupNode(GroupNode&& other) = delete;
+            GroupNode(const GroupNode& other) = delete;
             GroupNode& operator=(const GroupNode& other) = delete;
+            GroupNode& operator=(GroupNode&& other) = delete;
 
             ContractionGroupID getParentGroup() const {
                 return _parentGroup;
@@ -67,18 +77,18 @@ namespace mt_kahypar::ds {
 
         private:
             // GroupNodeID of the nodes parent group
-            ContractionGroupID _parentGroup;
+            const ContractionGroupID _parentGroup;
             // version of the group (has to be the same for all GroupNodes in a tree)
-            size_t _version;
+            const size_t _version;
             // the contained group
             ContractionGroup _group;
             // depth in the UncontractionGroupTree (where roots have depth 0)
-            HypernodeID _depth;
+            const HypernodeID _depth;
         };
 
     public:
 
-        UncontractionGroupTree(ContractionTree &contractionTree, size_t version);
+        UncontractionGroupTree(const ContractionTree &contractionTree, const size_t version);
 
         ~UncontractionGroupTree() {
             freeInternalData();
@@ -121,8 +131,12 @@ namespace mt_kahypar::ds {
             return _version;
         }
 
-        uint32_t getNumGroups() const {
+        ContractionGroupID getNumGroups() const {
             return _num_group_nodes;
+        }
+
+        HypernodeID getNumContainedContractions() const {
+          return _num_contained_contracted_nodes;
         }
 
         ContractionGroupIDIteratorRange roots() const {
@@ -133,17 +147,37 @@ namespace mt_kahypar::ds {
             return BlockedGroupIDIterator(0, _num_group_nodes);
         }
 
+        bool isLastContractionGroupOfNode(const HypernodeID hn, const ContractionGroupID groupID) const {
+          ASSERT(hn < _last_uncontraction_group_in_version.size());
+          ASSERT(groupID != invalidGroupID);
+          return _last_uncontraction_group_in_version[hn] == groupID;
+        }
+
+        bool isLastContractionGroupOfRepresentative(const ContractionGroupID groupID) const {
+          ASSERT(groupID != invalidGroupID);
+          const auto& representative = group(groupID).getRepresentative();
+          ASSERT(representative < _last_uncontraction_group_in_version.size());
+          return _last_uncontraction_group_in_version[representative] == groupID;
+        }
+
+        // ! Returns whether a node is initially stable for this version, i.e. whether it is not the representative in
+        // ! any uncontraction in this hierarchy
+        bool isInitiallyStableNode(const HypernodeID hn) const {
+          ASSERT(hn < _last_uncontraction_group_in_version.size());
+          return _last_uncontraction_group_in_version[hn] == invalidGroupID;
+        }
+
     private:
 
         void freeInternalData();
 
         void insertRootBranchesForVersion();
 
-        void insertHorizontalBranch(IteratorRange<ContractionTree::ChildIterator> childrenIt, ContractionGroupID parentGroup,
-                                    HypernodeID parentHypernode);
+        void insertHorizontalBranch(IteratorRange<ContractionTree::ChildIterator> childrenIt, const ContractionGroupID parentGroup,
+                                    const HypernodeID parentHypernode);
 
         void insertRootHorizontalBranch(IteratorRange<ContractionTree::ChildIterator> childrenIt,
-                                        HypernodeID parentHypernode);
+                                        const HypernodeID parentHypernode);
 
         /**
          * Inserts the given ContractionGroup into the UncontractionGroupTree as a child of the group at GroupNodeID parent
@@ -153,12 +187,12 @@ namespace mt_kahypar::ds {
          *  i.e. siblings in the ContractionTree that were contracted earlier than this group but still within the same version
          * @return The GroupNodeID of the newly inserted group
          */
-        ContractionGroupID insertGroup(std::vector<Contraction> &contractions, ContractionGroupID parent, bool hasHorizontalChild);
+        ContractionGroupID insertGroup(std::vector<Contraction> &&contractions, const ContractionGroupID parent, const bool hasHorizontalChild);
 
         bool doIntervalsIntersect(const ContractionInterval &i1, const ContractionInterval &i2);
 
         // Contraction tree that this is based on
-        ContractionTree &_contraction_tree;
+        const ContractionTree &_contraction_tree;
         ContractionGroupID _num_group_nodes;
         HypernodeID _num_contained_contracted_nodes;
 
@@ -170,7 +204,7 @@ namespace mt_kahypar::ds {
         parallel::scalable_vector <ContractionGroupID> _incidence_array;
 
         // The hypergraph version that this UncontractionGroupTree is for
-        size_t _version;
+        const size_t _version;
 
         // ! Mapping from HypernodeID to the ContractionGroupID of the group that the contraction (Memento) of the
         // ! respective Hypernode is in. Used to find the depth of the contraction of a  node in an UncontractionGroupTree.
@@ -178,6 +212,7 @@ namespace mt_kahypar::ds {
         // ! information about which version a node has been contracted in, the right hierarchy and depth can be found.)
 //        std::unique_ptr<parallel::scalable_vector<ContractionGroupID>> _node_to_group_map;
 
+        Array<ContractionGroupID> _last_uncontraction_group_in_version;
 
     };
 

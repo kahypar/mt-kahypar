@@ -66,8 +66,13 @@ namespace mt_kahypar::ds {
         auto contractionTreeCopy = contractionTree.copy();
         UncontractionGroupTree groupTree = UncontractionGroupTree(contractionTreeCopy, version);
 
-        ASSERT(groupTree.getNumGroups() == 2);
-        ASSERT(groupTree.getVersion() == version);
+        ASSERT_TRUE(groupTree.getNumGroups() == 2);
+        ASSERT_TRUE(groupTree.getVersion() == version);
+        // Check if initially stable nodes are correctly set
+        ASSERT_FALSE(groupTree.isInitiallyStableNode(0));
+        for (HypernodeID u = 1; u < 4; ++u) {
+          ASSERT_TRUE(groupTree.isInitiallyStableNode(u));
+        }
 
         auto roots = groupTree.roots();
         ASSERT(std::distance(roots.begin(),roots.end()) == 1);
@@ -81,6 +86,7 @@ namespace mt_kahypar::ds {
         const auto& succGroup1 = groupTree.group(succID1);
         ASSERT(succGroup1 == expectedSuccGroup1);
         ASSERT(groupTree.predecessor(succID1) == rootID1);
+        ASSERT_TRUE(groupTree.isLastContractionGroupOfRepresentative(succID1));
 
     }
 
@@ -114,6 +120,13 @@ namespace mt_kahypar::ds {
         ASSERT(groupTree.getNumGroups() == 4);
         ASSERT(groupTree.getVersion() == version);
 
+        for (HypernodeID u : {0, 4, 5}) {
+          ASSERT_FALSE(groupTree.isInitiallyStableNode(u));
+        }
+        for (HypernodeID u : {1, 2, 3, 6}) {
+          ASSERT_TRUE(groupTree.isInitiallyStableNode(u));
+        }
+
         auto roots = groupTree.roots();
         ASSERT(std::distance(roots.begin(),roots.end()) == 2);
 
@@ -133,8 +146,10 @@ namespace mt_kahypar::ds {
                 const auto& succGroup1 = groupTree.group(succID1);
                 ASSERT(succGroup1 == expectedSuccGroup1);
                 ASSERT(groupTree.predecessor(succID1) == rootID);
+                ASSERT(groupTree.isLastContractionGroupOfRepresentative(succID1));
             }
             if (rootGroup == expectedRootGroup2) {
+                ASSERT(groupTree.isLastContractionGroupOfRepresentative(rootID));
                 seenExpected2 = true;
                 auto succsOfRoot2 = groupTree.successors(rootID);
                 ASSERT(std::distance(succsOfRoot2.begin(),succsOfRoot2.end()) == 1);
@@ -142,6 +157,7 @@ namespace mt_kahypar::ds {
                 const auto& succGroup2 = groupTree.group(succID2);
                 ASSERT(succGroup2 == expectedSuccGroup2);
                 ASSERT(groupTree.predecessor(succID2) == rootID);
+                ASSERT(groupTree.isLastContractionGroupOfRepresentative(succID2));
             }
         }
         ASSERT(seenExpected1 && seenExpected2);
@@ -175,6 +191,10 @@ namespace mt_kahypar::ds {
 
         ASSERT(groupTreeVersion0.getNumGroups() == 2);
         ASSERT(groupTreeVersion0.getVersion() == version0);
+        ASSERT_FALSE(groupTreeVersion0.isInitiallyStableNode(0));
+        for (HypernodeID u : {1, 2, 3, 4, 5, 6}) {
+          ASSERT_TRUE(groupTreeVersion0.isInitiallyStableNode(u));
+        }
 
         auto rootsVersion0 = groupTreeVersion0.roots();
         ASSERT(std::distance(rootsVersion0.begin(),rootsVersion0.end()) == 1);
@@ -188,6 +208,7 @@ namespace mt_kahypar::ds {
         const auto& succGroup1 = groupTreeVersion0.group(succID1);
         ASSERT(succGroup1 == expectedVersion0SuccGroup1);
         ASSERT(groupTreeVersion0.predecessor(succID1) == rootIDVersion0);
+        ASSERT(groupTreeVersion0.isLastContractionGroupOfRepresentative(succID1));
 
         // Version 1 test
         ContractionGroup expectedVersion1RootGroup1 = { Contraction {0, 3}};
@@ -199,6 +220,12 @@ namespace mt_kahypar::ds {
 
         ASSERT(groupTreeVersion1.getNumGroups() == 3);
         ASSERT(groupTreeVersion1.getVersion() == version1);
+        for (HypernodeID u : {2, 4, 5, 6}) {
+          ASSERT_TRUE(groupTreeVersion1.isInitiallyStableNode(u));
+        }
+        for (HypernodeID u : {0, 1, 3}) {
+          ASSERT_FALSE(groupTreeVersion1.isInitiallyStableNode(u));
+        }
 
         auto roots = groupTreeVersion1.roots();
         ASSERT(std::distance(roots.begin(),roots.end()) == 2);
@@ -212,6 +239,7 @@ namespace mt_kahypar::ds {
             ASSERT(rootGroup == expectedVersion1RootGroup1 || rootGroup == expectedVersion1RootGroup2);
 
             if (rootGroup == expectedVersion1RootGroup1) {
+                ASSERT(groupTreeVersion1.isLastContractionGroupOfRepresentative(rootID));
                 seenExpected1 = true;
                 auto succsOfRoot1 = groupTreeVersion1.successors(rootID);
                 ASSERT(std::distance(succsOfRoot1.begin(),succsOfRoot1.end()) == 1);
@@ -219,8 +247,10 @@ namespace mt_kahypar::ds {
                 const auto& succGroup1 = groupTreeVersion1.group(succID1);
                 ASSERT(succGroup1 == expectedVersion1SuccGroup1);
                 ASSERT(groupTreeVersion1.predecessor(succID1) == rootID);
+                ASSERT(groupTreeVersion1.isLastContractionGroupOfRepresentative(succID1));
             }
             if (rootGroup == expectedVersion1RootGroup2) {
+                ASSERT(groupTreeVersion1.isLastContractionGroupOfRepresentative(rootID));
                 seenExpected2 = true;
                 auto succsOfRoot2 = groupTreeVersion1.successors(rootID);
                 ASSERT(std::distance(succsOfRoot2.begin(),succsOfRoot2.end()) == 0);

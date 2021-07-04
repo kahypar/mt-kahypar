@@ -116,6 +116,13 @@ namespace mt_kahypar {
             utils::Timer::instance().start_timer(timer_key("async_uncontractions"), "Asynchronous Uncontractions");
             while (!versionedPools.empty()) {
                 TreeGroupPool *pool = versionedPools.back().get();
+                hypergraph.sortStableActivePinsToBeginning();
+                ASSERT(partitioned_hypergraph.version() == pool->getVersion());
+                ASSERT(partitioned_hypergraph.version() == hypergraph.version());
+                ASSERT(partitioned_hypergraph.version() == partitioned_hypergraph.hypergraph().version());
+
+//              ASSERT(hypergraph.verifyIncidenceArrayAndIncidentNets());
+//              ASSERT(hypergraph.verifyIncidenceArraySortedness());
 
 //                partitioned_hypergraph.uncontractUsingGroupPool(pool, lockManager, NOOP_LOCALIZED_REFINEMENT_FUNC);
 
@@ -129,7 +136,7 @@ namespace mt_kahypar {
                     ASSERT(acquired);
                     ASSERT(lockManager->isHeldBy(group.getRepresentative(),groupID) && "Representative of the group is not locked by the group id!");
 
-                    partitioned_hypergraph.uncontract(group);
+                    partitioned_hypergraph.uncontract(group, groupID);
 
                     // Release locks
                     lockManager->strongReleaseLock(group.getRepresentative(),groupID);

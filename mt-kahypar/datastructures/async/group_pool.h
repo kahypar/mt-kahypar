@@ -143,8 +143,6 @@ namespace mt_kahypar::ds
          */
         explicit ConcurrentQueueGroupPool(std::unique_ptr<GroupHierarchy> hierarchy)
                 : _hierarchy(hierarchy.release()),
-//                _queue_lock(),
-//                _active_ids(_cmp)
                   _active_ids()
                 {
             auto roots = _hierarchy->roots();
@@ -157,8 +155,18 @@ namespace mt_kahypar::ds
             return unsafeNumActive();
         }
 
+        const GroupHierarchy* getPtrToHierarchyForQueries() {
+          return _hierarchy.get();
+        }
+
+        // ===== Hierarchy forwards =====
+
         uint32_t getNumTotal() {
             return _hierarchy->getNumGroups();
+        }
+
+        HypernodeID getTotalNumUncontractions() const {
+          return _hierarchy->getNumContainedContractions();
         }
 
         size_t getVersion() const {
@@ -173,8 +181,27 @@ namespace mt_kahypar::ds
             return _hierarchy->depth(id);
         }
 
+        bool isLastContractionGroupOfRepresentative(const ContractionGroupID groupID) const {
+          return _hierarchy->isLastContractionGroupOfRepresentative(groupID);
+        }
+
+        // ! Returns whether a node is initially stable for this version, i.e. whether it is not the representative in
+        // ! any uncontraction in the underlying hierarchy
+        bool isInitiallyStableNode(const HypernodeID hn) const {
+          return _hierarchy->isInitiallyStableNode(hn);
+        }
+
+        ContractionGroupIDIteratorRange successors(ContractionGroupID id) {
+          return _hierarchy->successors(id);
+        }
+
+        ContractionGroupID numSuccessors(ContractionGroupID id) {
+          return _hierarchy->numSuccessors(id);
+        }
+
+        // ===== Activation/Deactivation of Hypernodes =====
+
         bool tryToPickActiveID(ContractionGroupID& destination) {
-//            ASSERT(hasActive());
             bool picked = tryPopActive(destination);
             return picked;
         }
@@ -191,14 +218,6 @@ namespace mt_kahypar::ds
             }
         }
 
-        ContractionGroupIDIteratorRange successors(ContractionGroupID id) {
-            return _hierarchy->successors(id);
-        }
-
-        ContractionGroupID numSuccessors(ContractionGroupID id) {
-            return _hierarchy->numSuccessors(id);
-        }
-
         bool hasActive() {
             return !unsafeEmpty();
         }
@@ -207,9 +226,7 @@ namespace mt_kahypar::ds
             insertActive(id);
         }
 
-//        void reactivate(ContractionGroupID id) {
-//            activate(id);
-//        }
+        // ===== Parallel Iteration Convenience Methods =====
 
         void doParallelForAllGroups(const DoParallelForAllGroupsFunction& f) const {
             tbb::parallel_for(all(),[&](BlockedGroupIDIterator& range) {
@@ -227,15 +244,6 @@ namespace mt_kahypar::ds
             });
         }
 
-        size_t getTotalNumUncontractions() {
-            size_t num = 0;
-            auto range = all();
-            for (ContractionGroupID id = range.begin(); id != range.end(); ++id) {
-                num += group(id).size();
-            }
-            return num;
-        }
-
     private:
 
         BlockedGroupIDIterator all() const {
@@ -243,53 +251,30 @@ namespace mt_kahypar::ds
         }
 
         bool tryInsertActive(ContractionGroupID id) {
-//            bool locked = _queue_lock.tryLock();
-//            if (locked) {
-//                _active_ids.push(id);
-//                _queue_lock.unlock();
-//            }
-//            return locked;
               _active_ids.push(id);
               return true;
         }
 
 
         bool tryPopActive(ContractionGroupID& destination) {
-//            bool locked = _queue_lock.tryLock();
-//            if (locked) {
-//                destination = _active_ids.top();
-//                _active_ids.pop();
-//                _queue_lock.unlock();
-//            }
-//            return locked;
               return _active_ids.try_pop(destination);
         }
 
         void insertActive(ContractionGroupID id) {
-//            _queue_lock.lock();
             _active_ids.push(id);
-//            _queue_lock.unlock();
         }
 
         void popActive(ContractionGroupID& destination) {
-//            _queue_lock.lock();
-//            destination = _active_ids.top();
-//            _active_ids.pop();
-//            _queue_lock.unlock();
             while (!_active_ids.try_pop(destination)) {/* continue trying to pop */}
         }
 
         ContractionGroupID unsafeNumActive() {
-//            _queue_lock.lock();
             ContractionGroupID num_active = _active_ids.unsafe_size();
-//            _queue_lock.unlock();
             return num_active;
         }
 
         bool unsafeEmpty() {
-//            _queue_lock.lock();
             bool empty = _active_ids.empty();
-//            _queue_lock.unlock();
             return empty;
         }
 

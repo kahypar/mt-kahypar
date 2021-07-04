@@ -30,7 +30,7 @@ namespace mt_kahypar::ds {
 
         EXPECT_DEATH(ContractionGroup group = {},"");
         std::vector<Contraction> emptyVec;
-        EXPECT_DEATH(ContractionGroup group(emptyVec),"");
+        EXPECT_DEATH(ContractionGroup group(std::move(emptyVec)),"");
     }
 
     TEST(AContractionGroupDeathTest, ConstructionFailsIfGroupHasDifferentRepsDeathTest) {
@@ -154,6 +154,88 @@ namespace mt_kahypar::ds {
         for (size_t i = 0; i < 5; ++i) {
             ASSERT_TRUE(seen[i]);
         }
+    }
+
+    TEST(APinSnapshotIterator, StitchingWorksWithNonEmptySequences) {
+
+      Array<HypernodeID> array_stable(5, 0);
+      for (HypernodeID i = 0; i < array_stable.size(); ++i) {
+        array_stable[i] = i;
+      }
+
+      HypernodeID array_volatile[5] = {0, 1, 2, 3, 4};
+
+      auto stable_range = IteratorRange<Array<HypernodeID>::const_iterator>(array_stable.begin(), array_stable.begin() + 3);
+      auto volatile_range = IteratorRange<HypernodeID*>(array_volatile + 3, array_volatile + 5);
+      IteratorRange<PinSnapshotIterator> stitched = PinSnapshotIterator::stitchPinIterators(stable_range, volatile_range);
+
+      HypernodeID j = 0;
+      for (auto it = stitched.begin(); it != stitched.end(); ++it) {
+        ASSERT_EQ(*it, j);
+        ++j;
+      }
+
+      auto it = stitched.begin();
+      it++; it++;
+      ASSERT_EQ(*it, 2);
+    }
+
+    TEST(APinSnapshotIterator, StitchingWorksWithEmptyStable) {
+
+      Array<HypernodeID> array_stable(0, 0);
+
+      HypernodeID array_volatile[5] = {0, 1, 2, 3, 4};
+
+      auto stable_range = IteratorRange<Array<HypernodeID>::const_iterator>(array_stable.begin(), array_stable.end());
+      auto volatile_range = IteratorRange<HypernodeID*>(array_volatile, array_volatile + 5);
+      IteratorRange<PinSnapshotIterator> stitched = PinSnapshotIterator::stitchPinIterators(stable_range, volatile_range);
+
+      HypernodeID j = 0;
+      for (auto it = stitched.begin(); it != stitched.end(); ++it) {
+        ASSERT_EQ(*it, j);
+        ++j;
+      }
+
+      auto it = stitched.begin();
+      it++; it++;
+      ASSERT_EQ(*it, 2);
+    }
+
+    TEST(APinSnapshotIterator, StitchingWorksWithEmptyVolatile) {
+
+      Array<HypernodeID> array_stable(5, 0);
+      for (HypernodeID i = 0; i < array_stable.size(); ++i) {
+        array_stable[i] = i;
+      }
+
+      HypernodeID array_volatile[1] = {0};
+
+      auto stable_range = IteratorRange<Array<HypernodeID>::const_iterator>(array_stable.begin(), array_stable.end());
+      auto volatile_range = IteratorRange<HypernodeID*>(array_volatile, array_volatile);
+      IteratorRange<PinSnapshotIterator> stitched = PinSnapshotIterator::stitchPinIterators(stable_range, volatile_range);
+
+      HypernodeID j = 0;
+      for (auto it = stitched.begin(); it != stitched.end(); ++it) {
+        ASSERT_EQ(*it, j);
+        ++j;
+      }
+
+      auto it = stitched.begin();
+      it++; it++;
+      ASSERT_EQ(*it, 2);
+    }
+
+    TEST(APinSnapshotIterator, StitchingWorksWithBothEmpty) {
+
+      Array<HypernodeID> array_stable(0, 0);
+
+      HypernodeID array_volatile[1] = {0};
+
+      auto stable_range = IteratorRange<Array<HypernodeID>::const_iterator>(array_stable.begin(), array_stable.end());
+      auto volatile_range = IteratorRange<HypernodeID*>(array_volatile, array_volatile);
+      IteratorRange<PinSnapshotIterator> stitched = PinSnapshotIterator::stitchPinIterators(stable_range, volatile_range);
+
+      ASSERT_EQ(stitched.begin(), stitched.end());
     }
 
 } // end namespace

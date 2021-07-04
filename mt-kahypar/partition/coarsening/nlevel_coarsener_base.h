@@ -100,7 +100,7 @@ class NLevelCoarsenerBase {
                           AsyncRefinersETS &async_lp_refiners, AsyncRefinersETS &async_fm_refiners);
 
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE bool uncontractGroupAsyncSubtask(const ds::ContractionGroup &group,
-                                   ds::ContractionGroupID groupID);
+                                                                      const ds::ContractionGroupID groupID);
 
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE bool
   refineGroupAsyncSubtask(const ds::ContractionGroup &group, ds::ContractionGroupID groupID,

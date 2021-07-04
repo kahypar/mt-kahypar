@@ -526,6 +526,9 @@ class DynamicHypergraph {
     _contraction_tree(),
     _incident_nets(),
     _acquired_hns(),
+    _node_depths(),
+    _uncontraction_hierarchies(),
+    _num_stable_active_pins(),
     _hyperedges(),
     _incidence_array(),
     _acquired_hes(),
@@ -553,6 +556,9 @@ class DynamicHypergraph {
     _contraction_tree(std::move(other._contraction_tree)),
     _incident_nets(std::move(other._incident_nets)),
     _acquired_hns(std::move(other._acquired_hns)),
+    _node_depths(std::move(other._node_depths)),
+    _uncontraction_hierarchies(std::move(other._uncontraction_hierarchies)),
+    _num_stable_active_pins(std::move(other._num_stable_active_pins)),
     _hyperedges(std::move(other._hyperedges)),
     _incidence_array(std::move(other._incidence_array)),
     _acquired_hes(std::move(other._acquired_hes)),
@@ -577,6 +583,9 @@ class DynamicHypergraph {
     _contraction_tree = std::move(other._contraction_tree);
     _incident_nets = std::move(other._incident_nets);
     _acquired_hns = std::move(other._acquired_hns);
+    _node_depths = std::move(other._node_depths);
+    _uncontraction_hierarchies = std::move(other._uncontraction_hierarchies);
+    _num_stable_active_pins = std::move(other._num_stable_active_pins);
     _hyperedges = std::move(other._hyperedges);
     _incidence_array = std::move(other._incidence_array);
     _acquired_hes = std::move(other._acquired_hes);
@@ -714,6 +723,24 @@ class DynamicHypergraph {
     return IteratorRange<IncidenceIterator>(
       _incidence_array.cbegin() + he.firstEntry(),
       _incidence_array.cbegin() + he.firstInvalidEntry());
+  }
+
+  IteratorRange<IncidenceIterator> stable_pins(const HyperedgeID he) const {
+    ASSERT(he < _num_stable_active_pins.size());
+    ASSERT(!hyperedge(he).isDisabled(), "Hyperedge" << he << "is disabled");
+    const Hyperedge& edge = hyperedge(he);
+    return IteratorRange<IncidenceIterator>(
+            _incidence_array.cbegin() + edge.firstEntry(),
+            _incidence_array.cbegin() + edge.firstEntry() + _num_stable_active_pins[he]);
+  }
+
+  IteratorRange<IncidenceIterator> volatile_pins(const HyperedgeID he) const {
+    ASSERT(he < _num_stable_active_pins.size());
+    ASSERT(!hyperedge(he).isDisabled(), "Hyperedge" << he << "is disabled");
+    const Hyperedge& edge = hyperedge(he);
+    return IteratorRange<IncidenceIterator>(
+                  _incidence_array.cbegin() + edge.firstEntry() + _num_stable_active_pins[he],
+                  _incidence_array.cbegin() + edge.firstInvalidEntry());
   }
 
   // ####################### Hypernode Information #######################
@@ -867,14 +894,28 @@ class DynamicHypergraph {
    */
   VersionedPoolVector createUncontractionGroupPoolsForVersions(const bool test = false);
 
+
+  // ! Sorts the valid pins of every hyperedge such that all active pins that are initially stable for the current version
+  // ! are put at the beginning of the incidence array for the hyperedge in a continuous range. Also sets the stable
+  // ! offsets accordingly.
+  void sortStableActivePinsToBeginning();
+
+  // ! Only for testing
+  void resetNumStablePinsArray(size_t new_size) {
+    _num_stable_active_pins = Array<HypernodeID>(new_size, 0);
+  }
+
+  void movePinToStablePinsAndIncreaseOffset(const HyperedgeID he, const size_t previous_pin_index);
+
   /**!
    * Uncontracts all contractions in the given group. The two uncontraction functions are required by the
    * partitioned hypergraph to restore pin counts and gain cache values.
    */
   void uncontract(const ContractionGroup& group,
+                  const ContractionGroupID groupID,
                   const UncontractionFunction& case_one_func = NOOP_BATCH_FUNC,
                   const UncontractionFunction& case_two_func = NOOP_BATCH_FUNC,
-                  const PinCountUpdateLockFunction& try_lock_pin_count_update = NOOP_PIN_COUNT_LOCK_FUNC);
+                  const PinCountUpdateLockFunction& lock_pin_count_update = NOOP_PIN_COUNT_LOCK_FUNC);
 
   /**
    * Uncontracts a batch of contractions in parallel. The batches must be uncontracted exactly
@@ -1036,7 +1077,7 @@ class DynamicHypergraph {
   bool verifyIncidenceArrayAndIncidentNets();
 
   // ! Only for testing
-//  bool verifyIncidenceArraySortedness(VersionedPoolVector& pools);
+  bool verifyIncidenceArraySortedness();
 
  private:
   friend class DynamicHypergraphFactory;
@@ -1152,6 +1193,10 @@ class DynamicHypergraph {
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE size_t findPositionOfPinInIncidenceArray(const HypernodeID u,
                                                                               const HyperedgeID he);
 
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE bool tryToFindPositionOfVolatileActivePin(const HypernodeID hn,
+                                                                                 const HyperedgeID he,
+                                                                                 size_t& position);
+
   bool verifyBatchIndexAssignments(
     const BatchIndexAssigner& batch_assigner,
     const parallel::scalable_vector<parallel::scalable_vector<BatchAssignment>>& local_batch_assignments) const;
@@ -1233,8 +1278,18 @@ private:
   IncidentNetArray _incident_nets;
   // ! Atomic bool vector used to acquire unique ownership of hypernodes
   OwnershipVector _acquired_hns;
+
   // ! Depths of nodes in the uncontraction hierarchy (only used in asynchronous uncoarsening)
-  std::unique_ptr<Array<HypernodeID>> _node_depths;
+  Array<HypernodeID> _node_depths;
+
+  // ! Pointers to uncontraction hierarchies for each version of the hypergraph used in asynchronous uncoarsening.
+  // ! Ownership of the hierarchy objects is with the according group pools. The pointers here are only used to query
+  // ! additional meta information on the uncontraction hierarchy like the depth of a node in the hierarchy.
+  Array<const UncontractionGroupTree*> _uncontraction_hierarchies;
+
+  // ! Number of stable pins in each hyperedge denoting offsets on where volatile active pins begin in the incidence array
+  Array<HypernodeID> _num_stable_active_pins;
+
 
   // ! Hyperedges
   Array<Hyperedge> _hyperedges;

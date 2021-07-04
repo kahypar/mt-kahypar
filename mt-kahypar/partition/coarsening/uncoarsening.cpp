@@ -444,7 +444,8 @@ namespace mt_kahypar {
 
 
   bool
-  NLevelCoarsenerBase::uncontractGroupAsyncSubtask(const ds::ContractionGroup &group, ds::ContractionGroupID groupID) {
+  NLevelCoarsenerBase::uncontractGroupAsyncSubtask(const ds::ContractionGroup &group,
+                                                   const ds::ContractionGroupID groupID) {
 
       // Attempt to acquire lock for representative of the group. If the lock cannot be
       // acquired, revert to previous state and attempt to pick an id again
@@ -454,7 +455,7 @@ namespace mt_kahypar {
       }
       ASSERT(acquired);
 
-      _phg.uncontract(group);
+      _phg.uncontract(group, groupID);
 
       // Release lock (Locks will be reacquired for moves during refinement)
       _lock_manager_for_async->strongReleaseLock(group.getRepresentative(), groupID);
@@ -519,6 +520,9 @@ namespace mt_kahypar {
       pool->pickActiveID(groupID);
       bool continue_this_task = true;
 
+      IAsyncRefiner* local_async_lp = async_lp_refiners.local().get();
+      IAsyncRefiner* local_async_fm = async_fm_refiners.local().get();
+
       while (continue_this_task) {
           ASSERT(groupID != ds::invalidGroupID);
           const ds::ContractionGroup &group = pool->group(groupID);
@@ -532,9 +536,6 @@ namespace mt_kahypar {
               pool->pickActiveID(groupID);
               continue;
           }
-
-          IAsyncRefiner* local_async_lp = async_lp_refiners.local().get();
-          IAsyncRefiner* local_async_fm = async_fm_refiners.local().get();
 
           refineGroupAsyncSubtask(group, groupID, current_metrics, local_async_lp, local_async_fm);
 
@@ -657,8 +658,12 @@ namespace mt_kahypar {
           ASSERT(_phg.version() == _removed_hyperedges_batches.size());
           ds::TreeGroupPool* pool = _group_pools_for_versions.back().get();
           ASSERT(_phg.version() == pool->getVersion());
+          ASSERT(_phg.version() == _hg.version());
+          ASSERT(_phg.version() == _phg.hypergraph().version());
 
-          size_t num_uncontractions = pool->getTotalNumUncontractions();
+          _phg.hypergraph().sortStableActivePinsToBeginning();
+
+          auto num_uncontractions = static_cast<size_t>(pool->getTotalNumUncontractions());
 
           size_t num_roots = pool->getNumActive();
           for (size_t i = 0; i < num_roots; ++i) {

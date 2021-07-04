@@ -117,6 +117,8 @@ class AAsynchLPRefiner : public Test {
             edge_anti_duplicator.get(),
             fm_node_tracker_dummy.get()
             );
+
+    hypergraph.resetNumStablePinsArray(hypergraph.initialNumEdges());
   }
 
   void initialPartition() {
