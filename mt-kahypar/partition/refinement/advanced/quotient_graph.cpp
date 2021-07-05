@@ -119,12 +119,12 @@ vec<BlockPairCutHyperedges> QuotientGraph::requestCutHyperedges(const SearchID s
       QuotientGraphEdge& qg_edge = _quotient_graph[blocks.i][blocks.j];
       if ( qg_edge.isActive() ) {
         CutHyperedge& cut_he = qg_edge.pop_hyperedge();
-        const HyperedgeID he = cut_he.he;
-        qg_edge.cut_he_weight -= _phg->edgeWeight(he);
         if ( cut_he.acquire() ) {
           // Note, we only consider hyperedges that contains pins of both blocks.
           // There might be some edges which were initially cut, but were removed due
           // to vertex moves. Thus, we remove them lazily here.
+          const HyperedgeID he = cut_he.he;
+          qg_edge.cut_he_weight -= _phg->edgeWeight(he);
           if ( _phg->pinCountInPart(he, blocks.i) > 0 &&
               _phg->pinCountInPart(he, blocks.j) > 0 ) {
             block_pair_cut_hes[i].cut_hes.push_back(he);
@@ -187,6 +187,7 @@ void QuotientGraph::addNewCutHyperedge(const HyperedgeID he,
 }
 
 size_t QuotientGraph::acquireUsedCutHyperedges(const SearchID& search_id, const vec<bool>& used_hes) {
+  ASSERT(_phg);
   ASSERT(search_id < _searches.size());
   size_t additional_cut_hes = 0;
   for ( size_t i = 0; i < _searches[search_id].block_pairs.size(); ++i ) {
@@ -196,8 +197,8 @@ size_t QuotientGraph::acquireUsedCutHyperedges(const SearchID& search_id, const 
     const size_t end_idx = qg_edge.cut_hes.size();
     for ( size_t j = start_idx; j < end_idx; ++j ) {
       CutHyperedge& cut_he = qg_edge.cut_hes[j];
-      if ( used_hes[cut_he.he] ) {
-        cut_he.acquire();
+      if ( used_hes[cut_he.he] && cut_he.acquire() ) {
+        qg_edge.cut_he_weight -= _phg->edgeWeight(cut_he.he);
         _searches[search_id].used_cut_hes[i].push_back(cut_he.he);
         ++additional_cut_hes;
       }
@@ -238,7 +239,8 @@ void QuotientGraph::finalizeSearch(const SearchID search_id,
         }
       }
     }
-    // In case the block pair becomes active, we reinsert it into the queue
+    // In case the block pair becomes active,
+    // we reinsert it into the queue
     pushBlockPairIntoQueue(blocks);
   }
   --_num_active_searches;
