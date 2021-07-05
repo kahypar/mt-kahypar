@@ -64,7 +64,7 @@ public:
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
   void insertIntoPQ(const PHG& phg, const HypernodeID v, const SearchID ) {
     const PartitionID pv = phg.partID(v);
-    auto [target, gain] = computeBestTargetBlock(phg, v);
+    auto [target, gain] = computeBestTargetBlock(phg, v, pv);
     sharedData.targetPart[v] = target;
     vertexPQs[pv].insert(v, gain);  // blockPQ updates are done later, collectively.
     runStats.pushes++;
@@ -82,7 +82,7 @@ public:
     if (phg.k() < 4 || designatedTargetV == move.from || designatedTargetV == move.to) {
       // moveToPenalty of designatedTargetV is affected.
       // and may now be greater than that of other blocks --> recompute full
-      std::tie(newTarget, gain) = computeBestTargetBlock(phg, v);
+      std::tie(newTarget, gain) = computeBestTargetBlock(phg, v, pv);
     } else {
       // moveToPenalty of designatedTargetV is not affected.
       // only move.from and move.to may be better
@@ -107,7 +107,7 @@ public:
       const HypernodeID u = vertexPQs[from].top();
       const Gain estimated_gain = vertexPQs[from].topKey();
       ASSERT(estimated_gain == blockPQ.topKey());
-      auto [to, gain] = computeBestTargetBlock(phg, u);
+      auto [to, gain] = computeBestTargetBlock(phg, u, phg.partID(u));
 
       if (gain >= estimated_gain) { // accept any gain that is at least as good
         m.node = u; m.to = to; m.from = from;
@@ -184,9 +184,9 @@ private:
   template<typename PHG>
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
   std::pair<PartitionID, HyperedgeWeight> computeBestTargetBlock(const PHG& phg,
-                                                                 const HypernodeID u) {
+                                                                 const HypernodeID u,
+                                                                 const PartitionID from) {
     const HypernodeWeight wu = phg.nodeWeight(u);
-    const PartitionID from = phg.partID(u);
     const HypernodeWeight from_weight = phg.partWeight(from);
     PartitionID to = kInvalidPartition;
     HyperedgeWeight to_penalty = std::numeric_limits<HyperedgeWeight>::max();
