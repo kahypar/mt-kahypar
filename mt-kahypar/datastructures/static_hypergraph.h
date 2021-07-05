@@ -732,9 +732,7 @@ class StaticHypergraph {
       return { };
   }
 
-  template<typename PinPredicate>
-  void sortStableActivePinsToBeginning(PinPredicate &&isStable) {
-    unused(isStable);
+  void sortStableActivePinsToBeginning() {
     ERROR("sortStableActivePinsToBeginning() is not supported in static hypergraph.");
   }
 
@@ -747,6 +745,7 @@ class StaticHypergraph {
   }
 
   void uncontract(const ContractionGroup&,
+                  const ContractionGroupID,
                   const UncontractionFunction& case_one_func = NOOP_BATCH_FUNC,
                   const UncontractionFunction& case_two_func= NOOP_BATCH_FUNC,
                   const PinCountUpdateLockFunction& lock_pin_count_update_ownership = NOOP_PIN_COUNT_LOCK_FUNC) {
