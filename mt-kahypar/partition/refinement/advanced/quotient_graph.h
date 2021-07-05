@@ -21,8 +21,6 @@
 
 #pragma once
 
-#include "kahypar/datastructure/binary_heap.h"
-
 #include "tbb/concurrent_queue.h"
 #include "tbb/concurrent_vector.h"
 #include "tbb/enumerable_thread_specific.h"
@@ -79,56 +77,6 @@ bool operator==(const BlockPairStats& lhs, const BlockPairStats& rhs);
 
 std::ostream& operator<<(std::ostream& out, const BlockPairStats& stats);
 
-} // namespace mt_kahypar
-
-namespace kahypar::ds {
-
-class BlockPairStatsHeap;
-
-// Traits specialization for block pair stats heap:
-template<>
-class BinaryHeapTraits<BlockPairStatsHeap>{
- public:
-  using IDType = size_t;
-  using KeyType = mt_kahypar::BlockPairStats;
-  using Comparator = mt_kahypar::BlockPairStatsComparator;
-
-  static KeyType sentinel() {
-    return mt_kahypar::BlockPairStats(true);
-  }
-};
-
-class BlockPairStatsHeap final : public BinaryHeapBase<BlockPairStatsHeap>{
-  using Base = BinaryHeapBase<BlockPairStatsHeap>;
-  friend Base;
-
- public:
-  using IDType = typename BinaryHeapTraits<BlockPairStatsHeap>::IDType;
-  using KeyType = typename BinaryHeapTraits<BlockPairStatsHeap>::KeyType;
-
-  // Second parameter is used to satisfy EnhancedBucketPQ interface
-  explicit BlockPairStatsHeap(const IDType& storage_initializer) :
-    Base(storage_initializer) { }
-
-  friend void swap(BlockPairStatsHeap& a, BlockPairStatsHeap& b) {
-    using std::swap;
-    swap(static_cast<Base&>(a), static_cast<Base&>(b));
-  }
-
- protected:
-  inline void decreaseKeyImpl(const size_t handle) {
-    Base::upHeap(handle);
-  }
-
-  inline void increaseKeyImpl(const size_t handle) {
-    Base::downHeap(handle);
-  }
-};
-
-} // namespace kahypar::ds
-
-namespace mt_kahypar {
-
 class QuotientGraph {
 
   static constexpr bool debug = false;
@@ -151,6 +99,7 @@ class QuotientGraph {
       skip_small_cuts(false),
       blocks(),
       ownership(INVALID_SEARCH_ID),
+      is_in_queue(false),
       first_valid_entry(0),
       cut_hes(),
       stats(),
@@ -186,9 +135,22 @@ class QuotientGraph {
       ownership.store(INVALID_SEARCH_ID);
     }
 
+    bool markAsInQueue() {
+      bool expected = false;
+      bool desired = true;
+      return is_in_queue.compare_exchange_strong(expected, desired);
+    }
+
+    bool markAsNotInQueue() {
+      bool expected = true;
+      bool desired = false;
+      return is_in_queue.compare_exchange_strong(expected, desired);
+    }
+
     bool skip_small_cuts;
     BlockPair blocks;
     CAtomic<SearchID> ownership;
+    CAtomic<bool> is_in_queue;
     size_t first_valid_entry;
     tbb::concurrent_vector<CutHyperedge> cut_hes;
     BlockPairStats stats;
@@ -243,8 +205,8 @@ public:
     _initial_num_nodes(hg.initialNumNodes()),
     _quotient_graph(context.partition.k,
       vec<QuotientGraphEdge>(context.partition.k)),
-    _pq_lock(),
-    _block_scheduler(context.partition.k * context.partition.k),
+    _register_search_lock(),
+    _block_scheduler(),
     _num_active_searches(0),
     _searches(),
     _num_active_searches_on_blocks(context.partition.k, CAtomic<size_t>(0)),
@@ -340,11 +302,7 @@ public:
 
   bool popBlockPairFromQueue(BlockPair& blocks);
 
-  bool pushBlockPairIntoQueue(const BlockPair& blocks, const bool acquire_lock = true);
-
-  void updateBlockSchedulerQueue(const BlockPair& blocks,
-                                 const bool start_search,
-                                 const bool acquire_lock);
+  bool pushBlockPairIntoQueue(const BlockPair& blocks);
 
   /**
    * The idea is to sort the cut hyperedges of a block pair (i,j)
@@ -361,19 +319,6 @@ public:
     return phg.initialNumNodes() == _initial_num_nodes;
   }
 
-  size_t index(const BlockPair& blocks) const {
-    return blocks.i + _context.partition.k * blocks.j;
-  }
-
-  BlockPair blockPairFromIndex(const size_t index) const {
-    const PartitionID block_1 = index % _context.partition.k;
-    ASSERT((index - block_1) % _context.partition.k == 0);
-    const PartitionID block_2 = (index - block_1) / _context.partition.k;
-    ASSERT(block_2 < _context.partition.k);
-    ASSERT(block_1 < block_2);
-    return BlockPair { block_1, block_2 };
-  }
-
   const PartitionedHypergraph* _phg;
   const Context& _context;
   const HypernodeID _initial_num_nodes;
@@ -382,9 +327,9 @@ public:
   // ! of the block pair which its represents.
   vec<vec<QuotientGraphEdge>> _quotient_graph;
 
-  SpinLock _pq_lock;
+  SpinLock _register_search_lock;
   // ! Queue that contains all block pairs.
-  kahypar::ds::BlockPairStatsHeap _block_scheduler;
+  tbb::concurrent_queue<BlockPair> _block_scheduler;
 
   // ! Number of active searches
   CAtomic<size_t> _num_active_searches;
