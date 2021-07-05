@@ -35,8 +35,7 @@ namespace mt_kahypar {
                                                         const double) {
     Gain overall_improvement = 0;
     constexpr size_t num_buckets = utils::ParallelPermutation<HypernodeID>::num_buckets;
-    const size_t num_sub_rounds = context.refinement.deterministic_refinement.num_sub_rounds_sync_lp;
-    const size_t num_buckets_per_sub_round = parallel::chunking::idiv_ceil(num_buckets, num_sub_rounds);
+    size_t num_sub_rounds = context.refinement.deterministic_refinement.num_sub_rounds_sync_lp;
 
     for (size_t iter = 0; iter < context.refinement.label_propagation.maximum_iterations; ++iter) {
       if (context.refinement.deterministic_refinement.use_active_node_set && ++round == 0) {
@@ -53,8 +52,10 @@ namespace mt_kahypar {
       }
       active_nodes.clear();
 
+      const size_t num_buckets_per_sub_round = parallel::chunking::idiv_ceil(num_buckets, num_sub_rounds);
       size_t num_moves = 0;
       Gain round_improvement = 0;
+      bool increase_sub_rounds = false;
       for (size_t sub_round = 0; sub_round < num_sub_rounds; ++sub_round) {
         auto[first_bucket, last_bucket] = parallel::chunking::bounds(sub_round, num_buckets, num_buckets_per_sub_round);
         assert(first_bucket < last_bucket && last_bucket < permutation.bucket_bounds.size());
@@ -78,7 +79,9 @@ namespace mt_kahypar {
         Gain sub_round_improvement = 0;
         size_t num_moves_in_sub_round = moves.size();
         if (num_moves_in_sub_round > 0) {
-          sub_round_improvement = applyMovesByMaximalPrefixesInBlockPairs(phg);
+          bool reverted = false;
+          std::tie(sub_round_improvement, reverted) = applyMovesByMaximalPrefixesInBlockPairs(phg);
+          increase_sub_rounds |= reverted;
           if (sub_round_improvement > 0 && moves.size() > 0) {
             if (!context.refinement.deterministic_refinement.recalculate_gains_on_second_apply) {
               sub_round_improvement += applyMovesSortedByGainAndRevertUnbalanced(phg);
@@ -93,6 +96,9 @@ namespace mt_kahypar {
       overall_improvement += round_improvement;
       active_nodes.finalize();
 
+      if (increase_sub_rounds) {
+        num_sub_rounds = std::min(num_buckets, num_sub_rounds * 2);
+      }
       if (num_moves == 0) {
         break; // no vertices with positive gain --> stop
       }
@@ -266,7 +272,7 @@ namespace mt_kahypar {
     return gain;
   }
 
-  Gain DeterministicLabelPropagationRefiner::applyMovesByMaximalPrefixesInBlockPairs(PartitionedHypergraph& phg) {
+  std::pair<Gain, bool> DeterministicLabelPropagationRefiner::applyMovesByMaximalPrefixesInBlockPairs(PartitionedHypergraph& phg) {
     PartitionID k = phg.k();
     PartitionID max_key = k * k;
     auto index = [&](PartitionID b1, PartitionID b2) { return b1 * k + b2; };
@@ -360,7 +366,8 @@ namespace mt_kahypar {
     moves.finalize();
 
     // revert everything if that decreased solution quality
-    if (actual_gain < 0) {
+    bool revert_all = actual_gain < 0;
+    if (revert_all) {
       actual_gain += applyMovesIf(phg, sorted_moves, num_moves, [&](size_t pos) {
         if (pos < swap_prefix[index(sorted_moves[pos].from, sorted_moves[pos].to)]) {
           std::swap(sorted_moves[pos].from, sorted_moves[pos].to);
@@ -369,12 +376,9 @@ namespace mt_kahypar {
           return false;
         }
       });
-
-      assert(actual_gain == 0);
     }
 
-    DBG << V(num_moves) << V(actual_gain) << V(metrics::imbalance(phg, context));
-    return actual_gain;
+    return std::make_pair(actual_gain, revert_all);
   }
 
   std::pair<size_t, size_t> DeterministicLabelPropagationRefiner::findBestPrefixesRecursive(

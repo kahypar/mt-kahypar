@@ -63,7 +63,7 @@ private:
 
   // functions to apply moves from a sub-round
   Gain applyMovesSortedByGainAndRevertUnbalanced(PartitionedHypergraph& phg);
-  Gain applyMovesByMaximalPrefixesInBlockPairs(PartitionedHypergraph& phg);
+  std::pair<Gain, bool> applyMovesByMaximalPrefixesInBlockPairs(PartitionedHypergraph& phg);
   Gain applyMovesSortedByGainWithRecalculation(PartitionedHypergraph& phg);
   Gain performMoveWithAttributedGain(PartitionedHypergraph& phg, const Move& m, bool activate_neighbors);
   template<typename Predicate>
