@@ -441,11 +441,6 @@ class DynamicSparseMap {
   };
 
  public:
-
-  static constexpr size_t MAP_SIZE = 32768; // Size of sparse map is approx. 1 MB
-
-  static_assert(MAP_SIZE && ((MAP_SIZE & (MAP_SIZE - 1)) == 0UL), "Size of map is not a power of two!");
-
   explicit DynamicSparseMap() :
     _capacity(0),
     _initial_value(),
@@ -454,7 +449,6 @@ class DynamicSparseMap {
     _timestamp(1),
     _sparse(nullptr),
     _dense(nullptr) {
-    allocate(MAP_SIZE);
   }
 
   DynamicSparseMap(const DynamicSparseMap&) = delete;
@@ -497,6 +491,10 @@ class DynamicSparseMap {
 
   MapElement* end() {
     return _dense + _size;
+  }
+
+  void initialize(size_t capacity) {
+    allocate(align_to_next_power_of_two(capacity));
   }
 
   bool contains(const Key key) const {
@@ -621,7 +619,7 @@ class DynamicSparseMap {
     ASSERT(size == _size);
   }
 
-  size_t align_to_next_power_of_two(const size_t size) const {
+  constexpr size_t align_to_next_power_of_two(const size_t size) const {
     return std::pow(2.0, std::ceil(std::log2(static_cast<double>(size))));
   }
 
@@ -650,17 +648,11 @@ class DynamicFlatMap {
   };
 
  public:
-
-  static constexpr size_t MAP_SIZE = 32768; // Size of sparse map is approx. 1 MB
-
-  static_assert(MAP_SIZE && ((MAP_SIZE & (MAP_SIZE - 1)) == 0UL), "Size of map is not a power of two!");
-
-  explicit DynamicFlatMap(const size_t capacity = MAP_SIZE) :
+  explicit DynamicFlatMap() :
     _data(nullptr),
     _size(0),
     _capacity(0),
     _timestamp(1) {
-    allocate(align_to_next_power_of_two(capacity));
   }
 
   DynamicFlatMap(const DynamicFlatMap&) = delete;
@@ -684,6 +676,10 @@ class DynamicFlatMap {
 
   size_t size() const {
     return _size;
+  }
+
+  void initialize(size_t capacity) {
+    allocate(align_to_next_power_of_two(capacity));
   }
 
   bool contains(const Key key) const {
@@ -781,7 +777,7 @@ class DynamicFlatMap {
     }
   }
 
-  size_t align_to_next_power_of_two(const size_t size) const {
+  constexpr size_t align_to_next_power_of_two(const size_t size) const {
     return std::pow(2.0, std::ceil(std::log2(static_cast<double>(size))));
   }
 
