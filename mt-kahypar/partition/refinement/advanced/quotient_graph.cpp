@@ -31,26 +31,13 @@
 
 namespace mt_kahypar {
 
-bool operator==(const BlockPairStats& lhs, const BlockPairStats& rhs) {
-  return lhs.initial_cut_he_weight == rhs.initial_cut_he_weight &&
-         lhs.num_acitve_searches_on_block_pair == rhs.num_acitve_searches_on_block_pair &&
-         lhs.max_active_searches_on_one_block == rhs.max_active_searches_on_one_block;
-}
-
-std::ostream& operator<<(std::ostream& out, const BlockPairStats& stats) {
-  out << "Initial Cut Hyperedge Weight = " << stats.initial_cut_he_weight << ", "
-      << "Num Active Searches on Block Pair = " << stats.num_acitve_searches_on_block_pair << ", "
-      << "Max Active Searches on One Block = " << stats.max_active_searches_on_one_block;
-  return out;
-}
-
 void QuotientGraph::QuotientGraphEdge::add_hyperedge(const HyperedgeID he,
                                                      const HyperedgeWeight weight) {
-  cut_hes.push_back(CutHyperedge { he, CAtomic<bool>(false) });
+  cut_hes.push_back(he);
   cut_he_weight += weight;
 }
 
-QuotientGraph::CutHyperedge& QuotientGraph::QuotientGraphEdge::pop_hyperedge() {
+HyperedgeID QuotientGraph::QuotientGraphEdge::pop_hyperedge() {
   ASSERT(isActive());
   return cut_hes[first_valid_entry++];
 }
@@ -60,11 +47,9 @@ void QuotientGraph::QuotientGraphEdge::reset() {
   ownership.store(INVALID_SEARCH_ID, std::memory_order_relaxed);
   is_in_queue.store(false, std::memory_order_relaxed);
   first_valid_entry = 0;
-  stats.initial_cut_he_weight = 0;
-  stats.num_acitve_searches_on_block_pair.store(0, std::memory_order_relaxed);
-  stats.max_active_searches_on_one_block = 0;
+  initial_num_cut_hes = 0;
+  initial_cut_he_weight = 0;
   cut_he_weight.store(0, std::memory_order_relaxed);
-  round.store(0, std::memory_order_relaxed);
 }
 
 SearchID QuotientGraph::requestNewSearch(AdvancedRefinerAdapter& refiner) {
@@ -79,15 +64,12 @@ SearchID QuotientGraph::requestNewSearch(AdvancedRefinerAdapter& refiner) {
       ++_num_active_searches;
       // Create new search
       search_id = tmp_search_id;
-      _searches.emplace_back();
-      _searches[search_id].addBlockPair(blocks);
+      _searches.emplace_back(blocks);
       _register_search_lock.unlock();
 
       // Associate refiner with search id
       success = refiner.registerNewSearch(search_id, *_phg);
       ASSERT(success); unused(success);
-
-      // TODO: extend with additional block pairs if search requests
     } else {
       _register_search_lock.unlock();
     }
@@ -102,48 +84,78 @@ vec<BlockPairCutHyperedges> QuotientGraph::requestCutHyperedges(const SearchID s
   vec<BlockPairCutHyperedges> block_pair_cut_hes;
   if ( !_searches[search_id].is_finalized ) {
     Search& search = _searches[search_id];
-    for ( const BlockPair& blocks : search.block_pairs ) {
-      block_pair_cut_hes.emplace_back();
-      block_pair_cut_hes.back().blocks = blocks;
-    }
+    const BlockPair blocks = search.blocks;
+    QuotientGraphEdge& qg_edge = _quotient_graph[blocks.i][blocks.j];
+    block_pair_cut_hes.emplace_back();
+    block_pair_cut_hes.back().blocks = blocks;
 
-    // Add cut hyperedges in round robin fashion
-    size_t num_block_pairs = block_pair_cut_hes.size();
-    size_t num_active_block_pairs = num_block_pairs;
-    size_t pos = 0;
     size_t num_edges = 0;
-    while ( num_active_block_pairs > 0 && num_edges < max_num_edges ) {
-      const size_t i = pos % num_block_pairs;
-      if ( i == 0 ) num_active_block_pairs = num_block_pairs;
-      const BlockPair& blocks = block_pair_cut_hes[i].blocks;
-      QuotientGraphEdge& qg_edge = _quotient_graph[blocks.i][blocks.j];
-      if ( qg_edge.isActive() ) {
-        CutHyperedge& cut_he = qg_edge.pop_hyperedge();
-        if ( cut_he.acquire() ) {
-          // Note, we only consider hyperedges that contains pins of both blocks.
-          // There might be some edges which were initially cut, but were removed due
-          // to vertex moves. Thus, we remove them lazily here.
-          const HyperedgeID he = cut_he.he;
-          qg_edge.cut_he_weight -= _phg->edgeWeight(he);
-          if ( _phg->pinCountInPart(he, blocks.i) > 0 &&
-              _phg->pinCountInPart(he, blocks.j) > 0 ) {
-            block_pair_cut_hes[i].cut_hes.push_back(he);
-            _searches[search_id].used_cut_hes[i].push_back(he);
-            ++num_edges;
-          }
-        }
-      } else {
-        --num_active_block_pairs;
+    while ( num_edges < max_num_edges && qg_edge.cut_he_weight > 0 ) {
+      // Note, we only consider hyperedges that contains pins of both blocks.
+      // There might be some edges which were initially cut, but were removed due
+      // to vertex moves. Thus, we remove them lazily here.
+      const HyperedgeID he = qg_edge.pop_hyperedge();
+      qg_edge.cut_he_weight -= _phg->edgeWeight(he);
+      if ( _phg->pinCountInPart(he, blocks.i) > 0 &&
+          _phg->pinCountInPart(he, blocks.j) > 0 ) {
+        block_pair_cut_hes[0].cut_hes.push_back(he);
+        _searches[search_id].used_cut_hes.push_back(he);
+        ++num_edges;
       }
-      ++pos;
     }
   }
   return block_pair_cut_hes;
 }
 
+size_t QuotientGraph::acquireUsedCutHyperedges(const SearchID& search_id, vec<bool>& used_hes) {
+  ASSERT(_phg);
+  ASSERT(search_id < _searches.size());
+  ASSERT(!_searches[search_id].is_finalized);
+  size_t additional_cut_hes = 0;
+  const BlockPair& blocks = _searches[search_id].blocks;
+  QuotientGraphEdge& qg_edge = _quotient_graph[blocks.i][blocks.j];
+  const size_t used_hes_size = _searches[search_id].used_cut_hes.size();
+  const size_t start_idx = qg_edge.first_valid_entry;
+  const size_t end_idx = qg_edge.cut_hes.size();
+  for ( size_t i = start_idx; i < end_idx; ++i ) {
+    const HyperedgeID he = qg_edge.cut_hes[i];
+    if ( used_hes[he] ) {
+      used_hes[he] = false;
+      qg_edge.cut_he_weight -= _phg->edgeWeight(he);
+      _searches[search_id].used_cut_hes.push_back(he);
+      // Note that only one thread constructs a problem at any particular point in time.
+      // This function is called before construction terminates. Therefore, this
+      // operation is thread safe.
+      std::swap(qg_edge.cut_hes[qg_edge.first_valid_entry++], qg_edge.cut_hes[i]);
+      ++additional_cut_hes;
+    }
+  }
+  // Flag used cut hes again
+  for ( size_t i = used_hes_size; i < _searches[search_id].used_cut_hes.size(); ++i ) {
+    used_hes[_searches[search_id].used_cut_hes[i]] = true;
+  }
+  return additional_cut_hes;
+}
+
+void QuotientGraph::addNewCutHyperedge(const HyperedgeID he,
+                                       const PartitionID block) {
+  ASSERT(_phg);
+  ASSERT(_phg->pinCountInPart(he, block) > 0);
+  // Add hyperedge he as a cut hyperedge to each block pair that contains 'block'
+  for ( const PartitionID& other_block : _phg->connectivitySet(he) ) {
+    if ( other_block != block ) {
+      _quotient_graph[std::min(block, other_block)][std::max(block, other_block)]
+        .add_hyperedge(he, _phg->edgeWeight(he));
+    }
+  }
+}
+
 bool QuotientGraph::popBlockPairFromQueue(BlockPair& blocks) {
   blocks.i = kInvalidPartition;
   blocks.j = kInvalidPartition;
+  // TODO: Note that this is a potential source for a scalability bottleneck.
+  // If only a few block pairs remains, we should terminate the active block scheduling
+  // strategy for some threads such that they can join other threads for parallel refinement
   while ( _block_scheduler.try_pop(blocks) ) {
     _quotient_graph[blocks.i][blocks.j].markAsNotInQueue();
     const bool not_too_many_concurrent_searches =
@@ -164,7 +176,7 @@ bool QuotientGraph::pushBlockPairIntoQueue(const BlockPair& blocks) {
   QuotientGraphEdge& qg_edge = _quotient_graph[blocks.i][blocks.j];
   const bool is_promising_block_pair =
         !_context.refinement.advanced.skip_unpromising_blocks ||
-        ( qg_edge.round == 0 || qg_edge.num_improvements > 0 );
+        ( qg_edge.isFirstRound() || qg_edge.num_improvements_found > 0 );
   if ( qg_edge.isActive() && is_promising_block_pair && qg_edge.markAsInQueue() ) {
     _block_scheduler.push(blocks);
     return true;
@@ -173,48 +185,12 @@ bool QuotientGraph::pushBlockPairIntoQueue(const BlockPair& blocks) {
   }
 }
 
-void QuotientGraph::addNewCutHyperedge(const HyperedgeID he,
-                                       const PartitionID block) {
-  ASSERT(_phg);
-  ASSERT(_phg->pinCountInPart(he, block) > 0);
-  // Add hyperedge he as a cut hyperedge to each block pair that contains 'block'
-  for ( const PartitionID& other_block : _phg->connectivitySet(he) ) {
-    if ( other_block != block ) {
-      _quotient_graph[std::min(block, other_block)][std::max(block, other_block)]
-        .add_hyperedge(he, _phg->edgeWeight(he));
-    }
-  }
-}
-
-size_t QuotientGraph::acquireUsedCutHyperedges(const SearchID& search_id, const vec<bool>& used_hes) {
-  ASSERT(_phg);
-  ASSERT(search_id < _searches.size());
-  size_t additional_cut_hes = 0;
-  for ( size_t i = 0; i < _searches[search_id].block_pairs.size(); ++i ) {
-    const BlockPair& blocks = _searches[search_id].block_pairs[i];
-    QuotientGraphEdge& qg_edge = _quotient_graph[blocks.i][blocks.j];
-    const size_t start_idx = qg_edge.first_valid_entry;
-    const size_t end_idx = qg_edge.cut_hes.size();
-    for ( size_t j = start_idx; j < end_idx; ++j ) {
-      CutHyperedge& cut_he = qg_edge.cut_hes[j];
-      if ( used_hes[cut_he.he] && cut_he.acquire() ) {
-        qg_edge.cut_he_weight -= _phg->edgeWeight(cut_he.he);
-        _searches[search_id].used_cut_hes[i].push_back(cut_he.he);
-        ++additional_cut_hes;
-      }
-    }
-  }
-  return additional_cut_hes;
-}
-
 void QuotientGraph::finalizeConstruction(const SearchID search_id) {
   ASSERT(search_id < _searches.size());
   _searches[search_id].is_finalized = true;
-  for ( const BlockPair& blocks : _searches[search_id].block_pairs ) {
-    QuotientGraphEdge& qg_edge = _quotient_graph[blocks.i][blocks.j];
-    qg_edge.release(search_id);
-    pushBlockPairIntoQueue(blocks);
-  }
+  const BlockPair& blocks = _searches[search_id].blocks;
+  _quotient_graph[blocks.i][blocks.j].release(search_id);
+  pushBlockPairIntoQueue(blocks);
 }
 
 void QuotientGraph::finalizeSearch(const SearchID search_id,
@@ -223,26 +199,22 @@ void QuotientGraph::finalizeSearch(const SearchID search_id,
   ASSERT(search_id < _searches.size());
   ASSERT(_searches[search_id].is_finalized);
 
-  ASSERT(_searches[search_id].block_pairs.size() == _searches[search_id].used_cut_hes.size());
-  for ( size_t i = 0; i < _searches[search_id].block_pairs.size(); ++i ) {
-    const BlockPair& blocks = _searches[search_id].block_pairs[i];
-    QuotientGraphEdge& qg_edge = _quotient_graph[blocks.i][blocks.j];
-    ++qg_edge.round;
-    if ( success ) {
-      // If the search improves the quality of the partition, we reinsert
-      // all hyperedges that were used by the search and are still cut.
-      ++qg_edge.num_improvements;
-      for ( const HyperedgeID& he : _searches[search_id].used_cut_hes[i] ) {
-        if ( _phg->pinCountInPart(he, blocks.i) > 0 &&
-            _phg->pinCountInPart(he, blocks.j) > 0 ) {
-          qg_edge.add_hyperedge(he, _phg->edgeWeight(he));
-        }
+  const BlockPair& blocks = _searches[search_id].blocks;
+  QuotientGraphEdge& qg_edge = _quotient_graph[blocks.i][blocks.j];
+  if ( success ) {
+    // If the search improves the quality of the partition, we reinsert
+    // all hyperedges that were used by the search and are still cut.
+    ++qg_edge.num_improvements_found;
+    for ( const HyperedgeID& he : _searches[search_id].used_cut_hes ) {
+      if ( _phg->pinCountInPart(he, blocks.i) > 0 &&
+          _phg->pinCountInPart(he, blocks.j) > 0 ) {
+        qg_edge.add_hyperedge(he, _phg->edgeWeight(he));
       }
     }
-    // In case the block pair becomes active,
-    // we reinsert it into the queue
-    pushBlockPairIntoQueue(blocks);
   }
+  // In case the block pair becomes active,
+  // we reinsert it into the queue
+  pushBlockPairIntoQueue(blocks);
   --_num_active_searches;
 }
 
@@ -273,7 +245,8 @@ void QuotientGraph::initialize(const PartitionedHypergraph& phg) {
   std::vector<BlockPair> active_blocks;
   for ( PartitionID i = 0; i < _context.partition.k; ++i ) {
     for ( PartitionID j = i + 1; j < _context.partition.k; ++j ) {
-      _quotient_graph[i][j].stats.initial_cut_he_weight = _quotient_graph[i][j].cut_he_weight;
+      _quotient_graph[i][j].initial_cut_he_weight = _quotient_graph[i][j].cut_he_weight;
+      _quotient_graph[i][j].initial_num_cut_hes =  _quotient_graph[i][j].cut_hes.size();
       if ( _quotient_graph[i][j].isActive() ) {
         active_blocks.push_back( BlockPair { i, j } );
       }
@@ -281,8 +254,8 @@ void QuotientGraph::initialize(const PartitionedHypergraph& phg) {
   }
   std::sort(active_blocks.begin(), active_blocks.end(),
     [&](const BlockPair& lhs, const BlockPair& rhs) {
-      return _quotient_graph[lhs.i][lhs.j].stats.initial_cut_he_weight >
-        _quotient_graph[rhs.i][rhs.j].stats.initial_cut_he_weight;
+      return _quotient_graph[lhs.i][lhs.j].initial_cut_he_weight >
+        _quotient_graph[rhs.i][rhs.j].initial_cut_he_weight;
     });
   for ( const BlockPair& blocks : active_blocks ) {
     pushBlockPairIntoQueue(blocks);
@@ -353,8 +326,7 @@ void QuotientGraph::sortCutHyperedges(const PartitionID i,
   };
 
   // Start BFS
-  for ( const CutHyperedge& cut_he : _quotient_graph[i][j].cut_hes ) {
-    const HyperedgeID he = cut_he.he;
+  for ( const HyperedgeID& he : _quotient_graph[i][j].cut_hes ) {
     if ( bfs_data.distance[he] == -1 ) {
       bfs(he);
     }
@@ -362,12 +334,12 @@ void QuotientGraph::sortCutHyperedges(const PartitionID i,
 
   // Sort all cut hyperedges according to their distance label
   std::sort(_quotient_graph[i][j].cut_hes.begin(), _quotient_graph[i][j].cut_hes.end(),
-    [&](const CutHyperedge& lhs, const CutHyperedge& rhs) {
-      ASSERT(bfs_data.distance[lhs.he] != -1);
-      ASSERT(bfs_data.distance[rhs.he] != -1);
-      const int distance_lhs = bfs_data.distance[lhs.he];
-      const int distance_rhs = bfs_data.distance[rhs.he];
-      return distance_lhs < distance_rhs || (distance_lhs == distance_rhs && lhs.he < rhs.he);
+    [&](const HyperedgeID& lhs, const HyperedgeID& rhs) {
+      ASSERT(bfs_data.distance[lhs] != -1);
+      ASSERT(bfs_data.distance[rhs] != -1);
+      const int distance_lhs = bfs_data.distance[lhs];
+      const int distance_rhs = bfs_data.distance[rhs];
+      return distance_lhs < distance_rhs || (distance_lhs == distance_rhs && lhs < rhs);
     });
 }
 

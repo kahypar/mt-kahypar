@@ -46,52 +46,10 @@ struct BlockPairCutHyperedges {
   vec<HyperedgeID> cut_hes;
 };
 
-struct BlockPairStats {
-  BlockPairStats() :
-    initial_cut_he_weight(0),
-    num_acitve_searches_on_block_pair(0),
-    max_active_searches_on_one_block(0) { }
-
-  BlockPairStats(bool /* sentinel */) :
-    initial_cut_he_weight(std::numeric_limits<HyperedgeWeight>::max()),
-    num_acitve_searches_on_block_pair(std::numeric_limits<size_t>::min()),
-    max_active_searches_on_one_block(std::numeric_limits<size_t>::min()) { }
-
-  HyperedgeWeight initial_cut_he_weight;
-  CAtomic<size_t> num_acitve_searches_on_block_pair;
-  size_t max_active_searches_on_one_block;
-};
-
-struct BlockPairStatsComparator {
-  bool operator()(const BlockPairStats& lhs, const BlockPairStats& rhs) const {
-    return lhs.max_active_searches_on_one_block > rhs.max_active_searches_on_one_block ||
-      ( lhs.max_active_searches_on_one_block == rhs.max_active_searches_on_one_block &&
-        lhs.num_acitve_searches_on_block_pair > rhs.num_acitve_searches_on_block_pair ) ||
-      ( lhs.max_active_searches_on_one_block == rhs.max_active_searches_on_one_block &&
-        lhs.num_acitve_searches_on_block_pair == rhs.num_acitve_searches_on_block_pair &&
-        lhs.initial_cut_he_weight < rhs.initial_cut_he_weight );
-  }
-};
-
-bool operator==(const BlockPairStats& lhs, const BlockPairStats& rhs);
-
-std::ostream& operator<<(std::ostream& out, const BlockPairStats& stats);
-
 class QuotientGraph {
 
   static constexpr bool debug = false;
   static constexpr bool enable_heavy_assert = false;
-
-  struct CutHyperedge {
-    HyperedgeID he;
-    CAtomic<bool> acquired;
-
-    bool acquire() {
-      bool expected = false;
-      bool desired = true;
-      return acquired.compare_exchange_strong(expected, desired);
-    }
-  };
 
   // ! Represents an edge of the quotient graph
   struct QuotientGraphEdge {
@@ -100,81 +58,105 @@ class QuotientGraph {
       blocks(),
       ownership(INVALID_SEARCH_ID),
       is_in_queue(false),
-      first_valid_entry(0),
       cut_hes(),
-      stats(),
+      first_valid_entry(0),
+      initial_num_cut_hes(0),
+      initial_cut_he_weight(0),
       cut_he_weight(0),
-      round(0),
-      num_improvements(0) { }
+      num_improvements_found(0) { }
 
+    // ! Adds a cut hyperedge to this quotient graph edge
     void add_hyperedge(const HyperedgeID he,
                        const HyperedgeWeight weight);
 
-    CutHyperedge& pop_hyperedge();
+    // ! Pops a cut hyperedge from this quotient graph edge
+    HyperedgeID pop_hyperedge();
 
     void reset();
 
+    // ! A quotient graph edge is considered as active, if there
+    // ! are cut hyperedges left and if there weight is greater than
+    // ! some threshold. Only active quotient graph edges are available
+    // ! for refinement.
     bool isActive() const {
       return ( !skip_small_cuts && cut_he_weight > 0 ) ||
              ( skip_small_cuts && cut_he_weight > 10 );
     }
 
+    // ! Returns true, if quotient graph edge is acquired by a search
     bool isAcquired() const {
       return ownership.load() != INVALID_SEARCH_ID;
     }
 
+    // ! Tries to acquire quotient graph edge with corresponding search id
     bool acquire(const SearchID search_id) {
       SearchID expected = INVALID_SEARCH_ID;
       SearchID desired = search_id;
       return ownership.compare_exchange_strong(expected, desired);
     }
 
+    // ! Releases quotient graph edge
     void release(const SearchID search_id) {
       unused(search_id);
       ASSERT(ownership.load() == search_id);
       ownership.store(INVALID_SEARCH_ID);
     }
 
+    // ! Marks quotient graph edge as in queue. Queued edges are scheduled
+    // ! for refinement.
     bool markAsInQueue() {
       bool expected = false;
       bool desired = true;
       return is_in_queue.compare_exchange_strong(expected, desired);
     }
 
+    // ! Marks quotient graph edge as nnot in queue
     bool markAsNotInQueue() {
       bool expected = true;
       bool desired = false;
       return is_in_queue.compare_exchange_strong(expected, desired);
     }
 
+    // ! Returns false, if all cut hyperedges initial contained are used
+    // ! at least once by a refinement algorithm
+    bool isFirstRound() const {
+      return first_valid_entry < initial_num_cut_hes;
+    }
+
+    // ! If true, then block pairs with cut less than 10 are skipped
     bool skip_small_cuts;
+    // ! Block pair this quotient graph edge represents
     BlockPair blocks;
+    // ! Atomic that contains the search currently constructing
+    // ! a problem on this block pair
     CAtomic<SearchID> ownership;
+    // ! True, if block is contained in block scheduler queue
     CAtomic<bool> is_in_queue;
+    // ! Cut hyperedges of block pair
+    tbb::concurrent_vector<HyperedgeID> cut_hes;
+    // ! Position of the first valid cut hyperedge in cut_hes
     size_t first_valid_entry;
-    tbb::concurrent_vector<CutHyperedge> cut_hes;
-    BlockPairStats stats;
+    // ! Initial number of cut hyperedges
+    size_t initial_num_cut_hes;
+    // ! Initial weight of all cut hyperedges
+    HyperedgeWeight initial_cut_he_weight;
+    // ! Current weight of all cut hyperedges
     CAtomic<HyperedgeWeight> cut_he_weight;
-    CAtomic<size_t> round;
-    CAtomic<size_t> num_improvements;
+    // ! Number of improvements found on this block pair
+    CAtomic<size_t> num_improvements_found;
   };
 
   // Contains information required by a local search
   struct Search {
-    explicit Search() :
-      block_pairs(),
+    explicit Search(const BlockPair& blocks) :
+      blocks(blocks),
       used_cut_hes(),
       is_finalized(false) { }
 
-    void addBlockPair(const BlockPair& blocks) {
-      block_pairs.emplace_back(blocks);
-      used_cut_hes.emplace_back();
-    }
-
-    // ! Blocks on which this search operates on
-    vec<BlockPair> block_pairs;
+    // ! Block pair on which this search operates on
+    BlockPair blocks;
     // ! Used cut hyperedges
-    vec<vec<HyperedgeID>> used_cut_hes;
+    vec<HyperedgeID> used_cut_hes;
     // ! Flag indicating if construction of the corresponding search
     // ! is finalized
     bool is_finalized;
@@ -237,13 +219,12 @@ public:
   // ! Returns the block pairs on which the corresponding search operates on
   vec<BlockPair> getBlockPairs(const SearchID search_id) const {
     ASSERT(search_id < _searches.size());
-    return _searches[search_id].block_pairs;
+    return { _searches[search_id].blocks };
   }
 
   // ! Number of block pairs used by the corresponding search
-  size_t numBlockPairs(const SearchID search_id) const {
-    ASSERT(search_id < _searches.size());
-    return _searches[search_id].block_pairs.size();
+  size_t numBlockPairs(const SearchID) const {
+    return 1;
   }
 
   /**
@@ -254,6 +235,14 @@ public:
                                                    const size_t max_num_edges);
 
   /**
+   * During problem construction we might acquire additional cut hyperedges
+   * not requested by the search. This function associates those hyperedges
+   * with the search and flags them as used.
+   */
+  size_t acquireUsedCutHyperedges(const SearchID& search_id, vec<bool>& used_hes);
+
+
+  /**
    * Notifies the quotient graph that hyperedge he contains
    * a new block, which was previously not contained. The thread
    * that increases the pin count of hyperedge he in the corresponding
@@ -261,8 +250,6 @@ public:
    */
   void addNewCutHyperedge(const HyperedgeID he,
                           const PartitionID block);
-
-  size_t acquireUsedCutHyperedges(const SearchID& search_id, const vec<bool>& used_hes);
 
   /**
    * Notify the quotient graph that the construction of the corresponding

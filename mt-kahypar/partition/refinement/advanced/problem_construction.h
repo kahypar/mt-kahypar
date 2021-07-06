@@ -37,7 +37,7 @@ namespace mt_kahypar {
 
 class ProblemConstruction {
 
-  static constexpr bool debug = true;
+  static constexpr bool debug = false;
 
   /**
    * Contains data required to grow two region around
