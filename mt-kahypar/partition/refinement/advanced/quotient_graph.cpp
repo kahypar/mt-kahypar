@@ -38,7 +38,7 @@ void QuotientGraph::QuotientGraphEdge::add_hyperedge(const HyperedgeID he,
 }
 
 HyperedgeID QuotientGraph::QuotientGraphEdge::pop_hyperedge() {
-  ASSERT(isActive());
+  ASSERT(cut_he_weight > 0);
   return cut_hes[first_valid_entry++];
 }
 
@@ -65,6 +65,8 @@ SearchID QuotientGraph::requestNewSearch(AdvancedRefinerAdapter& refiner) {
       // Create new search
       search_id = tmp_search_id;
       _searches.emplace_back(blocks);
+      ++_num_active_searches_on_blocks[blocks.i];
+      ++_num_active_searches_on_blocks[blocks.j];
       _register_search_lock.unlock();
 
       // Associate refiner with search id
@@ -215,6 +217,8 @@ void QuotientGraph::finalizeSearch(const SearchID search_id,
   // In case the block pair becomes active,
   // we reinsert it into the queue
   pushBlockPairIntoQueue(blocks);
+  --_num_active_searches_on_blocks[blocks.i];
+  --_num_active_searches_on_blocks[blocks.j];
   --_num_active_searches;
 }
 

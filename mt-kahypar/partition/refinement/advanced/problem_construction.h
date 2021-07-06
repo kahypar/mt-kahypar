@@ -160,7 +160,8 @@ class ProblemConstruction {
 
   void release_vertex(SearchID search_id, const HypernodeID& hn) {
     ASSERT(static_cast<size_t>(hn) < _vertex_ownership.size());
-    ASSERT(_vertex_ownership[hn] == search_id);
+    ASSERT(_context.refinement.advanced.use_overlapping_searches ||
+           _vertex_ownership[hn] == search_id);
     _vertex_ownership[hn].compare_exchange_strong(
       search_id, QuotientGraph::INVALID_SEARCH_ID, std::memory_order_relaxed);
   }
