@@ -244,6 +244,10 @@ bool FlowRefiner::isMaximumProblemSizeReachedImpl(ProblemStats& stats) const {
   if ( stats.nodeWeightOfBlock(_block_1) >= max_weight_1 ) {
     stats.lockBlock(_block_1);
   }
+  if ( stats.numPins() >= _context.refinement.advanced.flows.max_num_pins ) {
+    stats.lockBlock(_block_0);
+    stats.lockBlock(_block_1);
+  }
   return stats.isLocked(_block_0) && stats.isLocked(_block_1);
 }
 

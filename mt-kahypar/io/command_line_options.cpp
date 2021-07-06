@@ -458,6 +458,10 @@ namespace mt_kahypar {
              po::value<double>((initial_partitioning ? &context.initial_partitioning.refinement.advanced.flows.alpha :
                       &context.refinement.advanced.flows.alpha))->value_name("<double>"),
              "Size constraint for flow problem: (1 + alpha * epsilon) * c(V) / k - c(V_1) (alpha = r-flow-scaling)")
+            ((initial_partitioning ? "i-r-flow-max-num-pins" : "r-flow-max-num-pins"),
+             po::value<uint32_t>((initial_partitioning ? &context.initial_partitioning.refinement.advanced.flows.max_num_pins :
+                      &context.refinement.advanced.flows.max_num_pins))->value_name("<uint32_t>"),
+             "Maximum number of pins a flow problem is allowed to contain")
             ((initial_partitioning ? "i-r-flow-find-most-balanced-cut" : "r-flow-find-most-balanced-cut"),
              po::value<bool>((initial_partitioning ? &context.initial_partitioning.refinement.advanced.flows.find_most_balanced_cut :
                       &context.refinement.advanced.flows.find_most_balanced_cut))->value_name("<bool>"),

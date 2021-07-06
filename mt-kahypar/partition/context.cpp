@@ -143,6 +143,7 @@ namespace mt_kahypar {
   std::ostream& operator<<(std::ostream& out, const FlowParameters& params) {
     out << "  Flow Parameters: \n";
     out << "    Flow Scaling:                     " << params.alpha << std::endl;
+    out << "    Maximum Number of Pins:           " << params.max_num_pins << std::endl;
     out << "    Find Most Balanced Cut:           " << std::boolalpha << params.find_most_balanced_cut << std::endl;
     out << "    Determine Distance From Cut:      " << std::boolalpha << params.determine_distance_from_cut << std::endl;
     return out;

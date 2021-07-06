@@ -159,6 +159,7 @@ std::ostream& operator<<(std::ostream& out, const NLevelGlobalFMParameters& para
 
 struct FlowParameters {
   double alpha = 0.0;
+  HypernodeID max_num_pins = std::numeric_limits<HypernodeID>::max();
   bool find_most_balanced_cut = false;
   bool determine_distance_from_cut = false;
 };

@@ -33,7 +33,7 @@ namespace mt_kahypar {
 
 class AdvancedRefinementScheduler final : public IRefiner {
 
-  static constexpr bool debug = false;
+  static constexpr bool debug = true;
   static constexpr bool enable_heavy_assert = false;
 
   struct RefinementStats {
