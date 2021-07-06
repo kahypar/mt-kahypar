@@ -21,7 +21,8 @@ namespace mt_kahypar::ds {
               _num_group_nodes(0),
               _num_contained_contracted_nodes(0),
               _version(version),
-              _last_uncontraction_group_in_version(contractionTree.num_hypernodes(), invalidGroupID) {
+              _last_uncontraction_group_in_version(contractionTree.num_hypernodes(), invalidGroupID),
+              _number_of_groups_per_depth() {
         ASSERT(_contraction_tree.isFinalized());
 
         _out_degrees.push_back(0);
@@ -40,19 +41,8 @@ namespace mt_kahypar::ds {
             ++currentParentID;
         }
 
-//        size_t max_depth = 0;
-//        for (const auto& node : _tree) {
-//            if (node.getDepth() > max_depth) max_depth = node.getDepth();
-//        }
-
-//        std::cout << "Version " << _version << " has a max depth of " << max_depth << std::endl;
-
-//        _node_to_group_map = std::make_unique<parallel::scalable_vector<ContractionGroupID>>(_contraction_tree.num_hypernodes());
-//        for (ContractionGroupID id = 0; id < _num_group_nodes; ++id) {
-//            for (const auto& memento : group(id)) {
-//                (*_node_to_group_map)[memento.v] = id;
-//            }
-//        }
+        ASSERT(!_number_of_groups_per_depth.empty());
+//        std::cout << "Version " << _version << " has a max depth of " << (_number_of_groups_per_depth.size() - 1) << std::endl;
     }
 
     void UncontractionGroupTree::insertRootBranchesForVersion() {
@@ -110,9 +100,15 @@ namespace mt_kahypar::ds {
         _incidence_array.resize(_incidence_array.size() + numChildren); // REVIEW do one resize at the end?
 
         // If new is its own parent then it is a root
-        if(newID == parent) {
+        if (newID == parent) {
             _roots.push_back(newID);
         }
+
+        // Increase number of nodes at this depth
+        if (depth >= _number_of_groups_per_depth.size()) {
+            _number_of_groups_per_depth.resize(depth + 1, 0);
+        }
+        ++_number_of_groups_per_depth[depth];
 
         // If this group does not have a horizontal child, it is the last group for this representative in the version
         if (!hasHorizontalChild) {

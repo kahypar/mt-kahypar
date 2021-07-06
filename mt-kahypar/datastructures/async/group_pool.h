@@ -8,6 +8,7 @@
 #include <tbb/concurrent_queue.h>
 #include "uncontraction_group_tree.h"
 #include "mt-kahypar/datastructures/async/async_common.h"
+#include "depth_priority_queue.h"
 
 namespace mt_kahypar::ds
 {
@@ -143,7 +144,7 @@ namespace mt_kahypar::ds
          */
         explicit ConcurrentQueueGroupPool(std::unique_ptr<GroupHierarchy> hierarchy)
                 : _hierarchy(hierarchy.release()),
-                  _active_ids()
+                  _active_ids(_hierarchy->getNumberOfDepths(), std::move(_hierarchy->getNumberOfGroupsPerDepth()))
                 {
             auto roots = _hierarchy->roots();
             for(auto r: roots) {
@@ -251,7 +252,7 @@ namespace mt_kahypar::ds
         }
 
         bool tryInsertActive(ContractionGroupID id) {
-              _active_ids.push(id);
+              _active_ids.push(id, _hierarchy->depth(id));
               return true;
         }
 
@@ -261,7 +262,7 @@ namespace mt_kahypar::ds
         }
 
         void insertActive(ContractionGroupID id) {
-            _active_ids.push(id);
+            _active_ids.push(id, _hierarchy->depth(id));
         }
 
         void popActive(ContractionGroupID& destination) {
@@ -274,7 +275,7 @@ namespace mt_kahypar::ds
         }
 
         bool unsafeEmpty() {
-            bool empty = _active_ids.empty();
+            bool empty = _active_ids.unsafe_empty();
             return empty;
         }
 
@@ -291,7 +292,8 @@ namespace mt_kahypar::ds
 
 //        SpinLock _queue_lock;
 //        std::priority_queue<ContractionGroupID, std::vector<ContractionGroupID>, DepthCompare> _active_ids;
-        tbb::concurrent_queue<ContractionGroupID> _active_ids;
+//        tbb::concurrent_queue<ContractionGroupID> _active_ids;
+          DepthPriorityQueue _active_ids;
 
     };
 

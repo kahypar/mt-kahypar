@@ -167,6 +167,14 @@ namespace mt_kahypar::ds {
           return _last_uncontraction_group_in_version[hn] == invalidGroupID;
         }
 
+        uint32_t getNumberOfDepths() const {
+          return _number_of_groups_per_depth.size();
+        }
+
+        std::vector<ContractionGroupID> getNumberOfGroupsPerDepth() const {
+          return _number_of_groups_per_depth;
+        }
+
     private:
 
         void freeInternalData();
@@ -206,13 +214,9 @@ namespace mt_kahypar::ds {
         // The hypergraph version that this UncontractionGroupTree is for
         const size_t _version;
 
-        // ! Mapping from HypernodeID to the ContractionGroupID of the group that the contraction (Memento) of the
-        // ! respective Hypernode is in. Used to find the depth of the contraction of a  node in an UncontractionGroupTree.
-        // ! (ContractionGroupIDs are only unique within a version and the respective hierarchy but combined with
-        // ! information about which version a node has been contracted in, the right hierarchy and depth can be found.)
-//        std::unique_ptr<parallel::scalable_vector<ContractionGroupID>> _node_to_group_map;
-
         Array<ContractionGroupID> _last_uncontraction_group_in_version;
+
+        std::vector<ContractionGroupID> _number_of_groups_per_depth;
 
     };
 
