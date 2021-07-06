@@ -508,7 +508,7 @@ class DynamicSparseMap {
       ASSERT(s->element);
       return s->element->value;
     } else {
-      if ( _size + 1 > _capacity / 5UL ) {
+      if ( _size + 1 > (_capacity * 2) / 5 ) {
         grow();
         s = find(key, _sparse, _capacity);
       }
@@ -692,7 +692,7 @@ class DynamicFlatMap {
     if (containsValidElement(key, s)) {
       return s->value;
     } else {
-      if (_size + 1 > _capacity / 5UL) {
+      if (_size + 1 > (_capacity * 2) / 5) {
         grow();
         s = find(key);
       }
