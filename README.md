@@ -276,7 +276,8 @@ If you are interested in a commercial license, please contact me.
       booktitle = {23rd Workshop on Algorithm Engineering and Experiments, (ALENEX 2021)},
       pages     = {16--30},
       year      = {2021},
-      publisher = {SIAM}
+      publisher = {SIAM},
+      doi       = {10.1137/1.9781611976472.2},
     }
 
     // Mt-KaHyPar Strong (Technical Report - Under Review)
