@@ -122,11 +122,8 @@ private:
                         const bool rollback);
 
   std::string blocksOfSearch(const SearchID search_id) {
-    std::string blocks = "";
-    for ( const BlockPair& block_pair : _quotient_graph.getBlockPairs(search_id) ) {
-      blocks += " (" + std::to_string(block_pair.i) + "," + std::to_string(block_pair.j) + ")";
-    }
-    return blocks;
+    const BlockPair blocks = _quotient_graph.getBlockPair(search_id);
+    return "(" + std::to_string(blocks.i) + "," + std::to_string(blocks.j) + ")";
   }
 
   PartitionedHypergraph* _phg;

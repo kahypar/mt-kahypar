@@ -79,17 +79,16 @@ SearchID QuotientGraph::requestNewSearch(AdvancedRefinerAdapter& refiner) {
   return search_id;
 }
 
-vec<BlockPairCutHyperedges> QuotientGraph::requestCutHyperedges(const SearchID search_id,
-                                                                const size_t max_num_edges) {
+BlockPairCutHyperedges QuotientGraph::requestCutHyperedges(const SearchID search_id,
+                                                           const size_t max_num_edges) {
   ASSERT(_phg);
   ASSERT(search_id < _searches.size());
-  vec<BlockPairCutHyperedges> block_pair_cut_hes;
+  BlockPairCutHyperedges block_pair_cut_hes;
   if ( !_searches[search_id].is_finalized ) {
     Search& search = _searches[search_id];
     const BlockPair blocks = search.blocks;
     QuotientGraphEdge& qg_edge = _quotient_graph[blocks.i][blocks.j];
-    block_pair_cut_hes.emplace_back();
-    block_pair_cut_hes.back().blocks = blocks;
+    block_pair_cut_hes.blocks = blocks;
 
     size_t num_edges = 0;
     while ( num_edges < max_num_edges && qg_edge.cut_he_weight > 0 ) {
@@ -100,7 +99,7 @@ vec<BlockPairCutHyperedges> QuotientGraph::requestCutHyperedges(const SearchID s
       qg_edge.cut_he_weight -= _phg->edgeWeight(he);
       if ( _phg->pinCountInPart(he, blocks.i) > 0 &&
           _phg->pinCountInPart(he, blocks.j) > 0 ) {
-        block_pair_cut_hes[0].cut_hes.push_back(he);
+        block_pair_cut_hes.cut_hes.push_back(he);
         _searches[search_id].used_cut_hes.push_back(he);
         ++num_edges;
       }

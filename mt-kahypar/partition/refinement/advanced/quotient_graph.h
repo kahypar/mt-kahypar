@@ -216,10 +216,10 @@ public:
    */
   SearchID requestNewSearch(AdvancedRefinerAdapter& refiner);
 
-  // ! Returns the block pairs on which the corresponding search operates on
-  vec<BlockPair> getBlockPairs(const SearchID search_id) const {
+  // ! Returns the block pair on which the corresponding search operates on
+  BlockPair getBlockPair(const SearchID search_id) const {
     ASSERT(search_id < _searches.size());
-    return { _searches[search_id].blocks };
+    return _searches[search_id].blocks;
   }
 
   // ! Number of block pairs used by the corresponding search
@@ -231,8 +231,8 @@ public:
    * Requests cut hyperedges that contains the blocks
    * associated with the corresponding search.
    */
-  vec<BlockPairCutHyperedges> requestCutHyperedges(const SearchID search_id,
-                                                   const size_t max_num_edges);
+  BlockPairCutHyperedges requestCutHyperedges(const SearchID search_id,
+                                              const size_t max_num_edges);
 
   /**
    * During problem construction we might acquire additional cut hyperedges

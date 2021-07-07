@@ -53,6 +53,8 @@ class ProblemConstruction {
       visited_hn(num_nodes, false),
       visited_he(num_edges, false) { }
 
+    void clearQueue(const PartitionID block);
+
     void clearQueues();
 
     void reset();
@@ -88,52 +90,13 @@ class ProblemConstruction {
     vec<bool> visited_he;
   };
 
-  /**
-   * Manages BFS data of all block pairs on which simultanously
-   * grow regions. The search can pop hypernodes from the queues,
-   * which are selected in round-robin fashion.
-   */
-  struct ConstructionData {
-    explicit ConstructionData(const HypernodeID num_nodes,
-                              const HyperedgeID num_edges) :
-      _num_nodes(num_nodes),
-      _num_edges(num_edges),
-      used_slots(0),
-      last_idx(0),
-      bfs() { }
-
-    void reset();
-
-    void initialize(const vec<BlockPairCutHyperedges>& initial_cut_hes,
-                    const ProblemStats& stats,
-                    const PartitionedHypergraph& phg);
-
-    void pop_hypernode(HypernodeID& hn, size_t& idx);
-
-    void clearBlock(const PartitionID block);
-
-    bool is_empty() {
-      bool empty = true;
-      for ( size_t i = 0; i < used_slots; ++i ) {
-        empty &= ( bfs[i].is_empty() && bfs[i].is_next_empty() );
-      }
-      return empty;
-    }
-
-    const HypernodeID _num_nodes;
-    const HyperedgeID _num_edges;
-    size_t used_slots;
-    size_t last_idx;
-    vec<BFSData> bfs;
-  };
-
  public:
   explicit ProblemConstruction(const Hypergraph& hg,
                                const Context& context) :
     _context(context),
     _vertex_ownership(hg.initialNumNodes(),
       CAtomic<SearchID>(QuotientGraph::INVALID_SEARCH_ID)),
-    _local_data(hg.initialNumNodes(), hg.initialNumEdges()),
+    _local_bfs(hg.initialNumNodes(), hg.initialNumEdges()),
     _local_stats(hg.initialNumEdges(), context.partition.k) { }
 
   ProblemConstruction(const ProblemConstruction&) = delete;
@@ -173,7 +136,7 @@ class ProblemConstruction {
   vec<CAtomic<SearchID>> _vertex_ownership;
 
   // ! Contains data required for BFS construction algorithm
-  tbb::enumerable_thread_specific<ConstructionData> _local_data;
+  tbb::enumerable_thread_specific<BFSData> _local_bfs;
 
   // ! Contains statistic about the currently constructed problem
   tbb::enumerable_thread_specific<ProblemStats> _local_stats;
