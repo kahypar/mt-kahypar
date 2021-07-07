@@ -24,7 +24,6 @@ namespace mt_kahypar::ds {
     static constexpr ContractionGroupID invalidGroupID = std::numeric_limits<ContractionGroupID>::max();
     static constexpr HypernodeID invalidDepth = std::numeric_limits<HypernodeID>::max();
 
-
     /// Represents a group of (un-)contractions that have been contracted simultaneously with the same representative.
     /// This means the contractions in a group have to be uncontracted simultaneously as well in the sense that no local
     /// refinement is performed in between uncontractions of the same group as those states may be inconsistent.

@@ -658,6 +658,10 @@ class StaticHypergraph {
     return hyperedge(e).size();
   }
 
+  HypernodeID totalSize(const HyperedgeID) const {
+    ERROR("totalSize() is not supported on StaticHypergraph.");
+  }
+
   // ! Maximum size of a hyperedge
   HypernodeID maxEdgeSize() const {
     return _max_edge_size;
@@ -676,6 +680,14 @@ class StaticHypergraph {
   // ! Disabled a hyperedge (must be enabled before)
   void disableHyperedge(const HyperedgeID e) {
     hyperedge(e).disable();
+  }
+
+  size_t snapshotEdgeSizeThreshold() const {
+    ERROR("snapshotEdgeSizeThreshold() not supported on StaticHypergraph.");
+  }
+
+  void setSnapshotEdgeSizeThreshold(const size_t) {
+    ERROR("setSnapshotEdgeSizeThreshold() not supported on StaticHypergraph.");
   }
 
   // ! Community id which hypernode u is assigned to

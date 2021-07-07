@@ -466,6 +466,19 @@ namespace mt_kahypar {
     return options;
   }
 
+#ifdef USE_ASYNC_UNCOARSENING
+  po::options_description createUncoarseningOptionsDescription(Context& context, const int num_columns) {
+    po::options_description options("Uncoarsening Options", num_columns);
+    options.add_options()
+            ("u-snapshot-edge-size-threshold",
+            po::value<size_t>(&context.uncoarsening.snapshot_edge_size_threshold)->value_name("<size_t>")->default_value(0),
+            "Hyperedges larger than this threshold will experience gain cache updates outside of a hyperedge "
+            "lock via snapshotting pins and connectivity set. (Only has an effect in MtKaHyParStrongAsync).")
+            ;
+    return options;
+  }
+#endif
+
 #ifdef KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES
   po::options_description createSparsificationOptionsDescription(Context& context,
                                                                const int num_columns) {
@@ -582,6 +595,10 @@ namespace mt_kahypar {
             createInitialPartitioningOptionsDescription(context, num_columns);
     po::options_description refinement_options =
             createRefinementOptionsDescription(context, num_columns, false);
+#ifdef USE_ASYNC_UNCOARSENING
+    po::options_description uncoarsening_options =
+        createUncoarseningOptionsDescription(context, num_columns);
+#endif
 #ifdef KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES
     po::options_description sparsification_options =
     createSparsificationOptionsDescription(context, num_columns);
@@ -598,6 +615,9 @@ namespace mt_kahypar {
             .add(coarsening_options)
             .add(initial_paritioning_options)
             .add(refinement_options)
+#ifdef USE_ASYNC_UNCOARSENING
+            .add(uncoarsening_options)
+#endif
 #ifdef KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES
                     .add(sparsification_options)
 #endif
@@ -629,6 +649,9 @@ namespace mt_kahypar {
             .add(coarsening_options)
             .add(initial_paritioning_options)
             .add(refinement_options)
+#ifdef USE_ASYNC_UNCOARSENING
+            .add(uncoarsening_options)
+#endif
 #ifdef KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES
                     .add(sparsification_options)
 #endif
@@ -684,6 +707,10 @@ namespace mt_kahypar {
             createInitialPartitioningOptionsDescription(context, num_columns);
     po::options_description refinement_options =
             createRefinementOptionsDescription(context, num_columns, false);
+#ifdef USE_ASYNC_UNCOARSENING
+    po::options_description uncoarsening_options =
+        createUncoarseningOptionsDescription(context, num_columns);
+#endif
 #ifdef KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES
     po::options_description sparsification_options =
     createSparsificationOptionsDescription(context, num_columns);
@@ -698,6 +725,9 @@ namespace mt_kahypar {
             .add(coarsening_options)
             .add(initial_paritioning_options)
             .add(refinement_options)
+#ifdef USE_ASYNC_UNCOARSENING
+            .add(uncoarsening_options)
+#endif
 #ifdef KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES
                     .add(sparsification_options)
 #endif

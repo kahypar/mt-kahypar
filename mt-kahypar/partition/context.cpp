@@ -211,6 +211,7 @@ namespace mt_kahypar {
   std::ostream & operator<<(std::ostream &str, const UncoarseningParameters &params) {
       str << "Uncoarsening Parameters:              " << std::endl;
       str << "  Use Asynchronous Uncoarsening:      " << std::boolalpha << params.use_asynchronous_uncoarsening << std::endl;
+      str << "  Snapshot Edge Size Threshold:       " << params.snapshot_edge_size_threshold << std::endl;
       return str;
   }
 

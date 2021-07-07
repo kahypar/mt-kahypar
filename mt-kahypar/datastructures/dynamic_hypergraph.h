@@ -529,6 +529,7 @@ class DynamicHypergraph {
     _node_depths(),
     _uncontraction_hierarchies(),
     _num_stable_active_pins(),
+    _snapshot_edge_size_threshold(0),
     _hyperedges(),
     _incidence_array(),
     _acquired_hes(),
@@ -559,6 +560,7 @@ class DynamicHypergraph {
     _node_depths(std::move(other._node_depths)),
     _uncontraction_hierarchies(std::move(other._uncontraction_hierarchies)),
     _num_stable_active_pins(std::move(other._num_stable_active_pins)),
+    _snapshot_edge_size_threshold(other._snapshot_edge_size_threshold),
     _hyperedges(std::move(other._hyperedges)),
     _incidence_array(std::move(other._incidence_array)),
     _acquired_hes(std::move(other._acquired_hes)),
@@ -586,6 +588,7 @@ class DynamicHypergraph {
     _node_depths = std::move(other._node_depths);
     _uncontraction_hierarchies = std::move(other._uncontraction_hierarchies);
     _num_stable_active_pins = std::move(other._num_stable_active_pins);
+    _snapshot_edge_size_threshold = other._snapshot_edge_size_threshold;
     _hyperedges = std::move(other._hyperedges);
     _incidence_array = std::move(other._incidence_array);
     _acquired_hes = std::move(other._acquired_hes);
@@ -818,6 +821,15 @@ class DynamicHypergraph {
     return hyperedge(e).size();
   }
 
+  // ! Number of active plus inactive pins of the hyperedge (number of slots in the incidence array)
+  HypernodeID totalSize(const HyperedgeID e) const {
+    ASSERT(!hyperedge(e).isDisabled(), "Hyperedge" << e << "is disabled");
+    if (e == _num_hyperedges - 1) {
+      return _incidence_array.size() - hyperedge(e).firstEntry();
+    }
+    return hyperedge(e + 1).firstEntry() - hyperedge(e).firstEntry();
+  }
+
   // ! Maximum size of a hyperedge
   HypernodeID maxEdgeSize() const {
     return _max_edge_size;
@@ -842,6 +854,15 @@ class DynamicHypergraph {
   // ! Disabled a hyperedge (must be enabled before)
   void disableHyperedge(const HyperedgeID e) {
     hyperedge(e).disable();
+  }
+
+  size_t snapshotEdgeSizeThreshold() const {
+    return _snapshot_edge_size_threshold;
+  }
+
+  // ! Sets snapshot edge size threshold. Not to be used during uncoarsening!
+  void setSnapshotEdgeSizeThreshold(const size_t threshold) {
+    _snapshot_edge_size_threshold = threshold;
   }
 
   // ####################### Community Information #######################
@@ -1289,6 +1310,9 @@ private:
 
   // ! Number of stable pins in each hyperedge denoting offsets on where volatile active pins begin in the incidence array
   Array<HypernodeID> _num_stable_active_pins;
+  // ! Edges with fewer pins than this threshold won't be sorted by stable/volatile active pins and will experience
+  // ! synchronized gain cache updates within a HE lock
+  size_t _snapshot_edge_size_threshold;
 
 
   // ! Hyperedges
@@ -1306,6 +1330,8 @@ private:
   ThreadLocalBitset _he_bitset;
   // ! Single-pin and parallel nets are marked within that vector during the algorithm
   kahypar::ds::FastResetFlagArray<> _removable_single_pin_and_parallel_nets;
+
+
 
 };
 

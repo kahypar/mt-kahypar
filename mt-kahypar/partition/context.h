@@ -191,6 +191,18 @@ struct SparsificationParameters {
 
 std::ostream & operator<< (std::ostream& str, const SparsificationParameters& params);
 
+
+struct UncoarseningParameters {
+#ifdef USE_ASYNC_UNCOARSENING
+        bool use_asynchronous_uncoarsening = true;
+#else
+        bool use_asynchronous_uncoarsening = false;
+#endif
+  size_t snapshot_edge_size_threshold = 0;
+};
+
+std::ostream & operator<< (std::ostream& str, const UncoarseningParameters& params);
+
 struct InitialPartitioningParameters {
   InitialPartitioningParameters() :
     // Enable all initial partitioner per default
@@ -222,15 +234,6 @@ struct SharedMemoryParameters {
 
 std::ostream & operator<< (std::ostream& str, const SharedMemoryParameters& params);
 
-struct UncoarseningParameters {
-#ifdef USE_ASYNC_UNCOARSENING
-        bool use_asynchronous_uncoarsening = true;
-#else
-        bool use_asynchronous_uncoarsening = false;
-#endif
-};
-
-std::ostream & operator<< (std::ostream& str, const UncoarseningParameters& params);
 
 class Context {
  public:

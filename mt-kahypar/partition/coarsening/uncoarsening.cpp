@@ -579,6 +579,7 @@ namespace mt_kahypar {
           _phg.setOnlyNodePart(hn, block_id);
       });
       _phg.initializePartition();
+      _phg.setSnapshotEdgeSizeThreshold(_context.uncoarsening.snapshot_edge_size_threshold);
 
       if ( _context.refinement.fm.algorithm == FMAlgorithm::fm_gain_cache) {
           _phg.initializeGainCache();

@@ -392,6 +392,11 @@ private:
     return _hg->graphEdgeHead(e, tail);
   }
 
+  // ! Sets snapshot edge size threshold. Not to be used during uncoarsening!
+  void setSnapshotEdgeSizeThreshold(const size_t threshold) {
+      _hg->setSnapshotEdgeSizeThreshold(threshold);
+  }
+
   // ####################### Uncontraction #######################
 
   /**
@@ -421,16 +426,15 @@ private:
           // of hyperedge he does not decrease the connectivity any more after the
           // uncontraction => b(u) -= w(he)
           const HyperedgeWeight edge_weight = edgeWeight(he);
-            _gain_cache.updateForUncontractCaseOne(he, edge_weight, v, block, pin_count_in_part_after, pins(he));
+            _gain_cache.syncUpdateForUncontractCaseOne(he, edge_weight, v, block, pin_count_in_part_after, pins(he));
         }
       },
       [&](const HypernodeID u, const HypernodeID v, const HyperedgeID he) {
         // In this case, u is replaced by v in hyperedge he
         // => Pin counts of hyperedge he does not change
         if ( _is_gain_cache_initialized ) {
-          const PartitionID block = partID(u);
           const HyperedgeWeight edge_weight = edgeWeight(he);
-          _gain_cache.updateForUncontractCaseTwo(he, edge_weight, u, v, pinCountInPart(he, block));
+          _gain_cache.syncUpdateForUncontractCaseTwo(he, edge_weight, u, v);
         }
       });
   }
@@ -465,16 +469,11 @@ private:
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
   IteratorRange<HypernodeID*> takeVolatilePinsSnapshot(const HyperedgeID he) {
     std::vector<HypernodeID>& pins_snapshot = _pins_snapshots.local();
-//    pins_snapshot.clear();
     auto pin_range = _hg->volatile_pins(he);
     HypernodeID* ptr_to_begin = &(*pin_range.begin());
     HypernodeID num_pins = pin_range.end() - pin_range.begin();
     ASSERT(num_pins <= pins_snapshot.size());
     std::memcpy(pins_snapshot.data(), ptr_to_begin, static_cast<size_t>(num_pins) * sizeof(HypernodeID));
-//    for (const auto& pin : pins(he)) {
-//      pins_snapshot[cur_num_pins] = pin;
-//      cur_num_pins++;
-//    }
 
     return IteratorRange(pins_snapshot.data(), pins_snapshot.data() + num_pins);
   }
@@ -484,7 +483,8 @@ private:
     return _hg->stable_pins(he);
   }
 
-  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE IteratorRange<PinSnapshotIterator> takePinsSnapshot(const HyperedgeID he) {
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
+  IteratorRange<PinSnapshotIterator> takePinsSnapshot(const HyperedgeID he) {
     return PinSnapshotIterator::stitchPinIterators(takeStablePinsSnapshot(he), takeVolatilePinsSnapshot(he));
   }
 
@@ -525,20 +525,27 @@ private:
                           ASSERT(pin_count_in_part_after > 1, V(u) << V(v) << V(he));
                           if (_is_gain_cache_initialized) {
 
-                              PartitionBitSet& conn_set = getLocalConnSetBitSet();
-                              PartitionBitSet& parts_with_one_pin = getLocalPartsWithOnePinBitSet();
-                              takeConnectivitySetSnapshots(he, conn_set, parts_with_one_pin);
-                              auto pins_snapshot = takePinsSnapshot(he);
-                              _pin_count_update_ownership[he].unlock();
+                              if (_hg->totalSize(he) < _hg->snapshotEdgeSizeThreshold()) {
+                                // Gain cache update within lock, no snapshots
+                                const HyperedgeWeight edge_weight = edgeWeight(he);
+                                _gain_cache.syncUpdateForUncontractCaseOne(he, edge_weight, v, block, pin_count_in_part_after, pins(he));
+                                _pin_count_update_ownership[he].unlock();
+                              } else {
+                                // Snapshot pins and connectivity set in lock, gain cache update outside of lock
+                                PartitionBitSet& conn_set = getLocalConnSetBitSet();
+                                PartitionBitSet& parts_with_one_pin = getLocalPartsWithOnePinBitSet();
+                                takeConnectivitySetSnapshots(he, conn_set, parts_with_one_pin);
+                                auto pins_snapshot = takePinsSnapshot(he);
+                                _pin_count_update_ownership[he].unlock();
 
-                              // If u was the only pin of hyperedge he in its block before then moving out vertex u
-                              // of hyperedge he does not decrease the connectivity any more after the
-                              // uncontraction => b(u) -= w(he)
-                              const HyperedgeWeight edge_weight = edgeWeight(he);
-                              _gain_cache.updateForUncontractCaseOne(edge_weight, v, block,
-                                                                     pin_count_in_part_after, pins_snapshot,
-                                                                     conn_set, parts_with_one_pin);
-
+                                // If u was the only pin of hyperedge he in its block before then moving out vertex u
+                                // of hyperedge he does not decrease the connectivity any more after the
+                                // uncontraction => b(u) -= w(he)
+                                const HyperedgeWeight edge_weight = edgeWeight(he);
+                                _gain_cache.asyncUpdateForUncontractCaseOne(edge_weight, v, block,
+                                                                       pin_count_in_part_after, pins_snapshot,
+                                                                       conn_set, parts_with_one_pin);
+                              }
                           } else {
                               _pin_count_update_ownership[he].unlock();
                           }
@@ -549,6 +556,14 @@ private:
                           // In this case, u is replaced by v in hyperedge he
                           // => Pin counts of hyperedge he does not change
                           if (_is_gain_cache_initialized) {
+
+                            if (_hg->totalSize(he) < _hg->snapshotEdgeSizeThreshold()) {
+                              // Gain cache update within lock, no snapshots
+                              const HyperedgeWeight edge_weight = edgeWeight(he);
+                              _gain_cache.syncUpdateForUncontractCaseTwo(he, edge_weight, u, v);
+                              _pin_count_update_ownership[he].unlock();
+                            } else {
+                              // Snapshot pins and connectivity set in lock, gain cache update outside of lock
                               PartitionBitSet& conn_set = getLocalConnSetBitSet();
                               PartitionBitSet& parts_with_one_pin = getLocalPartsWithOnePinBitSet();
                               takeConnectivitySetSnapshots(he, conn_set, parts_with_one_pin);
@@ -557,7 +572,8 @@ private:
                               // In this case only v was part of hyperedge e before and
                               // u must be replaced by v in hyperedge e
                               const HyperedgeWeight edge_weight = edgeWeight(he);
-                              _gain_cache.updateForUncontractCaseTwo(edge_weight, u, v, conn_set, parts_with_one_pin);
+                              _gain_cache.asyncUpdateForUncontractCaseTwo(edge_weight, u, v, conn_set, parts_with_one_pin);
+                            }
                           } else {
                               _pin_count_update_ownership[he].unlock();
                           }
@@ -1316,9 +1332,10 @@ private:
     gain_cache_update_func(edgeWeight(he), pins(he), from, pin_count_in_from_part_after, to, pin_count_in_to_part_after);
   }
 
-    // ! Updates pin count in part using a spinlock. In this variant for asynchronous uncoarsening the pins of the
-    // ! hyperedge are stored within the pin count update lock in order to make the gain cache update work on the right
-    // ! pins (outside of the lock)
+    // ! Updates pin count in part using a spinlock. In this variant for asynchronous uncoarsening concurrent
+    // ! uncontractions and moves are allowed. For small edges, the gain cache update is performed inside the HE lock
+    // ! and for large edges the pins of the hyperedge are stored within the pin count update lock in order to make the
+    // ! gain cache update work on the right pins outside of the lock
   template<typename DeltaFunc, typename GainCacheUpdateFunc>
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE void asyncUpdatePinCountOfHyperedge(const HyperedgeID he,
                                                                          const PartitionID from,
@@ -1329,10 +1346,18 @@ private:
       _pin_count_update_ownership[he].lock();
       const HypernodeID pin_count_in_from_part_after = decrementPinCountInPartWithoutGainUpdate(he, from);
       const HypernodeID pin_count_in_to_part_after = incrementPinCountInPartWithoutGainUpdate(he, to);
-      auto pins_snapshot = takePinsSnapshot(he);
-      _pin_count_update_ownership[he].unlock();
-      delta_func(he, edgeWeight(he), edgeSize(he), pin_count_in_from_part_after, pin_count_in_to_part_after);
-      gain_cache_update_func(edgeWeight(he), pins_snapshot, from, pin_count_in_from_part_after, to, pin_count_in_to_part_after);
+      size_t edge_size = edgeSize(he);
+
+      if (_hg->totalSize(he) < _hg->snapshotEdgeSizeThreshold()) {
+        gain_cache_update_func(edgeWeight(he), pins(he), from, pin_count_in_from_part_after, to, pin_count_in_to_part_after);
+        _pin_count_update_ownership[he].unlock();
+      } else {
+        auto pins_snapshot = takePinsSnapshot(he);
+        _pin_count_update_ownership[he].unlock();
+        gain_cache_update_func(edgeWeight(he), pins_snapshot, from, pin_count_in_from_part_after, to, pin_count_in_to_part_after);
+      }
+
+      delta_func(he, edgeWeight(he), edge_size, pin_count_in_from_part_after, pin_count_in_to_part_after);
   }
 
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE

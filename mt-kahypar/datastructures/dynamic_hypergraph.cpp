@@ -343,6 +343,7 @@ VersionedPoolVector DynamicHypergraph::createUncontractionGroupPoolsForVersions(
 
 void DynamicHypergraph::movePinToStablePinsAndIncreaseOffset(const HyperedgeID he, const size_t previous_pin_index) {
 
+  ASSERT(totalSize(he) >= snapshotEdgeSizeThreshold());
   ASSERT(previous_pin_index >= hyperedge(he).firstEntry() && previous_pin_index < hyperedge(he).firstInvalidEntry());
 
   size_t first_volatile_entry = hyperedge(he).firstEntry() + _num_stable_active_pins[he];
@@ -380,20 +381,24 @@ void DynamicHypergraph::uncontract(const ContractionGroup& group,
         _incident_nets.uncontract(memento.u, memento.v,[&](const HyperedgeID e) {
             // In this case, u and v were both previously part of hyperedge e.
 //            if (!try_lock_pin_count_update(e)) return false;
+            ASSERT(totalSize(e) >= snapshotEdgeSizeThreshold() || _num_stable_active_pins[e] == 0);
 
             lock_pin_count_update(e);
             reactivatePinForSingleUncontraction(e,memento.v);
+            // For edges that experience gain cache updates with snapshotting maintain their sorting by stable/volatile active pins:
             // Check if u became stable with this uncontraction and/or if v is initially stable and if so move them in the
             // incidence array accordingly
-            if (last_uncontraction_of_u) {
-              size_t slot_of_u = _incidence_array.size();
-              if (tryToFindPositionOfVolatileActivePin(memento.u, e, slot_of_u)) {
-                movePinToStablePinsAndIncreaseOffset(e, slot_of_u);
+            if (totalSize(e) >= snapshotEdgeSizeThreshold()) {
+              if (last_uncontraction_of_u) {
+                size_t slot_of_u = _incidence_array.size();
+                if (tryToFindPositionOfVolatileActivePin(memento.u, e, slot_of_u)) {
+                  movePinToStablePinsAndIncreaseOffset(e, slot_of_u);
+                }
               }
-            }
-            if (hierarchy->isInitiallyStableNode(memento.v)) {
-              ASSERT(hyperedge(e).firstInvalidEntry() - 1 >= hyperedge(e).firstEntry());
-              movePinToStablePinsAndIncreaseOffset(e, hyperedge(e).firstInvalidEntry() - 1);
+              if (hierarchy->isInitiallyStableNode(memento.v)) {
+                ASSERT(hyperedge(e).firstInvalidEntry() - 1 >= hyperedge(e).firstEntry());
+                movePinToStablePinsAndIncreaseOffset(e, hyperedge(e).firstInvalidEntry() - 1);
+              }
             }
             // Make sure case_one_func releases the pin count update ownership lock on e again
             case_one_func(memento.u, memento.v, e);
@@ -401,14 +406,16 @@ void DynamicHypergraph::uncontract(const ContractionGroup& group,
         }, [&](const HyperedgeID e) {
             // In this case only v was part of hyperedge e before and
             // u must be replaced by v in hyperedge e
+            ASSERT(totalSize(e) >= snapshotEdgeSizeThreshold() || _num_stable_active_pins[e] == 0);
 
 //            if (!try_lock_pin_count_update(e)) return false;
             lock_pin_count_update(e);
             const size_t slot_of_u = findPositionOfPinInIncidenceArray(memento.u, e);
             ASSERT(_incidence_array[slot_of_u] == memento.u);
             _incidence_array[slot_of_u] = memento.v;
+            // For edges that experience gain cache updates with snapshotting maintain their sorting by stable/volatile active pins:
             // Check if v is initially stable and if so move it in the incidence array accordingly
-            if (hierarchy->isInitiallyStableNode(memento.v)) {
+            if (totalSize(e) >= snapshotEdgeSizeThreshold() && hierarchy->isInitiallyStableNode(memento.v)) {
               movePinToStablePinsAndIncreaseOffset(e, slot_of_u);
             }
 
@@ -1324,27 +1331,34 @@ void DynamicHypergraph::sortStableActivePinsToBeginning() {
     return _uncontraction_hierarchies[version()]->isInitiallyStableNode(hn);
   };
 
-  // Sort the valid part of each hyperedge: Sort initially stable active pins to the beginning of the
+  // Sort the active part of each hyperedge that needs to be snapshotted, i.e. those larger than the snapshot threshold:
+  // Sort initially stable active pins to the beginning of the
   // incidence array for the hyperedge in order to allow snapshots of the range of stable active pins by
-  // (begin, end) range removing the need to copy that part of the incidence array when taking a pin snapshot
-  tbb::parallel_for(ID(0), _num_hyperedges, [&](const HyperedgeID& he) {
-      const size_t first_valid_entry = hyperedge(he).firstEntry();
-      const size_t first_invalid_entry = hyperedge(he).firstInvalidEntry();
-      std::sort(_incidence_array.begin() + first_valid_entry,
-                _incidence_array.begin() + first_invalid_entry,
-                [&](const HypernodeID u, const HypernodeID v) {
-                    return isStable(u) && !isStable(v);
-                });
-      // Find out how many stable pins there are and set offsets accordingly
-      HypernodeID num_stable = 0;
-      size_t idx = first_valid_entry;
-      while(idx < first_invalid_entry && isStable(_incidence_array[idx])) {
-        ++num_stable;
-        ++idx;
+  // (begin, end) range removing the need to copy that part of the incidence array when taking a pin snapshot.
+  // (Edges smaller than the threshold experience gain cache updates synchronized in a lock. However, they get
+  // _num_stable_active_pins = 0, making them resistant against trying to snapshot them as thus volatile_pins = pins.)
+  doParallelForAllEdges([&](const HyperedgeID& he) {
+      if (totalSize(he) >= snapshotEdgeSizeThreshold()) {
+        const size_t first_valid_entry = hyperedge(he).firstEntry();
+        const size_t first_invalid_entry = hyperedge(he).firstInvalidEntry();
+        std::sort(_incidence_array.begin() + first_valid_entry,
+                  _incidence_array.begin() + first_invalid_entry,
+                  [&](const HypernodeID u, const HypernodeID v) {
+                      return isStable(u) && !isStable(v);
+                  });
+        // Find out how many stable pins there are and set offsets accordingly
+        HypernodeID num_stable = 0;
+        size_t idx = first_valid_entry;
+        while(idx < first_invalid_entry && isStable(_incidence_array[idx])) {
+          ++num_stable;
+          ++idx;
+        }
+        ASSERT(he < _num_stable_active_pins.size());
+        _num_stable_active_pins[he] = num_stable;
       }
-      ASSERT(he < _num_stable_active_pins.size());
-      _num_stable_active_pins[he] = num_stable;
   });
+
+
 
 }
 
