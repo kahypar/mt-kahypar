@@ -48,6 +48,7 @@ class AAdvancedRefinementScheduler : public Test {
     context.refinement.advanced.num_threads_per_search = 1;
     context.refinement.advanced.num_cut_edges_per_block_pair = 50;
     context.refinement.advanced.max_bfs_distance = 2;
+    context.refinement.advanced.max_concurrency_per_block = 10000;
 
     phg.setOnlyNodePart(0, 0);
     phg.setOnlyNodePart(1, 0);
@@ -92,7 +93,8 @@ TEST_F(AAdvancedRefinementScheduler, MovesOneVertex) {
   refiner.initialize(phg);
   MoveSequence sequence { { MOVE(3, 0, 1) }, 1 };
 
-  const HyperedgeWeight improvement = refiner.applyMoves(sequence);
+  const HyperedgeWeight improvement = refiner.applyMoves(
+    QuotientGraph::INVALID_SEARCH_ID, sequence);
   ASSERT_EQ(sequence.state, MoveSequenceState::SUCCESS);
   ASSERT_EQ(improvement, sequence.expected_improvement);
   ASSERT_EQ(1, phg.partID(3));
@@ -104,7 +106,8 @@ TEST_F(AAdvancedRefinementScheduler, MovesVerticesWithIntermediateBalanceViolati
   refiner.initialize(phg);
   MoveSequence sequence { { MOVE(5, 1, 0), MOVE(1, 0, 1), MOVE(3, 0, 1) }, 1 };
 
-  const HyperedgeWeight improvement = refiner.applyMoves(sequence);
+  const HyperedgeWeight improvement = refiner.applyMoves(
+    QuotientGraph::INVALID_SEARCH_ID, sequence);
   ASSERT_EQ(sequence.state, MoveSequenceState::SUCCESS);
   ASSERT_EQ(improvement, sequence.expected_improvement);
   ASSERT_EQ(1, phg.partID(1));
@@ -118,7 +121,8 @@ TEST_F(AAdvancedRefinementScheduler, MovesAVertexThatWorsenSolutionQuality) {
   refiner.initialize(phg);
   MoveSequence sequence { { MOVE(0, 0, 1) }, 1 };
 
-  const HyperedgeWeight improvement = refiner.applyMoves(sequence);
+  const HyperedgeWeight improvement = refiner.applyMoves(
+    QuotientGraph::INVALID_SEARCH_ID, sequence);
   ASSERT_EQ(sequence.state, MoveSequenceState::WORSEN_SOLUTION_QUALITY);
   ASSERT_EQ(improvement, 0);
   ASSERT_EQ(0, phg.partID(0));
@@ -130,7 +134,8 @@ TEST_F(AAdvancedRefinementScheduler, MovesAVertexThatViolatesBalanceConstraint) 
   refiner.initialize(phg);
   MoveSequence sequence { { MOVE(4, 1, 0) }, 1 };
 
-  const HyperedgeWeight improvement = refiner.applyMoves(sequence);
+  const HyperedgeWeight improvement = refiner.applyMoves(
+    QuotientGraph::INVALID_SEARCH_ID, sequence);
   ASSERT_EQ(sequence.state, MoveSequenceState::VIOLATES_BALANCE_CONSTRAINT);
   ASSERT_EQ(improvement, 0);
   ASSERT_EQ(1, phg.partID(4));
@@ -146,12 +151,14 @@ TEST_F(AAdvancedRefinementScheduler, MovesTwoVerticesConcurrently) {
   MoveSequence sequence_2 { { MOVE(5, 1, 0) }, 0 };
   HypernodeWeight improvement_1 = 0, improvement_2 = 0;
   executeConcurrent([&] {
-    improvement_1 = refiner.applyMoves(sequence_1);
+    improvement_1 = refiner.applyMoves(
+      QuotientGraph::INVALID_SEARCH_ID, sequence_1);
     ASSERT_EQ(sequence_1.state, MoveSequenceState::SUCCESS);
     ASSERT_EQ(improvement_1, sequence_1.expected_improvement);
     ASSERT_EQ(1, phg.partID(3));
   }, [&] {
-    improvement_2 = refiner.applyMoves(sequence_2);
+    improvement_2 = refiner.applyMoves(
+      QuotientGraph::INVALID_SEARCH_ID, sequence_2);
     ASSERT_EQ(sequence_2.state, MoveSequenceState::SUCCESS);
     ASSERT_EQ(improvement_2, sequence_2.expected_improvement);
     ASSERT_EQ(0, phg.partID(5));
@@ -168,9 +175,11 @@ TEST_F(AAdvancedRefinementScheduler, MovesTwoVerticesConcurrentlyWhereOneViolate
   MoveSequence sequence_2 { { MOVE(1, 0, 1) }, 0 };
   HypernodeWeight improvement_1 = 0, improvement_2 = 0;
   executeConcurrent([&] {
-    improvement_1 = refiner.applyMoves(sequence_1);
+    improvement_1 = refiner.applyMoves(
+      QuotientGraph::INVALID_SEARCH_ID, sequence_1);
   }, [&] {
-    improvement_2 = refiner.applyMoves(sequence_2);
+    improvement_2 = refiner.applyMoves(
+      QuotientGraph::INVALID_SEARCH_ID, sequence_2);
   });
 
   ASSERT_TRUE(sequence_1.state == MoveSequenceState::VIOLATES_BALANCE_CONSTRAINT ||
@@ -213,6 +222,7 @@ class AnAdvancedRefinementEndToEnd : public Test {
     context.refinement.advanced.num_threads_per_search = 1;
     context.refinement.advanced.num_cut_edges_per_block_pair = 50;
     context.refinement.advanced.max_bfs_distance = 2;
+    context.refinement.advanced.max_concurrency_per_block = 10000;
 
     // Read hypergraph
     hg = io::readHypergraphFile(context.partition.graph_filename);

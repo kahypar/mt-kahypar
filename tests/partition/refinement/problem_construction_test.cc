@@ -46,6 +46,7 @@ class AProblemConstruction : public Test {
     context.refinement.advanced.num_threads_per_search = 1;
     context.refinement.advanced.num_cut_edges_per_block_pair = 50;
     context.refinement.advanced.max_bfs_distance = 2;
+    context.refinement.advanced.max_concurrency_per_block = 10000;
 
     // Read hypergraph
     hg = io::readHypergraphFile(context.partition.graph_filename);
@@ -82,11 +83,9 @@ class AProblemConstruction : public Test {
     }
 
     vec<bool> used_blocks(context.partition.k, false);
-      for ( const BlockPair& blocks : qg.getBlockPairs(search_id) ) {
-      used_blocks[blocks.i] = true;
-      used_blocks[blocks.j] = true;
-    }
-
+    const BlockPair blocks = qg.getBlockPair(search_id);
+    used_blocks[blocks.i] = true;
+    used_blocks[blocks.j] = true;
     for ( PartitionID i = 0; i < context.partition.k; ++i ) {
       if ( used_blocks[i] ) {
         ASSERT_LE(part_weights[i], max_part_weights[i]);
@@ -180,64 +179,5 @@ TEST_F(AProblemConstruction, GrowTwoAdvancedRefinementProblemAroundTwoBlocksSimu
   });
   verifyThatVertexSetAreDisjoint(nodes_1, nodes_2);
 }
-
-TEST_F(AProblemConstruction, GrowAnAdvancedRefinementProblemAroundFourBlocks1) {
-  AdvancedRefinerMockControl::instance().max_num_blocks = 4;
-  ProblemConstruction constructor(hg, context);
-  AdvancedRefinerAdapter refiner(hg, context);
-  QuotientGraph qg(hg, context);
-  qg.initialize(phg);
-
-  max_part_weights.assign(context.partition.k, 800);
-  max_part_weights[2] = 500;
-  SearchID search_id = qg.requestNewSearch(refiner);
-  vec<HypernodeID> nodes = constructor.construct(
-    search_id, qg, refiner, phg);
-
-  verifyThatPartWeightsAreLessEqualToMaxPartWeight(nodes, search_id, qg);
-}
-
-TEST_F(AProblemConstruction, GrowAnAdvancedRefinementProblemAroundFourBlocks2) {
-  AdvancedRefinerMockControl::instance().max_num_blocks = 4;
-  ProblemConstruction constructor(hg, context);
-  AdvancedRefinerAdapter refiner(hg, context);
-  QuotientGraph qg(hg, context);
-  qg.initialize(phg);
-
-  max_part_weights.assign(context.partition.k, 800);
-  max_part_weights[2] = 500;
-  max_part_weights[6] = 300;
-  SearchID search_id = qg.requestNewSearch(refiner);
-  vec<HypernodeID> nodes = constructor.construct(
-    search_id, qg, refiner, phg);
-
-  verifyThatPartWeightsAreLessEqualToMaxPartWeight(nodes, search_id, qg);
-}
-
-TEST_F(AProblemConstruction, GrowTwoAdvancedRefinementProblemAroundFourBlocksSimultanously) {
-  AdvancedRefinerMockControl::instance().max_num_blocks = 4;
-  ProblemConstruction constructor(hg, context);
-  AdvancedRefinerAdapter refiner(hg, context);
-  QuotientGraph qg(hg, context);
-  qg.initialize(phg);
-
-  max_part_weights.assign(context.partition.k, 500);
-  vec<HypernodeID> nodes_1;
-  vec<HypernodeID> nodes_2;
-  executeConcurrent([&] {
-    SearchID search_id = qg.requestNewSearch(refiner);
-    nodes_1 = constructor.construct(
-      search_id, qg, refiner, phg);
-    verifyThatPartWeightsAreLessEqualToMaxPartWeight(nodes_1, search_id, qg);
-  }, [&] {
-    SearchID search_id = qg.requestNewSearch(refiner);
-    nodes_2 = constructor.construct(
-      search_id, qg, refiner, phg);
-    verifyThatPartWeightsAreLessEqualToMaxPartWeight(nodes_2, search_id, qg);
-  });
-  verifyThatVertexSetAreDisjoint(nodes_1, nodes_2);
-}
-
-
 
 }
