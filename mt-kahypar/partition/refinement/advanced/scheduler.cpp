@@ -79,7 +79,12 @@ bool AdvancedRefinementScheduler::refineImpl(
           MoveSequence sequence = _refiner.refine(search_id, phg, refinement_nodes);
           utils::Timer::instance().stop_timer("refine_problem");
 
-          if ( !sequence.moves.empty() ) {
+          // We apply move sequences with zero gain improvment only if there are
+          // currently no concurrent searches running on both blocks of the search.
+          const bool found_potential_improvement = !sequence.moves.empty();
+          const bool apply_zero_gain_improvement = sequence.expected_improvement != 0 ||
+            _quotient_graph.currentActiveSearchesOnBlocksOfSearch(search_id) <= 1;
+          if ( found_potential_improvement && apply_zero_gain_improvement ) {
             utils::Timer::instance().start_timer("apply_moves", "Apply Moves", true);
             HyperedgeWeight delta = applyMoves(search_id, sequence);
             overall_delta -= delta;
