@@ -275,13 +275,6 @@ public:
     return _block_scheduler.empty() && _num_active_searches == 0;
   }
 
-  size_t currentActiveSearchesOnBlocksOfSearch(const SearchID search_id) {
-    const BlockPair blocks = getBlockPair(search_id);
-    return std::max(
-      _num_active_searches_on_blocks[blocks.i],
-      _num_active_searches_on_blocks[blocks.j]);
-  }
-
   // ! Only for testing
   HyperedgeWeight getCutHyperedgeWeightOfBlockPair(const PartitionID i, const PartitionID j) const {
     ASSERT(i < j);
