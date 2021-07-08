@@ -50,6 +50,7 @@ void QuotientGraph::QuotientGraphEdge::reset() {
   initial_num_cut_hes = 0;
   initial_cut_he_weight = 0;
   cut_he_weight.store(0, std::memory_order_relaxed);
+  num_active_searches.store(0, std::memory_order_relaxed);
 }
 
 SearchID QuotientGraph::requestNewSearch(AdvancedRefinerAdapter& refiner) {
@@ -65,6 +66,7 @@ SearchID QuotientGraph::requestNewSearch(AdvancedRefinerAdapter& refiner) {
       // Create new search
       search_id = tmp_search_id;
       _searches.emplace_back(blocks);
+      ++_quotient_graph[blocks.i][blocks.j].num_active_searches;
       ++_num_active_searches_on_blocks[blocks.i];
       ++_num_active_searches_on_blocks[blocks.j];
       _register_search_lock.unlock();
@@ -160,8 +162,8 @@ bool QuotientGraph::popBlockPairFromQueue(BlockPair& blocks) {
   while ( _block_scheduler.try_pop(blocks) ) {
     _quotient_graph[blocks.i][blocks.j].markAsNotInQueue();
     const bool not_too_many_concurrent_searches =
-      _num_active_searches_on_blocks[blocks.i] < _context.refinement.advanced.max_concurrency_per_block &&
-      _num_active_searches_on_blocks[blocks.j] < _context.refinement.advanced.max_concurrency_per_block;
+      _quotient_graph[blocks.i][blocks.j].num_active_searches <
+      _context.refinement.advanced.max_concurrency_on_block_pair;
     if ( !not_too_many_concurrent_searches ) {
       pushBlockPairIntoQueue(blocks);
       blocks.i = kInvalidPartition;
@@ -215,10 +217,11 @@ void QuotientGraph::finalizeSearch(const SearchID search_id,
   }
   // In case the block pair becomes active,
   // we reinsert it into the queue
-  pushBlockPairIntoQueue(blocks);
+  --_quotient_graph[blocks.i][blocks.j].num_active_searches;
   --_num_active_searches_on_blocks[blocks.i];
   --_num_active_searches_on_blocks[blocks.j];
   --_num_active_searches;
+  pushBlockPairIntoQueue(blocks);
 }
 
 void QuotientGraph::initialize(const PartitionedHypergraph& phg) {

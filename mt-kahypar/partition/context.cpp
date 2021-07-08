@@ -155,8 +155,8 @@ namespace mt_kahypar {
     if ( params.algorithm != AdvancedRefinementAlgorithm::do_nothing ) {
       out << "    Number of Threads Per Search:     " << params.num_threads_per_search << std::endl;
       out << "    Number of Cut HEs Per Block Pair: " << params.num_cut_edges_per_block_pair << std::endl;
-      out << "    Maximum BFS Distance:             " << params.max_bfs_distance << std::endl;
-      out << "    Maximum Concurrency Per Block:    " << params.max_concurrency_per_block << std::endl;
+      out << "    Max BFS Distance:                 " << params.max_bfs_distance << std::endl;
+      out << "    Max Concurrency on Block Pair:    " << params.max_concurrency_on_block_pair << std::endl;
       out << "    Skip Small Cuts:                  " << std::boolalpha << params.skip_small_cuts << std::endl;
       out << "    Skip Unpromising Blocks:          " << std::boolalpha << params.skip_unpromising_blocks << std::endl;
       out << "    Use Overlapping Searches:         " << std::boolalpha << params.use_overlapping_searches << std::endl;

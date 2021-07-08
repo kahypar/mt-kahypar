@@ -63,7 +63,8 @@ class QuotientGraph {
       initial_num_cut_hes(0),
       initial_cut_he_weight(0),
       cut_he_weight(0),
-      num_improvements_found(0) { }
+      num_improvements_found(0),
+      num_active_searches(0) { }
 
     // ! Adds a cut hyperedge to this quotient graph edge
     void add_hyperedge(const HyperedgeID he,
@@ -144,6 +145,8 @@ class QuotientGraph {
     CAtomic<HyperedgeWeight> cut_he_weight;
     // ! Number of improvements found on this block pair
     CAtomic<size_t> num_improvements_found;
+    // ! Number of active search on block pair
+    CAtomic<size_t> num_active_searches;
   };
 
   // Contains information required by a local search
