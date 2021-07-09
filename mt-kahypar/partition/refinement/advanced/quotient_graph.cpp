@@ -154,10 +154,9 @@ void QuotientGraph::addNewCutHyperedge(const HyperedgeID he,
 bool QuotientGraph::popBlockPairFromQueue(BlockPair& blocks) {
   blocks.i = kInvalidPartition;
   blocks.j = kInvalidPartition;
-  // TODO: Note that this is a potential source for a scalability bottleneck.
-  // If only a few block pairs remains, we should terminate the active block scheduling
-  // strategy for some threads such that they can join other threads for parallel refinement
-  while ( _block_scheduler.try_pop(blocks) ) {
+  const size_t current_size = _block_scheduler.unsafe_size();
+  size_t current_idx = 0;
+  while ( current_idx < current_size && _block_scheduler.try_pop(blocks) ) {
     _quotient_graph[blocks.i][blocks.j].markAsNotInQueue();
     const bool not_too_many_concurrent_searches =
       _num_active_searches_on_blocks[blocks.i] < _context.refinement.advanced.max_concurrency_per_block &&
@@ -169,6 +168,7 @@ bool QuotientGraph::popBlockPairFromQueue(BlockPair& blocks) {
     } else {
       break;
     }
+    ++current_idx;
   }
   return blocks.i != kInvalidPartition && blocks.j != kInvalidPartition;
 }
@@ -273,6 +273,12 @@ void QuotientGraph::initialize(const PartitionedHypergraph& phg) {
       });
     });
   }
+}
+
+size_t QuotientGraph::maximumRequiredRefiners() const {
+  const size_t current_active_block_pairs =
+    _block_scheduler.unsafe_size() + _num_active_searches + 1;
+  return std::min(current_active_block_pairs, _context.shared_memory.num_threads);
 }
 
 void QuotientGraph::resetQuotientGraphEdges(const PartitionedHypergraph& phg) {

@@ -275,6 +275,8 @@ public:
     return _block_scheduler.empty() && _num_active_searches == 0;
   }
 
+  size_t maximumRequiredRefiners() const;
+
   // ! Only for testing
   HyperedgeWeight getCutHyperedgeWeightOfBlockPair(const PartitionID i, const PartitionID j) const {
     ASSERT(i < j);
