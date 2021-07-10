@@ -227,6 +227,11 @@ namespace mt_kahypar::ds
             insertActive(id);
         }
 
+        // ! Mark a given id as finished, i.e. mark that it will not be reinserted into the pool again
+        void finalize(const ContractionGroupID id) {
+          _active_ids.increment_finished(_hierarchy->depth(id));
+        }
+
         // ===== Parallel Iteration Convenience Methods =====
 
         void doParallelForAllGroups(const DoParallelForAllGroupsFunction& f) const {

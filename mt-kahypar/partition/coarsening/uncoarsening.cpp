@@ -374,6 +374,16 @@ namespace mt_kahypar {
     // todo mlaupichler remove debug
 //    std::cout << utils::Stats::instance() << std::endl;
 
+//    //todo mlaupichler remove debug
+//    if (_context.type == kahypar::ContextType::main) {
+//      FMStats total_fm_stats = fm->getTotalFMStats();
+//      std::cout << total_fm_stats.serialize() << std::endl;
+//      double frac_local_reverted = (double) total_fm_stats.local_reverts / (double) total_fm_stats.moves;
+//      double frac_pos_gain_pushes = (double) total_fm_stats.pushes_with_pos_gain / (double) total_fm_stats.pushes;
+//      std::cout << "Fraction of local reverts: " << frac_local_reverted << std::endl;
+//      std::cout << "Fraction of pos gain pushes: " << frac_pos_gain_pushes << std::endl;
+//    }
+
     // Top-Level Refinement on all vertices
     const HyperedgeWeight objective_before = current_metrics.getMetric(
       _context.partition.mode, _context.partition.objective);
@@ -443,22 +453,11 @@ namespace mt_kahypar {
   }
 
 
-  bool
+  void
   NLevelCoarsenerBase::uncontractGroupAsyncSubtask(const ds::ContractionGroup &group,
                                                    const ds::ContractionGroupID groupID) {
 
-      // Attempt to acquire lock for representative of the group. If the lock cannot be
-      // acquired, revert to previous state and attempt to pick an id again
-      bool acquired = _lock_manager_for_async->tryToAcquireLock(group.getRepresentative(),groupID);
-      if (!acquired) {
-          return false;
-      }
-      ASSERT(acquired);
-
       _phg.uncontract(group, groupID);
-
-      // Release lock (Locks will be reacquired for moves during refinement)
-      _lock_manager_for_async->strongReleaseLock(group.getRepresentative(), groupID);
 
       auto repr_part_id = _phg.partID(group.getRepresentative());
       unused(repr_part_id);
@@ -469,10 +468,9 @@ namespace mt_kahypar {
                              return _hg.nodeIsEnabled(hn) && _phg.partID(hn) != kInvalidPartition;
                          }),
              "After uncontracting a group, either the representative or any of the contracted nodes is not enabled or not assigned a partition!");
-      return true;
   }
 
-  bool NLevelCoarsenerBase::refineGroupAsyncSubtask(const ds::ContractionGroup &group, ds::ContractionGroupID groupID,
+  void NLevelCoarsenerBase::refineGroupAsyncSubtask(const ds::ContractionGroup &group, ds::ContractionGroupID groupID,
                                                     metrics::ThreadSafeMetrics &current_metrics,
                                                     IAsyncRefiner *async_lp,
                                                     IAsyncRefiner *async_fm) {
@@ -507,8 +505,6 @@ namespace mt_kahypar {
 
           localizedRefineForAsync(_phg, refinement_nodes, async_lp, async_fm, groupID, current_metrics);
       }
-
-      return true;
   }
 
   void NLevelCoarsenerBase::uncoarsenAsyncTask(ds::TreeGroupPool *pool, tbb::task_group &uncoarsen_tg,
@@ -527,15 +523,22 @@ namespace mt_kahypar {
           ASSERT(groupID != ds::invalidGroupID);
           const ds::ContractionGroup &group = pool->group(groupID);
 
-          bool uncontracted = uncontractGroupAsyncSubtask(group, groupID);
-          // If uncontraction failed, reactivate the groupID in the pool and pick a new groupID to work on (This
-          // might pick the same groupID again but that is equivalent to trying to uncontract until it works which
-          // it eventually will)
-          if (!uncontracted) {
-              pool->activate(groupID);
-              pool->pickActiveID(groupID);
-              continue;
+          // Attempt to acquire lock for representative of the group. If the lock cannot be
+          // acquired, revert to previous state and attempt to pick an id again
+          bool acquired = _lock_manager_for_async->tryToAcquireLock(group.getRepresentative(),groupID);
+          if (!acquired) {
+            pool->activate(groupID);
+            pool->pickActiveID(groupID);
+            continue;
           }
+          ASSERT(acquired);
+
+          pool->finalize(groupID);
+
+          uncontractGroupAsyncSubtask(group, groupID);
+
+          // Release lock (Locks will be reacquired for moves during refinement)
+          _lock_manager_for_async->strongReleaseLock(group.getRepresentative(), groupID);
 
           refineGroupAsyncSubtask(group, groupID, current_metrics, local_async_lp, local_async_fm);
 
@@ -731,6 +734,22 @@ namespace mt_kahypar {
       utils::Stats::instance().update_stat("lp_moved_nodes", static_cast<int64_t>(total_lp_moved_nodes));
 //      std::cout << "Total LP attempted moves: " << total_lp_attempted_moves << std::endl;
 //      std::cout << "Total LP moves: " << total_lp_moved_nodes << std::endl;
+
+//      if (_context.type == kahypar::ContextType::main) {
+//        std::cout << std::setprecision(5) << std::fixed
+//                  << "FM moves: " << fm_shared_data->total_moves
+//                  << ", Reverts: " << fm_shared_data->total_reverts
+//                  << ", Fraction: " << fm_shared_data->getFractionOfRevertedMoves() << std::endl;
+//        std::cout << std::setprecision(5) << std::fixed
+//                  << "FM calls: " << fm_shared_data->total_find_moves_calls
+//                  << ", With Good Prefix: " << fm_shared_data->find_moves_calls_with_good_prefix
+//                  << ", Fraction: " << fm_shared_data->getFractionOfFMCallsWithGoodPrefix() << std::endl;
+//        std::cout << "FM find move retries: " << fm_shared_data->find_move_retries << std::endl;
+//        std::cout << std::setprecision(5) << std::fixed
+//                  << "FM pushes: " << (fm_shared_data->total_pushes_pos_gain + fm_shared_data->total_pushes_non_pos_gain)
+//                  << ", With pos gain: " << fm_shared_data->total_pushes_pos_gain
+//                  << ", Fraction: " << fm_shared_data->getFractionOfPosGainPushes() << std::endl;
+//      }
 
       size_t total_num_nodes = _hg.initialNumNodes() - _hg.numRemovedHypernodes();
       size_t num_nodes_after_coarsening = _compactified_hg.initialNumNodes();

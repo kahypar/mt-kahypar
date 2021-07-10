@@ -99,10 +99,10 @@ class NLevelCoarsenerBase {
                           metrics::ThreadSafeMetrics &current_metrics,
                           AsyncRefinersETS &async_lp_refiners, AsyncRefinersETS &async_fm_refiners);
 
-  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE bool uncontractGroupAsyncSubtask(const ds::ContractionGroup &group,
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE void uncontractGroupAsyncSubtask(const ds::ContractionGroup &group,
                                                                       const ds::ContractionGroupID groupID);
 
-  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE bool
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE void
   refineGroupAsyncSubtask(const ds::ContractionGroup &group, ds::ContractionGroupID groupID,
                           metrics::ThreadSafeMetrics &current_metrics, IAsyncRefiner *async_lp,
                           IAsyncRefiner *async_fm);

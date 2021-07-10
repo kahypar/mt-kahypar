@@ -95,7 +95,9 @@ TEST(ADepthPriorityQueue, SequentialPushPop) {
 
         // Get current number of elements in the PQ and spawn as many parallel pops. Make sure they are all successful.
         auto size = dpq.unsafe_size();
-        tbb::parallel_for(ID(0), size, [&](const ContractionGroupID id) {
+        ASSERT(size >= 0);
+        ContractionGroupID pos_size = static_cast<ContractionGroupID>(size);
+        tbb::parallel_for(ID(0), pos_size, [&](const ContractionGroupID) {
             ContractionGroupID dest;
             bool popped_success = dpq.try_pop(dest);
             ASSERT_TRUE(popped_success);
@@ -106,6 +108,17 @@ TEST(ADepthPriorityQueue, SequentialPushPop) {
         dpq.reset();
       }
 
+    }
+
+    TEST(ADepthPriorityQueue, PushToCompletedDepthDeathTest) {
+      testing::FLAGS_gtest_death_test_style="threadsafe";
+      uint32_t num_depths = 1;
+      auto num_per_depth = std::vector<ContractionGroupID>(num_depths, 1);
+
+      auto dpq = DepthPriorityQueue(num_depths, std::move(num_per_depth));
+      dpq.increment_finished(0);
+
+      ASSERT_DEATH(dpq.push(0,0), "");
     }
 
 } // end namespace
