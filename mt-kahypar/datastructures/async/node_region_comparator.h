@@ -179,7 +179,7 @@ namespace mt_kahypar::ds {
             // General case: If degree > _signature_size find _signature_size largest edges incident to nodes and use those as signature
             ASSERT(sort_buffer.size() >= degree);
             HypernodeID idx = 0;
-            for (IncidentNetIterator it = incident_nets_range.begin(); it != incident_nets_range.end(); ++it) {
+            for (auto it = incident_nets_range.begin(); it != incident_nets_range.end(); ++it) {
               ASSERT(idx < degree);
               sort_buffer[idx] = *it;
               ++idx;

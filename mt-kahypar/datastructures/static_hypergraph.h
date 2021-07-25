@@ -606,6 +606,10 @@ class StaticHypergraph {
     return hypernode(u).size();
   }
 
+  HyperedgeID maxNodeDegree() const {
+    ERROR("maxNodeDegree() is not supported on StaticHypergraph.");
+  }
+
   // ! Returns, whether a hypernode is enabled or not
   bool nodeIsEnabled(const HypernodeID u) const {
     return !hypernode(u).isDisabled();

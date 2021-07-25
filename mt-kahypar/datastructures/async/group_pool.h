@@ -4,7 +4,7 @@
 
 #pragma once
 
-//#include <queue>
+#include <queue>
 //#include <tbb/concurrent_queue.h>
 #include <mt-kahypar/partition/context.h>
 #include "uncontraction_group_tree.h"
