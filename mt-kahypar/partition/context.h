@@ -199,6 +199,9 @@ struct UncoarseningParameters {
         bool use_asynchronous_uncoarsening = false;
 #endif
   size_t snapshot_edge_size_threshold = 0;
+  size_t node_region_signature_size = 10;
+  size_t node_region_similarity_retries = 10;
+  double node_region_similarity_threshold = 0.3;
 };
 
 std::ostream & operator<< (std::ostream& str, const UncoarseningParameters& params);

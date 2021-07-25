@@ -24,6 +24,7 @@
 #include <tbb/parallel_do.h>
 #include <mt-kahypar/partition/refinement/label_propagation/async_lp_refiner.h>
 #include <mt-kahypar/parallel/atomic_wrapper.h>
+#include <mt-kahypar/utils/progress_bar.h>
 #include "tbb/task_group.h"
 
 #include "mt-kahypar/definitions.h"
@@ -43,6 +44,7 @@ class NLevelCoarsenerBase {
 
   using ParallelHyperedgeVector = parallel::scalable_vector<parallel::scalable_vector<ParallelHyperedge>>;
   using AsyncRefinersETS = tbb::enumerable_thread_specific<std::unique_ptr<IAsyncRefiner>>;
+  using AsyncCounterETS = tbb::enumerable_thread_specific<HypernodeID>;
 
  public:
   NLevelCoarsenerBase(Hypergraph& hypergraph,
@@ -58,7 +60,9 @@ class NLevelCoarsenerBase {
     _compactified_hn_mapping(),
     _hierarchy(),
     _removed_hyperedges_batches(),
-    _round_coarsening_times() { }
+    _round_coarsening_times(),
+    _group_pools_for_versions(),
+    _lock_manager_for_async() { }
 
   NLevelCoarsenerBase(const NLevelCoarsenerBase&) = delete;
   NLevelCoarsenerBase(NLevelCoarsenerBase&&) = delete;
@@ -97,7 +101,9 @@ class NLevelCoarsenerBase {
 
   void uncoarsenAsyncTask(ds::TreeGroupPool *pool, tbb::task_group &uncoarsen_tg,
                           metrics::ThreadSafeMetrics &current_metrics,
-                          AsyncRefinersETS &async_lp_refiners, AsyncRefinersETS &async_fm_refiners);
+                          AsyncRefinersETS &async_lp_refiners, AsyncRefinersETS &async_fm_refiners,
+                          AsyncCounterETS &uncontraction_counter_ets,
+                          utils::ProgressBar &uncontraction_progress, const bool alwaysInsertIntoPQ);
 
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE void uncontractGroupAsyncSubtask(const ds::ContractionGroup &group,
                                                                       const ds::ContractionGroupID groupID);
@@ -191,6 +197,8 @@ class NLevelCoarsenerBase {
 
   // ! A lock manager for locks on hypernodes used in asynchronous n-level uncoarsening
   std::unique_ptr<ds::GroupLockManager> _lock_manager_for_async;
+
+  static constexpr HypernodeID ASYNC_UPDATE_PROGRESS_BAR_THRESHOLD = 25000;
 
 };
 }  // namespace mt_kahypar

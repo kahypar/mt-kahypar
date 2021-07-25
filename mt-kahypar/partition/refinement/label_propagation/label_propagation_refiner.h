@@ -68,7 +68,14 @@ class LabelPropagationRefiner final : public IRefiner {
                   kahypar::Metrics& best_metrics,
                   double) final ;
 
-  void labelPropagation(PartitionedHypergraph& hypergraph);
+public:
+    FMStats getTotalFMStats() override {
+      ERROR("Not supported on LP refiner.");
+    }
+
+private:
+
+    void labelPropagation(PartitionedHypergraph& hypergraph);
 
   bool labelPropagationRound(PartitionedHypergraph& hypergraph, NextActiveNodes& next_active_nodes);
 

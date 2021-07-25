@@ -104,9 +104,10 @@ namespace mt_kahypar {
         for (auto& fm : ets_fm) {
           fm.stats.merge(stats);
         }
-        LOG << V(round) << V(improvement) << V(metrics::km1(phg)) << V(metrics::imbalance(phg, context))
-            << V(num_border_nodes) << V(roundImprovementFraction) << V(elapsed_time) << V(current_time_limit)
-            << stats.serialize();
+        stats.merge(total_stats);
+//        LOG << V(round) << V(improvement) << V(metrics::km1(phg)) << V(metrics::imbalance(phg, context))
+//            << V(num_border_nodes) << V(roundImprovementFraction) << V(elapsed_time) << V(current_time_limit)
+//            << stats.serialize();
       }
 
       // Enforce a time limit (based on k and coarsening time).
@@ -142,6 +143,7 @@ namespace mt_kahypar {
     metrics.km1 -= overall_improvement;
     metrics.imbalance = metrics::imbalance(phg, context);
     ASSERT(metrics.km1 == metrics::km1(phg), V(metrics.km1) << V(metrics::km1(phg)));
+
     return overall_improvement > 0;
   }
 
@@ -212,6 +214,11 @@ namespace mt_kahypar {
     LOG << BOLD << "\n FM Memory Consumption" << END;
     LOG << fm_memory;
   }
+
+    template<typename FMStrategy>
+    FMStats MultiTryKWayFM<FMStrategy>::getTotalFMStats() {
+      return total_stats;
+    }
 
 } // namespace mt_kahypar
 

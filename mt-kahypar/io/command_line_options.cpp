@@ -473,7 +473,23 @@ namespace mt_kahypar {
             ("u-snapshot-edge-size-threshold",
             po::value<size_t>(&context.uncoarsening.snapshot_edge_size_threshold)->value_name("<size_t>")->default_value(0),
             "Hyperedges larger than this threshold will experience gain cache updates outside of a hyperedge "
-            "lock via snapshotting pins and connectivity set. (Only has an effect in MtKaHyParStrongAsync).")
+            "lock via snapshotting pins and connectivity set. (Only has an effect in MtKaHyParStrongAsync.)")
+            ("u-node-region-signature-size",
+            po::value<size_t>(&context.uncoarsening.node_region_signature_size)->value_name("<size_t>")->default_value(10),
+            "Size of the signature set used to identify the hypergraph region of a node. Comparisons "
+            "between the regions of different nodes are based on this and the higher the value, the more accurate these"
+            "comparisons are. Demands memory of this number times the number of nodes so higher values will need more "
+            "memory. (Only has an effect in MtKaHyParStrongAsync.)")
+            ("u-node-region-similarity-retries",
+            po::value<size_t>(&context.uncoarsening.node_region_similarity_retries)->value_name("<size_t>")->default_value(10),
+            "Number of retries used when trying to find an active group whose region is not too similar to the"
+            " region of nodes currently being worked on. The threshold for similarity is determined by "
+            "u-node-region-similarity-threshold. (Only has an effect in MtKaHyParStrongAsync.)")
+            ("u-node-region-similarity-threshold",
+            po::value<double>(&context.uncoarsening.node_region_similarity_threshold)->value_name("<double>")->default_value(0.3),
+            "Number of retries used when trying to find an active group whose region is not too similar to the"
+            " region of nodes currently being worked on. The threshold for similarity is determined by "
+            "u-node-region-similarity-threshold. (Only has an effect in MtKaHyParStrongAsync.)")
             ;
     return options;
   }

@@ -37,6 +37,10 @@ class DoNothingRefiner final : public IRefiner {
   DoNothingRefiner & operator= (const DoNothingRefiner &) = delete;
   DoNothingRefiner & operator= (DoNothingRefiner &&) = delete;
 
+  FMStats getTotalFMStats() override {
+      return FMStats();
+  }
+
  private:
   void initializeImpl(PartitionedHypergraph&) final { }
 

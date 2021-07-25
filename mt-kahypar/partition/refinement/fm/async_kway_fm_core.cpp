@@ -22,6 +22,7 @@
 
 namespace mt_kahypar {
 
+
   template<typename FMStrategy>
   Gain AsyncKWayFM<FMStrategy>::findMoves(PartitionedHypergraph& phg, const vec<HypernodeID>& refinement_nodes) {
     ASSERT(contraction_group_id != ds::invalidGroupID, "ContractionGroupID (Owner-ID) for locking is invalid.");
@@ -30,6 +31,7 @@ namespace mt_kahypar {
     localMoves.clear();
     attempted_to_move.reset();
     runStats.clear();
+
 
     for (const auto& seedNode : refinement_nodes ) {
       if (sharedData.nodeTracker.tryAcquireNode(seedNode, contraction_group_id)) {
@@ -40,9 +42,12 @@ namespace mt_kahypar {
     }
 
     if (runStats.pushes > 0) {
-        deltaPhg.clear();
-        deltaPhg.setPartitionedHypergraph(&phg);
-        internalFindMoves(phg);
+      deltaPhg.clear();
+      deltaPhg.setPartitionedHypergraph(&phg);
+      deltaPhg.markActive();
+      internalFindMoves(phg);
+//      deltaPhg.clear();
+      deltaPhg.markInactive();
     }
 
     contraction_group_id = ds::invalidGroupID;
@@ -99,16 +104,32 @@ namespace mt_kahypar {
     }
   }
 
+  template<typename FMStrategy, typename PHG>
+  struct DeltaGainUpdatesFuncWrapper {
 
+        explicit DeltaGainUpdatesFuncWrapper(FMStrategy& strategy, PHG& phg) : _strategy(strategy), _phg(phg) {}
+
+        FMStrategy& _strategy;
+        PHG& _phg;
+
+        template<typename PinIteratorT>
+        void operator() (const HyperedgeID he, const HyperedgeWeight edge_weight, IteratorRange<PinIteratorT> pins,
+                         const PartitionID from, const HypernodeID pin_count_in_from_part_after,
+                         const PartitionID to, const HypernodeID pin_count_in_to_part_after) {
+          _strategy.deltaGainUpdates(_phg, he, edge_weight, pins, from, pin_count_in_from_part_after, to, pin_count_in_to_part_after);
+        }
+      };
 
   template<typename FMStrategy>
   void AsyncKWayFM<FMStrategy>::internalFindMoves(PartitionedHypergraph& phg) {
     StopRule stopRule(phg.initialNumNodes());
     Move move;
 
+    bool foundAtLeastOneGoodPrefix = false;
+
     auto delta_func = [&](const HyperedgeID he,
                           const HyperedgeWeight edge_weight,
-                          const HypernodeID,
+                          const HypernodeID edge_size,
                           const HypernodeID pin_count_in_from_part_after,
                           const HypernodeID pin_count_in_to_part_after) {
       // Gains of the pins of a hyperedge can only change in the following situations.
@@ -117,7 +138,9 @@ namespace mt_kahypar {
         edgesWithGainChanges.push_back(he);
       }
 
-      fm_strategy.deltaGainUpdates(deltaPhg, edge_weight, deltaPhg.pins(he), move.from, pin_count_in_from_part_after,
+//      _km1_delta += km1Delta(he, edge_weight, edge_size,pin_count_in_from_part_after, pin_count_in_to_part_after);
+
+      fm_strategy.deltaGainUpdates(deltaPhg, he, edge_weight, deltaPhg.pins(he), move.from, pin_count_in_from_part_after,
                                      move.to, pin_count_in_to_part_after);
     };
 
@@ -132,6 +155,7 @@ namespace mt_kahypar {
 
       //Attempt to find the next move. If none can be found then stop this search.
       bool move_found = fm_strategy.findNextMove(deltaPhg, move);
+//      bool move_found = fm_strategy.findNextMove(phg, move);
       if (!move_found) break;
 
       ASSERT(move.isValid());
@@ -144,8 +168,24 @@ namespace mt_kahypar {
         heaviestPartWeight = heaviestPartAndWeight(deltaPhg).second;
         fromWeight = deltaPhg.partWeight(move.from);
         toWeight = deltaPhg.partWeight(move.to);
+
+        lockUncontractionLockWithWaiting(move.node);
+
         moved = deltaPhg.changeNodePart(move.node, move.from, move.to,
-                                          context.partition.max_part_weights[move.to], delta_func);
+                                          context.partition.max_part_weights[move.to], delta_func, true);
+
+        if (!moved) uncontraction_locks->strongReleaseLock(move.node, contraction_group_id);
+
+//        heaviestPartWeight = heaviestPartAndWeight(phg).second;
+//        fromWeight = phg.partWeight(move.from);
+//        toWeight = phg.partWeight(move.to);
+//
+//        lockUncontractionLockWithWaiting(move.node);
+//
+//        moved = phg.changeNodePart(move.node, move.from, move.to,
+//                                          context.partition.max_part_weights[move.to], []{}, delta_func, DeltaGainUpdatesFuncWrapper<FMStrategy, PartitionedHypergraph>(fm_strategy, phg), true);
+//
+//        if (!moved) uncontraction_locks->strongReleaseLock(move.node, contraction_group_id);
       }
 
       if (moved) {
@@ -159,11 +199,12 @@ namespace mt_kahypar {
                                                      && toWeight + phg.nodeWeight(move.node) < heaviestPartWeight;
 
         if (improved_km1 || improved_balance_less_equal_km1) {
+          foundAtLeastOneGoodPrefix = true;
           stopRule.reset();
           bestImprovement = estimatedImprovement;
           bestImprovementIndex = localMoves.size();
 
-          applyBestLocalPrefixToSharedPartition(phg, bestImprovementIndex, bestImprovement, true /* apply all moves */);
+          applyBestLocalPrefixToSharedPartition(phg, bestImprovementIndex, bestImprovement, true);
           bestImprovementIndex = 0;
           releaseMoveLocksForLocalMovedNodes();
           localMoves.clear();
@@ -171,6 +212,7 @@ namespace mt_kahypar {
         }
 
         acquireOrUpdateNeighbors(deltaPhg, move);
+//        acquireOrUpdateNeighbors(phg, move);
 
       } else {
         // Release move lock on node of move if the move does not go through
@@ -178,12 +220,25 @@ namespace mt_kahypar {
       }
     }
 
+//    std::cout << "Best improvement: " << bestImprovement << ", Index: " << bestImprovementIndex << std::endl;
+
     std::tie(bestImprovement, bestImprovementIndex) =
         applyBestLocalPrefixToSharedPartition(phg, bestImprovementIndex, bestImprovement, false);
 
+//    revertToBestLocalPrefix(phg, bestImprovementIndex);
+
     runStats.estimated_improvement = bestImprovement;
-    fm_strategy.clearPQs(bestImprovementIndex);
     releaseMoveLocksForLocalMovedNodes();
+    fm_strategy.clearPQs(bestImprovementIndex, true);
+
+    sharedData.total_moves.fetch_add(runStats.moves, std::memory_order_relaxed);
+    sharedData.total_reverts.fetch_add(runStats.local_reverts, std::memory_order_relaxed);
+    sharedData.total_find_moves_calls.fetch_add(1, std::memory_order_relaxed);
+    if (foundAtLeastOneGoodPrefix) sharedData.find_moves_calls_with_good_prefix.fetch_add(1, std::memory_order_relaxed);
+    sharedData.find_move_retries.fetch_add(runStats.retries, std::memory_order_relaxed);
+    sharedData.total_pushes_pos_gain.fetch_add(runStats.pushes_with_pos_gain, std::memory_order_relaxed);
+    sharedData.total_pushes_non_pos_gain.fetch_add(runStats.pushes_with_non_pos_gain, std::memory_order_relaxed);
+
     runStats.merge(stats);
   }
 
@@ -216,7 +271,7 @@ namespace mt_kahypar {
       attributed_gain = 0;
 
       // Prevent concurrent uncontractions for call to changeNodePart() with uncontraction lock
-      lockUncontractionLockWithWaiting(local_move.node);
+//      lockUncontractionLockWithWaiting(local_move.node);
 
       if constexpr (FMStrategy::uses_gain_cache) {
         phg.changeNodePartWithGainCacheUpdate(local_move.node, local_move.from, local_move.to,
@@ -253,7 +308,6 @@ namespace mt_kahypar {
       // always using the if-branch gave similar results
       runStats.local_reverts += best_index_locally_observed - best_index_from_attributed_gains + 1;
       for (size_t i = best_index_from_attributed_gains + 1; i < best_index_locally_observed; ++i) {
-//        Move& m = sharedData.moveTracker.getMove(localMoves[i].second);
         Move& m = localMoves[i];
         attributed_gain = 0;
 
@@ -284,12 +338,46 @@ namespace mt_kahypar {
     }
 
     // Release uncontraction locks, i.e. allow the nodes to be uncontracted again once the best prefix has been applied
-    for (size_t i = 0; i < best_index_locally_observed; ++i) {
+    for (size_t i = 0; i < localMoves.size(); ++i) {
       uncontraction_locks->strongReleaseLock(localMoves[i].node, contraction_group_id);
     }
 
     return result;
   }
+
+//    template<typename FMStrategy>
+//    void AsyncKWayFM<FMStrategy>::revertToBestLocalPrefix(PartitionedHypergraph& phg, size_t bestGainIndex) {
+//
+//      auto delta_func = [&](const HyperedgeID he,
+//                            const HyperedgeWeight edge_weight,
+//                            const HypernodeID edge_size,
+//                            const HypernodeID pin_count_in_from_part_after,
+//                            const HypernodeID pin_count_in_to_part_after) {
+//          _km1_delta += km1Delta(he, edge_weight, edge_size,pin_count_in_from_part_after, pin_count_in_to_part_after);
+//      };
+//
+//      runStats.local_reverts += localMoves.size() - bestGainIndex;
+//      while (localMoves.size() > bestGainIndex) {
+//        Move& m = localMoves.back();
+//        if constexpr (FMStrategy::uses_gain_cache) {
+//          phg.changeNodePartWithGainCacheUpdate(m.node, m.to, m.from,context.partition.max_part_weights[m.from],[]{}, delta_func, true);
+//        } else {
+//          phg.changeNodePart(m.node, m.to, m.from,context.partition.max_part_weights[m.from],[]{}, delta_func, true);
+//        }
+//        m.invalidate();
+//
+//        sharedData.nodeTracker.releaseNode(m.node, contraction_group_id);
+//        uncontraction_locks->strongReleaseLock(m.node, contraction_group_id);
+//
+//        localMoves.pop_back();
+//      }
+//
+//     Release uncontraction locks, i.e. allow the nodes to be uncontracted again once the best prefix has been applied
+//    for (size_t i = 0; i < localMoves.size(); ++i) {
+//    uncontraction_locks->strongReleaseLock(localMoves[i].node, contraction_group_id);
+//}
+//
+//    }
 
   template<typename FMStrategy>
   void AsyncKWayFM<FMStrategy>::memoryConsumption(utils::MemoryTreeNode *parent) const {
@@ -330,7 +418,7 @@ namespace mt_kahypar {
 #include "mt-kahypar/partition/refinement/fm/strategies/gain_cache_strategy.h"
 #include "mt-kahypar/partition/refinement/fm/strategies/gain_delta_strategy.h"
 #include "mt-kahypar/partition/refinement/fm/strategies/recompute_gain_strategy.h"
-#include <mt-kahypar/partition/refinement/fm/strategies/gain_cache_on_demand_strategy.h>
+#include "mt-kahypar/partition/refinement/fm/strategies/gain_cache_on_demand_strategy.h"
 
 namespace mt_kahypar {
   template class AsyncKWayFM<GainCacheStrategy<AsyncFMSharedData>>;

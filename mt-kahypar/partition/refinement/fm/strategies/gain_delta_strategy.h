@@ -91,12 +91,12 @@ namespace mt_kahypar {
       return true;
     }
 
-    void clearPQs(const size_t /* bestImprovementIndex */ ) {
+    void clearPQs(const size_t /* bestImprovementIndex */ , bool forceRelease = false) {
       // release all nodes that were not moved
       const bool release = sharedData.release_nodes
                            && runStats.moves > 0;
 
-      if (release) {
+      if (release || forceRelease) {
         // Release all nodes contained in the search
 
         for (PosT j = 0; j < vertexPQs[1].size(); ++j) {
@@ -120,7 +120,7 @@ namespace mt_kahypar {
     // ! perform delta gain updates for vertices that are in our search. uses the PQs as gain store
     template<typename PHG, typename PinIteratorT>
     MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
-    void deltaGainUpdates(PHG& phg, const HyperedgeWeight edge_weight, IteratorRange<PinIteratorT> pins,
+    void deltaGainUpdates(PHG& phg, const HyperedgeID, const HyperedgeWeight edge_weight, IteratorRange<PinIteratorT> pins,
                           const PartitionID from, const HypernodeID pin_count_in_from_part_after,
                           const PartitionID to, const HypernodeID pin_count_in_to_part_after) {
 

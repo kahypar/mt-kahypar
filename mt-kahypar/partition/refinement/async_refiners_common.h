@@ -79,12 +79,28 @@ namespace mt_kahypar {
         // ! Stores the designated target part of a vertex, i.e. the part with the highest gain to which moving is feasible
         vec<PartitionID> targetPart;
 
+        // ! Stat counters for testing/debugging
+        CAtomic<size_t> total_moves;
+        CAtomic<size_t> total_reverts;
+        CAtomic<size_t> total_find_moves_calls;
+        CAtomic<size_t> find_moves_calls_with_good_prefix;
+        CAtomic<size_t> find_move_retries;
+        CAtomic<size_t> total_pushes_pos_gain;
+        CAtomic<size_t> total_pushes_non_pos_gain;
+
         const bool release_nodes = true;
 
         explicit AsyncFMSharedData(size_t numNodes = 0, PartitionID numParts = 0, size_t numPQHandles = 0) :
-          vertexPQHandles(), //numPQHandles, invalid_position),
+          vertexPQHandles(),
           numParts(numParts),
-          targetPart() {
+          targetPart(),
+          total_moves(0),
+          total_reverts(0),
+          total_find_moves_calls(0),
+          find_moves_calls_with_good_prefix(0),
+          find_move_retries(0),
+          total_pushes_pos_gain(0),
+          total_pushes_non_pos_gain(0) {
 
           tbb::parallel_invoke( [&] {
               nodeTracker.resize(numNodes);
@@ -119,6 +135,18 @@ namespace mt_kahypar {
           pq_handles_node->updateSize(vertexPQHandles.capacity() * sizeof(PosT));
 
           nodeTracker.memoryConsumption(async_shared_fm_data_node);
+        }
+
+        double getFractionOfRevertedMoves() const {
+          return (double) total_reverts.load(std::memory_order_relaxed) / (double) total_moves.load(std::memory_order_relaxed);
+        }
+
+        double getFractionOfFMCallsWithGoodPrefix() const {
+          return (double) find_moves_calls_with_good_prefix / (double) total_find_moves_calls;
+        }
+
+        double getFractionOfPosGainPushes() const {
+          return (double) total_pushes_pos_gain / (double) (total_pushes_pos_gain + total_pushes_non_pos_gain);
         }
 
     };

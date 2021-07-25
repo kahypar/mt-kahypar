@@ -86,6 +86,8 @@ private:
                                                                 const Gain best_improvement_locally_observed,
                                                                 bool apply_all_moves);
 
+  void revertToBestLocalPrefix(PartitionedHypergraph& phg, size_t bestGainIndex);
+
   void releaseMoveLocksForLocalMovedNodes();
 
   void lockUncontractionLockWithWaiting(const HypernodeID& hn);

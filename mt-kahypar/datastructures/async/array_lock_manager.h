@@ -51,6 +51,10 @@ namespace ds {
         /// changed and false if not.
         bool tryToAcquireLock(LockedID lockedID, OwnerID ownerID) {
 
+            if (lockedID >= _size) {
+                ERROR("Cannot acquire lock for ID larger than size of lock array.");
+            }
+
             OwnerID expected = owner(lockedID);
             OwnerID desired = ownerID;
             if (expected != _invalid_owner_id) {
@@ -67,6 +71,10 @@ namespace ds {
         /// false if the given ownerID does not hold the lock (the owner does not change in the latter case).
         bool tryToReleaseLock(LockedID lockedID, OwnerID ownerID) {
             ASSERT(lockedID < _size);
+            if (lockedID >= _size) {
+                ERROR("Cannot release lock for ID larger than size of lock array.");
+            }
+
             OwnerID expected = ownerID;
             OwnerID desired = _invalid_owner_id;
             bool released = _v[lockedID].compare_exchange_strong(expected, desired);

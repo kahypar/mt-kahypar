@@ -30,20 +30,20 @@ public:
 
   using Iterator = IteratorT; // make publicly visible
 
-  IteratorT begin() {
+  IteratorT begin() const {
     return __begin;
   }
 
-  IteratorT end() {
+  IteratorT end() const {
     return __end;
   }
 
-  bool empty() {
+  bool empty() const {
     return __begin == __end;
   }
 
 private:
-  IteratorT __begin, __end;
+  const IteratorT __begin, __end;
 };
 
 

@@ -34,7 +34,7 @@ namespace mt_kahypar {
 template<typename FMStrategy>
 class MultiTryKWayFM final : public IRefiner {
 
-  static constexpr bool debug = false;
+  static constexpr bool debug = true;
   static constexpr bool enable_heavy_assert = false;
 
 
@@ -60,7 +60,9 @@ public:
 
   void initializeImpl(PartitionedHypergraph& phg) final ;
 
-  void roundInitialization(PartitionedHypergraph& phg,
+    FMStats getTotalFMStats() override;
+
+    void roundInitialization(PartitionedHypergraph& phg,
                            const vec<HypernodeID>& refinement_nodes);
 
 
@@ -84,6 +86,9 @@ public:
   FMSharedData sharedData;
   GlobalRollback globalRollback;
   tbb::enumerable_thread_specific<LocalizedKWayFM<FMStrategy>> ets_fm;
+
+  // todo mlaupichler remove this (for debug)
+  FMStats total_stats;
 };
 
 } // namespace mt_kahypar

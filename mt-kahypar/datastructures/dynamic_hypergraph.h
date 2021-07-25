@@ -766,6 +766,19 @@ class DynamicHypergraph {
     return _incident_nets.nodeDegree(u);
   }
 
+  // ! Maximum node degree. This function iterates over all nodes! O(n)!
+  HyperedgeID maxNodeDegree() const {
+    tbb::enumerable_thread_specific<HypernodeID> max_degree_ets(0);
+    tbb::parallel_for(ID(0), _num_hypernodes, [&](const HypernodeID hn) {
+      auto degree = nodeDegree(hn);
+      HypernodeID& local_max = max_degree_ets.local();
+      if (degree > local_max) local_max = degree;
+    });
+    return max_degree_ets.combine([](HypernodeID d1, HypernodeID d2) {
+      return std::max(d1, d2);
+    });
+  }
+
   // ! Returns, whether a hypernode is enabled or not
   bool nodeIsEnabled(const HypernodeID u) const {
     return !hypernode(u).isDisabled();
@@ -913,7 +926,7 @@ class DynamicHypergraph {
    * Creates group pools based on group uncontraction hierarchies for every version of the hypergraph.
    * @return a vector of group pools where at index i the group pool for version i is located.
    */
-  VersionedPoolVector createUncontractionGroupPoolsForVersions(const bool test = false);
+  VersionedPoolVector createUncontractionGroupPoolsForVersions(const Context& context, const bool test = false);
 
 
   // ! Sorts the valid pins of every hyperedge such that all active pins that are initially stable for the current version

@@ -130,7 +130,7 @@ TEST(StrategyTests, DeltaUpdatesWork) {
 
   auto delta_func = [&](HyperedgeID e, HyperedgeWeight edge_weight, HypernodeID, HypernodeID pin_count_in_from_part_after,
           HypernodeID pin_count_in_to_part_after) {
-    strat.deltaGainUpdates(phg, edge_weight, phg.pins(e), m.from, pin_count_in_from_part_after, m.to, pin_count_in_to_part_after);
+    strat.deltaGainUpdates(phg, e, edge_weight, phg.pins(e), m.from, pin_count_in_from_part_after, m.to, pin_count_in_to_part_after);
   };
 
   auto check_gains = [&] {

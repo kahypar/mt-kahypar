@@ -108,6 +108,9 @@ namespace mt_kahypar {
     StopRule stopRule(phg.initialNumNodes());
     Move move;
 
+    ++runStats.find_moves_calls;
+    bool foundAtLeastOneGoodPrefix = false;
+
     auto delta_func = [&](const HyperedgeID he,
                           const HyperedgeWeight edge_weight,
                           const HypernodeID,
@@ -120,10 +123,10 @@ namespace mt_kahypar {
       }
 
       if constexpr (use_delta) {
-        fm_strategy.deltaGainUpdates(deltaPhg, edge_weight, deltaPhg.pins(he), move.from, pin_count_in_from_part_after,
+        fm_strategy.deltaGainUpdates(deltaPhg, he, edge_weight, deltaPhg.pins(he), move.from, pin_count_in_from_part_after,
                                      move.to, pin_count_in_to_part_after);
       } else {
-        fm_strategy.deltaGainUpdates(phg, edge_weight, phg.pins(he), move.from, pin_count_in_from_part_after,
+        fm_strategy.deltaGainUpdates(phg, he, edge_weight, phg.pins(he), move.from, pin_count_in_from_part_after,
                                      move.to, pin_count_in_to_part_after);
       }
 
@@ -181,6 +184,7 @@ namespace mt_kahypar {
                                                      && toWeight + phg.nodeWeight(move.node) < heaviestPartWeight;
 
         if (improved_km1 || improved_balance_less_equal_km1) {
+          foundAtLeastOneGoodPrefix = true;
           stopRule.reset();
           bestImprovement = estimatedImprovement;
           bestImprovementIndex = localMoves.size();
@@ -211,6 +215,9 @@ namespace mt_kahypar {
 
     runStats.estimated_improvement = bestImprovement;
     fm_strategy.clearPQs(bestImprovementIndex);
+
+    if (foundAtLeastOneGoodPrefix) ++runStats.find_moves_calls_with_good_prefix;
+
     runStats.merge(stats);
   }
 

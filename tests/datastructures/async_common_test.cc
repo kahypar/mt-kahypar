@@ -122,7 +122,7 @@ namespace mt_kahypar::ds {
 
         ContractionGroup group = {{0,1}};
         // Iteration should hit 0 and 1
-        bool seen0, seen1 = false;
+        bool seen0 = false, seen1 = false;
 
         auto begin = GroupNodeIDIterator::getAtBegin(group);
         auto end = GroupNodeIDIterator::getAtEnd(group);

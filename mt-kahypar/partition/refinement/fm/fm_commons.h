@@ -247,6 +247,12 @@ struct FMStats {
   size_t best_prefix_mismatch = 0;
   Gain estimated_improvement = 0;
 
+  // todo mlaupichler possibly remove these again
+  size_t pushes_with_pos_gain = 0;
+  size_t pushes_with_non_pos_gain = 0;
+  size_t find_moves_calls = 0;
+  size_t find_moves_calls_with_good_prefix = 0;
+
 
   void clear() {
     retries = 0;
@@ -257,6 +263,10 @@ struct FMStats {
     task_queue_reinsertions = 0;
     best_prefix_mismatch = 0;
     estimated_improvement = 0;
+    pushes_with_pos_gain = 0;
+    pushes_with_non_pos_gain = 0;
+    find_moves_calls = 0;
+    find_moves_calls_with_good_prefix = 0;
   }
 
   void merge(FMStats& other) {
@@ -268,6 +278,10 @@ struct FMStats {
     other.task_queue_reinsertions += task_queue_reinsertions;
     other.best_prefix_mismatch += best_prefix_mismatch;
     other.estimated_improvement += estimated_improvement;
+    other.pushes_with_pos_gain += pushes_with_pos_gain;
+    other.pushes_with_non_pos_gain += pushes_with_non_pos_gain;
+    other.find_moves_calls += find_moves_calls;
+    other.find_moves_calls_with_good_prefix += find_moves_calls_with_good_prefix;
     clear();
   }
 

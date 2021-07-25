@@ -460,7 +460,7 @@ class DynamicSparseMap {
   DynamicSparseMap(const DynamicSparseMap&) = delete;
   DynamicSparseMap& operator= (const DynamicSparseMap& other) = delete;
 
-  DynamicSparseMap(DynamicSparseMap&& other) :
+  DynamicSparseMap(DynamicSparseMap&& other)  noexcept :
     _capacity(other._capacity),
     _initial_value(other._initial_value),
     _data(std::move(other._data)),
@@ -468,6 +468,20 @@ class DynamicSparseMap {
     _timestamp(other._timestamp),
     _sparse(std::move(other._sparse)),
     _dense(std::move(other._dense)) {
+    other._data = nullptr;
+    other._sparse = nullptr;
+    other._dense = nullptr;
+  }
+
+  DynamicSparseMap& operator=(DynamicSparseMap&& other) noexcept {
+    _capacity = other._capacity;
+    _initial_value = other._initial_value;
+    _data = std::move(other._data);
+    _size = other._size;
+    _timestamp = other._timestamp;
+    _sparse = std::move(other._sparse);
+    _dense = std::move(other._dense);
+
     other._data = nullptr;
     other._sparse = nullptr;
     other._dense = nullptr;

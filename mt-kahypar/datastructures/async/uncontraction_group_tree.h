@@ -90,17 +90,28 @@ namespace mt_kahypar::ds {
 
         UncontractionGroupTree(const ContractionTree &contractionTree, const size_t version);
 
+        UncontractionGroupTree(const UncontractionGroupTree& other) = delete;
+        UncontractionGroupTree& operator=(const UncontractionGroupTree& other) = delete;
+        UncontractionGroupTree(UncontractionGroupTree&& other) = delete;
+        UncontractionGroupTree& operator=(UncontractionGroupTree&& other) = delete;
+
         ~UncontractionGroupTree() {
             freeInternalData();
         }
 
-        const ContractionGroup &group(ContractionGroupID id) const {
+        const ContractionGroup &group(const ContractionGroupID id) const {
             ASSERT(id < _num_group_nodes);
+            if (id >= _num_group_nodes) {
+              ERROR("GroupID larger than largest ID!");
+            }
             return _tree[id].getGroup();
         }
 
-        const HypernodeID& depth(ContractionGroupID id) const {
+        const HypernodeID& depth(const ContractionGroupID id) const {
             ASSERT(id < _num_group_nodes);
+            if (id >= _num_group_nodes) {
+              ERROR("GroupID larger than largest ID!");
+            }
             return _tree[id].getDepth();
         }
 //
@@ -111,18 +122,21 @@ namespace mt_kahypar::ds {
 //            return _tree[group_id].getDepth();
 //        }
 
-        ContractionGroupIDIteratorRange successors(ContractionGroupID id) const {
+        ContractionGroupIDIteratorRange successors(const ContractionGroupID id) const {
             ASSERT(id < _num_group_nodes);
+            if (id >= _num_group_nodes) {
+              ERROR("GroupID larger than largest ID!");
+            }
             return ContractionGroupIDIteratorRange(
                     _incidence_array.cbegin() + _out_degrees[id],
                     _incidence_array.cbegin() + _out_degrees[id + 1]);
         }
 
-        ContractionGroupID numSuccessors(ContractionGroupID id) const {
+        ContractionGroupID numSuccessors(const ContractionGroupID id) const {
             return _out_degrees[id+1] - _out_degrees[id];
         }
 
-        ContractionGroupID predecessor(ContractionGroupID id) const {
+        ContractionGroupID predecessor(const ContractionGroupID id) const {
             ASSERT(id < _num_group_nodes);
             return _tree[id].getParentGroup();
         }
@@ -175,6 +189,11 @@ namespace mt_kahypar::ds {
           return _number_of_groups_per_depth;
         }
 
+        const HypernodeID getNumberOfUncontractionsInDepth(const HypernodeID depth) const {
+          ASSERT(depth < _number_of_uncontractions_per_depth.size());
+          return _number_of_uncontractions_per_depth[depth];
+        }
+
     private:
 
         void freeInternalData();
@@ -217,6 +236,7 @@ namespace mt_kahypar::ds {
         Array<ContractionGroupID> _last_uncontraction_group_in_version;
 
         std::vector<ContractionGroupID> _number_of_groups_per_depth;
+        std::vector<HypernodeID> _number_of_uncontractions_per_depth;
 
     };
 

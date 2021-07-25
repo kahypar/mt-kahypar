@@ -71,7 +71,7 @@ namespace mt_kahypar::ds {
         auto end() const {return _contractions.end();};
 
         bool empty() const {return _contractions.empty();};
-        uint64_t size() const {return _contractions.size();};
+        HypernodeID size() const {return _contractions.size();};
 
         Contraction at(const int i) const {return _contractions.at(i);};
 

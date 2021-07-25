@@ -22,7 +22,8 @@ namespace mt_kahypar::ds {
               _num_contained_contracted_nodes(0),
               _version(version),
               _last_uncontraction_group_in_version(contractionTree.num_hypernodes(), invalidGroupID),
-              _number_of_groups_per_depth() {
+              _number_of_groups_per_depth(),
+              _number_of_uncontractions_per_depth() {
         ASSERT(_contraction_tree.isFinalized());
 
         _out_degrees.push_back(0);
@@ -104,11 +105,14 @@ namespace mt_kahypar::ds {
             _roots.push_back(newID);
         }
 
-        // Increase number of nodes at this depth
+        // Increase number of groups and nodes at this depth
         if (depth >= _number_of_groups_per_depth.size()) {
             _number_of_groups_per_depth.resize(depth + 1, 0);
+            _number_of_uncontractions_per_depth.resize(depth + 1, 0);
         }
+        ASSERT(_number_of_groups_per_depth.size() == _number_of_uncontractions_per_depth.size());
         ++_number_of_groups_per_depth[depth];
+        _number_of_uncontractions_per_depth[depth] += newGroupNode.getGroup().size();
 
         // If this group does not have a horizontal child, it is the last group for this representative in the version
         if (!hasHorizontalChild) {

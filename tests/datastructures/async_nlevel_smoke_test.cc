@@ -105,7 +105,7 @@ namespace mt_kahypar {
             utils::Timer::instance().stop_timer(timer_key("initial_partition"));
 
             utils::Timer::instance().start_timer(timer_key("create_uncontraction_pools"), "Create Uncontraction Pools");
-            auto versionedPools = hypergraph.createUncontractionGroupPoolsForVersions();
+            auto versionedPools = hypergraph.createUncontractionGroupPoolsForVersions(Context());
 //            ASSERT(hypergraph.verifyIncidenceArraySortedness(versionedPools));
             utils::Timer::instance().stop_timer(timer_key("create_uncontraction_pools"));
 

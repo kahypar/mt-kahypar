@@ -70,6 +70,12 @@ public:
     sharedData.targetPart[v] = target;
     vertexPQs[pv].insert(v, gain);  // blockPQ updates are done later, collectively.
     runStats.pushes++;
+
+    if (gain > 0) {
+      runStats.pushes_with_pos_gain++;
+    } else {
+      runStats.pushes_with_non_pos_gain++;
+    }
   }
 
   template<typename PHG>
@@ -133,12 +139,12 @@ public:
     }
   }
 
-  void clearPQs(const size_t /* bestImprovementIndex */ ) {
+  void clearPQs(const size_t /* bestImprovementIndex */, bool forceRelease = false) {
     // release all nodes that were not moved
     const bool release = sharedData.release_nodes
                          && runStats.moves > 0;
 
-    if (release) {
+    if (release || forceRelease) {
       // Release all nodes contained in PQ
       for (PartitionID i = 0; i < context.partition.k; ++i) {
         for (PosT j = 0; j < vertexPQs[i].size(); ++j) {
@@ -160,10 +166,10 @@ public:
 
   template<typename PHG, typename PinIteratorT>
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
-  void deltaGainUpdates(PHG& phg, const HyperedgeWeight edge_weight, IteratorRange<PinIteratorT> pins,
+  void deltaGainUpdates(PHG& phg, const HyperedgeID he, const HyperedgeWeight edge_weight, IteratorRange<PinIteratorT> pins,
                         const PartitionID from, const HypernodeID pin_count_in_from_part_after,
                         const PartitionID to, const HypernodeID pin_count_in_to_part_after) {
-    phg.gainCacheUpdate(edge_weight, pins, from, pin_count_in_from_part_after, to, pin_count_in_to_part_after);
+    phg.gainCacheUpdate(he, edge_weight, pins, from, pin_count_in_from_part_after, to, pin_count_in_to_part_after);
   }
 
   void memoryConsumption(utils::MemoryTreeNode *parent) const {

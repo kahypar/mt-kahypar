@@ -134,7 +134,7 @@ namespace mt_kahypar::ds {
             _completed(_num_depths, CAtomic<uint8_t>(uint8_t(false))),
             _queues(_num_depths, tbb::concurrent_bounded_queue<ContractionGroupID>()) {
           ASSERT(_num_depths == _total_elements_per_depth.size());
-          // Reserve as much memory as elements per depth to accommodate re-insertions.
+          // Reserve as much memory as elements per depth
           depth_type min_non_completed = 0;
           for (ContractionGroupID i = 0; i < _num_depths; ++i) {
             _queues[i].set_capacity(_total_elements_per_depth[i]);
@@ -150,37 +150,71 @@ namespace mt_kahypar::ds {
 
 
         void push(const ContractionGroupID id, const depth_type depth) {
+          if (depth >= _num_depths || _completed[depth].load(std::memory_order_relaxed)) {
+            ERROR("depth is unexpectedly too large or already completed!");
+          }
           ASSERT(depth < _num_depths);
           ASSERT(!_completed[depth].load(std::memory_order_relaxed));
           bool pushed = _queues[depth].try_push(id);
           unused(pushed);
           ASSERT(pushed);
+          if (!pushed) {
+            ERROR("Pushes into depth PQ need to succeed!");
+          }
         }
 
         bool try_pop(ContractionGroupID& dest) {
 
+          if (_completed.size() != _num_depths || _queues.size() != _num_depths) {
+            ERROR("Vectors in depth PQ have wrong size." << V(_completed.size()) << V(_queues.size()) << V(_num_depths));
+          }
+
           depth_type current_min = _min_non_completed_depth.load(std::memory_order_relaxed);
           ASSERT(current_min < _num_depths);
-          while (current_min < _num_depths && (_completed[current_min].load(std::memory_order_relaxed) || !_queues[current_min].try_pop(dest))) {
+          if (current_min == _num_depths) {
+            ERROR("All completed, none left to pop.");
+          }
+
+          while (current_min < _num_depths) {
+
+            if (_completed.size() != _num_depths || _queues.size() != _num_depths) {
+              ERROR("Vectors in depth PQ have wrong size.");
+            }
+
+            bool depth_completed = _completed[current_min].load(std::memory_order_relaxed);
+            if (!depth_completed) {
+              if (_queues[current_min].try_pop(dest)) {
+                // Success, dest holds a value that was popped
+                ASSERT(dest != invalidGroupID);
+                if (dest == invalidGroupID) {
+                  ERROR("invalid group picked!");
+                }
+                return true;
+              }
+            }
+
             ++current_min;
           }
 
-          if (current_min < _num_depths) {
-            // Success, dest holds a value that was popped
-            ASSERT(dest != invalidGroupID);
-            return true;
-          } else {
-            // Failure, no value found
-            return false;
-          }
+          // Failure, no value found
+          return false;
         }
 
         void increment_finished(const depth_type depth) {
+          bool completed_depth = false;
+          increment_finished(depth, completed_depth);
+        }
+
+        void increment_finished(const depth_type depth, bool& completed_depth) {
+          if (depth >= _num_depths) {
+            ERROR("depth is unexpectedly too large!");
+          }
           ASSERT(depth < _num_depths);
           ASSERT(!_completed[depth].load(std::memory_order_relaxed));
           ContractionGroupID num_finished = _num_finished_per_depth[depth].add_fetch(1, std::memory_order_relaxed);
           ASSERT(num_finished <= _total_elements_per_depth[depth]);
           if (num_finished == _total_elements_per_depth[depth]) {
+            completed_depth = true;
             auto exp = uint8_t(false);
             _completed[depth].compare_exchange_strong(exp, uint8_t(true), std::memory_order_relaxed);
             ASSERT(!exp);
@@ -196,6 +230,8 @@ namespace mt_kahypar::ds {
               unused(changed_min);
               ASSERT(changed_min && (current_min == depth));
             }
+          } else {
+            completed_depth = false;
           }
         }
 

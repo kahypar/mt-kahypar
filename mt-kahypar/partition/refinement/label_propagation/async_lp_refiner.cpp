@@ -41,7 +41,7 @@ namespace mt_kahypar {
 
         // Update metrics statistics
         Gain delta = _gain.delta();
-        ASSERT(delta <= 0, "LP refiner worsen solution quality" << V(delta));
+//        ASSERT(delta <= 0, "LP refiner worsen solution quality" << V(delta));
         best_metrics.fetch_add(delta, kahypar::Mode::direct_kway, _context.partition.objective);
         utils::Stats::instance().update_stat("lp_improvement", std::abs(delta));
 
@@ -136,12 +136,16 @@ namespace mt_kahypar {
         // Shuffle Vector
         std::shuffle(_active_nodes.begin(),_active_nodes.end(), _rng);
 
+      for (const auto& hn : _active_nodes) {
+        ASSERT(_fm_node_tracker->owner(hn) != _contraction_group_id);
+      }
+
         bool converged = true;
         parallel::scalable_vector<HypernodeID> retry_nodes;
         for ( size_t j = 0; j < _active_nodes.size(); ++j ) {
             const HypernodeID hn = _active_nodes[j];
             bool tried_to_move = false;
-            auto locks = acquire_both_locks(hn);
+            const auto locks = acquire_both_locks(hn);
             if (locks.locked_for_fm && locks.locked_for_uncontractions) {
                 ++_num_attempted_moves;
                 tried_to_move = true;
@@ -157,11 +161,15 @@ namespace mt_kahypar {
             }
         }
 
+        for (const auto& hn : _active_nodes) {
+          ASSERT(_fm_node_tracker->owner(hn) != _contraction_group_id);
+        }
+
         // Retry acquiring lock and moving exactly once
         // todo mlaupichler: Number of retries is arbitrary, perhaps add CL option to set how often we retry here
         for ( size_t j = 0; j < retry_nodes.size(); ++j ) {
             const HypernodeID hn = retry_nodes[j];
-            auto locks = acquire_both_locks(hn);
+            const auto locks = acquire_both_locks(hn);
             if (locks.locked_for_fm && locks.locked_for_uncontractions) {
               ++_num_attempted_moves;
               if (moveVertex(hypergraph, hn, next_active_nodes, visited_edges, objective_delta)) {
@@ -171,6 +179,10 @@ namespace mt_kahypar {
               }
             }
             release_held_locks(hn, locks);
+        }
+
+        for (const auto& hn : _active_nodes) {
+          ASSERT(_fm_node_tracker->owner(hn) != _contraction_group_id);
         }
 
 //        HEAVY_REFINEMENT_ASSERT(hypergraph.checkTrackedPartitionInformation());

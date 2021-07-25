@@ -25,6 +25,7 @@
 #include <utility>
 #include <vector>
 #include <mt-kahypar/partition/metrics.h>
+#include <mt-kahypar/partition/refinement/fm/fm_commons.h>
 
 #include "kahypar/partition/metrics.h"
 
@@ -53,6 +54,8 @@ class IRefiner {
               const double time_limit) {
     return refineImpl(hypergraph, refinement_nodes, best_metrics, time_limit);
   }
+
+  virtual FMStats getTotalFMStats() = 0;
 
  protected:
   IRefiner() = default;

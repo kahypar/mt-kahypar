@@ -51,6 +51,10 @@ public:
 
   }
 
+    FMStats getTotalFMStats() override {
+      ERROR("getTotalFMStats() not supported on deterministic LP.");
+    }
+
 private:
   static constexpr bool debug = false;
 

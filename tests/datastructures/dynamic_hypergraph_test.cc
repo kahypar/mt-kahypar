@@ -1457,7 +1457,7 @@ using ::testing::Return;
             hypergraph.contract(memento.v);
         }
 
-        auto pools = hypergraph.createUncontractionGroupPoolsForVersions();
+        auto pools = hypergraph.createUncontractionGroupPoolsForVersions(Context());
 //        ASSERT(hypergraph.verifyIncidenceArraySortedness(pools));
 
         while (!pools.empty()) {

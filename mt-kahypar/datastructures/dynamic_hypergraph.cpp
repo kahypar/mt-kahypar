@@ -265,7 +265,7 @@ void DynamicHypergraph::uncontract(const Batch& batch,
   });
 }
 
-VersionedPoolVector DynamicHypergraph::createUncontractionGroupPoolsForVersions(const bool test) {
+VersionedPoolVector DynamicHypergraph::createUncontractionGroupPoolsForVersions(const Context& context, const bool test) {
 
     const size_t num_versions = _version + 1;
     utils::Timer::instance().start_timer("finalize_contraction_tree", "Finalize Contraction Tree");
@@ -282,7 +282,7 @@ VersionedPoolVector DynamicHypergraph::createUncontractionGroupPoolsForVersions(
         // Make hierarchy for version v and a pool for that version from the hierarchy.
         // Ownership of the hierarchy is with the pool (i.e. it gets deleted when the pool is deleted).
         auto groupHierarchy = std::make_unique<UncontractionGroupTree>(_contraction_tree, v);
-        auto pool = std::make_unique<TreeGroupPool>(std::move(groupHierarchy));
+        auto pool = std::make_unique<TreeGroupPool>(std::move(groupHierarchy), context);
         ASSERT(v < poolVector.size());
         // Pass ownership of the pool to the pool vector
         poolVector[v] = std::move(pool);
@@ -308,7 +308,7 @@ VersionedPoolVector DynamicHypergraph::createUncontractionGroupPoolsForVersions(
                 for ( const Memento& memento : group) {
                     ASSERT(memento.v < _num_hypernodes && _node_depths[memento.v] == invalidDepth);
                     hypernode(memento.v).setBatchIndex(version);
-                    _node_depths[memento.v] = _uncontraction_hierarchies[pool->getVersion()]->depth(groupID);
+                    _node_depths[memento.v] = _uncontraction_hierarchies[version]->depth(groupID);
                 }
             });
         });
@@ -710,6 +710,8 @@ DynamicHypergraph DynamicHypergraph::copy(parallel_tag_t) {
     hypergraph._removable_single_pin_and_parallel_nets =
       kahypar::ds::FastResetFlagArray<>(_num_hyperedges);
   });
+
+
   return hypergraph;
 }
 

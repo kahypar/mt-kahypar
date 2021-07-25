@@ -79,12 +79,12 @@ namespace mt_kahypar {
       return true;
     }
 
-    void clearPQs(const size_t /* bestImprovementIndex */ ) {
+    void clearPQs(const size_t /* bestImprovementIndex */, bool forceRelease = false) {
       // release all nodes that were not moved
       const bool release = sharedData.release_nodes
                            && runStats.moves > 0;
 
-      if (release) {
+      if (release || forceRelease) {
         // Release all nodes contained in PQ
         for (PosT j = 0; j < pq.size(); ++j) {
           const HypernodeID v = pq.at(j);
@@ -97,7 +97,7 @@ namespace mt_kahypar {
 
     template<typename PHG, typename PinIteratorT>
     MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
-    void deltaGainUpdates(PHG&, const HyperedgeWeight, IteratorRange<PinIteratorT>,
+    void deltaGainUpdates(PHG&, const HyperedgeID, const HyperedgeWeight, IteratorRange<PinIteratorT>,
                             const PartitionID, const HypernodeID,
                             const PartitionID, const HypernodeID) {
       // do nothing!

@@ -67,10 +67,10 @@ namespace mt_kahypar {
 
     if (_context.uncoarsening.use_asynchronous_uncoarsening) {
         utils::Timer::instance().start_timer("create_uncontraction_pools", "Create Uncontraction Group Pools");
-        _group_pools_for_versions = _hg.createUncontractionGroupPoolsForVersions();
+        _group_pools_for_versions = _hg.createUncontractionGroupPoolsForVersions(_context);
 //        HEAVY_COARSENING_ASSERT(_hg.verifyIncidenceArraySortedness(_group_pools_for_versions));
         auto num_nodes = _hg.initialNumNodes();
-        _lock_manager_for_async = std::make_unique<ds::ArrayLockManager<HypernodeID, ds::ContractionGroupID>>(num_nodes,ds::invalidGroupID);
+        _lock_manager_for_async = std::make_unique<ds::ArrayLockManager<HypernodeID, ds::ContractionGroupID>>(num_nodes, ds::invalidGroupID);
         utils::Timer::instance().stop_timer("create_uncontraction_pools");
     } else {
         // Create n-level batch uncontraction hierarchy
@@ -220,7 +220,7 @@ namespace mt_kahypar {
       // Switch to asynchronous uncoarsening if the option is set
       if (_context.uncoarsening.use_asynchronous_uncoarsening) {
             // Global Label Propagation not needed in asynch case, clear the memory
-            label_propagation.reset();
+//            label_propagation.reset();
             return doAsynchronousUncoarsen(fm);
       }
 
@@ -375,14 +375,18 @@ namespace mt_kahypar {
 //    std::cout << utils::Stats::instance() << std::endl;
 
 //    //todo mlaupichler remove debug
-//    if (_context.type == kahypar::ContextType::main) {
-//      FMStats total_fm_stats = fm->getTotalFMStats();
-//      std::cout << total_fm_stats.serialize() << std::endl;
-//      double frac_local_reverted = (double) total_fm_stats.local_reverts / (double) total_fm_stats.moves;
-//      double frac_pos_gain_pushes = (double) total_fm_stats.pushes_with_pos_gain / (double) total_fm_stats.pushes;
-//      std::cout << "Fraction of local reverts: " << frac_local_reverted << std::endl;
-//      std::cout << "Fraction of pos gain pushes: " << frac_pos_gain_pushes << std::endl;
-//    }
+    if (_context.type == kahypar::ContextType::main) {
+      FMStats total_fm_stats = fm->getTotalFMStats();
+      std::cout << total_fm_stats.serialize() << std::endl;
+      double frac_local_reverted = (double) total_fm_stats.local_reverts / (double) total_fm_stats.moves;
+      double frac_pos_gain_pushes = (double) total_fm_stats.pushes_with_pos_gain / (double) total_fm_stats.pushes;
+      std::cout << "Fraction of local reverts: " << frac_local_reverted << std::endl;
+      std::cout << "Fraction of pos gain pushes: " << frac_pos_gain_pushes << std::endl;
+      std::cout << std::setprecision(5) << std::fixed
+                << "FM calls: " << total_fm_stats.find_moves_calls
+                << ", With Good Prefix: " << total_fm_stats.find_moves_calls_with_good_prefix
+                << ", Fraction: " << ((double) total_fm_stats.find_moves_calls_with_good_prefix / (double) total_fm_stats.find_moves_calls) << std::endl;
+    }
 
     // Top-Level Refinement on all vertices
     const HyperedgeWeight objective_before = current_metrics.getMetric(
@@ -509,58 +513,98 @@ namespace mt_kahypar {
 
   void NLevelCoarsenerBase::uncoarsenAsyncTask(ds::TreeGroupPool *pool, tbb::task_group &uncoarsen_tg,
                                                metrics::ThreadSafeMetrics &current_metrics,
-                                               AsyncRefinersETS &async_lp_refiners,
-                                               AsyncRefinersETS &async_fm_refiners) {
+                                               AsyncRefinersETS &async_lp_refiners, AsyncRefinersETS &async_fm_refiners,
+                                               AsyncCounterETS &uncontraction_counter_ets,
+                                               utils::ProgressBar &uncontraction_progress,
+                                               const bool alwaysInsertIntoPQ) {
 
       ds::ContractionGroupID groupID = ds::invalidGroupID;
       pool->pickActiveID(groupID);
-      bool continue_this_task = true;
 
       IAsyncRefiner* local_async_lp = async_lp_refiners.local().get();
       IAsyncRefiner* local_async_fm = async_fm_refiners.local().get();
+      HypernodeID& local_uncontraction_counter = uncontraction_counter_ets.local();
 
-      while (continue_this_task) {
+      while (true) {
           ASSERT(groupID != ds::invalidGroupID);
-          const ds::ContractionGroup &group = pool->group(groupID);
+          if (groupID == ds::invalidGroupID || groupID >= pool->getNumTotal()) {
+            ERROR("groupID is invalid!");
+          }
+
+        const ds::ContractionGroup &group = pool->group(groupID);
 
           // Attempt to acquire lock for representative of the group. If the lock cannot be
           // acquired, revert to previous state and attempt to pick an id again
-          bool acquired = _lock_manager_for_async->tryToAcquireLock(group.getRepresentative(),groupID);
+          bool acquired = _lock_manager_for_async->tryToAcquireLock(group.getRepresentative(), groupID);
           if (!acquired) {
+
             pool->activate(groupID);
             pool->pickActiveID(groupID);
             continue;
           }
           ASSERT(acquired);
 
-          pool->finalize(groupID);
+        pool->finalize(groupID);
 
           uncontractGroupAsyncSubtask(group, groupID);
 
           // Release lock (Locks will be reacquired for moves during refinement)
           _lock_manager_for_async->strongReleaseLock(group.getRepresentative(), groupID);
 
+          if (!local_async_lp || !local_async_fm) {
+            ERROR("Local Async Refiners are nullptr!");
+          }
+
           refineGroupAsyncSubtask(group, groupID, current_metrics, local_async_lp, local_async_fm);
 
-          // If the group has successors, have this task continue with the first successor, activate the
-          // other successors (i.e. put them in the queue) and spawn tasks for them. If the group has no
-          // successors, simply stop this task.
+          // If number of uncontractions in this thread surpasses threshold, update the uncontraction progress bar
+          // and reset counter
+          local_uncontraction_counter += group.size();
+          if (local_uncontraction_counter >= ASYNC_UPDATE_PROGRESS_BAR_THRESHOLD) {
+            uncontraction_progress.setObjective(current_metrics.getMetric(
+                _context.partition.mode, _context.partition.objective));
+            uncontraction_progress += local_uncontraction_counter;
+            local_uncontraction_counter = 0;
+          }
+
+          // If the group has successors, activate the successors (i.e. put them in the queue) and spawn tasks for them.
+          // If the group has no successors, simply stop this task.
           if (pool->numSuccessors(groupID) > 0) {
               auto successors = pool->successors(groupID);
               auto suc_begin = successors.begin();
               auto suc_end = successors.end();
-              groupID = *suc_begin;
-              for (auto it = suc_begin + 1; it < suc_end; ++it) {
+
+              if (alwaysInsertIntoPQ) {
+                HypernodeID num_succ = 0;
+                // Insert all successors into the PQ and start a new task for each of them. Stop this task.
+                for (auto it = suc_begin; it < suc_end; ++it) {
+                  num_succ++;
                   pool->activate(*it);
                   uncoarsen_tg.run([&](){
-                      uncoarsenAsyncTask(pool, uncoarsen_tg, current_metrics, async_lp_refiners, async_fm_refiners);
+                      uncoarsenAsyncTask(pool, uncoarsen_tg,
+                                         current_metrics, async_lp_refiners, async_fm_refiners,
+                                         uncontraction_counter_ets,
+                                         uncontraction_progress, alwaysInsertIntoPQ);
                   });
+                }
+                return;
+              } else {
+                // Insert all but one successor into the PQ and start as many new tasks. Have this task keep working on the remaining successor.
+                groupID = *suc_begin;
+                for (auto it = suc_begin + 1; it < suc_end; ++it) {
+                  pool->activate(*it);
+                  uncoarsen_tg.run([&](){
+                      uncoarsenAsyncTask(pool, uncoarsen_tg,
+                                         current_metrics, async_lp_refiners, async_fm_refiners,
+                                         uncontraction_counter_ets,
+                                         uncontraction_progress, alwaysInsertIntoPQ);
+                  });
+                }
               }
           } else {
-              continue_this_task = false;
+              return;
           }
       }
-
   }
 
   PartitionedHypergraph&& NLevelCoarsenerBase::doAsynchronousUncoarsen(std::unique_ptr<IRefiner>& global_fm) {
@@ -620,8 +664,7 @@ namespace mt_kahypar {
       _round_coarsening_times.push_back(_round_coarsening_times.size() > 0 ?
                                         _round_coarsening_times.back() : std::numeric_limits<double>::max()); // Sentinel
 
-      tbb::task_group uncoarsen_tg;
-
+    auto uncoarsen_tg = tbb::task_group();
     size_t total_uncontractions = 0;
 
 
@@ -653,38 +696,66 @@ namespace mt_kahypar {
              *fm_shared_data);
     });
 
-      while (!_group_pools_for_versions.empty()) {
+    auto async_uncontraction_counters = AsyncCounterETS(0);
+
+    auto nodeRegionComparator = ds::NodeRegionComparator<Hypergraph>(_context.uncoarsening.node_region_signature_size);
+
+      for (size_t inv_version = 0; inv_version < _group_pools_for_versions.size(); ++inv_version) {
+
+        size_t version = _group_pools_for_versions.size() - inv_version - 1;
 
           utils::Timer::instance().start_timer("uncontract_and_refine_version",
                                                "Uncontracting and Refining Version", false,
                                                force_measure_timings);
 
           ASSERT(_phg.version() == _removed_hyperedges_batches.size());
-          ds::TreeGroupPool* pool = _group_pools_for_versions.back().get();
+          ds::TreeGroupPool* pool = _group_pools_for_versions[version].get();
           ASSERT(_phg.version() == pool->getVersion());
           ASSERT(_phg.version() == _hg.version());
           ASSERT(_phg.version() == _phg.hypergraph().version());
 
           _phg.hypergraph().sortStableActivePinsToBeginning();
 
+          nodeRegionComparator.calculateSignaturesParallel(&_phg.hypergraph());
+          pool->setNodeRegionComparator(&nodeRegionComparator);
+
           auto num_uncontractions = static_cast<size_t>(pool->getTotalNumUncontractions());
+
+          size_t total_num_groups = pool->getNumTotal();
 
           size_t num_roots = pool->getNumActive();
           for (size_t i = 0; i < num_roots; ++i) {
               uncoarsen_tg.run([&](){
-                  uncoarsenAsyncTask(pool, uncoarsen_tg, current_metrics, async_lp_refiners, async_fm_refiners);
+                // todo mlaupichler: Setting alwaysInsertIntoPQ to true for Initial Partitioning as well cryptically does not work (spits out Seg faults in release mode). I assume it's due to TBB internals but really there's no way to know.
+                  uncoarsenAsyncTask(pool, uncoarsen_tg,
+                                     current_metrics, async_lp_refiners, async_fm_refiners,
+                                     async_uncontraction_counters,
+                                     uncontraction_progress, _context.type == kahypar::ContextType::main);
               });
           }
           uncoarsen_tg.wait();
 
-          // Update Progress Bar
+
+          // Update Progress Bar With Rest of Uncontractions
+          HypernodeID uncontractions_not_in_progress_bar = 0;
+          for (AsyncCounterETS::iterator counterIt = async_uncontraction_counters.begin(); counterIt != async_uncontraction_counters.end(); ++counterIt) {
+            HypernodeID& counter = *counterIt;
+            uncontractions_not_in_progress_bar += counter;
+            counter = 0;
+          }
           uncontraction_progress.setObjective(current_metrics.getMetric(
-                  _context.partition.mode, _context.partition.objective));
-          uncontraction_progress += num_uncontractions;
+              _context.partition.mode, _context.partition.objective));
+          uncontraction_progress += uncontractions_not_in_progress_bar;
+
+//          uncontraction_progress.setObjective(current_metrics.getMetric(
+//                  _context.partition.mode, _context.partition.objective));
+//          uncontraction_progress += num_uncontractions;
           total_uncontractions += num_uncontractions;
+//          ASSERT(total_uncontractions == uncontraction_progress.count() - _compactified_hg.initialNumNodes());
 
 //          HEAVY_REFINEMENT_ASSERT(node_anti_duplicator->checkAllFalse());
 //          HEAVY_REFINEMENT_ASSERT(edge_anti_duplicator->checkAllFalse());
+          ASSERT(pool->checkAllFinalized());
           HEAVY_REFINEMENT_ASSERT(fm_shared_data->nodeTracker.checkNoneLocked());
           HEAVY_REFINEMENT_ASSERT(_hg.verifyIncidenceArrayAndIncidentNets());
           HEAVY_REFINEMENT_ASSERT(_phg.checkTrackedPartitionInformation());
@@ -716,7 +787,8 @@ namespace mt_kahypar {
               _round_coarsening_times.pop_back();
           }
 
-          _group_pools_for_versions.pop_back();
+
+//          _group_pools_for_versions.pop_back();
       }
 
       node_anti_duplicator.reset();
@@ -735,21 +807,29 @@ namespace mt_kahypar {
 //      std::cout << "Total LP attempted moves: " << total_lp_attempted_moves << std::endl;
 //      std::cout << "Total LP moves: " << total_lp_moved_nodes << std::endl;
 
-//      if (_context.type == kahypar::ContextType::main) {
-//        std::cout << std::setprecision(5) << std::fixed
-//                  << "FM moves: " << fm_shared_data->total_moves
-//                  << ", Reverts: " << fm_shared_data->total_reverts
-//                  << ", Fraction: " << fm_shared_data->getFractionOfRevertedMoves() << std::endl;
-//        std::cout << std::setprecision(5) << std::fixed
-//                  << "FM calls: " << fm_shared_data->total_find_moves_calls
-//                  << ", With Good Prefix: " << fm_shared_data->find_moves_calls_with_good_prefix
-//                  << ", Fraction: " << fm_shared_data->getFractionOfFMCallsWithGoodPrefix() << std::endl;
-//        std::cout << "FM find move retries: " << fm_shared_data->find_move_retries << std::endl;
-//        std::cout << std::setprecision(5) << std::fixed
-//                  << "FM pushes: " << (fm_shared_data->total_pushes_pos_gain + fm_shared_data->total_pushes_non_pos_gain)
-//                  << ", With pos gain: " << fm_shared_data->total_pushes_pos_gain
-//                  << ", Fraction: " << fm_shared_data->getFractionOfPosGainPushes() << std::endl;
-//      }
+      if (_context.type == kahypar::ContextType::main) {
+        std::cout << std::setprecision(5) << std::fixed
+                  << "FM moves: " << fm_shared_data->total_moves
+                  << ", Reverts: " << fm_shared_data->total_reverts
+                  << ", Fraction: " << fm_shared_data->getFractionOfRevertedMoves() << std::endl;
+        std::cout << std::setprecision(5) << std::fixed
+                  << "FM calls: " << fm_shared_data->total_find_moves_calls
+                  << ", With Good Prefix: " << fm_shared_data->find_moves_calls_with_good_prefix
+                  << ", Fraction: " << fm_shared_data->getFractionOfFMCallsWithGoodPrefix() << std::endl;
+        std::cout << "FM find move retries: " << fm_shared_data->find_move_retries << std::endl;
+        std::cout << std::setprecision(5) << std::fixed
+                  << "FM pushes: " << (fm_shared_data->total_pushes_pos_gain + fm_shared_data->total_pushes_non_pos_gain)
+                  << ", With pos gain: " << fm_shared_data->total_pushes_pos_gain
+                  << ", Fraction: " << fm_shared_data->getFractionOfPosGainPushes() << std::endl;
+
+        size_t num_stable_pins = _phg.getNumStablePinsSeen();
+        size_t num_volatile_pins = _phg.getNumVolatilePinsSeen();
+        double volatile_rel_to_stable_pins = (double) num_volatile_pins / (double) num_stable_pins;
+        std::cout << std::setprecision(5) << std::fixed
+                  << "Stable pins seen: " << num_stable_pins
+                  << ", Volatile pins seen: " << num_volatile_pins
+                  << ", Volatile rel to Stable: " << volatile_rel_to_stable_pins << std::endl;
+      }
 
       size_t total_num_nodes = _hg.initialNumNodes() - _hg.numRemovedHypernodes();
       size_t num_nodes_after_coarsening = _compactified_hg.initialNumNodes();
@@ -955,6 +1035,9 @@ namespace mt_kahypar {
                                                     ds::ContractionGroupID group_id,
                                                     metrics::ThreadSafeMetrics &current_metrics) {
 
+      // debug
+      uint32_t completed_refine_loops = 0;
+
       bool improvement_found = true;
       while( improvement_found ) {
           improvement_found = false;
@@ -970,6 +1053,8 @@ namespace mt_kahypar {
             improvement_found |= async_fm->refine(partitioned_hypergraph,
                                                 refinement_nodes, current_metrics, std::numeric_limits<double>::max(), group_id);
           }
+
+          ++completed_refine_loops;
 
           if ( !_context.refinement.refine_until_no_improvement ) {
               break;

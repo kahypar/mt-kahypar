@@ -95,15 +95,15 @@ tbb::task* LabelPropagationInitialPartitioner::execute() {
                                   const HypernodeID pin_count_in_from_part_after,
                                   const HypernodeID pin_count_in_to_part_after) {
                 HypernodeID adjusted_edge_size = 0;
-                for ( const HypernodeID& pin : hg.pins(he) ) {
-                  if ( hg.partID(pin) != kInvalidPartition ) {
+                for ( const HypernodeID& pin : _hg.pins(he) ) {
+                  if ( _hg.partID(pin) != kInvalidPartition ) {
                     ++adjusted_edge_size;
                   }
                 }
                 expected_gain -= cutDelta(he, edge_weight, adjusted_edge_size,
                   pin_count_in_from_part_after, pin_count_in_to_part_after);
               };
-              hg.changeNodePart(hn, from, to, cut_delta);
+              _hg.changeNodePart(hn, from, to, cut_delta);
               ASSERT(expected_gain == max_gain_move.gain, "Gain calculation failed"
                 << V(expected_gain) << V(max_gain_move.gain));
               #endif
