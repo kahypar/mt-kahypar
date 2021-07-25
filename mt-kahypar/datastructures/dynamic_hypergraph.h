@@ -69,6 +69,9 @@ class DynamicHypergraph {
   using PinCountUpdateLockFunction = std::function<void (const HyperedgeID)>;
     #define NOOP_PIN_COUNT_LOCK_FUNC [] (const HyperedgeID) {return true;}
 
+  using TreeGroupPool = ds::ConcurrentQueueGroupPool<ds::UncontractionGroupTree, DynamicHypergraph>;
+  using VersionedPoolVector = parallel::scalable_vector<std::unique_ptr<TreeGroupPool>>;
+
   /*!
   * This struct is used during multilevel coarsening to efficiently
   * detect parallel hyperedges.

@@ -45,6 +45,8 @@ class NLevelCoarsenerBase {
   using ParallelHyperedgeVector = parallel::scalable_vector<parallel::scalable_vector<ParallelHyperedge>>;
   using AsyncRefinersETS = tbb::enumerable_thread_specific<std::unique_ptr<IAsyncRefiner>>;
   using AsyncCounterETS = tbb::enumerable_thread_specific<HypernodeID>;
+  using TreeGroupPool = ds::ConcurrentQueueGroupPool<ds::UncontractionGroupTree, Hypergraph>;
+  using VersionedPoolVector = parallel::scalable_vector<std::unique_ptr<TreeGroupPool>>;
 
  public:
   NLevelCoarsenerBase(Hypergraph& hypergraph,
@@ -99,7 +101,7 @@ class NLevelCoarsenerBase {
 
   PartitionedHypergraph&& doAsynchronousUncoarsen(std::unique_ptr<IRefiner>& global_fm);
 
-  void uncoarsenAsyncTask(ds::TreeGroupPool *pool, tbb::task_group &uncoarsen_tg,
+  void uncoarsenAsyncTask(TreeGroupPool *pool, tbb::task_group &uncoarsen_tg,
                           metrics::ThreadSafeMetrics &current_metrics,
                           AsyncRefinersETS &async_lp_refiners, AsyncRefinersETS &async_fm_refiners,
                           AsyncCounterETS &uncontraction_counter_ets,
@@ -193,7 +195,7 @@ class NLevelCoarsenerBase {
 
   // ! Contains the contraction group pools that are used in asynchronous (or sequential) uncoarsening. There is one pool
   // ! per hypergraph version which is used to manage the uncontraction hierarchy.
-  ds::VersionedPoolVector _group_pools_for_versions;
+  VersionedPoolVector _group_pools_for_versions;
 
   // ! A lock manager for locks on hypernodes used in asynchronous n-level uncoarsening
   std::unique_ptr<ds::GroupLockManager> _lock_manager_for_async;

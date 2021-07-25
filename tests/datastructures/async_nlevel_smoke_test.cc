@@ -115,7 +115,7 @@ namespace mt_kahypar {
 
             utils::Timer::instance().start_timer(timer_key("async_uncontractions"), "Asynchronous Uncontractions");
             while (!versionedPools.empty()) {
-                TreeGroupPool *pool = versionedPools.back().get();
+                auto *pool = versionedPools.back().get();
                 hypergraph.sortStableActivePinsToBeginning();
                 ASSERT(partitioned_hypergraph.version() == pool->getVersion());
                 ASSERT(partitioned_hypergraph.version() == hypergraph.version());

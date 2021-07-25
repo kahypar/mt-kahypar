@@ -4,6 +4,10 @@
 
 #pragma once
 
+#include <tbb/enumerable_thread_specific.h>
+#include "mt-kahypar/datastructures/array.h"
+#include "mt-kahypar/datastructures/incident_net_array.h"
+
 namespace mt_kahypar::ds {
 
     /// Data structure that is supposed to approximate a coefficient that describes the similarity of the HG region of

@@ -265,7 +265,7 @@ void DynamicHypergraph::uncontract(const Batch& batch,
   });
 }
 
-VersionedPoolVector DynamicHypergraph::createUncontractionGroupPoolsForVersions(const Context& context, const bool test) {
+DynamicHypergraph::VersionedPoolVector DynamicHypergraph::createUncontractionGroupPoolsForVersions(const Context& context, const bool test) {
 
     const size_t num_versions = _version + 1;
     utils::Timer::instance().start_timer("finalize_contraction_tree", "Finalize Contraction Tree");

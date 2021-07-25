@@ -487,9 +487,9 @@ namespace mt_kahypar {
             "u-node-region-similarity-threshold. (Only has an effect in MtKaHyParStrongAsync.)")
             ("u-node-region-similarity-threshold",
             po::value<double>(&context.uncoarsening.node_region_similarity_threshold)->value_name("<double>")->default_value(0.3),
-            "Number of retries used when trying to find an active group whose region is not too similar to the"
-            " region of nodes currently being worked on. The threshold for similarity is determined by "
-            "u-node-region-similarity-threshold. (Only has an effect in MtKaHyParStrongAsync.)")
+            "If the simlarity between the region of a node picked to be worked on next and the regions of "
+            "those being worked on currently is smaller than this trheshold it will be"
+            "accepted as the next active node immediately.")
             ;
     return options;
   }

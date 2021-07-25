@@ -511,7 +511,7 @@ namespace mt_kahypar {
       }
   }
 
-  void NLevelCoarsenerBase::uncoarsenAsyncTask(ds::TreeGroupPool *pool, tbb::task_group &uncoarsen_tg,
+  void NLevelCoarsenerBase::uncoarsenAsyncTask(TreeGroupPool *pool, tbb::task_group &uncoarsen_tg,
                                                metrics::ThreadSafeMetrics &current_metrics,
                                                AsyncRefinersETS &async_lp_refiners, AsyncRefinersETS &async_fm_refiners,
                                                AsyncCounterETS &uncontraction_counter_ets,
@@ -709,7 +709,7 @@ namespace mt_kahypar {
                                                force_measure_timings);
 
           ASSERT(_phg.version() == _removed_hyperedges_batches.size());
-          ds::TreeGroupPool* pool = _group_pools_for_versions[version].get();
+          TreeGroupPool* pool = _group_pools_for_versions[version].get();
           ASSERT(_phg.version() == pool->getVersion());
           ASSERT(_phg.version() == _hg.version());
           ASSERT(_phg.version() == _phg.hypergraph().version());

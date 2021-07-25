@@ -66,6 +66,9 @@ class StaticHypergraph {
   using PinCountUpdateLockFunction = std::function<void(const HyperedgeID)>;
   #define NOOP_PIN_COUNT_LOCK_FUNC [] (const HyperedgeID) { }
 
+  using TreeGroupPool = ds::ConcurrentQueueGroupPool<ds::UncontractionGroupTree, StaticHypergraph>;
+  using VersionedPoolVector = parallel::scalable_vector<std::unique_ptr<TreeGroupPool>>;
+
   /**
    * Represents a hypernode of the hypergraph and contains all information
    * associated with a vertex.
@@ -739,7 +742,7 @@ class StaticHypergraph {
     return { };
   }
 
-  VersionedPoolVector createUncontractionGroupPoolsForVersions() {
+  VersionedPoolVector createUncontractionGroupPoolsForVersions(const Context&) {
       ERROR("createUncontractionGroupPoolsForVersions() is not supported in static hypergraph.");
       return { };
   }

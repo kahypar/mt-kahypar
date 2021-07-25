@@ -4,13 +4,14 @@
 
 #pragma once
 
-#include <queue>
-#include <tbb/concurrent_queue.h>
+//#include <queue>
+//#include <tbb/concurrent_queue.h>
 #include <mt-kahypar/partition/context.h>
 #include "uncontraction_group_tree.h"
 #include "mt-kahypar/datastructures/async/async_common.h"
 #include "depth_priority_queue.h"
 #include "node_region_comparator.h"
+#include "mt-kahypar/definitions.h"
 
 namespace mt_kahypar::ds
 {
@@ -136,10 +137,8 @@ namespace mt_kahypar::ds
 
     };
 
-    // forward
-    class DynamicHypergraph;
-
-    template<typename GroupHierarchy>
+    template<typename GroupHierarchy = Mandatory,
+        typename Hypergraph = Mandatory>
     class ConcurrentQueueGroupPool {
 
     public:
@@ -182,7 +181,7 @@ namespace mt_kahypar::ds
           return _hierarchy.get();
         }
 
-        void setNodeRegionComparator(const NodeRegionComparator<DynamicHypergraph>* comparator) {
+        void setNodeRegionComparator(const NodeRegionComparator<Hypergraph>* comparator) {
           ASSERT(comparator);
           _node_region_comparator = comparator;
         }
@@ -444,7 +443,7 @@ namespace mt_kahypar::ds
 //        tbb::concurrent_queue<ContractionGroupID> _active_ids;
           DepthPriorityQueue _active_ids;
 
-          const NodeRegionComparator<DynamicHypergraph>* _node_region_comparator;
+          const NodeRegionComparator<Hypergraph>* _node_region_comparator;
 
           tbb::enumerable_thread_specific<ContractionGroupID> _last_picked_ets;
 
@@ -453,8 +452,8 @@ namespace mt_kahypar::ds
 
     };
 
-    using TreeGroupPool = ConcurrentQueueGroupPool<UncontractionGroupTree>;
-    using VersionedPoolVector = parallel::scalable_vector<std::unique_ptr<TreeGroupPool>>;
+//    using TreeGroupPool = ConcurrentQueueGroupPool<UncontractionGroupTree, Hypergraph>;
+//    using VersionedPoolVector = parallel::scalable_vector<std::unique_ptr<TreeGroupPool>>;
 
 
-} // namespace mt_kahypar
+} // namespace mt_kahypar::ds
