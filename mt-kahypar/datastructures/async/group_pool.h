@@ -429,10 +429,10 @@ namespace mt_kahypar::ds
           ASSERT(_node_region_comparator);
           double cur_max = 0.0;
           for (const ContractionGroupID last_picked_id : _last_picked_ets) {
-            if (last_picked_id == invalidGroupID) continue;
-            if (last_picked_id >= _hierarchy->getNumGroups()) {
-              ERROR("Bad id in last_picked_ets" << V(last_picked_id));
-            }
+            if (last_picked_id >= _hierarchy->getNumGroups()) continue;
+            // if (last_picked_id >= _hierarchy->getNumGroups()) {
+            //   ERROR("Bad id in last_picked_ets" << V(last_picked_id));
+            // }
             double sim = _node_region_comparator->regionSimilarity(hn, group(last_picked_id).getRepresentative());
             if (sim > cur_max) {
               cur_max = sim;
