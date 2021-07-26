@@ -808,7 +808,7 @@ namespace mt_kahypar {
 //      std::cout << "Total LP attempted moves: " << total_lp_attempted_moves << std::endl;
 //      std::cout << "Total LP moves: " << total_lp_moved_nodes << std::endl;
 
-      if (_context.type == kahypar::ContextType::main) {
+      if ( _context.partition.verbose_output && _context.type == kahypar::ContextType::main) {
         LOG << std::setprecision(5) << std::fixed
                   << "FM moves: " << fm_shared_data->total_moves
                   << ", Reverts: " << fm_shared_data->total_reverts
