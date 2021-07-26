@@ -215,6 +215,7 @@ namespace mt_kahypar {
       str << "  Node Region Signature Size:         " << params.node_region_signature_size << std::endl;
       str << "  Node Region Similarity Retries:     " << params.node_region_similarity_retries << std::endl;
       str << "  Node Region Similarity Threshold:   " << std::setprecision(5) << params.node_region_similarity_threshold << std::endl;
+      str << "  Always Insert Groups Into PQ:       " << std::boolalpha << params.always_insert_groups_into_pq << std::endl;
       return str;
   }
 

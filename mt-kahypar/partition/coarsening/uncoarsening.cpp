@@ -721,7 +721,7 @@ namespace mt_kahypar {
 
           auto num_uncontractions = static_cast<size_t>(pool->getTotalNumUncontractions());
 
-          size_t total_num_groups = pool->getNumTotal();
+//          size_t total_num_groups = pool->getNumTotal();
 
           size_t num_roots = pool->getNumActive();
           for (size_t i = 0; i < num_roots; ++i) {
@@ -730,7 +730,8 @@ namespace mt_kahypar {
                   uncoarsenAsyncTask(pool, uncoarsen_tg,
                                      current_metrics, async_lp_refiners, async_fm_refiners,
                                      async_uncontraction_counters,
-                                     uncontraction_progress, _context.type == kahypar::ContextType::main);
+                                     uncontraction_progress, _context.uncoarsening.always_insert_groups_into_pq && (_context.type == kahypar::ContextType::main) /* Do not use this option in initial partitioning*/
+                                     );
               });
           }
           uncoarsen_tg.wait();

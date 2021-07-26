@@ -487,9 +487,15 @@ namespace mt_kahypar {
             "u-node-region-similarity-threshold. (Only has an effect in MtKaHyParStrongAsync.)")
             ("u-node-region-similarity-threshold",
             po::value<double>(&context.uncoarsening.node_region_similarity_threshold)->value_name("<double>")->default_value(0.3),
-            "If the simlarity between the region of a node picked to be worked on next and the regions of "
-            "those being worked on currently is smaller than this trheshold it will be"
-            "accepted as the next active node immediately.")
+            "If the similarity between the region of a node picked to be worked on next and the regions of "
+            "those being worked on currently is smaller than this threshold it will be"
+            "accepted as the next active node immediately. (Only has an effect in MtKaHyParStrongAsync.)")
+            ("u-always-insert-groups-into-pq",
+            po::value<bool>(&context.uncoarsening.always_insert_groups_into_pq)->value_name("<bool>")->default_value(false),
+            "If this option is set, when asynchronously uncoarsening and traversing the uncontraction group tree, "
+            "whenever a group is finished, all succeeding groups will be inserted into the PQ of groups. "
+            "Otherwise, one successor will immediately be worked on by the same thread without first inserting it into the PQ."
+            " Inserting every group into the PQ may improve partition quality. (Only has an effect in MtKaHyParStrongAsync.)")
             ;
     return options;
   }

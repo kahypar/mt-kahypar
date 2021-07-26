@@ -202,6 +202,7 @@ struct UncoarseningParameters {
   size_t node_region_signature_size = 10;
   size_t node_region_similarity_retries = 10;
   double node_region_similarity_threshold = 0.3;
+  bool always_insert_groups_into_pq = false;
 };
 
 std::ostream & operator<< (std::ostream& str, const UncoarseningParameters& params);
