@@ -82,7 +82,7 @@ class DeltaPartitionedHypergraph {
 
   void setPartitionedHypergraph(PartitionedHypergraph* phg) {
     ASSERT(phg);
-    if (!phg) std::cout << "phg is nullptr in DeltaPHG::setPartitionedHypergraph()!" << std::endl;
+    if (!phg) LOG << "phg is nullptr in DeltaPHG::setPartitionedHypergraph()!";
 
     if constexpr (GainCacheDelta::notify_about_updates_on_phg) {
       if (_phg != phg) {

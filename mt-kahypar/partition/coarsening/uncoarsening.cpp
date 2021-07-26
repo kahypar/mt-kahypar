@@ -377,15 +377,15 @@ namespace mt_kahypar {
 //    //todo mlaupichler remove debug
     if (_context.type == kahypar::ContextType::main) {
       FMStats total_fm_stats = fm->getTotalFMStats();
-      std::cout << total_fm_stats.serialize() << std::endl;
+      LOG << total_fm_stats.serialize();
       double frac_local_reverted = (double) total_fm_stats.local_reverts / (double) total_fm_stats.moves;
       double frac_pos_gain_pushes = (double) total_fm_stats.pushes_with_pos_gain / (double) total_fm_stats.pushes;
-      std::cout << "Fraction of local reverts: " << frac_local_reverted << std::endl;
-      std::cout << "Fraction of pos gain pushes: " << frac_pos_gain_pushes << std::endl;
-      std::cout << std::setprecision(5) << std::fixed
+      LOG << "Fraction of local reverts: " << frac_local_reverted;
+      LOG << "Fraction of pos gain pushes: " << frac_pos_gain_pushes;
+      LOG << std::setprecision(5) << std::fixed
                 << "FM calls: " << total_fm_stats.find_moves_calls
                 << ", With Good Prefix: " << total_fm_stats.find_moves_calls_with_good_prefix
-                << ", Fraction: " << ((double) total_fm_stats.find_moves_calls_with_good_prefix / (double) total_fm_stats.find_moves_calls) << std::endl;
+                << ", Fraction: " << ((double) total_fm_stats.find_moves_calls_with_good_prefix / (double) total_fm_stats.find_moves_calls);
     }
 
     // Top-Level Refinement on all vertices
@@ -809,27 +809,27 @@ namespace mt_kahypar {
 //      std::cout << "Total LP moves: " << total_lp_moved_nodes << std::endl;
 
       if (_context.type == kahypar::ContextType::main) {
-        std::cout << std::setprecision(5) << std::fixed
+        LOG << std::setprecision(5) << std::fixed
                   << "FM moves: " << fm_shared_data->total_moves
                   << ", Reverts: " << fm_shared_data->total_reverts
-                  << ", Fraction: " << fm_shared_data->getFractionOfRevertedMoves() << std::endl;
-        std::cout << std::setprecision(5) << std::fixed
+                  << ", Fraction: " << fm_shared_data->getFractionOfRevertedMoves();
+        LOG << std::setprecision(5) << std::fixed
                   << "FM calls: " << fm_shared_data->total_find_moves_calls
                   << ", With Good Prefix: " << fm_shared_data->find_moves_calls_with_good_prefix
-                  << ", Fraction: " << fm_shared_data->getFractionOfFMCallsWithGoodPrefix() << std::endl;
-        std::cout << "FM find move retries: " << fm_shared_data->find_move_retries << std::endl;
-        std::cout << std::setprecision(5) << std::fixed
+                  << ", Fraction: " << fm_shared_data->getFractionOfFMCallsWithGoodPrefix();
+        LOG << "FM find move retries: " << fm_shared_data->find_move_retries;
+        LOG << std::setprecision(5) << std::fixed
                   << "FM pushes: " << (fm_shared_data->total_pushes_pos_gain + fm_shared_data->total_pushes_non_pos_gain)
                   << ", With pos gain: " << fm_shared_data->total_pushes_pos_gain
-                  << ", Fraction: " << fm_shared_data->getFractionOfPosGainPushes() << std::endl;
+                  << ", Fraction: " << fm_shared_data->getFractionOfPosGainPushes();
 
         size_t num_stable_pins = _phg.getNumStablePinsSeen();
         size_t num_volatile_pins = _phg.getNumVolatilePinsSeen();
         double volatile_rel_to_stable_pins = (double) num_volatile_pins / (double) num_stable_pins;
-        std::cout << std::setprecision(5) << std::fixed
+        LOG << std::setprecision(5) << std::fixed
                   << "Stable pins seen: " << num_stable_pins
                   << ", Volatile pins seen: " << num_volatile_pins
-                  << ", Volatile rel to Stable: " << volatile_rel_to_stable_pins << std::endl;
+                  << ", Volatile rel to Stable: " << volatile_rel_to_stable_pins;
       }
 
       size_t total_num_nodes = _hg.initialNumNodes() - _hg.numRemovedHypernodes();
