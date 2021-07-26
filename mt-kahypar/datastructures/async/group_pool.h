@@ -157,6 +157,7 @@ namespace mt_kahypar::ds
                   _node_region_comparator(nullptr),
                   _region_similarity_retries(context.uncoarsening.node_region_similarity_retries),
                   _region_similarity_threshold(context.uncoarsening.node_region_similarity_threshold)
+                  , _last_picked_ets(invalidGroupID)
                 {
             ASSERT(_hierarchy);
             auto roots = _hierarchy->roots();
@@ -250,7 +251,7 @@ namespace mt_kahypar::ds
         void pickActiveID(ContractionGroupID& destination) {
 
             destination = invalidGroupID;
-            if (!_node_region_comparator) {
+            if (!_node_region_comparator || (_region_similarity_retries == 0)) {
               while (!tryToPickActiveID(destination)) {}
               ASSERT(!_hierarchy->isInitiallyStableNode(group(destination).getRepresentative()));
             } else {
@@ -274,10 +275,16 @@ namespace mt_kahypar::ds
                       insertActive(pickedIDs[j]);
                     }
                   }
+                  if (destination == invalidGroupID) {
+                    ERROR("Destination invalid after picking best from so far picked when PQ popping failed!" << V(destination));
+                  }
                   _last_picked_ets.local() = destination;
                   return;
                 }
                 ASSERT(pickedID != invalidGroupID);
+                if (pickedID == invalidGroupID) {
+                  ERROR("No correct group has been picked!" << V(pickedID));
+                }
                 double sim = maxRegionSimilarityToLastPicked(group(pickedID).getRepresentative());
                 if (sim <= _region_similarity_threshold) {
                   // If good candidate found, return it right away and reinsert others that were picked
@@ -305,6 +312,9 @@ namespace mt_kahypar::ds
               }
             }
             ASSERT(destination != invalidGroupID);
+            if (destination == invalidGroupID) {
+              ERROR("pickActiveID() call went to the end but destination was never set!" << V(destination));
+            }
             _last_picked_ets.local() = destination;
         }
 
@@ -419,6 +429,10 @@ namespace mt_kahypar::ds
           ASSERT(_node_region_comparator);
           double cur_max = 0.0;
           for (const ContractionGroupID last_picked_id : _last_picked_ets) {
+            if (last_picked_id == invalidGroupID) continue;
+            if (last_picked_id >= _hierarchy->getNumGroups()) {
+              ERROR("Bad id in last_picked_ets" << V(last_picked_id));
+            }
             double sim = _node_region_comparator->regionSimilarity(hn, group(last_picked_id).getRepresentative());
             if (sim > cur_max) {
               cur_max = sim;

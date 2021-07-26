@@ -155,6 +155,9 @@ namespace mt_kahypar::ds {
           }
           ASSERT(depth < _num_depths);
           ASSERT(!_completed[depth].load(std::memory_order_relaxed));
+          if (id == invalidGroupID) {
+            ERROR("Trying to push invalidGroupID to DepthPriorityQueue!");
+          }
           bool pushed = _queues[depth].try_push(id);
           unused(pushed);
           ASSERT(pushed);

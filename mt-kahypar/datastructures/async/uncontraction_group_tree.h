@@ -102,7 +102,7 @@ namespace mt_kahypar::ds {
         const ContractionGroup &group(const ContractionGroupID id) const {
             ASSERT(id < _num_group_nodes);
             if (id >= _num_group_nodes) {
-              ERROR("GroupID larger than largest ID!");
+              ERROR("GroupID larger than largest ID in group()!" << V(id));
             }
             return _tree[id].getGroup();
         }
@@ -110,7 +110,7 @@ namespace mt_kahypar::ds {
         const HypernodeID& depth(const ContractionGroupID id) const {
             ASSERT(id < _num_group_nodes);
             if (id >= _num_group_nodes) {
-              ERROR("GroupID larger than largest ID!");
+              ERROR("GroupID larger than largest ID in depth()!" << V(id));
             }
             return _tree[id].getDepth();
         }
@@ -125,7 +125,7 @@ namespace mt_kahypar::ds {
         ContractionGroupIDIteratorRange successors(const ContractionGroupID id) const {
             ASSERT(id < _num_group_nodes);
             if (id >= _num_group_nodes) {
-              ERROR("GroupID larger than largest ID!");
+              ERROR("GroupID larger than largest ID in successors()!" << V(id));
             }
             return ContractionGroupIDIteratorRange(
                     _incidence_array.cbegin() + _out_degrees[id],
@@ -133,12 +133,19 @@ namespace mt_kahypar::ds {
         }
 
         ContractionGroupID numSuccessors(const ContractionGroupID id) const {
-            return _out_degrees[id+1] - _out_degrees[id];
+          ASSERT(id < _num_group_nodes);
+          if (id >= _num_group_nodes) {
+            ERROR("GroupID larger than largest ID in numSuccessors()!" << V(id));
+          }
+          return _out_degrees[id+1] - _out_degrees[id];
         }
 
         ContractionGroupID predecessor(const ContractionGroupID id) const {
-            ASSERT(id < _num_group_nodes);
-            return _tree[id].getParentGroup();
+          ASSERT(id < _num_group_nodes);
+          if (id >= _num_group_nodes) {
+            ERROR("GroupID larger than largest ID in predecessor()!" << V(id));
+          }
+          return _tree[id].getParentGroup();
         }
 
         size_t getVersion() const {

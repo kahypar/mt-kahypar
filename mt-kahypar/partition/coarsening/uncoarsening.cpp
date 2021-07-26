@@ -528,7 +528,7 @@ namespace mt_kahypar {
       while (true) {
           ASSERT(groupID != ds::invalidGroupID);
           if (groupID == ds::invalidGroupID || groupID >= pool->getNumTotal()) {
-            ERROR("groupID is invalid!");
+            ERROR("groupID is invalid!" << V(groupID));
           }
 
         const ds::ContractionGroup &group = pool->group(groupID);
