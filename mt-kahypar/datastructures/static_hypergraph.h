@@ -755,6 +755,10 @@ class StaticHypergraph {
     ERROR("sortStableActivePinsToBeginning() is not supported in static hypergraph.");
   }
 
+  bool isInitiallyStableInThisVersion(const HypernodeID) const {
+    ERROR("isInitiallyStableInThisVersion() is not supported in static hypergraph.");
+  }
+
   IteratorRange<IncidenceIterator> stable_pins(const HyperedgeID) const {
     ERROR("stable_pins() is not supported in static hypergraph.");
   }

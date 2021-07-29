@@ -716,7 +716,8 @@ namespace mt_kahypar {
 
           _phg.hypergraph().sortStableActivePinsToBeginning();
 
-          nodeRegionComparator.calculateSignaturesParallel(&_phg.hypergraph());
+          nodeRegionComparator.calculateSignaturesParallel(&_phg.hypergraph(),
+                                                           [&](const HypernodeID hn) {return _phg.hypergraph().isInitiallyStableInThisVersion(hn);});
           pool->setNodeRegionComparator(&nodeRegionComparator);
 
           auto num_uncontractions = static_cast<size_t>(pool->getTotalNumUncontractions());

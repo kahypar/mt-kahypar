@@ -12,6 +12,7 @@
 #include "depth_priority_queue.h"
 #include "node_region_comparator.h"
 #include "mt-kahypar/definitions.h"
+#include "mt-kahypar/parallel/parallel_prefix_sum.h"
 
 namespace mt_kahypar::ds
 {

@@ -769,19 +769,6 @@ class DynamicHypergraph {
     return _incident_nets.nodeDegree(u);
   }
 
-  // ! Maximum node degree. This function iterates over all nodes! O(n)!
-  HyperedgeID maxNodeDegree() const {
-    tbb::enumerable_thread_specific<HypernodeID> max_degree_ets(0);
-    tbb::parallel_for(ID(0), _num_hypernodes, [&](const HypernodeID hn) {
-      auto degree = nodeDegree(hn);
-      HypernodeID& local_max = max_degree_ets.local();
-      if (degree > local_max) local_max = degree;
-    });
-    return max_degree_ets.combine([](HypernodeID d1, HypernodeID d2) {
-      return std::max(d1, d2);
-    });
-  }
-
   // ! Returns, whether a hypernode is enabled or not
   bool nodeIsEnabled(const HypernodeID u) const {
     return !hypernode(u).isDisabled();
@@ -936,6 +923,10 @@ class DynamicHypergraph {
   // ! are put at the beginning of the incidence array for the hyperedge in a continuous range. Also sets the stable
   // ! offsets accordingly.
   void sortStableActivePinsToBeginning();
+
+  bool isInitiallyStableInThisVersion(const HypernodeID hn) const {
+    return _uncontraction_hierarchies[version()]->isInitiallyStableNode(hn);
+  }
 
   // ! Only for testing
   void resetNumStablePinsArray(size_t new_size) {
