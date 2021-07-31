@@ -45,7 +45,8 @@ class NLevelCoarsenerBase {
   using ParallelHyperedgeVector = parallel::scalable_vector<parallel::scalable_vector<ParallelHyperedge>>;
   using AsyncRefinersETS = tbb::enumerable_thread_specific<std::unique_ptr<IAsyncRefiner>>;
   using AsyncCounterETS = tbb::enumerable_thread_specific<HypernodeID>;
-  using TreeGroupPool = ds::ConcurrentQueueGroupPool<ds::UncontractionGroupTree, Hypergraph>;
+  using RegionComparator = ds::NodeRegionComparator<Hypergraph>;
+  using TreeGroupPool = ds::ConcurrentQueueGroupPool<ds::UncontractionGroupTree, RegionComparator>;
   using VersionedPoolVector = parallel::scalable_vector<std::unique_ptr<TreeGroupPool>>;
 
  public:

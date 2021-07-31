@@ -66,7 +66,9 @@ class StaticHypergraph {
   using PinCountUpdateLockFunction = std::function<void(const HyperedgeID)>;
   #define NOOP_PIN_COUNT_LOCK_FUNC [] (const HyperedgeID) { }
 
-  using TreeGroupPool = ds::ConcurrentQueueGroupPool<ds::UncontractionGroupTree, StaticHypergraph>;
+
+  using RegionComparator = ds::NodeRegionComparator<StaticHypergraph>;
+  using TreeGroupPool = ds::ConcurrentQueueGroupPool<ds::UncontractionGroupTree, RegionComparator>;
   using VersionedPoolVector = parallel::scalable_vector<std::unique_ptr<TreeGroupPool>>;
 
   /**

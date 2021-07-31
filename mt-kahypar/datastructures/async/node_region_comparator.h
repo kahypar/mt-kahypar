@@ -22,29 +22,24 @@ namespace mt_kahypar::ds {
 
     private:
 
-        using SizeCmpFunc = std::function<bool (const HyperedgeID, const HyperedgeID)>;
         using SigIterator = Array<HyperedgeID>::iterator;
 
     public:
 
-        using InitiallyStablePredicate = std::function<bool (const HypernodeID)>;
-
         explicit NodeRegionComparator( const HyperedgeID max_signature_size = DEFAULT_SIGNATURE_SIZE) :
             _hg(nullptr),
-            _is_initially_stable([](const HypernodeID) {return false;}),
             _signatures(),
             _signature_offsets(),
             _max_signature_size(max_signature_size),
             _sort_buffer_ets() {}
 
         // ! Calculates or recalculates the signature sets for every node of a given hypergraph in parallel.
-        void calculateSignaturesParallel(const Hypergraph* hypergraph, InitiallyStablePredicate&& initially_stable_predicate = [](const HypernodeID) {return false;}) {
+        void calculateSignaturesParallel(const Hypergraph* hypergraph) {
           ASSERT(hypergraph);
           if (_hg != hypergraph) {
             _hg = hypergraph;
           }
           ASSERT(_hg);
-          _is_initially_stable = initially_stable_predicate;
 
           // Calculate signature size for all nodes and store current degrees, too, so they don't have to be recalculated.
           // (Initially store signature size in offsets, prefix sum afterwards.)
@@ -54,7 +49,7 @@ namespace mt_kahypar::ds {
           tbb::parallel_for(ID(0), _hg->initialNumNodes(), [&](const HypernodeID hn) {
               // Nodes that are initially stable will not be uncontracted any further and their region is therefore
               // never compared, so we do not need to calculate a signature for them
-              if (_is_initially_stable(hn)) return;
+              if (_hg->isInitiallyStableInThisVersion(hn)) return;
               auto incident_nets_range = _hg->incidentEdges(hn);
               // Note: Using _hg->nodeDegree() here does not work as that returns the degree in the original graph, not the
               // current one
@@ -78,24 +73,24 @@ namespace mt_kahypar::ds {
 
 
           _sort_buffer_ets = tbb::enumerable_thread_specific<std::vector<HyperedgeID>>(max_degree, kInvalidHyperedge);
-          SizeCmpFunc size_cmp = [&](const HyperedgeID he1, const HyperedgeID he2) {
-              // Sort primarily by edgeSize and within same sizes by ID so signatures can later be compared in O(signature size)
-              return _hg->edgeSize(he1) < _hg->edgeSize(he2) || (_hg->edgeSize(he1) == _hg->edgeSize(he2) && he1 < he2);
-          };
+//          SizeCmpFunc size_cmp = [&](const HyperedgeID he1, const HyperedgeID he2) {
+//              // Sort primarily by edgeSize and within same sizes by ID so signatures can later be compared in O(signature size)
+//              return (_hg->edgeSize(he1) < _hg->edgeSize(he2)) || ((_hg->edgeSize(he1) == _hg->edgeSize(he2)) && (he1 < he2));
+//          };
 
           // Calculate signatures of nodes
           tbb::parallel_for(ID(0), _hg->initialNumNodes(), [&](const HypernodeID hn) {
             auto& local_sort_buffer = _sort_buffer_ets.local();
             ASSERT(sig_size(hn) <= degrees[hn]);
-            calculateSignatureOfNode(hn, degrees[hn],local_sort_buffer, size_cmp);
+              calculateSignatureOfNode(hn, degrees[hn], local_sort_buffer);
           });
         }
 
         // ! Returns the approximate region similarity coefficient for two hypernodes. Runs in O(|signature|).
         double regionSimilarity(const HypernodeID hn1, const HypernodeID hn2) const {
           ASSERT(_hg);
-          ASSERT(!_is_initially_stable(hn1));
-          ASSERT(!_is_initially_stable(hn2));
+          ASSERT(!_hg->isInitiallyStableInThisVersion(hn1));
+          ASSERT(!_hg->isInitiallyStableInThisVersion(hn2));
           if (hn1 == hn2) return 1;
           IteratorRange<SigIterator> sig1 = signature(hn1);
           IteratorRange<SigIterator> sig2 = signature(hn2);
@@ -189,9 +184,15 @@ namespace mt_kahypar::ds {
 
     private:
 
+        bool edgeSizeCmp(const HyperedgeID he1, const HyperedgeID he2) const {
+          ASSERT(_hg);
+          // Sort primarily by edgeSize and within same sizes by ID so signatures can later be compared in O(signature size)
+          return (_hg->edgeSize(he1) < _hg->edgeSize(he2)) || ((_hg->edgeSize(he1) == _hg->edgeSize(he2)) && (he1 < he2));
+        }
+
         void
-        calculateSignatureOfNode(const HypernodeID hn, const HyperedgeID degree, std::vector<HypernodeID> &sort_buffer,
-                                 SizeCmpFunc &size_cmp) {
+        calculateSignatureOfNode(const HypernodeID hn, const HyperedgeID degree,
+                                 std::vector<HypernodeID> &sort_buffer) {
           ASSERT(_hg);
           ASSERT(sig_size(hn) <= degree);
 
@@ -209,8 +210,8 @@ namespace mt_kahypar::ds {
               _signatures[sig_entry(hn, i)] = *it;
               ++it;
             }
-            ASSERT(_is_initially_stable(hn) || it == incident_nets_range.end());
-            std::sort(signature(hn).begin(), signature(hn).end(), size_cmp);
+            ASSERT(_hg->isInitiallyStableInThisVersion(hn) || it == incident_nets_range.end());
+            std::sort(signature(hn).begin(), signature(hn).end(), [&](const HyperedgeID he1, const HyperedgeID he2) {return edgeSizeCmp(he1, he2);});
           } else {
             // General case: If degree > _max_signature_size find _max_signature_size largest edges incident to nodes and use those as signature
             ASSERT(sig_size(hn) == _max_signature_size);
@@ -222,7 +223,7 @@ namespace mt_kahypar::ds {
               ++idx;
             }
             ASSERT(idx == degree);
-            std::sort(sort_buffer.begin(), sort_buffer.begin() + degree, size_cmp);
+            std::sort(sort_buffer.begin(), sort_buffer.begin() + degree,  [&](const HyperedgeID he1, const HyperedgeID he2) {return edgeSizeCmp(he1, he2);});
             HyperedgeID signature_begin_index = degree - sig_size(hn);
             ASSERT(signature_begin_index < degree);
             for (HyperedgeID i = 0; i < sig_size(hn); ++i) {
@@ -293,7 +294,6 @@ namespace mt_kahypar::ds {
         }
 
         const Hypergraph* _hg;
-        InitiallyStablePredicate _is_initially_stable;
 
         parallel::scalable_vector<size_t> _signature_offsets;
         Array<HyperedgeID> _signatures;
@@ -301,6 +301,31 @@ namespace mt_kahypar::ds {
         tbb::enumerable_thread_specific<std::vector<HyperedgeID>> _sort_buffer_ets;
 
         static constexpr HyperedgeID DEFAULT_SIGNATURE_SIZE = 10;
+
+    };
+
+    template<class Hypergraph = Mandatory>
+    class DummyRegionComparator {
+
+    public:
+        explicit DummyRegionComparator( const HyperedgeID max_signature_size = 0) {
+          unused(max_signature_size);
+        }
+
+        // ! Calculates or recalculates the signature sets for every node of a given hypergraph in parallel.
+        void calculateSignaturesParallel(const Hypergraph*) {
+
+        }
+
+        // ! Returns the approximate region similarity coefficient for two hypernodes. Runs in O(|signature|).
+        double regionSimilarity(const HypernodeID hn1, const HypernodeID hn2) const {
+          return 0;
+        }
+
+
+        void memoryConsumption(utils::MemoryTreeNode* parent) const {
+
+        }
 
     };
 

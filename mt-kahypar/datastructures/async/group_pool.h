@@ -139,7 +139,7 @@ namespace mt_kahypar::ds
     };
 
     template<typename GroupHierarchy = Mandatory,
-        typename Hypergraph = Mandatory>
+        typename RegionComparator = Mandatory>
     class ConcurrentQueueGroupPool {
 
     public:
@@ -183,7 +183,7 @@ namespace mt_kahypar::ds
           return _hierarchy.get();
         }
 
-        void setNodeRegionComparator(const NodeRegionComparator<Hypergraph>* comparator) {
+        void setNodeRegionComparator(const RegionComparator* comparator) {
           ASSERT(comparator);
           _node_region_comparator = comparator;
         }
@@ -458,7 +458,7 @@ namespace mt_kahypar::ds
 //        tbb::concurrent_queue<ContractionGroupID> _active_ids;
           DepthPriorityQueue _active_ids;
 
-          const NodeRegionComparator<Hypergraph>* _node_region_comparator;
+          const RegionComparator* _node_region_comparator;
 
           tbb::enumerable_thread_specific<ContractionGroupID> _last_picked_ets;
 

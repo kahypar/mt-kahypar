@@ -50,7 +50,10 @@ public:
       uncontraction_locks(lock_manager),
       contraction_group_id(ds::invalidGroupID),
       _km1_delta(0),
-      attempted_to_move(numNodes)
+      attempted_to_move(numNodes),
+      num_nodes_in_pq(0),
+      max_num_nodes_in_pq(context.refinement.fm.async_max_num_nodes_in_pq),
+      max_num_moves(context.refinement.fm.async_max_num_moves)
           {}
 
   // ! Finds a sequence of moves, applies the best prefix and returns the actual km1 improvement of that prefix.
@@ -131,6 +134,12 @@ private:
 
   // ! Nodes which have been attempted to move in this local search run
   kahypar::ds::FastResetFlagArray<> attempted_to_move;
+
+  size_t num_nodes_in_pq;
+  const size_t max_num_nodes_in_pq;
+
+  const size_t max_num_moves;
+
 
 };
 

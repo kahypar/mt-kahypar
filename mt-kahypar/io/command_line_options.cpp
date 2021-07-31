@@ -398,6 +398,18 @@ namespace mt_kahypar {
                      (initial_partitioning ? &context.initial_partitioning.refinement.global_fm.obey_minimal_parallelism :
                       &context.refinement.global_fm.obey_minimal_parallelism))->value_name("<bool>")->default_value(true),
              "If true, then the globalized FM local search stops if more than a certain number of threads are finished.")
+            #ifdef USE_ASYNC_UNCOARSENING
+            ((initial_partitioning ? "i-r-async-fm-max-num-moves" : "r-async-fm-max-num-moves"),
+            po::value<size_t>(
+             (initial_partitioning ? &context.initial_partitioning.refinement.fm.async_max_num_moves :
+              &context.refinement.fm.async_max_num_moves))->value_name("<size_t>")->default_value(std::numeric_limits<size_t>::max()),
+            "Determines the maximum number of moves an Async FM Refiner performs in one run. (Only has an effect in asynchronous uncoarsening.)")
+            ((initial_partitioning ? "i-r-async-fm-max-num-nodes-in-pq" : "r-async-fm-max-num-nodes-in-pq"),
+            po::value<size_t>(
+             (initial_partitioning ? &context.initial_partitioning.refinement.fm.async_max_num_nodes_in_pq :
+              &context.refinement.fm.async_max_num_nodes_in_pq))->value_name("<size_t>")->default_value(std::numeric_limits<size_t>::max()),
+            "Determines the maximum number of nodes that are allowed to be in the priority queue of an Async FM Refiner simultaneously. (Only has an effect in asynchronous uncoarsening.)")
+            #endif
             #endif
             ;
     return options;
@@ -475,7 +487,7 @@ namespace mt_kahypar {
             "Hyperedges larger than this threshold will experience gain cache updates outside of a hyperedge "
             "lock via snapshotting pins and connectivity set. (Only has an effect in MtKaHyParStrongAsync.)")
             ("u-node-region-signature-size",
-            po::value<size_t>(&context.uncoarsening.node_region_signature_size)->value_name("<size_t>")->default_value(10),
+            po::value<size_t>(&context.uncoarsening.node_region_signature_size)->value_name("<size_t>")->default_value(20),
             "Size of the signature set used to identify the hypergraph region of a node. Comparisons "
             "between the regions of different nodes are based on this and the higher the value, the more accurate these"
             "comparisons are. Demands memory of this number times the number of nodes so higher values will need more "
@@ -486,7 +498,7 @@ namespace mt_kahypar {
             " region of nodes currently being worked on. The threshold for similarity is determined by "
             "u-node-region-similarity-threshold. (Only has an effect in MtKaHyParStrongAsync.)")
             ("u-node-region-similarity-threshold",
-            po::value<double>(&context.uncoarsening.node_region_similarity_threshold)->value_name("<double>")->default_value(0.3),
+            po::value<double>(&context.uncoarsening.node_region_similarity_threshold)->value_name("<double>")->default_value(0.05),
             "If the similarity between the region of a node picked to be worked on next and the regions of "
             "those being worked on currently is smaller than this threshold it will be"
             "accepted as the next active node immediately. (Only has an effect in MtKaHyParStrongAsync.)")

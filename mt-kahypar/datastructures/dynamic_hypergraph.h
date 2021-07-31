@@ -69,7 +69,9 @@ class DynamicHypergraph {
   using PinCountUpdateLockFunction = std::function<void (const HyperedgeID)>;
     #define NOOP_PIN_COUNT_LOCK_FUNC [] (const HyperedgeID) {return true;}
 
-  using TreeGroupPool = ds::ConcurrentQueueGroupPool<ds::UncontractionGroupTree, DynamicHypergraph>;
+
+  using RegionComparator = ds::NodeRegionComparator<DynamicHypergraph>;
+  using TreeGroupPool = ds::ConcurrentQueueGroupPool<ds::UncontractionGroupTree, RegionComparator>;
   using VersionedPoolVector = parallel::scalable_vector<std::unique_ptr<TreeGroupPool>>;
 
   /*!
@@ -925,6 +927,9 @@ class DynamicHypergraph {
   void sortStableActivePinsToBeginning();
 
   bool isInitiallyStableInThisVersion(const HypernodeID hn) const {
+    // If uncontraction hierarchies have never been calculated assume every node is not initially stable (for testing)
+    if (_uncontraction_hierarchies.empty()) return false;
+    ASSERT(version() < _uncontraction_hierarchies.size());
     return _uncontraction_hierarchies[version()]->isInitiallyStableNode(hn);
   }
 

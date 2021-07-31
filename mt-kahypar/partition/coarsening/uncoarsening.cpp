@@ -698,7 +698,7 @@ namespace mt_kahypar {
 
     auto async_uncontraction_counters = AsyncCounterETS(0);
 
-    auto nodeRegionComparator = ds::NodeRegionComparator<Hypergraph>(_context.uncoarsening.node_region_signature_size);
+    auto nodeRegionComparator = RegionComparator(_context.uncoarsening.node_region_signature_size);
 
       for (size_t inv_version = 0; inv_version < _group_pools_for_versions.size(); ++inv_version) {
 
@@ -716,8 +716,7 @@ namespace mt_kahypar {
 
           _phg.hypergraph().sortStableActivePinsToBeginning();
 
-          nodeRegionComparator.calculateSignaturesParallel(&_phg.hypergraph(),
-                                                           [&](const HypernodeID hn) {return _phg.hypergraph().isInitiallyStableInThisVersion(hn);});
+          nodeRegionComparator.calculateSignaturesParallel(&_phg.hypergraph());
           pool->setNodeRegionComparator(&nodeRegionComparator);
 
           auto num_uncontractions = static_cast<size_t>(pool->getTotalNumUncontractions());
@@ -727,7 +726,7 @@ namespace mt_kahypar {
           size_t num_roots = pool->getNumActive();
           for (size_t i = 0; i < num_roots; ++i) {
               uncoarsen_tg.run([&](){
-                // todo mlaupichler: Setting alwaysInsertIntoPQ to true for Initial Partitioning as well cryptically does not work (spits out Seg faults in release mode). I assume it's due to TBB internals but really there's no way to know.
+                // todo mlaupichler: Setting alwaysInsertIntoPQ to true for Initial Partitioning as well cryptically does not work (spits out Seg faults in release mode). I assume it's due to TBB internals.
                   uncoarsenAsyncTask(pool, uncoarsen_tg,
                                      current_metrics, async_lp_refiners, async_fm_refiners,
                                      async_uncontraction_counters,

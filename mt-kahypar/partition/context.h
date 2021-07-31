@@ -144,6 +144,10 @@ struct FMParameters {
   bool shuffle = true;
   mutable bool obey_minimal_parallelism = false;
   bool release_nodes = true;
+#ifdef USE_ASYNC_UNCOARSENING
+  size_t async_max_num_moves = std::numeric_limits<size_t>::max();
+  size_t async_max_num_nodes_in_pq = std::numeric_limits<size_t>::max();
+#endif
 };
 
 std::ostream& operator<<(std::ostream& out, const FMParameters& params);

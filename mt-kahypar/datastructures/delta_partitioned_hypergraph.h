@@ -44,7 +44,7 @@ namespace ds {
  * global state of the partitioned hypergraph after all local moves would be applied
  * to it.
  * The rationale behind this is that the majority of local searches to not yield to
- * an improvement and are immediatly reverted. However, applying them directly to global
+ * an improvement and are immediately reverted. However, applying them directly to global
  * partitioned hypergraph would affect other local searches running concurrently, which build
  * upon that state. This special partitioned hypergraph allows a local search to hide its
  * current search state from other searches in a space efficient manner.
