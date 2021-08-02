@@ -7,7 +7,6 @@ set(PROJECT_CONTACT "tobias.heuer@kit.edu")
 set(PROJECT_URL "https://github.com/kittobi1992/mt-kahypar")
 set(PROJECT_DESCRIPTION "Mt-KaHyPar: Multi-Threaded Karlsruhe Hypergraph Partitioning")
 set(PROJECT_VERSION "1.0.0")
-set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 include_directories(${PROJECT_SOURCE_DIR})
 
