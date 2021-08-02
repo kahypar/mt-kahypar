@@ -18,4 +18,4 @@ extraction:
           - cd $LGTM_SRC
           - mkdir build; cd build
           - cmake .. -DCMAKE_BUILD_TYPE=RELWITHDEBINFO
-          - make KaHyPar
+          - make MtKaHyPar
