@@ -530,7 +530,8 @@ private:
   }
 
   void uncontract(const ContractionGroup& group,
-                  const ContractionGroupID groupID) {
+                  const ContractionGroupID groupID,
+                  std::vector<HyperedgeID>& dropped_incident_edges) {
 
     auto update_delta_phgs_case_two = [&] (const HyperedgeID he, const HypernodeID u, const HypernodeID v, const PartitionID block) {
         if constexpr (GainCacheDelta::notify_about_updates_on_phg) {
@@ -611,6 +612,7 @@ private:
                           // release that lock here at right point)
                           // In this case, u is replaced by v in hyperedge he
                           // => Pin counts of hyperedge he does not change
+                          dropped_incident_edges.push_back(he);
                           if (_is_gain_cache_initialized) {
 
                             if (_hg->totalSize(he) < _hg->snapshotEdgeSizeThreshold()) {

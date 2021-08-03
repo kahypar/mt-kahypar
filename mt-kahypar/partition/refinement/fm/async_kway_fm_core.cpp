@@ -35,7 +35,7 @@ namespace mt_kahypar {
 
 
     for (const auto& seedNode : refinement_nodes ) {
-      if (sharedData.nodeTracker.tryAcquireNode(seedNode, contraction_group_id)) {
+      if (sharedData.nodeTracker.tryAcquireNode(seedNode, contraction_group_id, true)) {
         // Third parameter is only needed by gain cache on demand strategy which currently does not work with async so
         // just give any value
         fm_strategy.insertIntoPQ(phg, seedNode, ds::invalidGroupID);
@@ -90,7 +90,9 @@ namespace mt_kahypar {
             SearchID searchOfV = sharedData.nodeTracker.owner(v);
             if (searchOfV == contraction_group_id) {
               fm_strategy.updateGain(phg, v, move);
-            } else if (num_nodes_in_pq <= max_num_nodes_in_pq && sharedData.nodeTracker.tryAcquireNode(v, contraction_group_id)) {
+            } else if (num_nodes_in_pq <= max_num_nodes_in_pq && sharedData.nodeTracker.tryAcquireNode(v,
+                                                                                                       contraction_group_id,
+                                                                                                       true)) {
               fm_strategy.insertIntoPQ(phg, v, searchOfV);
               ++num_nodes_in_pq;
             }

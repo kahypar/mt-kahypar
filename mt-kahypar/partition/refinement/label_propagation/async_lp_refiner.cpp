@@ -110,7 +110,7 @@ namespace mt_kahypar {
         };
 
         auto acquire_both_locks = [&](const HypernodeID hn) -> held_locks {
-          if (_fm_node_tracker->tryAcquireNode(hn, _contraction_group_id)) {
+          if (_fm_node_tracker->tryAcquireNode(hn, _contraction_group_id, false)) {
             bool locked_for_uncontractions = _lock_manager->tryToAcquireLock(hn, _contraction_group_id);
             return {true, locked_for_uncontractions};
           }

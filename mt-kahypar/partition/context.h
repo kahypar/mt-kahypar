@@ -147,6 +147,7 @@ struct FMParameters {
 #ifdef USE_ASYNC_UNCOARSENING
   size_t async_max_num_moves = std::numeric_limits<size_t>::max();
   size_t async_max_num_nodes_in_pq = std::numeric_limits<size_t>::max();
+  HypernodeID async_node_freeze_time = 0;
 #endif
 };
 
@@ -203,9 +204,8 @@ struct UncoarseningParameters {
         bool use_asynchronous_uncoarsening = false;
 #endif
   size_t snapshot_edge_size_threshold = 0;
-  size_t node_region_signature_size = 10;
   size_t node_region_similarity_retries = 10;
-  double node_region_similarity_threshold = 0.3;
+  double node_region_similarity_threshold = 0.0;
   bool always_insert_groups_into_pq = false;
 };
 

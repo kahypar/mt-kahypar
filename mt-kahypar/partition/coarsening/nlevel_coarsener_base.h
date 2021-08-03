@@ -106,10 +106,13 @@ class NLevelCoarsenerBase {
                           metrics::ThreadSafeMetrics &current_metrics,
                           AsyncRefinersETS &async_lp_refiners, AsyncRefinersETS &async_fm_refiners,
                           AsyncCounterETS &uncontraction_counter_ets,
-                          utils::ProgressBar &uncontraction_progress, const bool alwaysInsertIntoPQ);
+                          utils::ProgressBar &uncontraction_progress,
+                          AsyncNodeTracker &async_node_tracker,
+                          RegionComparator &node_region_comparator, const bool alwaysInsertIntoPQ);
 
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE void uncontractGroupAsyncSubtask(const ds::ContractionGroup &group,
-                                                                      const ds::ContractionGroupID groupID);
+                                                                      const ds::ContractionGroupID groupID,
+                                                                      std::vector<HyperedgeID> &dropped_incident_edges);
 
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE void
   refineGroupAsyncSubtask(const ds::ContractionGroup &group, ds::ContractionGroupID groupID,

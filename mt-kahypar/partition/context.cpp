@@ -128,6 +128,7 @@ namespace mt_kahypar {
 #ifdef USE_ASYNC_UNCOARSENING
       out << "    Async Max Number of Moves:        " << params.async_max_num_moves << std::endl;
       out << "    Async Max Number of Nodes in PQ:  " << params.async_max_num_nodes_in_pq << std::endl;
+      out << "    Async Node Freeze Time:           " << params.async_node_freeze_time << std::endl;
 #endif
     }
     out << std::flush;
@@ -216,7 +217,6 @@ namespace mt_kahypar {
       str << "Uncoarsening Parameters:              " << std::endl;
       str << "  Use Asynchronous Uncoarsening:      " << std::boolalpha << params.use_asynchronous_uncoarsening << std::endl;
       str << "  Snapshot Edge Size Threshold:       " << params.snapshot_edge_size_threshold << std::endl;
-      str << "  Node Region Signature Size:         " << params.node_region_signature_size << std::endl;
       str << "  Node Region Similarity Retries:     " << params.node_region_similarity_retries << std::endl;
       str << "  Node Region Similarity Threshold:   " << std::setprecision(5) << params.node_region_similarity_threshold << std::endl;
       str << "  Always Insert Groups Into PQ:       " << std::boolalpha << params.always_insert_groups_into_pq << std::endl;

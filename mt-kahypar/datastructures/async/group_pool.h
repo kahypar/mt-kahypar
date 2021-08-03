@@ -250,6 +250,7 @@ namespace mt_kahypar::ds
         }
 
         void pickActiveID(ContractionGroupID& destination) {
+          ASSERT(_node_region_comparator);
 
             destination = invalidGroupID;
             if (!_node_region_comparator || (_region_similarity_retries == 0)) {
@@ -286,8 +287,8 @@ namespace mt_kahypar::ds
                 if (pickedID == invalidGroupID) {
                   ERROR("No correct group has been picked!" << V(pickedID));
                 }
-                double sim = maxRegionSimilarityToLastPicked(group(pickedID).getRepresentative());
-                if (sim <= _region_similarity_threshold) {
+                double sim = _node_region_comparator->regionSimilarityToActiveNodes(group(pickedID).getRepresentative());
+                if (std::abs(sim - _region_similarity_threshold) <= CMP_EPSILON) {
                   // If good candidate found, return it right away and reinsert others that were picked
                   destination = pickedID;
                   for (uint32_t j = 0; j < i; ++j) {
@@ -336,21 +337,15 @@ namespace mt_kahypar::ds
             insertActive(id);
         }
 
-        // ! Mark a given id as finished, i.e. mark that it will not be reinserted into the pool again.
-        void finalize(const ContractionGroupID id) {
+        // ! Mark a given id as accepted, i.e. mark that a thread will commence working on uncoarsening the group and
+        // ! that it will not be reinserted into the pool again.
+        void markAccepted(const ContractionGroupID id) {
           ASSERT(_hierarchy);
           _active_ids.increment_finished(_hierarchy->depth(id));
         }
 
-        // ! Mark a given id as finished, i.e. mark that it will not be reinserted into the pool again.
-        // ! Sets completed_depth_of_id to true if this group is the last to be uncontracted in its depth.
-        void finalize(const ContractionGroupID id, bool& completed_depth_of_id) {
-          ASSERT(_hierarchy);
-          _active_ids.increment_finished(_hierarchy->depth(id), completed_depth_of_id);
-        }
-
         // ! Only for testing/debugging
-        bool checkAllFinalized() const {
+        bool checkAllAccepted() const {
           return _active_ids.allDepthsCompleted();
 //            return true;
         }
@@ -426,22 +421,6 @@ namespace mt_kahypar::ds
             return empty;
         }
 
-        double maxRegionSimilarityToLastPicked(const HypernodeID hn) {
-          ASSERT(_node_region_comparator);
-          double cur_max = 0.0;
-          for (const ContractionGroupID last_picked_id : _last_picked_ets) {
-            if (last_picked_id >= _hierarchy->getNumGroups()) continue;
-            // if (last_picked_id >= _hierarchy->getNumGroups()) {
-            //   ERROR("Bad id in last_picked_ets" << V(last_picked_id));
-            // }
-            double sim = _node_region_comparator->regionSimilarity(hn, group(last_picked_id).getRepresentative());
-            if (sim > cur_max) {
-              cur_max = sim;
-            }
-          }
-          return cur_max;
-        }
-
 //        using DepthCompare = std::function<bool (ContractionGroupID, ContractionGroupID)>;
 
         // Used to compare groups by their depth in the GroupHierarchy. The comparator for std::priority queue has to be
@@ -464,6 +443,8 @@ namespace mt_kahypar::ds
 
           const size_t _region_similarity_retries;
           const double _region_similarity_threshold;
+
+          static constexpr double CMP_EPSILON = 1.0e-100;
 
     };
 

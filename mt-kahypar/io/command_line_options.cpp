@@ -409,6 +409,13 @@ namespace mt_kahypar {
              (initial_partitioning ? &context.initial_partitioning.refinement.fm.async_max_num_nodes_in_pq :
               &context.refinement.fm.async_max_num_nodes_in_pq))->value_name("<size_t>")->default_value(std::numeric_limits<size_t>::max()),
             "Determines the maximum number of nodes that are allowed to be in the priority queue of an Async FM Refiner simultaneously. (Only has an effect in asynchronous uncoarsening.)")
+            ((initial_partitioning ? "i-r-async-fm-node-freeze-time" : "r-async-fm-node-freeze-time"),
+            po::value<HypernodeID>(
+             (initial_partitioning ? &context.initial_partitioning.refinement.fm.async_node_freeze_time :
+              &context.refinement.fm.async_node_freeze_time))->value_name("<HypernodeID>")->default_value(0),
+            "Number of uncontractions that a node is frozen for after being examined by an async FM localized search. "
+            "While a node is frozen it cannot be claimed by another FM localized search. "
+            "Higher values should reduce time but may worsen partition quality. (Only has an effect in asynchronous uncoarsening.)")
             #endif
             #endif
             ;
@@ -486,19 +493,13 @@ namespace mt_kahypar {
             po::value<size_t>(&context.uncoarsening.snapshot_edge_size_threshold)->value_name("<size_t>")->default_value(0),
             "Hyperedges larger than this threshold will experience gain cache updates outside of a hyperedge "
             "lock via snapshotting pins and connectivity set. (Only has an effect in MtKaHyParStrongAsync.)")
-            ("u-node-region-signature-size",
-            po::value<size_t>(&context.uncoarsening.node_region_signature_size)->value_name("<size_t>")->default_value(20),
-            "Size of the signature set used to identify the hypergraph region of a node. Comparisons "
-            "between the regions of different nodes are based on this and the higher the value, the more accurate these"
-            "comparisons are. Demands memory of this number times the number of nodes so higher values will need more "
-            "memory. (Only has an effect in MtKaHyParStrongAsync.)")
             ("u-node-region-similarity-retries",
             po::value<size_t>(&context.uncoarsening.node_region_similarity_retries)->value_name("<size_t>")->default_value(10),
             "Number of retries used when trying to find an active group whose region is not too similar to the"
             " region of nodes currently being worked on. The threshold for similarity is determined by "
             "u-node-region-similarity-threshold. (Only has an effect in MtKaHyParStrongAsync.)")
             ("u-node-region-similarity-threshold",
-            po::value<double>(&context.uncoarsening.node_region_similarity_threshold)->value_name("<double>")->default_value(0.05),
+            po::value<double>(&context.uncoarsening.node_region_similarity_threshold)->value_name("<double>")->default_value(0.0),
             "If the similarity between the region of a node picked to be worked on next and the regions of "
             "those being worked on currently is smaller than this threshold it will be"
             "accepted as the next active node immediately. (Only has an effect in MtKaHyParStrongAsync.)")

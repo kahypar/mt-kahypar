@@ -173,11 +173,11 @@ class DeltaPartitionedHypergraph {
       _part_weights_delta[from] -= wu;
       auto inc_edges = _phg->incidentEdges(u);
       for ( const HyperedgeID& he : inc_edges ) {
-        if (async_context) _phg->lockHyperedgePinCountLock(he);
+//        if (async_context) _phg->lockHyperedgePinCountLock(he);
         const HypernodeID pin_count_in_from_part_after = decrementPinCountInPart(he, from);
         const HypernodeID pin_count_in_to_part_after = incrementPinCountInPart(he, to);
         delta_func(he, _phg->edgeWeight(he), _phg->edgeSize(he), pin_count_in_from_part_after, pin_count_in_to_part_after);
-        if (async_context) _phg->unlockHyperedgePinCountLock(he);
+//        if (async_context) _phg->unlockHyperedgePinCountLock(he);
       }
       return true;
     } else {

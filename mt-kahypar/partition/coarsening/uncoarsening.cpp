@@ -459,9 +459,10 @@ namespace mt_kahypar {
 
   void
   NLevelCoarsenerBase::uncontractGroupAsyncSubtask(const ds::ContractionGroup &group,
-                                                   const ds::ContractionGroupID groupID) {
+                                                   const ds::ContractionGroupID groupID,
+                                                   std::vector<HyperedgeID> &dropped_incident_edges) {
 
-      _phg.uncontract(group, groupID);
+      _phg.uncontract(group, groupID, dropped_incident_edges);
 
       auto repr_part_id = _phg.partID(group.getRepresentative());
       unused(repr_part_id);
@@ -516,6 +517,8 @@ namespace mt_kahypar {
                                                AsyncRefinersETS &async_lp_refiners, AsyncRefinersETS &async_fm_refiners,
                                                AsyncCounterETS &uncontraction_counter_ets,
                                                utils::ProgressBar &uncontraction_progress,
+                                               AsyncNodeTracker &async_node_tracker,
+                                               RegionComparator &node_region_comparator,
                                                const bool alwaysInsertIntoPQ) {
 
       ds::ContractionGroupID groupID = ds::invalidGroupID;
@@ -544,9 +547,12 @@ namespace mt_kahypar {
           }
           ASSERT(acquired);
 
-        pool->finalize(groupID);
+          pool->markAccepted(groupID);
+          node_region_comparator.markActive(_phg.incidentEdges(group.getRepresentative()));
 
-          uncontractGroupAsyncSubtask(group, groupID);
+          std::vector<HyperedgeID> dropped_incident_edges;
+
+          uncontractGroupAsyncSubtask(group, groupID, dropped_incident_edges);
 
           // Release lock (Locks will be reacquired for moves during refinement)
           _lock_manager_for_async->strongReleaseLock(group.getRepresentative(), groupID);
@@ -556,6 +562,9 @@ namespace mt_kahypar {
           }
 
           refineGroupAsyncSubtask(group, groupID, current_metrics, local_async_lp, local_async_fm);
+
+          node_region_comparator.markInactive(_phg.incidentEdges(group.getRepresentative()), IteratorRange(dropped_incident_edges.begin(), dropped_incident_edges.end()));
+          async_node_tracker.incrementTime(group.size());
 
           // If number of uncontractions in this thread surpasses threshold, update the uncontraction progress bar
           // and reset counter
@@ -584,7 +593,8 @@ namespace mt_kahypar {
                       uncoarsenAsyncTask(pool, uncoarsen_tg,
                                          current_metrics, async_lp_refiners, async_fm_refiners,
                                          uncontraction_counter_ets,
-                                         uncontraction_progress, alwaysInsertIntoPQ);
+                                         uncontraction_progress, async_node_tracker, node_region_comparator,
+                                         alwaysInsertIntoPQ);
                   });
                 }
                 return;
@@ -597,7 +607,8 @@ namespace mt_kahypar {
                       uncoarsenAsyncTask(pool, uncoarsen_tg,
                                          current_metrics, async_lp_refiners, async_fm_refiners,
                                          uncontraction_counter_ets,
-                                         uncontraction_progress, alwaysInsertIntoPQ);
+                                         uncontraction_progress, async_node_tracker, node_region_comparator,
+                                         alwaysInsertIntoPQ);
                   });
                 }
               }
@@ -698,7 +709,7 @@ namespace mt_kahypar {
 
     auto async_uncontraction_counters = AsyncCounterETS(0);
 
-    auto nodeRegionComparator = RegionComparator(_context.uncoarsening.node_region_signature_size);
+    auto node_region_comparator = RegionComparator(_phg.hypergraph());
 
       for (size_t inv_version = 0; inv_version < _group_pools_for_versions.size(); ++inv_version) {
 
@@ -716,8 +727,7 @@ namespace mt_kahypar {
 
           _phg.hypergraph().sortStableActivePinsToBeginning();
 
-          nodeRegionComparator.calculateSignaturesParallel(&_phg.hypergraph());
-          pool->setNodeRegionComparator(&nodeRegionComparator);
+          pool->setNodeRegionComparator(&node_region_comparator);
 
           auto num_uncontractions = static_cast<size_t>(pool->getTotalNumUncontractions());
 
@@ -730,8 +740,10 @@ namespace mt_kahypar {
                   uncoarsenAsyncTask(pool, uncoarsen_tg,
                                      current_metrics, async_lp_refiners, async_fm_refiners,
                                      async_uncontraction_counters,
-                                     uncontraction_progress, _context.uncoarsening.always_insert_groups_into_pq && (_context.type == kahypar::ContextType::main) /* Do not use this option in initial partitioning*/
-                                     );
+                                     uncontraction_progress, fm_shared_data->nodeTracker, node_region_comparator,
+                                     _context.uncoarsening.always_insert_groups_into_pq && (_context.type ==
+                                                                                            kahypar::ContextType::main) /* Do not use this option in initial partitioning*/
+                  );
               });
           }
           uncoarsen_tg.wait();
@@ -756,7 +768,8 @@ namespace mt_kahypar {
 
 //          HEAVY_REFINEMENT_ASSERT(node_anti_duplicator->checkAllFalse());
 //          HEAVY_REFINEMENT_ASSERT(edge_anti_duplicator->checkAllFalse());
-          ASSERT(pool->checkAllFinalized());
+          HEAVY_REFINEMENT_ASSERT(pool->checkAllAccepted());
+          HEAVY_REFINEMENT_ASSERT(node_region_comparator.checkNoneActiveParallel());
           HEAVY_REFINEMENT_ASSERT(fm_shared_data->nodeTracker.checkNoneLocked());
           HEAVY_REFINEMENT_ASSERT(_hg.verifyIncidenceArrayAndIncidentNets());
           HEAVY_REFINEMENT_ASSERT(_phg.checkTrackedPartitionInformation());
@@ -1036,9 +1049,6 @@ namespace mt_kahypar {
                                                     ds::ContractionGroupID group_id,
                                                     metrics::ThreadSafeMetrics &current_metrics) {
 
-      // debug
-      uint32_t completed_refine_loops = 0;
-
       bool improvement_found = true;
       while( improvement_found ) {
           improvement_found = false;
@@ -1054,8 +1064,6 @@ namespace mt_kahypar {
             improvement_found |= async_fm->refine(partitioned_hypergraph,
                                                 refinement_nodes, current_metrics, std::numeric_limits<double>::max(), group_id);
           }
-
-          ++completed_refine_loops;
 
           if ( !_context.refinement.refine_until_no_improvement ) {
               break;
