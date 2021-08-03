@@ -398,7 +398,6 @@ namespace mt_kahypar {
                      (initial_partitioning ? &context.initial_partitioning.refinement.global_fm.obey_minimal_parallelism :
                       &context.refinement.global_fm.obey_minimal_parallelism))->value_name("<bool>")->default_value(true),
              "If true, then the globalized FM local search stops if more than a certain number of threads are finished.")
-            #ifdef USE_ASYNC_UNCOARSENING
             ((initial_partitioning ? "i-r-async-fm-max-num-moves" : "r-async-fm-max-num-moves"),
             po::value<size_t>(
              (initial_partitioning ? &context.initial_partitioning.refinement.fm.async_max_num_moves :
@@ -416,7 +415,6 @@ namespace mt_kahypar {
             "Number of uncontractions that a node is frozen for after being examined by an async FM localized search. "
             "While a node is frozen it cannot be claimed by another FM localized search. "
             "Higher values should reduce time but may worsen partition quality. (Only has an effect in asynchronous uncoarsening.)")
-            #endif
             #endif
             ;
     return options;
