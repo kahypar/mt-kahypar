@@ -63,7 +63,8 @@ namespace mt_kahypar::ds {
         double regionSimilarityToActiveNodes(const HypernodeID hn) const {
           HyperedgeID union_size = 0;
           HyperedgeID intersection_size = 0;
-          for (const HyperedgeID he : _hg.incidentEdges(hn)) {
+          auto incident_edges = _hg.incidentEdges(hn);
+          for (const HyperedgeID he : incident_edges) {
             ASSERT(he < _active_nodes_combined_signatures.size());
             ++union_size;
             if (_active_nodes_combined_signatures[he].load(std::memory_order_relaxed) > 0) {

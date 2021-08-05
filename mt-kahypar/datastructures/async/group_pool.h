@@ -158,7 +158,7 @@ namespace mt_kahypar::ds
                   _node_region_comparator(nullptr),
                   _region_similarity_retries(context.uncoarsening.node_region_similarity_retries),
                   _region_similarity_threshold(context.uncoarsening.node_region_similarity_threshold)
-                  , _last_picked_ets(invalidGroupID)
+                  , _picked_ids_ets(std::vector<ContractionGroupID>(context.uncoarsening.node_region_similarity_retries, invalidGroupID))
                 {
             ASSERT(_hierarchy);
             auto roots = _hierarchy->roots();
@@ -257,7 +257,8 @@ namespace mt_kahypar::ds
               while (!tryToPickActiveID(destination)) {}
               ASSERT(!_hierarchy->isInitiallyStableNode(group(destination).getRepresentative()));
             } else {
-              std::vector<ContractionGroupID> pickedIDs(_region_similarity_retries, invalidGroupID);
+//              std::vector<ContractionGroupID>& pickedIDs = _picked_ids_ets.local();
+              std::vector<ContractionGroupID> pickedIDs = _picked_ids_ets.local();
               double cur_min_similarity = 1.0;
               ContractionGroupID cur_min_idx = 0;
               for (uint32_t i = 0; i < _region_similarity_retries; ++i) {
@@ -267,7 +268,6 @@ namespace mt_kahypar::ds
                   // If none found in PQ and none have been previously, wait for an element and return it immediately
                   if (i == 0) {
                     while(!tryToPickActiveID(destination)) {}
-                    _last_picked_ets.local() = destination;
                     return;
                   }
                   // If no more found in PQ but previously some ID was found, reinsert all but best and return best
@@ -280,7 +280,6 @@ namespace mt_kahypar::ds
                   if (destination == invalidGroupID) {
                     ERROR("Destination invalid after picking best from so far picked when PQ popping failed!" << V(destination));
                   }
-                  _last_picked_ets.local() = destination;
                   return;
                 }
                 ASSERT(pickedID != invalidGroupID);
@@ -288,13 +287,12 @@ namespace mt_kahypar::ds
                   ERROR("No correct group has been picked!" << V(pickedID));
                 }
                 double sim = _node_region_comparator->regionSimilarityToActiveNodes(group(pickedID).getRepresentative());
-                if (std::abs(sim - _region_similarity_threshold) <= CMP_EPSILON) {
+                if (sim - _region_similarity_threshold <= CMP_EPSILON) {
                   // If good candidate found, return it right away and reinsert others that were picked
                   destination = pickedID;
                   for (uint32_t j = 0; j < i; ++j) {
                       insertActive(pickedIDs[j]);
                   }
-                  _last_picked_ets.local() = destination;
                   return;
                 } else {
                   // If candidate is not good, insert it into pickedIDs and possibly update min
@@ -317,7 +315,6 @@ namespace mt_kahypar::ds
             if (destination == invalidGroupID) {
               ERROR("pickActiveID() call went to the end but destination was never set!" << V(destination));
             }
-            _last_picked_ets.local() = destination;
         }
 
         /// Convenience method to call activate() on all successors
@@ -435,16 +432,14 @@ namespace mt_kahypar::ds
 //        SpinLock _queue_lock;
 //        std::priority_queue<ContractionGroupID, std::vector<ContractionGroupID>, DepthCompare> _active_ids;
 //        tbb::concurrent_queue<ContractionGroupID> _active_ids;
-          DepthPriorityQueue _active_ids;
+        DepthPriorityQueue _active_ids;
 
-          const RegionComparator* _node_region_comparator;
+        const RegionComparator* _node_region_comparator;
+        const size_t _region_similarity_retries;
+        const double _region_similarity_threshold;
+        tbb::enumerable_thread_specific<std::vector<ContractionGroupID>> _picked_ids_ets;
 
-          tbb::enumerable_thread_specific<ContractionGroupID> _last_picked_ets;
-
-          const size_t _region_similarity_retries;
-          const double _region_similarity_threshold;
-
-          static constexpr double CMP_EPSILON = 1.0e-100;
+        static constexpr double CMP_EPSILON = 1.0e-100;
 
     };
 
