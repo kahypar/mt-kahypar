@@ -86,6 +86,10 @@ private:
     return Base::currentPartitionedHypergraph();
   }
 
+  vec<Level>& getHierarchyImpl() override {
+    return _hierarchy;
+  }
+
   using Base = MultilevelCoarsenerBase;
   using Base::_context;
 

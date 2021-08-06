@@ -211,6 +211,10 @@ class NLevelCoarsener : public ICoarsener,
     return Base::doUncoarsen(label_propagation, fm);
   }
 
+  vec<Level>& getHierarchyImpl() override {
+    return l;
+  }
+
   void compactifyVertices(const HypernodeID current_num_nodes) {
     // Mark all vertices that are still enabled
     utils::Timer::instance().start_timer("mark_enabled_vertices", "Mark Enabled Vertices");
@@ -254,6 +258,7 @@ class NLevelCoarsener : public ICoarsener,
   HypernodeWeight _max_allowed_node_weight;
   utils::ProgressBar _progress_bar;
   bool _enable_randomization;
+  vec<Level> l;
 };
 
 }  // namespace mt_kahypar

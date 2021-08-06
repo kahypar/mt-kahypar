@@ -447,6 +447,11 @@ class MultilevelCoarsener : public ICoarsener,
     return Base::currentPartitionedHypergraph();
   }
 
+  vec<Level>& getHierarchyImpl() override {
+    return _hierarchy;
+  }
+
+
   HypernodeID hierarchyContractionLimit(const Hypergraph& hypergraph) const {
     return std::max( static_cast<HypernodeID>( static_cast<double>(hypergraph.initialNumNodes() -
       hypergraph.numRemovedHypernodes()) / _context.coarsening.maximum_shrink_factor ),

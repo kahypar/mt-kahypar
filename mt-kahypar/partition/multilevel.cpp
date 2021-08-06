@@ -30,6 +30,7 @@
 #include "mt-kahypar/parallel/memory_pool.h"
 #include "mt-kahypar/utils/initial_partitioning_stats.h"
 #include "mt-kahypar/io/partitioning_output.h"
+#include "mt-kahypar/partition/coarsening/multilevel_uncoarsener.h"
 
 namespace mt_kahypar::multilevel {
 
@@ -41,6 +42,7 @@ namespace mt_kahypar::multilevel {
                    const Context& context,
                    const bool top_level) :
             _coarsener(nullptr),
+            _uncoarsener(nullptr),
             _sparsifier(nullptr),
             _ip_context(context),
             _degree_zero_hn_remover(context),
@@ -100,7 +102,10 @@ namespace mt_kahypar::multilevel {
                       _context.refinement.fm.algorithm,
                       _hg, _context);
 
-      _partitioned_hg = _coarsener->uncoarsen(label_propagation, fm);
+      vec<Level>& hierarchy = _coarsener->getHierarchy();
+      /*_coarsener->~ICoarsener();*/
+      _uncoarsener = std::make_unique<MultilevelUncoarsener>(_hg, _partitioned_hg, _context, _top_level, hierarchy);
+      _partitioned_hg = _uncoarsener->doUncoarsen(label_propagation, fm);
       utils::Timer::instance().stop_timer("refinement");
 
       return nullptr;
@@ -108,6 +113,7 @@ namespace mt_kahypar::multilevel {
 
   public:
     std::unique_ptr<ICoarsener> _coarsener;
+    std::unique_ptr<MultilevelUncoarsener> _uncoarsener;
     std::unique_ptr<IHypergraphSparsifier> _sparsifier;
     Context _ip_context;
     DegreeZeroHypernodeRemover _degree_zero_hn_remover;

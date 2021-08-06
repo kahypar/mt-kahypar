@@ -25,6 +25,7 @@
 #include "mt-kahypar/macros.h"
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/refinement/i_refiner.h"
+#include "mt-kahypar/partition/coarsening/level.h"
 
 namespace mt_kahypar {
 
@@ -55,6 +56,10 @@ class ICoarsener {
 
   virtual ~ICoarsener() = default;
 
+  vec<Level>& getHierarchy() {
+    return getHierarchyImpl();
+  }
+
  protected:
   ICoarsener() = default;
 
@@ -64,6 +69,7 @@ class ICoarsener {
                                                 std::unique_ptr<IRefiner>& fm) = 0;
   virtual Hypergraph& coarsestHypergraphImpl() = 0;
   virtual PartitionedHypergraph& coarsestPartitionedHypergraphImpl() = 0;
+  virtual vec<Level>& getHierarchyImpl() = 0;
 };
 
 }  // namespace kahypar
