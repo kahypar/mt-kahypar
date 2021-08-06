@@ -1,0 +1,93 @@
+/*******************************************************************************
+ * This file is part of KaHyPar.
+ *
+ * Copyright (C) 2021 Noah Wahl <noah.wahl@student.kit.edu>
+ *
+ * KaHyPar is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * KaHyPar is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with KaHyPar.  If not, see <http://www.gnu.org/licenses/>.
+ *
+******************************************************************************/
+
+#pragma once
+
+#include "mt-kahypar/definitions.h"
+namespace mt_kahypar {
+class Level {
+
+public:
+  explicit Level(Hypergraph&& contracted_hypergraph,
+                 parallel::scalable_vector<HypernodeID>&& communities,
+                 double coarsening_time) :
+    _representative_hypergraph(nullptr),
+    _contracted_hypergraph(std::move(contracted_hypergraph)),
+    _contracted_partitioned_hypergraph(),
+    _communities(std::move(communities)),
+    _coarsening_time(coarsening_time) { }
+
+  void setRepresentativeHypergraph(PartitionedHypergraph* representative_hypergraph) {
+    _representative_hypergraph = representative_hypergraph;
+  }
+
+  PartitionedHypergraph& representativeHypergraph() {
+    ASSERT(_representative_hypergraph);
+    return *_representative_hypergraph;
+  }
+
+  Hypergraph& contractedHypergraph() {
+    return _contracted_hypergraph;
+  }
+
+  PartitionedHypergraph& contractedPartitionedHypergraph() {
+    return _contracted_partitioned_hypergraph;
+  }
+
+  const Hypergraph& contractedHypergraph() const {
+    return _contracted_hypergraph;
+  }
+
+  // ! Maps a global vertex id of the representative hypergraph
+  // ! to its global vertex id in the contracted hypergraph
+  HypernodeID mapToContractedHypergraph(const HypernodeID hn) const {
+    ASSERT(hn < _communities.size());
+    return _communities[hn];
+  }
+
+  double coarseningTime() const {
+    return _coarsening_time;
+  }
+
+  void freeInternalData() {
+    tbb::parallel_invoke([&] {
+      _contracted_hypergraph.freeInternalData();
+    }, [&] {
+      _contracted_partitioned_hypergraph.freeInternalData();
+    }, [&] {
+      parallel::free(_communities);
+    });
+  }
+
+private:
+  // ! Hypergraph on the next finer level
+  PartitionedHypergraph* _representative_hypergraph;
+  // ! Contracted Hypergraph
+  Hypergraph _contracted_hypergraph;
+  // ! Partitioned Hypergraph
+  PartitionedHypergraph _contracted_partitioned_hypergraph;
+  // ! Defines the communities that are contracted
+  // ! in the coarse hypergraph
+  parallel::scalable_vector<HypernodeID> _communities;
+  // ! Time to create the coarsened hypergraph
+  // ! (includes coarsening + contraction time)
+  double _coarsening_time;
+};
+}
