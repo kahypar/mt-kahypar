@@ -19,24 +19,42 @@ namespace mt_kahypar::ds {
 
     public:
 
-        explicit NodeRegionComparator(const Hypergraph& hypergraph) :
+        explicit NodeRegionComparator(const Hypergraph& hypergraph, const Context& context) :
             _hg(hypergraph),
+            _region_similarity_threshold(context.uncoarsening.node_region_similarity_threshold),
             _active_nodes_signature_union_size(0),
-            _active_nodes_combined_signatures(_hg.initialNumEdges(), CAtomic<uint32_t>(0)) {}
+            _active_nodes_combined_signatures(_hg.initialNumEdges(), CAtomic<size_t>(0)) {}
 
         void memoryConsumption(utils::MemoryTreeNode* parent) const {
           ASSERT(parent);
-          parent->addChild("Active Nodes Combined Signatures", sizeof(CAtomic<uint32_t>) * _active_nodes_combined_signatures.size());
+          parent->addChild("Active Nodes Combined Signatures", sizeof(CAtomic<size_t>) * _active_nodes_combined_signatures.size());
         }
+
+        /*void resetHyperedgeSizesParallel() {
+          tbb::parallel_for(ID(0), ID(_hg.initialNumEdges()), [&](const HyperedgeID he) {
+              if (!_hg.edgeIsEnabled(he)) {
+                _hyperedge_sizes_at_beginning_of_version[he] = 0;
+                return;
+              }
+              HypernodeID edge_size = _hg.edgeSize(he);
+              if (edge_size == 0) {
+                _hyperedge_sizes_at_beginning_of_version[he] = 0;
+              } else {
+//                double log_size = std::ceil(std::log(_hg.edgeSize(he)));
+                _hyperedge_sizes_at_beginning_of_version[he] = _hg.edgeSize(he);
+              }
+          });
+        }*/
 
         template<typename IncidentEdgeIteratorT>
         void markActive(const IteratorRange<IncidentEdgeIteratorT> incident_edges) {
           for (const HypernodeID he : incident_edges) {
             ASSERT(he < _active_nodes_combined_signatures.size());
             uint32_t count = _active_nodes_combined_signatures[he].add_fetch(1, std::memory_order_relaxed);
-            if (count == 1) {
+            unused(count);
+//            if (count == 1) {
               _active_nodes_signature_union_size.fetch_add(1, std::memory_order_relaxed);
-            }
+//            }
           }
         }
 
@@ -45,12 +63,13 @@ namespace mt_kahypar::ds {
           for (const HyperedgeID he : incident_edges) {
             ASSERT(he < _active_nodes_combined_signatures.size());
             uint32_t count = _active_nodes_combined_signatures[he].sub_fetch(1, std::memory_order_relaxed);
+            unused(count);
             ASSERT(count < count + 1);
-            if (count == 0) {
+//            if (count == 0) {
               uint32_t union_size = _active_nodes_signature_union_size.sub_fetch(1, std::memory_order_relaxed);
               unused(union_size);
               ASSERT(union_size < union_size + 1);
-            }
+//            }
           }
         }
 
@@ -60,24 +79,51 @@ namespace mt_kahypar::ds {
           markInactive(dropped_incident_edges);
         }
 
+        bool regionIsNotTooSimilarToActiveNodesWithFullSimilarity(const HypernodeID hn, double& similarity) const {
+          similarity = regionSimilarityToActiveNodes(hn);
+          return similarity < _region_similarity_threshold + CMP_EPSILON;
+        }
+
         double regionSimilarityToActiveNodes(const HypernodeID hn) const {
-          HyperedgeID union_size = 0;
-          HyperedgeID intersection_size = 0;
+          ASSERT(_hg.nodeIsEnabled(hn));
+          size_t union_size = _hg.nodeDegree(hn) + _active_nodes_signature_union_size.load(std::memory_order_relaxed);
+          size_t intersection_size = 0;
           auto incident_edges = _hg.incidentEdges(hn);
           for (const HyperedgeID he : incident_edges) {
             ASSERT(he < _active_nodes_combined_signatures.size());
-            ++union_size;
-            if (_active_nodes_combined_signatures[he].load(std::memory_order_relaxed) > 0) {
+            size_t num_active_incident_to_he = _active_nodes_combined_signatures[he].load(std::memory_order_relaxed);
+            if (num_active_incident_to_he > 0) {
               ++intersection_size;
             }
           }
-          ASSERT(union_size >= intersection_size);
           // |A \cup B| = |A| + |B| - |A \cap B|
-          HypernodeID active_nodes_union_size = _active_nodes_signature_union_size.load(std::memory_order_relaxed);
-          union_size += active_nodes_union_size - intersection_size;
+          ASSERT(union_size >= intersection_size);
+          union_size -= intersection_size;
 
           if (union_size == 0) return 0.0;
           return (double) intersection_size / (double) union_size;
+        }
+
+        bool regionIsNotTooSimilarToActiveNodesWithEarlyBreak(const HypernodeID hn) const {
+          ASSERT(_hg.nodeIsEnabled(hn));
+          size_t union_size = _hg.nodeDegree(hn) + _active_nodes_signature_union_size.load(std::memory_order_relaxed);
+          size_t intersection_size = 0;
+          auto incident_edges = _hg.incidentEdges(hn);
+          for (const HyperedgeID he : incident_edges) {
+            ASSERT(he < _active_nodes_combined_signatures.size());
+            size_t num_active_incident_to_he = _active_nodes_combined_signatures[he].load(std::memory_order_relaxed);
+            if (num_active_incident_to_he > 0) {
+              ++intersection_size;
+              // |A \cup B| = |A| + |B| - |A \cap B|
+              ASSERT(union_size > 0);
+              --union_size;
+              // Break early if threshold has been surpassed already
+              double lower_bound_sim = (double) intersection_size / (double) union_size;
+              if (lower_bound_sim > _region_similarity_threshold + CMP_EPSILON) return false;
+            }
+          }
+          ASSERT(union_size >= intersection_size);
+          return true;
         }
 
         // ! Only for testing/debugging
@@ -96,10 +142,12 @@ namespace mt_kahypar::ds {
     private:
 
         const Hypergraph& _hg;
+        const double _region_similarity_threshold;
 
         CAtomic<HyperedgeID> _active_nodes_signature_union_size;
-        Array<CAtomic<uint32_t>> _active_nodes_combined_signatures;
+        Array<CAtomic<size_t>> _active_nodes_combined_signatures;
 
+        static constexpr double CMP_EPSILON = 1.0e-100;
 
     };
 
@@ -117,6 +165,15 @@ namespace mt_kahypar::ds {
 
         double regionSimilarityToActiveNodes(const HypernodeID) const {
           return 0.0;
+        }
+
+        bool regionIsNotTooSimilarToActiveNodesWithFullSimilarity(const HypernodeID, double& similarity) const {
+          similarity = 0.0;
+          return true;
+        }
+
+        bool regionIsNotTooSimilarToActiveNodesWithEarlyBreak(const HypernodeID) const {
+          return true;
         }
 
     };

@@ -105,7 +105,7 @@ class AAsynchLPRefiner : public Test {
 
     node_anti_duplicator = std::make_unique<ds::ThreadSafeFlagArray<HypernodeID>>(hypergraph.initialNumNodes());
     edge_anti_duplicator = std::make_unique<ds::ThreadSafeFlagArray<HyperedgeID>>(hypergraph.initialNumEdges());
-    fm_node_tracker_dummy = std::make_unique<AsyncNodeTracker>();
+    fm_node_tracker_dummy = std::make_unique<AsyncNodeTracker>(0);
     fm_node_tracker_dummy->resize(hypergraph.initialNumNodes());
 
     refiner = AsyncLPRefinerFactory::getInstance().createObject(

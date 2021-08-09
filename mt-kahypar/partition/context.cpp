@@ -126,7 +126,6 @@ namespace mt_kahypar {
       out << "    Release Nodes:                    " << std::boolalpha << params.release_nodes << std::endl;
       out << "    Time Limit Factor:                " << params.time_limit_factor << std::endl;
 #ifdef USE_ASYNC_UNCOARSENING
-      out << "    Async Max Number of Moves:        " << params.async_max_num_moves << std::endl;
       out << "    Async Max Number of Nodes in PQ:  " << params.async_max_num_nodes_in_pq << std::endl;
       out << "    Async Node Freeze Time:           " << params.async_node_freeze_time << std::endl;
 #endif

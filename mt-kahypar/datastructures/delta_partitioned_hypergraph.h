@@ -58,19 +58,20 @@ class DeltaPartitionedHypergraph {
   using IncidenceIterator = typename PartitionedHypergraph::IncidenceIterator;
   using IncidentNetsIterator = typename PartitionedHypergraph::IncidentNetsIterator;
 
-  using GainCacheDelta = typename PartitionedHypergraph::GainCacheDelta;
-
  public:
   static constexpr bool supports_connectivity_set = false;
   static constexpr HyperedgeID HIGH_DEGREE_THRESHOLD = PartitionedHypergraph::HIGH_DEGREE_THRESHOLD;
 
   explicit DeltaPartitionedHypergraph(const PartitionID k) :
-    _k(k),
-    _phg(nullptr),
-    _part_weights_delta(k, 0),
-    _part_ids_delta(),
-    _pins_in_part_delta(),
-    _gain_cache_deltas(k, [&](const HypernodeID hn){return partID(hn);}) { }
+      _k(k),
+      _phg(nullptr),
+      _part_weights_delta(k, 0),
+      _part_ids_delta(),
+      _pins_in_part_delta(),
+      _benefit_deltas(),
+      _penalty_deltas(),
+      _num_pins_touched_by_gain_cache_update(0),
+      _num_gain_cache_update_cases_triggered(0) { }
 
   DeltaPartitionedHypergraph(const DeltaPartitionedHypergraph&) = delete;
   DeltaPartitionedHypergraph & operator= (const DeltaPartitionedHypergraph &) = delete;
@@ -82,15 +83,7 @@ class DeltaPartitionedHypergraph {
 
   void setPartitionedHypergraph(PartitionedHypergraph* phg) {
     ASSERT(phg);
-    if (!phg) LOG << "phg is nullptr in DeltaPHG::setPartitionedHypergraph()!";
-
-    if constexpr (GainCacheDelta::notify_about_updates_on_phg) {
-      if (_phg != phg) {
-        phg->addDeltaObserver(this);
-      }
-      _gain_cache_deltas.resize(phg->initialNumNodes(), phg->initialNumEdges());
-    }
-
+    if (!phg) { LOG << "phg is nullptr in DeltaPHG::setPartitionedHypergraph()!";}
     _phg = phg;
   }
 
@@ -160,8 +153,7 @@ class DeltaPartitionedHypergraph {
                       const PartitionID from,
                       const PartitionID to,
                       const HypernodeWeight max_weight_to,
-                      DeltaFunc&& delta_func,
-                      const bool async_context = false) {
+                      DeltaFunc&& delta_func) {
     ASSERT(_phg);
     assert(partID(u) == from);
     assert(from != to);
@@ -173,11 +165,9 @@ class DeltaPartitionedHypergraph {
       _part_weights_delta[from] -= wu;
       auto inc_edges = _phg->incidentEdges(u);
       for ( const HyperedgeID& he : inc_edges ) {
-//        if (async_context) _phg->lockHyperedgePinCountLock(he);
         const HypernodeID pin_count_in_from_part_after = decrementPinCountInPart(he, from);
         const HypernodeID pin_count_in_to_part_after = incrementPinCountInPart(he, to);
         delta_func(he, _phg->edgeWeight(he), _phg->edgeSize(he), pin_count_in_from_part_after, pin_count_in_to_part_after);
-//        if (async_context) _phg->unlockHyperedgePinCountLock(he);
       }
       return true;
     } else {
@@ -189,32 +179,68 @@ class DeltaPartitionedHypergraph {
   bool changeNodePart(const HypernodeID u,
                       const PartitionID from,
                       const PartitionID to,
-                      const HypernodeWeight max_weight_to,
-                      const bool async_context = false) {
-    return changeNodePart(u, from, to, max_weight_to, NoOpDeltaFunc(), async_context);
+                      const HypernodeWeight max_weight_to) {
+    return changeNodePart(u, from, to, max_weight_to, NoOpDeltaFunc());
   }
 
   bool changeNodePartWithGainCacheUpdate(const HypernodeID u,
                                          const PartitionID from,
                                          const PartitionID to,
-                                         const HypernodeWeight max_weight_to,
-                                         const bool async_context = false) {
+                                         const HypernodeWeight max_weight_to) {
     auto delta_gain_func = [&]( HyperedgeID he, HyperedgeWeight edge_weight,
                                 HypernodeID, HypernodeID pcip_from, HypernodeID pcip_to ) {
       gainCacheUpdate(he, edge_weight, pins(he), from, pcip_from, to, pcip_to);
     };
-    return changeNodePart(u, from, to, max_weight_to, delta_gain_func, async_context);
+    return changeNodePart(u, from, to, max_weight_to, delta_gain_func);
   }
 
   template <typename PinIteratorT>
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
-  void gainCacheUpdate(const HyperedgeID he, const HyperedgeWeight we, IteratorRange<PinIteratorT> pins,
+  void gainCacheUpdate(const HyperedgeID, const HyperedgeWeight we, IteratorRange<PinIteratorT> pins,
                          const PartitionID from, const HypernodeID pin_count_in_from_part_after,
                          const PartitionID to, const HypernodeID pin_count_in_to_part_after) {
-    _gain_cache_deltas.updateForDeltaMove(he, we, pins, from, pin_count_in_from_part_after, to, pin_count_in_to_part_after);
+    if (pin_count_in_from_part_after == 0) {
+      ++_num_gain_cache_update_cases_triggered;
+      for (HypernodeID u : pins) {
+        _penalty_deltas[penalty_index(u, from)] += we;
+        ++_num_pins_touched_by_gain_cache_update;
+      }
+    } else if (pin_count_in_from_part_after == 1) {
+      ++_num_gain_cache_update_cases_triggered;
+      for (HypernodeID u : pins) {
+        if (partID(u) == from) {
+          _benefit_deltas[u] += we;
+        }
+        ++_num_pins_touched_by_gain_cache_update;
+      }
+    }
+
+    if (pin_count_in_to_part_after == 1) {
+      ++_num_gain_cache_update_cases_triggered;
+      for (HypernodeID u : pins) {
+        _penalty_deltas[penalty_index(u, to)] -= we;
+        ++_num_pins_touched_by_gain_cache_update;
+      }
+    } else if (pin_count_in_to_part_after == 2) {
+      ++_num_gain_cache_update_cases_triggered;
+      for (HypernodeID u : pins) {
+        if (partID(u) == to) {
+          _benefit_deltas[u] -= we;
+        }
+        ++_num_pins_touched_by_gain_cache_update;
+      }
+    }
   }
 
-  // ! Returns the block of hypernode u
+    size_t getNumPinsTouchedByGainCacheUpdate() const {
+      return _num_pins_touched_by_gain_cache_update;
+    }
+
+    size_t getNumGainCacheUpdateCasesTriggered() const {
+      return _num_gain_cache_update_cases_triggered;
+    }
+
+    // ! Returns the block of hypernode u
   PartitionID partID(const HypernodeID u) const {
     ASSERT(_phg);
     const PartitionID* part_id = _part_ids_delta.get_if_contained(u);
@@ -241,7 +267,7 @@ class DeltaPartitionedHypergraph {
   // ! pin in its block
   HyperedgeWeight moveFromBenefit(const HypernodeID u) const {
     ASSERT(_phg);
-    return _phg->moveFromBenefit(u) + _gain_cache_deltas.benefitDelta(u);
+    return _phg->moveFromBenefit(u) + benefitDelta(u);
   }
 
   // ! Returns the sum of all edges incident to u, where p is not part of
@@ -249,7 +275,7 @@ class DeltaPartitionedHypergraph {
   HyperedgeWeight moveToPenalty(const HypernodeID u, const PartitionID p) const {
     ASSERT(_phg);
     ASSERT(p != kInvalidPartition && p < _k);
-    return _phg->moveToPenalty(u, p) + _gain_cache_deltas.penaltyDelta(u, p);
+    return _phg->moveToPenalty(u, p) + penaltyDelta(u,p);
   }
 
   Gain km1Gain(const HypernodeID u, const PartitionID from, const PartitionID to) const {
@@ -270,7 +296,11 @@ class DeltaPartitionedHypergraph {
     // Constant Time
     _part_ids_delta.clear();
     _pins_in_part_delta.clear();
-    _gain_cache_deltas.clear();
+    _benefit_deltas.clear();
+    _penalty_deltas.clear();
+
+    _num_pins_touched_by_gain_cache_update = 0;
+    _num_gain_cache_update_cases_triggered = 0;
   }
 
   void dropMemory() {
@@ -278,14 +308,15 @@ class DeltaPartitionedHypergraph {
       _memory_dropped = true;
       _part_ids_delta.freeInternalData();
       _pins_in_part_delta.freeInternalData();
-      _gain_cache_deltas.dropMemory();
+      _benefit_deltas.freeInternalData();
+      _penalty_deltas.freeInternalData();
     }
   }
 
   size_t combinedMemoryConsumption() const {
     return _pins_in_part_delta.size_in_bytes()
-           + _gain_cache_deltas.benefit_size_in_bytes()
-           + _gain_cache_deltas.penalty_size_in_bytes()
+           + _benefit_deltas.size_in_bytes()
+           + _penalty_deltas.size_in_bytes()
            + _part_ids_delta.size_in_bytes();
   }
 
@@ -304,69 +335,10 @@ class DeltaPartitionedHypergraph {
     utils::MemoryTreeNode* pins_in_part_node = delta_phg_node->addChild("Delta Pins In Part");
     pins_in_part_node->updateSize(_pins_in_part_delta.size_in_bytes());
     utils::MemoryTreeNode* move_from_benefit_node = delta_phg_node->addChild("Delta Move From Benefit");
-    move_from_benefit_node->updateSize(_gain_cache_deltas.benefit_size_in_bytes());
+    move_from_benefit_node->updateSize(_benefit_deltas.size_in_bytes());
     utils::MemoryTreeNode* move_to_penalty_node = delta_phg_node->addChild("Delta Move To Penalty");
-    move_to_penalty_node->updateSize(_gain_cache_deltas.penalty_size_in_bytes());
+    move_to_penalty_node->updateSize(_penalty_deltas.size_in_bytes());
   }
-
-  void markActive() {
-    ASSERT(!_active);
-   _active = true;
-  }
-
-  void markInactive() {
-    ASSERT(_active);
-    _active = false;
-  }
-
-  template<typename PinIteratorT>
-  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
-  void updateDeltasForMoveOnUnderlyingPHG(const HyperedgeID he, const HyperedgeWeight we, IteratorRange<PinIteratorT> pins,
-                                                    const PartitionID from, const HypernodeID pin_count_in_from_part_after_in_delta, const HypernodeID pin_count_in_from_part_after_in_underlying,
-                                                    const PartitionID to, const HypernodeID pin_count_in_to_part_after_in_delta, const HypernodeID pin_count_in_to_part_after_in_underlying) {
-    if (!_active) return;
-    _gain_cache_deltas.updateForMoveOnUnderlyingPHG(he, we, pins,
-                                                    from, pin_count_in_from_part_after_in_delta, pin_count_in_from_part_after_in_underlying,
-                                                    to, pin_count_in_to_part_after_in_delta, pin_count_in_to_part_after_in_underlying);
-  }
-
-    // ! Variant for call in pin count update edge lock so pin count in delta part is queried on demand
-    template<typename PinIteratorT>
-    MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
-    void updateDeltasForMoveOnUnderlyingPHG(const HyperedgeID he, const HyperedgeWeight we, IteratorRange<PinIteratorT> pins,
-                                            const PartitionID from,  const HypernodeID pin_count_in_from_part_after_in_underlying,
-                                            const PartitionID to,  const HypernodeID pin_count_in_to_part_after_in_underlying) {
-      if (!_active) return;
-      _gain_cache_deltas.updateForMoveOnUnderlyingPHG(he, we, pins,
-                                                      from, pinCountInPart(he, from), pin_count_in_from_part_after_in_underlying,
-                                                      to, pinCountInPart(he, to), pin_count_in_to_part_after_in_underlying);
-    }
-
-    template<typename PinIteratorT>
-    MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
-    void updateDeltasForUncontractCaseOne(const HyperedgeID he, const HyperedgeWeight we, HypernodeID v, IteratorRange<PinIteratorT> pins,
-                                    const PartitionID block, const HypernodeID pin_count_in_part_after_in_delta,
-                                    const HypernodeID pin_count_in_part_after_in_underlying) {
-      if (!_active) return;
-      _gain_cache_deltas.updateForUncontractCaseOne(he, we, v, pins, block, pin_count_in_part_after_in_delta, pin_count_in_part_after_in_underlying);
-    }
-
-    // ! Variant for call in pin count update edge lock so pin count in delta part is queried on demand
-    template<typename PinIteratorT>
-    MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
-    void updateDeltasForUncontractCaseOne(const HyperedgeID he, const HyperedgeWeight we, HypernodeID v, IteratorRange<PinIteratorT> pins,
-                                          const PartitionID block,
-                                          const HypernodeID pin_count_in_part_after_in_underlying) {
-      if (!_active) return;
-      _gain_cache_deltas.updateForUncontractCaseOne(he, we, v, pins, block, pinCountInPart(he, block), pin_count_in_part_after_in_underlying);
-    }
-
-    MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
-    void updateDeltasForUncontractCaseTwo(const HyperedgeID he, const HypernodeID u, const HypernodeID v,
-                                    const PartitionID block) {
-      if (!_active) return;
-      _gain_cache_deltas.updateForUncontractCaseTwo(he, u, v, block);
-    }
 
  private:
 
@@ -382,8 +354,31 @@ class DeltaPartitionedHypergraph {
       _phg->pinCountInPart(e, p)) + ++_pins_in_part_delta[e * _k + p], static_cast<int32_t>(0));
   }
 
+    HyperedgeWeight penaltyDelta(const HypernodeID u, const PartitionID p) const {
+      const HyperedgeWeight* val = _penalty_deltas.get_if_contained(penalty_index(u,p));
+      if (val) {
+        return *val;
+      } else {
+        return 0;
+      }
+    }
+
+    HyperedgeWeight benefitDelta(const HypernodeID u) const {
+      const HyperedgeWeight* val = _benefit_deltas.get_if_contained(u);
+      if (val) {
+        return *val;
+      } else {
+        return 0;
+      }
+    }
+
+
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
+  size_t penalty_index(const HypernodeID u, const PartitionID p) const {
+    return size_t(u) * _k + p;
+  }
+
   bool _memory_dropped = false;
-  bool _active = false;
 
   // ! Number of blocks
   const PartitionID _k;
@@ -401,9 +396,13 @@ class DeltaPartitionedHypergraph {
   // ! relative to the _pins_in_part member in '_phg'
   DynamicSparseMap<size_t, int32_t> _pins_in_part_delta;
 
-  // ! Stores the delta of each locally touched move from benefit entry
-  // ! relative to the _move_from_benefit member in '_phg'
-  GainCacheDelta _gain_cache_deltas;
+  // ! Gain Cache Deltas
+  DynamicSparseMap<HypernodeID, HyperedgeWeight> _benefit_deltas;
+  DynamicSparseMap<size_t, HyperedgeWeight> _penalty_deltas;
+
+  // debug stat counter
+  size_t _num_pins_touched_by_gain_cache_update;
+  size_t _num_gain_cache_update_cases_triggered;
 };
 
 

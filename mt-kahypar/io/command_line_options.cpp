@@ -398,11 +398,6 @@ namespace mt_kahypar {
                      (initial_partitioning ? &context.initial_partitioning.refinement.global_fm.obey_minimal_parallelism :
                       &context.refinement.global_fm.obey_minimal_parallelism))->value_name("<bool>")->default_value(true),
              "If true, then the globalized FM local search stops if more than a certain number of threads are finished.")
-            ((initial_partitioning ? "i-r-async-fm-max-num-moves" : "r-async-fm-max-num-moves"),
-            po::value<size_t>(
-             (initial_partitioning ? &context.initial_partitioning.refinement.fm.async_max_num_moves :
-              &context.refinement.fm.async_max_num_moves))->value_name("<size_t>")->default_value(std::numeric_limits<size_t>::max()),
-            "Determines the maximum number of moves an Async FM Refiner performs in one run. (Only has an effect in asynchronous uncoarsening.)")
             ((initial_partitioning ? "i-r-async-fm-max-num-nodes-in-pq" : "r-async-fm-max-num-nodes-in-pq"),
             po::value<size_t>(
              (initial_partitioning ? &context.initial_partitioning.refinement.fm.async_max_num_nodes_in_pq :

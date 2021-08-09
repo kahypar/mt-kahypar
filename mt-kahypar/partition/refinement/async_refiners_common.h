@@ -26,14 +26,9 @@ namespace mt_kahypar {
           _last_tracked_timestamps.resize(num_nodes, CAtomic<HypernodeID>(0));
         }
 
-        bool tryAcquireNode(const HypernodeID u, const ds::ContractionGroupID search, bool is_fm = true) {
+        bool tryAcquireNode(const HypernodeID u, const ds::ContractionGroupID search) {
           ASSERT(_underlying_locks);
           bool acquired = !isFrozen(u) && _underlying_locks->tryToAcquireLock(u, search);
-          if (acquired && is_fm) {
-            ASSERT(u < _last_tracked_timestamps.size());
-            HypernodeID current_time = _time.load(std::memory_order_relaxed);
-            _last_tracked_timestamps[u].store(current_time, std::memory_order_relaxed);
-          }
           return acquired;
         }
 
@@ -83,6 +78,12 @@ namespace mt_kahypar {
           _node_freeze_time = freeze_time;
         }
 
+        void freeze(const HypernodeID hn) {
+          ASSERT(hn < _last_tracked_timestamps.size());
+          HypernodeID current_time = _time.load(std::memory_order_relaxed);
+          _last_tracked_timestamps[hn].store(current_time, std::memory_order_relaxed);
+        }
+
     private:
 
         bool isFrozen(const HypernodeID hn) const {
@@ -123,6 +124,8 @@ namespace mt_kahypar {
         CAtomic<size_t> find_move_retries;
         CAtomic<size_t> total_pushes_pos_gain;
         CAtomic<size_t> total_pushes_non_pos_gain;
+        CAtomic<size_t> num_pins_touched_by_delta_gain_cache_updates;
+        CAtomic<size_t> num_delta_gain_cache_updates_triggered;
 
         const bool release_nodes = true;
 
@@ -137,7 +140,9 @@ namespace mt_kahypar {
           find_moves_calls_with_good_prefix(0),
           find_move_retries(0),
           total_pushes_pos_gain(0),
-          total_pushes_non_pos_gain(0) {
+          total_pushes_non_pos_gain(0),
+          num_pins_touched_by_delta_gain_cache_updates(0),
+          num_delta_gain_cache_updates_triggered(0) {
 
           tbb::parallel_invoke( [&] {
               nodeTracker.resize(numNodes);

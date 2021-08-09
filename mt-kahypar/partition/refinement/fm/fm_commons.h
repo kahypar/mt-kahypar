@@ -252,7 +252,8 @@ struct FMStats {
   size_t pushes_with_non_pos_gain = 0;
   size_t find_moves_calls = 0;
   size_t find_moves_calls_with_good_prefix = 0;
-
+  size_t pins_touched_by_delta_gain_cache_updates = 0;
+  size_t num_delta_gain_cache_updates_triggered = 0;
 
   void clear() {
     retries = 0;
@@ -267,6 +268,8 @@ struct FMStats {
     pushes_with_non_pos_gain = 0;
     find_moves_calls = 0;
     find_moves_calls_with_good_prefix = 0;
+    pins_touched_by_delta_gain_cache_updates = 0;
+    num_delta_gain_cache_updates_triggered = 0;
   }
 
   void merge(FMStats& other) {
@@ -282,7 +285,26 @@ struct FMStats {
     other.pushes_with_non_pos_gain += pushes_with_non_pos_gain;
     other.find_moves_calls += find_moves_calls;
     other.find_moves_calls_with_good_prefix += find_moves_calls_with_good_prefix;
+    other.pins_touched_by_delta_gain_cache_updates += pins_touched_by_delta_gain_cache_updates;
+    other.num_delta_gain_cache_updates_triggered += num_delta_gain_cache_updates_triggered;
     clear();
+  }
+
+  void subtract(const FMStats& other) {
+    retries -= other.retries;
+    extractions -= other.extractions;
+    pushes -= other.pushes;
+    moves -= other.moves;
+    local_reverts -= other.local_reverts;
+    task_queue_reinsertions -= other.task_queue_reinsertions;
+    best_prefix_mismatch -= other.best_prefix_mismatch;
+    estimated_improvement -= other.estimated_improvement;
+    pushes_with_pos_gain -= other.pushes_with_pos_gain;
+    pushes_with_non_pos_gain -= other.pushes_with_non_pos_gain;
+    find_moves_calls -= other.find_moves_calls;
+    find_moves_calls_with_good_prefix -= other.find_moves_calls_with_good_prefix;
+    pins_touched_by_delta_gain_cache_updates -= other.pins_touched_by_delta_gain_cache_updates;
+    num_delta_gain_cache_updates_triggered -= other.num_delta_gain_cache_updates_triggered;
   }
 
   std::string serialize() const {

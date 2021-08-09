@@ -85,8 +85,6 @@ private:
   using IncidenceIterator = typename Hypergraph::IncidenceIterator;
   using IncidentNetsIterator = typename Hypergraph::IncidentNetsIterator;
 
-  using GainCacheDelta = typename GainCache::GainCacheDelta;
-
   PartitionedHypergraph() = default;
 
   explicit PartitionedHypergraph(const PartitionID k,
@@ -533,17 +531,6 @@ private:
                   const ContractionGroupID groupID,
                   std::vector<HyperedgeID>& dropped_incident_edges) {
 
-    auto update_delta_phgs_case_two = [&] (const HyperedgeID he, const HypernodeID u, const HypernodeID v, const PartitionID block) {
-        if constexpr (GainCacheDelta::notify_about_updates_on_phg) {
-          auto current_gain_cache_deltas = getGainCacheDeltas();
-          for (auto *const delta_phg : current_gain_cache_deltas) {
-            // This assert may fail if a pointer is hit by an iteration mid construction in the concurrent vector. See if that ever happens...
-            ASSERT(delta_phg);
-            delta_phg->updateDeltasForUncontractCaseTwo(he, u, v, block);
-          }
-        }
-    };
-
       // Set block ids of contraction partners
      for (auto& memento : group) {
           ASSERT(nodeIsEnabled(memento.u));
@@ -572,13 +559,6 @@ private:
                                 // Gain cache update within lock, no snapshots
                                 const HyperedgeWeight edge_weight = edgeWeight(he);
                                 _gain_cache.syncUpdateForUncontractCaseOne(he, edge_weight, v, block, pin_count_in_part_after, pins(he));
-                                if constexpr (GainCacheDelta::notify_about_updates_on_phg) {
-                                  auto current_gain_cache_deltas = getGainCacheDeltas();
-                                  for (auto *const delta_phg : current_gain_cache_deltas) {
-                                    ASSERT(delta_phg);
-                                    delta_phg->updateDeltasForUncontractCaseOne(he, edge_weight, v, pins(he), block, pin_count_in_part_after);
-                                  }
-                                }
                                 _pin_count_update_ownership[he].unlock();
                               } else {
                                 // Snapshot pins and connectivity set in lock, gain cache update outside of lock
@@ -586,13 +566,6 @@ private:
                                 PartitionBitSet& parts_with_one_pin = getLocalPartsWithOnePinBitSet();
                                 takeConnectivitySetSnapshots(he, conn_set, parts_with_one_pin);
                                 auto pins_snapshot = takePinsSnapshot(he);
-                                if constexpr (GainCacheDelta::notify_about_updates_on_phg) {
-                                  auto current_gain_cache_deltas = getGainCacheDeltas();
-                                  for (auto *const delta_phg : current_gain_cache_deltas) {
-                                    ASSERT(delta_phg);
-                                    delta_phg->updateDeltasForUncontractCaseOne(he, edgeWeight(he), v, pins(he), block, pin_count_in_part_after);
-                                  }
-                                }
                                 _pin_count_update_ownership[he].unlock();
 
                                 // If u was the only pin of hyperedge he in its block before then moving out vertex u
@@ -619,14 +592,12 @@ private:
                               // Gain cache update within lock, no snapshots
                               const HyperedgeWeight edge_weight = edgeWeight(he);
                               _gain_cache.syncUpdateForUncontractCaseTwo(he, edge_weight, u, v);
-                              update_delta_phgs_case_two(he, u, v, partID(u));
                               _pin_count_update_ownership[he].unlock();
                             } else {
                               // Snapshot pins and connectivity set in lock, gain cache update outside of lock
                               PartitionBitSet& conn_set = getLocalConnSetBitSet();
                               PartitionBitSet& parts_with_one_pin = getLocalPartsWithOnePinBitSet();
                               takeConnectivitySetSnapshots(he, conn_set, parts_with_one_pin);
-                              update_delta_phgs_case_two(he, u, v, partID(u));
                               _pin_count_update_ownership[he].unlock();
 
                               // In this case only v was part of hyperedge e before and
@@ -1412,18 +1383,6 @@ private:
       const HypernodeID pin_count_in_from_part_after = decrementPinCountInPartWithoutGainUpdate(he, from);
       const HypernodeID pin_count_in_to_part_after = incrementPinCountInPartWithoutGainUpdate(he, to);
       size_t edge_size = edgeSize(he);
-
-      if constexpr (GainCacheDelta::notify_about_updates_on_phg) {
-        auto current_gain_cache_deltas = getGainCacheDeltas();
-        for (auto *const delta_phg : current_gain_cache_deltas) {
-          // This assert may fail if a pointer is hit by an iteration mid construction in the concurrent vector. See if that ever happens...
-          ASSERT(delta_phg);
-          delta_phg->updateDeltasForMoveOnUnderlyingPHG(he, edgeWeight(he), pins(he),
-                                                from, pin_count_in_from_part_after,
-                                                to, pin_count_in_to_part_after);
-        }
-      }
-
 
       if (_hg->totalSize(he) < _hg->snapshotEdgeSizeThreshold()) {
         gain_cache_update_func(he, edgeWeight(he), pins(he), from, pin_count_in_from_part_after, to, pin_count_in_to_part_after);

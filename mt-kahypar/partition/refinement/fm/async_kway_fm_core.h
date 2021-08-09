@@ -52,8 +52,7 @@ public:
       _km1_delta(0),
       attempted_to_move(numNodes),
       num_nodes_in_pq(0),
-      max_num_nodes_in_pq(context.refinement.fm.async_max_num_nodes_in_pq),
-      max_num_moves(context.refinement.fm.async_max_num_moves)
+      max_num_nodes_in_pq(context.refinement.fm.async_max_num_nodes_in_pq)
           {}
 
   // ! Finds a sequence of moves, applies the best prefix and returns the actual km1 improvement of that prefix.
@@ -91,7 +90,7 @@ private:
 
   void revertToBestLocalPrefix(PartitionedHypergraph& phg, size_t bestGainIndex);
 
-  void releaseMoveLocksForLocalMovedNodes();
+  void freezeAndReleaseLocksForLocalMovedNodes();
 
   void lockUncontractionLockWithWaiting(const HypernodeID& hn);
 
@@ -137,8 +136,6 @@ private:
 
   size_t num_nodes_in_pq;
   const size_t max_num_nodes_in_pq;
-
-  const size_t max_num_moves;
 
 
 };

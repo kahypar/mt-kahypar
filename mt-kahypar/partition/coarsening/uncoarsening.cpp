@@ -288,12 +288,20 @@ namespace mt_kahypar {
       _context.shared_memory.num_threads * _context.refinement.min_border_vertices_per_thread);
     ds::StreamingVector<HypernodeID> tmp_refinement_nodes;
     kahypar::ds::FastResetFlagArray<> border_vertices_of_batch(_phg.initialNumNodes());
+
+    // todo mlaupichler remove debug stats
+    FMStats localized_fm_stats;
+
     auto do_localized_refinement = [&]() {
       parallel::scalable_vector<HypernodeID> refinement_nodes = tmp_refinement_nodes.copy_parallel();
       tmp_refinement_nodes.clear_parallel();
       border_vertices_of_batch.reset();
+      auto total_fm_stats_before_localized_refine = fm->getTotalFMStats();
       localizedRefine(_phg, refinement_nodes, label_propagation,
         fm, current_metrics, force_measure_timings);
+      auto stats_diff_from_localized_refine = fm->getTotalFMStats();
+      stats_diff_from_localized_refine.subtract(total_fm_stats_before_localized_refine);
+      stats_diff_from_localized_refine.merge(localized_fm_stats);
     };
 
     while ( !_hierarchy.empty() ) {
@@ -371,21 +379,20 @@ namespace mt_kahypar {
       _hierarchy.pop_back();
     }
 
-    // todo mlaupichler remove debug
-//    std::cout << utils::Stats::instance() << std::endl;
 
 //    //todo mlaupichler remove debug
     if (_context.type == kahypar::ContextType::main) {
-      FMStats total_fm_stats = fm->getTotalFMStats();
-      LOG << total_fm_stats.serialize();
-      double frac_local_reverted = (double) total_fm_stats.local_reverts / (double) total_fm_stats.moves;
-      double frac_pos_gain_pushes = (double) total_fm_stats.pushes_with_pos_gain / (double) total_fm_stats.pushes;
+      LOG << localized_fm_stats.serialize();
+      double frac_local_reverted = (double) localized_fm_stats.local_reverts / (double) localized_fm_stats.moves;
+      double frac_pos_gain_pushes = (double) localized_fm_stats.pushes_with_pos_gain / (double) localized_fm_stats.pushes;
       LOG << "Fraction of local reverts: " << frac_local_reverted;
       LOG << "Fraction of pos gain pushes: " << frac_pos_gain_pushes;
       LOG << std::setprecision(5) << std::fixed
-                << "FM calls: " << total_fm_stats.find_moves_calls
-                << ", With Good Prefix: " << total_fm_stats.find_moves_calls_with_good_prefix
-                << ", Fraction: " << ((double) total_fm_stats.find_moves_calls_with_good_prefix / (double) total_fm_stats.find_moves_calls);
+                << "FM calls: " << localized_fm_stats.find_moves_calls
+                << ", With Good Prefix: " << localized_fm_stats.find_moves_calls_with_good_prefix
+                << ", Fraction: " << ((double) localized_fm_stats.find_moves_calls_with_good_prefix / (double) localized_fm_stats.find_moves_calls);
+      LOG << "Pins touched in DeltaPHG Gain Cache updates: " << localized_fm_stats.pins_touched_by_delta_gain_cache_updates;
+      LOG << "Number of DeltaPHG Gain Cache updates triggered: " << localized_fm_stats.num_delta_gain_cache_updates_triggered;
     }
 
     // Top-Level Refinement on all vertices
@@ -709,7 +716,10 @@ namespace mt_kahypar {
 
     auto async_uncontraction_counters = AsyncCounterETS(0);
 
-    auto node_region_comparator = RegionComparator(_phg.hypergraph());
+    auto node_region_comparator = RegionComparator(_phg.hypergraph(), _context);
+    size_t total_calls_to_pick = 0;
+    size_t calls_to_pick_that_reached_max_retries = 0;
+    size_t calls_to_pick_with_empty_pq = 0;
 
       for (size_t inv_version = 0; inv_version < _group_pools_for_versions.size(); ++inv_version) {
 
@@ -728,6 +738,7 @@ namespace mt_kahypar {
           _phg.hypergraph().sortStableActivePinsToBeginning();
 
           pool->setNodeRegionComparator(&node_region_comparator);
+//          node_region_comparator.resetHyperedgeSizesParallel();
 
           auto num_uncontractions = static_cast<size_t>(pool->getTotalNumUncontractions());
 
@@ -747,6 +758,10 @@ namespace mt_kahypar {
               });
           }
           uncoarsen_tg.wait();
+
+          total_calls_to_pick += pool->getTotalCallsToPick();
+          calls_to_pick_that_reached_max_retries += pool->getCallsToPickThatReachedMaxRetries();
+          calls_to_pick_with_empty_pq += pool->getCallsToPickWithEmptyPQ();
 
 
           // Update Progress Bar With Rest of Uncontractions
@@ -843,6 +858,15 @@ namespace mt_kahypar {
                   << "Stable pins seen: " << num_stable_pins
                   << ", Volatile pins seen: " << num_volatile_pins
                   << ", Volatile rel to Stable: " << volatile_rel_to_stable_pins;
+
+        double fraction_calls_to_pick_that_reached_max_retries = (double) calls_to_pick_that_reached_max_retries / (double) total_calls_to_pick;
+        double fraction_calls_to_pick_with_empty_pq = (double) calls_to_pick_with_empty_pq / (double) total_calls_to_pick;
+        LOG << std::setprecision(5) << std::fixed
+            << "Total calls to pickActiveID(): " << total_calls_to_pick
+            << "\n\t Reached Max Retries: " << calls_to_pick_that_reached_max_retries << ", Fraction: " << fraction_calls_to_pick_that_reached_max_retries
+            << "\n\t With Empty PQ: " << calls_to_pick_with_empty_pq << ", Fraction: " << fraction_calls_to_pick_with_empty_pq;
+        LOG << "Pins touched in DeltaPHG Gain Cache updates: " << fm_shared_data->num_pins_touched_by_delta_gain_cache_updates;
+        LOG << "Number of DeltaPHG Gain Cache update cases triggered: " << fm_shared_data->num_delta_gain_cache_updates_triggered;
       }
 
       size_t total_num_nodes = _hg.initialNumNodes() - _hg.numRemovedHypernodes();

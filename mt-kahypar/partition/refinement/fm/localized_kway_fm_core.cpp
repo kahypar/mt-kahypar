@@ -193,6 +193,9 @@ namespace mt_kahypar {
             applyBestLocalPrefixToSharedPartition(phg, bestImprovementIndex, bestImprovement, true /* apply all moves */);
             bestImprovementIndex = 0;
             localMoves.clear();
+
+            runStats.pins_touched_by_delta_gain_cache_updates += deltaPhg.getNumPinsTouchedByGainCacheUpdate();
+            runStats.num_delta_gain_cache_updates_triggered += deltaPhg.getNumGainCacheUpdateCasesTriggered();
             deltaPhg.clear();   // clear hashtables, save memory :)
           }
         }
@@ -218,6 +221,8 @@ namespace mt_kahypar {
 
     if (foundAtLeastOneGoodPrefix) ++runStats.find_moves_calls_with_good_prefix;
 
+    runStats.pins_touched_by_delta_gain_cache_updates += deltaPhg.getNumPinsTouchedByGainCacheUpdate();
+    runStats.num_delta_gain_cache_updates_triggered += deltaPhg.getNumGainCacheUpdateCasesTriggered();
     runStats.merge(stats);
   }
 

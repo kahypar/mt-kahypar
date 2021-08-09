@@ -33,9 +33,8 @@ namespace mt_kahypar {
     runStats.clear();
     num_nodes_in_pq = 0;
 
-
     for (const auto& seedNode : refinement_nodes ) {
-      if (sharedData.nodeTracker.tryAcquireNode(seedNode, contraction_group_id, true)) {
+      if (sharedData.nodeTracker.tryAcquireNode(seedNode, contraction_group_id)) {
         // Third parameter is only needed by gain cache on demand strategy which currently does not work with async so
         // just give any value
         fm_strategy.insertIntoPQ(phg, seedNode, ds::invalidGroupID);
@@ -46,10 +45,7 @@ namespace mt_kahypar {
     if (runStats.pushes > 0) {
       deltaPhg.clear();
       deltaPhg.setPartitionedHypergraph(&phg);
-      deltaPhg.markActive();
       internalFindMoves(phg);
-//      deltaPhg.clear();
-      deltaPhg.markInactive();
     }
 
     contraction_group_id = ds::invalidGroupID;
@@ -91,8 +87,7 @@ namespace mt_kahypar {
             if (searchOfV == contraction_group_id) {
               fm_strategy.updateGain(phg, v, move);
             } else if (num_nodes_in_pq <= max_num_nodes_in_pq && sharedData.nodeTracker.tryAcquireNode(v,
-                                                                                                       contraction_group_id,
-                                                                                                       true)) {
+                                                                                                       contraction_group_id)) {
               fm_strategy.insertIntoPQ(phg, v, searchOfV);
               ++num_nodes_in_pq;
             }
@@ -143,8 +138,6 @@ namespace mt_kahypar {
         edgesWithGainChanges.push_back(he);
       }
 
-//      _km1_delta += km1Delta(he, edge_weight, edge_size,pin_count_in_from_part_after, pin_count_in_to_part_after);
-
       fm_strategy.deltaGainUpdates(deltaPhg, he, edge_weight, deltaPhg.pins(he), move.from, pin_count_in_from_part_after,
                                      move.to, pin_count_in_to_part_after);
     };
@@ -156,7 +149,7 @@ namespace mt_kahypar {
     HypernodeWeight heaviestPartWeight = 0;
     HypernodeWeight fromWeight = 0, toWeight = 0;
 
-    while (!stopRule.searchShouldStop() && runStats.moves < max_num_moves) {
+    while (!stopRule.searchShouldStop()) {
 
       //Attempt to find the next move. If none can be found then stop this search.
       bool move_found = fm_strategy.findNextMove(deltaPhg, move);
@@ -178,7 +171,7 @@ namespace mt_kahypar {
         lockUncontractionLockWithWaiting(move.node);
 
         moved = deltaPhg.changeNodePart(move.node, move.from, move.to,
-                                          context.partition.max_part_weights[move.to], delta_func, true);
+                                          context.partition.max_part_weights[move.to], delta_func);
 
         if (!moved) uncontraction_locks->strongReleaseLock(move.node, contraction_group_id);
 
@@ -212,8 +205,10 @@ namespace mt_kahypar {
 
           applyBestLocalPrefixToSharedPartition(phg, bestImprovementIndex, bestImprovement, true);
           bestImprovementIndex = 0;
-          releaseMoveLocksForLocalMovedNodes();
           localMoves.clear();
+
+          runStats.pins_touched_by_delta_gain_cache_updates += deltaPhg.getNumPinsTouchedByGainCacheUpdate();
+          runStats.num_delta_gain_cache_updates_triggered += deltaPhg.getNumGainCacheUpdateCasesTriggered();
           deltaPhg.clear();   // clear hashtables, save memory :)
         }
 
@@ -234,9 +229,11 @@ namespace mt_kahypar {
 //    revertToBestLocalPrefix(phg, bestImprovementIndex);
 
     runStats.estimated_improvement = bestImprovement;
-    releaseMoveLocksForLocalMovedNodes();
     fm_strategy.clearPQs(bestImprovementIndex, true);
     num_nodes_in_pq = 0;
+
+    runStats.pins_touched_by_delta_gain_cache_updates += deltaPhg.getNumPinsTouchedByGainCacheUpdate();
+    runStats.num_delta_gain_cache_updates_triggered += deltaPhg.getNumGainCacheUpdateCasesTriggered();
 
     sharedData.total_moves.fetch_add(runStats.moves, std::memory_order_relaxed);
     sharedData.total_reverts.fetch_add(runStats.local_reverts, std::memory_order_relaxed);
@@ -245,6 +242,8 @@ namespace mt_kahypar {
     sharedData.find_move_retries.fetch_add(runStats.retries, std::memory_order_relaxed);
     sharedData.total_pushes_pos_gain.fetch_add(runStats.pushes_with_pos_gain, std::memory_order_relaxed);
     sharedData.total_pushes_non_pos_gain.fetch_add(runStats.pushes_with_non_pos_gain, std::memory_order_relaxed);
+    sharedData.num_pins_touched_by_delta_gain_cache_updates.fetch_add(runStats.pins_touched_by_delta_gain_cache_updates, std::memory_order_relaxed);
+    sharedData.num_delta_gain_cache_updates_triggered.fetch_add(runStats.num_delta_gain_cache_updates_triggered, std::memory_order_relaxed);
 
     runStats.merge(stats);
   }
@@ -344,10 +343,7 @@ namespace mt_kahypar {
       result = std::make_pair(best_improvement_locally_observed, best_index_locally_observed);
     }
 
-    // Release uncontraction locks, i.e. allow the nodes to be uncontracted again once the best prefix has been applied
-    for (auto & local_move : localMoves) {
-      uncontraction_locks->strongReleaseLock(local_move.node, contraction_group_id);
-    }
+    freezeAndReleaseLocksForLocalMovedNodes();
 
     return result;
   }
@@ -406,9 +402,11 @@ namespace mt_kahypar {
 
   template<typename FMStrategy>
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
-  void AsyncKWayFM<FMStrategy>::releaseMoveLocksForLocalMovedNodes() {
+  void AsyncKWayFM<FMStrategy>::freezeAndReleaseLocksForLocalMovedNodes() {
     for (const auto& local_move : localMoves) {
+      sharedData.nodeTracker.freeze(local_move.node);
       sharedData.nodeTracker.releaseNode(local_move.node, contraction_group_id);
+      uncontraction_locks->strongReleaseLock(local_move.node, contraction_group_id);
     }
   }
 
