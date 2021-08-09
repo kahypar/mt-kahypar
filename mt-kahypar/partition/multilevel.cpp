@@ -102,9 +102,9 @@ namespace mt_kahypar::multilevel {
                       _context.refinement.fm.algorithm,
                       _hg, _context);
 
-      vec<Level>& hierarchy = _coarsener->getHierarchy();
-      /*_coarsener->~ICoarsener();*/
-      _uncoarsener = std::make_unique<MultilevelUncoarsener>(_hg, _partitioned_hg, _context, _top_level, hierarchy);
+      std::shared_ptr<vec<Level>> hierarchy = _coarsener->getHierarchy();
+      _coarsener->~ICoarsener();
+      _uncoarsener = std::make_unique<MultilevelUncoarsener>(_hg, _context, _top_level, hierarchy);
       _partitioned_hg = _uncoarsener->doUncoarsen(label_propagation, fm);
       utils::Timer::instance().stop_timer("refinement");
 

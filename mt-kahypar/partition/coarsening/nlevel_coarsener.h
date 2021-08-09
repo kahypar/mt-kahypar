@@ -211,8 +211,8 @@ class NLevelCoarsener : public ICoarsener,
     return Base::doUncoarsen(label_propagation, fm);
   }
 
-  vec<Level>& getHierarchyImpl() override {
-    return l;
+  std::shared_ptr<vec<Level>> getHierarchyImpl() override {
+    return nullptr;
   }
 
   void compactifyVertices(const HypernodeID current_num_nodes) {
@@ -258,7 +258,6 @@ class NLevelCoarsener : public ICoarsener,
   HypernodeWeight _max_allowed_node_weight;
   utils::ProgressBar _progress_bar;
   bool _enable_randomization;
-  vec<Level> l;
 };
 
 }  // namespace mt_kahypar

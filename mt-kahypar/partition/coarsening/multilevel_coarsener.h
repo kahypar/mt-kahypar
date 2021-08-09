@@ -447,7 +447,7 @@ class MultilevelCoarsener : public ICoarsener,
     return Base::currentPartitionedHypergraph();
   }
 
-  vec<Level>& getHierarchyImpl() override {
+  std::shared_ptr<vec<Level>> getHierarchyImpl() override {
     return _hierarchy;
   }
 

@@ -41,8 +41,7 @@ class MultilevelCoarsenerBase {
           _hg(hypergraph),
           _partitioned_hg(),
           _context(context),
-          _top_level(top_level),
-          _hierarchy() {
+          _top_level(top_level) {
     size_t estimated_number_of_levels = 1UL;
     if ( _hg.initialNumNodes() > _context.coarsening.contraction_limit ) {
       estimated_number_of_levels = std::ceil( std::log2(
@@ -50,7 +49,8 @@ class MultilevelCoarsenerBase {
         static_cast<double>(_context.coarsening.contraction_limit)) /
         std::log2(_context.coarsening.maximum_shrink_factor) ) + 1UL;
     }
-    _hierarchy.reserve(estimated_number_of_levels);
+    _hierarchy = std::shared_ptr<vec<Level>>(new vec<Level>);
+    _hierarchy->reserve(estimated_number_of_levels);
   }
 
   MultilevelCoarsenerBase(const MultilevelCoarsenerBase&) = delete;
@@ -59,35 +59,37 @@ class MultilevelCoarsenerBase {
   MultilevelCoarsenerBase & operator= (MultilevelCoarsenerBase &&) = delete;
 
   virtual ~MultilevelCoarsenerBase() noexcept {
-    tbb::parallel_for(0UL, _hierarchy.size(), [&](const size_t i) {
-      _hierarchy[i].freeInternalData();
+/*
+    tbb::parallel_for(0UL, _hierarchy->size(), [&](const size_t i) {
+      (*_hierarchy)[i].freeInternalData();
     }, tbb::static_partitioner());
+*/
   }
 
  protected:
 
   HypernodeID currentNumNodes() const {
-    if ( _hierarchy.empty() ) {
+    if ( _hierarchy->empty() ) {
       return _hg.initialNumNodes();
     } else {
-      return _hierarchy.back().contractedHypergraph().initialNumNodes();
+      return _hierarchy->back().contractedHypergraph().initialNumNodes();
     }
   }
 
   Hypergraph& currentHypergraph() {
-    if ( _hierarchy.empty() ) {
+    if ( _hierarchy->empty() ) {
       return _hg;
     } else {
-      return _hierarchy.back().contractedHypergraph();
+      return _hierarchy->back().contractedHypergraph();
     }
   }
 
   PartitionedHypergraph& currentPartitionedHypergraph() {
     ASSERT(_is_finalized);
-    if ( _hierarchy.empty() ) {
+    if ( _hierarchy->empty() ) {
       return _partitioned_hg;
     } else {
-      return _hierarchy.back().contractedPartitionedHypergraph();
+      return _hierarchy->back().contractedPartitionedHypergraph();
     }
   }
 
@@ -117,6 +119,6 @@ class MultilevelCoarsenerBase {
   PartitionedHypergraph _partitioned_hg;
   const Context& _context;
   const bool _top_level;
-  vec<Level> _hierarchy;
+  std::shared_ptr<vec<Level>> _hierarchy;
 };
 }  // namespace mt_kahypar

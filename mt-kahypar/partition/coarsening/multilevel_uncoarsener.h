@@ -37,15 +37,18 @@ namespace mt_kahypar {
 
   public:
     MultilevelUncoarsener(Hypergraph& hypergraph,
-                        PartitionedHypergraph& partitioned_hypergraph,
                         const Context& context,
                         const bool top_level,
-                        vec<Level>& hierarchy) :
+                        std::shared_ptr<vec<Level>>& hierarchy) :
       _hg(hypergraph),
-      _partitioned_hg(partitioned_hypergraph),
+      _partitioned_hg(),
       _context(context),
       _top_level(top_level),
-      _hierarchy(hierarchy) { }
+      _hierarchy(hierarchy) {
+
+      _partitioned_hg = PartitionedHypergraph(
+              _context.partition.k, _hg, parallel_tag_t());
+      }
 
 /*
   MultilevelUncoarsener(const MultilevelUncoarsener&) = delete;
@@ -55,11 +58,11 @@ namespace mt_kahypar {
 
 */
   private:
-    const Hypergraph& _hg;
-    PartitionedHypergraph& _partitioned_hg;
+    Hypergraph& _hg;
+    PartitionedHypergraph _partitioned_hg;
     const Context& _context;
     const bool _top_level;
-    vec<Level>& _hierarchy;
+    std::shared_ptr<vec<Level>>& _hierarchy;
 
 public:
     PartitionedHypergraph&& doUncoarsen(
@@ -80,16 +83,16 @@ public:
       uncontraction_progress += coarsest_hg.initialNumNodes();
 
       // Refine Coarsest Partitioned Hypergraph
-      double time_limit = refinementTimeLimit(_context, _hierarchy.back().coarseningTime());
+      double time_limit = refinementTimeLimit(_context, _hierarchy->back().coarseningTime());
       refine(coarsest_hg, label_propagation, fm, current_metrics, time_limit);
 
-      for (int i = _hierarchy.size() - 1; i >= 0; --i) {
+      for (int i = _hierarchy->size() - 1; i >= 0; --i) {
         // Project partition to next level finer hypergraph
         utils::Timer::instance().start_timer("projecting_partition", "Projecting Partition");
-        PartitionedHypergraph& representative_hg = _hierarchy[i].representativeHypergraph();
-        PartitionedHypergraph& contracted_hg = _hierarchy[i].contractedPartitionedHypergraph();
+        PartitionedHypergraph& representative_hg = (*_hierarchy)[i].representativeHypergraph();
+        PartitionedHypergraph& contracted_hg = (*_hierarchy)[i].contractedPartitionedHypergraph();
         representative_hg.doParallelForAllNodes([&](const HypernodeID hn) {
-          const HypernodeID coarse_hn = _hierarchy[i].mapToContractedHypergraph(hn);
+          const HypernodeID coarse_hn = (*_hierarchy)[i].mapToContractedHypergraph(hn);
           const PartitionID block = contracted_hg.partID(coarse_hn);
           ASSERT(block != kInvalidPartition && block < representative_hg.k());
           representative_hg.setOnlyNodePart(hn, block);
@@ -109,7 +112,7 @@ public:
         utils::Timer::instance().stop_timer("projecting_partition");
 
         // Refinement
-        time_limit = refinementTimeLimit(_context, _hierarchy[i].coarseningTime());
+        time_limit = refinementTimeLimit(_context, (*_hierarchy)[i].coarseningTime());
         refine(representative_hg, label_propagation, fm, current_metrics, time_limit);
 
         // Update Progress Bar
@@ -173,10 +176,10 @@ public:
 protected:
   PartitionedHypergraph& currentPartitionedHypergraph() {
     /*ASSERT(_is_finalized);*/
-    if ( _hierarchy.empty() ) {
+    if ( _hierarchy->empty() ) {
       return _partitioned_hg;
     } else {
-      return _hierarchy.back().contractedPartitionedHypergraph();
+      return _hierarchy->back().contractedPartitionedHypergraph();
     }
   }
   kahypar::Metrics initialize(PartitionedHypergraph& phg) {
