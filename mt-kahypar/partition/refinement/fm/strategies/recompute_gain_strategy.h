@@ -95,6 +95,14 @@ namespace mt_kahypar {
       pq.clear();
     }
 
+      template<typename F>
+      void doForAllNodesInPQ(const F& func) {
+        for (PosT j = 0; j < pq.size(); ++j) {
+          const HypernodeID v = pq.at(j);
+          func(v);
+        }
+      }
+
     template<typename PHG, typename PinIteratorT>
     MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
     void deltaGainUpdates(PHG&, const HyperedgeID, const HyperedgeWeight, IteratorRange<PinIteratorT>,

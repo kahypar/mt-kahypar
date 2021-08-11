@@ -663,8 +663,8 @@ public:
 
     MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
     HyperedgeWeight moveToPenalty(const HypernodeID u, const PartitionID to, std::memory_order m = std::memory_order_relaxed) const {
-        return _move_to_penalty[incident_net_weight_index(u)].load(std::memory_order_relaxed) -
-               _move_to_penalty[penalty_index(u, to)].load(std::memory_order_relaxed);
+        return _move_to_penalty[incident_net_weight_index(u)].load(m) -
+               _move_to_penalty[penalty_index(u, to)].load(m);
     }
 
     MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE

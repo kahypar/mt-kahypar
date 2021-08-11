@@ -125,7 +125,10 @@ namespace mt_kahypar {
         CAtomic<size_t> total_pushes_pos_gain;
         CAtomic<size_t> total_pushes_non_pos_gain;
         CAtomic<size_t> num_pins_touched_by_delta_gain_cache_updates;
-        CAtomic<size_t> num_delta_gain_cache_updates_triggered;
+        CAtomic<size_t> num_case_from_zero_gc_updates;
+        CAtomic<size_t> num_case_from_one_gc_updates;
+        CAtomic<size_t> num_case_to_one_gc_updates;
+        CAtomic<size_t> num_case_to_two_gc_updates;
 
         const bool release_nodes = true;
 
@@ -142,7 +145,10 @@ namespace mt_kahypar {
           total_pushes_pos_gain(0),
           total_pushes_non_pos_gain(0),
           num_pins_touched_by_delta_gain_cache_updates(0),
-          num_delta_gain_cache_updates_triggered(0) {
+          num_case_from_zero_gc_updates(0),
+          num_case_from_one_gc_updates(0),
+          num_case_to_one_gc_updates(0),
+          num_case_to_two_gc_updates(0) {
 
           tbb::parallel_invoke( [&] {
               nodeTracker.resize(numNodes);

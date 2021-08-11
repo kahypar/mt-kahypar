@@ -34,7 +34,7 @@ namespace mt_kahypar {
     num_nodes_in_pq = 0;
 
     for (const auto& seedNode : refinement_nodes ) {
-      if (sharedData.nodeTracker.tryAcquireNode(seedNode, contraction_group_id)) {
+      if (tryAcquireNodeLocks(seedNode)) {
         // Third parameter is only needed by gain cache on demand strategy which currently does not work with async so
         // just give any value
         fm_strategy.insertIntoPQ(phg, seedNode, ds::invalidGroupID);
@@ -86,8 +86,7 @@ namespace mt_kahypar {
             SearchID searchOfV = sharedData.nodeTracker.owner(v);
             if (searchOfV == contraction_group_id) {
               fm_strategy.updateGain(phg, v, move);
-            } else if (num_nodes_in_pq <= max_num_nodes_in_pq && sharedData.nodeTracker.tryAcquireNode(v,
-                                                                                                       contraction_group_id)) {
+            } else if (num_nodes_in_pq <= max_num_nodes_in_pq && tryAcquireNodeLocks(v)) {
               fm_strategy.insertIntoPQ(phg, v, searchOfV);
               ++num_nodes_in_pq;
             }
@@ -153,7 +152,6 @@ namespace mt_kahypar {
 
       //Attempt to find the next move. If none can be found then stop this search.
       bool move_found = fm_strategy.findNextMove(deltaPhg, move);
-//      bool move_found = fm_strategy.findNextMove(phg, move);
       if (!move_found) break;
       --num_nodes_in_pq;
 
@@ -161,6 +159,7 @@ namespace mt_kahypar {
 
       // Mark this node to prevent attempting to move it again
       attempted_to_move.set(move.node, true);
+      sharedData.nodeTracker.freeze(move.node);
 
       bool moved = false;
       if (move.to != kInvalidPartition) {
@@ -168,23 +167,16 @@ namespace mt_kahypar {
         fromWeight = deltaPhg.partWeight(move.from);
         toWeight = deltaPhg.partWeight(move.to);
 
-        lockUncontractionLockWithWaiting(move.node);
+        if (uncontraction_lock_only_for_moved) {
+          lockUncontractionLockWithWaiting(move.node);
+        }
 
         moved = deltaPhg.changeNodePart(move.node, move.from, move.to,
                                           context.partition.max_part_weights[move.to], delta_func);
 
-        if (!moved) uncontraction_locks->strongReleaseLock(move.node, contraction_group_id);
-
-//        heaviestPartWeight = heaviestPartAndWeight(phg).second;
-//        fromWeight = phg.partWeight(move.from);
-//        toWeight = phg.partWeight(move.to);
-//
-//        lockUncontractionLockWithWaiting(move.node);
-//
-//        moved = phg.changeNodePart(move.node, move.from, move.to,
-//                                          context.partition.max_part_weights[move.to], []{}, delta_func, DeltaGainUpdatesFuncWrapper<FMStrategy, PartitionedHypergraph>(fm_strategy, phg), true);
-//
-//        if (!moved) uncontraction_locks->strongReleaseLock(move.node, contraction_group_id);
+        if (uncontraction_lock_only_for_moved && !moved) {
+          uncontraction_locks->strongReleaseLock(move.node, contraction_group_id);
+        }
       }
 
       if (moved) {
@@ -208,32 +200,39 @@ namespace mt_kahypar {
           localMoves.clear();
 
           runStats.pins_touched_by_delta_gain_cache_updates += deltaPhg.getNumPinsTouchedByGainCacheUpdate();
-          runStats.num_delta_gain_cache_updates_triggered += deltaPhg.getNumGainCacheUpdateCasesTriggered();
+          runStats.num_case_from_zero_gc_updates += deltaPhg.getNumCaseFromZeroGcUpdates();
+          runStats.num_case_from_one_gc_updates += deltaPhg.getNumCaseFromOneGcUpdates();
+          runStats.num_case_to_one_gc_updates += deltaPhg.getNumCaseToOneGcUpdates();
+          runStats.num_case_to_two_gc_updates += deltaPhg.getNumCaseToTwoGcUpdates();
           deltaPhg.clear();   // clear hashtables, save memory :)
         }
 
         acquireOrUpdateNeighbors(deltaPhg, move);
-//        acquireOrUpdateNeighbors(phg, move);
 
       } else {
-        // Release move lock on node of move if the move does not go through
+        // Release lock on node of move if the move does not go through
         sharedData.nodeTracker.releaseNode(move.node, contraction_group_id);
+        if (!uncontraction_lock_only_for_moved) {
+          uncontraction_locks->strongReleaseLock(move.node, contraction_group_id);
+        }
       }
     }
-
-//    std::cout << "Best improvement: " << bestImprovement << ", Index: " << bestImprovementIndex << std::endl;
 
     std::tie(bestImprovement, bestImprovementIndex) =
         applyBestLocalPrefixToSharedPartition(phg, bestImprovementIndex, bestImprovement, false);
 
-//    revertToBestLocalPrefix(phg, bestImprovementIndex);
-
     runStats.estimated_improvement = bestImprovement;
+    if (!uncontraction_lock_only_for_moved) {
+      releaseUncontractionLocksForNodesInPQs();
+    }
     fm_strategy.clearPQs(bestImprovementIndex, true);
     num_nodes_in_pq = 0;
 
     runStats.pins_touched_by_delta_gain_cache_updates += deltaPhg.getNumPinsTouchedByGainCacheUpdate();
-    runStats.num_delta_gain_cache_updates_triggered += deltaPhg.getNumGainCacheUpdateCasesTriggered();
+    runStats.num_case_from_zero_gc_updates += deltaPhg.getNumCaseFromZeroGcUpdates();
+    runStats.num_case_from_one_gc_updates += deltaPhg.getNumCaseFromOneGcUpdates();
+    runStats.num_case_to_one_gc_updates += deltaPhg.getNumCaseToOneGcUpdates();
+    runStats.num_case_to_two_gc_updates += deltaPhg.getNumCaseToTwoGcUpdates();
 
     sharedData.total_moves.fetch_add(runStats.moves, std::memory_order_relaxed);
     sharedData.total_reverts.fetch_add(runStats.local_reverts, std::memory_order_relaxed);
@@ -243,7 +242,10 @@ namespace mt_kahypar {
     sharedData.total_pushes_pos_gain.fetch_add(runStats.pushes_with_pos_gain, std::memory_order_relaxed);
     sharedData.total_pushes_non_pos_gain.fetch_add(runStats.pushes_with_non_pos_gain, std::memory_order_relaxed);
     sharedData.num_pins_touched_by_delta_gain_cache_updates.fetch_add(runStats.pins_touched_by_delta_gain_cache_updates, std::memory_order_relaxed);
-    sharedData.num_delta_gain_cache_updates_triggered.fetch_add(runStats.num_delta_gain_cache_updates_triggered, std::memory_order_relaxed);
+    sharedData.num_case_from_zero_gc_updates.fetch_add(runStats.num_case_from_zero_gc_updates, std::memory_order_relaxed);
+    sharedData.num_case_from_one_gc_updates.fetch_add(runStats.num_case_from_one_gc_updates, std::memory_order_relaxed);
+    sharedData.num_case_to_one_gc_updates.fetch_add(runStats.num_case_to_one_gc_updates, std::memory_order_relaxed);
+    sharedData.num_case_to_two_gc_updates.fetch_add(runStats.num_case_to_two_gc_updates, std::memory_order_relaxed);
 
     runStats.merge(stats);
   }
@@ -276,9 +278,6 @@ namespace mt_kahypar {
       Move& local_move = localMoves[i];
       attributed_gain = 0;
 
-      // Prevent concurrent uncontractions for call to changeNodePart() with uncontraction lock
-//      lockUncontractionLockWithWaiting(local_move.node);
-
       if constexpr (FMStrategy::uses_gain_cache) {
         phg.changeNodePartWithGainCacheUpdate(local_move.node, local_move.from, local_move.to,
                                               std::numeric_limits<HypernodeWeight>::max(),
@@ -290,8 +289,6 @@ namespace mt_kahypar {
                            [&] {},
                            delta_gain_func, true);
       }
-
-//      uncontraction_locks->strongReleaseLock(local_move.node, contraction_group_id);
 
       _km1_delta += attributed_gain;
       attributed_gain = -attributed_gain; // delta func yields negative sum of improvements, i.e. negative values mean improvements
@@ -317,9 +314,6 @@ namespace mt_kahypar {
         Move& m = localMoves[i];
         attributed_gain = 0;
 
-        // Prevent concurrent uncontractions for call to changeNodePart() with uncontraction lock
-//        lockUncontractionLockWithWaiting(m.node);
-
         if constexpr (FMStrategy::uses_gain_cache) {
           phg.changeNodePartWithGainCacheUpdate(m.node, m.to, m.from,
                                                 std::numeric_limits<HypernodeWeight>::max(),
@@ -332,8 +326,6 @@ namespace mt_kahypar {
                              delta_gain_func, true);
         }
 
-//        uncontraction_locks->strongReleaseLock(m.node, contraction_group_id);
-
         _km1_delta += attributed_gain;
 
         m.invalidate();
@@ -343,44 +335,10 @@ namespace mt_kahypar {
       result = std::make_pair(best_improvement_locally_observed, best_index_locally_observed);
     }
 
-    freezeAndReleaseLocksForLocalMovedNodes();
+    releaseLocksForLocalMovedNodes();
 
     return result;
   }
-
-//    template<typename FMStrategy>
-//    void AsyncKWayFM<FMStrategy>::revertToBestLocalPrefix(PartitionedHypergraph& phg, size_t bestGainIndex) {
-//
-//      auto delta_func = [&](const HyperedgeID he,
-//                            const HyperedgeWeight edge_weight,
-//                            const HypernodeID edge_size,
-//                            const HypernodeID pin_count_in_from_part_after,
-//                            const HypernodeID pin_count_in_to_part_after) {
-//          _km1_delta += km1Delta(he, edge_weight, edge_size,pin_count_in_from_part_after, pin_count_in_to_part_after);
-//      };
-//
-//      runStats.local_reverts += localMoves.size() - bestGainIndex;
-//      while (localMoves.size() > bestGainIndex) {
-//        Move& m = localMoves.back();
-//        if constexpr (FMStrategy::uses_gain_cache) {
-//          phg.changeNodePartWithGainCacheUpdate(m.node, m.to, m.from,context.partition.max_part_weights[m.from],[]{}, delta_func, true);
-//        } else {
-//          phg.changeNodePart(m.node, m.to, m.from,context.partition.max_part_weights[m.from],[]{}, delta_func, true);
-//        }
-//        m.invalidate();
-//
-//        sharedData.nodeTracker.releaseNode(m.node, contraction_group_id);
-//        uncontraction_locks->strongReleaseLock(m.node, contraction_group_id);
-//
-//        localMoves.pop_back();
-//      }
-//
-//     Release uncontraction locks, i.e. allow the nodes to be uncontracted again once the best prefix has been applied
-//    for (size_t i = 0; i < localMoves.size(); ++i) {
-//    uncontraction_locks->strongReleaseLock(localMoves[i].node, contraction_group_id);
-//}
-//
-//    }
 
   template<typename FMStrategy>
   void AsyncKWayFM<FMStrategy>::memoryConsumption(utils::MemoryTreeNode *parent) const {
@@ -402,9 +360,8 @@ namespace mt_kahypar {
 
   template<typename FMStrategy>
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
-  void AsyncKWayFM<FMStrategy>::freezeAndReleaseLocksForLocalMovedNodes() {
+  void AsyncKWayFM<FMStrategy>::releaseLocksForLocalMovedNodes() {
     for (const auto& local_move : localMoves) {
-      sharedData.nodeTracker.freeze(local_move.node);
       sharedData.nodeTracker.releaseNode(local_move.node, contraction_group_id);
       uncontraction_locks->strongReleaseLock(local_move.node, contraction_group_id);
     }
@@ -415,6 +372,37 @@ namespace mt_kahypar {
     void AsyncKWayFM<FMStrategy>::lockUncontractionLockWithWaiting(const HypernodeID& hn) {
       while (!uncontraction_locks->tryToAcquireLock(hn, contraction_group_id)){/* keep trying to lock */}
     }
+
+    template<typename FMStrategy>
+    bool AsyncKWayFM<FMStrategy>::tryAcquireNodeLocks(const HypernodeID hn) {
+
+      bool acquired_move_lock = sharedData.nodeTracker.tryAcquireNode(hn, contraction_group_id);
+      if (!acquired_move_lock) {
+        ASSERT(sharedData.nodeTracker.owner(hn) != contraction_group_id);
+        ASSERT(!uncontraction_locks->isHeldBy(hn, contraction_group_id));
+        return false;
+      }
+      if (uncontraction_lock_only_for_moved) {
+        return true;
+      }
+      bool acquired_uncontraction_lock = uncontraction_locks->tryToAcquireLock(hn, contraction_group_id);
+      if (!acquired_uncontraction_lock) {
+        sharedData.nodeTracker.releaseNode(hn, contraction_group_id);
+        ASSERT(sharedData.nodeTracker.owner(hn) != contraction_group_id && !uncontraction_locks->isHeldBy(hn, contraction_group_id));
+        return false;
+      }
+
+      ASSERT(sharedData.nodeTracker.owner(hn) == contraction_group_id && uncontraction_locks->isHeldBy(hn, contraction_group_id));
+      return true;
+    }
+
+    template<typename FMStrategy>
+    void AsyncKWayFM<FMStrategy>::releaseUncontractionLocksForNodesInPQs() {
+      fm_strategy.doForAllNodesInPQ([&](const HypernodeID hn) {
+        uncontraction_locks->strongReleaseLock(hn, contraction_group_id);
+      });
+    }
+
 
 }   // namespace mt_kahypar
 

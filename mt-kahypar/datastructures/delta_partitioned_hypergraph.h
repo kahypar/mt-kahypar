@@ -71,7 +71,10 @@ class DeltaPartitionedHypergraph {
       _benefit_deltas(),
       _penalty_deltas(),
       _num_pins_touched_by_gain_cache_update(0),
-      _num_gain_cache_update_cases_triggered(0) { }
+      _num_case_from_zero_gc_updates(0),
+      _num_case_from_one_gc_updates(0),
+      _num_case_to_one_gc_updates(0),
+      _num_case_to_two_gc_updates(0) { }
 
   DeltaPartitionedHypergraph(const DeltaPartitionedHypergraph&) = delete;
   DeltaPartitionedHypergraph & operator= (const DeltaPartitionedHypergraph &) = delete;
@@ -200,13 +203,13 @@ class DeltaPartitionedHypergraph {
                          const PartitionID from, const HypernodeID pin_count_in_from_part_after,
                          const PartitionID to, const HypernodeID pin_count_in_to_part_after) {
     if (pin_count_in_from_part_after == 0) {
-      ++_num_gain_cache_update_cases_triggered;
+      ++_num_case_from_zero_gc_updates;
       for (HypernodeID u : pins) {
         _penalty_deltas[penalty_index(u, from)] += we;
         ++_num_pins_touched_by_gain_cache_update;
       }
     } else if (pin_count_in_from_part_after == 1) {
-      ++_num_gain_cache_update_cases_triggered;
+      ++_num_case_from_one_gc_updates;
       for (HypernodeID u : pins) {
         if (partID(u) == from) {
           _benefit_deltas[u] += we;
@@ -216,13 +219,13 @@ class DeltaPartitionedHypergraph {
     }
 
     if (pin_count_in_to_part_after == 1) {
-      ++_num_gain_cache_update_cases_triggered;
+      ++_num_case_to_one_gc_updates;
       for (HypernodeID u : pins) {
         _penalty_deltas[penalty_index(u, to)] -= we;
         ++_num_pins_touched_by_gain_cache_update;
       }
     } else if (pin_count_in_to_part_after == 2) {
-      ++_num_gain_cache_update_cases_triggered;
+      ++_num_case_to_two_gc_updates;
       for (HypernodeID u : pins) {
         if (partID(u) == to) {
           _benefit_deltas[u] -= we;
@@ -236,8 +239,20 @@ class DeltaPartitionedHypergraph {
       return _num_pins_touched_by_gain_cache_update;
     }
 
-    size_t getNumGainCacheUpdateCasesTriggered() const {
-      return _num_gain_cache_update_cases_triggered;
+    size_t getNumCaseFromZeroGcUpdates() const {
+      return _num_case_from_zero_gc_updates;
+    }
+
+    size_t getNumCaseFromOneGcUpdates() const {
+      return _num_case_from_one_gc_updates;
+    }
+
+    size_t getNumCaseToOneGcUpdates() const {
+      return _num_case_to_one_gc_updates;
+    }
+
+    size_t getNumCaseToTwoGcUpdates() const {
+      return _num_case_to_two_gc_updates;
     }
 
     // ! Returns the block of hypernode u
@@ -275,7 +290,7 @@ class DeltaPartitionedHypergraph {
   HyperedgeWeight moveToPenalty(const HypernodeID u, const PartitionID p) const {
     ASSERT(_phg);
     ASSERT(p != kInvalidPartition && p < _k);
-    return _phg->moveToPenalty(u, p) + penaltyDelta(u,p);
+    return _phg->moveToPenalty(u, p) + penaltyDelta(u, p);
   }
 
   Gain km1Gain(const HypernodeID u, const PartitionID from, const PartitionID to) const {
@@ -300,7 +315,10 @@ class DeltaPartitionedHypergraph {
     _penalty_deltas.clear();
 
     _num_pins_touched_by_gain_cache_update = 0;
-    _num_gain_cache_update_cases_triggered = 0;
+    _num_case_from_zero_gc_updates = 0;
+    _num_case_from_one_gc_updates = 0;
+    _num_case_to_one_gc_updates = 0;
+    _num_case_to_two_gc_updates = 0;
   }
 
   void dropMemory() {
@@ -354,6 +372,7 @@ class DeltaPartitionedHypergraph {
       _phg->pinCountInPart(e, p)) + ++_pins_in_part_delta[e * _k + p], static_cast<int32_t>(0));
   }
 
+    MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
     HyperedgeWeight penaltyDelta(const HypernodeID u, const PartitionID p) const {
       const HyperedgeWeight* val = _penalty_deltas.get_if_contained(penalty_index(u,p));
       if (val) {
@@ -363,6 +382,7 @@ class DeltaPartitionedHypergraph {
       }
     }
 
+    MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
     HyperedgeWeight benefitDelta(const HypernodeID u) const {
       const HyperedgeWeight* val = _benefit_deltas.get_if_contained(u);
       if (val) {
@@ -402,7 +422,10 @@ class DeltaPartitionedHypergraph {
 
   // debug stat counter
   size_t _num_pins_touched_by_gain_cache_update;
-  size_t _num_gain_cache_update_cases_triggered;
+  size_t _num_case_from_zero_gc_updates;
+  size_t _num_case_from_one_gc_updates;
+  size_t _num_case_to_one_gc_updates;
+  size_t _num_case_to_two_gc_updates;
 };
 
 

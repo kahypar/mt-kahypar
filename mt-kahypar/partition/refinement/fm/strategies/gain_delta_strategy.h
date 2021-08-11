@@ -117,6 +117,20 @@ namespace mt_kahypar {
       }
     }
 
+      template<typename F>
+      void doForAllNodesInPQ(const F& func) {
+        for (PosT j = 0; j < vertexPQs[1].size(); ++j) {
+          const HypernodeID v = vertexPQs[1].at(j);
+          // we're not storing nodes in pqs for the block they're currently in --> have to check two pqs and deduplicate
+          if (!vertexPQs[0].contains(v)) {
+            func(v);
+          }
+        }
+        for (PosT j = 0; j < vertexPQs[0].size(); ++j) {
+          func(vertexPQs[0].at(j));
+        }
+      }
+
     // ! perform delta gain updates for vertices that are in our search. uses the PQs as gain store
     template<typename PHG, typename PinIteratorT>
     MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE

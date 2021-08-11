@@ -379,6 +379,22 @@ namespace mt_kahypar {
       _hierarchy.pop_back();
     }
 
+    utils::Stats::instance().update_stat("localized_fm_moves", static_cast<int64_t>(localized_fm_stats.moves));
+    utils::Stats::instance().update_stat("localized_fm_local_reverts", static_cast<int64_t>(localized_fm_stats.local_reverts));
+    utils::Stats::instance().update_stat("localized_fm_total_find_moves_calls", static_cast<int64_t>(localized_fm_stats.find_moves_calls));
+    utils::Stats::instance().update_stat("localized_fm_find_moves_calls_with_good_prefix", static_cast<int64_t>(localized_fm_stats.find_moves_calls_with_good_prefix));
+    utils::Stats::instance().update_stat("localized_fm_find_move_retries", static_cast<int64_t>(localized_fm_stats.retries));
+    utils::Stats::instance().update_stat("localized_fm_total_pushes", static_cast<int64_t>(localized_fm_stats.pushes_with_pos_gain + localized_fm_stats.pushes_with_non_pos_gain));
+    utils::Stats::instance().update_stat("localized_fm_pushes_with_pos_gain", static_cast<int64_t>(localized_fm_stats.pushes_with_pos_gain));
+    utils::Stats::instance().update_stat("localized_fm_pushes_with_non_pos_gain", static_cast<int64_t>(localized_fm_stats.pushes_with_non_pos_gain));
+    utils::Stats::instance().update_stat("localized_fm_pins_touched_by_delta_gain_cache_updates", static_cast<int64_t>(localized_fm_stats.pins_touched_by_delta_gain_cache_updates));
+
+    size_t sum_gc_cases = localized_fm_stats.num_case_from_zero_gc_updates + localized_fm_stats.num_case_from_one_gc_updates + localized_fm_stats.num_case_to_one_gc_updates + localized_fm_stats.num_case_to_two_gc_updates;
+    utils::Stats::instance().update_stat("localized_fm_total_delta_gain_cache_updates", static_cast<int64_t>(sum_gc_cases));
+    utils::Stats::instance().update_stat("localized_fm_delta_gain_cache_updates_case_from_zero", static_cast<int64_t>(localized_fm_stats.num_case_from_zero_gc_updates));
+    utils::Stats::instance().update_stat("localized_fm_delta_gain_cache_updates_case_from_one", static_cast<int64_t>(localized_fm_stats.num_case_from_one_gc_updates));
+    utils::Stats::instance().update_stat("localized_fm_delta_gain_cache_updates_case_to_one", static_cast<int64_t>(localized_fm_stats.num_case_to_one_gc_updates));
+    utils::Stats::instance().update_stat("localized_fm_delta_gain_cache_updates_case_to_two", static_cast<int64_t>(localized_fm_stats.num_case_to_two_gc_updates));
 
 //    //todo mlaupichler remove debug
     if (_context.type == kahypar::ContextType::main) {
@@ -392,7 +408,12 @@ namespace mt_kahypar {
                 << ", With Good Prefix: " << localized_fm_stats.find_moves_calls_with_good_prefix
                 << ", Fraction: " << ((double) localized_fm_stats.find_moves_calls_with_good_prefix / (double) localized_fm_stats.find_moves_calls);
       LOG << "Pins touched in DeltaPHG Gain Cache updates: " << localized_fm_stats.pins_touched_by_delta_gain_cache_updates;
-      LOG << "Number of DeltaPHG Gain Cache updates triggered: " << localized_fm_stats.num_delta_gain_cache_updates_triggered;
+      LOG << std::setprecision(5) << std::fixed << "Number of DeltaPHG Gain Cache updates triggered: "
+          << "\n\tTotal: " << sum_gc_cases
+          << "\n\tCase: Pins in from=0: " << localized_fm_stats.num_case_from_zero_gc_updates << ", Fraction: " << ((double) localized_fm_stats.num_case_from_zero_gc_updates / (double) sum_gc_cases)
+          << "\n\tCase: Pins in from=1: " << localized_fm_stats.num_case_from_one_gc_updates << ", Fraction: " << ((double) localized_fm_stats.num_case_from_one_gc_updates / (double) sum_gc_cases)
+          << "\n\tCase: Pins in to=1:   " << localized_fm_stats.num_case_to_one_gc_updates << ", Fraction: " << ((double) localized_fm_stats.num_case_to_one_gc_updates / (double) sum_gc_cases)
+          << "\n\tCase: Pins in to=2:   " << localized_fm_stats.num_case_to_two_gc_updates << ", Fraction: " << ((double) localized_fm_stats.num_case_to_two_gc_updates / (double) sum_gc_cases);
     }
 
     // Top-Level Refinement on all vertices
@@ -500,21 +521,6 @@ namespace mt_kahypar {
 
       // No refinement if refinement nodes are empty
       if (!refinement_nodes.empty()) {
-
-          auto repr_part_id = _phg.partID(group.getRepresentative());
-          unused(repr_part_id);
-          ASSERT(repr_part_id != kInvalidPartition);
-          ASSERT(std::all_of(refinement_nodes.begin(), refinement_nodes.end(),
-                           [&](const HypernodeID &hn) {
-                               return _hg.nodeIsEnabled(hn);
-                           }),
-               "After extracting seeds one of the seeds is not enabled!");
-//          ASSERT(std::all_of(refinement_nodes.begin(), refinement_nodes.end(),
-//                             [&](const HypernodeID &hn) {
-//                                 return _phg.partID(hn) == repr_part_id;
-//                             }),
-//                 "After extracting seeds one of the seeds is not in the same part as the representative!");
-
           localizedRefineForAsync(_phg, refinement_nodes, async_lp, async_fm, groupID, current_metrics);
       }
   }
@@ -526,6 +532,8 @@ namespace mt_kahypar {
                                                utils::ProgressBar &uncontraction_progress,
                                                AsyncNodeTracker &async_node_tracker,
                                                RegionComparator &node_region_comparator,
+                                               RefinementNodesETS &refinement_nodes_ets,
+                                               SeedDeduplicatorETS &seed_deduplicator_ets,
                                                const bool alwaysInsertIntoPQ) {
 
       ds::ContractionGroupID groupID = ds::invalidGroupID;
@@ -534,6 +542,8 @@ namespace mt_kahypar {
       IAsyncRefiner* local_async_lp = async_lp_refiners.local().get();
       IAsyncRefiner* local_async_fm = async_fm_refiners.local().get();
       HypernodeID& local_uncontraction_counter = uncontraction_counter_ets.local();
+      vec<HypernodeID>& local_refinement_nodes = refinement_nodes_ets.local();
+      auto& seed_deduplicator = seed_deduplicator_ets.local();
 
       while (true) {
           ASSERT(groupID != ds::invalidGroupID);
@@ -568,7 +578,27 @@ namespace mt_kahypar {
             ERROR("Local Async Refiners are nullptr!");
           }
 
-          refineGroupAsyncSubtask(group, groupID, current_metrics, local_async_lp, local_async_fm);
+          // Extract refinement seeds
+          auto begin = ds::GroupNodeIDIterator::getAtBegin(group);
+          auto end = ds::GroupNodeIDIterator::getAtEnd(group);
+          for (auto it = begin; it != end; ++it) {
+            HypernodeID hn = *it;
+            ASSERT(_phg.nodeIsEnabled(hn));
+            if (_phg.isBorderNode(hn)) {
+              // Deduplicate
+              if (!seed_deduplicator[hn]) {
+                seed_deduplicator.set(hn);
+                local_refinement_nodes.push_back(hn);
+              }
+            }
+          }
+
+          // Refine only once enough seeds are available
+          if ((_context.type != kahypar::ContextType::main && !local_refinement_nodes.empty()) || local_refinement_nodes.size() >= _context.refinement.fm.num_seed_nodes) {
+            localizedRefineForAsync(_phg, local_refinement_nodes, local_async_lp, local_async_fm, groupID, current_metrics);
+            seed_deduplicator.reset();
+            local_refinement_nodes.clear();
+          }
 
           node_region_comparator.markInactive(_phg.incidentEdges(group.getRepresentative()), IteratorRange(dropped_incident_edges.begin(), dropped_incident_edges.end()));
           async_node_tracker.incrementTime(group.size());
@@ -601,6 +631,7 @@ namespace mt_kahypar {
                                          current_metrics, async_lp_refiners, async_fm_refiners,
                                          uncontraction_counter_ets,
                                          uncontraction_progress, async_node_tracker, node_region_comparator,
+                                         refinement_nodes_ets, seed_deduplicator_ets,
                                          alwaysInsertIntoPQ);
                   });
                 }
@@ -615,6 +646,7 @@ namespace mt_kahypar {
                                          current_metrics, async_lp_refiners, async_fm_refiners,
                                          uncontraction_counter_ets,
                                          uncontraction_progress, async_node_tracker, node_region_comparator,
+                                         refinement_nodes_ets, seed_deduplicator_ets,
                                          alwaysInsertIntoPQ);
                   });
                 }
@@ -714,6 +746,9 @@ namespace mt_kahypar {
              *fm_shared_data);
     });
 
+    RefinementNodesETS refinement_nodes_ets;
+    auto seed_deduplicator_ets = SeedDeduplicatorETS(_phg.initialNumNodes());
+
     auto async_uncontraction_counters = AsyncCounterETS(0);
 
     auto node_region_comparator = RegionComparator(_phg.hypergraph(), _context);
@@ -747,11 +782,12 @@ namespace mt_kahypar {
           size_t num_roots = pool->getNumActive();
           for (size_t i = 0; i < num_roots; ++i) {
               uncoarsen_tg.run([&](){
-                // todo mlaupichler: Setting alwaysInsertIntoPQ to true for Initial Partitioning as well cryptically does not work (spits out Seg faults in release mode). I assume it's due to TBB internals.
+                // todo mlaupichler: Setting alwaysInsertIntoPQ to true for Initial Partitioning as well cryptically does not work (spits out Seg faults only in release mode). I assume it's due to TBB internals.
                   uncoarsenAsyncTask(pool, uncoarsen_tg,
                                      current_metrics, async_lp_refiners, async_fm_refiners,
                                      async_uncontraction_counters,
                                      uncontraction_progress, fm_shared_data->nodeTracker, node_region_comparator,
+                                     refinement_nodes_ets, seed_deduplicator_ets,
                                      _context.uncoarsening.always_insert_groups_into_pq && (_context.type ==
                                                                                             kahypar::ContextType::main) /* Do not use this option in initial partitioning*/
                   );
@@ -836,6 +872,30 @@ namespace mt_kahypar {
 //      std::cout << "Total LP attempted moves: " << total_lp_attempted_moves << std::endl;
 //      std::cout << "Total LP moves: " << total_lp_moved_nodes << std::endl;
 
+      utils::Stats::instance().update_stat("localized_fm_moves", static_cast<int64_t>(fm_shared_data->total_moves));
+      utils::Stats::instance().update_stat("localized_fm_local_reverts", static_cast<int64_t>(fm_shared_data->total_reverts));
+      utils::Stats::instance().update_stat("localized_fm_total_find_moves_calls", static_cast<int64_t>(fm_shared_data->total_find_moves_calls));
+      utils::Stats::instance().update_stat("localized_fm_find_moves_calls_with_good_prefix", static_cast<int64_t>(fm_shared_data->find_moves_calls_with_good_prefix));
+      utils::Stats::instance().update_stat("localized_fm_find_move_retries", static_cast<int64_t>(fm_shared_data->find_move_retries));
+      utils::Stats::instance().update_stat("localized_fm_total_pushes", static_cast<int64_t>(fm_shared_data->total_pushes_pos_gain + fm_shared_data->total_pushes_non_pos_gain));
+      utils::Stats::instance().update_stat("localized_fm_pushes_with_pos_gain", static_cast<int64_t>(fm_shared_data->total_pushes_pos_gain));
+      utils::Stats::instance().update_stat("localized_fm_pushes_with_non_pos_gain", static_cast<int64_t>(fm_shared_data->total_pushes_non_pos_gain));
+      utils::Stats::instance().update_stat("localized_fm_pins_touched_by_delta_gain_cache_updates", static_cast<int64_t>(fm_shared_data->num_pins_touched_by_delta_gain_cache_updates));
+
+      size_t sum_gc_cases = fm_shared_data->num_case_from_zero_gc_updates + fm_shared_data->num_case_from_one_gc_updates + fm_shared_data->num_case_to_one_gc_updates + fm_shared_data->num_case_to_two_gc_updates;
+      utils::Stats::instance().update_stat("localized_fm_total_delta_gain_cache_updates", static_cast<int64_t>(sum_gc_cases));
+      utils::Stats::instance().update_stat("localized_fm_delta_gain_cache_updates_case_from_zero", static_cast<int64_t>(fm_shared_data->num_case_from_zero_gc_updates));
+      utils::Stats::instance().update_stat("localized_fm_delta_gain_cache_updates_case_from_one", static_cast<int64_t>(fm_shared_data->num_case_from_one_gc_updates));
+      utils::Stats::instance().update_stat("localized_fm_delta_gain_cache_updates_case_to_one", static_cast<int64_t>(fm_shared_data->num_case_to_one_gc_updates));
+      utils::Stats::instance().update_stat("localized_fm_delta_gain_cache_updates_case_to_two", static_cast<int64_t>(fm_shared_data->num_case_to_two_gc_updates));
+
+      utils::Stats::instance().update_stat("stable_pins_seen", static_cast<int64_t>(_phg.getNumStablePinsSeen()));
+      utils::Stats::instance().update_stat("volatile_pins_seen", static_cast<int64_t>(_phg.getNumVolatilePinsSeen()));
+      utils::Stats::instance().update_stat("total_calls_to_pick_next_group", static_cast<int64_t>(total_calls_to_pick));
+      utils::Stats::instance().update_stat("calls_to_pick_next_group_with_max_retries", static_cast<int64_t>(calls_to_pick_that_reached_max_retries));
+      utils::Stats::instance().update_stat("calls_to_pick_next_group_with_empty_pq", static_cast<int64_t>(calls_to_pick_with_empty_pq));
+
+
       if ( _context.partition.verbose_output && _context.type == kahypar::ContextType::main) {
         LOG << std::setprecision(5) << std::fixed
                   << "FM moves: " << fm_shared_data->total_moves
@@ -866,7 +926,12 @@ namespace mt_kahypar {
             << "\n\t Reached Max Retries: " << calls_to_pick_that_reached_max_retries << ", Fraction: " << fraction_calls_to_pick_that_reached_max_retries
             << "\n\t With Empty PQ: " << calls_to_pick_with_empty_pq << ", Fraction: " << fraction_calls_to_pick_with_empty_pq;
         LOG << "Pins touched in DeltaPHG Gain Cache updates: " << fm_shared_data->num_pins_touched_by_delta_gain_cache_updates;
-        LOG << "Number of DeltaPHG Gain Cache update cases triggered: " << fm_shared_data->num_delta_gain_cache_updates_triggered;
+        LOG << std::setprecision(5) << std::fixed << "Number of DeltaPHG Gain Cache updates triggered: "
+        << "\n\tTotal: " << sum_gc_cases
+        << "\n\tCase: Pins in from=0: " << fm_shared_data->num_case_from_zero_gc_updates << ", Fraction: " << ((double) fm_shared_data->num_case_from_zero_gc_updates / (double) sum_gc_cases)
+        << "\n\tCase: Pins in from=1: " << fm_shared_data->num_case_from_one_gc_updates << ", Fraction: " << ((double) fm_shared_data->num_case_from_one_gc_updates / (double) sum_gc_cases)
+        << "\n\tCase: Pins in to=1:   " << fm_shared_data->num_case_to_one_gc_updates << ", Fraction: " << ((double) fm_shared_data->num_case_to_one_gc_updates / (double) sum_gc_cases)
+        << "\n\tCase: Pins in to=2:   " << fm_shared_data->num_case_to_two_gc_updates << ", Fraction: " << ((double) fm_shared_data->num_case_to_two_gc_updates / (double) sum_gc_cases);
       }
 
       size_t total_num_nodes = _hg.initialNumNodes() - _hg.numRemovedHypernodes();

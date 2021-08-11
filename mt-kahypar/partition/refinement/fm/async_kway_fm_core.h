@@ -69,12 +69,6 @@ public:
 
 private:
 
-  // ! Performs localized FM local search on the delta partitioned hypergraph.
-  // ! Moves made by this search are not immediately visible to other concurrent local searches.
-  // ! The best prefix of moves is applied to the global partitioned hypergraph after the search finishes.
-  //void internalFindMovesOnDeltaHypergraph(PartitionedHypergraph& phg, FMSharedData& sharedData);
-
-
   void internalFindMoves(PartitionedHypergraph& phg);
 
   template<typename PHG>
@@ -90,11 +84,17 @@ private:
 
   void revertToBestLocalPrefix(PartitionedHypergraph& phg, size_t bestGainIndex);
 
-  void freezeAndReleaseLocksForLocalMovedNodes();
+  void releaseLocksForLocalMovedNodes();
 
   void lockUncontractionLockWithWaiting(const HypernodeID& hn);
 
+  bool tryAcquireNodeLocks(const HypernodeID hn);
+
+  void releaseUncontractionLocksForNodesInPQs();
+
  private:
+
+    static constexpr bool uncontraction_lock_only_for_moved = true;
 
   const Context& context;
 

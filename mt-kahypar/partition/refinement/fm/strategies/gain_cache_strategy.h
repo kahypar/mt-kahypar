@@ -160,6 +160,16 @@ public:
     blockPQ.clear();
   }
 
+  template<typename F>
+  void doForAllNodesInPQ(const F& func) {
+    for (PartitionID i = 0; i < context.partition.k; ++i) {
+      for (PosT j = 0; j < vertexPQs[i].size(); ++j) {
+        const HypernodeID v = vertexPQs[i].at(j);
+        func(v);
+      }
+    }
+  }
+
 
   // We're letting the FM details implementation decide what happens here, since some may not want to do gain cache updates,
   // but rather update gains in their PQs or something

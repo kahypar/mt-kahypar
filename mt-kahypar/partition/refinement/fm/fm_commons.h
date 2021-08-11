@@ -253,7 +253,10 @@ struct FMStats {
   size_t find_moves_calls = 0;
   size_t find_moves_calls_with_good_prefix = 0;
   size_t pins_touched_by_delta_gain_cache_updates = 0;
-  size_t num_delta_gain_cache_updates_triggered = 0;
+  size_t num_case_from_zero_gc_updates = 0;
+  size_t num_case_from_one_gc_updates = 0;
+  size_t num_case_to_one_gc_updates = 0;
+  size_t num_case_to_two_gc_updates = 0;
 
   void clear() {
     retries = 0;
@@ -269,7 +272,10 @@ struct FMStats {
     find_moves_calls = 0;
     find_moves_calls_with_good_prefix = 0;
     pins_touched_by_delta_gain_cache_updates = 0;
-    num_delta_gain_cache_updates_triggered = 0;
+    num_case_from_zero_gc_updates = 0;
+    num_case_from_one_gc_updates = 0;
+    num_case_to_one_gc_updates = 0;
+    num_case_to_two_gc_updates = 0;
   }
 
   void merge(FMStats& other) {
@@ -286,7 +292,10 @@ struct FMStats {
     other.find_moves_calls += find_moves_calls;
     other.find_moves_calls_with_good_prefix += find_moves_calls_with_good_prefix;
     other.pins_touched_by_delta_gain_cache_updates += pins_touched_by_delta_gain_cache_updates;
-    other.num_delta_gain_cache_updates_triggered += num_delta_gain_cache_updates_triggered;
+    other.num_case_from_zero_gc_updates += num_case_from_zero_gc_updates;
+    other.num_case_from_one_gc_updates += num_case_from_one_gc_updates;
+    other.num_case_to_one_gc_updates += num_case_to_one_gc_updates;
+    other.num_case_to_two_gc_updates += num_case_to_two_gc_updates;
     clear();
   }
 
@@ -304,7 +313,10 @@ struct FMStats {
     find_moves_calls -= other.find_moves_calls;
     find_moves_calls_with_good_prefix -= other.find_moves_calls_with_good_prefix;
     pins_touched_by_delta_gain_cache_updates -= other.pins_touched_by_delta_gain_cache_updates;
-    num_delta_gain_cache_updates_triggered -= other.num_delta_gain_cache_updates_triggered;
+    num_case_from_zero_gc_updates -= other.num_case_from_zero_gc_updates;
+    num_case_from_one_gc_updates -= other.num_case_from_one_gc_updates;
+    num_case_to_one_gc_updates -= other.num_case_to_one_gc_updates;
+    num_case_to_two_gc_updates -= other.num_case_to_two_gc_updates;
   }
 
   std::string serialize() const {

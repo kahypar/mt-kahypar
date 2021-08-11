@@ -195,7 +195,10 @@ namespace mt_kahypar {
             localMoves.clear();
 
             runStats.pins_touched_by_delta_gain_cache_updates += deltaPhg.getNumPinsTouchedByGainCacheUpdate();
-            runStats.num_delta_gain_cache_updates_triggered += deltaPhg.getNumGainCacheUpdateCasesTriggered();
+            runStats.num_case_from_zero_gc_updates += deltaPhg.getNumCaseFromZeroGcUpdates();
+            runStats.num_case_from_one_gc_updates += deltaPhg.getNumCaseFromOneGcUpdates();
+            runStats.num_case_to_one_gc_updates += deltaPhg.getNumCaseToOneGcUpdates();
+            runStats.num_case_to_two_gc_updates += deltaPhg.getNumCaseToTwoGcUpdates();
             deltaPhg.clear();   // clear hashtables, save memory :)
           }
         }
@@ -222,7 +225,10 @@ namespace mt_kahypar {
     if (foundAtLeastOneGoodPrefix) ++runStats.find_moves_calls_with_good_prefix;
 
     runStats.pins_touched_by_delta_gain_cache_updates += deltaPhg.getNumPinsTouchedByGainCacheUpdate();
-    runStats.num_delta_gain_cache_updates_triggered += deltaPhg.getNumGainCacheUpdateCasesTriggered();
+    runStats.num_case_from_zero_gc_updates += deltaPhg.getNumCaseFromZeroGcUpdates();
+    runStats.num_case_from_one_gc_updates += deltaPhg.getNumCaseFromOneGcUpdates();
+    runStats.num_case_to_one_gc_updates += deltaPhg.getNumCaseToOneGcUpdates();
+    runStats.num_case_to_two_gc_updates += deltaPhg.getNumCaseToTwoGcUpdates();
     runStats.merge(stats);
   }
 

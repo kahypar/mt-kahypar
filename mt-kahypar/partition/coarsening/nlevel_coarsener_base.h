@@ -33,6 +33,7 @@
 #include "mt-kahypar/partition/refinement/i_refiner.h"
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
 #include "mt-kahypar/utils/timer.h"
+#include "kahypar/datastructure/fast_reset_flag_array.h"
 
 namespace mt_kahypar {
 
@@ -45,6 +46,8 @@ class NLevelCoarsenerBase {
   using ParallelHyperedgeVector = parallel::scalable_vector<parallel::scalable_vector<ParallelHyperedge>>;
   using AsyncRefinersETS = tbb::enumerable_thread_specific<std::unique_ptr<IAsyncRefiner>>;
   using AsyncCounterETS = tbb::enumerable_thread_specific<HypernodeID>;
+  using RefinementNodesETS = tbb::enumerable_thread_specific<parallel::scalable_vector<HypernodeID>>;
+  using SeedDeduplicatorETS = tbb::enumerable_thread_specific<kahypar::ds::FastResetFlagArray<HypernodeID>>;
   using RegionComparator = ds::NodeRegionComparator<Hypergraph>;
   using TreeGroupPool = ds::ConcurrentQueueGroupPool<ds::UncontractionGroupTree, RegionComparator>;
   using VersionedPoolVector = parallel::scalable_vector<std::unique_ptr<TreeGroupPool>>;
@@ -102,13 +105,16 @@ class NLevelCoarsenerBase {
 
   PartitionedHypergraph&& doAsynchronousUncoarsen(std::unique_ptr<IRefiner>& global_fm);
 
-  void uncoarsenAsyncTask(TreeGroupPool *pool, tbb::task_group &uncoarsen_tg,
-                          metrics::ThreadSafeMetrics &current_metrics,
-                          AsyncRefinersETS &async_lp_refiners, AsyncRefinersETS &async_fm_refiners,
-                          AsyncCounterETS &uncontraction_counter_ets,
-                          utils::ProgressBar &uncontraction_progress,
-                          AsyncNodeTracker &async_node_tracker,
-                          RegionComparator &node_region_comparator, const bool alwaysInsertIntoPQ);
+  void
+  uncoarsenAsyncTask(TreeGroupPool *pool, tbb::task_group &uncoarsen_tg,
+                     metrics::ThreadSafeMetrics &current_metrics,
+                     AsyncRefinersETS &async_lp_refiners, AsyncRefinersETS &async_fm_refiners,
+                     AsyncCounterETS &uncontraction_counter_ets,
+                     utils::ProgressBar &uncontraction_progress,
+                     AsyncNodeTracker &async_node_tracker,
+                     RegionComparator &node_region_comparator,
+                     RefinementNodesETS &refinement_nodes_ets,
+                     SeedDeduplicatorETS &seed_deduplicator_ets, const bool alwaysInsertIntoPQ);
 
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE void uncontractGroupAsyncSubtask(const ds::ContractionGroup &group,
                                                                       const ds::ContractionGroupID groupID,
