@@ -48,6 +48,7 @@ class NLevelCoarsenerBase {
   using AsyncCounterETS = tbb::enumerable_thread_specific<HypernodeID>;
   using RefinementNodesETS = tbb::enumerable_thread_specific<parallel::scalable_vector<HypernodeID>>;
   using SeedDeduplicatorETS = tbb::enumerable_thread_specific<kahypar::ds::FastResetFlagArray<HypernodeID>>;
+  using TaskIDETS = tbb::enumerable_thread_specific<unsigned int>;
   using RegionComparator = ds::NodeRegionComparator<Hypergraph>;
   using TreeGroupPool = ds::ConcurrentQueueGroupPool<ds::UncontractionGroupTree, RegionComparator>;
   using VersionedPoolVector = parallel::scalable_vector<std::unique_ptr<TreeGroupPool>>;

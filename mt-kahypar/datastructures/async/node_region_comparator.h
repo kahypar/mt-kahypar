@@ -48,35 +48,29 @@ namespace mt_kahypar::ds {
 
         template<typename IncidentEdgeIteratorT>
         void markActive(const IteratorRange<IncidentEdgeIteratorT> incident_edges) {
+          HyperedgeID num_edges_activated = 0;
           for (const HypernodeID he : incident_edges) {
             ASSERT(he < _active_nodes_combined_signatures.size());
             uint32_t count = _active_nodes_combined_signatures[he].add_fetch(1, std::memory_order_relaxed);
-            unused(count);
-//            if (count == 1) {
-              _active_nodes_signature_union_size.fetch_add(1, std::memory_order_relaxed);
-//            }
+            if (count == 1) {
+//              _active_nodes_signature_union_size.fetch_add(1, std::memory_order_relaxed);
+                ++num_edges_activated;
+            }
           }
+          HyperedgeID num_active = _active_nodes_signature_union_size.fetch_add(num_edges_activated, std::memory_order_relaxed);
+          unused(num_active);
+          ASSERT(num_active < num_active + num_edges_activated);
         }
 
-        template<typename IncidentEdgeIteratorT>
-        void markInactive(const IteratorRange<IncidentEdgeIteratorT> incident_edges) {
-          for (const HyperedgeID he : incident_edges) {
-            ASSERT(he < _active_nodes_combined_signatures.size());
-            uint32_t count = _active_nodes_combined_signatures[he].sub_fetch(1, std::memory_order_relaxed);
-            unused(count);
-            ASSERT(count < count + 1);
-//            if (count == 0) {
-              uint32_t union_size = _active_nodes_signature_union_size.sub_fetch(1, std::memory_order_relaxed);
-              unused(union_size);
-              ASSERT(union_size < union_size + 1);
-//            }
-          }
-        }
 
         template<typename IncidentEdgeIteratorT1, typename IncidentEdgeIteratorT2>
         void markInactive(const IteratorRange<IncidentEdgeIteratorT1> current_incident_edges, const IteratorRange<IncidentEdgeIteratorT2> dropped_incident_edges) {
-          markInactive(current_incident_edges);
-          markInactive(dropped_incident_edges);
+          HyperedgeID num_edges_deactivated = 0;
+          markInactive(current_incident_edges, num_edges_deactivated);
+          markInactive(dropped_incident_edges, num_edges_deactivated);
+          uint32_t union_size = _active_nodes_signature_union_size.fetch_sub(num_edges_deactivated, std::memory_order_relaxed);
+          unused(union_size);
+          ASSERT(union_size >= num_edges_deactivated);
         }
 
         bool regionIsNotTooSimilarToActiveNodesWithFullSimilarity(const HypernodeID hn, double& similarity) const {
@@ -140,6 +134,21 @@ namespace mt_kahypar::ds {
         }
 
     private:
+
+        template<typename IncidentEdgeIteratorT>
+        void markInactive(const IteratorRange<IncidentEdgeIteratorT> incident_edges, HyperedgeID& num_edges_deactivated) {
+          for (const HyperedgeID he : incident_edges) {
+            ASSERT(he < _active_nodes_combined_signatures.size());
+            uint32_t count = _active_nodes_combined_signatures[he].sub_fetch(1, std::memory_order_relaxed);
+            ASSERT(count < count + 1);
+            if (count == 0) {
+//              uint32_t union_size = _active_nodes_signature_union_size.fetch_sub(1, std::memory_order_relaxed);
+//              unused(union_size);
+//              ASSERT(union_size > 0);
+              ++num_edges_deactivated;
+            }
+          }
+        }
 
         const Hypergraph& _hg;
         const double _region_similarity_threshold;

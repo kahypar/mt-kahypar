@@ -233,6 +233,12 @@ ELSE ()
     MESSAGE(STATUS "WARNING: hwlock library not found.")
 ENDIF ()
 
+# find multiqueue
+#add_library(Numa::Numa SHARED IMPORTED)
+#add_subdirectory(multiqueue)
+#find_package(multiqueue PATHS multiqueue/install ../multiqueue/install)
+#include_directories(./multiqueue/include/)
+
 # TODO: Add git revision
 
 if(NOT MSVC)

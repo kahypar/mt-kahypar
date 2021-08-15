@@ -202,7 +202,7 @@ namespace mt_kahypar {
                         }
                     };
 
-                    size_t num_roots = pool->getNumActive();
+                    size_t num_roots = pool->getNumRoots();
                     for (size_t i = 0; i < num_roots; ++i) {
                         uncoarsen_tg.run(uncoarsen_task);
                     }

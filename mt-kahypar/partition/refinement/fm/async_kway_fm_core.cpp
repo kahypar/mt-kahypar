@@ -204,6 +204,7 @@ namespace mt_kahypar {
           runStats.num_case_from_one_gc_updates += deltaPhg.getNumCaseFromOneGcUpdates();
           runStats.num_case_to_one_gc_updates += deltaPhg.getNumCaseToOneGcUpdates();
           runStats.num_case_to_two_gc_updates += deltaPhg.getNumCaseToTwoGcUpdates();
+
           deltaPhg.clear();   // clear hashtables, save memory :)
         }
 

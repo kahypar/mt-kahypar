@@ -540,6 +540,9 @@ private:
           setOnlyNodePart(memento.v, part_id);
      }
 
+    PartitionBitSet& conn_set = getLocalConnSetBitSet();
+    PartitionBitSet& parts_with_one_pin = getLocalPartsWithOnePinBitSet();
+
      _hg->uncontract(group,
                      groupID,
                       [&](const HypernodeID u, const HypernodeID v, const HyperedgeID he) {
@@ -562,8 +565,7 @@ private:
                                 _pin_count_update_ownership[he].unlock();
                               } else {
                                 // Snapshot pins and connectivity set in lock, gain cache update outside of lock
-                                PartitionBitSet& conn_set = getLocalConnSetBitSet();
-                                PartitionBitSet& parts_with_one_pin = getLocalPartsWithOnePinBitSet();
+
                                 takeConnectivitySetSnapshots(he, conn_set, parts_with_one_pin);
                                 auto pins_snapshot = takePinsSnapshot(he);
                                 _pin_count_update_ownership[he].unlock();
@@ -595,8 +597,6 @@ private:
                               _pin_count_update_ownership[he].unlock();
                             } else {
                               // Snapshot pins and connectivity set in lock, gain cache update outside of lock
-                              PartitionBitSet& conn_set = getLocalConnSetBitSet();
-                              PartitionBitSet& parts_with_one_pin = getLocalPartsWithOnePinBitSet();
                               takeConnectivitySetSnapshots(he, conn_set, parts_with_one_pin);
                               _pin_count_update_ownership[he].unlock();
 

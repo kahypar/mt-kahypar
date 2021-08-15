@@ -779,6 +779,13 @@ namespace mt_kahypar {
 
 //          size_t total_num_groups = pool->getNumTotal();
 
+          for (auto& refinement_seeds : refinement_nodes_ets) {
+            refinement_seeds.clear();
+          }
+          for (auto& seed_deduplicator : seed_deduplicator_ets) {
+            seed_deduplicator.reset();
+          }
+
           size_t num_roots = pool->getNumActive();
           for (size_t i = 0; i < num_roots; ++i) {
               uncoarsen_tg.run([&](){
