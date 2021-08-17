@@ -1,0 +1,46 @@
+name: Mt-KaHyPar CI
+
+on: [ push, pull_request ]
+
+jobs:
+  mt_kahypar_tests:
+    runs-on: ubuntu-latest
+    env:
+      BOOST_ROOT : "/usr/local/share/boost/1.72.0"
+      CI_ACTIVE : 1
+
+    steps:
+      - name: Checkout HEAD
+        uses: actions/checkout@v2
+        with:
+         fetch-depth: 1
+
+      - name: Install Dependencies
+        run: |
+          sudo apt-get install libtbb-dev libhwloc-dev libboost-program-options-dev lcov gcovr
+
+      - name: Install Mt-KaHyPar Test Suite
+        run: |
+          git submodule init
+          git submodule update
+          rm -rf debug
+          mkdir debug
+          cd debug
+          cmake .. -DCMAKE_BUILD_TYPE=DEBUG -DKAHYPAR_USE_GCOV=ON -DKAHYPAR_TRAVIS_BUILD=ON
+          make -j2 mt_kahypar_tests;
+
+      - name: Run Mt-KaHyPar Tests
+        run: |
+          cd debug
+          ./tests/mt_kahypar_fast_tests;
+          ./tests/mt_kahypar_strong_tests;
+
+      - name: Report Code Coverage
+        run: |
+          cd debug
+          lcov --directory . --capture --output-file coverage.info;
+          lcov --remove coverage.info '/usr/*' --output-file coverage.info;
+          lcov --list coverage.info;
+          gcovr -r ../ -x > report.xml;
+          cd ..
+          bash <(curl -s https://codecov.io/bash) || echo "Codecov did not collect coverage reports"
