@@ -375,6 +375,7 @@ namespace mt_kahypar::ds {
   template<typename F>
   void Graph::construct(const Hypergraph& hypergraph,
                  const F& edge_weight_func) {
+    #ifndef USE_GRAPH_STRUCTURE
     // Test, if hypergraph is actually a graph
     const bool is_graph = tbb::parallel_reduce(tbb::blocked_range<HyperedgeID>(
             ID(0), hypergraph.initialNumEdges()), true, [&](const tbb::blocked_range<HyperedgeID>& range, bool isGraph) {
@@ -401,6 +402,11 @@ namespace mt_kahypar::ds {
       _num_arcs = 2 * hypergraph.initialNumPins();
       constructBipartiteGraph(hypergraph, edge_weight_func);
     }
+    #else
+      _num_nodes = hypergraph.initialNumNodes();
+      _num_arcs = hypergraph.initialNumEdges();
+      constructGraph(hypergraph, edge_weight_func);
+    #endif
 
     // deterministic reduce of node volumes since double addition is not commutative or associative
     // node volumes are computed in for loop because deterministic reduce does not have dynamic load balancing
