@@ -49,9 +49,6 @@ class Array {
       ArrayIterator() : _ptr(nullptr) { }
       ArrayIterator(T* ptr) : _ptr(ptr) { }
       ArrayIterator(const ArrayIterator& other) : _ptr(other._ptr) { }
-      ArrayIterator & operator= (const ArrayIterator& other) {
-        _ptr = other._ptr;
-      }
 
       reference operator*() const {
         return *_ptr;
