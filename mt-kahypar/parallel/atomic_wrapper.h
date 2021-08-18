@@ -149,9 +149,9 @@ class IntegralAtomicWrapper {
     return *this;
   }
 
-  T operator= (T desired) noexcept {
+  IntegralAtomicWrapper & operator= (T desired) noexcept {
     _value = desired;
-    return _value;
+    return *this;
   }
 
   void store(T desired, std::memory_order order = std::memory_order_seq_cst) noexcept {

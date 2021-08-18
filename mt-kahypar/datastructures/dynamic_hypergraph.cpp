@@ -981,9 +981,9 @@ BatchVector DynamicHypergraph::createBatchUncontractionHierarchyForVersion(Batch
       // Request batch index and its position within that batch
       BatchAssignment assignment = batch_assigner.getBatchIndex(
         current_batch_index, num_uncontractions);
-      for ( size_t i = start_idx; i < start_idx + num_uncontractions; ++i ) {
-        batch_assignments[i].batch_index = assignment.batch_index;
-        batch_assignments[i].batch_pos = assignment.batch_pos + (i - start_idx);
+      for ( size_t j = start_idx; j < start_idx + num_uncontractions; ++j ) {
+        batch_assignments[j].batch_index = assignment.batch_index;
+        batch_assignments[j].batch_pos = assignment.batch_pos + (j - start_idx);
       }
       current_batch_index = assignment.batch_index;
 

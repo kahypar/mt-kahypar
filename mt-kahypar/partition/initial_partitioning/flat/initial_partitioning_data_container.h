@@ -103,7 +103,9 @@ class InitialPartitioningDataContainer {
       // Incremental update average quality
       const double old_average_quality = average_quality;
       average_quality += static_cast<double>(quality - average_quality) / n;
-      sum_of_squares += (quality - old_average_quality) * (quality - average_quality);
+      sum_of_squares +=
+        static_cast<long double>(quality - old_average_quality) *
+        static_cast<long double>(quality - average_quality);
       if ( quality < best_quality ) {
         best_quality = quality;
       }
