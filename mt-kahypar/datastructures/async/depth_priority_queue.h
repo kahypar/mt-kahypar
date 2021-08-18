@@ -128,6 +128,7 @@ namespace mt_kahypar::ds {
 
         DepthPriorityQueue(const depth_type num_depths, std::vector<ContractionGroupID>&& max_elements_per_depth) :
             _num_depths(num_depths),
+            _num_depths_completed(0),
             _total_elements_per_depth(std::move(max_elements_per_depth)),
             _min_non_completed_depth(0),
             _num_finished_per_depth(_num_depths, CAtomic<ContractionGroupID>(0)),
@@ -173,9 +174,9 @@ namespace mt_kahypar::ds {
           }
 
           depth_type current_min = _min_non_completed_depth.load(std::memory_order_relaxed);
-          ASSERT(current_min < _num_depths);
+          ASSERT(current_min <= _num_depths);
           if (current_min == _num_depths) {
-            ERROR("All completed, none left to pop.");
+            return false;
           }
 
           while (current_min < _num_depths) {
@@ -206,6 +207,9 @@ namespace mt_kahypar::ds {
         void increment_finished(const depth_type depth) {
           bool completed_depth = false;
           increment_finished(depth, completed_depth);
+          if (completed_depth) {
+            ++_num_depths_completed;
+          }
         }
 
         void increment_finished(const depth_type depth, bool& completed_depth) {
@@ -262,19 +266,17 @@ namespace mt_kahypar::ds {
             }
           }
           _min_non_completed_depth.store(min_non_completed, std::memory_order_relaxed);
+          _num_depths_completed = 0;
         }
 
-        // ! Only for testing/debugging
         bool allDepthsCompleted() const {
-          for (depth_type i = 0; i < _num_depths; ++i) {
-            if (!_completed[i].load(std::memory_order_relaxed)) return false;
-          }
-          return true;
+          return _num_depths_completed == _num_depths;
         }
 
     private:
 
         const depth_type _num_depths;
+        depth_type _num_depths_completed;
         const std::vector<ContractionGroupID> _total_elements_per_depth;
 
         CAtomic<depth_type> _min_non_completed_depth;

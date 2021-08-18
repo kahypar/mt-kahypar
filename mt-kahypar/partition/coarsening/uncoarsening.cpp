@@ -534,10 +534,13 @@ namespace mt_kahypar {
                                                RegionComparator &node_region_comparator,
                                                RefinementNodesETS &refinement_nodes_ets,
                                                SeedDeduplicatorETS &seed_deduplicator_ets,
+                                               const size_t task_id,
                                                const bool alwaysInsertIntoPQ) {
 
+      if (pool->allAccepted()) return;
+
       ds::ContractionGroupID groupID = ds::invalidGroupID;
-      pool->pickActiveID(groupID);
+      bool pick_new_group = true;
 
       IAsyncRefiner* local_async_lp = async_lp_refiners.local().get();
       IAsyncRefiner* local_async_fm = async_fm_refiners.local().get();
@@ -546,6 +549,12 @@ namespace mt_kahypar {
       auto& seed_deduplicator = seed_deduplicator_ets.local();
 
       while (true) {
+
+        // Attempt to pick a group from the bool. Stop if pool is completed.
+        while (pick_new_group && !pool->tryToPickActiveID(groupID)) {
+          if (pool->allAccepted()) return;
+        }
+
           ASSERT(groupID != ds::invalidGroupID);
           if (groupID == ds::invalidGroupID || groupID >= pool->getNumTotal()) {
             ERROR("groupID is invalid!" << V(groupID));
@@ -559,13 +568,14 @@ namespace mt_kahypar {
           if (!acquired) {
 
             pool->activate(groupID);
-            pool->pickActiveID(groupID);
+//            pool->pickActiveID(groupID);
+            pick_new_group = true;
             continue;
           }
           ASSERT(acquired);
 
           pool->markAccepted(groupID);
-          node_region_comparator.markActive(_phg.incidentEdges(group.getRepresentative()));
+          node_region_comparator.markActive(_phg.incidentEdges(group.getRepresentative()), task_id);
 
           std::vector<HyperedgeID> dropped_incident_edges;
 
@@ -596,11 +606,13 @@ namespace mt_kahypar {
           // Refine only once enough seeds are available
           if ((_context.type != kahypar::ContextType::main && !local_refinement_nodes.empty()) || local_refinement_nodes.size() >= _context.refinement.fm.num_seed_nodes) {
             localizedRefineForAsync(_phg, local_refinement_nodes, local_async_lp, local_async_fm, groupID, current_metrics);
+
+            node_region_comparator.markAllEdgesForTaskInactive(task_id);
             seed_deduplicator.reset();
             local_refinement_nodes.clear();
           }
 
-          node_region_comparator.markInactive(_phg.incidentEdges(group.getRepresentative()), IteratorRange(dropped_incident_edges.begin(), dropped_incident_edges.end()));
+//          node_region_comparator.markInactive(_phg.incidentEdges(group.getRepresentative()), IteratorRange(dropped_incident_edges.begin(), dropped_incident_edges.end()), task_id);
           async_node_tracker.incrementTime(group.size());
 
           // If number of uncontractions in this thread surpasses threshold, update the uncontraction progress bar
@@ -626,33 +638,36 @@ namespace mt_kahypar {
                 for (auto it = suc_begin; it < suc_end; ++it) {
                   num_succ++;
                   pool->activate(*it);
-                  uncoarsen_tg.run([&](){
-                      uncoarsenAsyncTask(pool, uncoarsen_tg,
-                                         current_metrics, async_lp_refiners, async_fm_refiners,
-                                         uncontraction_counter_ets,
-                                         uncontraction_progress, async_node_tracker, node_region_comparator,
-                                         refinement_nodes_ets, seed_deduplicator_ets,
-                                         alwaysInsertIntoPQ);
-                  });
+//                  uncoarsen_tg.run([&](){
+//                      uncoarsenAsyncTask(pool, uncoarsen_tg,
+//                                         current_metrics, async_lp_refiners, async_fm_refiners,
+//                                         uncontraction_counter_ets,
+//                                         uncontraction_progress, async_node_tracker, node_region_comparator,
+//                                         refinement_nodes_ets, seed_deduplicator_ets, thread_id_ets,
+//                                         alwaysInsertIntoPQ);
+//                  });
                 }
-                return;
+//                return;
+                pick_new_group = true;
               } else {
                 // Insert all but one successor into the PQ and start as many new tasks. Have this task keep working on the remaining successor.
                 groupID = *suc_begin;
                 for (auto it = suc_begin + 1; it < suc_end; ++it) {
                   pool->activate(*it);
-                  uncoarsen_tg.run([&](){
-                      uncoarsenAsyncTask(pool, uncoarsen_tg,
-                                         current_metrics, async_lp_refiners, async_fm_refiners,
-                                         uncontraction_counter_ets,
-                                         uncontraction_progress, async_node_tracker, node_region_comparator,
-                                         refinement_nodes_ets, seed_deduplicator_ets,
-                                         alwaysInsertIntoPQ);
-                  });
+//                  uncoarsen_tg.run([&](){
+//                      uncoarsenAsyncTask(pool, uncoarsen_tg,
+//                                         current_metrics, async_lp_refiners, async_fm_refiners,
+//                                         uncontraction_counter_ets,
+//                                         uncontraction_progress, async_node_tracker, node_region_comparator,
+//                                         refinement_nodes_ets, seed_deduplicator_ets, thread_id_ets,
+//                                         alwaysInsertIntoPQ);
+//                  });
                 }
+                pick_new_group = false;
               }
           } else {
-              return;
+            pick_new_group = true;
+//              return;
           }
       }
   }
@@ -751,7 +766,9 @@ namespace mt_kahypar {
 
     auto async_uncontraction_counters = AsyncCounterETS(0);
 
-    auto node_region_comparator = RegionComparator(_phg.hypergraph(), _context);
+    const size_t num_threads = _context.shared_memory.num_threads;
+
+    auto node_region_comparator = RegionComparator(_phg.hypergraph(), _context.uncoarsening.node_region_similarity_threshold, num_threads);
     size_t total_calls_to_pick = 0;
     size_t calls_to_pick_that_reached_max_retries = 0;
     size_t calls_to_pick_with_empty_pq = 0;
@@ -786,21 +803,29 @@ namespace mt_kahypar {
             seed_deduplicator.reset();
           }
 
-          size_t num_roots = pool->getNumActive();
-          for (size_t i = 0; i < num_roots; ++i) {
-              uncoarsen_tg.run([&](){
-                // todo mlaupichler: Setting alwaysInsertIntoPQ to true for Initial Partitioning as well cryptically does not work (spits out Seg faults only in release mode). I assume it's due to TBB internals.
-                  uncoarsenAsyncTask(pool, uncoarsen_tg,
-                                     current_metrics, async_lp_refiners, async_fm_refiners,
-                                     async_uncontraction_counters,
-                                     uncontraction_progress, fm_shared_data->nodeTracker, node_region_comparator,
-                                     refinement_nodes_ets, seed_deduplicator_ets,
-                                     _context.uncoarsening.always_insert_groups_into_pq && (_context.type ==
-                                                                                            kahypar::ContextType::main) /* Do not use this option in initial partitioning*/
-                  );
-              });
+//          size_t num_roots = pool->getNumActive();
+
+          auto uncoarsen_task = [&](const size_t task_id){
+              // todo mlaupichler: Setting alwaysInsertIntoPQ to true for Initial Partitioning as well cryptically does not work (spits out Seg faults only in release mode). I assume it's due to TBB internals.
+              uncoarsenAsyncTask(pool, uncoarsen_tg,
+                                 current_metrics, async_lp_refiners, async_fm_refiners,
+                                 async_uncontraction_counters,
+                                 uncontraction_progress, fm_shared_data->nodeTracker, node_region_comparator,
+                                 refinement_nodes_ets, seed_deduplicator_ets, task_id,
+                                 _context.uncoarsening.always_insert_groups_into_pq && (_context.type ==
+                                                                                        kahypar::ContextType::main) /* Do not use this option in initial partitioning*/
+              );
+          };
+
+          for (size_t tid = 0; tid < num_threads; ++tid) {
+              uncoarsen_tg.run([uncoarsen_task, tid] { return uncoarsen_task(tid); });
           }
           uncoarsen_tg.wait();
+
+          // clean up RegionComparator
+          for (size_t tid = 0; tid < num_threads; ++tid) {
+            node_region_comparator.markAllEdgesForTaskInactive(tid);
+          }
 
           total_calls_to_pick += pool->getTotalCallsToPick();
           calls_to_pick_that_reached_max_retries += pool->getCallsToPickThatReachedMaxRetries();
@@ -826,7 +851,7 @@ namespace mt_kahypar {
 
 //          HEAVY_REFINEMENT_ASSERT(node_anti_duplicator->checkAllFalse());
 //          HEAVY_REFINEMENT_ASSERT(edge_anti_duplicator->checkAllFalse());
-          HEAVY_REFINEMENT_ASSERT(pool->checkAllAccepted());
+          HEAVY_REFINEMENT_ASSERT(pool->allAccepted());
           HEAVY_REFINEMENT_ASSERT(node_region_comparator.checkNoneActiveParallel());
           HEAVY_REFINEMENT_ASSERT(fm_shared_data->nodeTracker.checkNoneLocked());
           HEAVY_REFINEMENT_ASSERT(_hg.verifyIncidenceArrayAndIncidentNets());

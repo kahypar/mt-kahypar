@@ -44,7 +44,7 @@ namespace mt_kahypar::ds {
             auto expected = _data[idx].load(std::memory_order_relaxed);
             auto desired = true;
             return expected != desired && _data[idx].compare_exchange_strong(expected, desired,
-                                                      /* memory order for write on success: */ std::memory_order_seq_cst,
+                                                      /* memory order for write on success: */ std::memory_order_relaxed,
                                                       /* memory order for load on fail: */ std::memory_order_relaxed);
         }
 
@@ -53,7 +53,7 @@ namespace mt_kahypar::ds {
             auto expected = _data[idx].load(std::memory_order_relaxed);
             auto desired = false;
             return expected != desired && _data[idx].compare_exchange_strong(expected, desired,
-                    /* memory order for write on success: */ std::memory_order_seq_cst,
+                    /* memory order for write on success: */ std::memory_order_relaxed,
                     /* memory order for load on fail: */ std::memory_order_relaxed);
         }
 

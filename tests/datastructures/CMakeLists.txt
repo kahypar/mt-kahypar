@@ -44,6 +44,7 @@ set(StrongAsyncTestsDatastructuresSources
         iterable_bit_set_test.cc
         depth_priority_queue_test.cc
         node_region_comparator_test.cc
+        thread_wise_flag_array_test.cc
         )
 
 target_sources(mt_kahypar_strong_tests PRIVATE ${StrongTestsDatastructuresSources})

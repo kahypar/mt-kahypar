@@ -7,6 +7,7 @@
 #include <tbb/enumerable_thread_specific.h>
 #include "mt-kahypar/datastructures/array.h"
 #include "mt-kahypar/datastructures/incident_net_array.h"
+#include "mt-kahypar/datastructures/async/thread_wise_flag_array.h"
 
 namespace mt_kahypar::ds {
 
@@ -19,15 +20,20 @@ namespace mt_kahypar::ds {
 
     public:
 
-        explicit NodeRegionComparator(const Hypergraph& hypergraph, const Context& context) :
+        explicit NodeRegionComparator(const Hypergraph& hypergraph, const double similarity_threshold, const size_t num_threads) :
             _hg(hypergraph),
-            _region_similarity_threshold(context.uncoarsening.node_region_similarity_threshold),
+            _region_similarity_threshold(similarity_threshold),
             _active_nodes_signature_union_size(0),
-            _active_nodes_combined_signatures(_hg.initialNumEdges(), CAtomic<size_t>(0)) {}
+            _active_nodes_combined_signatures(_hg.initialNumEdges(), num_threads),
+            _active_edges_per_task(num_threads) {
+          for (size_t tid = 0; tid < num_threads; ++tid) {
+            _active_edges_per_task[tid] = std::make_unique<std::vector<HyperedgeID>>();
+          }
+        }
 
         void memoryConsumption(utils::MemoryTreeNode* parent) const {
           ASSERT(parent);
-          parent->addChild("Active Nodes Combined Signatures", sizeof(CAtomic<size_t>) * _active_nodes_combined_signatures.size());
+          parent->addChild("Active Nodes Combined Signatures", _active_nodes_combined_signatures.size_in_bytes());
         }
 
         /*void resetHyperedgeSizesParallel() {
@@ -47,46 +53,79 @@ namespace mt_kahypar::ds {
         }*/
 
         template<typename IncidentEdgeIteratorT>
-        void markActive(const IteratorRange<IncidentEdgeIteratorT> incident_edges) {
+        void markActive(const IteratorRange<IncidentEdgeIteratorT> incident_edges, const size_t task_id) {
+          ASSERT(task_id < _active_edges_per_task.size());
           HyperedgeID num_edges_activated = 0;
           for (const HypernodeID he : incident_edges) {
-            ASSERT(he < _active_nodes_combined_signatures.size());
-            uint32_t count = _active_nodes_combined_signatures[he].add_fetch(1, std::memory_order_relaxed);
-            if (count == 1) {
+            ASSERT(he < _active_nodes_combined_signatures.numElements());
+            bool activated_edge = false;
+            bool changed_bit = _active_nodes_combined_signatures.set_true(he, task_id, activated_edge);
+            if (changed_bit) {
+              _active_edges_per_task[task_id]->push_back(he);
+            }
+            if (activated_edge) {
 //              _active_nodes_signature_union_size.fetch_add(1, std::memory_order_relaxed);
                 ++num_edges_activated;
             }
           }
           HyperedgeID num_active = _active_nodes_signature_union_size.fetch_add(num_edges_activated, std::memory_order_relaxed);
           unused(num_active);
-          ASSERT(num_active < num_active + num_edges_activated);
+          ASSERT(num_active <= num_active + num_edges_activated);
         }
 
-
-        template<typename IncidentEdgeIteratorT1, typename IncidentEdgeIteratorT2>
-        void markInactive(const IteratorRange<IncidentEdgeIteratorT1> current_incident_edges, const IteratorRange<IncidentEdgeIteratorT2> dropped_incident_edges) {
+        void markAllEdgesForTaskInactive(const size_t task_id) {
+          ASSERT(task_id < _active_edges_per_task.size());
+          std::vector<HyperedgeID>& active_in_task = *_active_edges_per_task[task_id];
           HyperedgeID num_edges_deactivated = 0;
-          markInactive(current_incident_edges, num_edges_deactivated);
-          markInactive(dropped_incident_edges, num_edges_deactivated);
+          while (!active_in_task.empty()) {
+            const HyperedgeID he = active_in_task.back();
+            active_in_task.pop_back();
+            ASSERT(he < _active_nodes_combined_signatures.numElements());
+            bool deactivated_edge = false;
+            bool changed_bit = _active_nodes_combined_signatures.set_false(he, task_id, deactivated_edge);
+            ASSERT(changed_bit); unused(changed_bit);
+            if (deactivated_edge) {
+              ++num_edges_deactivated;
+            }
+          }
+          ASSERT(_active_edges_per_task[task_id]->empty());
           uint32_t union_size = _active_nodes_signature_union_size.fetch_sub(num_edges_deactivated, std::memory_order_relaxed);
           unused(union_size);
           ASSERT(union_size >= num_edges_deactivated);
         }
 
-        bool regionIsNotTooSimilarToActiveNodesWithFullSimilarity(const HypernodeID hn, double& similarity) const {
+//        template<typename IncidentEdgeIteratorT1>
+//        void markInactive(const IteratorRange<IncidentEdgeIteratorT1> incident_edges, const size_t task_id) {
+//          HyperedgeID num_edges_deactivated = 0;
+//          markInactiveImpl(incident_edges, task_id, num_edges_deactivated);
+//          uint32_t union_size = _active_nodes_signature_union_size.fetch_sub(num_edges_deactivated, std::memory_order_relaxed);
+//          unused(union_size);
+//          ASSERT(union_size >= num_edges_deactivated);
+//        }
+//
+//        template<typename IncidentEdgeIteratorT1, typename IncidentEdgeIteratorT2>
+//        void markInactive(const IteratorRange<IncidentEdgeIteratorT1> current_incident_edges, const IteratorRange<IncidentEdgeIteratorT2> dropped_incident_edges, const size_t task_id) {
+//          HyperedgeID num_edges_deactivated = 0;
+//          markInactiveImpl(current_incident_edges, task_id, num_edges_deactivated);
+//          markInactiveImpl(dropped_incident_edges, task_id, num_edges_deactivated);
+//          uint32_t union_size = _active_nodes_signature_union_size.fetch_sub(num_edges_deactivated, std::memory_order_relaxed);
+//          unused(union_size);
+//          ASSERT(union_size >= num_edges_deactivated);
+//        }
+
+        bool regionIsNotTooSimilarToActiveNodesWithFullSimilarity(const HypernodeID hn, double& similarity) {
           similarity = regionSimilarityToActiveNodes(hn);
           return similarity < _region_similarity_threshold + CMP_EPSILON;
         }
 
-        double regionSimilarityToActiveNodes(const HypernodeID hn) const {
+        double regionSimilarityToActiveNodes(const HypernodeID hn) {
           ASSERT(_hg.nodeIsEnabled(hn));
           size_t union_size = _hg.nodeDegree(hn) + _active_nodes_signature_union_size.load(std::memory_order_relaxed);
           size_t intersection_size = 0;
           auto incident_edges = _hg.incidentEdges(hn);
           for (const HyperedgeID he : incident_edges) {
-            ASSERT(he < _active_nodes_combined_signatures.size());
-            size_t num_active_incident_to_he = _active_nodes_combined_signatures[he].load(std::memory_order_relaxed);
-            if (num_active_incident_to_he > 0) {
+            ASSERT(he < _active_nodes_combined_signatures.numElements());
+            if (_active_nodes_combined_signatures.any_set(he)) {
               ++intersection_size;
             }
           }
@@ -98,15 +137,14 @@ namespace mt_kahypar::ds {
           return (double) intersection_size / (double) union_size;
         }
 
-        bool regionIsNotTooSimilarToActiveNodesWithEarlyBreak(const HypernodeID hn) const {
+        bool regionIsNotTooSimilarToActiveNodesWithEarlyBreak(const HypernodeID hn) {
           ASSERT(_hg.nodeIsEnabled(hn));
           size_t union_size = _hg.nodeDegree(hn) + _active_nodes_signature_union_size.load(std::memory_order_relaxed);
           size_t intersection_size = 0;
           auto incident_edges = _hg.incidentEdges(hn);
           for (const HyperedgeID he : incident_edges) {
-            ASSERT(he < _active_nodes_combined_signatures.size());
-            size_t num_active_incident_to_he = _active_nodes_combined_signatures[he].load(std::memory_order_relaxed);
-            if (num_active_incident_to_he > 0) {
+            ASSERT(he < _active_nodes_combined_signatures.numElements());
+            if (_active_nodes_combined_signatures.any_set(he)) {
               ++intersection_size;
               // |A \cup B| = |A| + |B| - |A \cap B|
               ASSERT(union_size > 0);
@@ -121,11 +159,11 @@ namespace mt_kahypar::ds {
         }
 
         // ! Only for testing/debugging
-        bool checkNoneActiveParallel() const {
+        bool checkNoneActiveParallel() {
           if (_active_nodes_signature_union_size.load(std::memory_order_relaxed) != 0) return false;
           bool noneActive = true;
-          tbb::parallel_for(ID(0), ID(_active_nodes_combined_signatures.size()), [&](const HyperedgeID he) {
-            bool active = _active_nodes_combined_signatures[he].load(std::memory_order_relaxed) > 0;
+          tbb::parallel_for(ID(0), ID(_active_nodes_combined_signatures.numElements()), [&](const HyperedgeID he) {
+            bool active = _active_nodes_combined_signatures.any_set(he);
             if (active) {
               noneActive = false;
             }
@@ -136,15 +174,12 @@ namespace mt_kahypar::ds {
     private:
 
         template<typename IncidentEdgeIteratorT>
-        void markInactive(const IteratorRange<IncidentEdgeIteratorT> incident_edges, HyperedgeID& num_edges_deactivated) {
+        void markInactiveImpl(const IteratorRange<IncidentEdgeIteratorT> incident_edges, const size_t task_id, HyperedgeID& num_edges_deactivated) {
           for (const HyperedgeID he : incident_edges) {
-            ASSERT(he < _active_nodes_combined_signatures.size());
-            uint32_t count = _active_nodes_combined_signatures[he].sub_fetch(1, std::memory_order_relaxed);
-            ASSERT(count < count + 1);
-            if (count == 0) {
-//              uint32_t union_size = _active_nodes_signature_union_size.fetch_sub(1, std::memory_order_relaxed);
-//              unused(union_size);
-//              ASSERT(union_size > 0);
+            ASSERT(he < _active_nodes_combined_signatures.numElements());
+            bool deactivated_edge = false;
+            _active_nodes_combined_signatures.set_false(he, task_id, deactivated_edge);
+            if (deactivated_edge) {
               ++num_edges_deactivated;
             }
           }
@@ -154,7 +189,9 @@ namespace mt_kahypar::ds {
         const double _region_similarity_threshold;
 
         CAtomic<HyperedgeID> _active_nodes_signature_union_size;
-        Array<CAtomic<size_t>> _active_nodes_combined_signatures;
+        ThreadWiseFlagArray<HyperedgeID> _active_nodes_combined_signatures;
+
+        std::vector<std::unique_ptr<std::vector<HyperedgeID>>> _active_edges_per_task;
 
         static constexpr double CMP_EPSILON = 1.0e-100;
 

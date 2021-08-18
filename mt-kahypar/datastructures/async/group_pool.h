@@ -185,7 +185,7 @@ namespace mt_kahypar::ds
           return _hierarchy.get();
         }
 
-        void setNodeRegionComparator(const RegionComparator* comparator) {
+        void setNodeRegionComparator(RegionComparator* comparator) {
           ASSERT(comparator);
           _node_region_comparator = comparator;
         }
@@ -247,38 +247,39 @@ namespace mt_kahypar::ds
         // ===== Activation/Deactivation of Hypernodes =====
 
         bool tryToPickActiveID(ContractionGroupID& destination) {
-            bool picked = tryPopActive(destination);
-            return picked;
+          if (CALCULATE_FULL_SIMILARITIES) {
+            return tryToPickActiveIDWithFullSimilarities(destination);
+          } else {
+            return tryToPickActiveIDWithEarlyBreak(destination);
+          }
         }
 
         void pickActiveID(ContractionGroupID& destination) {
           if (CALCULATE_FULL_SIMILARITIES) {
-            pickActiveIDWithFullSimilarities(destination);
+            while (!tryToPickActiveIDWithFullSimilarities(destination)) {/* keep trying */};
           } else {
-            pickActiveIDWithEarlyBreak(destination);
+            while (!tryToPickActiveIDWithEarlyBreak(destination)) {/* keep trying */};
           }
         }
 
-        void pickActiveIDWithFullSimilarities(ContractionGroupID& destination) {
+        bool tryToPickActiveIDWithFullSimilarities(ContractionGroupID& destination) {
           _total_calls_to_pick.add_fetch(1, std::memory_order_relaxed);
 
             destination = invalidGroupID;
             if (!_node_region_comparator || (_region_similarity_retries == 0)) {
-              while (!tryToPickActiveID(destination)) {}
-              ASSERT(!_hierarchy->isInitiallyStableNode(group(destination).getRepresentative()));
+              return tryPopActive(destination);
             } else {
               std::vector<ContractionGroupID>& pickedIDs = _picked_ids_ets.local();
               double cur_min_similarity = 1.0;
               ContractionGroupID cur_min_idx = 0;
               for (uint32_t i = 0; i < _region_similarity_retries; ++i) {
                 ContractionGroupID pickedID = invalidGroupID;
-                bool picked = tryToPickActiveID(pickedID);
+                bool picked = tryPopActive(pickedID);
                 if (!picked) {
-                  // If none found in PQ and none have been previously, wait for an element and return it immediately
+                  // If none found in PQ and none have been previously, return false (no elements available)
                   if (i == 0) {
                     _calls_to_pick_with_empty_pq.fetch_add(1, std::memory_order_relaxed);
-                    while(!tryToPickActiveID(destination)) {}
-                    return;
+                    return false;
                   }
                   // If no more found in PQ but previously some ID was found, reinsert all but best and return best
                   destination = pickedIDs[cur_min_idx];
@@ -290,7 +291,7 @@ namespace mt_kahypar::ds
                   if (destination == invalidGroupID) {
                     ERROR("Destination invalid after picking best from so far picked when PQ popping failed!" << V(destination));
                   }
-                  return;
+                  return true;
                 }
                 ASSERT(pickedID != invalidGroupID);
                 if (pickedID == invalidGroupID) {
@@ -304,7 +305,7 @@ namespace mt_kahypar::ds
                   for (uint32_t j = 0; j < i; ++j) {
                       insertActive(pickedIDs[j]);
                   }
-                  return;
+                  return true;
                 } else {
                   // If candidate is not good, insert it into pickedIDs and possibly update min
                   pickedIDs[i] = pickedID;
@@ -322,31 +323,26 @@ namespace mt_kahypar::ds
                   insertActive(pickedIDs[j]);
                 }
               }
-            }
-            ASSERT(destination != invalidGroupID);
-            if (destination == invalidGroupID) {
-              ERROR("pickActiveID() call went to the end but destination was never set!" << V(destination));
+              ASSERT(destination != invalidGroupID);
+              return true;
             }
         }
 
-        void pickActiveIDWithEarlyBreak(ContractionGroupID& destination) {
-
-          auto fall_back_pick = [&] (ContractionGroupID& destination) {
-              while(!tryToPickActiveID(destination)) {}
-          };
+        bool tryToPickActiveIDWithEarlyBreak(ContractionGroupID& destination) {
+          _total_calls_to_pick.add_fetch(1, std::memory_order_relaxed);
 
           destination = invalidGroupID;
           if (!_node_region_comparator || (_region_similarity_retries == 0)) {
-            while (!tryToPickActiveID(destination)) {}
-            ASSERT(!_hierarchy->isInitiallyStableNode(group(destination).getRepresentative()));
+            return tryPopActive(destination);
           } else {
             std::vector<ContractionGroupID>& pickedIDs = _picked_ids_ets.local();
             for (uint32_t i = 0; i < _region_similarity_retries; ++i) {
               ContractionGroupID pickedID = invalidGroupID;
-              bool picked = tryToPickActiveID(pickedID);
+              bool picked = tryPopActive(pickedID);
               if (!picked) {
                 if (i == 0) {
-                  fall_back_pick(destination);
+                  _calls_to_pick_with_empty_pq.fetch_add(1, std::memory_order_relaxed);
+                  return false;
                 } else {
                   // If no more found in PQ and no good one was found just return last one that was seen and reinsert the rest
                   destination = pickedIDs[i-1];
@@ -355,7 +351,7 @@ namespace mt_kahypar::ds
                   }
                 }
                 ASSERT(destination != invalidGroupID);
-                return;
+                return true;
               }
               ASSERT(pickedID != invalidGroupID);
               HypernodeID repr = group(pickedID).getRepresentative();
@@ -365,21 +361,19 @@ namespace mt_kahypar::ds
                 for (uint32_t j = 0; j < i; ++j) {
                   insertActive(pickedIDs[j]);
                 }
-                return;
+                return true;
               } else {
                 pickedIDs[i] = pickedID;
               }
             }
             // If tried as often as possible, reinsert all but last one and return last one
+            _calls_to_pick_that_reached_max_retries.fetch_add(1, std::memory_order_relaxed);
             destination = pickedIDs[_region_similarity_retries - 1];
             for (uint32_t j = 0; j < _region_similarity_retries - 1; ++j) {
                 insertActive(pickedIDs[j]);
             }
-          }
-
-          ASSERT(destination != invalidGroupID);
-          if (destination == invalidGroupID) {
-            ERROR("pickActiveID() call went to the end but destination was never set!" << V(destination));
+            ASSERT(destination != invalidGroupID);
+            return true;
           }
         }
 
@@ -407,8 +401,7 @@ namespace mt_kahypar::ds
           _active_ids.increment_finished(_hierarchy->depth(id));
         }
 
-        // ! Only for testing/debugging
-        bool checkAllAccepted() const {
+        bool allAccepted() const {
           return _active_ids.allDepthsCompleted();
 //            return true;
         }
@@ -512,7 +505,7 @@ namespace mt_kahypar::ds
 //        tbb::concurrent_queue<ContractionGroupID> _active_ids;
         DepthPriorityQueue _active_ids;
 
-        const RegionComparator* _node_region_comparator;
+        RegionComparator* _node_region_comparator;
         const size_t _region_similarity_retries;
         tbb::enumerable_thread_specific<std::vector<ContractionGroupID>> _picked_ids_ets;
 

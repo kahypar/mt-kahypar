@@ -48,7 +48,7 @@ class NLevelCoarsenerBase {
   using AsyncCounterETS = tbb::enumerable_thread_specific<HypernodeID>;
   using RefinementNodesETS = tbb::enumerable_thread_specific<parallel::scalable_vector<HypernodeID>>;
   using SeedDeduplicatorETS = tbb::enumerable_thread_specific<kahypar::ds::FastResetFlagArray<HypernodeID>>;
-  using TaskIDETS = tbb::enumerable_thread_specific<unsigned int>;
+  using ThreadIDETS = tbb::enumerable_thread_specific<size_t>;
   using RegionComparator = ds::NodeRegionComparator<Hypergraph>;
   using TreeGroupPool = ds::ConcurrentQueueGroupPool<ds::UncontractionGroupTree, RegionComparator>;
   using VersionedPoolVector = parallel::scalable_vector<std::unique_ptr<TreeGroupPool>>;
@@ -115,7 +115,8 @@ class NLevelCoarsenerBase {
                      AsyncNodeTracker &async_node_tracker,
                      RegionComparator &node_region_comparator,
                      RefinementNodesETS &refinement_nodes_ets,
-                     SeedDeduplicatorETS &seed_deduplicator_ets, const bool alwaysInsertIntoPQ);
+                     SeedDeduplicatorETS &seed_deduplicator_ets, const size_t task_id,
+                     const bool alwaysInsertIntoPQ);
 
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE void uncontractGroupAsyncSubtask(const ds::ContractionGroup &group,
                                                                       const ds::ContractionGroupID groupID,
