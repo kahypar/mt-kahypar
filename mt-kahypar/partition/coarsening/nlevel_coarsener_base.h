@@ -41,12 +41,10 @@ class NLevelCoarsenerBase {
 
  public:
   NLevelCoarsenerBase(Hypergraph& hypergraph,
-                      const Context& context,
-                      const bool top_level) :
+                      const Context& context) :
     _is_finalized(false),
     _hg(hypergraph),
     _context(context),
-    _top_level(top_level),
     _phg(),
     _compactified_hg(),
     _compactified_phg(),
@@ -121,7 +119,6 @@ class NLevelCoarsenerBase {
   Hypergraph& _hg;
 
   const Context& _context;
-  const bool _top_level;
 
   // ! Original partitioned hypergraph
   PartitionedHypergraph _phg;

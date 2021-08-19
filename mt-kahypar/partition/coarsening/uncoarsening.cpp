@@ -18,7 +18,7 @@ namespace mt_kahypar {
     // Free memory of temporary contraction buffer and
     // release coarsening memory in memory pool
     currentHypergraph().freeTmpContractionBuffer();
-    if (_top_level) {
+    if ( _context.type == kahypar::ContextType::main ) {
       parallel::MemoryPool::instance().release_mem_group("Coarsening");
     }
 
@@ -97,7 +97,7 @@ namespace mt_kahypar {
     PartitionedHypergraph& coarsest_hg = currentPartitionedHypergraph();
     kahypar::Metrics current_metrics = initialize(coarsest_hg);
 
-    if (_top_level) {
+    if ( _context.type == kahypar::ContextType::main ) {
       _context.initial_km1 = current_metrics.km1;
     }
 
@@ -148,7 +148,8 @@ namespace mt_kahypar {
     }
 
     // If we reach the original hypergraph and partition is imbalanced, we try to rebalance it
-    if (_top_level && !metrics::isBalanced(_partitioned_hg, _context)) {
+    if ( _context.type == kahypar::ContextType::main &&
+         !metrics::isBalanced(_partitioned_hg, _context) ) {
       const HyperedgeWeight quality_before = current_metrics.getMetric(
               kahypar::Mode::direct_kway, _context.partition.objective);
       if (_context.partition.verbose_output) {
@@ -203,7 +204,7 @@ namespace mt_kahypar {
                                                            std::unique_ptr<IRefiner>& fm) {
     ASSERT(_is_finalized);
     kahypar::Metrics current_metrics = initialize(_compactified_phg);
-    if (_top_level) {
+    if (_context.type == kahypar::ContextType::main) {
       _context.initial_km1 = current_metrics.km1;
     }
 
@@ -248,7 +249,9 @@ namespace mt_kahypar {
 
     // Perform batch uncontractions
     bool is_timer_disabled = false;
-    bool force_measure_timings = _context.partition.measure_detailed_uncontraction_timings && _top_level;
+    bool force_measure_timings =
+      _context.partition.measure_detailed_uncontraction_timings &&
+      _context.type == kahypar::ContextType::main;
     if ( utils::Timer::instance().isEnabled() ) {
       utils::Timer::instance().disable();
       is_timer_disabled = true;
@@ -366,7 +369,8 @@ namespace mt_kahypar {
     }
 
     // If we finish batch uncontractions and partition is imbalanced, we try to rebalance it
-    if ( _top_level && !metrics::isBalanced(_phg, _context)) {
+    if ( _context.type == kahypar::ContextType::main &&
+         !metrics::isBalanced(_phg, _context)) {
       const HyperedgeWeight quality_before = current_metrics.getMetric(
         kahypar::Mode::direct_kway, _context.partition.objective);
       if ( _context.partition.verbose_output ) {
@@ -423,7 +427,7 @@ namespace mt_kahypar {
           kahypar::Metrics& current_metrics,
           const double time_limit) {
 
-    if ( debug && _top_level ) {
+    if ( debug && _context.type == kahypar::ContextType::main ) {
       io::printHypergraphInfo(partitioned_hypergraph.hypergraph(), "Refinement Hypergraph", false);
       DBG << "Start Refinement - km1 = " << current_metrics.km1
           << ", imbalance = " << current_metrics.imbalance;
@@ -454,7 +458,7 @@ namespace mt_kahypar {
         utils::Timer::instance().stop_timer("fm");
       }
 
-      if ( _top_level ) {
+      if ( _context.type == kahypar::ContextType::main ) {
         ASSERT(current_metrics.getMetric(kahypar::Mode::direct_kway, _context.partition.objective)
                == metrics::objective(partitioned_hypergraph, _context.partition.objective),
                "Actual metric" << V(metrics::km1(partitioned_hypergraph))
@@ -466,7 +470,7 @@ namespace mt_kahypar {
       }
     }
 
-    if ( _top_level) {
+    if ( _context.type == kahypar::ContextType::main ) {
       DBG << "--------------------------------------------------\n";
     }
   }
@@ -477,7 +481,7 @@ namespace mt_kahypar {
                                             std::unique_ptr<IRefiner>& fm,
                                             kahypar::Metrics& current_metrics,
                                             const bool force_measure_timings) {
-    if ( debug && _top_level ) {
+    if ( debug && _context.type == kahypar::ContextType::main ) {
       io::printHypergraphInfo(partitioned_hypergraph.hypergraph(), "Refinement Hypergraph", false);
       DBG << "Start Refinement - km1 = " << current_metrics.km1
           << ", imbalance = " << current_metrics.imbalance;
@@ -503,7 +507,7 @@ namespace mt_kahypar {
         utils::Timer::instance().stop_timer("fm", force_measure_timings);
       }
 
-      if ( _top_level ) {
+      if ( _context.type == kahypar::ContextType::main ) {
         ASSERT(current_metrics.km1 == metrics::km1(partitioned_hypergraph),
                "Actual metric" << V(metrics::km1(partitioned_hypergraph))
                                << "does not match the metric updated by the refiners" << V(current_metrics.km1));
@@ -514,7 +518,7 @@ namespace mt_kahypar {
       }
     }
 
-    if ( _top_level) {
+    if ( _context.type == kahypar::ContextType::main ) {
       DBG << "--------------------------------------------------\n";
     }
   }
@@ -536,7 +540,7 @@ namespace mt_kahypar {
                                          kahypar::Metrics& current_metrics,
                                          const double time_limit) {
     if ( _context.refinement.global_fm.use_global_fm ) {
-      if ( debug && _top_level ) {
+      if ( debug && _context.type == kahypar::ContextType::main ) {
         io::printHypergraphInfo(partitioned_hypergraph.hypergraph(), "Refinement Hypergraph", false);
         DBG << "Start Refinement - km1 = " << current_metrics.km1
             << ", imbalance = " << current_metrics.imbalance;
@@ -550,12 +554,12 @@ namespace mt_kahypar {
         improvement_found = false;
 
         if ( fm && _context.refinement.fm.algorithm != FMAlgorithm::do_nothing ) {
-          utils::Timer::instance().start_timer("global_fm", "Global FM", false, _top_level);
+          utils::Timer::instance().start_timer("global_fm", "Global FM", false, _context.type == kahypar::ContextType::main);
           improvement_found |= fm->refine(partitioned_hypergraph, {}, current_metrics, time_limit);
-          utils::Timer::instance().stop_timer("global_fm", _top_level);
+          utils::Timer::instance().stop_timer("global_fm", _context.type == kahypar::ContextType::main);
         }
 
-        if ( _top_level ) {
+        if ( _context.type == kahypar::ContextType::main ) {
           ASSERT(current_metrics.km1 == metrics::km1(partitioned_hypergraph),
                 "Actual metric" << V(metrics::km1(partitioned_hypergraph))
                                 << "does not match the metric updated by the refiners" << V(current_metrics.km1));
@@ -568,7 +572,7 @@ namespace mt_kahypar {
       // Reset FM context
       applyGlobalFMParameters(_context.refinement.fm, tmp_global_fm);
 
-      if ( _top_level) {
+      if ( _context.type == kahypar::ContextType::main ) {
         DBG << "--------------------------------------------------\n";
       }
     }

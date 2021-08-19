@@ -33,19 +33,19 @@ using Coarsener = MultilevelCoarsener<HeavyEdgeScore, NoWeightPenalty, BestRatin
 
 TEST_F(ACoarsener, DecreasesNumberOfPins) {
   context.coarsening.contraction_limit = 4;
-  Coarsener coarsener(hypergraph, context, true);
+  Coarsener coarsener(hypergraph, context);
   decreasesNumberOfPins(coarsener, 6);
 }
 
 TEST_F(ACoarsener, DecreasesNumberOfHyperedges) {
   context.coarsening.contraction_limit = 4;
-  Coarsener coarsener(hypergraph, context, true);
+  Coarsener coarsener(hypergraph, context);
   decreasesNumberOfHyperedges(coarsener, 3);
 }
 
 TEST_F(ACoarsener, RemovesHyperedgesOfSizeOneDuringCoarsening) {
   context.coarsening.contraction_limit = 4;
-  Coarsener coarsener(hypergraph, context, true);
+  Coarsener coarsener(hypergraph, context);
   doCoarsening(coarsener);
   auto& hypergraph = coarsener.coarsestHypergraph();
   for ( const HyperedgeID& he : hypergraph.edges() ) {
@@ -55,7 +55,7 @@ TEST_F(ACoarsener, RemovesHyperedgesOfSizeOneDuringCoarsening) {
 
 TEST_F(ACoarsener, RemovesParallelHyperedgesDuringCoarsening) {
   context.coarsening.contraction_limit = 4;
-  Coarsener coarsener(hypergraph, context, true);
+  Coarsener coarsener(hypergraph, context);
   doCoarsening(coarsener);
   auto& hypergraph = coarsener.coarsestHypergraph();
   for ( const HyperedgeID& he : hypergraph.edges() ) {
@@ -65,7 +65,8 @@ TEST_F(ACoarsener, RemovesParallelHyperedgesDuringCoarsening) {
 
 TEST_F(ACoarsener, ProjectsPartitionBackToOriginalHypergraph) {
   context.coarsening.contraction_limit = 4;
-  Coarsener coarsener(hypergraph, context, false);
+  context.type = kahypar::ContextType::initial_partitioning;
+  Coarsener coarsener(hypergraph, context);
   doCoarsening(coarsener);
   PartitionedHyperGraph& coarsest_partitioned_hypergraph =
     coarsener.coarsestPartitionedHypergraph();

@@ -103,13 +103,11 @@ class MultilevelCoarsenerBase {
 
  public:
   MultilevelCoarsenerBase(Hypergraph& hypergraph,
-                          const Context& context,
-                          const bool top_level) :
+                          const Context& context) :
           _is_finalized(false),
           _hg(hypergraph),
           _partitioned_hg(),
           _context(context),
-          _top_level(top_level),
           _hierarchy() {
     size_t estimated_number_of_levels = 1UL;
     if ( _hg.initialNumNodes() > _context.coarsening.contraction_limit ) {
@@ -184,7 +182,6 @@ class MultilevelCoarsenerBase {
   Hypergraph& _hg;
   PartitionedHypergraph _partitioned_hg;
   const Context& _context;
-  const bool _top_level;
   vec<Level> _hierarchy;
 };
 }  // namespace mt_kahypar

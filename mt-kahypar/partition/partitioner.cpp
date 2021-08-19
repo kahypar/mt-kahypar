@@ -157,7 +157,7 @@ namespace mt_kahypar {
       io::printVCycleBanner(context, i + 1);
       // TODO why does this have to make a copy
       partitioned_hypergraph = multilevel::partition(
-              hypergraph, context, true, true /* vcycle */);
+              hypergraph, context, true /* vcycle */);
     }
 
     return std::move(partitioned_hypergraph);
@@ -181,8 +181,7 @@ namespace mt_kahypar {
     utils::Timer::instance().stop_timer("preprocessing");
 
     // ################## MULTILEVEL ##################
-    PartitionedHypergraph partitioned_hypergraph = multilevel::partition(
-            hypergraph, context, true);
+    PartitionedHypergraph partitioned_hypergraph = multilevel::partition(hypergraph, context);
 
     // ################## V-Cycle s##################
     if ( context.partition.num_vcycles > 0 ) {

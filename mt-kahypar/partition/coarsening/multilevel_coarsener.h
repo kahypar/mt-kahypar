@@ -72,9 +72,8 @@ class MultilevelCoarsener : public ICoarsener,
 
  public:
   MultilevelCoarsener(Hypergraph& hypergraph,
-                      const Context& context,
-                      const bool top_level) :
-    Base(hypergraph, context, top_level),
+                      const Context& context) :
+    Base(hypergraph, context),
     _rater(hypergraph, context),
     _current_vertices(),
     _matching_state(),
