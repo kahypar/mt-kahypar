@@ -46,7 +46,6 @@ namespace mt_kahypar::ds {
 
     // Compute number of pins per hyperedge and number
     // of incident nets per vertex
-    utils::Timer::instance().start_timer("compute_ds_sizes", "Precompute DS Size", true);
     Counter num_pins_per_hyperedge(num_hyperedges, 0);
     ThreadLocalCounter local_incident_nets_per_vertex(num_hypernodes, 0);
     tbb::enumerable_thread_specific<size_t> local_max_edge_size(0UL);
@@ -74,13 +73,11 @@ namespace mt_kahypar::ds {
         num_incident_nets_per_vertex[pos] += c[pos];
       });
     }
-    utils::Timer::instance().stop_timer("compute_ds_sizes");
 
     // Compute prefix sum over the number of pins per hyperedge and the
     // number of incident nets per vertex. The prefix sum is used than as
     // start position for each hyperedge resp. hypernode in the incidence
     // resp. incident nets array.
-    utils::Timer::instance().start_timer("compute_prefix_sums", "Compute Prefix Sums", true);
     parallel::TBBPrefixSum<size_t> pin_prefix_sum(num_pins_per_hyperedge);
     parallel::TBBPrefixSum<size_t> incident_net_prefix_sum(num_incident_nets_per_vertex);
     tbb::parallel_invoke([&] {
@@ -90,9 +87,7 @@ namespace mt_kahypar::ds {
       tbb::parallel_scan(tbb::blocked_range<size_t>(
               0UL, UI64(num_hypernodes)), incident_net_prefix_sum);
     });
-    utils::Timer::instance().stop_timer("compute_prefix_sums");
 
-    utils::Timer::instance().start_timer("setup_hypergraph", "Setup hypergraph", true);
     ASSERT(pin_prefix_sum.total_sum() == incident_net_prefix_sum.total_sum());
     hypergraph._num_pins = pin_prefix_sum.total_sum();
     hypergraph._total_degree = incident_net_prefix_sum.total_sum();
@@ -160,7 +155,6 @@ namespace mt_kahypar::ds {
 
     hypergraph.computeAndSetTotalNodeWeight(parallel_tag_t());
 
-    utils::Timer::instance().stop_timer("setup_hypergraph");
     return hypergraph;
   }
 

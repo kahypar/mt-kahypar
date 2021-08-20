@@ -341,7 +341,6 @@ parallel::scalable_vector<ParallelHyperedge> DynamicHypergraph::removeSinglePinA
   // Remove singple-pin hyperedges directly from the hypergraph and
   // insert all other hyperedges into a bucket data structure such that
   // hyperedges with the same hash/footprint are placed in the same bucket.
-  utils::Timer::instance().start_timer("preprocess_hyperedges", "Preprocess Hyperedges");
   StreamingVector<ParallelHyperedge> tmp_removed_hyperedges;
   ConcurrentBucketMap<ContractedHyperedgeInformation> hyperedge_hash_map;
   hyperedge_hash_map.reserve_for_estimated_number_of_insertions(_num_hyperedges);
@@ -360,7 +359,6 @@ parallel::scalable_vector<ParallelHyperedge> DynamicHypergraph::removeSinglePinA
       tmp_removed_hyperedges.stream(ParallelHyperedge { he, kInvalidHyperedge });
     }
   });
-  utils::Timer::instance().stop_timer("preprocess_hyperedges");
 
   // Helper function that checks if two hyperedges are parallel
   // Note, pins inside the hyperedges are sorted.
@@ -390,7 +388,6 @@ parallel::scalable_vector<ParallelHyperedge> DynamicHypergraph::removeSinglePinA
   // after its hash. A bucket is processed by one thread and parallel
   // hyperedges are detected by comparing the pins of hyperedges with
   // the same hash.
-  utils::Timer::instance().start_timer("parallel_net_detection", "Parallel Net Detection");
   tbb::parallel_for(0UL, hyperedge_hash_map.numBuckets(), [&](const size_t bucket) {
     auto& hyperedge_bucket = hyperedge_hash_map.getBucket(bucket);
     std::sort(hyperedge_bucket.begin(), hyperedge_bucket.end(),
@@ -428,19 +425,14 @@ parallel::scalable_vector<ParallelHyperedge> DynamicHypergraph::removeSinglePinA
     }
     hyperedge_hash_map.free(bucket);
   });
-  utils::Timer::instance().stop_timer("parallel_net_detection");
 
   // Remove single-pin and parallel nets from incident net vector of vertices
-  utils::Timer::instance().start_timer("postprocess_incident_nets", "Postprocess Incident Nets");
   doParallelForAllNodes([&](const HypernodeID& u) {
     _incident_nets.removeIncidentNets(u, _removable_single_pin_and_parallel_nets);
   });
-  utils::Timer::instance().stop_timer("postprocess_incident_nets");
 
-  utils::Timer::instance().start_timer("store_removed_hyperedges", "Store Removed Hyperedges");
   parallel::scalable_vector<ParallelHyperedge> removed_hyperedges = tmp_removed_hyperedges.copy_parallel();
   tmp_removed_hyperedges.clear_parallel();
-  utils::Timer::instance().stop_timer("store_removed_hyperedges");
 
   ++_version;
   return removed_hyperedges;
@@ -452,7 +444,6 @@ parallel::scalable_vector<ParallelHyperedge> DynamicHypergraph::removeSinglePinA
  */
 void DynamicHypergraph::restoreSinglePinAndParallelNets(const parallel::scalable_vector<ParallelHyperedge>& hes_to_restore) {
   // Restores all previously removed hyperedges
-  utils::Timer::instance().start_timer("restore_removed_nets", "Restore Removed Hyperedges");
   tbb::parallel_for(0UL, hes_to_restore.size(), [&](const size_t i) {
     const ParallelHyperedge& parallel_he = hes_to_restore[i];
     const HyperedgeID he = parallel_he.removed_hyperedge;
@@ -468,13 +459,10 @@ void DynamicHypergraph::restoreSinglePinAndParallelNets(const parallel::scalable
       releaseHyperedge(rep);
     }
   });
-  utils::Timer::instance().stop_timer("restore_removed_nets");
 
-  utils::Timer::instance().start_timer("restore_in_incident_nets", "Restore HEs in Incident Nets");
   doParallelForAllNodes([&](const HypernodeID u) {
     _incident_nets.restoreIncidentNets(u);
   });
-  utils::Timer::instance().stop_timer("restore_in_incident_nets");
   --_version;
 }
 
@@ -917,7 +905,6 @@ BatchVector DynamicHypergraph::createBatchUncontractionHierarchyForVersion(Batch
 
   // Distribute roots of the contraction tree to local priority queues of
   // each thread.
-  utils::Timer::instance().start_timer("assign_roots", "Assign Roots");
   const size_t num_hardware_threads = std::thread::hardware_concurrency();
   parallel::scalable_vector<PQ> local_pqs(num_hardware_threads);
   const parallel::scalable_vector<HypernodeID>& roots = _contraction_tree.roots_of_version(version);
@@ -925,9 +912,7 @@ BatchVector DynamicHypergraph::createBatchUncontractionHierarchyForVersion(Batch
     const int cpu_id = sched_getcpu();
     push_into_pq(local_pqs[cpu_id], roots[i]);
   });
-  utils::Timer::instance().stop_timer("assign_roots");
 
-  utils::Timer::instance().start_timer("create_tmp_batch_uncontraction_hierarchy", "Create Tmp Batch Unc. Hierarchy");
   using LocalBatchAssignments = parallel::scalable_vector<BatchAssignment>;
   parallel::scalable_vector<LocalBatchAssignments> local_batch_assignments(num_hardware_threads);
   parallel::scalable_vector<size_t> local_batch_indices(num_hardware_threads, 0);
@@ -1001,14 +986,12 @@ BatchVector DynamicHypergraph::createBatchUncontractionHierarchyForVersion(Batch
       }
     }
   });
-  utils::Timer::instance().stop_timer("create_tmp_batch_uncontraction_hierarchy");
 
   ASSERT(verifyBatchIndexAssignments(batch_assigner, local_batch_assignments), "Batch asisignment failed");
 
   // In the previous step we have calculated for each uncontraction a batch index and
   // its position within that batch. We have to write the uncontractions
   // into the global batch uncontraction vector.
-  utils::Timer::instance().start_timer("create_batch_vector", "Create Batch Vector");
   const size_t num_batches = batch_assigner.numberOfNonEmptyBatches();
   BatchVector batches(num_batches);
   tbb::parallel_for(0UL, num_batches, [&](const size_t batch_index) {
@@ -1026,7 +1009,6 @@ BatchVector DynamicHypergraph::createBatchUncontractionHierarchyForVersion(Batch
       batches[batch_index][batch_pos].v = batch_assignment.v;
     }
   });
-  utils::Timer::instance().stop_timer("create_batch_vector");
 
   while ( !batches.empty() && batches.back().empty() ) {
     batches.pop_back();

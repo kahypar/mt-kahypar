@@ -174,35 +174,26 @@ namespace mt_kahypar {
     if (numMoves == 0) return 0;
 
     const vec<Move>& move_order = sharedData.moveTracker.moveOrder;
-    utils::Timer& timer = utils::Timer::instance();
 
-    timer.start_timer("recalculate_gains", "Recalculate Gains");
     recalculateGains(phg, sharedData);
-    timer.stop_timer("recalculate_gains");
     HEAVY_REFINEMENT_ASSERT(verifyGains<update_gain_cache>(phg, sharedData));
 
-    timer.start_timer("find_best_prefix_and_balance", "Find Best Balanced Prefix");
     BalanceAndBestIndexScan s(phg, move_order, partWeights, maxPartWeights);
     // TODO set grain size in blocked_range? to avoid too many copies of part weights array. experiment with different values
     tbb::parallel_scan(tbb::blocked_range<MoveID>(0, numMoves), s);
     BalanceAndBestIndexScan::Prefix b = s.finalize(partWeights);
-    timer.stop_timer("find_best_prefix_and_balance");
 
-    timer.start_timer("revert", "Revert Moves");
     tbb::parallel_for(b.best_index, numMoves, [&](const MoveID moveID) {
       const Move& m = move_order[moveID];
       if (m.isValid()) {
         moveVertex<update_gain_cache>(phg, m.node, m.to, m.from);
       }
     });
-    timer.stop_timer("revert");
 
-    timer.start_timer("recompute_move_from_benefits", "Recompute Move-From Benefits");
     // recompute moveFromBenefit values since they are potentially invalid
     tbb::parallel_for(MoveID(0), numMoves, [&](MoveID localMoveID) {
       phg.recomputeMoveFromBenefit(move_order[localMoveID].node);
     });
-    timer.stop_timer("recompute_move_from_benefits");
 
     sharedData.moveTracker.reset();
 

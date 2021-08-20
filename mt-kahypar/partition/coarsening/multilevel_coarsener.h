@@ -154,7 +154,6 @@ class MultilevelCoarsener : public ICoarsener,
           << V(current_hg.initialNumPins());
 
       // Random shuffle vertices of current hypergraph
-      utils::Timer::instance().start_timer("shuffle_vertices", "Shuffle Vertices");
       _current_vertices.resize(current_hg.initialNumNodes());
       parallel::scalable_vector<HypernodeID> cluster_ids(current_hg.initialNumNodes());
       tbb::parallel_for(ID(0), current_hg.initialNumNodes(), [&](const HypernodeID hn) {
@@ -172,13 +171,12 @@ class MultilevelCoarsener : public ICoarsener,
       if ( _enable_randomization ) {
         utils::Randomize::instance().parallelShuffleVector( _current_vertices, 0UL, _current_vertices.size());
       }
-      utils::Timer::instance().stop_timer("shuffle_vertices");
 
       // We iterate in parallel over all vertices of the hypergraph and compute its contraction partner.
       // Matched vertices are linked in a concurrent union find data structure, that also aggregates
       // weights of the resulting clusters and keep track of the number of nodes left, if we would
       // contract all matched vertices.
-      utils::Timer::instance().start_timer("parallel_clustering", "Parallel Clustering");
+      utils::Timer::instance().start_timer("clustering", "Clustering");
       if ( _context.partition.show_detailed_clustering_timings ) {
         utils::Timer::instance().start_timer("clustering_level_" + std::to_string(pass_nr), "Level " + std::to_string(pass_nr));
       }
@@ -237,7 +235,7 @@ class MultilevelCoarsener : public ICoarsener,
       if ( _context.partition.show_detailed_clustering_timings ) {
         utils::Timer::instance().stop_timer("clustering_level_" + std::to_string(pass_nr));
       }
-      utils::Timer::instance().stop_timer("parallel_clustering");
+      utils::Timer::instance().stop_timer("clustering");
       current_num_nodes = num_hns_before_pass - contracted_nodes.combine(std::plus<>());
       DBG << V(current_num_nodes);
 
@@ -276,10 +274,10 @@ class MultilevelCoarsener : public ICoarsener,
       }
       _progress_bar += (num_hns_before_pass - current_num_nodes);
 
-      utils::Timer::instance().start_timer("parallel_multilevel_contraction", "Parallel Multilevel Contraction");
+      utils::Timer::instance().start_timer("contraction", "Contraction");
       // Perform parallel contraction
       Base::performMultilevelContraction(std::move(cluster_ids), round_start);
-      utils::Timer::instance().stop_timer("parallel_multilevel_contraction");
+      utils::Timer::instance().stop_timer("contraction");
 
       if ( _context.coarsening.use_adaptive_max_allowed_node_weight ) {
         // If the reduction ratio of the number of vertices or pins is below

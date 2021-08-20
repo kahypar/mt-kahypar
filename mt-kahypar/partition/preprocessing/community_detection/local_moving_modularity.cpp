@@ -217,9 +217,7 @@ size_t ParallelLocalMovingModularity::sequentialRound(const Graph& graph, ds::Cl
 size_t ParallelLocalMovingModularity::parallelNonDeterministicRound(const Graph& graph, ds::Clustering& communities) {
   auto& nodes = permutation.permutation;
   if ( !_disable_randomization ) {
-    utils::Timer::instance().start_timer("random_shuffle", "Random Shuffle");
     utils::Randomize::instance().parallelShuffleVector(nodes, 0UL, nodes.size());
-    utils::Timer::instance().stop_timer("random_shuffle");
   }
 
   tbb::enumerable_thread_specific<size_t> local_number_of_nodes_moved(0);
@@ -235,14 +233,12 @@ size_t ParallelLocalMovingModularity::parallelNonDeterministicRound(const Graph&
     }
   };
 
-  utils::Timer::instance().start_timer("local_moving_round", "Local Moving Round");
 #ifdef KAHYPAR_ENABLE_HEAVY_PREPROCESSING_ASSERTIONS
   std::for_each(nodes.begin(), nodes.end(), moveNode);
 #else
   tbb::parallel_for(0UL, nodes.size(), [&](size_t i) { moveNode(nodes[i]); });
 #endif
   size_t number_of_nodes_moved = local_number_of_nodes_moved.combine(std::plus<>());
-  utils::Timer::instance().stop_timer("local_moving_round");
   return number_of_nodes_moved;
 }
 

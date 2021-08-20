@@ -57,7 +57,6 @@ DynamicHypergraph DynamicHypergraphFactory::construct(const HypernodeID num_hype
   ASSERT(edge_vector.size() == num_hyperedges);
 
   // Compute number of pins per hyperedge
-  utils::Timer::instance().start_timer("compute_ds_sizes", "Precompute DS Size", true);
   Counter num_pins_per_hyperedge(num_hyperedges, 0);
   tbb::enumerable_thread_specific<size_t> local_max_edge_size(0UL);
   tbb::parallel_for(ID(0), num_hyperedges, [&](const size_t pos) {
@@ -69,18 +68,14 @@ DynamicHypergraph DynamicHypergraphFactory::construct(const HypernodeID num_hype
     [&](const size_t lhs, const size_t rhs) {
       return std::max(lhs, rhs);
     });
-  utils::Timer::instance().stop_timer("compute_ds_sizes");
 
   // Compute prefix sum over the number of pins per hyperedge and the.
   // The prefix sum is used than as
   // start position for each hyperedge in the incidence array.
-  utils::Timer::instance().start_timer("compute_incidence_array_prefix_sum", "Compute Incidence Array PS", true);
   parallel::TBBPrefixSum<size_t> pin_prefix_sum(num_pins_per_hyperedge);
   tbb::parallel_scan(tbb::blocked_range<size_t>(
     0UL, UI64(num_hyperedges)), pin_prefix_sum);
-  utils::Timer::instance().stop_timer("compute_incidence_array_prefix_sum");
 
-  utils::Timer::instance().start_timer("setup_hypergraph", "Setup hypergraph", true);
   hypergraph._num_pins = pin_prefix_sum.total_sum();
   hypergraph._total_degree = pin_prefix_sum.total_sum();
   hypergraph._incidence_array.resize(hypergraph._num_pins);
@@ -135,7 +130,6 @@ DynamicHypergraph DynamicHypergraphFactory::construct(const HypernodeID num_hype
 
   // Compute total weight of hypergraph
   hypergraph.updateTotalWeight(parallel_tag_t());
-  utils::Timer::instance().stop_timer("setup_hypergraph");
   return hypergraph;
 }
 
@@ -151,7 +145,6 @@ DynamicHypergraphFactory::compactify(const DynamicHypergraph& hypergraph) {
   parallel::scalable_vector<HyperedgeID> he_mapping;
   // Computes a mapping for vertices and hyperedges to a consecutive range of IDs
   // in the compactified hypergraph via a parallel prefix sum
-  utils::Timer::instance().start_timer("compactify_hn_and_he_ids", "Compactify HN and HE IDs");
   tbb::parallel_invoke([&] {
     hn_mapping.assign(hypergraph._num_hypernodes + 1, 0);
     hypergraph.doParallelForAllNodes([&](const HypernodeID hn) {
@@ -175,10 +168,8 @@ DynamicHypergraphFactory::compactify(const DynamicHypergraph& hypergraph) {
     num_hyperedges = he_mapping_prefix_sum.total_sum();
     he_mapping.resize(hypergraph._num_hyperedges);
   });
-  utils::Timer::instance().stop_timer("compactify_hn_and_he_ids");
 
   // Remap pins of each hyperedge
-  utils::Timer::instance().start_timer("remap_pins", "Remap Pins");
   using HyperedgeVector = parallel::scalable_vector<parallel::scalable_vector<HypernodeID>>;
   HyperedgeVector edge_vector;
   parallel::scalable_vector<HyperedgeWeight> hyperedge_weights;
@@ -202,23 +193,18 @@ DynamicHypergraphFactory::compactify(const DynamicHypergraph& hypergraph) {
       }
     });
   });
-  utils::Timer::instance().stop_timer("remap_pins");
 
   // Construct compactified hypergraph
-  utils::Timer::instance().start_timer("construct_compactified_hypergraph", "Construct Compactified Hypergraph");
   DynamicHypergraph compactified_hypergraph = DynamicHypergraphFactory::construct(
     num_hypernodes, num_hyperedges, edge_vector, hyperedge_weights.data(), hypernode_weights.data());
   compactified_hypergraph._removed_degree_zero_hn_weight = hypergraph._removed_degree_zero_hn_weight;
   compactified_hypergraph._total_weight += hypergraph._removed_degree_zero_hn_weight;
-  utils::Timer::instance().stop_timer("construct_compactified_hypergraph");
 
   // Set community ids
-  utils::Timer::instance().start_timer("initialize_communities", "Initialized Communities");
   hypergraph.doParallelForAllNodes([&](const HypernodeID& hn) {
     const HypernodeID mapped_hn = hn_mapping[hn];
     compactified_hypergraph.setCommunityID(mapped_hn, hypergraph.communityID(hn));
   });
-  utils::Timer::instance().stop_timer("initialize_communities");
 
   tbb::parallel_invoke([&] {
     parallel::parallel_free(he_mapping,
