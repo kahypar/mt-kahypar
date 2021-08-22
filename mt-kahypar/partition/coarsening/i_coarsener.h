@@ -56,8 +56,12 @@ class ICoarsener {
 
   virtual ~ICoarsener() = default;
 
-  std::shared_ptr<vec<Level>> getHierarchy() {
-    return getHierarchyImpl();
+  void setHierarchy(std::shared_ptr<vec<Level>> hierarchy) {
+    setHierarchyImpl(hierarchy);
+  }
+
+  void setPhg(std::shared_ptr<PartitionedHypergraph> phg) {
+    setPhgImpl(phg);
   }
 
  protected:
@@ -69,7 +73,8 @@ class ICoarsener {
                                                 std::unique_ptr<IRefiner>& fm) = 0;
   virtual Hypergraph& coarsestHypergraphImpl() = 0;
   virtual PartitionedHypergraph& coarsestPartitionedHypergraphImpl() = 0;
-  virtual std::shared_ptr<vec<Level>> getHierarchyImpl() = 0;
+  virtual void setHierarchyImpl(std::shared_ptr<vec<Level>> hierarchy) = 0;
+  virtual void setPhgImpl(std::shared_ptr<PartitionedHypergraph> phg) = 0;
 };
 
 }  // namespace kahypar

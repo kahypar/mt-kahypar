@@ -86,8 +86,12 @@ private:
     return Base::currentPartitionedHypergraph();
   }
 
-  std::shared_ptr<vec<Level>> getHierarchyImpl() override {
-    return _hierarchy;
+  void setHierarchyImpl(std::shared_ptr<vec<Level>> hierarchy) override {
+    _hierarchy = hierarchy;
+  }
+
+  void setPhgImpl(std::shared_ptr<PartitionedHypergraph> phg) override {
+    _partitioned_hg = phg;
   }
 
   using Base = MultilevelCoarsenerBase;

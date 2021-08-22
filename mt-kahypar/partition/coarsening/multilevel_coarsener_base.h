@@ -39,19 +39,8 @@ class MultilevelCoarsenerBase {
                           const bool top_level) :
           _is_finalized(false),
           _hg(hypergraph),
-          _partitioned_hg(),
           _context(context),
-          _top_level(top_level) {
-    size_t estimated_number_of_levels = 1UL;
-    if ( _hg.initialNumNodes() > _context.coarsening.contraction_limit ) {
-      estimated_number_of_levels = std::ceil( std::log2(
-        static_cast<double>(_hg.initialNumNodes()) /
-        static_cast<double>(_context.coarsening.contraction_limit)) /
-        std::log2(_context.coarsening.maximum_shrink_factor) ) + 1UL;
-    }
-    _hierarchy = std::shared_ptr<vec<Level>>(new vec<Level>);
-    _hierarchy->reserve(estimated_number_of_levels);
-  }
+          _top_level(top_level) {}
 
   MultilevelCoarsenerBase(const MultilevelCoarsenerBase&) = delete;
   MultilevelCoarsenerBase(MultilevelCoarsenerBase&&) = delete;
@@ -87,7 +76,7 @@ class MultilevelCoarsenerBase {
   PartitionedHypergraph& currentPartitionedHypergraph() {
     ASSERT(_is_finalized);
     if ( _hierarchy->empty() ) {
-      return _partitioned_hg;
+      return *_partitioned_hg;
     } else {
       return _hierarchy->back().contractedPartitionedHypergraph();
     }
@@ -116,7 +105,7 @@ class MultilevelCoarsenerBase {
 
   bool _is_finalized;
   Hypergraph& _hg;
-  PartitionedHypergraph _partitioned_hg;
+  std::shared_ptr<PartitionedHypergraph> _partitioned_hg;
   const Context& _context;
   const bool _top_level;
   std::shared_ptr<vec<Level>> _hierarchy;

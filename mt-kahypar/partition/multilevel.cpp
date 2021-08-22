@@ -52,10 +52,24 @@ namespace mt_kahypar::multilevel {
             _top_level(top_level) {
       // Must be empty, because final partitioned hypergraph
       // is moved into this object
+      _hierarchy = std::make_shared<vec<Level>>();
+      size_t estimated_number_of_levels = 1UL;
+      if ( _hg.initialNumNodes() > _context.coarsening.contraction_limit ) {
+        estimated_number_of_levels = std::ceil( std::log2(
+            static_cast<double>(_hg.initialNumNodes()) /
+            static_cast<double>(_context.coarsening.contraction_limit)) /
+          std::log2(_context.coarsening.maximum_shrink_factor) ) + 1UL;
+      }
+      _hierarchy->reserve(estimated_number_of_levels);
+
+      _phg = std::make_shared<PartitionedHypergraph>();
       _coarsener = CoarsenerFactory::getInstance().createObject(
               _context.coarsening.algorithm, _hg, _context, _top_level);
       _sparsifier = HypergraphSparsifierFactory::getInstance().createObject(
               _context.sparsification.similiar_net_combiner_strategy, _context);
+
+      _coarsener->setHierarchy(_hierarchy);
+      _coarsener->setPhg(_phg);
 
       // Switch refinement context from IP to main
       _ip_context.refinement = _context.initial_partitioning.refinement;
@@ -102,9 +116,8 @@ namespace mt_kahypar::multilevel {
                       _context.refinement.fm.algorithm,
                       _hg, _context);
 
-      std::shared_ptr<vec<Level>> hierarchy = _coarsener->getHierarchy();
-      _coarsener->~ICoarsener();
-      _uncoarsener = std::make_unique<MultilevelUncoarsener>(_hg, _context, _top_level, hierarchy);
+      /*_coarsener->~ICoarsener();*/
+      _uncoarsener = std::make_unique<MultilevelUncoarsener>(_hg, _phg, _context, _top_level, _hierarchy);
       _partitioned_hg = _uncoarsener->doUncoarsen(label_propagation, fm);
       utils::Timer::instance().stop_timer("refinement");
 
@@ -117,6 +130,8 @@ namespace mt_kahypar::multilevel {
     std::unique_ptr<IHypergraphSparsifier> _sparsifier;
     Context _ip_context;
     DegreeZeroHypernodeRemover _degree_zero_hn_remover;
+    std::shared_ptr<vec<Level>> _hierarchy;
+    std::shared_ptr<PartitionedHypergraph> _phg;
 
   private:
     void enableTimerAndStats() {

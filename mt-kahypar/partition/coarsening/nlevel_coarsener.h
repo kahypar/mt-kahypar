@@ -211,9 +211,9 @@ class NLevelCoarsener : public ICoarsener,
     return Base::doUncoarsen(label_propagation, fm);
   }
 
-  std::shared_ptr<vec<Level>> getHierarchyImpl() override {
-    return nullptr;
-  }
+  void setHierarchyImpl(std::shared_ptr<vec<Level>>) override {}
+
+  void setPhgImpl(std::shared_ptr<PartitionedHypergraph>) override {}
 
   void compactifyVertices(const HypernodeID current_num_nodes) {
     // Mark all vertices that are still enabled
