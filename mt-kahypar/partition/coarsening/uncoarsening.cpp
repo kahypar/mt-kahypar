@@ -550,9 +550,22 @@ namespace mt_kahypar {
 
       while (true) {
 
+        if (pool->allAccepted()) return;
+
+        size_t try_count = 0;
         // Attempt to pick a group from the bool. Stop if pool is completed.
         while (pick_new_group && !pool->tryToPickActiveID(groupID)) {
           if (pool->allAccepted()) return;
+          ++try_count;
+          if (_phg.initialNumNodes() < try_count && try_count % 100000 == 0) {
+            size_t num_accepted = pool->getNumAccepted();
+            size_t num_total = pool->getTotalNumUncontractions();
+            LOG << "Tried 100000 times." << V(num_accepted) << ", " << V(num_total);
+          }
+        }
+
+        if (_phg.initialNumNodes() < try_count && try_count % 100000 == 0) {
+          LOG << "Spinning and finding a group.";
         }
 
           ASSERT(groupID != ds::invalidGroupID);

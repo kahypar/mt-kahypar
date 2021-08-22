@@ -160,7 +160,8 @@ namespace mt_kahypar::ds
                   , _picked_ids_ets(std::vector<ContractionGroupID>(context.uncoarsening.node_region_similarity_retries, invalidGroupID)),
                   _total_calls_to_pick(0),
                   _calls_to_pick_that_reached_max_retries(0),
-                  _calls_to_pick_with_empty_pq(0)
+                  _calls_to_pick_with_empty_pq(0),
+                  _num_accepted_uncontractions(0)
                 {
             ASSERT(_hierarchy);
             auto roots = _hierarchy->roots();
@@ -399,11 +400,17 @@ namespace mt_kahypar::ds
         void markAccepted(const ContractionGroupID id) {
           ASSERT(_hierarchy);
           _active_ids.increment_finished(_hierarchy->depth(id));
+          _num_accepted_uncontractions.fetch_add(1, std::memory_order_relaxed);
         }
 
         bool allAccepted() const {
+//          return _num_accepted_uncontractions.load(std::memory_order_relaxed) == getTotalNumUncontractions();
           return _active_ids.allDepthsCompleted();
 //            return true;
+        }
+
+        size_t getNumAccepted() const {
+          return _num_accepted_uncontractions.load(std::memory_order_relaxed);
         }
 
         // ===== Parallel Iteration Convenience Methods =====
@@ -512,6 +519,8 @@ namespace mt_kahypar::ds
         CAtomic<size_t> _total_calls_to_pick;
         CAtomic<size_t> _calls_to_pick_that_reached_max_retries;
         CAtomic<size_t> _calls_to_pick_with_empty_pq;
+
+        CAtomic<size_t> _num_accepted_uncontractions;
 
         static constexpr bool CALCULATE_FULL_SIMILARITIES = true;
 
