@@ -400,13 +400,12 @@ namespace mt_kahypar::ds
         void markAccepted(const ContractionGroupID id) {
           ASSERT(_hierarchy);
           _active_ids.increment_finished(_hierarchy->depth(id));
-          _num_accepted_uncontractions.fetch_add(1, std::memory_order_relaxed);
+          _num_accepted_uncontractions.fetch_add(group(id).size(), std::memory_order_relaxed);
         }
 
         bool allAccepted() const {
-//          return _num_accepted_uncontractions.load(std::memory_order_relaxed) == getTotalNumUncontractions();
-          return _active_ids.allDepthsCompleted();
-//            return true;
+          return _num_accepted_uncontractions.load(std::memory_order_relaxed) == getTotalNumUncontractions();
+//          return _active_ids.allDepthsCompleted();
         }
 
         size_t getNumAccepted() const {

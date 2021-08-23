@@ -219,8 +219,11 @@ namespace mt_kahypar::ds {
           if (num_finished == _total_elements_per_depth[depth]) {
             completed_depth = true;
             auto exp = uint8_t(false);
-            _completed[depth].compare_exchange_strong(exp, uint8_t(true), std::memory_order_relaxed);
+            bool changed_completed_flag = _completed[depth].compare_exchange_strong(exp, uint8_t(true), std::memory_order_relaxed);
             ASSERT(!exp);
+            if (!changed_completed_flag) {
+              ERROR("Multiple threads setting completed flag of same depth in DepthPriorityQueue!");
+            }
 
             // Update min ptr if min was just completed
             if (depth == _min_non_completed_depth.load(std::memory_order_relaxed)) {
@@ -232,6 +235,9 @@ namespace mt_kahypar::ds {
               bool changed_min = _min_non_completed_depth.compare_exchange_strong(current_min, next_uncompleted, std::memory_order_relaxed);
               unused(changed_min);
               ASSERT(changed_min && (current_min == depth));
+              if (!changed_min) {
+                ERROR("Multiple threads updating min pointer in DepthPriorityQueue simultaneously!");
+              }
             }
           } else {
             completed_depth = false;
