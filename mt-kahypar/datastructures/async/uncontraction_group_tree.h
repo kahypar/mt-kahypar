@@ -75,6 +75,10 @@ namespace mt_kahypar::ds {
                 return _depth;
             }
 
+            size_t size_in_bytes() const {
+              return sizeof(ContractionGroupID) + sizeof(size_t) + sizeof(HypernodeID) + _group.size_in_bytes();
+            }
+
         private:
             // GroupNodeID of the nodes parent group
             const ContractionGroupID _parentGroup;
@@ -97,6 +101,23 @@ namespace mt_kahypar::ds {
 
         ~UncontractionGroupTree() {
             freeInternalData();
+        }
+
+        void memoryConsumption(utils::MemoryTreeNode* parent) const {
+          ASSERT(parent);
+
+          size_t tree_size_in_bytes = 0;
+          for (auto& node : _tree) {
+            tree_size_in_bytes += node.size_in_bytes();
+          }
+          parent->addChild("Tree Flat Representation", tree_size_in_bytes);
+          parent->addChild("Roots", _roots.size() * sizeof(ContractionGroupID));
+          parent->addChild("Current Offsets", _current_child_offsets.size() * sizeof(uint32_t));
+          parent->addChild("Out Degrees", _out_degrees.size() * sizeof(uint32_t));
+          parent->addChild("Incidence Array", _incidence_array.size() * sizeof(ContractionGroupID));
+          parent->addChild("Last Group per Node", _last_uncontraction_group_in_version.size() * sizeof(ContractionGroupID));
+          parent->addChild("Number of Groups per Depth", _number_of_groups_per_depth.size() * sizeof(ContractionGroupID));
+          parent->addChild("Number of Uncontractions per Depth", _number_of_uncontractions_per_depth.size() * sizeof(HypernodeID));
         }
 
         const ContractionGroup &group(const ContractionGroupID id) const {

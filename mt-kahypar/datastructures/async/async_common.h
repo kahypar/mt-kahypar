@@ -114,6 +114,10 @@ namespace mt_kahypar::ds {
                 std::cout << "\t\t(u: " << c.u << ", v: " << c.v << ")\n";
             }
         }
+
+        size_t size_in_bytes() const {
+          return _contractions.size() * sizeof(Contraction) + sizeof(HypernodeID);
+        }
     };
 
     /// Adapts an ContractionIterator to an iterator over the contracted nodes in the contractions.

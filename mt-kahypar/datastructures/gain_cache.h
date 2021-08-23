@@ -475,9 +475,6 @@ public:
       }
     }
 
-    // TODO mlaupichler: the two calls to remove/add benefit functions both iterate over conn-set!
-    //  Instead iterate only once in the update function!
-
     // Variant for concurrent moves -> use snapshots of parts_with_one_pin
     MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
     void asyncUpdateForUncontractCaseTwo(const HyperedgeWeight we, const HypernodeID u, const HypernodeID v, PartitionBitSet& parts_with_one_pin) {

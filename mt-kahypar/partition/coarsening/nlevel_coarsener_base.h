@@ -44,11 +44,7 @@ class NLevelCoarsenerBase {
   static constexpr bool enable_heavy_assert = true;
 
   using ParallelHyperedgeVector = parallel::scalable_vector<parallel::scalable_vector<ParallelHyperedge>>;
-  using AsyncRefinersETS = tbb::enumerable_thread_specific<std::unique_ptr<IAsyncRefiner>>;
-  using AsyncCounterETS = tbb::enumerable_thread_specific<HypernodeID>;
-  using RefinementNodesETS = tbb::enumerable_thread_specific<parallel::scalable_vector<HypernodeID>>;
-  using SeedDeduplicatorETS = tbb::enumerable_thread_specific<kahypar::ds::FastResetFlagArray<HypernodeID>>;
-  using ThreadIDETS = tbb::enumerable_thread_specific<size_t>;
+  using SeedDeduplicator = kahypar::ds::FastResetFlagArray<HypernodeID>;
   using RegionComparator = ds::NodeRegionComparator<Hypergraph>;
   using TreeGroupPool = ds::ConcurrentQueueGroupPool<ds::UncontractionGroupTree, RegionComparator>;
   using VersionedPoolVector = parallel::scalable_vector<std::unique_ptr<TreeGroupPool>>;
@@ -107,15 +103,13 @@ class NLevelCoarsenerBase {
   PartitionedHypergraph&& doAsynchronousUncoarsen(std::unique_ptr<IRefiner>& global_fm);
 
   void
-  uncoarsenAsyncTask(TreeGroupPool *pool, tbb::task_group &uncoarsen_tg,
-                     metrics::ThreadSafeMetrics &current_metrics,
-                     AsyncRefinersETS &async_lp_refiners, AsyncRefinersETS &async_fm_refiners,
-                     AsyncCounterETS &uncontraction_counter_ets,
+  uncoarsenAsyncTask(TreeGroupPool *pool, metrics::ThreadSafeMetrics &current_metrics,
+                     IAsyncRefiner *async_lp_refiner,
+                     IAsyncRefiner *async_fm_refiner, HypernodeID &uncontraction_counter,
                      utils::ProgressBar &uncontraction_progress,
                      AsyncNodeTracker &async_node_tracker,
                      RegionComparator &node_region_comparator,
-                     RefinementNodesETS &refinement_nodes_ets,
-                     SeedDeduplicatorETS &seed_deduplicator_ets, const size_t task_id,
+                     SeedDeduplicator &seed_deduplicator, const size_t task_id,
                      const bool alwaysInsertIntoPQ);
 
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE void uncontractGroupAsyncSubtask(const ds::ContractionGroup &group,

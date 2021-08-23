@@ -161,9 +161,9 @@ namespace mt_kahypar {
             }
         }
 
-        for (const auto& hn : _active_nodes) {
-          ASSERT(_fm_node_tracker->owner(hn) != _contraction_group_id);
-        }
+//        for (const auto& hn : _active_nodes) {
+//          ASSERT(_fm_node_tracker->owner(hn) != _contraction_group_id);
+//        }
 
         // Retry acquiring lock and moving exactly once
         // todo mlaupichler: Number of retries is arbitrary, perhaps add CL option to set how often we retry here
@@ -181,9 +181,10 @@ namespace mt_kahypar {
             release_held_locks(hn, locks);
         }
 
-        for (const auto& hn : _active_nodes) {
-          ASSERT(_fm_node_tracker->owner(hn) != _contraction_group_id);
-        }
+//        for (const auto& hn : _active_nodes) {
+//          unused(hn);
+//          ASSERT(_fm_node_tracker->owner(hn) != _contraction_group_id);
+//        }
 
 //        HEAVY_REFINEMENT_ASSERT(hypergraph.checkTrackedPartitionInformation());
         return converged;

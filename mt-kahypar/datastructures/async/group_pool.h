@@ -442,6 +442,15 @@ namespace mt_kahypar::ds
           return _calls_to_pick_with_empty_pq.load(std::memory_order_relaxed);
         }
 
+        void memoryConsumption(utils::MemoryTreeNode* parent) const {
+          ASSERT(parent);
+
+          utils::MemoryTreeNode* hierarchy_node = parent->addChild("Uncontraction Hierarchy");
+          _hierarchy->memoryConsumption(hierarchy_node);
+          utils::MemoryTreeNode* depth_pq_node = parent->addChild("Depth Priority Queue");
+          _active_ids.memoryConsumption(depth_pq_node);
+        }
+
     private:
 
         BlockedGroupIDIterator all() const {

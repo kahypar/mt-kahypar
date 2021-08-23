@@ -994,7 +994,6 @@ void DynamicHypergraph::restoreHyperedgeSizeForBatch(const HyperedgeID he,
 // ! Reactivate the pin of the given net for a single uncontraction.
 // ! Analogous to restoreHyperedgeSizeForBatch except for single uncontractions where order by batches is not guaranteed.
 // ! This takes O(n) time for n pins in the edge so it is very much not optimal.
-// ! todo mlaupichler update pin incidence data structure for unordered async modifications
 void DynamicHypergraph::reactivatePinForSingleUncontraction(const HyperedgeID he, HypernodeID v) {
 
     // Find position of contracted vertex in inactive part of incidence array of he

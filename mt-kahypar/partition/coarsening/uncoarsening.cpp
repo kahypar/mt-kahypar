@@ -525,16 +525,14 @@ namespace mt_kahypar {
       }
   }
 
-  void NLevelCoarsenerBase::uncoarsenAsyncTask(TreeGroupPool *pool, tbb::task_group &uncoarsen_tg,
-                                               metrics::ThreadSafeMetrics &current_metrics,
-                                               AsyncRefinersETS &async_lp_refiners, AsyncRefinersETS &async_fm_refiners,
-                                               AsyncCounterETS &uncontraction_counter_ets,
+  void NLevelCoarsenerBase::uncoarsenAsyncTask(TreeGroupPool *pool, metrics::ThreadSafeMetrics &current_metrics,
+                                               IAsyncRefiner *async_lp_refiner,
+                                               IAsyncRefiner *async_fm_refiner,
+                                               HypernodeID &uncontraction_counter,
                                                utils::ProgressBar &uncontraction_progress,
                                                AsyncNodeTracker &async_node_tracker,
                                                RegionComparator &node_region_comparator,
-                                               RefinementNodesETS &refinement_nodes_ets,
-                                               SeedDeduplicatorETS &seed_deduplicator_ets,
-                                               const size_t task_id,
+                                               SeedDeduplicator &seed_deduplicator, const size_t task_id,
                                                const bool alwaysInsertIntoPQ) {
 
       if (pool->allAccepted()) return;
@@ -542,29 +540,25 @@ namespace mt_kahypar {
       ds::ContractionGroupID groupID = ds::invalidGroupID;
       bool pick_new_group = true;
 
-      IAsyncRefiner* local_async_lp = async_lp_refiners.local().get();
-      IAsyncRefiner* local_async_fm = async_fm_refiners.local().get();
-      HypernodeID& local_uncontraction_counter = uncontraction_counter_ets.local();
-      vec<HypernodeID>& local_refinement_nodes = refinement_nodes_ets.local();
-      auto& seed_deduplicator = seed_deduplicator_ets.local();
+      vec<HypernodeID> local_refinement_nodes;
 
       while (true) {
 
         if (pool->allAccepted()) return;
 
         size_t try_count = 0;
-        // Attempt to pick a group from the bool. Stop if pool is completed.
+        // Attempt to pick a group from the pool. Stop if pool is completed.
         while (pick_new_group && !pool->tryToPickActiveID(groupID)) {
           if (pool->allAccepted()) return;
           ++try_count;
-          if (_phg.initialNumNodes() < try_count && try_count % 100000 == 0) {
+          if (debug && _phg.initialNumNodes() < try_count && try_count % 100000 == 0) {
             size_t num_accepted = pool->getNumAccepted();
             size_t num_total = pool->getTotalNumUncontractions();
             LOG << "Tried 100000 times." << V(num_accepted) << ", " << V(num_total);
           }
         }
 
-        if (_phg.initialNumNodes() < try_count && try_count % 100000 == 0) {
+        if (debug && _phg.initialNumNodes() < try_count && try_count % 100000 == 0) {
           LOG << "Spinning and finding a group.";
         }
 
@@ -581,7 +575,6 @@ namespace mt_kahypar {
           if (!acquired) {
 
             pool->activate(groupID);
-//            pool->pickActiveID(groupID);
             pick_new_group = true;
             continue;
           }
@@ -597,7 +590,7 @@ namespace mt_kahypar {
           // Release lock (Locks will be reacquired for moves during refinement)
           _lock_manager_for_async->strongReleaseLock(group.getRepresentative(), groupID);
 
-          if (!local_async_lp || !local_async_fm) {
+          if (!async_lp_refiner || !async_fm_refiner) {
             ERROR("Local Async Refiners are nullptr!");
           }
 
@@ -618,28 +611,27 @@ namespace mt_kahypar {
 
           // Refine only once enough seeds are available
           if ((_context.type != kahypar::ContextType::main && !local_refinement_nodes.empty()) || local_refinement_nodes.size() >= _context.refinement.fm.num_seed_nodes) {
-            localizedRefineForAsync(_phg, local_refinement_nodes, local_async_lp, local_async_fm, groupID, current_metrics);
+            localizedRefineForAsync(_phg, local_refinement_nodes, async_lp_refiner, async_fm_refiner, groupID, current_metrics);
 
             node_region_comparator.markAllEdgesForTaskInactive(task_id);
             seed_deduplicator.reset();
             local_refinement_nodes.clear();
           }
 
-//          node_region_comparator.markInactive(_phg.incidentEdges(group.getRepresentative()), IteratorRange(dropped_incident_edges.begin(), dropped_incident_edges.end()), task_id);
           async_node_tracker.incrementTime(group.size());
 
           // If number of uncontractions in this thread surpasses threshold, update the uncontraction progress bar
           // and reset counter
-          local_uncontraction_counter += group.size();
-          if (local_uncontraction_counter >= ASYNC_UPDATE_PROGRESS_BAR_THRESHOLD) {
+          uncontraction_counter += group.size();
+          if (uncontraction_counter >= ASYNC_UPDATE_PROGRESS_BAR_THRESHOLD) {
             uncontraction_progress.setObjective(current_metrics.getMetric(
                 _context.partition.mode, _context.partition.objective));
-            uncontraction_progress += local_uncontraction_counter;
-            local_uncontraction_counter = 0;
+            uncontraction_progress += uncontraction_counter;
+            uncontraction_counter = 0;
           }
 
-          // If the group has successors, activate the successors (i.e. put them in the queue) and spawn tasks for them.
-          // If the group has no successors, simply stop this task.
+          // If the group has successors, activate the successors (i.e. put them in the queue) and potentially work on one of them.
+          // If the group has no successors, simply pick a new group for the next iteration.
           if (pool->numSuccessors(groupID) > 0) {
               auto successors = pool->successors(groupID);
               auto suc_begin = successors.begin();
@@ -647,40 +639,22 @@ namespace mt_kahypar {
 
               if (alwaysInsertIntoPQ) {
                 HypernodeID num_succ = 0;
-                // Insert all successors into the PQ and start a new task for each of them. Stop this task.
+                // Insert all successors into the PQ and pick a new group for the next iteration.
                 for (auto it = suc_begin; it < suc_end; ++it) {
                   num_succ++;
                   pool->activate(*it);
-//                  uncoarsen_tg.run([&](){
-//                      uncoarsenAsyncTask(pool, uncoarsen_tg,
-//                                         current_metrics, async_lp_refiners, async_fm_refiners,
-//                                         uncontraction_counter_ets,
-//                                         uncontraction_progress, async_node_tracker, node_region_comparator,
-//                                         refinement_nodes_ets, seed_deduplicator_ets, thread_id_ets,
-//                                         alwaysInsertIntoPQ);
-//                  });
                 }
-//                return;
                 pick_new_group = true;
               } else {
-                // Insert all but one successor into the PQ and start as many new tasks. Have this task keep working on the remaining successor.
+                // Insert all but one successor into the PQ and work on the remaining successor. Do not pick a new group next iteration.
                 groupID = *suc_begin;
                 for (auto it = suc_begin + 1; it < suc_end; ++it) {
                   pool->activate(*it);
-//                  uncoarsen_tg.run([&](){
-//                      uncoarsenAsyncTask(pool, uncoarsen_tg,
-//                                         current_metrics, async_lp_refiners, async_fm_refiners,
-//                                         uncontraction_counter_ets,
-//                                         uncontraction_progress, async_node_tracker, node_region_comparator,
-//                                         refinement_nodes_ets, seed_deduplicator_ets, thread_id_ets,
-//                                         alwaysInsertIntoPQ);
-//                  });
                 }
                 pick_new_group = false;
               }
           } else {
             pick_new_group = true;
-//              return;
           }
       }
   }
@@ -745,41 +719,36 @@ namespace mt_kahypar {
     auto uncoarsen_tg = tbb::task_group();
     size_t total_uncontractions = 0;
 
-
-    // Thread specific asynchronous refiners that are constructed on demand using the finit lambda with factory call.
-    // Indirectly managed through unique_ptr's so the type of gain policy can be abstracted still (tbb:ets needs a
-    // complete type as its template parameter). However, unique_ptr's destroy their pointee when they are destroyed,
-    // so refiners are destructed properly when the lifetime of the tbb::ets object ends.
+    // Thread specific asynchronous refiners.
+    // Indirectly managed through unique_ptr's so the type of gain policy can be abstracted still.
     auto fm_shared_data = std::make_unique<AsyncFMSharedData>(_phg.initialNumNodes(), _context);
     auto node_anti_duplicator = std::make_unique<ds::ThreadSafeFlagArray<HypernodeID>>(_phg.initialNumNodes());
     auto edge_anti_duplicator = std::make_unique<ds::ThreadSafeFlagArray<HyperedgeID>>(_phg.initialNumEdges());
 
-    AsyncRefinersETS async_lp_refiners ([&] {
-          return AsyncLPRefinerFactory::getInstance().createObject(
-                  _context.refinement.label_propagation.algorithm,
-                  _phg.hypergraph(),
-                  _context,
-                  _lock_manager_for_async.get(),
-                  node_anti_duplicator.get(),
-                  edge_anti_duplicator.get(),
-                  &fm_shared_data->nodeTracker);
-      });
+    const size_t num_threads = _context.shared_memory.num_threads;
 
-    AsyncRefinersETS async_fm_refiners ([&]{
-          return AsyncFMRefinerFactory::getInstance().createObject(
-             _context.refinement.fm.algorithm,
-             _phg.hypergraph(),
-             _context,
-             _lock_manager_for_async.get(),
-             *fm_shared_data);
+    auto async_lp_refiners = std::vector<std::unique_ptr<IAsyncRefiner>>(num_threads);
+    auto async_fm_refiners = std::vector<std::unique_ptr<IAsyncRefiner>>(num_threads);
+    auto seed_deduplicator_arrays = std::vector<std::unique_ptr<SeedDeduplicator>>(num_threads);
+    tbb::parallel_for(size_t(0), num_threads, [&](const size_t t) {
+      async_lp_refiners[t] = AsyncLPRefinerFactory::getInstance().createObject(
+              _context.refinement.label_propagation.algorithm,
+              _phg.hypergraph(),
+              _context,
+              _lock_manager_for_async.get(),
+              node_anti_duplicator.get(),
+              edge_anti_duplicator.get(),
+              &fm_shared_data->nodeTracker);
+      async_fm_refiners[t] = AsyncFMRefinerFactory::getInstance().createObject(
+              _context.refinement.fm.algorithm,
+              _phg.hypergraph(),
+              _context,
+              _lock_manager_for_async.get(),
+              *fm_shared_data);
+      seed_deduplicator_arrays[t] = std::make_unique<kahypar::ds::FastResetFlagArray<HypernodeID>>(_phg.initialNumNodes());
     });
 
-    RefinementNodesETS refinement_nodes_ets;
-    auto seed_deduplicator_ets = SeedDeduplicatorETS(_phg.initialNumNodes());
-
-    auto async_uncontraction_counters = AsyncCounterETS(0);
-
-    const size_t num_threads = _context.shared_memory.num_threads;
+    auto async_uncontraction_counters = ds::Array<HypernodeID>(num_threads, 0);
 
     auto node_region_comparator = RegionComparator(_phg.hypergraph(), _context.uncoarsening.node_region_similarity_threshold, num_threads);
     size_t total_calls_to_pick = 0;
@@ -803,28 +772,20 @@ namespace mt_kahypar {
           _phg.hypergraph().sortStableActivePinsToBeginning();
 
           pool->setNodeRegionComparator(&node_region_comparator);
-//          node_region_comparator.resetHyperedgeSizesParallel();
 
           auto num_uncontractions = static_cast<size_t>(pool->getTotalNumUncontractions());
 
-//          size_t total_num_groups = pool->getNumTotal();
-
-          for (auto& refinement_seeds : refinement_nodes_ets) {
-            refinement_seeds.clear();
+          for (auto& seed_deduplicator : seed_deduplicator_arrays) {
+            seed_deduplicator.get()->reset(); // NOLINT(readability-redundant-smartptr-get)
           }
-          for (auto& seed_deduplicator : seed_deduplicator_ets) {
-            seed_deduplicator.reset();
-          }
-
-//          size_t num_roots = pool->getNumActive();
 
           auto uncoarsen_task = [&](const size_t task_id){
-              // todo mlaupichler: Setting alwaysInsertIntoPQ to true for Initial Partitioning as well cryptically does not work (spits out Seg faults only in release mode). I assume it's due to TBB internals.
-              uncoarsenAsyncTask(pool, uncoarsen_tg,
-                                 current_metrics, async_lp_refiners, async_fm_refiners,
-                                 async_uncontraction_counters,
+              // Setting alwaysInsertIntoPQ to true for Initial Partitioning as well cryptically does not work (spits out Seg faults only in release mode). I assume it's due to TBB internals.
+              uncoarsenAsyncTask(pool,
+                                 current_metrics, async_lp_refiners[task_id].get(), async_fm_refiners[task_id].get(),
+                                 async_uncontraction_counters[task_id],
                                  uncontraction_progress, fm_shared_data->nodeTracker, node_region_comparator,
-                                 refinement_nodes_ets, seed_deduplicator_ets, task_id,
+                                 *seed_deduplicator_arrays[task_id], task_id,
                                  _context.uncoarsening.always_insert_groups_into_pq && (_context.type ==
                                                                                         kahypar::ContextType::main) /* Do not use this option in initial partitioning*/
               );
@@ -847,8 +808,7 @@ namespace mt_kahypar {
 
           // Update Progress Bar With Rest of Uncontractions
           HypernodeID uncontractions_not_in_progress_bar = 0;
-          for (AsyncCounterETS::iterator counterIt = async_uncontraction_counters.begin(); counterIt != async_uncontraction_counters.end(); ++counterIt) {
-            HypernodeID& counter = *counterIt;
+          for (HypernodeID& counter : async_uncontraction_counters) {
             uncontractions_not_in_progress_bar += counter;
             counter = 0;
           }
@@ -856,9 +816,6 @@ namespace mt_kahypar {
               _context.partition.mode, _context.partition.objective));
           uncontraction_progress += uncontractions_not_in_progress_bar;
 
-//          uncontraction_progress.setObjective(current_metrics.getMetric(
-//                  _context.partition.mode, _context.partition.objective));
-//          uncontraction_progress += num_uncontractions;
           total_uncontractions += num_uncontractions;
 //          ASSERT(total_uncontractions == uncontraction_progress.count() - _compactified_hg.initialNumNodes());
 

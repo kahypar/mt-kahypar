@@ -274,6 +274,14 @@ namespace mt_kahypar::ds {
           return _min_non_completed_depth.load(std::memory_order_relaxed) == _num_depths;
         }
 
+        void memoryConsumption(utils::MemoryTreeNode* parent) const {
+          ASSERT(parent);
+
+          parent->addChild("Total Elements per Depth", _total_elements_per_depth.size() * sizeof(ContractionGroupID));
+          parent->addChild("Number Finished per Depth", _num_finished_per_depth.size() * sizeof(CAtomic<ContractionGroupID>));
+          parent->addChild("Depth Completed Flags", _completed.size() * sizeof(CAtomic<uint8_t>));
+        }
+
     private:
 
         const depth_type _num_depths;
