@@ -53,7 +53,7 @@ namespace mt_kahypar::ds {
         }*/
 
         template<typename IncidentEdgeIteratorT>
-        void markActive(const IteratorRange<IncidentEdgeIteratorT> incident_edges, const size_t task_id) {
+        void markActive(const IteratorRange<IncidentEdgeIteratorT> incident_edges, const size_t task_id, HyperedgeID& num_edges_activated_for_this_task) {
           ASSERT(task_id < _active_edges_per_task.size());
           HyperedgeID num_edges_activated = 0;
           for (const HypernodeID he : incident_edges) {
@@ -62,9 +62,9 @@ namespace mt_kahypar::ds {
             bool changed_bit = _active_nodes_combined_signatures.set_true(he, task_id, activated_edge);
             if (changed_bit) {
               _active_edges_per_task[task_id]->push_back(he);
+              ++num_edges_activated_for_this_task;
             }
             if (activated_edge) {
-//              _active_nodes_signature_union_size.fetch_add(1, std::memory_order_relaxed);
                 ++num_edges_activated;
             }
           }
@@ -73,11 +73,11 @@ namespace mt_kahypar::ds {
           ASSERT(num_active <= num_active + num_edges_activated);
         }
 
-        void markAllEdgesForTaskInactive(const size_t task_id) {
+        void markLastActivatedEdgesForTaskInactive(const size_t task_id, const HyperedgeID num_edges_to_deactivate_for_task) {
           ASSERT(task_id < _active_edges_per_task.size());
           std::vector<HyperedgeID>& active_in_task = *_active_edges_per_task[task_id];
           HyperedgeID num_edges_deactivated = 0;
-          while (!active_in_task.empty()) {
+          for (HyperedgeID i = 0; i < num_edges_to_deactivate_for_task; ++i) {
             const HyperedgeID he = active_in_task.back();
             active_in_task.pop_back();
             ASSERT(he < _active_nodes_combined_signatures.numElements());
@@ -88,30 +88,17 @@ namespace mt_kahypar::ds {
               ++num_edges_deactivated;
             }
           }
-          ASSERT(_active_edges_per_task[task_id]->empty());
           uint32_t union_size = _active_nodes_signature_union_size.fetch_sub(num_edges_deactivated, std::memory_order_relaxed);
           unused(union_size);
           ASSERT(union_size >= num_edges_deactivated);
         }
 
-//        template<typename IncidentEdgeIteratorT1>
-//        void markInactive(const IteratorRange<IncidentEdgeIteratorT1> incident_edges, const size_t task_id) {
-//          HyperedgeID num_edges_deactivated = 0;
-//          markInactiveImpl(incident_edges, task_id, num_edges_deactivated);
-//          uint32_t union_size = _active_nodes_signature_union_size.fetch_sub(num_edges_deactivated, std::memory_order_relaxed);
-//          unused(union_size);
-//          ASSERT(union_size >= num_edges_deactivated);
-//        }
-//
-//        template<typename IncidentEdgeIteratorT1, typename IncidentEdgeIteratorT2>
-//        void markInactive(const IteratorRange<IncidentEdgeIteratorT1> current_incident_edges, const IteratorRange<IncidentEdgeIteratorT2> dropped_incident_edges, const size_t task_id) {
-//          HyperedgeID num_edges_deactivated = 0;
-//          markInactiveImpl(current_incident_edges, task_id, num_edges_deactivated);
-//          markInactiveImpl(dropped_incident_edges, task_id, num_edges_deactivated);
-//          uint32_t union_size = _active_nodes_signature_union_size.fetch_sub(num_edges_deactivated, std::memory_order_relaxed);
-//          unused(union_size);
-//          ASSERT(union_size >= num_edges_deactivated);
-//        }
+        void markAllEdgesForTaskInactive(const size_t task_id) {
+          ASSERT(task_id < _active_edges_per_task.size());
+          const HyperedgeID total_num_active_in_task = _active_edges_per_task[task_id]->size();
+          markLastActivatedEdgesForTaskInactive(task_id, total_num_active_in_task);
+          ASSERT(_active_edges_per_task[task_id]->empty());
+        }
 
         bool regionIsNotTooSimilarToActiveNodesWithFullSimilarity(const HypernodeID hn, const size_t task_id,
                                                                   double &similarity) {
@@ -198,18 +185,6 @@ namespace mt_kahypar::ds {
         }
 
     private:
-
-        template<typename IncidentEdgeIteratorT>
-        void markInactiveImpl(const IteratorRange<IncidentEdgeIteratorT> incident_edges, const size_t task_id, HyperedgeID& num_edges_deactivated) {
-          for (const HyperedgeID he : incident_edges) {
-            ASSERT(he < _active_nodes_combined_signatures.numElements());
-            bool deactivated_edge = false;
-            _active_nodes_combined_signatures.set_false(he, task_id, deactivated_edge);
-            if (deactivated_edge) {
-              ++num_edges_deactivated;
-            }
-          }
-        }
 
         const Hypergraph& _hg;
         const double _region_similarity_threshold;

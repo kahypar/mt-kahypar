@@ -113,8 +113,7 @@ class NLevelCoarsenerBase {
                      const bool alwaysInsertIntoPQ);
 
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE void uncontractGroupAsyncSubtask(const ds::ContractionGroup &group,
-                                                                      const ds::ContractionGroupID groupID,
-                                                                      std::vector<HyperedgeID> &dropped_incident_edges);
+                                                                      const ds::ContractionGroupID groupID);
 
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE void
   refineGroupAsyncSubtask(const ds::ContractionGroup &group, ds::ContractionGroupID groupID,

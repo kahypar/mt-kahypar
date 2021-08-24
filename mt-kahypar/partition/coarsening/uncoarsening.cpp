@@ -487,10 +487,9 @@ namespace mt_kahypar {
 
   void
   NLevelCoarsenerBase::uncontractGroupAsyncSubtask(const ds::ContractionGroup &group,
-                                                   const ds::ContractionGroupID groupID,
-                                                   std::vector<HyperedgeID> &dropped_incident_edges) {
+                                                   const ds::ContractionGroupID groupID) {
 
-      _phg.uncontract(group, groupID, dropped_incident_edges);
+      _phg.uncontract(group, groupID);
 
       auto repr_part_id = _phg.partID(group.getRepresentative());
       unused(repr_part_id);
@@ -581,11 +580,10 @@ namespace mt_kahypar {
           ASSERT(acquired);
 
           pool->markAccepted(groupID);
-          node_region_comparator.markActive(_phg.incidentEdges(group.getRepresentative()), task_id);
+          HyperedgeID num_edges_activated_in_task = 0;
+          node_region_comparator.markActive(_phg.incidentEdges(group.getRepresentative()), task_id, num_edges_activated_in_task);
 
-          std::vector<HyperedgeID> dropped_incident_edges;
-
-          uncontractGroupAsyncSubtask(group, groupID, dropped_incident_edges);
+          uncontractGroupAsyncSubtask(group, groupID);
 
           // Release lock (Locks will be reacquired for moves during refinement)
           _lock_manager_for_async->strongReleaseLock(group.getRepresentative(), groupID);
@@ -595,6 +593,7 @@ namespace mt_kahypar {
           }
 
           // Extract refinement seeds
+          bool has_refinement_seeds = false;
           auto begin = ds::GroupNodeIDIterator::getAtBegin(group);
           auto end = ds::GroupNodeIDIterator::getAtEnd(group);
           for (auto it = begin; it != end; ++it) {
@@ -605,8 +604,14 @@ namespace mt_kahypar {
               if (!seed_deduplicator[hn]) {
                 seed_deduplicator.set(hn);
                 local_refinement_nodes.push_back(hn);
+                has_refinement_seeds = true;
               }
             }
+          }
+
+          // If there are no refinement seeds in this group, do not consider the incident edges active anymore
+          if (!has_refinement_seeds) {
+            node_region_comparator.markLastActivatedEdgesForTaskInactive(task_id, num_edges_activated_in_task);
           }
 
           // Refine only once enough seeds are available
