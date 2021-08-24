@@ -37,29 +37,20 @@ namespace mt_kahypar {
 
   public:
     MultilevelUncoarsener(Hypergraph& hypergraph,
-                        std::shared_ptr<PartitionedHypergraph> partitioned_hypergraph,
                         const Context& context,
                         const bool top_level,
-                        std::shared_ptr<vec<Level>> hierarchy) :
+                        UncoarseningData& uncoarseningData) :
       _hg(hypergraph),
-      _partitioned_hg(std::move(partitioned_hypergraph)),
+      _partitioned_hg(std::move(uncoarseningData.partitioned_hypergraph)),
       _context(context),
       _top_level(top_level),
-      _hierarchy(std::move(hierarchy)) {
+      _hierarchy(std::move(uncoarseningData.hierarchy)) { }
 
-/*
-      _partitioned_hg = PartitionedHypergraph(
-              _context.partition.k, _hg, parallel_tag_t());
-*/
-      }
-
-/*
   MultilevelUncoarsener(const MultilevelUncoarsener&) = delete;
   MultilevelUncoarsener(MultilevelUncoarsener&&) = delete;
   MultilevelUncoarsener & operator= (const MultilevelUncoarsener &) = delete;
   MultilevelUncoarsener & operator= (MultilevelUncoarsener &&) = delete;
 
-*/
   private:
     Hypergraph& _hg;
     std::shared_ptr<PartitionedHypergraph> _partitioned_hg;

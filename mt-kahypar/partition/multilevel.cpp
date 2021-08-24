@@ -41,17 +41,14 @@ namespace mt_kahypar::multilevel {
                    PartitionedHypergraph& partitioned_hypergraph,
                    const Context& context,
                    const bool top_level,
-                   std::shared_ptr<PartitionedHypergraph> phg,
-                   std::shared_ptr<vec<Level>> hierarchy
-                   ) :
+                   std::shared_ptr<UncoarseningData> uncoarseningData) :
             _ip_context(context),
             _uncoarsener(nullptr),
             _hg(hypergraph),
             _partitioned_hg(partitioned_hypergraph),
             _context(context),
             _top_level(top_level),
-            _phg(phg),
-            _hierarchy(hierarchy) {
+            _uncoarseningData(uncoarseningData) {
       // Switch refinement context from IP to main
       _ip_context.refinement = _context.initial_partitioning.refinement;
             }
@@ -70,7 +67,7 @@ namespace mt_kahypar::multilevel {
                       _context.refinement.fm.algorithm,
                       _hg, _context);
 
-      _uncoarsener = std::make_unique<MultilevelUncoarsener>(_hg, _phg, _context, _top_level, _hierarchy);
+      _uncoarsener = std::make_unique<MultilevelUncoarsener>(_hg, _context, _top_level, *_uncoarseningData);
       _partitioned_hg = _uncoarsener->doUncoarsen(label_propagation, fm);
       utils::Timer::instance().stop_timer("refinement");
 
@@ -86,8 +83,7 @@ namespace mt_kahypar::multilevel {
     PartitionedHypergraph& _partitioned_hg;
     const Context& _context;
     const bool _top_level;
-    std::shared_ptr<PartitionedHypergraph> _phg;
-    std::shared_ptr<vec<Level>> _hierarchy;
+    std::shared_ptr<UncoarseningData> _uncoarseningData;
   };
 
   class CoarseningTask : public tbb::task {
@@ -98,8 +94,7 @@ namespace mt_kahypar::multilevel {
                    const Context& ip_context,
                    const bool top_level,
                    const bool vcycle,
-                   std::shared_ptr<PartitionedHypergraph> phg,
-                   std::shared_ptr<vec<Level>> hierarchy) :
+                   std::shared_ptr<UncoarseningData> uncoarseningData) :
             _hg(hypergraph),
             _sparsifier(nullptr),
             _context(context),
@@ -114,8 +109,7 @@ namespace mt_kahypar::multilevel {
       _sparsifier = HypergraphSparsifierFactory::getInstance().createObject(
               _context.sparsification.similiar_net_combiner_strategy, _context);
 
-      _coarsener->setHierarchy(hierarchy);
-      _coarsener->setPhg(phg);
+      _coarsener->setUncoarseningData(*uncoarseningData);
 
             }
 
@@ -252,8 +246,8 @@ namespace mt_kahypar::multilevel {
                                            tbb::task& parent) {
     // The coarsening task is first executed and once it finishes the
     // refinement task continues (without blocking)
-    std::shared_ptr<vec<Level>> hierarchy = std::make_shared<vec<Level>>();
-    std::shared_ptr<PartitionedHypergraph> phg = std::make_shared<PartitionedHypergraph>();
+    std::shared_ptr<UncoarseningData> uncoarseningData =
+      std::make_shared<UncoarseningData>(context.partition.paradigm == Paradigm::nlevel);
     size_t estimated_number_of_levels = 1UL;
     if ( hypergraph.initialNumNodes() > context.coarsening.contraction_limit ) {
       estimated_number_of_levels = std::ceil( std::log2(
@@ -261,13 +255,17 @@ namespace mt_kahypar::multilevel {
           static_cast<double>(context.coarsening.contraction_limit)) /
         std::log2(context.coarsening.maximum_shrink_factor) ) + 1UL;
     }
-    hierarchy->reserve(estimated_number_of_levels);
+    uncoarseningData->hierarchy->reserve(estimated_number_of_levels);
+/*
+    std::shared_ptr<Context> ip_context = std::make_shared<Context>(context);
+    ip_context->refinement = context.initial_partitioning.refinement;
+*/
 
     RefinementTask& refinement_task = *new(parent.allocate_continuation())
-            RefinementTask(hypergraph, partitioned_hypergraph, context, top_level, phg, hierarchy);
+            RefinementTask(hypergraph, partitioned_hypergraph, context, top_level, uncoarseningData);
     refinement_task.set_ref_count(1);
     CoarseningTask& coarsening_task = *new(refinement_task.allocate_child()) CoarseningTask(
-            hypergraph, context, refinement_task._ip_context, top_level, vcycle, phg, hierarchy);
+            hypergraph, context, refinement_task._ip_context, top_level, vcycle, uncoarseningData);
     tbb::task::spawn(coarsening_task);
   }
 

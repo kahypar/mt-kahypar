@@ -90,4 +90,18 @@ private:
   // ! (includes coarsening + contraction time)
   double _coarsening_time;
 };
+
+class UncoarseningData {
+public:
+  explicit UncoarseningData(bool nlevel) {
+    if (nlevel) {
+      /* TODO: data for nlevel case <24-08-21, @noahares> */
+    } else {
+      hierarchy = std::make_shared<vec<Level>>();
+      partitioned_hypergraph = std::make_shared<PartitionedHypergraph>();
+    }
+  }
+  std::shared_ptr<vec<Level>> hierarchy;
+  std::shared_ptr<PartitionedHypergraph> partitioned_hypergraph;
+};
 }
