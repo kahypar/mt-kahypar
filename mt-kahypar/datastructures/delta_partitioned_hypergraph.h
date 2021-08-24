@@ -66,6 +66,15 @@ class DeltaPartitionedHypergraph {
   static constexpr bool supports_connectivity_set = false;
   static constexpr HyperedgeID HIGH_DEGREE_THRESHOLD = PartitionedHypergraph::HIGH_DEGREE_THRESHOLD;
 
+  DeltaPartitionedHypergraph() :
+    _k(kInvalidPartition),
+    _phg(nullptr),
+    _part_weights_delta(0, 0),
+    _part_ids_delta(),
+    _pins_in_part_delta(),
+    _move_to_penalty_delta(),
+    _move_from_benefit_delta() {}
+
   DeltaPartitionedHypergraph(const Context& context) :
     _k(context.partition.k),
     _phg(nullptr),
@@ -347,7 +356,7 @@ class DeltaPartitionedHypergraph {
   bool _memory_dropped = false;
 
   // ! Number of blocks
-  const PartitionID _k;
+  PartitionID _k;
 
   // ! Partitioned hypergraph where all deltas are stored relative to
   PartitionedHypergraph* _phg;

@@ -454,18 +454,8 @@ class DynamicSparseMap {
   DynamicSparseMap(const DynamicSparseMap&) = delete;
   DynamicSparseMap& operator= (const DynamicSparseMap& other) = delete;
 
-  DynamicSparseMap(DynamicSparseMap&& other) :
-    _capacity(other._capacity),
-    _initial_value(other._initial_value),
-    _data(std::move(other._data)),
-    _size(other._size),
-    _timestamp(other._timestamp),
-    _sparse(std::move(other._sparse)),
-    _dense(std::move(other._dense)) {
-    other._data = nullptr;
-    other._sparse = nullptr;
-    other._dense = nullptr;
-  }
+  DynamicSparseMap(DynamicSparseMap&& other) = default;
+  DynamicSparseMap& operator= (DynamicSparseMap&& other) = default;
 
   ~DynamicSparseMap() = default;
 
@@ -658,15 +648,8 @@ class DynamicFlatMap {
   DynamicFlatMap(const DynamicFlatMap&) = delete;
   DynamicFlatMap& operator= (const DynamicFlatMap& other) = delete;
 
-  DynamicFlatMap(DynamicFlatMap&& other) :
-    _data(std::move(other._data)),
-    _size(other._size),
-    _capacity(other._capacity),
-    _timestamp(other._timestamp) {
-    other._data = nullptr;
-    other._size = 0;
-    other._capacity = 0;
-  }
+  DynamicFlatMap(DynamicFlatMap&& other) = default;
+  DynamicFlatMap& operator= (DynamicFlatMap&& other) = default;
 
   ~DynamicFlatMap() = default;
 
