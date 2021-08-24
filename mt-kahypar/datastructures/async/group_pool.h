@@ -161,7 +161,8 @@ namespace mt_kahypar::ds
                   _total_calls_to_pick(0),
                   _calls_to_pick_that_reached_max_retries(0),
                   _calls_to_pick_with_empty_pq(0),
-                  _num_accepted_uncontractions(0)
+                  _num_accepted_uncontractions(0),
+                  _calculate_full_similarities(context.uncoarsening.region_comparison_with_full_similarities)
                 {
             ASSERT(_hierarchy);
             auto roots = _hierarchy->roots();
@@ -247,23 +248,23 @@ namespace mt_kahypar::ds
 
         // ===== Activation/Deactivation of Hypernodes =====
 
-        bool tryToPickActiveID(ContractionGroupID& destination) {
-          if (CALCULATE_FULL_SIMILARITIES) {
-            return tryToPickActiveIDWithFullSimilarities(destination);
+        bool tryToPickActiveID(ContractionGroupID& destination, const size_t task_id) {
+          if (_calculate_full_similarities) {
+            return tryToPickActiveIDWithFullSimilarities(destination, task_id);
           } else {
-            return tryToPickActiveIDWithEarlyBreak(destination);
+            return tryToPickActiveIDWithEarlyBreak(destination, task_id);
           }
         }
 
-        void pickActiveID(ContractionGroupID& destination) {
-          if (CALCULATE_FULL_SIMILARITIES) {
-            while (!tryToPickActiveIDWithFullSimilarities(destination)) {/* keep trying */};
+        void pickActiveID(ContractionGroupID& destination, const size_t task_id) {
+          if (_calculate_full_similarities) {
+            while (!tryToPickActiveIDWithFullSimilarities(destination, task_id)) {/* keep trying */};
           } else {
-            while (!tryToPickActiveIDWithEarlyBreak(destination)) {/* keep trying */};
+            while (!tryToPickActiveIDWithEarlyBreak(destination, task_id)) {/* keep trying */};
           }
         }
 
-        bool tryToPickActiveIDWithFullSimilarities(ContractionGroupID& destination) {
+        bool tryToPickActiveIDWithFullSimilarities(ContractionGroupID& destination, const size_t task_id) {
           _total_calls_to_pick.add_fetch(1, std::memory_order_relaxed);
 
             destination = invalidGroupID;
@@ -300,7 +301,7 @@ namespace mt_kahypar::ds
                 }
                 HypernodeID repr = group(pickedID).getRepresentative();
                 double sim;
-                if (_node_region_comparator->regionIsNotTooSimilarToActiveNodesWithFullSimilarity(repr, sim)) {
+                if (_node_region_comparator->regionIsNotTooSimilarToActiveNodesWithFullSimilarity(repr, task_id, sim)) {
                   // If good candidate found, return it right away and reinsert others that were picked
                   destination = pickedID;
                   for (uint32_t j = 0; j < i; ++j) {
@@ -329,7 +330,7 @@ namespace mt_kahypar::ds
             }
         }
 
-        bool tryToPickActiveIDWithEarlyBreak(ContractionGroupID& destination) {
+        bool tryToPickActiveIDWithEarlyBreak(ContractionGroupID& destination, const size_t task_id) {
           _total_calls_to_pick.add_fetch(1, std::memory_order_relaxed);
 
           destination = invalidGroupID;
@@ -356,7 +357,7 @@ namespace mt_kahypar::ds
               }
               ASSERT(pickedID != invalidGroupID);
               HypernodeID repr = group(pickedID).getRepresentative();
-              if (_node_region_comparator->regionIsNotTooSimilarToActiveNodesWithEarlyBreak(repr)) {
+              if (_node_region_comparator->regionIsNotTooSimilarToActiveNodesWithEarlyBreak(repr, task_id)) {
                 // If good candidate found return it and reinsert all previously found
                 destination = pickedID;
                 for (uint32_t j = 0; j < i; ++j) {
@@ -530,7 +531,7 @@ namespace mt_kahypar::ds
 
         CAtomic<size_t> _num_accepted_uncontractions;
 
-        static constexpr bool CALCULATE_FULL_SIMILARITIES = true;
+        const bool _calculate_full_similarities;
 
 
     };

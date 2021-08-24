@@ -58,6 +58,16 @@ namespace mt_kahypar::ds {
           return block_except_thread != 0;
         }
 
+        std::pair<bool, bool> any_set_with_and_without_thread(const IndexType idx, const size_t except_tid) const {
+          ASSERT(idx < _num_elements);
+          ASSERT(except_tid < _num_threads);
+          UnsafeBlock mask = ~(UnsafeBlock(1) << except_tid);
+          const Block &block = _blocks[idx];
+          const UnsafeBlock unsafe_block = block.load(std::memory_order_relaxed);
+          const UnsafeBlock block_except_thread = unsafe_block & mask;
+          return std::make_pair(unsafe_block != 0, block_except_thread != 0);
+        }
+
         // ! Guarantees that when this call returns, the entry is set to true. Returns true if this call was the one to
         // ! set the bit and false if it was already set to true or a different call to this function set it to true concurrently.
         bool set_true(const IndexType idx, const size_t tid, bool &block_was_zero) {
@@ -186,6 +196,44 @@ namespace mt_kahypar::ds {
           return false;
         }
 
+        std::pair<bool, bool> any_set_with_and_without_thread(const IndexType idx, const size_t except_tid) {
+          ASSERT(idx < _num_elements);
+          ASSERT(except_tid < _num_threads);
+          const BlockIndex first_block = idx * _blocks_per_element;
+          const BlockIndex first_block_of_next = (idx + 1) * _blocks_per_element;
+          const BlockIndex except_block_idx = idx * _blocks_per_element + except_tid / BLOCK_SIZE;
+          size_t except_offset = except_tid % BLOCK_SIZE;
+          UnsafeBlock mask = ~(UnsafeBlock(1) << except_offset);
+
+          auto result = std::make_pair(false, false);
+
+          _spinlocks[idx].lock();
+          for (BlockIndex bidx = first_block; bidx < first_block_of_next; ++bidx) {
+            UnsafeBlock block = _blocks[bidx];
+            if (bidx == except_block_idx) {
+              if (block != 0) {
+                result.first = true;
+              }
+              const UnsafeBlock block_without_thread = block & mask;
+              if (block_without_thread != 0) {
+                result.second = true;
+              }
+            } else {
+              if (block != 0) {
+                result.first = true;
+                result.second = true;
+              }
+            }
+
+            if (result.second) {
+              _spinlocks[idx].unlock();
+              return result;
+            }
+          }
+          _spinlocks[idx].unlock();
+          return result;
+        }
+
         // ! Guarantees that when this call returns, the entry is set to true. Returns true if this call was the one to
         // ! set the bit and false if it was already set to true or a different call to this function set it to true concurrently.
         bool set_true(const IndexType idx, const size_t tid, bool &block_was_zero) {
@@ -309,7 +357,7 @@ namespace mt_kahypar::ds {
           ERROR("Type not set in ThreadWiseFlagArray!");
         }
 
-        bool any_set_except_thread(const IndexType idx, const size_t except_tid) const {
+        bool any_set_except_thread(const IndexType idx, const size_t except_tid) {
           switch (_type) {
             case eight_bit_block :
               return _eight_bit_block_array->any_set_except_thread(idx, except_tid);
@@ -321,6 +369,22 @@ namespace mt_kahypar::ds {
               return _sixtyfour_bit_block_array->any_set_except_thread(idx, except_tid);
             case mutex :
               return _mutex_array->any_set_except_thread(idx, except_tid);
+          }
+          ERROR("Type not set in ThreadWiseFlagArray!");
+        }
+
+        std::pair<bool, bool> any_set_with_and_without_thread(const IndexType idx, const size_t except_tid) {
+          switch (_type) {
+            case eight_bit_block :
+              return _eight_bit_block_array->any_set_with_and_without_thread(idx, except_tid);
+            case sixteen_bit_block :
+              return _sixteen_bit_block_array->any_set_with_and_without_thread(idx, except_tid);
+            case thirtytwo_bit_block :
+              return _thirtytwo_bit_block_array->any_set_with_and_without_thread(idx, except_tid);
+            case sixtyfour_bit_block :
+              return _sixtyfour_bit_block_array->any_set_with_and_without_thread(idx, except_tid);
+            case mutex :
+              return _mutex_array->any_set_with_and_without_thread(idx, except_tid);
           }
           ERROR("Type not set in ThreadWiseFlagArray!");
         }

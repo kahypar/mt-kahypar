@@ -1465,7 +1465,7 @@ using ::testing::Return;
             hypergraph.sortStableActivePinsToBeginning();
             while (pool->hasActive()) {
                 ContractionGroupID groupID = invalidGroupID;
-                bool picked = pool->tryToPickActiveID(groupID);
+                bool picked = pool->tryToPickActiveID(groupID, 0);
                 if (!picked) continue;
                 const auto& group = pool->group(groupID);
                 hypergraph.uncontract(group, groupID, NOOP_BATCH_FUNC, NOOP_BATCH_FUNC);

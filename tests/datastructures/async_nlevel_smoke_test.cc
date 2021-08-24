@@ -165,13 +165,22 @@ namespace mt_kahypar {
                 };
 
                 if (parallel) {
-                    tbb::task_group uncoarsen_tg;
-                    std::function<void(void)> uncoarsen_task = [&](){
-                        ds::ContractionGroupID groupID = ds::invalidGroupID;
-                        pool->pickActiveID(groupID);
-                        bool continue_this_task = true;
 
-                        while (continue_this_task) {
+                  const size_t num_simulated_threads = 4;
+
+                    tbb::task_group uncoarsen_tg;
+                    std::function<void(const size_t)> uncoarsen_task = [&](const size_t task_id){
+                        ds::ContractionGroupID groupID = ds::invalidGroupID;
+                        bool pick_new_group = true;
+
+                        while (true) {
+
+                          if (pool->allAccepted()) return;
+
+                            while (pick_new_group && !pool->tryToPickActiveID(groupID, task_id)) {
+                              if (pool->allAccepted()) return;
+                            }
+
                             ASSERT(groupID != invalidGroupID);
                             const auto& group = pool->group(groupID);
 
@@ -180,12 +189,13 @@ namespace mt_kahypar {
                             if (!uncontracted) {
                                 // If uncontraction failed, retry by reactivating and spawning new task
                                 pool->activate(groupID);
-                                uncoarsen_tg.run(uncoarsen_task);
-                                return;
+                                pick_new_group = true;
                             } else {
+
+                                pool->markAccepted(groupID);
+
                                 // If the group has successors, have this task continue with the first successor, activate the
-                                // other successors (i.e. put them in the queue) and spawn tasks for them. If the group has no
-                                // successors, simply stop this task.
+                                // other successors (i.e. put them in the queue).
                                 if (pool->numSuccessors(groupID) > 0) {
                                     auto successors = pool->successors(groupID);
                                     auto suc_begin = successors.begin();
@@ -193,24 +203,23 @@ namespace mt_kahypar {
                                     groupID = *suc_begin;
                                     for (auto it = suc_begin + 1; it < suc_end; ++it) {
                                         pool->activate(*it);
-                                        uncoarsen_tg.run(uncoarsen_task);
                                     }
+                                    pick_new_group = false;
                                 } else {
-                                    continue_this_task = false;
+                                    pick_new_group = true;
                                 }
                             }
                         }
                     };
 
-                    size_t num_roots = pool->getNumActive();
-                    for (size_t i = 0; i < num_roots; ++i) {
-                        uncoarsen_tg.run(uncoarsen_task);
+                    for (size_t t = 0; t < num_simulated_threads; ++t) {
+                        uncoarsen_tg.run([uncoarsen_task, t] { return uncoarsen_task(t); });
                     }
                     uncoarsen_tg.wait();
                 } else {
                     while (pool->hasActive()) {
                         auto groupID = invalidGroupID;
-                        pool->tryToPickActiveID(groupID);
+                        pool->tryToPickActiveID(groupID, 0);
                         const auto& group = pool->group(groupID);
 
                         bool uncontracted = uncontract_group_and_refine(group, groupID);

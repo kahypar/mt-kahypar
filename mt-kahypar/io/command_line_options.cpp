@@ -502,6 +502,13 @@ namespace mt_kahypar {
             "whenever a group is finished, all succeeding groups will be inserted into the PQ of groups. "
             "Otherwise, one successor will immediately be worked on by the same thread without first inserting it into the PQ."
             " Inserting every group into the PQ may improve partition quality. (Only has an effect in MtKaHyParStrongAsync.)")
+            ("u-region-comparison-with-full-similarities",
+             po::value<bool>(&context.uncoarsening.region_comparison_with_full_similarities)->value_name("<bool>")->default_value(true),
+             "If this option is set, regions of nodes are compared by calculating full similarities between "
+             "incident edges. That way, if all retries for finding a node that is less similar than the threshold fails, "
+             "the best seen option may be picked, possibly increasing quality. If the option is disabled, the calculation"
+             " of similarities breaks as soon as the threshold is surpassed. In this case, if all retries fail, an arbitrary node "
+             "is chosen from the ones seen. (Only has an effect in MtKaHyParStrongAsync.)")
             ;
     return options;
   }

@@ -113,49 +113,75 @@ namespace mt_kahypar::ds {
 //          ASSERT(union_size >= num_edges_deactivated);
 //        }
 
-        bool regionIsNotTooSimilarToActiveNodesWithFullSimilarity(const HypernodeID hn, double& similarity) {
-          similarity = regionSimilarityToActiveNodes(hn);
+        bool regionIsNotTooSimilarToActiveNodesWithFullSimilarity(const HypernodeID hn, const size_t task_id,
+                                                                  double &similarity) {
+          similarity = regionSimilarityToActiveNodes(hn, task_id);
           return similarity < _region_similarity_threshold + CMP_EPSILON;
         }
 
-        double regionSimilarityToActiveNodes(const HypernodeID hn) {
+        double regionSimilarityToActiveNodes(const HypernodeID hn, const size_t task_id) {
           ASSERT(_hg.nodeIsEnabled(hn));
-          size_t union_size = _hg.nodeDegree(hn) + _active_nodes_signature_union_size.load(std::memory_order_relaxed);
-          size_t intersection_size = 0;
+          size_t union_size_lower_bound = _hg.nodeDegree(hn) + _active_nodes_signature_union_size.load(std::memory_order_relaxed) - _active_edges_per_task[task_id]->size();
+          size_t intersection_size_with_other_tasks = 0;
+          size_t intersection_size_with_all_tasks = 0;
           auto incident_edges = _hg.incidentEdges(hn);
           for (const HyperedgeID he : incident_edges) {
             ASSERT(he < _active_nodes_combined_signatures.numElements());
-            if (_active_nodes_combined_signatures.any_set(he)) {
-              ++intersection_size;
+            auto [intersects_with_any_task, intersects_with_other_tasks] = _active_nodes_combined_signatures.any_set_with_and_without_thread(he, task_id);
+            if (intersects_with_any_task) {
+              ++intersection_size_with_all_tasks;
+            }
+            if (intersects_with_other_tasks) {
+              ++intersection_size_with_other_tasks;
             }
           }
           // |A \cup B| = |A| + |B| - |A \cap B|
-          ASSERT(union_size >= intersection_size);
-          union_size -= intersection_size;
+          ASSERT(union_size_lower_bound >= intersection_size_with_all_tasks);
+          union_size_lower_bound -= intersection_size_with_all_tasks;
 
-          if (union_size == 0) return 0.0;
-          return (double) intersection_size / (double) union_size;
+          if (union_size_lower_bound == 0) return 0.0;
+          return (double) intersection_size_with_other_tasks / (double) union_size_lower_bound;
         }
 
-        bool regionIsNotTooSimilarToActiveNodesWithEarlyBreak(const HypernodeID hn) {
+        bool regionIsNotTooSimilarToActiveNodesWithEarlyBreak(const HypernodeID hn, const size_t task_id) {
           ASSERT(_hg.nodeIsEnabled(hn));
-          size_t union_size = _hg.nodeDegree(hn) + _active_nodes_signature_union_size.load(std::memory_order_relaxed);
-          size_t intersection_size = 0;
+          if (_region_similarity_threshold <= 0.0 + CMP_EPSILON) {
+            return regionDoesNotIntersectsWithActiveNodes(hn, task_id);
+          }
+          size_t union_size_lower_bound = _hg.nodeDegree(hn) + _active_nodes_signature_union_size.load(std::memory_order_relaxed) - _active_edges_per_task[task_id]->size();
+          size_t intersection_size_with_other_tasks = 0;
           auto incident_edges = _hg.incidentEdges(hn);
           for (const HyperedgeID he : incident_edges) {
             ASSERT(he < _active_nodes_combined_signatures.numElements());
-            if (_active_nodes_combined_signatures.any_set(he)) {
-              ++intersection_size;
+            auto [intersects_with_any_task, intersects_with_other_tasks] = _active_nodes_combined_signatures.any_set_with_and_without_thread(he, task_id);
+            if (intersects_with_other_tasks) {
+              ++intersection_size_with_other_tasks;
+            }
+            if (intersects_with_any_task) {
               // |A \cup B| = |A| + |B| - |A \cap B|
-              ASSERT(union_size > 0);
-              --union_size;
+              ASSERT(union_size_lower_bound > 0);
+              --union_size_lower_bound;
+            }
+
+            if (intersects_with_any_task || intersects_with_other_tasks) {
               // Break early if threshold has been surpassed already
-              double lower_bound_sim = (double) intersection_size / (double) union_size;
+              double lower_bound_sim = (double) intersection_size_with_other_tasks / (double) union_size_lower_bound;
               if (lower_bound_sim > _region_similarity_threshold + CMP_EPSILON) return false;
             }
           }
-          ASSERT(union_size >= intersection_size);
+          ASSERT(union_size_lower_bound >= intersection_size_with_other_tasks);
           return true;
+        }
+
+        // Simplified version of regionIsNotTooSimilarToActiveNodesWithEarlyBreak in case the similarity threshold is 0.0.
+        // Simply returns true exactly if the given node shares no incident edges to the active nodes.
+        bool regionDoesNotIntersectsWithActiveNodes(const HypernodeID hn, const size_t task_id) {
+          ASSERT(_region_similarity_threshold <= 0.0 + CMP_EPSILON);
+          ASSERT(_hg.nodeIsEnabled(hn));
+          auto incident_edges = _hg.incidentEdges(hn);
+          return std::none_of(incident_edges.begin(), incident_edges.end(), [&](const HyperedgeID he) {
+            return _active_nodes_combined_signatures.any_set_except_thread(he, task_id);
+          });
         }
 
         // ! Only for testing/debugging

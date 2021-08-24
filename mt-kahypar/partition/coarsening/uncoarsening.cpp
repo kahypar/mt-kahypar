@@ -548,7 +548,7 @@ namespace mt_kahypar {
 
         size_t try_count = 0;
         // Attempt to pick a group from the pool. Stop if pool is completed.
-        while (pick_new_group && !pool->tryToPickActiveID(groupID)) {
+        while (pick_new_group && !pool->tryToPickActiveID(groupID, task_id)) {
           if (pool->allAccepted()) return;
           ++try_count;
           if (debug && _phg.initialNumNodes() < try_count && try_count % 100000 == 0) {
