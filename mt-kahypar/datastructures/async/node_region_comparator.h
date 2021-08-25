@@ -100,34 +100,12 @@ namespace mt_kahypar::ds {
           ASSERT(_active_edges_per_task[task_id]->empty());
         }
 
-        bool regionIsNotTooSimilarToActiveNodesWithFullSimilarity(const HypernodeID hn, const size_t task_id,
-                                                                  double &similarity) {
-          similarity = regionSimilarityToActiveNodes(hn, task_id);
-          return similarity < _region_similarity_threshold + CMP_EPSILON;
-        }
-
-        double regionSimilarityToActiveNodes(const HypernodeID hn, const size_t task_id) {
-          ASSERT(_hg.nodeIsEnabled(hn));
-          size_t union_size_lower_bound = _hg.nodeDegree(hn) + _active_nodes_signature_union_size.load(std::memory_order_relaxed) - _active_edges_per_task[task_id]->size();
-          size_t intersection_size_with_other_tasks = 0;
-          size_t intersection_size_with_all_tasks = 0;
-          auto incident_edges = _hg.incidentEdges(hn);
-          for (const HyperedgeID he : incident_edges) {
-            ASSERT(he < _active_nodes_combined_signatures.numElements());
-            auto [intersects_with_any_task, intersects_with_other_tasks] = _active_nodes_combined_signatures.any_set_with_and_without_thread(he, task_id);
-            if (intersects_with_any_task) {
-              ++intersection_size_with_all_tasks;
-            }
-            if (intersects_with_other_tasks) {
-              ++intersection_size_with_other_tasks;
-            }
-          }
-          // |A \cup B| = |A| + |B| - |A \cap B|
-          ASSERT(union_size_lower_bound >= intersection_size_with_all_tasks);
-          union_size_lower_bound -= intersection_size_with_all_tasks;
-
-          if (union_size_lower_bound == 0) return 0.0;
-          return (double) intersection_size_with_other_tasks / (double) union_size_lower_bound;
+        bool isInGoodRegionWithFullSimilarity(const HypernodeID hn, const size_t task_id, const size_t num_active_in_this_and_other_tasks,
+                                              double &similarity_to_this_task, double& similarity_to_other_tasks) {
+          auto [sim_to_this_task, sim_to_other_tasks] = regionSimilarityToThisTaskAndOtherTasks(hn, task_id, num_active_in_this_and_other_tasks);
+          similarity_to_this_task = sim_to_this_task;
+          similarity_to_other_tasks = sim_to_other_tasks;
+          return (similarity_to_other_tasks < _region_similarity_threshold + CMP_EPSILON) && (similarity_to_this_task > (1.0 - _region_similarity_threshold) - CMP_EPSILON);
         }
 
         bool regionIsNotTooSimilarToActiveNodesWithEarlyBreak(const HypernodeID hn, const size_t task_id) {
@@ -140,17 +118,17 @@ namespace mt_kahypar::ds {
           auto incident_edges = _hg.incidentEdges(hn);
           for (const HyperedgeID he : incident_edges) {
             ASSERT(he < _active_nodes_combined_signatures.numElements());
-            auto [intersects_with_any_task, intersects_with_other_tasks] = _active_nodes_combined_signatures.any_set_with_and_without_thread(he, task_id);
-            if (intersects_with_other_tasks) {
+            auto set_state = _active_nodes_combined_signatures.set_state_for_task(he, task_id);
+            if (set_state.is_set_for_any_except_task) {
               ++intersection_size_with_other_tasks;
             }
-            if (intersects_with_any_task) {
+            if (set_state.is_set_for_any_task()) {
               // |A \cup B| = |A| + |B| - |A \cap B|
               ASSERT(union_size_lower_bound > 0);
               --union_size_lower_bound;
             }
 
-            if (intersects_with_any_task || intersects_with_other_tasks) {
+            if (set_state.is_set_for_any_task()) {
               // Break early if threshold has been surpassed already
               double lower_bound_sim = (double) intersection_size_with_other_tasks / (double) union_size_lower_bound;
               if (lower_bound_sim > _region_similarity_threshold + CMP_EPSILON) return false;
@@ -171,6 +149,18 @@ namespace mt_kahypar::ds {
           });
         }
 
+        HyperedgeID numberOfEdgesActiveInThisTaskAndAnyOtherTask(const size_t task_id) {
+          ASSERT(task_id < _active_edges_per_task.size());
+          std::vector<HyperedgeID>& active_in_task = *_active_edges_per_task[task_id];
+          size_t intersection_size = 0;
+          for (const auto& he : active_in_task) {
+            if (_active_nodes_combined_signatures.any_set_except_thread(he, task_id)) {
+              ++intersection_size;
+            }
+          }
+          return intersection_size;
+        }
+
         // ! Only for testing/debugging
         bool checkNoneActiveParallel() {
           if (_active_nodes_signature_union_size.load(std::memory_order_relaxed) != 0) return false;
@@ -182,6 +172,55 @@ namespace mt_kahypar::ds {
             }
           });
           return noneActive;
+        }
+
+        std::pair<double, double> regionSimilarityToThisTaskAndOtherTasks(const HypernodeID hn, const size_t task_id, const size_t num_active_in_this_and_other_tasks) {
+          ASSERT(_hg.nodeIsEnabled(hn));
+          size_t intersection_size_with_this_task = 0;
+          size_t intersection_size_with_other_tasks = 0;
+          size_t intersection_size_with_all_tasks = 0;
+          size_t intersection_size_with_this_and_any_other_tasks = 0;
+          auto incident_edges = _hg.incidentEdges(hn);
+          for (const HyperedgeID he : incident_edges) {
+            ASSERT(he < _active_nodes_combined_signatures.numElements());
+            auto set_state = _active_nodes_combined_signatures.set_state_for_task(he, task_id);
+            if (set_state.is_set_for_any_task()) {
+              ++intersection_size_with_all_tasks;
+            }
+            if (set_state.is_set_for_task) {
+              ++intersection_size_with_this_task;
+            }
+            if (set_state.is_set_for_any_except_task) {
+              ++intersection_size_with_other_tasks;
+            }
+            if (set_state.is_set_for_task && set_state.is_set_for_any_except_task) {
+              ++intersection_size_with_this_and_any_other_tasks;
+            }
+          }
+          // calculate size of union between active edges in other threads and edges incident to given node without
+          // explicitly knowing the former set
+          const size_t union_size_with_others = _active_nodes_signature_union_size.load(std::memory_order_relaxed) // total number active edges
+                  + _hg.nodeDegree(hn) // total number incident edges
+                  - _active_edges_per_task[task_id]->size() // number active in this task
+                  - intersection_size_with_all_tasks;
+                  + intersection_size_with_this_task
+                  + num_active_in_this_and_other_tasks
+                  - intersection_size_with_this_and_any_other_tasks;
+          ASSERT(union_size_with_others >= intersection_size_with_other_tasks);
+
+          double similarity_to_others = 0.0;
+          if (union_size_with_others > 0) {
+            similarity_to_others = (double) intersection_size_with_other_tasks / (double) union_size_with_others;
+          }
+
+          const size_t union_size_with_this_task = _active_edges_per_task[task_id]->size() + _hg.nodeDegree(hn) - intersection_size_with_this_task;
+
+          double similarity_to_this = 0.0;
+          if (union_size_with_this_task > 0) {
+            similarity_to_this = (double) intersection_size_with_this_task / (double) union_size_with_this_task;
+          }
+
+          return std::make_pair(similarity_to_this, similarity_to_others);
         }
 
     private:
@@ -206,13 +245,12 @@ namespace mt_kahypar::ds {
 
         void memoryConsumption(utils::MemoryTreeNode*) const {}
 
-        void markActive(const HypernodeID) {}
+        template<typename IncidentEdgeIteratorT>
+        void markActive(const IteratorRange<IncidentEdgeIteratorT>, const size_t, HyperedgeID&) {}
 
-        void markInactive(const HypernodeID) {}
+        void markLastActivatedEdgesForTaskInactive(const size_t, const HyperedgeID) {}
 
-        double regionSimilarityToActiveNodes(const HypernodeID) const {
-          return 0.0;
-        }
+        void markAllEdgesForTaskInactive(const size_t) {}
 
         bool regionIsNotTooSimilarToActiveNodesWithFullSimilarity(const HypernodeID, double& similarity) const {
           similarity = 0.0;

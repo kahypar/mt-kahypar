@@ -136,8 +136,7 @@ namespace mt_kahypar {
                     ASSERT(acquired);
                     ASSERT(lockManager->isHeldBy(group.getRepresentative(),groupID) && "Representative of the group is not locked by the group id!");
 
-                    std::vector<HyperedgeID> dropped_edges;
-                    partitioned_hypergraph.uncontract(group, groupID, dropped_edges);
+                    partitioned_hypergraph.uncontract(group, groupID);
 
                     // Release locks
                     lockManager->strongReleaseLock(group.getRepresentative(),groupID);

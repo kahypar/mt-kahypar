@@ -158,11 +158,13 @@ namespace mt_kahypar::ds
                   _node_region_comparator(nullptr),
                   _region_similarity_retries(context.uncoarsening.node_region_similarity_retries)
                   , _picked_ids_ets(std::vector<ContractionGroupID>(context.uncoarsening.node_region_similarity_retries, invalidGroupID)),
+                  _pick_candidates_ets(std::vector<pick_candidate>(context.uncoarsening.node_region_similarity_retries)),
                   _total_calls_to_pick(0),
                   _calls_to_pick_that_reached_max_retries(0),
                   _calls_to_pick_with_empty_pq(0),
                   _num_accepted_uncontractions(0),
-                  _calculate_full_similarities(context.uncoarsening.region_comparison_with_full_similarities)
+                  _calculate_full_similarities(context.uncoarsening.region_comparison_with_full_similarities),
+                  _region_similarity_threshold(context.uncoarsening.node_region_similarity_threshold)
                 {
             ASSERT(_hierarchy);
             auto roots = _hierarchy->roots();
@@ -271,12 +273,12 @@ namespace mt_kahypar::ds
             if (!_node_region_comparator || (_region_similarity_retries == 0)) {
               return tryPopActive(destination);
             } else {
-              std::vector<ContractionGroupID>& pickedIDs = _picked_ids_ets.local();
-              double cur_min_similarity = 1.0;
-              ContractionGroupID cur_min_idx = 0;
+              const size_t num_edges_active_in_this_and_other_tasks = _node_region_comparator->numberOfEdgesActiveInThisTaskAndAnyOtherTask(task_id);
+              std::vector<pick_candidate>& candidates = _pick_candidates_ets.local();
+              ContractionGroupID best_idx = 0;
               for (uint32_t i = 0; i < _region_similarity_retries; ++i) {
-                ContractionGroupID pickedID = invalidGroupID;
-                bool picked = tryPopActive(pickedID);
+                pick_candidate next_candidate;
+                bool picked = tryToGetNewCandidate(next_candidate, task_id, num_edges_active_in_this_and_other_tasks);
                 if (!picked) {
                   // If none found in PQ and none have been previously, return false (no elements available)
                   if (i == 0) {
@@ -284,10 +286,10 @@ namespace mt_kahypar::ds
                     return false;
                   }
                   // If no more found in PQ but previously some ID was found, reinsert all but best and return best
-                  destination = pickedIDs[cur_min_idx];
+                  destination = candidates[best_idx].group_id;
                   for (uint32_t j = 0; j < i; ++j) {
-                    if (j != cur_min_idx) {
-                      insertActive(pickedIDs[j]);
+                    if (j != best_idx) {
+                      insertActive(candidates[j].group_id);
                     }
                   }
                   if (destination == invalidGroupID) {
@@ -295,34 +297,31 @@ namespace mt_kahypar::ds
                   }
                   return true;
                 }
-                ASSERT(pickedID != invalidGroupID);
-                if (pickedID == invalidGroupID) {
-                  ERROR("No correct group has been picked!" << V(pickedID));
+                ASSERT(next_candidate.group_id != invalidGroupID);
+                if (next_candidate.group_id == invalidGroupID) {
+                  ERROR("No correct group has been picked!" << V(next_candidate.group_id));
                 }
-                HypernodeID repr = group(pickedID).getRepresentative();
-                double sim;
-                if (_node_region_comparator->regionIsNotTooSimilarToActiveNodesWithFullSimilarity(repr, task_id, sim)) {
+                if (isGoodCandidate(next_candidate)) {
                   // If good candidate found, return it right away and reinsert others that were picked
-                  destination = pickedID;
+                  destination = next_candidate.group_id;
                   for (uint32_t j = 0; j < i; ++j) {
-                      insertActive(pickedIDs[j]);
+                      insertActive(candidates[j].group_id);
                   }
                   return true;
                 } else {
-                  // If candidate is not good, insert it into pickedIDs and possibly update min
-                  pickedIDs[i] = pickedID;
-                  if (sim < cur_min_similarity) {
-                    cur_min_similarity = sim;
-                    cur_min_idx = i;
+                  // If candidate is not good, insert it into candidates and possibly update best
+                  candidates[i] = next_candidate;
+                  if (isBetterThanOtherCandidate(next_candidate, candidates[best_idx])) {
+                    best_idx = i;
                   }
                 }
               }
               // If tried as often as possible, reinsert all but best and return best
               _calls_to_pick_that_reached_max_retries.fetch_add(1, std::memory_order_relaxed);
-              destination = pickedIDs[cur_min_idx];
+              destination = candidates[best_idx].group_id;
               for (uint32_t j = 0; j < _region_similarity_retries; ++j) {
-                if (j != cur_min_idx) {
-                  insertActive(pickedIDs[j]);
+                if (j != best_idx) {
+                  insertActive(candidates[j].group_id);
                 }
               }
               ASSERT(destination != invalidGroupID);
@@ -505,6 +504,43 @@ namespace mt_kahypar::ds
             return empty;
         }
 
+        struct pick_candidate {
+            ContractionGroupID group_id = invalidGroupID;
+            double similarity_to_calling_task = 0.0;
+            double similarity_to_other_tasks = 1.0;
+        };
+
+        bool tryToGetNewCandidate(pick_candidate& candidate, const size_t task_id, const HyperedgeID num_active_in_this_and_other_tasks) {
+          bool picked = tryPopActive(candidate.group_id);
+          if (!picked) return false;
+
+          HypernodeID repr = group(candidate.group_id).getRepresentative();
+          auto [sim_to_this_task, sim_to_other_tasks] = _node_region_comparator->regionSimilarityToThisTaskAndOtherTasks(repr, task_id, num_active_in_this_and_other_tasks);
+          candidate.similarity_to_calling_task = sim_to_this_task;
+          candidate.similarity_to_other_tasks = sim_to_other_tasks;
+          return true;
+        }
+
+        bool isGoodCandidate(const pick_candidate& candidate) const {
+          return (candidate.similarity_to_other_tasks < _region_similarity_threshold + CMP_EPSILON
+            && candidate.similarity_to_calling_task > 1.0 - _region_similarity_threshold - CMP_EPSILON);
+        }
+
+        // ! Returns true iff this_candidate is better than other_candidate
+        bool isBetterThanOtherCandidate(const pick_candidate& this_candidate, const pick_candidate& other_candidate) const {
+
+          // If both are below threshold for other tasks, the one with greater similarity to this task is better
+          if (this_candidate.similarity_to_other_tasks < _region_similarity_threshold + CMP_EPSILON
+              && other_candidate.similarity_to_other_tasks < _region_similarity_threshold + CMP_EPSILON) {
+            return this_candidate.similarity_to_calling_task > other_candidate.similarity_to_calling_task;
+          }
+
+          // Otherwise the one with the lower similarity to other tasks is better
+          return (this_candidate.similarity_to_other_tasks < other_candidate.similarity_to_other_tasks
+            || (this_candidate.similarity_to_other_tasks <= other_candidate.similarity_to_other_tasks + CMP_EPSILON
+              && this_candidate.similarity_to_calling_task > other_candidate.similarity_to_calling_task));
+        }
+
 //        using DepthCompare = std::function<bool (ContractionGroupID, ContractionGroupID)>;
 
         // Used to compare groups by their depth in the GroupHierarchy. The comparator for std::priority queue has to be
@@ -524,6 +560,7 @@ namespace mt_kahypar::ds
         RegionComparator* _node_region_comparator;
         const size_t _region_similarity_retries;
         tbb::enumerable_thread_specific<std::vector<ContractionGroupID>> _picked_ids_ets;
+        tbb::enumerable_thread_specific<std::vector<pick_candidate>> _pick_candidates_ets;
 
         CAtomic<size_t> _total_calls_to_pick;
         CAtomic<size_t> _calls_to_pick_that_reached_max_retries;
@@ -532,6 +569,10 @@ namespace mt_kahypar::ds
         CAtomic<size_t> _num_accepted_uncontractions;
 
         const bool _calculate_full_similarities;
+
+        const double _region_similarity_threshold;
+
+        static constexpr double CMP_EPSILON = 1.0e-30;
 
 
     };

@@ -61,6 +61,10 @@ namespace mt_kahypar::ds {
         ASSERT_TRUE(array.any_set(0));
         ASSERT_TRUE(array.any_set_except_thread(0, 0));
         ASSERT_TRUE(array.any_set_except_thread(0, 1));
+        auto set_state = array.set_state_for_task(0, 0);
+        ASSERT_TRUE(set_state.is_set_for_task);
+        ASSERT_TRUE(set_state.is_set_for_any_except_task);
+        ASSERT_TRUE(set_state.is_set_for_any_task());
 
         // Set entry for one of the threads back to false and make sure set_block_to_zero is false
         bool set_block_to_zero = false;

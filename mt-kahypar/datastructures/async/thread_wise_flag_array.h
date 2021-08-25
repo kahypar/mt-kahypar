@@ -7,8 +7,14 @@
 
 namespace mt_kahypar::ds {
 
+    struct bit_set_state {
+        bool is_set_for_task = false;
+        bool is_set_for_any_except_task = false;
+        bool is_set_for_any_task() const {return is_set_for_task || is_set_for_any_except_task;}
+    };
+
     template<typename UnsafeBlock, typename IndexType = uint32_t>
-    struct BlockThreadWiseFlagArray {
+    class BlockThreadWiseFlagArray {
 
         static_assert(std::is_integral<UnsafeBlock>::value && std::is_unsigned<UnsafeBlock>::value,
                       "Block for BlockThreadWiseFlagArray has to be an unsigned integral type!");
@@ -58,14 +64,16 @@ namespace mt_kahypar::ds {
           return block_except_thread != 0;
         }
 
-        std::pair<bool, bool> any_set_with_and_without_thread(const IndexType idx, const size_t except_tid) const {
+        bit_set_state bitset_state_for_task(const IndexType idx, const size_t task_id) const {
           ASSERT(idx < _num_elements);
-          ASSERT(except_tid < _num_threads);
-          UnsafeBlock mask = ~(UnsafeBlock(1) << except_tid);
+          ASSERT(task_id < _num_threads);
+          const UnsafeBlock set_for_task_mask = UnsafeBlock(1) << task_id;
+          const UnsafeBlock set_for_others_mask = ~(set_for_task_mask);
           const Block &block = _blocks[idx];
           const UnsafeBlock unsafe_block = block.load(std::memory_order_relaxed);
-          const UnsafeBlock block_except_thread = unsafe_block & mask;
-          return std::make_pair(unsafe_block != 0, block_except_thread != 0);
+          const UnsafeBlock block_for_task = unsafe_block & set_for_task_mask;
+          const UnsafeBlock block_for_others = unsafe_block & set_for_others_mask;
+          return {block_for_task != 0, block_for_others != 0};
         }
 
         // ! Guarantees that when this call returns, the entry is set to true. Returns true if this call was the one to
@@ -122,7 +130,7 @@ namespace mt_kahypar::ds {
     };
 
     template<typename IndexType = uint32_t>
-    struct MutexThreadWiseFlagArray {
+    class MutexThreadWiseFlagArray {
 
         static_assert(std::is_integral<IndexType>::value && std::is_unsigned<IndexType>::value,
                       "IndexType for MutexThreadWiseFlagArray has to be an unsigned integral type!");
@@ -196,40 +204,38 @@ namespace mt_kahypar::ds {
           return false;
         }
 
-        std::pair<bool, bool> any_set_with_and_without_thread(const IndexType idx, const size_t except_tid) {
+        bit_set_state set_state_for_task(const IndexType idx, const size_t task_id) {
           ASSERT(idx < _num_elements);
-          ASSERT(except_tid < _num_threads);
+          ASSERT(task_id < _num_threads);
           const BlockIndex first_block = idx * _blocks_per_element;
           const BlockIndex first_block_of_next = (idx + 1) * _blocks_per_element;
-          const BlockIndex except_block_idx = idx * _blocks_per_element + except_tid / BLOCK_SIZE;
-          size_t except_offset = except_tid % BLOCK_SIZE;
-          UnsafeBlock mask = ~(UnsafeBlock(1) << except_offset);
+          const BlockIndex task_block_idx = idx * _blocks_per_element + task_id / BLOCK_SIZE;
+          size_t task_offset = task_id % BLOCK_SIZE;
+          const UnsafeBlock set_for_task_mask = UnsafeBlock(1) << task_offset;
+          const UnsafeBlock set_for_others_mask = ~set_for_task_mask;
 
-          auto result = std::make_pair(false, false);
+          bit_set_state result;
 
           _spinlocks[idx].lock();
+
+          // Check if bit is set for given task
+          const UnsafeBlock task_block = _blocks[task_block_idx];
+          result.is_set_for_task = (task_block & set_for_task_mask) != 0;
+
+          // Check if bit is set for any other task
           for (BlockIndex bidx = first_block; bidx < first_block_of_next; ++bidx) {
             UnsafeBlock block = _blocks[bidx];
-            if (bidx == except_block_idx) {
-              if (block != 0) {
-                result.first = true;
-              }
-              const UnsafeBlock block_without_thread = block & mask;
-              if (block_without_thread != 0) {
-                result.second = true;
-              }
-            } else {
-              if (block != 0) {
-                result.first = true;
-                result.second = true;
-              }
+            if (bidx == task_block_idx) {
+              block = block & set_for_others_mask;
             }
 
-            if (result.second) {
+            if (block != 0) {
+              result.is_set_for_any_except_task = true;
               _spinlocks[idx].unlock();
               return result;
             }
           }
+          result.is_set_for_any_except_task = false;
           _spinlocks[idx].unlock();
           return result;
         }
@@ -373,18 +379,18 @@ namespace mt_kahypar::ds {
           ERROR("Type not set in ThreadWiseFlagArray!");
         }
 
-        std::pair<bool, bool> any_set_with_and_without_thread(const IndexType idx, const size_t except_tid) {
+        bit_set_state set_state_for_task(const IndexType idx, const size_t task_id) {
           switch (_type) {
             case eight_bit_block :
-              return _eight_bit_block_array->any_set_with_and_without_thread(idx, except_tid);
+              return _eight_bit_block_array->bitset_state_for_task(idx, task_id);
             case sixteen_bit_block :
-              return _sixteen_bit_block_array->any_set_with_and_without_thread(idx, except_tid);
+              return _sixteen_bit_block_array->bitset_state_for_task(idx, task_id);
             case thirtytwo_bit_block :
-              return _thirtytwo_bit_block_array->any_set_with_and_without_thread(idx, except_tid);
+              return _thirtytwo_bit_block_array->bitset_state_for_task(idx, task_id);
             case sixtyfour_bit_block :
-              return _sixtyfour_bit_block_array->any_set_with_and_without_thread(idx, except_tid);
+              return _sixtyfour_bit_block_array->bitset_state_for_task(idx, task_id);
             case mutex :
-              return _mutex_array->any_set_with_and_without_thread(idx, except_tid);
+              return _mutex_array->set_state_for_task(idx, task_id);
           }
           ERROR("Type not set in ThreadWiseFlagArray!");
         }
