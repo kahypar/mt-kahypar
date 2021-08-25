@@ -27,4 +27,5 @@ target_sources(mt_kahypar_strong_tests PRIVATE
 )
 
 target_sources(mt_kahypar_fast_graph_tests PRIVATE
+        static_graph_test.cc
 )
