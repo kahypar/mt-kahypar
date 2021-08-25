@@ -164,7 +164,7 @@ namespace mt_kahypar::ds
                   _calls_to_pick_with_empty_pq(0),
                   _num_accepted_uncontractions(0),
                   _calculate_full_similarities(context.uncoarsening.region_comparison_with_full_similarities),
-                  _region_similarity_threshold(context.uncoarsening.node_region_similarity_threshold)
+                  _similarity_to_others_threshold(context.uncoarsening.node_region_similarity_threshold)
                 {
             ASSERT(_hierarchy);
             auto roots = _hierarchy->roots();
@@ -266,7 +266,7 @@ namespace mt_kahypar::ds
           }
         }
 
-        bool tryToPickActiveIDWithFullSimilarities(ContractionGroupID& destination, const size_t task_id) {
+        bool tryToPickActiveIDWithFullSimilarities(ContractionGroupID& destination, const size_t task_id, const bool accept_based_on_similarity_to_others = true) {
           _total_calls_to_pick.add_fetch(1, std::memory_order_relaxed);
 
             destination = invalidGroupID;
@@ -301,7 +301,7 @@ namespace mt_kahypar::ds
                 if (next_candidate.group_id == invalidGroupID) {
                   ERROR("No correct group has been picked!" << V(next_candidate.group_id));
                 }
-                if (isGoodCandidate(next_candidate)) {
+                if (isGoodCandidate(next_candidate, accept_based_on_similarity_to_others)) {
                   // If good candidate found, return it right away and reinsert others that were picked
                   destination = next_candidate.group_id;
                   for (uint32_t j = 0; j < i; ++j) {
@@ -521,17 +521,17 @@ namespace mt_kahypar::ds
           return true;
         }
 
-        bool isGoodCandidate(const pick_candidate& candidate) const {
-          return (candidate.similarity_to_other_tasks < _region_similarity_threshold + CMP_EPSILON
-            && candidate.similarity_to_calling_task > 1.0 - _region_similarity_threshold - CMP_EPSILON);
+        bool isGoodCandidate(const pick_candidate& candidate, const bool accept_based_only_on_similarity_to_others) const {
+          return (candidate.similarity_to_other_tasks < _similarity_to_others_threshold + CMP_EPSILON
+            && (accept_based_only_on_similarity_to_others || candidate.similarity_to_calling_task > _similarity_to_calling_task_threshold - CMP_EPSILON));
         }
 
         // ! Returns true iff this_candidate is better than other_candidate
         bool isBetterThanOtherCandidate(const pick_candidate& this_candidate, const pick_candidate& other_candidate) const {
 
           // If both are below threshold for other tasks, the one with greater similarity to this task is better
-          if (this_candidate.similarity_to_other_tasks < _region_similarity_threshold + CMP_EPSILON
-              && other_candidate.similarity_to_other_tasks < _region_similarity_threshold + CMP_EPSILON) {
+          if (this_candidate.similarity_to_other_tasks < _similarity_to_others_threshold + CMP_EPSILON
+              && other_candidate.similarity_to_other_tasks < _similarity_to_others_threshold + CMP_EPSILON) {
             return this_candidate.similarity_to_calling_task > other_candidate.similarity_to_calling_task;
           }
 
@@ -570,7 +570,8 @@ namespace mt_kahypar::ds
 
         const bool _calculate_full_similarities;
 
-        const double _region_similarity_threshold;
+        const double _similarity_to_others_threshold;
+        const double _similarity_to_calling_task_threshold = 0.05;
 
         static constexpr double CMP_EPSILON = 1.0e-30;
 

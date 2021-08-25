@@ -26,6 +26,7 @@ namespace mt_kahypar {
   bool LocalizedKWayFM<FMStrategy>::findMoves(PartitionedHypergraph& phg, size_t taskID, size_t numSeeds) {
     localMoves.clear();
     thisSearch = ++sharedData.nodeTracker.highestActiveSearchID;
+    ++runStats.find_moves_calls;
 
     HypernodeID seedNode;
     while (runStats.pushes < numSeeds && sharedData.refinementNodes.try_pop(seedNode, taskID)) {
@@ -108,7 +109,6 @@ namespace mt_kahypar {
     StopRule stopRule(phg.initialNumNodes());
     Move move;
 
-    ++runStats.find_moves_calls;
     bool foundAtLeastOneGoodPrefix = false;
 
     auto delta_func = [&](const HyperedgeID he,
