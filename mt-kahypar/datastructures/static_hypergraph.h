@@ -508,26 +508,12 @@ class StaticHypergraph {
   // ! Iterates in parallel over all active nodes and calls function f
   // ! for each vertex
   template<typename F>
-  void doParallelForAllNodes(const F& f) {
-    static_cast<const StaticHypergraph&>(*this).doParallelForAllNodes(f);
-  }
-
-  // ! Iterates in parallel over all active nodes and calls function f
-  // ! for each vertex
-  template<typename F>
   void doParallelForAllNodes(const F& f) const {
     tbb::parallel_for(ID(0), _num_hypernodes, [&](const HypernodeID& hn) {
       if ( nodeIsEnabled(hn) ) {
         f(hn);
       }
     });
-  }
-
-  // ! Iterates in parallel over all active edges and calls function f
-  // ! for each net
-  template<typename F>
-  void doParallelForAllEdges(const F& f) {
-    static_cast<const StaticHypergraph&>(*this).doParallelForAllEdges(f);
   }
 
   // ! Iterates in parallel over all active edges and calls function f
