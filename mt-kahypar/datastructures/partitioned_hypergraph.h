@@ -97,8 +97,7 @@ private:
         "Refinement", "part_ids", hypergraph.initialNumNodes(), false, false),
     _pins_in_part(hypergraph.initialNumEdges(), k, hypergraph.maxEdgeSize(), false),
     _connectivity_set(hypergraph.initialNumEdges(), k, false),
-    _hg_query_funcs(std::make_unique<HGQueryFunctions>(makeQueryFunctionsObject())),
-    _gain_cache(hypergraph.initialNumNodes(), k, _hg_query_funcs.get()),
+    _gain_cache(hypergraph.initialNumNodes(), k, &_part_ids, &_pins_in_part, &_connectivity_set),
     _pin_count_update_ownership(
         "Refinement", "pin_count_update_ownership", hypergraph.initialNumEdges(), true, false),
     _conn_set_snapshots(_k),
@@ -120,8 +119,7 @@ private:
     _part_ids(),
     _pins_in_part(),
     _connectivity_set(0, 0),
-    _hg_query_funcs(std::make_unique<HGQueryFunctions>(makeQueryFunctionsObject())),
-    _gain_cache(_hg_query_funcs.get(), parallel_tag_t()),
+    _gain_cache(&_part_ids, &_pins_in_part, &_connectivity_set, parallel_tag_t()),
     _pin_count_update_ownership(),
     _conn_set_snapshots(_k),
     _parts_with_one_pin_snapshots(_k),
@@ -156,7 +154,6 @@ private:
     _part_ids(std::move(other._part_ids)),
     _pins_in_part(std::move(other._pins_in_part)),
     _connectivity_set(std::move(other._connectivity_set)),
-    _hg_query_funcs(std::make_unique<HGQueryFunctions>(makeQueryFunctionsObject())),
     _gain_cache(std::move(other._gain_cache)),
     _pin_count_update_ownership(std::move(other._pin_count_update_ownership)),
     _conn_set_snapshots(std::move(other._conn_set_snapshots)),
@@ -166,7 +163,7 @@ private:
     _num_volatile_pins_seen(std::move(other._num_volatile_pins_seen))  {
 
       // Reset query functions for GainCache (so references point to functions in new PHG)
-      _gain_cache.assignHGQueryFunctions(_hg_query_funcs.get());
+      _gain_cache.assignQueryObjects(&_part_ids, &_pins_in_part, &_connectivity_set);
   }
 
   PartitionedHypergraph & operator= (PartitionedHypergraph&& other)  noexcept {
@@ -185,23 +182,13 @@ private:
       _num_stable_pins_seen = std::move(other._num_stable_pins_seen);
       _num_volatile_pins_seen = std::move(other._num_volatile_pins_seen);
 
-      // Reset query functions for GainCache (so references point to functions in this PHG)
-      _hg_query_funcs = std::make_unique<HGQueryFunctions>(makeQueryFunctionsObject());
-      _gain_cache.assignHGQueryFunctions(_hg_query_funcs.get());
+      _gain_cache.assignQueryObjects(&_part_ids, &_pins_in_part, &_connectivity_set);
 
       return *this;
   }
 
   ~PartitionedHypergraph() {
     freeInternalData();
-  }
-
-  HGQueryFunctions makeQueryFunctionsObject() {
-      auto part_id = [&](const HypernodeID hn) {return partID(hn);};
-      auto conn_set = [&](const HyperedgeID he) {return _connectivity_set.connectivitySet(he);};
-      auto is_node_enabled = [&](const HypernodeID hn) {return nodeIsEnabled(hn);};
-      auto pin_count_in_part = [&](const HyperedgeID he, const PartitionID p) {return pinCountInPart(he, p);};
-      return {part_id, conn_set, is_node_enabled, pin_count_in_part};
   }
 
   // ####################### General Hypergraph Stats ######################
@@ -451,21 +438,21 @@ private:
       });
   }
 
-  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
+//  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
   PartitionBitSet& getLocalConnSetBitSet() {
       PartitionBitSet& conn_set_bitset = _conn_set_snapshots.local();
       ASSERT(conn_set_bitset.size() == _k);
       return conn_set_bitset;
   }
 
-  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
+//  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
   PartitionBitSet& getLocalPartsWithOnePinBitSet() {
       PartitionBitSet& parts_with_one_pin_bitset = _parts_with_one_pin_snapshots.local();
       ASSERT(parts_with_one_pin_bitset.size() == _k);
       return parts_with_one_pin_bitset;
   }
 
-  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
+//  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
   void takeConnectivitySetSnapshots(const HyperedgeID he, PartitionBitSet& conn_set_bitset,
                                     PartitionBitSet& parts_with_one_pin_bitset) {
       HEAVY_REFINEMENT_ASSERT(conn_set_bitset.begin() == conn_set_bitset.end());
@@ -478,7 +465,7 @@ private:
       }
   }
 
-  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
+//  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
   IteratorRange<HypernodeID*> takeVolatilePinsSnapshot(const HyperedgeID he) {
     std::vector<HypernodeID>& pins_snapshot = _pins_snapshots.local();
     auto pin_range = _hg->volatile_pins(he);
@@ -490,12 +477,12 @@ private:
     return IteratorRange(pins_snapshot.data(), pins_snapshot.data() + num_pins);
   }
 
-  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
+//  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
   IteratorRange<IncidenceIterator> takeStablePinsSnapshot(const HyperedgeID he) const {
     return _hg->stable_pins(he);
   }
 
-  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
+//  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
   IteratorRange<PinSnapshotIterator> takePinsSnapshot(const HyperedgeID he) {
 
     IteratorRange<IncidenceIterator> stable_pins = takeStablePinsSnapshot(he);
@@ -1458,15 +1445,6 @@ private:
 
   // ! For each hyperedge, _connectivity_set stores the set of blocks that the hyperedge spans
   ConnectivitySets _connectivity_set;
-
-//  // ! For each node and block, the sum of incident edge weights with zero pins in that part
-//  Array< CAtomic<HyperedgeWeight> > _move_to_penalty;
-//
-//  // ! For each node and block, the sum of incident edge weights with exactly one pin in that part
-//  Array< CAtomic<HyperedgeWeight> > _move_from_benefit;
-
-  // ! References to some functions allowing the gain cache to query current state of the partitioned hypergraph
-  std::unique_ptr<HGQueryFunctions> _hg_query_funcs;
 
   // ! Gain-cache that is kept up to date by uncontraction and move operations (with eventual correctness) and is used
   // ! to determine the best move

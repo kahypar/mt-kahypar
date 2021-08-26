@@ -108,13 +108,14 @@ namespace mt_kahypar::ds {
           return (similarity_to_other_tasks < _region_similarity_threshold + CMP_EPSILON) && (similarity_to_this_task > (1.0 - _region_similarity_threshold) - CMP_EPSILON);
         }
 
-        bool regionIsNotTooSimilarToActiveNodesWithEarlyBreak(const HypernodeID hn, const size_t task_id) {
+        bool regionIsNotTooSimilarToActiveNodesWithEarlyBreak(const HypernodeID hn, const size_t task_id, double& part_of_edges_seen_before_failure) {
           ASSERT(_hg.nodeIsEnabled(hn));
           if (_region_similarity_threshold <= 0.0 + CMP_EPSILON) {
-            return regionDoesNotIntersectsWithActiveNodes(hn, task_id);
+            return regionDoesNotIntersectsWithActiveNodes(hn, task_id, part_of_edges_seen_before_failure);
           }
           size_t union_size_lower_bound = _hg.nodeDegree(hn) + _active_nodes_signature_union_size.load(std::memory_order_relaxed) - _active_edges_per_task[task_id]->size();
           size_t intersection_size_with_other_tasks = 0;
+          HyperedgeID num_edges_seen = 0;
           auto incident_edges = _hg.incidentEdges(hn);
           for (const HyperedgeID he : incident_edges) {
             ASSERT(he < _active_nodes_combined_signatures.numElements());
@@ -131,22 +132,38 @@ namespace mt_kahypar::ds {
             if (set_state.is_set_for_any_task()) {
               // Break early if threshold has been surpassed already
               double lower_bound_sim = (double) intersection_size_with_other_tasks / (double) union_size_lower_bound;
-              if (lower_bound_sim > _region_similarity_threshold + CMP_EPSILON) return false;
+              if (lower_bound_sim > _region_similarity_threshold - CMP_EPSILON) {
+                part_of_edges_seen_before_failure = (double) num_edges_seen / (double) _hg.nodeDegree(hn);
+                return false;
+              }
             }
+
+            ++num_edges_seen;
           }
           ASSERT(union_size_lower_bound >= intersection_size_with_other_tasks);
+          ASSERT(num_edges_seen == _hg.nodeDegree(hn));
+          part_of_edges_seen_before_failure = 1.0;
           return true;
         }
 
         // Simplified version of regionIsNotTooSimilarToActiveNodesWithEarlyBreak in case the similarity threshold is 0.0.
         // Simply returns true exactly if the given node shares no incident edges to the active nodes.
-        bool regionDoesNotIntersectsWithActiveNodes(const HypernodeID hn, const size_t task_id) {
+        bool regionDoesNotIntersectsWithActiveNodes(const HypernodeID hn, const size_t task_id, double& part_of_edges_seen_before_failure) {
           ASSERT(_region_similarity_threshold <= 0.0 + CMP_EPSILON);
           ASSERT(_hg.nodeIsEnabled(hn));
+          HyperedgeID num_edges_seen = 0;
           auto incident_edges = _hg.incidentEdges(hn);
-          return std::none_of(incident_edges.begin(), incident_edges.end(), [&](const HyperedgeID he) {
-            return _active_nodes_combined_signatures.any_set_except_thread(he, task_id);
-          });
+          for (const auto he : incident_edges) {
+            if (_active_nodes_combined_signatures.any_set_except_thread(he, task_id)) {
+              part_of_edges_seen_before_failure = (double) num_edges_seen / (double) _hg.nodeDegree(hn);
+              return false;
+            }
+            ++num_edges_seen;
+          }
+
+          ASSERT(num_edges_seen == _hg.nodeDegree(hn));
+          part_of_edges_seen_before_failure = 1.0;
+          return true;
         }
 
         HyperedgeID numberOfEdgesActiveInThisTaskAndAnyOtherTask(const size_t task_id) {

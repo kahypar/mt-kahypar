@@ -337,6 +337,8 @@ namespace mt_kahypar::ds
             return tryPopActive(destination);
           } else {
             std::vector<ContractionGroupID>& pickedIDs = _picked_ids_ets.local();
+            size_t best_idx = 0;
+            double best_part_of_edges_before_fail = 0.0;
             for (uint32_t i = 0; i < _region_similarity_retries; ++i) {
               ContractionGroupID pickedID = invalidGroupID;
               bool picked = tryPopActive(pickedID);
@@ -345,10 +347,12 @@ namespace mt_kahypar::ds
                   _calls_to_pick_with_empty_pq.fetch_add(1, std::memory_order_relaxed);
                   return false;
                 } else {
-                  // If no more found in PQ and no good one was found just return last one that was seen and reinsert the rest
-                  destination = pickedIDs[i-1];
-                  for (uint32_t j = 0; j < i - 1; ++j) {
-                    insertActive(pickedIDs[j]);
+                  // If no more found in PQ and no good one was found just return the one that failed at the latest (heuristic) and reinsert the rest
+                  destination = pickedIDs[best_idx];
+                  for (uint32_t j = 0; j < i; ++j) {
+                    if (j != best_idx) {
+                      insertActive(pickedIDs[j]);
+                    }
                   }
                 }
                 ASSERT(destination != invalidGroupID);
@@ -356,7 +360,8 @@ namespace mt_kahypar::ds
               }
               ASSERT(pickedID != invalidGroupID);
               HypernodeID repr = group(pickedID).getRepresentative();
-              if (_node_region_comparator->regionIsNotTooSimilarToActiveNodesWithEarlyBreak(repr, task_id)) {
+              double part_of_edges_seen_before_failure;
+              if (_node_region_comparator->regionIsNotTooSimilarToActiveNodesWithEarlyBreak(repr, task_id, part_of_edges_seen_before_failure)) {
                 // If good candidate found return it and reinsert all previously found
                 destination = pickedID;
                 for (uint32_t j = 0; j < i; ++j) {
@@ -365,13 +370,19 @@ namespace mt_kahypar::ds
                 return true;
               } else {
                 pickedIDs[i] = pickedID;
+                if (part_of_edges_seen_before_failure > best_part_of_edges_before_fail) {
+                  best_idx = i;
+                  best_part_of_edges_before_fail = part_of_edges_seen_before_failure;
+                }
               }
             }
-            // If tried as often as possible, reinsert all but last one and return last one
+            // If tried as often as possible, reinsert all but the one that failed at the latest (heuristic)
             _calls_to_pick_that_reached_max_retries.fetch_add(1, std::memory_order_relaxed);
-            destination = pickedIDs[_region_similarity_retries - 1];
-            for (uint32_t j = 0; j < _region_similarity_retries - 1; ++j) {
+            destination = pickedIDs[best_idx];
+            for (uint32_t j = 0; j < _region_similarity_retries; ++j) {
+              if (j != best_idx) {
                 insertActive(pickedIDs[j]);
+              }
             }
             ASSERT(destination != invalidGroupID);
             return true;
