@@ -43,7 +43,8 @@ class ADeltaPartitionedHypergraph : public Test {
     hg(mt_kahypar::HypergraphFactory::construct(
       7 , 4, { {0, 2}, {0, 1, 3, 4}, {3, 4, 6}, {2, 5, 6} })),
     phg(3, hg, parallel_tag_t()),
-    delta_phg(3) {
+    delta_phg(),
+    context() {
     phg.setOnlyNodePart(0, 0);
     phg.setOnlyNodePart(1, 0);
     phg.setOnlyNodePart(2, 0);
@@ -53,6 +54,9 @@ class ADeltaPartitionedHypergraph : public Test {
     phg.setOnlyNodePart(6, 2);
     phg.initializePartition();
     phg.initializeGainCache();
+
+    context.partition.k = 3;
+    delta_phg = std::move(DeltaPartitionedHyperGraph(context));
     delta_phg.setPartitionedHypergraph(&phg);
   }
 
@@ -75,6 +79,7 @@ class ADeltaPartitionedHypergraph : public Test {
   Hypergraph hg;
   mt_kahypar::PartitionedHypergraph phg;
   DeltaPartitionedHyperGraph delta_phg;
+  Context context;
 };
 
 TEST_F(ADeltaPartitionedHypergraph, VerifiesInitialPinCounts) {
