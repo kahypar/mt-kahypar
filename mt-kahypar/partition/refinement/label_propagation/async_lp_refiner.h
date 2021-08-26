@@ -71,7 +71,7 @@ namespace mt_kahypar {
     private:
 
         bool refineImpl(PartitionedHypergraph& hypergraph,
-                        const parallel::scalable_vector<HypernodeID>& refinement_nodes,
+                        const IteratorRange<NodeIteratorT> &refinement_nodes,
                         metrics::ThreadSafeMetrics& best_metrics,
                         double) final ;
 

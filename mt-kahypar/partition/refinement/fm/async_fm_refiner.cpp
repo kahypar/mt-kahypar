@@ -9,7 +9,7 @@ namespace mt_kahypar {
 
     template<typename FMStrategy>
     bool AsyncFMRefiner<FMStrategy>::refineImpl(PartitionedHypergraph &hypergraph,
-                                                const parallel::scalable_vector <HypernodeID> &refinement_nodes,
+                                                const IteratorRange<NodeIteratorT> &refinement_nodes,
                                                 metrics::ThreadSafeMetrics &best_metrics, const double) {
       ASSERT(!refinement_nodes.empty(), "AsyncLPRefiner will not work without given seed refinement nodes. Cannot be used "
                                         "solely for rebalancing or for global refinement!");
@@ -19,8 +19,9 @@ namespace mt_kahypar {
       Gain delta = _fm->findMoves(hypergraph, refinement_nodes);
 
       if (debug && _context.type == kahypar::ContextType::main) {
+        size_t num_refinement_nodes = std::distance(refinement_nodes.begin(), refinement_nodes.end());
         LOG << V(round) << V(delta) << V(metrics::km1(hypergraph)) << V(metrics::imbalance(hypergraph, _context))
-            << V(refinement_nodes.size()) << _fm->stats.serialize();
+            << V(num_refinement_nodes) << _fm->stats.serialize();
       }
 
       // Update global part weight and sizes

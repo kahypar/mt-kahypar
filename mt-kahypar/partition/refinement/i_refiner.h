@@ -72,13 +72,17 @@ class IRefiner {
     class IAsyncRefiner {
 
     public:
+
+        using NodeIteratorT = parallel::scalable_vector<HypernodeID>::const_iterator;
+
+    public:
         IAsyncRefiner(const IAsyncRefiner&) = delete;
         IAsyncRefiner(IAsyncRefiner&&) = delete;
         IAsyncRefiner & operator= (const IAsyncRefiner &) = delete;
         IAsyncRefiner & operator= (IAsyncRefiner &&) = delete;
 
         bool refine(PartitionedHypergraph& hypergraph,
-                    const parallel::scalable_vector<HypernodeID>& refinement_nodes,
+                    const IteratorRange<NodeIteratorT>& refinement_nodes,
                     metrics::ThreadSafeMetrics& best_metrics,
                     const double time_limit,
                     ds::ContractionGroupID groupID) {
@@ -97,7 +101,7 @@ class IRefiner {
     private:
 
         virtual bool refineImpl(PartitionedHypergraph& hypergraph,
-                                const parallel::scalable_vector<HypernodeID>& refinement_nodes,
+                                const IteratorRange<NodeIteratorT>& refinement_nodes,
                                 metrics::ThreadSafeMetrics& best_metrics,
                                 const double time_limit) = 0;
 

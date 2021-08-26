@@ -36,7 +36,7 @@ public:
 
 private:
 
-    bool refineImpl(PartitionedHypergraph &hypergraph, const parallel::scalable_vector <HypernodeID> &refinement_nodes,
+    bool refineImpl(PartitionedHypergraph &hypergraph, const IteratorRange<NodeIteratorT> &refinement_nodes,
                     metrics::ThreadSafeMetrics &best_metrics, const double time_limit) override;
 
     void resetForGroup(ds::ContractionGroupID groupID) override;

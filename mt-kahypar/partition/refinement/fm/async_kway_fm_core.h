@@ -38,6 +38,8 @@ class AsyncKWayFM {
 private:
     static constexpr bool enable_heavy_assert = true;
 
+    using NodeIteratorT = parallel::scalable_vector<HypernodeID>::const_iterator;
+
 public:
   explicit AsyncKWayFM(const Context& context, HypernodeID numNodes, AsyncFMSharedData& sharedData,
                        ds::GroupLockManager * const lock_manager) :
@@ -57,7 +59,7 @@ public:
 
   // ! Finds a sequence of moves, applies the best prefix and returns the actual km1 improvement of that prefix.
   // ! Returns 0 if no moves were performed.
-  Gain findMoves(PartitionedHypergraph& phg, const vec<HypernodeID>& refinement_nodes);
+  Gain findMoves(PartitionedHypergraph& phg, const IteratorRange<NodeIteratorT> &refinement_nodes);
 
   void memoryConsumption(utils::MemoryTreeNode* parent) const ;
 

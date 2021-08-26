@@ -72,7 +72,7 @@ class DoNothingRefiner final : public IRefiner {
     private:
 
         bool refineImpl(PartitionedHypergraph&,
-                        const parallel::scalable_vector<HypernodeID>&,
+                        const IteratorRange<NodeIteratorT>&,
                         metrics::ThreadSafeMetrics &,
                         const double) final {
             return false;

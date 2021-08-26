@@ -5,6 +5,7 @@
 #pragma once
 
 #include <tbb/enumerable_thread_specific.h>
+#include <list>
 #include "mt-kahypar/datastructures/array.h"
 #include "mt-kahypar/datastructures/incident_net_array.h"
 #include "mt-kahypar/datastructures/async/thread_wise_flag_array.h"
@@ -27,7 +28,7 @@ namespace mt_kahypar::ds {
             _active_nodes_combined_signatures(_hg.initialNumEdges(), num_threads),
             _active_edges_per_task(num_threads) {
           for (size_t tid = 0; tid < num_threads; ++tid) {
-            _active_edges_per_task[tid] = std::make_unique<std::vector<HyperedgeID>>();
+            _active_edges_per_task[tid] = std::make_unique<std::list<HyperedgeID>>();
           }
         }
 
@@ -35,22 +36,6 @@ namespace mt_kahypar::ds {
           ASSERT(parent);
           parent->addChild("Active Nodes Combined Signatures", _active_nodes_combined_signatures.size_in_bytes());
         }
-
-        /*void resetHyperedgeSizesParallel() {
-          tbb::parallel_for(ID(0), ID(_hg.initialNumEdges()), [&](const HyperedgeID he) {
-              if (!_hg.edgeIsEnabled(he)) {
-                _hyperedge_sizes_at_beginning_of_version[he] = 0;
-                return;
-              }
-              HypernodeID edge_size = _hg.edgeSize(he);
-              if (edge_size == 0) {
-                _hyperedge_sizes_at_beginning_of_version[he] = 0;
-              } else {
-//                double log_size = std::ceil(std::log(_hg.edgeSize(he)));
-                _hyperedge_sizes_at_beginning_of_version[he] = _hg.edgeSize(he);
-              }
-          });
-        }*/
 
         template<typename IncidentEdgeIteratorT>
         void markActive(const IteratorRange<IncidentEdgeIteratorT> incident_edges, const size_t task_id, HyperedgeID& num_edges_activated_for_this_task) {
@@ -75,11 +60,31 @@ namespace mt_kahypar::ds {
 
         void markLastActivatedEdgesForTaskInactive(const size_t task_id, const HyperedgeID num_edges_to_deactivate_for_task) {
           ASSERT(task_id < _active_edges_per_task.size());
-          std::vector<HyperedgeID>& active_in_task = *_active_edges_per_task[task_id];
+          std::list<HyperedgeID>& active_in_task = *_active_edges_per_task[task_id];
           HyperedgeID num_edges_deactivated = 0;
           for (HyperedgeID i = 0; i < num_edges_to_deactivate_for_task; ++i) {
             const HyperedgeID he = active_in_task.back();
             active_in_task.pop_back();
+            ASSERT(he < _active_nodes_combined_signatures.numElements());
+            bool deactivated_edge = false;
+            bool changed_bit = _active_nodes_combined_signatures.set_false(he, task_id, deactivated_edge);
+            ASSERT(changed_bit); unused(changed_bit);
+            if (deactivated_edge) {
+              ++num_edges_deactivated;
+            }
+          }
+          uint32_t union_size = _active_nodes_signature_union_size.fetch_sub(num_edges_deactivated, std::memory_order_relaxed);
+          unused(union_size);
+          ASSERT(union_size >= num_edges_deactivated);
+        }
+
+        void markFirstActivatedEdgesForTaskInactive(const size_t task_id, const HyperedgeID num_edges_to_deactivate_for_task) {
+          ASSERT(task_id < _active_edges_per_task.size());
+          std::list<HyperedgeID>& active_in_task = *_active_edges_per_task[task_id];
+          HyperedgeID num_edges_deactivated = 0;
+          for (HyperedgeID i = 0; i < num_edges_to_deactivate_for_task; ++i) {
+            const HyperedgeID he = active_in_task.front();
+            active_in_task.pop_front();
             ASSERT(he < _active_nodes_combined_signatures.numElements());
             bool deactivated_edge = false;
             bool changed_bit = _active_nodes_combined_signatures.set_false(he, task_id, deactivated_edge);
@@ -168,7 +173,7 @@ namespace mt_kahypar::ds {
 
         HyperedgeID numberOfEdgesActiveInThisTaskAndAnyOtherTask(const size_t task_id) {
           ASSERT(task_id < _active_edges_per_task.size());
-          std::vector<HyperedgeID>& active_in_task = *_active_edges_per_task[task_id];
+          std::list<HyperedgeID>& active_in_task = *_active_edges_per_task[task_id];
           size_t intersection_size = 0;
           for (const auto& he : active_in_task) {
             if (_active_nodes_combined_signatures.any_set_except_thread(he, task_id)) {
@@ -248,7 +253,7 @@ namespace mt_kahypar::ds {
         CAtomic<HyperedgeID> _active_nodes_signature_union_size;
         ThreadWiseFlagArray<HyperedgeID> _active_nodes_combined_signatures;
 
-        std::vector<std::unique_ptr<std::vector<HyperedgeID>>> _active_edges_per_task;
+        std::vector<std::unique_ptr<std::list<HyperedgeID>>> _active_edges_per_task;
 
         static constexpr double CMP_EPSILON = 1.0e-100;
 

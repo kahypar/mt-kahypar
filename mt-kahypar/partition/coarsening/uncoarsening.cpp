@@ -291,14 +291,17 @@ namespace mt_kahypar {
 
     // todo mlaupichler remove debug stats
     FMStats localized_fm_stats;
+    size_t total_localized_refine_calls = 0;
+    size_t total_localized_refine_iterations = 0;
 
     auto do_localized_refinement = [&]() {
       parallel::scalable_vector<HypernodeID> refinement_nodes = tmp_refinement_nodes.copy_parallel();
       tmp_refinement_nodes.clear_parallel();
       border_vertices_of_batch.reset();
       auto total_fm_stats_before_localized_refine = fm->getTotalFMStats();
-      localizedRefine(_phg, refinement_nodes, label_propagation,
-        fm, current_metrics, force_measure_timings);
+      ++total_localized_refine_calls;
+        localizedRefine(_phg, refinement_nodes, label_propagation,
+                        fm, current_metrics, force_measure_timings, total_localized_refine_iterations);
       auto stats_diff_from_localized_refine = fm->getTotalFMStats();
       stats_diff_from_localized_refine.subtract(total_fm_stats_before_localized_refine);
       stats_diff_from_localized_refine.merge(localized_fm_stats);
@@ -414,6 +417,10 @@ namespace mt_kahypar {
           << "\n\tCase: Pins in from=1: " << localized_fm_stats.num_case_from_one_gc_updates << ", Fraction: " << ((double) localized_fm_stats.num_case_from_one_gc_updates / (double) sum_gc_cases)
           << "\n\tCase: Pins in to=1:   " << localized_fm_stats.num_case_to_one_gc_updates << ", Fraction: " << ((double) localized_fm_stats.num_case_to_one_gc_updates / (double) sum_gc_cases)
           << "\n\tCase: Pins in to=2:   " << localized_fm_stats.num_case_to_two_gc_updates << ", Fraction: " << ((double) localized_fm_stats.num_case_to_two_gc_updates / (double) sum_gc_cases);
+      LOG << std::setprecision(5) << std::fixed
+          << "localizedRefine() calls: " << total_localized_refine_calls
+          << ", lR() Loop Iterations: " << total_localized_refine_iterations
+          << ", Avg. Iterations per Call: " << ((double) total_localized_refine_iterations / (double) total_localized_refine_calls);
     }
 
     // Top-Level Refinement on all vertices
@@ -502,44 +509,27 @@ namespace mt_kahypar {
              "After uncontracting a group, either the representative or any of the contracted nodes is not enabled or not assigned a partition!");
   }
 
-  void NLevelCoarsenerBase::refineGroupAsyncSubtask(const ds::ContractionGroup &group, ds::ContractionGroupID groupID,
-                                                    metrics::ThreadSafeMetrics &current_metrics,
-                                                    IAsyncRefiner *async_lp,
-                                                    IAsyncRefiner *async_fm) {
-
-      // Extract refinement seeds
-      auto begin = ds::GroupNodeIDIterator::getAtBegin(group);
-      auto end = ds::GroupNodeIDIterator::getAtEnd(group);
-      parallel::scalable_vector<HypernodeID> refinement_nodes;
-      for (auto it = begin; it != end; ++it) {
-          HypernodeID hn = *it;
-          if (_phg.isBorderNode(hn)) {
-              refinement_nodes.push_back(hn);
-          }
-      }
-
-      // No refinement if refinement nodes are empty
-      if (!refinement_nodes.empty()) {
-          localizedRefineForAsync(_phg, refinement_nodes, async_lp, async_fm, groupID, current_metrics);
-      }
-  }
-
   void NLevelCoarsenerBase::uncoarsenAsyncTask(TreeGroupPool *pool, metrics::ThreadSafeMetrics &current_metrics,
-                                               IAsyncRefiner *async_lp_refiner,
-                                               IAsyncRefiner *async_fm_refiner,
+                                               IAsyncRefiner *async_lp_refiner, IAsyncRefiner *async_fm_refiner,
                                                HypernodeID &uncontraction_counter,
                                                utils::ProgressBar &uncontraction_progress,
                                                AsyncNodeTracker &async_node_tracker,
                                                RegionComparator &node_region_comparator,
                                                SeedDeduplicator &seed_deduplicator, const size_t task_id,
-                                               const bool alwaysInsertIntoPQ) {
+                                               const bool alwaysInsertIntoPQ, size_t &local_calls_to_localized_refine,
+                                               size_t &local_iterations_in_localized_refine) {
 
       if (pool->allAccepted()) return;
 
       ds::ContractionGroupID groupID = ds::invalidGroupID;
       bool pick_new_group = true;
 
-      vec<HypernodeID> local_refinement_nodes;
+      const size_t seed_nodes_step_length = _context.refinement.fm.num_seed_nodes;
+      const size_t min_seed_nodes = _context.partition.k * seed_nodes_step_length;
+      HypernodeID cur_num_seeds = 0;
+      HypernodeID cur_num_expired_seeds = 0;
+      auto local_refinement_nodes = vec<HypernodeID>(2 * min_seed_nodes);
+      auto num_edges_activated_per_refinement_node = vec<HyperedgeID>(2 * min_seed_nodes);
 
       while (true) {
 
@@ -582,7 +572,7 @@ namespace mt_kahypar {
           }
 
           // Extract refinement seeds
-          bool has_refinement_seeds = false;
+          size_t num_extracted_seeds = 0;
           auto begin = ds::GroupNodeIDIterator::getAtBegin(group);
           auto end = ds::GroupNodeIDIterator::getAtEnd(group);
           for (auto it = begin; it != end; ++it) {
@@ -591,25 +581,66 @@ namespace mt_kahypar {
             if (_phg.isBorderNode(hn)) {
               // Deduplicate
               if (!seed_deduplicator[hn]) {
+                ++num_extracted_seeds;
                 seed_deduplicator.set(hn);
-                local_refinement_nodes.push_back(hn);
-                has_refinement_seeds = true;
+                local_refinement_nodes[cur_num_expired_seeds + cur_num_seeds] = hn;
+                num_edges_activated_per_refinement_node[cur_num_expired_seeds + cur_num_seeds] = 0;
+                ++cur_num_seeds;
+                if (cur_num_expired_seeds + cur_num_seeds == local_refinement_nodes.size()) {
+                  ASSERT(cur_num_expired_seeds >= cur_num_seeds);
+                  // No space remaining, copy seeds to beginning, reset expired
+                  for (size_t i = 0; i < cur_num_seeds; ++i) {
+                    local_refinement_nodes[i] = local_refinement_nodes[i + cur_num_expired_seeds];
+                    num_edges_activated_per_refinement_node[i] = num_edges_activated_per_refinement_node[i + cur_num_expired_seeds];
+                  }
+                  cur_num_expired_seeds = 0;
+                }
               }
             }
           }
 
+          // Give last extracted seed (if any) the entry for number of edges activated
+          if (num_extracted_seeds > 0) {
+            ASSERT(cur_num_expired_seeds + cur_num_seeds > 0);
+            ASSERT(num_edges_activated_per_refinement_node[cur_num_expired_seeds + cur_num_seeds - 1] == 0);
+            num_edges_activated_per_refinement_node[cur_num_expired_seeds + cur_num_seeds - 1] = num_edges_activated_in_task;
+          }
+
+
           // If there are no refinement seeds in this group, do not consider the incident edges active anymore
-          if (!has_refinement_seeds) {
+          if (num_extracted_seeds == 0) {
             node_region_comparator.markLastActivatedEdgesForTaskInactive(task_id, num_edges_activated_in_task);
           }
 
           // Refine only once enough seeds are available
-          if ((_context.type != kahypar::ContextType::main && !local_refinement_nodes.empty()) || local_refinement_nodes.size() >= _context.refinement.fm.num_seed_nodes) {
-            localizedRefineForAsync(_phg, local_refinement_nodes, async_lp_refiner, async_fm_refiner, groupID, current_metrics);
+          if ((_context.type != kahypar::ContextType::main && cur_num_seeds > 0) || cur_num_seeds >= min_seed_nodes || (cur_num_seeds > 0 && cur_num_seeds % seed_nodes_step_length == 0)) {
+            ++local_calls_to_localized_refine;
 
-            node_region_comparator.markAllEdgesForTaskInactive(task_id);
-            seed_deduplicator.reset();
-            local_refinement_nodes.clear();
+            ASSERT(cur_num_expired_seeds + cur_num_seeds < local_refinement_nodes.size());
+            auto cur_seeds = IteratorRange(local_refinement_nodes.cbegin() + cur_num_expired_seeds,
+                                           local_refinement_nodes.cbegin() + cur_num_expired_seeds + cur_num_seeds);
+
+            localizedRefineForAsync(_phg, cur_seeds, async_lp_refiner, async_fm_refiner, groupID,
+                                    current_metrics, local_iterations_in_localized_refine);
+
+            if (_context.type == kahypar::ContextType::main && cur_num_seeds >= min_seed_nodes) {
+              // Deactivate nodes that expired, i.e. the oldest seeds
+              size_t num_old_edges_to_deactivate = 0;
+              for (size_t i = 0; i < seed_nodes_step_length; ++i) {
+                const HypernodeID expired_seed = local_refinement_nodes[cur_num_expired_seeds];
+                num_old_edges_to_deactivate += num_edges_activated_per_refinement_node[cur_num_expired_seeds];
+                seed_deduplicator.set(expired_seed, false);
+                ++cur_num_expired_seeds;
+                --cur_num_seeds;
+              }
+              node_region_comparator.markFirstActivatedEdgesForTaskInactive(task_id, num_old_edges_to_deactivate);
+            } else {
+              // In initial partitioning clear all refinement seeds
+              cur_num_seeds = 0;
+              cur_num_expired_seeds = 0;
+              seed_deduplicator.reset();
+              node_region_comparator.markAllEdgesForTaskInactive(task_id);
+            }
           }
 
           async_node_tracker.incrementTime(group.size());
@@ -749,6 +780,9 @@ namespace mt_kahypar {
     size_t calls_to_pick_that_reached_max_retries = 0;
     size_t calls_to_pick_with_empty_pq = 0;
 
+    auto calls_to_localized_refine_per_task = std::vector<size_t>(num_threads, 0);
+    auto iterations_of_localized_refine_per_task = std::vector<size_t>(num_threads, 0);
+
       for (size_t inv_version = 0; inv_version < _group_pools_for_versions.size(); ++inv_version) {
 
         size_t version = _group_pools_for_versions.size() - inv_version - 1;
@@ -782,7 +816,7 @@ namespace mt_kahypar {
                                  *seed_deduplicator_arrays[task_id], task_id,
                                  _context.uncoarsening.always_insert_groups_into_pq && (_context.type ==
                                                                                         kahypar::ContextType::main) /* Do not use this option in initial partitioning*/
-              );
+                      , calls_to_localized_refine_per_task[task_id], iterations_of_localized_refine_per_task[task_id]);
           };
 
           for (size_t tid = 0; tid < num_threads; ++tid) {
@@ -863,6 +897,13 @@ namespace mt_kahypar {
           total_lp_moved_nodes += async_lp_refiner->getNumTotalMovedNodes();
       }
 
+      size_t total_localized_refine_calls = 0;
+      size_t total_iterations_of_localized_refine = 0;
+      for (size_t i = 0; i < num_threads; ++i) {
+        total_localized_refine_calls += calls_to_localized_refine_per_task[i];
+        total_iterations_of_localized_refine += iterations_of_localized_refine_per_task[i];
+      }
+
       utils::Stats::instance().update_stat("lp_attempted_moves", static_cast<int64_t>(total_lp_attempted_moves));
       utils::Stats::instance().update_stat("lp_moved_nodes", static_cast<int64_t>(total_lp_moved_nodes));
 //      std::cout << "Total LP attempted moves: " << total_lp_attempted_moves << std::endl;
@@ -928,6 +969,10 @@ namespace mt_kahypar {
         << "\n\tCase: Pins in from=1: " << fm_shared_data->num_case_from_one_gc_updates << ", Fraction: " << ((double) fm_shared_data->num_case_from_one_gc_updates / (double) sum_gc_cases)
         << "\n\tCase: Pins in to=1:   " << fm_shared_data->num_case_to_one_gc_updates << ", Fraction: " << ((double) fm_shared_data->num_case_to_one_gc_updates / (double) sum_gc_cases)
         << "\n\tCase: Pins in to=2:   " << fm_shared_data->num_case_to_two_gc_updates << ", Fraction: " << ((double) fm_shared_data->num_case_to_two_gc_updates / (double) sum_gc_cases);
+        LOG << std::setprecision(5) << std::fixed
+            << "localizedRefine() calls: " << total_localized_refine_calls
+            << ", lR() Loop Iterations: " << total_iterations_of_localized_refine
+            << ", Avg. Iterations per Call: " << ((double) total_iterations_of_localized_refine / (double) total_localized_refine_calls);
       }
 
       size_t total_num_nodes = _hg.initialNumNodes() - _hg.numRemovedHypernodes();
@@ -1080,12 +1125,11 @@ namespace mt_kahypar {
     }
   }
 
-  void NLevelCoarsenerBase::localizedRefine(PartitionedHypergraph& partitioned_hypergraph,
-                                            const parallel::scalable_vector<HypernodeID>& refinement_nodes,
-                                            std::unique_ptr<IRefiner>& label_propagation,
-                                            std::unique_ptr<IRefiner>& fm,
-                                            kahypar::Metrics& current_metrics,
-                                            const bool force_measure_timings) {
+  void NLevelCoarsenerBase::localizedRefine(PartitionedHypergraph &partitioned_hypergraph,
+                                            const parallel::scalable_vector <HypernodeID> &refinement_nodes,
+                                            std::unique_ptr<IRefiner> &label_propagation, std::unique_ptr<IRefiner> &fm,
+                                            kahypar::Metrics &current_metrics, const bool force_measure_timings,
+                                            size_t &num_refinement_iterations) {
     if ( debug && _top_level ) {
       io::printHypergraphInfo(partitioned_hypergraph.hypergraph(), "Refinement Hypergraph", false);
       DBG << "Start Refinement - km1 = " << current_metrics.km1
@@ -1095,6 +1139,7 @@ namespace mt_kahypar {
     bool improvement_found = true;
     while( improvement_found ) {
       improvement_found = false;
+      ++num_refinement_iterations;
 
       if ( label_propagation &&
            _context.refinement.label_propagation.algorithm != LabelPropagationAlgorithm::do_nothing ) {
@@ -1129,14 +1174,16 @@ namespace mt_kahypar {
   }
 
   void NLevelCoarsenerBase::localizedRefineForAsync(PartitionedHypergraph &partitioned_hypergraph,
-                                                    const parallel::scalable_vector <HypernodeID> &refinement_nodes,
-                                                    IAsyncRefiner *async_lp, IAsyncRefiner* async_fm,
+                                                    const IteratorRange<IAsyncRefiner::NodeIteratorT> &refinement_nodes,
+                                                    IAsyncRefiner *async_lp, IAsyncRefiner *async_fm,
                                                     ds::ContractionGroupID group_id,
-                                                    metrics::ThreadSafeMetrics &current_metrics) {
+                                                    metrics::ThreadSafeMetrics &current_metrics,
+                                                    size_t &num_iterations) {
 
       bool improvement_found = true;
       while( improvement_found ) {
           improvement_found = false;
+          ++num_iterations;
 
           if (async_lp &&
                _context.refinement.label_propagation.algorithm != LabelPropagationAlgorithm::do_nothing ) {

@@ -13,7 +13,7 @@ namespace mt_kahypar {
 
     template<template <typename> class LocalGainPolicy>
     bool AsyncLPRefiner<LocalGainPolicy>::refineImpl(PartitionedHypergraph &hypergraph,
-                                                     const parallel::scalable_vector <mt_kahypar::HypernodeID> &refinement_nodes,
+                                                     const IteratorRange<NodeIteratorT> &refinement_nodes,
                                                      metrics::ThreadSafeMetrics &best_metrics,
                                                      double) {
         ASSERT(_contraction_group_id != ds::invalidGroupID, "ContractionGroupID (Owner-ID) for locking is invalid.");

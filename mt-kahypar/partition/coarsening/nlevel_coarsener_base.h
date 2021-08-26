@@ -104,21 +104,18 @@ class NLevelCoarsenerBase {
 
   void
   uncoarsenAsyncTask(TreeGroupPool *pool, metrics::ThreadSafeMetrics &current_metrics,
-                     IAsyncRefiner *async_lp_refiner,
-                     IAsyncRefiner *async_fm_refiner, HypernodeID &uncontraction_counter,
+                     IAsyncRefiner *async_lp_refiner, IAsyncRefiner *async_fm_refiner,
+                     HypernodeID &uncontraction_counter,
                      utils::ProgressBar &uncontraction_progress,
                      AsyncNodeTracker &async_node_tracker,
                      RegionComparator &node_region_comparator,
                      SeedDeduplicator &seed_deduplicator, const size_t task_id,
-                     const bool alwaysInsertIntoPQ);
+                     const bool alwaysInsertIntoPQ, size_t &local_calls_to_localized_refine,
+                     size_t &local_iterations_in_localized_refine);
 
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE void uncontractGroupAsyncSubtask(const ds::ContractionGroup &group,
                                                                       const ds::ContractionGroupID groupID);
 
-  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE void
-  refineGroupAsyncSubtask(const ds::ContractionGroup &group, ds::ContractionGroupID groupID,
-                          metrics::ThreadSafeMetrics &current_metrics, IAsyncRefiner *async_lp,
-                          IAsyncRefiner *async_fm);
 
  protected:
   kahypar::Metrics computeMetrics(PartitionedHypergraph& phg) {
@@ -146,17 +143,17 @@ class NLevelCoarsenerBase {
   kahypar::Metrics initialize(PartitionedHypergraph& current_hg);
   metrics::ThreadSafeMetrics initializeForAsync(PartitionedHypergraph& current_hg);
 
-  void localizedRefine(PartitionedHypergraph& partitioned_hypergraph,
-                       const parallel::scalable_vector<HypernodeID>& refinement_nodes,
-                       std::unique_ptr<IRefiner>& label_propagation,
-                       std::unique_ptr<IRefiner>& fm,
-                       kahypar::Metrics& current_metrics,
-                       const bool force_measure_timings);
+  void localizedRefine(PartitionedHypergraph &partitioned_hypergraph,
+                       const parallel::scalable_vector <HypernodeID> &refinement_nodes,
+                       std::unique_ptr<IRefiner> &label_propagation, std::unique_ptr<IRefiner> &fm,
+                       kahypar::Metrics &current_metrics, const bool force_measure_timings,
+                       size_t &num_refinement_iterations);
 
   void localizedRefineForAsync(PartitionedHypergraph &partitioned_hypergraph,
-                               const parallel::scalable_vector <HypernodeID> &refinement_nodes,
-                               IAsyncRefiner *async_lp, IAsyncRefiner* async_fm,
-                               ds::ContractionGroupID group_id, metrics::ThreadSafeMetrics &current_metrics);
+                               const IteratorRange<IAsyncRefiner::NodeIteratorT> &refinement_nodes,
+                               IAsyncRefiner *async_lp, IAsyncRefiner *async_fm,
+                               ds::ContractionGroupID group_id,
+                               metrics::ThreadSafeMetrics &current_metrics, size_t &num_iterations);
 
   void globalRefine(PartitionedHypergraph& partitioned_hypergraph,
                     std::unique_ptr<IRefiner>& fm,

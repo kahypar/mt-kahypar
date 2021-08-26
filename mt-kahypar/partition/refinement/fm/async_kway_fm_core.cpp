@@ -24,7 +24,7 @@ namespace mt_kahypar {
 
 
   template<typename FMStrategy>
-  Gain AsyncKWayFM<FMStrategy>::findMoves(PartitionedHypergraph& phg, const vec<HypernodeID>& refinement_nodes) {
+  Gain AsyncKWayFM<FMStrategy>::findMoves(PartitionedHypergraph& phg, const IteratorRange<NodeIteratorT> &refinement_nodes) {
     ASSERT(contraction_group_id != ds::invalidGroupID, "ContractionGroupID (Owner-ID) for locking is invalid.");
     sharedData.total_find_moves_calls.fetch_add(1, std::memory_order_relaxed);
 
