@@ -211,8 +211,14 @@ class NLevelCoarsener : public ICoarsener,
     return Base::doUncoarsen(label_propagation, fm);
   }
 
-  void setUncoarseningDataImpl(UncoarseningData&) override {
-    /* TODO: Implement me <24-08-21, @noahares> */
+  void setUncoarseningDataImpl(UncoarseningData& uncoarseningData) override {
+    _phg = uncoarseningData.partitioned_hypergraph;
+    _compactified_hg = uncoarseningData.compactified_hg;
+    _compactified_phg = uncoarseningData.compactified_phg;
+    _compactified_hn_mapping = uncoarseningData.compactified_hn_mapping;
+    _hierarchy = uncoarseningData.n_level_hierarchy;
+    _removed_hyperedges_batches = uncoarseningData.removed_hyperedges_batches;
+    _round_coarsening_times = uncoarseningData.round_coarsening_times;
   }
 
   void compactifyVertices(const HypernodeID current_num_nodes) {

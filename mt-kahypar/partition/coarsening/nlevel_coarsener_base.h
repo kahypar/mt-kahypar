@@ -46,14 +46,7 @@ class NLevelCoarsenerBase {
     _is_finalized(false),
     _hg(hypergraph),
     _context(context),
-    _top_level(top_level),
-    _phg(),
-    _compactified_hg(),
-    _compactified_phg(),
-    _compactified_hn_mapping(),
-    _hierarchy(),
-    _removed_hyperedges_batches(),
-    _round_coarsening_times() { }
+    _top_level(top_level) { }
 
   NLevelCoarsenerBase(const NLevelCoarsenerBase&) = delete;
   NLevelCoarsenerBase(NLevelCoarsenerBase&&) = delete;
@@ -66,22 +59,22 @@ class NLevelCoarsenerBase {
 
   Hypergraph& compactifiedHypergraph() {
     ASSERT(_is_finalized);
-    return _compactified_hg;
+    return *_compactified_hg;
   }
 
   PartitionedHypergraph& compactifiedPartitionedHypergraph() {
     ASSERT(_is_finalized);
-    return _compactified_phg;
+    return *_compactified_phg;
   }
 
   void finalize();
 
   void removeSinglePinAndParallelNets(const HighResClockTimepoint& round_start) {
     utils::Timer::instance().start_timer("remove_single_pin_and_parallel_nets", "Remove Single Pin and Parallel Nets");
-    _removed_hyperedges_batches.emplace_back(_hg.removeSinglePinAndParallelHyperedges());
+    _removed_hyperedges_batches->emplace_back(_hg.removeSinglePinAndParallelHyperedges());
     const HighResClockTimepoint round_end = std::chrono::high_resolution_clock::now();
     const double elapsed_time = std::chrono::duration<double>(round_end - round_start).count();
-    _round_coarsening_times.push_back(elapsed_time);
+    _round_coarsening_times->push_back(elapsed_time);
     utils::Timer::instance().stop_timer("remove_single_pin_and_parallel_nets");
   }
 
@@ -124,16 +117,16 @@ class NLevelCoarsenerBase {
   const bool _top_level;
 
   // ! Original partitioned hypergraph
-  PartitionedHypergraph _phg;
+  std::shared_ptr<PartitionedHypergraph> _phg;
   // ! Once coarsening terminates we generate a compactified hypergraph
   // ! containing only enabled vertices and hyperedges within a consecutive
   // ! ID range, which is then used for initial partitioning
-  Hypergraph _compactified_hg;
+  std::shared_ptr<Hypergraph> _compactified_hg;
   // ! Compactified partitioned hypergraph
-  PartitionedHypergraph _compactified_phg;
+  std::shared_ptr<PartitionedHypergraph> _compactified_phg;
   // ! Mapping from vertex IDs of the original hypergraph to the IDs
   // ! in the compactified hypergraph
-  parallel::scalable_vector<HypernodeID> _compactified_hn_mapping;
+  std::shared_ptr<vec<HypernodeID>> _compactified_hn_mapping;
 
   // ! Represents the n-level hierarchy
   // ! A batch is vector of uncontractions/mementos that can be uncontracted in parallel
@@ -141,12 +134,12 @@ class NLevelCoarsenerBase {
   // ! in a batch vector. Each time we perform single-pin and parallel net detection we create
   // ! a new version (simply increment a counter) of the hypergraph. Once a batch vector is
   // ! completly processed single-pin and parallel nets have to be restored.
-  VersionedBatchVector _hierarchy;
+  std::shared_ptr<VersionedBatchVector> _hierarchy;
   // ! Removed single-pin and parallel nets.
   // ! All hyperedges that are contained in one vector must be restored once
   // ! we completly processed a vector of batches.
-  ParallelHyperedgeVector _removed_hyperedges_batches;
+  std::shared_ptr<ParallelHyperedgeVector> _removed_hyperedges_batches;
   // ! Contains timings how long a coarsening pass takes for each round
-  parallel::scalable_vector<double> _round_coarsening_times;
+  std::shared_ptr<vec<double>> _round_coarsening_times;
 };
 }  // namespace mt_kahypar

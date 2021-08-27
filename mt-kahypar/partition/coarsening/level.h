@@ -95,13 +95,30 @@ class UncoarseningData {
 public:
   explicit UncoarseningData(bool nlevel) {
     if (nlevel) {
-      /* TODO: data for nlevel case <24-08-21, @noahares> */
+      compactified_hg = std::make_shared<Hypergraph>();
+      compactified_phg = std::make_shared<PartitionedHypergraph>();
+      compactified_hn_mapping = std::make_shared<vec<HypernodeID>>();
+      n_level_hierarchy = std::make_shared<VersionedBatchVector>();
+      removed_hyperedges_batches = std::make_shared<vec<vec<ParallelHyperedge>>>();
+      round_coarsening_times = std::make_shared<vec<double>>();
     } else {
       hierarchy = std::make_shared<vec<Level>>();
-      partitioned_hypergraph = std::make_shared<PartitionedHypergraph>();
     }
+      partitioned_hypergraph = std::make_shared<PartitionedHypergraph>();
   }
+
+  // Multilevel Data
   std::shared_ptr<vec<Level>> hierarchy;
+
+  // NLevel Data
+  std::shared_ptr<Hypergraph> compactified_hg;
+  std::shared_ptr<PartitionedHypergraph> compactified_phg;
+  std::shared_ptr<vec<HypernodeID>> compactified_hn_mapping;
+  std::shared_ptr<VersionedBatchVector> n_level_hierarchy;
+  std::shared_ptr<vec<vec<ParallelHyperedge>>> removed_hyperedges_batches;
+  std::shared_ptr<vec<double>> round_coarsening_times;
+
+  // Both
   std::shared_ptr<PartitionedHypergraph> partitioned_hypergraph;
 };
 }

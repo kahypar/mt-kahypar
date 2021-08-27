@@ -29,10 +29,12 @@
 #include "mt-kahypar/utils/progress_bar.h"
 #include "mt-kahypar/utils/stats.h"
 #include "mt-kahypar/partition/coarsening/level.h"
+#include "mt-kahypar/partition/coarsening/i_uncoarsener.h"
 namespace mt_kahypar {
 
-  class MultilevelUncoarsener {
+  class MultilevelUncoarsener : public IUncoarsener {
 
+  private:
   static constexpr bool debug = false;
 
   public:
@@ -58,7 +60,7 @@ namespace mt_kahypar {
     const bool _top_level;
     std::shared_ptr<vec<Level>> _hierarchy;
 
-public:
+protected:
     PartitionedHypergraph&& doUncoarsen(
       std::unique_ptr<IRefiner>& label_propagation,
       std::unique_ptr<IRefiner>& fm) {
@@ -167,7 +169,6 @@ public:
       return std::move(*_partitioned_hg);
     }
 
-protected:
   PartitionedHypergraph& currentPartitionedHypergraph() {
     /*ASSERT(_is_finalized);*/
     if ( _hierarchy->empty() ) {
@@ -255,6 +256,13 @@ protected:
     if ( _top_level) {
       DBG << "--------------------------------------------------\n";
     }
+  }
+
+private:
+  PartitionedHypergraph&& uncoarsenImpl(
+      std::unique_ptr<IRefiner>& label_propagation,
+      std::unique_ptr<IRefiner>& fm) override {
+    return doUncoarsen(label_propagation, fm);
   }
   };
 
