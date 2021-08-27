@@ -43,115 +43,29 @@ namespace mt_kahypar::multilevel {
                    const Context& context,
                    const bool top_level,
                    std::shared_ptr<UncoarseningData> uncoarseningData) :
+            _coarsener(nullptr),
+            _sparsifier(nullptr),
             _ip_context(context),
+            _degree_zero_hn_remover(context),
             _uncoarsener(nullptr),
             _hg(hypergraph),
             _partitioned_hg(partitioned_hypergraph),
             _context(context),
             _top_level(top_level),
             _uncoarseningData(uncoarseningData) {
+      // Must be empty, because final partitioned hypergraph
+      // is moved into this object
+      _coarsener = CoarsenerFactory::getInstance().createObject(
+              _context.coarsening.algorithm, _hg, _context, _top_level);
+      _sparsifier = HypergraphSparsifierFactory::getInstance().createObject(
+              _context.sparsification.similiar_net_combiner_strategy, _context);
+      _coarsener->setUncoarseningData(*uncoarseningData);
+
       // Switch refinement context from IP to main
       _ip_context.refinement = _context.initial_partitioning.refinement;
             }
 
     tbb::task* execute() override {
-      // ################## LOCAL SEARCH ##################
-      io::printLocalSearchBanner(_context);
-
-      utils::Timer::instance().start_timer("refinement", "Refinement");
-      std::unique_ptr<IRefiner> label_propagation =
-              LabelPropagationFactory::getInstance().createObject(
-                      _context.refinement.label_propagation.algorithm,
-                      _hg, _context);
-      std::unique_ptr<IRefiner> fm =
-              FMFactory::getInstance().createObject(
-                      _context.refinement.fm.algorithm,
-                      _hg, _context);
-
-      if (_uncoarseningData->nlevel) {
-        _uncoarsener = std::make_unique<NLevelUncoarsener>(_hg, _context, _top_level, *_uncoarseningData);
-      } else {
-        _uncoarsener = std::make_unique<MultilevelUncoarsener>(_hg, _context, _top_level, *_uncoarseningData);
-      }
-      _partitioned_hg = _uncoarsener->uncoarsen(label_propagation, fm);
-      utils::Timer::instance().stop_timer("refinement");
-
-      return nullptr;
-    }
-
-  public:
-    Context _ip_context;
-
-  private:
-    std::unique_ptr<IUncoarsener> _uncoarsener;
-    Hypergraph& _hg;
-    PartitionedHypergraph& _partitioned_hg;
-    const Context& _context;
-    const bool _top_level;
-    std::shared_ptr<UncoarseningData> _uncoarseningData;
-  };
-
-  class CoarseningTask : public tbb::task {
-
-  public:
-    CoarseningTask(Hypergraph& hypergraph,
-                   const Context& context,
-                   const Context& ip_context,
-                   const bool top_level,
-                   const bool vcycle,
-                   std::shared_ptr<UncoarseningData> uncoarseningData) :
-            _hg(hypergraph),
-            _sparsifier(nullptr),
-            _context(context),
-            _ip_context(ip_context),
-            _degree_zero_hn_remover(context),
-            _coarsener(nullptr),
-            _top_level(top_level),
-            _vcycle(vcycle) {
-
-      _coarsener = CoarsenerFactory::getInstance().createObject(
-              _context.coarsening.algorithm, _hg, _context, _top_level);
-      _sparsifier = HypergraphSparsifierFactory::getInstance().createObject(
-              _context.sparsification.similiar_net_combiner_strategy, _context);
-
-      _coarsener->setUncoarseningData(*uncoarseningData);
-
-            }
-
-    tbb::task* execute() override {
-      // ################## COARSENING ##################
-      mt_kahypar::io::printCoarseningBanner(_context);
-
-      utils::Timer::instance().start_timer("coarsening", "Coarsening");
-      _coarsener->coarsen();
-      utils::Timer::instance().stop_timer("coarsening");
-
-      if (_context.partition.verbose_output) {
-        mt_kahypar::io::printHypergraphInfo(
-                _coarsener->coarsestHypergraph(), "Coarsened Hypergraph",
-                _context.partition.show_memory_consumption);
-      }
-
-      // ################## INITIAL PARTITIONING ##################
-      utils::Timer::instance().start_timer("initial_partitioning", "Initial Partitioning");
-      if ( _context.useSparsification() ) {
-        // Sparsify Hypergraph, if heavy hyperedge removal is enabled
-        utils::Timer::instance().start_timer("sparsify_hypergraph", "Sparsify Hypergraph");
-        _sparsifier->sparsify(_coarsener->coarsestHypergraph());
-        utils::Timer::instance().stop_timer("sparsify_hypergraph");
-      }
-
-      if ( _sparsifier->isSparsified() ) {
-        if (_context.partition.verbose_output) {
-          mt_kahypar::io::printHypergraphInfo(
-                  _sparsifier->sparsifiedHypergraph(), "Sparsified Hypergraph",
-                  _context.partition.show_memory_consumption);
-        }
-        initialPartition(_sparsifier->sparsifiedPartitionedHypergraph());
-      } else {
-        initialPartition(_coarsener->coarsestPartitionedHypergraph());
-      }
-
       enableTimerAndStats();
 
       if ( _sparsifier->isSparsified() ) {
@@ -177,6 +91,108 @@ namespace mt_kahypar::multilevel {
                                    _context, "Initial Partitioning Results:");
       if ( _context.partition.verbose_output ) {
         utils::InitialPartitioningStats::instance().printInitialPartitioningStats();
+      }
+
+      _coarsener.reset();
+      // ################## LOCAL SEARCH ##################
+      io::printLocalSearchBanner(_context);
+
+      utils::Timer::instance().start_timer("refinement", "Refinement");
+      std::unique_ptr<IRefiner> label_propagation =
+              LabelPropagationFactory::getInstance().createObject(
+                      _context.refinement.label_propagation.algorithm,
+                      _hg, _context);
+      std::unique_ptr<IRefiner> fm =
+              FMFactory::getInstance().createObject(
+                      _context.refinement.fm.algorithm,
+                      _hg, _context);
+
+      if (_uncoarseningData->nlevel) {
+        _uncoarsener = std::make_unique<NLevelUncoarsener>(_hg, _context, _top_level, *_uncoarseningData);
+      } else {
+        _uncoarsener = std::make_unique<MultilevelUncoarsener>(_hg, _context, _top_level, *_uncoarseningData);
+      }
+      _partitioned_hg = _uncoarsener->uncoarsen(label_propagation, fm);
+      utils::Timer::instance().stop_timer("refinement");
+
+      return nullptr;
+    }
+
+  public:
+    std::unique_ptr<ICoarsener> _coarsener;
+    std::unique_ptr<IHypergraphSparsifier> _sparsifier;
+    Context _ip_context;
+    DegreeZeroHypernodeRemover _degree_zero_hn_remover;
+
+  private:
+    void enableTimerAndStats() {
+      if ( _top_level ) {
+        parallel::MemoryPool::instance().activate_unused_memory_allocations();
+        utils::Timer::instance().enable();
+        utils::Stats::instance().enable();
+      }
+    }
+
+    std::unique_ptr<IUncoarsener> _uncoarsener;
+    Hypergraph& _hg;
+    PartitionedHypergraph& _partitioned_hg;
+    const Context& _context;
+    const bool _top_level;
+    std::shared_ptr<UncoarseningData> _uncoarseningData;
+  };
+
+  class CoarseningTask : public tbb::task {
+
+  public:
+    CoarseningTask(Hypergraph& hypergraph,
+                   IHypergraphSparsifier& sparsifier,
+                   const Context& context,
+                   const Context& ip_context,
+                   DegreeZeroHypernodeRemover& degree_zero_hn_remover,
+                   ICoarsener& coarsener,
+                   const bool top_level,
+                   const bool vcycle) :
+            _hg(hypergraph),
+            _sparsifier(sparsifier),
+            _context(context),
+            _ip_context(ip_context),
+            _degree_zero_hn_remover(degree_zero_hn_remover),
+            _coarsener(coarsener),
+            _top_level(top_level),
+            _vcycle(vcycle) { }
+
+    tbb::task* execute() override {
+      // ################## COARSENING ##################
+      mt_kahypar::io::printCoarseningBanner(_context);
+
+      utils::Timer::instance().start_timer("coarsening", "Coarsening");
+      _coarsener.coarsen();
+      utils::Timer::instance().stop_timer("coarsening");
+
+      if (_context.partition.verbose_output) {
+        mt_kahypar::io::printHypergraphInfo(
+                _coarsener.coarsestHypergraph(), "Coarsened Hypergraph",
+                _context.partition.show_memory_consumption);
+      }
+
+      // ################## INITIAL PARTITIONING ##################
+      utils::Timer::instance().start_timer("initial_partitioning", "Initial Partitioning");
+      if ( _context.useSparsification() ) {
+        // Sparsify Hypergraph, if heavy hyperedge removal is enabled
+        utils::Timer::instance().start_timer("sparsify_hypergraph", "Sparsify Hypergraph");
+        _sparsifier.sparsify(_coarsener.coarsestHypergraph());
+        utils::Timer::instance().stop_timer("sparsify_hypergraph");
+      }
+
+      if ( _sparsifier.isSparsified() ) {
+        if (_context.partition.verbose_output) {
+          mt_kahypar::io::printHypergraphInfo(
+                  _sparsifier.sparsifiedHypergraph(), "Sparsified Hypergraph",
+                  _context.partition.show_memory_consumption);
+        }
+        initialPartition(_sparsifier.sparsifiedPartitionedHypergraph());
+      } else {
+        initialPartition(_coarsener.coarsestPartitionedHypergraph());
       }
 
       return nullptr;
@@ -215,14 +231,6 @@ namespace mt_kahypar::multilevel {
       }
     }
 
-    void enableTimerAndStats() {
-      if ( _top_level ) {
-        parallel::MemoryPool::instance().activate_unused_memory_allocations();
-        utils::Timer::instance().enable();
-        utils::Stats::instance().enable();
-      }
-    }
-
     void disableTimerAndStats() {
       if ( _top_level ) {
         parallel::MemoryPool::instance().deactivate_unused_memory_allocations();
@@ -232,11 +240,11 @@ namespace mt_kahypar::multilevel {
     }
 
     Hypergraph& _hg;
-    std::unique_ptr<IHypergraphSparsifier> _sparsifier;
+    IHypergraphSparsifier& _sparsifier;
     const Context& _context;
     const Context& _ip_context;
-    DegreeZeroHypernodeRemover _degree_zero_hn_remover;
-    std::unique_ptr<ICoarsener> _coarsener;
+    DegreeZeroHypernodeRemover& _degree_zero_hn_remover;
+    ICoarsener& _coarsener;
     const bool _top_level;
     const bool _vcycle;
   };
@@ -263,7 +271,8 @@ namespace mt_kahypar::multilevel {
             RefinementTask(hypergraph, partitioned_hypergraph, context, top_level, uncoarseningData);
     refinement_task.set_ref_count(1);
     CoarseningTask& coarsening_task = *new(refinement_task.allocate_child()) CoarseningTask(
-            hypergraph, context, refinement_task._ip_context, top_level, vcycle, uncoarseningData);
+            hypergraph, *refinement_task._sparsifier, context, refinement_task._ip_context,
+            refinement_task._degree_zero_hn_remover, *refinement_task._coarsener, top_level, vcycle);
     tbb::task::spawn(coarsening_task);
   }
 
