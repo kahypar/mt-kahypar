@@ -189,7 +189,7 @@ void partitionHypergraph(Hypergraph& hypergraph, Context& context) {
   // Verify that partitioned hypergraph is
   // equivalent with input hypergraph
   Hypergraph reference = io::readHypergraphFile(
-    context.partition.graph_filename);
+    context.partition.graph_filename, true);
   verifyThatHypergraphsAreEquivalent(hypergraph, reference);
 
   HypernodeID num_hypernodes = 0;
@@ -254,11 +254,12 @@ void partitionHypergraph(Hypergraph& hypergraph, Context& context) {
   mt_kahypar::parallel::MemoryPool::instance().free_memory_chunks();
 }
 
+#ifndef USE_GRAPH_STRUCTURE
 TYPED_TEST(MtKaHyPar, PartitionsAVLSIInstance) {
   // Read Hypergraph
   this->context.partition.graph_filename = "../tests/instances/ibm01.hgr";
   Hypergraph hypergraph = io::readHypergraphFile(
-    this->context.partition.graph_filename);
+    this->context.partition.graph_filename, true);
 
   partitionHypergraph(hypergraph, this->context);
 }
@@ -267,7 +268,7 @@ TYPED_TEST(MtKaHyPar, PartitionsASparseMatrixInstance) {
   // Read Hypergraph
   this->context.partition.graph_filename = "../tests/instances/powersim.mtx.hgr";
   Hypergraph hypergraph = io::readHypergraphFile(
-    this->context.partition.graph_filename);
+    this->context.partition.graph_filename, true);
 
   partitionHypergraph(hypergraph, this->context);
 }
@@ -276,7 +277,7 @@ TYPED_TEST(MtKaHyPar, PartitionsASATInstance) {
   // Read Hypergraph
   this->context.partition.graph_filename = "../tests/instances/sat14_atco_enc1_opt2_10_16.cnf.primal.hgr";
   Hypergraph hypergraph = io::readHypergraphFile(
-    this->context.partition.graph_filename);
+    this->context.partition.graph_filename, true);
 
   partitionHypergraph(hypergraph, this->context);
 }
@@ -285,7 +286,7 @@ TYPED_TEST(MtKaHyPar, PartitionsAVLSIInstanceWithIndividualPartWeights) {
   // Read Hypergraph
   this->context.partition.graph_filename = "../tests/instances/ibm01.hgr";
   Hypergraph hypergraph = io::readHypergraphFile(
-    this->context.partition.graph_filename);
+    this->context.partition.graph_filename, true);
 
   // setup individual part weights
   HypernodeID k = this->context.partition.k;
@@ -300,6 +301,15 @@ TYPED_TEST(MtKaHyPar, PartitionsAVLSIInstanceWithIndividualPartWeights) {
 
   partitionHypergraph(hypergraph, this->context);
 }
+#else
+TYPED_TEST(MtKaHyPar, PartitionsAGraphInstance) {
+  // Read Hypergraph
+  this->context.partition.graph_filename = "../tests/instances/delaunay_n15.graph.hgr";
+  Hypergraph hypergraph = io::readHypergraphFile(
+    this->context.partition.graph_filename, true);
 
+  partitionHypergraph(hypergraph, this->context);
+}
+#endif
 
 }  // namespace mt_kahypar

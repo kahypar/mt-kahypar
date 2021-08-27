@@ -72,9 +72,11 @@ jobs:
           cmake .. -DCMAKE_BUILD_TYPE=RELEASE -DKAHYPAR_CI_BUILD=ON
           make -j2 fast_integration_tests
           make -j2 strong_integration_tests
+          make -j2 graph_integration_tests
 
       - name: Run Mt-KaHyPar Integration Tests
         run: |
           cd build
           ./tests/end_to_end/fast_integration_tests
           ./tests/end_to_end/strong_integration_tests
+          ./tests/end_to_end/graph_integration_tests
