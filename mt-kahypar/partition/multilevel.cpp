@@ -31,6 +31,7 @@
 #include "mt-kahypar/utils/initial_partitioning_stats.h"
 #include "mt-kahypar/io/partitioning_output.h"
 #include "mt-kahypar/partition/coarsening/multilevel_uncoarsener.h"
+#include "mt-kahypar/partition/coarsening/nlevel_uncoarsener.h"
 
 namespace mt_kahypar::multilevel {
 
@@ -67,8 +68,12 @@ namespace mt_kahypar::multilevel {
                       _context.refinement.fm.algorithm,
                       _hg, _context);
 
-      _uncoarsener = std::make_unique<MultilevelUncoarsener>(_hg, _context, _top_level, *_uncoarseningData);
-      _partitioned_hg = _uncoarsener->doUncoarsen(label_propagation, fm);
+      if (_uncoarseningData->nlevel) {
+        _uncoarsener = std::make_unique<NLevelUncoarsener>(_hg, _context, _top_level, *_uncoarseningData);
+      } else {
+        _uncoarsener = std::make_unique<MultilevelUncoarsener>(_hg, _context, _top_level, *_uncoarseningData);
+      }
+      _partitioned_hg = _uncoarsener->uncoarsen(label_propagation, fm);
       utils::Timer::instance().stop_timer("refinement");
 
       return nullptr;
@@ -78,7 +83,7 @@ namespace mt_kahypar::multilevel {
     Context _ip_context;
 
   private:
-    std::unique_ptr<MultilevelUncoarsener> _uncoarsener;
+    std::unique_ptr<IUncoarsener> _uncoarsener;
     Hypergraph& _hg;
     PartitionedHypergraph& _partitioned_hg;
     const Context& _context;
@@ -246,16 +251,9 @@ namespace mt_kahypar::multilevel {
                                            tbb::task& parent) {
     // The coarsening task is first executed and once it finishes the
     // refinement task continues (without blocking)
+    bool nlevel = context.coarsening.algorithm == CoarseningAlgorithm::nlevel_coarsener;
     std::shared_ptr<UncoarseningData> uncoarseningData =
-      std::make_shared<UncoarseningData>(context.partition.paradigm == Paradigm::nlevel);
-    size_t estimated_number_of_levels = 1UL;
-    if ( hypergraph.initialNumNodes() > context.coarsening.contraction_limit ) {
-      estimated_number_of_levels = std::ceil( std::log2(
-          static_cast<double>(hypergraph.initialNumNodes()) /
-          static_cast<double>(context.coarsening.contraction_limit)) /
-        std::log2(context.coarsening.maximum_shrink_factor) ) + 1UL;
-    }
-    uncoarseningData->hierarchy->reserve(estimated_number_of_levels);
+      std::make_shared<UncoarseningData>(nlevel, hypergraph, context);
 /*
     std::shared_ptr<Context> ip_context = std::make_shared<Context>(context);
     ip_context->refinement = context.initial_partitioning.refinement;

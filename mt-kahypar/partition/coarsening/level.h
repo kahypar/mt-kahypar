@@ -21,6 +21,7 @@
 #pragma once
 
 #include "mt-kahypar/definitions.h"
+#include "mt-kahypar/partition/context.h"
 namespace mt_kahypar {
 class Level {
 
@@ -93,19 +94,28 @@ private:
 
 class UncoarseningData {
 public:
-  explicit UncoarseningData(bool nlevel) {
-    if (nlevel) {
-      compactified_hg = std::make_shared<Hypergraph>();
-      compactified_phg = std::make_shared<PartitionedHypergraph>();
-      compactified_hn_mapping = std::make_shared<vec<HypernodeID>>();
-      n_level_hierarchy = std::make_shared<VersionedBatchVector>();
-      removed_hyperedges_batches = std::make_shared<vec<vec<ParallelHyperedge>>>();
-      round_coarsening_times = std::make_shared<vec<double>>();
-    } else {
-      hierarchy = std::make_shared<vec<Level>>();
-    }
+  explicit UncoarseningData(bool n_level, const Hypergraph& hg, const Context& context) :
+    nlevel(n_level) {
+      if (nlevel) {
+        compactified_hg = std::make_shared<Hypergraph>();
+        compactified_phg = std::make_shared<PartitionedHypergraph>();
+        compactified_hn_mapping = std::make_shared<vec<HypernodeID>>();
+        n_level_hierarchy = std::make_shared<VersionedBatchVector>();
+        removed_hyperedges_batches = std::make_shared<vec<vec<ParallelHyperedge>>>();
+        round_coarsening_times = std::make_shared<vec<double>>();
+      } else {
+        hierarchy = std::make_shared<vec<Level>>();
+        size_t estimated_number_of_levels = 1UL;
+        if ( hg.initialNumNodes() > context.coarsening.contraction_limit ) {
+          estimated_number_of_levels = std::ceil( std::log2(
+              static_cast<double>(hg.initialNumNodes()) /
+              static_cast<double>(context.coarsening.contraction_limit)) /
+            std::log2(context.coarsening.maximum_shrink_factor) ) + 1UL;
+        }
+        hierarchy->reserve(estimated_number_of_levels);
+      }
       partitioned_hypergraph = std::make_shared<PartitionedHypergraph>();
-  }
+    }
 
   // Multilevel Data
   std::shared_ptr<vec<Level>> hierarchy;
@@ -120,5 +130,7 @@ public:
 
   // Both
   std::shared_ptr<PartitionedHypergraph> partitioned_hypergraph;
+  bool is_finalized = false;
+  bool nlevel;
 };
 }
