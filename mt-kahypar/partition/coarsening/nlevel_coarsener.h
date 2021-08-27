@@ -206,11 +206,6 @@ class NLevelCoarsener : public ICoarsener,
     return Base::compactifiedPartitionedHypergraph();
   }
 
-  PartitionedHypergraph&& uncoarsenImpl(std::unique_ptr<IRefiner>& label_propagation,
-                                        std::unique_ptr<IRefiner>& fm) override {
-    return Base::doUncoarsen(label_propagation, fm);
-  }
-
   void setUncoarseningDataImpl(UncoarseningData& uncoarseningData) override {
     _phg = uncoarseningData.partitioned_hypergraph;
     _compactified_hg = uncoarseningData.compactified_hg;

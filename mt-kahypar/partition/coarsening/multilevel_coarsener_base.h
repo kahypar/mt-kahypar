@@ -88,21 +88,7 @@ class MultilevelCoarsenerBase {
           parallel::scalable_vector<HypernodeID>&& communities,
           const HighResClockTimepoint& round_start);
 
-  PartitionedHypergraph&& doUncoarsen(
-          std::unique_ptr<IRefiner>& label_propagation,
-          std::unique_ptr<IRefiner>& fm);
-
  protected:
-
-
-  kahypar::Metrics initialize(PartitionedHypergraph& current_hg);
-
-  void refine(PartitionedHypergraph& partitioned_hypergraph,
-              std::unique_ptr<IRefiner>& label_propagation,
-              std::unique_ptr<IRefiner>& fm,
-              kahypar::Metrics& current_metrics,
-              const double time_limit);
-
   bool _is_finalized;
   Hypergraph& _hg;
   std::shared_ptr<PartitionedHypergraph> _partitioned_hg;

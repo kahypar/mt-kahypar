@@ -78,35 +78,7 @@ class NLevelCoarsenerBase {
     utils::Timer::instance().stop_timer("remove_single_pin_and_parallel_nets");
   }
 
-  PartitionedHypergraph&& doUncoarsen(std::unique_ptr<IRefiner>& label_propagation,
-                                      std::unique_ptr<IRefiner>& fm);
-
  protected:
-  kahypar::Metrics computeMetrics(PartitionedHypergraph& phg) {
-    HyperedgeWeight cut = 0;
-    HyperedgeWeight km1 = 0;
-    tbb::parallel_invoke([&] {
-      cut = metrics::hyperedgeCut(phg);
-    }, [&] {
-      km1 = metrics::km1(phg);
-    });
-    return { cut, km1,  metrics::imbalance(phg, _context) };
-  }
-
-  kahypar::Metrics initialize(PartitionedHypergraph& current_hg);
-
-  void localizedRefine(PartitionedHypergraph& partitioned_hypergraph,
-                       const parallel::scalable_vector<HypernodeID>& refinement_nodes,
-                       std::unique_ptr<IRefiner>& label_propagation,
-                       std::unique_ptr<IRefiner>& fm,
-                       kahypar::Metrics& current_metrics,
-                       const bool force_measure_timings);
-
-  void globalRefine(PartitionedHypergraph& partitioned_hypergraph,
-                    std::unique_ptr<IRefiner>& fm,
-                    kahypar::Metrics& current_metrics,
-                    const double time_limit);
-
   // ! True, if coarsening terminates and finalize function was called
   bool _is_finalized;
 
