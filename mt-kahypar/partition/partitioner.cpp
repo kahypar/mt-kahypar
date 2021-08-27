@@ -26,9 +26,9 @@
 #include "mt-kahypar/partition/preprocessing/sparsification/degree_zero_hn_remover.h"
 #include "mt-kahypar/partition/preprocessing/sparsification/large_he_remover.h"
 #include "mt-kahypar/partition/preprocessing/community_detection/parallel_louvain.h"
+#include "mt-kahypar/utils/hypergraph_statistics.h"
 #include "mt-kahypar/utils/stats.h"
 #include "mt-kahypar/utils/timer.h"
-
 
 
 namespace mt_kahypar {
@@ -103,8 +103,41 @@ namespace mt_kahypar {
     }
   }
 
+  bool is_mesh_graph(const Hypergraph& graph) {
+    const HypernodeID num_nodes = graph.initialNumNodes();
+    const double avg_hn_degree = utils::avgHypernodeDegree(graph);
+    std::vector<HyperedgeID> hn_degrees;
+    hn_degrees.resize(graph.initialNumNodes());
+    graph.doParallelForAllNodes([&](const HypernodeID& hn) {
+      hn_degrees[hn] = graph.nodeDegree(hn);
+    });
+    const double stdev_hn_degree = utils::parallel_stdev(hn_degrees, avg_hn_degree, num_nodes);
+    if (stdev_hn_degree > avg_hn_degree / 2) {
+      return false;
+    }
+
+    // test whether 99.9th percentile hypernode degree is at most 4 times the average degree
+    tbb::enumerable_thread_specific<size_t> num_high_degree_nodes(0);
+    graph.doParallelForAllNodes([&](const HypernodeID& node) {
+      if (graph.nodeDegree(node) > 4 * avg_hn_degree) {
+        num_high_degree_nodes.local() += 1;
+      }
+    });
+    return num_high_degree_nodes.combine(std::plus<>()) <= num_nodes / 1000;
+  }
+
   void preprocess(Hypergraph& hypergraph, Context& context) {
-    if ( context.preprocessing.use_community_detection ) {
+    bool use_community_detection = context.preprocessing.use_community_detection;
+
+    #ifdef USE_GRAPH_STRUCTURE
+    if (use_community_detection && context.preprocessing.disable_community_detection_for_mesh_graphs) {
+      utils::Timer::instance().start_timer("detect_mesh_graph", "Detect Mesh Graph");
+      use_community_detection = !is_mesh_graph(hypergraph);
+      utils::Timer::instance().stop_timer("detect_mesh_graph");
+    }
+    #endif
+
+    if ( use_community_detection ) {
       io::printTopLevelPreprocessingBanner(context);
 
       utils::Timer::instance().start_timer("community_detection", "Community Detection");
@@ -127,7 +160,6 @@ namespace mt_kahypar {
     }
     parallel::MemoryPool::instance().release_mem_group("Preprocessing");
   }
-
 
   PartitionedHypergraph partitionVCycle(Hypergraph& hypergraph,
                                         PartitionedHypergraph&& partitioned_hypergraph,
