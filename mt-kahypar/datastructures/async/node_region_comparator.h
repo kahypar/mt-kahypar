@@ -5,7 +5,6 @@
 #pragma once
 
 #include <tbb/enumerable_thread_specific.h>
-#include <list>
 #include "mt-kahypar/datastructures/array.h"
 #include "mt-kahypar/datastructures/incident_net_array.h"
 #include "mt-kahypar/datastructures/async/thread_wise_flag_array.h"
@@ -19,6 +18,98 @@ namespace mt_kahypar::ds {
     template<typename Hypergraph = Mandatory>
     class NodeRegionComparator {
 
+    private:
+
+        class ActiveEdges {
+
+        public:
+
+            explicit ActiveEdges(const size_t initial_capacity) :
+              _num_expired_threshold(initial_capacity / 4),
+              _first_valid(0),
+              _first_invalid(0),
+              _edges(initial_capacity, kInvalidHyperedge) {}
+
+            ActiveEdges(const ActiveEdges& other) = default;
+            ActiveEdges& operator=(const ActiveEdges& other) = default;
+            ActiveEdges(ActiveEdges&& other)  noexcept = default;
+            ActiveEdges& operator=(ActiveEdges&& other)  noexcept = default;
+
+            size_t size() const {
+              return _first_invalid - _first_valid;
+            }
+
+            bool empty() const {
+              return _first_invalid == _first_valid;
+            }
+
+            size_t size_in_bytes() const {
+              return (size_t) _edges.size() * sizeof(HyperedgeID);
+            };
+
+            void push_back(const HyperedgeID he) {
+              if (_first_invalid == _edges.size()) {
+                if (_first_valid >= _num_expired_threshold) {
+                  // If at least as many elements as the threshold are expired, remove expired part
+                  remove_expired();
+                } else {
+                  // Else have std::vector deal with the push_back on full vector and return
+                  _edges.push_back(he);
+                  _num_expired_threshold = _edges.size() / 4;
+                  ++_first_invalid;
+                  return;
+                }
+              }
+              ASSERT(_first_invalid < _edges.size());
+              _edges[_first_invalid] = he;
+              ++_first_invalid;
+            }
+
+            HyperedgeID pop_back() {
+              ASSERT(_first_invalid > _first_valid);
+              const HyperedgeID back = _edges[--_first_invalid];
+              if (_first_invalid == _first_valid) {
+                // Remove expired in O(1) if valid edges became empty
+                remove_expired();
+              }
+              return back;
+            }
+
+            HyperedgeID pop_front() {
+              ASSERT(_first_invalid > _first_valid);
+              const HyperedgeID front = _edges[_first_valid++];
+              if (_first_invalid == _first_valid) {
+                // Remove expired in O(1) if valid edges became empty
+                remove_expired();
+              }
+              return front;
+            }
+
+            auto begin() {ASSERT(_first_valid <= _edges.size()); return _edges.begin() + _first_valid;};
+            auto end() {ASSERT(_first_invalid <= _edges.size()); return _edges.begin() + _first_invalid;};
+            auto cbegin() const {ASSERT(_first_valid <= _edges.size()); return _edges.cbegin() + _first_valid;};
+            auto cend() const {ASSERT(_first_invalid <= _edges.size()); return _edges.cbegin() + _first_invalid;};
+            auto begin() const {ASSERT(_first_valid <= _edges.size()); return _edges.begin() + _first_valid;};
+            auto end() const {ASSERT(_first_invalid <= _edges.size()); return _edges.begin() + _first_invalid;};
+
+        private:
+
+            void remove_expired() {
+              for (size_t i = 0; i < size(); ++i) {
+                _edges[i] = _edges[i + _first_valid];
+              }
+              _first_invalid -= _first_valid;
+              _first_valid = 0;
+            }
+
+            size_t _num_expired_threshold;
+            // Marks first index of the currently valid elements (everything before this is considered expired)
+            size_t _first_valid;
+            // Marks first index past the currently valid elements
+            size_t _first_invalid;
+            vec<HyperedgeID> _edges;
+        };
+
     public:
 
         explicit NodeRegionComparator(const Hypergraph& hypergraph, const double similarity_threshold, const size_t num_threads) :
@@ -28,13 +119,18 @@ namespace mt_kahypar::ds {
             _active_nodes_combined_signatures(_hg.initialNumEdges(), num_threads),
             _active_edges_per_task(num_threads) {
           for (size_t tid = 0; tid < num_threads; ++tid) {
-            _active_edges_per_task[tid] = std::make_unique<std::list<HyperedgeID>>();
+            _active_edges_per_task[tid] = std::make_unique<ActiveEdges>(_hg.initialNumEdges() / num_threads);
           }
         }
 
         void memoryConsumption(utils::MemoryTreeNode* parent) const {
           ASSERT(parent);
           parent->addChild("Active Nodes Combined Signatures", _active_nodes_combined_signatures.size_in_bytes());
+          size_t combined_size_of_edge_buffers = 0;
+          for (const auto& active_edges_in_task : _active_edges_per_task) {
+            combined_size_of_edge_buffers += active_edges_in_task->size_in_bytes();
+          }
+          parent->addChild("Active Edges Per Task", combined_size_of_edge_buffers);
         }
 
         template<typename IncidentEdgeIteratorT>
@@ -60,11 +156,10 @@ namespace mt_kahypar::ds {
 
         void markLastActivatedEdgesForTaskInactive(const size_t task_id, const HyperedgeID num_edges_to_deactivate_for_task) {
           ASSERT(task_id < _active_edges_per_task.size());
-          std::list<HyperedgeID>& active_in_task = *_active_edges_per_task[task_id];
+          ActiveEdges& active_in_task = *_active_edges_per_task[task_id];
           HyperedgeID num_edges_deactivated = 0;
           for (HyperedgeID i = 0; i < num_edges_to_deactivate_for_task; ++i) {
-            const HyperedgeID he = active_in_task.back();
-            active_in_task.pop_back();
+            const HyperedgeID he = active_in_task.pop_back();
             ASSERT(he < _active_nodes_combined_signatures.numElements());
             bool deactivated_edge = false;
             bool changed_bit = _active_nodes_combined_signatures.set_false(he, task_id, deactivated_edge);
@@ -80,11 +175,10 @@ namespace mt_kahypar::ds {
 
         void markFirstActivatedEdgesForTaskInactive(const size_t task_id, const HyperedgeID num_edges_to_deactivate_for_task) {
           ASSERT(task_id < _active_edges_per_task.size());
-          std::list<HyperedgeID>& active_in_task = *_active_edges_per_task[task_id];
+          ActiveEdges& active_in_task = *_active_edges_per_task[task_id];
           HyperedgeID num_edges_deactivated = 0;
           for (HyperedgeID i = 0; i < num_edges_to_deactivate_for_task; ++i) {
-            const HyperedgeID he = active_in_task.front();
-            active_in_task.pop_front();
+            const HyperedgeID he = active_in_task.pop_front();
             ASSERT(he < _active_nodes_combined_signatures.numElements());
             bool deactivated_edge = false;
             bool changed_bit = _active_nodes_combined_signatures.set_false(he, task_id, deactivated_edge);
@@ -173,7 +267,7 @@ namespace mt_kahypar::ds {
 
         HyperedgeID numberOfEdgesActiveInThisTaskAndAnyOtherTask(const size_t task_id) {
           ASSERT(task_id < _active_edges_per_task.size());
-          std::list<HyperedgeID>& active_in_task = *_active_edges_per_task[task_id];
+          ActiveEdges& active_in_task = *_active_edges_per_task[task_id];
           size_t intersection_size = 0;
           for (const auto& he : active_in_task) {
             if (_active_nodes_combined_signatures.any_set_except_thread(he, task_id)) {
@@ -253,7 +347,7 @@ namespace mt_kahypar::ds {
         CAtomic<HyperedgeID> _active_nodes_signature_union_size;
         ThreadWiseFlagArray<HyperedgeID> _active_nodes_combined_signatures;
 
-        std::vector<std::unique_ptr<std::list<HyperedgeID>>> _active_edges_per_task;
+        std::vector<std::unique_ptr<ActiveEdges>> _active_edges_per_task;
 
         static constexpr double CMP_EPSILON = 1.0e-100;
 

@@ -604,11 +604,8 @@ namespace mt_kahypar {
             ASSERT(cur_num_expired_seeds + cur_num_seeds > 0);
             ASSERT(num_edges_activated_per_refinement_node[cur_num_expired_seeds + cur_num_seeds - 1] == 0);
             num_edges_activated_per_refinement_node[cur_num_expired_seeds + cur_num_seeds - 1] = num_edges_activated_in_task;
-          }
-
-
-          // If there are no refinement seeds in this group, do not consider the incident edges active anymore
-          if (num_extracted_seeds == 0) {
+          } else {
+            // If there are no refinement seeds in this group, do not consider the incident edges active anymore
             node_region_comparator.markLastActivatedEdgesForTaskInactive(task_id, num_edges_activated_in_task);
           }
 
