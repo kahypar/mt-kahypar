@@ -25,7 +25,7 @@ namespace mt_kahypar::ds {
         public:
 
             explicit ActiveEdges(const size_t initial_capacity) :
-              _num_expired_threshold(initial_capacity / 4),
+              _num_expired_threshold(std::max(initial_capacity / 4, size_t(1))),
               _first_valid(0),
               _first_invalid(0),
               _edges(initial_capacity, kInvalidHyperedge) {}
@@ -119,7 +119,7 @@ namespace mt_kahypar::ds {
             _active_nodes_combined_signatures(_hg.initialNumEdges(), num_threads),
             _active_edges_per_task(num_threads) {
           for (size_t tid = 0; tid < num_threads; ++tid) {
-            _active_edges_per_task[tid] = std::make_unique<ActiveEdges>(_hg.initialNumEdges() / num_threads);
+            _active_edges_per_task[tid] = std::make_unique<ActiveEdges>(std::max<size_t>(static_cast<size_t>(_hg.initialNumEdges() / num_threads), size_t(16)));
           }
         }
 

@@ -363,7 +363,7 @@ void DynamicHypergraph::uncontract(const ContractionGroup& group,
                                    const ContractionGroupID groupID,
                                    const UncontractionFunction& case_one_func,
                                    const UncontractionFunction& case_two_func,
-                                   const PinCountUpdateLockFunction& lock_pin_count_update) {
+                                   const PinCountUpdateLockFunction& try_lock_pin_count_update) {
 
     size_t current_version = version();
     ASSERT(_uncontraction_hierarchies[current_version]);
@@ -380,10 +380,10 @@ void DynamicHypergraph::uncontract(const ContractionGroup& group,
 
         _incident_nets.uncontract(memento.u, memento.v,[&](const HyperedgeID e) {
             // In this case, u and v were both previously part of hyperedge e.
-//            if (!try_lock_pin_count_update(e)) return false;
+            if (!try_lock_pin_count_update(e)) return false;
             ASSERT(totalSize(e) >= snapshotEdgeSizeThreshold() || _num_stable_active_pins[e] == 0);
 
-            lock_pin_count_update(e);
+//            lock_pin_count_update(e);
             reactivatePinForSingleUncontraction(e,memento.v);
             // For edges that experience gain cache updates with snapshotting maintain their sorting by stable/volatile active pins:
             // Check if u became stable with this uncontraction and/or if v is initially stable and if so move them in the
@@ -408,8 +408,8 @@ void DynamicHypergraph::uncontract(const ContractionGroup& group,
             // u must be replaced by v in hyperedge e
             ASSERT(totalSize(e) >= snapshotEdgeSizeThreshold() || _num_stable_active_pins[e] == 0);
 
-//            if (!try_lock_pin_count_update(e)) return false;
-            lock_pin_count_update(e);
+            if (!try_lock_pin_count_update(e)) return false;
+//            lock_pin_count_update(e);
             const size_t slot_of_u = findPositionOfPinInIncidenceArray(memento.u, e);
             ASSERT(_incidence_array[slot_of_u] == memento.u);
             _incidence_array[slot_of_u] = memento.v;
