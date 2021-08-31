@@ -100,8 +100,8 @@ private:
     _gain_cache(hypergraph.initialNumNodes(), k, &_part_ids, &_pins_in_part, &_connectivity_set),
     _pin_count_update_ownership(
         "Refinement", "pin_count_update_ownership", hypergraph.initialNumEdges(), true, false),
-    _conn_set_snapshots(_k),
-    _parts_with_one_pin_snapshots(_k),
+    _conn_set_snapshots(_k, kInvalidPartition),
+    _parts_with_one_pin_snapshots(_k, kInvalidPartition),
     _pins_snapshots(_hg->maxEdgeSize(),invalidNode),
     _num_stable_pins_seen(0),
     _num_volatile_pins_seen(0),
@@ -121,8 +121,8 @@ private:
     _connectivity_set(0, 0),
     _gain_cache(&_part_ids, &_pins_in_part, &_connectivity_set, parallel_tag_t()),
     _pin_count_update_ownership(),
-    _conn_set_snapshots(_k),
-    _parts_with_one_pin_snapshots(_k),
+    _conn_set_snapshots(_k, kInvalidPartition),
+    _parts_with_one_pin_snapshots(_k, kInvalidPartition),
     _pins_snapshots(_hg->maxEdgeSize(), invalidNode),
     _num_stable_pins_seen(0),
     _num_volatile_pins_seen(0)  {
@@ -439,28 +439,28 @@ private:
   }
 
 //  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
-  PartitionBitSet& getLocalConnSetBitSet() {
-      PartitionBitSet& conn_set_bitset = _conn_set_snapshots.local();
-      ASSERT(conn_set_bitset.size() == _k);
+  ConnectivitySetSnapshot & getLocalConnSetBitSet() {
+      ConnectivitySetSnapshot& conn_set_bitset = _conn_set_snapshots.local();
+//      ASSERT(conn_set_bitset.size() == _k);
       return conn_set_bitset;
   }
 
 //  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
-  PartitionBitSet& getLocalPartsWithOnePinBitSet() {
-      PartitionBitSet& parts_with_one_pin_bitset = _parts_with_one_pin_snapshots.local();
-      ASSERT(parts_with_one_pin_bitset.size() == _k);
+    ConnectivitySetSnapshot& getLocalPartsWithOnePinBitSet() {
+      ConnectivitySetSnapshot& parts_with_one_pin_bitset = _parts_with_one_pin_snapshots.local();
+//      ASSERT(parts_with_one_pin_bitset.size() == _k);
       return parts_with_one_pin_bitset;
   }
 
 //  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
-  void takeConnectivitySetSnapshots(const HyperedgeID he, PartitionBitSet& conn_set_bitset,
-                                    PartitionBitSet& parts_with_one_pin_bitset) {
-      HEAVY_REFINEMENT_ASSERT(conn_set_bitset.begin() == conn_set_bitset.end());
-      HEAVY_REFINEMENT_ASSERT(parts_with_one_pin_bitset.begin() == parts_with_one_pin_bitset.end());
+  void takeConnectivitySetSnapshots(const HyperedgeID he, ConnectivitySetSnapshot& conn_set_bitset,
+                                    ConnectivitySetSnapshot& parts_with_one_pin_bitset) {
+      ASSERT(conn_set_bitset.empty());
+      ASSERT(parts_with_one_pin_bitset.empty());
       for (const auto& p : connectivitySet(he)) {
-          conn_set_bitset.set_true(p);
+          conn_set_bitset.push_back(p);
           if (pinCountInPart(he, p) == 1) {
-              parts_with_one_pin_bitset.set_true(p);
+              parts_with_one_pin_bitset.push_back(p);
           }
       }
   }
@@ -526,8 +526,8 @@ private:
           setOnlyNodePart(memento.v, part_id);
      }
 
-    PartitionBitSet& conn_set = getLocalConnSetBitSet();
-    PartitionBitSet& parts_with_one_pin = getLocalPartsWithOnePinBitSet();
+    ConnectivitySetSnapshot& conn_set = getLocalConnSetBitSet();
+    ConnectivitySetSnapshot& parts_with_one_pin = getLocalPartsWithOnePinBitSet();
 
      _hg->uncontract(group,
                      groupID,
@@ -563,6 +563,8 @@ private:
                                 _gain_cache.asyncUpdateForUncontractCaseOne(edge_weight, v, block,
                                                                        pin_count_in_part_after, pins_snapshot,
                                                                        conn_set, parts_with_one_pin);
+                                conn_set.clear();
+                                parts_with_one_pin.clear();
                               }
                           } else {
                               _pin_count_update_ownership[he].unlock();
@@ -589,6 +591,8 @@ private:
                               // u must be replaced by v in hyperedge e
                               const HyperedgeWeight edge_weight = edgeWeight(he);
                               _gain_cache.asyncUpdateForUncontractCaseTwo(edge_weight, u, v, conn_set, parts_with_one_pin);
+                              conn_set.clear();
+                              parts_with_one_pin.clear();
                             }
                           } else {
                               _pin_count_update_ownership[he].unlock();
@@ -1170,14 +1174,14 @@ private:
     parent->addChild("Gain Cache", _gain_cache.size_in_bytes());
     parent->addChild("HE Ownership", sizeof(SpinLock) * _hg->initialNumNodes());
 
-    size_t size_of_snapshot_bitsets = 0;
-    for (const auto& bitset_ptr : _conn_set_snapshots) {
-      size_of_snapshot_bitsets += bitset_ptr.size_in_bytes();
+    size_t size_of_snapshots = 0;
+    for (const auto& snapshot : _conn_set_snapshots) {
+      size_of_snapshots += snapshot.size_in_bytes();
     }
-    for (const auto& bitset_ptr : _parts_with_one_pin_snapshots) {
-      size_of_snapshot_bitsets += bitset_ptr.size_in_bytes();
+    for (const auto& snapshot : _parts_with_one_pin_snapshots) {
+      size_of_snapshots += snapshot.size_in_bytes();
     }
-    parent->addChild("Connectivity Set Snapshots", size_of_snapshot_bitsets);
+    parent->addChild("Connectivity Set Snapshots", size_of_snapshots);
   }
 
   // ####################### Extract Block #######################
@@ -1455,8 +1459,8 @@ private:
   Array<SpinLock> _pin_count_update_ownership;
 
   // ! Thread-local PartitionBitSets used for snapshots of connectivity sets in asynchronous uncoarsening
-  tbb::enumerable_thread_specific<PartitionBitSet> _conn_set_snapshots;
-  tbb::enumerable_thread_specific<PartitionBitSet> _parts_with_one_pin_snapshots;
+  tbb::enumerable_thread_specific<ConnectivitySetSnapshot> _conn_set_snapshots;
+  tbb::enumerable_thread_specific<ConnectivitySetSnapshot> _parts_with_one_pin_snapshots;
   tbb::enumerable_thread_specific<std::vector<HypernodeID>> _pins_snapshots;
 
   // ! Stats counters

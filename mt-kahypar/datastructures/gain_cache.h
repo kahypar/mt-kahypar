@@ -6,8 +6,11 @@
 
 #include "mt-kahypar/datastructures/hypergraph_common.h"
 #include "mt-kahypar/datastructures/async/iterable_bit_set.h"
+#include "mt-kahypar/datastructures/async/no_downsize_integral_type_vector.h"
 
 namespace mt_kahypar::ds {
+
+    using ConnectivitySetSnapshot = NoDownsizeIntegralTypeVector<PartitionID>;
 
     using PartIDs = Array<PartitionID>;
 
@@ -113,7 +116,7 @@ public:
 //    MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
     void asyncUpdateForUncontractCaseOne(const HyperedgeWeight we, const HypernodeID v, const PartitionID block,
                                     const HypernodeID pin_count_in_part_after, IteratorRange<PinIteratorT> pins,
-                                    PartitionBitSet& connectivity_set, PartitionBitSet& parts_with_one_pin) {
+                                    const ConnectivitySetSnapshot& connectivity_set, const ConnectivitySetSnapshot& parts_with_one_pin) {
         _penalty_cache.asyncUpdateForUncontractCaseOne(we, v, connectivity_set);
         _benefit_cache.asyncUpdateForUncontractCaseOne(we, v, block, pin_count_in_part_after, pins, parts_with_one_pin);
     }
@@ -130,7 +133,7 @@ public:
     // ! and pin counts given
 //    MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
     void asyncUpdateForUncontractCaseTwo(const HyperedgeWeight we, const HypernodeID u, const HypernodeID v,
-                                    PartitionBitSet& connectivity_set, PartitionBitSet& parts_with_one_pin) {
+                                         const ConnectivitySetSnapshot& connectivity_set, const ConnectivitySetSnapshot& parts_with_one_pin) {
         _penalty_cache.asyncUpdateForUncontractCaseTwo(we, u, v, connectivity_set);
         _benefit_cache.asyncUpdateForUncontractCaseTwo(we, u, v, parts_with_one_pin);
     }
@@ -273,9 +276,9 @@ public:
 //    MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
     void asyncUpdateForUncontractCaseOne(const HyperedgeWeight, const HypernodeID, const PartitionID,
                                     const HypernodeID, IteratorRange<PinIteratorT>,
-                                    PartitionBitSet&) {
+                                         const ConnectivitySetSnapshot&) {
         ERROR("asyncUpdateForUncontractCaseOne(HyperedgeWeight, HypernodeID, PartitionID, HypernodeID, "
-              "IteratorRange<PinIteratorT>, PartitionBitSet&) not supported on AggregatedBenefitCache.");
+              "IteratorRange<PinIteratorT>, const ConnectivitySetSnapshot&) not supported on AggregatedBenefitCache.");
     }
 
 
@@ -293,9 +296,9 @@ public:
     }
 
 //    MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
-    void asyncUpdateForUncontractCaseTwo(const HyperedgeWeight, const HypernodeID, const HypernodeID, PartitionBitSet&) {
+    void asyncUpdateForUncontractCaseTwo(const HyperedgeWeight, const HypernodeID, const HypernodeID, const ConnectivitySetSnapshot&) {
         ERROR("asyncUpdateForUncontractCaseTwo(HyperedgeWeight, HypernodeID, HypernodeID, HypernodeID, "
-              "PartitionBitSet&) not supported on AggregatedBenefitCache.");
+              "const ConnectivitySetSnapshot&) not supported on AggregatedBenefitCache.");
     }
 
 //    MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
@@ -441,10 +444,10 @@ public:
     void asyncUpdateForUncontractCaseOne(const HyperedgeWeight we, const HypernodeID v,
                                     const PartitionID block,
                                     const HypernodeID pin_count_in_part_after, IteratorRange<PinIteratorT> pins,
-                                    PartitionBitSet& parts_with_one_pin) {
+                                         const ConnectivitySetSnapshot& parts_with_one_pin) {
 
         // Calculate and add contribution of he to the benefit of the uncontracted node v
-        asyncAddContributionOfHEToNodeBenefit(v, we, parts_with_one_pin, true);
+        asyncAddContributionOfHEToNodeBenefit(v, we, parts_with_one_pin);
 
         // In this case, u and v are incident to hyperedge he after uncontraction
         if ( pin_count_in_part_after == 2 ) {
@@ -483,17 +486,17 @@ public:
 
     // Variant for concurrent moves -> use snapshots of parts_with_one_pin
 //    MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
-    void asyncUpdateForUncontractCaseTwo(const HyperedgeWeight we, const HypernodeID u, const HypernodeID v, PartitionBitSet& parts_with_one_pin) {
+    void asyncUpdateForUncontractCaseTwo(const HyperedgeWeight we, const HypernodeID u, const HypernodeID v, const ConnectivitySetSnapshot& parts_with_one_pin) {
         // In this case, u is replaced by v in hyperedge he
         // => Pin counts of hyperedge he does not change
         // Since u is no longer incident to hyperedge he its contribution for decreasing
         // the connectivity of he is shifted to vertex v => b(u) -= w(e), b(v) += w(e).
 
         // Remove benefits contributed by this hyperedge from u as it no longer belongs to the hyperedge
-        asyncRemoveContributionOfHEFromNodeBenefit(u, we, parts_with_one_pin, false);
+        asyncRemoveContributionOfHEFromNodeBenefit(u, we, parts_with_one_pin);
 
         // Add benefits contributed by this hyperedge to the benefit of the uncontracted node v
-        asyncAddContributionOfHEToNodeBenefit(v, we, parts_with_one_pin, true);
+        asyncAddContributionOfHEToNodeBenefit(v, we, parts_with_one_pin);
     }
 
     // Variant without concurrent moves and uncontractions on pins of this HE -> query parts with one pin on demand
@@ -563,12 +566,10 @@ private:
 
     // Variant with concurrent moves and uncontractions on this HE -> require snapshot of parts with one pin in the edge
 //    MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
-    void asyncAddContributionOfHEToNodeBenefit(HypernodeID v, HyperedgeWeight we, PartitionBitSet& parts_with_one_pin,
-                                          bool clear_bitset = false) {
+    void asyncAddContributionOfHEToNodeBenefit(HypernodeID v, HyperedgeWeight we, const ConnectivitySetSnapshot& parts_with_one_pin) {
         // Add benefit for all blocks that include exactly one pin of he
         for (const auto& p : parts_with_one_pin) {
             _move_from_benefit[benefit_index(v, p)].add_fetch(we, std::memory_order_relaxed);
-            if (clear_bitset) parts_with_one_pin.set_false(p);
         }
     }
 
@@ -586,12 +587,10 @@ private:
 
     // Variant with concurrent moves and uncontractions on this HE -> require snapshot of parts with one pin in the edge
 //    MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
-    void asyncRemoveContributionOfHEFromNodeBenefit(HypernodeID u, HyperedgeWeight we, PartitionBitSet& parts_with_one_pin,
-                                               bool clear_bitset = false) {
+    void asyncRemoveContributionOfHEFromNodeBenefit(HypernodeID u, HyperedgeWeight we, const ConnectivitySetSnapshot& parts_with_one_pin) {
         // Remove benefit for all blocks in the connectivity set of he
         for (const auto& p : parts_with_one_pin) {
             _move_from_benefit[benefit_index(u, p)].sub_fetch(we, std::memory_order_relaxed);
-            if (clear_bitset) parts_with_one_pin.set_false(p);
         }
     }
 
@@ -713,7 +712,7 @@ public:
 
     // ! Variant for asynchronous uncoarsening -> moves possible during uncontraction -> require snapshot of connectivity set
 //    MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
-    void asyncUpdateForUncontractCaseOne(const HyperedgeWeight we, const HypernodeID v, PartitionBitSet& connectivity_set) {
+    void asyncUpdateForUncontractCaseOne(const HyperedgeWeight we, const HypernodeID v, const ConnectivitySetSnapshot& connectivity_set) {
         // For all blocks contained in the connectivity set of hyperedge he
         // we increase the move_to_penalty for vertex v by w(e) =>
         // move_to_penalty is then w(I(v)) - move_to_penalty(v, p) for a
@@ -723,7 +722,6 @@ public:
         for (const PartitionID block : connectivity_set) {
             _move_to_penalty[penalty_index(v, block)].add_fetch(
                     we, std::memory_order_relaxed);
-            connectivity_set.set_false(block);
         }
     }
 
@@ -750,7 +748,7 @@ public:
 
     // ! Variant for asynchronous uncoarsening -> moves possible during uncontraction -> require snapshot of connectivity set
 //    MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
-    void asyncUpdateForUncontractCaseTwo(const HyperedgeWeight we, const HypernodeID u, const HypernodeID v, PartitionBitSet& connectivity_set) {
+    void asyncUpdateForUncontractCaseTwo(const HyperedgeWeight we, const HypernodeID u, const HypernodeID v, const ConnectivitySetSnapshot& connectivity_set) {
         // For all blocks contained in the connectivity set of hyperedge he
         // we decrease the the move_to_penalty for vertex u and increase it for
         // vertex v by w(e)
@@ -763,7 +761,6 @@ public:
                     we, std::memory_order_relaxed);
             _move_to_penalty[penalty_index(v, block)].add_fetch(
                     we, std::memory_order_relaxed);
-            connectivity_set.set_false(block);
         }
     }
 
