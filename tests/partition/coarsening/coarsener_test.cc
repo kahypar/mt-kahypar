@@ -21,14 +21,21 @@
 #include "gmock/gmock.h"
 
 #include "tests/partition/coarsening/coarsener_fixtures.h"
+#include "mt-kahypar/partition/coarsening/multilevel_uncoarsener.h"
+#include "mt-kahypar/partition/coarsening/nlevel_uncoarsener.h"
+#include "mt-kahypar/partition/coarsening/level.h"
 
 using ::testing::Test;
 
 namespace mt_kahypar {
 #ifdef USE_STRONG_PARTITIONER
 using Coarsener = NLevelCoarsener<HeavyEdgeScore, NoWeightPenalty, BestRatingWithoutTieBreaking>;
+using Uncoarsener = NLevelUncoarsener;
+bool nlevel = true;
 #else
 using Coarsener = MultilevelCoarsener<HeavyEdgeScore, NoWeightPenalty, BestRatingWithoutTieBreaking>;
+using Uncoarsener = MultilevelUncoarsener;
+bool nlevel = false;
 #endif
 
 TEST_F(ACoarsener, DecreasesNumberOfPins) {
@@ -66,11 +73,14 @@ TEST_F(ACoarsener, RemovesParallelHyperedgesDuringCoarsening) {
 TEST_F(ACoarsener, ProjectsPartitionBackToOriginalHypergraph) {
   context.coarsening.contraction_limit = 4;
   Coarsener coarsener(hypergraph, context, false);
+  std::shared_ptr<UncoarseningData> uncoarseningData = std::make_shared<UncoarseningData>(nlevel, hypergraph, context);
+  coarsener.setUncoarseningData(uncoarseningData.get());
+  Uncoarsener uncoarsener(hypergraph, context, false, *uncoarseningData);
   doCoarsening(coarsener);
   PartitionedHyperGraph& coarsest_partitioned_hypergraph =
     coarsener.coarsestPartitionedHypergraph();
   assignPartitionIDs(coarsest_partitioned_hypergraph);
-  PartitionedHyperGraph partitioned_hypergraph = coarsener.uncoarsen(nullptr_refiner, nullptr_refiner);
+  PartitionedHyperGraph partitioned_hypergraph = uncoarsener.uncoarsen(nullptr_refiner, nullptr_refiner);
   for ( const HypernodeID& hn : partitioned_hypergraph.nodes() ) {
     PartitionID part_id = 0;
     ASSERT_EQ(part_id, partitioned_hypergraph.partID(hn));
