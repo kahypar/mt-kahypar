@@ -43,10 +43,9 @@ namespace mt_kahypar {
                         const bool top_level,
                         UncoarseningData& uncoarseningData) :
       _hg(hypergraph),
-      _partitioned_hg(std::move(uncoarseningData.partitioned_hypergraph)),
       _context(context),
       _top_level(top_level),
-      _hierarchy(std::move(uncoarseningData.hierarchy)) { }
+      _uncoarseningData(uncoarseningData) { }
 
   MultilevelUncoarsener(const MultilevelUncoarsener&) = delete;
   MultilevelUncoarsener(MultilevelUncoarsener&&) = delete;
@@ -55,10 +54,9 @@ namespace mt_kahypar {
 
   private:
     Hypergraph& _hg;
-    std::shared_ptr<PartitionedHypergraph> _partitioned_hg;
     const Context& _context;
     const bool _top_level;
-    std::shared_ptr<vec<Level>> _hierarchy;
+    UncoarseningData& _uncoarseningData;
 
 protected:
     PartitionedHypergraph&& doUncoarsen(
@@ -79,16 +77,16 @@ protected:
       uncontraction_progress += coarsest_hg.initialNumNodes();
 
       // Refine Coarsest Partitioned Hypergraph
-      double time_limit = refinementTimeLimit(_context, _hierarchy->back().coarseningTime());
+      double time_limit = refinementTimeLimit(_context, _uncoarseningData.hierarchy.back().coarseningTime());
       refine(coarsest_hg, label_propagation, fm, current_metrics, time_limit);
 
-      for (int i = _hierarchy->size() - 1; i >= 0; --i) {
+      for (int i = _uncoarseningData.hierarchy.size() - 1; i >= 0; --i) {
         // Project partition to next level finer hypergraph
         utils::Timer::instance().start_timer("projecting_partition", "Projecting Partition");
-        PartitionedHypergraph& representative_hg = (*_hierarchy)[i].representativeHypergraph();
-        PartitionedHypergraph& contracted_hg = (*_hierarchy)[i].contractedPartitionedHypergraph();
+        PartitionedHypergraph& representative_hg = (_uncoarseningData.hierarchy)[i].representativeHypergraph();
+        PartitionedHypergraph& contracted_hg = (_uncoarseningData.hierarchy)[i].contractedPartitionedHypergraph();
         representative_hg.doParallelForAllNodes([&](const HypernodeID hn) {
-          const HypernodeID coarse_hn = (*_hierarchy)[i].mapToContractedHypergraph(hn);
+          const HypernodeID coarse_hn = (_uncoarseningData.hierarchy)[i].mapToContractedHypergraph(hn);
           const PartitionID block = contracted_hg.partID(coarse_hn);
           ASSERT(block != kInvalidPartition && block < representative_hg.k());
           representative_hg.setOnlyNodePart(hn, block);
@@ -108,7 +106,7 @@ protected:
         utils::Timer::instance().stop_timer("projecting_partition");
 
         // Refinement
-        time_limit = refinementTimeLimit(_context, (*_hierarchy)[i].coarseningTime());
+        time_limit = refinementTimeLimit(_context, (_uncoarseningData.hierarchy)[i].coarseningTime());
         refine(representative_hg, label_propagation, fm, current_metrics, time_limit);
 
         // Update Progress Bar
@@ -118,15 +116,15 @@ protected:
       }
 
       // If we reach the original hypergraph and partition is imbalanced, we try to rebalance it
-      if (_top_level && !metrics::isBalanced(*_partitioned_hg, _context)) {
+      if (_top_level && !metrics::isBalanced(*_uncoarseningData.partitioned_hg, _context)) {
         const HyperedgeWeight quality_before = current_metrics.getMetric(
           kahypar::Mode::direct_kway, _context.partition.objective);
         if (_context.partition.verbose_output) {
           LOG << RED << "Partition is imbalanced (Current Imbalance:"
-          << metrics::imbalance(*_partitioned_hg, _context) << ")" << END;
+          << metrics::imbalance(*_uncoarseningData.partitioned_hg, _context) << ")" << END;
 
           LOG << "Part weights: (violations in red)";
-          io::printPartWeightsAndSizes(*_partitioned_hg, _context);
+          io::printPartWeightsAndSizes(*_uncoarseningData.partitioned_hg, _context);
         }
 
         if (_context.partition.deterministic) {
@@ -139,10 +137,10 @@ protected:
           }
           utils::Timer::instance().start_timer("rebalance", "Rebalance");
           if (_context.partition.objective == kahypar::Objective::km1) {
-            Km1Rebalancer rebalancer(*_partitioned_hg, _context);
+            Km1Rebalancer rebalancer(*_uncoarseningData.partitioned_hg, _context);
             rebalancer.rebalance(current_metrics);
           } else if (_context.partition.objective == kahypar::Objective::cut) {
-            CutRebalancer rebalancer(*_partitioned_hg, _context);
+            CutRebalancer rebalancer(*_uncoarseningData.partitioned_hg, _context);
             rebalancer.rebalance(current_metrics);
           }
           utils::Timer::instance().stop_timer("rebalance");
@@ -153,28 +151,28 @@ protected:
             const HyperedgeWeight quality_delta = quality_after - quality_before;
             if (quality_delta > 0) {
               LOG << RED << "Rebalancer decreased solution quality by" << quality_delta
-              << "(Current Imbalance:" << metrics::imbalance(*_partitioned_hg, _context) << ")" << END;
+              << "(Current Imbalance:" << metrics::imbalance(*_uncoarseningData.partitioned_hg, _context) << ")" << END;
             } else {
               LOG << GREEN << "Rebalancer improves solution quality by" << abs(quality_delta)
-              << "(Current Imbalance:" << metrics::imbalance(*_partitioned_hg, _context) << ")" << END;
+              << "(Current Imbalance:" << metrics::imbalance(*_uncoarseningData.partitioned_hg, _context) << ")" << END;
             }
           }
         }
 
-        ASSERT(metrics::objective(*_partitioned_hg, _context.partition.objective) ==
+        ASSERT(metrics::objective(*_uncoarseningData.partitioned_hg, _context.partition.objective) ==
                current_metrics.getMetric(kahypar::Mode::direct_kway, _context.partition.objective),
                V(current_metrics.getMetric(kahypar::Mode::direct_kway, _context.partition.objective))
-               << V(metrics::objective(*_partitioned_hg, _context.partition.objective)));
+               << V(metrics::objective(*_uncoarseningData.partitioned_hg, _context.partition.objective)));
       }
-      return std::move(*_partitioned_hg);
+      return std::move(*_uncoarseningData.partitioned_hg);
     }
 
   PartitionedHypergraph& currentPartitionedHypergraph() {
-    /*ASSERT(_is_finalized);*/
-    if ( _hierarchy->empty() ) {
-      return *_partitioned_hg;
+    ASSERT(_uncoarseningData.is_finalized);
+    if ( _uncoarseningData.hierarchy.empty() ) {
+      return *_uncoarseningData.partitioned_hg;
     } else {
-      return _hierarchy->back().contractedPartitionedHypergraph();
+      return _uncoarseningData.hierarchy.back().contractedPartitionedHypergraph();
     }
   }
   kahypar::Metrics initialize(PartitionedHypergraph& phg) {

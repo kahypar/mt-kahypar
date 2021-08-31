@@ -59,7 +59,7 @@ namespace mt_kahypar::multilevel {
               _context.coarsening.algorithm, _hg, _context, _top_level);
       _sparsifier = HypergraphSparsifierFactory::getInstance().createObject(
               _context.sparsification.similiar_net_combiner_strategy, _context);
-      _coarsener->setUncoarseningData(*uncoarseningData);
+      _coarsener->setUncoarseningData(uncoarseningData.get());
 
       // Switch refinement context from IP to main
       _ip_context.refinement = _context.initial_partitioning.refinement;

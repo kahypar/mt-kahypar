@@ -97,14 +97,9 @@ public:
   explicit UncoarseningData(bool n_level, const Hypergraph& hg, const Context& context) :
     nlevel(n_level) {
       if (nlevel) {
-        compactified_hg = std::make_shared<Hypergraph>();
-        compactified_phg = std::make_shared<PartitionedHypergraph>();
-        compactified_hn_mapping = std::make_shared<vec<HypernodeID>>();
-        n_level_hierarchy = std::make_shared<VersionedBatchVector>();
-        removed_hyperedges_batches = std::make_shared<vec<vec<ParallelHyperedge>>>();
-        round_coarsening_times = std::make_shared<vec<double>>();
+        compactified_hg = std::make_unique<Hypergraph>();
+        compactified_phg = std::make_unique<PartitionedHypergraph>();
       } else {
-        hierarchy = std::make_shared<vec<Level>>();
         size_t estimated_number_of_levels = 1UL;
         if ( hg.initialNumNodes() > context.coarsening.contraction_limit ) {
           estimated_number_of_levels = std::ceil( std::log2(
@@ -112,24 +107,39 @@ public:
               static_cast<double>(context.coarsening.contraction_limit)) /
             std::log2(context.coarsening.maximum_shrink_factor) ) + 1UL;
         }
-        hierarchy->reserve(estimated_number_of_levels);
+        hierarchy.reserve(estimated_number_of_levels);
+        partitioned_hg = std::make_unique<PartitionedHypergraph>();
       }
-      partitioned_hypergraph = std::make_shared<PartitionedHypergraph>();
     }
 
+  ~UncoarseningData() noexcept {
+    tbb::parallel_for(0UL, hierarchy.size(), [&](const size_t i) {
+      (hierarchy)[i].freeInternalData();
+    }, tbb::static_partitioner());
+  }
+
   // Multilevel Data
-  std::shared_ptr<vec<Level>> hierarchy;
+  vec<Level> hierarchy;
+  std::unique_ptr<PartitionedHypergraph> partitioned_hg;
 
   // NLevel Data
-  std::shared_ptr<Hypergraph> compactified_hg;
-  std::shared_ptr<PartitionedHypergraph> compactified_phg;
-  std::shared_ptr<vec<HypernodeID>> compactified_hn_mapping;
-  std::shared_ptr<VersionedBatchVector> n_level_hierarchy;
-  std::shared_ptr<vec<vec<ParallelHyperedge>>> removed_hyperedges_batches;
-  std::shared_ptr<vec<double>> round_coarsening_times;
+  // ! Once coarsening terminates we generate a compactified hypergraph
+  // ! containing only enabled vertices and hyperedges within a consecutive
+  // ! ID range, which is then used for initial partitioning
+  std::unique_ptr<Hypergraph> compactified_hg;
+  // ! Compactified partitioned hypergraph
+  std::unique_ptr<PartitionedHypergraph> compactified_phg;
+  // ! Mapping from vertex IDs of the original hypergraph to the IDs
+  // ! in the compactified hypergraph
+  vec<HypernodeID> compactified_hn_mapping;
+  // ! Contains timings how long a coarsening pass takes for each round
+  vec<vec<ParallelHyperedge>> removed_hyperedges_batches;
+  // ! Removed single-pin and parallel nets.
+  // ! All hyperedges that are contained in one vector must be restored once
+  // ! we completly processed a vector of batches.
+  vec<double> round_coarsening_times;
 
   // Both
-  std::shared_ptr<PartitionedHypergraph> partitioned_hypergraph;
   bool is_finalized = false;
   bool nlevel;
 };

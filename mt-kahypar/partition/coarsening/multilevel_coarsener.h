@@ -442,9 +442,8 @@ class MultilevelCoarsener : public ICoarsener,
     return Base::currentPartitionedHypergraph();
   }
 
-  void setUncoarseningDataImpl(UncoarseningData& uncoarseningData) override {
-    _hierarchy = uncoarseningData.hierarchy;
-    _partitioned_hg = uncoarseningData.partitioned_hypergraph;
+  void setUncoarseningDataImpl(UncoarseningData* uncoarseningData) override {
+    _uncoarseningData = uncoarseningData;
   }
 
 

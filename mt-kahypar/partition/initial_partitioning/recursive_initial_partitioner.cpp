@@ -135,7 +135,7 @@ namespace mt_kahypar {
 
       bool nlevel = _result.context.coarsening.algorithm == CoarseningAlgorithm::nlevel_coarsener;
       _uncoarseningData = std::make_shared<UncoarseningData>(nlevel, _result.hypergraph, _result.context);
-      _coarsener->setUncoarseningData(*_uncoarseningData);
+      _coarsener->setUncoarseningData(_uncoarseningData.get());
     }
 
     tbb::task* execute() override {

@@ -37,7 +37,6 @@ class MultilevelCoarsenerBase {
   MultilevelCoarsenerBase(Hypergraph& hypergraph,
                           const Context& context,
                           const bool top_level) :
-          _is_finalized(false),
           _hg(hypergraph),
           _context(context),
           _top_level(top_level) {}
@@ -47,40 +46,34 @@ class MultilevelCoarsenerBase {
   MultilevelCoarsenerBase & operator= (const MultilevelCoarsenerBase &) = delete;
   MultilevelCoarsenerBase & operator= (MultilevelCoarsenerBase &&) = delete;
 
-  virtual ~MultilevelCoarsenerBase() noexcept {
-/*
-    tbb::parallel_for(0UL, _hierarchy->size(), [&](const size_t i) {
-      (*_hierarchy)[i].freeInternalData();
-    }, tbb::static_partitioner());
-*/
-  }
+  virtual ~MultilevelCoarsenerBase() = default;
 
  protected:
 
   HypernodeID currentNumNodes() const {
-    if ( _hierarchy->empty() ) {
+    if ( _uncoarseningData->hierarchy.empty() ) {
       return _hg.initialNumNodes();
     } else {
-      return _hierarchy->back().contractedHypergraph().initialNumNodes();
+      return _uncoarseningData->hierarchy.back().contractedHypergraph().initialNumNodes();
     }
   }
 
   Hypergraph& currentHypergraph() {
-    if ( _hierarchy->empty() ) {
+    if ( _uncoarseningData->hierarchy.empty() ) {
       return _hg;
     } else {
-      return _hierarchy->back().contractedHypergraph();
+      return _uncoarseningData->hierarchy.back().contractedHypergraph();
     }
   }
 
   PartitionedHypergraph& currentPartitionedHypergraph() {
-    ASSERT(_is_finalized);
-    if ( _hierarchy->empty() ) {
-      return *_partitioned_hg;
+    ASSERT(_uncoarseningData->is_finalized);
+    if ( _uncoarseningData->hierarchy.empty() ) {
+      return *_uncoarseningData->partitioned_hg;
     } else {
-      return _hierarchy->back().contractedPartitionedHypergraph();
-    }
-  }
+      return _uncoarseningData->hierarchy.back().contractedPartitionedHypergraph();
+     }
+   }
 
   void finalize();
 
@@ -89,11 +82,9 @@ class MultilevelCoarsenerBase {
           const HighResClockTimepoint& round_start);
 
  protected:
-  bool _is_finalized;
   Hypergraph& _hg;
-  std::shared_ptr<PartitionedHypergraph> _partitioned_hg;
   const Context& _context;
   const bool _top_level;
-  std::shared_ptr<vec<Level>> _hierarchy;
+  UncoarseningData* _uncoarseningData;
 };
 }  // namespace mt_kahypar
