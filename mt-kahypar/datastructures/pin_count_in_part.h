@@ -49,6 +49,71 @@ class PinCountInPart {
  public:
   using Value = uint64_t;
 
+  class Snapshot {
+
+  public:
+
+      Snapshot() :
+              _k(0),
+              _bits_per_element(0),
+              _entries_per_value(0),
+              _values_per_hyperedge(0),
+              _extraction_mask(0),
+              _snapshot_data() {}
+
+      Snapshot(const PartitionID k,
+               const size_t bits_per_element, const size_t entries_per_value,
+               const size_t values_per_hyperedge, const Value extraction_mask) :
+                           _k(k),
+                           _bits_per_element(bits_per_element),
+                           _entries_per_value(entries_per_value),
+                           _values_per_hyperedge(values_per_hyperedge),
+                           _extraction_mask(extraction_mask),
+                           _snapshot_data(values_per_hyperedge) {}
+
+      Snapshot(const Snapshot&) = default;
+      Snapshot& operator=(const Snapshot&) = default;
+      Snapshot(Snapshot&&) = default;
+      Snapshot& operator=(Snapshot&&) = default;
+
+      void writePCIPSnapshotForHyperedge(const Array<Value>& all_pin_counts_in_part, const HyperedgeID he) {
+        ASSERT(!all_pin_counts_in_part.empty());
+        ASSERT(all_pin_counts_in_part.size() > he * _values_per_hyperedge);
+        if (_snapshot_data.empty()) {
+          ERROR("Writing to PinCountInPart::Snapshot that has not been initialized correctly.");
+        }
+        const Value* begin_of_he_section = all_pin_counts_in_part.data() + (he * _values_per_hyperedge);
+        const size_t num_bytes_in_section = _values_per_hyperedge * sizeof(Value);
+        std::memcpy(_snapshot_data.data(), begin_of_he_section, num_bytes_in_section);
+      }
+
+      // ! Returns the pin count of the hyperedge in the corresponding block in this snapshot
+      inline HypernodeID pinCountInPart(const PartitionID id) const {
+        ASSERT(id != kInvalidPartition && id < _k);
+        if (_snapshot_data.empty() || _k == 0 || _entries_per_value == 0 || _bits_per_element == 0 || _values_per_hyperedge == 0 || _extraction_mask == 0) {
+          ERROR("PinCountInPart::Snapshot used that has not been initialized correctly." << V(_k) << V(_entries_per_value) << V(_bits_per_element) << V(_values_per_hyperedge) << V(_extraction_mask));
+        }
+        const size_t value_pos = id / _entries_per_value;
+        const size_t bit_pos = (id % _entries_per_value) * _bits_per_element;
+        const Value mask = _extraction_mask << bit_pos;
+        return (_snapshot_data[value_pos] & mask) >> bit_pos;
+      }
+
+      [[nodiscard]] size_t size_in_bytes() const {
+        return _snapshot_data.size() * sizeof(Value);
+      }
+
+  private:
+
+      PartitionID _k;
+      size_t _bits_per_element;
+      size_t _entries_per_value;
+      size_t _values_per_hyperedge;
+      Value _extraction_mask;
+      std::vector<Value> _snapshot_data;
+
+  };
+
   PinCountInPart() :
     _num_hyperedges(0),
     _k(0),
@@ -183,6 +248,14 @@ class PinCountInPart {
                              const PartitionID k,
                              const HypernodeID max_value) {
     return num_hyperedges * num_values_per_hyperedge(k, max_value);
+  }
+
+  Snapshot generateEmptySnapshot() const {
+    return Snapshot(_k, _bits_per_element, _entries_per_value, _values_per_hyperedge, _extraction_mask);
+  }
+
+  void takeSnapshotForHyperedge(const HyperedgeID he, Snapshot& snapshot) const {
+    snapshot.writePCIPSnapshotForHyperedge(_pin_count_in_part, he);
   }
 
  private:
