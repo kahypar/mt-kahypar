@@ -741,13 +741,34 @@ private:
     if ( to_weight_after <= max_weight_to && from_weight_after > 0 ) {
       _part_ids[u] = to;
       report_success();
-      for ( const HyperedgeID he : incidentEdges(u) ) {
-          if (concurrent_uncontractions) {
-              asyncUpdatePinCountOfHyperedge(he, from, to, delta_func, gain_cache_update_func);
+
+      if (concurrent_uncontractions) {
+        std::vector<HyperedgeID> retry_edges;
+        for ( const HyperedgeID he : incidentEdges(u) ) {
+          bool success = asyncUpdatePinCountOfHyperedge(he, from, to, delta_func, gain_cache_update_func);
+          if (!success) retry_edges.push_back(he);
+        }
+
+        size_t i = 0;
+        while (!retry_edges.empty()) {
+          const HyperedgeID he = retry_edges[i];
+          bool success = asyncUpdatePinCountOfHyperedge(he, from, to, delta_func, gain_cache_update_func);
+          if (success) {
+            retry_edges[i] = retry_edges.back();
+            retry_edges.pop_back();
           } else {
-              updatePinCountOfHyperedge(he, from, to, delta_func, gain_cache_update_func);
+            ++i;
           }
+          if (i >= retry_edges.size()) {
+            i = 0;
+          }
+        }
+      } else {
+        for ( const HyperedgeID he : incidentEdges(u) ) {
+          updatePinCountOfHyperedge(he, from, to, delta_func, gain_cache_update_func);
+        }
       }
+
       return true;
     } else {
       _part_weights[to].fetch_sub(wu, std::memory_order_relaxed);
@@ -1360,15 +1381,16 @@ private:
     // ! Updates pin count in part using a spinlock. In this variant for asynchronous uncoarsening concurrent
     // ! uncontractions and moves are allowed. For small edges, the gain cache update is performed inside the HE lock
     // ! and for large edges the pins of the hyperedge are stored within the pin count update lock in order to make the
-    // ! gain cache update work on the right pins outside of the lock
+    // ! gain cache update work on the right pins outside of the lock. Returns true if successful and false if the pin
+    // ! count update lock could not be acquired.
   template<typename DeltaFunc, typename GainCacheUpdateFunc>
-  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE void asyncUpdatePinCountOfHyperedge(const HyperedgeID he,
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE bool asyncUpdatePinCountOfHyperedge(const HyperedgeID he,
                                                                          const PartitionID from,
                                                                          const PartitionID to,
                                                                          DeltaFunc&& delta_func,
                                                                          GainCacheUpdateFunc&& gain_cache_update_func) {
       ASSERT(he < _pin_count_update_ownership.size());
-      _pin_count_update_ownership[he].lock();
+      if (!_pin_count_update_ownership[he].tryLock()) return false;
       const HypernodeID pin_count_in_from_part_after = decrementPinCountInPartWithoutGainUpdate(he, from);
       const HypernodeID pin_count_in_to_part_after = incrementPinCountInPartWithoutGainUpdate(he, to);
       size_t edge_size = edgeSize(he);
@@ -1383,6 +1405,7 @@ private:
       }
 
       delta_func(he, edgeWeight(he), edge_size, pin_count_in_from_part_after, pin_count_in_to_part_after);
+      return true;
   }
 
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE

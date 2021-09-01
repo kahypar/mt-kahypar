@@ -263,7 +263,7 @@ void IncidentNetArray::restoreIncidentNets(const HypernodeID u,
     const HypernodeID new_version = --head->current_version;
 
     // todo mlaupichler: remove commented out parts if round-robin waiting is deemed unnecessary by Tobias and Lars
-    std::list<HyperedgeID> case_func_retry_edges;
+    std::vector<HyperedgeID> case_func_retry_edges;
 
     // Iterate over all active entries and call case_two_func
     // => After an uncontraction only u was part of them not its representative
@@ -277,17 +277,18 @@ void IncidentNetArray::restoreIncidentNets(const HypernodeID u,
 
     // Reattempt case_two_func for all edges it did not work for until it does (case_two_func only fails because
     // of locking in asynchronous uncoarsening so eventually it will work for any hyperedge)
-    auto it = case_func_retry_edges.begin();
+    size_t i = 0;
     while (!case_func_retry_edges.empty()) {
-      const HyperedgeID he = *it;
+      const HyperedgeID he = case_func_retry_edges[i];
       bool case_func_success = case_two_func(he);
       if (case_func_success) {
-        it = case_func_retry_edges.erase(it);
+        case_func_retry_edges[i] = case_func_retry_edges.back();
+        case_func_retry_edges.pop_back();
       } else {
-        ++it;
+        ++i;
       }
-      if (it == case_func_retry_edges.end()) {
-        it = case_func_retry_edges.begin();
+      if (i >= case_func_retry_edges.size()) {
+        i = 0;
       }
     }
 
@@ -310,17 +311,18 @@ void IncidentNetArray::restoreIncidentNets(const HypernodeID u,
 
     // Reattempt case_one_func for all edges it did not work for until it does (case_one_func only fails because
     // of locking in asynchronous uncoarsening so eventually it will work for any hyperedge)
-    it = case_func_retry_edges.begin();
+    i = 0;
     while (!case_func_retry_edges.empty()) {
-      const HyperedgeID he = *it;
+      const HyperedgeID he = case_func_retry_edges[i];
       bool case_func_success = case_one_func(he);
       if (case_func_success) {
-        it = case_func_retry_edges.erase(it);
+        case_func_retry_edges[i] = case_func_retry_edges.back();
+        case_func_retry_edges.pop_back();
       } else {
-        ++it;
+        ++i;
       }
-      if (it == case_func_retry_edges.end()) {
-        it = case_func_retry_edges.begin();
+      if (i >= case_func_retry_edges.size()) {
+        i = 0;
       }
     }
 
