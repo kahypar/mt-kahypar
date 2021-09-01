@@ -428,15 +428,19 @@ class FixedSizeSparseMap {
 
 template <typename Key = Mandatory,
           typename Value = Mandatory,
-          typename SparseElement = Mandatory,
-          typename MapElement = Mandatory,
           typename Derived = Mandatory>
 class DynamicMapBase {
+
  public:
+  static constexpr size_t INVALID_POS_MASK = ~(std::numeric_limits<size_t>::max() >> 1); // MSB is set
+  static constexpr size_t INITIAL_CAPACITY = 16;
+
   explicit DynamicMapBase() :
     _capacity(32),
     _size(0),
-    _timestamp(1) {
+    _timestamp(1),
+    _data(nullptr) {
+    initialize(INITIAL_CAPACITY);
   }
 
   DynamicMapBase(const DynamicMapBase&) = delete;
@@ -455,37 +459,43 @@ class DynamicMapBase {
     return _size;
   }
 
-  void initialize(size_t capacity) {
-    static_cast<Derived*>(this)->allocateImpl(align_to_next_power_of_two(capacity));
+  void initialize(const size_t capacity) {
+    _size = 0;
+    _capacity = align_to_next_power_of_two(capacity);
+    _timestamp = 1;
+    const size_t alloc_size = static_cast<const Derived*>(this)->size_in_bytes();
+    _data = std::make_unique<uint8_t[]>(alloc_size);
+    memset(_data.get(), 0, alloc_size);
+    static_cast<Derived*>(this)->initializeImpl();
   }
 
   bool contains(const Key key) const {
-    SparseElement* s = find(key);
-    return containsValidElement(key, s);
+    const size_t pos = find(key);
+    return pos < INVALID_POS_MASK;
   }
 
   Value& operator[] (const Key key) {
-    SparseElement* s = find(key);
-    if (containsValidElement(key, s)) {
-      return getElement(s)->value;
+    size_t pos = find(key);
+    if ( pos < INVALID_POS_MASK ) {
+      return getValue(pos);
     } else {
       if (_size + 1 > (_capacity * 2) / 5) {
-        static_cast<Derived*>(this)->growImpl();
-        s = find(key);
+        grow();
+        pos = find(key);
       }
-      return static_cast<Derived*>(this)->addElementImpl(key, Value(), s);
+      return static_cast<Derived*>(this)->addElementImpl(key, Value(), pos & ~INVALID_POS_MASK);
     }
   }
 
   const Value& get(const Key key) const {
     ASSERT(contains(key));
-    return getElement(find(key))->value;
+    return getValue(find(key));
   }
 
   const Value* get_if_contained(const Key key) const {
-    SparseElement* s = find(key);
-    if (containsValidElement(key, s)) {
-      return &getElement(s)->value;
+    const size_t pos = find(key);
+    if ( pos < INVALID_POS_MASK ) {
+      return &getValue(pos);
     } else {
       return nullptr;
     }
@@ -496,31 +506,25 @@ class DynamicMapBase {
     ++_timestamp;
   }
 
- protected:
-  inline SparseElement* find(const Key key) const {
-    auto _elements = static_cast<const Derived*>(this)->elementsImpl();
-    size_t hash = key & (_capacity - 1);
-    while ( _elements[hash].timestamp == _timestamp ) {
-      if (getElement(&_elements[hash])->key == key ) {
-        return &_elements[hash];
-      }
-      hash = (hash + 1) & (_capacity - 1);
-    }
-    return &_elements[hash];
-  }
-
  private:
-  inline MapElement* getElement(SparseElement* sparse) const {
-    return static_cast<const Derived*>(this)->elementFromSparseImpl(sparse);
+  inline size_t find(const Key key) const {
+    return static_cast<const Derived*>(this)->findImpl(key);
   }
 
-  inline bool containsValidElement(const Key key,
-                                   const SparseElement* s) const {
-    unused(key);
-    ASSERT(s);
-    const bool is_contained = s->timestamp == _timestamp;
-    ASSERT(!is_contained || getElement(const_cast<SparseElement*>(s))->key == key);
-    return is_contained;
+  void grow() {
+    const size_t old_size = _size;
+    const size_t old_capacity = _capacity;
+    const size_t old_timestamp = _timestamp;
+    const size_t new_capacity = 2UL * _capacity;
+    const std::unique_ptr<uint8_t[]> old_data = std::move(_data);
+    const uint8_t* old_data_begin = old_data.get();
+    initialize(new_capacity);
+    static_cast<Derived*>(this)->rehashImpl(
+      old_data_begin, old_size, old_capacity, old_timestamp);
+  }
+
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE Value& getValue(const size_t pos) const {
+    return static_cast<const Derived*>(this)->valueAtPos(pos);
   }
 
   constexpr size_t align_to_next_power_of_two(const size_t size) const {
@@ -532,42 +536,33 @@ class DynamicMapBase {
   size_t _capacity;
   size_t _size;
   size_t _timestamp;
+  std::unique_ptr<uint8_t[]> _data;
 };
 
-namespace impl {
-template <typename Key = Mandatory,
-          typename Value = Mandatory>
-struct MapElement {
-  Key key;
-  Value value;
-};
+
 
 template <typename Key = Mandatory,
           typename Value = Mandatory>
-struct SparseElement {
-  MapElement<Key, Value>* element;
-  size_t timestamp;
-};
-} // namespace impl
+class DynamicSparseMap final : public DynamicMapBase<Key, Value, DynamicSparseMap<Key, Value>> {
 
-template <typename Key = Mandatory,
-          typename Value = Mandatory>
-class DynamicSparseMap final : public DynamicMapBase<Key, Value, impl::SparseElement<Key, Value>,
-                                        impl::MapElement<Key, Value>, DynamicSparseMap<Key, Value>> {
-  using SparseElement = impl::SparseElement<Key, Value>;
-  using MapElement = impl::MapElement<Key, Value>;
-  using Base = DynamicMapBase<Key, Value, SparseElement, MapElement, DynamicSparseMap<Key, Value>>;
-  using Base::_capacity;
-  using Base::_size;
-  using Base::_timestamp;
-  using Base::find;
+  struct MapElement {
+    Key key;
+    Value value;
+  };
+
+  struct SparseElement {
+    MapElement* element;
+    size_t timestamp;
+  };
+
+  using Base = DynamicMapBase<Key, Value, DynamicSparseMap<Key, Value>>;
+  using Base::INVALID_POS_MASK;
 
   friend Base;
 
  public:
   explicit DynamicSparseMap() :
     Base(),
-    _data(nullptr),
     _sparse(nullptr),
     _dense(nullptr) {
     Base::initialize(_capacity);
@@ -610,83 +605,77 @@ class DynamicSparseMap final : public DynamicMapBase<Key, Value, impl::SparseEle
   }
 
  private:
-  inline SparseElement* elementsImpl() const {
-    return _sparse;
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE size_t findImpl(const Key key) const {
+    size_t hash = key & (_capacity - 1);
+    while ( _sparse[hash].timestamp == _timestamp ) {
+      if ( _sparse[hash].element->key == key ) {
+        return hash;
+      }
+      hash = (hash + 1) & (_capacity - 1);
+    }
+    return hash | INVALID_POS_MASK;
   }
 
-  inline MapElement* elementFromSparseImpl(SparseElement* sparse) const {
-    return sparse->element;
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE Value& valueAtPos(const size_t pos) const {
+    ASSERT(pos < _capacity);
+    ASSERT(_sparse[pos].timestamp == _timestamp);
+    return _sparse[pos].element->value;
   }
 
-  inline Value& addElementImpl(const Key key, const Value value, SparseElement* s) {
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE Value& addElementImpl(const Key key, const Value value, const size_t pos) {
+    ASSERT(pos < _capacity);
     _dense[_size] = MapElement { key, value };
-    *s = SparseElement { &_dense[_size++], _timestamp };
-    return s->element->value;
+    _sparse[pos] = SparseElement { &_dense[_size++], _timestamp };
+    return _sparse[pos].element->value;
   }
 
-  void allocateImpl(const size_t capacity) {
-    _capacity = capacity;
-    _timestamp = 1;
-    _data = std::make_unique<uint8_t[]>(
-      _capacity * sizeof(MapElement) + _capacity * sizeof(SparseElement));
+  void initializeImpl() {
     _sparse = reinterpret_cast<SparseElement*>(_data.get());
     _dense = reinterpret_cast<MapElement*>(_data.get() + sizeof(SparseElement) * _capacity);
-    memset(_data.get(), 0, _capacity * (sizeof(MapElement) + sizeof(SparseElement)));
   }
 
-  void growImpl() {
-    const size_t capacity = 2UL * _capacity;
-    const std::unique_ptr<uint8_t[]> old_data = std::move(_data);
-    const MapElement* old_data_begin = begin();
-    const MapElement* old_data_end = end();
-    allocateImpl(capacity);
-
-    rehash(old_data_begin, old_data_end);
-  }
-
-  void rehash(const MapElement* old_data_begin, const MapElement* old_data_end) {
-    size_t size = 0;
-    for (const MapElement* element = old_data_begin; element < old_data_end; ++element) {
-      SparseElement* slot = find(element->key);
-      _dense[size] = MapElement { element->key, element->value };
-      *slot = SparseElement { &_dense[size++], 1 };
+  void rehashImpl(const uint8_t* old_data_begin,
+                  const size_t old_size,
+                  const size_t old_capacity,
+                  const size_t) {
+    const MapElement* elements = reinterpret_cast<const MapElement*>(
+      old_data_begin + sizeof(SparseElement) * old_capacity);
+    for (size_t i = 0; i < old_size; ++i ) {
+      const size_t pos = findImpl(elements[i].key) & ~INVALID_POS_MASK;
+      addElementImpl(elements[i].key, elements[i].value, pos);
     }
-    ASSERT(size == _size);
+    ASSERT(old_size == _size);
   }
 
-  std::unique_ptr<uint8_t[]> _data;
+
+  using Base::_capacity;
+  using Base::_size;
+  using Base::_timestamp;
+  using Base::_data;
+
   SparseElement* _sparse;
   MapElement* _dense;
 };
 
-namespace impl {
-template <typename Key = Mandatory,
-          typename Value = Mandatory>
-struct FlatMapElement {
-  Key key;
-  Value value;
-  size_t timestamp;
-};
-} // namespace impl
 
 template <typename Key = Mandatory,
           typename Value = Mandatory>
-class DynamicFlatMap final : public DynamicMapBase<Key, Value, impl::FlatMapElement<Key, Value>,
-                                      impl::FlatMapElement<Key, Value>, DynamicFlatMap<Key, Value>> {
-  using MapElement = impl::FlatMapElement<Key, Value>;
-  using Base = DynamicMapBase<Key, Value, MapElement, MapElement, DynamicFlatMap<Key, Value>>;
-  using Base::_capacity;
-  using Base::_size;
-  using Base::_timestamp;
-  using Base::find;
+class DynamicFlatMap final : public DynamicMapBase<Key, Value, DynamicFlatMap<Key, Value>> {
+
+  struct MapElement {
+    Key key;
+    Value value;
+    size_t timestamp;
+  };
+
+  using Base = DynamicMapBase<Key, Value, DynamicFlatMap<Key, Value>>;
+  using Base::INVALID_POS_MASK;
   friend Base;
 
  public:
   explicit DynamicFlatMap() :
     Base(),
-    _data(nullptr) {
-    Base::initialize(_capacity);
-  }
+    _elements(nullptr) { }
 
   DynamicFlatMap(const DynamicFlatMap&) = delete;
   DynamicFlatMap& operator= (const DynamicFlatMap& other) = delete;
@@ -700,6 +689,7 @@ class DynamicFlatMap final : public DynamicMapBase<Key, Value, impl::FlatMapElem
     _size = 0;
     _timestamp = 0;
     _data = nullptr;
+    _elements = nullptr;
   }
 
   size_t size_in_bytes() const {
@@ -707,48 +697,54 @@ class DynamicFlatMap final : public DynamicMapBase<Key, Value, impl::FlatMapElem
   }
 
  private:
-  inline MapElement* elementsImpl() const {
-    return _data.get();
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE size_t findImpl(const Key key) const {
+    size_t hash = key & (_capacity - 1);
+    while ( _elements[hash].timestamp == _timestamp ) {
+      if ( _elements[hash].key == key ) {
+        return hash;
+      }
+      hash = (hash + 1) & (_capacity - 1);
+    }
+    return hash | INVALID_POS_MASK;
   }
 
-  inline MapElement* elementFromSparseImpl(MapElement* sparse) const {
-    // No-Op for flat map
-    return sparse;
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE Value& valueAtPos(const size_t pos) const {
+    ASSERT(pos < _capacity);
+    ASSERT(_elements[pos].timestamp == _timestamp);
+    return _elements[pos].value;
   }
 
-  inline Value& addElementImpl(Key key, Value value, MapElement* s) {
-    *s = MapElement { key, value, _timestamp };
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE Value& addElementImpl(Key key, Value value, const size_t pos) {
+    ASSERT(pos < _capacity);
+    _elements[pos] = MapElement { key, value, _timestamp };
     _size++;
-    return s->value;
+    return _elements[pos].value;
   }
 
-  void allocateImpl(const size_t capacity) {
-    _capacity = capacity;
-    _data = std::make_unique<MapElement[]>(_capacity);
-    memset(_data.get(), 0, _capacity * sizeof(MapElement));
+  void initializeImpl() {
+    _elements = reinterpret_cast<MapElement*>(_data.get());
   }
 
-  void growImpl() {
-    const size_t capacity = 2UL * _capacity;
-    std::unique_ptr<MapElement[]> old_data = std::move(_data);
-    const MapElement* old_data_begin = old_data.get();
-    const MapElement* old_data_end = old_data.get() + _capacity;
-    allocateImpl(capacity);
-
-    rehash(old_data_begin, old_data_end);
-    _timestamp = 1;
-  }
-
-  void rehash(const MapElement* old_data_begin, const MapElement* old_data_end) {
-    for (const MapElement* element = old_data_begin; element < old_data_end; ++element) {
-      if (element->timestamp == _timestamp) {
-        MapElement* slot = find(element->key);
-        *slot = MapElement { element->key, element->value, 1 };
+  void rehashImpl(const uint8_t* old_data_begin,
+                  const size_t old_size,
+                  const size_t old_capacity,
+                  const size_t old_timestamp) {
+    unused(old_size);
+    const MapElement* elements = reinterpret_cast<const MapElement*>(old_data_begin);
+    for (size_t i = 0; i < old_capacity; ++i ) {
+      if ( elements[i].timestamp == old_timestamp ) {
+        const size_t pos = findImpl(elements[i].key) & ~INVALID_POS_MASK;
+        addElementImpl(elements[i].key, elements[i].value, pos);
       }
     }
+    ASSERT(old_size == _size);
   }
 
-  std::unique_ptr<MapElement[]> _data;
+  using Base::_capacity;
+  using Base::_size;
+  using Base::_timestamp;
+  using Base::_data;
+  MapElement* _elements;
 };
 
 struct EmptyStruct { };
