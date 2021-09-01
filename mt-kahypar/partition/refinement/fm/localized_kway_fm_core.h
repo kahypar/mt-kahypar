@@ -39,7 +39,7 @@ public:
           context(context),
           thisSearch(0),
           k(context.partition.k),
-          deltaPhg(context.partition.k),
+          deltaPhg(context),
           neighborDeduplicator(numNodes, 0),
           fm_strategy(context, numNodes, sharedData, runStats),
           sharedData(sharedData)

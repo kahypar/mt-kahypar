@@ -2,7 +2,7 @@
 
 License|Linux Build|Code Coverage|Code Quality
 :--:|:--:|:--:|:--:
-[![License: GPL v3](https://img.shields.io/badge/License-GPL%20v3-blue.svg)](http://www.gnu.org/licenses/gpl-3.0)|[![Travis-CI Status](https://travis-ci.org/kahypar/mt-kahypar.svg?branch=master)](https://travis-ci.org/kahypar/mt-kahypar)|[![codecov](https://codecov.io/gh/kahypar/mt-kahypar/branch/master/graph/badge.svg?token=sNWRRtXZjI)](https://codecov.io/gh/kahypar/mt-kahypar)|[![Language grade: C/C++](https://img.shields.io/lgtm/grade/cpp/g/kittobi1992/mt-kahypar.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/kittobi1992/mt-kahypar/context:cpp)
+[![License: GPL v3](https://img.shields.io/badge/License-GPL%20v3-blue.svg)](http://www.gnu.org/licenses/gpl-3.0)|[![Build Status](https://github.com/kahypar/mt-kahypar/actions/workflows/mt_kahypar_ci.yml/badge.svg)](https://github.com/kahypar/mt-kahypar/actions/workflows/mt_kahypar_ci.yml)|[![codecov](https://codecov.io/gh/kahypar/mt-kahypar/branch/master/graph/badge.svg?token=sNWRRtXZjI)](https://codecov.io/gh/kahypar/mt-kahypar)|[![Language grade: C/C++](https://img.shields.io/lgtm/grade/cpp/g/kittobi1992/mt-kahypar.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/kittobi1992/mt-kahypar/context:cpp)
 
 What is a Hypergraph? What is Hypergraph Partitioning?
 -----------
@@ -276,7 +276,8 @@ If you are interested in a commercial license, please contact me.
       booktitle = {23rd Workshop on Algorithm Engineering and Experiments, (ALENEX 2021)},
       pages     = {16--30},
       year      = {2021},
-      publisher = {SIAM}
+      publisher = {SIAM},
+      doi       = {10.1137/1.9781611976472.2},
     }
 
     // Mt-KaHyPar Strong (Technical Report - Under Review)

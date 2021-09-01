@@ -163,7 +163,7 @@ namespace mt_kahypar {
   TEST_F(DeterminismTest, Coarsening) {
     Hypergraph first;
     for (size_t i = 0; i < num_repetitions; ++i) {
-      DeterministicMultilevelCoarsener coarsener(hypergraph, context, true);
+      DeterministicMultilevelCoarsener coarsener(hypergraph, context);
       coarsener.coarsen();
       if (i == 0) {
         first = coarsener.coarsestHypergraph().copy();
@@ -209,7 +209,7 @@ namespace mt_kahypar {
   }
 
   TEST_F(DeterminismTest, RefinementOnCoarseHypergraph) {
-    DeterministicMultilevelCoarsener coarsener(hypergraph, context, true);
+    DeterministicMultilevelCoarsener coarsener(hypergraph, context);
     coarsener.coarsen();
     hypergraph = coarsener.coarsestHypergraph().copy();
     partitioned_hypergraph = PartitionedHypergraph(
@@ -218,7 +218,7 @@ namespace mt_kahypar {
   }
 
   TEST_F(DeterminismTest, RefinementOnCoarseHypergraphWithSecondaryGainRecalculation) {
-    DeterministicMultilevelCoarsener coarsener(hypergraph, context, true);
+    DeterministicMultilevelCoarsener coarsener(hypergraph, context);
     coarsener.coarsen();
     hypergraph = coarsener.coarsestHypergraph().copy();
     partitioned_hypergraph = PartitionedHypergraph(

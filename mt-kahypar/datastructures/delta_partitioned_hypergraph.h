@@ -29,6 +29,7 @@
 #include "mt-kahypar/datastructures/hypergraph_common.h"
 #include "mt-kahypar/datastructures/sparse_map.h"
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
+#include "mt-kahypar/partition/context.h"
 
 namespace mt_kahypar {
 namespace ds {
@@ -52,6 +53,9 @@ namespace ds {
 template <typename PartitionedHypergraph = Mandatory>
 class DeltaPartitionedHypergraph {
  private:
+  static constexpr size_t MAP_SIZE_LARGE = 16384;
+  static constexpr size_t MAP_SIZE_MOVE_DELTA = 8192;
+  static constexpr size_t MAP_SIZE_SMALL = 128;
 
   using HypernodeIterator = typename PartitionedHypergraph::HypernodeIterator;
   using HyperedgeIterator = typename PartitionedHypergraph::HyperedgeIterator;
@@ -62,14 +66,29 @@ class DeltaPartitionedHypergraph {
   static constexpr bool supports_connectivity_set = false;
   static constexpr HyperedgeID HIGH_DEGREE_THRESHOLD = PartitionedHypergraph::HIGH_DEGREE_THRESHOLD;
 
-  DeltaPartitionedHypergraph(const PartitionID k) :
-    _k(k),
+  DeltaPartitionedHypergraph() :
+    _k(kInvalidPartition),
     _phg(nullptr),
-    _part_weights_delta(k, 0),
+    _part_weights_delta(0, 0),
     _part_ids_delta(),
     _pins_in_part_delta(),
     _move_to_penalty_delta(),
-    _move_from_benefit_delta() { }
+    _move_from_benefit_delta() {}
+
+  DeltaPartitionedHypergraph(const Context& context) :
+    _k(context.partition.k),
+    _phg(nullptr),
+    _part_weights_delta(context.partition.k, 0),
+    _part_ids_delta(),
+    _pins_in_part_delta(),
+    _move_to_penalty_delta(),
+    _move_from_benefit_delta() {
+      const bool top_level = context.type == kahypar::ContextType::main;
+      _part_ids_delta.initialize(MAP_SIZE_SMALL);
+      _pins_in_part_delta.initialize(MAP_SIZE_LARGE);
+      _move_from_benefit_delta.initialize(top_level ? MAP_SIZE_LARGE : MAP_SIZE_MOVE_DELTA);
+      _move_to_penalty_delta.initialize(top_level ? MAP_SIZE_LARGE : MAP_SIZE_MOVE_DELTA);
+    }
 
   DeltaPartitionedHypergraph(const DeltaPartitionedHypergraph&) = delete;
   DeltaPartitionedHypergraph & operator= (const DeltaPartitionedHypergraph &) = delete;
@@ -337,7 +356,7 @@ class DeltaPartitionedHypergraph {
   bool _memory_dropped = false;
 
   // ! Number of blocks
-  const PartitionID _k;
+  PartitionID _k;
 
   // ! Partitioned hypergraph where all deltas are stored relative to
   PartitionedHypergraph* _phg;
@@ -346,19 +365,19 @@ class DeltaPartitionedHypergraph {
   vec< HypernodeWeight > _part_weights_delta;
 
   // ! Stores for each locally moved node, its new block id
-  DynamicSparseMap<HypernodeID, PartitionID> _part_ids_delta;
+  DynamicFlatMap<HypernodeID, PartitionID> _part_ids_delta;
 
   // ! Stores the delta of each locally touched pin count entry
   // ! relative to the _pins_in_part member in '_phg'
-  DynamicSparseMap<size_t, int32_t> _pins_in_part_delta;
+  DynamicFlatMap<size_t, int32_t> _pins_in_part_delta;
 
   // ! Stores the delta of each locally touched move to penalty entry
   // ! relative to the _move_to_penalty member in '_phg'
-  DynamicSparseMap<size_t, HyperedgeWeight> _move_to_penalty_delta;
+  DynamicFlatMap<size_t, HyperedgeWeight> _move_to_penalty_delta;
 
   // ! Stores the delta of each locally touched move from benefit entry
   // ! relative to the _move_from_benefit member in '_phg'
-  DynamicSparseMap<HypernodeID, HyperedgeWeight> _move_from_benefit_delta;
+  DynamicFlatMap<HypernodeID, HyperedgeWeight> _move_from_benefit_delta;
 };
 
 } // namespace ds

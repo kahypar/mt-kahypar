@@ -41,7 +41,7 @@ using HypergraphSparsifierFactory = kahypar::meta::Factory<SimiliarNetCombinerSt
                                                            IHypergraphSparsifier* (*)(const Context&)>;
 
 using CoarsenerFactory = kahypar::meta::Factory<CoarseningAlgorithm,
-                                                ICoarsener* (*)(Hypergraph&, const Context&, const bool)>;
+                                                ICoarsener* (*)(Hypergraph&, const Context&)>;
 
 using MultilevelCoarsenerDispatcher = kahypar::meta::StaticMultiDispatchFactory<MultilevelCoarsener,
                                                                                 ICoarsener,
@@ -56,7 +56,7 @@ using NLevelCoarsenerDispatcher = kahypar::meta::StaticMultiDispatchFactory<NLev
                                                                                                         AcceptancePolicies> >;
 
 using InitialPartitionerFactory = kahypar::meta::Factory<InitialPartitioningMode,
-                                                         IInitialPartitioner* (*)(PartitionedHypergraph&, const Context&, const bool)>;
+                                                         IInitialPartitioner* (*)(PartitionedHypergraph&, const Context&)>;
 
 using LabelPropagationFactory = kahypar::meta::Factory<LabelPropagationAlgorithm,
                                                        IRefiner* (*)(Hypergraph&, const Context&)>;

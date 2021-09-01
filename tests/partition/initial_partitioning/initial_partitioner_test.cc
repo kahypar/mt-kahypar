@@ -99,8 +99,7 @@ class AInitialPartitionerTest : public Test {
     context.setupContractionLimit(hypergraph.totalWeight());
     assignCommunities();
 
-    initial_partitioner = std::make_unique<InitialPartitioner>(
-      partitioned_hypergraph, context, true);
+    initial_partitioner = std::make_unique<InitialPartitioner>(partitioned_hypergraph, context);
   }
 
   void assignCommunities() {

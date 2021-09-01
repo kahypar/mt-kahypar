@@ -85,7 +85,6 @@ namespace mt_kahypar::ds {
 
     // #################### STAGE 1 ####################
     // Compute vertex ids of coarse hypergraph with a parallel prefix sum
-    utils::Timer::instance().start_timer("preprocess_contractions", "Preprocess Contractions");
     mapping.assign(_num_hypernodes, 0);
 
     doParallelForAllNodes([&](const HypernodeID& hn) {
@@ -132,7 +131,6 @@ namespace mt_kahypar::ds {
       // Aggregate upper bound for number of incident nets of the contracted vertex
       tmp_num_incident_nets[coarse_hn] += nodeDegree(hn);
     });
-    utils::Timer::instance().stop_timer("preprocess_contractions");
 
     // #################### STAGE 2 ####################
     // In this step hyperedges and incident nets of vertices are contracted inside the temporary
@@ -143,12 +141,10 @@ namespace mt_kahypar::ds {
     // that parallel and single-pin hyperedges are not removed from the incident nets (will be done
     // in a postprocessing step).
     auto cs2 = [](const HypernodeID x) { return x * x; };
-    utils::Timer::instance().start_timer("contract_incidence_structure", "Contract Incidence Structures");
     ConcurrentBucketMap<ContractedHyperedgeInformation> hyperedge_hash_map;
     hyperedge_hash_map.reserve_for_estimated_number_of_insertions(_num_hyperedges);
     tbb::parallel_invoke([&] {
       // Contract Hyperedges
-      utils::Timer::instance().start_timer("contract_hyperedges", "Contract Hyperedges", true);
       tbb::parallel_for(ID(0), _num_hyperedges, [&](const HyperedgeID& he) {
         if ( edgeIsEnabled(he) ) {
           // Copy hyperedge and pins to temporary buffer
@@ -198,11 +194,8 @@ namespace mt_kahypar::ds {
           valid_hyperedges[he] = 0;
         }
       });
-      utils::Timer::instance().stop_timer("contract_hyperedges");
     }, [&] {
       // Contract Incident Nets
-      utils::Timer::instance().start_timer("tmp_contract_incident_nets", "Tmp Contract Incident Nets", true);
-
       // Compute start position the incident nets of a coarse vertex in the
       // temporary incident nets array with a parallel prefix sum
       parallel::scalable_vector<parallel::IntegralAtomicWrapper<size_t>> tmp_incident_nets_pos;
@@ -292,10 +285,7 @@ namespace mt_kahypar::ds {
         }
         duplicate_incident_nets_map.free();
       }
-
-      utils::Timer::instance().stop_timer("tmp_contract_incident_nets");
     });
-    utils::Timer::instance().stop_timer("contract_incidence_structure");
 
     // #################### STAGE 3 ####################
     // In the step before we aggregated hyperedges within a bucket data structure.
@@ -304,8 +294,6 @@ namespace mt_kahypar::ds {
     // after its hash. A bucket is processed by one thread and parallel
     // hyperedges are detected by comparing the pins of hyperedges with
     // the same hash.
-
-    utils::Timer::instance().start_timer("remove_parallel_hyperedges", "Remove Parallel Hyperedges");
 
     // Helper function that checks if two hyperedges are parallel
     // Note, pins inside the hyperedges are sorted.
@@ -363,7 +351,6 @@ namespace mt_kahypar::ds {
       }
       hyperedge_hash_map.free(bucket);
     });
-    utils::Timer::instance().stop_timer("remove_parallel_hyperedges");
 
     // #################### STAGE 4 ####################
     // Coarsened hypergraph is constructed here by writting data from temporary
@@ -374,7 +361,6 @@ namespace mt_kahypar::ds {
     // nets of each vertex by removing invalid hyperedges and remapping hyperedge ids.
     // Incident nets are also written to the incident nets array with the help of a prefix
     // sum over the node degrees.
-    utils::Timer::instance().start_timer("contract_hypergraph", "Contract Hypergraph");
 
     StaticHypergraph hypergraph;
 
@@ -399,8 +385,6 @@ namespace mt_kahypar::ds {
     };
 
     auto setup_hyperedges = [&] {
-      utils::Timer::instance().start_timer("setup_hyperedges", "Setup Hyperedges", true);
-      utils::Timer::instance().start_timer("compute_he_pointer", "Compute HE Pointer", true);
       // Compute start position of each hyperedge in incidence array
       parallel::TBBPrefixSum<size_t, Array> num_pins_prefix_sum(he_sizes);
       tbb::parallel_invoke([&] {
@@ -420,9 +404,7 @@ namespace mt_kahypar::ds {
       }, [&] {
         hypergraph._hyperedges.resize(num_hyperedges);
       });
-      utils::Timer::instance().stop_timer("compute_he_pointer");
 
-      utils::Timer::instance().start_timer("setup_incidence_array", "Setup Incidence Array", true);
       // Write hyperedges from temporary buffers to incidence array
       tbb::enumerable_thread_specific<size_t> local_max_edge_size(0UL);
       tbb::parallel_for(ID(0), _num_hyperedges, [&](const HyperedgeID& id) {
@@ -444,13 +426,9 @@ namespace mt_kahypar::ds {
               [&](const size_t lhs, const size_t rhs) {
                 return std::max(lhs, rhs);
               });
-      utils::Timer::instance().stop_timer("setup_incidence_array");
-      utils::Timer::instance().stop_timer("setup_hyperedges");
     };
 
     auto setup_hypernodes = [&] {
-      utils::Timer::instance().start_timer("setup_hypernodes", "Setup Hypernodes", true);
-      utils::Timer::instance().start_timer("compute_num_incident_nets", "Compute Num Incident Nets", true);
       // Remap hyperedge ids in temporary incident nets to hyperedge ids of the
       // coarse hypergraph and remove singple-pin/parallel hyperedges.
       tbb::parallel_for(ID(0), num_hypernodes, [&](const HypernodeID& id) {
@@ -478,9 +456,6 @@ namespace mt_kahypar::ds {
       const size_t total_degree = num_incident_nets_prefix_sum.total_sum();
       hypergraph._total_degree = total_degree;
       hypergraph._incident_nets.resize(total_degree);
-      utils::Timer::instance().stop_timer("compute_num_incident_nets");
-
-      utils::Timer::instance().start_timer("setup_incident_nets", "Setup Incidenct Nets", true);
       // Write incident nets from temporary buffer to incident nets array
       tbb::parallel_for(ID(0), num_hypernodes, [&](const HypernodeID& id) {
         const size_t incident_nets_start = num_incident_nets_prefix_sum[id];
@@ -492,12 +467,9 @@ namespace mt_kahypar::ds {
                     sizeof(HyperedgeID) * hn.size());
         hn.setFirstEntry(incident_nets_start);
       });
-      utils::Timer::instance().stop_timer("setup_incident_nets");
-      utils::Timer::instance().stop_timer("setup_hypernodes");
     };
 
     tbb::parallel_invoke( assign_communities, setup_hyperedges, setup_hypernodes);
-    utils::Timer::instance().stop_timer("contract_hypergraph");
 
     hypergraph._total_weight = _total_weight;   // didn't lose any vertices
     hypergraph._tmp_contraction_buffer = _tmp_contraction_buffer;
