@@ -49,6 +49,9 @@ class PinCountInPart {
  public:
   using Value = uint64_t;
 
+  // ! Snapshot of the PinCountInPart information for a specific Hyperedge. Can be taken by calling takeSnapshotForHyperedge()
+  // ! on PinCountInPart. May be overwritten with new snapshots, also for different edges, to allow new snapshots without
+  // ! reallocations.
   class Snapshot {
 
   public:
@@ -76,17 +79,6 @@ class PinCountInPart {
       Snapshot(Snapshot&&) = default;
       Snapshot& operator=(Snapshot&&) = default;
 
-      void writePCIPSnapshotForHyperedge(const Array<Value>& all_pin_counts_in_part, const HyperedgeID he) {
-        ASSERT(!all_pin_counts_in_part.empty());
-        ASSERT(all_pin_counts_in_part.size() > he * _values_per_hyperedge);
-        if (_snapshot_data.empty()) {
-          ERROR("Writing to PinCountInPart::Snapshot that has not been initialized correctly.");
-        }
-        const Value* begin_of_he_section = all_pin_counts_in_part.data() + (he * _values_per_hyperedge);
-        const size_t num_bytes_in_section = _values_per_hyperedge * sizeof(Value);
-        std::memcpy(_snapshot_data.data(), begin_of_he_section, num_bytes_in_section);
-      }
-
       // ! Returns the pin count of the hyperedge in the corresponding block in this snapshot
       inline HypernodeID pinCountInPart(const PartitionID id) const {
         ASSERT(id != kInvalidPartition && id < _k);
@@ -104,6 +96,19 @@ class PinCountInPart {
       }
 
   private:
+
+      friend PinCountInPart;
+
+      void writePCIPSnapshotForHyperedge(const Array<Value>& all_pin_counts_in_part, const HyperedgeID he) {
+        ASSERT(!all_pin_counts_in_part.empty());
+        ASSERT(all_pin_counts_in_part.size() > he * _values_per_hyperedge);
+        if (_snapshot_data.empty()) {
+          ERROR("Writing to PinCountInPart::Snapshot that has not been initialized correctly.");
+        }
+        const Value* begin_of_he_section = all_pin_counts_in_part.data() + (he * _values_per_hyperedge);
+        const size_t num_bytes_in_section = _values_per_hyperedge * sizeof(Value);
+        std::memcpy(_snapshot_data.data(), begin_of_he_section, num_bytes_in_section);
+      }
 
       PartitionID _k;
       size_t _bits_per_element;

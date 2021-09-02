@@ -509,6 +509,11 @@ namespace mt_kahypar {
              "the best seen option may be picked, possibly increasing quality. If the option is disabled, the calculation"
              " of similarities breaks as soon as the threshold is surpassed. In this case, if all retries fail, an arbitrary node "
              "is chosen from the ones seen. (Only has an effect in MtKaHyParStrongAsync.)")
+            ("u-use-old-refinement-seeds",
+             po::value<bool>(&context.uncoarsening.use_old_refinement_seeds)->value_name("<bool>")->default_value(false),
+             "If this option is set, seeds will be reused a number of times in localized refinement to grant a "
+             "broader selection of possible moves to refinement, possibly enabling 'refine until no improvement' to be more effective."
+             " Makes localized refinement slower, though. (Only has an effect in MtKaHyParStrongAsync.)")
             ;
     return options;
   }

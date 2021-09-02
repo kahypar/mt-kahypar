@@ -213,12 +213,14 @@ namespace mt_kahypar {
   }
 
   std::ostream & operator<<(std::ostream &str, const UncoarseningParameters &params) {
-      str << "Uncoarsening Parameters:              " << std::endl;
-      str << "  Use Asynchronous Uncoarsening:      " << std::boolalpha << params.use_asynchronous_uncoarsening << std::endl;
-      str << "  Snapshot Edge Size Threshold:       " << params.snapshot_edge_size_threshold << std::endl;
-      str << "  Node Region Similarity Retries:     " << params.node_region_similarity_retries << std::endl;
-      str << "  Node Region Similarity Threshold:   " << std::setprecision(5) << params.node_region_similarity_threshold << std::endl;
-      str << "  Always Insert Groups Into PQ:       " << std::boolalpha << params.always_insert_groups_into_pq << std::endl;
+      str << "Uncoarsening Parameters:                        " << std::endl;
+      str << "  Use Asynchronous Uncoarsening:                " << std::boolalpha << params.use_asynchronous_uncoarsening << std::endl;
+      str << "  Snapshot Edge Size Threshold:                 " << params.snapshot_edge_size_threshold << std::endl;
+      str << "  Node Region Similarity Retries:               " << params.node_region_similarity_retries << std::endl;
+      str << "  Node Region Similarity Threshold:             " << std::setprecision(5) << params.node_region_similarity_threshold << std::endl;
+      str << "  Always Insert Groups Into PQ:                 " << std::boolalpha << params.always_insert_groups_into_pq << std::endl;
+      str << "  Compare Node Regions with Full Similarities:  " << std::boolalpha << params.region_comparison_with_full_similarities << std::endl;
+      str << "  Use Old Seeds in Localized Refinement:        " << std::boolalpha << params.use_old_refinement_seeds << std::endl;
       return str;
   }
 

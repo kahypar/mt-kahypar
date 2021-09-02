@@ -83,6 +83,16 @@ namespace mt_kahypar::ds {
           return front;
         }
 
+        T& front() {
+          ASSERT(_first_invalid > _first_valid);
+          return _data[_first_valid];
+        }
+
+        T& back() {
+          ASSERT(_first_invalid > _first_valid);
+          return _data[_first_invalid - 1];
+        }
+
         // ! Clear in O(1). Has no effect on capacity, i.e. does not free any memory previously allocated on construction or push_back()
         void clear() {
           ASSERT(_first_invalid >= _first_valid);

@@ -524,12 +524,13 @@ namespace mt_kahypar {
       ds::ContractionGroupID groupID = ds::invalidGroupID;
       bool pick_new_group = true;
 
+      const bool use_old_seeds = _context.uncoarsening.use_old_refinement_seeds && _context.type == kahypar::ContextType::main;
+
       const size_t seed_nodes_step_length = _context.refinement.fm.num_seed_nodes;
       const size_t min_seed_nodes = _context.partition.k * seed_nodes_step_length;
-      HypernodeID cur_num_seeds = 0;
-      HypernodeID cur_num_expired_seeds = 0;
-      auto local_refinement_nodes = vec<HypernodeID>(2 * min_seed_nodes);
-      auto num_edges_activated_per_refinement_node = vec<HyperedgeID>(2 * min_seed_nodes);
+      auto local_refinement_nodes = ds::NoDownsizeIntegralTypeVector<HypernodeID>(2 * min_seed_nodes, kInvalidHypernode);
+      auto num_edges_activated_per_refinement_node = ds::NoDownsizeIntegralTypeVector<HyperedgeID>(2 * min_seed_nodes, kInvalidHyperedge);
+      bool reached_min_seeds_once = false;
 
       while (true) {
 
@@ -583,61 +584,55 @@ namespace mt_kahypar {
               if (!seed_deduplicator[hn]) {
                 ++num_extracted_seeds;
                 seed_deduplicator.set(hn);
-                local_refinement_nodes[cur_num_expired_seeds + cur_num_seeds] = hn;
-                num_edges_activated_per_refinement_node[cur_num_expired_seeds + cur_num_seeds] = 0;
-                ++cur_num_seeds;
-                if (cur_num_expired_seeds + cur_num_seeds == local_refinement_nodes.size()) {
-                  ASSERT(cur_num_expired_seeds >= cur_num_seeds);
-                  // No space remaining, copy seeds to beginning, reset expired
-                  for (size_t i = 0; i < cur_num_seeds; ++i) {
-                    local_refinement_nodes[i] = local_refinement_nodes[i + cur_num_expired_seeds];
-                    num_edges_activated_per_refinement_node[i] = num_edges_activated_per_refinement_node[i + cur_num_expired_seeds];
-                  }
-                  cur_num_expired_seeds = 0;
-                }
+                local_refinement_nodes.push_back(hn);
+                num_edges_activated_per_refinement_node.push_back(0);
               }
             }
           }
 
+          ASSERT(local_refinement_nodes.size() == num_edges_activated_per_refinement_node.size());
+
           // Give last extracted seed (if any) the entry for number of edges activated
           if (num_extracted_seeds > 0) {
-            ASSERT(cur_num_expired_seeds + cur_num_seeds > 0);
-            ASSERT(num_edges_activated_per_refinement_node[cur_num_expired_seeds + cur_num_seeds - 1] == 0);
-            num_edges_activated_per_refinement_node[cur_num_expired_seeds + cur_num_seeds - 1] = num_edges_activated_in_task;
+            ASSERT(!num_edges_activated_per_refinement_node.empty());
+            ASSERT(num_edges_activated_per_refinement_node.back() == 0);
+            num_edges_activated_per_refinement_node.back() = num_edges_activated_in_task;
           } else {
             // If there are no refinement seeds in this group, do not consider the incident edges active anymore
             node_region_comparator.markLastActivatedEdgesForTaskInactive(task_id, num_edges_activated_in_task);
           }
 
           // Refine only once enough seeds are available
-          if ((_context.type != kahypar::ContextType::main && cur_num_seeds > 0) || cur_num_seeds >= min_seed_nodes || (cur_num_seeds > 0 && cur_num_seeds % seed_nodes_step_length == 0)) {
+          if ((_context.type != kahypar::ContextType::main && !local_refinement_nodes.empty()) // case for Initial Partitioning => refine right away
+            || (!use_old_seeds && local_refinement_nodes.size() >= seed_nodes_step_length) // case for not using old seed nodes => refine every step_length seeds
+            || (use_old_seeds && local_refinement_nodes.size() >= min_seed_nodes) // case for using old seeds when min_seed_nodes are reached
+            || (use_old_seeds && !reached_min_seeds_once && !local_refinement_nodes.empty() && local_refinement_nodes.size() % seed_nodes_step_length == 0))  // case for using old seed nodes for before min_seeds have been reached
+          {
             ++local_calls_to_localized_refine;
+            reached_min_seeds_once |= (use_old_seeds && local_refinement_nodes.size() >= min_seed_nodes);
 
-            ASSERT(cur_num_expired_seeds + cur_num_seeds < local_refinement_nodes.size());
-            auto cur_seeds = IteratorRange(local_refinement_nodes.cbegin() + cur_num_expired_seeds,
-                                           local_refinement_nodes.cbegin() + cur_num_expired_seeds + cur_num_seeds);
+            auto cur_seeds = IteratorRange(local_refinement_nodes.cbegin(), local_refinement_nodes.cend());
 
             localizedRefineForAsync(_phg, cur_seeds, async_lp_refiner, async_fm_refiner, groupID,
                                     current_metrics, local_iterations_in_localized_refine);
 
-            if (_context.type == kahypar::ContextType::main && cur_num_seeds >= min_seed_nodes) {
+            if (use_old_seeds && local_refinement_nodes.size() >= min_seed_nodes) {
               // Deactivate nodes that expired, i.e. the oldest seeds
               size_t num_old_edges_to_deactivate = 0;
               for (size_t i = 0; i < seed_nodes_step_length; ++i) {
-                const HypernodeID expired_seed = local_refinement_nodes[cur_num_expired_seeds];
-                num_old_edges_to_deactivate += num_edges_activated_per_refinement_node[cur_num_expired_seeds];
+                const HypernodeID expired_seed = local_refinement_nodes.pop_front();
+                num_old_edges_to_deactivate += num_edges_activated_per_refinement_node.pop_front();
                 seed_deduplicator.set(expired_seed, false);
-                ++cur_num_expired_seeds;
-                --cur_num_seeds;
               }
               node_region_comparator.markFirstActivatedEdgesForTaskInactive(task_id, num_old_edges_to_deactivate);
-            } else {
-              // In initial partitioning clear all refinement seeds
-              cur_num_seeds = 0;
-              cur_num_expired_seeds = 0;
+            } else if (!use_old_seeds) {
+              // When not using old seed nodes clear all refinement seeds
+              local_refinement_nodes.clear();
+              num_edges_activated_per_refinement_node.clear();
               seed_deduplicator.reset();
               node_region_comparator.markAllEdgesForTaskInactive(task_id);
             }
+            // else if {} : When using old seeds but fewer than min_seed_nodes available, none expire yet
           }
 
           async_node_tracker.incrementTime(group.size());

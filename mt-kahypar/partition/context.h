@@ -205,6 +205,7 @@ struct UncoarseningParameters {
   double node_region_similarity_threshold = 0.0;
   bool always_insert_groups_into_pq = false;
   bool region_comparison_with_full_similarities = true;
+  bool use_old_refinement_seeds = false;
 };
 
 std::ostream & operator<< (std::ostream& str, const UncoarseningParameters& params);
