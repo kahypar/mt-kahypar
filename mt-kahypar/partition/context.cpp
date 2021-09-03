@@ -221,6 +221,7 @@ namespace mt_kahypar {
       str << "  Always Insert Groups Into PQ:                 " << std::boolalpha << params.always_insert_groups_into_pq << std::endl;
       str << "  Compare Node Regions with Full Similarities:  " << std::boolalpha << params.region_comparison_with_full_similarities << std::endl;
       str << "  Use Old Seeds in Localized Refinement:        " << std::boolalpha << params.use_old_refinement_seeds << std::endl;
+      str << "  Use Bitcopy Snapshots:                        " << std::boolalpha << params.use_bitcopy_snapshots << std::endl;
       return str;
   }
 

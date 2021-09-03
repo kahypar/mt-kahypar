@@ -58,7 +58,7 @@ namespace mt_kahypar::ds {
               return;
             }
           }
-          ASSERT(_first_invalid < _data.size());
+          ASSERT(_first_invalid <= _data.size());
           _data[_first_invalid] = element;
           ++_first_invalid;
         }

@@ -100,8 +100,10 @@ private:
           _gain_cache(hypergraph.initialNumNodes(), k, &_part_ids, &_pins_in_part, &_connectivity_set),
           _pin_count_update_ownership(
         "Refinement", "pin_count_update_ownership", hypergraph.initialNumEdges(), true, false),
-          _conn_set_snapshots(_k, kInvalidPartition),
-          _pin_count_in_part_snapshot(),
+          _direct_conn_set_snapshots(_k, kInvalidPartition),
+          _direct_parts_with_one_pin_snapshots(_k, kInvalidPartition),
+          _pin_count_in_part_bitcopy_snapshots(),
+          _connectivity_set_bitcopy_snapshots(),
           _pins_snapshots(_hg->maxEdgeSize(),invalidNode),
           _num_stable_pins_seen(0),
           _num_volatile_pins_seen(0),
@@ -121,8 +123,10 @@ private:
           _connectivity_set(0, 0),
           _gain_cache(&_part_ids, &_pins_in_part, &_connectivity_set, parallel_tag_t()),
           _pin_count_update_ownership(),
-          _conn_set_snapshots(_k, kInvalidPartition),
-          _pin_count_in_part_snapshot(),
+          _direct_conn_set_snapshots(_k, kInvalidPartition),
+          _direct_parts_with_one_pin_snapshots(_k, kInvalidPartition),
+          _pin_count_in_part_bitcopy_snapshots(),
+          _connectivity_set_bitcopy_snapshots(),
           _pins_snapshots(_hg->maxEdgeSize(), invalidNode),
           _num_stable_pins_seen(0),
           _num_volatile_pins_seen(0)  {
@@ -156,8 +160,10 @@ private:
           _connectivity_set(std::move(other._connectivity_set)),
           _gain_cache(std::move(other._gain_cache)),
           _pin_count_update_ownership(std::move(other._pin_count_update_ownership)),
-          _conn_set_snapshots(std::move(other._conn_set_snapshots)),
-          _pin_count_in_part_snapshot(std::move(other._pin_count_in_part_snapshot)),
+          _direct_conn_set_snapshots(std::move(other._direct_conn_set_snapshots)),
+          _direct_parts_with_one_pin_snapshots(std::move(other._direct_parts_with_one_pin_snapshots)),
+          _pin_count_in_part_bitcopy_snapshots(std::move(other._pin_count_in_part_bitcopy_snapshots)),
+          _connectivity_set_bitcopy_snapshots(std::move(other._connectivity_set_bitcopy_snapshots)),
           _pins_snapshots(std::move(other._pins_snapshots)),
           _num_stable_pins_seen(std::move(other._num_stable_pins_seen)),
           _num_volatile_pins_seen(std::move(other._num_volatile_pins_seen))  {
@@ -176,8 +182,10 @@ private:
       _connectivity_set = std::move(other._connectivity_set);
       _gain_cache = std::move(other._gain_cache);
       _pin_count_update_ownership = std::move(other._pin_count_update_ownership);
-      _conn_set_snapshots = std::move(other._conn_set_snapshots);
-    _pin_count_in_part_snapshot = std::move(other._pin_count_in_part_snapshot);
+    _direct_conn_set_snapshots = std::move(other._direct_conn_set_snapshots);
+    _direct_parts_with_one_pin_snapshots = std::move(other._direct_parts_with_one_pin_snapshots);
+    _pin_count_in_part_bitcopy_snapshots = std::move(other._pin_count_in_part_bitcopy_snapshots);
+    _connectivity_set_bitcopy_snapshots = std::move(other._connectivity_set_bitcopy_snapshots);
       _pins_snapshots = std::move(other._pins_snapshots);
       _num_stable_pins_seen = std::move(other._num_stable_pins_seen);
       _num_volatile_pins_seen = std::move(other._num_volatile_pins_seen);
@@ -439,11 +447,31 @@ private:
   }
 
 //  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
-  void takeConnectivitySetSnapshots(const HyperedgeID he, ConnectivitySetSnapshot& conn_set_bitset) {
-      ASSERT(conn_set_bitset.empty());
-      for (const auto& p : connectivitySet(he)) {
-          conn_set_bitset.push_back(p);
+  void takeConnectivitySetSnapshotsFromBitcopySnapshots(const PinCountInPart::Snapshot& pcip_snapshot, const ConnectivitySets::Snapshot& cs_snapshot,
+                                                        CompressedConnectivitySetSnapshot& conn_set_snapshot, CompressedConnectivitySetSnapshot& parts_with_one_pin_snapshot) {
+      ASSERT(conn_set_snapshot.empty());
+      ASSERT(parts_with_one_pin_snapshot.empty());
+      for (auto block : cs_snapshot.snapshottedConnectivitySet()) {
+        auto pcip = pcip_snapshot.pinCountInPart(block);
+        if (pcip >= 1) {
+          conn_set_snapshot.push_back(block);
+          if (pcip == 1) {
+            parts_with_one_pin_snapshot.push_back(block);
+          }
+        }
       }
+  }
+
+  void takeConnectivitySnapshotDirectly(const HyperedgeID he, CompressedConnectivitySetSnapshot& conn_set_snapshot,
+                                        CompressedConnectivitySetSnapshot& parts_with_one_pin_snapshot) {
+    ASSERT(conn_set_snapshot.empty());
+    ASSERT(parts_with_one_pin_snapshot.empty());
+    for (PartitionID block : _connectivity_set.connectivitySet(he)) {
+      conn_set_snapshot.push_back(block);
+      if (pinCountInPart(he, block) == 1) {
+        parts_with_one_pin_snapshot.push_back(block);
+      }
+    }
   }
 
 //  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
@@ -496,7 +524,8 @@ private:
   }
 
   void uncontract(const ContractionGroup& group,
-                  const ContractionGroupID groupID) {
+                  const ContractionGroupID groupID,
+                  bool useBitcopySnapshots = false) {
 
       // Set block ids of contraction partners
      for (auto& memento : group) {
@@ -507,10 +536,15 @@ private:
           setOnlyNodePart(memento.v, part_id);
      }
 
-    ConnectivitySetSnapshot& conn_set_snapshot = _conn_set_snapshots.local();
-    std::unique_ptr<PinCountInPart::Snapshot>& pcip_snapshot = _pin_count_in_part_snapshot.local();
-    if (!pcip_snapshot) {
-      pcip_snapshot = std::make_unique<PinCountInPart::Snapshot>(_pins_in_part.generateEmptySnapshot());
+    CompressedConnectivitySetSnapshot& conn_set_snapshot = _direct_conn_set_snapshots.local();
+    CompressedConnectivitySetSnapshot& parts_with_one_pin_snapshot = _direct_parts_with_one_pin_snapshots.local();
+    std::unique_ptr<PinCountInPart::Snapshot>& pcip_bitcopy_snapshot = _pin_count_in_part_bitcopy_snapshots.local();
+    if (!pcip_bitcopy_snapshot) {
+      pcip_bitcopy_snapshot = std::make_unique<PinCountInPart::Snapshot>(_pins_in_part.generateEmptySnapshot());
+    }
+    std::unique_ptr<ConnectivitySets::Snapshot>& cs_bitcopy_snapshot = _connectivity_set_bitcopy_snapshots.local();
+    if (!cs_bitcopy_snapshot) {
+      cs_bitcopy_snapshot = std::make_unique<ConnectivitySets::Snapshot>(_connectivity_set.generateEmptySnapshot());
     }
 
      _hg->uncontract(group,
@@ -535,11 +569,19 @@ private:
                                 _pin_count_update_ownership[he].unlock();
                               } else {
                                 // Snapshot pins and connectivity set in lock, gain cache update outside of lock
-
-                                takeConnectivitySetSnapshots(he, conn_set_snapshot);
-                                _pins_in_part.takeSnapshotForHyperedge(he, *pcip_snapshot);
                                 auto pins_snapshot = takePinsSnapshot(he);
-                                _pin_count_update_ownership[he].unlock();
+
+                                if (useBitcopySnapshots) {
+                                  _connectivity_set.takeBitcopySnapshotForHyperedge(he, *cs_bitcopy_snapshot);
+                                  _pins_in_part.takeBitcopySnapshotForHyperedge(he, *pcip_bitcopy_snapshot);
+                                  _pin_count_update_ownership[he].unlock();
+                                  takeConnectivitySetSnapshotsFromBitcopySnapshots(*pcip_bitcopy_snapshot, *cs_bitcopy_snapshot,
+                                                                                   conn_set_snapshot,
+                                                                                   parts_with_one_pin_snapshot);
+                                } else {
+                                  takeConnectivitySnapshotDirectly(he, conn_set_snapshot, parts_with_one_pin_snapshot);
+                                  _pin_count_update_ownership[he].unlock();
+                                }
 
                                 // If u was the only pin of hyperedge he in its block before then moving out vertex u
                                 // of hyperedge he does not decrease the connectivity any more after the
@@ -547,8 +589,9 @@ private:
                                 const HyperedgeWeight edge_weight = edgeWeight(he);
                                 _gain_cache.asyncUpdateForUncontractCaseOne(edge_weight, v, block,
                                                                             pin_count_in_part_after, pins_snapshot,
-                                                                            conn_set_snapshot, *pcip_snapshot);
+                                                                            conn_set_snapshot, parts_with_one_pin_snapshot);
                                 conn_set_snapshot.clear();
+                                parts_with_one_pin_snapshot.clear();
                               }
                           } else {
                               _pin_count_update_ownership[he].unlock();
@@ -567,16 +610,25 @@ private:
                               _gain_cache.syncUpdateForUncontractCaseTwo(he, edge_weight, u, v);
                               _pin_count_update_ownership[he].unlock();
                             } else {
-                              // Snapshot pins and connectivity set in lock, gain cache update outside of lock
-                              takeConnectivitySetSnapshots(he, conn_set_snapshot);
-                              _pins_in_part.takeSnapshotForHyperedge(he, *pcip_snapshot);
-                              _pin_count_update_ownership[he].unlock();
+                              // Snapshot connectivity set in lock, gain cache update outside of lock
+                              if (useBitcopySnapshots) {
+                                _connectivity_set.takeBitcopySnapshotForHyperedge(he, *cs_bitcopy_snapshot);
+                                _pins_in_part.takeBitcopySnapshotForHyperedge(he, *pcip_bitcopy_snapshot);
+                                _pin_count_update_ownership[he].unlock();
+                                takeConnectivitySetSnapshotsFromBitcopySnapshots(*pcip_bitcopy_snapshot, *cs_bitcopy_snapshot,
+                                                                                 conn_set_snapshot,
+                                                                                 parts_with_one_pin_snapshot);
+                              } else {
+                                takeConnectivitySnapshotDirectly(he, conn_set_snapshot, parts_with_one_pin_snapshot);
+                                _pin_count_update_ownership[he].unlock();
+                              }
 
                               // In this case only v was part of hyperedge e before and
                               // u must be replaced by v in hyperedge e
                               const HyperedgeWeight edge_weight = edgeWeight(he);
-                              _gain_cache.asyncUpdateForUncontractCaseTwo(edge_weight, u, v, conn_set_snapshot, *pcip_snapshot);
+                              _gain_cache.asyncUpdateForUncontractCaseTwo(edge_weight, u, v, conn_set_snapshot, parts_with_one_pin_snapshot);
                               conn_set_snapshot.clear();
+                              parts_with_one_pin_snapshot.clear();
                             }
                           } else {
                               _pin_count_update_ownership[he].unlock();
@@ -1180,10 +1232,10 @@ private:
     parent->addChild("HE Ownership", sizeof(SpinLock) * _hg->initialNumNodes());
 
     size_t size_of_snapshots = 0;
-    for (const auto& snapshot : _conn_set_snapshots) {
+    for (const auto& snapshot : _direct_conn_set_snapshots) {
       size_of_snapshots += snapshot.size_in_bytes();
     }
-    for (const auto& snapshot : _pin_count_in_part_snapshot) {
+    for (const auto& snapshot : _pin_count_in_part_bitcopy_snapshots) {
       size_of_snapshots += snapshot->size_in_bytes();
     }
     parent->addChild("Connectivity Set Snapshots", size_of_snapshots);
@@ -1466,8 +1518,10 @@ private:
   Array<SpinLock> _pin_count_update_ownership;
 
   // ! Thread-local PartitionBitSets used for snapshots of connectivity sets in asynchronous uncoarsening
-  tbb::enumerable_thread_specific<ConnectivitySetSnapshot> _conn_set_snapshots;
-  tbb::enumerable_thread_specific<std::unique_ptr<PinCountInPart::Snapshot>> _pin_count_in_part_snapshot;
+  tbb::enumerable_thread_specific<CompressedConnectivitySetSnapshot> _direct_conn_set_snapshots;
+  tbb::enumerable_thread_specific<CompressedConnectivitySetSnapshot> _direct_parts_with_one_pin_snapshots;
+  tbb::enumerable_thread_specific<std::unique_ptr<PinCountInPart::Snapshot>> _pin_count_in_part_bitcopy_snapshots;
+    tbb::enumerable_thread_specific<std::unique_ptr<ConnectivitySets::Snapshot>> _connectivity_set_bitcopy_snapshots;
   tbb::enumerable_thread_specific<std::vector<HypernodeID>> _pins_snapshots;
 
   // ! Stats counters

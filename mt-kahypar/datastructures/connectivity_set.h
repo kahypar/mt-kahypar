@@ -218,6 +218,107 @@ public:
     return IteratorRange<Iterator>(hyperedgeBegin(he), hyperedgeEnd(he));
   }
 
+  class Snapshot {
+
+	    using UnsafeBlockIterator = std::vector<UnsafeBlock>::const_iterator;
+
+	public:
+
+
+	    Snapshot(const Snapshot& other) = default;
+	    Snapshot& operator=(const Snapshot& other) = default;
+      Snapshot(Snapshot&& other) = default;
+      Snapshot& operator=(Snapshot&& other) = default;
+
+      class SnapshotIterator : public std::iterator<std::forward_iterator_tag, PartitionID, std::ptrdiff_t, const PartitionID*, PartitionID> {
+      public:
+          SnapshotIterator(UnsafeBlockIterator first, PartitionID part, PartitionID k) : currentPartition(part), _k(k), firstBlockIt(first) {
+            findNextBit();
+          }
+
+          PartitionID operator*() const {
+            return currentPartition;
+          }
+
+          SnapshotIterator& operator++() {
+            findNextBit();
+            return *this;
+          }
+
+          SnapshotIterator operator++(int ) {
+            const SnapshotIterator res = *this;
+            findNextBit();
+            return res;
+          }
+
+          bool operator==(const SnapshotIterator& o) const {
+            return currentPartition == o.currentPartition && firstBlockIt == o.firstBlockIt;
+          }
+
+          bool operator!=(const SnapshotIterator& o) const {
+            return !operator==(o);
+          }
+
+      private:
+          PartitionID currentPartition;
+          PartitionID _k;
+          UnsafeBlockIterator firstBlockIt;
+
+          void findNextBit() {
+            ++currentPartition;
+            UnsafeBlock b = *currentBlock();
+            while (b >> (currentPartition % BITS_PER_BLOCK) == 0 && currentPartition < _k) {
+              currentPartition += (BITS_PER_BLOCK - (currentPartition % BITS_PER_BLOCK));   // skip rest of block
+              b = *currentBlock();
+            }
+            if (currentPartition < _k) {
+              currentPartition += utils::lowest_set_bit_64(b >> (currentPartition % BITS_PER_BLOCK));
+            } else {
+              currentPartition = _k;
+            }
+          }
+
+          UnsafeBlockIterator currentBlock() const {
+            return firstBlockIt + currentPartition / BITS_PER_BLOCK;
+          }
+      };
+
+      IteratorRange<SnapshotIterator> snapshottedConnectivitySet() const {
+        auto begin = SnapshotIterator(_snapshot_data.cbegin(), -1, _k);
+        auto end = SnapshotIterator(_snapshot_data.cbegin(), _k-1, _k);
+        return IteratorRange<SnapshotIterator>(begin, end);
+      }
+
+	private:
+	    friend ConnectivitySets;
+
+      Snapshot() : _k(0), _num_blocks_per_hyperedge(0), _snapshot_data() {}
+      Snapshot(const PartitionID k, const PartitionID num_blocks_per_hyperedge) : _k(k), _num_blocks_per_hyperedge(num_blocks_per_hyperedge), _snapshot_data(num_blocks_per_hyperedge) {}
+
+	    void writeConnSetSnapshotForHyperedge(const HyperedgeID he, const Array<Block>& all_conn_sets) {
+	      ASSERT(_snapshot_data.size() == static_cast<size_t>(_num_blocks_per_hyperedge));
+	      auto first_block_of_he = all_conn_sets.cbegin() + static_cast<size_t>(he) * _num_blocks_per_hyperedge;
+	      auto first_block_of_next = all_conn_sets.cbegin() + static_cast<size_t>(he + 1) * _num_blocks_per_hyperedge;
+        PartitionID block_counter = 0;
+        for (auto it = first_block_of_he; it != first_block_of_next; ++it) {
+          _snapshot_data[block_counter] = (*it).load(std::memory_order_relaxed);
+        }
+	    }
+
+	    PartitionID _k;
+	    PartitionID _num_blocks_per_hyperedge;
+	    std::vector<UnsafeBlock> _snapshot_data;
+
+	};
+
+	Snapshot generateEmptySnapshot() const {
+	  return Snapshot(_k, _num_blocks_per_hyperedge);
+	}
+
+	void takeBitcopySnapshotForHyperedge(const HyperedgeID he, Snapshot& conn_set_snapshot) const {
+	  conn_set_snapshot.writeConnSetSnapshotForHyperedge(he, _bits);
+	}
+
 };
 
 

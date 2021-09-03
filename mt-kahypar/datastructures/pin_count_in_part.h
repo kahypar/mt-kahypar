@@ -49,7 +49,7 @@ class PinCountInPart {
  public:
   using Value = uint64_t;
 
-  // ! Snapshot of the PinCountInPart information for a specific Hyperedge. Can be taken by calling takeSnapshotForHyperedge()
+  // ! Snapshot of the PinCountInPart information for a specific Hyperedge. Can be taken by calling takeBitcopySnapshotForHyperedge()
   // ! on PinCountInPart. May be overwritten with new snapshots, also for different edges, to allow new snapshots without
   // ! reallocations.
   class Snapshot {
@@ -259,7 +259,7 @@ class PinCountInPart {
     return Snapshot(_k, _bits_per_element, _entries_per_value, _values_per_hyperedge, _extraction_mask);
   }
 
-  void takeSnapshotForHyperedge(const HyperedgeID he, Snapshot& snapshot) const {
+  void takeBitcopySnapshotForHyperedge(const HyperedgeID he, Snapshot& snapshot) const {
     snapshot.writePCIPSnapshotForHyperedge(_pin_count_in_part, he);
   }
 

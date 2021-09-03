@@ -496,7 +496,7 @@ namespace mt_kahypar {
   NLevelCoarsenerBase::uncontractGroupAsyncSubtask(const ds::ContractionGroup &group,
                                                    const ds::ContractionGroupID groupID) {
 
-      _phg.uncontract(group, groupID);
+      _phg.uncontract(group, groupID, _context.uncoarsening.use_bitcopy_snapshots);
 
       auto repr_part_id = _phg.partID(group.getRepresentative());
       unused(repr_part_id);

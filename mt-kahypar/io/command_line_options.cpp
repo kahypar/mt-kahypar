@@ -514,6 +514,12 @@ namespace mt_kahypar {
              "If this option is set, seeds will be reused a number of times in localized refinement to grant a "
              "broader selection of possible moves to refinement, possibly enabling 'refine until no improvement' to be more effective."
              " Makes localized refinement slower, though. (Only has an effect in MtKaHyParStrongAsync.)")
+            ("u-use-bitcopy-snapshots",
+             po::value<bool>(&context.uncoarsening.use_bitcopy_snapshots)->value_name("<bool>")->default_value(false),
+             "If this option is set, during uncontractions snapshots for connectivity sets and pin counts in "
+             "parts are taken using bitcopy operations within a lock on the hyperedge and then traversed outside of the"
+             " lock. May reduce work that is performed in the hyperedge while increasing overall work.  "
+             "(Only has an effect in MtKaHyParStrongAsync.)")
             ;
     return options;
   }
