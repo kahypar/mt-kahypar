@@ -116,9 +116,9 @@ public:
 //    MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
     void asyncUpdateForUncontractCaseOne(const HyperedgeWeight we, const HypernodeID v, const PartitionID block,
                                     const HypernodeID pin_count_in_part_after, IteratorRange<PinIteratorT> pins,
-                                    const ConnectivitySetSnapshot& connectivity_set, const ConnectivitySetSnapshot& parts_with_one_pin) {
+                                    const ConnectivitySetSnapshot& connectivity_set, const PinCountInPart::Snapshot& pcip_snapshot) {
         _penalty_cache.asyncUpdateForUncontractCaseOne(we, v, connectivity_set);
-        _benefit_cache.asyncUpdateForUncontractCaseOne(we, v, block, pin_count_in_part_after, pins, parts_with_one_pin);
+        _benefit_cache.asyncUpdateForUncontractCaseOne(we, v, block, pin_count_in_part_after, pins, connectivity_set, pcip_snapshot);
     }
 
     // ! Variant for synchronous uncoarsening -> no moves during uncontraction -> connectivity set queried on demand
@@ -133,9 +133,9 @@ public:
     // ! and pin counts given
 //    MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
     void asyncUpdateForUncontractCaseTwo(const HyperedgeWeight we, const HypernodeID u, const HypernodeID v,
-                                         const ConnectivitySetSnapshot& connectivity_set, const ConnectivitySetSnapshot& parts_with_one_pin) {
+                                         const ConnectivitySetSnapshot& connectivity_set, const PinCountInPart::Snapshot& pcip_snapshot) {
         _penalty_cache.asyncUpdateForUncontractCaseTwo(we, u, v, connectivity_set);
-        _benefit_cache.asyncUpdateForUncontractCaseTwo(we, u, v, parts_with_one_pin);
+        _benefit_cache.asyncUpdateForUncontractCaseTwo(we, u, v, connectivity_set, pcip_snapshot);
     }
 
 //    MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
@@ -444,10 +444,11 @@ public:
     void asyncUpdateForUncontractCaseOne(const HyperedgeWeight we, const HypernodeID v,
                                     const PartitionID block,
                                     const HypernodeID pin_count_in_part_after, IteratorRange<PinIteratorT> pins,
-                                         const ConnectivitySetSnapshot& parts_with_one_pin) {
+                                         const ConnectivitySetSnapshot& connectivity_set,
+                                         const PinCountInPart::Snapshot& pcip_snapshot) {
 
         // Calculate and add contribution of he to the benefit of the uncontracted node v
-        asyncAddContributionOfHEToNodeBenefit(v, we, parts_with_one_pin);
+        asyncAddContributionOfHEToNodeBenefit(v, we, connectivity_set, pcip_snapshot);
 
         // In this case, u and v are incident to hyperedge he after uncontraction
         if ( pin_count_in_part_after == 2 ) {
@@ -486,17 +487,17 @@ public:
 
     // Variant for concurrent moves -> use snapshots of parts_with_one_pin
 //    MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
-    void asyncUpdateForUncontractCaseTwo(const HyperedgeWeight we, const HypernodeID u, const HypernodeID v, const ConnectivitySetSnapshot& parts_with_one_pin) {
+    void asyncUpdateForUncontractCaseTwo(const HyperedgeWeight we, const HypernodeID u, const HypernodeID v, const ConnectivitySetSnapshot& connectivity_set, const PinCountInPart::Snapshot& pcip_snapshot) {
         // In this case, u is replaced by v in hyperedge he
         // => Pin counts of hyperedge he does not change
         // Since u is no longer incident to hyperedge he its contribution for decreasing
         // the connectivity of he is shifted to vertex v => b(u) -= w(e), b(v) += w(e).
 
         // Remove benefits contributed by this hyperedge from u as it no longer belongs to the hyperedge
-        asyncRemoveContributionOfHEFromNodeBenefit(u, we, parts_with_one_pin);
+        asyncRemoveContributionOfHEFromNodeBenefit(u, we, connectivity_set, pcip_snapshot);
 
         // Add benefits contributed by this hyperedge to the benefit of the uncontracted node v
-        asyncAddContributionOfHEToNodeBenefit(v, we, parts_with_one_pin);
+        asyncAddContributionOfHEToNodeBenefit(v, we, connectivity_set, pcip_snapshot);
     }
 
     // Variant without concurrent moves and uncontractions on pins of this HE -> query parts with one pin on demand
@@ -566,10 +567,12 @@ private:
 
     // Variant with concurrent moves and uncontractions on this HE -> require snapshot of parts with one pin in the edge
 //    MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
-    void asyncAddContributionOfHEToNodeBenefit(HypernodeID v, HyperedgeWeight we, const ConnectivitySetSnapshot& parts_with_one_pin) {
+    void asyncAddContributionOfHEToNodeBenefit(HypernodeID v, HyperedgeWeight we, const ConnectivitySetSnapshot& connectivity_set, const PinCountInPart::Snapshot& pcip_snapshot) {
         // Add benefit for all blocks that include exactly one pin of he
-        for (const auto& p : parts_with_one_pin) {
-            _move_from_benefit[benefit_index(v, p)].add_fetch(we, std::memory_order_relaxed);
+        for (const auto& p : connectivity_set) {
+            if (pcip_snapshot.pinCountInPart(p) == 1) {
+              _move_from_benefit[benefit_index(v, p)].add_fetch(we, std::memory_order_relaxed);
+            }
         }
     }
 
@@ -587,10 +590,12 @@ private:
 
     // Variant with concurrent moves and uncontractions on this HE -> require snapshot of parts with one pin in the edge
 //    MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
-    void asyncRemoveContributionOfHEFromNodeBenefit(HypernodeID u, HyperedgeWeight we, const ConnectivitySetSnapshot& parts_with_one_pin) {
+    void asyncRemoveContributionOfHEFromNodeBenefit(HypernodeID u, HyperedgeWeight we, const ConnectivitySetSnapshot& connectivity_set, const PinCountInPart::Snapshot& pcip_snapshot) {
         // Remove benefit for all blocks in the connectivity set of he
-        for (const auto& p : parts_with_one_pin) {
+        for (const auto& p : connectivity_set) {
+          if (pcip_snapshot.pinCountInPart(p) == 1) {
             _move_from_benefit[benefit_index(u, p)].sub_fetch(we, std::memory_order_relaxed);
+          }
         }
     }
 
