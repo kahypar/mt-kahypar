@@ -106,8 +106,7 @@ private:
           _connectivity_set_bitcopy_snapshots(),
           _pins_snapshots(_hg->maxEdgeSize(),invalidNode),
           _num_stable_pins_seen(0),
-          _num_volatile_pins_seen(0),
-          _gain_cache_deltas() {
+          _num_volatile_pins_seen(0){
     _part_ids.assign(hypergraph.initialNumNodes(), kInvalidPartition, false);
   }
 
@@ -139,7 +138,7 @@ private:
     }, [&] {
       _connectivity_set = ConnectivitySets(hypergraph.initialNumEdges(), k);
     }, [&] {
-      _gain_cache.parallel_resize(hypergraph.initialNumNodes(),k);
+      _gain_cache.resize("Refinement", "gain_cache", hypergraph.initialNumNodes(), k);
     }, [&] {
       _pin_count_update_ownership.resize(
         "Refinement", "pin_count_update_ownership", hypergraph.initialNumEdges(), true);
@@ -571,27 +570,28 @@ private:
                                 // Snapshot pins and connectivity set in lock, gain cache update outside of lock
                                 auto pins_snapshot = takePinsSnapshot(he);
 
-                                if (useBitcopySnapshots) {
-                                  _connectivity_set.takeBitcopySnapshotForHyperedge(he, *cs_bitcopy_snapshot);
-                                  _pins_in_part.takeBitcopySnapshotForHyperedge(he, *pcip_bitcopy_snapshot);
-                                  _pin_count_update_ownership[he].unlock();
-                                  takeConnectivitySetSnapshotsFromBitcopySnapshots(*pcip_bitcopy_snapshot, *cs_bitcopy_snapshot,
-                                                                                   conn_set_snapshot,
-                                                                                   parts_with_one_pin_snapshot);
-                                } else {
-                                  takeConnectivitySnapshotDirectly(he, conn_set_snapshot, parts_with_one_pin_snapshot);
-                                  _pin_count_update_ownership[he].unlock();
-                                }
-
                                 // If u was the only pin of hyperedge he in its block before then moving out vertex u
                                 // of hyperedge he does not decrease the connectivity any more after the
                                 // uncontraction => b(u) -= w(he)
                                 const HyperedgeWeight edge_weight = edgeWeight(he);
-                                _gain_cache.asyncUpdateForUncontractCaseOne(edge_weight, v, block,
-                                                                            pin_count_in_part_after, pins_snapshot,
-                                                                            conn_set_snapshot, parts_with_one_pin_snapshot);
-                                conn_set_snapshot.clear();
-                                parts_with_one_pin_snapshot.clear();
+
+                                if (useBitcopySnapshots) {
+                                  _connectivity_set.takeBitcopySnapshotForHyperedge(he, *cs_bitcopy_snapshot);
+                                  _pins_in_part.takeBitcopySnapshotForHyperedge(he, *pcip_bitcopy_snapshot);
+                                  _pin_count_update_ownership[he].unlock();
+                                  _gain_cache.asyncUpdateForUncontractCaseOne(edge_weight, v, block,
+                                                                              pin_count_in_part_after, pins_snapshot,
+                                                                              *cs_bitcopy_snapshot, *pcip_bitcopy_snapshot);
+
+                                } else {
+                                  takeConnectivitySnapshotDirectly(he, conn_set_snapshot, parts_with_one_pin_snapshot);
+                                  _pin_count_update_ownership[he].unlock();
+                                  _gain_cache.asyncUpdateForUncontractCaseOne(edge_weight, v, block,
+                                                                              pin_count_in_part_after, pins_snapshot,
+                                                                              conn_set_snapshot, parts_with_one_pin_snapshot);
+                                  conn_set_snapshot.clear();
+                                  parts_with_one_pin_snapshot.clear();
+                                }
                               }
                           } else {
                               _pin_count_update_ownership[he].unlock();
@@ -610,25 +610,24 @@ private:
                               _gain_cache.syncUpdateForUncontractCaseTwo(he, edge_weight, u, v);
                               _pin_count_update_ownership[he].unlock();
                             } else {
-                              // Snapshot connectivity set in lock, gain cache update outside of lock
-                              if (useBitcopySnapshots) {
-                                _connectivity_set.takeBitcopySnapshotForHyperedge(he, *cs_bitcopy_snapshot);
-                                _pins_in_part.takeBitcopySnapshotForHyperedge(he, *pcip_bitcopy_snapshot);
-                                _pin_count_update_ownership[he].unlock();
-                                takeConnectivitySetSnapshotsFromBitcopySnapshots(*pcip_bitcopy_snapshot, *cs_bitcopy_snapshot,
-                                                                                 conn_set_snapshot,
-                                                                                 parts_with_one_pin_snapshot);
-                              } else {
-                                takeConnectivitySnapshotDirectly(he, conn_set_snapshot, parts_with_one_pin_snapshot);
-                                _pin_count_update_ownership[he].unlock();
-                              }
 
                               // In this case only v was part of hyperedge e before and
                               // u must be replaced by v in hyperedge e
                               const HyperedgeWeight edge_weight = edgeWeight(he);
-                              _gain_cache.asyncUpdateForUncontractCaseTwo(edge_weight, u, v, conn_set_snapshot, parts_with_one_pin_snapshot);
-                              conn_set_snapshot.clear();
-                              parts_with_one_pin_snapshot.clear();
+
+                              if (useBitcopySnapshots) {
+                                _connectivity_set.takeBitcopySnapshotForHyperedge(he, *cs_bitcopy_snapshot);
+                                _pins_in_part.takeBitcopySnapshotForHyperedge(he, *pcip_bitcopy_snapshot);
+                                _pin_count_update_ownership[he].unlock();
+                                _gain_cache.asyncUpdateForUncontractCaseTwo(edge_weight, u, v, *cs_bitcopy_snapshot, *pcip_bitcopy_snapshot);
+
+                              } else {
+                                takeConnectivitySnapshotDirectly(he, conn_set_snapshot, parts_with_one_pin_snapshot);
+                                _pin_count_update_ownership[he].unlock();
+                                _gain_cache.asyncUpdateForUncontractCaseTwo(edge_weight, u, v, conn_set_snapshot, parts_with_one_pin_snapshot);
+                                conn_set_snapshot.clear();
+                                parts_with_one_pin_snapshot.clear();
+                              }
                             }
                           } else {
                               _pin_count_update_ownership[he].unlock();
@@ -1329,12 +1328,6 @@ private:
     _k = 0;
   }
 
-  void addDeltaObserver(DeltaPartitionedHypergraph<PHG> *const obs) {
-    _gain_cache_delta_insert_lock.lock();
-    _gain_cache_deltas.push_back(obs);
-    _gain_cache_delta_insert_lock.unlock();
-  }
-
  private:
 
   void applyPartWeightUpdates(vec<HypernodeWeight>& part_weight_deltas) {
@@ -1480,13 +1473,6 @@ private:
       _hg->releaseHyperedge(he);
   }
 
-  IteratorRange<typename tbb::concurrent_vector<DeltaPartitionedHypergraph<PHG> *>::const_iterator> getGainCacheDeltas() {
-    _gain_cache_delta_insert_lock.lock();
-    auto cur_range = IteratorRange<typename tbb::concurrent_vector<DeltaPartitionedHypergraph<PHG> *>::const_iterator>(_gain_cache_deltas.begin(), _gain_cache_deltas.end());
-    _gain_cache_delta_insert_lock.unlock();
-    return cur_range;
-  }
-
   // ! Indicate wheater gain cache is initialized
   bool _is_gain_cache_initialized;
 
@@ -1527,10 +1513,6 @@ private:
   // ! Stats counters
   CAtomic<size_t> _num_stable_pins_seen;
   CAtomic<size_t> _num_volatile_pins_seen;
-
-  // ! Observers to moves and uncontractions. Needed in order to keep deltas for DeltaPHG correct in asynchronous uncoarsening
-  tbb::concurrent_vector<DeltaPartitionedHypergraph<PHG> *> _gain_cache_deltas;
-  SpinLock _gain_cache_delta_insert_lock;
 
 };
 
