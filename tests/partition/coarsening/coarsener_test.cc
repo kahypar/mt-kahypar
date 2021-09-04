@@ -40,19 +40,22 @@ bool nlevel = false;
 
 TEST_F(ACoarsener, DecreasesNumberOfPins) {
   context.coarsening.contraction_limit = 4;
-  Coarsener coarsener(hypergraph, context, true);
+  UncoarseningData uncoarseningData(nlevel, hypergraph, context);
+  Coarsener coarsener(hypergraph, context, false, uncoarseningData);
   decreasesNumberOfPins(coarsener, 6);
 }
 
 TEST_F(ACoarsener, DecreasesNumberOfHyperedges) {
   context.coarsening.contraction_limit = 4;
-  Coarsener coarsener(hypergraph, context, true);
+  UncoarseningData uncoarseningData(nlevel, hypergraph, context);
+  Coarsener coarsener(hypergraph, context, false, uncoarseningData);
   decreasesNumberOfHyperedges(coarsener, 3);
 }
 
 TEST_F(ACoarsener, RemovesHyperedgesOfSizeOneDuringCoarsening) {
   context.coarsening.contraction_limit = 4;
-  Coarsener coarsener(hypergraph, context, true);
+  UncoarseningData uncoarseningData(nlevel, hypergraph, context);
+  Coarsener coarsener(hypergraph, context, false, uncoarseningData);
   doCoarsening(coarsener);
   auto& hypergraph = coarsener.coarsestHypergraph();
   for ( const HyperedgeID& he : hypergraph.edges() ) {
@@ -62,7 +65,8 @@ TEST_F(ACoarsener, RemovesHyperedgesOfSizeOneDuringCoarsening) {
 
 TEST_F(ACoarsener, RemovesParallelHyperedgesDuringCoarsening) {
   context.coarsening.contraction_limit = 4;
-  Coarsener coarsener(hypergraph, context, true);
+  UncoarseningData uncoarseningData(nlevel, hypergraph, context);
+  Coarsener coarsener(hypergraph, context, false, uncoarseningData);
   doCoarsening(coarsener);
   auto& hypergraph = coarsener.coarsestHypergraph();
   for ( const HyperedgeID& he : hypergraph.edges() ) {
@@ -72,10 +76,9 @@ TEST_F(ACoarsener, RemovesParallelHyperedgesDuringCoarsening) {
 
 TEST_F(ACoarsener, ProjectsPartitionBackToOriginalHypergraph) {
   context.coarsening.contraction_limit = 4;
-  Coarsener coarsener(hypergraph, context, false);
-  std::shared_ptr<UncoarseningData> uncoarseningData = std::make_shared<UncoarseningData>(nlevel, hypergraph, context);
-  coarsener.setUncoarseningData(uncoarseningData.get());
-  Uncoarsener uncoarsener(hypergraph, context, false, *uncoarseningData);
+  UncoarseningData uncoarseningData(nlevel, hypergraph, context);
+  Coarsener coarsener(hypergraph, context, false, uncoarseningData);
+  Uncoarsener uncoarsener(hypergraph, context, false, uncoarseningData);
   doCoarsening(coarsener);
   PartitionedHyperGraph& coarsest_partitioned_hypergraph =
     coarsener.coarsestPartitionedHypergraph();

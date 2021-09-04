@@ -40,7 +40,7 @@ using HypergraphSparsifierFactory = kahypar::meta::Factory<SimiliarNetCombinerSt
                                                            IHypergraphSparsifier* (*)(const Context&)>;
 
 using CoarsenerFactory = kahypar::meta::Factory<CoarseningAlgorithm,
-                                                ICoarsener* (*)(Hypergraph&, const Context&, const bool)>;
+                                                ICoarsener* (*)(Hypergraph&, const Context&, const bool, UncoarseningData&)>;
 
 using MultilevelCoarsenerDispatcher = kahypar::meta::StaticMultiDispatchFactory<MultilevelCoarsener,
                                                                                 ICoarsener,

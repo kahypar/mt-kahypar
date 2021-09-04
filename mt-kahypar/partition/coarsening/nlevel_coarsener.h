@@ -63,8 +63,9 @@ class NLevelCoarsener : public ICoarsener,
  public:
   NLevelCoarsener(Hypergraph& hypergraph,
                   const Context& context,
-                  const bool top_level) :
-    Base(hypergraph, context, top_level),
+                  const bool top_level,
+                  UncoarseningData& uncoarseningData) :
+    Base(hypergraph, context, top_level, uncoarseningData),
     _rater(hypergraph, context),
     _current_vertices(),
     _tmp_current_vertices(),
@@ -204,10 +205,6 @@ class NLevelCoarsener : public ICoarsener,
 
   PartitionedHypergraph& coarsestPartitionedHypergraphImpl() override {
     return Base::compactifiedPartitionedHypergraph();
-  }
-
-  void setUncoarseningDataImpl(UncoarseningData* uncoarseningData) override {
-    _uncoarseningData = uncoarseningData;
   }
 
   void compactifyVertices(const HypernodeID current_num_nodes) {

@@ -36,10 +36,12 @@ class MultilevelCoarsenerBase {
  public:
   MultilevelCoarsenerBase(Hypergraph& hypergraph,
                           const Context& context,
-                          const bool top_level) :
+                          const bool top_level,
+                          UncoarseningData& uncoarseningData) :
           _hg(hypergraph),
           _context(context),
-          _top_level(top_level) {}
+          _top_level(top_level),
+          _uncoarseningData(uncoarseningData) {}
 
   MultilevelCoarsenerBase(const MultilevelCoarsenerBase&) = delete;
   MultilevelCoarsenerBase(MultilevelCoarsenerBase&&) = delete;
@@ -51,27 +53,27 @@ class MultilevelCoarsenerBase {
  protected:
 
   HypernodeID currentNumNodes() const {
-    if ( _uncoarseningData->hierarchy.empty() ) {
+    if ( _uncoarseningData.hierarchy.empty() ) {
       return _hg.initialNumNodes();
     } else {
-      return _uncoarseningData->hierarchy.back().contractedHypergraph().initialNumNodes();
+      return _uncoarseningData.hierarchy.back().contractedHypergraph().initialNumNodes();
     }
   }
 
   Hypergraph& currentHypergraph() {
-    if ( _uncoarseningData->hierarchy.empty() ) {
+    if ( _uncoarseningData.hierarchy.empty() ) {
       return _hg;
     } else {
-      return _uncoarseningData->hierarchy.back().contractedHypergraph();
+      return _uncoarseningData.hierarchy.back().contractedHypergraph();
     }
   }
 
   PartitionedHypergraph& currentPartitionedHypergraph() {
-    ASSERT(_uncoarseningData->is_finalized);
-    if ( _uncoarseningData->hierarchy.empty() ) {
-      return *_uncoarseningData->partitioned_hg;
+    ASSERT(_uncoarseningData.is_finalized);
+    if ( _uncoarseningData.hierarchy.empty() ) {
+      return *_uncoarseningData.partitioned_hg;
     } else {
-      return _uncoarseningData->hierarchy.back().contractedPartitionedHypergraph();
+      return _uncoarseningData.hierarchy.back().contractedPartitionedHypergraph();
      }
    }
 
@@ -85,6 +87,6 @@ class MultilevelCoarsenerBase {
   Hypergraph& _hg;
   const Context& _context;
   const bool _top_level;
-  UncoarseningData* _uncoarseningData;
+  UncoarseningData& _uncoarseningData;
 };
 }  // namespace mt_kahypar

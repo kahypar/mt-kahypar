@@ -56,10 +56,9 @@ namespace mt_kahypar::multilevel {
       // Must be empty, because final partitioned hypergraph
       // is moved into this object
       _coarsener = CoarsenerFactory::getInstance().createObject(
-              _context.coarsening.algorithm, _hg, _context, _top_level);
+              _context.coarsening.algorithm, _hg, _context, _top_level, *_uncoarseningData);
       _sparsifier = HypergraphSparsifierFactory::getInstance().createObject(
               _context.sparsification.similiar_net_combiner_strategy, _context);
-      _coarsener->setUncoarseningData(uncoarseningData.get());
 
       // Switch refinement context from IP to main
       _ip_context.refinement = _context.initial_partitioning.refinement;

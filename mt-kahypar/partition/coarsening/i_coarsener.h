@@ -51,10 +51,6 @@ class ICoarsener {
 
   virtual ~ICoarsener() = default;
 
-  void setUncoarseningData(UncoarseningData* uncoarseningData) {
-    setUncoarseningDataImpl(uncoarseningData);
-  }
-
  protected:
   ICoarsener() = default;
 
@@ -62,7 +58,6 @@ class ICoarsener {
   virtual void coarsenImpl() = 0;
   virtual Hypergraph& coarsestHypergraphImpl() = 0;
   virtual PartitionedHypergraph& coarsestPartitionedHypergraphImpl() = 0;
-  virtual void setUncoarseningDataImpl(UncoarseningData* uncoarseningData) = 0;
 };
 
 }  // namespace kahypar

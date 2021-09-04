@@ -43,10 +43,12 @@ class NLevelCoarsenerBase {
  public:
   NLevelCoarsenerBase(Hypergraph& hypergraph,
                       const Context& context,
-                      const bool top_level) :
+                      const bool top_level,
+                      UncoarseningData& uncoarseningData) :
     _hg(hypergraph),
     _context(context),
-    _top_level(top_level) { }
+    _top_level(top_level),
+    _uncoarseningData(uncoarseningData) { }
 
   NLevelCoarsenerBase(const NLevelCoarsenerBase&) = delete;
   NLevelCoarsenerBase(NLevelCoarsenerBase&&) = delete;
@@ -58,23 +60,23 @@ class NLevelCoarsenerBase {
  protected:
 
   Hypergraph& compactifiedHypergraph() {
-    ASSERT(_uncoarseningData->is_finalized);
-    return *_uncoarseningData->compactified_hg;
+    ASSERT(_uncoarseningData.is_finalized);
+    return *_uncoarseningData.compactified_hg;
   }
 
   PartitionedHypergraph& compactifiedPartitionedHypergraph() {
-    ASSERT(_uncoarseningData->is_finalized);
-    return *_uncoarseningData->compactified_phg;
+    ASSERT(_uncoarseningData.is_finalized);
+    return *_uncoarseningData.compactified_phg;
   }
 
   void finalize();
 
   void removeSinglePinAndParallelNets(const HighResClockTimepoint& round_start) {
     utils::Timer::instance().start_timer("remove_single_pin_and_parallel_nets", "Remove Single Pin and Parallel Nets");
-    _uncoarseningData->removed_hyperedges_batches.emplace_back(_hg.removeSinglePinAndParallelHyperedges());
+    _uncoarseningData.removed_hyperedges_batches.emplace_back(_hg.removeSinglePinAndParallelHyperedges());
     const HighResClockTimepoint round_end = std::chrono::high_resolution_clock::now();
     const double elapsed_time = std::chrono::duration<double>(round_end - round_start).count();
-    _uncoarseningData->round_coarsening_times.push_back(elapsed_time);
+    _uncoarseningData.round_coarsening_times.push_back(elapsed_time);
     utils::Timer::instance().stop_timer("remove_single_pin_and_parallel_nets");
   }
 
@@ -85,6 +87,6 @@ class NLevelCoarsenerBase {
   const Context& _context;
   const bool _top_level;
 
-  UncoarseningData* _uncoarseningData;
+  UncoarseningData& _uncoarseningData;
 };
 }  // namespace mt_kahypar

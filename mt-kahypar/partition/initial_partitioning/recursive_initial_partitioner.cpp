@@ -128,14 +128,13 @@ namespace mt_kahypar {
             _coarsener(nullptr),
             _sparsifier(nullptr),
             _result(result) {
+      bool nlevel = _result.context.coarsening.algorithm == CoarseningAlgorithm::nlevel_coarsener;
+      _uncoarseningData = std::make_shared<UncoarseningData>(nlevel, _result.hypergraph, _result.context);
       _coarsener = CoarsenerFactory::getInstance().createObject(
-              _result.context.coarsening.algorithm, _result.hypergraph, _result.context, false);
+              _result.context.coarsening.algorithm, _result.hypergraph, _result.context, false, *_uncoarseningData);
       _sparsifier = HypergraphSparsifierFactory::getInstance().createObject(
               _result.context.sparsification.similiar_net_combiner_strategy, _result.context);
 
-      bool nlevel = _result.context.coarsening.algorithm == CoarseningAlgorithm::nlevel_coarsener;
-      _uncoarseningData = std::make_shared<UncoarseningData>(nlevel, _result.hypergraph, _result.context);
-      _coarsener->setUncoarseningData(_uncoarseningData.get());
     }
 
     tbb::task* execute() override {

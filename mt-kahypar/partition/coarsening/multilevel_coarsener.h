@@ -73,8 +73,9 @@ class MultilevelCoarsener : public ICoarsener,
  public:
   MultilevelCoarsener(Hypergraph& hypergraph,
                       const Context& context,
-                      const bool top_level) :
-    Base(hypergraph, context, top_level),
+                      const bool top_level,
+                      UncoarseningData& uncoarseningData) :
+    Base(hypergraph, context, top_level, uncoarseningData),
     _rater(hypergraph, context),
     _current_vertices(),
     _matching_state(),
@@ -441,11 +442,6 @@ class MultilevelCoarsener : public ICoarsener,
   PartitionedHypergraph& coarsestPartitionedHypergraphImpl() override {
     return Base::currentPartitionedHypergraph();
   }
-
-  void setUncoarseningDataImpl(UncoarseningData* uncoarseningData) override {
-    _uncoarseningData = uncoarseningData;
-  }
-
 
   HypernodeID hierarchyContractionLimit(const Hypergraph& hypergraph) const {
     return std::max( static_cast<HypernodeID>( static_cast<double>(hypergraph.initialNumNodes() -
