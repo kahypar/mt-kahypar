@@ -302,7 +302,9 @@ public:
         PartitionID block_counter = 0;
         for (auto it = first_block_of_he; it != first_block_of_next; ++it) {
           _snapshot_data[block_counter] = (*it).load(std::memory_order_relaxed);
+          ++block_counter;
         }
+        ASSERT(block_counter == _num_blocks_per_hyperedge);
 	    }
 
 	    PartitionID _k;
