@@ -20,8 +20,6 @@
 
 #pragma once
 
-#include <tbb/concurrent_vector.h>
-
 #include "datastructure/flow_hypergraph_builder.h"
 #include "algorithm/hyperflowcutter.h"
 #include "algorithm/dinic.h"
@@ -36,38 +34,6 @@ namespace mt_kahypar {
 class FlowRefiner final : public IAdvancedRefiner {
 
   static constexpr bool debug = false;
-
-  class DynamicIdenticalNetDetection {
-
-    using IdenticalNetVector = vec<whfc::Hyperedge>;
-
-   public:
-    explicit DynamicIdenticalNetDetection(whfc::FlowHypergraphBuilder& flow_hg) :
-      _flow_hg(flow_hg),
-      _he_hashes(),
-      _used_entries(0),
-      _hash_buckets() { }
-
-    /**
-     * Returns an invalid hyperedge id, if the edge is not contained, otherwise
-     * it returns the id of the hyperedge that is identical to he.
-     */
-    whfc::Hyperedge add_if_not_contained(const whfc::Hyperedge he,
-                                         const size_t he_hash,
-                                         const vec<whfc::Node>& pins);
-
-    void reset() {
-      _he_hashes.clear();
-      _used_entries = 0;
-      _hash_buckets.clear();
-    }
-
-   private:
-    whfc::FlowHypergraphBuilder& _flow_hg;
-    ds::DynamicFlatMap<size_t, size_t> _he_hashes;
-    size_t _used_entries;
-    vec<IdenticalNetVector> _hash_buckets;
-  };
 
   struct FlowProblem {
     whfc::Node source;
@@ -94,8 +60,7 @@ class FlowRefiner final : public IAdvancedRefiner {
     _visited_hns(),
     _visited_hes(),
     _tmp_pins(),
-    _cut_hes(),
-    _identical_nets(_flow_hg) {
+    _cut_hes() {
     _hfc.find_most_balanced =
       _context.refinement.advanced.flows.find_most_balanced_cut;
     _hfc.timer.active = false;
@@ -159,9 +124,7 @@ class FlowRefiner final : public IAdvancedRefiner {
   ds::DynamicSparseMap<HypernodeID, whfc::Node> _node_to_whfc;
   ds::DynamicSparseSet<HypernodeID> _visited_hns;
   ds::DynamicSparseSet<HyperedgeID> _visited_hes;
-  vec<whfc::Node> _tmp_pins;
+  vec<HypernodeID> _tmp_pins;
   vec<HyperedgeID> _cut_hes;
-
-  DynamicIdenticalNetDetection _identical_nets;
 };
 }  // namespace mt_kahypar

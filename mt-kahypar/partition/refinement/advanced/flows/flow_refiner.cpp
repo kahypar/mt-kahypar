@@ -66,52 +66,6 @@ MoveSequence FlowRefiner::refineImpl(const PartitionedHypergraph& phg,
   return sequence;
 }
 
-whfc::Hyperedge FlowRefiner::DynamicIdenticalNetDetection::add_if_not_contained(const whfc::Hyperedge he,
-                                                                                const size_t he_hash,
-                                                                                const vec<whfc::Node>& pins) {
-  const size_t* bucket_idx = _he_hashes.get_if_contained(he_hash);
-  if ( bucket_idx ) {
-    // There exists already some hyperedges with the same hash
-    for ( const whfc::Hyperedge& e : _hash_buckets[*bucket_idx] ) {
-      // Check if there is some hyperedge equal to he
-      if ( _flow_hg.pinCount(e) == pins.size() ) {
-        bool is_identical = true;
-        size_t idx = 0;
-        for ( const whfc::FlowHypergraph::Pin& u : _flow_hg.pinsOf(e) ) {
-          if ( u.pin != pins[idx++] ) {
-            is_identical = false;
-            break;
-          }
-        }
-        if ( is_identical ) {
-          return e;
-        }
-      }
-    }
-  }
-
-  // There is no hyperedge currently identical to he
-  if ( bucket_idx ) {
-    // If there already exist hyperedges with the same hash,
-    // we insert he into the corresponding bucket.
-    _hash_buckets[*bucket_idx].push_back(he);
-  } else {
-    // Otherwise, we create a new bucket (or reuse an existing)
-    // and insert he into the hash table
-    size_t idx = std::numeric_limits<size_t>::max();
-    if ( _used_entries < _hash_buckets.size() ) {
-      _hash_buckets[_used_entries].clear();
-    } else {
-      _hash_buckets.emplace_back();
-    }
-    idx = _used_entries++;
-    _hash_buckets[idx].push_back(he);
-    _he_hashes[he_hash] = idx;
-  }
-
-  return whfc::invalidHyperedge;
-}
-
 FlowRefiner::FlowProblem FlowRefiner::constructFlowHypergraph(const PartitionedHypergraph& phg,
                                                               const vec<HypernodeID>& refinement_nodes) {
   ASSERT(_block_0 != kInvalidPartition && _block_1 != kInvalidPartition);
@@ -158,22 +112,10 @@ FlowRefiner::FlowProblem FlowRefiner::constructFlowHypergraph(const PartitionedH
   flow_problem.weight_of_block_0 = _flow_hg.nodeWeight(flow_problem.source) + weight_block_0;
   flow_problem.weight_of_block_1 = _flow_hg.nodeWeight(flow_problem.sink) + weight_block_1;
 
-  auto push_into_tmp_pins = [&](const whfc::Node pin, size_t& current_hash, const bool is_source_or_sink) {
-    _tmp_pins.push_back(pin);
-    current_hash += kahypar::math::hash(pin);
-    if ( is_source_or_sink ) {
-      // According to Lars: Adding to source or sink to the start of
-      // each pin list improves running time
-      std::swap(_tmp_pins[0], _tmp_pins.back());
-    }
-  };
-
   // Add hyperedge to flow network and configure source and sink
-  whfc::Hyperedge current_he(0);
   for ( const auto& entry : _visited_hes ) {
     const HyperedgeID he = entry.key;
     if ( !canHyperedgeBeDropped(phg, he) ) {
-      size_t he_hash = 0;
       _tmp_pins.clear();
       const HyperedgeWeight he_weight = phg.edgeWeight(he);
       _flow_hg.startHyperedge(whfc::Flow(he_weight));
@@ -184,7 +126,7 @@ FlowRefiner::FlowProblem FlowRefiner::constructFlowHypergraph(const PartitionedH
       }
       for ( const HypernodeID& pin : phg.pins(he) ) {
         if ( _node_to_whfc.contains(pin) ) {
-          push_into_tmp_pins(_node_to_whfc[pin], he_hash, false);
+          _tmp_pins.push_back(pin);
         } else {
           connectToSource |= phg.partID(pin) == _block_0;
           connectToSink |= phg.partID(pin) == _block_1;
@@ -197,33 +139,15 @@ FlowRefiner::FlowProblem FlowRefiner::constructFlowHypergraph(const PartitionedH
         _flow_hg.removeCurrentHyperedge();
         flow_problem.non_removable_cut += he_weight;
       } else {
-
+        // According to Lars: Adding to source or sink to the start of
+        // each pin list improves running time
         if ( connectToSource ) {
-          push_into_tmp_pins(flow_problem.source, he_hash, true);
+          _flow_hg.addPin(flow_problem.source);
         } else if ( connectToSink ) {
-          push_into_tmp_pins(flow_problem.sink, he_hash, true);
+          _flow_hg.addPin(flow_problem.sink);
         }
-
-        // Sort pins for identical net detection
-        std::sort( _tmp_pins.begin() +
-                 ( _tmp_pins[0] == flow_problem.source ||
-                   _tmp_pins[0] == flow_problem.sink), _tmp_pins.end());
-
-        if ( _tmp_pins.size() > 1 ) {
-          whfc::Hyperedge identical_net =
-            _identical_nets.add_if_not_contained(current_he, he_hash, _tmp_pins);
-          if ( identical_net == whfc::invalidHyperedge ) {
-            for ( const whfc::Node& pin : _tmp_pins ) {
-              _flow_hg.addPin(pin);
-            }
-            ++current_he;
-          } else {
-            // Current hyperedge is identical to an already added
-            _flow_hg.removeCurrentHyperedge();
-            _flow_hg.capacity(identical_net) += he_weight;
-          }
-        } else {
-          _flow_hg.removeCurrentHyperedge();
+        for ( const HypernodeID& pin : _tmp_pins ) {
+          _flow_hg.addPin(_node_to_whfc[pin]);
         }
       }
     }
