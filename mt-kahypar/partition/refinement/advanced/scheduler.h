@@ -67,6 +67,12 @@ class AdvancedRefinementScheduler final : public IRefiner {
     CAtomic<HyperedgeWeight> total_improvement;
   };
 
+  struct PartWeightUpdateResult {
+    bool is_balanced = true;
+    PartitionID overloaded_block = kInvalidPartition;
+    HypernodeWeight overload_weight = 0;
+  };
+
 public:
   explicit AdvancedRefinementScheduler(const Hypergraph& hg,
                                        const Context& context) :
@@ -94,7 +100,9 @@ public:
    * the balance constaint and not worsen solution quality.
    * Returns, improvement in solution quality.
    */
-  HyperedgeWeight applyMoves(const SearchID search_id, MoveSequence& sequence);
+  HyperedgeWeight applyMoves(const SearchID search_id,
+                             MoveSequence& sequence,
+                             const size_t num_retries = 2);
 
   /**
    * Returns the current weight of each block.
@@ -118,8 +126,11 @@ private:
 
   void initializeImpl(PartitionedHypergraph& phg) final;
 
-  bool partWeightUpdate(const vec<HypernodeWeight>& part_weight_deltas,
-                        const bool rollback);
+  PartWeightUpdateResult partWeightUpdate(const vec<HypernodeWeight>& part_weight_deltas,
+                                          const bool rollback);
+
+  bool tryToFixMoveSequenceAfterBalanceViolation(MoveSequence& sequence,
+                                                 const PartWeightUpdateResult& update_res);
 
   std::string blocksOfSearch(const SearchID search_id) {
     const BlockPair blocks = _quotient_graph.getBlockPair(search_id);

@@ -224,7 +224,9 @@ void addCutHyperedgesToQuotientGraph(QuotientGraph& quotient_graph,
 
 } // namespace
 
-HyperedgeWeight AdvancedRefinementScheduler::applyMoves(const SearchID search_id, MoveSequence& sequence) {
+HyperedgeWeight AdvancedRefinementScheduler::applyMoves(const SearchID search_id,
+                                                        MoveSequence& sequence,
+                                                        const size_t num_retries) {
   unused(search_id);
   ASSERT(_phg);
 
@@ -268,15 +270,15 @@ HyperedgeWeight AdvancedRefinementScheduler::applyMoves(const SearchID search_id
   };
 
   // Update part weights atomically
-  bool is_balanced = partWeightUpdate(part_weight_deltas, false);
-  if ( is_balanced ) {
+  PartWeightUpdateResult update_res = partWeightUpdate(part_weight_deltas, false);
+  if ( update_res.is_balanced ) {
     // Apply move sequence to partition
     const bool is_nlevel = _context.partition.paradigm == Paradigm::nlevel;
     applyMoveSequence(*_phg, sequence, delta_func, is_nlevel, _was_moved, new_cut_hes);
 
     if ( improvement < 0 ) {
-      is_balanced = partWeightUpdate(part_weight_deltas, true);
-      if ( is_balanced ) {
+      update_res = partWeightUpdate(part_weight_deltas, true);
+      if ( update_res.is_balanced ) {
         // Move sequence worsen solution quality => Rollback
         DBG << RED << "Move sequence worsen solution quality ("
             << "Expected Improvement =" << sequence.expected_improvement
@@ -320,16 +322,21 @@ HyperedgeWeight AdvancedRefinementScheduler::applyMoves(const SearchID search_id
 
   if ( sequence.state == MoveSequenceState::SUCCESS && improvement > 0 ) {
     addCutHyperedgesToQuotientGraph(_quotient_graph, new_cut_hes);
+    _stats.total_improvement += improvement;
+  } else if ( sequence.state == MoveSequenceState::VIOLATES_BALANCE_CONSTRAINT &&
+              sequence.expected_improvement > 0 && num_retries > 0 &&
+              tryToFixMoveSequenceAfterBalanceViolation(sequence, update_res) ) {
+    --_stats.failed_updates_due_to_balance_constraint;
+    improvement = applyMoves(search_id, sequence, num_retries - 1);
   }
 
-  _stats.total_improvement += improvement;
   return improvement;
 }
 
-bool AdvancedRefinementScheduler::partWeightUpdate(const vec<HypernodeWeight>& part_weight_deltas,
-                                                   const bool rollback) {
+AdvancedRefinementScheduler::PartWeightUpdateResult AdvancedRefinementScheduler::partWeightUpdate(
+  const vec<HypernodeWeight>& part_weight_deltas, const bool rollback) {
   const HypernodeWeight multiplier = rollback ? -1 : 1;
-  bool is_balanced = true;
+  PartWeightUpdateResult res;
   _part_weights_lock.lock();
   PartitionID i = 0;
   for ( ; i < _context.partition.k; ++i ) {
@@ -337,18 +344,50 @@ bool AdvancedRefinementScheduler::partWeightUpdate(const vec<HypernodeWeight>& p
       DBG << "Move sequence violated balance constraint of block" << i
           << "(Max =" << _max_part_weights[i]
           << ", Actual =" << (_part_weights[i] + multiplier * part_weight_deltas[i]) << ")";
+      res.is_balanced = false;
+      res.overloaded_block = i;
+      res.overload_weight = ( _part_weights[i] + multiplier *
+        part_weight_deltas[i] ) - _max_part_weights[i];
       // Move Sequence Violates Balance Constraint => Rollback
       --i;
       for ( ; i >= 0; --i ) {
         _part_weights[i] -= multiplier * part_weight_deltas[i];
       }
-      is_balanced = false;
       break;
     }
     _part_weights[i] += multiplier * part_weight_deltas[i];
   }
   _part_weights_lock.unlock();
-  return is_balanced;
+  return res;
+}
+
+bool AdvancedRefinementScheduler::tryToFixMoveSequenceAfterBalanceViolation(
+  MoveSequence& sequence, const PartWeightUpdateResult& update_res) {
+  // Sort nodes in decreasing order of their node degrees and remove
+  // nodes from sequence with low degree. Assumption is that low degree
+  // vertices have small gains
+  std::sort(sequence.moves.begin(), sequence.moves.end(),
+    [&](const Move& lhs, const Move& rhs) {
+      const bool lhs_move_to_overloaded_block = lhs.to == update_res.overloaded_block;
+      const bool rhs_move_to_overloaded_block = rhs.to == update_res.overloaded_block;
+      return  lhs_move_to_overloaded_block < rhs_move_to_overloaded_block ||
+        ( lhs_move_to_overloaded_block == rhs_move_to_overloaded_block &&
+          _phg->nodeDegree(lhs.node) > _phg->nodeDegree(rhs.node) );
+    });
+
+  HypernodeWeight overload_weight = update_res.overload_weight;
+  while ( !sequence.moves.empty() && overload_weight > 0 ) {
+    const Move& move = sequence.moves.back();
+    if ( move.to == update_res.overloaded_block ) {
+      if ( _phg->partID(move.node) != update_res.overloaded_block ) {
+        overload_weight -= _phg->nodeWeight(move.node);
+      }
+      sequence.moves.pop_back();
+    } else {
+      break;
+    }
+  }
+  return overload_weight <= 0;
 }
 
 }
