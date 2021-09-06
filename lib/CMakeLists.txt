@@ -11,24 +11,36 @@ target_link_libraries(mtkahyparstrong ${Boost_LIBRARIES})
 target_compile_definitions(mtkahyparstrong PUBLIC MT_KAHYPAR_LIBRARY_MODE)
 target_compile_definitions(mtkahyparstrong PUBLIC USE_STRONG_PARTITIONER)
 
-set(TARGETS_WANTING_ALL_SOURCES ${TARGETS_WANTING_ALL_SOURCES} mtkahyparfast mtkahyparstrong PARENT_SCOPE)
+# Library MT-KaHyPar Fast Graph
+add_library(mtkahyparfastgraph SHARED libmtkahypar.cc)
+target_link_libraries(mtkahyparfastgraph ${Boost_LIBRARIES})
+target_compile_definitions(mtkahyparfastgraph PUBLIC MT_KAHYPAR_LIBRARY_MODE)
+target_compile_definitions(mtkahyparfastgraph PUBLIC USE_GRAPH_STRUCTURE)
+
+set(TARGETS_WANTING_ALL_SOURCES ${TARGETS_WANTING_ALL_SOURCES} mtkahyparfast mtkahyparstrong mtkahyparfastgraph PARENT_SCOPE)
 
 set_target_properties(mtkahyparfast PROPERTIES
     PUBLIC_HEADER ../include/libmtkahypar.h)
 set_target_properties(mtkahyparstrong PROPERTIES
     PUBLIC_HEADER ../include/libmtkahypar.h)
+set_target_properties(mtkahyparfastgraph PROPERTIES
+    PUBLIC_HEADER ../include/libmtkahypar.h)
 
 target_include_directories(mtkahyparfast PRIVATE ../include)
 target_include_directories(mtkahyparstrong PRIVATE ../include)
+target_include_directories(mtkahyparfastgraph PRIVATE ../include)
 
 configure_file(libmtkahyparfast.pc.in libmtkahyparfast.pc @ONLY)
 configure_file(libmtkahyparstrong.pc.in libmtkahyparstrong.pc @ONLY)
+configure_file(libmtkahyparfastgraph.pc.in libmtkahyparfastgraph.pc @ONLY)
 
-install(TARGETS mtkahyparfast mtkahyparstrong
+install(TARGETS mtkahyparfast mtkahyparstrong mtkahyparfastgraph
   LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
   PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
 
-install(FILES ${CMAKE_BINARY_DIR}/lib/libmtkahyparfast.pc ${CMAKE_BINARY_DIR}/lib/libmtkahyparstrong.pc
+install(FILES ${CMAKE_BINARY_DIR}/lib/libmtkahyparfast.pc
+              ${CMAKE_BINARY_DIR}/lib/libmtkahyparstrong.pc
+              ${CMAKE_BINARY_DIR}/lib/libmtkahyparfastgraph.pc
         DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/pkgconfig)
 
 configure_file(cmake_uninstall.cmake.in cmake_uninstall.cmake IMMEDIATE @ONLY)
@@ -39,4 +51,4 @@ add_custom_target(install.mtkahypar
     ${CMAKE_COMMAND}
     -DBUILD_TYPE=${CMAKE_BUILD_TYPE}
     -P ${CMAKE_BINARY_DIR}/cmake_install.cmake)
-ADD_DEPENDENCIES(install.mtkahypar mtkahyparfast mtkahyparstrong)
+ADD_DEPENDENCIES(install.mtkahypar mtkahyparfast mtkahyparstrong mtkahyparfastgraph)

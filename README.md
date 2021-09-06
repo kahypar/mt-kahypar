@@ -247,6 +247,12 @@ To compile the program using `g++` and our fast hypergraph partitioner (Mt-KaHyP
 g++ -std=c++17 -DNDEBUG -O3 your_program.cc -o your_program -lmtkahyparfast
 ```
 
+To compile the program using `g++` and our fast graph partitioner (Mt-KaHyPar Fast Graph) run:
+
+```sh
+g++ -std=c++17 -DNDEBUG -O3 your_program.cc -o your_program -lmtkahyparfastgraph
+```
+
 To compile the program using `g++` and our strong hypergraph partitioner (Mt-KaHyPar Strong) run:
 
 ```sh
