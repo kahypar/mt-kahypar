@@ -675,7 +675,9 @@ class DynamicFlatMap final : public DynamicMapBase<Key, Value, DynamicFlatMap<Ke
  public:
   explicit DynamicFlatMap() :
     Base(),
-    _elements(nullptr) { }
+    _elements(nullptr) {
+    initializeImpl();
+  }
 
   DynamicFlatMap(const DynamicFlatMap&) = delete;
   DynamicFlatMap& operator= (const DynamicFlatMap& other) = delete;
