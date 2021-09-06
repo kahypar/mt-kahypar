@@ -33,10 +33,11 @@ undone and, at each level, several *local search* methods are used to improve th
 the coarser level. Additionally, we use a hypergraph clustering algorithm as preprocessing
 to restrict contractions to densely coupled regions during coarsening.
 
-The Mt-KaHyPar framework provides two hypergraph partitioners:
+The Mt-KaHyPar framework provides two hypergraph partitioners and a graph partitioner:
 
-- **Mt-KaHyPar Fast**: A scalable hypergraph partitioner that computes good partitions very fast
-- **Mt-KaHyPar Strong**: A scalable hypergraph partitioner that computes high-quality partitions
+- **Mt-KaHyPar Fast**: A scalable partitioner that computes good partitions very fast (for hypergraphs)
+- **Mt-KaHyPar Fast Graph**: A scalable partitioner that computes good partitions very fast (for graphs)
+- **Mt-KaHyPar Strong**: A scalable partitioner that computes high-quality partitions
 
 Requirements
 -----------
@@ -66,7 +67,8 @@ Building Mt-KaHyPar
 
 The build produces two executables, which will be located in `build/mt-kahypar/application/`:
 
-- `MtKaHyParFast`: computes good partitions very fast
+- `MtKaHyParFast`: computes good partitions very fast (for hypergraphs)
+- `MtKaHyParFastGraph`: computes good partitions very fast (for graphs)
 - `MtKaHyParStrong`: computes high-quality partitions in reasonable time (using n levels)
 
 Running Mt-KaHyPar
@@ -74,7 +76,7 @@ Running Mt-KaHyPar
 
 Mt-KaHyPar has several configuration parameters. We recommend to use our presets which are located in the `config` folder:
 
-- `default_preset.ini`: default parameters for Mt-KaHyPar Fast (`MtKaHyParFast`)
+- `default_preset.ini`: default parameters for Mt-KaHyPar Fast (`MtKaHyParFast`, `MtKaHyParFastGraph`)
 - `speed_deterministic_preset.ini`: parameters to make Mt-KaHyPar Fast (`MtKaHyParFast`) deterministic
 - `quality_preset.ini`: default parameters for Mt-KaHyPar Strong (`MtKaHyParStrong`)
 
@@ -84,6 +86,10 @@ If you want to change parameters manually, please run `./MtKaHyParFast --help` o
 To run Mt-KaHyPar Fast, you can use the following command:
 
     ./MtKaHyParFast -h <path-to-hgr> -p <path to default_preset.ini> -t <# threads> -k <# blocks> -e <imbalance (e.g. 0.03)> -o km1 -m direct
+
+To run Mt-KaHyPar Fast Graph, you can use the following command:
+
+    ./MtKaHyParFastGraph -h <path-to-hgr> -p <path to default_preset.ini> -t <# threads> -k <# blocks> -e <imbalance (e.g. 0.03)> -o km1 -m direct
 
 To run Mt-KaHyPar Strong, you can use the following command:
 
