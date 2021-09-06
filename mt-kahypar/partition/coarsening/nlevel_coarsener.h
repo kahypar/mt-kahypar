@@ -224,7 +224,7 @@ class NLevelCoarsener : public ICoarsener,
 
   template<class F>
   void coarseningPass(const F& contraction) {
-    const double contraction_limit =
+    double contraction_limit =
       std::max(static_cast<HypernodeID>(_cl_tracker.currentNumNodes() /
         _context.coarsening.maximum_shrink_factor), _context.coarsening.contraction_limit);
     if ( _context.coarsening.maximum_shrink_factor > 99.0 ) {
