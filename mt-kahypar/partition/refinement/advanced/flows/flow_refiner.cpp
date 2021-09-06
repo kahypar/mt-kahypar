@@ -118,6 +118,7 @@ FlowRefiner::FlowProblem FlowRefiner::constructFlowHypergraph(const PartitionedH
   FlowProblem flow_problem;
   flow_problem.total_cut = 0;
   flow_problem.non_removable_cut = 0;
+  _identical_nets.reset();
 
   if ( _context.refinement.advanced.flows.determine_distance_from_cut ) {
     _cut_hes.clear();
@@ -219,11 +220,8 @@ FlowRefiner::FlowProblem FlowRefiner::constructFlowHypergraph(const PartitionedH
             ++current_he;
           } else {
             // Current hyperedge is identical to an already added
-            _flow_hg.removeCurrentHyperedge();
             _flow_hg.capacity(identical_net) += he_weight;
           }
-        } else {
-          _flow_hg.removeCurrentHyperedge();
         }
       }
     }
@@ -243,6 +241,12 @@ FlowRefiner::FlowProblem FlowRefiner::constructFlowHypergraph(const PartitionedH
   } else {
     _flow_hg.finalize();
   }
+
+  DBG << "Flow Hypergraph [ Nodes =" << _flow_hg.numNodes()
+      << ", Edges =" << _flow_hg.numHyperedges()
+      << ", Pins =" << _flow_hg.numPins()
+      << ", Blocks = (" << _block_0 << "," << _block_1 << ") ]";
+
   return flow_problem;
 }
 

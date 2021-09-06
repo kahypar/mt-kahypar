@@ -59,7 +59,6 @@ class FlowRefiner final : public IAdvancedRefiner {
     void reset() {
       _he_hashes.clear();
       _used_entries = 0;
-      _hash_buckets.clear();
     }
 
    private:
