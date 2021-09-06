@@ -223,11 +223,9 @@ class MultilevelCoarsener : public ICoarsener,
                 if (local_contracted_nodes >= num_nodes_update_threshold.local()) {
                   current_num_nodes = num_hns_before_pass -
                                       contracted_nodes.combine(std::plus<HypernodeID>());
-                  const HypernodeID dist_to_contraction_limit =
-                    current_num_nodes > hierarchy_contraction_limit ?
-                    current_num_nodes - hierarchy_contraction_limit : 0;
                   num_nodes_update_threshold.local() +=
-                    dist_to_contraction_limit / _context.shared_memory.num_threads;
+                          (current_num_nodes - hierarchy_contraction_limit) /
+                          _context.shared_memory.num_threads;
                 }
               }
             }
