@@ -125,25 +125,28 @@ static constexpr double EPS = 0.05;
 typedef ::testing::Types<TestConfig<RecursiveInitialPartitioner, InitialPartitioningMode::recursive, 2>,
                          TestConfig<RecursiveInitialPartitioner, InitialPartitioningMode::recursive, 3>,
                          TestConfig<RecursiveInitialPartitioner, InitialPartitioningMode::recursive, 4>,
-                         TestConfig<RecursiveInitialPartitioner, InitialPartitioningMode::recursive, 5>,
                          TestConfig<RecursiveBisectionInitialPartitioner, InitialPartitioningMode::recursive_bisection, 2>,
                          TestConfig<RecursiveBisectionInitialPartitioner, InitialPartitioningMode::recursive_bisection, 3>,
-                         TestConfig<RecursiveBisectionInitialPartitioner, InitialPartitioningMode::recursive_bisection, 4>,
-                         TestConfig<RecursiveBisectionInitialPartitioner, InitialPartitioningMode::recursive_bisection, 5> > TestConfigs;
+                         TestConfig<RecursiveBisectionInitialPartitioner, InitialPartitioningMode::recursive_bisection, 4> > TestConfigs;
 
 TYPED_TEST_CASE(AInitialPartitionerTest, TestConfigs);
 
-TYPED_TEST(AInitialPartitionerTest, VerifiesThatAllPartsAreNonEmpty) {
+TYPED_TEST(AInitialPartitionerTest, VerifiesComputedPartition) {
   this->initial_partitioner->initialPartition();
 
-  for ( PartitionID part_id = 0; part_id < this->context.partition.k; ++part_id ) {
-    ASSERT_GT(this->partitioned_hypergraph.partWeight(part_id), 0);
+  // Check that each vertex is assigned to a block
+  for ( const HypernodeID& hn : this->partitioned_hypergraph.nodes() ) {
+    ASSERT_NE(this->partitioned_hypergraph.partID(hn), kInvalidPartition)
+      << "Hypernode " << hn << " is unassigned!";
   }
-}
 
-TYPED_TEST(AInitialPartitionerTest, VerifiesThatPartSizesAndWeightsAreCorrect) {
-  this->initial_partitioner->initialPartition();
+  // Check that non of the blocks is empty
+  for ( PartitionID part_id = 0; part_id < this->context.partition.k; ++part_id ) {
+    ASSERT_GT(this->partitioned_hypergraph.partWeight(part_id), 0)
+      << "Block " << part_id << " is empty!";
+  }
 
+  // Check that part weights are correct
   std::vector<HypernodeWeight> part_weight(this->context.partition.k, 0);
   for ( const HypernodeID& hn : this->hypergraph.nodes() ) {
     PartitionID part_id = this->partitioned_hypergraph.partID(hn);
@@ -152,16 +155,18 @@ TYPED_TEST(AInitialPartitionerTest, VerifiesThatPartSizesAndWeightsAreCorrect) {
   }
 
   for ( PartitionID part_id = 0; part_id < this->context.partition.k; ++part_id ) {
-    ASSERT_EQ(this->partitioned_hypergraph.partWeight(part_id), part_weight[part_id]);
+    ASSERT_EQ(this->partitioned_hypergraph.partWeight(part_id), part_weight[part_id])
+      << "Expected part weight of block " << part_id << " is " << part_weight[part_id]
+      << ", but currently is " << this->partitioned_hypergraph.partWeight(part_id);
   }
-}
 
-TYPED_TEST(AInitialPartitionerTest, VerifiesThatAllPartWeightsAreSmallerThanMaxPartWeight) {
-  this->initial_partitioner->initialPartition();
-
+  // Check that balance constraint is fullfilled
   for ( PartitionID part_id = 0; part_id < this->context.partition.k; ++part_id ) {
     ASSERT_LE(this->partitioned_hypergraph.partWeight(part_id),
-              this->context.partition.max_part_weights[part_id]);
+              this->context.partition.max_part_weights[part_id])
+      << "Block " << part_id << " violates the balance constraint (Part Weight = "
+      << this->partitioned_hypergraph.partWeight(part_id) << ", Max Part Weight = "
+      << this->context.partition.max_part_weights[part_id];
   }
 }
 
