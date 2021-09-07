@@ -19,7 +19,7 @@
  *
  ******************************************************************************/
 
-#include "libkahypar.h"
+#include "libmtkahypar.h"
 
 #include "tbb/parallel_for.h"
 #include "tbb/parallel_invoke.h"
