@@ -196,6 +196,7 @@ struct RefinementParameters {
   NLevelGlobalFMParameters global_fm;
   AdvancedRefinementParameters advanced;
   bool refine_until_no_improvement = false;
+  double relative_improvement_threshold = 0.0;
   size_t max_batch_size = std::numeric_limits<size_t>::max();
   size_t min_border_vertices_per_thread = 0;
 };

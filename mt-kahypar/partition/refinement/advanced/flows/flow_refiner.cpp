@@ -327,6 +327,7 @@ bool FlowRefiner::isMaximumProblemSizeReachedImpl(ProblemStats& stats) const {
     stats.lockBlock(_block_0);
     stats.lockBlock(_block_1);
   }
+
   return stats.isLocked(_block_0) && stats.isLocked(_block_1);
 }
 

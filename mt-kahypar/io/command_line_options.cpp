@@ -258,6 +258,11 @@ namespace mt_kahypar {
                               &context.initial_partitioning.refinement.refine_until_no_improvement))->value_name(
                      "<bool>")->default_value(false),
              "Executes all refinement algorithms as long as they find an improvement on the current partition.")
+            ((initial_partitioning ? "i-r-relative-improvement-threshold" : "r-relative-improvement-threshold"),
+             po::value<double>((!initial_partitioning ? &context.refinement.relative_improvement_threshold :
+                              &context.initial_partitioning.refinement.relative_improvement_threshold))->value_name(
+                     "<double>")->default_value(0.0),
+             "If the relative improvement during a refinement pass is less than this threshold, than refinement is aborted.")
             (( initial_partitioning ? "i-r-max-batch-size" : "r-max-batch-size"),
              po::value<size_t>((!initial_partitioning ? &context.refinement.max_batch_size :
                                 &context.initial_partitioning.refinement.max_batch_size))->value_name("<size_t>")->default_value(1000),

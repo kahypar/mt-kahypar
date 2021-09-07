@@ -451,6 +451,8 @@ namespace mt_kahypar {
     bool improvement_found = true;
     while( improvement_found ) {
       improvement_found = false;
+      const HyperedgeWeight metric_before = current_metrics.getMetric(
+        kahypar::Mode::direct_kway, _context.partition.objective);
 
       if ( label_propagation && _context.refinement.label_propagation.algorithm != LabelPropagationAlgorithm::do_nothing ) {
         utils::Timer::instance().start_timer("initialize_lp_refiner", "Initialize LP Refiner");
@@ -489,7 +491,12 @@ namespace mt_kahypar {
                                << "does not match the metric updated by the refiners" << V(current_metrics.km1));
       }
 
-      if ( !_context.refinement.refine_until_no_improvement ) {
+      const HyperedgeWeight metric_after = current_metrics.getMetric(
+        kahypar::Mode::direct_kway, _context.partition.objective);
+      const double relative_improvement = 1.0 -
+        static_cast<double>(metric_after) / metric_before;
+      if ( !_context.refinement.refine_until_no_improvement ||
+           relative_improvement <= _context.refinement.relative_improvement_threshold ) {
         break;
       }
     }
@@ -577,6 +584,8 @@ namespace mt_kahypar {
       bool improvement_found = true;
       while( improvement_found ) {
         improvement_found = false;
+        const HyperedgeWeight metric_before = current_metrics.getMetric(
+          kahypar::Mode::direct_kway, _context.partition.objective);
 
         if ( fm && _context.refinement.fm.algorithm != FMAlgorithm::do_nothing ) {
           utils::Timer::instance().start_timer("global_fm", "Global FM", false, _context.type == kahypar::ContextType::main);
@@ -602,7 +611,12 @@ namespace mt_kahypar {
                                 << "does not match the metric updated by the refiners" << V(current_metrics.km1));
         }
 
-        if ( !_context.refinement.global_fm.refine_until_no_improvement ) {
+        const HyperedgeWeight metric_after = current_metrics.getMetric(
+          kahypar::Mode::direct_kway, _context.partition.objective);
+        const double relative_improvement = 1.0 -
+          static_cast<double>(metric_after) / metric_before;
+        if ( !_context.refinement.global_fm.refine_until_no_improvement ||
+            relative_improvement <= _context.refinement.relative_improvement_threshold ) {
           break;
         }
       }
