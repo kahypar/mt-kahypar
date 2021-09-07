@@ -149,7 +149,10 @@ We provide a simple C-style interface to use Mt-KaHyPar as a library.  The libra
 make install.mtkahypar # use sudo to install system-wide
 ```
 
-and can be used like this:
+Note: When installing locally, the build will exit with an error due to missing permissions.
+However, the library is still built successfully and is available in `lib/`.
+
+It can be used like this:
 
 ```cpp
 #include <memory>
@@ -242,6 +245,15 @@ To compile the program using `g++` and our strong hypergraph partitioner (Mt-KaH
 
 ```sh
 g++ -std=c++17 -DNDEBUG -O3 your_program.cc -o your_program -lmtkahyparstrong
+```
+
+To execute the binary, you need to ensure that the installation directory (probably `/usr/local/lib` for system-wide installation)
+is included in the dynamic library path.
+The path can be updated with:
+
+```sh
+LD_LIBRARY_PATH="$LD_LIBRARY_PATH;/usr/local/lib"
+export LD_LIBRARY_PATH
 ```
 
 To remove the library from your system use the provided uninstall target:
