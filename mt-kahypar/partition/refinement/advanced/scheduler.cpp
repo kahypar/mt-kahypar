@@ -67,6 +67,7 @@ bool AdvancedRefinementScheduler::refineImpl(
         _quotient_graph.finalizeConstruction(search_id);
         utils::Timer::instance().stop_timer("construct_problem");
 
+        HyperedgeWeight delta = 0;
         bool improved_solution = false;
         if ( refinement_nodes.size() > 0 ) {
           utils::Timer::instance().start_timer("refine_problem", "Refine Problem", true);
@@ -76,7 +77,7 @@ bool AdvancedRefinementScheduler::refineImpl(
 
           if ( !sequence.moves.empty() ) {
             utils::Timer::instance().start_timer("apply_moves", "Apply Moves", true);
-            HyperedgeWeight delta = applyMoves(search_id, sequence);
+            delta = applyMoves(search_id, sequence);
             overall_delta -= delta;
             improved_solution = sequence.state == MoveSequenceState::SUCCESS && delta > 0;
             utils::Timer::instance().stop_timer("apply_moves");
@@ -84,7 +85,7 @@ bool AdvancedRefinementScheduler::refineImpl(
         }
 
         _constructor.releaseNodes(search_id, refinement_nodes);
-        _quotient_graph.finalizeSearch(search_id, improved_solution);
+        _quotient_graph.finalizeSearch(search_id, improved_solution ? delta : 0);
         _refiner.finalizeSearch(search_id);
       }
     }

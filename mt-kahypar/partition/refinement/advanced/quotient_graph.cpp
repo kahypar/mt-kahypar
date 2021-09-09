@@ -195,17 +195,18 @@ void QuotientGraph::finalizeConstruction(const SearchID search_id) {
 }
 
 void QuotientGraph::finalizeSearch(const SearchID search_id,
-                                   const bool success) {
+                                   const HyperedgeWeight total_improvement) {
   ASSERT(_phg);
   ASSERT(search_id < _searches.size());
   ASSERT(_searches[search_id].is_finalized);
 
   const BlockPair& blocks = _searches[search_id].blocks;
   QuotientGraphEdge& qg_edge = _quotient_graph[blocks.i][blocks.j];
-  if ( success ) {
+  if ( total_improvement > 0 ) {
     // If the search improves the quality of the partition, we reinsert
     // all hyperedges that were used by the search and are still cut.
     ++qg_edge.num_improvements_found;
+    qg_edge.total_improvement += total_improvement;
     for ( const HyperedgeID& he : _searches[search_id].used_cut_hes ) {
       if ( _phg->pinCountInPart(he, blocks.i) > 0 &&
           _phg->pinCountInPart(he, blocks.j) > 0 ) {

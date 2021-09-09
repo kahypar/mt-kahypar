@@ -122,6 +122,9 @@ class FlowRefiner final : public IAdvancedRefiner {
   MoveSequence refineImpl(const PartitionedHypergraph& phg,
                           const vec<HypernodeID>& refinement_nodes);
 
+  bool computeFlow(const PartitionedHypergraph& phg,
+                   const FlowProblem& flow_problem);
+
   FlowProblem constructFlowHypergraph(const PartitionedHypergraph& phg,
                                       const vec<HypernodeID>& refinement_nodes);
 

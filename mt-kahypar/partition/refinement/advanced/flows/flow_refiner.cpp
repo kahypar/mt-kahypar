@@ -37,8 +37,7 @@ MoveSequence FlowRefiner::refineImpl(const PartitionedHypergraph& phg,
     _hfc.reset();
     _hfc.upperFlowBound = flow_problem.total_cut - flow_problem.non_removable_cut;
     // Solve max-flow min-cut problem
-    bool flowcutter_succeeded =
-      _hfc.runUntilBalancedOrFlowBoundExceeded(flow_problem.source, flow_problem.sink);
+    bool flowcutter_succeeded = computeFlow(phg, flow_problem);
     if ( flowcutter_succeeded ) {
       // We apply the solution if it either improves the cut or the balance of
       // the bipartition induced by the two blocks
@@ -64,6 +63,68 @@ MoveSequence FlowRefiner::refineImpl(const PartitionedHypergraph& phg,
     }
   }
   return sequence;
+}
+
+bool FlowRefiner::computeFlow(const PartitionedHypergraph& phg,
+                              const FlowProblem& flow_problem) {
+  whfc::Node s = flow_problem.source;
+  whfc::Node t = flow_problem.sink;
+  _hfc.cs.initialize(s, t);
+  bool piercingFailedOrFlowBoundReachedWithNonAAPPiercingNode = false;
+  bool has_balanced_cut = false;
+
+  HypernodeWeight weight_block_0 = flow_problem.weight_of_block_0;
+  HypernodeWeight weight_block_1 = flow_problem.weight_of_block_1;
+  while (_hfc.cs.flowValue <= _hfc.upperFlowBound && !has_balanced_cut) {
+    piercingFailedOrFlowBoundReachedWithNonAAPPiercingNode =
+      !_hfc.advanceOneFlowIteration(_hfc.cs.flowValue == _hfc.upperFlowBound);
+    if (piercingFailedOrFlowBoundReachedWithNonAAPPiercingNode)
+      break;
+    has_balanced_cut = _hfc.cs.hasCut && _hfc.cs.isBalanced(); //no cut ==> run and don't check for balance.
+
+    // Block weight might change due to concurrent moves. Therefore we adapt maximum
+    // allowed block weight of our flow problem here based on the changes of the
+    // block weights of the two corresponding blocks.
+    const HypernodeWeight weight_delta_0 = weight_block_0 - phg.partWeight(_block_0);
+    const HypernodeWeight weight_delta_1 = weight_block_1 - phg.partWeight(_block_1);
+    weight_block_0 -= weight_delta_0;
+    weight_block_1 -= weight_delta_1;
+    _hfc.cs.setMaxBlockWeight(0, std::max(
+      _hfc.cs.maxBlockWeight(0) + weight_delta_0,
+      whfc::NodeWeight(flow_problem.weight_of_block_0)));
+    _hfc.cs.setMaxBlockWeight(1, std::max(
+      _hfc.cs.maxBlockWeight(1) + weight_delta_1,
+      whfc::NodeWeight(flow_problem.weight_of_block_1)));
+  }
+
+  if (has_balanced_cut && _hfc.cs.flowValue <= _hfc.upperFlowBound) {
+    ASSERT(_hfc.cs.sideToGrow() == _hfc.cs.currentViewDirection());
+    const double imb_S_U_ISO =
+      static_cast<double>(_hfc.hg.totalNodeWeight() -
+      _hfc.cs.n.targetReachableWeight) /
+      static_cast<double>(_hfc.cs.maxBlockWeight(_hfc.cs.currentViewDirection()));
+    const double imb_T =
+      static_cast<double>(_hfc.cs.n.targetReachableWeight) /
+      static_cast<double>(_hfc.cs.maxBlockWeight(_hfc.cs.oppositeViewDirection()));
+    const bool better_balance_impossible =
+      _hfc.cs.unclaimedNodeWeight() == 0 || imb_S_U_ISO <= imb_T;
+    if (_hfc.find_most_balanced && !better_balance_impossible) {
+      _hfc.mostBalancedCut();
+    }
+    else {
+      _hfc.cs.writePartition();
+    }
+
+    _hfc.cs.verifyCutInducedByPartitionMatchesFlowValue();
+  }
+
+  // Turn back to initial view direction
+  if (_hfc.cs.currentViewDirection() != 0) {
+    _hfc.cs.flipViewDirection();
+  }
+
+  return !piercingFailedOrFlowBoundReachedWithNonAAPPiercingNode &&
+    _hfc.cs.flowValue <= _hfc.upperFlowBound && has_balanced_cut;
 }
 
 whfc::Hyperedge FlowRefiner::DynamicIdenticalNetDetection::add_if_not_contained(const whfc::Hyperedge he,
