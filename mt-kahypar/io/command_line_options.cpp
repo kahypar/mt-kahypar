@@ -451,6 +451,11 @@ namespace mt_kahypar {
              po::value<bool>((initial_partitioning ? &context.initial_partitioning.refinement.advanced.skip_unpromising_blocks :
                       &context.refinement.advanced.skip_unpromising_blocks))->value_name("<bool>"),
              "If true, than blocks for which we never found an improvement are skipped")
+            ((initial_partitioning ? "i-r-focus-on-promising-blocks" : "r-focus-on-promising-blocks"),
+             po::value<bool>((initial_partitioning ? &context.initial_partitioning.refinement.advanced.focus_on_promising_blocks :
+                      &context.refinement.advanced.focus_on_promising_blocks))->value_name("<bool>"),
+             "If refine until no improvement is activated, than we restrict the number of blocks used for block scheduling"
+             "if the refiner is called multiple times on the same hypergraph")
             ((initial_partitioning ? "i-r-use-overlapping-searches" : "r-use-overlapping-searches"),
              po::value<bool>((initial_partitioning ? &context.initial_partitioning.refinement.advanced.use_overlapping_searches :
                       &context.refinement.advanced.use_overlapping_searches))->value_name("<bool>"),
