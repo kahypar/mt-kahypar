@@ -57,7 +57,7 @@ bool AdvancedRefinementScheduler::refineImpl(
   utils::Timer::instance().start_timer("advanced_refinement_scheduling", "Advanced Refinement Scheduling");
   std::atomic<HyperedgeWeight> overall_delta(0);
   tbb::parallel_for(0UL, _refiner.numAvailableRefiner(), [&](const size_t i) {
-    while ( !_quotient_graph.terminate() && i < _quotient_graph.maximumRequiredRefiners() ) {
+    while ( true ) {
       SearchID search_id = _quotient_graph.requestNewSearch(_refiner);
       if ( search_id != QuotientGraph::INVALID_SEARCH_ID ) {
         DBG << "Start search" << search_id << "( Blocks =" << blocksOfSearch(search_id) << ", Thread =" << sched_getcpu() << ")";
@@ -87,6 +87,8 @@ bool AdvancedRefinementScheduler::refineImpl(
         _constructor.releaseNodes(search_id, refinement_nodes);
         _quotient_graph.finalizeSearch(search_id, improved_solution ? delta : 0);
         _refiner.finalizeSearch(search_id);
+      } else {
+        break;
       }
     }
     DBG << RED << "Refiner" << i << "terminates!" << END;

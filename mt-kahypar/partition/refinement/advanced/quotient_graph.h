@@ -54,7 +54,6 @@ class QuotientGraph {
   // ! Represents an edge of the quotient graph
   struct QuotientGraphEdge {
     QuotientGraphEdge() :
-      skip_small_cuts(false),
       blocks(),
       ownership(INVALID_SEARCH_ID),
       is_in_queue(false),
@@ -74,15 +73,6 @@ class QuotientGraph {
     HyperedgeID pop_hyperedge();
 
     void reset();
-
-    // ! A quotient graph edge is considered as active, if there
-    // ! are cut hyperedges left and if there weight is greater than
-    // ! some threshold. Only active quotient graph edges are available
-    // ! for refinement.
-    bool isActive() const {
-      return ( !skip_small_cuts && cut_he_weight > 0 ) ||
-             ( skip_small_cuts && cut_he_weight > 10 );
-    }
 
     // ! Returns true, if quotient graph edge is acquired by a search
     bool isAcquired() const {
@@ -118,14 +108,6 @@ class QuotientGraph {
       return is_in_queue.compare_exchange_strong(expected, desired);
     }
 
-    // ! Returns false, if all cut hyperedges initial contained are used
-    // ! at least once by a refinement algorithm
-    bool isFirstRound() const {
-      return first_valid_entry < initial_num_cut_hes;
-    }
-
-    // ! If true, then block pairs with cut less than 10 are skipped
-    bool skip_small_cuts;
     // ! Block pair this quotient graph edge represents
     BlockPair blocks;
     // ! Atomic that contains the search currently constructing
@@ -195,6 +177,9 @@ public:
     _block_scheduler(),
     _num_active_searches(0),
     _searches(),
+    _active_blocks_lock(),
+    _current_round(0),
+    _active_blocks(context.partition.k, false),
     _num_active_searches_on_blocks(context.partition.k, CAtomic<size_t>(0)),
     _local_bfs(hg.initialNumNodes(), hg.initialNumEdges()) {
     for ( PartitionID i = 0; i < _context.partition.k; ++i ) {
@@ -293,6 +278,8 @@ public:
 
   void resetQuotientGraphEdges();
 
+  void pushAllActiveBlocksIntoQueue(const size_t expected_round);
+
   bool popBlockPairFromQueue(BlockPair& blocks);
 
   bool pushBlockPairIntoQueue(const BlockPair& blocks);
@@ -329,6 +316,12 @@ public:
   CAtomic<size_t> _num_active_searches;
   // ! Information about searches that are currently running
   tbb::concurrent_vector<Search> _searches;
+
+  SpinLock _active_blocks_lock;
+  // Current round of active block scheduling
+  size_t _current_round;
+  // Active blocks for next round
+  vec<uint8_t> _active_blocks;
 
   // ! Number of active searches on each block
   vec<CAtomic<size_t>> _num_active_searches_on_blocks;
