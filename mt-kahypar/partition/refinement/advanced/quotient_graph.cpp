@@ -226,24 +226,16 @@ void QuotientGraph::initialize(const PartitionedHypergraph& phg) {
   _phg = &phg;
 
   // Reset internal members
+  resetQuotientGraphEdges(phg);
   _block_scheduler.clear();
   _num_active_searches.store(0, std::memory_order_relaxed);
   _searches.clear();
   _num_active_searches_on_blocks.assign(
     _context.partition.k, CAtomic<size_t>(0));
 
-  // Reset quotient graph edges
-  for ( PartitionID i = 0; i < _context.partition.k; ++i ) {
-    for ( PartitionID j = i + 1; j < _context.partition.k; ++j ) {
-      _quotient_graph[i][j].reset();
-    }
-  }
-
   // Find all cut hyperedges between the blocks
-  tbb::enumerable_thread_specific<HyperedgeID> local_num_hes(0);
   phg.doParallelForAllEdges([&](const HyperedgeID he) {
     const HyperedgeWeight edge_weight = phg.edgeWeight(he);
-    ++local_num_hes.local();
     for ( const PartitionID i : phg.connectivitySet(he) ) {
       for ( const PartitionID j : phg.connectivitySet(he) ) {
         if ( i < j ) {
@@ -252,19 +244,11 @@ void QuotientGraph::initialize(const PartitionedHypergraph& phg) {
       }
     }
   });
-  _current_num_edges = local_num_hes.combine(std::plus<HyperedgeID>());
-  if ( _current_num_edges != _num_edges_last_hg ) {
-    _num_edges_last_hg = _current_num_edges;
-    _pass_nr_on_same_hg = 1;
-  }
 
   // Initalize block scheduler queue
   std::vector<BlockPair> active_blocks;
-  const bool skip_small_cuts =
-    !isInputHypergraph() && _context.refinement.advanced.skip_small_cuts;
   for ( PartitionID i = 0; i < _context.partition.k; ++i ) {
     for ( PartitionID j = i + 1; j < _context.partition.k; ++j ) {
-      _quotient_graph[i][j].skip_small_cuts = skip_small_cuts;
       _quotient_graph[i][j].initial_cut_he_weight = _quotient_graph[i][j].cut_he_weight;
       _quotient_graph[i][j].initial_num_cut_hes =  _quotient_graph[i][j].cut_hes.size();
       if ( _quotient_graph[i][j].isActive() ) {
@@ -274,26 +258,11 @@ void QuotientGraph::initialize(const PartitionedHypergraph& phg) {
   }
   std::sort(active_blocks.begin(), active_blocks.end(),
     [&](const BlockPair& lhs, const BlockPair& rhs) {
-      return _quotient_graph[lhs.i][lhs.j].total_improvement >
-        _quotient_graph[rhs.i][rhs.j].total_improvement;
+      return _quotient_graph[lhs.i][lhs.j].initial_cut_he_weight >
+        _quotient_graph[rhs.i][rhs.j].initial_cut_he_weight;
     });
-  const size_t num_considered_blocks =
-    _context.refinement.advanced.focus_on_promising_blocks ?
-    std::max(active_blocks.size() / _pass_nr_on_same_hg,
-      std::min( _context.shared_memory.num_threads /
-        _context.refinement.advanced.num_threads_per_search,
-          active_blocks.size())) : active_blocks.size();
-  // These are the blocks that have highest total improvement currently
-  for ( size_t i = 0; i < num_considered_blocks; ++i ) {
-    pushBlockPairIntoQueue(active_blocks[i]);
-  }
-  // All non high-performing blocks are only considered with a certain probability
-  const float prob = 1.0f / static_cast<float>(_pass_nr_on_same_hg);
-  for ( size_t i = num_considered_blocks; i < active_blocks.size(); ++i ) {
-    const float p = utils::Randomize::instance().getRandomFloat(0.0f, 1.0f, sched_getcpu());
-    if ( p < prob ) {
-      pushBlockPairIntoQueue(active_blocks[i]);
-    }
+  for ( const BlockPair& blocks : active_blocks ) {
+    pushBlockPairIntoQueue(blocks);
   }
 
   // Sort cut hyperedges of each block
@@ -305,13 +274,22 @@ void QuotientGraph::initialize(const PartitionedHypergraph& phg) {
       });
     });
   }
-  ++_pass_nr_on_same_hg;
 }
 
 size_t QuotientGraph::maximumRequiredRefiners() const {
   const size_t current_active_block_pairs =
     _block_scheduler.unsafe_size() + _num_active_searches + 1;
   return std::min(current_active_block_pairs, _context.shared_memory.num_threads);
+}
+
+void QuotientGraph::resetQuotientGraphEdges(const PartitionedHypergraph& phg) {
+  const bool skip_small_cuts = !isInputHypergraph(phg) && _context.refinement.advanced.skip_small_cuts;
+  for ( PartitionID i = 0; i < _context.partition.k; ++i ) {
+    for ( PartitionID j = i + 1; j < _context.partition.k; ++j ) {
+      _quotient_graph[i][j].reset();
+      _quotient_graph[i][j].skip_small_cuts = skip_small_cuts;
+    }
+  }
 }
 
 void QuotientGraph::sortCutHyperedges(const PartitionID i,

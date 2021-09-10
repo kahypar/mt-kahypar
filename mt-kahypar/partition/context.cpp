@@ -159,7 +159,6 @@ namespace mt_kahypar {
       out << "    Maximum Concurrency Per Block:    " << params.max_concurrency_per_block << std::endl;
       out << "    Skip Small Cuts:                  " << std::boolalpha << params.skip_small_cuts << std::endl;
       out << "    Skip Unpromising Blocks:          " << std::boolalpha << params.skip_unpromising_blocks << std::endl;
-      out << "    Focus on Promising Blocks:        " << std::boolalpha << params.focus_on_promising_blocks << std::endl;
       out << "    Use Overlapping Searches:         " << std::boolalpha << params.use_overlapping_searches << std::endl;
       out << "    Sort Cut HEs:                     " << std::boolalpha << params.sort_cut_hes << std::endl;
       out << std::flush;

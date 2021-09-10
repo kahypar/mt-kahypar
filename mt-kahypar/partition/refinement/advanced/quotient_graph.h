@@ -187,10 +187,7 @@ public:
                          const Context& context) :
     _phg(nullptr),
     _context(context),
-    _current_num_edges(kInvalidHyperedge),
-    _num_edges_last_hg(kInvalidHyperedge),
-    _initial_num_edges(hg.initialNumEdges()),
-    _pass_nr_on_same_hg(1),
+    _initial_num_nodes(hg.initialNumNodes()),
     _quotient_graph(context.partition.k,
       vec<QuotientGraphEdge>(context.partition.k)),
     _register_search_lock(),
@@ -293,6 +290,8 @@ public:
 
  private:
 
+  void resetQuotientGraphEdges(const PartitionedHypergraph& phg);
+
   bool popBlockPairFromQueue(BlockPair& blocks);
 
   bool pushBlockPairIntoQueue(const BlockPair& blocks);
@@ -308,16 +307,13 @@ public:
                          const PartitionID j,
                          BFSData& bfs_data);
 
-  bool isInputHypergraph() const {
-    return _current_num_edges == _initial_num_edges;
+  bool isInputHypergraph(const PartitionedHypergraph& phg) const {
+    return phg.initialNumNodes() == _initial_num_nodes;
   }
 
   const PartitionedHypergraph* _phg;
   const Context& _context;
-  HyperedgeID _current_num_edges;
-  HyperedgeID _num_edges_last_hg;
-  const HyperedgeID _initial_num_edges;
-  size_t _pass_nr_on_same_hg;
+  const HypernodeID _initial_num_nodes;
 
   // ! Each edge contains stats and the cut hyperedges
   // ! of the block pair which its represents.
