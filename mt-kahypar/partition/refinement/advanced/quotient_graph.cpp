@@ -226,7 +226,7 @@ void QuotientGraph::initialize(const PartitionedHypergraph& phg) {
   _phg = &phg;
 
   // Reset internal members
-  resetQuotientGraphEdges(phg);
+  resetQuotientGraphEdges();
   _block_scheduler.clear();
   _num_active_searches.store(0, std::memory_order_relaxed);
   _searches.clear();
@@ -234,7 +234,9 @@ void QuotientGraph::initialize(const PartitionedHypergraph& phg) {
     _context.partition.k, CAtomic<size_t>(0));
 
   // Find all cut hyperedges between the blocks
+  tbb::enumerable_thread_specific<HyperedgeID> local_num_hes(0);
   phg.doParallelForAllEdges([&](const HyperedgeID he) {
+    ++local_num_hes.local();
     const HyperedgeWeight edge_weight = phg.edgeWeight(he);
     for ( const PartitionID i : phg.connectivitySet(he) ) {
       for ( const PartitionID j : phg.connectivitySet(he) ) {
@@ -244,11 +246,14 @@ void QuotientGraph::initialize(const PartitionedHypergraph& phg) {
       }
     }
   });
+  _current_num_edges = local_num_hes.combine(std::plus<HyperedgeID>());
 
   // Initalize block scheduler queue
   std::vector<BlockPair> active_blocks;
+  const bool skip_small_cuts = !isInputHypergraph() && _context.refinement.advanced.skip_small_cuts;
   for ( PartitionID i = 0; i < _context.partition.k; ++i ) {
     for ( PartitionID j = i + 1; j < _context.partition.k; ++j ) {
+      _quotient_graph[i][j].skip_small_cuts = skip_small_cuts;
       _quotient_graph[i][j].initial_cut_he_weight = _quotient_graph[i][j].cut_he_weight;
       _quotient_graph[i][j].initial_num_cut_hes =  _quotient_graph[i][j].cut_hes.size();
       if ( _quotient_graph[i][j].isActive() ) {
@@ -282,12 +287,10 @@ size_t QuotientGraph::maximumRequiredRefiners() const {
   return std::min(current_active_block_pairs, _context.shared_memory.num_threads);
 }
 
-void QuotientGraph::resetQuotientGraphEdges(const PartitionedHypergraph& phg) {
-  const bool skip_small_cuts = !isInputHypergraph(phg) && _context.refinement.advanced.skip_small_cuts;
+void QuotientGraph::resetQuotientGraphEdges() {
   for ( PartitionID i = 0; i < _context.partition.k; ++i ) {
     for ( PartitionID j = i + 1; j < _context.partition.k; ++j ) {
       _quotient_graph[i][j].reset();
-      _quotient_graph[i][j].skip_small_cuts = skip_small_cuts;
     }
   }
 }

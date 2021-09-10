@@ -302,11 +302,11 @@ HyperedgeWeight AdvancedRefinementScheduler::applyMoves(const SearchID search_id
       ++_stats.num_improvements;
       _stats.correct_expected_improvement += (improvement == sequence.expected_improvement);
       sequence.state = MoveSequenceState::SUCCESS;
-      DBG << GREEN << "SUCCESS -"
+      DBG << ( improvement > 0 ? GREEN : "" ) << "SUCCESS -"
           << "Moved Nodes =" << sequence.moves.size()
           << ", Expected Improvement =" << sequence.expected_improvement
           << ", Real Improvement =" << improvement
-          << ", Search ID =" << search_id << END;
+          << ", Search ID =" << search_id << ( improvement > 0 ? END : "" );
     }
   } else {
     ++_stats.failed_updates_due_to_balance_constraint;
