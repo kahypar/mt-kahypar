@@ -44,8 +44,9 @@ class IAdvancedRefiner {
   }
 
   MoveSequence refine(const PartitionedHypergraph& hypergraph,
-                      const vec<HypernodeID>& refinement_nodes) {
-    return refineImpl(hypergraph, refinement_nodes);
+                      const vec<HypernodeID>& refinement_nodes,
+                      const HighResClockTimepoint& start) {
+    return refineImpl(hypergraph, refinement_nodes, start);
   }
 
   // ! Returns the maximum number of blocks that can be refined
@@ -64,15 +65,23 @@ class IAdvancedRefiner {
     return isMaximumProblemSizeReachedImpl(stats);
   }
 
+  // ! Updates the time limit (in seconds)
+  void updateTimeLimit(const double time_limit) {
+    _time_limit = time_limit;
+  }
+
 
  protected:
   IAdvancedRefiner() = default;
+
+  double _time_limit = 0;
 
  private:
   virtual void initializeImpl(const PartitionedHypergraph& hypergraph) = 0;
 
   virtual MoveSequence refineImpl(const PartitionedHypergraph& hypergraph,
-                                  const vec<HypernodeID>& refinement_nodes) = 0;
+                                  const vec<HypernodeID>& refinement_nodes,
+                                  const HighResClockTimepoint& start) = 0;
 
   virtual PartitionID maxNumberOfBlocksPerSearchImpl() const = 0;
 

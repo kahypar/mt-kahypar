@@ -23,7 +23,8 @@
 namespace mt_kahypar {
 
 MoveSequence FlowRefiner::refineImpl(const PartitionedHypergraph& phg,
-                                     const vec<HypernodeID>& refinement_nodes) {
+                                     const vec<HypernodeID>& refinement_nodes,
+                                     const HighResClockTimepoint& start) {
   MoveSequence sequence { { }, 0 };
   // Construct flow network that contains all vertices given in refinement nodes
   FlowProblem flow_problem = constructFlowHypergraph(phg, refinement_nodes);
@@ -37,7 +38,8 @@ MoveSequence FlowRefiner::refineImpl(const PartitionedHypergraph& phg,
     _hfc.reset();
     _hfc.upperFlowBound = flow_problem.total_cut - flow_problem.non_removable_cut;
     // Solve max-flow min-cut problem
-    bool flowcutter_succeeded = computeFlow(phg, flow_problem);
+    bool time_limit_reached = false;
+    bool flowcutter_succeeded = computeFlow(phg, flow_problem, start, time_limit_reached);
     if ( flowcutter_succeeded ) {
       // We apply the solution if it either improves the cut or the balance of
       // the bipartition induced by the two blocks
@@ -60,13 +62,20 @@ MoveSequence FlowRefiner::refineImpl(const PartitionedHypergraph& phg,
           }
         }
       }
+    } else if ( time_limit_reached ) {
+      sequence.state = MoveSequenceState::TIME_LIMIT;
     }
   }
   return sequence;
 }
 
+#define NOW std::chrono::high_resolution_clock::now()
+#define RUNNING_TIME(X) std::chrono::duration<double>(NOW - X).count();
+
 bool FlowRefiner::computeFlow(const PartitionedHypergraph& phg,
-                              const FlowProblem& flow_problem) {
+                              const FlowProblem& flow_problem,
+                              const HighResClockTimepoint& start,
+                              bool& time_limit_reached) {
   whfc::Node s = flow_problem.source;
   whfc::Node t = flow_problem.sink;
   _hfc.cs.initialize(s, t);
@@ -75,7 +84,9 @@ bool FlowRefiner::computeFlow(const PartitionedHypergraph& phg,
 
   HypernodeWeight weight_block_0 = flow_problem.weight_of_block_0;
   HypernodeWeight weight_block_1 = flow_problem.weight_of_block_1;
-  while (_hfc.cs.flowValue <= _hfc.upperFlowBound && !has_balanced_cut) {
+  size_t iteration = 0;
+  time_limit_reached = false;
+  while (!time_limit_reached && _hfc.cs.flowValue <= _hfc.upperFlowBound && !has_balanced_cut) {
     piercingFailedOrFlowBoundReachedWithNonAAPPiercingNode =
       !_hfc.advanceOneFlowIteration(_hfc.cs.flowValue == _hfc.upperFlowBound);
     if (piercingFailedOrFlowBoundReachedWithNonAAPPiercingNode)
@@ -95,6 +106,12 @@ bool FlowRefiner::computeFlow(const PartitionedHypergraph& phg,
     _hfc.cs.setMaxBlockWeight(1, std::max(
       _hfc.cs.maxBlockWeight(1) + weight_delta_1,
       whfc::NodeWeight(flow_problem.weight_of_block_1)));
+
+    if ( iteration % 25 == 0 ) {
+      const double elapsed_time = RUNNING_TIME(start);
+      time_limit_reached = elapsed_time > _time_limit;
+    }
+    ++iteration;
   }
 
   if (has_balanced_cut && _hfc.cs.flowValue <= _hfc.upperFlowBound) {

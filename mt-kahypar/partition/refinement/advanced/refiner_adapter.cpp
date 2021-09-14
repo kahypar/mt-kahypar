@@ -25,6 +25,9 @@
 
 namespace mt_kahypar {
 
+#define NOW std::chrono::high_resolution_clock::now()
+#define RUNNING_TIME(X) std::chrono::duration<double>(NOW - X).count();
+
 bool AdvancedRefinerAdapter::registerNewSearch(const SearchID search_id,
                                                const PartitionedHypergraph& phg) {
   bool success = true;
@@ -32,8 +35,8 @@ bool AdvancedRefinerAdapter::registerNewSearch(const SearchID search_id,
   if ( _num_unused_refiners > 0 ) {
     // Note, search id are usually consecutive starting from 0.
     // However, this function is not called in increasing search id order.
-    while ( static_cast<size_t>(search_id) >= _search_to_refiner.size() ) {
-      _search_to_refiner.emplace_back(nullptr);
+    while ( static_cast<size_t>(search_id) >= _active_searches.size() ) {
+      _active_searches.push_back(ActiveSearch { nullptr, NOW, 0.0, false });
     }
 
     const size_t refiner_idx = --_num_unused_refiners;
@@ -43,9 +46,11 @@ bool AdvancedRefinerAdapter::registerNewSearch(const SearchID search_id,
     }
 
     // Associate refiner with search id
-    ASSERT(!_search_to_refiner[search_id]);
-    _search_to_refiner[search_id] = _refiner[refiner_idx].get();
-    _search_to_refiner[search_id]->initialize(phg);
+    ASSERT(!_active_searches[search_id].refiner);
+    _active_searches[search_id].refiner = _refiner[refiner_idx].get();
+    _active_searches[search_id].start = NOW;
+    _active_searches[search_id].refiner->initialize(phg);
+    _active_searches[search_id].refiner->updateTimeLimit(timeLimit());
   } else {
     success = false;
   }
@@ -56,8 +61,8 @@ bool AdvancedRefinerAdapter::registerNewSearch(const SearchID search_id,
 MoveSequence AdvancedRefinerAdapter::refine(const SearchID search_id,
                                             const PartitionedHypergraph& phg,
                                             const vec<HypernodeID>& refinement_nodes) {
-  ASSERT(static_cast<size_t>(search_id) < _search_to_refiner.size());
-  ASSERT(_search_to_refiner[search_id]);
+  ASSERT(static_cast<size_t>(search_id) < _active_searches.size());
+  ASSERT(_active_searches[search_id].refiner);
 
   // Determine number of free threads for current search
   _num_used_threads_lock.lock();
@@ -69,48 +74,63 @@ MoveSequence AdvancedRefinerAdapter::refine(const SearchID search_id,
 
   // Perform refinement
   ASSERT(num_free_threads > 0);
-  _search_to_refiner[search_id]->setNumThreadsForSearch(num_free_threads);
-  MoveSequence moves = _search_to_refiner[search_id]->refine(phg, refinement_nodes);
+  _active_searches[search_id].refiner->setNumThreadsForSearch(num_free_threads);
+  MoveSequence moves = _active_searches[search_id].refiner->refine(
+    phg, refinement_nodes, _active_searches[search_id].start);
   _num_used_threads -= num_free_threads;
+  _active_searches[search_id].reaches_time_limit = moves.state == MoveSequenceState::TIME_LIMIT;
   return moves;
 }
 
 bool AdvancedRefinerAdapter::isMaximumProblemSizeReached(const SearchID search_id,
                                                          ProblemStats& stats) {
-  ASSERT(static_cast<size_t>(search_id) < _search_to_refiner.size());
-  ASSERT(_search_to_refiner[search_id]);
-  return _search_to_refiner[search_id]->isMaximumProblemSizeReached(stats);
+  ASSERT(static_cast<size_t>(search_id) < _active_searches.size());
+  ASSERT(_active_searches[search_id].refiner);
+  return _active_searches[search_id].refiner->isMaximumProblemSizeReached(stats);
 }
 
 PartitionID AdvancedRefinerAdapter::maxNumberOfBlocks(const SearchID search_id) {
-  ASSERT(static_cast<size_t>(search_id) < _search_to_refiner.size());
-  ASSERT(_search_to_refiner[search_id]);
-  return _search_to_refiner[search_id]->maxNumberOfBlocksPerSearch();
+  ASSERT(static_cast<size_t>(search_id) < _active_searches.size());
+  ASSERT(_active_searches[search_id].refiner);
+  return _active_searches[search_id].refiner->maxNumberOfBlocksPerSearch();
 }
 
 void AdvancedRefinerAdapter::finalizeSearch(const SearchID search_id) {
-  ASSERT(static_cast<size_t>(search_id) < _search_to_refiner.size());
-  ASSERT(_search_to_refiner[search_id]);
+  ASSERT(static_cast<size_t>(search_id) < _active_searches.size());
+  ASSERT(_active_searches[search_id].refiner);
+  const double running_time = RUNNING_TIME(_active_searches[search_id].start);
+  _active_searches[search_id].running_time = running_time;
+
   _refiner_lock.lock();
-  IAdvancedRefiner* refiner = _search_to_refiner[search_id];
-  // Search position of refiner associated with the search id
-  size_t idx = _num_unused_refiners;
-  for ( ; idx < _refiner.size(); ++idx ) {
-    if ( _refiner[idx].get() == refiner ) {
-      break;
-    }
+  //Update average running time
+  if ( !_active_searches[search_id].reaches_time_limit ) {
+    _average_running_time = (running_time + _num_refinements *
+      _average_running_time) / static_cast<double>(_num_refinements + 1);
+    ++_num_refinements;
   }
-  ASSERT(idx < _refiner.size());
+
+  // Search position of refiner associated with the search id
+  IAdvancedRefiner* refiner = _active_searches[search_id].refiner;
+  size_t refiner_idx = std::numeric_limits<size_t>::max();
+  for ( size_t idx = _num_unused_refiners; idx < _refiner.size(); ++idx ) {
+    if ( _refiner[idx].get() == refiner ) {
+      refiner_idx = idx;
+    }
+    _refiner[idx]->updateTimeLimit(timeLimit());
+  }
+  ASSERT(refiner_idx < _refiner.size());
   // Swap refiner associated with the search id to free part
-  std::swap(_refiner[_num_unused_refiners++], _refiner[idx]);
-  _search_to_refiner[search_id] = nullptr;
+  std::swap(_refiner[_num_unused_refiners++], _refiner[refiner_idx]);
+  _active_searches[search_id].refiner = nullptr;
   _refiner_lock.unlock();
 }
 
 void AdvancedRefinerAdapter::reset() {
   _num_unused_refiners = _refiner.size();
-  _search_to_refiner.clear();
+  _active_searches.clear();
   _num_used_threads.store(0, std::memory_order_relaxed);
+  _num_refinements = 0;
+  _average_running_time = 0.0;
 }
 
 void AdvancedRefinerAdapter::initializeRefiner(std::unique_ptr<IAdvancedRefiner>& refiner) {

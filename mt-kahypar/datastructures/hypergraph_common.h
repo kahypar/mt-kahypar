@@ -95,7 +95,8 @@ enum class MoveSequenceState : uint8_t {
   SUCCESS,
   VIOLATES_BALANCE_CONSTRAINT,
   WORSEN_SOLUTION_QUALITY,
-  WORSEN_SOLUTION_QUALITY_WITHOUT_ROLLBACK
+  WORSEN_SOLUTION_QUALITY_WITHOUT_ROLLBACK,
+  TIME_LIMIT
 };
 
 // Represents a sequence of vertex moves with an

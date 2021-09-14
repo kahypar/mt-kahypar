@@ -64,7 +64,6 @@ bool AdvancedRefinementScheduler::refineImpl(
       if ( search_id != QuotientGraph::INVALID_SEARCH_ID ) {
         DBG << "Start search" << search_id
             << "( Blocks =" << blocksOfSearch(search_id)
-            << ", Thread =" << sched_getcpu()
             << ", Refiner =" << i << ")";
         utils::Timer::instance().start_timer("construct_problem", "Construct Problem", true);
         const vec<HypernodeID> refinement_nodes =
@@ -86,6 +85,9 @@ bool AdvancedRefinementScheduler::refineImpl(
             overall_delta -= delta;
             improved_solution = sequence.state == MoveSequenceState::SUCCESS && delta > 0;
             utils::Timer::instance().stop_timer("apply_moves");
+          } else if ( sequence.state == MoveSequenceState::TIME_LIMIT ) {
+            DBG << RED << "Search" << search_id << "reaches the time limit ( Time Limit ="
+                << _refiner.timeLimit() << "s )" << END;
           }
         }
 
@@ -94,8 +96,8 @@ bool AdvancedRefinementScheduler::refineImpl(
         _refiner.finalizeSearch(search_id);
         DBG << "End search" << search_id
             << "( Blocks =" << blocksOfSearch(search_id)
-            << ", Thread =" << sched_getcpu()
-            << ", Refiner =" << i << ")";
+            << ", Refiner =" << i
+            << ", Running Time =" << _refiner.runningTime(search_id) << ")";
       } else {
         break;
       }

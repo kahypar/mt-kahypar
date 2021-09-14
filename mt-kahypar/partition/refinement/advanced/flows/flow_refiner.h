@@ -112,6 +112,7 @@ class FlowRefiner final : public IAdvancedRefiner {
  private:
   void initializeImpl(const PartitionedHypergraph& phg) {
     _phg = &phg;
+    _time_limit = std::numeric_limits<double>::max();
     _block_0 = kInvalidPartition;
     _block_1 = kInvalidPartition;
     _flow_hg.clear();
@@ -120,10 +121,13 @@ class FlowRefiner final : public IAdvancedRefiner {
   }
 
   MoveSequence refineImpl(const PartitionedHypergraph& phg,
-                          const vec<HypernodeID>& refinement_nodes);
+                          const vec<HypernodeID>& refinement_nodes,
+                          const HighResClockTimepoint& start);
 
   bool computeFlow(const PartitionedHypergraph& phg,
-                   const FlowProblem& flow_problem);
+                   const FlowProblem& flow_problem,
+                   const HighResClockTimepoint& start,
+                   bool& time_limit_reached);
 
   FlowProblem constructFlowHypergraph(const PartitionedHypergraph& phg,
                                       const vec<HypernodeID>& refinement_nodes);
@@ -150,6 +154,7 @@ class FlowRefiner final : public IAdvancedRefiner {
 
   const PartitionedHypergraph* _phg;
   const Context& _context;
+  using IAdvancedRefiner::_time_limit;
   size_t _num_threads;
   double _scaling;
 

@@ -36,6 +36,13 @@ class AdvancedRefinerAdapter {
   static constexpr bool debug = false;
   static constexpr bool enable_heavy_assert = false;
 
+  struct ActiveSearch {
+    IAdvancedRefiner* refiner;
+    HighResClockTimepoint start;
+    double running_time;
+    bool reaches_time_limit;
+  };
+
 public:
   explicit AdvancedRefinerAdapter(const Hypergraph& hg,
                                   const Context& context) :
@@ -44,9 +51,11 @@ public:
     _refiner_lock(),
     _num_unused_refiners(0),
     _refiner(),
-    _search_to_refiner(),
+    _active_searches(),
     _num_used_threads_lock(),
-    _num_used_threads(0) {
+    _num_used_threads(0),
+    _num_refinements(0),
+    _average_running_time(0.0) {
     for ( size_t i = 0; i < numAvailableRefiner(); ++i ) {
       _refiner.emplace_back(nullptr);
     }
@@ -90,6 +99,17 @@ public:
       + (_context.shared_memory.num_threads % _context.refinement.advanced.num_threads_per_search != 0);
   }
 
+  double runningTime(const SearchID search_id) const {
+    ASSERT(static_cast<size_t>(search_id) < _active_searches.size());
+    return _active_searches[search_id].running_time;
+  }
+
+  double timeLimit() const {
+    return shouldSetTimeLimit() ?
+      std::max(8.0 * _average_running_time, 0.1) :
+      std::numeric_limits<double>::max();
+  }
+
   // ! Only for testing
   size_t numUsedThreads() const {
     return _num_used_threads.load(std::memory_order_relaxed);
@@ -97,6 +117,10 @@ public:
 
 private:
   void initializeRefiner(std::unique_ptr<IAdvancedRefiner>& refiner);
+
+  bool shouldSetTimeLimit() const {
+    return _num_refinements > static_cast<size_t>(_context.partition.k);
+  }
 
   const Hypergraph& _hg;
   const Context& _context;
@@ -107,11 +131,14 @@ private:
   // ! Available refiners
   vec<std::unique_ptr<IAdvancedRefiner>> _refiner;
   // ! Mapping from search id to refiner
-  tbb::concurrent_vector<IAdvancedRefiner*> _search_to_refiner;
+  tbb::concurrent_vector<ActiveSearch> _active_searches;
 
   SpinLock _num_used_threads_lock;
   // ! Number of used threads
   CAtomic<size_t> _num_used_threads;
+
+  size_t _num_refinements;
+  double _average_running_time;
 
 };
 
