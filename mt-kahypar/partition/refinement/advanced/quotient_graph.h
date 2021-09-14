@@ -48,7 +48,7 @@ struct BlockPairCutHyperedges {
 
 class QuotientGraph {
 
-  static constexpr bool debug = false;
+  static constexpr bool debug = true;
   static constexpr bool enable_heavy_assert = false;
 
   // ! Represents an edge of the quotient graph
@@ -131,6 +131,9 @@ class QuotientGraph {
     CAtomic<HyperedgeWeight> total_improvement;
   };
 
+  /**
+   * Maintains the block pair of a round of the active block scheduling strategy
+   */
   class ActiveBlockSchedulingRound {
 
    public:
@@ -146,10 +149,18 @@ class QuotientGraph {
       _active_blocks(context.partition.k, false),
       _remaining_blocks(0) { }
 
+    // ! Pops a block pair from the queue.
+    // ! Returns true, if a block pair was successfully popped from the queue.
+    // ! The corresponding block pair will be stored in blocks.
     bool popBlockPairFromQueue(BlockPair& blocks);
 
+    // ! Pushes a block pair into the queue.
+    // ! Return true, if the block pair was successfully pushed into the queue.
+    // ! Note, that a block pair is only allowed to be contained in one queue
+    // ! (there are multiple active rounds).
     bool pushBlockPairIntoQueue(const BlockPair& blocks);
 
+    // ! Signals that the search on the corresponding block pair terminated.
     void finalizeSearch(const BlockPair& blocks,
                         const HyperedgeWeight improvement,
                         bool& block_0_becomes_active,
@@ -175,9 +186,23 @@ class QuotientGraph {
     // Active blocks for next round
     SpinLock _active_blocks_lock;
     vec<uint8_t> _active_blocks;
+    // Remaining active block pairs in the current round.
     CAtomic<size_t> _remaining_blocks;
   };
 
+  /**
+   * Implements the active block scheduling strategy.
+   * The active block scheduling strategy proceeds in rounds. In each round,
+   * all active edges of the quotient graph are scheduled for refinement.
+   * A edge is called active, if at least of the blocks is active and a block
+   * is called active if a refinement involving that block in the previous round
+   * leads to an improvement. In the sequential active block scheduling strategy
+   * the rounds acts as synchronization barriers. However, to achieve better scalibility
+   * we immediatly schedule an edge in the next round once we find an improvement.
+   * Thus, there can be multiple active searches that process block pairs from different
+   * rounds. However, block pairs from earlier rounds have an higher priority to be
+   * scheduled.
+   */
   class ActiveBlockScheduler {
 
    public:
@@ -194,22 +219,35 @@ class QuotientGraph {
       _first_active_round(0),
       _is_input_hypergraph(false) { }
 
-    size_t currentRound() const {
-      return _rounds.size();
-    }
-
+    // ! Initialize the first round of the active block scheduling strategy
     void initialize(const bool is_input_hypergraph);
 
+    // ! Pops a block pair from the queue.
+    // ! Returns true, if a block pair was successfully popped from the queue.
+    // ! The corresponding block pair and the round to which this blocks corresponds
+    // ! to are stored in blocks and round.
     bool popBlockPairFromQueue(BlockPair& blocks, size_t& round);
 
+    // ! Signals that the search on the corresponding block pair starts.
     void startSearch(const BlockPair& blocks) {
       ++_num_active_searches_on_blocks[blocks.i];
       ++_num_active_searches_on_blocks[blocks.j];
     }
 
+    // ! Signals that the search on the corresponding block pair terminated.
+    // ! If one the two blocks become active, we immediatly schedule all edges
+    // ! adjacent in the quotient graph in the next round of active block scheduling
     void finalizeSearch(const BlockPair& blocks,
                         const size_t round,
                         const HyperedgeWeight improvement);
+
+    size_t numRemainingBlocks() const {
+      size_t num_remaining_blocks = 0;
+      for ( size_t i = _first_active_round; i < _rounds.size(); ++i ) {
+        num_remaining_blocks += _rounds[i].numRemainingBlocks();
+      }
+      return num_remaining_blocks;
+    }
 
     void setObjective(const HyperedgeWeight objective) {
       _min_improvement_per_round =
@@ -294,7 +332,6 @@ public:
     _quotient_graph(context.partition.k,
       vec<QuotientGraphEdge>(context.partition.k)),
     _register_search_lock(),
-    _block_scheduler(),
     _active_block_scheduler(context, _quotient_graph),
     _num_active_searches(0),
     _searches(),
@@ -421,7 +458,6 @@ public:
 
   SpinLock _register_search_lock;
   // ! Queue that contains all block pairs.
-  tbb::concurrent_queue<BlockPair> _block_scheduler;
   ActiveBlockScheduler _active_block_scheduler;
 
   // ! Number of active searches

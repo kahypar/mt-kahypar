@@ -59,7 +59,7 @@ bool AdvancedRefinementScheduler::refineImpl(
   utils::Timer::instance().start_timer("advanced_refinement_scheduling", "Advanced Refinement Scheduling");
   std::atomic<HyperedgeWeight> overall_delta(0);
   tbb::parallel_for(0UL, _refiner.numAvailableRefiner(), [&](const size_t i) {
-    while ( true ) {
+    while ( i < _quotient_graph.maximumRequiredRefiners() ) {
       SearchID search_id = _quotient_graph.requestNewSearch(_refiner);
       if ( search_id != QuotientGraph::INVALID_SEARCH_ID ) {
         DBG << "Start search" << search_id

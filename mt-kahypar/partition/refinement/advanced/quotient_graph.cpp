@@ -139,7 +139,7 @@ void QuotientGraph::ActiveBlockScheduler::initialize(const bool is_input_hypergr
 bool QuotientGraph::ActiveBlockScheduler::popBlockPairFromQueue(BlockPair& blocks, size_t& round) {
   bool success = false;
   round = _first_active_round;
-  while ( !_terminate && round < currentRound() ) {
+  while ( !_terminate && round < _rounds.size() ) {
     success = _rounds[round].popBlockPairFromQueue(blocks);
     if ( success ) {
       break;
@@ -148,6 +148,8 @@ bool QuotientGraph::ActiveBlockScheduler::popBlockPairFromQueue(BlockPair& block
   }
 
   if ( success && round == _rounds.size() - 1 ) {
+    // There must always be a next round available such that we can
+    // reschedule block pairs that become active.
     _rounds.emplace_back(_context, _quotient_graph, _num_active_searches_on_blocks);
   }
 
@@ -166,6 +168,7 @@ void QuotientGraph::ActiveBlockScheduler::finalizeSearch(const BlockPair& blocks
     block_0_becomes_active, block_1_becomes_active);
 
   if ( block_0_becomes_active ) {
+    // If blocks.i becomes active, we push all adjacent blocks into the queue of the next round
     ASSERT(round + 1 < _rounds.size());
     for ( PartitionID j = blocks.i + 1; j < _context.partition.k; ++j ) {
       if ( isActiveBlockPair(blocks.i, j, round + 1) ) {
@@ -178,6 +181,7 @@ void QuotientGraph::ActiveBlockScheduler::finalizeSearch(const BlockPair& blocks
   }
 
   if ( block_1_becomes_active ) {
+    // If blocks.j becomes active, we push all adjacent blocks into the queue of the next round
     ASSERT(round + 1 < _rounds.size());
     for ( PartitionID j = blocks.j + 1; j < _context.partition.k; ++j ) {
       if ( isActiveBlockPair(blocks.j, j, round + 1) ) {
@@ -191,11 +195,15 @@ void QuotientGraph::ActiveBlockScheduler::finalizeSearch(const BlockPair& blocks
 
   if ( round == _first_active_round && _rounds[round].numRemainingBlocks() == 0 ) {
     _round_lock.lock();
+    // We consider a round as finished, if the previous round is also finished and there
+    // are no remaining blocks in the queue of that round.
     while ( _first_active_round < _rounds.size() &&
             _rounds[_first_active_round].numRemainingBlocks() == 0 ) {
       DBG << GREEN << "Round" << (_first_active_round + 1) << "terminates with improvement"
           << _rounds[_first_active_round].roundImprovement() << "("
           << "Minimum Required Improvement =" << _min_improvement_per_round << ")" << END;
+      // We require that minimum improvement per round must be greater than a threshold,
+      // otherwise we terminate early
       _terminate = _rounds[_first_active_round].roundImprovement() < _min_improvement_per_round;
       ++_first_active_round;
     }
@@ -358,7 +366,6 @@ void QuotientGraph::initialize(const PartitionedHypergraph& phg) {
 
   // Reset internal members
   resetQuotientGraphEdges();
-  _block_scheduler.clear();
   _num_active_searches.store(0, std::memory_order_relaxed);
   _searches.clear();
 
@@ -400,7 +407,7 @@ void QuotientGraph::initialize(const PartitionedHypergraph& phg) {
 
 size_t QuotientGraph::maximumRequiredRefiners() const {
   const size_t current_active_block_pairs =
-    _block_scheduler.unsafe_size() + _num_active_searches + 1;
+    _active_block_scheduler.numRemainingBlocks() + _num_active_searches + 1;
   return std::min(current_active_block_pairs, _context.shared_memory.num_threads);
 }
 
