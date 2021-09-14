@@ -222,7 +222,7 @@ namespace mt_kahypar {
       str << "  Compare Node Regions with Full Similarities:  " << std::boolalpha << params.region_comparison_with_full_similarities << std::endl;
       str << "  Use Old Seeds in Localized Refinement:        " << std::boolalpha << params.use_old_refinement_seeds << std::endl;
       str << "  Use Bitcopy Snapshots:                        " << std::boolalpha << params.use_bitcopy_snapshots << std::endl;
-      str << "  Use multiqueue:                               " << std::boolalpha << params.use_multiqueue << std::endl;
+      str << "  Use multiqueue:                               " << params.use_multiqueue << std::endl;
       return str;
   }
 

@@ -521,10 +521,15 @@ namespace mt_kahypar {
              " lock. May reduce work that is performed in the hyperedge while increasing overall work.  "
              "(Only has an effect in MtKaHyParStrongAsync.)")
             ("u-use-multiqueue",
-            po::value<bool>(&context.uncoarsening.use_multiqueue)->value_name("<bool>")->default_value(false),
-            "If this option is set, multiqueue will be used as the priority queue for picking the next ConntractionGroup to uncontract."
-            "multiqueue must be installed for this to take effect. If not set or multiqueue not found an alternative PQ is used."
-            "(Only has an effect in MtKaHyParStrongAsync.)")
+            po::value<std::string>()->value_name("<string>")->notifier(
+                [&](const std::string& mode) {
+                    context.uncoarsening.use_multiqueue = multiqueueUsageFromString(mode);
+                })->default_value("no_multiqueue"),
+            "Mode of using multiqueue as priority queue:\n"
+            "- no_multiqueue\n"
+            "- hybrid (only for versions with max depth of > 1000)\n"
+            "- only_multiqueue\n"
+            "(Only has an effect in MtKaHyParStrongAsync)")
             ;
     return options;
   }

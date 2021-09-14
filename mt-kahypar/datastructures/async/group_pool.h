@@ -143,20 +143,16 @@ namespace mt_kahypar::ds
         typename RegionComparator = Mandatory>
     class ConcurrentQueueGroupPool {
 
-        using Multiqueue = multiqueue::int_multiqueue<uint32_t, ContractionGroupID>;
+        using Multiqueue = multiqueue::int_multiqueue<uint32_t, ContractionGroupID, multiqueue::configuration::Merging>;
 
     public:
 
         /**
          * Constructs new sequential contraction group pool. Passes ownership of the given group hierarchy to this pool.
          */
-        explicit ConcurrentQueueGroupPool(std::unique_ptr<GroupHierarchy> hierarchy, const Context& context)
+        explicit ConcurrentQueueGroupPool(std::unique_ptr<GroupHierarchy> hierarchy, const Context &context,
+                                          const bool use_multiqueue)
                 : _hierarchy(hierarchy.release()),
-//                _cmp([&](ContractionGroupID id1, ContractionGroupID id2) {
-//                    return _hierarchy->depth(id1) > _hierarchy->depth(id2);
-//                  }),
-//                _queue_lock(),
-//                _active_ids(_cmp)
                   _node_region_comparator(nullptr),
                   _region_similarity_retries(context.uncoarsening.node_region_similarity_retries)
                   , _picked_ids_ets(std::vector<ContractionGroupID>(context.uncoarsening.node_region_similarity_retries, invalidGroupID)),
@@ -166,11 +162,12 @@ namespace mt_kahypar::ds
                   _calls_to_pick_with_empty_pq(0),
                   _num_accepted_uncontractions(0),
                   _calculate_full_similarities(context.uncoarsening.region_comparison_with_full_similarities),
-                  _use_multiqueue(context.uncoarsening.use_multiqueue),
+                  _use_multiqueue(use_multiqueue),
                   _similarity_to_others_threshold(context.uncoarsening.node_region_similarity_threshold)
                 {
             ASSERT(_hierarchy);
 
+            // Ugly code duplication because interfaces can't be used (slow vtable lookups)
             if (_use_multiqueue) {
               _mq_active_ids = std::make_unique<Multiqueue>(context.shared_memory.num_threads);
             } else {
@@ -567,20 +564,7 @@ namespace mt_kahypar::ds
               && this_candidate.similarity_to_calling_task > other_candidate.similarity_to_calling_task));
         }
 
-//        using DepthCompare = std::function<bool (ContractionGroupID, ContractionGroupID)>;
-
-        // Used to compare groups by their depth in the GroupHierarchy. The comparator for std::priority queue has to be
-        // true if id1 < id2 in the queue but std::priority_queue emits the largest elements first, so here we reverse
-        // the ordering in order to emit the smallest depth group first.
-//        DepthCompare _cmp; // = [&](ContractionGroupID id1, ContractionGroupID id2) {
-//            return _hierarchy->depth(id1) > _hierarchy->depth(id2);
-//        };
-
         std::unique_ptr<GroupHierarchy> _hierarchy;
-
-//        SpinLock _queue_lock;
-//        std::priority_queue<ContractionGroupID, std::vector<ContractionGroupID>, DepthCompare> _active_ids;
-//        tbb::concurrent_queue<ContractionGroupID> _active_ids;
 
         std::unique_ptr<Multiqueue> _mq_active_ids;
         std::unique_ptr<DepthPriorityQueue> _dpq_active_ids;

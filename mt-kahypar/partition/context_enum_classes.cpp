@@ -160,6 +160,17 @@ namespace mt_kahypar {
     return os << static_cast<uint8_t>(algo);
   }
 
+  std::ostream & operator<< (std::ostream& os, const MultiqueueUsage& type) {
+      switch (type) {
+        case MultiqueueUsage::no_multiqueue : return os << "fm_gain_cache";
+        case MultiqueueUsage::hybrid : return os << "fm_gain_cache_on_demand";
+        case MultiqueueUsage::only_multiqueue : return os << "fm_gain_delta";
+        case MultiqueueUsage::UNDEFINED : return os << "fm_recompute_gain";
+          // omit default case to trigger compiler warning for missing cases
+      }
+      return os << static_cast<uint8_t>(type);
+  }
+
   LouvainEdgeWeight louvainEdgeWeightFromString(const std::string& type) {
     if (type == "hybrid") {
       return LouvainEdgeWeight::hybrid;
@@ -294,6 +305,18 @@ namespace mt_kahypar {
     }
     ERROR("Illegal option: " + type);
     return FMAlgorithm::do_nothing;
+  }
+
+  MultiqueueUsage multiqueueUsageFromString(const std::string& type) {
+    if (type == "no_multiqueue") {
+      return MultiqueueUsage::no_multiqueue;
+    } else if (type == "hybrid") {
+      return MultiqueueUsage::hybrid;
+    } else if (type == "only_multiqueue") {
+      return MultiqueueUsage::only_multiqueue;
+    }
+    ERROR("Illegal option: " + type);
+    return MultiqueueUsage::UNDEFINED;
   }
 
 }
