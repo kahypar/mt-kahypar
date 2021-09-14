@@ -443,6 +443,10 @@ namespace mt_kahypar {
              po::value<size_t>((initial_partitioning ? &context.initial_partitioning.refinement.advanced.max_concurrency_per_block :
                       &context.refinement.advanced.max_concurrency_per_block))->value_name("<size_t>"),
              "Maximum refiner working concurrently on one block.")
+            ((initial_partitioning ? "i-r-min-rel-improvement-per-round" : "r-min-rel-improvement-per-round"),
+             po::value<double>((initial_partitioning ? &context.initial_partitioning.refinement.advanced.min_relative_improvement_per_round :
+                      &context.refinement.advanced.min_relative_improvement_per_round))->value_name("<double>"),
+             "Minimum relative improvement per active block scheduling round. If improvement is smaller than advanced search terminates.")
             ((initial_partitioning ? "i-r-skip-small-cuts" : "r-skip-small-cuts"),
              po::value<bool>((initial_partitioning ? &context.initial_partitioning.refinement.advanced.skip_small_cuts :
                       &context.refinement.advanced.skip_small_cuts))->value_name("<bool>"),

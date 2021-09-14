@@ -131,15 +131,135 @@ class QuotientGraph {
     CAtomic<HyperedgeWeight> total_improvement;
   };
 
+  class ActiveBlockSchedulingRound {
+
+   public:
+    explicit ActiveBlockSchedulingRound(const Context& context,
+                                        vec<vec<QuotientGraphEdge>>& quotient_graph,
+                                        const vec<CAtomic<size_t>>& num_active_searches_on_blocks) :
+      _context(context),
+      _quotient_graph(quotient_graph),
+      _num_active_searches_on_blocks(num_active_searches_on_blocks),
+      _unscheduled_blocks(),
+      _round_improvement(0),
+      _active_blocks_lock(),
+      _active_blocks(context.partition.k, false),
+      _remaining_blocks(0) { }
+
+    bool popBlockPairFromQueue(BlockPair& blocks);
+
+    bool pushBlockPairIntoQueue(const BlockPair& blocks);
+
+    void finalizeSearch(const BlockPair& blocks,
+                        const HyperedgeWeight improvement,
+                        bool& block_0_becomes_active,
+                        bool& block_1_becomes_active);
+
+    HyperedgeWeight roundImprovement() const {
+      return _round_improvement.load(std::memory_order_relaxed);
+    }
+
+    size_t numRemainingBlocks() const {
+      return _remaining_blocks;
+    }
+
+   const Context& _context;
+   // ! Quotient graph
+    vec<vec<QuotientGraphEdge>>& _quotient_graph;
+    // ! Number of active searches on each block
+    const vec<CAtomic<size_t>>& _num_active_searches_on_blocks;
+    // ! Queue that contains all unscheduled block pairs of the current round
+    tbb::concurrent_queue<BlockPair> _unscheduled_blocks;
+    // ! Current improvement made in this round
+    CAtomic<HyperedgeWeight> _round_improvement;
+    // Active blocks for next round
+    SpinLock _active_blocks_lock;
+    vec<uint8_t> _active_blocks;
+    CAtomic<size_t> _remaining_blocks;
+  };
+
+  class ActiveBlockScheduler {
+
+   public:
+    explicit ActiveBlockScheduler(const Context& context,
+                                  vec<vec<QuotientGraphEdge>>& quotient_graph) :
+      _context(context),
+      _quotient_graph(quotient_graph),
+      _rounds(),
+      _num_active_searches_on_blocks(
+        context.partition.k, CAtomic<size_t>(0)),
+      _min_improvement_per_round(0),
+      _terminate(false),
+      _round_lock(),
+      _first_active_round(0),
+      _is_input_hypergraph(false) { }
+
+    size_t currentRound() const {
+      return _rounds.size();
+    }
+
+    void initialize(const bool is_input_hypergraph);
+
+    bool popBlockPairFromQueue(BlockPair& blocks, size_t& round);
+
+    void startSearch(const BlockPair& blocks) {
+      ++_num_active_searches_on_blocks[blocks.i];
+      ++_num_active_searches_on_blocks[blocks.j];
+    }
+
+    void finalizeSearch(const BlockPair& blocks,
+                        const size_t round,
+                        const HyperedgeWeight improvement);
+
+    void setObjective(const HyperedgeWeight objective) {
+      _min_improvement_per_round =
+        _context.refinement.advanced.min_relative_improvement_per_round * objective;
+    }
+
+   private:
+
+    void reset() {
+      _rounds.clear();
+      _num_active_searches_on_blocks.assign(
+        _context.partition.k, CAtomic<size_t>(0));
+      _first_active_round = 0;
+      _terminate = false;
+    }
+
+    bool isActiveBlockPair(const PartitionID i,
+                           const PartitionID j,
+                           const size_t round) const;
+
+    const Context& _context;
+    // ! Quotient graph
+    vec<vec<QuotientGraphEdge>>& _quotient_graph;
+    // Contains all active block scheduling rounds
+    tbb::concurrent_vector<ActiveBlockSchedulingRound> _rounds;
+    // ! Number of active searches on each block
+    vec<CAtomic<size_t>> _num_active_searches_on_blocks;
+    // ! Minimum improvement per round to continue with next round
+    HyperedgeWeight _min_improvement_per_round;
+    // ! If true, then search is immediatly terminated
+    bool _terminate;
+    // ! First Active Round
+    SpinLock _round_lock;
+    size_t _first_active_round;
+    // ! Indicate if the current hypergraph represents the input hypergraph
+    bool _is_input_hypergraph;
+  };
+
   // Contains information required by a local search
   struct Search {
-    explicit Search(const BlockPair& blocks) :
+    explicit Search(const BlockPair& blocks, const size_t round) :
       blocks(blocks),
+      round(round),
       used_cut_hes(),
       is_finalized(false) { }
 
     // ! Block pair on which this search operates on
     BlockPair blocks;
+    // ! Round of active block scheduling
+    size_t round;
     // ! Used cut hyperedges
     vec<HyperedgeID> used_cut_hes;
     // ! Flag indicating if construction of the corresponding search
@@ -175,12 +295,9 @@ public:
       vec<QuotientGraphEdge>(context.partition.k)),
     _register_search_lock(),
     _block_scheduler(),
+    _active_block_scheduler(context, _quotient_graph),
     _num_active_searches(0),
     _searches(),
-    _active_blocks_lock(),
-    _current_round(0),
-    _active_blocks(context.partition.k, false),
-    _num_active_searches_on_blocks(context.partition.k, CAtomic<size_t>(0)),
     _local_bfs(hg.initialNumNodes(), hg.initialNumEdges()) {
     for ( PartitionID i = 0; i < _context.partition.k; ++i ) {
       for ( PartitionID j = i + 1; j < _context.partition.k; ++j ) {
@@ -260,8 +377,8 @@ public:
   // ! all cut hyperedges between all block pairs
   void initialize(const PartitionedHypergraph& phg);
 
-  bool terminate() const {
-    return _block_scheduler.empty() && _num_active_searches == 0;
+  void setObjective(const HyperedgeWeight objective) {
+    _active_block_scheduler.setObjective(objective);
   }
 
   size_t maximumRequiredRefiners() const;
@@ -277,12 +394,6 @@ public:
  private:
 
   void resetQuotientGraphEdges();
-
-  void pushAllActiveBlocksIntoQueue(const size_t expected_round);
-
-  bool popBlockPairFromQueue(BlockPair& blocks);
-
-  bool pushBlockPairIntoQueue(const BlockPair& blocks);
 
   /**
    * The idea is to sort the cut hyperedges of a block pair (i,j)
@@ -311,20 +422,12 @@ public:
   SpinLock _register_search_lock;
   // ! Queue that contains all block pairs.
   tbb::concurrent_queue<BlockPair> _block_scheduler;
+  ActiveBlockScheduler _active_block_scheduler;
 
   // ! Number of active searches
   CAtomic<size_t> _num_active_searches;
   // ! Information about searches that are currently running
   tbb::concurrent_vector<Search> _searches;
-
-  SpinLock _active_blocks_lock;
-  // Current round of active block scheduling
-  size_t _current_round;
-  // Active blocks for next round
-  vec<uint8_t> _active_blocks;
-
-  // ! Number of active searches on each block
-  vec<CAtomic<size_t>> _num_active_searches_on_blocks;
 
   // ! BFS data required to sort cut hyperedges
   tbb::enumerable_thread_specific<BFSData> _local_bfs;
