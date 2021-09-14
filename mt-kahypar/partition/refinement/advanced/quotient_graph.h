@@ -54,7 +54,6 @@ class QuotientGraph {
   // ! Represents an edge of the quotient graph
   struct QuotientGraphEdge {
     QuotientGraphEdge() :
-      skip_small_cuts(false),
       blocks(),
       ownership(INVALID_SEARCH_ID),
       is_in_queue(false),
@@ -74,15 +73,6 @@ class QuotientGraph {
     HyperedgeID pop_hyperedge();
 
     void reset();
-
-    // ! A quotient graph edge is considered as active, if there
-    // ! are cut hyperedges left and if there weight is greater than
-    // ! some threshold. Only active quotient graph edges are available
-    // ! for refinement.
-    bool isActive() const {
-      return ( !skip_small_cuts && cut_he_weight > 0 ) ||
-             ( skip_small_cuts && cut_he_weight > 10 );
-    }
 
     // ! Returns true, if quotient graph edge is acquired by a search
     bool isAcquired() const {
@@ -118,14 +108,6 @@ class QuotientGraph {
       return is_in_queue.compare_exchange_strong(expected, desired);
     }
 
-    // ! Returns false, if all cut hyperedges initial contained are used
-    // ! at least once by a refinement algorithm
-    bool isFirstRound() const {
-      return first_valid_entry < initial_num_cut_hes;
-    }
-
-    // ! If true, then block pairs with cut less than 10 are skipped
-    bool skip_small_cuts;
     // ! Block pair this quotient graph edge represents
     BlockPair blocks;
     // ! Atomic that contains the search currently constructing
@@ -149,15 +131,176 @@ class QuotientGraph {
     CAtomic<HyperedgeWeight> total_improvement;
   };
 
+  /**
+   * Maintains the block pair of a round of the active block scheduling strategy
+   */
+  class ActiveBlockSchedulingRound {
+
+   public:
+    explicit ActiveBlockSchedulingRound(const Context& context,
+                                        vec<vec<QuotientGraphEdge>>& quotient_graph,
+                                        const vec<CAtomic<size_t>>& num_active_searches_on_blocks) :
+      _context(context),
+      _quotient_graph(quotient_graph),
+      _num_active_searches_on_blocks(num_active_searches_on_blocks),
+      _unscheduled_blocks(),
+      _round_improvement(0),
+      _active_blocks_lock(),
+      _active_blocks(context.partition.k, false),
+      _remaining_blocks(0) { }
+
+    // ! Pops a block pair from the queue.
+    // ! Returns true, if a block pair was successfully popped from the queue.
+    // ! The corresponding block pair will be stored in blocks.
+    bool popBlockPairFromQueue(BlockPair& blocks);
+
+    // ! Pushes a block pair into the queue.
+    // ! Return true, if the block pair was successfully pushed into the queue.
+    // ! Note, that a block pair is only allowed to be contained in one queue
+    // ! (there are multiple active rounds).
+    bool pushBlockPairIntoQueue(const BlockPair& blocks);
+
+    // ! Signals that the search on the corresponding block pair terminated.
+    void finalizeSearch(const BlockPair& blocks,
+                        const HyperedgeWeight improvement,
+                        bool& block_0_becomes_active,
+                        bool& block_1_becomes_active);
+
+    HyperedgeWeight roundImprovement() const {
+      return _round_improvement.load(std::memory_order_relaxed);
+    }
+
+    size_t numRemainingBlocks() const {
+      return _remaining_blocks;
+    }
+
+   const Context& _context;
+   // ! Quotient graph
+    vec<vec<QuotientGraphEdge>>& _quotient_graph;
+    // ! Number of active searches on each block
+    const vec<CAtomic<size_t>>& _num_active_searches_on_blocks;
+    // ! Queue that contains all unscheduled block pairs of the current round
+    tbb::concurrent_queue<BlockPair> _unscheduled_blocks;
+    // ! Current improvement made in this round
+    CAtomic<HyperedgeWeight> _round_improvement;
+    // Active blocks for next round
+    SpinLock _active_blocks_lock;
+    vec<uint8_t> _active_blocks;
+    // Remaining active block pairs in the current round.
+    CAtomic<size_t> _remaining_blocks;
+  };
+
+  /**
+   * Implements the active block scheduling strategy.
+   * The active block scheduling strategy proceeds in rounds. In each round,
+   * all active edges of the quotient graph are scheduled for refinement.
+   * A edge is called active, if at least of the blocks is active and a block
+   * is called active if a refinement involving that block in the previous round
+   * leads to an improvement. In the sequential active block scheduling strategy
+   * the rounds acts as synchronization barriers. However, to achieve better scalibility
+   * we immediatly schedule an edge in the next round once we find an improvement.
+   * Thus, there can be multiple active searches that process block pairs from different
+   * rounds. However, block pairs from earlier rounds have an higher priority to be
+   * scheduled.
+   */
+  class ActiveBlockScheduler {
+
+   public:
+    explicit ActiveBlockScheduler(const Context& context,
+                                  vec<vec<QuotientGraphEdge>>& quotient_graph) :
+      _context(context),
+      _quotient_graph(quotient_graph),
+      _num_rounds(0),
+      _rounds(),
+      _num_active_searches_on_blocks(
+        context.partition.k, CAtomic<size_t>(0)),
+      _min_improvement_per_round(0),
+      _terminate(false),
+      _round_lock(),
+      _first_active_round(0),
+      _is_input_hypergraph(false) { }
+
+    // ! Initialize the first round of the active block scheduling strategy
+    void initialize(const bool is_input_hypergraph);
+
+    // ! Pops a block pair from the queue.
+    // ! Returns true, if a block pair was successfully popped from the queue.
+    // ! The corresponding block pair and the round to which this blocks corresponds
+    // ! to are stored in blocks and round.
+    bool popBlockPairFromQueue(BlockPair& blocks, size_t& round);
+
+    // ! Signals that the search on the corresponding block pair starts.
+    void startSearch(const BlockPair& blocks) {
+      ++_num_active_searches_on_blocks[blocks.i];
+      ++_num_active_searches_on_blocks[blocks.j];
+    }
+
+    // ! Signals that the search on the corresponding block pair terminated.
+    // ! If one the two blocks become active, we immediatly schedule all edges
+    // ! adjacent in the quotient graph in the next round of active block scheduling
+    void finalizeSearch(const BlockPair& blocks,
+                        const size_t round,
+                        const HyperedgeWeight improvement);
+
+    size_t numRemainingBlocks() const {
+      size_t num_remaining_blocks = 0;
+      for ( size_t i = _first_active_round; i < _rounds.size(); ++i ) {
+        num_remaining_blocks += _rounds[i].numRemainingBlocks();
+      }
+      return num_remaining_blocks;
+    }
+
+    void setObjective(const HyperedgeWeight objective) {
+      _min_improvement_per_round =
+        _context.refinement.advanced.min_relative_improvement_per_round * objective;
+    }
+
+   private:
+
+    void reset() {
+      _num_rounds.store(0);
+      _rounds.clear();
+      _num_active_searches_on_blocks.assign(
+        _context.partition.k, CAtomic<size_t>(0));
+      _first_active_round = 0;
+      _terminate = false;
+    }
+
+    bool isActiveBlockPair(const PartitionID i,
+                           const PartitionID j,
+                           const size_t round) const;
+
+    const Context& _context;
+    // ! Quotient graph
+    vec<vec<QuotientGraphEdge>>& _quotient_graph;
+    // Contains all active block scheduling rounds
+    CAtomic<size_t> _num_rounds;
+    tbb::concurrent_vector<ActiveBlockSchedulingRound> _rounds;
+    // ! Number of active searches on each block
+    vec<CAtomic<size_t>> _num_active_searches_on_blocks;
+    // ! Minimum improvement per round to continue with next round
+    HyperedgeWeight _min_improvement_per_round;
+    // ! If true, then search is immediatly terminated
+    bool _terminate;
+    // ! First Active Round
+    SpinLock _round_lock;
+    size_t _first_active_round;
+    // ! Indicate if the current hypergraph represents the input hypergraph
+    bool _is_input_hypergraph;
+  };
+
   // Contains information required by a local search
   struct Search {
-    explicit Search(const BlockPair& blocks) :
+    explicit Search(const BlockPair& blocks, const size_t round) :
       blocks(blocks),
+      round(round),
       used_cut_hes(),
       is_finalized(false) { }
 
     // ! Block pair on which this search operates on
     BlockPair blocks;
+    // ! Round of active block scheduling
+    size_t round;
     // ! Used cut hyperedges
     vec<HyperedgeID> used_cut_hes;
     // ! Flag indicating if construction of the corresponding search
@@ -192,10 +335,9 @@ public:
     _quotient_graph(context.partition.k,
       vec<QuotientGraphEdge>(context.partition.k)),
     _register_search_lock(),
-    _block_scheduler(),
+    _active_block_scheduler(context, _quotient_graph),
     _num_active_searches(0),
     _searches(),
-    _num_active_searches_on_blocks(context.partition.k, CAtomic<size_t>(0)),
     _local_bfs(hg.initialNumNodes(), hg.initialNumEdges()) {
     for ( PartitionID i = 0; i < _context.partition.k; ++i ) {
       for ( PartitionID j = i + 1; j < _context.partition.k; ++j ) {
@@ -275,8 +417,8 @@ public:
   // ! all cut hyperedges between all block pairs
   void initialize(const PartitionedHypergraph& phg);
 
-  bool terminate() const {
-    return _block_scheduler.empty() && _num_active_searches == 0;
+  void setObjective(const HyperedgeWeight objective) {
+    _active_block_scheduler.setObjective(objective);
   }
 
   size_t maximumRequiredRefiners() const;
@@ -292,10 +434,6 @@ public:
  private:
 
   void resetQuotientGraphEdges();
-
-  bool popBlockPairFromQueue(BlockPair& blocks);
-
-  bool pushBlockPairIntoQueue(const BlockPair& blocks);
 
   /**
    * The idea is to sort the cut hyperedges of a block pair (i,j)
@@ -323,15 +461,12 @@ public:
 
   SpinLock _register_search_lock;
   // ! Queue that contains all block pairs.
-  tbb::concurrent_queue<BlockPair> _block_scheduler;
+  ActiveBlockScheduler _active_block_scheduler;
 
   // ! Number of active searches
   CAtomic<size_t> _num_active_searches;
   // ! Information about searches that are currently running
   tbb::concurrent_vector<Search> _searches;
-
-  // ! Number of active searches on each block
-  vec<CAtomic<size_t>> _num_active_searches_on_blocks;
 
   // ! BFS data required to sort cut hyperedges
   tbb::enumerable_thread_specific<BFSData> _local_bfs;

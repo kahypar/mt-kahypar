@@ -52,28 +52,210 @@ void QuotientGraph::QuotientGraphEdge::reset() {
   cut_he_weight.store(0, std::memory_order_relaxed);
 }
 
+bool QuotientGraph::ActiveBlockSchedulingRound::popBlockPairFromQueue(BlockPair& blocks) {
+  blocks.i = kInvalidPartition;
+  blocks.j = kInvalidPartition;
+  const size_t current_size = _unscheduled_blocks.unsafe_size();
+  size_t current_idx = 0;
+  while ( current_idx < current_size && _unscheduled_blocks.try_pop(blocks) ) {
+    _quotient_graph[blocks.i][blocks.j].markAsNotInQueue();
+    const bool not_too_many_concurrent_searches =
+       _num_active_searches_on_blocks[blocks.i] < _context.refinement.advanced.max_concurrency_per_block &&
+       _num_active_searches_on_blocks[blocks.j] < _context.refinement.advanced.max_concurrency_per_block;
+    if ( !not_too_many_concurrent_searches ) {
+      const bool success = pushBlockPairIntoQueue(blocks);
+      _remaining_blocks -= (1 - success);
+      blocks.i = kInvalidPartition;
+      blocks.j = kInvalidPartition;
+    } else {
+      break;
+    }
+    ++current_idx;
+  }
+  return blocks.i != kInvalidPartition && blocks.j != kInvalidPartition;
+}
+
+
+void QuotientGraph::ActiveBlockSchedulingRound::finalizeSearch(const BlockPair& blocks,
+                                                               const HyperedgeWeight improvement,
+                                                               bool& block_0_becomes_active,
+                                                               bool& block_1_becomes_active) {
+  _round_improvement += improvement;
+  --_remaining_blocks;
+  if ( improvement > 0 ) {
+    _active_blocks_lock.lock();
+    block_0_becomes_active = !_active_blocks[blocks.i];
+    block_1_becomes_active = !_active_blocks[blocks.j];
+    _active_blocks[blocks.i] = true;
+    _active_blocks[blocks.j] = true;
+    _active_blocks_lock.unlock();
+  }
+}
+
+bool QuotientGraph::ActiveBlockSchedulingRound::pushBlockPairIntoQueue(const BlockPair& blocks) {
+  QuotientGraphEdge& qg_edge = _quotient_graph[blocks.i][blocks.j];
+  if ( qg_edge.markAsInQueue() ) {
+    _unscheduled_blocks.push(blocks);
+    ++_remaining_blocks;
+    return true;
+  } else {
+    return false;
+  }
+}
+
+void QuotientGraph::ActiveBlockScheduler::initialize(const bool is_input_hypergraph) {
+  reset();
+  _is_input_hypergraph = is_input_hypergraph;
+
+  vec<BlockPair> active_blocks;
+  for ( PartitionID i = 0; i < _context.partition.k; ++i ) {
+    for ( PartitionID j = i + 1; j < _context.partition.k; ++j ) {
+      if ( isActiveBlockPair(i, j, 0) ) {
+        active_blocks.push_back( BlockPair { i, j } );
+      }
+    }
+  }
+
+  if ( active_blocks.size() > 0 ) {
+    std::sort(active_blocks.begin(), active_blocks.end(),
+      [&](const BlockPair& lhs, const BlockPair& rhs) {
+        return _quotient_graph[lhs.i][lhs.j].total_improvement >
+          _quotient_graph[rhs.i][rhs.j].total_improvement ||
+          ( _quotient_graph[lhs.i][lhs.j].total_improvement ==
+            _quotient_graph[rhs.i][rhs.j].total_improvement &&
+            _quotient_graph[lhs.i][lhs.j].cut_he_weight >
+            _quotient_graph[rhs.i][rhs.j].cut_he_weight );
+      });
+    _rounds.emplace_back(_context, _quotient_graph, _num_active_searches_on_blocks);
+    ++_num_rounds;
+    for ( const BlockPair& blocks : active_blocks ) {
+      DBG << "Schedule blocks (" << blocks.i << "," << blocks.j << ") in round 1 ("
+          << "Total Improvement =" << _quotient_graph[blocks.i][blocks.j].total_improvement << ","
+          << "Cut Weight =" << _quotient_graph[blocks.i][blocks.j].cut_he_weight << ")";
+      _rounds.back().pushBlockPairIntoQueue(blocks);
+    }
+  }
+}
+
+bool QuotientGraph::ActiveBlockScheduler::popBlockPairFromQueue(BlockPair& blocks, size_t& round) {
+  bool success = false;
+  round = _first_active_round;
+  while ( !_terminate && round < _num_rounds ) {
+    success = _rounds[round].popBlockPairFromQueue(blocks);
+    if ( success ) {
+      break;
+    }
+    ++round;
+  }
+
+  if ( success && round == _num_rounds - 1 ) {
+    _round_lock.lock();
+    if ( round == _num_rounds - 1 ) {
+      // There must always be a next round available such that we can
+      // reschedule block pairs that become active.
+      _rounds.emplace_back(_context, _quotient_graph, _num_active_searches_on_blocks);
+      ++_num_rounds;
+    }
+    _round_lock.unlock();
+  }
+
+  return success;
+}
+
+void QuotientGraph::ActiveBlockScheduler::finalizeSearch(const BlockPair& blocks,
+                                                         const size_t round,
+                                                         const HyperedgeWeight improvement) {
+  ASSERT(round < _rounds.size());
+  --_num_active_searches_on_blocks[blocks.i];
+  --_num_active_searches_on_blocks[blocks.j];
+  bool block_0_becomes_active = false;
+  bool block_1_becomes_active = false;
+  _rounds[round].finalizeSearch(blocks, improvement,
+    block_0_becomes_active, block_1_becomes_active);
+
+  if ( block_0_becomes_active ) {
+    // If blocks.i becomes active, we push all adjacent blocks into the queue of the next round
+    ASSERT(round + 1 < _rounds.size());
+    for ( PartitionID j = blocks.i + 1; j < _context.partition.k; ++j ) {
+      if ( isActiveBlockPair(blocks.i, j, round + 1) ) {
+        DBG << "Schedule blocks (" << blocks.i << "," << j << ") in round" << (round + 2) << " ("
+            << "Total Improvement =" << _quotient_graph[blocks.i][j].total_improvement << ","
+            << "Cut Weight =" << _quotient_graph[blocks.i][j].cut_he_weight << ")";
+        _rounds[round + 1].pushBlockPairIntoQueue(BlockPair { blocks.i, j });
+      }
+    }
+  }
+
+  if ( block_1_becomes_active ) {
+    // If blocks.j becomes active, we push all adjacent blocks into the queue of the next round
+    ASSERT(round + 1 < _rounds.size());
+    for ( PartitionID j = blocks.j + 1; j < _context.partition.k; ++j ) {
+      if ( isActiveBlockPair(blocks.j, j, round + 1) ) {
+        DBG << "Schedule blocks (" << blocks.j << "," << j << ") in round" << (round + 2) << " ("
+            << "Total Improvement =" << _quotient_graph[blocks.j][j].total_improvement << ","
+            << "Cut Weight =" << _quotient_graph[blocks.j][j].cut_he_weight << ")";
+        _rounds[round + 1].pushBlockPairIntoQueue(BlockPair { blocks.j, j });
+      }
+    }
+  }
+
+  if ( round == _first_active_round && _rounds[round].numRemainingBlocks() == 0 ) {
+    _round_lock.lock();
+    // We consider a round as finished, if the previous round is also finished and there
+    // are no remaining blocks in the queue of that round.
+    while ( _first_active_round < _rounds.size() &&
+            _rounds[_first_active_round].numRemainingBlocks() == 0 ) {
+      DBG << GREEN << "Round" << (_first_active_round + 1) << "terminates with improvement"
+          << _rounds[_first_active_round].roundImprovement() << "("
+          << "Minimum Required Improvement =" << _min_improvement_per_round << ")" << END;
+      // We require that minimum improvement per round must be greater than a threshold,
+      // otherwise we terminate early
+      _terminate = _rounds[_first_active_round].roundImprovement() < _min_improvement_per_round;
+      ++_first_active_round;
+    }
+    _round_lock.unlock();
+  }
+}
+
+
+bool QuotientGraph::ActiveBlockScheduler::isActiveBlockPair(const PartitionID i,
+                                                            const PartitionID j,
+                                                            const size_t round) const {
+  const bool skip_small_cuts = !_is_input_hypergraph &&
+    _context.refinement.advanced.skip_small_cuts;
+  const bool contains_enough_cut_hes =
+    (skip_small_cuts && _quotient_graph[i][j].cut_he_weight > 10) ||
+    (!skip_small_cuts && _quotient_graph[i][j].cut_he_weight > 0);
+  const bool is_promising_blocks_pair =
+    !_context.refinement.advanced.skip_unpromising_blocks ||
+      ( round == 0 || _quotient_graph[i][j].num_improvements_found > 0 );
+  return contains_enough_cut_hes && is_promising_blocks_pair;
+}
+
 SearchID QuotientGraph::requestNewSearch(AdvancedRefinerAdapter& refiner) {
   ASSERT(_phg);
   SearchID search_id = INVALID_SEARCH_ID;
-  if ( !_block_scheduler.empty() ) {
-    BlockPair blocks { kInvalidPartition, kInvalidPartition };
-    bool success = popBlockPairFromQueue(blocks);
-    _register_search_lock.lock();
-    const SearchID tmp_search_id = _searches.size();
-    if ( success && _quotient_graph[blocks.i][blocks.j].acquire(tmp_search_id) ) {
-      ++_num_active_searches;
-      // Create new search
-      search_id = tmp_search_id;
-      _searches.emplace_back(blocks);
-      ++_num_active_searches_on_blocks[blocks.i];
-      ++_num_active_searches_on_blocks[blocks.j];
-      _register_search_lock.unlock();
+  BlockPair blocks { kInvalidPartition, kInvalidPartition };
+  size_t round = 0;
+  bool success = _active_block_scheduler.popBlockPairFromQueue(blocks, round);
+  _register_search_lock.lock();
 
-      // Associate refiner with search id
-      success = refiner.registerNewSearch(search_id, *_phg);
-      ASSERT(success); unused(success);
-    } else {
-      _register_search_lock.unlock();
+  const SearchID tmp_search_id = _searches.size();
+  if ( success && _quotient_graph[blocks.i][blocks.j].acquire(tmp_search_id) ) {
+    ++_num_active_searches;
+    // Create new search
+    search_id = tmp_search_id;
+    _searches.emplace_back(blocks, round);
+    _active_block_scheduler.startSearch(blocks);
+    _register_search_lock.unlock();
+
+    // Associate refiner with search id
+    success = refiner.registerNewSearch(search_id, *_phg);
+    ASSERT(success); unused(success);
+  } else {
+    _register_search_lock.unlock();
+    if ( success ) {
+      _active_block_scheduler.finalizeSearch(blocks, round, 0);
     }
   }
   return search_id;
@@ -151,47 +333,11 @@ void QuotientGraph::addNewCutHyperedge(const HyperedgeID he,
   }
 }
 
-bool QuotientGraph::popBlockPairFromQueue(BlockPair& blocks) {
-  blocks.i = kInvalidPartition;
-  blocks.j = kInvalidPartition;
-  const size_t current_size = _block_scheduler.unsafe_size();
-  size_t current_idx = 0;
-  while ( current_idx < current_size && _block_scheduler.try_pop(blocks) ) {
-    _quotient_graph[blocks.i][blocks.j].markAsNotInQueue();
-    const bool not_too_many_concurrent_searches =
-      _num_active_searches_on_blocks[blocks.i] < _context.refinement.advanced.max_concurrency_per_block &&
-      _num_active_searches_on_blocks[blocks.j] < _context.refinement.advanced.max_concurrency_per_block;
-    if ( !not_too_many_concurrent_searches ) {
-      pushBlockPairIntoQueue(blocks);
-      blocks.i = kInvalidPartition;
-      blocks.j = kInvalidPartition;
-    } else {
-      break;
-    }
-    ++current_idx;
-  }
-  return blocks.i != kInvalidPartition && blocks.j != kInvalidPartition;
-}
-
-bool QuotientGraph::pushBlockPairIntoQueue(const BlockPair& blocks) {
-  QuotientGraphEdge& qg_edge = _quotient_graph[blocks.i][blocks.j];
-  const bool is_promising_block_pair =
-        !_context.refinement.advanced.skip_unpromising_blocks ||
-        ( qg_edge.isFirstRound() || qg_edge.num_improvements_found > 0 );
-  if ( qg_edge.isActive() && is_promising_block_pair && qg_edge.markAsInQueue() ) {
-    _block_scheduler.push(blocks);
-    return true;
-  } else {
-    return false;
-  }
-}
-
 void QuotientGraph::finalizeConstruction(const SearchID search_id) {
   ASSERT(search_id < _searches.size());
   _searches[search_id].is_finalized = true;
   const BlockPair& blocks = _searches[search_id].blocks;
   _quotient_graph[blocks.i][blocks.j].release(search_id);
-  pushBlockPairIntoQueue(blocks);
 }
 
 void QuotientGraph::finalizeSearch(const SearchID search_id,
@@ -216,9 +362,8 @@ void QuotientGraph::finalizeSearch(const SearchID search_id,
   }
   // In case the block pair becomes active,
   // we reinsert it into the queue
-  pushBlockPairIntoQueue(blocks);
-  --_num_active_searches_on_blocks[blocks.i];
-  --_num_active_searches_on_blocks[blocks.j];
+  _active_block_scheduler.finalizeSearch(
+    blocks, _searches[search_id].round, total_improvement);
   --_num_active_searches;
 }
 
@@ -227,11 +372,8 @@ void QuotientGraph::initialize(const PartitionedHypergraph& phg) {
 
   // Reset internal members
   resetQuotientGraphEdges();
-  _block_scheduler.clear();
   _num_active_searches.store(0, std::memory_order_relaxed);
   _searches.clear();
-  _num_active_searches_on_blocks.assign(
-    _context.partition.k, CAtomic<size_t>(0));
 
   // Find all cut hyperedges between the blocks
   tbb::enumerable_thread_specific<HyperedgeID> local_num_hes(0);
@@ -250,25 +392,13 @@ void QuotientGraph::initialize(const PartitionedHypergraph& phg) {
 
   // Initalize block scheduler queue
   std::vector<BlockPair> active_blocks;
-  const bool skip_small_cuts = !isInputHypergraph() && _context.refinement.advanced.skip_small_cuts;
   for ( PartitionID i = 0; i < _context.partition.k; ++i ) {
     for ( PartitionID j = i + 1; j < _context.partition.k; ++j ) {
-      _quotient_graph[i][j].skip_small_cuts = skip_small_cuts;
       _quotient_graph[i][j].initial_cut_he_weight = _quotient_graph[i][j].cut_he_weight;
       _quotient_graph[i][j].initial_num_cut_hes =  _quotient_graph[i][j].cut_hes.size();
-      if ( _quotient_graph[i][j].isActive() ) {
-        active_blocks.push_back( BlockPair { i, j } );
-      }
     }
   }
-  std::sort(active_blocks.begin(), active_blocks.end(),
-    [&](const BlockPair& lhs, const BlockPair& rhs) {
-      return _quotient_graph[lhs.i][lhs.j].initial_cut_he_weight >
-        _quotient_graph[rhs.i][rhs.j].initial_cut_he_weight;
-    });
-  for ( const BlockPair& blocks : active_blocks ) {
-    pushBlockPairIntoQueue(blocks);
-  }
+  _active_block_scheduler.initialize(isInputHypergraph());
 
   // Sort cut hyperedges of each block
   if ( _context.refinement.advanced.sort_cut_hes ) {
@@ -283,7 +413,7 @@ void QuotientGraph::initialize(const PartitionedHypergraph& phg) {
 
 size_t QuotientGraph::maximumRequiredRefiners() const {
   const size_t current_active_block_pairs =
-    _block_scheduler.unsafe_size() + _num_active_searches + 1;
+    _active_block_scheduler.numRemainingBlocks() + _num_active_searches + 1;
   return std::min(current_active_block_pairs, _context.shared_memory.num_threads);
 }
 

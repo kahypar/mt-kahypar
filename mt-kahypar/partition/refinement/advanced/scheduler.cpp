@@ -53,14 +53,19 @@ bool AdvancedRefinementScheduler::refineImpl(
                 const double)  {
   unused(phg);
   ASSERT(_phg == &phg);
+  _quotient_graph.setObjective(best_metrics.getMetric(
+    kahypar::Mode::direct_kway, _context.partition.objective));
 
   utils::Timer::instance().start_timer("advanced_refinement_scheduling", "Advanced Refinement Scheduling");
   std::atomic<HyperedgeWeight> overall_delta(0);
   tbb::parallel_for(0UL, _refiner.numAvailableRefiner(), [&](const size_t i) {
-    while ( !_quotient_graph.terminate() && i < _quotient_graph.maximumRequiredRefiners() ) {
+    while ( i < _quotient_graph.maximumRequiredRefiners() ) {
       SearchID search_id = _quotient_graph.requestNewSearch(_refiner);
       if ( search_id != QuotientGraph::INVALID_SEARCH_ID ) {
-        DBG << "Start search" << search_id << "( Blocks =" << blocksOfSearch(search_id) << ", Thread =" << sched_getcpu() << ")";
+        DBG << "Start search" << search_id
+            << "( Blocks =" << blocksOfSearch(search_id)
+            << ", Thread =" << sched_getcpu()
+            << ", Refiner =" << i << ")";
         utils::Timer::instance().start_timer("construct_problem", "Construct Problem", true);
         const vec<HypernodeID> refinement_nodes =
           _constructor.construct(search_id, _quotient_graph, _refiner, phg);
@@ -87,6 +92,12 @@ bool AdvancedRefinementScheduler::refineImpl(
         _constructor.releaseNodes(search_id, refinement_nodes);
         _quotient_graph.finalizeSearch(search_id, improved_solution ? delta : 0);
         _refiner.finalizeSearch(search_id);
+        DBG << "End search" << search_id
+            << "( Blocks =" << blocksOfSearch(search_id)
+            << ", Thread =" << sched_getcpu()
+            << ", Refiner =" << i << ")";
+      } else {
+        break;
       }
     }
     DBG << RED << "Refiner" << i << "terminates!" << END;
