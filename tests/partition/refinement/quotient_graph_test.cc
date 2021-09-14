@@ -78,14 +78,17 @@ TEST_F(AQuotientGraph, SimulatesBlockScheduling) {
   vec<vec<CAtomic<HyperedgeWeight>>> cut_he_weights(
     context.partition.k, vec<CAtomic<HyperedgeWeight>>(
       context.partition.k, CAtomic<HyperedgeWeight>(0)));
+  vec<vec<HyperedgeWeight>> initial_cut_he_weights(
+    context.partition.k, vec<HyperedgeWeight>(context.partition.k, 0));
   for ( PartitionID i = 0; i < context.partition.k; ++i ) {
     for ( PartitionID j = i + 1; j < context.partition.k; ++j ) {
       cut_he_weights[i][j] += qg.getCutHyperedgeWeightOfBlockPair(i, j);
+      initial_cut_he_weights[i][j] = qg.getCutHyperedgeWeightOfBlockPair(i, j);
     }
   }
 
   tbb::parallel_for(0U, std::thread::hardware_concurrency(), [&](const unsigned int) {
-    while ( !qg.terminate() ) {
+    while ( true ) {
       SearchID search_id = qg.requestNewSearch(refiner);
       if ( search_id != QuotientGraph::INVALID_SEARCH_ID ) {
         BlockPairCutHyperedges block_pair_cut_hes =
@@ -99,13 +102,15 @@ TEST_F(AQuotientGraph, SimulatesBlockScheduling) {
         }
         ASSERT_LE(num_edges, 10);
         qg.finalizeConstruction(search_id);
-        qg.finalizeSearch(search_id, false);
+        qg.finalizeSearch(search_id, 0);
         refiner.finalizeSearch(search_id);
 
         if ( debug ) {
           LOG << "Thread" << sched_getcpu() << "executes search on block pair (" << i << "," << j << ")"
               << "with" << block_pair_cut_hes.cut_hes.size() << "cut hyperedges ( Search ID:" << search_id << ")";
         }
+      } else {
+        break;
       }
     }
   });
@@ -113,7 +118,10 @@ TEST_F(AQuotientGraph, SimulatesBlockScheduling) {
   // Each edge should be scheduled once
   for ( PartitionID i = 0; i < context.partition.k; ++i ) {
     for ( PartitionID j = i + 1; j < context.partition.k; ++j ) {
-      ASSERT_EQ(0, cut_he_weights[i][j]);
+      if ( initial_cut_he_weights[i][j] > 0 ) {
+        ASSERT_LT(cut_he_weights[i][j], initial_cut_he_weights[i][j])
+          << "Blocks (" << i << "," << j << ") not scheduled!";
+      }
     }
   }
 }
@@ -128,14 +136,17 @@ TEST_F(AQuotientGraph, SimulatesBlockSchedulingWithSuccessfulSearches) {
   vec<vec<CAtomic<HyperedgeWeight>>> cut_he_weights(
     context.partition.k, vec<CAtomic<HyperedgeWeight>>(
       context.partition.k, CAtomic<HyperedgeWeight>(0)));
+  vec<vec<HyperedgeWeight>> initial_cut_he_weights(
+    context.partition.k, vec<HyperedgeWeight>(context.partition.k, 0));
   for ( PartitionID i = 0; i < context.partition.k; ++i ) {
     for ( PartitionID j = i + 1; j < context.partition.k; ++j ) {
       cut_he_weights[i][j] += qg.getCutHyperedgeWeightOfBlockPair(i, j);
+      initial_cut_he_weights[i][j] = qg.getCutHyperedgeWeightOfBlockPair(i, j);
     }
   }
 
   tbb::parallel_for(0U, std::thread::hardware_concurrency(), [&](const unsigned int cpu_id) {
-    while ( !qg.terminate() ) {
+    while ( true ) {
       SearchID search_id = qg.requestNewSearch(refiner);
       if ( search_id != QuotientGraph::INVALID_SEARCH_ID ) {
         BlockPairCutHyperedges block_pair_cut_hes =
@@ -148,14 +159,12 @@ TEST_F(AQuotientGraph, SimulatesBlockSchedulingWithSuccessfulSearches) {
           cut_he_weight += phg.edgeWeight(he);
           ++num_edges;
         }
+
         ASSERT_LE(num_edges, 10);
         cut_he_weights[i][j] -= cut_he_weight;
         qg.finalizeConstruction(search_id);
 
         bool success = utils::Randomize::instance().flipCoin(cpu_id);
-        if ( success ) {
-          cut_he_weights[i][j] += cut_he_weight;
-        }
         qg.finalizeSearch(search_id, success);
         refiner.finalizeSearch(search_id);
 
@@ -164,6 +173,8 @@ TEST_F(AQuotientGraph, SimulatesBlockSchedulingWithSuccessfulSearches) {
               << "with" << block_pair_cut_hes.cut_hes.size() << "cut hyperedges ( Search ID:" << search_id << ", Success:"
               << std::boolalpha << success << ")";
         }
+      } else {
+        break;
       }
     }
   });
@@ -171,7 +182,10 @@ TEST_F(AQuotientGraph, SimulatesBlockSchedulingWithSuccessfulSearches) {
   // Each edge should be scheduled once
   for ( PartitionID i = 0; i < context.partition.k; ++i ) {
     for ( PartitionID j = i + 1; j < context.partition.k; ++j ) {
-      EXPECT_EQ(0, cut_he_weights[i][j]) << V(i) << " " << V(j);
+      if ( initial_cut_he_weights[i][j] > 0 ) {
+        ASSERT_LT(cut_he_weights[i][j], initial_cut_he_weights[i][j])
+          << "Blocks (" << i << "," << j << ") not scheduled!";
+      }
     }
   }
 }

@@ -127,6 +127,7 @@ void QuotientGraph::ActiveBlockScheduler::initialize(const bool is_input_hypergr
             _quotient_graph[rhs.i][rhs.j].cut_he_weight );
       });
     _rounds.emplace_back(_context, _quotient_graph, _num_active_searches_on_blocks);
+    ++_num_rounds;
     for ( const BlockPair& blocks : active_blocks ) {
       DBG << "Schedule blocks (" << blocks.i << "," << blocks.j << ") in round 1 ("
           << "Total Improvement =" << _quotient_graph[blocks.i][blocks.j].total_improvement << ","
@@ -139,7 +140,7 @@ void QuotientGraph::ActiveBlockScheduler::initialize(const bool is_input_hypergr
 bool QuotientGraph::ActiveBlockScheduler::popBlockPairFromQueue(BlockPair& blocks, size_t& round) {
   bool success = false;
   round = _first_active_round;
-  while ( !_terminate && round < _rounds.size() ) {
+  while ( !_terminate && round < _num_rounds ) {
     success = _rounds[round].popBlockPairFromQueue(blocks);
     if ( success ) {
       break;
@@ -147,10 +148,15 @@ bool QuotientGraph::ActiveBlockScheduler::popBlockPairFromQueue(BlockPair& block
     ++round;
   }
 
-  if ( success && round == _rounds.size() - 1 ) {
-    // There must always be a next round available such that we can
-    // reschedule block pairs that become active.
-    _rounds.emplace_back(_context, _quotient_graph, _num_active_searches_on_blocks);
+  if ( success && round == _num_rounds - 1 ) {
+    _round_lock.lock();
+    if ( round == _num_rounds - 1 ) {
+      // There must always be a next round available such that we can
+      // reschedule block pairs that become active.
+      _rounds.emplace_back(_context, _quotient_graph, _num_active_searches_on_blocks);
+      ++_num_rounds;
+    }
+    _round_lock.unlock();
   }
 
   return success;

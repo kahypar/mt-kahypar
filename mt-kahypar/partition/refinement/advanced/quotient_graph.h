@@ -48,7 +48,7 @@ struct BlockPairCutHyperedges {
 
 class QuotientGraph {
 
-  static constexpr bool debug = true;
+  static constexpr bool debug = false;
   static constexpr bool enable_heavy_assert = false;
 
   // ! Represents an edge of the quotient graph
@@ -210,6 +210,7 @@ class QuotientGraph {
                                   vec<vec<QuotientGraphEdge>>& quotient_graph) :
       _context(context),
       _quotient_graph(quotient_graph),
+      _num_rounds(0),
       _rounds(),
       _num_active_searches_on_blocks(
         context.partition.k, CAtomic<size_t>(0)),
@@ -257,6 +258,7 @@ class QuotientGraph {
    private:
 
     void reset() {
+      _num_rounds.store(0);
       _rounds.clear();
       _num_active_searches_on_blocks.assign(
         _context.partition.k, CAtomic<size_t>(0));
@@ -272,6 +274,7 @@ class QuotientGraph {
     // ! Quotient graph
     vec<vec<QuotientGraphEdge>>& _quotient_graph;
     // Contains all active block scheduling rounds
+    CAtomic<size_t> _num_rounds;
     tbb::concurrent_vector<ActiveBlockSchedulingRound> _rounds;
     // ! Number of active searches on each block
     vec<CAtomic<size_t>> _num_active_searches_on_blocks;
