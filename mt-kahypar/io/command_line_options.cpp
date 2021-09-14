@@ -520,6 +520,11 @@ namespace mt_kahypar {
              "parts are taken using bitcopy operations within a lock on the hyperedge and then traversed outside of the"
              " lock. May reduce work that is performed in the hyperedge while increasing overall work.  "
              "(Only has an effect in MtKaHyParStrongAsync.)")
+            ("u-use-multiqueue",
+            po::value<bool>(&context.uncoarsening.use_multiqueue)->value_name("<bool>")->default_value(false),
+            "If this option is set, multiqueue will be used as the priority queue for picking the next ConntractionGroup to uncontract."
+            "multiqueue must be installed for this to take effect. If not set or multiqueue not found an alternative PQ is used."
+            "(Only has an effect in MtKaHyParStrongAsync.)")
             ;
     return options;
   }

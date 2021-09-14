@@ -1463,13 +1463,13 @@ using ::testing::Return;
         while (!pools.empty()) {
             auto pool = pools.back().get();
             hypergraph.sortStableActivePinsToBeginning();
-            while (pool->hasActive()) {
+            while (!pool->allAccepted()) {
                 ContractionGroupID groupID = invalidGroupID;
                 bool picked = pool->tryToPickActiveID(groupID, 0);
                 if (!picked) continue;
                 const auto& group = pool->group(groupID);
                 hypergraph.uncontract(group, groupID, NOOP_BATCH_FUNC, NOOP_BATCH_FUNC);
-                pool->activateAllSuccessors(groupID);
+                pool->activateAllSuccessors(groupID, 0);
             }
             pools.pop_back();
         }

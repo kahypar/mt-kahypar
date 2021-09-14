@@ -36,7 +36,6 @@ namespace mt_kahypar {
 using HardwareTopology = mt_kahypar::parallel::HardwareTopology<>;
 using TBBInitializer = mt_kahypar::parallel::TBBInitializer<HardwareTopology, false>;
 
-
 #ifdef USE_STRONG_PARTITIONER
 using Hypergraph = ds::DynamicHypergraph;
 using HypergraphFactory = ds::DynamicHypergraphFactory;

@@ -207,6 +207,7 @@ struct UncoarseningParameters {
   bool region_comparison_with_full_similarities = true;
   bool use_old_refinement_seeds = false;
   bool use_bitcopy_snapshots = false;
+  bool use_multiqueue = false;
 };
 
 std::ostream & operator<< (std::ostream& str, const UncoarseningParameters& params);

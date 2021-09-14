@@ -7,6 +7,7 @@
 #include <queue>
 //#include <tbb/concurrent_queue.h>
 #include <mt-kahypar/partition/context.h>
+#include <multiqueue/int_multiqueue.hpp>
 #include "uncontraction_group_tree.h"
 #include "mt-kahypar/datastructures/async/async_common.h"
 #include "depth_priority_queue.h"
@@ -142,6 +143,8 @@ namespace mt_kahypar::ds
         typename RegionComparator = Mandatory>
     class ConcurrentQueueGroupPool {
 
+        using Multiqueue = multiqueue::int_multiqueue<uint32_t, ContractionGroupID>;
+
     public:
 
         /**
@@ -154,7 +157,6 @@ namespace mt_kahypar::ds
 //                  }),
 //                _queue_lock(),
 //                _active_ids(_cmp)
-                  _active_ids(_hierarchy->getNumberOfDepths(), std::move(_hierarchy->getNumberOfGroupsPerDepth())),
                   _node_region_comparator(nullptr),
                   _region_similarity_retries(context.uncoarsening.node_region_similarity_retries)
                   , _picked_ids_ets(std::vector<ContractionGroupID>(context.uncoarsening.node_region_similarity_retries, invalidGroupID)),
@@ -164,12 +166,24 @@ namespace mt_kahypar::ds
                   _calls_to_pick_with_empty_pq(0),
                   _num_accepted_uncontractions(0),
                   _calculate_full_similarities(context.uncoarsening.region_comparison_with_full_similarities),
+                  _use_multiqueue(context.uncoarsening.use_multiqueue),
                   _similarity_to_others_threshold(context.uncoarsening.node_region_similarity_threshold)
                 {
             ASSERT(_hierarchy);
+
+            if (_use_multiqueue) {
+              _mq_active_ids = std::make_unique<Multiqueue>(context.shared_memory.num_threads);
+            } else {
+              _dpq_active_ids = std::make_unique<DepthPriorityQueue>(_hierarchy->getNumberOfDepths(), std::move(_hierarchy->getNumberOfGroupsPerDepth()));
+            }
+
             auto roots = _hierarchy->roots();
+            size_t i = 0;
             for(auto r: roots) {
-                activate(r);
+                activate(r, i++);
+                if (i == context.shared_memory.num_threads) {
+                  i = 0;
+                }
             }
         }
 
@@ -179,10 +193,6 @@ namespace mt_kahypar::ds
         ConcurrentQueueGroupPool& operator=(ConcurrentQueueGroupPool&& other) = delete;
 
         ~ConcurrentQueueGroupPool() = default;
-
-        uint32_t getNumActive() {
-            return unsafeNumActive();
-        }
 
         const GroupHierarchy* getPtrToHierarchyForQueries() {
           ASSERT(_hierarchy);
@@ -271,7 +281,7 @@ namespace mt_kahypar::ds
 
             destination = invalidGroupID;
             if (!_node_region_comparator || (_region_similarity_retries == 0)) {
-              return tryPopActive(destination);
+              return tryPopActive(destination, task_id);
             } else {
               const size_t num_edges_active_in_this_and_other_tasks = _node_region_comparator->numberOfEdgesActiveInThisTaskAndAnyOtherTask(task_id);
               std::vector<pick_candidate>& candidates = _pick_candidates_ets.local();
@@ -289,7 +299,7 @@ namespace mt_kahypar::ds
                   destination = candidates[best_idx].group_id;
                   for (uint32_t j = 0; j < i; ++j) {
                     if (j != best_idx) {
-                      insertActive(candidates[j].group_id);
+                      insertActive(candidates[j].group_id, task_id);
                     }
                   }
                   if (destination == invalidGroupID) {
@@ -305,7 +315,7 @@ namespace mt_kahypar::ds
                   // If good candidate found, return it right away and reinsert others that were picked
                   destination = next_candidate.group_id;
                   for (uint32_t j = 0; j < i; ++j) {
-                      insertActive(candidates[j].group_id);
+                      insertActive(candidates[j].group_id, task_id);
                   }
                   return true;
                 } else {
@@ -321,7 +331,7 @@ namespace mt_kahypar::ds
               destination = candidates[best_idx].group_id;
               for (uint32_t j = 0; j < _region_similarity_retries; ++j) {
                 if (j != best_idx) {
-                  insertActive(candidates[j].group_id);
+                  insertActive(candidates[j].group_id, task_id);
                 }
               }
               ASSERT(destination != invalidGroupID);
@@ -334,14 +344,14 @@ namespace mt_kahypar::ds
 
           destination = invalidGroupID;
           if (!_node_region_comparator || (_region_similarity_retries == 0)) {
-            return tryPopActive(destination);
+            return tryPopActive(destination, task_id);
           } else {
             std::vector<ContractionGroupID>& pickedIDs = _picked_ids_ets.local();
             size_t best_idx = 0;
             double best_part_of_edges_before_fail = 0.0;
             for (uint32_t i = 0; i < _region_similarity_retries; ++i) {
               ContractionGroupID pickedID = invalidGroupID;
-              bool picked = tryPopActive(pickedID);
+              bool picked = tryPopActive(pickedID, task_id);
               if (!picked) {
                 if (i == 0) {
                   _calls_to_pick_with_empty_pq.fetch_add(1, std::memory_order_relaxed);
@@ -351,7 +361,7 @@ namespace mt_kahypar::ds
                   destination = pickedIDs[best_idx];
                   for (uint32_t j = 0; j < i; ++j) {
                     if (j != best_idx) {
-                      insertActive(pickedIDs[j]);
+                      insertActive(pickedIDs[j], task_id);
                     }
                   }
                 }
@@ -365,7 +375,7 @@ namespace mt_kahypar::ds
                 // If good candidate found return it and reinsert all previously found
                 destination = pickedID;
                 for (uint32_t j = 0; j < i; ++j) {
-                  insertActive(pickedIDs[j]);
+                  insertActive(pickedIDs[j], task_id);
                 }
                 return true;
               } else {
@@ -381,7 +391,7 @@ namespace mt_kahypar::ds
             destination = pickedIDs[best_idx];
             for (uint32_t j = 0; j < _region_similarity_retries; ++j) {
               if (j != best_idx) {
-                insertActive(pickedIDs[j]);
+                insertActive(pickedIDs[j], task_id);
               }
             }
             ASSERT(destination != invalidGroupID);
@@ -390,27 +400,26 @@ namespace mt_kahypar::ds
         }
 
         /// Convenience method to call activate() on all successors
-        void activateAllSuccessors(const ContractionGroupID id) {
+        void activateAllSuccessors(const ContractionGroupID id, const size_t task_id) {
           ASSERT(_hierarchy);
             auto succs = _hierarchy->successors(id);
             for (auto s : succs) {
-                activate(s);
+                activate(s, task_id);
             }
         }
 
-        bool hasActive() {
-            return !unsafeEmpty();
-        }
-
-        void activate(const ContractionGroupID id) {
-            insertActive(id);
+        void activate(const ContractionGroupID id, const size_t task_id) {
+            insertActive(id, task_id);
         }
 
         // ! Mark a given id as accepted, i.e. mark that a thread will commence working on uncoarsening the group and
         // ! that it will not be reinserted into the pool again.
         void markAccepted(const ContractionGroupID id) {
           ASSERT(_hierarchy);
-          _active_ids.increment_finished(_hierarchy->depth(id));
+          if (!_use_multiqueue) {
+            ASSERT(_dpq_active_ids);
+            _dpq_active_ids->increment_finished(_hierarchy->depth(id));
+          }
           _num_accepted_uncontractions.fetch_add(group(id).size(), std::memory_order_relaxed);
         }
 
@@ -458,8 +467,11 @@ namespace mt_kahypar::ds
 
           utils::MemoryTreeNode* hierarchy_node = parent->addChild("Uncontraction Hierarchy");
           _hierarchy->memoryConsumption(hierarchy_node);
-          utils::MemoryTreeNode* depth_pq_node = parent->addChild("Depth Priority Queue");
-          _active_ids.memoryConsumption(depth_pq_node);
+          if (!_use_multiqueue) {
+            ASSERT(_dpq_active_ids);
+            utils::MemoryTreeNode* depth_pq_node = parent->addChild("Depth Priority Queue");
+            _dpq_active_ids->memoryConsumption(depth_pq_node);
+          }
         }
 
     private:
@@ -481,38 +493,41 @@ namespace mt_kahypar::ds
 //        }
 
 
-        bool tryPopActive(ContractionGroupID& destination) {
+        bool tryPopActive(ContractionGroupID& destination, const size_t task_id) {
 //                _queue_lock.lock();
 //                destination = _active_ids.top();
 //                _active_ids.pop();
 //                _queue_lock.unlock();
 //                ASSERT(destination != invalidGroupID);
 //                return true;
-              return _active_ids.try_pop(destination);
+
+          if (_use_multiqueue) {
+            ASSERT(_mq_active_ids);
+            auto handle = _mq_active_ids->get_handle(task_id);
+            Multiqueue::value_type ret;
+            bool success = _mq_active_ids->extract_top(handle, ret);
+            if (success) {
+              destination = ret.second;
+            }
+            return success;
+          } else {
+            ASSERT(_dpq_active_ids);
+            unused(task_id);
+            return _dpq_active_ids->try_pop(destination);
+          }
         }
 
-        void insertActive(ContractionGroupID id) {
+        void insertActive(ContractionGroupID id, const size_t task_id) {
             ASSERT(_hierarchy);
-            _active_ids.push(id, _hierarchy->depth(id));
-//            _queue_lock.lock();
-//            _active_ids.push(id);
-//            _queue_lock.unlock();
-        }
-
-//        void popActive(ContractionGroupID& destination) {
-//            while (!_active_ids.try_pop(destination)) {/* continue trying to pop */}
-//        }
-
-        ContractionGroupID unsafeNumActive() {
-            ContractionGroupID num_active = _active_ids.unsafe_size();
-            return num_active;
-//            return _active_ids.size();
-        }
-
-        bool unsafeEmpty() {
-            bool empty = _active_ids.unsafe_empty();
-//            bool empty = _active_ids.empty();
-            return empty;
+          if (_use_multiqueue) {
+            ASSERT(_mq_active_ids);
+            auto handle = _mq_active_ids->get_handle(task_id);
+            _mq_active_ids->push(handle, {_hierarchy->depth(id), id});
+          } else {
+            ASSERT(_dpq_active_ids);
+            unused(task_id);
+            _dpq_active_ids->push(id, _hierarchy->depth(id));
+          }
         }
 
         struct pick_candidate {
@@ -522,7 +537,7 @@ namespace mt_kahypar::ds
         };
 
         bool tryToGetNewCandidate(pick_candidate& candidate, const size_t task_id, const HyperedgeID num_active_in_this_and_other_tasks) {
-          bool picked = tryPopActive(candidate.group_id);
+          bool picked = tryPopActive(candidate.group_id, task_id);
           if (!picked) return false;
 
           HypernodeID repr = group(candidate.group_id).getRepresentative();
@@ -566,7 +581,9 @@ namespace mt_kahypar::ds
 //        SpinLock _queue_lock;
 //        std::priority_queue<ContractionGroupID, std::vector<ContractionGroupID>, DepthCompare> _active_ids;
 //        tbb::concurrent_queue<ContractionGroupID> _active_ids;
-        DepthPriorityQueue _active_ids;
+
+        std::unique_ptr<Multiqueue> _mq_active_ids;
+        std::unique_ptr<DepthPriorityQueue> _dpq_active_ids;
 
         RegionComparator* _node_region_comparator;
         const size_t _region_similarity_retries;
@@ -580,6 +597,7 @@ namespace mt_kahypar::ds
         CAtomic<size_t> _num_accepted_uncontractions;
 
         const bool _calculate_full_similarities;
+        const bool _use_multiqueue;
 
         const double _similarity_to_others_threshold;
         const double _similarity_to_calling_task_threshold = 0.05;

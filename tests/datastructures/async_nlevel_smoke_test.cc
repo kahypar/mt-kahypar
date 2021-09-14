@@ -187,7 +187,7 @@ namespace mt_kahypar {
 
                             if (!uncontracted) {
                                 // If uncontraction failed, retry by reactivating and spawning new task
-                                pool->activate(groupID);
+                                pool->activate(groupID, task_id);
                                 pick_new_group = true;
                             } else {
 
@@ -201,7 +201,7 @@ namespace mt_kahypar {
                                     auto suc_end = successors.end();
                                     groupID = *suc_begin;
                                     for (auto it = suc_begin + 1; it < suc_end; ++it) {
-                                        pool->activate(*it);
+                                        pool->activate(*it, task_id);
                                     }
                                     pick_new_group = false;
                                 } else {
@@ -216,7 +216,7 @@ namespace mt_kahypar {
                     }
                     uncoarsen_tg.wait();
                 } else {
-                    while (pool->hasActive()) {
+                    while (!pool->allAccepted()) {
                         auto groupID = invalidGroupID;
                         pool->tryToPickActiveID(groupID, 0);
                         const auto& group = pool->group(groupID);
@@ -224,9 +224,9 @@ namespace mt_kahypar {
                         bool uncontracted = uncontract_group_and_refine(group, groupID);
 
                         if (uncontracted) {
-                            pool->activateAllSuccessors(groupID);
+                            pool->activateAllSuccessors(groupID, 0);
                         } else {
-                            pool->activate(groupID);
+                            pool->activate(groupID, 0);
                         }
                     }
                 }

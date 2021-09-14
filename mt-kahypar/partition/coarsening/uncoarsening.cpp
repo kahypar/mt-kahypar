@@ -553,7 +553,7 @@ namespace mt_kahypar {
           bool acquired = _lock_manager_for_async->tryToAcquireLock(group.getRepresentative(), groupID);
           if (!acquired) {
 
-            pool->activate(groupID);
+            pool->activate(groupID, task_id);
             pick_new_group = true;
             continue;
           }
@@ -659,14 +659,14 @@ namespace mt_kahypar {
                 // Insert all successors into the PQ and pick a new group for the next iteration.
                 for (auto it = suc_begin; it < suc_end; ++it) {
                   num_succ++;
-                  pool->activate(*it);
+                  pool->activate(*it, task_id);
                 }
                 pick_new_group = true;
               } else {
                 // Insert all but one successor into the PQ and work on the remaining successor. Do not pick a new group next iteration.
                 groupID = *suc_begin;
                 for (auto it = suc_begin + 1; it < suc_end; ++it) {
-                  pool->activate(*it);
+                  pool->activate(*it, task_id);
                 }
                 pick_new_group = false;
               }
