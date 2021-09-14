@@ -4,3 +4,6 @@
 [submodule "external_tools/kahypar"]
 	path = external_tools/kahypar
 	url = https://github.com/SebastianSchlag/kahypar.git
+[submodule "external_tools/multiqueue"]
+	path = external_tools/multiqueue
+	url = https://github.com/marvinwilliams/multiqueue.git
