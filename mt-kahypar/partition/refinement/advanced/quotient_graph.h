@@ -221,7 +221,8 @@ class QuotientGraph {
       _is_input_hypergraph(false) { }
 
     // ! Initialize the first round of the active block scheduling strategy
-    void initialize(const bool is_input_hypergraph);
+    void initialize(const vec<uint8_t>& active_blocks,
+                    const bool is_input_hypergraph);
 
     // ! Pops a block pair from the queue.
     // ! Returns true, if a block pair was successfully popped from the queue.
@@ -338,12 +339,17 @@ public:
     _active_block_scheduler(context, _quotient_graph),
     _num_active_searches(0),
     _searches(),
-    _local_bfs(hg.initialNumNodes(), hg.initialNumEdges()) {
+    _local_bfs(hg.initialNumNodes(), hg.initialNumEdges()),
+    _partition_snapshot() {
     for ( PartitionID i = 0; i < _context.partition.k; ++i ) {
       for ( PartitionID j = i + 1; j < _context.partition.k; ++j ) {
         _quotient_graph[i][j].blocks.i = i;
         _quotient_graph[i][j].blocks.j = j;
       }
+    }
+
+    if ( doPartitionSnapshot() ) {
+      _partition_snapshot.assign(hg.initialNumNodes(), kInvalidPartition);
     }
   }
 
@@ -431,6 +437,14 @@ public:
     return _quotient_graph[i][j].cut_he_weight;
   }
 
+  void storePartition(const PartitionedHypergraph& phg) {
+    if ( doPartitionSnapshot() ) {
+      phg.doParallelForAllNodes([&](const HypernodeID hn) {
+        _partition_snapshot[hn] = phg.partID(hn);
+      });
+    }
+  }
+
  private:
 
   void resetQuotientGraphEdges();
@@ -448,6 +462,13 @@ public:
 
   bool isInputHypergraph() const {
     return _current_num_edges == _initial_num_edges;
+  }
+
+  bool doPartitionSnapshot() const {
+    return ( _context.partition.paradigm == Paradigm::nlevel &&
+             _context.refinement.global_fm.refine_until_no_improvement ) ||
+           ( _context.partition.paradigm == Paradigm::multilevel &&
+             _context.refinement.refine_until_no_improvement );
   }
 
   const PartitionedHypergraph* _phg;
@@ -470,6 +491,10 @@ public:
 
   // ! BFS data required to sort cut hyperedges
   tbb::enumerable_thread_specific<BFSData> _local_bfs;
+
+  // ! Snapshot of the partition to detect changes, if called
+  // ! multiple times (refine until no improvement)
+  vec<PartitionID> _partition_snapshot;
 };
 
 }  // namespace kahypar

@@ -103,21 +103,22 @@ bool QuotientGraph::ActiveBlockSchedulingRound::pushBlockPairIntoQueue(const Blo
   }
 }
 
-void QuotientGraph::ActiveBlockScheduler::initialize(const bool is_input_hypergraph) {
+void QuotientGraph::ActiveBlockScheduler::initialize(const vec<uint8_t>& active_blocks,
+                                                     const bool is_input_hypergraph) {
   reset();
   _is_input_hypergraph = is_input_hypergraph;
 
-  vec<BlockPair> active_blocks;
+  vec<BlockPair> active_block_pairs;
   for ( PartitionID i = 0; i < _context.partition.k; ++i ) {
     for ( PartitionID j = i + 1; j < _context.partition.k; ++j ) {
-      if ( isActiveBlockPair(i, j, 0) ) {
-        active_blocks.push_back( BlockPair { i, j } );
+      if ( isActiveBlockPair(i, j, 0) && active_blocks[i] && active_blocks[j] ) {
+        active_block_pairs.push_back( BlockPair { i, j } );
       }
     }
   }
 
-  if ( active_blocks.size() > 0 ) {
-    std::sort(active_blocks.begin(), active_blocks.end(),
+  if ( active_block_pairs.size() > 0 ) {
+    std::sort(active_block_pairs.begin(), active_block_pairs.end(),
       [&](const BlockPair& lhs, const BlockPair& rhs) {
         return _quotient_graph[lhs.i][lhs.j].total_improvement >
           _quotient_graph[rhs.i][rhs.j].total_improvement ||
@@ -128,7 +129,7 @@ void QuotientGraph::ActiveBlockScheduler::initialize(const bool is_input_hypergr
       });
     _rounds.emplace_back(_context, _quotient_graph, _num_active_searches_on_blocks);
     ++_num_rounds;
-    for ( const BlockPair& blocks : active_blocks ) {
+    for ( const BlockPair& blocks : active_block_pairs ) {
       DBG << "Schedule blocks (" << blocks.i << "," << blocks.j << ") in round 1 ("
           << "Total Improvement =" << _quotient_graph[blocks.i][blocks.j].total_improvement << ","
           << "Cut Weight =" << _quotient_graph[blocks.i][blocks.j].cut_he_weight << ")";
@@ -388,17 +389,32 @@ void QuotientGraph::initialize(const PartitionedHypergraph& phg) {
       }
     }
   });
-  _current_num_edges = local_num_hes.combine(std::plus<HyperedgeID>());
+  const HyperedgeID tmp_num_edges = local_num_hes.combine(std::plus<HyperedgeID>());
+  const bool is_same_hypergraph = _current_num_edges == tmp_num_edges;
+  _current_num_edges = tmp_num_edges;
+
+  vec<uint8_t> active_blocks(_context.partition.k, false);
+  if ( is_same_hypergraph ) {
+    phg.doParallelForAllNodes([&](const HypernodeID& hn) {
+      const PartitionID prev_id = _partition_snapshot[hn];
+      const PartitionID cur_id = phg.partID(hn);
+      if ( prev_id != kInvalidPartition && prev_id != cur_id ) {
+        active_blocks[prev_id] = true;
+        active_blocks[cur_id] = true;
+      }
+    });
+  } else {
+    active_blocks.assign(_context.partition.k, true);
+  }
 
   // Initalize block scheduler queue
-  std::vector<BlockPair> active_blocks;
   for ( PartitionID i = 0; i < _context.partition.k; ++i ) {
     for ( PartitionID j = i + 1; j < _context.partition.k; ++j ) {
       _quotient_graph[i][j].initial_cut_he_weight = _quotient_graph[i][j].cut_he_weight;
       _quotient_graph[i][j].initial_num_cut_hes =  _quotient_graph[i][j].cut_hes.size();
     }
   }
-  _active_block_scheduler.initialize(isInputHypergraph());
+  _active_block_scheduler.initialize(active_blocks, isInputHypergraph());
 
   // Sort cut hyperedges of each block
   if ( _context.refinement.advanced.sort_cut_hes ) {
