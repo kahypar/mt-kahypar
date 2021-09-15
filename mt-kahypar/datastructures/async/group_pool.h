@@ -143,7 +143,14 @@ namespace mt_kahypar::ds
         typename RegionComparator = Mandatory>
     class ConcurrentQueueGroupPool {
 
-        using Multiqueue = multiqueue::int_multiqueue<uint32_t, ContractionGroupID, multiqueue::configuration::Merging>;
+        struct StickyMQConfig : multiqueue::configuration::FullBuffering {
+
+            static constexpr unsigned int K = 8;
+            static constexpr unsigned int C = 8;
+
+        };
+
+        using Multiqueue = multiqueue::int_multiqueue<uint32_t, ContractionGroupID, StickyMQConfig>;
 
     public:
 
@@ -501,7 +508,7 @@ namespace mt_kahypar::ds
           if (_use_multiqueue) {
             ASSERT(_mq_active_ids);
             auto handle = _mq_active_ids->get_handle(task_id);
-            Multiqueue::value_type ret;
+            typename Multiqueue::value_type ret;
             bool success = _mq_active_ids->extract_top(handle, ret);
             if (success) {
               destination = ret.second;
