@@ -447,6 +447,10 @@ namespace mt_kahypar {
              po::value<double>((initial_partitioning ? &context.initial_partitioning.refinement.advanced.min_relative_improvement_per_round :
                       &context.refinement.advanced.min_relative_improvement_per_round))->value_name("<double>"),
              "Minimum relative improvement per active block scheduling round. If improvement is smaller than advanced search terminates.")
+            ((initial_partitioning ? "i-r-time-limit-factor" : "r-time-limit-factor"),
+             po::value<double>((initial_partitioning ? &context.initial_partitioning.refinement.advanced.time_limit_factor :
+                      &context.refinement.advanced.time_limit_factor))->value_name("<double>"),
+             "The time limit for each advanced search is time_limit_factor * average running time of all previous searches.")
             ((initial_partitioning ? "i-r-skip-small-cuts" : "r-skip-small-cuts"),
              po::value<bool>((initial_partitioning ? &context.initial_partitioning.refinement.advanced.skip_small_cuts :
                       &context.refinement.advanced.skip_small_cuts))->value_name("<bool>"),

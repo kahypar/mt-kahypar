@@ -106,8 +106,8 @@ public:
 
   double timeLimit() const {
     return shouldSetTimeLimit() ?
-      std::max(8.0 * _average_running_time, 0.1) :
-      std::numeric_limits<double>::max();
+      std::max(_context.refinement.advanced.time_limit_factor *
+        _average_running_time, 0.1) : std::numeric_limits<double>::max();
   }
 
   // ! Only for testing
