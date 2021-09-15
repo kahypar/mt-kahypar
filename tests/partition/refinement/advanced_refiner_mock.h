@@ -93,7 +93,8 @@ class AdvancedRefinerMock final : public IAdvancedRefiner {
   void initializeImpl(const PartitionedHypergraph&) { }
 
   MoveSequence refineImpl(const PartitionedHypergraph& phg,
-                          const vec<HypernodeID>& refinement_nodes) {
+                          const vec<HypernodeID>& refinement_nodes,
+                          const HighResClockTimepoint&) {
     return _refine_func(phg, refinement_nodes, _num_threads);
   }
 
