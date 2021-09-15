@@ -111,7 +111,7 @@ void QuotientGraph::ActiveBlockScheduler::initialize(const vec<uint8_t>& active_
   vec<BlockPair> active_block_pairs;
   for ( PartitionID i = 0; i < _context.partition.k; ++i ) {
     for ( PartitionID j = i + 1; j < _context.partition.k; ++j ) {
-      if ( isActiveBlockPair(i, j, 0) && active_blocks[i] && active_blocks[j] ) {
+      if ( isActiveBlockPair(i, j, 0) && ( active_blocks[i] || active_blocks[j] ) ) {
         active_block_pairs.push_back( BlockPair { i, j } );
       }
     }
