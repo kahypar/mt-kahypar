@@ -465,10 +465,11 @@ public:
   }
 
   bool doPartitionSnapshot() const {
-    return ( _context.partition.paradigm == Paradigm::nlevel &&
+    return ( ( _context.partition.paradigm == Paradigm::nlevel &&
              _context.refinement.global_fm.refine_until_no_improvement ) ||
            ( _context.partition.paradigm == Paradigm::multilevel &&
-             _context.refinement.refine_until_no_improvement );
+             _context.refinement.refine_until_no_improvement ) ) &&
+           _context.refinement.advanced.skip_stable_blocks;
   }
 
   const PartitionedHypergraph* _phg;

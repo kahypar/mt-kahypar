@@ -119,7 +119,8 @@ private:
   void initializeRefiner(std::unique_ptr<IAdvancedRefiner>& refiner);
 
   bool shouldSetTimeLimit() const {
-    return _num_refinements > static_cast<size_t>(_context.partition.k);
+    return _num_refinements > static_cast<size_t>(_context.partition.k) &&
+      _context.refinement.advanced.time_limit_factor > 1.0;
   }
 
   const Hypergraph& _hg;

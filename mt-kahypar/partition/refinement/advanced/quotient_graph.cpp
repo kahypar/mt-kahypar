@@ -394,7 +394,8 @@ void QuotientGraph::initialize(const PartitionedHypergraph& phg) {
   _current_num_edges = tmp_num_edges;
 
   vec<uint8_t> active_blocks(_context.partition.k, false);
-  if ( is_same_hypergraph ) {
+  if ( is_same_hypergraph &&
+       _context.refinement.advanced.skip_stable_blocks ) {
     phg.doParallelForAllNodes([&](const HypernodeID& hn) {
       const PartitionID prev_id = _partition_snapshot[hn];
       const PartitionID cur_id = phg.partID(hn);

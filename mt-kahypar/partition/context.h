@@ -174,9 +174,10 @@ struct AdvancedRefinementParameters {
   size_t max_bfs_distance = 0;
   size_t max_concurrency_per_block = 0;
   double min_relative_improvement_per_round = 0.0;
-  double time_limit_factor = 100000.0;
+  double time_limit_factor = 0.0;
   bool skip_small_cuts = false;
   bool skip_unpromising_blocks = false;
+  bool skip_stable_blocks = false;
   bool use_overlapping_searches = false;
   bool sort_cut_hes = false;
 };
