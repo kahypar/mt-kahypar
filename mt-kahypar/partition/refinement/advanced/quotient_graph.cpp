@@ -108,10 +108,27 @@ void QuotientGraph::ActiveBlockScheduler::initialize(const vec<uint8_t>& active_
   reset();
   _is_input_hypergraph = is_input_hypergraph;
 
+  HyperedgeWeight max_total_improvement = 1;
+  for ( PartitionID i = 0; i < _context.partition.k; ++i ) {
+    for ( PartitionID j = i + 1; j < _context.partition.k; ++j ) {
+      max_total_improvement = std::max(max_total_improvement,
+        _quotient_graph[i][j].total_improvement.load(std::memory_order_relaxed));
+    }
+  }
+
+  auto tie_breaking = [&](const PartitionID i, const PartitionID j) {
+    const double accept_prob = std::max(1,
+      _quotient_graph[i][j].total_improvement.load()) /
+      static_cast<double>(max_total_improvement);
+    const double p = utils::Randomize::instance().getRandomFloat(0.0f, 1.0f, sched_getcpu());
+    return p <= accept_prob;
+  };
+
   vec<BlockPair> active_block_pairs;
   for ( PartitionID i = 0; i < _context.partition.k; ++i ) {
     for ( PartitionID j = i + 1; j < _context.partition.k; ++j ) {
-      if ( isActiveBlockPair(i, j, 0) && ( active_blocks[i] || active_blocks[j] ) ) {
+      if ( isActiveBlockPair(i, j, 0) &&
+          ( active_blocks[i] || active_blocks[j] || tie_breaking(i, j) ) ) {
         active_block_pairs.push_back( BlockPair { i, j } );
       }
     }
