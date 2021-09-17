@@ -567,8 +567,13 @@ private:
                                 _gain_cache.syncUpdateForUncontractCaseOne(he, edge_weight, v, block, pin_count_in_part_after, pins(he));
                                 _pin_count_update_ownership[he].unlock();
                               } else {
-                                // Snapshot pins and connectivity set in lock, gain cache update outside of lock
-                                auto pins_snapshot = takePinsSnapshot(he);
+                                // Snapshot pins if necessary and connectivity set in lock, gain cache update outside of lock
+
+
+                                std::unique_ptr<IteratorRange<PinSnapshotIterator>> pins_snapshot = std::make_unique<IteratorRange<PinSnapshotIterator>>(PinSnapshotIterator::emptyPinIteratorRange());
+                                if (_gain_cache.isPinCountThatTriggersUpdateForAllPinsForUncontractCaseOne(pin_count_in_part_after)) {
+                                  pins_snapshot = std::make_unique<IteratorRange<PinSnapshotIterator>>(takePinsSnapshot(he));
+                                }
 
                                 // If u was the only pin of hyperedge he in its block before then moving out vertex u
                                 // of hyperedge he does not decrease the connectivity any more after the
@@ -580,14 +585,14 @@ private:
                                   _pins_in_part.takeBitcopySnapshotForHyperedge(he, *pcip_bitcopy_snapshot);
                                   _pin_count_update_ownership[he].unlock();
                                   _gain_cache.asyncUpdateForUncontractCaseOne(edge_weight, v, block,
-                                                                              pin_count_in_part_after, pins_snapshot,
+                                                                              pin_count_in_part_after, *pins_snapshot,
                                                                               *cs_bitcopy_snapshot, *pcip_bitcopy_snapshot);
 
                                 } else {
                                   takeConnectivitySnapshotDirectly(he, conn_set_snapshot, parts_with_one_pin_snapshot);
                                   _pin_count_update_ownership[he].unlock();
                                   _gain_cache.asyncUpdateForUncontractCaseOne(edge_weight, v, block,
-                                                                              pin_count_in_part_after, pins_snapshot,
+                                                                              pin_count_in_part_after, *pins_snapshot,
                                                                               conn_set_snapshot, parts_with_one_pin_snapshot);
                                   conn_set_snapshot.clear();
                                   parts_with_one_pin_snapshot.clear();
@@ -867,12 +872,12 @@ private:
                                          DeltaFunc&& delta_func,
                                          bool concurrent_uncontractions = false) {
     ASSERT(_is_gain_cache_initialized, "Gain cache is not initialized");
-
-    auto gain_cache_update = [&](const HyperedgeID he, const HyperedgeWeight edge_weight, IteratorRange<std::vector<HypernodeID>::const_iterator> pins,
-                        const PartitionID from, const HypernodeID pin_count_in_from_part_after,
-                        const PartitionID to, const HypernodeID pin_count_in_to_part_after) {
-        gainCacheUpdate(he, edge_weight, pins, from, pin_count_in_from_part_after, to, pin_count_in_to_part_after);
-    };
+//
+//    auto gain_cache_update = [&](const HyperedgeID he, const HyperedgeWeight edge_weight, IteratorRange<std::vector<HypernodeID>::const_iterator> pins,
+//                        const PartitionID from, const HypernodeID pin_count_in_from_part_after,
+//                        const PartitionID to, const HypernodeID pin_count_in_to_part_after) {
+//        gainCacheUpdate(he, edge_weight, pins, from, pin_count_in_from_part_after, to, pin_count_in_to_part_after);
+//    };
 
     return changeNodePart(u, from, to, max_weight_to, report_success, delta_func, GainCacheUpdateFuncWrapper(*this), concurrent_uncontractions);
 
@@ -1428,9 +1433,13 @@ private:
         gain_cache_update_func(he, edgeWeight(he), pins(he), from, pin_count_in_from_part_after, to, pin_count_in_to_part_after);
         _pin_count_update_ownership[he].unlock();
       } else {
-        auto pins_snapshot = takePinsSnapshot(he);
+
+        std::unique_ptr<IteratorRange<PinSnapshotIterator>> pins_snapshot = std::make_unique<IteratorRange<PinSnapshotIterator>>(PinSnapshotIterator::emptyPinIteratorRange());
+        if (_gain_cache.arePinCountsAfterMoveThatTriggerUpdateForAllPins(pin_count_in_from_part_after, pin_count_in_to_part_after)) {
+          pins_snapshot = std::make_unique<IteratorRange<PinSnapshotIterator>>(takePinsSnapshot(he));
+        }
         _pin_count_update_ownership[he].unlock();
-        gain_cache_update_func(he, edgeWeight(he), pins_snapshot, from, pin_count_in_from_part_after, to, pin_count_in_to_part_after);
+        gain_cache_update_func(he, edgeWeight(he), *pins_snapshot, from, pin_count_in_from_part_after, to, pin_count_in_to_part_after);
       }
 
       delta_func(he, edgeWeight(he), edge_size, pin_count_in_from_part_after, pin_count_in_to_part_after);

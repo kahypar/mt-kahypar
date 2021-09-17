@@ -154,6 +154,11 @@ public:
             "IteratorRange<PinIteratorT>, const CompressedConnectivitySetSnapshot &, const CompressedConnectivitySetSnapshot &) not supported on LightGainCache.");
     }
 
+    MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
+    bool isPinCountThatTriggersUpdateForAllPinsForUncontractCaseOne(const HypernodeID) {
+      ERROR("isPinCountThatTriggersUpdateForAllPinsForUncontractCaseOne() should not be called on LightGainCache.");
+    }
+
 
     MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
     void syncUpdateForUncontractCaseTwo(const HyperedgeID he, const HyperedgeWeight we, const HypernodeID u, const HypernodeID v) {
@@ -240,6 +245,11 @@ public:
           }
         }
       }
+    }
+
+    MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
+    bool arePinCountsAfterMoveThatTriggerUpdateForAllPins(const HypernodeID, const HypernodeID) {
+      ERROR("arePinCountsAfterMoveThatTriggerUpdateForAllPins should not be called on LightGainCache.");
     }
 
 private:
@@ -474,6 +484,14 @@ class HeavyGainCache {
       }
     }
 
+    // ! Allows user of gain cache to query whether the given pin count in a block after the uncontraction in case one
+    // ! (u and v incident to edge after uncontraction) triggers an update of all pins of the edge. (Essentially returns whether the
+    // ! pin count has been increased to two, demanding the PartitionedHypergraph to take a pin snapshot).
+    MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
+    bool isPinCountThatTriggersUpdateForAllPinsForUncontractCaseOne(const HypernodeID pin_count_in_part_after) {
+      return pin_count_in_part_after == 2;
+    }
+
     // ! Variant for synchronous uncoarsening -> no moves during uncontraction -> connectivity set queried on demand
     MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
     void syncUpdateForUncontractCaseTwo(const HyperedgeID he, const HyperedgeWeight we, const HypernodeID u,
@@ -601,6 +619,15 @@ class HeavyGainCache {
           _move_from_benefit[benefit_index(u, to)].fetch_sub(we, std::memory_order_relaxed);
         }
       }
+    }
+
+    // ! Allows user of gain cache to query whether the given pin count in the origin or target block of an edge incident
+    // ! to a moved node triggers an update of all pins of the edge. (Essentially returns whether the
+    // ! pin count in the from part has been reduced to 0 or 1 or the pin count in the to part has been increased
+    // ! to 1 or 2 demanding the PartitionedHypergraph to take a pin snapshot).
+    MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
+    bool arePinCountsAfterMoveThatTriggerUpdateForAllPins(const HypernodeID pin_count_in_from_part_after, const HypernodeID pin_count_in_to_part_after) {
+      return (pin_count_in_from_part_after == 0) || (pin_count_in_from_part_after == 1) || (pin_count_in_to_part_after == 1) || (pin_count_in_to_part_after == 2);
     }
 
     private:

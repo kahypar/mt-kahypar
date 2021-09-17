@@ -233,6 +233,20 @@ namespace mt_kahypar::ds {
 
     public:
 
+        PinSnapshotIterator(const PinSnapshotIterator& other) = default;
+        PinSnapshotIterator(PinSnapshotIterator&& other) = default;
+        PinSnapshotIterator& operator=(const PinSnapshotIterator& other) = default;
+        PinSnapshotIterator& operator=(PinSnapshotIterator&& other) = default;
+
+
+        // Factory method for an empty IteratorRange of PinSnapshotIterator
+        static IteratorRange<PinSnapshotIterator> emptyPinIteratorRange() {
+          IncidenceIterator inc_dummy;
+          HypernodeID* ptr_dummy;
+          PinSnapshotIterator pin_iterator_dummy(ptr_dummy, inc_dummy, ptr_dummy);
+          return IteratorRange<PinSnapshotIterator>(pin_iterator_dummy, pin_iterator_dummy);
+        }
+
         // Factory method that gets a PinSnapshotIterator range from given stable and volatile ranges
         static IteratorRange<PinSnapshotIterator> stitchPinIterators(IteratorRange<ConstIncidenceIterator> stable_pins_range,
                                                       IteratorRange<HypernodeID*> volatile_pins_range) {
@@ -286,6 +300,7 @@ namespace mt_kahypar::ds {
         }
 
     private:
+
 
         // Constructs a iterator at begin_of_stable
         PinSnapshotIterator(const ConstIncidenceIterator& begin_of_stable,
