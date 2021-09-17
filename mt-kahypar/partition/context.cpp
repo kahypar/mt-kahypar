@@ -158,6 +158,7 @@ namespace mt_kahypar {
       out << "    Maximum BFS Distance:             " << params.max_bfs_distance << std::endl;
       out << "    Maximum Concurrency Per Block:    " << params.max_concurrency_per_block << std::endl;
       out << "    Min Rel. Improvement Per Round:   " << params.min_relative_improvement_per_round << std::endl;
+      out << "    Stable Block Rel. Impr. Thres.:   " << params.stable_block_relative_improvement_threshold << std::endl;
       out << "    Time Limit Factor:                " << params.time_limit_factor << std::endl;
       out << "    Skip Small Cuts:                  " << std::boolalpha << params.skip_small_cuts << std::endl;
       out << "    Skip Unpromising Blocks:          " << std::boolalpha << params.skip_unpromising_blocks << std::endl;

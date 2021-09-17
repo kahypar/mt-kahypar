@@ -447,6 +447,12 @@ namespace mt_kahypar {
              po::value<double>((initial_partitioning ? &context.initial_partitioning.refinement.advanced.min_relative_improvement_per_round :
                       &context.refinement.advanced.min_relative_improvement_per_round))->value_name("<double>"),
              "Minimum relative improvement per active block scheduling round. If improvement is smaller than advanced search terminates.")
+            ((initial_partitioning ? "i-r-stable-blocks-rel-improvement-threshold" : "r-stable-blocks-rel-improvement-threshold"),
+             po::value<double>((initial_partitioning ? &context.initial_partitioning.refinement.advanced.stable_block_relative_improvement_threshold :
+                      &context.refinement.advanced.stable_block_relative_improvement_threshold))->value_name("<double>"),
+             "If skip stable blocks is activated, we schedule a stable block pair anyway, if the improvement currently found"
+             "on that block pair throughout the multilevel hierarchy relative to best performing block pair is greater"
+             "than this threshold.")
             ((initial_partitioning ? "i-r-time-limit-factor" : "r-time-limit-factor"),
              po::value<double>((initial_partitioning ? &context.initial_partitioning.refinement.advanced.time_limit_factor :
                       &context.refinement.advanced.time_limit_factor))->value_name("<double>"),
