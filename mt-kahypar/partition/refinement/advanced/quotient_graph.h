@@ -268,8 +268,7 @@ class QuotientGraph {
     }
 
     bool isActiveBlockPair(const PartitionID i,
-                           const PartitionID j,
-                           const size_t round) const;
+                           const PartitionID j) const;
 
     const Context& _context;
     // ! Quotient graph

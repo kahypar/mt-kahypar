@@ -127,7 +127,7 @@ void QuotientGraph::ActiveBlockScheduler::initialize(const vec<uint8_t>& active_
   vec<BlockPair> active_block_pairs;
   for ( PartitionID i = 0; i < _context.partition.k; ++i ) {
     for ( PartitionID j = i + 1; j < _context.partition.k; ++j ) {
-      if ( isActiveBlockPair(i, j, 0) &&
+      if ( isActiveBlockPair(i, j) &&
           ( active_blocks[i] || active_blocks[j] || should_accept_stable_block_pair(i, j) ) ) {
         active_block_pairs.push_back( BlockPair { i, j } );
       }
@@ -195,7 +195,7 @@ void QuotientGraph::ActiveBlockScheduler::finalizeSearch(const BlockPair& blocks
     // If blocks.i becomes active, we push all adjacent blocks into the queue of the next round
     ASSERT(round + 1 < _rounds.size());
     for ( PartitionID j = blocks.i + 1; j < _context.partition.k; ++j ) {
-      if ( isActiveBlockPair(blocks.i, j, round + 1) ) {
+      if ( isActiveBlockPair(blocks.i, j) ) {
         DBG << "Schedule blocks (" << blocks.i << "," << j << ") in round" << (round + 2) << " ("
             << "Total Improvement =" << _quotient_graph[blocks.i][j].total_improvement << ","
             << "Cut Weight =" << _quotient_graph[blocks.i][j].cut_he_weight << ")";
@@ -208,7 +208,7 @@ void QuotientGraph::ActiveBlockScheduler::finalizeSearch(const BlockPair& blocks
     // If blocks.j becomes active, we push all adjacent blocks into the queue of the next round
     ASSERT(round + 1 < _rounds.size());
     for ( PartitionID j = blocks.j + 1; j < _context.partition.k; ++j ) {
-      if ( isActiveBlockPair(blocks.j, j, round + 1) ) {
+      if ( isActiveBlockPair(blocks.j, j) ) {
         DBG << "Schedule blocks (" << blocks.j << "," << j << ") in round" << (round + 2) << " ("
             << "Total Improvement =" << _quotient_graph[blocks.j][j].total_improvement << ","
             << "Cut Weight =" << _quotient_graph[blocks.j][j].cut_he_weight << ")";
@@ -237,8 +237,7 @@ void QuotientGraph::ActiveBlockScheduler::finalizeSearch(const BlockPair& blocks
 
 
 bool QuotientGraph::ActiveBlockScheduler::isActiveBlockPair(const PartitionID i,
-                                                            const PartitionID j,
-                                                            const size_t round) const {
+                                                            const PartitionID j) const {
   const bool skip_small_cuts = !_is_input_hypergraph &&
     _context.refinement.advanced.skip_small_cuts;
   const bool contains_enough_cut_hes =
@@ -246,7 +245,7 @@ bool QuotientGraph::ActiveBlockScheduler::isActiveBlockPair(const PartitionID i,
     (!skip_small_cuts && _quotient_graph[i][j].cut_he_weight > 0);
   const bool is_promising_blocks_pair =
     !_context.refinement.advanced.skip_unpromising_blocks ||
-      ( round == 0 || _quotient_graph[i][j].num_improvements_found > 0 );
+      ( _first_active_round == 0 || _quotient_graph[i][j].num_improvements_found > 0 );
   return contains_enough_cut_hes && is_promising_blocks_pair;
 }
 
