@@ -70,11 +70,7 @@ class MultilevelCoarsenerBase {
 
   PartitionedHypergraph& currentPartitionedHypergraph() {
     ASSERT(_uncoarseningData.is_finalized);
-    if ( _uncoarseningData.hierarchy.empty() ) {
-      return *_uncoarseningData.partitioned_hg;
-    } else {
-      return _uncoarseningData.hierarchy.back().contractedPartitionedHypergraph();
-     }
+    return *_uncoarseningData.partitioned_hg;
    }
 
   void finalize();

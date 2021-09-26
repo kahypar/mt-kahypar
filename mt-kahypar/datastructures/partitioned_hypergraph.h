@@ -519,6 +519,10 @@ private:
     return _part_ids[u];
   }
 
+  Array<PartitionID> extractPartIDs() {
+    return std::move(_part_ids);
+  }
+
   void setOnlyNodePart(const HypernodeID u, PartitionID p) {
     ASSERT(p != kInvalidPartition && p < _k);
     ASSERT(_part_ids[u] == kInvalidPartition);
@@ -706,8 +710,7 @@ private:
   // ! current state of the partition
   void initializeGainCache() {
     // check whether part has been initialized
-    ASSERT( _part_ids.size() == initialNumNodes()
-            && std::none_of(nodes().begin(), nodes().end(),
+    ASSERT(std::none_of(nodes().begin(), nodes().end(),
                             [&](HypernodeID u) { return partID(u) == kInvalidPartition || partID(u) > k(); }) );
 
 

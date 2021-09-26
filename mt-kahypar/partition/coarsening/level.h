@@ -29,27 +29,12 @@ public:
   explicit Level(Hypergraph&& contracted_hypergraph,
                  parallel::scalable_vector<HypernodeID>&& communities,
                  double coarsening_time) :
-    _representative_hypergraph(nullptr),
     _contracted_hypergraph(std::move(contracted_hypergraph)),
-    _contracted_partitioned_hypergraph(),
     _communities(std::move(communities)),
     _coarsening_time(coarsening_time) { }
 
-  void setRepresentativeHypergraph(PartitionedHypergraph* representative_hypergraph) {
-    _representative_hypergraph = representative_hypergraph;
-  }
-
-  PartitionedHypergraph& representativeHypergraph() {
-    ASSERT(_representative_hypergraph);
-    return *_representative_hypergraph;
-  }
-
   Hypergraph& contractedHypergraph() {
     return _contracted_hypergraph;
-  }
-
-  PartitionedHypergraph& contractedPartitionedHypergraph() {
-    return _contracted_partitioned_hypergraph;
   }
 
   const Hypergraph& contractedHypergraph() const {
@@ -71,19 +56,13 @@ public:
     tbb::parallel_invoke([&] {
       _contracted_hypergraph.freeInternalData();
     }, [&] {
-      _contracted_partitioned_hypergraph.freeInternalData();
-    }, [&] {
       parallel::free(_communities);
     });
   }
 
 private:
-  // ! Hypergraph on the next finer level
-  PartitionedHypergraph* _representative_hypergraph;
   // ! Contracted Hypergraph
   Hypergraph _contracted_hypergraph;
-  // ! Partitioned Hypergraph
-  PartitionedHypergraph _contracted_partitioned_hypergraph;
   // ! Defines the communities that are contracted
   // ! in the coarse hypergraph
   parallel::scalable_vector<HypernodeID> _communities;

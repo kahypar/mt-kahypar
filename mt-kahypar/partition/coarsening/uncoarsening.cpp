@@ -21,29 +21,15 @@ namespace mt_kahypar {
     if (_top_level) {
       parallel::MemoryPool::instance().release_mem_group("Coarsening");
     }
+
     // Construct top level partitioned hypergraph (memory is taken from memory pool)
     *_uncoarseningData.partitioned_hg = PartitionedHypergraph(
             _context.partition.k, _hg, parallel_tag_t());
 
-    // Construct partitioned hypergraphs parallel
-    tbb::task_group group;
-    // Construct partitioned hypergraph for each coarsened hypergraph in the hierarchy
-    for (size_t i = 0; i < _uncoarseningData.hierarchy.size(); ++i) {
-      group.run([&, i] {
-        (_uncoarseningData.hierarchy)[i].contractedPartitionedHypergraph() = PartitionedHypergraph(
-                _context.partition.k, (_uncoarseningData.hierarchy)[i].contractedHypergraph(), parallel_tag_t());
-      });
+    if (!_uncoarseningData.hierarchy.empty()) {
+      _uncoarseningData.partitioned_hg->setHypergraph(_uncoarseningData.hierarchy.back().contractedHypergraph());
     }
-    group.wait();
 
-    // Set the representative partitioned hypergraph for each hypergraph
-    // in the hierarchy
-    if (_uncoarseningData.hierarchy.size() > 0) {
-      (_uncoarseningData.hierarchy)[0].setRepresentativeHypergraph(&*_uncoarseningData.partitioned_hg);
-      for (size_t i = 1; i < _uncoarseningData.hierarchy.size(); ++i) {
-        (_uncoarseningData.hierarchy)[i].setRepresentativeHypergraph(&(_uncoarseningData.hierarchy)[i - 1].contractedPartitionedHypergraph());
-      }
-    }
     _uncoarseningData.is_finalized = true;
     utils::Timer::instance().stop_timer("finalize_multilevel_hierarchy");
   }
