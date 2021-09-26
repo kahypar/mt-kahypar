@@ -136,6 +136,25 @@ private:
     freeInternalData();
   }
 
+  void resetData() {
+    _is_gain_cache_initialized = false;
+    tbb::parallel_invoke([&] {
+    }, [&] {
+      _part_ids.assign(_part_ids.size(), kInvalidPartition);
+    }, [&] {
+      _pins_in_part.data().assign(_pins_in_part.data().size(), 0);
+    }, [&] {
+      _connectivity_set.reset();
+    }, [&] {
+      for (auto& x : _part_weights) x.store(0, std::memory_order_relaxed);
+    }, [&] {
+      for (auto& x : _move_to_penalty) x.store(0, std::memory_order_relaxed);
+    }, [&] {
+      for (auto& x : _move_from_benefit) x.store(0, std::memory_order_relaxed);
+    }, [&] {
+    });
+  }
+
   // ####################### General Hypergraph Stats ######################
 
   Hypergraph& hypergraph() {
@@ -519,8 +538,8 @@ private:
     return _part_ids[u];
   }
 
-  Array<PartitionID> extractPartIDs() {
-    return std::move(_part_ids);
+  void extractPartIDs(Array<PartitionID>& part_ids) {
+    std::swap(_part_ids, part_ids);
   }
 
   void setOnlyNodePart(const HypernodeID u, PartitionID p) {

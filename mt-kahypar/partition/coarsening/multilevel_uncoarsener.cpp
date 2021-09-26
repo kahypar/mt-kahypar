@@ -50,17 +50,20 @@ namespace mt_kahypar {
     double time_limit = refinementTimeLimit(_context, _uncoarseningData.hierarchy.back().coarseningTime());
     refine(coarsest_hg, label_propagation, fm, current_metrics, time_limit);
 
+
+    ds::Array<PartitionID> part_ids(_hg.initialNumNodes(), kInvalidPartition);
     for (int i = _uncoarseningData.hierarchy.size() - 1; i >= 0; --i) {
       // Project partition to next level finer hypergraph
       utils::Timer::instance().start_timer("projecting_partition", "Projecting Partition");
       const size_t num_nodes = coarsest_hg.initialNumNodes();
-      // extract part_ids to reset partition
-      ds::Array<PartitionID> part_ids = coarsest_hg.extractPartIDs();
       if (i == 0) {
-        coarsest_hg = PartitionedHypergraph(_context.partition.k, _hg, parallel_tag_t());
+        coarsest_hg.setHypergraph(_hg);
       } else {
-        coarsest_hg = PartitionedHypergraph(_context.partition.k, (_uncoarseningData.hierarchy)[i-1].contractedHypergraph(), parallel_tag_t());
+        coarsest_hg.setHypergraph((_uncoarseningData.hierarchy)[i-1].contractedHypergraph());
       }
+      // extract part_ids to reset partition
+      coarsest_hg.extractPartIDs(part_ids);
+      coarsest_hg.resetData();
 
       coarsest_hg.doParallelForAllNodes([&](const HypernodeID hn) {
         const HypernodeID coarse_hn = (_uncoarseningData.hierarchy)[i].mapToContractedHypergraph(hn);
@@ -69,20 +72,6 @@ namespace mt_kahypar {
         coarsest_hg.setOnlyNodePart(hn, block);
       });
       coarsest_hg.initializePartition();
-
-/*
- * TODO: try to fix assertions
-      ASSERT(metrics::objective(representative_hg, _context.partition.objective) ==
-             metrics::objective(contracted_hg, _context.partition.objective),
-             V(metrics::objective(representative_hg, _context.partition.objective)) <<
-             V(metrics::objective(
-                 contracted_hg,
-                 _context.partition.objective)));
-      ASSERT(metrics::imbalance(representative_hg, _context) ==
-             metrics::imbalance(contracted_hg, _context),
-             V(metrics::imbalance(representative_hg, _context)) <<
-             V(metrics::imbalance(contracted_hg, _context)));
-*/
       utils::Timer::instance().stop_timer("projecting_partition");
 
       // Refinement
