@@ -110,9 +110,6 @@ namespace mt_kahypar::ds {
       ASSERT(coarse_node < coarsened_num_nodes, V(coarse_node) << V(coarsened_num_nodes));
       // Weight vector is atomic => thread-safe
       node_weights[coarse_node] += nodeWeight(node);
-      // In case community detection is enabled all vertices matched to one vertex
-      // in the contracted hypergraph belong to same community. Otherwise, all communities
-      // are default assigned to community 0
       // Aggregate upper bound for number of incident nets of the contracted vertex
       tmp_num_incident_edges[coarse_node] += nodeDegree(node);
     });
@@ -219,8 +216,7 @@ namespace mt_kahypar::ds {
               valid_edge.updateID(next_edge.getID());
               next_edge.invalidate();
             } else {
-              ++valid_edge_index;
-              std::swap(tmp_edges[valid_edge_index], next_edge);
+              std::swap(tmp_edges[++valid_edge_index], next_edge);
             }
             ++tmp_edge_index;
           }
@@ -299,8 +295,7 @@ namespace mt_kahypar::ds {
     // buffers to corresponding members in coarsened graph. We compute
     // a prefix sum over the vertex sizes to determine the start index
     // of the edges in the edge array, removing all invalid edges.
-    // Afterwards, we additionally need to reconstruct the backwards edges
-    // (hopefully not necessary anymore in the future).
+    // Additionally, we need to calculate new unique edge ids.
     utils::Timer::instance().start_timer("contract_hypergraph", "Contract Hypergraph");
 
     StaticGraph hypergraph;
@@ -327,10 +322,10 @@ namespace mt_kahypar::ds {
       }()
     );
 
-    edge_id_mapping.assign(_num_edges / 2, 0);
     tbb::parallel_invoke([&] {
       utils::Timer::instance().start_timer("setup_edges", "Setup Edges", true);
       // Copy edges
+      edge_id_mapping.assign(_num_edges / 2, 0);
       hypergraph._edges.resize(coarsened_num_edges);
       tbb::parallel_for(ID(0), coarsened_num_nodes, [&](const HyperedgeID& coarse_node) {
         const HyperedgeID tmp_edges_start = tmp_nodes[coarse_node].firstEntry();

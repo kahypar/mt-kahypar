@@ -129,7 +129,7 @@ namespace mt_kahypar {
   void preprocess(Hypergraph& hypergraph, Context& context) {
     bool use_community_detection = context.preprocessing.use_community_detection;
 
-    #ifdef USE_GRAPH_STRUCTURE
+    #ifdef USE_GRAPH_PARTITIONER
     if (use_community_detection && context.preprocessing.disable_community_detection_for_mesh_graphs) {
       utils::Timer::instance().start_timer("detect_mesh_graph", "Detect Mesh Graph");
       use_community_detection = !is_mesh_graph(hypergraph);

@@ -322,22 +322,6 @@ private:
     _hg->disableHyperedge(e);
   }
 
-  bool isGraphEdge(const HyperedgeID e) const {
-    return _hg->isGraphEdge(e);
-  }
-
-  HyperedgeID graphEdgeID(const HyperedgeID e) const {
-    return _hg->graphEdgeID(e);
-  }
-
-  HyperedgeID nonGraphEdgeID(const HyperedgeID e) const {
-    return _hg->nonGraphEdgeID(e);
-  }
-
-  HypernodeID graphEdgeHead(const HyperedgeID e, const HypernodeID tail) const {
-    return _hg->graphEdgeHead(e, tail);
-  }
-
   // ####################### Uncontraction #######################
 
   /**

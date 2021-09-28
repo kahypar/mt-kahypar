@@ -254,7 +254,7 @@ void partitionHypergraph(Hypergraph& hypergraph, Context& context) {
   mt_kahypar::parallel::MemoryPool::instance().free_memory_chunks();
 }
 
-#ifndef USE_GRAPH_STRUCTURE
+#ifndef USE_GRAPH_PARTITIONER
 TYPED_TEST(MtKaHyPar, PartitionsAVLSIInstance) {
   // Read Hypergraph
   this->context.partition.graph_filename = "../tests/instances/ibm01.hgr";

@@ -96,6 +96,13 @@
 #define HEAVY_INITIAL_PARTITIONING_ASSERT(...) EXPAND(HEAVY_ASSERT_EVAL(INITIAL_PARTITIONING, EXPAND(NARG(__VA_ARGS__)))(__VA_ARGS__))
 #define HEAVY_REFINEMENT_ASSERT(...) EXPAND(HEAVY_ASSERT_EVAL(REFINEMENT, EXPAND(NARG(__VA_ARGS__)))(__VA_ARGS__))
 
+// An assertion that triggers for the hypergraph partitioners but not for the graph partitioner
+#ifdef USE_GRAPH_PARTITIONER
+  #define ASSERT_FOR_HG_ONLY;
+#else
+  #define ASSERT_FOR_HG_ONLY ASSERT(phg.connectivity(he) > 1);
+#endif
+
 // Info, Warning and Error Output Macros
 #define GREEN "\033[1;92m"
 #define CYAN "\033[1;96m"

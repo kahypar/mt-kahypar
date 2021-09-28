@@ -83,11 +83,8 @@ std::ostream & operator<< (std::ostream& str, const CommunityDetectionParameters
 struct PreprocessingParameters {
   bool stable_construction_of_incident_edges = false;
   bool use_community_detection = false;
-  CommunityDetectionParameters community_detection = { };
-
-  #ifdef USE_GRAPH_STRUCTURE
   bool disable_community_detection_for_mesh_graphs = true;
-  #endif
+  CommunityDetectionParameters community_detection = { };
 };
 
 std::ostream & operator<< (std::ostream& str, const PreprocessingParameters& params);

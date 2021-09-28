@@ -38,21 +38,21 @@ namespace ds {
  * This is a variant of DeltaPartitionedHypergraph specialized for graphs.
  * See delte_partitioned_hypergraph.h for more details.
  */
-template <typename PartitionedHypergraph = Mandatory>
+template <typename PartitionedGraph = Mandatory>
 class DeltaPartitionedGraph {
  private:
   static constexpr size_t MAP_SIZE_LARGE = 16384;
   static constexpr size_t MAP_SIZE_MOVE_DELTA = 8192;
   static constexpr size_t MAP_SIZE_SMALL = 128;
 
-  using HypernodeIterator = typename PartitionedHypergraph::HypernodeIterator;
-  using HyperedgeIterator = typename PartitionedHypergraph::HyperedgeIterator;
-  using IncidenceIterator = typename PartitionedHypergraph::IncidenceIterator;
-  using IncidentNetsIterator = typename PartitionedHypergraph::IncidentNetsIterator;
+  using HypernodeIterator = typename PartitionedGraph::HypernodeIterator;
+  using HyperedgeIterator = typename PartitionedGraph::HyperedgeIterator;
+  using IncidenceIterator = typename PartitionedGraph::IncidenceIterator;
+  using IncidentNetsIterator = typename PartitionedGraph::IncidentNetsIterator;
 
  public:
   static constexpr bool supports_connectivity_set = false;
-  static constexpr HyperedgeID HIGH_DEGREE_THRESHOLD = PartitionedHypergraph::HIGH_DEGREE_THRESHOLD;
+  static constexpr HyperedgeID HIGH_DEGREE_THRESHOLD = PartitionedGraph::HIGH_DEGREE_THRESHOLD;
 
   DeltaPartitionedGraph() :
     _k(kInvalidPartition),
@@ -80,7 +80,7 @@ class DeltaPartitionedGraph {
 
   ~DeltaPartitionedGraph() = default;
 
-  void setPartitionedHypergraph(PartitionedHypergraph* pg) {
+  void setPartitionedHypergraph(PartitionedGraph* pg) {
     _pg = pg;
   }
 
@@ -330,7 +330,7 @@ class DeltaPartitionedGraph {
   PartitionID _k;
 
   // ! Partitioned graph where all deltas are stored relative to
-  PartitionedHypergraph* _pg;
+  PartitionedGraph* _pg;
 
   // ! Delta for block weights
   vec< HypernodeWeight > _part_weights_delta;

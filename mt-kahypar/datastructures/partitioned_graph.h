@@ -364,8 +364,7 @@ private:
     ASSERT(e < _hg->initialNumEdges(), "Hyperedge" << e << "does not exist");
     IncidenceIterator pin_it = _hg->pins(e).begin();
     PartitionID first = partID(*pin_it);
-    ++pin_it;
-    PartitionID second = partID(*pin_it);
+    PartitionID second = partID(*(++pin_it));
     return IteratorRange<ConnectivityIterator>(
       ConnectivityIterator(first, second, 0),
       ConnectivityIterator(first, second, 2));
@@ -442,36 +441,20 @@ private:
     return _hg->edgeIsEnabled(e);
   }
 
-  bool isGraphEdge(const HyperedgeID e) const {
-    return _hg->isGraphEdge(e);
-  }
-
-  HyperedgeID graphEdgeID(const HyperedgeID e) const {
-    return _hg->graphEdgeID(e);
-  }
-
-  HyperedgeID nonGraphEdgeID(const HyperedgeID e) const {
-    return _hg->nonGraphEdgeID(e);
-  }
-
-  HypernodeID graphEdgeHead(const HyperedgeID e, const HypernodeID tail) const {
-    return _hg->graphEdgeHead(e, tail);
-  }
-
   // ####################### Uncontraction #######################
 
   void uncontract(const Batch& batch) {
-    ERROR("uncontract(batch) is not supported in static graph");
+    _hg->uncontract(batch);
   }
 
   // ####################### Restore Hyperedges #######################
 
   void restoreLargeEdge(const HyperedgeID& he) {
-    ERROR("restoreLargeEdge(he) is not supported in static graph");
+    _hg->restoreLargeEdge(he);
   }
 
   void restoreSinglePinAndParallelNets(const parallel::scalable_vector<ParallelHyperedge>& hes_to_restore) {
-    ERROR("restoreSinglePinAndParallelNets(hes_to_restore) is not supported in static graph");
+    _hg->restoreSinglePinAndParallelNets(hes_to_restore);
   }
 
   // ####################### Partition Information #######################
@@ -552,7 +535,7 @@ private:
     return _part_weights[p].load(std::memory_order_relaxed);
   }
 
-  // ! Returns, whether hypernode u is adjacent to a least one cut hyperedge.
+  // ! Returns whether hypernode u is adjacent to a least one cut hyperedge.
   bool isBorderNode(const HypernodeID u) const {
     const PartitionID part_id = partID(u);
     if ( nodeDegree(u) <= HIGH_DEGREE_THRESHOLD ) {
@@ -561,14 +544,8 @@ private:
           return true;
         }
       }
-      return false;
-    } else {
-      // TODO maybe we should allow these in label propagation? definitely not in FM
-      // In case u is a high degree vertex, we omit the border node check and
-      // and return false. Assumption is that it is very unlikely that such a
-      // vertex can change its block.
-      return false;
     }
+    return false;
   }
 
   HypernodeID numIncidentCutHyperedges(const HypernodeID u) const {
@@ -684,9 +661,8 @@ private:
 
   // ! Reset partition (not thread-safe)
   void resetPartition() {
-    for (auto& id : _part_ids) {
-      id.store(kInvalidPartition, std::memory_order_relaxed);
-    }
+    _part_ids.assign(_part_ids.size(), CAtomic<PartitionID>(kInvalidPartition), false);
+    _incident_weight_in_part.assign(_incident_weight_in_part.size(),  CAtomic<HyperedgeWeight>(0), false);
     for (auto& weight : _part_weights) {
       weight.store(0, std::memory_order_relaxed);
     }

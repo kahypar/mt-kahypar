@@ -15,7 +15,7 @@ target_compile_definitions(mtkahyparstrong PUBLIC USE_STRONG_PARTITIONER)
 add_library(mtkahypargraph SHARED libmtkahypar.cc)
 target_link_libraries(mtkahypargraph ${Boost_LIBRARIES})
 target_compile_definitions(mtkahypargraph PUBLIC MT_KAHYPAR_LIBRARY_MODE)
-target_compile_definitions(mtkahypargraph PUBLIC USE_GRAPH_STRUCTURE)
+target_compile_definitions(mtkahypargraph PUBLIC USE_GRAPH_PARTITIONER)
 
 set(TARGETS_WANTING_ALL_SOURCES ${TARGETS_WANTING_ALL_SOURCES} mtkahyparfast mtkahyparstrong mtkahypargraph PARENT_SCOPE)
 

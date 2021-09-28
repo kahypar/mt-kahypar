@@ -23,7 +23,7 @@
 #include "mt-kahypar/parallel/hardware_topology.h"
 #include "mt-kahypar/parallel/tbb_initializer.h"
 
-#ifdef USE_GRAPH_STRUCTURE
+#ifdef USE_GRAPH_PARTITIONER
 #ifdef USE_STRONG_PARTITIONER
 // not supported yet
 static_assert(false);
@@ -50,7 +50,7 @@ namespace mt_kahypar {
 using HardwareTopology = mt_kahypar::parallel::HardwareTopology<>;
 using TBBInitializer = mt_kahypar::parallel::TBBInitializer<HardwareTopology, false>;
 
-#ifdef USE_GRAPH_STRUCTURE
+#ifdef USE_GRAPH_PARTITIONER
 #ifdef USE_STRONG_PARTITIONER
 // not supported yet
 static_assert(false);

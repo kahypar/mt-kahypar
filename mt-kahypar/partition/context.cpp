@@ -61,7 +61,7 @@ namespace mt_kahypar {
   std::ostream & operator<< (std::ostream& str, const PreprocessingParameters& params) {
     str << "Preprocessing Parameters:" << std::endl;
     str << "  Use Community Detection:            " << std::boolalpha << params.use_community_detection << std::endl;
-    #ifdef USE_GRAPH_STRUCTURE
+    #ifdef USE_GRAPH_PARTITIONER
     str << "  Disable C. D. for Mesh Graphs:      " << std::boolalpha << params.disable_community_detection_for_mesh_graphs << std::endl;
     #endif
     if (params.use_community_detection) {

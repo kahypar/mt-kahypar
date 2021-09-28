@@ -16,7 +16,7 @@ target_link_libraries(MtKaHyParGraph ${Boost_LIBRARIES})
 target_link_libraries(MtKaHyParGraph pthread)
 set_property(TARGET MtKaHyParGraph PROPERTY CXX_STANDARD 17)
 set_property(TARGET MtKaHyParGraph PROPERTY CXX_STANDARD_REQUIRED ON)
-target_compile_definitions(MtKaHyParGraph PUBLIC USE_GRAPH_STRUCTURE)
+target_compile_definitions(MtKaHyParGraph PUBLIC USE_GRAPH_PARTITIONER)
 
 if(ENABLE_PROFILE MATCHES ON)
   target_link_libraries(MtKaHyParFast ${PROFILE_FLAGS})

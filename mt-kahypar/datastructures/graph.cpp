@@ -375,7 +375,7 @@ namespace mt_kahypar::ds {
   template<typename F>
   void Graph::construct(const Hypergraph& hypergraph,
                  const F& edge_weight_func) {
-    #ifndef USE_GRAPH_STRUCTURE
+    #ifndef USE_GRAPH_PARTITIONER
     // Test, if hypergraph is actually a graph
     const bool is_graph = tbb::parallel_reduce(tbb::blocked_range<HyperedgeID>(
             ID(0), hypergraph.initialNumEdges()), true, [&](const tbb::blocked_range<HyperedgeID>& range, bool isGraph) {
