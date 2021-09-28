@@ -315,9 +315,9 @@ add_subdirectory(mt-kahypar)
 add_custom_target(MtKaHyPar
   COMMAND $(MAKE) MtKaHyParFast
   COMMAND $(MAKE) MtKaHyParStrong
-  COMMAND $(MAKE) MtKaHyParFastGraph)
+  COMMAND $(MAKE) MtKaHyParGraph)
 
 add_custom_target(mt_kahypar_tests
   COMMAND $(MAKE) mt_kahypar_fast_tests
   COMMAND $(MAKE) mt_kahypar_strong_tests
-  COMMAND $(MAKE) mt_kahypar_fast_graph_tests)
+  COMMAND $(MAKE) mt_kahypar_graph_tests)

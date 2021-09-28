@@ -10,5 +10,5 @@ Version: @PROJECT_VERSION@
 URL: @PROJECT_URL@
 
 Requires:
-Libs: -L${libdir} -lmtkahyparfastgraph
+Libs: -L${libdir} -lmtkahypargraph
 Cflags: -I${includedir}

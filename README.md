@@ -68,7 +68,7 @@ Building Mt-KaHyPar
 The build produces two executables, which will be located in `build/mt-kahypar/application/`:
 
 - `MtKaHyParFast`: computes good partitions very fast (for hypergraphs)
-- `MtKaHyParFastGraph`: computes good partitions very fast (for graphs)
+- `MtKaHyParGraph`: computes good partitions very fast (for graphs)
 - `MtKaHyParStrong`: computes high-quality partitions in reasonable time (using n levels)
 
 Running Mt-KaHyPar
@@ -76,7 +76,7 @@ Running Mt-KaHyPar
 
 Mt-KaHyPar has several configuration parameters. We recommend to use our presets which are located in the `config` folder:
 
-- `default_preset.ini`: default parameters for Mt-KaHyPar Fast (`MtKaHyParFast`, `MtKaHyParFastGraph`)
+- `default_preset.ini`: default parameters for Mt-KaHyPar Fast/Graph (`MtKaHyParFast`, `MtKaHyParGraph`)
 - `speed_deterministic_preset.ini`: parameters to make Mt-KaHyPar Fast (`MtKaHyParFast`) deterministic
 - `quality_preset.ini`: default parameters for Mt-KaHyPar Strong (`MtKaHyParStrong`)
 
@@ -89,7 +89,7 @@ To run Mt-KaHyPar Fast, you can use the following command:
 
 To run Mt-KaHyPar Fast Graph, you can use the following command:
 
-    ./MtKaHyParFastGraph -h <path-to-hgr> -p <path to default_preset.ini> -t <# threads> -k <# blocks> -e <imbalance (e.g. 0.03)> -o km1 -m direct
+    ./MtKaHyParGraph -h <path-to-hgr> -p <path to default_preset.ini> -t <# threads> -k <# blocks> -e <imbalance (e.g. 0.03)> -o km1 -m direct
 
 To run Mt-KaHyPar Strong, you can use the following command:
 
@@ -250,7 +250,7 @@ g++ -std=c++17 -DNDEBUG -O3 your_program.cc -o your_program -lmtkahyparfast
 To compile the program using `g++` and our fast graph partitioner (Mt-KaHyPar Fast Graph) run:
 
 ```sh
-g++ -std=c++17 -DNDEBUG -O3 your_program.cc -o your_program -lmtkahyparfastgraph
+g++ -std=c++17 -DNDEBUG -O3 your_program.cc -o your_program -lmtkahypargraph
 ```
 
 To compile the program using `g++` and our strong hypergraph partitioner (Mt-KaHyPar Strong) run:
