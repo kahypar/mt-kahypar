@@ -145,10 +145,11 @@ namespace mt_kahypar::ds {
       ASSERT(edges_pos + node_degree <= _edges.size());
       for (size_t i = 0; i < static_cast<size_t>(node_degree); ++i) {
         const Edge& edge = _edges[edges_pos + i];
+        const HyperedgeID unique_id = _unique_edge_ids[edges_pos + i];
         const HypernodeID target = map_to_coarse_graph(edge.target());
         const bool is_valid = target != coarse_node;
         if (is_valid) {
-          tmp_edges[coarse_edges_pos + i] = TmpEdgeInformation(target, edge.weight(), edge.uniqueID());
+          tmp_edges[coarse_edges_pos + i] = TmpEdgeInformation(target, edge.weight(), unique_id);
         } else {
           tmp_edges[coarse_edges_pos + i] = TmpEdgeInformation();
         }
@@ -327,6 +328,7 @@ namespace mt_kahypar::ds {
       // Copy edges
       edge_id_mapping.assign(_num_edges / 2, 0);
       hypergraph._edges.resize(coarsened_num_edges);
+      hypergraph._unique_edge_ids.resize(coarsened_num_edges);
       tbb::parallel_for(ID(0), coarsened_num_nodes, [&](const HyperedgeID& coarse_node) {
         const HyperedgeID tmp_edges_start = tmp_nodes[coarse_node].firstEntry();
         const HyperedgeID edges_start = degree_mapping[coarse_node];
@@ -337,7 +339,7 @@ namespace mt_kahypar::ds {
           edge.setTarget(tmp_edge.getTarget());
           edge.setSource(coarse_node);
           edge.setWeight(tmp_edge.getWeight());
-          edge.setUniqueID(tmp_edge.getID());
+          hypergraph._unique_edge_ids[edges_start + index] = tmp_edge.getID();
           ASSERT(static_cast<size_t>(tmp_edge.getID()) < edge_id_mapping.size());
           edge_id_mapping[tmp_edge.getID()] = 1UL;
         };
@@ -375,8 +377,8 @@ namespace mt_kahypar::ds {
     ASSERT(edge_id_prefix_sum.total_sum() == coarsened_num_edges / 2);
 
     tbb::parallel_for(ID(0), coarsened_num_edges, [&](const HyperedgeID& e) {
-      Edge& edge = hypergraph.edge(e);
-      edge.setUniqueID(edge_id_prefix_sum[edge.uniqueID()]);
+      HyperedgeID& unique_id = hypergraph._unique_edge_ids[e];
+      unique_id = edge_id_prefix_sum[unique_id];
     });
 
     utils::Timer::instance().stop_timer("remap_edge_ids");
@@ -438,6 +440,10 @@ namespace mt_kahypar::ds {
       memcpy(hypergraph._edges.data(), _edges.data(),
              sizeof(Edge) * _edges.size());
     }, [&] {
+      hypergraph._unique_edge_ids.resize(_unique_edge_ids.size());
+      memcpy(hypergraph._unique_edge_ids.data(), _unique_edge_ids.data(),
+             sizeof(HyperedgeID) * _unique_edge_ids.size());
+    }, [&] {
       hypergraph._community_ids = _community_ids;
     });
     return hypergraph;
@@ -459,6 +465,10 @@ namespace mt_kahypar::ds {
     hypergraph._edges.resize(_edges.size());
     memcpy(hypergraph._edges.data(), _edges.data(),
            sizeof(Edge) * _edges.size());
+
+    hypergraph._unique_edge_ids.resize(_unique_edge_ids.size());
+    memcpy(hypergraph._unique_edge_ids.data(), _unique_edge_ids.data(),
+           sizeof(HyperedgeID) * _unique_edge_ids.size());
 
     hypergraph._community_ids = _community_ids;
 

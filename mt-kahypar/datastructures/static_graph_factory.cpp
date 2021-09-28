@@ -24,6 +24,7 @@
 #include <tbb/parallel_invoke.h>
 
 #include "mt-kahypar/parallel/parallel_prefix_sum.h"
+#include "mt-kahypar/parallel/stl/scalable_vector.h"
 #include "mt-kahypar/utils/timer.h"
 
 namespace mt_kahypar::ds {
@@ -63,6 +64,7 @@ namespace mt_kahypar::ds {
     graph._num_edges = 2 * num_edges;
     graph._nodes.resize(num_nodes + 1);
     graph._edges.resize(2 * num_edges);
+    graph._unique_edge_ids.resize(2 * num_edges);
 
     ASSERT(edge_vector.size() == num_edges);
 
@@ -114,10 +116,11 @@ namespace mt_kahypar::ds {
 
         edge0.setTarget(pin1);
         edge0.setSource(pin0);
-        edge0.setUniqueID(pos);
         edge1.setTarget(pin0);
         edge1.setSource(pin1);
-        edge1.setUniqueID(pos);
+
+        graph._unique_edge_ids[incident_edges_pos0] = pos;
+        graph._unique_edge_ids[incident_edges_pos1] = pos;
 
         if (edge_weight) {
           edge0.setWeight(edge_weight[pos]);
@@ -147,13 +150,30 @@ namespace mt_kahypar::ds {
     graph._nodes.back() = StaticGraph::Node(graph._edges.size());
 
     if (stable_construction_of_incident_edges) {
-      // sort incident edges of each node, so their ordering is independent of scheduling (and the same as a typical sequential implementation)
+      parallel::scalable_vector<HyperedgeID> edge_ids_of_node;
+      edge_ids_of_node.resize(graph._edges.size());
+      // sort incident edges of each node, so their ordering is independent of scheduling
+      // (and the same as a typical sequential implementation)
       tbb::parallel_for(ID(0), num_nodes, [&](HypernodeID u) {
-        auto b = graph._edges.begin() + graph.node(u).firstEntry();
-        auto e = graph._edges.begin() + graph.node(u + 1).firstEntry();
-        std::sort(b, e, [](StaticGraph::Edge& a, StaticGraph::Edge& b) {
-          return a.target() < b.target();
+        const HyperedgeID start = graph.node(u).firstEntry();
+        const HyperedgeID end = graph.node(u + 1).firstEntry();
+        for (HyperedgeID id = 0; id < end - start; ++id) {
+          edge_ids_of_node[start + id] = id;
+        }
+        std::sort(edge_ids_of_node.begin() + start, edge_ids_of_node.begin() + end, [&](HyperedgeID& a, HyperedgeID& b) {
+          return graph.edge(start + a).target() < graph.edge(start + b).target();
         });
+
+        // apply permutation
+        // (yes, this applies the permutation defined by edge_ids_of_node, don't think about it)
+        for (size_t i = 0; i < end - start; ++i) {
+          HyperedgeID target = edge_ids_of_node[start + i];
+          while (target < i) {
+            target = edge_ids_of_node[start + target];
+          }
+          std::swap(graph._edges[start + i], graph._edges[start + target]);
+          std::swap(graph._unique_edge_ids[start + i], graph._unique_edge_ids[start + target]);
+        }
       });
     }
 

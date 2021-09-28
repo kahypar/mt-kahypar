@@ -176,14 +176,6 @@ class StaticGraph {
       _weight = weight;
     }
 
-    HyperedgeID uniqueID() const {
-      return _id;
-    }
-
-    void setUniqueID(HyperedgeID id) {
-      _id = id;
-    }
-
     bool operator== (const Edge& rhs) const {
       return _target == rhs._target && _source == rhs._source && _weight == rhs._weight;
     }
@@ -199,8 +191,6 @@ class StaticGraph {
     HypernodeID _source;
     // ! hyperedge weight
     HyperedgeWeight _weight;
-    // ! unique id of the edge
-    HyperedgeID _id;
   };
 
   /*!
@@ -453,6 +443,7 @@ class StaticGraph {
     _total_weight(0),
     _nodes(),
     _edges(),
+    _unique_edge_ids(),
     _community_ids(),
     _tmp_contraction_buffer(nullptr) { }
 
@@ -466,6 +457,7 @@ class StaticGraph {
     _total_weight(other._total_weight),
     _nodes(std::move(other._nodes)),
     _edges(std::move(other._edges)),
+    _unique_edge_ids(std::move(other._unique_edge_ids)),
     _community_ids(std::move(other._community_ids)),
     _tmp_contraction_buffer(std::move(other._tmp_contraction_buffer)) {
     other._tmp_contraction_buffer = nullptr;
@@ -478,6 +470,7 @@ class StaticGraph {
     _total_weight = other._total_weight;
     _nodes = std::move(other._nodes);
     _edges = std::move(other._edges);
+    _unique_edge_ids = std::move(other._unique_edge_ids);
     _community_ids = std::move(other._community_ids),
     _tmp_contraction_buffer = std::move(other._tmp_contraction_buffer);
     other._tmp_contraction_buffer = nullptr;
@@ -641,7 +634,8 @@ class StaticGraph {
 
   // ! Unique id of a hyperedge, in the range of [0, initialNumEdges() / 2)
   HyperedgeID uniqueEdgeID(const HyperedgeID e) const {
-    const HyperedgeID id = edge(e).uniqueID();
+    ASSERT(e <= _edges.size(), "Hyperedge" << e << "does not exist");
+    const HyperedgeID id = _unique_edge_ids[e];
     ASSERT(id < initialNumEdges() / 2);
     return id;
   }
@@ -862,6 +856,8 @@ class StaticGraph {
   Array<Node> _nodes;
   // ! Edges
   Array<Edge> _edges;
+  // ! Edges
+  Array<HyperedgeID> _unique_edge_ids;
 
   // ! Communities
   ds::Clustering _community_ids;
