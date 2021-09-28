@@ -172,9 +172,9 @@ namespace mt_kahypar::io {
     LOG << "Hypergraph Information";
     LOG << "Name :" << name;
     LOG << "# HNs :" << num_hypernodes
-        << "# HEs :" << num_hyperedges / PartitionedHypergraph::edge_multiplier
+        << "# HEs :" << (Hypergraph::is_graph ? num_hyperedges / 2 : num_hyperedges)
         << "# pins:" << num_pins
-        << "# graph edges:" << graph_edge_count.combine(std::plus<>())  / PartitionedHypergraph::edge_multiplier;
+        << "# graph edges:" << (Hypergraph::is_graph ? num_hyperedges / 2 : graph_edge_count.combine(std::plus<>()));
 
     internal::printHypergraphStats(
             internal::createStats(he_sizes, avg_he_size, stdev_he_size),

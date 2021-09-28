@@ -489,6 +489,7 @@ class DynamicHypergraph {
   using ThreadLocalBitvector = tbb::enumerable_thread_specific<parallel::scalable_vector<bool>>;
 
  public:
+  static constexpr bool is_graph = false;
   static constexpr bool is_static_hypergraph = false;
   static constexpr bool is_partitioned = false;
   static constexpr size_t SIZE_OF_HYPERNODE = sizeof(Hypernode);

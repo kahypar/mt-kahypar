@@ -431,6 +431,7 @@ class StaticGraph {
   };
 
  public:
+  static constexpr bool is_graph = true;
   static constexpr bool is_static_hypergraph = true;
   static constexpr bool is_partitioned = false;
   static constexpr size_t SIZE_OF_HYPERNODE = sizeof(Node);

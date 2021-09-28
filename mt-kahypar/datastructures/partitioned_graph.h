@@ -212,8 +212,6 @@ private:
   static constexpr bool is_static_hypergraph = Hypergraph::is_static_hypergraph;
   static constexpr bool is_partitioned = true;
   static constexpr bool supports_connectivity_set = true;
-  // each hyperedge is represented as two graph edges
-  static constexpr HyperedgeWeight edge_multiplier = 2;
 
   static constexpr HyperedgeID HIGH_DEGREE_THRESHOLD = ID(100000);
 
