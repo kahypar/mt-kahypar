@@ -98,9 +98,9 @@
 
 // An assertion that triggers for the hypergraph partitioners but not for the graph partitioner
 #ifdef USE_GRAPH_PARTITIONER
-  #define ASSERT_FOR_HG_ONLY;
+  #define ASSERT_FOR_HG_ONLY(cond);
 #else
-  #define ASSERT_FOR_HG_ONLY ASSERT(phg.connectivity(he) > 1);
+  #define ASSERT_FOR_HG_ONLY(cond) ASSERT(cond);
 #endif
 
 // Info, Warning and Error Output Macros
