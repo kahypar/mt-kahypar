@@ -124,8 +124,7 @@ class FlowRefiner final : public IAdvancedRefiner {
                           const vec<HypernodeID>& refinement_nodes,
                           const HighResClockTimepoint& start);
 
-  bool computeFlow(const PartitionedHypergraph& phg,
-                   const FlowProblem& flow_problem,
+  bool computeFlow(const FlowProblem& flow_problem,
                    const HighResClockTimepoint& start,
                    bool& time_limit_reached);
 
