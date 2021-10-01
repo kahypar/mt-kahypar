@@ -22,6 +22,7 @@
 #pragma once
 
 #include "tbb/concurrent_vector.h"
+#include "tbb/concurrent_queue.h"
 
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/context.h"
@@ -35,9 +36,10 @@ class AdvancedRefinerAdapter {
 
   static constexpr bool debug = false;
   static constexpr bool enable_heavy_assert = false;
+  static constexpr size_t INVALID_REFINER_IDX = std::numeric_limits<size_t>::max();
 
   struct ActiveSearch {
-    IAdvancedRefiner* refiner;
+    size_t refiner_idx;
     HighResClockTimepoint start;
     double running_time;
     bool reaches_time_limit;
@@ -48,9 +50,9 @@ public:
                                   const Context& context) :
     _hg(hg),
     _context(context),
-    _refiner_lock(),
-    _num_unused_refiners(0),
+    _unused_refiners(),
     _refiner(),
+    _search_lock(),
     _active_searches(),
     _num_used_threads_lock(),
     _num_used_threads(0),
@@ -58,8 +60,8 @@ public:
     _average_running_time(0.0) {
     for ( size_t i = 0; i < numAvailableRefiner(); ++i ) {
       _refiner.emplace_back(nullptr);
+      _unused_refiners.push(i);
     }
-    _num_unused_refiners = _refiner.size();
   }
 
   AdvancedRefinerAdapter(const AdvancedRefinerAdapter&) = delete;
@@ -116,7 +118,7 @@ public:
   }
 
 private:
-  void initializeRefiner(std::unique_ptr<IAdvancedRefiner>& refiner);
+  std::unique_ptr<IAdvancedRefiner> initializeRefiner();
 
   bool shouldSetTimeLimit() const {
     return _num_refinements > static_cast<size_t>(_context.partition.k) &&
@@ -126,12 +128,12 @@ private:
   const Hypergraph& _hg;
   const Context& _context;
 
-  SpinLock _refiner_lock;
-  // ! Number of unused refiners
-  size_t _num_unused_refiners;
+  // ! Indices of unused refiners
+  tbb::concurrent_queue<size_t> _unused_refiners;
   // ! Available refiners
   vec<std::unique_ptr<IAdvancedRefiner>> _refiner;
   // ! Mapping from search id to refiner
+  SpinLock _search_lock;
   tbb::concurrent_vector<ActiveSearch> _active_searches;
 
   SpinLock _num_used_threads_lock;
