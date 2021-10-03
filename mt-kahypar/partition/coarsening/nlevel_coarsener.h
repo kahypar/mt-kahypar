@@ -196,7 +196,7 @@ class NLevelCoarsener : public ICoarsener,
 
     _progress_bar += (initial_num_nodes - _progress_bar.count());
     _progress_bar.disable();
-    Base::finalize();
+    _uncoarseningData.finalize();
   }
 
   Hypergraph& coarsestHypergraphImpl() override {

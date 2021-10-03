@@ -73,9 +73,11 @@ private:
 
 class UncoarseningData {
 public:
-  explicit UncoarseningData(bool n_level, const Hypergraph& hg, const Context& context) :
-    nlevel(n_level) {
-      if (nlevel) {
+  explicit UncoarseningData(bool n_level, Hypergraph& hg, const Context& context) :
+    nlevel(n_level),
+    _hg(hg),
+    _context(context) {
+      if (n_level) {
         compactified_hg = std::make_unique<Hypergraph>();
         compactified_phg = std::make_unique<PartitionedHypergraph>();
       } else {
@@ -95,6 +97,51 @@ public:
     tbb::parallel_for(0UL, hierarchy.size(), [&](const size_t i) {
       (hierarchy)[i].freeInternalData();
     }, tbb::static_partitioner());
+  }
+
+  void finalize(bool top_level = false) {
+    if (nlevel) {
+      // Create compactified hypergraph containing only enabled vertices and hyperedges
+      // with consecutive IDs => Less complexity in initial partitioning.
+      utils::Timer::instance().start_timer("compactify_hypergraph", "Compactify Hypergraph");
+      auto compactification = HypergraphFactory::compactify(_hg);
+      *compactified_hg = std::move(compactification.first);
+      compactified_hn_mapping = std::move(compactification.second);
+      *compactified_phg = PartitionedHypergraph(_context.partition.k, *compactified_hg, parallel_tag_t());
+      utils::Timer::instance().stop_timer("compactify_hypergraph");
+    } else {
+      utils::Timer::instance().start_timer("finalize_multilevel_hierarchy", "Finalize Multilevel Hierarchy");
+      // Construct top level partitioned hypergraph (memory is taken from memory pool)
+      *partitioned_hg = PartitionedHypergraph(
+        _context.partition.k, _hg, parallel_tag_t());
+
+      if (!hierarchy.empty()) {
+        partitioned_hg->setHypergraph(hierarchy.back().contractedHypergraph());
+      }
+
+      // Free memory of temporary contraction buffer and
+      // release coarsening memory in memory pool
+      partitioned_hg->hypergraph().freeTmpContractionBuffer();
+      // TODO: does this need to happen before the phg is constructed?
+      if (top_level) {
+        parallel::MemoryPool::instance().release_mem_group("Coarsening");
+      }
+
+      utils::Timer::instance().stop_timer("finalize_multilevel_hierarchy");
+    }
+    is_finalized = true;
+  }
+
+  void performMultilevelContraction(
+          parallel::scalable_vector<HypernodeID>&& communities,
+          const HighResClockTimepoint& round_start) {
+    ASSERT(!is_finalized);
+    Hypergraph& current_hg = hierarchy.empty() ? _hg : hierarchy.back().contractedHypergraph();
+    ASSERT(current_hg.initialNumNodes() == communities.size());
+    Hypergraph contracted_hg = current_hg.contract(communities);
+    const HighResClockTimepoint round_end = std::chrono::high_resolution_clock::now();
+    const double elapsed_time = std::chrono::duration<double>(round_end - round_start).count();
+    hierarchy.emplace_back(std::move(contracted_hg), std::move(communities), elapsed_time);
   }
 
   // Multilevel Data
@@ -121,5 +168,9 @@ public:
   // Both
   bool is_finalized = false;
   bool nlevel;
+
+private:
+  Hypergraph& _hg;
+  const Context& _context;
 };
 }

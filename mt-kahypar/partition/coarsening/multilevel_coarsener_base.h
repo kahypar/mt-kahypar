@@ -73,12 +73,6 @@ class MultilevelCoarsenerBase {
     return *_uncoarseningData.partitioned_hg;
    }
 
-  void finalize();
-
-  void performMultilevelContraction(
-          parallel::scalable_vector<HypernodeID>&& communities,
-          const HighResClockTimepoint& round_start);
-
  protected:
   Hypergraph& _hg;
   const Context& _context;

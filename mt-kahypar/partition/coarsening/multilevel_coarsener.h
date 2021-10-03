@@ -280,7 +280,7 @@ class MultilevelCoarsener : public ICoarsener,
 
       utils::Timer::instance().start_timer("parallel_multilevel_contraction", "Parallel Multilevel Contraction");
       // Perform parallel contraction
-      Base::performMultilevelContraction(std::move(cluster_ids), round_start);
+      _uncoarseningData.performMultilevelContraction(std::move(cluster_ids), round_start);
       utils::Timer::instance().stop_timer("parallel_multilevel_contraction");
 
       if ( _context.coarsening.use_adaptive_max_allowed_node_weight ) {
@@ -309,7 +309,7 @@ class MultilevelCoarsener : public ICoarsener,
     }
     _progress_bar += (initial_num_nodes - _progress_bar.count());
     _progress_bar.disable();
-    Base::finalize();
+    _uncoarseningData.finalize(_top_level);
   }
 
   /*!

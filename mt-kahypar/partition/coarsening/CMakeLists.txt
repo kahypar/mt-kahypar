@@ -1,6 +1,5 @@
 set(CoarseningSources
         deterministic_multilevel_coarsener.cpp
-        uncoarsening.cpp
         multilevel_uncoarsener.cpp
         nlevel_uncoarsener.cpp
         )

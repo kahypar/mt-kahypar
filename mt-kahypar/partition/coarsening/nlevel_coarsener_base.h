@@ -69,8 +69,6 @@ class NLevelCoarsenerBase {
     return *_uncoarseningData.compactified_phg;
   }
 
-  void finalize();
-
   void removeSinglePinAndParallelNets(const HighResClockTimepoint& round_start) {
     utils::Timer::instance().start_timer("remove_single_pin_and_parallel_nets", "Remove Single Pin and Parallel Nets");
     _uncoarseningData.removed_hyperedges_batches.emplace_back(_hg.removeSinglePinAndParallelHyperedges());

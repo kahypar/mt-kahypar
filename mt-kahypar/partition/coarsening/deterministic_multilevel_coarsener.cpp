@@ -101,12 +101,12 @@ void DeterministicMultilevelCoarsener::coarsenImpl() {
     if (num_nodes_before_pass / num_nodes <= _context.coarsening.minimum_shrink_factor) {
       break;
     }
-    performMultilevelContraction(std::move(clusters), pass_start_time);
+    _uncoarseningData.performMultilevelContraction(std::move(clusters), pass_start_time);
   }
 
-  progress_bar += (initial_num_nodes - progress_bar.count());   // fill to 100% 
+  progress_bar += (initial_num_nodes - progress_bar.count());   // fill to 100%
   progress_bar.disable();
-  finalize();
+  _uncoarseningData.finalize(_top_level);
 }
 
 void DeterministicMultilevelCoarsener::calculatePreferredTargetCluster(HypernodeID u, const vec<HypernodeID>& clusters) {
