@@ -191,4 +191,4 @@ namespace mt_kahypar {
     }
   }
 
-};
+}

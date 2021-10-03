@@ -25,7 +25,7 @@
 #include "mt-kahypar/macros.h"
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/refinement/i_refiner.h"
-#include "mt-kahypar/partition/coarsening/level.h"
+#include "mt-kahypar/partition/coarsening/coarsening_commons.h"
 
 namespace mt_kahypar {
 

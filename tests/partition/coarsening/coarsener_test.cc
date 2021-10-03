@@ -23,7 +23,7 @@
 #include "tests/partition/coarsening/coarsener_fixtures.h"
 #include "mt-kahypar/partition/coarsening/multilevel_uncoarsener.h"
 #include "mt-kahypar/partition/coarsening/nlevel_uncoarsener.h"
-#include "mt-kahypar/partition/coarsening/level.h"
+#include "mt-kahypar/partition/coarsening/coarsening_commons.h"
 
 using ::testing::Test;
 

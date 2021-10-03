@@ -28,7 +28,7 @@
 #include "mt-kahypar/partition/refinement/i_refiner.h"
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
 #include "mt-kahypar/utils/timer.h"
-#include <mt-kahypar/partition/coarsening/level.h>
+#include <mt-kahypar/partition/coarsening/coarsening_commons.h>
 
 namespace mt_kahypar {
 
