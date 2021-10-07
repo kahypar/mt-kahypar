@@ -36,7 +36,7 @@ to restrict contractions to densely coupled regions during coarsening.
 The Mt-KaHyPar framework provides two hypergraph partitioners and a graph partitioner:
 
 - **Mt-KaHyPar Fast**: A scalable partitioner that computes good partitions very fast (for hypergraphs)
-- **Mt-KaHyPar Fast Graph**: A scalable partitioner that computes good partitions very fast (for graphs)
+- **Mt-KaHyPar Graph**: A scalable partitioner that computes good partitions very fast (for graphs)
 - **Mt-KaHyPar Strong**: A scalable partitioner that computes high-quality partitions
 
 Requirements
@@ -65,31 +65,36 @@ Building Mt-KaHyPar
 3. Run cmake: `cmake .. -DCMAKE_BUILD_TYPE=RELEASE`
 4. Run make: `make MtKaHyPar -j`
 
-The build produces two executables, which will be located in `build/mt-kahypar/application/`:
+The build produces three executables, which will be located in `build/mt-kahypar/application/`:
 
 - `MtKaHyParFast`: computes good partitions very fast (for hypergraphs)
 - `MtKaHyParGraph`: computes good partitions very fast (for graphs)
 - `MtKaHyParStrong`: computes high-quality partitions in reasonable time (using n levels)
 
+Note that `MtKaHyParGraph` uses the same feature set as `MtKaHyParFast`. However, it replaces
+the internal hypergraph data structure of `MtKaHyParFast` with a graph data structure. In fact, `MtKaHyParGraph` is a factor of 2 faster than `MtKaHyParFast` for graphs on average.
+
 Running Mt-KaHyPar
 -----------
 
-Mt-KaHyPar has several configuration parameters. We recommend to use our presets which are located in the `config` folder:
+Mt-KaHyPar has several configuration parameters. We recommend to use our presets located in the `config` folder:
 
 - `default_preset.ini`: default parameters for Mt-KaHyPar Fast/Graph (`MtKaHyParFast`, `MtKaHyParGraph`)
 - `speed_deterministic_preset.ini`: parameters to make Mt-KaHyPar Fast (`MtKaHyParFast`) deterministic
 - `quality_preset.ini`: default parameters for Mt-KaHyPar Strong (`MtKaHyParStrong`)
 
-Deterministic mode is only supported for Mt-KaHyPar Fast, not Strong.
-If you want to change parameters manually, please run `./MtKaHyParFast --help` or `./MtKaHyParStrong --help` for a detailed description of the different program options. We use the [hMetis format](http://glaros.dtc.umn.edu/gkhome/fetch/sw/hmetis/manual.pdf) for the input hypergraph file as well as the partition output file.
+Deterministic mode is only supported for Mt-KaHyPar Fast/Graph, not Strong.
+If you want to change parameters manually, please run `--help` for a detailed description of the different program options. We use the [hMetis format](http://glaros.dtc.umn.edu/gkhome/fetch/sw/hmetis/manual.pdf) for the input hypergraph file as well as the partition output file.
 
 To run Mt-KaHyPar Fast, you can use the following command:
 
     ./MtKaHyParFast -h <path-to-hgr> -p <path to default_preset.ini> -t <# threads> -k <# blocks> -e <imbalance (e.g. 0.03)> -o km1 -m direct
 
-To run Mt-KaHyPar Fast Graph, you can use the following command:
+To run Mt-KaHyPar Graph, you can use the following command:
 
     ./MtKaHyParGraph -h <path-to-hgr> -p <path to default_preset.ini> -t <# threads> -k <# blocks> -e <imbalance (e.g. 0.03)> -o km1 -m direct
+
+Note that the input for Mt-KaHyPar Graph must be also in [hMetis format](http://glaros.dtc.umn.edu/gkhome/fetch/sw/hmetis/manual.pdf). We are currently working on to support graph file formats.
 
 To run Mt-KaHyPar Strong, you can use the following command:
 
