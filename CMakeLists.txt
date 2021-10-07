@@ -274,10 +274,15 @@ if(NOT MSVC)
 
 
   set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -g3")
-  set(CMAKE_CXX_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -fsanitize=undefined -fsanitize=address -fno-omit-frame-pointer")
+  set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -fsanitize=undefined -fno-omit-frame-pointer")
   set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O3 -mtune=native -march=native")
-  set(CMAKE_LINKER_FLAGS_DEBUG "${CMAKE_LINKER_FLAGS_DEBUG} -fno-omit-frame-pointer -fsanitize=address")
+  set(CMAKE_LINKER_FLAGS_DEBUG "${CMAKE_LINKER_FLAGS_DEBUG} -fno-omit-frame-pointer")
   set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-O3 -mtune=native -march=native -g3 ")
+
+  if(NOT KAHYPAR_CI_BUILD)
+    set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -fsanitize=address")
+    set(CMAKE_LINKER_FLAGS_DEBUG "${CMAKE_LINKER_FLAGS_DEBUG} -fsanitize=address")
+  endif()
 
   if(ENABLE_PROFILE MATCHES ON)
     message(STATUS "Profiling activated")
@@ -309,8 +314,10 @@ add_subdirectory(mt-kahypar)
 
 add_custom_target(MtKaHyPar
   COMMAND $(MAKE) MtKaHyParFast
-  COMMAND $(MAKE) MtKaHyParStrong)
+  COMMAND $(MAKE) MtKaHyParStrong
+  COMMAND $(MAKE) MtKaHyParGraph)
 
 add_custom_target(mt_kahypar_tests
   COMMAND $(MAKE) mt_kahypar_fast_tests
-  COMMAND $(MAKE) mt_kahypar_strong_tests)
+  COMMAND $(MAKE) mt_kahypar_strong_tests
+  COMMAND $(MAKE) mt_kahypar_graph_tests)

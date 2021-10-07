@@ -123,7 +123,7 @@ namespace mt_kahypar {
           PartitionID to = _part_id + _rb_partitioned_hg.partID(_mapping[hn]);
           ASSERT(to != kInvalidPartition && to < _original_hg.k());
           if ( _part_id != to ) {
-            _original_hg.changeNodePart(hn, _part_id, to, NOOP_FUNC);
+            _original_hg.changeNodePart(hn, _part_id, to);
           }
         }
       });
@@ -257,6 +257,7 @@ namespace mt_kahypar {
       _hg.doParallelForAllNodes([&](const HypernodeID& hn) {
         PartitionID part_id = _bisection_partitioned_hg.partID(hn);
         ASSERT(part_id != kInvalidPartition && part_id < _hg.k());
+        ASSERT(_hg.partID(hn) == kInvalidPartition);
         if ( part_id == 0 ) {
           _hg.setOnlyNodePart(hn, block_0);
         } else {

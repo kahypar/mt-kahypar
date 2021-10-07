@@ -86,7 +86,7 @@ tbb::task* LabelPropagationInitialPartitioner::execute() {
               ASSERT(fitsIntoBlock(hg, hn, to));
 
               #ifndef KAHYPAR_ENABLE_HEAVY_INITIAL_PARTITIONING_ASSERTIONS
-              hg.changeNodePart(hn, from, to, NOOP_FUNC);
+              hg.changeNodePart(hn, from, to);
               #else
               Gain expected_gain = 0;
               auto cut_delta = [&](const HyperedgeID he,

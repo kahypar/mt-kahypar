@@ -357,6 +357,7 @@ class InitialPartitioningDataContainer {
     _local_kway_pq(_context.partition.k),
     _is_local_pq_initialized(false),
     _local_hn_visited(_context.partition.k * hypergraph.initialNumNodes()),
+    // TODO(maas): might be a problem?
     _local_he_visited(_context.partition.k * hypergraph.initialNumEdges()),
     _local_unassigned_hypernodes(),
     _local_unassigned_hypernode_pointer(std::numeric_limits<size_t>::max()),
@@ -628,6 +629,7 @@ class InitialPartitioningDataContainer {
         ASSERT(hn < best->_partition.size());
         const PartitionID part_id = best->_partition[hn];
         ASSERT(part_id != kInvalidPartition && part_id < _partitioned_hg.k());
+        ASSERT(_partitioned_hg.partID(hn) == kInvalidPartition);
         _partitioned_hg.setOnlyNodePart(hn, part_id);
       });
 

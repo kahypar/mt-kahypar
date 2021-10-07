@@ -170,11 +170,11 @@ class IntegralAtomicWrapper {
     return _value.exchange(desired, order);
   }
 
-  bool compare_exchange_weak(T &expected, T &desired, std::memory_order order = std::memory_order_seq_cst) noexcept {
+  bool compare_exchange_weak(T &expected, T desired, std::memory_order order = std::memory_order_seq_cst) noexcept {
     return _value.compare_exchange_weak(expected, desired, order);
   }
 
-  bool compare_exchange_strong(T &expected, T &desired, std::memory_order order = std::memory_order_seq_cst) noexcept {
+  bool compare_exchange_strong(T &expected, T desired, std::memory_order order = std::memory_order_seq_cst) noexcept {
     return _value.compare_exchange_strong(expected, desired, order);
   }
 

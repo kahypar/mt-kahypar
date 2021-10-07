@@ -26,7 +26,7 @@ jobs:
           rm -rf debug
           mkdir debug
           cd debug
-          cmake .. -DCMAKE_BUILD_TYPE=DEBUG -DKAHYPAR_USE_GCOV=ON -DKAHYPAR_TRAVIS_BUILD=ON
+          cmake .. -DCMAKE_BUILD_TYPE=DEBUG -DKAHYPAR_USE_GCOV=ON -DKAHYPAR_CI_BUILD=ON
           make -j2 mt_kahypar_tests;
 
       - name: Run Mt-KaHyPar Tests
@@ -34,6 +34,7 @@ jobs:
           cd debug
           ./tests/mt_kahypar_fast_tests;
           ./tests/mt_kahypar_strong_tests;
+          ./tests/mt_kahypar_graph_tests;
 
       - name: Report Code Coverage
         run: |
@@ -68,12 +69,14 @@ jobs:
           rm -rf build
           mkdir build
           cd build
-          cmake .. -DCMAKE_BUILD_TYPE=RELEASE -DKAHYPAR_TRAVIS_BUILD=ON
+          cmake .. -DCMAKE_BUILD_TYPE=RELEASE -DKAHYPAR_CI_BUILD=ON
           make -j2 fast_integration_tests
           make -j2 strong_integration_tests
+          make -j2 graph_integration_tests
 
       - name: Run Mt-KaHyPar Integration Tests
         run: |
           cd build
           ./tests/end_to_end/fast_integration_tests
           ./tests/end_to_end/strong_integration_tests
+          ./tests/end_to_end/graph_integration_tests

@@ -36,7 +36,7 @@ namespace ds {
 TEST(GainUpdates, Example1) {
   Hypergraph hg = io::readHypergraphFile("../tests/instances/twocenters.hgr", 0);
   PartitionID k = 2;
-  PartitionedHypergraph<Hypergraph, HypergraphFactory> phg(k, hg);
+  mt_kahypar::PartitionedHypergraph phg(k, hg);
 
   phg.setNodePart(0, 0);
   phg.setNodePart(1, 0);
