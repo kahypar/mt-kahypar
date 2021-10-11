@@ -142,16 +142,9 @@ private:
     }, [&] {
       _part_ids.assign(_part_ids.size(), kInvalidPartition);
     }, [&] {
-      _pins_in_part.data().assign(_pins_in_part.data().size(), 0);
-    }, [&] {
       _connectivity_set.reset();
     }, [&] {
       for (auto& x : _part_weights) x.store(0, std::memory_order_relaxed);
-    }, [&] {
-      for (auto& x : _move_to_penalty) x.store(0, std::memory_order_relaxed);
-    }, [&] {
-      for (auto& x : _move_from_benefit) x.store(0, std::memory_order_relaxed);
-    }, [&] {
     });
   }
 
