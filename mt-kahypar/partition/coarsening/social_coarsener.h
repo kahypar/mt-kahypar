@@ -311,7 +311,7 @@ class SocialCoarsener : public ICoarsener,
 
       // Perform 2-hop clustering
       if ( current_num_nodes > hierarchy_contraction_limit ) {
-        HashFuncVector hash_functions(4, utils::Randomize::instance().getRandomInt(0, 1000, sched_getcpu()));
+        HashFuncVector hash_functions(8, utils::Randomize::instance().getRandomInt(0, 1000, sched_getcpu()));
         ds::ConcurrentBucketMap<Footprint> footprint_map;
         current_hg.doParallelForAllNodes([&](const HypernodeID& hn) {
           if ( _matching_state[hn] == STATE(MatchingState::UNMATCHED) &&
@@ -323,6 +323,7 @@ class SocialCoarsener : public ICoarsener,
             for ( size_t i = 0; i < hash_functions.getHashNum(); ++i ) {
               hn_footprint.footprint.push_back(minHash(current_hg, hn, hash_functions[i]));
             }
+            std::sort(hn_footprint.footprint.begin(), hn_footprint.footprint.end());
             footprint_map.insert(combineHash(hn_footprint), std::move(hn_footprint));
           }
         });
@@ -342,7 +343,7 @@ class SocialCoarsener : public ICoarsener,
                   Footprint& partner = footprint_bucket[j];
                   if ( partner.hn != kInvalidHypernode ) {
                     if ( representative == partner ) {
-                      const double jaccard_index = jaccard(current_hg, representative.hn, partner.hn);
+                      const double jaccard_index = jaccard(representative.footprint, partner.footprint);
                       if ( jaccard_index >= 0.75 && current_num_nodes > hierarchy_contraction_limit ) {
                         HypernodeID& local_contracted_nodes = contracted_nodes.local();
                         matchVertices(current_hg, representative.hn, partner.hn, cluster_ids, local_contracted_nodes);
@@ -581,23 +582,7 @@ class SocialCoarsener : public ICoarsener,
     return hash_value;
   }
 
-  double jaccard(const Hypergraph& hg, const HypernodeID u, const HypernodeID v) {
-    auto fill = [&](const HypernodeID hn, vec<HypernodeID>& neighbors) {
-      for ( const HyperedgeID& he : hg.incidentEdges(hn) ) {
-        for ( const HypernodeID& pin : hg.pins(he) ) {
-          if ( pin != hn ) {
-            neighbors.push_back(pin);
-          }
-        }
-      }
-      std::sort(neighbors.begin(), neighbors.end());
-      neighbors.erase(std::unique(neighbors.begin(), neighbors.end()), neighbors.end());
-    };
-    vec<HypernodeID> lhs;
-    vec<HypernodeID> rhs;
-    fill(u, lhs);
-    fill(v, rhs);
-
+  double jaccard(const vec<size_t>& lhs, const vec<size_t>& rhs) {
     const size_t min_size = std::min(lhs.size(), rhs.size());
     const size_t max_size = std::max(lhs.size(), rhs.size());
     if ( static_cast<double>(min_size) / static_cast<double>(max_size) < 0.75 ) {
