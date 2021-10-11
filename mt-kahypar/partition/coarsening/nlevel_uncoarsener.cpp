@@ -30,35 +30,35 @@ namespace mt_kahypar {
   PartitionedHypergraph&& NLevelUncoarsener::doUncoarsen(std::unique_ptr<IRefiner>& label_propagation,
                                                          std::unique_ptr<IRefiner>& fm) {
     ASSERT(_uncoarseningData.is_finalized);
-    kahypar::Metrics current_metrics = initialize(*_uncoarseningData.compactified_phg);
+    kahypar::Metrics current_metrics = initialize(*_uncoarseningData.partitioned_hg);
     if (_top_level) {
       _context.initial_km1 = current_metrics.km1;
     }
 
     // Project partition from compactified hypergraph to original hypergraph
     utils::Timer::instance().start_timer("initialize_partition", "Initialize Partition");
-    _partitioned_hg = PartitionedHypergraph(_context.partition.k, _hg, parallel_tag_t());
-    _partitioned_hg.doParallelForAllNodes([&](const HypernodeID hn) {
+    *_uncoarseningData.partitioned_hg = PartitionedHypergraph(_context.partition.k, _hg, parallel_tag_t());
+    _uncoarseningData.partitioned_hg->doParallelForAllNodes([&](const HypernodeID hn) {
       ASSERT(static_cast<size_t>(hn) < _uncoarseningData.compactified_hn_mapping.size());
       const HypernodeID compactified_hn = _uncoarseningData.compactified_hn_mapping[hn];
-      const PartitionID block_id = _uncoarseningData.compactified_phg->partID(compactified_hn);
+      const PartitionID block_id = _uncoarseningData.partitioned_hg->partID(compactified_hn);
       ASSERT(block_id != kInvalidPartition && block_id < _context.partition.k);
-      _partitioned_hg.setOnlyNodePart(hn, block_id);
+      _uncoarseningData.partitioned_hg->setOnlyNodePart(hn, block_id);
     });
-    _partitioned_hg.initializePartition();
+    _uncoarseningData.partitioned_hg->initializePartition();
 
     if ( _context.refinement.fm.algorithm == FMAlgorithm::fm_gain_cache ) {
-      _partitioned_hg.initializeGainCache();
+      _uncoarseningData.partitioned_hg->initializeGainCache();
     }
 
-    ASSERT(metrics::objective(*_uncoarseningData.compactified_phg, _context.partition.objective) ==
-           metrics::objective(_partitioned_hg, _context.partition.objective),
-           V(metrics::objective(*_uncoarseningData.compactified_phg, _context.partition.objective)) <<
-           V(metrics::objective(_partitioned_hg, _context.partition.objective)));
-    ASSERT(metrics::imbalance(*_uncoarseningData.compactified_phg, _context) ==
-           metrics::imbalance(_partitioned_hg, _context),
-           V(metrics::imbalance(*_uncoarseningData.compactified_phg, _context)) <<
-           V(metrics::imbalance(_partitioned_hg, _context)));
+    ASSERT(metrics::objective(*_uncoarseningData.partitioned_hg, _context.partition.objective) ==
+           metrics::objective(_uncoarseningData.partitioned_hg, _context.partition.objective),
+           V(metrics::objective(*_uncoarseningData.partitioned_hg, _context.partition.objective)) <<
+           V(metrics::objective(_uncoarseningData.partitioned_hg, _context.partition.objective)));
+    ASSERT(metrics::imbalance(*_uncoarseningData.partitioned_hg, _context) ==
+           metrics::imbalance(_uncoarseningData.partitioned_hg, _context),
+           V(metrics::imbalance(*_uncoarseningData.partitioned_hg, _context)) <<
+           V(metrics::imbalance(_uncoarseningData.partitioned_hg, _context)));
     utils::Timer::instance().stop_timer("initialize_partition");
 
     utils::ProgressBar uncontraction_progress(_hg.initialNumNodes(),
@@ -68,10 +68,10 @@ namespace mt_kahypar {
 
     // Initialize Refiner
     if ( label_propagation ) {
-      label_propagation->initialize(_partitioned_hg);
+      label_propagation->initialize(*_uncoarseningData.partitioned_hg);
     }
     if ( fm ) {
-      fm->initialize(_partitioned_hg);
+      fm->initialize(*_uncoarseningData.partitioned_hg);
     }
 
     // Perform batch uncontractions
@@ -91,12 +91,12 @@ namespace mt_kahypar {
     const size_t minimum_required_number_of_border_vertices = std::max(_context.refinement.max_batch_size,
                                                                        _context.shared_memory.num_threads * _context.refinement.min_border_vertices_per_thread);
     ds::StreamingVector<HypernodeID> tmp_refinement_nodes;
-    kahypar::ds::FastResetFlagArray<> border_vertices_of_batch(_partitioned_hg.initialNumNodes());
+    kahypar::ds::FastResetFlagArray<> border_vertices_of_batch(_uncoarseningData.partitioned_hg->initialNumNodes());
     auto do_localized_refinement = [&]() {
       parallel::scalable_vector<HypernodeID> refinement_nodes = tmp_refinement_nodes.copy_parallel();
       tmp_refinement_nodes.clear_parallel();
       border_vertices_of_batch.reset();
-      localizedRefine(_partitioned_hg, refinement_nodes, label_propagation,
+      localizedRefine(*_uncoarseningData.partitioned_hg, refinement_nodes, label_propagation,
                       fm, current_metrics, force_measure_timings);
     };
 
@@ -107,28 +107,28 @@ namespace mt_kahypar {
       while ( !batches.empty() ) {
         const Batch& batch = batches.back();
         if ( batch.size() > 0 ) {
-          HEAVY_REFINEMENT_ASSERT(metrics::objective(_partitioned_hg, _context.partition.objective) ==
+          HEAVY_REFINEMENT_ASSERT(metrics::objective(_uncoarseningData.partitioned_hg, _context.partition.objective) ==
                                   current_metrics.getMetric(kahypar::Mode::direct_kway, _context.partition.objective),
                                   V(current_metrics.getMetric(kahypar::Mode::direct_kway, _context.partition.objective)) <<
-                                  V(metrics::objective(_partitioned_hg, _context.partition.objective)));
+                                  V(metrics::objective(_uncoarseningData.partitioned_hg, _context.partition.objective)));
           utils::Timer::instance().start_timer("batch_uncontractions", "Batch Uncontractions", false, force_measure_timings);
-          _partitioned_hg.uncontract(batch);
+          _uncoarseningData.partitioned_hg->uncontract(batch);
           utils::Timer::instance().stop_timer("batch_uncontractions", force_measure_timings);
           HEAVY_REFINEMENT_ASSERT(_hg.verifyIncidenceArrayAndIncidentNets());
-          HEAVY_REFINEMENT_ASSERT(_partitioned_hg.checkTrackedPartitionInformation());
-          HEAVY_REFINEMENT_ASSERT(metrics::objective(_partitioned_hg, _context.partition.objective) ==
+          HEAVY_REFINEMENT_ASSERT(_uncoarseningData.partitioned_hg->checkTrackedPartitionInformation());
+          HEAVY_REFINEMENT_ASSERT(metrics::objective(_uncoarseningData.partitioned_hg, _context.partition.objective) ==
                                   current_metrics.getMetric(kahypar::Mode::direct_kway, _context.partition.objective),
                                   V(current_metrics.getMetric(kahypar::Mode::direct_kway, _context.partition.objective)) <<
-                                  V(metrics::objective(_partitioned_hg, _context.partition.objective)));
+                                  V(metrics::objective(_uncoarseningData.partitioned_hg, _context.partition.objective)));
 
           utils::Timer::instance().start_timer("collect_border_vertices", "Collect Border Vertices", false, force_measure_timings);
           tbb::parallel_for(0UL, batch.size(), [&](const size_t i) {
             const Memento& memento = batch[i];
-            if ( !border_vertices_of_batch[memento.u] && _partitioned_hg.isBorderNode(memento.u) ) {
+            if ( !border_vertices_of_batch[memento.u] && _uncoarseningData.partitioned_hg->isBorderNode(memento.u) ) {
               border_vertices_of_batch.set(memento.u, true);
               tmp_refinement_nodes.stream(memento.u);
             }
-            if ( !border_vertices_of_batch[memento.v] && _partitioned_hg.isBorderNode(memento.v) ) {
+            if ( !border_vertices_of_batch[memento.v] && _uncoarseningData.partitioned_hg->isBorderNode(memento.v) ) {
               border_vertices_of_batch.set(memento.v, true);
               tmp_refinement_nodes.stream(memento.v);
             }
@@ -159,15 +159,15 @@ namespace mt_kahypar {
       // Restore single-pin and parallel nets to continue with the next vector of batches
       if ( !_uncoarseningData.removed_hyperedges_batches.empty() ) {
         utils::Timer::instance().start_timer("restore_single_pin_and_parallel_nets", "Restore Single Pin and Parallel Nets", false, force_measure_timings);
-        _partitioned_hg.restoreSinglePinAndParallelNets(_uncoarseningData.removed_hyperedges_batches.back());
+        _uncoarseningData.partitioned_hg->restoreSinglePinAndParallelNets(_uncoarseningData.removed_hyperedges_batches.back());
         _uncoarseningData.removed_hyperedges_batches.pop_back();
         utils::Timer::instance().stop_timer("restore_single_pin_and_parallel_nets", force_measure_timings);
         HEAVY_REFINEMENT_ASSERT(_hg.verifyIncidenceArrayAndIncidentNets());
-        HEAVY_REFINEMENT_ASSERT(_partitioned_hg.checkTrackedPartitionInformation());
+        HEAVY_REFINEMENT_ASSERT(_uncoarseningData.partitioned_hg->checkTrackedPartitionInformation());
 
         // Perform refinement on all vertices
         const double time_limit = refinementTimeLimit(_context, _uncoarseningData.round_coarsening_times.back());
-        globalRefine(_partitioned_hg, fm, current_metrics, time_limit);
+        globalRefine(*_uncoarseningData.partitioned_hg, fm, current_metrics, time_limit);
         uncontraction_progress.setObjective(current_metrics.getMetric(
             _context.partition.mode, _context.partition.objective));
         _uncoarseningData.round_coarsening_times.pop_back();
@@ -179,7 +179,7 @@ namespace mt_kahypar {
     const HyperedgeWeight objective_before = current_metrics.getMetric(
       _context.partition.mode, _context.partition.objective);
     const double time_limit = refinementTimeLimit(_context, _uncoarseningData.round_coarsening_times.back());
-    globalRefine(_partitioned_hg, fm, current_metrics, time_limit);
+    globalRefine(*_uncoarseningData.partitioned_hg, fm, current_metrics, time_limit);
     _uncoarseningData.round_coarsening_times.pop_back();
     ASSERT(_uncoarseningData.round_coarsening_times.size() == 0);
     const HyperedgeWeight objective_after = current_metrics.getMetric(
@@ -194,24 +194,24 @@ namespace mt_kahypar {
     }
 
     // If we finish batch uncontractions and partition is imbalanced, we try to rebalance it
-    if ( _top_level && !metrics::isBalanced(_partitioned_hg, _context)) {
+    if ( _top_level && !metrics::isBalanced(*_uncoarseningData.partitioned_hg, _context)) {
       const HyperedgeWeight quality_before = current_metrics.getMetric(
         kahypar::Mode::direct_kway, _context.partition.objective);
       if ( _context.partition.verbose_output ) {
         LOG << RED << "Partition is imbalanced (Current Imbalance:"
-        << metrics::imbalance(_partitioned_hg, _context) << ") ->"
+        << metrics::imbalance(*_uncoarseningData.partitioned_hg, _context) << ") ->"
         << "Rebalancer is activated" << END;
 
         LOG << "Part weights: (violations in red)";
-        io::printPartWeightsAndSizes(_partitioned_hg, _context);
+        io::printPartWeightsAndSizes(*_uncoarseningData.partitioned_hg, _context);
       }
 
       utils::Timer::instance().start_timer("rebalance", "Rebalance");
       if ( _context.partition.objective == kahypar::Objective::km1 ) {
-        Km1Rebalancer rebalancer(_partitioned_hg, _context);
+        Km1Rebalancer rebalancer(*_uncoarseningData.partitioned_hg, _context);
         rebalancer.rebalance(current_metrics);
       } else if ( _context.partition.objective == kahypar::Objective::cut ) {
-        CutRebalancer rebalancer(_partitioned_hg, _context);
+        CutRebalancer rebalancer(*_uncoarseningData.partitioned_hg, _context);
         rebalancer.rebalance(current_metrics);
       }
       utils::Timer::instance().stop_timer("rebalance");
@@ -222,10 +222,10 @@ namespace mt_kahypar {
         const HyperedgeWeight quality_delta = quality_after - quality_before;
         if ( quality_delta > 0 ) {
           LOG << RED << "Rebalancer worsen solution quality by" << quality_delta
-          << "(Current Imbalance:" << metrics::imbalance(_partitioned_hg, _context) << ")" << END;
+          << "(Current Imbalance:" << metrics::imbalance(*_uncoarseningData.partitioned_hg, _context) << ")" << END;
         } else {
           LOG << GREEN << "Rebalancer improves solution quality by" << abs(quality_delta)
-          << "(Current Imbalance:" << metrics::imbalance(_partitioned_hg, _context) << ")" << END;
+          << "(Current Imbalance:" << metrics::imbalance(*_uncoarseningData.partitioned_hg, _context) << ")" << END;
         }
       }
     }
@@ -235,12 +235,12 @@ namespace mt_kahypar {
     utils::Stats::instance().add_stat("avg_batch_size", avg_batch_size);
     DBG << V(num_batches) << V(avg_batch_size);
 
-    ASSERT(metrics::objective(_partitioned_hg, _context.partition.objective) ==
+    ASSERT(metrics::objective(_uncoarseningData.partitioned_hg, _context.partition.objective) ==
            current_metrics.getMetric(kahypar::Mode::direct_kway, _context.partition.objective),
            V(current_metrics.getMetric(kahypar::Mode::direct_kway, _context.partition.objective)) <<
-           V(metrics::objective(_partitioned_hg, _context.partition.objective)));
+           V(metrics::objective(_uncoarseningData.partitioned_hg, _context.partition.objective)));
 
-    return std::move(_partitioned_hg);
+    return std::move(*_uncoarseningData.partitioned_hg);
   }
   void NLevelUncoarsener::localizedRefine(PartitionedHypergraph& partitioned_hypergraph,
                                           const parallel::scalable_vector<HypernodeID>& refinement_nodes,

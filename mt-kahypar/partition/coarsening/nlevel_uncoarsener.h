@@ -77,8 +77,6 @@ namespace mt_kahypar {
     utils::Timer::instance().stop_timer("create_batch_uncontraction_hierarchy");
   }
 
-  // ! Original partitioned hypergraph
-  PartitionedHypergraph _partitioned_hg;
   // ! Represents the n-level hierarchy
   // ! A batch is vector of uncontractions/mementos that can be uncontracted in parallel
   // ! without conflicts. All batches of a specific version of the hypergraph are assembled
