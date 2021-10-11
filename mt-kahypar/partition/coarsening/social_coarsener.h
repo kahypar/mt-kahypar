@@ -245,7 +245,7 @@ class SocialCoarsener : public ICoarsener,
                 const HyperedgeID degree = current_hg.nodeDegree(pin);
                 if ( pin != hn && min_degree <= degree && degree < max_degree ) {
                   candidates.push_back(Pin { he, pin });
-                } else if ( pin != hn && degree <= 2 ) {
+                } else if ( pin != hn && degree <= 1 + bucket_span ) {
                   if ( two_hop_candidate == kInvalidHypernode ) {
                     two_hop_candidate = pin;
                   } else if ( two_hop_candidate != pin && current_num_nodes > hierarchy_contraction_limit ) {
