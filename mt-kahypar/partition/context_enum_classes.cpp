@@ -71,6 +71,7 @@ namespace mt_kahypar {
   std::ostream & operator<< (std::ostream& os, const CoarseningAlgorithm& algo) {
     switch (algo) {
       case CoarseningAlgorithm::multilevel_coarsener: return os << "multilevel_coarsener";
+      case CoarseningAlgorithm::social_coarsener: return os << "social_coarsener";
       case CoarseningAlgorithm::deterministic_multilevel_coarsener: return os << "deterministic_multilevel_coarsener";
       case CoarseningAlgorithm::nlevel_coarsener: return os << "nlevel_coarsener";
       case CoarseningAlgorithm::UNDEFINED: return os << "UNDEFINED";
@@ -189,6 +190,8 @@ namespace mt_kahypar {
   CoarseningAlgorithm coarseningAlgorithmFromString(const std::string& type) {
     if (type == "multilevel_coarsener") {
       return CoarseningAlgorithm::multilevel_coarsener;
+    } else if (type == "social_coarsener") {
+      return CoarseningAlgorithm::social_coarsener;
     } else if (type == "nlevel_coarsener") {
       return CoarseningAlgorithm::nlevel_coarsener;
     } else if (type == "deterministic_multilevel_coarsener") {

@@ -26,6 +26,7 @@
 
 #include "mt-kahypar/partition/coarsening/nlevel_coarsener.h"
 #include "mt-kahypar/partition/coarsening/multilevel_coarsener.h"
+#include "mt-kahypar/partition/coarsening/social_coarsener.h"
 #include "mt-kahypar/partition/coarsening/i_coarsener.h"
 #include "mt-kahypar/partition/coarsening/policies/rating_acceptance_policy.h"
 #include "mt-kahypar/partition/coarsening/policies/rating_heavy_node_penalty_policy.h"
@@ -45,6 +46,11 @@ using CoarsenerFactory = kahypar::meta::Factory<CoarseningAlgorithm,
 using MultilevelCoarsenerDispatcher = kahypar::meta::StaticMultiDispatchFactory<MultilevelCoarsener,
                                                                                 ICoarsener,
                                                                                 kahypar::meta::Typelist<RatingScorePolicies,
+                                                                                                        HeavyNodePenaltyPolicies,
+                                                                                                        AcceptancePolicies> >;
+using SocialCoarsenerDispatcher = kahypar::meta::StaticMultiDispatchFactory<SocialCoarsener,
+                                                                            ICoarsener,
+                                                                            kahypar::meta::Typelist<RatingScorePolicies,
                                                                                                         HeavyNodePenaltyPolicies,
                                                                                                         AcceptancePolicies> >;
 
