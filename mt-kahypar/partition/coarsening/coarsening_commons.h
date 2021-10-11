@@ -76,7 +76,6 @@ public:
   explicit UncoarseningData(bool n_level, Hypergraph& hg, const Context& context) :
     nlevel(n_level),
     hypergraph(&hg),
-    partitioned_hg(),
     _context(context) {
       if (!n_level) {
         size_t estimated_number_of_levels = 1UL;
@@ -88,6 +87,7 @@ public:
         }
         hierarchy.reserve(estimated_number_of_levels);
       }
+      partitioned_hg = std::make_unique<PartitionedHypergraph>();
     }
 
   ~UncoarseningData() noexcept {
@@ -157,7 +157,7 @@ public:
 
   // Both
   bool nlevel;
-  std::unique_ptr<Hypergraph> hypergraph;
+  Hypergraph* hypergraph;
   std::unique_ptr<PartitionedHypergraph> partitioned_hg;
   bool is_finalized = false;
 
