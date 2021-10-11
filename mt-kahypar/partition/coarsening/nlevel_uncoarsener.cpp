@@ -2,6 +2,8 @@
  * This file is part of KaHyPar.
  *
  * Copyright (C) 2021 Noah Wahl <noah.wahl@kit.edu>
+ * Copyright (C) 2021 Tobias Heuer <tobias.heuer@kit.edu>
+ * Copyright (C) 2021 Lars Gottesbüren <lars.gottesbueren@kit.edu>
  *
  * KaHyPar is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -51,14 +53,6 @@ namespace mt_kahypar {
       _uncoarseningData.partitioned_hg->initializeGainCache();
     }
 
-    ASSERT(metrics::objective(*_uncoarseningData.partitioned_hg, _context.partition.objective) ==
-           metrics::objective(_uncoarseningData.partitioned_hg, _context.partition.objective),
-           V(metrics::objective(*_uncoarseningData.partitioned_hg, _context.partition.objective)) <<
-           V(metrics::objective(_uncoarseningData.partitioned_hg, _context.partition.objective)));
-    ASSERT(metrics::imbalance(*_uncoarseningData.partitioned_hg, _context) ==
-           metrics::imbalance(_uncoarseningData.partitioned_hg, _context),
-           V(metrics::imbalance(*_uncoarseningData.partitioned_hg, _context)) <<
-           V(metrics::imbalance(_uncoarseningData.partitioned_hg, _context)));
     utils::Timer::instance().stop_timer("initialize_partition");
 
     utils::ProgressBar uncontraction_progress(_hg.initialNumNodes(),
@@ -107,19 +101,19 @@ namespace mt_kahypar {
       while ( !batches.empty() ) {
         const Batch& batch = batches.back();
         if ( batch.size() > 0 ) {
-          HEAVY_REFINEMENT_ASSERT(metrics::objective(_uncoarseningData.partitioned_hg, _context.partition.objective) ==
+          HEAVY_REFINEMENT_ASSERT(metrics::objective(*_uncoarseningData.partitioned_hg, _context.partition.objective) ==
                                   current_metrics.getMetric(kahypar::Mode::direct_kway, _context.partition.objective),
                                   V(current_metrics.getMetric(kahypar::Mode::direct_kway, _context.partition.objective)) <<
-                                  V(metrics::objective(_uncoarseningData.partitioned_hg, _context.partition.objective)));
+                                  V(metrics::objective(*_uncoarseningData.partitioned_hg, _context.partition.objective)));
           utils::Timer::instance().start_timer("batch_uncontractions", "Batch Uncontractions", false, force_measure_timings);
           _uncoarseningData.partitioned_hg->uncontract(batch);
           utils::Timer::instance().stop_timer("batch_uncontractions", force_measure_timings);
           HEAVY_REFINEMENT_ASSERT(_hg.verifyIncidenceArrayAndIncidentNets());
           HEAVY_REFINEMENT_ASSERT(_uncoarseningData.partitioned_hg->checkTrackedPartitionInformation());
-          HEAVY_REFINEMENT_ASSERT(metrics::objective(_uncoarseningData.partitioned_hg, _context.partition.objective) ==
+          HEAVY_REFINEMENT_ASSERT(metrics::objective(*_uncoarseningData.partitioned_hg, _context.partition.objective) ==
                                   current_metrics.getMetric(kahypar::Mode::direct_kway, _context.partition.objective),
                                   V(current_metrics.getMetric(kahypar::Mode::direct_kway, _context.partition.objective)) <<
-                                  V(metrics::objective(_uncoarseningData.partitioned_hg, _context.partition.objective)));
+                                  V(metrics::objective(*_uncoarseningData.partitioned_hg, _context.partition.objective)));
 
           utils::Timer::instance().start_timer("collect_border_vertices", "Collect Border Vertices", false, force_measure_timings);
           tbb::parallel_for(0UL, batch.size(), [&](const size_t i) {
@@ -235,10 +229,10 @@ namespace mt_kahypar {
     utils::Stats::instance().add_stat("avg_batch_size", avg_batch_size);
     DBG << V(num_batches) << V(avg_batch_size);
 
-    ASSERT(metrics::objective(_uncoarseningData.partitioned_hg, _context.partition.objective) ==
+    ASSERT(metrics::objective(*_uncoarseningData.partitioned_hg, _context.partition.objective) ==
            current_metrics.getMetric(kahypar::Mode::direct_kway, _context.partition.objective),
            V(current_metrics.getMetric(kahypar::Mode::direct_kway, _context.partition.objective)) <<
-           V(metrics::objective(_uncoarseningData.partitioned_hg, _context.partition.objective)));
+           V(metrics::objective(*_uncoarseningData.partitioned_hg, _context.partition.objective)));
 
     return std::move(*_uncoarseningData.partitioned_hg);
   }
