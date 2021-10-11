@@ -323,7 +323,6 @@ class SocialCoarsener : public ICoarsener,
             for ( size_t i = 0; i < hash_functions.getHashNum(); ++i ) {
               hn_footprint.footprint.push_back(minHash(current_hg, hn, hash_functions[i]));
             }
-            std::sort(hn_footprint.footprint.begin(), hn_footprint.footprint.end());
             footprint_map.insert(combineHash(hn_footprint), std::move(hn_footprint));
           }
         });
@@ -343,8 +342,7 @@ class SocialCoarsener : public ICoarsener,
                   Footprint& partner = footprint_bucket[j];
                   if ( partner.hn != kInvalidHypernode ) {
                     if ( representative == partner ) {
-                      const double jaccard_index = jaccard(representative.footprint, partner.footprint);
-                      if ( jaccard_index >= 0.75 && current_num_nodes > hierarchy_contraction_limit ) {
+                      if ( current_num_nodes > hierarchy_contraction_limit ) {
                         HypernodeID& local_contracted_nodes = contracted_nodes.local();
                         matchVertices(current_hg, representative.hn, partner.hn, cluster_ids, local_contracted_nodes);
                         update_current_num_nodes(local_contracted_nodes);
@@ -580,32 +578,6 @@ class SocialCoarsener : public ICoarsener,
       hash_value ^= value;
     }
     return hash_value;
-  }
-
-  double jaccard(const vec<size_t>& lhs, const vec<size_t>& rhs) {
-    const size_t min_size = std::min(lhs.size(), rhs.size());
-    const size_t max_size = std::max(lhs.size(), rhs.size());
-    if ( static_cast<double>(min_size) / static_cast<double>(max_size) < 0.75 ) {
-      return 0.0;
-    }
-
-    size_t intersection_size = 0;
-    size_t i = 0;
-    size_t j = 0;
-    while ( i < lhs.size() && j < rhs.size() ) {
-      if ( lhs[i] == rhs[j] ) {
-        ++intersection_size;
-        ++i;
-        ++j;
-      } else if ( lhs[i] < rhs[j] ) {
-        ++i;
-      } else {
-        ++j;
-      }
-    }
-    const size_t union_size = lhs.size() + rhs.size() - intersection_size;
-    return static_cast<double>(intersection_size) /
-      static_cast<double>(union_size);
   }
 
   PartitionedHypergraph&& uncoarsenImpl(std::unique_ptr<IRefiner>& label_propagation,

@@ -179,7 +179,6 @@ namespace mt_kahypar {
         const bool improved_balance_less_equal_km1 = estimatedImprovement >= bestImprovement
                                                      && fromWeight == heaviestPartWeight
                                                      && toWeight + phg.nodeWeight(move.node) < heaviestPartWeight;
-
         if (improved_km1 || improved_balance_less_equal_km1) {
           stopRule.reset();
           bestImprovement = estimatedImprovement;
