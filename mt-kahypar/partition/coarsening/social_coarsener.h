@@ -29,8 +29,11 @@
 #include "tbb/parallel_reduce.h"
 
 #include "kahypar/meta/mandatory.h"
+#include "kahypar/utils/math.h"
+#include "kahypar/utils/hash_vector.h"
 
 #include "mt-kahypar/definitions.h"
+#include "mt-kahypar/datastructures/concurrent_bucket_map.h"
 #include "mt-kahypar/partition/coarsening/multilevel_coarsener_base.h"
 #include "mt-kahypar/partition/coarsening/multilevel_vertex_pair_rater.h"
 #include "mt-kahypar/partition/coarsening/i_coarsener.h"
@@ -68,9 +71,43 @@ class SocialCoarsener : public ICoarsener,
   using AtomicMatchingState = parallel::IntegralAtomicWrapper<uint8_t>;
   using AtomicWeight = parallel::IntegralAtomicWrapper<HypernodeWeight>;
 
+  using HashFunc = kahypar::math::MurmurHash<HypernodeID>;
+  using HashValue = typename HashFunc::HashValue;
+  using HashFuncVector = kahypar::HashFuncVector<HashFunc>;
+
+  struct Footprint {
+    explicit Footprint() :
+      footprint(),
+      hn(kInvalidHypernode) { }
+
+    vec<HashValue> footprint;
+    HypernodeID hn;
+
+    bool operator==(const Footprint& other) const {
+      ASSERT(footprint.size() == other.footprint.size());
+      for ( size_t i = 0; i < footprint.size(); ++i ) {
+        if ( footprint[i] != other.footprint[i] ) {
+          return false;
+        }
+      }
+      return true;
+    }
+
+    bool operator<(const Footprint& other) const {
+      ASSERT(footprint.size() == other.footprint.size());
+      for ( size_t i = 0; i < footprint.size(); ++i ) {
+        if ( footprint[i] < other.footprint[i] ) {
+          return true;
+        } else if ( footprint[i] > other.footprint[i] ) {
+          return false;
+        }
+      }
+      return hn < other.hn;
+    }
+  };
+
   static constexpr bool debug = false;
   static constexpr bool enable_heavy_assert = false;
-  static constexpr HypernodeID kInvalidHypernode = std::numeric_limits<HypernodeID>::max();
 
  public:
   SocialCoarsener(Hypergraph& hypergraph,
@@ -244,7 +281,7 @@ class SocialCoarsener : public ICoarsener,
                 const HyperedgeID degree = current_hg.nodeDegree(pin);
                 if ( pin != hn && min_degree <= degree && degree < max_degree ) {
                   candidates.push_back(Pin { he, pin });
-                } else if ( pin != hn && degree <= 2 ) {
+                } else if ( pin != hn && degree == 2 ) {
                   if ( two_hop_candidate == kInvalidHypernode ) {
                     two_hop_candidate = pin;
                   } else if ( two_hop_candidate != pin && current_num_nodes > hierarchy_contraction_limit ) {
@@ -269,6 +306,59 @@ class SocialCoarsener : public ICoarsener,
               }
             }
           }
+        });
+      }
+
+      // Perform 2-hop clustering
+      if ( current_num_nodes > hierarchy_contraction_limit ) {
+        HashFuncVector hash_functions(4, utils::Randomize::instance().getRandomInt(0, 1000, sched_getcpu()));
+        ds::ConcurrentBucketMap<Footprint> footprint_map;
+        current_hg.doParallelForAllNodes([&](const HypernodeID& hn) {
+          if ( _matching_state[hn] == STATE(MatchingState::UNMATCHED) &&
+              current_hg.nodeDegree(hn) > 1 && current_hg.nodeDegree(hn) < 100 ) {
+            // Compute min hash
+            Footprint hn_footprint;
+            hn_footprint.footprint = {};
+            hn_footprint.hn = hn;
+            for ( size_t i = 0; i < hash_functions.getHashNum(); ++i ) {
+              hn_footprint.footprint.push_back(minHash(current_hg, hn, hash_functions[i]));
+            }
+            footprint_map.insert(combineHash(hn_footprint), std::move(hn_footprint));
+          }
+        });
+
+        tbb::parallel_for(0UL, footprint_map.numBuckets(), [&](const size_t bucket) {
+          auto& footprint_bucket = footprint_map.getBucket(bucket);
+          if ( footprint_bucket.size() > 0 ) {
+            std::sort(footprint_bucket.begin(), footprint_bucket.end());
+
+            for ( size_t i = 0; i < footprint_bucket.size(); ++i ) {
+              if ( current_num_nodes <= hierarchy_contraction_limit ) {
+                break;
+              }
+              Footprint& representative = footprint_bucket[i];
+              if ( representative.hn != kInvalidHypernode ) {
+                for ( size_t j = i + 1; j < footprint_bucket.size(); ++j ) {
+                  Footprint& partner = footprint_bucket[j];
+                  if ( partner.hn != kInvalidHypernode ) {
+                    if ( representative == partner ) {
+                      const double jaccard_index = jaccard(current_hg, representative.hn, partner.hn);
+                      if ( jaccard_index >= 0.75 && current_num_nodes > hierarchy_contraction_limit ) {
+                        HypernodeID& local_contracted_nodes = contracted_nodes.local();
+                        matchVertices(current_hg, representative.hn, partner.hn, cluster_ids, local_contracted_nodes);
+                        update_current_num_nodes(local_contracted_nodes);
+                        partner.hn = kInvalidHypernode;
+                        break;
+                      }
+                    } else {
+                      break;
+                    }
+                  }
+                }
+              }
+            }
+          }
+          footprint_map.free(bucket);
         });
       }
 
@@ -469,6 +559,68 @@ class SocialCoarsener : public ICoarsener,
       }
     }
     return success;
+  }
+
+  HashValue minHash(const Hypergraph& hg, const HypernodeID hn, const HashFunc& hash_function) {
+    HashValue hash_value = std::numeric_limits<HashValue>::max();
+    for ( const HyperedgeID& he : hg.incidentEdges(hn) ) {
+      for ( const HypernodeID& pin : hg.pins(he) ) {
+        if ( pin != hn ) {
+          hash_value = std::min(hash_value, hash_function(pin));
+        }
+      }
+    }
+    return hash_value;
+  }
+
+  HashValue combineHash(const Footprint& footprint) {
+    HashValue hash_value = kEdgeHashSeed;
+    for ( const HashValue& value : footprint.footprint ) {
+      hash_value ^= value;
+    }
+    return hash_value;
+  }
+
+  double jaccard(const Hypergraph& hg, const HypernodeID u, const HypernodeID v) {
+    auto fill = [&](const HypernodeID hn, vec<HypernodeID>& neighbors) {
+      for ( const HyperedgeID& he : hg.incidentEdges(hn) ) {
+        for ( const HypernodeID& pin : hg.pins(he) ) {
+          if ( pin != hn ) {
+            neighbors.push_back(pin);
+          }
+        }
+      }
+      std::sort(neighbors.begin(), neighbors.end());
+      neighbors.erase(std::unique(neighbors.begin(), neighbors.end()), neighbors.end());
+    };
+    vec<HypernodeID> lhs;
+    vec<HypernodeID> rhs;
+    fill(u, lhs);
+    fill(v, rhs);
+
+    const size_t min_size = std::min(lhs.size(), rhs.size());
+    const size_t max_size = std::max(lhs.size(), rhs.size());
+    if ( static_cast<double>(min_size) / static_cast<double>(max_size) < 0.75 ) {
+      return 0.0;
+    }
+
+    size_t intersection_size = 0;
+    size_t i = 0;
+    size_t j = 0;
+    while ( i < lhs.size() && j < rhs.size() ) {
+      if ( lhs[i] == rhs[j] ) {
+        ++intersection_size;
+        ++i;
+        ++j;
+      } else if ( lhs[i] < rhs[j] ) {
+        ++i;
+      } else {
+        ++j;
+      }
+    }
+    const size_t union_size = lhs.size() + rhs.size() - intersection_size;
+    return static_cast<double>(intersection_size) /
+      static_cast<double>(union_size);
   }
 
   PartitionedHypergraph&& uncoarsenImpl(std::unique_ptr<IRefiner>& label_propagation,
