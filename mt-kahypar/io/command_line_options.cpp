@@ -187,6 +187,9 @@ namespace mt_kahypar {
              po::value<bool>(&context.coarsening.use_adaptive_edge_size)->value_name("<bool>")->default_value(true),
              "If true, the rating function uses the number of distinct cluster IDs of a net as edge size rather\n"
              "than its original size during multilevel coarsing")
+            ("c-use-two-hop-clustering",
+             po::value<bool>(&context.coarsening.use_two_hop_clustering)->value_name("<bool>")->default_value(true),
+             "If true, then 2-hop clustering is used in social coarsener")
             #ifdef KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES
                         ("c-use-adaptive-max-node-weight",
                 po::value<bool>(&context.coarsening.use_adaptive_max_allowed_node_weight)->value_name("<bool>")->default_value(false),

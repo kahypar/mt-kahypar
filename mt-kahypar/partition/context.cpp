@@ -85,6 +85,7 @@ namespace mt_kahypar {
 #ifdef KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES
     str << "  Use Adaptive Max Node Weight:       " << std::boolalpha << params.use_adaptive_max_allowed_node_weight << std::endl;
 #endif
+    str << "  Use 2-hop Clustering:               " << std::boolalpha << params.use_two_hop_clustering << std::endl;
     if ( params.use_adaptive_max_allowed_node_weight ) {
       str << "  Max Allowed Weight Fraction:        " << params.max_allowed_weight_fraction << std::endl;
       str << "  Adaptive Node Weight Threshold:     " << params.adaptive_node_weight_shrink_factor_threshold << std::endl;

@@ -103,6 +103,7 @@ struct CoarseningParameters {
   HypernodeID contraction_limit_multiplier = std::numeric_limits<HypernodeID>::max();
   bool use_adaptive_edge_size = false;
   bool use_adaptive_max_allowed_node_weight = false;
+  bool use_two_hop_clustering = true;
   double max_allowed_weight_fraction = std::numeric_limits<double>::max();
   double adaptive_node_weight_shrink_factor_threshold = std::numeric_limits<double>::max();
   double max_allowed_weight_multiplier = std::numeric_limits<double>::max();

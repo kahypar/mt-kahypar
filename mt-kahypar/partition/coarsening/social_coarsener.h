@@ -310,7 +310,7 @@ class SocialCoarsener : public ICoarsener,
       }
 
       // Perform 2-hop clustering
-      if ( current_num_nodes > hierarchy_contraction_limit ) {
+      if ( _context.coarsening.use_two_hop_clustering && current_num_nodes > hierarchy_contraction_limit ) {
         HashFuncVector hash_functions(8, utils::Randomize::instance().getRandomInt(0, 1000, sched_getcpu()));
         ds::ConcurrentBucketMap<Footprint> footprint_map;
         current_hg.doParallelForAllNodes([&](const HypernodeID& hn) {
