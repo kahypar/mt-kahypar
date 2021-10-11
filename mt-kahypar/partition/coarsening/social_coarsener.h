@@ -144,6 +144,7 @@ class SocialCoarsener : public ICoarsener,
     }
 
     int pass_nr = 0;
+    int bucket_span = 0;
     const HypernodeID initial_num_nodes = Base::currentNumNodes();
     while ( Base::currentNumNodes() > _context.coarsening.contraction_limit ) {
       HighResClockTimepoint round_start = std::chrono::high_resolution_clock::now();
@@ -231,8 +232,8 @@ class SocialCoarsener : public ICoarsener,
 
       for ( int i = static_cast<int>(num_buckets) - 1; i >= 0; --i ) {
         std::random_shuffle(_degree_buckets[i].begin(), _degree_buckets[i].end());
-        const HyperedgeID min_degree = std::pow(2, i > 0 ? i - 1 : 0);
-        const HyperedgeID max_degree = std::pow(2, i + 2);
+        const HyperedgeID min_degree = std::pow(2, i > bucket_span ? i - bucket_span : 0);
+        const HyperedgeID max_degree = std::pow(2, i + bucket_span + 1 < 31 ? i + bucket_span + 1 : 31);
         tbb::parallel_for(0UL, _degree_buckets[i].size(), [&](const size_t j) {
           const HypernodeID hn = _degree_buckets[i][j];
           if (_matching_state[hn] == STATE(MatchingState::UNMATCHED)) {
@@ -271,6 +272,7 @@ class SocialCoarsener : public ICoarsener,
           }
         });
       }
+      ++bucket_span;
 
       if ( _context.partition.show_detailed_clustering_timings ) {
         utils::Timer::instance().stop_timer("clustering_level_" + std::to_string(pass_nr));
