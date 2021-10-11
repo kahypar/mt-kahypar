@@ -195,6 +195,16 @@ namespace mt_kahypar {
     return std::move(partitioned_hypergraph);
   }
 
+  struct NodeMove {
+    HypernodeID hn;
+    HyperedgeWeight internal_weight;
+    HyperedgeWeight external_weight;
+    Gain gain;
+  };
+
+  #define NOOP_FUNC [] (const HyperedgeID, const HyperedgeWeight, const HypernodeID, const HypernodeID, const HypernodeID) { }
+
+
   PartitionedHypergraph partition(Hypergraph& hypergraph, Context& context) {
     configurePreprocessing(hypergraph, context);
     setupContext(hypergraph, context);
@@ -227,6 +237,36 @@ namespace mt_kahypar {
     large_he_remover.restoreLargeHyperedges(partitioned_hypergraph);
     degree_zero_hn_remover.restoreDegreeZeroHypernodes(partitioned_hypergraph);
     utils::Timer::instance().stop_timer("postprocessing");
+
+    vec<tbb::concurrent_vector<NodeMove>> moves(2);
+    partitioned_hypergraph.doParallelForAllNodes([&](const HypernodeID hn) {
+      NodeMove move { hn, 0, 0, 0 };
+      const PartitionID from = partitioned_hypergraph.partID(hn);
+      const PartitionID to = 1 - from;
+      for ( const HyperedgeID& he : partitioned_hypergraph.incidentEdges(hn) ) {
+        if ( partitioned_hypergraph.pinCountInPart(he, to) > 0 ) {
+          move.external_weight += partitioned_hypergraph.edgeWeight(he);
+        } else {
+          move.internal_weight += partitioned_hypergraph.edgeWeight(he);
+        }
+      }
+      move.gain = move.external_weight - move.internal_weight;
+      moves[from].push_back(move);
+    });
+    tbb::parallel_sort(moves[0].begin(), moves[0].end(),
+      [&](const NodeMove& lhs, const NodeMove& rhs ) { return lhs.gain > rhs.gain; });
+    tbb::parallel_sort(moves[1].begin(), moves[1].end(),
+      [&](const NodeMove& lhs, const NodeMove& rhs ) { return lhs.gain > rhs.gain; });
+    for ( size_t i = 0; i < std::min(moves[0].size(), moves[1].size()); ++i ) {
+      const HypernodeID hn_0 = moves[0][i].hn;
+      const HypernodeID hn_1 = moves[1][i].hn;
+      if ( moves[0][i].gain + moves[1][i].gain > 0 ) {
+        partitioned_hypergraph.changeNodePart(hn_0, 0, 1, NOOP_FUNC);
+        partitioned_hypergraph.changeNodePart(hn_1, 1, 0, NOOP_FUNC);
+      } else {
+        break;
+      }
+    }
 
     if (context.partition.verbose_output) {
       io::printHypergraphInfo(partitioned_hypergraph.hypergraph(), "Uncoarsened Hypergraph",
