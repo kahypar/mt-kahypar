@@ -84,6 +84,11 @@ class MultilevelVertexPairRater {
  public:
   using Rating = VertexPairRating;
 
+  struct Pin {
+    HyperedgeID he;
+    HypernodeID pin;
+  };
+
   MultilevelVertexPairRater(Hypergraph& hypergraph,
                            const Context& context) :
     _context(context),
@@ -110,20 +115,23 @@ class MultilevelVertexPairRater {
                         const HypernodeID u,
                         const parallel::scalable_vector<HypernodeID>& cluster_ids,
                         const parallel::scalable_vector<AtomicWeight>& cluster_weight,
-                        const HypernodeWeight max_allowed_node_weight) {
+                        const HypernodeWeight max_allowed_node_weight,
+                        const vec<Pin>& candidates = {},
+                        const bool use_candidates = false) {
 
-    const RatingMapType rating_map_type = getRatingMapTypeForRatingOfHypernode(hypergraph, u);
+    const RatingMapType rating_map_type =
+      getRatingMapTypeForRatingOfHypernode(hypergraph, u, candidates, use_candidates);
     if ( rating_map_type == RatingMapType::CACHE_EFFICIENT_RATING_MAP ) {
       return rate(hypergraph, u, _local_cache_efficient_rating_map.local(),
-        cluster_ids, cluster_weight, max_allowed_node_weight, false);
+        cluster_ids, cluster_weight, max_allowed_node_weight, false, candidates, use_candidates);
     } else if ( rating_map_type == RatingMapType::VERTEX_DEGREE_BOUNDED_RATING_MAP ) {
       return rate(hypergraph, u, _local_vertex_degree_bounded_rating_map.local(),
-        cluster_ids, cluster_weight, max_allowed_node_weight, true);
+        cluster_ids, cluster_weight, max_allowed_node_weight, true, candidates, use_candidates);
     } else {
       LargeTmpRatingMap& large_tmp_rating_map = _local_large_rating_map.local();
       large_tmp_rating_map.setMaxSize(_current_num_nodes);
       return rate(hypergraph, u, large_tmp_rating_map,
-        cluster_ids, cluster_weight, max_allowed_node_weight, false);
+        cluster_ids, cluster_weight, max_allowed_node_weight, false, candidates, use_candidates);
     }
   }
 
@@ -151,9 +159,13 @@ class MultilevelVertexPairRater {
                         const parallel::scalable_vector<HypernodeID>& cluster_ids,
                         const parallel::scalable_vector<AtomicWeight>& cluster_weight,
                         const HypernodeWeight max_allowed_node_weight,
-                        const bool use_vertex_degree_sampling) {
+                        const bool use_vertex_degree_sampling,
+                        const vec<Pin>& candidates,
+                        const bool use_candidates) {
 
-    if ( use_vertex_degree_sampling ) {
+    if ( use_candidates ) {
+      fillRatingMapWithCandidates(hypergraph, tmp_ratings, cluster_ids, candidates);
+    } else if ( use_vertex_degree_sampling ) {
       fillRatingMapWithSampling(hypergraph, u, tmp_ratings, cluster_ids);
     } else {
       fillRatingMap(hypergraph, u, tmp_ratings, cluster_ids);
@@ -227,6 +239,36 @@ class MultilevelVertexPairRater {
   }
 
   template<typename RatingMap>
+  void fillRatingMapWithCandidates(const Hypergraph& hypergraph,
+                                   RatingMap& tmp_ratings,
+                                   const vec<HypernodeID>& cluster_ids,
+                                   const vec<Pin>& candidates) {
+    kahypar::ds::FastResetFlagArray<>& bloom_filter = _local_bloom_filter.local();
+    HyperedgeID last_he = kInvalidHyperedge;
+    RatingType last_score = 0;
+    for ( const Pin& p : candidates ) {
+      const HyperedgeID he = p.he;
+      const HypernodeID v = p.pin;
+      if ( last_he != he ) {
+        bloom_filter.reset();
+        const HypernodeID edge_size = _context.coarsening.use_adaptive_edge_size ?
+          std::max(adaptiveEdgeSize(hypergraph, he, bloom_filter, cluster_ids), ID(2)) :
+          hypergraph.edgeSize(he);
+        last_score = ScorePolicy::score(hypergraph.edgeWeight(he), edge_size);
+        last_he = he;
+      }
+
+      const HypernodeID representative = cluster_ids[v];
+      ASSERT(representative < hypergraph.initialNumNodes());
+      const HypernodeID bloom_filter_rep = representative & _bloom_filter_mask;
+      if ( !bloom_filter[bloom_filter_rep] ) {
+        tmp_ratings[representative] += last_score;
+        bloom_filter.set(bloom_filter_rep, true);
+      }
+    }
+  }
+
+  template<typename RatingMap>
   void fillRatingMapWithSampling(const Hypergraph& hypergraph,
                                  const HypernodeID u,
                                  RatingMap& tmp_ratings,
@@ -279,7 +321,9 @@ class MultilevelVertexPairRater {
   }
 
   inline RatingMapType getRatingMapTypeForRatingOfHypernode(const Hypergraph& hypergraph,
-                                                            const HypernodeID u) {
+                                                            const HypernodeID u,
+                                                            const vec<Pin>& candidates,
+                                                            const bool use_candidates) {
     const bool use_vertex_degree_sampling =
       _vertex_degree_sampling_threshold != std::numeric_limits<size_t>::max();
     const size_t vertex_degree_bounded_rating_map_size = use_vertex_degree_sampling ?
@@ -296,22 +340,26 @@ class MultilevelVertexPairRater {
     }
 
     // Compute estimation for the upper bound of neighbors of u
-    HypernodeID ub_neighbors_u = 0;
-    for ( const HyperedgeID& he : hypergraph.incidentEdges(u) ) {
-      const HypernodeID edge_size = hypergraph.edgeSize(he);
-      // Ignore large hyperedges
-      ub_neighbors_u += edge_size < _context.partition.ignore_hyperedge_size_threshold ? edge_size : 0;
-      // If the number of estimated neighbors is greater than the size of the cache efficient rating map / 3, we
-      // use the large sparse map. The division by 3 also ensures that the fill grade
-      // of the cache efficient sparse map would be small enough such that linear probing
-      // is fast.
-      if ( ub_neighbors_u > cache_efficient_rating_map_size / 3UL ) {
-        if ( vertex_degree_bounded_rating_map_size < _current_num_nodes ) {
-          return RatingMapType::VERTEX_DEGREE_BOUNDED_RATING_MAP;
-        } else {
-          return RatingMapType::LARGE_RATING_MAP;
+    HypernodeID ub_neighbors_u = use_candidates ? candidates.size() : 0;
+    if ( !use_candidates ) {
+      for ( const HyperedgeID& he : hypergraph.incidentEdges(u) ) {
+        const HypernodeID edge_size = hypergraph.edgeSize(he);
+        // Ignore large hyperedges
+        ub_neighbors_u += edge_size < _context.partition.ignore_hyperedge_size_threshold ? edge_size : 0;
+        // If the number of estimated neighbors is greater than the size of the cache efficient rating map / 3, we
+        // use the large sparse map. The division by 3 also ensures that the fill grade
+        // of the cache efficient sparse map would be small enough such that linear probing
+        // is fast.
+        if ( ub_neighbors_u > cache_efficient_rating_map_size / 3UL ) {
+          if ( vertex_degree_bounded_rating_map_size < _current_num_nodes ) {
+            return RatingMapType::VERTEX_DEGREE_BOUNDED_RATING_MAP;
+          } else {
+            return RatingMapType::LARGE_RATING_MAP;
+          }
         }
       }
+    } else if ( ub_neighbors_u > cache_efficient_rating_map_size / 3UL ) {
+      return RatingMapType::LARGE_RATING_MAP;
     }
 
     return RatingMapType::CACHE_EFFICIENT_RATING_MAP;

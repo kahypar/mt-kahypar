@@ -23,6 +23,7 @@
 #include <string>
 
 #include "tbb/concurrent_queue.h"
+#include "tbb/concurrent_vector.h"
 #include "tbb/task_group.h"
 #include "tbb/parallel_for.h"
 #include "tbb/parallel_reduce.h"
@@ -55,6 +56,7 @@ class SocialCoarsener : public ICoarsener,
                                           HeavyNodePenaltyPolicy,
                                           AcceptancePolicy>;
   using Rating = typename Rater::Rating;
+  using Pin = typename Rater::Pin;
 
   enum class MatchingState : uint8_t {
     UNMATCHED = 0,
@@ -75,7 +77,8 @@ class SocialCoarsener : public ICoarsener,
                       const Context& context) :
     Base(hypergraph, context),
     _rater(hypergraph, context),
-    _current_vertices(),
+    _degree_buckets(),
+    _local_candidates(),
     _matching_state(),
     _cluster_weight(),
     _matching_partner(),
@@ -86,8 +89,6 @@ class SocialCoarsener : public ICoarsener,
 
     // Initialize internal data structures parallel
     tbb::parallel_invoke([&] {
-      _current_vertices.resize(hypergraph.initialNumNodes());
-    }, [&] {
       _matching_state.resize(hypergraph.initialNumNodes());
     }, [&] {
       _cluster_weight.resize(hypergraph.initialNumNodes());
@@ -128,8 +129,7 @@ class SocialCoarsener : public ICoarsener,
   SocialCoarsener & operator= (SocialCoarsener &&) = delete;
 
   ~SocialCoarsener() {
-    parallel::parallel_free(
-      _current_vertices, _matching_state,
+    parallel::parallel_free(_matching_state,
       _cluster_weight, _matching_partner);
   }
 
@@ -154,12 +154,10 @@ class SocialCoarsener : public ICoarsener,
           << V(current_hg.initialNumPins());
 
       // Random shuffle vertices of current hypergraph
-      _current_vertices.resize(current_hg.initialNumNodes());
       parallel::scalable_vector<HypernodeID> cluster_ids(current_hg.initialNumNodes());
       tbb::parallel_for(ID(0), current_hg.initialNumNodes(), [&](const HypernodeID hn) {
-        ASSERT(hn < _current_vertices.size());
+        ASSERT(hn < _matching_partner.size());
         // Reset clustering
-        _current_vertices[hn] = hn;
         _matching_state[hn] = STATE(MatchingState::UNMATCHED);
         _matching_partner[hn] = hn;
         cluster_ids[hn] = hn;
@@ -168,8 +166,38 @@ class SocialCoarsener : public ICoarsener,
         }
       });
 
-      if ( _enable_randomization ) {
-        utils::Randomize::instance().parallelShuffleVector( _current_vertices, 0UL, _current_vertices.size());
+      // Initialize Degree Buckets
+      const HyperedgeID max_degree = tbb::parallel_reduce(
+        tbb::blocked_range<HyperedgeID>(ID(0), current_hg.initialNumNodes()), 0,
+        [&](const tbb::blocked_range<HypernodeID>& range, HyperedgeID init) {
+          HyperedgeID max_degree = init;
+          for (HypernodeID hn = range.begin(); hn < range.end(); ++hn) {
+            if (current_hg.nodeIsEnabled(hn)) {
+              max_degree = std::max(max_degree, current_hg.nodeDegree(hn));
+            }
+          }
+          return max_degree;
+        }, [&](const HyperedgeID& lhs, const HyperedgeID& rhs) { return std::max(lhs, rhs); });
+      const size_t num_buckets = std::log2(max_degree) + 1;
+      if ( num_buckets > _degree_buckets.size() ) {
+        _degree_buckets.resize(num_buckets);
+      }
+      tbb::parallel_for(0UL, _degree_buckets.size(), [&](const size_t i) {
+        _degree_buckets[i].clear();
+      });
+      current_hg.doParallelForAllNodes([&](const HypernodeID& hn) {
+        const HyperedgeID degree = current_hg.nodeDegree(hn);
+        if ( degree > 0 ) {
+          const size_t bucket = std::log2(degree);
+          _degree_buckets[bucket].push_back(hn);
+        }
+      });
+
+      if ( debug ) {
+        for ( size_t i = 0; i < num_buckets; ++i ) {
+          DBG << "Degree" << std::pow(2, i) << "to" << std::pow(2, i + 1)
+              << ":" << _degree_buckets[i].size();
+        }
       }
 
       // We iterate in parallel over all vertices of the hypergraph and compute its contraction partner.
@@ -189,51 +217,61 @@ class SocialCoarsener : public ICoarsener,
       HypernodeID current_num_nodes = num_hns_before_pass;
       tbb::enumerable_thread_specific<HypernodeID> contracted_nodes(0);
       tbb::enumerable_thread_specific<HypernodeID> num_nodes_update_threshold(0);
-      tbb::parallel_for(0U, current_hg.initialNumNodes(), [&](const HypernodeID id) {
-        ASSERT(id < _current_vertices.size());
-        const HypernodeID hn = _current_vertices[id];
-        if (current_hg.nodeIsEnabled(hn)) {
-          // We perform rating if ...
-          //  1.) The contraction limit of the current level is not reached
-          //  2.) Vertex hn is not matched before
-          const HypernodeID u = hn;
-          if (_matching_state[u] == STATE(MatchingState::UNMATCHED)) {
-            if (current_num_nodes > hierarchy_contraction_limit) {
-              ASSERT(current_hg.nodeIsEnabled(hn));
-              const Rating rating = _rater.rate(current_hg, hn,
-                                                cluster_ids, _cluster_weight, _max_allowed_node_weight);
-              if (rating.target != kInvalidHypernode) {
-                const HypernodeID v = rating.target;
-                HypernodeID& local_contracted_nodes = contracted_nodes.local();
-                matchVertices(current_hg, u, v, cluster_ids, local_contracted_nodes);
+      auto update_current_num_nodes = [&](const HypernodeID local_contracted_nodes) {
+        if (local_contracted_nodes >= num_nodes_update_threshold.local()) {
+          current_num_nodes = num_hns_before_pass -
+                              contracted_nodes.combine(std::plus<HypernodeID>());
+          const HypernodeID dist_to_contraction_limit =
+            current_num_nodes > hierarchy_contraction_limit ?
+            current_num_nodes - hierarchy_contraction_limit : 0;
+          num_nodes_update_threshold.local() +=
+            dist_to_contraction_limit / _context.shared_memory.num_threads;
+        }
+      };
 
-                // To maintain the current number of nodes of the hypergraph each PE sums up
-                // its number of contracted nodes locally. To compute the current number of
-                // nodes, we have to sum up the number of contracted nodes of each PE. This
-                // operation becomes more expensive the more PEs are participating in coarsening.
-                // In order to prevent expensive updates of the current number of nodes, we
-                // define a threshold which the local number of contracted nodes have to exceed
-                // before the current PE updates the current number of nodes. This threshold is defined
-                // by the distance to the current contraction limit divided by the number of PEs.
-                // Once one PE exceeds this bound the first time it is not possible that the
-                // contraction limit is reached, because otherwise an other PE would update
-                // the global current number of nodes before. After update the threshold is
-                // increased by the new difference (in number of nodes) to the contraction limit
-                // divided by the number of PEs.
-                if (local_contracted_nodes >= num_nodes_update_threshold.local()) {
-                  current_num_nodes = num_hns_before_pass -
-                                      contracted_nodes.combine(std::plus<HypernodeID>());
-                  const HypernodeID dist_to_contraction_limit =
-                    current_num_nodes > hierarchy_contraction_limit ?
-                    current_num_nodes - hierarchy_contraction_limit : 0;
-                  num_nodes_update_threshold.local() +=
-                    dist_to_contraction_limit / _context.shared_memory.num_threads;
+      for ( int i = static_cast<int>(num_buckets) - 1; i >= 0; --i ) {
+        std::random_shuffle(_degree_buckets[i].begin(), _degree_buckets[i].end());
+        const HyperedgeID min_degree = std::pow(2, i > 0 ? i - 1 : 0);
+        const HyperedgeID max_degree = std::pow(2, i + 2);
+        tbb::parallel_for(0UL, _degree_buckets[i].size(), [&](const size_t j) {
+          const HypernodeID hn = _degree_buckets[i][j];
+          if (_matching_state[hn] == STATE(MatchingState::UNMATCHED)) {
+            vec<Pin>& candidates = _local_candidates.local();
+            candidates.clear();
+            HypernodeID two_hop_candidate = kInvalidHypernode;
+            for ( const HyperedgeID& he : current_hg.incidentEdges(hn) ) {
+              for ( const HypernodeID& pin : current_hg.pins(he) ) {
+                const HyperedgeID degree = current_hg.nodeDegree(pin);
+                if ( pin != hn && min_degree <= degree && degree < max_degree ) {
+                  candidates.push_back(Pin { he, pin });
+                } else if ( pin != hn && degree <= 2 ) {
+                  if ( two_hop_candidate == kInvalidHypernode ) {
+                    two_hop_candidate = pin;
+                  } else if ( two_hop_candidate != pin && current_num_nodes > hierarchy_contraction_limit ) {
+                    HypernodeID& local_contracted_nodes = contracted_nodes.local();
+                    matchVertices(current_hg, two_hop_candidate, pin, cluster_ids, local_contracted_nodes);
+                    update_current_num_nodes(local_contracted_nodes);
+                    two_hop_candidate = kInvalidHypernode;
+                  }
                 }
               }
             }
+
+            if (candidates.size() > 0 && current_num_nodes > hierarchy_contraction_limit) {
+              ASSERT(current_hg.nodeIsEnabled(hn));
+              const Rating rating = _rater.rate(current_hg, hn, cluster_ids,
+                _cluster_weight, _max_allowed_node_weight, candidates, true);
+              if (rating.target != kInvalidHypernode) {
+                const HypernodeID v = rating.target;
+                HypernodeID& local_contracted_nodes = contracted_nodes.local();
+                matchVertices(current_hg, hn, v, cluster_ids, local_contracted_nodes);
+                update_current_num_nodes(local_contracted_nodes);
+              }
+            }
           }
-        }
-      });
+        });
+      }
+
       if ( _context.partition.show_detailed_clustering_timings ) {
         utils::Timer::instance().stop_timer("clustering_level_" + std::to_string(pass_nr));
       }
@@ -465,10 +503,11 @@ class SocialCoarsener : public ICoarsener,
 
   using Base::_context;
   Rater _rater;
-  parallel::scalable_vector<HypernodeID> _current_vertices;
-  parallel::scalable_vector<AtomicMatchingState> _matching_state;
-  parallel::scalable_vector<AtomicWeight> _cluster_weight;
-  parallel::scalable_vector<HypernodeID> _matching_partner;
+  vec<tbb::concurrent_vector<HypernodeID>> _degree_buckets;
+  tbb::enumerable_thread_specific<vec<Pin>> _local_candidates;
+  vec<AtomicMatchingState> _matching_state;
+  vec<AtomicWeight> _cluster_weight;
+  vec<HypernodeID> _matching_partner;
   HypernodeWeight _max_allowed_node_weight;
   utils::ProgressBar _progress_bar;
   bool _enable_randomization;
