@@ -37,7 +37,7 @@ namespace mt_kahypar {
     PartitionedHypergraph& partitioned_hg = *_uncoarseningData.partitioned_hg;
     kahypar::Metrics current_metrics = initialize(partitioned_hg);
 
-    if (_top_level) {
+    if (_context.type == kahypar::ContextType::main) {
       _context.initial_km1 = current_metrics.km1;
     }
 
@@ -103,7 +103,7 @@ namespace mt_kahypar {
     }
 
     // If we reach the original hypergraph and partition is imbalanced, we try to rebalance it
-    if (_top_level && !metrics::isBalanced(*_uncoarseningData.partitioned_hg, _context)) {
+    if (_context.type == kahypar::ContextType::main && !metrics::isBalanced(*_uncoarseningData.partitioned_hg, _context)) {
       const HyperedgeWeight quality_before = current_metrics.getMetric(
         kahypar::Mode::direct_kway, _context.partition.objective);
       if (_context.partition.verbose_output) {
@@ -161,7 +161,7 @@ namespace mt_kahypar {
     kahypar::Metrics& current_metrics,
     const double time_limit) {
 
-    if ( debug && _top_level ) {
+    if ( debug && _context.type == kahypar::ContextType::main ) {
       io::printHypergraphInfo(partitioned_hypergraph.hypergraph(), "Refinement Hypergraph", false);
       DBG << "Start Refinement - km1 = " << current_metrics.km1
       << ", imbalance = " << current_metrics.imbalance;
@@ -192,7 +192,7 @@ namespace mt_kahypar {
         utils::Timer::instance().stop_timer("fm");
       }
 
-      if ( _top_level ) {
+      if ( _context.type == kahypar::ContextType::main ) {
         ASSERT(current_metrics.getMetric(kahypar::Mode::direct_kway, _context.partition.objective)
                == metrics::objective(partitioned_hypergraph, _context.partition.objective),
                "Actual metric" << V(metrics::km1(partitioned_hypergraph))
@@ -204,7 +204,7 @@ namespace mt_kahypar {
       }
     }
 
-    if ( _top_level) {
+    if ( _context.type == kahypar::ContextType::main) {
       DBG << "--------------------------------------------------\n";
     }
   }

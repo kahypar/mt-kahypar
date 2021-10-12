@@ -80,19 +80,14 @@ void read_all_members_of_target_struct(std::ifstream& context_file,
   std::string line;
   std::getline(context_file, line);
   while ( line != "};" ) {
-    if ( line == "" || line.find("//") != std::string::npos ) {
+    if ( line == "" || line.find("//") != std::string::npos || line.find("#") != std::string::npos ) {
       std::getline(context_file, line);
       continue;
     }
 
     char* input = new char[line.length() + 1];
     std::strcpy(input, line.c_str());
-    if ( strcmp(input, "  #else") != 0 &&
-         strcmp(input, "  #endif") != 0 &&
-         strcmp(input, "  #ifdef USE_STRONG_PARTITIONER") != 0 &&
-         strcmp(input, "  InitialPartitioningParameters() :") != 0 &&
-         strcmp(input, "  InitialPartitioningParameters() :") != 0 &&
-         strcmp(input, "    // Enable all initial partitioner per default") != 0 &&
+    if ( strcmp(input, "  InitialPartitioningParameters() :") != 0 &&
          strcmp(input, "    enabled_ip_algos(static_cast<size_t>(InitialPartitioningAlgorithm::UNDEFINED), true) { }") != 0 ) {
       char* token = std::strtok(input, " ;");
       if ( strcmp(token, "mutable") == 0 ) {

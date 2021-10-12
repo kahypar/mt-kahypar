@@ -98,7 +98,7 @@ public:
     }, tbb::static_partitioner());
   }
 
-  void finalizeCoarsening(bool top_level = false) {
+  void finalizeCoarsening() {
     if (nlevel) {
       // Create compactified hypergraph containing only enabled vertices and hyperedges
       // with consecutive IDs => Less complexity in initial partitioning.
@@ -118,7 +118,7 @@ public:
       // Free memory of temporary contraction buffer and
       // release coarsening memory in memory pool
       current_hg.freeTmpContractionBuffer();
-      if (top_level) {
+      if (_context.type == kahypar::ContextType::main) {
         parallel::MemoryPool::instance().release_mem_group("Coarsening");
       }
 

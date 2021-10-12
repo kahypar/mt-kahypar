@@ -305,6 +305,11 @@ private:
     return _hg->edgeWeight(e);
   }
 
+  // ! Unique id of a hyperedge
+  HyperedgeID uniqueEdgeID(const HyperedgeID e) const {
+    return e;
+  }
+
   // ! Sets the weight of a hyperedge
   void setEdgeWeight(const HyperedgeID e, const HyperedgeWeight weight) {
     _hg->setEdgeWeight(e, weight);
@@ -328,22 +333,6 @@ private:
   // ! Disabled a hyperedge (must be enabled before)
   void disableHyperedge(const HyperedgeID e) {
     _hg->disableHyperedge(e);
-  }
-
-  bool isGraphEdge(const HyperedgeID e) const {
-    return _hg->isGraphEdge(e);
-  }
-
-  HyperedgeID graphEdgeID(const HyperedgeID e) const {
-    return _hg->graphEdgeID(e);
-  }
-
-  HyperedgeID nonGraphEdgeID(const HyperedgeID e) const {
-    return _hg->nonGraphEdgeID(e);
-  }
-
-  HypernodeID graphEdgeHead(const HyperedgeID e, const HypernodeID tail) const {
-    return _hg->graphEdgeHead(e, tail);
   }
 
   // ####################### Uncontraction #######################
@@ -837,6 +826,17 @@ private:
       }
       _connectivity_set.clear(he);
     }
+  }
+
+  // ! Should be called e.g. after a rollback (see PartitonedGraph).
+  // !
+  // ! More precisely, this needs to be called if (in this order):
+  // ! 1. Nodes are moved via changeNodePart(), involving a delta function
+  // ! 2. Nodes are reassigned (via setOnlyNodePart() or changeNodePart() without a delta function)
+  // ! 3. Nodes are moved again
+  // ! Then, resetMoveState() must be called between steps 2 and 3.
+  void resetMoveState(bool /*parallel*/) {
+    // Nothing to do here
   }
 
   // ! Only for testing

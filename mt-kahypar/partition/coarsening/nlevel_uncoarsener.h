@@ -40,9 +40,8 @@ namespace mt_kahypar {
   public:
     NLevelUncoarsener(Hypergraph& hypergraph,
                       const Context& context,
-                      const bool top_level,
                       UncoarseningData& uncoarseningData) :
-      UncoarsenerBase(hypergraph, context, top_level, uncoarseningData) {}
+      UncoarsenerBase(hypergraph, context, uncoarseningData) {}
 
     NLevelUncoarsener(const NLevelUncoarsener&) = delete;
     NLevelUncoarsener(NLevelUncoarsener&&) = delete;

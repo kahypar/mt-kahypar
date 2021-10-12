@@ -130,6 +130,11 @@ namespace mt_kahypar {
             ("p-enable-community-detection",
              po::value<bool>(&context.preprocessing.use_community_detection)->value_name("<bool>")->default_value(true),
              "If true, community detection is used as preprocessing step to restrict contractions to densely coupled regions in coarsening phase")
+            #ifdef USE_GRAPH_PARTITIONER
+            ("p-disable-community-detection-on-mesh-graphs",
+             po::value<bool>(&context.preprocessing.disable_community_detection_for_mesh_graphs)->value_name("<bool>")->default_value(true),
+             "If true, community detection is dynamically disabled for mesh graphs (as it is not effective for this type of graphs).")
+            #endif
             ("p-louvain-edge-weight-function",
              po::value<std::string>()->value_name("<string>")->notifier(
                      [&](const std::string& type) {

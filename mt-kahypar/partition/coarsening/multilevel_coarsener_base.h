@@ -36,11 +36,9 @@ class MultilevelCoarsenerBase {
  public:
   MultilevelCoarsenerBase(Hypergraph& hypergraph,
                           const Context& context,
-                          const bool top_level,
                           UncoarseningData& uncoarseningData) :
           _hg(hypergraph),
           _context(context),
-          _top_level(top_level),
           _uncoarseningData(uncoarseningData) {}
 
   MultilevelCoarsenerBase(const MultilevelCoarsenerBase&) = delete;
@@ -76,7 +74,6 @@ class MultilevelCoarsenerBase {
  protected:
   Hypergraph& _hg;
   const Context& _context;
-  const bool _top_level;
   UncoarseningData& _uncoarseningData;
 };
 }  // namespace mt_kahypar

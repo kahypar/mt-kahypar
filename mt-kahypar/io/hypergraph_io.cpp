@@ -144,7 +144,6 @@ namespace mt_kahypar::io {
                                     const mt_kahypar::Type type,
                                     HyperedgeVector& hyperedges,
                                     parallel::scalable_vector<HyperedgeWeight>& hyperedges_weight) {
-    utils::Timer::instance().start_timer("read_hyperedges", "Read Hyperedges");
     HyperedgeID num_removed_single_pin_hyperedges = 0;
     const bool has_hyperedge_weights = type == mt_kahypar::Type::EdgeWeights ||
                                        type == mt_kahypar::Type::EdgeAndNodeWeights ?
@@ -152,7 +151,6 @@ namespace mt_kahypar::io {
 
     parallel::scalable_vector<HyperedgeRange> hyperedge_ranges;
     tbb::parallel_invoke([&] {
-      utils::Timer::instance().start_timer("preprocess_hyperedges", "Preprocess Hyperedges", true);
       // Sequential pass over all hyperedges to determine ranges in the
       // input file that are read in parallel.
       size_t current_range_start = pos;
@@ -192,22 +190,16 @@ namespace mt_kahypar::io {
         hyperedge_ranges.push_back(HyperedgeRange {
                 current_range_start, pos, current_range_start_id, current_range_num_hyperedges});
       }
-      utils::Timer::instance().stop_timer("preprocess_hyperedges");
     }, [&] {
-      utils::Timer::instance().start_timer("allocate_hyperedges", "Allocate Hyperedges", true);
       hyperedges.resize(num_hyperedges);
-      utils::Timer::instance().stop_timer("allocate_hyperedges");
     }, [&] {
-      utils::Timer::instance().start_timer("allocate_hyperedge_weights", "Allocate Hyperedge Weights", true);
       hyperedges_weight.assign(num_hyperedges, 1);
-      utils::Timer::instance().stop_timer("allocate_hyperedge_weights");
     });
 
     const HyperedgeID tmp_num_hyperedges = num_hyperedges - num_removed_single_pin_hyperedges;
     hyperedges.resize(tmp_num_hyperedges);
     hyperedges_weight.resize(tmp_num_hyperedges);
 
-    utils::Timer::instance().start_timer("parse_hyperedges", "Parse Hyperedges");
     // Process all ranges in parallel and build hyperedge vector
     tbb::parallel_for(0UL, hyperedge_ranges.size(), [&](const size_t i) {
       HyperedgeRange& range = hyperedge_ranges[i];
@@ -247,9 +239,6 @@ namespace mt_kahypar::io {
         }
       }
     });
-    utils::Timer::instance().stop_timer("parse_hyperedges");
-
-    utils::Timer::instance().stop_timer("read_hyperedges");
     return num_removed_single_pin_hyperedges;
   }
 
@@ -259,7 +248,6 @@ namespace mt_kahypar::io {
                             const HypernodeID num_hypernodes,
                             const mt_kahypar::Type type,
                             parallel::scalable_vector<HypernodeWeight>& hypernodes_weight) {
-    utils::Timer::instance().start_timer("parse_hypernode_weights", "Parse Hypernode Weights");
     bool has_hypernode_weights = type == mt_kahypar::Type::NodeWeights ||
                                  type == mt_kahypar::Type::EdgeAndNodeWeights ?
                                  true : false;
@@ -271,7 +259,6 @@ namespace mt_kahypar::io {
         hypernodes_weight[hn] = read_number(mapped_file, pos, length);
       }
     }
-    utils::Timer::instance().stop_timer("parse_hypernode_weights");
   }
 
 
@@ -283,8 +270,6 @@ namespace mt_kahypar::io {
                           parallel::scalable_vector<HyperedgeWeight>& hyperedges_weight,
                           parallel::scalable_vector<HypernodeWeight>& hypernodes_weight) {
     ASSERT(!filename.empty(), "No filename for hypergraph file specified");
-    mt_kahypar::utils::Timer::instance().start_timer(
-            "construct_hypergraph_from_file", "Construct Hypergraph from File");
     int fd = open_file(filename);
     const size_t length = file_size(fd);
     char* mapped_file = mmap_file(fd, length);
@@ -316,8 +301,10 @@ namespace mt_kahypar::io {
     HyperedgeVector hyperedges;
     parallel::scalable_vector<HyperedgeWeight> hyperedges_weight;
     parallel::scalable_vector<HypernodeWeight> hypernodes_weight;
+    mt_kahypar::utils::Timer::instance().start_timer("read_input", "Read Hypergraph File");
     readHypergraphFile(filename, num_hyperedges, num_hypernodes,
                        num_removed_single_pin_hyperedges, hyperedges, hyperedges_weight, hypernodes_weight);
+    mt_kahypar::utils::Timer::instance().stop_timer("read_input");
 
     // Construct Hypergraph
     utils::Timer::instance().start_timer("construct_hypergraph", "Construct Hypergraph");
@@ -327,7 +314,6 @@ namespace mt_kahypar::io {
             stable_construction_of_incident_edges);
     hypergraph.setNumRemovedHyperedges(num_removed_single_pin_hyperedges);
     utils::Timer::instance().stop_timer("construct_hypergraph");
-    mt_kahypar::utils::Timer::instance().stop_timer("construct_hypergraph_from_file");
     return hypergraph;
   }
 

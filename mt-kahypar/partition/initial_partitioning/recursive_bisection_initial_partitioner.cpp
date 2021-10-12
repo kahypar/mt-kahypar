@@ -123,7 +123,7 @@ namespace mt_kahypar {
           PartitionID to = _part_id + _rb_partitioned_hg.partID(_mapping[hn]);
           ASSERT(to != kInvalidPartition && to < _original_hg.k());
           if ( _part_id != to ) {
-            _original_hg.changeNodePart(hn, _part_id, to, NOOP_FUNC);
+            _original_hg.changeNodePart(hn, _part_id, to);
           }
         }
       });
@@ -166,7 +166,7 @@ namespace mt_kahypar {
       // Bisect hypergraph with parallel multilevel bisection
       _bisection_hg = _original_hg.hypergraph().copy(parallel_tag_t());
       multilevel::partition_async(_bisection_hg, _bisection_partitioned_hg,
-                                  _bisection_context, false, this);
+                                  _bisection_context, this);
       return nullptr;
     }
 
@@ -257,6 +257,7 @@ namespace mt_kahypar {
       _hg.doParallelForAllNodes([&](const HypernodeID& hn) {
         PartitionID part_id = _bisection_partitioned_hg.partID(hn);
         ASSERT(part_id != kInvalidPartition && part_id < _hg.k());
+        ASSERT(_hg.partID(hn) == kInvalidPartition);
         if ( part_id == 0 ) {
           _hg.setOnlyNodePart(hn, block_0);
         } else {
@@ -448,14 +449,12 @@ namespace mt_kahypar {
   }
 
   RecursiveBisectionInitialPartitioner::RecursiveBisectionInitialPartitioner(PartitionedHypergraph& hypergraph,
-                                                                             const Context& context,
-                                                                             const bool top_level) :
+                                                                             const Context& context) :
     _hg(hypergraph),
-    _context(context),
-    _top_level(top_level) { }
+    _context(context) { }
 
   void RecursiveBisectionInitialPartitioner::initialPartitionImpl() {
-    if (_top_level) {
+    if (_context.type == kahypar::ContextType::main) {
       parallel::MemoryPool::instance().deactivate_unused_memory_allocations();
       utils::Timer::instance().disable();
       utils::Stats::instance().disable();
@@ -465,7 +464,7 @@ namespace mt_kahypar {
             OriginalHypergraphInfo { _hg.totalWeight(), _context.partition.k, _context.partition.epsilon }, _hg, _context);
     tbb::task::spawn_root_and_wait(root_bisection_task);
 
-    if (_top_level) {
+    if (_context.type == kahypar::ContextType::main) {
       parallel::MemoryPool::instance().activate_unused_memory_allocations();
       utils::Timer::instance().enable();
       utils::Stats::instance().enable();

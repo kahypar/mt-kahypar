@@ -36,9 +36,8 @@ class DeterministicMultilevelCoarsener :  public ICoarsener,
 public:
   DeterministicMultilevelCoarsener(Hypergraph& hypergraph,
                                    const Context& context,
-                                   const bool top_level,
                                    UncoarseningData& uncoarseningData) :
-    Base(hypergraph, context, top_level, uncoarseningData),
+    Base(hypergraph, context, uncoarseningData),
     propositions(hypergraph.initialNumNodes()),
     cluster_weight(hypergraph.initialNumNodes(), 0),
     opportunistic_cluster_weight(hypergraph.initialNumNodes(), 0),

@@ -39,13 +39,13 @@ using FlatInitialPartitionerFactory = kahypar::meta::Factory<InitialPartitioning
                        const Context&, const int, const int)>;
 }
 
-#define REGISTER_FLAT_INITIAL_PARTITIONER(id, partitioner)                                           \
-  static kahypar::meta::Registrar<FlatInitialPartitionerFactory> register_ ## partitioner(           \
-    id,                                                                                              \
-    [](tbb::task* parent, const InitialPartitioningAlgorithm algorithm,                              \
-       InitialPartitioningDataContainer& ip_hypergraph, const Context& context, const int seed, const int tag)      \
-    -> tbb::task* {                                                                                  \
-    return new(parent->allocate_child()) partitioner(algorithm, ip_hypergraph, context, seed, tag);       \
+#define REGISTER_FLAT_INITIAL_PARTITIONER(id, partitioner)                                                     \
+  static kahypar::meta::Registrar<FlatInitialPartitionerFactory> register_ ## partitioner(                     \
+    id,                                                                                                        \
+    [](tbb::task* parent, const InitialPartitioningAlgorithm algorithm,                                        \
+       InitialPartitioningDataContainer& ip_hypergraph, const Context& context, const int seed, const int tag) \
+    -> tbb::task* {                                                                                            \
+    return new(parent->allocate_child()) partitioner(algorithm, ip_hypergraph, context, seed, tag);            \
   })
 
 namespace mt_kahypar {

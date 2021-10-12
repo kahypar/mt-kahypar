@@ -34,9 +34,8 @@ namespace mt_kahypar {
   public:
     MultilevelUncoarsener(Hypergraph& hypergraph,
                         const Context& context,
-                        const bool top_level,
                         UncoarseningData& uncoarseningData) :
-      UncoarsenerBase(hypergraph, context, top_level, uncoarseningData) { }
+      UncoarsenerBase(hypergraph, context, uncoarseningData) { }
 
   MultilevelUncoarsener(const MultilevelUncoarsener&) = delete;
   MultilevelUncoarsener(MultilevelUncoarsener&&) = delete;

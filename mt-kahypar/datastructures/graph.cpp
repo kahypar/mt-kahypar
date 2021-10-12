@@ -226,7 +226,6 @@ namespace mt_kahypar::ds {
 
     // #################### STAGE 1 ####################
     // Compute node ids of coarse graph with a parallel prefix sum
-    utils::Timer::instance().start_timer("compute_cluster_mapping", "Compute Cluster Mapping");
     parallel::scalable_vector<size_t> mapping(_num_nodes, 0UL);
     ds::Array<parallel::IntegralAtomicWrapper<size_t>>& tmp_pos = _tmp_graph_buffer->tmp_pos;
     ds::Array<parallel::IntegralAtomicWrapper<size_t>>& tmp_indices = _tmp_graph_buffer->tmp_indices;
@@ -248,14 +247,12 @@ namespace mt_kahypar::ds {
     tbb::parallel_for(0U, static_cast<NodeID>(_num_nodes), [&](const NodeID u) {
       communities[u] = mapping_prefix_sum[communities[u]];
     });
-    utils::Timer::instance().stop_timer("compute_cluster_mapping");
 
     // #################### STAGE 2 ####################
     // Write all arcs, that will not form a selfloop in the coarse graph, into a tmp
     // adjacence array. For that, we compute a prefix sum over the sum of all arcs
     // in each community (which are no selfloop) and write them in parallel to
     // the tmp adjacence array.
-    utils::Timer::instance().start_timer("construct_tmp_adjacent_array", "Construct Tmp Adjacent Array");
     // Compute number of arcs in tmp adjacence array with parallel prefix sum
     ASSERT(coarse_graph._num_nodes <= coarse_node_volumes.size());
     tbb::parallel_for(0U, static_cast<NodeID>(_num_nodes), [&](const NodeID u) {
@@ -289,13 +286,11 @@ namespace mt_kahypar::ds {
         }
       }
     });
-    utils::Timer::instance().stop_timer("construct_tmp_adjacent_array");
 
     // #################### STAGE 3 ####################
     // Aggregate weights of arcs that are equal in each community.
     // Therefore, we sort the arcs according to their endpoints
     // and aggregate weight of arcs with equal endpoints.
-    utils::Timer::instance().start_timer("contract_arcs", "Contract Arcs");
     tbb::enumerable_thread_specific<size_t> local_max_degree(0);
     tbb::parallel_for(0U, static_cast<NodeID>(coarse_graph._num_nodes), [&](const NodeID u) {
       const size_t tmp_arc_start = tmp_indices_prefix_sum[u];
@@ -354,7 +349,6 @@ namespace mt_kahypar::ds {
     });
     coarse_graph._tmp_graph_buffer = _tmp_graph_buffer;
     _tmp_graph_buffer = nullptr;
-    utils::Timer::instance().stop_timer("contract_arcs");
 
     return coarse_graph;
   }
@@ -381,6 +375,7 @@ namespace mt_kahypar::ds {
   template<typename F>
   void Graph::construct(const Hypergraph& hypergraph,
                  const F& edge_weight_func) {
+    #ifndef USE_GRAPH_PARTITIONER
     // Test, if hypergraph is actually a graph
     const bool is_graph = tbb::parallel_reduce(tbb::blocked_range<HyperedgeID>(
             ID(0), hypergraph.initialNumEdges()), true, [&](const tbb::blocked_range<HyperedgeID>& range, bool isGraph) {
@@ -407,8 +402,12 @@ namespace mt_kahypar::ds {
       _num_arcs = 2 * hypergraph.initialNumPins();
       constructBipartiteGraph(hypergraph, edge_weight_func);
     }
+    #else
+      _num_nodes = hypergraph.initialNumNodes();
+      _num_arcs = hypergraph.initialNumEdges();
+      constructGraph(hypergraph, edge_weight_func);
+    #endif
 
-    utils::Timer::instance().start_timer("compute_node_volumes", "Compute Node Volumes");
     // deterministic reduce of node volumes since double addition is not commutative or associative
     // node volumes are computed in for loop because deterministic reduce does not have dynamic load balancing
     // whereas for loop does. this important since each node incurs O(degree) time
@@ -422,8 +421,6 @@ namespace mt_kahypar::ds {
     };
     auto r = tbb::blocked_range<NodeID>(0U, numNodes(), 1000);
     _total_volume = tbb::parallel_deterministic_reduce(r, 0.0, aggregate_volume, std::plus<>());
-
-    utils::Timer::instance().stop_timer("compute_node_volumes");
   }
 
   template<typename F>
@@ -434,7 +431,6 @@ namespace mt_kahypar::ds {
     _node_volumes.resize("Preprocessing", "node_volumes", _num_nodes);
 
     // Initialize data structure
-    utils::Timer::instance().start_timer("compute_node_degrees", "Compute Node Degrees");
     const HypernodeID num_hypernodes = hypergraph.initialNumNodes();
     const HypernodeID num_hyperedges = hypergraph.initialNumEdges();
     tbb::parallel_invoke([&] {
@@ -452,9 +448,7 @@ namespace mt_kahypar::ds {
 
     parallel::TBBPrefixSum<size_t, ds::Array> indices_prefix_sum(_indices);
     tbb::parallel_scan(tbb::blocked_range<size_t>(0UL, _indices.size()), indices_prefix_sum);
-    utils::Timer::instance().stop_timer("compute_node_degrees");
 
-    utils::Timer::instance().start_timer("construct_arcs", "Construct Arcs");
     tbb::enumerable_thread_specific<size_t> local_max_degree(0);
     tbb::parallel_invoke([&] {
       tbb::parallel_for(ID(0), num_hypernodes, [&](const HypernodeID u) {
@@ -492,7 +486,6 @@ namespace mt_kahypar::ds {
     _max_degree = local_max_degree.combine([&](const size_t& lhs, const size_t& rhs) {
       return std::max(lhs, rhs);
     });
-    utils::Timer::instance().stop_timer("construct_arcs");
   }
 
   template<typename F>
@@ -502,7 +495,6 @@ namespace mt_kahypar::ds {
     _node_volumes.resize("Preprocessing", "node_volumes", _num_nodes);
 
     // Initialize data structure
-    utils::Timer::instance().start_timer("compute_node_degrees", "Compute Node Degrees");
     const HypernodeID num_hypernodes = hypergraph.initialNumNodes();
     tbb::parallel_for(ID(0), num_hypernodes, [&](const HypernodeID u) {
       ASSERT(u + 1 < _indices.size());
@@ -511,9 +503,7 @@ namespace mt_kahypar::ds {
 
     parallel::TBBPrefixSum<size_t, ds::Array> indices_prefix_sum(_indices);
     tbb::parallel_scan(tbb::blocked_range<size_t>(0UL, num_hypernodes + 1), indices_prefix_sum);
-    utils::Timer::instance().stop_timer("compute_node_degrees");
 
-    utils::Timer::instance().start_timer("construct_arcs", "Construct Arcs");
     tbb::enumerable_thread_specific<size_t> local_max_degree(0);
     tbb::parallel_for(ID(0), num_hypernodes, [&](const HypernodeID u) {
       ASSERT(u + 1 < _indices.size());
@@ -539,7 +529,6 @@ namespace mt_kahypar::ds {
     _max_degree = local_max_degree.combine([&](const size_t& lhs, const size_t& rhs) {
       return std::max(lhs, rhs);
     });
-    utils::Timer::instance().stop_timer("construct_arcs");
   }
 
   bool Graph::canBeUsed(const bool verbose) const {

@@ -24,7 +24,7 @@
 #include <mt-kahypar/partition/context.h>
 #include <mt-kahypar/partition/metrics.h>
 
-#include "mt-kahypar/datastructures/delta_partitioned_hypergraph.h"
+#include "mt-kahypar/definitions.h"
 #include "mt-kahypar/datastructures/sparse_map.h"
 #include "mt-kahypar/partition/refinement/fm/fm_commons.h"
 #include "mt-kahypar/partition/refinement/fm/stop_rule.h"
@@ -39,7 +39,7 @@ public:
           context(context),
           thisSearch(0),
           k(context.partition.k),
-          deltaPhg(context.partition.k),
+          deltaPhg(context),
           neighborDeduplicator(numNodes, 0),
           fm_strategy(context, numNodes, sharedData, runStats),
           sharedData(sharedData)
@@ -94,7 +94,7 @@ private:
 
   // ! Wrapper around the global partitioned hypergraph, that allows
   // ! to perform moves non-visible for other local searches
-  ds::DeltaPartitionedHypergraph<PartitionedHypergraph> deltaPhg;
+  DeltaPartitionedHypergraph deltaPhg;
 
   // ! Used after a move. Stores whether a neighbor of the just moved vertex has already been updated.
   vec<HypernodeID> neighborDeduplicator;
