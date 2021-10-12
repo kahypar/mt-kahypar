@@ -47,11 +47,6 @@ namespace mt_kahypar {
   PartitionedHypergraph&& doUncoarsen(std::unique_ptr<IRefiner>& label_propagation,
                                       std::unique_ptr<IRefiner>& fm);
 
-  PartitionedHypergraph& currentPartitionedHypergraph() {
-    ASSERT(_uncoarseningData.is_finalized);
-    return *_uncoarseningData.partitioned_hg;
-  }
-
   void refine(
     PartitionedHypergraph& partitioned_hypergraph,
     std::unique_ptr<IRefiner>& label_propagation,

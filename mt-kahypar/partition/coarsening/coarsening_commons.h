@@ -110,18 +110,14 @@ public:
       utils::Timer::instance().stop_timer("compactify_hypergraph");
     } else {
       utils::Timer::instance().start_timer("finalize_multilevel_hierarchy", "Finalize Multilevel Hierarchy");
-      // Construct top level partitioned hypergraph (memory is taken from memory pool)
+      // Construct partitioned hypergraph for initial partitioning
+      Hypergraph& current_hg = hierarchy.empty() ? *hypergraph : hierarchy.back().contractedHypergraph();
       *partitioned_hg = PartitionedHypergraph(
-        _context.partition.k, *hypergraph, parallel_tag_t());
-
-      if (!hierarchy.empty()) {
-        partitioned_hg->setHypergraph(hierarchy.back().contractedHypergraph());
-      }
+        _context.partition.k, current_hg, parallel_tag_t());
 
       // Free memory of temporary contraction buffer and
       // release coarsening memory in memory pool
-      partitioned_hg->hypergraph().freeTmpContractionBuffer();
-      // TODO: does this need to happen before the phg is constructed?
+      current_hg.freeTmpContractionBuffer();
       if (top_level) {
         parallel::MemoryPool::instance().release_mem_group("Coarsening");
       }

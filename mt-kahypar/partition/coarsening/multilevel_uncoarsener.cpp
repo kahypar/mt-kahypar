@@ -34,7 +34,7 @@ namespace mt_kahypar {
   PartitionedHypergraph&& MultilevelUncoarsener::doUncoarsen(
     std::unique_ptr<IRefiner>& label_propagation,
     std::unique_ptr<IRefiner>& fm) {
-    PartitionedHypergraph& partitioned_hg = currentPartitionedHypergraph();
+    PartitionedHypergraph& partitioned_hg = *_uncoarseningData.partitioned_hg;
     kahypar::Metrics current_metrics = initialize(partitioned_hg);
 
     if (_top_level) {
@@ -52,6 +52,22 @@ namespace mt_kahypar {
     double time_limit = refinementTimeLimit(_context, _uncoarseningData.hierarchy.back().coarseningTime());
     refine(partitioned_hg, label_propagation, fm, current_metrics, time_limit);
 
+    // restore partition of initial partitioning on larger phg
+    ds::Array<PartitionID> ip_part_ids;
+    partitioned_hg.extractPartIDs(ip_part_ids);
+
+    partitioned_hg = PartitionedHypergraph(
+        _context.partition.k, _hg, parallel_tag_t());
+    if (!_uncoarseningData.hierarchy.empty()) {
+      partitioned_hg.setHypergraph(
+        _uncoarseningData.hierarchy.back().contractedHypergraph());
+    }
+    partitioned_hg.doParallelForAllNodes([&](const HypernodeID hn) {
+      const PartitionID block = ip_part_ids[hn];
+      ASSERT(block != kInvalidPartition && block < partitioned_hg.k());
+      partitioned_hg.setOnlyNodePart(hn, block);
+    });
+    partitioned_hg.initializePartition();
 
     ds::Array<PartitionID> part_ids(_hg.initialNumNodes(), kInvalidPartition);
     for (int i = _uncoarseningData.hierarchy.size() - 1; i >= 0; --i) {
