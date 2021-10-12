@@ -98,7 +98,7 @@ public:
     }, tbb::static_partitioner());
   }
 
-  void finalize(bool top_level = false) {
+  void finalizeCoarsening(bool top_level = false) {
     if (nlevel) {
       // Create compactified hypergraph containing only enabled vertices and hyperedges
       // with consecutive IDs => Less complexity in initial partitioning.

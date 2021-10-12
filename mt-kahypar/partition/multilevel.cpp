@@ -162,7 +162,6 @@ namespace mt_kahypar::multilevel {
       _coarsener = CoarsenerFactory::getInstance().createObject(
               _context.coarsening.algorithm, _hg, _context, _top_level, _uncoarseningData);
       _coarsener->coarsen();
-      _uncoarseningData.finalize(_top_level);
       utils::Timer::instance().stop_timer("coarsening");
 
       Hypergraph& coarsestHypergraph = _coarsener->coarsestHypergraph();
@@ -261,10 +260,6 @@ namespace mt_kahypar::multilevel {
     bool nlevel = context.coarsening.algorithm == CoarseningAlgorithm::nlevel_coarsener;
     std::shared_ptr<UncoarseningData> uncoarseningData =
       std::make_shared<UncoarseningData>(nlevel, hypergraph, context);
-/*
-    std::shared_ptr<Context> ip_context = std::make_shared<Context>(context);
-    ip_context->refinement = context.initial_partitioning.refinement;
-*/
 
     RefinementTask& refinement_task = *new(parent.allocate_continuation())
             RefinementTask(hypergraph, partitioned_hypergraph, context, top_level, uncoarseningData);
