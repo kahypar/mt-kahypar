@@ -32,7 +32,7 @@ namespace mt_kahypar {
   PartitionedHypergraph&& NLevelUncoarsener::doUncoarsen(std::unique_ptr<IRefiner>& label_propagation,
                                                          std::unique_ptr<IRefiner>& fm) {
     ASSERT(_uncoarseningData.is_finalized);
-    kahypar::Metrics current_metrics = initialize(*_uncoarseningData.partitioned_hg);
+    kahypar::Metrics current_metrics = initialize(*_uncoarseningData.compactified_phg);
     if (_context.type == kahypar::ContextType::main) {
       _context.initial_km1 = current_metrics.km1;
     }
@@ -43,7 +43,7 @@ namespace mt_kahypar {
     _uncoarseningData.partitioned_hg->doParallelForAllNodes([&](const HypernodeID hn) {
       ASSERT(static_cast<size_t>(hn) < _uncoarseningData.compactified_hn_mapping.size());
       const HypernodeID compactified_hn = _uncoarseningData.compactified_hn_mapping[hn];
-      const PartitionID block_id = _uncoarseningData.partitioned_hg->partID(compactified_hn);
+      const PartitionID block_id = _uncoarseningData.compactified_phg->partID(compactified_hn);
       ASSERT(block_id != kInvalidPartition && block_id < _context.partition.k);
       _uncoarseningData.partitioned_hg->setOnlyNodePart(hn, block_id);
     });
@@ -53,6 +53,14 @@ namespace mt_kahypar {
       _uncoarseningData.partitioned_hg->initializeGainCache();
     }
 
+    ASSERT(metrics::objective(*_uncoarseningData.compactified_phg, _context.partition.objective) ==
+           metrics::objective(*_uncoarseningData.partitioned_hg, _context.partition.objective),
+           V(metrics::objective(*_uncoarseningData.compactified_phg, _context.partition.objective)) <<
+           V(metrics::objective(*_uncoarseningData.partitioned_hg, _context.partition.objective)));
+    ASSERT(metrics::imbalance(*_uncoarseningData.compactified_phg, _context) ==
+           metrics::imbalance(*_uncoarseningData.partitioned_hg, _context),
+           V(metrics::imbalance(*_uncoarseningData.compactified_phg, _context)) <<
+           V(metrics::imbalance(*_uncoarseningData.partitioned_hg, _context)));
     utils::Timer::instance().stop_timer("initialize_partition");
 
     utils::ProgressBar uncontraction_progress(_hg.initialNumNodes(),

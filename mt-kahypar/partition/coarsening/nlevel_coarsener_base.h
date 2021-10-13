@@ -64,7 +64,7 @@ class NLevelCoarsenerBase {
 
   PartitionedHypergraph& compactifiedPartitionedHypergraph() {
     ASSERT(_uncoarseningData.is_finalized);
-    return *_uncoarseningData.partitioned_hg;
+    return *_uncoarseningData.compactified_phg;
   }
 
   void removeSinglePinAndParallelNets(const HighResClockTimepoint& round_start) {

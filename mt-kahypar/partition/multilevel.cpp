@@ -71,15 +71,15 @@ namespace mt_kahypar::multilevel {
                                      _context, "Sparsified Initial Partitioning Results:");
         _degree_zero_hn_remover.restoreDegreeZeroHypernodes(
           _sparsifier->sparsifiedPartitionedHypergraph());
-        _sparsifier->undoSparsification(*_uncoarseningData->partitioned_hg);
+        _sparsifier->undoSparsification(_uncoarseningData->coarsestPartitionedHypergraph());
       } else {
         _degree_zero_hn_remover.restoreDegreeZeroHypernodes(
-          *_uncoarseningData->partitioned_hg);
+          _uncoarseningData->coarsestPartitionedHypergraph());
       }
 
       utils::Timer::instance().stop_timer("initial_partitioning");
 
-      io::printPartitioningResults(*_uncoarseningData->partitioned_hg,
+      io::printPartitioningResults(_uncoarseningData->coarsestPartitionedHypergraph(),
                                    _context, "Initial Partitioning Results:");
       if ( _context.partition.verbose_output ) {
         utils::InitialPartitioningStats::instance().printInitialPartitioningStats();
@@ -185,7 +185,7 @@ namespace mt_kahypar::multilevel {
         }
         initialPartition(_sparsifier.sparsifiedPartitionedHypergraph());
       } else {
-        initialPartition(*_uncoarseningData.partitioned_hg);
+        initialPartition(_uncoarseningData.coarsestPartitionedHypergraph());
       }
 
       return nullptr;

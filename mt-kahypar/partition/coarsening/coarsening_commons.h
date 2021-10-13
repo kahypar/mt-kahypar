@@ -81,6 +81,7 @@ public:
     _context(context) {
       if (n_level) {
         compactified_hg = std::make_unique<Hypergraph>();
+        compactified_phg = std::make_unique<PartitionedHypergraph>();
       } else {
         size_t estimated_number_of_levels = 1UL;
         if ( hg.initialNumNodes() > context.coarsening.contraction_limit ) {
@@ -108,7 +109,7 @@ public:
       auto compactification = HypergraphFactory::compactify(_hg);
       *compactified_hg = std::move(compactification.first);
       compactified_hn_mapping = std::move(compactification.second);
-      *partitioned_hg = PartitionedHypergraph(_context.partition.k, *compactified_hg, parallel_tag_t());
+      *compactified_phg = PartitionedHypergraph(_context.partition.k, *compactified_hg, parallel_tag_t());
       utils::Timer::instance().stop_timer("compactify_hypergraph");
     } else {
       utils::Timer::instance().start_timer("finalize_multilevel_hierarchy", "Finalize Multilevel Hierarchy");
@@ -141,6 +142,14 @@ public:
     hierarchy.emplace_back(std::move(contracted_hg), std::move(communities), elapsed_time);
   }
 
+  PartitionedHypergraph& coarsestPartitionedHypergraph() {
+    if (nlevel) {
+      return *compactified_phg;
+    } else {
+      return *partitioned_hg;
+    }
+  }
+
   // Multilevel Data
   vec<Level> hierarchy;
 
@@ -152,6 +161,8 @@ public:
   // ! Mapping from vertex IDs of the original hypergraph to the IDs
   // ! in the compactified hypergraph
   vec<HypernodeID> compactified_hn_mapping;
+  // ! Compactified partitioned hypergraph
+  std::unique_ptr<PartitionedHypergraph> compactified_phg;
   // ! Contains timings how long a coarsening pass takes for each round
   vec<vec<ParallelHyperedge>> removed_hyperedges_batches;
   // ! Removed single-pin and parallel nets.
