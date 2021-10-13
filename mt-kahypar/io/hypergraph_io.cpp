@@ -349,4 +349,87 @@ namespace mt_kahypar::io {
     }
   }
 
+  void readMetisHeader(char* mapped_file,
+                       size_t& pos,
+                       const size_t length,
+                       HyperedgeID& num_edges,
+                       HypernodeID& num_vertices,
+                       bool& edge_weights,
+                       bool& vertex_weights) {
+    // Skip comments
+    while ( mapped_file[pos] == '%' ) {
+      goto_next_line(mapped_file, pos, length);
+    }
+
+    num_vertices = read_number(mapped_file, pos, length);
+    num_edges = read_number(mapped_file, pos, length);
+
+    if ( mapped_file[pos - 1] != '\n' ) {
+      // read the three 0/1 format digits
+      ASSERT(mapped_file[pos++] == '0', "Vertex sizes in input file are not supported.");
+      ASSERT(mapped_file[pos] == '0' || mapped_file[pos] == '1');
+      vertex_weights = (mapped_file[pos++] == '1');
+      ASSERT(mapped_file[pos] == '0' || mapped_file[pos] == '1');
+      // we use read_number for third digit to skip remaining spaces
+      edge_weights = (read_number(mapped_file, pos, length) == 1);
+    }
+    ASSERT(mapped_file[pos - 1] == '\n', "Additional parameters after fmt parameter in header not supported.");
+  }
+
+  void readMetisFile(const std::string& filename,
+                     HyperedgeID& num_edges,
+                     HypernodeID& num_vertices,
+                     EdgeVector& edges,
+                     parallel::scalable_vector<HyperedgeWeight>& edges_weight,
+                     parallel::scalable_vector<HypernodeWeight>& vertices_weight) {
+    ASSERT(!filename.empty(), "No filename for metis file specified");
+    int fd = open_file(filename);
+    const size_t length = file_size(fd);
+    char* mapped_file = mmap_file(fd, length);
+    size_t pos = 0;
+
+    // Read Metis Header
+    bool edge_weights = false;
+    bool vertex_weights = false;
+    readMetisHeader(mapped_file, pos, length, num_edges, num_vertices, edge_weights, vertex_weights);
+
+    // Read Hyperedges
+    // num_removed_single_pin_hyperedges =
+    //         readHyperedges(mapped_file, pos, length, num_hyperedges, type, hyperedges, hyperedges_weight);
+    // num_hyperedges -= num_removed_single_pin_hyperedges;
+
+    // Read Hypernode Weights
+    // readHypernodeWeights(mapped_file, pos, length, num_hypernodes, type, hypernodes_weight);
+    // ASSERT(pos == length);
+
+    // munmap_file(mapped_file, fd, length);
+    // close(fd);
+  }
+
+  Hypergraph readMetisFile(const std::string& filename,
+                           const bool stable_construction_of_incident_edges) {
+    // Read Metis File
+    HyperedgeID num_edges = 0;
+    HypernodeID num_vertices = 0;
+    EdgeVector edges;
+    parallel::scalable_vector<HyperedgeWeight> edges_weight;
+    parallel::scalable_vector<HypernodeWeight> nodes_weight;
+    mt_kahypar::utils::Timer::instance().start_timer("read_input", "Read Hypergraph File");
+    readMetisFile(filename, num_edges, num_vertices, edges, edges_weight, nodes_weight);
+    mt_kahypar::utils::Timer::instance().stop_timer("read_input");
+
+    // Construct Hypergraph
+    // utils::Timer::instance().start_timer("construct_hypergraph", "Construct Hypergraph");
+    // Hypergraph hypergraph = HypergraphFactory::construct(
+    //         num_hypernodes, num_hyperedges,
+    //         hyperedges, hyperedges_weight.data(), hypernodes_weight.data(),
+    //         stable_construction_of_incident_edges);
+    // hypergraph.setNumRemovedHyperedges(num_removed_single_pin_hyperedges);
+    // utils::Timer::instance().stop_timer("construct_hypergraph");
+    // return hypergraph;
+
+    Hypergraph hypergraph;
+    return hypergraph;
+  }
+
 } // namespace
