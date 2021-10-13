@@ -68,7 +68,8 @@ namespace mt_kahypar::io {
     }
   }
 
-  inline void goto_next_line(char* mapped_file, size_t& pos, const size_t length) {
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
+  void goto_next_line(char* mapped_file, size_t& pos, const size_t length) {
     for ( ; ; ++pos ) {
       if ( pos == length || mapped_file[pos] == '\n' ) {
         ++pos;
@@ -77,7 +78,8 @@ namespace mt_kahypar::io {
     }
   }
 
-  inline int64_t read_number(char* mapped_file, size_t& pos, const size_t length) {
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
+  int64_t read_number(char* mapped_file, size_t& pos, const size_t length) {
     int64_t number = 0;
     for ( ; pos < length; ++pos ) {
       if ( mapped_file[pos] == ' ' || mapped_file[pos] == '\n' ) {
@@ -138,12 +140,12 @@ namespace mt_kahypar::io {
   }
 
   HyperedgeID readHyperedges(char* mapped_file,
-                                    size_t& pos,
-                                    const size_t length,
-                                    const HyperedgeID num_hyperedges,
-                                    const mt_kahypar::Type type,
-                                    HyperedgeVector& hyperedges,
-                                    parallel::scalable_vector<HyperedgeWeight>& hyperedges_weight) {
+                             size_t& pos,
+                             const size_t length,
+                             const HyperedgeID num_hyperedges,
+                             const mt_kahypar::Type type,
+                             HyperedgeVector& hyperedges,
+                             parallel::scalable_vector<HyperedgeWeight>& hyperedges_weight) {
     HyperedgeID num_removed_single_pin_hyperedges = 0;
     const bool has_hyperedge_weights = type == mt_kahypar::Type::EdgeWeights ||
                                        type == mt_kahypar::Type::EdgeAndNodeWeights ?
@@ -354,8 +356,8 @@ namespace mt_kahypar::io {
                        const size_t length,
                        HyperedgeID& num_edges,
                        HypernodeID& num_vertices,
-                       bool& edge_weights,
-                       bool& vertex_weights) {
+                       bool& has_edge_weights,
+                       bool& has_vertex_weights) {
     // Skip comments
     while ( mapped_file[pos] == '%' ) {
       goto_next_line(mapped_file, pos, length);
@@ -368,10 +370,10 @@ namespace mt_kahypar::io {
       // read the three 0/1 format digits
       ASSERT(mapped_file[pos++] == '0', "Vertex sizes in input file are not supported.");
       ASSERT(mapped_file[pos] == '0' || mapped_file[pos] == '1');
-      vertex_weights = (mapped_file[pos++] == '1');
+      has_vertex_weights = (mapped_file[pos++] == '1');
       ASSERT(mapped_file[pos] == '0' || mapped_file[pos] == '1');
       // we use read_number for third digit to skip remaining spaces
-      edge_weights = (read_number(mapped_file, pos, length) == 1);
+      has_edge_weights = (read_number(mapped_file, pos, length) == 1);
     }
     ASSERT(mapped_file[pos - 1] == '\n', "Additional parameters after fmt parameter in header not supported.");
   }
