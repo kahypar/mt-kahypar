@@ -79,6 +79,24 @@ namespace mt_kahypar::io {
   }
 
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
+  size_t goto_next_line_and_count_numbers(char* mapped_file, size_t& pos, const size_t length) {
+    size_t count = 0;
+    while ( true ) {
+      if ( pos == length || mapped_file[pos] == '\n' ) {
+        ++pos;
+        return count;
+      } else if ( mapped_file[pos] != ' ' ) {
+        ++count;
+        while ( mapped_file[pos] != ' ' && mapped_file[pos] != '\n' ) {
+          ++pos;
+        }
+      } else {
+        ++pos;
+      }
+    }
+  }
+
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
   int64_t read_number(char* mapped_file, size_t& pos, const size_t length) {
     int64_t number = 0;
     for ( ; pos < length; ++pos ) {
@@ -378,6 +396,81 @@ namespace mt_kahypar::io {
     ASSERT(mapped_file[pos - 1] == '\n', "Additional parameters after fmt parameter in header not supported.");
   }
 
+  struct VertexRange {
+    const size_t start;
+    const size_t end;
+    const HypernodeID vertex_start_id;
+    const HypernodeID num_vertices;
+    const HyperedgeID edge_start_id;
+  };
+
+  void readVertices(char* mapped_file,
+                    size_t& pos,
+                    const size_t length,
+                    const HyperedgeID num_edges,
+                    const HypernodeID num_vertices,
+                    const bool has_edge_weights,
+                    const bool has_vertex_weights,
+                    EdgeVector& edges,
+                    parallel::scalable_vector<HyperedgeWeight>& edges_weight,
+                    parallel::scalable_vector<HypernodeWeight>& vertices_weight) {
+    parallel::scalable_vector<VertexRange> vertex_ranges;
+    tbb::parallel_invoke([&] {
+      // Sequential pass over all vertices to determine ranges in the
+      // input file that are read in parallel.
+      // Additionally, we need to sum the vertex degrees to determine edge indices.
+      size_t current_range_start = pos;
+      HypernodeID current_range_vertex_id = 0;
+      HypernodeID current_range_num_vertices = 0;
+      HyperedgeID current_edge_id = 0;
+      const HypernodeID num_vertices_per_range = std::max(
+              (num_vertices / ( 2 * std::thread::hardware_concurrency())), ID(1));
+      while ( current_range_vertex_id < num_vertices ) {
+        // Skip Comments
+        ASSERT(pos < length);
+        while ( mapped_file[pos] == '%' ) {
+          goto_next_line(mapped_file, pos, length);
+          ASSERT(pos < length);
+        }
+
+        ASSERT(mapped_file[pos - 1] == '\n');
+        ++current_range_num_vertices;
+        size_t vertex_degree = goto_next_line_and_count_numbers(mapped_file, pos, length);
+        ASSERT(!has_edge_weights || ((vertex_degree - (has_vertex_weights ? 1 : 0)) % 2) == 0);
+        if ( has_vertex_weights ) {
+          --vertex_degree;
+        }
+        if ( has_edge_weights ) {
+          vertex_degree /= 2;
+        }
+        current_edge_id += vertex_degree;
+
+        // If there are enough vertices in the current scanned range
+        // we store that range, which will be processed in parallel later
+        if ( current_range_num_vertices == num_vertices_per_range ) {
+          vertex_ranges.push_back(VertexRange {
+                  current_range_start, pos, current_range_vertex_id, current_range_num_vertices, current_edge_id});
+          current_range_start = pos;
+          current_range_vertex_id += current_range_num_vertices;
+          current_range_num_vertices = 0;
+        }
+      }
+      if ( current_range_num_vertices > 0 ) {
+        vertex_ranges.push_back(VertexRange {
+                current_range_start, pos, current_range_vertex_id, current_range_num_vertices, current_edge_id});
+        current_range_vertex_id += current_range_num_vertices;
+      }
+      ASSERT(current_range_vertex_id == num_vertices);
+      ASSERT(current_edge_id == 2 * num_edges);
+    }, [&] {
+      edges.resize(2 * num_edges);
+    }, [&] {
+      edges_weight.assign(2 * num_edges, 1);
+    }, [&] {
+      vertices_weight.assign(num_vertices, 1);
+    });
+  }
+
   void readMetisFile(const std::string& filename,
                      HyperedgeID& num_edges,
                      HypernodeID& num_vertices,
@@ -391,14 +484,13 @@ namespace mt_kahypar::io {
     size_t pos = 0;
 
     // Read Metis Header
-    bool edge_weights = false;
-    bool vertex_weights = false;
-    readMetisHeader(mapped_file, pos, length, num_edges, num_vertices, edge_weights, vertex_weights);
+    bool has_edge_weights = false;
+    bool has_vertex_weights = false;
+    readMetisHeader(mapped_file, pos, length, num_edges, num_vertices, has_edge_weights, has_vertex_weights);
 
-    // Read Hyperedges
-    // num_removed_single_pin_hyperedges =
-    //         readHyperedges(mapped_file, pos, length, num_hyperedges, type, hyperedges, hyperedges_weight);
-    // num_hyperedges -= num_removed_single_pin_hyperedges;
+    // Read Vertices
+    readVertices(mapped_file, pos, length, num_edges, num_vertices,
+                 has_edge_weights, has_vertex_weights, edges, edges_weight, vertices_weight);
 
     // Read Hypernode Weights
     // readHypernodeWeights(mapped_file, pos, length, num_hypernodes, type, hypernodes_weight);
