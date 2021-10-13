@@ -213,12 +213,16 @@ namespace mt_kahypar::io {
     }, [&] {
       hyperedges.resize(num_hyperedges);
     }, [&] {
-      hyperedges_weight.assign(num_hyperedges, 1);
+      if ( has_hyperedge_weights ) {
+        hyperedges_weight.resize(num_hyperedges);
+      }
     });
 
     const HyperedgeID tmp_num_hyperedges = num_hyperedges - num_removed_single_pin_hyperedges;
     hyperedges.resize(tmp_num_hyperedges);
-    hyperedges_weight.resize(tmp_num_hyperedges);
+    if ( has_hyperedge_weights ) {
+      hyperedges_weight.resize(tmp_num_hyperedges);
+    }
 
     // Process all ranges in parallel and build hyperedge vector
     tbb::parallel_for(0UL, hyperedge_ranges.size(), [&](const size_t i) {
@@ -271,8 +275,8 @@ namespace mt_kahypar::io {
     bool has_hypernode_weights = type == mt_kahypar::Type::NodeWeights ||
                                  type == mt_kahypar::Type::EdgeAndNodeWeights ?
                                  true : false;
-    hypernodes_weight.assign(num_hypernodes, 1);
     if ( has_hypernode_weights ) {
+      hypernodes_weight.resize(num_hypernodes);
       for ( HypernodeID hn = 0; hn < num_hypernodes; ++hn ) {
         ASSERT(pos > 0 && pos < length);
         ASSERT(mapped_file[pos - 1] == '\n');
@@ -465,9 +469,13 @@ namespace mt_kahypar::io {
     }, [&] {
       edges.resize(2 * num_edges);
     }, [&] {
-      edges_weight.assign(2 * num_edges, 1);
+      if ( has_edge_weights ) {
+        edges_weight.resize(2 * num_edges);
+      }
     }, [&] {
-      vertices_weight.assign(num_vertices, 1);
+      if ( has_vertex_weights ) {
+        vertices_weight.resize(num_vertices);
+      }
     });
   }
 
