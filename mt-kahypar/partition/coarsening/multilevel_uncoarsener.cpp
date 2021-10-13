@@ -52,11 +52,11 @@ namespace mt_kahypar {
     double time_limit = refinementTimeLimit(_context, _uncoarseningData.hierarchy.back().coarseningTime());
     refine(partitioned_hg, label_propagation, fm, current_metrics, time_limit);
 
-    ds::Array<PartitionID> part_ids(_hg.initialNumNodes(), kInvalidPartition);
+    ds::Array<PartIdType> part_ids(_hg.initialNumNodes(), PartIdType(kInvalidPartition));
 
     if (!_uncoarseningData.hierarchy.empty()) {
       // restore partition of initial partitioning on larger phg
-      ds::Array<PartitionID> ip_part_ids;
+      ds::Array<PartIdType> ip_part_ids;
       partitioned_hg.extractPartIDs(ip_part_ids);
 
       partitioned_hg = PartitionedHypergraph(

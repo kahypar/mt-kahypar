@@ -273,6 +273,16 @@ private:
     freeInternalData();
   }
 
+  void resetData() {
+    _is_gain_cache_initialized = false;
+    tbb::parallel_invoke([&] {
+    }, [&] {
+      _part_ids.assign(_part_ids.size(), CAtomic<PartitionID>(kInvalidPartition));
+    }, [&] {
+      for (auto& x : _part_weights) x.store(0, std::memory_order_relaxed);
+    });
+  }
+
   // ####################### General Hypergraph Stats ######################
 
   Hypergraph& hypergraph() {
@@ -462,6 +472,11 @@ private:
     ASSERT(u < initialNumNodes(), "Hypernode" << u << "does not exist");
     return _part_ids[u].load(std::memory_order_relaxed);
   }
+
+  void extractPartIDs(Array<CAtomic<PartitionID>>& part_ids) {
+    std::swap(_part_ids, part_ids);
+  }
+
 
   void setOnlyNodePart(const HypernodeID u, PartitionID p) {
     ASSERT(p != kInvalidPartition && p < _k);
