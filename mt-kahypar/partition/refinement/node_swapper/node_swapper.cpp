@@ -49,6 +49,9 @@ public:
   }
 };
 
+// Simple concurrent priority queue.
+// Our concurrent priority queue contains p (number of threads) priority queues.
+// push and pop selects a random priority queue and protect writes to it via a spin lock.
 class ConcurrentPQ {
 
 using PQ = std::priority_queue<VertexMove, std::vector<VertexMove>, VertexMoveComparator>;
@@ -81,7 +84,8 @@ public:
 
 private:
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE size_t selectPQ() {
-    return utils::Randomize::instance().getRandomInt(0, static_cast<int>(_num_threads) - 1, sched_getcpu());
+    return utils::Randomize::instance().getRandomInt(
+      0, static_cast<int>(_num_threads) - 1, sched_getcpu());
   }
 
   const size_t _num_threads;
@@ -102,9 +106,13 @@ HyperedgeWeight NodeSwapper::refine() {
   HyperedgeWeight last_round_km1 = initial_km1;
   double last_round_reduction = 2.0;
 
+  // We perform several rounds until the overall improvement is below 0.25%
   while ( last_round_reduction > 0.0025 ) {
     _in_queue.reset();
-    vec<ConcurrentPQ> moves(_context.partition.k, ConcurrentPQ(_context.shared_memory.num_threads));
+
+    // First, we compute for each node its preferred block that improves the objective function
+    // and insert it into the corresponding priority queue.
+    vec<ConcurrentPQ> to_pq(_context.partition.k, ConcurrentPQ(_context.shared_memory.num_threads));
     _hg.doParallelForAllNodes([&](const HypernodeID& hn) {
       const PartitionID from = _hg.partID(hn);
       PartitionID best_to = from;
@@ -121,33 +129,40 @@ HyperedgeWeight NodeSwapper::refine() {
       }
 
       if ( from != best_to ) {
-        moves[best_to].push(VertexMove { hn, from, best_gain });
+        to_pq[best_to].push(VertexMove { hn, from, best_gain });
         _in_queue.set(hn);
       }
     });
 
-
+    // Second, for each node u not contained in one of the priority queue,
+    // we try to swap it with the highest gain node that want to move into
+    // the block of node u.
     utils::Randomize::instance().parallelShuffleVector(_nodes, 0UL, _nodes.size());
     tbb::parallel_for(0UL, _nodes.size(), [&](const size_t i) {
       const HypernodeID u = _nodes[i];
       if ( _hg.nodeIsEnabled(u) && !_in_queue[u] ) {
         const PartitionID u_from = _hg.partID(u);
-        VertexMove move = moves[u_from].pop();
+        VertexMove move = to_pq[u_from].pop();
         while ( move.hn != kInvalidHypernode &&
                 move.gain != _hg.km1Gain(move.hn, move.from, u_from) ) {
           move.gain = _hg.km1Gain(move.hn, move.from, u_from);
           if ( move.gain > 0 ) {
-            moves[u_from].push(std::move(move));
+            to_pq[u_from].push(std::move(move));
           }
-          move = moves[u_from].pop();
+          move = to_pq[u_from].pop();
         }
 
         if ( move.hn != kInvalidHypernode ) {
           const HypernodeID v = move.hn;
           const PartitionID v_from = move.from;
           const Gain u_gain = _hg.km1Gain(u, u_from, v_from);
-          const Gain expected_swap_gain = move.gain + u_gain;
-          if ( expected_swap_gain > 0 ) {
+
+          // Note that the actual swap gain can differ, if u and v share
+          // some common edges. However, we double check the estimated gain
+          // with attributed gain and if the swap worsen the solution quality
+          // we revert it immediatly.
+          const Gain estimated_swap_gain = move.gain + u_gain;
+          if ( estimated_swap_gain > 0 ) {
             Gain real_swap_gain = 0;
             auto delta_gain_func = [&](const HyperedgeID he,
                                       const HyperedgeWeight edge_weight,
@@ -158,23 +173,25 @@ HyperedgeWeight NodeSwapper::refine() {
                 pin_count_in_from_part_after, pin_count_in_to_part_after);
             };
 
+            // Perform swap
             _hg.changeNodePartWithGainCacheUpdate(u, u_from, v_from,
               std::numeric_limits<HypernodeWeight>::max(), [] { }, delta_gain_func);
             _hg.changeNodePartWithGainCacheUpdate(v, v_from, u_from,
               std::numeric_limits<HypernodeWeight>::max(), [] { }, delta_gain_func);
 
             if ( real_swap_gain < 0 ) {
+              // Revert swap, if it has worsen the solution quality
               _hg.changeNodePartWithGainCacheUpdate(u, v_from, u_from,
                 std::numeric_limits<HypernodeWeight>::max(), [] { }, delta_gain_func);
               _hg.changeNodePartWithGainCacheUpdate(v, u_from, v_from,
                 std::numeric_limits<HypernodeWeight>::max(), [] { }, delta_gain_func);
               move.gain = _hg.km1Gain(move.hn, v_from, u_from);
-              moves[u_from].push(std::move(move));
+              to_pq[u_from].push(std::move(move));
             }
 
             delta += real_swap_gain;
           } else {
-            moves[u_from].push(std::move(move));
+            to_pq[u_from].push(std::move(move));
           }
         }
       }
