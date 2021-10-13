@@ -77,9 +77,11 @@ class UncoarseningData {
 public:
   explicit UncoarseningData(bool n_level, Hypergraph& hg, const Context& context) :
     nlevel(n_level),
-    hypergraph(&hg),
+    _hg(hg),
     _context(context) {
-      if (!n_level) {
+      if (n_level) {
+        compactified_hg = std::make_unique<Hypergraph>();
+      } else {
         size_t estimated_number_of_levels = 1UL;
         if ( hg.initialNumNodes() > context.coarsening.contraction_limit ) {
           estimated_number_of_levels = std::ceil( std::log2(
@@ -103,15 +105,15 @@ public:
       // Create compactified hypergraph containing only enabled vertices and hyperedges
       // with consecutive IDs => Less complexity in initial partitioning.
       utils::Timer::instance().start_timer("compactify_hypergraph", "Compactify Hypergraph");
-      auto compactification = HypergraphFactory::compactify(*hypergraph);
-      *hypergraph = std::move(compactification.first);
+      auto compactification = HypergraphFactory::compactify(_hg);
+      *compactified_hg = std::move(compactification.first);
       compactified_hn_mapping = std::move(compactification.second);
-      *partitioned_hg = PartitionedHypergraph(_context.partition.k, *hypergraph, parallel_tag_t());
+      *partitioned_hg = PartitionedHypergraph(_context.partition.k, *compactified_hg, parallel_tag_t());
       utils::Timer::instance().stop_timer("compactify_hypergraph");
     } else {
       utils::Timer::instance().start_timer("finalize_multilevel_hierarchy", "Finalize Multilevel Hierarchy");
       // Construct partitioned hypergraph for initial partitioning
-      Hypergraph& current_hg = hierarchy.empty() ? *hypergraph : hierarchy.back().contractedHypergraph();
+      Hypergraph& current_hg = hierarchy.empty() ? _hg : hierarchy.back().contractedHypergraph();
       *partitioned_hg = PartitionedHypergraph(
         _context.partition.k, current_hg, parallel_tag_t());
 
@@ -131,7 +133,7 @@ public:
           parallel::scalable_vector<HypernodeID>&& communities,
           const HighResClockTimepoint& round_start) {
     ASSERT(!is_finalized);
-    Hypergraph& current_hg = hierarchy.empty() ? *hypergraph : hierarchy.back().contractedHypergraph();
+    Hypergraph& current_hg = hierarchy.empty() ? _hg : hierarchy.back().contractedHypergraph();
     ASSERT(current_hg.initialNumNodes() == communities.size());
     Hypergraph contracted_hg = current_hg.contract(communities);
     const HighResClockTimepoint round_end = std::chrono::high_resolution_clock::now();
@@ -143,6 +145,10 @@ public:
   vec<Level> hierarchy;
 
   // NLevel Data
+  // ! Once coarsening terminates we generate a compactified hypergraph
+  // ! containing only enabled vertices and hyperedges within a consecutive
+  // ! ID range, which is then used for initial partitioning
+  std::unique_ptr<Hypergraph> compactified_hg;
   // ! Mapping from vertex IDs of the original hypergraph to the IDs
   // ! in the compactified hypergraph
   vec<HypernodeID> compactified_hn_mapping;
@@ -154,12 +160,12 @@ public:
   vec<double> round_coarsening_times;
 
   // Both
-  bool nlevel;
-  Hypergraph* hypergraph;
   std::unique_ptr<PartitionedHypergraph> partitioned_hg;
   bool is_finalized = false;
+  bool nlevel;
 
 private:
+  Hypergraph& _hg;
   const Context& _context;
 };
 }

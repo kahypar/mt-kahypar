@@ -59,7 +59,7 @@ class NLevelCoarsenerBase {
 
   Hypergraph& compactifiedHypergraph() {
     ASSERT(_uncoarseningData.is_finalized);
-    return *_uncoarseningData.hypergraph;
+    return *_uncoarseningData.compactified_hg;
   }
 
   PartitionedHypergraph& compactifiedPartitionedHypergraph() {

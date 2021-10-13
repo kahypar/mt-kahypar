@@ -58,7 +58,7 @@ namespace mt_kahypar {
     utils::ProgressBar uncontraction_progress(_hg.initialNumNodes(),
                                               _context.partition.objective == kahypar::Objective::km1 ? current_metrics.km1 : current_metrics.cut,
                                               _context.partition.verbose_output && _context.partition.enable_progress_bar && !debug);
-    uncontraction_progress += _uncoarseningData.hypergraph->initialNumNodes();
+    uncontraction_progress += _uncoarseningData.compactified_hg->initialNumNodes();
 
     // Initialize Refiner
     if ( label_propagation ) {
