@@ -50,11 +50,12 @@ namespace io {
                      parallel::scalable_vector<HyperedgeWeight>& hyperedges_weight,
                      parallel::scalable_vector<HypernodeWeight>& hypernodes_weight);
 
-  Hypergraph readMetisFile(const std::string& filename,
-                           const bool stable_construction_of_incident_edges = false);
-
   void readPartitionFile(const std::string& filename, std::vector<PartitionID>& partition);
   void writePartitionFile(const PartitionedHypergraph& phg, const std::string& filename);
 
+#ifdef USE_GRAPH_PARTITIONER
+  Hypergraph readMetisFile(const std::string& filename,
+                           const bool stable_construction_of_incident_edges = false);
+#endif
 }  // namespace io
 }  // namespace mt_kahypar

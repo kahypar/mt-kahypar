@@ -87,7 +87,7 @@ namespace mt_kahypar::io {
         return count;
       } else if ( mapped_file[pos] != ' ' ) {
         ++count;
-        while ( mapped_file[pos] != ' ' && mapped_file[pos] != '\n' ) {
+        while ( mapped_file[pos] != ' ' && mapped_file[pos] != '\n' && pos < length ) {
           ++pos;
         }
       } else {
@@ -426,7 +426,8 @@ namespace mt_kahypar::io {
       size_t current_range_start = pos;
       HypernodeID current_range_vertex_id = 0;
       HypernodeID current_range_num_vertices = 0;
-      HyperedgeID current_edge_id = 0;
+      HyperedgeID current_range_edge_id = 0;
+      HyperedgeID current_range_num_edges = 0;
       const HypernodeID num_vertices_per_range = std::max(
               (num_vertices / ( 2 * std::thread::hardware_concurrency())), ID(1));
       while ( current_range_vertex_id < num_vertices ) {
@@ -447,25 +448,28 @@ namespace mt_kahypar::io {
         if ( has_edge_weights ) {
           vertex_degree /= 2;
         }
-        current_edge_id += vertex_degree;
+        current_range_num_edges += vertex_degree;
 
         // If there are enough vertices in the current scanned range
         // we store that range, which will be processed in parallel later
         if ( current_range_num_vertices == num_vertices_per_range ) {
           vertex_ranges.push_back(VertexRange {
-                  current_range_start, pos, current_range_vertex_id, current_range_num_vertices, current_edge_id});
+                  current_range_start, pos, current_range_vertex_id, current_range_num_vertices, current_range_edge_id});
           current_range_start = pos;
           current_range_vertex_id += current_range_num_vertices;
           current_range_num_vertices = 0;
+          current_range_edge_id += current_range_num_edges;
+          current_range_num_edges = 0;
         }
       }
       if ( current_range_num_vertices > 0 ) {
         vertex_ranges.push_back(VertexRange {
-                current_range_start, pos, current_range_vertex_id, current_range_num_vertices, current_edge_id});
+                current_range_start, pos, current_range_vertex_id, current_range_num_vertices, current_range_edge_id});
         current_range_vertex_id += current_range_num_vertices;
+        current_range_edge_id += current_range_num_edges;
       }
       ASSERT(current_range_vertex_id == num_vertices);
-      ASSERT(current_edge_id == 2 * num_edges);
+      ASSERT(current_range_edge_id == 2 * num_edges);
     }, [&] {
       edges.resize(2 * num_edges);
     }, [&] {
@@ -475,6 +479,44 @@ namespace mt_kahypar::io {
     }, [&] {
       if ( has_vertex_weights ) {
         vertices_weight.resize(num_vertices);
+      }
+    });
+
+    // Process all ranges in parallel, build edge vector and assign weights
+    tbb::parallel_for(0UL, vertex_ranges.size(), [&](const size_t i) {
+      const VertexRange& range = vertex_ranges[i];
+      size_t current_pos = range.start;
+      const size_t current_end = range.end;
+      HypernodeID current_vertex_id = range.vertex_start_id;
+      const HypernodeID last_vertex_id = current_vertex_id + range.num_vertices;
+      HyperedgeID current_edge_id = range.edge_start_id;
+
+      while ( current_vertex_id < last_vertex_id ) {
+        // Skip Comments
+        ASSERT(current_pos < current_end);
+        while ( mapped_file[pos] == '%' ) {
+          goto_next_line(mapped_file, current_pos, current_end);
+          ASSERT(current_pos < current_end);
+        }
+
+        if ( has_vertex_weights ) {
+          ASSERT(current_vertex_id < vertices_weight.size());
+          vertices_weight[current_vertex_id] = read_number(mapped_file, current_pos, current_end);
+        }
+
+        // TODO
+        do {
+          const HypernodeID target = read_number(mapped_file, current_pos, current_end);
+          ASSERT(target > 0 && (target - 1) < num_vertices, V(target));
+          ASSERT(current_edge_id < edges.size(), V(range.edge_start_id) << "; " << V(last_vertex_id));
+          edges[current_edge_id] = {current_vertex_id, target - 1};
+
+          if ( has_edge_weights ) {
+            edges_weight[current_edge_id] = read_number(mapped_file, current_pos, current_end);
+          }
+          ++current_edge_id;
+        } while ( mapped_file[current_pos - 1] != '\n' && current_edge_id < 2 * num_edges );
+        ++current_vertex_id;
       }
     });
   }
@@ -499,15 +541,13 @@ namespace mt_kahypar::io {
     // Read Vertices
     readVertices(mapped_file, pos, length, num_edges, num_vertices,
                  has_edge_weights, has_vertex_weights, edges, edges_weight, vertices_weight);
+    ASSERT(pos == length);
 
-    // Read Hypernode Weights
-    // readHypernodeWeights(mapped_file, pos, length, num_hypernodes, type, hypernodes_weight);
-    // ASSERT(pos == length);
-
-    // munmap_file(mapped_file, fd, length);
-    // close(fd);
+    munmap_file(mapped_file, fd, length);
+    close(fd);
   }
 
+#ifdef USE_GRAPH_PARTITIONER
   Hypergraph readMetisFile(const std::string& filename,
                            const bool stable_construction_of_incident_edges) {
     // Read Metis File
@@ -520,18 +560,15 @@ namespace mt_kahypar::io {
     readMetisFile(filename, num_edges, num_vertices, edges, edges_weight, nodes_weight);
     mt_kahypar::utils::Timer::instance().stop_timer("read_input");
 
-    // Construct Hypergraph
-    // utils::Timer::instance().start_timer("construct_hypergraph", "Construct Hypergraph");
-    // Hypergraph hypergraph = HypergraphFactory::construct(
-    //         num_hypernodes, num_hyperedges,
-    //         hyperedges, hyperedges_weight.data(), hypernodes_weight.data(),
-    //         stable_construction_of_incident_edges);
-    // hypergraph.setNumRemovedHyperedges(num_removed_single_pin_hyperedges);
-    // utils::Timer::instance().stop_timer("construct_hypergraph");
-    // return hypergraph;
-
-    Hypergraph hypergraph;
-    return hypergraph;
+    // Construct Graph
+    utils::Timer::instance().start_timer("construct_hypergraph", "Construct Hypergraph");
+    Hypergraph graph = HypergraphFactory::construct_from_graph_edges(
+            num_vertices, num_edges, edges,
+            edges_weight.data(), nodes_weight.data(),
+            stable_construction_of_incident_edges);
+    utils::Timer::instance().stop_timer("construct_hypergraph");
+    return graph;
   }
+#endif
 
 } // namespace
