@@ -99,6 +99,9 @@ namespace mt_kahypar {
             ("enable-progress-bar",
              po::value<bool>(&context.partition.enable_progress_bar)->value_name("<bool>")->default_value(false),
              "If true, shows a progress bar during coarsening and refinement phase.")
+            ("use-top-level-node-swapping",
+             po::value<bool>(&context.partition.use_top_level_node_swapping)->value_name("<bool>")->default_value(false),
+             "If true, then we use a parallel node swapping heuristic similar to the Kerninghan-Lin heuristic on the top-level hypergraph.")
             ("time-limit", po::value<int>(&context.partition.time_limit)->value_name("<int>"),
              "Time limit in seconds (currently not supported)")
             ("sp-process,s",

@@ -32,7 +32,6 @@ namespace mt_kahypar {
               const vec<HypernodeID>& refinement_nodes,
               kahypar::Metrics& metrics,
               const double time_limit) {
-
     if (!is_initialized) throw std::runtime_error("Call initialize on fm before calling refine");
 
     Gain overall_improvement = 0;

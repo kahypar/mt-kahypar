@@ -27,6 +27,7 @@
 #include "mt-kahypar/partition/factories.h"
 #include "mt-kahypar/partition/preprocessing/sparsification/degree_zero_hn_remover.h"
 #include "mt-kahypar/partition/initial_partitioning/flat/pool_initial_partitioner.h"
+#include "mt-kahypar/partition/refinement/node_swapper/node_swapper.h"
 #include "mt-kahypar/parallel/memory_pool.h"
 #include "mt-kahypar/utils/initial_partitioning_stats.h"
 #include "mt-kahypar/io/partitioning_output.h"
@@ -99,6 +100,19 @@ namespace mt_kahypar::multilevel {
                       _hg, _context);
 
       _partitioned_hg = _coarsener->uncoarsen(label_propagation, fm);
+
+      const bool is_unweighted = _hg.initialNumNodes() == ID(_hg.totalWeight());
+      if ( _context.partition.use_top_level_node_swapping && is_unweighted &&
+           _context.type == kahypar::ContextType::main ) {
+        utils::Timer::instance().start_timer("node_swapper", "Node Swapper");
+        NodeSwapper node_swapper(_partitioned_hg, _context);
+        const HyperedgeWeight quality_delta = node_swapper.refine();
+        utils::Timer::instance().stop_timer("node_swapper");
+
+        if ( quality_delta < 0 ) {
+          LOG << GREEN << "Node Swapper improved solution quality by" << abs(quality_delta) << END;
+        }
+      }
       utils::Timer::instance().stop_timer("refinement");
 
       io::printPartitioningResults(_partitioned_hg, _context, "Local Search Results:");

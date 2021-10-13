@@ -698,17 +698,21 @@ private:
 
   // ! Only for testing
   HyperedgeWeight moveFromBenefitRecomputed(const HypernodeID u) const {
-    return 0;
+    const PartitionID p = partID(u);
+    HyperedgeWeight w = 0;
+    for (HyperedgeID e : incidentEdges(u)) {
+      if (partID(edgeTarget(e)) == p) {
+        w -= edgeWeight(e);
+      }
+    }
+    return w;
   }
 
   // ! Only for testing
   HyperedgeWeight moveToPenaltyRecomputed(const HypernodeID u, PartitionID p) const {
-    PartitionID part_id = partID(u);
     HyperedgeWeight w = 0;
     for (HyperedgeID e : incidentEdges(u)) {
-      if (edgeTarget(e) == part_id) {
-        w += edgeWeight(e);
-      } else if (edgeTarget(e) == p) {
+      if (partID(edgeTarget(e)) == p) {
         w -= edgeWeight(e);
       }
     }

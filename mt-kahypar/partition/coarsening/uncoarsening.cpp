@@ -187,7 +187,7 @@ namespace mt_kahypar {
             LOG << RED << "Rebalancer decreased solution quality by" << quality_delta
                 << "(Current Imbalance:" << metrics::imbalance(_partitioned_hg, _context) << ")" << END;
           } else {
-            LOG << GREEN << "Rebalancer improves solution quality by" << abs(quality_delta)
+            LOG << GREEN << "Rebalancer improved solution quality by" << abs(quality_delta)
                 << "(Current Imbalance:" << metrics::imbalance(_partitioned_hg, _context) << ")" << END;
           }
         }

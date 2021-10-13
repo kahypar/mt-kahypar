@@ -59,6 +59,7 @@ struct PartitioningParameters {
   bool csv_output = false;
   bool write_partition_file = false;
   bool deterministic = false;
+  bool use_top_level_node_swapping = false;
 
   std::string graph_filename { };
   std::string graph_partition_output_folder {};

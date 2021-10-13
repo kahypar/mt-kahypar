@@ -87,7 +87,7 @@ private:
       // not become overloaded
       _part_weights[to] += node_weight;
       if ( _part_weights[to] <= _context.partition.max_part_weights[to] ) {
-        if ( _hg.changeNodePart(hn, from, to, objective_delta) ) {
+        if ( changeNodePart(hn, from, to, objective_delta) ) {
           DBG << "Moved vertex" << hn << "from block" << from << "to block" << to
               << "with gain" << move.gain;
           _part_weights[from] -= node_weight;
@@ -97,6 +97,19 @@ private:
       _part_weights[to] -= node_weight;
     }
     return false;
+  }
+
+  template<typename F>
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE bool changeNodePart(const HypernodeID hn,
+                                                         const PartitionID from,
+                                                         const PartitionID to,
+                                                         const F& objective_delta) {
+    if ( _hg.isGainCacheInitialized() ) {
+      return _hg.changeNodePartWithGainCacheUpdate(hn, from, to,
+        std::numeric_limits<HypernodeWeight>::max(), [] { }, objective_delta);
+    } else {
+      return _hg.changeNodePart(hn, from, to, objective_delta);
+    }
   }
 
   PartitionedHypergraph& _hg;
