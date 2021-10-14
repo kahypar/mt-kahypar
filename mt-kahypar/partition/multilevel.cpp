@@ -109,7 +109,7 @@ namespace mt_kahypar::multilevel {
         const HyperedgeWeight quality_delta = node_swapper.refine();
         utils::Timer::instance().stop_timer("node_swapper");
 
-        if ( quality_delta < 0 ) {
+        if ( _context.partition.verbose_output && quality_delta < 0 ) {
           LOG << GREEN << "Node Swapper improved solution quality by" << abs(quality_delta) << END;
         }
       }
