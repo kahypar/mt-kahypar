@@ -440,14 +440,23 @@ namespace mt_kahypar::io {
 
         ASSERT(mapped_file[pos - 1] == '\n');
         ++current_range_num_vertices;
-        size_t vertex_degree = goto_next_line_and_count_numbers(mapped_file, pos, length);
-        ASSERT(!has_edge_weights || ((vertex_degree - (has_vertex_weights ? 1 : 0)) % 2) == 0);
+
+        // count the forward edges, ignore backward edges
         if ( has_vertex_weights ) {
-          --vertex_degree;
+          read_number(mapped_file, pos, length);
         }
-        if ( has_edge_weights ) {
-          vertex_degree /= 2;
-        }
+        HyperedgeID vertex_degree = 0;
+        do {
+          const HypernodeID source = current_range_vertex_id + current_range_num_vertices;
+          const HypernodeID target = read_number(mapped_file, pos, length);
+          ASSERT(source != target);
+          if ( source < target ) {
+            ++vertex_degree;
+          }
+          if ( has_edge_weights ) {
+            read_number(mapped_file, pos, length);
+          }
+        } while (mapped_file[pos - 1] != '\n' && pos < length);
         current_range_num_edges += vertex_degree;
 
         // If there are enough vertices in the current scanned range
@@ -469,12 +478,12 @@ namespace mt_kahypar::io {
         current_range_edge_id += current_range_num_edges;
       }
       ASSERT(current_range_vertex_id == num_vertices);
-      ASSERT(current_range_edge_id == 2 * num_edges);
+      ASSERT(current_range_edge_id == num_edges);
     }, [&] {
-      edges.resize(2 * num_edges);
+      edges.resize(num_edges);
     }, [&] {
       if ( has_edge_weights ) {
-        edges_weight.resize(2 * num_edges);
+        edges_weight.resize(num_edges);
       }
     }, [&] {
       if ( has_vertex_weights ) {
@@ -504,17 +513,21 @@ namespace mt_kahypar::io {
           vertices_weight[current_vertex_id] = read_number(mapped_file, current_pos, current_end);
         }
 
-        // TODO
+        // TODO: degree zero vertices?
         do {
           const HypernodeID target = read_number(mapped_file, current_pos, current_end);
           ASSERT(target > 0 && (target - 1) < num_vertices, V(target));
-          ASSERT(current_edge_id < edges.size(), V(range.edge_start_id) << "; " << V(last_vertex_id));
-          edges[current_edge_id] = {current_vertex_id, target - 1};
 
-          if ( has_edge_weights ) {
-            edges_weight[current_edge_id] = read_number(mapped_file, current_pos, current_end);
+          // process forward edges, ignore backward edges
+          if ( current_vertex_id < target ) {
+            ASSERT(current_edge_id < edges.size());
+            edges[current_edge_id] = {current_vertex_id, target - 1};
+
+            if ( has_edge_weights ) {
+              edges_weight[current_edge_id] = read_number(mapped_file, current_pos, current_end);
+            }
+            ++current_edge_id;
           }
-          ++current_edge_id;
         } while ( mapped_file[current_pos - 1] != '\n' && current_edge_id < 2 * num_edges );
         ++current_vertex_id;
       }
