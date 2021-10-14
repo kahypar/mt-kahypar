@@ -38,13 +38,9 @@ class RecursiveBisectionInitialPartitioner : public IInitialPartitioner {
  private:
   static constexpr bool enable_heavy_assert = false;
 
-
-
-
  public:
   RecursiveBisectionInitialPartitioner(PartitionedHypergraph& hypergraph,
-                                        const Context& context,
-                                        const bool top_level);
+                                        const Context& context);
 
   RecursiveBisectionInitialPartitioner(const RecursiveBisectionInitialPartitioner&) = delete;
   RecursiveBisectionInitialPartitioner(RecursiveBisectionInitialPartitioner&&) = delete;
@@ -56,7 +52,6 @@ class RecursiveBisectionInitialPartitioner : public IInitialPartitioner {
 
   PartitionedHypergraph& _hg;
   const Context& _context;
-  const bool _top_level;
 };
 
 

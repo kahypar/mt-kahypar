@@ -127,7 +127,7 @@ class GreedyInitialPartitioner : public tbb::task {
 
         if ( allow_overfitting || fitsIntoBlock(hg, hn, to, use_perfect_balanced_as_upper_bound) ) {
           if ( _default_block != kInvalidPartition ) {
-            hg.changeNodePart(hn, _default_block, to, NOOP_FUNC);
+            hg.changeNodePart(hn, _default_block, to);
           } else {
             hg.setNodePart(hn, to);
           }

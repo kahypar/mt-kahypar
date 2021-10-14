@@ -152,11 +152,13 @@ using PartitionedHypergraphTestTypes =
           PartitionedHypergraphTypeTraits<
                           PartitionedHypergraph<StaticHypergraph, StaticHypergraphFactory>,
                           StaticHypergraph,
-                          StaticHypergraphFactory>,
+                          StaticHypergraphFactory>
+                          ,
           PartitionedHypergraphTypeTraits<
                           PartitionedHypergraph<DynamicHypergraph, DynamicHypergraphFactory>,
                           DynamicHypergraph,
-                          DynamicHypergraphFactory>>;
+                          DynamicHypergraphFactory>
+                          >;
 
 TYPED_TEST_CASE(APartitionedHypergraph, PartitionedHypergraphTestTypes);
 

@@ -53,7 +53,6 @@ void ContractionTree::initialize(const HypernodeID num_hypernodes) {
 void ContractionTree::finalize(const size_t num_versions) {
   ASSERT(!_finalized, "Contraction tree already finalized");
   // Compute out degrees of each tree node
-  utils::Timer::instance().start_timer("compute_out_degrees", "Compute Out-Degree of Tree Nodes");
   tbb::parallel_for(ID(0), _num_hypernodes, [&](const HypernodeID hn) {
     ASSERT(node(hn).pendingContractions() == 0, "There are"
       << node(hn).pendingContractions() << "pending contractions for node" << hn);
@@ -63,10 +62,8 @@ void ContractionTree::finalize(const size_t num_versions) {
       ++_out_degrees[parent + 1];
     }
   });
-  utils::Timer::instance().stop_timer("compute_out_degrees");
 
   // Compute prefix sum over out degrees which will be the index pointer into the incidence array
-  utils::Timer::instance().start_timer("out_degree_prefix_sum", "Compute Out-Degree Prefix Sum");
   parallel::scalable_vector<parallel::IntegralAtomicWrapper<HypernodeID>> incidence_array_pos;
   parallel::TBBPrefixSum<parallel::IntegralAtomicWrapper<HypernodeID>, parallel::scalable_vector>
     out_degree_prefix_sum(_out_degrees);
@@ -75,10 +72,8 @@ void ContractionTree::finalize(const size_t num_versions) {
   }, [&] {
     incidence_array_pos.assign(_num_hypernodes, parallel::IntegralAtomicWrapper<HypernodeID>(0));
   });
-  utils::Timer::instance().stop_timer("out_degree_prefix_sum");
 
   // Reverse parent pointer of contraction tree such that it can be traversed in top-down fashion
-  utils::Timer::instance().start_timer("reverse_contraction_tree", "Reverse Contraction Tree");
   StreamingVector<HypernodeID> tmp_roots;
   tbb::parallel_for(ID(0), _num_hypernodes, [&](const HypernodeID hn) {
     const HypernodeID parent = node(hn).parent();
@@ -95,7 +90,6 @@ void ContractionTree::finalize(const size_t num_versions) {
     }
   });
   _roots = tmp_roots.copy_parallel();
-  utils::Timer::instance().stop_timer("reverse_contraction_tree");
 
   _finalized = true;
 
@@ -106,7 +100,6 @@ void ContractionTree::finalize(const size_t num_versions) {
   // A vertex is a root of a version if contains a child with that version less than
   // the version number of the vertex itself. Note, that for all vertices in the contraction
   // tree version(u) <= version(parent(u)).
-  utils::Timer::instance().start_timer("compute_version_roots", "Compute Roots for each Version");
   parallel::scalable_vector<StreamingVector<HypernodeID>> tmp_version_roots(num_versions);
   tbb::parallel_for(ID(0), _num_hypernodes, [&](const HypernodeID u) {
     std::sort(_incidence_array.begin() + _out_degrees[u],
@@ -139,10 +132,8 @@ void ContractionTree::finalize(const size_t num_versions) {
     _version_roots[i] = tmp_version_roots[i].copy_parallel();
     tmp_version_roots[i].clear_parallel();
   });
-  utils::Timer::instance().stop_timer("compute_version_roots");
 
   // Compute subtree sizes of each root in parallel via dfs
-  utils::Timer::instance().start_timer("compute_subtree_sizes", "Compute Subtree Sizes");
   tbb::parallel_for(0UL, _roots.size(), [&](const size_t i) {
     parallel::scalable_vector<HypernodeID> dfs;
     dfs.push_back(_roots[i]);
@@ -166,7 +157,6 @@ void ContractionTree::finalize(const size_t num_versions) {
       }
     }
   });
-  utils::Timer::instance().stop_timer("compute_subtree_sizes");
 
   tbb::parallel_invoke([&] {
     parallel::free(incidence_array_pos);
@@ -185,20 +175,24 @@ ContractionTree ContractionTree::copy(parallel_tag_t) {
   tree._finalized = _finalized;
 
   tbb::parallel_invoke([&] {
-    tree._tree.resize(_tree.size());
-    memcpy(tree._tree.data(), _tree.data(),
-      sizeof(Node) * _tree.size());
+    if (!_tree.empty()) {
+      tree._tree.resize(_tree.size());
+      memcpy(tree._tree.data(), _tree.data(), sizeof(Node) * _tree.size());
+    }
   }, [&] {
-    tree._roots.resize(_roots.size());
-    memcpy(tree._roots.data(), _roots.data(),
-      sizeof(HypernodeID) * _roots.size());
+    if (!_roots.empty()) {
+      tree._roots.resize(_roots.size());
+      memcpy(tree._roots.data(), _roots.data(), sizeof(HypernodeID) * _roots.size());
+    }
   }, [&] {
     const size_t num_versions = _version_roots.size();
     tree._version_roots.resize(num_versions);
     tbb::parallel_for(0UL, num_versions, [&](const size_t i) {
-      tree._version_roots[i].resize(_version_roots[i].size());
-      memcpy(tree._version_roots[i].data(), _version_roots[i].data(),
-        sizeof(HypernodeID) * _version_roots[i].size());
+      if (!_version_roots[i].empty()) {
+        tree._version_roots[i].resize(_version_roots[i].size());
+        memcpy(tree._version_roots[i].data(), _version_roots[i].data(),
+               sizeof(HypernodeID) * _version_roots[i].size());
+      }
     });
   }, [&] {
     tree._out_degrees.resize(_out_degrees.size());
@@ -206,9 +200,11 @@ ContractionTree ContractionTree::copy(parallel_tag_t) {
       tree._out_degrees[i] = _out_degrees[i];
     }
   }, [&] {
-    tree._incidence_array.resize(_incidence_array.size());
-    memcpy(tree._incidence_array.data(), _incidence_array.data(),
-      sizeof(HypernodeID) * _incidence_array.size());
+    if (!_incidence_array.empty()) {
+      tree._incidence_array.resize(_incidence_array.size());
+      memcpy(tree._incidence_array.data(), _incidence_array.data(),
+             sizeof(HypernodeID) * _incidence_array.size());
+    }
   });
 
   return tree;
@@ -221,26 +217,32 @@ ContractionTree ContractionTree::copy() {
   tree._num_hypernodes = _num_hypernodes;
   tree._finalized = _finalized;
 
-  tree._tree.resize(_tree.size());
-  memcpy(tree._tree.data(), _tree.data(),
-    sizeof(Node) * _tree.size());
-  tree._roots.resize(_roots.size());
-  memcpy(tree._roots.data(), _roots.data(),
-    sizeof(HypernodeID) * _roots.size());
+  if (!_tree.empty()) {
+    tree._tree.resize(_tree.size());
+    memcpy(tree._tree.data(), _tree.data(), sizeof(Node) * _tree.size());
+  }
+  if (!_roots.empty()) {
+    tree._roots.resize(_roots.size());
+    memcpy(tree._roots.data(), _roots.data(), sizeof(HypernodeID) * _roots.size());
+  }
   const size_t num_versions = _version_roots.size();
   tree._version_roots.resize(num_versions);
   for ( size_t i = 0; i < num_versions; ++i ) {
-    tree._version_roots[i].resize(_version_roots[i].size());
-    memcpy(tree._version_roots[i].data(), _version_roots[i].data(),
-      sizeof(HypernodeID) * _version_roots[i].size());
+    if (!_version_roots[i].empty()) {
+      tree._version_roots[i].resize(_version_roots[i].size());
+      memcpy(tree._version_roots[i].data(), _version_roots[i].data(),
+             sizeof(HypernodeID) * _version_roots[i].size());
+    }
   }
   tree._out_degrees.resize(_out_degrees.size());
   for ( size_t i = 0; i < _out_degrees.size(); ++i ) {
     tree._out_degrees[i] = _out_degrees[i];
   }
-  tree._incidence_array.resize(_incidence_array.size());
-  memcpy(tree._incidence_array.data(), _incidence_array.data(),
-    sizeof(HypernodeID) * _incidence_array.size());
+  if (!_incidence_array.empty()) {
+    tree._incidence_array.resize(_incidence_array.size());
+    memcpy(tree._incidence_array.data(), _incidence_array.data(),
+           sizeof(HypernodeID) * _incidence_array.size());
+  }
 
   return tree;
 }

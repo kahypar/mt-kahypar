@@ -32,8 +32,18 @@ using ::testing::Test;
 namespace mt_kahypar {
 namespace ds {
 
-TEST(ADynamicSparseMap, AddsSeveralElements) {
-  DynamicSparseMap<size_t, size_t> map;
+template<typename MapType>
+struct ADynamicSparseMap : public Test {
+  MapType map;
+};
+
+using DynamicSparseMapTestTypes = ::testing::Types<DynamicSparseMap<size_t, size_t>, DynamicFlatMap<size_t, size_t>>;
+
+TYPED_TEST_CASE(ADynamicSparseMap, DynamicSparseMapTestTypes);
+
+TYPED_TEST(ADynamicSparseMap, AddsSeveralElements) {
+  auto& map = this->map;
+  map.initialize(1);
   map[4] = 5;
   map[8] = 1;
   map[1] = 4;
@@ -43,8 +53,9 @@ TEST(ADynamicSparseMap, AddsSeveralElements) {
   ASSERT_EQ(4, map[1]);
 }
 
-TEST(ADynamicSparseMap, ModifiesAnExistingValue) {
-  DynamicSparseMap<size_t, size_t> map;
+TYPED_TEST(ADynamicSparseMap, ModifiesAnExistingValue) {
+  auto& map = this->map;
+  map.initialize(1);
   map[4] = 5;
   map[8] = 1;
   map[1] = 4;
@@ -55,28 +66,29 @@ TEST(ADynamicSparseMap, ModifiesAnExistingValue) {
   ASSERT_EQ(5, map[1]);
 }
 
-TEST(ADynamicSparseMap, IsForcedToGrow) {
-  DynamicSparseMap<size_t, size_t> map;
+TYPED_TEST(ADynamicSparseMap, IsForcedToGrow) {
+  const size_t initial_capacity = 256;
+  auto& map = this->map;
+  map.initialize(initial_capacity);
   const size_t n = map.capacity();
-  for ( size_t i = 0; i < n / 5; ++i ) {
+  for ( size_t i = 0; i < (2 * n) / 5; ++i ) {
     map[i] = i;
   }
-  const size_t initial_capacity = DynamicSparseMap<size_t, size_t>::MAP_SIZE;
   ASSERT_EQ(initial_capacity, map.capacity());
-  ASSERT_EQ(n / 5, map.size());
+  ASSERT_EQ((2 * n) / 5, map.size());
 
   // Forces map to dynamically grow
   map[n] = n;
 
   ASSERT_EQ(2 * initial_capacity, map.capacity());
-  ASSERT_EQ(n / 5 + 1, map.size());
+  ASSERT_EQ((2 * n) / 5 + 1, map.size());
   ASSERT_EQ(n, map[n]++);
-  for ( size_t i = 0; i < n / 5; ++i ) {
+  for ( size_t i = 0; i < (2 * n) / 5; ++i ) {
     ASSERT_EQ(i, map[i]++);
   }
 
   ASSERT_EQ(n + 1, map[n]);
-  for ( size_t i = 0; i < n / 5; ++i ) {
+  for ( size_t i = 0; i < (2 * n) / 5; ++i ) {
     ASSERT_EQ(i + 1, map[i]);
   }
 }

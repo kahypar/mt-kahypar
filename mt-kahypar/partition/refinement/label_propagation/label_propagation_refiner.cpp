@@ -74,9 +74,6 @@ namespace mt_kahypar {
     for (size_t i = 0; i < _context.refinement.label_propagation.maximum_iterations; ++i) {
       DBG << "Starting Label Propagation Round" << i;
 
-      utils::Timer::instance().start_timer(
-              "lp_round_" + std::to_string(i), "Label Propagation Round " + std::to_string(i), true);
-
       if ( _active_nodes.size() > 0 ) {
         labelPropagationRound(hypergraph, next_active_nodes);
       }
@@ -88,7 +85,6 @@ namespace mt_kahypar {
         _active_nodes = next_active_nodes.copy_parallel();
         next_active_nodes.clear_parallel();
       }
-      utils::Timer::instance().stop_timer("lp_round_" + std::to_string(i));
 
       if ( _active_nodes.size() == 0 ) {
         break;

@@ -85,6 +85,7 @@ namespace mt_kahypar {
       timer.stop_timer("find_moves");
 
       timer.start_timer("rollback", "Rollback to Best Solution");
+      phg.resetMoveState(true);
       HyperedgeWeight improvement = globalRollback.revertToBestPrefix
               <FMStrategy::maintain_gain_cache_between_rounds>(phg, sharedData, initialPartWeights);
       timer.stop_timer("rollback");
@@ -190,10 +191,7 @@ namespace mt_kahypar {
   template<typename FMStrategy>
   void MultiTryKWayFM<FMStrategy>::initializeImpl(PartitionedHypergraph& phg) {
     if ( !phg.isGainCacheInitialized() && FMStrategy::maintain_gain_cache_between_rounds ) {
-      utils::Timer& timer = utils::Timer::instance();
-      timer.start_timer("init_gain_info", "Initialize Gain Information");
       phg.initializeGainCache();
-      timer.stop_timer("init_gain_info");
     }
 
     is_initialized = true;

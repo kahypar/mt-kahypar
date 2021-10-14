@@ -2,7 +2,7 @@
 
 License|Linux Build|Code Coverage|Code Quality
 :--:|:--:|:--:|:--:
-[![License: GPL v3](https://img.shields.io/badge/License-GPL%20v3-blue.svg)](http://www.gnu.org/licenses/gpl-3.0)|[![Travis-CI Status](https://travis-ci.org/kahypar/mt-kahypar.svg?branch=master)](https://travis-ci.org/kahypar/mt-kahypar)|[![codecov](https://codecov.io/gh/kahypar/mt-kahypar/branch/master/graph/badge.svg?token=sNWRRtXZjI)](https://codecov.io/gh/kahypar/mt-kahypar)|[![Language grade: C/C++](https://img.shields.io/lgtm/grade/cpp/g/kittobi1992/mt-kahypar.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/kittobi1992/mt-kahypar/context:cpp)
+[![License: GPL v3](https://img.shields.io/badge/License-GPL%20v3-blue.svg)](http://www.gnu.org/licenses/gpl-3.0)|[![Build Status](https://github.com/kahypar/mt-kahypar/actions/workflows/mt_kahypar_ci.yml/badge.svg)](https://github.com/kahypar/mt-kahypar/actions/workflows/mt_kahypar_ci.yml)|[![codecov](https://codecov.io/gh/kahypar/mt-kahypar/branch/master/graph/badge.svg?token=sNWRRtXZjI)](https://codecov.io/gh/kahypar/mt-kahypar)|[![Language grade: C/C++](https://img.shields.io/lgtm/grade/cpp/g/kittobi1992/mt-kahypar.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/kittobi1992/mt-kahypar/context:cpp)
 
 What is a Hypergraph? What is Hypergraph Partitioning?
 -----------
@@ -33,10 +33,11 @@ undone and, at each level, several *local search* methods are used to improve th
 the coarser level. Additionally, we use a hypergraph clustering algorithm as preprocessing
 to restrict contractions to densely coupled regions during coarsening.
 
-The Mt-KaHyPar framework provides two hypergraph partitioners:
+The Mt-KaHyPar framework provides two hypergraph partitioners and a graph partitioner:
 
-- **Mt-KaHyPar Fast**: A scalable hypergraph partitioner that computes good partitions very fast
-- **Mt-KaHyPar Strong**: A scalable hypergraph partitioner that computes high-quality partitions
+- **Mt-KaHyPar Fast**: A scalable partitioner that computes good partitions very fast (for hypergraphs)
+- **Mt-KaHyPar Graph**: A scalable partitioner that computes good partitions very fast (for graphs)
+- **Mt-KaHyPar Strong**: A scalable partitioner that computes high-quality partitions
 
 Requirements
 -----------
@@ -64,26 +65,36 @@ Building Mt-KaHyPar
 3. Run cmake: `cmake .. -DCMAKE_BUILD_TYPE=RELEASE`
 4. Run make: `make MtKaHyPar -j`
 
-The build produces two executables, which will be located in `build/mt-kahypar/application/`:
+The build produces three executables, which will be located in `build/mt-kahypar/application/`:
 
-- `MtKaHyParFast`: computes good partitions very fast
+- `MtKaHyParFast`: computes good partitions very fast (for hypergraphs)
+- `MtKaHyParGraph`: computes good partitions very fast (for graphs)
 - `MtKaHyParStrong`: computes high-quality partitions in reasonable time (using n levels)
+
+Note that `MtKaHyParGraph` uses the same feature set as `MtKaHyParFast`. However, it replaces
+the internal hypergraph data structure of `MtKaHyParFast` with a graph data structure. In fact, `MtKaHyParGraph` is a factor of 2 faster than `MtKaHyParFast` for graphs on average.
 
 Running Mt-KaHyPar
 -----------
 
-Mt-KaHyPar has several configuration parameters. We recommend to use our presets which are located in the `config` folder:
+Mt-KaHyPar has several configuration parameters. We recommend to use our presets located in the `config` folder:
 
-- `default_preset.ini`: default parameters for Mt-KaHyPar Fast (`MtKaHyParFast`)
+- `default_preset.ini`: default parameters for Mt-KaHyPar Fast/Graph (`MtKaHyParFast`, `MtKaHyParGraph`)
 - `speed_deterministic_preset.ini`: parameters to make Mt-KaHyPar Fast (`MtKaHyParFast`) deterministic
 - `quality_preset.ini`: default parameters for Mt-KaHyPar Strong (`MtKaHyParStrong`)
 
-Deterministic mode is only supported for Mt-KaHyPar Fast, not Strong.
-If you want to change parameters manually, please run `./MtKaHyParFast --help` or `./MtKaHyParStrong --help` for a detailed description of the different program options. We use the [hMetis format](http://glaros.dtc.umn.edu/gkhome/fetch/sw/hmetis/manual.pdf) for the input hypergraph file as well as the partition output file.
+Deterministic mode is only supported for Mt-KaHyPar Fast/Graph, not Strong.
+If you want to change parameters manually, please run `--help` for a detailed description of the different program options. We use the [hMetis format](http://glaros.dtc.umn.edu/gkhome/fetch/sw/hmetis/manual.pdf) for the input hypergraph file as well as the partition output file.
 
 To run Mt-KaHyPar Fast, you can use the following command:
 
     ./MtKaHyParFast -h <path-to-hgr> -p <path to default_preset.ini> -t <# threads> -k <# blocks> -e <imbalance (e.g. 0.03)> -o km1 -m direct
+
+To run Mt-KaHyPar Graph, you can use the following command:
+
+    ./MtKaHyParGraph -h <path-to-hgr> -p <path to default_preset.ini> -t <# threads> -k <# blocks> -e <imbalance (e.g. 0.03)> -o km1 -m direct
+
+Note that the input for Mt-KaHyPar Graph must be also in [hMetis format](http://glaros.dtc.umn.edu/gkhome/fetch/sw/hmetis/manual.pdf). We are currently working on to support graph file formats.
 
 To run Mt-KaHyPar Strong, you can use the following command:
 
@@ -149,7 +160,10 @@ We provide a simple C-style interface to use Mt-KaHyPar as a library.  The libra
 make install.mtkahypar # use sudo to install system-wide
 ```
 
-and can be used like this:
+Note: When installing locally, the build will exit with an error due to missing permissions.
+However, the library is still built successfully and is available in `lib/`.
+
+It can be used like this:
 
 ```cpp
 #include <memory>
@@ -238,10 +252,25 @@ To compile the program using `g++` and our fast hypergraph partitioner (Mt-KaHyP
 g++ -std=c++17 -DNDEBUG -O3 your_program.cc -o your_program -lmtkahyparfast
 ```
 
+To compile the program using `g++` and our fast graph partitioner (Mt-KaHyPar Fast Graph) run:
+
+```sh
+g++ -std=c++17 -DNDEBUG -O3 your_program.cc -o your_program -lmtkahypargraph
+```
+
 To compile the program using `g++` and our strong hypergraph partitioner (Mt-KaHyPar Strong) run:
 
 ```sh
 g++ -std=c++17 -DNDEBUG -O3 your_program.cc -o your_program -lmtkahyparstrong
+```
+
+To execute the binary, you need to ensure that the installation directory (probably `/usr/local/lib` for system-wide installation)
+is included in the dynamic library path.
+The path can be updated with:
+
+```sh
+LD_LIBRARY_PATH="$LD_LIBRARY_PATH;/usr/local/lib"
+export LD_LIBRARY_PATH
 ```
 
 To remove the library from your system use the provided uninstall target:
@@ -276,7 +305,8 @@ If you are interested in a commercial license, please contact me.
       booktitle = {23rd Workshop on Algorithm Engineering and Experiments, (ALENEX 2021)},
       pages     = {16--30},
       year      = {2021},
-      publisher = {SIAM}
+      publisher = {SIAM},
+      doi       = {10.1137/1.9781611976472.2},
     }
 
     // Mt-KaHyPar Strong (Technical Report - Under Review)

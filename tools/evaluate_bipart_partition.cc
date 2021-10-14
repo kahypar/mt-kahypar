@@ -64,15 +64,15 @@ int main(int argc, char* argv[]) {
 
   po::options_description options("Options");
   options.add_options()
-    ("hypergraph,h",
-    po::value<std::string>(&context.partition.graph_filename)->value_name("<string>")->required(),
-    "Hypergraph Filename")
-    ("bipart-partition-file,b",
-    po::value<std::string>(&context.partition.graph_partition_filename)->value_name("<string>")->required(),
-    "BiPart Partition Filename")
-    ("blocks,k",
-    po::value<PartitionID>(&context.partition.k)->value_name("<int>")->required(),
-    "Number of Blocks");
+          ("hypergraph,h",
+           po::value<std::string>(&context.partition.graph_filename)->value_name("<string>")->required(),
+           "Hypergraph Filename")
+          ("bipart-partition-file,b",
+           po::value<std::string>(&context.partition.graph_partition_filename)->value_name("<string>")->required(),
+           "BiPart Partition Filename")
+          ("blocks,k",
+           po::value<PartitionID>(&context.partition.k)->value_name("<int>")->required(),
+           "Number of Blocks");
 
   po::variables_map cmd_vm;
   po::store(po::parse_command_line(argc, argv, options), cmd_vm);
@@ -80,8 +80,8 @@ int main(int argc, char* argv[]) {
 
   // Read Hypergraph
   Hypergraph hg =
-    mt_kahypar::io::readHypergraphFile(context.partition.graph_filename, 0, true);
-  PartitionedHypergraph phg(context.partition.k, 0, hg);
+          mt_kahypar::io::readHypergraphFile(context.partition.graph_filename, true);
+  PartitionedHypergraph phg(context.partition.k, hg, parallel_tag_t());
 
   // Setup Context
   context.partition.epsilon = 0.03;
@@ -89,7 +89,7 @@ int main(int argc, char* argv[]) {
 
   // Read Bipart Partition File
   readBipartPartitionFile(context.partition.graph_partition_filename, phg,
-    context.partition.k);
+                          context.partition.k);
 
   std::cout << "RESULT"
             << " graph=" << context.partition.graph_filename
