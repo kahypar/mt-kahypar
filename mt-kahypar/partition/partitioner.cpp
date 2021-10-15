@@ -26,6 +26,7 @@
 #include "mt-kahypar/partition/preprocessing/sparsification/degree_zero_hn_remover.h"
 #include "mt-kahypar/partition/preprocessing/sparsification/large_he_remover.h"
 #include "mt-kahypar/partition/preprocessing/community_detection/parallel_louvain.h"
+#include "mt-kahypar/partition/refinement/node_swapper/node_swapper.h"
 #include "mt-kahypar/utils/hypergraph_statistics.h"
 #include "mt-kahypar/utils/stats.h"
 #include "mt-kahypar/utils/timer.h"
@@ -288,11 +289,19 @@ namespace mt_kahypar {
 
     vec<HypernodeID>& high_degree_mapping = extracted_high_degree_core.second;
     vec<HypernodeID> communities(hypergraph.initialNumNodes(), 0);
+    vec<CAtomic<HypernodeID>> representative(context.partition.k, CAtomic<HypernodeID>(kInvalidHypernode));
     tbb::parallel_for(ID(0), hypergraph.initialNumNodes(), [&](const HypernodeID& hn) {
       if ( high_degree_mapping[hn] != kInvalidHypernode ) {
-        communities[hn] = high_degree_phg.partID(high_degree_mapping[hn]);
+        const PartitionID block = high_degree_phg.partID(high_degree_mapping[hn]);
+        if ( representative[block] == kInvalidHypernode ) {
+          HypernodeID expected = kInvalidHypernode;
+          HypernodeID desired = hn;
+          representative[block].compare_exchange_strong(
+            expected, desired, std::memory_order_relaxed);
+        }
+        communities[hn] = representative[block];
       } else {
-        communities[hn] = ID(context.partition.k) + hn;
+        communities[hn] = hn;
       }
     });
     Hypergraph contracted_hg = hypergraph.contract(communities);
@@ -310,6 +319,19 @@ namespace mt_kahypar {
       phg.setOnlyNodePart(hn, contracted_phg.partID(communities[hn]));
     });
     phg.initializePartition();
+
+    const bool is_unweighted = hypergraph.initialNumNodes() == ID(hypergraph.totalWeight());
+    if ( context.partition.use_top_level_node_swapping && is_unweighted &&
+         context.type == kahypar::ContextType::main ) {
+      utils::Timer::instance().start_timer("node_swapper", "Node Swapper");
+      NodeSwapper node_swapper(phg, context);
+      const HyperedgeWeight quality_delta = node_swapper.refine();
+      utils::Timer::instance().stop_timer("node_swapper");
+
+      if ( context.partition.verbose_output && quality_delta < 0 ) {
+        LOG << GREEN << "Node Swapper improved solution quality by" << abs(quality_delta) << END;
+      }
+    }
     return phg;
   }
 
