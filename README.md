@@ -83,7 +83,7 @@ Mt-KaHyPar has several configuration parameters. We recommend to use our presets
 - `speed_deterministic_preset.ini`: parameters to make Mt-KaHyPar Fast (`MtKaHyParFast`) deterministic
 - `quality_preset.ini`: default parameters for Mt-KaHyPar Strong (`MtKaHyParStrong`)
 
-Deterministic mode is only supported for Mt-KaHyPar Fast/Graph, not Strong.
+Deterministic mode is only supported for Mt-KaHyPar Fast, not Graph or Strong.
 If you want to change parameters manually, please run `--help` for a detailed description of the different program options. We use the [hMetis format](http://glaros.dtc.umn.edu/gkhome/fetch/sw/hmetis/manual.pdf) for the input hypergraph file as well as the partition output file.
 
 To run Mt-KaHyPar Fast, you can use the following command:
