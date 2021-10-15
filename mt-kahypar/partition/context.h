@@ -208,6 +208,7 @@ struct UncoarseningParameters {
   bool use_old_refinement_seeds = false;
   bool use_bitcopy_snapshots = false;
   MultiqueueUsage use_multiqueue = MultiqueueUsage::no_multiqueue;
+  bool use_heavy_gain_cache_deltas = false;
 };
 
 std::ostream & operator<< (std::ostream& str, const UncoarseningParameters& params);

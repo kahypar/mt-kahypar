@@ -14,9 +14,103 @@ namespace mt_kahypar::ds {
 
     using PartIDs = Array<PartitionID>;
 
+    // ! Hash-Table data structure to store gain cache deltas for the heavy gain cache
+    template<class PartitionInfo>
+    class LightGainCacheDeltas {
+
+    public:
+
+        LightGainCacheDeltas(const PartitionInfo& partitionInfo) : _part_info(partitionInfo) {}
+
+        MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
+        void clear() {
+          _benefit_deltas.clear();
+          _penalty_deltas.clear();
+        }
+
+        MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
+        size_t size_in_bytes() const {
+          return _benefit_deltas.size_in_bytes() + _penalty_deltas.size_in_bytes();
+        }
+
+        MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
+        void dropMemory() {
+          _benefit_deltas.freeInternalData();
+          _penalty_deltas.freeInternalData();
+        }
+
+        template <typename PinIteratorT>
+        MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
+        void updateForDeltaMove(const HyperedgeID, const HyperedgeWeight we, IteratorRange<PinIteratorT> pins,
+                                const PartitionID from, const HypernodeID pin_count_in_from_part_after,
+                                const PartitionID to, const HypernodeID pin_count_in_to_part_after) {
+          if (pin_count_in_from_part_after == 0) {
+            for (HypernodeID u : pins) {
+              _penalty_deltas[penalty_index(u, from)] += we;
+            }
+          } else if (pin_count_in_from_part_after == 1) {
+            for (HypernodeID u : pins) {
+              if (_part_info.partID(u) == from) {
+                _benefit_deltas[u] += we;
+              }
+            }
+          }
+
+          if (pin_count_in_to_part_after == 1) {
+            for (HypernodeID u : pins) {
+              _penalty_deltas[penalty_index(u, to)] -= we;
+            }
+          } else if (pin_count_in_to_part_after == 2) {
+            for (HypernodeID u : pins) {
+              if (_part_info.partID(u) == to) {
+                _benefit_deltas[u] -= we;
+              }
+            }
+          }
+        }
+
+
+        MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
+        HyperedgeWeight penaltyDelta(const HypernodeID u, const PartitionID p) const {
+          const HyperedgeWeight* val = _penalty_deltas.get_if_contained(penalty_index(u,p));
+          if (val) {
+            return *val;
+          } else {
+            return 0;
+          }
+        }
+
+        MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
+        HyperedgeWeight benefitDelta(const HypernodeID u, const PartitionID) const {
+          const HyperedgeWeight* val = _benefit_deltas.get_if_contained(u);
+          if (val) {
+            return *val;
+          } else {
+            return 0;
+          }
+        }
+
+    private:
+
+        MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
+        size_t penalty_index(const HypernodeID u, const PartitionID p) const {
+          return size_t(u) * _part_info.k() + p;
+        }
+
+        const PartitionInfo& _part_info;
+
+        DynamicSparseMap<HypernodeID, HyperedgeWeight> _benefit_deltas;
+        DynamicSparseMap<size_t, HyperedgeWeight> _penalty_deltas;
+    };
+
+
 class LightGainCache {
 
 public:
+
+    template<typename PartitionInfo>
+    using Deltas = LightGainCacheDeltas<PartitionInfo>;
+
 
     LightGainCache() = default;
 
@@ -293,11 +387,111 @@ private:
 
     // ! For each node and block, the sum of weights of incident edges with zero pins in that block
     Array< CAtomic<HyperedgeWeight> > _move_to_penalty;
+
 };
+
+
+    // ! Hash-Table data structure to store gain cache deltas for the heavy gain cache
+    template<class PartitionInfo>
+    class HeavyGainCacheDeltas {
+
+    public:
+
+        HeavyGainCacheDeltas(const PartitionInfo& partitionInfo)
+            : _part_info(partitionInfo) {}
+
+        MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
+        void clear() {
+          _benefit_deltas.clear();
+          _penalty_deltas.clear();
+        }
+
+        MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
+        size_t size_in_bytes() const {
+          return _benefit_deltas.size_in_bytes() + _penalty_deltas.size_in_bytes();
+        }
+
+        MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
+        void dropMemory() {
+          _benefit_deltas.freeInternalData();
+          _penalty_deltas.freeInternalData();
+        }
+
+        template <typename PinIteratorT>
+        MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
+        void updateForDeltaMove(const HyperedgeID, const HyperedgeWeight we, IteratorRange<PinIteratorT> pins,
+                                const PartitionID from, const HypernodeID pin_count_in_from_part_after,
+                                const PartitionID to, const HypernodeID pin_count_in_to_part_after) {
+          if (pin_count_in_from_part_after == 0) {
+            for (HypernodeID u : pins) {
+              _benefit_deltas[benefit_index(u, from)] -= we;
+              _penalty_deltas[penalty_index(u, from)] += we;
+            }
+          } else if (pin_count_in_from_part_after == 1) {
+            for (HypernodeID u : pins) {
+              _benefit_deltas[benefit_index(u, from)] += we;
+            }
+          }
+
+          if (pin_count_in_to_part_after == 1) {
+            for (HypernodeID u : pins) {
+              _benefit_deltas[benefit_index(u, to)] += we;
+              _penalty_deltas[penalty_index(u, to)] -= we;
+            }
+          } else if (pin_count_in_to_part_after == 2) {
+            for (HypernodeID u : pins) {
+              _benefit_deltas[benefit_index(u, to)] -= we;
+            }
+          }
+        }
+
+
+        MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
+        HyperedgeWeight penaltyDelta(const HypernodeID u, const PartitionID p) const {
+          const HyperedgeWeight* val = _penalty_deltas.get_if_contained(penalty_index(u,p));
+          if (val) {
+            return *val;
+          } else {
+            return 0;
+          }
+        }
+
+        MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
+        HyperedgeWeight benefitDelta(const HypernodeID u, const PartitionID p) const {
+          const HyperedgeWeight* val = _benefit_deltas.get_if_contained(benefit_index(u,p));
+          if (val) {
+            return *val;
+          } else {
+            return 0;
+          }
+        }
+
+    private:
+
+
+        MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
+        size_t benefit_index(const HypernodeID u, const PartitionID p) const {
+          return size_t(u) * _part_info.k() + p;
+        }
+
+        MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
+        size_t penalty_index(const HypernodeID u, const PartitionID p) const {
+          return size_t(u) * _part_info.k() + p;
+        }
+
+        const PartitionInfo& _part_info;
+
+        DynamicSparseMap<size_t, HyperedgeWeight> _benefit_deltas;
+        DynamicSparseMap<size_t, HyperedgeWeight> _penalty_deltas;
+    };
+
 
 class HeavyGainCache {
 
     public:
+
+    template<typename PartitionInfo>
+    using Deltas = HeavyGainCacheDeltas<PartitionInfo>;
 
     HeavyGainCache() = default;
 
@@ -677,6 +871,7 @@ class HeavyGainCache {
 
         // ! For each node and block, the sum of weights of incident edges with zero pins in that block
         Array< CAtomic<HyperedgeWeight> > _move_to_penalty;
+
     };
 
 } // namespace mt_kahypar::ds

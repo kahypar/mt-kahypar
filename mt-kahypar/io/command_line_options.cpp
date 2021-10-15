@@ -530,6 +530,11 @@ namespace mt_kahypar {
             "- hybrid (only for versions with max depth of > 1000)\n"
             "- only_multiqueue\n"
             "(Only has an effect in MtKaHyParStrongAsync)")
+            ("u-use-heavy-gain-cache-deltas",
+            po::value<bool>(&context.uncoarsening.use_heavy_gain_cache_deltas)->value_name("<bool>")->default_value(false),
+            "If this option is set, asynchronous localized FM searches will track k benefit delta entries instead of one."
+            " May improve solution quality at the cost of running time and memory overheads. "
+            "(Only has an effect in MtKaHyParStrongAsync.)")
             ;
     return options;
   }

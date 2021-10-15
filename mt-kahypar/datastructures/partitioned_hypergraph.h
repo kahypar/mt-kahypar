@@ -48,7 +48,7 @@ namespace ds {
 
 template <typename Hypergraph = Mandatory,
           typename HypergraphFactory = Mandatory,
-          typename GainCache = Mandatory>
+          typename GainCacheT = Mandatory>
 class PartitionedHypergraph {
 private:
   static_assert(!Hypergraph::is_partitioned,  "Only unpartitioned hypergraphs are allowed");
@@ -70,7 +70,7 @@ private:
 
   static constexpr bool enable_heavy_assert = true;
 
-  using PHG = PartitionedHypergraph<Hypergraph, HypergraphFactory, GainCache>;
+  using PHG = PartitionedHypergraph<Hypergraph, HypergraphFactory, GainCacheT>;
 
  public:
 
@@ -84,6 +84,8 @@ private:
   using HyperedgeIterator = typename Hypergraph::HyperedgeIterator;
   using IncidenceIterator = typename Hypergraph::IncidenceIterator;
   using IncidentNetsIterator = typename Hypergraph::IncidentNetsIterator;
+
+  using GainCache = GainCacheT;
 
   PartitionedHypergraph() = default;
 
