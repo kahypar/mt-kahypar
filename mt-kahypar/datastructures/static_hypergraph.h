@@ -496,6 +496,11 @@ class StaticHypergraph {
     return _total_degree;
   }
 
+  // ! Set total weight of hypergraph
+  void setTotalWeight(const HypernodeWeight& total_weight) {
+    _total_weight = total_weight;
+  }
+
   // ! Total weight of hypergraph
   HypernodeWeight totalWeight() const {
     return _total_weight;

@@ -195,13 +195,14 @@ namespace mt_kahypar {
     return std::move(partitioned_hypergraph);
   }
 
-  PartitionedHypergraph partition(Hypergraph& hypergraph, Context& context) {
-    configurePreprocessing(hypergraph, context);
-    setupContext(hypergraph, context);
-
-    io::printContext(context);
-    io::printMemoryPoolConsumption(context);
-    io::printInputInformation(context, hypergraph);
+  PartitionedHypergraph partition(Hypergraph& hypergraph, Context& context, const bool initialize_context) {
+    if ( initialize_context ) {
+      configurePreprocessing(hypergraph, context);
+      setupContext(hypergraph, context);
+      io::printContext(context);
+      io::printMemoryPoolConsumption(context);
+      io::printInputInformation(context, hypergraph);
+    }
 
     // ################## PREPROCESSING ##################
     utils::Timer::instance().start_timer("preprocessing", "Preprocessing");
@@ -237,6 +238,80 @@ namespace mt_kahypar {
     return partitioned_hypergraph;
   }
 
+  #define NOOP_FUNC [] (const HyperedgeID, const HyperedgeWeight, const HypernodeID, const HypernodeID, const HypernodeID) { }
+
+  PartitionedHypergraph social_partition(Hypergraph& hypergraph, Context& context) {
+    configurePreprocessing(hypergraph, context);
+    setupContext(hypergraph, context);
+
+    io::printContext(context);
+    io::printMemoryPoolConsumption(context);
+    io::printInputInformation(context, hypergraph);
+
+    // Extract High-Degree Subhypergraph
+    PartitionedHypergraph tmp_phg(2, hypergraph, parallel_tag_t { });
+    tmp_phg.doParallelForAllNodes([&](const HypernodeID& hn) {
+      tmp_phg.setOnlyNodePart(hn, 1);
+    });
+    tmp_phg.initializePartition();
+
+    vec<HypernodeID> nodes(hypergraph.initialNumNodes());
+    hypergraph.doParallelForAllNodes([&](const HypernodeID& hn) {
+      nodes[hn] = hn;
+    });
+    tbb::parallel_sort(nodes.begin(), nodes.end(),
+      [&](const HypernodeID& lhs, const HypernodeID& rhs) {
+        return hypergraph.nodeDegree(lhs) > hypergraph.nodeDegree(rhs);
+      });
+    CAtomic<size_t> idx(0);
+    CAtomic<HypernodeID> current_num_pins(0);
+    tbb::parallel_for(0UL, nodes.size(), [&](const size_t) {
+      const size_t i = idx.fetch_add(1, std::memory_order_relaxed);
+      const HypernodeID hn = nodes[i];
+      const HypernodeID num_pins = current_num_pins.fetch_add(hypergraph.nodeDegree(hn), std::memory_order_relaxed);
+      const double pin_fraction = static_cast<double>(num_pins) / hypergraph.initialNumPins();
+      if ( pin_fraction < 0.95 ) {
+        tmp_phg.changeNodePart(hn, 1, 0, NOOP_FUNC);
+      }
+    });
+
+    auto extracted_high_degree_core = tmp_phg.extract(0, true, false);
+    Hypergraph& high_degree_hg = extracted_high_degree_core.first;
+    high_degree_hg.setTotalWeight(hypergraph.totalWeight());
+
+    if ( context.partition.verbose_output ) {
+      io::printHypergraphInfo(high_degree_hg, "High-Degree Subhypergraph",
+        context.partition.show_memory_consumption);
+    }
+
+    PartitionedHypergraph high_degree_phg = partition(high_degree_hg, context, false);
+
+    vec<HypernodeID>& high_degree_mapping = extracted_high_degree_core.second;
+    vec<HypernodeID> communities(hypergraph.initialNumNodes(), 0);
+    tbb::parallel_for(ID(0), hypergraph.initialNumNodes(), [&](const HypernodeID& hn) {
+      if ( high_degree_mapping[hn] != kInvalidHypernode ) {
+        communities[hn] = high_degree_phg.partID(high_degree_mapping[hn]);
+      } else {
+        communities[hn] = ID(context.partition.k) + hn;
+      }
+    });
+    Hypergraph contracted_hg = hypergraph.contract(communities);
+
+    if ( context.partition.verbose_output ) {
+      io::printHypergraphInfo(contracted_hg, "Contracted Hypergraph",
+        context.partition.show_memory_consumption);
+    }
+
+    parallel::MemoryPool::instance().reset();
+    PartitionedHypergraph contracted_phg = partition(contracted_hg, context, false);
+
+    PartitionedHypergraph phg(context.partition.k, hypergraph, parallel_tag_t { });
+    phg.doParallelForAllNodes([&](const HypernodeID& hn) {
+      phg.setOnlyNodePart(hn, contracted_phg.partID(communities[hn]));
+    });
+    phg.initializePartition();
+    return phg;
+  }
 
 
 }
