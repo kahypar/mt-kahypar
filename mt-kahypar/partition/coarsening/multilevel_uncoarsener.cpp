@@ -54,20 +54,6 @@ namespace mt_kahypar {
 
     ds::Array<PartIdType> part_ids(_hg.initialNumNodes(), PartIdType(kInvalidPartition));
 
-    if (!_uncoarseningData.hierarchy.empty()) {
-      // restore partition of initial partitioning on larger phg
-      ds::Array<PartIdType> ip_part_ids;
-      partitioned_hg.extractPartIDs(ip_part_ids);
-
-      partitioned_hg = PartitionedHypergraph(
-        _context.partition.k, _hg, parallel_tag_t());
-      partitioned_hg.setHypergraph(
-        _uncoarseningData.hierarchy.back().contractedHypergraph());
-      tbb::parallel_for(0UL, ip_part_ids.size(), [&](const HypernodeID hn) {
-        part_ids[hn] = ip_part_ids[hn];
-      });
-    }
-
     for (int i = _uncoarseningData.hierarchy.size() - 1; i >= 0; --i) {
       // Project partition to next level finer hypergraph
       utils::Timer::instance().start_timer("projecting_partition", "Projecting Partition");
@@ -78,10 +64,8 @@ namespace mt_kahypar {
         partitioned_hg.setHypergraph((_uncoarseningData.hierarchy)[i-1].contractedHypergraph());
       }
       // extract part_ids to reset partition
-      if (static_cast<size_t>(i) < _uncoarseningData.hierarchy.size() - 1) {
-        partitioned_hg.extractPartIDs(part_ids);
-        partitioned_hg.resetData();
-      }
+      partitioned_hg.extractPartIDs(part_ids);
+      partitioned_hg.resetData();
 
       partitioned_hg.doParallelForAllNodes([&](const HypernodeID hn) {
         const HypernodeID coarse_hn = (_uncoarseningData.hierarchy)[i].mapToContractedHypergraph(hn);
