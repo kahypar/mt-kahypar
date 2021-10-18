@@ -162,10 +162,10 @@ namespace mt_kahypar {
 
   std::ostream & operator<< (std::ostream& os, const MultiqueueUsage& type) {
       switch (type) {
-        case MultiqueueUsage::no_multiqueue : return os << "fm_gain_cache";
-        case MultiqueueUsage::hybrid : return os << "fm_gain_cache_on_demand";
-        case MultiqueueUsage::only_multiqueue : return os << "fm_gain_delta";
-        case MultiqueueUsage::UNDEFINED : return os << "fm_recompute_gain";
+        case MultiqueueUsage::no_multiqueue : return os << "no_multiqueue";
+        case MultiqueueUsage::hybrid : return os << "hybrid";
+        case MultiqueueUsage::only_multiqueue : return os << "only_multiqueue";
+        case MultiqueueUsage::UNDEFINED : return os << "undefined";
           // omit default case to trigger compiler warning for missing cases
       }
       return os << static_cast<uint8_t>(type);
