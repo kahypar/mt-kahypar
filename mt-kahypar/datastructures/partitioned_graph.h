@@ -883,8 +883,8 @@ private:
     ASSERT(from != to);
     const HypernodeWeight weight = nodeWeight(u);
     const HypernodeWeight to_weight_after = _part_weights[to].add_fetch(weight, std::memory_order_relaxed);
-    const HypernodeWeight from_weight_after = _part_weights[from].fetch_sub(weight, std::memory_order_relaxed) - weight;
-    if (to_weight_after <= max_weight_to && from_weight_after > 0) {
+    if (to_weight_after <= max_weight_to) {
+      _part_weights[from].fetch_sub(weight, std::memory_order_relaxed);
       report_success();
       if (HandleLocks) {
         DBG << "<<< Start changing node part: " << V(u) << " - " << V(from) << " - " << V(to);
@@ -905,7 +905,6 @@ private:
       return true;
     } else {
       _part_weights[to].fetch_sub(weight, std::memory_order_relaxed);
-      _part_weights[from].fetch_add(weight, std::memory_order_relaxed);
       return false;
     }
   }
