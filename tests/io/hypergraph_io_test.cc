@@ -202,7 +202,7 @@ TEST_F(AHypergraphReader, ReadsAMetisGraph) {
   // Verify Incident Edges
   this->verifyIncidentNets(
     { { 0, 1, 2 }, { 3, 4, 5 }, { 6, 7, 8, 9 }, { 10, 11, 12, 13 },
-      { 14, 15, 16 }, { 17, 18, 19 }, { 20, 21 } });
+      { 14, 15, 16 }, { 17, 18, 19 }, { 20, 21 }, {} });
 
   // Verify Pins
   this->verifyPins({
@@ -222,6 +222,7 @@ TEST_F(AHypergraphReader, ReadsAMetisGraph) {
   ASSERT_EQ(1, this->hypergraph.nodeWeight(4));
   ASSERT_EQ(1, this->hypergraph.nodeWeight(5));
   ASSERT_EQ(1, this->hypergraph.nodeWeight(6));
+  ASSERT_EQ(1, this->hypergraph.nodeWeight(7));
 
   // Verify Edge Weights
   for ( HyperedgeID e : {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
@@ -244,7 +245,7 @@ TEST_F(AHypergraphReader, ReadsAMetisGraphWithNodeWeights) {
   // Verify Incident Edges
   this->verifyIncidentNets(
     { { 0, 1, 2 }, { 3, 4, 5 }, { 6, 7, 8, 9 }, { 10, 11, 12, 13 },
-      { 14, 15, 16 }, { 17, 18, 19 }, { 20, 21 } });
+      { 14, 15, 16 }, { 17, 18, 19 }, { 20, 21 }, {} });
 
   // Verify Pins
   this->verifyPins({
@@ -264,6 +265,7 @@ TEST_F(AHypergraphReader, ReadsAMetisGraphWithNodeWeights) {
   ASSERT_EQ(1, this->hypergraph.nodeWeight(4));
   ASSERT_EQ(6, this->hypergraph.nodeWeight(5));
   ASSERT_EQ(2, this->hypergraph.nodeWeight(6));
+  ASSERT_EQ(1, this->hypergraph.nodeWeight(7));
 
   // Verify Edge Weights
   for ( HyperedgeID e : {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
@@ -286,7 +288,7 @@ TEST_F(AHypergraphReader, ReadsAMetisGraphWithEdgeWeights) {
   // Verify Incident Edges
   this->verifyIncidentNets(
     { { 0, 1, 2 }, { 3, 4, 5 }, { 6, 7, 8, 9 }, { 10, 11, 12, 13 },
-      { 14, 15, 16 }, { 17, 18, 19 }, { 20, 21 } });
+      { 14, 15, 16 }, { 17, 18, 19 }, { 20, 21 }, {} });
 
   // Verify Pins
   this->verifyPins({
@@ -306,6 +308,7 @@ TEST_F(AHypergraphReader, ReadsAMetisGraphWithEdgeWeights) {
   ASSERT_EQ(1, this->hypergraph.nodeWeight(4));
   ASSERT_EQ(1, this->hypergraph.nodeWeight(5));
   ASSERT_EQ(1, this->hypergraph.nodeWeight(6));
+  ASSERT_EQ(1, this->hypergraph.nodeWeight(7));
 
   // Verify Edge Weights
   for ( HyperedgeID e : {0, 3, 2, 14, 5, 10} ) {
@@ -339,7 +342,7 @@ TEST_F(AHypergraphReader, ReadsAMetisGraphWithNodeAndEdgeWeights) {
   // Verify Incident Edges
   this->verifyIncidentNets(
     { { 0, 1, 2 }, { 3, 4, 5 }, { 6, 7, 8, 9 }, { 10, 11, 12, 13 },
-      { 14, 15, 16 }, { 17, 18, 19 }, { 20, 21 } });
+      { 14, 15, 16 }, { 17, 18, 19 }, { 20, 21 }, {} });
 
   // Verify Pins
   this->verifyPins({
@@ -359,6 +362,7 @@ TEST_F(AHypergraphReader, ReadsAMetisGraphWithNodeAndEdgeWeights) {
   ASSERT_EQ(1, this->hypergraph.nodeWeight(4));
   ASSERT_EQ(6, this->hypergraph.nodeWeight(5));
   ASSERT_EQ(2, this->hypergraph.nodeWeight(6));
+  ASSERT_EQ(1, this->hypergraph.nodeWeight(7));
 
   // Verify Edge Weights
   for ( HyperedgeID e : {0, 3, 2, 14, 5, 10} ) {
