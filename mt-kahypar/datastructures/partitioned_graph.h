@@ -152,7 +152,7 @@ private:
                          PartitionID> {
    public:
     /*!
-     * Constructs a connectivity iterator based on a pin iterator 
+     * Constructs a connectivity iterator based on a pin iterator
      */
     ConnectivityIterator(PartitionID first, PartitionID second, unsigned int count) :
       _first(first),
@@ -199,7 +199,7 @@ private:
       return _first == rhs._first && _second == rhs._second &&
              _iteration_count == rhs._iteration_count;
     }
-    
+
 
    private:
     PartitionID _first = 0;
@@ -622,7 +622,7 @@ private:
     for (HyperedgeID e : incidentEdges(u)) {
       penalty_aggregator[partID(edgeTarget(e))] += edgeWeight(e);
     }
-    
+
     for (PartitionID i = 0; i < _k; ++i) {
       _incident_weight_in_part[incident_weight_index(u, i)].store(
         penalty_aggregator[i], std::memory_order_relaxed);
@@ -776,7 +776,7 @@ private:
   }
 
   // ####################### Memory Consumption #######################
-  
+
   void memoryConsumption(utils::MemoryTreeNode* parent) const {
     ASSERT(parent);
 
@@ -897,9 +897,9 @@ private:
     ASSERT(partID(u) == from);
     ASSERT(from != to);
     const HypernodeWeight weight = nodeWeight(u);
-    const HypernodeWeight to_weight_after = _part_weights[to].fetch_add(weight, std::memory_order_relaxed);
-    const HypernodeWeight from_weight_after = _part_weights[from].fetch_sub(weight, std::memory_order_relaxed);
-    if (to_weight_after <= max_weight_to && from_weight_after > 0) {
+    const HypernodeWeight to_weight_after = _part_weights[to].add_fetch(weight, std::memory_order_relaxed);
+    if (to_weight_after <= max_weight_to) {
+      _part_weights[from].fetch_sub(weight, std::memory_order_relaxed);
       report_success();
       if (HandleLocks) {
         DBG << "<<< Start changing node part: " << V(u) << " - " << V(from) << " - " << V(to);
@@ -920,7 +920,6 @@ private:
       return true;
     } else {
       _part_weights[to].fetch_sub(weight, std::memory_order_relaxed);
-      _part_weights[from].fetch_add(weight, std::memory_order_relaxed);
       return false;
     }
   }
