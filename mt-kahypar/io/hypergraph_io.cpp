@@ -585,4 +585,15 @@ namespace mt_kahypar::io {
     return graph;
   }
 
+  Hypergraph readInputFile(const std::string& filename,
+                           const FileFormat format,
+                           const bool stable_construction_of_incident_edges) {
+    switch (format) {
+      case FileFormat::hMetis: return readHypergraphFile(filename, stable_construction_of_incident_edges);
+      case FileFormat::Metis: return readMetisFile(filename, stable_construction_of_incident_edges);
+        // omit default case to trigger compiler warning for missing cases
+    }
+    return Hypergraph();
+  }
+
 } // namespace

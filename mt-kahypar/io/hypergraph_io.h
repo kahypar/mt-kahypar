@@ -59,5 +59,9 @@ namespace io {
 
   Hypergraph readMetisFile(const std::string& filename,
                            const bool stable_construction_of_incident_edges = false);
+
+  Hypergraph readInputFile(const std::string& filename,
+                           const FileFormat format,
+                           const bool stable_construction_of_incident_edges = false);
 }  // namespace io
 }  // namespace mt_kahypar
