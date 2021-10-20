@@ -193,6 +193,142 @@ TEST_F(AHypergraphReader, ReadsAnHypergraphWithNodeAndEdgeWeights) {
   ASSERT_EQ(3, this->hypergraph.edgeWeight(2));
   ASSERT_EQ(8, this->hypergraph.edgeWeight(3));
 }
+
+TEST_F(AHypergraphReader, ReadsAMetisGraph) {
+  this->hypergraph = readMetisFile("../tests/instances/unweighted_graph.graph", true);
+
+  // Verify Incident Edges
+  this->verifyIncidentNets(
+    { { 0, 1, 2 }, { 2, 3, 4 }, { 1, 3, 5, 6 }, { 4, 6, 7, 8 },
+      { 0, 5, 9 }, { 7, 9, 10 }, { 8, 10 }, {} });
+
+  // Verify Pins
+  this->verifyPins({
+    { 0, 4 }, { 0, 2 }, { 0, 1 }, { 1, 2 },
+    { 1, 3 }, { 2, 4 }, { 2, 3 }, { 3, 5 },
+    { 3, 6 }, { 4, 5 }, { 5, 6 }
+  });
+
+  // Verify Node Weights
+  ASSERT_EQ(1, this->hypergraph.nodeWeight(0));
+  ASSERT_EQ(1, this->hypergraph.nodeWeight(1));
+  ASSERT_EQ(1, this->hypergraph.nodeWeight(2));
+  ASSERT_EQ(1, this->hypergraph.nodeWeight(3));
+  ASSERT_EQ(1, this->hypergraph.nodeWeight(4));
+  ASSERT_EQ(1, this->hypergraph.nodeWeight(5));
+  ASSERT_EQ(1, this->hypergraph.nodeWeight(6));
+  ASSERT_EQ(1, this->hypergraph.nodeWeight(7));
+
+  // Verify Edge Weights
+  for ( HyperedgeID e : {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10} ) {
+    ASSERT_EQ(1, this->hypergraph.edgeWeight(e));
+  }
+}
+
+TEST_F(AHypergraphReader, ReadsAMetisGraphWithNodeWeights) {
+  this->hypergraph = readMetisFile("../tests/instances/graph_with_node_weights.graph", true);
+
+  // Verify Incident Edges
+  this->verifyIncidentNets(
+    { { 0, 1, 2 }, { 2, 3, 4 }, { 1, 3, 5, 6 }, { 4, 6, 7, 8 },
+      { 0, 5, 9 }, { 7, 9, 10 }, { 8, 10 }, {} });
+
+  // Verify Pins
+  this->verifyPins({
+    { 0, 4 }, { 0, 2 }, { 0, 1 }, { 1, 2 },
+    { 1, 3 }, { 2, 4 }, { 2, 3 }, { 3, 5 },
+    { 3, 6 }, { 4, 5 }, { 5, 6 }
+  });
+
+  // Verify Node Weights
+  ASSERT_EQ(4, this->hypergraph.nodeWeight(0));
+  ASSERT_EQ(2, this->hypergraph.nodeWeight(1));
+  ASSERT_EQ(5, this->hypergraph.nodeWeight(2));
+  ASSERT_EQ(3, this->hypergraph.nodeWeight(3));
+  ASSERT_EQ(1, this->hypergraph.nodeWeight(4));
+  ASSERT_EQ(6, this->hypergraph.nodeWeight(5));
+  ASSERT_EQ(2, this->hypergraph.nodeWeight(6));
+  ASSERT_EQ(1, this->hypergraph.nodeWeight(7));
+
+  // Verify Edge Weights
+  for ( HyperedgeID e : {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10} ) {
+    ASSERT_EQ(1, this->hypergraph.edgeWeight(e));
+  }
+}
+
+TEST_F(AHypergraphReader, ReadsAMetisGraphWithEdgeWeights) {
+  this->hypergraph = readMetisFile("../tests/instances/graph_with_edge_weights.graph", true);
+
+  // Verify Incident Edges
+  this->verifyIncidentNets(
+    { { 0, 1, 2 }, { 2, 3, 4 }, { 1, 3, 5, 6 }, { 4, 6, 7, 8 },
+      { 0, 5, 9 }, { 7, 9, 10 }, { 8, 10 }, {} });
+
+  // Verify Pins
+  this->verifyPins({
+    { 0, 4 }, { 0, 2 }, { 0, 1 }, { 1, 2 },
+    { 1, 3 }, { 2, 4 }, { 2, 3 }, { 3, 5 },
+    { 3, 6 }, { 4, 5 }, { 5, 6 }
+  });
+
+  // Verify Node Weights
+  ASSERT_EQ(1, this->hypergraph.nodeWeight(0));
+  ASSERT_EQ(1, this->hypergraph.nodeWeight(1));
+  ASSERT_EQ(1, this->hypergraph.nodeWeight(2));
+  ASSERT_EQ(1, this->hypergraph.nodeWeight(3));
+  ASSERT_EQ(1, this->hypergraph.nodeWeight(4));
+  ASSERT_EQ(1, this->hypergraph.nodeWeight(5));
+  ASSERT_EQ(1, this->hypergraph.nodeWeight(6));
+  ASSERT_EQ(1, this->hypergraph.nodeWeight(7));
+
+  // Verify Edge Weights
+  for ( HyperedgeID e : {0, 2, 4} ) {
+    ASSERT_EQ(1, this->hypergraph.edgeWeight(e));
+  }
+  for ( HyperedgeID e : {1, 3, 6, 7, 9} ) {
+    ASSERT_EQ(2, this->hypergraph.edgeWeight(e));
+  }
+  ASSERT_EQ(3, this->hypergraph.edgeWeight(5));
+  ASSERT_EQ(5, this->hypergraph.edgeWeight(8));
+  ASSERT_EQ(6, this->hypergraph.edgeWeight(10));
+}
+
+TEST_F(AHypergraphReader, ReadsAMetisGraphWithNodeAndEdgeWeights) {
+  this->hypergraph = readMetisFile("../tests/instances/graph_with_node_and_edge_weights.graph", true);
+
+  // Verify Incident Edges
+  this->verifyIncidentNets(
+    { { 0, 1, 2 }, { 2, 3, 4 }, { 1, 3, 5, 6 }, { 4, 6, 7, 8 },
+      { 0, 5, 9 }, { 7, 9, 10 }, { 8, 10 }, {} });
+
+  // Verify Pins
+  this->verifyPins({
+    { 0, 4 }, { 0, 2 }, { 0, 1 }, { 1, 2 },
+    { 1, 3 }, { 2, 4 }, { 2, 3 }, { 3, 5 },
+    { 3, 6 }, { 4, 5 }, { 5, 6 }
+  });
+
+  // Verify Node Weights
+  ASSERT_EQ(4, this->hypergraph.nodeWeight(0));
+  ASSERT_EQ(2, this->hypergraph.nodeWeight(1));
+  ASSERT_EQ(5, this->hypergraph.nodeWeight(2));
+  ASSERT_EQ(3, this->hypergraph.nodeWeight(3));
+  ASSERT_EQ(1, this->hypergraph.nodeWeight(4));
+  ASSERT_EQ(6, this->hypergraph.nodeWeight(5));
+  ASSERT_EQ(2, this->hypergraph.nodeWeight(6));
+  ASSERT_EQ(1, this->hypergraph.nodeWeight(7));
+
+  // Verify Edge Weights
+  for ( HyperedgeID e : {0, 2, 4} ) {
+    ASSERT_EQ(1, this->hypergraph.edgeWeight(e));
+  }
+  for ( HyperedgeID e : {1, 3, 6, 7, 9} ) {
+    ASSERT_EQ(2, this->hypergraph.edgeWeight(e));
+  }
+  ASSERT_EQ(3, this->hypergraph.edgeWeight(5));
+  ASSERT_EQ(5, this->hypergraph.edgeWeight(8));
+  ASSERT_EQ(6, this->hypergraph.edgeWeight(10));
+}
 #endif
 
 #ifdef USE_GRAPH_PARTITIONER

@@ -513,6 +513,9 @@ namespace mt_kahypar::io {
           // process forward edges, ignore backward edges
           if ( current_vertex_id < target ) {
             ASSERT(current_edge_id < edges.size());
+            // At this point, some magic is involved:
+            // In case of the graph partitioner, the right handed expression is considered a pair.
+            // In case of the hypergraph partitioner, the right handed expression is considered  a vector.
             edges[current_edge_id] = {current_vertex_id, target - 1};
 
             if ( has_edge_weights ) {
@@ -553,7 +556,6 @@ namespace mt_kahypar::io {
     close(fd);
   }
 
-#ifdef USE_GRAPH_PARTITIONER
   Hypergraph readMetisFile(const std::string& filename,
                            const bool stable_construction_of_incident_edges) {
     // Read Metis File
@@ -568,13 +570,19 @@ namespace mt_kahypar::io {
 
     // Construct Graph
     utils::Timer::instance().start_timer("construct_hypergraph", "Construct Hypergraph");
+    #ifdef USE_GRAPH_PARTITIONER
     Hypergraph graph = HypergraphFactory::construct_from_graph_edges(
             num_vertices, num_edges, edges,
             edges_weight.data(), nodes_weight.data(),
             stable_construction_of_incident_edges);
+    #else
+    Hypergraph graph = HypergraphFactory::construct(
+            num_vertices, num_edges,
+            edges, edges_weight.data(), nodes_weight.data(),
+            stable_construction_of_incident_edges);
+    #endif
     utils::Timer::instance().stop_timer("construct_hypergraph");
     return graph;
   }
-#endif
 
 } // namespace

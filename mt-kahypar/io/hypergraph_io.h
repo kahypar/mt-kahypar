@@ -30,7 +30,11 @@ namespace io {
 
   using Hyperedge = parallel::scalable_vector<HypernodeID>;
   using HyperedgeVector = parallel::scalable_vector<Hyperedge>;
+  #ifdef USE_GRAPH_PARTITIONER
   using EdgeVector = parallel::scalable_vector<std::pair<HypernodeID, HypernodeID>>;
+  #else
+  using EdgeVector = HyperedgeVector;
+  #endif
 
   void readHypergraphFile(const std::string& filename,
                           HyperedgeID& num_hyperedges,
@@ -53,9 +57,7 @@ namespace io {
   void readPartitionFile(const std::string& filename, std::vector<PartitionID>& partition);
   void writePartitionFile(const PartitionedHypergraph& phg, const std::string& filename);
 
-#ifdef USE_GRAPH_PARTITIONER
   Hypergraph readMetisFile(const std::string& filename,
                            const bool stable_construction_of_incident_edges = false);
-#endif
 }  // namespace io
 }  // namespace mt_kahypar
