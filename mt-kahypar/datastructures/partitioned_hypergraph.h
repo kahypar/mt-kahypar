@@ -611,31 +611,31 @@ private:
                           // => Pin counts of hyperedge he does not change
                           if (_is_gain_cache_initialized) {
 
-                            if (_hg->totalSize(he) < _hg->snapshotEdgeSizeThreshold()) {
+//                            if (_hg->totalSize(he) < _hg->snapshotEdgeSizeThreshold()) {
                               // Gain cache update within lock, no snapshots
                               const HyperedgeWeight edge_weight = edgeWeight(he);
                               _gain_cache.syncUpdateForUncontractCaseTwo(he, edge_weight, u, v);
                               _pin_count_update_ownership[he].unlock();
-                            } else {
-
-                              // In this case only v was part of hyperedge e before and
-                              // u must be replaced by v in hyperedge e
-                              const HyperedgeWeight edge_weight = edgeWeight(he);
-
-                              if (useBitcopySnapshots) {
-                                _connectivity_set.takeBitcopySnapshotForHyperedge(he, *cs_bitcopy_snapshot);
-                                _pins_in_part.takeBitcopySnapshotForHyperedge(he, *pcip_bitcopy_snapshot);
-                                _pin_count_update_ownership[he].unlock();
-                                _gain_cache.asyncUpdateForUncontractCaseTwo(edge_weight, u, v, *cs_bitcopy_snapshot, *pcip_bitcopy_snapshot);
-
-                              } else {
-                                takeConnectivitySnapshotDirectly(he, conn_set_snapshot, parts_with_one_pin_snapshot);
-                                _pin_count_update_ownership[he].unlock();
-                                _gain_cache.asyncUpdateForUncontractCaseTwo(edge_weight, u, v, conn_set_snapshot, parts_with_one_pin_snapshot);
-                                conn_set_snapshot.clear();
-                                parts_with_one_pin_snapshot.clear();
-                              }
-                            }
+//                            } else {
+//
+//                              // In this case only v was part of hyperedge e before and
+//                              // u must be replaced by v in hyperedge e
+//                              const HyperedgeWeight edge_weight = edgeWeight(he);
+//
+//                              if (useBitcopySnapshots) {
+//                                _connectivity_set.takeBitcopySnapshotForHyperedge(he, *cs_bitcopy_snapshot);
+//                                _pins_in_part.takeBitcopySnapshotForHyperedge(he, *pcip_bitcopy_snapshot);
+//                                _pin_count_update_ownership[he].unlock();
+//                                _gain_cache.asyncUpdateForUncontractCaseTwo(edge_weight, u, v, *cs_bitcopy_snapshot, *pcip_bitcopy_snapshot);
+//
+//                              } else {
+//                                takeConnectivitySnapshotDirectly(he, conn_set_snapshot, parts_with_one_pin_snapshot);
+//                                _pin_count_update_ownership[he].unlock();
+//                                _gain_cache.asyncUpdateForUncontractCaseTwo(edge_weight, u, v, conn_set_snapshot, parts_with_one_pin_snapshot);
+//                                conn_set_snapshot.clear();
+//                                parts_with_one_pin_snapshot.clear();
+//                              }
+//                            }
                           } else {
                               _pin_count_update_ownership[he].unlock();
                           }
