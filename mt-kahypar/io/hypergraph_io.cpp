@@ -80,6 +80,7 @@ namespace mt_kahypar::io {
 
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
   void line_ending(char* mapped_file, size_t& pos) {
+    unused(mapped_file);
     ASSERT(mapped_file[pos] == '\n');
     ++pos;
   }
