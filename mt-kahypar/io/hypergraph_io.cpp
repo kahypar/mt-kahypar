@@ -546,11 +546,12 @@ namespace mt_kahypar::io {
     // Read Metis Header
     bool has_edge_weights = false;
     bool has_vertex_weights = false;
-    readMetisHeader(mapped_file, pos, length, num_edges, num_vertices, has_edge_weights, has_vertex_weights);
+    readMetisHeader(mapped_file, pos, length, num_edges,
+      num_vertices, has_edge_weights, has_vertex_weights);
 
     // Read Vertices
     readVertices(mapped_file, pos, length, num_edges, num_vertices,
-                 has_edge_weights, has_vertex_weights, edges, edges_weight, vertices_weight);
+      has_edge_weights, has_vertex_weights, edges, edges_weight, vertices_weight);
     ASSERT(pos == length);
 
     munmap_file(mapped_file, fd, length);
