@@ -36,6 +36,15 @@ namespace mt_kahypar {
     return os << static_cast<uint8_t>(type);
   }
 
+  std::ostream & operator<< (std::ostream& os, const FileFormat& format) {
+    switch (format) {
+      case FileFormat::hMetis: return os << "hMetis";
+      case FileFormat::Metis: return os << "Metis";
+        // omit default case to trigger compiler warning for missing cases
+    }
+    return os << static_cast<uint8_t>(format);
+  }
+
   std::ostream & operator<< (std::ostream& os, const Paradigm& paradigm) {
     switch (paradigm) {
       case Paradigm::multilevel: return os << "multilevel";

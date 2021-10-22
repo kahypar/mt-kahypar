@@ -32,6 +32,7 @@ namespace mt_kahypar {
     str << "  Paradigm:                           " << params.paradigm << std::endl;
     str << "  Mode:                               " << params.mode << std::endl;
     str << "  Objective:                          " << params.objective << std::endl;
+    str << "  Input File Format:                  " << params.file_format << std::endl;
     str << "  k:                                  " << params.k << std::endl;
     str << "  epsilon:                            " << params.epsilon << std::endl;
     str << "  seed:                               " << params.seed << std::endl;

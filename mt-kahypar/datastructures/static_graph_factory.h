@@ -46,6 +46,7 @@ class StaticGraphFactory {
 
   // ! Provides a more performant construction method by using continuous space for the edges
   // ! (instead of a separate vec per edge).
+  // ! No backwards edges allowed, i.e. each edge is unique
   static StaticGraph construct_from_graph_edges(const HypernodeID num_nodes,
                                                 const HyperedgeID num_edges,
                                                 const EdgeVector& edge_vector,
@@ -59,6 +60,8 @@ class StaticGraphFactory {
 
  private:
   StaticGraphFactory() { }
+
+  static void sort_incident_edges(StaticGraph& graph);
 };
 
 } // namespace ds
