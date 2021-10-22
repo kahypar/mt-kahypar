@@ -279,6 +279,8 @@ private:
     }, [&] {
       _part_ids.assign(_part_ids.size(), CAtomic<PartitionID>(kInvalidPartition));
     }, [&] {
+      _incident_weight_in_part.assign(_incident_weight_in_part.size(),  CAtomic<HyperedgeWeight>(0), false);
+    }, [&] {
       for (auto& x : _part_weights) x.store(0, std::memory_order_relaxed);
     });
   }
@@ -651,8 +653,7 @@ private:
   // ! Initialize gain cache
   void initializeGainCache() {
     // assert that part has been initialized
-    ASSERT( _part_ids.size() == initialNumNodes()
-            && std::none_of(nodes().begin(), nodes().end(),
+    ASSERT(std::none_of(nodes().begin(), nodes().end(),
                             [&](HypernodeID u) { return partID(u) == kInvalidPartition || partID(u) > k(); }) );
     // assert that current gain values are zero
     ASSERT(!_is_gain_cache_initialized
