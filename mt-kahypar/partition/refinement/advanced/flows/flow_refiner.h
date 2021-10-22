@@ -29,6 +29,7 @@
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/refinement/advanced/i_advanced_refiner.h"
 #include "mt-kahypar/datastructures/sparse_map.h"
+#include "mt-kahypar/datastructures/thread_safe_fast_reset_flag_array.h"
 #include "mt-kahypar/parallel/stl/scalable_queue.h"
 
 namespace mt_kahypar {
@@ -90,8 +91,9 @@ class FlowRefiner final : public IAdvancedRefiner {
     _flow_hg(),
     _hfc(_flow_hg, context.partition.seed),
     _node_to_whfc(),
+    _whfc_to_node(),
     _visited_hns(),
-    _visited_hes(),
+    _contained_hes(),
     _tmp_pins(),
     _cut_hes(),
     _identical_nets(_flow_hg) {
@@ -117,7 +119,8 @@ class FlowRefiner final : public IAdvancedRefiner {
     _block_1 = kInvalidPartition;
     _flow_hg.clear();
     _node_to_whfc.clear();
-    _visited_hes.clear();
+    _whfc_to_node.clear();
+    _contained_hes.clear();
   }
 
   MoveSequence refineImpl(const PartitionedHypergraph& phg,
@@ -131,9 +134,13 @@ class FlowRefiner final : public IAdvancedRefiner {
   FlowProblem constructFlowHypergraph(const PartitionedHypergraph& phg,
                                       const vec<HypernodeID>& refinement_nodes);
 
-  void determineDistanceFromCut(const PartitionedHypergraph& phg,
-                                const whfc::Node source,
-                                const whfc::Node sink);
+  void determineDistanceFromCutSequential(const PartitionedHypergraph& phg,
+                                          const whfc::Node source,
+                                          const whfc::Node sink);
+
+  void determineDistanceFromCutParallel(const PartitionedHypergraph& phg,
+                                        const whfc::Node source,
+                                        const whfc::Node sink);
 
   PartitionID maxNumberOfBlocksPerSearchImpl() const {
     return 2;
@@ -163,10 +170,11 @@ class FlowRefiner final : public IAdvancedRefiner {
   whfc::HyperFlowCutter<whfc::Dinic> _hfc;
 
   ds::DynamicSparseMap<HypernodeID, whfc::Node> _node_to_whfc;
-  ds::DynamicSparseSet<HypernodeID> _visited_hns;
-  ds::DynamicSparseSet<HyperedgeID> _visited_hes;
+  vec<HypernodeID> _whfc_to_node;
+  ds::ThreadSafeFastResetFlagArray<> _visited_hns;
+  ds::DynamicSparseSet<HyperedgeID> _contained_hes;
   vec<whfc::Node> _tmp_pins;
-  vec<HyperedgeID> _cut_hes;
+  vec<whfc::Hyperedge> _cut_hes;
 
   DynamicIdenticalNetDetection _identical_nets;
 };

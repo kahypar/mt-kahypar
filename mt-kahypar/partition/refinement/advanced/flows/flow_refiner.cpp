@@ -20,6 +20,8 @@
 
 #include "mt-kahypar/partition/refinement/advanced/flows/flow_refiner.h"
 
+#include "tbb/concurrent_queue.h"
+
 namespace mt_kahypar {
 
 MoveSequence FlowRefiner::refineImpl(const PartitionedHypergraph& phg,
@@ -27,7 +29,9 @@ MoveSequence FlowRefiner::refineImpl(const PartitionedHypergraph& phg,
                                      const HighResClockTimepoint& start) {
   MoveSequence sequence { { }, 0 };
   // Construct flow network that contains all vertices given in refinement nodes
+  utils::Timer::instance().start_timer("construct_flow_problem", "Construct Flow Problem", true);
   FlowProblem flow_problem = constructFlowHypergraph(phg, refinement_nodes);
+  utils::Timer::instance().stop_timer("construct_flow_problem");
   if ( flow_problem.total_cut - flow_problem.non_removable_cut > 0 ) {
     // Set maximum allowed block weights for block 0 and 1
     _hfc.cs.setMaxBlockWeight(0, std::max(
@@ -39,7 +43,9 @@ MoveSequence FlowRefiner::refineImpl(const PartitionedHypergraph& phg,
     _hfc.upperFlowBound = flow_problem.total_cut - flow_problem.non_removable_cut;
     // Solve max-flow min-cut problem
     bool time_limit_reached = false;
+    utils::Timer::instance().start_timer("solve_flow_problem", "Solve Flow Problem", true);
     bool flowcutter_succeeded = computeFlow(flow_problem, start, time_limit_reached);
+    utils::Timer::instance().stop_timer("solve_flow_problem");
     if ( flowcutter_succeeded ) {
       // We apply the solution if it either improves the cut or the balance of
       // the bipartition induced by the two blocks
@@ -180,6 +186,7 @@ FlowRefiner::FlowProblem FlowRefiner::constructFlowHypergraph(const PartitionedH
   flow_problem.total_cut = 0;
   flow_problem.non_removable_cut = 0;
   _identical_nets.reset();
+  _whfc_to_node.resize(refinement_nodes.size() + 2);
 
   if ( _context.refinement.advanced.flows.determine_distance_from_cut ) {
     _cut_hes.clear();
@@ -193,26 +200,24 @@ FlowRefiner::FlowProblem FlowRefiner::constructFlowHypergraph(const PartitionedH
     for ( const HypernodeID& u : refinement_nodes) {
       if ( phg.partID(u) == block ) {
         const HypernodeWeight u_weight = phg.nodeWeight(u);
+        _whfc_to_node[flow_hn] = u;
         _node_to_whfc[u] = flow_hn++;
         _flow_hg.addNode(whfc::NodeWeight(u_weight));
         weight_of_block += u_weight;
         for ( const HyperedgeID& he : phg.incidentEdges(u) ) {
-          if ( _context.refinement.advanced.flows.determine_distance_from_cut &&
-               phg.pinCountInPart(he, _block_0) > 0 && phg.pinCountInPart(he, _block_1) > 0 &&
-               !_visited_hes.contains(he) ) {
-            _cut_hes.push_back(he);
-          }
-          _visited_hes[he] = ds::EmptyStruct { };
+          _contained_hes[he] = ds::EmptyStruct { };
         }
       }
     }
   };
   // Add source nodes
+  _whfc_to_node[flow_hn] = kInvalidHypernode;
   flow_problem.source = flow_hn++;
   _flow_hg.addNode(whfc::NodeWeight(0));
   add_nodes(_block_0, weight_block_0);
   _flow_hg.nodeWeight(flow_problem.source) = whfc::NodeWeight(std::max(0, phg.partWeight(_block_0) - weight_block_0));
   // Add sink nodes
+  _whfc_to_node[flow_hn] = kInvalidHypernode;
   flow_problem.sink = flow_hn++;
   _flow_hg.addNode(whfc::NodeWeight(0));
   add_nodes(_block_1, weight_block_1);
@@ -232,7 +237,7 @@ FlowRefiner::FlowProblem FlowRefiner::constructFlowHypergraph(const PartitionedH
 
   // Add hyperedge to flow network and configure source and sink
   whfc::Hyperedge current_he(0);
-  for ( const auto& entry : _visited_hes ) {
+  for ( const auto& entry : _contained_hes ) {
     const HyperedgeID he = entry.key;
     if ( !canHyperedgeBeDropped(phg, he) ) {
       size_t he_hash = 0;
@@ -278,6 +283,10 @@ FlowRefiner::FlowProblem FlowRefiner::constructFlowHypergraph(const PartitionedH
             for ( const whfc::Node& pin : _tmp_pins ) {
               _flow_hg.addPin(pin);
             }
+            if ( _context.refinement.advanced.flows.determine_distance_from_cut &&
+                 phg.pinCountInPart(he, _block_0) > 0 && phg.pinCountInPart(he, _block_1) > 0 ) {
+              _cut_hes.push_back(current_he);
+            }
             ++current_he;
           } else {
             // Current hyperedge is identical to an already added
@@ -286,12 +295,6 @@ FlowRefiner::FlowProblem FlowRefiner::constructFlowHypergraph(const PartitionedH
         }
       }
     }
-  }
-
-  if ( _context.refinement.advanced.flows.determine_distance_from_cut ) {
-    // Determine the distance of each node contained in the flow network from the cut.
-    // This technique improves piercing decision within the WHFC framework.
-    determineDistanceFromCut(phg, flow_problem.source, flow_problem.sink);
   }
 
   if ( _flow_hg.nodeWeight(flow_problem.source) == 0 ||
@@ -303,6 +306,16 @@ FlowRefiner::FlowProblem FlowRefiner::constructFlowHypergraph(const PartitionedH
     _flow_hg.finalize();
   }
 
+  if ( _context.refinement.advanced.flows.determine_distance_from_cut ) {
+    // Determine the distance of each node contained in the flow network from the cut.
+    // This technique improves piercing decision within the WHFC framework.
+    if ( _context.refinement.advanced.num_threads_per_search > 1 ) {
+      determineDistanceFromCutParallel(phg, flow_problem.source, flow_problem.sink);
+    } else {
+      determineDistanceFromCutSequential(phg, flow_problem.source, flow_problem.sink);
+    }
+  }
+
   DBG << "Flow Hypergraph [ Nodes =" << _flow_hg.numNodes()
       << ", Edges =" << _flow_hg.numHyperedges()
       << ", Pins =" << _flow_hg.numPins()
@@ -311,24 +324,94 @@ FlowRefiner::FlowProblem FlowRefiner::constructFlowHypergraph(const PartitionedH
   return flow_problem;
 }
 
-void FlowRefiner::determineDistanceFromCut(const PartitionedHypergraph& phg,
-                                           const whfc::Node source,
-                                           const whfc::Node sink) {
+void FlowRefiner::determineDistanceFromCutSequential(const PartitionedHypergraph& phg,
+                                                     const whfc::Node source,
+                                                     const whfc::Node sink) {
   _hfc.cs.borderNodes.distance.distance.assign(_flow_hg.numNodes(), whfc::HopDistance(0));
-  _visited_hes.clear();
-  _visited_hns.clear();
+  _visited_hns.resize(_flow_hg.numNodes() + _flow_hg.numHyperedges());
+  _visited_hns.reset();
 
   // Initialize bfs queue with vertices contained in cut hyperedges
-  parallel::scalable_queue<HypernodeID> q;
-  parallel::scalable_queue<HypernodeID> next_q;
-  for ( const HyperedgeID& he : _cut_hes ) {
-    for ( const HypernodeID& pin : phg.pins(he) ) {
-      if ( _node_to_whfc.contains(pin) && !_visited_hns.contains(pin) ) {
-        q.push(pin);
-        _visited_hns[pin] = ds::EmptyStruct { };
+  tbb::concurrent_queue<whfc::Node> q;
+  tbb::concurrent_queue<whfc::Node> next_q;
+  tbb::parallel_for(0UL, _cut_hes.size(), [&](const size_t i) {
+    const whfc::Hyperedge he = _cut_hes[i];
+    for ( const whfc::FlowHypergraph::Pin& pin : _flow_hg.pinsOf(he) ) {
+      if ( pin.pin != source && pin.pin != sink &&
+           _visited_hns.compare_and_set_to_true(pin.pin) ) {
+        q.push(pin.pin);
       }
     }
-    _visited_hes[he] = ds::EmptyStruct { };
+    _visited_hns.set(_flow_hg.numNodes() + he, true);
+  });
+
+  // Perform BFS to determine distance of each vertex from cut
+  whfc::HopDistance dist(1);
+  whfc::HopDistance max_dist_source(0);
+  whfc::HopDistance max_dist_sink(0);
+  while ( !q.empty() ) {
+    bool reached_soure_side = false;
+    bool reached_sink_side = false;
+    tbb::parallel_for(0UL, _context.shared_memory.num_threads, [&](const size_t) {
+      whfc::Node u = whfc::Node::Invalid();
+      while ( q.try_pop(u) ) {
+        const PartitionID block_of_u = phg.partID(_whfc_to_node[u]);
+        if ( block_of_u == _block_0 ) {
+          _hfc.cs.borderNodes.distance[u] = -dist;
+          reached_soure_side = true;
+        } else if ( block_of_u == _block_1 ) {
+          _hfc.cs.borderNodes.distance[u] = dist;
+          reached_sink_side = true;
+        }
+
+        for ( const whfc::FlowHypergraph::InHe& in_he : _flow_hg.hyperedgesOf(u) ) {
+          const whfc::Hyperedge he = in_he.e;
+          if ( _visited_hns.compare_and_set_to_true(_flow_hg.numNodes() + he) ) {
+            for ( const whfc::FlowHypergraph::Pin& pin : _flow_hg.pinsOf(he) ) {
+              if ( pin.pin != source && pin.pin != sink &&
+                   _visited_hns.compare_and_set_to_true(pin.pin) ) {
+                next_q.push(pin.pin);
+              }
+            }
+          }
+        }
+      }
+    });
+
+    if ( reached_soure_side ) max_dist_source = dist;
+    if ( reached_sink_side ) max_dist_sink = dist;
+
+    ASSERT(q.empty());
+    tbb::parallel_for(0UL, _context.shared_memory.num_threads, [&](const size_t) {
+      whfc::Node u = whfc::Node::Invalid();
+      while ( q.try_pop(u) ) {
+        q.push(u);
+      }
+    });
+    ++dist;
+  }
+  _hfc.cs.borderNodes.distance[source] = -(max_dist_source + 1);
+  _hfc.cs.borderNodes.distance[sink] = max_dist_sink + 1;
+}
+
+void FlowRefiner::determineDistanceFromCutParallel(const PartitionedHypergraph& phg,
+                                                   const whfc::Node source,
+                                                   const whfc::Node sink) {
+  _hfc.cs.borderNodes.distance.distance.assign(_flow_hg.numNodes(), whfc::HopDistance(0));
+  _visited_hns.resize(_flow_hg.numNodes() + _flow_hg.numHyperedges());
+  _visited_hns.reset();
+
+  // Initialize bfs queue with vertices contained in cut hyperedges
+  parallel::scalable_queue<whfc::Node> q;
+  parallel::scalable_queue<whfc::Node> next_q;
+  for ( const whfc::Hyperedge& he : _cut_hes ) {
+    for ( const whfc::FlowHypergraph::Pin& pin : _flow_hg.pinsOf(he) ) {
+      if ( pin.pin != source && pin.pin != sink && !_visited_hns[pin.pin] ) {
+        q.push(pin.pin);
+        _visited_hns.setUnsafe(pin.pin, true);
+      }
+    }
+    _visited_hns.setUnsafe(_flow_hg.numNodes() + he, true);
   }
 
   // Perform BFS to determine distance of each vertex from cut
@@ -336,27 +419,28 @@ void FlowRefiner::determineDistanceFromCut(const PartitionedHypergraph& phg,
   whfc::HopDistance max_dist_source(0);
   whfc::HopDistance max_dist_sink(0);
   while ( !q.empty() ) {
-    const HypernodeID u = q.front();
+    const whfc::Node u = q.front();
     q.pop();
 
-    const PartitionID block_of_u = phg.partID(u);
+    const PartitionID block_of_u = phg.partID(_whfc_to_node[u]);
     if ( block_of_u == _block_0 ) {
-      _hfc.cs.borderNodes.distance[_node_to_whfc[u]] = -dist;
+      _hfc.cs.borderNodes.distance[u] = -dist;
       max_dist_source = std::max(max_dist_source, dist);
     } else if ( block_of_u == _block_1 ) {
-      _hfc.cs.borderNodes.distance[_node_to_whfc[u]] = dist;
+      _hfc.cs.borderNodes.distance[u] = dist;
       max_dist_sink = std::max(max_dist_sink, dist);
     }
 
-    for ( const HyperedgeID& he : phg.incidentEdges(u) ) {
-      if ( !_visited_hes.contains(he) ) {
-        for ( const HypernodeID& pin : phg.pins(he) ) {
-          if ( _node_to_whfc.contains(pin) && !_visited_hns.contains(pin) ) {
-            next_q.push(pin);
-            _visited_hns[pin] = ds::EmptyStruct { };
+    for ( const whfc::FlowHypergraph::InHe& in_he : _flow_hg.hyperedgesOf(u) ) {
+      const whfc::Hyperedge he = in_he.e;
+      if ( !_visited_hns[_flow_hg.numNodes() + he] ) {
+        for ( const whfc::FlowHypergraph::Pin& pin : _flow_hg.pinsOf(he) ) {
+          if ( pin.pin != source && pin.pin != sink && !_visited_hns[pin.pin] ) {
+            next_q.push(pin.pin);
+            _visited_hns.setUnsafe(pin.pin, true);
           }
         }
-        _visited_hes[he] = ds::EmptyStruct { };
+        _visited_hns.setUnsafe(_flow_hg.numNodes() + he, true);
       }
     }
 
