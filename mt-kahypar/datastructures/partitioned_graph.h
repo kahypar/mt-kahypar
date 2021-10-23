@@ -279,7 +279,7 @@ private:
     }, [&] {
       _part_ids.assign(_part_ids.size(), CAtomic<PartitionID>(kInvalidPartition));
     }, [&] {
-      _incident_weight_in_part.assign(_incident_weight_in_part.size(),  CAtomic<HyperedgeWeight>(0), false);
+      _incident_weight_in_part.assign(_incident_weight_in_part.size(),  CAtomic<HyperedgeWeight>(0));
     }, [&] {
       for (auto& x : _part_weights) x.store(0, std::memory_order_relaxed);
     });
