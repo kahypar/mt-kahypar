@@ -340,7 +340,8 @@ HyperedgeWeight AdvancedRefinementScheduler::applyMoves(const SearchID search_id
     _stats.total_improvement += improvement;
   } else if ( sequence.state == MoveSequenceState::VIOLATES_BALANCE_CONSTRAINT &&
               sequence.expected_improvement > 0 && num_retries > 0 &&
-              tryToFixMoveSequenceAfterBalanceViolation(sequence, update_res) ) {
+              tryToFixMoveSequenceAfterBalanceViolation(sequence, update_res) &&
+              sequence.moves.size() > 0 ) {
     --_stats.failed_updates_due_to_balance_constraint;
     improvement = applyMoves(search_id, sequence, num_retries - 1);
   }
