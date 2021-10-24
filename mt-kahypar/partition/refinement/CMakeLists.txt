@@ -11,6 +11,8 @@ set(RefinementSources
         rebalancing/rebalancer.cpp
         deterministic/deterministic_label_propagation.cpp
         advanced/flows/flow_refiner.cpp
+        advanced/flows/sequential_construction.cpp
+        advanced/flows/parallel_construction.cpp
         )
 
 foreach(modtarget IN LISTS TARGETS_WANTING_ALL_SOURCES)

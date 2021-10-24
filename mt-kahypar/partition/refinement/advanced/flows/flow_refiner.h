@@ -31,52 +31,15 @@
 #include "mt-kahypar/datastructures/sparse_map.h"
 #include "mt-kahypar/datastructures/thread_safe_fast_reset_flag_array.h"
 #include "mt-kahypar/parallel/stl/scalable_queue.h"
+#include "mt-kahypar/partition/refinement/advanced/flows/flow_common.h"
+#include "mt-kahypar/partition/refinement/advanced/flows/sequential_construction.h"
+#include "mt-kahypar/partition/refinement/advanced/flows/parallel_construction.h"
 
 namespace mt_kahypar {
 
 class FlowRefiner final : public IAdvancedRefiner {
 
   static constexpr bool debug = false;
-
-  class DynamicIdenticalNetDetection {
-
-    using IdenticalNetVector = vec<whfc::Hyperedge>;
-
-   public:
-    explicit DynamicIdenticalNetDetection(whfc::FlowHypergraphBuilder& flow_hg) :
-      _flow_hg(flow_hg),
-      _he_hashes(),
-      _used_entries(0),
-      _hash_buckets() { }
-
-    /**
-     * Returns an invalid hyperedge id, if the edge is not contained, otherwise
-     * it returns the id of the hyperedge that is identical to he.
-     */
-    whfc::Hyperedge add_if_not_contained(const whfc::Hyperedge he,
-                                         const size_t he_hash,
-                                         const vec<whfc::Node>& pins);
-
-    void reset() {
-      _he_hashes.clear();
-      _used_entries = 0;
-    }
-
-   private:
-    whfc::FlowHypergraphBuilder& _flow_hg;
-    ds::DynamicFlatMap<size_t, size_t> _he_hashes;
-    size_t _used_entries;
-    vec<IdenticalNetVector> _hash_buckets;
-  };
-
-  struct FlowProblem {
-    whfc::Node source;
-    whfc::Node sink;
-    HyperedgeWeight total_cut;
-    HyperedgeWeight non_removable_cut;
-    HypernodeWeight weight_of_block_0;
-    HypernodeWeight weight_of_block_1;
-  };
 
  public:
   explicit FlowRefiner(const Hypergraph&,
@@ -90,12 +53,9 @@ class FlowRefiner final : public IAdvancedRefiner {
     _block_1(kInvalidPartition),
     _flow_hg(),
     _hfc(_flow_hg, context.partition.seed),
-    _node_to_whfc(),
     _whfc_to_node(),
-    _visited_hns(),
-    _tmp_pins(),
-    _cut_hes(),
-    _identical_nets(_flow_hg) {
+    _sequential_construction(_flow_hg, _hfc, context),
+    _parallel_construction(_flow_hg, _hfc, context) {
     _hfc.find_most_balanced =
       _context.refinement.advanced.flows.find_most_balanced_cut;
     _hfc.timer.active = false;
@@ -117,7 +77,6 @@ class FlowRefiner final : public IAdvancedRefiner {
     _block_0 = kInvalidPartition;
     _block_1 = kInvalidPartition;
     _flow_hg.clear();
-    _node_to_whfc.clear();
     _whfc_to_node.clear();
   }
 
@@ -131,14 +90,6 @@ class FlowRefiner final : public IAdvancedRefiner {
 
   FlowProblem constructFlowHypergraph(const PartitionedHypergraph& phg,
                                       const Subhypergraph& sub_hg);
-
-  void determineDistanceFromCutSequential(const PartitionedHypergraph& phg,
-                                          const whfc::Node source,
-                                          const whfc::Node sink);
-
-  void determineDistanceFromCutParallel(const PartitionedHypergraph& phg,
-                                        const whfc::Node source,
-                                        const whfc::Node sink);
 
   PartitionID maxNumberOfBlocksPerSearchImpl() const {
     return 2;
@@ -167,12 +118,8 @@ class FlowRefiner final : public IAdvancedRefiner {
   whfc::FlowHypergraphBuilder _flow_hg;
   whfc::HyperFlowCutter<whfc::Dinic> _hfc;
 
-  ds::DynamicSparseMap<HypernodeID, whfc::Node> _node_to_whfc;
   vec<HypernodeID> _whfc_to_node;
-  ds::ThreadSafeFastResetFlagArray<> _visited_hns;
-  vec<whfc::Node> _tmp_pins;
-  vec<whfc::Hyperedge> _cut_hes;
-
-  DynamicIdenticalNetDetection _identical_nets;
+  SequentialConstruction _sequential_construction;
+  ParallelConstruction _parallel_construction;
 };
 }  // namespace mt_kahypar
