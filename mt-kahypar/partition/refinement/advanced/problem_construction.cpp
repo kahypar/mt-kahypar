@@ -65,7 +65,6 @@ void ProblemConstruction::BFSData::add_pins_of_hyperedge_to_queue(
   const HyperedgeID& he,
   const PartitionedHypergraph& phg,
   const ProblemStats& stats,
-  vec<HyperedgeID>& touched_hes,
   const size_t max_bfs_distance) {
   if ( current_distance <= max_bfs_distance ) {
     if ( !visited_he[he] ) {
@@ -78,12 +77,8 @@ void ProblemConstruction::BFSData::add_pins_of_hyperedge_to_queue(
           visited_hn[pin] = true;
         }
       }
-      touched_hes.push_back(he);
       visited_he[he] = true;
     }
-  } else if ( !visited_he[he] ) {
-    touched_hes.push_back(he);
-    visited_he[he] = true;
   }
 }
 
@@ -119,7 +114,7 @@ Subhypergraph ProblemConstruction::construct(const SearchID search_id,
     bfs.clearQueues();
     for ( const HyperedgeID& he : initial_cut_hes.cut_hes ) {
       bfs.add_pins_of_hyperedge_to_queue(he, phg, stats,
-        sub_hg.hes, _context.refinement.advanced.max_bfs_distance);
+        _context.refinement.advanced.max_bfs_distance);
     }
     bfs.swap_with_next_queue();
     // Special case, if they are no cut hyperedges left
@@ -148,9 +143,8 @@ Subhypergraph ProblemConstruction::construct(const SearchID search_id,
             // Push all neighbors of the added vertex into the queue
             for ( const HyperedgeID& he : phg.incidentEdges(hn) ) {
               bfs.add_pins_of_hyperedge_to_queue(
-                he, phg, stats, sub_hg.hes,
-                _context.refinement.advanced.max_bfs_distance);
-              stats.addEdge(he);
+                he, phg, stats, _context.refinement.advanced.max_bfs_distance);
+              stats.addEdge(he, sub_hg.hes);
             }
           } else {
             release_vertex(search_id, hn);

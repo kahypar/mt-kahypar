@@ -41,7 +41,7 @@ class ProblemStats {
 
  public:
   explicit ProblemStats(const HyperedgeID num_edges,
-                                const PartitionID k) :
+                        const PartitionID k) :
     _k(k),
     _num_nodes_in_block(),
     _node_weight_of_block(),
@@ -141,9 +141,10 @@ class ProblemStats {
     _num_pins += phg.nodeDegree(hn);
   }
 
-  void addEdge(const HyperedgeID he) {
+  void addEdge(const HyperedgeID he, vec<HyperedgeID>& touched_hes) {
     if ( !_visited_hes[he] ) {
       ++_num_edges;
+      touched_hes.push_back(he);
       _visited_hes[he] = true;
     }
   }

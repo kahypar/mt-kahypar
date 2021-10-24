@@ -64,7 +64,6 @@ class ProblemConstruction {
     void add_pins_of_hyperedge_to_queue(const HyperedgeID& he,
                                         const PartitionedHypergraph& phg,
                                         const ProblemStats& stats,
-                                        vec<HyperedgeID>& touched_hes,
                                         const size_t max_bfs_distance);
 
     bool is_empty() const {

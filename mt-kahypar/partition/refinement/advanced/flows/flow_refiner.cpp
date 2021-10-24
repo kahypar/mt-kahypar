@@ -179,6 +179,10 @@ whfc::Hyperedge FlowRefiner::DynamicIdenticalNetDetection::add_if_not_contained(
   return whfc::invalidHyperedge;
 }
 
+namespace {
+  using assert_map = std::unordered_map<HyperedgeID, bool>;
+}
+
 FlowRefiner::FlowProblem FlowRefiner::constructFlowHypergraph(const PartitionedHypergraph& phg,
                                                               const Subhypergraph& sub_hg) {
   ASSERT(_block_0 != kInvalidPartition && _block_1 != kInvalidPartition);
@@ -249,16 +253,19 @@ FlowRefiner::FlowProblem FlowRefiner::constructFlowHypergraph(const PartitionedH
         if ( _node_to_whfc.contains(pin) ) {
           push_into_tmp_pins(_node_to_whfc[pin], he_hash, false);
         } else {
-          connectToSource |= phg.partID(pin) == _block_0;
-          connectToSink |= phg.partID(pin) == _block_1;
+          const PartitionID pin_block = phg.partID(pin);
+          connectToSource |= pin_block == _block_0;
+          connectToSink |= pin_block == _block_1;
         }
       }
 
-      if ( connectToSource && connectToSink ) {
+      const bool empty_hyperedge = _tmp_pins.size() == 0;
+      const bool connected_to_source_and_sink = connectToSource && connectToSink;
+      if ( connected_to_source_and_sink || empty_hyperedge ) {
         // Hyperedge is connected to source and sink which means we can not remove it
         // from the cut with the current flow problem => remove he from flow problem
         _flow_hg.removeCurrentHyperedge();
-        flow_problem.non_removable_cut += he_weight;
+        flow_problem.non_removable_cut += connected_to_source_and_sink ? he_weight : 0;
       } else {
 
         if ( connectToSource ) {
