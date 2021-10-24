@@ -25,12 +25,12 @@
 namespace mt_kahypar {
 
 MoveSequence FlowRefiner::refineImpl(const PartitionedHypergraph& phg,
-                                     const vec<HypernodeID>& refinement_nodes,
+                                     const Subhypergraph& sub_hg,
                                      const HighResClockTimepoint& start) {
   MoveSequence sequence { { }, 0 };
   // Construct flow network that contains all vertices given in refinement nodes
   utils::Timer::instance().start_timer("construct_flow_problem", "Construct Flow Problem", true);
-  FlowProblem flow_problem = constructFlowHypergraph(phg, refinement_nodes);
+  FlowProblem flow_problem = constructFlowHypergraph(phg, sub_hg);
   utils::Timer::instance().stop_timer("construct_flow_problem");
   if ( flow_problem.total_cut - flow_problem.non_removable_cut > 0 ) {
     // Set maximum allowed block weights for block 0 and 1
@@ -58,7 +58,7 @@ MoveSequence FlowRefiner::refineImpl(const PartitionedHypergraph& phg,
       // Extract move sequence
       if ( improved_solution ) {
         sequence.expected_improvement = flow_problem.total_cut - new_cut;
-        for ( const HypernodeID& hn : refinement_nodes ) {
+        for ( const HypernodeID& hn : sub_hg.nodes ) {
           if ( _node_to_whfc.contains(hn) ) {
             const PartitionID from = phg.partID(hn);
             const PartitionID to = _hfc.cs.n.isSource(_node_to_whfc[hn]) ? _block_0 : _block_1;
@@ -180,13 +180,13 @@ whfc::Hyperedge FlowRefiner::DynamicIdenticalNetDetection::add_if_not_contained(
 }
 
 FlowRefiner::FlowProblem FlowRefiner::constructFlowHypergraph(const PartitionedHypergraph& phg,
-                                                              const vec<HypernodeID>& refinement_nodes) {
+                                                              const Subhypergraph& sub_hg) {
   ASSERT(_block_0 != kInvalidPartition && _block_1 != kInvalidPartition);
   FlowProblem flow_problem;
   flow_problem.total_cut = 0;
   flow_problem.non_removable_cut = 0;
   _identical_nets.reset();
-  _whfc_to_node.resize(refinement_nodes.size() + 2);
+  _whfc_to_node.resize(sub_hg.nodes.size() + 2);
 
   if ( _context.refinement.advanced.flows.determine_distance_from_cut ) {
     _cut_hes.clear();
@@ -197,16 +197,13 @@ FlowRefiner::FlowProblem FlowRefiner::constructFlowHypergraph(const PartitionedH
   HypernodeWeight weight_block_0 = 0;
   HypernodeWeight weight_block_1 = 0;
   auto add_nodes = [&](const PartitionID block, HypernodeWeight& weight_of_block) {
-    for ( const HypernodeID& u : refinement_nodes) {
+    for ( const HypernodeID& u : sub_hg.nodes) {
       if ( phg.partID(u) == block ) {
         const HypernodeWeight u_weight = phg.nodeWeight(u);
         _whfc_to_node[flow_hn] = u;
         _node_to_whfc[u] = flow_hn++;
         _flow_hg.addNode(whfc::NodeWeight(u_weight));
         weight_of_block += u_weight;
-        for ( const HyperedgeID& he : phg.incidentEdges(u) ) {
-          _contained_hes[he] = ds::EmptyStruct { };
-        }
       }
     }
   };
@@ -237,8 +234,7 @@ FlowRefiner::FlowProblem FlowRefiner::constructFlowHypergraph(const PartitionedH
 
   // Add hyperedge to flow network and configure source and sink
   whfc::Hyperedge current_he(0);
-  for ( const auto& entry : _contained_hes ) {
-    const HyperedgeID he = entry.key;
+  for ( const HyperedgeID& he : sub_hg.hes ) {
     if ( !canHyperedgeBeDropped(phg, he) ) {
       size_t he_hash = 0;
       _tmp_pins.clear();

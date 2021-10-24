@@ -93,7 +93,7 @@ TEST_F(AAdvancedRefinementAdapter, UseCorrectNumberOfThreadsForSearch1) {
   ASSERT_EQ(0, refiner->numUsedThreads());
 
   AdvancedRefinerMockControl::instance().refine_func =
-    [&](const PartitionedHypergraph&, const vec<HypernodeID>&, const size_t num_threads) -> MoveSequence {
+    [&](const PartitionedHypergraph&, const Subhypergraph&, const size_t num_threads) -> MoveSequence {
       EXPECT_EQ(5, num_threads);
       EXPECT_EQ(5, refiner->numUsedThreads());
       return MoveSequence { {}, 0 };
@@ -111,7 +111,7 @@ TEST_F(AAdvancedRefinementAdapter, UseCorrectNumberOfThreadsForSearch2) {
 
   std::atomic<size_t> cnt(0);
   AdvancedRefinerMockControl::instance().refine_func =
-    [&](const PartitionedHypergraph&, const vec<HypernodeID>&, const size_t num_threads) -> MoveSequence {
+    [&](const PartitionedHypergraph&, const Subhypergraph&, const size_t num_threads) -> MoveSequence {
       EXPECT_EQ(5, num_threads);
       EXPECT_EQ(5, refiner->numUsedThreads());
       ++cnt;
@@ -120,7 +120,7 @@ TEST_F(AAdvancedRefinementAdapter, UseCorrectNumberOfThreadsForSearch2) {
     };
   ASSERT_TRUE(refiner->registerNewSearch(0, phg));
   AdvancedRefinerMockControl::instance().refine_func =
-    [&](const PartitionedHypergraph&, const vec<HypernodeID>&, const size_t num_threads) -> MoveSequence {
+    [&](const PartitionedHypergraph&, const Subhypergraph&, const size_t num_threads) -> MoveSequence {
       EXPECT_EQ(3, num_threads);
       EXPECT_EQ(8, refiner->numUsedThreads());
       ++cnt;

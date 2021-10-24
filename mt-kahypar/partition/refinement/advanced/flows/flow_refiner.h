@@ -93,7 +93,6 @@ class FlowRefiner final : public IAdvancedRefiner {
     _node_to_whfc(),
     _whfc_to_node(),
     _visited_hns(),
-    _contained_hes(),
     _tmp_pins(),
     _cut_hes(),
     _identical_nets(_flow_hg) {
@@ -120,11 +119,10 @@ class FlowRefiner final : public IAdvancedRefiner {
     _flow_hg.clear();
     _node_to_whfc.clear();
     _whfc_to_node.clear();
-    _contained_hes.clear();
   }
 
   MoveSequence refineImpl(const PartitionedHypergraph& phg,
-                          const vec<HypernodeID>& refinement_nodes,
+                          const Subhypergraph& sub_hg,
                           const HighResClockTimepoint& start);
 
   bool computeFlow(const FlowProblem& flow_problem,
@@ -132,7 +130,7 @@ class FlowRefiner final : public IAdvancedRefiner {
                    bool& time_limit_reached);
 
   FlowProblem constructFlowHypergraph(const PartitionedHypergraph& phg,
-                                      const vec<HypernodeID>& refinement_nodes);
+                                      const Subhypergraph& sub_hg);
 
   void determineDistanceFromCutSequential(const PartitionedHypergraph& phg,
                                           const whfc::Node source,
@@ -172,7 +170,6 @@ class FlowRefiner final : public IAdvancedRefiner {
   ds::DynamicSparseMap<HypernodeID, whfc::Node> _node_to_whfc;
   vec<HypernodeID> _whfc_to_node;
   ds::ThreadSafeFastResetFlagArray<> _visited_hns;
-  ds::DynamicSparseSet<HyperedgeID> _contained_hes;
   vec<whfc::Node> _tmp_pins;
   vec<whfc::Hyperedge> _cut_hes;
 

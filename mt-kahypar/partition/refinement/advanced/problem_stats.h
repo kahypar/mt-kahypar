@@ -28,6 +28,11 @@
 
 namespace mt_kahypar {
 
+struct Subhypergraph {
+  vec<HypernodeID> nodes;
+  vec<HyperedgeID> hes;
+};
+
 class ProblemStats {
 
   static constexpr size_t INVALID_IDX = std::numeric_limits<size_t>::max();

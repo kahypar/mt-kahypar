@@ -22,6 +22,8 @@
 
 #include "mt-kahypar/partition/refinement/advanced/problem_construction.h"
 
+#include <unordered_map>
+
 #include "tbb/parallel_for.h"
 
 namespace mt_kahypar {
@@ -63,6 +65,7 @@ void ProblemConstruction::BFSData::add_pins_of_hyperedge_to_queue(
   const HyperedgeID& he,
   const PartitionedHypergraph& phg,
   const ProblemStats& stats,
+  vec<HyperedgeID>& touched_hes,
   const size_t max_bfs_distance) {
   if ( current_distance <= max_bfs_distance ) {
     if ( !visited_he[he] ) {
@@ -75,16 +78,24 @@ void ProblemConstruction::BFSData::add_pins_of_hyperedge_to_queue(
           visited_hn[pin] = true;
         }
       }
+      touched_hes.push_back(he);
       visited_he[he] = true;
     }
+  } else if ( !visited_he[he] ) {
+    touched_hes.push_back(he);
+    visited_he[he] = true;
   }
 }
 
-vec<HypernodeID> ProblemConstruction::construct(const SearchID search_id,
-                                                QuotientGraph& quotient_graph,
-                                                AdvancedRefinerAdapter& refiner,
-                                                const PartitionedHypergraph& phg) {
-  vec<HypernodeID> nodes;
+namespace {
+  using assert_map = std::unordered_map<HyperedgeID, bool>;
+}
+
+Subhypergraph ProblemConstruction::construct(const SearchID search_id,
+                                             QuotientGraph& quotient_graph,
+                                             AdvancedRefinerAdapter& refiner,
+                                             const PartitionedHypergraph& phg) {
+  Subhypergraph sub_hg;
 
   BFSData& bfs = _local_bfs.local();
   ProblemStats& stats = _local_stats.local();
@@ -108,7 +119,7 @@ vec<HypernodeID> ProblemConstruction::construct(const SearchID search_id,
     bfs.clearQueues();
     for ( const HyperedgeID& he : initial_cut_hes.cut_hes ) {
       bfs.add_pins_of_hyperedge_to_queue(he, phg, stats,
-        _context.refinement.advanced.max_bfs_distance);
+        sub_hg.hes, _context.refinement.advanced.max_bfs_distance);
     }
     bfs.swap_with_next_queue();
     // Special case, if they are no cut hyperedges left
@@ -131,13 +142,14 @@ vec<HypernodeID> ProblemConstruction::construct(const SearchID search_id,
           // Double-check if vertex is still part of the blocks associated
           // with the search.
           if ( stats.isBlockContained(block) ) {
-            nodes.push_back(hn);
+            sub_hg.nodes.push_back(hn);
             stats.addNode(hn, block, phg);
 
             // Push all neighbors of the added vertex into the queue
             for ( const HyperedgeID& he : phg.incidentEdges(hn) ) {
               bfs.add_pins_of_hyperedge_to_queue(
-                he, phg, stats,_context.refinement.advanced.max_bfs_distance);
+                he, phg, stats, sub_hg.hes,
+                _context.refinement.advanced.max_bfs_distance);
               stats.addEdge(he);
             }
           } else {
@@ -158,12 +170,44 @@ vec<HypernodeID> ProblemConstruction::construct(const SearchID search_id,
     }
   }
 
+  // Check if all touched hyperedges are contained in subhypergraph
+  ASSERT([&]() {
+    assert_map expected_hes;
+    for ( const HyperedgeID& he : sub_hg.hes ) {
+      if ( expected_hes.count(he) > 0 ) {
+        LOG << "Hyperedge" << he << "is contained multiple times in subhypergraph!";
+        return false;
+      }
+      expected_hes[he] = true;
+    }
+
+    for ( const HypernodeID& hn : sub_hg.nodes ) {
+      for ( const HyperedgeID& he : phg.incidentEdges(hn) ) {
+        if ( expected_hes.count(he) == 0 ) {
+          LOG << "Hyperedge" << he << "not contained in subhypergraph!";
+          return false;
+        }
+        expected_hes[he] = false;
+      }
+    }
+
+    for ( const auto& entry : expected_hes ) {
+      const HyperedgeID he = entry.first;
+      const bool visited = !entry.second;
+      if ( !visited ) {
+        LOG << "HyperedgeID" << he << "should be not part of subhypergraph!";
+        return false;
+      }
+    }
+    return true;
+  }(), "Subhypergraph construction failed!");
+
   requested_hyperedges += quotient_graph.acquireUsedCutHyperedges(search_id, stats._visited_hes);
   DBG << "Search ID =" << search_id
       << ", Used Cut HEs =" << requested_hyperedges
       << "-" << stats;
 
-  return nodes;
+  return sub_hg;
 }
 
 void ProblemConstruction::releaseNodes(const SearchID search_id,

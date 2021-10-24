@@ -64,6 +64,7 @@ class ProblemConstruction {
     void add_pins_of_hyperedge_to_queue(const HyperedgeID& he,
                                         const PartitionedHypergraph& phg,
                                         const ProblemStats& stats,
+                                        vec<HyperedgeID>& touched_hes,
                                         const size_t max_bfs_distance);
 
     bool is_empty() const {
@@ -105,10 +106,10 @@ class ProblemConstruction {
   ProblemConstruction & operator= (const ProblemConstruction &) = delete;
   ProblemConstruction & operator= (ProblemConstruction &&) = delete;
 
-  vec<HypernodeID> construct(const SearchID search_id,
-                             QuotientGraph& quotient_graph,
-                             AdvancedRefinerAdapter& refiner,
-                             const PartitionedHypergraph& phg);
+  Subhypergraph construct(const SearchID search_id,
+                          QuotientGraph& quotient_graph,
+                          AdvancedRefinerAdapter& refiner,
+                          const PartitionedHypergraph& phg);
 
   void releaseNodes(const SearchID search_id,
                     const vec<HypernodeID>& nodes);

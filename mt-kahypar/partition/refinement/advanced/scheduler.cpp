@@ -66,17 +66,17 @@ bool AdvancedRefinementScheduler::refineImpl(
             << "( Blocks =" << blocksOfSearch(search_id)
             << ", Refiner =" << i << ")";
         utils::Timer::instance().start_timer("construct_problem", "Construct Problem", true);
-        const vec<HypernodeID> refinement_nodes =
+        const Subhypergraph sub_hg =
           _constructor.construct(search_id, _quotient_graph, _refiner, phg);
         _quotient_graph.finalizeConstruction(search_id);
         utils::Timer::instance().stop_timer("construct_problem");
 
         HyperedgeWeight delta = 0;
         bool improved_solution = false;
-        if ( refinement_nodes.size() > 0 ) {
+        if ( sub_hg.nodes.size() > 0 ) {
           utils::Timer::instance().start_timer("refine_problem", "Refine Problem", true);
           ++_stats.num_refinements;
-          MoveSequence sequence = _refiner.refine(search_id, phg, refinement_nodes);
+          MoveSequence sequence = _refiner.refine(search_id, phg, sub_hg);
           utils::Timer::instance().stop_timer("refine_problem");
 
           if ( !sequence.moves.empty() ) {
@@ -91,7 +91,7 @@ bool AdvancedRefinementScheduler::refineImpl(
           }
         }
 
-        _constructor.releaseNodes(search_id, refinement_nodes);
+        _constructor.releaseNodes(search_id, sub_hg.nodes);
         _quotient_graph.finalizeSearch(search_id, improved_solution ? delta : 0);
         _refiner.finalizeSearch(search_id);
         DBG << "End search" << search_id

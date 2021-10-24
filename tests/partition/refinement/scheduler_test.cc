@@ -253,10 +253,10 @@ class AnAdvancedRefinementEndToEnd : public Test {
     mover = std::make_unique<GainCalculator>(context);
     // Refine solution with simple label propagation
     AdvancedRefinerMockControl::instance().refine_func = [&](const PartitionedHypergraph& phg,
-                                                             const vec<HypernodeID>& nodes,
+                                                             const Subhypergraph& sub_hg,
                                                              const size_t) {
       MoveSequence sequence { {}, 0 };
-      for ( const HypernodeID& hn : nodes ) {
+      for ( const HypernodeID& hn : sub_hg.nodes ) {
         Move move = mover->computeMaxGainMove(phg, hn);
         ASSERT(move.from == phg.partID(hn));
         if ( move.from != move.to ) {

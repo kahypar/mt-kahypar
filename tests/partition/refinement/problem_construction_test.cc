@@ -135,10 +135,10 @@ TEST_F(AProblemConstruction, GrowAnAdvancedRefinementProblemAroundTwoBlocks1) {
   max_part_weights.assign(context.partition.k, 400);
   max_part_weights[2] = 300;
   SearchID search_id = qg.requestNewSearch(refiner);
-  vec<HypernodeID> nodes = constructor.construct(
+  Subhypergraph sub_hg = constructor.construct(
     search_id, qg, refiner, phg);
 
-  verifyThatPartWeightsAreLessEqualToMaxPartWeight(nodes, search_id, qg);
+  verifyThatPartWeightsAreLessEqualToMaxPartWeight(sub_hg.nodes, search_id, qg);
 }
 
 TEST_F(AProblemConstruction, GrowAnAdvancedRefinementProblemAroundTwoBlocks2) {
@@ -150,10 +150,10 @@ TEST_F(AProblemConstruction, GrowAnAdvancedRefinementProblemAroundTwoBlocks2) {
   max_part_weights.assign(context.partition.k, 800);
   max_part_weights[2] = 500;
   SearchID search_id = qg.requestNewSearch(refiner);
-  vec<HypernodeID> nodes = constructor.construct(
+  Subhypergraph sub_hg = constructor.construct(
     search_id, qg, refiner, phg);
 
-  verifyThatPartWeightsAreLessEqualToMaxPartWeight(nodes, search_id, qg);
+  verifyThatPartWeightsAreLessEqualToMaxPartWeight(sub_hg.nodes, search_id, qg);
 }
 
 TEST_F(AProblemConstruction, GrowTwoAdvancedRefinementProblemAroundTwoBlocksSimultanously) {
@@ -164,20 +164,20 @@ TEST_F(AProblemConstruction, GrowTwoAdvancedRefinementProblemAroundTwoBlocksSimu
 
   max_part_weights.assign(context.partition.k, 400);
 
-  vec<HypernodeID> nodes_1;
-  vec<HypernodeID> nodes_2;
+  Subhypergraph sub_hg_1;
+  Subhypergraph sub_hg_2;
   executeConcurrent([&] {
     SearchID search_id = qg.requestNewSearch(refiner);
-     nodes_1 = constructor.construct(
+     sub_hg_1 = constructor.construct(
       search_id, qg, refiner, phg);
-    verifyThatPartWeightsAreLessEqualToMaxPartWeight(nodes_1, search_id, qg);
+    verifyThatPartWeightsAreLessEqualToMaxPartWeight(sub_hg_1.nodes, search_id, qg);
   }, [&] {
     SearchID search_id = qg.requestNewSearch(refiner);
-    nodes_2 = constructor.construct(
+    sub_hg_2 = constructor.construct(
       search_id, qg, refiner, phg);
-    verifyThatPartWeightsAreLessEqualToMaxPartWeight(nodes_2, search_id, qg);
+    verifyThatPartWeightsAreLessEqualToMaxPartWeight(sub_hg_2.nodes, search_id, qg);
   });
-  verifyThatVertexSetAreDisjoint(nodes_1, nodes_2);
+  verifyThatVertexSetAreDisjoint(sub_hg_1.nodes, sub_hg_2.nodes);
 }
 
 }

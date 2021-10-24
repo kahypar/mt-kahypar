@@ -58,7 +58,7 @@ bool AdvancedRefinerAdapter::registerNewSearch(const SearchID search_id,
 
 MoveSequence AdvancedRefinerAdapter::refine(const SearchID search_id,
                                             const PartitionedHypergraph& phg,
-                                            const vec<HypernodeID>& refinement_nodes) {
+                                            const Subhypergraph& sub_hg) {
   ASSERT(static_cast<size_t>(search_id) < _active_searches.size());
   ASSERT(_active_searches[search_id].refiner_idx != INVALID_REFINER_IDX);
 
@@ -75,7 +75,7 @@ MoveSequence AdvancedRefinerAdapter::refine(const SearchID search_id,
   const size_t refiner_idx = _active_searches[search_id].refiner_idx;
   _refiner[refiner_idx]->setNumThreadsForSearch(num_free_threads);
   MoveSequence moves = _refiner[refiner_idx]->refine(
-    phg, refinement_nodes, _active_searches[search_id].start);
+    phg, sub_hg, _active_searches[search_id].start);
   _num_used_threads -= num_free_threads;
   _active_searches[search_id].reaches_time_limit = moves.state == MoveSequenceState::TIME_LIMIT;
   return moves;
