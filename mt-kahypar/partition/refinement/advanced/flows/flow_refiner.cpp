@@ -304,15 +304,15 @@ FlowRefiner::FlowProblem FlowRefiner::constructFlowHypergraph(const PartitionedH
     flow_problem.total_cut = 0;
   } else {
     _flow_hg.finalize();
-  }
 
-  if ( _context.refinement.advanced.flows.determine_distance_from_cut ) {
-    // Determine the distance of each node contained in the flow network from the cut.
-    // This technique improves piercing decision within the WHFC framework.
-    if ( _context.refinement.advanced.num_threads_per_search > 1 ) {
-      determineDistanceFromCutParallel(phg, flow_problem.source, flow_problem.sink);
-    } else {
-      determineDistanceFromCutSequential(phg, flow_problem.source, flow_problem.sink);
+    if ( _context.refinement.advanced.flows.determine_distance_from_cut ) {
+      // Determine the distance of each node contained in the flow network from the cut.
+      // This technique improves piercing decision within the WHFC framework.
+      if ( _context.refinement.advanced.num_threads_per_search > 1 ) {
+        determineDistanceFromCutParallel(phg, flow_problem.source, flow_problem.sink);
+      } else {
+        determineDistanceFromCutSequential(phg, flow_problem.source, flow_problem.sink);
+      }
     }
   }
 
