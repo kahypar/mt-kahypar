@@ -573,6 +573,8 @@ namespace mt_kahypar::ds
 
         std::unique_ptr<GroupHierarchy> _hierarchy;
 
+        // todo: Idea: PQs by depth are somewhat irrelevant because threads explicitly work on different regions now
+        // => shuffle roots, divide roots into p parts, give each task its own part of the roots; each task grows its own pool, later work stealing
         std::unique_ptr<Multiqueue> _mq_active_ids;
         std::unique_ptr<DepthPriorityQueue> _dpq_active_ids;
 
