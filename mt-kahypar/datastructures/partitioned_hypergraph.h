@@ -563,25 +563,16 @@ private:
                           ASSERT(pin_count_in_part_after > 1, V(u) << V(v) << V(he));
                           if (_is_gain_cache_initialized) {
 
-                              if (_hg->totalSize(he) < _hg->snapshotEdgeSizeThreshold()) {
+                            const HyperedgeWeight edge_weight = edgeWeight(he);
+                            if (_hg->totalSize(he) < _hg->snapshotEdgeSizeThreshold() || !_gain_cache.isPinCountThatTriggersUpdateForAllPinsForUncontractCaseOne(pin_count_in_part_after)) {
                                 // Gain cache update within lock, no snapshots
-                                const HyperedgeWeight edge_weight = edgeWeight(he);
                                 _gain_cache.syncUpdateForUncontractCaseOne(he, edge_weight, v, block, pin_count_in_part_after, pins(he));
                                 _pin_count_update_ownership[he].unlock();
                               } else {
-                                // Snapshot pins if necessary and connectivity set in lock, gain cache update outside of lock
+                                // If e is large enough and update to all pins of e is necessary, perform gain cache update outside of lock:
+                                // Snapshot pins and connectivity set in lock, gain cache update outside of lock
 
-
-                                std::unique_ptr<IteratorRange<PinSnapshotIterator>> pins_snapshot = std::make_unique<IteratorRange<PinSnapshotIterator>>(PinSnapshotIterator::emptyPinIteratorRange());
-                                if (_gain_cache.isPinCountThatTriggersUpdateForAllPinsForUncontractCaseOne(pin_count_in_part_after)) {
-                                  pins_snapshot = std::make_unique<IteratorRange<PinSnapshotIterator>>(takePinsSnapshot(he));
-                                }
-
-                                // If u was the only pin of hyperedge he in its block before then moving out vertex u
-                                // of hyperedge he does not decrease the connectivity any more after the
-                                // uncontraction => b(u) -= w(he)
-                                const HyperedgeWeight edge_weight = edgeWeight(he);
-
+                                auto pins_snapshot = std::make_unique<IteratorRange<PinSnapshotIterator>>(takePinsSnapshot(he));
                                 if (useBitcopySnapshots) {
                                   _connectivity_set.takeBitcopySnapshotForHyperedge(he, *cs_bitcopy_snapshot);
                                   _pins_in_part.takeBitcopySnapshotForHyperedge(he, *pcip_bitcopy_snapshot);
