@@ -575,6 +575,7 @@ namespace mt_kahypar::ds
 
         // todo: Idea: PQs by depth are somewhat irrelevant because threads explicitly work on different regions now
         // => shuffle roots, divide roots into p parts, give each task its own part of the roots; each task grows its own pool, later work stealing
+        // (possibly: cluster roots into clusters of max size n/p, distribute roots by clusters)
         std::unique_ptr<Multiqueue> _mq_active_ids;
         std::unique_ptr<DepthPriorityQueue> _dpq_active_ids;
 
