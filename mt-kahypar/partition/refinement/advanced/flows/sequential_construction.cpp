@@ -94,13 +94,13 @@ FlowProblem SequentialConstruction::constructFlowHypergraph(const PartitionedHyp
   HypernodeWeight weight_block_0 = 0;
   HypernodeWeight weight_block_1 = 0;
   auto add_nodes = [&](const PartitionID block, HypernodeWeight& weight_of_block) {
-    for ( const HypernodeID& u : sub_hg.nodes) {
-      if ( phg.partID(u) == block ) {
-        const HypernodeWeight u_weight = phg.nodeWeight(u);
-        whfc_to_node[flow_hn] = u;
-        _node_to_whfc[u] = flow_hn++;
-        _flow_hg.addNode(whfc::NodeWeight(u_weight));
-        weight_of_block += u_weight;
+    for ( const HypernodeID& hn : sub_hg.nodes) {
+      if ( phg.partID(hn) == block ) {
+        const HypernodeWeight hn_weight = phg.nodeWeight(hn);
+        whfc_to_node[flow_hn] = hn;
+        _node_to_whfc[hn] = flow_hn++;
+        _flow_hg.addNode(whfc::NodeWeight(hn_weight));
+        weight_of_block += hn_weight;
       }
     }
   };

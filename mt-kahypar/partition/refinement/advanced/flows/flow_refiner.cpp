@@ -58,10 +58,9 @@ MoveSequence FlowRefiner::refineImpl(const PartitionedHypergraph& phg,
       // Extract move sequence
       if ( improved_solution ) {
         sequence.expected_improvement = flow_problem.total_cut - new_cut;
-        for ( size_t i = 0; i < _whfc_to_node.size(); ++i ) {
-          const HypernodeID hn = _whfc_to_node[i];
+        for ( const whfc::Node& u : _flow_hg.nodeIDs() ) {
+          const HypernodeID hn = _whfc_to_node[u];
           if ( hn != kInvalidHypernode ) {
-            const whfc::Node u(i);
             const PartitionID from = phg.partID(hn);
             const PartitionID to = _hfc.cs.n.isSource(u) ? _block_0 : _block_1;
             if ( from != to ) {
