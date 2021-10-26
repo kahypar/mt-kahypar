@@ -55,6 +55,11 @@ typedef int mt_kahypar_hypernode_weight_t;
 typedef int mt_kahypar_hyperedge_weight_t;
 typedef unsigned int mt_kahypar_partition_id_t;
 
+enum file_format_t {
+  hMetis = 0,
+  Metis = 1,
+};
+
 KAHYPAR_API mt_kahypar_context_t* mt_kahypar_context_new();
 KAHYPAR_API void mt_kahypar_context_free(mt_kahypar_context_t* kahypar_context);
 KAHYPAR_API void mt_kahypar_configure_context_from_file(mt_kahypar_context_t* kahypar_context,
@@ -69,7 +74,8 @@ KAHYPAR_API void mt_kahypar_read_hypergraph_from_file(const char* file_name,
                                                       size_t** hyperedge_indices,
                                                       mt_kahypar_hyperedge_id_t** hyperedges,
                                                       mt_kahypar_hyperedge_weight_t** hyperedge_weights,
-                                                      mt_kahypar_hypernode_weight_t** vertex_weights);
+                                                      mt_kahypar_hypernode_weight_t** vertex_weights,
+                                                      file_format_t file_format);
 
 KAHYPAR_API void mt_kahypar_partition(const mt_kahypar_hypernode_id_t num_vertices,
                                       const mt_kahypar_hyperedge_id_t num_hyperedges,
