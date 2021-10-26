@@ -175,20 +175,24 @@ ContractionTree ContractionTree::copy(parallel_tag_t) {
   tree._finalized = _finalized;
 
   tbb::parallel_invoke([&] {
-    tree._tree.resize(_tree.size());
-    memcpy(tree._tree.data(), _tree.data(),
-      sizeof(Node) * _tree.size());
+    if (!_tree.empty()) {
+      tree._tree.resize(_tree.size());
+      memcpy(tree._tree.data(), _tree.data(), sizeof(Node) * _tree.size());
+    }
   }, [&] {
-    tree._roots.resize(_roots.size());
-    memcpy(tree._roots.data(), _roots.data(),
-      sizeof(HypernodeID) * _roots.size());
+    if (!_roots.empty()) {
+      tree._roots.resize(_roots.size());
+      memcpy(tree._roots.data(), _roots.data(), sizeof(HypernodeID) * _roots.size());
+    }
   }, [&] {
     const size_t num_versions = _version_roots.size();
     tree._version_roots.resize(num_versions);
     tbb::parallel_for(0UL, num_versions, [&](const size_t i) {
-      tree._version_roots[i].resize(_version_roots[i].size());
-      memcpy(tree._version_roots[i].data(), _version_roots[i].data(),
-        sizeof(HypernodeID) * _version_roots[i].size());
+      if (!_version_roots[i].empty()) {
+        tree._version_roots[i].resize(_version_roots[i].size());
+        memcpy(tree._version_roots[i].data(), _version_roots[i].data(),
+               sizeof(HypernodeID) * _version_roots[i].size());
+      }
     });
   }, [&] {
     tree._out_degrees.resize(_out_degrees.size());
@@ -196,9 +200,11 @@ ContractionTree ContractionTree::copy(parallel_tag_t) {
       tree._out_degrees[i] = _out_degrees[i];
     }
   }, [&] {
-    tree._incidence_array.resize(_incidence_array.size());
-    memcpy(tree._incidence_array.data(), _incidence_array.data(),
-      sizeof(HypernodeID) * _incidence_array.size());
+    if (!_incidence_array.empty()) {
+      tree._incidence_array.resize(_incidence_array.size());
+      memcpy(tree._incidence_array.data(), _incidence_array.data(),
+             sizeof(HypernodeID) * _incidence_array.size());
+    }
   });
 
   return tree;
@@ -211,26 +217,32 @@ ContractionTree ContractionTree::copy() {
   tree._num_hypernodes = _num_hypernodes;
   tree._finalized = _finalized;
 
-  tree._tree.resize(_tree.size());
-  memcpy(tree._tree.data(), _tree.data(),
-    sizeof(Node) * _tree.size());
-  tree._roots.resize(_roots.size());
-  memcpy(tree._roots.data(), _roots.data(),
-    sizeof(HypernodeID) * _roots.size());
+  if (!_tree.empty()) {
+    tree._tree.resize(_tree.size());
+    memcpy(tree._tree.data(), _tree.data(), sizeof(Node) * _tree.size());
+  }
+  if (!_roots.empty()) {
+    tree._roots.resize(_roots.size());
+    memcpy(tree._roots.data(), _roots.data(), sizeof(HypernodeID) * _roots.size());
+  }
   const size_t num_versions = _version_roots.size();
   tree._version_roots.resize(num_versions);
   for ( size_t i = 0; i < num_versions; ++i ) {
-    tree._version_roots[i].resize(_version_roots[i].size());
-    memcpy(tree._version_roots[i].data(), _version_roots[i].data(),
-      sizeof(HypernodeID) * _version_roots[i].size());
+    if (!_version_roots[i].empty()) {
+      tree._version_roots[i].resize(_version_roots[i].size());
+      memcpy(tree._version_roots[i].data(), _version_roots[i].data(),
+             sizeof(HypernodeID) * _version_roots[i].size());
+    }
   }
   tree._out_degrees.resize(_out_degrees.size());
   for ( size_t i = 0; i < _out_degrees.size(); ++i ) {
     tree._out_degrees[i] = _out_degrees[i];
   }
-  tree._incidence_array.resize(_incidence_array.size());
-  memcpy(tree._incidence_array.data(), _incidence_array.data(),
-    sizeof(HypernodeID) * _incidence_array.size());
+  if (!_incidence_array.empty()) {
+    tree._incidence_array.resize(_incidence_array.size());
+    memcpy(tree._incidence_array.data(), _incidence_array.data(),
+           sizeof(HypernodeID) * _incidence_array.size());
+  }
 
   return tree;
 }

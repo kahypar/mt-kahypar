@@ -31,12 +31,11 @@
 #include "mt-kahypar/parallel/memory_pool.h"
 #include "mt-kahypar/parallel/atomic_wrapper.h"
 #include "mt-kahypar/partition/metrics.h"
+#include "mt-kahypar/utils/hypergraph_statistics.h"
 #include "mt-kahypar/utils/memory_tree.h"
 #include "mt-kahypar/utils/timer.h"
 
-
 #include "kahypar/utils/math.h"
-
 
 
 namespace mt_kahypar::io {
@@ -65,32 +64,6 @@ namespace mt_kahypar::io {
         stats.sd = stdev;
       }
       return stats;
-    }
-
-    template<typename T>
-    double parallel_stdev(const std::vector<T>& data, const double avg, const size_t n) {
-      return std::sqrt(tbb::parallel_reduce(
-              tbb::blocked_range<size_t>(0UL, data.size()), 0.0,
-              [&](tbb::blocked_range<size_t>& range, double init) -> double {
-                double tmp_stdev = init;
-                for ( size_t i = range.begin(); i < range.end(); ++i ) {
-                  tmp_stdev += (data[i] - avg) * (data[i] - avg);
-                }
-                return tmp_stdev;
-              }, std::plus<double>()) / ( n- 1 ));
-    }
-
-    template<typename T>
-    double parallel_avg(const std::vector<T>& data, const size_t n) {
-      return tbb::parallel_reduce(
-              tbb::blocked_range<size_t>(0UL, data.size()), 0.0,
-              [&](tbb::blocked_range<size_t>& range, double init) -> double {
-                double tmp_avg = init;
-                for ( size_t i = range.begin(); i < range.end(); ++i ) {
-                  tmp_avg += static_cast<double>(data[i]);
-                }
-                return tmp_avg;
-              }, std::plus<double>()) / static_cast<double>(n);
     }
 
     void printHypergraphStats(const Statistic& he_size_stats,
@@ -138,14 +111,6 @@ namespace mt_kahypar::io {
           << " | sd =" << std::left << std::setw(hn_weight_width) << hn_weight_stats.sd;
     }
 
-    static inline double avgHyperedgeDegree(const Hypergraph& hypergraph) {
-      return static_cast<double>(hypergraph.initialNumPins()) / hypergraph.initialNumEdges();
-    }
-
-    static inline double avgHypernodeDegree(const Hypergraph& hypergraph) {
-      return static_cast<double>(hypergraph.initialNumPins()) / hypergraph.initialNumNodes();
-    }
-
   }  // namespace internal
 
   void printHypergraphInfo(const Hypergraph& hypergraph,
@@ -167,25 +132,25 @@ namespace mt_kahypar::io {
     });
 
     HypernodeID num_hypernodes = hypergraph.initialNumNodes();
-    const double avg_hn_degree = internal::avgHypernodeDegree(hypergraph);
+    const double avg_hn_degree = utils::avgHypernodeDegree(hypergraph);
     hypergraph.doParallelForAllNodes([&](const HypernodeID& hn) {
       hn_degrees[hn] = hypergraph.nodeDegree(hn);
       hn_weights[hn] = hypergraph.nodeWeight(hn);
     });
-    const double avg_hn_weight = internal::parallel_avg(hn_weights, num_hypernodes);
-    const double stdev_hn_degree = internal::parallel_stdev(hn_degrees, avg_hn_degree, num_hypernodes);
-    const double stdev_hn_weight = internal::parallel_stdev(hn_weights, avg_hn_weight, num_hypernodes);
+    const double avg_hn_weight = utils::parallel_avg(hn_weights, num_hypernodes);
+    const double stdev_hn_degree = utils::parallel_stdev(hn_degrees, avg_hn_degree, num_hypernodes);
+    const double stdev_hn_weight = utils::parallel_stdev(hn_weights, avg_hn_weight, num_hypernodes);
 
     HyperedgeID num_hyperedges = hypergraph.initialNumEdges();
     HypernodeID num_pins = hypergraph.initialNumPins();
-    const double avg_he_size = internal::avgHyperedgeDegree(hypergraph);
+    const double avg_he_size = utils::avgHyperedgeDegree(hypergraph);
     hypergraph.doParallelForAllEdges([&](const HyperedgeID& he) {
       he_sizes[he] = hypergraph.edgeSize(he);
       he_weights[he] = hypergraph.edgeWeight(he);
     });
-    const double avg_he_weight = internal::parallel_avg(he_weights, num_hyperedges);
-    const double stdev_he_size = internal::parallel_stdev(he_sizes, avg_he_size, num_hyperedges);
-    const double stdev_he_weight = internal::parallel_stdev(he_weights, avg_he_weight, num_hyperedges);
+    const double avg_he_weight = utils::parallel_avg(he_weights, num_hyperedges);
+    const double stdev_he_size = utils::parallel_stdev(he_sizes, avg_he_size, num_hyperedges);
+    const double stdev_he_weight = utils::parallel_stdev(he_weights, avg_he_weight, num_hyperedges);
 
     tbb::enumerable_thread_specific<size_t> graph_edge_count(0);
     hypergraph.doParallelForAllEdges([&](const HyperedgeID& he) {
@@ -207,9 +172,9 @@ namespace mt_kahypar::io {
     LOG << "Hypergraph Information";
     LOG << "Name :" << name;
     LOG << "# HNs :" << num_hypernodes
-        << "# HEs :" << num_hyperedges
+        << "# HEs :" << (Hypergraph::is_graph ? num_hyperedges / 2 : num_hyperedges)
         << "# pins:" << num_pins
-        << "# graph edges:" << graph_edge_count.combine(std::plus<>());
+        << "# graph edges:" << (Hypergraph::is_graph ? num_hyperedges / 2 : graph_edge_count.combine(std::plus<>()));
 
     internal::printHypergraphStats(
             internal::createStats(he_sizes, avg_he_size, stdev_he_size),
@@ -464,6 +429,7 @@ namespace mt_kahypar::io {
   }
 
   void printConnectedCutHyperedgeAnalysis(const PartitionedHypergraph& hypergraph) {
+    // TODO(maas): is this correct for graphs?
     std::vector<bool> visited_he(hypergraph.initialNumEdges(), false);
     std::vector<HyperedgeWeight> connected_cut_hyperedges;
 

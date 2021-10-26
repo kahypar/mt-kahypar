@@ -81,6 +81,9 @@ class StreamingVector {
   parallel::scalable_vector<Value> copy_parallel() {
     parallel::scalable_vector<Value> values;
     size_t total_size = init_prefix_sum();
+    if (total_size == 0) {
+      return values;
+    }
     values.resize(total_size);
 
     tbb::parallel_for(0, static_cast<int>(_cpu_buffer.size()), [&](const int cpu_id) {
@@ -161,6 +164,9 @@ class StreamingVector {
                                              const size_t position) {
     DBG << "Copy buffer of cpu" << cpu_id << "of size" << _cpu_buffer[cpu_id].size()
         << "to position" << position << "in dest ( CPU =" << sched_getcpu() << " )";
+    if (_cpu_buffer[cpu_id].empty()) {
+      return;
+    }
     memcpy(destination.data() + position, _cpu_buffer[cpu_id].data(),
            _cpu_buffer[cpu_id].size() * sizeof(Value));
   }

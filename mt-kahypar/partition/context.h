@@ -34,6 +34,7 @@ struct PartitioningParameters {
   #endif
   kahypar::Mode mode = kahypar::Mode::UNDEFINED;
   kahypar::Objective objective = kahypar::Objective::UNDEFINED;
+  FileFormat file_format = FileFormat::hMetis;
   double epsilon = std::numeric_limits<double>::max();
   PartitionID k = std::numeric_limits<PartitionID>::max();
   int seed = 0;
@@ -83,6 +84,7 @@ std::ostream & operator<< (std::ostream& str, const CommunityDetectionParameters
 struct PreprocessingParameters {
   bool stable_construction_of_incident_edges = false;
   bool use_community_detection = false;
+  bool disable_community_detection_for_mesh_graphs = true;
   CommunityDetectionParameters community_detection = { };
 };
 

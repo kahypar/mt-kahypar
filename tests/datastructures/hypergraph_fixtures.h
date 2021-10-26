@@ -35,12 +35,15 @@ namespace ds {
 
 static auto identity = [](const HypernodeID& id) { return id; };
 
-template<typename HyperGraph, typename HyperGraphFactory>
+template<typename HyperGraph, typename HyperGraphFactory, bool useGraphStructure = false>
 class HypergraphFixture : public Test {
  public:
   HypergraphFixture() :
-    hypergraph(HyperGraphFactory::construct(
-            7 , 4, { {0, 2}, {0, 1, 3, 4}, {3, 4, 6}, {2, 5, 6} }, nullptr, nullptr, true)) {
+    hypergraph(useGraphStructure ?
+      HyperGraphFactory::construct(
+        7 , 6, { {1, 2}, {2, 3}, {1, 4}, {4, 5}, {4, 6}, {5, 6} }, nullptr, nullptr, true) :
+      HyperGraphFactory::construct(
+        7 , 4, { {0, 2}, {0, 1, 3, 4}, {3, 4, 6}, {2, 5, 6} }, nullptr, nullptr, true)) {
   }
 
   template <typename K = decltype(identity)>

@@ -32,6 +32,7 @@ namespace mt_kahypar {
     str << "  Paradigm:                           " << params.paradigm << std::endl;
     str << "  Mode:                               " << params.mode << std::endl;
     str << "  Objective:                          " << params.objective << std::endl;
+    str << "  Input File Format:                  " << params.file_format << std::endl;
     str << "  k:                                  " << params.k << std::endl;
     str << "  epsilon:                            " << params.epsilon << std::endl;
     str << "  seed:                               " << params.seed << std::endl;
@@ -61,6 +62,9 @@ namespace mt_kahypar {
   std::ostream & operator<< (std::ostream& str, const PreprocessingParameters& params) {
     str << "Preprocessing Parameters:" << std::endl;
     str << "  Use Community Detection:            " << std::boolalpha << params.use_community_detection << std::endl;
+    #ifdef USE_GRAPH_PARTITIONER
+    str << "  Disable C. D. for Mesh Graphs:      " << std::boolalpha << params.disable_community_detection_for_mesh_graphs << std::endl;
+    #endif
     if (params.use_community_detection) {
       str << std::endl << params.community_detection;
     }

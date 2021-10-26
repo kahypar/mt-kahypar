@@ -25,7 +25,6 @@
 #include <algorithm>
 
 namespace mt_kahypar::metrics {
-
   HyperedgeWeight hyperedgeCut(const PartitionedHypergraph& hypergraph, const bool parallel) {
     if ( parallel ) {
       tbb::enumerable_thread_specific<HyperedgeWeight> cut(0);
@@ -34,7 +33,7 @@ namespace mt_kahypar::metrics {
           cut.local() += hypergraph.edgeWeight(he);
         }
       });
-      return cut.combine(std::plus<>());
+      return cut.combine(std::plus<>()) / (Hypergraph::is_graph ? 2 : 1);
     } else {
       HyperedgeWeight cut = 0;
       for (const HyperedgeID& he : hypergraph.edges()) {
@@ -42,7 +41,7 @@ namespace mt_kahypar::metrics {
           cut += hypergraph.edgeWeight(he);
         }
       }
-      return cut;
+      return cut / (Hypergraph::is_graph ? 2 : 1);
     }
   }
 
@@ -54,13 +53,13 @@ namespace mt_kahypar::metrics {
           km1.local() += std::max(hypergraph.connectivity(he) - 1, 0) * hypergraph.edgeWeight(he);
         }
       });
-      return km1.combine(std::plus<>());
+      return km1.combine(std::plus<>()) / (Hypergraph::is_graph ? 2 : 1);
     } else {
       HyperedgeWeight km1 = 0;
       for (const HyperedgeID& he : hypergraph.edges()) {
         km1 += std::max(hypergraph.connectivity(he) - 1, 0) * hypergraph.edgeWeight(he);
       }
-      return km1;
+      return km1 / (Hypergraph::is_graph ? 2 : 1);
     }
   }
 
@@ -75,7 +74,7 @@ namespace mt_kahypar::metrics {
           }
         }
       });
-      return soed.combine(std::plus<>());
+      return soed.combine(std::plus<>()) / (Hypergraph::is_graph ? 2 : 1);
     } else {
       HyperedgeWeight soed = 0;
       for (const HyperedgeID& he : hypergraph.edges()) {
@@ -84,7 +83,7 @@ namespace mt_kahypar::metrics {
           soed += connectivity * hypergraph.edgeWeight(he);
         }
       }
-      return soed;
+      return soed / (Hypergraph::is_graph ? 2 : 1);
     }
   }
 

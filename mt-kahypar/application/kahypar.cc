@@ -64,8 +64,9 @@ int main(int argc, char* argv[]) {
   hwloc_bitmap_free(cpuset);
 
   // Read Hypergraph
-  mt_kahypar::Hypergraph hypergraph = mt_kahypar::io::readHypergraphFile(
+  mt_kahypar::Hypergraph hypergraph = mt_kahypar::io::readInputFile(
       context.partition.graph_filename,
+      context.partition.file_format,
       context.preprocessing.stable_construction_of_incident_edges);
 
   // Initialize Memory Pool

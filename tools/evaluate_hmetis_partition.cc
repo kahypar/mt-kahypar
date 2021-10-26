@@ -34,23 +34,18 @@
 using namespace mt_kahypar;
 namespace po = boost::program_options;
 
-void readBipartPartitionFile(const std::string& bipart_partition_file,
-                             PartitionedHypergraph& hypergraph,
-                             const PartitionID k) {
-  ASSERT(!bipart_partition_file.empty(), "No filename for partition file specified");
-  std::ifstream file(bipart_partition_file);
+void readPartitionFile(const std::string& partition_file, PartitionedHypergraph& hypergraph) {
+  ASSERT(!partition_file.empty(), "No filename for partition file specified");
+  std::ifstream file(partition_file);
   if (file) {
-    for ( PartitionID block = 0; block < k; ++block ) {
-      std::string line;
-      std::getline(file, line);
-      std::istringstream line_stream(line);
-      HypernodeID hn = 0;
-      PartitionID bipart_block = 0;
-      line_stream >> bipart_block;
-      ASSERT(block == bipart_block - 1);
-      while ( line_stream >> hn ) {
-        hypergraph.setOnlyNodePart(hn - 1, block);
-      }
+    PartitionID part_id;
+    HypernodeID node = 0;
+    while (file >> part_id) {
+      hypergraph.setOnlyNodePart(node, part_id);
+      node++;
+    }
+    if (node != hypergraph.initialNumNodes()) {
+      std::cerr << "Number of nodes doesnt match partition file size" << std::endl;
     }
     hypergraph.initializePartition();
     file.close();
@@ -67,9 +62,9 @@ int main(int argc, char* argv[]) {
           ("hypergraph,h",
            po::value<std::string>(&context.partition.graph_filename)->value_name("<string>")->required(),
            "Hypergraph Filename")
-          ("bipart-partition-file,b",
+          ("partition-file,b",
            po::value<std::string>(&context.partition.graph_partition_filename)->value_name("<string>")->required(),
-           "BiPart Partition Filename")
+           "Partition Filename")
           ("blocks,k",
            po::value<PartitionID>(&context.partition.k)->value_name("<int>")->required(),
            "Number of Blocks");
@@ -79,17 +74,15 @@ int main(int argc, char* argv[]) {
   po::notify(cmd_vm);
 
   // Read Hypergraph
-  Hypergraph hg =
-          mt_kahypar::io::readHypergraphFile(context.partition.graph_filename, true);
+  Hypergraph hg = mt_kahypar::io::readHypergraphFile(context.partition.graph_filename, true);
   PartitionedHypergraph phg(context.partition.k, hg, parallel_tag_t());
 
   // Setup Context
   context.partition.epsilon = 0.03;
   context.setupPartWeights(hg.totalWeight());
 
-  // Read Bipart Partition File
-  readBipartPartitionFile(context.partition.graph_partition_filename, phg,
-                          context.partition.k);
+  // Read Partition File
+  readPartitionFile(context.partition.graph_partition_filename, phg);
 
   std::cout << "RESULT"
             << " graph=" << context.partition.graph_filename

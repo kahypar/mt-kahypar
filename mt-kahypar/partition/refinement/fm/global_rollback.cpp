@@ -268,8 +268,8 @@ namespace mt_kahypar {
         if (tracker.wasNodeMovedInThisRound(u)) {
           for (HyperedgeID e : phg.incidentEdges(u)) {
             // test-and-set whether this is the first time this hyperedge is encountered
-            uint32_t expected = last_recalc_round[e].load(std::memory_order_relaxed);
-            if (expected < round && last_recalc_round[e].exchange(round, std::memory_order_acquire) == expected) {
+            uint32_t expected = last_recalc_round[phg.uniqueEdgeID(e)].load(std::memory_order_relaxed);
+            if (expected < round && last_recalc_round[phg.uniqueEdgeID(e)].exchange(round, std::memory_order_acquire) == expected) {
               recalculate_and_distribute_for_hyperedge(e);
             }
           }
@@ -282,6 +282,7 @@ namespace mt_kahypar {
         last_recalc_round.assign(phg.initialNumEdges(), CAtomic<uint32_t>(0));
       }
     } else{
+      // TODO(maas): might be a problem?
       tbb::parallel_for(0U, phg.initialNumEdges(), recalculate_and_distribute_for_hyperedge);
     }
   }

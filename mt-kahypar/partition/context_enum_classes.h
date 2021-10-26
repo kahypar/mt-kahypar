@@ -33,6 +33,11 @@ enum class Type : int8_t {
   EdgeAndNodeWeights = 11,
 };
 
+enum class FileFormat : int8_t {
+  hMetis = 0,
+  Metis = 1,
+};
+
 enum class Paradigm : int8_t {
   multilevel,
   nlevel
@@ -122,6 +127,8 @@ enum class AdvancedRefinementAlgorithm : uint8_t {
 };
 
 std::ostream & operator<< (std::ostream& os, const Type& type);
+
+std::ostream & operator<< (std::ostream& os, const FileFormat& type);
 
 std::ostream & operator<< (std::ostream& os, const Paradigm& paradigm);
 
