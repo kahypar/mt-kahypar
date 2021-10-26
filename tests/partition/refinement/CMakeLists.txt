@@ -11,6 +11,7 @@ target_sources(mt_kahypar_fast_tests PRIVATE
         gain_test.cc
         multitry_fm_test.cc
         fm_strategy_test.cc
+        flow_construction_test.cc
         )
 
 target_sources(mt_kahypar_strong_tests PRIVATE
@@ -26,4 +27,5 @@ target_sources(mt_kahypar_strong_tests PRIVATE
         gain_test.cc
         multitry_fm_test.cc
         fm_strategy_test.cc
+        flow_construction_test.cc
         )
