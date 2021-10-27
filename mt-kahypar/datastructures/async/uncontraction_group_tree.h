@@ -181,8 +181,8 @@ namespace mt_kahypar::ds {
           return _num_contained_contracted_nodes;
         }
 
-        ContractionGroupIDIteratorRange roots() const {
-            return mt_kahypar::ds::ContractionGroupIDIteratorRange(_roots.cbegin(), _roots.cend());
+        const parallel::scalable_vector<ContractionGroupID>& roots() const {
+            return _roots;
         }
 
         const BlockedGroupIDIterator all() const {

@@ -157,9 +157,9 @@ namespace mt_kahypar::ds
         /**
          * Constructs new sequential contraction group pool. Passes ownership of the given group hierarchy to this pool.
          */
-        explicit ConcurrentQueueGroupPool(std::unique_ptr<GroupHierarchy> hierarchy, const Context &context,
-                                          const bool use_multiqueue)
+        explicit ConcurrentQueueGroupPool(std::unique_ptr<GroupHierarchy> hierarchy, const Context &context)
                 : _hierarchy(hierarchy.release()),
+                  _pools_by_task(context.shared_memory.num_threads),
                   _node_region_comparator(nullptr),
                   _region_similarity_retries(context.uncoarsening.node_region_similarity_retries)
                   , _picked_ids_ets(std::vector<ContractionGroupID>(context.uncoarsening.node_region_similarity_retries, invalidGroupID)),
@@ -169,25 +169,50 @@ namespace mt_kahypar::ds
                   _calls_to_pick_with_empty_pq(0),
                   _num_accepted_uncontractions(0),
                   _calculate_full_similarities(context.uncoarsening.region_comparison_with_full_similarities),
-                  _use_multiqueue(use_multiqueue),
+                  _group_pool_type(context.uncoarsening.group_pool_type),
                   _similarity_to_others_threshold(context.uncoarsening.node_region_similarity_threshold)
                 {
             ASSERT(_hierarchy);
 
-            // Ugly code duplication because interfaces can't be used (slow vtable lookups)
-            if (_use_multiqueue) {
+//            // Ugly code duplication because interfaces can't be used (slow vtable lookups)
+            if (_group_pool_type == GroupPoolType::multiqueue) {
               _mq_active_ids = std::make_unique<Multiqueue>(context.shared_memory.num_threads);
-            } else {
-              _dpq_active_ids = std::make_unique<DepthPriorityQueue>(_hierarchy->getNumberOfDepths(), std::move(_hierarchy->getNumberOfGroupsPerDepth()));
-            }
 
-            auto roots = _hierarchy->roots();
-            size_t i = 0;
-            for(auto r: roots) {
-                activate(r, i++);
-                if (i == context.shared_memory.num_threads) {
+              size_t i = 0;
+              for (const auto& root : _hierarchy->roots()) {
+                activate(root, i++);
+                if (i >= context.shared_memory.num_threads) {
                   i = 0;
                 }
+              }
+
+            } else if (_group_pool_type == GroupPoolType::thread_local_pools) {
+              // distribute roots across individual pools per task
+              // todo: figure out how to avoid extra copy of roots here
+              parallel::scalable_vector<ContractionGroupID> roots = _hierarchy->roots();
+              size_t num_tasks = _pools_by_task.size();
+              size_t num_roots = roots.size();
+              size_t roots_per_task = num_roots / num_tasks;
+              size_t remainder = num_roots % num_tasks;
+
+              utils::Randomize::instance().shuffleVector(
+                  roots, 0UL, roots.size(), sched_getcpu());
+
+              size_t remaining_counter = 0;
+              for (size_t i = 0; i < num_tasks; ++i) {
+                auto begin = roots.begin() + i * roots_per_task;
+                auto end = roots.begin() + (i+1) * roots_per_task;
+                auto range = IteratorRange(begin, end);
+                _pools_by_task[i] = std::make_unique<NoDownsizeIntegralTypeVector<ContractionGroupID>>(range, roots_per_task * 2);
+                if (remaining_counter < remainder) {
+                  size_t remaining_idx = roots_per_task * num_tasks + remaining_counter;
+                  ASSERT(remaining_idx < roots.size());
+                  _pools_by_task[i]->push_back(roots[remaining_idx]);
+                  ++remaining_counter;
+                }
+              }
+            } else {
+              ERROR("Group Pool Type undefined!");
             }
         }
 
@@ -420,16 +445,11 @@ namespace mt_kahypar::ds
         // ! that it will not be reinserted into the pool again.
         void markAccepted(const ContractionGroupID id) {
           ASSERT(_hierarchy);
-          if (!_use_multiqueue) {
-            ASSERT(_dpq_active_ids);
-            _dpq_active_ids->increment_finished(_hierarchy->depth(id));
-          }
+//          if (!_use_multiqueue) {
+//            ASSERT(_dpq_active_ids);
+//            _dpq_active_ids->increment_finished(_hierarchy->depth(id));
+//          }
           _num_accepted_uncontractions.fetch_add(group(id).size(), std::memory_order_relaxed);
-        }
-
-        bool allAccepted() const {
-          return _num_accepted_uncontractions.load(std::memory_order_relaxed) == getTotalNumUncontractions();
-//          return _active_ids.allDepthsCompleted();
         }
 
         size_t getNumAccepted() const {
@@ -471,14 +491,44 @@ namespace mt_kahypar::ds
 
           utils::MemoryTreeNode* hierarchy_node = parent->addChild("Uncontraction Hierarchy");
           _hierarchy->memoryConsumption(hierarchy_node);
-          if (!_use_multiqueue) {
-            ASSERT(_dpq_active_ids);
-            utils::MemoryTreeNode* depth_pq_node = parent->addChild("Depth Priority Queue");
-            _dpq_active_ids->memoryConsumption(depth_pq_node);
+//          if (!_use_multiqueue) {
+//            ASSERT(_dpq_active_ids);
+//            utils::MemoryTreeNode* depth_pq_node = parent->addChild("Depth Priority Queue");
+//            _dpq_active_ids->memoryConsumption(depth_pq_node);
+//          }
+          if (_group_pool_type == GroupPoolType::thread_local_pools) {
+            size_t total_size_of_pools = 0;
+            for (size_t i = 0; i < _pools_by_task.size(); ++i) {
+              total_size_of_pools += _pools_by_task[i]->size_in_bytes();
+            }
+            utils::MemoryTreeNode* pools_per_task_node = parent->addChild("Active Groups Pools");
+            pools_per_task_node->updateSize(total_size_of_pools);
           }
         }
 
+        bool taskFinished(const size_t task_id) const {
+          if (_group_pool_type == GroupPoolType::multiqueue) {
+            return allAccepted();
+          } else if (_group_pool_type == GroupPoolType::thread_local_pools) {
+            return poolEmptyForTask(task_id);
+          } else {
+            ERROR("Group Pool Type is undefined!");
+          }
+        }
+
+        bool allAccepted() const {
+          size_t totalNumUncontractions = getTotalNumUncontractions();
+          size_t numAcceptedUncontractions = _num_accepted_uncontractions.load(std::memory_order_relaxed);
+          return numAcceptedUncontractions == totalNumUncontractions;
+        }
+
     private:
+
+        bool poolEmptyForTask(const size_t task_id) const {
+          ASSERT(_group_pool_type == GroupPoolType::thread_local_pools);
+          ASSERT(task_id < _pools_by_task.size());
+          return _pools_by_task[task_id]->empty();
+        }
 
         BlockedGroupIDIterator all() const {
           ASSERT(_hierarchy);
@@ -498,14 +548,8 @@ namespace mt_kahypar::ds
 
 
         bool tryPopActive(ContractionGroupID& destination, const size_t task_id) {
-//                _queue_lock.lock();
-//                destination = _active_ids.top();
-//                _active_ids.pop();
-//                _queue_lock.unlock();
-//                ASSERT(destination != invalidGroupID);
-//                return true;
 
-          if (_use_multiqueue) {
+          if (_group_pool_type == GroupPoolType::multiqueue) {
             ASSERT(_mq_active_ids);
             auto handle = _mq_active_ids->get_handle(task_id);
             typename Multiqueue::value_type ret;
@@ -514,23 +558,27 @@ namespace mt_kahypar::ds
               destination = ret.second;
             }
             return success;
+          } else if (_group_pool_type == GroupPoolType::thread_local_pools) {
+            ASSERT(task_id < _pools_by_task.size());
+            if (_pools_by_task[task_id]->empty()) return false;
+            destination = _pools_by_task[task_id]->pop_front();
+            return true;
           } else {
-            ASSERT(_dpq_active_ids);
-            unused(task_id);
-            return _dpq_active_ids->try_pop(destination);
+            ERROR("Group Pool Type undefined!");
           }
         }
 
         void insertActive(ContractionGroupID id, const size_t task_id) {
             ASSERT(_hierarchy);
-          if (_use_multiqueue) {
+          if (_group_pool_type == GroupPoolType::multiqueue) {
             ASSERT(_mq_active_ids);
             auto handle = _mq_active_ids->get_handle(task_id);
             _mq_active_ids->push(handle, {_hierarchy->depth(id), id});
+          } else if (_group_pool_type == GroupPoolType::thread_local_pools) {
+            ASSERT(task_id < _pools_by_task.size());
+            _pools_by_task[task_id]->push_back(id);
           } else {
-            ASSERT(_dpq_active_ids);
-            unused(task_id);
-            _dpq_active_ids->push(id, _hierarchy->depth(id));
+            ERROR("Group Pool Type undefined!");
           }
         }
 
@@ -573,11 +621,10 @@ namespace mt_kahypar::ds
 
         std::unique_ptr<GroupHierarchy> _hierarchy;
 
-        // todo: Idea: PQs by depth are somewhat irrelevant because threads explicitly work on different regions now
-        // => shuffle roots, divide roots into p parts, give each task its own part of the roots; each task grows its own pool, later work stealing
-        // (possibly: cluster roots into clusters of max size n/p, distribute roots by clusters)
         std::unique_ptr<Multiqueue> _mq_active_ids;
-        std::unique_ptr<DepthPriorityQueue> _dpq_active_ids;
+
+        // todo: work stealing for thread local pools
+        std::vector<std::unique_ptr<NoDownsizeIntegralTypeVector<ContractionGroupID>>> _pools_by_task;
 
         RegionComparator* _node_region_comparator;
         const size_t _region_similarity_retries;
@@ -591,7 +638,7 @@ namespace mt_kahypar::ds
         CAtomic<size_t> _num_accepted_uncontractions;
 
         const bool _calculate_full_similarities;
-        const bool _use_multiqueue;
+        const GroupPoolType _group_pool_type;
 
         const double _similarity_to_others_threshold;
         const double _similarity_to_calling_task_threshold = 0.05;

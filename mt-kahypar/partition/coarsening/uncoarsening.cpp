@@ -519,7 +519,7 @@ namespace mt_kahypar {
                                                const bool alwaysInsertIntoPQ, size_t &local_calls_to_localized_refine,
                                                size_t &local_iterations_in_localized_refine) {
 
-      if (pool->allAccepted()) return;
+      if (pool->taskFinished(task_id)) return;
 
       ds::ContractionGroupID groupID = ds::invalidGroupID;
       bool pick_new_group = true;
@@ -534,11 +534,9 @@ namespace mt_kahypar {
 
       while (true) {
 
-        if (pool->allAccepted()) return;
-
         // Attempt to pick a group from the pool. Stop if pool is completed.
         while (pick_new_group && !pool->tryToPickActiveID(groupID, task_id)) {
-          if (pool->allAccepted()) return;
+          if (pool->taskFinished(task_id)) return;
         }
 
           ASSERT(groupID != ds::invalidGroupID);
@@ -841,7 +839,7 @@ namespace mt_kahypar {
 
 //          HEAVY_REFINEMENT_ASSERT(node_anti_duplicator->checkAllFalse());
 //          HEAVY_REFINEMENT_ASSERT(edge_anti_duplicator->checkAllFalse());
-          HEAVY_REFINEMENT_ASSERT(pool->allAccepted());
+          HEAVY_REFINEMENT_ASSERT(pool->allAccepted(), V(pool->getNumAccepted()) << V(pool->getTotalNumUncontractions()));
           HEAVY_REFINEMENT_ASSERT(node_region_comparator.checkNoneActiveParallel());
           HEAVY_REFINEMENT_ASSERT(fm_shared_data->nodeTracker.checkNoneLocked());
           HEAVY_REFINEMENT_ASSERT(_hg.verifyIncidenceArrayAndIncidentNets());

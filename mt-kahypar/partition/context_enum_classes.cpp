@@ -160,12 +160,11 @@ namespace mt_kahypar {
     return os << static_cast<uint8_t>(algo);
   }
 
-  std::ostream & operator<< (std::ostream& os, const MultiqueueUsage& type) {
+  std::ostream & operator<< (std::ostream& os, const GroupPoolType& type) {
       switch (type) {
-        case MultiqueueUsage::no_multiqueue : return os << "no_multiqueue";
-        case MultiqueueUsage::hybrid : return os << "hybrid";
-        case MultiqueueUsage::only_multiqueue : return os << "only_multiqueue";
-        case MultiqueueUsage::UNDEFINED : return os << "undefined";
+        case GroupPoolType::thread_local_pools : return os << "thread_local_pools";
+        case GroupPoolType::multiqueue : return os << "multiqueue";
+        case GroupPoolType::UNDEFINED : return os << "undefined";
           // omit default case to trigger compiler warning for missing cases
       }
       return os << static_cast<uint8_t>(type);
@@ -307,16 +306,14 @@ namespace mt_kahypar {
     return FMAlgorithm::do_nothing;
   }
 
-  MultiqueueUsage multiqueueUsageFromString(const std::string& type) {
-    if (type == "no_multiqueue") {
-      return MultiqueueUsage::no_multiqueue;
-    } else if (type == "hybrid") {
-      return MultiqueueUsage::hybrid;
-    } else if (type == "only_multiqueue") {
-      return MultiqueueUsage::only_multiqueue;
+  GroupPoolType groupPoolTypeFromString(const std::string& type) {
+    if (type == "thread_local_pools") {
+      return GroupPoolType::thread_local_pools;
+    } else if (type == "multiqueue") {
+      return GroupPoolType::multiqueue;
     }
     ERROR("Illegal option: " + type);
-    return MultiqueueUsage::UNDEFINED;
+    return GroupPoolType::UNDEFINED;
   }
 
 }
