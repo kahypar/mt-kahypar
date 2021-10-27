@@ -19,13 +19,15 @@
  ******************************************************************************/
 
 #include "mt-kahypar/partition/refinement/i_refiner.h"
+#include <mt-kahypar/partition/refinement/judicious_gain_cache.h>
 namespace mt_kahypar {
 class JudiciousRefiner final : public IRefiner {
 public:
   explicit JudiciousRefiner(Hypergraph& hypergraph,
                             const Context& context) :
     _hypergraph(hypergraph),
-    _context(context) {}
+    _context(context),
+    _gain_cache(context, hypergraph.initialNumNodes()) {}
 
   JudiciousRefiner(const JudiciousRefiner&) = delete;
   JudiciousRefiner(JudiciousRefiner&&) = delete;
@@ -41,8 +43,17 @@ public:
                   double) final ;
 
   void initializeImpl(PartitionedHypergraph& phg) final;
+  void calculateBorderNodes(PartitionedHypergraph& phg);
+  std::pair<bool, Gain> doRefinement(PartitionedHypergraph& phg, PartitionID part_id);
+  void revertToBestLocalPrefix(PartitionedHypergraph& phg, size_t bestGainIndex);
+  void updateNeighbors(PartitionedHypergraph& phg, const Move& move);
 private:
+  bool _is_initialized = false;
   Hypergraph& _hypergraph;
   const Context& _context;
+  vec<vec<HypernodeID>> _border_nodes;
+  JudiciousGainCache _gain_cache;
+  vec<HyperedgeID> _edgesWithGainChanges;
+  vec<Move> _moves;
 };
 }
