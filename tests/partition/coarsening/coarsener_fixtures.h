@@ -132,23 +132,6 @@ void removesHyperedgesOfSizeOneDuringCoarsening(Coarsener& coarsener,
   }
 }
 
-template <class Coarsener, class Hypergraph, class TypeTraits>
-void reAddsHyperedgesOfSizeOneDuringUncoarsening(Coarsener& coarsener,
-                                                 std::unique_ptr<IRefiner>& refiner,
-                                                 Hypergraph& hypergraph,
-                                                 const std::vector<HyperedgeID>& single_node_hes) {
-  doCoarsening(coarsener);
-  for (const HyperedgeID& he : single_node_hes) {
-    ASSERT_THAT(hypergraph.edgeIsEnabled(he), Eq(false)) << V(he);
-  }
-  PartitionedHyperGraph& partitioned_hypergraph = coarsener.coarsestPartitionedHypergraph();
-  assignPartitionIDs(partitioned_hypergraph);
-  coarsener.uncoarsen(refiner);
-  for (const HyperedgeID& he : single_node_hes) {
-    ASSERT_THAT(hypergraph.edgeIsEnabled(he), Eq(true)) << V(he);
-  }
-}
-
 template <class Coarsener, class Hypergraph>
 void removesParallelHyperedgesDuringCoarsening(Coarsener& coarsener,
                                                Hypergraph& hypergraph,
@@ -169,23 +152,6 @@ void updatesEdgeWeightOfRepresentativeHyperedgeOnParallelHyperedgeRemoval(Coarse
     HyperedgeWeight weight = he_weight.second;
     ASSERT_THAT(hypergraph.edgeIsEnabled(he), Eq(true)) << V(he);
     ASSERT_THAT(hypergraph.edgeWeight(he), Eq(weight));
-  }
-}
-
-template <class Coarsener, class Hypergraph, class TypeTraits>
-void restoresParallelHyperedgesDuringUncoarsening(Coarsener& coarsener,
-                                                  std::unique_ptr<IRefiner>& refiner,
-                                                  Hypergraph& hypergraph,
-                                                  const std::vector<HyperedgeID>& parallel_hes) {
-  doCoarsening(coarsener);
-  for (const HyperedgeID& he : parallel_hes) {
-    ASSERT_THAT(hypergraph.edgeIsEnabled(he), Eq(false)) << V(he);
-  }
-  PartitionedHyperGraph& partitioned_hypergraph = coarsener.coarsestPartitionedHypergraph();
-  assignPartitionIDs(partitioned_hypergraph);
-  coarsener.uncoarsen(refiner);
-  for (const HyperedgeID& he : parallel_hes) {
-    ASSERT_THAT(hypergraph.edgeIsEnabled(he), Eq(true)) << V(he);
   }
 }
 

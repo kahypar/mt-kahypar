@@ -30,6 +30,8 @@
 #include "mt-kahypar/parallel/memory_pool.h"
 #include "mt-kahypar/utils/initial_partitioning_stats.h"
 #include "mt-kahypar/io/partitioning_output.h"
+#include "mt-kahypar/partition/coarsening/multilevel_uncoarsener.h"
+#include "mt-kahypar/partition/coarsening/nlevel_uncoarsener.h"
 
 namespace mt_kahypar::multilevel {
 
@@ -38,24 +40,24 @@ namespace mt_kahypar::multilevel {
   public:
     RefinementTask(Hypergraph& hypergraph,
                    PartitionedHypergraph& partitioned_hypergraph,
-                   const Context& context) :
-            _coarsener(nullptr),
+                   const Context& context,
+                   std::shared_ptr<UncoarseningData> uncoarseningData) :
             _sparsifier(nullptr),
             _ip_context(context),
             _degree_zero_hn_remover(context),
+            _uncoarsener(nullptr),
             _hg(hypergraph),
             _partitioned_hg(partitioned_hypergraph),
-            _context(context) {
+            _context(context),
+            _uncoarseningData(uncoarseningData) {
       // Must be empty, because final partitioned hypergraph
       // is moved into this object
-      _coarsener = CoarsenerFactory::getInstance().createObject(
-              _context.coarsening.algorithm, _hg, _context);
       _sparsifier = HypergraphSparsifierFactory::getInstance().createObject(
               _context.sparsification.similiar_net_combiner_strategy, _context);
 
       // Switch refinement context from IP to main
       _ip_context.refinement = _context.initial_partitioning.refinement;
-    }
+      }
 
     tbb::task* execute() override {
       enableTimerAndStats();
@@ -69,17 +71,15 @@ namespace mt_kahypar::multilevel {
                                      _context, "Sparsified Initial Partitioning Results:");
         _degree_zero_hn_remover.restoreDegreeZeroHypernodes(
           _sparsifier->sparsifiedPartitionedHypergraph());
-        _sparsifier->undoSparsification(_coarsener->coarsestPartitionedHypergraph());
+        _sparsifier->undoSparsification(_uncoarseningData->coarsestPartitionedHypergraph());
       } else {
         _degree_zero_hn_remover.restoreDegreeZeroHypernodes(
-          _coarsener->coarsestPartitionedHypergraph());
+          _uncoarseningData->coarsestPartitionedHypergraph());
       }
 
       utils::Timer::instance().stop_timer("initial_partitioning");
 
-      PartitionedHypergraph& coarsest_partitioned_hypergraph =
-              _coarsener->coarsestPartitionedHypergraph();
-      io::printPartitioningResults(coarsest_partitioned_hypergraph,
+      io::printPartitioningResults(_uncoarseningData->coarsestPartitionedHypergraph(),
                                    _context, "Initial Partitioning Results:");
       if ( _context.partition.verbose_output ) {
         utils::InitialPartitioningStats::instance().printInitialPartitioningStats();
@@ -98,7 +98,12 @@ namespace mt_kahypar::multilevel {
                       _context.refinement.fm.algorithm,
                       _hg, _context);
 
-      _partitioned_hg = _coarsener->uncoarsen(label_propagation, fm);
+      if (_uncoarseningData->nlevel) {
+        _uncoarsener = std::make_unique<NLevelUncoarsener>(_hg, _context, *_uncoarseningData);
+      } else {
+        _uncoarsener = std::make_unique<MultilevelUncoarsener>(_hg, _context, *_uncoarseningData);
+      }
+      _partitioned_hg = _uncoarsener->uncoarsen(label_propagation, fm);
       utils::Timer::instance().stop_timer("refinement");
 
       io::printPartitioningResults(_partitioned_hg, _context, "Local Search Results:");
@@ -107,7 +112,6 @@ namespace mt_kahypar::multilevel {
     }
 
   public:
-    std::unique_ptr<ICoarsener> _coarsener;
     std::unique_ptr<IHypergraphSparsifier> _sparsifier;
     Context _ip_context;
     DegreeZeroHypernodeRemover _degree_zero_hn_remover;
@@ -121,9 +125,11 @@ namespace mt_kahypar::multilevel {
       }
     }
 
+    std::unique_ptr<IUncoarsener> _uncoarsener;
     Hypergraph& _hg;
     PartitionedHypergraph& _partitioned_hg;
     const Context& _context;
+    std::shared_ptr<UncoarseningData> _uncoarseningData;
   };
 
   class CoarseningTask : public tbb::task {
@@ -134,27 +140,31 @@ namespace mt_kahypar::multilevel {
                    const Context& context,
                    const Context& ip_context,
                    DegreeZeroHypernodeRemover& degree_zero_hn_remover,
-                   ICoarsener& coarsener,
-                   const bool vcycle) :
+                   const bool vcycle,
+                   UncoarseningData& uncoarseningData) :
             _hg(hypergraph),
             _sparsifier(sparsifier),
             _context(context),
             _ip_context(ip_context),
             _degree_zero_hn_remover(degree_zero_hn_remover),
-            _coarsener(coarsener),
-            _vcycle(vcycle) { }
+            _vcycle(vcycle),
+            _uncoarseningData(uncoarseningData) { }
 
     tbb::task* execute() override {
       // ################## COARSENING ##################
       mt_kahypar::io::printCoarseningBanner(_context);
 
       utils::Timer::instance().start_timer("coarsening", "Coarsening");
-      _coarsener.coarsen();
+      _coarsener = CoarsenerFactory::getInstance().createObject(
+              _context.coarsening.algorithm, _hg, _context, _uncoarseningData);
+      _coarsener->coarsen();
       utils::Timer::instance().stop_timer("coarsening");
 
+      Hypergraph& coarsestHypergraph = _coarsener->coarsestHypergraph();
+      _coarsener.reset();
       if (_context.partition.verbose_output) {
         mt_kahypar::io::printHypergraphInfo(
-                _coarsener.coarsestHypergraph(), "Coarsened Hypergraph",
+                coarsestHypergraph, "Coarsened Hypergraph",
                 _context.partition.show_memory_consumption);
       }
 
@@ -163,7 +173,7 @@ namespace mt_kahypar::multilevel {
       if ( _context.useSparsification() ) {
         // Sparsify Hypergraph, if heavy hyperedge removal is enabled
         utils::Timer::instance().start_timer("sparsify_hypergraph", "Sparsify Hypergraph");
-        _sparsifier.sparsify(_coarsener.coarsestHypergraph());
+        _sparsifier.sparsify(coarsestHypergraph);
         utils::Timer::instance().stop_timer("sparsify_hypergraph");
       }
 
@@ -175,7 +185,7 @@ namespace mt_kahypar::multilevel {
         }
         initialPartition(_sparsifier.sparsifiedPartitionedHypergraph());
       } else {
-        initialPartition(_coarsener.coarsestPartitionedHypergraph());
+        initialPartition(_uncoarseningData.coarsestPartitionedHypergraph());
       }
 
       return nullptr;
@@ -227,8 +237,9 @@ namespace mt_kahypar::multilevel {
     const Context& _context;
     const Context& _ip_context;
     DegreeZeroHypernodeRemover& _degree_zero_hn_remover;
-    ICoarsener& _coarsener;
+    std::unique_ptr<ICoarsener> _coarsener;
     const bool _vcycle;
+    UncoarseningData& _uncoarseningData;
   };
 
 // ! Helper function that spawns the multilevel partitioner in
@@ -240,13 +251,16 @@ namespace mt_kahypar::multilevel {
                                            tbb::task& parent) {
     // The coarsening task is first executed and once it finishes the
     // refinement task continues (without blocking)
+    bool nlevel = context.coarsening.algorithm == CoarseningAlgorithm::nlevel_coarsener;
+    std::shared_ptr<UncoarseningData> uncoarseningData =
+      std::make_shared<UncoarseningData>(nlevel, hypergraph, context);
+
     RefinementTask& refinement_task = *new(parent.allocate_continuation())
-            RefinementTask(hypergraph, partitioned_hypergraph, context);
+            RefinementTask(hypergraph, partitioned_hypergraph, context, uncoarseningData);
     refinement_task.set_ref_count(1);
     CoarseningTask& coarsening_task = *new(refinement_task.allocate_child()) CoarseningTask(
-            hypergraph, *refinement_task._sparsifier,
-            context, refinement_task._ip_context, refinement_task._degree_zero_hn_remover,
-            *refinement_task._coarsener, vcycle);
+            hypergraph, *refinement_task._sparsifier, context, refinement_task._ip_context,
+            refinement_task._degree_zero_hn_remover, vcycle, *uncoarseningData);
     tbb::task::spawn(coarsening_task);
   }
 
