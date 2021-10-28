@@ -1,7 +1,9 @@
 /*******************************************************************************
  * This file is part of KaHyPar.
  *
- * Copyright (C) 2014 Sebastian Schlag <sebastian.schlag@kit.edu>
+ * Copyright (C) 2021 Noah Wahl <noah.wahl@student.kit.edu>
+ * Copyright (C) 2021 Tobias Heuer <tobias.heuer@kit.edu>
+ * Copyright (C) 2021 Lars Gottesbüren <lars.gottesbueren@kit.edu>
  *
  * KaHyPar is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -20,44 +22,32 @@
 
 #pragma once
 
-#include <string>
-
 #include "mt-kahypar/macros.h"
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/refinement/i_refiner.h"
-#include "mt-kahypar/partition/coarsening/coarsening_commons.h"
 
 namespace mt_kahypar {
 
-class ICoarsener {
+  class IUncoarsener {
 
- public:
-  ICoarsener(const ICoarsener&) = delete;
-  ICoarsener(ICoarsener&&) = delete;
-  ICoarsener & operator= (const ICoarsener &) = delete;
-  ICoarsener & operator= (ICoarsener &&) = delete;
+  public:
+    IUncoarsener(const IUncoarsener&) = delete;
+    IUncoarsener(IUncoarsener&&) = delete;
+    IUncoarsener & operator= (const IUncoarsener &) = delete;
+    IUncoarsener & operator= (IUncoarsener &&) = delete;
 
-  void coarsen() {
-    coarsenImpl();
-  }
+    PartitionedHypergraph&& uncoarsen(std::unique_ptr<IRefiner>& label_propagation,
+                                      std::unique_ptr<IRefiner>& fm) {
+      return uncoarsenImpl(label_propagation, fm);
+    }
 
-  Hypergraph& coarsestHypergraph() {
-    return coarsestHypergraphImpl();
-  }
+    virtual ~IUncoarsener() = default;
 
-  PartitionedHypergraph& coarsestPartitionedHypergraph() {
-    return coarsestPartitionedHypergraphImpl();
-  }
+  protected:
+    IUncoarsener() = default;
 
-  virtual ~ICoarsener() = default;
-
- protected:
-  ICoarsener() = default;
-
- private:
-  virtual void coarsenImpl() = 0;
-  virtual Hypergraph& coarsestHypergraphImpl() = 0;
-  virtual PartitionedHypergraph& coarsestPartitionedHypergraphImpl() = 0;
-};
-
-}  // namespace kahypar
+  private:
+    virtual PartitionedHypergraph&& uncoarsenImpl(std::unique_ptr<IRefiner>& label_propagation,
+                                                  std::unique_ptr<IRefiner>& fm) = 0;
+  };
+}

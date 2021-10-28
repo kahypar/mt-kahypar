@@ -72,8 +72,9 @@ class MultilevelCoarsener : public ICoarsener,
 
  public:
   MultilevelCoarsener(Hypergraph& hypergraph,
-                      const Context& context) :
-    Base(hypergraph, context),
+                      const Context& context,
+                      UncoarseningData& uncoarseningData) :
+    Base(hypergraph, context, uncoarseningData),
     _rater(hypergraph, context),
     _current_vertices(),
     _matching_state(),
@@ -278,7 +279,7 @@ class MultilevelCoarsener : public ICoarsener,
 
       utils::Timer::instance().start_timer("contraction", "Contraction");
       // Perform parallel contraction
-      Base::performMultilevelContraction(std::move(cluster_ids), round_start);
+      _uncoarseningData.performMultilevelContraction(std::move(cluster_ids), round_start);
       utils::Timer::instance().stop_timer("contraction");
 
       if ( _context.coarsening.use_adaptive_max_allowed_node_weight ) {
@@ -307,7 +308,7 @@ class MultilevelCoarsener : public ICoarsener,
     }
     _progress_bar += (initial_num_nodes - _progress_bar.count());
     _progress_bar.disable();
-    Base::finalize();
+    _uncoarseningData.finalizeCoarsening();
   }
 
   /*!
@@ -431,11 +432,6 @@ class MultilevelCoarsener : public ICoarsener,
       }
     }
     return success;
-  }
-
-  PartitionedHypergraph&& uncoarsenImpl(std::unique_ptr<IRefiner>& label_propagation,
-                                        std::unique_ptr<IRefiner>& fm) override {
-    return Base::doUncoarsen(label_propagation, fm);
   }
 
   Hypergraph& coarsestHypergraphImpl() override {

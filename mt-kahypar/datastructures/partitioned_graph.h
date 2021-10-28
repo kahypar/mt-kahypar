@@ -273,6 +273,18 @@ private:
     freeInternalData();
   }
 
+  void resetData() {
+    _is_gain_cache_initialized = false;
+    tbb::parallel_invoke([&] {
+    }, [&] {
+      _part_ids.assign(_part_ids.size(), CAtomic<PartitionID>(kInvalidPartition));
+    }, [&] {
+      _incident_weight_in_part.assign(_incident_weight_in_part.size(),  CAtomic<HyperedgeWeight>(0));
+    }, [&] {
+      for (auto& x : _part_weights) x.store(0, std::memory_order_relaxed);
+    });
+  }
+
   // ####################### General Hypergraph Stats ######################
 
   Hypergraph& hypergraph() {
@@ -463,6 +475,11 @@ private:
     return _part_ids[u].load(std::memory_order_relaxed);
   }
 
+  void extractPartIDs(Array<CAtomic<PartitionID>>& part_ids) {
+    std::swap(_part_ids, part_ids);
+  }
+
+
   void setOnlyNodePart(const HypernodeID u, PartitionID p) {
     ASSERT(p != kInvalidPartition && p < _k);
     ASSERT(_part_ids[u].load() == kInvalidPartition);
@@ -636,8 +653,7 @@ private:
   // ! Initialize gain cache
   void initializeGainCache() {
     // assert that part has been initialized
-    ASSERT( _part_ids.size() == initialNumNodes()
-            && std::none_of(nodes().begin(), nodes().end(),
+    ASSERT(std::none_of(nodes().begin(), nodes().end(),
                             [&](HypernodeID u) { return partID(u) == kInvalidPartition || partID(u) > k(); }) );
     // assert that current gain values are zero
     ASSERT(!_is_gain_cache_initialized
