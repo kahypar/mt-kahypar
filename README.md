@@ -109,7 +109,7 @@ Performance
 -----------
 
 We have summarized our experimental results on an [external webpage][ExperimentalResults]. The resource provides a detailed
-overview of the performance of Mt-KaHyPar compared to other prominent state-of-the-art-systems with respect to running time
+overview of Mt-KaHyPar's performance compared to other prominent state-of-the-art systems in terms of running time
 and quality.
 
 
