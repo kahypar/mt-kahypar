@@ -62,6 +62,17 @@ namespace mt_kahypar {
             ("partition-output-folder",
              po::value<std::string>(&context.partition.graph_partition_output_folder)->value_name("<string>"),
              "Output folder for partition file")
+            ("input-file-format",
+             po::value<std::string>()->value_name("<string>")->notifier([&](const std::string& s) {
+               if (s == "hmetis") {
+                 context.partition.file_format = FileFormat::hMetis;
+               } else if (s == "metis") {
+                 context.partition.file_format = FileFormat::Metis;
+               }
+             }),
+             "Input file format: \n"
+             " - hmetis : hMETIS hypergraph file format \n"
+             " - metis : METIS graph file format")
             ("seed",
              po::value<int>(&context.partition.seed)->value_name("<int>")->default_value(0),
              "Seed for random number generator")

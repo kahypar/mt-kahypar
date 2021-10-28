@@ -96,6 +96,7 @@ void mt_kahypar_read_hypergraph_from_file(const char* file_name,
   vec<vec<mt_kahypar::HypernodeID>> edge_vector;
   vec<mt_kahypar::HypernodeWeight> hypernodes_weight;
   vec<mt_kahypar::HyperedgeWeight> net_weight;
+  // TODO(maas): support for other file formats
   mt_kahypar::io::readHypergraphFile(file_name, num_edges, num_nodes,
     num_removed_hyperedges, edge_vector, net_weight, hypernodes_weight);
   ASSERT(num_edges == edge_vector.size());

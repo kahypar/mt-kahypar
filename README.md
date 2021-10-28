@@ -83,8 +83,8 @@ Mt-KaHyPar has several configuration parameters. We recommend to use our presets
 - `speed_deterministic_preset.ini`: parameters to make Mt-KaHyPar Fast (`MtKaHyParFast`) deterministic
 - `quality_preset.ini`: default parameters for Mt-KaHyPar Strong (`MtKaHyParStrong`)
 
-Deterministic mode is only supported for Mt-KaHyPar Fast/Graph, not Strong.
-If you want to change parameters manually, please run `--help` for a detailed description of the different program options. We use the [hMetis format](http://glaros.dtc.umn.edu/gkhome/fetch/sw/hmetis/manual.pdf) for the input hypergraph file as well as the partition output file.
+Deterministic mode is only supported for Mt-KaHyPar Fast, not Graph or Strong.
+If you want to change parameters manually, please run `--help` for a detailed description of the different program options. We use the [hMetis format](http://glaros.dtc.umn.edu/gkhome/fetch/sw/hmetis/manual.pdf) for hypergraph files as well as the partition output file and the [Metis format](http://glaros.dtc.umn.edu/gkhome/fetch/sw/metis/manual.pdf) for graph files. Per default, we expect the input to be in hMetis format, but you can read graphs in Metis format via command line parameter `--input-file-format=metis`.
 
 To run Mt-KaHyPar Fast, you can use the following command:
 
@@ -93,8 +93,6 @@ To run Mt-KaHyPar Fast, you can use the following command:
 To run Mt-KaHyPar Graph, you can use the following command:
 
     ./MtKaHyParGraph -h <path-to-hgr> -p <path to default_preset.ini> -t <# threads> -k <# blocks> -e <imbalance (e.g. 0.03)> -o km1 -m direct
-
-Note that the input for Mt-KaHyPar Graph must be also in [hMetis format](http://glaros.dtc.umn.edu/gkhome/fetch/sw/hmetis/manual.pdf). We are currently working on to support graph file formats.
 
 To run Mt-KaHyPar Strong, you can use the following command:
 

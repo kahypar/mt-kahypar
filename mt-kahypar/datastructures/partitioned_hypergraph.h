@@ -136,6 +136,20 @@ private:
     freeInternalData();
   }
 
+  void resetData() {
+    _is_gain_cache_initialized = false;
+    tbb::parallel_invoke([&] {
+    }, [&] {
+      _part_ids.assign(_part_ids.size(), kInvalidPartition);
+    }, [&] {
+      _pins_in_part.data().assign(_pins_in_part.data().size(), 0);
+    }, [&] {
+      _connectivity_set.reset();
+    }, [&] {
+      for (auto& x : _part_weights) x.store(0, std::memory_order_relaxed);
+    });
+  }
+
   // ####################### General Hypergraph Stats ######################
 
   Hypergraph& hypergraph() {
@@ -508,6 +522,10 @@ private:
     return _part_ids[u];
   }
 
+  void extractPartIDs(Array<PartitionID>& part_ids) {
+    std::swap(_part_ids, part_ids);
+  }
+
   void setOnlyNodePart(const HypernodeID u, PartitionID p) {
     ASSERT(p != kInvalidPartition && p < _k);
     ASSERT(_part_ids[u] == kInvalidPartition);
@@ -536,9 +554,9 @@ private:
     assert(from != to);
     const HypernodeWeight wu = nodeWeight(u);
     const HypernodeWeight to_weight_after = _part_weights[to].add_fetch(wu, std::memory_order_relaxed);
-    const HypernodeWeight from_weight_after = _part_weights[from].sub_fetch(wu, std::memory_order_relaxed);
-    if ( to_weight_after <= max_weight_to && from_weight_after > 0 ) {
+    if (to_weight_after <= max_weight_to) {
       _part_ids[u] = to;
+      _part_weights[from].fetch_sub(wu, std::memory_order_relaxed);
       report_success();
       for ( const HyperedgeID he : incidentEdges(u) ) {
         updatePinCountOfHyperedge(he, from, to, delta_func);
@@ -546,7 +564,6 @@ private:
       return true;
     } else {
       _part_weights[to].fetch_sub(wu, std::memory_order_relaxed);
-      _part_weights[from].fetch_add(wu, std::memory_order_relaxed);
       return false;
     }
   }
@@ -695,8 +712,7 @@ private:
   // ! current state of the partition
   void initializeGainCache() {
     // check whether part has been initialized
-    ASSERT( _part_ids.size() == initialNumNodes()
-            && std::none_of(nodes().begin(), nodes().end(),
+    ASSERT(std::none_of(nodes().begin(), nodes().end(),
                             [&](HypernodeID u) { return partID(u) == kInvalidPartition || partID(u) > k(); }) );
 
 

@@ -35,8 +35,9 @@ class DeterministicMultilevelCoarsener :  public ICoarsener,
 {
 public:
   DeterministicMultilevelCoarsener(Hypergraph& hypergraph,
-                                   const Context& context) :
-    Base(hypergraph, context),
+                                   const Context& context,
+                                   UncoarseningData& uncoarseningData) :
+    Base(hypergraph, context, uncoarseningData),
     propositions(hypergraph.initialNumNodes()),
     cluster_weight(hypergraph.initialNumNodes(), 0),
     opportunistic_cluster_weight(hypergraph.initialNumNodes(), 0),
@@ -71,11 +72,6 @@ private:
   void calculatePreferredTargetCluster(HypernodeID u, const vec<HypernodeID>& clusters);
 
   size_t approveVerticesInTooHeavyClusters(vec<HypernodeID>& clusters);
-
-  PartitionedHypergraph&& uncoarsenImpl(std::unique_ptr<IRefiner>& label_propagation,
-                                        std::unique_ptr<IRefiner>& fm) override {
-    return Base::doUncoarsen(label_propagation, fm);
-  }
 
   Hypergraph& coarsestHypergraphImpl() override {
     return Base::currentHypergraph();

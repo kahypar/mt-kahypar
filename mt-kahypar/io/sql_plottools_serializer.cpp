@@ -44,6 +44,7 @@ std::string serialize(const PartitionedHypergraph& hypergraph,
         << " paradigm=" << context.partition.paradigm
         << " mode=" << context.partition.mode
         << " objective=" << context.partition.objective
+        << " file_format=" << context.partition.file_format
         << " k=" << context.partition.k
         << " epsilon=" << context.partition.epsilon
         << " seed=" << context.partition.seed
