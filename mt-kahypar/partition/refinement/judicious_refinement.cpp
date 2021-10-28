@@ -21,6 +21,8 @@
 #include "mt-kahypar/partition/refinement/judicious_refinement.h"
 #include "mt-kahypar/datastructures/hypergraph_common.h"
 #include <mt-kahypar/datastructures/priority_queue.h>
+#include "mt-kahypar/partition/metrics.h"
+
 namespace mt_kahypar {
   bool JudiciousRefiner::refineImpl(
               PartitionedHypergraph& phg,
@@ -29,20 +31,28 @@ namespace mt_kahypar {
               double) {
 
     unused(refinement_nodes);
-    unused(metrics);
     if (!_is_initialized) throw std::runtime_error("Call initialize on judicious refinement before calling refine");
+    Gain overall_improvement = 0;
     calculateBorderNodes(phg);
     ds::ExclusiveHandleHeap<ds::MaxHeap<HypernodeWeight, PartitionID>> part_weights(static_cast<size_t>(_context.partition.k));
     for (PartitionID i = 0; i < _context.partition.k; ++i) {
       part_weights.insert(i, phg.partWeight(i));
     }
-    bool done = false;
-    while (!done) {
-      const PartitionID heaviest_part = part_weights.top();
-      auto result = doRefinement(phg, heaviest_part);
-      done = !result.first || 0;
+    for (size_t i = 0; i < 10; i++) {
+      bool done = false;
+      Gain improvement = 0;
+      while (!done) {
+        const PartitionID heaviest_part = part_weights.top();
+        auto result = doRefinement(phg, heaviest_part);
+        part_weights.adjustKey(heaviest_part, phg.partWeight(heaviest_part));
+        done = !result.first || 0;
+        improvement += result.second;
+      }
+      overall_improvement += improvement;
     }
-    return true;
+    metrics.km1 -= overall_improvement;
+    metrics.imbalance = metrics::imbalance(phg, _context);
+    return overall_improvement > 0;
   }
 
   void JudiciousRefiner::initializeImpl(PartitionedHypergraph& phg) {
