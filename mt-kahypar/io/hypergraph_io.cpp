@@ -421,7 +421,7 @@ namespace mt_kahypar::io {
       HyperedgeID current_range_num_edges = 0;
       const HypernodeID num_vertices_per_range = std::max(
               (num_vertices / ( 2 * std::thread::hardware_concurrency())), ID(1));
-      while ( current_range_vertex_id < num_vertices ) {
+      while ( current_range_vertex_id + current_range_num_vertices < num_vertices ) {
         // Skip Comments
         ASSERT(pos < length);
         while ( mapped_file[pos] == '%' ) {
@@ -507,12 +507,12 @@ namespace mt_kahypar::io {
           vertices_weight[current_vertex_id] = read_number(mapped_file, current_pos, current_end);
         }
 
-        while ( mapped_file[current_pos] != '\n' && current_edge_id < 2 * num_edges ) {
+        while ( mapped_file[current_pos] != '\n' ) {
           const HypernodeID target = read_number(mapped_file, current_pos, current_end);
           ASSERT(target > 0 && (target - 1) < num_vertices, V(target));
 
           // process forward edges, ignore backward edges
-          if ( current_vertex_id < target ) {
+          if ( current_vertex_id < (target - 1) ) {
             ASSERT(current_edge_id < edges.size());
             // At this point, some magic is involved:
             // In case of the graph partitioner, the right handed expression is considered a pair.
@@ -523,6 +523,8 @@ namespace mt_kahypar::io {
               edges_weight[current_edge_id] = read_number(mapped_file, current_pos, current_end);
             }
             ++current_edge_id;
+          } else if ( has_edge_weights ) {
+            read_number(mapped_file, current_pos, current_end);
           }
         }
         line_ending(mapped_file, current_pos);
