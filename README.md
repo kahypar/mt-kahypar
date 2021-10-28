@@ -105,7 +105,7 @@ The partition output file will be placed in the same folder as the input hypergr
 
 Mt-KaHyPar uses 32-bit vertex and hyperedge IDs. If you want to partition hypergraphs with more than 4.294.967.295 vertices or hyperedges, add option `-DKAHYPAR_USE_64_BIT_IDS=ON` to the `cmake` build command.
 
-Quality and Running Time of Mt-KaHyPar
+Performance
 -----------
 
 We have summarized our experimental results on an [external webpage][ExperimentalResults]. The resource provides a detailed
