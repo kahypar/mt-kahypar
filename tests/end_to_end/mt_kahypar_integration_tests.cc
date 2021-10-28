@@ -188,8 +188,8 @@ void partitionHypergraph(Hypergraph& hypergraph, Context& context) {
 
   // Verify that partitioned hypergraph is
   // equivalent with input hypergraph
-  Hypergraph reference = io::readHypergraphFile(
-    context.partition.graph_filename, true);
+  Hypergraph reference = io::readInputFile(
+    context.partition.graph_filename, context.partition.file_format, true);
   verifyThatHypergraphsAreEquivalent(hypergraph, reference);
 
   HypernodeID num_hypernodes = 0;
@@ -311,5 +311,15 @@ TYPED_TEST(MtKaHyPar, PartitionsAGraphInstance) {
   partitionHypergraph(hypergraph, this->context);
 }
 #endif
+
+TYPED_TEST(MtKaHyPar, PartitionsAMetisInstance) {
+  // Read Hypergraph
+  this->context.partition.graph_filename = "../tests/instances/recomp_dna1GB_3.graph";
+  this->context.partition.file_format = FileFormat::Metis;
+  Hypergraph hypergraph = io::readMetisFile(
+    this->context.partition.graph_filename, true);
+
+  partitionHypergraph(hypergraph, this->context);
+}
 
 }  // namespace mt_kahypar
