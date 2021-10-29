@@ -65,7 +65,7 @@ namespace mt_kahypar {
     _compactified_phg = PartitionedHypergraph(_context.partition.k, _compactified_hg, parallel_tag_t());
     utils::Timer::instance().stop_timer("compactify_hypergraph");
 
-    if (_context.uncoarsening.use_asynchronous_uncoarsening  && _context.type == kahypar::ContextType::main) {
+    if (_context.uncoarsening.use_asynchronous_uncoarsening) {
         utils::Timer::instance().start_timer("create_uncontraction_pools", "Create Uncontraction Group Pools");
         _group_pools_for_versions = _hg.createUncontractionGroupPoolsForVersions(_context);
 //        HEAVY_COARSENING_ASSERT(_hg.verifyIncidenceArraySortedness(_group_pools_for_versions));
@@ -217,9 +217,8 @@ namespace mt_kahypar {
   PartitionedHypergraph&& NLevelCoarsenerBase::doUncoarsen(std::unique_ptr<IRefiner>& label_propagation,
                                                            std::unique_ptr<IRefiner>& fm) {
 
-      // Only use asynchronous uncoarsening in the main refinement phase, not initial partitioning
       // Switch to asynchronous uncoarsening if the option is set
-      if (_context.uncoarsening.use_asynchronous_uncoarsening && _context.type == kahypar::ContextType::main) {
+      if (_context.uncoarsening.use_asynchronous_uncoarsening) {
             // Global Label Propagation not needed in asynch case, clear the memory
 //            label_propagation.reset();
             return doAsynchronousUncoarsen(fm);
