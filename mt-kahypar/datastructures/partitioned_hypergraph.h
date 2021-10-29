@@ -532,8 +532,8 @@ private:
                       HypernodeWeight max_weight_to,
                       SuccessFunc&& report_success,
                       DeltaFunc&& delta_func) {
-    assert(partID(u) == from);
-    assert(from != to);
+    ASSERT(partID(u) == from);
+    ASSERT(from != to);
     const HypernodeWeight wu = nodeWeight(u);
     const HypernodeWeight to_weight_after = _part_weights[to].add_fetch(wu, std::memory_order_relaxed);
     if (to_weight_after <= max_weight_to) {
@@ -1096,7 +1096,7 @@ private:
           }
 
           for (PartitionID p = 0; p < _k; ++p) {
-            assert(pinCountInPart(he, p) == 0);
+            ASSERT(pinCountInPart(he, p) == 0);
             if (pin_counts[p] > 0) {
               _connectivity_set.add(he, p);
               _pins_in_part.setPinCountInPart(he, p, pin_counts[p]);
