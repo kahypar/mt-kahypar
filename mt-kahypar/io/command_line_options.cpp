@@ -524,12 +524,16 @@ namespace mt_kahypar {
             po::value<std::string>()->value_name("<string>")->notifier(
                 [&](const std::string& mode) {
                     context.uncoarsening.use_multiqueue = multiqueueUsageFromString(mode);
-                })->default_value("no_multiqueue"),
+                })->default_value("only_multiqueue"),
             "Mode of using multiqueue as priority queue:\n"
             "- no_multiqueue\n"
             "- hybrid (only for versions with max depth of > 1000)\n"
             "- only_multiqueue\n"
             "(Only has an effect in MtKaHyParStrongAsync)")
+            ("u-min-seeds-for-localized-refinement",
+            po::value<size_t>(&context.uncoarsening.min_seeds_for_localized_refinement)->value_name("<size_t>")->default_value(5),
+            "Minimum number of seeds a worker thread collects before running localized refinement in "
+            "asynchronous uncoarsening. (Only has an effect in MtKaHyParStrongAsync.)")
             ;
     return options;
   }

@@ -526,7 +526,7 @@ namespace mt_kahypar {
 
       const bool use_old_seeds = _context.uncoarsening.use_old_refinement_seeds && _context.type == kahypar::ContextType::main;
 
-      const size_t seed_nodes_step_length = _context.refinement.fm.num_seed_nodes;
+      const size_t seed_nodes_step_length = _context.uncoarsening.min_seeds_for_localized_refinement;
       const size_t min_seed_nodes = _context.partition.k * seed_nodes_step_length;
       auto local_refinement_nodes = ds::NoDownsizeIntegralTypeVector<HypernodeID>(2 * min_seed_nodes, kInvalidHypernode);
       auto num_edges_activated_per_refinement_node = ds::NoDownsizeIntegralTypeVector<HyperedgeID>(2 * min_seed_nodes, kInvalidHyperedge);

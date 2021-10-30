@@ -223,6 +223,7 @@ namespace mt_kahypar {
       str << "  Use Old Seeds in Localized Refinement:        " << std::boolalpha << params.use_old_refinement_seeds << std::endl;
       str << "  Use Bitcopy Snapshots:                        " << std::boolalpha << params.use_bitcopy_snapshots << std::endl;
       str << "  Use multiqueue:                               " << params.use_multiqueue << std::endl;
+      str << "  Min. Number of Seeds (Localized Refinement):  " << params.min_seeds_for_localized_refinement << std::endl;
       return str;
   }
 

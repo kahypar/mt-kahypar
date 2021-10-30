@@ -208,6 +208,7 @@ struct UncoarseningParameters {
   bool use_old_refinement_seeds = false;
   bool use_bitcopy_snapshots = false;
   MultiqueueUsage use_multiqueue = MultiqueueUsage::no_multiqueue;
+  size_t min_seeds_for_localized_refinement = 5;
 };
 
 std::ostream & operator<< (std::ostream& str, const UncoarseningParameters& params);
