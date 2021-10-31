@@ -33,25 +33,39 @@ namespace mt_kahypar {
     unused(refinement_nodes);
     if (!_is_initialized) throw std::runtime_error("Call initialize on judicious refinement before calling refine");
     Gain overall_improvement = 0;
-    calculateBorderNodes(phg);
-    ds::ExclusiveHandleHeap<ds::MaxHeap<HypernodeWeight, PartitionID>> part_weights(static_cast<size_t>(_context.partition.k));
-    for (PartitionID i = 0; i < _context.partition.k; ++i) {
-      part_weights.insert(i, phg.partWeight(i));
-    }
-    for (size_t i = 0; i < 10; i++) {
+    for (size_t i = 0; i < 1; i++) {
+      calculateBorderNodes(phg);
+      for (PartitionID i = 0; i < _context.partition.k; ++i) {
+        _part_weights.insert(i, phg.partWeight(i));
+      }
       bool done = false;
       Gain improvement = 0;
+      Gain last_improvement = 0;
+      size_t consecutive_runs_with_too_little_improvement = 0;
       while (!done) {
-        const PartitionID heaviest_part = part_weights.top();
-        auto result = doRefinement(phg, heaviest_part);
-        part_weights.adjustKey(heaviest_part, phg.partWeight(heaviest_part));
-        done = !result.first || 0;
-        improvement += result.second;
+        const PartitionID heaviest_part = _part_weights.top();
+        const HypernodeWeight from_weight = _part_weights.topKey();
+        // disable to-Blocks that are too large
+        for (PartitionID i = 0; i < _context.partition.k; ++i) {
+          _gain_cache.updateEnabledBlocks(i, from_weight, phg.partWeight(i));
+        }
+        last_improvement = improvement;
+        improvement += doRefinement(phg, heaviest_part);
+        const double improvement_fraction = last_improvement == 0 ? 1.0 : 1.f * improvement / last_improvement;
+        LOG << V(improvement_fraction);
+        if (improvement_fraction < _min_improvement) {
+          consecutive_runs_with_too_little_improvement++;
+        } else {
+          consecutive_runs_with_too_little_improvement = 0;
+        }
+        done = consecutive_runs_with_too_little_improvement > 2;
       }
       overall_improvement += improvement;
+      _part_weights.clear();
     }
     metrics.km1 -= overall_improvement;
     metrics.imbalance = metrics::imbalance(phg, _context);
+    ASSERT(metrics.km1 == metrics::km1(phg), V(metrics.km1) << V(metrics::km1(phg)));
     return overall_improvement > 0;
   }
 
@@ -88,7 +102,7 @@ namespace mt_kahypar {
     }
   }
 
-  std::pair<bool, Gain> JudiciousRefiner::doRefinement(PartitionedHypergraph& phg, PartitionID part_id) {
+  Gain JudiciousRefiner::doRefinement(PartitionedHypergraph& phg, PartitionID part_id) {
     auto& refinement_nodes = _border_nodes[part_id];
     for (HypernodeID v : refinement_nodes) {
       _gain_cache.insert(phg, v);
@@ -120,6 +134,15 @@ namespace mt_kahypar {
       if (moved) {
         estimatedImprovement += move.gain;
         _moves.push_back(move);
+        const HypernodeWeight new_to_weight = phg.partWeight(move.to);
+        const HypernodeWeight new_from_weight = phg.partWeight(move.from);
+        _gain_cache.updateEnabledBlocks(move.to, new_from_weight, new_to_weight);
+        if (new_to_weight >= new_from_weight * _part_weight_margin) {
+          /*! TODO: additional early abort similar to stop rule
+           *  \todo additional early abort similar to stop rule
+           */
+          done = true;
+        }
         if (estimatedImprovement > bestImprovement) {
           bestImprovement = estimatedImprovement;
           bestImprovementIndex = _moves.size();
@@ -128,8 +151,9 @@ namespace mt_kahypar {
       }
     }
     revertToBestLocalPrefix(phg, bestImprovementIndex);
-    _gain_cache.clearPQs();
-    return std::make_pair(true, bestImprovement);
+    _gain_cache.resetGainCache();
+    _moves.clear();
+    return bestImprovement;
   }
 
   void JudiciousRefiner::updateNeighbors(PartitionedHypergraph& phg, const Move& move) {
@@ -139,7 +163,9 @@ namespace mt_kahypar {
        */
       if (phg.edgeSize(e) < _context.partition.ignore_hyperedge_size_threshold) {
         for (HypernodeID v : phg.pins(e)) {
-          _gain_cache.updateGain(phg, v, move);
+          if (phg.partID(v) == move.from) {
+            _gain_cache.updateGain(phg, v, move);
+          }
         }
       }
     }
@@ -152,6 +178,9 @@ namespace mt_kahypar {
       phg.changeNodePartWithGainCacheUpdate(m.node, m.to, m.from);
       m.invalidate();
       _moves.pop_back();
+    }
+    for (PartitionID i = 0; i < _context.partition.k; ++i) {
+      _part_weights.adjustKey(i, phg.partWeight(i));
     }
   }
 }

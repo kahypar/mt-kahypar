@@ -32,8 +32,9 @@ public:
     _context(context),
     _toPQs(static_cast<size_t>(context.partition.k), PriorityQueue(num_nodes)),
     _blockPQ(static_cast<size_t>(context.partition.k)),
-    _target_parts(num_nodes),
-    _parts(context.partition.k) {
+    _target_parts(num_nodes, kInvalidPartition),
+    _parts(context.partition.k),
+    _blocks_enabled(context.partition.k, true) {
     std::iota(_parts.begin(), _parts.end(), 0);
   }
 
@@ -41,11 +42,15 @@ public:
     const PartitionID pv = phg.partID(v);
     auto [target, gain] = computeBestTargetBlock(phg, v, pv, _parts);
     _toPQs[target].insert(v, gain);
+    _target_parts[v] = target;
   }
 
   void updateGain(const PartitionedHypergraph& phg, const HypernodeID v, const Move& move) {
     const PartitionID pv = phg.partID(v);
     const PartitionID designatedTargetV = _target_parts[v];
+    if (designatedTargetV == kInvalidPartition || designatedTargetV == pv) { // no localized searches for now
+      return;
+    }
     Gain gain = 0;
     PartitionID newTarget = kInvalidPartition;
 
@@ -61,7 +66,7 @@ public:
 
     if (designatedTargetV == newTarget) {
       _toPQs[designatedTargetV].adjustKey(v, gain);
-    } else {
+    } else if (designatedTargetV != kInvalidPartition) {
       _toPQs[designatedTargetV].remove(v);
       _toPQs[newTarget].insert(v, gain);
       _target_parts[v] = newTarget;
@@ -70,47 +75,71 @@ public:
   }
 
   bool findNextMove(const PartitionedHypergraph& phg, Move& m) {
-    /*! TODO: disable pqs of heavy parts or give them lower prio
-     *  \todo disable pqs of heavy parts or give them lower prio
-     */
-    updatePQs();
-
-    if (_blockPQ.empty()) {
+    if (!updatePQs()) {
       return false;
     }
 
     const PartitionID to = _blockPQ.top();
     const HypernodeID u = _toPQs[to].top();
     const Gain estimated_gain = _toPQs[to].topKey();
-    ASSERT(estimated_gain == _blockPQ.topKey());
-
+    auto [_to, gain] = computeBestTargetBlock(phg, u, phg.partID(u), _parts);
+    /*ASSERT(gain == estimated_gain, V(gain) << V(estimated_gain));*/
     m.node = u;
     m.from = phg.partID(u);
     m.to = to;
-    m.gain = estimated_gain;
+    m.gain = gain;
     _toPQs[to].deleteTop();  // blockPQ updates are done later, collectively.
     return true;
   }
 
-  void clearPQs() {
+  void resetGainCache() {
     for (PartitionID i = 0; i < _context.partition.k; ++i) {
       _toPQs[i].clear();
+      _blocks_enabled[i] = true;
     }
     _blockPQ.clear();
+    _enable_all_blocks = false;
+    _target_parts.assign(_target_parts.size(), kInvalidPartition);
+  }
+
+  PartitionID getTargetPart(const HypernodeID v) const {
+    return _target_parts[v];
+  }
+
+  void updateEnabledBlocks(const PartitionID to, const HypernodeWeight from_weight, const HypernodeWeight to_weight) {
+    // only consider disabling block if not all blocks should be enabled, at least half the blocks are enabled and the block is larger enough
+    if (!_enable_all_blocks
+        && _blockPQ.size() > static_cast<size_t>(_context.partition.k / 2)
+        && 1.f * to_weight / from_weight > _block_disable_factor) {
+      _blocks_enabled[to] = false;
+      _blockPQ.remove(to);
+    }
   }
 
 private:
-  void updatePQs() {
+  bool updatePQs() {
     for (PartitionID i = 0; i < _context.partition.k; ++i) {
-      /*! TODO: is this right for toPQs?
-       *  \todo is this right for toPQs?
-       */
+      if (_blocks_enabled[i] || _enable_all_blocks) {
+        updateOrRemoveToPQFromBlocks(i);
+      }
+    }
+    if (_enable_all_blocks) {
+      return !_blockPQ.empty();
+    }
+    // if not all blocks were enabled and no block is left, retry with all blocks
+    if (_blockPQ.empty()) {
+      _enable_all_blocks = true;
+      return updatePQs();
+    }
+    return true;
+  }
+
+  void updateOrRemoveToPQFromBlocks(const PartitionID i) {
       if (!_toPQs[i].empty()) {
         _blockPQ.insertOrAdjustKey(i, _toPQs[i].topKey());
       } else if (_blockPQ.contains(i)) {
         _blockPQ.remove(i);
       }
-    }
   }
 
   std::pair<PartitionID, HyperedgeWeight> computeBestTargetBlock(const PartitionedHypergraph& phg,
@@ -143,5 +172,8 @@ private:
   PriorityQueue _blockPQ;
   vec<PartitionID> _target_parts;
   vec<PartitionID> _parts;
+  vec<bool> _blocks_enabled;
+  bool _enable_all_blocks = false;
+  const double _block_disable_factor = 0.9;
 };
 }
