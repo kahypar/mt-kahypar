@@ -44,11 +44,6 @@ namespace mt_kahypar {
       size_t consecutive_runs_with_too_little_improvement = 0;
       while (!done) {
         const PartitionID heaviest_part = _part_weights.top();
-        const HypernodeWeight from_weight = _part_weights.topKey();
-        // disable to-Blocks that are too large
-        for (PartitionID i = 0; i < _context.partition.k; ++i) {
-          _gain_cache.updateEnabledBlocks(i, from_weight, phg.partWeight(i));
-        }
         last_improvement = improvement;
         improvement += doRefinement(phg, heaviest_part);
         const double improvement_fraction = last_improvement == 0 ? 1.0 : 1.f * improvement / last_improvement;
@@ -78,6 +73,7 @@ namespace mt_kahypar {
   }
 
   void JudiciousRefiner::calculateBorderNodes(PartitionedHypergraph& phg) {
+    _border_nodes.clear();
     tbb::enumerable_thread_specific<vec<vec<HypernodeID>>> ets_border_nodes;
 
     // thread local border node calculation
@@ -106,6 +102,11 @@ namespace mt_kahypar {
     auto& refinement_nodes = _border_nodes[part_id];
     for (HypernodeID v : refinement_nodes) {
       _gain_cache.insert(phg, v);
+    }
+    // disable to-Blocks that are too large
+    const HypernodeWeight from_weight = _part_weights.topKey();
+    for (PartitionID i = 0; i < _context.partition.k; ++i) {
+      _gain_cache.updateEnabledBlocks(part_id, from_weight, phg.partWeight(i));
     }
     auto delta_func = [&](const HyperedgeID he,
                           const HyperedgeWeight,

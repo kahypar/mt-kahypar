@@ -156,6 +156,9 @@ namespace mt_kahypar {
     while( improvement_found ) {
       improvement_found = false;
 
+      judicious_refiner.initialize(partitioned_hypergraph);
+      improvement_found |= judicious_refiner.refine(partitioned_hypergraph, dummy, current_metrics, time_limit);
+
       if ( label_propagation && _context.refinement.label_propagation.algorithm != LabelPropagationAlgorithm::do_nothing ) {
         utils::Timer::instance().start_timer("initialize_lp_refiner", "Initialize LP Refiner");
         label_propagation->initialize(partitioned_hypergraph);

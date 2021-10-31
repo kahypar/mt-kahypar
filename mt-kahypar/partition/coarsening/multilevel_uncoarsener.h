@@ -26,6 +26,7 @@
 #include "mt-kahypar/partition/coarsening/coarsening_commons.h"
 #include "mt-kahypar/partition/coarsening/i_uncoarsener.h"
 #include "mt-kahypar/partition/coarsening/uncoarsener_base.h"
+#include "mt-kahypar/partition/refinement/judicious_refinement.h"
 namespace mt_kahypar {
 
   class MultilevelUncoarsener : public IUncoarsener,
@@ -35,7 +36,8 @@ namespace mt_kahypar {
     MultilevelUncoarsener(Hypergraph& hypergraph,
                         const Context& context,
                         UncoarseningData& uncoarseningData) :
-      UncoarsenerBase(hypergraph, context, uncoarseningData) { }
+      UncoarsenerBase(hypergraph, context, uncoarseningData),
+      judicious_refiner(hypergraph, context) { }
 
   MultilevelUncoarsener(const MultilevelUncoarsener&) = delete;
   MultilevelUncoarsener(MultilevelUncoarsener&&) = delete;
@@ -58,6 +60,7 @@ namespace mt_kahypar {
     std::unique_ptr<IRefiner>& fm) override {
     return doUncoarsen(label_propagation, fm);
   }
+  JudiciousRefiner judicious_refiner;
   };
 
 }
