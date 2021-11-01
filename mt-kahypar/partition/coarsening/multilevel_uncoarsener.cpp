@@ -46,11 +46,13 @@ namespace mt_kahypar {
                                               ? current_metrics.km1 : current_metrics.cut,
                                               _context.partition.verbose_output &&
                                               _context.partition.enable_progress_bar && !debug);
-    uncontraction_progress += partitioned_hg.initialNumNodes();
 
     // Refine Coarsest Partitioned Hypergraph
     double time_limit = refinementTimeLimit(_context, _uncoarseningData.hierarchy.back().coarseningTime());
     refine(partitioned_hg, label_propagation, fm, current_metrics, time_limit);
+    uncontraction_progress.setObjective(
+      current_metrics.getMetric(kahypar::Mode::direct_kway, _context.partition.objective));
+    uncontraction_progress += partitioned_hg.initialNumNodes();
 
     ds::Array<PartIdType> part_ids(_hg.initialNumNodes(), PartIdType(kInvalidPartition));
 
@@ -129,12 +131,12 @@ namespace mt_kahypar {
           }
         }
       }
-
-      ASSERT(metrics::objective(*_uncoarseningData.partitioned_hg, _context.partition.objective) ==
-             current_metrics.getMetric(kahypar::Mode::direct_kway, _context.partition.objective),
-             V(current_metrics.getMetric(kahypar::Mode::direct_kway, _context.partition.objective))
-             << V(metrics::objective(*_uncoarseningData.partitioned_hg, _context.partition.objective)));
     }
+
+    ASSERT(metrics::objective(*_uncoarseningData.partitioned_hg, _context.partition.objective) ==
+            current_metrics.getMetric(kahypar::Mode::direct_kway, _context.partition.objective),
+            V(current_metrics.getMetric(kahypar::Mode::direct_kway, _context.partition.objective))
+            << V(metrics::objective(*_uncoarseningData.partitioned_hg, _context.partition.objective)));
     return std::move(*_uncoarseningData.partitioned_hg);
   }
 
