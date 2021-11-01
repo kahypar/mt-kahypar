@@ -81,8 +81,8 @@ public:
 
     const PartitionID to = _blockPQ.top();
     const HypernodeID u = _toPQs[to].top();
-    const Gain estimated_gain = _toPQs[to].topKey();
-    auto [_to, gain] = computeBestTargetBlock(phg, u, phg.partID(u), _parts);
+    const Gain gain = _toPQs[to].topKey();
+    ASSERT(computeBestTargetBlock(phg, u, phg.partID(u), _parts).second == gain);
     /*ASSERT(gain == estimated_gain, V(gain) << V(estimated_gain));*/
     m.node = u;
     m.from = phg.partID(u);

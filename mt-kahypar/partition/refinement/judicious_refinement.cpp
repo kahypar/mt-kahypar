@@ -47,7 +47,6 @@ namespace mt_kahypar {
         last_improvement = improvement;
         improvement += doRefinement(phg, heaviest_part);
         const double improvement_fraction = last_improvement == 0 ? 1.0 : 1.f * improvement / last_improvement;
-        LOG << V(improvement_fraction);
         if (improvement_fraction < _min_improvement) {
           consecutive_runs_with_too_little_improvement++;
         } else {
@@ -59,8 +58,10 @@ namespace mt_kahypar {
       _part_weights.clear();
     }
     metrics.km1 -= overall_improvement;
+    /*LOG << V(overall_improvement);*/
     metrics.imbalance = metrics::imbalance(phg, _context);
     ASSERT(metrics.km1 == metrics::km1(phg), V(metrics.km1) << V(metrics::km1(phg)));
+    _move_status.assign(_hypergraph.initialNumNodes(), false);
     return overall_improvement > 0;
   }
 
@@ -73,7 +74,9 @@ namespace mt_kahypar {
   }
 
   void JudiciousRefiner::calculateBorderNodes(PartitionedHypergraph& phg) {
-    _border_nodes.clear();
+    for (auto& b : _border_nodes) {
+      b.clear();
+    }
     tbb::enumerable_thread_specific<vec<vec<HypernodeID>>> ets_border_nodes;
 
     // thread local border node calculation
@@ -88,8 +91,6 @@ namespace mt_kahypar {
                         }
                       });
 
-    _border_nodes.resize(_context.partition.k);
-
     for (const auto &tl_border_nodes : ets_border_nodes) {
       tbb::parallel_for(PartitionID(0), _context.partition.k, [&](const auto i) {
         _border_nodes[i].insert(_border_nodes[i].end(), tl_border_nodes[i].begin(),
@@ -101,7 +102,9 @@ namespace mt_kahypar {
   Gain JudiciousRefiner::doRefinement(PartitionedHypergraph& phg, PartitionID part_id) {
     auto& refinement_nodes = _border_nodes[part_id];
     for (HypernodeID v : refinement_nodes) {
-      _gain_cache.insert(phg, v);
+      if (!_move_status[v]) {
+        _gain_cache.insert(phg, v);
+      }
     }
     // disable to-Blocks that are too large
     const HypernodeWeight from_weight = _part_weights.topKey();
@@ -127,12 +130,16 @@ namespace mt_kahypar {
     while (!done && _gain_cache.findNextMove(phg, move)) {
       bool moved = false;
       if (move.to != kInvalidPartition) {
+        ASSERT(!_move_status[move.node]);
+        /*Gain old_km1 = metrics::km1(phg);*/
         moved = phg.changeNodePartWithGainCacheUpdate(move.node, move.from, move.to,
                                                       std::numeric_limits<HypernodeWeight>::max(),
                                                       []{}, delta_func);
 
+        /*ASSERT(old_km1 - move.gain == metrics::km1(phg), V(old_km1) << V(metrics::km1(phg)) << move.gain);*/
       }
       if (moved) {
+        _move_status[move.node] = true;
         estimatedImprovement += move.gain;
         _moves.push_back(move);
         const HypernodeWeight new_to_weight = phg.partWeight(move.to);
@@ -164,7 +171,7 @@ namespace mt_kahypar {
        */
       if (phg.edgeSize(e) < _context.partition.ignore_hyperedge_size_threshold) {
         for (HypernodeID v : phg.pins(e)) {
-          if (phg.partID(v) == move.from) {
+          if (phg.partID(v) == move.from && !_move_status[v]) {
             _gain_cache.updateGain(phg, v, move);
           }
         }
@@ -183,5 +190,8 @@ namespace mt_kahypar {
     for (PartitionID i = 0; i < _context.partition.k; ++i) {
       _part_weights.adjustKey(i, phg.partWeight(i));
     }
+    tbb::parallel_for(0UL, _moves.size(), [&](const MoveID i) {
+      phg.recomputeMoveFromBenefit(_moves[i].node);
+    });
   }
 }

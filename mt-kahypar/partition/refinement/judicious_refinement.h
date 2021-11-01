@@ -27,8 +27,10 @@ public:
                             const Context& context) :
     _hypergraph(hypergraph),
     _context(context),
+    _border_nodes(context.partition.k),
     _gain_cache(context, hypergraph.initialNumNodes()),
-    _part_weights(static_cast<size_t>(context.partition.k)) {}
+    _part_weights(static_cast<size_t>(context.partition.k)),
+    _move_status(hypergraph.initialNumNodes(), false) {}
 
   JudiciousRefiner(const JudiciousRefiner&) = delete;
   JudiciousRefiner(JudiciousRefiner&&) = delete;
@@ -59,5 +61,6 @@ private:
   ds::ExclusiveHandleHeap<ds::MaxHeap<HypernodeWeight, PartitionID>> _part_weights;
   const double _part_weight_margin = 1.03;
   const double _min_improvement = 1.05;
+  vec<bool> _move_status;
 };
 }
