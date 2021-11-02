@@ -56,12 +56,12 @@ namespace mt_kahypar {
       }
       overall_improvement += improvement;
       _part_weights.clear();
+      _move_status.assign(_hypergraph.initialNumNodes(), false);
     }
     metrics.km1 -= overall_improvement;
     /*LOG << V(overall_improvement);*/
     metrics.imbalance = metrics::imbalance(phg, _context);
     ASSERT(metrics.km1 == metrics::km1(phg), V(metrics.km1) << V(metrics::km1(phg)));
-    _move_status.assign(_hypergraph.initialNumNodes(), false);
     return overall_improvement > 0;
   }
 
@@ -131,6 +131,7 @@ namespace mt_kahypar {
       bool moved = false;
       if (move.to != kInvalidPartition) {
         ASSERT(!_move_status[move.node]);
+        ASSERT(move.from == part_id);
         /*Gain old_km1 = metrics::km1(phg);*/
         moved = phg.changeNodePartWithGainCacheUpdate(move.node, move.from, move.to,
                                                       std::numeric_limits<HypernodeWeight>::max(),
