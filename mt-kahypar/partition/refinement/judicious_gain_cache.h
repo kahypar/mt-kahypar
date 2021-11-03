@@ -74,9 +74,14 @@ public:
     }
   }
 
-  bool findNextMove(const PartitionedHypergraph& phg, Move& m) {
-    if (!updatePQs()) {
+  bool findNextMove(const PartitionedHypergraph& phg, Move& m, bool& should_refiner_perform_rollback) {
+    if (!updatePQs(should_refiner_perform_rollback)) {
       return false;
+    }
+    // this is pretty hacky... maybe come up with something better
+    if (should_refiner_perform_rollback) {
+      m.to = kInvalidPartition;
+      return true;
     }
 
     const PartitionID to = _blockPQ.top();
@@ -117,7 +122,7 @@ public:
   }
 
 private:
-  bool updatePQs() {
+  bool updatePQs(bool& should_refiner_perform_rollback) {
     for (PartitionID i = 0; i < _context.partition.k; ++i) {
       if (_blocks_enabled[i] || _enable_all_blocks) {
         updateOrRemoveToPQFromBlocks(i);
@@ -129,7 +134,9 @@ private:
     // if not all blocks were enabled and no block is left, retry with all blocks
     if (_blockPQ.empty()) {
       _enable_all_blocks = true;
-      return updatePQs();
+      LOG << "enabled all blocks";
+      should_refiner_perform_rollback = true;
+      return updatePQs(should_refiner_perform_rollback);
     }
     return true;
   }
