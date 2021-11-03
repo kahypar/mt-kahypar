@@ -188,13 +188,20 @@ namespace mt_kahypar {
        */
       if (phg.edgeSize(e) < _context.partition.ignore_hyperedge_size_threshold) {
         for (HypernodeID v : phg.pins(e)) {
-          if (phg.partID(v) == move.from && !_move_status[v]) {
-            _gain_cache.updateGain(phg, v, move);
+          if (_neighbor_deduplicator[v] != _deduplication_time) {
+            if (phg.partID(v) == move.from && !_move_status[v]) {
+              _gain_cache.updateGain(phg, v, move);
+            }
+            _neighbor_deduplicator[v] = _deduplication_time;
           }
         }
       }
     }
     _edgesWithGainChanges.clear();
+    if (++_deduplication_time == 0) {
+      _neighbor_deduplicator.assign(_neighbor_deduplicator.size(), 0);
+      _deduplication_time = 1;
+    }
   }
 
   void JudiciousRefiner::revertToBestLocalPrefix(PartitionedHypergraph& phg, size_t bestGainIndex, bool update_gain_cache) {
