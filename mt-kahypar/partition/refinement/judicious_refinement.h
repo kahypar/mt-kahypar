@@ -27,7 +27,7 @@ public:
                             const Context& context) :
     _hypergraph(hypergraph),
     _context(context),
-    _border_nodes(context.partition.k),
+    _refinement_nodes(context.partition.k),
     _gain_cache(context, hypergraph.initialNumNodes()),
     _part_weights(static_cast<size_t>(context.partition.k)),
     _move_status(hypergraph.initialNumNodes(), false) {}
@@ -46,7 +46,7 @@ public:
                   double) final ;
 
   void initializeImpl(PartitionedHypergraph& phg) final;
-  void calculateBorderNodes(PartitionedHypergraph& phg);
+  void calculateRefinementNodes(PartitionedHypergraph& phg);
   Gain doRefinement(PartitionedHypergraph& phg, PartitionID part_id);
   void revertToBestLocalPrefix(PartitionedHypergraph& phg, size_t bestGainIndex);
   void updateNeighbors(PartitionedHypergraph& phg, const Move& move);
@@ -54,7 +54,7 @@ private:
   bool _is_initialized = false;
   Hypergraph& _hypergraph;
   const Context& _context;
-  vec<vec<HypernodeID>> _border_nodes;
+  vec<vec<HypernodeID>> _refinement_nodes;
   JudiciousGainCache _gain_cache;
   vec<HyperedgeID> _edgesWithGainChanges;
   vec<Move> _moves;

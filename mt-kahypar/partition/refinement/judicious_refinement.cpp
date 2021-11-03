@@ -33,8 +33,11 @@ namespace mt_kahypar {
     unused(refinement_nodes);
     if (!_is_initialized) throw std::runtime_error("Call initialize on judicious refinement before calling refine");
     Gain overall_improvement = 0;
+    /*! TODO: keep moved nodes and distibute them onto buckets again
+     *  \todo keep moved nodes and distibute them onto buckets again
+     */
+    calculateRefinementNodes(phg);
     for (size_t i = 0; i < 1; i++) {
-      calculateBorderNodes(phg);
       for (PartitionID i = 0; i < _context.partition.k; ++i) {
         _part_weights.insert(i, phg.partWeight(i));
       }
@@ -73,34 +76,34 @@ namespace mt_kahypar {
 
   }
 
-  void JudiciousRefiner::calculateBorderNodes(PartitionedHypergraph& phg) {
-    for (auto& b : _border_nodes) {
+  void JudiciousRefiner::calculateRefinementNodes(PartitionedHypergraph& phg) {
+    for (auto& b : _refinement_nodes) {
       b.clear();
     }
-    tbb::enumerable_thread_specific<vec<vec<HypernodeID>>> ets_border_nodes;
+    tbb::enumerable_thread_specific<vec<vec<HypernodeID>>> ets_refinement_nodes;
 
-    // thread local border node calculation
+    // thread local refinement node calculation
     tbb::parallel_for(tbb::blocked_range<HypernodeID>(0, phg.initialNumNodes()),
                       [&](const tbb::blocked_range<HypernodeID> &r) {
-                        auto &tl_border_nodes = ets_border_nodes.local();
-                        tl_border_nodes.resize(_context.partition.k);
+                        auto &tl_refinement_nodes = ets_refinement_nodes.local();
+                        tl_refinement_nodes.resize(_context.partition.k);
                         for (HypernodeID u = r.begin(); u < r.end(); ++u) {
-                          if (phg.nodeIsEnabled(u) && phg.isBorderNode(u)) {
-                            tl_border_nodes[phg.partID(u)].push_back(u);
+                          if (phg.nodeIsEnabled(u)) {
+                            tl_refinement_nodes[phg.partID(u)].push_back(u);
                           }
                         }
                       });
 
-    for (const auto &tl_border_nodes : ets_border_nodes) {
+    for (const auto &tl_refinement_nodes : ets_refinement_nodes) {
       tbb::parallel_for(PartitionID(0), _context.partition.k, [&](const auto i) {
-        _border_nodes[i].insert(_border_nodes[i].end(), tl_border_nodes[i].begin(),
-                               tl_border_nodes[i].end());
+        _refinement_nodes[i].insert(_refinement_nodes[i].end(), tl_refinement_nodes[i].begin(),
+                               tl_refinement_nodes[i].end());
       });
     }
   }
 
   Gain JudiciousRefiner::doRefinement(PartitionedHypergraph& phg, PartitionID part_id) {
-    auto& refinement_nodes = _border_nodes[part_id];
+    auto& refinement_nodes = _refinement_nodes[part_id];
     for (HypernodeID v : refinement_nodes) {
       if (!_move_status[v]) {
         _gain_cache.insert(phg, v);
