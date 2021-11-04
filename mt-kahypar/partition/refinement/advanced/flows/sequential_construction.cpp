@@ -83,42 +83,36 @@ FlowProblem SequentialConstruction::constructFlowHypergraph(const PartitionedHyp
   flow_problem.non_removable_cut = 0;
   _identical_nets.reset();
   _node_to_whfc.clear();
-  whfc_to_node.resize(sub_hg.nodes.size() + 2);
+  whfc_to_node.resize(sub_hg.numNodes() + 2);
 
   if ( _context.refinement.advanced.flows.determine_distance_from_cut ) {
     _cut_hes.clear();
   }
 
   // Add refinement nodes to flow network
-  whfc::Node flow_hn(0);
-  HypernodeWeight weight_block_0 = 0;
-  HypernodeWeight weight_block_1 = 0;
-  auto add_nodes = [&](const PartitionID block, HypernodeWeight& weight_of_block) {
-    for ( const HypernodeID& hn : sub_hg.nodes) {
-      if ( phg.partID(hn) == block ) {
-        const HypernodeWeight hn_weight = phg.nodeWeight(hn);
-        whfc_to_node[flow_hn] = hn;
-        _node_to_whfc[hn] = flow_hn++;
-        _flow_hg.addNode(whfc::NodeWeight(hn_weight));
-        weight_of_block += hn_weight;
-      }
+  auto add_nodes = [&](const vec<HypernodeID>& nodes, const whfc::Node::ValueType start_u) {
+    whfc::Node flow_hn(start_u);
+    for ( const HypernodeID& hn : nodes) {
+      const HypernodeWeight hn_weight = phg.nodeWeight(hn);
+      whfc_to_node[flow_hn] = hn;
+      _node_to_whfc[hn] = flow_hn++;
+      _flow_hg.addNode(whfc::NodeWeight(hn_weight));
     }
   };
   // Add source nodes
-  whfc_to_node[flow_hn] = kInvalidHypernode;
-  flow_problem.source = flow_hn++;
-  _flow_hg.addNode(whfc::NodeWeight(0));
-  add_nodes(block_0, weight_block_0);
-  _flow_hg.nodeWeight(flow_problem.source) = whfc::NodeWeight(std::max(0, phg.partWeight(block_0) - weight_block_0));
+  flow_problem.source = whfc::Node(0);
+  whfc_to_node[flow_problem.source] = kInvalidHypernode;
+  _flow_hg.addNode(whfc::NodeWeight(
+    std::max(0, phg.partWeight(block_0) - sub_hg.weight_of_block_0)));
+  add_nodes(sub_hg.nodes_of_block_0, flow_problem.source + 1);
   // Add sink nodes
-  whfc_to_node[flow_hn] = kInvalidHypernode;
-  flow_problem.sink = flow_hn++;
-  _flow_hg.addNode(whfc::NodeWeight(0));
-  add_nodes(block_1, weight_block_1);
-  _flow_hg.nodeWeight(flow_problem.sink) = whfc::NodeWeight(std::max(0, phg.partWeight(block_1) - weight_block_1));
-  flow_problem.weight_of_block_0 = _flow_hg.nodeWeight(flow_problem.source) + weight_block_0;
-  flow_problem.weight_of_block_1 = _flow_hg.nodeWeight(flow_problem.sink) + weight_block_1;
-  whfc_to_node.resize(flow_hn);
+  flow_problem.sink = whfc::Node(sub_hg.nodes_of_block_0.size() + 1);
+  whfc_to_node[flow_problem.sink] = kInvalidHypernode;
+  _flow_hg.addNode(whfc::NodeWeight(
+    std::max(0, phg.partWeight(block_1) - sub_hg.weight_of_block_1)));
+  add_nodes(sub_hg.nodes_of_block_1, flow_problem.sink + 1);
+  flow_problem.weight_of_block_0 = _flow_hg.nodeWeight(flow_problem.source) + sub_hg.weight_of_block_0;
+  flow_problem.weight_of_block_1 = _flow_hg.nodeWeight(flow_problem.sink) + sub_hg.weight_of_block_1;
 
   auto push_into_tmp_pins = [&](const whfc::Node pin, size_t& current_hash, const bool is_source_or_sink) {
     _tmp_pins.push_back(pin);

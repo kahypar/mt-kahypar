@@ -13,6 +13,7 @@ set(RefinementSources
         advanced/flows/flow_refiner.cpp
         advanced/flows/sequential_construction.cpp
         advanced/flows/parallel_construction.cpp
+        advanced/flows/flow_hypergraph_builder.cpp
         )
 
 foreach(modtarget IN LISTS TARGETS_WANTING_ALL_SOURCES)

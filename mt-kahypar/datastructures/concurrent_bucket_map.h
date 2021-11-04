@@ -77,6 +77,13 @@ class ConcurrentBucketMap {
     _spin_locks(_num_buckets),
     _buckets(std::move(other._buffer)) { }
 
+  template<typename F>
+  void doParallelForAllBuckets(const F& f) {
+    tbb::parallel_for(0UL, _num_buckets, [&](const size_t i) {
+      f(i);
+    });
+  }
+
   // ! Returns the number of buckets
   size_t numBuckets() const {
     return _num_buckets;
@@ -123,6 +130,12 @@ class ConcurrentBucketMap {
   void clear(const size_t bucket) {
     ASSERT(bucket < _num_buckets);
     _buckets[bucket].clear();
+  }
+
+  void clearParallel() {
+    doParallelForAllBuckets([&](const size_t i) {
+      clear(i);
+    });
   }
 
  private:

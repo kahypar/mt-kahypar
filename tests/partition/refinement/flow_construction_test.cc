@@ -73,20 +73,32 @@ class AFlowHypergraphConstructor : public Test {
   PartitionedHypergraph phg;
   Context context;
 
-  whfc::FlowHypergraphBuilder flow_hg;
+  FlowHypergraphBuilder flow_hg;
   whfc::HyperFlowCutter<whfc::Dinic> hfc;
   Constructor constructor;
   vec<HypernodeID> whfc_to_node;
 };
 
-typedef ::testing::Types<SequentialConstruction, ParallelConstruction> TestConfigs;
+typedef ::testing::Types<SequentialConstruction /*, ParallelConstruction*/ > TestConfigs;
 
 TYPED_TEST_CASE(AFlowHypergraphConstructor, TestConfigs);
 
-void determineInvolvedHyperedges(const PartitionedHypergraph& phg,
-                                 Subhypergraph& sub_hg) {
+void constructSubhypergraph(const PartitionedHypergraph& phg,
+                            Subhypergraph& sub_hg) {
   vec<bool> visited(phg.initialNumEdges(), false);
-  for ( const HypernodeID& hn : sub_hg.nodes ) {
+  for ( const HypernodeID& hn : sub_hg.nodes_of_block_0 ) {
+    sub_hg.num_pins += phg.nodeDegree(hn);
+    sub_hg.weight_of_block_0 += phg.nodeWeight(hn);
+    for ( const HyperedgeID& he : phg.incidentEdges(hn) ) {
+      if ( !visited[he] ) {
+        sub_hg.hes.push_back(he);
+        visited[he] = true;
+      }
+    }
+  }
+  for ( const HypernodeID& hn : sub_hg.nodes_of_block_1 ) {
+    sub_hg.num_pins += phg.nodeDegree(hn);
+    sub_hg.weight_of_block_1 += phg.nodeWeight(hn);
     for ( const HyperedgeID& he : phg.incidentEdges(hn) ) {
       if ( !visited[he] ) {
         sub_hg.hes.push_back(he);
@@ -110,7 +122,7 @@ struct Hyperedge {
   whfc::Flow capacity;
 };
 
-void verifyFlowHypergraph(whfc::FlowHypergraphBuilder& flow_hg, const vec<Hyperedge>& hyperedges) {
+void verifyFlowHypergraph(FlowHypergraphBuilder& flow_hg, const vec<Hyperedge>& hyperedges) {
   for ( const Hyperedge& he : hyperedges ) {
     whfc::Hyperedge found_he = whfc::Hyperedge::Invalid();
 
@@ -145,8 +157,8 @@ void verifyFlowHypergraph(whfc::FlowHypergraphBuilder& flow_hg, const vec<Hypere
 }
 
 TYPED_TEST(AFlowHypergraphConstructor, ConstructsAFlowHypergraphWithTwoHypernodes1) {
-  Subhypergraph sub_hg { {1, 4}, {} };
-  determineInvolvedHyperedges(this->phg, sub_hg);
+  Subhypergraph sub_hg { {1}, {4}, 0, 0, {}, 0 };
+  constructSubhypergraph(this->phg, sub_hg);
 
   FlowProblem actual_prob = this->constructor.constructFlowHypergraph(this->phg, sub_hg, 0, 1, this->whfc_to_node);
   FlowProblem expected_prob { NODE(0), NODE(2), 2, 2, 4, 4 };
@@ -164,8 +176,8 @@ TYPED_TEST(AFlowHypergraphConstructor, ConstructsAFlowHypergraphWithTwoHypernode
 }
 
 TYPED_TEST(AFlowHypergraphConstructor, ConstructsAFlowHypergraphWithTwoHypernodes2) {
-  Subhypergraph sub_hg { {3, 6}, {} };
-  determineInvolvedHyperedges(this->phg, sub_hg);
+  Subhypergraph sub_hg { {3}, {6}, 0, 0, {}, 0 };
+  constructSubhypergraph(this->phg, sub_hg);
 
   FlowProblem actual_prob = this->constructor.constructFlowHypergraph(this->phg, sub_hg, 0, 1, this->whfc_to_node);
   FlowProblem expected_prob { NODE(0), NODE(2), 1, 1, 4, 4 };
@@ -183,8 +195,8 @@ TYPED_TEST(AFlowHypergraphConstructor, ConstructsAFlowHypergraphWithTwoHypernode
 }
 
 TYPED_TEST(AFlowHypergraphConstructor, ConstructsAFlowHypergraphWithThreeHypernodes1) {
-  Subhypergraph sub_hg { {1, 3, 4}, {} };
-  determineInvolvedHyperedges(this->phg, sub_hg);
+  Subhypergraph sub_hg { {1, 3}, {4}, 0, 0, {}, 0 };
+  constructSubhypergraph(this->phg, sub_hg);
 
   FlowProblem actual_prob = this->constructor.constructFlowHypergraph(this->phg, sub_hg, 0, 1, this->whfc_to_node);
   FlowProblem expected_prob { NODE(0), NODE(3), 2, 1, 4, 4 };
@@ -205,8 +217,8 @@ TYPED_TEST(AFlowHypergraphConstructor, ConstructsAFlowHypergraphWithThreeHyperno
 }
 
 TYPED_TEST(AFlowHypergraphConstructor, ConstructsAFlowHypergraphWithThreeHypernodes2) {
-  Subhypergraph sub_hg { {1, 4, 6}, {} };
-  determineInvolvedHyperedges(this->phg, sub_hg);
+  Subhypergraph sub_hg { {1}, {4, 6}, 0, 0, {}, 0 };
+  constructSubhypergraph(this->phg, sub_hg);
 
   FlowProblem actual_prob = this->constructor.constructFlowHypergraph(this->phg, sub_hg, 0, 1, this->whfc_to_node);
   FlowProblem expected_prob { NODE(0), NODE(2), 2, 1, 4, 4 };
@@ -227,8 +239,8 @@ TYPED_TEST(AFlowHypergraphConstructor, ConstructsAFlowHypergraphWithThreeHyperno
 }
 
 TYPED_TEST(AFlowHypergraphConstructor, ConstructsAFlowHypergraphWithFourHypernodes) {
-  Subhypergraph sub_hg { {1, 3, 4, 6}, {} };
-  determineInvolvedHyperedges(this->phg, sub_hg);
+  Subhypergraph sub_hg { {1, 3}, {4, 6}, 0, 0, {}, 0 };
+  constructSubhypergraph(this->phg, sub_hg);
 
   FlowProblem actual_prob = this->constructor.constructFlowHypergraph(this->phg, sub_hg, 0, 1, this->whfc_to_node);
   FlowProblem expected_prob { NODE(0), NODE(3), 2, 1, 4, 4 };
@@ -250,8 +262,8 @@ TYPED_TEST(AFlowHypergraphConstructor, ConstructsAFlowHypergraphWithFourHypernod
 }
 
 TYPED_TEST(AFlowHypergraphConstructor, ConstructsAFlowHypergraphWithFiveHypernodes1) {
-  Subhypergraph sub_hg { {0, 1, 3, 4, 6}, {} };
-  determineInvolvedHyperedges(this->phg, sub_hg);
+  Subhypergraph sub_hg { {0, 1, 3}, {4, 6}, 0, 0, {}, 0 };
+  constructSubhypergraph(this->phg, sub_hg);
 
   FlowProblem actual_prob = this->constructor.constructFlowHypergraph(this->phg, sub_hg, 0, 1, this->whfc_to_node);
   FlowProblem expected_prob { NODE(0), NODE(4), 2, 0, 4, 4 };
@@ -276,8 +288,8 @@ TYPED_TEST(AFlowHypergraphConstructor, ConstructsAFlowHypergraphWithFiveHypernod
 }
 
 TYPED_TEST(AFlowHypergraphConstructor, ConstructsAFlowHypergraphWithFiveHypernodes2) {
-  Subhypergraph sub_hg { {1, 3, 4, 5, 6}, {} };
-  determineInvolvedHyperedges(this->phg, sub_hg);
+  Subhypergraph sub_hg { {1, 3}, {4, 5, 6}, 0, 0, {}, 0 };
+  constructSubhypergraph(this->phg, sub_hg);
 
   FlowProblem actual_prob = this->constructor.constructFlowHypergraph(this->phg, sub_hg, 0, 1, this->whfc_to_node);
   FlowProblem expected_prob { NODE(0), NODE(3), 2, 0, 4, 4 };
@@ -302,8 +314,8 @@ TYPED_TEST(AFlowHypergraphConstructor, ConstructsAFlowHypergraphWithFiveHypernod
 }
 
 TYPED_TEST(AFlowHypergraphConstructor, ConstructsAFlowHypergraphWithSixHypernodes) {
-  Subhypergraph sub_hg { {0, 1, 3, 4, 5, 6}, {} };
-  determineInvolvedHyperedges(this->phg, sub_hg);
+  Subhypergraph sub_hg { {0, 1, 3}, {4, 5, 6}, 0, 0, {}, 0 };
+  constructSubhypergraph(this->phg, sub_hg);
 
   FlowProblem actual_prob = this->constructor.constructFlowHypergraph(this->phg, sub_hg, 0, 1, this->whfc_to_node);
   FlowProblem expected_prob { NODE(0), NODE(4), 2, 0, 4, 4 };
@@ -330,8 +342,8 @@ TYPED_TEST(AFlowHypergraphConstructor, ConstructsAFlowHypergraphWithSixHypernode
 }
 
 TYPED_TEST(AFlowHypergraphConstructor, ConstructsAFlowHypergraphWithAllHypernodes) {
-  Subhypergraph sub_hg { {0, 1, 2, 3, 4, 5, 6, 7}, {} };
-  determineInvolvedHyperedges(this->phg, sub_hg);
+  Subhypergraph sub_hg { {0, 1, 2, 3}, {4, 5, 6, 7}, 0, 0, {}, 0 };
+  constructSubhypergraph(this->phg, sub_hg);
 
   FlowProblem actual_prob = this->constructor.constructFlowHypergraph(this->phg, sub_hg, 0, 1, this->whfc_to_node);
   FlowProblem expected_prob { NODE(0), NODE(5), 0, 0, 4, 4 };

@@ -111,7 +111,7 @@ class ProblemConstruction {
                           const PartitionedHypergraph& phg);
 
   void releaseNodes(const SearchID search_id,
-                    const vec<HypernodeID>& nodes);
+                    const Subhypergraph& sub_hg);
 
  private:
   bool acquire_vertex(const SearchID& search_id, const HypernodeID& hn) {

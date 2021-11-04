@@ -73,7 +73,7 @@ bool AdvancedRefinementScheduler::refineImpl(
 
         HyperedgeWeight delta = 0;
         bool improved_solution = false;
-        if ( sub_hg.nodes.size() > 0 ) {
+        if ( sub_hg.numNodes() > 0 ) {
           utils::Timer::instance().start_timer("refine_problem", "Refine Problem", true);
           ++_stats.num_refinements;
           MoveSequence sequence = _refiner.refine(search_id, phg, sub_hg);
@@ -91,7 +91,7 @@ bool AdvancedRefinementScheduler::refineImpl(
           }
         }
 
-        _constructor.releaseNodes(search_id, sub_hg.nodes);
+        _constructor.releaseNodes(search_id, sub_hg);
         _quotient_graph.finalizeSearch(search_id, improved_solution ? delta : 0);
         _refiner.finalizeSearch(search_id);
         DBG << "End search" << search_id

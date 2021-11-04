@@ -29,8 +29,16 @@
 namespace mt_kahypar {
 
 struct Subhypergraph {
-  vec<HypernodeID> nodes;
+  vec<HypernodeID> nodes_of_block_0;
+  vec<HypernodeID> nodes_of_block_1;
+  HypernodeWeight weight_of_block_0;
+  HypernodeWeight weight_of_block_1;
   vec<HyperedgeID> hes;
+  size_t num_pins;
+
+  size_t numNodes() const {
+    return nodes_of_block_0.size() + nodes_of_block_1.size();
+  }
 };
 
 class ProblemStats {

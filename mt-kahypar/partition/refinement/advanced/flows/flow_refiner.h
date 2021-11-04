@@ -22,7 +22,6 @@
 
 #include <tbb/concurrent_vector.h>
 
-#include "datastructure/flow_hypergraph_builder.h"
 #include "algorithm/hyperflowcutter.h"
 #include "algorithm/dinic.h"
 
@@ -34,6 +33,7 @@
 #include "mt-kahypar/partition/refinement/advanced/flows/flow_common.h"
 #include "mt-kahypar/partition/refinement/advanced/flows/sequential_construction.h"
 #include "mt-kahypar/partition/refinement/advanced/flows/parallel_construction.h"
+#include "mt-kahypar/partition/refinement/advanced/flows/flow_hypergraph_builder.h"
 
 namespace mt_kahypar {
 
@@ -115,7 +115,7 @@ class FlowRefiner final : public IAdvancedRefiner {
 
   mutable PartitionID _block_0;
   mutable PartitionID _block_1;
-  whfc::FlowHypergraphBuilder _flow_hg;
+  FlowHypergraphBuilder _flow_hg;
   whfc::HyperFlowCutter<whfc::Dinic> _hfc;
 
   vec<HypernodeID> _whfc_to_node;

@@ -22,7 +22,6 @@
 
 #include <tbb/concurrent_vector.h>
 
-#include "datastructure/flow_hypergraph_builder.h"
 #include "algorithm/hyperflowcutter.h"
 #include "algorithm/dinic.h"
 
@@ -30,6 +29,7 @@
 #include "mt-kahypar/datastructures/sparse_map.h"
 #include "mt-kahypar/datastructures/thread_safe_fast_reset_flag_array.h"
 #include "mt-kahypar/partition/refinement/advanced/i_advanced_refiner.h"
+#include "mt-kahypar/partition/refinement/advanced/flows/flow_hypergraph_builder.h"
 
 namespace mt_kahypar {
 
@@ -44,7 +44,7 @@ class SequentialConstruction {
     using IdenticalNetVector = vec<whfc::Hyperedge>;
 
    public:
-    explicit DynamicIdenticalNetDetection(whfc::FlowHypergraphBuilder& flow_hg) :
+    explicit DynamicIdenticalNetDetection(FlowHypergraphBuilder& flow_hg) :
       _flow_hg(flow_hg),
       _he_hashes(),
       _used_entries(0),
@@ -64,14 +64,14 @@ class SequentialConstruction {
     }
 
    private:
-    whfc::FlowHypergraphBuilder& _flow_hg;
+    FlowHypergraphBuilder& _flow_hg;
     ds::DynamicFlatMap<size_t, size_t> _he_hashes;
     size_t _used_entries;
     vec<IdenticalNetVector> _hash_buckets;
   };
 
  public:
-  explicit SequentialConstruction(whfc::FlowHypergraphBuilder& flow_hg,
+  explicit SequentialConstruction(FlowHypergraphBuilder& flow_hg,
                                   whfc::HyperFlowCutter<whfc::Dinic>& hfc,
                                   const Context& context) :
     _context(context),
@@ -114,7 +114,7 @@ class SequentialConstruction {
 
   const Context& _context;
 
-  whfc::FlowHypergraphBuilder& _flow_hg;
+  FlowHypergraphBuilder& _flow_hg;
   whfc::HyperFlowCutter<whfc::Dinic>& _hfc;
 
   ds::DynamicSparseMap<HypernodeID, whfc::Node> _node_to_whfc;

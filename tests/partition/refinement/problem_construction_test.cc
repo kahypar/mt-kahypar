@@ -74,11 +74,14 @@ class AProblemConstruction : public Test {
     };
   }
 
-  void verifyThatPartWeightsAreLessEqualToMaxPartWeight(const vec<HypernodeID> nodes,
+  void verifyThatPartWeightsAreLessEqualToMaxPartWeight(const Subhypergraph& sub_hg,
                                                         const SearchID search_id,
                                                         const QuotientGraph& qg) {
     vec<HypernodeWeight> part_weights(context.partition.k, 0);
-    for ( const HypernodeID& hn : nodes ) {
+    for ( const HypernodeID& hn : sub_hg.nodes_of_block_0 ) {
+      part_weights[phg.partID(hn)] += phg.nodeWeight(hn);
+    }
+    for ( const HypernodeID& hn : sub_hg.nodes_of_block_1 ) {
       part_weights[phg.partID(hn)] += phg.nodeWeight(hn);
     }
 
@@ -116,12 +119,18 @@ void executeConcurrent(F f1, K f2) {
   });
 }
 
-void verifyThatVertexSetAreDisjoint(const vec<HypernodeID>& nodes_1, const vec<HypernodeID>& nodes_2) {
+void verifyThatVertexSetAreDisjoint(const Subhypergraph& sub_hg_1, const Subhypergraph& sub_hg_2) {
   std::set<HypernodeID> nodes;
-  for ( const HypernodeID& hn : nodes_1 ) {
+  for ( const HypernodeID& hn : sub_hg_1.nodes_of_block_0 ) {
     nodes.insert(hn);
   }
-  for ( const HypernodeID& hn : nodes_2 ) {
+  for ( const HypernodeID& hn : sub_hg_1.nodes_of_block_1 ) {
+    nodes.insert(hn);
+  }
+  for ( const HypernodeID& hn : sub_hg_2.nodes_of_block_0 ) {
+    ASSERT_TRUE(nodes.find(hn) == nodes.end());
+  }
+  for ( const HypernodeID& hn : sub_hg_2.nodes_of_block_1 ) {
     ASSERT_TRUE(nodes.find(hn) == nodes.end());
   }
 }
@@ -138,7 +147,7 @@ TEST_F(AProblemConstruction, GrowAnAdvancedRefinementProblemAroundTwoBlocks1) {
   Subhypergraph sub_hg = constructor.construct(
     search_id, qg, refiner, phg);
 
-  verifyThatPartWeightsAreLessEqualToMaxPartWeight(sub_hg.nodes, search_id, qg);
+  verifyThatPartWeightsAreLessEqualToMaxPartWeight(sub_hg, search_id, qg);
 }
 
 TEST_F(AProblemConstruction, GrowAnAdvancedRefinementProblemAroundTwoBlocks2) {
@@ -153,7 +162,7 @@ TEST_F(AProblemConstruction, GrowAnAdvancedRefinementProblemAroundTwoBlocks2) {
   Subhypergraph sub_hg = constructor.construct(
     search_id, qg, refiner, phg);
 
-  verifyThatPartWeightsAreLessEqualToMaxPartWeight(sub_hg.nodes, search_id, qg);
+  verifyThatPartWeightsAreLessEqualToMaxPartWeight(sub_hg, search_id, qg);
 }
 
 TEST_F(AProblemConstruction, GrowTwoAdvancedRefinementProblemAroundTwoBlocksSimultanously) {
@@ -170,14 +179,14 @@ TEST_F(AProblemConstruction, GrowTwoAdvancedRefinementProblemAroundTwoBlocksSimu
     SearchID search_id = qg.requestNewSearch(refiner);
      sub_hg_1 = constructor.construct(
       search_id, qg, refiner, phg);
-    verifyThatPartWeightsAreLessEqualToMaxPartWeight(sub_hg_1.nodes, search_id, qg);
+    verifyThatPartWeightsAreLessEqualToMaxPartWeight(sub_hg_1, search_id, qg);
   }, [&] {
     SearchID search_id = qg.requestNewSearch(refiner);
     sub_hg_2 = constructor.construct(
       search_id, qg, refiner, phg);
-    verifyThatPartWeightsAreLessEqualToMaxPartWeight(sub_hg_2.nodes, search_id, qg);
+    verifyThatPartWeightsAreLessEqualToMaxPartWeight(sub_hg_2, search_id, qg);
   });
-  verifyThatVertexSetAreDisjoint(sub_hg_1.nodes, sub_hg_2.nodes);
+  verifyThatVertexSetAreDisjoint(sub_hg_1, sub_hg_2);
 }
 
 }

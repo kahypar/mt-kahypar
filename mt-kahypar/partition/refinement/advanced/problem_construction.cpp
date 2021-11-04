@@ -137,7 +137,12 @@ Subhypergraph ProblemConstruction::construct(const SearchID search_id,
           // Double-check if vertex is still part of the blocks associated
           // with the search.
           if ( stats.isBlockContained(block) ) {
-            sub_hg.nodes.push_back(hn);
+            if ( stats.block(0) == block ) {
+              sub_hg.nodes_of_block_0.push_back(hn);
+            } else {
+              ASSERT(stats.block(1) == block);
+              sub_hg.nodes_of_block_1.push_back(hn);
+            }
             stats.addNode(hn, block, phg);
 
             // Push all neighbors of the added vertex into the queue
@@ -175,7 +180,17 @@ Subhypergraph ProblemConstruction::construct(const SearchID search_id,
       expected_hes[he] = true;
     }
 
-    for ( const HypernodeID& hn : sub_hg.nodes ) {
+    for ( const HypernodeID& hn : sub_hg.nodes_of_block_0 ) {
+      for ( const HyperedgeID& he : phg.incidentEdges(hn) ) {
+        if ( expected_hes.count(he) == 0 ) {
+          LOG << "Hyperedge" << he << "not contained in subhypergraph!";
+          return false;
+        }
+        expected_hes[he] = false;
+      }
+    }
+
+    for ( const HypernodeID& hn : sub_hg.nodes_of_block_1 ) {
       for ( const HyperedgeID& he : phg.incidentEdges(hn) ) {
         if ( expected_hes.count(he) == 0 ) {
           LOG << "Hyperedge" << he << "not contained in subhypergraph!";
@@ -201,14 +216,22 @@ Subhypergraph ProblemConstruction::construct(const SearchID search_id,
       << ", Used Cut HEs =" << requested_hyperedges
       << "-" << stats;
 
+  const PartitionID block_0 = stats.block(0);
+  const PartitionID block_1 = stats.block(1);
+  sub_hg.weight_of_block_0 = stats.nodeWeightOfBlock(block_0);
+  sub_hg.weight_of_block_1 = stats.nodeWeightOfBlock(block_1);
+  sub_hg.num_pins = stats.numPins();
   return sub_hg;
 }
 
 void ProblemConstruction::releaseNodes(const SearchID search_id,
-                                       const vec<HypernodeID>& nodes) {
+                                       const Subhypergraph& sub_hg) {
   if ( !_context.refinement.advanced.use_overlapping_searches ) {
-    for ( size_t i = 0; i < nodes.size(); ++i ) {
-      release_vertex(search_id, nodes[i]);
+    for ( size_t i = 0; i < sub_hg.nodes_of_block_0.size(); ++i ) {
+      release_vertex(search_id, sub_hg.nodes_of_block_0[i]);
+    }
+    for ( size_t i = 0; i < sub_hg.nodes_of_block_1.size(); ++i ) {
+      release_vertex(search_id, sub_hg.nodes_of_block_1[i]);
     }
   }
 }

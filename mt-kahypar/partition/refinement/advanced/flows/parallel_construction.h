@@ -21,15 +21,18 @@
 #pragma once
 
 #include <tbb/concurrent_vector.h>
+#include "tbb/enumerable_thread_specific.h"
 
-#include "datastructure/flow_hypergraph_builder.h"
 #include "algorithm/hyperflowcutter.h"
 #include "algorithm/dinic.h"
 
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/datastructures/sparse_map.h"
+#include "mt-kahypar/datastructures/concurrent_flat_map.h"
 #include "mt-kahypar/datastructures/thread_safe_fast_reset_flag_array.h"
+#include "mt-kahypar/datastructures/concurrent_bucket_map.h"
 #include "mt-kahypar/partition/refinement/advanced/i_advanced_refiner.h"
+#include "mt-kahypar/partition/refinement/advanced/flows/flow_hypergraph_builder.h"
 
 namespace mt_kahypar {
 
@@ -41,37 +44,42 @@ class ParallelConstruction {
 
   class DynamicIdenticalNetDetection {
 
-    using IdenticalNetVector = vec<whfc::Hyperedge>;
+    using IdenticalNetVector = tbb::concurrent_vector<whfc::Hyperedge>;
 
    public:
-    explicit DynamicIdenticalNetDetection(whfc::FlowHypergraphBuilder& flow_hg) :
+    explicit DynamicIdenticalNetDetection(whfc::FlowHypergraph& flow_hg) :
       _flow_hg(flow_hg),
       _he_hashes(),
       _used_entries(0),
       _hash_buckets() { }
 
-    /**
-     * Returns an invalid hyperedge id, if the edge is not contained, otherwise
-     * it returns the id of the hyperedge that is identical to he.
-     */
-    whfc::Hyperedge add_if_not_contained(const whfc::Hyperedge he,
-                                         const size_t he_hash,
-                                         const vec<whfc::Node>& pins);
+    whfc::Hyperedge get(const size_t he_hash,
+                        const vec<whfc::Node>& pins);
 
-    void reset() {
+    void add(const whfc::Hyperedge he,
+             const size_t he_hash);
+
+    void reset(const size_t expected_num_hes) {
       _he_hashes.clear();
-      _used_entries = 0;
+      _used_entries.store(0, std::memory_order_relaxed);
+      tbb::parallel_invoke([&] {
+        _he_hashes.setMaxSize(expected_num_hes);
+      }, [&] {
+        if ( expected_num_hes > _hash_buckets.size() ) {
+          _hash_buckets.resize(expected_num_hes);
+        }
+      });
     }
 
    private:
-    whfc::FlowHypergraphBuilder& _flow_hg;
-    ds::DynamicFlatMap<size_t, size_t> _he_hashes;
-    size_t _used_entries;
+    whfc::FlowHypergraph& _flow_hg;
+    ds::ConcurrentFlatMap<size_t, size_t> _he_hashes;
+    CAtomic<size_t> _used_entries;
     vec<IdenticalNetVector> _hash_buckets;
   };
 
  public:
-  explicit ParallelConstruction(whfc::FlowHypergraphBuilder& flow_hg,
+  explicit ParallelConstruction(FlowHypergraphBuilder& flow_hg,
                                 whfc::HyperFlowCutter<whfc::Dinic>& hfc,
                                 const Context& context) :
     _context(context),
@@ -114,13 +122,13 @@ class ParallelConstruction {
 
   const Context& _context;
 
-  whfc::FlowHypergraphBuilder& _flow_hg;
+  FlowHypergraphBuilder& _flow_hg;
   whfc::HyperFlowCutter<whfc::Dinic>& _hfc;
 
-  ds::DynamicSparseMap<HypernodeID, whfc::Node> _node_to_whfc;
+  ds::ConcurrentFlatMap<HypernodeID, whfc::Node> _node_to_whfc;
   ds::ThreadSafeFastResetFlagArray<> _visited_hns;
-  vec<whfc::Node> _tmp_pins;
-  vec<whfc::Hyperedge> _cut_hes;
+  tbb::enumerable_thread_specific<vec<whfc::Node>> _tmp_pins;
+  tbb::concurrent_vector<whfc::Hyperedge> _cut_hes;
 
   DynamicIdenticalNetDetection _identical_nets;
 };

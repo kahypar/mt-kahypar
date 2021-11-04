@@ -426,6 +426,7 @@ class FixedSizeSparseMap {
   MapElement* _dense;
 };
 
+
 template <typename Key = Mandatory,
           typename Value = Mandatory,
           typename Derived = Mandatory>
@@ -748,6 +749,7 @@ class DynamicFlatMap final : public DynamicMapBase<Key, Value, DynamicFlatMap<Ke
   using Base::_data;
   MapElement* _elements;
 };
+
 
 struct EmptyStruct { };
 template<typename Key>

@@ -256,7 +256,10 @@ class AnAdvancedRefinementEndToEnd : public Test {
                                                              const Subhypergraph& sub_hg,
                                                              const size_t) {
       MoveSequence sequence { {}, 0 };
-      for ( const HypernodeID& hn : sub_hg.nodes ) {
+      vec<HypernodeID> nodes;
+      nodes.insert(nodes.end(), sub_hg.nodes_of_block_0.begin(), sub_hg.nodes_of_block_0.end());
+      nodes.insert(nodes.end(), sub_hg.nodes_of_block_1.begin(), sub_hg.nodes_of_block_1.end());
+      for ( const HypernodeID& hn : nodes ) {
         Move move = mover->computeMaxGainMove(phg, hn);
         ASSERT(move.from == phg.partID(hn));
         if ( move.from != move.to ) {
