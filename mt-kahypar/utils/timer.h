@@ -419,5 +419,115 @@ using Timer = DoNothingTimer;
 using Timer = TimerT;
 #endif
 
+class PerTaskTimerForAsync {
+
+    using HighResClockTimepoint = std::chrono::time_point<std::chrono::high_resolution_clock>;
+    static constexpr HighResClockTimepoint invalidTime = HighResClockTimepoint::max();
+
+public:
+
+  PerTaskTimerForAsync() :
+    _start_of_uncontraction_timing(invalidTime),
+    _total_uncontraction_time(0.0),
+    _start_of_localized_refine_timing(invalidTime),
+    _total_localized_refine_time(0.0),
+    _start_of_group_picking_timing(invalidTime),
+    _group_picking_time_with_group_found(0.0),
+    _group_picking_time_without_group_found(0.0),
+    _start_of_region_tracking_timing(invalidTime),
+    _total_region_tracking_time(0.0)
+  {}
+
+  void startUncontractionTimer() {
+    ASSERT(_start_of_uncontraction_timing == invalidTime);
+    _start_of_uncontraction_timing = std::chrono::high_resolution_clock::now();
+  }
+
+  void stopUncontractionTimer() {
+    auto end = std::chrono::high_resolution_clock::now();
+    ASSERT(end > _start_of_uncontraction_timing);
+    double time = std::chrono::duration<double>(end - _start_of_uncontraction_timing).count();
+    _total_uncontraction_time += time;
+    _start_of_uncontraction_timing = invalidTime;
+  }
+
+  void startLocalizedRefinementTimer() {
+    ASSERT(_start_of_localized_refine_timing == invalidTime);
+    _start_of_localized_refine_timing = std::chrono::high_resolution_clock::now();
+  }
+
+  void stopLocalizedRefinementTimer() {
+    auto end = std::chrono::high_resolution_clock::now();
+    ASSERT(end > _start_of_localized_refine_timing);
+    double time = std::chrono::duration<double>(end - _start_of_localized_refine_timing).count();
+    _total_localized_refine_time += time;
+    _start_of_localized_refine_timing = invalidTime;
+  }
+
+  void startGroupPickingTimer() {
+    ASSERT(_start_of_group_picking_timing == invalidTime);
+    _start_of_group_picking_timing = std::chrono::high_resolution_clock::now();
+  }
+
+  void stopGroupPickingTimer(bool foundGroup) {
+    auto end = std::chrono::high_resolution_clock::now();
+    ASSERT(end > _start_of_group_picking_timing);
+    double time = std::chrono::duration<double>(end - _start_of_group_picking_timing).count();
+    if (foundGroup) {
+      _group_picking_time_with_group_found += time;
+    } else {
+      _group_picking_time_without_group_found += time;
+    }
+    _start_of_group_picking_timing = invalidTime;
+  }
+
+  void startRegionTrackingTimer() {
+    ASSERT(_start_of_region_tracking_timing == invalidTime);
+    _start_of_region_tracking_timing = std::chrono::high_resolution_clock::now();
+  }
+
+  void stopRegionTrackingTimer() {
+    auto end = std::chrono::high_resolution_clock::now();
+    ASSERT(end > _start_of_region_tracking_timing);
+    double time = std::chrono::duration<double>(end - _start_of_region_tracking_timing).count();
+    _total_region_tracking_time += time;
+    _start_of_region_tracking_timing = invalidTime;
+  }
+
+    double getTotalUncontractionTime() const {
+      return _total_uncontraction_time;
+    }
+
+    double getTotalLocalizedRefineTime() const {
+      return _total_localized_refine_time;
+    }
+
+    double getGroupPickingTimeWithGroupFound() const {
+      return _group_picking_time_with_group_found;
+    }
+
+    double getGroupPickingTimeWithoutGroupFound() const {
+      return _group_picking_time_without_group_found;
+    }
+
+    double getTotalRegionTrackingTime() const {
+      return _total_region_tracking_time;
+    }
+
+private:
+
+  HighResClockTimepoint _start_of_uncontraction_timing;
+  double _total_uncontraction_time;
+    HighResClockTimepoint _start_of_localized_refine_timing;
+  double _total_localized_refine_time;
+    HighResClockTimepoint _start_of_group_picking_timing;
+  double _group_picking_time_with_group_found;
+  double _group_picking_time_without_group_found;
+    HighResClockTimepoint _start_of_region_tracking_timing;
+  double _total_region_tracking_time;
+
+
+};
+
 }  // namespace utils
 }  // namespace mt_kahypar

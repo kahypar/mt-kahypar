@@ -517,7 +517,8 @@ namespace mt_kahypar {
                                                RegionComparator &node_region_comparator,
                                                SeedDeduplicator &seed_deduplicator, const size_t task_id,
                                                const bool alwaysInsertIntoPQ, size_t &local_calls_to_localized_refine,
-                                               size_t &local_iterations_in_localized_refine) {
+                                               size_t &local_iterations_in_localized_refine,
+                                               utils::PerTaskTimerForAsync &task_local_timer) {
 
       if (pool->allAccepted()) return;
 
@@ -536,9 +537,16 @@ namespace mt_kahypar {
 
         if (pool->allAccepted()) return;
 
-        // Attempt to pick a group from the pool. Stop if pool is completed.
-        while (pick_new_group && !pool->tryToPickActiveID(groupID, task_id)) {
-          if (pool->allAccepted()) return;
+
+        if (pick_new_group) {
+          // Attempt to pick a group from the pool. Stop if pool is completed.
+          bool group_found = false;
+          while (!group_found) {
+            if (pool->allAccepted()) return;
+            task_local_timer.startGroupPickingTimer();
+            group_found = pool->tryToPickActiveID(groupID, task_id);
+            task_local_timer.stopGroupPickingTimer(group_found);
+          }
         }
 
           ASSERT(groupID != ds::invalidGroupID);
@@ -559,11 +567,15 @@ namespace mt_kahypar {
           }
           ASSERT(acquired);
 
+          task_local_timer.startRegionTrackingTimer();
           pool->markAccepted(groupID);
           HyperedgeID num_edges_activated_in_task = 0;
           node_region_comparator.markActive(_phg.incidentEdges(group.getRepresentative()), task_id, num_edges_activated_in_task);
+          task_local_timer.stopRegionTrackingTimer();
 
+          task_local_timer.startUncontractionTimer();
           uncontractGroupAsyncSubtask(group, groupID);
+          task_local_timer.stopUncontractionTimer();
 
           // Release lock (Locks will be reacquired for moves during refinement)
           _lock_manager_for_async->strongReleaseLock(group.getRepresentative(), groupID);
@@ -592,6 +604,7 @@ namespace mt_kahypar {
 
           ASSERT(local_refinement_nodes.size() == num_edges_activated_per_refinement_node.size());
 
+          task_local_timer.startRegionTrackingTimer();
           // Give last extracted seed (if any) the entry for number of edges activated
           if (num_extracted_seeds > 0) {
             ASSERT(!num_edges_activated_per_refinement_node.empty());
@@ -601,6 +614,7 @@ namespace mt_kahypar {
             // If there are no refinement seeds in this group, do not consider the incident edges active anymore
             node_region_comparator.markLastActivatedEdgesForTaskInactive(task_id, num_edges_activated_in_task);
           }
+          task_local_timer.stopRegionTrackingTimer();
 
           // Refine only once enough seeds are available
           if ((_context.type != kahypar::ContextType::main && !local_refinement_nodes.empty()) // case for Initial Partitioning => refine right away
@@ -613,8 +627,10 @@ namespace mt_kahypar {
 
             auto cur_seeds = IteratorRange(local_refinement_nodes.cbegin(), local_refinement_nodes.cend());
 
+            task_local_timer.startLocalizedRefinementTimer();
             localizedRefineForAsync(_phg, cur_seeds, async_lp_refiner, async_fm_refiner, groupID,
                                     current_metrics, local_iterations_in_localized_refine);
+            task_local_timer.stopLocalizedRefinementTimer();
 
             if (use_old_seeds && local_refinement_nodes.size() >= min_seed_nodes) {
               // Deactivate nodes that expired, i.e. the oldest seeds
@@ -628,9 +644,11 @@ namespace mt_kahypar {
             } else if (!use_old_seeds) {
               // When not using old seed nodes clear all refinement seeds
               local_refinement_nodes.clear();
+              task_local_timer.startRegionTrackingTimer();
               num_edges_activated_per_refinement_node.clear();
               seed_deduplicator.reset();
               node_region_comparator.markAllEdgesForTaskInactive(task_id);
+              task_local_timer.stopRegionTrackingTimer();
             }
             // else if {} : When using old seeds but fewer than min_seed_nodes available, none expire yet
           }
@@ -775,6 +793,8 @@ namespace mt_kahypar {
     auto calls_to_localized_refine_per_task = std::vector<size_t>(num_threads, 0);
     auto iterations_of_localized_refine_per_task = std::vector<size_t>(num_threads, 0);
 
+    auto async_timers_per_task = std::vector<utils::PerTaskTimerForAsync>(num_threads);
+
       for (size_t inv_version = 0; inv_version < _group_pools_for_versions.size(); ++inv_version) {
 
         size_t version = _group_pools_for_versions.size() - inv_version - 1;
@@ -808,7 +828,8 @@ namespace mt_kahypar {
                                  *seed_deduplicator_arrays[task_id], task_id,
                                  _context.uncoarsening.always_insert_groups_into_pq && (_context.type ==
                                                                                         kahypar::ContextType::main) /* Do not use this option in initial partitioning*/
-                      , calls_to_localized_refine_per_task[task_id], iterations_of_localized_refine_per_task[task_id]);
+                  , calls_to_localized_refine_per_task[task_id], iterations_of_localized_refine_per_task[task_id],
+                                 async_timers_per_task[task_id]);
           };
 
           for (size_t tid = 0; tid < num_threads; ++tid) {
@@ -924,6 +945,25 @@ namespace mt_kahypar {
       utils::Stats::instance().update_stat("calls_to_pick_next_group_with_max_retries", static_cast<int64_t>(calls_to_pick_that_reached_max_retries));
       utils::Stats::instance().update_stat("calls_to_pick_next_group_with_empty_pq", static_cast<int64_t>(calls_to_pick_with_empty_pq));
 
+      // Sum up and store total timings per task
+      double total_uncontraction_time = 0.0;
+      double total_localized_refine_time = 0.0;
+      double total_group_picking_with_group_found_time = 0.0;
+      double total_group_picking_without_group_found_time = 0.0;
+      double total_region_tracking_time = 0.0;
+      for (const auto& timer : async_timers_per_task) {
+        total_uncontraction_time += timer.getTotalUncontractionTime();
+        total_localized_refine_time += timer.getTotalLocalizedRefineTime();
+        total_group_picking_with_group_found_time += timer.getGroupPickingTimeWithGroupFound();
+        total_group_picking_without_group_found_time += timer.getGroupPickingTimeWithoutGroupFound();
+        total_region_tracking_time += timer.getTotalRegionTrackingTime();
+      }
+      utils::Stats::instance().update_stat("total_uncontraction_time_in_tasks", total_uncontraction_time);
+      utils::Stats::instance().update_stat("total_localized_refinement_time_in_tasks", total_localized_refine_time);
+      utils::Stats::instance().update_stat("total_group_picking_with_group_found_time_in_tasks", total_group_picking_with_group_found_time);
+      utils::Stats::instance().update_stat("total_group_picking_without_group_found_time_in_tasks", total_group_picking_without_group_found_time);
+      utils::Stats::instance().update_stat("total_region_tracking_time_in_tasks", total_region_tracking_time);
+
 
       if ( _context.partition.verbose_output && _context.type == kahypar::ContextType::main) {
         LOG << std::setprecision(5) << std::fixed
@@ -965,6 +1005,12 @@ namespace mt_kahypar {
             << "localizedRefine() calls: " << total_localized_refine_calls
             << ", lR() Loop Iterations: " << total_iterations_of_localized_refine
             << ", Avg. Iterations per Call: " << ((double) total_iterations_of_localized_refine / (double) total_localized_refine_calls);
+        LOG << std::setprecision(5) << std::fixed
+            << "Uncontraction Time in tasks: " << total_uncontraction_time << "\n"
+            << "Localized Refinement Time in tasks: " << total_localized_refine_time << "\n"
+            << "Group Picking Time With Group Found in tasks: " << total_group_picking_with_group_found_time << "\n"
+            << "Group Picking Time Without Group Found in tasks: " << total_group_picking_without_group_found_time << "\n"
+            << "Region Tracking Time in tasks: " << total_region_tracking_time;
       }
 
       size_t total_num_nodes = _hg.initialNumNodes() - _hg.numRemovedHypernodes();

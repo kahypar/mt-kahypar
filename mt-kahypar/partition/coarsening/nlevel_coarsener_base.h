@@ -111,7 +111,8 @@ class NLevelCoarsenerBase {
                      RegionComparator &node_region_comparator,
                      SeedDeduplicator &seed_deduplicator, const size_t task_id,
                      const bool alwaysInsertIntoPQ, size_t &local_calls_to_localized_refine,
-                     size_t &local_iterations_in_localized_refine);
+                     size_t &local_iterations_in_localized_refine,
+                     utils::PerTaskTimerForAsync &task_local_timer);
 
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE void uncontractGroupAsyncSubtask(const ds::ContractionGroup &group,
                                                                       const ds::ContractionGroupID groupID);
