@@ -31,9 +31,7 @@ whfc::Hyperedge ParallelConstruction::DynamicIdenticalNetDetection::get(const si
   const size_t* bucket_idx = _he_hashes.get_if_contained(he_hash);
   if ( bucket_idx ) {
     // There exists already some hyperedges with the same hash
-    const size_t bucket_size = _hash_buckets[*bucket_idx].size();
-    for ( size_t i = 0; i < bucket_size; ++i ) {
-      const whfc::Hyperedge e = _hash_buckets[*bucket_idx][i];
+    for ( const whfc::Hyperedge& e : _hash_buckets[*bucket_idx] ) {
       // Check if there is some hyperedge equal to he
       if ( _flow_hg.pinCount(e) == pins.size() ) {
         bool is_identical = true;
