@@ -23,6 +23,7 @@
 #include "tbb/concurrent_queue.h"
 
 #include "mt-kahypar/partition/refinement/advanced/flows/flow_common.h"
+#include "mt-kahypar/parallel/stl/scalable_queue.h"
 
 namespace mt_kahypar {
 
@@ -264,6 +265,46 @@ FlowProblem ParallelConstruction::constructFlowHypergraph(const PartitionedHyper
   return flow_problem;
 }
 
+namespace {
+template<typename T>
+class BFSQueue {
+
+ public:
+  explicit BFSQueue(const size_t num_threads) :
+    _q(num_threads) { }
+
+  bool empty() {
+    bool is_empty = true;
+    for ( size_t i = 0; i < _q.size(); ++i ) {
+      is_empty &= _q[i].empty();
+    }
+    return is_empty;
+  }
+
+  bool empty(const size_t i) {
+    ASSERT(i < _q.size());
+    return _q[i].empty();
+  }
+
+  void push(const T elem, const size_t i) {
+    ASSERT(i < _q.size());
+    return _q[i].push(elem);
+  }
+
+  T front(const size_t i) {
+    ASSERT(i < _q.size());
+    return _q[i].front();
+  }
+
+  void pop(const size_t i) {
+    ASSERT(i < _q.size());
+    return _q[i].pop();
+  }
+
+ private:
+  vec<parallel::scalable_queue<T>> _q;
+};
+}
 
 void ParallelConstruction::determineDistanceFromCut(const PartitionedHypergraph& phg,
                                                     const whfc::Node source,
@@ -274,16 +315,17 @@ void ParallelConstruction::determineDistanceFromCut(const PartitionedHypergraph&
   _hfc.cs.borderNodes.distance.distance.assign(_flow_hg.numNodes(), whfc::HopDistance(0));
   _visited_hns.resize(_flow_hg.numNodes() + _flow_hg.numHyperedges());
   _visited_hns.reset();
+  _visited_hns.set(source, true);
+  _visited_hns.set(sink, true);
 
   // Initialize bfs queue with vertices contained in cut hyperedges
   size_t q_idx = 0;
-  std::array<tbb::concurrent_queue<whfc::Node>, 2> q;
+  vec<BFSQueue<whfc::Node>> q(2, BFSQueue<whfc::Node>(_context.shared_memory.num_threads));
   tbb::parallel_for(0UL, _cut_hes.size(), [&](const size_t i) {
     const whfc::Hyperedge he = _flow_hg.originalHyperedgeID(_cut_hes[i].bucket, _cut_hes[i].e);
     for ( const whfc::FlowHypergraph::Pin& pin : _flow_hg.pinsOf(he) ) {
-      if ( pin.pin != source && pin.pin != sink &&
-           _visited_hns.compare_and_set_to_true(pin.pin) ) {
-        q[q_idx].push(pin.pin);
+      if ( _visited_hns.compare_and_set_to_true(pin.pin) ) {
+        q[q_idx].push(pin.pin, tbb::this_task_arena::current_thread_index());
       }
     }
     _visited_hns.set(_flow_hg.numNodes() + he, true);
@@ -297,9 +339,10 @@ void ParallelConstruction::determineDistanceFromCut(const PartitionedHypergraph&
   while ( !q[q_idx].empty() ) {
     bool reached_source_side = false;
     bool reached_sink_side = false;
-    tbb::parallel_for(0UL, _context.shared_memory.num_threads, [&](const size_t) {
-      whfc::Node u = whfc::Node::Invalid();
-      while ( q[q_idx].try_pop(u) ) {
+    tbb::parallel_for(0UL, _context.shared_memory.num_threads, [&](const size_t idx) {
+      while ( !q[q_idx].empty(idx) ) {
+        whfc::Node u = q[q_idx].front(idx);
+        q[q_idx].pop(idx);
         const PartitionID block_of_u = phg.partID(whfc_to_node[u]);
         if ( block_of_u == block_0 ) {
           distance[u] = -dist;
@@ -313,9 +356,8 @@ void ParallelConstruction::determineDistanceFromCut(const PartitionedHypergraph&
           const whfc::Hyperedge he = in_he.e;
           if ( _visited_hns.compare_and_set_to_true(_flow_hg.numNodes() + he) ) {
             for ( const whfc::FlowHypergraph::Pin& pin : _flow_hg.pinsOf(he) ) {
-              if ( pin.pin != source && pin.pin != sink &&
-                   _visited_hns.compare_and_set_to_true(pin.pin) ) {
-                q[1 - q_idx].push(pin.pin);
+              if ( _visited_hns.compare_and_set_to_true(pin.pin) ) {
+                q[1 - q_idx].push(pin.pin, idx);
               }
             }
           }
