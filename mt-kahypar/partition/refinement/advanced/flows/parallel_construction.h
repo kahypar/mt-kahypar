@@ -42,21 +42,28 @@ class ParallelConstruction {
 
   static constexpr bool debug = false;
 
+  static constexpr size_t NUM_CSR_BUCKETS = 1024;
+
+  struct TmpHyperedge {
+    const size_t bucket;
+    const whfc::Hyperedge e;
+  };
+
   class DynamicIdenticalNetDetection {
 
-    using IdenticalNetVector = tbb::concurrent_vector<whfc::Hyperedge>;
+    using IdenticalNetVector = tbb::concurrent_vector<TmpHyperedge>;
 
    public:
-    explicit DynamicIdenticalNetDetection(whfc::FlowHypergraph& flow_hg) :
+    explicit DynamicIdenticalNetDetection(FlowHypergraphBuilder& flow_hg) :
       _flow_hg(flow_hg),
       _he_hashes(),
       _used_entries(0),
       _hash_buckets() { }
 
-    whfc::Hyperedge get(const size_t he_hash,
-                        const vec<whfc::Node>& pins);
+    TmpHyperedge get(const size_t he_hash,
+                     const vec<whfc::Node>& pins);
 
-    void add(const whfc::Hyperedge he,
+    void add(const TmpHyperedge& tmp_he,
              const size_t he_hash);
 
     void reset(const size_t expected_num_hes) {
@@ -72,7 +79,7 @@ class ParallelConstruction {
     }
 
    private:
-    whfc::FlowHypergraph& _flow_hg;
+    FlowHypergraphBuilder& _flow_hg;
     ds::ConcurrentFlatMap<size_t, size_t> _he_hashes;
     CAtomic<size_t> _used_entries;
     vec<IdenticalNetVector> _hash_buckets;
@@ -128,7 +135,7 @@ class ParallelConstruction {
   ds::ConcurrentFlatMap<HypernodeID, whfc::Node> _node_to_whfc;
   ds::ThreadSafeFastResetFlagArray<> _visited_hns;
   tbb::enumerable_thread_specific<vec<whfc::Node>> _tmp_pins;
-  tbb::concurrent_vector<whfc::Hyperedge> _cut_hes;
+  tbb::concurrent_vector<TmpHyperedge> _cut_hes;
 
   DynamicIdenticalNetDetection _identical_nets;
 };

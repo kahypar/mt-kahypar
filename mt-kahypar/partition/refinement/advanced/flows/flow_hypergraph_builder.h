@@ -27,13 +27,109 @@
 namespace mt_kahypar {
 
 	class FlowHypergraphBuilder : public whfc::FlowHypergraph {
+
+		using TmpPinRange = mutable_range<vec<Pin>>;
+
+    struct TmpCSRBucket {
+      TmpCSRBucket() :
+        _hes(),
+        _pins(),
+        _num_hes(0),
+        _global_start_he(0),
+        _num_pins(0),
+        _global_start_pin_idx(0) { }
+
+      void initialize(const size_t num_hes, const size_t num_pins) {
+        _hes.clear();
+        _pins.clear();
+        _hes.resize(num_hes + 1);
+        _pins.resize(num_pins);
+        _num_hes = whfc::Hyperedge(0);
+        _global_start_he = whfc::Hyperedge(0);
+        _num_pins = 0;
+        _global_start_pin_idx = 0;
+      }
+
+      MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE whfc::PinIndex pinCount(const whfc::Hyperedge e) {
+        ASSERT(e < _num_hes);
+        return _hes[e + 1].first_out - _hes[e].first_out;
+      }
+
+      MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE whfc::Flow& capacity(const whfc::Hyperedge e) {
+        ASSERT(e < _num_hes);
+        return _hes[e].capacity;
+      }
+
+      TmpPinRange pinsOf(const whfc::Hyperedge e) {
+        ASSERT(e < _num_hes);
+        return TmpPinRange(_pins.begin() + _hes[e].first_out,
+          _pins.begin() + _hes[e + 1].first_out);
+      }
+
+      MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE whfc::Hyperedge originalHyperedgeID(const whfc::Hyperedge& e) {
+        ASSERT(e < _num_hes);
+        return _global_start_he + e;
+      }
+
+      void addPin(const whfc::Node u, const size_t pin_idx) {
+        ASSERT(pin_idx < _pins.size());
+        ASSERT(pin_idx == _num_pins);
+        _pins[pin_idx].pin = u;
+        ++_num_pins;
+      }
+
+      void finishHyperedge(const whfc::Hyperedge he, const whfc::Flow capacity,
+                            const size_t pin_start_idx, const size_t pin_end_idx) {
+        ASSERT(he == _num_hes);
+        ASSERT(static_cast<size_t>(he + 1) < _hes.size());
+        ASSERT(pin_end_idx <= _pins.size());
+        _hes[he].capacity = capacity;
+        _hes[he].first_out = whfc::PinIndex(pin_start_idx);
+        _hes[he + 1].first_out = whfc::PinIndex(pin_end_idx);
+        ++_num_hes;
+      }
+
+      void finalize() {
+        _hes.resize(_num_hes + 1);
+        _pins.resize(_num_pins);
+      }
+
+      void copyDataToFlowHypergraph(std::vector<FlowHypergraph::HyperedgeData>& hyperedges,
+                                    std::vector<FlowHypergraph::Pin>& pins) {
+        tbb::parallel_invoke([&] {
+          if ( _num_hes > 0 ) {
+            const size_t num_hes = static_cast<size_t>(_num_hes);
+            tbb::parallel_for(0UL, num_hes, [&](const size_t i) {
+              _hes[i].first_out += _global_start_pin_idx;
+            });
+            const size_t he_start = static_cast<size_t>(_global_start_he);
+            std::memcpy(hyperedges.data() + he_start,
+                        _hes.data(), sizeof(FlowHypergraph::HyperedgeData) * num_hes);
+          }
+        }, [&] {
+          if ( _num_pins > 0 ) {
+            std::memcpy(pins.data() + _global_start_pin_idx,
+                        _pins.data(), sizeof(FlowHypergraph::Pin) * _num_pins);
+          }
+        });
+      }
+
+      vec<FlowHypergraph::HyperedgeData> _hes;
+      vec<FlowHypergraph::Pin> _pins;
+      whfc::Hyperedge _num_hes;
+      whfc::Hyperedge _global_start_he;
+      size_t _num_pins;
+      size_t _global_start_pin_idx;
+    };
+
 	public:
 		using Base = whfc::FlowHypergraph;
 
 		FlowHypergraphBuilder() :
       Base(),
       _finalized(false),
-      _numPinsAtHyperedgeStart(0) {
+      _numPinsAtHyperedgeStart(0),
+      _tmp_csr_buckets() {
 			clear();
 		}
 
@@ -74,6 +170,11 @@ namespace mt_kahypar {
       }
 		}
 
+    MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE whfc::Flow& capacity(const whfc::Hyperedge e) {
+      ASSERT(e < hyperedges.size());
+      return hyperedges[e].capacity;
+    }
+
 		void finalize();
 
     // ####################### Parallel Construction #######################
@@ -90,19 +191,57 @@ namespace mt_kahypar {
     void allocateHyperedgesAndPins(const size_t num_hyperedges,
                                    const size_t num_pins);
 
-    void resizeHyperedgesAndPins(const size_t num_hyperedges,
-                                 const size_t num_pins);
+    void setNumCSRBuckets(const size_t num_buckets) {
+      if ( num_buckets > _tmp_csr_buckets.size() ) {
+        _tmp_csr_buckets.resize(num_buckets);
+      }
+    }
 
-    void addPin(const whfc::Node u, const size_t pin_idx) {
-      ASSERT(pin_idx < pins.size());
+    void initializeCSRBucket(const size_t bucket, const size_t num_hes, const size_t num_pins) {
+      ASSERT(bucket < _tmp_csr_buckets.size());
+      _tmp_csr_buckets[bucket].initialize(num_hes, num_pins);
+    }
+
+    void finalizeCSRBucket(const size_t bucket) {
+      ASSERT(bucket < _tmp_csr_buckets.size());
+      _tmp_csr_buckets[bucket].finalize();
+    }
+
+    MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE whfc::PinIndex pinCount(const size_t bucket, const whfc::Hyperedge e) {
+      ASSERT(bucket < _tmp_csr_buckets.size());
+      return _tmp_csr_buckets[bucket].pinCount(e);
+    }
+
+    MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE whfc::Flow& capacity(const size_t bucket, const whfc::Hyperedge e) {
+      ASSERT(bucket < _tmp_csr_buckets.size());
+      return _tmp_csr_buckets[bucket].capacity(e);
+    }
+
+    TmpPinRange tmpPinsOf(const size_t bucket, const whfc::Hyperedge e) {
+      ASSERT(bucket < _tmp_csr_buckets.size());
+      return _tmp_csr_buckets[bucket].pinsOf(e);
+    }
+
+    MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE whfc::Hyperedge originalHyperedgeID(const size_t bucket, const whfc::Hyperedge& e) {
+      ASSERT(bucket < _tmp_csr_buckets.size());
+      return _tmp_csr_buckets[bucket].originalHyperedgeID(e);
+    }
+
+    void addPin(const whfc::Node u, const size_t bucket, const size_t pin_idx) {
+      ASSERT(bucket < _tmp_csr_buckets.size());
       ASSERT(static_cast<size_t>(u) < numNodes());
-      pins[pin_idx].pin = u;
+      _tmp_csr_buckets[bucket].addPin(u, pin_idx);
       __atomic_fetch_add(reinterpret_cast<whfc::InHeIndex::ValueType*>(
         &nodes[u + 1].first_out), 1, __ATOMIC_RELAXED);
     }
 
     void finishHyperedge(const whfc::Hyperedge he, const whfc::Flow capacity,
-                         const size_t pin_start_idx, const size_t pin_end_idx);
+                         const size_t bucket, const size_t pin_start_idx, const size_t pin_end_idx) {
+      ASSERT(bucket < _tmp_csr_buckets.size());
+      _tmp_csr_buckets[bucket].finishHyperedge(he, capacity, pin_start_idx, pin_end_idx);
+    }
+
+    void finalizeHyperedges();
 
     void finalizeParallel();
 
@@ -135,11 +274,16 @@ namespace mt_kahypar {
 
 		bool finishHyperedge();
 
+    // ####################### Parallel Construction #######################
+
+    void resizeHyperedgesAndPins(const size_t num_hyperedges,
+                                 const size_t num_pins);
+
+    bool verifyParallelConstructedHypergraph();
+
 		bool _finalized;
 		size_t _numPinsAtHyperedgeStart;
 
-    // ####################### Parallel Construction #######################
-
-    bool verifyParallelConstructedHypergraph();
+    vec<TmpCSRBucket> _tmp_csr_buckets;
 	};
 }

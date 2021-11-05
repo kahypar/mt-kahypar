@@ -23,6 +23,7 @@
 #include "tbb/blocked_range.h"
 #include "tbb/parallel_invoke.h"
 #include "tbb/parallel_reduce.h"
+#include "tbb/parallel_for.h"
 
 namespace mt_kahypar {
 
@@ -93,33 +94,33 @@ void FlowHypergraphBuilder::allocateHyperedgesAndPins(const size_t num_hyperedge
   });
 }
 
-void FlowHypergraphBuilder::resizeHyperedgesAndPins(const size_t num_hyperedges,
-                                                    const size_t num_pins) {
-  ASSERT(num_hyperedges <= hyperedges.size());
-  ASSERT(num_pins <= pins.size());
-  hyperedges.resize(num_hyperedges);
-  pins.resize(num_pins);
-  pins_sending_flow.resize(num_hyperedges);
-  pins_receiving_flow.resize(num_hyperedges);
-}
+void FlowHypergraphBuilder::finalizeHyperedges() {
+  for ( size_t i = 1; i < _tmp_csr_buckets.size(); ++i ) {
+    _tmp_csr_buckets[i]._global_start_he =
+      _tmp_csr_buckets[i - 1]._global_start_he + _tmp_csr_buckets[i - 1]._num_hes;
+    _tmp_csr_buckets[i]._global_start_pin_idx =
+      _tmp_csr_buckets[i - 1]._global_start_pin_idx + _tmp_csr_buckets[i - 1]._num_pins;
+  }
 
-void FlowHypergraphBuilder::finishHyperedge(const whfc::Hyperedge he,
-                                            const whfc::Flow capacity,
-                                            const size_t pin_start_idx,
-                                            const size_t pin_end_idx) {
-  ASSERT(static_cast<size_t>(he) < hyperedges.size());
-  ASSERT(pin_end_idx <= pins.size());
-  hyperedges[he].capacity = capacity;
-  hyperedges[he].first_out = whfc::PinIndex(pin_start_idx);
-  hyperedges[he + 1].first_out = whfc::PinIndex(pin_end_idx);
-  pins_sending_flow[he].__begin = whfc::PinIndex(pin_start_idx);
-  pins_sending_flow[he].__end = whfc::PinIndex(pin_start_idx);
-  pins_receiving_flow[he].__begin = whfc::PinIndex(pin_end_idx);
-  pins_receiving_flow[he].__end = whfc::PinIndex(pin_end_idx);
+  tbb::parallel_for(0UL, _tmp_csr_buckets.size(), [&](const size_t idx) {
+    _tmp_csr_buckets[idx].copyDataToFlowHypergraph(hyperedges, pins);
+  });
+
+  const size_t num_hyperedges =
+    _tmp_csr_buckets.back()._global_start_he + _tmp_csr_buckets.back()._num_hes;
+  const size_t num_pins =
+    _tmp_csr_buckets.back()._global_start_pin_idx + _tmp_csr_buckets.back()._num_pins;
+  resizeHyperedgesAndPins(num_hyperedges, num_pins);
+  hyperedges.emplace_back( HyperedgeData { whfc::PinIndex(num_pins), whfc::Flow(0), whfc::Flow(0) } ); // sentinel
+  tbb::parallel_for(0UL, num_hyperedges, [&](const size_t i) {
+    pins_sending_flow[i].__begin = hyperedges[i].first_out;
+    pins_sending_flow[i].__end = hyperedges[i].first_out;
+    pins_receiving_flow[i].__begin = hyperedges[i + 1].first_out;
+    pins_receiving_flow[i].__end = hyperedges[i + 1].first_out;
+  });
 }
 
 void FlowHypergraphBuilder::finalizeParallel() {
-  hyperedges.emplace_back( HyperedgeData { pins_receiving_flow.back().__end, whfc::Flow(0), whfc::Flow(0) } ); // sentinel
   ASSERT(verifyParallelConstructedHypergraph(), "Parallel construction failed!");
 
   maxHyperedgeCapacity = tbb::parallel_reduce(
@@ -158,6 +159,17 @@ void FlowHypergraphBuilder::finalizeParallel() {
   nodes[0].first_out = whfc::InHeIndex(0);
 
   _finalized = true;
+}
+
+
+void FlowHypergraphBuilder::resizeHyperedgesAndPins(const size_t num_hyperedges,
+                                                    const size_t num_pins) {
+  ASSERT(num_hyperedges <= hyperedges.size());
+  ASSERT(num_pins <= pins.size());
+  hyperedges.resize(num_hyperedges);
+  pins.resize(num_pins);
+  pins_sending_flow.resize(num_hyperedges);
+  pins_receiving_flow.resize(num_hyperedges);
 }
 
 bool FlowHypergraphBuilder::verifyParallelConstructedHypergraph() {

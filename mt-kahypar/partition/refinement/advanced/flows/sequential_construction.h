@@ -44,7 +44,7 @@ class SequentialConstruction {
     using IdenticalNetVector = vec<whfc::Hyperedge>;
 
    public:
-    explicit DynamicIdenticalNetDetection(FlowHypergraphBuilder& flow_hg) :
+    explicit DynamicIdenticalNetDetection(whfc::FlowHypergraph& flow_hg) :
       _flow_hg(flow_hg),
       _he_hashes(),
       _used_entries(0),
@@ -64,7 +64,7 @@ class SequentialConstruction {
     }
 
    private:
-    FlowHypergraphBuilder& _flow_hg;
+    whfc::FlowHypergraph& _flow_hg;
     ds::DynamicFlatMap<size_t, size_t> _he_hashes;
     size_t _used_entries;
     vec<IdenticalNetVector> _hash_buckets;
