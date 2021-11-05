@@ -23,6 +23,7 @@
 #include "tbb/blocked_range.h"
 #include "tbb/parallel_invoke.h"
 #include "tbb/parallel_reduce.h"
+#include "tbb/parallel_scan.h"
 #include "tbb/parallel_for.h"
 
 namespace mt_kahypar {
@@ -123,40 +124,91 @@ void FlowHypergraphBuilder::finalizeHyperedges() {
 void FlowHypergraphBuilder::finalizeParallel() {
   ASSERT(verifyParallelConstructedHypergraph(), "Parallel construction failed!");
 
-  maxHyperedgeCapacity = tbb::parallel_reduce(
-    tbb::blocked_range<size_t>(0UL, hyperedges.size()), whfc::Flow(0),
-    [&](const tbb::blocked_range<size_t>& range, whfc::Flow init) {
-      whfc::Flow max_capacity = init;
-      for (size_t i = range.begin(); i < range.end(); ++i) {
-        max_capacity = std::max(max_capacity, hyperedges[i].capacity);
+  tbb::parallel_invoke([&] {
+    // Determine maximum edge capacity
+    maxHyperedgeCapacity = tbb::parallel_reduce(
+      tbb::blocked_range<size_t>(0UL, hyperedges.size()), whfc::Flow(0),
+      [&](const tbb::blocked_range<size_t>& range, whfc::Flow init) {
+        whfc::Flow max_capacity = init;
+        for (size_t i = range.begin(); i < range.end(); ++i) {
+          max_capacity = std::max(max_capacity, hyperedges[i].capacity);
+        }
+        return max_capacity;
+      }, [](const whfc::Flow& lhs, const whfc::Flow& rhs) {
+        return std::max(lhs, rhs);
+      });
+  }, [&] {
+    // Determine total node weight
+    total_node_weight = tbb::parallel_reduce(
+      tbb::blocked_range<size_t>(0UL, static_cast<size_t>(numNodes())), whfc::NodeWeight(0),
+      [&](const tbb::blocked_range<size_t>& range, whfc::NodeWeight init) {
+        whfc::NodeWeight weight = init;
+        for (size_t i = range.begin(); i < range.end(); ++i) {
+          weight += nodes[i].weight;
+        }
+        return weight;
+      }, std::plus<whfc::NodeWeight>());
+  }, [&] {
+    incident_hyperedges.resize(numPins());
+  }, [&]() {
+    _inc_he_pos.assign(numNodes(), 0);
+  });
+
+  // Compute node degree prefix sum
+  tbb::parallel_scan(
+    tbb::blocked_range<size_t>(0UL, numNodes() + 1), whfc::InHeIndex(0),
+    [&](const tbb::blocked_range<size_t>& r, whfc::InHeIndex sum, bool is_final_scan) -> whfc::InHeIndex {
+      whfc::InHeIndex tmp = sum;
+      for ( size_t i = r.begin(); i < r.end(); ++i ) {
+        tmp += nodes[i].first_out;
+        if ( is_final_scan ) {
+          nodes[i].first_out = tmp;
+        }
       }
-      return max_capacity;
-    }, [](const whfc::Flow& lhs, const whfc::Flow& rhs) {
-      return std::max(lhs, rhs);
-    });
+      return tmp;
+    }, [&](const whfc::InHeIndex lhs, const whfc::InHeIndex rhs) {
+      return lhs + rhs;
+    }
+  );
 
-  total_node_weight = whfc::NodeWeight(0);
-  for (whfc::Node u : nodeIDs()) {
-    nodes[u+1].first_out += nodes[u].first_out;
-    total_node_weight += nodes[u].weight;
-  }
-
-  incident_hyperedges.resize(numPins());
-  for (whfc::Hyperedge e : hyperedgeIDs()) {
-    for (auto pin_it = beginIndexPins(e); pin_it != endIndexPins(e); pin_it++) {
+  tbb::parallel_for(0UL, numHyperedges(), [&](const size_t i) {
+    const whfc::Hyperedge e(i);
+    for ( auto pin_it = beginIndexPins(e); pin_it != endIndexPins(e); pin_it++ ) {
       Pin& p = pins[pin_it];
+      const whfc::Node& u = p.pin;
       //destroy first_out temporarily and reset later
-      whfc::InHeIndex ind_he = nodes[p.pin].first_out++;
+      whfc::InHeIndex::ValueType ind_he = nodes[u].first_out +
+        __atomic_fetch_add(&_inc_he_pos[u], 1, __ATOMIC_RELAXED);
       incident_hyperedges[ind_he] = { e, whfc::Flow(0), pin_it };
       //set iterator for incident hyperedge -> its position in incident_hyperedges of the node
-      p.he_inc_iter = ind_he;
+      p.he_inc_iter = whfc::InHeIndex(ind_he);
     }
-  }
+  });
 
-  for (whfc::Node u(numNodes()-1); u > 0; u--) {
-    nodes[u].first_out = nodes[u-1].first_out;	//reset temporarily destroyed first_out
-  }
-  nodes[0].first_out = whfc::InHeIndex(0);
+  ASSERT([&]() {
+    size_t num_pins = 0;
+    for ( const whfc::Node& u : nodeIDs() ) {
+      for ( const InHe& in_e : hyperedgesOf(u) ) {
+        ++num_pins;
+        bool found = false;
+        for ( const Pin& p : pinsOf(in_e.e) ) {
+          if ( p.pin == u ) {
+            found = true;
+            break;
+          }
+        }
+        if ( !found ) {
+          LOG << "Node" << u << "is not incident to hyperedge" << in_e.e << "!";
+          return false;
+        }
+      }
+    }
+    if ( num_pins != numPins() ) {
+      LOG << "Some incident hyperedges are missing (" << V(num_pins) << V(numPins()) << ")";
+      return false;
+    }
+    return true;
+  }(), "Parallel incidence hyperedge construction failed!");
 
   _finalized = true;
 }

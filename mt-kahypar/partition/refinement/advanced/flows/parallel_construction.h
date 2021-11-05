@@ -73,6 +73,10 @@ class ParallelConstruction {
         _he_hashes.setMaxSize(expected_num_hes);
       }, [&] {
         if ( expected_num_hes > _hash_buckets.size() ) {
+          tbb::parallel_for(0UL, _hash_buckets.size(), [&](const size_t i) {
+            _hash_buckets[i].clear();
+            _hash_buckets[i].shrink_to_fit();
+          });
           _hash_buckets.resize(expected_num_hes);
         }
       });

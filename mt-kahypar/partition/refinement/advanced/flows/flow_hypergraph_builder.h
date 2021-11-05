@@ -129,14 +129,17 @@ namespace mt_kahypar {
       Base(),
       _finalized(false),
       _numPinsAtHyperedgeStart(0),
-      _tmp_csr_buckets() {
+      _tmp_csr_buckets(),
+      _inc_he_pos() {
 			clear();
 		}
 
 		explicit FlowHypergraphBuilder(size_t num_nodes) :
       Base(),
       _finalized(false),
-      _numPinsAtHyperedgeStart(0) {
+      _numPinsAtHyperedgeStart(0),
+      _tmp_csr_buckets(),
+      _inc_he_pos() {
 			reinitialize(num_nodes);
 		}
 
@@ -285,5 +288,6 @@ namespace mt_kahypar {
 		size_t _numPinsAtHyperedgeStart;
 
     vec<TmpCSRBucket> _tmp_csr_buckets;
+    vec<uint32_t> _inc_he_pos;
 	};
 }
