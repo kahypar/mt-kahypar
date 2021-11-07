@@ -111,11 +111,11 @@ public:
     return _target_parts[v];
   }
 
-  void updateEnabledBlocks(const PartitionID to, const HypernodeWeight from_weight, const HypernodeWeight to_weight) {
+  void updateEnabledBlocks(const PartitionID to, const HyperedgeWeight from_volume, const HyperedgeWeight to_volume) {
     // only consider disabling block if not all blocks should be enabled, at least half the blocks are enabled and the block is larger enough
     if (!_enable_all_blocks
         && _blockPQ.size() > static_cast<size_t>(_context.partition.k / 2)
-        && 1.f * to_weight / from_weight > _block_disable_factor) {
+        && 1.f * to_volume / from_volume > _block_disable_factor) {
       _blocks_enabled[to] = false;
       _blockPQ.remove(to);
     }
@@ -134,7 +134,6 @@ private:
     // if not all blocks were enabled and no block is left, retry with all blocks
     if (_blockPQ.empty()) {
       _enable_all_blocks = true;
-      LOG << "enabled all blocks";
       should_refiner_perform_rollback = true;
       return updatePQs(should_refiner_perform_rollback);
     }

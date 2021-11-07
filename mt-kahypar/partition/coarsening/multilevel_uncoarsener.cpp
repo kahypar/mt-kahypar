@@ -87,6 +87,7 @@ namespace mt_kahypar {
     }
 
     // If we reach the original hypergraph and partition is imbalanced, we try to rebalance it
+/*
     if (_context.type == kahypar::ContextType::main && !metrics::isBalanced(*_uncoarseningData.partitioned_hg, _context)) {
       const HyperedgeWeight quality_before = current_metrics.getMetric(
         kahypar::Mode::direct_kway, _context.partition.objective);
@@ -135,6 +136,7 @@ namespace mt_kahypar {
              V(current_metrics.getMetric(kahypar::Mode::direct_kway, _context.partition.objective))
              << V(metrics::objective(*_uncoarseningData.partitioned_hg, _context.partition.objective)));
     }
+*/
     return std::move(*_uncoarseningData.partitioned_hg);
   }
 

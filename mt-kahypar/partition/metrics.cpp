@@ -126,4 +126,68 @@ namespace mt_kahypar::metrics {
     return max_balance - 1.0;
   }
 
+  HyperedgeWeight judiciousKm1(const PartitionedHypergraph& hypergraph, const bool parallel) {
+    vec<HyperedgeWeight> vol(hypergraph.k(), 0);
+    if ( parallel ) {
+      tbb::enumerable_thread_specific<vec<HyperedgeWeight>> ets_vol(hypergraph.k(), 0);
+      tbb::parallel_for(ID(0), hypergraph.initialNumEdges(), [&](const HyperedgeID he) {
+        if (hypergraph.edgeIsEnabled(he)) {
+          for (PartitionID p = 0; p < hypergraph.k(); ++p) {
+            if (hypergraph.pinCountInPart(he, p) > 0) {
+              ets_vol.local()[p] += std::max(hypergraph.connectivity(he) - 1, 0) * hypergraph.edgeWeight(he);
+            }
+          }
+        }
+      });
+      for (const auto &v : ets_vol) {
+        for (PartitionID p = 0; p < hypergraph.k(); ++p) {
+          vol[p] += v[p];
+        }
+      }
+    } else {
+      for (const HyperedgeID& he : hypergraph.edges()) {
+        if (hypergraph.edgeIsEnabled(he)) {
+          for (PartitionID p = 0; p < hypergraph.k(); ++p) {
+            if (hypergraph.pinCountInPart(he, p) > 0) {
+              vol[p] += std::max(hypergraph.connectivity(he) - 1, 0) * hypergraph.edgeWeight(he);
+            }
+          }
+        }
+      }
+    }
+    return *std::max_element(vol.begin(), vol.end());
+  }
+
+  HyperedgeWeight judiciousCut(const PartitionedHypergraph& hypergraph, const bool parallel) {
+    vec<HyperedgeWeight> vol(hypergraph.k(), 0);
+    if ( parallel ) {
+      tbb::enumerable_thread_specific<vec<HyperedgeWeight>> ets_vol(hypergraph.k(), 0);
+      tbb::parallel_for(ID(0), hypergraph.initialNumEdges(), [&](const HyperedgeID he) {
+        if (hypergraph.edgeIsEnabled(he)) {
+          for (PartitionID p = 0; p < hypergraph.k(); ++p) {
+            if (hypergraph.pinCountInPart(he, p) > 0) {
+              ets_vol.local()[p] += hypergraph.edgeWeight(he);
+            }
+          }
+        }
+      });
+      for (const auto &v : ets_vol) {
+        for (PartitionID p = 0; p < hypergraph.k(); ++p) {
+          vol[p] += v[p];
+        }
+      }
+    } else {
+      for (const HyperedgeID& he : hypergraph.edges()) {
+        if (hypergraph.edgeIsEnabled(he)) {
+          for (PartitionID p = 0; p < hypergraph.k(); ++p) {
+            if (hypergraph.pinCountInPart(he, p) > 0) {
+              vol[p] += hypergraph.edgeWeight(he);
+            }
+          }
+        }
+      }
+    }
+    return *std::max_element(vol.begin(), vol.end());
+  }
+
 } // namespace mt_kahypar::metrics

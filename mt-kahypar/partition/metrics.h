@@ -39,5 +39,8 @@ HyperedgeWeight objective(
 
 double imbalance(const PartitionedHypergraph& hypergraph, const Context& context);
 
+HyperedgeWeight judiciousKm1(const PartitionedHypergraph& hypergraph, bool parallel = true);
+
+HyperedgeWeight judiciousCut(const PartitionedHypergraph& hypergraph, bool parallel = true);
 
 }  // namespace mt_kahypar

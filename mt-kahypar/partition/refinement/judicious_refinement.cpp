@@ -39,17 +39,19 @@ namespace mt_kahypar {
     calculateRefinementNodes(phg);
     for (size_t i = 0; i < 1; i++) {
       for (PartitionID i = 0; i < _context.partition.k; ++i) {
-        _part_weights.insert(i, phg.partWeight(i));
+        _part_volumes.insert(i, phg.partVolume(i));
       }
       bool done = false;
-      Gain improvement = 0;
+      vec<Gain> improvements(_context.partition.k, 0);
+      Gain current_improvement = 0;
       Gain last_improvement = 0;
       size_t consecutive_runs_with_too_little_improvement = 0;
       while (!done) {
-        const PartitionID heaviest_part = _part_weights.top();
-        last_improvement = improvement;
-        improvement += doRefinement(phg, heaviest_part);
-        const double improvement_fraction = last_improvement == 0 ? 1.0 : 1.f * improvement / last_improvement;
+        const PartitionID heaviest_part = _part_volumes.top();
+        last_improvement = current_improvement;
+        current_improvement += doRefinement(phg, heaviest_part);
+        improvements[heaviest_part] += current_improvement;
+        const double improvement_fraction = last_improvement == 0 ? 1.0 : 1.f * current_improvement / last_improvement;
         if (improvement_fraction < _min_improvement) {
           consecutive_runs_with_too_little_improvement++;
         } else {
@@ -57,8 +59,8 @@ namespace mt_kahypar {
         }
         done = consecutive_runs_with_too_little_improvement > 2;
       }
-      overall_improvement += improvement;
-      _part_weights.clear();
+      overall_improvement += current_improvement;
+      _part_volumes.clear();
       _move_status.assign(_hypergraph.initialNumNodes(), false);
     }
     metrics.km1 -= overall_improvement;
@@ -113,9 +115,9 @@ namespace mt_kahypar {
       }
     }
     // disable to-Blocks that are too large
-    const HypernodeWeight from_weight = _part_weights.topKey();
+    const HyperedgeWeight from_volume = _part_volumes.topKey();
     for (PartitionID i = 0; i < _context.partition.k; ++i) {
-      _gain_cache.updateEnabledBlocks(part_id, from_weight, phg.partWeight(i));
+      _gain_cache.updateEnabledBlocks(part_id, from_volume, phg.partVolume(i));
     }
     auto delta_func = [&](const HyperedgeID he,
                           const HyperedgeWeight,
@@ -129,10 +131,26 @@ namespace mt_kahypar {
       }
     };
     Move move;
+    bool done = false;
     size_t bestImprovementIndex = 0;
     Gain estimatedImprovement = 0;
     Gain bestImprovement = 0;
-    bool done = false;
+    auto report_success = [&](){
+        _move_status[move.node] = true;
+        estimatedImprovement += move.gain;
+        _moves.push_back(move);
+        const HyperedgeWeight new_to_volume = phg.partVolume(move.to);
+        const HyperedgeWeight new_from_volume = phg.partVolume(move.from);
+        _gain_cache.updateEnabledBlocks(move.to, new_from_volume, new_to_volume);
+        if (new_to_volume >= new_from_volume * _part_volume_margin) {
+          done = true;
+        }
+        if (estimatedImprovement > bestImprovement) {
+          bestImprovement = estimatedImprovement;
+          bestImprovementIndex = _moves.size();
+        }
+        updateNeighbors(phg, move);
+    };
     // set to true by gain cache if enabled PQs were exhausted and we need to perform a rollback before enabling all other PQs
     bool should_refiner_perform_rollback = false;
     while (!done && _gain_cache.findNextMove(phg, move, should_refiner_perform_rollback)) {
@@ -149,17 +167,18 @@ namespace mt_kahypar {
         ASSERT(move.from == part_id);
         moved = phg.changeNodePartWithGainCacheUpdate(move.node, move.from, move.to,
                                                       std::numeric_limits<HypernodeWeight>::max(),
-                                                      []{}, delta_func);
+                                                      report_success, delta_func);
 
       }
+/*
       if (moved) {
         _move_status[move.node] = true;
         estimatedImprovement += move.gain;
         _moves.push_back(move);
-        const HypernodeWeight new_to_weight = phg.partWeight(move.to);
-        const HypernodeWeight new_from_weight = phg.partWeight(move.from);
-        _gain_cache.updateEnabledBlocks(move.to, new_from_weight, new_to_weight);
-        if (new_to_weight >= new_from_weight * _part_weight_margin) {
+        const HyperedgeWeight new_to_volume = phg.partVolume(move.to);
+        const HyperedgeWeight new_from_volume = phg.partVolume(move.from);
+        _gain_cache.updateEnabledBlocks(move.to, new_from_volume, new_to_volume);
+        if (new_to_volume >= new_from_volume * _part_volume_margin) {
           done = true;
         }
         if (estimatedImprovement > bestImprovement) {
@@ -168,6 +187,7 @@ namespace mt_kahypar {
         }
         updateNeighbors(phg, move);
       }
+*/
     }
     revertToBestLocalPrefix(phg, bestImprovementIndex);
     _gain_cache.resetGainCache();
@@ -175,7 +195,7 @@ namespace mt_kahypar {
       phg.recomputeMoveFromBenefit(_moves[i].node);
     });
     for (PartitionID i = 0; i < _context.partition.k; ++i) {
-      _part_weights.adjustKey(i, phg.partWeight(i));
+      _part_volumes.adjustKey(i, phg.partVolume(i));
     }
     _moves.clear();
     return bestImprovement;
@@ -183,9 +203,6 @@ namespace mt_kahypar {
 
   void JudiciousRefiner::updateNeighbors(PartitionedHypergraph& phg, const Move& move) {
     for (HyperedgeID e : _edgesWithGainChanges) {
-      /*! TODO: need to ignore large edges when doing this sequential?
-       *  \todo need to ignore large edges when doing this sequential?
-       */
       if (phg.edgeSize(e) < _context.partition.ignore_hyperedge_size_threshold) {
         for (HypernodeID v : phg.pins(e)) {
           if (_neighbor_deduplicator[v] != _deduplication_time) {

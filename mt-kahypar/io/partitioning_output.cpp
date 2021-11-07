@@ -314,6 +314,8 @@ namespace mt_kahypar::io {
     LOG << " Hyperedge Cut  (minimize) =" << metrics::hyperedgeCut(hypergraph);
     LOG << " SOED           (minimize) =" << metrics::soed(hypergraph);
     LOG << " (k-1)          (minimize) =" << metrics::km1(hypergraph);
+    LOG << " Judicious Cut  (minimize) =" << metrics::judiciousCut(hypergraph);
+    LOG << " Judicious (k-1)(minimize) =" << metrics::judiciousKm1(hypergraph);
     LOG << " Imbalance                 =" << metrics::imbalance(hypergraph, context);
     LOG << " Partitioning Time         =" << elapsed_seconds.count() << "s";
   }
