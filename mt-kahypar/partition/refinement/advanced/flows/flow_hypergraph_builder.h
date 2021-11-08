@@ -210,7 +210,7 @@ namespace mt_kahypar {
       _tmp_csr_buckets[bucket].finalize();
     }
 
-    MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE whfc::PinIndex pinCount(const size_t bucket, const whfc::Hyperedge e) {
+    MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE whfc::PinIndex tmpPinCount(const size_t bucket, const whfc::Hyperedge e) {
       ASSERT(bucket < _tmp_csr_buckets.size());
       return _tmp_csr_buckets[bucket].pinCount(e);
     }

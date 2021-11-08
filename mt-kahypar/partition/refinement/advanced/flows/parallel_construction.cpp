@@ -34,7 +34,7 @@ ParallelConstruction::TmpHyperedge ParallelConstruction::DynamicIdenticalNetDete
     // There exists already some hyperedges with the same hash
     for ( const TmpHyperedge& tmp_e : _hash_buckets[*bucket_idx] ) {
       // Check if there is some hyperedge equal to he
-      if ( _flow_hg.pinCount(tmp_e.bucket, tmp_e.e) == pins.size() ) {
+      if ( _flow_hg.tmpPinCount(tmp_e.bucket, tmp_e.e) == pins.size() ) {
         bool is_identical = true;
         size_t idx = 0;
         for ( const whfc::FlowHypergraph::Pin& u : _flow_hg.tmpPinsOf(tmp_e.bucket, tmp_e.e) ) {
