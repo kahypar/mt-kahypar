@@ -71,7 +71,8 @@ class SequentialConstruction {
   };
 
  public:
-  explicit SequentialConstruction(FlowHypergraphBuilder& flow_hg,
+  explicit SequentialConstruction(const Hypergraph&,
+                                  FlowHypergraphBuilder& flow_hg,
                                   whfc::HyperFlowCutter<whfc::Dinic>& hfc,
                                   const Context& context) :
     _context(context),

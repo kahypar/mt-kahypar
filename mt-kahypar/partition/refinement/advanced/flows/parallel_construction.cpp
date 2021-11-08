@@ -29,12 +29,12 @@ namespace mt_kahypar {
 
 ParallelConstruction::TmpHyperedge ParallelConstruction::DynamicIdenticalNetDetection::get(const size_t he_hash,
                                                                                            const vec<whfc::Node>& pins) {
-  const size_t* bucket_idx = _he_hashes.get_if_contained(he_hash);
-  if ( bucket_idx ) {
+  const size_t bucket_idx = he_hash % _hash_buckets.size();
+  if ( _hash_buckets[bucket_idx].threshold == _threshold ) {
     // There exists already some hyperedges with the same hash
-    for ( const TmpHyperedge& tmp_e : _hash_buckets[*bucket_idx] ) {
+    for ( const TmpHyperedge& tmp_e : _hash_buckets[bucket_idx].identical_nets ) {
       // Check if there is some hyperedge equal to he
-      if ( _flow_hg.tmpPinCount(tmp_e.bucket, tmp_e.e) == pins.size() ) {
+      if ( tmp_e.hash == he_hash && _flow_hg.tmpPinCount(tmp_e.bucket, tmp_e.e) == pins.size() ) {
         bool is_identical = true;
         size_t idx = 0;
         for ( const whfc::FlowHypergraph::Pin& u : _flow_hg.tmpPinsOf(tmp_e.bucket, tmp_e.e) ) {
@@ -49,26 +49,22 @@ ParallelConstruction::TmpHyperedge ParallelConstruction::DynamicIdenticalNetDete
       }
     }
   }
-  return TmpHyperedge { std::numeric_limits<size_t>::max(), whfc::invalidHyperedge };
+  return TmpHyperedge { 0, std::numeric_limits<size_t>::max(), whfc::invalidHyperedge };
 }
 
-void ParallelConstruction::DynamicIdenticalNetDetection::add(const TmpHyperedge& tmp_he,
-                                                             const size_t he_hash) {
-  const size_t* bucket_idx = _he_hashes.get_if_contained(he_hash);
-  // There is no hyperedge currently identical to he
-  if ( bucket_idx ) {
-    // If there already exist hyperedges with the same hash,
-    // we insert he into the corresponding bucket.
-    _hash_buckets[*bucket_idx].push_back(tmp_he);
-  } else {
-    // Otherwise, we create a new bucket (or reuse an existing)
-    // and insert he into the hash table
-    size_t idx = _used_entries++;
-    ASSERT(idx < _hash_buckets.size());
-    _hash_buckets[idx].clear();
-    _hash_buckets[idx].push_back(tmp_he);
-    _he_hashes[he_hash] = idx;
+void ParallelConstruction::DynamicIdenticalNetDetection::add(const TmpHyperedge& tmp_he) {
+  const size_t bucket_idx = tmp_he.hash % _hash_buckets.size();
+  uint32_t expected = _hash_buckets[bucket_idx].threshold;
+  uint32_t desired = _threshold - 1;
+  while ( __atomic_load_n(&_hash_buckets[bucket_idx].threshold, __ATOMIC_RELAXED) < _threshold ) {
+    if ( expected < desired &&
+        __atomic_compare_exchange(&_hash_buckets[bucket_idx].threshold,
+          &expected, &desired, false, __ATOMIC_ACQ_REL, __ATOMIC_RELAXED) ) {
+      _hash_buckets[bucket_idx].identical_nets.clear();
+      __atomic_store_n(&_hash_buckets[bucket_idx].threshold, _threshold, __ATOMIC_RELAXED);
+    }
   }
+  _hash_buckets[bucket_idx].identical_nets.push_back(tmp_he);
 }
 
 FlowProblem ParallelConstruction::constructFlowHypergraph(const PartitionedHypergraph& phg,
@@ -89,7 +85,7 @@ FlowProblem ParallelConstruction::constructFlowHypergraph(const PartitionedHyper
   }, [&] {
     _flow_hg.allocateNodes(sub_hg.numNodes() + 2);
   }, [&] {
-    _identical_nets.reset(sub_hg.hes.size());
+    _identical_nets.reset();
   });
 
   if ( _context.refinement.advanced.flows.determine_distance_from_cut ) {
@@ -207,13 +203,13 @@ FlowProblem ParallelConstruction::constructFlowHypergraph(const PartitionedHyper
               for ( size_t i = 0; i < tmp_pins.size(); ++i ) {
                 _flow_hg.addPin(tmp_pins[i], idx, pin_idx++);
               }
-              TmpHyperedge tmp_e { idx, e++ };
+              TmpHyperedge tmp_e { he_hash, idx, e++ };
               if ( _context.refinement.advanced.flows.determine_distance_from_cut &&
                   phg.pinCountInPart(he, block_0) > 0 && phg.pinCountInPart(he, block_1) > 0 ) {
                 _cut_hes.push_back(tmp_e);
               }
               _flow_hg.finishHyperedge(tmp_e.e, he_weight, idx, pin_start, pin_end);
-              _identical_nets.add(tmp_e, he_hash);
+              _identical_nets.add(tmp_e);
             } else {
               // Current hyperedge is identical to an already added
               __atomic_fetch_add(&_flow_hg.capacity(identical_net.bucket, identical_net.e), he_weight, __ATOMIC_RELAXED);

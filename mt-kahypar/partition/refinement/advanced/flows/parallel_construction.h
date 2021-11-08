@@ -45,6 +45,7 @@ class ParallelConstruction {
   static constexpr size_t NUM_CSR_BUCKETS = 1024;
 
   struct TmpHyperedge {
+    const size_t hash;
     const size_t bucket;
     const whfc::Hyperedge e;
   };
@@ -53,44 +54,46 @@ class ParallelConstruction {
 
     using IdenticalNetVector = tbb::concurrent_vector<TmpHyperedge>;
 
+    struct HashBucket {
+      HashBucket() :
+        identical_nets(),
+        threshold(0) { }
+
+      IdenticalNetVector identical_nets;
+      uint32_t threshold;
+    };
+
    public:
-    explicit DynamicIdenticalNetDetection(FlowHypergraphBuilder& flow_hg) :
+    explicit DynamicIdenticalNetDetection(const Hypergraph& hg,
+                                          FlowHypergraphBuilder& flow_hg,
+                                          const Context& context) :
       _flow_hg(flow_hg),
-      _he_hashes(),
-      _used_entries(0),
-      _hash_buckets() { }
+      _hash_buckets(),
+      _threshold(2) {
+      const size_t num_parallel_refiners =
+        context.shared_memory.num_threads / context.refinement.advanced.num_threads_per_search
+        + (context.shared_memory.num_threads % context.refinement.advanced.num_threads_per_search != 0);
+      _hash_buckets.resize(std::max(1024UL, hg.initialNumEdges() / num_parallel_refiners));
+    }
 
     TmpHyperedge get(const size_t he_hash,
                      const vec<whfc::Node>& pins);
 
-    void add(const TmpHyperedge& tmp_he,
-             const size_t he_hash);
+    void add(const TmpHyperedge& tmp_he);
 
-    void reset(const size_t expected_num_hes) {
-      _he_hashes.clear();
-      _used_entries.store(0, std::memory_order_relaxed);
-      tbb::parallel_invoke([&] {
-        _he_hashes.setMaxSize(expected_num_hes);
-      }, [&] {
-        if ( expected_num_hes > _hash_buckets.size() ) {
-          tbb::parallel_for(0UL, _hash_buckets.size(), [&](const size_t i) {
-            _hash_buckets[i].clear();
-            _hash_buckets[i].shrink_to_fit();
-          });
-          _hash_buckets.resize(expected_num_hes);
-        }
-      });
+    void reset() {
+      _threshold += 2;
     }
 
    private:
     FlowHypergraphBuilder& _flow_hg;
-    ds::ConcurrentFlatMap<size_t, size_t> _he_hashes;
-    CAtomic<size_t> _used_entries;
-    vec<IdenticalNetVector> _hash_buckets;
+    vec<HashBucket> _hash_buckets;
+    uint32_t _threshold;
   };
 
  public:
-  explicit ParallelConstruction(FlowHypergraphBuilder& flow_hg,
+  explicit ParallelConstruction(const Hypergraph& hg,
+                                FlowHypergraphBuilder& flow_hg,
                                 whfc::HyperFlowCutter<whfc::Dinic>& hfc,
                                 const Context& context) :
     _context(context),
@@ -100,7 +103,7 @@ class ParallelConstruction {
     _visited_hns(),
     _tmp_pins(),
     _cut_hes(),
-    _identical_nets(flow_hg) { }
+    _identical_nets(hg, flow_hg, context) { }
 
   ParallelConstruction(const ParallelConstruction&) = delete;
   ParallelConstruction(ParallelConstruction&&) = delete;

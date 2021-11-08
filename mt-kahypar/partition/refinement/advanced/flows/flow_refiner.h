@@ -42,7 +42,7 @@ class FlowRefiner final : public IAdvancedRefiner {
   static constexpr bool debug = false;
 
  public:
-  explicit FlowRefiner(const Hypergraph&,
+  explicit FlowRefiner(const Hypergraph& hg,
                        const Context& context) :
     _phg(nullptr),
     _context(context),
@@ -54,8 +54,8 @@ class FlowRefiner final : public IAdvancedRefiner {
     _flow_hg(),
     _hfc(_flow_hg, context.partition.seed),
     _whfc_to_node(),
-    _sequential_construction(_flow_hg, _hfc, context),
-    _parallel_construction(_flow_hg, _hfc, context) {
+    _sequential_construction(hg, _flow_hg, _hfc, context),
+    _parallel_construction(hg, _flow_hg, _hfc, context) {
     _hfc.find_most_balanced =
       _context.refinement.advanced.flows.find_most_balanced_cut;
     _hfc.timer.active = false;
