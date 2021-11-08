@@ -580,7 +580,16 @@ namespace mt_kahypar {
             << ", imbalance = " << current_metrics.imbalance;
       }
 
+      // Enable Timings
+      bool was_enabled = false;
+      if ( !utils::Timer::instance().isEnabled() &&
+           _context.type == kahypar::ContextType::main ) {
+        utils::Timer::instance().enable();
+        was_enabled = true;
+      }
+
       // Apply global FM parameters to FM context and temporary store old fm context
+      utils::Timer::instance().start_timer("global_refinement", "Global Refinement");
       NLevelGlobalFMParameters tmp_global_fm = applyGlobalFMParameters(
         _context.refinement.fm, _context.refinement.global_fm);
       bool improvement_found = true;
@@ -590,21 +599,21 @@ namespace mt_kahypar {
           kahypar::Mode::direct_kway, _context.partition.objective);
 
         if ( fm && _context.refinement.fm.algorithm != FMAlgorithm::do_nothing ) {
-          utils::Timer::instance().start_timer("global_fm", "Global FM", false, _context.type == kahypar::ContextType::main);
+          utils::Timer::instance().start_timer("fm", "FM");
           improvement_found |= fm->refine(partitioned_hypergraph, {}, current_metrics, time_limit);
-          utils::Timer::instance().stop_timer("global_fm", _context.type == kahypar::ContextType::main);
+          utils::Timer::instance().stop_timer("fm");
         }
 
         if ( advanced && _context.refinement.advanced.algorithm != AdvancedRefinementAlgorithm::do_nothing ) {
           utils::Timer::instance().start_timer("initialize_advanced_refiner", "Initialize Advanced Refiner",
             false, _context.type == kahypar::ContextType::main);
           advanced->initialize(partitioned_hypergraph);
-          utils::Timer::instance().stop_timer("initialize_advanced_refiner", _context.type == kahypar::ContextType::main);
+          utils::Timer::instance().stop_timer("initialize_advanced_refiner");
 
           utils::Timer::instance().start_timer("advanced_refiner", "Advanced Refiner",
             false, _context.type == kahypar::ContextType::main);
           improvement_found |= advanced->refine(partitioned_hypergraph, {}, current_metrics, time_limit);
-          utils::Timer::instance().stop_timer("advanced_refiner", _context.type == kahypar::ContextType::main);
+          utils::Timer::instance().stop_timer("advanced_refiner");
         }
 
         if ( _context.type == kahypar::ContextType::main ) {
@@ -624,6 +633,11 @@ namespace mt_kahypar {
       }
       // Reset FM context
       applyGlobalFMParameters(_context.refinement.fm, tmp_global_fm);
+      utils::Timer::instance().stop_timer("global_refinement");
+
+      if ( was_enabled ) {
+        utils::Timer::instance().disable();
+      }
 
       if ( _context.type == kahypar::ContextType::main ) {
         DBG << "--------------------------------------------------\n";

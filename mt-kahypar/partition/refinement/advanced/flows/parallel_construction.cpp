@@ -82,7 +82,6 @@ FlowProblem ParallelConstruction::constructFlowHypergraph(const PartitionedHyper
   flow_problem.non_removable_cut = 0;
   _node_to_whfc.clear();
 
-  utils::Timer::instance().start_timer("allocate_nodes", "Allocate Nodes", true);
   tbb::parallel_invoke([&]() {
     _node_to_whfc.setMaxSize(sub_hg.numNodes());
   }, [&] {
@@ -92,13 +91,11 @@ FlowProblem ParallelConstruction::constructFlowHypergraph(const PartitionedHyper
   }, [&] {
     _identical_nets.reset(sub_hg.hes.size());
   });
-  utils::Timer::instance().stop_timer("allocate_nodes");
 
   if ( _context.refinement.advanced.flows.determine_distance_from_cut ) {
     _cut_hes.clear();
   }
 
-  utils::Timer::instance().start_timer("add_nodes", "Add Nodes", true);
   // Add refinement nodes to flow network
   tbb::parallel_invoke([&] {
     // Add source nodes
@@ -129,13 +126,10 @@ FlowProblem ParallelConstruction::constructFlowHypergraph(const PartitionedHyper
   });
   flow_problem.weight_of_block_0 = _flow_hg.nodeWeight(flow_problem.source) + sub_hg.weight_of_block_0;
   flow_problem.weight_of_block_1 = _flow_hg.nodeWeight(flow_problem.sink) + sub_hg.weight_of_block_1;
-  utils::Timer::instance().stop_timer("add_nodes");
 
-  utils::Timer::instance().start_timer("allocate_pins", "Allocate Pins", true);
   const HyperedgeID max_hyperedges = sub_hg.hes.size();
   const HypernodeID max_pins = sub_hg.num_pins + max_hyperedges;
   _flow_hg.allocateHyperedgesAndPins(max_hyperedges, max_pins);
-  utils::Timer::instance().stop_timer("allocate_pins");
 
   // Add hyperedge to flow network and configure source and sink
   auto push_into_tmp_pins = [&](vec<whfc::Node>& tmp_pins, const whfc::Node pin,
@@ -149,7 +143,6 @@ FlowProblem ParallelConstruction::constructFlowHypergraph(const PartitionedHyper
     }
   };
 
-  utils::Timer::instance().start_timer("add_pins", "Add Pins", true);
   _flow_hg.setNumCSRBuckets(NUM_CSR_BUCKETS);
   const size_t step = max_hyperedges / NUM_CSR_BUCKETS + (max_hyperedges % NUM_CSR_BUCKETS != 0);
   tbb::parallel_for(0UL, NUM_CSR_BUCKETS, [&](const size_t idx) {
@@ -235,7 +228,6 @@ FlowProblem ParallelConstruction::constructFlowHypergraph(const PartitionedHyper
     _flow_hg.finalizeCSRBucket(idx);
   });
   _flow_hg.finalizeHyperedges();
-  utils::Timer::instance().stop_timer("add_pins");
 
   if ( _flow_hg.nodeWeight(flow_problem.source) == 0 ||
        _flow_hg.nodeWeight(flow_problem.sink) == 0 ) {
@@ -243,17 +235,13 @@ FlowProblem ParallelConstruction::constructFlowHypergraph(const PartitionedHyper
     flow_problem.non_removable_cut = 0;
     flow_problem.total_cut = 0;
   } else {
-    utils::Timer::instance().start_timer("finalize", "Finalize", true);
     _flow_hg.finalizeParallel();
-    utils::Timer::instance().stop_timer("finalize");
 
     if ( _context.refinement.advanced.flows.determine_distance_from_cut ) {
       // Determine the distance of each node contained in the flow network from the cut.
       // This technique improves piercing decision within the WHFC framework.
-      utils::Timer::instance().start_timer("distance_from_cut", "Distance From Cut", true);
       determineDistanceFromCut(phg, flow_problem.source,
         flow_problem.sink, block_0, block_1, whfc_to_node);
-      utils::Timer::instance().stop_timer("distance_from_cut");
     }
   }
 
