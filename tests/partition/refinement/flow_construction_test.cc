@@ -44,7 +44,7 @@ class AFlowHypergraphConstructor : public Test {
     context(),
     flow_hg(),
     hfc(flow_hg, 42),
-    constructor(flow_hg, hfc, context),
+    constructor(hg, flow_hg, hfc, context),
     whfc_to_node() {
     context.partition.k = 3;
     context.partition.perfect_balance_part_weights.assign(3, 5);
