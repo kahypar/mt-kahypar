@@ -132,10 +132,8 @@ namespace mt_kahypar::metrics {
       tbb::enumerable_thread_specific<vec<HyperedgeWeight>> ets_vol(hypergraph.k(), 0);
       tbb::parallel_for(ID(0), hypergraph.initialNumEdges(), [&](const HyperedgeID he) {
         if (hypergraph.edgeIsEnabled(he)) {
-          for (PartitionID p = 0; p < hypergraph.k(); ++p) {
-            if (hypergraph.pinCountInPart(he, p) > 0) {
-              ets_vol.local()[p] += std::max(hypergraph.connectivity(he) - 1, 0) * hypergraph.edgeWeight(he);
-            }
+          for (const auto p : hypergraph.connectivitySet(he)) {
+            ets_vol.local()[p] += std::max(hypergraph.connectivity(he) - 1, 0) * hypergraph.edgeWeight(he);
           }
         }
       });
@@ -147,10 +145,8 @@ namespace mt_kahypar::metrics {
     } else {
       for (const HyperedgeID& he : hypergraph.edges()) {
         if (hypergraph.edgeIsEnabled(he)) {
-          for (PartitionID p = 0; p < hypergraph.k(); ++p) {
-            if (hypergraph.pinCountInPart(he, p) > 0) {
-              vol[p] += std::max(hypergraph.connectivity(he) - 1, 0) * hypergraph.edgeWeight(he);
-            }
+          for (const auto p : hypergraph.connectivitySet(he)) {
+            vol[p] += std::max(hypergraph.connectivity(he) - 1, 0) * hypergraph.edgeWeight(he);
           }
         }
       }
@@ -164,10 +160,8 @@ namespace mt_kahypar::metrics {
       tbb::enumerable_thread_specific<vec<HyperedgeWeight>> ets_vol(hypergraph.k(), 0);
       tbb::parallel_for(ID(0), hypergraph.initialNumEdges(), [&](const HyperedgeID he) {
         if (hypergraph.edgeIsEnabled(he)) {
-          for (PartitionID p = 0; p < hypergraph.k(); ++p) {
-            if (hypergraph.pinCountInPart(he, p) > 0) {
-              ets_vol.local()[p] += hypergraph.edgeWeight(he);
-            }
+          for (const auto p : hypergraph.connectivitySet(he)) {
+            ets_vol.local()[p] += hypergraph.edgeWeight(he);
           }
         }
       });
@@ -179,10 +173,8 @@ namespace mt_kahypar::metrics {
     } else {
       for (const HyperedgeID& he : hypergraph.edges()) {
         if (hypergraph.edgeIsEnabled(he)) {
-          for (PartitionID p = 0; p < hypergraph.k(); ++p) {
-            if (hypergraph.pinCountInPart(he, p) > 0) {
-              vol[p] += hypergraph.edgeWeight(he);
-            }
+          for (const auto p : hypergraph.connectivitySet(he)) {
+            vol[p] += hypergraph.edgeWeight(he);
           }
         }
       }
