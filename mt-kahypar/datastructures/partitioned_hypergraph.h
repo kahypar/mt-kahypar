@@ -79,7 +79,7 @@ private:
     _k(k),
     _hg(&hypergraph),
     _part_weights(k, CAtomic<HypernodeWeight>(0)),
-    _part_volumes(k, CAtomic<HyperedgeWeight>(0)),
+    _part_loads(k, CAtomic<HyperedgeWeight>(0)),
     _part_ids(
         "Refinement", "part_ids", hypergraph.initialNumNodes(), false, false),
     _pins_in_part(hypergraph.initialNumEdges(), k, hypergraph.maxEdgeSize(), false),
@@ -100,7 +100,7 @@ private:
     _k(k),
     _hg(&hypergraph),
     _part_weights(k, CAtomic<HypernodeWeight>(0)),
-    _part_volumes(k, CAtomic<HyperedgeWeight>(0)),
+    _part_loads(k, CAtomic<HyperedgeWeight>(0)),
     _part_ids(),
     _pins_in_part(),
     _connectivity_set(0, 0),
@@ -150,7 +150,7 @@ private:
     }, [&] {
       for (auto& x : _part_weights) x.store(0, std::memory_order_relaxed);
     }, [&] {
-      for (auto& x : _part_volumes) x.store(0, std::memory_order_relaxed);
+      for (auto& x : _part_loads) x.store(0, std::memory_order_relaxed);
     });
   }
 
@@ -540,8 +540,10 @@ private:
     setOnlyNodePart(u, p);
     _part_weights[p].fetch_add(nodeWeight(u), std::memory_order_relaxed);
     for (HyperedgeID he : incidentEdges(u)) {
-      incrementPinCountInPartWithoutGainUpdate(he, p);
-      _part_volumes[p].fetch_add(edgeWeight(he), std::memory_order_relaxed);
+      const HypernodeID pin_count_after = incrementPinCountInPartWithoutGainUpdate(he, p);
+      if (pin_count_after == 1) {
+        _part_loads[p].fetch_add(edgeWeight(he), std::memory_order_relaxed);
+      }
     }
   }
 
@@ -562,12 +564,10 @@ private:
     if (to_weight_after <= max_weight_to) {
       _part_ids[u] = to;
       _part_weights[from].fetch_sub(wu, std::memory_order_relaxed);
+      report_success();
       for ( const HyperedgeID he : incidentEdges(u) ) {
         updatePinCountOfHyperedge(he, from, to, delta_func);
-        _part_volumes[from].fetch_sub(edgeWeight(he), std::memory_order_relaxed);
-        _part_volumes[to].fetch_add(edgeWeight(he), std::memory_order_relaxed);
       }
-      report_success();
       return true;
     } else {
       _part_weights[to].fetch_sub(wu, std::memory_order_relaxed);
@@ -614,10 +614,10 @@ private:
     return _part_weights[p].load(std::memory_order_relaxed);
   }
 
-  // ! Volume of a block
-  HyperedgeWeight partVolume(const PartitionID p) const {
+  // ! Load of a block
+  HyperedgeWeight partLoad(const PartitionID p) const {
     ASSERT(p != kInvalidPartition && p < _k);
-    return _part_volumes[p].load(std::memory_order_relaxed);
+    return _part_loads[p].load(std::memory_order_relaxed);
   }
 
   // ! Returns, whether hypernode u is adjacent to a least one cut hyperedge.
@@ -712,9 +712,11 @@ private:
   void initializePartition() {
     tbb::parallel_invoke(
             [&] { initializeBlockWeights(); },
-            [&] { initializePinCountInPart(); }
+            [&] {
+              initializePinCountInPart();
+              initializeBlockLoads();
+            }
     );
-    initializeBlockVolumes();
   }
 
   bool isGainCacheInitialized() const {
@@ -831,7 +833,7 @@ private:
   void resetPartition() {
     _part_ids.assign(_part_ids.size(), kInvalidPartition, false);
     for (auto& x : _part_weights) x.store(0, std::memory_order_relaxed);
-    for (auto& x : _part_volumes) x.store(0, std::memory_order_relaxed);
+    for (auto& x : _part_loads) x.store(0, std::memory_order_relaxed);
 
     // Reset pin count in part and connectivity set
     for ( const HyperedgeID& he : edges() ) {
@@ -1097,9 +1099,9 @@ private:
     }
   }
 
-  void applyPartVolumeUpdates(vec<HyperedgeWeight>& part_volume_deltas) {
+  void applyPartLoadUpdates(vec<HyperedgeWeight>& part_load_deltas) {
     for (PartitionID p = 0; p < _k; ++p) {
-      _part_volumes[p].fetch_add(part_volume_deltas[p], std::memory_order_relaxed);
+      _part_loads[p].fetch_add(part_load_deltas[p], std::memory_order_relaxed);
     }
   }
 
@@ -1122,18 +1124,17 @@ private:
     );
   }
 
-  void initializeBlockVolumes() {
+  void initializeBlockLoads() {
     auto accumulate = [&](tbb::blocked_range<HyperedgeID>& r) {
       vec<HyperedgeWeight> pvs(_k, 0);  // this is not enumerable_thread_specific because of the static partitioner
       for (HyperedgeID e = r.begin(); e < r.end(); ++e) {
         if ( edgeIsEnabled(e) ) {
-          for (PartitionID p = 0; p < _k; ++p) {
-            // only add edgeWeight once for the volume or pin-count-times?
-            pvs[p] += pinCountInPart(e, p) * edgeWeight(e);
+          for (const auto p : connectivitySet(e)) {
+            pvs[p] += edgeWeight(e);
           }
         }
       }
-      applyPartVolumeUpdates(pvs);
+      applyPartLoadUpdates(pvs);
     };
 
     tbb::parallel_for(tbb::blocked_range<HyperedgeID>(HypernodeID(0), initialNumEdges()),
@@ -1198,6 +1199,12 @@ private:
     const HypernodeID pin_count_in_from_part_after = decrementPinCountInPartWithoutGainUpdate(he, from);
     const HypernodeID pin_count_in_to_part_after = incrementPinCountInPartWithoutGainUpdate(he, to);
     _pin_count_update_ownership[he].unlock();
+    if (pin_count_in_from_part_after == 0) {
+      _part_loads[from].fetch_sub(edgeWeight(he), std::memory_order_relaxed);
+    }
+    if (pin_count_in_to_part_after == 1) {
+      _part_loads[to].fetch_add(edgeWeight(he), std::memory_order_relaxed);
+    }
     delta_func(he, edgeWeight(he), edgeSize(he), pin_count_in_from_part_after, pin_count_in_to_part_after);
   }
 
@@ -1238,8 +1245,8 @@ private:
   // ! Weight and information for all blocks.
   vec< CAtomic<HypernodeWeight> > _part_weights;
 
-  // ! Volume and information for all blocks.
-  vec< CAtomic<HyperedgeWeight> > _part_volumes;
+  // ! Load and information for all blocks.
+  vec< CAtomic<HyperedgeWeight> > _part_loads;
 
   // ! Current block IDs of the vertices
   Array< PartitionID > _part_ids;
