@@ -50,7 +50,7 @@ namespace mt_kahypar {
         min_part_load = std::min(min_part_load, phg.partLoad(i));
       }
       const double load_ratio = static_cast<double>(max_part_load) / min_part_load;
-      if (load_ratio < _min_load_ratio) {
+      if (load_ratio < _min_load_ratio) {   // (Review Note) This alone will not suffice as stopping criterion. must also include whether heaviest block yielded improvement
         done = true;
       }
     }
@@ -207,6 +207,7 @@ namespace mt_kahypar {
         _edgesWithGainChanges.push_back(he);
       }
     };
+    // (Review Note) bestGainIndex is still for km1 gain. At this point we want to look at whether we actually improve the max load
     while (_moves.size() > bestGainIndex) {
       Move& m = _moves.back();
       if (update_gain_cache) {

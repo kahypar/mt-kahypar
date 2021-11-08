@@ -168,7 +168,7 @@ private:
         }
       }
     }
-    const Gain gain = to != kInvalidPartition ? phg.moveFromBenefit(u) - to_penalty
+    const Gain gain = to != kInvalidPartition ? phg.moveFromBenefit(u) - to_penalty     // (Review Note) If to block is light enough, we only care about benefit. not penalty.
                                               : std::numeric_limits<HyperedgeWeight>::min();
     return std::make_pair(to, gain);
   }
