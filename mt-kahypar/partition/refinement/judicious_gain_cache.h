@@ -111,11 +111,11 @@ public:
     return _target_parts[v];
   }
 
-  void updateEnabledBlocks(const PartitionID to, const HyperedgeWeight from_volume, const HyperedgeWeight to_volume) {
+  void updateEnabledBlocks(const PartitionID to, const HyperedgeWeight from_load, const HyperedgeWeight to_load) {
     // only consider disabling block if not all blocks should be enabled, at least half the blocks are enabled and the block is larger enough
     if (!_enable_all_blocks
         && _blockPQ.size() > static_cast<size_t>(_context.partition.k / 2)
-        && 1.f * to_volume / from_volume > _block_disable_factor) {
+        && 1.f * to_load / from_load > _block_disable_factor) {
       _blocks_enabled[to] = false;
       _blockPQ.remove(to);
     }

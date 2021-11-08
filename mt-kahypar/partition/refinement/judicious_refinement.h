@@ -29,7 +29,7 @@ public:
     _context(context),
     _refinement_nodes(context.partition.k),
     _gain_cache(context, hypergraph.initialNumNodes()),
-    _part_volumes(static_cast<size_t>(context.partition.k)),
+    _part_loads(static_cast<size_t>(context.partition.k)),
     _move_status(hypergraph.initialNumNodes(), false),
     _neighbor_deduplicator(hypergraph.initialNumNodes(), 0) {}
 
@@ -59,9 +59,9 @@ private:
   JudiciousGainCache _gain_cache;
   vec<HyperedgeID> _edgesWithGainChanges;
   vec<Move> _moves;
-  ds::ExclusiveHandleHeap<ds::MaxHeap<HyperedgeWeight, PartitionID>> _part_volumes;
-  const double _part_volume_margin = 1.03;
-  const double _min_improvement = 1.05;
+  ds::ExclusiveHandleHeap<ds::MaxHeap<HyperedgeWeight, PartitionID>> _part_loads;
+  const double _part_load_margin = 1.03;
+  const double _min_load_ratio = 1.05;
   vec<bool> _move_status;
   // ! Used after a move. Stores whether a neighbor of the just moved vertex has already been updated.
   vec<HypernodeID> _neighbor_deduplicator;

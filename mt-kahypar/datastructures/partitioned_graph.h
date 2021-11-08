@@ -550,10 +550,10 @@ private:
     return _part_weights[p].load(std::memory_order_relaxed);
   }
 
-  // ! Volume of a block
-  HyperedgeWeight partVolume(const PartitionID p) const {
+  // ! Load of a block
+  HyperedgeWeight partLoad(const PartitionID p) const {
     unused(p);
-    WARNING("Partition volumes not supported for graphs");
+    WARNING("Partition load not supported for graphs");
     return 0;
   }
 

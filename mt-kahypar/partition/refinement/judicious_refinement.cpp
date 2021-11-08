@@ -32,39 +32,31 @@ namespace mt_kahypar {
 
     unused(refinement_nodes);
     if (!_is_initialized) throw std::runtime_error("Call initialize on judicious refinement before calling refine");
-    Gain overall_improvement = 0;
     /*! TODO: keep moved nodes and distibute them onto buckets again
      *  \todo keep moved nodes and distibute them onto buckets again
      */
-    calculateRefinementNodes(phg);
-    for (size_t i = 0; i < 1; i++) {
-      for (PartitionID i = 0; i < _context.partition.k; ++i) {
-        _part_volumes.insert(i, phg.partVolume(i));
-      }
-      bool done = false;
-      vec<Gain> improvements(_context.partition.k, 0);
-      Gain current_improvement = 0;
-      Gain last_improvement = 0;
-      size_t consecutive_runs_with_too_little_improvement = 0;
-      while (!done) {
-        const PartitionID heaviest_part = _part_volumes.top();
-        last_improvement = current_improvement;
-        current_improvement += doRefinement(phg, heaviest_part);
-        improvements[heaviest_part] += current_improvement;
-        const double improvement_fraction = last_improvement == 0 ? 1.0 : 1.f * current_improvement / last_improvement;
-        if (improvement_fraction < _min_improvement) {
-          consecutive_runs_with_too_little_improvement++;
-        } else {
-          consecutive_runs_with_too_little_improvement = 0;
-        }
-        done = consecutive_runs_with_too_little_improvement > 2;
-      }
-      overall_improvement += current_improvement;
-      _part_volumes.clear();
-      _move_status.assign(_hypergraph.initialNumNodes(), false);
+    for (PartitionID i = 0; i < _context.partition.k; ++i) {
+      _part_loads.insert(i, phg.partLoad(i));
     }
+    bool done = false;
+    Gain overall_improvement = 0;
+    while (!done) {
+      calculateRefinementNodes(phg);
+      const PartitionID heaviest_part = _part_loads.top();
+      overall_improvement += doRefinement(phg, heaviest_part);
+      const HyperedgeWeight max_part_load = _part_loads.topKey();
+      HyperedgeWeight min_part_load = max_part_load;
+      for (PartitionID i = 0; i < _context.partition.k; ++i) {
+        min_part_load = std::min(min_part_load, phg.partLoad(i));
+      }
+      const double load_ratio = static_cast<double>(max_part_load) / min_part_load;
+      if (load_ratio < _min_load_ratio) {
+        done = true;
+      }
+    }
+    _part_loads.clear();
+    _move_status.assign(_hypergraph.initialNumNodes(), false);
     metrics.km1 -= overall_improvement;
-    /*LOG << V(overall_improvement);*/
     metrics.imbalance = metrics::imbalance(phg, _context);
     ASSERT(metrics.km1 == metrics::km1(phg), V(metrics.km1) << V(metrics::km1(phg)));
     return overall_improvement > 0;
@@ -115,9 +107,9 @@ namespace mt_kahypar {
       }
     }
     // disable to-Blocks that are too large
-    const HyperedgeWeight from_volume = _part_volumes.topKey();
+    const HyperedgeWeight from_load = _part_loads.topKey();
     for (PartitionID i = 0; i < _context.partition.k; ++i) {
-      _gain_cache.updateEnabledBlocks(part_id, from_volume, phg.partVolume(i));
+      _gain_cache.updateEnabledBlocks(part_id, from_load, phg.partLoad(i));
     }
     auto delta_func = [&](const HyperedgeID he,
                           const HyperedgeWeight,
@@ -135,22 +127,6 @@ namespace mt_kahypar {
     size_t bestImprovementIndex = 0;
     Gain estimatedImprovement = 0;
     Gain bestImprovement = 0;
-    auto report_success = [&](){
-        _move_status[move.node] = true;
-        estimatedImprovement += move.gain;
-        _moves.push_back(move);
-        const HyperedgeWeight new_to_volume = phg.partVolume(move.to);
-        const HyperedgeWeight new_from_volume = phg.partVolume(move.from);
-        _gain_cache.updateEnabledBlocks(move.to, new_from_volume, new_to_volume);
-        if (new_to_volume >= new_from_volume * _part_volume_margin) {
-          done = true;
-        }
-        if (estimatedImprovement > bestImprovement) {
-          bestImprovement = estimatedImprovement;
-          bestImprovementIndex = _moves.size();
-        }
-        updateNeighbors(phg, move);
-    };
     // set to true by gain cache if enabled PQs were exhausted and we need to perform a rollback before enabling all other PQs
     bool should_refiner_perform_rollback = false;
     while (!done && _gain_cache.findNextMove(phg, move, should_refiner_perform_rollback)) {
@@ -167,18 +143,17 @@ namespace mt_kahypar {
         ASSERT(move.from == part_id);
         moved = phg.changeNodePartWithGainCacheUpdate(move.node, move.from, move.to,
                                                       std::numeric_limits<HypernodeWeight>::max(),
-                                                      report_success, delta_func);
+                                                      []{}, delta_func);
 
       }
-/*
       if (moved) {
         _move_status[move.node] = true;
         estimatedImprovement += move.gain;
         _moves.push_back(move);
-        const HyperedgeWeight new_to_volume = phg.partVolume(move.to);
-        const HyperedgeWeight new_from_volume = phg.partVolume(move.from);
-        _gain_cache.updateEnabledBlocks(move.to, new_from_volume, new_to_volume);
-        if (new_to_volume >= new_from_volume * _part_volume_margin) {
+        const HyperedgeWeight new_to_load = phg.partLoad(move.to);
+        const HyperedgeWeight new_from_load = phg.partLoad(move.from);
+        _gain_cache.updateEnabledBlocks(move.to, new_from_load, new_to_load);
+        if (new_to_load >= new_from_load * _part_load_margin) {
           done = true;
         }
         if (estimatedImprovement > bestImprovement) {
@@ -187,7 +162,6 @@ namespace mt_kahypar {
         }
         updateNeighbors(phg, move);
       }
-*/
     }
     revertToBestLocalPrefix(phg, bestImprovementIndex);
     _gain_cache.resetGainCache();
@@ -195,7 +169,7 @@ namespace mt_kahypar {
       phg.recomputeMoveFromBenefit(_moves[i].node);
     });
     for (PartitionID i = 0; i < _context.partition.k; ++i) {
-      _part_volumes.adjustKey(i, phg.partVolume(i));
+      _part_loads.adjustKey(i, phg.partLoad(i));
     }
     _moves.clear();
     return bestImprovement;
