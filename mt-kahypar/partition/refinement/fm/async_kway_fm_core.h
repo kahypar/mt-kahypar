@@ -45,7 +45,7 @@ public:
                        ds::GroupLockManager * const lock_manager) :
       context(context),
       k(context.partition.k),
-      deltaPhg(context.partition.k),
+      deltaPhg(context.partition.k, context.uncoarsening.use_heavy_gain_cache_deltas),
       neighborDeduplicator(numNodes, 0),
       fm_strategy(context, numNodes, sharedData, runStats),
       sharedData(sharedData),

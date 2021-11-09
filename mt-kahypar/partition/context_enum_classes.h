@@ -114,10 +114,9 @@ enum class FMAlgorithm : uint8_t {
   do_nothing
 };
 
-enum class MultiqueueUsage : uint8_t {
-    no_multiqueue,
-    hybrid,
-    only_multiqueue,
+enum class GroupPoolType : uint8_t {
+    thread_local_pools,
+    multiqueue,
     UNDEFINED
 };
 
@@ -145,7 +144,7 @@ std::ostream & operator<< (std::ostream& os, const LabelPropagationAlgorithm& al
 
 std::ostream & operator<< (std::ostream& os, const FMAlgorithm& algo);
 
-std::ostream & operator<< (std::ostream& os, const MultiqueueUsage& type);
+std::ostream & operator<< (std::ostream& os, const GroupPoolType& type);
 
 LouvainEdgeWeight louvainEdgeWeightFromString(const std::string& type);
 
@@ -167,6 +166,6 @@ LabelPropagationAlgorithm labelPropagationAlgorithmFromString(const std::string&
 
 FMAlgorithm fmAlgorithmFromString(const std::string& type);
 
-MultiqueueUsage multiqueueUsageFromString(const std::string& type);
+GroupPoolType groupPoolTypeFromString(const std::string& type);
 
 }  // namesapce mt_kahypar

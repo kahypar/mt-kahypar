@@ -520,7 +520,7 @@ namespace mt_kahypar {
                                                size_t &local_iterations_in_localized_refine,
                                                utils::PerTaskTimerForAsync &task_local_timer) {
 
-      if (pool->allAccepted()) return;
+      if (pool->taskFinished(task_id)) return;
 
       ds::ContractionGroupID groupID = ds::invalidGroupID;
       bool pick_new_group = true;
@@ -547,7 +547,6 @@ namespace mt_kahypar {
             group_found = pool->tryToPickActiveID(groupID, task_id);
             task_local_timer.stopGroupPickingTimer(group_found);
           }
-        }
 
           ASSERT(groupID != ds::invalidGroupID);
           if (groupID == ds::invalidGroupID || groupID >= pool->getNumTotal()) {
@@ -692,6 +691,7 @@ namespace mt_kahypar {
             pick_new_group = true;
           }
       }
+  }
   }
 
   PartitionedHypergraph&& NLevelCoarsenerBase::doAsynchronousUncoarsen(std::unique_ptr<IRefiner>& global_fm) {
@@ -862,7 +862,7 @@ namespace mt_kahypar {
 
 //          HEAVY_REFINEMENT_ASSERT(node_anti_duplicator->checkAllFalse());
 //          HEAVY_REFINEMENT_ASSERT(edge_anti_duplicator->checkAllFalse());
-          HEAVY_REFINEMENT_ASSERT(pool->allAccepted());
+          HEAVY_REFINEMENT_ASSERT(pool->allAccepted(), V(pool->getNumAccepted()) << V(pool->getTotalNumUncontractions()));
           HEAVY_REFINEMENT_ASSERT(node_region_comparator.checkNoneActiveParallel());
           HEAVY_REFINEMENT_ASSERT(fm_shared_data->nodeTracker.checkNoneLocked());
           HEAVY_REFINEMENT_ASSERT(_hg.verifyIncidenceArrayAndIncidentNets());

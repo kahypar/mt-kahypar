@@ -283,12 +283,7 @@ DynamicHypergraph::VersionedPoolVector DynamicHypergraph::createUncontractionGro
         // Ownership of the hierarchy is with the pool (i.e. it gets deleted when the pool is deleted).
         auto groupHierarchy = std::make_unique<UncontractionGroupTree>(_contraction_tree, v);
 
-        // Use multiqueue as PQ for pools in later versions if desired
-        const bool use_multiqueue = (context.uncoarsening.use_multiqueue == MultiqueueUsage::only_multiqueue
-            || (context.uncoarsening.use_multiqueue == MultiqueueUsage::hybrid && groupHierarchy->getNumberOfDepths() > 1000));
-//        const bool use_multiqueue = context.uncoarsening.use_multiqueue;
-
-        auto pool = std::make_unique<TreeGroupPool>(std::move(groupHierarchy), context, use_multiqueue);
+        auto pool = std::make_unique<TreeGroupPool>(std::move(groupHierarchy), context);
         ASSERT(v < poolVector.size());
         // Pass ownership of the pool to the pool vector
         poolVector[v] = std::move(pool);

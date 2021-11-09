@@ -206,23 +206,15 @@ namespace mt_kahypar::ds {
           ASSERT(_hg.nodeIsEnabled(hn));
           size_t intersection_size_with_this_task = 0;
           size_t intersection_size_with_other_tasks = 0;
-          size_t intersection_size_with_all_tasks = 0;
-          size_t intersection_size_with_this_and_any_other_tasks = 0;
           auto incident_edges = _hg.incidentEdges(hn);
           for (const HyperedgeID he : incident_edges) {
             ASSERT(he < _active_nodes_combined_signatures.numElements());
             auto set_state = _active_nodes_combined_signatures.set_state_for_task(he, task_id);
-            if (set_state.is_set_for_any_task()) {
-              ++intersection_size_with_all_tasks;
-            }
             if (set_state.is_set_for_task) {
               ++intersection_size_with_this_task;
             }
             if (set_state.is_set_for_any_except_task) {
               ++intersection_size_with_other_tasks;
-            }
-            if (set_state.is_set_for_task && set_state.is_set_for_any_except_task) {
-              ++intersection_size_with_this_and_any_other_tasks;
             }
           }
           // calculate size of union between active edges in other threads and edges incident to given node without
@@ -230,10 +222,8 @@ namespace mt_kahypar::ds {
           const size_t union_size_with_others = _active_nodes_signature_union_size.load(std::memory_order_relaxed) // total number active edges
                   + _hg.nodeDegree(hn) // total number incident edges
                   - _active_edges_per_task[task_id]->size() // number active in this task
-                  - intersection_size_with_all_tasks;
-                  + intersection_size_with_this_task
                   + num_active_in_this_and_other_tasks
-                  - intersection_size_with_this_and_any_other_tasks;
+                  - intersection_size_with_other_tasks;
           ASSERT(union_size_with_others >= intersection_size_with_other_tasks);
 
           double similarity_to_others = 0.0;

@@ -520,16 +520,20 @@ namespace mt_kahypar {
              "parts are taken using bitcopy operations within a lock on the hyperedge and then traversed outside of the"
              " lock. May reduce work that is performed in the hyperedge while increasing overall work.  "
              "(Only has an effect in MtKaHyParStrongAsync.)")
-            ("u-use-multiqueue",
+            ("u-group-pool-type",
             po::value<std::string>()->value_name("<string>")->notifier(
                 [&](const std::string& mode) {
-                    context.uncoarsening.use_multiqueue = multiqueueUsageFromString(mode);
-                })->default_value("no_multiqueue"),
-            "Mode of using multiqueue as priority queue:\n"
-            "- no_multiqueue\n"
-            "- hybrid (only for versions with max depth of > 1000)\n"
-            "- only_multiqueue\n"
+                    context.uncoarsening.group_pool_type = groupPoolTypeFromString(mode);
+                })->default_value("multiqueue"),
+            "Type of group pool:\n"
+            "- thread_local_pools (distribute groups, each thread uses own pool)\n"
+            "- multiqueue (global priority queue of groups by depth in hierarchy)\n"
             "(Only has an effect in MtKaHyParStrongAsync)")
+            ("u-use-heavy-gain-cache-deltas",
+            po::value<bool>(&context.uncoarsening.use_heavy_gain_cache_deltas)->value_name("<bool>")->default_value(false),
+            "If this option is set, asynchronous localized FM searches will track k benefit delta entries instead of one."
+            " May improve solution quality at the cost of running time and memory overheads. "
+            "(Only has an effect in MtKaHyParStrongAsync.)")
             ;
     return options;
   }

@@ -28,6 +28,20 @@ namespace mt_kahypar::ds {
             _first_invalid(0),
             _data(initial_capacity, initial_value) {}
 
+        template<typename TIterator>
+        NoDownsizeIntegralTypeVector(IteratorRange<TIterator> initial_elements, const size_t initial_capacity, const T& initial_value = std::numeric_limits<T>::max()) :
+            _num_expired_threshold(std::max(initial_capacity / 4, size_t(1))),
+            _first_valid(0),
+            _first_invalid(0),
+            _data(initial_elements.begin(), initial_elements.end()) {
+          _first_invalid = _data.size();
+          if (_data.size() < initial_capacity) {
+            _data.resize(initial_capacity, initial_value);
+          } else {
+            _num_expired_threshold = std::max(_data.size() / 4, size_t(1));
+          }
+        }
+
         NoDownsizeIntegralTypeVector(const NoDownsizeIntegralTypeVector& other) = default;
         NoDownsizeIntegralTypeVector& operator=(const NoDownsizeIntegralTypeVector& other) = default;
         NoDownsizeIntegralTypeVector(NoDownsizeIntegralTypeVector&& other)  noexcept = default;
