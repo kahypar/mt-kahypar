@@ -535,18 +535,19 @@ namespace mt_kahypar {
 
       while (true) {
 
-        if (pool->allAccepted()) return;
+        if (pool->taskFinished(task_id)) return;
 
 
         if (pick_new_group) {
           // Attempt to pick a group from the pool. Stop if pool is completed.
           bool group_found = false;
           while (!group_found) {
-            if (pool->allAccepted()) return;
+            if (pool->taskFinished(task_id)) return;
             task_local_timer.startGroupPickingTimer();
             group_found = pool->tryToPickActiveID(groupID, task_id);
             task_local_timer.stopGroupPickingTimer(group_found);
           }
+        }
 
           ASSERT(groupID != ds::invalidGroupID);
           if (groupID == ds::invalidGroupID || groupID >= pool->getNumTotal()) {
@@ -691,7 +692,6 @@ namespace mt_kahypar {
             pick_new_group = true;
           }
       }
-  }
   }
 
   PartitionedHypergraph&& NLevelCoarsenerBase::doAsynchronousUncoarsen(std::unique_ptr<IRefiner>& global_fm) {
@@ -941,6 +941,12 @@ namespace mt_kahypar {
 
       utils::Stats::instance().update_stat("stable_pins_seen", static_cast<int64_t>(_phg.getNumStablePinsSeen()));
       utils::Stats::instance().update_stat("volatile_pins_seen", static_cast<int64_t>(_phg.getNumVolatilePinsSeen()));
+
+    utils::Stats::instance().update_stat("num_uncontractions", static_cast<int64_t>(_phg.getNumUncontractions()));
+    utils::Stats::instance().update_stat("num_uncontractions_with_snapshots", static_cast<int64_t>(_phg.getNumUncontractionsWithSnapshots()));
+    utils::Stats::instance().update_stat("num_moves", static_cast<int64_t>(_phg.getNumMoves()));
+    utils::Stats::instance().update_stat("num_moves_with_snapshots", static_cast<int64_t>(_phg.getNumMovesWithSnapshots()));
+
       utils::Stats::instance().update_stat("total_calls_to_pick_next_group", static_cast<int64_t>(total_calls_to_pick));
       utils::Stats::instance().update_stat("calls_to_pick_next_group_with_max_retries", static_cast<int64_t>(calls_to_pick_that_reached_max_retries));
       utils::Stats::instance().update_stat("calls_to_pick_next_group_with_empty_pq", static_cast<int64_t>(calls_to_pick_with_empty_pq));
@@ -1011,6 +1017,10 @@ namespace mt_kahypar {
             << "Group Picking Time With Group Found in tasks: " << total_group_picking_with_group_found_time << "\n"
             << "Group Picking Time Without Group Found in tasks: " << total_group_picking_without_group_found_time << "\n"
             << "Region Tracking Time in tasks: " << total_region_tracking_time;
+
+        LOG << std::setprecision(5) << std::fixed
+            << "Num Uncontractions, With Snapshots, Ratio: " << _phg.getNumUncontractions() << ", " << _phg.getNumUncontractionsWithSnapshots() << ", " << ((double) _phg.getNumUncontractionsWithSnapshots() / (double) _phg.getNumUncontractions()) << "\n"
+            << "Num Moves, With Snapshots, Ratio: " << _phg.getNumMoves() << ", " << _phg.getNumMovesWithSnapshots() << ", " << ((double) _phg.getNumMovesWithSnapshots() / (double) _phg.getNumMoves());
       }
 
       size_t total_num_nodes = _hg.initialNumNodes() - _hg.numRemovedHypernodes();

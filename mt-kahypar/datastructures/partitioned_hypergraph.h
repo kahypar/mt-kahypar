@@ -108,7 +108,11 @@ private:
           _connectivity_set_bitcopy_snapshots(),
           _pins_snapshots(_hg->maxEdgeSize(),invalidNode),
           _num_stable_pins_seen(0),
-          _num_volatile_pins_seen(0){
+          _num_volatile_pins_seen(0),
+          _num_moves(0),
+          _num_moves_with_snapshots(0),
+          _num_uncontractions(0),
+          _num_uncontractions_with_snapshots(0) {
     _part_ids.assign(hypergraph.initialNumNodes(), kInvalidPartition, false);
   }
 
@@ -130,7 +134,11 @@ private:
           _connectivity_set_bitcopy_snapshots(),
           _pins_snapshots(_hg->maxEdgeSize(), invalidNode),
           _num_stable_pins_seen(0),
-          _num_volatile_pins_seen(0)  {
+          _num_volatile_pins_seen(0),
+          _num_moves(0),
+          _num_moves_with_snapshots(0),
+          _num_uncontractions(0),
+          _num_uncontractions_with_snapshots(0)  {
     tbb::parallel_invoke([&] {
       _part_ids.resize(
         "Refinement", "vertex_part_info", hypergraph.initialNumNodes());
@@ -167,7 +175,11 @@ private:
           _connectivity_set_bitcopy_snapshots(std::move(other._connectivity_set_bitcopy_snapshots)),
           _pins_snapshots(std::move(other._pins_snapshots)),
           _num_stable_pins_seen(std::move(other._num_stable_pins_seen)),
-          _num_volatile_pins_seen(std::move(other._num_volatile_pins_seen))  {
+          _num_volatile_pins_seen(std::move(other._num_volatile_pins_seen)),
+          _num_moves(std::move(other._num_moves)),
+          _num_moves_with_snapshots(std::move(other._num_moves_with_snapshots)),
+          _num_uncontractions(std::move(other._num_uncontractions)),
+          _num_uncontractions_with_snapshots(std::move(other._num_uncontractions_with_snapshots))  {
 
       // Reset query functions for GainCache (so references point to functions in new PHG)
       _gain_cache.assignQueryObjects(&_part_ids, &_pins_in_part, &_connectivity_set);
@@ -190,6 +202,10 @@ private:
       _pins_snapshots = std::move(other._pins_snapshots);
       _num_stable_pins_seen = std::move(other._num_stable_pins_seen);
       _num_volatile_pins_seen = std::move(other._num_volatile_pins_seen);
+      _num_moves = std::move(other._num_moves);
+      _num_moves_with_snapshots = std::move(other._num_moves_with_snapshots);
+      _num_uncontractions = std::move(other._num_uncontractions);
+      _num_uncontractions_with_snapshots = std::move(other._num_uncontractions_with_snapshots);
 
       _gain_cache.assignQueryObjects(&_part_ids, &_pins_in_part, &_connectivity_set);
 
@@ -500,19 +516,59 @@ private:
 
     size_t num_stable = stable_pins.end() - stable_pins.begin();
     size_t num_volatile = volatile_pins.end() - volatile_pins.begin();
-    _num_stable_pins_seen.fetch_add(num_stable, std::memory_order_relaxed);
-    _num_volatile_pins_seen.fetch_add(num_volatile, std::memory_order_relaxed);
+    _num_stable_pins_seen.local() += num_stable;
+    _num_volatile_pins_seen.local() += num_volatile;
 
     return PinSnapshotIterator::stitchPinIterators(stable_pins, volatile_pins);
   }
 
   size_t getNumStablePinsSeen() const {
-    return _num_stable_pins_seen.load(std::memory_order_relaxed);
+    size_t num_stable = 0;
+    for (const auto& num : _num_stable_pins_seen) {
+      num_stable += num;
+    }
+    return num_stable;
   }
 
   size_t getNumVolatilePinsSeen() const {
-    return _num_volatile_pins_seen.load(std::memory_order_relaxed);
+    size_t num_volatile = 0;
+    for (const auto& num : _num_volatile_pins_seen) {
+      num_volatile += num;
+    }
+    return num_volatile;
   }
+
+    size_t getNumUncontractions() const {
+      size_t num = 0;
+      for (const auto& n : _num_uncontractions) {
+        num += n;
+      }
+      return num;
+    }
+
+    size_t getNumUncontractionsWithSnapshots() const {
+      size_t num = 0;
+      for (const auto& n : _num_uncontractions_with_snapshots) {
+        num += n;
+      }
+      return num;
+    }
+
+    size_t getNumMoves() const {
+      size_t num = 0;
+      for (const auto& n : _num_moves) {
+        num += n;
+      }
+      return num;
+    }
+
+    size_t getNumMovesWithSnapshots() const {
+      size_t num = 0;
+      for (const auto& n : _num_moves_with_snapshots) {
+        num += n;
+      }
+      return num;
+    }
 
   // ! Debug purposes
   [[maybe_unused]] void lockHyperedgePinCountLock(const HyperedgeID he) {
@@ -528,6 +584,7 @@ private:
                   const ContractionGroupID groupID,
                   bool useBitcopySnapshots = false) {
 
+
       // Set block ids of contraction partners
      for (auto& memento : group) {
           ASSERT(nodeIsEnabled(memento.u));
@@ -535,6 +592,7 @@ private:
           const PartitionID part_id = partID(memento.u);
           ASSERT(part_id != kInvalidPartition && part_id < _k);
           setOnlyNodePart(memento.v, part_id);
+        ++_num_uncontractions.local();
      }
 
     CompressedConnectivitySetSnapshot& conn_set_snapshot = _direct_conn_set_snapshots.local();
@@ -571,6 +629,8 @@ private:
                               } else {
                                 // If e is large enough and update to all pins of e is necessary, perform gain cache update outside of lock:
                                 // Snapshot pins and connectivity set in lock, gain cache update outside of lock
+
+                                ++_num_uncontractions_with_snapshots.local();
 
                                 auto pins_snapshot = std::make_unique<IteratorRange<PinSnapshotIterator>>(takePinsSnapshot(he));
                                 if (useBitcopySnapshots) {
@@ -774,6 +834,8 @@ private:
     if ( to_weight_after <= max_weight_to && from_weight_after > 0 ) {
       _part_ids[u] = to;
       report_success();
+
+      ++_num_moves.local();
 
       if (concurrent_uncontractions) {
         std::vector<HyperedgeID> retry_edges;
@@ -1426,6 +1488,7 @@ private:
         gain_cache_update_func(he, edgeWeight(he), pins(he), from, pin_count_in_from_part_after, to, pin_count_in_to_part_after);
         _pin_count_update_ownership[he].unlock();
       } else {
+        ++_num_moves_with_snapshots.local();
 
         std::unique_ptr<IteratorRange<PinSnapshotIterator>> pins_snapshot = std::make_unique<IteratorRange<PinSnapshotIterator>>(PinSnapshotIterator::emptyPinIteratorRange());
         if (_gain_cache.arePinCountsAfterMoveThatTriggerUpdateForAllPins(pin_count_in_from_part_after, pin_count_in_to_part_after)) {
@@ -1513,8 +1576,13 @@ private:
   tbb::enumerable_thread_specific<std::vector<HypernodeID>> _pins_snapshots;
 
   // ! Stats counters
-  CAtomic<size_t> _num_stable_pins_seen;
-  CAtomic<size_t> _num_volatile_pins_seen;
+  tbb::enumerable_thread_specific<size_t> _num_stable_pins_seen;
+  tbb::enumerable_thread_specific<size_t> _num_volatile_pins_seen;
+
+  tbb::enumerable_thread_specific<size_t> _num_uncontractions;
+  tbb::enumerable_thread_specific<size_t> _num_uncontractions_with_snapshots;
+  tbb::enumerable_thread_specific<size_t> _num_moves;
+  tbb::enumerable_thread_specific<size_t> _num_moves_with_snapshots;
 
 };
 
