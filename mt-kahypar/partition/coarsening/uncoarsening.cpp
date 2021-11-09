@@ -942,10 +942,10 @@ namespace mt_kahypar {
       utils::Stats::instance().update_stat("stable_pins_seen", static_cast<int64_t>(_phg.getNumStablePinsSeen()));
       utils::Stats::instance().update_stat("volatile_pins_seen", static_cast<int64_t>(_phg.getNumVolatilePinsSeen()));
 
-    utils::Stats::instance().update_stat("num_uncontractions", static_cast<int64_t>(_phg.getNumUncontractions()));
-    utils::Stats::instance().update_stat("num_uncontractions_with_snapshots", static_cast<int64_t>(_phg.getNumUncontractionsWithSnapshots()));
-    utils::Stats::instance().update_stat("num_moves", static_cast<int64_t>(_phg.getNumMoves()));
-    utils::Stats::instance().update_stat("num_moves_with_snapshots", static_cast<int64_t>(_phg.getNumMovesWithSnapshots()));
+    utils::Stats::instance().update_stat("num_edges_touched_by_uncontractions", static_cast<int64_t>(_phg.getNumEdgesTouchedByUncontractions()));
+    utils::Stats::instance().update_stat("num_edges_touched_by_uncontractions_with_snapshots", static_cast<int64_t>(_phg.getNumEdgesTouchedByUncontractionsWithSnapshots()));
+    utils::Stats::instance().update_stat("num_edges_touched_by_moves", static_cast<int64_t>(_phg.getNumEdgesTouchedByMoves()));
+    utils::Stats::instance().update_stat("num_edges_touched_by_moves_with_snapshots", static_cast<int64_t>(_phg.getNumEdgesTouchedByMovesWithSnapshots()));
 
       utils::Stats::instance().update_stat("total_calls_to_pick_next_group", static_cast<int64_t>(total_calls_to_pick));
       utils::Stats::instance().update_stat("calls_to_pick_next_group_with_max_retries", static_cast<int64_t>(calls_to_pick_that_reached_max_retries));
@@ -1019,8 +1019,8 @@ namespace mt_kahypar {
             << "Region Tracking Time in tasks: " << total_region_tracking_time;
 
         LOG << std::setprecision(5) << std::fixed
-            << "Num Uncontractions, With Snapshots, Ratio: " << _phg.getNumUncontractions() << ", " << _phg.getNumUncontractionsWithSnapshots() << ", " << ((double) _phg.getNumUncontractionsWithSnapshots() / (double) _phg.getNumUncontractions()) << "\n"
-            << "Num Moves, With Snapshots, Ratio: " << _phg.getNumMoves() << ", " << _phg.getNumMovesWithSnapshots() << ", " << ((double) _phg.getNumMovesWithSnapshots() / (double) _phg.getNumMoves());
+            << "Num Edges touched by Uncontractions, With Snapshots, Ratio: " << _phg.getNumEdgesTouchedByUncontractions() << ", " << _phg.getNumEdgesTouchedByUncontractionsWithSnapshots() << ", " << ((double) _phg.getNumEdgesTouchedByUncontractionsWithSnapshots() / (double) _phg.getNumEdgesTouchedByUncontractions()) << "\n"
+            << "Num Edges touched by Moves, With Snapshots, Ratio: " << _phg.getNumEdgesTouchedByMoves() << ", " << _phg.getNumEdgesTouchedByMovesWithSnapshots() << ", " << ((double) _phg.getNumEdgesTouchedByMovesWithSnapshots() / (double) _phg.getNumEdgesTouchedByMoves());
       }
 
       size_t total_num_nodes = _hg.initialNumNodes() - _hg.numRemovedHypernodes();

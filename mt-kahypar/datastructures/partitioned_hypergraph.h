@@ -91,54 +91,54 @@ private:
 
   explicit PartitionedHypergraph(const PartitionID k,
                                  Hypergraph& hypergraph) :
-          _is_gain_cache_initialized(false),
-          _k(k),
-          _hg(&hypergraph),
-          _part_weights(k, CAtomic<HypernodeWeight>(0)),
-          _part_ids(
+      _is_gain_cache_initialized(false),
+      _k(k),
+      _hg(&hypergraph),
+      _part_weights(k, CAtomic<HypernodeWeight>(0)),
+      _part_ids(
         "Refinement", "part_ids", hypergraph.initialNumNodes(), false, false),
-          _pins_in_part(hypergraph.initialNumEdges(), k, hypergraph.maxEdgeSize(), false),
-          _connectivity_set(hypergraph.initialNumEdges(), k, false),
-          _gain_cache(hypergraph.initialNumNodes(), k, &_part_ids, &_pins_in_part, &_connectivity_set),
-          _pin_count_update_ownership(
+      _pins_in_part(hypergraph.initialNumEdges(), k, hypergraph.maxEdgeSize(), false),
+      _connectivity_set(hypergraph.initialNumEdges(), k, false),
+      _gain_cache(hypergraph.initialNumNodes(), k, &_part_ids, &_pins_in_part, &_connectivity_set),
+      _pin_count_update_ownership(
         "Refinement", "pin_count_update_ownership", hypergraph.initialNumEdges(), true, false),
-          _direct_conn_set_snapshots(_k, kInvalidPartition),
-          _direct_parts_with_one_pin_snapshots(_k, kInvalidPartition),
-          _pin_count_in_part_bitcopy_snapshots(),
-          _connectivity_set_bitcopy_snapshots(),
-          _pins_snapshots(_hg->maxEdgeSize(),invalidNode),
-          _num_stable_pins_seen(0),
-          _num_volatile_pins_seen(0),
-          _num_moves(0),
-          _num_moves_with_snapshots(0),
-          _num_uncontractions(0),
-          _num_uncontractions_with_snapshots(0) {
+      _direct_conn_set_snapshots(_k, kInvalidPartition),
+      _direct_parts_with_one_pin_snapshots(_k, kInvalidPartition),
+      _pin_count_in_part_bitcopy_snapshots(),
+      _connectivity_set_bitcopy_snapshots(),
+      _pins_snapshots(_hg->maxEdgeSize(),invalidNode),
+      _num_stable_pins_seen(0),
+      _num_volatile_pins_seen(0),
+      _num_edges_touched_by_moves(0),
+      _num_edges_touched_by_moves_with_snapshots(0),
+      _num_edges_touched_by_uncontractions(0),
+      _num_edges_touched_by_uncontractions_with_snapshots(0) {
     _part_ids.assign(hypergraph.initialNumNodes(), kInvalidPartition, false);
   }
 
   explicit PartitionedHypergraph(const PartitionID k,
                                  Hypergraph& hypergraph,
                                  parallel_tag_t) :
-          _is_gain_cache_initialized(false),
-          _k(k),
-          _hg(&hypergraph),
-          _part_weights(k, CAtomic<HypernodeWeight>(0)),
-          _part_ids(),
-          _pins_in_part(),
-          _connectivity_set(0, 0),
-          _gain_cache(&_part_ids, &_pins_in_part, &_connectivity_set, parallel_tag_t()),
-          _pin_count_update_ownership(),
-          _direct_conn_set_snapshots(_k, kInvalidPartition),
-          _direct_parts_with_one_pin_snapshots(_k, kInvalidPartition),
-          _pin_count_in_part_bitcopy_snapshots(),
-          _connectivity_set_bitcopy_snapshots(),
-          _pins_snapshots(_hg->maxEdgeSize(), invalidNode),
-          _num_stable_pins_seen(0),
-          _num_volatile_pins_seen(0),
-          _num_moves(0),
-          _num_moves_with_snapshots(0),
-          _num_uncontractions(0),
-          _num_uncontractions_with_snapshots(0)  {
+      _is_gain_cache_initialized(false),
+      _k(k),
+      _hg(&hypergraph),
+      _part_weights(k, CAtomic<HypernodeWeight>(0)),
+      _part_ids(),
+      _pins_in_part(),
+      _connectivity_set(0, 0),
+      _gain_cache(&_part_ids, &_pins_in_part, &_connectivity_set, parallel_tag_t()),
+      _pin_count_update_ownership(),
+      _direct_conn_set_snapshots(_k, kInvalidPartition),
+      _direct_parts_with_one_pin_snapshots(_k, kInvalidPartition),
+      _pin_count_in_part_bitcopy_snapshots(),
+      _connectivity_set_bitcopy_snapshots(),
+      _pins_snapshots(_hg->maxEdgeSize(), invalidNode),
+      _num_stable_pins_seen(0),
+      _num_volatile_pins_seen(0),
+      _num_edges_touched_by_moves(0),
+      _num_edges_touched_by_moves_with_snapshots(0),
+      _num_edges_touched_by_uncontractions(0),
+      _num_edges_touched_by_uncontractions_with_snapshots(0)  {
     tbb::parallel_invoke([&] {
       _part_ids.resize(
         "Refinement", "vertex_part_info", hypergraph.initialNumNodes());
@@ -160,26 +160,26 @@ private:
   PartitionedHypergraph & operator= (const PartitionedHypergraph &) = delete;
 
   PartitionedHypergraph(PartitionedHypergraph&& other)  noexcept :
-          _is_gain_cache_initialized(other._is_gain_cache_initialized),
-          _k(other._k),
-          _hg(std::move(other._hg)),
-          _part_weights(std::move(other._part_weights)),
-          _part_ids(std::move(other._part_ids)),
-          _pins_in_part(std::move(other._pins_in_part)),
-          _connectivity_set(std::move(other._connectivity_set)),
-          _gain_cache(std::move(other._gain_cache)),
-          _pin_count_update_ownership(std::move(other._pin_count_update_ownership)),
-          _direct_conn_set_snapshots(std::move(other._direct_conn_set_snapshots)),
-          _direct_parts_with_one_pin_snapshots(std::move(other._direct_parts_with_one_pin_snapshots)),
-          _pin_count_in_part_bitcopy_snapshots(std::move(other._pin_count_in_part_bitcopy_snapshots)),
-          _connectivity_set_bitcopy_snapshots(std::move(other._connectivity_set_bitcopy_snapshots)),
-          _pins_snapshots(std::move(other._pins_snapshots)),
-          _num_stable_pins_seen(std::move(other._num_stable_pins_seen)),
-          _num_volatile_pins_seen(std::move(other._num_volatile_pins_seen)),
-          _num_moves(std::move(other._num_moves)),
-          _num_moves_with_snapshots(std::move(other._num_moves_with_snapshots)),
-          _num_uncontractions(std::move(other._num_uncontractions)),
-          _num_uncontractions_with_snapshots(std::move(other._num_uncontractions_with_snapshots))  {
+      _is_gain_cache_initialized(other._is_gain_cache_initialized),
+      _k(other._k),
+      _hg(std::move(other._hg)),
+      _part_weights(std::move(other._part_weights)),
+      _part_ids(std::move(other._part_ids)),
+      _pins_in_part(std::move(other._pins_in_part)),
+      _connectivity_set(std::move(other._connectivity_set)),
+      _gain_cache(std::move(other._gain_cache)),
+      _pin_count_update_ownership(std::move(other._pin_count_update_ownership)),
+      _direct_conn_set_snapshots(std::move(other._direct_conn_set_snapshots)),
+      _direct_parts_with_one_pin_snapshots(std::move(other._direct_parts_with_one_pin_snapshots)),
+      _pin_count_in_part_bitcopy_snapshots(std::move(other._pin_count_in_part_bitcopy_snapshots)),
+      _connectivity_set_bitcopy_snapshots(std::move(other._connectivity_set_bitcopy_snapshots)),
+      _pins_snapshots(std::move(other._pins_snapshots)),
+      _num_stable_pins_seen(std::move(other._num_stable_pins_seen)),
+      _num_volatile_pins_seen(std::move(other._num_volatile_pins_seen)),
+      _num_edges_touched_by_moves(std::move(other._num_edges_touched_by_moves)),
+      _num_edges_touched_by_moves_with_snapshots(std::move(other._num_edges_touched_by_moves_with_snapshots)),
+      _num_edges_touched_by_uncontractions(std::move(other._num_edges_touched_by_uncontractions)),
+      _num_edges_touched_by_uncontractions_with_snapshots(std::move(other._num_edges_touched_by_uncontractions_with_snapshots))  {
 
       // Reset query functions for GainCache (so references point to functions in new PHG)
       _gain_cache.assignQueryObjects(&_part_ids, &_pins_in_part, &_connectivity_set);
@@ -202,10 +202,10 @@ private:
       _pins_snapshots = std::move(other._pins_snapshots);
       _num_stable_pins_seen = std::move(other._num_stable_pins_seen);
       _num_volatile_pins_seen = std::move(other._num_volatile_pins_seen);
-      _num_moves = std::move(other._num_moves);
-      _num_moves_with_snapshots = std::move(other._num_moves_with_snapshots);
-      _num_uncontractions = std::move(other._num_uncontractions);
-      _num_uncontractions_with_snapshots = std::move(other._num_uncontractions_with_snapshots);
+    _num_edges_touched_by_moves = std::move(other._num_edges_touched_by_moves);
+    _num_edges_touched_by_moves_with_snapshots = std::move(other._num_edges_touched_by_moves_with_snapshots);
+    _num_edges_touched_by_uncontractions = std::move(other._num_edges_touched_by_uncontractions);
+    _num_edges_touched_by_uncontractions_with_snapshots = std::move(other._num_edges_touched_by_uncontractions_with_snapshots);
 
       _gain_cache.assignQueryObjects(&_part_ids, &_pins_in_part, &_connectivity_set);
 
@@ -538,33 +538,33 @@ private:
     return num_volatile;
   }
 
-    size_t getNumUncontractions() const {
+    size_t getNumEdgesTouchedByUncontractions() const {
       size_t num = 0;
-      for (const auto& n : _num_uncontractions) {
+      for (const auto& n : _num_edges_touched_by_uncontractions) {
         num += n;
       }
       return num;
     }
 
-    size_t getNumUncontractionsWithSnapshots() const {
+    size_t getNumEdgesTouchedByUncontractionsWithSnapshots() const {
       size_t num = 0;
-      for (const auto& n : _num_uncontractions_with_snapshots) {
+      for (const auto& n : _num_edges_touched_by_uncontractions_with_snapshots) {
         num += n;
       }
       return num;
     }
 
-    size_t getNumMoves() const {
+    size_t getNumEdgesTouchedByMoves() const {
       size_t num = 0;
-      for (const auto& n : _num_moves) {
+      for (const auto& n : _num_edges_touched_by_moves) {
         num += n;
       }
       return num;
     }
 
-    size_t getNumMovesWithSnapshots() const {
+    size_t getNumEdgesTouchedByMovesWithSnapshots() const {
       size_t num = 0;
-      for (const auto& n : _num_moves_with_snapshots) {
+      for (const auto& n : _num_edges_touched_by_moves_with_snapshots) {
         num += n;
       }
       return num;
@@ -592,7 +592,6 @@ private:
           const PartitionID part_id = partID(memento.u);
           ASSERT(part_id != kInvalidPartition && part_id < _k);
           setOnlyNodePart(memento.v, part_id);
-        ++_num_uncontractions.local();
      }
 
     CompressedConnectivitySetSnapshot& conn_set_snapshot = _direct_conn_set_snapshots.local();
@@ -609,6 +608,7 @@ private:
      _hg->uncontract(group,
                      groupID,
                       [&](const HypernodeID u, const HypernodeID v, const HyperedgeID he) {
+                          ++_num_edges_touched_by_uncontractions.local();
                             // (This is always called while pin count update ownership for he has been locked by _hg->uncontract();
                             // release that lock here at right point)
                             // In this case, u and v are incident to hyperedge he after uncontraction
@@ -630,7 +630,7 @@ private:
                                 // If e is large enough and update to all pins of e is necessary, perform gain cache update outside of lock:
                                 // Snapshot pins and connectivity set in lock, gain cache update outside of lock
 
-                                ++_num_uncontractions_with_snapshots.local();
+                                ++_num_edges_touched_by_uncontractions_with_snapshots.local();
 
                                 auto pins_snapshot = std::make_unique<IteratorRange<PinSnapshotIterator>>(takePinsSnapshot(he));
                                 if (useBitcopySnapshots) {
@@ -656,6 +656,7 @@ private:
                           }
                           },
                       [&](const HypernodeID u, const HypernodeID v, const HyperedgeID he) {
+                          ++_num_edges_touched_by_uncontractions.local();
                           // (This is always called while pin count update ownership for he has been locked by _hg->uncontract();
                           // release that lock here at right point)
                           // In this case, u is replaced by v in hyperedge he
@@ -834,8 +835,6 @@ private:
     if ( to_weight_after <= max_weight_to && from_weight_after > 0 ) {
       _part_ids[u] = to;
       report_success();
-
-      ++_num_moves.local();
 
       if (concurrent_uncontractions) {
         std::vector<HyperedgeID> retry_edges;
@@ -1484,11 +1483,13 @@ private:
       const HypernodeID pin_count_in_to_part_after = incrementPinCountInPartWithoutGainUpdate(he, to);
       size_t edge_size = edgeSize(he);
 
+      ++_num_edges_touched_by_moves.local();
+
       if (_hg->totalSize(he) < _hg->snapshotEdgeSizeThreshold()) {
         gain_cache_update_func(he, edgeWeight(he), pins(he), from, pin_count_in_from_part_after, to, pin_count_in_to_part_after);
         _pin_count_update_ownership[he].unlock();
       } else {
-        ++_num_moves_with_snapshots.local();
+        ++_num_edges_touched_by_moves_with_snapshots.local();
 
         std::unique_ptr<IteratorRange<PinSnapshotIterator>> pins_snapshot = std::make_unique<IteratorRange<PinSnapshotIterator>>(PinSnapshotIterator::emptyPinIteratorRange());
         if (_gain_cache.arePinCountsAfterMoveThatTriggerUpdateForAllPins(pin_count_in_from_part_after, pin_count_in_to_part_after)) {
@@ -1579,10 +1580,10 @@ private:
   tbb::enumerable_thread_specific<size_t> _num_stable_pins_seen;
   tbb::enumerable_thread_specific<size_t> _num_volatile_pins_seen;
 
-  tbb::enumerable_thread_specific<size_t> _num_uncontractions;
-  tbb::enumerable_thread_specific<size_t> _num_uncontractions_with_snapshots;
-  tbb::enumerable_thread_specific<size_t> _num_moves;
-  tbb::enumerable_thread_specific<size_t> _num_moves_with_snapshots;
+  tbb::enumerable_thread_specific<size_t> _num_edges_touched_by_uncontractions;
+  tbb::enumerable_thread_specific<size_t> _num_edges_touched_by_uncontractions_with_snapshots;
+  tbb::enumerable_thread_specific<size_t> _num_edges_touched_by_moves;
+  tbb::enumerable_thread_specific<size_t> _num_edges_touched_by_moves_with_snapshots;
 
 };
 
