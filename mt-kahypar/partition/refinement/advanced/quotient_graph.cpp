@@ -37,18 +37,11 @@ void QuotientGraph::QuotientGraphEdge::add_hyperedge(const HyperedgeID he,
   cut_he_weight += weight;
 }
 
-HyperedgeID QuotientGraph::QuotientGraphEdge::pop_hyperedge() {
-  ASSERT(cut_he_weight > 0);
-  return cut_hes[first_valid_entry++];
-}
-
 void QuotientGraph::QuotientGraphEdge::reset() {
   cut_hes.clear();
   ownership.store(INVALID_SEARCH_ID, std::memory_order_relaxed);
   is_in_queue.store(false, std::memory_order_relaxed);
-  first_valid_entry = 0;
   initial_num_cut_hes = 0;
-  initial_cut_he_weight = 0;
   cut_he_weight.store(0, std::memory_order_relaxed);
 }
 
@@ -278,65 +271,6 @@ SearchID QuotientGraph::requestNewSearch(AdvancedRefinerAdapter& refiner) {
   return search_id;
 }
 
-BlockPairCutHyperedges QuotientGraph::requestCutHyperedges(const SearchID search_id,
-                                                           const size_t max_num_edges) {
-  ASSERT(_phg);
-  ASSERT(search_id < _searches.size());
-  BlockPairCutHyperedges block_pair_cut_hes;
-  if ( !_searches[search_id].is_finalized ) {
-    Search& search = _searches[search_id];
-    const BlockPair blocks = search.blocks;
-    QuotientGraphEdge& qg_edge = _quotient_graph[blocks.i][blocks.j];
-    block_pair_cut_hes.blocks = blocks;
-
-    size_t num_edges = 0;
-    while ( num_edges < max_num_edges && qg_edge.cut_he_weight > 0 ) {
-      // Note, we only consider hyperedges that contains pins of both blocks.
-      // There might be some edges which were initially cut, but were removed due
-      // to vertex moves. Thus, we remove them lazily here.
-      const HyperedgeID he = qg_edge.pop_hyperedge();
-      qg_edge.cut_he_weight -= _phg->edgeWeight(he);
-      if ( _phg->pinCountInPart(he, blocks.i) > 0 &&
-          _phg->pinCountInPart(he, blocks.j) > 0 ) {
-        block_pair_cut_hes.cut_hes.push_back(he);
-        _searches[search_id].used_cut_hes.push_back(he);
-        ++num_edges;
-      }
-    }
-  }
-  return block_pair_cut_hes;
-}
-
-size_t QuotientGraph::acquireUsedCutHyperedges(const SearchID& search_id, vec<bool>& used_hes) {
-  ASSERT(_phg);
-  ASSERT(search_id < _searches.size());
-  ASSERT(!_searches[search_id].is_finalized);
-  size_t additional_cut_hes = 0;
-  const BlockPair& blocks = _searches[search_id].blocks;
-  QuotientGraphEdge& qg_edge = _quotient_graph[blocks.i][blocks.j];
-  const size_t used_hes_size = _searches[search_id].used_cut_hes.size();
-  const size_t start_idx = qg_edge.first_valid_entry;
-  const size_t end_idx = qg_edge.cut_hes.size();
-  for ( size_t i = start_idx; i < end_idx; ++i ) {
-    const HyperedgeID he = qg_edge.cut_hes[i];
-    if ( used_hes[he] ) {
-      used_hes[he] = false;
-      qg_edge.cut_he_weight -= _phg->edgeWeight(he);
-      _searches[search_id].used_cut_hes.push_back(he);
-      // Note that only one thread constructs a problem at any particular point in time.
-      // This function is called before construction terminates. Therefore, this
-      // operation is thread safe.
-      std::swap(qg_edge.cut_hes[qg_edge.first_valid_entry++], qg_edge.cut_hes[i]);
-      ++additional_cut_hes;
-    }
-  }
-  // Flag used cut hes again
-  for ( size_t i = used_hes_size; i < _searches[search_id].used_cut_hes.size(); ++i ) {
-    used_hes[_searches[search_id].used_cut_hes[i]] = true;
-  }
-  return additional_cut_hes;
-}
-
 void QuotientGraph::addNewCutHyperedge(const HyperedgeID he,
                                        const PartitionID block) {
   ASSERT(_phg);
@@ -370,12 +304,6 @@ void QuotientGraph::finalizeSearch(const SearchID search_id,
     // all hyperedges that were used by the search and are still cut.
     ++qg_edge.num_improvements_found;
     qg_edge.total_improvement += total_improvement;
-    for ( const HyperedgeID& he : _searches[search_id].used_cut_hes ) {
-      if ( _phg->pinCountInPart(he, blocks.i) > 0 &&
-          _phg->pinCountInPart(he, blocks.j) > 0 ) {
-        qg_edge.add_hyperedge(he, _phg->edgeWeight(he));
-      }
-    }
   }
   // In case the block pair becomes active,
   // we reinsert it into the queue
@@ -427,7 +355,6 @@ void QuotientGraph::initialize(const PartitionedHypergraph& phg) {
   // Initalize block scheduler queue
   for ( PartitionID i = 0; i < _context.partition.k; ++i ) {
     for ( PartitionID j = i + 1; j < _context.partition.k; ++j ) {
-      _quotient_graph[i][j].initial_cut_he_weight = _quotient_graph[i][j].cut_he_weight;
       _quotient_graph[i][j].initial_num_cut_hes =  _quotient_graph[i][j].cut_hes.size();
     }
   }

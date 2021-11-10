@@ -37,15 +37,6 @@ struct BlockPair {
   PartitionID j = kInvalidPartition;
 };
 
-struct BlockPairCutHyperedges {
-  BlockPairCutHyperedges() :
-    blocks(),
-    cut_hes() { }
-
-  BlockPair blocks;
-  vec<HyperedgeID> cut_hes;
-};
-
 class QuotientGraph {
 
   static constexpr bool debug = false;
@@ -58,9 +49,7 @@ class QuotientGraph {
       ownership(INVALID_SEARCH_ID),
       is_in_queue(false),
       cut_hes(),
-      first_valid_entry(0),
       initial_num_cut_hes(0),
-      initial_cut_he_weight(0),
       cut_he_weight(0),
       num_improvements_found(0),
       total_improvement(0) { }
@@ -68,9 +57,6 @@ class QuotientGraph {
     // ! Adds a cut hyperedge to this quotient graph edge
     void add_hyperedge(const HyperedgeID he,
                        const HyperedgeWeight weight);
-
-    // ! Pops a cut hyperedge from this quotient graph edge
-    HyperedgeID pop_hyperedge();
 
     void reset();
 
@@ -117,12 +103,8 @@ class QuotientGraph {
     CAtomic<bool> is_in_queue;
     // ! Cut hyperedges of block pair
     tbb::concurrent_vector<HyperedgeID> cut_hes;
-    // ! Position of the first valid cut hyperedge in cut_hes
-    size_t first_valid_entry;
     // ! Initial number of cut hyperedges
     size_t initial_num_cut_hes;
-    // ! Initial weight of all cut hyperedges
-    HyperedgeWeight initial_cut_he_weight;
     // ! Current weight of all cut hyperedges
     CAtomic<HyperedgeWeight> cut_he_weight;
     // ! Number of improvements found on this block pair
@@ -294,15 +276,12 @@ class QuotientGraph {
     explicit Search(const BlockPair& blocks, const size_t round) :
       blocks(blocks),
       round(round),
-      used_cut_hes(),
       is_finalized(false) { }
 
     // ! Block pair on which this search operates on
     BlockPair blocks;
     // ! Round of active block scheduling
     size_t round;
-    // ! Used cut hyperedges
-    vec<HyperedgeID> used_cut_hes;
     // ! Flag indicating if construction of the corresponding search
     // ! is finalized
     bool is_finalized;
@@ -378,19 +357,17 @@ public:
     return 1;
   }
 
-  /**
-   * Requests cut hyperedges that contains the blocks
-   * associated with the corresponding search.
-   */
-  BlockPairCutHyperedges requestCutHyperedges(const SearchID search_id,
-                                              const size_t max_num_edges);
-
-  /**
-   * During problem construction we might acquire additional cut hyperedges
-   * not requested by the search. This function associates those hyperedges
-   * with the search and flags them as used.
-   */
-  size_t acquireUsedCutHyperedges(const SearchID& search_id, vec<bool>& used_hes);
+  template<typename F>
+  void doForAllCutHyperedgesOfSearch(const SearchID search_id, const F& f) {
+    const BlockPair& blocks = _searches[search_id].blocks;
+    std::random_shuffle(_quotient_graph[blocks.i][blocks.j].cut_hes.begin(),
+                        _quotient_graph[blocks.i][blocks.j].cut_hes.end());
+    for ( const HyperedgeID& he : _quotient_graph[blocks.i][blocks.j].cut_hes ) {
+      if ( _phg->pinCountInPart(he, blocks.i) > 0 && _phg->pinCountInPart(he, blocks.j) > 0 ) {
+        f(he);
+      }
+    }
+  }
 
 
   /**

@@ -30,7 +30,7 @@ using ::testing::Test;
 
 namespace mt_kahypar {
 
-class AQuotientGraph : public Test {
+/*class AQuotientGraph : public Test {
  public:
   AQuotientGraph() :
     hg(),
@@ -45,7 +45,6 @@ class AQuotientGraph : public Test {
     context.shared_memory.num_threads = std::thread::hardware_concurrency();
     context.refinement.advanced.algorithm = AdvancedRefinementAlgorithm::mock;
     context.refinement.advanced.num_threads_per_search = 1;
-    context.refinement.advanced.num_cut_edges_per_block_pair = 50;
     context.refinement.advanced.max_bfs_distance = 2;
     context.refinement.advanced.max_concurrency_per_block = 10000;
 
@@ -188,6 +187,6 @@ TEST_F(AQuotientGraph, SimulatesBlockSchedulingWithSuccessfulSearches) {
       }
     }
   }
-}
+}*/
 
 }

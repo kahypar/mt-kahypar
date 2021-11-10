@@ -130,7 +130,6 @@ std::string serialize(const PartitionedHypergraph& hypergraph,
         << " global_fm_obey_minimal_parallelism=" << std::boolalpha << context.refinement.global_fm.obey_minimal_parallelism
         << " advanced_algorithm=" << context.refinement.advanced.algorithm
         << " advanced_num_threads_per_search=" << context.refinement.advanced.num_threads_per_search
-        << " advanced_num_cut_edges_per_block_pair=" << context.refinement.advanced.num_cut_edges_per_block_pair
         << " advanced_max_bfs_distance=" << context.refinement.advanced.max_bfs_distance
         << " advanced_max_concurrency_per_block=" << context.refinement.advanced.max_concurrency_per_block
         << " advanced_min_relative_improvement_per_round=" << context.refinement.advanced.min_relative_improvement_per_round

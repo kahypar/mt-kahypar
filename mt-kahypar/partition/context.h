@@ -172,7 +172,6 @@ struct AdvancedRefinementParameters {
   AdvancedRefinementAlgorithm algorithm = AdvancedRefinementAlgorithm::do_nothing;
   FlowParameters flows { };
   size_t num_threads_per_search = 0;
-  size_t num_cut_edges_per_block_pair = 0;
   size_t max_bfs_distance = 0;
   size_t max_concurrency_per_block = 0;
   double min_relative_improvement_per_round = 0.0;

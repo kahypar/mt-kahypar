@@ -102,20 +102,15 @@ Subhypergraph ProblemConstruction::construct(const SearchID search_id,
 
   // We vertices to the problem as long as the associated refiner notifies the
   // construction algorithm that the maximum problem size is reached
-  size_t requested_hyperedges = 0;
   while ( !refiner.isMaximumProblemSizeReached(search_id, stats) ) {
 
-    // We initialize the BFS with a fixed number of cut hyperedges running
+    // We initialize the BFS with all cut hyperedges running
     // between the involved block associated with the search
-    const BlockPairCutHyperedges initial_cut_hes =
-      quotient_graph.requestCutHyperedges(search_id,
-        _context.refinement.advanced.num_cut_edges_per_block_pair);
-    requested_hyperedges += initial_cut_hes.cut_hes.size();
     bfs.clearQueues();
-    for ( const HyperedgeID& he : initial_cut_hes.cut_hes ) {
+    quotient_graph.doForAllCutHyperedgesOfSearch(search_id, [&](const HyperedgeID& he) {
       bfs.add_pins_of_hyperedge_to_queue(he, phg, stats,
         _context.refinement.advanced.max_bfs_distance);
-    }
+    });
     bfs.swap_with_next_queue();
     // Special case, if they are no cut hyperedges left
     // between the involved blocks
@@ -211,9 +206,7 @@ Subhypergraph ProblemConstruction::construct(const SearchID search_id,
     return true;
   }(), "Subhypergraph construction failed!");
 
-  requested_hyperedges += quotient_graph.acquireUsedCutHyperedges(search_id, stats._visited_hes);
   DBG << "Search ID =" << search_id
-      << ", Used Cut HEs =" << requested_hyperedges
       << "-" << stats;
 
   const PartitionID block_0 = stats.block(0);

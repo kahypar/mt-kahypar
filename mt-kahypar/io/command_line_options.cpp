@@ -446,10 +446,6 @@ namespace mt_kahypar {
              po::value<size_t>((initial_partitioning ? &context.initial_partitioning.refinement.advanced.num_threads_per_search :
                       &context.refinement.advanced.num_threads_per_search))->value_name("<size_t>"),
              "Number of threads per search.")
-            ((initial_partitioning ? "i-r-num-cut-hes-per-block-pair" : "r-num-cut-hes-per-block-pair"),
-             po::value<size_t>((initial_partitioning ? &context.initial_partitioning.refinement.advanced.num_cut_edges_per_block_pair :
-                      &context.refinement.advanced.num_cut_edges_per_block_pair))->value_name("<size_t>"),
-             "Number of cut hyperedges that are requested to construct an advanced refinement problem.")
             ((initial_partitioning ? "i-r-max-bfs-distance" : "r-max-bfs-distance"),
              po::value<size_t>((initial_partitioning ? &context.initial_partitioning.refinement.advanced.max_bfs_distance :
                       &context.refinement.advanced.max_bfs_distance))->value_name("<size_t>"),
