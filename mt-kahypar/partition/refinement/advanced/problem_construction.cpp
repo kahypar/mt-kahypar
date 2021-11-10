@@ -100,67 +100,60 @@ Subhypergraph ProblemConstruction::construct(const SearchID search_id,
   stats.addBlock(bfs.blocks.i);
   stats.addBlock(bfs.blocks.j);
 
-  // We vertices to the problem as long as the associated refiner notifies the
-  // construction algorithm that the maximum problem size is reached
-  while ( !refiner.isMaximumProblemSizeReached(search_id, stats) ) {
 
-    // We initialize the BFS with all cut hyperedges running
-    // between the involved block associated with the search
-    bfs.clearQueues();
-    quotient_graph.doForAllCutHyperedgesOfSearch(search_id, [&](const HyperedgeID& he) {
-      bfs.add_pins_of_hyperedge_to_queue(he, phg, stats,
-        _context.refinement.advanced.max_bfs_distance);
-    });
-    bfs.swap_with_next_queue();
-    // Special case, if they are no cut hyperedges left
-    // between the involved blocks
-    if ( bfs.is_empty() ) break;
+  // We initialize the BFS with all cut hyperedges running
+  // between the involved block associated with the search
+  bfs.clearQueues();
+  quotient_graph.doForAllCutHyperedgesOfSearch(search_id, [&](const HyperedgeID& he) {
+    bfs.add_pins_of_hyperedge_to_queue(he, phg, stats,
+      _context.refinement.advanced.max_bfs_distance);
+  });
+  bfs.swap_with_next_queue();
 
-    // BFS
-    while ( !bfs.is_empty() &&
-            !refiner.isMaximumProblemSizeReached(search_id, stats) ) {
-      HypernodeID hn = kInvalidHypernode;
-      bfs.pop_hypernode(hn);
-      ASSERT(hn != kInvalidHypernode);
+  // BFS
+  while ( !bfs.is_empty() &&
+          !refiner.isMaximumProblemSizeReached(search_id, stats) ) {
+    HypernodeID hn = kInvalidHypernode;
+    bfs.pop_hypernode(hn);
+    ASSERT(hn != kInvalidHypernode);
 
-      PartitionID block = phg.partID(hn);
-      if ( !stats.isLocked(block) ) {
-        // Search aquires ownership of the vertex. Each vertex is only allowed to
-        // be part of one search at any time in non-overlapping mode
-        if ( _context.refinement.advanced.use_overlapping_searches || acquire_vertex(search_id, hn) ) {
-          block = phg.partID(hn);
-          // Double-check if vertex is still part of the blocks associated
-          // with the search.
-          if ( stats.isBlockContained(block) ) {
-            if ( stats.block(0) == block ) {
-              sub_hg.nodes_of_block_0.push_back(hn);
-            } else {
-              ASSERT(stats.block(1) == block);
-              sub_hg.nodes_of_block_1.push_back(hn);
-            }
-            stats.addNode(hn, block, phg);
-
-            // Push all neighbors of the added vertex into the queue
-            for ( const HyperedgeID& he : phg.incidentEdges(hn) ) {
-              bfs.add_pins_of_hyperedge_to_queue(
-                he, phg, stats, _context.refinement.advanced.max_bfs_distance);
-              stats.addEdge(he, sub_hg.hes);
-            }
+    PartitionID block = phg.partID(hn);
+    if ( !stats.isLocked(block) ) {
+      // Search aquires ownership of the vertex. Each vertex is only allowed to
+      // be part of one search at any time in non-overlapping mode
+      if ( _context.refinement.advanced.use_overlapping_searches || acquire_vertex(search_id, hn) ) {
+        block = phg.partID(hn);
+        // Double-check if vertex is still part of the blocks associated
+        // with the search.
+        if ( stats.isBlockContained(block) ) {
+          if ( stats.block(0) == block ) {
+            sub_hg.nodes_of_block_0.push_back(hn);
           } else {
-            release_vertex(search_id, hn);
+            ASSERT(stats.block(1) == block);
+            sub_hg.nodes_of_block_1.push_back(hn);
           }
-        }
-      } else {
-        // Note the associated refiner can lock a specific block. If
-        // a block is locked, then the construction algorithm is not allowed
-        // to add any vertex part of that block to the problem. In that case,
-        // we clear all queues containing vertices of that block.
-        bfs.clearQueue(block);
-      }
+          stats.addNode(hn, block, phg);
 
-      if ( bfs.is_empty() ) {
-        bfs.swap_with_next_queue();
+          // Push all neighbors of the added vertex into the queue
+          for ( const HyperedgeID& he : phg.incidentEdges(hn) ) {
+            bfs.add_pins_of_hyperedge_to_queue(
+              he, phg, stats, _context.refinement.advanced.max_bfs_distance);
+            stats.addEdge(he, sub_hg.hes);
+          }
+        } else {
+          release_vertex(search_id, hn);
+        }
       }
+    } else {
+      // Note the associated refiner can lock a specific block. If
+      // a block is locked, then the construction algorithm is not allowed
+      // to add any vertex part of that block to the problem. In that case,
+      // we clear all queues containing vertices of that block.
+      bfs.clearQueue(block);
+    }
+
+    if ( bfs.is_empty() ) {
+      bfs.swap_with_next_queue();
     }
   }
 
