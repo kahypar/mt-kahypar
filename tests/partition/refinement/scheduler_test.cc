@@ -47,7 +47,6 @@ class AAdvancedRefinementScheduler : public Test {
     context.refinement.advanced.algorithm = AdvancedRefinementAlgorithm::mock;
     context.refinement.advanced.num_threads_per_search = 1;
     context.refinement.advanced.max_bfs_distance = 2;
-    context.refinement.advanced.max_concurrency_per_block = 10000;
 
     phg.setOnlyNodePart(0, 0);
     phg.setOnlyNodePart(1, 0);
@@ -220,7 +219,6 @@ class AnAdvancedRefinementEndToEnd : public Test {
     context.refinement.advanced.algorithm = AdvancedRefinementAlgorithm::mock;
     context.refinement.advanced.num_threads_per_search = 1;
     context.refinement.advanced.max_bfs_distance = 2;
-    context.refinement.advanced.max_concurrency_per_block = 10000;
 
     // Read hypergraph
     hg = io::readHypergraphFile(context.partition.graph_filename);

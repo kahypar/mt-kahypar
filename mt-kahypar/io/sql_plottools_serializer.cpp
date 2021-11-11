@@ -131,14 +131,12 @@ std::string serialize(const PartitionedHypergraph& hypergraph,
         << " advanced_algorithm=" << context.refinement.advanced.algorithm
         << " advanced_num_threads_per_search=" << context.refinement.advanced.num_threads_per_search
         << " advanced_max_bfs_distance=" << context.refinement.advanced.max_bfs_distance
-        << " advanced_max_concurrency_per_block=" << context.refinement.advanced.max_concurrency_per_block
         << " advanced_min_relative_improvement_per_round=" << context.refinement.advanced.min_relative_improvement_per_round
         << " advanced_stable_block_relative_improvement_threshold=" << context.refinement.advanced.stable_block_relative_improvement_threshold
         << " advanced_time_limit_factor=" << context.refinement.advanced.time_limit_factor
         << " advanced_skip_small_cuts=" << std::boolalpha << context.refinement.advanced.skip_small_cuts
         << " advanced_skip_unpromising_blocks=" << std::boolalpha << context.refinement.advanced.skip_unpromising_blocks
         << " advanced_skip_stable_blocks=" << std::boolalpha << context.refinement.advanced.skip_stable_blocks
-        << " advanced_sort_cut_hes=" << std::boolalpha << context.refinement.advanced.sort_cut_hes
         << " flow_alpha=" << context.refinement.advanced.flows.alpha
         << " flow_max_num_pins=" << context.refinement.advanced.flows.max_num_pins
         << " flow_find_most_balanced_cut=" << std::boolalpha << context.refinement.advanced.flows.find_most_balanced_cut

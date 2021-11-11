@@ -52,17 +52,6 @@ bool QuotientGraph::ActiveBlockSchedulingRound::popBlockPairFromQueue(BlockPair&
   size_t current_idx = 0;
   while ( current_idx < current_size && _unscheduled_blocks.try_pop(blocks) ) {
     _quotient_graph[blocks.i][blocks.j].markAsNotInQueue();
-    const bool not_too_many_concurrent_searches =
-       _num_active_searches_on_blocks[blocks.i] < _context.refinement.advanced.max_concurrency_per_block &&
-       _num_active_searches_on_blocks[blocks.j] < _context.refinement.advanced.max_concurrency_per_block;
-    if ( !not_too_many_concurrent_searches ) {
-      const bool success = pushBlockPairIntoQueue(blocks);
-      _remaining_blocks -= (1 - success);
-      blocks.i = kInvalidPartition;
-      blocks.j = kInvalidPartition;
-    } else {
-      break;
-    }
     ++current_idx;
   }
   return blocks.i != kInvalidPartition && blocks.j != kInvalidPartition;
@@ -359,16 +348,6 @@ void QuotientGraph::initialize(const PartitionedHypergraph& phg) {
     }
   }
   _active_block_scheduler.initialize(active_blocks, isInputHypergraph());
-
-  // Sort cut hyperedges of each block
-  if ( _context.refinement.advanced.sort_cut_hes ) {
-    tbb::parallel_for(0, _context.partition.k, [&](const PartitionID i) {
-      tbb::parallel_for(i + 1, _context.partition.k, [&, i](const PartitionID j) {
-        BFSData& bfs_data = _local_bfs.local();
-        sortCutHyperedges(i, j, bfs_data);
-      });
-    });
-  }
 }
 
 size_t QuotientGraph::maximumRequiredRefiners() const {
@@ -383,67 +362,6 @@ void QuotientGraph::resetQuotientGraphEdges() {
       _quotient_graph[i][j].reset();
     }
   }
-}
-
-void QuotientGraph::sortCutHyperedges(const PartitionID i,
-                                      const PartitionID j,
-                                      BFSData& bfs_data) {
-  ASSERT(_phg);
-  ASSERT(i < j);
-  ASSERT(0 <= i && i < _context.partition.k);
-  ASSERT(0 <= j && j < _context.partition.k);
-  bfs_data.reset();
-  int current_distance = 0;
-
-  // BFS that traverses all hyperedges reachable from the
-  // corresponding seed hyperedge
-  auto bfs = [&](const HyperedgeID seed) {
-    std::queue<HyperedgeID> q;
-    std::queue<HyperedgeID> next_q;
-    q.push(seed);
-    ASSERT(_phg->pinCountInPart(seed, i) > 0 && _phg->pinCountInPart(seed, j) > 0);
-    bfs_data.distance[seed] = current_distance;
-
-    while ( !q.empty() ) {
-      const HyperedgeID he = q.front();
-      q.pop();
-
-      for ( const HypernodeID& pin : _phg->pins(he) ) {
-        const PartitionID block = _phg->partID(pin);
-        if ( ( block == i || block == j ) && !bfs_data.visited_hns[pin] ) {
-          for ( const HyperedgeID& inc_he : _phg->incidentEdges(pin) ) {
-            if ( bfs_data.distance[inc_he] == -1 ) {
-              next_q.push(inc_he);
-              bfs_data.distance[inc_he] = current_distance + 1;
-            }
-          }
-          bfs_data.visited_hns[pin] = true;
-        }
-      }
-
-      if ( q.empty() ) {
-        q.swap(next_q);
-        ++current_distance;
-      }
-    }
-  };
-
-  // Start BFS
-  for ( const HyperedgeID& he : _quotient_graph[i][j].cut_hes ) {
-    if ( bfs_data.distance[he] == -1 ) {
-      bfs(he);
-    }
-  }
-
-  // Sort all cut hyperedges according to their distance label
-  std::sort(_quotient_graph[i][j].cut_hes.begin(), _quotient_graph[i][j].cut_hes.end(),
-    [&](const HyperedgeID& lhs, const HyperedgeID& rhs) {
-      ASSERT(bfs_data.distance[lhs] != -1);
-      ASSERT(bfs_data.distance[rhs] != -1);
-      const int distance_lhs = bfs_data.distance[lhs];
-      const int distance_rhs = bfs_data.distance[rhs];
-      return distance_lhs < distance_rhs || (distance_lhs == distance_rhs && lhs < rhs);
-    });
 }
 
 } // namespace mt_kahypar

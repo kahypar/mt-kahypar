@@ -287,21 +287,6 @@ class QuotientGraph {
     bool is_finalized;
   };
 
-  struct BFSData {
-    BFSData(const HypernodeID num_nodes,
-            const HyperedgeID num_edges) :
-      visited_hns(num_nodes, false),
-      distance(num_edges, -1) {}
-
-    void reset() {
-      std::fill(visited_hns.begin(), visited_hns.end(), false);
-      std::fill(distance.begin(), distance.end(), -1);
-    }
-
-    vec<bool> visited_hns;
-    vec<int> distance;
-  };
-
 public:
   static constexpr SearchID INVALID_SEARCH_ID = std::numeric_limits<SearchID>::max();
 
@@ -317,7 +302,6 @@ public:
     _active_block_scheduler(context, _quotient_graph),
     _num_active_searches(0),
     _searches(),
-    _local_bfs(hg.initialNumNodes(), hg.initialNumEdges()),
     _partition_snapshot() {
     for ( PartitionID i = 0; i < _context.partition.k; ++i ) {
       for ( PartitionID j = i + 1; j < _context.partition.k; ++j ) {
@@ -425,17 +409,6 @@ public:
 
   void resetQuotientGraphEdges();
 
-  /**
-   * The idea is to sort the cut hyperedges of a block pair (i,j)
-   * in increasing order of their distance to each other. Meaning that
-   * we perform a BFS from a randomly selected start cut hyperedge and
-   * expand along cut hyperedges that contains pins of both blocks.
-   * The BFS distance determines the order of the cut hyperedges.
-   */
-  void sortCutHyperedges(const PartitionID i,
-                         const PartitionID j,
-                         BFSData& bfs_data);
-
   bool isInputHypergraph() const {
     return _current_num_edges == _initial_num_edges;
   }
@@ -465,9 +438,6 @@ public:
   CAtomic<size_t> _num_active_searches;
   // ! Information about searches that are currently running
   tbb::concurrent_vector<Search> _searches;
-
-  // ! BFS data required to sort cut hyperedges
-  tbb::enumerable_thread_specific<BFSData> _local_bfs;
 
   // ! Snapshot of the partition to detect changes, if called
   // ! multiple times (refine until no improvement)

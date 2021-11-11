@@ -451,10 +451,6 @@ namespace mt_kahypar {
                       &context.refinement.advanced.max_bfs_distance))->value_name("<size_t>"),
              "Advanced refinement problems are constructed via BFS search. The maximum BFS distance is the\n"
              "maximum distance from a cut hyperedge to any vertex of the problem.")
-            ((initial_partitioning ? "i-r-max-conurrency-per-block" : "r-max-conurrency-per-block"),
-             po::value<size_t>((initial_partitioning ? &context.initial_partitioning.refinement.advanced.max_concurrency_per_block :
-                      &context.refinement.advanced.max_concurrency_per_block))->value_name("<size_t>"),
-             "Maximum refiner working concurrently on one block.")
             ((initial_partitioning ? "i-r-min-rel-improvement-per-round" : "r-min-rel-improvement-per-round"),
              po::value<double>((initial_partitioning ? &context.initial_partitioning.refinement.advanced.min_relative_improvement_per_round :
                       &context.refinement.advanced.min_relative_improvement_per_round))->value_name("<double>"),
@@ -481,10 +477,6 @@ namespace mt_kahypar {
              po::value<bool>((initial_partitioning ? &context.initial_partitioning.refinement.advanced.skip_stable_blocks :
                       &context.refinement.advanced.skip_stable_blocks))->value_name("<bool>"),
              "If true, than block pairs which border have not changed since the last call are not considered for refinement.")
-            ((initial_partitioning ? "i-r-sort-cut-hes" : "r-sort-cut-hes"),
-             po::value<bool>((initial_partitioning ? &context.initial_partitioning.refinement.advanced.sort_cut_hes :
-                      &context.refinement.advanced.sort_cut_hes))->value_name("<bool>"),
-             "Sort cut hyperedges of each block pair in increasing order of their distance to each other in quotient graph.")
             ((initial_partitioning ? "i-r-flow-scaling" : "r-flow-scaling"),
              po::value<double>((initial_partitioning ? &context.initial_partitioning.refinement.advanced.flows.alpha :
                       &context.refinement.advanced.flows.alpha))->value_name("<double>"),

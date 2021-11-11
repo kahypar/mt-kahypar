@@ -173,14 +173,12 @@ struct AdvancedRefinementParameters {
   FlowParameters flows { };
   size_t num_threads_per_search = 0;
   size_t max_bfs_distance = 0;
-  size_t max_concurrency_per_block = 0;
   double min_relative_improvement_per_round = 0.0;
   double stable_block_relative_improvement_threshold = 0.0;
   double time_limit_factor = 0.0;
   bool skip_small_cuts = false;
   bool skip_unpromising_blocks = false;
   bool skip_stable_blocks = false;
-  bool sort_cut_hes = false;
 };
 
 std::ostream& operator<<(std::ostream& out, const AdvancedRefinementParameters& params);
