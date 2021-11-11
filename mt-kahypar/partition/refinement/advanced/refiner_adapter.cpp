@@ -81,14 +81,6 @@ MoveSequence AdvancedRefinerAdapter::refine(const SearchID search_id,
   return moves;
 }
 
-bool AdvancedRefinerAdapter::isMaximumProblemSizeReached(const SearchID search_id,
-                                                         ProblemStats& stats) {
-  ASSERT(static_cast<size_t>(search_id) < _active_searches.size());
-  ASSERT(_active_searches[search_id].refiner_idx != INVALID_REFINER_IDX);
-  const size_t refiner_idx = _active_searches[search_id].refiner_idx;
-  return _refiner[refiner_idx]->isMaximumProblemSizeReached(stats);
-}
-
 PartitionID AdvancedRefinerAdapter::maxNumberOfBlocks(const SearchID search_id) {
   ASSERT(static_cast<size_t>(search_id) < _active_searches.size());
   ASSERT(_active_searches[search_id].refiner_idx != INVALID_REFINER_IDX);

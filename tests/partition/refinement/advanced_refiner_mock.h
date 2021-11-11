@@ -31,12 +31,10 @@
 namespace mt_kahypar {
 
 using RefineFunc = std::function<MoveSequence(const PartitionedHypergraph&, const Subhypergraph&, const size_t)>;
-using MaxProblemSizeFunc = std::function<bool(ProblemStats&)>;
 
 class AdvancedRefinerMockControl {
 
   #define NOOP_REFINE_FUNC [] (const PartitionedHypergraph&, const Subhypergraph&, const size_t) { return MoveSequence { {}, 0 }; }
-  #define NOOP_MAX_PROB_SIZE_FUNC [&] (ProblemStats&) { return false; }
 
  public:
   AdvancedRefinerMockControl(const AdvancedRefinerMockControl&) = delete;
@@ -53,20 +51,17 @@ class AdvancedRefinerMockControl {
  private:
   explicit AdvancedRefinerMockControl() :
     max_num_blocks(2),
-    refine_func(NOOP_REFINE_FUNC),
-    max_prob_size_func(NOOP_MAX_PROB_SIZE_FUNC) { }
+    refine_func(NOOP_REFINE_FUNC) { }
 
  public:
 
   void reset() {
     max_num_blocks = 2;
     refine_func = NOOP_REFINE_FUNC;
-    max_prob_size_func = NOOP_MAX_PROB_SIZE_FUNC;
   }
 
   PartitionID max_num_blocks;
   RefineFunc refine_func;
-  MaxProblemSizeFunc max_prob_size_func;
 };
 
 class AdvancedRefinerMock final : public IAdvancedRefiner {
@@ -77,8 +72,7 @@ class AdvancedRefinerMock final : public IAdvancedRefiner {
     _context(context),
     _max_num_blocks(AdvancedRefinerMockControl::instance().max_num_blocks),
     _num_threads(0),
-    _refine_func(AdvancedRefinerMockControl::instance().refine_func),
-    _max_prob_size_func(AdvancedRefinerMockControl::instance().max_prob_size_func)  { }
+    _refine_func(AdvancedRefinerMockControl::instance().refine_func) { }
 
   AdvancedRefinerMock(const AdvancedRefinerMock&) = delete;
   AdvancedRefinerMock(AdvancedRefinerMock&&) = delete;
@@ -106,15 +100,10 @@ class AdvancedRefinerMock final : public IAdvancedRefiner {
     _num_threads = num_threads;
   }
 
-  bool isMaximumProblemSizeReachedImpl(ProblemStats& stats) const {
-    return _max_prob_size_func(stats);
-  }
-
   const Context& _context;
   const PartitionID _max_num_blocks;
   size_t _num_threads;
   RefineFunc _refine_func;
-  MaxProblemSizeFunc _max_prob_size_func;
 };
 
 #define REGISTER_ADVANCED_REFINER(id, refiner)                                          \

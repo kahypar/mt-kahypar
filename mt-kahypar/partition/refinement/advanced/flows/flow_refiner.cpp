@@ -136,6 +136,8 @@ bool FlowRefiner::computeFlow(const FlowProblem& flow_problem,
 
 FlowProblem FlowRefiner::constructFlowHypergraph(const PartitionedHypergraph& phg,
                                                  const Subhypergraph& sub_hg) {
+  _block_0 = sub_hg.block_0;
+  _block_1 = sub_hg.block_1;
   ASSERT(_block_0 != kInvalidPartition && _block_1 != kInvalidPartition);
   FlowProblem flow_problem;
 
@@ -154,28 +156,4 @@ FlowProblem FlowRefiner::constructFlowHypergraph(const PartitionedHypergraph& ph
 
   return flow_problem;
 }
-
-bool FlowRefiner::isMaximumProblemSizeReachedImpl(ProblemStats& stats) const {
-  ASSERT(_phg);
-  ASSERT(stats.numContainedBlocks() == 2);
-  _block_0 = stats.block(0);
-  _block_1 = stats.block(1);
-  const HypernodeWeight max_weight_0 =
-    _scaling * _context.partition.perfect_balance_part_weights[_block_1] - _phg->partWeight(_block_1);
-  const HypernodeWeight max_weight_1 =
-    _scaling * _context.partition.perfect_balance_part_weights[_block_0] - _phg->partWeight(_block_0);
-  if ( stats.nodeWeightOfBlock(_block_0) >= max_weight_0 ) {
-    stats.lockBlock(_block_0);
-  }
-  if ( stats.nodeWeightOfBlock(_block_1) >= max_weight_1 ) {
-    stats.lockBlock(_block_1);
-  }
-  if ( stats.numPins() >= _context.refinement.advanced.flows.max_num_pins ) {
-    stats.lockBlock(_block_0);
-    stats.lockBlock(_block_1);
-  }
-
-  return stats.isLocked(_block_0) && stats.isLocked(_block_1);
-}
-
 } // namespace mt_kahypar

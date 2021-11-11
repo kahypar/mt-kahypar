@@ -237,16 +237,6 @@ class AnAdvancedRefinementEndToEnd : public Test {
     phg.initializePartition();
 
     AdvancedRefinerMockControl::instance().reset();
-    // Define maximum problem size function
-    AdvancedRefinerMockControl::instance().max_prob_size_func = [&](ProblemStats& stats) {
-      bool limit_reached = true;
-      for ( const PartitionID block : stats.containedBlocks() ) {
-        bool block_limit_reached = stats.nodeWeightOfBlock(block) >= max_part_weights[block];
-        if ( block_limit_reached ) stats.lockBlock(block);
-        limit_reached &= block_limit_reached;
-      }
-      return limit_reached;
-    };
 
     mover = std::make_unique<GainCalculator>(context);
     // Refine solution with simple label propagation

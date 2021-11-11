@@ -47,8 +47,6 @@ class FlowRefiner final : public IAdvancedRefiner {
     _phg(nullptr),
     _context(context),
     _num_threads(0),
-    _scaling(1.0 + _context.refinement.advanced.flows.alpha *
-      std::min(0.05, _context.partition.epsilon)),
     _block_0(kInvalidPartition),
     _block_1(kInvalidPartition),
     _flow_hg(),
@@ -99,8 +97,6 @@ class FlowRefiner final : public IAdvancedRefiner {
     _num_threads = num_threads;
   }
 
-  bool isMaximumProblemSizeReachedImpl(ProblemStats& stats) const;
-
   bool canHyperedgeBeDropped(const PartitionedHypergraph& phg,
                              const HyperedgeID he) {
     return _context.partition.objective == kahypar::Objective::cut &&
@@ -111,7 +107,6 @@ class FlowRefiner final : public IAdvancedRefiner {
   const Context& _context;
   using IAdvancedRefiner::_time_limit;
   size_t _num_threads;
-  double _scaling;
 
   mutable PartitionID _block_0;
   mutable PartitionID _block_1;

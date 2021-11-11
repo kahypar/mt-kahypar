@@ -62,15 +62,6 @@ class AProblemConstruction : public Test {
     phg.initializePartition();
 
     AdvancedRefinerMockControl::instance().reset();
-    AdvancedRefinerMockControl::instance().max_prob_size_func = [&](ProblemStats& stats) {
-      bool limit_reached = true;
-      for ( const PartitionID block : stats.containedBlocks() ) {
-        bool block_limit_reached = stats.nodeWeightOfBlock(block) >= max_part_weights[block];
-        if ( block_limit_reached ) stats.lockBlock(block);
-        limit_reached &= block_limit_reached;
-      }
-      return limit_reached;
-    };
   }
 
   void verifyThatPartWeightsAreLessEqualToMaxPartWeight(const Subhypergraph& sub_hg,
@@ -143,8 +134,7 @@ TEST_F(AProblemConstruction, GrowAnAdvancedRefinementProblemAroundTwoBlocks1) {
   max_part_weights.assign(context.partition.k, 400);
   max_part_weights[2] = 300;
   SearchID search_id = qg.requestNewSearch(refiner);
-  Subhypergraph sub_hg = constructor.construct(
-    search_id, qg, refiner, phg);
+  Subhypergraph sub_hg = constructor.construct(search_id, qg, phg);
 
   verifyThatPartWeightsAreLessEqualToMaxPartWeight(sub_hg, search_id, qg);
 }
@@ -158,8 +148,7 @@ TEST_F(AProblemConstruction, GrowAnAdvancedRefinementProblemAroundTwoBlocks2) {
   max_part_weights.assign(context.partition.k, 800);
   max_part_weights[2] = 500;
   SearchID search_id = qg.requestNewSearch(refiner);
-  Subhypergraph sub_hg = constructor.construct(
-    search_id, qg, refiner, phg);
+  Subhypergraph sub_hg = constructor.construct(search_id, qg, phg);
 
   verifyThatPartWeightsAreLessEqualToMaxPartWeight(sub_hg, search_id, qg);
 }
@@ -176,13 +165,11 @@ TEST_F(AProblemConstruction, GrowTwoAdvancedRefinementProblemAroundTwoBlocksSimu
   Subhypergraph sub_hg_2;
   executeConcurrent([&] {
     SearchID search_id = qg.requestNewSearch(refiner);
-     sub_hg_1 = constructor.construct(
-      search_id, qg, refiner, phg);
+     sub_hg_1 = constructor.construct(search_id, qg, phg);
     verifyThatPartWeightsAreLessEqualToMaxPartWeight(sub_hg_1, search_id, qg);
   }, [&] {
     SearchID search_id = qg.requestNewSearch(refiner);
-    sub_hg_2 = constructor.construct(
-      search_id, qg, refiner, phg);
+    sub_hg_2 = constructor.construct(search_id, qg, phg);
     verifyThatPartWeightsAreLessEqualToMaxPartWeight(sub_hg_2, search_id, qg);
   });
   verifyThatVertexSetAreDisjoint(sub_hg_1, sub_hg_2);

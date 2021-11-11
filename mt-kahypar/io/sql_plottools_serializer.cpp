@@ -138,7 +138,6 @@ std::string serialize(const PartitionedHypergraph& hypergraph,
         << " advanced_skip_small_cuts=" << std::boolalpha << context.refinement.advanced.skip_small_cuts
         << " advanced_skip_unpromising_blocks=" << std::boolalpha << context.refinement.advanced.skip_unpromising_blocks
         << " advanced_skip_stable_blocks=" << std::boolalpha << context.refinement.advanced.skip_stable_blocks
-        << " advanced_use_overlapping_searches=" << std::boolalpha << context.refinement.advanced.use_overlapping_searches
         << " advanced_sort_cut_hes=" << std::boolalpha << context.refinement.advanced.sort_cut_hes
         << " flow_alpha=" << context.refinement.advanced.flows.alpha
         << " flow_max_num_pins=" << context.refinement.advanced.flows.max_num_pins

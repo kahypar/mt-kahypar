@@ -481,10 +481,6 @@ namespace mt_kahypar {
              po::value<bool>((initial_partitioning ? &context.initial_partitioning.refinement.advanced.skip_stable_blocks :
                       &context.refinement.advanced.skip_stable_blocks))->value_name("<bool>"),
              "If true, than block pairs which border have not changed since the last call are not considered for refinement.")
-            ((initial_partitioning ? "i-r-use-overlapping-searches" : "r-use-overlapping-searches"),
-             po::value<bool>((initial_partitioning ? &context.initial_partitioning.refinement.advanced.use_overlapping_searches :
-                      &context.refinement.advanced.use_overlapping_searches))->value_name("<bool>"),
-             "If true, than vertex sets of different advanced problems can overlap.")
             ((initial_partitioning ? "i-r-sort-cut-hes" : "r-sort-cut-hes"),
              po::value<bool>((initial_partitioning ? &context.initial_partitioning.refinement.advanced.sort_cut_hes :
                       &context.refinement.advanced.sort_cut_hes))->value_name("<bool>"),

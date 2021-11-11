@@ -51,9 +51,5 @@ class DoNothingAdvancedRefiner final : public IAdvancedRefiner {
   }
 
   void setNumThreadsForSearchImpl(const size_t) {}
-
-  bool isMaximumProblemSizeReachedImpl(ProblemStats& stats) const {
-    return stats.numNodes() >= std::numeric_limits<HypernodeID>::max();
-  }
 };
 }  // namespace kahypar

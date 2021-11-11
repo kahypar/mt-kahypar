@@ -25,7 +25,7 @@
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/macros.h"
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
-#include "mt-kahypar/partition/refinement/advanced/problem_stats.h"
+#include "mt-kahypar/partition/refinement/advanced/subhypergraph.h"
 
 namespace mt_kahypar {
 
@@ -60,11 +60,6 @@ class IAdvancedRefiner {
     setNumThreadsForSearchImpl(num_threads);
   }
 
-  // ! Decides wheather or not the maximum problem size is reached
-  bool isMaximumProblemSizeReached(ProblemStats& stats) const {
-    return isMaximumProblemSizeReachedImpl(stats);
-  }
-
   // ! Updates the time limit (in seconds)
   void updateTimeLimit(const double time_limit) {
     _time_limit = time_limit;
@@ -86,8 +81,6 @@ class IAdvancedRefiner {
   virtual PartitionID maxNumberOfBlocksPerSearchImpl() const = 0;
 
   virtual void setNumThreadsForSearchImpl(const size_t num_threads) = 0;
-
-  virtual bool isMaximumProblemSizeReachedImpl(ProblemStats& stats) const = 0;
 };
 
 }  // namespace mt_kahypar

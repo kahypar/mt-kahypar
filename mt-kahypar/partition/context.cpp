@@ -166,7 +166,6 @@ namespace mt_kahypar {
       out << "    Skip Small Cuts:                  " << std::boolalpha << params.skip_small_cuts << std::endl;
       out << "    Skip Unpromising Blocks:          " << std::boolalpha << params.skip_unpromising_blocks << std::endl;
       out << "    Skip Stable Blocks:               " << std::boolalpha << params.skip_stable_blocks << std::endl;
-      out << "    Use Overlapping Searches:         " << std::boolalpha << params.use_overlapping_searches << std::endl;
       out << "    Sort Cut HEs:                     " << std::boolalpha << params.sort_cut_hes << std::endl;
       out << std::flush;
 

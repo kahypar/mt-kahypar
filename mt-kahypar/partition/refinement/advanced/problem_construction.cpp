@@ -28,52 +28,39 @@
 
 namespace mt_kahypar {
 
-void ProblemConstruction::BFSData::clearQueue(const PartitionID block) {
-  ASSERT(blocks.i == block || blocks.j == block);
-  const size_t idx = blocks.i == block ? 0 : 1;
-  while ( !queue[idx].empty() ) queue[idx].pop();
-  while ( !next_queue[idx].empty() ) next_queue[idx].pop();
-}
-
-void ProblemConstruction::BFSData::clearQueues() {
-  current_distance = 0;
-  last_queue_idx = 0;
-  clearQueue(blocks.i);
-  clearQueue(blocks.j);
+void ProblemConstruction::BFSData::clearQueue() {
+  while ( !queue.empty() ) queue.pop();
+  while ( !next_queue.empty() ) next_queue.pop();
 }
 
 void ProblemConstruction::BFSData::reset() {
-  clearQueues();
+  current_distance = 0;
+  clearQueue();
   std::fill(visited_hn.begin(), visited_hn.end(), false);
   std::fill(visited_he.begin(), visited_he.end(), false);
+  std::fill(contained_hes.begin(), contained_hes.end(), false);
+  std::fill(locked_blocks.begin(), locked_blocks.end(), false);
 }
 
-void ProblemConstruction::BFSData::pop_hypernode(HypernodeID& hn) {
-  if ( !is_empty() ) {
-    // Pop vertices alternating from one of the two queues
-    size_t idx = last_queue_idx++ % 2;
-    if ( queue[idx].empty() ) {
-      idx = last_queue_idx++ % 2;
-    }
-    ASSERT(!queue[idx].empty());
-    hn = queue[idx].front();
-    queue[idx].pop();
-  }
+HypernodeID ProblemConstruction::BFSData::pop_hypernode() {
+  ASSERT(!queue.empty());
+  const HypernodeID hn = queue.front();
+  queue.pop();
+  return hn;
 }
 
 void ProblemConstruction::BFSData::add_pins_of_hyperedge_to_queue(
   const HyperedgeID& he,
   const PartitionedHypergraph& phg,
-  const ProblemStats& stats,
   const size_t max_bfs_distance) {
   if ( current_distance <= max_bfs_distance ) {
     if ( !visited_he[he] ) {
       for ( const HypernodeID& pin : phg.pins(he) ) {
-        const PartitionID block = phg.partID(pin);
-        if ( !stats.isLocked(block) &&
-             (blocks.i == block || blocks.j == block) &&
-             !visited_hn[pin] ) {
-          next_queue[blocks.i == block ? 0 : 1].push(pin);
+        if ( !visited_hn[pin] ) {
+          const PartitionID block = phg.partID(pin);
+          if ( (blocks.i == block || blocks.j == block) && !locked_blocks[block] ) {
+            next_queue.push(pin);
+          }
           visited_hn[pin] = true;
         }
       }
@@ -88,74 +75,65 @@ namespace {
 
 Subhypergraph ProblemConstruction::construct(const SearchID search_id,
                                              QuotientGraph& quotient_graph,
-                                             AdvancedRefinerAdapter& refiner,
                                              const PartitionedHypergraph& phg) {
   Subhypergraph sub_hg;
-
   BFSData& bfs = _local_bfs.local();
-  ProblemStats& stats = _local_stats.local();
   bfs.reset();
-  stats.reset();
   bfs.blocks = quotient_graph.getBlockPair(search_id);
-  stats.addBlock(bfs.blocks.i);
-  stats.addBlock(bfs.blocks.j);
+  sub_hg.block_0 = bfs.blocks.i;
+  sub_hg.block_1 = bfs.blocks.j;
+  sub_hg.weight_of_block_0 = 0;
+  sub_hg.weight_of_block_1 = 0;
+  sub_hg.num_pins = 0;
+  const HypernodeWeight max_weight_block_0 =
+    _scaling * _context.partition.perfect_balance_part_weights[sub_hg.block_0] - phg.partWeight(sub_hg.block_0);
+  const HypernodeWeight max_weight_block_1 =
+    _scaling * _context.partition.perfect_balance_part_weights[sub_hg.block_1] - phg.partWeight(sub_hg.block_1);
+  const size_t max_bfs_distance = _context.refinement.advanced.max_bfs_distance;
 
 
   // We initialize the BFS with all cut hyperedges running
   // between the involved block associated with the search
-  bfs.clearQueues();
+  bfs.clearQueue();
   quotient_graph.doForAllCutHyperedgesOfSearch(search_id, [&](const HyperedgeID& he) {
-    bfs.add_pins_of_hyperedge_to_queue(he, phg, stats,
-      _context.refinement.advanced.max_bfs_distance);
+    bfs.add_pins_of_hyperedge_to_queue(he, phg, max_bfs_distance);
   });
   bfs.swap_with_next_queue();
 
   // BFS
   while ( !bfs.is_empty() &&
-          !refiner.isMaximumProblemSizeReached(search_id, stats) ) {
-    HypernodeID hn = kInvalidHypernode;
-    bfs.pop_hypernode(hn);
-    ASSERT(hn != kInvalidHypernode);
-
+          !isMaximumProblemSizeReached(sub_hg,
+            max_weight_block_0, max_weight_block_1, bfs.locked_blocks) ) {
+    HypernodeID hn = bfs.pop_hypernode();
     PartitionID block = phg.partID(hn);
-    if ( !stats.isLocked(block) ) {
-      // Search aquires ownership of the vertex. Each vertex is only allowed to
-      // be part of one search at any time in non-overlapping mode
-      if ( _context.refinement.advanced.use_overlapping_searches || acquire_vertex(search_id, hn) ) {
-        block = phg.partID(hn);
-        // Double-check if vertex is still part of the blocks associated
-        // with the search.
-        if ( stats.isBlockContained(block) ) {
-          if ( stats.block(0) == block ) {
-            sub_hg.nodes_of_block_0.push_back(hn);
-          } else {
-            ASSERT(stats.block(1) == block);
-            sub_hg.nodes_of_block_1.push_back(hn);
-          }
-          stats.addNode(hn, block, phg);
+    const bool is_block_contained = block == sub_hg.block_0 || block == sub_hg.block_1;
+    if ( is_block_contained && !bfs.locked_blocks[block] ) {
+      if ( sub_hg.block_0  == block ) {
+        sub_hg.nodes_of_block_0.push_back(hn);
+        sub_hg.weight_of_block_0 += phg.nodeWeight(hn);
+      } else {
+        ASSERT(sub_hg.block_1 == block);
+        sub_hg.nodes_of_block_1.push_back(hn);
+        sub_hg.weight_of_block_1 += phg.nodeWeight(hn);
+      }
+      sub_hg.num_pins += phg.nodeDegree(hn);
 
-          // Push all neighbors of the added vertex into the queue
-          for ( const HyperedgeID& he : phg.incidentEdges(hn) ) {
-            bfs.add_pins_of_hyperedge_to_queue(
-              he, phg, stats, _context.refinement.advanced.max_bfs_distance);
-            stats.addEdge(he, sub_hg.hes);
-          }
-        } else {
-          release_vertex(search_id, hn);
+      // Push all neighbors of the added vertex into the queue
+      for ( const HyperedgeID& he : phg.incidentEdges(hn) ) {
+        bfs.add_pins_of_hyperedge_to_queue(he, phg, max_bfs_distance);
+        if ( !bfs.contained_hes[he] ) {
+          sub_hg.hes.push_back(he);
+          bfs.contained_hes[he] = true;
         }
       }
-    } else {
-      // Note the associated refiner can lock a specific block. If
-      // a block is locked, then the construction algorithm is not allowed
-      // to add any vertex part of that block to the problem. In that case,
-      // we clear all queues containing vertices of that block.
-      bfs.clearQueue(block);
     }
 
     if ( bfs.is_empty() ) {
       bfs.swap_with_next_queue();
     }
   }
+
+  DBG << "Search ID:" << search_id << "-" << sub_hg;
 
   // Check if all touched hyperedges are contained in subhypergraph
   ASSERT([&]() {
@@ -199,27 +177,26 @@ Subhypergraph ProblemConstruction::construct(const SearchID search_id,
     return true;
   }(), "Subhypergraph construction failed!");
 
-  DBG << "Search ID =" << search_id
-      << "-" << stats;
-
-  const PartitionID block_0 = stats.block(0);
-  const PartitionID block_1 = stats.block(1);
-  sub_hg.weight_of_block_0 = stats.nodeWeightOfBlock(block_0);
-  sub_hg.weight_of_block_1 = stats.nodeWeightOfBlock(block_1);
-  sub_hg.num_pins = stats.numPins();
   return sub_hg;
 }
 
-void ProblemConstruction::releaseNodes(const SearchID search_id,
-                                       const Subhypergraph& sub_hg) {
-  if ( !_context.refinement.advanced.use_overlapping_searches ) {
-    for ( size_t i = 0; i < sub_hg.nodes_of_block_0.size(); ++i ) {
-      release_vertex(search_id, sub_hg.nodes_of_block_0[i]);
-    }
-    for ( size_t i = 0; i < sub_hg.nodes_of_block_1.size(); ++i ) {
-      release_vertex(search_id, sub_hg.nodes_of_block_1[i]);
-    }
+MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE bool ProblemConstruction::isMaximumProblemSizeReached(
+  const Subhypergraph& sub_hg,
+  const HypernodeWeight max_weight_block_0,
+  const HypernodeWeight max_weight_block_1,
+  vec<bool>& locked_blocks) const {
+  if ( sub_hg.weight_of_block_0 >= max_weight_block_0 ) {
+    locked_blocks[sub_hg.block_0] = true;
   }
+  if ( sub_hg.weight_of_block_1 >= max_weight_block_1 ) {
+    locked_blocks[sub_hg.block_1] = true;
+  }
+  if ( sub_hg.num_pins >= _context.refinement.advanced.flows.max_num_pins ) {
+    locked_blocks[sub_hg.block_0] = true;
+    locked_blocks[sub_hg.block_1] = true;
+  }
+
+  return locked_blocks[sub_hg.block_0] && locked_blocks[sub_hg.block_1];
 }
 
 } // namespace mt_kahypar

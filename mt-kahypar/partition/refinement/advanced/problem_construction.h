@@ -28,7 +28,7 @@
 #include "mt-kahypar/datastructures/sparse_map.h"
 #include "mt-kahypar/partition/refinement/advanced/refiner_adapter.h"
 #include "mt-kahypar/partition/refinement/advanced/quotient_graph.h"
-#include "mt-kahypar/partition/refinement/advanced/problem_stats.h"
+#include "mt-kahypar/partition/refinement/advanced/subhypergraph.h"
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
 #include "mt-kahypar/parallel/stl/scalable_queue.h"
 #include "mt-kahypar/parallel/atomic_wrapper.h"
@@ -45,33 +45,32 @@ class ProblemConstruction {
    */
   struct BFSData {
     explicit BFSData(const HypernodeID num_nodes,
-                     const HyperedgeID num_edges) :
+                     const HyperedgeID num_edges,
+                     const PartitionID k) :
       current_distance(0),
-      last_queue_idx(0),
-      queue(2),
-      next_queue(2),
+      queue(),
+      next_queue(),
       visited_hn(num_nodes, false),
-      visited_he(num_edges, false) { }
+      visited_he(num_edges, false),
+      contained_hes(num_edges, false),
+      locked_blocks(k, false)  { }
 
-    void clearQueue(const PartitionID block);
-
-    void clearQueues();
+    void clearQueue();
 
     void reset();
 
-    void pop_hypernode(HypernodeID& hn);
+    HypernodeID pop_hypernode();
 
     void add_pins_of_hyperedge_to_queue(const HyperedgeID& he,
                                         const PartitionedHypergraph& phg,
-                                        const ProblemStats& stats,
                                         const size_t max_bfs_distance);
 
     bool is_empty() const {
-      return queue[0].empty() && queue[1].empty();
+      return queue.empty();
     }
 
     bool is_next_empty() const {
-      return next_queue[0].empty() && next_queue[1].empty();
+      return next_queue.empty();
     }
 
     void swap_with_next_queue() {
@@ -83,21 +82,21 @@ class ProblemConstruction {
 
     BlockPair blocks;
     size_t current_distance;
-    size_t last_queue_idx;
-    vec<parallel::scalable_queue<HypernodeID>> queue;
-    vec<parallel::scalable_queue<HypernodeID>> next_queue;
+    parallel::scalable_queue<HypernodeID> queue;
+    parallel::scalable_queue<HypernodeID> next_queue;
     vec<bool> visited_hn;
     vec<bool> visited_he;
+    vec<bool> contained_hes;
+    vec<bool> locked_blocks;
   };
 
  public:
   explicit ProblemConstruction(const Hypergraph& hg,
                                const Context& context) :
     _context(context),
-    _vertex_ownership(hg.initialNumNodes(),
-      CAtomic<SearchID>(QuotientGraph::INVALID_SEARCH_ID)),
-    _local_bfs(hg.initialNumNodes(), hg.initialNumEdges()),
-    _local_stats(hg.initialNumEdges(), context.partition.k) { }
+    _scaling(1.0 + _context.refinement.advanced.flows.alpha *
+      std::min(0.05, _context.partition.epsilon)),
+    _local_bfs(hg.initialNumNodes(), hg.initialNumEdges(), context.partition.k) { }
 
   ProblemConstruction(const ProblemConstruction&) = delete;
   ProblemConstruction(ProblemConstruction&&) = delete;
@@ -107,39 +106,21 @@ class ProblemConstruction {
 
   Subhypergraph construct(const SearchID search_id,
                           QuotientGraph& quotient_graph,
-                          AdvancedRefinerAdapter& refiner,
                           const PartitionedHypergraph& phg);
 
-  void releaseNodes(const SearchID search_id,
-                    const Subhypergraph& sub_hg);
-
  private:
-  bool acquire_vertex(const SearchID& search_id, const HypernodeID& hn) {
-    ASSERT(static_cast<size_t>(hn) < _vertex_ownership.size());
-    SearchID expected_id = QuotientGraph::INVALID_SEARCH_ID;
-    return _vertex_ownership[hn].compare_exchange_strong(
-      expected_id, search_id, std::memory_order_relaxed);
-  }
 
-  void release_vertex(SearchID search_id, const HypernodeID& hn) {
-    ASSERT(static_cast<size_t>(hn) < _vertex_ownership.size());
-    ASSERT(_context.refinement.advanced.use_overlapping_searches ||
-           _vertex_ownership[hn] == search_id);
-    _vertex_ownership[hn].compare_exchange_strong(
-      search_id, QuotientGraph::INVALID_SEARCH_ID, std::memory_order_relaxed);
-  }
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE bool isMaximumProblemSizeReached(
+    const Subhypergraph& sub_hg,
+    const HypernodeWeight max_weight_block_0,
+    const HypernodeWeight max_weight_block_1,
+    vec<bool>& locked_blocks) const;
 
   const Context& _context;
-
-  // ! Keeps track which vertices belong to which search
-  // ! Each vertex is only allowed to be part of one search at any time
-  vec<CAtomic<SearchID>> _vertex_ownership;
+  double _scaling;
 
   // ! Contains data required for BFS construction algorithm
   tbb::enumerable_thread_specific<BFSData> _local_bfs;
-
-  // ! Contains statistic about the currently constructed problem
-  tbb::enumerable_thread_specific<ProblemStats> _local_stats;
 };
 
 }  // namespace kahypar

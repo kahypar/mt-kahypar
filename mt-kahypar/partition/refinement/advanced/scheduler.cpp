@@ -67,7 +67,7 @@ bool AdvancedRefinementScheduler::refineImpl(
             << ", Refiner =" << i << ")";
         utils::Timer::instance().start_timer("construct_problem", "Construct Problem", true);
         const Subhypergraph sub_hg =
-          _constructor.construct(search_id, _quotient_graph, _refiner, phg);
+          _constructor.construct(search_id, _quotient_graph, phg);
         _quotient_graph.finalizeConstruction(search_id);
         utils::Timer::instance().stop_timer("construct_problem");
 
@@ -90,8 +90,6 @@ bool AdvancedRefinementScheduler::refineImpl(
                 << _refiner.timeLimit() << "s )" << END;
           }
         }
-
-        _constructor.releaseNodes(search_id, sub_hg);
         _quotient_graph.finalizeSearch(search_id, improved_solution ? delta : 0);
         _refiner.finalizeSearch(search_id);
         DBG << "End search" << search_id
@@ -245,11 +243,9 @@ HyperedgeWeight AdvancedRefinementScheduler::applyMoves(const SearchID search_id
   unused(search_id);
   ASSERT(_phg);
 
-  // TODO: currently we lock the applyMoves method, if overlapping search is enabled.
+  // TODO: currently we lock the applyMoves method
   // => find something smarter here
-  if ( _context.refinement.advanced.use_overlapping_searches ) {
-    _apply_moves_lock.lock();
-  }
+  _apply_moves_lock.lock();
 
   // Compute Part Weight Deltas
   vec<HypernodeWeight> part_weight_deltas(_context.partition.k, 0);
@@ -331,9 +327,7 @@ HyperedgeWeight AdvancedRefinementScheduler::applyMoves(const SearchID search_id
         << ", Search ID =" << search_id << ")" << END;
   }
 
-  if ( _context.refinement.advanced.use_overlapping_searches ) {
-    _apply_moves_lock.unlock();
-  }
+  _apply_moves_lock.unlock();
 
   if ( sequence.state == MoveSequenceState::SUCCESS && improvement > 0 ) {
     addCutHyperedgesToQuotientGraph(_quotient_graph, new_cut_hes);

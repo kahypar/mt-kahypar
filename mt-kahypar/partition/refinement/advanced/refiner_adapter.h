@@ -79,11 +79,6 @@ public:
                       const PartitionedHypergraph& phg,
                       const Subhypergraph& sub_hg);
 
-  // ! Returns wheather or not more nodes can be added to problem
-  // ! of the refiner associated with the corresponding search id
-  bool isMaximumProblemSizeReached(const SearchID search_id,
-                                   ProblemStats& stats);
-
   // ! Returns the maximum number of blocks which is allowed to be
   // ! contained in the problem of the refiner associated with
   // ! corresponding search id
