@@ -48,11 +48,8 @@ void QuotientGraph::QuotientGraphEdge::reset() {
 bool QuotientGraph::ActiveBlockSchedulingRound::popBlockPairFromQueue(BlockPair& blocks) {
   blocks.i = kInvalidPartition;
   blocks.j = kInvalidPartition;
-  const size_t current_size = _unscheduled_blocks.unsafe_size();
-  size_t current_idx = 0;
-  while ( current_idx < current_size && _unscheduled_blocks.try_pop(blocks) ) {
+  if ( _unscheduled_blocks.try_pop(blocks) ) {
     _quotient_graph[blocks.i][blocks.j].markAsNotInQueue();
-    ++current_idx;
   }
   return blocks.i != kInvalidPartition && blocks.j != kInvalidPartition;
 }
