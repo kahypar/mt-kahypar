@@ -247,7 +247,6 @@ class AnAdvancedRefinementEndToEnd : public Test {
       nodes.insert(nodes.end(), sub_hg.nodes_of_block_1.begin(), sub_hg.nodes_of_block_1.end());
       for ( const HypernodeID& hn : nodes ) {
         Move move = mover->computeMaxGainMove(phg, hn);
-        ASSERT(move.from == phg.partID(hn));
         if ( move.from != move.to ) {
           sequence.moves.emplace_back(std::move(move));
           sequence.expected_improvement -= move.gain;

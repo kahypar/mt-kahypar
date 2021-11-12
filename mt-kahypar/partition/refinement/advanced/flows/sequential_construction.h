@@ -41,14 +41,34 @@ class SequentialConstruction {
 
   class DynamicIdenticalNetDetection {
 
-    using IdenticalNetVector = vec<whfc::Hyperedge>;
+    struct TmpHyperedge {
+      const size_t hash;
+      const whfc::Hyperedge e;
+    };
+
+    using IdenticalNetVector = vec<TmpHyperedge>;
+
+    struct HashBucket {
+      HashBucket() :
+        identical_nets(),
+        threshold(0) { }
+
+      IdenticalNetVector identical_nets;
+      uint32_t threshold;
+    };
 
    public:
-    explicit DynamicIdenticalNetDetection(whfc::FlowHypergraph& flow_hg) :
+    explicit DynamicIdenticalNetDetection(const Hypergraph& hg,
+                                          FlowHypergraphBuilder& flow_hg,
+                                          const Context& context) :
       _flow_hg(flow_hg),
-      _he_hashes(),
-      _used_entries(0),
-      _hash_buckets() { }
+      _hash_buckets(),
+      _threshold(1) {
+      const size_t num_parallel_refiners =
+        context.shared_memory.num_threads / context.refinement.advanced.num_threads_per_search
+        + (context.shared_memory.num_threads % context.refinement.advanced.num_threads_per_search != 0);
+      _hash_buckets.resize(std::max(1024UL, hg.initialNumEdges() / num_parallel_refiners));
+    }
 
     /**
      * Returns an invalid hyperedge id, if the edge is not contained, otherwise
@@ -59,19 +79,17 @@ class SequentialConstruction {
                                          const vec<whfc::Node>& pins);
 
     void reset() {
-      _he_hashes.clear();
-      _used_entries = 0;
+      ++_threshold;
     }
 
    private:
     whfc::FlowHypergraph& _flow_hg;
-    ds::DynamicFlatMap<size_t, size_t> _he_hashes;
-    size_t _used_entries;
-    vec<IdenticalNetVector> _hash_buckets;
+    vec<HashBucket> _hash_buckets;
+    uint32_t _threshold;
   };
 
  public:
-  explicit SequentialConstruction(const Hypergraph&,
+  explicit SequentialConstruction(const Hypergraph& hg,
                                   FlowHypergraphBuilder& flow_hg,
                                   whfc::HyperFlowCutter<whfc::Dinic>& hfc,
                                   const Context& context) :
@@ -82,7 +100,7 @@ class SequentialConstruction {
     _visited_hns(),
     _tmp_pins(),
     _cut_hes(),
-    _identical_nets(flow_hg) { }
+    _identical_nets(hg, flow_hg, context) { }
 
   SequentialConstruction(const SequentialConstruction&) = delete;
   SequentialConstruction(SequentialConstruction&&) = delete;

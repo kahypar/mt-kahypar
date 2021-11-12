@@ -44,7 +44,7 @@ class AFlowHypergraphConstructor : public Test {
     context(),
     flow_hg(),
     hfc(flow_hg, 42),
-    constructor(hg, flow_hg, hfc, context),
+    constructor(nullptr),
     whfc_to_node() {
     context.partition.k = 3;
     context.partition.perfect_balance_part_weights.assign(3, 5);
@@ -67,6 +67,8 @@ class AFlowHypergraphConstructor : public Test {
     phg.setOnlyNodePart(8, 2);
     phg.setOnlyNodePart(9, 2);
     phg.initializePartition();
+
+    constructor = std::make_unique<Constructor>(hg, flow_hg, hfc, context);
   }
 
   Hypergraph hg;
@@ -75,7 +77,7 @@ class AFlowHypergraphConstructor : public Test {
 
   FlowHypergraphBuilder flow_hg;
   whfc::HyperFlowCutter<whfc::Dinic> hfc;
-  Constructor constructor;
+  std::unique_ptr<Constructor> constructor;
   vec<HypernodeID> whfc_to_node;
 };
 
@@ -160,7 +162,7 @@ TYPED_TEST(AFlowHypergraphConstructor, ConstructsAFlowHypergraphWithTwoHypernode
   Subhypergraph sub_hg { 0, 1, {1}, {4}, 0, 0, {}, 0 };
   constructSubhypergraph(this->phg, sub_hg);
 
-  FlowProblem actual_prob = this->constructor.constructFlowHypergraph(this->phg, sub_hg, 0, 1, this->whfc_to_node);
+  FlowProblem actual_prob = this->constructor->constructFlowHypergraph(this->phg, sub_hg, 0, 1, this->whfc_to_node);
   FlowProblem expected_prob { NODE(0), NODE(2), 2, 2, 4, 4 };
   verifyFlowProblemStats(expected_prob, actual_prob);
 
@@ -179,7 +181,7 @@ TYPED_TEST(AFlowHypergraphConstructor, ConstructsAFlowHypergraphWithTwoHypernode
   Subhypergraph sub_hg { 0, 1, {3}, {6}, 0, 0, {}, 0 };
   constructSubhypergraph(this->phg, sub_hg);
 
-  FlowProblem actual_prob = this->constructor.constructFlowHypergraph(this->phg, sub_hg, 0, 1, this->whfc_to_node);
+  FlowProblem actual_prob = this->constructor->constructFlowHypergraph(this->phg, sub_hg, 0, 1, this->whfc_to_node);
   FlowProblem expected_prob { NODE(0), NODE(2), 1, 1, 4, 4 };
   verifyFlowProblemStats(expected_prob, actual_prob);
 
@@ -198,7 +200,7 @@ TYPED_TEST(AFlowHypergraphConstructor, ConstructsAFlowHypergraphWithThreeHyperno
   Subhypergraph sub_hg { 0, 1, {1, 3}, {4}, 0, 0, {}, 0 };
   constructSubhypergraph(this->phg, sub_hg);
 
-  FlowProblem actual_prob = this->constructor.constructFlowHypergraph(this->phg, sub_hg, 0, 1, this->whfc_to_node);
+  FlowProblem actual_prob = this->constructor->constructFlowHypergraph(this->phg, sub_hg, 0, 1, this->whfc_to_node);
   FlowProblem expected_prob { NODE(0), NODE(3), 2, 1, 4, 4 };
   verifyFlowProblemStats(expected_prob, actual_prob);
 
@@ -220,7 +222,7 @@ TYPED_TEST(AFlowHypergraphConstructor, ConstructsAFlowHypergraphWithThreeHyperno
   Subhypergraph sub_hg { 0, 1, {1}, {4, 6}, 0, 0, {}, 0 };
   constructSubhypergraph(this->phg, sub_hg);
 
-  FlowProblem actual_prob = this->constructor.constructFlowHypergraph(this->phg, sub_hg, 0, 1, this->whfc_to_node);
+  FlowProblem actual_prob = this->constructor->constructFlowHypergraph(this->phg, sub_hg, 0, 1, this->whfc_to_node);
   FlowProblem expected_prob { NODE(0), NODE(2), 2, 1, 4, 4 };
   verifyFlowProblemStats(expected_prob, actual_prob);
 
@@ -242,7 +244,7 @@ TYPED_TEST(AFlowHypergraphConstructor, ConstructsAFlowHypergraphWithFourHypernod
   Subhypergraph sub_hg { 0, 1, {1, 3}, {4, 6}, 0, 0, {}, 0 };
   constructSubhypergraph(this->phg, sub_hg);
 
-  FlowProblem actual_prob = this->constructor.constructFlowHypergraph(this->phg, sub_hg, 0, 1, this->whfc_to_node);
+  FlowProblem actual_prob = this->constructor->constructFlowHypergraph(this->phg, sub_hg, 0, 1, this->whfc_to_node);
   FlowProblem expected_prob { NODE(0), NODE(3), 2, 1, 4, 4 };
   verifyFlowProblemStats(expected_prob, actual_prob);
 
@@ -265,7 +267,7 @@ TYPED_TEST(AFlowHypergraphConstructor, ConstructsAFlowHypergraphWithFiveHypernod
   Subhypergraph sub_hg { 0, 1, {0, 1, 3}, {4, 6}, 0, 0, {}, 0 };
   constructSubhypergraph(this->phg, sub_hg);
 
-  FlowProblem actual_prob = this->constructor.constructFlowHypergraph(this->phg, sub_hg, 0, 1, this->whfc_to_node);
+  FlowProblem actual_prob = this->constructor->constructFlowHypergraph(this->phg, sub_hg, 0, 1, this->whfc_to_node);
   FlowProblem expected_prob { NODE(0), NODE(4), 2, 0, 4, 4 };
   verifyFlowProblemStats(expected_prob, actual_prob);
 
@@ -291,7 +293,7 @@ TYPED_TEST(AFlowHypergraphConstructor, ConstructsAFlowHypergraphWithFiveHypernod
   Subhypergraph sub_hg { 0, 1, {1, 3}, {4, 5, 6}, 0, 0, {}, 0 };
   constructSubhypergraph(this->phg, sub_hg);
 
-  FlowProblem actual_prob = this->constructor.constructFlowHypergraph(this->phg, sub_hg, 0, 1, this->whfc_to_node);
+  FlowProblem actual_prob = this->constructor->constructFlowHypergraph(this->phg, sub_hg, 0, 1, this->whfc_to_node);
   FlowProblem expected_prob { NODE(0), NODE(3), 2, 0, 4, 4 };
   verifyFlowProblemStats(expected_prob, actual_prob);
 
@@ -317,7 +319,7 @@ TYPED_TEST(AFlowHypergraphConstructor, ConstructsAFlowHypergraphWithSixHypernode
   Subhypergraph sub_hg { 0, 1, {0, 1, 3}, {4, 5, 6}, 0, 0, {}, 0 };
   constructSubhypergraph(this->phg, sub_hg);
 
-  FlowProblem actual_prob = this->constructor.constructFlowHypergraph(this->phg, sub_hg, 0, 1, this->whfc_to_node);
+  FlowProblem actual_prob = this->constructor->constructFlowHypergraph(this->phg, sub_hg, 0, 1, this->whfc_to_node);
   FlowProblem expected_prob { NODE(0), NODE(4), 2, 0, 4, 4 };
   verifyFlowProblemStats(expected_prob, actual_prob);
 
@@ -345,7 +347,7 @@ TYPED_TEST(AFlowHypergraphConstructor, ConstructsAFlowHypergraphWithAllHypernode
   Subhypergraph sub_hg { 0, 1, {0, 1, 2, 3}, {4, 5, 6, 7}, 0, 0, {}, 0 };
   constructSubhypergraph(this->phg, sub_hg);
 
-  FlowProblem actual_prob = this->constructor.constructFlowHypergraph(this->phg, sub_hg, 0, 1, this->whfc_to_node);
+  FlowProblem actual_prob = this->constructor->constructFlowHypergraph(this->phg, sub_hg, 0, 1, this->whfc_to_node);
   FlowProblem expected_prob { NODE(0), NODE(5), 0, 0, 4, 4 };
   verifyFlowProblemStats(expected_prob, actual_prob);
 }

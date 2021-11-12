@@ -29,46 +29,30 @@ namespace mt_kahypar {
 whfc::Hyperedge SequentialConstruction::DynamicIdenticalNetDetection::add_if_not_contained(const whfc::Hyperedge he,
                                                                                            const size_t he_hash,
                                                                                            const vec<whfc::Node>& pins) {
-  const size_t* bucket_idx = _he_hashes.get_if_contained(he_hash);
-  if ( bucket_idx ) {
+  const size_t bucket_idx = he_hash % _hash_buckets.size();
+  if ( _hash_buckets[bucket_idx].threshold == _threshold ) {
     // There exists already some hyperedges with the same hash
-    for ( const whfc::Hyperedge& e : _hash_buckets[*bucket_idx] ) {
+    for ( const TmpHyperedge& tmp_e : _hash_buckets[bucket_idx].identical_nets ) {
       // Check if there is some hyperedge equal to he
-      if ( _flow_hg.pinCount(e) == pins.size() ) {
+      if ( tmp_e.hash == he_hash && _flow_hg.pinCount(tmp_e.e) == pins.size() ) {
         bool is_identical = true;
         size_t idx = 0;
-        for ( const whfc::FlowHypergraph::Pin& u : _flow_hg.pinsOf(e) ) {
+        for ( const whfc::FlowHypergraph::Pin& u : _flow_hg.pinsOf(tmp_e.e) ) {
           if ( u.pin != pins[idx++] ) {
             is_identical = false;
             break;
           }
         }
         if ( is_identical ) {
-          return e;
+          return tmp_e.e;
         }
       }
     }
-  }
-
-  // There is no hyperedge currently identical to he
-  if ( bucket_idx ) {
-    // If there already exist hyperedges with the same hash,
-    // we insert he into the corresponding bucket.
-    _hash_buckets[*bucket_idx].push_back(he);
   } else {
-    // Otherwise, we create a new bucket (or reuse an existing)
-    // and insert he into the hash table
-    size_t idx = std::numeric_limits<size_t>::max();
-    if ( _used_entries < _hash_buckets.size() ) {
-      _hash_buckets[_used_entries].clear();
-    } else {
-      _hash_buckets.emplace_back();
-    }
-    idx = _used_entries++;
-    _hash_buckets[idx].push_back(he);
-    _he_hashes[he_hash] = idx;
+    _hash_buckets[bucket_idx].identical_nets.clear();
+    _hash_buckets[bucket_idx].threshold = _threshold;
   }
-
+  _hash_buckets[bucket_idx].identical_nets.push_back(TmpHyperedge { he_hash, he });
   return whfc::invalidHyperedge;
 }
 
