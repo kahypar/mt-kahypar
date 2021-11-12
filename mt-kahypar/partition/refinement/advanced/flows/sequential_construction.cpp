@@ -63,13 +63,10 @@ FlowProblem SequentialConstruction::constructFlowHypergraph(const PartitionedHyp
                                                             vec<HypernodeID>& whfc_to_node) {
   const double density = static_cast<double>(phg.initialNumEdges()) / phg.initialNumNodes();
   const double avg_he_size = static_cast<double>(phg.initialNumPins()) / phg.initialNumEdges();
-  if ( density >= 0.5 && avg_he_size <= 10 ) {
+  if ( density >= 0.5 && avg_he_size <= 100 ) {
     // This algorithm iterates over all hyperedges and checks for all pins if
     // they are contained in the flow problem. Algorithm could have overheads, if
     // only a small portion of each hyperedge is contained in the flow hypergraph.
-    // Therefore, we only execute it, if the estimated number of pins in the flow
-    // hypergraph is within a factor of 2 of the total hyperedge sizes touched
-    // by the flow problem.
     return constructDefault(phg, sub_hg, block_0, block_1, whfc_to_node);
   } else {
     // This is a construction algorithm optimized for hypergraphs with large hyperedges.
