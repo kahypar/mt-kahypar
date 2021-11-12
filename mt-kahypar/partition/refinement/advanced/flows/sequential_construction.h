@@ -39,6 +39,12 @@ class SequentialConstruction {
 
   static constexpr bool debug = false;
 
+  struct TmpPin {
+    HyperedgeID e;
+    whfc::Node pin;
+    PartitionID block;
+  };
+
   class DynamicIdenticalNetDetection {
 
     struct TmpHyperedge {
@@ -100,6 +106,8 @@ class SequentialConstruction {
     _visited_hns(),
     _tmp_pins(),
     _cut_hes(),
+    _pins(),
+    _he_to_whfc(),
     _identical_nets(hg, flow_hg, context) { }
 
   SequentialConstruction(const SequentialConstruction&) = delete;
@@ -115,7 +123,20 @@ class SequentialConstruction {
                                       const PartitionID block_0,
                                       const PartitionID block_1,
                                       vec<HypernodeID>& whfc_to_node);
+
  private:
+  FlowProblem constructDefault(const PartitionedHypergraph& phg,
+                               const Subhypergraph& sub_hg,
+                               const PartitionID block_0,
+                               const PartitionID block_1,
+                               vec<HypernodeID>& whfc_to_node);
+
+  FlowProblem constructOptimizedForLargeHEs(const PartitionedHypergraph& phg,
+                                            const Subhypergraph& sub_hg,
+                                            const PartitionID block_0,
+                                            const PartitionID block_1,
+                                            vec<HypernodeID>& whfc_to_node);
+
   void determineDistanceFromCut(const PartitionedHypergraph& phg,
                                 const whfc::Node source,
                                 const whfc::Node sink,
@@ -140,6 +161,9 @@ class SequentialConstruction {
   ds::ThreadSafeFastResetFlagArray<> _visited_hns;
   vec<whfc::Node> _tmp_pins;
   vec<whfc::Hyperedge> _cut_hes;
+
+  vec<TmpPin> _pins;
+  ds::DynamicSparseMap<HyperedgeID, HyperedgeID> _he_to_whfc;
 
   DynamicIdenticalNetDetection _identical_nets;
 };

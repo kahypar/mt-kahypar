@@ -35,6 +35,7 @@ struct Subhypergraph {
   HypernodeWeight weight_of_block_1;
   vec<HyperedgeID> hes;
   size_t num_pins;
+  size_t total_pins;
 
   size_t numNodes() const {
     return nodes_of_block_0.size() + nodes_of_block_1.size();

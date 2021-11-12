@@ -99,6 +99,7 @@ Subhypergraph ProblemConstruction::construct(const SearchID search_id,
   sub_hg.weight_of_block_0 = 0;
   sub_hg.weight_of_block_1 = 0;
   sub_hg.num_pins = 0;
+  sub_hg.total_pins = 0;
   const HypernodeWeight max_weight_block_0 =
     _scaling * _context.partition.perfect_balance_part_weights[sub_hg.block_0] - phg.partWeight(sub_hg.block_0);
   const HypernodeWeight max_weight_block_1 =
@@ -139,6 +140,7 @@ Subhypergraph ProblemConstruction::construct(const SearchID search_id,
           max_weight_block_0, max_weight_block_1);
         if ( !bfs.contained_hes[he] ) {
           sub_hg.hes.push_back(he);
+          sub_hg.total_pins += phg.edgeSize(he);
           bfs.contained_hes[he] = true;
         }
       }
