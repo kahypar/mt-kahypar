@@ -567,11 +567,9 @@ namespace mt_kahypar {
           }
           ASSERT(acquired);
 
-          task_local_timer.startRegionTrackingTimer();
+//          task_local_timer.startRegionTrackingTimer();
           pool->markAccepted(groupID);
-          HyperedgeID num_edges_activated_in_task = 0;
-          node_region_comparator.markActive(_phg.incidentEdges(group.getRepresentative()), task_id, num_edges_activated_in_task);
-          task_local_timer.stopRegionTrackingTimer();
+//          task_local_timer.stopRegionTrackingTimer();
 
           task_local_timer.startUncontractionTimer();
           uncontractGroupAsyncSubtask(group, groupID);
@@ -605,15 +603,24 @@ namespace mt_kahypar {
           ASSERT(local_refinement_nodes.size() == num_edges_activated_per_refinement_node.size());
 
           task_local_timer.startRegionTrackingTimer();
-          // Give last extracted seed (if any) the entry for number of edges activated
           if (num_extracted_seeds > 0) {
             ASSERT(!num_edges_activated_per_refinement_node.empty());
             ASSERT(num_edges_activated_per_refinement_node.back() == 0);
+
+            // add all edges incident to seeds to active region of task
+            HyperedgeID num_edges_activated_in_task = 0;
+            for (size_t i = 0; i < num_extracted_seeds; ++i) {
+              const HypernodeID seed = *(local_refinement_nodes.end() - i - 1);
+              node_region_comparator.markActive(_phg.incidentEdges(seed), task_id, num_edges_activated_in_task);
+            }
+
+            // Give last extracted seed the entry for number of edges activated
             num_edges_activated_per_refinement_node.back() = num_edges_activated_in_task;
-          } else {
-            // If there are no refinement seeds in this group, do not consider the incident edges active anymore
-            node_region_comparator.markLastActivatedEdgesForTaskInactive(task_id, num_edges_activated_in_task);
           }
+//          else {
+//            // If there are no refinement seeds in this group, do not consider the incident edges active anymore
+//            node_region_comparator.markLastActivatedEdgesForTaskInactive(task_id, num_edges_activated_in_task);
+//          }
           task_local_timer.stopRegionTrackingTimer();
 
           // Refine only once enough seeds are available
