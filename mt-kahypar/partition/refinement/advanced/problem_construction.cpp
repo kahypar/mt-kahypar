@@ -35,6 +35,9 @@ void ProblemConstruction::BFSData::clearQueue() {
 
 void ProblemConstruction::BFSData::reset() {
   current_distance = 0;
+  queue_weight_block_0 = 0;
+  queue_weight_block_1 = 0;
+  lock_queue = false;
   clearQueue();
   std::fill(visited_hn.begin(), visited_hn.end(), false);
   std::fill(visited_he.begin(), visited_he.end(), false);
@@ -52,20 +55,31 @@ HypernodeID ProblemConstruction::BFSData::pop_hypernode() {
 void ProblemConstruction::BFSData::add_pins_of_hyperedge_to_queue(
   const HyperedgeID& he,
   const PartitionedHypergraph& phg,
-  const size_t max_bfs_distance) {
-  if ( current_distance <= max_bfs_distance ) {
+  const size_t max_bfs_distance,
+  const HypernodeWeight max_weight_block_0,
+  const HypernodeWeight max_weight_block_1) {
+  if ( current_distance <= max_bfs_distance && !lock_queue ) {
     if ( !visited_he[he] ) {
       for ( const HypernodeID& pin : phg.pins(he) ) {
         if ( !visited_hn[pin] ) {
           const PartitionID block = phg.partID(pin);
-          if ( (blocks.i == block || blocks.j == block) && !locked_blocks[block] ) {
+          const bool is_block_0 = blocks.i == block;
+          const bool is_block_1 = blocks.j == block;
+          if ( (is_block_0 || is_block_1) && !locked_blocks[block] ) {
             next_queue.push(pin);
+            queue_weight_block_0 += is_block_0 ? phg.nodeWeight(pin) : 0;
+            queue_weight_block_1 += is_block_1 ? phg.nodeWeight(pin) : 0;
           }
           visited_hn[pin] = true;
         }
       }
       visited_he[he] = true;
     }
+  }
+
+  if ( queue_weight_block_0 >= max_weight_block_0 &&
+       queue_weight_block_1 >= max_weight_block_1 ) {
+    lock_queue = true;
   }
 }
 
@@ -96,7 +110,8 @@ Subhypergraph ProblemConstruction::construct(const SearchID search_id,
   // between the involved block associated with the search
   bfs.clearQueue();
   quotient_graph.doForAllCutHyperedgesOfSearch(search_id, [&](const HyperedgeID& he) {
-    bfs.add_pins_of_hyperedge_to_queue(he, phg, max_bfs_distance);
+    bfs.add_pins_of_hyperedge_to_queue(he, phg, max_bfs_distance,
+      max_weight_block_0, max_weight_block_1);
   });
   bfs.swap_with_next_queue();
 
@@ -120,7 +135,8 @@ Subhypergraph ProblemConstruction::construct(const SearchID search_id,
 
       // Push all neighbors of the added vertex into the queue
       for ( const HyperedgeID& he : phg.incidentEdges(hn) ) {
-        bfs.add_pins_of_hyperedge_to_queue(he, phg, max_bfs_distance);
+        bfs.add_pins_of_hyperedge_to_queue(he, phg, max_bfs_distance,
+          max_weight_block_0, max_weight_block_1);
         if ( !bfs.contained_hes[he] ) {
           sub_hg.hes.push_back(he);
           bfs.contained_hes[he] = true;

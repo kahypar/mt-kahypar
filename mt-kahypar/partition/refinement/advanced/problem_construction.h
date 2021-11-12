@@ -53,7 +53,10 @@ class ProblemConstruction {
       visited_hn(num_nodes, false),
       visited_he(num_edges, false),
       contained_hes(num_edges, false),
-      locked_blocks(k, false)  { }
+      locked_blocks(k, false),
+      queue_weight_block_0(0),
+      queue_weight_block_1(0),
+      lock_queue(false)  { }
 
     void clearQueue();
 
@@ -63,7 +66,9 @@ class ProblemConstruction {
 
     void add_pins_of_hyperedge_to_queue(const HyperedgeID& he,
                                         const PartitionedHypergraph& phg,
-                                        const size_t max_bfs_distance);
+                                        const size_t max_bfs_distance,
+                                        const HypernodeWeight max_weight_block_0,
+                                        const HypernodeWeight max_weight_block_1);
 
     bool is_empty() const {
       return queue.empty();
@@ -88,6 +93,9 @@ class ProblemConstruction {
     vec<bool> visited_he;
     vec<bool> contained_hes;
     vec<bool> locked_blocks;
+    HypernodeWeight queue_weight_block_0;
+    HypernodeWeight queue_weight_block_1;
+    bool lock_queue;
   };
 
  public:
