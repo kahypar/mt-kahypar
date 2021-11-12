@@ -61,19 +61,43 @@ FlowProblem SequentialConstruction::constructFlowHypergraph(const PartitionedHyp
                                                             const PartitionID block_0,
                                                             const PartitionID block_1,
                                                             vec<HypernodeID>& whfc_to_node) {
+  FlowProblem flow_problem;
   const double density = static_cast<double>(phg.initialNumEdges()) / phg.initialNumNodes();
   const double avg_he_size = static_cast<double>(phg.initialNumPins()) / phg.initialNumEdges();
   if ( density >= 0.5 && avg_he_size <= 100 ) {
     // This algorithm iterates over all hyperedges and checks for all pins if
     // they are contained in the flow problem. Algorithm could have overheads, if
     // only a small portion of each hyperedge is contained in the flow hypergraph.
-    return constructDefault(phg, sub_hg, block_0, block_1, whfc_to_node);
+    flow_problem = constructDefault(phg, sub_hg, block_0, block_1, whfc_to_node);
   } else {
     // This is a construction algorithm optimized for hypergraphs with large hyperedges.
     // Algorithm constructs a temporary pin list, therefore it could have overheads
     // for hypergraphs with small hyperedges.
-    return constructOptimizedForLargeHEs(phg, sub_hg, block_0, block_1, whfc_to_node);
+    flow_problem = constructOptimizedForLargeHEs(phg, sub_hg, block_0, block_1, whfc_to_node);
   }
+
+  if ( _flow_hg.nodeWeight(flow_problem.source) == 0 ||
+       _flow_hg.nodeWeight(flow_problem.sink) == 0 ) {
+    // Source or sink not connected to vertices in the flow problem
+    flow_problem.non_removable_cut = 0;
+    flow_problem.total_cut = 0;
+  } else {
+    _flow_hg.finalize();
+
+    if ( _context.refinement.advanced.flows.determine_distance_from_cut ) {
+      // Determine the distance of each node contained in the flow network from the cut.
+      // This technique improves piercing decision within the WHFC framework.
+      determineDistanceFromCut(phg, flow_problem.source,
+        flow_problem.sink, block_0, block_1, whfc_to_node);
+    }
+  }
+
+  DBG << "Flow Hypergraph [ Nodes =" << _flow_hg.numNodes()
+      << ", Edges =" << _flow_hg.numHyperedges()
+      << ", Pins =" << _flow_hg.numPins()
+      << ", Blocks = (" << block_0 << "," << block_1 << ") ]";
+
+  return flow_problem;
 }
 
 FlowProblem SequentialConstruction::constructDefault(const PartitionedHypergraph& phg,
@@ -192,27 +216,6 @@ FlowProblem SequentialConstruction::constructDefault(const PartitionedHypergraph
     }
   }
 
-  if ( _flow_hg.nodeWeight(flow_problem.source) == 0 ||
-       _flow_hg.nodeWeight(flow_problem.sink) == 0 ) {
-    // Source or sink not connected to vertices in the flow problem
-    flow_problem.non_removable_cut = 0;
-    flow_problem.total_cut = 0;
-  } else {
-    _flow_hg.finalize();
-
-    if ( _context.refinement.advanced.flows.determine_distance_from_cut ) {
-      // Determine the distance of each node contained in the flow network from the cut.
-      // This technique improves piercing decision within the WHFC framework.
-      determineDistanceFromCut(phg, flow_problem.source,
-        flow_problem.sink, block_0, block_1, whfc_to_node);
-    }
-  }
-
-  DBG << "Flow Hypergraph [ Nodes =" << _flow_hg.numNodes()
-      << ", Edges =" << _flow_hg.numHyperedges()
-      << ", Pins =" << _flow_hg.numPins()
-      << ", Blocks = (" << block_0 << "," << block_1 << ") ]";
-
   return flow_problem;
 }
 
@@ -284,51 +287,53 @@ FlowProblem SequentialConstruction::constructOptimizedForLargeHEs(const Partitio
       ASSERT(start_idx < end_idx);
       _tmp_pins.clear();
       const HyperedgeID he = sub_hg.hes[last_he];
-      const HyperedgeWeight he_weight = phg.edgeWeight(he);
-      const HypernodeID actual_pin_count_block_0 = phg.pinCountInPart(he, block_0);
-      const HypernodeID actual_pin_count_block_1 = phg.pinCountInPart(he, block_1);
-      const bool connect_to_source = pin_count_in_block_0 < actual_pin_count_block_0;
-      const bool connect_to_sink = pin_count_in_block_1 < actual_pin_count_block_1;
-      if ( actual_pin_count_block_0 > 0 && actual_pin_count_block_1 > 0 ) {
-        flow_problem.total_cut += he_weight;
-      }
-
-      _flow_hg.startHyperedge(whfc::Flow(he_weight));
-      if ( connect_to_source && connect_to_sink ) {
-        // Hyperedge is connected to source and sink which means we can not remove it
-        // from the cut with the current flow problem => remove he from flow problem
-        flow_problem.non_removable_cut += he_weight;
-        _flow_hg.removeCurrentHyperedge();
-      } else {
-        // Add hyperedge to flow network and configure source and sink
-        size_t hash = 0;
-        if ( connect_to_source ) {
-          _tmp_pins.push_back(flow_problem.source);
-          hash += kahypar::math::hash(flow_problem.source);
-        } else if ( connect_to_sink ) {
-          _tmp_pins.push_back(flow_problem.sink);
-          hash += kahypar::math::hash(flow_problem.sink);
-        }
-        for ( size_t i = start_idx; i < end_idx; ++i ) {
-          _tmp_pins.push_back(_pins[i].pin);
-          hash += kahypar::math::hash(_pins[i].pin);
+      if ( !canHyperedgeBeDropped(phg, he, block_0, block_1) ) {
+        const HyperedgeWeight he_weight = phg.edgeWeight(he);
+        const HypernodeID actual_pin_count_block_0 = phg.pinCountInPart(he, block_0);
+        const HypernodeID actual_pin_count_block_1 = phg.pinCountInPart(he, block_1);
+        const bool connect_to_source = pin_count_in_block_0 < actual_pin_count_block_0;
+        const bool connect_to_sink = pin_count_in_block_1 < actual_pin_count_block_1;
+        if ( actual_pin_count_block_0 > 0 && actual_pin_count_block_1 > 0 ) {
+          flow_problem.total_cut += he_weight;
         }
 
-        if ( _tmp_pins.size() > 1 ) {
-          whfc::Hyperedge identical_net =
-            _identical_nets.add_if_not_contained(current_he, hash, _tmp_pins);
-          if ( identical_net == whfc::invalidHyperedge ) {
-            for ( const whfc::Node& pin : _tmp_pins ) {
-              _flow_hg.addPin(pin);
+        _flow_hg.startHyperedge(whfc::Flow(he_weight));
+        if ( connect_to_source && connect_to_sink ) {
+          // Hyperedge is connected to source and sink which means we can not remove it
+          // from the cut with the current flow problem => remove he from flow problem
+          flow_problem.non_removable_cut += he_weight;
+          _flow_hg.removeCurrentHyperedge();
+        } else {
+          // Add hyperedge to flow network and configure source and sink
+          size_t hash = 0;
+          if ( connect_to_source ) {
+            _tmp_pins.push_back(flow_problem.source);
+            hash += kahypar::math::hash(flow_problem.source);
+          } else if ( connect_to_sink ) {
+            _tmp_pins.push_back(flow_problem.sink);
+            hash += kahypar::math::hash(flow_problem.sink);
+          }
+          for ( size_t i = start_idx; i < end_idx; ++i ) {
+            _tmp_pins.push_back(_pins[i].pin);
+            hash += kahypar::math::hash(_pins[i].pin);
+          }
+
+          if ( _tmp_pins.size() > 1 ) {
+            whfc::Hyperedge identical_net =
+              _identical_nets.add_if_not_contained(current_he, hash, _tmp_pins);
+            if ( identical_net == whfc::invalidHyperedge ) {
+              for ( const whfc::Node& pin : _tmp_pins ) {
+                _flow_hg.addPin(pin);
+              }
+              if ( _context.refinement.advanced.flows.determine_distance_from_cut &&
+                  actual_pin_count_block_0 > 0 && actual_pin_count_block_1 > 0 ) {
+                _cut_hes.push_back(current_he);
+              }
+              ++current_he;
+            } else {
+              // Current hyperedge is identical to an already added
+              _flow_hg.capacity(identical_net) += he_weight;
             }
-            if ( _context.refinement.advanced.flows.determine_distance_from_cut &&
-                 actual_pin_count_block_0 > 0 && actual_pin_count_block_1 > 0 ) {
-              _cut_hes.push_back(current_he);
-            }
-            ++current_he;
-          } else {
-            // Current hyperedge is identical to an already added
-            _flow_hg.capacity(identical_net) += he_weight;
           }
         }
       }
@@ -346,27 +351,6 @@ FlowProblem SequentialConstruction::constructOptimizedForLargeHEs(const Partitio
     }
     add_hyperedge(_pins.size());
   }
-
-  if ( _flow_hg.nodeWeight(flow_problem.source) == 0 ||
-       _flow_hg.nodeWeight(flow_problem.sink) == 0 ) {
-    // Source or sink not connected to vertices in the flow problem
-    flow_problem.non_removable_cut = 0;
-    flow_problem.total_cut = 0;
-  } else {
-    _flow_hg.finalize();
-
-    if ( _context.refinement.advanced.flows.determine_distance_from_cut ) {
-      // Determine the distance of each node contained in the flow network from the cut.
-      // This technique improves piercing decision within the WHFC framework.
-      determineDistanceFromCut(phg, flow_problem.source,
-        flow_problem.sink, block_0, block_1, whfc_to_node);
-    }
-  }
-
-  DBG << "Flow Hypergraph [ Nodes =" << _flow_hg.numNodes()
-      << ", Edges =" << _flow_hg.numHyperedges()
-      << ", Pins =" << _flow_hg.numPins()
-      << ", Blocks = (" << block_0 << "," << block_1 << ") ]";
 
   return flow_problem;
 }

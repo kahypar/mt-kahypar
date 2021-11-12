@@ -44,6 +44,12 @@ class ParallelConstruction {
 
   static constexpr size_t NUM_CSR_BUCKETS = 1024;
 
+  struct TmpPin {
+    HyperedgeID e;
+    whfc::Node pin;
+    PartitionID block;
+  };
+
   struct TmpHyperedge {
     const size_t hash;
     const size_t bucket;
@@ -103,6 +109,8 @@ class ParallelConstruction {
     _visited_hns(),
     _tmp_pins(),
     _cut_hes(),
+    _pins(),
+    _he_to_whfc(),
     _identical_nets(hg, flow_hg, context) { }
 
   ParallelConstruction(const ParallelConstruction&) = delete;
@@ -119,6 +127,18 @@ class ParallelConstruction {
                                       const PartitionID block_1,
                                       vec<HypernodeID>& whfc_to_node);
  private:
+  FlowProblem constructDefault(const PartitionedHypergraph& phg,
+                               const Subhypergraph& sub_hg,
+                               const PartitionID block_0,
+                               const PartitionID block_1,
+                               vec<HypernodeID>& whfc_to_node);
+
+  FlowProblem constructOptimizedForLargeHEs(const PartitionedHypergraph& phg,
+                                            const Subhypergraph& sub_hg,
+                                            const PartitionID block_0,
+                                            const PartitionID block_1,
+                                            vec<HypernodeID>& whfc_to_node);
+
   void determineDistanceFromCut(const PartitionedHypergraph& phg,
                                 const whfc::Node source,
                                 const whfc::Node sink,
@@ -143,6 +163,9 @@ class ParallelConstruction {
   ds::ThreadSafeFastResetFlagArray<> _visited_hns;
   tbb::enumerable_thread_specific<vec<whfc::Node>> _tmp_pins;
   tbb::concurrent_vector<TmpHyperedge> _cut_hes;
+
+  ds::ConcurrentBucketMap<TmpPin> _pins;
+  ds::ConcurrentFlatMap<HyperedgeID, HyperedgeID> _he_to_whfc;
 
   DynamicIdenticalNetDetection _identical_nets;
 };

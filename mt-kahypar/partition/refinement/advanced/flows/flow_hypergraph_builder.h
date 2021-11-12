@@ -83,6 +83,7 @@ namespace mt_kahypar {
         ASSERT(he == _num_hes);
         ASSERT(static_cast<size_t>(he + 1) < _hes.size());
         ASSERT(pin_end_idx <= _pins.size());
+        ASSERT(pin_end_idx == _num_pins);
         _hes[he].capacity = capacity;
         _hes[he].first_out = whfc::PinIndex(pin_start_idx);
         _hes[he + 1].first_out = whfc::PinIndex(pin_end_idx);
