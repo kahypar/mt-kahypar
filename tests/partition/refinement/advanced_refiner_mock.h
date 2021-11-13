@@ -68,7 +68,8 @@ class AdvancedRefinerMock final : public IAdvancedRefiner {
 
  public:
   explicit AdvancedRefinerMock(const Hypergraph&,
-                               const Context& context) :
+                               const Context& context,
+                               SharedMap&) :
     _context(context),
     _max_num_blocks(AdvancedRefinerMockControl::instance().max_num_blocks),
     _num_threads(0),
@@ -86,7 +87,8 @@ class AdvancedRefinerMock final : public IAdvancedRefiner {
  private:
   void initializeImpl(const PartitionedHypergraph&) { }
 
-  MoveSequence refineImpl(const PartitionedHypergraph& phg,
+  MoveSequence refineImpl(const SearchID,
+                          const PartitionedHypergraph& phg,
                           const Subhypergraph& sub_hg,
                           const HighResClockTimepoint&) {
     return _refine_func(phg, sub_hg, _num_threads);
@@ -106,11 +108,11 @@ class AdvancedRefinerMock final : public IAdvancedRefiner {
   RefineFunc _refine_func;
 };
 
-#define REGISTER_ADVANCED_REFINER(id, refiner)                                          \
-  static kahypar::meta::Registrar<AdvancedRefinementFactory> register_ ## refiner(      \
-    id,                                                                                 \
-    [](const Hypergraph& hypergraph, const Context& context) -> IAdvancedRefiner* {     \
-    return new refiner(hypergraph, context);                                            \
+#define REGISTER_ADVANCED_REFINER(id, refiner)                                                       \
+  static kahypar::meta::Registrar<AdvancedRefinementFactory> register_ ## refiner(                   \
+    id,                                                                                              \
+    [](const Hypergraph& hypergraph, const Context& context, SharedMap& map) -> IAdvancedRefiner* {  \
+    return new refiner(hypergraph, context, map);                                                    \
   })
 
 REGISTER_ADVANCED_REFINER(AdvancedRefinementAlgorithm::mock, AdvancedRefinerMock);

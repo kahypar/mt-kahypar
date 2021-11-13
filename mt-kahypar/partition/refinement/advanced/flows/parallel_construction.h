@@ -101,11 +101,12 @@ class ParallelConstruction {
   explicit ParallelConstruction(const Hypergraph& hg,
                                 FlowHypergraphBuilder& flow_hg,
                                 whfc::HyperFlowCutter<whfc::Dinic>& hfc,
+                                SharedMap& node_to_whfc,
                                 const Context& context) :
     _context(context),
     _flow_hg(flow_hg),
     _hfc(hfc),
-    _node_to_whfc(),
+    _node_to_whfc(node_to_whfc),
     _visited_hns(),
     _tmp_pins(),
     _cut_hes(),
@@ -121,14 +122,16 @@ class ParallelConstruction {
   virtual ~ParallelConstruction() = default;
 
 
-  FlowProblem constructFlowHypergraph(const PartitionedHypergraph& phg,
+  FlowProblem constructFlowHypergraph(const SearchID search_id,
+                                      const PartitionedHypergraph& phg,
                                       const Subhypergraph& sub_hg,
                                       const PartitionID block_0,
                                       const PartitionID block_1,
                                       vec<HypernodeID>& whfc_to_node);
 
   // ! Only for testing
-  FlowProblem constructFlowHypergraph(const PartitionedHypergraph& phg,
+  FlowProblem constructFlowHypergraph(const SearchID search_id,
+                                      const PartitionedHypergraph& phg,
                                       const Subhypergraph& sub_hg,
                                       const PartitionID block_0,
                                       const PartitionID block_1,
@@ -136,7 +139,8 @@ class ParallelConstruction {
                                       const bool default_construction);
 
  private:
-  FlowProblem constructDefault(const PartitionedHypergraph& phg,
+  FlowProblem constructDefault(const SearchID search_id,
+                               const PartitionedHypergraph& phg,
                                const Subhypergraph& sub_hg,
                                const PartitionID block_0,
                                const PartitionID block_1,
@@ -168,7 +172,7 @@ class ParallelConstruction {
   FlowHypergraphBuilder& _flow_hg;
   whfc::HyperFlowCutter<whfc::Dinic>& _hfc;
 
-  ds::ConcurrentFlatMap<HypernodeID, whfc::Node> _node_to_whfc;
+  SharedMap& _node_to_whfc;
   ds::ThreadSafeFastResetFlagArray<> _visited_hns;
   tbb::enumerable_thread_specific<vec<whfc::Node>> _tmp_pins;
   tbb::concurrent_vector<TmpHyperedge> _cut_hes;

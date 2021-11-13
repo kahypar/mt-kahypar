@@ -11,6 +11,7 @@ target_sources(mt_kahypar_fast_tests PRIVATE
         sparsifier_hypergraph_test.cc
         array_test.cc
         sparse_map_test.cc
+        shared_mapping_test.cc
         pin_count_in_part_test.cc
 )
 

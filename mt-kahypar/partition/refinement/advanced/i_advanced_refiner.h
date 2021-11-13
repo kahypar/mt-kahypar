@@ -43,10 +43,11 @@ class IAdvancedRefiner {
     initializeImpl(hypergraph);
   }
 
-  MoveSequence refine(const PartitionedHypergraph& hypergraph,
+  MoveSequence refine(const SearchID search_id,
+                      const PartitionedHypergraph& hypergraph,
                       const Subhypergraph& sub_hg,
                       const HighResClockTimepoint& start) {
-    return refineImpl(hypergraph, sub_hg, start);
+    return refineImpl(search_id, hypergraph, sub_hg, start);
   }
 
   // ! Returns the maximum number of blocks that can be refined
@@ -74,7 +75,8 @@ class IAdvancedRefiner {
  private:
   virtual void initializeImpl(const PartitionedHypergraph& hypergraph) = 0;
 
-  virtual MoveSequence refineImpl(const PartitionedHypergraph& hypergraph,
+  virtual MoveSequence refineImpl(const SearchID search_id,
+                                  const PartitionedHypergraph& hypergraph,
                                   const Subhypergraph& sub_hg,
                                   const HighResClockTimepoint& start) = 0;
 

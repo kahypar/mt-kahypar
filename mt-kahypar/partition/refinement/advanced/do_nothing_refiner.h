@@ -40,7 +40,8 @@ class DoNothingAdvancedRefiner final : public IAdvancedRefiner {
  private:
   void initializeImpl(const PartitionedHypergraph&) override final { }
 
-  MoveSequence refineImpl(const PartitionedHypergraph&,
+  MoveSequence refineImpl(const SearchID,
+                          const PartitionedHypergraph&,
                           const Subhypergraph&,
                           const HighResClockTimepoint&) override final {
     return MoveSequence { {}, 0 };

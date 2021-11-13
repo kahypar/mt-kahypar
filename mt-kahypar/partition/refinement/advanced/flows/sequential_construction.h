@@ -98,11 +98,12 @@ class SequentialConstruction {
   explicit SequentialConstruction(const Hypergraph& hg,
                                   FlowHypergraphBuilder& flow_hg,
                                   whfc::HyperFlowCutter<whfc::Dinic>& hfc,
+                                  SharedMap& node_to_whfc,
                                   const Context& context) :
     _context(context),
     _flow_hg(flow_hg),
     _hfc(hfc),
-    _node_to_whfc(),
+    _node_to_whfc(node_to_whfc),
     _visited_hns(),
     _tmp_pins(),
     _cut_hes(),
@@ -118,14 +119,16 @@ class SequentialConstruction {
   virtual ~SequentialConstruction() = default;
 
 
-  FlowProblem constructFlowHypergraph(const PartitionedHypergraph& phg,
+  FlowProblem constructFlowHypergraph(const SearchID search_id,
+                                      const PartitionedHypergraph& phg,
                                       const Subhypergraph& sub_hg,
                                       const PartitionID block_0,
                                       const PartitionID block_1,
                                       vec<HypernodeID>& whfc_to_node);
 
   // ! Only for testing
-  FlowProblem constructFlowHypergraph(const PartitionedHypergraph& phg,
+  FlowProblem constructFlowHypergraph(const SearchID search_id,
+                                      const PartitionedHypergraph& phg,
                                       const Subhypergraph& sub_hg,
                                       const PartitionID block_0,
                                       const PartitionID block_1,
@@ -133,7 +136,8 @@ class SequentialConstruction {
                                       const bool default_construction);
 
  private:
-  FlowProblem constructDefault(const PartitionedHypergraph& phg,
+  FlowProblem constructDefault(const SearchID search_id,
+                               const PartitionedHypergraph& phg,
                                const Subhypergraph& sub_hg,
                                const PartitionID block_0,
                                const PartitionID block_1,
@@ -165,13 +169,13 @@ class SequentialConstruction {
   FlowHypergraphBuilder& _flow_hg;
   whfc::HyperFlowCutter<whfc::Dinic>& _hfc;
 
-  ds::DynamicSparseMap<HypernodeID, whfc::Node> _node_to_whfc;
+  SharedMap& _node_to_whfc;
   ds::ThreadSafeFastResetFlagArray<> _visited_hns;
   vec<whfc::Node> _tmp_pins;
   vec<whfc::Hyperedge> _cut_hes;
 
   vec<TmpPin> _pins;
-  ds::DynamicSparseMap<HyperedgeID, HyperedgeID> _he_to_whfc;
+  ds::DynamicFlatMap<HyperedgeID, HyperedgeID> _he_to_whfc;
 
   DynamicIdenticalNetDetection _identical_nets;
 };

@@ -24,13 +24,14 @@
 
 namespace mt_kahypar {
 
-MoveSequence FlowRefiner::refineImpl(const PartitionedHypergraph& phg,
+MoveSequence FlowRefiner::refineImpl(const SearchID search_id,
+                                     const PartitionedHypergraph& phg,
                                      const Subhypergraph& sub_hg,
                                      const HighResClockTimepoint& start) {
   MoveSequence sequence { { }, 0 };
   // Construct flow network that contains all vertices given in refinement nodes
   utils::Timer::instance().start_timer("construct_flow_problem", "Construct Flow Problem", true);
-  FlowProblem flow_problem = constructFlowHypergraph(phg, sub_hg);
+  FlowProblem flow_problem = constructFlowHypergraph(search_id, phg, sub_hg);
   utils::Timer::instance().stop_timer("construct_flow_problem");
   if ( flow_problem.total_cut - flow_problem.non_removable_cut > 0 ) {
     // Set maximum allowed block weights for block 0 and 1
@@ -134,7 +135,8 @@ bool FlowRefiner::computeFlow(const FlowProblem& flow_problem,
     _hfc.cs.flowValue <= _hfc.upperFlowBound && has_balanced_cut;
 }
 
-FlowProblem FlowRefiner::constructFlowHypergraph(const PartitionedHypergraph& phg,
+FlowProblem FlowRefiner::constructFlowHypergraph(const SearchID search_id,
+                                                 const PartitionedHypergraph& phg,
                                                  const Subhypergraph& sub_hg) {
   _block_0 = sub_hg.block_0;
   _block_1 = sub_hg.block_1;
@@ -143,10 +145,10 @@ FlowProblem FlowRefiner::constructFlowHypergraph(const PartitionedHypergraph& ph
 
   if ( _context.refinement.advanced.num_threads_per_search > 1 ) {
     flow_problem = _parallel_construction.constructFlowHypergraph(
-      phg, sub_hg, _block_0, _block_1, _whfc_to_node);
+      search_id, phg, sub_hg, _block_0, _block_1, _whfc_to_node);
   } else {
     flow_problem = _sequential_construction.constructFlowHypergraph(
-      phg, sub_hg, _block_0, _block_1, _whfc_to_node);
+      search_id, phg, sub_hg, _block_0, _block_1, _whfc_to_node);
   }
 
   DBG << "Flow Hypergraph [ Nodes =" << _flow_hg.numNodes()

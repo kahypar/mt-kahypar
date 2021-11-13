@@ -56,6 +56,7 @@ public:
     _active_searches(),
     _num_used_threads_lock(),
     _num_used_threads(0),
+    _hn_to_whfc(hg.initialNumNodes()),
     _num_refinements(0),
     _average_running_time(0.0) {
     for ( size_t i = 0; i < numAvailableRefiner(); ++i ) {
@@ -134,6 +135,9 @@ private:
   SpinLock _num_used_threads_lock;
   // ! Number of used threads
   CAtomic<size_t> _num_used_threads;
+
+  // Shared mapping between flow refiner from hypernode to whfc node
+  SharedMap _hn_to_whfc;
 
   size_t _num_refinements;
   double _average_running_time;
