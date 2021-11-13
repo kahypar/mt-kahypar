@@ -59,7 +59,6 @@ namespace mt_kahypar {
       }
     }
     _part_loads.clear();
-    _move_status.assign(_hypergraph.initialNumNodes(), false);
     /*metrics.km1 -= overall_improvement;*/
     metrics.imbalance = metrics::imbalance(phg, _context);
     /*ASSERT(metrics.km1 == metrics::km1(phg), V(metrics.km1) << V(metrics::km1(phg)));*/
@@ -106,9 +105,7 @@ namespace mt_kahypar {
       /*! TODO: maybe cut of at specific #nodes
        *  \todo maybe cut of at specific #nodes
        */
-      if (!_move_status[v]) {
-        _gain_cache.insert(phg, v);
-      }
+      _gain_cache.insert(phg, v);
     }
     _gain_cache.initBlockPQ();
     // disable to-Blocks that are too large
@@ -146,14 +143,12 @@ namespace mt_kahypar {
       if (move.to != kInvalidPartition) {
         continue;
       }
-      ASSERT(!_move_status[move.node]);
       ASSERT(move.from == part_id);
       bool moved = phg.changeNodePartWithGainCacheUpdate(move.node, move.from, move.to,
                                                     std::numeric_limits<HypernodeWeight>::max(),
                                                     []{}, delta_func);
 
       if (moved) {
-        _move_status[move.node] = true;
         estimatedImprovement += move.gain;
         _moves.push_back(move);
         const HyperedgeWeight new_to_load = phg.partLoad(move.to);
@@ -186,7 +181,7 @@ namespace mt_kahypar {
       if (phg.edgeSize(e) < _context.partition.ignore_hyperedge_size_threshold) {
         for (HypernodeID v : phg.pins(e)) {
           if (_neighbor_deduplicator[v] != _deduplication_time) {
-            if (phg.partID(v) == move.from && !_move_status[v]) {
+            if (phg.partID(v) == move.from) {
               _gain_cache.updateGain(phg, v, move);
             }
             _neighbor_deduplicator[v] = _deduplication_time;
