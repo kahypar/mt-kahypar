@@ -2,7 +2,6 @@
  * This file is part of KaHyPar.
  *
  * Copyright (C) 2019 Tobias Heuer <tobias.heuer@kit.edu>
- * Copyright (C) 2016 Sebastian Schlag <sebastian.schlag@kit.edu>
  *
  * KaHyPar is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -37,6 +36,17 @@
 namespace mt_kahypar {
 namespace ds {
 
+/**
+ * This is a concurrent hash map implementation on which several threads can operate (also assumes that the universe
+ * size is known beforehand). Each thread is associated with an identifier and can insert and retrieve
+ * key-value pairs with its identifier. The data structures performs good, if key collision between
+ * several threads happens rarely.
+ *
+ * The data structure works as follows: Let |U| be the universe size. The data structure works on an array
+ * of size |U|. Each entry contains a primary element and an vector storing key collisions. The operations
+ * works under the assumption that its highly likely that the searched element is stored in the primary element
+ * of each entry. If not we lookup the entry in the collision vector (hashing with chaining).
+ */
 template <typename Identifier = Mandatory,
           typename Key = Mandatory,
           typename Value = Mandatory>
@@ -93,8 +103,10 @@ class SharedMapping {
     ASSERT(!contains(id, key));
     ASSERT(static_cast<size_t>(key) < _elements.size());
     MapElement& map_elem = _elements[key];
+    // Try to insert key-value pair into the primary element
     if ( unlikely(!map_elem.primary_elem.acquire(id, value)) ) {
       bool success = false;
+      // If not successful, we try to reuse an existing entry
       for ( Element& elem : map_elem.secondary_elems ) {
         if ( elem.acquire(id, value) ) {
           success = true;
@@ -102,6 +114,7 @@ class SharedMapping {
         }
       }
       if ( !success ) {
+        // If again not successful we insert a new entry
         map_elem.secondary_elems.emplace_back(id, value);
       }
       __atomic_fetch_add(&map_elem.size, 1, __ATOMIC_RELAXED);
@@ -112,9 +125,11 @@ class SharedMapping {
     ASSERT(contains(id, key));
     ASSERT(static_cast<size_t>(key) < _elements.size());
     MapElement& map_elem = _elements[key];
-    if ( __atomic_load_n(&map_elem.primary_elem._id , __ATOMIC_RELAXED) == id ) {
+    // Check if key is contained in the primary element
+    if ( likely(__atomic_load_n(&map_elem.primary_elem._id , __ATOMIC_RELAXED) == id) ) {
       map_elem.primary_elem.release(id);
     } else if ( __atomic_load_n(&map_elem.size, __ATOMIC_RELAXED) > 0 ) {
+      // Otherwise, we search for the key in the collision resolution vector
       for ( Element& elem : map_elem.secondary_elems ) {
         if ( __atomic_load_n(&elem._id, __ATOMIC_RELAXED) == id ) {
           elem.release(id);
@@ -128,9 +143,11 @@ class SharedMapping {
   const Value* get_if_contained(const Identifier id, const Key key) const {
     ASSERT(static_cast<size_t>(key) < _elements.size());
     const MapElement& map_elem = _elements[key];
+    // Check if key is contained in the primary element
     if ( __atomic_load_n(&map_elem.primary_elem._id , __ATOMIC_RELAXED) == id ) {
       return &map_elem.primary_elem._value;
     } else if ( __atomic_load_n(&map_elem.size, __ATOMIC_RELAXED) > 0 ) {
+      // Otherwise, we search for the key in the collision resolution vector
       for ( const Element& elem : map_elem.secondary_elems ) {
         if ( __atomic_load_n(&elem._id, __ATOMIC_RELAXED) == id ) {
           return &elem._value;
@@ -143,9 +160,11 @@ class SharedMapping {
   bool contains(const Identifier id, const Key key) const {
     ASSERT(static_cast<size_t>(key) < _elements.size());
     const MapElement& map_elem = _elements[key];
+    // Check if key is contained in the primary element
     if ( __atomic_load_n(&map_elem.primary_elem._id , __ATOMIC_RELAXED) == id ) {
       return true;
     } else if ( __atomic_load_n(&map_elem.size, __ATOMIC_RELAXED) > 0 ) {
+      // Otherwise, we search for the key in the collision resolution vector
       for ( const Element& elem : map_elem.secondary_elems ) {
         if ( __atomic_load_n(&elem._id, __ATOMIC_RELAXED) == id ) {
           return true;

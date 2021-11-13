@@ -51,24 +51,6 @@ void executeConcurrent(const F1& f1, const F2& f2) {
   });
 }
 
-template <class F1, class F2, class F3>
-void executeConcurrent(const F1& f1, const F2& f2, const F3& f3) {
-  std::atomic<int> cnt(0);
-  tbb::parallel_invoke([&] {
-    cnt++;
-    while (cnt < 3) { }
-    f1();
-  }, [&] {
-    cnt++;
-    while (cnt < 3) { }
-    f2();
-  }, [&] {
-    cnt++;
-    while (cnt < 3) { }
-    f3();
-  });
-}
-
 TEST(ASharedMapping, InsertsElementsWithDistinctKeys) {
   SharedMap sm(10);
   sm.add(0,0,1);
@@ -134,7 +116,6 @@ TEST(ASharedMapping, InsertsElementsWithSameKeysConcurrently2) {
     sm.add(0,0,1);
   }, [&] {
     sm.add(1,0,2);
-  }, [&] {
     sm.add(2,0,3);
   });
   ASSERT_TRUE(sm.contains(0,0));
