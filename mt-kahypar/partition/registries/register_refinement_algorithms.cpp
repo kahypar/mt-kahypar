@@ -48,11 +48,11 @@
     return new refiner(hypergraph, context);                                                    \
   })
 
-#define REGISTER_ADVANCED_REFINER(id, refiner, t)                                                    \
-  static kahypar::meta::Registrar<AdvancedRefinementFactory> JOIN(register_ ## refiner, t)(          \
-    id,                                                                                              \
-    [](const Hypergraph& hypergraph, const Context& context, SharedMap& map) -> IAdvancedRefiner* {  \
-    return new refiner(hypergraph, context, map);                                                    \
+#define REGISTER_ADVANCED_REFINER(id, refiner, t)                                             \
+  static kahypar::meta::Registrar<AdvancedRefinementFactory> JOIN(register_ ## refiner, t)(   \
+    id,                                                                                       \
+    [](const Hypergraph& hypergraph, const Context& context) -> IAdvancedRefiner* {           \
+    return new refiner(hypergraph, context);                                                  \
   })
 
 namespace mt_kahypar {

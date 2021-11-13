@@ -67,8 +67,7 @@ void ParallelConstruction::DynamicIdenticalNetDetection::add(const TmpHyperedge&
   _hash_buckets[bucket_idx].identical_nets.push_back(tmp_he);
 }
 
-FlowProblem ParallelConstruction::constructFlowHypergraph(const SearchID search_id,
-                                                          const PartitionedHypergraph& phg,
+FlowProblem ParallelConstruction::constructFlowHypergraph(const PartitionedHypergraph& phg,
                                                           const Subhypergraph& sub_hg,
                                                           const PartitionID block_0,
                                                           const PartitionID block_1,
@@ -80,7 +79,7 @@ FlowProblem ParallelConstruction::constructFlowHypergraph(const SearchID search_
     // This algorithm iterates over all hyperedges and checks for all pins if
     // they are contained in the flow problem. Algorithm could have overheads, if
     // only a small portion of each hyperedge is contained in the flow hypergraph.
-    flow_problem = constructDefault(search_id, phg, sub_hg, block_0, block_1, whfc_to_node);
+    flow_problem = constructDefault(phg, sub_hg, block_0, block_1, whfc_to_node);
   } else {
     // This is a construction algorithm optimized for hypergraphs with large hyperedges.
     // Algorithm constructs a temporary pin list, therefore it could have overheads
@@ -112,8 +111,7 @@ FlowProblem ParallelConstruction::constructFlowHypergraph(const SearchID search_
   return flow_problem;
 }
 
-FlowProblem ParallelConstruction::constructFlowHypergraph(const SearchID search_id,
-                                                          const PartitionedHypergraph& phg,
+FlowProblem ParallelConstruction::constructFlowHypergraph(const PartitionedHypergraph& phg,
                                                           const Subhypergraph& sub_hg,
                                                           const PartitionID block_0,
                                                           const PartitionID block_1,
@@ -124,7 +122,7 @@ FlowProblem ParallelConstruction::constructFlowHypergraph(const SearchID search_
     // This algorithm iterates over all hyperedges and checks for all pins if
     // they are contained in the flow problem. Algorithm could have overheads, if
     // only a small portion of each hyperedge is contained in the flow hypergraph.
-    flow_problem = constructDefault(search_id, phg, sub_hg, block_0, block_1, whfc_to_node);
+    flow_problem = constructDefault(phg, sub_hg, block_0, block_1, whfc_to_node);
   } else {
     // This is a construction algorithm optimized for hypergraphs with large hyperedges.
     // Algorithm constructs a temporary pin list, therefore it could have overheads
@@ -156,8 +154,7 @@ FlowProblem ParallelConstruction::constructFlowHypergraph(const SearchID search_
   return flow_problem;
 }
 
-FlowProblem ParallelConstruction::constructDefault(const SearchID search_id,
-                                                   const PartitionedHypergraph& phg,
+FlowProblem ParallelConstruction::constructDefault(const PartitionedHypergraph& phg,
                                                    const Subhypergraph& sub_hg,
                                                    const PartitionID block_0,
                                                    const PartitionID block_1,
@@ -166,8 +163,12 @@ FlowProblem ParallelConstruction::constructDefault(const SearchID search_id,
   FlowProblem flow_problem;
   flow_problem.total_cut = 0;
   flow_problem.non_removable_cut = 0;
+  _node_to_whfc.clear();
 
-  tbb::parallel_invoke([&] {
+  tbb::parallel_invoke([&]() {
+    _node_to_whfc.clear();
+    _node_to_whfc.setMaxSize(sub_hg.numNodes());
+  }, [&] {
     whfc_to_node.resize(sub_hg.numNodes() + 2);
   }, [&] {
     _flow_hg.allocateNodes(sub_hg.numNodes() + 2);
@@ -190,7 +191,7 @@ FlowProblem ParallelConstruction::constructDefault(const SearchID search_id,
       const HypernodeID hn = sub_hg.nodes_of_block_0[i];
       const whfc::Node u(1 + i);
       whfc_to_node[u] = hn;
-      _node_to_whfc.add(search_id, hn, u);
+      _node_to_whfc[hn] = u;
       _flow_hg.nodeWeight(u) = whfc::NodeWeight(phg.nodeWeight(hn));
     });
   }, [&] {
@@ -203,7 +204,7 @@ FlowProblem ParallelConstruction::constructDefault(const SearchID search_id,
       const HypernodeID hn = sub_hg.nodes_of_block_1[i];
       const whfc::Node u(flow_problem.sink + 1 + i);
       whfc_to_node[u] = hn;
-      _node_to_whfc.add(search_id, hn, u);
+      _node_to_whfc[hn] = u;
       _flow_hg.nodeWeight(u) = whfc::NodeWeight(phg.nodeWeight(hn));
     });
   });
@@ -254,7 +255,7 @@ FlowProblem ParallelConstruction::constructDefault(const SearchID search_id,
           __atomic_fetch_add(&flow_problem.total_cut, he_weight, __ATOMIC_RELAXED);
         }
         for ( const HypernodeID& pin : phg.pins(he) ) {
-          const whfc::Node* whfc_pin = _node_to_whfc.get_if_contained(search_id, pin);
+          whfc::Node* whfc_pin = _node_to_whfc.get_if_contained(pin);
           if ( whfc_pin ) {
             push_into_tmp_pins(tmp_pins, *whfc_pin, he_hash, false);
           } else {
@@ -311,14 +312,6 @@ FlowProblem ParallelConstruction::constructDefault(const SearchID search_id,
     _flow_hg.finalizeCSRBucket(idx);
   });
   _flow_hg.finalizeHyperedges();
-
-  // Remove nodes from shared map
-  tbb::parallel_for(0UL, sub_hg.nodes_of_block_0.size(), [&](const size_t i) {
-    _node_to_whfc.remove(search_id, sub_hg.nodes_of_block_0[i]);
-  });
-  tbb::parallel_for(0UL, sub_hg.nodes_of_block_1.size(), [&](const size_t i) {
-    _node_to_whfc.remove(search_id, sub_hg.nodes_of_block_1[i]);
-  });
 
   return flow_problem;
 }

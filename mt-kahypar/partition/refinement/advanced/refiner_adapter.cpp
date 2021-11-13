@@ -75,7 +75,7 @@ MoveSequence AdvancedRefinerAdapter::refine(const SearchID search_id,
   const size_t refiner_idx = _active_searches[search_id].refiner_idx;
   _refiner[refiner_idx]->setNumThreadsForSearch(num_free_threads);
   MoveSequence moves = _refiner[refiner_idx]->refine(
-    search_id, phg, sub_hg, _active_searches[search_id].start);
+    phg, sub_hg, _active_searches[search_id].start);
   _num_used_threads -= num_free_threads;
   _active_searches[search_id].reaches_time_limit = moves.state == MoveSequenceState::TIME_LIMIT;
   return moves;
@@ -121,7 +121,6 @@ void AdvancedRefinerAdapter::reset() {
   for ( size_t i = 0; i < numAvailableRefiner(); ++i ) {
     _unused_refiners.push(i);
   }
-  _hn_to_whfc.clear();
   _active_searches.clear();
   _num_used_threads.store(0, std::memory_order_relaxed);
   _num_refinements = 0;
@@ -130,7 +129,7 @@ void AdvancedRefinerAdapter::reset() {
 
 std::unique_ptr<IAdvancedRefiner> AdvancedRefinerAdapter::initializeRefiner() {
   return AdvancedRefinementFactory::getInstance().createObject(
-    _context.refinement.advanced.algorithm, _hg, _context, _hn_to_whfc);
+    _context.refinement.advanced.algorithm, _hg, _context);
 }
 
 }

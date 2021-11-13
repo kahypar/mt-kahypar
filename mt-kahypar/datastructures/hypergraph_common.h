@@ -108,6 +108,8 @@ struct MoveSequence {
   MoveSequenceState state = MoveSequenceState::IN_PROGRESS;
 };
 
+
+
 struct Memento {
   HypernodeID u; // representative
   HypernodeID v; // contraction partner

@@ -65,5 +65,5 @@ using FMFactory = kahypar::meta::Factory<FMAlgorithm,
                                          IRefiner* (*)(Hypergraph&, const Context&)>;
 
 using AdvancedRefinementFactory = kahypar::meta::Factory<AdvancedRefinementAlgorithm,
-                                  IAdvancedRefiner* (*)(const Hypergraph&, const Context&, SharedMap& map)>;
+                                  IAdvancedRefiner* (*)(const Hypergraph&, const Context&)>;
 }  // namespace mt_kahypar

@@ -43,8 +43,7 @@ class FlowRefiner final : public IAdvancedRefiner {
 
  public:
   explicit FlowRefiner(const Hypergraph& hg,
-                       const Context& context,
-                       SharedMap& hn_to_whfc) :
+                       const Context& context) :
     _phg(nullptr),
     _context(context),
     _num_threads(0),
@@ -53,8 +52,8 @@ class FlowRefiner final : public IAdvancedRefiner {
     _flow_hg(),
     _hfc(_flow_hg, context.partition.seed),
     _whfc_to_node(),
-    _sequential_construction(hg, _flow_hg, _hfc, hn_to_whfc, context),
-    _parallel_construction(hg, _flow_hg, _hfc, hn_to_whfc, context) {
+    _sequential_construction(hg, _flow_hg, _hfc, context),
+    _parallel_construction(hg, _flow_hg, _hfc, context) {
     _hfc.find_most_balanced =
       _context.refinement.advanced.flows.find_most_balanced_cut;
     _hfc.timer.active = false;
@@ -79,8 +78,7 @@ class FlowRefiner final : public IAdvancedRefiner {
     _whfc_to_node.clear();
   }
 
-  MoveSequence refineImpl(const SearchID search_id,
-                          const PartitionedHypergraph& phg,
+  MoveSequence refineImpl(const PartitionedHypergraph& phg,
                           const Subhypergraph& sub_hg,
                           const HighResClockTimepoint& start);
 
@@ -88,8 +86,7 @@ class FlowRefiner final : public IAdvancedRefiner {
                    const HighResClockTimepoint& start,
                    bool& time_limit_reached);
 
-  FlowProblem constructFlowHypergraph(const SearchID search_id,
-                                      const PartitionedHypergraph& phg,
+  FlowProblem constructFlowHypergraph(const PartitionedHypergraph& phg,
                                       const Subhypergraph& sub_hg);
 
   PartitionID maxNumberOfBlocksPerSearchImpl() const {

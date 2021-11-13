@@ -21,14 +21,10 @@
 
 #pragma once
 
-#include "definitions.h" // whfc::Node
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
-#include "mt-kahypar/datastructures/shared_mapping.h"
 
 namespace mt_kahypar {
-
-using SharedMap = ds::SharedMapping<SearchID, HypernodeID, whfc::Node>;
 
 struct Subhypergraph {
   PartitionID block_0;

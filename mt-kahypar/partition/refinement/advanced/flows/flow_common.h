@@ -32,5 +32,4 @@ struct FlowProblem {
   HypernodeWeight weight_of_block_1;
 };
 
-
 } // namespace mt_kahypar
