@@ -32,9 +32,6 @@ namespace mt_kahypar {
 
     unused(refinement_nodes);
     if (!_is_initialized) throw std::runtime_error("Call initialize on judicious refinement before calling refine");
-    /*! TODO: keep moved nodes and distibute them onto buckets again
-     *  \todo keep moved nodes and distibute them onto buckets again
-     */
     for (PartitionID i = 0; i < _context.partition.k; ++i) {
       _part_loads.insert(i, phg.partLoad(i));
     }
@@ -52,9 +49,10 @@ namespace mt_kahypar {
         min_part_load = std::min(min_part_load, phg.partLoad(i));
       }
       const double load_ratio = static_cast<double>(current_max_load) / min_part_load;
-      if (load_ratio < _min_load_ratio) {   // (Review Note) This alone will not suffice as stopping criterion. must also include whether heaviest block yielded improvement
-        if (current_max_load <= initial_max_load) {
-        }
+      /*! TODO: maybe only abort the second time this happens
+       *  \todo maybe only abort the second time this happens
+       */
+      if (load_ratio < _min_load_ratio || current_max_load <= initial_max_load) {   // (Review Note) This alone will not suffice as stopping criterion. must also include whether heaviest block yielded improvement
         done = true;
       }
     }
