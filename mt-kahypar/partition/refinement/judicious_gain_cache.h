@@ -28,6 +28,19 @@ class JudiciousGainCache final {
 public:
   using PriorityQueue = ds::ExclusiveHandleHeap<ds::MaxHeap<HypernodeWeight, PartitionID>>;
 
+  /*! \enum pqStatus
+   *
+   *  Return status of findNextMove()
+   *  ok: move found
+   *  rollback: disabled blocks have been enabled and caller should perform a rollback
+   *  empty: no moves left
+   */
+  enum pqStatus {
+    ok = 0,
+    rollback = 1,
+    empty = 2,
+  };
+
   explicit JudiciousGainCache(const Context& context, HypernodeID num_nodes) :
     _context(context),
     _toPQs(static_cast<size_t>(context.partition.k), PriorityQueue(num_nodes)),
@@ -43,6 +56,15 @@ public:
     auto [target, gain] = computeBestTargetBlock(phg, v, pv, _parts);
     _toPQs[target].insert(v, gain);
     _target_parts[v] = target;
+  }
+
+  void initBlockPQ() {
+    ASSERT(_blockPQ.empty());
+    for (PartitionID i = 0; i < _context.partition.k; ++i) {
+      if (!_toPQs[i].empty()) {
+        _blockPQ.insert(i, _toPQs[i].topKey());
+      }
+    }
   }
 
   void updateGain(const PartitionedHypergraph& phg, const HypernodeID v, const Move& move) {
@@ -74,27 +96,20 @@ public:
     }
   }
 
-  bool findNextMove(const PartitionedHypergraph& phg, Move& m, bool& should_refiner_perform_rollback) {
-    if (!updatePQs(should_refiner_perform_rollback)) {
-      return false;
-    }
-    // this is pretty hacky... maybe come up with something better
-    if (should_refiner_perform_rollback) {
-      m.to = kInvalidPartition;
-      return true;
-    }
-
+  pqStatus findNextMove(const PartitionedHypergraph& phg, Move& m) {
     const PartitionID to = _blockPQ.top();
     const HypernodeID u = _toPQs[to].top();
     /*const Gain estimated_gain = _toPQs[to].topKey();*/
     auto [_to, gain] = computeBestTargetBlock(phg, u, phg.partID(u), _parts);
+    // this may not hold if the target block changes
     ASSERT(_blocks_enabled[to] || _enable_all_blocks);
     m.node = u;
     m.from = phg.partID(u);
     m.to = to;
     m.gain = gain;
-    _toPQs[to].deleteTop();  // blockPQ updates are done later, collectively.
-    return true;
+    _toPQs[to].deleteTop();
+    updateOrRemoveToPQFromBlocks(to);
+    return updatePQs();
   }
 
   void resetGainCache() {
@@ -122,22 +137,15 @@ public:
   }
 
 private:
-  bool updatePQs(bool& should_refiner_perform_rollback) {
-    for (PartitionID i = 0; i < _context.partition.k; ++i) {
-      if (_blocks_enabled[i] || _enable_all_blocks) {
-        updateOrRemoveToPQFromBlocks(i);
-      }
-    }
-    if (_enable_all_blocks) {
-      return !_blockPQ.empty();
-    }
-    // if not all blocks were enabled and no block is left, retry with all blocks
-    if (_blockPQ.empty()) {
+  pqStatus updatePQs() {
+    if (_blockPQ.empty() && !_enable_all_blocks) {
       _enable_all_blocks = true;
-      should_refiner_perform_rollback = true;
-      return updatePQs(should_refiner_perform_rollback);
+      for (PartitionID i = 0; i < _context.partition.k; ++i) {
+          updateOrRemoveToPQFromBlocks(i);
+      }
+      return _blockPQ.empty() ? pqStatus::empty : pqStatus::rollback;
     }
-    return true;
+    return _blockPQ.empty() ? pqStatus::empty : pqStatus::ok;
   }
 
   void updateOrRemoveToPQFromBlocks(const PartitionID i) {

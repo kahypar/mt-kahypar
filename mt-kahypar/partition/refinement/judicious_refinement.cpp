@@ -110,10 +110,13 @@ namespace mt_kahypar {
         _gain_cache.insert(phg, v);
       }
     }
+    _gain_cache.initBlockPQ();
     // disable to-Blocks that are too large
     const HyperedgeWeight from_load = _part_loads.topKey();
     for (PartitionID i = 0; i < _context.partition.k; ++i) {
-      _gain_cache.updateEnabledBlocks(part_id, from_load, phg.partLoad(i));
+      if (i != part_id) {
+        _gain_cache.updateEnabledBlocks(i, from_load, phg.partLoad(i));
+      }
     }
     auto delta_func = [&](const HyperedgeID he,
                           const HyperedgeWeight,
@@ -131,25 +134,24 @@ namespace mt_kahypar {
     size_t bestImprovementIndex = 0;
     Gain estimatedImprovement = 0;
     Gain bestImprovement = 0;
-    // set to true by gain cache if enabled PQs were exhausted and we need to perform a rollback before enabling all other PQs
-    bool should_refiner_perform_rollback = false;
-    while (!done && _gain_cache.findNextMove(phg, move, should_refiner_perform_rollback)) {
-      if (should_refiner_perform_rollback) {
+    while (!done) {
+      JudiciousGainCache::pqStatus status = _gain_cache.findNextMove(phg, move);
+      if (status == JudiciousGainCache::pqStatus::empty) done = true;
+      else if (status == JudiciousGainCache::pqStatus::rollback) {
         revertToBestLocalPrefix(phg, bestImprovementIndex, true);
-        should_refiner_perform_rollback = false;
         _moves.clear();
         bestImprovementIndex = 0;
         continue;
       }
-      bool moved = false;
       if (move.to != kInvalidPartition) {
-        ASSERT(!_move_status[move.node]);
-        ASSERT(move.from == part_id);
-        moved = phg.changeNodePartWithGainCacheUpdate(move.node, move.from, move.to,
-                                                      std::numeric_limits<HypernodeWeight>::max(),
-                                                      []{}, delta_func);
-
+        continue;
       }
+      ASSERT(!_move_status[move.node]);
+      ASSERT(move.from == part_id);
+      bool moved = phg.changeNodePartWithGainCacheUpdate(move.node, move.from, move.to,
+                                                    std::numeric_limits<HypernodeWeight>::max(),
+                                                    []{}, delta_func);
+
       if (moved) {
         _move_status[move.node] = true;
         estimatedImprovement += move.gain;
