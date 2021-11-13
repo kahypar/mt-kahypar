@@ -38,28 +38,32 @@ namespace mt_kahypar {
     for (PartitionID i = 0; i < _context.partition.k; ++i) {
       _part_loads.insert(i, phg.partLoad(i));
     }
+    const HyperedgeWeight initial_max_load = _part_loads.topKey();
+    HyperedgeWeight current_max_load = initial_max_load;
     bool done = false;
-    Gain overall_improvement = 0;
+    vec<Gain> improvements(_context.partition.k, 0);
     while (!done) {
       calculateRefinementNodes(phg);
       const PartitionID heaviest_part = _part_loads.top();
-      overall_improvement += doRefinement(phg, heaviest_part);
-      const HyperedgeWeight max_part_load = _part_loads.topKey();
-      HyperedgeWeight min_part_load = max_part_load;
+      improvements[heaviest_part] += doRefinement(phg, heaviest_part);
+      current_max_load = _part_loads.topKey();
+      HyperedgeWeight min_part_load = current_max_load;
       for (PartitionID i = 0; i < _context.partition.k; ++i) {
         min_part_load = std::min(min_part_load, phg.partLoad(i));
       }
-      const double load_ratio = static_cast<double>(max_part_load) / min_part_load;
+      const double load_ratio = static_cast<double>(current_max_load) / min_part_load;
       if (load_ratio < _min_load_ratio) {   // (Review Note) This alone will not suffice as stopping criterion. must also include whether heaviest block yielded improvement
+        if (current_max_load <= initial_max_load) {
+        }
         done = true;
       }
     }
     _part_loads.clear();
     _move_status.assign(_hypergraph.initialNumNodes(), false);
-    metrics.km1 -= overall_improvement;
+    /*metrics.km1 -= overall_improvement;*/
     metrics.imbalance = metrics::imbalance(phg, _context);
-    ASSERT(metrics.km1 == metrics::km1(phg), V(metrics.km1) << V(metrics::km1(phg)));
-    return overall_improvement > 0;
+    /*ASSERT(metrics.km1 == metrics::km1(phg), V(metrics.km1) << V(metrics::km1(phg)));*/
+    return current_max_load > initial_max_load;
   }
 
   void JudiciousRefiner::initializeImpl(PartitionedHypergraph& phg) {

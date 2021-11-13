@@ -152,25 +152,27 @@ private:
                                                                  const HypernodeID u,
                                                                  const PartitionID from,
                                                                  const vec<PartitionID> parts) {
-    const HypernodeWeight wu = phg.nodeWeight(u);
-    const HypernodeWeight from_weight = phg.partWeight(from);   // (Review Note) load not weight. also not a constraint
+    const HyperedgeWeight from_load = phg.partLoad(from);   // (Review Note) load not weight. also not a constraint
     PartitionID to = kInvalidPartition;
     HyperedgeWeight to_penalty = std::numeric_limits<HyperedgeWeight>::max();
-    HypernodeWeight best_to_weight = from_weight - wu;
+    HyperedgeWeight best_to_load = std::numeric_limits<HyperedgeWeight>::max();
     for (PartitionID i : parts) {
       if (i != from) {
-        const HypernodeWeight to_weight = phg.partWeight(i);
+        const HyperedgeWeight to_load = phg.partLoad(i);
         const HyperedgeWeight penalty = phg.moveToPenalty(u, i);
-        if ((penalty < to_penalty || (penalty == to_penalty && to_weight < best_to_weight))) {
+        if ((penalty < to_penalty || (penalty == to_penalty && to_load < best_to_load))) {
           to_penalty = penalty;
           to = i;
-          best_to_weight = to_weight;
+          best_to_load = to_load;
         }
       }
     }
     // (Review Note) If to block is light enough, we only care about benefit.
     // light enough means part_load[to] + penalty < part_load[from], I think
     // but penalty and load can be a good tie-breaker because otherwise all moves look the same
+    if (best_to_load + to_penalty < from_load) {
+      to_penalty = 0;
+    }
     const Gain gain = to != kInvalidPartition ? phg.moveFromBenefit(u) - to_penalty
                                               : std::numeric_limits<HyperedgeWeight>::min();
     return std::make_pair(to, gain);
