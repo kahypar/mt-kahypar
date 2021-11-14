@@ -87,8 +87,7 @@ namespace mt_kahypar {
     }
 
     // If we reach the original hypergraph and partition is imbalanced, we try to rebalance it
-/*
-    if (_context.type == kahypar::ContextType::main && !metrics::isBalanced(*_uncoarseningData.partitioned_hg, _context)) {
+    if (!_context.refinement.judicious.use_judicious_refinement && _context.type == kahypar::ContextType::main && !metrics::isBalanced(*_uncoarseningData.partitioned_hg, _context)) {
       const HyperedgeWeight quality_before = current_metrics.getMetric(
         kahypar::Mode::direct_kway, _context.partition.objective);
       if (_context.partition.verbose_output) {
@@ -136,7 +135,6 @@ namespace mt_kahypar {
              V(current_metrics.getMetric(kahypar::Mode::direct_kway, _context.partition.objective))
              << V(metrics::objective(*_uncoarseningData.partitioned_hg, _context.partition.objective)));
     }
-*/
     return std::move(*_uncoarseningData.partitioned_hg);
   }
 
@@ -158,39 +156,38 @@ namespace mt_kahypar {
     while( improvement_found ) {
       improvement_found = false;
 
-      if (_context.type == kahypar::ContextType::main) {
+      if (_context.refinement.judicious.use_judicious_refinement) {
         judicious_refiner.initialize(partitioned_hypergraph);
         improvement_found |= judicious_refiner.refine(partitioned_hypergraph, dummy, current_metrics, time_limit);
+      } else {
+
+        if ( label_propagation && _context.refinement.label_propagation.algorithm != LabelPropagationAlgorithm::do_nothing ) {
+          utils::Timer::instance().start_timer("initialize_lp_refiner", "Initialize LP Refiner");
+          label_propagation->initialize(partitioned_hypergraph);
+          utils::Timer::instance().stop_timer("initialize_lp_refiner");
+
+          utils::Timer::instance().start_timer("label_propagation", "Label Propagation");
+          improvement_found |= label_propagation->refine(partitioned_hypergraph, dummy, current_metrics, time_limit);
+          utils::Timer::instance().stop_timer("label_propagation");
+        }
+
+        if ( fm && _context.refinement.fm.algorithm != FMAlgorithm::do_nothing ) {
+          utils::Timer::instance().start_timer("initialize_fm_refiner", "Initialize FM Refiner");
+          fm->initialize(partitioned_hypergraph);
+          utils::Timer::instance().stop_timer("initialize_fm_refiner");
+
+          utils::Timer::instance().start_timer("fm", "FM");
+          improvement_found |= fm->refine(partitioned_hypergraph, dummy, current_metrics, time_limit);
+          utils::Timer::instance().stop_timer("fm");
+        }
+
+        if ( _context.type == kahypar::ContextType::main ) {
+          ASSERT(current_metrics.getMetric(kahypar::Mode::direct_kway, _context.partition.objective)
+                 == metrics::objective(partitioned_hypergraph, _context.partition.objective),
+                 "Actual metric" << V(metrics::km1(partitioned_hypergraph))
+                 << "does not match the metric updated by the refiners" << V(current_metrics.km1));
+        }
       }
-
-      if ( label_propagation && _context.refinement.label_propagation.algorithm != LabelPropagationAlgorithm::do_nothing ) {
-        utils::Timer::instance().start_timer("initialize_lp_refiner", "Initialize LP Refiner");
-        label_propagation->initialize(partitioned_hypergraph);
-        utils::Timer::instance().stop_timer("initialize_lp_refiner");
-
-        utils::Timer::instance().start_timer("label_propagation", "Label Propagation");
-        improvement_found |= label_propagation->refine(partitioned_hypergraph, dummy, current_metrics, time_limit);
-        utils::Timer::instance().stop_timer("label_propagation");
-      }
-
-      if ( fm && _context.refinement.fm.algorithm != FMAlgorithm::do_nothing ) {
-        utils::Timer::instance().start_timer("initialize_fm_refiner", "Initialize FM Refiner");
-        fm->initialize(partitioned_hypergraph);
-        utils::Timer::instance().stop_timer("initialize_fm_refiner");
-
-        utils::Timer::instance().start_timer("fm", "FM");
-        improvement_found |= fm->refine(partitioned_hypergraph, dummy, current_metrics, time_limit);
-        utils::Timer::instance().stop_timer("fm");
-      }
-
-/*
-      if ( _context.type == kahypar::ContextType::main ) {
-        ASSERT(current_metrics.getMetric(kahypar::Mode::direct_kway, _context.partition.objective)
-               == metrics::objective(partitioned_hypergraph, _context.partition.objective),
-               "Actual metric" << V(metrics::km1(partitioned_hypergraph))
-               << "does not match the metric updated by the refiners" << V(current_metrics.km1));
-      }
-*/
 
       if ( !_context.refinement.refine_until_no_improvement ) {
         break;

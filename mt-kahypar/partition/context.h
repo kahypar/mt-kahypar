@@ -167,6 +167,15 @@ struct DeterministicRefinementParameters {
 
 std::ostream& operator<<(std::ostream& out, const DeterministicRefinementParameters& params);
 
+struct JudiciousParameters {
+  bool use_judicious_refinement = false;
+  double part_load_margin = 1.03;
+  double min_load_ratio = 1.05;
+  double block_disable_factor = 0.9;
+};
+
+std::ostream& operator<<(std::ostream& out, const JudiciousParameters& judicious);
+
 struct RefinementParameters {
   LabelPropagationParameters label_propagation;
   FMParameters fm;
@@ -175,6 +184,7 @@ struct RefinementParameters {
   bool refine_until_no_improvement = false;
   size_t max_batch_size = std::numeric_limits<size_t>::max();
   size_t min_border_vertices_per_thread = 0;
+  JudiciousParameters judicious;
 };
 
 std::ostream & operator<< (std::ostream& str, const RefinementParameters& params);

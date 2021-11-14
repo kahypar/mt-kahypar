@@ -47,7 +47,8 @@ public:
     _blockPQ(static_cast<size_t>(context.partition.k)),
     _target_parts(num_nodes, kInvalidPartition),
     _parts(context.partition.k),
-    _blocks_enabled(context.partition.k, true) {
+    _blocks_enabled(context.partition.k, true),
+    _block_disable_factor(context.refinement.judicious.block_disable_factor) {
     std::iota(_parts.begin(), _parts.end(), 0);
   }
 
@@ -193,6 +194,6 @@ private:
   vec<PartitionID> _parts;
   vec<bool> _blocks_enabled;
   bool _enable_all_blocks = false;
-  const double _block_disable_factor = 0.9;
+  const double _block_disable_factor;
 };
 }

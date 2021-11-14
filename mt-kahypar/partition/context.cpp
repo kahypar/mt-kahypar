@@ -20,6 +20,7 @@
  ******************************************************************************/
 
 #include "context.h"
+#include <ostream>
 
 namespace mt_kahypar {
 
@@ -153,6 +154,17 @@ namespace mt_kahypar {
     return out;
   }
 
+  std::ostream& operator<<(std::ostream& out, const JudiciousParameters& params) {
+    out << "  Judicious Parameters:" << std::endl;
+    out << "    Use Judicious Refiner:            " << std::boolalpha << params.use_judicious_refinement << std::endl;
+    if (params.use_judicious_refinement) {
+      out << "    Part Load Margin:                 " << params.part_load_margin << std::endl;
+      out << "    Min Load Ratio:                   " << params.min_load_ratio << std::endl;
+      out << "    Block Disable Factor:             " << params.block_disable_factor << std::endl;
+    }
+    return out;
+  }
+
   std::ostream & operator<< (std::ostream& str, const RefinementParameters& params) {
     str << "Refinement Parameters:" << std::endl;
     str << "  Refine Until No Improvement:        " << std::boolalpha << params.refine_until_no_improvement << std::endl;
@@ -165,6 +177,7 @@ namespace mt_kahypar {
 #ifdef USE_STRONG_PARTITIONER
     str << "\n" << params.global_fm;
 #endif
+    str << "\n" << params.judicious;
     return str;
   }
 
