@@ -158,8 +158,10 @@ namespace mt_kahypar {
     while( improvement_found ) {
       improvement_found = false;
 
-      judicious_refiner.initialize(partitioned_hypergraph);
-      improvement_found |= judicious_refiner.refine(partitioned_hypergraph, dummy, current_metrics, time_limit);
+      if (_context.type == kahypar::ContextType::main) {
+        judicious_refiner.initialize(partitioned_hypergraph);
+        improvement_found |= judicious_refiner.refine(partitioned_hypergraph, dummy, current_metrics, time_limit);
+      }
 
       if ( label_propagation && _context.refinement.label_propagation.algorithm != LabelPropagationAlgorithm::do_nothing ) {
         utils::Timer::instance().start_timer("initialize_lp_refiner", "Initialize LP Refiner");
@@ -181,12 +183,14 @@ namespace mt_kahypar {
         utils::Timer::instance().stop_timer("fm");
       }
 
+/*
       if ( _context.type == kahypar::ContextType::main ) {
         ASSERT(current_metrics.getMetric(kahypar::Mode::direct_kway, _context.partition.objective)
                == metrics::objective(partitioned_hypergraph, _context.partition.objective),
                "Actual metric" << V(metrics::km1(partitioned_hypergraph))
                << "does not match the metric updated by the refiners" << V(current_metrics.km1));
       }
+*/
 
       if ( !_context.refinement.refine_until_no_improvement ) {
         break;
