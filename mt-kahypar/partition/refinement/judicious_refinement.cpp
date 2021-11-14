@@ -56,6 +56,7 @@ namespace mt_kahypar {
         done = true;
       }
     }
+    LOG << "improved judicious load by " << (initial_max_load - current_max_load);
     _part_loads.clear();
     /*metrics.km1 -= overall_improvement;*/
     metrics.imbalance = metrics::imbalance(phg, _context);
@@ -107,10 +108,10 @@ namespace mt_kahypar {
     }
     _gain_cache.initBlockPQ();
     // disable to-Blocks that are too large
-    const HyperedgeWeight from_load = _part_loads.topKey();
+    const HyperedgeWeight initial_from_load = _part_loads.topKey();
     for (PartitionID i = 0; i < _context.partition.k; ++i) {
       if (i != part_id) {
-        _gain_cache.updateEnabledBlocks(i, from_load, phg.partLoad(i));
+        _gain_cache.updateEnabledBlocks(i, initial_from_load, phg.partLoad(i));
       }
     }
     auto delta_func = [&](const HyperedgeID he,
@@ -138,7 +139,7 @@ namespace mt_kahypar {
         bestImprovementIndex = 0;
         continue;
       }
-      if (move.to != kInvalidPartition) {
+      if (move.to == kInvalidPartition) {
         continue;
       }
       ASSERT(move.from == part_id);
@@ -152,10 +153,10 @@ namespace mt_kahypar {
         const HyperedgeWeight new_to_load = phg.partLoad(move.to);
         const HyperedgeWeight new_from_load = phg.partLoad(move.from);
         _gain_cache.updateEnabledBlocks(move.to, new_from_load, new_to_load);
-        if (new_to_load >= new_from_load * _part_load_margin) {
+        if (new_to_load >= new_from_load * _part_load_margin || new_to_load > initial_from_load) {
           done = true;
         }
-        if (estimatedImprovement > bestImprovement) {
+        if (estimatedImprovement > bestImprovement && new_to_load <= initial_from_load) {
           bestImprovement = estimatedImprovement;
           bestImprovementIndex = _moves.size();
         }
