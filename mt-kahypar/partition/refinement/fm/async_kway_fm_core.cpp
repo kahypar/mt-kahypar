@@ -149,6 +149,8 @@ namespace mt_kahypar {
     HypernodeWeight heaviestPartWeight = 0;
     HypernodeWeight fromWeight = 0, toWeight = 0;
 
+    bool earlyBreak = false;
+
     while (!stopRule.searchShouldStop()) {
 
       //Attempt to find the next move. If none can be found then stop this search.
@@ -196,7 +198,19 @@ namespace mt_kahypar {
           bestImprovement = estimatedImprovement;
           bestImprovementIndex = localMoves.size();
 
-          applyBestLocalPrefixToSharedPartition(phg, bestImprovementIndex, bestImprovement, true);
+          bool apply_all_moves = false;
+          std::tie(bestImprovement, bestImprovementIndex) =
+              applyBestLocalPrefixToSharedPartition(phg, bestImprovementIndex, bestImprovement, apply_all_moves);
+
+          // If attributed gains are used and any moves were not applied on the global partition, terminate the local search
+          if (!apply_all_moves && bestImprovement == 0 && bestImprovementIndex == 0) {
+            localMoves.clear();
+            deltaPhg.clear();
+            earlyBreak = true;
+            break;
+          }
+
+          // If all moves went through on global partition reset local search
           bestImprovementIndex = 0;
           localMoves.clear();
 
@@ -220,8 +234,10 @@ namespace mt_kahypar {
       }
     }
 
-    std::tie(bestImprovement, bestImprovementIndex) =
-        applyBestLocalPrefixToSharedPartition(phg, bestImprovementIndex, bestImprovement, false);
+    if (!earlyBreak) {
+      std::tie(bestImprovement, bestImprovementIndex) =
+          applyBestLocalPrefixToSharedPartition(phg, bestImprovementIndex, bestImprovement, false);
+    }
 
     runStats.estimated_improvement = bestImprovement;
     if (!uncontraction_lock_only_for_moved) {
