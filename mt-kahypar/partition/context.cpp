@@ -387,14 +387,6 @@ namespace mt_kahypar {
                   LabelPropagationAlgorithm::label_propagation_km1);
     }
 
-    if ( partition.mode == kahypar::Mode::recursive_bisection ) {
-      ALGO_SWITCH("Recursive bisection mode is currently not supported."
-                          << "Do you want to use the direct k-way mode instead (Y/N)?",
-                  "Recursive bisection mode is currently not supported!",
-                  partition.mode,
-                  kahypar::Mode::direct_kway);
-    }
-
     ASSERT(partition.use_individual_part_weights != partition.max_part_weights.empty());
     if (partition.use_individual_part_weights && static_cast<size_t>(partition.k) != partition.max_part_weights.size()) {
       ALGO_SWITCH("Individual part weights specified, but number of parts doesn't match k."

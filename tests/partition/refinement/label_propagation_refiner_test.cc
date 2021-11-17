@@ -67,7 +67,7 @@ class ALabelPropagationRefiner : public Test {
     metrics() {
     context.partition.graph_filename = "../tests/instances/contracted_ibm01.hgr";
     context.partition.graph_community_filename = "../tests/instances/contracted_ibm01.hgr.community";
-    context.partition.mode = kahypar::Mode::direct_kway;
+    context.partition.mode = Mode::direct_kway;
     context.partition.objective = Config::OBJECTIVE;
     context.partition.epsilon = 0.25;
     context.partition.k = Config::K;

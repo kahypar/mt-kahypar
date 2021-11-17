@@ -28,6 +28,17 @@
 #include "mt-kahypar/io/partitioning_output.h"
 
 namespace mt_kahypar {
+  // required to use kahypar::Metrics
+  kahypar::Mode translateMode(Mode mode) {
+    switch (mode) {
+      case Mode::recursive_bisection: return kahypar::Mode::recursive_bisection;
+      case Mode::direct_kway: return kahypar::Mode::direct_kway;
+      case Mode::deep_multilevel: return kahypar::Mode::direct_kway;
+      case Mode::UNDEFINED: return kahypar::Mode::UNDEFINED;
+        // omit default case to trigger compiler warning for missing cases
+    }
+    return kahypar::Mode::UNDEFINED;
+  }
 
   PartitionedHypergraph&& NLevelUncoarsener::doUncoarsen(std::unique_ptr<IRefiner>& label_propagation,
                                                          std::unique_ptr<IRefiner>& fm) {
@@ -147,7 +158,7 @@ namespace mt_kahypar {
           total_batches_size += batch.size();
           // Update Progress Bar
           uncontraction_progress.setObjective(current_metrics.getMetric(
-              _context.partition.mode, _context.partition.objective));
+              translateMode(_context.partition.mode), _context.partition.objective));
           uncontraction_progress += batch.size();
         }
         batches.pop_back();
@@ -171,7 +182,7 @@ namespace mt_kahypar {
         const double time_limit = refinementTimeLimit(_context, _uncoarseningData.round_coarsening_times.back());
         globalRefine(*_uncoarseningData.partitioned_hg, fm, current_metrics, time_limit);
         uncontraction_progress.setObjective(current_metrics.getMetric(
-            _context.partition.mode, _context.partition.objective));
+            translateMode(_context.partition.mode), _context.partition.objective));
         _uncoarseningData.round_coarsening_times.pop_back();
       }
       _hierarchy.pop_back();
@@ -179,13 +190,13 @@ namespace mt_kahypar {
 
     // Top-Level Refinement on all vertices
     const HyperedgeWeight objective_before = current_metrics.getMetric(
-      _context.partition.mode, _context.partition.objective);
+      translateMode(_context.partition.mode), _context.partition.objective);
     const double time_limit = refinementTimeLimit(_context, _uncoarseningData.round_coarsening_times.back());
     globalRefine(*_uncoarseningData.partitioned_hg, fm, current_metrics, time_limit);
     _uncoarseningData.round_coarsening_times.pop_back();
     ASSERT(_uncoarseningData.round_coarsening_times.size() == 0);
     const HyperedgeWeight objective_after = current_metrics.getMetric(
-      _context.partition.mode, _context.partition.objective);
+      translateMode(_context.partition.mode), _context.partition.objective);
     if ( _context.partition.verbose_output && objective_after < objective_before ) {
       LOG << GREEN << "Top-Level Refinment improved objective from"
       << objective_before << "to" << objective_after << END;

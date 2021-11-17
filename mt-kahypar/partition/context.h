@@ -32,7 +32,7 @@ struct PartitioningParameters {
   #else
   Paradigm paradigm = Paradigm::multilevel;
   #endif
-  kahypar::Mode mode = kahypar::Mode::UNDEFINED;
+  Mode mode = Mode::UNDEFINED;
   kahypar::Objective objective = kahypar::Objective::UNDEFINED;
   FileFormat file_format = FileFormat::hMetis;
   double epsilon = std::numeric_limits<double>::max();

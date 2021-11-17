@@ -59,7 +59,7 @@ class AInitialPartitionerTest : public Test {
 
     context.partition.graph_filename = "../tests/instances/contracted_unweighted_ibm01.hgr";
     context.partition.graph_community_filename = "../tests/instances/contracted_ibm01.hgr.community";
-    context.partition.mode = kahypar::Mode::direct_kway;
+    context.partition.mode = Mode::direct_kway;
     context.partition.objective = kahypar::Objective::km1;
     context.partition.epsilon = 0.2;
     context.partition.k = Config::K;

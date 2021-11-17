@@ -26,6 +26,8 @@
 #include "mt-kahypar/partition/preprocessing/sparsification/degree_zero_hn_remover.h"
 #include "mt-kahypar/partition/preprocessing/sparsification/large_he_remover.h"
 #include "mt-kahypar/partition/preprocessing/community_detection/parallel_louvain.h"
+#include "mt-kahypar/partition/recursive_bisection.h"
+#include "mt-kahypar/partition/deep_multilevel.h"
 #include "mt-kahypar/utils/hypergraph_statistics.h"
 #include "mt-kahypar/utils/stats.h"
 #include "mt-kahypar/utils/timer.h"
@@ -213,7 +215,16 @@ namespace mt_kahypar {
     utils::Timer::instance().stop_timer("preprocessing");
 
     // ################## MULTILEVEL ##################
-    PartitionedHypergraph partitioned_hypergraph = multilevel::partition(hypergraph, context);
+    PartitionedHypergraph partitioned_hypergraph;
+    if (context.partition.mode == Mode::direct_kway) {
+      partitioned_hypergraph = multilevel::partition(hypergraph, context);
+    } else if (context.partition.mode == Mode::recursive_bisection) {
+      partitioned_hypergraph = recursive_bisection::partition(hypergraph, context);
+    } else if (context.partition.mode == Mode::deep_multilevel) {
+      partitioned_hypergraph = deep_multilevel::partition(hypergraph, context);
+    } else {
+      ERROR("Invalid mode: " << context.partition.mode);
+    }
 
     // ################## V-Cycle s##################
     if ( context.partition.num_vcycles > 0 ) {

@@ -54,6 +54,17 @@ namespace mt_kahypar {
     return os << static_cast<uint8_t>(paradigm);
   }
 
+  std::ostream & operator<< (std::ostream& os, const Mode& mode) {
+    switch (mode) {
+      case Mode::recursive_bisection: return os << "recursive_bisection";
+      case Mode::direct_kway: return os << "direct_kway";
+      case Mode::deep_multilevel: return os << "deep_multilevel";
+      case Mode::UNDEFINED: return os << "UNDEFINED";
+        // omit default case to trigger compiler warning for missing cases
+    }
+    return os << static_cast<uint8_t>(mode);
+  }
+
   std::ostream & operator<< (std::ostream& os, const LouvainEdgeWeight& type) {
     switch (type) {
       case LouvainEdgeWeight::hybrid: return os << "hybrid";
@@ -167,6 +178,18 @@ namespace mt_kahypar {
         // omit default case to trigger compiler warning for missing cases
     }
     return os << static_cast<uint8_t>(algo);
+  }
+
+  Mode modeFromString(const std::string& mode) {
+    if (mode == "recursive") {
+      return Mode::recursive_bisection;
+    } else if (mode == "direct") {
+      return Mode::direct_kway;
+    } else if (mode == "deep") {
+      return Mode::deep_multilevel;
+    }
+    ERROR("Illegal option: " + mode);
+    return Mode::UNDEFINED;
   }
 
   LouvainEdgeWeight louvainEdgeWeightFromString(const std::string& type) {

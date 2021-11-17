@@ -43,7 +43,7 @@ namespace mt_kahypar {
             context(),
             metrics() {
       context.partition.graph_filename = "../tests/instances/powersim.mtx.hgr";
-      context.partition.mode = kahypar::Mode::direct_kway;
+      context.partition.mode = Mode::direct_kway;
       context.partition.epsilon = 0.25;
       context.partition.verbose_output = false;
       context.partition.k = 8;

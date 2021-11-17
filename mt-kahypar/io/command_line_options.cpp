@@ -576,11 +576,13 @@ namespace mt_kahypar {
             ("mode,m",
              po::value<std::string>()->value_name("<string>")->required()->notifier(
                      [&](const std::string& mode) {
-                       context.partition.mode = kahypar::modeFromString(mode);
+                       context.partition.mode = modeFromString(mode);
                      }),
              "Partitioning mode: \n"
-             " - (recursive) bisection (currently not supported) \n"
-             " - (direct) k-way");
+             " - (direct) k-way\n"
+             " - (recursive) bisection\n"
+             " - (deep) multilevel"
+             );
 
     po::options_description preset_options("Preset Options", num_columns);
     preset_options.add_options()

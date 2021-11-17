@@ -43,6 +43,13 @@ enum class Paradigm : int8_t {
   nlevel
 };
 
+enum class Mode : uint8_t {
+  recursive_bisection,
+  direct_kway,
+  deep_multilevel,
+  UNDEFINED
+};
+
 enum class LouvainEdgeWeight : uint8_t {
   hybrid,
   uniform,
@@ -125,6 +132,8 @@ std::ostream & operator<< (std::ostream& os, const FileFormat& type);
 
 std::ostream & operator<< (std::ostream& os, const Paradigm& paradigm);
 
+std::ostream & operator<< (std::ostream& os, const Mode& mode);
+
 std::ostream & operator<< (std::ostream& os, const LouvainEdgeWeight& type);
 
 std::ostream & operator<< (std::ostream& os, const SimiliarNetCombinerStrategy& strategy);
@@ -144,6 +153,8 @@ std::ostream & operator<< (std::ostream& os, const InitialPartitioningMode& mode
 std::ostream & operator<< (std::ostream& os, const LabelPropagationAlgorithm& algo);
 
 std::ostream & operator<< (std::ostream& os, const FMAlgorithm& algo);
+
+Mode modeFromString(const std::string& mode);
 
 LouvainEdgeWeight louvainEdgeWeightFromString(const std::string& type);
 
