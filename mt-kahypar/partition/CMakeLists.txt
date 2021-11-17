@@ -11,6 +11,7 @@ set(PartitionSources
         context_enum_classes.cpp
         metrics.cpp
         recursive_bisection.cpp
+        deep_partitioning.cpp
         )
 
 foreach(modtarget IN LISTS TARGETS_WANTING_ALL_SOURCES)
