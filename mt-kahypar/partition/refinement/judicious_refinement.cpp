@@ -37,12 +37,14 @@ namespace mt_kahypar {
     }
     const HyperedgeWeight initial_max_load = _part_loads.topKey();
     HyperedgeWeight current_max_load = initial_max_load;
+    HyperedgeWeight last_max_load = initial_max_load;
     bool done = false;
     vec<Gain> improvements(_context.partition.k, 0);
     while (!done) {
       calculateRefinementNodes(phg);
       const PartitionID heaviest_part = _part_loads.top();
       improvements[heaviest_part] += doRefinement(phg, heaviest_part);
+      last_max_load = current_max_load;
       current_max_load = _part_loads.topKey();
       HyperedgeWeight min_part_load = current_max_load;
       for (PartitionID i = 0; i < _context.partition.k; ++i) {
@@ -52,7 +54,7 @@ namespace mt_kahypar {
       /*! TODO: maybe only abort the second time this happens
        *  \todo maybe only abort the second time this happens
        */
-      if (load_ratio < _min_load_ratio || current_max_load == initial_max_load) {   // (Review Note) This alone will not suffice as stopping criterion. must also include whether heaviest block yielded improvement
+      if (load_ratio < _min_load_ratio || current_max_load == last_max_load) {   // (Review Note) This alone will not suffice as stopping criterion. must also include whether heaviest block yielded improvement
         done = true;
       }
     }
@@ -134,6 +136,7 @@ namespace mt_kahypar {
       JudiciousGainCache::pqStatus status = _gain_cache.findNextMove(phg, move);
       if (status == JudiciousGainCache::pqStatus::empty) done = true;
       else if (status == JudiciousGainCache::pqStatus::rollback) {
+        LOG << "Did rollback";
         revertToBestLocalPrefix(phg, bestImprovementIndex, true);
         _moves.clear();
         bestImprovementIndex = 0;
