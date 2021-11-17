@@ -242,8 +242,6 @@ class Context {
 
   bool useSparsification() const ;
 
-  bool isMainRecursiveBisection() const ;
-
   void setupPartWeights(const HypernodeWeight total_hypergraph_weight);
 
   void setupContractionLimit(const HypernodeWeight total_hypergraph_weight);

@@ -219,11 +219,6 @@ namespace mt_kahypar {
            sparsification.use_similiar_net_removal;
   }
 
-  bool Context::isMainRecursiveBisection() const {
-    return partition.mode == kahypar::Mode::recursive_bisection &&
-           type == kahypar::ContextType::main;
-  }
-
   void Context::setupPartWeights(const HypernodeWeight total_hypergraph_weight) {
     if (partition.use_individual_part_weights) {
       ASSERT(static_cast<size_t>(partition.k) == partition.max_part_weights.size());
