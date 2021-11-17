@@ -52,7 +52,7 @@ namespace mt_kahypar {
       /*! TODO: maybe only abort the second time this happens
        *  \todo maybe only abort the second time this happens
        */
-      if (load_ratio < _min_load_ratio || current_max_load <= initial_max_load) {   // (Review Note) This alone will not suffice as stopping criterion. must also include whether heaviest block yielded improvement
+      if (load_ratio < _min_load_ratio || current_max_load == initial_max_load) {   // (Review Note) This alone will not suffice as stopping criterion. must also include whether heaviest block yielded improvement
         done = true;
       }
     }
@@ -61,7 +61,7 @@ namespace mt_kahypar {
     /*metrics.km1 -= overall_improvement;*/
     metrics.imbalance = metrics::imbalance(phg, _context);
     /*ASSERT(metrics.km1 == metrics::km1(phg), V(metrics.km1) << V(metrics::km1(phg)));*/
-    return current_max_load > initial_max_load;
+    return current_max_load < initial_max_load;
   }
 
   void JudiciousRefiner::initializeImpl(PartitionedHypergraph& phg) {
@@ -153,14 +153,17 @@ namespace mt_kahypar {
         const HyperedgeWeight new_to_load = phg.partLoad(move.to);
         const HyperedgeWeight new_from_load = phg.partLoad(move.from);
         _gain_cache.updateEnabledBlocks(move.to, new_from_load, new_to_load);
-        if (new_to_load >= new_from_load * _part_load_margin || new_to_load > initial_from_load) {
-          done = true;
-        }
-        if (estimatedImprovement > bestImprovement && new_to_load <= initial_from_load) {
+        _part_loads.adjustKey(move.from, new_from_load);
+        _part_loads.adjustKey(move.to, new_to_load);
+        if (_part_loads.topKey() <= initial_from_load) {
           bestImprovement = estimatedImprovement;
           bestImprovementIndex = _moves.size();
         }
-        updateNeighbors(phg, move);
+        if (_part_loads.topKey() >= new_from_load * _part_load_margin || _part_loads.topKey() > initial_from_load) {
+          done = true;
+        } else {
+          updateNeighbors(phg, move);
+        }
       }
     }
     revertToBestLocalPrefix(phg, bestImprovementIndex);
