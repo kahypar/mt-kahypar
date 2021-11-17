@@ -54,7 +54,7 @@ class MultiTryFMTest : public ::testing::TestWithParam<PartitionID> {
       context.shared_memory.num_threads = std::thread::hardware_concurrency();
 
       // Initial Partitioning
-      context.initial_partitioning.mode = InitialPartitioningMode::recursive;
+      context.initial_partitioning.mode = InitialPartitioningMode::deep_multilevel;
       context.initial_partitioning.runs = 1;
 
       context.partition.k = GetParam();

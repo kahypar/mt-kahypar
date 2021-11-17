@@ -18,7 +18,7 @@
  *
 ******************************************************************************/
 
-#include "mt-kahypar/partition/initial_partitioning/recursive_initial_partitioner.h"
+#include "mt-kahypar/partition/initial_partitioning/deep_initial_partitioner.h"
 
 #include <algorithm>
 #include <limits>
@@ -29,7 +29,7 @@
 #include "mt-kahypar/partition/multilevel.h"
 #include "mt-kahypar/partition/coarsening/multilevel_uncoarsener.h"
 #include "mt-kahypar/partition/coarsening/nlevel_uncoarsener.h"
-#include "mt-kahypar/partition/deep_partitioning.h"
+#include "mt-kahypar/partition/deep_multilevel.h"
 
 #include "mt-kahypar/partition/initial_partitioning/flat/pool_initial_partitioner.h"
 #include "mt-kahypar/utils/randomize.h"
@@ -38,12 +38,12 @@
 
 
 namespace mt_kahypar {
-  RecursiveInitialPartitioner::RecursiveInitialPartitioner(PartitionedHypergraph& hypergraph,
-                                                           const Context& context) :
+  DeepInitialPartitioner::DeepInitialPartitioner(PartitionedHypergraph& hypergraph,
+                                                 const Context& context) :
     _hg(hypergraph),
     _context(context) { }
 
-  void RecursiveInitialPartitioner::initialPartitionImpl() {
-    deep_partitioning::partition(_hg, _context);
+  void DeepInitialPartitioner::initialPartitionImpl() {
+    deep_multilevel::partition(_hg, _context);
   }
 } // namepace mt_kahypar

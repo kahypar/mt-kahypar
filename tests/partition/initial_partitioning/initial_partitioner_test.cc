@@ -25,7 +25,7 @@
 #include "mt-kahypar/io/hypergraph_io.h"
 #include "mt-kahypar/partition/context.h"
 
-#include "mt-kahypar/partition/initial_partitioning/recursive_initial_partitioner.h"
+#include "mt-kahypar/partition/initial_partitioning/deep_initial_partitioner.h"
 #include "mt-kahypar/partition/initial_partitioning/recursive_bisection_initial_partitioner.h"
 
 using ::testing::Test;
@@ -122,9 +122,9 @@ size_t AInitialPartitionerTest<Config>::num_threads = HardwareTopology::instance
 
 static constexpr double EPS = 0.05;
 
-typedef ::testing::Types<TestConfig<RecursiveInitialPartitioner, InitialPartitioningMode::recursive, 2>,
-                         TestConfig<RecursiveInitialPartitioner, InitialPartitioningMode::recursive, 3>,
-                         TestConfig<RecursiveInitialPartitioner, InitialPartitioningMode::recursive, 4>,
+typedef ::testing::Types<TestConfig<DeepInitialPartitioner, InitialPartitioningMode::deep_multilevel, 2>,
+                         TestConfig<DeepInitialPartitioner, InitialPartitioningMode::deep_multilevel, 3>,
+                         TestConfig<DeepInitialPartitioner, InitialPartitioningMode::deep_multilevel, 4>,
                          TestConfig<RecursiveBisectionInitialPartitioner, InitialPartitioningMode::recursive_bisection, 2>,
                          TestConfig<RecursiveBisectionInitialPartitioner, InitialPartitioningMode::recursive_bisection, 3>,
                          TestConfig<RecursiveBisectionInitialPartitioner, InitialPartitioningMode::recursive_bisection, 4> > TestConfigs;

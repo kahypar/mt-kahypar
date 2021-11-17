@@ -19,7 +19,7 @@
  *
 ******************************************************************************/
 
-#include "mt-kahypar/partition/deep_partitioning.h"
+#include "mt-kahypar/partition/deep_multilevel.h"
 
 #include <algorithm>
 #include <limits>
@@ -38,12 +38,12 @@
 
 
 /*!
- * DEEP PARTITIONING
+ * DEEP MULTILEVEL
  * For reason of simplicity we assume in the following description of the algorithm that
  * the number of threads p and the number of blocks k is a power of 2 and p = k. The deep
  * partitioning algorithm is invoked, if the number of vertices is 2 * c * p (where c is our
  * contraction limit multiplier).
- * The deep partitioning algorithm starts by performing parallel coarsening with p threads
+ * The deep multilevel algorithm starts by performing parallel coarsening with p threads
  * until c * p vertices are reached. Afterwards, the hypergraph is copied and the hypergraphs
  * are recursively coarsened with p / 2 threads each. Once p = 1 (and the contraction limit is 2 * c)
  * we initially bisect the hypergraph in two blocks. After initial partitioning each thread uncontracts
@@ -51,7 +51,7 @@
  * best partition of both recursions and further bisect each block of the partition to obtain a 4-way
  * partition and continue uncontraction with 2 threads until 8 * c hypernodes. This is repeated until
  * we obtain a k-way partition of the hypergraph.
- * Note, the deep partitioning algorithm is written in TBBInitializer continuation style. The TBBInitializer continuation
+ * Note, the deep multilevel algorithm is written in TBBInitializer continuation style. The TBBInitializer continuation
  * style is especially useful for recursive patterns. Each task defines its continuation task. A continuation
  * task defines how computation should continue, if all its child tasks are completed. As a consequence,
  * tasks can be spawned without waiting for their completion, because the continuation task is automatically
@@ -60,7 +60,7 @@
  *
  * Implementation Details
  * ----------------------
- * The deep partitioning algorithm starts by spawning the root DeepPartitionTask. The DeepPartitionTask spawns
+ * The deep multilevel algorithm starts by spawning the root DeepPartitionTask. The DeepPartitionTask spawns
  * two DeepPartitionChildTask. Within such a task the hypergraph is copied and coarsened to the next desired contraction limit.
  * Once that contraction limit is reached the DeepPartitionChildTask spawns again one DeepPartitionTask. Once the DeepPartitionTask
  * of a DeepPartitionChildTask terminates, the DeepChildContinuationTask starts and uncontracts the hypergraph to
@@ -459,7 +459,7 @@ namespace mt_kahypar {
       // Coarsening
       child_continuation._coarsener->coarsen();
 
-      // Call deep partitioning algorithm
+      // Call deep multilevel algorithm
       if ( _context.useSparsification() ) {
         // Sparsify Hypergraph, if heavy hyperedge removal is enabled
         child_continuation._sparsifier->sparsify(child_continuation._coarsener->coarsestHypergraph());
@@ -585,7 +585,7 @@ namespace mt_kahypar {
   }
 
 
-namespace deep_partitioning {
+namespace deep_multilevel {
   PartitionedHypergraph partition(Hypergraph& hypergraph, const Context& context) {
     PartitionedHypergraph partitioned_hypergraph(context.partition.k, hypergraph, parallel_tag_t());
     partition(partitioned_hypergraph, context);
@@ -610,5 +610,5 @@ namespace deep_partitioning {
       utils::Stats::instance().enable();
     }
   }
-} // namespace deep_partitioning
+} // namespace deep_multilevel
 } // namepace mt_kahypar

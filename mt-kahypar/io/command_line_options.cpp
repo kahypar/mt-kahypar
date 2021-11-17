@@ -429,7 +429,7 @@ namespace mt_kahypar {
                      })->default_value("recursive_bisection"),
              "Mode of initial partitioning:\n"
              "- direct\n"
-             "- recursive\n"
+             "- deep_multilevel\n"
              "- recursive_bisection")
             ("i-enabled-ip-algos",
             po::value<std::vector<bool> >(&context.initial_partitioning.enabled_ip_algos)->multitoken(),

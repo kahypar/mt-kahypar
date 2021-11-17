@@ -99,7 +99,7 @@ enum class InitialPartitioningAlgorithm : uint8_t {
 
 enum class InitialPartitioningMode : uint8_t {
   direct,
-  recursive,
+  deep_multilevel,
   recursive_bisection,
   UNDEFINED
 };

@@ -138,7 +138,7 @@ namespace mt_kahypar {
   std::ostream & operator<< (std::ostream& os, const InitialPartitioningMode& mode) {
     switch (mode) {
       case InitialPartitioningMode::direct: return os << "direct";
-      case InitialPartitioningMode::recursive: return os << "recursive";
+      case InitialPartitioningMode::deep_multilevel: return os << "deep_multilevel";
       case InitialPartitioningMode::recursive_bisection: return os << "recursive_bisection";
       case InitialPartitioningMode::UNDEFINED: return os << "UNDEFINED";
         // omit default case to trigger compiler warning for missing cases
@@ -266,8 +266,8 @@ namespace mt_kahypar {
   InitialPartitioningMode initialPartitioningModeFromString(const std::string& mode) {
     if (mode == "direct") {
       return InitialPartitioningMode::direct;
-    } else if (mode == "recursive") {
-      return InitialPartitioningMode::recursive;
+    } else if (mode == "deep_multilevel") {
+      return InitialPartitioningMode::deep_multilevel;
     } else if (mode == "recursive_bisection") {
       return InitialPartitioningMode::recursive_bisection;
     }

@@ -51,7 +51,7 @@ class ATwoWayFmRefiner : public Test {
     context.shared_memory.num_threads = 1;
 
     // Initial Partitioning
-    context.initial_partitioning.mode = InitialPartitioningMode::recursive;
+    context.initial_partitioning.mode = InitialPartitioningMode::deep_multilevel;
     context.initial_partitioning.runs = 1;
 
     // Read hypergraph

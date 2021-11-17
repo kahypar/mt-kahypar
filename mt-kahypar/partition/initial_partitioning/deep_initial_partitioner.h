@@ -2,7 +2,6 @@
  * This file is part of KaHyPar.
  *
  * Copyright (C) 2019 Tobias Heuer <tobias.heuer@kit.edu>
- * Copyright (C) 2021 Nikolai Maas <nikolai.maas@student.kit.edu>
  *
  * KaHyPar is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -22,14 +21,27 @@
 #pragma once
 
 #include "mt-kahypar/partition/context.h"
-
+#include "mt-kahypar/partition/initial_partitioning/i_initial_partitioner.h"
 
 namespace mt_kahypar {
-namespace deep_partitioning {
 
-PartitionedHypergraph partition(Hypergraph& hypergraph, const Context& context);
+class DeepInitialPartitioner: public IInitialPartitioner {
+ private:
+  static constexpr bool enable_heavy_assert = false;
 
-void partition(PartitionedHypergraph& hypergraph, const Context& context);
+ public:
+  DeepInitialPartitioner(PartitionedHypergraph& hypergraph, const Context& context);
+  DeepInitialPartitioner(const DeepInitialPartitioner&) = delete;
+  DeepInitialPartitioner(DeepInitialPartitioner&&) = delete;
+  DeepInitialPartitioner & operator= (const DeepInitialPartitioner &) = delete;
+  DeepInitialPartitioner & operator= (DeepInitialPartitioner &&) = delete;
 
-}  // namespace deep_partitioning
+ private:
+  void initialPartitionImpl() final;
+
+ private:
+  PartitionedHypergraph& _hg;
+  const Context& _context;
+};
+
 }  // namespace mt_kahypar

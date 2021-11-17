@@ -77,7 +77,7 @@ class ALabelPropagationRefiner : public Test {
     context.shared_memory.num_threads = num_threads;
 
     // Initial Partitioning
-    context.initial_partitioning.mode = InitialPartitioningMode::recursive;
+    context.initial_partitioning.mode = InitialPartitioningMode::deep_multilevel;
     context.initial_partitioning.runs = 1;
 
     // Label Propagation

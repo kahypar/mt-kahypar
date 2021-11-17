@@ -23,7 +23,7 @@
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/factories.h"
 
-#include "mt-kahypar/partition/initial_partitioning/recursive_initial_partitioner.h"
+#include "mt-kahypar/partition/initial_partitioning/deep_initial_partitioner.h"
 #include "mt-kahypar/partition/initial_partitioning/recursive_bisection_initial_partitioner.h"
 
 #define REGISTER_INITIAL_PARTITIONER(id, partitioner)                                           \
@@ -35,6 +35,6 @@
   })
 
 namespace mt_kahypar {
-REGISTER_INITIAL_PARTITIONER(InitialPartitioningMode::recursive, RecursiveInitialPartitioner);
+REGISTER_INITIAL_PARTITIONER(InitialPartitioningMode::deep_multilevel, DeepInitialPartitioner);
 REGISTER_INITIAL_PARTITIONER(InitialPartitioningMode::recursive_bisection, RecursiveBisectionInitialPartitioner);
 }  // namespace mt_kahypar
