@@ -40,7 +40,6 @@ void QuotientGraph::QuotientGraphEdge::add_hyperedge(const HyperedgeID he,
 void QuotientGraph::QuotientGraphEdge::reset() {
   cut_hes.clear();
   ownership.store(INVALID_SEARCH_ID, std::memory_order_relaxed);
-  is_in_queue.store(false, std::memory_order_relaxed);
   initial_num_cut_hes = 0;
   cut_he_weight.store(0, std::memory_order_relaxed);
 }
@@ -48,10 +47,7 @@ void QuotientGraph::QuotientGraphEdge::reset() {
 bool QuotientGraph::ActiveBlockSchedulingRound::popBlockPairFromQueue(BlockPair& blocks) {
   blocks.i = kInvalidPartition;
   blocks.j = kInvalidPartition;
-  if ( _unscheduled_blocks.try_pop(blocks) ) {
-    _quotient_graph[blocks.i][blocks.j].markAsNotInQueue();
-  }
-  return blocks.i != kInvalidPartition && blocks.j != kInvalidPartition;
+  return _unscheduled_blocks.try_pop(blocks);
 }
 
 
@@ -71,15 +67,9 @@ void QuotientGraph::ActiveBlockSchedulingRound::finalizeSearch(const BlockPair& 
   }
 }
 
-bool QuotientGraph::ActiveBlockSchedulingRound::pushBlockPairIntoQueue(const BlockPair& blocks) {
-  QuotientGraphEdge& qg_edge = _quotient_graph[blocks.i][blocks.j];
-  if ( qg_edge.markAsInQueue() ) {
-    _unscheduled_blocks.push(blocks);
-    ++_remaining_blocks;
-    return true;
-  } else {
-    return false;
-  }
+void QuotientGraph::ActiveBlockSchedulingRound::pushBlockPairIntoQueue(const BlockPair& blocks) {
+  _unscheduled_blocks.push(blocks);
+  ++_remaining_blocks;
 }
 
 void QuotientGraph::ActiveBlockScheduler::initialize(const vec<uint8_t>& active_blocks,
@@ -123,7 +113,7 @@ void QuotientGraph::ActiveBlockScheduler::initialize(const vec<uint8_t>& active_
             _quotient_graph[lhs.i][lhs.j].cut_he_weight >
             _quotient_graph[rhs.i][rhs.j].cut_he_weight );
       });
-    _rounds.emplace_back(_context, _quotient_graph, _num_active_searches_on_blocks);
+    _rounds.emplace_back(_context);
     ++_num_rounds;
     for ( const BlockPair& blocks : active_block_pairs ) {
       DBG << "Schedule blocks (" << blocks.i << "," << blocks.j << ") in round 1 ("
@@ -150,7 +140,7 @@ bool QuotientGraph::ActiveBlockScheduler::popBlockPairFromQueue(BlockPair& block
     if ( round == _num_rounds - 1 ) {
       // There must always be a next round available such that we can
       // reschedule block pairs that become active.
-      _rounds.emplace_back(_context, _quotient_graph, _num_active_searches_on_blocks);
+      _rounds.emplace_back(_context);
       ++_num_rounds;
     }
     _round_lock.unlock();
@@ -163,8 +153,6 @@ void QuotientGraph::ActiveBlockScheduler::finalizeSearch(const BlockPair& blocks
                                                          const size_t round,
                                                          const HyperedgeWeight improvement) {
   ASSERT(round < _rounds.size());
-  --_num_active_searches_on_blocks[blocks.i];
-  --_num_active_searches_on_blocks[blocks.j];
   bool block_0_becomes_active = false;
   bool block_1_becomes_active = false;
   _rounds[round].finalizeSearch(blocks, improvement,
@@ -242,7 +230,6 @@ SearchID QuotientGraph::requestNewSearch(AdvancedRefinerAdapter& refiner) {
     // Create new search
     search_id = tmp_search_id;
     _searches.emplace_back(blocks, round);
-    _active_block_scheduler.startSearch(blocks);
     _register_search_lock.unlock();
 
     // Associate refiner with search id
