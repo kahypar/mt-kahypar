@@ -123,7 +123,7 @@ void QuotientGraph::ActiveBlockScheduler::initialize(const vec<uint8_t>& active_
             _quotient_graph[lhs.i][lhs.j].cut_he_weight >
             _quotient_graph[rhs.i][rhs.j].cut_he_weight );
       });
-    _rounds.emplace_back(_context, _quotient_graph, _num_active_searches_on_blocks);
+    _rounds.emplace_back(_context, _quotient_graph);
     ++_num_rounds;
     for ( const BlockPair& blocks : active_block_pairs ) {
       DBG << "Schedule blocks (" << blocks.i << "," << blocks.j << ") in round 1 ("
@@ -150,7 +150,7 @@ bool QuotientGraph::ActiveBlockScheduler::popBlockPairFromQueue(BlockPair& block
     if ( round == _num_rounds - 1 ) {
       // There must always be a next round available such that we can
       // reschedule block pairs that become active.
-      _rounds.emplace_back(_context, _quotient_graph, _num_active_searches_on_blocks);
+      _rounds.emplace_back(_context, _quotient_graph);
       ++_num_rounds;
     }
     _round_lock.unlock();
@@ -163,8 +163,6 @@ void QuotientGraph::ActiveBlockScheduler::finalizeSearch(const BlockPair& blocks
                                                          const size_t round,
                                                          const HyperedgeWeight improvement) {
   ASSERT(round < _rounds.size());
-  --_num_active_searches_on_blocks[blocks.i];
-  --_num_active_searches_on_blocks[blocks.j];
   bool block_0_becomes_active = false;
   bool block_1_becomes_active = false;
   _rounds[round].finalizeSearch(blocks, improvement,
@@ -194,6 +192,21 @@ void QuotientGraph::ActiveBlockScheduler::finalizeSearch(const BlockPair& blocks
         _rounds[round + 1].pushBlockPairIntoQueue(BlockPair { blocks.j, j });
       }
     }
+  }
+
+  // Special case
+  if ( improvement > 0 && !_quotient_graph[blocks.i][blocks.j].isInQueue() && isActiveBlockPair(blocks.i, blocks.j) &&
+       ( _rounds[round].isActive(blocks.i) || _rounds[round].isActive(blocks.j) ) ) {
+        // The active block scheduling strategy works in multiple rounds and each contain a separate queue
+        // to store active block pairs. A block pair is only allowed to be contained in one queue.
+        // If a block becomes active, we schedule all quotient graph edges incident to the block in
+        // the next round. However, there could be some edges that are already contained in a queue of
+        // a previous round, which are then not scheduled in the next round. If this edge is scheduled and
+        // leads to an improvement, we schedule it in the next round here.
+        DBG << "Schedule blocks (" << blocks.i << "," << blocks.j << ") in round" << (round + 2) << " ("
+            << "Total Improvement =" << _quotient_graph[blocks.i][blocks.j].total_improvement << ","
+            << "Cut Weight =" << _quotient_graph[blocks.i][blocks.j].cut_he_weight << ")";
+        _rounds[round + 1].pushBlockPairIntoQueue(BlockPair { blocks.i, blocks.j });
   }
 
   if ( round == _first_active_round && _rounds[round].numRemainingBlocks() == 0 ) {
@@ -242,7 +255,6 @@ SearchID QuotientGraph::requestNewSearch(AdvancedRefinerAdapter& refiner) {
     // Create new search
     search_id = tmp_search_id;
     _searches.emplace_back(blocks, round);
-    _active_block_scheduler.startSearch(blocks);
     _register_search_lock.unlock();
 
     // Associate refiner with search id

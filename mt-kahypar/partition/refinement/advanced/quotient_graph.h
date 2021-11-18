@@ -79,6 +79,10 @@ class QuotientGraph {
       ownership.store(INVALID_SEARCH_ID);
     }
 
+    bool isInQueue() const {
+      return is_in_queue.load(std::memory_order_relaxed);
+    }
+
     // ! Marks quotient graph edge as in queue. Queued edges are scheduled
     // ! for refinement.
     bool markAsInQueue() {
@@ -120,11 +124,9 @@ class QuotientGraph {
 
    public:
     explicit ActiveBlockSchedulingRound(const Context& context,
-                                        vec<vec<QuotientGraphEdge>>& quotient_graph,
-                                        const vec<CAtomic<size_t>>& num_active_searches_on_blocks) :
+                                        vec<vec<QuotientGraphEdge>>& quotient_graph) :
       _context(context),
       _quotient_graph(quotient_graph),
-      _num_active_searches_on_blocks(num_active_searches_on_blocks),
       _unscheduled_blocks(),
       _round_improvement(0),
       _active_blocks_lock(),
@@ -152,6 +154,11 @@ class QuotientGraph {
       return _round_improvement.load(std::memory_order_relaxed);
     }
 
+    bool isActive(const PartitionID block) const {
+      ASSERT(block < _context.partition.k);
+      return _active_blocks[block];
+    }
+
     size_t numRemainingBlocks() const {
       return _remaining_blocks;
     }
@@ -159,8 +166,6 @@ class QuotientGraph {
    const Context& _context;
    // ! Quotient graph
     vec<vec<QuotientGraphEdge>>& _quotient_graph;
-    // ! Number of active searches on each block
-    const vec<CAtomic<size_t>>& _num_active_searches_on_blocks;
     // ! Queue that contains all unscheduled block pairs of the current round
     tbb::concurrent_queue<BlockPair> _unscheduled_blocks;
     // ! Current improvement made in this round
@@ -194,8 +199,6 @@ class QuotientGraph {
       _quotient_graph(quotient_graph),
       _num_rounds(0),
       _rounds(),
-      _num_active_searches_on_blocks(
-        context.partition.k, CAtomic<size_t>(0)),
       _min_improvement_per_round(0),
       _terminate(false),
       _round_lock(),
@@ -211,12 +214,6 @@ class QuotientGraph {
     // ! The corresponding block pair and the round to which this blocks corresponds
     // ! to are stored in blocks and round.
     bool popBlockPairFromQueue(BlockPair& blocks, size_t& round);
-
-    // ! Signals that the search on the corresponding block pair starts.
-    void startSearch(const BlockPair& blocks) {
-      ++_num_active_searches_on_blocks[blocks.i];
-      ++_num_active_searches_on_blocks[blocks.j];
-    }
 
     // ! Signals that the search on the corresponding block pair terminated.
     // ! If one the two blocks become active, we immediatly schedule all edges
@@ -243,8 +240,6 @@ class QuotientGraph {
     void reset() {
       _num_rounds.store(0);
       _rounds.clear();
-      _num_active_searches_on_blocks.assign(
-        _context.partition.k, CAtomic<size_t>(0));
       _first_active_round = 0;
       _terminate = false;
     }
@@ -258,8 +253,6 @@ class QuotientGraph {
     // Contains all active block scheduling rounds
     CAtomic<size_t> _num_rounds;
     tbb::concurrent_vector<ActiveBlockSchedulingRound> _rounds;
-    // ! Number of active searches on each block
-    vec<CAtomic<size_t>> _num_active_searches_on_blocks;
     // ! Minimum improvement per round to continue with next round
     HyperedgeWeight _min_improvement_per_round;
     // ! If true, then search is immediatly terminated
