@@ -49,7 +49,7 @@ public:
 
   void initializeImpl(PartitionedHypergraph& phg) final;
   void calculateRefinementNodes(PartitionedHypergraph& phg);
-  Gain doRefinement(PartitionedHypergraph& phg, PartitionID part_id);
+  void doRefinement(PartitionedHypergraph& phg, PartitionID part_id);
   void revertToBestLocalPrefix(PartitionedHypergraph& phg, size_t bestGainIndex, bool update_gain_cache = false);
   void updateNeighbors(PartitionedHypergraph& phg, const Move& move);
 private:
@@ -66,5 +66,8 @@ private:
   // ! Used after a move. Stores whether a neighbor of the just moved vertex has already been updated.
   vec<HypernodeID> _neighbor_deduplicator;
   HypernodeID _deduplication_time = 1;
+  size_t _best_improvement_index = 0;
+  Gain _estimated_improvement = 0;
+  Gain _best_improvement = 0;
 };
 }

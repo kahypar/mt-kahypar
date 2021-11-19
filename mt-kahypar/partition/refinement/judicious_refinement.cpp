@@ -20,6 +20,7 @@
 
 #include "mt-kahypar/partition/refinement/judicious_refinement.h"
 #include "mt-kahypar/datastructures/hypergraph_common.h"
+#include <cmath>
 #include <mt-kahypar/datastructures/priority_queue.h>
 #include "mt-kahypar/partition/metrics.h"
 
@@ -39,11 +40,13 @@ namespace mt_kahypar {
     HyperedgeWeight current_max_load = initial_max_load;
     HyperedgeWeight last_max_load = initial_max_load;
     bool done = false;
-    vec<Gain> improvements(_context.partition.k, 0);
     while (!done) {
       calculateRefinementNodes(phg);
       const PartitionID heaviest_part = _part_loads.top();
-      improvements[heaviest_part] += doRefinement(phg, heaviest_part);
+      doRefinement(phg, heaviest_part);
+      for (PartitionID i = 0; i < _context.partition.k; ++i) {
+        _part_loads.adjustKey(i, phg.partLoad(i));
+      }
       last_max_load = current_max_load;
       current_max_load = _part_loads.topKey();
       HyperedgeWeight min_part_load = current_max_load;
@@ -58,11 +61,10 @@ namespace mt_kahypar {
         done = true;
       }
     }
+    revertToBestLocalPrefix(phg, _best_improvement_index);
     LOG << "improved judicious load by " << (initial_max_load - current_max_load);
     _part_loads.clear();
-    /*metrics.km1 -= overall_improvement;*/
     metrics.imbalance = metrics::imbalance(phg, _context);
-    /*ASSERT(metrics.km1 == metrics::km1(phg), V(metrics.km1) << V(metrics::km1(phg)));*/
     return current_max_load < initial_max_load;
   }
 
@@ -100,7 +102,7 @@ namespace mt_kahypar {
     }
   }
 
-  Gain JudiciousRefiner::doRefinement(PartitionedHypergraph& phg, PartitionID part_id) {
+  void JudiciousRefiner::doRefinement(PartitionedHypergraph& phg, PartitionID part_id) {
     auto& refinement_nodes = _refinement_nodes[part_id];
     for (HypernodeID v : refinement_nodes) {
       /*! TODO: maybe cut of at specific #nodes
@@ -129,17 +131,16 @@ namespace mt_kahypar {
     };
     Move move;
     bool done = false;
-    size_t bestImprovementIndex = 0;
-    Gain estimatedImprovement = 0;
-    Gain bestImprovement = 0;
     while (!done) {
       JudiciousGainCache::pqStatus status = _gain_cache.findNextMove(phg, move);
       if (status == JudiciousGainCache::pqStatus::empty) done = true;
       else if (status == JudiciousGainCache::pqStatus::rollback) {
         LOG << "Did rollback";
-        revertToBestLocalPrefix(phg, bestImprovementIndex, true);
+        revertToBestLocalPrefix(phg, _best_improvement_index, true);
         _moves.clear();
-        bestImprovementIndex = 0;
+        _best_improvement_index = 0;
+        _estimated_improvement = 0;
+        _best_improvement = 0;
         continue;
       }
       if (move.to == kInvalidPartition) {
@@ -151,34 +152,44 @@ namespace mt_kahypar {
                                                     []{}, delta_func);
 
       if (moved) {
-        estimatedImprovement += move.gain;
+        _estimated_improvement += move.gain;
         _moves.push_back(move);
         const HyperedgeWeight new_to_load = phg.partLoad(move.to);
         const HyperedgeWeight new_from_load = phg.partLoad(move.from);
+        ASSERT(_estimated_improvement == initial_from_load - new_to_load);
         _gain_cache.updateEnabledBlocks(move.to, new_from_load, new_to_load);
         _part_loads.adjustKey(move.from, new_from_load);
         _part_loads.adjustKey(move.to, new_to_load);
-        if (_part_loads.topKey() <= initial_from_load) {
-          bestImprovement = estimatedImprovement;
-          bestImprovementIndex = _moves.size();
+        if (_estimated_improvement >= _best_improvement) {
+          ASSERT(_part_loads.topKey() <= new_from_load);
+          _best_improvement = _estimated_improvement;
+          _best_improvement_index = _moves.size();
         }
-        if (_part_loads.topKey() >= new_from_load * _part_load_margin || _part_loads.topKey() > initial_from_load) {
+        // TODO: part of this can probably happen before the move to prevent reverting a bad move that is not accepted
+        if (_part_loads.topKey() >= new_from_load * _part_load_margin) {
           done = true;
-        } else {
+        } else if (move.gain >= 0) {
           updateNeighbors(phg, move);
+        } else if (_part_loads.topKey() > initial_from_load) {
+          // decide whether to accept loss of improvement
+          size_t r = rand() % 100;
+          double p = std::exp(move.gain / _part_loads.topKey()) * 100;
+          LOG << V(p) << V(r);
+          if (p > r) {
+            revertToBestLocalPrefix(phg, _best_improvement_index);
+            _moves.clear();
+            _best_improvement_index = 0;
+            _estimated_improvement = 0;
+            _best_improvement = 0;
+            done = true;
+          }
         }
       }
     }
-    revertToBestLocalPrefix(phg, bestImprovementIndex);
     _gain_cache.resetGainCache();
     tbb::parallel_for(0UL, _moves.size(), [&](const MoveID i) {
       phg.recomputeMoveFromBenefit(_moves[i].node);
     });
-    for (PartitionID i = 0; i < _context.partition.k; ++i) {
-      _part_loads.adjustKey(i, phg.partLoad(i));
-    }
-    _moves.clear();
-    return bestImprovement;
   }
 
   void JudiciousRefiner::updateNeighbors(PartitionedHypergraph& phg, const Move& move) {
