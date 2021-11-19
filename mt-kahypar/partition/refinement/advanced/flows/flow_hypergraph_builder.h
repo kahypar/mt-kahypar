@@ -193,9 +193,7 @@ namespace mt_kahypar {
                                    const size_t num_pins);
 
     void setNumCSRBuckets(const size_t num_buckets) {
-      if ( num_buckets > _tmp_csr_buckets.size() ) {
-        _tmp_csr_buckets.resize(num_buckets);
-      }
+      _tmp_csr_buckets.resize(num_buckets);
     }
 
     void initializeCSRBucket(const size_t bucket, const size_t num_hes, const size_t num_pins) {

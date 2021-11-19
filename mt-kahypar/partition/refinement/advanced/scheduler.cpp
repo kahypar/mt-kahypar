@@ -134,7 +134,9 @@ bool AdvancedRefinementScheduler::refineImpl(
   _stats.update_global_stats();
 
   // Update Gain Cache
-  if ( _context.partition.paradigm == Paradigm::nlevel && phg.isGainCacheInitialized() ) {
+  if ( ( _context.partition.paradigm == Paradigm::nlevel ||
+         _context.refinement.refine_until_no_improvement ) &&
+         phg.isGainCacheInitialized() ) {
     phg.doParallelForAllNodes([&](const HypernodeID& hn) {
       if ( _was_moved[hn] ) {
         phg.recomputeMoveFromBenefit(hn);
@@ -142,6 +144,7 @@ bool AdvancedRefinementScheduler::refineImpl(
       }
     });
   }
+
   _quotient_graph.storePartition(phg);
   HEAVY_REFINEMENT_ASSERT(phg.checkTrackedPartitionInformation());
   _phg = nullptr;
@@ -178,9 +181,9 @@ bool changeNodePart(PartitionedHypergraph& phg,
                     const PartitionID from,
                     const PartitionID to,
                     const F& objective_delta,
-                    const bool is_nlevel) {
+                    const bool gain_cache_update) {
   bool success = false;
-  if ( is_nlevel && phg.isGainCacheInitialized()) {
+  if ( gain_cache_update && phg.isGainCacheInitialized()) {
     success = phg.changeNodePartWithGainCacheUpdate(hn, from, to,
       std::numeric_limits<HypernodeWeight>::max(), [] { }, objective_delta);
   } else {
@@ -195,13 +198,13 @@ template<typename F>
 void applyMoveSequence(PartitionedHypergraph& phg,
                        const MoveSequence& sequence,
                        const F& objective_delta,
-                       const bool is_nlevel,
+                       const bool gain_cache_update,
                        vec<uint8_t>& was_moved,
                        vec<NewCutHyperedge>& new_cut_hes) {
   for ( const Move& move : sequence.moves ) {
     ASSERT(move.from == phg.partID(move.node));
     if ( move.from != move.to ) {
-      changeNodePart(phg, move.node, move.from, move.to, objective_delta, is_nlevel);
+      changeNodePart(phg, move.node, move.from, move.to, objective_delta, gain_cache_update);
       was_moved[move.node] = uint8_t(true);
       // If move increases the pin count of some hyperedges in block 'move.to' to one 1
       // we set the corresponding block here.
@@ -218,11 +221,11 @@ template<typename F>
 void revertMoveSequence(PartitionedHypergraph& phg,
                         const MoveSequence& sequence,
                         const F& objective_delta,
-                        const bool is_nlevel) {
+                        const bool gain_cache_update) {
   for ( const Move& move : sequence.moves ) {
     if ( move.from != move.to ) {
       ASSERT(phg.partID(move.node) == move.to);
-      changeNodePart(phg, move.node, move.to, move.from, objective_delta, is_nlevel);
+      changeNodePart(phg, move.node, move.to, move.from, objective_delta, gain_cache_update);
     }
   }
 }
@@ -284,8 +287,10 @@ HyperedgeWeight AdvancedRefinementScheduler::applyMoves(const SearchID search_id
   PartWeightUpdateResult update_res = partWeightUpdate(part_weight_deltas, false);
   if ( update_res.is_balanced ) {
     // Apply move sequence to partition
-    const bool is_nlevel = _context.partition.paradigm == Paradigm::nlevel;
-    applyMoveSequence(*_phg, sequence, delta_func, is_nlevel, _was_moved, new_cut_hes);
+    const bool gain_cache_update =
+      _context.partition.paradigm == Paradigm::nlevel ||
+      _context.refinement.refine_until_no_improvement;
+    applyMoveSequence(*_phg, sequence, delta_func, gain_cache_update, _was_moved, new_cut_hes);
 
     if ( improvement < 0 ) {
       update_res = partWeightUpdate(part_weight_deltas, true);
@@ -295,7 +300,7 @@ HyperedgeWeight AdvancedRefinementScheduler::applyMoves(const SearchID search_id
             << "Expected Improvement =" << sequence.expected_improvement
             << ", Real Improvement =" << improvement
             << ", Search ID =" << search_id << ")" << END;
-        revertMoveSequence(*_phg, sequence, delta_func, is_nlevel);
+        revertMoveSequence(*_phg, sequence, delta_func, gain_cache_update);
         ++_stats.failed_updates_due_to_conflicting_moves;
         sequence.state = MoveSequenceState::WORSEN_SOLUTION_QUALITY;
       } else {

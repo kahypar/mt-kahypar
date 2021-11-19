@@ -605,13 +605,11 @@ namespace mt_kahypar {
         }
 
         if ( advanced && _context.refinement.advanced.algorithm != AdvancedRefinementAlgorithm::do_nothing ) {
-          utils::Timer::instance().start_timer("initialize_advanced_refiner", "Initialize Advanced Refiner",
-            false, _context.type == kahypar::ContextType::main);
+          utils::Timer::instance().start_timer("initialize_advanced_refiner", "Initialize Advanced Refiner");
           advanced->initialize(partitioned_hypergraph);
           utils::Timer::instance().stop_timer("initialize_advanced_refiner");
 
-          utils::Timer::instance().start_timer("advanced_refiner", "Advanced Refiner",
-            false, _context.type == kahypar::ContextType::main);
+          utils::Timer::instance().start_timer("advanced_refiner", "Advanced Refiner");
           improvement_found |= advanced->refine(partitioned_hypergraph, {}, current_metrics, time_limit);
           utils::Timer::instance().stop_timer("advanced_refiner");
         }

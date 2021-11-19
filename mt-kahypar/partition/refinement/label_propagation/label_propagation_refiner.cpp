@@ -138,7 +138,9 @@ namespace mt_kahypar {
       });
     }
 
-    if ( _context.partition.paradigm == Paradigm::nlevel && hypergraph.isGainCacheInitialized() ) {
+    if ( ( _context.partition.paradigm == Paradigm::nlevel ||
+           _context.refinement.refine_until_no_improvement ) &&
+           hypergraph.isGainCacheInitialized() ) {
       auto recompute = [&](size_t j) {
         if ( _active_node_was_moved[j] ) {
           hypergraph.recomputeMoveFromBenefit(_active_nodes[j]);
