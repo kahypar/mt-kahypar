@@ -38,16 +38,19 @@ namespace mt_kahypar {
     }
     const HyperedgeWeight initial_max_load = _part_loads.topKey();
     HyperedgeWeight current_max_load = initial_max_load;
-    HyperedgeWeight last_max_load = initial_max_load;
+    _best_improvement_index = 0;
+    _best_improvement = 0;
+    _estimated_improvement = 0;
+    size_t num_negative_refinements = 0;
     bool done = false;
     while (!done) {
       calculateRefinementNodes(phg);
       const PartitionID heaviest_part = _part_loads.top();
+      const Gain last_best_improvement = _best_improvement;
       doRefinement(phg, heaviest_part);
       for (PartitionID i = 0; i < _context.partition.k; ++i) {
         _part_loads.adjustKey(i, phg.partLoad(i));
       }
-      last_max_load = current_max_load;
       current_max_load = _part_loads.topKey();
       HyperedgeWeight min_part_load = current_max_load;
       for (PartitionID i = 0; i < _context.partition.k; ++i) {
@@ -57,12 +60,19 @@ namespace mt_kahypar {
       /*! TODO: maybe only abort the second time this happens
        *  \todo maybe only abort the second time this happens
        */
-      if (load_ratio < _min_load_ratio || current_max_load == last_max_load) {   // (Review Note) This alone will not suffice as stopping criterion. must also include whether heaviest block yielded improvement
+      HyperedgeWeight delta = _best_improvement - last_best_improvement;
+      if (delta <= 0) {
+        num_negative_refinements++;
+      } else {
+        num_negative_refinements = 0;
+      }
+      if (load_ratio < _min_load_ratio || num_negative_refinements >= 2) {   // (Review Note) This alone will not suffice as stopping criterion. must also include whether heaviest block yielded improvement
         done = true;
       }
     }
     revertToBestLocalPrefix(phg, _best_improvement_index);
-    LOG << "improved judicious load by " << (initial_max_load - current_max_load);
+    LOG << "improved judicious load by " << _best_improvement;
+    LOG << V(metrics::judiciousLoad(phg));
     _part_loads.clear();
     metrics.imbalance = metrics::imbalance(phg, _context);
     return current_max_load < initial_max_load;
@@ -110,14 +120,11 @@ namespace mt_kahypar {
        */
       _gain_cache.insert(phg, v);
     }
-    _gain_cache.initBlockPQ();
+    _part_loads.deleteTop();
+    const HyperedgeWeight initial_from_load = phg.partLoad(part_id);
+    HyperedgeWeight from_load = initial_from_load;
     // disable to-Blocks that are too large
-    const HyperedgeWeight initial_from_load = _part_loads.topKey();
-    for (PartitionID i = 0; i < _context.partition.k; ++i) {
-      if (i != part_id) {
-        _gain_cache.updateEnabledBlocks(i, initial_from_load, phg.partLoad(i));
-      }
-    }
+    _gain_cache.initBlockPQ(phg, initial_from_load);
     auto delta_func = [&](const HyperedgeID he,
                           const HyperedgeWeight,
                           const HypernodeID,
@@ -147,46 +154,29 @@ namespace mt_kahypar {
         continue;
       }
       ASSERT(move.from == part_id);
-      bool moved = phg.changeNodePartWithGainCacheUpdate(move.node, move.from, move.to,
-                                                    std::numeric_limits<HypernodeWeight>::max(),
-                                                    []{}, delta_func);
+      phg.changeNodePartWithGainCacheUpdate(move.node, move.from, move.to,
+                                            std::numeric_limits<HypernodeWeight>::max(),
+                                            []{}, delta_func);
 
-      if (moved) {
-        _estimated_improvement += move.gain;
-        _moves.push_back(move);
-        const HyperedgeWeight new_to_load = phg.partLoad(move.to);
-        const HyperedgeWeight new_from_load = phg.partLoad(move.from);
-        ASSERT(_estimated_improvement == initial_from_load - new_to_load);
-        _gain_cache.updateEnabledBlocks(move.to, new_from_load, new_to_load);
-        _part_loads.adjustKey(move.from, new_from_load);
-        _part_loads.adjustKey(move.to, new_to_load);
-        if (_estimated_improvement >= _best_improvement) {
-          ASSERT(_part_loads.topKey() <= new_from_load);
-          _best_improvement = _estimated_improvement;
-          _best_improvement_index = _moves.size();
-        }
-        // TODO: part of this can probably happen before the move to prevent reverting a bad move that is not accepted
-        if (_part_loads.topKey() >= new_from_load * _part_load_margin) {
-          done = true;
-        } else if (move.gain >= 0) {
-          updateNeighbors(phg, move);
-        } else if (_part_loads.topKey() > initial_from_load) {
-          // decide whether to accept loss of improvement
-          size_t r = rand() % 100;
-          double p = std::exp(move.gain / _part_loads.topKey()) * 100;
-          LOG << V(p) << V(r);
-          if (p > r) {
-            revertToBestLocalPrefix(phg, _best_improvement_index);
-            _moves.clear();
-            _best_improvement_index = 0;
-            _estimated_improvement = 0;
-            _best_improvement = 0;
-            done = true;
-          }
-        }
+      _moves.push_back(move);
+      const HyperedgeWeight new_to_load = phg.partLoad(move.to);
+      from_load = phg.partLoad(move.from);
+      _gain_cache.updateEnabledBlocks(move.to, from_load, new_to_load);
+      //_part_loads.adjustKey(move.from, from_load);
+      _part_loads.adjustKey(move.to, new_to_load);
+      _estimated_improvement = initial_from_load - std::max(_part_loads.topKey(), from_load);
+      if (_estimated_improvement >= _best_improvement) {
+        _best_improvement = _estimated_improvement;
+        _best_improvement_index = _moves.size();
+      }
+      if (_part_loads.topKey() >= from_load * _part_load_margin) {
+        done = true;
+      } else {
+        updateNeighbors(phg, move);
       }
     }
     _gain_cache.resetGainCache();
+    _part_loads.insert(part_id, from_load);
     tbb::parallel_for(0UL, _moves.size(), [&](const MoveID i) {
       phg.recomputeMoveFromBenefit(_moves[i].node);
     });

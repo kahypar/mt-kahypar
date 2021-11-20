@@ -59,11 +59,12 @@ public:
     _target_parts[v] = target;
   }
 
-  void initBlockPQ() {
+  void initBlockPQ(PartitionedHypergraph& phg, HypernodeWeight from_load) {
     ASSERT(_blockPQ.empty());
     for (PartitionID i = 0; i < _context.partition.k; ++i) {
       if (!_toPQs[i].empty()) {
         _blockPQ.insert(i, _toPQs[i].topKey());
+        updateEnabledBlocks(i, from_load, phg.partLoad(i));
       }
     }
   }
