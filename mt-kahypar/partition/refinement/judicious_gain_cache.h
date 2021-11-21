@@ -107,7 +107,7 @@ public:
     ASSERT(_blocks_enabled[to] || _enable_all_blocks);
     m.node = u;
     m.from = phg.partID(u);
-    m.to = to;
+    m.to = _to;
     m.gain = gain;
     _toPQs[to].deleteTop();
     updateOrRemoveToPQFromBlocks(to);
