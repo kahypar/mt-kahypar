@@ -172,6 +172,7 @@ struct JudiciousParameters {
   double part_load_margin = 1.03;
   double min_load_ratio = 1.05;
   double block_disable_factor = 0.9;
+  mutable HyperedgeWeight initial_judicious_load = std::numeric_limits<HyperedgeWeight>::max();
 };
 
 std::ostream& operator<<(std::ostream& out, const JudiciousParameters& judicious);
