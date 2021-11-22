@@ -78,7 +78,7 @@ namespace mt_kahypar {
     }
     _part_loads.clear();
     metrics.imbalance = metrics::imbalance(phg, _context);
-    return current_max_load < initial_max_load;
+    return _best_improvement > 0;
   }
 
   void JudiciousRefiner::initializeImpl(PartitionedHypergraph& phg) {
@@ -180,6 +180,7 @@ namespace mt_kahypar {
         updateNeighbors(phg, move);
       }
     }
+    _edgesWithGainChanges.clear();
     _gain_cache.resetGainCache();
     _part_loads.insert(part_id, from_load);
     tbb::parallel_for(0UL, _moves.size(), [&](const MoveID i) {

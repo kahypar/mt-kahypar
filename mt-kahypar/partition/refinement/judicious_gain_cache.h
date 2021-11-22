@@ -153,7 +153,7 @@ private:
   }
 
   void updateOrRemoveToPQFromBlocks(const PartitionID i) {
-      if (!_toPQs[i].empty()) {
+      if (!_toPQs[i].empty() && _blocks_enabled[i]) {
         _blockPQ.insertOrAdjustKey(i, _toPQs[i].topKey());
       } else if (_blockPQ.contains(i)) {
         _blockPQ.remove(i);
