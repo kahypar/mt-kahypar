@@ -22,6 +22,9 @@
 #include <mt-kahypar/partition/refinement/judicious_gain_cache.h>
 namespace mt_kahypar {
 class JudiciousRefiner final : public IRefiner {
+
+  static constexpr bool debug = false;
+
 public:
   explicit JudiciousRefiner(Hypergraph& hypergraph,
                             const Context& context) :

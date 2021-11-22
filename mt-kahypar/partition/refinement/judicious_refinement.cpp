@@ -71,8 +71,11 @@ namespace mt_kahypar {
       }
     }
     revertToBestLocalPrefix(phg, _best_improvement_index);
-    LOG << "improved judicious load by " << _best_improvement;
-    LOG << V(metrics::judiciousLoad(phg));
+    _moves.clear();
+    if (debug) {
+      LOG << "improved judicious load by " << _best_improvement;
+      LOG << V(metrics::judiciousLoad(phg));
+    }
     _part_loads.clear();
     metrics.imbalance = metrics::imbalance(phg, _context);
     return current_max_load < initial_max_load;
@@ -142,7 +145,9 @@ namespace mt_kahypar {
       JudiciousGainCache::pqStatus status = _gain_cache.findNextMove(phg, move);
       if (status == JudiciousGainCache::pqStatus::empty) done = true;
       else if (status == JudiciousGainCache::pqStatus::rollback) {
-        LOG << "Did rollback";
+        if (debug) {
+          LOG << "Did rollback";
+        }
         revertToBestLocalPrefix(phg, _best_improvement_index, true);
         _moves.clear();
         _best_improvement_index = 0;
