@@ -90,11 +90,13 @@ public:
 
     if (designatedTargetV == newTarget) {
       _toPQs[designatedTargetV].adjustKey(v, gain);
+      updateOrRemoveToPQFromBlocks(designatedTargetV);
     } else if (designatedTargetV != kInvalidPartition) {
       _toPQs[designatedTargetV].remove(v);
       _toPQs[newTarget].insert(v, gain);
       _target_parts[v] = newTarget;
-
+      updateOrRemoveToPQFromBlocks(newTarget);
+      updateOrRemoveToPQFromBlocks(designatedTargetV);
     }
   }
 
