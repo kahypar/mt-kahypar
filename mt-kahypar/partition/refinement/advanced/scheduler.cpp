@@ -36,6 +36,8 @@ void AdvancedRefinementScheduler::RefinementStats::update_global_stats() {
     num_improvements.load(std::memory_order_relaxed));
   global_stats.update_stat("correct_expected_improvement",
     correct_expected_improvement.load(std::memory_order_relaxed));
+  global_stats.update_stat("zero_gain_improvement",
+    zero_gain_improvement.load(std::memory_order_relaxed));
   global_stats.update_stat("failed_updates_due_to_conflicting_moves",
     failed_updates_due_to_conflicting_moves.load(std::memory_order_relaxed));
   global_stats.update_stat("failed_updates_due_to_conflicting_moves_without_rollback",
@@ -45,6 +47,53 @@ void AdvancedRefinementScheduler::RefinementStats::update_global_stats() {
   global_stats.update_stat("total_advanced_refinement_improvement",
     total_improvement.load(std::memory_order_relaxed));
 }
+
+namespace {
+
+  static constexpr size_t PROGRESS_BAR_SIZE = 50;
+
+  template<typename F>
+  std::string progress_bar(const size_t value, const size_t max, const F& f) {
+    const double percentage = static_cast<double>(value) / std::max(max,1UL);
+    const size_t ticks = PROGRESS_BAR_SIZE * percentage;
+    std::stringstream pbar_str;
+    pbar_str << "|"
+             << f(percentage) << std::string(ticks, '|') << END
+             << std::string(PROGRESS_BAR_SIZE - ticks, ' ')
+             << "| " << std::setprecision(2) << (100.0 * percentage) << "% (" << value << ")";
+    return pbar_str.str();
+  }
+}
+
+inline std::ostream & operator<< (std::ostream& str, const AdvancedRefinementScheduler::RefinementStats& stats) {
+  str << "\n";
+  str << "Total Improvement                   = " << stats.total_improvement << "\n";
+  str << "Number of Flow-Based Refinements    = " << stats.num_refinements << "\n";
+  str << "+ No Improvements                   = "
+      << progress_bar(stats.num_refinements - stats.num_improvements, stats.num_refinements,
+          [&](const double percentage) { return percentage > 0.9 ? RED : percentage > 0.75 ? YELLOW : GREEN; }) << "\n";
+  str << "+ Number of Improvements            = "
+      << progress_bar(stats.num_improvements, stats.num_refinements,
+          [&](const double percentage) { return percentage < 0.05 ? RED : percentage < 0.15 ? YELLOW : GREEN; }) << "\n";
+  str << "  + Correct Expected Improvements   = "
+      << progress_bar(stats.correct_expected_improvement, stats.num_improvements,
+          [&](const double percentage) { return percentage > 0.9 ? GREEN : percentage > 0.75 ? YELLOW : RED; }) << "\n";
+  str << "  + Incorrect Expected Improvements = "
+      << progress_bar(stats.num_improvements - stats.correct_expected_improvement, stats.num_improvements,
+          [&](const double percentage) { return percentage < 0.1 ? GREEN : percentage < 0.25 ? YELLOW : RED; }) << "\n";
+  str << "  + Zero-Gain Improvements          = "
+      << progress_bar(stats.zero_gain_improvement, stats.num_improvements,
+          [&](const double) { return WHITE; }) << "\n";
+  str << "+ Failed due to Balance Constraint  = "
+      << progress_bar(stats.failed_updates_due_to_balance_constraint, stats.num_refinements,
+          [&](const double percentage) { return percentage < 0.01 ? GREEN : percentage < 0.05 ? YELLOW : RED; }) << "\n";
+  str << "+ Failed due to Conflicting Moves   = "
+      << progress_bar(stats.failed_updates_due_to_conflicting_moves, stats.num_refinements,
+          [&](const double percentage) { return percentage < 0.01 ? GREEN : percentage < 0.05 ? YELLOW : RED; }) << "\n";
+  str << "---------------------------------------------------------------";
+  return str;
+}
+
 
 bool AdvancedRefinementScheduler::refineImpl(
                 PartitionedHypergraph& phg,
@@ -104,12 +153,7 @@ bool AdvancedRefinementScheduler::refineImpl(
   });
   utils::Timer::instance().stop_timer("advanced_refinement_scheduling");
 
-  DBG << "Num Refinements =" << _stats.num_refinements;
-  DBG << "Num Improvements =" << _stats.num_improvements;
-  DBG << "Failed due to Balance Constraint =" << _stats.failed_updates_due_to_balance_constraint;
-  DBG << "Failed due to Conflicting Moves =" << _stats.failed_updates_due_to_conflicting_moves;
-  DBG << "Total Improvement =" << _stats.total_improvement;
-  DBG << "---------------------------------------------------------------";
+  DBG << _stats;
 
   ASSERT([&]() {
     for ( PartitionID i = 0; i < _context.partition.k; ++i ) {
@@ -316,6 +360,7 @@ HyperedgeWeight AdvancedRefinementScheduler::applyMoves(const SearchID search_id
     } else {
       ++_stats.num_improvements;
       _stats.correct_expected_improvement += (improvement == sequence.expected_improvement);
+      _stats.zero_gain_improvement += (improvement == 0);
       sequence.state = MoveSequenceState::SUCCESS;
       DBG << ( improvement > 0 ? GREEN : "" ) << "SUCCESS -"
           << "Moved Nodes =" << sequence.moves.size()

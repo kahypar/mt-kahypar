@@ -41,6 +41,7 @@ class AdvancedRefinementScheduler final : public IRefiner {
       num_refinements(0),
       num_improvements(0),
       correct_expected_improvement(0),
+      zero_gain_improvement(0),
       failed_updates_due_to_conflicting_moves(0),
       failed_updates_due_to_conflicting_moves_without_rollback(0),
       failed_updates_due_to_balance_constraint(0),
@@ -50,6 +51,7 @@ class AdvancedRefinementScheduler final : public IRefiner {
       num_refinements.store(0);
       num_improvements.store(0);
       correct_expected_improvement.store(0);
+      zero_gain_improvement.store(0);
       failed_updates_due_to_conflicting_moves.store(0);
       failed_updates_due_to_conflicting_moves_without_rollback.store(0);
       failed_updates_due_to_balance_constraint.store(0);
@@ -61,6 +63,7 @@ class AdvancedRefinementScheduler final : public IRefiner {
     CAtomic<int64_t> num_refinements;
     CAtomic<int64_t> num_improvements;
     CAtomic<int64_t> correct_expected_improvement;
+    CAtomic<int64_t> zero_gain_improvement;
     CAtomic<int64_t> failed_updates_due_to_conflicting_moves;
     CAtomic<int64_t> failed_updates_due_to_conflicting_moves_without_rollback;
     CAtomic<int64_t> failed_updates_due_to_balance_constraint;
@@ -72,6 +75,8 @@ class AdvancedRefinementScheduler final : public IRefiner {
     PartitionID overloaded_block = kInvalidPartition;
     HypernodeWeight overload_weight = 0;
   };
+
+  friend std::ostream & operator<< (std::ostream& str, const RefinementStats& stats);
 
 public:
   explicit AdvancedRefinementScheduler(const Hypergraph& hg,
