@@ -38,9 +38,6 @@ namespace mt_kahypar {
     }
     const HyperedgeWeight initial_max_load = _part_loads.topKey();
     HyperedgeWeight current_max_load = initial_max_load;
-    _best_improvement_index = 0;
-    _best_improvement = 0;
-    _estimated_improvement = 0;
     size_t num_negative_refinements = 0;
     bool done = false;
     while (!done) {
@@ -71,14 +68,17 @@ namespace mt_kahypar {
       }
     }
     revertToBestLocalPrefix(phg, _best_improvement_index);
-    _moves.clear();
+    current_max_load = phg.partLoad(0);
+    for (PartitionID i = 1; i < _context.partition.k; ++i) {
+      current_max_load = std::max(current_max_load, phg.partLoad(i));
+    }
     if (debug) {
-      LOG << "improved judicious load by " << _best_improvement;
+      LOG << "improved judicious load by " << initial_max_load - current_max_load;
       LOG << V(metrics::judiciousLoad(phg));
     }
-    _part_loads.clear();
     metrics.imbalance = metrics::imbalance(phg, _context);
-    return _best_improvement > 0;
+    reset();
+    return initial_max_load - current_max_load > 0;
   }
 
   void JudiciousRefiner::initializeImpl(PartitionedHypergraph& phg) {
@@ -87,6 +87,14 @@ namespace mt_kahypar {
     }
     _is_initialized = true;
 
+  }
+
+  void JudiciousRefiner::reset() {
+    _best_improvement_index = 0;
+    _best_improvement = 0;
+    _estimated_improvement = 0;
+    _moves.clear();
+    _part_loads.clear();
   }
 
   void JudiciousRefiner::calculateRefinementNodes(PartitionedHypergraph& phg) {
@@ -141,18 +149,22 @@ namespace mt_kahypar {
     };
     Move move;
     bool done = false;
+    size_t initial_num_moves = _moves.size();
     while (!done) {
       JudiciousGainCache::pqStatus status = _gain_cache.findNextMove(phg, move);
-      if (status == JudiciousGainCache::pqStatus::empty) done = true;
+      if (status == JudiciousGainCache::pqStatus::empty) break;
       else if (status == JudiciousGainCache::pqStatus::rollback) {
+/*
         if (debug) {
           LOG << "Did rollback";
         }
         revertToBestLocalPrefix(phg, _best_improvement_index, true);
         _moves.clear();
         _best_improvement_index = 0;
+        initial_num_moves = 0;
         _estimated_improvement = 0;
         _best_improvement = 0;
+*/
         continue;
       }
       if (move.to == kInvalidPartition) {
@@ -174,7 +186,7 @@ namespace mt_kahypar {
         _best_improvement = _estimated_improvement;
         _best_improvement_index = _moves.size();
       }
-      if (_part_loads.topKey() >= from_load * _part_load_margin) {
+      if (_part_loads.topKey() >= std::max(from_load, _part_loads.keyOfSecond()) * _part_load_margin) {
         done = true;
       } else {
         updateNeighbors(phg, move);
@@ -183,7 +195,7 @@ namespace mt_kahypar {
     _edgesWithGainChanges.clear();
     _gain_cache.resetGainCache();
     _part_loads.insert(part_id, from_load);
-    tbb::parallel_for(0UL, _moves.size(), [&](const MoveID i) {
+    tbb::parallel_for(initial_num_moves, _moves.size(), [&](const MoveID i) {
       phg.recomputeMoveFromBenefit(_moves[i].node);
     });
   }

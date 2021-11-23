@@ -64,8 +64,10 @@ public:
     for (PartitionID i = 0; i < _context.partition.k; ++i) {
       if (!_toPQs[i].empty()) {
         _blockPQ.insert(i, _toPQs[i].topKey());
-        updateEnabledBlocks(i, from_load, phg.partLoad(i));
       }
+    }
+    for (PartitionID i = 0; i < _context.partition.k; ++i) {
+      updateEnabledBlocks(i, from_load, phg.partLoad(i));
     }
   }
 
@@ -75,6 +77,7 @@ public:
     if (designatedTargetV == kInvalidPartition || designatedTargetV == pv) { // no localized searches for now
       return;
     }
+    ASSERT(_toPQs[designatedTargetV].contains(v));
     Gain gain = 0;
     PartitionID newTarget = kInvalidPartition;
 
@@ -90,30 +93,30 @@ public:
 
     if (designatedTargetV == newTarget) {
       _toPQs[designatedTargetV].adjustKey(v, gain);
-      updateOrRemoveToPQFromBlocks(designatedTargetV);
-    } else if (designatedTargetV != kInvalidPartition) {
+    } else {
       _toPQs[designatedTargetV].remove(v);
       _toPQs[newTarget].insert(v, gain);
       _target_parts[v] = newTarget;
-      updateOrRemoveToPQFromBlocks(newTarget);
-      updateOrRemoveToPQFromBlocks(designatedTargetV);
     }
   }
 
   pqStatus findNextMove(const PartitionedHypergraph& phg, Move& m) {
+    const auto status = updatePQs();
+    if (status != pqStatus::ok) {
+      return status;
+    }
+    ASSERT(!_blockPQ.empty());
     const PartitionID to = _blockPQ.top();
+    ASSERT(!_toPQs[to].empty());
     const HypernodeID u = _toPQs[to].top();
-    /*const Gain estimated_gain = _toPQs[to].topKey();*/
     auto [_to, gain] = computeBestTargetBlock(phg, u, phg.partID(u), _parts);
-    // this may not hold if the target block changes
     ASSERT(_blocks_enabled[to] || _enable_all_blocks);
     m.node = u;
     m.from = phg.partID(u);
     m.to = _to;
     m.gain = gain;
     _toPQs[to].deleteTop();
-    updateOrRemoveToPQFromBlocks(to);
-    return updatePQs();
+    return status;
   }
 
   void resetGainCache() {
@@ -134,14 +137,21 @@ public:
     // only consider disabling block if not all blocks should be enabled, at least half the blocks are enabled and the block is larger enough
     if (!_enable_all_blocks
         && _blockPQ.size() > static_cast<size_t>(_context.partition.k / 2)
-        && 1.f * to_load / from_load > _block_disable_factor) {
+        && static_cast<double>(to_load) / from_load > _block_disable_factor) {
       _blocks_enabled[to] = false;
-      _blockPQ.remove(to);
+      if (_blockPQ.contains(to)) {
+        _blockPQ.remove(to);
+      }
     }
   }
 
 private:
   pqStatus updatePQs() {
+    // first update the blockPQ
+    for (PartitionID i = 0; i < _context.partition.k; ++i) {
+      updateOrRemoveToPQFromBlocks(i);
+    }
+    // then if it is empty try enabling all blocks
     if (_blockPQ.empty() && !_enable_all_blocks) {
       _enable_all_blocks = true;
       for (PartitionID i = 0; i < _context.partition.k; ++i) {
@@ -153,8 +163,10 @@ private:
   }
 
   void updateOrRemoveToPQFromBlocks(const PartitionID i) {
-      if (!_toPQs[i].empty() && _blocks_enabled[i]) {
-        _blockPQ.insertOrAdjustKey(i, _toPQs[i].topKey());
+      if (!_toPQs[i].empty()) {
+        if (_blocks_enabled[i] || _enable_all_blocks) {
+          _blockPQ.insertOrAdjustKey(i, _toPQs[i].topKey());
+        }
       } else if (_blockPQ.contains(i)) {
         _blockPQ.remove(i);
       }
@@ -172,7 +184,7 @@ private:
       if (i != from) {
         const HyperedgeWeight to_load = phg.partLoad(i);
         const HyperedgeWeight penalty = phg.moveToPenalty(u, i);
-        if ((penalty < to_penalty || (penalty == to_penalty && to_load < best_to_load))) {
+        if (penalty < to_penalty || (penalty == to_penalty && to_load < best_to_load)) {
           to_penalty = penalty;
           to = i;
           best_to_load = to_load;

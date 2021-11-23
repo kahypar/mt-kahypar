@@ -55,6 +55,7 @@ public:
   void doRefinement(PartitionedHypergraph& phg, PartitionID part_id);
   void revertToBestLocalPrefix(PartitionedHypergraph& phg, size_t bestGainIndex, bool update_gain_cache = false);
   void updateNeighbors(PartitionedHypergraph& phg, const Move& move);
+  void reset();
 private:
   bool _is_initialized = false;
   Hypergraph& _hypergraph;

@@ -165,6 +165,19 @@ public:
     return heap.capacity() * sizeof(HeapElement);
   }
 
+  KeyT keyOfSecond() const {
+    ASSERT(size() > 1);
+    PosT largestChild = 1;
+
+    // find child with largest key for MaxHeap / smallest key for MinHeap
+    const PosT firstInvalid = std::min(size(), firstChild(1));
+    for (PosT c = 2; c < firstInvalid; ++c) {
+      if ( comp(heap[largestChild].key, heap[c].key) ) {
+        largestChild = c;
+      }
+    }
+    return heap[largestChild].key;
+  }
 
 protected:
 
