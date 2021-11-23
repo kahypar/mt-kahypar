@@ -66,6 +66,7 @@ public:
         _blockPQ.insert(i, _toPQs[i].topKey());
       }
     }
+    // needs to happen in separat loop to handle blockPQ size criterion
     for (PartitionID i = 0; i < _context.partition.k; ++i) {
       updateEnabledBlocks(i, from_load, phg.partLoad(i));
     }
@@ -74,9 +75,8 @@ public:
   void updateGain(const PartitionedHypergraph& phg, const HypernodeID v, const Move& move) {
     const PartitionID pv = phg.partID(v);
     const PartitionID designatedTargetV = _target_parts[v];
-    if (designatedTargetV == kInvalidPartition || designatedTargetV == pv) { // no localized searches for now
-      return;
-    }
+    ASSERT(pv == move.from);
+    ASSERT(designatedTargetV != kInvalidPartition);
     ASSERT(_toPQs[designatedTargetV].contains(v));
     Gain gain = 0;
     PartitionID newTarget = kInvalidPartition;
@@ -88,7 +88,7 @@ public:
     } else {
       // moveToPenalty of designatedTargetV is not affected.
       // only move.from and move.to may be better
-      std::tie(newTarget, gain) = computeBestTargetBlock(phg, v, pv, { designatedTargetV, move.from, move.to });
+      std::tie(newTarget, gain) = computeBestTargetBlock(phg, v, pv, { designatedTargetV, move.to });
     }
 
     if (designatedTargetV == newTarget) {
