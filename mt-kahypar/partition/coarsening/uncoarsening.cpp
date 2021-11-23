@@ -558,8 +558,11 @@ namespace mt_kahypar {
           ASSERT(acquired);
 
           pool->markAccepted(groupID);
-//          HyperedgeID num_edges_activated_in_task = 0;
-//          node_region_comparator.markActive(_phg.incidentEdges(group.getRepresentative()), task_id, num_edges_activated_in_task);
+          const bool repIsBorderNodeBeforeUncontraction = _phg.isBorderNode(group.getRepresentative());
+          HyperedgeID num_edges_activated_in_task = 0;
+          if (repIsBorderNodeBeforeUncontraction) {
+            node_region_comparator.markActive(_phg.incidentEdges(group.getRepresentative()), task_id, num_edges_activated_in_task);
+          }
 
           uncontractGroupAsyncSubtask(group, groupID);
 
@@ -595,14 +598,18 @@ namespace mt_kahypar {
             ASSERT(!num_edges_activated_per_refinement_node.empty());
             ASSERT(num_edges_activated_per_refinement_node.back() == 0);
 
-            HyperedgeID num_edges_activated_in_task = 0;
             for (size_t i = 0; i < num_extracted_seeds; ++i) {
               const HypernodeID seed = *(local_refinement_nodes.end() - i - 1);
+              // Skip representative if its incident hyperedges have already been activated before uncontraction
+              if (seed == group.getRepresentative() && repIsBorderNodeBeforeUncontraction) continue;
               node_region_comparator.markActive(_phg.incidentEdges(seed), task_id, num_edges_activated_in_task);
             }
 
             // Give last extracted seed (if any) the entry for number of edges activated
             num_edges_activated_per_refinement_node.back() = num_edges_activated_in_task;
+          } else if (repIsBorderNodeBeforeUncontraction) {
+            // Representative was a border node before uncontraction but no refinement seeds due to intermediate changes => deactivate hyperedges incident to representative again as it will not be part of refinement
+            node_region_comparator.markAllEdgesForTaskInactive(task_id);
           }
 
           // Refine only once enough seeds are available
