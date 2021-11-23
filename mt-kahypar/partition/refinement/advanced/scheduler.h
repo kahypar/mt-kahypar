@@ -106,8 +106,7 @@ public:
    * Returns, improvement in solution quality.
    */
   HyperedgeWeight applyMoves(const SearchID search_id,
-                             MoveSequence& sequence,
-                             const size_t num_retries = 2);
+                             MoveSequence& sequence);
 
   /**
    * Returns the current weight of each block.
@@ -133,9 +132,6 @@ private:
 
   PartWeightUpdateResult partWeightUpdate(const vec<HypernodeWeight>& part_weight_deltas,
                                           const bool rollback);
-
-  bool tryToFixMoveSequenceAfterBalanceViolation(MoveSequence& sequence,
-                                                 const PartWeightUpdateResult& update_res);
 
   std::string blocksOfSearch(const SearchID search_id) {
     const BlockPair blocks = _quotient_graph.getBlockPair(search_id);

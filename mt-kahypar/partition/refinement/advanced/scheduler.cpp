@@ -285,8 +285,7 @@ void addCutHyperedgesToQuotientGraph(QuotientGraph& quotient_graph,
 } // namespace
 
 HyperedgeWeight AdvancedRefinementScheduler::applyMoves(const SearchID search_id,
-                                                        MoveSequence& sequence,
-                                                        const size_t num_retries) {
+                                                        MoveSequence& sequence) {
   unused(search_id);
   ASSERT(_phg);
 
@@ -382,12 +381,6 @@ HyperedgeWeight AdvancedRefinementScheduler::applyMoves(const SearchID search_id
   if ( sequence.state == MoveSequenceState::SUCCESS && improvement > 0 ) {
     addCutHyperedgesToQuotientGraph(_quotient_graph, new_cut_hes);
     _stats.total_improvement += improvement;
-  } else if ( sequence.state == MoveSequenceState::VIOLATES_BALANCE_CONSTRAINT &&
-              sequence.expected_improvement > 0 && num_retries > 0 &&
-              tryToFixMoveSequenceAfterBalanceViolation(sequence, update_res) &&
-              sequence.moves.size() > 0 ) {
-    --_stats.failed_updates_due_to_balance_constraint;
-    improvement = applyMoves(search_id, sequence, num_retries - 1);
   }
 
   return improvement;
@@ -419,35 +412,6 @@ AdvancedRefinementScheduler::PartWeightUpdateResult AdvancedRefinementScheduler:
   }
   _part_weights_lock.unlock();
   return res;
-}
-
-bool AdvancedRefinementScheduler::tryToFixMoveSequenceAfterBalanceViolation(
-  MoveSequence& sequence, const PartWeightUpdateResult& update_res) {
-  // Sort nodes in decreasing order of their node degrees and remove
-  // nodes from sequence with low degree. Assumption is that low degree
-  // vertices have small gains
-  std::sort(sequence.moves.begin(), sequence.moves.end(),
-    [&](const Move& lhs, const Move& rhs) {
-      const bool lhs_move_to_overloaded_block = lhs.to == update_res.overloaded_block;
-      const bool rhs_move_to_overloaded_block = rhs.to == update_res.overloaded_block;
-      return  lhs_move_to_overloaded_block < rhs_move_to_overloaded_block ||
-        ( lhs_move_to_overloaded_block == rhs_move_to_overloaded_block &&
-          _phg->nodeDegree(lhs.node) > _phg->nodeDegree(rhs.node) );
-    });
-
-  HypernodeWeight overload_weight = update_res.overload_weight;
-  while ( !sequence.moves.empty() && overload_weight > 0 ) {
-    const Move& move = sequence.moves.back();
-    if ( move.to == update_res.overloaded_block ) {
-      if ( _phg->partID(move.node) != update_res.overloaded_block ) {
-        overload_weight -= _phg->nodeWeight(move.node);
-      }
-      sequence.moves.pop_back();
-    } else {
-      break;
-    }
-  }
-  return overload_weight <= 0;
 }
 
 }
