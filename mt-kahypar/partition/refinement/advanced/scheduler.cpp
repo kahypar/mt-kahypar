@@ -34,6 +34,8 @@ void AdvancedRefinementScheduler::RefinementStats::update_global_stats() {
     num_refinements.load(std::memory_order_relaxed));
   global_stats.update_stat("num_advanced_improvement",
     num_improvements.load(std::memory_order_relaxed));
+  global_stats.update_stat("num_time_limits",
+    num_time_limits.load(std::memory_order_relaxed));
   global_stats.update_stat("correct_expected_improvement",
     correct_expected_improvement.load(std::memory_order_relaxed));
   global_stats.update_stat("zero_gain_improvement",
@@ -90,6 +92,9 @@ inline std::ostream & operator<< (std::ostream& str, const AdvancedRefinementSch
   str << "+ Failed due to Conflicting Moves   = "
       << progress_bar(stats.failed_updates_due_to_conflicting_moves, stats.num_refinements,
           [&](const double percentage) { return percentage < 0.01 ? GREEN : percentage < 0.05 ? YELLOW : RED; }) << "\n";
+  str << "+ Time Limits                       = "
+      << progress_bar(stats.num_time_limits, stats.num_refinements,
+          [&](const double percentage) { return percentage < 0.0025 ? GREEN : percentage < 0.01 ? YELLOW : RED; }) << "\n";
   str << "---------------------------------------------------------------";
   return str;
 }
@@ -135,6 +140,7 @@ bool AdvancedRefinementScheduler::refineImpl(
             improved_solution = sequence.state == MoveSequenceState::SUCCESS && delta > 0;
             utils::Timer::instance().stop_timer("apply_moves");
           } else if ( sequence.state == MoveSequenceState::TIME_LIMIT ) {
+            ++_stats.num_time_limits;
             DBG << RED << "Search" << search_id << "reaches the time limit ( Time Limit ="
                 << _refiner.timeLimit() << "s )" << END;
           }

@@ -40,6 +40,7 @@ class AdvancedRefinementScheduler final : public IRefiner {
     RefinementStats() :
       num_refinements(0),
       num_improvements(0),
+      num_time_limits(0),
       correct_expected_improvement(0),
       zero_gain_improvement(0),
       failed_updates_due_to_conflicting_moves(0),
@@ -50,6 +51,7 @@ class AdvancedRefinementScheduler final : public IRefiner {
     void reset() {
       num_refinements.store(0);
       num_improvements.store(0);
+      num_time_limits.store(0);
       correct_expected_improvement.store(0);
       zero_gain_improvement.store(0);
       failed_updates_due_to_conflicting_moves.store(0);
@@ -62,6 +64,7 @@ class AdvancedRefinementScheduler final : public IRefiner {
 
     CAtomic<int64_t> num_refinements;
     CAtomic<int64_t> num_improvements;
+    CAtomic<int64_t> num_time_limits;
     CAtomic<int64_t> correct_expected_improvement;
     CAtomic<int64_t> zero_gain_improvement;
     CAtomic<int64_t> failed_updates_due_to_conflicting_moves;
