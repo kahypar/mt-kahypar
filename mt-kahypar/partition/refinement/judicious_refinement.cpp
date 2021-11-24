@@ -154,16 +154,10 @@ namespace mt_kahypar {
       JudiciousGainCache::pqStatus status = _gain_cache.findNextMove(phg, move);
       if (status == JudiciousGainCache::pqStatus::empty) break;
       else if (status == JudiciousGainCache::pqStatus::rollback) {
-/*
         if (debug) {
           LOG << "Did rollback";
         }
-        revertToBestLocalPrefix(phg, _best_improvement_index, part_id, true);
-        _moves.clear();
-        _best_improvement_index = 0;
-        initial_num_moves = 0;
-        _estimated_improvement = 0;
-*/
+        revertToBestLocalPrefix(phg, std::max(_best_improvement_index, initial_num_moves), part_id, true);
         continue;
       }
       if (move.to == kInvalidPartition) {
@@ -178,7 +172,6 @@ namespace mt_kahypar {
       const HyperedgeWeight new_to_load = phg.partLoad(move.to);
       from_load = phg.partLoad(move.from);
       _gain_cache.updateEnabledBlocks(move.to, from_load, new_to_load);
-      //_part_loads.adjustKey(move.from, from_load);
       _part_loads.adjustKey(move.to, new_to_load);
       _estimated_improvement = initial_from_load - std::max(_part_loads.topKey(), from_load);
       if (_estimated_improvement >= _best_improvement) {
@@ -235,14 +228,14 @@ namespace mt_kahypar {
     if (debug) {
       LOG << "reverting" << (_moves.size() - bestGainIndex) << "moves";
     }
+    ASSERT(_edgesWithGainChanges.empty());
     while (_moves.size() > bestGainIndex) {
       Move& m = _moves.back();
       if (update_gain_cache) {
         phg.changeNodePartWithGainCacheUpdate(m.node, m.to, m.from, std::numeric_limits<HypernodeWeight>::max(), []{}, delta_func);
-        if (m.from == active_part) {
-          _gain_cache.insert(phg, m.node);
-        }
-        /*updateNeighbors(phg, m);*/
+        ASSERT(active_part == m.from);
+        _gain_cache.insert(phg, m.node);
+        updateNeighbors(phg, m);
       } else {
         phg.changeNodePartWithGainCacheUpdate(m.node, m.to, m.from);
       }
