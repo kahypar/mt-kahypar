@@ -76,7 +76,7 @@ public:
     const PartitionID pv = phg.partID(v);
     const PartitionID designatedTargetV = _target_parts[v];
     ASSERT(pv == move.from);
-    ASSERT(designatedTargetV != kInvalidPartition);
+    if (designatedTargetV == kInvalidPartition) return;
     ASSERT(_toPQs[designatedTargetV].contains(v));
     Gain gain = 0;
     PartitionID newTarget = kInvalidPartition;
@@ -94,6 +94,7 @@ public:
     if (designatedTargetV == newTarget) {
       _toPQs[designatedTargetV].adjustKey(v, gain);
     } else {
+      ASSERT(newTarget != move.from);
       _toPQs[designatedTargetV].remove(v);
       _toPQs[newTarget].insert(v, gain);
       _target_parts[v] = newTarget;

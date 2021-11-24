@@ -158,12 +158,11 @@ namespace mt_kahypar {
         if (debug) {
           LOG << "Did rollback";
         }
-        revertToBestLocalPrefix(phg, _best_improvement_index, true);
+        revertToBestLocalPrefix(phg, _best_improvement_index, part_id, true);
         _moves.clear();
         _best_improvement_index = 0;
         initial_num_moves = 0;
         _estimated_improvement = 0;
-        _best_improvement = 0;
 */
         continue;
       }
@@ -220,7 +219,7 @@ namespace mt_kahypar {
     }
   }
 
-  void JudiciousRefiner::revertToBestLocalPrefix(PartitionedHypergraph& phg, size_t bestGainIndex, bool update_gain_cache) {
+  void JudiciousRefiner::revertToBestLocalPrefix(PartitionedHypergraph& phg, size_t bestGainIndex, PartitionID active_part, bool update_gain_cache) {
     auto delta_func = [&](const HyperedgeID he,
                           const HyperedgeWeight,
                           const HypernodeID,
@@ -233,11 +232,17 @@ namespace mt_kahypar {
       }
     };
     // (Review Note) bestGainIndex is still for km1 gain. At this point we want to look at whether we actually improve the max load
+    if (debug) {
+      LOG << "reverting" << (_moves.size() - bestGainIndex) << "moves";
+    }
     while (_moves.size() > bestGainIndex) {
       Move& m = _moves.back();
       if (update_gain_cache) {
         phg.changeNodePartWithGainCacheUpdate(m.node, m.to, m.from, std::numeric_limits<HypernodeWeight>::max(), []{}, delta_func);
-        updateNeighbors(phg, m);
+        if (m.from == active_part) {
+          _gain_cache.insert(phg, m.node);
+        }
+        /*updateNeighbors(phg, m);*/
       } else {
         phg.changeNodePartWithGainCacheUpdate(m.node, m.to, m.from);
       }
