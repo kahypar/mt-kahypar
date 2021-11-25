@@ -133,7 +133,7 @@ TEST_F(AAdvancedRefinementScheduler, MovesAVertexThatViolatesBalanceConstraint) 
   MoveSequence sequence { { MOVE(4, 1, 0) }, 1 };
 
   const HyperedgeWeight improvement = refiner.applyMoves(
-    QuotientGraph::INVALID_SEARCH_ID, sequence, 0);
+    QuotientGraph::INVALID_SEARCH_ID, sequence);
   ASSERT_EQ(sequence.state, MoveSequenceState::VIOLATES_BALANCE_CONSTRAINT);
   ASSERT_EQ(improvement, 0);
   ASSERT_EQ(1, phg.partID(4));
