@@ -64,7 +64,7 @@ namespace mt_kahypar {
       } else {
         num_negative_refinements = 0;
       }
-      if (load_ratio < _min_load_ratio || num_negative_refinements >= 2) {   // (Review Note) This alone will not suffice as stopping criterion. must also include whether heaviest block yielded improvement
+      if (load_ratio < _context.refinement.judicious.min_load_ratio || num_negative_refinements >= 2) {   // (Review Note) This alone will not suffice as stopping criterion. must also include whether heaviest block yielded improvement
         done = true;
       }
     }
@@ -187,13 +187,13 @@ namespace mt_kahypar {
         _moves.clear();
         initial_num_moves = 0;
       }
-      if (_moves.size() > refinement_nodes.size() * 0.2) {
+      if (_moves.size() > refinement_nodes.size() * _context.refinement.judicious.abort_factor) {
         if (debug) {
           LOG << "Abort due to too many negative gain moves";
         }
         done = true;
       }
-      if (_part_loads.topKey() >= std::max(from_load, _part_loads.keyOfSecond()) * _part_load_margin) {
+      if (_part_loads.topKey() >= std::max(from_load, _part_loads.keyOfSecond()) * _context.refinement.judicious.part_load_margin) {
         done = true;
       } else {
         updateNeighbors(phg, move);

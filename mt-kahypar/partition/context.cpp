@@ -160,6 +160,7 @@ namespace mt_kahypar {
     if (params.use_judicious_refinement) {
       out << "    Part Load Margin:                 " << params.part_load_margin << std::endl;
       out << "    Min Load Ratio:                   " << params.min_load_ratio << std::endl;
+      out << "    Abort Factor:                     " << params.block_disable_factor << std::endl;
       out << "    Block Disable Factor:             " << params.block_disable_factor << std::endl;
     }
     return out;

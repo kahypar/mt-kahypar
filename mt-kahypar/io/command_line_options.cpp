@@ -437,6 +437,11 @@ namespace mt_kahypar {
                                 "<double>")->default_value(0.9),
              "If a blocks load is larger than that of the heaviest block by this factor, it does not receive nodes until all other blocks received theirs."
              "At least half of all blocks are always enabled.")
+            ((initial_partitioning ? "i-r-judicious-abort-factor" : "r-judicious-abort-factor"),
+             po::value<double>((!initial_partitioning ? &context.refinement.judicious.abort_factor :
+                              &context.initial_partitioning.refinement.judicious.abort_factor))->value_name(
+                                "<double>")->default_value(0.2),
+             "If more than abort factor times the number of nodes in the currently heaviest block moves have been performed without improvement, try the next block")
             ;
     return options;
   }

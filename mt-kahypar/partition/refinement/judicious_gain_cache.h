@@ -47,8 +47,7 @@ public:
     _blockPQ(static_cast<size_t>(context.partition.k)),
     _target_parts(num_nodes, kInvalidPartition),
     _parts(context.partition.k),
-    _blocks_enabled(context.partition.k, true),
-    _block_disable_factor(context.refinement.judicious.block_disable_factor) {
+    _blocks_enabled(context.partition.k, true) {
     std::iota(_parts.begin(), _parts.end(), 0);
   }
 
@@ -64,7 +63,7 @@ public:
     vec<std::pair<HyperedgeWeight, PartitionID>> remove_candidates;
     for (PartitionID i = 0; i < _context.partition.k; ++i) {
       const HyperedgeWeight load = phg.partLoad(i);
-      if (static_cast<double>(load) / from_load > _block_disable_factor) {
+      if (static_cast<double>(load) / from_load > _context.refinement.judicious.block_disable_factor) {
         remove_candidates.push_back(std::make_pair(load, i));
         _blocks_enabled[i] = false;
       } else if (!_toPQs[i].empty()) {
@@ -158,7 +157,7 @@ public:
     // only consider disabling block if not all blocks should be enabled, at least half the blocks are enabled and the block is larger enough
     if (!_enable_all_blocks
         && _blockPQ.size() > static_cast<size_t>(_context.partition.k / 2)
-        && static_cast<double>(to_load) / from_load > _block_disable_factor) {
+        && static_cast<double>(to_load) / from_load > _context.refinement.judicious.block_disable_factor) {
       _blocks_enabled[to] = false;
       if (_blockPQ.contains(to)) {
         _blockPQ.remove(to);
@@ -233,7 +232,6 @@ private:
   vec<PartitionID> _parts;
   vec<bool> _blocks_enabled;
   bool _enable_all_blocks = false;
-  const double _block_disable_factor;
   PartitionID _active_part;
 };
 }
