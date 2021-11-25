@@ -49,6 +49,7 @@ namespace mt_kahypar {
         _part_loads.adjustKey(i, phg.partLoad(i));
       }
       current_max_load = _part_loads.topKey();
+      _total_improvement = initial_max_load - current_max_load;
       HyperedgeWeight min_part_load = current_max_load;
       for (PartitionID i = 0; i < _context.partition.k; ++i) {
         min_part_load = std::min(min_part_load, phg.partLoad(i));
@@ -72,6 +73,8 @@ namespace mt_kahypar {
     for (PartitionID i = 1; i < _context.partition.k; ++i) {
       current_max_load = std::max(current_max_load, phg.partLoad(i));
     }
+    ASSERT(initial_max_load >= current_max_load);
+    ASSERT(_best_improvement == initial_max_load - current_max_load);
     if (debug) {
       LOG << "improved judicious load by " << initial_max_load - current_max_load;
       LOG << V(metrics::judiciousLoad(phg));
@@ -92,7 +95,7 @@ namespace mt_kahypar {
   void JudiciousRefiner::reset() {
     _best_improvement_index = 0;
     _best_improvement = 0;
-    _estimated_improvement = 0;
+    _total_improvement = 0;
     _moves.clear();
     _part_loads.clear();
   }
@@ -125,6 +128,7 @@ namespace mt_kahypar {
 
   void JudiciousRefiner::doRefinement(PartitionedHypergraph& phg, PartitionID part_id) {
     auto& refinement_nodes = _refinement_nodes[part_id];
+    _gain_cache.setActivePart(part_id);
     for (HypernodeID v : refinement_nodes) {
       /*! TODO: maybe cut of at specific #nodes
        *  \todo maybe cut of at specific #nodes
@@ -173,9 +177,9 @@ namespace mt_kahypar {
       from_load = phg.partLoad(move.from);
       _gain_cache.updateEnabledBlocks(move.to, from_load, new_to_load);
       _part_loads.adjustKey(move.to, new_to_load);
-      _estimated_improvement = initial_from_load - std::max(_part_loads.topKey(), from_load);
-      if (_estimated_improvement >= _best_improvement) {
-        _best_improvement = _estimated_improvement;
+      Gain gain = initial_from_load - std::max(_part_loads.topKey(), from_load);
+      if (_total_improvement + gain >= _best_improvement) {
+        _best_improvement = _total_improvement + gain;
         _best_improvement_index = _moves.size();
       }
       if (_part_loads.topKey() >= std::max(from_load, _part_loads.keyOfSecond()) * _part_load_margin) {
