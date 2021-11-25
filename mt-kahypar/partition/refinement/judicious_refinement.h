@@ -70,7 +70,6 @@ private:
   // ! Used after a move. Stores whether a neighbor of the just moved vertex has already been updated.
   vec<HypernodeID> _neighbor_deduplicator;
   HypernodeID _deduplication_time = 1;
-  size_t _best_improvement_index = 0;
   Gain _total_improvement = 0;
   Gain _best_improvement = 0;
 };

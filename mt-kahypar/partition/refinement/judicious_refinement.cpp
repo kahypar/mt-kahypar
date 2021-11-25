@@ -48,6 +48,9 @@ namespace mt_kahypar {
       for (PartitionID i = 0; i < _context.partition.k; ++i) {
         _part_loads.adjustKey(i, phg.partLoad(i));
       }
+      if (debug && heaviest_part == _part_loads.top()) {
+        LOG << RED << "Heaviest part has not changed" << END;
+      }
       current_max_load = _part_loads.topKey();
       _total_improvement = initial_max_load - current_max_load;
       HyperedgeWeight min_part_load = current_max_load;
@@ -55,9 +58,6 @@ namespace mt_kahypar {
         min_part_load = std::min(min_part_load, phg.partLoad(i));
       }
       const double load_ratio = static_cast<double>(current_max_load) / min_part_load;
-      /*! TODO: maybe only abort the second time this happens
-       *  \todo maybe only abort the second time this happens
-       */
       HyperedgeWeight delta = _best_improvement - last_best_improvement;
       if (delta <= 0) {
         num_negative_refinements++;
@@ -68,7 +68,7 @@ namespace mt_kahypar {
         done = true;
       }
     }
-    revertToBestLocalPrefix(phg, _best_improvement_index);
+    revertToBestLocalPrefix(phg, 0);
     current_max_load = phg.partLoad(0);
     for (PartitionID i = 1; i < _context.partition.k; ++i) {
       current_max_load = std::max(current_max_load, phg.partLoad(i));
@@ -93,7 +93,6 @@ namespace mt_kahypar {
   }
 
   void JudiciousRefiner::reset() {
-    _best_improvement_index = 0;
     _best_improvement = 0;
     _total_improvement = 0;
     _moves.clear();
@@ -130,9 +129,6 @@ namespace mt_kahypar {
     auto& refinement_nodes = _refinement_nodes[part_id];
     _gain_cache.setActivePart(part_id);
     for (HypernodeID v : refinement_nodes) {
-      /*! TODO: maybe cut of at specific #nodes
-       *  \todo maybe cut of at specific #nodes
-       */
       _gain_cache.insert(phg, v);
     }
     _part_loads.deleteTop();
@@ -154,14 +150,19 @@ namespace mt_kahypar {
     Move move;
     bool done = false;
     size_t initial_num_moves = _moves.size();
+    vec<HypernodeID> move_nodes;
     while (!done) {
       JudiciousGainCache::pqStatus status = _gain_cache.findNextMove(phg, move);
-      if (status == JudiciousGainCache::pqStatus::empty) break;
-      else if (status == JudiciousGainCache::pqStatus::rollback) {
+      if (status == JudiciousGainCache::pqStatus::empty) {
+        if (debug) {
+          LOG << "Abort due to empty PQ";
+        }
+        break;
+      } else if (status == JudiciousGainCache::pqStatus::rollback) {
         if (debug) {
           LOG << "Did rollback";
         }
-        revertToBestLocalPrefix(phg, std::max(_best_improvement_index, initial_num_moves), part_id, true);
+        revertToBestLocalPrefix(phg, std::max(0UL, initial_num_moves), part_id, true);
         continue;
       }
       if (move.to == kInvalidPartition) {
@@ -173,14 +174,24 @@ namespace mt_kahypar {
                                             []{}, delta_func);
 
       _moves.push_back(move);
-      const HyperedgeWeight new_to_load = phg.partLoad(move.to);
+      const HyperedgeWeight to_load = phg.partLoad(move.to);
       from_load = phg.partLoad(move.from);
-      _gain_cache.updateEnabledBlocks(move.to, from_load, new_to_load);
-      _part_loads.adjustKey(move.to, new_to_load);
+      _gain_cache.updateEnabledBlocks(move.to, from_load, to_load);
+      _part_loads.adjustKey(move.to, to_load);
       Gain gain = initial_from_load - std::max(_part_loads.topKey(), from_load);
       if (_total_improvement + gain >= _best_improvement) {
         _best_improvement = _total_improvement + gain;
-        _best_improvement_index = _moves.size();
+        for (size_t i = initial_num_moves; i < _moves.size(); ++i) {
+          move_nodes.push_back(_moves[i].node);
+        }
+        _moves.clear();
+        initial_num_moves = 0;
+      }
+      if (_moves.size() > refinement_nodes.size() * 0.2) {
+        if (debug) {
+          LOG << "Abort due to too many negative gain moves";
+        }
+        done = true;
       }
       if (_part_loads.topKey() >= std::max(from_load, _part_loads.keyOfSecond()) * _part_load_margin) {
         done = true;
@@ -191,8 +202,11 @@ namespace mt_kahypar {
     _edgesWithGainChanges.clear();
     _gain_cache.resetGainCache();
     _part_loads.insert(part_id, from_load);
-    tbb::parallel_for(initial_num_moves, _moves.size(), [&](const MoveID i) {
-      phg.recomputeMoveFromBenefit(_moves[i].node);
+    for (size_t i = initial_num_moves; i < _moves.size(); ++i) {
+      move_nodes.push_back(_moves[i].node);
+    }
+    tbb::parallel_for(0UL, move_nodes.size(), [&](const MoveID i) {
+      phg.recomputeMoveFromBenefit(move_nodes[i]);
     });
   }
 
