@@ -61,23 +61,40 @@ public:
 
   void initBlockPQ(PartitionedHypergraph& phg, HypernodeWeight from_load) {
     ASSERT(_blockPQ.empty());
+    vec<std::pair<HyperedgeWeight, PartitionID>> remove_candidates;
     for (PartitionID i = 0; i < _context.partition.k; ++i) {
-      if (!_toPQs[i].empty()) {
+      const HyperedgeWeight load = phg.partLoad(i);
+      if (static_cast<double>(load) / from_load > _block_disable_factor) {
+        remove_candidates.push_back(std::make_pair(load, i));
+        _blocks_enabled[i] = false;
+      } else if (!_toPQs[i].empty()) {
         _blockPQ.insert(i, _toPQs[i].topKey());
       }
     }
-    // needs to happen in separat loop to handle blockPQ size criterion
-    for (PartitionID i = 0; i < _context.partition.k; ++i) {
-      updateEnabledBlocks(i, from_load, phg.partLoad(i));
+    if (_blockPQ.size() > static_cast<size_t>(_context.partition.k / 2)) {
+      return;
     }
+    // if too many blocks would be disabled, add some of them to the blockPQ by increasing load
+    std::sort(remove_candidates.begin(), remove_candidates.end());
+    for (size_t i = 0; i < remove_candidates.size() &&
+         _blockPQ.size() <= static_cast<size_t>(_context.partition.k / 2); ++i) {
+      const PartitionID candidate = remove_candidates[i].second;
+      if (!_toPQs[candidate].empty()) {
+        _blockPQ.insert(candidate, _toPQs[candidate].topKey());
+        _blocks_enabled[candidate] = true;
+      }
+    }
+  }
+
+  void setActivePart(const PartitionID part_id) {
+    _active_part = part_id;
   }
 
   void updateGain(const PartitionedHypergraph& phg, const HypernodeID v, const Move& move) {
     const PartitionID pv = phg.partID(v);
     const PartitionID designatedTargetV = _target_parts[v];
-    ASSERT(pv == move.from);
-    if (designatedTargetV == kInvalidPartition) return;
     ASSERT(_toPQs[designatedTargetV].contains(v));
+    if (designatedTargetV == kInvalidPartition) return;
     Gain gain = 0;
     PartitionID newTarget = kInvalidPartition;
 
@@ -94,7 +111,6 @@ public:
     if (designatedTargetV == newTarget) {
       _toPQs[designatedTargetV].adjustKey(v, gain);
     } else {
-      ASSERT(newTarget != move.from);
       _toPQs[designatedTargetV].remove(v);
       _toPQs[newTarget].insert(v, gain);
       _target_parts[v] = newTarget;
@@ -102,15 +118,19 @@ public:
   }
 
   pqStatus findNextMove(const PartitionedHypergraph& phg, Move& m) {
+    ASSERT(!_blockPQ.contains(_active_part));
     const auto status = updatePQs();
     if (status != pqStatus::ok) {
       return status;
     }
     ASSERT(!_blockPQ.empty());
     const PartitionID to = _blockPQ.top();
+    ASSERT(to != _active_part);
     ASSERT(!_toPQs[to].empty());
     const HypernodeID u = _toPQs[to].top();
+    ASSERT(phg.partID(u) == _active_part);
     auto [_to, gain] = computeBestTargetBlock(phg, u, phg.partID(u), _parts);
+    ASSERT(_to != _active_part);
     ASSERT(_blocks_enabled[to] || _enable_all_blocks);
     m.node = u;
     m.from = phg.partID(u);
@@ -214,5 +234,6 @@ private:
   vec<bool> _blocks_enabled;
   bool _enable_all_blocks = false;
   const double _block_disable_factor;
+  PartitionID _active_part;
 };
 }
