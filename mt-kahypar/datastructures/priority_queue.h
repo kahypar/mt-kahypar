@@ -166,7 +166,9 @@ public:
   }
 
   KeyT keyOfSecond() const {
-    ASSERT(size() > 1);
+    if (size() == 1) {
+      return topKey();
+    }
     PosT largestChild = 1;
 
     // find child with largest key for MaxHeap / smallest key for MinHeap
