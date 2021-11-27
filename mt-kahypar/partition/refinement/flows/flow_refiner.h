@@ -30,7 +30,6 @@
 #include "mt-kahypar/datastructures/sparse_map.h"
 #include "mt-kahypar/datastructures/thread_safe_fast_reset_flag_array.h"
 #include "mt-kahypar/parallel/stl/scalable_queue.h"
-#include "mt-kahypar/partition/refinement/flows/flow_common.h"
 #include "mt-kahypar/partition/refinement/flows/sequential_construction.h"
 #include "mt-kahypar/partition/refinement/flows/parallel_construction.h"
 #include "mt-kahypar/partition/refinement/flows/flow_hypergraph_builder.h"

@@ -20,6 +20,7 @@
 
 #include "datastructure/flow_hypergraph_builder.h"
 #include "mt-kahypar/datastructures/hypergraph_common.h"
+#include "mt-kahypar/parallel/stl/scalable_vector.h"
 
 namespace mt_kahypar {
 
@@ -31,5 +32,29 @@ struct FlowProblem {
   HypernodeWeight weight_of_block_0;
   HypernodeWeight weight_of_block_1;
 };
+
+struct Subhypergraph {
+  PartitionID block_0;
+  PartitionID block_1;
+  vec<HypernodeID> nodes_of_block_0;
+  vec<HypernodeID> nodes_of_block_1;
+  HypernodeWeight weight_of_block_0;
+  HypernodeWeight weight_of_block_1;
+  vec<HyperedgeID> hes;
+  size_t num_pins;
+
+  size_t numNodes() const {
+    return nodes_of_block_0.size() + nodes_of_block_1.size();
+  }
+};
+
+inline std::ostream& operator<<(std::ostream& out, const Subhypergraph& sub_hg) {
+  out << "[Nodes=" << sub_hg.numNodes()
+      << ", Edges=" << sub_hg.hes.size()
+      << ", Pins=" << sub_hg.num_pins
+      << ", Blocks=(" << sub_hg.block_0 << "," << sub_hg.block_1 << ")"
+      << ", Weights=(" << sub_hg.weight_of_block_0 << "," << sub_hg.weight_of_block_1 << ")]";
+  return out;
+}
 
 } // namespace mt_kahypar
