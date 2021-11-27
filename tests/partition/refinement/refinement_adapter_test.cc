@@ -41,8 +41,8 @@ class AAdvancedRefinementAdapter : public Test {
     context.partition.max_part_weights.assign(2, 4);
     context.partition.objective = kahypar::Objective::km1;
     context.shared_memory.num_threads = 8;
-    context.refinement.advanced.algorithm = AdvancedRefinementAlgorithm::mock;
-    context.refinement.advanced.num_threads_per_search = 1;
+    context.refinement.flows.algorithm = AdvancedRefinementAlgorithm::mock;
+    context.refinement.flows.num_threads_per_search = 1;
 
     AdvancedRefinerMockControl::instance().reset();
 
@@ -78,7 +78,7 @@ void executeConcurrent(F f1, K f2) {
 }
 
 TEST_F(AAdvancedRefinementAdapter, FailsToRegisterMoreSearchesIfAllAreUsed) {
-  context.refinement.advanced.num_threads_per_search = 4;
+  context.refinement.flows.num_threads_per_search = 4;
   refiner = std::make_unique<AdvancedRefinerAdapter>(hg, context);
 
   ASSERT_TRUE(refiner->registerNewSearch(0, phg));
@@ -87,7 +87,7 @@ TEST_F(AAdvancedRefinementAdapter, FailsToRegisterMoreSearchesIfAllAreUsed) {
 }
 
 TEST_F(AAdvancedRefinementAdapter, UseCorrectNumberOfThreadsForSearch1) {
-  context.refinement.advanced.num_threads_per_search = 5;
+  context.refinement.flows.num_threads_per_search = 5;
   refiner = std::make_unique<AdvancedRefinerAdapter>(hg, context);
   ASSERT_EQ(2, refiner->numAvailableRefiner());
   ASSERT_EQ(0, refiner->numUsedThreads());
@@ -104,7 +104,7 @@ TEST_F(AAdvancedRefinementAdapter, UseCorrectNumberOfThreadsForSearch1) {
 }
 
 TEST_F(AAdvancedRefinementAdapter, UseCorrectNumberOfThreadsForSearch2) {
-  context.refinement.advanced.num_threads_per_search = 5;
+  context.refinement.flows.num_threads_per_search = 5;
   refiner = std::make_unique<AdvancedRefinerAdapter>(hg, context);
   ASSERT_EQ(2, refiner->numAvailableRefiner());
   ASSERT_EQ(0, refiner->numUsedThreads());

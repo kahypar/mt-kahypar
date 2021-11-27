@@ -77,8 +77,8 @@ class ParallelConstruction {
       _hash_buckets(),
       _threshold(2) {
       const size_t num_parallel_refiners =
-        context.shared_memory.num_threads / context.refinement.advanced.num_threads_per_search
-        + (context.shared_memory.num_threads % context.refinement.advanced.num_threads_per_search != 0);
+        context.shared_memory.num_threads / context.refinement.flows.num_threads_per_search
+        + (context.shared_memory.num_threads % context.refinement.flows.num_threads_per_search != 0);
       _hash_buckets.resize(std::max(1024UL, hg.initialNumEdges() / num_parallel_refiners));
     }
 

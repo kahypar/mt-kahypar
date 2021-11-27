@@ -102,7 +102,7 @@ class ProblemConstruction {
   explicit ProblemConstruction(const Hypergraph& hg,
                                const Context& context) :
     _context(context),
-    _scaling(1.0 + _context.refinement.advanced.flows.alpha *
+    _scaling(1.0 + _context.refinement.flows.alpha *
       std::min(0.05, _context.partition.epsilon)),
     _local_bfs(hg.initialNumNodes(), hg.initialNumEdges(), context.partition.k) { }
 

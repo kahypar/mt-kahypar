@@ -91,8 +91,8 @@ class AInitialPartitionerTest : public Test {
     context.initial_partitioning.refinement.fm.algorithm = FMAlgorithm::do_nothing;
 
     // Flows
-    context.refinement.advanced.algorithm = AdvancedRefinementAlgorithm::do_nothing;
-    context.initial_partitioning.refinement.advanced.algorithm = AdvancedRefinementAlgorithm::do_nothing;
+    context.refinement.flows.algorithm = AdvancedRefinementAlgorithm::do_nothing;
+    context.initial_partitioning.refinement.flows.algorithm = AdvancedRefinementAlgorithm::do_nothing;
 
     // Read hypergraph
     hypergraph = io::readHypergraphFile(

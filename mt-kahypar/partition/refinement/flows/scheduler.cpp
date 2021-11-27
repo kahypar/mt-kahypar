@@ -195,7 +195,6 @@ bool AdvancedRefinementScheduler::refineImpl(
     });
   }
 
-  _quotient_graph.storePartition(phg);
   HEAVY_REFINEMENT_ASSERT(phg.checkTrackedPartitionInformation());
   _phg = nullptr;
   return overall_delta.load(std::memory_order_relaxed) < 0;

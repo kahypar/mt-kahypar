@@ -232,7 +232,7 @@ class QuotientGraph {
 
     void setObjective(const HyperedgeWeight objective) {
       _min_improvement_per_round =
-        _context.refinement.advanced.min_relative_improvement_per_round * objective;
+        _context.refinement.flows.min_relative_improvement_per_round * objective;
     }
 
    private:
@@ -294,17 +294,12 @@ public:
     _register_search_lock(),
     _active_block_scheduler(context, _quotient_graph),
     _num_active_searches(0),
-    _searches(),
-    _partition_snapshot() {
+    _searches() {
     for ( PartitionID i = 0; i < _context.partition.k; ++i ) {
       for ( PartitionID j = i + 1; j < _context.partition.k; ++j ) {
         _quotient_graph[i][j].blocks.i = i;
         _quotient_graph[i][j].blocks.j = j;
       }
-    }
-
-    if ( doPartitionSnapshot() ) {
-      _partition_snapshot.assign(hg.initialNumNodes(), kInvalidPartition);
     }
   }
 
@@ -390,28 +385,12 @@ public:
     return _quotient_graph[i][j].cut_he_weight;
   }
 
-  void storePartition(const PartitionedHypergraph& phg) {
-    if ( doPartitionSnapshot() ) {
-      phg.doParallelForAllNodes([&](const HypernodeID hn) {
-        _partition_snapshot[hn] = phg.partID(hn);
-      });
-    }
-  }
-
  private:
 
   void resetQuotientGraphEdges();
 
   bool isInputHypergraph() const {
     return _current_num_edges == _initial_num_edges;
-  }
-
-  bool doPartitionSnapshot() const {
-    return ( ( _context.partition.paradigm == Paradigm::nlevel &&
-             _context.refinement.global_fm.refine_until_no_improvement ) ||
-           ( _context.partition.paradigm == Paradigm::multilevel &&
-             _context.refinement.refine_until_no_improvement ) ) &&
-           _context.refinement.advanced.skip_stable_blocks;
   }
 
   const PartitionedHypergraph* _phg;
@@ -431,10 +410,6 @@ public:
   CAtomic<size_t> _num_active_searches;
   // ! Information about searches that are currently running
   tbb::concurrent_vector<Search> _searches;
-
-  // ! Snapshot of the partition to detect changes, if called
-  // ! multiple times (refine until no improvement)
-  vec<PartitionID> _partition_snapshot;
 };
 
 }  // namespace kahypar

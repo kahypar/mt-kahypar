@@ -160,28 +160,20 @@ struct NLevelGlobalFMParameters {
 std::ostream& operator<<(std::ostream& out, const NLevelGlobalFMParameters& params);
 
 struct FlowParameters {
+  AdvancedRefinementAlgorithm algorithm = AdvancedRefinementAlgorithm::do_nothing;
   double alpha = 0.0;
   HypernodeID max_num_pins = std::numeric_limits<HypernodeID>::max();
   bool find_most_balanced_cut = false;
   bool determine_distance_from_cut = false;
-};
-
-std::ostream& operator<<(std::ostream& out, const FlowParameters& params);
-
-struct AdvancedRefinementParameters {
-  AdvancedRefinementAlgorithm algorithm = AdvancedRefinementAlgorithm::do_nothing;
-  FlowParameters flows { };
   size_t num_threads_per_search = 0;
   size_t max_bfs_distance = 0;
   double min_relative_improvement_per_round = 0.0;
-  double stable_block_relative_improvement_threshold = 0.0;
   double time_limit_factor = 0.0;
   bool skip_small_cuts = false;
   bool skip_unpromising_blocks = false;
-  bool skip_stable_blocks = false;
 };
 
-std::ostream& operator<<(std::ostream& out, const AdvancedRefinementParameters& params);
+std::ostream& operator<<(std::ostream& out, const FlowParameters& params);
 
 struct DeterministicRefinementParameters {
   size_t num_sub_rounds_sync_lp = 5;
@@ -196,7 +188,7 @@ struct RefinementParameters {
   FMParameters fm;
   DeterministicRefinementParameters deterministic_refinement;
   NLevelGlobalFMParameters global_fm;
-  AdvancedRefinementParameters advanced;
+  FlowParameters flows;
   bool refine_until_no_improvement = false;
   double relative_improvement_threshold = 0.0;
   size_t max_batch_size = std::numeric_limits<size_t>::max();
@@ -278,7 +270,7 @@ class Context {
 
   void setupSparsificationParameters();
 
-  void setupThreadsPerAdvancedSearch();
+  void setupThreadsPerFlowSearch();
 
   void sanityCheck();
 };

@@ -65,7 +65,7 @@ MoveSequence AdvancedRefinerAdapter::refine(const SearchID search_id,
   // Determine number of free threads for current search
   _num_used_threads_lock.lock();
   const size_t num_free_threads = std::min(
-    _context.refinement.advanced.num_threads_per_search,
+    _context.refinement.flows.num_threads_per_search,
     _context.shared_memory.num_threads - _num_used_threads.load(std::memory_order_relaxed));
   _num_used_threads += num_free_threads;
   _num_used_threads_lock.unlock();
@@ -129,7 +129,7 @@ void AdvancedRefinerAdapter::reset() {
 
 std::unique_ptr<IAdvancedRefiner> AdvancedRefinerAdapter::initializeRefiner() {
   return AdvancedRefinementFactory::getInstance().createObject(
-    _context.refinement.advanced.algorithm, _hg, _context);
+    _context.refinement.flows.algorithm, _hg, _context);
 }
 
 }

@@ -429,13 +429,13 @@ namespace mt_kahypar {
                                                                      const bool initial_partitioning) {
     po::options_description options("Initial Partitioning Options", num_columns);
     options.add_options()
-            ((initial_partitioning ? "i-r-advanced-algo" : "r-advanced-algo"),
+            ((initial_partitioning ? "i-r-flow-algo" : "r-flow-algo"),
              po::value<std::string>()->value_name("<string>")->notifier(
                      [&, initial_partitioning](const std::string& algo) {
                        if ( initial_partitioning ) {
-                        context.initial_partitioning.refinement.advanced.algorithm = advancedRefinementAlgorithmFromString(algo);
+                        context.initial_partitioning.refinement.flows.algorithm = advancedRefinementAlgorithmFromString(algo);
                        } else {
-                        context.refinement.advanced.algorithm = advancedRefinementAlgorithmFromString(algo);
+                        context.refinement.flows.algorithm = advancedRefinementAlgorithmFromString(algo);
                        }
                      })->default_value("do_nothing"),
              "Advanced Refinement Algorithms:\n"
@@ -443,55 +443,45 @@ namespace mt_kahypar {
              "- ilp\n"
              "- flows")
             ((initial_partitioning ? "i-r-num-threads-per-search" : "r-num-threads-per-search"),
-             po::value<size_t>((initial_partitioning ? &context.initial_partitioning.refinement.advanced.num_threads_per_search :
-                      &context.refinement.advanced.num_threads_per_search))->value_name("<size_t>"),
+             po::value<size_t>((initial_partitioning ? &context.initial_partitioning.refinement.flows.num_threads_per_search :
+                      &context.refinement.flows.num_threads_per_search))->value_name("<size_t>"),
              "Number of threads per search.")
             ((initial_partitioning ? "i-r-max-bfs-distance" : "r-max-bfs-distance"),
-             po::value<size_t>((initial_partitioning ? &context.initial_partitioning.refinement.advanced.max_bfs_distance :
-                      &context.refinement.advanced.max_bfs_distance))->value_name("<size_t>"),
+             po::value<size_t>((initial_partitioning ? &context.initial_partitioning.refinement.flows.max_bfs_distance :
+                      &context.refinement.flows.max_bfs_distance))->value_name("<size_t>"),
              "Advanced refinement problems are constructed via BFS search. The maximum BFS distance is the\n"
              "maximum distance from a cut hyperedge to any vertex of the problem.")
             ((initial_partitioning ? "i-r-min-rel-improvement-per-round" : "r-min-rel-improvement-per-round"),
-             po::value<double>((initial_partitioning ? &context.initial_partitioning.refinement.advanced.min_relative_improvement_per_round :
-                      &context.refinement.advanced.min_relative_improvement_per_round))->value_name("<double>"),
+             po::value<double>((initial_partitioning ? &context.initial_partitioning.refinement.flows.min_relative_improvement_per_round :
+                      &context.refinement.flows.min_relative_improvement_per_round))->value_name("<double>"),
              "Minimum relative improvement per active block scheduling round. If improvement is smaller than advanced search terminates.")
-            ((initial_partitioning ? "i-r-stable-blocks-rel-improvement-threshold" : "r-stable-blocks-rel-improvement-threshold"),
-             po::value<double>((initial_partitioning ? &context.initial_partitioning.refinement.advanced.stable_block_relative_improvement_threshold :
-                      &context.refinement.advanced.stable_block_relative_improvement_threshold))->value_name("<double>"),
-             "If skip stable blocks is activated, we schedule a stable block pair anyway, if the improvement currently found"
-             "on that block pair throughout the multilevel hierarchy relative to best performing block pair is greater"
-             "than this threshold.")
             ((initial_partitioning ? "i-r-time-limit-factor" : "r-time-limit-factor"),
-             po::value<double>((initial_partitioning ? &context.initial_partitioning.refinement.advanced.time_limit_factor :
-                      &context.refinement.advanced.time_limit_factor))->value_name("<double>"),
+             po::value<double>((initial_partitioning ? &context.initial_partitioning.refinement.flows.time_limit_factor :
+                      &context.refinement.flows.time_limit_factor))->value_name("<double>"),
              "The time limit for each advanced search is time_limit_factor * average running time of all previous searches.")
             ((initial_partitioning ? "i-r-skip-small-cuts" : "r-skip-small-cuts"),
-             po::value<bool>((initial_partitioning ? &context.initial_partitioning.refinement.advanced.skip_small_cuts :
-                      &context.refinement.advanced.skip_small_cuts))->value_name("<bool>"),
+             po::value<bool>((initial_partitioning ? &context.initial_partitioning.refinement.flows.skip_small_cuts :
+                      &context.refinement.flows.skip_small_cuts))->value_name("<bool>"),
              "If true, than blocks with a cut <= 10 are not considered for refinement")
             ((initial_partitioning ? "i-r-skip-unpromising-blocks" : "r-skip-unpromising-blocks"),
-             po::value<bool>((initial_partitioning ? &context.initial_partitioning.refinement.advanced.skip_unpromising_blocks :
-                      &context.refinement.advanced.skip_unpromising_blocks))->value_name("<bool>"),
+             po::value<bool>((initial_partitioning ? &context.initial_partitioning.refinement.flows.skip_unpromising_blocks :
+                      &context.refinement.flows.skip_unpromising_blocks))->value_name("<bool>"),
              "If true, than blocks for which we never found an improvement are skipped")
-            ((initial_partitioning ? "i-r-skip-stable-blocks" : "r-skip-stable-blocks"),
-             po::value<bool>((initial_partitioning ? &context.initial_partitioning.refinement.advanced.skip_stable_blocks :
-                      &context.refinement.advanced.skip_stable_blocks))->value_name("<bool>"),
-             "If true, than block pairs which border have not changed since the last call are not considered for refinement.")
             ((initial_partitioning ? "i-r-flow-scaling" : "r-flow-scaling"),
-             po::value<double>((initial_partitioning ? &context.initial_partitioning.refinement.advanced.flows.alpha :
-                      &context.refinement.advanced.flows.alpha))->value_name("<double>"),
+             po::value<double>((initial_partitioning ? &context.initial_partitioning.refinement.flows.alpha :
+                      &context.refinement.flows.alpha))->value_name("<double>"),
              "Size constraint for flow problem: (1 + alpha * epsilon) * c(V) / k - c(V_1) (alpha = r-flow-scaling)")
             ((initial_partitioning ? "i-r-flow-max-num-pins" : "r-flow-max-num-pins"),
-             po::value<uint32_t>((initial_partitioning ? &context.initial_partitioning.refinement.advanced.flows.max_num_pins :
-                      &context.refinement.advanced.flows.max_num_pins))->value_name("<uint32_t>"),
+             po::value<uint32_t>((initial_partitioning ? &context.initial_partitioning.refinement.flows.max_num_pins :
+                      &context.refinement.flows.max_num_pins))->value_name("<uint32_t>"),
              "Maximum number of pins a flow problem is allowed to contain")
             ((initial_partitioning ? "i-r-flow-find-most-balanced-cut" : "r-flow-find-most-balanced-cut"),
-             po::value<bool>((initial_partitioning ? &context.initial_partitioning.refinement.advanced.flows.find_most_balanced_cut :
-                      &context.refinement.advanced.flows.find_most_balanced_cut))->value_name("<bool>"),
+             po::value<bool>((initial_partitioning ? &context.initial_partitioning.refinement.flows.find_most_balanced_cut :
+                      &context.refinement.flows.find_most_balanced_cut))->value_name("<bool>"),
              "If true, than hyperflowcutter searches for the most balanced minimum cut.")
             ((initial_partitioning ? "i-r-determine-distance-from-cut" : "r-determine-distance-from-cut"),
-             po::value<bool>((initial_partitioning ? &context.initial_partitioning.refinement.advanced.flows.determine_distance_from_cut :
-                      &context.refinement.advanced.flows.determine_distance_from_cut))->value_name("<bool>"),
+             po::value<bool>((initial_partitioning ? &context.initial_partitioning.refinement.flows.determine_distance_from_cut :
+                      &context.refinement.flows.determine_distance_from_cut))->value_name("<bool>"),
              "If true, than flow refiner determines distance of each node from cut which improves the piercing heuristic used in WHFC.");
     return options;
   }

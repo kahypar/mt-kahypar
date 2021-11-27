@@ -42,9 +42,9 @@ class AProblemConstruction : public Test {
     context.partition.mode = kahypar::Mode::direct_kway;
     context.partition.objective = kahypar::Objective::km1;
     context.shared_memory.num_threads = std::thread::hardware_concurrency();
-    context.refinement.advanced.algorithm = AdvancedRefinementAlgorithm::mock;
-    context.refinement.advanced.num_threads_per_search = 1;
-    context.refinement.advanced.max_bfs_distance = 2;
+    context.refinement.flows.algorithm = AdvancedRefinementAlgorithm::mock;
+    context.refinement.flows.num_threads_per_search = 1;
+    context.refinement.flows.max_bfs_distance = 2;
 
     // Read hypergraph
     hg = io::readHypergraphFile(context.partition.graph_filename);

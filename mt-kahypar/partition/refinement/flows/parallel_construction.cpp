@@ -95,7 +95,7 @@ FlowProblem ParallelConstruction::constructFlowHypergraph(const PartitionedHyper
   } else {
     _flow_hg.finalizeParallel();
 
-    if ( _context.refinement.advanced.flows.determine_distance_from_cut ) {
+    if ( _context.refinement.flows.determine_distance_from_cut ) {
       // Determine the distance of each node contained in the flow network from the cut.
       // This technique improves piercing decision within the WHFC framework.
       determineDistanceFromCut(phg, flow_problem.source,
@@ -138,7 +138,7 @@ FlowProblem ParallelConstruction::constructFlowHypergraph(const PartitionedHyper
   } else {
     _flow_hg.finalizeParallel();
 
-    if ( _context.refinement.advanced.flows.determine_distance_from_cut ) {
+    if ( _context.refinement.flows.determine_distance_from_cut ) {
       // Determine the distance of each node contained in the flow network from the cut.
       // This technique improves piercing decision within the WHFC framework.
       determineDistanceFromCut(phg, flow_problem.source,
@@ -176,7 +176,7 @@ FlowProblem ParallelConstruction::constructDefault(const PartitionedHypergraph& 
     _identical_nets.reset();
   });
 
-  if ( _context.refinement.advanced.flows.determine_distance_from_cut ) {
+  if ( _context.refinement.flows.determine_distance_from_cut ) {
     _cut_hes.clear();
   }
 
@@ -292,7 +292,7 @@ FlowProblem ParallelConstruction::constructDefault(const PartitionedHypergraph& 
                 _flow_hg.addPin(tmp_pins[i], idx, pin_idx++);
               }
               TmpHyperedge tmp_e { he_hash, idx, e++ };
-              if ( _context.refinement.advanced.flows.determine_distance_from_cut &&
+              if ( _context.refinement.flows.determine_distance_from_cut &&
                   phg.pinCountInPart(he, block_0) > 0 && phg.pinCountInPart(he, block_1) > 0 ) {
                 _cut_hes.push_back(tmp_e);
               }
@@ -343,7 +343,7 @@ FlowProblem ParallelConstruction::constructOptimizedForLargeHEs(const Partitione
     _identical_nets.reset();
   });
 
-  if ( _context.refinement.advanced.flows.determine_distance_from_cut ) {
+  if ( _context.refinement.flows.determine_distance_from_cut ) {
     _cut_hes.clear();
   }
 
@@ -463,7 +463,7 @@ FlowProblem ParallelConstruction::constructOptimizedForLargeHEs(const Partitione
                   _flow_hg.addPin(pin, idx, pin_idx++);
                 }
                 TmpHyperedge tmp_e { hash, idx, current_he++ };
-                if ( _context.refinement.advanced.flows.determine_distance_from_cut &&
+                if ( _context.refinement.flows.determine_distance_from_cut &&
                     actual_pin_count_block_0 > 0 && actual_pin_count_block_1 > 0 ) {
                   _cut_hes.push_back(tmp_e);
                 }

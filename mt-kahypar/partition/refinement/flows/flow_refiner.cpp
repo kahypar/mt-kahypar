@@ -141,7 +141,7 @@ FlowProblem FlowRefiner::constructFlowHypergraph(const PartitionedHypergraph& ph
   ASSERT(_block_0 != kInvalidPartition && _block_1 != kInvalidPartition);
   FlowProblem flow_problem;
 
-  if ( _context.refinement.advanced.num_threads_per_search > 1 ) {
+  if ( _context.refinement.flows.num_threads_per_search > 1 ) {
     flow_problem = _parallel_construction.constructFlowHypergraph(
       phg, sub_hg, _block_0, _block_1, _whfc_to_node);
   } else {

@@ -103,7 +103,7 @@ Subhypergraph ProblemConstruction::construct(const SearchID search_id,
     _scaling * _context.partition.perfect_balance_part_weights[sub_hg.block_1] - phg.partWeight(sub_hg.block_1);
   const HypernodeWeight max_weight_block_1 =
     _scaling * _context.partition.perfect_balance_part_weights[sub_hg.block_0] - phg.partWeight(sub_hg.block_0);
-  const size_t max_bfs_distance = _context.refinement.advanced.max_bfs_distance;
+  const size_t max_bfs_distance = _context.refinement.flows.max_bfs_distance;
 
 
   // We initialize the BFS with all cut hyperedges running
@@ -207,7 +207,7 @@ MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE bool ProblemConstruction::isMaximumProblemSiz
   if ( sub_hg.weight_of_block_1 >= max_weight_block_1 ) {
     locked_blocks[sub_hg.block_1] = true;
   }
-  if ( sub_hg.num_pins >= _context.refinement.advanced.flows.max_num_pins ) {
+  if ( sub_hg.num_pins >= _context.refinement.flows.max_num_pins ) {
     locked_blocks[sub_hg.block_0] = true;
     locked_blocks[sub_hg.block_1] = true;
   }

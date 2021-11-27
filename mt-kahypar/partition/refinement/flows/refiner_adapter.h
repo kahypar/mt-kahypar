@@ -91,9 +91,9 @@ public:
   void reset();
 
   size_t numAvailableRefiner() const {
-    ASSERT(_context.refinement.advanced.num_threads_per_search > 0);
-    return _context.shared_memory.num_threads / _context.refinement.advanced.num_threads_per_search
-      + (_context.shared_memory.num_threads % _context.refinement.advanced.num_threads_per_search != 0);
+    ASSERT(_context.refinement.flows.num_threads_per_search > 0);
+    return _context.shared_memory.num_threads / _context.refinement.flows.num_threads_per_search
+      + (_context.shared_memory.num_threads % _context.refinement.flows.num_threads_per_search != 0);
   }
 
   double runningTime(const SearchID search_id) const {
@@ -103,7 +103,7 @@ public:
 
   double timeLimit() const {
     return shouldSetTimeLimit() ?
-      std::max(_context.refinement.advanced.time_limit_factor *
+      std::max(_context.refinement.flows.time_limit_factor *
         _average_running_time, 0.1) : std::numeric_limits<double>::max();
   }
 
@@ -117,7 +117,7 @@ private:
 
   bool shouldSetTimeLimit() const {
     return _num_refinements > static_cast<size_t>(_context.partition.k) &&
-      _context.refinement.advanced.time_limit_factor > 1.0;
+      _context.refinement.flows.time_limit_factor > 1.0;
   }
 
   const Hypergraph& _hg;

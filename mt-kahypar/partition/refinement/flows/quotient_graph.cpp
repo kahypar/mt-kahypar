@@ -95,19 +95,10 @@ void QuotientGraph::ActiveBlockScheduler::initialize(const vec<uint8_t>& active_
     }
   }
 
-  auto should_accept_stable_block_pair = [&](const PartitionID i, const PartitionID j) {
-    const double relative_improvement_to_best =
-      _quotient_graph[i][j].total_improvement.load() /
-      static_cast<double>(best_total_improvement);
-    return relative_improvement_to_best >
-      _context.refinement.advanced.stable_block_relative_improvement_threshold;
-  };
-
   vec<BlockPair> active_block_pairs;
   for ( PartitionID i = 0; i < _context.partition.k; ++i ) {
     for ( PartitionID j = i + 1; j < _context.partition.k; ++j ) {
-      if ( isActiveBlockPair(i, j) &&
-          ( active_blocks[i] || active_blocks[j] || should_accept_stable_block_pair(i, j) ) ) {
+      if ( isActiveBlockPair(i, j) && ( active_blocks[i] || active_blocks[j] ) ) {
         active_block_pairs.push_back( BlockPair { i, j } );
       }
     }
@@ -231,12 +222,12 @@ void QuotientGraph::ActiveBlockScheduler::finalizeSearch(const BlockPair& blocks
 bool QuotientGraph::ActiveBlockScheduler::isActiveBlockPair(const PartitionID i,
                                                             const PartitionID j) const {
   const bool skip_small_cuts = !_is_input_hypergraph &&
-    _context.refinement.advanced.skip_small_cuts;
+    _context.refinement.flows.skip_small_cuts;
   const bool contains_enough_cut_hes =
     (skip_small_cuts && _quotient_graph[i][j].cut_he_weight > 10) ||
     (!skip_small_cuts && _quotient_graph[i][j].cut_he_weight > 0);
   const bool is_promising_blocks_pair =
-    !_context.refinement.advanced.skip_unpromising_blocks ||
+    !_context.refinement.flows.skip_unpromising_blocks ||
       ( _first_active_round == 0 || _quotient_graph[i][j].num_improvements_found > 0 );
   return contains_enough_cut_hes && is_promising_blocks_pair;
 }
@@ -331,26 +322,10 @@ void QuotientGraph::initialize(const PartitionedHypergraph& phg) {
       }
     }
   });
-  const HyperedgeID tmp_num_edges = local_num_hes.combine(std::plus<HyperedgeID>());
-  const bool is_same_hypergraph = _current_num_edges == tmp_num_edges;
-  _current_num_edges = tmp_num_edges;
-
-  vec<uint8_t> active_blocks(_context.partition.k, false);
-  if ( is_same_hypergraph &&
-       _context.refinement.advanced.skip_stable_blocks ) {
-    phg.doParallelForAllNodes([&](const HypernodeID& hn) {
-      const PartitionID prev_id = _partition_snapshot[hn];
-      const PartitionID cur_id = phg.partID(hn);
-      if ( prev_id != kInvalidPartition && prev_id != cur_id ) {
-        active_blocks[prev_id] = true;
-        active_blocks[cur_id] = true;
-      }
-    });
-  } else {
-    active_blocks.assign(_context.partition.k, true);
-  }
+  _current_num_edges = local_num_hes.combine(std::plus<HyperedgeID>());
 
   // Initalize block scheduler queue
+  vec<uint8_t> active_blocks(_context.partition.k, true);
   for ( PartitionID i = 0; i < _context.partition.k; ++i ) {
     for ( PartitionID j = i + 1; j < _context.partition.k; ++j ) {
       _quotient_graph[i][j].initial_num_cut_hes =  _quotient_graph[i][j].cut_hes.size();

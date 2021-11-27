@@ -146,30 +146,19 @@ namespace mt_kahypar {
 
   std::ostream& operator<<(std::ostream& out, const FlowParameters& params) {
     out << "  Flow Parameters: \n";
-    out << "    Flow Scaling:                     " << params.alpha << std::endl;
-    out << "    Maximum Number of Pins:           " << params.max_num_pins << std::endl;
-    out << "    Find Most Balanced Cut:           " << std::boolalpha << params.find_most_balanced_cut << std::endl;
-    out << "    Determine Distance From Cut:      " << std::boolalpha << params.determine_distance_from_cut << std::endl;
-    return out;
-  }
-
-  std::ostream& operator<<(std::ostream& out, const AdvancedRefinementParameters& params) {
-    out << "  Advanced Refinement Parameters: \n";
     out << "    Algorithm:                        " << params.algorithm << std::endl;
     if ( params.algorithm != AdvancedRefinementAlgorithm::do_nothing ) {
+      out << "    Flow Scaling:                     " << params.alpha << std::endl;
+      out << "    Maximum Number of Pins:           " << params.max_num_pins << std::endl;
+      out << "    Find Most Balanced Cut:           " << std::boolalpha << params.find_most_balanced_cut << std::endl;
+      out << "    Determine Distance From Cut:      " << std::boolalpha << params.determine_distance_from_cut << std::endl;
       out << "    Number of Threads Per Search:     " << params.num_threads_per_search << std::endl;
       out << "    Maximum BFS Distance:             " << params.max_bfs_distance << std::endl;
       out << "    Min Rel. Improvement Per Round:   " << params.min_relative_improvement_per_round << std::endl;
-      out << "    Stable Block Rel. Impr. Thres.:   " << params.stable_block_relative_improvement_threshold << std::endl;
       out << "    Time Limit Factor:                " << params.time_limit_factor << std::endl;
       out << "    Skip Small Cuts:                  " << std::boolalpha << params.skip_small_cuts << std::endl;
       out << "    Skip Unpromising Blocks:          " << std::boolalpha << params.skip_unpromising_blocks << std::endl;
-      out << "    Skip Stable Blocks:               " << std::boolalpha << params.skip_stable_blocks << std::endl;
       out << std::flush;
-
-      if ( params.algorithm == AdvancedRefinementAlgorithm::flows ) {
-        out << "\n" << params.flows;
-      }
     }
     return out;
   }
@@ -195,7 +184,7 @@ namespace mt_kahypar {
 #ifdef USE_STRONG_PARTITIONER
     str << "\n" << params.global_fm;
 #endif
-    str << "\n" << params.advanced;
+    str << "\n" << params.flows;
     return str;
   }
 
@@ -467,11 +456,11 @@ namespace mt_kahypar {
     }
   }
 
-  void Context::setupThreadsPerAdvancedSearch() {
-    if ( refinement.advanced.algorithm == AdvancedRefinementAlgorithm::flows ) {
-      refinement.advanced.num_threads_per_search =
+  void Context::setupThreadsPerFlowSearch() {
+    if ( refinement.flows.algorithm == AdvancedRefinementAlgorithm::flows ) {
+      refinement.flows.num_threads_per_search =
         std::max(shared_memory.num_threads / partition.k,
-          std::max(refinement.advanced.num_threads_per_search, 1UL ) );
+          std::max(refinement.flows.num_threads_per_search, 1UL ) );
     }
   }
 

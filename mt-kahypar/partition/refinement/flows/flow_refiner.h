@@ -55,7 +55,7 @@ class FlowRefiner final : public IAdvancedRefiner {
     _sequential_construction(hg, _flow_hg, _hfc, context),
     _parallel_construction(hg, _flow_hg, _hfc, context) {
     _hfc.find_most_balanced =
-      _context.refinement.advanced.flows.find_most_balanced_cut;
+      _context.refinement.flows.find_most_balanced_cut;
     _hfc.timer.active = false;
   }
 

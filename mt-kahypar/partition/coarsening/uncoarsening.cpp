@@ -111,7 +111,7 @@ namespace mt_kahypar {
 
     // Initialize Advanced Refinement Scheduler
     std::unique_ptr<IRefiner> advanced(nullptr);
-    if ( _context.refinement.advanced.algorithm != AdvancedRefinementAlgorithm::do_nothing ) {
+    if ( _context.refinement.flows.algorithm != AdvancedRefinementAlgorithm::do_nothing ) {
       advanced = std::make_unique<AdvancedRefinementScheduler>(_hg, _context);
     }
 
@@ -245,7 +245,7 @@ namespace mt_kahypar {
 
     // Initialize Advanced Refinement Scheduler
     std::unique_ptr<IRefiner> advanced(nullptr);
-    if ( _context.refinement.advanced.algorithm != AdvancedRefinementAlgorithm::do_nothing ) {
+    if ( _context.refinement.flows.algorithm != AdvancedRefinementAlgorithm::do_nothing ) {
       advanced = std::make_unique<AdvancedRefinementScheduler>(_hg, _context);
     }
 
@@ -476,7 +476,7 @@ namespace mt_kahypar {
         utils::Timer::instance().stop_timer("fm");
       }
 
-      if ( advanced && _context.refinement.advanced.algorithm != AdvancedRefinementAlgorithm::do_nothing ) {
+      if ( advanced && _context.refinement.flows.algorithm != AdvancedRefinementAlgorithm::do_nothing ) {
         utils::Timer::instance().start_timer("initialize_advanced_refiner", "Initialize Advanced Refiner");
         advanced->initialize(partitioned_hypergraph);
         utils::Timer::instance().stop_timer("initialize_advanced_refiner");
@@ -604,7 +604,7 @@ namespace mt_kahypar {
           utils::Timer::instance().stop_timer("fm");
         }
 
-        if ( advanced && _context.refinement.advanced.algorithm != AdvancedRefinementAlgorithm::do_nothing ) {
+        if ( advanced && _context.refinement.flows.algorithm != AdvancedRefinementAlgorithm::do_nothing ) {
           utils::Timer::instance().start_timer("initialize_advanced_refiner", "Initialize Advanced Refiner");
           advanced->initialize(partitioned_hypergraph);
           utils::Timer::instance().stop_timer("initialize_advanced_refiner");

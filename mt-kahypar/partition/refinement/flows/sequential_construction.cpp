@@ -84,7 +84,7 @@ FlowProblem SequentialConstruction::constructFlowHypergraph(const PartitionedHyp
   } else {
     _flow_hg.finalize();
 
-    if ( _context.refinement.advanced.flows.determine_distance_from_cut ) {
+    if ( _context.refinement.flows.determine_distance_from_cut ) {
       // Determine the distance of each node contained in the flow network from the cut.
       // This technique improves piercing decision within the WHFC framework.
       determineDistanceFromCut(phg, flow_problem.source,
@@ -127,7 +127,7 @@ FlowProblem SequentialConstruction::constructFlowHypergraph(const PartitionedHyp
   } else {
     _flow_hg.finalize();
 
-    if ( _context.refinement.advanced.flows.determine_distance_from_cut ) {
+    if ( _context.refinement.flows.determine_distance_from_cut ) {
       // Determine the distance of each node contained in the flow network from the cut.
       // This technique improves piercing decision within the WHFC framework.
       determineDistanceFromCut(phg, flow_problem.source,
@@ -156,7 +156,7 @@ FlowProblem SequentialConstruction::constructDefault(const PartitionedHypergraph
   _node_to_whfc.clear();
   whfc_to_node.resize(sub_hg.numNodes() + 2);
 
-  if ( _context.refinement.advanced.flows.determine_distance_from_cut ) {
+  if ( _context.refinement.flows.determine_distance_from_cut ) {
     _cut_hes.clear();
   }
 
@@ -245,7 +245,7 @@ FlowProblem SequentialConstruction::constructDefault(const PartitionedHypergraph
             for ( const whfc::Node& pin : _tmp_pins ) {
               _flow_hg.addPin(pin);
             }
-            if ( _context.refinement.advanced.flows.determine_distance_from_cut &&
+            if ( _context.refinement.flows.determine_distance_from_cut &&
                  phg.pinCountInPart(he, block_0) > 0 && phg.pinCountInPart(he, block_1) > 0 ) {
               _cut_hes.push_back(current_he);
             }
@@ -276,7 +276,7 @@ FlowProblem SequentialConstruction::constructOptimizedForLargeHEs(const Partitio
   _he_to_whfc.clear();
   whfc_to_node.resize(sub_hg.numNodes() + 2);
 
-  if ( _context.refinement.advanced.flows.determine_distance_from_cut ) {
+  if ( _context.refinement.flows.determine_distance_from_cut ) {
     _cut_hes.clear();
   }
 
@@ -368,7 +368,7 @@ FlowProblem SequentialConstruction::constructOptimizedForLargeHEs(const Partitio
               for ( const whfc::Node& pin : _tmp_pins ) {
                 _flow_hg.addPin(pin);
               }
-              if ( _context.refinement.advanced.flows.determine_distance_from_cut &&
+              if ( _context.refinement.flows.determine_distance_from_cut &&
                   actual_pin_count_block_0 > 0 && actual_pin_count_block_1 > 0 ) {
                 _cut_hes.push_back(current_he);
               }

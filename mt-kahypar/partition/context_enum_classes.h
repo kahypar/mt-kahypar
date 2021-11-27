@@ -121,7 +121,6 @@ enum class FMAlgorithm : uint8_t {
 
 enum class AdvancedRefinementAlgorithm : uint8_t {
   flows,
-  ilp,
   mock,
   do_nothing
 };
