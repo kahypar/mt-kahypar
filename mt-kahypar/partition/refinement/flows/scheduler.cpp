@@ -118,19 +118,17 @@ bool FlowRefinementScheduler::refineImpl(
         DBG << "Start search" << search_id
             << "( Blocks =" << blocksOfSearch(search_id)
             << ", Refiner =" << i << ")";
-        utils::Timer::instance().start_timer("construct_problem", "Construct Problem", true);
+        utils::Timer::instance().start_timer("region_growing", "Grow Region", true);
         const Subhypergraph sub_hg =
           _constructor.construct(search_id, _quotient_graph, phg);
         _quotient_graph.finalizeConstruction(search_id);
-        utils::Timer::instance().stop_timer("construct_problem");
+        utils::Timer::instance().stop_timer("region_growing");
 
         HyperedgeWeight delta = 0;
         bool improved_solution = false;
         if ( sub_hg.numNodes() > 0 ) {
-          utils::Timer::instance().start_timer("refine_problem", "Refine Problem", true);
           ++_stats.num_refinements;
           MoveSequence sequence = _refiner.refine(search_id, phg, sub_hg);
-          utils::Timer::instance().stop_timer("refine_problem");
 
           if ( !sequence.moves.empty() ) {
             utils::Timer::instance().start_timer("apply_moves", "Apply Moves", true);

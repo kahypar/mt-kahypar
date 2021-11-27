@@ -29,9 +29,9 @@ MoveSequence FlowRefiner::refineImpl(const PartitionedHypergraph& phg,
                                      const HighResClockTimepoint& start) {
   MoveSequence sequence { { }, 0 };
   // Construct flow network that contains all vertices given in refinement nodes
-  utils::Timer::instance().start_timer("construct_flow_problem", "Construct Flow Problem", true);
+  utils::Timer::instance().start_timer("construct_flow_network", "Construct Flow Network", true);
   FlowProblem flow_problem = constructFlowHypergraph(phg, sub_hg);
-  utils::Timer::instance().stop_timer("construct_flow_problem");
+  utils::Timer::instance().stop_timer("construct_flow_network");
   if ( flow_problem.total_cut - flow_problem.non_removable_cut > 0 ) {
     // Set maximum allowed block weights for block 0 and 1
     _hfc.cs.setMaxBlockWeight(0, std::max(
@@ -43,9 +43,9 @@ MoveSequence FlowRefiner::refineImpl(const PartitionedHypergraph& phg,
     _hfc.upperFlowBound = flow_problem.total_cut - flow_problem.non_removable_cut;
     // Solve max-flow min-cut problem
     bool time_limit_reached = false;
-    utils::Timer::instance().start_timer("solve_flow_problem", "Solve Flow Problem", true);
+    utils::Timer::instance().start_timer("hyper_flow_cutter", "HyperFlowCutter", true);
     bool flowcutter_succeeded = computeFlow(flow_problem, start, time_limit_reached);
-    utils::Timer::instance().stop_timer("solve_flow_problem");
+    utils::Timer::instance().stop_timer("hyper_flow_cutter");
     if ( flowcutter_succeeded ) {
       // We apply the solution if it either improves the cut or the balance of
       // the bipartition induced by the two blocks
