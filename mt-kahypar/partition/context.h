@@ -160,7 +160,7 @@ struct NLevelGlobalFMParameters {
 std::ostream& operator<<(std::ostream& out, const NLevelGlobalFMParameters& params);
 
 struct FlowParameters {
-  AdvancedRefinementAlgorithm algorithm = AdvancedRefinementAlgorithm::do_nothing;
+  FlowAlgorithm algorithm = FlowAlgorithm::do_nothing;
   double alpha = 0.0;
   HypernodeID max_num_pins = std::numeric_limits<HypernodeID>::max();
   bool find_most_balanced_cut = false;

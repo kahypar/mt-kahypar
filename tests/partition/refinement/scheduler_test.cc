@@ -23,7 +23,7 @@
 #include "mt-kahypar/io/hypergraph_io.h"
 #include "mt-kahypar/partition/refinement/policies/gain_policy.h"
 #include "mt-kahypar/partition/refinement/flows/scheduler.h"
-#include "tests/partition/refinement/advanced_refiner_mock.h"
+#include "tests/partition/refinement/flow_refiner_mock.h"
 
 using ::testing::Test;
 
@@ -31,9 +31,9 @@ using ::testing::Test;
 
 namespace mt_kahypar {
 
-class AAdvancedRefinementScheduler : public Test {
+class AFlowRefinementScheduler : public Test {
  public:
-  AAdvancedRefinementScheduler() :
+  AFlowRefinementScheduler() :
     hg(HypergraphFactory::construct(7 , 4,
       { {0, 2}, {0, 1, 3, 4}, {3, 4, 6}, {2, 5, 6} }, nullptr, nullptr, true)),
     phg(2, hg, parallel_tag_t()),
@@ -44,7 +44,7 @@ class AAdvancedRefinementScheduler : public Test {
     context.partition.objective = kahypar::Objective::km1;
 
     context.shared_memory.num_threads = 2;
-    context.refinement.flows.algorithm = AdvancedRefinementAlgorithm::mock;
+    context.refinement.flows.algorithm = FlowAlgorithm::mock;
     context.refinement.flows.num_threads_per_search = 1;
     context.refinement.flows.max_bfs_distance = 2;
 
@@ -86,8 +86,8 @@ void verifyPartWeights(const vec<HypernodeWeight> actual_weights,
   }
 }
 
-TEST_F(AAdvancedRefinementScheduler, MovesOneVertex) {
-  AdvancedRefinementScheduler refiner(hg, context);
+TEST_F(AFlowRefinementScheduler, MovesOneVertex) {
+  FlowRefinementScheduler refiner(hg, context);
   refiner.initialize(phg);
   MoveSequence sequence { { MOVE(3, 0, 1) }, 1 };
 
@@ -99,8 +99,8 @@ TEST_F(AAdvancedRefinementScheduler, MovesOneVertex) {
   verifyPartWeights(refiner.partWeights(), { 3, 4 });
 }
 
-TEST_F(AAdvancedRefinementScheduler, MovesVerticesWithIntermediateBalanceViolation) {
-  AdvancedRefinementScheduler refiner(hg, context);
+TEST_F(AFlowRefinementScheduler, MovesVerticesWithIntermediateBalanceViolation) {
+  FlowRefinementScheduler refiner(hg, context);
   refiner.initialize(phg);
   MoveSequence sequence { { MOVE(5, 1, 0), MOVE(1, 0, 1), MOVE(3, 0, 1) }, 1 };
 
@@ -114,8 +114,8 @@ TEST_F(AAdvancedRefinementScheduler, MovesVerticesWithIntermediateBalanceViolati
   verifyPartWeights(refiner.partWeights(), { 3, 4 });
 }
 
-TEST_F(AAdvancedRefinementScheduler, MovesAVertexThatWorsenSolutionQuality) {
-  AdvancedRefinementScheduler refiner(hg, context);
+TEST_F(AFlowRefinementScheduler, MovesAVertexThatWorsenSolutionQuality) {
+  FlowRefinementScheduler refiner(hg, context);
   refiner.initialize(phg);
   MoveSequence sequence { { MOVE(0, 0, 1) }, 1 };
 
@@ -127,8 +127,8 @@ TEST_F(AAdvancedRefinementScheduler, MovesAVertexThatWorsenSolutionQuality) {
   verifyPartWeights(refiner.partWeights(), { 4, 3 });
 }
 
-TEST_F(AAdvancedRefinementScheduler, MovesAVertexThatViolatesBalanceConstraint) {
-  AdvancedRefinementScheduler refiner(hg, context);
+TEST_F(AFlowRefinementScheduler, MovesAVertexThatViolatesBalanceConstraint) {
+  FlowRefinementScheduler refiner(hg, context);
   refiner.initialize(phg);
   MoveSequence sequence { { MOVE(4, 1, 0) }, 1 };
 
@@ -140,9 +140,9 @@ TEST_F(AAdvancedRefinementScheduler, MovesAVertexThatViolatesBalanceConstraint) 
   verifyPartWeights(refiner.partWeights(), { 4, 3 });
 }
 
-TEST_F(AAdvancedRefinementScheduler, MovesTwoVerticesConcurrently) {
+TEST_F(AFlowRefinementScheduler, MovesTwoVerticesConcurrently) {
   context.partition.max_part_weights.assign(2, 5);
-  AdvancedRefinementScheduler refiner(hg, context);
+  FlowRefinementScheduler refiner(hg, context);
   refiner.initialize(phg);
 
   MoveSequence sequence_1 { { MOVE(3, 0, 1) }, 1 };
@@ -165,8 +165,8 @@ TEST_F(AAdvancedRefinementScheduler, MovesTwoVerticesConcurrently) {
   verifyPartWeights(refiner.partWeights(), { 4, 3 });
 }
 
-TEST_F(AAdvancedRefinementScheduler, MovesTwoVerticesConcurrentlyWhereOneViolateBalanceConstraint) {
-  AdvancedRefinementScheduler refiner(hg, context);
+TEST_F(AFlowRefinementScheduler, MovesTwoVerticesConcurrentlyWhereOneViolateBalanceConstraint) {
+  FlowRefinementScheduler refiner(hg, context);
   refiner.initialize(phg);
 
   MoveSequence sequence_1 { { MOVE(3, 0, 1) }, 1 };
@@ -198,12 +198,12 @@ TEST_F(AAdvancedRefinementScheduler, MovesTwoVerticesConcurrentlyWhereOneViolate
   verifyPartWeights(refiner.partWeights(), { 3, 4 });
 }
 
-class AnAdvancedRefinementEndToEnd : public Test {
+class AFlowRefinementEndToEnd : public Test {
 
   using GainCalculator = Km1Policy<PartitionedHypergraph>;
 
  public:
-  AnAdvancedRefinementEndToEnd() :
+  AFlowRefinementEndToEnd() :
     hg(),
     phg(),
     context(),
@@ -216,7 +216,7 @@ class AnAdvancedRefinementEndToEnd : public Test {
     context.partition.mode = kahypar::Mode::direct_kway;
     context.partition.objective = kahypar::Objective::km1;
     context.shared_memory.num_threads = std::thread::hardware_concurrency();
-    context.refinement.flows.algorithm = AdvancedRefinementAlgorithm::mock;
+    context.refinement.flows.algorithm = FlowAlgorithm::mock;
     context.refinement.flows.num_threads_per_search = 1;
     context.refinement.flows.max_bfs_distance = 2;
 
@@ -234,11 +234,11 @@ class AnAdvancedRefinementEndToEnd : public Test {
     });
     phg.initializePartition();
 
-    AdvancedRefinerMockControl::instance().reset();
+    FlowRefinerMockControl::instance().reset();
 
     mover = std::make_unique<GainCalculator>(context);
     // Refine solution with simple label propagation
-    AdvancedRefinerMockControl::instance().refine_func = [&](const PartitionedHypergraph& phg,
+    FlowRefinerMockControl::instance().refine_func = [&](const PartitionedHypergraph& phg,
                                                              const Subhypergraph& sub_hg,
                                                              const size_t) {
       MoveSequence sequence { {}, 0 };
@@ -282,9 +282,9 @@ class AnAdvancedRefinementEndToEnd : public Test {
   std::unique_ptr<GainCalculator> mover;
 };
 
-TEST_F(AnAdvancedRefinementEndToEnd, SmokeTestWithTwoBlocksPerRefiner) {
+TEST_F(AFlowRefinementEndToEnd, SmokeTestWithTwoBlocksPerRefiner) {
   const bool debug = false;
-  AdvancedRefinementScheduler scheduler(hg, context);
+  FlowRefinementScheduler scheduler(hg, context);
 
   kahypar::Metrics metrics;
   metrics.cut = metrics::hyperedgeCut(phg);
@@ -314,10 +314,10 @@ TEST_F(AnAdvancedRefinementEndToEnd, SmokeTestWithTwoBlocksPerRefiner) {
   }
 }
 
-TEST_F(AnAdvancedRefinementEndToEnd, SmokeTestWithFourBlocksPerRefiner) {
+TEST_F(AFlowRefinementEndToEnd, SmokeTestWithFourBlocksPerRefiner) {
   const bool debug = false;
-  AdvancedRefinerMockControl::instance().max_num_blocks = 4;
-  AdvancedRefinementScheduler scheduler(hg, context);
+  FlowRefinerMockControl::instance().max_num_blocks = 4;
+  FlowRefinementScheduler scheduler(hg, context);
 
   kahypar::Metrics metrics;
   metrics.cut = metrics::hyperedgeCut(phg);

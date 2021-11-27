@@ -28,11 +28,11 @@
 
 namespace mt_kahypar {
 
-void AdvancedRefinementScheduler::RefinementStats::update_global_stats() {
+void FlowRefinementScheduler::RefinementStats::update_global_stats() {
   utils::Stats& global_stats = utils::Stats::instance();
-  global_stats.update_stat("num_advanced_refinements",
+  global_stats.update_stat("num_flow_refinements",
     num_refinements.load(std::memory_order_relaxed));
-  global_stats.update_stat("num_advanced_improvement",
+  global_stats.update_stat("num_flow_improvement",
     num_improvements.load(std::memory_order_relaxed));
   global_stats.update_stat("num_time_limits",
     num_time_limits.load(std::memory_order_relaxed));
@@ -46,7 +46,7 @@ void AdvancedRefinementScheduler::RefinementStats::update_global_stats() {
     failed_updates_due_to_conflicting_moves_without_rollback.load(std::memory_order_relaxed));
   global_stats.update_stat("failed_updates_due_to_balance_constraint",
     failed_updates_due_to_balance_constraint.load(std::memory_order_relaxed));
-  global_stats.update_stat("total_advanced_refinement_improvement",
+  global_stats.update_stat("total_flow_refinement_improvement",
     total_improvement.load(std::memory_order_relaxed));
 }
 
@@ -67,7 +67,7 @@ namespace {
   }
 }
 
-inline std::ostream & operator<< (std::ostream& str, const AdvancedRefinementScheduler::RefinementStats& stats) {
+inline std::ostream & operator<< (std::ostream& str, const FlowRefinementScheduler::RefinementStats& stats) {
   str << "\n";
   str << "Total Improvement                   = " << stats.total_improvement << "\n";
   str << "Number of Flow-Based Refinements    = " << stats.num_refinements << "\n";
@@ -100,7 +100,7 @@ inline std::ostream & operator<< (std::ostream& str, const AdvancedRefinementSch
 }
 
 
-bool AdvancedRefinementScheduler::refineImpl(
+bool FlowRefinementScheduler::refineImpl(
                 PartitionedHypergraph& phg,
                 const parallel::scalable_vector<HypernodeID>&,
                 kahypar::Metrics& best_metrics,
@@ -110,7 +110,6 @@ bool AdvancedRefinementScheduler::refineImpl(
   _quotient_graph.setObjective(best_metrics.getMetric(
     kahypar::Mode::direct_kway, _context.partition.objective));
 
-  utils::Timer::instance().start_timer("advanced_refinement_scheduling", "Advanced Refinement Scheduling");
   std::atomic<HyperedgeWeight> overall_delta(0);
   tbb::parallel_for(0UL, _refiner.numAvailableRefiner(), [&](const size_t i) {
     while ( i < _quotient_graph.maximumRequiredRefiners() ) {
@@ -157,7 +156,6 @@ bool AdvancedRefinementScheduler::refineImpl(
     }
     DBG << RED << "Refiner" << i << "terminates!" << END;
   });
-  utils::Timer::instance().stop_timer("advanced_refinement_scheduling");
 
   DBG << _stats;
 
@@ -200,7 +198,7 @@ bool AdvancedRefinementScheduler::refineImpl(
   return overall_delta.load(std::memory_order_relaxed) < 0;
 }
 
-void AdvancedRefinementScheduler::initializeImpl(PartitionedHypergraph& phg)  {
+void FlowRefinementScheduler::initializeImpl(PartitionedHypergraph& phg)  {
   _phg = &phg;
 
   // Initialize Part Weights
@@ -289,7 +287,7 @@ void addCutHyperedgesToQuotientGraph(QuotientGraph& quotient_graph,
 
 } // namespace
 
-HyperedgeWeight AdvancedRefinementScheduler::applyMoves(const SearchID search_id,
+HyperedgeWeight FlowRefinementScheduler::applyMoves(const SearchID search_id,
                                                         MoveSequence& sequence) {
   unused(search_id);
   ASSERT(_phg);
@@ -391,7 +389,7 @@ HyperedgeWeight AdvancedRefinementScheduler::applyMoves(const SearchID search_id
   return improvement;
 }
 
-AdvancedRefinementScheduler::PartWeightUpdateResult AdvancedRefinementScheduler::partWeightUpdate(
+FlowRefinementScheduler::PartWeightUpdateResult FlowRefinementScheduler::partWeightUpdate(
   const vec<HypernodeWeight>& part_weight_deltas, const bool rollback) {
   const HypernodeWeight multiplier = rollback ? -1 : 1;
   PartWeightUpdateResult res;

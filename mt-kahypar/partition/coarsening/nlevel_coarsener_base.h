@@ -26,7 +26,7 @@
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/metrics.h"
 #include "mt-kahypar/partition/refinement/i_refiner.h"
-#include "mt-kahypar/partition/refinement/flows/i_advanced_refiner.h"
+#include "mt-kahypar/partition/refinement/flows/i_flow_refiner.h"
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
 #include "mt-kahypar/utils/timer.h"
 
@@ -110,7 +110,7 @@ class NLevelCoarsenerBase {
 
   void globalRefine(PartitionedHypergraph& partitioned_hypergraph,
                     std::unique_ptr<IRefiner>& fm,
-                    std::unique_ptr<IRefiner>& advanced,
+                    std::unique_ptr<IRefiner>& flows,
                     kahypar::Metrics& current_metrics,
                     const double time_limit);
 

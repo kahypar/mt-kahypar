@@ -54,7 +54,7 @@ std::set<std::string> excluded_members =
     "measure_detailed_uncontraction_timings", "write_partition_file", "graph_partition_output_folder", "graph_partition_filename", "graph_community_filename", "community_detection",
     "community_redistribution", "coarsening_rating", "label_propagation", "lp_execute_sequential", "deterministic_refinement",
     "snapshot_interval", "initial_partitioning_refinement", "initial_partitioning_sparsification", "initial_partitioning_enabled_ip_algos",
-    "stable_construction_of_incident_edges", "fm", "global_fm", "advanced", "csv_output", "preset_file", "degree_of_parallelism" };
+    "stable_construction_of_incident_edges", "fm", "global_fm", "flows", "csv_output", "preset_file", "degree_of_parallelism" };
 
 bool is_target_struct(const std::string& line) {
   for ( const std::string& target_struct : target_structs ) {

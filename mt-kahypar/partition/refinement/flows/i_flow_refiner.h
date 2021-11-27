@@ -29,15 +29,15 @@
 
 namespace mt_kahypar {
 
-class IAdvancedRefiner {
+class IFlowRefiner {
 
  public:
-  IAdvancedRefiner(const IAdvancedRefiner&) = delete;
-  IAdvancedRefiner(IAdvancedRefiner&&) = delete;
-  IAdvancedRefiner & operator= (const IAdvancedRefiner &) = delete;
-  IAdvancedRefiner & operator= (IAdvancedRefiner &&) = delete;
+  IFlowRefiner(const IFlowRefiner&) = delete;
+  IFlowRefiner(IFlowRefiner&&) = delete;
+  IFlowRefiner & operator= (const IFlowRefiner &) = delete;
+  IFlowRefiner & operator= (IFlowRefiner &&) = delete;
 
-  virtual ~IAdvancedRefiner() = default;
+  virtual ~IFlowRefiner() = default;
 
   void initialize(const PartitionedHypergraph& hypergraph) {
     initializeImpl(hypergraph);
@@ -67,7 +67,7 @@ class IAdvancedRefiner {
 
 
  protected:
-  IAdvancedRefiner() = default;
+  IFlowRefiner() = default;
 
   double _time_limit = 0;
 

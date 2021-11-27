@@ -424,23 +424,22 @@ namespace mt_kahypar {
     return options;
   }
 
-  po::options_description createAdvancedRefinementOptionsDescription(Context& context,
-                                                                     const int num_columns,
-                                                                     const bool initial_partitioning) {
+  po::options_description createFlowRefinementOptionsDescription(Context& context,
+                                                                 const int num_columns,
+                                                                 const bool initial_partitioning) {
     po::options_description options("Initial Partitioning Options", num_columns);
     options.add_options()
             ((initial_partitioning ? "i-r-flow-algo" : "r-flow-algo"),
              po::value<std::string>()->value_name("<string>")->notifier(
                      [&, initial_partitioning](const std::string& algo) {
                        if ( initial_partitioning ) {
-                        context.initial_partitioning.refinement.flows.algorithm = advancedRefinementAlgorithmFromString(algo);
+                        context.initial_partitioning.refinement.flows.algorithm = flowAlgorithmFromString(algo);
                        } else {
-                        context.refinement.flows.algorithm = advancedRefinementAlgorithmFromString(algo);
+                        context.refinement.flows.algorithm = flowAlgorithmFromString(algo);
                        }
                      })->default_value("do_nothing"),
-             "Advanced Refinement Algorithms:\n"
+             "Flow Algorithms:\n"
              "- do_nothing\n"
-             "- ilp\n"
              "- flows")
             ((initial_partitioning ? "i-r-num-threads-per-search" : "r-num-threads-per-search"),
              po::value<size_t>((initial_partitioning ? &context.initial_partitioning.refinement.flows.num_threads_per_search :
@@ -449,16 +448,16 @@ namespace mt_kahypar {
             ((initial_partitioning ? "i-r-max-bfs-distance" : "r-max-bfs-distance"),
              po::value<size_t>((initial_partitioning ? &context.initial_partitioning.refinement.flows.max_bfs_distance :
                       &context.refinement.flows.max_bfs_distance))->value_name("<size_t>"),
-             "Advanced refinement problems are constructed via BFS search. The maximum BFS distance is the\n"
+             "Flow problems are constructed via BFS search. The maximum BFS distance is the\n"
              "maximum distance from a cut hyperedge to any vertex of the problem.")
             ((initial_partitioning ? "i-r-min-rel-improvement-per-round" : "r-min-rel-improvement-per-round"),
              po::value<double>((initial_partitioning ? &context.initial_partitioning.refinement.flows.min_relative_improvement_per_round :
                       &context.refinement.flows.min_relative_improvement_per_round))->value_name("<double>"),
-             "Minimum relative improvement per active block scheduling round. If improvement is smaller than advanced search terminates.")
+             "Minimum relative improvement per active block scheduling round. If improvement is smaller than flow algorithm terminates.")
             ((initial_partitioning ? "i-r-time-limit-factor" : "r-time-limit-factor"),
              po::value<double>((initial_partitioning ? &context.initial_partitioning.refinement.flows.time_limit_factor :
                       &context.refinement.flows.time_limit_factor))->value_name("<double>"),
-             "The time limit for each advanced search is time_limit_factor * average running time of all previous searches.")
+             "The time limit for each flow problem is time_limit_factor * average running time of all previous searches.")
             ((initial_partitioning ? "i-r-skip-small-cuts" : "r-skip-small-cuts"),
              po::value<bool>((initial_partitioning ? &context.initial_partitioning.refinement.flows.skip_small_cuts :
                       &context.refinement.flows.skip_small_cuts))->value_name("<bool>"),
@@ -546,7 +545,7 @@ namespace mt_kahypar {
                      "<size_t>")->default_value(5),
              "Initial block size used for label propagation initial partitioner");
     options.add(createRefinementOptionsDescription(context, num_columns, true));
-    options.add(createAdvancedRefinementOptionsDescription(context, num_columns, true));
+    options.add(createFlowRefinementOptionsDescription(context, num_columns, true));
     return options;
   }
 
@@ -666,8 +665,8 @@ namespace mt_kahypar {
             createInitialPartitioningOptionsDescription(context, num_columns);
     po::options_description refinement_options =
             createRefinementOptionsDescription(context, num_columns, false);
-    po::options_description advanced_refinement_options =
-            createAdvancedRefinementOptionsDescription(context, num_columns, false);
+    po::options_description flow_options =
+            createFlowRefinementOptionsDescription(context, num_columns, false);
 #ifdef KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES
     po::options_description sparsification_options =
     createSparsificationOptionsDescription(context, num_columns);
@@ -684,7 +683,7 @@ namespace mt_kahypar {
             .add(coarsening_options)
             .add(initial_paritioning_options)
             .add(refinement_options)
-            .add(advanced_refinement_options)
+            .add(flow_options)
 #ifdef KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES
                     .add(sparsification_options)
 #endif
@@ -716,7 +715,7 @@ namespace mt_kahypar {
             .add(coarsening_options)
             .add(initial_paritioning_options)
             .add(refinement_options)
-            .add(advanced_refinement_options)
+            .add(flow_options)
 #ifdef KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES
                     .add(sparsification_options)
 #endif
@@ -772,8 +771,8 @@ namespace mt_kahypar {
             createInitialPartitioningOptionsDescription(context, num_columns);
     po::options_description refinement_options =
             createRefinementOptionsDescription(context, num_columns, false);
-    po::options_description advanced_refinement_options =
-            createAdvancedRefinementOptionsDescription(context, num_columns, false);
+    po::options_description flow_options =
+            createFlowRefinementOptionsDescription(context, num_columns, false);
 #ifdef KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES
     po::options_description sparsification_options =
     createSparsificationOptionsDescription(context, num_columns);
@@ -788,7 +787,7 @@ namespace mt_kahypar {
             .add(coarsening_options)
             .add(initial_paritioning_options)
             .add(refinement_options)
-            .add(advanced_refinement_options)
+            .add(flow_options)
 #ifdef KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES
                     .add(sparsification_options)
 #endif

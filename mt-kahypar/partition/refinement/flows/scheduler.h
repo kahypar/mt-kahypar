@@ -31,7 +31,7 @@
 
 namespace mt_kahypar {
 
-class AdvancedRefinementScheduler final : public IRefiner {
+class FlowRefinementScheduler final : public IRefiner {
 
   static constexpr bool debug = false;
   static constexpr bool enable_heavy_assert = false;
@@ -82,7 +82,7 @@ class AdvancedRefinementScheduler final : public IRefiner {
   friend std::ostream & operator<< (std::ostream& str, const RefinementStats& stats);
 
 public:
-  explicit AdvancedRefinementScheduler(const Hypergraph& hg,
+  explicit FlowRefinementScheduler(const Hypergraph& hg,
                                        const Context& context) :
     _phg(nullptr),
     _context(context),
@@ -96,11 +96,11 @@ public:
     _stats(),
     _apply_moves_lock() { }
 
-  AdvancedRefinementScheduler(const AdvancedRefinementScheduler&) = delete;
-  AdvancedRefinementScheduler(AdvancedRefinementScheduler&&) = delete;
+  FlowRefinementScheduler(const FlowRefinementScheduler&) = delete;
+  FlowRefinementScheduler(FlowRefinementScheduler&&) = delete;
 
-  AdvancedRefinementScheduler & operator= (const AdvancedRefinementScheduler &) = delete;
-  AdvancedRefinementScheduler & operator= (AdvancedRefinementScheduler &&) = delete;
+  FlowRefinementScheduler & operator= (const FlowRefinementScheduler &) = delete;
+  FlowRefinementScheduler & operator= (FlowRefinementScheduler &&) = delete;
 
   /**
    * Applies the sequence of vertex moves to the partitioned hypergraph.
@@ -148,10 +148,10 @@ private:
   // ! blocks of the partition
   QuotientGraph _quotient_graph;
 
-  // ! Maintains the advanced refiner instances
-  AdvancedRefinerAdapter _refiner;
+  // ! Maintains the flow refiner instances
+  FlowRefinerAdapter _refiner;
 
-  // ! Responsible for construction of an advanced refinement problem
+  // ! Responsible for construction of an flow problems
   ProblemConstruction _constructor;
 
   // ! For each vertex it store wheather the corresponding vertex

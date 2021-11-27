@@ -22,7 +22,7 @@
 
 #include "mt-kahypar/io/hypergraph_io.h"
 #include "mt-kahypar/partition/refinement/flows/problem_construction.h"
-#include "tests/partition/refinement/advanced_refiner_mock.h"
+#include "tests/partition/refinement/flow_refiner_mock.h"
 
 using ::testing::Test;
 
@@ -42,7 +42,7 @@ class AProblemConstruction : public Test {
     context.partition.mode = kahypar::Mode::direct_kway;
     context.partition.objective = kahypar::Objective::km1;
     context.shared_memory.num_threads = std::thread::hardware_concurrency();
-    context.refinement.flows.algorithm = AdvancedRefinementAlgorithm::mock;
+    context.refinement.flows.algorithm = FlowAlgorithm::mock;
     context.refinement.flows.num_threads_per_search = 1;
     context.refinement.flows.max_bfs_distance = 2;
 
@@ -60,7 +60,7 @@ class AProblemConstruction : public Test {
     });
     phg.initializePartition();
 
-    AdvancedRefinerMockControl::instance().reset();
+    FlowRefinerMockControl::instance().reset();
   }
 
   void verifyThatPartWeightsAreLessEqualToMaxPartWeight(const Subhypergraph& sub_hg,
@@ -124,9 +124,9 @@ void verifyThatVertexSetAreDisjoint(const Subhypergraph& sub_hg_1, const Subhype
   }
 }
 
-TEST_F(AProblemConstruction, GrowAnAdvancedRefinementProblemAroundTwoBlocks1) {
+TEST_F(AProblemConstruction, GrowAnFlowProblemAroundTwoBlocks1) {
   ProblemConstruction constructor(hg, context);
-  AdvancedRefinerAdapter refiner(hg, context);
+  FlowRefinerAdapter refiner(hg, context);
   QuotientGraph qg(hg, context);
   qg.initialize(phg);
 
@@ -138,9 +138,9 @@ TEST_F(AProblemConstruction, GrowAnAdvancedRefinementProblemAroundTwoBlocks1) {
   verifyThatPartWeightsAreLessEqualToMaxPartWeight(sub_hg, search_id, qg);
 }
 
-TEST_F(AProblemConstruction, GrowAnAdvancedRefinementProblemAroundTwoBlocks2) {
+TEST_F(AProblemConstruction, GrowAnFlowProblemAroundTwoBlocks2) {
   ProblemConstruction constructor(hg, context);
-  AdvancedRefinerAdapter refiner(hg, context);
+  FlowRefinerAdapter refiner(hg, context);
   QuotientGraph qg(hg, context);
   qg.initialize(phg);
 
@@ -152,9 +152,9 @@ TEST_F(AProblemConstruction, GrowAnAdvancedRefinementProblemAroundTwoBlocks2) {
   verifyThatPartWeightsAreLessEqualToMaxPartWeight(sub_hg, search_id, qg);
 }
 
-TEST_F(AProblemConstruction, GrowTwoAdvancedRefinementProblemAroundTwoBlocksSimultanously) {
+TEST_F(AProblemConstruction, GrowTwoFlowProblemAroundTwoBlocksSimultanously) {
   ProblemConstruction constructor(hg, context);
-  AdvancedRefinerAdapter refiner(hg, context);
+  FlowRefinerAdapter refiner(hg, context);
   QuotientGraph qg(hg, context);
   qg.initialize(phg);
 

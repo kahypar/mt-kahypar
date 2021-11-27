@@ -316,7 +316,7 @@ public:
    * associated with the search. If there are currently no block pairs
    * available then INVALID_SEARCH_ID is returned.
    */
-  SearchID requestNewSearch(AdvancedRefinerAdapter& refiner);
+  SearchID requestNewSearch(FlowRefinerAdapter& refiner);
 
   // ! Returns the block pair on which the corresponding search operates on
   BlockPair getBlockPair(const SearchID search_id) const {

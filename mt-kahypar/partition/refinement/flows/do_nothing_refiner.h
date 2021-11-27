@@ -25,17 +25,17 @@
 #include <utility>
 #include <vector>
 
-#include "mt-kahypar/partition/refinement/flows/i_advanced_refiner.h"
+#include "mt-kahypar/partition/refinement/flows/i_flow_refiner.h"
 
 namespace mt_kahypar {
-class DoNothingAdvancedRefiner final : public IAdvancedRefiner {
+class DoNothingFlowRefiner final : public IFlowRefiner {
  public:
   template <typename ... Args>
-  explicit DoNothingAdvancedRefiner(Args&& ...) noexcept { }
-  DoNothingAdvancedRefiner(const DoNothingAdvancedRefiner&) = delete;
-  DoNothingAdvancedRefiner(DoNothingAdvancedRefiner&&) = delete;
-  DoNothingAdvancedRefiner & operator= (const DoNothingAdvancedRefiner &) = delete;
-  DoNothingAdvancedRefiner & operator= (DoNothingAdvancedRefiner &&) = delete;
+  explicit DoNothingFlowRefiner(Args&& ...) noexcept { }
+  DoNothingFlowRefiner(const DoNothingFlowRefiner&) = delete;
+  DoNothingFlowRefiner(DoNothingFlowRefiner&&) = delete;
+  DoNothingFlowRefiner & operator= (const DoNothingFlowRefiner &) = delete;
+  DoNothingFlowRefiner & operator= (DoNothingFlowRefiner &&) = delete;
 
  private:
   void initializeImpl(const PartitionedHypergraph&) override final { }

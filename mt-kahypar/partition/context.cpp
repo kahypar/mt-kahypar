@@ -147,7 +147,7 @@ namespace mt_kahypar {
   std::ostream& operator<<(std::ostream& out, const FlowParameters& params) {
     out << "  Flow Parameters: \n";
     out << "    Algorithm:                        " << params.algorithm << std::endl;
-    if ( params.algorithm != AdvancedRefinementAlgorithm::do_nothing ) {
+    if ( params.algorithm != FlowAlgorithm::do_nothing ) {
       out << "    Flow Scaling:                     " << params.alpha << std::endl;
       out << "    Maximum Number of Pins:           " << params.max_num_pins << std::endl;
       out << "    Find Most Balanced Cut:           " << std::boolalpha << params.find_most_balanced_cut << std::endl;
@@ -457,7 +457,7 @@ namespace mt_kahypar {
   }
 
   void Context::setupThreadsPerFlowSearch() {
-    if ( refinement.flows.algorithm == AdvancedRefinementAlgorithm::flows ) {
+    if ( refinement.flows.algorithm == FlowAlgorithm::flows ) {
       refinement.flows.num_threads_per_search =
         std::max(shared_memory.num_threads / partition.k,
           std::max(refinement.flows.num_threads_per_search, 1UL ) );

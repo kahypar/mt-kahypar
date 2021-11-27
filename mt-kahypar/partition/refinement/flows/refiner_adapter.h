@@ -26,13 +26,13 @@
 
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/context.h"
-#include "mt-kahypar/partition/refinement/flows/i_advanced_refiner.h"
+#include "mt-kahypar/partition/refinement/flows/i_flow_refiner.h"
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
 #include "mt-kahypar/parallel/atomic_wrapper.h"
 
 namespace mt_kahypar {
 
-class AdvancedRefinerAdapter {
+class FlowRefinerAdapter {
 
   static constexpr bool debug = false;
   static constexpr bool enable_heavy_assert = false;
@@ -46,7 +46,7 @@ class AdvancedRefinerAdapter {
   };
 
 public:
-  explicit AdvancedRefinerAdapter(const Hypergraph& hg,
+  explicit FlowRefinerAdapter(const Hypergraph& hg,
                                   const Context& context) :
     _hg(hg),
     _context(context),
@@ -64,11 +64,11 @@ public:
     }
   }
 
-  AdvancedRefinerAdapter(const AdvancedRefinerAdapter&) = delete;
-  AdvancedRefinerAdapter(AdvancedRefinerAdapter&&) = delete;
+  FlowRefinerAdapter(const FlowRefinerAdapter&) = delete;
+  FlowRefinerAdapter(FlowRefinerAdapter&&) = delete;
 
-  AdvancedRefinerAdapter & operator= (const AdvancedRefinerAdapter &) = delete;
-  AdvancedRefinerAdapter & operator= (AdvancedRefinerAdapter &&) = delete;
+  FlowRefinerAdapter & operator= (const FlowRefinerAdapter &) = delete;
+  FlowRefinerAdapter & operator= (FlowRefinerAdapter &&) = delete;
 
   // ! Associates a refiner with a search id.
   // ! Returns true, if there is an idle refiner left.
@@ -113,7 +113,7 @@ public:
   }
 
 private:
-  std::unique_ptr<IAdvancedRefiner> initializeRefiner();
+  std::unique_ptr<IFlowRefiner> initializeRefiner();
 
   bool shouldSetTimeLimit() const {
     return _num_refinements > static_cast<size_t>(_context.partition.k) &&
@@ -126,7 +126,7 @@ private:
   // ! Indices of unused refiners
   tbb::concurrent_queue<size_t> _unused_refiners;
   // ! Available refiners
-  vec<std::unique_ptr<IAdvancedRefiner>> _refiner;
+  vec<std::unique_ptr<IFlowRefiner>> _refiner;
   // ! Mapping from search id to refiner
   SpinLock _search_lock;
   tbb::concurrent_vector<ActiveSearch> _active_searches;

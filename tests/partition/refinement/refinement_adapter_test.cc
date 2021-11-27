@@ -20,7 +20,7 @@
 
 #include "gmock/gmock.h"
 
-#include "tests/partition/refinement/advanced_refiner_mock.h"
+#include "tests/partition/refinement/flow_refiner_mock.h"
 #include "mt-kahypar/partition/refinement/flows/refiner_adapter.h"
 
 using ::testing::Test;
@@ -29,9 +29,9 @@ using ::testing::Test;
 
 namespace mt_kahypar {
 
-class AAdvancedRefinementAdapter : public Test {
+class AFlowRefinerAdapter : public Test {
  public:
-  AAdvancedRefinementAdapter() :
+  AFlowRefinerAdapter() :
     hg(HypergraphFactory::construct(7 , 4, {
        {0, 2}, {0, 1, 3, 4}, {3, 4, 6}, {2, 5, 6} }, nullptr, nullptr, true)),
     phg(2, hg, parallel_tag_t()),
@@ -41,10 +41,10 @@ class AAdvancedRefinementAdapter : public Test {
     context.partition.max_part_weights.assign(2, 4);
     context.partition.objective = kahypar::Objective::km1;
     context.shared_memory.num_threads = 8;
-    context.refinement.flows.algorithm = AdvancedRefinementAlgorithm::mock;
+    context.refinement.flows.algorithm = FlowAlgorithm::mock;
     context.refinement.flows.num_threads_per_search = 1;
 
-    AdvancedRefinerMockControl::instance().reset();
+    FlowRefinerMockControl::instance().reset();
 
     phg.setOnlyNodePart(0, 0);
     phg.setOnlyNodePart(1, 0);
@@ -59,7 +59,7 @@ class AAdvancedRefinementAdapter : public Test {
   Hypergraph hg;
   PartitionedHypergraph phg;
   Context context;
-  std::unique_ptr<AdvancedRefinerAdapter> refiner;
+  std::unique_ptr<FlowRefinerAdapter> refiner;
 };
 
 template <class F, class K>
@@ -77,22 +77,22 @@ void executeConcurrent(F f1, K f2) {
   });
 }
 
-TEST_F(AAdvancedRefinementAdapter, FailsToRegisterMoreSearchesIfAllAreUsed) {
+TEST_F(AFlowRefinerAdapter, FailsToRegisterMoreSearchesIfAllAreUsed) {
   context.refinement.flows.num_threads_per_search = 4;
-  refiner = std::make_unique<AdvancedRefinerAdapter>(hg, context);
+  refiner = std::make_unique<FlowRefinerAdapter>(hg, context);
 
   ASSERT_TRUE(refiner->registerNewSearch(0, phg));
   ASSERT_TRUE(refiner->registerNewSearch(1, phg));
   ASSERT_FALSE(refiner->registerNewSearch(2, phg));
 }
 
-TEST_F(AAdvancedRefinementAdapter, UseCorrectNumberOfThreadsForSearch1) {
+TEST_F(AFlowRefinerAdapter, UseCorrectNumberOfThreadsForSearch1) {
   context.refinement.flows.num_threads_per_search = 5;
-  refiner = std::make_unique<AdvancedRefinerAdapter>(hg, context);
+  refiner = std::make_unique<FlowRefinerAdapter>(hg, context);
   ASSERT_EQ(2, refiner->numAvailableRefiner());
   ASSERT_EQ(0, refiner->numUsedThreads());
 
-  AdvancedRefinerMockControl::instance().refine_func =
+  FlowRefinerMockControl::instance().refine_func =
     [&](const PartitionedHypergraph&, const Subhypergraph&, const size_t num_threads) -> MoveSequence {
       EXPECT_EQ(5, num_threads);
       EXPECT_EQ(5, refiner->numUsedThreads());
@@ -103,14 +103,14 @@ TEST_F(AAdvancedRefinementAdapter, UseCorrectNumberOfThreadsForSearch1) {
   refiner->finalizeSearch(0);
 }
 
-TEST_F(AAdvancedRefinementAdapter, UseCorrectNumberOfThreadsForSearch2) {
+TEST_F(AFlowRefinerAdapter, UseCorrectNumberOfThreadsForSearch2) {
   context.refinement.flows.num_threads_per_search = 5;
-  refiner = std::make_unique<AdvancedRefinerAdapter>(hg, context);
+  refiner = std::make_unique<FlowRefinerAdapter>(hg, context);
   ASSERT_EQ(2, refiner->numAvailableRefiner());
   ASSERT_EQ(0, refiner->numUsedThreads());
 
   std::atomic<size_t> cnt(0);
-  AdvancedRefinerMockControl::instance().refine_func =
+  FlowRefinerMockControl::instance().refine_func =
     [&](const PartitionedHypergraph&, const Subhypergraph&, const size_t num_threads) -> MoveSequence {
       EXPECT_EQ(5, num_threads);
       EXPECT_EQ(5, refiner->numUsedThreads());
@@ -119,7 +119,7 @@ TEST_F(AAdvancedRefinementAdapter, UseCorrectNumberOfThreadsForSearch2) {
       return MoveSequence { {}, 0 };
     };
   ASSERT_TRUE(refiner->registerNewSearch(0, phg));
-  AdvancedRefinerMockControl::instance().refine_func =
+  FlowRefinerMockControl::instance().refine_func =
     [&](const PartitionedHypergraph&, const Subhypergraph&, const size_t num_threads) -> MoveSequence {
       EXPECT_EQ(3, num_threads);
       EXPECT_EQ(8, refiner->numUsedThreads());

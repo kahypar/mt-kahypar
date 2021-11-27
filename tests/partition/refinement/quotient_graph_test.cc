@@ -22,7 +22,7 @@
 
 #include "mt-kahypar/io/hypergraph_io.h"
 #include "mt-kahypar/partition/refinement/flows/quotient_graph.h"
-#include "tests/partition/refinement/advanced_refiner_mock.h"
+#include "tests/partition/refinement/flow_refiner_mock.h"
 
 using ::testing::Test;
 
@@ -43,7 +43,7 @@ namespace mt_kahypar {
     context.partition.mode = kahypar::Mode::direct_kway;
     context.partition.objective = kahypar::Objective::km1;
     context.shared_memory.num_threads = std::thread::hardware_concurrency();
-    context.refinement.flows.algorithm = AdvancedRefinementAlgorithm::mock;
+    context.refinement.flows.algorithm = FlowAlgorithm::mock;
     context.refinement.flows.num_threads_per_search = 1;
     context.refinement.flows.max_bfs_distance = 2;
 
@@ -67,8 +67,8 @@ namespace mt_kahypar {
 };
 
 TEST_F(AQuotientGraph, SimulatesBlockScheduling) {
-  AdvancedRefinerMockControl::instance().max_num_blocks = 2;
-  AdvancedRefinerAdapter refiner(hg, context);
+  FlowRefinerMockControl::instance().max_num_blocks = 2;
+  FlowRefinerAdapter refiner(hg, context);
   QuotientGraph qg(hg, context);
   qg.initialize(phg);
   const bool debug = false;
@@ -125,8 +125,8 @@ TEST_F(AQuotientGraph, SimulatesBlockScheduling) {
 }
 
 TEST_F(AQuotientGraph, SimulatesBlockSchedulingWithSuccessfulSearches) {
-  AdvancedRefinerMockControl::instance().max_num_blocks = 2;
-  AdvancedRefinerAdapter refiner(hg, context);
+  FlowRefinerMockControl::instance().max_num_blocks = 2;
+  FlowRefinerAdapter refiner(hg, context);
   QuotientGraph qg(hg, context);
   qg.initialize(phg);
   const bool debug = false;

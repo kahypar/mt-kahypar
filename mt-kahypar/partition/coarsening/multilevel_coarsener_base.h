@@ -176,7 +176,7 @@ class MultilevelCoarsenerBase {
   void refine(PartitionedHypergraph& partitioned_hypergraph,
               std::unique_ptr<IRefiner>& label_propagation,
               std::unique_ptr<IRefiner>& fm,
-              std::unique_ptr<IRefiner>& advanced,
+              std::unique_ptr<IRefiner>& flows,
               kahypar::Metrics& current_metrics,
               const double time_limit);
 

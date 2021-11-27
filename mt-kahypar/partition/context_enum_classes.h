@@ -119,7 +119,7 @@ enum class FMAlgorithm : uint8_t {
   do_nothing
 };
 
-enum class AdvancedRefinementAlgorithm : uint8_t {
+enum class FlowAlgorithm : uint8_t {
   flows,
   mock,
   do_nothing
@@ -151,7 +151,7 @@ std::ostream & operator<< (std::ostream& os, const LabelPropagationAlgorithm& al
 
 std::ostream & operator<< (std::ostream& os, const FMAlgorithm& algo);
 
-std::ostream & operator<< (std::ostream& os, const AdvancedRefinementAlgorithm& algo);
+std::ostream & operator<< (std::ostream& os, const FlowAlgorithm& algo);
 
 LouvainEdgeWeight louvainEdgeWeightFromString(const std::string& type);
 
@@ -173,6 +173,6 @@ LabelPropagationAlgorithm labelPropagationAlgorithmFromString(const std::string&
 
 FMAlgorithm fmAlgorithmFromString(const std::string& type);
 
-AdvancedRefinementAlgorithm advancedRefinementAlgorithmFromString(const std::string& type);
+FlowAlgorithm flowAlgorithmFromString(const std::string& type);
 
 }  // namesapce mt_kahypar

@@ -28,7 +28,7 @@ namespace mt_kahypar {
 #define NOW std::chrono::high_resolution_clock::now()
 #define RUNNING_TIME(X) std::chrono::duration<double>(NOW - X).count();
 
-bool AdvancedRefinerAdapter::registerNewSearch(const SearchID search_id,
+bool FlowRefinerAdapter::registerNewSearch(const SearchID search_id,
                                                const PartitionedHypergraph& phg) {
   bool success = true;
   size_t refiner_idx = INVALID_REFINER_IDX;
@@ -56,7 +56,7 @@ bool AdvancedRefinerAdapter::registerNewSearch(const SearchID search_id,
   return success;
 }
 
-MoveSequence AdvancedRefinerAdapter::refine(const SearchID search_id,
+MoveSequence FlowRefinerAdapter::refine(const SearchID search_id,
                                             const PartitionedHypergraph& phg,
                                             const Subhypergraph& sub_hg) {
   ASSERT(static_cast<size_t>(search_id) < _active_searches.size());
@@ -81,14 +81,14 @@ MoveSequence AdvancedRefinerAdapter::refine(const SearchID search_id,
   return moves;
 }
 
-PartitionID AdvancedRefinerAdapter::maxNumberOfBlocks(const SearchID search_id) {
+PartitionID FlowRefinerAdapter::maxNumberOfBlocks(const SearchID search_id) {
   ASSERT(static_cast<size_t>(search_id) < _active_searches.size());
   ASSERT(_active_searches[search_id].refiner_idx != INVALID_REFINER_IDX);
   const size_t refiner_idx = _active_searches[search_id].refiner_idx;
   return _refiner[refiner_idx]->maxNumberOfBlocksPerSearch();
 }
 
-void AdvancedRefinerAdapter::finalizeSearch(const SearchID search_id) {
+void FlowRefinerAdapter::finalizeSearch(const SearchID search_id) {
   ASSERT(static_cast<size_t>(search_id) < _active_searches.size());
   const double running_time = RUNNING_TIME(_active_searches[search_id].start);
   _active_searches[search_id].running_time = running_time;
@@ -116,7 +116,7 @@ void AdvancedRefinerAdapter::finalizeSearch(const SearchID search_id) {
   _active_searches[search_id].refiner_idx = INVALID_REFINER_IDX;
 }
 
-void AdvancedRefinerAdapter::reset() {
+void FlowRefinerAdapter::reset() {
   _unused_refiners.clear();
   for ( size_t i = 0; i < numAvailableRefiner(); ++i ) {
     _unused_refiners.push(i);
@@ -127,8 +127,8 @@ void AdvancedRefinerAdapter::reset() {
   _average_running_time = 0.0;
 }
 
-std::unique_ptr<IAdvancedRefiner> AdvancedRefinerAdapter::initializeRefiner() {
-  return AdvancedRefinementFactory::getInstance().createObject(
+std::unique_ptr<IFlowRefiner> FlowRefinerAdapter::initializeRefiner() {
+  return FlowRefinementFactory::getInstance().createObject(
     _context.refinement.flows.algorithm, _hg, _context);
 }
 

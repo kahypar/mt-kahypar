@@ -232,7 +232,7 @@ bool QuotientGraph::ActiveBlockScheduler::isActiveBlockPair(const PartitionID i,
   return contains_enough_cut_hes && is_promising_blocks_pair;
 }
 
-SearchID QuotientGraph::requestNewSearch(AdvancedRefinerAdapter& refiner) {
+SearchID QuotientGraph::requestNewSearch(FlowRefinerAdapter& refiner) {
   ASSERT(_phg);
   SearchID search_id = INVALID_SEARCH_ID;
   BlockPair blocks { kInvalidPartition, kInvalidPartition };

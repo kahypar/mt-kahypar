@@ -48,10 +48,10 @@
     return new refiner(hypergraph, context);                                                    \
   })
 
-#define REGISTER_ADVANCED_REFINER(id, refiner, t)                                             \
-  static kahypar::meta::Registrar<AdvancedRefinementFactory> JOIN(register_ ## refiner, t)(   \
+#define REGISTER_FLOW_REFINER(id, refiner, t)                                                 \
+  static kahypar::meta::Registrar<FlowRefinementFactory> JOIN(register_ ## refiner, t)(       \
     id,                                                                                       \
-    [](const Hypergraph& hypergraph, const Context& context) -> IAdvancedRefiner* {           \
+    [](const Hypergraph& hypergraph, const Context& context) -> IFlowRefiner* {               \
     return new refiner(hypergraph, context);                                                  \
   })
 
@@ -71,7 +71,7 @@ REGISTER_FM_REFINER(FMAlgorithm::fm_gain_delta, MultiTryKWayFMWithGainDelta, FMW
 REGISTER_FM_REFINER(FMAlgorithm::fm_recompute_gain, MultiTryKWayFMWithGainRecomputation, FMWithGainRecomputation);
 REGISTER_FM_REFINER(FMAlgorithm::do_nothing, DoNothingRefiner, 2);
 
-REGISTER_ADVANCED_REFINER(AdvancedRefinementAlgorithm::do_nothing, DoNothingAdvancedRefiner, 3);
-REGISTER_ADVANCED_REFINER(AdvancedRefinementAlgorithm::flows, FlowRefiner, Flows);
+REGISTER_FLOW_REFINER(FlowAlgorithm::do_nothing, DoNothingFlowRefiner, 3);
+REGISTER_FLOW_REFINER(FlowAlgorithm::flows, FlowRefiner, Flows);
 
 }  // namespace mt_kahypar

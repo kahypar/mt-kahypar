@@ -169,11 +169,11 @@ namespace mt_kahypar {
     return os << static_cast<uint8_t>(algo);
   }
 
-  std::ostream & operator<< (std::ostream& os, const AdvancedRefinementAlgorithm& algo) {
+  std::ostream & operator<< (std::ostream& os, const FlowAlgorithm& algo) {
     switch (algo) {
-      case AdvancedRefinementAlgorithm::flows: return os << "flows";
-      case AdvancedRefinementAlgorithm::mock: return os << "mock";
-      case AdvancedRefinementAlgorithm::do_nothing: return os << "do_nothing";
+      case FlowAlgorithm::flows: return os << "flows";
+      case FlowAlgorithm::mock: return os << "mock";
+      case FlowAlgorithm::do_nothing: return os << "do_nothing";
         // omit default case to trigger compiler warning for missing cases
     }
     return os << static_cast<uint8_t>(algo);
@@ -315,13 +315,13 @@ namespace mt_kahypar {
     return FMAlgorithm::do_nothing;
   }
 
-  AdvancedRefinementAlgorithm advancedRefinementAlgorithmFromString(const std::string& type) {
+  FlowAlgorithm flowAlgorithmFromString(const std::string& type) {
     if (type == "flows") {
-      return AdvancedRefinementAlgorithm::flows;
+      return FlowAlgorithm::flows;
     } else if (type == "do_nothing") {
-      return AdvancedRefinementAlgorithm::do_nothing;
+      return FlowAlgorithm::do_nothing;
     }
     ERROR("Illegal option: " + type);
-    return AdvancedRefinementAlgorithm::do_nothing;
+    return FlowAlgorithm::do_nothing;
   }
 }

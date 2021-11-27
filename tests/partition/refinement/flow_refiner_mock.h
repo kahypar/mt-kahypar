@@ -26,30 +26,30 @@
 #include "mt-kahypar/partition/factories.h"
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/context_enum_classes.h"
-#include "mt-kahypar/partition/refinement/flows/i_advanced_refiner.h"
+#include "mt-kahypar/partition/refinement/flows/i_flow_refiner.h"
 
 namespace mt_kahypar {
 
 using RefineFunc = std::function<MoveSequence(const PartitionedHypergraph&, const Subhypergraph&, const size_t)>;
 
-class AdvancedRefinerMockControl {
+class FlowRefinerMockControl {
 
   #define NOOP_REFINE_FUNC [] (const PartitionedHypergraph&, const Subhypergraph&, const size_t) { return MoveSequence { {}, 0 }; }
 
  public:
-  AdvancedRefinerMockControl(const AdvancedRefinerMockControl&) = delete;
-  AdvancedRefinerMockControl & operator= (const AdvancedRefinerMockControl &) = delete;
+  FlowRefinerMockControl(const FlowRefinerMockControl&) = delete;
+  FlowRefinerMockControl & operator= (const FlowRefinerMockControl &) = delete;
 
-  AdvancedRefinerMockControl(AdvancedRefinerMockControl&&) = delete;
-  AdvancedRefinerMockControl & operator= (AdvancedRefinerMockControl &&) = delete;
+  FlowRefinerMockControl(FlowRefinerMockControl&&) = delete;
+  FlowRefinerMockControl & operator= (FlowRefinerMockControl &&) = delete;
 
-  static AdvancedRefinerMockControl& instance() {
-    static AdvancedRefinerMockControl instance;
+  static FlowRefinerMockControl& instance() {
+    static FlowRefinerMockControl instance;
     return instance;
   }
 
  private:
-  explicit AdvancedRefinerMockControl() :
+  explicit FlowRefinerMockControl() :
     max_num_blocks(2),
     refine_func(NOOP_REFINE_FUNC) { }
 
@@ -64,22 +64,22 @@ class AdvancedRefinerMockControl {
   RefineFunc refine_func;
 };
 
-class AdvancedRefinerMock final : public IAdvancedRefiner {
+class FlowRefinerMock final : public IFlowRefiner {
 
  public:
-  explicit AdvancedRefinerMock(const Hypergraph&,
+  explicit FlowRefinerMock(const Hypergraph&,
                                const Context& context) :
     _context(context),
-    _max_num_blocks(AdvancedRefinerMockControl::instance().max_num_blocks),
+    _max_num_blocks(FlowRefinerMockControl::instance().max_num_blocks),
     _num_threads(0),
-    _refine_func(AdvancedRefinerMockControl::instance().refine_func) { }
+    _refine_func(FlowRefinerMockControl::instance().refine_func) { }
 
-  AdvancedRefinerMock(const AdvancedRefinerMock&) = delete;
-  AdvancedRefinerMock(AdvancedRefinerMock&&) = delete;
-  AdvancedRefinerMock & operator= (const AdvancedRefinerMock &) = delete;
-  AdvancedRefinerMock & operator= (AdvancedRefinerMock &&) = delete;
+  FlowRefinerMock(const FlowRefinerMock&) = delete;
+  FlowRefinerMock(FlowRefinerMock&&) = delete;
+  FlowRefinerMock & operator= (const FlowRefinerMock &) = delete;
+  FlowRefinerMock & operator= (FlowRefinerMock &&) = delete;
 
-  virtual ~AdvancedRefinerMock() = default;
+  virtual ~FlowRefinerMock() = default;
 
  protected:
 
@@ -106,13 +106,13 @@ class AdvancedRefinerMock final : public IAdvancedRefiner {
   RefineFunc _refine_func;
 };
 
-#define REGISTER_ADVANCED_REFINER(id, refiner)                                          \
-  static kahypar::meta::Registrar<AdvancedRefinementFactory> register_ ## refiner(      \
+#define REGISTER_FLOW_REFINER(id, refiner)                                          \
+  static kahypar::meta::Registrar<FlowRefinementFactory> register_ ## refiner(      \
     id,                                                                                 \
-    [](const Hypergraph& hypergraph, const Context& context) -> IAdvancedRefiner* {     \
+    [](const Hypergraph& hypergraph, const Context& context) -> IFlowRefiner* {     \
     return new refiner(hypergraph, context);                                            \
   })
 
-REGISTER_ADVANCED_REFINER(AdvancedRefinementAlgorithm::mock, AdvancedRefinerMock);
+REGISTER_FLOW_REFINER(FlowAlgorithm::mock, FlowRefinerMock);
 
 }  // namespace mt_kahypar

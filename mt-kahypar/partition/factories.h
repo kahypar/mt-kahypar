@@ -33,7 +33,7 @@
 #include "mt-kahypar/partition/initial_partitioning/i_initial_partitioner.h"
 #include "mt-kahypar/partition/preprocessing/sparsification/i_hypergraph_sparsifier.h"
 #include "mt-kahypar/partition/refinement/i_refiner.h"
-#include "mt-kahypar/partition/refinement/flows/i_advanced_refiner.h"
+#include "mt-kahypar/partition/refinement/flows/i_flow_refiner.h"
 
 namespace mt_kahypar {
 
@@ -64,6 +64,6 @@ using LabelPropagationFactory = kahypar::meta::Factory<LabelPropagationAlgorithm
 using FMFactory = kahypar::meta::Factory<FMAlgorithm,
                                          IRefiner* (*)(Hypergraph&, const Context&)>;
 
-using AdvancedRefinementFactory = kahypar::meta::Factory<AdvancedRefinementAlgorithm,
-                                  IAdvancedRefiner* (*)(const Hypergraph&, const Context&)>;
+using FlowRefinementFactory = kahypar::meta::Factory<FlowAlgorithm,
+                              IFlowRefiner* (*)(const Hypergraph&, const Context&)>;
 }  // namespace mt_kahypar

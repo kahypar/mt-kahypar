@@ -63,7 +63,7 @@ class AFlowHypergraphConstructor : public Test {
     context.partition.objective = kahypar::Objective::km1;
 
     context.shared_memory.num_threads = 2;
-    context.refinement.flows.algorithm = AdvancedRefinementAlgorithm::mock;
+    context.refinement.flows.algorithm = FlowAlgorithm::mock;
     context.refinement.flows.num_threads_per_search = 1;
     context.refinement.flows.determine_distance_from_cut = false;
 

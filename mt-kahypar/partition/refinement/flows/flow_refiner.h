@@ -26,7 +26,7 @@
 #include "algorithm/dinic.h"
 
 #include "mt-kahypar/partition/context.h"
-#include "mt-kahypar/partition/refinement/flows/i_advanced_refiner.h"
+#include "mt-kahypar/partition/refinement/flows/i_flow_refiner.h"
 #include "mt-kahypar/datastructures/sparse_map.h"
 #include "mt-kahypar/datastructures/thread_safe_fast_reset_flag_array.h"
 #include "mt-kahypar/parallel/stl/scalable_queue.h"
@@ -37,7 +37,7 @@
 
 namespace mt_kahypar {
 
-class FlowRefiner final : public IAdvancedRefiner {
+class FlowRefiner final : public IFlowRefiner {
 
   static constexpr bool debug = false;
 
@@ -105,7 +105,7 @@ class FlowRefiner final : public IAdvancedRefiner {
 
   const PartitionedHypergraph* _phg;
   const Context& _context;
-  using IAdvancedRefiner::_time_limit;
+  using IFlowRefiner::_time_limit;
   size_t _num_threads;
 
   mutable PartitionID _block_0;
