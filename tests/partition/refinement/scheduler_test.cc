@@ -22,7 +22,7 @@
 
 #include "mt-kahypar/io/hypergraph_io.h"
 #include "mt-kahypar/partition/refinement/policies/gain_policy.h"
-#include "mt-kahypar/partition/refinement/advanced/scheduler.h"
+#include "mt-kahypar/partition/refinement/flows/scheduler.h"
 #include "tests/partition/refinement/advanced_refiner_mock.h"
 
 using ::testing::Test;

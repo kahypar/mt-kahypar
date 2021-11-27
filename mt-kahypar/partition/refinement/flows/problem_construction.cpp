@@ -20,7 +20,7 @@
  ******************************************************************************/
 
 
-#include "mt-kahypar/partition/refinement/advanced/problem_construction.h"
+#include "mt-kahypar/partition/refinement/flows/problem_construction.h"
 
 #include <unordered_map>
 

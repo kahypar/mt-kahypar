@@ -21,7 +21,7 @@
 #include "gmock/gmock.h"
 
 #include "mt-kahypar/io/hypergraph_io.h"
-#include "mt-kahypar/partition/refinement/advanced/problem_construction.h"
+#include "mt-kahypar/partition/refinement/flows/problem_construction.h"
 #include "tests/partition/refinement/advanced_refiner_mock.h"
 
 using ::testing::Test;

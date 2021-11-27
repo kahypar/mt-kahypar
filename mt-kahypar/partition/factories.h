@@ -33,7 +33,7 @@
 #include "mt-kahypar/partition/initial_partitioning/i_initial_partitioner.h"
 #include "mt-kahypar/partition/preprocessing/sparsification/i_hypergraph_sparsifier.h"
 #include "mt-kahypar/partition/refinement/i_refiner.h"
-#include "mt-kahypar/partition/refinement/advanced/i_advanced_refiner.h"
+#include "mt-kahypar/partition/refinement/flows/i_advanced_refiner.h"
 
 namespace mt_kahypar {
 

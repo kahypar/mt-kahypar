@@ -20,7 +20,7 @@
  ******************************************************************************/
 
 
-#include "mt-kahypar/partition/refinement/advanced/quotient_graph.h"
+#include "mt-kahypar/partition/refinement/flows/quotient_graph.h"
 
 #include <queue>
 

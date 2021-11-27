@@ -25,7 +25,7 @@
 #include <utility>
 #include <vector>
 
-#include "mt-kahypar/partition/refinement/advanced/i_advanced_refiner.h"
+#include "mt-kahypar/partition/refinement/flows/i_advanced_refiner.h"
 
 namespace mt_kahypar {
 class DoNothingAdvancedRefiner final : public IAdvancedRefiner {

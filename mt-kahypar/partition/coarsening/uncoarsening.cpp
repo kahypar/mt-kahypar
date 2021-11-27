@@ -7,7 +7,7 @@
 #include "mt-kahypar/utils/stats.h"
 #include "mt-kahypar/utils/timer.h"
 
-#include "mt-kahypar/partition/refinement/advanced/scheduler.h"
+#include "mt-kahypar/partition/refinement/flows/scheduler.h"
 #include "mt-kahypar/partition/refinement/rebalancing/rebalancer.h"
 #include "mt-kahypar/partition/metrics.h"
 #include "mt-kahypar/io/partitioning_output.h"

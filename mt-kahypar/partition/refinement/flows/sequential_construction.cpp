@@ -18,11 +18,11 @@
  *
  ******************************************************************************/
 
-#include "mt-kahypar/partition/refinement/advanced/flows/sequential_construction.h"
+#include "mt-kahypar/partition/refinement/flows/sequential_construction.h"
 
 #include "mt-kahypar/parallel/stl/scalable_queue.h"
 
-#include "mt-kahypar/partition/refinement/advanced/flows/flow_common.h"
+#include "mt-kahypar/partition/refinement/flows/flow_common.h"
 
 namespace mt_kahypar {
 

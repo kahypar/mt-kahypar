@@ -24,8 +24,8 @@
 
 #include "mt-kahypar/partition/factories.h"
 #include "mt-kahypar/partition/refinement/do_nothing_refiner.h"
-#include "mt-kahypar/partition/refinement/advanced/do_nothing_refiner.h"
-#include "mt-kahypar/partition/refinement/advanced/flows/flow_refiner.h"
+#include "mt-kahypar/partition/refinement/flows/do_nothing_refiner.h"
+#include "mt-kahypar/partition/refinement/flows/flow_refiner.h"
 #include "mt-kahypar/partition/refinement/label_propagation/label_propagation_refiner.h"
 #include "mt-kahypar/partition/refinement/deterministic/deterministic_label_propagation.h"
 #include "mt-kahypar/partition/refinement/fm/multitry_kway_fm.h"

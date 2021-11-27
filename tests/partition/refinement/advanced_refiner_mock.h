@@ -26,7 +26,7 @@
 #include "mt-kahypar/partition/factories.h"
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/context_enum_classes.h"
-#include "mt-kahypar/partition/refinement/advanced/i_advanced_refiner.h"
+#include "mt-kahypar/partition/refinement/flows/i_advanced_refiner.h"
 
 namespace mt_kahypar {
 

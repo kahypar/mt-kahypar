@@ -18,7 +18,7 @@
  *
  ******************************************************************************/
 
-#include "mt-kahypar/partition/refinement/advanced/flows/flow_hypergraph_builder.h"
+#include "mt-kahypar/partition/refinement/flows/flow_hypergraph_builder.h"
 
 #include "tbb/blocked_range.h"
 #include "tbb/parallel_invoke.h"

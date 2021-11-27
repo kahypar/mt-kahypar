@@ -18,7 +18,7 @@
  *
  ******************************************************************************/
 
-#include "mt-kahypar/partition/refinement/advanced/flows/flow_refiner.h"
+#include "mt-kahypar/partition/refinement/flows/flow_refiner.h"
 
 #include "tbb/concurrent_queue.h"
 

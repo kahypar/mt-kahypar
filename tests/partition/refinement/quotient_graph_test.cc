@@ -21,7 +21,7 @@
 #include "gmock/gmock.h"
 
 #include "mt-kahypar/io/hypergraph_io.h"
-#include "mt-kahypar/partition/refinement/advanced/quotient_graph.h"
+#include "mt-kahypar/partition/refinement/flows/quotient_graph.h"
 #include "tests/partition/refinement/advanced_refiner_mock.h"
 
 using ::testing::Test;

@@ -18,11 +18,11 @@
  *
  ******************************************************************************/
 
-#include "mt-kahypar/partition/refinement/advanced/flows/parallel_construction.h"
+#include "mt-kahypar/partition/refinement/flows/parallel_construction.h"
 
 #include "tbb/concurrent_queue.h"
 
-#include "mt-kahypar/partition/refinement/advanced/flows/flow_common.h"
+#include "mt-kahypar/partition/refinement/flows/flow_common.h"
 #include "mt-kahypar/parallel/stl/scalable_queue.h"
 
 namespace mt_kahypar {

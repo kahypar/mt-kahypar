@@ -22,9 +22,9 @@
 
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/io/hypergraph_io.h"
-#include "mt-kahypar/partition/refinement/advanced/flows/sequential_construction.h"
-#include "mt-kahypar/partition/refinement/advanced/flows/parallel_construction.h"
-#include "mt-kahypar/partition/refinement/advanced/flows/flow_common.h"
+#include "mt-kahypar/partition/refinement/flows/sequential_construction.h"
+#include "mt-kahypar/partition/refinement/flows/parallel_construction.h"
+#include "mt-kahypar/partition/refinement/flows/flow_common.h"
 
 using ::testing::Test;
 

@@ -19,7 +19,7 @@
  *
  ******************************************************************************/
 
-#include "mt-kahypar/partition/refinement/advanced/refiner_adapter.h"
+#include "mt-kahypar/partition/refinement/flows/refiner_adapter.h"
 
 #include "mt-kahypar/partition/factories.h"
 

@@ -31,8 +31,8 @@
 #include "mt-kahypar/datastructures/concurrent_flat_map.h"
 #include "mt-kahypar/datastructures/thread_safe_fast_reset_flag_array.h"
 #include "mt-kahypar/datastructures/concurrent_bucket_map.h"
-#include "mt-kahypar/partition/refinement/advanced/i_advanced_refiner.h"
-#include "mt-kahypar/partition/refinement/advanced/flows/flow_hypergraph_builder.h"
+#include "mt-kahypar/partition/refinement/flows/i_advanced_refiner.h"
+#include "mt-kahypar/partition/refinement/flows/flow_hypergraph_builder.h"
 
 namespace mt_kahypar {
 
