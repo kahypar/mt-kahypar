@@ -51,7 +51,7 @@ public:
   void initializeImpl(PartitionedHypergraph& phg) final;
   void calculateRefinementNodes(PartitionedHypergraph& phg);
   void doRefinement(PartitionedHypergraph& phg, PartitionID part_id);
-  void revertToBestLocalPrefix(PartitionedHypergraph& phg, size_t bestGainIndex, PartitionID active_part = kInvalidPartition, bool update_gain_cache = false);
+  void revertToBestLocalPrefix(PartitionedHypergraph& phg, size_t bestGainIndex, bool update_gain_cache = false);
   void updateNeighbors(PartitionedHypergraph& phg, const Move& move);
   void reset();
 private:

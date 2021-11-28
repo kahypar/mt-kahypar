@@ -38,7 +38,7 @@ namespace mt_kahypar {
     }
     const HyperedgeWeight initial_max_load = _part_loads.topKey();
     HyperedgeWeight current_max_load = initial_max_load;
-    size_t num_negative_refinements = 0;
+    size_t num_bad_refinements = 0;
     bool done = false;
     while (!done) {
       calculateRefinementNodes(phg);
@@ -59,12 +59,12 @@ namespace mt_kahypar {
       }
       const double load_ratio = static_cast<double>(current_max_load) / min_part_load;
       HyperedgeWeight delta = _best_improvement - last_best_improvement;
-      if (delta <= 0) {
-        num_negative_refinements++;
+      if (delta <= 0 || heaviest_part == _part_loads.top()) {
+        num_bad_refinements++;
       } else {
-        num_negative_refinements = 0;
+        num_bad_refinements = 0;
       }
-      if (load_ratio < _context.refinement.judicious.min_load_ratio || num_negative_refinements >= 2) {   // (Review Note) This alone will not suffice as stopping criterion. must also include whether heaviest block yielded improvement
+      if (load_ratio < _context.refinement.judicious.min_load_ratio || num_bad_refinements >= 2) {   // (Review Note) This alone will not suffice as stopping criterion. must also include whether heaviest block yielded improvement
         done = true;
       }
     }
@@ -162,7 +162,7 @@ namespace mt_kahypar {
         if (debug) {
           LOG << "Did rollback";
         }
-        revertToBestLocalPrefix(phg, std::max(0UL, initial_num_moves), part_id, true);
+        revertToBestLocalPrefix(phg, initial_num_moves, true);
         continue;
       }
       if (move.to == kInvalidPartition) {
@@ -191,9 +191,9 @@ namespace mt_kahypar {
         if (debug) {
           LOG << "Abort due to too many negative gain moves";
         }
+        revertToBestLocalPrefix(phg, initial_num_moves);
         done = true;
-      }
-      if (_part_loads.topKey() >= std::max(from_load, _part_loads.keyOfSecond()) * _context.refinement.judicious.part_load_margin) {
+      } else if (_part_loads.topKey() >= std::max(from_load, _part_loads.keyOfSecond()) * _context.refinement.judicious.part_load_margin) {
         done = true;
       } else {
         updateNeighbors(phg, move);
@@ -230,7 +230,7 @@ namespace mt_kahypar {
     }
   }
 
-  void JudiciousRefiner::revertToBestLocalPrefix(PartitionedHypergraph& phg, size_t bestGainIndex, PartitionID active_part, bool update_gain_cache) {
+  void JudiciousRefiner::revertToBestLocalPrefix(PartitionedHypergraph& phg, size_t bestGainIndex, bool update_gain_cache) {
     auto delta_func = [&](const HyperedgeID he,
                           const HyperedgeWeight,
                           const HypernodeID,
@@ -246,12 +246,10 @@ namespace mt_kahypar {
     if (debug) {
       LOG << "reverting" << (_moves.size() - bestGainIndex) << "moves";
     }
-    ASSERT(_edgesWithGainChanges.empty());
     while (_moves.size() > bestGainIndex) {
       Move& m = _moves.back();
       if (update_gain_cache) {
         phg.changeNodePartWithGainCacheUpdate(m.node, m.to, m.from, std::numeric_limits<HypernodeWeight>::max(), []{}, delta_func);
-        ASSERT(active_part == m.from);
         _gain_cache.insert(phg, m.node);
         updateNeighbors(phg, m);
       } else {
