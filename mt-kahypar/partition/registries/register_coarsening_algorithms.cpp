@@ -30,9 +30,9 @@
 #define REGISTER_DISPATCHED_COARSENER(id, dispatcher, ...)                                      \
   static kahypar::meta::Registrar<CoarsenerFactory> register_ ## dispatcher(                    \
     id,                                                                                         \
-    [](Hypergraph& hypergraph, const Context& context) {                                        \
+    [](Hypergraph& hypergraph, const Context& context, UncoarseningData& uncoarseningData) {                  \
     return dispatcher::create(                                                                  \
-      std::forward_as_tuple(hypergraph, context),                                               \
+      std::forward_as_tuple(hypergraph, context, uncoarseningData),                                    \
       __VA_ARGS__                                                                               \
       );                                                                                        \
   })
@@ -40,8 +40,8 @@
 #define REGISTER_COARSENER(id, coarsener)                                                       \
   static kahypar::meta::Registrar<CoarsenerFactory> register_ ## coarsener(                     \
     id,                                                                                         \
-    [](Hypergraph& hypergraph, const Context& context) -> ICoarsener* {                         \
-    return new coarsener(hypergraph, context);                                                  \
+    [](Hypergraph& hypergraph, const Context& context, UncoarseningData& uncoarseningData) -> ICoarsener* {   \
+    return new coarsener(hypergraph, context, uncoarseningData);                                       \
   })
 
 

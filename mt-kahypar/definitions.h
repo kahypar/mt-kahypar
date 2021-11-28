@@ -71,6 +71,12 @@ using HypergraphFactory = ds::StaticHypergraphFactory;
 using PartitionedHypergraph = ds::PartitionedHypergraph<Hypergraph, HypergraphFactory>;
 using DeltaPartitionedHypergraph = ds::DeltaPartitionedHypergraph<PartitionedHypergraph>;
 #endif
+#ifdef USE_GRAPH_PARTITIONER
+using PartIdType = CAtomic<PartitionID>;
+#else
+using PartIdType = PartitionID;
+#endif
+
 
 using HighResClockTimepoint = std::chrono::time_point<std::chrono::high_resolution_clock>;
 

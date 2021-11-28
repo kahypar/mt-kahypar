@@ -21,31 +21,41 @@
 #include "gmock/gmock.h"
 
 #include "tests/partition/coarsening/coarsener_fixtures.h"
+#include "mt-kahypar/partition/coarsening/multilevel_uncoarsener.h"
+#include "mt-kahypar/partition/coarsening/nlevel_uncoarsener.h"
+#include "mt-kahypar/partition/coarsening/coarsening_commons.h"
 
 using ::testing::Test;
 
 namespace mt_kahypar {
 #ifdef USE_STRONG_PARTITIONER
 using Coarsener = NLevelCoarsener<HeavyEdgeScore, NoWeightPenalty, BestRatingWithoutTieBreaking>;
+using Uncoarsener = NLevelUncoarsener;
+bool nlevel = true;
 #else
 using Coarsener = MultilevelCoarsener<HeavyEdgeScore, NoWeightPenalty, BestRatingWithoutTieBreaking>;
+using Uncoarsener = MultilevelUncoarsener;
+bool nlevel = false;
 #endif
 
 TEST_F(ACoarsener, DecreasesNumberOfPins) {
   context.coarsening.contraction_limit = 4;
-  Coarsener coarsener(hypergraph, context);
+  UncoarseningData uncoarseningData(nlevel, hypergraph, context);
+  Coarsener coarsener(hypergraph, context, uncoarseningData);
   decreasesNumberOfPins(coarsener, 6);
 }
 
 TEST_F(ACoarsener, DecreasesNumberOfHyperedges) {
   context.coarsening.contraction_limit = 4;
-  Coarsener coarsener(hypergraph, context);
+  UncoarseningData uncoarseningData(nlevel, hypergraph, context);
+  Coarsener coarsener(hypergraph, context, uncoarseningData);
   decreasesNumberOfHyperedges(coarsener, 3);
 }
 
 TEST_F(ACoarsener, RemovesHyperedgesOfSizeOneDuringCoarsening) {
   context.coarsening.contraction_limit = 4;
-  Coarsener coarsener(hypergraph, context);
+  UncoarseningData uncoarseningData(nlevel, hypergraph, context);
+  Coarsener coarsener(hypergraph, context, uncoarseningData);
   doCoarsening(coarsener);
   auto& hypergraph = coarsener.coarsestHypergraph();
   for ( const HyperedgeID& he : hypergraph.edges() ) {
@@ -55,7 +65,8 @@ TEST_F(ACoarsener, RemovesHyperedgesOfSizeOneDuringCoarsening) {
 
 TEST_F(ACoarsener, RemovesParallelHyperedgesDuringCoarsening) {
   context.coarsening.contraction_limit = 4;
-  Coarsener coarsener(hypergraph, context);
+  UncoarseningData uncoarseningData(nlevel, hypergraph, context);
+  Coarsener coarsener(hypergraph, context, uncoarseningData);
   doCoarsening(coarsener);
   auto& hypergraph = coarsener.coarsestHypergraph();
   for ( const HyperedgeID& he : hypergraph.edges() ) {
@@ -65,13 +76,15 @@ TEST_F(ACoarsener, RemovesParallelHyperedgesDuringCoarsening) {
 
 TEST_F(ACoarsener, ProjectsPartitionBackToOriginalHypergraph) {
   context.coarsening.contraction_limit = 4;
+  UncoarseningData uncoarseningData(nlevel, hypergraph, context);
+  Coarsener coarsener(hypergraph, context, uncoarseningData);
+  Uncoarsener uncoarsener(hypergraph, context, uncoarseningData);
   context.type = kahypar::ContextType::initial_partitioning;
-  Coarsener coarsener(hypergraph, context);
   doCoarsening(coarsener);
   PartitionedHyperGraph& coarsest_partitioned_hypergraph =
     coarsener.coarsestPartitionedHypergraph();
   assignPartitionIDs(coarsest_partitioned_hypergraph);
-  PartitionedHyperGraph partitioned_hypergraph = coarsener.uncoarsen(nullptr_refiner, nullptr_refiner);
+  PartitionedHyperGraph partitioned_hypergraph = uncoarsener.uncoarsen(nullptr_refiner, nullptr_refiner);
   for ( const HypernodeID& hn : partitioned_hypergraph.nodes() ) {
     PartitionID part_id = 0;
     ASSERT_EQ(part_id, partitioned_hypergraph.partID(hn));

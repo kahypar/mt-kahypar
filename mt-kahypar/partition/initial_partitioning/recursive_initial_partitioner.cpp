@@ -27,6 +27,8 @@
 #include "tbb/parallel_invoke.h"
 #include "mt-kahypar/macros.h"
 #include "mt-kahypar/partition/multilevel.h"
+#include "mt-kahypar/partition/coarsening/multilevel_uncoarsener.h"
+#include "mt-kahypar/partition/coarsening/nlevel_uncoarsener.h"
 
 #include "mt-kahypar/partition/initial_partitioning/flat/pool_initial_partitioner.h"
 #include "mt-kahypar/utils/randomize.h"
@@ -126,10 +128,13 @@ namespace mt_kahypar {
             _coarsener(nullptr),
             _sparsifier(nullptr),
             _result(result) {
+      bool nlevel = _result.context.coarsening.algorithm == CoarseningAlgorithm::nlevel_coarsener;
+      _uncoarseningData = std::make_shared<UncoarseningData>(nlevel, _result.hypergraph, _result.context);
       _coarsener = CoarsenerFactory::getInstance().createObject(
-              _result.context.coarsening.algorithm, _result.hypergraph, _result.context);
+              _result.context.coarsening.algorithm, _result.hypergraph, _result.context, *_uncoarseningData);
       _sparsifier = HypergraphSparsifierFactory::getInstance().createObject(
               _result.context.sparsification.similiar_net_combiner_strategy, _result.context);
+
     }
 
     tbb::task* execute() override {
@@ -141,6 +146,8 @@ namespace mt_kahypar {
         _sparsifier->undoSparsification(_coarsener->coarsestPartitionedHypergraph());
       }
 
+      _coarsener.reset();
+
       // Uncontraction
       std::unique_ptr<IRefiner> label_propagation =
               LabelPropagationFactory::getInstance().createObject(
@@ -150,7 +157,13 @@ namespace mt_kahypar {
               FMFactory::getInstance().createObject(
                       _result.context.refinement.fm.algorithm, _result.hypergraph,
                       _result.context);
-      _result.partitioned_hypergraph = _coarsener->uncoarsen(label_propagation, fm);
+
+      if (_uncoarseningData->nlevel) {
+        _uncoarsener = std::make_unique<NLevelUncoarsener>(_result.hypergraph, _result.context, *_uncoarseningData);
+      } else {
+        _uncoarsener = std::make_unique<MultilevelUncoarsener>(_result.hypergraph, _result.context, *_uncoarseningData);
+      }
+      _result.partitioned_hypergraph = _uncoarsener->uncoarsen(label_propagation, fm);
 
       // Compute metrics
       _result.objective = metrics::objective(_result.partitioned_hypergraph, _result.context.partition.objective);
@@ -161,6 +174,8 @@ namespace mt_kahypar {
   public:
     std::unique_ptr<ICoarsener> _coarsener;
     std::unique_ptr<IHypergraphSparsifier> _sparsifier;
+    std::unique_ptr<IUncoarsener> _uncoarsener;
+    std::shared_ptr<UncoarseningData> _uncoarseningData;
 
   private:
     RecursivePartitionResult& _result;

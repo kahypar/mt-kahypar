@@ -105,49 +105,13 @@ The partition output file will be placed in the same folder as the input hypergr
 
 Mt-KaHyPar uses 32-bit vertex and hyperedge IDs. If you want to partition hypergraphs with more than 4.294.967.295 vertices or hyperedges, add option `-DKAHYPAR_USE_64_BIT_IDS=ON` to the `cmake` build command.
 
-Scalability of Mt-KaHyPar
------------
-To evaluate speedups of Mt-KaHyPar, we use a benchmark set consisting of 94 large hypergraphs (see [Benchmark Statistics][SetB]). In the plot below, we summarize the speedups of Mt-KaHyPar Fast and Strong with p = {4,16,64} threads and k = {2,8,16,64} blocks.
-We represent the speedup of each instance as a point and the cumulative harmonic mean speedup over all instances with a single-threaded running time >= x
-seconds with a line.
-
-The overall harmonic mean speedup of Mt-KaHyPar Fast is 3.4 for p = 4, 10.8 for p = 16 and 18.4 for p = 64. If we only consider instances with a
-single-threaded running time >= 100s, we achieve a harmonic mean speedup of 23.5 for p = 64.
-
-The overall harmonic mean speedup of Mt-KaHyPar Strong is 3.7 for p = 4, 11.7 for p = 16 and 22.6 for p = 64. If we only consider instances with a
-single-threaded running time >= 100s, we achieve a harmonic mean speedup of 25 for p = 64.
-
-<img src="https://user-images.githubusercontent.com/9654047/105863576-51427900-5ff1-11eb-90b2-8500c1ba2be5.png" alt="alt text" width="100%" height="100%">
-
-Quality of Mt-KaHyPar
+Performance
 -----------
 
-We use [*performance profiles*](https://link.springer.com/article/10.1007/s101070100263) to compare Mt-KaHyPar Fast and Strong to other partitioning algorithms in terms of solution quality (for a detailed explanation see either linked paper or our publications).
+We have summarized our experimental results on an [external webpage][ExperimentalResults]. The resource provides a detailed
+overview of Mt-KaHyPar's performance compared to other prominent state-of-the-art systems in terms of running time
+and quality.
 
-To compare with different sequential hypergraph partitioners, we use a benchmark set consisting of 488 hypergraphs (see [Benchmark Statistics][SetA], refered to as set A). In the figures, we compare Mt-KaHyPar Fast and Strong with the sequential hypergraph partitioners
-PaToH in quality (PaToH-Q) and default preset (PaToH-D), the recursive bipartitioning variant (hMetis-R) of hMETIS and
-KaHyPar-CA (similiar algorithmic components as Mt-KaHyPar Strong) and KaHyPar-HFC (extends KaHyPar-CA with flow-based refinement) of the
-[KaHyPar](https://kahypar.org/) framework. On the same benchmark set on which we performed our scalability experiments
-with 94 large hypergraph (see [Benchmark Statistics][SetB], refered to as set B), we compare ourselves with the distributed hypergraph partitioner Zoltan and the default preset of PaToH.
-
-Comparing the sequential hypergraph partitioners with Mt-KaHyPar Fast and Strong (using 10 threads) on set A:
-
-<img src="https://user-images.githubusercontent.com/9654047/105867822-cb74fc80-5ff5-11eb-8ae1-9bf92257ab9f.png" alt="alt text" width="100%" height="100%">
-
-Mt-KaHyPar Strong produces partitions with comparable quality to the sequential high-quality hypergraph partitioners hMetis-R and KaHyPar-CA, while being a factor of 30 resp. 8 faster on average (see running time plot below). Mt-KaHyPar Fast produces partitions with comparable quality to the quality preset of PaToH with a running time comparable to the default preset of PaToH. Mt-KaHyPar Strong computes significantly better partitions than Mt-KaHyPar Fast. The sequential high-quality hypergraph partitioner KaHyPar-HFC still computes better partitions than Mt-KaHyPar Fast and Strong. However, KaHyPar-HFC is on average 15 times
-slower than Mt-KaHyPar Strong and 42 times slower than Mt-KaHyPar Fast.
-
-Comparing the parallel hypergraph partitioners with Mt-KaHyPar Fast and Strong (using 64 threads) on set B:
-
-<img src="https://user-images.githubusercontent.com/9654047/105871387-88b52380-5ff9-11eb-934b-b32004988525.png" alt="alt text" width="66%">
-
-Mt-KaHyPar Fast produces significantly better partitions than the distributed hypergraph partitioner Zoltan, while also being a factor of 2.5 faster. Mt-KaHyPar Strong computes significantly better partitions than Mt-KaHyPar Fast, while being a factor of 6 slower.
-
-Comparing the running time of all evaluated partitioners on set A (left) and set B (right):
-
-<img src="https://user-images.githubusercontent.com/9654047/105869188-425ec500-5ff7-11eb-8248-175758567100.png" alt="alt text" width="100%" height="100%">
-
-Note that increasing number of threads does not negatively affect solution quality of Mt-KaHyPar Fast and Strong.
 
 Using the Library Interfaces
 -----------
@@ -331,3 +295,4 @@ feel free to contact us or create an issue on the
 [LF]: https://github.com/kahypar/mt-kahypar/blob/master/LICENSE "License"
 [SetA]: http://algo2.iti.kit.edu/heuer/alenex21/instances.html?benchmark=set_a
 [SetB]: http://algo2.iti.kit.edu/heuer/alenex21/instances.html?benchmark=set_b
+[ExperimentalResults]: https://algo2.iti.kit.edu/heuer/mt_kahypar/
