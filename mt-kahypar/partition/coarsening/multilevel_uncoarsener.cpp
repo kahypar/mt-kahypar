@@ -193,9 +193,9 @@ namespace mt_kahypar {
         flows->initialize(partitioned_hypergraph);
         utils::Timer::instance().stop_timer("initialize_flow_scheduler");
 
-        utils::Timer::instance().start_timer("flows_refinement_scheduler", "Flow Refinement Scheduler");
+        utils::Timer::instance().start_timer("flow_refinement_scheduler", "Flow Refinement Scheduler");
         improvement_found |= flows->refine(partitioned_hypergraph, dummy, current_metrics, time_limit);
-        utils::Timer::instance().stop_timer("flows_refinement_scheduler");
+        utils::Timer::instance().stop_timer("flow_refinement_scheduler");
       }
 
       if ( _context.type == kahypar::ContextType::main ) {
