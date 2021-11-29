@@ -109,7 +109,6 @@ bool FlowRefiner::runFlowCutter(const FlowProblem& flow_problem,
 
   bool sequential = _context.refinement.flows.num_threads_per_search <= 1;
   if (sequential) {
-    // Set maximum allowed block weights for block 0 and 1
     _sequential_hfc.cs.setMaxBlockWeight(0, std::max(
             flow_problem.weight_of_block_0, _context.partition.max_part_weights[_block_0]));
     _sequential_hfc.cs.setMaxBlockWeight(1, std::max(
@@ -119,7 +118,6 @@ bool FlowRefiner::runFlowCutter(const FlowProblem& flow_problem,
     _sequential_hfc.setFlowBound(flow_problem.total_cut - flow_problem.non_removable_cut);
     result = _sequential_hfc.enumerateCutsUntilBalancedOrFlowBoundExceeded(s, t, on_cut);
   } else {
-
     _parallel_hfc.cs.setMaxBlockWeight(0, std::max(
             flow_problem.weight_of_block_0, _context.partition.max_part_weights[_block_0]));
     _parallel_hfc.cs.setMaxBlockWeight(1, std::max(
