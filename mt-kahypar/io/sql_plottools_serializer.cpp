@@ -135,6 +135,7 @@ std::string serialize(const PartitionedHypergraph& hypergraph,
         << " flow_time_limit_factor=" << context.refinement.flows.time_limit_factor
         << " flow_skip_small_cuts=" << std::boolalpha << context.refinement.flows.skip_small_cuts
         << " flow_skip_unpromising_blocks=" << std::boolalpha << context.refinement.flows.skip_unpromising_blocks
+        << " flow_pierce_in_bulk=" << std::boolalpha << context.refinement.flows.pierce_in_bulk
         << " flow_alpha=" << context.refinement.flows.alpha
         << " flow_max_num_pins=" << context.refinement.flows.max_num_pins
         << " flow_find_most_balanced_cut=" << std::boolalpha << context.refinement.flows.find_most_balanced_cut

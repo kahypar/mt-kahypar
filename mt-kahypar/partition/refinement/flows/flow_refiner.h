@@ -59,12 +59,12 @@ class FlowRefiner final : public IFlowRefiner {
       _sequential_hfc.find_most_balanced = _context.refinement.flows.find_most_balanced_cut;
       _sequential_hfc.timer.active = false;
       _sequential_hfc.forceSequential(true);
-      // _sequential_hfc.setBulkPiercing(context.refinement.flows.pierce_in_bulk);
+      _sequential_hfc.setBulkPiercing(context.refinement.flows.pierce_in_bulk);
 
       _parallel_hfc.find_most_balanced = _context.refinement.flows.find_most_balanced_cut;
       _parallel_hfc.timer.active = false;
       _parallel_hfc.forceSequential(false);
-      // _sequential_hfc.setBulkPiercing(context.refinement.flows.pierce_in_bulk);
+      _sequential_hfc.setBulkPiercing(context.refinement.flows.pierce_in_bulk);
   }
 
   FlowRefiner(const FlowRefiner&) = delete;

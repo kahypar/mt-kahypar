@@ -466,6 +466,10 @@ namespace mt_kahypar {
              po::value<bool>((initial_partitioning ? &context.initial_partitioning.refinement.flows.skip_unpromising_blocks :
                       &context.refinement.flows.skip_unpromising_blocks))->value_name("<bool>"),
              "If true, than blocks for which we never found an improvement are skipped")
+            ((initial_partitioning ? "i-r-pierce-in-bulk" : "r-pierce-in-bulk"),
+             po::value<bool>((initial_partitioning ? &context.initial_partitioning.refinement.flows.pierce_in_bulk :
+                              &context.refinement.flows.pierce_in_bulk))->value_name("<bool>"),
+             "If true, then FlowCutter is accelerated by piercing multiple nodes at a time")
             ((initial_partitioning ? "i-r-flow-scaling" : "r-flow-scaling"),
              po::value<double>((initial_partitioning ? &context.initial_partitioning.refinement.flows.alpha :
                       &context.refinement.flows.alpha))->value_name("<double>"),

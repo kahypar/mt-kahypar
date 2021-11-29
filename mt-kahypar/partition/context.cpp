@@ -158,6 +158,7 @@ namespace mt_kahypar {
       out << "    Time Limit Factor:                " << params.time_limit_factor << std::endl;
       out << "    Skip Small Cuts:                  " << std::boolalpha << params.skip_small_cuts << std::endl;
       out << "    Skip Unpromising Blocks:          " << std::boolalpha << params.skip_unpromising_blocks << std::endl;
+      out << "    Pierce in Bulk:                   " << std::boolalpha << params.pierce_in_bulk << std::endl;
       out << std::flush;
     }
     return out;
