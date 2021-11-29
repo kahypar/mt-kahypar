@@ -29,8 +29,13 @@ target_link_libraries(EvaluatePartition ${Boost_LIBRARIES})
 set_property(TARGET EvaluatePartition PROPERTY CXX_STANDARD 17)
 set_property(TARGET EvaluatePartition PROPERTY CXX_STANDARD_REQUIRED ON)
 
+add_executable(VerifyPartition verify_partition.cc)
+target_link_libraries(VerifyPartition ${Boost_LIBRARIES})
+set_property(TARGET VerifyPartition PROPERTY CXX_STANDARD 17)
+set_property(TARGET VerifyPartition PROPERTY CXX_STANDARD_REQUIRED ON)
+
 add_executable(BenchShuffle bench_deterministic_shuffling.cpp bench_deterministic_shuffling.cpp)
 set_property(TARGET BenchShuffle PROPERTY CXX_STANDARD 17)
 set_property(TARGET BenchShuffle PROPERTY CXX_STANDARD_REQUIRED ON)
 
-set(TARGETS_WANTING_ALL_SOURCES ${TARGETS_WANTING_ALL_SOURCES} EvaluateBipart EvaluatePartition HgrToZoltan GraphToHgr HgrToParkway SnapGraphToHgr PARENT_SCOPE)
+set(TARGETS_WANTING_ALL_SOURCES ${TARGETS_WANTING_ALL_SOURCES} EvaluateBipart EvaluatePartition VerifyPartition HgrToZoltan GraphToHgr HgrToParkway SnapGraphToHgr PARENT_SCOPE)
