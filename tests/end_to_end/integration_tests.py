@@ -6,7 +6,7 @@ import subprocess
 import sys
 import multiprocessing
 
-mt_kahypar_dir = os.environ.get("HOME") + "/mt-kahypar/"
+mt_kahypar_dir = os.environ.get("PWD") + "/"
 executable_dir = mt_kahypar_dir + "build/mt-kahypar/application/"
 config_dir = mt_kahypar_dir + "config/"
 integration_test_json_file = mt_kahypar_dir + "tests/end_to_end/integration_tests.json"
