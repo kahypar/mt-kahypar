@@ -25,6 +25,8 @@
 
 namespace mt_kahypar {
 
+
+// TODO this is fucked up
 #define NOW std::chrono::high_resolution_clock::now()
 #define RUNNING_TIME(X) std::chrono::duration<double>(NOW - X).count();
 
@@ -74,8 +76,7 @@ MoveSequence FlowRefinerAdapter::refine(const SearchID search_id,
   ASSERT(num_free_threads > 0);
   const size_t refiner_idx = _active_searches[search_id].refiner_idx;
   _refiner[refiner_idx]->setNumThreadsForSearch(num_free_threads);
-  MoveSequence moves = _refiner[refiner_idx]->refine(
-    phg, sub_hg, _active_searches[search_id].start);
+  MoveSequence moves = _refiner[refiner_idx]->refine(phg, sub_hg, _active_searches[search_id].start);
   _num_used_threads -= num_free_threads;
   _active_searches[search_id].reaches_time_limit = moves.state == MoveSequenceState::TIME_LIMIT;
   return moves;

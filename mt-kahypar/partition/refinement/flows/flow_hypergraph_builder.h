@@ -258,8 +258,6 @@ namespace mt_kahypar {
 			hyperedges.shrink_to_fit();
 			pins.shrink_to_fit();
 			incident_hyperedges.shrink_to_fit();
-			pins_sending_flow.shrink_to_fit();
-			pins_receiving_flow.shrink_to_fit();
 		}
 
 	private:

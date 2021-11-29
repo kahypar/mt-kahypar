@@ -49,7 +49,7 @@ void FlowHypergraphBuilder::finalize() {
       Pin& p = pins[pin_it];
       //destroy first_out temporarily and reset later
       whfc::InHeIndex ind_he = nodes[p.pin].first_out++;
-      incident_hyperedges[ind_he] = { e, whfc::Flow(0), pin_it };
+      incident_hyperedges[ind_he] = { e, pin_it };
       //set iterator for incident hyperedge -> its position in incident_hyperedges of the node
       p.he_inc_iter = ind_he;
     }
@@ -69,9 +69,7 @@ bool FlowHypergraphBuilder::finishHyperedge() {
   }
 
   if (currentHyperedgeSize() > 0) {
-    pins_sending_flow.emplace_back(hyperedges.back().first_out, hyperedges.back().first_out);
-    hyperedges.push_back({whfc::PinIndex::fromOtherValueType(numPins()), whfc::Flow(0), whfc::Flow(0)});//sentinel
-    pins_receiving_flow.emplace_back(hyperedges.back().first_out, hyperedges.back().first_out);
+    hyperedges.push_back({whfc::PinIndex::fromOtherValueType(numPins()), whfc::Flow(0)});//sentinel
     return true;
   }
   return false;
@@ -83,15 +81,9 @@ void FlowHypergraphBuilder::allocateHyperedgesAndPins(const size_t num_hyperedge
                                                       const size_t num_pins) {
   tbb::parallel_invoke([&] {
     hyperedges.assign(num_hyperedges + 1, HyperedgeData {
-      whfc::PinIndex::Invalid(), whfc::Flow(0), whfc::Flow(0) });
+      whfc::PinIndex::Invalid(), whfc::Flow(0) });
   }, [&] {
     pins.assign(num_pins, Pin { whfc::Node::Invalid(), whfc::InHeIndex::Invalid() });
-  }, [&] {
-    pins_sending_flow.assign(num_hyperedges, PinIndexRange {
-      whfc::PinIndex::Invalid(), whfc::PinIndex::Invalid() });
-  }, [&] {
-    pins_receiving_flow.assign(num_hyperedges, PinIndexRange {
-      whfc::PinIndex::Invalid(), whfc::PinIndex::Invalid() });
   });
 }
 
@@ -112,13 +104,7 @@ void FlowHypergraphBuilder::finalizeHyperedges() {
   const size_t num_pins =
     _tmp_csr_buckets.back()._global_start_pin_idx + _tmp_csr_buckets.back()._num_pins;
   resizeHyperedgesAndPins(num_hyperedges, num_pins);
-  hyperedges.emplace_back( HyperedgeData { whfc::PinIndex(num_pins), whfc::Flow(0), whfc::Flow(0) } ); // sentinel
-  tbb::parallel_for(0UL, num_hyperedges, [&](const size_t i) {
-    pins_sending_flow[i].__begin = hyperedges[i].first_out;
-    pins_sending_flow[i].__end = hyperedges[i].first_out;
-    pins_receiving_flow[i].__begin = hyperedges[i + 1].first_out;
-    pins_receiving_flow[i].__end = hyperedges[i + 1].first_out;
-  });
+  hyperedges.emplace_back( HyperedgeData { whfc::PinIndex(num_pins), whfc::Flow(0) } ); // sentinel
 }
 
 void FlowHypergraphBuilder::finalizeParallel() {
@@ -147,7 +133,7 @@ void FlowHypergraphBuilder::finalizeParallel() {
           weight += nodes[i].weight;
         }
         return weight;
-      }, std::plus<whfc::NodeWeight>());
+      }, std::plus<>());
   }, [&] {
     incident_hyperedges.resize(numPins());
   }, [&]() {
@@ -179,7 +165,7 @@ void FlowHypergraphBuilder::finalizeParallel() {
       //destroy first_out temporarily and reset later
       whfc::InHeIndex::ValueType ind_he = nodes[u].first_out +
         __atomic_fetch_add(&_inc_he_pos[u], 1, __ATOMIC_RELAXED);
-      incident_hyperedges[ind_he] = { e, whfc::Flow(0), pin_it };
+      incident_hyperedges[ind_he] = { e, pin_it };
       //set iterator for incident hyperedge -> its position in incident_hyperedges of the node
       p.he_inc_iter = whfc::InHeIndex(ind_he);
     }
@@ -220,8 +206,6 @@ void FlowHypergraphBuilder::resizeHyperedgesAndPins(const size_t num_hyperedges,
   ASSERT(num_pins <= pins.size());
   hyperedges.resize(num_hyperedges);
   pins.resize(num_pins);
-  pins_sending_flow.resize(num_hyperedges);
-  pins_receiving_flow.resize(num_hyperedges);
 }
 
 bool FlowHypergraphBuilder::verifyParallelConstructedHypergraph() {
@@ -251,7 +235,7 @@ bool FlowHypergraphBuilder::verifyParallelConstructedHypergraph() {
   num_pins = 0;
   for ( size_t i = 0; i < hyperedges.size() - 1; ++i ) {
     size_t current_start = hyperedges[i].first_out;
-    size_t current_end = pins_receiving_flow[i].__end;
+    size_t current_end = hyperedges[i+1].first_out;
     if ( current_end - current_start <= 1 ) {
       LOG << "Hyperedge of size one contained";
       return false;
@@ -284,15 +268,11 @@ void FlowHypergraphBuilder::clear() {
   hyperedges.clear();
   pins.clear();
   incident_hyperedges.clear();
-  pins_sending_flow.clear();
-  pins_receiving_flow.clear();
   total_node_weight = whfc::NodeWeight(0);
-  sends_multiplier = 1;
-  receives_multiplier = -1;
 
   //sentinels
   nodes.push_back({whfc::InHeIndex(0), whfc::NodeWeight(0)});
-  hyperedges.push_back({whfc::PinIndex(0), whfc::Flow(0), whfc::Flow(0)});
+  hyperedges.push_back({whfc::PinIndex(0), whfc::Flow(0)});
 }
 
 }

@@ -24,7 +24,7 @@
 #include "tbb/enumerable_thread_specific.h"
 
 #include "algorithm/hyperflowcutter.h"
-#include "algorithm/dinic.h"
+#include "algorithm/parallel_push_relabel.h"
 
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/datastructures/sparse_map.h"
@@ -100,7 +100,7 @@ class ParallelConstruction {
  public:
   explicit ParallelConstruction(const Hypergraph& hg,
                                 FlowHypergraphBuilder& flow_hg,
-                                whfc::HyperFlowCutter<whfc::Dinic>& hfc,
+                                whfc::HyperFlowCutter<whfc::ParallelPushRelabel>& hfc,
                                 const Context& context) :
     _context(context),
     _flow_hg(flow_hg),
@@ -166,7 +166,7 @@ class ParallelConstruction {
   const Context& _context;
 
   FlowHypergraphBuilder& _flow_hg;
-  whfc::HyperFlowCutter<whfc::Dinic>& _hfc;
+  whfc::HyperFlowCutter<whfc::ParallelPushRelabel>& _hfc;
 
   ds::ConcurrentFlatMap<HypernodeID, whfc::Node> _node_to_whfc;
   ds::ThreadSafeFastResetFlagArray<> _visited_hns;

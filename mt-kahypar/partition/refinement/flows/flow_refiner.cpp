@@ -27,33 +27,35 @@ namespace mt_kahypar {
 MoveSequence FlowRefiner::refineImpl(const PartitionedHypergraph& phg,
                                      const Subhypergraph& sub_hg,
                                      const HighResClockTimepoint& start) {
-  MoveSequence sequence { { }, 0 };
+  MoveSequence sequence { { }, 0 };   // TODO why are only two members initialized? any argument against default values?
   // Construct flow network that contains all vertices given in refinement nodes
   utils::Timer::instance().start_timer("construct_flow_network", "Construct Flow Network", true);
   FlowProblem flow_problem = constructFlowHypergraph(phg, sub_hg);
   utils::Timer::instance().stop_timer("construct_flow_network");
   if ( flow_problem.total_cut - flow_problem.non_removable_cut > 0 ) {
-    // Set maximum allowed block weights for block 0 and 1
-    _hfc.cs.setMaxBlockWeight(0, std::max(
-      flow_problem.weight_of_block_0, _context.partition.max_part_weights[_block_0]));
-    _hfc.cs.setMaxBlockWeight(1, std::max(
-      flow_problem.weight_of_block_1, _context.partition.max_part_weights[_block_1]));
 
-    _hfc.reset();
-    _hfc.upperFlowBound = flow_problem.total_cut - flow_problem.non_removable_cut;
     // Solve max-flow min-cut problem
     bool time_limit_reached = false;
     utils::Timer::instance().start_timer("hyper_flow_cutter", "HyperFlowCutter", true);
-    bool flowcutter_succeeded = computeFlow(flow_problem, start, time_limit_reached);
+    bool flowcutter_succeeded = runFlowCutter(flow_problem, start, time_limit_reached);
     utils::Timer::instance().stop_timer("hyper_flow_cutter");
     if ( flowcutter_succeeded ) {
       // We apply the solution if it either improves the cut or the balance of
       // the bipartition induced by the two blocks
-      HyperedgeWeight new_cut = flow_problem.non_removable_cut + _hfc.cs.flowValue;
+
+      HyperedgeWeight new_cut = flow_problem.non_removable_cut;
+      HypernodeWeight max_part_weight;
+      bool sequential = _context.refinement.flows.num_threads_per_search <= 1;
+      if (sequential) {
+        new_cut += _sequential_hfc.cs.flow_algo.flow_value;
+        max_part_weight = std::max(_sequential_hfc.cs.source_weight, _sequential_hfc.cs.target_weight);
+      } else {
+        new_cut += _parallel_hfc.cs.flow_algo.flow_value;
+        max_part_weight = std::max(_parallel_hfc.cs.source_weight, _parallel_hfc.cs.target_weight);
+      }
+
       const bool improved_solution = new_cut < flow_problem.total_cut ||
-        ( new_cut == flow_problem.total_cut &&
-          static_cast<HypernodeWeight>(std::max(_hfc.cs.n.sourceWeight, _hfc.cs.n.targetWeight)) <
-          std::max(flow_problem.weight_of_block_0, flow_problem.weight_of_block_1));
+        (new_cut == flow_problem.total_cut && max_part_weight < std::max(flow_problem.weight_of_block_0, flow_problem.weight_of_block_1));
 
       // Extract move sequence
       if ( improved_solution ) {
@@ -62,7 +64,13 @@ MoveSequence FlowRefiner::refineImpl(const PartitionedHypergraph& phg,
           const HypernodeID hn = _whfc_to_node[u];
           if ( hn != kInvalidHypernode ) {
             const PartitionID from = phg.partID(hn);
-            const PartitionID to = _hfc.cs.n.isSource(u) ? _block_0 : _block_1;
+            PartitionID to;
+            if (sequential) {
+              to = _sequential_hfc.cs.flow_algo.isSource(u) ? _block_0 : _block_1;
+            } else {
+              to = _parallel_hfc.cs.flow_algo.isSource(u) ? _block_0 : _block_1;
+            }
+
             if ( from != to ) {
               sequence.moves.push_back(Move { from, to, hn, kInvalidGain });
             }
@@ -79,59 +87,49 @@ MoveSequence FlowRefiner::refineImpl(const PartitionedHypergraph& phg,
 #define NOW std::chrono::high_resolution_clock::now()
 #define RUNNING_TIME(X) std::chrono::duration<double>(NOW - X).count();
 
-bool FlowRefiner::computeFlow(const FlowProblem& flow_problem,
-                              const HighResClockTimepoint& start,
-                              bool& time_limit_reached) {
+bool FlowRefiner::runFlowCutter(const FlowProblem& flow_problem,
+                                const HighResClockTimepoint& start,
+                                bool& time_limit_reached) {
   whfc::Node s = flow_problem.source;
   whfc::Node t = flow_problem.sink;
-  _hfc.cs.initialize(s, t);
-  bool piercingFailedOrFlowBoundReachedWithNonAAPPiercingNode = false;
-  bool has_balanced_cut = false;
+  bool result = false;
 
   size_t iteration = 0;
-  time_limit_reached = false;
-  while (!time_limit_reached && _hfc.cs.flowValue <= _hfc.upperFlowBound && !has_balanced_cut) {
-    piercingFailedOrFlowBoundReachedWithNonAAPPiercingNode =
-      !_hfc.advanceOneFlowIteration(_hfc.cs.flowValue == _hfc.upperFlowBound);
-    if (piercingFailedOrFlowBoundReachedWithNonAAPPiercingNode)
-      break;
-    has_balanced_cut = _hfc.cs.hasCut && _hfc.cs.isBalanced(); //no cut ==> run and don't check for balance.
-
-    if ( iteration % 25 == 0 ) {
-      const double elapsed_time = RUNNING_TIME(start);
-      time_limit_reached = elapsed_time > _time_limit;
+  auto on_cut = [&] {
+    if (++iteration == 25) {
+      iteration = 0;
+      double elapsed = RUNNING_TIME(start);
+      if (elapsed > _time_limit) {
+        time_limit_reached = true;
+        return false;
+      }
     }
-    ++iteration;
+    return true;
+  };
+
+  bool sequential = _context.refinement.flows.num_threads_per_search <= 1;
+  if (sequential) {
+    // Set maximum allowed block weights for block 0 and 1
+    _sequential_hfc.cs.setMaxBlockWeight(0, std::max(
+            flow_problem.weight_of_block_0, _context.partition.max_part_weights[_block_0]));
+    _sequential_hfc.cs.setMaxBlockWeight(1, std::max(
+            flow_problem.weight_of_block_1, _context.partition.max_part_weights[_block_1]));
+
+    _sequential_hfc.reset();
+    _sequential_hfc.setFlowBound(flow_problem.total_cut - flow_problem.non_removable_cut);
+    result = _sequential_hfc.enumerateCutsUntilBalancedOrFlowBoundExceeded(s, t, on_cut);
+  } else {
+
+    _parallel_hfc.cs.setMaxBlockWeight(0, std::max(
+            flow_problem.weight_of_block_0, _context.partition.max_part_weights[_block_0]));
+    _parallel_hfc.cs.setMaxBlockWeight(1, std::max(
+            flow_problem.weight_of_block_1, _context.partition.max_part_weights[_block_1]));
+
+    _parallel_hfc.reset();
+    _parallel_hfc.setFlowBound(flow_problem.total_cut - flow_problem.non_removable_cut);
+    result = _parallel_hfc.enumerateCutsUntilBalancedOrFlowBoundExceeded(s, t, on_cut);
   }
-
-  if (has_balanced_cut && _hfc.cs.flowValue <= _hfc.upperFlowBound) {
-    ASSERT(_hfc.cs.sideToGrow() == _hfc.cs.currentViewDirection());
-    const double imb_S_U_ISO =
-      static_cast<double>(_hfc.hg.totalNodeWeight() -
-      _hfc.cs.n.targetReachableWeight) /
-      static_cast<double>(_hfc.cs.maxBlockWeight(_hfc.cs.currentViewDirection()));
-    const double imb_T =
-      static_cast<double>(_hfc.cs.n.targetReachableWeight) /
-      static_cast<double>(_hfc.cs.maxBlockWeight(_hfc.cs.oppositeViewDirection()));
-    const bool better_balance_impossible =
-      _hfc.cs.unclaimedNodeWeight() == 0 || imb_S_U_ISO <= imb_T;
-    if (_hfc.find_most_balanced && !better_balance_impossible) {
-      _hfc.mostBalancedCut();
-    }
-    else {
-      _hfc.cs.writePartition();
-    }
-
-    _hfc.cs.verifyCutInducedByPartitionMatchesFlowValue();
-  }
-
-  // Turn back to initial view direction
-  if (_hfc.cs.currentViewDirection() != 0) {
-    _hfc.cs.flipViewDirection();
-  }
-
-  return !piercingFailedOrFlowBoundReachedWithNonAAPPiercingNode &&
-    _hfc.cs.flowValue <= _hfc.upperFlowBound && has_balanced_cut;
+  return result;
 }
 
 FlowProblem FlowRefiner::constructFlowHypergraph(const PartitionedHypergraph& phg,

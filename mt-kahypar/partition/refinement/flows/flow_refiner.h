@@ -23,7 +23,8 @@
 #include <tbb/concurrent_vector.h>
 
 #include "algorithm/hyperflowcutter.h"
-#include "algorithm/dinic.h"
+#include "algorithm/sequential_push_relabel.h"
+#include "algorithm/parallel_push_relabel.h"
 
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/refinement/flows/i_flow_refiner.h"
@@ -49,13 +50,21 @@ class FlowRefiner final : public IFlowRefiner {
     _block_0(kInvalidPartition),
     _block_1(kInvalidPartition),
     _flow_hg(),
-    _hfc(_flow_hg, context.partition.seed),
+    _sequential_hfc(_flow_hg, context.partition.seed),
+    _parallel_hfc(_flow_hg, context.partition.seed),
     _whfc_to_node(),
-    _sequential_construction(hg, _flow_hg, _hfc, context),
-    _parallel_construction(hg, _flow_hg, _hfc, context) {
-    _hfc.find_most_balanced =
-      _context.refinement.flows.find_most_balanced_cut;
-    _hfc.timer.active = false;
+    _sequential_construction(hg, _flow_hg, _sequential_hfc, context),
+    _parallel_construction(hg, _flow_hg, _parallel_hfc, context)
+    {
+      _sequential_hfc.find_most_balanced = _context.refinement.flows.find_most_balanced_cut;
+      _sequential_hfc.timer.active = false;
+      _sequential_hfc.forceSequential(true);
+      // _sequential_hfc.setBulkPiercing(context.refinement.flows.pierce_in_bulk);
+
+      _parallel_hfc.find_most_balanced = _context.refinement.flows.find_most_balanced_cut;
+      _parallel_hfc.timer.active = false;
+      _parallel_hfc.forceSequential(false);
+      // _sequential_hfc.setBulkPiercing(context.refinement.flows.pierce_in_bulk);
   }
 
   FlowRefiner(const FlowRefiner&) = delete;
@@ -81,9 +90,9 @@ class FlowRefiner final : public IFlowRefiner {
                           const Subhypergraph& sub_hg,
                           const HighResClockTimepoint& start);
 
-  bool computeFlow(const FlowProblem& flow_problem,
-                   const HighResClockTimepoint& start,
-                   bool& time_limit_reached);
+  bool runFlowCutter(const FlowProblem& flow_problem,
+                     const HighResClockTimepoint& start,
+                     bool& time_limit_reached);
 
   FlowProblem constructFlowHypergraph(const PartitionedHypergraph& phg,
                                       const Subhypergraph& sub_hg);
@@ -110,7 +119,8 @@ class FlowRefiner final : public IFlowRefiner {
   mutable PartitionID _block_0;
   mutable PartitionID _block_1;
   FlowHypergraphBuilder _flow_hg;
-  whfc::HyperFlowCutter<whfc::Dinic> _hfc;
+  whfc::HyperFlowCutter<whfc::SequentialPushRelabel> _sequential_hfc;
+  whfc::HyperFlowCutter<whfc::ParallelPushRelabel> _parallel_hfc;
 
   vec<HypernodeID> _whfc_to_node;
   SequentialConstruction _sequential_construction;

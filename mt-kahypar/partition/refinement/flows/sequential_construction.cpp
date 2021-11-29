@@ -404,13 +404,13 @@ void SequentialConstruction::determineDistanceFromCut(const PartitionedHypergrap
                                                       const PartitionID block_0,
                                                       const PartitionID block_1,
                                                       const vec<HypernodeID>& whfc_to_node) {
-  _hfc.cs.borderNodes.distance.distance.assign(_flow_hg.numNodes(), whfc::HopDistance(0));
+  auto& distances = _hfc.cs.border_nodes.distance;
+  distances.assign(_flow_hg.numNodes(), whfc::HopDistance(0));
   _visited_hns.resize(_flow_hg.numNodes() + _flow_hg.numHyperedges());
-  _visited_hns.reset();
+  _visited_hns.reset();   // Review Note
 
   // Initialize bfs queue with vertices contained in cut hyperedges
-  parallel::scalable_queue<whfc::Node> q;
-  parallel::scalable_queue<whfc::Node> next_q;
+  parallel::scalable_queue<whfc::Node> q, next_q;
   for ( const whfc::Hyperedge& he : _cut_hes ) {
     for ( const whfc::FlowHypergraph::Pin& pin : _flow_hg.pinsOf(he) ) {
       if ( pin.pin != source && pin.pin != sink && !_visited_hns[pin.pin] ) {
@@ -422,7 +422,7 @@ void SequentialConstruction::determineDistanceFromCut(const PartitionedHypergrap
   }
 
   // Perform BFS to determine distance of each vertex from cut
-  whfc::HopDistance dist(1);
+  whfc::HopDistance dist = 1;
   whfc::HopDistance max_dist_source(0);
   whfc::HopDistance max_dist_sink(0);
   while ( !q.empty() ) {
@@ -431,10 +431,10 @@ void SequentialConstruction::determineDistanceFromCut(const PartitionedHypergrap
 
     const PartitionID block_of_u = phg.partID(whfc_to_node[u]);
     if ( block_of_u == block_0 ) {
-      _hfc.cs.borderNodes.distance[u] = -dist;
+      distances[u] = -dist;
       max_dist_source = std::max(max_dist_source, dist);
     } else if ( block_of_u == block_1 ) {
-      _hfc.cs.borderNodes.distance[u] = dist;
+      distances[u] = dist;
       max_dist_sink = std::max(max_dist_sink, dist);
     }
 
@@ -456,8 +456,8 @@ void SequentialConstruction::determineDistanceFromCut(const PartitionedHypergrap
       ++dist;
     }
   }
-  _hfc.cs.borderNodes.distance[source] = -(max_dist_source + 1);
-  _hfc.cs.borderNodes.distance[sink] = max_dist_sink + 1;
+  distances[source] = -(max_dist_source + 1);
+  distances[sink] = max_dist_sink + 1;
 }
 
 } // namespace mt_kahypar

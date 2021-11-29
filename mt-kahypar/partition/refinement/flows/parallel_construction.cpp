@@ -551,7 +551,8 @@ void ParallelConstruction::determineDistanceFromCut(const PartitionedHypergraph&
                                                     const PartitionID block_0,
                                                     const PartitionID block_1,
                                                     const vec<HypernodeID>& whfc_to_node) {
-  _hfc.cs.borderNodes.distance.distance.assign(_flow_hg.numNodes(), whfc::HopDistance(0));
+  auto& distances = _hfc.cs.border_nodes.distance;
+  distances.assign(_flow_hg.numNodes(), whfc::HopDistance(0));
   _visited_hns.resize(_flow_hg.numNodes() + _flow_hg.numHyperedges());
   _visited_hns.reset();
   _visited_hns.set(source, true);
@@ -571,7 +572,6 @@ void ParallelConstruction::determineDistanceFromCut(const PartitionedHypergraph&
   });
 
   // Perform BFS to determine distance of each vertex from cut
-  std::vector<whfc::HopDistance>& distance = _hfc.cs.borderNodes.distance.distance;
   whfc::HopDistance dist(1);
   whfc::HopDistance max_dist_source(0);
   whfc::HopDistance max_dist_sink(0);
@@ -584,10 +584,10 @@ void ParallelConstruction::determineDistanceFromCut(const PartitionedHypergraph&
         q[q_idx].pop(idx);
         const PartitionID block_of_u = phg.partID(whfc_to_node[u]);
         if ( block_of_u == block_0 ) {
-          distance[u] = -dist;
+          distances[u] = -dist;
           reached_source_side = true;
         } else if ( block_of_u == block_1 ) {
-          distance[u] = dist;
+          distances[u] = dist;
           reached_sink_side = true;
         }
 
@@ -611,8 +611,8 @@ void ParallelConstruction::determineDistanceFromCut(const PartitionedHypergraph&
     q_idx = 1 - q_idx;
     ++dist;
   }
-  distance[source] = -(max_dist_source + 1);
-  distance[sink] = max_dist_sink + 1;
+  distances[source] = -(max_dist_source + 1);
+  distances[sink] = max_dist_sink + 1;
 }
 
 } // namespace mt_kahypar

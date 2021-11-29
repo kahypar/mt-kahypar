@@ -23,7 +23,7 @@
 #include <tbb/concurrent_vector.h>
 
 #include "algorithm/hyperflowcutter.h"
-#include "algorithm/dinic.h"
+#include "algorithm/sequential_push_relabel.h"
 
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/datastructures/sparse_map.h"
@@ -97,7 +97,7 @@ class SequentialConstruction {
  public:
   explicit SequentialConstruction(const Hypergraph& hg,
                                   FlowHypergraphBuilder& flow_hg,
-                                  whfc::HyperFlowCutter<whfc::Dinic>& hfc,
+                                  whfc::HyperFlowCutter<whfc::SequentialPushRelabel>& hfc,
                                   const Context& context) :
     _context(context),
     _flow_hg(flow_hg),
@@ -163,7 +163,7 @@ class SequentialConstruction {
   const Context& _context;
 
   FlowHypergraphBuilder& _flow_hg;
-  whfc::HyperFlowCutter<whfc::Dinic>& _hfc;
+  whfc::HyperFlowCutter<whfc::SequentialPushRelabel>& _hfc;
 
   ds::DynamicSparseMap<HypernodeID, whfc::Node> _node_to_whfc;
   ds::ThreadSafeFastResetFlagArray<> _visited_hns;
