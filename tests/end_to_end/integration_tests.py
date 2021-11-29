@@ -74,20 +74,21 @@ def run_integration_test(cmd):
     sys.exit(-1)
 
 
-
-
 with open(integration_test_json_file) as integration_test_file:
   integration_tests = json.load(integration_test_file)
-  epsilon = integration_tests["epsilon"]
-  for instance in integration_tests["instances"]:
-    absoulute_instance_path = mt_kahypar_dir + instance
-    for k in integration_tests["k"]:
-      print_config(instance, k, epsilon)
-      for test in integration_tests["tests"]:
-        cmd = command(test, absoulute_instance_path, k, epsilon)
-        print(' '.join(cmd))
-        run_integration_test(cmd)
-      print()
+  for experiment in integration_tests["integration_tests"]:
+    print(bold(experiment["name"]))
+    print("".rjust(len(experiment["name"]), "-"))
+    epsilon = integration_tests["epsilon"]
+    for instance in experiment["instances"]:
+      absoulute_instance_path = mt_kahypar_dir + instance
+      for k in integration_tests["k"]:
+        print_config(instance, k, epsilon)
+        for test in experiment["tests"]:
+          cmd = command(test, absoulute_instance_path, k, epsilon)
+          print(' '.join(cmd))
+          run_integration_test(cmd)
+        print()
 
 
 
