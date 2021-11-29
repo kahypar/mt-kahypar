@@ -8,6 +8,7 @@ import multiprocessing
 
 mt_kahypar_dir = os.environ.get("PWD") + "/"
 executable_dir = mt_kahypar_dir + "build/mt-kahypar/application/"
+verify_partition_exec = mt_kahypar_dir + "build/tools/VerifyPartition"
 config_dir = mt_kahypar_dir + "config/"
 integration_test_json_file = mt_kahypar_dir + "tests/end_to_end/integration_tests.json"
 num_threads = multiprocessing.cpu_count()
@@ -46,8 +47,10 @@ def command(test, instance, k, epsilon):
          "-t" + str(num_threads),
          "-okm1",
          "-mdirect",
+         "--seed=1",
          "--show-detailed-timings=true",
-         "--sp-process=true"] + parameters
+         "--sp-process=true",
+         "--write-partition-file=true"] + parameters
 
 def grep_result(out):
   for line in out.split('\n'):
@@ -62,11 +65,34 @@ def grep_result(out):
          " km1 = " + str(km1) + \
          " cut = " + str(cut)
 
-def run_integration_test(cmd):
+def partition_file_str(instance, k, epsilon):
+  return instance + ".part" + str(k) + ".epsilon" + str(epsilon) + ".seed1.KaHyPar"
+
+def verify_partition(instance, k, epsilon):
+  partition_file = partition_file_str(instance, k, epsilon)
+  proc = subprocess.Popen([verify_partition_exec,
+                           "-h" + instance,
+                           "-b" + partition_file,
+                           "-k" + str(k),
+                           "-e" + str(epsilon)],
+                           stdout=subprocess.PIPE, universal_newlines=True)
+  out, err = proc.communicate()
+  os.remove(partition_file)
+
+  if proc.returncode == 0:
+    print_success("Partition State: VALID")
+  else:
+    print_error("Partition State: INVALID")
+    print(out)
+    sys.exit(-1)
+
+
+def run_integration_test(cmd, instance, k, epsilon):
   proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, universal_newlines=True)
   out, err = proc.communicate()
 
   if proc.returncode == 0:
+    verify_partition(instance, k, epsilon)
     print_success(grep_result(out))
   else:
     print_error("Partitioner terminates with non-zero exit code (Exit Code = " + str(proc.returncode) + ")")
@@ -87,7 +113,7 @@ with open(integration_test_json_file) as integration_test_file:
         for test in experiment["tests"]:
           cmd = command(test, absoulute_instance_path, k, epsilon)
           print(' '.join(cmd))
-          run_integration_test(cmd)
+          run_integration_test(cmd, absoulute_instance_path, k, epsilon)
         print()
 
 
