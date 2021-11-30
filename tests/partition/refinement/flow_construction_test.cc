@@ -32,9 +32,10 @@ using ::testing::Test;
 
 namespace mt_kahypar {
 
-template<typename C, bool is_default>
+template<typename C, typename F, bool is_default>
 struct Config {
   using Constructor = C;
+  using FlowAlgo = F;
   static bool is_default_construction() {
     return is_default;
   }
@@ -44,6 +45,7 @@ template<typename Configuration>
 class AFlowHypergraphConstructor : public Test {
 
   using Constructor = typename Configuration::Constructor;
+  using FlowAlgo = typename Configuration::FlowAlgo;
 
  public:
   AFlowHypergraphConstructor() :
@@ -63,7 +65,7 @@ class AFlowHypergraphConstructor : public Test {
 
     context.shared_memory.num_threads = 2;
     context.refinement.flows.algorithm = FlowAlgorithm::mock;
-    context.refinement.flows.num_threads_per_search = 1;
+    context.refinement.flows.num_parallel_searches = std::thread::hardware_concurrency();
     context.refinement.flows.determine_distance_from_cut = false;
 
     phg.setOnlyNodePart(0, 0);
@@ -90,13 +92,15 @@ class AFlowHypergraphConstructor : public Test {
   Context context;
 
   FlowHypergraphBuilder flow_hg;
-  whfc::HyperFlowCutter<whfc::Dinic> hfc;
+  whfc::HyperFlowCutter<FlowAlgo> hfc;
   std::unique_ptr<Constructor> constructor;
   vec<HypernodeID> whfc_to_node;
 };
 
-typedef ::testing::Types<Config<SequentialConstruction, true>, Config<SequentialConstruction, false>,
-                         Config<ParallelConstruction, true>, Config<ParallelConstruction, false> > TestConfigs;
+typedef ::testing::Types<Config<SequentialConstruction, whfc::SequentialPushRelabel, true>,
+                         Config<SequentialConstruction, whfc::SequentialPushRelabel, false>,
+                         Config<ParallelConstruction, whfc::ParallelPushRelabel, true>,
+                         Config<ParallelConstruction, whfc::ParallelPushRelabel, false> > TestConfigs;
 
 TYPED_TEST_CASE(AFlowHypergraphConstructor, TestConfigs);
 

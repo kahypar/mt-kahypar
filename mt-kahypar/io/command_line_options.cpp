@@ -441,10 +441,10 @@ namespace mt_kahypar {
              "Flow Algorithms:\n"
              "- do_nothing\n"
              "- flows")
-            ((initial_partitioning ? "i-r-num-threads-per-search" : "r-num-threads-per-search"),
-             po::value<size_t>((initial_partitioning ? &context.initial_partitioning.refinement.flows.num_threads_per_search :
-                      &context.refinement.flows.num_threads_per_search))->value_name("<size_t>"),
-             "Number of threads per search.")
+            ((initial_partitioning ? "i-r-parallel-search-mult" : "r-parallel-search-mult"),
+             po::value<double>((initial_partitioning ? &context.initial_partitioning.refinement.flows.parallel_searches_multiplier :
+                      &context.refinement.flows.parallel_searches_multiplier))->value_name("<double>"),
+             "Active block scheduling starts min(num_threads, mult * k) parallel searches")
             ((initial_partitioning ? "i-r-max-bfs-distance" : "r-max-bfs-distance"),
              po::value<size_t>((initial_partitioning ? &context.initial_partitioning.refinement.flows.max_bfs_distance :
                       &context.refinement.flows.max_bfs_distance))->value_name("<size_t>"),

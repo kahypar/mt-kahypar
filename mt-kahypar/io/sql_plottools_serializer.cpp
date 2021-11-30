@@ -129,7 +129,8 @@ std::string serialize(const PartitionedHypergraph& hypergraph,
         << " global_fm_num_seed_nodes=" << context.refinement.global_fm.num_seed_nodes
         << " global_fm_obey_minimal_parallelism=" << std::boolalpha << context.refinement.global_fm.obey_minimal_parallelism;
     oss << " flow_algorithm=" << context.refinement.flows.algorithm
-        << " flow_num_threads_per_search=" << context.refinement.flows.num_threads_per_search
+        << " flow_parallel_searches_multiplier=" << context.refinement.flows.parallel_searches_multiplier
+        << " flow_num_parallel_searches=" << context.refinement.flows.num_parallel_searches
         << " flow_max_bfs_distance=" << context.refinement.flows.max_bfs_distance
         << " flow_min_relative_improvement_per_round=" << context.refinement.flows.min_relative_improvement_per_round
         << " flow_time_limit_factor=" << context.refinement.flows.time_limit_factor

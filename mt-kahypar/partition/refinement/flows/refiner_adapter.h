@@ -56,12 +56,16 @@ public:
     _active_searches(),
     _num_used_threads_lock(),
     _num_used_threads(0),
+    _num_threads_per_search(0),
     _num_refinements(0),
     _average_running_time(0.0) {
     for ( size_t i = 0; i < numAvailableRefiner(); ++i ) {
       _refiner.emplace_back(nullptr);
       _unused_refiners.push(i);
     }
+    _num_threads_per_search = std::max(1UL,
+      static_cast<size_t>(std::ceil(static_cast<double>(_context.shared_memory.num_threads) /
+      _context.refinement.flows.num_parallel_searches)));
   }
 
   FlowRefinerAdapter(const FlowRefinerAdapter&) = delete;
@@ -91,9 +95,7 @@ public:
   void reset();
 
   size_t numAvailableRefiner() const {
-    ASSERT(_context.refinement.flows.num_threads_per_search > 0);
-    return _context.shared_memory.num_threads / _context.refinement.flows.num_threads_per_search
-      + (_context.shared_memory.num_threads % _context.refinement.flows.num_threads_per_search != 0);
+    return _context.refinement.flows.num_parallel_searches;
   }
 
   double runningTime(const SearchID search_id) const {
@@ -134,6 +136,7 @@ private:
   SpinLock _num_used_threads_lock;
   // ! Number of used threads
   CAtomic<size_t> _num_used_threads;
+  size_t _num_threads_per_search;
 
   size_t _num_refinements;
   double _average_running_time;
