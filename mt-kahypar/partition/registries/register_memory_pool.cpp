@@ -78,6 +78,7 @@ namespace mt_kahypar {
       pool.register_memory_chunk("Coarsening", "tmp_incidence_array", num_pins, sizeof(HypernodeID));
       pool.register_memory_chunk("Coarsening", "he_sizes", num_hyperedges, sizeof(size_t));
       pool.register_memory_chunk("Coarsening", "valid_hyperedges", num_hyperedges, sizeof(size_t));
+      pool.register_memory_chunk("Coarsening", "tmp_weight_of_disabled_edges", num_hypernodes, sizeof(CAtomic<HyperedgeWeight>));
     }
 
     // ########## Refinement Memory ##########

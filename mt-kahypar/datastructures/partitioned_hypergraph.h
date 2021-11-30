@@ -302,6 +302,11 @@ private:
     setNodePart(u, to);
   }
 
+  HyperedgeWeight weightOfDisabledEdges(const HypernodeID n) const {
+    return _hg->weightOfDisabledEdges(n);
+  }
+
+
   // ####################### Hyperedge Information #######################
 
   // ! Weight of a hyperedge
@@ -539,6 +544,7 @@ private:
   void setNodePart(const HypernodeID u, PartitionID p) {
     setOnlyNodePart(u, p);
     _part_weights[p].fetch_add(nodeWeight(u), std::memory_order_relaxed);
+    _part_loads[p].fetch_add(weightOfDisabledEdges(u), std::memory_order_relaxed);
     for (HyperedgeID he : incidentEdges(u)) {
       const HypernodeID pin_count_after = incrementPinCountInPartWithoutGainUpdate(he, p);
       if (pin_count_after == 1) {
@@ -564,6 +570,8 @@ private:
     if (to_weight_after <= max_weight_to) {
       _part_ids[u] = to;
       _part_weights[from].fetch_sub(wu, std::memory_order_relaxed);
+      _part_loads[from].fetch_sub(weightOfDisabledEdges(u), std::memory_order_relaxed);
+      _part_loads[to].fetch_add(weightOfDisabledEdges(u), std::memory_order_relaxed);
       report_success();
       for ( const HyperedgeID he : incidentEdges(u) ) {
         updatePinCountOfHyperedge(he, from, to, delta_func);
@@ -1136,9 +1144,20 @@ private:
       }
       applyPartLoadUpdates(pvs);
     };
+    auto accumulate_disabled_edges = [&](tbb::blocked_range<HypernodeID>& r) {
+      vec<HyperedgeWeight> pvs(_k, 0);  // this is not enumerable_thread_specific because of the static partitioner
+      for (HypernodeID u = r.begin(); u < r.end(); ++u) {
+        pvs[partID(u)] += weightOfDisabledEdges(u);
+      }
+      applyPartLoadUpdates(pvs);
+    };
 
     tbb::parallel_for(tbb::blocked_range<HyperedgeID>(HypernodeID(0), initialNumEdges()),
                       accumulate,
+                      tbb::static_partitioner()
+    );
+    tbb::parallel_for(tbb::blocked_range<HypernodeID>(HypernodeID(0), initialNumNodes()),
+                      accumulate_disabled_edges,
                       tbb::static_partitioner()
     );
   }

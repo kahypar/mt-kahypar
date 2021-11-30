@@ -357,6 +357,8 @@ class StaticHypergraph {
         he_sizes.resize("Coarsening", "he_sizes", num_hyperedges);
       }, [&] {
         valid_hyperedges.resize("Coarsening", "valid_hyperedges", num_hyperedges);
+      }, [&] {
+        tmp_weight_of_disabled_edges.resize("Coarsening", "tmp_weight_of_disabled_edges", num_hypernodes);
       });
     }
 
@@ -369,6 +371,7 @@ class StaticHypergraph {
     IncidenceArray tmp_incidence_array;
     Array<size_t> he_sizes;
     Array<size_t> valid_hyperedges;
+    Array<CAtomic<HyperedgeWeight>> tmp_weight_of_disabled_edges;
   };
 
  public:
@@ -402,6 +405,7 @@ class StaticHypergraph {
     _hyperedges(),
     _incidence_array(),
     _community_ids(0),
+    _weight_of_disabled_edges(),
     _tmp_contraction_buffer(nullptr) { }
 
   StaticHypergraph(const StaticHypergraph&) = delete;
@@ -422,6 +426,7 @@ class StaticHypergraph {
     _hyperedges(std::move(other._hyperedges)),
     _incidence_array(std::move(other._incidence_array)),
     _community_ids(std::move(other._community_ids)),
+    _weight_of_disabled_edges(std::move(other._weight_of_disabled_edges)),
     _tmp_contraction_buffer(std::move(other._tmp_contraction_buffer)) {
     other._tmp_contraction_buffer = nullptr;
   }
@@ -442,6 +447,7 @@ class StaticHypergraph {
     _incidence_array = std::move(other._incidence_array);
     _community_ids = std::move(other._community_ids),
     _tmp_contraction_buffer = std::move(other._tmp_contraction_buffer);
+    _weight_of_disabled_edges = std::move(other._weight_of_disabled_edges);
     other._tmp_contraction_buffer = nullptr;
     return *this;
   }
@@ -652,6 +658,11 @@ class StaticHypergraph {
   // ! Disabled a hyperedge (must be enabled before)
   void disableHyperedge(const HyperedgeID e) {
     hyperedge(e).disable();
+  }
+
+  HyperedgeWeight weightOfDisabledEdges(const HypernodeID n) const {
+    ASSERT(!_weight_of_disabled_edges.empty() && n < _weight_of_disabled_edges.size());
+    return _weight_of_disabled_edges[n];
   }
 
   // ! Community id which hypernode u is assigned to
@@ -934,6 +945,8 @@ class StaticHypergraph {
 
   // ! Communities
   ds::Clustering _community_ids;
+
+  Array<HyperedgeWeight> _weight_of_disabled_edges;
 
   // ! Data that is reused throughout the multilevel hierarchy
   // ! to contract the hypergraph and to prevent expensive allocations

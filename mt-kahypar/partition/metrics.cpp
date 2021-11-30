@@ -137,6 +137,9 @@ namespace mt_kahypar::metrics {
           }
         }
       });
+      tbb::parallel_for(ID(0), hypergraph.initialNumNodes(), [&](const HypernodeID hn) {
+            ets_vol.local()[hypergraph.partID(hn)] += hypergraph.weightOfDisabledEdges(hn);
+      });
       for (const auto &v : ets_vol) {
         for (PartitionID p = 0; p < hypergraph.k(); ++p) {
           vol[p] += v[p];
@@ -149,6 +152,9 @@ namespace mt_kahypar::metrics {
             vol[p] += hypergraph.edgeWeight(he);
           }
         }
+      }
+      for (const HypernodeID hn : hypergraph.nodes()) {
+            vol[hypergraph.partID(hn)] += hypergraph.weightOfDisabledEdges(hn);
       }
     }
     return *std::max_element(vol.begin(), vol.end());

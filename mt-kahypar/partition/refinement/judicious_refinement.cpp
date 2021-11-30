@@ -33,6 +33,9 @@ namespace mt_kahypar {
 
     unused(refinement_nodes);
     if (!_is_initialized) throw std::runtime_error("Call initialize on judicious refinement before calling refine");
+    if (debug) {
+      LOG << "Initial judicious load: " << V(metrics::judiciousLoad(phg));
+    }
     for (PartitionID i = 0; i < _context.partition.k; ++i) {
       _part_loads.insert(i, phg.partLoad(i));
     }
@@ -45,6 +48,9 @@ namespace mt_kahypar {
       const PartitionID heaviest_part = _part_loads.top();
       const Gain last_best_improvement = _best_improvement;
       doRefinement(phg, heaviest_part);
+      if (debug) {
+        LOG << "Improved best state by " << (_best_improvement - last_best_improvement);
+      }
       for (PartitionID i = 0; i < _context.partition.k; ++i) {
         _part_loads.adjustKey(i, phg.partLoad(i));
       }

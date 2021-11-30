@@ -204,7 +204,7 @@ private:
       if (i != from) {
         const HyperedgeWeight load = phg.partLoad(i);
         const HyperedgeWeight penalty = phg.moveToPenalty(u, i);
-        if (penalty < to_penalty || (penalty == to_penalty && load < to_load)) {
+        if (load < to_load || (load == to_load && penalty < to_penalty)) {
           to_penalty = penalty;
           to = i;
           to_load = load;
@@ -214,13 +214,14 @@ private:
     if (to == kInvalidPartition) {
       return std::make_pair(to, std::numeric_limits<HyperedgeWeight>::min());
     }
-    HyperedgeWeight to_load_after = to_load + to_penalty;
-    HyperedgeWeight from_load_after = from_load - phg.moveFromBenefit(u);
+    HyperedgeWeight to_load_after = to_load + to_penalty + phg.weightOfDisabledEdges(u);
+    Gain benefit = phg.moveFromBenefit(u) + phg.weightOfDisabledEdges(u);
+    HyperedgeWeight from_load_after = from_load - benefit;
     // (Review Note) If to block is light enough, we only care about benefit.
     // light enough means part_load[to] + penalty < part_load[from], I think
     // but penalty and load can be a good tie-breaker because otherwise all moves look the same
-    const Gain gain = to_load_after < from_load_after ? phg.moveFromBenefit(u) :
-                                                              from_load - to_load_after;
+    const Gain gain = to_load_after < from_load_after ? benefit :
+                                                        from_load - to_load_after;
 
     return std::make_pair(to, gain);
   }
