@@ -162,12 +162,16 @@ void QuotientGraph::ActiveBlockScheduler::finalizeSearch(const BlockPair& blocks
   if ( block_0_becomes_active ) {
     // If blocks.i becomes active, we push all adjacent blocks into the queue of the next round
     ASSERT(round + 1 < _rounds.size());
-    for ( PartitionID j = blocks.i + 1; j < _context.partition.k; ++j ) {
-      if ( isActiveBlockPair(blocks.i, j) ) {
-        DBG << "Schedule blocks (" << blocks.i << "," << j << ") in round" << (round + 2) << " ("
-            << "Total Improvement =" << _quotient_graph[blocks.i][j].total_improvement << ","
-            << "Cut Weight =" << _quotient_graph[blocks.i][j].cut_he_weight << ")";
-        _rounds[round + 1].pushBlockPairIntoQueue(BlockPair { blocks.i, j });
+    for ( PartitionID other = 0; other < _context.partition.k; ++other ) {
+      if ( blocks.i != other ) {
+        const PartitionID block_0 = std::min(blocks.i, other);
+        const PartitionID block_1 = std::max(blocks.i, other);
+        if ( isActiveBlockPair(block_0, block_1) ) {
+          DBG << "Schedule blocks (" << block_0 << "," << block_1 << ") in round" << (round + 2) << " ("
+              << "Total Improvement =" << _quotient_graph[block_0][block_1].total_improvement << ","
+              << "Cut Weight =" << _quotient_graph[block_0][block_1].cut_he_weight << ")";
+          _rounds[round + 1].pushBlockPairIntoQueue(BlockPair { block_0, block_1 });
+        }
       }
     }
   }
@@ -175,12 +179,16 @@ void QuotientGraph::ActiveBlockScheduler::finalizeSearch(const BlockPair& blocks
   if ( block_1_becomes_active ) {
     // If blocks.j becomes active, we push all adjacent blocks into the queue of the next round
     ASSERT(round + 1 < _rounds.size());
-    for ( PartitionID j = blocks.j + 1; j < _context.partition.k; ++j ) {
-      if ( isActiveBlockPair(blocks.j, j) ) {
-        DBG << "Schedule blocks (" << blocks.j << "," << j << ") in round" << (round + 2) << " ("
-            << "Total Improvement =" << _quotient_graph[blocks.j][j].total_improvement << ","
-            << "Cut Weight =" << _quotient_graph[blocks.j][j].cut_he_weight << ")";
-        _rounds[round + 1].pushBlockPairIntoQueue(BlockPair { blocks.j, j });
+    for ( PartitionID other = 0; other < _context.partition.k; ++other ) {
+      if ( blocks.j != other ) {
+        const PartitionID block_0 = std::min(blocks.j, other);
+        const PartitionID block_1 = std::max(blocks.j, other);
+        if ( isActiveBlockPair(block_0, block_1) ) {
+          DBG << "Schedule blocks (" << block_0 << "," << block_1 << ") in round" << (round + 2) << " ("
+              << "Total Improvement =" << _quotient_graph[block_0][block_1].total_improvement << ","
+              << "Cut Weight =" << _quotient_graph[block_0][block_1].cut_he_weight << ")";
+          _rounds[round + 1].pushBlockPairIntoQueue(BlockPair { block_0, block_1 });
+        }
       }
     }
   }
