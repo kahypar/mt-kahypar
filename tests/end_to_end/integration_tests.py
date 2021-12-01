@@ -15,13 +15,23 @@ num_threads = multiprocessing.cpu_count()
 
 
 partitioners = { "Mt-KaHyPar-D":     { "executable": executable_dir + "MtKaHyParFast",
-                                       "config":  config_dir + "default_preset.ini" },
+                                       "config":  config_dir + "default_preset.ini",
+                                       "mode": "direct" },
                  "Mt-KaHyPar-Q":     { "executable": executable_dir + "MtKaHyParStrong",
-                                       "config":  config_dir + "quality_preset.ini" },
+                                       "config":  config_dir + "quality_preset.ini",
+                                       "mode": "direct" },
                  "Mt-KaHyPar-Graph": { "executable": executable_dir + "MtKaHyParGraph",
-                                       "config":  config_dir + "default_preset.ini" },
+                                       "config":  config_dir + "default_preset.ini",
+                                       "mode": "direct" },
                  "Mt-KaHyPar-Det":   { "executable": executable_dir + "MtKaHyParFast",
-                                       "config":  config_dir + "speed_deterministic_preset.ini" } }
+                                       "config":  config_dir + "speed_deterministic_preset.ini",
+                                       "mode": "direct" },
+                 "Mt-KaHyPar-RB":    { "executable": executable_dir + "MtKaHyParFast",
+                                       "config":  config_dir + "default_preset.ini",
+                                       "mode": "recursive" },
+                 "Mt-KaHyPar-Deep":  { "executable": executable_dir + "MtKaHyParFast",
+                                       "config":  config_dir + "default_preset.ini",
+                                       "mode": "deep" } }
 
 def bold(msg):
   return "\033[1m" + msg + "\033[0m"
@@ -46,7 +56,7 @@ def command(test, instance, k, epsilon):
          "-e" + str(epsilon),
          "-t" + str(num_threads),
          "-okm1",
-         "-mdirect",
+         "-m" + partitioner["mode"],
          "--seed=1",
          "--show-detailed-timings=true",
          "--sp-process=true",
