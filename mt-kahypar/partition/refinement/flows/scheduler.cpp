@@ -113,8 +113,8 @@ bool FlowRefinementScheduler::refineImpl(
   std::atomic<HyperedgeWeight> overall_delta(0);
   tbb::parallel_for(0UL, _refiner.numAvailableRefiner(), [&](const size_t i) {
     while ( i < std::max(1UL, static_cast<size_t>(
-        _context.refinement.flows.parallel_searches_multiplier *
-        _quotient_graph.numActiveBlockPairs())) ) {
+        std::ceil(_context.refinement.flows.parallel_searches_multiplier *
+            _quotient_graph.numActiveBlockPairs()))) ) {
       SearchID search_id = _quotient_graph.requestNewSearch(_refiner);
       if ( search_id != QuotientGraph::INVALID_SEARCH_ID ) {
         DBG << "Start search" << search_id
@@ -216,8 +216,8 @@ void FlowRefinementScheduler::initializeImpl(PartitionedHypergraph& phg)  {
 
   const size_t max_parallism = std::max(1UL,
     std::min(_context.shared_memory.num_threads, static_cast<size_t>(
-          _context.refinement.flows.parallel_searches_multiplier *
-          _quotient_graph.numActiveBlockPairs())));
+          std::ceil(_context.refinement.flows.parallel_searches_multiplier *
+            _quotient_graph.numActiveBlockPairs()))));
   DBG << "Initial Active Block Pairs =" << _quotient_graph.numActiveBlockPairs()
       << ", Initial Num Threads =" << max_parallism;
   _refiner.initialize(max_parallism);
