@@ -65,7 +65,6 @@ class AFlowHypergraphConstructor : public Test {
 
     context.shared_memory.num_threads = 2;
     context.refinement.flows.algorithm = FlowAlgorithm::mock;
-    context.refinement.flows.num_parallel_searches = std::thread::hardware_concurrency();
     context.refinement.flows.determine_distance_from_cut = false;
 
     phg.setOnlyNodePart(0, 0);

@@ -42,7 +42,6 @@ class AFlowRefinerAdapter : public Test {
     context.partition.objective = kahypar::Objective::km1;
     context.shared_memory.num_threads = 8;
     context.refinement.flows.algorithm = FlowAlgorithm::mock;
-    context.refinement.flows.num_parallel_searches = std::thread::hardware_concurrency();
 
     FlowRefinerMockControl::instance().reset();
 
@@ -78,31 +77,24 @@ void executeConcurrent(F f1, K f2) {
 }
 
 TEST_F(AFlowRefinerAdapter, FailsToRegisterMoreSearchesIfAllAreUsed) {
-  context.shared_memory.num_threads = std::thread::hardware_concurrency();
-  context.refinement.flows.num_parallel_searches = std::thread::hardware_concurrency() / 2;
   refiner = std::make_unique<FlowRefinerAdapter>(hg, context);
+  refiner->initialize(2);
 
-  for ( size_t i = 0; i < context.refinement.flows.num_parallel_searches; ++i ) {
-    ASSERT_TRUE(refiner->registerNewSearch(i, phg));
-  }
-  ASSERT_FALSE(refiner->registerNewSearch(context.refinement.flows.num_parallel_searches, phg));
+  ASSERT_TRUE(refiner->registerNewSearch(0, phg));
+  ASSERT_TRUE(refiner->registerNewSearch(1, phg));
+  ASSERT_FALSE(refiner->registerNewSearch(2, phg));
 }
 
 TEST_F(AFlowRefinerAdapter, UseCorrectNumberOfThreadsForSearch1) {
-  context.shared_memory.num_threads = std::thread::hardware_concurrency();
-  context.refinement.flows.num_parallel_searches = std::thread::hardware_concurrency() / 2;
-  const size_t num_threads_per_search = std::max(1UL,
-    static_cast<size_t>(std::ceil(static_cast<double>(
-      context.shared_memory.num_threads) /
-      context.refinement.flows.num_parallel_searches)));
   refiner = std::make_unique<FlowRefinerAdapter>(hg, context);
-  ASSERT_EQ(context.refinement.flows.num_parallel_searches, refiner->numAvailableRefiner());
+  refiner->initialize(2);
+  ASSERT_EQ(2, refiner->numAvailableRefiner());
   ASSERT_EQ(0, refiner->numUsedThreads());
 
   FlowRefinerMockControl::instance().refine_func =
     [&](const PartitionedHypergraph&, const Subhypergraph&, const size_t num_threads) -> MoveSequence {
-      EXPECT_EQ(num_threads_per_search, num_threads);
-      EXPECT_EQ(num_threads_per_search, refiner->numUsedThreads());
+      EXPECT_EQ(context.shared_memory.num_threads / 2, num_threads);
+      EXPECT_EQ(context.shared_memory.num_threads / 2, refiner->numUsedThreads());
       return MoveSequence { {}, 0 };
     };
   ASSERT_TRUE(refiner->registerNewSearch(0, phg));
@@ -111,21 +103,16 @@ TEST_F(AFlowRefinerAdapter, UseCorrectNumberOfThreadsForSearch1) {
 }
 
 TEST_F(AFlowRefinerAdapter, UseCorrectNumberOfThreadsForSearch2) {
-  context.shared_memory.num_threads = std::thread::hardware_concurrency();
-  context.refinement.flows.num_parallel_searches = std::thread::hardware_concurrency() / 2;
-  const size_t num_threads_per_search = std::max(1UL,
-    static_cast<size_t>(std::ceil(static_cast<double>(
-      context.shared_memory.num_threads) /
-      context.refinement.flows.num_parallel_searches)));
   refiner = std::make_unique<FlowRefinerAdapter>(hg, context);
-  ASSERT_EQ(context.refinement.flows.num_parallel_searches, refiner->numAvailableRefiner());
+  refiner->initialize(2);
+  ASSERT_EQ(2, refiner->numAvailableRefiner());
   ASSERT_EQ(0, refiner->numUsedThreads());
 
   std::atomic<size_t> cnt(0);
   FlowRefinerMockControl::instance().refine_func =
     [&](const PartitionedHypergraph&, const Subhypergraph&, const size_t num_threads) -> MoveSequence {
-      EXPECT_EQ(num_threads_per_search, num_threads);
-      EXPECT_EQ(num_threads_per_search, refiner->numUsedThreads());
+      EXPECT_EQ(context.shared_memory.num_threads / 2, num_threads);
+      EXPECT_EQ(context.shared_memory.num_threads / 2, refiner->numUsedThreads());
       ++cnt;
       while ( cnt < 2 ) { }
       return MoveSequence { {}, 0 };
@@ -133,8 +120,8 @@ TEST_F(AFlowRefinerAdapter, UseCorrectNumberOfThreadsForSearch2) {
   ASSERT_TRUE(refiner->registerNewSearch(0, phg));
   FlowRefinerMockControl::instance().refine_func =
     [&](const PartitionedHypergraph&, const Subhypergraph&, const size_t num_threads) -> MoveSequence {
-      EXPECT_EQ(num_threads_per_search, num_threads);
-      EXPECT_EQ(2 * num_threads_per_search, refiner->numUsedThreads());
+      EXPECT_EQ(context.shared_memory.num_threads / 2, num_threads);
+      EXPECT_EQ(context.shared_memory.num_threads, refiner->numUsedThreads());
       ++cnt;
       return MoveSequence { {}, 0 };
     };
@@ -147,6 +134,24 @@ TEST_F(AFlowRefinerAdapter, UseCorrectNumberOfThreadsForSearch2) {
   });
   refiner->finalizeSearch(0);
   refiner->finalizeSearch(1);
+}
+
+TEST_F(AFlowRefinerAdapter, UsesMoreThreadsIfOneRefinerTermiantes) {
+  refiner = std::make_unique<FlowRefinerAdapter>(hg, context);
+  refiner->initialize(2);
+  ASSERT_EQ(2, refiner->numAvailableRefiner());
+  ASSERT_EQ(0, refiner->numUsedThreads());
+  refiner->terminateRefiner();
+
+  FlowRefinerMockControl::instance().refine_func =
+    [&](const PartitionedHypergraph&, const Subhypergraph&, const size_t num_threads) -> MoveSequence {
+      EXPECT_EQ(context.shared_memory.num_threads, num_threads);
+      EXPECT_EQ(context.shared_memory.num_threads, refiner->numUsedThreads());
+      return MoveSequence { {}, 0 };
+    };
+  ASSERT_TRUE(refiner->registerNewSearch(0, phg));
+  refiner->refine(0, phg, {});
+  refiner->finalizeSearch(0);
 }
 
 }

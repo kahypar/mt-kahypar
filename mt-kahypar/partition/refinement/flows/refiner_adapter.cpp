@@ -64,20 +64,12 @@ MoveSequence FlowRefinerAdapter::refine(const SearchID search_id,
   ASSERT(static_cast<size_t>(search_id) < _active_searches.size());
   ASSERT(_active_searches[search_id].refiner_idx != INVALID_REFINER_IDX);
 
-  // Determine number of free threads for current search
-  _num_used_threads_lock.lock();
-  const size_t num_free_threads = std::min(
-    _num_threads_per_search, _context.shared_memory.num_threads -
-    _num_used_threads.load(std::memory_order_relaxed));
-  _num_used_threads += num_free_threads;
-  _num_used_threads_lock.unlock();
-
   // Perform refinement
-  ASSERT(num_free_threads > 0);
   const size_t refiner_idx = _active_searches[search_id].refiner_idx;
+  const size_t num_free_threads = _threads.acquireFreeThreads();
   _refiner[refiner_idx]->setNumThreadsForSearch(num_free_threads);
   MoveSequence moves = _refiner[refiner_idx]->refine(phg, sub_hg, _active_searches[search_id].start);
-  _num_used_threads -= num_free_threads;
+  _threads.releaseThreads(num_free_threads);
   _active_searches[search_id].reaches_time_limit = moves.state == MoveSequenceState::TIME_LIMIT;
   return moves;
 }
@@ -117,13 +109,18 @@ void FlowRefinerAdapter::finalizeSearch(const SearchID search_id) {
   _active_searches[search_id].refiner_idx = INVALID_REFINER_IDX;
 }
 
-void FlowRefinerAdapter::reset() {
+void FlowRefinerAdapter::initialize(const size_t max_parallelism) {
+  _num_parallel_refiners = max_parallelism;
+  _threads.num_threads = _context.shared_memory.num_threads;
+  _threads.num_parallel_refiners = max_parallelism;
+  _threads.num_active_refiners = 0;
+  _threads.num_used_threads = 0;
+
   _unused_refiners.clear();
   for ( size_t i = 0; i < numAvailableRefiner(); ++i ) {
     _unused_refiners.push(i);
   }
   _active_searches.clear();
-  _num_used_threads.store(0, std::memory_order_relaxed);
   _num_refinements = 0;
   _average_running_time = 0.0;
 }

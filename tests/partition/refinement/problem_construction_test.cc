@@ -43,7 +43,6 @@ class AProblemConstruction : public Test {
     context.partition.objective = kahypar::Objective::km1;
     context.shared_memory.num_threads = std::thread::hardware_concurrency();
     context.refinement.flows.algorithm = FlowAlgorithm::mock;
-    context.refinement.flows.num_parallel_searches = std::thread::hardware_concurrency();
     context.refinement.flows.max_bfs_distance = 2;
 
     // Read hypergraph
@@ -128,6 +127,7 @@ TEST_F(AProblemConstruction, GrowAnFlowProblemAroundTwoBlocks1) {
   ProblemConstruction constructor(hg, context);
   FlowRefinerAdapter refiner(hg, context);
   QuotientGraph qg(hg, context);
+  refiner.initialize(context.shared_memory.num_threads);
   qg.initialize(phg);
 
   max_part_weights.assign(context.partition.k, 400);
@@ -142,6 +142,7 @@ TEST_F(AProblemConstruction, GrowAnFlowProblemAroundTwoBlocks2) {
   ProblemConstruction constructor(hg, context);
   FlowRefinerAdapter refiner(hg, context);
   QuotientGraph qg(hg, context);
+  refiner.initialize(context.shared_memory.num_threads);
   qg.initialize(phg);
 
   max_part_weights.assign(context.partition.k, 800);
@@ -156,6 +157,7 @@ TEST_F(AProblemConstruction, GrowTwoFlowProblemAroundTwoBlocksSimultanously) {
   ProblemConstruction constructor(hg, context);
   FlowRefinerAdapter refiner(hg, context);
   QuotientGraph qg(hg, context);
+  refiner.initialize(context.shared_memory.num_threads);
   qg.initialize(phg);
 
   max_part_weights.assign(context.partition.k, 400);

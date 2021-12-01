@@ -375,7 +375,7 @@ public:
     _active_block_scheduler.setObjective(objective);
   }
 
-  size_t maximumRequiredRefiners() const;
+  size_t numActiveBlockPairs() const;
 
   // ! Only for testing
   HyperedgeWeight getCutHyperedgeWeightOfBlockPair(const PartitionID i, const PartitionID j) const {

@@ -342,10 +342,8 @@ void QuotientGraph::initialize(const PartitionedHypergraph& phg) {
   _active_block_scheduler.initialize(active_blocks, isInputHypergraph());
 }
 
-size_t QuotientGraph::maximumRequiredRefiners() const {
-  const size_t current_active_block_pairs =
-    _active_block_scheduler.numRemainingBlocks() + _num_active_searches + 1;
-  return std::min(current_active_block_pairs, _context.shared_memory.num_threads);
+size_t QuotientGraph::numActiveBlockPairs() const {
+  return _active_block_scheduler.numRemainingBlocks() + _num_active_searches;
 }
 
 void QuotientGraph::resetQuotientGraphEdges() {

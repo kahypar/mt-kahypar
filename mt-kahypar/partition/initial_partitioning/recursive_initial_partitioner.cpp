@@ -521,7 +521,6 @@ namespace mt_kahypar {
               context.coarsening.contraction_limit_multiplier);
       context.setupMaximumAllowedNodeWeight(_hg.totalWeight());
       context.setupSparsificationParameters();
-      context.setupThreadsPerFlowSearch();
 
       // Initial Partitioning Parameters
       bool is_parallel_recursion = _context.shared_memory.num_threads != context.shared_memory.num_threads;

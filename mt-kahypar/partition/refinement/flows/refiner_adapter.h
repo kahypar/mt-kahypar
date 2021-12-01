@@ -45,27 +45,66 @@ class FlowRefinerAdapter {
     bool reaches_time_limit;
   };
 
+  struct ThreadOrganizer {
+    ThreadOrganizer() :
+      lock(),
+      num_threads(0),
+      num_used_threads(0),
+      num_parallel_refiners(0),
+      num_active_refiners(0) { }
+
+    size_t acquireFreeThreads() {
+      lock.lock();
+      const size_t num_threads_per_search =
+        std::max(1UL, static_cast<size_t>(std::ceil(
+          static_cast<double>(num_threads - num_used_threads) /
+          ( num_parallel_refiners - num_active_refiners ) )));
+      const size_t num_free_threads = std::min(
+        num_threads_per_search, num_threads - num_used_threads);
+      ++num_active_refiners;
+      num_used_threads += num_free_threads;
+      lock.unlock();
+      return num_free_threads;
+    }
+
+    void releaseThreads(const size_t num_threads) {
+      lock.lock();
+      ASSERT(num_threads <= num_used_threads);
+      ASSERT(num_active_refiners);
+      num_used_threads -= num_threads;
+      --num_active_refiners;
+      lock.unlock();
+    }
+
+    void terminateRefiner() {
+      lock.lock();
+      --num_parallel_refiners;
+      lock.unlock();
+    }
+
+    SpinLock lock;
+    size_t num_threads;
+    size_t num_used_threads;
+    size_t num_parallel_refiners;
+    size_t num_active_refiners;
+  };
+
 public:
   explicit FlowRefinerAdapter(const Hypergraph& hg,
-                                  const Context& context) :
+                              const Context& context) :
     _hg(hg),
     _context(context),
     _unused_refiners(),
     _refiner(),
     _search_lock(),
     _active_searches(),
-    _num_used_threads_lock(),
-    _num_used_threads(0),
-    _num_threads_per_search(0),
+    _threads(),
+    _num_parallel_refiners(0),
     _num_refinements(0),
     _average_running_time(0.0) {
-    for ( size_t i = 0; i < numAvailableRefiner(); ++i ) {
+    for ( size_t i = 0; i < _context.shared_memory.num_threads; ++i ) {
       _refiner.emplace_back(nullptr);
-      _unused_refiners.push(i);
     }
-    _num_threads_per_search = std::max(1UL,
-      static_cast<size_t>(std::ceil(static_cast<double>(_context.shared_memory.num_threads) /
-      _context.refinement.flows.num_parallel_searches)));
   }
 
   FlowRefinerAdapter(const FlowRefinerAdapter&) = delete;
@@ -73,6 +112,8 @@ public:
 
   FlowRefinerAdapter & operator= (const FlowRefinerAdapter &) = delete;
   FlowRefinerAdapter & operator= (FlowRefinerAdapter &&) = delete;
+
+  void initialize(const size_t max_parallelism);
 
   // ! Associates a refiner with a search id.
   // ! Returns true, if there is an idle refiner left.
@@ -92,10 +133,12 @@ public:
   // ! available again
   void finalizeSearch(const SearchID search_id);
 
-  void reset();
+  void terminateRefiner() {
+    _threads.terminateRefiner();
+  }
 
   size_t numAvailableRefiner() const {
-    return _context.refinement.flows.num_parallel_searches;
+    return _num_parallel_refiners;
   }
 
   double runningTime(const SearchID search_id) const {
@@ -111,7 +154,7 @@ public:
 
   // ! Only for testing
   size_t numUsedThreads() const {
-    return _num_used_threads.load(std::memory_order_relaxed);
+    return _threads.num_used_threads;
   }
 
 private:
@@ -133,10 +176,8 @@ private:
   SpinLock _search_lock;
   tbb::concurrent_vector<ActiveSearch> _active_searches;
 
-  SpinLock _num_used_threads_lock;
-  // ! Number of used threads
-  CAtomic<size_t> _num_used_threads;
-  size_t _num_threads_per_search;
+  ThreadOrganizer _threads;
+  size_t _num_parallel_refiners;
 
   size_t _num_refinements;
   double _average_running_time;

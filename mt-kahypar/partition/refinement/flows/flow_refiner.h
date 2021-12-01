@@ -46,7 +46,7 @@ class FlowRefiner final : public IFlowRefiner {
                        const Context& context) :
     _phg(nullptr),
     _context(context),
-    _num_threads(0),
+    _num_available_threads(0),
     _block_0(kInvalidPartition),
     _block_1(kInvalidPartition),
     _flow_hg(),
@@ -102,7 +102,7 @@ class FlowRefiner final : public IFlowRefiner {
   }
 
   void setNumThreadsForSearchImpl(const size_t num_threads) {
-    _num_threads = num_threads;
+    _num_available_threads = num_threads;
   }
 
   bool canHyperedgeBeDropped(const PartitionedHypergraph& phg,
@@ -114,7 +114,7 @@ class FlowRefiner final : public IFlowRefiner {
   const PartitionedHypergraph* _phg;
   const Context& _context;
   using IFlowRefiner::_time_limit;
-  size_t _num_threads;
+  size_t _num_available_threads;
 
   mutable PartitionID _block_0;
   mutable PartitionID _block_1;
