@@ -52,7 +52,7 @@ namespace mt_kahypar {
       context.shared_memory.num_threads = std::thread::hardware_concurrency();
 
       // Initial Partitioning
-      context.initial_partitioning.mode = InitialPartitioningMode::recursive_bisection;
+      context.initial_partitioning.mode = InitialPartitioningMode::recursive_bipartitioning;
       context.initial_partitioning.runs = 1;
       context.initial_partitioning.population_size = 16;
 

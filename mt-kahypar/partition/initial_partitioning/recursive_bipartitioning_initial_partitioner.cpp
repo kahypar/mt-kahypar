@@ -18,7 +18,7 @@
  *
 ******************************************************************************/
 
-#include "mt-kahypar/partition/initial_partitioning/recursive_bisection_initial_partitioner.h"
+#include "mt-kahypar/partition/initial_partitioning/recursive_bipartitioning_initial_partitioner.h"
 
 
 #include <algorithm>
@@ -34,15 +34,15 @@
 #include "mt-kahypar/utils/timer.h"
 
 #include "mt-kahypar/partition/metrics.h"
-#include "mt-kahypar/partition/recursive_bisection.h"
+#include "mt-kahypar/partition/recursive_bipartitioning.h"
 
 namespace mt_kahypar {
-  RecursiveBisectionInitialPartitioner::RecursiveBisectionInitialPartitioner(PartitionedHypergraph& hypergraph,
+  RecursiveBipartitioningInitialPartitioner::RecursiveBipartitioningInitialPartitioner(PartitionedHypergraph& hypergraph,
                                                                              const Context& context) :
     _hg(hypergraph),
     _context(context) { }
 
-  void RecursiveBisectionInitialPartitioner::initialPartitionImpl() {
-    recursive_bisection::partition(_hg, _context);
+  void RecursiveBipartitioningInitialPartitioner::initialPartitionImpl() {
+    recursive_bipartitioning::partition(_hg, _context);
   }
 } // namepace mt_kahypar

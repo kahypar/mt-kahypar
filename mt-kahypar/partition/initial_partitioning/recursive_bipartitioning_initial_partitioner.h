@@ -28,24 +28,24 @@
 namespace mt_kahypar {
 
 /*!
- * RECURSIVE BISECTION INITIAL PARTITIONER
- * The recursive bisection initial partitioner starts by performing a parallel multilevel bisection.
+ * RECURSIVE BIPARTITIONING INITIAL PARTITIONER
+ * The recursive bipartitioning initial partitioner starts by performing a parallel multilevel bisection.
  * Once the hypergraph is bisected both blocks are partitioned recursively in parallel until the
  * desired number of blocks are reached.
 */
 
-class RecursiveBisectionInitialPartitioner : public IInitialPartitioner {
+class RecursiveBipartitioningInitialPartitioner : public IInitialPartitioner {
  private:
   static constexpr bool enable_heavy_assert = false;
 
  public:
-  RecursiveBisectionInitialPartitioner(PartitionedHypergraph& hypergraph,
+  RecursiveBipartitioningInitialPartitioner(PartitionedHypergraph& hypergraph,
                                         const Context& context);
 
-  RecursiveBisectionInitialPartitioner(const RecursiveBisectionInitialPartitioner&) = delete;
-  RecursiveBisectionInitialPartitioner(RecursiveBisectionInitialPartitioner&&) = delete;
-  RecursiveBisectionInitialPartitioner & operator= (const RecursiveBisectionInitialPartitioner &) = delete;
-  RecursiveBisectionInitialPartitioner & operator= (RecursiveBisectionInitialPartitioner &&) = delete;
+  RecursiveBipartitioningInitialPartitioner(const RecursiveBipartitioningInitialPartitioner&) = delete;
+  RecursiveBipartitioningInitialPartitioner(RecursiveBipartitioningInitialPartitioner&&) = delete;
+  RecursiveBipartitioningInitialPartitioner & operator= (const RecursiveBipartitioningInitialPartitioner &) = delete;
+  RecursiveBipartitioningInitialPartitioner & operator= (RecursiveBipartitioningInitialPartitioner &&) = delete;
 
  private:
   void initialPartitionImpl() final ;

@@ -56,7 +56,7 @@ namespace mt_kahypar {
 
   std::ostream & operator<< (std::ostream& os, const Mode& mode) {
     switch (mode) {
-      case Mode::recursive_bisection: return os << "recursive_bisection";
+      case Mode::recursive_bipartitioning: return os << "recursive_bipartitioning";
       case Mode::direct_kway: return os << "direct_kway";
       case Mode::deep_multilevel: return os << "deep_multilevel";
       case Mode::UNDEFINED: return os << "UNDEFINED";
@@ -150,7 +150,7 @@ namespace mt_kahypar {
     switch (mode) {
       case InitialPartitioningMode::direct: return os << "direct";
       case InitialPartitioningMode::deep_multilevel: return os << "deep_multilevel";
-      case InitialPartitioningMode::recursive_bisection: return os << "recursive_bisection";
+      case InitialPartitioningMode::recursive_bipartitioning: return os << "recursive_bipartitioning";
       case InitialPartitioningMode::UNDEFINED: return os << "UNDEFINED";
         // omit default case to trigger compiler warning for missing cases
     }
@@ -182,7 +182,7 @@ namespace mt_kahypar {
 
   Mode modeFromString(const std::string& mode) {
     if (mode == "recursive") {
-      return Mode::recursive_bisection;
+      return Mode::recursive_bipartitioning;
     } else if (mode == "direct") {
       return Mode::direct_kway;
     } else if (mode == "deep") {
@@ -291,8 +291,8 @@ namespace mt_kahypar {
       return InitialPartitioningMode::direct;
     } else if (mode == "deep_multilevel") {
       return InitialPartitioningMode::deep_multilevel;
-    } else if (mode == "recursive_bisection") {
-      return InitialPartitioningMode::recursive_bisection;
+    } else if (mode == "recursive_bipartitioning") {
+      return InitialPartitioningMode::recursive_bipartitioning;
     }
     ERROR("Illegal option: " + mode);
     return InitialPartitioningMode::UNDEFINED;

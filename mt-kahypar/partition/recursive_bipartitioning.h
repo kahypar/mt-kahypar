@@ -25,11 +25,11 @@
 
 
 namespace mt_kahypar {
-namespace recursive_bisection {
+namespace recursive_bipartitioning {
 
 /*!
- * RECURSIVE BISECTION
- * The recursive bisection algorithm starts by performing a parallel multilevel bisection.
+ * RECURSIVE BIPARTITIONING
+ * The recursive bipartitioning algorithm starts by performing a parallel multilevel bisection.
  * Once the hypergraph is bisected both blocks are partitioned recursively in parallel until the
  * desired number of blocks is reached.
 */
@@ -38,5 +38,5 @@ PartitionedHypergraph partition(Hypergraph& hypergraph, const Context& context);
 
 void partition(PartitionedHypergraph& hypergraph, const Context& context);
 
-}  // namespace recursive_bisection
+}  // namespace recursive_bipartitioning
 }  // namespace mt_kahypar

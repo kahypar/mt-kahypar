@@ -31,7 +31,7 @@ namespace mt_kahypar {
   // required to use kahypar::Metrics
   kahypar::Mode translateMode(Mode mode) {
     switch (mode) {
-      case Mode::recursive_bisection: return kahypar::Mode::recursive_bisection;
+      case Mode::recursive_bipartitioning: return kahypar::Mode::recursive_bisection;
       case Mode::direct_kway: return kahypar::Mode::direct_kway;
       case Mode::deep_multilevel: return kahypar::Mode::direct_kway;
       case Mode::UNDEFINED: return kahypar::Mode::UNDEFINED;

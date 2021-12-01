@@ -26,7 +26,7 @@
 #include "mt-kahypar/partition/context.h"
 
 #include "mt-kahypar/partition/initial_partitioning/deep_initial_partitioner.h"
-#include "mt-kahypar/partition/initial_partitioning/recursive_bisection_initial_partitioner.h"
+#include "mt-kahypar/partition/initial_partitioning/recursive_bipartitioning_initial_partitioner.h"
 
 using ::testing::Test;
 
@@ -125,9 +125,9 @@ static constexpr double EPS = 0.05;
 typedef ::testing::Types<TestConfig<DeepInitialPartitioner, InitialPartitioningMode::deep_multilevel, 2>,
                          TestConfig<DeepInitialPartitioner, InitialPartitioningMode::deep_multilevel, 3>,
                          TestConfig<DeepInitialPartitioner, InitialPartitioningMode::deep_multilevel, 4>,
-                         TestConfig<RecursiveBisectionInitialPartitioner, InitialPartitioningMode::recursive_bisection, 2>,
-                         TestConfig<RecursiveBisectionInitialPartitioner, InitialPartitioningMode::recursive_bisection, 3>,
-                         TestConfig<RecursiveBisectionInitialPartitioner, InitialPartitioningMode::recursive_bisection, 4> > TestConfigs;
+                         TestConfig<RecursiveBipartitioningInitialPartitioner, InitialPartitioningMode::recursive_bipartitioning, 2>,
+                         TestConfig<RecursiveBipartitioningInitialPartitioner, InitialPartitioningMode::recursive_bipartitioning, 3>,
+                         TestConfig<RecursiveBipartitioningInitialPartitioner, InitialPartitioningMode::recursive_bipartitioning, 4> > TestConfigs;
 
 TYPED_TEST_CASE(AInitialPartitionerTest, TestConfigs);
 

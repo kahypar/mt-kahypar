@@ -44,7 +44,7 @@ enum class Paradigm : int8_t {
 };
 
 enum class Mode : uint8_t {
-  recursive_bisection,
+  recursive_bipartitioning,
   direct_kway,
   deep_multilevel,
   UNDEFINED
@@ -107,7 +107,7 @@ enum class InitialPartitioningAlgorithm : uint8_t {
 enum class InitialPartitioningMode : uint8_t {
   direct,
   deep_multilevel,
-  recursive_bisection,
+  recursive_bipartitioning,
   UNDEFINED
 };
 

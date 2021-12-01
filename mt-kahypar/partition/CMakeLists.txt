@@ -10,7 +10,7 @@ set(PartitionSources
         context.cpp
         context_enum_classes.cpp
         metrics.cpp
-        recursive_bisection.cpp
+        recursive_bipartitioning.cpp
         deep_multilevel.cpp
         )
 
