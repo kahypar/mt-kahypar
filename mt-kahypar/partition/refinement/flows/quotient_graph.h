@@ -224,7 +224,7 @@ class QuotientGraph {
 
     size_t numRemainingBlocks() const {
       size_t num_remaining_blocks = 0;
-      for ( size_t i = _first_active_round; i < _rounds.size(); ++i ) {
+      for ( size_t i = _first_active_round; i < _num_rounds; ++i ) {
         num_remaining_blocks += _rounds[i].numRemainingBlocks();
       }
       return num_remaining_blocks;
