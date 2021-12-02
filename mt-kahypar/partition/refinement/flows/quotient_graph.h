@@ -49,7 +49,7 @@ class QuotientGraph {
       ownership(INVALID_SEARCH_ID),
       is_in_queue(false),
       cut_hes(),
-      initial_num_cut_hes(0),
+      num_cut_hes(0),
       cut_he_weight(0),
       num_improvements_found(0),
       total_improvement(0) { }
@@ -107,8 +107,8 @@ class QuotientGraph {
     CAtomic<bool> is_in_queue;
     // ! Cut hyperedges of block pair
     tbb::concurrent_vector<HyperedgeID> cut_hes;
-    // ! Initial number of cut hyperedges
-    size_t initial_num_cut_hes;
+    // ! Number of cut hyperedges
+    CAtomic<size_t> num_cut_hes;
     // ! Current weight of all cut hyperedges
     CAtomic<HyperedgeWeight> cut_he_weight;
     // ! Number of improvements found on this block pair
@@ -333,7 +333,8 @@ public:
   void doForAllCutHyperedgesOfSearch(const SearchID search_id, const F& f) {
     const BlockPair& blocks = _searches[search_id].blocks;
     std::random_shuffle(_quotient_graph[blocks.i][blocks.j].cut_hes.begin(),
-                        _quotient_graph[blocks.i][blocks.j].cut_hes.end());
+                        _quotient_graph[blocks.i][blocks.j].cut_hes.begin() +
+                        _quotient_graph[blocks.i][blocks.j].num_cut_hes.load());
     for ( const HyperedgeID& he : _quotient_graph[blocks.i][blocks.j].cut_hes ) {
       if ( _phg->pinCountInPart(he, blocks.i) > 0 && _phg->pinCountInPart(he, blocks.j) > 0 ) {
         f(he);

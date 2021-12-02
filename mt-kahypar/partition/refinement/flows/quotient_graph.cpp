@@ -35,13 +35,14 @@ void QuotientGraph::QuotientGraphEdge::add_hyperedge(const HyperedgeID he,
                                                      const HyperedgeWeight weight) {
   cut_hes.push_back(he);
   cut_he_weight += weight;
+  ++num_cut_hes;
 }
 
 void QuotientGraph::QuotientGraphEdge::reset() {
   cut_hes.clear();
   ownership.store(INVALID_SEARCH_ID, std::memory_order_relaxed);
   is_in_queue.store(false, std::memory_order_relaxed);
-  initial_num_cut_hes = 0;
+  num_cut_hes.store(0, std::memory_order_relaxed);
   cut_he_weight.store(0, std::memory_order_relaxed);
 }
 
@@ -334,11 +335,6 @@ void QuotientGraph::initialize(const PartitionedHypergraph& phg) {
 
   // Initalize block scheduler queue
   vec<uint8_t> active_blocks(_context.partition.k, true);
-  for ( PartitionID i = 0; i < _context.partition.k; ++i ) {
-    for ( PartitionID j = i + 1; j < _context.partition.k; ++j ) {
-      _quotient_graph[i][j].initial_num_cut_hes =  _quotient_graph[i][j].cut_hes.size();
-    }
-  }
   _active_block_scheduler.initialize(active_blocks, isInputHypergraph());
 }
 
