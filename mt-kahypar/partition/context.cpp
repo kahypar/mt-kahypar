@@ -460,9 +460,13 @@ namespace mt_kahypar {
 
   void Context::setupThreadsPerFlowSearch() {
     if ( refinement.flows.algorithm == FlowAlgorithm::flows ) {
+      // = min(t, min(tau * k, k * (k - 1) / 2))
+      // t = number of threads
+      // k * (k - 1) / 2 = maximum number of edges in the quotient graph
       refinement.flows.num_parallel_searches = partition.k == 2 ? 1 :
-        std::min(shared_memory.num_threads, std::max(1UL, static_cast<size_t>(
-          refinement.flows.parallel_searches_multiplier * partition.k)));
+        std::min(shared_memory.num_threads, std::min(std::max(1UL, static_cast<size_t>(
+          refinement.flows.parallel_searches_multiplier * partition.k)),
+            static_cast<size_t>((partition.k * (partition.k - 1)) / 2) ));
     }
   }
 
