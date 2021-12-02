@@ -205,7 +205,9 @@ namespace mt_kahypar {
       ASSERT(k >= 2);
       Context rb_context(_context);
       rb_context.partition.k = k;
-      rb_context.type = kahypar::ContextType::initial_partitioning;
+      if (_context.partition.mode == Mode::direct_kway) {
+        rb_context.type = kahypar::ContextType::initial_partitioning;
+      }
 
       rb_context.partition.perfect_balance_part_weights.assign(k, 0);
       rb_context.partition.max_part_weights.assign(k, 0);
@@ -320,7 +322,9 @@ namespace mt_kahypar {
       bisection_context.partition.verbose_output = debug;
       bisection_context.initial_partitioning.mode = InitialPartitioningMode::direct;
       // TODO(maas): other type for context?
-      bisection_context.type = kahypar::ContextType::initial_partitioning;
+      if (context.partition.mode == Mode::direct_kway) {
+        bisection_context.type = kahypar::ContextType::initial_partitioning;
+      }
 
       // Setup Part Weights
       const HypernodeWeight total_weight = hypergraph.totalWeight();

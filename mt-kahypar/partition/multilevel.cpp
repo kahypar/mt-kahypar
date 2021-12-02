@@ -118,7 +118,7 @@ namespace mt_kahypar::multilevel {
 
   private:
     void enableTimerAndStats() {
-      if ( _context.type == kahypar::ContextType::main ) {
+      if ( _context.type == kahypar::ContextType::main && _context.partition.mode == Mode::direct_kway ) {
         parallel::MemoryPool::instance().activate_unused_memory_allocations();
         utils::Timer::instance().enable();
         utils::Stats::instance().enable();
@@ -225,7 +225,7 @@ namespace mt_kahypar::multilevel {
     }
 
     void disableTimerAndStats() {
-      if ( _context.type == kahypar::ContextType::main ) {
+      if ( _context.type == kahypar::ContextType::main && _context.partition.mode == Mode::direct_kway ) {
         parallel::MemoryPool::instance().deactivate_unused_memory_allocations();
         utils::Timer::instance().disable();
         utils::Stats::instance().disable();
