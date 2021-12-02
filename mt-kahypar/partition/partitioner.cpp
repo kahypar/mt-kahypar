@@ -39,6 +39,7 @@ namespace mt_kahypar {
     context.sanityCheck();
     context.setupPartWeights(hypergraph.totalWeight());
     context.setupContractionLimit(hypergraph.totalWeight());
+    context.setupThreadsPerFlowSearch();
 
     // Setup enabled IP algorithms
     if ( context.initial_partitioning.enabled_ip_algos.size() > 0 &&

@@ -70,11 +70,8 @@ class SequentialConstruction {
       _flow_hg(flow_hg),
       _hash_buckets(),
       _threshold(1) {
-      const size_t estimated_num_parallel_searches =
-        std::min(context.shared_memory.num_threads,
-         context.partition.k == 2 ? 1UL : 2UL * context.partition.k);
-      _hash_buckets.resize(std::max(1024UL,
-        hg.initialNumEdges() / estimated_num_parallel_searches));
+      _hash_buckets.resize(std::max(1024UL, hg.initialNumEdges() /
+        context.refinement.flows.num_parallel_searches));
     }
 
     /**

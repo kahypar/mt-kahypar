@@ -214,10 +214,7 @@ void FlowRefinementScheduler::initializeImpl(PartitionedHypergraph& phg)  {
   _quotient_graph.initialize(phg);
   utils::Timer::instance().stop_timer("initialize_quotient_graph");
 
-  const size_t max_parallism = std::max(1UL,
-    std::min(_context.shared_memory.num_threads, static_cast<size_t>(
-          std::ceil(_context.refinement.flows.parallel_searches_multiplier *
-            _quotient_graph.numActiveBlockPairs()))));
+  const size_t max_parallism = _context.refinement.flows.num_parallel_searches;
   DBG << "Initial Active Block Pairs =" << _quotient_graph.numActiveBlockPairs()
       << ", Initial Num Threads =" << max_parallism;
   _refiner.initialize(max_parallism);

@@ -66,6 +66,7 @@ class AFlowHypergraphConstructor : public Test {
     context.shared_memory.num_threads = 2;
     context.refinement.flows.algorithm = FlowAlgorithm::mock;
     context.refinement.flows.determine_distance_from_cut = false;
+    context.refinement.flows.num_parallel_searches = 2;
 
     phg.setOnlyNodePart(0, 0);
     phg.setOnlyNodePart(1, 0);

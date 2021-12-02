@@ -45,7 +45,7 @@ MoveSequence FlowRefiner::refineImpl(const PartitionedHypergraph& phg,
 
       HyperedgeWeight new_cut = flow_problem.non_removable_cut;
       HypernodeWeight max_part_weight;
-      bool sequential = _num_available_threads <= 1;
+      const bool sequential = _context.shared_memory.num_threads == _context.refinement.flows.num_parallel_searches;
       if (sequential) {
         new_cut += _sequential_hfc.cs.flow_algo.flow_value;
         max_part_weight = std::max(_sequential_hfc.cs.source_weight, _sequential_hfc.cs.target_weight);
@@ -107,7 +107,8 @@ bool FlowRefiner::runFlowCutter(const FlowProblem& flow_problem,
     return true;
   };
 
-  bool sequential = _num_available_threads <= 1;
+
+  const bool sequential = _context.shared_memory.num_threads == _context.refinement.flows.num_parallel_searches;
   if (sequential) {
     _sequential_hfc.cs.setMaxBlockWeight(0, std::max(
             flow_problem.weight_of_block_0, _context.partition.max_part_weights[_block_0]));
@@ -137,7 +138,8 @@ FlowProblem FlowRefiner::constructFlowHypergraph(const PartitionedHypergraph& ph
   ASSERT(_block_0 != kInvalidPartition && _block_1 != kInvalidPartition);
   FlowProblem flow_problem;
 
-  bool sequential = _num_available_threads <= 1;
+
+  const bool sequential = _context.shared_memory.num_threads == _context.refinement.flows.num_parallel_searches;
   if ( sequential ) {
     flow_problem = _sequential_construction.constructFlowHypergraph(
       phg, sub_hg, _block_0, _block_1, _whfc_to_node);
