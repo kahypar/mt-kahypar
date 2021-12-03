@@ -332,10 +332,11 @@ public:
   template<typename F>
   void doForAllCutHyperedgesOfSearch(const SearchID search_id, const F& f) {
     const BlockPair& blocks = _searches[search_id].blocks;
+    const size_t num_cut_hes = _quotient_graph[blocks.i][blocks.j].num_cut_hes.load();
     std::random_shuffle(_quotient_graph[blocks.i][blocks.j].cut_hes.begin(),
-                        _quotient_graph[blocks.i][blocks.j].cut_hes.begin() +
-                        _quotient_graph[blocks.i][blocks.j].num_cut_hes.load());
-    for ( const HyperedgeID& he : _quotient_graph[blocks.i][blocks.j].cut_hes ) {
+                        _quotient_graph[blocks.i][blocks.j].cut_hes.begin() + num_cut_hes);
+    for ( size_t i = 0; i < num_cut_hes; ++i ) {
+      const HyperedgeID he = _quotient_graph[blocks.i][blocks.j].cut_hes[i];
       if ( _phg->pinCountInPart(he, blocks.i) > 0 && _phg->pinCountInPart(he, blocks.j) > 0 ) {
         f(he);
       }
