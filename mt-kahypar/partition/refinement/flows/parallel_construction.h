@@ -58,7 +58,13 @@ class ParallelConstruction {
 
   class DynamicIdenticalNetDetection {
 
-    using IdenticalNetVector = tbb::concurrent_vector<TmpHyperedge>;
+    struct ThresholdHyperedge {
+      const TmpHyperedge e;
+      const uint32_t threshold;
+    };
+
+    using IdenticalNetVector = tbb::concurrent_vector<
+      ThresholdHyperedge, tbb::zero_allocator<ThresholdHyperedge>>;
 
     struct HashBucket {
       HashBucket() :

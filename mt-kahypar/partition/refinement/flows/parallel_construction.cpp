@@ -31,11 +31,13 @@ namespace mt_kahypar {
 ParallelConstruction::TmpHyperedge ParallelConstruction::DynamicIdenticalNetDetection::get(const size_t he_hash,
                                                                                            const vec<whfc::Node>& pins) {
   const size_t bucket_idx = he_hash % _hash_buckets.size();
-  if ( _hash_buckets[bucket_idx].threshold == _threshold ) {
+  if ( __atomic_load_n(&_hash_buckets[bucket_idx].threshold, __ATOMIC_RELAXED) == _threshold ) {
     // There exists already some hyperedges with the same hash
-    for ( const TmpHyperedge& tmp_e : _hash_buckets[bucket_idx].identical_nets ) {
+    for ( const ThresholdHyperedge& tmp : _hash_buckets[bucket_idx].identical_nets ) {
       // Check if there is some hyperedge equal to he
-      if ( tmp_e.hash == he_hash && _flow_hg.tmpPinCount(tmp_e.bucket, tmp_e.e) == pins.size() ) {
+      const TmpHyperedge& tmp_e = tmp.e;
+      if ( tmp.threshold == _threshold && tmp_e.hash == he_hash &&
+           _flow_hg.tmpPinCount(tmp_e.bucket, tmp_e.e) == pins.size() ) {
         bool is_identical = true;
         size_t idx = 0;
         for ( const whfc::FlowHypergraph::Pin& u : _flow_hg.tmpPinsOf(tmp_e.bucket, tmp_e.e) ) {
@@ -55,7 +57,7 @@ ParallelConstruction::TmpHyperedge ParallelConstruction::DynamicIdenticalNetDete
 
 void ParallelConstruction::DynamicIdenticalNetDetection::add(const TmpHyperedge& tmp_he) {
   const size_t bucket_idx = tmp_he.hash % _hash_buckets.size();
-  uint32_t expected = _hash_buckets[bucket_idx].threshold;
+  uint32_t expected = __atomic_load_n(&_hash_buckets[bucket_idx].threshold, __ATOMIC_RELAXED);
   uint32_t desired = _threshold - 1;
   while ( __atomic_load_n(&_hash_buckets[bucket_idx].threshold, __ATOMIC_RELAXED) < _threshold ) {
     if ( expected < desired &&
@@ -65,7 +67,7 @@ void ParallelConstruction::DynamicIdenticalNetDetection::add(const TmpHyperedge&
       __atomic_store_n(&_hash_buckets[bucket_idx].threshold, _threshold, __ATOMIC_RELAXED);
     }
   }
-  _hash_buckets[bucket_idx].identical_nets.push_back(tmp_he);
+  _hash_buckets[bucket_idx].identical_nets.push_back(ThresholdHyperedge { tmp_he, _threshold });
 }
 
 FlowProblem ParallelConstruction::constructFlowHypergraph(const PartitionedHypergraph& phg,
