@@ -601,6 +601,9 @@ namespace deep_multilevel {
   }
 
   void partition(PartitionedHypergraph& hypergraph, const Context& context) {
+    if (context.partition.mode == Mode::deep_multilevel) {
+      utils::Timer::instance().start_timer("deep", "Deep Multilevel");
+    }
     if (context.type == kahypar::ContextType::main) {
       parallel::MemoryPool::instance().deactivate_unused_memory_allocations();
       utils::Timer::instance().disable();
@@ -616,6 +619,9 @@ namespace deep_multilevel {
       parallel::MemoryPool::instance().activate_unused_memory_allocations();
       utils::Timer::instance().enable();
       utils::Stats::instance().enable();
+    }
+    if (context.partition.mode == Mode::deep_multilevel) {
+      utils::Timer::instance().stop_timer("deep");
     }
   }
 } // namespace deep_multilevel
