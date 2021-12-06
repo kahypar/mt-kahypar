@@ -28,7 +28,7 @@ partitioners = { "Mt-KaHyPar-D":     { "executable": executable_dir + "MtKaHyPar
                                        "mode": "direct" },
                  "Mt-KaHyPar-RB":    { "executable": executable_dir + "MtKaHyParFast",
                                        "config":  config_dir + "default_preset.ini",
-                                       "mode": "recursive" },
+                                       "mode": "rb" },
                  "Mt-KaHyPar-Deep":  { "executable": executable_dir + "MtKaHyParFast",
                                        "config":  config_dir + "default_preset.ini",
                                        "mode": "deep" } }
