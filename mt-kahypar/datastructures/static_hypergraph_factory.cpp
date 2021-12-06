@@ -41,7 +41,6 @@ namespace mt_kahypar::ds {
     hypergraph._num_hyperedges = num_hyperedges;
     hypergraph._hypernodes.resize(num_hypernodes + 1);
     hypergraph._hyperedges.resize(num_hyperedges + 1);
-    hypergraph._weight_of_disabled_edges.resize(num_hypernodes);
 
     ASSERT(edge_vector.size() == num_hyperedges);
 

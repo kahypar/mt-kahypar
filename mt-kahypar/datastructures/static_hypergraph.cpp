@@ -72,7 +72,7 @@ namespace mt_kahypar::ds {
     IncidenceArray& tmp_incidence_array = _tmp_contraction_buffer->tmp_incidence_array;
     Array<size_t>& he_sizes = _tmp_contraction_buffer->he_sizes;
     Array<size_t>& valid_hyperedges = _tmp_contraction_buffer->valid_hyperedges;
-    Array<CAtomic<HyperedgeWeight>>& tmp_weight_of_disabled_edges = _tmp_contraction_buffer->tmp_weight_of_disabled_edges;
+    vec<HyperedgeWeight> tmp_weight_of_disabled_edges(_num_hypernodes, 0);
 
     ASSERT(static_cast<size_t>(_num_hypernodes) <= mapping.size());
     ASSERT(static_cast<size_t>(_num_hypernodes) <= tmp_hypernodes.size());
@@ -83,7 +83,6 @@ namespace mt_kahypar::ds {
     ASSERT(static_cast<size_t>(_num_pins) <= tmp_incidence_array.size());
     ASSERT(static_cast<size_t>(_num_hyperedges) <= he_sizes.size());
     ASSERT(static_cast<size_t>(_num_hyperedges) <= valid_hyperedges.size());
-    ASSERT(static_cast<size_t>(_num_hypernodes) <= tmp_weight_of_disabled_edges.size());
 
 
     // #################### STAGE 1 ####################
@@ -93,8 +92,6 @@ namespace mt_kahypar::ds {
     doParallelForAllNodes([&](const HypernodeID& hn) {
       ASSERT(static_cast<size_t>(communities[hn]) < mapping.size());
       mapping[communities[hn]] = 1UL;
-      ASSERT(hn < tmp_weight_of_disabled_edges.size());
-      tmp_weight_of_disabled_edges[hn].store(0, std::memory_order_relaxed);
     });
 
     // Prefix sum determines vertex ids in coarse hypergraph
@@ -136,7 +133,7 @@ namespace mt_kahypar::ds {
       // Aggregate upper bound for number of incident nets of the contracted vertex
       tmp_num_incident_nets[coarse_hn] += nodeDegree(hn);
       ASSERT(coarse_hn < tmp_weight_of_disabled_edges.size());
-      tmp_weight_of_disabled_edges[coarse_hn] += weightOfDisabledEdges(hn);
+      __atomic_fetch_add(&tmp_weight_of_disabled_edges[coarse_hn], weightOfDisabledEdges(hn), __ATOMIC_RELAXED);
     });
 
     // #################### STAGE 2 ####################
@@ -197,7 +194,7 @@ namespace mt_kahypar::ds {
             valid_hyperedges[he] = 0;
             HypernodeID remaining_node = tmp_incidence_array[incidence_array_start];
             ASSERT(remaining_node < tmp_weight_of_disabled_edges.size());
-            tmp_weight_of_disabled_edges[remaining_node] += edgeWeight(he);
+            __atomic_fetch_add(&tmp_weight_of_disabled_edges[remaining_node], edgeWeight(he), __ATOMIC_RELAXED);
             tmp_hyperedges[he].disable();
           }
         } else {
@@ -381,9 +378,9 @@ namespace mt_kahypar::ds {
               0UL, UI64(_num_hyperedges)), he_mapping);
     }, [&] {
       hypergraph._hypernodes.resize(num_hypernodes);
-    }, [&] {
-      hypergraph._weight_of_disabled_edges.resize(num_hypernodes);
     });
+
+    hypergraph._weight_of_disabled_edges = std::move(tmp_weight_of_disabled_edges);
 
     const HyperedgeID num_hyperedges = he_mapping.total_sum();
     hypergraph._num_hypernodes = num_hypernodes;
@@ -444,9 +441,6 @@ namespace mt_kahypar::ds {
       // Remap hyperedge ids in temporary incident nets to hyperedge ids of the
       // coarse hypergraph and remove singple-pin/parallel hyperedges.
       tbb::parallel_for(ID(0), num_hypernodes, [&](const HypernodeID& id) {
-        ASSERT(id < hypergraph._weight_of_disabled_edges.size());
-        ASSERT(id < tmp_weight_of_disabled_edges.size());
-        hypergraph._weight_of_disabled_edges[id] = tmp_weight_of_disabled_edges[id];
         const size_t incident_nets_start =  tmp_hypernodes[id].firstEntry();
         size_t incident_nets_end = tmp_hypernodes[id].firstInvalidEntry();
         for ( size_t pos = incident_nets_start; pos < incident_nets_end; ++pos ) {
@@ -522,10 +516,10 @@ namespace mt_kahypar::ds {
       hypergraph._incidence_array.resize(_incidence_array.size());
       memcpy(hypergraph._incidence_array.data(), _incidence_array.data(),
              sizeof(HypernodeID) * _incidence_array.size());
-    }, [&] {
+    /* }, [&] {
     hypergraph._weight_of_disabled_edges.resize(_weight_of_disabled_edges.size());
     memcpy(hypergraph._weight_of_disabled_edges.data(), _weight_of_disabled_edges.data(),
-           sizeof(HyperedgeWeight) * _weight_of_disabled_edges.size());
+           sizeof(HyperedgeWeight) * _weight_of_disabled_edges.size()); */
     }, [&] {
       hypergraph._community_ids = _community_ids;
     });
@@ -558,9 +552,9 @@ namespace mt_kahypar::ds {
     hypergraph._incidence_array.resize(_incidence_array.size());
     memcpy(hypergraph._incidence_array.data(), _incidence_array.data(),
            sizeof(HypernodeID) * _incidence_array.size());
-    hypergraph._weight_of_disabled_edges.resize(_weight_of_disabled_edges.size());
+    /* hypergraph._weight_of_disabled_edges.resize(_weight_of_disabled_edges.size());
     memcpy(hypergraph._weight_of_disabled_edges.data(), _weight_of_disabled_edges.data(),
-           sizeof(HyperedgeWeight) * _weight_of_disabled_edges.size());
+           sizeof(HyperedgeWeight) * _weight_of_disabled_edges.size()); */
 
     hypergraph._community_ids = _community_ids;
 

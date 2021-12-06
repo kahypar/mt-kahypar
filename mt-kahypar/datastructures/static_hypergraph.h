@@ -357,8 +357,6 @@ class StaticHypergraph {
         he_sizes.resize("Coarsening", "he_sizes", num_hyperedges);
       }, [&] {
         valid_hyperedges.resize("Coarsening", "valid_hyperedges", num_hyperedges);
-      }, [&] {
-        tmp_weight_of_disabled_edges.resize("Coarsening", "tmp_weight_of_disabled_edges", num_hypernodes);
       });
     }
 
@@ -371,7 +369,6 @@ class StaticHypergraph {
     IncidenceArray tmp_incidence_array;
     Array<size_t> he_sizes;
     Array<size_t> valid_hyperedges;
-    Array<CAtomic<HyperedgeWeight>> tmp_weight_of_disabled_edges;
   };
 
  public:
@@ -405,7 +402,7 @@ class StaticHypergraph {
     _hyperedges(),
     _incidence_array(),
     _community_ids(0),
-    _weight_of_disabled_edges(),
+    _weight_of_disabled_edges(0),
     _tmp_contraction_buffer(nullptr) { }
 
   StaticHypergraph(const StaticHypergraph&) = delete;
@@ -661,8 +658,7 @@ class StaticHypergraph {
   }
 
   HyperedgeWeight weightOfDisabledEdges(const HypernodeID n) const {
-    ASSERT(!_weight_of_disabled_edges.empty() && n < _weight_of_disabled_edges.size());
-    return _weight_of_disabled_edges[n];
+    return _weight_of_disabled_edges.empty() ? 0 : _weight_of_disabled_edges[n];
   }
 
   // ! Community id which hypernode u is assigned to
@@ -946,7 +942,7 @@ class StaticHypergraph {
   // ! Communities
   ds::Clustering _community_ids;
 
-  Array<HyperedgeWeight> _weight_of_disabled_edges;
+  vec<HyperedgeWeight> _weight_of_disabled_edges;
 
   // ! Data that is reused throughout the multilevel hierarchy
   // ! to contract the hypergraph and to prevent expensive allocations
