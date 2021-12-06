@@ -32,7 +32,7 @@ namespace mt_kahypar {
   kahypar::Mode translateMode(Mode mode) {
     switch (mode) {
       case Mode::recursive_bipartitioning: return kahypar::Mode::recursive_bisection;
-      case Mode::direct_kway: return kahypar::Mode::direct_kway;
+      case Mode::direct: return kahypar::Mode::direct_kway;
       case Mode::deep_multilevel: return kahypar::Mode::direct_kway;
       case Mode::UNDEFINED: return kahypar::Mode::UNDEFINED;
         // omit default case to trigger compiler warning for missing cases

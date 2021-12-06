@@ -67,7 +67,7 @@ class ALabelPropagationRefiner : public Test {
     metrics() {
     context.partition.graph_filename = "../tests/instances/contracted_ibm01.hgr";
     context.partition.graph_community_filename = "../tests/instances/contracted_ibm01.hgr.community";
-    context.partition.mode = Mode::direct_kway;
+    context.partition.mode = Mode::direct;
     context.partition.objective = Config::OBJECTIVE;
     context.partition.epsilon = 0.25;
     context.partition.k = Config::K;
@@ -77,7 +77,7 @@ class ALabelPropagationRefiner : public Test {
     context.shared_memory.num_threads = num_threads;
 
     // Initial Partitioning
-    context.initial_partitioning.mode = InitialPartitioningMode::deep_multilevel;
+    context.initial_partitioning.mode = Mode::deep_multilevel;
     context.initial_partitioning.runs = 1;
 
     // Label Propagation

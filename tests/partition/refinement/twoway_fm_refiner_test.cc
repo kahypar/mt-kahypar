@@ -41,7 +41,7 @@ class ATwoWayFmRefiner : public Test {
     context(),
     refiner(nullptr),
     metrics() {
-    context.partition.mode = Mode::direct_kway;
+    context.partition.mode = Mode::direct;
     context.partition.objective = kahypar::Objective::cut;
     context.partition.epsilon = 0.25;
     context.partition.k = 2;
@@ -51,7 +51,7 @@ class ATwoWayFmRefiner : public Test {
     context.shared_memory.num_threads = 1;
 
     // Initial Partitioning
-    context.initial_partitioning.mode = InitialPartitioningMode::deep_multilevel;
+    context.initial_partitioning.mode = Mode::deep_multilevel;
     context.initial_partitioning.runs = 1;
 
     // Read hypergraph

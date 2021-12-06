@@ -205,7 +205,7 @@ namespace mt_kahypar {
       ASSERT(k >= 2);
       Context rb_context(_context);
       rb_context.partition.k = k;
-      if (_context.partition.mode == Mode::direct_kway) {
+      if (_context.partition.mode == Mode::direct) {
         rb_context.type = kahypar::ContextType::initial_partitioning;
       }
 
@@ -320,9 +320,9 @@ namespace mt_kahypar {
 
       bisection_context.partition.k = 2;
       bisection_context.partition.verbose_output = debug;
-      bisection_context.initial_partitioning.mode = InitialPartitioningMode::direct;
+      bisection_context.initial_partitioning.mode = Mode::direct;
       // TODO(maas): other type for context?
-      if (context.partition.mode == Mode::direct_kway) {
+      if (context.partition.mode == Mode::direct) {
         bisection_context.type = kahypar::ContextType::initial_partitioning;
       }
 

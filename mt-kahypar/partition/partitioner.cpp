@@ -216,7 +216,7 @@ namespace mt_kahypar {
 
     // ################## MULTILEVEL ##################
     PartitionedHypergraph partitioned_hypergraph;
-    if (context.partition.mode == Mode::direct_kway) {
+    if (context.partition.mode == Mode::direct) {
       partitioned_hypergraph = multilevel::partition(hypergraph, context);
     } else if (context.partition.mode == Mode::recursive_bipartitioning) {
       partitioned_hypergraph = recursive_bipartitioning::partition(hypergraph, context);

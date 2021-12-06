@@ -45,7 +45,7 @@ enum class Paradigm : int8_t {
 
 enum class Mode : uint8_t {
   recursive_bipartitioning,
-  direct_kway,
+  direct,
   deep_multilevel,
   UNDEFINED
 };
@@ -104,13 +104,6 @@ enum class InitialPartitioningAlgorithm : uint8_t {
   UNDEFINED = 9
 };
 
-enum class InitialPartitioningMode : uint8_t {
-  direct,
-  deep_multilevel,
-  recursive_bipartitioning,
-  UNDEFINED
-};
-
 enum class LabelPropagationAlgorithm : uint8_t {
   label_propagation_km1,
   label_propagation_cut,
@@ -148,8 +141,6 @@ std::ostream & operator<< (std::ostream& os, const RatingFunction& func);
 
 std::ostream & operator<< (std::ostream& os, const InitialPartitioningAlgorithm& algo);
 
-std::ostream & operator<< (std::ostream& os, const InitialPartitioningMode& mode);
-
 std::ostream & operator<< (std::ostream& os, const LabelPropagationAlgorithm& algo);
 
 std::ostream & operator<< (std::ostream& os, const FMAlgorithm& algo);
@@ -169,8 +160,6 @@ AcceptancePolicy acceptanceCriterionFromString(const std::string& crit);
 RatingFunction ratingFunctionFromString(const std::string& function);
 
 InitialPartitioningAlgorithm initialPartitioningAlgorithmFromString(const std::string& algo);
-
-InitialPartitioningMode initialPartitioningModeFromString(const std::string& mode);
 
 LabelPropagationAlgorithm labelPropagationAlgorithmFromString(const std::string& type);
 

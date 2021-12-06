@@ -425,12 +425,12 @@ namespace mt_kahypar {
             ("i-mode",
              po::value<std::string>()->value_name("<string>")->notifier(
                      [&](const std::string& mode) {
-                       context.initial_partitioning.mode = initialPartitioningModeFromString(mode);
-                     })->default_value("recursive_bipartitioning"),
+                       context.initial_partitioning.mode = modeFromString(mode);
+                     })->default_value("rb"),
              "Mode of initial partitioning:\n"
              "- direct\n"
-             "- deep_multilevel\n"
-             "- recursive_bipartitioning")
+             "- deep\n"
+             "- rb")
             ("i-enabled-ip-algos",
             po::value<std::vector<bool> >(&context.initial_partitioning.enabled_ip_algos)->multitoken(),
             "Indicate which IP algorithms should be executed. E.g. i-enabled-ip-algos=1 1 0 1 0 1 1 1 0\n"
@@ -579,9 +579,9 @@ namespace mt_kahypar {
                        context.partition.mode = modeFromString(mode);
                      }),
              "Partitioning mode: \n"
-             " - (direct) k-way\n"
-             " - (recursive) bipartitioning\n"
-             " - (deep) multilevel"
+             " - direct: direct k-way partitioning\n"
+             " - rb: recursive bipartitioning\n"
+             " - deep: deep multilevel partitioning"
              );
 
     po::options_description preset_options("Preset Options", num_columns);

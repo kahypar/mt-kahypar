@@ -33,7 +33,7 @@ namespace mt_kahypar {
   void register_memory_pool(const Hypergraph& hypergraph,
                             const Context& context) {
 
-    if (context.partition.mode != Mode::direct_kway) {
+    if (context.partition.mode != Mode::direct) {
       return;
     }
 

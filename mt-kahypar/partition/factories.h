@@ -54,7 +54,7 @@ using NLevelCoarsenerDispatcher = kahypar::meta::StaticMultiDispatchFactory<NLev
                                                                                                         HeavyNodePenaltyPolicies,
                                                                                                         AcceptancePolicies> >;
 
-using InitialPartitionerFactory = kahypar::meta::Factory<InitialPartitioningMode,
+using InitialPartitionerFactory = kahypar::meta::Factory<Mode,
                                                          IInitialPartitioner* (*)(PartitionedHypergraph&, const Context&)>;
 
 using LabelPropagationFactory = kahypar::meta::Factory<LabelPropagationAlgorithm,

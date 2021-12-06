@@ -49,7 +49,7 @@ class ACoarsener : public Test {
     }
 
     context.partition.k = 2;
-    context.partition.mode = Mode::direct_kway;
+    context.partition.mode = Mode::direct;
     context.partition.objective = kahypar::Objective::km1;
     context.coarsening.max_allowed_node_weight = std::numeric_limits<HypernodeWeight>::max();
     context.coarsening.contraction_limit = 8;

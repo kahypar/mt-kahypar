@@ -57,7 +57,7 @@ namespace mt_kahypar {
   std::ostream & operator<< (std::ostream& os, const Mode& mode) {
     switch (mode) {
       case Mode::recursive_bipartitioning: return os << "recursive_bipartitioning";
-      case Mode::direct_kway: return os << "direct_kway";
+      case Mode::direct: return os << "direct_kway";
       case Mode::deep_multilevel: return os << "deep_multilevel";
       case Mode::UNDEFINED: return os << "UNDEFINED";
         // omit default case to trigger compiler warning for missing cases
@@ -146,17 +146,6 @@ namespace mt_kahypar {
     return os << static_cast<uint8_t>(algo);
   }
 
-  std::ostream & operator<< (std::ostream& os, const InitialPartitioningMode& mode) {
-    switch (mode) {
-      case InitialPartitioningMode::direct: return os << "direct";
-      case InitialPartitioningMode::deep_multilevel: return os << "deep_multilevel";
-      case InitialPartitioningMode::recursive_bipartitioning: return os << "recursive_bipartitioning";
-      case InitialPartitioningMode::UNDEFINED: return os << "UNDEFINED";
-        // omit default case to trigger compiler warning for missing cases
-    }
-    return os << static_cast<uint8_t>(mode);
-  }
-
   std::ostream & operator<< (std::ostream& os, const LabelPropagationAlgorithm& algo) {
     switch (algo) {
       case LabelPropagationAlgorithm::label_propagation_km1: return os << "label_propagation_km1";
@@ -181,10 +170,10 @@ namespace mt_kahypar {
   }
 
   Mode modeFromString(const std::string& mode) {
-    if (mode == "recursive") {
+    if (mode == "rb") {
       return Mode::recursive_bipartitioning;
     } else if (mode == "direct") {
-      return Mode::direct_kway;
+      return Mode::direct;
     } else if (mode == "deep") {
       return Mode::deep_multilevel;
     }
@@ -284,18 +273,6 @@ namespace mt_kahypar {
     }
     ERROR("Illegal option: " + algo);
     return InitialPartitioningAlgorithm::UNDEFINED;
-  }
-
-  InitialPartitioningMode initialPartitioningModeFromString(const std::string& mode) {
-    if (mode == "direct") {
-      return InitialPartitioningMode::direct;
-    } else if (mode == "deep_multilevel") {
-      return InitialPartitioningMode::deep_multilevel;
-    } else if (mode == "recursive_bipartitioning") {
-      return InitialPartitioningMode::recursive_bipartitioning;
-    }
-    ERROR("Illegal option: " + mode);
-    return InitialPartitioningMode::UNDEFINED;
   }
 
   LabelPropagationAlgorithm labelPropagationAlgorithmFromString(const std::string& type) {

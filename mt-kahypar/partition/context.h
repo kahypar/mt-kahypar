@@ -198,7 +198,7 @@ struct InitialPartitioningParameters {
     // Enable all initial partitioner per default
     enabled_ip_algos(static_cast<size_t>(InitialPartitioningAlgorithm::UNDEFINED), true) { }
 
-  InitialPartitioningMode mode = InitialPartitioningMode::UNDEFINED;
+  Mode mode = Mode::UNDEFINED;
   RefinementParameters refinement = { };
   std::vector<bool> enabled_ip_algos;
   size_t runs = 1;

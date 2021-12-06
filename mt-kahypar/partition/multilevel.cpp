@@ -118,7 +118,7 @@ namespace mt_kahypar::multilevel {
 
   private:
     void enableTimerAndStats() {
-      if ( _context.type == kahypar::ContextType::main && _context.partition.mode == Mode::direct_kway ) {
+      if ( _context.type == kahypar::ContextType::main && _context.partition.mode == Mode::direct ) {
         parallel::MemoryPool::instance().activate_unused_memory_allocations();
         utils::Timer::instance().enable();
         utils::Stats::instance().enable();
@@ -200,7 +200,7 @@ namespace mt_kahypar::multilevel {
           _degree_zero_hn_remover.removeDegreeZeroHypernodes(phg.hypergraph());
         }
 
-        if ( _context.initial_partitioning.mode == InitialPartitioningMode::direct ) {
+        if ( _context.initial_partitioning.mode == Mode::direct ) {
           disableTimerAndStats();
           PoolInitialPartitionerContinuation& ip_continuation = *new(allocate_continuation())
                   PoolInitialPartitionerContinuation(phg, _ip_context);
@@ -225,7 +225,7 @@ namespace mt_kahypar::multilevel {
     }
 
     void disableTimerAndStats() {
-      if ( _context.type == kahypar::ContextType::main && _context.partition.mode == Mode::direct_kway ) {
+      if ( _context.type == kahypar::ContextType::main && _context.partition.mode == Mode::direct ) {
         parallel::MemoryPool::instance().deactivate_unused_memory_allocations();
         utils::Timer::instance().disable();
         utils::Stats::instance().disable();

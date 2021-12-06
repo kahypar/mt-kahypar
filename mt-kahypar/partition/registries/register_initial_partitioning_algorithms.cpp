@@ -35,6 +35,6 @@
   })
 
 namespace mt_kahypar {
-REGISTER_INITIAL_PARTITIONER(InitialPartitioningMode::deep_multilevel, DeepInitialPartitioner);
-REGISTER_INITIAL_PARTITIONER(InitialPartitioningMode::recursive_bipartitioning, RecursiveBipartitioningInitialPartitioner);
+REGISTER_INITIAL_PARTITIONER(Mode::deep_multilevel, DeepInitialPartitioner);
+REGISTER_INITIAL_PARTITIONER(Mode::recursive_bipartitioning, RecursiveBipartitioningInitialPartitioner);
 }  // namespace mt_kahypar

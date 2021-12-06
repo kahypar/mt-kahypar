@@ -264,7 +264,7 @@ namespace mt_kahypar {
 
   void Context::setupContractionLimit(const HypernodeWeight total_hypergraph_weight) {
     // Setup contraction limit
-    if (initial_partitioning.mode == InitialPartitioningMode::deep_multilevel) {
+    if (initial_partitioning.mode == Mode::deep_multilevel) {
       coarsening.contraction_limit =
               2 * std::max(shared_memory.num_threads, static_cast<size_t>(partition.k)) *
               coarsening.contraction_limit_multiplier;

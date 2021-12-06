@@ -46,7 +46,7 @@ class MultiTryFMTest : public ::testing::TestWithParam<PartitionID> {
             metrics() {
       context.partition.graph_filename = "../tests/instances/contracted_ibm01.hgr";
       context.partition.graph_community_filename = "../tests/instances/contracted_ibm01.hgr.community";
-      context.partition.mode = Mode::direct_kway;
+      context.partition.mode = Mode::direct;
       context.partition.epsilon = 0.25;
       context.partition.verbose_output = false;
 
@@ -54,7 +54,7 @@ class MultiTryFMTest : public ::testing::TestWithParam<PartitionID> {
       context.shared_memory.num_threads = std::thread::hardware_concurrency();
 
       // Initial Partitioning
-      context.initial_partitioning.mode = InitialPartitioningMode::deep_multilevel;
+      context.initial_partitioning.mode = Mode::deep_multilevel;
       context.initial_partitioning.runs = 1;
 
       context.partition.k = GetParam();

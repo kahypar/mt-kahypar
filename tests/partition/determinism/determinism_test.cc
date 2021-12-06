@@ -43,7 +43,7 @@ namespace mt_kahypar {
             context(),
             metrics() {
       context.partition.graph_filename = "../tests/instances/powersim.mtx.hgr";
-      context.partition.mode = Mode::direct_kway;
+      context.partition.mode = Mode::direct;
       context.partition.epsilon = 0.25;
       context.partition.verbose_output = false;
       context.partition.k = 8;
@@ -52,7 +52,7 @@ namespace mt_kahypar {
       context.shared_memory.num_threads = std::thread::hardware_concurrency();
 
       // Initial Partitioning
-      context.initial_partitioning.mode = InitialPartitioningMode::recursive_bipartitioning;
+      context.initial_partitioning.mode = Mode::recursive_bipartitioning;
       context.initial_partitioning.runs = 1;
       context.initial_partitioning.population_size = 16;
 
