@@ -638,6 +638,12 @@ class DynamicHypergraph {
   // ! Recomputes the total weight of the hypergraph (sequential)
   void updateTotalWeight();
 
+  HyperedgeWeight weightOfDisabledEdges(const HypernodeID n) const {
+    unused(n);
+    return 0;
+  }
+
+
   // ####################### Iterators #######################
 
   // ! Iterates in parallel over all active nodes and calls function f

@@ -531,6 +531,11 @@ class StaticGraph {
   // ! Computes the total node weight of the hypergraph
   void computeAndSetTotalNodeWeight(parallel_tag_t);
 
+  HyperedgeWeight weightOfDisabledEdges(const HypernodeID n) const {
+    unused(n);
+    return 0;
+  }
+
   // ####################### Iterators #######################
 
   // ! Iterates in parallel over all active nodes and calls function f

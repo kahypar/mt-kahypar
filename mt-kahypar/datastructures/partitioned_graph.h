@@ -414,6 +414,10 @@ private:
     setNodePart(u, to);
   }
 
+  HyperedgeWeight weightOfDisabledEdges(const HypernodeID n) const {
+    return _hg->weightOfDisabledEdges(n);
+  }
+
   // ####################### Hyperedge Information #######################
 
   // ! Target of an edge
