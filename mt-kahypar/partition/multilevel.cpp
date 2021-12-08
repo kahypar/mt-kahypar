@@ -26,6 +26,7 @@
 
 #include "mt-kahypar/partition/factories.h"
 #include "mt-kahypar/partition/preprocessing/sparsification/degree_zero_hn_remover.h"
+#include "mt-kahypar/partition/preprocessing/sparsification/large_he_remover.h"
 #include "mt-kahypar/partition/initial_partitioning/flat/pool_initial_partitioner.h"
 #include "mt-kahypar/parallel/memory_pool.h"
 #include "mt-kahypar/utils/initial_partitioning_stats.h"
@@ -289,21 +290,88 @@ namespace mt_kahypar::multilevel {
     const bool _vcycle;
   };
 
+  class VCycleTask : public tbb::task {
+  public:
+    VCycleTask(Hypergraph& hypergraph,
+               PartitionedHypergraph& partitioned_hypergraph,
+               const Context& context) :
+            _hg(hypergraph),
+            _partitioned_hg(partitioned_hypergraph),
+            _context(context) { }
 
-PartitionedHypergraph partition(Hypergraph& hypergraph, const Context& context, const bool vcycle) {
+    tbb::task* execute() override {
+      ASSERT(_context.partition.num_vcycles > 0);
+
+      for ( size_t i = 0; i < _context.partition.num_vcycles; ++i ) {
+        // Reset memory pool
+        _hg.reset();
+        parallel::MemoryPool::instance().reset();
+        parallel::MemoryPool::instance().release_mem_group("Preprocessing");
+
+        if ( _context.partition.paradigm == Paradigm::nlevel ) {
+          // Workaround: reset() function of hypergraph reinserts all removed
+          // hyperedges to incident net lists of each vertex again.
+          LargeHyperedgeRemover large_he_remover(_context);
+          large_he_remover.removeLargeHyperedgesInNLevelVCycle(_hg);
+        }
+
+        // Store partition and assign it as community ids in order to
+        // restrict contractions in v-cycle to partition ids
+        _hg.doParallelForAllNodes([&](const HypernodeID& hn) {
+          _hg.setCommunityID(hn, _partitioned_hg.partID(hn));
+        });
+
+        // V-Cycle Multilevel Partitioning
+        io::printVCycleBanner(_context, i + 1);
+        MultilevelPartitioningTask& multilevel_task = *new(tbb::task::allocate_root())
+                MultilevelPartitioningTask(_hg, _partitioned_hg, _context, true /* vcycle */);
+        tbb::task::spawn_root_and_wait(multilevel_task);
+      }
+
+      return nullptr;
+    }
+
+  private:
+    Hypergraph& _hg;
+    PartitionedHypergraph& _partitioned_hg;
+    const Context& _context;
+  };
+
+
+PartitionedHypergraph partition(Hypergraph& hypergraph, const Context& context) {
   PartitionedHypergraph partitioned_hypergraph;
-  MultilevelPartitioningTask& multilevel_task = *new(tbb::task::allocate_root())
-          MultilevelPartitioningTask(hypergraph, partitioned_hypergraph, context, vcycle);
-  tbb::task::spawn_root_and_wait(multilevel_task);
+    MultilevelPartitioningTask& multilevel_task = *new(tbb::task::allocate_root())
+            MultilevelPartitioningTask(hypergraph, partitioned_hypergraph, context, false);
+    tbb::task::spawn_root_and_wait(multilevel_task);
+
+    if ( context.partition.num_vcycles > 0 && context.type == kahypar::ContextType::main ) {
+      partitionVCycle(hypergraph, partitioned_hypergraph, context);
+    }
   return partitioned_hypergraph;
 }
-
 
 
 void partition_async(Hypergraph& hypergraph, PartitionedHypergraph& partitioned_hypergraph,
                      const Context& context, tbb::task* parent) {
   ASSERT(parent);
-  spawn_multilevel_partitioner(hypergraph, partitioned_hypergraph, context, false, *parent);
+
+  if ( context.partition.num_vcycles > 0 && context.type == kahypar::ContextType::main ) {
+    VCycleTask& vcycle_task = *new(parent->allocate_continuation())
+            VCycleTask(hypergraph, partitioned_hypergraph, context);
+    MultilevelPartitioningTask& multilevel_task = *new(vcycle_task.allocate_child())
+            MultilevelPartitioningTask(hypergraph, partitioned_hypergraph, context, false);
+    tbb::task::spawn(multilevel_task);
+  } else {
+    spawn_multilevel_partitioner(hypergraph, partitioned_hypergraph, context, false, *parent);
+  }
+}
+
+
+void partitionVCycle(Hypergraph& hypergraph, PartitionedHypergraph& partitioned_hypergraph,
+                     const Context& context) {
+  VCycleTask& vcycle_task = *new(tbb::task::allocate_root())
+          VCycleTask(hypergraph, partitioned_hypergraph, context);
+  tbb::task::spawn_root_and_wait(vcycle_task);
 }
 
 }

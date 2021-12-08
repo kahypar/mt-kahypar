@@ -615,6 +615,8 @@ namespace deep_multilevel {
             hypergraph, context, context.partition.mode == Mode::deep_multilevel);
     tbb::task::spawn_root_and_wait(root_recursive_task);
 
+    multilevel::partitionVCycle(hypergraph.hypergraph(), hypergraph, context);
+
     if (context.type == kahypar::ContextType::main) {
       parallel::MemoryPool::instance().activate_unused_memory_allocations();
       utils::Timer::instance().enable();
