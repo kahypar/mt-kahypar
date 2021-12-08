@@ -402,7 +402,7 @@ class StaticHypergraph {
     _hyperedges(),
     _incidence_array(),
     _community_ids(0),
-    _weight_of_disabled_edges(0),
+    _weight_of_disabled_edges(),
     _tmp_contraction_buffer(nullptr) { }
 
   StaticHypergraph(const StaticHypergraph&) = delete;
@@ -443,8 +443,8 @@ class StaticHypergraph {
     _hyperedges = std::move(other._hyperedges);
     _incidence_array = std::move(other._incidence_array);
     _community_ids = std::move(other._community_ids),
-    _tmp_contraction_buffer = std::move(other._tmp_contraction_buffer);
     _weight_of_disabled_edges = std::move(other._weight_of_disabled_edges);
+    _tmp_contraction_buffer = std::move(other._tmp_contraction_buffer);
     other._tmp_contraction_buffer = nullptr;
     return *this;
   }

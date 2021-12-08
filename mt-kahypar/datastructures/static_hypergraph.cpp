@@ -380,8 +380,6 @@ namespace mt_kahypar::ds {
       hypergraph._hypernodes.resize(num_hypernodes);
     });
 
-    hypergraph._weight_of_disabled_edges = std::move(tmp_weight_of_disabled_edges);
-
     const HyperedgeID num_hyperedges = he_mapping.total_sum();
     hypergraph._num_hypernodes = num_hypernodes;
     hypergraph._num_hyperedges = num_hyperedges;
@@ -481,6 +479,8 @@ namespace mt_kahypar::ds {
     tbb::parallel_invoke( assign_communities, setup_hyperedges, setup_hypernodes);
 
     hypergraph._total_weight = _total_weight;   // didn't lose any vertices
+    hypergraph._weight_of_disabled_edges = std::move(tmp_weight_of_disabled_edges);
+
     hypergraph._tmp_contraction_buffer = _tmp_contraction_buffer;
     _tmp_contraction_buffer = nullptr;
     return hypergraph;
@@ -516,10 +516,10 @@ namespace mt_kahypar::ds {
       hypergraph._incidence_array.resize(_incidence_array.size());
       memcpy(hypergraph._incidence_array.data(), _incidence_array.data(),
              sizeof(HypernodeID) * _incidence_array.size());
-    /* }, [&] {
+    }, [&] {
     hypergraph._weight_of_disabled_edges.resize(_weight_of_disabled_edges.size());
     memcpy(hypergraph._weight_of_disabled_edges.data(), _weight_of_disabled_edges.data(),
-           sizeof(HyperedgeWeight) * _weight_of_disabled_edges.size()); */
+           sizeof(HyperedgeWeight) * _weight_of_disabled_edges.size());
     }, [&] {
       hypergraph._community_ids = _community_ids;
     });
@@ -552,9 +552,9 @@ namespace mt_kahypar::ds {
     hypergraph._incidence_array.resize(_incidence_array.size());
     memcpy(hypergraph._incidence_array.data(), _incidence_array.data(),
            sizeof(HypernodeID) * _incidence_array.size());
-    /* hypergraph._weight_of_disabled_edges.resize(_weight_of_disabled_edges.size());
+    hypergraph._weight_of_disabled_edges.resize(_weight_of_disabled_edges.size());
     memcpy(hypergraph._weight_of_disabled_edges.data(), _weight_of_disabled_edges.data(),
-           sizeof(HyperedgeWeight) * _weight_of_disabled_edges.size()); */
+           sizeof(HyperedgeWeight) * _weight_of_disabled_edges.size());
 
     hypergraph._community_ids = _community_ids;
 

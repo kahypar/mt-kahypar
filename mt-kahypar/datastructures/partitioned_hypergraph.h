@@ -1147,7 +1147,9 @@ private:
     auto accumulate_disabled_edges = [&](tbb::blocked_range<HypernodeID>& r) {
       vec<HyperedgeWeight> pvs(_k, 0);  // this is not enumerable_thread_specific because of the static partitioner
       for (HypernodeID u = r.begin(); u < r.end(); ++u) {
-        pvs[partID(u)] += weightOfDisabledEdges(u);
+        if (nodeIsEnabled(u)) {
+          pvs[partID(u)] += weightOfDisabledEdges(u);
+        }
       }
       applyPartLoadUpdates(pvs);
     };
