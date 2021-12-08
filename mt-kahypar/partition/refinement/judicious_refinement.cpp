@@ -35,6 +35,7 @@ namespace mt_kahypar {
     if (!_is_initialized) throw std::runtime_error("Call initialize on judicious refinement before calling refine");
     if (debug) {
       LOG << "Initial judicious load: " << V(metrics::judiciousLoad(phg));
+      ASSERT(_last_load == metrics::judiciousLoad(phg) || _last_load == 0);
     }
     for (PartitionID i = 0; i < _context.partition.k; ++i) {
       _part_loads.insert(i, phg.partLoad(i));
@@ -83,6 +84,7 @@ namespace mt_kahypar {
     ASSERT(_best_improvement == initial_max_load - current_max_load);
     if (debug) {
       LOG << "improved judicious load by " << initial_max_load - current_max_load;
+      _last_load = metrics::judiciousLoad(phg);
       LOG << V(metrics::judiciousLoad(phg));
     }
     metrics.imbalance = metrics::imbalance(phg, _context);

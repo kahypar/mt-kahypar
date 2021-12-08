@@ -68,5 +68,6 @@ private:
   HypernodeID _deduplication_time = 1;
   Gain _total_improvement = 0;
   Gain _best_improvement = 0;
+  HyperedgeWeight _last_load = 0;
 };
 }

@@ -198,23 +198,26 @@ private:
                                                                  const vec<PartitionID> parts) {
     const HyperedgeWeight from_load = phg.partLoad(from);
     PartitionID to = kInvalidPartition;
-    HyperedgeWeight to_penalty = std::numeric_limits<HyperedgeWeight>::max();
     HyperedgeWeight to_load = std::numeric_limits<HyperedgeWeight>::max();
+    HyperedgeWeight to_load_after = std::numeric_limits<HyperedgeWeight>::max();
     for (PartitionID i : parts) {
       if (i != from) {
         const HyperedgeWeight load = phg.partLoad(i);
-        const HyperedgeWeight penalty = phg.moveToPenalty(u, i);
-        if (load < to_load || (load == to_load && penalty < to_penalty)) {
-          to_penalty = penalty;
+        const HyperedgeWeight load_after = load + phg.moveToPenalty(u, i);
+        if (load_after < to_load_after || (load_after == to_load_after && load < to_load)) {
           to = i;
           to_load = load;
+          to_load_after = load_after;
         }
       }
     }
+/*
     if (to == kInvalidPartition) {
       return std::make_pair(to, std::numeric_limits<HyperedgeWeight>::min());
     }
-    HyperedgeWeight to_load_after = to_load + to_penalty + phg.weightOfDisabledEdges(u);
+*/
+    ASSERT(to != kInvalidPartition);
+    to_load_after += phg.weightOfDisabledEdges(u);
     Gain benefit = phg.moveFromBenefit(u) + phg.weightOfDisabledEdges(u);
     HyperedgeWeight from_load_after = from_load - benefit;
     // (Review Note) If to block is light enough, we only care about benefit.
