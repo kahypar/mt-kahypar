@@ -115,7 +115,7 @@ namespace mt_kahypar {
         DeterministicLabelPropagationRefiner refiner(hypergraph, context);
         refiner.initialize(partitioned_hypergraph);
         vec<HypernodeID> dummy_refinement_nodes;
-        kahypar::Metrics my_metrics = metrics;
+        Metrics my_metrics = metrics;
         refiner.refine(partitioned_hypergraph, dummy_refinement_nodes, my_metrics, 0.0);
 
         if (i == 0) {
@@ -133,7 +133,7 @@ namespace mt_kahypar {
     Hypergraph hypergraph;
     PartitionedHypergraph partitioned_hypergraph;
     Context context;
-    kahypar::Metrics metrics;
+    Metrics metrics;
     static constexpr size_t num_repetitions = 5;
   };
 

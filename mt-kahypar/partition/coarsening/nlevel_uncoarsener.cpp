@@ -28,22 +28,11 @@
 #include "mt-kahypar/io/partitioning_output.h"
 
 namespace mt_kahypar {
-  // required to use kahypar::Metrics
-  kahypar::Mode translateMode(Mode mode) {
-    switch (mode) {
-      case Mode::recursive_bipartitioning: return kahypar::Mode::recursive_bisection;
-      case Mode::direct: return kahypar::Mode::direct_kway;
-      case Mode::deep_multilevel: return kahypar::Mode::direct_kway;
-      case Mode::UNDEFINED: return kahypar::Mode::UNDEFINED;
-        // omit default case to trigger compiler warning for missing cases
-    }
-    return kahypar::Mode::UNDEFINED;
-  }
 
   PartitionedHypergraph&& NLevelUncoarsener::doUncoarsen(std::unique_ptr<IRefiner>& label_propagation,
                                                          std::unique_ptr<IRefiner>& fm) {
     ASSERT(_uncoarseningData.is_finalized);
-    kahypar::Metrics current_metrics = initialize(*_uncoarseningData.compactified_phg);
+    Metrics current_metrics = initialize(*_uncoarseningData.compactified_phg);
     if (_context.type == kahypar::ContextType::main) {
       _context.initial_km1 = current_metrics.km1;
     }
@@ -121,8 +110,8 @@ namespace mt_kahypar {
         const Batch& batch = batches.back();
         if ( batch.size() > 0 ) {
           HEAVY_REFINEMENT_ASSERT(metrics::objective(*_uncoarseningData.partitioned_hg, _context.partition.objective) ==
-                                  current_metrics.getMetric(kahypar::Mode::direct_kway, _context.partition.objective),
-                                  V(current_metrics.getMetric(kahypar::Mode::direct_kway, _context.partition.objective)) <<
+                                  current_metrics.getMetric(Mode::direct, _context.partition.objective),
+                                  V(current_metrics.getMetric(Mode::direct, _context.partition.objective)) <<
                                   V(metrics::objective(*_uncoarseningData.partitioned_hg, _context.partition.objective)));
           utils::Timer::instance().start_timer("batch_uncontractions", "Batch Uncontractions", false, force_measure_timings);
           _uncoarseningData.partitioned_hg->uncontract(batch);
@@ -130,8 +119,8 @@ namespace mt_kahypar {
           HEAVY_REFINEMENT_ASSERT(_hg.verifyIncidenceArrayAndIncidentNets());
           HEAVY_REFINEMENT_ASSERT(_uncoarseningData.partitioned_hg->checkTrackedPartitionInformation());
           HEAVY_REFINEMENT_ASSERT(metrics::objective(*_uncoarseningData.partitioned_hg, _context.partition.objective) ==
-                                  current_metrics.getMetric(kahypar::Mode::direct_kway, _context.partition.objective),
-                                  V(current_metrics.getMetric(kahypar::Mode::direct_kway, _context.partition.objective)) <<
+                                  current_metrics.getMetric(Mode::direct, _context.partition.objective),
+                                  V(current_metrics.getMetric(Mode::direct, _context.partition.objective)) <<
                                   V(metrics::objective(*_uncoarseningData.partitioned_hg, _context.partition.objective)));
 
           utils::Timer::instance().start_timer("collect_border_vertices", "Collect Border Vertices", false, force_measure_timings);
@@ -158,7 +147,7 @@ namespace mt_kahypar {
           total_batches_size += batch.size();
           // Update Progress Bar
           uncontraction_progress.setObjective(current_metrics.getMetric(
-              translateMode(_context.partition.mode), _context.partition.objective));
+              _context.partition.mode, _context.partition.objective));
           uncontraction_progress += batch.size();
         }
         batches.pop_back();
@@ -182,7 +171,7 @@ namespace mt_kahypar {
         const double time_limit = refinementTimeLimit(_context, _uncoarseningData.round_coarsening_times.back());
         globalRefine(*_uncoarseningData.partitioned_hg, fm, current_metrics, time_limit);
         uncontraction_progress.setObjective(current_metrics.getMetric(
-            translateMode(_context.partition.mode), _context.partition.objective));
+            _context.partition.mode, _context.partition.objective));
         _uncoarseningData.round_coarsening_times.pop_back();
       }
       _hierarchy.pop_back();
@@ -190,13 +179,13 @@ namespace mt_kahypar {
 
     // Top-Level Refinement on all vertices
     const HyperedgeWeight objective_before = current_metrics.getMetric(
-      translateMode(_context.partition.mode), _context.partition.objective);
+      _context.partition.mode, _context.partition.objective);
     const double time_limit = refinementTimeLimit(_context, _uncoarseningData.round_coarsening_times.back());
     globalRefine(*_uncoarseningData.partitioned_hg, fm, current_metrics, time_limit);
     _uncoarseningData.round_coarsening_times.pop_back();
     ASSERT(_uncoarseningData.round_coarsening_times.size() == 0);
     const HyperedgeWeight objective_after = current_metrics.getMetric(
-      translateMode(_context.partition.mode), _context.partition.objective);
+      _context.partition.mode, _context.partition.objective);
     if ( _context.partition.verbose_output && objective_after < objective_before ) {
       LOG << GREEN << "Top-Level Refinment improved objective from"
       << objective_before << "to" << objective_after << END;
@@ -209,7 +198,7 @@ namespace mt_kahypar {
     // If we finish batch uncontractions and partition is imbalanced, we try to rebalance it
     if ( _context.type == kahypar::ContextType::main && !metrics::isBalanced(*_uncoarseningData.partitioned_hg, _context)) {
       const HyperedgeWeight quality_before = current_metrics.getMetric(
-        kahypar::Mode::direct_kway, _context.partition.objective);
+        Mode::direct, _context.partition.objective);
       if ( _context.partition.verbose_output ) {
         LOG << RED << "Partition is imbalanced (Current Imbalance:"
         << metrics::imbalance(*_uncoarseningData.partitioned_hg, _context) << ") ->"
@@ -230,7 +219,7 @@ namespace mt_kahypar {
       utils::Timer::instance().stop_timer("rebalance");
 
       const HyperedgeWeight quality_after = current_metrics.getMetric(
-        kahypar::Mode::direct_kway, _context.partition.objective);
+        Mode::direct, _context.partition.objective);
       if ( _context.partition.verbose_output ) {
         const HyperedgeWeight quality_delta = quality_after - quality_before;
         if ( quality_delta > 0 ) {
@@ -249,8 +238,8 @@ namespace mt_kahypar {
     DBG << V(num_batches) << V(avg_batch_size);
 
     ASSERT(metrics::objective(*_uncoarseningData.partitioned_hg, _context.partition.objective) ==
-           current_metrics.getMetric(kahypar::Mode::direct_kway, _context.partition.objective),
-           V(current_metrics.getMetric(kahypar::Mode::direct_kway, _context.partition.objective)) <<
+           current_metrics.getMetric(Mode::direct, _context.partition.objective),
+           V(current_metrics.getMetric(Mode::direct, _context.partition.objective)) <<
            V(metrics::objective(*_uncoarseningData.partitioned_hg, _context.partition.objective)));
 
     return std::move(*_uncoarseningData.partitioned_hg);
@@ -259,7 +248,7 @@ namespace mt_kahypar {
                                           const parallel::scalable_vector<HypernodeID>& refinement_nodes,
                                           std::unique_ptr<IRefiner>& label_propagation,
                                           std::unique_ptr<IRefiner>& fm,
-                                          kahypar::Metrics& current_metrics,
+                                          Metrics& current_metrics,
                                           const bool force_measure_timings) {
     if ( debug && _context.type == kahypar::ContextType::main ) {
       io::printHypergraphInfo(partitioned_hypergraph.hypergraph(), "Refinement Hypergraph", false);
@@ -305,7 +294,7 @@ namespace mt_kahypar {
 
   void NLevelUncoarsener::globalRefine(PartitionedHypergraph& partitioned_hypergraph,
                                        std::unique_ptr<IRefiner>& fm,
-                                       kahypar::Metrics& current_metrics,
+                                       Metrics& current_metrics,
                                        const double time_limit) {
 
     auto applyGlobalFMParameters = [&](const FMParameters& fm, const NLevelGlobalFMParameters global_fm){

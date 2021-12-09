@@ -25,7 +25,7 @@
 
 namespace mt_kahypar {
 
-bool SequentialTwoWayFmRefiner::refine(kahypar::Metrics& best_metrics, std::mt19937& prng) {
+bool SequentialTwoWayFmRefiner::refine(Metrics& best_metrics, std::mt19937& prng) {
 
   // Activate all border nodes
   _pq.clear();

@@ -68,8 +68,8 @@ class UncoarsenerBase {
       }
     }
 
-  kahypar::Metrics initialize(PartitionedHypergraph& phg) {
-    kahypar::Metrics m = { 0, 0, 0.0 };
+  Metrics initialize(PartitionedHypergraph& phg) {
+    Metrics m = { 0, 0, 0.0 };
     tbb::parallel_invoke([&] {
       m.cut = metrics::hyperedgeCut(phg);
     }, [&] {

@@ -182,7 +182,7 @@ class SequentialTwoWayFmRefiner {
     _pq.initialize(_phg.initialNumNodes());
   }
 
-  bool refine(kahypar::Metrics& best_metrics, std::mt19937& prng);
+  bool refine(Metrics& best_metrics, std::mt19937& prng);
 
  private:
 
