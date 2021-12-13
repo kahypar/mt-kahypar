@@ -201,7 +201,7 @@ namespace mt_kahypar {
         }
         revertToBestLocalPrefix(phg, initial_num_moves);
         done = true;
-      } else if (_part_loads.topKey() >= std::max(from_load, _part_loads.keyOfSecond()) * _context.refinement.judicious.part_load_margin) {
+      } else if (_part_loads.topKey() >= from_load * _context.refinement.judicious.part_load_margin) {
         done = true;
       } else {
         updateNeighbors(phg, move);
