@@ -219,11 +219,6 @@ namespace mt_kahypar {
            sparsification.use_similiar_net_removal;
   }
 
-  bool Context::isMainRecursiveBisection() const {
-    return partition.mode == kahypar::Mode::recursive_bisection &&
-           type == kahypar::ContextType::main;
-  }
-
   void Context::setupPartWeights(const HypernodeWeight total_hypergraph_weight) {
     if (partition.use_individual_part_weights) {
       ASSERT(static_cast<size_t>(partition.k) == partition.max_part_weights.size());
@@ -244,7 +239,7 @@ namespace mt_kahypar {
                 << "Sum of part weights:     " << max_part_weights_sum);
       } else {
         // To avoid rounding issues, epsilon should be calculated using the sum of the perfect part weights instead of
-        // the total hypergraph weight. See also recursive_bisection_initial_partitioner
+        // the total hypergraph weight. See also recursive_bipartitioning_initial_partitioner
         partition.epsilon = std::min(0.99, max_part_weights_sum / static_cast<double>(std::max(perfect_part_weights_sum, 1)) - 1);
       }
     } else {
@@ -269,7 +264,7 @@ namespace mt_kahypar {
 
   void Context::setupContractionLimit(const HypernodeWeight total_hypergraph_weight) {
     // Setup contraction limit
-    if (initial_partitioning.mode == InitialPartitioningMode::recursive) {
+    if (initial_partitioning.mode == Mode::deep_multilevel) {
       coarsening.contraction_limit =
               2 * std::max(shared_memory.num_threads, static_cast<size_t>(partition.k)) *
               coarsening.contraction_limit_multiplier;
@@ -390,14 +385,6 @@ namespace mt_kahypar {
                                       << "refiner in combination with km1 metric is not supported!",
                   initial_partitioning.refinement.label_propagation.algorithm,
                   LabelPropagationAlgorithm::label_propagation_km1);
-    }
-
-    if ( partition.mode == kahypar::Mode::recursive_bisection ) {
-      ALGO_SWITCH("Recursive bisection mode is currently not supported."
-                          << "Do you want to use the direct k-way mode instead (Y/N)?",
-                  "Recursive bisection mode is currently not supported!",
-                  partition.mode,
-                  kahypar::Mode::direct_kway);
     }
 
     ASSERT(partition.use_individual_part_weights != partition.max_part_weights.empty());

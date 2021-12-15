@@ -2,6 +2,7 @@
  * This file is part of KaHyPar.
  *
  * Copyright (C) 2019 Tobias Heuer <tobias.heuer@kit.edu>
+ * Copyright (C) 2021 Nikolai Maas <nikolai.maas@student.kit.edu>
  *
  * KaHyPar is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,7 +19,7 @@
  *
 ******************************************************************************/
 
-#include "mt-kahypar/partition/initial_partitioning/recursive_initial_partitioner.h"
+#include "mt-kahypar/partition/deep_multilevel.h"
 
 #include <algorithm>
 #include <limits>
@@ -37,12 +38,12 @@
 
 
 /*!
- * RECURSIVE INITIAL PARTITIONER
+ * DEEP MULTILEVEL
  * For reason of simplicity we assume in the following description of the algorithm that
- * the number of threads p and the number of blocks k is a power of 2 and p = k. The recursive
- * initial partitioner is invoked, if the number of vertices is 2 * c * p (where c is our
+ * the number of threads p and the number of blocks k is a power of 2 and p = k. The deep
+ * partitioning algorithm is invoked, if the number of vertices is 2 * c * p (where c is our
  * contraction limit multiplier).
- * The recursive initial partitioner starts by performing parallel coarsening with p threads
+ * The deep multilevel algorithm starts by performing parallel coarsening with p threads
  * until c * p vertices are reached. Afterwards, the hypergraph is copied and the hypergraphs
  * are recursively coarsened with p / 2 threads each. Once p = 1 (and the contraction limit is 2 * c)
  * we initially bisect the hypergraph in two blocks. After initial partitioning each thread uncontracts
@@ -50,7 +51,7 @@
  * best partition of both recursions and further bisect each block of the partition to obtain a 4-way
  * partition and continue uncontraction with 2 threads until 8 * c hypernodes. This is repeated until
  * we obtain a k-way partition of the hypergraph.
- * Note, the recursive initial partitioner is written in TBBInitializer continuation style. The TBBInitializer continuation
+ * Note, the deep multilevel algorithm is written in TBBInitializer continuation style. The TBBInitializer continuation
  * style is especially useful for recursive patterns. Each task defines its continuation task. A continuation
  * task defines how computation should continue, if all its child tasks are completed. As a consequence,
  * tasks can be spawned without waiting for their completion, because the continuation task is automatically
@@ -59,21 +60,21 @@
  *
  * Implementation Details
  * ----------------------
- * The recursive initial partitioner starts by spawning the root RecursiveTask. The RecursiveTask spawns
- * two RecursiveChildTask. Within such a task the hypergraph is copied and coarsened to the next desired contraction limit.
- * Once that contraction limit is reached the RecursiveChildTask spawns again one RecursiveTask. Once the RecursiveTask
- * of a RecursiveChildTask terminates, the RecursiveChildContinuationTask starts and uncontracts the hypergraph to
- * its original size (and also performs refinement). Once both RecursiveChildTask of a RecursiveTask terminates, the
- * RecursiveContinuationTask starts and chooses the best partition of both recursions and spawns for each block
- * a BisectionTask. The BisectionTask performs a initial partition call to bisect exactly one block of the current
- * partition. Once all BisectionTasks terminates, the BisectionContinuationTask starts and applies all bisections to the
+ * The deep multilevel algorithm starts by spawning the root DeepPartitionTask. The DeepPartitionTask spawns
+ * two DeepPartitionChildTask. Within such a task the hypergraph is copied and coarsened to the next desired contraction limit.
+ * Once that contraction limit is reached the DeepPartitionChildTask spawns again one DeepPartitionTask. Once the DeepPartitionTask
+ * of a DeepPartitionChildTask terminates, the DeepChildContinuationTask starts and uncontracts the hypergraph to
+ * its original size (and also performs refinement). Once both DeepPartitionChildTask of a DeepPartitionTask terminates, the
+ * DeepPartitionContinuationTask starts and chooses the best partition of both recursions and spawns for each block
+ * a DeepBisectionTask. The DeepBisectionTask performs a initial partition call to bisect exactly one block of the current
+ * partition. Once all DeepBisectionTasks terminates, the DeepBisectionContinuationTask starts and applies all bisections to the
  * current hypergraph.
  */
 
 namespace mt_kahypar {
 
-  struct RecursivePartitionResult {
-    RecursivePartitionResult() :
+  struct DeepPartitionResult {
+    DeepPartitionResult() :
             hypergraph(),
             partitioned_hypergraph(),
             mapping(),
@@ -81,7 +82,7 @@ namespace mt_kahypar {
             objective(std::numeric_limits<HyperedgeWeight>::max()),
             imbalance(1.0) { }
 
-    explicit RecursivePartitionResult(Context&& c) :
+    explicit DeepPartitionResult(Context&& c) :
             hypergraph(),
             partitioned_hypergraph(),
             mapping(),
@@ -89,7 +90,7 @@ namespace mt_kahypar {
             objective(std::numeric_limits<HyperedgeWeight>::max()),
             imbalance(1.0) { }
 
-    explicit RecursivePartitionResult(const Context& c) :
+    explicit DeepPartitionResult(const Context& c) :
             hypergraph(),
             partitioned_hypergraph(),
             mapping(),
@@ -117,14 +118,14 @@ namespace mt_kahypar {
   };
 
   /*!
-   * Continuation task for the recursive child task. It is automatically called
-   * after the recursive child task terminates and responsible for uncontracting
+   * Continuation task for the deep child task. It is automatically called
+   * after the deep child task terminates and responsible for uncontracting
    * the hypergraph.
    */
-  class RecursiveChildContinuationTask : public tbb::task {
+  class DeepChildContinuationTask : public tbb::task {
 
   public:
-    RecursiveChildContinuationTask(RecursivePartitionResult& result) :
+    DeepChildContinuationTask(DeepPartitionResult& result) :
             _coarsener(nullptr),
             _sparsifier(nullptr),
             _result(result) {
@@ -178,21 +179,21 @@ namespace mt_kahypar {
     std::shared_ptr<UncoarseningData> _uncoarseningData;
 
   private:
-    RecursivePartitionResult& _result;
+    DeepPartitionResult& _result;
   };
 
   /*!
- * Continuation task for the bisection task. The bisection continuation task
- * is called after all bisection tasks terminates and is responsible for applying
- * all bisections done by the bisection tasks to the current hypergraph.
+ * Continuation task for the deep bisection task. The deep bisection continuation task
+ * is called after all deep bisection tasks terminated and is responsible for applying
+ * all bisections done by the deep bisection tasks to the current hypergraph.
  */
-  class BisectionContinuationTask : public tbb::task {
+  class DeepBisectionContinuationTask : public tbb::task {
     static constexpr bool enable_heavy_assert = false;
   public:
-    BisectionContinuationTask(PartitionedHypergraph& hypergraph,
-                              const Context& context,
-                              const HyperedgeWeight current_objective,
-                              const PartitionID num_bisections) :
+    DeepBisectionContinuationTask(PartitionedHypergraph& hypergraph,
+                                  const Context& context,
+                                  const HyperedgeWeight current_objective,
+                                  const PartitionID num_bisections) :
             _hg(hypergraph),
             _context(context),
             _current_objective(current_objective),
@@ -248,23 +249,23 @@ namespace mt_kahypar {
     const HyperedgeWeight _current_objective;
 
   public:
-    parallel::scalable_vector<RecursivePartitionResult> _results;
+    parallel::scalable_vector<DeepPartitionResult> _results;
   };
 
 
   /*!
-   * A bisection task is started after we return from the recursion. It is
+   * A deep bisection task is started after we return from the recursion. It is
    * responsible for bisecting one block of the current k'-way partition (k' < k).
    */
-  class BisectionTask : public tbb::task {
+  class DeepBisectionTask : public tbb::task {
 
   public:
-    BisectionTask(PartitionedHypergraph& hypergraph,
-                  const Context& context,
-                  const PartitionID block,
-                  RecursivePartitionResult& result) :
+    DeepBisectionTask(PartitionedHypergraph& hypergraph,
+                      const PartitionID block,
+                      DeepPartitionResult& result) :
             _hg(hypergraph),
-            _stable_construction_of_incident_edges(context.preprocessing.stable_construction_of_incident_edges),
+            _stable_construction_of_incident_edges(
+                result.context.preprocessing.stable_construction_of_incident_edges),
             _block(block),
             _result(result) { }
 
@@ -302,37 +303,39 @@ namespace mt_kahypar {
     PartitionedHypergraph& _hg;
     bool _stable_construction_of_incident_edges;
     const PartitionID _block;
-    RecursivePartitionResult& _result;
+    DeepPartitionResult& _result;
   };
 
 
 
   /*!
- * Continuation task for the recursive task. The recursive continuation task
- * is called after all recursive child tasks of the recursive task terminates
- * and is responsible for choosing the best partition of the recursive child tasks
- * and spawn bisection tasks to further transform the k'-way partition into
+ * Continuation task for the deep partition task. The continuation task
+ * is called after all child tasks of the deep partition task terminated
+ * and is responsible for choosing the best partition of the child tasks
+ * and spawn deep bisection tasks to further transform the k'-way partition into
  * a 2*k'-way partition.
  */
-  class RecursiveContinuationTask : public tbb::task {
+  class DeepPartitionContinuationTask : public tbb::task {
     static constexpr bool enable_heavy_assert = false;
   public:
-    RecursiveContinuationTask(const OriginalHypergraphInfo original_hypergraph_info,
-                              PartitionedHypergraph& hypergraph,
-                              const Context& context,
-                              const bool was_recursion) :
+    DeepPartitionContinuationTask(const OriginalHypergraphInfo original_hypergraph_info,
+                                  PartitionedHypergraph& hypergraph,
+                                  const Context& context,
+                                  const bool was_recursion,
+                                  const bool is_top_level) :
             _original_hypergraph_info(original_hypergraph_info),
             _hg(hypergraph),
             _context(context),
-            _was_recursion(was_recursion) { }
+            _was_recursion(was_recursion),
+            _is_top_level(is_top_level) { }
 
-    RecursivePartitionResult r1;
-    RecursivePartitionResult r2;
+    DeepPartitionResult r1;
+    DeepPartitionResult r2;
 
     tbb::task* execute() override {
       ASSERT(r1.objective < std::numeric_limits<HyperedgeWeight>::max());
 
-      RecursivePartitionResult best;
+      DeepPartitionResult best;
       // Choose best partition of both parallel recursion
       bool r1_has_better_quality = r1.objective < r2.objective;
       bool r1_is_balanced = r1.imbalance < r1.context.partition.epsilon;
@@ -364,24 +367,23 @@ namespace mt_kahypar {
       _hg.initializePartition();
 
       // The hypergraph is now partitioned into the number of blocks of the recursive context (best.context.partition.k).
-      // Based on wheter we reduced k in recursion, we have to bisect the blocks of the partition
+      // Based on whether we reduced k in recursion, we have to bisect the blocks of the partition
       // in the desired number of blocks of the current context (_context.partition.k).
 
       HEAVY_INITIAL_PARTITIONING_ASSERT(best.objective == metrics::objective(_hg, _context.partition.objective));
 
       // Bisect all blocks of best partition, if we are not on the top level of recursive initial partitioning
       // and the number of threads is small than k
-      bool perform_bisections =
-        _context.type == kahypar::ContextType::initial_partitioning &&
+      bool perform_bisections = !_is_top_level &&
         _context.shared_memory.num_threads < (size_t)_context.partition.k;
       if (perform_bisections) {
-        BisectionContinuationTask& bisection_continuation = *new(allocate_continuation())
-                BisectionContinuationTask(_hg, _context,
-                                          best.objective, _context.partition.k / 2);
+        DeepBisectionContinuationTask& bisection_continuation = *new(allocate_continuation())
+                DeepBisectionContinuationTask(_hg, _context,
+                                              best.objective, _context.partition.k / 2);
         bisection_continuation.set_ref_count(_context.partition.k / 2 );
         for (PartitionID block = 0; block < _context.partition.k / 2; ++block) {
-          tbb::task::spawn(*new(bisection_continuation.allocate_child()) BisectionTask(
-                  _hg, _context, block, bisection_continuation._results[block]));
+          tbb::task::spawn(*new(bisection_continuation.allocate_child()) DeepBisectionTask(
+                  _hg, block, bisection_continuation._results[block]));
         }
       }
       return nullptr;
@@ -392,23 +394,26 @@ namespace mt_kahypar {
     PartitionedHypergraph& _hg;
     const Context& _context;
     const bool _was_recursion;
+    const bool _is_top_level;
   };
 
 
 
   /*!
-   * The recursive task contains the base case for initial bisecting the hypergraph
-   * (if p = 1) and performing recursion by calling the recursive child tasks.
+   * The deep partition task contains the base case for initial bisecting the hypergraph
+   * (if p = 1) and performing recursion by calling the deep partition child tasks.
    */
-  class RecursiveTask : public tbb::task {
+  class DeepPartitionTask : public tbb::task {
 
   public:
-    RecursiveTask(const OriginalHypergraphInfo original_hypergraph_info,
-                  PartitionedHypergraph& hypergraph,
-                  const Context& context) :
+    DeepPartitionTask(const OriginalHypergraphInfo original_hypergraph_info,
+                      PartitionedHypergraph& hypergraph,
+                      const Context& context,
+                      bool is_top_level) :
             _original_hypergraph_info(original_hypergraph_info),
             _hg(hypergraph),
-            _context(context) { }
+            _context(context),
+            _is_top_level(is_top_level) { }
 
     tbb::task* execute() override ;
 
@@ -416,6 +421,7 @@ namespace mt_kahypar {
     const OriginalHypergraphInfo _original_hypergraph_info;
     PartitionedHypergraph& _hg;
     const Context& _context;
+    bool _is_top_level;
   };
 
 
@@ -423,27 +429,29 @@ namespace mt_kahypar {
    * The recursive child task is responsible for copying the hypergraph
    * and coarsen the hypergraph until the next contraction limit is reached.
    */
-  class RecursiveChildTask : public tbb::task {
+  class DeepPartitionChildTask : public tbb::task {
     static constexpr bool debug = false;
   public:
-    RecursiveChildTask(const OriginalHypergraphInfo original_hypergraph_info,
-                       PartitionedHypergraph& hypergraph,
-                       const Context& context,
-                       RecursivePartitionResult& result,
-                       const size_t num_threads,
-                       const size_t recursion_number,
-                       const double degree_of_parallelism) :
+    DeepPartitionChildTask(const OriginalHypergraphInfo original_hypergraph_info,
+                           PartitionedHypergraph& hypergraph,
+                           const Context& context,
+                           DeepPartitionResult& result,
+                           const size_t num_threads,
+                           const size_t recursion_number,
+                           const double degree_of_parallelism,
+                           bool is_top_level) :
             _original_hypergraph_info(original_hypergraph_info),
             _hg(hypergraph),
             _context(context),
             _result(result),
             _num_threads(num_threads),
             _recursion_number(recursion_number),
-            _degree_of_parallelism(degree_of_parallelism) { }
+            _degree_of_parallelism(degree_of_parallelism),
+            _is_top_level(is_top_level) { }
 
     tbb::task* execute() override {
       // Copy hypergraph
-      _result = RecursivePartitionResult(setupRecursiveContext());
+      _result = DeepPartitionResult(setupRecursiveContext(_is_top_level));
       _result.hypergraph = _hg.hypergraph().copy(parallel_tag_t());
 
       DBG << "Perform recursive multilevel partitioner call with"
@@ -452,49 +460,51 @@ namespace mt_kahypar {
           << "c =" << _result.context.coarsening.contraction_limit << "and"
           << "rep =" << _result.context.initial_partitioning.runs;
 
-      RecursiveChildContinuationTask& child_continuation = *new(allocate_continuation())
-              RecursiveChildContinuationTask(_result);
+      DeepChildContinuationTask& child_continuation = *new(allocate_continuation())
+              DeepChildContinuationTask(_result);
 
       // Coarsening
       child_continuation._coarsener->coarsen();
 
-      // Call recursive initial partitioner
+      // Call deep multilevel algorithm
       if ( _context.useSparsification() ) {
         // Sparsify Hypergraph, if heavy hyperedge removal is enabled
         child_continuation._sparsifier->sparsify(child_continuation._coarsener->coarsestHypergraph());
       }
 
       if ( child_continuation._sparsifier->isSparsified() ) {
-        recursivePartition(child_continuation._sparsifier->sparsifiedPartitionedHypergraph(), child_continuation);
+        deepPartition(child_continuation._sparsifier->sparsifiedPartitionedHypergraph(), child_continuation);
       } else {
-        recursivePartition(child_continuation._coarsener->coarsestPartitionedHypergraph(), child_continuation);
+        deepPartition(child_continuation._coarsener->coarsestPartitionedHypergraph(), child_continuation);
       }
 
       return nullptr;
     }
 
   private:
-    void recursivePartition(PartitionedHypergraph& partitioned_hypergraph,
-                            RecursiveChildContinuationTask& child_continuation) {
-      RecursiveTask& recursive_task = *new(child_continuation.allocate_child()) RecursiveTask(
-              _original_hypergraph_info, partitioned_hypergraph, _result.context);
+    void deepPartition(PartitionedHypergraph& partitioned_hypergraph,
+                       DeepChildContinuationTask& child_continuation) {
+      DeepPartitionTask& recursive_task = *new(child_continuation.allocate_child()) DeepPartitionTask(
+              _original_hypergraph_info, partitioned_hypergraph, _result.context, false);
       child_continuation.set_ref_count(1);
       tbb::task::spawn(recursive_task);
     }
 
-    Context setupRecursiveContext() {
+    Context setupRecursiveContext(bool is_top_level) {
       ASSERT(_num_threads >= 1);
       Context context(_context);
 
-      context.type = kahypar::ContextType::initial_partitioning;
+      if (!is_top_level) {
+        context.type = kahypar::ContextType::initial_partitioning;
+      }
+      context.partition.verbose_output = debug;
 
       // Shared Memory Parameters
       context.shared_memory.num_threads = _num_threads;
       context.shared_memory.degree_of_parallelism *= _degree_of_parallelism;
 
       // Partitioning Parameters
-      bool reduce_k =
-        _context.type == kahypar::ContextType::initial_partitioning &&
+      bool reduce_k = !is_top_level &&
         _context.shared_memory.num_threads < (size_t)_context.partition.k && _context.partition.k > 2;
       if (reduce_k) {
         context.partition.k = std::ceil(((double)context.partition.k) / 2.0);
@@ -511,8 +521,6 @@ namespace mt_kahypar {
                                                                 context.partition.perfect_balance_part_weights[part]);
         }
       }
-      context.partition.verbose_output = debug;
-      context.type = kahypar::ContextType::initial_partitioning;
 
       // Coarsening Parameters
       context.coarsening.contraction_limit = std::max(
@@ -532,14 +540,15 @@ namespace mt_kahypar {
     const OriginalHypergraphInfo _original_hypergraph_info;
     PartitionedHypergraph& _hg;
     const Context& _context;
-    RecursivePartitionResult& _result;
+    DeepPartitionResult& _result;
     const size_t _num_threads;
     const size_t _recursion_number;
     const double _degree_of_parallelism;
+    const bool _is_top_level;
   };
 
 
-  tbb::task* RecursiveTask::execute() {
+  tbb::task* DeepPartitionTask::execute() {
     if (_context.shared_memory.num_threads == 1 &&
         _context.coarsening.contraction_limit == 2 * _context.coarsening.contraction_limit_multiplier) {
       // Base Case -> Bisect Hypergraph
@@ -559,23 +568,23 @@ namespace mt_kahypar {
         size_t num_threads_1 = std::ceil(((double) std::max(_context.shared_memory.num_threads, 2UL)) / 2.0);
         size_t num_threads_2 = std::floor(((double) std::max(_context.shared_memory.num_threads, 2UL)) / 2.0);
 
-        RecursiveContinuationTask& recursive_continuation = *new(allocate_continuation())
-                RecursiveContinuationTask(_original_hypergraph_info, _hg, _context, true);
-        RecursiveChildTask& recursion_0 = *new(recursive_continuation.allocate_child()) RecursiveChildTask(
-                _original_hypergraph_info, _hg, _context,
-                recursive_continuation.r1, num_threads_1, 0, 0.5);
-        RecursiveChildTask& recursion_1 = *new(recursive_continuation.allocate_child()) RecursiveChildTask(
-                _original_hypergraph_info, _hg, _context,
-                recursive_continuation.r2, num_threads_2, 0, 0.5);
+        DeepPartitionContinuationTask& recursive_continuation = *new(allocate_continuation())
+                DeepPartitionContinuationTask(_original_hypergraph_info, _hg, _context, true, _is_top_level);
+        DeepPartitionChildTask& recursion_0 = *new(recursive_continuation.allocate_child()) DeepPartitionChildTask(
+                _original_hypergraph_info, _hg, _context, recursive_continuation.r1,
+                num_threads_1, 0, 0.5, _is_top_level);
+        DeepPartitionChildTask& recursion_1 = *new(recursive_continuation.allocate_child()) DeepPartitionChildTask(
+                _original_hypergraph_info, _hg, _context, recursive_continuation.r2,
+                num_threads_2, 0, 0.5, _is_top_level);
         recursive_continuation.set_ref_count(2);
         tbb::task::spawn(recursion_1);
         tbb::task::spawn(recursion_0);
       } else {
-        RecursiveContinuationTask& recursive_continuation = *new(allocate_continuation())
-                RecursiveContinuationTask(_original_hypergraph_info, _hg, _context, false);
-        RecursiveChildTask& recursion = *new(recursive_continuation.allocate_child()) RecursiveChildTask(
-                _original_hypergraph_info, _hg, _context,
-                recursive_continuation.r1, _context.shared_memory.num_threads, 0, 1.0);
+        DeepPartitionContinuationTask& recursive_continuation = *new(allocate_continuation())
+                DeepPartitionContinuationTask(_original_hypergraph_info, _hg, _context, false, _is_top_level);
+        DeepPartitionChildTask& recursion = *new(recursive_continuation.allocate_child()) DeepPartitionChildTask(
+                _original_hypergraph_info, _hg, _context, recursive_continuation.r1,
+                _context.shared_memory.num_threads, 0, 1.0, _is_top_level);
         recursive_continuation.set_ref_count(1);
         tbb::task::spawn(recursion);
       }
@@ -584,24 +593,40 @@ namespace mt_kahypar {
   }
 
 
-  void RecursiveInitialPartitioner::initialPartitionImpl() {
-    if (_context.type == kahypar::ContextType::main) {
+namespace deep_multilevel {
+  PartitionedHypergraph partition(Hypergraph& hypergraph, const Context& context) {
+    PartitionedHypergraph partitioned_hypergraph(context.partition.k, hypergraph, parallel_tag_t());
+    partition(partitioned_hypergraph, context);
+    return partitioned_hypergraph;
+  }
+
+  void partition(PartitionedHypergraph& hypergraph, const Context& context) {
+    if (context.partition.mode == Mode::deep_multilevel) {
+      utils::Timer::instance().start_timer("deep", "Deep Multilevel");
+    }
+    if (context.type == kahypar::ContextType::main) {
       parallel::MemoryPool::instance().deactivate_unused_memory_allocations();
       utils::Timer::instance().disable();
       utils::Stats::instance().disable();
     }
 
-    RecursiveTask& root_recursive_task = *new(tbb::task::allocate_root()) RecursiveTask(
-            OriginalHypergraphInfo { _context.partition.k, _context.partition.epsilon },
-            _hg, _context);
+    DeepPartitionTask& root_recursive_task = *new(tbb::task::allocate_root()) DeepPartitionTask(
+            OriginalHypergraphInfo { context.partition.k, context.partition.epsilon },
+            hypergraph, context, context.partition.mode == Mode::deep_multilevel);
     tbb::task::spawn_root_and_wait(root_recursive_task);
 
-    if (_context.type == kahypar::ContextType::main) {
+    if (context.partition.num_vcycles > 0 && context.type == kahypar::ContextType::main) {
+      multilevel::partitionVCycle(hypergraph.hypergraph(), hypergraph, context);
+    }
+
+    if (context.type == kahypar::ContextType::main) {
       parallel::MemoryPool::instance().activate_unused_memory_allocations();
       utils::Timer::instance().enable();
       utils::Stats::instance().enable();
     }
+    if (context.partition.mode == Mode::deep_multilevel) {
+      utils::Timer::instance().stop_timer("deep");
+    }
   }
-
-
-}
+} // namespace deep_multilevel
+} // namepace mt_kahypar

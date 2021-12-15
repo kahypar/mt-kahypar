@@ -35,7 +35,7 @@ namespace mt_kahypar {
     std::unique_ptr<IRefiner>& label_propagation,
     std::unique_ptr<IRefiner>& fm) {
     PartitionedHypergraph& partitioned_hg = *_uncoarseningData.partitioned_hg;
-    kahypar::Metrics current_metrics = initialize(partitioned_hg);
+    Metrics current_metrics = initialize(partitioned_hg);
 
     if (_context.type == kahypar::ContextType::main) {
       _context.initial_km1 = current_metrics.km1;
@@ -51,7 +51,7 @@ namespace mt_kahypar {
     double time_limit = refinementTimeLimit(_context, _uncoarseningData.hierarchy.back().coarseningTime());
     refine(partitioned_hg, label_propagation, fm, current_metrics, time_limit);
     uncontraction_progress.setObjective(
-      current_metrics.getMetric(kahypar::Mode::direct_kway, _context.partition.objective));
+      current_metrics.getMetric(Mode::direct, _context.partition.objective));
     uncontraction_progress += partitioned_hg.initialNumNodes();
 
     ds::Array<PartIdType> part_ids(_hg.initialNumNodes(), PartIdType(kInvalidPartition));
@@ -84,14 +84,14 @@ namespace mt_kahypar {
 
       // Update Progress Bar
       uncontraction_progress.setObjective(
-        current_metrics.getMetric(kahypar::Mode::direct_kway, _context.partition.objective));
+        current_metrics.getMetric(Mode::direct, _context.partition.objective));
       uncontraction_progress += partitioned_hg.initialNumNodes() - num_nodes;
     }
 
     // If we reach the original hypergraph and partition is imbalanced, we try to rebalance it
     if (_context.type == kahypar::ContextType::main && !metrics::isBalanced(*_uncoarseningData.partitioned_hg, _context)) {
       const HyperedgeWeight quality_before = current_metrics.getMetric(
-        kahypar::Mode::direct_kway, _context.partition.objective);
+        Mode::direct, _context.partition.objective);
       if (_context.partition.verbose_output) {
         LOG << RED << "Partition is imbalanced (Current Imbalance:"
         << metrics::imbalance(*_uncoarseningData.partitioned_hg, _context) << ")" << END;
@@ -119,7 +119,7 @@ namespace mt_kahypar {
         utils::Timer::instance().stop_timer("rebalance");
 
         const HyperedgeWeight quality_after = current_metrics.getMetric(
-          kahypar::Mode::direct_kway, _context.partition.objective);
+          Mode::direct, _context.partition.objective);
         if (_context.partition.verbose_output) {
           const HyperedgeWeight quality_delta = quality_after - quality_before;
           if (quality_delta > 0) {
@@ -134,8 +134,8 @@ namespace mt_kahypar {
     }
 
     ASSERT(metrics::objective(*_uncoarseningData.partitioned_hg, _context.partition.objective) ==
-            current_metrics.getMetric(kahypar::Mode::direct_kway, _context.partition.objective),
-            V(current_metrics.getMetric(kahypar::Mode::direct_kway, _context.partition.objective))
+            current_metrics.getMetric(Mode::direct, _context.partition.objective),
+            V(current_metrics.getMetric(Mode::direct, _context.partition.objective))
             << V(metrics::objective(*_uncoarseningData.partitioned_hg, _context.partition.objective)));
     return std::move(*_uncoarseningData.partitioned_hg);
   }
@@ -144,7 +144,7 @@ namespace mt_kahypar {
     PartitionedHypergraph& partitioned_hypergraph,
     std::unique_ptr<IRefiner>& label_propagation,
     std::unique_ptr<IRefiner>& fm,
-    kahypar::Metrics& current_metrics,
+    Metrics& current_metrics,
     const double time_limit) {
 
     if ( debug && _context.type == kahypar::ContextType::main ) {
@@ -179,7 +179,7 @@ namespace mt_kahypar {
       }
 
       if ( _context.type == kahypar::ContextType::main ) {
-        ASSERT(current_metrics.getMetric(kahypar::Mode::direct_kway, _context.partition.objective)
+        ASSERT(current_metrics.getMetric(Mode::direct, _context.partition.objective)
                == metrics::objective(partitioned_hypergraph, _context.partition.objective),
                "Actual metric" << V(metrics::km1(partitioned_hypergraph))
                << "does not match the metric updated by the refiners" << V(current_metrics.km1));

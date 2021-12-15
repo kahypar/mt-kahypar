@@ -33,7 +33,7 @@
 namespace mt_kahypar {
 
   template <template <typename> class GainPolicy>
-  void Rebalancer<GainPolicy>::rebalance(kahypar::Metrics& best_metrics) {
+  void Rebalancer<GainPolicy>::rebalance(Metrics& best_metrics) {
     // If partition is imbalanced, rebalancer is activated
     if ( !metrics::isBalanced(_hg, _context) ) {
       _gain.reset();
@@ -155,13 +155,13 @@ namespace mt_kahypar {
 
       // Update metrics statistics
       HyperedgeWeight current_metric = best_metrics.getMetric(
-              kahypar::Mode::direct_kway, _context.partition.objective);
+              Mode::direct, _context.partition.objective);
       Gain delta = _gain.delta();
       HEAVY_REFINEMENT_ASSERT(current_metric + delta ==
                               metrics::objective(_hg, _context.partition.objective),
                               V(current_metric) << V(delta) <<
                                                 V(metrics::objective(_hg, _context.partition.objective)));
-      best_metrics.updateMetric(current_metric + delta, kahypar::Mode::direct_kway, _context.partition.objective);
+      best_metrics.updateMetric(current_metric + delta, Mode::direct, _context.partition.objective);
     }
   }
 

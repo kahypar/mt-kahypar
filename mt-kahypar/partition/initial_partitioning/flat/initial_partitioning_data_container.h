@@ -220,17 +220,18 @@ class InitialPartitioningDataContainer {
           return true;
         } (), "There are unassigned hypernodes!");
 
-      kahypar::Metrics current_metric = {
-        metrics::hyperedgeCut(_partitioned_hypergraph, false),
-        metrics::km1(_partitioned_hypergraph, false),
-        metrics::imbalance(_partitioned_hypergraph, _context) };
+      Metrics current_metric;
+      current_metric.cut = metrics::hyperedgeCut(_partitioned_hypergraph, false);
+      current_metric.km1 = metrics::km1(_partitioned_hypergraph, false);
+      current_metric.imbalance = metrics::imbalance(_partitioned_hypergraph, _context);
+
       const HyperedgeWeight quality_before_refinement =
-        current_metric.getMetric(kahypar::Mode::direct_kway, _context.partition.objective);
+        current_metric.getMetric(Mode::direct, _context.partition.objective);
 
       refineCurrentPartition(current_metric, prng);
 
       PartitioningResult result(algorithm, quality_before_refinement,
-        current_metric.getMetric(kahypar::Mode::direct_kway, _context.partition.objective),
+        current_metric.getMetric(Mode::direct, _context.partition.objective),
         current_metric.imbalance);
 
       // Aggregate Stats
@@ -239,7 +240,7 @@ class InitialPartitioningDataContainer {
       _stats[algorithm_index].total_time += time;
       ++_stats[algorithm_index].total_calls;
 
-      _global_stats.add_run(algorithm, current_metric.getMetric(kahypar::Mode::direct_kway,
+      _global_stats.add_run(algorithm, current_metric.getMetric(Mode::direct,
         _context.partition.objective), current_metric.imbalance <= _context.partition.epsilon);
 
       return result;
@@ -247,7 +248,7 @@ class InitialPartitioningDataContainer {
 
     PartitioningResult performRefinementOnPartition(vec<PartitionID>& partition,
                                                     PartitioningResult& input, std::mt19937& prng) {
-      kahypar::Metrics current_metric = {
+      Metrics current_metric = {
         input._objective,
         input._objective,
         input._imbalance };
@@ -262,14 +263,14 @@ class InitialPartitioningDataContainer {
       }
 
       HEAVY_INITIAL_PARTITIONING_ASSERT(
-        current_metric.getMetric(kahypar::Mode::direct_kway, _context.partition.objective) ==
+        current_metric.getMetric(Mode::direct, _context.partition.objective) ==
         metrics::objective(_partitioned_hypergraph, _context.partition.objective, false));
 
       refineCurrentPartition(current_metric, prng);
 
       PartitioningResult result(_result._algorithm,
-        current_metric.getMetric(kahypar::Mode::direct_kway, _context.partition.objective),
-        current_metric.getMetric(kahypar::Mode::direct_kway, _context.partition.objective),
+        current_metric.getMetric(Mode::direct, _context.partition.objective),
+        current_metric.getMetric(Mode::direct, _context.partition.objective),
         current_metric.imbalance);
 
       return result;
@@ -298,7 +299,7 @@ class InitialPartitioningDataContainer {
       }
     }
 
-    void refineCurrentPartition(kahypar::Metrics& current_metric, std::mt19937& prng) {
+    void refineCurrentPartition(Metrics& current_metric, std::mt19937& prng) {
       if ( _context.partition.k == 2 && _twoway_fm ) {
         bool improvement = true;
         for ( size_t i = 0; i < _context.initial_partitioning.fm_refinment_rounds && improvement; ++i ) {
@@ -311,7 +312,7 @@ class InitialPartitioningDataContainer {
       }
 
       HEAVY_INITIAL_PARTITIONING_ASSERT(
-        current_metric.getMetric(kahypar::Mode::direct_kway, _context.partition.objective) ==
+        current_metric.getMetric(Mode::direct, _context.partition.objective) ==
         metrics::objective(_partitioned_hypergraph, _context.partition.objective, false));
     }
 

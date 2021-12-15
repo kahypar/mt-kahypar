@@ -63,7 +63,7 @@ class LabelPropagationRefiner final : public IRefiner {
 
   bool refineImpl(PartitionedHypergraph& hypergraph,
                   const parallel::scalable_vector<HypernodeID>& refinement_nodes,
-                  kahypar::Metrics& best_metrics,
+                  Metrics& best_metrics,
                   double) final ;
 
   void labelPropagation(PartitionedHypergraph& hypergraph);

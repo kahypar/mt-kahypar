@@ -32,7 +32,7 @@ struct PartitioningParameters {
   #else
   Paradigm paradigm = Paradigm::multilevel;
   #endif
-  kahypar::Mode mode = kahypar::Mode::UNDEFINED;
+  Mode mode = Mode::UNDEFINED;
   kahypar::Objective objective = kahypar::Objective::UNDEFINED;
   FileFormat file_format = FileFormat::hMetis;
   double epsilon = std::numeric_limits<double>::max();
@@ -198,7 +198,7 @@ struct InitialPartitioningParameters {
     // Enable all initial partitioner per default
     enabled_ip_algos(static_cast<size_t>(InitialPartitioningAlgorithm::UNDEFINED), true) { }
 
-  InitialPartitioningMode mode = InitialPartitioningMode::UNDEFINED;
+  Mode mode = Mode::UNDEFINED;
   RefinementParameters refinement = { };
   std::vector<bool> enabled_ip_algos;
   size_t runs = 1;
@@ -241,8 +241,6 @@ class Context {
   Context() { }
 
   bool useSparsification() const ;
-
-  bool isMainRecursiveBisection() const ;
 
   void setupPartWeights(const HypernodeWeight total_hypergraph_weight);
 

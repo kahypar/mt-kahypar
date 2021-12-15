@@ -34,7 +34,7 @@ namespace mt_kahypar {
   bool LabelPropagationRefiner<GainPolicy>::refineImpl(
                   PartitionedHypergraph& hypergraph,
                   const parallel::scalable_vector<HypernodeID>& refinement_nodes,
-                  kahypar::Metrics& best_metrics,
+                  Metrics& best_metrics,
                   const double)  {
     _gain.reset();
     _next_active.reset();
@@ -50,7 +50,7 @@ namespace mt_kahypar {
 
     // Update metrics statistics
     HyperedgeWeight current_metric = best_metrics.getMetric(
-    kahypar::Mode::direct_kway, _context.partition.objective);
+    Mode::direct, _context.partition.objective);
     Gain delta = _gain.delta();
     ASSERT(delta <= 0, "LP refiner worsen solution quality");
 
@@ -62,7 +62,7 @@ namespace mt_kahypar {
                                               V(metrics::objective(hypergraph, _context.partition.objective,
                                                                     _context.refinement.label_propagation.execute_sequential)));
 
-    best_metrics.updateMetric(current_metric + delta, kahypar::Mode::direct_kway, _context.partition.objective);
+    best_metrics.updateMetric(current_metric + delta, Mode::direct, _context.partition.objective);
     utils::Stats::instance().update_stat("lp_improvement", std::abs(delta));
     return delta < 0;
   }

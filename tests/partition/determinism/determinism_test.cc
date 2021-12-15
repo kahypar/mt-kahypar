@@ -43,7 +43,7 @@ namespace mt_kahypar {
             context(),
             metrics() {
       context.partition.graph_filename = "../tests/instances/powersim.mtx.hgr";
-      context.partition.mode = kahypar::Mode::direct_kway;
+      context.partition.mode = Mode::direct;
       context.partition.epsilon = 0.25;
       context.partition.verbose_output = false;
       context.partition.k = 8;
@@ -52,7 +52,7 @@ namespace mt_kahypar {
       context.shared_memory.num_threads = std::thread::hardware_concurrency();
 
       // Initial Partitioning
-      context.initial_partitioning.mode = InitialPartitioningMode::recursive_bisection;
+      context.initial_partitioning.mode = Mode::recursive_bipartitioning;
       context.initial_partitioning.runs = 1;
       context.initial_partitioning.population_size = 16;
 
@@ -115,7 +115,7 @@ namespace mt_kahypar {
         DeterministicLabelPropagationRefiner refiner(hypergraph, context);
         refiner.initialize(partitioned_hypergraph);
         vec<HypernodeID> dummy_refinement_nodes;
-        kahypar::Metrics my_metrics = metrics;
+        Metrics my_metrics = metrics;
         refiner.refine(partitioned_hypergraph, dummy_refinement_nodes, my_metrics, 0.0);
 
         if (i == 0) {
@@ -133,7 +133,7 @@ namespace mt_kahypar {
     Hypergraph hypergraph;
     PartitionedHypergraph partitioned_hypergraph;
     Context context;
-    kahypar::Metrics metrics;
+    Metrics metrics;
     static constexpr size_t num_repetitions = 5;
   };
 

@@ -26,6 +26,8 @@
 #include "mt-kahypar/partition/preprocessing/sparsification/degree_zero_hn_remover.h"
 #include "mt-kahypar/partition/preprocessing/sparsification/large_he_remover.h"
 #include "mt-kahypar/partition/preprocessing/community_detection/parallel_louvain.h"
+#include "mt-kahypar/partition/recursive_bipartitioning.h"
+#include "mt-kahypar/partition/deep_multilevel.h"
 #include "mt-kahypar/utils/hypergraph_statistics.h"
 #include "mt-kahypar/utils/stats.h"
 #include "mt-kahypar/utils/timer.h"
@@ -161,40 +163,6 @@ namespace mt_kahypar {
     parallel::MemoryPool::instance().release_mem_group("Preprocessing");
   }
 
-  PartitionedHypergraph partitionVCycle(Hypergraph& hypergraph,
-                                        PartitionedHypergraph&& partitioned_hypergraph,
-                                        Context& context,
-                                        LargeHyperedgeRemover& large_he_remover) {
-    ASSERT(context.partition.num_vcycles > 0);
-
-    for ( size_t i = 0; i < context.partition.num_vcycles; ++i ) {
-      // Reset memory pool
-      hypergraph.reset();
-      parallel::MemoryPool::instance().reset();
-      parallel::MemoryPool::instance().release_mem_group("Preprocessing");
-
-      if ( context.partition.paradigm == Paradigm::nlevel ) {
-        // Workaround: reset() function of hypergraph reinserts all removed
-        // hyperedges to incident net lists of each vertex again.
-        large_he_remover.removeLargeHyperedgesInNLevelVCycle(hypergraph);
-      }
-
-      // Store partition and assign it as community ids in order to
-      // restrict contractions in v-cycle to partition ids
-      hypergraph.doParallelForAllNodes([&](const HypernodeID& hn) {
-        hypergraph.setCommunityID(hn, partitioned_hypergraph.partID(hn));
-      });
-
-      // V-Cycle Multilevel Partitioning
-      io::printVCycleBanner(context, i + 1);
-      // TODO why does this have to make a copy
-      partitioned_hypergraph = multilevel::partition(
-              hypergraph, context, true /* vcycle */);
-    }
-
-    return std::move(partitioned_hypergraph);
-  }
-
   PartitionedHypergraph partition(Hypergraph& hypergraph, Context& context) {
     configurePreprocessing(hypergraph, context);
     setupContext(hypergraph, context);
@@ -212,14 +180,16 @@ namespace mt_kahypar {
     sanitize(hypergraph, context, degree_zero_hn_remover, large_he_remover);
     utils::Timer::instance().stop_timer("preprocessing");
 
-    // ################## MULTILEVEL ##################
-    PartitionedHypergraph partitioned_hypergraph = multilevel::partition(hypergraph, context);
-
-    // ################## V-Cycle s##################
-    if ( context.partition.num_vcycles > 0 ) {
-      partitioned_hypergraph = partitionVCycle(
-        hypergraph, std::move(partitioned_hypergraph),
-        context, large_he_remover);
+    // ################## MULTILEVEL & VCYCLE ##################
+    PartitionedHypergraph partitioned_hypergraph;
+    if (context.partition.mode == Mode::direct) {
+      partitioned_hypergraph = multilevel::partition(hypergraph, context);
+    } else if (context.partition.mode == Mode::recursive_bipartitioning) {
+      partitioned_hypergraph = recursive_bipartitioning::partition(hypergraph, context);
+    } else if (context.partition.mode == Mode::deep_multilevel) {
+      partitioned_hypergraph = deep_multilevel::partition(hypergraph, context);
+    } else {
+      ERROR("Invalid mode: " << context.partition.mode);
     }
 
     // ################## POSTPROCESSING ##################

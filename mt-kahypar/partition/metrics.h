@@ -22,7 +22,35 @@
 
 #include "mt-kahypar/partition/context.h"
 
-namespace mt_kahypar::metrics {
+namespace mt_kahypar {
+
+struct Metrics {
+  HyperedgeWeight km1;
+  HyperedgeWeight cut;
+  double imbalance;
+
+  void updateMetric(const HyperedgeWeight value, const Mode mode, const kahypar::Objective objective) {
+    if (mode == Mode::recursive_bipartitioning || objective == kahypar::Objective::cut) {
+      // in recursive bisection, km1 is also optimized via the cut net metric
+      cut = value;
+    } else {
+      ASSERT(objective == kahypar::Objective::km1);
+      km1 = value;
+    }
+  }
+
+  HyperedgeWeight getMetric(const Mode mode, const kahypar::Objective objective) {
+    if (mode == Mode::recursive_bipartitioning || objective == kahypar::Objective::cut) {
+      // in recursive bisection, km1 is also optimized via the cut net metric
+      return cut;
+    } else {
+      ASSERT(objective == kahypar::Objective::km1);
+      return km1;
+    }
+  }
+};
+
+namespace metrics {
 
 HyperedgeWeight hyperedgeCut(const PartitionedHypergraph& hypergraph, bool parallel = true);
 
@@ -39,5 +67,5 @@ HyperedgeWeight objective(
 
 double imbalance(const PartitionedHypergraph& hypergraph, const Context& context);
 
-
+}  // namespace metrics
 }  // namespace mt_kahypar

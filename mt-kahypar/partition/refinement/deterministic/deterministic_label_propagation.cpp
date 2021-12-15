@@ -31,7 +31,7 @@ namespace mt_kahypar {
 
   bool DeterministicLabelPropagationRefiner::refineImpl(PartitionedHypergraph& phg,
                                                         const vec<HypernodeID>&,
-                                                        kahypar::Metrics& best_metrics,
+                                                        Metrics& best_metrics,
                                                         const double) {
     Gain overall_improvement = 0;
     constexpr size_t num_buckets = utils::ParallelPermutation<HypernodeID>::num_buckets;
