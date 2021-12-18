@@ -130,7 +130,7 @@ public:
     ASSERT(phg.partID(u) == _active_part);
     auto [_to, gain] = computeBestTargetBlock(phg, u, phg.partID(u), _parts);
     ASSERT(_to != _active_part);
-    ASSERT(_blocks_enabled[to] || _enable_all_blocks);
+    ASSERT(blockIsEnabled(_to));
     m.node = u;
     m.from = phg.partID(u);
     m.to = _to;
@@ -146,6 +146,7 @@ public:
     }
     _blockPQ.clear();
     _enable_all_blocks = false;
+    _rebalancing = false;
     _target_parts.assign(_target_parts.size(), kInvalidPartition);
   }
 
@@ -165,14 +166,26 @@ public:
     }
   }
 
+  void setOnlyEnabledBlock(PartitionID p) {
+    _enable_all_blocks = false;
+    _blocks_enabled.assign(_blocks_enabled.size(), false);
+    _blocks_enabled[p] = true;
+    _rebalancing = true;
+  }
+
 private:
+
+  bool blockIsEnabled(PartitionID p) {
+    return _blocks_enabled[p] || _enable_all_blocks;
+  }
+
   pqStatus updatePQs() {
     // first update the blockPQ
     for (PartitionID i = 0; i < _context.partition.k; ++i) {
       updateOrRemoveToPQFromBlocks(i);
     }
     // then if it is empty try enabling all blocks
-    if (_blockPQ.empty() && !_enable_all_blocks) {
+    if (_blockPQ.empty() && !_enable_all_blocks && !_rebalancing) {
       _enable_all_blocks = true;
       for (PartitionID i = 0; i < _context.partition.k; ++i) {
           updateOrRemoveToPQFromBlocks(i);
@@ -184,7 +197,7 @@ private:
 
   void updateOrRemoveToPQFromBlocks(const PartitionID i) {
       if (!_toPQs[i].empty()) {
-        if (_blocks_enabled[i] || _enable_all_blocks) {
+        if (blockIsEnabled(i)) {
           _blockPQ.insertOrAdjustKey(i, _toPQs[i].topKey());
         }
       } else if (_blockPQ.contains(i)) {
@@ -201,7 +214,7 @@ private:
     HyperedgeWeight to_load = std::numeric_limits<HyperedgeWeight>::max();
     HyperedgeWeight to_load_after = std::numeric_limits<HyperedgeWeight>::max();
     for (PartitionID i : parts) {
-      if (i != from) {
+      if (i != from && blockIsEnabled(i)) {
         const HyperedgeWeight load = phg.partLoad(i);
         const HyperedgeWeight load_after = load + phg.moveToPenalty(u, i);
         if (load_after < to_load_after || (load_after == to_load_after && load < to_load)) {
@@ -236,6 +249,7 @@ private:
   vec<PartitionID> _parts;
   vec<bool> _blocks_enabled;
   bool _enable_all_blocks = false;
+  bool _rebalancing = false;
   PartitionID _active_part;
 };
 }

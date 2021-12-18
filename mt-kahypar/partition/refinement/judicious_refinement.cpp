@@ -157,6 +157,7 @@ namespace mt_kahypar {
     };
     Move move;
     bool done = false;
+    bool force_rebalancing = false;
     size_t initial_num_moves = _moves.size();
     vec<HypernodeID> move_nodes;
     while (!done) {
@@ -202,7 +203,19 @@ namespace mt_kahypar {
         revertToBestLocalPrefix(phg, initial_num_moves);
         done = true;
       } else if (_part_loads.topKey() >= from_load * _context.refinement.judicious.part_load_margin) {
-        done = true;
+        if (_part_loads.topKey() < _part_loads.keyOfSecond() * _context.refinement.judicious.part_load_margin) {
+          if (!force_rebalancing) {
+            if (debug) {
+              LOG << "Partition loads are to similar, starting rebalancing";
+            }
+            force_rebalancing = true;
+            _gain_cache.setOnlyEnabledBlock(_part_loads.top());
+          } else {
+            updateNeighbors(phg, move);
+          }
+        } else {
+          done = true;
+        }
       } else {
         updateNeighbors(phg, move);
       }
