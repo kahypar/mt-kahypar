@@ -28,19 +28,6 @@ class JudiciousGainCache final {
 public:
   using PriorityQueue = ds::ExclusiveHandleHeap<ds::MaxHeap<HypernodeWeight, PartitionID>>;
 
-  /*! \enum pqStatus
-   *
-   *  Return status of findNextMove()
-   *  ok: move found
-   *  rollback: disabled blocks have been enabled and caller should perform a rollback
-   *  empty: no moves left
-   */
-  enum pqStatus {
-    ok = 0,
-    rollback = 1,
-    empty = 2,
-  };
-
   explicit JudiciousGainCache(const Context& context, HypernodeID num_nodes) :
     _context(context),
     _toPQs(static_cast<size_t>(context.partition.k), PriorityQueue(num_nodes)),
@@ -58,29 +45,11 @@ public:
     _target_parts[v] = target;
   }
 
-  void initBlockPQ(PartitionedHypergraph& phg, HypernodeWeight from_load) {
+  void initBlockPQ() {
     ASSERT(_blockPQ.empty());
-    vec<std::pair<HyperedgeWeight, PartitionID>> remove_candidates;
     for (PartitionID i = 0; i < _context.partition.k; ++i) {
-      const HyperedgeWeight load = phg.partLoad(i);
-      if (static_cast<double>(load) / from_load > _context.refinement.judicious.block_disable_factor) {
-        remove_candidates.push_back(std::make_pair(load, i));
-        _blocks_enabled[i] = false;
-      } else if (!_toPQs[i].empty()) {
+      if (!_toPQs[i].empty()) {
         _blockPQ.insert(i, _toPQs[i].topKey());
-      }
-    }
-    if (_blockPQ.size() > static_cast<size_t>(_context.partition.k / 2)) {
-      return;
-    }
-    // if too many blocks would be disabled, add some of them to the blockPQ by increasing load
-    std::sort(remove_candidates.begin(), remove_candidates.end());
-    for (size_t i = 0; i < remove_candidates.size() &&
-         _blockPQ.size() <= static_cast<size_t>(_context.partition.k / 2); ++i) {
-      const PartitionID candidate = remove_candidates[i].second;
-      if (!_toPQs[candidate].empty()) {
-        _blockPQ.insert(candidate, _toPQs[candidate].topKey());
-        _blocks_enabled[candidate] = true;
       }
     }
   }
@@ -116,11 +85,10 @@ public:
     }
   }
 
-  pqStatus findNextMove(const PartitionedHypergraph& phg, Move& m) {
+  bool findNextMove(const PartitionedHypergraph& phg, Move& m) {
     ASSERT(!_blockPQ.contains(_active_part));
-    const auto status = updatePQs();
-    if (status != pqStatus::ok) {
-      return status;
+    if (!updatePQs()) {
+      return false;
     }
     ASSERT(!_blockPQ.empty());
     const PartitionID to = _blockPQ.top();
@@ -136,7 +104,7 @@ public:
     m.to = _to;
     m.gain = gain;
     _toPQs[to].deleteTop();
-    return status;
+    return true;
   }
 
   void resetGainCache() {
@@ -145,7 +113,6 @@ public:
       _blocks_enabled[i] = true;
     }
     _blockPQ.clear();
-    _enable_all_blocks = false;
     _rebalancing = false;
     _target_parts.assign(_target_parts.size(), kInvalidPartition);
   }
@@ -154,20 +121,7 @@ public:
     return _target_parts[v];
   }
 
-  void updateEnabledBlocks(const PartitionID to, const HyperedgeWeight from_load, const HyperedgeWeight to_load) {
-    // only consider disabling block if not all blocks should be enabled, at least half the blocks are enabled and the block is larger enough
-    if (!_enable_all_blocks
-        && _blockPQ.size() > static_cast<size_t>(_context.partition.k / 2)
-        && static_cast<double>(to_load) / from_load > _context.refinement.judicious.block_disable_factor) {
-      _blocks_enabled[to] = false;
-      if (_blockPQ.contains(to)) {
-        _blockPQ.remove(to);
-      }
-    }
-  }
-
   void setOnlyEnabledBlock(PartitionID p) {
-    _enable_all_blocks = false;
     _blocks_enabled.assign(_blocks_enabled.size(), false);
     _blocks_enabled[p] = true;
     _rebalancing = true;
@@ -175,24 +129,16 @@ public:
 
 private:
 
-  bool blockIsEnabled(PartitionID p) {
-    return _blocks_enabled[p] || _enable_all_blocks;
+  bool blockIsEnabled(PartitionID p) const {
+    return _blocks_enabled[p];
   }
 
-  pqStatus updatePQs() {
+  bool updatePQs() {
     // first update the blockPQ
     for (PartitionID i = 0; i < _context.partition.k; ++i) {
       updateOrRemoveToPQFromBlocks(i);
     }
-    // then if it is empty try enabling all blocks
-    if (_blockPQ.empty() && !_enable_all_blocks && !_rebalancing) {
-      _enable_all_blocks = true;
-      for (PartitionID i = 0; i < _context.partition.k; ++i) {
-          updateOrRemoveToPQFromBlocks(i);
-      }
-      return _blockPQ.empty() ? pqStatus::empty : pqStatus::rollback;
-    }
-    return _blockPQ.empty() ? pqStatus::empty : pqStatus::ok;
+    return !_blockPQ.empty();
   }
 
   void updateOrRemoveToPQFromBlocks(const PartitionID i) {
@@ -224,11 +170,6 @@ private:
         }
       }
     }
-/*
-    if (to == kInvalidPartition) {
-      return std::make_pair(to, std::numeric_limits<HyperedgeWeight>::min());
-    }
-*/
     ASSERT(to != kInvalidPartition);
     to_load_after += phg.weightOfDisabledEdges(u);
     Gain benefit = phg.moveFromBenefit(u) + phg.weightOfDisabledEdges(u);
@@ -248,7 +189,6 @@ private:
   vec<PartitionID> _target_parts;
   vec<PartitionID> _parts;
   vec<bool> _blocks_enabled;
-  bool _enable_all_blocks = false;
   bool _rebalancing = false;
   PartitionID _active_part;
 };

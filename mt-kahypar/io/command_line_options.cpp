@@ -431,12 +431,6 @@ namespace mt_kahypar {
                               &context.initial_partitioning.refinement.judicious.min_load_ratio))->value_name(
                                 "<double>")->default_value(1.05),
              "If the load ratio between the heaviest and lightest block becomes less than this value, exit the refinement step.")
-            ((initial_partitioning ? "i-r-judicious-block-disable-factor" : "r-judicious-block-disable-factor"),
-             po::value<double>((!initial_partitioning ? &context.refinement.judicious.block_disable_factor :
-                              &context.initial_partitioning.refinement.judicious.block_disable_factor))->value_name(
-                                "<double>")->default_value(0.9),
-             "If a blocks load is larger than that of the heaviest block by this factor, it does not receive nodes until all other blocks received theirs."
-             "At least half of all blocks are always enabled.")
             ((initial_partitioning ? "i-r-judicious-abort-factor" : "r-judicious-abort-factor"),
              po::value<double>((!initial_partitioning ? &context.refinement.judicious.abort_factor :
                               &context.initial_partitioning.refinement.judicious.abort_factor))->value_name(

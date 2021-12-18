@@ -143,7 +143,7 @@ namespace mt_kahypar {
     const HyperedgeWeight initial_from_load = phg.partLoad(part_id);
     HyperedgeWeight from_load = initial_from_load;
     // disable to-Blocks that are too large
-    _gain_cache.initBlockPQ(phg, initial_from_load);
+    _gain_cache.initBlockPQ();
     auto delta_func = [&](const HyperedgeID he,
                           const HyperedgeWeight,
                           const HypernodeID,
@@ -160,20 +160,7 @@ namespace mt_kahypar {
     bool force_rebalancing = false;
     size_t initial_num_moves = _moves.size();
     vec<HypernodeID> move_nodes;
-    while (!done) {
-      JudiciousGainCache::pqStatus status = _gain_cache.findNextMove(phg, move);
-      if (status == JudiciousGainCache::pqStatus::empty) {
-        if (debug) {
-          LOG << "Abort due to empty PQ";
-        }
-        break;
-      } else if (status == JudiciousGainCache::pqStatus::rollback) {
-        if (debug) {
-          LOG << "Did rollback";
-        }
-        revertToBestLocalPrefix(phg, initial_num_moves, true);
-        continue;
-      }
+    while (!done && _gain_cache.findNextMove(phg, move)) {
       if (move.to == kInvalidPartition) {
         continue;
       }
@@ -185,7 +172,6 @@ namespace mt_kahypar {
       _moves.push_back(move);
       const HyperedgeWeight to_load = phg.partLoad(move.to);
       from_load = phg.partLoad(move.from);
-      _gain_cache.updateEnabledBlocks(move.to, from_load, to_load);
       _part_loads.adjustKey(move.to, to_load);
       Gain gain = initial_from_load - std::max(_part_loads.topKey(), from_load);
       if (_total_improvement + gain >= _best_improvement) {
