@@ -66,7 +66,7 @@ public:
     Gain gain = 0;
     PartitionID newTarget = kInvalidPartition;
 
-    if (phg.k() < 4 || designatedTargetV == move.from || designatedTargetV == move.to) {
+    if (phg.k() < 4 || designatedTargetV == move.from || designatedTargetV == move.to || _rebalancing) {
       // moveToPenalty of designatedTargetV is affected.
       // and may now be greater than that of other blocks --> recompute full
       std::tie(newTarget, gain) = computeBestTargetBlock(phg, v, pv, _parts);
