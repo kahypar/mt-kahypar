@@ -160,4 +160,14 @@ namespace mt_kahypar::metrics {
     return *std::max_element(vol.begin(), vol.end());
   }
 
+  double loadImbalance(const PartitionedHypergraph& hypergraph) {
+    HyperedgeWeight min_load = hypergraph.partLoad(0);
+    HyperedgeWeight max_load = hypergraph.partLoad(0);
+    for (PartitionID i = 1; i < hypergraph.k(); ++i) {
+      min_load = std::min(min_load, hypergraph.partLoad(i));
+      max_load = std::max(max_load, hypergraph.partLoad(i));
+    }
+    return static_cast<double>(max_load) / min_load - 1.0;
+  }
+
 } // namespace mt_kahypar::metrics

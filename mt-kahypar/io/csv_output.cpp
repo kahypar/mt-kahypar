@@ -31,7 +31,7 @@ namespace mt_kahypar::io::csv {
 
   std::string header() {
     return "algorithm,threads,graph,k,seed,epsilon,imbalance,"
-           "objective,km1,cut,initial_km1,judiciousLoad,initialJudiciousLoad,partitionTime,fmTime,lpTime,coarseningTime,ipTime,preprocessingTime"
+           "objective,km1,cut,initial_km1,judiciousLoad,initialJudiciousLoad,loadImbalance,partitionTime,fmTime,lpTime,coarseningTime,ipTime,preprocessingTime"
            "\n";
   }
 
@@ -64,6 +64,7 @@ namespace mt_kahypar::io::csv {
     s << context.initial_km1 << sep;
     s << metrics::judiciousLoad(phg) << sep;
     s << context.refinement.judicious.initial_judicious_load << sep;
+    s << metrics::loadImbalance(phg) << sep;
     s << elapsed_seconds.count() << sep;
 
     utils::Timer& timer = utils::Timer::instance(context.partition.show_detailed_timings);
