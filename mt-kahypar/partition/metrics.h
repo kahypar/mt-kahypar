@@ -41,6 +41,6 @@ double imbalance(const PartitionedHypergraph& hypergraph, const Context& context
 
 HyperedgeWeight judiciousLoad(const PartitionedHypergraph& hypergraph, bool parallel = true);
 
-double loadImbalance(const PartitionedHypergraph& hypergraph);
+HyperedgeWeight minLoad(const PartitionedHypergraph& hypergraph, const bool parallel = true);
 
 }  // namespace mt_kahypar

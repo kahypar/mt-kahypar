@@ -126,7 +126,7 @@ namespace mt_kahypar::metrics {
     return max_balance - 1.0;
   }
 
-  HyperedgeWeight judiciousLoad(const PartitionedHypergraph& hypergraph, const bool parallel) {
+  std::pair<HyperedgeWeight, HyperedgeWeight> minMaxLoad(const PartitionedHypergraph& hypergraph, const bool parallel) {
     vec<HyperedgeWeight> vol(hypergraph.k(), 0);
     if ( parallel ) {
       tbb::enumerable_thread_specific<vec<HyperedgeWeight>> ets_vol(hypergraph.k(), 0);
@@ -157,17 +157,15 @@ namespace mt_kahypar::metrics {
             vol[hypergraph.partID(hn)] += hypergraph.weightOfDisabledEdges(hn);
       }
     }
-    return *std::max_element(vol.begin(), vol.end());
+    return std::make_pair(*std::min_element(vol.begin(), vol.end()), *std::max_element(vol.begin(), vol.end()));
   }
 
-  double loadImbalance(const PartitionedHypergraph& hypergraph) {
-    HyperedgeWeight min_load = hypergraph.partLoad(0);
-    HyperedgeWeight max_load = hypergraph.partLoad(0);
-    for (PartitionID i = 1; i < hypergraph.k(); ++i) {
-      min_load = std::min(min_load, hypergraph.partLoad(i));
-      max_load = std::max(max_load, hypergraph.partLoad(i));
-    }
-    return static_cast<double>(max_load) / min_load - 1.0;
+  HyperedgeWeight judiciousLoad(const PartitionedHypergraph& hypergraph, const bool parallel) {
+    return minMaxLoad(hypergraph, parallel).second;
+  }
+
+  HyperedgeWeight minLoad(const PartitionedHypergraph& hypergraph, const bool parallel) {
+    return minMaxLoad(hypergraph, parallel).first;
   }
 
 } // namespace mt_kahypar::metrics
