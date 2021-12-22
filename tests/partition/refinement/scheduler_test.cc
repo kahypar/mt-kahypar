@@ -213,7 +213,7 @@ class AFlowRefinementEndToEnd : public Test {
     context.partition.graph_filename = "../tests/instances/ibm01.hgr";
     context.partition.k = 8;
     context.partition.epsilon = 0.03;
-    context.partition.mode = kahypar::Mode::direct_kway;
+    context.partition.mode = Mode::direct;
     context.partition.objective = kahypar::Objective::km1;
     context.shared_memory.num_threads = std::thread::hardware_concurrency();
     context.refinement.flows.algorithm = FlowAlgorithm::mock;
@@ -286,7 +286,7 @@ TEST_F(AFlowRefinementEndToEnd, SmokeTestWithTwoBlocksPerRefiner) {
   const bool debug = false;
   FlowRefinementScheduler scheduler(hg, context);
 
-  kahypar::Metrics metrics;
+  Metrics metrics;
   metrics.cut = metrics::hyperedgeCut(phg);
   metrics.km1 = metrics::km1(phg);
   metrics.imbalance = metrics::imbalance(phg, context);
@@ -319,7 +319,7 @@ TEST_F(AFlowRefinementEndToEnd, SmokeTestWithFourBlocksPerRefiner) {
   FlowRefinerMockControl::instance().max_num_blocks = 4;
   FlowRefinementScheduler scheduler(hg, context);
 
-  kahypar::Metrics metrics;
+  Metrics metrics;
   metrics.cut = metrics::hyperedgeCut(phg);
   metrics.km1 = metrics::km1(phg);
   metrics.imbalance = metrics::imbalance(phg, context);

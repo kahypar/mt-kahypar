@@ -381,7 +381,8 @@ namespace mt_kahypar::io {
 
     if ( mapped_file[pos] != '\n' ) {
       // read the three 0/1 format digits
-      ASSERT(mapped_file[pos++] == '0', "Vertex sizes in input file are not supported.");
+      ASSERT(mapped_file[pos] == '0', "Vertex sizes in input file are not supported.");
+      pos++;
       ASSERT(mapped_file[pos] == '0' || mapped_file[pos] == '1');
       has_vertex_weights = (mapped_file[pos++] == '1');
       ASSERT(mapped_file[pos] == '0' || mapped_file[pos] == '1');

@@ -43,6 +43,13 @@ enum class Paradigm : int8_t {
   nlevel
 };
 
+enum class Mode : uint8_t {
+  recursive_bipartitioning,
+  direct,
+  deep_multilevel,
+  UNDEFINED
+};
+
 enum class LouvainEdgeWeight : uint8_t {
   hybrid,
   uniform,
@@ -97,13 +104,6 @@ enum class InitialPartitioningAlgorithm : uint8_t {
   UNDEFINED = 9
 };
 
-enum class InitialPartitioningMode : uint8_t {
-  direct,
-  recursive,
-  recursive_bisection,
-  UNDEFINED
-};
-
 enum class LabelPropagationAlgorithm : uint8_t {
   label_propagation_km1,
   label_propagation_cut,
@@ -131,6 +131,8 @@ std::ostream & operator<< (std::ostream& os, const FileFormat& type);
 
 std::ostream & operator<< (std::ostream& os, const Paradigm& paradigm);
 
+std::ostream & operator<< (std::ostream& os, const Mode& mode);
+
 std::ostream & operator<< (std::ostream& os, const LouvainEdgeWeight& type);
 
 std::ostream & operator<< (std::ostream& os, const SimiliarNetCombinerStrategy& strategy);
@@ -145,13 +147,13 @@ std::ostream & operator<< (std::ostream& os, const RatingFunction& func);
 
 std::ostream & operator<< (std::ostream& os, const InitialPartitioningAlgorithm& algo);
 
-std::ostream & operator<< (std::ostream& os, const InitialPartitioningMode& mode);
-
 std::ostream & operator<< (std::ostream& os, const LabelPropagationAlgorithm& algo);
 
 std::ostream & operator<< (std::ostream& os, const FMAlgorithm& algo);
 
 std::ostream & operator<< (std::ostream& os, const FlowAlgorithm& algo);
+
+Mode modeFromString(const std::string& mode);
 
 LouvainEdgeWeight louvainEdgeWeightFromString(const std::string& type);
 
@@ -166,8 +168,6 @@ AcceptancePolicy acceptanceCriterionFromString(const std::string& crit);
 RatingFunction ratingFunctionFromString(const std::string& function);
 
 InitialPartitioningAlgorithm initialPartitioningAlgorithmFromString(const std::string& algo);
-
-InitialPartitioningMode initialPartitioningModeFromString(const std::string& mode);
 
 LabelPropagationAlgorithm labelPropagationAlgorithmFromString(const std::string& type);
 

@@ -2,6 +2,7 @@
  * This file is part of KaHyPar.
  *
  * Copyright (C) 2019 Tobias Heuer <tobias.heuer@kit.edu>
+ * Copyright (C) 2021 Nikolai Maas <nikolai.maas@student.kit.edu>
  *
  * KaHyPar is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -20,39 +21,22 @@
 
 #pragma once
 
-
 #include "mt-kahypar/partition/context.h"
-#include "mt-kahypar/partition/initial_partitioning/i_initial_partitioner.h"
 
 
 namespace mt_kahypar {
+namespace recursive_bipartitioning {
 
 /*!
- * RECURSIVE BISECTION INITIAL PARTITIONER
- * The recursive bisection initial partitioner starts by performing a parallel multilevel bisection.
+ * RECURSIVE BIPARTITIONING
+ * The recursive bipartitioning algorithm starts by performing a parallel multilevel bisection.
  * Once the hypergraph is bisected both blocks are partitioned recursively in parallel until the
- * desired number of blocks are reached.
+ * desired number of blocks is reached.
 */
 
-class RecursiveBisectionInitialPartitioner : public IInitialPartitioner {
- private:
-  static constexpr bool enable_heavy_assert = false;
+PartitionedHypergraph partition(Hypergraph& hypergraph, const Context& context);
 
- public:
-  RecursiveBisectionInitialPartitioner(PartitionedHypergraph& hypergraph,
-                                        const Context& context);
+void partition(PartitionedHypergraph& hypergraph, const Context& context);
 
-  RecursiveBisectionInitialPartitioner(const RecursiveBisectionInitialPartitioner&) = delete;
-  RecursiveBisectionInitialPartitioner(RecursiveBisectionInitialPartitioner&&) = delete;
-  RecursiveBisectionInitialPartitioner & operator= (const RecursiveBisectionInitialPartitioner &) = delete;
-  RecursiveBisectionInitialPartitioner & operator= (RecursiveBisectionInitialPartitioner &&) = delete;
-
- private:
-  void initialPartitionImpl() final ;
-
-  PartitionedHypergraph& _hg;
-  const Context& _context;
-};
-
-
+}  // namespace recursive_bipartitioning
 }  // namespace mt_kahypar

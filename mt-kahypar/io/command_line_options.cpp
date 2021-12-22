@@ -495,12 +495,12 @@ namespace mt_kahypar {
             ("i-mode",
              po::value<std::string>()->value_name("<string>")->notifier(
                      [&](const std::string& mode) {
-                       context.initial_partitioning.mode = initialPartitioningModeFromString(mode);
-                     })->default_value("recursive_bisection"),
+                       context.initial_partitioning.mode = modeFromString(mode);
+                     })->default_value("rb"),
              "Mode of initial partitioning:\n"
              "- direct\n"
-             "- recursive\n"
-             "- recursive_bisection")
+             "- deep\n"
+             "- rb")
             ("i-enabled-ip-algos",
             po::value<std::vector<bool> >(&context.initial_partitioning.enabled_ip_algos)->multitoken(),
             "Indicate which IP algorithms should be executed. E.g. i-enabled-ip-algos=1 1 0 1 0 1 1 1 0\n"
@@ -517,7 +517,7 @@ namespace mt_kahypar {
             "Note vector must exactly contain 9 values otherwise partitioner will exit with failure")
             ("i-runs",
              po::value<size_t>(&context.initial_partitioning.runs)->value_name("<size_t>")->default_value(20),
-             "Number of runs for each bisection algorithm.")
+             "Number of runs for each bipartitioning algorithm.")
             ("i-use-adaptive-ip-runs",
              po::value<bool>(&context.initial_partitioning.use_adaptive_ip_runs)->value_name("<bool>")->default_value(true),
              "If true, than each initial partitioner decides if it should further continue partitioning based on the"
@@ -536,7 +536,7 @@ namespace mt_kahypar {
              "If true, then we perform an additional refinement on the best thread local partitions after IP.")
             ("i-fm-refinement-rounds",
              po::value<size_t>(&context.initial_partitioning.fm_refinment_rounds)->value_name("<size_t>")->default_value(1),
-             "Maximum number of 2-way FM local searches on each bisection produced by an initial partitioner.")
+             "Maximum number of 2-way FM local searches on each bipartition produced by an initial partitioner.")
             ("i-remove-degree-zero-hns-before-ip",
              po::value<bool>(&context.initial_partitioning.remove_degree_zero_hns_before_ip)->value_name("<bool>")->default_value(true),
              "If true, degree-zero vertices are removed before initial partitioning.")
@@ -647,11 +647,13 @@ namespace mt_kahypar {
             ("mode,m",
              po::value<std::string>()->value_name("<string>")->required()->notifier(
                      [&](const std::string& mode) {
-                       context.partition.mode = kahypar::modeFromString(mode);
+                       context.partition.mode = modeFromString(mode);
                      }),
              "Partitioning mode: \n"
-             " - (recursive) bisection (currently not supported) \n"
-             " - (direct) k-way");
+             " - direct: direct k-way partitioning\n"
+             " - rb: recursive bipartitioning\n"
+             " - deep: deep multilevel partitioning"
+             );
 
     po::options_description preset_options("Preset Options", num_columns);
     preset_options.add_options()

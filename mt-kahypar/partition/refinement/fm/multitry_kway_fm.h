@@ -55,7 +55,7 @@ public:
 
   bool refineImpl(PartitionedHypergraph& phg,
                   const vec<HypernodeID>& refinement_nodes,
-                  kahypar::Metrics& metrics,
+                  Metrics& metrics,
                   double time_limit) final ;
 
   void initializeImpl(PartitionedHypergraph& phg) final ;

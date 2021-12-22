@@ -30,7 +30,7 @@ namespace mt_kahypar {
   bool MultiTryKWayFM<FMStrategy>::refineImpl(
               PartitionedHypergraph& phg,
               const vec<HypernodeID>& refinement_nodes,
-              kahypar::Metrics& metrics,
+              Metrics& metrics,
               const double time_limit) {
 
     if (!is_initialized) throw std::runtime_error("Call initialize on fm before calling refine");

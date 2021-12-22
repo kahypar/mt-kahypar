@@ -103,12 +103,12 @@ inline std::ostream & operator<< (std::ostream& str, const FlowRefinementSchedul
 bool FlowRefinementScheduler::refineImpl(
                 PartitionedHypergraph& phg,
                 const parallel::scalable_vector<HypernodeID>&,
-                kahypar::Metrics& best_metrics,
+                Metrics& best_metrics,
                 const double)  {
   unused(phg);
   ASSERT(_phg == &phg);
   _quotient_graph.setObjective(best_metrics.getMetric(
-    kahypar::Mode::direct_kway, _context.partition.objective));
+    Mode::direct, _context.partition.objective));
 
   std::atomic<HyperedgeWeight> overall_delta(0);
   tbb::parallel_for(0UL, _refiner.numAvailableRefiner(), [&](const size_t i) {
@@ -172,13 +172,13 @@ bool FlowRefinementScheduler::refineImpl(
 
   // Update metrics statistics
   HyperedgeWeight current_metric = best_metrics.getMetric(
-    kahypar::Mode::direct_kway, _context.partition.objective);
+    Mode::direct, _context.partition.objective);
   HEAVY_REFINEMENT_ASSERT(current_metric + overall_delta ==
                           metrics::objective(phg, _context.partition.objective),
                           V(current_metric) << V(overall_delta) <<
                           V(metrics::objective(phg, _context.partition.objective)));
   best_metrics.updateMetric(current_metric + overall_delta,
-    kahypar::Mode::direct_kway, _context.partition.objective);
+    Mode::direct, _context.partition.objective);
   best_metrics.imbalance = metrics::imbalance(phg, _context);
   _stats.update_global_stats();
 

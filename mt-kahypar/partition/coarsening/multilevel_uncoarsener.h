@@ -51,7 +51,7 @@ namespace mt_kahypar {
     std::unique_ptr<IRefiner>& label_propagation,
     std::unique_ptr<IRefiner>& fm,
     std::unique_ptr<IRefiner>& flows,
-    kahypar::Metrics& current_metrics,
+    Metrics& current_metrics,
     const double time_limit);
 
   PartitionedHypergraph&& uncoarsenImpl(

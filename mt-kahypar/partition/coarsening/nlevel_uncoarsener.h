@@ -56,13 +56,13 @@ namespace mt_kahypar {
                          const parallel::scalable_vector<HypernodeID>& refinement_nodes,
                          std::unique_ptr<IRefiner>& label_propagation,
                          std::unique_ptr<IRefiner>& fm,
-                         kahypar::Metrics& current_metrics,
+                         Metrics& current_metrics,
                          const bool force_measure_timings);
 
     void globalRefine(PartitionedHypergraph& partitioned_hypergraph,
                       std::unique_ptr<IRefiner>& fm,
                       std::unique_ptr<IRefiner>& flows,
-                      kahypar::Metrics& current_metrics,
+                      Metrics& current_metrics,
                       const double time_limit);
 
   PartitionedHypergraph&& uncoarsenImpl(

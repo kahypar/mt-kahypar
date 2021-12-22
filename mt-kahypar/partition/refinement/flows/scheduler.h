@@ -83,7 +83,7 @@ class FlowRefinementScheduler final : public IRefiner {
 
 public:
   explicit FlowRefinementScheduler(const Hypergraph& hg,
-                                       const Context& context) :
+                                   const Context& context) :
     _phg(nullptr),
     _context(context),
     _quotient_graph(hg, context),
@@ -128,7 +128,7 @@ public:
 private:
   bool refineImpl(PartitionedHypergraph& phg,
                   const vec<HypernodeID>& refinement_nodes,
-                  kahypar::Metrics& metrics,
+                  Metrics& metrics,
                   double time_limit) final;
 
   void initializeImpl(PartitionedHypergraph& phg) final;

@@ -22,9 +22,10 @@
 #pragma once
 
 #include <queue>
-#include "mt-kahypar/partition/refinement/policies/gain_policy.h"
 
 #include "mt-kahypar/partition/context.h"
+#include "mt-kahypar/partition/metrics.h"
+#include "mt-kahypar/partition/refinement/policies/gain_policy.h"
 
 namespace mt_kahypar {
 template <template <typename> class GainPolicy>
@@ -69,7 +70,7 @@ public:
   Rebalancer & operator= (const Rebalancer &) = delete;
   Rebalancer & operator= (Rebalancer &&) = delete;
 
-  void rebalance(kahypar::Metrics& best_metrics);
+  void rebalance(Metrics& best_metrics);
 
 
   vec<Move> repairEmptyBlocks();

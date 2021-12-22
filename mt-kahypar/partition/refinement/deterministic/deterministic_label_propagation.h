@@ -55,7 +55,7 @@ private:
   static constexpr bool debug = false;
 
   bool refineImpl(PartitionedHypergraph& hypergraph, const vec<HypernodeID>& refinement_nodes,
-                  kahypar::Metrics& best_metrics, double) final ;
+                  Metrics& best_metrics, double) final ;
 
   void initializeImpl(PartitionedHypergraph&) final { /* nothing to do */ }
 

@@ -39,7 +39,7 @@ class AProblemConstruction : public Test {
     context.partition.graph_filename = "../tests/instances/ibm01.hgr";
     context.partition.k = 8;
     context.partition.epsilon = 0.03;
-    context.partition.mode = kahypar::Mode::direct_kway;
+    context.partition.mode = Mode::direct;
     context.partition.objective = kahypar::Objective::km1;
     context.shared_memory.num_threads = std::thread::hardware_concurrency();
     context.refinement.flows.algorithm = FlowAlgorithm::mock;

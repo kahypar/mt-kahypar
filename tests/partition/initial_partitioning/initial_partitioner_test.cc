@@ -25,18 +25,18 @@
 #include "mt-kahypar/io/hypergraph_io.h"
 #include "mt-kahypar/partition/context.h"
 
-#include "mt-kahypar/partition/initial_partitioning/recursive_initial_partitioner.h"
-#include "mt-kahypar/partition/initial_partitioning/recursive_bisection_initial_partitioner.h"
+#include "mt-kahypar/partition/initial_partitioning/deep_initial_partitioner.h"
+#include "mt-kahypar/partition/initial_partitioning/recursive_bipartitioning_initial_partitioner.h"
 
 using ::testing::Test;
 
 namespace mt_kahypar {
 
 
-template <class InitialPartitioner, InitialPartitioningMode mode, PartitionID k>
+template <class InitialPartitioner, Mode mode, PartitionID k>
 struct TestConfig {
   using Partitioner = InitialPartitioner;
-  static constexpr InitialPartitioningMode MODE = mode;
+  static constexpr Mode MODE = mode;
   static constexpr PartitionID K = k;
 };
 
@@ -59,7 +59,7 @@ class AInitialPartitionerTest : public Test {
 
     context.partition.graph_filename = "../tests/instances/contracted_unweighted_ibm01.hgr";
     context.partition.graph_community_filename = "../tests/instances/contracted_ibm01.hgr.community";
-    context.partition.mode = kahypar::Mode::direct_kway;
+    context.partition.mode = Mode::direct;
     context.partition.objective = kahypar::Objective::km1;
     context.partition.epsilon = 0.2;
     context.partition.k = Config::K;
@@ -126,12 +126,12 @@ size_t AInitialPartitionerTest<Config>::num_threads = HardwareTopology::instance
 
 static constexpr double EPS = 0.05;
 
-typedef ::testing::Types<TestConfig<RecursiveInitialPartitioner, InitialPartitioningMode::recursive, 2>,
-                         TestConfig<RecursiveInitialPartitioner, InitialPartitioningMode::recursive, 3>,
-                         TestConfig<RecursiveInitialPartitioner, InitialPartitioningMode::recursive, 4>,
-                         TestConfig<RecursiveBisectionInitialPartitioner, InitialPartitioningMode::recursive_bisection, 2>,
-                         TestConfig<RecursiveBisectionInitialPartitioner, InitialPartitioningMode::recursive_bisection, 3>,
-                         TestConfig<RecursiveBisectionInitialPartitioner, InitialPartitioningMode::recursive_bisection, 4> > TestConfigs;
+typedef ::testing::Types<TestConfig<DeepInitialPartitioner, Mode::deep_multilevel, 2>,
+                         TestConfig<DeepInitialPartitioner, Mode::deep_multilevel, 3>,
+                         TestConfig<DeepInitialPartitioner, Mode::deep_multilevel, 4>,
+                         TestConfig<RecursiveBipartitioningInitialPartitioner, Mode::recursive_bipartitioning, 2>,
+                         TestConfig<RecursiveBipartitioningInitialPartitioner, Mode::recursive_bipartitioning, 3>,
+                         TestConfig<RecursiveBipartitioningInitialPartitioner, Mode::recursive_bipartitioning, 4> > TestConfigs;
 
 TYPED_TEST_CASE(AInitialPartitionerTest, TestConfigs);
 
