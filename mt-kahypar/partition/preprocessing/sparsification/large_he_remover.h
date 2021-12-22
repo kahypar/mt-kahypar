@@ -78,7 +78,7 @@ class LargeHyperedgeRemover {
     for ( const HyperedgeID& he : _removed_hes ) {
       hypergraph.restoreLargeEdge(he);
       if ( _context.partition.objective == kahypar::Objective::cut ) {
-        delta += (hypergraph.connectivity(he) > 1 ? hypergraph.edgeWeight(he) : 0);
+         delta += (hypergraph.connectivity(he) > 1 ? hypergraph.edgeWeight(he) : 0);
        } else {
          delta += (hypergraph.connectivity(he) - 1) * hypergraph.edgeWeight(he);
        }

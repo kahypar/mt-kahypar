@@ -169,6 +169,16 @@ namespace mt_kahypar {
     return os << static_cast<uint8_t>(algo);
   }
 
+  std::ostream & operator<< (std::ostream& os, const FlowAlgorithm& algo) {
+    switch (algo) {
+      case FlowAlgorithm::flow_cutter: return os << "flow_cutter";
+      case FlowAlgorithm::mock: return os << "mock";
+      case FlowAlgorithm::do_nothing: return os << "do_nothing";
+        // omit default case to trigger compiler warning for missing cases
+    }
+    return os << static_cast<uint8_t>(algo);
+  }
+
   Mode modeFromString(const std::string& mode) {
     if (mode == "rb") {
       return Mode::recursive_bipartitioning;
@@ -305,4 +315,13 @@ namespace mt_kahypar {
     return FMAlgorithm::do_nothing;
   }
 
+  FlowAlgorithm flowAlgorithmFromString(const std::string& type) {
+    if (type == "flow_cutter") {
+      return FlowAlgorithm::flow_cutter;
+    } else if (type == "do_nothing") {
+      return FlowAlgorithm::do_nothing;
+    }
+    ERROR("Illegal option: " + type);
+    return FlowAlgorithm::do_nothing;
+  }
 }

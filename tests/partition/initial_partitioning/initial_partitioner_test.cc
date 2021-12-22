@@ -90,6 +90,10 @@ class AInitialPartitionerTest : public Test {
     context.refinement.fm.algorithm = FMAlgorithm::do_nothing;
     context.initial_partitioning.refinement.fm.algorithm = FMAlgorithm::do_nothing;
 
+    // Flows
+    context.refinement.flows.algorithm = FlowAlgorithm::do_nothing;
+    context.initial_partitioning.refinement.flows.algorithm = FlowAlgorithm::do_nothing;
+
     // Read hypergraph
     hypergraph = io::readHypergraphFile(
       "../tests/instances/contracted_unweighted_ibm01.hgr");

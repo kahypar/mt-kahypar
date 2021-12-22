@@ -19,12 +19,13 @@
  *
  ******************************************************************************/
 
-
 #include "kahypar/meta/registrar.h"
 #include "mt-kahypar/partition/context.h"
 
 #include "mt-kahypar/partition/factories.h"
 #include "mt-kahypar/partition/refinement/do_nothing_refiner.h"
+#include "mt-kahypar/partition/refinement/flows/do_nothing_refiner.h"
+#include "mt-kahypar/partition/refinement/flows/flow_refiner.h"
 #include "mt-kahypar/partition/refinement/label_propagation/label_propagation_refiner.h"
 #include "mt-kahypar/partition/refinement/deterministic/deterministic_label_propagation.h"
 #include "mt-kahypar/partition/refinement/fm/multitry_kway_fm.h"
@@ -47,6 +48,13 @@
     return new refiner(hypergraph, context);                                                    \
   })
 
+#define REGISTER_FLOW_REFINER(id, refiner, t)                                                 \
+  static kahypar::meta::Registrar<FlowRefinementFactory> JOIN(register_ ## refiner, t)(       \
+    id,                                                                                       \
+    [](const Hypergraph& hypergraph, const Context& context) -> IFlowRefiner* {               \
+    return new refiner(hypergraph, context);                                                  \
+  })
+
 namespace mt_kahypar {
 REGISTER_LP_REFINER(LabelPropagationAlgorithm::label_propagation_cut, LabelPropagationCutRefiner, Cut);
 REGISTER_LP_REFINER(LabelPropagationAlgorithm::label_propagation_km1, LabelPropagationKm1Refiner, Km1);
@@ -62,4 +70,8 @@ REGISTER_FM_REFINER(FMAlgorithm::fm_gain_cache_on_demand, MultiTryKWayFMWithGain
 REGISTER_FM_REFINER(FMAlgorithm::fm_gain_delta, MultiTryKWayFMWithGainDelta, FMWithGainDelta);
 REGISTER_FM_REFINER(FMAlgorithm::fm_recompute_gain, MultiTryKWayFMWithGainRecomputation, FMWithGainRecomputation);
 REGISTER_FM_REFINER(FMAlgorithm::do_nothing, DoNothingRefiner, 2);
+
+REGISTER_FLOW_REFINER(FlowAlgorithm::do_nothing, DoNothingFlowRefiner, 3);
+REGISTER_FLOW_REFINER(FlowAlgorithm::flow_cutter, FlowRefiner, Flows);
+
 }  // namespace mt_kahypar

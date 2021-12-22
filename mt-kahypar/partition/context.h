@@ -159,6 +159,24 @@ struct NLevelGlobalFMParameters {
 
 std::ostream& operator<<(std::ostream& out, const NLevelGlobalFMParameters& params);
 
+struct FlowParameters {
+  FlowAlgorithm algorithm = FlowAlgorithm::do_nothing;
+  double alpha = 0.0;
+  HypernodeID max_num_pins = std::numeric_limits<HypernodeID>::max();
+  bool find_most_balanced_cut = false;
+  bool determine_distance_from_cut = false;
+  double parallel_searches_multiplier = 1.0;
+  size_t num_parallel_searches = 0;
+  size_t max_bfs_distance = 0;
+  double min_relative_improvement_per_round = 0.0;
+  double time_limit_factor = 0.0;
+  bool skip_small_cuts = false;
+  bool skip_unpromising_blocks = false;
+  bool pierce_in_bulk = false;
+};
+
+std::ostream& operator<<(std::ostream& out, const FlowParameters& params);
+
 struct DeterministicRefinementParameters {
   size_t num_sub_rounds_sync_lp = 5;
   bool use_active_node_set = false;
@@ -172,7 +190,9 @@ struct RefinementParameters {
   FMParameters fm;
   DeterministicRefinementParameters deterministic_refinement;
   NLevelGlobalFMParameters global_fm;
+  FlowParameters flows;
   bool refine_until_no_improvement = false;
+  double relative_improvement_threshold = 0.0;
   size_t max_batch_size = std::numeric_limits<size_t>::max();
   size_t min_border_vertices_per_thread = 0;
 };
@@ -249,6 +269,8 @@ class Context {
   void setupMaximumAllowedNodeWeight(const HypernodeWeight total_hypergraph_weight);
 
   void setupSparsificationParameters();
+
+  void setupThreadsPerFlowSearch();
 
   void sanityCheck();
 };

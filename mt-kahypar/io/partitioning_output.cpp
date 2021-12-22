@@ -477,8 +477,8 @@ namespace mt_kahypar::io {
   }
 
   void printPartitioningResults(const PartitionedHypergraph& hypergraph,
-                                       const Context& context,
-                                       const std::chrono::duration<double>& elapsed_seconds) {
+                                const Context& context,
+                                const std::chrono::duration<double>& elapsed_seconds) {
     if (context.partition.verbose_output) {
       LOG << "\n********************************************************************************";
       LOG << "*                             Partitioning Result                              *";

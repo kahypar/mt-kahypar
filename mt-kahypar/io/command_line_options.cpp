@@ -274,6 +274,11 @@ namespace mt_kahypar {
                               &context.initial_partitioning.refinement.refine_until_no_improvement))->value_name(
                      "<bool>")->default_value(false),
              "Executes all refinement algorithms as long as they find an improvement on the current partition.")
+            ((initial_partitioning ? "i-r-relative-improvement-threshold" : "r-relative-improvement-threshold"),
+             po::value<double>((!initial_partitioning ? &context.refinement.relative_improvement_threshold :
+                              &context.initial_partitioning.refinement.relative_improvement_threshold))->value_name(
+                     "<double>")->default_value(0.0),
+             "If the relative improvement during a refinement pass is less than this threshold, than refinement is aborted.")
             (( initial_partitioning ? "i-r-max-batch-size" : "r-max-batch-size"),
              po::value<size_t>((!initial_partitioning ? &context.refinement.max_batch_size :
                                 &context.initial_partitioning.refinement.max_batch_size))->value_name("<size_t>")->default_value(1000),
@@ -400,7 +405,7 @@ namespace mt_kahypar {
                      "<bool>")->default_value(false),
              "If true, than we execute a globalized FM local search interleaved with the localized searches."
              "Note, gobalized FM local searches are performed in multilevel style (not after each batch uncontraction)")
-            ((initial_partitioning ? "i-r-global-fm-refine-until-no-improvement" : "r-global-refine-until-no-improvement"),
+            ((initial_partitioning ? "i-r-global-refine-until-no-improvement" : "r-global-refine-until-no-improvement"),
              po::value<bool>((!initial_partitioning ? &context.refinement.global_fm.refine_until_no_improvement :
                               &context.initial_partitioning.refinement.global_fm.refine_until_no_improvement))->value_name(
                      "<bool>")->default_value(false),
@@ -416,6 +421,71 @@ namespace mt_kahypar {
              "If true, then the globalized FM local search stops if more than a certain number of threads are finished.")
             #endif
             ;
+    return options;
+  }
+
+  po::options_description createFlowRefinementOptionsDescription(Context& context,
+                                                                 const int num_columns,
+                                                                 const bool initial_partitioning) {
+    po::options_description options("Initial Partitioning Options", num_columns);
+    options.add_options()
+            ((initial_partitioning ? "i-r-flow-algo" : "r-flow-algo"),
+             po::value<std::string>()->value_name("<string>")->notifier(
+                     [&, initial_partitioning](const std::string& algo) {
+                       if ( initial_partitioning ) {
+                        context.initial_partitioning.refinement.flows.algorithm = flowAlgorithmFromString(algo);
+                       } else {
+                        context.refinement.flows.algorithm = flowAlgorithmFromString(algo);
+                       }
+                     })->default_value("do_nothing"),
+             "Flow Algorithms:\n"
+             "- do_nothing\n"
+             "- flow_cutter")
+            ((initial_partitioning ? "i-r-flow-parallel-search-multiplier" : "r-flow-parallel-search-multiplier"),
+             po::value<double>((initial_partitioning ? &context.initial_partitioning.refinement.flows.parallel_searches_multiplier :
+                      &context.refinement.flows.parallel_searches_multiplier))->value_name("<double>"),
+             "Active block scheduling starts min(num_threads, mult * k) parallel searches")
+            ((initial_partitioning ? "i-r-flow-max-bfs-distance" : "r-flow-max-bfs-distance"),
+             po::value<size_t>((initial_partitioning ? &context.initial_partitioning.refinement.flows.max_bfs_distance :
+                      &context.refinement.flows.max_bfs_distance))->value_name("<size_t>"),
+             "Flow problems are constructed via BFS search. The maximum BFS distance is the\n"
+             "maximum distance from a cut hyperedge to any vertex of the problem.")
+            ((initial_partitioning ? "i-r-flow-min-relative-improvement-per-round" : "r-flow-min-relative-improvement-per-round"),
+             po::value<double>((initial_partitioning ? &context.initial_partitioning.refinement.flows.min_relative_improvement_per_round :
+                      &context.refinement.flows.min_relative_improvement_per_round))->value_name("<double>"),
+             "Minimum relative improvement per active block scheduling round. If improvement is smaller than flow algorithm terminates.")
+            ((initial_partitioning ? "i-r-flow-time-limit-factor" : "r-flow-time-limit-factor"),
+             po::value<double>((initial_partitioning ? &context.initial_partitioning.refinement.flows.time_limit_factor :
+                      &context.refinement.flows.time_limit_factor))->value_name("<double>"),
+             "The time limit for each flow problem is time_limit_factor * average running time of all previous searches.")
+            ((initial_partitioning ? "i-r-flow-skip-small-cuts" : "r-flow-skip-small-cuts"),
+             po::value<bool>((initial_partitioning ? &context.initial_partitioning.refinement.flows.skip_small_cuts :
+                      &context.refinement.flows.skip_small_cuts))->value_name("<bool>"),
+             "If true, than blocks with a cut <= 10 are not considered for refinement")
+            ((initial_partitioning ? "i-r-flow-skip-unpromising-blocks" : "r-flow-skip-unpromising-blocks"),
+             po::value<bool>((initial_partitioning ? &context.initial_partitioning.refinement.flows.skip_unpromising_blocks :
+                      &context.refinement.flows.skip_unpromising_blocks))->value_name("<bool>"),
+             "If true, than blocks for which we never found an improvement are skipped")
+            ((initial_partitioning ? "i-r-flow-pierce-in-bulk" : "r-flow-pierce-in-bulk"),
+             po::value<bool>((initial_partitioning ? &context.initial_partitioning.refinement.flows.pierce_in_bulk :
+                              &context.refinement.flows.pierce_in_bulk))->value_name("<bool>"),
+             "If true, then FlowCutter is accelerated by piercing multiple nodes at a time")
+            ((initial_partitioning ? "i-r-flow-scaling" : "r-flow-scaling"),
+             po::value<double>((initial_partitioning ? &context.initial_partitioning.refinement.flows.alpha :
+                      &context.refinement.flows.alpha))->value_name("<double>"),
+             "Size constraint for flow problem: (1 + alpha * epsilon) * c(V) / k - c(V_1) (alpha = r-flow-scaling)")
+            ((initial_partitioning ? "i-r-flow-max-num-pins" : "r-flow-max-num-pins"),
+             po::value<uint32_t>((initial_partitioning ? &context.initial_partitioning.refinement.flows.max_num_pins :
+                      &context.refinement.flows.max_num_pins))->value_name("<uint32_t>"),
+             "Maximum number of pins a flow problem is allowed to contain")
+            ((initial_partitioning ? "i-r-flow-find-most-balanced-cut" : "r-flow-find-most-balanced-cut"),
+             po::value<bool>((initial_partitioning ? &context.initial_partitioning.refinement.flows.find_most_balanced_cut :
+                      &context.refinement.flows.find_most_balanced_cut))->value_name("<bool>"),
+             "If true, than hyperflowcutter searches for the most balanced minimum cut.")
+            ((initial_partitioning ? "i-r-flow-determine-distance-from-cut" : "r-flow-determine-distance-from-cut"),
+             po::value<bool>((initial_partitioning ? &context.initial_partitioning.refinement.flows.determine_distance_from_cut :
+                      &context.refinement.flows.determine_distance_from_cut))->value_name("<bool>"),
+             "If true, than flow refiner determines distance of each node from cut which improves the piercing heuristic used in WHFC.");
     return options;
   }
 
@@ -479,6 +549,7 @@ namespace mt_kahypar {
                      "<size_t>")->default_value(5),
              "Initial block size used for label propagation initial partitioner");
     options.add(createRefinementOptionsDescription(context, num_columns, true));
+    options.add(createFlowRefinementOptionsDescription(context, num_columns, true));
     return options;
   }
 
@@ -600,6 +671,8 @@ namespace mt_kahypar {
             createInitialPartitioningOptionsDescription(context, num_columns);
     po::options_description refinement_options =
             createRefinementOptionsDescription(context, num_columns, false);
+    po::options_description flow_options =
+            createFlowRefinementOptionsDescription(context, num_columns, false);
 #ifdef KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES
     po::options_description sparsification_options =
     createSparsificationOptionsDescription(context, num_columns);
@@ -616,6 +689,7 @@ namespace mt_kahypar {
             .add(coarsening_options)
             .add(initial_paritioning_options)
             .add(refinement_options)
+            .add(flow_options)
 #ifdef KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES
                     .add(sparsification_options)
 #endif
@@ -647,6 +721,7 @@ namespace mt_kahypar {
             .add(coarsening_options)
             .add(initial_paritioning_options)
             .add(refinement_options)
+            .add(flow_options)
 #ifdef KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES
                     .add(sparsification_options)
 #endif
@@ -702,6 +777,8 @@ namespace mt_kahypar {
             createInitialPartitioningOptionsDescription(context, num_columns);
     po::options_description refinement_options =
             createRefinementOptionsDescription(context, num_columns, false);
+    po::options_description flow_options =
+            createFlowRefinementOptionsDescription(context, num_columns, false);
 #ifdef KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES
     po::options_description sparsification_options =
     createSparsificationOptionsDescription(context, num_columns);
@@ -716,6 +793,7 @@ namespace mt_kahypar {
             .add(coarsening_options)
             .add(initial_paritioning_options)
             .add(refinement_options)
+            .add(flow_options)
 #ifdef KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES
                     .add(sparsification_options)
 #endif

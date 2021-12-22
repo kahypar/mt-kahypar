@@ -25,6 +25,7 @@
 #include "mt-kahypar/io/partitioning_output.h"
 #include "mt-kahypar/partition/refinement/i_refiner.h"
 #include "mt-kahypar/partition/metrics.h"
+#include "mt-kahypar/partition/refinement/flows/scheduler.h"
 #include "mt-kahypar/partition/refinement/rebalancing/rebalancer.h"
 #include "mt-kahypar/utils/progress_bar.h"
 #include "mt-kahypar/utils/stats.h"
@@ -47,9 +48,15 @@ namespace mt_kahypar {
                                               _context.partition.verbose_output &&
                                               _context.partition.enable_progress_bar && !debug);
 
+    // Initialize Flow Refinement Scheduler
+    std::unique_ptr<IRefiner> flows(nullptr);
+    if ( _context.refinement.flows.algorithm != FlowAlgorithm::do_nothing ) {
+      flows = std::make_unique<FlowRefinementScheduler>(_hg, _context);
+    }
+
     // Refine Coarsest Partitioned Hypergraph
     double time_limit = refinementTimeLimit(_context, _uncoarseningData.hierarchy.back().coarseningTime());
-    refine(partitioned_hg, label_propagation, fm, current_metrics, time_limit);
+    refine(partitioned_hg, label_propagation, fm, flows, current_metrics, time_limit);
     uncontraction_progress.setObjective(
       current_metrics.getMetric(Mode::direct, _context.partition.objective));
     uncontraction_progress += partitioned_hg.initialNumNodes();
@@ -80,7 +87,7 @@ namespace mt_kahypar {
 
       // Refinement
       time_limit = refinementTimeLimit(_context, (_uncoarseningData.hierarchy)[i].coarseningTime());
-      refine(partitioned_hg, label_propagation, fm, current_metrics, time_limit);
+      refine(partitioned_hg, label_propagation, fm, flows, current_metrics, time_limit);
 
       // Update Progress Bar
       uncontraction_progress.setObjective(
@@ -144,6 +151,7 @@ namespace mt_kahypar {
     PartitionedHypergraph& partitioned_hypergraph,
     std::unique_ptr<IRefiner>& label_propagation,
     std::unique_ptr<IRefiner>& fm,
+    std::unique_ptr<IRefiner>& flows,
     Metrics& current_metrics,
     const double time_limit) {
 
@@ -157,6 +165,8 @@ namespace mt_kahypar {
     bool improvement_found = true;
     while( improvement_found ) {
       improvement_found = false;
+      const HyperedgeWeight metric_before = current_metrics.getMetric(
+        Mode::direct, _context.partition.objective);
 
       if ( label_propagation && _context.refinement.label_propagation.algorithm != LabelPropagationAlgorithm::do_nothing ) {
         utils::Timer::instance().start_timer("initialize_lp_refiner", "Initialize LP Refiner");
@@ -178,6 +188,16 @@ namespace mt_kahypar {
         utils::Timer::instance().stop_timer("fm");
       }
 
+      if ( flows && _context.refinement.flows.algorithm != FlowAlgorithm::do_nothing ) {
+        utils::Timer::instance().start_timer("initialize_flow_scheduler", "Initialize Flow Scheduler");
+        flows->initialize(partitioned_hypergraph);
+        utils::Timer::instance().stop_timer("initialize_flow_scheduler");
+
+        utils::Timer::instance().start_timer("flow_refinement_scheduler", "Flow Refinement Scheduler");
+        improvement_found |= flows->refine(partitioned_hypergraph, dummy, current_metrics, time_limit);
+        utils::Timer::instance().stop_timer("flow_refinement_scheduler");
+      }
+
       if ( _context.type == kahypar::ContextType::main ) {
         ASSERT(current_metrics.getMetric(Mode::direct, _context.partition.objective)
                == metrics::objective(partitioned_hypergraph, _context.partition.objective),
@@ -185,7 +205,12 @@ namespace mt_kahypar {
                << "does not match the metric updated by the refiners" << V(current_metrics.km1));
       }
 
-      if ( !_context.refinement.refine_until_no_improvement ) {
+      const HyperedgeWeight metric_after = current_metrics.getMetric(
+        Mode::direct, _context.partition.objective);
+      const double relative_improvement = 1.0 -
+        static_cast<double>(metric_after) / metric_before;
+      if ( !_context.refinement.refine_until_no_improvement ||
+           relative_improvement <= _context.refinement.relative_improvement_threshold ) {
         break;
       }
     }

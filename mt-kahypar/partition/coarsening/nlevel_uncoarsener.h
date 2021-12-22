@@ -61,6 +61,7 @@ namespace mt_kahypar {
 
     void globalRefine(PartitionedHypergraph& partitioned_hypergraph,
                       std::unique_ptr<IRefiner>& fm,
+                      std::unique_ptr<IRefiner>& flows,
                       Metrics& current_metrics,
                       const double time_limit);
 

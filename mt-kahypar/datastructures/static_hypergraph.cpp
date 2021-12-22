@@ -50,7 +50,6 @@ namespace mt_kahypar::ds {
    * community label (given in 'communities') to a vertex in the coarse hypergraph.
    *
    * \param communities Community structure that should be contracted
-   * \param task_group_id Task Group ID
    */
   StaticHypergraph StaticHypergraph::contract(parallel::scalable_vector<HypernodeID>& communities) {
 

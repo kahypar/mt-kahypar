@@ -674,7 +674,6 @@ class StaticHypergraph {
    * community label (given in 'communities') to a vertex in the coarse hypergraph.
    *
    * \param communities Community structure that should be contracted
-   * \param task_group_id Task Group ID
    */
   StaticHypergraph contract(parallel::scalable_vector<HypernodeID>& communities);
 
@@ -699,7 +698,7 @@ class StaticHypergraph {
   }
 
   VersionedBatchVector createBatchUncontractionHierarchy(const size_t) {
-    ERROR("createBatchUncontractionHierarchy(task_group_id, batch_size) is not supported in static hypergraph");
+    ERROR("createBatchUncontractionHierarchy(batch_size) is not supported in static hypergraph");
     return { };
   }
 

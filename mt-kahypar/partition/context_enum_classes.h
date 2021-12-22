@@ -119,6 +119,12 @@ enum class FMAlgorithm : uint8_t {
   do_nothing
 };
 
+enum class FlowAlgorithm : uint8_t {
+  flow_cutter,
+  mock,
+  do_nothing
+};
+
 std::ostream & operator<< (std::ostream& os, const Type& type);
 
 std::ostream & operator<< (std::ostream& os, const FileFormat& type);
@@ -145,6 +151,8 @@ std::ostream & operator<< (std::ostream& os, const LabelPropagationAlgorithm& al
 
 std::ostream & operator<< (std::ostream& os, const FMAlgorithm& algo);
 
+std::ostream & operator<< (std::ostream& os, const FlowAlgorithm& algo);
+
 Mode modeFromString(const std::string& mode);
 
 LouvainEdgeWeight louvainEdgeWeightFromString(const std::string& type);
@@ -164,5 +172,7 @@ InitialPartitioningAlgorithm initialPartitioningAlgorithmFromString(const std::s
 LabelPropagationAlgorithm labelPropagationAlgorithmFromString(const std::string& type);
 
 FMAlgorithm fmAlgorithmFromString(const std::string& type);
+
+FlowAlgorithm flowAlgorithmFromString(const std::string& type);
 
 }  // namesapce mt_kahypar

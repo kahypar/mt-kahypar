@@ -23,6 +23,7 @@
 #include "mt-kahypar/definitions.h"
 #include <mt-kahypar/partition/coarsening/nlevel_uncoarsener.h>
 #include "mt-kahypar/datastructures/streaming_vector.h"
+#include "mt-kahypar/partition/refinement/flows/scheduler.h"
 #include "mt-kahypar/partition/refinement/rebalancing/rebalancer.h"
 #include "mt-kahypar/utils/progress_bar.h"
 #include "mt-kahypar/io/partitioning_output.h"
@@ -62,6 +63,12 @@ namespace mt_kahypar {
            V(metrics::imbalance(*_uncoarseningData.compactified_phg, _context)) <<
            V(metrics::imbalance(*_uncoarseningData.partitioned_hg, _context)));
     utils::Timer::instance().stop_timer("initialize_partition");
+
+    // Initialize Flow Refinement Scheduler
+    std::unique_ptr<IRefiner> flows(nullptr);
+    if ( _context.refinement.flows.algorithm != FlowAlgorithm::do_nothing ) {
+      flows = std::make_unique<FlowRefinementScheduler>(_hg, _context);
+    }
 
     utils::ProgressBar uncontraction_progress(_hg.initialNumNodes(),
                                               _context.partition.objective == kahypar::Objective::km1 ? current_metrics.km1 : current_metrics.cut,
@@ -169,7 +176,7 @@ namespace mt_kahypar {
 
         // Perform refinement on all vertices
         const double time_limit = refinementTimeLimit(_context, _uncoarseningData.round_coarsening_times.back());
-        globalRefine(*_uncoarseningData.partitioned_hg, fm, current_metrics, time_limit);
+        globalRefine(*_uncoarseningData.partitioned_hg, fm, flows, current_metrics, time_limit);
         uncontraction_progress.setObjective(current_metrics.getMetric(
             _context.partition.mode, _context.partition.objective));
         _uncoarseningData.round_coarsening_times.pop_back();
@@ -181,7 +188,7 @@ namespace mt_kahypar {
     const HyperedgeWeight objective_before = current_metrics.getMetric(
       _context.partition.mode, _context.partition.objective);
     const double time_limit = refinementTimeLimit(_context, _uncoarseningData.round_coarsening_times.back());
-    globalRefine(*_uncoarseningData.partitioned_hg, fm, current_metrics, time_limit);
+    globalRefine(*_uncoarseningData.partitioned_hg, fm, flows, current_metrics, time_limit);
     _uncoarseningData.round_coarsening_times.pop_back();
     ASSERT(_uncoarseningData.round_coarsening_times.size() == 0);
     const HyperedgeWeight objective_after = current_metrics.getMetric(
@@ -294,6 +301,7 @@ namespace mt_kahypar {
 
   void NLevelUncoarsener::globalRefine(PartitionedHypergraph& partitioned_hypergraph,
                                        std::unique_ptr<IRefiner>& fm,
+                                       std::unique_ptr<IRefiner>& flows,
                                        Metrics& current_metrics,
                                        const double time_limit) {
 
@@ -313,17 +321,38 @@ namespace mt_kahypar {
         << ", imbalance = " << current_metrics.imbalance;
       }
 
+      // Enable Timings
+      bool was_enabled = false;
+      if ( !utils::Timer::instance().isEnabled() &&
+           _context.type == kahypar::ContextType::main ) {
+        utils::Timer::instance().enable();
+        was_enabled = true;
+      }
+
       // Apply global FM parameters to FM context and temporary store old fm context
+      utils::Timer::instance().start_timer("global_refinement", "Global Refinement");
       NLevelGlobalFMParameters tmp_global_fm = applyGlobalFMParameters(
         _context.refinement.fm, _context.refinement.global_fm);
       bool improvement_found = true;
       while( improvement_found ) {
         improvement_found = false;
+        const HyperedgeWeight metric_before = current_metrics.getMetric(
+          Mode::direct, _context.partition.objective);
 
         if ( fm && _context.refinement.fm.algorithm != FMAlgorithm::do_nothing ) {
-          utils::Timer::instance().start_timer("global_fm", "Global FM", false, _context.type == kahypar::ContextType::main);
+          utils::Timer::instance().start_timer("fm", "FM");
           improvement_found |= fm->refine(partitioned_hypergraph, {}, current_metrics, time_limit);
-          utils::Timer::instance().stop_timer("global_fm", _context.type == kahypar::ContextType::main);
+          utils::Timer::instance().stop_timer("fm");
+        }
+
+        if ( flows && _context.refinement.flows.algorithm != FlowAlgorithm::do_nothing ) {
+          utils::Timer::instance().start_timer("initialize_flow_scheduler", "Initialize Flow Scheduler");
+          flows->initialize(partitioned_hypergraph);
+          utils::Timer::instance().stop_timer("initialize_flow_scheduler");
+
+          utils::Timer::instance().start_timer("flow_refinement_scheduler", "Flow Refinement Scheduler");
+          improvement_found |= flows->refine(partitioned_hypergraph, {}, current_metrics, time_limit);
+          utils::Timer::instance().stop_timer("flow_refinement_scheduler");
         }
 
         if ( _context.type == kahypar::ContextType::main ) {
@@ -332,12 +361,22 @@ namespace mt_kahypar {
                  << "does not match the metric updated by the refiners" << V(current_metrics.km1));
         }
 
-        if ( !_context.refinement.global_fm.refine_until_no_improvement ) {
+        const HyperedgeWeight metric_after = current_metrics.getMetric(
+          Mode::direct, _context.partition.objective);
+        const double relative_improvement = 1.0 -
+          static_cast<double>(metric_after) / metric_before;
+        if ( !_context.refinement.global_fm.refine_until_no_improvement ||
+            relative_improvement <= _context.refinement.relative_improvement_threshold ) {
           break;
         }
       }
       // Reset FM context
       applyGlobalFMParameters(_context.refinement.fm, tmp_global_fm);
+      utils::Timer::instance().stop_timer("global_refinement");
+
+      if ( was_enabled ) {
+        utils::Timer::instance().disable();
+      }
 
       if ( _context.type == kahypar::ContextType::main) {
         DBG << "--------------------------------------------------\n";

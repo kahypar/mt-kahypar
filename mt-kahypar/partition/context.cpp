@@ -135,12 +135,32 @@ namespace mt_kahypar {
   }
 
   std::ostream& operator<<(std::ostream& out, const NLevelGlobalFMParameters& params) {
-    out << "  Boundary FM Parameters: \n";
-    out << "    Use Global FM:                    " << std::boolalpha << params.use_global_fm << std::endl;
     if ( params.use_global_fm ) {
+      out << "  Boundary FM Parameters: \n";
       out << "    Refine Until No Improvement:      " << std::boolalpha << params.refine_until_no_improvement << std::endl;
       out << "    Num Seed Nodes:                   " << params.num_seed_nodes << std::endl;
       out << "    Obey Minimal Parallelism:         " << std::boolalpha << params.obey_minimal_parallelism << std::endl;
+    }
+    return out;
+  }
+
+  std::ostream& operator<<(std::ostream& out, const FlowParameters& params) {
+    out << "  Flow Parameters: \n";
+    out << "    Algorithm:                        " << params.algorithm << std::endl;
+    if ( params.algorithm != FlowAlgorithm::do_nothing ) {
+      out << "    Flow Scaling:                     " << params.alpha << std::endl;
+      out << "    Maximum Number of Pins:           " << params.max_num_pins << std::endl;
+      out << "    Find Most Balanced Cut:           " << std::boolalpha << params.find_most_balanced_cut << std::endl;
+      out << "    Determine Distance From Cut:      " << std::boolalpha << params.determine_distance_from_cut << std::endl;
+      out << "    Parallel Searches Multiplier:     " << params.parallel_searches_multiplier << std::endl;
+      out << "    Number of Parallel Searches:      " << params.num_parallel_searches << std::endl;
+      out << "    Maximum BFS Distance:             " << params.max_bfs_distance << std::endl;
+      out << "    Min Rel. Improvement Per Round:   " << params.min_relative_improvement_per_round << std::endl;
+      out << "    Time Limit Factor:                " << params.time_limit_factor << std::endl;
+      out << "    Skip Small Cuts:                  " << std::boolalpha << params.skip_small_cuts << std::endl;
+      out << "    Skip Unpromising Blocks:          " << std::boolalpha << params.skip_unpromising_blocks << std::endl;
+      out << "    Pierce in Bulk:                   " << std::boolalpha << params.pierce_in_bulk << std::endl;
+      out << std::flush;
     }
     return out;
   }
@@ -156,6 +176,7 @@ namespace mt_kahypar {
   std::ostream & operator<< (std::ostream& str, const RefinementParameters& params) {
     str << "Refinement Parameters:" << std::endl;
     str << "  Refine Until No Improvement:        " << std::boolalpha << params.refine_until_no_improvement << std::endl;
+    str << "  Relative Improvement Threshold:     " << params.relative_improvement_threshold << std::endl;
 #ifdef USE_STRONG_PARTITIONER
     str << "  Maximum Batch Size:                 " << params.max_batch_size << std::endl;
     str << "  Min Border Vertices Per Thread:     " << params.min_border_vertices_per_thread << std::endl;
@@ -165,6 +186,7 @@ namespace mt_kahypar {
 #ifdef USE_STRONG_PARTITIONER
     str << "\n" << params.global_fm;
 #endif
+    str << "\n" << params.flows;
     return str;
   }
 
@@ -420,6 +442,18 @@ namespace mt_kahypar {
       if ( lp_algo != LabelPropagationAlgorithm::do_nothing && lp_algo != LabelPropagationAlgorithm::deterministic ) {
         initial_partitioning.refinement.label_propagation.algorithm = LabelPropagationAlgorithm::deterministic;
       }
+    }
+  }
+
+  void Context::setupThreadsPerFlowSearch() {
+    if ( refinement.flows.algorithm == FlowAlgorithm::flow_cutter ) {
+      // = min(t, min(tau * k, k * (k - 1) / 2))
+      // t = number of threads
+      // k * (k - 1) / 2 = maximum number of edges in the quotient graph
+      refinement.flows.num_parallel_searches = partition.k == 2 ? 1 :
+        std::min(shared_memory.num_threads, std::min(std::max(1UL, static_cast<size_t>(
+          refinement.flows.parallel_searches_multiplier * partition.k)),
+            static_cast<size_t>((partition.k * (partition.k - 1)) / 2) ));
     }
   }
 
