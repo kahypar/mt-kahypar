@@ -171,7 +171,7 @@ namespace mt_kahypar {
 
   std::ostream & operator<< (std::ostream& os, const FlowAlgorithm& algo) {
     switch (algo) {
-      case FlowAlgorithm::flows: return os << "flows";
+      case FlowAlgorithm::flow_cutter: return os << "flow_cutter";
       case FlowAlgorithm::mock: return os << "mock";
       case FlowAlgorithm::do_nothing: return os << "do_nothing";
         // omit default case to trigger compiler warning for missing cases
@@ -316,8 +316,8 @@ namespace mt_kahypar {
   }
 
   FlowAlgorithm flowAlgorithmFromString(const std::string& type) {
-    if (type == "flows") {
-      return FlowAlgorithm::flows;
+    if (type == "flow_cutter") {
+      return FlowAlgorithm::flow_cutter;
     } else if (type == "do_nothing") {
       return FlowAlgorithm::do_nothing;
     }

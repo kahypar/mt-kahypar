@@ -25,10 +25,10 @@
 
 namespace mt_kahypar {
 
-
-// TODO this is fucked up
-#define NOW std::chrono::high_resolution_clock::now()
-#define RUNNING_TIME(X) std::chrono::duration<double>(NOW - X).count();
+namespace {
+  #define NOW std::chrono::high_resolution_clock::now()
+  #define RUNNING_TIME(X) std::chrono::duration<double>(NOW - X).count();
+}
 
 bool FlowRefinerAdapter::registerNewSearch(const SearchID search_id,
                                                const PartitionedHypergraph& phg) {

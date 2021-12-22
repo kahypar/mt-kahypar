@@ -26,9 +26,9 @@
 
 namespace mt_kahypar {
 
-	class FlowHypergraphBuilder : public whfc::FlowHypergraph {
+  class FlowHypergraphBuilder : public whfc::FlowHypergraph {
 
-		using TmpPinRange = mutable_range<vec<Pin>>;
+    using TmpPinRange = mutable_range<vec<Pin>>;
 
     struct TmpCSRBucket {
       TmpCSRBucket() :
@@ -120,63 +120,63 @@ namespace mt_kahypar {
       size_t _global_start_pin_idx;
     };
 
-	public:
-		using Base = whfc::FlowHypergraph;
+  public:
+    using Base = whfc::FlowHypergraph;
 
-		FlowHypergraphBuilder() :
+    FlowHypergraphBuilder() :
       Base(),
       _finalized(false),
       _numPinsAtHyperedgeStart(0),
       _tmp_csr_buckets(),
       _inc_he_pos() {
-			clear();
-		}
+      clear();
+    }
 
-		explicit FlowHypergraphBuilder(size_t num_nodes) :
+    explicit FlowHypergraphBuilder(size_t num_nodes) :
       Base(),
       _finalized(false),
       _numPinsAtHyperedgeStart(0),
       _tmp_csr_buckets(),
       _inc_he_pos() {
-			reinitialize(num_nodes);
-		}
+      reinitialize(num_nodes);
+    }
 
     // ####################### Sequential Construction #######################
 
-		void addNode(const whfc::NodeWeight w) {
-			nodes.back().weight = w;
-			nodes.push_back({whfc::InHeIndex(0), whfc::NodeWeight(0)});
-		}
+    void addNode(const whfc::NodeWeight w) {
+      nodes.back().weight = w;
+      nodes.push_back({whfc::InHeIndex(0), whfc::NodeWeight(0)});
+    }
 
-		void startHyperedge(const whfc::Flow capacity) {
-			finishHyperedge();	//finish last hyperedge
-			hyperedges.back().capacity = capacity;	//exploit sentinel
-			_numPinsAtHyperedgeStart = numPins();
-			maxHyperedgeCapacity = std::max(maxHyperedgeCapacity, capacity);
-		}
+    void startHyperedge(const whfc::Flow capacity) {
+      finishHyperedge();	//finish last hyperedge
+      hyperedges.back().capacity = capacity;	//exploit sentinel
+      _numPinsAtHyperedgeStart = numPins();
+      maxHyperedgeCapacity = std::max(maxHyperedgeCapacity, capacity);
+    }
 
-		void addPin(const whfc::Node u) {
-			assert(u < numNodes());
-			pins.push_back({u, whfc::InHeIndex::Invalid()});
-			nodes[u+1].first_out++;
-		}
+    void addPin(const whfc::Node u) {
+      assert(u < numNodes());
+      pins.push_back({u, whfc::InHeIndex::Invalid()});
+      nodes[u+1].first_out++;
+    }
 
-		size_t currentHyperedgeSize() const {
-			return numPins() - _numPinsAtHyperedgeStart;
-		}
+    size_t currentHyperedgeSize() const {
+      return numPins() - _numPinsAtHyperedgeStart;
+    }
 
-		void removeCurrentHyperedge() {
-			while (numPins() > _numPinsAtHyperedgeStart) {
-				removeLastPin();
+    void removeCurrentHyperedge() {
+      while (numPins() > _numPinsAtHyperedgeStart) {
+        removeLastPin();
       }
-		}
+    }
 
     MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE whfc::Flow& capacity(const whfc::Hyperedge e) {
       ASSERT(e < hyperedges.size());
       return hyperedges[e].capacity;
     }
 
-		void finalize();
+    void finalize();
 
     // ####################### Parallel Construction #######################
 
@@ -246,30 +246,30 @@ namespace mt_kahypar {
 
     // ####################### Common Functions #######################
 
-		void clear();
+    void clear();
 
-		void reinitialize(size_t num_nodes) {
-			clear();
-			nodes.resize(num_nodes + 1);
-		}
+    void reinitialize(size_t num_nodes) {
+      clear();
+      nodes.resize(num_nodes + 1);
+    }
 
-		void shrink_to_fit() {
-			nodes.shrink_to_fit();
-			hyperedges.shrink_to_fit();
-			pins.shrink_to_fit();
-			incident_hyperedges.shrink_to_fit();
-		}
+    void shrink_to_fit() {
+      nodes.shrink_to_fit();
+      hyperedges.shrink_to_fit();
+      pins.shrink_to_fit();
+      incident_hyperedges.shrink_to_fit();
+    }
 
-	private:
+  private:
 
     // ####################### Sequential Construction #######################
 
-		void removeLastPin() {
-			nodes[ pins.back().pin + 1 ].first_out--;
-			pins.pop_back();
-		}
+    void removeLastPin() {
+      nodes[ pins.back().pin + 1 ].first_out--;
+      pins.pop_back();
+    }
 
-		bool finishHyperedge();
+    bool finishHyperedge();
 
     // ####################### Parallel Construction #######################
 
@@ -278,10 +278,10 @@ namespace mt_kahypar {
 
     bool verifyParallelConstructedHypergraph();
 
-		bool _finalized;
-		size_t _numPinsAtHyperedgeStart;
+    bool _finalized;
+    size_t _numPinsAtHyperedgeStart;
 
     vec<TmpCSRBucket> _tmp_csr_buckets;
     vec<uint32_t> _inc_he_pos;
-	};
+  };
 }

@@ -446,7 +446,7 @@ namespace mt_kahypar {
   }
 
   void Context::setupThreadsPerFlowSearch() {
-    if ( refinement.flows.algorithm == FlowAlgorithm::flows ) {
+    if ( refinement.flows.algorithm == FlowAlgorithm::flow_cutter ) {
       // = min(t, min(tau * k, k * (k - 1) / 2))
       // t = number of threads
       // k * (k - 1) / 2 = maximum number of edges in the quotient graph

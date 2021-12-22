@@ -120,7 +120,7 @@ enum class FMAlgorithm : uint8_t {
 };
 
 enum class FlowAlgorithm : uint8_t {
-  flows,
+  flow_cutter,
   mock,
   do_nothing
 };

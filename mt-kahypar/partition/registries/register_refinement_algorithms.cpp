@@ -72,6 +72,6 @@ REGISTER_FM_REFINER(FMAlgorithm::fm_recompute_gain, MultiTryKWayFMWithGainRecomp
 REGISTER_FM_REFINER(FMAlgorithm::do_nothing, DoNothingRefiner, 2);
 
 REGISTER_FLOW_REFINER(FlowAlgorithm::do_nothing, DoNothingFlowRefiner, 3);
-REGISTER_FLOW_REFINER(FlowAlgorithm::flows, FlowRefiner, Flows);
+REGISTER_FLOW_REFINER(FlowAlgorithm::flow_cutter, FlowRefiner, Flows);
 
 }  // namespace mt_kahypar
