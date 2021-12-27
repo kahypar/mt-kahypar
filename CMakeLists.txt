@@ -229,7 +229,13 @@ ELSE ()
     MESSAGE(STATUS "WARNING: hwlock library not found.")
 ENDIF ()
 
-# TODO: Add git revision
+find_package(Git)
+include(GetGitRevisionDescription)
+get_git_head_revision(MT_KAHYPAR_VERSION_GIT_REFSPEC MT_KAHYPAR_VERSION_GIT_SHA1)
+if(MT_KAHYPAR_VERSION_GIT_REFSPEC)
+  message(STATUS "Detected git refspec ${MT_KAHYPAR_VERSION_GIT_REFSPEC} sha ${MT_KAHYPAR_VERSION_GIT_SHA1}")
+  configure_file(${PROJECT_SOURCE_DIR}/mt-kahypar/application/git_revision.txt.in ${PROJECT_BINARY_DIR}/mt-kahypar/application/git_head.txt)
+endif(MT_KAHYPAR_VERSION_GIT_REFSPEC)
 
 if(NOT MSVC)
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -W -Wall -Wextra ")
