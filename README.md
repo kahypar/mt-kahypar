@@ -35,9 +35,9 @@ to restrict contractions to densely coupled regions during coarsening.
 
 The Mt-KaHyPar framework provides two hypergraph partitioners and a graph partitioner:
 
-- **Mt-KaHyPar Fast**: A scalable partitioner that computes good partitions very fast (for hypergraphs)
-- **Mt-KaHyPar Graph**: A scalable partitioner that computes good partitions very fast (for graphs)
-- **Mt-KaHyPar Strong**: A scalable partitioner that computes high-quality partitions
+- **Mt-KaHyPar-D**: A scalable partitioner that computes good partitions very fast (for hypergraphs)
+- **Mt-KaHyPar-Graph**: A scalable partitioner that computes good partitions very fast (for graphs)
+- **Mt-KaHyPar-Q**: A scalable partitioner that computes high-quality partitions
 
 Requirements
 -----------
