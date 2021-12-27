@@ -1,20 +1,21 @@
 /*******************************************************************************
- * This file is part of KaHyPar.
+ * This file is part of Mt-KaHyPar.
  *
  * Copyright (C) 2021 Tobias Heuer <tobias.heuer@kit.edu>
+ * Copyright (C) 2021 Lars Gottesbüren <lars.gottesbueren@kit.edu>
  *
- * KaHyPar is free software: you can redistribute it and/or modify
+ * Mt-KaHyPar is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * KaHyPar is distributed in the hope that it will be useful,
+ * Mt-KaHyPar is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with KaHyPar.  If not, see <http://www.gnu.org/licenses/>.
+ * along with Mt-KaHyPar.  If not, see <http://www.gnu.org/licenses/>.
  *
  ******************************************************************************/
 
@@ -27,7 +28,7 @@ namespace mt_kahypar {
 MoveSequence FlowRefiner::refineImpl(const PartitionedHypergraph& phg,
                                      const Subhypergraph& sub_hg,
                                      const HighResClockTimepoint& start) {
-  MoveSequence sequence { { }, 0 };   // TODO why are only two members initialized? any argument against default values?
+  MoveSequence sequence { { }, 0 };
   // Construct flow network that contains all vertices given in refinement nodes
   utils::Timer::instance().start_timer("construct_flow_network", "Construct Flow Network", true);
   FlowProblem flow_problem = constructFlowHypergraph(phg, sub_hg);
