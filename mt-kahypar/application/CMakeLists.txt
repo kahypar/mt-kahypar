@@ -1,9 +1,9 @@
 configure_file(mt_kahypar.cc.in ${PROJECT_BINARY_DIR}/mt-kahypar/application/mt_kahypar.cc)
-add_executable(OneMtKaHyPar ${PROJECT_BINARY_DIR}/mt-kahypar/application/mt_kahypar.cc)
-target_link_libraries(OneMtKaHyPar ${Boost_LIBRARIES})
-target_link_libraries(OneMtKaHyPar pthread)
-set_property(TARGET OneMtKaHyPar PROPERTY CXX_STANDARD 17)
-set_property(TARGET OneMtKaHyPar PROPERTY CXX_STANDARD_REQUIRED ON)
+add_executable(MtKaHyPar ${PROJECT_BINARY_DIR}/mt-kahypar/application/mt_kahypar.cc)
+target_link_libraries(MtKaHyPar ${Boost_LIBRARIES})
+target_link_libraries(MtKaHyPar pthread)
+set_property(TARGET MtKaHyPar PROPERTY CXX_STANDARD 17)
+set_property(TARGET MtKaHyPar PROPERTY CXX_STANDARD_REQUIRED ON)
 
 add_executable(MtKaHyParFast kahypar.cc)
 target_link_libraries(MtKaHyParFast ${Boost_LIBRARIES})
@@ -44,4 +44,4 @@ if(ENABLE_PROFILE MATCHES ON)
 endif()
 
 
-set(TARGETS_WANTING_ALL_SOURCES ${TARGETS_WANTING_ALL_SOURCES} OneMtKaHyPar MtKaHyParFast MtKaHyParStrong MtKaHyParGraph PARENT_SCOPE)
+set(TARGETS_WANTING_ALL_SOURCES ${TARGETS_WANTING_ALL_SOURCES} MtKaHyPar MtKaHyParFast MtKaHyParStrong MtKaHyParGraph PARENT_SCOPE)
