@@ -14,22 +14,22 @@ integration_test_json_file = mt_kahypar_dir + "tests/end_to_end/integration_test
 num_threads = multiprocessing.cpu_count()
 
 
-partitioners = { "Mt-KaHyPar-D":     { "executable": executable_dir + "MtKaHyParFast",
+partitioners = { "Mt-KaHyPar-D":     { "executable": executable_dir + "MtKaHyParDefault",
                                        "config":  config_dir + "default_preset.ini",
                                        "mode": "direct" },
-                 "Mt-KaHyPar-Q":     { "executable": executable_dir + "MtKaHyParStrong",
+                 "Mt-KaHyPar-Q":     { "executable": executable_dir + "MtKaHyParQuality",
                                        "config":  config_dir + "quality_preset.ini",
                                        "mode": "direct" },
                  "Mt-KaHyPar-Graph": { "executable": executable_dir + "MtKaHyParGraph",
                                        "config":  config_dir + "default_preset.ini",
                                        "mode": "direct" },
-                 "Mt-KaHyPar-Det":   { "executable": executable_dir + "MtKaHyParFast",
-                                       "config":  config_dir + "speed_deterministic_preset.ini",
+                 "Mt-KaHyPar-Det":   { "executable": executable_dir + "MtKaHyParDefault",
+                                       "config":  config_dir + "deterministic_preset.ini",
                                        "mode": "direct" },
-                 "Mt-KaHyPar-RB":    { "executable": executable_dir + "MtKaHyParFast",
+                 "Mt-KaHyPar-RB":    { "executable": executable_dir + "MtKaHyParDefault",
                                        "config":  config_dir + "default_preset.ini",
                                        "mode": "rb" },
-                 "Mt-KaHyPar-Deep":  { "executable": executable_dir + "MtKaHyParFast",
+                 "Mt-KaHyPar-Deep":  { "executable": executable_dir + "MtKaHyParDefault",
                                        "config":  config_dir + "default_preset.ini",
                                        "mode": "deep" } }
 

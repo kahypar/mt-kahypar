@@ -315,8 +315,8 @@ add_subdirectory(tests)
 add_subdirectory(mt-kahypar)
 
 add_custom_target(MtKaHyParSuite
-  COMMAND $(MAKE) MtKaHyParFast
-  COMMAND $(MAKE) MtKaHyParStrong
+  COMMAND $(MAKE) MtKaHyParDefault
+  COMMAND $(MAKE) MtKaHyParQuality
   COMMAND $(MAKE) MtKaHyParGraph
   COMMAND $(MAKE) MtKaHyPar)
 

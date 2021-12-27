@@ -63,44 +63,41 @@ Building Mt-KaHyPar
    ```git clone --depth=1 --recursive git@github.com:kahypar/mt-kahypar.git```
 2. Create a build directory: `mkdir build && cd build`
 3. Run cmake: `cmake .. -DCMAKE_BUILD_TYPE=RELEASE`
-4. Run make: `make MtKaHyPar -j`
+4. Run make: `make MtKaHyParSuite -j`
 
-The build produces three executables, which will be located in `build/mt-kahypar/application/`:
+The build produces four executables, which will be located in `build/mt-kahypar/application/`:
 
-- `MtKaHyParFast`: computes good partitions very fast (for hypergraphs)
-- `MtKaHyParGraph`: computes good partitions very fast (for graphs)
-- `MtKaHyParStrong`: computes high-quality partitions in reasonable time (using n levels)
+- `MtKaHyParDefault` (Mt-KaHyPar-D): computes good partitions very fast (for hypergraphs)
+- `MtKaHyParGraph` (Mt-KaHyPar-Graph): computes good partitions very fast (for graphs)
+- `MtKaHyParQuality` (Mt-KaHyPar-Q): computes high-quality partitions in reasonable time (using n levels)
+- `MtKaHyPar`: wrapper around the three binaries
 
-Note that `MtKaHyParGraph` uses the same feature set as `MtKaHyParFast`. However, it replaces
-the internal hypergraph data structure of `MtKaHyParFast` with a graph data structure. In fact, `MtKaHyParGraph` is a factor of 2 faster than `MtKaHyParFast` for graphs on average.
+Note that `MtKaHyParGraph` uses the same feature set as `MtKaHyParDefault`. However, it replaces
+the internal hypergraph data structure of `MtKaHyParDefault` with a graph data structure. In fact, `MtKaHyParGraph` is a factor of 2 faster than `MtKaHyParDefault` for graphs on average.
 
 Running Mt-KaHyPar
 -----------
 
-Mt-KaHyPar has several configuration parameters. We recommend to use our presets located in the `config` folder:
+Mt-KaHyPar has several configuration parameters. We recommend to use our preset types (also located in the `config` folder):
 
-- `default_preset.ini`: default parameters for Mt-KaHyPar Fast/Graph (`MtKaHyParFast`, `MtKaHyParGraph`)
-- `default_flow_preset.ini`: extends the default preset with flow-based refinement (`MtKaHyParFast`, `MtKaHyParGraph`)
-- `speed_deterministic_preset.ini`: parameters to make Mt-KaHyPar Fast (`MtKaHyParFast`) deterministic
-- `quality_preset.ini`: default parameters for Mt-KaHyPar Strong (`MtKaHyParStrong`)
-- `quality_flow_preset.ini`: extends the quality preset with flow-based refinement (`MtKaHyParStrong`)
+- `default`: default parameters for Mt-KaHyPar-D/-Graph (`config/default_preset.ini`)
+- `default_flow`: extends the default preset with flow-based refinement (`config/default_flow_preset.ini`)
+- `deterministic`: parameters to make Mt-KaHyPar-D deterministic (`config/deterministic_preset.ini`)
+- `quality`: default parameters for Mt-KaHyPar-Q (`config/quality_preset.ini`)
+- `quality_flow`: extends the quality preset with flow-based refinement (`config/quality_flow_preset.ini`)
 
-The presets can be ranked from lowest to the highest quality configuration as follows: `speed_deterministic_preset.ini`,
-`default_preset.ini`, `quality_preset.ini`, `default_flow_preset.ini` and `quality_flow_preset.ini`.
-Deterministic mode is only supported for Mt-KaHyPar Fast, not Graph or Strong.
+The presets can be ranked from lowest to the highest quality configuration as follows: `deterministic`,
+`default`, `quality`, `default_flow` and `quality_flow`.
+Deterministic mode is only supported for Mt-KaHyPar-D, not -Graph or -Q.
 If you want to change parameters manually, please run `--help` for a detailed description of the different program options. We use the [hMetis format](http://glaros.dtc.umn.edu/gkhome/fetch/sw/hmetis/manual.pdf) for hypergraph files as well as the partition output file and the [Metis format](http://glaros.dtc.umn.edu/gkhome/fetch/sw/metis/manual.pdf) for graph files. Per default, we expect the input to be in hMetis format, but you can read graphs in Metis format via command line parameter `--input-file-format=metis`.
 
-To run Mt-KaHyPar Fast, you can use the following command:
+To run Mt-KaHyPar, you can use the following command:
 
-    ./MtKaHyParFast -h <path-to-hgr> -p <path to default_preset.ini> -t <# threads> -k <# blocks> -e <imbalance (e.g. 0.03)> -o km1 -m direct
+    ./MtKaHyPar -h <path-to-hgr> -t <# threads> -k <# blocks> -e <imbalance (e.g. 0.03)> -o km1 -m direct --preset-type=<deterministic/default/default_flow/quality/quality_flow> --instance_type=<hypergraph/graph>
 
-To run Mt-KaHyPar Graph, you can use the following command:
+or directly provide a configuration file (see `config` folder):
 
-    ./MtKaHyParGraph -h <path-to-hgr> -p <path to default_preset.ini> -t <# threads> -k <# blocks> -e <imbalance (e.g. 0.03)> -o km1 -m direct
-
-To run Mt-KaHyPar Strong, you can use the following command:
-
-    ./MtKaHyParStrong -h <path-to-hgr> -p <path to quality_preset.ini> -t <# threads> -k <# blocks> -e <imbalance (e.g. 0.03)> -o km1 -m direct
+    ./MtKaHyPar -h <path-to-hgr> -t <# threads> -k <# blocks> -e <imbalance (e.g. 0.03)> -o km1 -m direct -p <path to config file>
 
 The partition output file will be placed in the same folder as the input hypergraph file. If you want to change the default partition output folder, add the command line parameter `--partition-output-folder=path/to/folder`. There is also an option to disable writing the partition file `--write-partition-file=false`. Further, there are several useful options that can provide you with additional insights during and after the partitioning process:
 - `--show-detailed-timings=true`: Shows detailed subtimings of each multilevel phase at the end of the partitioning process
@@ -212,22 +209,22 @@ mt_kahypar_read_hypergraph_from_file("path/to/hypergraph/file", &num_vertices, &
   &hyperedge_indices, &hyperedges, &hyperedge_weights, &hypernode_weights);
 ```
 
-To compile the program using `g++` and our fast hypergraph partitioner (Mt-KaHyPar Fast) run:
+To compile the program using `g++` and our default hypergraph partitioner (Mt-KaHyPar-D) run:
 
 ```sh
-g++ -std=c++17 -DNDEBUG -O3 your_program.cc -o your_program -lmtkahyparfast
+g++ -std=c++17 -DNDEBUG -O3 your_program.cc -o your_program -lmtkahypard
 ```
 
-To compile the program using `g++` and our fast graph partitioner (Mt-KaHyPar Fast Graph) run:
+To compile the program using `g++` and our fast graph partitioner (Mt-KaHyPar-Graph) run:
 
 ```sh
 g++ -std=c++17 -DNDEBUG -O3 your_program.cc -o your_program -lmtkahypargraph
 ```
 
-To compile the program using `g++` and our strong hypergraph partitioner (Mt-KaHyPar Strong) run:
+To compile the program using `g++` and our strong hypergraph partitioner (Mt-KaHyPar-Q) run:
 
 ```sh
-g++ -std=c++17 -DNDEBUG -O3 your_program.cc -o your_program -lmtkahyparstrong
+g++ -std=c++17 -DNDEBUG -O3 your_program.cc -o your_program -lmtkahyparq
 ```
 
 To execute the binary, you need to ensure that the installation directory (probably `/usr/local/lib` for system-wide installation)
