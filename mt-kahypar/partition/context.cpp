@@ -33,6 +33,12 @@ namespace mt_kahypar {
     str << "  Mode:                               " << params.mode << std::endl;
     str << "  Objective:                          " << params.objective << std::endl;
     str << "  Input File Format:                  " << params.file_format << std::endl;
+    if ( params.instance_type != InstanceType::UNDEFINED ) {
+      str << "  Instance Type:                      " << params.instance_type << std::endl;
+    }
+    if ( params.preset_type != PresetType::UNDEFINED ) {
+      str << "  Preset Type:                        " << params.preset_type << std::endl;
+    }
     str << "  k:                                  " << params.k << std::endl;
     str << "  epsilon:                            " << params.epsilon << std::endl;
     str << "  seed:                               " << params.seed << std::endl;

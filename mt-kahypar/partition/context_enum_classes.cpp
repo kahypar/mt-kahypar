@@ -45,6 +45,29 @@ namespace mt_kahypar {
     return os << static_cast<uint8_t>(format);
   }
 
+  std::ostream & operator<< (std::ostream& os, const InstanceType& type) {
+    switch (type) {
+      case InstanceType::graph: return os << "graph";
+      case InstanceType::hypergraph: return os << "hypergraph";
+      case InstanceType::UNDEFINED: return os << "UNDEFINED";
+        // omit default case to trigger compiler warning for missing cases
+    }
+    return os << static_cast<uint8_t>(type);
+  }
+
+  std::ostream & operator<< (std::ostream& os, const PresetType& type) {
+    switch (type) {
+      case PresetType::deterministic: return os << "deterministic";
+      case PresetType::default_preset: return os << "default";
+      case PresetType::default_flows: return os << "default_flows";
+      case PresetType::quality_preset: return os << "quality";
+      case PresetType::quality_flows: return os << "quality_flows";
+      case PresetType::UNDEFINED: return os << "UNDEFINED";
+        // omit default case to trigger compiler warning for missing cases
+    }
+    return os << static_cast<uint8_t>(type);
+  }
+
   std::ostream & operator<< (std::ostream& os, const Paradigm& paradigm) {
     switch (paradigm) {
       case Paradigm::multilevel: return os << "multilevel";
@@ -189,6 +212,32 @@ namespace mt_kahypar {
     }
     ERROR("Illegal option: " + mode);
     return Mode::UNDEFINED;
+  }
+
+  InstanceType instanceTypeFromString(const std::string& type) {
+    if (type == "graph") {
+      return InstanceType::graph;
+    } else if (type == "hypergraph") {
+      return InstanceType::hypergraph;
+    }
+    ERROR("Illegal option: " + type);
+    return InstanceType::UNDEFINED;
+  }
+
+  PresetType presetTypeFromString(const std::string& type) {
+    if (type == "deterministic") {
+      return PresetType::deterministic;
+    } else if (type == "default") {
+      return PresetType::default_preset;
+    } else if (type == "default_flows") {
+      return PresetType::default_flows;
+    } else if (type == "quality") {
+      return PresetType::quality_preset;
+    } else if (type == "quality_flows") {
+      return PresetType::quality_flows;
+    }
+    ERROR("Illegal option: " + type);
+    return PresetType::UNDEFINED;
   }
 
   LouvainEdgeWeight louvainEdgeWeightFromString(const std::string& type) {
