@@ -13,7 +13,7 @@ set_property(TARGET MtKaHyParDefault PROPERTY CXX_STANDARD_REQUIRED ON)
 add_custom_command(TARGET MtKaHyParDefault PRE_BUILD
     COMMAND ${CMAKE_COMMAND}
       -E echo_append "${MT_KAHYPAR_VERSION_GIT_REFSPEC} at sha ${MT_KAHYPAR_VERSION_GIT_SHA1}" >
-      ${PROJECT_BINARY_DIR}/mt-kahypar/application/git_mt_kahypar_fast.txt)
+      ${PROJECT_BINARY_DIR}/mt-kahypar/application/git_mt_kahypar_d.txt)
 
 add_executable(MtKaHyParQuality kahypar.cc)
 target_link_libraries(MtKaHyParQuality ${Boost_LIBRARIES})
@@ -24,7 +24,7 @@ target_compile_definitions(MtKaHyParQuality PUBLIC USE_STRONG_PARTITIONER)
 add_custom_command(TARGET MtKaHyParQuality PRE_BUILD
     COMMAND ${CMAKE_COMMAND}
       -E echo_append "${MT_KAHYPAR_VERSION_GIT_REFSPEC} at sha ${MT_KAHYPAR_VERSION_GIT_SHA1}" >
-      ${PROJECT_BINARY_DIR}/mt-kahypar/application/git_mt_kahypar_strong.txt)
+      ${PROJECT_BINARY_DIR}/mt-kahypar/application/git_mt_kahypar_q.txt)
 
 add_executable(MtKaHyParGraph kahypar.cc)
 target_link_libraries(MtKaHyParGraph ${Boost_LIBRARIES})

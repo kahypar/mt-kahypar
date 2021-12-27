@@ -28,12 +28,12 @@
 #define MT_KAHYPAR_CONFIG_DIR "@PROJECT_SOURCE_DIR@/config/"
 
 static std::string getGitRevisionFile(const mt_kahypar::Context& context) {
-  std::string revision_file = std::string(MT_KAHYPAR_BINARY_DIR) + "git_mt_kahypar_fast.txt";
+  std::string revision_file = std::string(MT_KAHYPAR_BINARY_DIR) + "git_mt_kahypar_d.txt";
   if ( context.partition.instance_type == mt_kahypar::InstanceType::graph ) {
     revision_file = std::string(MT_KAHYPAR_BINARY_DIR) + "git_mt_kahypar_graph.txt";
   } else if ( context.partition.preset_type == mt_kahypar::PresetType::quality_preset ||
               context.partition.preset_type == mt_kahypar::PresetType::quality_flows ) {
-    revision_file = std::string(MT_KAHYPAR_BINARY_DIR) + "git_mt_kahypar_strong.txt";
+    revision_file = std::string(MT_KAHYPAR_BINARY_DIR) + "git_mt_kahypar_q.txt";
   }
   return revision_file;
 }
