@@ -19,12 +19,41 @@
  *
  ******************************************************************************/
 #include <iostream>
+#include <fstream>
 
 #include "mt-kahypar/io/command_line_options.h"
 #include "mt-kahypar/macros.h"
 
 #define MT_KAHYPAR_BINARY_DIR "@PROJECT_BINARY_DIR@/mt-kahypar/application/"
 #define MT_KAHYPAR_CONFIG_DIR "@PROJECT_SOURCE_DIR@/config/"
+
+static std::string getGitRevisionFile(const mt_kahypar::Context& context) {
+  std::string revision_file = std::string(MT_KAHYPAR_BINARY_DIR) + "git_mt_kahypar_fast.txt";
+  if ( context.partition.instance_type == mt_kahypar::InstanceType::graph ) {
+    revision_file = std::string(MT_KAHYPAR_BINARY_DIR) + "git_mt_kahypar_graph.txt";
+  } else if ( context.partition.preset_type == mt_kahypar::PresetType::quality_preset ||
+              context.partition.preset_type == mt_kahypar::PresetType::quality_flows ) {
+    revision_file = std::string(MT_KAHYPAR_BINARY_DIR) + "git_mt_kahypar_strong.txt";
+  }
+  return revision_file;
+}
+
+static std::string readGitRevisionFile(const std::string& revision_file) {
+  std::ifstream file(revision_file.c_str());
+  if ( !file ) {
+    WARNING("No git revision file for preset available (binary might be not up to date). Do you want to continue? (Y/N)");
+    char yes_no;
+    std::cin >> yes_no;
+    if ( yes_no == 'N' ) {
+      std::exit(0);
+    }
+    return "";
+  } else {
+    std::string git = "";
+    std::getline(file, git);
+    return git;
+  }
+}
 
 static void configureContext(mt_kahypar::Context& context) {
   const bool use_flows = context.refinement.flows.algorithm == mt_kahypar::FlowAlgorithm::flow_cutter;
@@ -63,6 +92,22 @@ static void configureContext(mt_kahypar::Context& context) {
                 "Graphs are not supported with" << context.partition.preset_type << "preset.",
                 context.partition.preset_type,
                 use_flows ? mt_kahypar::PresetType::default_flows : mt_kahypar::PresetType::default_preset);
+  }
+
+  // Check git revision
+  const std::string head_file = std::string(MT_KAHYPAR_BINARY_DIR) + "git_head.txt";
+  const std::string preset_git_file = getGitRevisionFile(context);
+  const std::string head_content = readGitRevisionFile(head_file);
+  const std::string preset_content = readGitRevisionFile(preset_git_file);
+  if ( head_content != preset_content ) {
+    WARNING("Git Revision Head = " << head_content);
+    WARNING("Git Revision Binary = " << preset_content);
+    WARNING("Git Revision of binary is not equal to HEAD (consider to recompile Mt-KaHyPar). Do you want to continue (Y/N)?");
+    char yes_no;
+    std::cin >> yes_no;
+    if ( yes_no == 'N' ) {
+      std::exit(0);
+    }
   }
 }
 
