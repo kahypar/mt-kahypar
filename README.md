@@ -78,7 +78,7 @@ the internal hypergraph data structure of `MtKaHyParDefault` with a graph data s
 Running Mt-KaHyPar
 -----------
 
-Mt-KaHyPar has several configuration parameters. We recommend to use our preset types (also located in the `config` folder):
+Mt-KaHyPar has several configuration parameters. We recommend to use one of our presets (also located in the `config` folder):
 
 - `default`: default parameters for Mt-KaHyPar-D/-Graph (`config/default_preset.ini`)
 - `default_flow`: extends the default preset with flow-based refinement (`config/default_flow_preset.ini`)
@@ -86,7 +86,7 @@ Mt-KaHyPar has several configuration parameters. We recommend to use our preset 
 - `quality`: default parameters for Mt-KaHyPar-Q (`config/quality_preset.ini`)
 - `quality_flow`: extends the quality preset with flow-based refinement (`config/quality_flow_preset.ini`)
 
-The presets can be ranked from lowest to the highest quality configuration as follows: `deterministic`,
+The presets can be ranked from lowest to the highest quality as follows: `deterministic`,
 `default`, `quality`, `default_flow` and `quality_flow`.
 Deterministic mode is only supported for Mt-KaHyPar-D, not -Graph or -Q.
 If you want to change parameters manually, please run `--help` for a detailed description of the different program options. We use the [hMetis format](http://glaros.dtc.umn.edu/gkhome/fetch/sw/hmetis/manual.pdf) for hypergraph files as well as the partition output file and the [Metis format](http://glaros.dtc.umn.edu/gkhome/fetch/sw/metis/manual.pdf) for graph files. Per default, we expect the input to be in hMetis format, but you can read graphs in Metis format via command line parameter `--input-file-format=metis`.
