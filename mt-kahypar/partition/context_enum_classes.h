@@ -38,6 +38,21 @@ enum class FileFormat : int8_t {
   Metis = 1,
 };
 
+enum class InstanceType : int8_t {
+  graph = 0,
+  hypergraph = 1,
+  UNDEFINED = 2
+};
+
+enum class PresetType : int8_t {
+  deterministic,
+  default_preset,
+  default_flows,
+  quality_preset,
+  quality_flows,
+  UNDEFINED
+};
+
 enum class Paradigm : int8_t {
   multilevel,
   nlevel
@@ -129,6 +144,10 @@ std::ostream & operator<< (std::ostream& os, const Type& type);
 
 std::ostream & operator<< (std::ostream& os, const FileFormat& type);
 
+std::ostream & operator<< (std::ostream& os, const InstanceType& type);
+
+std::ostream & operator<< (std::ostream& os, const PresetType& type);
+
 std::ostream & operator<< (std::ostream& os, const Paradigm& paradigm);
 
 std::ostream & operator<< (std::ostream& os, const Mode& mode);
@@ -154,6 +173,10 @@ std::ostream & operator<< (std::ostream& os, const FMAlgorithm& algo);
 std::ostream & operator<< (std::ostream& os, const FlowAlgorithm& algo);
 
 Mode modeFromString(const std::string& mode);
+
+InstanceType instanceTypeFromString(const std::string& type);
+
+PresetType presetTypeFromString(const std::string& type);
 
 LouvainEdgeWeight louvainEdgeWeightFromString(const std::string& type);
 

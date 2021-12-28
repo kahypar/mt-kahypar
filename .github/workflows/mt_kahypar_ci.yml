@@ -70,7 +70,7 @@ jobs:
           mkdir build
           cd build
           cmake .. -DCMAKE_BUILD_TYPE=RELEASE -DKAHYPAR_CI_BUILD=ON
-          make -j2 MtKaHyPar
+          make -j2 MtKaHyParSuite
           make -j2 VerifyPartition
 
       - name: Run Mt-KaHyPar Integration Tests

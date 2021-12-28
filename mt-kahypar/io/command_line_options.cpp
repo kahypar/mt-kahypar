@@ -73,6 +73,23 @@ namespace mt_kahypar {
              "Input file format: \n"
              " - hmetis : hMETIS hypergraph file format \n"
              " - metis : METIS graph file format")
+            ("instance-type",
+             po::value<std::string>()->value_name("<string>")->notifier([&](const std::string& type) {
+               context.partition.instance_type = instanceTypeFromString(type);
+             }),
+             "Instance Type: \n"
+             " - graph\n"
+             " - hypergraph")
+            ("preset-type",
+             po::value<std::string>()->value_name("<string>")->notifier([&](const std::string& type) {
+               context.partition.preset_type = presetTypeFromString(type);
+             }),
+             "Preset Type: \n"
+             " - deterministic (Mt-KaHyPar-Det)\n"
+             " - default (Mt-KaHyPar-D)\n"
+             " - default_flows (Mt-KaHyPar-D-F)\n"
+             " - quality (Mt-KaHyPar-Q)\n"
+             " - quality_flows (Mt-KaHyPar-Q-F)\n")
             ("seed",
              po::value<int>(&context.partition.seed)->value_name("<int>")->default_value(0),
              "Seed for random number generator")
@@ -710,25 +727,27 @@ namespace mt_kahypar {
 
     po::notify(cmd_vm);
 
-    std::ifstream file(context.partition.preset_file.c_str());
-    if (!file) {
-      ERROR("Could not load context file at: " + context.partition.preset_file);
+    if ( context.partition.preset_file != "" ) {
+      std::ifstream file(context.partition.preset_file.c_str());
+      if (!file) {
+        ERROR("Could not load context file at: " + context.partition.preset_file);
+      }
+
+      po::options_description ini_line_options;
+      ini_line_options.add(general_options)
+              .add(preprocessing_options)
+              .add(coarsening_options)
+              .add(initial_paritioning_options)
+              .add(refinement_options)
+              .add(flow_options)
+  #ifdef KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES
+              .add(sparsification_options)
+  #endif
+              .add(shared_memory_options);
+
+      po::store(po::parse_config_file(file, ini_line_options, true), cmd_vm);
+      po::notify(cmd_vm);
     }
-
-    po::options_description ini_line_options;
-    ini_line_options.add(general_options)
-            .add(preprocessing_options)
-            .add(coarsening_options)
-            .add(initial_paritioning_options)
-            .add(refinement_options)
-            .add(flow_options)
-#ifdef KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES
-                    .add(sparsification_options)
-#endif
-            .add(shared_memory_options);
-
-    po::store(po::parse_config_file(file, ini_line_options, true), cmd_vm);
-    po::notify(cmd_vm);
 
     std::string epsilon_str = std::to_string(context.partition.epsilon);
     epsilon_str.erase(epsilon_str.find_last_not_of('0') + 1, std::string::npos);

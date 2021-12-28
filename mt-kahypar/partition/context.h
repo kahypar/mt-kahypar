@@ -35,6 +35,8 @@ struct PartitioningParameters {
   Mode mode = Mode::UNDEFINED;
   kahypar::Objective objective = kahypar::Objective::UNDEFINED;
   FileFormat file_format = FileFormat::hMetis;
+  InstanceType instance_type = InstanceType::UNDEFINED;
+  PresetType preset_type = PresetType::UNDEFINED;
   double epsilon = std::numeric_limits<double>::max();
   PartitionID k = std::numeric_limits<PartitionID>::max();
   int seed = 0;
