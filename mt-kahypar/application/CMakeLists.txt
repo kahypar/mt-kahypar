@@ -1,9 +1,10 @@
 configure_file(mt_kahypar.cc.in ${PROJECT_BINARY_DIR}/mt-kahypar/application/mt_kahypar.cc)
-add_executable(MtKaHyPar ${PROJECT_BINARY_DIR}/mt-kahypar/application/mt_kahypar.cc)
-target_link_libraries(MtKaHyPar ${Boost_LIBRARIES})
-target_link_libraries(MtKaHyPar pthread)
-set_property(TARGET MtKaHyPar PROPERTY CXX_STANDARD 17)
-set_property(TARGET MtKaHyPar PROPERTY CXX_STANDARD_REQUIRED ON)
+add_executable(MtKaHyParWrapper ${PROJECT_BINARY_DIR}/mt-kahypar/application/mt_kahypar.cc)
+set_target_properties(MtKaHyParWrapper PROPERTIES OUTPUT_NAME "MtKaHyPar")
+target_link_libraries(MtKaHyParWrapper ${Boost_LIBRARIES})
+target_link_libraries(MtKaHyParWrapper pthread)
+set_property(TARGET MtKaHyParWrapper PROPERTY CXX_STANDARD 17)
+set_property(TARGET MtKaHyParWrapper PROPERTY CXX_STANDARD_REQUIRED ON)
 
 add_executable(MtKaHyParDefault kahypar.cc)
 target_link_libraries(MtKaHyParDefault ${Boost_LIBRARIES})
@@ -38,10 +39,11 @@ add_custom_command(TARGET MtKaHyParGraph PRE_BUILD
       ${PROJECT_BINARY_DIR}/mt-kahypar/application/git_mt_kahypar_graph.txt)
 
 if(ENABLE_PROFILE MATCHES ON)
+  target_link_libraries(MtKaHyParWrapper ${PROFILE_FLAGS})
   target_link_libraries(MtKaHyParDefault ${PROFILE_FLAGS})
   target_link_libraries(MtKaHyParQuality ${PROFILE_FLAGS})
   target_link_libraries(MtKaHyParGraph ${PROFILE_FLAGS})
 endif()
 
 
-set(TARGETS_WANTING_ALL_SOURCES ${TARGETS_WANTING_ALL_SOURCES} MtKaHyPar MtKaHyParDefault MtKaHyParQuality MtKaHyParGraph PARENT_SCOPE)
+set(TARGETS_WANTING_ALL_SOURCES ${TARGETS_WANTING_ALL_SOURCES} MtKaHyParWrapper MtKaHyParDefault MtKaHyParQuality MtKaHyParGraph PARENT_SCOPE)

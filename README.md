@@ -63,7 +63,7 @@ Building Mt-KaHyPar
    ```git clone --depth=1 --recursive git@github.com:kahypar/mt-kahypar.git```
 2. Create a build directory: `mkdir build && cd build`
 3. Run cmake: `cmake .. -DCMAKE_BUILD_TYPE=RELEASE`
-4. Run make: `make MtKaHyParSuite -j`
+4. Run make: `make MtKaHyPar -j`
 
 The build produces four executables, which will be located in `build/mt-kahypar/application/`:
 

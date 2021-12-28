@@ -84,7 +84,7 @@ namespace mt_kahypar {
              po::value<std::string>()->value_name("<string>")->notifier([&](const std::string& type) {
                context.partition.preset_type = presetTypeFromString(type);
              }),
-             "Instance Type: \n"
+             "Preset Type: \n"
              " - deterministic (Mt-KaHyPar-Det)\n"
              " - default (Mt-KaHyPar-D)\n"
              " - default_flows (Mt-KaHyPar-D-F)\n"
