@@ -99,7 +99,7 @@ static void configureContext(mt_kahypar::Context& context) {
   const std::string preset_git_file = getGitRevisionFile(context);
   const std::string head_content = readGitRevisionFile(head_file);
   const std::string preset_content = readGitRevisionFile(preset_git_file);
-  if ( head_content != preset_content ) {
+  if ( preset_content != "" && head_content != preset_content ) {
     WARNING("Git Revision Head = " << head_content);
     WARNING("Git Revision Binary = " << preset_content);
     WARNING("Git Revision of binary is not equal to HEAD (consider to recompile Mt-KaHyPar). Do you want to continue (Y/N)?");
