@@ -158,6 +158,7 @@ namespace mt_kahypar {
     out << "  Judicious Parameters:" << std::endl;
     out << "    Use Judicious Refiner:            " << std::boolalpha << params.use_judicious_refinement << std::endl;
     if (params.use_judicious_refinement) {
+      out << "    Rebalance:                        " << std::boolalpha << params.rebalance << std::endl;
       out << "    Part Load Margin:                 " << params.part_load_margin << std::endl;
       out << "    Min Load Ratio:                   " << params.min_load_ratio << std::endl;
       out << "    Abort Factor:                     " << params.abort_factor << std::endl;

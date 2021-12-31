@@ -421,6 +421,11 @@ namespace mt_kahypar {
                                 "<bool>")->default_value(false),
              "If true, use Judicious Refinement instead of the other refiners."
              "For now only recommended in refinement, not IP.")
+            ((initial_partitioning ? "i-r-rebalance" : "r-rebalance"),
+             po::value<bool>((!initial_partitioning ? &context.refinement.judicious.rebalance :
+                              &context.initial_partitioning.refinement.judicious.rebalance))->value_name(
+                                "<bool>")->default_value(false),
+             "If true, force rebalancing if new heaviest block is not heavy enough.")
             ((initial_partitioning ? "i-r-judicious-part-load-margin" : "r-judicious-part-load-margin"),
              po::value<double>((!initial_partitioning ? &context.refinement.judicious.part_load_margin :
                               &context.initial_partitioning.refinement.judicious.part_load_margin))->value_name(

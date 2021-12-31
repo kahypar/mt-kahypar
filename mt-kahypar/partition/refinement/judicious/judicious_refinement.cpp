@@ -186,6 +186,7 @@ namespace mt_kahypar {
         revertToBestLocalPrefix(phg, initial_num_moves);
         break;
       } else if (_part_loads.topKey() >= from_load * _context.refinement.judicious.part_load_margin) {
+        if (!_context.refinement.judicious.rebalance) break;
         // ...or a new block becomes heavier by a margin
         if (_part_loads.topKey() >= _part_loads.keyOfSecond() * _context.refinement.judicious.part_load_margin) break;
         else if (!force_rebalancing) {
