@@ -71,7 +71,7 @@ namespace mt_kahypar {
       } else {
         num_bad_refinements = 0;
       }
-      if (load_ratio < _context.refinement.judicious.min_load_ratio || num_bad_refinements >= 2) {   // (Review Note) This alone will not suffice as stopping criterion. must also include whether heaviest block yielded improvement
+      if (load_ratio < _context.refinement.judicious.min_load_ratio || num_bad_refinements >= 2) {
         done = true;
       }
     }
@@ -142,7 +142,6 @@ namespace mt_kahypar {
     _part_loads.deleteTop();
     const HyperedgeWeight initial_from_load = phg.partLoad(part_id);
     HyperedgeWeight from_load = initial_from_load;
-    // disable to-Blocks that are too large
     _gain_cache.initBlockPQ();
     auto delta_func = [&](const HyperedgeID he,
                           const HyperedgeWeight,
@@ -159,11 +158,9 @@ namespace mt_kahypar {
     bool done = false;
     bool force_rebalancing = false;
     size_t initial_num_moves = _moves.size();
-    vec<HypernodeID> move_nodes;
+    vec<HypernodeID> accepted_moves;
     while (!done && _gain_cache.findNextMove(phg, move)) {
-      if (move.to == kInvalidPartition) {
-        continue;
-      }
+      ASSERT(move.to != kInvalidPartition);
       ASSERT(move.from == part_id);
       phg.changeNodePartWithGainCacheUpdate(move.node, move.from, move.to,
                                             std::numeric_limits<HypernodeWeight>::max(),
@@ -177,7 +174,7 @@ namespace mt_kahypar {
       if (_total_improvement + gain >= _best_improvement) {
         _best_improvement = _total_improvement + gain;
         for (size_t i = initial_num_moves; i < _moves.size(); ++i) {
-          move_nodes.push_back(_moves[i].node);
+          accepted_moves.push_back(_moves[i].node);
         }
         _moves.clear();
         initial_num_moves = 0;
@@ -209,10 +206,10 @@ namespace mt_kahypar {
     _gain_cache.resetGainCache();
     _part_loads.insert(part_id, from_load);
     for (size_t i = initial_num_moves; i < _moves.size(); ++i) {
-      move_nodes.push_back(_moves[i].node);
+      accepted_moves.push_back(_moves[i].node);
     }
-    tbb::parallel_for(0UL, move_nodes.size(), [&](const MoveID i) {
-      phg.recomputeMoveFromBenefit(move_nodes[i]);
+    tbb::parallel_for(0UL, accepted_moves.size(), [&](const MoveID i) {
+      phg.recomputeMoveFromBenefit(accepted_moves[i]);
     });
   }
 

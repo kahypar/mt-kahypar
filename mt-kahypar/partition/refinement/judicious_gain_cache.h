@@ -117,10 +117,6 @@ public:
     _target_parts.assign(_target_parts.size(), kInvalidPartition);
   }
 
-  PartitionID getTargetPart(const HypernodeID v) const {
-    return _target_parts[v];
-  }
-
   void setOnlyEnabledBlock(PartitionID p) {
     _blocks_enabled.assign(_blocks_enabled.size(), false);
     _blocks_enabled[p] = true;
@@ -134,7 +130,6 @@ private:
   }
 
   bool updatePQs() {
-    // first update the blockPQ
     for (PartitionID i = 0; i < _context.partition.k; ++i) {
       updateOrRemoveToPQFromBlocks(i);
     }
@@ -174,9 +169,6 @@ private:
     to_load_after += phg.weightOfDisabledEdges(u);
     Gain benefit = phg.moveFromBenefit(u) + phg.weightOfDisabledEdges(u);
     HyperedgeWeight from_load_after = from_load - benefit;
-    // (Review Note) If to block is light enough, we only care about benefit.
-    // light enough means part_load[to] + penalty < part_load[from], I think
-    // but penalty and load can be a good tie-breaker because otherwise all moves look the same
     const Gain gain = to_load_after < from_load_after ? benefit :
                                                         from_load - to_load_after;
 
@@ -190,6 +182,7 @@ private:
   vec<PartitionID> _parts;
   vec<bool> _blocks_enabled;
   bool _rebalancing = false;
+  // only used for assertions
   PartitionID _active_part;
 };
 }
