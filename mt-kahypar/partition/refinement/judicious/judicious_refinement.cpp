@@ -18,7 +18,7 @@
  *
  ******************************************************************************/
 
-#include "mt-kahypar/partition/refinement/judicious_refinement.h"
+#include "mt-kahypar/partition/refinement/judicious/judicious_refinement.h"
 #include "mt-kahypar/datastructures/hypergraph_common.h"
 #include <cmath>
 #include <mt-kahypar/datastructures/priority_queue.h>

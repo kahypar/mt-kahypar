@@ -19,7 +19,7 @@
  ******************************************************************************/
 
 #include "mt-kahypar/partition/refinement/i_refiner.h"
-#include <mt-kahypar/partition/refinement/judicious_gain_cache.h>
+#include <mt-kahypar/partition/refinement/judicious/pq_strategy.h>
 namespace mt_kahypar {
 class JudiciousRefiner final : public IRefiner {
 

@@ -26,7 +26,7 @@
 #include "mt-kahypar/partition/coarsening/coarsening_commons.h"
 #include "mt-kahypar/partition/coarsening/i_uncoarsener.h"
 #include "mt-kahypar/partition/coarsening/uncoarsener_base.h"
-#include "mt-kahypar/partition/refinement/judicious_refinement.h"
+#include "mt-kahypar/partition/refinement/judicious/judicious_refinement.h"
 namespace mt_kahypar {
 
   class MultilevelUncoarsener : public IUncoarsener,
