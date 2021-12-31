@@ -155,11 +155,10 @@ namespace mt_kahypar {
       }
     };
     Move move;
-    bool done = false;
     bool force_rebalancing = false;
     size_t initial_num_moves = _moves.size();
     vec<HypernodeID> accepted_moves;
-    while (!done && _gain_cache.findNextMove(phg, move)) {
+    while (_gain_cache.findNextMove(phg, move)) {
       ASSERT(move.to != kInvalidPartition);
       ASSERT(move.from == part_id);
       phg.changeNodePartWithGainCacheUpdate(move.node, move.from, move.to,
@@ -171,6 +170,7 @@ namespace mt_kahypar {
       from_load = phg.partLoad(move.from);
       _part_loads.adjustKey(move.to, to_load);
       Gain gain = initial_from_load - std::max(_part_loads.topKey(), from_load);
+      // if the maximum load decreased, accept the move immediately
       if (_total_improvement + gain >= _best_improvement) {
         _best_improvement = _total_improvement + gain;
         for (size_t i = initial_num_moves; i < _moves.size(); ++i) {
@@ -179,28 +179,22 @@ namespace mt_kahypar {
         _moves.clear();
         initial_num_moves = 0;
       }
+
+      // abort if too many negative gain moves were made...
       if (_moves.size() > refinement_nodes.size() * _context.refinement.judicious.abort_factor) {
-        if (debug) {
-          LOG << "Abort due to too many negative gain moves";
-        }
+        if (debug) LOG << "Abort due to too many negative gain moves";
         revertToBestLocalPrefix(phg, initial_num_moves);
-        done = true;
+        break;
       } else if (_part_loads.topKey() >= from_load * _context.refinement.judicious.part_load_margin) {
-        if (_part_loads.topKey() < _part_loads.keyOfSecond() * _context.refinement.judicious.part_load_margin) {
-          if (!force_rebalancing) {
-            if (debug) {
-              LOG << "Partition loads are to similar, starting rebalancing";
-            }
-            force_rebalancing = true;
-            _gain_cache.setOnlyEnabledBlock(_part_loads.top());
-          }
-          updateNeighbors(phg, move);
-        } else {
-          done = true;
+        // ...or a new block becomes heavier by a margin
+        if (_part_loads.topKey() >= _part_loads.keyOfSecond() * _context.refinement.judicious.part_load_margin) break;
+        else if (!force_rebalancing) {
+          if (debug) LOG << "Partition loads are to similar, starting rebalancing";
+          force_rebalancing = true;
+          _gain_cache.setOnlyEnabledBlock(_part_loads.top());
         }
-      } else {
-        updateNeighbors(phg, move);
       }
+      updateNeighbors(phg, move);
     }
     _edgesWithGainChanges.clear();
     _gain_cache.resetGainCache();
