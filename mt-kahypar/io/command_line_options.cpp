@@ -421,7 +421,7 @@ namespace mt_kahypar {
                                 "<bool>")->default_value(false),
              "If true, use Judicious Refinement instead of the other refiners."
              "For now only recommended in refinement, not IP.")
-            ((initial_partitioning ? "i-r-rebalance" : "r-rebalance"),
+            ((initial_partitioning ? "i-r-judicious-rebalance" : "r-judicious-rebalance"),
              po::value<bool>((!initial_partitioning ? &context.refinement.judicious.rebalance :
                               &context.initial_partitioning.refinement.judicious.rebalance))->value_name(
                                 "<bool>")->default_value(false),
