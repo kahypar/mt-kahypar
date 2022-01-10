@@ -161,7 +161,11 @@ namespace mt_kahypar::metrics {
   }
 
   HyperedgeWeight judiciousLoad(const PartitionedHypergraph& hypergraph, const bool parallel) {
-    return minMaxLoad(hypergraph, parallel).second;
+    HyperedgeWeight max_load = minMaxLoad(hypergraph, parallel).second;
+    ASSERT(std::all_of(hypergraph.nodes().begin(), hypergraph.nodes().end(), [&](const HypernodeID &hn) {
+      return static_cast<HyperedgeWeight>(hypergraph.nodeDegree(hn)) <= max_load;
+    }));
+    return max_load;
   }
 
   HyperedgeWeight minLoad(const PartitionedHypergraph& hypergraph, const bool parallel) {
