@@ -258,30 +258,44 @@ We distribute this framework freely to foster the use and development of hypergr
 If you use Mt-KaHyPar in an academic setting please cite the appropriate papers.
 If you are interested in a commercial license, please contact me.
 
-    // Mt-KaHyPar Fast
-    @inproceedings{mt-kahypar-d,
+    // Mt-KaHyPar-D
+    @inproceedings{MT-KAHYPAR-D,
       title     = {Scalable Shared-Memory Hypergraph Partitioning},
       author    = {Gottesbüren, Lars and
                    Heuer, Tobias and
                    Sanders, Peter and
                    Schlag, Sebastian},
-      booktitle = {23rd Workshop on Algorithm Engineering and Experiments, (ALENEX 2021)},
+      booktitle = {23rd Workshop on Algorithm Engineering and Experiments (ALENEX 2021)},
       pages     = {16--30},
       year      = {2021},
       publisher = {SIAM},
       doi       = {10.1137/1.9781611976472.2},
     }
 
-    // Mt-KaHyPar Strong (Technical Report - Under Review)
-    @article{mt-kahypar-q,
-      title     = {Shared-Memory n-level Hypergraph Partitioning},
-      author    = {Gottesbüren, Lars and
-                   Heuer, Tobias and
-                   Sanders, Peter and
-                   Schlag, Sebastian},
-      journal   = {arXiv preprint arXiv:2104.08107},
-      year      = {2021}
+    // Mt-KaHyPar-Q
+    @inproceedings{MT-KAHYPAR-Q,
+      title     = {Shared-Memory $n$-level Hypergraph Partitioning},
+      author    = {Lars Gottesb{\"{u}}ren and
+                   Tobias Heuer and
+                   Peter Sanders and
+                   Sebastian Schlag},
+      booktitle = {24th Workshop on Algorithm Engineering and Experiments (ALENEX 2022)},
+      year      = {2022},
+      publisher = {SIAM},
+      month     = {01},
+      doi       = {10.1137/1.9781611977042.11}
     }
+
+    // Flow-Based Refinement (Technical Report)
+    @techreport{MT-KAHYPAR-FLOWS,
+      title       = {Parallel Flow-Based Hypergraph Partitioning},
+      author      = {Lars Gottesb{\"{u}}ren and
+                     Tobias Heuer and
+                     Peter Sanders},
+      institution = {Karlsruhe Institute of Technology},
+      year        = {2022},
+    }
+
 
 Contributing
 ------------
