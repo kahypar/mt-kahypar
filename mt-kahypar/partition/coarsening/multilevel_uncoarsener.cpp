@@ -40,6 +40,7 @@ namespace mt_kahypar {
     if (_context.type == kahypar::ContextType::main) {
       _context.initial_km1 = current_metrics.km1;
       _context.refinement.judicious.initial_judicious_load = metrics::judiciousLoad(partitioned_hg);
+      _context.refinement.judicious.max_degree = metrics::maxHnDegree(_hg);
     }
 
     utils::ProgressBar uncontraction_progress(_hg.initialNumNodes(),

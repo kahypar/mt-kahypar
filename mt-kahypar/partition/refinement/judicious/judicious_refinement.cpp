@@ -32,6 +32,7 @@ namespace mt_kahypar {
               double) {
 
     unused(refinement_nodes);
+    if (_reached_lower_bound) return false;
     if (!_is_initialized) throw std::runtime_error("Call initialize on judicious refinement before calling refine");
     if (debug) {
       LOG << "Initial judicious load:" << V(metrics::judiciousLoad(phg));
@@ -80,8 +81,10 @@ namespace mt_kahypar {
     }
     revertToBestLocalPrefix(phg, 0);
     current_max_load = phg.partLoad(0);
+    HyperedgeWeight current_min_load = phg.partLoad(0);
     for (PartitionID i = 1; i < _context.partition.k; ++i) {
       current_max_load = std::max(current_max_load, phg.partLoad(i));
+      current_min_load = std::min(current_min_load, phg.partLoad(i));
     }
     ASSERT(initial_max_load >= current_max_load);
     ASSERT(_best_improvement == initial_max_load - current_max_load);
@@ -89,6 +92,10 @@ namespace mt_kahypar {
       LOG << "improved judicious load by" << initial_max_load - current_max_load;
       _last_load = metrics::judiciousLoad(phg);
       LOG << V(metrics::judiciousLoad(phg));
+    }
+    if (static_cast<HyperedgeID>(current_max_load) == _context.refinement.judicious.max_degree || current_max_load == current_min_load) {
+      _reached_lower_bound = true;
+      if (debug) LOG << "Reached lower bound" << V(current_max_load) << V(current_min_load) << V(_context.refinement.judicious.max_degree);
     }
     metrics.imbalance = metrics::imbalance(phg, _context);
     reset();

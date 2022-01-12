@@ -69,5 +69,6 @@ private:
   Gain _total_improvement = 0;
   Gain _best_improvement = 0;
   HyperedgeWeight _last_load = 0;
+  bool _reached_lower_bound = false;
 };
 }
