@@ -34,7 +34,7 @@ namespace mt_kahypar {
     unused(refinement_nodes);
     if (!_is_initialized) throw std::runtime_error("Call initialize on judicious refinement before calling refine");
     if (debug) {
-      LOG << "Initial judicious load: " << V(metrics::judiciousLoad(phg));
+      LOG << "Initial judicious load:" << V(metrics::judiciousLoad(phg));
       ASSERT(_last_load == metrics::judiciousLoad(phg) || _last_load == 0);
     }
     for (PartitionID i = 0; i < _context.partition.k; ++i) {
@@ -48,9 +48,12 @@ namespace mt_kahypar {
       calculateRefinementNodes(phg);
       const PartitionID heaviest_part = _part_loads.top();
       const Gain last_best_improvement = _best_improvement;
+      HighResClockTimepoint refinement_start = std::chrono::high_resolution_clock::now();
       doRefinement(phg, heaviest_part);
+      HighResClockTimepoint refinement_stop = std::chrono::high_resolution_clock::now();
       if (debug) {
-        LOG << "Improved best state by " << (_best_improvement - last_best_improvement);
+        LOG << "Improved best state by" << (_best_improvement - last_best_improvement);
+        LOG << "Spent" << std::chrono::duration<double>(refinement_stop - refinement_start).count() << "s on block" << heaviest_part;
       }
       for (PartitionID i = 0; i < _context.partition.k; ++i) {
         _part_loads.adjustKey(i, phg.partLoad(i));
@@ -83,7 +86,7 @@ namespace mt_kahypar {
     ASSERT(initial_max_load >= current_max_load);
     ASSERT(_best_improvement == initial_max_load - current_max_load);
     if (debug) {
-      LOG << "improved judicious load by " << initial_max_load - current_max_load;
+      LOG << "improved judicious load by" << initial_max_load - current_max_load;
       _last_load = metrics::judiciousLoad(phg);
       LOG << V(metrics::judiciousLoad(phg));
     }
