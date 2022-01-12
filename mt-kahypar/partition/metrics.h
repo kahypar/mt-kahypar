@@ -43,4 +43,6 @@ HyperedgeWeight judiciousLoad(const PartitionedHypergraph& hypergraph, bool para
 
 HyperedgeWeight minLoad(const PartitionedHypergraph& hypergraph, const bool parallel = true);
 
+HyperedgeID maxHnDegree(const PartitionedHypergraph& hypergraph);
+
 }  // namespace mt_kahypar
