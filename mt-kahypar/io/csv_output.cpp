@@ -65,7 +65,7 @@ namespace mt_kahypar::io::csv {
     s << metrics::judiciousLoad(phg) << sep;
     s << context.refinement.judicious.initial_judicious_load << sep;
     s << metrics::minLoad(phg) << sep;
-    s << metrics::maxHnDegree(phg) << sep;
+    s << context.refinement.judicious.max_degree << sep;
     s << elapsed_seconds.count() << sep;
 
     utils::Timer& timer = utils::Timer::instance(context.partition.show_detailed_timings);

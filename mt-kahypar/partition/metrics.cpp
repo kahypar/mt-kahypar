@@ -172,7 +172,7 @@ namespace mt_kahypar::metrics {
     return minMaxLoad(hypergraph, parallel).first;
   }
 
-  HyperedgeID maxHnDegree(const PartitionedHypergraph& hypergraph) {
+  HyperedgeID maxHnDegree(const Hypergraph& hypergraph) {
     return hypergraph.nodeDegree(*std::max_element(hypergraph.nodes().begin(), hypergraph.nodes().end(),
                                                    [&hypergraph](const HypernodeID a, const HypernodeID b) {
                                                      return hypergraph.nodeDegree(a) < hypergraph.nodeDegree(b);
