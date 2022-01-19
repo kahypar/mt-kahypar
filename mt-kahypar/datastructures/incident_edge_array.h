@@ -227,7 +227,7 @@ class IncidentEdgeArray {
   // ! the list of v to u.
   void contract(const HypernodeID u,
                 const HypernodeID v,
-                const kahypar::ds::FastResetFlagArray<>& shared_hes_of_u_and_v,
+                kahypar::ds::FastResetFlagArray<>& edge_bitset,
                 const AcquireLockFunc& acquire_lock = NOOP_LOCK_FUNC,
                 const ReleaseLockFunc& release_lock = NOOP_LOCK_FUNC);
 
@@ -277,6 +277,56 @@ class IncidentEdgeArray {
  private:
   friend class IncidentEdgeIterator;
 
+  class HeaderIterator :
+    // TODO
+    public std::iterator<std::forward_iterator_tag,    // iterator_category
+                          HypernodeID,   // value_type
+                          std::ptrdiff_t,   // difference_type
+                          const HypernodeID*,   // pointer
+                          HypernodeID> {   // reference
+    public:
+    HeaderIterator(const HypernodeID u,
+                   const IncidentEdgeArray* incident_edge_array,
+                   const bool end):
+      _u(u),
+      _current_u(u),
+      _incident_edge_array(incident_edge_array),
+      _end(end) { }
+
+    HypernodeID operator* () const {
+      return _current_u;
+    }
+
+    HeaderIterator & operator++ () {
+      const Header* header = _incident_edge_array->header(_current_u);
+      _current_u = header->next;
+      if (_current_u == _u) {
+        _end = true;
+      }
+      return *this;
+    }
+
+    HeaderIterator operator++ (int) {
+      HeaderIterator copy = *this;
+      operator++ ();
+      return copy;
+    }
+
+    MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE bool operator== (const HeaderIterator& rhs) {
+      return _u == rhs._u && _end == rhs._end;
+    }
+
+    MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE bool operator!= (const HeaderIterator& rhs) {
+      return !(*this == rhs);
+    }
+
+    private:
+    HypernodeID _u;
+    HypernodeID _current_u;
+    const IncidentEdgeArray* _incident_edge_array;
+    bool _end;
+  };
+
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE const Header* header(const HypernodeID u) const {
     ASSERT(u <= _num_nodes, "Hypernode" << u << "does not exist");
     return reinterpret_cast<const Header*>(_incident_edge_array.get() + _index_array[u]);
@@ -301,11 +351,33 @@ class IncidentEdgeArray {
     return firstEdge(u) + header(u)->first_inactive;
   }
 
-//   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE void swap(Entry* lhs, Entry* rhs) {
-//     Entry tmp_lhs = *lhs;
-//     *lhs = *rhs;
-//     *rhs = tmp_lhs;
-//   }
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE void swap(Edge& lhs, Edge& rhs) {
+    Edge tmp_lhs = lhs;
+    lhs = rhs;
+    rhs = tmp_lhs;
+  }
+
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE void swap_to_front(const HypernodeID u, const HyperedgeID e) {
+    ASSERT(u <= _num_nodes, "Hypernode" << u << "does not exist");
+    swap(edge(e), edge(firstActiveEdge(u)));
+    ++header(u)->first_active;
+    ASSERT(header(u)->first_active <= header(u)->first_inactive);
+  }
+
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE void swap_to_back(const HypernodeID u, const HyperedgeID e) {
+    ASSERT(u <= _num_nodes, "Hypernode" << u << "does not exist");
+    swap(edge(e), edge(firstInactiveEdge(u) - 1));
+    --header(u)->first_inactive;
+    ASSERT(header(u)->first_active <= header(u)->first_inactive);
+  }
+
+  // ! Returns a range to loop over the headers of node u.
+  IteratorRange<HeaderIterator> headers(const HypernodeID u) const {
+    ASSERT(u < _num_nodes, "Hypernode" << u << "does not exist");
+    return IteratorRange<HeaderIterator>(
+      HeaderIterator(u, this, false),
+      HeaderIterator(u, this, true));
+  }
 
   // ! Restores all previously removed incident edges
   // ! Note, function must be called in reverse order of calls to
@@ -321,6 +393,12 @@ class IncidentEdgeArray {
   void splice(const HypernodeID u, const HypernodeID v);
 
   void removeEmptyIncidentEdgeList(const HypernodeID u);
+
+  void restoreItLink(const HypernodeID u, const HypernodeID prev, const HypernodeID current);
+
+  HyperedgeID findOutgoingEdge(const HypernodeID u, const HypernodeID target) const;
+
+  HyperedgeID findRemovedOutgoingEdge(const HypernodeID u, const HypernodeID target) const;
 
   void construct(const EdgeVector& edge_vector, const HyperedgeWeight* edge_weight = nullptr);
 
