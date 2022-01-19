@@ -37,10 +37,13 @@ void verifyNeighbors(const HypernodeID u,
   std::vector<bool> actual_neighbors(num_nodes, false);
   for ( const HyperedgeID& he : incident_edges.incidentEdges(u) ) {
     const HypernodeID neighbor = incident_edges.edge(he).target;
-    ASSERT_TRUE(_expected_neighbors.find(neighbor) != _expected_neighbors.end())
+    ASSERT_NE(_expected_neighbors.find(neighbor), _expected_neighbors.end())
       << "Vertex " << neighbor << " should not be neighbor of vertex " << u;
     ASSERT_FALSE(actual_neighbors[he])
       << "Vertex " << neighbor << " occurs more than once neighbors of vertex " << u;
+    ASSERT_EQ(u, incident_edges.edge(he).source)
+      << "Source of " << he << " (target: " << incident_edges.edge(he).target << ") should be "
+      << u << " but is " << incident_edges.edge(he).source;
     actual_neighbors[he] = true;
     ++num_neighbors;
   }
@@ -143,7 +146,7 @@ TEST(AIncidentNetArray, UncontractTwoVertices2) {
   verifyNeighbors(6, 7, incident_edges, { 4, 5 });
 }
 
-TEST(AIncidentNetArray, UncontractSeveralVertices) {
+TEST(AIncidentNetArray, UncontractSeveralVertices1) {
   IncidentEdgeArray incident_edges(
     7, {{1, 2}, {2, 3}, {1, 4}, {4, 5}, {4, 6}, {5, 6}});
   auto flag_array = createFlagArray(7, { });
@@ -170,9 +173,51 @@ TEST(AIncidentNetArray, UncontractSeveralVertices) {
   verifyNeighbors(0, 7, incident_edges, { });
   verifyNeighbors(1, 7, incident_edges, { 3, 4 });
   incident_edges.uncontract(1, 2);
+  verifyNeighbors(0, 7, incident_edges, { });
   verifyNeighbors(1, 7, incident_edges, { 2, 4 });
   verifyNeighbors(2, 7, incident_edges, { 1, 3 });
+  verifyNeighbors(3, 7, incident_edges, { 2 });
+  verifyNeighbors(4, 7, incident_edges, { 1, 5, 6 });
+  verifyNeighbors(5, 7, incident_edges, { 4, 6 });
+  verifyNeighbors(6, 7, incident_edges, { 4, 5 });
 }
+
+TEST(AIncidentNetArray, UncontractSeveralVertices2) {
+  IncidentEdgeArray incident_edges(
+    7, {{1, 2}, {2, 3}, {1, 4}, {4, 5}, {4, 6}, {5, 6}});
+  auto flag_array = createFlagArray(7, { });
+  incident_edges.contract(3, 1, flag_array);
+  incident_edges.contract(3, 4, flag_array);
+  incident_edges.contract(5, 6, flag_array);
+  incident_edges.contract(3, 5, flag_array);
+  incident_edges.contract(0, 2, flag_array);
+  incident_edges.contract(0, 3, flag_array);
+  verifyNeighbors(0, 7, incident_edges, { });
+  incident_edges.uncontract(0, 3);
+  verifyNeighbors(0, 7, incident_edges, { 3 });
+  verifyNeighbors(3, 7, incident_edges, { 0 });
+  incident_edges.uncontract(0, 2);
+  verifyNeighbors(0, 7, incident_edges, { });
+  verifyNeighbors(2, 7, incident_edges, { 3 });
+  incident_edges.uncontract(3, 5);
+  verifyNeighbors(3, 7, incident_edges, { 2, 5 });
+  verifyNeighbors(5, 7, incident_edges, { 3 });
+  incident_edges.uncontract(5, 6);
+  verifyNeighbors(5, 7, incident_edges, { 3, 6 });
+  verifyNeighbors(6, 7, incident_edges, { 3, 5 });
+  incident_edges.uncontract(3, 4);
+  verifyNeighbors(3, 7, incident_edges, { 2, 4 });
+  verifyNeighbors(4, 7, incident_edges, { 3, 5, 6 });
+  incident_edges.uncontract(3, 1);
+  verifyNeighbors(0, 7, incident_edges, { });
+  verifyNeighbors(1, 7, incident_edges, { 2, 4 });
+  verifyNeighbors(2, 7, incident_edges, { 1, 3 });
+  verifyNeighbors(3, 7, incident_edges, { 2 });
+  verifyNeighbors(4, 7, incident_edges, { 1, 5, 6 });
+  verifyNeighbors(5, 7, incident_edges, { 4, 6 });
+  verifyNeighbors(6, 7, incident_edges, { 4, 5 });
+}
+
 
 // using OwnershipVector = parallel::scalable_vector<SpinLock>;
 

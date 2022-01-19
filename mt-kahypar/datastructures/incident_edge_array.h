@@ -351,6 +351,11 @@ class IncidentEdgeArray {
     return firstEdge(u) + header(u)->first_inactive;
   }
 
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE HyperedgeID lastEdge(const HypernodeID u) const {
+    ASSERT(u <= _num_nodes, "Hypernode" << u << "does not exist");
+    return _index_array[u + 1];
+  }
+
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE void swap(Edge& lhs, Edge& rhs) {
     Edge tmp_lhs = lhs;
     lhs = rhs;
@@ -396,9 +401,9 @@ class IncidentEdgeArray {
 
   void restoreItLink(const HypernodeID u, const HypernodeID prev, const HypernodeID current);
 
-  HyperedgeID findOutgoingEdge(const HypernodeID u, const HypernodeID target) const;
+  std::pair<HypernodeID, HyperedgeID> findOutgoingEdge(const HypernodeID u, const HypernodeID target) const;
 
-  HyperedgeID findRemovedOutgoingEdge(const HypernodeID u, const HypernodeID target) const;
+  std::pair<HypernodeID, HyperedgeID> findRemovedOutgoingEdge(const HypernodeID u, const HypernodeID target) const;
 
   void construct(const EdgeVector& edge_vector, const HyperedgeWeight* edge_weight = nullptr);
 
