@@ -72,7 +72,7 @@ TEST(AIncidentEdgeArray, VerifyInitialNeighborsOfEachVertex) {
   verifyNeighbors(6, 7, incident_edges, { 4, 5 });
 }
 
-TEST(AIncidentNetArray, ContractTwoVertices1) {
+TEST(AIncidentEdgeArray, ContractTwoVertices1) {
   IncidentEdgeArray incident_edges(
     7, {{1, 2}, {2, 3}, {1, 4}, {4, 5}, {4, 6}, {5, 6}});
   auto flag_array = createFlagArray(7, { });
@@ -80,7 +80,7 @@ TEST(AIncidentNetArray, ContractTwoVertices1) {
   verifyNeighbors(0, 7, incident_edges, { 2, 4 });
 }
 
-TEST(AIncidentNetArray, ContractTwoVertices2) {
+TEST(AIncidentEdgeArray, ContractTwoVertices2) {
   IncidentEdgeArray incident_edges(
     7, {{1, 2}, {2, 3}, {1, 4}, {4, 5}, {4, 6}, {5, 6}});
   auto flag_array = createFlagArray(7, { });
@@ -88,7 +88,7 @@ TEST(AIncidentNetArray, ContractTwoVertices2) {
   verifyNeighbors(1, 7, incident_edges, { 3, 4 });
 }
 
-TEST(AIncidentNetArray, ContractTwoVertices3) {
+TEST(AIncidentEdgeArray, ContractTwoVertices3) {
   IncidentEdgeArray incident_edges(
     7, {{1, 2}, {2, 3}, {1, 4}, {4, 5}, {4, 6}, {5, 6}});
   auto flag_array = createFlagArray(7, { });
@@ -99,7 +99,7 @@ TEST(AIncidentNetArray, ContractTwoVertices3) {
   verifyNeighbors(6, 7, incident_edges, { 1, 4 });
 }
 
-TEST(AIncidentNetArray, ContractSeveralVertices1) {
+TEST(AIncidentEdgeArray, ContractSeveralVertices1) {
   IncidentEdgeArray incident_edges(
     7, {{1, 2}, {2, 3}, {1, 4}, {4, 5}, {4, 6}, {5, 6}});
   auto flag_array = createFlagArray(7, { });
@@ -108,7 +108,7 @@ TEST(AIncidentNetArray, ContractSeveralVertices1) {
   verifyNeighbors(0, 7, incident_edges, { 3, 4 });
 }
 
-TEST(AIncidentNetArray, ContractSeveralVertices2) {
+TEST(AIncidentEdgeArray, ContractSeveralVertices2) {
   IncidentEdgeArray incident_edges(
     7, {{1, 2}, {2, 3}, {1, 4}, {4, 5}, {4, 6}, {5, 6}});
   auto flag_array = createFlagArray(7, { });
@@ -123,7 +123,7 @@ TEST(AIncidentNetArray, ContractSeveralVertices2) {
   verifyNeighbors(1, 7, incident_edges, { });
 }
 
-TEST(AIncidentNetArray, UncontractTwoVertices1) {
+TEST(AIncidentEdgeArray, UncontractTwoVertices1) {
   IncidentEdgeArray incident_edges(
     7, {{1, 2}, {2, 3}, {1, 4}, {4, 5}, {4, 6}, {5, 6}});
   auto flag_array = createFlagArray(7, { });
@@ -133,7 +133,7 @@ TEST(AIncidentNetArray, UncontractTwoVertices1) {
   verifyNeighbors(2, 7, incident_edges, { 1, 3 });
 }
 
-TEST(AIncidentNetArray, UncontractTwoVertices2) {
+TEST(AIncidentEdgeArray, UncontractTwoVertices2) {
   IncidentEdgeArray incident_edges(
     7, {{1, 2}, {2, 3}, {1, 4}, {4, 5}, {4, 6}, {5, 6}});
   auto flag_array = createFlagArray(7, { });
@@ -146,7 +146,7 @@ TEST(AIncidentNetArray, UncontractTwoVertices2) {
   verifyNeighbors(6, 7, incident_edges, { 4, 5 });
 }
 
-TEST(AIncidentNetArray, UncontractSeveralVertices1) {
+TEST(AIncidentEdgeArray, UncontractSeveralVertices1) {
   IncidentEdgeArray incident_edges(
     7, {{1, 2}, {2, 3}, {1, 4}, {4, 5}, {4, 6}, {5, 6}});
   auto flag_array = createFlagArray(7, { });
@@ -182,7 +182,7 @@ TEST(AIncidentNetArray, UncontractSeveralVertices1) {
   verifyNeighbors(6, 7, incident_edges, { 4, 5 });
 }
 
-TEST(AIncidentNetArray, UncontractSeveralVertices2) {
+TEST(AIncidentEdgeArray, UncontractSeveralVertices2) {
   IncidentEdgeArray incident_edges(
     7, {{1, 2}, {2, 3}, {1, 4}, {4, 5}, {4, 6}, {5, 6}});
   auto flag_array = createFlagArray(7, { });
