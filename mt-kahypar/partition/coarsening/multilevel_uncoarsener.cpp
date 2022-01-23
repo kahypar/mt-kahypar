@@ -160,7 +160,9 @@ namespace mt_kahypar {
 
       if (_context.refinement.judicious.use_judicious_refinement) {
         judicious_refiner.initialize(partitioned_hypergraph);
+        utils::Timer::instance().start_timer("judicious", "Judicious Refinement");
         improvement_found |= judicious_refiner.refine(partitioned_hypergraph, dummy, current_metrics, time_limit);
+        utils::Timer::instance().stop_timer("judicious");
       } else {
 
         if ( label_propagation && _context.refinement.label_propagation.algorithm != LabelPropagationAlgorithm::do_nothing ) {

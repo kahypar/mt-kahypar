@@ -31,7 +31,7 @@ namespace mt_kahypar::io::csv {
 
   std::string header() {
     return "algorithm,threads,graph,k,seed,epsilon,imbalance,"
-           "objective,km1,cut,initial_km1,judiciousLoad,initialJudiciousLoad,minLoad,maxHnDegree,partitionTime,fmTime,lpTime,coarseningTime,ipTime,preprocessingTime"
+           "objective,km1,cut,initial_km1,judiciousLoad,initialJudiciousLoad,minLoad,maxHnDegree,maxBlockTime,partitionTime,judiciousTime,fmTime,lpTime,coarseningTime,ipTime,preprocessingTime"
            "\n";
   }
 
@@ -66,9 +66,11 @@ namespace mt_kahypar::io::csv {
     s << context.refinement.judicious.initial_judicious_load << sep;
     s << metrics::minLoad(phg) << sep;
     s << context.refinement.judicious.max_degree << sep;
+    s << context.refinement.judicious.max_block_time << sep;
     s << elapsed_seconds.count() << sep;
 
     utils::Timer& timer = utils::Timer::instance(context.partition.show_detailed_timings);
+    s << timer.get("judicious")<< sep;
     s << (timer.get("fm") + timer.get("initialize_fm_refiner"))<< sep;
     s << (timer.get("label_propagation") + timer.get("initialize_lp_refiner")) << sep;
     s << timer.get("coarsening") << sep;

@@ -52,9 +52,11 @@ namespace mt_kahypar {
       HighResClockTimepoint refinement_start = std::chrono::high_resolution_clock::now();
       doRefinement(phg, heaviest_part);
       HighResClockTimepoint refinement_stop = std::chrono::high_resolution_clock::now();
+      double refinement_time = std::chrono::duration<double>(refinement_stop - refinement_start).count();
+      _context.refinement.judicious.max_block_time = std::max(_context.refinement.judicious.max_block_time, refinement_time);
       if (debug) {
         LOG << "Improved best state by" << (_best_improvement - last_best_improvement);
-        LOG << "Spent" << std::chrono::duration<double>(refinement_stop - refinement_start).count() << "s on block" << heaviest_part;
+        LOG << "Spent" << refinement_time << "s on block" << heaviest_part;
       }
       for (PartitionID i = 0; i < _context.partition.k; ++i) {
         _part_loads.adjustKey(i, phg.partLoad(i));
