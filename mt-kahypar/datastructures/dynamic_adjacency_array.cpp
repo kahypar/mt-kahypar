@@ -159,11 +159,8 @@ void DynamicAdjacencyArray::construct(const EdgeVector& edge_vector, const Hyper
 
 void DynamicAdjacencyArray::contract(const HypernodeID u,
                                  const HypernodeID v,
-                                 kahypar::ds::FastResetFlagArray<>& node_bitset,
                                  const AcquireLockFunc& acquire_lock,
                                  const ReleaseLockFunc& release_lock) {
-  node_bitset.reset();
-
   // iterate over edges of u and remove the contracted edge (if present)
   Header* head_u = header(u);
   for (HypernodeID current_u: headers(u)) {

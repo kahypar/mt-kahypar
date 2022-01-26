@@ -247,7 +247,6 @@ class DynamicAdjacencyArray {
   // ! the list of v to u.
   void contract(const HypernodeID u,
                 const HypernodeID v,
-                kahypar::ds::FastResetFlagArray<>& edge_bitset,
                 const AcquireLockFunc& acquire_lock = NOOP_LOCK_FUNC,
                 const ReleaseLockFunc& release_lock = NOOP_LOCK_FUNC);
 
