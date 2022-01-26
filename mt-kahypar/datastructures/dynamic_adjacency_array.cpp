@@ -121,7 +121,7 @@ void DynamicAdjacencyArray::construct(const EdgeVector& edge_vector, const Hyper
   tbb::parallel_scan(tbb::blocked_range<size_t>(
           0UL, UI64(_num_nodes + 1)), incident_net_prefix_sum);
   _size_in_bytes = incident_net_prefix_sum.total_sum() * sizeof(Edge);
-  _dynamic_adjacency_array = parallel::make_unique<Edge>(_size_in_bytes / sizeof(Edge));
+  _data = parallel::make_unique<Edge>(_size_in_bytes / sizeof(Edge));
 
   // Insert incident nets into incidence array
   tbb::parallel_for(ID(0), num_hyperedges, [&](const HyperedgeID he) {
@@ -296,6 +296,46 @@ void DynamicAdjacencyArray::uncontract(const HypernodeID u,
       last_non_empty_v = current_v;
     }
   }
+}
+
+void DynamicAdjacencyArray::removeParallelEdges() {
+  // TODO(maas): special case for high degree nodes?
+  tbb::parallel_for(ID(0), _num_nodes, [&](const size_t u) {
+    if (header(u)->is_head) {
+      vec<ParallelEdgeInformation>& local_vec = _thread_local_vec.local();
+      local_vec.clear();
+
+      // we sort all incident edges
+      for (HypernodeID current_u: headers(u)) {
+        const HyperedgeID first_inactive = firstInactiveEdge(current_u);
+        for (HyperedgeID e = firstActiveEdge(current_u); e < first_inactive; ++e) {
+          local_vec.push_back(ParallelEdgeInformation(edge(e).target, e, current_u));
+        }
+      }
+      std::sort(local_vec.begin(), local_vec.end(), [](const auto& e1, const auto& e2) {
+        return e1.target < e2.target;
+      });
+
+      // scan and remove duplicates
+      for (size_t i = 0; i + 1 < local_vec.size(); ++i) {
+        const ParallelEdgeInformation& e1 = local_vec[i];
+        const ParallelEdgeInformation& e2 = local_vec[i + 1];
+        if (e1.target == e2.target) {
+          // local_vec[i + 1] might also be parall to e1 and e2,
+          // thus we remove e1 and keep e2
+          ASSERT(e1.edge_id >= firstActiveEdge(e1.header_id)
+                && e1.edge_id < firstInactiveEdge(e1.header_id),
+                V(firstActiveEdge(e1.header_id)) << V(e1.edge_id) << V(firstInactiveEdge(e1.header_id)));
+          ASSERT(e2.edge_id >= firstActiveEdge(e2.header_id)
+                && e2.edge_id < firstInactiveEdge(e2.header_id),
+                V(firstActiveEdge(e2.header_id)) << V(e2.edge_id) << V(firstInactiveEdge(e2.header_id)));
+          edge(e2.edge_id).weight += edge(e1.edge_id).weight;
+          swap_to_front(e1.header_id, e1.edge_id);
+          --header(u)->degree;
+        }
+      }
+    }
+  });
 }
 
 HyperedgeID DynamicAdjacencyArray::findBackwardsEdge(const Edge& forward, HypernodeID source) const {

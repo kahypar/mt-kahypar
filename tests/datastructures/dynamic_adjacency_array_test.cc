@@ -32,7 +32,8 @@ namespace ds {
 void verifyNeighbors(const HypernodeID u,
                      const HypernodeID num_nodes,
                      const DynamicAdjacencyArray& incident_edges,
-                     const std::set<HypernodeID>& _expected_neighbors) {
+                     const std::set<HypernodeID>& _expected_neighbors,
+                     bool strict = false) {
   size_t num_neighbors = 0;
   size_t degree = 0;
   std::vector<bool> actual_neighbors(num_nodes, false);
@@ -43,14 +44,17 @@ void verifyNeighbors(const HypernodeID u,
     ASSERT_EQ(u, incident_edges.edge(he).source)
       << "Source of " << he << " (target: " << incident_edges.edge(he).target << ") should be "
       << u << " but is " << incident_edges.edge(he).source;
-    if (!actual_neighbors[incident_edges.edge(he).target]) {
+    ASSERT_TRUE(!strict || !actual_neighbors[neighbor])
+      << "Vertex " << u << " contain duplicate edge with target " << neighbor;
+    if (!actual_neighbors[neighbor]) {
       ++num_neighbors;
     }
     ++degree;
-    actual_neighbors[incident_edges.edge(he).target] = true;
+    actual_neighbors[neighbor] = true;
   }
   ASSERT_EQ(num_neighbors, _expected_neighbors.size());
   ASSERT_EQ(degree, incident_edges.nodeDegree(u));
+  ASSERT_TRUE(!strict || num_neighbors == degree);
 }
 
 kahypar::ds::FastResetFlagArray<> createFlagArray(const HypernodeID num_nodes,
@@ -218,6 +222,16 @@ TEST(ADynamicAdjacencyArray, UncontractSeveralVertices2) {
   verifyNeighbors(4, 7, incident_edges, { 1, 5, 6 });
   verifyNeighbors(5, 7, incident_edges, { 4, 6 });
   verifyNeighbors(6, 7, incident_edges, { 4, 5 });
+}
+
+TEST(ADynamicAdjacencyArray, RemovesParrallelEdges1) {
+  DynamicAdjacencyArray incident_edges(
+    7, {{1, 2}, {2, 3}, {1, 4}, {4, 5}, {4, 6}, {5, 6}});
+  auto flag_array = createFlagArray(7, { });
+  incident_edges.contract(2, 4, flag_array);
+  incident_edges.removeParallelEdges();
+  verifyNeighbors(1, 7, incident_edges, { 2 }, true);
+  verifyNeighbors(2, 7, incident_edges, { 1, 3, 5, 6 }, true);
 }
 
 
