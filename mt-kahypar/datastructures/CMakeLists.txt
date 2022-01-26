@@ -8,7 +8,7 @@ set(DatastructureSources
         static_graph.cpp
         graph.cpp
         incident_net_array.cpp
-        incident_edge_array.cpp)
+        dynamic_adjacency_array.cpp)
 
 foreach(modtarget IN LISTS TARGETS_WANTING_ALL_SOURCES)
     target_sources(${modtarget} PRIVATE ${DatastructureSources})

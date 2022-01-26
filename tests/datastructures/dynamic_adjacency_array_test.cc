@@ -21,7 +21,7 @@
 #include "gmock/gmock.h"
 #include <atomic>
 
-#include "mt-kahypar/datastructures/incident_edge_array.h"
+#include "mt-kahypar/datastructures/dynamic_adjacency_array.h"
 #include "mt-kahypar/parallel/atomic_wrapper.h"
 
 using ::testing::Test;
@@ -31,7 +31,7 @@ namespace ds {
 
 void verifyNeighbors(const HypernodeID u,
                      const HypernodeID num_nodes,
-                     const IncidentEdgeArray& incident_edges,
+                     const DynamicAdjacencyArray& incident_edges,
                      const std::set<HypernodeID>& _expected_neighbors) {
   size_t num_neighbors = 0;
   size_t degree = 0;
@@ -62,8 +62,8 @@ kahypar::ds::FastResetFlagArray<> createFlagArray(const HypernodeID num_nodes,
   return flag_array;
 }
 
-TEST(AIncidentEdgeArray, VerifyInitialNeighborsOfEachVertex) {
-  IncidentEdgeArray incident_edges(
+TEST(ADynamicAdjacencyArray, VerifyInitialNeighborsOfEachVertex) {
+  DynamicAdjacencyArray incident_edges(
     7, {{1, 2}, {2, 3}, {1, 4}, {4, 5}, {4, 6}, {5, 6}});
   verifyNeighbors(0, 7, incident_edges, { });
   verifyNeighbors(1, 7, incident_edges, { 2, 4 });
@@ -74,24 +74,24 @@ TEST(AIncidentEdgeArray, VerifyInitialNeighborsOfEachVertex) {
   verifyNeighbors(6, 7, incident_edges, { 4, 5 });
 }
 
-TEST(AIncidentEdgeArray, ContractTwoVertices1) {
-  IncidentEdgeArray incident_edges(
+TEST(ADynamicAdjacencyArray, ContractTwoVertices1) {
+  DynamicAdjacencyArray incident_edges(
     7, {{1, 2}, {2, 3}, {1, 4}, {4, 5}, {4, 6}, {5, 6}});
   auto flag_array = createFlagArray(7, { });
   incident_edges.contract(0, 1, flag_array);
   verifyNeighbors(0, 7, incident_edges, { 2, 4 });
 }
 
-TEST(AIncidentEdgeArray, ContractTwoVertices2) {
-  IncidentEdgeArray incident_edges(
+TEST(ADynamicAdjacencyArray, ContractTwoVertices2) {
+  DynamicAdjacencyArray incident_edges(
     7, {{1, 2}, {2, 3}, {1, 4}, {4, 5}, {4, 6}, {5, 6}});
   auto flag_array = createFlagArray(7, { });
   incident_edges.contract(1, 2, flag_array);
   verifyNeighbors(1, 7, incident_edges, { 3, 4 });
 }
 
-TEST(AIncidentEdgeArray, ContractTwoVertices3) {
-  IncidentEdgeArray incident_edges(
+TEST(ADynamicAdjacencyArray, ContractTwoVertices3) {
+  DynamicAdjacencyArray incident_edges(
     7, {{1, 2}, {2, 3}, {1, 4}, {4, 5}, {4, 6}, {5, 6}});
   auto flag_array = createFlagArray(7, { });
   incident_edges.contract(1, 5, flag_array);
@@ -101,8 +101,8 @@ TEST(AIncidentEdgeArray, ContractTwoVertices3) {
   verifyNeighbors(6, 7, incident_edges, { 1, 4 });
 }
 
-TEST(AIncidentEdgeArray, ContractSeveralVertices1) {
-  IncidentEdgeArray incident_edges(
+TEST(ADynamicAdjacencyArray, ContractSeveralVertices1) {
+  DynamicAdjacencyArray incident_edges(
     7, {{1, 2}, {2, 3}, {1, 4}, {4, 5}, {4, 6}, {5, 6}});
   auto flag_array = createFlagArray(7, { });
   incident_edges.contract(0, 1, flag_array);
@@ -110,8 +110,8 @@ TEST(AIncidentEdgeArray, ContractSeveralVertices1) {
   verifyNeighbors(0, 7, incident_edges, { 3, 4 });
 }
 
-TEST(AIncidentEdgeArray, ContractSeveralVertices2) {
-  IncidentEdgeArray incident_edges(
+TEST(ADynamicAdjacencyArray, ContractSeveralVertices2) {
+  DynamicAdjacencyArray incident_edges(
     7, {{1, 2}, {2, 3}, {1, 4}, {4, 5}, {4, 6}, {5, 6}});
   auto flag_array = createFlagArray(7, { });
   incident_edges.contract(1, 0, flag_array);
@@ -125,8 +125,8 @@ TEST(AIncidentEdgeArray, ContractSeveralVertices2) {
   verifyNeighbors(1, 7, incident_edges, { });
 }
 
-TEST(AIncidentEdgeArray, UncontractTwoVertices1) {
-  IncidentEdgeArray incident_edges(
+TEST(ADynamicAdjacencyArray, UncontractTwoVertices1) {
+  DynamicAdjacencyArray incident_edges(
     7, {{1, 2}, {2, 3}, {1, 4}, {4, 5}, {4, 6}, {5, 6}});
   auto flag_array = createFlagArray(7, { });
   incident_edges.contract(1, 2, flag_array);
@@ -135,8 +135,8 @@ TEST(AIncidentEdgeArray, UncontractTwoVertices1) {
   verifyNeighbors(2, 7, incident_edges, { 1, 3 });
 }
 
-TEST(AIncidentEdgeArray, UncontractTwoVertices2) {
-  IncidentEdgeArray incident_edges(
+TEST(ADynamicAdjacencyArray, UncontractTwoVertices2) {
+  DynamicAdjacencyArray incident_edges(
     7, {{1, 2}, {2, 3}, {1, 4}, {4, 5}, {4, 6}, {5, 6}});
   auto flag_array = createFlagArray(7, { });
   incident_edges.contract(1, 5, flag_array);
@@ -148,8 +148,8 @@ TEST(AIncidentEdgeArray, UncontractTwoVertices2) {
   verifyNeighbors(6, 7, incident_edges, { 4, 5 });
 }
 
-TEST(AIncidentEdgeArray, UncontractSeveralVertices1) {
-  IncidentEdgeArray incident_edges(
+TEST(ADynamicAdjacencyArray, UncontractSeveralVertices1) {
+  DynamicAdjacencyArray incident_edges(
     7, {{1, 2}, {2, 3}, {1, 4}, {4, 5}, {4, 6}, {5, 6}});
   auto flag_array = createFlagArray(7, { });
   incident_edges.contract(1, 2, flag_array);
@@ -184,8 +184,8 @@ TEST(AIncidentEdgeArray, UncontractSeveralVertices1) {
   verifyNeighbors(6, 7, incident_edges, { 4, 5 });
 }
 
-TEST(AIncidentEdgeArray, UncontractSeveralVertices2) {
-  IncidentEdgeArray incident_edges(
+TEST(ADynamicAdjacencyArray, UncontractSeveralVertices2) {
+  DynamicAdjacencyArray incident_edges(
     7, {{1, 2}, {2, 3}, {1, 4}, {4, 5}, {4, 6}, {5, 6}});
   auto flag_array = createFlagArray(7, { });
   incident_edges.contract(3, 1, flag_array);

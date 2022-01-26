@@ -19,7 +19,7 @@
  *
  ******************************************************************************/
 
-#include "mt-kahypar/datastructures/incident_edge_array.h"
+#include "mt-kahypar/datastructures/dynamic_adjacency_array.h"
 
 #include "mt-kahypar/parallel/atomic_wrapper.h"
 #include "mt-kahypar/parallel/parallel_prefix_sum.h"
@@ -27,32 +27,32 @@
 namespace mt_kahypar {
 namespace ds {
 
-void print_header(const IncidentEdgeArray::Header& header) {
+void print_header(const DynamicAdjacencyArray::Header& header) {
   LOG << V(header.prev) << ", " << V(header.next) << ", " << V(header.it_prev) << ", " << V(header.it_next);
   LOG << V(header.tail) << ", " << V(header.first_active) << ", " << V(header.first_inactive) << V(header.degree);
   LOG << V(header.current_version) << V(header.is_head);
 }
 
 IncidentEdgeIterator::IncidentEdgeIterator(const HypernodeID u,
-                                           const IncidentEdgeArray* incident_edge_array,
+                                           const DynamicAdjacencyArray* dynamic_adjacency_array,
                                            const size_t pos,
                                            const bool end):
     _u(u),
     _current_u(u),
-    _current_size(incident_edge_array->header(u)->size()),
+    _current_size(dynamic_adjacency_array->header(u)->size()),
     _current_pos(pos),
-    _incident_edge_array(incident_edge_array),
+    _dynamic_adjacency_array(dynamic_adjacency_array),
     _end(end) {
   if ( end ) {
     _current_pos = _current_size;
   }
 
-  ASSERT(pos <= incident_edge_array->nodeDegree(u));
+  ASSERT(pos <= dynamic_adjacency_array->nodeDegree(u));
   traverse_headers();
 }
 
 HyperedgeID IncidentEdgeIterator::operator* () const {
-  return _incident_edge_array->firstActiveEdge(_current_u) + _current_pos;
+  return _dynamic_adjacency_array->firstActiveEdge(_current_u) + _current_pos;
 }
 
 IncidentEdgeIterator & IncidentEdgeIterator::operator++ () {
@@ -73,15 +73,15 @@ bool IncidentEdgeIterator::operator== (const IncidentEdgeIterator& rhs) {
 void IncidentEdgeIterator::traverse_headers() {
   while ( _current_pos >= _current_size ) {
     const HypernodeID last_u = _current_u;
-    _current_u = _incident_edge_array->header(last_u)->it_next;
+    _current_u = _dynamic_adjacency_array->header(last_u)->it_next;
     _current_pos -= _current_size;
-    _current_size = _incident_edge_array->header(_current_u)->size();
+    _current_size = _dynamic_adjacency_array->header(_current_u)->size();
     // It can happen that due to a contraction the current vertex
     // we iterate over becomes empty or the head of the current vertex
     // changes. Therefore, we set the end flag if we reach the current
     // head of the list or it_next is equal with the current vertex (means
     // that list becomes empty due to a contraction)
-    if ( _incident_edge_array->header(_current_u)->is_head ||
+    if ( _dynamic_adjacency_array->header(_current_u)->is_head ||
          last_u == _current_u ) {
       _end = true;
       break;
@@ -89,7 +89,7 @@ void IncidentEdgeIterator::traverse_headers() {
   }
 }
 
-void IncidentEdgeArray::construct(const EdgeVector& edge_vector, const HyperedgeWeight* edge_weight) {
+void DynamicAdjacencyArray::construct(const EdgeVector& edge_vector, const HyperedgeWeight* edge_weight) {
   // Accumulate degree of each vertex thread local
   const HyperedgeID num_hyperedges = edge_vector.size();
   ThreadLocalCounter local_incident_nets_per_vertex(_num_nodes + 1, 0);
@@ -121,7 +121,7 @@ void IncidentEdgeArray::construct(const EdgeVector& edge_vector, const Hyperedge
   tbb::parallel_scan(tbb::blocked_range<size_t>(
           0UL, UI64(_num_nodes + 1)), incident_net_prefix_sum);
   _size_in_bytes = incident_net_prefix_sum.total_sum() * sizeof(Edge);
-  _incident_edge_array = parallel::make_unique<Edge>(_size_in_bytes / sizeof(Edge));
+  _dynamic_adjacency_array = parallel::make_unique<Edge>(_size_in_bytes / sizeof(Edge));
 
   // Insert incident nets into incidence array
   tbb::parallel_for(ID(0), num_hyperedges, [&](const HyperedgeID he) {
@@ -157,7 +157,7 @@ void IncidentEdgeArray::construct(const EdgeVector& edge_vector, const Hyperedge
   });
 }
 
-void IncidentEdgeArray::contract(const HypernodeID u,
+void DynamicAdjacencyArray::contract(const HypernodeID u,
                                  const HypernodeID v,
                                  kahypar::ds::FastResetFlagArray<>& node_bitset,
                                  const AcquireLockFunc& acquire_lock,
@@ -220,7 +220,7 @@ void IncidentEdgeArray::contract(const HypernodeID u,
   release_lock(u);
 }
 
-void IncidentEdgeArray::uncontract(const HypernodeID u,
+void DynamicAdjacencyArray::uncontract(const HypernodeID u,
                   const HypernodeID v,
                   const AcquireLockFunc& acquire_lock,
                   const ReleaseLockFunc& release_lock) {
@@ -298,7 +298,7 @@ void IncidentEdgeArray::uncontract(const HypernodeID u,
   }
 }
 
-HyperedgeID IncidentEdgeArray::findBackwardsEdge(const Edge& forward, HypernodeID source) const {
+HyperedgeID DynamicAdjacencyArray::findBackwardsEdge(const Edge& forward, HypernodeID source) const {
   const HypernodeID current_u = forward.original_target;
   const HyperedgeID first_inactive = firstInactiveEdge(current_u);
   for (HyperedgeID e = firstActiveEdge(current_u); e < first_inactive; ++e) {
@@ -310,7 +310,7 @@ HyperedgeID IncidentEdgeArray::findBackwardsEdge(const Edge& forward, HypernodeI
   return kInvalidHyperedge;
 }
 
-void IncidentEdgeArray::append(const HypernodeID u, const HypernodeID v) {
+void DynamicAdjacencyArray::append(const HypernodeID u, const HypernodeID v) {
   const HypernodeID tail_u = header(u)->prev;
   const HypernodeID tail_v = header(v)->prev;
   header(tail_u)->next = v;
@@ -333,7 +333,7 @@ void IncidentEdgeArray::append(const HypernodeID u, const HypernodeID v) {
   }
 }
 
-void IncidentEdgeArray::splice(const HypernodeID u, const HypernodeID v) {
+void DynamicAdjacencyArray::splice(const HypernodeID u, const HypernodeID v) {
   // Restore the iterator double-linked list of u such that it does not contain
   // any incident net list of v
   const HypernodeID tail = header(v)->tail;
@@ -362,7 +362,7 @@ void IncidentEdgeArray::splice(const HypernodeID u, const HypernodeID v) {
   header(v)->is_head = true;
 }
 
-void IncidentEdgeArray::removeEmptyIncidentEdgeList(const HypernodeID u) {
+void DynamicAdjacencyArray::removeEmptyIncidentEdgeList(const HypernodeID u) {
   ASSERT(!header(u)->is_head);
   ASSERT(header(u)->size() == 0, V(u) << V(header(u)->size()));
   Header* head = header(u);
@@ -372,7 +372,7 @@ void IncidentEdgeArray::removeEmptyIncidentEdgeList(const HypernodeID u) {
   head->it_prev = u;
 }
 
-void IncidentEdgeArray::restoreItLink(const HypernodeID u, const HypernodeID prev, const HypernodeID current) {
+void DynamicAdjacencyArray::restoreItLink(const HypernodeID u, const HypernodeID prev, const HypernodeID current) {
   header(prev)->it_next = current;
   header(current)->it_prev = prev;
   header(current)->it_next = u;

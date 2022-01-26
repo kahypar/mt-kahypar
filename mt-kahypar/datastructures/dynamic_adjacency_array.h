@@ -38,7 +38,7 @@ namespace mt_kahypar {
 namespace ds {
 
 // forward declaration
-class IncidentEdgeArray;
+class DynamicAdjacencyArray;
 
 // Iterator over the incident edges of a vertex u
 class IncidentEdgeIterator :
@@ -50,7 +50,7 @@ class IncidentEdgeIterator :
                         HyperedgeID> {   // reference
   public:
   IncidentEdgeIterator(const HypernodeID u,
-                      const IncidentEdgeArray* incident_edge_array,
+                      const DynamicAdjacencyArray* dynamic_adjacency_array,
                       const size_t pos,
                       const bool end);
 
@@ -75,11 +75,11 @@ class IncidentEdgeIterator :
   HypernodeID _current_u;
   HypernodeID _current_size;
   HyperedgeID _current_pos;
-  const IncidentEdgeArray* _incident_edge_array;
+  const DynamicAdjacencyArray* _dynamic_adjacency_array;
   bool _end;
 };
 
-class IncidentEdgeArray {
+class DynamicAdjacencyArray {
   using HyperedgeVector = parallel::scalable_vector<parallel::scalable_vector<HypernodeID>>;
   using EdgeVector = parallel::scalable_vector<std::pair<HypernodeID, HypernodeID>>;
   using ThreadLocalCounter = tbb::enumerable_thread_specific<parallel::scalable_vector<size_t>>;
@@ -175,29 +175,29 @@ class IncidentEdgeArray {
  public:
   using const_iterator = IncidentEdgeIterator;
 
-  IncidentEdgeArray() :
+  DynamicAdjacencyArray() :
     _num_nodes(0),
     _size_in_bytes(0),
     _index_array(),
-    _incident_edge_array(nullptr) { }
+    _dynamic_adjacency_array(nullptr) { }
 
-  IncidentEdgeArray(const HypernodeID num_hypernodes,
+  DynamicAdjacencyArray(const HypernodeID num_hypernodes,
                    const EdgeVector& edge_vector) :
     _num_nodes(num_hypernodes),
     _size_in_bytes(0),
     _index_array(),
-    _incident_edge_array(nullptr)  {
+    _dynamic_adjacency_array(nullptr)  {
     construct(edge_vector);
   }
 
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE const Edge& edge(const HyperedgeID e) const {
     ASSERT(e <= _size_in_bytes / sizeof(Edge), "Edge" << e << "does not exist");
-    return _incident_edge_array.get()[e];
+    return _dynamic_adjacency_array.get()[e];
   }
 
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE Edge& edge(const HyperedgeID e) {
     ASSERT(e <= _size_in_bytes / sizeof(Edge), "Edge" << e << "does not exist");
-    return _incident_edge_array.get()[e];
+    return _dynamic_adjacency_array.get()[e];
   }
 
   // ! Degree of the vertex
@@ -266,9 +266,9 @@ class IncidentEdgeArray {
   // ! be processed.
   void restoreIncidentEdges(const HypernodeID u);
 
-  IncidentEdgeArray copy(parallel_tag_t);
+  DynamicAdjacencyArray copy(parallel_tag_t);
 
-  IncidentEdgeArray copy();
+  DynamicAdjacencyArray copy();
 
   void reset();
 
@@ -288,11 +288,11 @@ class IncidentEdgeArray {
                           HypernodeID> {   // reference
     public:
     HeaderIterator(const HypernodeID u,
-                   const IncidentEdgeArray* incident_edge_array,
+                   const DynamicAdjacencyArray* dynamic_adjacency_array,
                    const bool end):
       _u(u),
       _current_u(u),
-      _incident_edge_array(incident_edge_array),
+      _dynamic_adjacency_array(dynamic_adjacency_array),
       _end(end) { }
 
     HypernodeID operator* () const {
@@ -300,7 +300,7 @@ class IncidentEdgeArray {
     }
 
     HeaderIterator & operator++ () {
-      const Header* header = _incident_edge_array->header(_current_u);
+      const Header* header = _dynamic_adjacency_array->header(_current_u);
       _current_u = header->next;
       if (_current_u == _u) {
         _end = true;
@@ -325,17 +325,17 @@ class IncidentEdgeArray {
     private:
     HypernodeID _u;
     HypernodeID _current_u;
-    const IncidentEdgeArray* _incident_edge_array;
+    const DynamicAdjacencyArray* _dynamic_adjacency_array;
     bool _end;
   };
 
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE const Header* header(const HypernodeID u) const {
     ASSERT(u <= _num_nodes, "Hypernode" << u << "does not exist");
-    return reinterpret_cast<const Header*>(_incident_edge_array.get() + _index_array[u]);
+    return reinterpret_cast<const Header*>(_dynamic_adjacency_array.get() + _index_array[u]);
   }
 
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE Header* header(const HypernodeID u) {
-    return const_cast<Header*>(static_cast<const IncidentEdgeArray&>(*this).header(u));
+    return const_cast<Header*>(static_cast<const DynamicAdjacencyArray&>(*this).header(u));
   }
 
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE HyperedgeID firstEdge(const HypernodeID u) const {
@@ -412,7 +412,7 @@ class IncidentEdgeArray {
   HypernodeID _num_nodes;
   size_t _size_in_bytes;
   Array<HyperedgeID> _index_array;
-  parallel::tbb_unique_ptr<Edge> _incident_edge_array;
+  parallel::tbb_unique_ptr<Edge> _dynamic_adjacency_array;
 };
 
 }  // namespace ds

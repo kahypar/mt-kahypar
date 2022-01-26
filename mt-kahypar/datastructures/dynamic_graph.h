@@ -32,7 +32,7 @@
 #include "kahypar/utils/math.h"
 
 #include "mt-kahypar/datastructures/hypergraph_common.h"
-#include "mt-kahypar/datastructures/incident_edge_array.h"
+#include "mt-kahypar/datastructures/dynamic_adjacency_array.h"
 #include "mt-kahypar/datastructures/contraction_tree.h"
 #include "mt-kahypar/datastructures/thread_safe_fast_reset_flag_array.h"
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
