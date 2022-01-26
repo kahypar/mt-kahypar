@@ -34,21 +34,23 @@ void verifyNeighbors(const HypernodeID u,
                      const IncidentEdgeArray& incident_edges,
                      const std::set<HypernodeID>& _expected_neighbors) {
   size_t num_neighbors = 0;
+  size_t degree = 0;
   std::vector<bool> actual_neighbors(num_nodes, false);
   for ( const HyperedgeID& he : incident_edges.incidentEdges(u) ) {
     const HypernodeID neighbor = incident_edges.edge(he).target;
     ASSERT_NE(_expected_neighbors.find(neighbor), _expected_neighbors.end())
       << "Vertex " << neighbor << " should not be neighbor of vertex " << u;
-    ASSERT_FALSE(actual_neighbors[he])
-      << "Vertex " << neighbor << " occurs more than once neighbors of vertex " << u;
     ASSERT_EQ(u, incident_edges.edge(he).source)
       << "Source of " << he << " (target: " << incident_edges.edge(he).target << ") should be "
       << u << " but is " << incident_edges.edge(he).source;
-    actual_neighbors[he] = true;
-    ++num_neighbors;
+    if (!actual_neighbors[incident_edges.edge(he).target]) {
+      ++num_neighbors;
+    }
+    ++degree;
+    actual_neighbors[incident_edges.edge(he).target] = true;
   }
   ASSERT_EQ(num_neighbors, _expected_neighbors.size());
-  ASSERT_EQ(num_neighbors, incident_edges.nodeDegree(u));
+  ASSERT_EQ(degree, incident_edges.nodeDegree(u));
 }
 
 kahypar::ds::FastResetFlagArray<> createFlagArray(const HypernodeID num_nodes,

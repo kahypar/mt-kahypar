@@ -116,6 +116,8 @@ class IncidentEdgeArray {
     HyperedgeWeight weight;
     // ! version for undoing contractions
     HypernodeID version;
+    // ! the header of the original target
+    HypernodeID original_target;
   };
  
  public:
@@ -161,10 +163,10 @@ class IncidentEdgeArray {
     // ! True, if the vertex is the head of a incident edge list
     bool is_head;
 
-   private:
+  //  private:
     // ensure that sizeof(Header) is a multiple of sizeof(Edge)
-    uint32_t __padding_0;
-    uint32_t __padding_1;
+    // uint32_t __padding_0;
+    // uint32_t __padding_1;
   };
 
   static_assert(alignof(Header) == alignof(Edge));
@@ -401,9 +403,7 @@ class IncidentEdgeArray {
 
   void restoreItLink(const HypernodeID u, const HypernodeID prev, const HypernodeID current);
 
-  std::pair<HypernodeID, HyperedgeID> findOutgoingEdge(const HypernodeID u, const HypernodeID target) const;
-
-  std::pair<HypernodeID, HyperedgeID> findRemovedOutgoingEdge(const HypernodeID u, const HypernodeID target) const;
+  HyperedgeID findBackwardsEdge(const Edge& forward, HypernodeID source) const;
 
   void construct(const EdgeVector& edge_vector, const HyperedgeWeight* edge_weight = nullptr);
 

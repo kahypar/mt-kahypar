@@ -133,11 +133,13 @@ void IncidentEdgeArray::construct(const EdgeVector& edge_vector, const Hyperedge
     e1.target = target;
     e1.weight = weight;
     e1.version = 0;
+    e1.original_target = e1.target;
     Edge& e2 = edge(firstEdge(target) + current_incident_net_pos[target].fetch_add(1));
     e2.source = target;
     e2.target = source;
     e2.weight = weight;
     e2.version = 0;
+    e2.original_target = e2.target;
   });
 
   // Setup Header of each vertex
@@ -162,22 +164,19 @@ void IncidentEdgeArray::contract(const HypernodeID u,
                                  const ReleaseLockFunc& release_lock) {
   node_bitset.reset();
 
-  // iterate over edges of u, add neighbors to the bitset and remove the contracted edge (if present)
+  // iterate over edges of u and remove the contracted edge (if present)
   Header* head_u = header(u);
   for (HypernodeID current_u: headers(u)) {
     Header* head = header(current_u);
     const HypernodeID new_version = ++head->current_version;
-    for ( HyperedgeID current_edge = firstActiveEdge(current_u); current_edge < firstInactiveEdge(current_u); ) {
-      Edge& e = edge(current_edge);
+    for ( HyperedgeID curr_edge = firstActiveEdge(current_u); curr_edge < firstInactiveEdge(current_u); ) {
+      Edge& e = edge(curr_edge);
       if ( e.target == v ) {
-        swap_to_back(current_u, current_edge);
+        swap_to_back(current_u, curr_edge);
         --head_u->degree;
       } else {
         e.version = new_version;
-        // add neighbor to bitset
-        ASSERT(!node_bitset[e.target], V(u) << "contains duplicate edge to node" << e.target);
-        node_bitset.set(e.target, true);
-        ++current_edge;
+        ++curr_edge;
       }
     }
 
@@ -192,28 +191,19 @@ void IncidentEdgeArray::contract(const HypernodeID u,
   for (HypernodeID current_v: headers(v)) {
     Header* head = header(current_v);
     const HypernodeID new_version = ++head->current_version;
-    for ( HyperedgeID current_edge = firstActiveEdge(current_v); current_edge < firstInactiveEdge(current_v); ) {
-      Edge& e = edge(current_edge);
+    for ( HyperedgeID curr_edge = firstActiveEdge(current_v); curr_edge < firstInactiveEdge(current_v); ) {
+      Edge& e = edge(curr_edge);
       if ( e.target == u ) {
         // contracted edge
-        swap_to_back(current_v, current_edge);
-        --head_v->degree;
-      } else if (node_bitset[e.target]) {
-        // duplicate edge
-        // TODO(maas): locking?!
-        auto[neighbor, backwardsEdge] = findOutgoingEdge(e.target, v);
-        swap_to_front(neighbor, backwardsEdge);
-        --header(e.target)->degree;
-
-        swap_to_back(current_v, current_edge);
+        swap_to_back(current_v, curr_edge);
         --head_v->degree;
       } else {
         e.version = new_version;
         e.source = u;
         // TODO(maas): locking?!
-        auto[_, backwardsEdge] = findOutgoingEdge(e.target, v);
+        const HyperedgeID backwardsEdge = findBackwardsEdge(e, v);
         edge(backwardsEdge).target = u;
-        ++current_edge;
+        ++curr_edge;
       }
     }
 
@@ -241,7 +231,8 @@ void IncidentEdgeArray::uncontract(const HypernodeID u,
   // Restores the incident list of v to the time before it was appended
   // to the double-linked list of u.
   splice(u, v);
-  header(u)->degree -= head_v->degree;
+  ASSERT(head_u->degree >= head_v->degree, V(head_u->degree) << V(head_v->degree));
+  head_u->degree -= head_v->degree;
   // ASSERT(verifyIteratorPointers(u), "Iterator pointers of vertex" << u << "are corrupted");
   release_lock(u);
 
@@ -250,20 +241,22 @@ void IncidentEdgeArray::uncontract(const HypernodeID u,
   for (HypernodeID current_u: headers(u)) {
     Header* head = header(current_u);
     const HypernodeID new_version = --head->current_version;
-    for (HyperedgeID current_edge = firstActiveEdge(current_u); current_edge < current_u; ++current_edge) {
-      Edge& e = edge(current_edge);
+    for (HyperedgeID curr_edge = firstActiveEdge(current_u); curr_edge < current_u; ++curr_edge) {
+      Edge& e = edge(curr_edge);
       e.version = new_version;
     }
 
-    if (firstInactiveEdge(current_u) < lastEdge(current_u)) {
-      Edge& e = edge(firstInactiveEdge(current_u));
-      if (e.version == new_version) {
-        ASSERT(e.version == head->current_version);
-        e.target = v;
-        ++head->first_inactive;
-        ++head_u->degree;
+    const HyperedgeID last = lastEdge(current_u);
+    for (HyperedgeID curr_edge = firstInactiveEdge(current_u); curr_edge < last; ++curr_edge) {
+      Edge& e = edge(curr_edge);
+      if (e.version != new_version) {
+        break;
       }
+      ASSERT(e.target == v);
+      ++head->first_inactive;
+      ++head_u->degree;
     }
+
     if (head->size() > 0) {
       restoreItLink(u, last_non_empty_u, current_u);
       last_non_empty_u = current_u;
@@ -278,30 +271,24 @@ void IncidentEdgeArray::uncontract(const HypernodeID u,
     ASSERT(head->current_version > 0);
     const HypernodeID new_version = --head->current_version;
     const HyperedgeID first_inactive = firstInactiveEdge(current_v);
-    for (HyperedgeID current_edge = firstActiveEdge(current_v); current_edge < first_inactive; ++current_edge) {
-      Edge& e = edge(current_edge);
+    for (HyperedgeID curr_edge = firstActiveEdge(current_v); curr_edge < first_inactive; ++curr_edge) {
+      Edge& e = edge(curr_edge);
       e.version = new_version;
       e.source = v;
       // TODO(maas): locking?!
-      auto[_, backwardsEdge] = findOutgoingEdge(e.target, u);
+      const HyperedgeID backwardsEdge = findBackwardsEdge(e, u);
       edge(backwardsEdge).target = v;
     }
 
     const HyperedgeID last_edge = lastEdge(current_v);
-    for (HyperedgeID current_edge = first_inactive; current_edge < last_edge; ++current_edge) {
-      Edge& e = edge(current_edge);
+    for (HyperedgeID curr_edge = first_inactive; curr_edge < last_edge; ++curr_edge) {
+      Edge& e = edge(curr_edge);
       if (e.version != new_version) {
         break;
       }
+      ASSERT(e.target == u);
       ++head->first_inactive;
       ++head_v->degree;
-
-      if (e.target != u) {
-        auto [neighbor, backwardsEdge] = findRemovedOutgoingEdge(e.target, v);
-        swap(edge(backwardsEdge), edge(firstActiveEdge(neighbor) - 1));
-        --header(neighbor)->first_active;
-        ++header(e.target)->degree;
-      }
     }
 
     if (head->size() > 0) {
@@ -311,34 +298,16 @@ void IncidentEdgeArray::uncontract(const HypernodeID u,
   }
 }
 
-std::pair<HypernodeID, HyperedgeID>
-IncidentEdgeArray::findOutgoingEdge(
-        const HypernodeID u, const HypernodeID target) const {
-  for (HypernodeID current_u: headers(u)) {
-    const HyperedgeID first_inactive = firstInactiveEdge(current_u);
-    for (HyperedgeID e = firstActiveEdge(current_u); e < first_inactive; ++e) {
-      if (edge(e).target == target) {
-        return {current_u, e};
-      }
+HyperedgeID IncidentEdgeArray::findBackwardsEdge(const Edge& forward, HypernodeID source) const {
+  const HypernodeID current_u = forward.original_target;
+  const HyperedgeID first_inactive = firstInactiveEdge(current_u);
+  for (HyperedgeID e = firstActiveEdge(current_u); e < first_inactive; ++e) {
+    if (edge(e).target == source) {
+      return e;
     }
   }
-  ASSERT(false, "Hypernode" << u << "has no outgoing edge with target" << target);
-}
-
-std::pair<HypernodeID, HyperedgeID> IncidentEdgeArray::findRemovedOutgoingEdge(
-        const HypernodeID u, const HypernodeID target) const {
-  for (HypernodeID current_u: headers(u)) {
-    const HyperedgeID num_edges = firstActiveEdge(current_u) - firstEdge(current_u);
-    // we consider the edges in reverse order because
-    // the searched edge is more likely at the end of the range
-    for (HyperedgeID offset = 1; offset <= num_edges; ++offset) {
-      HyperedgeID e = firstActiveEdge(current_u) - offset;
-      if (edge(e).target == target) {
-        return {current_u, e};
-      }
-    }
-  }
-  ASSERT(false, "Hypernode" << u << "has no outgoing edge with target" << target);
+  ASSERT(false, "Hypernode" << current_u << "has no outgoing edge with target" << forward.source);
+  return kInvalidHyperedge;
 }
 
 void IncidentEdgeArray::append(const HypernodeID u, const HypernodeID v) {
