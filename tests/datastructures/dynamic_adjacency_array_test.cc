@@ -224,6 +224,27 @@ TEST(ADynamicAdjacencyArray, RemovesParrallelEdges1) {
   verifyNeighbors(2, 7, incident_edges, { 1, 3, 5, 6 }, true);
 }
 
+TEST(ADynamicAdjacencyArray, RemovesParrallelEdges2) {
+  DynamicAdjacencyArray incident_edges(
+    7, {{1, 2}, {2, 3}, {1, 4}, {4, 5}, {4, 6}, {5, 6}});
+  incident_edges.contract(5, 6);
+  incident_edges.removeParallelEdges();
+  verifyNeighbors(5, 7, incident_edges, { 4 }, true);
+  verifyNeighbors(4, 7, incident_edges, { 1, 5 }, true);
+}
+
+TEST(ADynamicAdjacencyArray, RemovesParrallelEdges3) {
+  DynamicAdjacencyArray incident_edges(
+    7, {{1, 2}, {2, 3}, {1, 4}, {4, 5}, {4, 6}, {5, 6}});
+  incident_edges.contract(4, 2);
+  incident_edges.contract(4, 5);
+  incident_edges.removeParallelEdges();
+  verifyNeighbors(1, 7, incident_edges, { 4 }, true);
+  verifyNeighbors(3, 7, incident_edges, { 4 }, true);
+  verifyNeighbors(4, 7, incident_edges, { 1, 3, 6 }, true);
+  verifyNeighbors(6, 7, incident_edges, { 4 }, true);
+}
+
 
 // using OwnershipVector = parallel::scalable_vector<SpinLock>;
 
