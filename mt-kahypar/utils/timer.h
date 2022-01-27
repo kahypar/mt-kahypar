@@ -209,7 +209,7 @@ class TimerT {
       // no active timings we pop from global stack
       if (!_local_active_timings.local().empty()) {
         ASSERT(_local_active_timings.local().back().key() == key,
-          V(_local_active_timings.local().back().key() << V(key)));
+          V(_local_active_timings.local().back().key()) << V(key));
         current_timing = _local_active_timings.local().back();
         _local_active_timings.local().pop_back();
       } else {
