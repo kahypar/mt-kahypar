@@ -80,17 +80,23 @@ namespace mt_kahypar::io {
   }
 
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
-  void line_ending(char* mapped_file, size_t& pos) {
-    unused(mapped_file);
-    ASSERT(mapped_file[pos] == '\n');
-    ++pos;
+  bool is_line_ending(char* mapped_file, size_t& pos) {
+    return mapped_file[pos] == '\n' || mapped_file[pos] == '\0';
+  }
+
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
+  void do_line_ending(char* mapped_file, size_t& pos) {
+    ASSERT(is_line_ending(mapped_file, pos));
+    if (mapped_file[pos] != '\0') {
+      ++pos;
+    }
   }
 
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
   int64_t read_number(char* mapped_file, size_t& pos, const size_t length) {
     int64_t number = 0;
     for ( ; pos < length; ++pos ) {
-      if ( mapped_file[pos] == ' ' || mapped_file[pos] == '\n' ) {
+      if ( mapped_file[pos] == ' ' || is_line_ending(mapped_file, pos) ) {
         while ( mapped_file[pos] == ' ' ) {
           ++pos;
         }
@@ -118,7 +124,7 @@ namespace mt_kahypar::io {
     if ( mapped_file[pos] != '\n' ) {
       type = static_cast<mt_kahypar::Type>(read_number(mapped_file, pos, length));
     }
-    line_ending(mapped_file, pos);
+    do_line_ending(mapped_file, pos);
   }
 
   struct HyperedgeRange {
@@ -246,7 +252,7 @@ namespace mt_kahypar::io {
             ASSERT(pin > 0, V(current_id));
             hyperedge.push_back(pin - 1);
           }
-          line_ending(mapped_file, current_pos);
+          do_line_ending(mapped_file, current_pos);
           ASSERT(hyperedge.size() >= 2);
           ++current_id;
         } else {
@@ -272,7 +278,7 @@ namespace mt_kahypar::io {
         ASSERT(pos > 0 && pos < length);
         ASSERT(mapped_file[pos - 1] == '\n');
         hypernodes_weight[hn] = read_number(mapped_file, pos, length);
-        line_ending(mapped_file, pos);
+        do_line_ending(mapped_file, pos);
       }
     }
   }
@@ -390,7 +396,7 @@ namespace mt_kahypar::io {
       // we use read_number for third digit to skip remaining spaces
       has_edge_weights = (read_number(mapped_file, pos, length) == 1);
     }
-    line_ending(mapped_file, pos);
+    do_line_ending(mapped_file, pos);
   }
 
   struct VertexRange {
@@ -452,7 +458,7 @@ namespace mt_kahypar::io {
             read_number(mapped_file, pos, length);
           }
         }
-        line_ending(mapped_file, pos);
+        do_line_ending(mapped_file, pos);
         current_range_num_edges += vertex_degree;
 
         // If there are enough vertices in the current scanned range
@@ -509,7 +515,7 @@ namespace mt_kahypar::io {
           vertices_weight[current_vertex_id] = read_number(mapped_file, current_pos, current_end);
         }
 
-        while ( mapped_file[current_pos] != '\n' ) {
+        while ( !is_line_ending(mapped_file, current_pos) ) {
           const HypernodeID target = read_number(mapped_file, current_pos, current_end);
           ASSERT(target > 0 && (target - 1) < num_vertices, V(target));
 
@@ -529,7 +535,7 @@ namespace mt_kahypar::io {
             read_number(mapped_file, current_pos, current_end);
           }
         }
-        line_ending(mapped_file, current_pos);
+        do_line_ending(mapped_file, current_pos);
         ++current_vertex_id;
       }
     });
