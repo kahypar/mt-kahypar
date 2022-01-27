@@ -375,6 +375,48 @@ TEST_F(AHypergraphReader, ReadsAMetisGraph) {
   );
 }
 
+TEST_F(AHypergraphReader, ReadsAMetisGraphNoNewline) {
+  this->hypergraph = readMetisFile("../tests/instances/graph_no_newline.graph", true);
+
+  // Verify Incident Edges
+  this->verifyIncidentNets(
+    { { 0, 1, 2 }, { 3, 4, 5 }, { 6, 7, 8, 9 }, { 10, 11, 12, 13 },
+      { 14, 15, 16 }, { 17, 18, 19 }, { 20, 21 } });
+
+  // Verify Pins
+  this->verifyPins({
+    { 0, 1 }, { 0, 2 }, { 0, 4 }, { 1, 0 },
+    { 1, 2 }, { 1, 3 }, { 2, 0 }, { 2, 1 },
+    { 2, 3 }, { 2, 4 }, { 3, 1 }, { 3, 2 },
+    { 3, 5 }, { 3, 6 }, { 4, 0 }, { 4, 2 },
+    { 4, 5 }, { 5, 3 }, { 5, 4 }, { 5, 6 },
+    { 6, 3 }, { 6, 5 }
+  });
+
+  // Verify Node Weights
+  ASSERT_EQ(1, this->hypergraph.nodeWeight(0));
+  ASSERT_EQ(1, this->hypergraph.nodeWeight(1));
+  ASSERT_EQ(1, this->hypergraph.nodeWeight(2));
+  ASSERT_EQ(1, this->hypergraph.nodeWeight(3));
+  ASSERT_EQ(1, this->hypergraph.nodeWeight(4));
+  ASSERT_EQ(1, this->hypergraph.nodeWeight(5));
+  ASSERT_EQ(1, this->hypergraph.nodeWeight(6));
+
+  // Verify Edge Weights
+  for ( HyperedgeID e : {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
+            11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21} ) {
+    ASSERT_EQ(1, this->hypergraph.edgeWeight(e));
+  }
+
+  // Verify IDs
+  this->verifyIDs({
+      {0, 3}, {1, 6}, {2, 14}, {4, 7},
+      {5, 10}, {8, 11}, {9, 15}, {12, 17},
+      {13, 20}, {16, 18}, {19, 21},
+    }, 10
+  );
+}
+
 TEST_F(AHypergraphReader, ReadsAMetisGraphWithNodeWeights) {
   this->hypergraph = readMetisFile("../tests/instances/graph_with_node_weights.graph", true);
 
