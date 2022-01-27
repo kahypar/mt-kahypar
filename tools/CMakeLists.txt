@@ -19,6 +19,11 @@ target_link_libraries(HgrToZoltan ${Boost_LIBRARIES})
 set_property(TARGET HgrToZoltan PROPERTY CXX_STANDARD 17)
 set_property(TARGET HgrToZoltan PROPERTY CXX_STANDARD_REQUIRED ON)
 
+add_executable(MetisToScotch metis_to_scotch_converter.cc)
+target_link_libraries(MetisToScotch ${Boost_LIBRARIES})
+set_property(TARGET MetisToScotch PROPERTY CXX_STANDARD 17)
+set_property(TARGET MetisToScotch PROPERTY CXX_STANDARD_REQUIRED ON)
+
 add_executable(EvaluateBipart evaluate_bipart_partition.cc)
 target_link_libraries(EvaluateBipart ${Boost_LIBRARIES})
 set_property(TARGET EvaluateBipart PROPERTY CXX_STANDARD 17)
@@ -38,4 +43,4 @@ add_executable(BenchShuffle bench_deterministic_shuffling.cpp bench_deterministi
 set_property(TARGET BenchShuffle PROPERTY CXX_STANDARD 17)
 set_property(TARGET BenchShuffle PROPERTY CXX_STANDARD_REQUIRED ON)
 
-set(TARGETS_WANTING_ALL_SOURCES ${TARGETS_WANTING_ALL_SOURCES} EvaluateBipart EvaluatePartition VerifyPartition HgrToZoltan GraphToHgr HgrToParkway SnapGraphToHgr PARENT_SCOPE)
+set(TARGETS_WANTING_ALL_SOURCES ${TARGETS_WANTING_ALL_SOURCES} EvaluateBipart EvaluatePartition VerifyPartition HgrToZoltan MetisToScotch GraphToHgr HgrToParkway SnapGraphToHgr PARENT_SCOPE)
