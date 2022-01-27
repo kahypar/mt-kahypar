@@ -81,9 +81,11 @@ tbb::task* LabelPropagationInitialPartitioner::execute() {
                 return true;
               }(), "Gain calculation failed");
 
+              converged = false;
               hg.setNodePart(hn, to);
             } else if ( from != to ) {
               ASSERT(fitsIntoBlock(hg, hn, to));
+              converged = false;
 
               #ifndef KAHYPAR_ENABLE_HEAVY_INITIAL_PARTITIONING_ASSERTIONS
               hg.changeNodePart(hn, from, to);
