@@ -286,6 +286,16 @@ If you are interested in a commercial license, please contact me.
       doi       = {10.1137/1.9781611977042.11}
     }
 
+    // Deterministic Partitioning (Technical Report)
+    @techreport{MT-KAHYPAR-SDET,
+      title       = {Deterministic Parallel Hypergraph Partitioning},
+      author      = {Lars Gottesbüren and
+                     Michael Hamann},
+      institution = {Karlsruhe Institute of Technology},
+      year        = {2021},
+      url         = {https://arxiv.org/pdf/2112.12704.pdf}
+    }
+
     // Flow-Based Refinement (Technical Report)
     @techreport{MT-KAHYPAR-FLOWS,
       title       = {Parallel Flow-Based Hypergraph Partitioning},
@@ -294,6 +304,7 @@ If you are interested in a commercial license, please contact me.
                      Peter Sanders},
       institution = {Karlsruhe Institute of Technology},
       year        = {2022},
+      url         = {https://arxiv.org/pdf/2201.01556.pdf}
     }
 
 
