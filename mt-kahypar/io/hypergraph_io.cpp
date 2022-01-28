@@ -493,6 +493,18 @@ namespace mt_kahypar::io {
       }
     });
 
+    ASSERT([&]() {
+        HyperedgeID last_end = 0;
+        for(const auto& range: vertex_ranges) {
+          if (last_end > range.start) {
+            return false;
+          }
+          last_end = range.end;
+        }
+        return true;
+      }()
+    );
+
     // Process all ranges in parallel, build edge vector and assign weights
     tbb::parallel_for(0UL, vertex_ranges.size(), [&](const size_t i) {
       const VertexRange& range = vertex_ranges[i];
