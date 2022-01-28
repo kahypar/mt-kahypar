@@ -387,14 +387,13 @@ namespace mt_kahypar::io {
     num_edges = read_number(mapped_file, pos, length);
 
     if ( mapped_file[pos] != '\n' ) {
-      // read the three 0/1 format digits
-      ASSERT(mapped_file[pos] == '0', "Vertex sizes in input file are not supported.");
-      pos++;
-      ASSERT(mapped_file[pos] == '0' || mapped_file[pos] == '1');
-      has_vertex_weights = (mapped_file[pos++] == '1');
-      ASSERT(mapped_file[pos] == '0' || mapped_file[pos] == '1');
-      // we use read_number for third digit to skip remaining spaces
-      has_edge_weights = (read_number(mapped_file, pos, length) == 1);
+      // read the (up to) three 0/1 format digits
+      uint32_t format_num = read_number(mapped_file, pos, length);
+      ASSERT(format_num < 100, "Vertex sizes in input file are not supported.");
+      ASSERT(format_num / 10 == 0 || format_num / 10 == 1);
+      has_vertex_weights = (format_num / 10 == 1);
+      ASSERT(format_num % 10 == 0 || format_num % 10 == 1);
+      has_edge_weights = (format_num % 10 == 1);
     }
     do_line_ending(mapped_file, pos);
   }
