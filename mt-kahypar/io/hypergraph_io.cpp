@@ -95,6 +95,9 @@ namespace mt_kahypar::io {
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
   int64_t read_number(char* mapped_file, size_t& pos, const size_t length) {
     int64_t number = 0;
+    while ( mapped_file[pos] == ' ' ) {
+      ++pos;
+    }
     for ( ; pos < length; ++pos ) {
       if ( mapped_file[pos] == ' ' || is_line_ending(mapped_file, pos) ) {
         while ( mapped_file[pos] == ' ' ) {
