@@ -31,19 +31,19 @@ namespace ds {
 
 void verifyNeighbors(const HypernodeID u,
                      const HypernodeID num_nodes,
-                     const DynamicAdjacencyArray& incident_edges,
+                     const DynamicAdjacencyArray& adjacency_array,
                      const std::set<HypernodeID>& _expected_neighbors,
                      bool strict = false) {
   size_t num_neighbors = 0;
   size_t degree = 0;
   std::vector<bool> actual_neighbors(num_nodes, false);
-  for ( const HyperedgeID& he : incident_edges.incidentEdges(u) ) {
-    const HypernodeID neighbor = incident_edges.edge(he).target;
+  for ( const HyperedgeID& he : adjacency_array.incidentEdges(u) ) {
+    const HypernodeID neighbor = adjacency_array.edge(he).target;
     ASSERT_NE(_expected_neighbors.find(neighbor), _expected_neighbors.end())
       << "Vertex " << neighbor << " should not be neighbor of vertex " << u;
-    ASSERT_EQ(u, incident_edges.edge(he).source)
-      << "Source of " << he << " (target: " << incident_edges.edge(he).target << ") should be "
-      << u << " but is " << incident_edges.edge(he).source;
+    ASSERT_EQ(u, adjacency_array.edge(he).source)
+      << "Source of " << he << " (target: " << adjacency_array.edge(he).target << ") should be "
+      << u << " but is " << adjacency_array.edge(he).source;
     ASSERT_TRUE(!strict || !actual_neighbors[neighbor])
       << "Vertex " << u << " contain duplicate edge with target " << neighbor;
     if (!actual_neighbors[neighbor]) {
@@ -53,8 +53,22 @@ void verifyNeighbors(const HypernodeID u,
     actual_neighbors[neighbor] = true;
   }
   ASSERT_EQ(num_neighbors, _expected_neighbors.size());
-  ASSERT_EQ(degree, incident_edges.nodeDegree(u));
+  ASSERT_EQ(degree, adjacency_array.nodeDegree(u));
   ASSERT_TRUE(!strict || num_neighbors == degree);
+}
+
+void verifyEdges(HyperedgeID expected_num_edges, const DynamicAdjacencyArray& adjacency_array,
+                 const std::set<std::pair<HypernodeID, HypernodeID>>& _expected_edges) {
+  size_t num_edges = 0;
+  for ( const HyperedgeID& he : adjacency_array.edges() ) {
+    const HypernodeID source = adjacency_array.edge(he).source;
+    const HypernodeID target = adjacency_array.edge(he).target;
+    ASSERT_TRUE(_expected_edges.find({source, target}) != _expected_edges.end() ||
+                _expected_edges.find({target, source}) != _expected_edges.end())
+      << "Edge (" << source << ", " << target << ") is invalid.";
+    ++num_edges;
+  }
+  ASSERT_EQ(num_edges, 2 * expected_num_edges);
 }
 
 kahypar::ds::FastResetFlagArray<> createFlagArray(const HypernodeID num_nodes,
@@ -66,183 +80,218 @@ kahypar::ds::FastResetFlagArray<> createFlagArray(const HypernodeID num_nodes,
   return flag_array;
 }
 
-TEST(ADynamicAdjacencyArray, VerifyInitialNeighborsOfEachVertex) {
-  DynamicAdjacencyArray incident_edges(
+TEST(ADynamicAdjacencyArray, VerifyInitialEdges) {
+  DynamicAdjacencyArray adjacency_array(
     7, {{1, 2}, {2, 3}, {1, 4}, {4, 5}, {4, 6}, {5, 6}});
-  verifyNeighbors(0, 7, incident_edges, { });
-  verifyNeighbors(1, 7, incident_edges, { 2, 4 });
-  verifyNeighbors(2, 7, incident_edges, { 1, 3 });
-  verifyNeighbors(3, 7, incident_edges, { 2 });
-  verifyNeighbors(4, 7, incident_edges, { 1, 5, 6 });
-  verifyNeighbors(5, 7, incident_edges, { 4, 6 });
-  verifyNeighbors(6, 7, incident_edges, { 4, 5 });
+  verifyEdges(6, adjacency_array, { {1, 2}, {2, 3}, {1, 4}, {4, 5}, {4, 6}, {5, 6} });
+}
+
+TEST(ADynamicAdjacencyArray, VerifyEdgesAfterContractions1) {
+  DynamicAdjacencyArray adjacency_array(
+    7, {{1, 2}, {2, 3}, {1, 4}, {4, 5}, {4, 6}, {5, 6}});
+  adjacency_array.contract(2, 3);
+  adjacency_array.contract(4, 6);
+  verifyEdges(4, adjacency_array, { {1, 2}, {1, 4}, {4, 5} });
+}
+
+TEST(ADynamicAdjacencyArray, VerifyEdgesAfterContractions2) {
+  DynamicAdjacencyArray adjacency_array(
+    7, {{1, 2}, {2, 3}, {1, 4}, {4, 5}, {4, 6}, {5, 6}});
+  adjacency_array.contract(1, 4);
+  adjacency_array.contract(1, 5);
+  verifyEdges(4, adjacency_array, {{1, 2}, {2, 3}, {1, 6} });
+}
+
+TEST(ADynamicAdjacencyArray, VerifyEdgesAfterContractions3) {
+  DynamicAdjacencyArray adjacency_array(
+    7, {{1, 2}, {2, 3}, {1, 4}, {4, 5}, {4, 6}, {5, 6}});
+  adjacency_array.contract(2, 1);
+  adjacency_array.contract(4, 6);
+  adjacency_array.contract(2, 3);
+  adjacency_array.contract(4, 0);
+  adjacency_array.contract(2, 4);
+  verifyEdges(2, adjacency_array, { {2, 5} });
+  adjacency_array.contract(2, 5);
+  verifyEdges(0, adjacency_array, { });
+}
+
+TEST(ADynamicAdjacencyArray, VerifyInitialNeighborsOfEachVertex) {
+  DynamicAdjacencyArray adjacency_array(
+    7, {{1, 2}, {2, 3}, {1, 4}, {4, 5}, {4, 6}, {5, 6}});
+  verifyNeighbors(0, 7, adjacency_array, { });
+  verifyNeighbors(1, 7, adjacency_array, { 2, 4 });
+  verifyNeighbors(2, 7, adjacency_array, { 1, 3 });
+  verifyNeighbors(3, 7, adjacency_array, { 2 });
+  verifyNeighbors(4, 7, adjacency_array, { 1, 5, 6 });
+  verifyNeighbors(5, 7, adjacency_array, { 4, 6 });
+  verifyNeighbors(6, 7, adjacency_array, { 4, 5 });
 }
 
 TEST(ADynamicAdjacencyArray, ContractTwoVertices1) {
-  DynamicAdjacencyArray incident_edges(
+  DynamicAdjacencyArray adjacency_array(
     7, {{1, 2}, {2, 3}, {1, 4}, {4, 5}, {4, 6}, {5, 6}});
-  incident_edges.contract(0, 1);
-  verifyNeighbors(0, 7, incident_edges, { 2, 4 });
+  adjacency_array.contract(0, 1);
+  verifyNeighbors(0, 7, adjacency_array, { 2, 4 });
 }
 
 TEST(ADynamicAdjacencyArray, ContractTwoVertices2) {
-  DynamicAdjacencyArray incident_edges(
+  DynamicAdjacencyArray adjacency_array(
     7, {{1, 2}, {2, 3}, {1, 4}, {4, 5}, {4, 6}, {5, 6}});
-  incident_edges.contract(1, 2);
-  verifyNeighbors(1, 7, incident_edges, { 3, 4 });
+  adjacency_array.contract(1, 2);
+  verifyNeighbors(1, 7, adjacency_array, { 3, 4 });
 }
 
 TEST(ADynamicAdjacencyArray, ContractTwoVertices3) {
-  DynamicAdjacencyArray incident_edges(
+  DynamicAdjacencyArray adjacency_array(
     7, {{1, 2}, {2, 3}, {1, 4}, {4, 5}, {4, 6}, {5, 6}});
-  incident_edges.contract(1, 5);
-  verifyNeighbors(1, 7, incident_edges, { 2, 4, 6 });
-  verifyNeighbors(2, 7, incident_edges, { 1, 3 });
-  verifyNeighbors(4, 7, incident_edges, { 1, 6 });
-  verifyNeighbors(6, 7, incident_edges, { 1, 4 });
+  adjacency_array.contract(1, 5);
+  verifyNeighbors(1, 7, adjacency_array, { 2, 4, 6 });
+  verifyNeighbors(2, 7, adjacency_array, { 1, 3 });
+  verifyNeighbors(4, 7, adjacency_array, { 1, 6 });
+  verifyNeighbors(6, 7, adjacency_array, { 1, 4 });
 }
 
 TEST(ADynamicAdjacencyArray, ContractSeveralVertices1) {
-  DynamicAdjacencyArray incident_edges(
+  DynamicAdjacencyArray adjacency_array(
     7, {{1, 2}, {2, 3}, {1, 4}, {4, 5}, {4, 6}, {5, 6}});
-  incident_edges.contract(0, 1);
-  incident_edges.contract(0, 2);
-  verifyNeighbors(0, 7, incident_edges, { 3, 4 });
+  adjacency_array.contract(0, 1);
+  adjacency_array.contract(0, 2);
+  verifyNeighbors(0, 7, adjacency_array, { 3, 4 });
 }
 
 TEST(ADynamicAdjacencyArray, ContractSeveralVertices2) {
-  DynamicAdjacencyArray incident_edges(
+  DynamicAdjacencyArray adjacency_array(
     7, {{1, 2}, {2, 3}, {1, 4}, {4, 5}, {4, 6}, {5, 6}});
-  incident_edges.contract(1, 0);
-  incident_edges.contract(1, 2);
-  verifyNeighbors(1, 7, incident_edges, { 3, 4 });
-  incident_edges.contract(4, 5);
-  incident_edges.contract(4, 6);
-  verifyNeighbors(4, 7, incident_edges, { 1 });
-  incident_edges.contract(1, 3);
-  incident_edges.contract(1, 4);
-  verifyNeighbors(1, 7, incident_edges, { });
+  adjacency_array.contract(1, 0);
+  adjacency_array.contract(1, 2);
+  verifyNeighbors(1, 7, adjacency_array, { 3, 4 });
+  adjacency_array.contract(4, 5);
+  adjacency_array.contract(4, 6);
+  verifyNeighbors(4, 7, adjacency_array, { 1 });
+  adjacency_array.contract(1, 3);
+  adjacency_array.contract(1, 4);
+  verifyNeighbors(1, 7, adjacency_array, { });
 }
 
 TEST(ADynamicAdjacencyArray, UncontractTwoVertices1) {
-  DynamicAdjacencyArray incident_edges(
+  DynamicAdjacencyArray adjacency_array(
     7, {{1, 2}, {2, 3}, {1, 4}, {4, 5}, {4, 6}, {5, 6}});
-  incident_edges.contract(1, 2);
-  incident_edges.uncontract(1, 2);
-  verifyNeighbors(1, 7, incident_edges, { 2, 4 });
-  verifyNeighbors(2, 7, incident_edges, { 1, 3 });
+  adjacency_array.contract(1, 2);
+  adjacency_array.uncontract(1, 2);
+  verifyNeighbors(1, 7, adjacency_array, { 2, 4 });
+  verifyNeighbors(2, 7, adjacency_array, { 1, 3 });
 }
 
 TEST(ADynamicAdjacencyArray, UncontractTwoVertices2) {
-  DynamicAdjacencyArray incident_edges(
+  DynamicAdjacencyArray adjacency_array(
     7, {{1, 2}, {2, 3}, {1, 4}, {4, 5}, {4, 6}, {5, 6}});
-  incident_edges.contract(1, 5);
-  incident_edges.uncontract(1, 5);
-  verifyNeighbors(1, 7, incident_edges, { 2, 4 });
-  verifyNeighbors(5, 7, incident_edges, { 4, 6 });
-  verifyNeighbors(2, 7, incident_edges, { 1, 3 });
-  verifyNeighbors(4, 7, incident_edges, { 1, 5, 6 });
-  verifyNeighbors(6, 7, incident_edges, { 4, 5 });
+  adjacency_array.contract(1, 5);
+  adjacency_array.uncontract(1, 5);
+  verifyNeighbors(1, 7, adjacency_array, { 2, 4 });
+  verifyNeighbors(5, 7, adjacency_array, { 4, 6 });
+  verifyNeighbors(2, 7, adjacency_array, { 1, 3 });
+  verifyNeighbors(4, 7, adjacency_array, { 1, 5, 6 });
+  verifyNeighbors(6, 7, adjacency_array, { 4, 5 });
 }
 
 TEST(ADynamicAdjacencyArray, UncontractSeveralVertices1) {
-  DynamicAdjacencyArray incident_edges(
+  DynamicAdjacencyArray adjacency_array(
     7, {{1, 2}, {2, 3}, {1, 4}, {4, 5}, {4, 6}, {5, 6}});
-  incident_edges.contract(1, 2);
-  incident_edges.contract(1, 0);
-  incident_edges.contract(4, 5);
-  incident_edges.contract(4, 6);
-  incident_edges.contract(4, 3);
-  incident_edges.contract(4, 1);
-  verifyNeighbors(4, 7, incident_edges, { });
-  incident_edges.uncontract(4, 1);
-  verifyNeighbors(1, 7, incident_edges, { 4 });
-  verifyNeighbors(4, 7, incident_edges, { 1 });
-  incident_edges.uncontract(4, 3);
-  verifyNeighbors(4, 7, incident_edges, { 1 });
-  verifyNeighbors(3, 7, incident_edges, { 1 });
-  incident_edges.uncontract(4, 6);
-  verifyNeighbors(4, 7, incident_edges, { 1, 6 });
-  verifyNeighbors(6, 7, incident_edges, { 4 });
-  incident_edges.uncontract(4, 5);
-  verifyNeighbors(4, 7, incident_edges, { 1, 5, 6 });
-  verifyNeighbors(5, 7, incident_edges, { 4, 6 });
-  incident_edges.uncontract(1, 0);
-  verifyNeighbors(0, 7, incident_edges, { });
-  verifyNeighbors(1, 7, incident_edges, { 3, 4 });
-  incident_edges.uncontract(1, 2);
-  verifyNeighbors(0, 7, incident_edges, { });
-  verifyNeighbors(1, 7, incident_edges, { 2, 4 });
-  verifyNeighbors(2, 7, incident_edges, { 1, 3 });
-  verifyNeighbors(3, 7, incident_edges, { 2 });
-  verifyNeighbors(4, 7, incident_edges, { 1, 5, 6 });
-  verifyNeighbors(5, 7, incident_edges, { 4, 6 });
-  verifyNeighbors(6, 7, incident_edges, { 4, 5 });
+  adjacency_array.contract(1, 2);
+  adjacency_array.contract(1, 0);
+  adjacency_array.contract(4, 5);
+  adjacency_array.contract(4, 6);
+  adjacency_array.contract(4, 3);
+  adjacency_array.contract(4, 1);
+  verifyNeighbors(4, 7, adjacency_array, { });
+  adjacency_array.uncontract(4, 1);
+  verifyNeighbors(1, 7, adjacency_array, { 4 });
+  verifyNeighbors(4, 7, adjacency_array, { 1 });
+  adjacency_array.uncontract(4, 3);
+  verifyNeighbors(4, 7, adjacency_array, { 1 });
+  verifyNeighbors(3, 7, adjacency_array, { 1 });
+  adjacency_array.uncontract(4, 6);
+  verifyNeighbors(4, 7, adjacency_array, { 1, 6 });
+  verifyNeighbors(6, 7, adjacency_array, { 4 });
+  adjacency_array.uncontract(4, 5);
+  verifyNeighbors(4, 7, adjacency_array, { 1, 5, 6 });
+  verifyNeighbors(5, 7, adjacency_array, { 4, 6 });
+  adjacency_array.uncontract(1, 0);
+  verifyNeighbors(0, 7, adjacency_array, { });
+  verifyNeighbors(1, 7, adjacency_array, { 3, 4 });
+  adjacency_array.uncontract(1, 2);
+  verifyNeighbors(0, 7, adjacency_array, { });
+  verifyNeighbors(1, 7, adjacency_array, { 2, 4 });
+  verifyNeighbors(2, 7, adjacency_array, { 1, 3 });
+  verifyNeighbors(3, 7, adjacency_array, { 2 });
+  verifyNeighbors(4, 7, adjacency_array, { 1, 5, 6 });
+  verifyNeighbors(5, 7, adjacency_array, { 4, 6 });
+  verifyNeighbors(6, 7, adjacency_array, { 4, 5 });
 }
 
 TEST(ADynamicAdjacencyArray, UncontractSeveralVertices2) {
-  DynamicAdjacencyArray incident_edges(
+  DynamicAdjacencyArray adjacency_array(
     7, {{1, 2}, {2, 3}, {1, 4}, {4, 5}, {4, 6}, {5, 6}});
-  incident_edges.contract(3, 1);
-  incident_edges.contract(3, 4);
-  incident_edges.contract(5, 6);
-  incident_edges.contract(3, 5);
-  incident_edges.contract(0, 2);
-  incident_edges.contract(0, 3);
-  verifyNeighbors(0, 7, incident_edges, { });
-  incident_edges.uncontract(0, 3);
-  verifyNeighbors(0, 7, incident_edges, { 3 });
-  verifyNeighbors(3, 7, incident_edges, { 0 });
-  incident_edges.uncontract(0, 2);
-  verifyNeighbors(0, 7, incident_edges, { });
-  verifyNeighbors(2, 7, incident_edges, { 3 });
-  incident_edges.uncontract(3, 5);
-  verifyNeighbors(3, 7, incident_edges, { 2, 5 });
-  verifyNeighbors(5, 7, incident_edges, { 3 });
-  incident_edges.uncontract(5, 6);
-  verifyNeighbors(5, 7, incident_edges, { 3, 6 });
-  verifyNeighbors(6, 7, incident_edges, { 3, 5 });
-  incident_edges.uncontract(3, 4);
-  verifyNeighbors(3, 7, incident_edges, { 2, 4 });
-  verifyNeighbors(4, 7, incident_edges, { 3, 5, 6 });
-  incident_edges.uncontract(3, 1);
-  verifyNeighbors(0, 7, incident_edges, { });
-  verifyNeighbors(1, 7, incident_edges, { 2, 4 });
-  verifyNeighbors(2, 7, incident_edges, { 1, 3 });
-  verifyNeighbors(3, 7, incident_edges, { 2 });
-  verifyNeighbors(4, 7, incident_edges, { 1, 5, 6 });
-  verifyNeighbors(5, 7, incident_edges, { 4, 6 });
-  verifyNeighbors(6, 7, incident_edges, { 4, 5 });
+  adjacency_array.contract(3, 1);
+  adjacency_array.contract(3, 4);
+  adjacency_array.contract(5, 6);
+  adjacency_array.contract(3, 5);
+  adjacency_array.contract(0, 2);
+  adjacency_array.contract(0, 3);
+  verifyNeighbors(0, 7, adjacency_array, { });
+  adjacency_array.uncontract(0, 3);
+  verifyNeighbors(0, 7, adjacency_array, { 3 });
+  verifyNeighbors(3, 7, adjacency_array, { 0 });
+  adjacency_array.uncontract(0, 2);
+  verifyNeighbors(0, 7, adjacency_array, { });
+  verifyNeighbors(2, 7, adjacency_array, { 3 });
+  adjacency_array.uncontract(3, 5);
+  verifyNeighbors(3, 7, adjacency_array, { 2, 5 });
+  verifyNeighbors(5, 7, adjacency_array, { 3 });
+  adjacency_array.uncontract(5, 6);
+  verifyNeighbors(5, 7, adjacency_array, { 3, 6 });
+  verifyNeighbors(6, 7, adjacency_array, { 3, 5 });
+  adjacency_array.uncontract(3, 4);
+  verifyNeighbors(3, 7, adjacency_array, { 2, 4 });
+  verifyNeighbors(4, 7, adjacency_array, { 3, 5, 6 });
+  adjacency_array.uncontract(3, 1);
+  verifyNeighbors(0, 7, adjacency_array, { });
+  verifyNeighbors(1, 7, adjacency_array, { 2, 4 });
+  verifyNeighbors(2, 7, adjacency_array, { 1, 3 });
+  verifyNeighbors(3, 7, adjacency_array, { 2 });
+  verifyNeighbors(4, 7, adjacency_array, { 1, 5, 6 });
+  verifyNeighbors(5, 7, adjacency_array, { 4, 6 });
+  verifyNeighbors(6, 7, adjacency_array, { 4, 5 });
 }
 
 TEST(ADynamicAdjacencyArray, RemovesParrallelEdges1) {
-  DynamicAdjacencyArray incident_edges(
+  DynamicAdjacencyArray adjacency_array(
     7, {{1, 2}, {2, 3}, {1, 4}, {4, 5}, {4, 6}, {5, 6}});
-  incident_edges.contract(2, 4);
-  incident_edges.removeParallelEdges();
-  verifyNeighbors(1, 7, incident_edges, { 2 }, true);
-  verifyNeighbors(2, 7, incident_edges, { 1, 3, 5, 6 }, true);
+  adjacency_array.contract(2, 4);
+  adjacency_array.removeParallelEdges();
+  verifyNeighbors(1, 7, adjacency_array, { 2 }, true);
+  verifyNeighbors(2, 7, adjacency_array, { 1, 3, 5, 6 }, true);
 }
 
 TEST(ADynamicAdjacencyArray, RemovesParrallelEdges2) {
-  DynamicAdjacencyArray incident_edges(
+  DynamicAdjacencyArray adjacency_array(
     7, {{1, 2}, {2, 3}, {1, 4}, {4, 5}, {4, 6}, {5, 6}});
-  incident_edges.contract(5, 6);
-  incident_edges.removeParallelEdges();
-  verifyNeighbors(5, 7, incident_edges, { 4 }, true);
-  verifyNeighbors(4, 7, incident_edges, { 1, 5 }, true);
+  adjacency_array.contract(5, 6);
+  adjacency_array.removeParallelEdges();
+  verifyNeighbors(5, 7, adjacency_array, { 4 }, true);
+  verifyNeighbors(4, 7, adjacency_array, { 1, 5 }, true);
 }
 
 TEST(ADynamicAdjacencyArray, RemovesParrallelEdges3) {
-  DynamicAdjacencyArray incident_edges(
+  DynamicAdjacencyArray adjacency_array(
     7, {{1, 2}, {2, 3}, {1, 4}, {4, 5}, {4, 6}, {5, 6}});
-  incident_edges.contract(4, 2);
-  incident_edges.contract(4, 5);
-  incident_edges.removeParallelEdges();
-  verifyNeighbors(1, 7, incident_edges, { 4 }, true);
-  verifyNeighbors(3, 7, incident_edges, { 4 }, true);
-  verifyNeighbors(4, 7, incident_edges, { 1, 3, 6 }, true);
-  verifyNeighbors(6, 7, incident_edges, { 4 }, true);
+  adjacency_array.contract(4, 2);
+  adjacency_array.contract(4, 5);
+  adjacency_array.removeParallelEdges();
+  verifyNeighbors(1, 7, adjacency_array, { 4 }, true);
+  verifyNeighbors(3, 7, adjacency_array, { 4 }, true);
+  verifyNeighbors(4, 7, adjacency_array, { 1, 3, 6 }, true);
+  verifyNeighbors(6, 7, adjacency_array, { 4 }, true);
 }
 
 
