@@ -27,11 +27,11 @@
 namespace mt_kahypar {
 namespace ds {
 
-void print_header(const DynamicAdjacencyArray::Header& header) {
-  LOG << V(header.prev) << ", " << V(header.next) << ", " << V(header.it_prev) << ", " << V(header.it_next);
-  LOG << V(header.tail) << ", " << V(header.first_active) << ", " << V(header.first_inactive) << V(header.degree);
-  LOG << V(header.current_version) << V(header.is_head);
-}
+// void print_header(const DynamicAdjacencyArray::Header& header) {
+//   LOG << V(header.prev) << ", " << V(header.next) << ", " << V(header.it_prev) << ", " << V(header.it_next);
+//   LOG << V(header.tail) << ", " << V(header.first_active) << ", " << V(header.first_inactive) << V(header.degree);
+//   LOG << V(header.current_version) << V(header.is_head);
+// }
 
 IncidentEdgeIterator::IncidentEdgeIterator(const HypernodeID u,
                                            const DynamicAdjacencyArray* dynamic_adjacency_array,
@@ -333,6 +333,38 @@ void DynamicAdjacencyArray::removeParallelEdges() {
       }
     }
   });
+}
+
+
+
+DynamicAdjacencyArray DynamicAdjacencyArray::copy(parallel_tag_t) {
+  DynamicAdjacencyArray adjacency_array;
+  adjacency_array._num_nodes = _num_nodes;
+  adjacency_array._size_in_bytes = _size_in_bytes;
+
+  tbb::parallel_invoke([&] {
+    adjacency_array._index_array.resize(_index_array.size());
+    memcpy(adjacency_array._index_array.data(), _index_array.data(),
+      sizeof(HyperedgeID) * _index_array.size());
+  }, [&] {
+    adjacency_array._data = parallel::make_unique<Edge>(_size_in_bytes / sizeof(Edge));
+    memcpy(adjacency_array._data.get(), _data.get(), _size_in_bytes);
+  });
+
+  return adjacency_array;
+}
+
+DynamicAdjacencyArray DynamicAdjacencyArray::copy() {
+  DynamicAdjacencyArray adjacency_array;
+  adjacency_array._num_nodes = _num_nodes;
+  adjacency_array._size_in_bytes = _size_in_bytes;
+
+  adjacency_array._index_array.resize(_index_array.size());
+  memcpy(adjacency_array._index_array.data(), _index_array.data(),
+    sizeof(HyperedgeID) * _index_array.size());
+  adjacency_array._data = parallel::make_unique<Edge>(_size_in_bytes / sizeof(Edge));
+  memcpy(adjacency_array._data.get(), _data.get(), _size_in_bytes);
+  return adjacency_array;
 }
 
 HyperedgeID DynamicAdjacencyArray::findBackwardsEdge(const Edge& forward, HypernodeID source) const {

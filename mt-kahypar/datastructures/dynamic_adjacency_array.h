@@ -121,6 +121,7 @@ class DynamicAdjacencyArray {
     HypernodeID original_target;
   };
 
+ private:
   // Header of the incident edge list of a vertex. The incident edge lists
   // contracted into one vertex are concatenated in a double linked list.
   struct Header {
@@ -239,6 +240,12 @@ class DynamicAdjacencyArray {
     return IteratorRange<IncidentEdgeIterator>(
       IncidentEdgeIterator(u, this, pos, false),
       IncidentEdgeIterator(u, this, 0UL, true));
+  }
+
+  // ! Returns the maximum edge id (exclusive).
+  HyperedgeID maxEdgeID() const {
+    ASSERT(_size_in_bytes % sizeof(Edge) == 0);
+    return _size_in_bytes / sizeof(Edge);
   }
 
   // ! Contracts two incident list of u and v, whereby u is the representative and
