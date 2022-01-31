@@ -89,6 +89,41 @@ void IncidentEdgeIterator::traverse_headers() {
   }
 }
 
+EdgeIterator::EdgeIterator(const HypernodeID u,
+                           const DynamicAdjacencyArray* dynamic_adjacency_array):
+    _current_u(u),
+    _current_id(dynamic_adjacency_array->firstActiveEdge(u)),
+    _current_last_id(dynamic_adjacency_array->firstInactiveEdge(u)),
+    _dynamic_adjacency_array(dynamic_adjacency_array) {
+  traverse_headers();
+}
+
+HyperedgeID EdgeIterator::operator* () const {
+  return _current_id;
+}
+
+EdgeIterator & EdgeIterator::operator++ () {
+  ++_current_id;
+  traverse_headers();
+  return *this;
+}
+
+bool EdgeIterator::operator!= (const EdgeIterator& rhs) {
+  return !(*this == rhs);
+}
+
+bool EdgeIterator::operator== (const EdgeIterator& rhs) {
+  return _current_id == rhs._current_id;
+}
+
+void EdgeIterator::traverse_headers() {
+  while (_current_id == _current_last_id && _current_u < _dynamic_adjacency_array->_num_nodes) {
+    ++_current_u;
+    _current_id = _dynamic_adjacency_array->firstActiveEdge(_current_u);
+    _current_last_id = _dynamic_adjacency_array->firstInactiveEdge(_current_u);
+  }
+}
+
 void DynamicAdjacencyArray::construct(const EdgeVector& edge_vector, const HyperedgeWeight* edge_weight) {
   // Accumulate degree of each vertex thread local
   const HyperedgeID num_hyperedges = edge_vector.size();

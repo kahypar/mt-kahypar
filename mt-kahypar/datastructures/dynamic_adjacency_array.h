@@ -42,7 +42,6 @@ class DynamicAdjacencyArray;
 
 // Iterator over the incident edges of a vertex u
 class IncidentEdgeIterator :
-  // TODO
   public std::iterator<std::forward_iterator_tag,    // iterator_category
                         HyperedgeID,   // value_type
                         std::ptrdiff_t,   // difference_type
@@ -77,6 +76,40 @@ class IncidentEdgeIterator :
   HyperedgeID _current_pos;
   const DynamicAdjacencyArray* _dynamic_adjacency_array;
   bool _end;
+};
+
+// Iterator over the incident edges of a vertex u
+class EdgeIterator :
+  public std::iterator<std::forward_iterator_tag,    // iterator_category
+                        HyperedgeID,   // value_type
+                        std::ptrdiff_t,   // difference_type
+                        const HyperedgeID*,   // pointer
+                        HyperedgeID> {   // reference
+  public:
+  EdgeIterator(const HypernodeID u,
+               const DynamicAdjacencyArray* dynamic_adjacency_array);
+
+  HyperedgeID operator* () const;
+
+  EdgeIterator & operator++ ();
+
+  EdgeIterator operator++ (int) {
+    EdgeIterator copy = *this;
+    operator++ ();
+    return copy;
+  }
+
+  bool operator!= (const EdgeIterator& rhs);
+
+  bool operator== (const EdgeIterator& rhs);
+
+  private:
+  void traverse_headers();
+
+  HypernodeID _current_u;
+  HyperedgeID _current_id;
+  HyperedgeID _current_last_id;
+  const DynamicAdjacencyArray* _dynamic_adjacency_array;
 };
 
 class DynamicAdjacencyArray {
@@ -242,6 +275,13 @@ class DynamicAdjacencyArray {
       IncidentEdgeIterator(u, this, 0UL, true));
   }
 
+  // ! Returns a range to loop over all edges.
+  IteratorRange<EdgeIterator> edges() const {
+    return IteratorRange<EdgeIterator>(
+      EdgeIterator(0, this),
+      EdgeIterator(_num_nodes, this));
+  }
+
   // ! Returns the maximum edge id (exclusive).
   HyperedgeID maxEdgeID() const {
     ASSERT(_size_in_bytes % sizeof(Edge) == 0);
@@ -293,6 +333,7 @@ class DynamicAdjacencyArray {
 
  private:
   friend class IncidentEdgeIterator;
+  friend class EdgeIterator;
 
   class HeaderIterator :
     // TODO
