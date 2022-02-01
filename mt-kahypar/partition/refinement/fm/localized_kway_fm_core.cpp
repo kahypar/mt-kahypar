@@ -134,7 +134,6 @@ namespace mt_kahypar {
     // we would have to add the success func to the interface of DeltaPhg (and then ignore it there...)
     // and do the local rollback outside this function
 
-
     size_t bestImprovementIndex = 0;
     Gain estimatedImprovement = 0;
     Gain bestImprovement = 0;
@@ -150,25 +149,43 @@ namespace mt_kahypar {
       } else {
         if (!fm_strategy.findNextMove(phg, move)) break;
       }
-
       sharedData.nodeTracker.deactivateNode(move.node, thisSearch);
+
+
+      bool expect_improvement = estimatedImprovement + move.gain > bestImprovement;
+      bool high_deg = phg.nodeDegree(move.node) >= PartitionedHypergraph::HIGH_DEGREE_THRESHOLD;
+
+      // skip if no target block available
+      // skip if high degree (unless it nets actual improvement; but don't apply on deltaPhg then)
+      if (move.to == kInvalidPartition || (!expect_improvement && high_deg)) {
+        continue;
+      }
+      // less restrictive option: skip if negative gain (or < -5000 or smth).
+      // downside: have to flush before improvement or run it through deltaPhg
+      // probably quite similar since this only really matters in the first few moves where the stop rule
+      // doesn't signal us to stop yet
+
       MoveID move_id = std::numeric_limits<MoveID>::max();
       bool moved = false;
-      if (move.to != kInvalidPartition) {
-        if constexpr (use_delta) {
-          heaviestPartWeight = heaviestPartAndWeight(deltaPhg).second;
-          fromWeight = deltaPhg.partWeight(move.from);
-          toWeight = deltaPhg.partWeight(move.to);
+      if constexpr (use_delta) {
+        heaviestPartWeight = heaviestPartAndWeight(deltaPhg).second;
+        fromWeight = deltaPhg.partWeight(move.from);
+        toWeight = deltaPhg.partWeight(move.to);
+        if (expect_improvement) {
+          // since we will flush the move sequence, don't bother running it through the deltaPhg
+          // this is intended to allow moving high deg nodes (blow up hash tables) if they give an improvement
+          moved = toWeight + phg.nodeWeight(move.node) <= context.partition.max_part_weights[move.to];
+        } else {
           moved = deltaPhg.changeNodePart(move.node, move.from, move.to,
                                           context.partition.max_part_weights[move.to], delta_func);
-        } else {
-          heaviestPartWeight = heaviestPartAndWeight(phg).second;
-          fromWeight = phg.partWeight(move.from);
-          toWeight = phg.partWeight(move.to);
-          moved = phg.changeNodePart(move.node, move.from, move.to,
-                                     context.partition.max_part_weights[move.to],
-                                     [&] { move_id = sharedData.moveTracker.insertMove(move); }, delta_func);
         }
+      } else {
+        heaviestPartWeight = heaviestPartAndWeight(phg).second;
+        fromWeight = phg.partWeight(move.from);
+        toWeight = phg.partWeight(move.to);
+        moved = phg.changeNodePart(move.node, move.from, move.to,
+                                   context.partition.max_part_weights[move.to],
+                                   [&] { move_id = sharedData.moveTracker.insertMove(move); }, delta_func);
       }
 
       if (moved) {
@@ -176,8 +193,8 @@ namespace mt_kahypar {
         estimatedImprovement += move.gain;
         localMoves.emplace_back(move, move_id);
         stopRule.update(move.gain);
-        const bool improved_km1 = estimatedImprovement > bestImprovement;
-        const bool improved_balance_less_equal_km1 = estimatedImprovement >= bestImprovement
+        bool improved_km1 = estimatedImprovement > bestImprovement;
+        bool improved_balance_less_equal_km1 = estimatedImprovement >= bestImprovement
                                                      && fromWeight == heaviestPartWeight
                                                      && toWeight + phg.nodeWeight(move.node) < heaviestPartWeight;
 
