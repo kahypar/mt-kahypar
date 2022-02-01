@@ -211,6 +211,13 @@ namespace mt_kahypar {
           }
         }
 
+        // no need to update our PQs if we stop anyways
+        if (stopRule.searchShouldStop()
+              || sharedData.finishedTasks.load(std::memory_order_relaxed) >= sharedData.finishedTasksLimit) {
+          edgesWithGainChanges.clear(); // clear here, since this is otherwise done by acquireOrUpdateNeighbors
+          break;
+        }
+
         if constexpr (use_delta) {
           acquireOrUpdateNeighbors(deltaPhg, move);
         } else {
