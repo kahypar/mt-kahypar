@@ -48,36 +48,7 @@ void executeParallel(const F& f1, const K& f2) {
   });
 }
 
-TEST_F(ADynamicGraph, HasCorrectStats) {
-  ASSERT_EQ(7,  hypergraph.initialNumNodes());
-  ASSERT_EQ(12,  hypergraph.initialNumEdges());
-  ASSERT_EQ(12, hypergraph.initialNumPins());
-  ASSERT_EQ(12, hypergraph.initialTotalVertexDegree());
-  ASSERT_EQ(7,  hypergraph.totalWeight());
-  ASSERT_EQ(2,  hypergraph.maxEdgeSize());
-}
-
-TEST_F(ADynamicGraph, HasCorrectInitialNodeIterator) {
-  HypernodeID expected_hn = 0;
-  for ( const HypernodeID& hn : hypergraph.nodes() ) {
-    ASSERT_EQ(expected_hn++, hn);
-  }
-  ASSERT_EQ(7, expected_hn);
-}
-
-TEST_F(ADynamicGraph, HasCorrectNodeIteratorIfVerticesAreDisabled) {
-  hypergraph.removeDegreeZeroHypernode(0);
-  hypergraph.disableHypernode(5);
-  const std::vector<HypernodeID> expected_iter =
-    { 1, 2, 3, 4, 6 };
-  HypernodeID pos = 0;
-  for ( const HypernodeID& hn : hypergraph.nodes() ) {
-    ASSERT_EQ(expected_iter[pos++], hn);
-  }
-  ASSERT_EQ(expected_iter.size(), pos);
-}
-
-TEST_F(ADynamicGraph, HasCorrectInitialEdgeIterator) {
+std::vector<HyperedgeID> expected_edges() {
   const HyperedgeID offset = DynamicAdjacencyArray::index_offset_per_node;
   std::vector<HyperedgeID> expected_iter;
   HyperedgeID current_offset = 0;
@@ -119,12 +90,62 @@ TEST_F(ADynamicGraph, HasCorrectInitialEdgeIterator) {
   current_offset += 1;
   expected_iter.push_back(current_offset);
   current_offset += 1;
+  return expected_iter;
+}
 
+TEST_F(ADynamicGraph, HasCorrectStats) {
+  ASSERT_EQ(7,  hypergraph.initialNumNodes());
+  ASSERT_EQ(12,  hypergraph.initialNumEdges());
+  ASSERT_EQ(12, hypergraph.initialNumPins());
+  ASSERT_EQ(12, hypergraph.initialTotalVertexDegree());
+  ASSERT_EQ(7,  hypergraph.totalWeight());
+  ASSERT_EQ(2,  hypergraph.maxEdgeSize());
+}
+
+TEST_F(ADynamicGraph, HasCorrectInitialNodeIterator) {
+  HypernodeID expected_hn = 0;
+  for ( const HypernodeID& hn : hypergraph.nodes() ) {
+    ASSERT_EQ(expected_hn++, hn);
+  }
+  ASSERT_EQ(7, expected_hn);
+}
+
+TEST_F(ADynamicGraph, HasCorrectNodeIteratorIfVerticesAreDisabled) {
+  hypergraph.removeDegreeZeroHypernode(0);
+  hypergraph.disableHypernode(5);
+  const std::vector<HypernodeID> expected_iter =
+    { 1, 2, 3, 4, 6 };
+  HypernodeID pos = 0;
+  for ( const HypernodeID& hn : hypergraph.nodes() ) {
+    ASSERT_EQ(expected_iter[pos++], hn);
+  }
+  ASSERT_EQ(expected_iter.size(), pos);
+}
+
+TEST_F(ADynamicGraph, HasCorrectInitialEdgeIterator) {
+  auto expected_iter = expected_edges();
   HypernodeID pos = 0;
   for ( const HyperedgeID& he : hypergraph.edges() ) {
     ASSERT_EQ(expected_iter[pos++], he);
   }
   ASSERT_EQ(expected_iter.size(), pos);
+}
+
+TEST_F(ADynamicGraph, VerifiesIncidentEdges) {
+  auto edges = expected_edges();
+  verifyIncidentNets(0, { });
+  verifyIncidentNets(1, { edges[0], edges[1] });
+  verifyIncidentNets(2, { edges[2], edges[3] });
+  verifyIncidentNets(3, { edges[4] });
+  verifyIncidentNets(4, { edges[5], edges[6], edges[7] });
+  verifyIncidentNets(5, { edges[8], edges[9] });
+  verifyIncidentNets(6, { edges[10], edges[11] });
+}
+
+TEST_F(ADynamicGraph, VerifiesPinsOfEdges) {
+  auto edges = expected_edges();
+  verifyPins({ edges[0], edges[1], edges[3], edges[6], edges[7], edges[9] },
+    { {1, 2}, {1, 4}, {2, 3}, {4, 5}, {4, 6}, {5, 6} });
 }
 
 } // namespace ds
