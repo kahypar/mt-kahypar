@@ -3,6 +3,7 @@ set(DatastructureSources
         dynamic_hypergraph.cpp
         dynamic_hypergraph_factory.cpp
         dynamic_graph.cpp
+        dynamic_graph_factory.cpp
         static_hypergraph_factory.cpp
         static_hypergraph.cpp
         static_graph_factory.cpp
