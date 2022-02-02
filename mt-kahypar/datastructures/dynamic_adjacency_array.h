@@ -78,7 +78,7 @@ class IncidentEdgeIterator :
   bool _end;
 };
 
-// Iterator over the incident edges of a vertex u
+// Iterator over all edges
 class EdgeIterator :
   public std::iterator<std::forward_iterator_tag,    // iterator_category
                         HyperedgeID,   // value_type

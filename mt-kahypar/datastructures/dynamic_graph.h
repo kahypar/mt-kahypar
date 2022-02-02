@@ -223,6 +223,66 @@ class DynamicGraph {
     const ElementType* _element = nullptr;
   };
 
+  /*!
+   * Iterator for pins of an edge
+   *
+   * Note that because this is a graph, each edge has exactly two pins.
+   */
+  class PinIterator :
+    public std::iterator<std::forward_iterator_tag,    // iterator_category
+                         HypernodeID,   // value_type
+                         std::ptrdiff_t,   // difference_type
+                         const HypernodeID*,   // pointer
+                         HypernodeID> {   // reference
+   public:
+    /*!
+     * Constructs a pin iterator based on the IDs of the two nodes
+     */
+    PinIterator(HypernodeID source, HypernodeID target, unsigned int iteration_count) :
+      _source(source),
+      _target(target),
+      _iteration_count(iteration_count) {
+    }
+
+    // ! Returns the id of the element the iterator currently points to.
+    HypernodeID operator* () const {
+      ASSERT(_iteration_count < 2);
+      return _iteration_count == 0 ? _source : _target;
+    }
+
+    // ! Prefix increment. The iterator advances to the next valid element.
+    PinIterator & operator++ () {
+      ASSERT(_iteration_count < 2);
+      ++_iteration_count;
+      return *this;
+    }
+
+    // ! Postfix increment. The iterator advances to the next valid element.
+    PinIterator operator++ (int) {
+      PinIterator copy = *this;
+      operator++ ();
+      return copy;
+    }
+
+    bool operator!= (const PinIterator& rhs) {
+      return _iteration_count != rhs._iteration_count ||
+             _source != rhs._source || _target != rhs._target;
+    }
+
+    bool operator== (const PinIterator& rhs) {
+      return _iteration_count == rhs._iteration_count &&
+              _source == rhs._source && _target == rhs._target;
+    }
+
+   private:
+    // source node of the edge
+    HypernodeID _source = 0;
+    // target node of the edge
+    HypernodeID _target = 0;
+    // state of the iterator
+    unsigned int _iteration_count = 0;
+  };
+
   enum class ContractionResult : uint8_t {
     CONTRACTED = 0,
     PENDING_CONTRACTIONS = 1,
@@ -241,6 +301,10 @@ class DynamicGraph {
   using Hyperedge = Edge;
   // ! Iterator to iterate over the hypernodes
   using HypernodeIterator = HypergraphElementIterator<const Hypernode>;
+  // ! Iterator to iterate over the hyperedges
+  using HyperedgeIterator = EdgeIterator;
+  // ! Iterator to iterate over the pins of a hyperedge
+  using IncidenceIterator = PinIterator;
   // ! Iterator to iterate over the incident edges of a node
   using IncidentNetsIterator = DynamicAdjacencyArray::const_iterator;
 
@@ -394,11 +458,9 @@ class DynamicGraph {
   }
 
   // ! Returns a range of the active edges of the hypergraph
-  // IteratorRange<HyperedgeIterator> edges() const {
-  //   return IteratorRange<HyperedgeIterator>(
-  //     HyperedgeIterator(_hyperedges.data(), ID(0), _num_hyperedges),
-  //     HyperedgeIterator(_hyperedges.data() + _num_hyperedges, _num_hyperedges, _num_hyperedges));
-  // }
+  IteratorRange<HyperedgeIterator> edges() const {
+    return _adjacency_array.edges();
+  }
 
   // ! Returns a range to loop over the incident edges of node u.
   IteratorRange<IncidentNetsIterator> incidentEdges(const HypernodeID u) const {
@@ -407,13 +469,12 @@ class DynamicGraph {
   }
 
   // ! Returns a range to loop over the pins of hyperedge e.
-  // IteratorRange<IncidenceIterator> pins(const HyperedgeID e) const {
-  //   ASSERT(!hyperedge(e).isDisabled(), "Hyperedge" << e << "is disabled");
-  //   const Hyperedge& he = hyperedge(e);
-  //   return IteratorRange<IncidenceIterator>(
-  //     _incidence_array.cbegin() + he.firstEntry(),
-  //     _incidence_array.cbegin() + he.firstInvalidEntry());
-  // }
+  IteratorRange<IncidenceIterator> pins(const HyperedgeID id) const {
+    const Edge& e = edge(id);
+    return IteratorRange<IncidenceIterator>(
+      IncidenceIterator(e.source, e.target, 0),
+      IncidenceIterator(e.source, e.target, 2));
+  }
 
   // ####################### Hypernode Information #######################
 
@@ -751,15 +812,14 @@ class DynamicGraph {
   // ####################### Hyperedge Information #######################
 
   // ! Accessor for hyperedge-related information
-  // MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE const Hyperedge& hyperedge(const HyperedgeID e) const {
-  //   ASSERT(e <= _num_edges, "Hyperedge" << e << "does not exist");
-  //   return _hyperedges[e];
-  // }
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE const Edge& edge(const HyperedgeID e) const {
+    return _adjacency_array.edge(e);
+  }
 
   // ! To avoid code duplication we implement non-const version in terms of const version
-  // MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE Hyperedge& hyperedge(const HyperedgeID e) {
-  //   return const_cast<Hyperedge&>(static_cast<const DynamicGraph&>(*this).hyperedge(e));
-  // }
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE Hyperedge& edge(const HyperedgeID e) {
+    return _adjacency_array.edge(e);
+  }
 
   // ####################### Contract / Uncontract #######################
 
