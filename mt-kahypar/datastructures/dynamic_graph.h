@@ -310,48 +310,42 @@ class DynamicGraph {
 
   explicit DynamicGraph() :
     _num_nodes(0),
-    _num_removed_hypernodes(0),
+    _num_removed_nodes(0),
     _removed_degree_zero_hn_weight(0),
     _num_edges(0),
     _total_weight(0),
     _version(0),
     _contraction_index(0),
-    _hypernodes(),
+    _nodes(),
     _contraction_tree(),
-    _acquired_hns(),
-    _acquired_hes(),
-    _failed_hyperedge_contractions() { }
+    _acquired_nodes() { }
 
   DynamicGraph(const DynamicGraph&) = delete;
   DynamicGraph & operator= (const DynamicGraph &) = delete;
 
   DynamicGraph(DynamicGraph&& other) :
     _num_nodes(other._num_nodes),
-    _num_removed_hypernodes(other._num_removed_hypernodes),
+    _num_removed_nodes(other._num_removed_nodes),
     _removed_degree_zero_hn_weight(other._removed_degree_zero_hn_weight),
     _num_edges(other._num_edges),
     _total_weight(other._total_weight),
     _version(other._version),
     _contraction_index(0),
-    _hypernodes(std::move(other._hypernodes)),
+    _nodes(std::move(other._nodes)),
     _contraction_tree(std::move(other._contraction_tree)),
-    _acquired_hns(std::move(other._acquired_hns)),
-    _acquired_hes(std::move(other._acquired_hes)),
-    _failed_hyperedge_contractions(std::move(other._failed_hyperedge_contractions)) { }
+    _acquired_nodes(std::move(other._acquired_nodes)) { }
 
   DynamicGraph & operator= (DynamicGraph&& other) {
     _num_nodes = other._num_nodes;
-    _num_removed_hypernodes = other._num_removed_hypernodes;
+    _num_removed_nodes = other._num_removed_nodes;
     _num_edges = other._num_edges;
     _removed_degree_zero_hn_weight = other._removed_degree_zero_hn_weight;
     _total_weight = other._total_weight;
     _version = other._version;
     _contraction_index.store(other._contraction_index.load());
-    _hypernodes = std::move(other._hypernodes);
+    _nodes = std::move(other._nodes);
     _contraction_tree = std::move(other._contraction_tree);
-    _acquired_hns = std::move(other._acquired_hns);
-    _acquired_hes = std::move(other._acquired_hes);
-    _failed_hyperedge_contractions = std::move(other._failed_hyperedge_contractions);
+    _acquired_nodes = std::move(other._acquired_nodes);
     return *this;
   }
 
@@ -368,7 +362,7 @@ class DynamicGraph {
 
   // ! Number of removed hypernodes
   HypernodeID numRemovedHypernodes() const {
-    return _num_removed_hypernodes;
+    return _num_removed_nodes;
   }
 
   // ! Weight of removed degree zero vertics
@@ -453,8 +447,8 @@ class DynamicGraph {
   // ! Returns a range of the active nodes of the hypergraph
   IteratorRange<HypernodeIterator> nodes() const {
     return IteratorRange<HypernodeIterator>(
-      HypernodeIterator(_hypernodes.data(), ID(0), _num_nodes),
-      HypernodeIterator(_hypernodes.data() + _num_nodes, _num_nodes, _num_nodes));
+      HypernodeIterator(_nodes.data(), ID(0), _num_nodes),
+      HypernodeIterator(_nodes.data() + _num_nodes, _num_nodes, _num_nodes));
   }
 
   // ! Returns a range of the active edges of the hypergraph
@@ -514,7 +508,7 @@ class DynamicGraph {
   // ! Removes a hypernode (must be enabled before)
   void removeHypernode(const HypernodeID u) {
     hypernode(u).disable();
-    ++_num_removed_hypernodes;
+    ++_num_removed_nodes;
   }
 
   // ! Removes a degree zero hypernode
@@ -738,7 +732,7 @@ class DynamicGraph {
   bool verifyIncidenceArrayAndIncidentNets();
 
  private:
-  // friend class DynamicGraphFactory;
+  friend class DynamicGraphFactory;
   template<typename Hypergraph>
   friend class CommunitySupport;
   template <typename Hypergraph,
@@ -751,7 +745,7 @@ class DynamicGraph {
     ASSERT(u < _num_nodes, "Hypernode" << u << "does not exist");
     bool expected = false;
     bool desired = true;
-    while ( !_acquired_hns[u].compare_exchange_strong(expected, desired) ) {
+    while ( !_acquired_nodes[u].compare_exchange_strong(expected, desired) ) {
       expected = false;
     }
   }
@@ -760,35 +754,13 @@ class DynamicGraph {
     ASSERT(u < _num_nodes, "Hypernode" << u << "does not exist");
     bool expected = false;
     bool desired = true;
-    return _acquired_hns[u].compare_exchange_strong(expected, desired);
+    return _acquired_nodes[u].compare_exchange_strong(expected, desired);
   }
 
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE void releaseHypernode(const HypernodeID u) {
     ASSERT(u < _num_nodes, "Hypernode" << u << "does not exist");
-    ASSERT(_acquired_hns[u], "Hypernode" << u << "is not acquired!");
-    _acquired_hns[u] = false;
-  }
-
-  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE void acquireHyperedge(const HyperedgeID e) {
-    ASSERT(e < _num_edges, "Hyperedge" << e << "does not exist");
-    bool expected = false;
-    bool desired = true;
-    while ( !_acquired_hes[e].compare_exchange_strong(expected, desired) ) {
-      expected = false;
-    }
-  }
-
-  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE bool tryAcquireHyperedge(const HyperedgeID e) {
-    ASSERT(e < _num_edges, "Hyperedge" << e << "does not exist");
-    bool expected = false;
-    bool desired = true;
-    return _acquired_hes[e].compare_exchange_strong(expected, desired);
-  }
-
-  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE void releaseHyperedge(const HyperedgeID e) {
-    ASSERT(e < _num_edges, "Hyperedge" << e << "does not exist");
-    ASSERT(_acquired_hes[e], "Hyperedge" << e << "is not acquired!");
-    _acquired_hes[e] = false;
+    ASSERT(_acquired_nodes[u], "Hypernode" << u << "is not acquired!");
+    _acquired_nodes[u] = false;
   }
 
   // ####################### Hypernode Information #######################
@@ -796,7 +768,7 @@ class DynamicGraph {
   // ! Accessor for hypernode-related information
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE const Hypernode& hypernode(const HypernodeID u) const {
     ASSERT(u <= _num_nodes, "Hypernode" << u << "does not exist");
-    return _hypernodes[u];
+    return _nodes[u];
   }
 
   // ! To avoid code duplication we implement non-const version in terms of const version
@@ -890,7 +862,7 @@ class DynamicGraph {
   // ! Number of hypernodes
   HypernodeID _num_nodes;
   // ! Number of removed hypernodes
-  HypernodeID _num_removed_hypernodes;
+  HypernodeID _num_removed_nodes;
   // ! Number of removed degree zero hypernodes
   HypernodeWeight _removed_degree_zero_hn_weight;
   // ! Number of hyperedges
@@ -904,18 +876,13 @@ class DynamicGraph {
   std::atomic<HypernodeID> _contraction_index;
 
   // ! Hypernodes
-  Array<Hypernode> _hypernodes;
+  Array<Hypernode> _nodes;
   // ! Contraction Tree
   ContractionTree _contraction_tree;
   // ! Pins of hyperedges
   DynamicAdjacencyArray _adjacency_array;
   // ! Atomic bool vector used to acquire unique ownership of hypernodes
-  OwnershipVector _acquired_hns;
-
-  // ! Atomic bool vector used to acquire unique ownership of hyperedges
-  OwnershipVector _acquired_hes;
-  // ! Collects hyperedge contractions that failed due to failed acquired ownership
-  ThreadLocalHyperedgeVector _failed_hyperedge_contractions;
+  OwnershipVector _acquired_nodes;
 };
 
 } // namespace ds

@@ -234,9 +234,9 @@ class DynamicAdjacencyArray {
     _index_array(),
     _data(nullptr) { }
 
-  DynamicAdjacencyArray(const HypernodeID num_hypernodes,
-                   const EdgeVector& edge_vector) :
-    _num_nodes(num_hypernodes),
+  DynamicAdjacencyArray(const HypernodeID num_nodes,
+                        const EdgeVector& edge_vector) :
+    _num_nodes(num_nodes),
     _size_in_bytes(0),
     _index_array(),
     _data(nullptr),

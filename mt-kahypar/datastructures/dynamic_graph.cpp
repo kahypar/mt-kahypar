@@ -43,7 +43,7 @@ void DynamicGraph::updateTotalWeight(parallel_tag_t) {
       HypernodeWeight weight = init;
       for (HypernodeID hn = range.begin(); hn < range.end(); ++hn) {
         if ( nodeIsEnabled(hn) ) {
-          weight += this->_hypernodes[hn].weight();
+          weight += this->_nodes[hn].weight();
         }
       }
       return weight;
@@ -300,7 +300,7 @@ DynamicGraph DynamicGraph::copy(parallel_tag_t) {
   DynamicGraph hypergraph;
 
   hypergraph._num_nodes = _num_nodes;
-  hypergraph._num_removed_hypernodes = _num_removed_hypernodes;
+  hypergraph._num_removed_nodes = _num_removed_nodes;
   hypergraph._removed_degree_zero_hn_weight = _removed_degree_zero_hn_weight;
   hypergraph._num_edges = _num_edges;
   hypergraph._total_weight = _total_weight;
@@ -308,23 +308,18 @@ DynamicGraph DynamicGraph::copy(parallel_tag_t) {
   hypergraph._contraction_index.store(_contraction_index.load());
 
   tbb::parallel_invoke([&] {
-    hypergraph._hypernodes.resize(_hypernodes.size());
-    memcpy(hypergraph._hypernodes.data(), _hypernodes.data(),
-      sizeof(Hypernode) * _hypernodes.size());
+    hypergraph._nodes.resize(_nodes.size());
+    memcpy(hypergraph._nodes.data(), _nodes.data(),
+      sizeof(Hypernode) * _nodes.size());
   }, [&] {
     hypergraph._adjacency_array = _adjacency_array.copy(parallel_tag_t());
   }, [&] {
-    hypergraph._acquired_hns.resize(_acquired_hns.size());
+    hypergraph._acquired_nodes.resize(_acquired_nodes.size());
     tbb::parallel_for(ID(0), _num_nodes, [&](const HypernodeID& hn) {
-      hypergraph._acquired_hns[hn] = _acquired_hns[hn];
+      hypergraph._acquired_nodes[hn] = _acquired_nodes[hn];
     });
   }, [&] {
     hypergraph._contraction_tree = _contraction_tree.copy(parallel_tag_t());
-  }, [&] {
-    hypergraph._acquired_hes.resize(_adjacency_array.maxEdgeID());
-    tbb::parallel_for(ID(0), _adjacency_array.maxEdgeID(), [&](const HyperedgeID& he) {
-      hypergraph._acquired_hes[he] = _acquired_hes[he];
-    });
   });
   return hypergraph;
 }
@@ -334,26 +329,22 @@ DynamicGraph DynamicGraph::copy() {
   DynamicGraph hypergraph;
 
   hypergraph._num_nodes = _num_nodes;
-  hypergraph._num_removed_hypernodes = _num_removed_hypernodes;
+  hypergraph._num_removed_nodes = _num_removed_nodes;
   hypergraph._removed_degree_zero_hn_weight = _removed_degree_zero_hn_weight;
   hypergraph._num_edges = _num_edges;
   hypergraph._total_weight = _total_weight;
   hypergraph._version = _version;
   hypergraph._contraction_index.store(_contraction_index.load());
 
-  hypergraph._hypernodes.resize(_hypernodes.size());
-  memcpy(hypergraph._hypernodes.data(), _hypernodes.data(),
-    sizeof(Hypernode) * _hypernodes.size());
+  hypergraph._nodes.resize(_nodes.size());
+  memcpy(hypergraph._nodes.data(), _nodes.data(),
+    sizeof(Hypernode) * _nodes.size());
     hypergraph._adjacency_array = _adjacency_array.copy(parallel_tag_t());
-  hypergraph._acquired_hns.resize(_num_nodes);
+  hypergraph._acquired_nodes.resize(_num_nodes);
   for ( HypernodeID hn = 0; hn < _num_nodes; ++hn ) {
-    hypergraph._acquired_hns[hn] = _acquired_hns[hn];
+    hypergraph._acquired_nodes[hn] = _acquired_nodes[hn];
   }
   hypergraph._contraction_tree = _contraction_tree.copy();
-  hypergraph._acquired_hes.resize(_adjacency_array.maxEdgeID());
-  for ( HyperedgeID he = 0; he < _adjacency_array.maxEdgeID(); ++he ) {
-    hypergraph._acquired_hes[he] = _acquired_hes[he];
-  }
 
   return hypergraph;
 }
@@ -361,10 +352,9 @@ DynamicGraph DynamicGraph::copy() {
 void DynamicGraph::memoryConsumption(utils::MemoryTreeNode* parent) const {
   ASSERT(parent);
 
-  parent->addChild("Hypernodes", sizeof(Hypernode) * _hypernodes.size());
+  parent->addChild("Hypernodes", sizeof(Hypernode) * _nodes.size());
   parent->addChild("Incident Nets", _adjacency_array.size_in_bytes());
-  parent->addChild("Hypernode Ownership Vector", sizeof(bool) * _acquired_hns.size());
-  parent->addChild("Hyperedge Ownership Vector", sizeof(bool) * _acquired_hes.size());
+  parent->addChild("Hypernode Ownership Vector", sizeof(bool) * _acquired_nodes.size());
 
   utils::MemoryTreeNode* contraction_tree_node = parent->addChild("Contraction Tree");
   _contraction_tree.memoryConsumption(contraction_tree_node);

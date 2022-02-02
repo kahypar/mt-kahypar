@@ -2,6 +2,7 @@ set(DatastructureSources
         contraction_tree.cpp
         dynamic_hypergraph.cpp
         dynamic_hypergraph_factory.cpp
+        dynamic_graph.cpp
         static_hypergraph_factory.cpp
         static_hypergraph.cpp
         static_graph_factory.cpp
