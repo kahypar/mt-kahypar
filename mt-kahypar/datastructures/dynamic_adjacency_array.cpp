@@ -125,6 +125,7 @@ void EdgeIterator::traverse_headers() {
 }
 
 void DynamicAdjacencyArray::construct(const EdgeVector& edge_vector, const HyperedgeWeight* edge_weight) {
+  // TODO(maas): edge weights
   // Accumulate degree of each vertex thread local
   const HyperedgeID num_hyperedges = edge_vector.size();
   ThreadLocalCounter local_incident_nets_per_vertex(_num_nodes + 1, 0);
@@ -138,6 +139,7 @@ void DynamicAdjacencyArray::construct(const EdgeVector& edge_vector, const Hyper
     });
   }, [&] {
     _index_array.assign(_num_nodes + 1, sizeof(Header) / sizeof(Edge));
+    _index_array[0] = 0;
     current_incident_net_pos.assign(
       _num_nodes, parallel::IntegralAtomicWrapper<size_t>(0));
   });
@@ -154,7 +156,7 @@ void DynamicAdjacencyArray::construct(const EdgeVector& edge_vector, const Hyper
   // Compute start positon of the incident nets of each vertex via a parallel prefix sum
   parallel::TBBPrefixSum<HyperedgeID, Array> incident_net_prefix_sum(_index_array);
   tbb::parallel_scan(tbb::blocked_range<size_t>(
-          0UL, UI64(_num_nodes + 1)), incident_net_prefix_sum);
+          ID(0), ID(_num_nodes + 1)), incident_net_prefix_sum);
   _size_in_bytes = incident_net_prefix_sum.total_sum() * sizeof(Edge);
   _data = parallel::make_unique<Edge>(_size_in_bytes / sizeof(Edge));
 

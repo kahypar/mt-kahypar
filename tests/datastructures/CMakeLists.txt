@@ -31,4 +31,5 @@ target_sources(mt_kahypar_graph_tests PRIVATE
         partitioned_graph_test.cc
         delta_partitioned_graph_test.cc
         dynamic_adjacency_array_test.cc
+        dynamic_graph_test.cc
 )

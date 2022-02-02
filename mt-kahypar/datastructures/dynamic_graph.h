@@ -561,6 +561,14 @@ class DynamicGraph {
     return 2;
   }
 
+  HyperedgeID edgeSource(const HyperedgeID e) const {
+    return edge(e).source;
+  }
+
+  HyperedgeID edgeTarget(const HyperedgeID e) const {
+    return edge(e).target;
+  }
+
   // ####################### Community Information #######################
 
   // ! Community id which hypernode u is assigned to

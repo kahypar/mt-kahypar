@@ -228,6 +228,8 @@ class DynamicAdjacencyArray {
  public:
   using const_iterator = IncidentEdgeIterator;
 
+  static constexpr size_t index_offset_per_node = sizeof(DynamicAdjacencyArray::Header) / sizeof(Edge);
+
   DynamicAdjacencyArray() :
     _num_nodes(0),
     _size_in_bytes(0),
