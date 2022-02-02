@@ -528,28 +528,24 @@ class DynamicGraph {
   // ####################### Hyperedge Information #######################
 
   // ! Accessor for hyperedge-related information
-  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE const Edge& hyperedge(const HyperedgeID e) const {
-    // ASSERT(e <= _num_hyperedges, "Hyperedge" << e << "does not exist");
-    // TODO: useful assertion
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE const Edge& edge(const HyperedgeID e) const {
     return _adjacency_array.edge(e);
   }
 
   // ! To avoid code duplication we implement non-const version in terms of const version
-  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE Edge& hyperedge(const HyperedgeID e) {
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE Hyperedge& edge(const HyperedgeID e) {
     return _adjacency_array.edge(e);
   }
 
-  // ! Weight of a hyperedge
-  // HypernodeWeight edgeWeight(const HyperedgeID e) const {
-  //   ASSERT(!hyperedge(e).isDisabled(), "Hyperedge" << e << "is disabled");
-  //   return hyperedge(e).weight();
-  // }
+  // ! Weight of an edge
+  HypernodeWeight edgeWeight(const HyperedgeID e) const {
+    return edge(e).weight;
+  }
 
   // ! Sets the weight of a hyperedge
-  // void setEdgeWeight(const HyperedgeID e, const HyperedgeWeight weight) {
-  //   ASSERT(!hyperedge(e).isDisabled(), "Hyperedge" << e << "is disabled");
-  //   return hyperedge(e).setWeight(weight);
-  // }
+  void setEdgeWeight(const HyperedgeID e, const HyperedgeWeight weight) {
+    edge(e).weight = weight;
+  }
 
   // ! Number of pins of a hyperedge
   HypernodeID edgeSize(const HyperedgeID) const {
@@ -745,7 +741,7 @@ class DynamicGraph {
   friend class CommunitySupport;
   template <typename Hypergraph,
             typename HypergraphFactory>
-  friend class PartitionedHypergraph;
+  friend class PartitionedGraph;
 
   // ####################### Acquiring / Releasing Ownership #######################
 
@@ -788,18 +784,6 @@ class DynamicGraph {
   //                                                                                         const size_t pos = 0) const {
   //   return _incident_nets.incidentEdges(u, pos);
   // }
-
-  // ####################### Hyperedge Information #######################
-
-  // ! Accessor for hyperedge-related information
-  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE const Edge& edge(const HyperedgeID e) const {
-    return _adjacency_array.edge(e);
-  }
-
-  // ! To avoid code duplication we implement non-const version in terms of const version
-  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE Hyperedge& edge(const HyperedgeID e) {
-    return _adjacency_array.edge(e);
-  }
 
   // ####################### Contract / Uncontract #######################
 
