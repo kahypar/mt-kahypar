@@ -59,7 +59,7 @@ namespace mt_kahypar::ds {
           const HyperedgeWeight* edge_weight,
           const HypernodeWeight* node_weight,
           // TODO(maas): should we support stable edge construction?
-          const bool) {
+          const bool stable_construction_of_incident_edges) {
     ASSERT(edge_vector.size() == num_edges);
     DynamicGraph graph;
     graph._num_nodes = num_nodes;
@@ -81,6 +81,9 @@ namespace mt_kahypar::ds {
       graph.updateTotalWeight(parallel_tag_t());
     }, [&] {
       graph._adjacency_array = DynamicAdjacencyArray(num_nodes, edge_vector);
+      if (stable_construction_of_incident_edges) {
+        graph._adjacency_array.sortIncidentEdges();
+      }
     }, [&] {
       graph._acquired_nodes.assign(
         num_nodes, parallel::IntegralAtomicWrapper<bool>(false));

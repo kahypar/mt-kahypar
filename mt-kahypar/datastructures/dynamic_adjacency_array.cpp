@@ -384,7 +384,15 @@ void DynamicAdjacencyArray::removeParallelEdges() {
   });
 }
 
-
+void DynamicAdjacencyArray::sortIncidentEdges() {
+  tbb::parallel_for(ID(0), ID(_index_array.size()), [&](HypernodeID u) {
+    std::sort(_data.get() + firstActiveEdge(u), _data.get() + firstInactiveEdge(u),
+      [&](const auto& e1, const auto& e2) {
+        return e1.target < e2.target;
+      }
+    );
+  });
+}
 
 DynamicAdjacencyArray DynamicAdjacencyArray::copy(parallel_tag_t) {
   DynamicAdjacencyArray adjacency_array;

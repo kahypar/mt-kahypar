@@ -331,6 +331,8 @@ class DynamicAdjacencyArray {
 
   void reset();
 
+  void sortIncidentEdges();
+
   size_t size_in_bytes() const {
     return _size_in_bytes + sizeof(size_t) * _index_array.size();
   }

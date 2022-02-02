@@ -62,8 +62,6 @@ class DynamicGraphFactory {
 
  private:
   DynamicGraphFactory() { }
-
-  static void sort_incident_edges(DynamicGraph& graph);
 };
 
 } // namespace ds
