@@ -348,7 +348,8 @@ void DynamicAdjacencyArray::removeParallelEdges() {
         return e1.target < e2.target;
       });
 
-      // scan and remove duplicates
+      // scan and swap all duplicates to front
+      size_t num_duplicates = 0;
       for (size_t i = 0; i + 1 < local_vec.size(); ++i) {
         const ParallelEdgeInformation& e1 = local_vec[i];
         const ParallelEdgeInformation& e2 = local_vec[i + 1];
@@ -362,10 +363,21 @@ void DynamicAdjacencyArray::removeParallelEdges() {
                 && e2.edge_id < firstInactiveEdge(e2.header_id),
                 V(firstActiveEdge(e2.header_id)) << V(e2.edge_id) << V(firstInactiveEdge(e2.header_id)));
           edge(e2.edge_id).weight += edge(e1.edge_id).weight;
-          swap_to_front(e1.header_id, e1.edge_id);
-          --header(u)->degree;
+          std::swap(local_vec[num_duplicates], local_vec[i]);
+          ++num_duplicates;
         }
       }
+
+      // sort again based on edge id, so the edges can be processed in sorted order
+      local_vec.resize(num_duplicates);
+      std::sort(local_vec.begin(), local_vec.end(), [](const auto& e1, const auto& e2) {
+        return e1.edge_id < e2.edge_id;
+      });
+
+      for (const ParallelEdgeInformation& e: local_vec) {
+        swap_to_front(e.header_id, e.edge_id);
+      }
+      header(u)->degree -= num_duplicates;
     }
   });
 }

@@ -210,6 +210,8 @@ class DynamicAdjacencyArray {
   // Represents one edge with the required information
   // for detecting duplicates and removing the represented edge.
   struct ParallelEdgeInformation {
+    ParallelEdgeInformation() = default;
+
     ParallelEdgeInformation(HypernodeID target, HyperedgeID edge_id, HypernodeID header_id):
         target(target), edge_id(edge_id), header_id(header_id) { }
 
@@ -469,6 +471,7 @@ class DynamicAdjacencyArray {
   size_t _size_in_bytes;
   Array<HyperedgeID> _index_array;
   parallel::tbb_unique_ptr<Edge> _data;
+  // thread local data during parallel edge removal
   ThreadLocalParallelEdgeVector _thread_local_vec;
 };
 
