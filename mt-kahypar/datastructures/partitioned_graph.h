@@ -391,7 +391,7 @@ private:
     _hg->restoreLargeEdge(he);
   }
 
-  void restoreSinglePinAndParallelNets(const parallel::scalable_vector<ParallelHyperedge>& hes_to_restore) {
+  void restoreSinglePinAndParallelNets(const parallel::scalable_vector<typename Hypergraph::ParallelHyperedge>& hes_to_restore) {
     _hg->restoreSinglePinAndParallelNets(hes_to_restore);
   }
 

@@ -252,7 +252,7 @@ VersionedBatchVector DynamicHypergraph::createBatchUncontractionHierarchy(const 
  * of a set of identical nets is aggregated in one representative hyperedge
  * and single-pin hyperedges are removed. Returns a vector of removed hyperedges.
  */
-parallel::scalable_vector<ParallelHyperedge> DynamicHypergraph::removeSinglePinAndParallelHyperedges() {
+parallel::scalable_vector<DynamicHypergraph::ParallelHyperedge> DynamicHypergraph::removeSinglePinAndParallelHyperedges() {
   _removable_single_pin_and_parallel_nets.reset();
   // Remove singple-pin hyperedges directly from the hypergraph and
   // insert all other hyperedges into a bucket data structure such that

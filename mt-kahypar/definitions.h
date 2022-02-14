@@ -77,6 +77,7 @@ using PartIdType = CAtomic<PartitionID>;
 using PartIdType = PartitionID;
 #endif
 
+using ParallelHyperedge = Hypergraph::ParallelHyperedge;
 
 using HighResClockTimepoint = std::chrono::time_point<std::chrono::high_resolution_clock>;
 

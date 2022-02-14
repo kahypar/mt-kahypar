@@ -154,6 +154,11 @@ class DynamicAdjacencyArray {
     HypernodeID original_target;
   };
 
+  struct RemovedEdges {
+    HypernodeID header;
+    HyperedgeID num_removed;
+  };
+
  private:
   // Header of the incident edge list of a vertex. The incident edge lists
   // contracted into one vertex are concatenated in a double linked list.
@@ -324,7 +329,7 @@ class DynamicAdjacencyArray {
                   const AcquireLockFunc& acquire_lock,
                   const ReleaseLockFunc& release_lock);
 
-  void removeParallelEdges();
+  parallel::scalable_vector<RemovedEdges> removeParallelEdges();
 
   DynamicAdjacencyArray copy(parallel_tag_t);
 

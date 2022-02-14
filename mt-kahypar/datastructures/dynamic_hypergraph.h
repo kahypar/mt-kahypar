@@ -391,6 +391,11 @@ class DynamicHypergraph {
   // ! Iterator to iterate over the incident nets of a hypernode
   using IncidentNetsIterator = typename IncidentNetArray::const_iterator;
 
+  struct ParallelHyperedge {
+    HyperedgeID removed_hyperedge;
+    HyperedgeID representative;
+  };
+
   explicit DynamicHypergraph() :
     _num_hypernodes(0),
     _num_removed_hypernodes(0),

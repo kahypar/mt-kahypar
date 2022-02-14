@@ -284,7 +284,9 @@ bool DynamicGraph::registerContraction(const HypernodeID u, const HypernodeID v)
  * of a set of identical nets is aggregated in one representative hyperedge
  * and single-pin hyperedges are removed. Returns a vector of removed hyperedges.
  */
-parallel::scalable_vector<ParallelHyperedge> DynamicGraph::removeSinglePinAndParallelHyperedges() {
+parallel::scalable_vector<DynamicGraph::ParallelHyperedge> DynamicGraph::removeSinglePinAndParallelHyperedges() {
+  ++_version;
+  return _adjacency_array.removeParallelEdges();
 }
 
 /**

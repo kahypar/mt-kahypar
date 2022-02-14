@@ -308,6 +308,8 @@ class DynamicGraph {
   // ! Iterator to iterate over the incident edges of a node
   using IncidentNetsIterator = DynamicAdjacencyArray::const_iterator;
 
+  using ParallelHyperedge = DynamicAdjacencyArray::RemovedEdges;
+
   explicit DynamicGraph() :
     _num_nodes(0),
     _num_removed_nodes(0),
@@ -682,9 +684,8 @@ class DynamicGraph {
   }
 
   /**
-   * Removes single-pin and parallel nets from the hypergraph. The weight
-   * of a set of identical nets is aggregated in one representative hyperedge
-   * and single-pin hyperedges are removed. Returns a vector of removed hyperedges.
+   * Removes parallel edges from the graph. Returns a vector with the headers and number
+   * removed edges per header.
    */
   parallel::scalable_vector<ParallelHyperedge> removeSinglePinAndParallelHyperedges();
 

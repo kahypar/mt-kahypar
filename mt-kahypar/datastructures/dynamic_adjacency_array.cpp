@@ -23,6 +23,7 @@
 
 #include "mt-kahypar/parallel/atomic_wrapper.h"
 #include "mt-kahypar/parallel/parallel_prefix_sum.h"
+#include "mt-kahypar/datastructures/streaming_vector.h"
 
 namespace mt_kahypar {
 namespace ds {
@@ -332,9 +333,10 @@ void DynamicAdjacencyArray::uncontract(const HypernodeID u,
   }
 }
 
-void DynamicAdjacencyArray::removeParallelEdges() {
+parallel::scalable_vector<DynamicAdjacencyArray::RemovedEdges> DynamicAdjacencyArray::removeParallelEdges() {
+  StreamingVector<RemovedEdges> tmp_removed_edges;
   // TODO(maas): special case for high degree nodes?
-  tbb::parallel_for(ID(0), _num_nodes, [&](const size_t u) {
+  tbb::parallel_for(ID(0), _num_nodes, [&](const HypernodeID u) {
     if (header(u)->is_head) {
       vec<ParallelEdgeInformation>& local_vec = _thread_local_vec.local();
       local_vec.clear();
@@ -351,7 +353,7 @@ void DynamicAdjacencyArray::removeParallelEdges() {
       });
 
       // scan and swap all duplicates to front
-      size_t num_duplicates = 0;
+      HyperedgeID num_duplicates = 0;
       for (size_t i = 0; i + 1 < local_vec.size(); ++i) {
         const ParallelEdgeInformation& e1 = local_vec[i];
         const ParallelEdgeInformation& e2 = local_vec[i + 1];
@@ -380,8 +382,12 @@ void DynamicAdjacencyArray::removeParallelEdges() {
         swap_to_front(e.header_id, e.edge_id);
       }
       header(u)->degree -= num_duplicates;
+      tmp_removed_edges.stream(RemovedEdges { u, num_duplicates });
     }
   });
+  parallel::scalable_vector<RemovedEdges> removed_edges = tmp_removed_edges.copy_parallel();
+  tmp_removed_edges.clear_parallel();
+  return removed_edges;
 }
 
 void DynamicAdjacencyArray::sortIncidentEdges() {

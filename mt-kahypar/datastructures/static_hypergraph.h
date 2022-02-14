@@ -388,6 +388,11 @@ class StaticHypergraph {
   // ! Iterator to iterate over the incident nets of a hypernode
   using IncidentNetsIterator = typename IncidentNets::const_iterator;
 
+  struct ParallelHyperedge {
+    HyperedgeID removed_hyperedge;
+    HyperedgeID representative;
+  };
+
   explicit StaticHypergraph() :
     _num_hypernodes(0),
     _num_removed_hypernodes(0),
