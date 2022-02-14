@@ -68,94 +68,9 @@ void DynamicHypergraph::updateTotalWeight() {
  * The contraction can be executed by calling function contract(v, max_node_weight).
  */
 bool DynamicHypergraph::registerContraction(const HypernodeID u, const HypernodeID v) {
-  // Acquires ownership of vertex v that gives the calling thread exclusive rights
-  // to modify the contraction tree entry of v
-  acquireHypernode(v);
-
-  // If there is no other contraction registered for vertex v
-  // we try to determine its representative in the contraction tree
-  if ( _contraction_tree.parent(v) == v ) {
-
-    HypernodeID w = u;
-    bool cycle_detected = false;
-    while ( true ) {
-      // Search for representative of u in the contraction tree.
-      // It is either a root of the contraction tree or a vertex
-      // with a reference count greater than zero, which indicates
-      // that there are still ongoing contractions on this node that
-      // have to be processed.
-      while ( _contraction_tree.parent(w) != w &&
-              _contraction_tree.pendingContractions(w) == 0 ) {
-        w = _contraction_tree.parent(w);
-        if ( w == v ) {
-          cycle_detected = true;
-          break;
-        }
-      }
-
-      if ( !cycle_detected ) {
-        // In case contraction of u and v does not induce any
-        // cycle in the contraction tree we try to acquire vertex w
-        if ( w < v ) {
-          // Acquire ownership in correct order to prevent deadlocks
-          releaseHypernode(v);
-          acquireHypernode(w);
-          acquireHypernode(v);
-          if ( _contraction_tree.parent(v) != v ) {
-            releaseHypernode(v);
-            releaseHypernode(w);
-            return false;
-          }
-        } else {
-          acquireHypernode(w);
-        }
-
-        // Double-check condition of while loop above after acquiring
-        // ownership of w
-        if ( _contraction_tree.parent(w) != w &&
-              _contraction_tree.pendingContractions(w) == 0 ) {
-          // In case something changed, we release ownership of w and
-          // search again for the representative of u.
-          releaseHypernode(w);
-        } else {
-          // Otherwise we perform final cycle check to verify that
-          // contraction of u and v will not introduce any new cycle.
-          HypernodeID x = w;
-          do {
-            x = _contraction_tree.parent(x);
-            if ( x == v ) {
-              cycle_detected = true;
-              break;
-            }
-          } while ( _contraction_tree.parent(x) != x );
-
-          if ( cycle_detected ) {
-            releaseHypernode(w);
-            releaseHypernode(v);
-            return false;
-          }
-
-          // All checks succeded, we can safely increment the
-          // reference count of w and update the contraction tree
-          break;
-        }
-      } else {
-        releaseHypernode(v);
-        return false;
-      }
-    }
-
-    // Increment reference count of w indicating that there pending
-    // contraction at vertex w and update contraction tree.
-    _contraction_tree.registerContraction(w, v, _version);
-
-    releaseHypernode(w);
-    releaseHypernode(v);
-    return true;
-  } else {
-    releaseHypernode(v);
-    return false;
-  }
+  return _contraction_tree.registerContraction(u, v, _version,
+                                               [&](HypernodeID u) { acquireHypernode(u); },
+                                               [&](HypernodeID u) { releaseHypernode(u); });
 }
 
 /**!
