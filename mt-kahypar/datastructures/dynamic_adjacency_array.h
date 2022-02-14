@@ -237,13 +237,14 @@ class DynamicAdjacencyArray {
     _data(nullptr) { }
 
   DynamicAdjacencyArray(const HypernodeID num_nodes,
-                        const EdgeVector& edge_vector) :
+                        const EdgeVector& edge_vector,
+                        const HyperedgeWeight* edge_weight = nullptr) :
     _num_nodes(num_nodes),
     _size_in_bytes(0),
     _index_array(),
     _data(nullptr),
     _thread_local_vec()  {
-    construct(edge_vector);
+    construct(edge_vector, edge_weight);
   }
 
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE const Edge& edge(const HyperedgeID e) const {

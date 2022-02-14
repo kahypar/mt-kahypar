@@ -80,7 +80,7 @@ namespace mt_kahypar::ds {
       // Compute total weight of graph
       graph.updateTotalWeight(parallel_tag_t());
     }, [&] {
-      graph._adjacency_array = DynamicAdjacencyArray(num_nodes, edge_vector);
+      graph._adjacency_array = DynamicAdjacencyArray(num_nodes, edge_vector, edge_weight);
       if (stable_construction_of_incident_edges) {
         graph._adjacency_array.sortIncidentEdges();
       }
