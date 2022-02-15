@@ -243,7 +243,8 @@ class DynamicAdjacencyArray {
     _num_nodes(0),
     _size_in_bytes(0),
     _index_array(),
-    _data(nullptr) { }
+    _data(nullptr),
+    _degree_diffs() { }
 
   DynamicAdjacencyArray(const HypernodeID num_nodes,
                         const EdgeVector& edge_vector,
@@ -252,8 +253,14 @@ class DynamicAdjacencyArray {
     _size_in_bytes(0),
     _index_array(),
     _data(nullptr),
-    _thread_local_vec()  {
-    construct(edge_vector, edge_weight);
+    _thread_local_vec(),
+    _degree_diffs() {
+    tbb::parallel_invoke([&] {
+        construct(edge_vector, edge_weight);
+      }, [&] {
+      _degree_diffs.resize(_num_nodes);
+      }
+    );
   }
 
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE const Edge& edge(const HyperedgeID e) const {
@@ -334,6 +341,8 @@ class DynamicAdjacencyArray {
                   const ReleaseLockFunc& release_lock);
 
   parallel::scalable_vector<RemovedEdges> removeParallelEdges();
+
+  void restoreParallelEdges(const parallel::scalable_vector<DynamicAdjacencyArray::RemovedEdges>& edges_to_restore);
 
   DynamicAdjacencyArray copy(parallel_tag_t);
 
@@ -485,8 +494,9 @@ class DynamicAdjacencyArray {
   size_t _size_in_bytes;
   Array<HyperedgeID> _index_array;
   parallel::tbb_unique_ptr<Edge> _data;
-  // thread local data during parallel edge removal
+  // data used during parallel edge removal
   ThreadLocalParallelEdgeVector _thread_local_vec;
+  Array<HyperedgeID> _degree_diffs;
 };
 
 }  // namespace ds

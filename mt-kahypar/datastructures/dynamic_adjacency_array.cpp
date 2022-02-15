@@ -375,22 +375,54 @@ parallel::scalable_vector<DynamicAdjacencyArray::RemovedEdges> DynamicAdjacencyA
         }
       }
 
-      // sort again based on edge id, so the edges can be processed in sorted order
-      local_vec.resize(num_duplicates);
-      std::sort(local_vec.begin(), local_vec.end(), [](const auto& e1, const auto& e2) {
-        return e1.edge_id < e2.edge_id;
-      });
+      if (num_duplicates > 0) {
+        // sort again based on edge id, so the edges can be processed in sorted order
+        local_vec.resize(num_duplicates);
+        std::sort(local_vec.begin(), local_vec.end(), [](const auto& e1, const auto& e2) {
+          return e1.edge_id < e2.edge_id;
+        });
 
-      for (const ParallelEdgeInformation& e: local_vec) {
-        swap_to_front(e.header_id, e.edge_id);
+        // swap edges and collect output
+        HypernodeID current_u = local_vec[0].header_id;
+        HyperedgeID current_count = 0;
+        for (const ParallelEdgeInformation& e: local_vec) {
+          if (current_u != e.header_id) {
+            tmp_removed_edges.stream(RemovedEdges { current_u, current_count });
+            current_u = e.header_id;
+            current_count = 0;
+          }
+          swap_to_front(e.header_id, e.edge_id);
+          ++current_count;
+        }
+        tmp_removed_edges.stream(RemovedEdges { current_u, current_count });
+        header(u)->degree -= num_duplicates;
       }
-      header(u)->degree -= num_duplicates;
-      tmp_removed_edges.stream(RemovedEdges { u, num_duplicates });
     }
   });
   parallel::scalable_vector<RemovedEdges> removed_edges = tmp_removed_edges.copy_parallel();
   tmp_removed_edges.clear_parallel();
   return removed_edges;
+}
+
+void DynamicAdjacencyArray::restoreParallelEdges(const parallel::scalable_vector<DynamicAdjacencyArray::RemovedEdges>& edges_to_restore) {
+  // _degree_diffs does not need to be thread safe because all headers are handled separately
+  _degree_diffs.assign(_num_nodes, 0);
+  tbb::parallel_for(0UL, edges_to_restore.size(), [&](const size_t i) {
+    const RemovedEdges& removed = edges_to_restore[i];
+    _degree_diffs[removed.header] = removed.num_removed;
+    // all parallel edges have been swapped to the front
+    header(removed.header)->first_active -= removed.num_removed;
+    ASSERT(header(removed.header)->first_active <= header(removed.header)->first_inactive);
+  });
+
+  // update node degrees
+  tbb::parallel_for(ID(0), _num_nodes, [&](const HypernodeID u) {
+    if (header(u)->is_head) {
+      for (HypernodeID current_u: headers(u)) {
+        header(u)->degree += _degree_diffs[current_u];
+      }
+    }
+  });
 }
 
 void DynamicAdjacencyArray::sortIncidentEdges() {

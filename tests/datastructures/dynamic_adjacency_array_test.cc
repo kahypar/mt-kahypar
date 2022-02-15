@@ -307,6 +307,53 @@ TEST(ADynamicAdjacencyArray, RemovesParrallelEdges4) {
   verifyNeighbors(5, 7, adjacency_array, { 2 }, true);
 }
 
+TEST(ADynamicAdjacencyArray, RestoresParrallelEdges1) {
+  DynamicAdjacencyArray adjacency_array(
+    7, {{1, 2}, {2, 3}, {1, 4}, {4, 5}, {4, 6}, {5, 6}});
+  adjacency_array.contract(2, 4);
+  auto edges_to_restore = adjacency_array.removeParallelEdges();
+  adjacency_array.restoreParallelEdges(edges_to_restore);
+  adjacency_array.uncontract(2, 4);
+  verifyNeighbors(0, 7, adjacency_array, { });
+  verifyNeighbors(1, 7, adjacency_array, { 2, 4 });
+  verifyNeighbors(2, 7, adjacency_array, { 1, 3 });
+  verifyNeighbors(3, 7, adjacency_array, { 2 });
+  verifyNeighbors(4, 7, adjacency_array, { 1, 5, 6 });
+  verifyNeighbors(5, 7, adjacency_array, { 4, 6 });
+  verifyNeighbors(6, 7, adjacency_array, { 4, 5 });
+}
+
+TEST(ADynamicAdjacencyArray, RestoresParrallelEdges2) {
+  DynamicAdjacencyArray adjacency_array(
+    7, {{1, 2}, {2, 3}, {1, 4}, {4, 5}, {4, 6}, {5, 6}});
+  adjacency_array.contract(2, 4);
+  adjacency_array.contract(5, 1);
+  auto edges_to_restore1 = adjacency_array.removeParallelEdges();
+  adjacency_array.contract(2, 0);
+  adjacency_array.contract(5, 3);
+  auto edges_to_restore2 = adjacency_array.removeParallelEdges();
+  adjacency_array.contract(2, 6);
+  adjacency_array.contract(5, 2);
+  auto edges_to_restore3 = adjacency_array.removeParallelEdges();
+  adjacency_array.restoreParallelEdges(edges_to_restore3);
+  adjacency_array.uncontract(5, 2);
+  adjacency_array.uncontract(2, 6);
+  adjacency_array.restoreParallelEdges(edges_to_restore2);
+  adjacency_array.uncontract(5, 3);
+  adjacency_array.uncontract(2, 0);
+  adjacency_array.restoreParallelEdges(edges_to_restore1);
+  adjacency_array.uncontract(5, 1);
+  adjacency_array.uncontract(2, 4);
+
+  verifyNeighbors(0, 7, adjacency_array, { });
+  verifyNeighbors(1, 7, adjacency_array, { 2, 4 });
+  verifyNeighbors(2, 7, adjacency_array, { 1, 3 });
+  verifyNeighbors(3, 7, adjacency_array, { 2 });
+  verifyNeighbors(4, 7, adjacency_array, { 1, 5, 6 });
+  verifyNeighbors(5, 7, adjacency_array, { 4, 6 });
+  verifyNeighbors(6, 7, adjacency_array, { 4, 5 });
+}
+
 
 // using OwnershipVector = parallel::scalable_vector<SpinLock>;
 
