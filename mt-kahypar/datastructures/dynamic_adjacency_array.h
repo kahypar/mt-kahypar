@@ -87,7 +87,8 @@ class EdgeIterator :
                         HyperedgeID> {   // reference
   public:
   EdgeIterator(const HypernodeID u,
-               const DynamicAdjacencyArray* dynamic_adjacency_array);
+               const DynamicAdjacencyArray* dynamic_adjacency_array,
+               std::function<bool (const HypernodeID)> filter);
 
   HyperedgeID operator* () const;
 
@@ -110,6 +111,7 @@ class EdgeIterator :
   HyperedgeID _current_id;
   HyperedgeID _current_last_id;
   const DynamicAdjacencyArray* _dynamic_adjacency_array;
+  std::function<bool (const HypernodeID)> _filter;
 };
 
 class DynamicAdjacencyArray {
@@ -118,10 +120,12 @@ class DynamicAdjacencyArray {
   using ThreadLocalCounter = tbb::enumerable_thread_specific<parallel::scalable_vector<size_t>>;
   using AtomicCounter = parallel::scalable_vector<parallel::IntegralAtomicWrapper<size_t>>;
 
+  using NodeFilterFunc = std::function<bool (const HypernodeID)>;
   using AcquireLockFunc = std::function<void (const HypernodeID)>;
   using ReleaseLockFunc = std::function<void (const HypernodeID)>;
   using CaseOneFunc = std::function<void (const HyperedgeID)>;
   using CaseTwoFunc = std::function<void (const HyperedgeID)>;
+  #define FILTER_NONE_FUNC [] (const HypernodeID) { return true; }
   #define NOOP_LOCK_FUNC [] (const HypernodeID) { }
 
   static_assert(sizeof(char) == 1);
@@ -286,10 +290,10 @@ class DynamicAdjacencyArray {
   }
 
   // ! Returns a range to loop over all edges.
-  IteratorRange<EdgeIterator> edges() const {
+  IteratorRange<EdgeIterator> edges(NodeFilterFunc filter = FILTER_NONE_FUNC) const {
     return IteratorRange<EdgeIterator>(
-      EdgeIterator(0, this),
-      EdgeIterator(_num_nodes, this));
+      EdgeIterator(0, this, filter),
+      EdgeIterator(_num_nodes, this, filter));
   }
 
   // ! Returns the maximum edge id (exclusive).

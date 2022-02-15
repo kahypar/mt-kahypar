@@ -455,7 +455,7 @@ class DynamicGraph {
 
   // ! Returns a range of the active edges of the hypergraph
   IteratorRange<HyperedgeIterator> edges() const {
-    return _adjacency_array.edges();
+    return _adjacency_array.edges([&](HypernodeID u) { return nodeIsEnabled(u); });
   }
 
   // ! Returns a range to loop over the incident edges of node u.

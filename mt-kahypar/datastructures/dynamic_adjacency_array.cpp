@@ -91,11 +91,13 @@ void IncidentEdgeIterator::traverse_headers() {
 }
 
 EdgeIterator::EdgeIterator(const HypernodeID u,
-                           const DynamicAdjacencyArray* dynamic_adjacency_array):
+                           const DynamicAdjacencyArray* dynamic_adjacency_array,
+                           std::function<bool (const HypernodeID)> filter):
     _current_u(u),
     _current_id(dynamic_adjacency_array->firstActiveEdge(u)),
     _current_last_id(dynamic_adjacency_array->firstInactiveEdge(u)),
-    _dynamic_adjacency_array(dynamic_adjacency_array) {
+    _dynamic_adjacency_array(dynamic_adjacency_array),
+    _filter(filter) {
   traverse_headers();
 }
 
@@ -118,7 +120,8 @@ bool EdgeIterator::operator== (const EdgeIterator& rhs) {
 }
 
 void EdgeIterator::traverse_headers() {
-  while (_current_id == _current_last_id && _current_u < _dynamic_adjacency_array->_num_nodes) {
+  while ((!_filter(_current_u) || _current_id == _current_last_id)
+            && _current_u < _dynamic_adjacency_array->_num_nodes) {
     ++_current_u;
     _current_id = _dynamic_adjacency_array->firstActiveEdge(_current_u);
     _current_last_id = _dynamic_adjacency_array->firstInactiveEdge(_current_u);

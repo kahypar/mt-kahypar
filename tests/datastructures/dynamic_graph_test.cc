@@ -148,5 +148,17 @@ TEST_F(ADynamicGraph, VerifiesPinsOfEdges) {
     { {1, 2}, {1, 4}, {2, 3}, {4, 5}, {4, 6}, {5, 6} });
 }
 
+TEST_F(ADynamicGraph, HasCorrectEdgeIteratorIfVerticesAreDisabled) {
+  hypergraph.disableHypernode(5);
+  hypergraph.disableHypernode(6);
+  std::vector<HyperedgeID> expected_iter = expected_edges();
+  expected_iter.resize(8);
+  HypernodeID pos = 0;
+  for ( const HyperedgeID& he : hypergraph.edges() ) {
+    ASSERT_EQ(expected_iter[pos++], he);
+  }
+  ASSERT_EQ(expected_iter.size(), pos);
+}
+
 } // namespace ds
 } // namespace mt_kahypar
