@@ -158,9 +158,38 @@ class DynamicAdjacencyArray {
     HypernodeID original_target;
   };
 
-  struct RemovedEdges {
+  struct RemovedEdgesOrWeight {
+    bool is_weight;
     HypernodeID header;
-    HyperedgeID num_removed;
+
+    RemovedEdgesOrWeight() { };
+
+    explicit RemovedEdgesOrWeight(HypernodeID header, HyperedgeID num_removed):
+      is_weight(false), header(header), _num_removed_or_weight(num_removed) { }
+
+    explicit RemovedEdgesOrWeight(HypernodeID header, HyperedgeWeight weight, HypernodeID target):
+      is_weight(true), header(header), _num_removed_or_weight(static_cast<HyperedgeID>(weight)), _target(target) {
+      ASSERT(weight >= 0);
+    }
+
+    HyperedgeID num_removed() const {
+      ASSERT(!is_weight);
+      return _num_removed_or_weight;
+    }
+
+    HyperedgeWeight weight() const {
+      ASSERT(is_weight);
+      return static_cast<HyperedgeWeight>(_num_removed_or_weight);
+    }
+
+    HypernodeID target() const {
+      ASSERT(is_weight);
+      return _target;
+    }
+
+   private: 
+    HyperedgeID _num_removed_or_weight;
+    HypernodeID _target;
   };
 
  private:
@@ -340,9 +369,9 @@ class DynamicAdjacencyArray {
                   const AcquireLockFunc& acquire_lock,
                   const ReleaseLockFunc& release_lock);
 
-  parallel::scalable_vector<RemovedEdges> removeParallelEdges();
+  parallel::scalable_vector<RemovedEdgesOrWeight> removeParallelEdges();
 
-  void restoreParallelEdges(const parallel::scalable_vector<DynamicAdjacencyArray::RemovedEdges>& edges_to_restore);
+  void restoreParallelEdges(const parallel::scalable_vector<RemovedEdgesOrWeight>& edges_to_restore);
 
   DynamicAdjacencyArray copy(parallel_tag_t);
 

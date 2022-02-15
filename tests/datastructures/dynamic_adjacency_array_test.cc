@@ -80,6 +80,19 @@ kahypar::ds::FastResetFlagArray<> createFlagArray(const HypernodeID num_nodes,
   return flag_array;
 }
 
+void verifyEdgeWeight(const DynamicAdjacencyArray& adjacency_array, HyperedgeID source,
+                      HyperedgeID target, HyperedgeWeight weight) {
+  bool found = false;
+  for (HyperedgeID edge: adjacency_array.edges()) {
+    const auto& e = adjacency_array.edge(edge);
+    if ((e.source == source && e.target == target) || (e.target == source && e.source == target)) {
+      ASSERT_EQ(weight, e.weight);
+      found = true;
+    }
+  }
+  ASSERT_TRUE(found);
+}
+
 TEST(ADynamicAdjacencyArray, VerifyInitialEdges) {
   DynamicAdjacencyArray adjacency_array(
     7, {{1, 2}, {2, 3}, {1, 4}, {4, 5}, {4, 6}, {5, 6}});
@@ -271,6 +284,7 @@ TEST(ADynamicAdjacencyArray, RemovesParrallelEdges1) {
   adjacency_array.removeParallelEdges();
   verifyNeighbors(1, 7, adjacency_array, { 2 }, true);
   verifyNeighbors(2, 7, adjacency_array, { 1, 3, 5, 6 }, true);
+  verifyEdgeWeight(adjacency_array, 1, 2, 2);
 }
 
 TEST(ADynamicAdjacencyArray, RemovesParrallelEdges2) {
@@ -280,6 +294,7 @@ TEST(ADynamicAdjacencyArray, RemovesParrallelEdges2) {
   adjacency_array.removeParallelEdges();
   verifyNeighbors(5, 7, adjacency_array, { 4 }, true);
   verifyNeighbors(4, 7, adjacency_array, { 1, 5 }, true);
+  verifyEdgeWeight(adjacency_array, 4, 5, 2);
 }
 
 TEST(ADynamicAdjacencyArray, RemovesParrallelEdges3) {
@@ -292,6 +307,8 @@ TEST(ADynamicAdjacencyArray, RemovesParrallelEdges3) {
   verifyNeighbors(3, 7, adjacency_array, { 4 }, true);
   verifyNeighbors(4, 7, adjacency_array, { 1, 3, 6 }, true);
   verifyNeighbors(6, 7, adjacency_array, { 4 }, true);
+  verifyEdgeWeight(adjacency_array, 1, 4, 2);
+  verifyEdgeWeight(adjacency_array, 4, 6, 2);
 }
 
 TEST(ADynamicAdjacencyArray, RemovesParrallelEdges4) {
@@ -305,6 +322,7 @@ TEST(ADynamicAdjacencyArray, RemovesParrallelEdges4) {
   adjacency_array.removeParallelEdges();
   verifyNeighbors(2, 7, adjacency_array, { 5 }, true);
   verifyNeighbors(5, 7, adjacency_array, { 2 }, true);
+  verifyEdgeWeight(adjacency_array, 2, 5, 5);
 }
 
 TEST(ADynamicAdjacencyArray, RestoresParrallelEdges1) {
@@ -321,6 +339,10 @@ TEST(ADynamicAdjacencyArray, RestoresParrallelEdges1) {
   verifyNeighbors(4, 7, adjacency_array, { 1, 5, 6 });
   verifyNeighbors(5, 7, adjacency_array, { 4, 6 });
   verifyNeighbors(6, 7, adjacency_array, { 4, 5 });
+
+  for (HyperedgeID e: adjacency_array.edges()) {
+    ASSERT_EQ(1, adjacency_array.edge(e).weight);
+  }
 }
 
 TEST(ADynamicAdjacencyArray, RestoresParrallelEdges2) {
@@ -352,6 +374,10 @@ TEST(ADynamicAdjacencyArray, RestoresParrallelEdges2) {
   verifyNeighbors(4, 7, adjacency_array, { 1, 5, 6 });
   verifyNeighbors(5, 7, adjacency_array, { 4, 6 });
   verifyNeighbors(6, 7, adjacency_array, { 4, 5 });
+
+  for (HyperedgeID e: adjacency_array.edges()) {
+    ASSERT_EQ(1, adjacency_array.edge(e).weight);
+  }
 }
 
 

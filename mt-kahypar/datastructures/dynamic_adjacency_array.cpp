@@ -336,8 +336,8 @@ void DynamicAdjacencyArray::uncontract(const HypernodeID u,
   }
 }
 
-parallel::scalable_vector<DynamicAdjacencyArray::RemovedEdges> DynamicAdjacencyArray::removeParallelEdges() {
-  StreamingVector<RemovedEdges> tmp_removed_edges;
+parallel::scalable_vector<DynamicAdjacencyArray::RemovedEdgesOrWeight> DynamicAdjacencyArray::removeParallelEdges() {
+  StreamingVector<RemovedEdgesOrWeight> tmp_removed_edges;
   // TODO(maas): special case for high degree nodes?
   tbb::parallel_for(ID(0), _num_nodes, [&](const HypernodeID u) {
     if (header(u)->is_head) {
@@ -357,6 +357,7 @@ parallel::scalable_vector<DynamicAdjacencyArray::RemovedEdges> DynamicAdjacencyA
 
       // scan and swap all duplicates to front
       HyperedgeID num_duplicates = 0;
+      HyperedgeWeight current_weight = 0;
       for (size_t i = 0; i + 1 < local_vec.size(); ++i) {
         const ParallelEdgeInformation& e1 = local_vec[i];
         const ParallelEdgeInformation& e2 = local_vec[i + 1];
@@ -369,10 +370,19 @@ parallel::scalable_vector<DynamicAdjacencyArray::RemovedEdges> DynamicAdjacencyA
           ASSERT(e2.edge_id >= firstActiveEdge(e2.header_id)
                 && e2.edge_id < firstInactiveEdge(e2.header_id),
                 V(firstActiveEdge(e2.header_id)) << V(e2.edge_id) << V(firstInactiveEdge(e2.header_id)));
-          edge(e2.edge_id).weight += edge(e1.edge_id).weight;
+          current_weight += edge(e1.edge_id).weight;
           std::swap(local_vec[num_duplicates], local_vec[i]);
           ++num_duplicates;
+        } else if (current_weight > 0) {
+          tmp_removed_edges.stream(RemovedEdgesOrWeight { e1.header_id, edge(e1.edge_id).weight, e1.target });
+          edge(e1.edge_id).weight += current_weight;
+          current_weight = 0;
         }
+      }
+      if (current_weight > 0) {
+        const ParallelEdgeInformation& last = local_vec[local_vec.size() - 1];
+        tmp_removed_edges.stream(RemovedEdgesOrWeight { last.header_id, edge(last.edge_id).weight, last.target });
+        edge(last.edge_id).weight += current_weight;
       }
 
       if (num_duplicates > 0) {
@@ -387,32 +397,49 @@ parallel::scalable_vector<DynamicAdjacencyArray::RemovedEdges> DynamicAdjacencyA
         HyperedgeID current_count = 0;
         for (const ParallelEdgeInformation& e: local_vec) {
           if (current_u != e.header_id) {
-            tmp_removed_edges.stream(RemovedEdges { current_u, current_count });
+            tmp_removed_edges.stream(RemovedEdgesOrWeight { current_u, current_count });
             current_u = e.header_id;
             current_count = 0;
           }
           swap_to_front(e.header_id, e.edge_id);
           ++current_count;
         }
-        tmp_removed_edges.stream(RemovedEdges { current_u, current_count });
+        tmp_removed_edges.stream(RemovedEdgesOrWeight { current_u, current_count });
         header(u)->degree -= num_duplicates;
       }
     }
   });
-  parallel::scalable_vector<RemovedEdges> removed_edges = tmp_removed_edges.copy_parallel();
+  auto removed_edges = tmp_removed_edges.copy_parallel();
   tmp_removed_edges.clear_parallel();
   return removed_edges;
 }
 
-void DynamicAdjacencyArray::restoreParallelEdges(const parallel::scalable_vector<DynamicAdjacencyArray::RemovedEdges>& edges_to_restore) {
+void DynamicAdjacencyArray::restoreParallelEdges(
+      const parallel::scalable_vector<DynamicAdjacencyArray::RemovedEdgesOrWeight>& edges_to_restore) {
   // _degree_diffs does not need to be thread safe because all headers are handled separately
   _degree_diffs.assign(_num_nodes, 0);
   tbb::parallel_for(0UL, edges_to_restore.size(), [&](const size_t i) {
-    const RemovedEdges& removed = edges_to_restore[i];
-    _degree_diffs[removed.header] = removed.num_removed;
-    // all parallel edges have been swapped to the front
-    header(removed.header)->first_active -= removed.num_removed;
-    ASSERT(header(removed.header)->first_active <= header(removed.header)->first_inactive);
+    const RemovedEdgesOrWeight& removed = edges_to_restore[i];
+    if (removed.is_weight) {
+      // restore edge weight
+      const HyperedgeID first_inactive = firstInactiveEdge(removed.header);
+      const HyperedgeID first = firstEdge(removed.header);
+      ASSERT(first > 0); // holds because of the structure of the adjacency array
+      bool found = false;
+      for (HyperedgeID e = first_inactive - 1; e >= first; --e) {
+        if (edge(e).target == removed.target()) {
+          edge(e).weight = removed.weight();
+          found = true;
+          break;
+        }
+      }
+      ASSERT(found);
+    } else {
+      // restore parallel edges, which have been swapped to the front
+      _degree_diffs[removed.header] = removed.num_removed();
+      header(removed.header)->first_active -= removed.num_removed();
+      ASSERT(header(removed.header)->first_active <= header(removed.header)->first_inactive);
+    }
   });
 
   // update node degrees
