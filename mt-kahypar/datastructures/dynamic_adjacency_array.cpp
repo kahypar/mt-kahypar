@@ -199,9 +199,9 @@ void DynamicAdjacencyArray::construct(const EdgeVector& edge_vector, const Hyper
 }
 
 void DynamicAdjacencyArray::contract(const HypernodeID u,
-                                 const HypernodeID v,
-                                 const AcquireLockFunc& acquire_lock,
-                                 const ReleaseLockFunc& release_lock) {
+                                     const HypernodeID v,
+                                     const AcquireLockFunc& acquire_lock,
+                                     const ReleaseLockFunc& release_lock) {
   // iterate over edges of u and remove the contracted edge (if present)
   Header* head_u = header(u);
   for (HypernodeID current_u: headers(u)) {
@@ -259,9 +259,18 @@ void DynamicAdjacencyArray::contract(const HypernodeID u,
 }
 
 void DynamicAdjacencyArray::uncontract(const HypernodeID u,
-                  const HypernodeID v,
-                  const AcquireLockFunc& acquire_lock,
-                  const ReleaseLockFunc& release_lock) {
+                                       const HypernodeID v,
+                                       const AcquireLockFunc& acquire_lock,
+                                       const ReleaseLockFunc& release_lock) {
+  uncontract(u, v, [](HyperedgeID e) {}, [](HyperedgeID e) {}, acquire_lock, release_lock);
+}
+
+void DynamicAdjacencyArray::uncontract(const HypernodeID u,
+                                       const HypernodeID v,
+                                       const CaseOneFunc& case_one_func,
+                                       const CaseTwoFunc& case_two_func,
+                                       const AcquireLockFunc& acquire_lock,
+                                       const ReleaseLockFunc& release_lock) {
   ASSERT(header(v)->prev != v);
   Header* head_u = header(u);
   Header* head_v = header(v);
@@ -316,6 +325,7 @@ void DynamicAdjacencyArray::uncontract(const HypernodeID u,
       // TODO(maas): locking?!
       const HyperedgeID backwardsEdge = findBackwardsEdge(e, u);
       edge(backwardsEdge).target = v;
+      case_two_func(curr_edge);
     }
 
     const HyperedgeID last_edge = lastEdge(current_v);
@@ -327,6 +337,7 @@ void DynamicAdjacencyArray::uncontract(const HypernodeID u,
       ASSERT(e.target == u);
       ++head->first_inactive;
       ++head_v->degree;
+      case_one_func(curr_edge);
     }
 
     if (head->size() > 0) {

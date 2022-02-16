@@ -455,6 +455,7 @@ class DynamicGraph {
 
   // ! Returns a range of the active edges of the hypergraph
   IteratorRange<HyperedgeIterator> edges() const {
+    // TODO
     return _adjacency_array.edges([&](HypernodeID u) { return nodeIsEnabled(u); });
   }
 
@@ -583,6 +584,14 @@ class DynamicGraph {
     return hypernode(u).setCommunityID(community_id);
   }
 
+  // ! Reset internal community information
+  void setCommunityIDs(const parallel::scalable_vector<PartitionID>& community_ids) {
+    ASSERT(community_ids.size() == UI64(_num_nodes));
+    doParallelForAllNodes([&](const HypernodeID& hn) {
+      hypernode(hn).setCommunityID(community_ids[hn]);
+    });
+  }
+
   // ####################### Contract / Uncontract #######################
 
   DynamicGraph contract(parallel::scalable_vector<HypernodeID>&) {
@@ -629,8 +638,7 @@ class DynamicGraph {
    * in order to uncontract the next batch vector. We create for each version of the
    * hypergraph a seperate batch uncontraction hierarchy (see createBatchUncontractionHierarchyOfVersion(...))
    */
-  VersionedBatchVector createBatchUncontractionHierarchy(const size_t batch_size,
-                                                         const bool test = false);
+  VersionedBatchVector createBatchUncontractionHierarchy(const size_t batch_size);
 
   // ! Only for testing
   VersionedBatchVector createBatchUncontractionHierarchy(ContractionTree&& tree,
@@ -639,7 +647,7 @@ class DynamicGraph {
     ASSERT(num_versions > 0);
     _version = num_versions - 1;
     _contraction_tree = std::move(tree);
-    return createBatchUncontractionHierarchy(batch_size, true);
+    return createBatchUncontractionHierarchy(batch_size);
   }
 
   // ! Only for testing
@@ -694,17 +702,6 @@ class DynamicGraph {
    * must be exactly the same and given in the reverse order as returned by removeSinglePinAndParallelNets(...).
    */
   void restoreSinglePinAndParallelNets(const parallel::scalable_vector<ParallelHyperedge>& hes_to_restore);
-
-  // ####################### Initialization / Reset Functions #######################
-
-  // ! Reset internal community information
-  void setCommunityIDs(const parallel::scalable_vector<PartitionID>& community_ids) {
-    ASSERT(community_ids.size() == UI64(_num_nodes));
-    doParallelForAllNodes([&](const HypernodeID& hn) {
-      hypernode(hn).setCommunityID(community_ids[hn]);
-    });
-
-  }
 
   // ####################### Copy #######################
 
@@ -801,56 +798,9 @@ class DynamicGraph {
                              const HypernodeID v,
                              const HypernodeWeight max_node_weight);
 
-  // ! Performs the contraction of (u,v) inside hyperedge he
-  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE void contractHyperedge(const HypernodeID u, const HypernodeID v, const HyperedgeID he,
-                                                            kahypar::ds::FastResetFlagArray<>& shared_incident_nets_u_and_v);
-
-  // ! Restore the size of the hyperedge to the size before the batch with
-  // ! index batch_index was contracted.
-  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE void restoreHyperedgeSizeForBatch(const HyperedgeID he,
-                                                                       const HypernodeID batch_index);
-
-  // ! Search for the position of pin u in hyperedge he in the incidence array
-  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE size_t findPositionOfPinInIncidenceArray(const HypernodeID u,
-                                                                              const HyperedgeID he);
-
   // bool verifyBatchIndexAssignments(
   //   const BatchIndexAssigner& batch_assigner,
   //   const parallel::scalable_vector<parallel::scalable_vector<BatchAssignment>>& local_batch_assignments) const;
-
-  /**
-   * Computes a batch uncontraction hierarchy for a specific version of the hypergraph.
-   * A batch is a vector of mementos (uncontractions) that are uncontracted in parallel.
-   * Each time we perform single-pin and parallel net detection we create a new version of
-   * the hypergraph.
-   * A batch of uncontractions that is uncontracted in parallel must satisfy two conditions:
-   *  1.) All representatives must be active vertices of the hypergraph
-   *  2.) For a specific representative its contraction partners must be uncontracted in reverse
-   *      contraction order. Meaning that a contraction (u, v) that happens before a contraction (u, w)
-   *      must be uncontracted in a batch that is part of the same batch or a batch uncontracted after the
-   *      batch which (u, w) is part of. This ensures that a parallel batch uncontraction does not
-   *      increase the objective function.
-   * We use the contraction tree to create a batch uncontraction order. Note, uncontractions from
-   * different subtrees can be interleaved abitrary. To ensure condition 1.) we peform a BFS starting
-   * from all roots of the contraction tree. Each BFS level induces a new batch. Since we contract
-   * vertices in parallel its not possible to create a relative order of the contractions which is
-   * neccassary for condition 2.). However, during a contraction we store a start and end "timepoint"
-   * of a contraction. If two contractions time intervals do not intersect, we can determine
-   * which contraction happens strictly before the other. If they intersect, it is not possible to
-   * give a relative order. To ensure condition 2.) we sort the childs of a vertex in the contraction tree
-   * after its time intervals. Once we add a uncontraction (u,v) to a batch, we also add all uncontractions
-   * (u,w) to the batch which intersect the time interval of (u,v). To merge uncontractions of different
-   * subtrees in a batch, we insert all eligble uncontractions into a max priority queue with the subtree
-   * size of the contraction partner as key. We insert uncontractions into the current batch as long
-   * as the maximum batch size is not reached or the PQ is empty. Once the batch reaches its maximum
-   * batch size, we create a new empty batch. If the PQ is empty, we replace it with the PQ of the next
-   * BFS level. With this approach heavy vertices are uncontracted earlier (subtree size in the PQ as key = weight of
-   * a vertex for an unweighted hypergraph) such that average node weight of the hypergraph decreases faster and
-   * local searches are more effective in early stages of the uncontraction hierarchy where hyperedge sizes are
-   * usually smaller than on the original hypergraph.
-   */
-  // BatchVector createBatchUncontractionHierarchyForVersion(BatchIndexAssigner& batch_assigner,
-  //                                                         const size_t version);
 
   // ! Number of hypernodes
   HypernodeID _num_nodes;
