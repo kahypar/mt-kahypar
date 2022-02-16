@@ -277,6 +277,21 @@ TEST(ADynamicAdjacencyArray, UncontractSeveralVertices2) {
   verifyNeighbors(6, 7, adjacency_array, { 4, 5 });
 }
 
+TEST(ADynamicAdjacencyArray, UncontractsVerticesInDifferentOrder) {
+  DynamicAdjacencyArray adjacency_array(
+    7, {{1, 2}, {2, 3}, {1, 4}, {4, 5}, {4, 6}, {5, 6}});
+  adjacency_array.contract(0, 1);
+  adjacency_array.contract(0, 2);
+  adjacency_array.uncontract(0, 1);
+  adjacency_array.uncontract(0, 2);
+  verifyNeighbors(0, 7, adjacency_array, { });
+  verifyNeighbors(1, 7, adjacency_array, { 2, 4 });
+  verifyNeighbors(2, 7, adjacency_array, { 1, 3 });
+  ASSERT_EQ(0, adjacency_array.nodeDegree(0));
+  ASSERT_EQ(2, adjacency_array.nodeDegree(1));
+  ASSERT_EQ(2, adjacency_array.nodeDegree(2));
+}
+
 TEST(ADynamicAdjacencyArray, RemovesParrallelEdges1) {
   DynamicAdjacencyArray adjacency_array(
     7, {{1, 2}, {2, 3}, {1, 4}, {4, 5}, {4, 6}, {5, 6}});
