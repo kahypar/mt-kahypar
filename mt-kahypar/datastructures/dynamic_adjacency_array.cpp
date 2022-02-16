@@ -198,6 +198,7 @@ void DynamicAdjacencyArray::contract(const HypernodeID u,
                                      const ReleaseLockFunc& release_lock) {
   // iterate over edges of u and remove the contracted edge (if present)
   Header* head_u = header(u);
+  HyperedgeID subtracted_degree_u = 0;
   for (HypernodeID current_u: headers(u)) {
     acquire_lock(current_u);
     Header* head = header(current_u);
@@ -205,14 +206,15 @@ void DynamicAdjacencyArray::contract(const HypernodeID u,
       Edge& e = edge(curr_edge);
       if ( e.target == v ) {
         swap_to_back(current_u, curr_edge);
-        --head_u->degree;
+        ++subtracted_degree_u;
       } else {
         ++curr_edge;
       }
     }
+    const bool is_empty = (head->size() == 0);
     release_lock(current_u);
 
-    if ( head->size() == 0 && current_u != u ) {
+    if ( is_empty && current_u != u ) {
       acquire_lock(u);
       removeEmptyIncidentEdgeList(current_u);
       release_lock(u);
@@ -248,7 +250,9 @@ void DynamicAdjacencyArray::contract(const HypernodeID u,
   acquire_lock(u);
   // Concatenate double-linked list of u and v
   append(u, v);
-  header(u)->degree += header(v)->degree;
+  ASSERT(head_u->degree >= subtracted_degree_u);
+  head_u->degree -= subtracted_degree_u;
+  head_u->degree += head_v->degree;
   ASSERT(verifyIteratorPointers(u), "Iterator pointers of vertex" << u << "are corrupted");
   release_lock(u);
 }
@@ -269,15 +273,15 @@ void DynamicAdjacencyArray::uncontract(const HypernodeID u,
   ASSERT(header(v)->prev != v);
   Header* head_u = header(u);
   Header* head_v = header(v);
+  const HyperedgeID original_degree_v = head_v->degree;
   acquire_lock(u);
   // Restores the incident list of v to the time before it was appended
   // to the double-linked list of u.
   splice(u, v);
-  ASSERT(head_u->degree >= head_v->degree, V(head_u->degree) << V(head_v->degree));
-  head_u->degree -= head_v->degree;
   release_lock(u);
 
   // iterate over linked list of u to restore the contracted edge (if present)
+  HyperedgeID added_degree_u = 0;
   for (HypernodeID current_u: headers(u)) {
     acquire_lock(current_u);
     Header* head = header(current_u);
@@ -289,7 +293,7 @@ void DynamicAdjacencyArray::uncontract(const HypernodeID u,
         break;
       } else if (e.target == v) {
         ++head->first_inactive;
-        ++head_u->degree;
+        ++added_degree_u;
       }
     }
     release_lock(current_u);
@@ -331,6 +335,9 @@ void DynamicAdjacencyArray::uncontract(const HypernodeID u,
   }
 
   acquire_lock(u);
+  head_u->degree += added_degree_u;
+  ASSERT(head_u->degree >= head_v->degree, V(head_u->degree) << V(head_v->degree));
+  head_u->degree -= original_degree_v;
   restoreIteratorPointers(u);
   ASSERT(verifyIteratorPointers(u), "Iterator pointers of vertex" << u << "are corrupted");
   ASSERT(verifyIteratorPointers(v), "Iterator pointers of vertex" << v << "are corrupted");
