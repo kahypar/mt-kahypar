@@ -212,6 +212,13 @@ class DynamicAdjacencyArray {
       return first_inactive - first_active;
     }
 
+    // TODO: remove
+    void print() const {
+      LOG << V(prev) << ", " << V(next) << ", " << V(it_prev) << ", " << V(it_next) << ", " << V(is_head);
+      // LOG << V(header.tail) << ", " << V(header.first_active) << ", " << V(header.first_inactive) << V(header.degree);
+      // LOG << V(header.current_version) << V(header.is_head);
+    }
+
     // ! Previous incident edge list
     HypernodeID prev;
     // ! Next incident edge list
@@ -510,6 +517,8 @@ class DynamicAdjacencyArray {
   void splice(const HypernodeID u, const HypernodeID v);
 
   void removeEmptyIncidentEdgeList(const HypernodeID u);
+
+  void restoreIteratorPointers(const HypernodeID u);
 
   void restoreItLink(const HypernodeID u, const HypernodeID prev, const HypernodeID current);
 

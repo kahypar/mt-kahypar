@@ -28,12 +28,6 @@
 namespace mt_kahypar {
 namespace ds {
 
-// void print_header(const DynamicAdjacencyArray::Header& header) {
-//   LOG << V(header.prev) << ", " << V(header.next) << ", " << V(header.it_prev) << ", " << V(header.it_next);
-//   LOG << V(header.tail) << ", " << V(header.first_active) << ", " << V(header.first_inactive) << V(header.degree);
-//   LOG << V(header.current_version) << V(header.is_head);
-// }
-
 IncidentEdgeIterator::IncidentEdgeIterator(const HypernodeID u,
                                            const DynamicAdjacencyArray* dynamic_adjacency_array,
                                            const size_t pos,
@@ -224,7 +218,6 @@ void DynamicAdjacencyArray::contract(const HypernodeID u,
       release_lock(u);
     }
   }
-  // ASSERT(verifyIteratorPointers(u), "Iterator pointers of vertex" << u << "are corrupted");
 
   // iterate over edges of v and remove duplicate edges
   Header* head_v = header(v);
@@ -256,7 +249,7 @@ void DynamicAdjacencyArray::contract(const HypernodeID u,
   // Concatenate double-linked list of u and v
   append(u, v);
   header(u)->degree += header(v)->degree;
-  // ASSERT(verifyIteratorPointers(u), "Iterator pointers of vertex" << u << "are corrupted");
+  ASSERT(verifyIteratorPointers(u), "Iterator pointers of vertex" << u << "are corrupted");
   release_lock(u);
 }
 
@@ -282,15 +275,12 @@ void DynamicAdjacencyArray::uncontract(const HypernodeID u,
   splice(u, v);
   ASSERT(head_u->degree >= head_v->degree, V(head_u->degree) << V(head_v->degree));
   head_u->degree -= head_v->degree;
-  // ASSERT(verifyIteratorPointers(u), "Iterator pointers of vertex" << u << "are corrupted");
   release_lock(u);
 
   // iterate over linked list of u to restore the contracted edge (if present)
-  HypernodeID last_non_empty_u = u;
   for (HypernodeID current_u: headers(u)) {
     acquire_lock(current_u);
     Header* head = header(current_u);
-    const HyperedgeID old_size = head->size();
     const HypernodeID current_version = head->current_version;
     const HyperedgeID last = lastEdge(current_u);
     for (HyperedgeID curr_edge = firstInactiveEdge(current_u); curr_edge < last; ++curr_edge) {
@@ -303,15 +293,7 @@ void DynamicAdjacencyArray::uncontract(const HypernodeID u,
       }
     }
     release_lock(current_u);
-
-    if (head->size() > 0) {
-      acquire_lock(u);
-      restoreItLink(u, last_non_empty_u, current_u);
-      release_lock(u);
-      last_non_empty_u = current_u;
-    }
   }
-  // ASSERT(verifyIteratorPointers(u), "Iterator pointers of vertex" << u << "are corrupted");
 
   // iterate over edges of v, update backwards edges and restore removed edges
   HypernodeID last_non_empty_v = v;
@@ -324,7 +306,6 @@ void DynamicAdjacencyArray::uncontract(const HypernodeID u,
       Edge& e = edge(curr_edge);
       e.version = new_version;
       e.source = v;
-      // TODO(maas): locking?!
       const HyperedgeID backwardsEdge = findBackwardsEdge(e, u);
       edge(backwardsEdge).target = v;
       case_two_func(curr_edge);
@@ -336,7 +317,6 @@ void DynamicAdjacencyArray::uncontract(const HypernodeID u,
       if (e.version != new_version) {
         break;
       }
-      // ASSERT(e.target == u, V(u) << V(e.target) << V(v) << V(current_v));
       if (e.target == u) {
         ++head->first_inactive;
         ++head_v->degree;
@@ -349,6 +329,12 @@ void DynamicAdjacencyArray::uncontract(const HypernodeID u,
       last_non_empty_v = current_v;
     }
   }
+
+  acquire_lock(u);
+  restoreIteratorPointers(u);
+  ASSERT(verifyIteratorPointers(u), "Iterator pointers of vertex" << u << "are corrupted");
+  ASSERT(verifyIteratorPointers(v), "Iterator pointers of vertex" << v << "are corrupted");
+  release_lock(u);
 }
 
 parallel::scalable_vector<DynamicAdjacencyArray::RemovedEdgesOrWeight> DynamicAdjacencyArray::removeParallelEdges() {
@@ -581,11 +567,54 @@ void DynamicAdjacencyArray::removeEmptyIncidentEdgeList(const HypernodeID u) {
   head->it_prev = u;
 }
 
+void DynamicAdjacencyArray::restoreIteratorPointers(const HypernodeID u) {
+  HypernodeID last_non_empty_u = u;
+  for (HypernodeID current_u: headers(u)) {
+    if (header(current_u)->size() > 0) {
+      restoreItLink(u, last_non_empty_u, current_u);
+      last_non_empty_u = current_u;
+    }
+  }
+}
+
 void DynamicAdjacencyArray::restoreItLink(const HypernodeID u, const HypernodeID prev, const HypernodeID current) {
   header(prev)->it_next = current;
   header(current)->it_prev = prev;
   header(current)->it_next = u;
   header(u)->it_prev = current;
+}
+
+bool DynamicAdjacencyArray::verifyIteratorPointers(const HypernodeID u) const {
+  HypernodeID current_u = u;
+  HypernodeID last_non_empty_entry = kInvalidHypernode;
+  do {
+    if ( header(current_u)->size() > 0 || current_u == u ) {
+      if ( last_non_empty_entry != kInvalidHypernode ) {
+        if ( header(current_u)->it_prev != last_non_empty_entry ) {
+          return false;
+        } else if ( header(last_non_empty_entry)->it_next != current_u ) {
+          return false;
+        }
+      }
+      last_non_empty_entry = current_u;
+    } else {
+      if ( header(current_u)->it_next != current_u ) {
+        return false;
+      } else if ( header(current_u)->it_prev != current_u ) {
+        return false;
+      }
+    }
+
+    current_u = header(current_u)->next;
+  } while(current_u != u);
+
+  if ( header(u)->it_prev != last_non_empty_entry ) {
+    return false;
+  } else if ( header(last_non_empty_entry)->it_next != u ) {
+    return false;
+  }
+
+  return true;
 }
 
 }  // namespace ds
