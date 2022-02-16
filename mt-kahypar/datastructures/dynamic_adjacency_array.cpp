@@ -205,21 +205,23 @@ void DynamicAdjacencyArray::contract(const HypernodeID u,
   // iterate over edges of u and remove the contracted edge (if present)
   Header* head_u = header(u);
   for (HypernodeID current_u: headers(u)) {
+    acquire_lock(current_u);
     Header* head = header(current_u);
-    const HypernodeID new_version = ++head->current_version;
     for ( HyperedgeID curr_edge = firstActiveEdge(current_u); curr_edge < firstInactiveEdge(current_u); ) {
       Edge& e = edge(curr_edge);
       if ( e.target == v ) {
         swap_to_back(current_u, curr_edge);
         --head_u->degree;
       } else {
-        e.version = new_version;
         ++curr_edge;
       }
     }
+    release_lock(current_u);
 
     if ( head->size() == 0 && current_u != u ) {
+      acquire_lock(u);
       removeEmptyIncidentEdgeList(current_u);
+      release_lock(u);
     }
   }
   // ASSERT(verifyIteratorPointers(u), "Iterator pointers of vertex" << u << "are corrupted");
@@ -262,7 +264,7 @@ void DynamicAdjacencyArray::uncontract(const HypernodeID u,
                                        const HypernodeID v,
                                        const AcquireLockFunc& acquire_lock,
                                        const ReleaseLockFunc& release_lock) {
-  uncontract(u, v, [](HyperedgeID e) {}, [](HyperedgeID e) {}, acquire_lock, release_lock);
+  uncontract(u, v, [](HyperedgeID) {}, [](HyperedgeID) {}, acquire_lock, release_lock);
 }
 
 void DynamicAdjacencyArray::uncontract(const HypernodeID u,
@@ -286,26 +288,26 @@ void DynamicAdjacencyArray::uncontract(const HypernodeID u,
   // iterate over linked list of u to restore the contracted edge (if present)
   HypernodeID last_non_empty_u = u;
   for (HypernodeID current_u: headers(u)) {
+    acquire_lock(current_u);
     Header* head = header(current_u);
-    const HypernodeID new_version = --head->current_version;
-    for (HyperedgeID curr_edge = firstActiveEdge(current_u); curr_edge < current_u; ++curr_edge) {
-      Edge& e = edge(curr_edge);
-      e.version = new_version;
-    }
-
+    const HyperedgeID old_size = head->size();
+    const HypernodeID current_version = head->current_version;
     const HyperedgeID last = lastEdge(current_u);
     for (HyperedgeID curr_edge = firstInactiveEdge(current_u); curr_edge < last; ++curr_edge) {
       Edge& e = edge(curr_edge);
-      if (e.version != new_version) {
+      if (e.version != current_version) {
         break;
+      } else if (e.target == v) {
+        ++head->first_inactive;
+        ++head_u->degree;
       }
-      ASSERT(e.target == v);
-      ++head->first_inactive;
-      ++head_u->degree;
     }
+    release_lock(current_u);
 
     if (head->size() > 0) {
+      acquire_lock(u);
       restoreItLink(u, last_non_empty_u, current_u);
+      release_lock(u);
       last_non_empty_u = current_u;
     }
   }
@@ -334,10 +336,12 @@ void DynamicAdjacencyArray::uncontract(const HypernodeID u,
       if (e.version != new_version) {
         break;
       }
-      ASSERT(e.target == u);
-      ++head->first_inactive;
-      ++head_v->degree;
-      case_one_func(curr_edge);
+      // ASSERT(e.target == u, V(u) << V(e.target) << V(v) << V(current_v));
+      if (e.target == u) {
+        ++head->first_inactive;
+        ++head_v->degree;
+        case_one_func(curr_edge);
+      }
     }
 
     if (head->size() > 0) {

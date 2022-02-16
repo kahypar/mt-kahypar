@@ -668,6 +668,11 @@ class DynamicGraph {
     _contraction_tree.decrementPendingContractions(u);
   }
 
+  // ! Only for testing
+  void sortIncidentEdges() {
+    _adjacency_array.sortIncidentEdges();
+  }
+
   // ####################### Remove / Restore Hyperedges #######################
 
   /*!
