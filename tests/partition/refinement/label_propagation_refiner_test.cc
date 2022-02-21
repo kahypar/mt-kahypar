@@ -1,20 +1,20 @@
 /*******************************************************************************
- * This file is part of KaHyPar.
+ * This file is part of Mt-KaHyPar.
  *
  * Copyright (C) 2019 Tobias Heuer <tobias.heuer@kit.edu>
  *
- * KaHyPar is free software: you can redistribute it and/or modify
+ * Mt-KaHyPar is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * KaHyPar is distributed in the hope that it will be useful,
+ * Mt-KaHyPar is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with KaHyPar.  If not, see <http://www.gnu.org/licenses/>.
+ * along with Mt-KaHyPar.  If not, see <http://www.gnu.org/licenses/>.
  *
  ******************************************************************************/
 
@@ -67,7 +67,7 @@ class ALabelPropagationRefiner : public Test {
     metrics() {
     context.partition.graph_filename = "../tests/instances/contracted_ibm01.hgr";
     context.partition.graph_community_filename = "../tests/instances/contracted_ibm01.hgr.community";
-    context.partition.mode = kahypar::Mode::direct_kway;
+    context.partition.mode = Mode::direct;
     context.partition.objective = Config::OBJECTIVE;
     context.partition.epsilon = 0.25;
     context.partition.k = Config::K;
@@ -77,7 +77,7 @@ class ALabelPropagationRefiner : public Test {
     context.shared_memory.num_threads = num_threads;
 
     // Initial Partitioning
-    context.initial_partitioning.mode = InitialPartitioningMode::recursive;
+    context.initial_partitioning.mode = Mode::deep_multilevel;
     context.initial_partitioning.runs = 1;
 
     // Label Propagation
@@ -113,7 +113,7 @@ class ALabelPropagationRefiner : public Test {
   PartitionedHypergraph partitioned_hypergraph;
   Context context;
   std::unique_ptr<Refiner> refiner;
-  kahypar::Metrics metrics;
+  Metrics metrics;
 };
 
 template <typename Config>
@@ -143,12 +143,12 @@ TYPED_TEST(ALabelPropagationRefiner, DoesNotViolateBalanceConstraint) {
 TYPED_TEST(ALabelPropagationRefiner, UpdatesMetricsCorrectly) {
   this->refiner->refine(this->partitioned_hypergraph, {}, this->metrics, std::numeric_limits<double>::max());
   ASSERT_EQ(metrics::objective(this->partitioned_hypergraph, this->context.partition.objective),
-            this->metrics.getMetric(kahypar::Mode::direct_kway, this->context.partition.objective));
+            this->metrics.getMetric(Mode::direct, this->context.partition.objective));
 }
 
 TYPED_TEST(ALabelPropagationRefiner, DoesNotWorsenSolutionQuality) {
   HyperedgeWeight objective_before = metrics::objective(this->partitioned_hypergraph, this->context.partition.objective);
   this->refiner->refine(this->partitioned_hypergraph, {}, this->metrics, std::numeric_limits<double>::max());
-  ASSERT_LE(this->metrics.getMetric(kahypar::Mode::direct_kway, this->context.partition.objective), objective_before);
+  ASSERT_LE(this->metrics.getMetric(Mode::direct, this->context.partition.objective), objective_before);
 }
 }  // namespace mt_kahypar

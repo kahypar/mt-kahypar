@@ -1,21 +1,21 @@
 /*******************************************************************************
- * This file is part of KaHyPar.
+ * This file is part of Mt-KaHyPar.
  *
- * Copyright (C) 2019 Tobias Heuer <tobias.heuer@kit.edu>
  * Copyright (C) 2019 Lars Gottesbüren <lars.gottesbueren@kit.edu>
+ * Copyright (C) 2019 Tobias Heuer <tobias.heuer@kit.edu>
  *
- * KaHyPar is free software: you can redistribute it and/or modify
+ * Mt-KaHyPar is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * KaHyPar is distributed in the hope that it will be useful,
+ * Mt-KaHyPar is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with KaHyPar.  If not, see <http://www.gnu.org/licenses/>.
+ * along with Mt-KaHyPar.  If not, see <http://www.gnu.org/licenses/>.
  *
  ******************************************************************************/
 
@@ -33,9 +33,36 @@ enum class Type : int8_t {
   EdgeAndNodeWeights = 11,
 };
 
+enum class FileFormat : int8_t {
+  hMetis = 0,
+  Metis = 1,
+};
+
+enum class InstanceType : int8_t {
+  graph = 0,
+  hypergraph = 1,
+  UNDEFINED = 2
+};
+
+enum class PresetType : int8_t {
+  deterministic,
+  default_preset,
+  default_flows,
+  quality_preset,
+  quality_flows,
+  UNDEFINED
+};
+
 enum class Paradigm : int8_t {
   multilevel,
   nlevel
+};
+
+enum class Mode : uint8_t {
+  recursive_bipartitioning,
+  direct,
+  deep_multilevel,
+  UNDEFINED
 };
 
 enum class LouvainEdgeWeight : uint8_t {
@@ -92,13 +119,6 @@ enum class InitialPartitioningAlgorithm : uint8_t {
   UNDEFINED = 9
 };
 
-enum class InitialPartitioningMode : uint8_t {
-  direct,
-  recursive,
-  recursive_bisection,
-  UNDEFINED
-};
-
 enum class LabelPropagationAlgorithm : uint8_t {
   label_propagation_km1,
   label_propagation_cut,
@@ -114,9 +134,23 @@ enum class FMAlgorithm : uint8_t {
   do_nothing
 };
 
+enum class FlowAlgorithm : uint8_t {
+  flow_cutter,
+  mock,
+  do_nothing
+};
+
 std::ostream & operator<< (std::ostream& os, const Type& type);
 
+std::ostream & operator<< (std::ostream& os, const FileFormat& type);
+
+std::ostream & operator<< (std::ostream& os, const InstanceType& type);
+
+std::ostream & operator<< (std::ostream& os, const PresetType& type);
+
 std::ostream & operator<< (std::ostream& os, const Paradigm& paradigm);
+
+std::ostream & operator<< (std::ostream& os, const Mode& mode);
 
 std::ostream & operator<< (std::ostream& os, const LouvainEdgeWeight& type);
 
@@ -132,11 +166,17 @@ std::ostream & operator<< (std::ostream& os, const RatingFunction& func);
 
 std::ostream & operator<< (std::ostream& os, const InitialPartitioningAlgorithm& algo);
 
-std::ostream & operator<< (std::ostream& os, const InitialPartitioningMode& mode);
-
 std::ostream & operator<< (std::ostream& os, const LabelPropagationAlgorithm& algo);
 
 std::ostream & operator<< (std::ostream& os, const FMAlgorithm& algo);
+
+std::ostream & operator<< (std::ostream& os, const FlowAlgorithm& algo);
+
+Mode modeFromString(const std::string& mode);
+
+InstanceType instanceTypeFromString(const std::string& type);
+
+PresetType presetTypeFromString(const std::string& type);
 
 LouvainEdgeWeight louvainEdgeWeightFromString(const std::string& type);
 
@@ -152,10 +192,10 @@ RatingFunction ratingFunctionFromString(const std::string& function);
 
 InitialPartitioningAlgorithm initialPartitioningAlgorithmFromString(const std::string& algo);
 
-InitialPartitioningMode initialPartitioningModeFromString(const std::string& mode);
-
 LabelPropagationAlgorithm labelPropagationAlgorithmFromString(const std::string& type);
 
 FMAlgorithm fmAlgorithmFromString(const std::string& type);
+
+FlowAlgorithm flowAlgorithmFromString(const std::string& type);
 
 }  // namesapce mt_kahypar

@@ -1,23 +1,22 @@
 /*******************************************************************************
- * This file is part of KaHyPar.
+ * This file is part of Mt-KaHyPar.
  *
  * Copyright (C) 2021 Lars Gottesbüren <lars.gottesbueren@kit.edu>
  *
- * KaHyPar is free software: you can redistribute it and/or modify
+ * Mt-KaHyPar is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * KaHyPar is distributed in the hope that it will be useful,
+ * Mt-KaHyPar is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with KaHyPar.  If not, see <http://www.gnu.org/licenses/>.
+ * along with Mt-KaHyPar.  If not, see <http://www.gnu.org/licenses/>.
  *
-******************************************************************************/
-
+ ******************************************************************************/
 #include "deterministic_multilevel_coarsener.h"
 #include "mt-kahypar/utils/progress_bar.h"
 
@@ -101,13 +100,14 @@ void DeterministicMultilevelCoarsener::coarsenImpl() {
     if (num_nodes_before_pass / num_nodes <= _context.coarsening.minimum_shrink_factor) {
       break;
     }
-    performMultilevelContraction(std::move(clusters), pass_start_time);
+
+    _uncoarseningData.performMultilevelContraction(std::move(clusters), pass_start_time);
     ASSERT(currentNumNodes() == num_nodes - hg.numRemovedHypernodes());
   }
 
   progress_bar += (initial_num_nodes - progress_bar.count());   // fill to 100%
   progress_bar.disable();
-  finalize();
+  _uncoarseningData.finalizeCoarsening();
 }
 
 void DeterministicMultilevelCoarsener::calculatePreferredTargetCluster(HypernodeID u, const vec<HypernodeID>& clusters) {

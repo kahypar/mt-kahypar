@@ -1,20 +1,20 @@
 /*******************************************************************************
- * This file is part of KaHyPar.
+ * This file is part of Mt-KaHyPar.
  *
  * Copyright (C) 2021 Lars Gottesbüren <lars.gottesbueren@kit.edu>
  *
- * KaHyPar is free software: you can redistribute it and/or modify
+ * Mt-KaHyPar is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * KaHyPar is distributed in the hope that it will be useful,
+ * Mt-KaHyPar is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with KaHyPar.  If not, see <http://www.gnu.org/licenses/>.
+ * along with Mt-KaHyPar.  If not, see <http://www.gnu.org/licenses/>.
  *
  ******************************************************************************/
 
@@ -43,7 +43,7 @@ namespace mt_kahypar {
             context(),
             metrics() {
       context.partition.graph_filename = "../tests/instances/powersim.mtx.hgr";
-      context.partition.mode = kahypar::Mode::direct_kway;
+      context.partition.mode = Mode::direct;
       context.partition.epsilon = 0.25;
       context.partition.verbose_output = false;
       context.partition.k = 8;
@@ -52,7 +52,7 @@ namespace mt_kahypar {
       context.shared_memory.num_threads = std::thread::hardware_concurrency();
 
       // Initial Partitioning
-      context.initial_partitioning.mode = InitialPartitioningMode::recursive_bisection;
+      context.initial_partitioning.mode = Mode::recursive_bipartitioning;
       context.initial_partitioning.runs = 1;
       context.initial_partitioning.population_size = 16;
 
@@ -115,7 +115,7 @@ namespace mt_kahypar {
         DeterministicLabelPropagationRefiner refiner(hypergraph, context);
         refiner.initialize(partitioned_hypergraph);
         vec<HypernodeID> dummy_refinement_nodes;
-        kahypar::Metrics my_metrics = metrics;
+        Metrics my_metrics = metrics;
         refiner.refine(partitioned_hypergraph, dummy_refinement_nodes, my_metrics, 0.0);
 
         if (i == 0) {
@@ -133,7 +133,7 @@ namespace mt_kahypar {
     Hypergraph hypergraph;
     PartitionedHypergraph partitioned_hypergraph;
     Context context;
-    kahypar::Metrics metrics;
+    Metrics metrics;
     static constexpr size_t num_repetitions = 5;
   };
 
@@ -163,7 +163,8 @@ namespace mt_kahypar {
   TEST_F(DeterminismTest, Coarsening) {
     Hypergraph first;
     for (size_t i = 0; i < num_repetitions; ++i) {
-      DeterministicMultilevelCoarsener coarsener(hypergraph, context);
+      UncoarseningData uncoarseningData(false, hypergraph, context);
+      DeterministicMultilevelCoarsener coarsener(hypergraph, context, uncoarseningData);
       coarsener.coarsen();
       if (i == 0) {
         first = coarsener.coarsestHypergraph().copy();
@@ -209,7 +210,8 @@ namespace mt_kahypar {
   }
 
   TEST_F(DeterminismTest, RefinementOnCoarseHypergraph) {
-    DeterministicMultilevelCoarsener coarsener(hypergraph, context);
+    UncoarseningData uncoarseningData(false, hypergraph, context);
+    DeterministicMultilevelCoarsener coarsener(hypergraph, context, uncoarseningData);
     coarsener.coarsen();
     hypergraph = coarsener.coarsestHypergraph().copy();
     partitioned_hypergraph = PartitionedHypergraph(
@@ -218,7 +220,8 @@ namespace mt_kahypar {
   }
 
   TEST_F(DeterminismTest, RefinementOnCoarseHypergraphWithSecondaryGainRecalculation) {
-    DeterministicMultilevelCoarsener coarsener(hypergraph, context);
+    UncoarseningData uncoarseningData(false, hypergraph, context);
+    DeterministicMultilevelCoarsener coarsener(hypergraph, context, uncoarseningData);
     coarsener.coarsen();
     hypergraph = coarsener.coarsestHypergraph().copy();
     partitioned_hypergraph = PartitionedHypergraph(

@@ -1,24 +1,25 @@
 /*******************************************************************************
- * This file is part of KaHyPar.
+ * This file is part of Mt-KaHyPar.
  *
+ * Copyright (C) 2021 Nikolai Maas <nikolai.maas@student.kit.edu>
  * Copyright (C) 2019 Tobias Heuer <tobias.heuer@kit.edu>
  *
- * KaHyPar is free software: you can redistribute it and/or modify
+ * Mt-KaHyPar is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * KaHyPar is distributed in the hope that it will be useful,
+ * Mt-KaHyPar is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with KaHyPar.  If not, see <http://www.gnu.org/licenses/>.
+ * along with Mt-KaHyPar.  If not, see <http://www.gnu.org/licenses/>.
  *
-******************************************************************************/
+ ******************************************************************************/
 
-#include "mt-kahypar/partition/initial_partitioning/recursive_bisection_initial_partitioner.h"
+#include "mt-kahypar/partition/recursive_bipartitioning.h"
 
 
 #include <algorithm>
@@ -35,9 +36,9 @@
 
 #include "mt-kahypar/partition/metrics.h"
 
-/** RecursiveBisectionInitialPartitioner Implementation Details
+/** RecursiveBipartitioning Implementation Details
   *
-  * Note, the recursive bisection initial partitioner is written in TBBInitializer continuation style. The TBBInitializer
+  * Note, the recursive bipartitioning algorithm is written in TBBInitializer continuation style. The TBBInitializer
   * continuation style is especially useful for recursive patterns. Each task defines its continuation
   * task. A continuation task defines how computation should continue, if all its child tasks are completed.
   * As a consequence, tasks can be spawned without waiting for their completion, because the continuation
@@ -45,12 +46,12 @@
   * time while waiting for their recursive tasks to complete.
   *
   * ----------------------
-  * The recursive bisection initial partitioner starts by spawning the root RecursiveMultilevelBisectionTask. The RecursiveMultilevelBisectionTask
-  * spawns a MultilevelBisectionTask that bisects the hypergraph (multilevel-fashion). Afterwards, the MultilevelBisectionContinuationTask continues
-  * and applies the bisection to the hypergraph and spawns two RecursiveBisectionChildTasks. Both are responsible for exactly one block of
-  * the partition. The RecursiveBisectionChildTask extracts its corresponding block as unpartitioned hypergraph and spawns
-  * recursively a RecursiveMultilevelBisectionTask for that hypergraph. Once that RecursiveMultilevelBisectionTask is completed, a
-  * RecursiveBisectionChildContinuationTask is started and the partition of the recursion is applied to the original hypergraph.
+  * The recursive bipartitioning algorithm starts by spawning the root RecursiveMultilevelBipartitioningTask. The RecursiveMultilevelBipartitioningTask
+  * spawns a MultilevelBipartitioningTask that bisects the hypergraph (multilevel-fashion). Afterwards, the MultilevelBipartitioningContinuationTask continues
+  * and applies the bisection to the hypergraph and spawns two RecursiveBipartitioningChildTasks. Both are responsible for exactly one block of
+  * the partition. The RecursiveBipartitioningChildTask extracts its corresponding block as unpartitioned hypergraph and spawns
+  * recursively a RecursiveMultilevelBipartitioningTask for that hypergraph. Once that RecursiveMultilevelBipartitioningTask is completed, a
+  * RecursiveBipartitioningChildContinuationTask is started and the partition of the recursion is applied to the original hypergraph.
 */
 
 namespace mt_kahypar {
@@ -88,22 +89,22 @@ namespace mt_kahypar {
 
 
   /*!
-   * Continuation task for the recursive bisection child task. Applies the
-   * partition obtained by a recursive bisection task to the original
+   * Continuation task for the recursive bipartitioning child task. Applies the
+   * partition obtained by a recursive bipartitioning task to the original
    * hypergraph.
    */
-  class RecursiveBisectionChildContinuationTask : public tbb::task {
+  class RecursiveBipartitioningChildContinuationTask : public tbb::task {
 
     using DeltaFunction = std::function<void (const HyperedgeID, const HyperedgeWeight, const HypernodeID, const HypernodeID, const HypernodeID)>;
 #define NOOP_FUNC [] (const HyperedgeID, const HyperedgeWeight, const HypernodeID, const HypernodeID, const HypernodeID) { }
 
   public:
-    RecursiveBisectionChildContinuationTask(PartitionedHypergraph& original_hypergraph,
-                                            Context&& context,
-                                            Hypergraph&& rb_hypergraph,
-                                            parallel::scalable_vector<HypernodeID>&& mapping,
-                                            const PartitionID k,
-                                            const PartitionID part_id) :
+    RecursiveBipartitioningChildContinuationTask(PartitionedHypergraph& original_hypergraph,
+                                                 Context&& context,
+                                                 Hypergraph&& rb_hypergraph,
+                                                 parallel::scalable_vector<HypernodeID>&& mapping,
+                                                 const PartitionID k,
+                                                 const PartitionID part_id) :
             _original_hg(original_hypergraph),
             _context(std::move(context)),
             _rb_hg(std::move(rb_hypergraph)),
@@ -151,12 +152,12 @@ namespace mt_kahypar {
    * A bisection task bisects the hypergraph into two block. Internally, it
    * calls our multilevel partitioner for k = 2.
    */
-  class MultilevelBisectionTask : public tbb::task {
+  class MultilevelBipartitioningTask : public tbb::task {
   public:
-    MultilevelBisectionTask(PartitionedHypergraph& original_hypergraph,
-                            Hypergraph& bisection_hypergraph,
-                            PartitionedHypergraph& bisection_partitioned_hypergraph,
-                            const Context& bisection_context) :
+    MultilevelBipartitioningTask(PartitionedHypergraph& original_hypergraph,
+                                 Hypergraph& bisection_hypergraph,
+                                 PartitionedHypergraph& bisection_partitioned_hypergraph,
+                                 const Context& bisection_context) :
             _original_hg(original_hypergraph),
             _bisection_hg(bisection_hypergraph),
             _bisection_partitioned_hg(bisection_partitioned_hypergraph),
@@ -178,18 +179,18 @@ namespace mt_kahypar {
   };
 
   /*!
- * A recursive bisection child task extracts a block of the partition
+ * A recursive bipartitioning child task extracts a block of the partition
  * and recursively partition it into the desired number of blocks.
  */
-  class RecursiveBisectionChildTask : public tbb::task {
+  class RecursiveBipartitioningChildTask : public tbb::task {
 
   public:
-    RecursiveBisectionChildTask(const OriginalHypergraphInfo original_hypergraph_info,
-                                PartitionedHypergraph& hypergraph,
-                                const Context& context,
-                                const PartitionID block,
-                                const BlockRange range,
-                                const double degree_of_parallelism) :
+    RecursiveBipartitioningChildTask(const OriginalHypergraphInfo original_hypergraph_info,
+                                     PartitionedHypergraph& hypergraph,
+                                     const Context& context,
+                                     const PartitionID block,
+                                     const BlockRange range,
+                                     const double degree_of_parallelism) :
             _original_hypergraph_info(original_hypergraph_info),
             _hg(hypergraph),
             _context(context),
@@ -200,11 +201,13 @@ namespace mt_kahypar {
     tbb::task* execute() override ;
 
   private:
-    Context setupRecursiveBisectionContext(const PartitionID k) {
+    Context setupRecursiveBipartitioningContext(const PartitionID k) {
       ASSERT(k >= 2);
       Context rb_context(_context);
       rb_context.partition.k = k;
-      rb_context.type = kahypar::ContextType::initial_partitioning;
+      if (_context.partition.mode == Mode::direct) {
+        rb_context.type = kahypar::ContextType::initial_partitioning;
+      }
 
       rb_context.partition.perfect_balance_part_weights.assign(k, 0);
       rb_context.partition.max_part_weights.assign(k, 0);
@@ -234,12 +237,12 @@ namespace mt_kahypar {
  * bisection task for each block, that further partitions the hypergraph
  * into the desired number of blocks
  */
-  class MultilevelBisectionContinuationTask : public tbb::task {
+  class MultilevelBipartitioningContinuationTask : public tbb::task {
     static constexpr bool debug = false;
   public:
-    MultilevelBisectionContinuationTask(const OriginalHypergraphInfo original_hypergraph_info,
-                                        PartitionedHypergraph& hypergraph,
-                                        const Context& context) :
+    MultilevelBipartitioningContinuationTask(const OriginalHypergraphInfo original_hypergraph_info,
+                                             PartitionedHypergraph& hypergraph,
+                                             const Context& context) :
             _bisection_hg(),
             _bisection_partitioned_hg(),
             _bisection_context(),
@@ -277,16 +280,16 @@ namespace mt_kahypar {
 
       if ( num_blocks_part_0 >= 2 && num_blocks_part_1 >= 2 ) {
         // In case we have to partition both blocks from the bisection further into
-        // more than one block, we call the recursive bisection initial partitioner
+        // more than one block, we call the recursive bipartitioning algorithm
         // recursively in parallel
         DBG << "Current k = " << _context.partition.k << "\n"
             << "Parallel Recursion 0: k =" << num_blocks_part_0 << "\n"
             << "Parallel Recursion 1: k =" << num_blocks_part_1;
 
         DoNothingContinuation& recursive_continuation = *new(allocate_continuation()) DoNothingContinuation();
-        RecursiveBisectionChildTask& recursion_0 = *new(recursive_continuation.allocate_child()) RecursiveBisectionChildTask(
+        RecursiveBipartitioningChildTask& recursion_0 = *new(recursive_continuation.allocate_child()) RecursiveBipartitioningChildTask(
                 _original_hypergraph_info, _hg, _context, 0, range_0, 0.5);
-        RecursiveBisectionChildTask& recursion_1 = *new(recursive_continuation.allocate_child()) RecursiveBisectionChildTask(
+        RecursiveBipartitioningChildTask& recursion_1 = *new(recursive_continuation.allocate_child()) RecursiveBipartitioningChildTask(
                 _original_hypergraph_info, _hg, _context, num_blocks_part_0, range_1, 0.5);
         recursive_continuation.set_ref_count(2);
         tbb::task::spawn(recursion_1);
@@ -294,11 +297,11 @@ namespace mt_kahypar {
       } else if ( num_blocks_part_0 >= 2 ) {
         ASSERT(num_blocks_part_1 < 2);
         // In case only the first block has to be partitioned into more than one block, we call
-        // the recursive bisection initial partitioner recusively on the block 0
+        // the recursive bipartitioning algorithm recusively on the block 0
         DBG << "Current k = " << _context.partition.k << ","
             << "Recursion 0: k =" << num_blocks_part_0;
         DoNothingContinuation& recursive_continuation = *new(allocate_continuation()) DoNothingContinuation();
-        RecursiveBisectionChildTask& recursion_0 = *new(recursive_continuation.allocate_child()) RecursiveBisectionChildTask(
+        RecursiveBipartitioningChildTask& recursion_0 = *new(recursive_continuation.allocate_child()) RecursiveBipartitioningChildTask(
                 _original_hypergraph_info, _hg, _context, 0, range_0, 1.0);
         recursive_continuation.set_ref_count(1);
         tbb::task::spawn(recursion_0);
@@ -317,8 +320,11 @@ namespace mt_kahypar {
 
       bisection_context.partition.k = 2;
       bisection_context.partition.verbose_output = debug;
-      bisection_context.initial_partitioning.mode = InitialPartitioningMode::direct;
-      bisection_context.type = kahypar::ContextType::initial_partitioning;
+      bisection_context.initial_partitioning.mode = Mode::direct;
+      // TODO(maas): other type for context?
+      if (context.partition.mode == Mode::direct) {
+        bisection_context.type = kahypar::ContextType::initial_partitioning;
+      }
 
       // Setup Part Weights
       const HypernodeWeight total_weight = hypergraph.totalWeight();
@@ -374,6 +380,7 @@ namespace mt_kahypar {
       }
       bisection_context.setupContractionLimit(total_weight);
       bisection_context.setupSparsificationParameters();
+      bisection_context.setupThreadsPerFlowSearch();
 
       return bisection_context;
     }
@@ -385,26 +392,26 @@ namespace mt_kahypar {
 
 
   /*!
-  * The recursive bisection task spawns the multilevel bisection
+  * The recursive bipartitioning task spawns the multilevel bisection
   * task and its continuation task.
   */
-  class RecursiveMultilevelBisectionTask : public tbb::task {
+  class RecursiveMultilevelBipartitioningTask : public tbb::task {
 
   public:
-    RecursiveMultilevelBisectionTask(const OriginalHypergraphInfo original_hypergraph_info,
-                                     PartitionedHypergraph& hypergraph,
-                                     const Context& context) :
+    RecursiveMultilevelBipartitioningTask(const OriginalHypergraphInfo original_hypergraph_info,
+                                          PartitionedHypergraph& hypergraph,
+                                          const Context& context) :
             _original_hypergraph_info(original_hypergraph_info),
             _hg(hypergraph),
             _context(context) { }
 
     tbb::task* execute() override {
       ASSERT(_context.partition.k >= 2);
-      MultilevelBisectionContinuationTask& bisection_continuation_task = *new(allocate_continuation())
-              MultilevelBisectionContinuationTask(_original_hypergraph_info, _hg, _context);
+      MultilevelBipartitioningContinuationTask& bisection_continuation_task = *new(allocate_continuation())
+              MultilevelBipartitioningContinuationTask(_original_hypergraph_info, _hg, _context);
       bisection_continuation_task.set_ref_count(1);
       tbb::task::spawn(*new(bisection_continuation_task.allocate_child())
-              MultilevelBisectionTask(
+              MultilevelBipartitioningTask(
               _hg, bisection_continuation_task._bisection_hg,
               bisection_continuation_task._bisection_partitioned_hg,
               bisection_continuation_task._bisection_context));
@@ -418,9 +425,9 @@ namespace mt_kahypar {
   };
 
 
-  tbb::task * RecursiveBisectionChildTask::execute() {
+  tbb::task * RecursiveBipartitioningChildTask::execute() {
     const PartitionID k = _range.second - _range.first;
-    Context rb_context = setupRecursiveBisectionContext(k);
+    Context rb_context = setupRecursiveBipartitioningContext(k);
 
     // Extracts the block of the hypergraph which we recursively want to partition as
     // seperate unpartitioned hypergraph.
@@ -430,14 +437,14 @@ namespace mt_kahypar {
     Hypergraph& rb_hypergraph = copy_hypergraph.first;
     auto& mapping = copy_hypergraph.second;
 
-    // Spawns a new recursive bisection task to partition the current block of the hypergraph
+    // Spawns a new recursive bipartitioning task to partition the current block of the hypergraph
     // into the desired number of blocks
     if ( rb_hypergraph.initialNumNodes() > 0 ) {
-      RecursiveBisectionChildContinuationTask& child_continuation = *new(allocate_continuation())
-              RecursiveBisectionChildContinuationTask(_hg, std::move(rb_context),
+      RecursiveBipartitioningChildContinuationTask& child_continuation = *new(allocate_continuation())
+              RecursiveBipartitioningChildContinuationTask(_hg, std::move(rb_context),
                                                       std::move(rb_hypergraph), std::move(mapping), k, _block);
-      RecursiveMultilevelBisectionTask& recursion = *new(child_continuation.allocate_child())
-              RecursiveMultilevelBisectionTask(
+      RecursiveMultilevelBipartitioningTask& recursion = *new(child_continuation.allocate_child())
+              RecursiveMultilevelBipartitioningTask(
               _original_hypergraph_info,
               child_continuation.recursivePartitionedHypergraph(),
               child_continuation.recursiveContext());
@@ -448,26 +455,36 @@ namespace mt_kahypar {
     return nullptr;
   }
 
-  RecursiveBisectionInitialPartitioner::RecursiveBisectionInitialPartitioner(PartitionedHypergraph& hypergraph,
-                                                                             const Context& context) :
-    _hg(hypergraph),
-    _context(context) { }
 
-  void RecursiveBisectionInitialPartitioner::initialPartitionImpl() {
-    if (_context.type == kahypar::ContextType::main) {
+namespace recursive_bipartitioning {
+  PartitionedHypergraph partition(Hypergraph& hypergraph, const Context& context) {
+    PartitionedHypergraph partitioned_hypergraph(context.partition.k, hypergraph, parallel_tag_t());
+    partition(partitioned_hypergraph, context);
+    return partitioned_hypergraph;
+  }
+
+  void partition(PartitionedHypergraph& hypergraph, const Context& context) {
+    if (context.partition.mode == Mode::recursive_bipartitioning) {
+      utils::Timer::instance().start_timer("rb", "Recursive Bipartitioning");
+    }
+    if (context.type == kahypar::ContextType::main) {
       parallel::MemoryPool::instance().deactivate_unused_memory_allocations();
       utils::Timer::instance().disable();
       utils::Stats::instance().disable();
     }
 
-    RecursiveMultilevelBisectionTask& root_bisection_task = *new(tbb::task::allocate_root()) RecursiveMultilevelBisectionTask(
-            OriginalHypergraphInfo { _hg.totalWeight(), _context.partition.k, _context.partition.epsilon }, _hg, _context);
+    RecursiveMultilevelBipartitioningTask& root_bisection_task = *new(tbb::task::allocate_root()) RecursiveMultilevelBipartitioningTask(
+            OriginalHypergraphInfo { hypergraph.totalWeight(), context.partition.k, context.partition.epsilon }, hypergraph, context);
     tbb::task::spawn_root_and_wait(root_bisection_task);
 
-    if (_context.type == kahypar::ContextType::main) {
+    if (context.type == kahypar::ContextType::main) {
       parallel::MemoryPool::instance().activate_unused_memory_allocations();
       utils::Timer::instance().enable();
       utils::Stats::instance().enable();
     }
+    if (context.partition.mode == Mode::recursive_bipartitioning) {
+      utils::Timer::instance().stop_timer("rb");
+    }
   }
+} // namespace recursive_bipartitioning
 } // namepace mt_kahypar

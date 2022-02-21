@@ -1,20 +1,20 @@
 /*******************************************************************************
- * This file is part of KaHyPar.
+ * This file is part of Mt-KaHyPar.
  *
  * Copyright (C) 2019 Tobias Heuer <tobias.heuer@kit.edu>
  *
- * KaHyPar is free software: you can redistribute it and/or modify
+ * Mt-KaHyPar is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * KaHyPar is distributed in the hope that it will be useful,
+ * Mt-KaHyPar is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with KaHyPar.  If not, see <http://www.gnu.org/licenses/>.
+ * along with Mt-KaHyPar.  If not, see <http://www.gnu.org/licenses/>.
  *
  ******************************************************************************/
 
@@ -25,18 +25,18 @@
 #include "mt-kahypar/io/hypergraph_io.h"
 #include "mt-kahypar/partition/context.h"
 
-#include "mt-kahypar/partition/initial_partitioning/recursive_initial_partitioner.h"
-#include "mt-kahypar/partition/initial_partitioning/recursive_bisection_initial_partitioner.h"
+#include "mt-kahypar/partition/initial_partitioning/deep_initial_partitioner.h"
+#include "mt-kahypar/partition/initial_partitioning/recursive_bipartitioning_initial_partitioner.h"
 
 using ::testing::Test;
 
 namespace mt_kahypar {
 
 
-template <class InitialPartitioner, InitialPartitioningMode mode, PartitionID k>
+template <class InitialPartitioner, Mode mode, PartitionID k>
 struct TestConfig {
   using Partitioner = InitialPartitioner;
-  static constexpr InitialPartitioningMode MODE = mode;
+  static constexpr Mode MODE = mode;
   static constexpr PartitionID K = k;
 };
 
@@ -59,7 +59,7 @@ class AInitialPartitionerTest : public Test {
 
     context.partition.graph_filename = "../tests/instances/contracted_unweighted_ibm01.hgr";
     context.partition.graph_community_filename = "../tests/instances/contracted_ibm01.hgr.community";
-    context.partition.mode = kahypar::Mode::direct_kway;
+    context.partition.mode = Mode::direct;
     context.partition.objective = kahypar::Objective::km1;
     context.partition.epsilon = 0.2;
     context.partition.k = Config::K;
@@ -89,6 +89,10 @@ class AInitialPartitionerTest : public Test {
     // FM
     context.refinement.fm.algorithm = FMAlgorithm::do_nothing;
     context.initial_partitioning.refinement.fm.algorithm = FMAlgorithm::do_nothing;
+
+    // Flows
+    context.refinement.flows.algorithm = FlowAlgorithm::do_nothing;
+    context.initial_partitioning.refinement.flows.algorithm = FlowAlgorithm::do_nothing;
 
     // Read hypergraph
     hypergraph = io::readHypergraphFile(
@@ -122,12 +126,12 @@ size_t AInitialPartitionerTest<Config>::num_threads = HardwareTopology::instance
 
 static constexpr double EPS = 0.05;
 
-typedef ::testing::Types<TestConfig<RecursiveInitialPartitioner, InitialPartitioningMode::recursive, 2>,
-                         TestConfig<RecursiveInitialPartitioner, InitialPartitioningMode::recursive, 3>,
-                         TestConfig<RecursiveInitialPartitioner, InitialPartitioningMode::recursive, 4>,
-                         TestConfig<RecursiveBisectionInitialPartitioner, InitialPartitioningMode::recursive_bisection, 2>,
-                         TestConfig<RecursiveBisectionInitialPartitioner, InitialPartitioningMode::recursive_bisection, 3>,
-                         TestConfig<RecursiveBisectionInitialPartitioner, InitialPartitioningMode::recursive_bisection, 4> > TestConfigs;
+typedef ::testing::Types<TestConfig<DeepInitialPartitioner, Mode::deep_multilevel, 2>,
+                         TestConfig<DeepInitialPartitioner, Mode::deep_multilevel, 3>,
+                         TestConfig<DeepInitialPartitioner, Mode::deep_multilevel, 4>,
+                         TestConfig<RecursiveBipartitioningInitialPartitioner, Mode::recursive_bipartitioning, 2>,
+                         TestConfig<RecursiveBipartitioningInitialPartitioner, Mode::recursive_bipartitioning, 3>,
+                         TestConfig<RecursiveBipartitioningInitialPartitioner, Mode::recursive_bipartitioning, 4> > TestConfigs;
 
 TYPED_TEST_CASE(AInitialPartitionerTest, TestConfigs);
 

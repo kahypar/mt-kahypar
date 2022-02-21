@@ -1,21 +1,21 @@
 /*******************************************************************************
- * This file is part of KaHyPar.
+ * This file is part of Mt-KaHyPar.
  *
- * Copyright (C) 2019 Tobias Heuer <tobias.heuer@kit.edu>
  * Copyright (C) 2019 Lars Gottesbüren <lars.gottesbueren@kit.edu>
+ * Copyright (C) 2019 Tobias Heuer <tobias.heuer@kit.edu>
  *
- * KaHyPar is free software: you can redistribute it and/or modify
+ * Mt-KaHyPar is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * KaHyPar is distributed in the hope that it will be useful,
+ * Mt-KaHyPar is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with KaHyPar.  If not, see <http://www.gnu.org/licenses/>.
+ * along with Mt-KaHyPar.  If not, see <http://www.gnu.org/licenses/>.
  *
  ******************************************************************************/
 
@@ -36,6 +36,38 @@ namespace mt_kahypar {
     return os << static_cast<uint8_t>(type);
   }
 
+  std::ostream & operator<< (std::ostream& os, const FileFormat& format) {
+    switch (format) {
+      case FileFormat::hMetis: return os << "hMetis";
+      case FileFormat::Metis: return os << "Metis";
+        // omit default case to trigger compiler warning for missing cases
+    }
+    return os << static_cast<uint8_t>(format);
+  }
+
+  std::ostream & operator<< (std::ostream& os, const InstanceType& type) {
+    switch (type) {
+      case InstanceType::graph: return os << "graph";
+      case InstanceType::hypergraph: return os << "hypergraph";
+      case InstanceType::UNDEFINED: return os << "UNDEFINED";
+        // omit default case to trigger compiler warning for missing cases
+    }
+    return os << static_cast<uint8_t>(type);
+  }
+
+  std::ostream & operator<< (std::ostream& os, const PresetType& type) {
+    switch (type) {
+      case PresetType::deterministic: return os << "deterministic";
+      case PresetType::default_preset: return os << "default";
+      case PresetType::default_flows: return os << "default_flows";
+      case PresetType::quality_preset: return os << "quality";
+      case PresetType::quality_flows: return os << "quality_flows";
+      case PresetType::UNDEFINED: return os << "UNDEFINED";
+        // omit default case to trigger compiler warning for missing cases
+    }
+    return os << static_cast<uint8_t>(type);
+  }
+
   std::ostream & operator<< (std::ostream& os, const Paradigm& paradigm) {
     switch (paradigm) {
       case Paradigm::multilevel: return os << "multilevel";
@@ -43,6 +75,17 @@ namespace mt_kahypar {
         // omit default case to trigger compiler warning for missing cases
     }
     return os << static_cast<uint8_t>(paradigm);
+  }
+
+  std::ostream & operator<< (std::ostream& os, const Mode& mode) {
+    switch (mode) {
+      case Mode::recursive_bipartitioning: return os << "recursive_bipartitioning";
+      case Mode::direct: return os << "direct_kway";
+      case Mode::deep_multilevel: return os << "deep_multilevel";
+      case Mode::UNDEFINED: return os << "UNDEFINED";
+        // omit default case to trigger compiler warning for missing cases
+    }
+    return os << static_cast<uint8_t>(mode);
   }
 
   std::ostream & operator<< (std::ostream& os, const LouvainEdgeWeight& type) {
@@ -126,17 +169,6 @@ namespace mt_kahypar {
     return os << static_cast<uint8_t>(algo);
   }
 
-  std::ostream & operator<< (std::ostream& os, const InitialPartitioningMode& mode) {
-    switch (mode) {
-      case InitialPartitioningMode::direct: return os << "direct";
-      case InitialPartitioningMode::recursive: return os << "recursive";
-      case InitialPartitioningMode::recursive_bisection: return os << "recursive_bisection";
-      case InitialPartitioningMode::UNDEFINED: return os << "UNDEFINED";
-        // omit default case to trigger compiler warning for missing cases
-    }
-    return os << static_cast<uint8_t>(mode);
-  }
-
   std::ostream & operator<< (std::ostream& os, const LabelPropagationAlgorithm& algo) {
     switch (algo) {
       case LabelPropagationAlgorithm::label_propagation_km1: return os << "label_propagation_km1";
@@ -158,6 +190,54 @@ namespace mt_kahypar {
         // omit default case to trigger compiler warning for missing cases
     }
     return os << static_cast<uint8_t>(algo);
+  }
+
+  std::ostream & operator<< (std::ostream& os, const FlowAlgorithm& algo) {
+    switch (algo) {
+      case FlowAlgorithm::flow_cutter: return os << "flow_cutter";
+      case FlowAlgorithm::mock: return os << "mock";
+      case FlowAlgorithm::do_nothing: return os << "do_nothing";
+        // omit default case to trigger compiler warning for missing cases
+    }
+    return os << static_cast<uint8_t>(algo);
+  }
+
+  Mode modeFromString(const std::string& mode) {
+    if (mode == "rb") {
+      return Mode::recursive_bipartitioning;
+    } else if (mode == "direct") {
+      return Mode::direct;
+    } else if (mode == "deep") {
+      return Mode::deep_multilevel;
+    }
+    ERROR("Illegal option: " + mode);
+    return Mode::UNDEFINED;
+  }
+
+  InstanceType instanceTypeFromString(const std::string& type) {
+    if (type == "graph") {
+      return InstanceType::graph;
+    } else if (type == "hypergraph") {
+      return InstanceType::hypergraph;
+    }
+    ERROR("Illegal option: " + type);
+    return InstanceType::UNDEFINED;
+  }
+
+  PresetType presetTypeFromString(const std::string& type) {
+    if (type == "deterministic") {
+      return PresetType::deterministic;
+    } else if (type == "default") {
+      return PresetType::default_preset;
+    } else if (type == "default_flows") {
+      return PresetType::default_flows;
+    } else if (type == "quality") {
+      return PresetType::quality_preset;
+    } else if (type == "quality_flows") {
+      return PresetType::quality_flows;
+    }
+    ERROR("Illegal option: " + type);
+    return PresetType::UNDEFINED;
   }
 
   LouvainEdgeWeight louvainEdgeWeightFromString(const std::string& type) {
@@ -254,18 +334,6 @@ namespace mt_kahypar {
     return InitialPartitioningAlgorithm::UNDEFINED;
   }
 
-  InitialPartitioningMode initialPartitioningModeFromString(const std::string& mode) {
-    if (mode == "direct") {
-      return InitialPartitioningMode::direct;
-    } else if (mode == "recursive") {
-      return InitialPartitioningMode::recursive;
-    } else if (mode == "recursive_bisection") {
-      return InitialPartitioningMode::recursive_bisection;
-    }
-    ERROR("Illegal option: " + mode);
-    return InitialPartitioningMode::UNDEFINED;
-  }
-
   LabelPropagationAlgorithm labelPropagationAlgorithmFromString(const std::string& type) {
     if (type == "label_propagation_km1") {
       return LabelPropagationAlgorithm::label_propagation_km1;
@@ -296,4 +364,13 @@ namespace mt_kahypar {
     return FMAlgorithm::do_nothing;
   }
 
+  FlowAlgorithm flowAlgorithmFromString(const std::string& type) {
+    if (type == "flow_cutter") {
+      return FlowAlgorithm::flow_cutter;
+    } else if (type == "do_nothing") {
+      return FlowAlgorithm::do_nothing;
+    }
+    ERROR("Illegal option: " + type);
+    return FlowAlgorithm::do_nothing;
+  }
 }

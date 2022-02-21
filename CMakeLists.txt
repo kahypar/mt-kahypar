@@ -20,6 +20,8 @@ include_directories(SYSTEM ${gtest_SOURCE_DIR}/../googlemock/include ${gtest_SOU
 
 #include KaHyPar
 include_directories(external_tools/kahypar)
+#include WHFC
+include_directories(external_tools/WHFC)
 
 option(KAHYPAR_USE_MINIMAL_BOOST
   "Download boost automatically and compile required libraries." OFF)
@@ -91,31 +93,25 @@ if(KAHYPAR_TRAVIS_BUILD)
 endif(KAHYPAR_TRAVIS_BUILD)
 
 if(KAHYPAR_USE_MINIMAL_BOOST)
-  include(ExternalProject)
-  ExternalProject_Add(boost
-    URL
-    http://downloads.sourceforge.net/project/boost/boost/1.56.0/boost_1_56_0.tar.bz2
-    #URL_MD5 6095876341956f65f9d35939ccea1a9f
-    DOWNLOAD_DIR /tmp/
-    PREFIX ${CMAKE_CURRENT_SOURCE_DIR}/external_tools/boost
-    CONFIGURE_COMMAND ""
-    BUILD_COMMAND ""
-    INSTALL_COMMAND "")
+  execute_process(COMMAND cmake -P ${CMAKE_CURRENT_SOURCE_DIR}/scripts/download_boost.cmake)
 
-  include_directories(SYSTEM ${CMAKE_CURRENT_SOURCE_DIR}/external_tools/boost/src/boost/)
+  include_directories(SYSTEM ${CMAKE_CURRENT_BINARY_DIR}/external_tools/boost/)
 
   # glob boost sources
-  file(GLOB MINI_BOOST_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/external_tools/boost/src/boost/libs/program_options/src/*.cpp)
+  file(GLOB MINI_BOOST_SOURCES ${CMAKE_CURRENT_BINARY_DIR}/external_tools/boost/libs/program_options/src/*.cpp)
 
   add_library(mini_boost STATIC ${MINI_BOOST_SOURCES})
   set_target_properties(mini_boost PROPERTIES LINKER_LANGUAGE CXX)
   set(Boost_LIBRARIES mini_boost)
+  set(Boost_INCLUDE_DIRS ${CMAKE_CURRENT_BINARY_DIR}/external_tools/boost/boost/)
+  include_directories(SYSTEM ${Boost_INCLUDE_DIRS})
 else()
-  set(BOOST_MIN_VERSION "1.48.0")
-  find_package(Boost ${BOOST_MIN_VERSION} COMPONENTS program_options REQUIRED)
+  find_package(Boost 1.69 REQUIRED COMPONENTS program_options)
   if(Boost_FOUND)
     include_directories(SYSTEM ${Boost_INCLUDE_DIRS})
-    message(STATUS "Boost Include: ${Boost_INCLUDE_DIR}")
+    set(KAHYPAR_INCLUDE_DIRS ${Boost_INCLUDE_DIRS} ${KAHYPAR_INCLUDE_DIRS})
+    set(KAHYPAR_LINK_LIBRARIES ${Boost_LIBRARIES} ${KAHYPAR_LINK_LIBRARIES})
+    message(STATUS "Boost Include: ${Boost_INCLUDE_DIRS}")
     message(STATUS "Boost Library Dirs: ${Boost_LIBRARY_DIRS}")
     message(STATUS "Boost Libraries: ${Boost_LIBRARIES}")
     if(WIN32)
@@ -233,7 +229,13 @@ ELSE ()
     MESSAGE(STATUS "WARNING: hwlock library not found.")
 ENDIF ()
 
-# TODO: Add git revision
+find_package(Git)
+include(GetGitRevisionDescription)
+get_git_head_revision(MT_KAHYPAR_VERSION_GIT_REFSPEC MT_KAHYPAR_VERSION_GIT_SHA1)
+if(MT_KAHYPAR_VERSION_GIT_REFSPEC)
+  message(STATUS "Detected git refspec ${MT_KAHYPAR_VERSION_GIT_REFSPEC} sha ${MT_KAHYPAR_VERSION_GIT_SHA1}")
+  configure_file(${PROJECT_SOURCE_DIR}/mt-kahypar/application/git_revision.txt.in ${PROJECT_BINARY_DIR}/mt-kahypar/application/git_head.txt)
+endif(MT_KAHYPAR_VERSION_GIT_REFSPEC)
 
 if(NOT MSVC)
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -W -Wall -Wextra ")
@@ -313,9 +315,10 @@ add_subdirectory(tests)
 add_subdirectory(mt-kahypar)
 
 add_custom_target(MtKaHyPar
-  COMMAND $(MAKE) MtKaHyParFast
-  COMMAND $(MAKE) MtKaHyParStrong
-  COMMAND $(MAKE) MtKaHyParGraph)
+  COMMAND $(MAKE) MtKaHyParDefault
+  COMMAND $(MAKE) MtKaHyParQuality
+  COMMAND $(MAKE) MtKaHyParGraph
+  COMMAND $(MAKE) MtKaHyParWrapper)
 
 add_custom_target(mt_kahypar_tests
   COMMAND $(MAKE) mt_kahypar_fast_tests

@@ -1,21 +1,21 @@
 /*******************************************************************************
- * This file is part of KaHyPar.
+ * This file is part of Mt-KaHyPar.
  *
- * Copyright (C) 2018 Sebastian Schlag <sebastian.schlag@kit.edu>
+ * Copyright (C) 2019 Lars Gottesbüren <lars.gottesbueren@kit.edu>
  * Copyright (C) 2019 Tobias Heuer <tobias.heuer@kit.edu>
  *
- * KaHyPar is free software: you can redistribute it and/or modify
+ * Mt-KaHyPar is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * KaHyPar is distributed in the hope that it will be useful,
+ * Mt-KaHyPar is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with KaHyPar.  If not, see <http://www.gnu.org/licenses/>.
+ * along with Mt-KaHyPar.  If not, see <http://www.gnu.org/licenses/>.
  *
  ******************************************************************************/
 
@@ -30,9 +30,9 @@
 #define REGISTER_DISPATCHED_COARSENER(id, dispatcher, ...)                                      \
   static kahypar::meta::Registrar<CoarsenerFactory> register_ ## dispatcher(                    \
     id,                                                                                         \
-    [](Hypergraph& hypergraph, const Context& context) {                                        \
+    [](Hypergraph& hypergraph, const Context& context, UncoarseningData& uncoarseningData) {                  \
     return dispatcher::create(                                                                  \
-      std::forward_as_tuple(hypergraph, context),                                               \
+      std::forward_as_tuple(hypergraph, context, uncoarseningData),                                    \
       __VA_ARGS__                                                                               \
       );                                                                                        \
   })
@@ -40,8 +40,8 @@
 #define REGISTER_COARSENER(id, coarsener)                                                       \
   static kahypar::meta::Registrar<CoarsenerFactory> register_ ## coarsener(                     \
     id,                                                                                         \
-    [](Hypergraph& hypergraph, const Context& context) -> ICoarsener* {                         \
-    return new coarsener(hypergraph, context);                                                  \
+    [](Hypergraph& hypergraph, const Context& context, UncoarseningData& uncoarseningData) -> ICoarsener* {   \
+    return new coarsener(hypergraph, context, uncoarseningData);                                       \
   })
 
 

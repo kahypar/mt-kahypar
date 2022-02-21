@@ -1,0 +1,163 @@
+/*******************************************************************************
+ * This file is part of Mt-KaHyPar.
+ *
+ * Copyright (C) 2021 Lars Gottesbüren <lars.gottesbueren@kit.edu>
+ * Copyright (C) 2021 Tobias Heuer <tobias.heuer@kit.edu>
+ *
+ * Mt-KaHyPar is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * Mt-KaHyPar is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with Mt-KaHyPar.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ ******************************************************************************/
+#include <iostream>
+#include <fstream>
+
+#include "mt-kahypar/io/command_line_options.h"
+#include "mt-kahypar/macros.h"
+
+#define MT_KAHYPAR_BINARY_DIR "@PROJECT_BINARY_DIR@/mt-kahypar/application/"
+#define MT_KAHYPAR_CONFIG_DIR "@PROJECT_SOURCE_DIR@/config/"
+
+static std::string getGitRevisionFile(const mt_kahypar::Context& context) {
+  std::string revision_file = std::string(MT_KAHYPAR_BINARY_DIR) + "git_mt_kahypar_d.txt";
+  if ( context.partition.instance_type == mt_kahypar::InstanceType::graph ) {
+    revision_file = std::string(MT_KAHYPAR_BINARY_DIR) + "git_mt_kahypar_graph.txt";
+  } else if ( context.partition.preset_type == mt_kahypar::PresetType::quality_preset ||
+              context.partition.preset_type == mt_kahypar::PresetType::quality_flows ) {
+    revision_file = std::string(MT_KAHYPAR_BINARY_DIR) + "git_mt_kahypar_q.txt";
+  }
+  return revision_file;
+}
+
+static std::string readGitRevisionFile(const std::string& revision_file) {
+  std::ifstream file(revision_file.c_str());
+  if ( !file ) {
+    WARNING("No git revision file for preset available (binary might be not up to date). Do you want to continue? (Y/N)");
+    char yes_no;
+    std::cin >> yes_no;
+    if ( yes_no == 'N' ) {
+      std::exit(0);
+    }
+    return "";
+  } else {
+    std::string git = "";
+    std::getline(file, git);
+    return git;
+  }
+}
+
+static void configureContext(mt_kahypar::Context& context) {
+  const bool use_flows = context.refinement.flows.algorithm == mt_kahypar::FlowAlgorithm::flow_cutter;
+  if ( context.partition.preset_type == mt_kahypar::PresetType::UNDEFINED ) {
+    if ( context.coarsening.algorithm == mt_kahypar::CoarseningAlgorithm::deterministic_multilevel_coarsener ) {
+      context.partition.preset_type = mt_kahypar::PresetType::deterministic;
+    } else if ( context.coarsening.algorithm == mt_kahypar::CoarseningAlgorithm::multilevel_coarsener ) {
+      if ( use_flows ) {
+        context.partition.preset_type = mt_kahypar::PresetType::default_flows;
+      } else {
+        context.partition.preset_type = mt_kahypar::PresetType::default_preset;
+      }
+    } else if ( context.coarsening.algorithm == mt_kahypar::CoarseningAlgorithm::nlevel_coarsener ) {
+      if ( use_flows ) {
+        context.partition.preset_type = mt_kahypar::PresetType::quality_flows;
+      } else {
+        context.partition.preset_type = mt_kahypar::PresetType::quality_preset;
+      }
+    }
+  }
+
+  if ( context.partition.instance_type == mt_kahypar::InstanceType::UNDEFINED ) {
+    if ( context.partition.file_format == mt_kahypar::FileFormat::Metis ) {
+      context.partition.instance_type = mt_kahypar::InstanceType::graph;
+    } else {
+      context.partition.instance_type = mt_kahypar::InstanceType::hypergraph;
+    }
+  }
+
+  // Sanity Check
+  if ( context.partition.instance_type == mt_kahypar::InstanceType::graph &&
+       ( context.partition.preset_type == mt_kahypar::PresetType::quality_flows ||
+         context.partition.preset_type == mt_kahypar::PresetType::quality_preset ||
+         context.partition.preset_type == mt_kahypar::PresetType::deterministic ) ) {
+    ALGO_SWITCH("Graphs are only supported with default preset. Do you want to switch to default preset (Y/N)?",
+                "Graphs are not supported with" << context.partition.preset_type << "preset.",
+                context.partition.preset_type,
+                use_flows ? mt_kahypar::PresetType::default_flows : mt_kahypar::PresetType::default_preset);
+  }
+
+  // Check git revision
+  const std::string head_file = std::string(MT_KAHYPAR_BINARY_DIR) + "git_head.txt";
+  const std::string preset_git_file = getGitRevisionFile(context);
+  const std::string head_content = readGitRevisionFile(head_file);
+  const std::string preset_content = readGitRevisionFile(preset_git_file);
+  if ( preset_content != "" && head_content != preset_content ) {
+    WARNING("Git Revision Head = " << head_content);
+    WARNING("Git Revision Binary = " << preset_content);
+    WARNING("Git Revision of binary is not equal to HEAD (consider to recompile Mt-KaHyPar). Do you want to continue (Y/N)?");
+    char yes_no;
+    std::cin >> yes_no;
+    if ( yes_no == 'N' ) {
+      std::exit(0);
+    }
+  }
+}
+
+static std::string getBinary(const mt_kahypar::Context& context) {
+  std::string binary = std::string(MT_KAHYPAR_BINARY_DIR) + "MtKaHyParDefault";
+  if ( context.partition.instance_type == mt_kahypar::InstanceType::graph ) {
+    binary = std::string(MT_KAHYPAR_BINARY_DIR) + "MtKaHyParGraph";
+  } else if ( context.partition.preset_type == mt_kahypar::PresetType::quality_preset ||
+              context.partition.preset_type == mt_kahypar::PresetType::quality_flows ) {
+    binary = std::string(MT_KAHYPAR_BINARY_DIR) + "MtKaHyParQuality";
+  }
+  return binary;
+}
+
+static std::string getPresetFile(const mt_kahypar::Context& context) {
+  switch ( context.partition.preset_type ) {
+    case mt_kahypar::PresetType::deterministic: return std::string(MT_KAHYPAR_CONFIG_DIR) + "deterministic_preset.ini";
+    case mt_kahypar::PresetType::default_preset: return std::string(MT_KAHYPAR_CONFIG_DIR) + "default_preset.ini";
+    case mt_kahypar::PresetType::default_flows: return std::string(MT_KAHYPAR_CONFIG_DIR) + "default_flow_preset.ini";
+    case mt_kahypar::PresetType::quality_preset: return std::string(MT_KAHYPAR_CONFIG_DIR) + "quality_preset.ini";
+    case mt_kahypar::PresetType::quality_flows: return std::string(MT_KAHYPAR_CONFIG_DIR) + "quality_flow_preset.ini";
+    case mt_kahypar::PresetType::UNDEFINED: return "";
+  }
+  return "";
+}
+
+static std::string configurePartitionerCall(const mt_kahypar::Context& context, int argc, char* argv[]) {
+  std::stringstream ss;
+  ss << getBinary(context);
+  for ( int i = 1; i < argc; ++i ) {
+    ss << " " << argv[i];
+  }
+  if ( context.partition.preset_file == "" ) {
+    ss << " -p " << getPresetFile(context);
+  }
+  return ss.str();
+}
+
+int main(int argc, char* argv[]) {
+  mt_kahypar::Context context;
+  mt_kahypar::processCommandLineInput(context, argc, argv);
+
+  if ( context.partition.preset_file == "" &&
+       context.partition.preset_type == mt_kahypar::PresetType::UNDEFINED ) {
+    ERROR("No preset specified");
+  }
+  configureContext(context);
+  std::string partitioner_call = configurePartitionerCall(context, argc, argv);
+  if ( context.partition.verbose_output ) {
+    std::cout << partitioner_call << std::endl;
+  }
+  return std::system(partitioner_call.c_str());
+}

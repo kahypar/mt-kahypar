@@ -426,6 +426,7 @@ class FixedSizeSparseMap {
   MapElement* _dense;
 };
 
+
 template <typename Key = Mandatory,
           typename Value = Mandatory,
           typename Derived = Mandatory>
@@ -436,7 +437,7 @@ class DynamicMapBase {
   static constexpr size_t INITIAL_CAPACITY = 16;
 
   explicit DynamicMapBase() :
-    _capacity(0),
+    _capacity(32),
     _size(0),
     _timestamp(1),
     _data(nullptr) {
@@ -565,6 +566,7 @@ class DynamicSparseMap final : public DynamicMapBase<Key, Value, DynamicSparseMa
     Base(),
     _sparse(nullptr),
     _dense(nullptr) {
+    Base::initialize(_capacity);
   }
 
   DynamicSparseMap(const DynamicSparseMap&) = delete;
@@ -674,7 +676,9 @@ class DynamicFlatMap final : public DynamicMapBase<Key, Value, DynamicFlatMap<Ke
  public:
   explicit DynamicFlatMap() :
     Base(),
-    _elements(nullptr) { }
+    _elements(nullptr) {
+    initializeImpl();
+  }
 
   DynamicFlatMap(const DynamicFlatMap&) = delete;
   DynamicFlatMap& operator= (const DynamicFlatMap& other) = delete;
@@ -745,6 +749,7 @@ class DynamicFlatMap final : public DynamicMapBase<Key, Value, DynamicFlatMap<Ke
   using Base::_data;
   MapElement* _elements;
 };
+
 
 struct EmptyStruct { };
 template<typename Key>

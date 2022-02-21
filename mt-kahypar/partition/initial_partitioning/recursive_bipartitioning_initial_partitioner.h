@@ -1,22 +1,23 @@
 /*******************************************************************************
- * This file is part of KaHyPar.
+ * This file is part of Mt-KaHyPar.
  *
  * Copyright (C) 2019 Tobias Heuer <tobias.heuer@kit.edu>
+ * Copyright (C) 2021 Nikolai Maas <nikolai.maas@student.kit.edu>
  *
- * KaHyPar is free software: you can redistribute it and/or modify
+ * Mt-KaHyPar is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * KaHyPar is distributed in the hope that it will be useful,
+ * Mt-KaHyPar is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with KaHyPar.  If not, see <http://www.gnu.org/licenses/>.
+ * along with Mt-KaHyPar.  If not, see <http://www.gnu.org/licenses/>.
  *
-******************************************************************************/
+ ******************************************************************************/
 
 #pragma once
 
@@ -28,24 +29,24 @@
 namespace mt_kahypar {
 
 /*!
- * RECURSIVE BISECTION INITIAL PARTITIONER
- * The recursive bisection initial partitioner starts by performing a parallel multilevel bisection.
+ * RECURSIVE BIPARTITIONING INITIAL PARTITIONER
+ * The recursive bipartitioning initial partitioner starts by performing a parallel multilevel bisection.
  * Once the hypergraph is bisected both blocks are partitioned recursively in parallel until the
  * desired number of blocks are reached.
 */
 
-class RecursiveBisectionInitialPartitioner : public IInitialPartitioner {
+class RecursiveBipartitioningInitialPartitioner : public IInitialPartitioner {
  private:
   static constexpr bool enable_heavy_assert = false;
 
  public:
-  RecursiveBisectionInitialPartitioner(PartitionedHypergraph& hypergraph,
+  RecursiveBipartitioningInitialPartitioner(PartitionedHypergraph& hypergraph,
                                         const Context& context);
 
-  RecursiveBisectionInitialPartitioner(const RecursiveBisectionInitialPartitioner&) = delete;
-  RecursiveBisectionInitialPartitioner(RecursiveBisectionInitialPartitioner&&) = delete;
-  RecursiveBisectionInitialPartitioner & operator= (const RecursiveBisectionInitialPartitioner &) = delete;
-  RecursiveBisectionInitialPartitioner & operator= (RecursiveBisectionInitialPartitioner &&) = delete;
+  RecursiveBipartitioningInitialPartitioner(const RecursiveBipartitioningInitialPartitioner&) = delete;
+  RecursiveBipartitioningInitialPartitioner(RecursiveBipartitioningInitialPartitioner&&) = delete;
+  RecursiveBipartitioningInitialPartitioner & operator= (const RecursiveBipartitioningInitialPartitioner &) = delete;
+  RecursiveBipartitioningInitialPartitioner & operator= (RecursiveBipartitioningInitialPartitioner &&) = delete;
 
  private:
   void initialPartitionImpl() final ;

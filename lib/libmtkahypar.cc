@@ -1,21 +1,21 @@
 /*******************************************************************************
- * This file is part of KaHyPar.
+ * This file is part of Mt-KaHyPar.
  *
- * Copyright (C) 2018 Sebastian Schlag <sebastian.schlag@kit.edu>
+ * Copyright (C) 2020 Lars Gottesbüren <lars.gottesbueren@kit.edu>
  * Copyright (C) 2020 Tobias Heuer <tobias.heuer@kit.edu>
  *
- * KaHyPar is free software: you can redistribute it and/or modify
+ * Mt-KaHyPar is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * KaHyPar is distributed in the hope that it will be useful,
+ * Mt-KaHyPar is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with KaHyPar.  If not, see <http://www.gnu.org/licenses/>.
+ * along with Mt-KaHyPar.  If not, see <http://www.gnu.org/licenses/>.
  *
  ******************************************************************************/
 
@@ -96,6 +96,7 @@ void mt_kahypar_read_hypergraph_from_file(const char* file_name,
   vec<vec<mt_kahypar::HypernodeID>> edge_vector;
   vec<mt_kahypar::HypernodeWeight> hypernodes_weight;
   vec<mt_kahypar::HyperedgeWeight> net_weight;
+  // TODO(maas): support for other file formats
   mt_kahypar::io::readHypergraphFile(file_name, num_edges, num_nodes,
     num_removed_hyperedges, edge_vector, net_weight, hypernodes_weight);
   ASSERT(num_edges == edge_vector.size());
@@ -155,7 +156,7 @@ void mt_kahypar_partition(const mt_kahypar_hypernode_id_t num_vertices,
   mt_kahypar::Context context = *reinterpret_cast<mt_kahypar::Context*>(kahypar_context);
   context.partition.k = num_blocks;
   context.partition.epsilon = epsilon;
-  context.partition.mode = kahypar::Mode::direct_kway;
+  context.partition.mode = mt_kahypar::Mode::direct;
   context.partition.objective = kahypar::Objective::km1;
   context.partition.seed = seed;
   context.partition.verbose_output = verbose;

@@ -35,9 +35,9 @@ to restrict contractions to densely coupled regions during coarsening.
 
 The Mt-KaHyPar framework provides two hypergraph partitioners and a graph partitioner:
 
-- **Mt-KaHyPar Fast**: A scalable partitioner that computes good partitions very fast (for hypergraphs)
-- **Mt-KaHyPar Graph**: A scalable partitioner that computes good partitions very fast (for graphs)
-- **Mt-KaHyPar Strong**: A scalable partitioner that computes high-quality partitions
+- **Mt-KaHyPar-D**: A scalable partitioner that computes good partitions very fast (for hypergraphs)
+- **Mt-KaHyPar-Graph**: A scalable partitioner that computes good partitions very fast (for graphs)
+- **Mt-KaHyPar-Q**: A scalable partitioner that computes high-quality partitions
 
 Requirements
 -----------
@@ -65,91 +65,54 @@ Building Mt-KaHyPar
 3. Run cmake: `cmake .. -DCMAKE_BUILD_TYPE=RELEASE`
 4. Run make: `make MtKaHyPar -j`
 
-The build produces three executables, which will be located in `build/mt-kahypar/application/`:
+The build produces four executables, which will be located in `build/mt-kahypar/application/`:
 
-- `MtKaHyParFast`: computes good partitions very fast (for hypergraphs)
-- `MtKaHyParGraph`: computes good partitions very fast (for graphs)
-- `MtKaHyParStrong`: computes high-quality partitions in reasonable time (using n levels)
+- `MtKaHyParDefault` (Mt-KaHyPar-D): computes good partitions very fast (for hypergraphs)
+- `MtKaHyParGraph` (Mt-KaHyPar-Graph): computes good partitions very fast (for graphs)
+- `MtKaHyParQuality` (Mt-KaHyPar-Q): computes high-quality partitions in reasonable time (using n levels)
+- `MtKaHyPar`: wrapper around the three binaries
 
-Note that `MtKaHyParGraph` uses the same feature set as `MtKaHyParFast`. However, it replaces
-the internal hypergraph data structure of `MtKaHyParFast` with a graph data structure. In fact, `MtKaHyParGraph` is a factor of 2 faster than `MtKaHyParFast` for graphs on average.
+Note that `MtKaHyParGraph` uses the same feature set as `MtKaHyParDefault`. However, it replaces
+the internal hypergraph data structure of `MtKaHyParDefault` with a graph data structure. In fact, `MtKaHyParGraph` is a factor of 2 faster than `MtKaHyParDefault` for graphs on average.
 
 Running Mt-KaHyPar
 -----------
 
-Mt-KaHyPar has several configuration parameters. We recommend to use our presets located in the `config` folder:
+Mt-KaHyPar has several configuration parameters. We recommend to use one of our presets (also located in the `config` folder):
 
-- `default_preset.ini`: default parameters for Mt-KaHyPar Fast/Graph (`MtKaHyParFast`, `MtKaHyParGraph`)
-- `speed_deterministic_preset.ini`: parameters to make Mt-KaHyPar Fast (`MtKaHyParFast`) deterministic
-- `quality_preset.ini`: default parameters for Mt-KaHyPar Strong (`MtKaHyParStrong`)
+- `default`: default parameters for Mt-KaHyPar-D/-Graph (`config/default_preset.ini`)
+- `default_flow`: extends the default preset with flow-based refinement (`config/default_flow_preset.ini`)
+- `deterministic`: parameters to make Mt-KaHyPar-D deterministic (`config/deterministic_preset.ini`)
+- `quality`: default parameters for Mt-KaHyPar-Q (`config/quality_preset.ini`)
+- `quality_flow`: extends the quality preset with flow-based refinement (`config/quality_flow_preset.ini`)
 
-Deterministic mode is only supported for Mt-KaHyPar Fast/Graph, not Strong.
-If you want to change parameters manually, please run `--help` for a detailed description of the different program options. We use the [hMetis format](http://glaros.dtc.umn.edu/gkhome/fetch/sw/hmetis/manual.pdf) for the input hypergraph file as well as the partition output file.
+The presets can be ranked from lowest to the highest quality as follows: `deterministic`,
+`default`, `quality`, `default_flow` and `quality_flow`.
+Deterministic mode is only supported for Mt-KaHyPar-D, not -Graph or -Q.
+If you want to change parameters manually, please run `--help` for a detailed description of the different program options. We use the [hMetis format](http://glaros.dtc.umn.edu/gkhome/fetch/sw/hmetis/manual.pdf) for hypergraph files as well as the partition output file and the [Metis format](http://glaros.dtc.umn.edu/gkhome/fetch/sw/metis/manual.pdf) for graph files. Per default, we expect the input to be in hMetis format, but you can read graphs in Metis format via command line parameter `--input-file-format=metis`.
 
-To run Mt-KaHyPar Fast, you can use the following command:
+To run Mt-KaHyPar, you can use the following command:
 
-    ./MtKaHyParFast -h <path-to-hgr> -p <path to default_preset.ini> -t <# threads> -k <# blocks> -e <imbalance (e.g. 0.03)> -o km1 -m direct
+    ./MtKaHyPar -h <path-to-hgr> --preset-type=<deterministic/default/default_flow/quality/quality_flow> --instance_type=<hypergraph/graph> -t <# threads> -k <# blocks> -e <imbalance (e.g. 0.03)> -o km1 -m direct
 
-To run Mt-KaHyPar Graph, you can use the following command:
+or directly provide a configuration file (see `config` folder):
 
-    ./MtKaHyParGraph -h <path-to-hgr> -p <path to default_preset.ini> -t <# threads> -k <# blocks> -e <imbalance (e.g. 0.03)> -o km1 -m direct
+    ./MtKaHyPar -h <path-to-hgr> -p <path-to-config-file> -t <# threads> -k <# blocks> -e <imbalance (e.g. 0.03)> -o km1 -m direct
 
-Note that the input for Mt-KaHyPar Graph must be also in [hMetis format](http://glaros.dtc.umn.edu/gkhome/fetch/sw/hmetis/manual.pdf). We are currently working on to support graph file formats.
-
-To run Mt-KaHyPar Strong, you can use the following command:
-
-    ./MtKaHyParStrong -h <path-to-hgr> -p <path to quality_preset.ini> -t <# threads> -k <# blocks> -e <imbalance (e.g. 0.03)> -o km1 -m direct
-
-The partition output file will be placed in the same folder as the input hypergraph file. If you want to change the default partition output folder, add the command line parameter `--partition-output-folder=path/to/folder`. There is also an option to disable writing the partition file `--write-partition-file=false`. Further, there are several useful options that can provide you with additional insights during and after the partitioning process:
+Note that when `--instance-type=graph` is set, we run Mt-KaHyPar-Graph (only available for preset types `default` and `default_flow`), otherwise Mt-KaHyPar-D or -Q based on the preset type. The partition output file will be placed in the same folder as the input hypergraph file. If you want to change the default partition output folder, add the command line parameter `--partition-output-folder=path/to/folder`. There is also an option to disable writing the partition file `--write-partition-file=false`. Further, there are several useful options that can provide you with additional insights during and after the partitioning process:
 - `--show-detailed-timings=true`: Shows detailed subtimings of each multilevel phase at the end of the partitioning process
 - `--show-memory-consumption=true`: Gives detailed information on how much memory was allocated and how memory is reused throughout the algorithm
 - `--enable-progress-bar=true`: Shows a progess bar during the coarsening and refinement phase
 
 Mt-KaHyPar uses 32-bit vertex and hyperedge IDs. If you want to partition hypergraphs with more than 4.294.967.295 vertices or hyperedges, add option `-DKAHYPAR_USE_64_BIT_IDS=ON` to the `cmake` build command.
 
-Scalability of Mt-KaHyPar
------------
-To evaluate speedups of Mt-KaHyPar, we use a benchmark set consisting of 94 large hypergraphs (see [Benchmark Statistics][SetB]). In the plot below, we summarize the speedups of Mt-KaHyPar Fast and Strong with p = {4,16,64} threads and k = {2,8,16,64} blocks.
-We represent the speedup of each instance as a point and the cumulative harmonic mean speedup over all instances with a single-threaded running time >= x
-seconds with a line.
-
-The overall harmonic mean speedup of Mt-KaHyPar Fast is 3.4 for p = 4, 10.8 for p = 16 and 18.4 for p = 64. If we only consider instances with a
-single-threaded running time >= 100s, we achieve a harmonic mean speedup of 23.5 for p = 64.
-
-The overall harmonic mean speedup of Mt-KaHyPar Strong is 3.7 for p = 4, 11.7 for p = 16 and 22.6 for p = 64. If we only consider instances with a
-single-threaded running time >= 100s, we achieve a harmonic mean speedup of 25 for p = 64.
-
-<img src="https://user-images.githubusercontent.com/9654047/105863576-51427900-5ff1-11eb-90b2-8500c1ba2be5.png" alt="alt text" width="100%" height="100%">
-
-Quality of Mt-KaHyPar
+Performance
 -----------
 
-We use [*performance profiles*](https://link.springer.com/article/10.1007/s101070100263) to compare Mt-KaHyPar Fast and Strong to other partitioning algorithms in terms of solution quality (for a detailed explanation see either linked paper or our publications).
+We have summarized our experimental results on an [external webpage][ExperimentalResults]. The resource provides a detailed
+overview of Mt-KaHyPar's performance compared to other prominent state-of-the-art systems in terms of running time
+and quality.
 
-To compare with different sequential hypergraph partitioners, we use a benchmark set consisting of 488 hypergraphs (see [Benchmark Statistics][SetA], refered to as set A). In the figures, we compare Mt-KaHyPar Fast and Strong with the sequential hypergraph partitioners
-PaToH in quality (PaToH-Q) and default preset (PaToH-D), the recursive bipartitioning variant (hMetis-R) of hMETIS and
-KaHyPar-CA (similiar algorithmic components as Mt-KaHyPar Strong) and KaHyPar-HFC (extends KaHyPar-CA with flow-based refinement) of the
-[KaHyPar](https://kahypar.org/) framework. On the same benchmark set on which we performed our scalability experiments
-with 94 large hypergraph (see [Benchmark Statistics][SetB], refered to as set B), we compare ourselves with the distributed hypergraph partitioner Zoltan and the default preset of PaToH.
-
-Comparing the sequential hypergraph partitioners with Mt-KaHyPar Fast and Strong (using 10 threads) on set A:
-
-<img src="https://user-images.githubusercontent.com/9654047/105867822-cb74fc80-5ff5-11eb-8ae1-9bf92257ab9f.png" alt="alt text" width="100%" height="100%">
-
-Mt-KaHyPar Strong produces partitions with comparable quality to the sequential high-quality hypergraph partitioners hMetis-R and KaHyPar-CA, while being a factor of 30 resp. 8 faster on average (see running time plot below). Mt-KaHyPar Fast produces partitions with comparable quality to the quality preset of PaToH with a running time comparable to the default preset of PaToH. Mt-KaHyPar Strong computes significantly better partitions than Mt-KaHyPar Fast. The sequential high-quality hypergraph partitioner KaHyPar-HFC still computes better partitions than Mt-KaHyPar Fast and Strong. However, KaHyPar-HFC is on average 15 times
-slower than Mt-KaHyPar Strong and 42 times slower than Mt-KaHyPar Fast.
-
-Comparing the parallel hypergraph partitioners with Mt-KaHyPar Fast and Strong (using 64 threads) on set B:
-
-<img src="https://user-images.githubusercontent.com/9654047/105871387-88b52380-5ff9-11eb-934b-b32004988525.png" alt="alt text" width="66%">
-
-Mt-KaHyPar Fast produces significantly better partitions than the distributed hypergraph partitioner Zoltan, while also being a factor of 2.5 faster. Mt-KaHyPar Strong computes significantly better partitions than Mt-KaHyPar Fast, while being a factor of 6 slower.
-
-Comparing the running time of all evaluated partitioners on set A (left) and set B (right):
-
-<img src="https://user-images.githubusercontent.com/9654047/105869188-425ec500-5ff7-11eb-8248-175758567100.png" alt="alt text" width="100%" height="100%">
-
-Note that increasing number of threads does not negatively affect solution quality of Mt-KaHyPar Fast and Strong.
 
 Using the Library Interfaces
 -----------
@@ -246,22 +209,22 @@ mt_kahypar_read_hypergraph_from_file("path/to/hypergraph/file", &num_vertices, &
   &hyperedge_indices, &hyperedges, &hyperedge_weights, &hypernode_weights);
 ```
 
-To compile the program using `g++` and our fast hypergraph partitioner (Mt-KaHyPar Fast) run:
+To compile the program using `g++` and our default hypergraph partitioner (Mt-KaHyPar-D) run:
 
 ```sh
-g++ -std=c++17 -DNDEBUG -O3 your_program.cc -o your_program -lmtkahyparfast
+g++ -std=c++17 -DNDEBUG -O3 your_program.cc -o your_program -lmtkahypard
 ```
 
-To compile the program using `g++` and our fast graph partitioner (Mt-KaHyPar Fast Graph) run:
+To compile the program using `g++` and our fast graph partitioner (Mt-KaHyPar-Graph) run:
 
 ```sh
 g++ -std=c++17 -DNDEBUG -O3 your_program.cc -o your_program -lmtkahypargraph
 ```
 
-To compile the program using `g++` and our strong hypergraph partitioner (Mt-KaHyPar Strong) run:
+To compile the program using `g++` and our strong hypergraph partitioner (Mt-KaHyPar-Q) run:
 
 ```sh
-g++ -std=c++17 -DNDEBUG -O3 your_program.cc -o your_program -lmtkahyparstrong
+g++ -std=c++17 -DNDEBUG -O3 your_program.cc -o your_program -lmtkahyparq
 ```
 
 To execute the binary, you need to ensure that the installation directory (probably `/usr/local/lib` for system-wide installation)
@@ -295,30 +258,55 @@ We distribute this framework freely to foster the use and development of hypergr
 If you use Mt-KaHyPar in an academic setting please cite the appropriate papers.
 If you are interested in a commercial license, please contact me.
 
-    // Mt-KaHyPar Fast
-    @inproceedings{mt-kahypar-d,
+    // Mt-KaHyPar-D
+    @inproceedings{MT-KAHYPAR-D,
       title     = {Scalable Shared-Memory Hypergraph Partitioning},
       author    = {Gottesbüren, Lars and
                    Heuer, Tobias and
                    Sanders, Peter and
                    Schlag, Sebastian},
-      booktitle = {23rd Workshop on Algorithm Engineering and Experiments, (ALENEX 2021)},
+      booktitle = {23rd Workshop on Algorithm Engineering and Experiments (ALENEX 2021)},
       pages     = {16--30},
       year      = {2021},
       publisher = {SIAM},
       doi       = {10.1137/1.9781611976472.2},
     }
 
-    // Mt-KaHyPar Strong (Technical Report - Under Review)
-    @article{mt-kahypar-q,
-      title     = {Shared-Memory n-level Hypergraph Partitioning},
-      author    = {Gottesbüren, Lars and
-                   Heuer, Tobias and
-                   Sanders, Peter and
-                   Schlag, Sebastian},
-      journal   = {arXiv preprint arXiv:2104.08107},
-      year      = {2021}
+    // Mt-KaHyPar-Q
+    @inproceedings{MT-KAHYPAR-Q,
+      title     = {Shared-Memory $n$-level Hypergraph Partitioning},
+      author    = {Lars Gottesb{\"{u}}ren and
+                   Tobias Heuer and
+                   Peter Sanders and
+                   Sebastian Schlag},
+      booktitle = {24th Workshop on Algorithm Engineering and Experiments (ALENEX 2022)},
+      year      = {2022},
+      publisher = {SIAM},
+      month     = {01},
+      doi       = {10.1137/1.9781611977042.11}
     }
+
+    // Deterministic Partitioning (Technical Report)
+    @techreport{MT-KAHYPAR-SDET,
+      title       = {Deterministic Parallel Hypergraph Partitioning},
+      author      = {Lars Gottesbüren and
+                     Michael Hamann},
+      institution = {Karlsruhe Institute of Technology},
+      year        = {2021},
+      url         = {https://arxiv.org/pdf/2112.12704.pdf}
+    }
+
+    // Flow-Based Refinement (Technical Report)
+    @techreport{MT-KAHYPAR-FLOWS,
+      title       = {Parallel Flow-Based Hypergraph Partitioning},
+      author      = {Lars Gottesb{\"{u}}ren and
+                     Tobias Heuer and
+                     Peter Sanders},
+      institution = {Karlsruhe Institute of Technology},
+      year        = {2022},
+      url         = {https://arxiv.org/pdf/2201.01556.pdf}
+    }
+
 
 Contributing
 ------------
@@ -333,3 +321,4 @@ feel free to contact us or create an issue on the
 [LF]: https://github.com/kahypar/mt-kahypar/blob/master/LICENSE "License"
 [SetA]: http://algo2.iti.kit.edu/heuer/alenex21/instances.html?benchmark=set_a
 [SetB]: http://algo2.iti.kit.edu/heuer/alenex21/instances.html?benchmark=set_b
+[ExperimentalResults]: https://algo2.iti.kit.edu/heuer/mt_kahypar/

@@ -1,21 +1,21 @@
 /*******************************************************************************
- * This file is part of KaHyPar.
+ * This file is part of Mt-KaHyPar.
  *
- * Copyright (C) 2019 Tobias Heuer <tobias.heuer@kit.edu>
  * Copyright (C) 2020 Lars Gottesbüren <lars.gottesbueren@kit.edu>
+ * Copyright (C) 2019 Tobias Heuer <tobias.heuer@kit.edu>
  *
- * KaHyPar is free software: you can redistribute it and/or modify
+ * Mt-KaHyPar is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * KaHyPar is distributed in the hope that it will be useful,
+ * Mt-KaHyPar is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with KaHyPar.  If not, see <http://www.gnu.org/licenses/>.
+ * along with Mt-KaHyPar.  If not, see <http://www.gnu.org/licenses/>.
  *
  ******************************************************************************/
 
@@ -34,7 +34,7 @@ namespace mt_kahypar {
   bool LabelPropagationRefiner<GainPolicy>::refineImpl(
                   PartitionedHypergraph& hypergraph,
                   const parallel::scalable_vector<HypernodeID>& refinement_nodes,
-                  kahypar::Metrics& best_metrics,
+                  Metrics& best_metrics,
                   const double)  {
     _gain.reset();
     _next_active.reset();
@@ -50,7 +50,7 @@ namespace mt_kahypar {
 
     // Update metrics statistics
     HyperedgeWeight current_metric = best_metrics.getMetric(
-    kahypar::Mode::direct_kway, _context.partition.objective);
+    Mode::direct, _context.partition.objective);
     Gain delta = _gain.delta();
     ASSERT(delta <= 0, "LP refiner worsen solution quality");
 
@@ -62,7 +62,7 @@ namespace mt_kahypar {
                                               V(metrics::objective(hypergraph, _context.partition.objective,
                                                                     _context.refinement.label_propagation.execute_sequential)));
 
-    best_metrics.updateMetric(current_metric + delta, kahypar::Mode::direct_kway, _context.partition.objective);
+    best_metrics.updateMetric(current_metric + delta, Mode::direct, _context.partition.objective);
     utils::Stats::instance().update_stat("lp_improvement", std::abs(delta));
     return delta < 0;
   }
@@ -138,7 +138,9 @@ namespace mt_kahypar {
       });
     }
 
-    if ( _context.partition.paradigm == Paradigm::nlevel && hypergraph.isGainCacheInitialized() ) {
+    if ( ( _context.partition.paradigm == Paradigm::nlevel ||
+           _context.refinement.refine_until_no_improvement ) &&
+           hypergraph.isGainCacheInitialized() ) {
       auto recompute = [&](size_t j) {
         if ( _active_node_was_moved[j] ) {
           hypergraph.recomputeMoveFromBenefit(_active_nodes[j]);

@@ -1,20 +1,20 @@
 /*******************************************************************************
- * This file is part of KaHyPar.
+ * This file is part of Mt-KaHyPar.
  *
  * Copyright (C) 2019 Tobias Heuer <tobias.heuer@kit.edu>
  *
- * KaHyPar is free software: you can redistribute it and/or modify
+ * Mt-KaHyPar is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * KaHyPar is distributed in the hope that it will be useful,
+ * Mt-KaHyPar is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with KaHyPar.  If not, see <http://www.gnu.org/licenses/>.
+ * along with Mt-KaHyPar.  If not, see <http://www.gnu.org/licenses/>.
  *
  ******************************************************************************/
 
@@ -37,22 +37,24 @@ namespace io {
 std::vector<std::string> target_structs =
   { "PartitioningParameters", "CommunityDetectionParameters", "CommunityRedistributionParameters",
     "PreprocessingParameters", "RatingParameters", "CoarseningParameters", "InitialPartitioningParameters",
-    "SparsificationParameters", "LabelPropagationParameters", "FMParameters", "NLevelGlobalFMParameters", "RefinementParameters",
-    "SharedMemoryParameters", "DeterministicRefinement" };
+    "SparsificationParameters", "LabelPropagationParameters", "FMParameters", "NLevelGlobalFMParameters",
+    "FlowParameters", "RefinementParameters", "SharedMemoryParameters", "DeterministicRefinement",
+    "FlowParameters" };
 
 std::unordered_map<std::string, std::string> target_struct_prefix =
   { {"PartitioningParameters", ""}, {"CommunityDetectionParameters", "community_"}, {"CommunityRedistributionParameters", "community_redistribution_"},
     {"PreprocessingParameters", ""}, {"RatingParameters", "rating_"}, {"CoarseningParameters", "coarsening_"},
     {"InitialPartitioningParameters", "initial_partitioning_"}, {"SparsificationParameters", "sparsification_"},
-    {"LabelPropagationParameters", "lp_"}, {"FMParameters", "fm_"}, {"NLevelGlobalFMParameters", "global_fm_"}, {"RefinementParameters", ""},
-    {"SharedMemoryParameters", ""}, {"DeterministicRefinement", "sync_lp_"} };
+    {"LabelPropagationParameters", "lp_"}, {"FMParameters", "fm_"}, {"NLevelGlobalFMParameters", "global_fm_"},
+    {"RefinementParameters", ""}, {"SharedMemoryParameters", ""},
+    {"DeterministicRefinement", "sync_lp_"}, {"FlowParameters", "flow_"} };
 
 std::set<std::string> excluded_members =
   { "verbose_output", "show_detailed_timings", "show_detailed_clustering_timings", "timings_output_depth", "show_memory_consumption", "show_advanced_cut_analysis", "enable_progress_bar", "sp_process_output",
     "measure_detailed_uncontraction_timings", "write_partition_file", "graph_partition_output_folder", "graph_partition_filename", "graph_community_filename", "community_detection",
     "community_redistribution", "coarsening_rating", "label_propagation", "lp_execute_sequential", "deterministic_refinement",
     "snapshot_interval", "initial_partitioning_refinement", "initial_partitioning_sparsification", "initial_partitioning_enabled_ip_algos",
-    "stable_construction_of_incident_edges", "fm", "global_fm", "csv_output", "preset_file", "degree_of_parallelism" };
+    "stable_construction_of_incident_edges", "fm", "global_fm", "flows", "csv_output", "preset_file", "preset_type", "instance_type", "degree_of_parallelism" };
 
 bool is_target_struct(const std::string& line) {
   for ( const std::string& target_struct : target_structs ) {

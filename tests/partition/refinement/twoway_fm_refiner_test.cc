@@ -1,20 +1,20 @@
 /*******************************************************************************
- * This file is part of KaHyPar.
+ * This file is part of Mt-KaHyPar.
  *
  * Copyright (C) 2019 Tobias Heuer <tobias.heuer@kit.edu>
  *
- * KaHyPar is free software: you can redistribute it and/or modify
+ * Mt-KaHyPar is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * KaHyPar is distributed in the hope that it will be useful,
+ * Mt-KaHyPar is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with KaHyPar.  If not, see <http://www.gnu.org/licenses/>.
+ * along with Mt-KaHyPar.  If not, see <http://www.gnu.org/licenses/>.
  *
  ******************************************************************************/
 
@@ -41,7 +41,7 @@ class ATwoWayFmRefiner : public Test {
     context(),
     refiner(nullptr),
     metrics() {
-    context.partition.mode = kahypar::Mode::direct_kway;
+    context.partition.mode = Mode::direct;
     context.partition.objective = kahypar::Objective::cut;
     context.partition.epsilon = 0.25;
     context.partition.k = 2;
@@ -51,7 +51,7 @@ class ATwoWayFmRefiner : public Test {
     context.shared_memory.num_threads = 1;
 
     // Initial Partitioning
-    context.initial_partitioning.mode = InitialPartitioningMode::recursive;
+    context.initial_partitioning.mode = Mode::deep_multilevel;
     context.initial_partitioning.runs = 1;
 
     // Read hypergraph
@@ -83,7 +83,7 @@ class ATwoWayFmRefiner : public Test {
   PartitionedHypergraph partitioned_hypergraph;
   Context context;
   std::unique_ptr<SequentialTwoWayFmRefiner> refiner;
-  kahypar::Metrics metrics;
+  Metrics metrics;
   std::unique_ptr<std::mt19937> prng;
 };
 
@@ -102,24 +102,24 @@ TEST_F(ATwoWayFmRefiner, DoesNotViolateBalanceConstraint) {
 TEST_F(ATwoWayFmRefiner, UpdatesMetricsCorrectly) {
   refiner->refine(metrics, *prng);
   ASSERT_EQ(metrics::objective(partitioned_hypergraph, context.partition.objective),
-            metrics.getMetric(kahypar::Mode::direct_kway, context.partition.objective));
+            metrics.getMetric(Mode::direct, context.partition.objective));
 }
 
 TEST_F(ATwoWayFmRefiner, DoesNotWorsenSolutionQuality) {
   HyperedgeWeight objective_before = metrics::objective(partitioned_hypergraph, context.partition.objective);
     refiner->refine(metrics, *prng);
-  ASSERT_LE(metrics.getMetric(kahypar::Mode::direct_kway, context.partition.objective), objective_before);
+  ASSERT_LE(metrics.getMetric(Mode::direct, context.partition.objective), objective_before);
 }
 
 TEST_F(ATwoWayFmRefiner, DoesProduceCorrectMetricIfExecutedSeveralTimes) {
   refiner->refine(metrics, *prng);
   ASSERT_EQ(metrics::objective(partitioned_hypergraph, context.partition.objective),
-            metrics.getMetric(kahypar::Mode::direct_kway, context.partition.objective));
+            metrics.getMetric(Mode::direct, context.partition.objective));
 
   partitioned_hypergraph.resetPartition();
   initialPartition();
   refiner->refine(metrics, *prng);
   ASSERT_EQ(metrics::objective(partitioned_hypergraph, context.partition.objective),
-            metrics.getMetric(kahypar::Mode::direct_kway, context.partition.objective));
+            metrics.getMetric(Mode::direct, context.partition.objective));
 }
 }  // namespace mt_kahypar

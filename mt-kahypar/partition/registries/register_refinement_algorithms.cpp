@@ -1,30 +1,31 @@
 /*******************************************************************************
- * This file is part of KaHyPar.
+ * This file is part of Mt-KaHyPar.
  *
- * Copyright (C) 2018 Sebastian Schlag <sebastian.schlag@kit.edu>
+ * Copyright (C) 2019 Lars Gottesbüren <lars.gottesbueren@kit.edu>
  * Copyright (C) 2019 Tobias Heuer <tobias.heuer@kit.edu>
  *
- * KaHyPar is free software: you can redistribute it and/or modify
+ * Mt-KaHyPar is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * KaHyPar is distributed in the hope that it will be useful,
+ * Mt-KaHyPar is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with KaHyPar.  If not, see <http://www.gnu.org/licenses/>.
+ * along with Mt-KaHyPar.  If not, see <http://www.gnu.org/licenses/>.
  *
  ******************************************************************************/
-
 
 #include "kahypar/meta/registrar.h"
 #include "mt-kahypar/partition/context.h"
 
 #include "mt-kahypar/partition/factories.h"
 #include "mt-kahypar/partition/refinement/do_nothing_refiner.h"
+#include "mt-kahypar/partition/refinement/flows/do_nothing_refiner.h"
+#include "mt-kahypar/partition/refinement/flows/flow_refiner.h"
 #include "mt-kahypar/partition/refinement/label_propagation/label_propagation_refiner.h"
 #include "mt-kahypar/partition/refinement/deterministic/deterministic_label_propagation.h"
 #include "mt-kahypar/partition/refinement/fm/multitry_kway_fm.h"
@@ -47,6 +48,13 @@
     return new refiner(hypergraph, context);                                                    \
   })
 
+#define REGISTER_FLOW_REFINER(id, refiner, t)                                                 \
+  static kahypar::meta::Registrar<FlowRefinementFactory> JOIN(register_ ## refiner, t)(       \
+    id,                                                                                       \
+    [](const Hypergraph& hypergraph, const Context& context) -> IFlowRefiner* {               \
+    return new refiner(hypergraph, context);                                                  \
+  })
+
 namespace mt_kahypar {
 REGISTER_LP_REFINER(LabelPropagationAlgorithm::label_propagation_cut, LabelPropagationCutRefiner, Cut);
 REGISTER_LP_REFINER(LabelPropagationAlgorithm::label_propagation_km1, LabelPropagationKm1Refiner, Km1);
@@ -62,4 +70,8 @@ REGISTER_FM_REFINER(FMAlgorithm::fm_gain_cache_on_demand, MultiTryKWayFMWithGain
 REGISTER_FM_REFINER(FMAlgorithm::fm_gain_delta, MultiTryKWayFMWithGainDelta, FMWithGainDelta);
 REGISTER_FM_REFINER(FMAlgorithm::fm_recompute_gain, MultiTryKWayFMWithGainRecomputation, FMWithGainRecomputation);
 REGISTER_FM_REFINER(FMAlgorithm::do_nothing, DoNothingRefiner, 2);
+
+REGISTER_FLOW_REFINER(FlowAlgorithm::do_nothing, DoNothingFlowRefiner, 3);
+REGISTER_FLOW_REFINER(FlowAlgorithm::flow_cutter, FlowRefiner, Flows);
+
 }  // namespace mt_kahypar

@@ -1,21 +1,21 @@
 /*******************************************************************************
- * This file is part of KaHyPar.
+ * This file is part of Mt-KaHyPar.
  *
- * Copyright (C) 2019 Tobias Heuer <tobias.heuer@kit.edu>
  * Copyright (C) 2019 Lars Gottesbüren <lars.gottesbueren@kit.edu>
+ * Copyright (C) 2019 Tobias Heuer <tobias.heuer@kit.edu>
  *
- * KaHyPar is free software: you can redistribute it and/or modify
+ * Mt-KaHyPar is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * KaHyPar is distributed in the hope that it will be useful,
+ * Mt-KaHyPar is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with KaHyPar.  If not, see <http://www.gnu.org/licenses/>.
+ * along with Mt-KaHyPar.  If not, see <http://www.gnu.org/licenses/>.
  *
  ******************************************************************************/
 #pragma once
@@ -32,8 +32,11 @@ struct PartitioningParameters {
   #else
   Paradigm paradigm = Paradigm::multilevel;
   #endif
-  kahypar::Mode mode = kahypar::Mode::UNDEFINED;
+  Mode mode = Mode::UNDEFINED;
   kahypar::Objective objective = kahypar::Objective::UNDEFINED;
+  FileFormat file_format = FileFormat::hMetis;
+  InstanceType instance_type = InstanceType::UNDEFINED;
+  PresetType preset_type = PresetType::UNDEFINED;
   double epsilon = std::numeric_limits<double>::max();
   PartitionID k = std::numeric_limits<PartitionID>::max();
   int seed = 0;
@@ -158,6 +161,24 @@ struct NLevelGlobalFMParameters {
 
 std::ostream& operator<<(std::ostream& out, const NLevelGlobalFMParameters& params);
 
+struct FlowParameters {
+  FlowAlgorithm algorithm = FlowAlgorithm::do_nothing;
+  double alpha = 0.0;
+  HypernodeID max_num_pins = std::numeric_limits<HypernodeID>::max();
+  bool find_most_balanced_cut = false;
+  bool determine_distance_from_cut = false;
+  double parallel_searches_multiplier = 1.0;
+  size_t num_parallel_searches = 0;
+  size_t max_bfs_distance = 0;
+  double min_relative_improvement_per_round = 0.0;
+  double time_limit_factor = 0.0;
+  bool skip_small_cuts = false;
+  bool skip_unpromising_blocks = false;
+  bool pierce_in_bulk = false;
+};
+
+std::ostream& operator<<(std::ostream& out, const FlowParameters& params);
+
 struct DeterministicRefinementParameters {
   size_t num_sub_rounds_sync_lp = 5;
   bool use_active_node_set = false;
@@ -171,7 +192,9 @@ struct RefinementParameters {
   FMParameters fm;
   DeterministicRefinementParameters deterministic_refinement;
   NLevelGlobalFMParameters global_fm;
+  FlowParameters flows;
   bool refine_until_no_improvement = false;
+  double relative_improvement_threshold = 0.0;
   size_t max_batch_size = std::numeric_limits<size_t>::max();
   size_t min_border_vertices_per_thread = 0;
 };
@@ -197,7 +220,7 @@ struct InitialPartitioningParameters {
     // Enable all initial partitioner per default
     enabled_ip_algos(static_cast<size_t>(InitialPartitioningAlgorithm::UNDEFINED), true) { }
 
-  InitialPartitioningMode mode = InitialPartitioningMode::UNDEFINED;
+  Mode mode = Mode::UNDEFINED;
   RefinementParameters refinement = { };
   std::vector<bool> enabled_ip_algos;
   size_t runs = 1;
@@ -241,8 +264,6 @@ class Context {
 
   bool useSparsification() const ;
 
-  bool isMainRecursiveBisection() const ;
-
   void setupPartWeights(const HypernodeWeight total_hypergraph_weight);
 
   void setupContractionLimit(const HypernodeWeight total_hypergraph_weight);
@@ -250,6 +271,8 @@ class Context {
   void setupMaximumAllowedNodeWeight(const HypernodeWeight total_hypergraph_weight);
 
   void setupSparsificationParameters();
+
+  void setupThreadsPerFlowSearch();
 
   void sanityCheck();
 };

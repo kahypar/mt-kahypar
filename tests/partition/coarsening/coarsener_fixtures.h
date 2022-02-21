@@ -1,20 +1,20 @@
 /*******************************************************************************
- * This file is part of KaHyPar.
+ * This file is part of Mt-KaHyPar.
  *
  * Copyright (C) 2019 Tobias Heuer <tobias.heuer@kit.edu>
  *
- * KaHyPar is free software: you can redistribute it and/or modify
+ * Mt-KaHyPar is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * KaHyPar is distributed in the hope that it will be useful,
+ * Mt-KaHyPar is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with KaHyPar.  If not, see <http://www.gnu.org/licenses/>.
+ * along with Mt-KaHyPar.  If not, see <http://www.gnu.org/licenses/>.
  *
  ******************************************************************************/
 
@@ -49,7 +49,7 @@ class ACoarsener : public Test {
     }
 
     context.partition.k = 2;
-    context.partition.mode = kahypar::Mode::direct_kway;
+    context.partition.mode = Mode::direct;
     context.partition.objective = kahypar::Objective::km1;
     context.coarsening.max_allowed_node_weight = std::numeric_limits<HypernodeWeight>::max();
     context.coarsening.contraction_limit = 8;
@@ -132,23 +132,6 @@ void removesHyperedgesOfSizeOneDuringCoarsening(Coarsener& coarsener,
   }
 }
 
-template <class Coarsener, class Hypergraph, class TypeTraits>
-void reAddsHyperedgesOfSizeOneDuringUncoarsening(Coarsener& coarsener,
-                                                 std::unique_ptr<IRefiner>& refiner,
-                                                 Hypergraph& hypergraph,
-                                                 const std::vector<HyperedgeID>& single_node_hes) {
-  doCoarsening(coarsener);
-  for (const HyperedgeID& he : single_node_hes) {
-    ASSERT_THAT(hypergraph.edgeIsEnabled(he), Eq(false)) << V(he);
-  }
-  PartitionedHyperGraph& partitioned_hypergraph = coarsener.coarsestPartitionedHypergraph();
-  assignPartitionIDs(partitioned_hypergraph);
-  coarsener.uncoarsen(refiner);
-  for (const HyperedgeID& he : single_node_hes) {
-    ASSERT_THAT(hypergraph.edgeIsEnabled(he), Eq(true)) << V(he);
-  }
-}
-
 template <class Coarsener, class Hypergraph>
 void removesParallelHyperedgesDuringCoarsening(Coarsener& coarsener,
                                                Hypergraph& hypergraph,
@@ -169,23 +152,6 @@ void updatesEdgeWeightOfRepresentativeHyperedgeOnParallelHyperedgeRemoval(Coarse
     HyperedgeWeight weight = he_weight.second;
     ASSERT_THAT(hypergraph.edgeIsEnabled(he), Eq(true)) << V(he);
     ASSERT_THAT(hypergraph.edgeWeight(he), Eq(weight));
-  }
-}
-
-template <class Coarsener, class Hypergraph, class TypeTraits>
-void restoresParallelHyperedgesDuringUncoarsening(Coarsener& coarsener,
-                                                  std::unique_ptr<IRefiner>& refiner,
-                                                  Hypergraph& hypergraph,
-                                                  const std::vector<HyperedgeID>& parallel_hes) {
-  doCoarsening(coarsener);
-  for (const HyperedgeID& he : parallel_hes) {
-    ASSERT_THAT(hypergraph.edgeIsEnabled(he), Eq(false)) << V(he);
-  }
-  PartitionedHyperGraph& partitioned_hypergraph = coarsener.coarsestPartitionedHypergraph();
-  assignPartitionIDs(partitioned_hypergraph);
-  coarsener.uncoarsen(refiner);
-  for (const HyperedgeID& he : parallel_hes) {
-    ASSERT_THAT(hypergraph.edgeIsEnabled(he), Eq(true)) << V(he);
   }
 }
 

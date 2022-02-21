@@ -25,6 +25,7 @@
 #include "mt-kahypar/macros.h"
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/refinement/i_refiner.h"
+#include "mt-kahypar/partition/coarsening/coarsening_commons.h"
 
 namespace mt_kahypar {
 
@@ -38,11 +39,6 @@ class ICoarsener {
 
   void coarsen() {
     coarsenImpl();
-  }
-
-  PartitionedHypergraph&& uncoarsen(std::unique_ptr<IRefiner>& label_propagation,
-                                    std::unique_ptr<IRefiner>& fm) {
-    return uncoarsenImpl(label_propagation, fm);
   }
 
   Hypergraph& coarsestHypergraph() {
@@ -60,8 +56,6 @@ class ICoarsener {
 
  private:
   virtual void coarsenImpl() = 0;
-  virtual PartitionedHypergraph&& uncoarsenImpl(std::unique_ptr<IRefiner>& label_propagation,
-                                                std::unique_ptr<IRefiner>& fm) = 0;
   virtual Hypergraph& coarsestHypergraphImpl() = 0;
   virtual PartitionedHypergraph& coarsestPartitionedHypergraphImpl() = 0;
 };

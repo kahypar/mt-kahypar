@@ -1,22 +1,22 @@
 /*******************************************************************************
- * This file is part of KaHyPar.
+ * This file is part of Mt-KaHyPar.
  *
  * Copyright (C) 2020 Tobias Heuer <tobias.heuer@kit.edu>
  *
- * KaHyPar is free software: you can redistribute it and/or modify
+ * Mt-KaHyPar is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * KaHyPar is distributed in the hope that it will be useful,
+ * Mt-KaHyPar is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with KaHyPar.  If not, see <http://www.gnu.org/licenses/>.
+ * along with Mt-KaHyPar.  If not, see <http://www.gnu.org/licenses/>.
  *
-******************************************************************************/
+ ******************************************************************************/
 
 #pragma once
 
@@ -121,8 +121,9 @@ class NLevelCoarsener : public ICoarsener,
 
  public:
   NLevelCoarsener(Hypergraph& hypergraph,
-                  const Context& context) :
-    Base(hypergraph, context),
+                  const Context& context,
+                  UncoarseningData& uncoarseningData) :
+    Base(hypergraph, context, uncoarseningData),
     _rater(hypergraph, context),
     _current_vertices(),
     _tmp_current_vertices(),
@@ -218,7 +219,7 @@ class NLevelCoarsener : public ICoarsener,
 
     _progress_bar += (initial_num_nodes - _progress_bar.count());
     _progress_bar.disable();
-    Base::finalize();
+    _uncoarseningData.finalizeCoarsening();
   }
 
 
@@ -253,11 +254,6 @@ class NLevelCoarsener : public ICoarsener,
 
   PartitionedHypergraph& coarsestPartitionedHypergraphImpl() override {
     return Base::compactifiedPartitionedHypergraph();
-  }
-
-  PartitionedHypergraph&& uncoarsenImpl(std::unique_ptr<IRefiner>& label_propagation,
-                                        std::unique_ptr<IRefiner>& fm) override {
-    return Base::doUncoarsen(label_propagation, fm);
   }
 
   void compactifyVertices() {

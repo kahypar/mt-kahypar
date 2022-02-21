@@ -1,22 +1,23 @@
 /*******************************************************************************
- * This file is part of KaHyPar.
+ * This file is part of Mt-KaHyPar.
  *
+ * Copyright (C) 2019 Lars Gottesbüren <lars.gottesbueren@kit.edu>
  * Copyright (C) 2019 Tobias Heuer <tobias.heuer@kit.edu>
  *
- * KaHyPar is free software: you can redistribute it and/or modify
+ * Mt-KaHyPar is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * KaHyPar is distributed in the hope that it will be useful,
+ * Mt-KaHyPar is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with KaHyPar.  If not, see <http://www.gnu.org/licenses/>.
+ * along with Mt-KaHyPar.  If not, see <http://www.gnu.org/licenses/>.
  *
-******************************************************************************/
+ ******************************************************************************/
 
 #pragma once
 
@@ -72,8 +73,9 @@ class MultilevelCoarsener : public ICoarsener,
 
  public:
   MultilevelCoarsener(Hypergraph& hypergraph,
-                      const Context& context) :
-    Base(hypergraph, context),
+                      const Context& context,
+                      UncoarseningData& uncoarseningData) :
+    Base(hypergraph, context, uncoarseningData),
     _rater(hypergraph, context),
     _current_vertices(),
     _matching_state(),
@@ -278,7 +280,7 @@ class MultilevelCoarsener : public ICoarsener,
 
       utils::Timer::instance().start_timer("contraction", "Contraction");
       // Perform parallel contraction
-      Base::performMultilevelContraction(std::move(cluster_ids), round_start);
+      _uncoarseningData.performMultilevelContraction(std::move(cluster_ids), round_start);
       utils::Timer::instance().stop_timer("contraction");
 
       if ( _context.coarsening.use_adaptive_max_allowed_node_weight ) {
@@ -307,7 +309,7 @@ class MultilevelCoarsener : public ICoarsener,
     }
     _progress_bar += (initial_num_nodes - _progress_bar.count());
     _progress_bar.disable();
-    Base::finalize();
+    _uncoarseningData.finalizeCoarsening();
   }
 
   /*!
@@ -431,11 +433,6 @@ class MultilevelCoarsener : public ICoarsener,
       }
     }
     return success;
-  }
-
-  PartitionedHypergraph&& uncoarsenImpl(std::unique_ptr<IRefiner>& label_propagation,
-                                        std::unique_ptr<IRefiner>& fm) override {
-    return Base::doUncoarsen(label_propagation, fm);
   }
 
   Hypergraph& coarsestHypergraphImpl() override {

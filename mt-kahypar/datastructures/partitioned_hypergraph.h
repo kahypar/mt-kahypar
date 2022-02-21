@@ -1,21 +1,21 @@
 /*******************************************************************************
- * This file is part of KaHyPar.
+ * This file is part of Mt-KaHyPar.
  *
+ * Copyright (C) 2019 Lars Gottesbüren <lars.gottesbueren@kit.edu>
  * Copyright (C) 2019 Tobias Heuer <tobias.heuer@kit.edu>
- * Copyright (C) 2020 Lars Gottesbüren <lars.gottesbueren@kit.edu>
  *
- * KaHyPar is free software: you can redistribute it and/or modify
+ * Mt-KaHyPar is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * KaHyPar is distributed in the hope that it will be useful,
+ * Mt-KaHyPar is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with KaHyPar.  If not, see <http://www.gnu.org/licenses/>.
+ * along with Mt-KaHyPar.  If not, see <http://www.gnu.org/licenses/>.
  *
  ******************************************************************************/
 
@@ -134,6 +134,20 @@ private:
 
   ~PartitionedHypergraph() {
     freeInternalData();
+  }
+
+  void resetData() {
+    _is_gain_cache_initialized = false;
+    tbb::parallel_invoke([&] {
+    }, [&] {
+      _part_ids.assign(_part_ids.size(), kInvalidPartition);
+    }, [&] {
+      _pins_in_part.data().assign(_pins_in_part.data().size(), 0);
+    }, [&] {
+      _connectivity_set.reset();
+    }, [&] {
+      for (auto& x : _part_weights) x.store(0, std::memory_order_relaxed);
+    });
   }
 
   // ####################### General Hypergraph Stats ######################
@@ -508,6 +522,10 @@ private:
     return _part_ids[u];
   }
 
+  void extractPartIDs(Array<PartitionID>& part_ids) {
+    std::swap(_part_ids, part_ids);
+  }
+
   void setOnlyNodePart(const HypernodeID u, PartitionID p) {
     ASSERT(p != kInvalidPartition && p < _k);
     ASSERT(_part_ids[u] == kInvalidPartition);
@@ -532,13 +550,13 @@ private:
                       HypernodeWeight max_weight_to,
                       SuccessFunc&& report_success,
                       DeltaFunc&& delta_func) {
-    assert(partID(u) == from);
-    assert(from != to);
+    ASSERT(partID(u) == from);
+    ASSERT(from != to);
     const HypernodeWeight wu = nodeWeight(u);
     const HypernodeWeight to_weight_after = _part_weights[to].add_fetch(wu, std::memory_order_relaxed);
-    const HypernodeWeight from_weight_after = _part_weights[from].sub_fetch(wu, std::memory_order_relaxed);
-    if ( to_weight_after <= max_weight_to && from_weight_after > 0 ) {
+    if (to_weight_after <= max_weight_to) {
       _part_ids[u] = to;
+      _part_weights[from].fetch_sub(wu, std::memory_order_relaxed);
       report_success();
       for ( const HyperedgeID he : incidentEdges(u) ) {
         updatePinCountOfHyperedge(he, from, to, delta_func);
@@ -546,7 +564,6 @@ private:
       return true;
     } else {
       _part_weights[to].fetch_sub(wu, std::memory_order_relaxed);
-      _part_weights[from].fetch_add(wu, std::memory_order_relaxed);
       return false;
     }
   }
@@ -695,8 +712,7 @@ private:
   // ! current state of the partition
   void initializeGainCache() {
     // check whether part has been initialized
-    ASSERT( _part_ids.size() == initialNumNodes()
-            && std::none_of(nodes().begin(), nodes().end(),
+    ASSERT(std::none_of(nodes().begin(), nodes().end(),
                             [&](HypernodeID u) { return partID(u) == kInvalidPartition || partID(u) > k(); }) );
 
 
@@ -1097,7 +1113,7 @@ private:
           }
 
           for (PartitionID p = 0; p < _k; ++p) {
-            assert(pinCountInPart(he, p) == 0);
+            ASSERT(pinCountInPart(he, p) == 0);
             if (pin_counts[p] > 0) {
               _connectivity_set.add(he, p);
               _pins_in_part.setPinCountInPart(he, p, pin_counts[p]);

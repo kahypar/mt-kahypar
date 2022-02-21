@@ -1,20 +1,20 @@
 /*******************************************************************************
- * This file is part of KaHyPar.
+ * This file is part of Mt-KaHyPar.
  *
  * Copyright (C) 2019 Tobias Heuer <tobias.heuer@kit.edu>
  *
- * KaHyPar is free software: you can redistribute it and/or modify
+ * Mt-KaHyPar is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * KaHyPar is distributed in the hope that it will be useful,
+ * Mt-KaHyPar is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with KaHyPar.  If not, see <http://www.gnu.org/licenses/>.
+ * along with Mt-KaHyPar.  If not, see <http://www.gnu.org/licenses/>.
  *
  ******************************************************************************/
 #pragma once
@@ -208,7 +208,8 @@ class TimerT {
       // (in that case we are in a parallel context) and if there are
       // no active timings we pop from global stack
       if (!_local_active_timings.local().empty()) {
-        ASSERT(_local_active_timings.local().back().key() == key);
+        ASSERT(_local_active_timings.local().back().key() == key,
+          V(_local_active_timings.local().back().key()) << V(key));
         current_timing = _local_active_timings.local().back();
         _local_active_timings.local().pop_back();
       } else {

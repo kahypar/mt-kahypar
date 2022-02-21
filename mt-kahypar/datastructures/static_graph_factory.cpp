@@ -1,20 +1,22 @@
 /*******************************************************************************
- * This file is part of KaHyPar.
+ * This file is part of Mt-KaHyPar.
  *
+ * Copyright (C) 2019 Lars Gottesbüren <lars.gottesbueren@kit.edu>
+ * Copyright (C) 2019 Tobias Heuer <tobias.heuer@kit.edu>
  * Copyright (C) 2021 Nikolai Maas <nikolai.maas@student.kit.edu>
  *
- * KaHyPar is free software: you can redistribute it and/or modify
+ * Mt-KaHyPar is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * KaHyPar is distributed in the hope that it will be useful,
+ * Mt-KaHyPar is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with KaHyPar.  If not, see <http://www.gnu.org/licenses/>.
+ * along with Mt-KaHyPar.  If not, see <http://www.gnu.org/licenses/>.
  *
  ******************************************************************************/
 
@@ -28,8 +30,34 @@
 #include "mt-kahypar/utils/timer.h"
 
 namespace mt_kahypar::ds {
+  void StaticGraphFactory::sort_incident_edges(StaticGraph& graph) {
+    parallel::scalable_vector<HyperedgeID> edge_ids_of_node;
+    edge_ids_of_node.resize(graph._edges.size());
+    // sort incident edges of each node, so their ordering is independent of scheduling
+    // (and the same as a typical sequential implementation)
+    tbb::parallel_for(ID(0), graph._num_nodes, [&](HypernodeID u) {
+      const HyperedgeID start = graph.node(u).firstEntry();
+      const HyperedgeID end = graph.node(u + 1).firstEntry();
+      for (HyperedgeID id = 0; id < end - start; ++id) {
+        edge_ids_of_node[start + id] = id;
+      }
+      std::sort(edge_ids_of_node.begin() + start, edge_ids_of_node.begin() + end, [&](HyperedgeID& a, HyperedgeID& b) {
+        return graph.edge(start + a).target() < graph.edge(start + b).target();
+      });
 
-  // TODO: more efficient construction (not using a vector of vectors)?
+      // apply permutation
+      // (yes, this applies the permutation defined by edge_ids_of_node, don't think about it)
+      for (size_t i = 0; i < end - start; ++i) {
+        HyperedgeID target = edge_ids_of_node[start + i];
+        while (target < i) {
+          target = edge_ids_of_node[start + target];
+        }
+        std::swap(graph._edges[start + i], graph._edges[start + target]);
+        std::swap(graph._unique_edge_ids[start + i], graph._unique_edge_ids[start + target]);
+      }
+    });
+  }
+
   StaticGraph StaticGraphFactory::construct(
           const HypernodeID num_nodes,
           const HyperedgeID num_edges,
@@ -148,39 +176,11 @@ namespace mt_kahypar::ds {
 
     // Add Sentinel
     graph._nodes.back() = StaticGraph::Node(graph._edges.size());
-
     if (stable_construction_of_incident_edges) {
-      parallel::scalable_vector<HyperedgeID> edge_ids_of_node;
-      edge_ids_of_node.resize(graph._edges.size());
-      // sort incident edges of each node, so their ordering is independent of scheduling
-      // (and the same as a typical sequential implementation)
-      tbb::parallel_for(ID(0), num_nodes, [&](HypernodeID u) {
-        const HyperedgeID start = graph.node(u).firstEntry();
-        const HyperedgeID end = graph.node(u + 1).firstEntry();
-        for (HyperedgeID id = 0; id < end - start; ++id) {
-          edge_ids_of_node[start + id] = id;
-        }
-        std::sort(edge_ids_of_node.begin() + start, edge_ids_of_node.begin() + end, [&](HyperedgeID& a, HyperedgeID& b) {
-          return graph.edge(start + a).target() < graph.edge(start + b).target();
-        });
-
-        // apply permutation
-        // (yes, this applies the permutation defined by edge_ids_of_node, don't think about it)
-        for (size_t i = 0; i < end - start; ++i) {
-          HyperedgeID target = edge_ids_of_node[start + i];
-          while (target < i) {
-            target = edge_ids_of_node[start + target];
-          }
-          std::swap(graph._edges[start + i], graph._edges[start + target]);
-          std::swap(graph._unique_edge_ids[start + i], graph._unique_edge_ids[start + target]);
-        }
-      });
+      sort_incident_edges(graph);
     }
-
     graph.computeAndSetTotalNodeWeight(parallel_tag_t());
-
     utils::Timer::instance().stop_timer("setup_hypergraph");
     return graph;
   }
-
 }

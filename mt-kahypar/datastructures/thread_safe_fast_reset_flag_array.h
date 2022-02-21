@@ -38,14 +38,12 @@ namespace ds {
 template <typename Type = std::uint16_t>
 class ThreadSafeFastResetFlagArray {
 
-  using UnderlyingType = CAtomic<Type>;
-
 public:
   explicit ThreadSafeFastResetFlagArray(const size_t size) :
-    _v(std::make_unique<UnderlyingType[]>(size)),
+    _v(std::make_unique<Type[]>(size)),
     _threshold(1),
     _size(size) {
-    init();
+    initialize();
   }
 
   ThreadSafeFastResetFlagArray() :
@@ -74,9 +72,11 @@ public:
   // ! Changes value of entry i from false to true and returns true, if the value
   // ! hold on position i was false and was successfully set to true
   bool compare_and_set_to_true(const size_t i) {
-    Type expected = _v[i].load(std::memory_order_relaxed);
+    Type expected = __atomic_load_n(&_v[i], __ATOMIC_RELAXED);
     Type desired = _threshold;
-    if ( expected != _threshold && _v[i].compare_exchange_strong(expected, desired) ) {
+    if ( expected != _threshold &&
+        __atomic_compare_exchange(&_v[i], &expected, &desired,
+          false, __ATOMIC_ACQ_REL, __ATOMIC_RELAXED) ) {
       // Value was successfully set from false to true
       return true;
     } else {
@@ -87,44 +87,60 @@ public:
   }
 
   void set(const size_t i, const bool value) {
-    _v[i].store(value ? _threshold : 0, std::memory_order_relaxed);
+    __atomic_store_n(&_v[i], value ? _threshold : 0, __ATOMIC_RELAXED);
+  }
+
+  void setUnsafe(const size_t i, const bool value) {
+   _v[i] = value ? _threshold : 0;
   }
 
   void reset() {
-    if (_threshold == std::numeric_limits<UnderlyingType>::max()) {
-      init();
+    if (_threshold == std::numeric_limits<Type>::max()) {
+      initialize();
       _threshold = 0;
     }
     ++_threshold;
   }
 
-  void setSize(const size_t size, const bool initialiser = false) {
+  void setSize(const size_t size, const bool init = false) {
     ASSERT(_v == nullptr, "Error");
-    _v = std::make_unique<UnderlyingType[]>(size);
+    _v = std::make_unique<Type[]>(size);
     _size = size;
-    init(initialiser);
+    initialize(init);
+  }
+
+  void resize(const size_t size, const bool init = false) {
+    if ( size > _size ) {
+      std::unique_ptr<Type[]> tmp_v =
+        std::make_unique<Type[]>(size);
+      std::swap(_v, tmp_v);
+      _size = size;
+      initialize(init);
+    } else {
+      _size = size;
+    }
   }
 
  private:
   bool isSet(size_t i) const {
-    return _v[i].load(std::memory_order_relaxed) == _threshold;
+    return __atomic_load_n(&_v[i], __ATOMIC_RELAXED) == _threshold;
   }
 
-  void init(const bool initialiser = false) {
-    const Type init_value = initialiser ? _threshold : 0;
+  void initialize(const bool init = false) {
+    const Type init_value = init ? _threshold : 0;
     for ( size_t i = 0; i < _size; ++i ) {
-      _v[i].store(init_value, std::memory_order_relaxed);
+      __atomic_store_n(&_v[i], init_value, __ATOMIC_RELAXED);
     }
   }
 
-  std::unique_ptr<UnderlyingType[]> _v;
+  std::unique_ptr<Type[]> _v;
   Type _threshold;
   size_t _size;
 };
 
-template <typename UnderlyingType>
-void swap(ThreadSafeFastResetFlagArray<UnderlyingType>& a,
-          ThreadSafeFastResetFlagArray<UnderlyingType>& b) {
+template <typename Type>
+void swap(ThreadSafeFastResetFlagArray<Type>& a,
+          ThreadSafeFastResetFlagArray<Type>& b) {
   a.swap(b);
 }
 }  // namespace ds
