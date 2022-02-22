@@ -68,7 +68,7 @@ void verifyEdges(HyperedgeID expected_num_edges, const DynamicAdjacencyArray& ad
       << "Edge (" << source << ", " << target << ") is invalid.";
     ++num_edges;
   }
-  ASSERT_EQ(num_edges, 2 * expected_num_edges);
+  ASSERT_EQ(num_edges, expected_num_edges);
 }
 
 kahypar::ds::FastResetFlagArray<> createFlagArray(const HypernodeID num_nodes,
@@ -96,7 +96,7 @@ void verifyEdgeWeight(const DynamicAdjacencyArray& adjacency_array, HyperedgeID 
 TEST(ADynamicAdjacencyArray, VerifyInitialEdges) {
   DynamicAdjacencyArray adjacency_array(
     7, {{1, 2}, {2, 3}, {1, 4}, {4, 5}, {4, 6}, {5, 6}});
-  verifyEdges(6, adjacency_array, { {1, 2}, {2, 3}, {1, 4}, {4, 5}, {4, 6}, {5, 6} });
+  verifyEdges(12, adjacency_array, { {1, 2}, {2, 3}, {1, 4}, {4, 5}, {4, 6}, {5, 6} });
 }
 
 TEST(ADynamicAdjacencyArray, VerifyEdgesAfterContractions1) {
@@ -104,7 +104,7 @@ TEST(ADynamicAdjacencyArray, VerifyEdgesAfterContractions1) {
     7, {{1, 2}, {2, 3}, {1, 4}, {4, 5}, {4, 6}, {5, 6}});
   adjacency_array.contract(2, 3);
   adjacency_array.contract(4, 6);
-  verifyEdges(4, adjacency_array, { {1, 2}, {1, 4}, {4, 5} });
+  verifyEdges(10, adjacency_array, { {1, 2}, {1, 4}, {4, 5}, {2, 2}, {4, 4} });
 }
 
 TEST(ADynamicAdjacencyArray, VerifyEdgesAfterContractions2) {
@@ -112,7 +112,7 @@ TEST(ADynamicAdjacencyArray, VerifyEdgesAfterContractions2) {
     7, {{1, 2}, {2, 3}, {1, 4}, {4, 5}, {4, 6}, {5, 6}});
   adjacency_array.contract(1, 4);
   adjacency_array.contract(1, 5);
-  verifyEdges(4, adjacency_array, {{1, 2}, {2, 3}, {1, 6} });
+  verifyEdges(10, adjacency_array, {{1, 1}, {1, 2}, {2, 3}, {1, 6} });
 }
 
 TEST(ADynamicAdjacencyArray, VerifyEdgesAfterContractions3) {
@@ -123,9 +123,9 @@ TEST(ADynamicAdjacencyArray, VerifyEdgesAfterContractions3) {
   adjacency_array.contract(2, 3);
   adjacency_array.contract(4, 0);
   adjacency_array.contract(2, 4);
-  verifyEdges(2, adjacency_array, { {2, 5} });
+  verifyEdges(7, adjacency_array, { {2, 2}, {2, 5} });
   adjacency_array.contract(2, 5);
-  verifyEdges(0, adjacency_array, { });
+  verifyEdges(5, adjacency_array, { {2, 2} });
 }
 
 TEST(ADynamicAdjacencyArray, VerifyInitialNeighborsOfEachVertex) {
@@ -151,7 +151,7 @@ TEST(ADynamicAdjacencyArray, ContractTwoVertices2) {
   DynamicAdjacencyArray adjacency_array(
     7, {{1, 2}, {2, 3}, {1, 4}, {4, 5}, {4, 6}, {5, 6}});
   adjacency_array.contract(1, 2);
-  verifyNeighbors(1, 7, adjacency_array, { 3, 4 });
+  verifyNeighbors(1, 7, adjacency_array, { 1, 3, 4 });
 }
 
 TEST(ADynamicAdjacencyArray, ContractTwoVertices3) {
@@ -169,7 +169,7 @@ TEST(ADynamicAdjacencyArray, ContractSeveralVertices1) {
     7, {{1, 2}, {2, 3}, {1, 4}, {4, 5}, {4, 6}, {5, 6}});
   adjacency_array.contract(0, 1);
   adjacency_array.contract(0, 2);
-  verifyNeighbors(0, 7, adjacency_array, { 3, 4 });
+  verifyNeighbors(0, 7, adjacency_array, { 0, 3, 4 });
 }
 
 TEST(ADynamicAdjacencyArray, ContractSeveralVertices2) {
@@ -177,13 +177,13 @@ TEST(ADynamicAdjacencyArray, ContractSeveralVertices2) {
     7, {{1, 2}, {2, 3}, {1, 4}, {4, 5}, {4, 6}, {5, 6}});
   adjacency_array.contract(1, 0);
   adjacency_array.contract(1, 2);
-  verifyNeighbors(1, 7, adjacency_array, { 3, 4 });
+  verifyNeighbors(1, 7, adjacency_array, { 1, 3, 4 });
   adjacency_array.contract(4, 5);
   adjacency_array.contract(4, 6);
-  verifyNeighbors(4, 7, adjacency_array, { 1 });
+  verifyNeighbors(4, 7, adjacency_array, { 1, 4 });
   adjacency_array.contract(1, 3);
   adjacency_array.contract(1, 4);
-  verifyNeighbors(1, 7, adjacency_array, { });
+  verifyNeighbors(1, 7, adjacency_array, { 1 });
 }
 
 TEST(ADynamicAdjacencyArray, UncontractTwoVertices1) {
@@ -216,22 +216,22 @@ TEST(ADynamicAdjacencyArray, UncontractSeveralVertices1) {
   adjacency_array.contract(4, 6);
   adjacency_array.contract(4, 3);
   adjacency_array.contract(4, 1);
-  verifyNeighbors(4, 7, adjacency_array, { });
+  verifyNeighbors(4, 7, adjacency_array, { 4 });
   adjacency_array.uncontract(4, 1);
-  verifyNeighbors(1, 7, adjacency_array, { 4 });
-  verifyNeighbors(4, 7, adjacency_array, { 1 });
+  verifyNeighbors(1, 7, adjacency_array, { 1, 4 });
+  verifyNeighbors(4, 7, adjacency_array, { 1, 4 });
   adjacency_array.uncontract(4, 3);
-  verifyNeighbors(4, 7, adjacency_array, { 1 });
+  verifyNeighbors(4, 7, adjacency_array, { 1, 4 });
   verifyNeighbors(3, 7, adjacency_array, { 1 });
   adjacency_array.uncontract(4, 6);
-  verifyNeighbors(4, 7, adjacency_array, { 1, 6 });
+  verifyNeighbors(4, 7, adjacency_array, { 1, 4, 6 });
   verifyNeighbors(6, 7, adjacency_array, { 4 });
   adjacency_array.uncontract(4, 5);
   verifyNeighbors(4, 7, adjacency_array, { 1, 5, 6 });
   verifyNeighbors(5, 7, adjacency_array, { 4, 6 });
   adjacency_array.uncontract(1, 0);
   verifyNeighbors(0, 7, adjacency_array, { });
-  verifyNeighbors(1, 7, adjacency_array, { 3, 4 });
+  verifyNeighbors(1, 7, adjacency_array, { 1, 3, 4 });
   adjacency_array.uncontract(1, 2);
   verifyNeighbors(0, 7, adjacency_array, { });
   verifyNeighbors(1, 7, adjacency_array, { 2, 4 });
@@ -251,16 +251,16 @@ TEST(ADynamicAdjacencyArray, UncontractSeveralVertices2) {
   adjacency_array.contract(3, 5);
   adjacency_array.contract(0, 2);
   adjacency_array.contract(0, 3);
-  verifyNeighbors(0, 7, adjacency_array, { });
+  verifyNeighbors(0, 7, adjacency_array, { 0 });
   adjacency_array.uncontract(0, 3);
   verifyNeighbors(0, 7, adjacency_array, { 3 });
-  verifyNeighbors(3, 7, adjacency_array, { 0 });
+  verifyNeighbors(3, 7, adjacency_array, { 0, 3 });
   adjacency_array.uncontract(0, 2);
   verifyNeighbors(0, 7, adjacency_array, { });
   verifyNeighbors(2, 7, adjacency_array, { 3 });
   adjacency_array.uncontract(3, 5);
-  verifyNeighbors(3, 7, adjacency_array, { 2, 5 });
-  verifyNeighbors(5, 7, adjacency_array, { 3 });
+  verifyNeighbors(3, 7, adjacency_array, { 2, 3, 5 });
+  verifyNeighbors(5, 7, adjacency_array, { 3, 5 });
   adjacency_array.uncontract(5, 6);
   verifyNeighbors(5, 7, adjacency_array, { 3, 6 });
   verifyNeighbors(6, 7, adjacency_array, { 3, 5 });

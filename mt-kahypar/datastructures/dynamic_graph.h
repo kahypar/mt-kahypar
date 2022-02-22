@@ -254,6 +254,10 @@ class DynamicGraph {
     PinIterator & operator++ () {
       ASSERT(_iteration_count < 2);
       ++_iteration_count;
+      if (_iteration_count == 1 && _source == _target) {
+        // skip duplicate pin
+        ++_iteration_count;
+      }
       return *this;
     }
 

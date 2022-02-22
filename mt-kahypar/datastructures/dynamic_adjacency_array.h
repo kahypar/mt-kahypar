@@ -146,6 +146,10 @@ class DynamicAdjacencyArray {
       return !operator==(rhs);
     }
 
+    bool isSinglePin() const {
+      return source == target;
+    }
+
     // ! Index of target node
     HypernodeID target;
     // ! Index of source node
