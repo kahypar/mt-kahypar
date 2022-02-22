@@ -561,5 +561,17 @@ TEST_F(ADynamicGraph, PerformsBatchUncontractions3) {
       Memento { 4, 6 }, Memento { 4, 5 } }, 3);
 }
 
+TEST_F(ADynamicGraph, PerformsBatchUncontractions4) {
+  verifyBatchUncontractions(hypergraph,
+    { Memento { 5, 6 }, Memento { 4, 5 }, Memento { 3, 4 },
+      Memento { 2, 3 }, Memento { 1, 2 }, Memento { 0, 1 } }, 3);
+}
+
+TEST_F(ADynamicGraph, PerformsBatchUncontractions5) {
+  verifyBatchUncontractions(hypergraph,
+    { Memento { 2, 6 }, Memento { 2, 5 }, Memento { 1, 3 },
+      Memento { 1, 4 }, Memento { 0, 1 }, Memento { 0, 2 } }, 2);
+}
+
 } // namespace ds
 } // namespace mt_kahypar

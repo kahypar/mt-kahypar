@@ -221,7 +221,7 @@ void DynamicAdjacencyArray::contract(const HypernodeID u,
     }
   }
 
-  // iterate over edges of v and remove duplicate edges
+  // iterate over edges of v and update them
   Header* head_v = header(v);
   for (HypernodeID current_v: headers(v)) {
     Header* head = header(current_v);
@@ -235,7 +235,6 @@ void DynamicAdjacencyArray::contract(const HypernodeID u,
       } else {
         e.version = new_version;
         e.source = u;
-        // TODO(maas): locking?!
         const HyperedgeID backwardsEdge = findBackwardsEdge(e, v);
         edge(backwardsEdge).target = u;
         ++curr_edge;
