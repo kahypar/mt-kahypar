@@ -470,8 +470,8 @@ TEST_F(ADynamicGraph, PerformsContractions2) {
   ASSERT_EQ(3, hypergraph.nodeWeight(1));
   ASSERT_EQ(0, hypergraph.pendingContractions(1));
 
-  verifyNeighbors(1, hypergraph, { 3, 4 });
-  verifyNeighbors(4, hypergraph, { 1, 6 });
+  verifyNeighbors(1, hypergraph, { 1, 3, 4 });
+  verifyNeighbors(4, hypergraph, { 1, 4, 6 });
 }
 
 TEST_F(ADynamicGraph, PerformsAContractionWithWeightGreaterThanMaxNodeWeight) {
