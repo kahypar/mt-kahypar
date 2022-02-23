@@ -29,6 +29,7 @@
 
 #include "mt-kahypar/macros.h"
 #include "mt-kahypar/datastructures/hypergraph_common.h"
+#include "mt-kahypar/datastructures/streaming_vector.h"
 #include "mt-kahypar/datastructures/array.h"
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
 #include "mt-kahypar/parallel/stl/scalable_unique_ptr.h"
@@ -261,11 +262,14 @@ class DynamicAdjacencyArray {
   struct ParallelEdgeInformation {
     ParallelEdgeInformation() = default;
 
-    ParallelEdgeInformation(HypernodeID target, HyperedgeID edge_id, HypernodeID header_id):
-        target(target), edge_id(edge_id), header_id(header_id) { }
+    ParallelEdgeInformation(HypernodeID target, HypernodeID original_target,
+                            HyperedgeID edge_id, HypernodeID header_id):
+        target(target), original_target(original_target), edge_id(edge_id), header_id(header_id) { }
 
     // ! Index of target node
     HypernodeID target;
+    // ! heade of target node
+    HypernodeID original_target;
     // ! Index of corresponding edge
     HyperedgeID edge_id;
     // ! header
@@ -380,9 +384,9 @@ class DynamicAdjacencyArray {
                   const AcquireLockFunc& acquire_lock,
                   const ReleaseLockFunc& release_lock);
 
-  parallel::scalable_vector<RemovedEdgesOrWeight> removeParallelEdges();
+  parallel::scalable_vector<RemovedEdgesOrWeight> removeSinglePinAndParallelEdges();
 
-  void restoreParallelEdges(const parallel::scalable_vector<RemovedEdgesOrWeight>& edges_to_restore);
+  void restoreSinglePinAndParallelEdges(const parallel::scalable_vector<RemovedEdgesOrWeight>& edges_to_restore);
 
   DynamicAdjacencyArray copy(parallel_tag_t);
 
@@ -528,6 +532,9 @@ class DynamicAdjacencyArray {
 
   HyperedgeID findBackwardsEdge(const Edge& forward, HypernodeID source) const;
 
+  void streamWeight(StreamingVector<RemovedEdgesOrWeight>& tmp_removed_edges,
+                    const ParallelEdgeInformation& e, HyperedgeWeight w);
+
   void construct(const EdgeVector& edge_vector, const HyperedgeWeight* edge_weight = nullptr);
 
   bool verifyIteratorPointers(const HypernodeID u) const;
@@ -538,7 +545,7 @@ class DynamicAdjacencyArray {
   parallel::tbb_unique_ptr<Edge> _data;
   // data used during parallel edge removal
   ThreadLocalParallelEdgeVector _thread_local_vec;
-  Array<HyperedgeID> _degree_diffs;
+  Array<int32_t> _degree_diffs;
 };
 
 }  // namespace ds

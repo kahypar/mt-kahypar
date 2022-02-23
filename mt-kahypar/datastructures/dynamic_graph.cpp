@@ -202,7 +202,7 @@ VersionedBatchVector DynamicGraph::createBatchUncontractionHierarchy(const size_
  */
 parallel::scalable_vector<DynamicGraph::ParallelHyperedge> DynamicGraph::removeSinglePinAndParallelHyperedges() {
   ++_version;
-  return _adjacency_array.removeParallelEdges();
+  return _adjacency_array.removeSinglePinAndParallelEdges();
 }
 
 /**
@@ -210,7 +210,7 @@ parallel::scalable_vector<DynamicGraph::ParallelHyperedge> DynamicGraph::removeS
  * must be exactly the same and given in the reverse order as returned by removeSinglePinAndParallelNets(...).
  */
 void DynamicGraph::restoreSinglePinAndParallelNets(const parallel::scalable_vector<ParallelHyperedge>& hes_to_restore) {
-  _adjacency_array.restoreParallelEdges(hes_to_restore);
+  _adjacency_array.restoreSinglePinAndParallelEdges(hes_to_restore);
   --_version;
 }
 

@@ -23,7 +23,6 @@
 
 #include "mt-kahypar/parallel/atomic_wrapper.h"
 #include "mt-kahypar/parallel/parallel_prefix_sum.h"
-#include "mt-kahypar/datastructures/streaming_vector.h"
 
 namespace mt_kahypar {
 namespace ds {
@@ -293,7 +292,13 @@ void DynamicAdjacencyArray::uncontract(const HypernodeID u,
   ASSERT(verifyIteratorPointers(v), "Iterator pointers of vertex" << v << "are corrupted");
 }
 
-parallel::scalable_vector<DynamicAdjacencyArray::RemovedEdgesOrWeight> DynamicAdjacencyArray::removeParallelEdges() {
+void DynamicAdjacencyArray::streamWeight(StreamingVector<RemovedEdgesOrWeight>& tmp_removed_edges,
+                                         const ParallelEdgeInformation& e, HyperedgeWeight w) {
+  tmp_removed_edges.stream(RemovedEdgesOrWeight { e.header_id, edge(e.edge_id).weight, e.original_target });
+  edge(e.edge_id).weight += w;
+}
+
+parallel::scalable_vector<DynamicAdjacencyArray::RemovedEdgesOrWeight> DynamicAdjacencyArray::removeSinglePinAndParallelEdges() {
   StreamingVector<RemovedEdgesOrWeight> tmp_removed_edges;
   // TODO(maas): special case for high degree nodes?
   tbb::parallel_for(ID(0), _num_nodes, [&](const HypernodeID u) {
@@ -305,11 +310,16 @@ parallel::scalable_vector<DynamicAdjacencyArray::RemovedEdgesOrWeight> DynamicAd
       for (HypernodeID current_u: headers(u)) {
         const HyperedgeID first_inactive = firstInactiveEdge(current_u);
         for (HyperedgeID e = firstActiveEdge(current_u); e < first_inactive; ++e) {
-          local_vec.push_back(ParallelEdgeInformation(edge(e).target, e, current_u));
+          local_vec.emplace_back(edge(e).target, edge(e).original_target, e, current_u);
         }
       }
       std::sort(local_vec.begin(), local_vec.end(), [](const auto& e1, const auto& e2) {
-        return e1.target < e2.target;
+        return e1.target < e2.target || (
+          // we need a symmetric order on edges and backedges to ensure that the
+          // kept forward and backward edge are actually the same edge
+          e1.target == e2.target &&
+            std::max(e1.header_id, e1.original_target) < std::max(e2.header_id, e2.original_target)
+        );
       });
 
       // scan and swap all duplicates to front
@@ -318,7 +328,14 @@ parallel::scalable_vector<DynamicAdjacencyArray::RemovedEdgesOrWeight> DynamicAd
       for (size_t i = 0; i + 1 < local_vec.size(); ++i) {
         const ParallelEdgeInformation& e1 = local_vec[i];
         const ParallelEdgeInformation& e2 = local_vec[i + 1];
-        if (e1.target == e2.target) {
+        if (e1.target != e2.target && current_weight > 0) {
+          streamWeight(tmp_removed_edges, e1, current_weight);
+          current_weight = 0;
+        }
+        if (e1.target == u) {
+          std::swap(local_vec[num_duplicates], local_vec[i]);
+          ++num_duplicates;
+        } else if (e1.target == e2.target) {
           // local_vec[i + 1] might also be parall to e1 and e2,
           // thus we remove e1 and keep e2
           ASSERT(e1.edge_id >= firstActiveEdge(e1.header_id)
@@ -330,16 +347,17 @@ parallel::scalable_vector<DynamicAdjacencyArray::RemovedEdgesOrWeight> DynamicAd
           current_weight += edge(e1.edge_id).weight;
           std::swap(local_vec[num_duplicates], local_vec[i]);
           ++num_duplicates;
-        } else if (current_weight > 0) {
-          tmp_removed_edges.stream(RemovedEdgesOrWeight { e1.header_id, edge(e1.edge_id).weight, e1.target });
-          edge(e1.edge_id).weight += current_weight;
-          current_weight = 0;
         }
       }
-      if (current_weight > 0) {
+      if (!local_vec.empty()) {
         const ParallelEdgeInformation& last = local_vec[local_vec.size() - 1];
-        tmp_removed_edges.stream(RemovedEdgesOrWeight { last.header_id, edge(last.edge_id).weight, last.target });
-        edge(last.edge_id).weight += current_weight;
+        if (current_weight > 0) {
+          streamWeight(tmp_removed_edges, last, current_weight);
+        }
+        if (last.target == u) {
+          std::swap(local_vec[num_duplicates], local_vec[local_vec.size() - 1]);
+          ++num_duplicates;
+        }
       }
 
       if (num_duplicates > 0) {
@@ -360,6 +378,9 @@ parallel::scalable_vector<DynamicAdjacencyArray::RemovedEdgesOrWeight> DynamicAd
           }
           swap_to_front(e.header_id, e.edge_id);
           ++current_count;
+          if (header(e.header_id)->size() == 0 && current_u != u) {
+            removeEmptyIncidentEdgeList(e.header_id);
+          }
         }
         tmp_removed_edges.stream(RemovedEdgesOrWeight { current_u, current_count });
         header(u)->degree -= num_duplicates;
@@ -371,7 +392,7 @@ parallel::scalable_vector<DynamicAdjacencyArray::RemovedEdgesOrWeight> DynamicAd
   return removed_edges;
 }
 
-void DynamicAdjacencyArray::restoreParallelEdges(
+void DynamicAdjacencyArray::restoreSinglePinAndParallelEdges(
       const parallel::scalable_vector<DynamicAdjacencyArray::RemovedEdgesOrWeight>& edges_to_restore) {
   // _degree_diffs does not need to be thread safe because all headers are handled separately
   _degree_diffs.assign(_num_nodes, 0);
@@ -384,7 +405,7 @@ void DynamicAdjacencyArray::restoreParallelEdges(
       ASSERT(first > 0); // holds because of the structure of the adjacency array
       bool found = false;
       for (HyperedgeID e = first_inactive - 1; e >= first; --e) {
-        if (edge(e).target == removed.target()) {
+        if (edge(e).original_target == removed.target()) {
           edge(e).weight = removed.weight();
           found = true;
           break;
@@ -394,6 +415,10 @@ void DynamicAdjacencyArray::restoreParallelEdges(
     } else {
       // restore parallel edges, which have been swapped to the front
       _degree_diffs[removed.header] = removed.num_removed();
+      if (removed.num_removed() > 0 && header(removed.header)->size() == 0 && !header(removed.header)->is_head) {
+        // we use a negative sign to mark previously empty headers
+        _degree_diffs[removed.header] *= -1;
+      }
       header(removed.header)->first_active -= removed.num_removed();
       ASSERT(header(removed.header)->first_active <= header(removed.header)->first_inactive);
     }
@@ -402,8 +427,13 @@ void DynamicAdjacencyArray::restoreParallelEdges(
   // update node degrees
   tbb::parallel_for(ID(0), _num_nodes, [&](const HypernodeID u) {
     if (header(u)->is_head) {
+      bool restore_it = false;
       for (HypernodeID current_u: headers(u)) {
-        header(u)->degree += _degree_diffs[current_u];
+        header(u)->degree += std::abs(_degree_diffs[current_u]);
+        restore_it |= _degree_diffs[current_u] < 0;
+      }
+      if (restore_it) {
+        restoreIteratorPointers(u);
       }
     }
   });
@@ -524,6 +554,7 @@ void DynamicAdjacencyArray::removeEmptyIncidentEdgeList(const HypernodeID u) {
 }
 
 void DynamicAdjacencyArray::restoreIteratorPointers(const HypernodeID u) {
+  ASSERT(header(u)->is_head);
   HypernodeID last_non_empty_u = u;
   for (HypernodeID current_u: headers(u)) {
     if (header(current_u)->size() > 0) {

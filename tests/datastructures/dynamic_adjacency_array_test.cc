@@ -330,7 +330,7 @@ TEST(ADynamicAdjacencyArray, RemovesParrallelEdges1) {
   DynamicAdjacencyArray adjacency_array(
     7, {{1, 2}, {2, 3}, {1, 4}, {4, 5}, {4, 6}, {5, 6}});
   adjacency_array.contract(2, 4);
-  adjacency_array.removeParallelEdges();
+  adjacency_array.removeSinglePinAndParallelEdges();
   verifyNeighbors(1, 7, adjacency_array, { 2 }, true);
   verifyNeighbors(2, 7, adjacency_array, { 1, 3, 5, 6 }, true);
   verifyEdgeWeight(adjacency_array, 1, 2, 2);
@@ -340,7 +340,7 @@ TEST(ADynamicAdjacencyArray, RemovesParrallelEdges2) {
   DynamicAdjacencyArray adjacency_array(
     7, {{1, 2}, {2, 3}, {1, 4}, {4, 5}, {4, 6}, {5, 6}});
   adjacency_array.contract(5, 6);
-  adjacency_array.removeParallelEdges();
+  adjacency_array.removeSinglePinAndParallelEdges();
   verifyNeighbors(5, 7, adjacency_array, { 4 }, true);
   verifyNeighbors(4, 7, adjacency_array, { 1, 5 }, true);
   verifyEdgeWeight(adjacency_array, 4, 5, 2);
@@ -351,7 +351,7 @@ TEST(ADynamicAdjacencyArray, RemovesParrallelEdges3) {
     7, {{1, 2}, {2, 3}, {1, 4}, {4, 5}, {4, 6}, {5, 6}});
   adjacency_array.contract(4, 2);
   adjacency_array.contract(4, 5);
-  adjacency_array.removeParallelEdges();
+  adjacency_array.removeSinglePinAndParallelEdges();
   verifyNeighbors(1, 7, adjacency_array, { 4 }, true);
   verifyNeighbors(3, 7, adjacency_array, { 4 }, true);
   verifyNeighbors(4, 7, adjacency_array, { 1, 3, 6 }, true);
@@ -368,7 +368,7 @@ TEST(ADynamicAdjacencyArray, RemovesParrallelEdges4) {
   adjacency_array.contract(2, 0);
   adjacency_array.contract(5, 3);
   adjacency_array.contract(2, 6);
-  adjacency_array.removeParallelEdges();
+  adjacency_array.removeSinglePinAndParallelEdges();
   verifyNeighbors(2, 7, adjacency_array, { 5 }, true);
   verifyNeighbors(5, 7, adjacency_array, { 2 }, true);
   verifyEdgeWeight(adjacency_array, 2, 5, 5);
@@ -378,8 +378,8 @@ TEST(ADynamicAdjacencyArray, RestoresParrallelEdges1) {
   DynamicAdjacencyArray adjacency_array(
     7, {{1, 2}, {2, 3}, {1, 4}, {4, 5}, {4, 6}, {5, 6}});
   adjacency_array.contract(2, 4);
-  auto edges_to_restore = adjacency_array.removeParallelEdges();
-  adjacency_array.restoreParallelEdges(edges_to_restore);
+  auto edges_to_restore = adjacency_array.removeSinglePinAndParallelEdges();
+  adjacency_array.restoreSinglePinAndParallelEdges(edges_to_restore);
   adjacency_array.uncontract(2, 4);
   verifyNeighbors(0, 7, adjacency_array, { });
   verifyNeighbors(1, 7, adjacency_array, { 2, 4 });
@@ -399,20 +399,20 @@ TEST(ADynamicAdjacencyArray, RestoresParrallelEdges2) {
     7, {{1, 2}, {2, 3}, {1, 4}, {4, 5}, {4, 6}, {5, 6}});
   adjacency_array.contract(2, 4);
   adjacency_array.contract(5, 1);
-  auto edges_to_restore1 = adjacency_array.removeParallelEdges();
+  auto edges_to_restore1 = adjacency_array.removeSinglePinAndParallelEdges();
   adjacency_array.contract(2, 0);
   adjacency_array.contract(5, 3);
-  auto edges_to_restore2 = adjacency_array.removeParallelEdges();
+  auto edges_to_restore2 = adjacency_array.removeSinglePinAndParallelEdges();
   adjacency_array.contract(2, 6);
   adjacency_array.contract(5, 2);
-  auto edges_to_restore3 = adjacency_array.removeParallelEdges();
-  adjacency_array.restoreParallelEdges(edges_to_restore3);
+  auto edges_to_restore3 = adjacency_array.removeSinglePinAndParallelEdges();
+  adjacency_array.restoreSinglePinAndParallelEdges(edges_to_restore3);
   adjacency_array.uncontract(5, 2);
   adjacency_array.uncontract(2, 6);
-  adjacency_array.restoreParallelEdges(edges_to_restore2);
+  adjacency_array.restoreSinglePinAndParallelEdges(edges_to_restore2);
   adjacency_array.uncontract(5, 3);
   adjacency_array.uncontract(2, 0);
-  adjacency_array.restoreParallelEdges(edges_to_restore1);
+  adjacency_array.restoreSinglePinAndParallelEdges(edges_to_restore1);
   adjacency_array.uncontract(5, 1);
   adjacency_array.uncontract(2, 4);
 
