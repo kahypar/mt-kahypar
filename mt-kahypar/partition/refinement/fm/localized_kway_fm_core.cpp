@@ -94,7 +94,6 @@ namespace mt_kahypar {
         }
       }
     }
-    edgesWithGainChanges.clear();
 
     if (++deduplicationTime == 0) {
       neighborDeduplicator.assign(neighborDeduplicator.size(), 0);
@@ -165,6 +164,7 @@ namespace mt_kahypar {
       // probably quite similar since this only really matters in the first few moves where the stop rule
       // doesn't signal us to stop yet
 
+      edgesWithGainChanges.clear(); // clear before move. delta_func feeds nets of moved vertex.
       MoveID move_id = std::numeric_limits<MoveID>::max();
       bool moved = false;
       if constexpr (use_delta) {
@@ -214,7 +214,6 @@ namespace mt_kahypar {
         // no need to update our PQs if we stop anyways
         if (stopRule.searchShouldStop()
               || sharedData.finishedTasks.load(std::memory_order_relaxed) >= sharedData.finishedTasksLimit) {
-          edgesWithGainChanges.clear(); // clear here, since this is otherwise done by acquireOrUpdateNeighbors
           break;
         }
 
