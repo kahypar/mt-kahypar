@@ -201,6 +201,18 @@ class DynamicAdjacencyArray {
   // Header of the incident edge list of a vertex. The incident edge lists
   // contracted into one vertex are concatenated in a double linked list.
   struct Header {
+    Header() :
+      prev(0),
+      next(0),
+      it_prev(0),
+      it_next(0),
+      tail(0),
+      first_active(0),
+      first_inactive(0),
+      degree(0),
+      current_version(0),
+      is_head(false) { }
+
     explicit Header(const HypernodeID u) :
       prev(u),
       next(u),
@@ -236,6 +248,8 @@ class DynamicAdjacencyArray {
     // ! the previous tail of vertex v, such that we can restore the list of v
     // ! during uncontraction
     HypernodeID tail;
+    // ! Id of the first edge
+    HyperedgeID first;
     // ! All incident edges between [first_active, first_inactive) are active
     HyperedgeID first_active;
     // ! All incident edges between [first_active, first_inactive) are active
@@ -246,15 +260,7 @@ class DynamicAdjacencyArray {
     HypernodeID current_version;
     // ! True, if the vertex is the head of a incident edge list
     bool is_head;
-
-  //  private:
-    // ensure that sizeof(Header) is a multiple of sizeof(Edge)
-    // uint32_t __padding_0;
-    // uint32_t __padding_1;
   };
-
-  static_assert(alignof(Header) == alignof(Edge));
-  static_assert(sizeof(Header) % sizeof(Edge) == 0);
 
   // Used for detecting parallel edges.
   // Represents one edge with the required information
@@ -281,22 +287,18 @@ class DynamicAdjacencyArray {
  public:
   using const_iterator = IncidentEdgeIterator;
 
-  static constexpr size_t index_offset_per_node = sizeof(DynamicAdjacencyArray::Header) / sizeof(Edge);
-
   DynamicAdjacencyArray() :
     _num_nodes(0),
-    _size_in_bytes(0),
-    _index_array(),
-    _data(nullptr),
+    _header_array(),
+    _data(),
     _degree_diffs() { }
 
   DynamicAdjacencyArray(const HypernodeID num_nodes,
                         const EdgeVector& edge_vector,
                         const HyperedgeWeight* edge_weight = nullptr) :
     _num_nodes(num_nodes),
-    _size_in_bytes(0),
-    _index_array(),
-    _data(nullptr),
+    _header_array(),
+    _data(),
     _thread_local_vec(),
     _degree_diffs() {
     tbb::parallel_invoke([&] {
@@ -308,19 +310,19 @@ class DynamicAdjacencyArray {
   }
 
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE const Edge& edge(const HyperedgeID e) const {
-    ASSERT(e <= _size_in_bytes / sizeof(Edge), "Edge" << e << "does not exist");
-    return _data.get()[e];
+    ASSERT(e < _data.size(), "Edge" << e << "does not exist");
+    return _data[e];
   }
 
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE Edge& edge(const HyperedgeID e) {
-    ASSERT(e <= _size_in_bytes / sizeof(Edge), "Edge" << e << "does not exist");
-    return _data.get()[e];
+    ASSERT(e <= _data.size(), "Edge" << e << "does not exist");
+    return _data[e];
   }
 
   // ! Degree of the vertex
   HypernodeID nodeDegree(const HypernodeID u) const {
     ASSERT(u < _num_nodes, "Hypernode" << u << "does not exist");
-    return header(u)->degree;
+    return header(u).degree;
   }
 
   // ! Returns a range to loop over the incident edges of hypernode u.
@@ -345,12 +347,6 @@ class DynamicAdjacencyArray {
     return IteratorRange<EdgeIterator>(
       EdgeIterator(0, this, filter),
       EdgeIterator(_num_nodes, this, filter));
-  }
-
-  // ! Returns the maximum edge id (exclusive).
-  HyperedgeID maxEdgeID() const {
-    ASSERT(_size_in_bytes % sizeof(Edge) == 0);
-    return _size_in_bytes / sizeof(Edge);
   }
 
   // ! Contracts two incident list of u and v, whereby u is the representative and
@@ -397,7 +393,9 @@ class DynamicAdjacencyArray {
   void sortIncidentEdges();
 
   size_t size_in_bytes() const {
-    return _size_in_bytes + sizeof(size_t) * _index_array.size();
+    return _data.size() * sizeof(Edge)
+      + _header_array.size() * sizeof(Edge)
+      + _degree_diffs.size() * sizeof(int32_t);
   }
 
  private:
@@ -425,8 +423,7 @@ class DynamicAdjacencyArray {
     }
 
     HeaderIterator & operator++ () {
-      const Header* header = _dynamic_adjacency_array->header(_current_u);
-      _current_u = header->next;
+      _current_u = _dynamic_adjacency_array->header(_current_u).next;
       if (_current_u == _u) {
         _end = true;
       }
@@ -454,33 +451,34 @@ class DynamicAdjacencyArray {
     bool _end;
   };
 
-  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE const Header* header(const HypernodeID u) const {
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE const Header& header(const HypernodeID u) const {
     ASSERT(u <= _num_nodes, "Hypernode" << u << "does not exist");
-    return reinterpret_cast<const Header*>(_data.get() + _index_array[u]);
+    return _header_array[u];
   }
 
-  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE Header* header(const HypernodeID u) {
-    return const_cast<Header*>(static_cast<const DynamicAdjacencyArray&>(*this).header(u));
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE Header& header(const HypernodeID u) {
+    ASSERT(u <= _num_nodes, "Hypernode" << u << "does not exist");
+    return _header_array[u];
   }
 
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE HyperedgeID firstEdge(const HypernodeID u) const {
     ASSERT(u <= _num_nodes, "Hypernode" << u << "does not exist");
-    return _index_array[u] + sizeof(Header) / sizeof(Edge);
+    return header(u).first;
   }
 
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE HyperedgeID firstActiveEdge(const HypernodeID u) const {
     ASSERT(u <= _num_nodes, "Hypernode" << u << "does not exist");
-    return firstEdge(u) + header(u)->first_active;
+    return header(u).first_active;
   }
 
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE HyperedgeID firstInactiveEdge(const HypernodeID u) const {
     ASSERT(u <= _num_nodes, "Hypernode" << u << "does not exist");
-    return firstEdge(u) + header(u)->first_inactive;
+    return header(u).first_inactive;
   }
 
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE HyperedgeID lastEdge(const HypernodeID u) const {
     ASSERT(u <= _num_nodes, "Hypernode" << u << "does not exist");
-    return _index_array[u + 1];
+    return header(u + 1).first;
   }
 
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE void swap(Edge& lhs, Edge& rhs) {
@@ -492,15 +490,15 @@ class DynamicAdjacencyArray {
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE void swap_to_front(const HypernodeID u, const HyperedgeID e) {
     ASSERT(u <= _num_nodes, "Hypernode" << u << "does not exist");
     swap(edge(e), edge(firstActiveEdge(u)));
-    ++header(u)->first_active;
-    ASSERT(header(u)->first_active <= header(u)->first_inactive);
+    ++header(u).first_active;
+    ASSERT(header(u).first_active <= header(u).first_inactive);
   }
 
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE void swap_to_back(const HypernodeID u, const HyperedgeID e) {
     ASSERT(u <= _num_nodes, "Hypernode" << u << "does not exist");
     swap(edge(e), edge(firstInactiveEdge(u) - 1));
-    --header(u)->first_inactive;
-    ASSERT(header(u)->first_active <= header(u)->first_inactive);
+    --header(u).first_inactive;
+    ASSERT(header(u).first_active <= header(u).first_inactive);
   }
 
   // ! Returns a range to loop over the headers of node u.
@@ -540,9 +538,8 @@ class DynamicAdjacencyArray {
   bool verifyIteratorPointers(const HypernodeID u) const;
 
   HypernodeID _num_nodes;
-  size_t _size_in_bytes;
-  Array<HyperedgeID> _index_array;
-  parallel::tbb_unique_ptr<Edge> _data;
+  Array<Header> _header_array;
+  Array<Edge> _data;
   // data used during parallel edge removal
   ThreadLocalParallelEdgeVector _thread_local_vec;
   Array<int32_t> _degree_diffs;

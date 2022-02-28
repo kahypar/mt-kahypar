@@ -49,48 +49,7 @@ void executeParallel(const F& f1, const K& f2) {
 }
 
 std::vector<HyperedgeID> expected_edges() {
-  const HyperedgeID offset = DynamicAdjacencyArray::index_offset_per_node;
-  std::vector<HyperedgeID> expected_iter;
-  HyperedgeID current_offset = 0;
-  // node 0
-  current_offset += offset;
-  // node 1
-  current_offset += offset;
-  expected_iter.push_back(current_offset);
-  current_offset += 1;
-  expected_iter.push_back(current_offset);
-  current_offset += 1;
-  // node 2
-  current_offset += offset;
-  expected_iter.push_back(current_offset);
-  current_offset += 1;
-  expected_iter.push_back(current_offset);
-  current_offset += 1;
-  // node 3
-  current_offset += offset;
-  expected_iter.push_back(current_offset);
-  current_offset += 1;
-  // node 4
-  current_offset += offset;
-  expected_iter.push_back(current_offset);
-  current_offset += 1;
-  expected_iter.push_back(current_offset);
-  current_offset += 1;
-  expected_iter.push_back(current_offset);
-  current_offset += 1;
-  // node 5
-  current_offset += offset;
-  expected_iter.push_back(current_offset);
-  current_offset += 1;
-  expected_iter.push_back(current_offset);
-  current_offset += 1;
-  // node 6
-  current_offset += offset;
-  expected_iter.push_back(current_offset);
-  current_offset += 1;
-  expected_iter.push_back(current_offset);
-  current_offset += 1;
-  return expected_iter;
+  return {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11};
 }
 
 TEST_F(ADynamicGraph, HasCorrectStats) {
