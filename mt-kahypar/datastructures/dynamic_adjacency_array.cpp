@@ -262,6 +262,7 @@ void DynamicAdjacencyArray::uncontract(const HypernodeID u,
     const HyperedgeID first_inactive = firstInactiveEdge(current_v);
     for (HyperedgeID curr_edge = firstActiveEdge(current_v); curr_edge < first_inactive; ++curr_edge) {
       Edge& e = edge(curr_edge);
+      ASSERT(e.isSinglePin() == (e.target == u));
       e.version = new_version;
       e.source = v;
       const HyperedgeID backwardsEdge = findBackwardsEdge(e, u);

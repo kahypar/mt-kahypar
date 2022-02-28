@@ -382,7 +382,39 @@ private:
   // ####################### Uncontraction #######################
 
   void uncontract(const Batch& batch) {
-    _hg->uncontract(batch);
+    // Set block ids of contraction partners
+    tbb::parallel_for(0UL, batch.size(), [&](const size_t i) {
+      const Memento& memento = batch[i];
+      ASSERT(nodeIsEnabled(memento.u));
+      ASSERT(!nodeIsEnabled(memento.v));
+      const PartitionID part_id = partID(memento.u);
+      ASSERT(part_id != kInvalidPartition && part_id < _k);
+      setOnlyNodePart(memento.v, part_id);
+    });
+
+    _hg->uncontract(batch,
+      [&](const HypernodeID u, const HypernodeID v, const HyperedgeID e) {
+        // In this case, e was a single pin edge before uncontraction
+        ASSERT(edgeTarget(e) == u && edgeSource(e) == v);
+        if ( _is_gain_cache_initialized ) {
+          // the edge weight is added to u and v
+          const PartitionID block = partID(u);
+          const HyperedgeWeight we = edgeWeight(e);
+          _incident_weight_in_part[incident_weight_index(u, block)].fetch_add(we, std::memory_order_relaxed);
+          _incident_weight_in_part[incident_weight_index(v, block)].fetch_add(we, std::memory_order_relaxed);
+        }
+      },
+      [&](const HypernodeID u, const HypernodeID v, const HyperedgeID e) {
+        // In this case, u is replaced by v in e
+        ASSERT(edgeTarget(e) != u && edgeSource(e) == v);
+        if ( _is_gain_cache_initialized ) {
+          // the edge weight shifts from u to v
+          const PartitionID targetBlock = partID(edgeTarget(e));
+          const HyperedgeWeight we = edgeWeight(e);
+          _incident_weight_in_part[incident_weight_index(u, targetBlock)].fetch_sub(we, std::memory_order_relaxed);
+          _incident_weight_in_part[incident_weight_index(v, targetBlock)].fetch_add(we, std::memory_order_relaxed);
+        }
+      });
   }
 
   // ####################### Restore Hyperedges #######################
