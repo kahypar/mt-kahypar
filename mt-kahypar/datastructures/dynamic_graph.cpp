@@ -105,34 +105,34 @@ size_t DynamicGraph::contract(const HypernodeID v,
 }
 
 
-/**
- * Uncontracts a batch of contractions in parallel. The batches must be uncontracted exactly
- * in the order computed by the function createBatchUncontractionHierarchy(...).
- * The two uncontraction functions are required by the partitioned hypergraph to restore
- * pin counts and gain cache values.
- */
+ /**
+   * Uncontracts a batch of contractions in parallel. The batches must be uncontracted exactly
+   * in the order computed by the function createBatchUncontractionHierarchy(...).
+   * The two uncontraction functions are required by the partitioned graph to update
+   * gain cache values.
+   */
 void DynamicGraph::uncontract(const Batch& batch,
                                    const UncontractionFunction& case_one_func,
                                    const UncontractionFunction& case_two_func) {
   ASSERT(batch.size() > 0UL);
-  // ASSERT([&] {
-  //   const HypernodeID expected_batch_index = hypernode(batch[0].v).batchIndex();
-  //   for ( const Memento& memento : batch ) {
-  //     if ( hypernode(memento.v).batchIndex() != expected_batch_index ) {
-  //       LOG << "Batch contains uncontraction from different batches."
-  //           << "Hypernode" << memento.v << "with version" << hypernode(memento.v).batchIndex()
-  //           << "but expected is" << expected_batch_index;
-  //       return false;
-  //     }
-  //     if ( _contraction_tree.version(memento.v) != _version ) {
-  //       LOG << "Batch contains uncontraction from a different version."
-  //           << "Hypernode" << memento.v << "with version" << _contraction_tree.version(memento.v)
-  //           << "but expected is" << _version;
-  //       return false;
-  //     }
-  //   }
-  //   return true;
-  // }(), "Batch contains uncontractions from different batches or from a different hypergraph version");
+  ASSERT([&] {
+    const HypernodeID expected_batch_index = hypernode(batch[0].v).batchIndex();
+    for ( const Memento& memento : batch ) {
+      if ( hypernode(memento.v).batchIndex() != expected_batch_index ) {
+        LOG << "Batch contains uncontraction from different batches."
+            << "Hypernode" << memento.v << "with version" << hypernode(memento.v).batchIndex()
+            << "but expected is" << expected_batch_index;
+        return false;
+      }
+      if ( _contraction_tree.version(memento.v) != _version ) {
+        LOG << "Batch contains uncontraction from a different version."
+            << "Hypernode" << memento.v << "with version" << _contraction_tree.version(memento.v)
+            << "but expected is" << _version;
+        return false;
+      }
+    }
+    return true;
+  }(), "Batch contains uncontractions from different batches or from a different hypergraph version");
 
   tbb::parallel_for(0UL, batch.size(), [&](const size_t i) {
     const Memento& memento = batch[i];

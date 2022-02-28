@@ -626,8 +626,8 @@ class DynamicGraph {
   /**
    * Uncontracts a batch of contractions in parallel. The batches must be uncontracted exactly
    * in the order computed by the function createBatchUncontractionHierarchy(...).
-   * The two uncontraction functions are required by the partitioned hypergraph to restore
-   * pin counts and gain cache values.
+   * The two uncontraction functions are required by the partitioned graph to update
+   * gain cache values.
    */
   void uncontract(const Batch& batch,
                   const UncontractionFunction& case_one_func = NOOP_BATCH_FUNC,
