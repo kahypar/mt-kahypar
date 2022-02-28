@@ -48,10 +48,6 @@ void executeParallel(const F& f1, const K& f2) {
   });
 }
 
-std::vector<HyperedgeID> expected_edges() {
-  return {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11};
-}
-
 TEST_F(ADynamicGraph, HasCorrectStats) {
   ASSERT_EQ(7,  hypergraph.initialNumNodes());
   ASSERT_EQ(12,  hypergraph.initialNumEdges());
@@ -82,7 +78,7 @@ TEST_F(ADynamicGraph, HasCorrectNodeIteratorIfVerticesAreDisabled) {
 }
 
 TEST_F(ADynamicGraph, HasCorrectInitialEdgeIterator) {
-  auto expected_iter = expected_edges();
+  std::vector<HyperedgeID> expected_iter = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11};
   HypernodeID pos = 0;
   for ( const HyperedgeID& he : hypergraph.edges() ) {
     ASSERT_EQ(expected_iter[pos++], he);
@@ -91,19 +87,17 @@ TEST_F(ADynamicGraph, HasCorrectInitialEdgeIterator) {
 }
 
 TEST_F(ADynamicGraph, VerifiesIncidentEdges) {
-  auto edges = expected_edges();
   verifyIncidentNets(0, { });
-  verifyIncidentNets(1, { edges[0], edges[1] });
-  verifyIncidentNets(2, { edges[2], edges[3] });
-  verifyIncidentNets(3, { edges[4] });
-  verifyIncidentNets(4, { edges[5], edges[6], edges[7] });
-  verifyIncidentNets(5, { edges[8], edges[9] });
-  verifyIncidentNets(6, { edges[10], edges[11] });
+  verifyIncidentNets(1, { 0, 1 });
+  verifyIncidentNets(2, { 2, 3 });
+  verifyIncidentNets(3, { 4 });
+  verifyIncidentNets(4, { 5, 6, 7 });
+  verifyIncidentNets(5, { 8, 9 });
+  verifyIncidentNets(6, { 10, 11 });
 }
 
 TEST_F(ADynamicGraph, VerifiesPinsOfEdges) {
-  auto edges = expected_edges();
-  verifyPins({ edges[0], edges[1], edges[3], edges[6], edges[7], edges[9] },
+  verifyPins({ 0, 1, 3, 6, 7, 9 },
     { {1, 2}, {1, 4}, {2, 3}, {4, 5}, {4, 6}, {5, 6} });
 }
 
@@ -116,8 +110,7 @@ TEST_F(ADynamicGraph, VerifiesVertexWeights) {
 TEST_F(ADynamicGraph, HasCorrectEdgeIteratorIfVerticesAreDisabled) {
   hypergraph.disableHypernode(5);
   hypergraph.disableHypernode(6);
-  std::vector<HyperedgeID> expected_iter = expected_edges();
-  expected_iter.resize(8);
+  std::vector<HyperedgeID> expected_iter = {0, 1, 2, 3, 4, 5, 6, 7};
   HypernodeID pos = 0;
   for ( const HyperedgeID& he : hypergraph.edges() ) {
     ASSERT_EQ(expected_iter[pos++], he);
@@ -221,26 +214,24 @@ TEST_F(ADynamicGraph, ComparesStatsIfCopiedSequential) {
 
 TEST_F(ADynamicGraph, ComparesIncidentEdgesIfCopiedParallel) {
   DynamicGraph copy_hg = hypergraph.copy(parallel_tag_t());
-  auto edges = expected_edges();
   verifyIncidentNets(copy_hg, 0, { });
-  verifyIncidentNets(copy_hg, 1, { edges[0], edges[1] });
-  verifyIncidentNets(copy_hg, 2, { edges[2], edges[3] });
-  verifyIncidentNets(copy_hg, 3, { edges[4] });
-  verifyIncidentNets(copy_hg, 4, { edges[5], edges[6], edges[7] });
-  verifyIncidentNets(copy_hg, 5, { edges[8], edges[9] });
-  verifyIncidentNets(copy_hg, 6, { edges[10], edges[11] });
+  verifyIncidentNets(copy_hg, 1, { 0, 1 });
+  verifyIncidentNets(copy_hg, 2, { 2, 3 });
+  verifyIncidentNets(copy_hg, 3, { 4 });
+  verifyIncidentNets(copy_hg, 4, { 5, 6, 7 });
+  verifyIncidentNets(copy_hg, 5, { 8, 9 });
+  verifyIncidentNets(copy_hg, 6, { 10, 11 });
 }
 
 TEST_F(ADynamicGraph, ComparesIncidentEdgesIfCopiedSequential) {
   DynamicGraph copy_hg = hypergraph.copy();
-  auto edges = expected_edges();
   verifyIncidentNets(copy_hg, 0, { });
-  verifyIncidentNets(copy_hg, 1, { edges[0], edges[1] });
-  verifyIncidentNets(copy_hg, 2, { edges[2], edges[3] });
-  verifyIncidentNets(copy_hg, 3, { edges[4] });
-  verifyIncidentNets(copy_hg, 4, { edges[5], edges[6], edges[7] });
-  verifyIncidentNets(copy_hg, 5, { edges[8], edges[9] });
-  verifyIncidentNets(copy_hg, 6, { edges[10], edges[11] });
+  verifyIncidentNets(copy_hg, 1, { 0, 1 });
+  verifyIncidentNets(copy_hg, 2, { 2, 3 });
+  verifyIncidentNets(copy_hg, 3, { 4 });
+  verifyIncidentNets(copy_hg, 4, { 5, 6, 7 });
+  verifyIncidentNets(copy_hg, 5, { 8, 9 });
+  verifyIncidentNets(copy_hg, 6, { 10, 11 });
 }
 
 TEST_F(ADynamicGraph, RegistersAContraction1) {
