@@ -290,7 +290,7 @@ class DynamicAdjacencyArray {
   DynamicAdjacencyArray() :
     _num_nodes(0),
     _header_array(),
-    _data(),
+    _edges(),
     _degree_diffs() { }
 
   DynamicAdjacencyArray(const HypernodeID num_nodes,
@@ -298,7 +298,7 @@ class DynamicAdjacencyArray {
                         const HyperedgeWeight* edge_weight = nullptr) :
     _num_nodes(num_nodes),
     _header_array(),
-    _data(),
+    _edges(),
     _thread_local_vec(),
     _degree_diffs() {
     tbb::parallel_invoke([&] {
@@ -310,13 +310,13 @@ class DynamicAdjacencyArray {
   }
 
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE const Edge& edge(const HyperedgeID e) const {
-    ASSERT(e < _data.size(), "Edge" << e << "does not exist");
-    return _data[e];
+    ASSERT(e < _edges.size(), "Edge" << e << "does not exist");
+    return _edges[e];
   }
 
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE Edge& edge(const HyperedgeID e) {
-    ASSERT(e <= _data.size(), "Edge" << e << "does not exist");
-    return _data[e];
+    ASSERT(e <= _edges.size(), "Edge" << e << "does not exist");
+    return _edges[e];
   }
 
   // ! Degree of the vertex
@@ -393,7 +393,7 @@ class DynamicAdjacencyArray {
   void sortIncidentEdges();
 
   size_t size_in_bytes() const {
-    return _data.size() * sizeof(Edge)
+    return _edges.size() * sizeof(Edge)
       + _header_array.size() * sizeof(Edge)
       + _degree_diffs.size() * sizeof(int32_t);
   }
@@ -539,7 +539,7 @@ class DynamicAdjacencyArray {
 
   HypernodeID _num_nodes;
   Array<Header> _header_array;
-  Array<Edge> _data;
+  Array<Edge> _edges;
   // data used during parallel edge removal
   ThreadLocalParallelEdgeVector _thread_local_vec;
   Array<int32_t> _degree_diffs;

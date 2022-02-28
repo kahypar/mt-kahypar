@@ -137,7 +137,7 @@ void DynamicAdjacencyArray::construct(const EdgeVector& edge_vector, const Hyper
   }, [&] {
     _header_array.resize(_num_nodes + 1);
   }, [&] {
-    _data.resize(2 * num_edges);
+    _edges.resize(2 * num_edges);
   }, [&] {
     node_degrees.resize(_num_nodes);
   }, [&] {
@@ -443,7 +443,7 @@ void DynamicAdjacencyArray::restoreSinglePinAndParallelEdges(
 
 void DynamicAdjacencyArray::sortIncidentEdges() {
   tbb::parallel_for(ID(0), ID(_header_array.size()), [&](HypernodeID u) {
-    std::sort(_data.data() + firstActiveEdge(u), _data.data() + firstInactiveEdge(u),
+    std::sort(_edges.data() + firstActiveEdge(u), _edges.data() + firstInactiveEdge(u),
       [&](const auto& e1, const auto& e2) {
         return e1.target < e2.target;
       }
@@ -460,8 +460,8 @@ DynamicAdjacencyArray DynamicAdjacencyArray::copy(parallel_tag_t) {
     memcpy(adjacency_array._header_array.data(), _header_array.data(),
       sizeof(Header) * _header_array.size());
   }, [&] {
-    adjacency_array._data.resize(_data.size());
-    memcpy(adjacency_array._data.data(), _data.data(), sizeof(Edge) * _data.size());
+    adjacency_array._edges.resize(_edges.size());
+    memcpy(adjacency_array._edges.data(), _edges.data(), sizeof(Edge) * _edges.size());
   });
 
   return adjacency_array;
@@ -474,8 +474,8 @@ DynamicAdjacencyArray DynamicAdjacencyArray::copy() {
   adjacency_array._header_array.resize(_header_array.size());
   memcpy(adjacency_array._header_array.data(), _header_array.data(),
     sizeof(Header) * _header_array.size());
-  adjacency_array._data.resize(_data.size());
-  memcpy(adjacency_array._data.data(), _data.data(), sizeof(Edge) * _data.size());
+  adjacency_array._edges.resize(_edges.size());
+  memcpy(adjacency_array._edges.data(), _edges.data(), sizeof(Edge) * _edges.size());
   return adjacency_array;
 }
 
