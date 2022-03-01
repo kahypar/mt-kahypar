@@ -162,6 +162,7 @@ class DynamicAdjacencyArray {
     // ! the header of the original target
     HypernodeID original_target;
     HypernodeID original_source; // TODO(maas): we wouldn't need that without `edgeIsEnabled`
+    HyperedgeID unique_id; // TODO(maas): any other solution?
   };
 
   struct RemovedEdgesOrWeight {
