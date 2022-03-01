@@ -158,7 +158,7 @@ class DynamicAdjacencyArray {
     // ! edge weight
     HyperedgeWeight weight;
     // ! version for undoing contractions
-    HypernodeID version;
+    HypernodeID version; // TODO(maas): is it better to keep all edges?
     // ! the header of the original target
     HypernodeID original_target;
     HypernodeID original_source; // TODO(maas): we wouldn't need that without `edgeIsEnabled`
