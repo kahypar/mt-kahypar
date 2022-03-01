@@ -185,12 +185,14 @@ void DynamicAdjacencyArray::construct(const EdgeVector& edge_vector, const Hyper
     e1.weight = weight;
     e1.version = 0;
     e1.original_target = e1.target;
+    e1.original_source = e1.source;
     Edge& e2 = edge(firstEdge(target) + current_incident_net_pos[target].fetch_add(1));
     e2.source = target;
     e2.target = source;
     e2.weight = weight;
     e2.version = 0;
     e2.original_target = e2.target;
+    e2.original_source = e2.source;
   });
 }
 

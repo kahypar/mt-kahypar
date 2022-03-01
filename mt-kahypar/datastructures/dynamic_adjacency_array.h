@@ -161,6 +161,7 @@ class DynamicAdjacencyArray {
     HypernodeID version;
     // ! the header of the original target
     HypernodeID original_target;
+    HypernodeID original_source; // TODO(maas): we wouldn't need that without `edgeIsEnabled`
   };
 
   struct RemovedEdgesOrWeight {
@@ -323,6 +324,11 @@ class DynamicAdjacencyArray {
   HypernodeID nodeDegree(const HypernodeID u) const {
     ASSERT(u < _num_nodes, "Hypernode" << u << "does not exist");
     return header(u).degree;
+  }
+
+  bool edgeIsEnabled(const HyperedgeID e) const {
+    const Header& head = header(edge(e).original_source);
+    return head.first_active <= e && e < head.first_inactive;
   }
 
   // ! Returns a range to loop over the incident edges of hypernode u.
