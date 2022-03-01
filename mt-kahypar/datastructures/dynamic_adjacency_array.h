@@ -106,8 +106,11 @@ class EdgeIterator :
   bool operator== (const EdgeIterator& rhs);
 
   private:
+  void update_ids();
+
   void traverse_headers();
 
+  HypernodeID _current_head;
   HypernodeID _current_u;
   HyperedgeID _current_id;
   HyperedgeID _current_last_id;

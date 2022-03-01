@@ -118,6 +118,19 @@ TEST_F(ADynamicGraph, HasCorrectEdgeIteratorIfVerticesAreDisabled) {
   ASSERT_EQ(expected_iter.size(), pos);
 }
 
+TEST_F(ADynamicGraph, HasCorrectEdgeIteratorAfterContractions) {
+  hypergraph.registerContraction(1, 2);
+  hypergraph.contract(2);
+  hypergraph.registerContraction(3, 4);
+  hypergraph.contract(4);
+  std::vector<HyperedgeID> expected_iter = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11};
+  HypernodeID pos = 0;
+  for ( const HyperedgeID& he : hypergraph.edges() ) {
+    ASSERT_EQ(expected_iter[pos++], he);
+  }
+  ASSERT_EQ(expected_iter.size(), pos);
+}
+
 TEST_F(ADynamicGraph, IteratesParallelOverAllNodes) {
   std::vector<uint8_t> visited(7, false);
   hypergraph.doParallelForAllNodes([&](const HypernodeID hn) {
