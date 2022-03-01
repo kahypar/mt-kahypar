@@ -322,12 +322,16 @@ parallel::scalable_vector<DynamicAdjacencyArray::RemovedEdgesOrWeight> DynamicAd
         }
       }
       std::sort(local_vec.begin(), local_vec.end(), [](const auto& e1, const auto& e2) {
-        return e1.target < e2.target || (
+        if (e1.target == e2.target) {
           // we need a symmetric order on edges and backedges to ensure that the
           // kept forward and backward edge are actually the same edge
-          e1.target == e2.target &&
-            std::max(e1.header_id, e1.original_target) < std::max(e2.header_id, e2.original_target)
-        );
+          HypernodeID e1_max = std::max(e1.header_id, e1.original_target);
+          HypernodeID e1_min = std::min(e1.header_id, e1.original_target);
+          HypernodeID e2_max = std::max(e2.header_id, e2.original_target);
+          HypernodeID e2_min = std::min(e2.header_id, e2.original_target);
+          return e1_max < e2_max || (e1_max == e2_max && e1_min < e2_min);
+        }
+        return e1.target < e2.target;
       });
 
       // scan and swap all duplicates to front
