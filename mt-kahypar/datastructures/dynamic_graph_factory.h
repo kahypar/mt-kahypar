@@ -56,9 +56,7 @@ class DynamicGraphFactory {
                                                 const HypernodeWeight* node_weight = nullptr,
                                                 const bool stable_construction_of_incident_edges = false);
 
-  static std::pair<DynamicGraph, parallel::scalable_vector<HypernodeID> > compactify(const DynamicGraph&) {
-    ERROR("Compactify not implemented for dynamic graph.");
-  }
+  static std::pair<DynamicGraph, parallel::scalable_vector<HypernodeID> > compactify(const DynamicGraph&);
 
  private:
   DynamicGraphFactory() { }

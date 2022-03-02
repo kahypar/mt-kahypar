@@ -90,4 +90,74 @@ namespace mt_kahypar::ds {
     });
     return graph;
   }
+
+
+std::pair<DynamicGraph, parallel::scalable_vector<HypernodeID> > DynamicGraphFactory::compactify(const DynamicGraph& graph) {
+  HypernodeID num_nodes = 0;
+  HyperedgeID num_edges = 0;
+  parallel::scalable_vector<HypernodeID> hn_mapping;
+  parallel::scalable_vector<HyperedgeID> he_mapping;
+  // Computes a mapping for vertices and edges to a consecutive range of IDs
+  // in the compactified hypergraph via a parallel prefix sum
+  tbb::parallel_invoke([&] {
+    hn_mapping.assign(graph.numNodes() + 1, 0);
+    graph.doParallelForAllNodes([&](const HypernodeID hn) {
+      hn_mapping[hn + 1] = ID(1);
+    });
+
+    parallel::TBBPrefixSum<HypernodeID, parallel::scalable_vector> hn_mapping_prefix_sum(hn_mapping);
+    tbb::parallel_scan(tbb::blocked_range<size_t>(
+      0UL, graph.numNodes() + 1), hn_mapping_prefix_sum);
+    num_nodes = hn_mapping_prefix_sum.total_sum();
+  }, [&] {
+    he_mapping.assign(graph._num_edges + 1, 0);
+    graph.doParallelForAllEdges([&](const HyperedgeID& he) {
+      he_mapping[he + 1] = ID(1);
+    });
+
+    parallel::TBBPrefixSum<HyperedgeID, parallel::scalable_vector> he_mapping_prefix_sum(he_mapping);
+    tbb::parallel_scan(tbb::blocked_range<size_t>(
+      0UL, graph._num_edges + 1), he_mapping_prefix_sum);
+    num_edges = he_mapping_prefix_sum.total_sum();
+  });
+
+  // Remap pins of each hyperedge
+  parallel::scalable_vector<std::pair<HypernodeID, HypernodeID>> edge_vector;
+  parallel::scalable_vector<HyperedgeWeight> edge_weights;
+  parallel::scalable_vector<HypernodeWeight> node_weights;
+  tbb::parallel_invoke([&] {
+    node_weights.resize(num_nodes);
+    graph.doParallelForAllNodes([&](const HypernodeID hn) {
+      const HypernodeID mapped_hn = hn_mapping[hn];
+      ASSERT(mapped_hn < num_nodes);
+      node_weights[mapped_hn] = graph.nodeWeight(hn);
+    });
+  }, [&] {
+    edge_vector.resize(num_edges);
+    edge_weights.resize(num_edges);
+    graph.doParallelForAllEdges([&](const HyperedgeID he) {
+      const HyperedgeID mapped_he = he_mapping[he];
+      ASSERT(mapped_he < num_edges);
+      edge_weights[mapped_he] = graph.edgeWeight(he);
+      edge_vector[mapped_he] = {hn_mapping[graph.edgeSource(he)], hn_mapping[graph.edgeTarget(he)]};
+    });
+  });
+
+  // Construct compactified graph
+  DynamicGraph compactified_graph = DynamicGraphFactory::construct_from_graph_edges(
+    num_nodes, num_edges, edge_vector, edge_weights.data(), node_weights.data());
+  compactified_graph._removed_degree_zero_hn_weight = graph._removed_degree_zero_hn_weight;
+  compactified_graph._total_weight += graph._removed_degree_zero_hn_weight;
+
+  // Set community ids
+  graph.doParallelForAllNodes([&](const HypernodeID& hn) {
+    const HypernodeID mapped_hn = hn_mapping[hn];
+    compactified_graph.setCommunityID(mapped_hn, graph.communityID(hn));
+  });
+
+  parallel::parallel_free(he_mapping, edge_weights, node_weights, edge_vector);
+
+  return std::make_pair(std::move(compactified_graph), std::move(hn_mapping));
+}
+
 }
