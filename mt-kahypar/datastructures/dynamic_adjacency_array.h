@@ -359,6 +359,19 @@ class DynamicAdjacencyArray {
       EdgeIterator(_num_nodes, this, filter));
   }
 
+
+  // ! Iterates in parallel over all active edges and calls function f
+  // ! for each net
+  template<typename F>
+  void doParallelForAllEdgesOfNode(HypernodeID hn, const F& f) const {
+    // TODO(maas): might not be optimal
+    for (HypernodeID current_u: headers(hn)) {
+      tbb::parallel_for(firstActiveEdge(current_u), firstInactiveEdge(current_u), [&](const HyperedgeID& e) {
+        f(e);
+      });
+    }
+  }
+
   // ! Contracts two incident list of u and v, whereby u is the representative and
   // ! v the contraction partner of the contraction. The contraction involves to remove
   // ! all incident edges shared between u and v from the incident edge list of v and append

@@ -417,13 +417,6 @@ class DynamicGraph {
   // ! Iterates in parallel over all active nodes and calls function f
   // ! for each vertex
   template<typename F>
-  void doParallelForAllNodes(const F& f) {
-    static_cast<const DynamicGraph&>(*this).doParallelForAllNodes(f);
-  }
-
-  // ! Iterates in parallel over all active nodes and calls function f
-  // ! for each vertex
-  template<typename F>
   void doParallelForAllNodes(const F& f) const {
     tbb::parallel_for(ID(0), _num_nodes, [&](const HypernodeID& hn) {
       if ( nodeIsEnabled(hn) ) {
@@ -434,21 +427,14 @@ class DynamicGraph {
 
   // ! Iterates in parallel over all active edges and calls function f
   // ! for each net
-  // template<typename F>
-  // void doParallelForAllEdges(const F& f) {
-  //   static_cast<const DynamicGraph&>(*this).doParallelForAllEdges(f);
-  // }
-
-  // ! Iterates in parallel over all active edges and calls function f
-  // ! for each net
-  // template<typename F>
-  // void doParallelForAllEdges(const F& f) const {
-  //   tbb::parallel_for(ID(0), _num_edges, [&](const HyperedgeID& he) {
-  //     if ( edgeIsEnabled(he) ) {
-  //       f(he);
-  //     }
-  //   });
-  // }
+  template<typename F>
+  void doParallelForAllEdges(const F& f) const {
+    tbb::parallel_for(ID(0), numNodes(), [&](const HypernodeID& hn) {
+      if ( nodeIsEnabled(hn) ) {
+        _adjacency_array.doParallelForAllEdgesOfNode(hn, f);
+      }
+    });
+  }
 
   // ! Returns a range of the active nodes of the hypergraph
   IteratorRange<HypernodeIterator> nodes() const {
