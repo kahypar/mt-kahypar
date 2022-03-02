@@ -500,10 +500,10 @@ class ContractionTree {
   // ####################### Copy #######################
 
   // ! Copy contraction tree in parallel
-  ContractionTree copy(parallel_tag_t);
+  ContractionTree copy(parallel_tag_t) const;
 
   // ! Copy contraction tree sequentially
-  ContractionTree copy();
+  ContractionTree copy() const;
 
   // ! Resets internal data structures
   void reset();

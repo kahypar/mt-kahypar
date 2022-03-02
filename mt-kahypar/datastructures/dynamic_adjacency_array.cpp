@@ -474,7 +474,7 @@ void DynamicAdjacencyArray::sortIncidentEdges() {
   });
 }
 
-DynamicAdjacencyArray DynamicAdjacencyArray::copy(parallel_tag_t) {
+DynamicAdjacencyArray DynamicAdjacencyArray::copy(parallel_tag_t) const {
   DynamicAdjacencyArray adjacency_array;
   adjacency_array._num_nodes = _num_nodes;
 
@@ -490,7 +490,7 @@ DynamicAdjacencyArray DynamicAdjacencyArray::copy(parallel_tag_t) {
   return adjacency_array;
 }
 
-DynamicAdjacencyArray DynamicAdjacencyArray::copy() {
+DynamicAdjacencyArray DynamicAdjacencyArray::copy() const {
   DynamicAdjacencyArray adjacency_array;
   adjacency_array._num_nodes = _num_nodes;
 

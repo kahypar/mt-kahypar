@@ -225,9 +225,9 @@ class IncidentNetArray {
   // ! be processed.
   void restoreIncidentNets(const HypernodeID u);
 
-  IncidentNetArray copy(parallel_tag_t);
+  IncidentNetArray copy(parallel_tag_t) const;
 
-  IncidentNetArray copy();
+  IncidentNetArray copy() const;
 
   void reset();
 

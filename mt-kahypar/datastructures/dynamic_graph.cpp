@@ -215,7 +215,7 @@ void DynamicGraph::restoreSinglePinAndParallelNets(const parallel::scalable_vect
 }
 
 // ! Copy dynamic hypergraph in parallel
-DynamicGraph DynamicGraph::copy(parallel_tag_t) {
+DynamicGraph DynamicGraph::copy(parallel_tag_t) const {
   DynamicGraph hypergraph;
 
   hypergraph._num_nodes = _num_nodes;
@@ -244,7 +244,7 @@ DynamicGraph DynamicGraph::copy(parallel_tag_t) {
 }
 
 // ! Copy dynamic hypergraph sequential
-DynamicGraph DynamicGraph::copy() {
+DynamicGraph DynamicGraph::copy() const {
   DynamicGraph hypergraph;
 
   hypergraph._num_nodes = _num_nodes;

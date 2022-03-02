@@ -170,7 +170,7 @@ void ContractionTree::finalize(const size_t num_versions) {
 // ####################### Copy #######################
 
 // ! Copy contraction tree in parallel
-ContractionTree ContractionTree::copy(parallel_tag_t) {
+ContractionTree ContractionTree::copy(parallel_tag_t) const {
   ContractionTree tree;
 
   tree._num_hypernodes = _num_hypernodes;
@@ -213,7 +213,7 @@ ContractionTree ContractionTree::copy(parallel_tag_t) {
 }
 
 // ! Copy contraction tree sequentially
-ContractionTree ContractionTree::copy() {
+ContractionTree ContractionTree::copy() const {
   ContractionTree tree;
 
   tree._num_hypernodes = _num_hypernodes;

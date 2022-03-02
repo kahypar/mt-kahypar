@@ -873,10 +873,10 @@ class DynamicHypergraph {
   // ####################### Copy #######################
 
   // ! Copy dynamic hypergraph in parallel
-  DynamicHypergraph copy(parallel_tag_t);
+  DynamicHypergraph copy(parallel_tag_t) const;
 
   // ! Copy dynamic hypergraph sequential
-  DynamicHypergraph copy();
+  DynamicHypergraph copy() const;
 
   // ! Reset internal data structure
   void reset() {

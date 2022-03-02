@@ -394,9 +394,9 @@ class DynamicAdjacencyArray {
 
   void restoreSinglePinAndParallelEdges(const parallel::scalable_vector<RemovedEdgesOrWeight>& edges_to_restore);
 
-  DynamicAdjacencyArray copy(parallel_tag_t);
+  DynamicAdjacencyArray copy(parallel_tag_t) const;
 
-  DynamicAdjacencyArray copy();
+  DynamicAdjacencyArray copy() const;
 
   void reset();
 

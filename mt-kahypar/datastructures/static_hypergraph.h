@@ -784,10 +784,10 @@ class StaticHypergraph {
   }
 
   // ! Copy static hypergraph in parallel
-  StaticHypergraph copy(parallel_tag_t);
+  StaticHypergraph copy(parallel_tag_t) const;
 
   // ! Copy static hypergraph sequential
-  StaticHypergraph copy();
+  StaticHypergraph copy() const;
 
   // ! Reset internal data structure
   void reset() { }
