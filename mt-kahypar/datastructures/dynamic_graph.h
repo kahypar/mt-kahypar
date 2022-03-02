@@ -324,6 +324,7 @@ class DynamicGraph {
     _contraction_index(0),
     _nodes(),
     _contraction_tree(),
+    _adjacency_array(),
     _acquired_nodes() { }
 
   DynamicGraph(const DynamicGraph&) = delete;
@@ -339,6 +340,7 @@ class DynamicGraph {
     _contraction_index(0),
     _nodes(std::move(other._nodes)),
     _contraction_tree(std::move(other._contraction_tree)),
+    _adjacency_array(std::move(other._adjacency_array)),
     _acquired_nodes(std::move(other._acquired_nodes)) { }
 
   DynamicGraph & operator= (DynamicGraph&& other) {
@@ -351,6 +353,7 @@ class DynamicGraph {
     _contraction_index.store(other._contraction_index.load());
     _nodes = std::move(other._nodes);
     _contraction_tree = std::move(other._contraction_tree);
+    _adjacency_array = std::move(other._adjacency_array);
     _acquired_nodes = std::move(other._acquired_nodes);
     return *this;
   }
