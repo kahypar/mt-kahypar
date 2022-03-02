@@ -38,7 +38,7 @@ namespace ds {
 
 // ! Recomputes the total weight of the hypergraph (parallel)
 void DynamicGraph::updateTotalWeight(parallel_tag_t) {
-  _total_weight = tbb::parallel_reduce(tbb::blocked_range<HypernodeID>(ID(0), _num_nodes), 0,
+  _total_weight = tbb::parallel_reduce(tbb::blocked_range<HypernodeID>(ID(0), numNodes()), 0,
     [this](const tbb::blocked_range<HypernodeID>& range, HypernodeWeight init) {
       HypernodeWeight weight = init;
       for (HypernodeID hn = range.begin(); hn < range.end(); ++hn) {
@@ -180,7 +180,7 @@ VersionedBatchVector DynamicGraph::createBatchUncontractionHierarchy(const size_
   utils::Timer::instance().start_timer("create_versioned_batches", "Create Versioned Batches");
   VersionedBatchVector versioned_batches(num_versions);
   parallel::scalable_vector<size_t> batch_sizes_prefix_sum(num_versions, 0);
-  BatchIndexAssigner batch_index_assigner(_num_nodes, batch_size);
+  BatchIndexAssigner batch_index_assigner(numNodes(), batch_size);
   for ( size_t version = 0; version < num_versions; ++version ) {
     versioned_batches[version] =
       _contraction_tree.createBatchUncontractionHierarchyForVersion(batch_index_assigner, version);
@@ -218,7 +218,6 @@ void DynamicGraph::restoreSinglePinAndParallelNets(const parallel::scalable_vect
 DynamicGraph DynamicGraph::copy(parallel_tag_t) const {
   DynamicGraph hypergraph;
 
-  hypergraph._num_nodes = _num_nodes;
   hypergraph._num_removed_nodes = _num_removed_nodes;
   hypergraph._removed_degree_zero_hn_weight = _removed_degree_zero_hn_weight;
   hypergraph._num_edges = _num_edges;
@@ -234,7 +233,7 @@ DynamicGraph DynamicGraph::copy(parallel_tag_t) const {
     hypergraph._adjacency_array = _adjacency_array.copy(parallel_tag_t());
   }, [&] {
     hypergraph._acquired_nodes.resize(_acquired_nodes.size());
-    tbb::parallel_for(ID(0), _num_nodes, [&](const HypernodeID& hn) {
+    tbb::parallel_for(ID(0), numNodes(), [&](const HypernodeID& hn) {
       hypergraph._acquired_nodes[hn] = _acquired_nodes[hn];
     });
   }, [&] {
@@ -247,7 +246,6 @@ DynamicGraph DynamicGraph::copy(parallel_tag_t) const {
 DynamicGraph DynamicGraph::copy() const {
   DynamicGraph hypergraph;
 
-  hypergraph._num_nodes = _num_nodes;
   hypergraph._num_removed_nodes = _num_removed_nodes;
   hypergraph._removed_degree_zero_hn_weight = _removed_degree_zero_hn_weight;
   hypergraph._num_edges = _num_edges;
@@ -259,8 +257,8 @@ DynamicGraph DynamicGraph::copy() const {
   memcpy(hypergraph._nodes.data(), _nodes.data(),
     sizeof(Hypernode) * _nodes.size());
     hypergraph._adjacency_array = _adjacency_array.copy(parallel_tag_t());
-  hypergraph._acquired_nodes.resize(_num_nodes);
-  for ( HypernodeID hn = 0; hn < _num_nodes; ++hn ) {
+  hypergraph._acquired_nodes.resize(numNodes());
+  for ( HypernodeID hn = 0; hn < numNodes(); ++hn ) {
     hypergraph._acquired_nodes[hn] = _acquired_nodes[hn];
   }
   hypergraph._contraction_tree = _contraction_tree.copy();

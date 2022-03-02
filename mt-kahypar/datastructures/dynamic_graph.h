@@ -315,7 +315,6 @@ class DynamicGraph {
   using ParallelHyperedge = DynamicAdjacencyArray::RemovedEdgesOrWeight;
 
   explicit DynamicGraph() :
-    _num_nodes(0),
     _num_removed_nodes(0),
     _removed_degree_zero_hn_weight(0),
     _num_edges(0),
@@ -331,7 +330,6 @@ class DynamicGraph {
   DynamicGraph & operator= (const DynamicGraph &) = delete;
 
   DynamicGraph(DynamicGraph&& other) :
-    _num_nodes(other._num_nodes),
     _num_removed_nodes(other._num_removed_nodes),
     _removed_degree_zero_hn_weight(other._removed_degree_zero_hn_weight),
     _num_edges(other._num_edges),
@@ -344,7 +342,6 @@ class DynamicGraph {
     _acquired_nodes(std::move(other._acquired_nodes)) { }
 
   DynamicGraph & operator= (DynamicGraph&& other) {
-    _num_nodes = other._num_nodes;
     _num_removed_nodes = other._num_removed_nodes;
     _num_edges = other._num_edges;
     _removed_degree_zero_hn_weight = other._removed_degree_zero_hn_weight;
@@ -366,7 +363,7 @@ class DynamicGraph {
 
   // ! Initial number of hypernodes
   HypernodeID initialNumNodes() const {
-    return _num_nodes;
+    return numNodes();
   }
 
   // ! Number of removed hypernodes
@@ -421,7 +418,7 @@ class DynamicGraph {
   // ! for each vertex
   template<typename F>
   void doParallelForAllNodes(const F& f) const {
-    tbb::parallel_for(ID(0), _num_nodes, [&](const HypernodeID& hn) {
+    tbb::parallel_for(ID(0), numNodes(), [&](const HypernodeID& hn) {
       if ( nodeIsEnabled(hn) ) {
         f(hn);
       }
@@ -442,8 +439,8 @@ class DynamicGraph {
   // ! Returns a range of the active nodes of the hypergraph
   IteratorRange<HypernodeIterator> nodes() const {
     return IteratorRange<HypernodeIterator>(
-      HypernodeIterator(_nodes.data(), ID(0), _num_nodes),
-      HypernodeIterator(_nodes.data() + _num_nodes, _num_nodes, _num_nodes));
+      HypernodeIterator(_nodes.data(), ID(0), numNodes()),
+      HypernodeIterator(_nodes.data() + numNodes(), numNodes(), numNodes()));
   }
 
   // ! Returns a range of the active edges of the hypergraph
@@ -454,7 +451,7 @@ class DynamicGraph {
 
   // ! Returns a range to loop over the incident edges of node u.
   IteratorRange<IncidentNetsIterator> incidentEdges(const HypernodeID u) const {
-    ASSERT(u < _num_nodes, "Hypernode" << u << "does not exist");
+    ASSERT(u < numNodes(), "Hypernode" << u << "does not exist");
     return _adjacency_array.incidentEdges(u);
   }
 
@@ -470,7 +467,7 @@ class DynamicGraph {
 
   // ! Weight of a vertex
   HypernodeWeight nodeWeight(const HypernodeID u) const {
-    ASSERT(u < _num_nodes, "Hypernode" << u << "does not exist");
+    ASSERT(u < numNodes(), "Hypernode" << u << "does not exist");
     return hypernode(u).weight();
   }
 
@@ -482,7 +479,7 @@ class DynamicGraph {
 
   // ! Degree of a hypernode
   HyperedgeID nodeDegree(const HypernodeID u) const {
-    ASSERT(u < _num_nodes, "Hypernode" << u << "does not exist");
+    ASSERT(u < numNodes(), "Hypernode" << u << "does not exist");
     return _adjacency_array.nodeDegree(u);
   }
 
@@ -577,7 +574,7 @@ class DynamicGraph {
 
   // ! Community id which hypernode u is assigned to
   PartitionID communityID(const HypernodeID u) const {
-    ASSERT(u < _num_nodes, "Hypernode" << u << "does not exist");
+    ASSERT(u < numNodes(), "Hypernode" << u << "does not exist");
     return hypernode(u).communityID();
   }
 
@@ -591,7 +588,7 @@ class DynamicGraph {
 
   // ! Reset internal community information
   void setCommunityIDs(const parallel::scalable_vector<PartitionID>& community_ids) {
-    ASSERT(community_ids.size() == UI64(_num_nodes));
+    ASSERT(community_ids.size() == UI64(numNodes()));
     doParallelForAllNodes([&](const HypernodeID& hn) {
       hypernode(hn).setCommunityID(community_ids[hn]);
     });
@@ -730,7 +727,6 @@ class DynamicGraph {
 
   // ! Free internal data in parallel
   void freeInternalData() {
-    _num_nodes = 0;
     _num_edges = 0;
   }
 
@@ -753,8 +749,12 @@ class DynamicGraph {
 
   // ####################### Acquiring / Releasing Ownership #######################
 
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE HypernodeID numNodes() const {
+    return _adjacency_array.numNodes();
+  }
+
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE void acquireHypernode(const HypernodeID u) {
-    ASSERT(u < _num_nodes, "Hypernode" << u << "does not exist");
+    ASSERT(u < numNodes(), "Hypernode" << u << "does not exist");
     bool expected = false;
     bool desired = true;
     while ( !_acquired_nodes[u].compare_exchange_strong(expected, desired) ) {
@@ -763,14 +763,14 @@ class DynamicGraph {
   }
 
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE bool tryAcquireHypernode(const HypernodeID u) {
-    ASSERT(u < _num_nodes, "Hypernode" << u << "does not exist");
+    ASSERT(u < numNodes(), "Hypernode" << u << "does not exist");
     bool expected = false;
     bool desired = true;
     return _acquired_nodes[u].compare_exchange_strong(expected, desired);
   }
 
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE void releaseHypernode(const HypernodeID u) {
-    ASSERT(u < _num_nodes, "Hypernode" << u << "does not exist");
+    ASSERT(u < numNodes(), "Hypernode" << u << "does not exist");
     ASSERT(_acquired_nodes[u], "Hypernode" << u << "is not acquired!");
     _acquired_nodes[u] = false;
   }
@@ -779,7 +779,7 @@ class DynamicGraph {
 
   // ! Accessor for hypernode-related information
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE const Hypernode& hypernode(const HypernodeID u) const {
-    ASSERT(u <= _num_nodes, "Hypernode" << u << "does not exist");
+    ASSERT(u <= numNodes(), "Hypernode" << u << "does not exist");
     return _nodes[u];
   }
 
@@ -812,8 +812,6 @@ class DynamicGraph {
   //   const BatchIndexAssigner& batch_assigner,
   //   const parallel::scalable_vector<parallel::scalable_vector<BatchAssignment>>& local_batch_assignments) const;
 
-  // ! Number of hypernodes
-  HypernodeID _num_nodes;
   // ! Number of removed hypernodes
   HypernodeID _num_removed_nodes;
   // ! Number of removed degree zero hypernodes

@@ -324,6 +324,10 @@ class DynamicAdjacencyArray {
     return _edges[e];
   }
 
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE HypernodeID numNodes() const {
+    return _num_nodes;
+  }
+
   // ! Degree of the vertex
   HypernodeID nodeDegree(const HypernodeID u) const {
     ASSERT(u < _num_nodes, "Hypernode" << u << "does not exist");

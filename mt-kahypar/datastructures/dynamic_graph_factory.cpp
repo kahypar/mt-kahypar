@@ -62,11 +62,9 @@ namespace mt_kahypar::ds {
           const bool stable_construction_of_incident_edges) {
     ASSERT(edge_vector.size() == num_edges);
     DynamicGraph graph;
-    graph._num_nodes = num_nodes;
     graph._num_edges = 2 * num_edges;
 
     // TODO: calculate required id range
-    // TODO: edge weights
     tbb::parallel_invoke([&] {
       graph._nodes.resize(num_nodes + 1);
       tbb::parallel_for(ID(0), num_nodes, [&](const HypernodeID n) {
