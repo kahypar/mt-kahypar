@@ -231,7 +231,7 @@ void DynamicAdjacencyArray::contract(const HypernodeID u,
       } else {
         e.version = new_version;
         e.source = u;
-        const HyperedgeID backwardsEdge = findBackwardsEdge(e, v);
+        const HyperedgeID backwardsEdge = findBackwardsEdge(e, current_v);
         edge(backwardsEdge).target = u;
         ++curr_edge;
       }
@@ -287,7 +287,7 @@ void DynamicAdjacencyArray::uncontract(const HypernodeID u,
       ASSERT(e.isSinglePin() == (e.target == u));
       e.version = new_version;
       e.source = v;
-      const HyperedgeID backwardsEdge = findBackwardsEdge(e, u);
+      const HyperedgeID backwardsEdge = findBackwardsEdge(e, current_v);
       edge(backwardsEdge).target = v;
       if (e.target == u) {
         case_one_func(curr_edge);
@@ -502,15 +502,15 @@ DynamicAdjacencyArray DynamicAdjacencyArray::copy() const {
   return adjacency_array;
 }
 
-HyperedgeID DynamicAdjacencyArray::findBackwardsEdge(const Edge& forward, HypernodeID source) const {
+HyperedgeID DynamicAdjacencyArray::findBackwardsEdge(const Edge& forward, HypernodeID original_source) const {
   const HypernodeID current_u = forward.original_target;
   const HyperedgeID first_inactive = firstInactiveEdge(current_u);
   for (HyperedgeID e = firstActiveEdge(current_u); e < first_inactive; ++e) {
-    if (edge(e).target == source) {
+    if (edge(e).original_target == original_source) {
       return e;
     }
   }
-  ASSERT(false, "Hypernode" << current_u << "has no outgoing edge with target" << source);
+  ASSERT(false, "Hypernode" << current_u << "has no outgoing edge with target" << original_source);
   return kInvalidHyperedge;
 }
 
