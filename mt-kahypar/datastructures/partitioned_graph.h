@@ -876,10 +876,12 @@ private:
         DBG << "<<< Start changing node part: " << V(u) << " - " << V(from) << " - " << V(to);
         parallel::scalable_vector<std::pair<HyperedgeID, PartitionID>> locks_to_restore;
         for (const HyperedgeID edge : incidentEdges(u)) {
-          const PartitionID target_part = targetPartWithLockSynchronization(u, to, edge, locks_to_restore);
-          const HypernodeID pin_count_in_from_part_after = target_part == from ? 1 : 0;
-          const HypernodeID pin_count_in_to_part_after = target_part == to ? 2 : 1;
-          delta_func(edge, edgeWeight(edge), edgeSize(edge), pin_count_in_from_part_after, pin_count_in_to_part_after);
+          if (edgeSource(edge) != edgeTarget(edge)) {
+            const PartitionID target_part = targetPartWithLockSynchronization(u, to, edge, locks_to_restore);
+            const HypernodeID pin_count_in_from_part_after = target_part == from ? 1 : 0;
+            const HypernodeID pin_count_in_to_part_after = target_part == to ? 2 : 1;
+            delta_func(edge, edgeWeight(edge), edgeSize(edge), pin_count_in_from_part_after, pin_count_in_to_part_after);
+          }
         }
         _part_ids[u].store(to, std::memory_order_relaxed);
         DBG << "Done changing node part: " << V(u) << " >>>";
