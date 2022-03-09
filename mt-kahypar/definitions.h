@@ -25,8 +25,8 @@
 
 #ifdef USE_GRAPH_PARTITIONER
 #ifdef USE_STRONG_PARTITIONER
-// not supported yet
-static_assert(false);
+#include "mt-kahypar/datastructures/dynamic_graph.h"
+#include "mt-kahypar/datastructures/dynamic_graph_factory.h"
 #else
 #include "mt-kahypar/datastructures/static_graph.h"
 #include "mt-kahypar/datastructures/static_graph_factory.h"
@@ -52,8 +52,8 @@ using TBBInitializer = mt_kahypar::parallel::TBBInitializer<HardwareTopology, fa
 
 #ifdef USE_GRAPH_PARTITIONER
 #ifdef USE_STRONG_PARTITIONER
-// not supported yet
-static_assert(false);
+using Hypergraph = ds::DynamicGraph;
+using HypergraphFactory = ds::DynamicGraphFactory;
 #else
 using Hypergraph = ds::StaticGraph;
 using HypergraphFactory = ds::StaticGraphFactory;

@@ -113,7 +113,11 @@ static void configureContext(mt_kahypar::Context& context) {
 
 static std::string getBinary(const mt_kahypar::Context& context) {
   std::string binary = std::string(MT_KAHYPAR_BINARY_DIR) + "MtKaHyParDefault";
-  if ( context.partition.instance_type == mt_kahypar::InstanceType::graph ) {
+  if ( context.partition.instance_type == mt_kahypar::InstanceType::graph &&
+        (context.partition.preset_type == mt_kahypar::PresetType::quality_preset ||
+         context.partition.preset_type == mt_kahypar::PresetType::quality_flows) ) {
+    binary = std::string(MT_KAHYPAR_BINARY_DIR) + "MtKaHyParGraphQuality";
+  } else if ( context.partition.instance_type == mt_kahypar::InstanceType::graph ) {
     binary = std::string(MT_KAHYPAR_BINARY_DIR) + "MtKaHyParGraph";
   } else if ( context.partition.preset_type == mt_kahypar::PresetType::quality_preset ||
               context.partition.preset_type == mt_kahypar::PresetType::quality_flows ) {

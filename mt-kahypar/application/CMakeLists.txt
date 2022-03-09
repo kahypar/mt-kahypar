@@ -38,12 +38,24 @@ add_custom_command(TARGET MtKaHyParGraph PRE_BUILD
       -E echo_append "${MT_KAHYPAR_VERSION_GIT_REFSPEC} at sha ${MT_KAHYPAR_VERSION_GIT_SHA1}" >
       ${PROJECT_BINARY_DIR}/mt-kahypar/application/git_mt_kahypar_graph.txt)
 
+add_executable(MtKaHyParGraphQuality kahypar.cc)
+target_link_libraries(MtKaHyParGraphQuality ${Boost_LIBRARIES})
+target_link_libraries(MtKaHyParGraphQuality pthread)
+set_property(TARGET MtKaHyParGraphQuality PROPERTY CXX_STANDARD 17)
+set_property(TARGET MtKaHyParGraphQuality PROPERTY CXX_STANDARD_REQUIRED ON)
+target_compile_definitions(MtKaHyParGraphQuality PUBLIC USE_GRAPH_PARTITIONER USE_STRONG_PARTITIONER)
+add_custom_command(TARGET MtKaHyParGraphQuality PRE_BUILD
+    COMMAND ${CMAKE_COMMAND}
+      -E echo_append "${MT_KAHYPAR_VERSION_GIT_REFSPEC} at sha ${MT_KAHYPAR_VERSION_GIT_SHA1}" >
+      ${PROJECT_BINARY_DIR}/mt-kahypar/application/git_mt_kahypar_gq.txt)
+
 if(ENABLE_PROFILE MATCHES ON)
   target_link_libraries(MtKaHyParWrapper ${PROFILE_FLAGS})
   target_link_libraries(MtKaHyParDefault ${PROFILE_FLAGS})
   target_link_libraries(MtKaHyParQuality ${PROFILE_FLAGS})
   target_link_libraries(MtKaHyParGraph ${PROFILE_FLAGS})
+  target_link_libraries(MtKaHyParGraphQuality ${PROFILE_FLAGS})
 endif()
 
 
-set(TARGETS_WANTING_ALL_SOURCES ${TARGETS_WANTING_ALL_SOURCES} MtKaHyParWrapper MtKaHyParDefault MtKaHyParQuality MtKaHyParGraph PARENT_SCOPE)
+set(TARGETS_WANTING_ALL_SOURCES ${TARGETS_WANTING_ALL_SOURCES} MtKaHyParWrapper MtKaHyParDefault MtKaHyParQuality MtKaHyParGraph MtKaHyParGraphQuality PARENT_SCOPE)

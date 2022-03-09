@@ -318,6 +318,7 @@ add_custom_target(MtKaHyPar
   COMMAND $(MAKE) MtKaHyParDefault
   COMMAND $(MAKE) MtKaHyParQuality
   COMMAND $(MAKE) MtKaHyParGraph
+  COMMAND $(MAKE) MtKaHyParGraphQuality
   COMMAND $(MAKE) MtKaHyParWrapper)
 
 add_custom_target(mt_kahypar_tests
