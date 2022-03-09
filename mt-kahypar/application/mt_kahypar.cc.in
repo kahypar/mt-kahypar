@@ -85,10 +85,8 @@ static void configureContext(mt_kahypar::Context& context) {
 
   // Sanity Check
   if ( context.partition.instance_type == mt_kahypar::InstanceType::graph &&
-       ( context.partition.preset_type == mt_kahypar::PresetType::quality_flows ||
-         context.partition.preset_type == mt_kahypar::PresetType::quality_preset ||
-         context.partition.preset_type == mt_kahypar::PresetType::deterministic ) ) {
-    ALGO_SWITCH("Graphs are only supported with default preset. Do you want to switch to default preset (Y/N)?",
+       ( context.partition.preset_type == mt_kahypar::PresetType::deterministic ) ) {
+    ALGO_SWITCH("Graphs are not supported with deterministic preset. Do you want to switch to default preset (Y/N)?",
                 "Graphs are not supported with" << context.partition.preset_type << "preset.",
                 context.partition.preset_type,
                 use_flows ? mt_kahypar::PresetType::default_flows : mt_kahypar::PresetType::default_preset);
