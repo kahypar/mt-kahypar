@@ -58,7 +58,6 @@ namespace mt_kahypar::ds {
           const EdgeVector& edge_vector,
           const HyperedgeWeight* edge_weight,
           const HypernodeWeight* node_weight,
-          // TODO(maas): should we support stable edge construction?
           const bool stable_construction_of_incident_edges) {
     ASSERT(edge_vector.size() == num_edges);
     DynamicGraph graph;
@@ -112,7 +111,9 @@ std::pair<DynamicGraph, parallel::scalable_vector<HypernodeID> > DynamicGraphFac
   }, [&] {
     he_mapping.assign(graph._num_edges + 1, 0);
     graph.doParallelForAllEdges([&](const HyperedgeID& he) {
-      he_mapping[he + 1] = ID(1);
+      if (graph.edgeSource(he) < graph.edgeTarget(he)) {
+        he_mapping[he + 1] = ID(1);
+      }
     });
 
     parallel::TBBPrefixSum<HyperedgeID, parallel::scalable_vector> he_mapping_prefix_sum(he_mapping);
@@ -136,10 +137,12 @@ std::pair<DynamicGraph, parallel::scalable_vector<HypernodeID> > DynamicGraphFac
     edge_vector.resize(num_edges);
     edge_weights.resize(num_edges);
     graph.doParallelForAllEdges([&](const HyperedgeID he) {
-      const HyperedgeID mapped_he = he_mapping[he];
-      ASSERT(mapped_he < num_edges);
-      edge_weights[mapped_he] = graph.edgeWeight(he);
-      edge_vector[mapped_he] = {hn_mapping[graph.edgeSource(he)], hn_mapping[graph.edgeTarget(he)]};
+      if (graph.edgeSource(he) < graph.edgeTarget(he)) {
+        const HyperedgeID mapped_he = he_mapping[he];
+        ASSERT(mapped_he < num_edges);
+        edge_weights[mapped_he] = graph.edgeWeight(he);
+        edge_vector[mapped_he] = {hn_mapping[graph.edgeSource(he)], hn_mapping[graph.edgeTarget(he)]};
+      }
     });
   });
 
