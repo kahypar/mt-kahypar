@@ -228,7 +228,7 @@ DynamicGraph DynamicGraph::copy(parallel_tag_t) const {
   tbb::parallel_invoke([&] {
     hypergraph._nodes.resize(_nodes.size());
     memcpy(hypergraph._nodes.data(), _nodes.data(),
-      sizeof(Hypernode) * _nodes.size());
+      sizeof(Node) * _nodes.size());
   }, [&] {
     hypergraph._adjacency_array = _adjacency_array.copy(parallel_tag_t());
   }, [&] {
@@ -255,7 +255,7 @@ DynamicGraph DynamicGraph::copy() const {
 
   hypergraph._nodes.resize(_nodes.size());
   memcpy(hypergraph._nodes.data(), _nodes.data(),
-    sizeof(Hypernode) * _nodes.size());
+    sizeof(Node) * _nodes.size());
     hypergraph._adjacency_array = _adjacency_array.copy(parallel_tag_t());
   hypergraph._acquired_nodes.resize(numNodes());
   for ( HypernodeID hn = 0; hn < numNodes(); ++hn ) {
@@ -269,7 +269,7 @@ DynamicGraph DynamicGraph::copy() const {
 void DynamicGraph::memoryConsumption(utils::MemoryTreeNode* parent) const {
   ASSERT(parent);
 
-  parent->addChild("Hypernodes", sizeof(Hypernode) * _nodes.size());
+  parent->addChild("Hypernodes", sizeof(Node) * _nodes.size());
   parent->addChild("Incident Nets", _adjacency_array.size_in_bytes());
   parent->addChild("Hypernode Ownership Vector", sizeof(bool) * _acquired_nodes.size());
 

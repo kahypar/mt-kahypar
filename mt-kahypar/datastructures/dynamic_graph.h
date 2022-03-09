@@ -71,17 +71,17 @@ class DynamicGraph {
    * Represents a hypernode of the hypergraph and contains all information
    * associated with a vertex.
    */
-  class Hypernode {
+  class Node {
    public:
     using IDType = HypernodeID;
 
-    Hypernode() :
+    Node() :
       _weight(1),
       _community_id(0),
       _batch_idx(std::numeric_limits<HypernodeID>::max()),
       _valid(false) { }
 
-    Hypernode(const bool valid) :
+    Node(const bool valid) :
       _weight(1),
       _community_id(0),
       _batch_idx(std::numeric_limits<HypernodeID>::max()),
@@ -301,10 +301,12 @@ class DynamicGraph {
   static constexpr bool is_graph = true;
   static constexpr bool is_static_hypergraph = false;
   static constexpr bool is_partitioned = false;
+  static constexpr size_t SIZE_OF_HYPERNODE = sizeof(Node);
+  static constexpr size_t SIZE_OF_HYPEREDGE = sizeof(Edge);
 
   using Hyperedge = Edge;
   // ! Iterator to iterate over the hypernodes
-  using HypernodeIterator = HypergraphElementIterator<const Hypernode>;
+  using HypernodeIterator = HypergraphElementIterator<const Node>;
   // ! Iterator to iterate over the hyperedges
   using HyperedgeIterator = EdgeIterator;
   // ! Iterator to iterate over the pins of a hyperedge
@@ -784,14 +786,14 @@ class DynamicGraph {
   // ####################### Hypernode Information #######################
 
   // ! Accessor for hypernode-related information
-  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE const Hypernode& hypernode(const HypernodeID u) const {
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE const Node& hypernode(const HypernodeID u) const {
     ASSERT(u <= numNodes(), "Hypernode" << u << "does not exist");
     return _nodes[u];
   }
 
   // ! To avoid code duplication we implement non-const version in terms of const version
-  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE Hypernode& hypernode(const HypernodeID u) {
-    return const_cast<Hypernode&>(static_cast<const DynamicGraph&>(*this).hypernode(u));
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE Node& hypernode(const HypernodeID u) {
+    return const_cast<Node&>(static_cast<const DynamicGraph&>(*this).hypernode(u));
   }
 
   // MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE IteratorRange<IncidentNetsIterator> incident_nets_of(const HypernodeID u,
@@ -833,7 +835,7 @@ class DynamicGraph {
   std::atomic<HypernodeID> _contraction_index;
 
   // ! Hypernodes
-  Array<Hypernode> _nodes;
+  Array<Node> _nodes;
   // ! Contraction Tree
   ContractionTree _contraction_tree;
   // ! Pins of hyperedges

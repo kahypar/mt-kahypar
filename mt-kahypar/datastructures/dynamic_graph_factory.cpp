@@ -69,7 +69,7 @@ DynamicGraph DynamicGraphFactory::construct_from_graph_edges(
     graph._nodes.resize(num_nodes + 1);
     tbb::parallel_for(ID(0), num_nodes, [&](const HypernodeID n) {
       // setup nodes
-      DynamicGraph::Hypernode& node = graph._nodes[n];
+      DynamicGraph::Node& node = graph._nodes[n];
       node.enable();
       if ( node_weight ) {
         node.setWeight(node_weight[n]);
