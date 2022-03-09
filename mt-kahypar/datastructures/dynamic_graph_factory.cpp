@@ -87,6 +87,9 @@ namespace mt_kahypar::ds {
     }, [&] {
       graph._contraction_tree.initialize(num_nodes);
     });
+
+    // Compute total weight of the graph
+    graph.updateTotalWeight(parallel_tag_t());
     return graph;
   }
 
