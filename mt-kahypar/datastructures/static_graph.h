@@ -580,9 +580,11 @@ class StaticGraph {
   // ! Returns a range to loop over the pins of hyperedge e.
   IteratorRange<IncidenceIterator> pins(const HyperedgeID id) const {
     const Edge& e = edge(id);
+    const HypernodeID source = e.source();
+    const HypernodeID target = e.target();
     return IteratorRange<IncidenceIterator>(
-      IncidenceIterator(e.source(), e.target(), 0),
-      IncidenceIterator(e.source(), e.target(), 2));
+      IncidenceIterator(source, target, 0),
+      IncidenceIterator(source, target, 2));
   }
 
     // ####################### Node Information #######################
