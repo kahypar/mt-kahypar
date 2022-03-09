@@ -470,6 +470,16 @@ void DynamicAdjacencyArray::restoreSinglePinAndParallelEdges(
   });
 }
 
+void DynamicAdjacencyArray::reset() {
+  tbb::parallel_for(ID(0), _num_nodes, [&](const HypernodeID u) {
+    header(u).current_version = 0;
+    ASSERT(firstEdge(u) == firstActiveEdge(u) && firstInactiveEdge(u) == lastEdge(u));
+    for ( HyperedgeID e = firstEdge(u); e < lastEdge(u); ++e ) {
+      edge(e).version = 0;
+    }
+  });
+}
+
 void DynamicAdjacencyArray::sortIncidentEdges() {
   tbb::parallel_for(ID(0), ID(_header_array.size()), [&](HypernodeID u) {
     std::sort(_edges.data() + firstActiveEdge(u), _edges.data() + firstInactiveEdge(u),

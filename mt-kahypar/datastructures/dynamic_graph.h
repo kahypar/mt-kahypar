@@ -566,6 +566,11 @@ class DynamicGraph {
     return _adjacency_array.edgeIsEnabled(e);
   }
 
+  // ! Enables a hyperedge (must be disabled before)
+  void enableHyperedge(const HyperedgeID) {
+    ERROR("enableHyperedge() is not supported in dynamic graph");
+  }
+
   HyperedgeID edgeSource(const HyperedgeID e) const {
     return edge(e).source;
   }
