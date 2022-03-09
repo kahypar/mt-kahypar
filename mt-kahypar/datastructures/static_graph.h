@@ -634,7 +634,7 @@ class StaticGraph {
     return edge(e).source();
   }
 
-  bool isSinglePin(const HyperedgeID e) const {
+  bool isSinglePin(const HyperedgeID) const {
     return false;
   }
 
