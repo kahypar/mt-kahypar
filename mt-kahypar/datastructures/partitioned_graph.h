@@ -354,6 +354,11 @@ private:
     return _hg->edgeSource(e);
   }
 
+  // ! Whether the edge is a single pin edge
+  bool isSinglePin(const HyperedgeID e) const {
+    return _hg->isSinglePin(e);
+  }
+
   // ! Weight of a hyperedge
   HypernodeWeight edgeWeight(const HyperedgeID e) const {
     return _hg->edgeWeight(e);
@@ -583,7 +588,9 @@ private:
 
   void initializeGainCacheEntry(const HypernodeID u, parallel::scalable_vector<Gain>& penalty_aggregator) {
     for (HyperedgeID e : incidentEdges(u)) {
-      penalty_aggregator[partID(edgeTarget(e))] += edgeWeight(e);
+      if (!isSinglePin(e)) {
+        penalty_aggregator[partID(edgeTarget(e))] += edgeWeight(e);
+      }
     }
 
     for (PartitionID i = 0; i < _k; ++i) {
@@ -625,9 +632,9 @@ private:
 
     // Calculate gain in parallel over all edges. Note that because the edges
     // are grouped by source node, this is still cache-efficient.
-    tbb::parallel_for(ID(0), _hg->initialNumEdges(), [&](const HyperedgeID e) {
+    doParallelForAllEdges([&](const HyperedgeID e) {
       const HypernodeID node = edgeSource(e);
-      if (nodeIsEnabled(node)) {
+      if (nodeIsEnabled(node) && !isSinglePin(e)) {
         size_t index = incident_weight_index(node, partID(edgeTarget(e)));
         _incident_weight_in_part[index].fetch_add(edgeWeight(e), std::memory_order_relaxed);
       }
@@ -684,7 +691,14 @@ private:
 
   // ! Only for testing
   HyperedgeWeight moveFromBenefitRecomputed(const HypernodeID u) const {
-    return 0;
+    PartitionID part_id = partID(u);
+    HyperedgeWeight w = 0;
+    for (HyperedgeID e : incidentEdges(u)) {
+      if (!isSinglePin(e) && partID(edgeTarget(e)) == part_id) {
+        w -= edgeWeight(e);
+      }
+    }
+    return w;
   }
 
   // ! Only for testing
@@ -692,9 +706,7 @@ private:
     PartitionID part_id = partID(u);
     HyperedgeWeight w = 0;
     for (HyperedgeID e : incidentEdges(u)) {
-      if (edgeTarget(e) == part_id) {
-        w += edgeWeight(e);
-      } else if (edgeTarget(e) == p) {
+      if (!isSinglePin(e) && partID(edgeTarget(e)) == p) {
         w -= edgeWeight(e);
       }
     }
@@ -703,6 +715,7 @@ private:
 
   void recomputeMoveFromBenefit(const HypernodeID u) {
     // Nothing to do here
+    // TODO(maas): is this correct?
   }
 
   // ! Only for testing
@@ -876,7 +889,7 @@ private:
         DBG << "<<< Start changing node part: " << V(u) << " - " << V(from) << " - " << V(to);
         parallel::scalable_vector<std::pair<HyperedgeID, PartitionID>> locks_to_restore;
         for (const HyperedgeID edge : incidentEdges(u)) {
-          if (edgeSource(edge) != edgeTarget(edge)) {
+          if (!isSinglePin(edge)) {
             const PartitionID target_part = targetPartWithLockSynchronization(u, to, edge, locks_to_restore);
             const HypernodeID pin_count_in_from_part_after = target_part == from ? 1 : 0;
             const HypernodeID pin_count_in_to_part_after = target_part == to ? 2 : 1;
@@ -905,6 +918,7 @@ private:
                                                 const HyperedgeID edge,
                                                 parallel::scalable_vector<std::pair<HyperedgeID, PartitionID>>& locks_to_restore) {
     const HypernodeID v = edgeTarget(edge);
+    ASSERT(u != v);
     const bool is_smaller_id = u < v;
     EdgeLock& e_lock = _edge_locks[_hg->uniqueEdgeID(edge)];
     const auto [state, part_id] = lock(e_lock, is_smaller_id);

@@ -570,6 +570,10 @@ class DynamicGraph {
     return edge(e).target;
   }
 
+  bool isSinglePin(const HyperedgeID e) const {
+    return edgeSource(e) == edgeTarget(e);
+  }
+
   // ####################### Community Information #######################
 
   // ! Community id which hypernode u is assigned to

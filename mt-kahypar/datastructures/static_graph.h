@@ -627,9 +627,13 @@ class StaticGraph {
     return edge(e).target();
   }
 
-  // ! Target of an edge
+  // ! Source of an edge
   HypernodeID edgeSource(const HyperedgeID e) const {
     return edge(e).source();
+  }
+
+  bool isSinglePin(const HyperedgeID e) const {
+    return false;
   }
 
   // ! Weight of a hyperedge
