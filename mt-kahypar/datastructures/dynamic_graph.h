@@ -389,8 +389,9 @@ class DynamicGraph {
   }
 
   // ! Set the number of removed hyperedges
-  void setNumRemovedHyperedges(const HyperedgeID) {
-    ERROR("setNumRemovedHyperedges is not supported in dynamic graph");
+  void setNumRemovedHyperedges(const HyperedgeID num_removed_hyperedges) {
+    ASSERT(num_removed_hyperedges == 0);
+    unused(num_removed_hyperedges);
   }
 
   // ! Initial number of pins
