@@ -341,6 +341,8 @@ parallel::scalable_vector<DynamicAdjacencyArray::RemovedEdgesOrWeight> DynamicAd
         if (e1.target == e2.target) {
           // we need a symmetric order on edges and backedges to ensure that the
           // kept forward and backward edge are actually the same edge
+
+          // TODO(maas): not really necessary?!
           HypernodeID e1_max = std::max(e1.header_id, e1.original_target);
           HypernodeID e1_min = std::min(e1.header_id, e1.original_target);
           HypernodeID e2_max = std::max(e2.header_id, e2.original_target);
@@ -438,6 +440,7 @@ void DynamicAdjacencyArray::restoreSinglePinAndParallelEdges(
         }
       }
       ASSERT(found);
+      unused(found);
     } else {
       // restore parallel edges, which have been swapped to the front
       _degree_diffs[removed.header] = removed.num_removed();

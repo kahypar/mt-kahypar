@@ -242,6 +242,7 @@ class DynamicGraph {
       _source(source),
       _target(target),
       _iteration_count(iteration_count) {
+      ASSERT(target != kInvalidHypernode);
     }
 
     // ! Returns the id of the element the iterator currently points to.
