@@ -72,6 +72,8 @@ class IncidentEdgeIterator :
   private:
   void traverse_headers();
 
+  void skip_invalid();
+
   HypernodeID _u;
   HypernodeID _current_u;
   HypernodeID _current_size;
@@ -153,6 +155,19 @@ class DynamicAdjacencyArray {
 
     bool isSinglePin() const {
       return source == target;
+    }
+
+    bool isValid() const {
+      return target != kInvalidHypernode;
+    }
+
+    void setValid(bool valid) {
+      if (valid) {
+        target = source;
+      } else {
+        ASSERT(isSinglePin());
+        target = kInvalidHypernode;
+      }
     }
 
     // ! Index of target node

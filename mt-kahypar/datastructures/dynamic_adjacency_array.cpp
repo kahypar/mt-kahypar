@@ -65,6 +65,7 @@ bool IncidentEdgeIterator::operator== (const IncidentEdgeIterator& rhs) {
 }
 
 void IncidentEdgeIterator::traverse_headers() {
+  skip_invalid();
   while ( _current_pos >= _current_size ) {
     const HypernodeID last_u = _current_u;
     _current_u = _dynamic_adjacency_array->header(last_u).it_next;
@@ -80,6 +81,14 @@ void IncidentEdgeIterator::traverse_headers() {
       _end = true;
       break;
     }
+    skip_invalid();
+  }
+}
+
+void IncidentEdgeIterator::skip_invalid() {
+  while (_current_pos < _current_size &&
+         !_dynamic_adjacency_array->edge(**this).isValid()) {
+    ++_current_pos;
   }
 }
 
@@ -226,25 +235,18 @@ void DynamicAdjacencyArray::contract(const HypernodeID u,
   // iterate over edges of v and update them
   Header& head_v = header(v);
   for (HypernodeID current_v: headers(v)) {
-    Header& head = header(current_v);
-    const HypernodeID new_version = ++head.current_version;
-    for ( HyperedgeID curr_edge = firstActiveEdge(current_v); curr_edge < firstInactiveEdge(current_v); ) {
+    const HyperedgeID last = firstInactiveEdge(current_v);
+    for ( HyperedgeID curr_edge = firstActiveEdge(current_v); curr_edge < last; ++curr_edge ) {
       Edge& e = edge(curr_edge);
-      if ( e.target == v ) {
-        ASSERT(e.isSinglePin());
-        swap_to_back(current_v, curr_edge);
+      if (e.isValid() && e.isSinglePin()) {
+        ASSERT(e.source == v);
+        e.setValid(false);
         --head_v.degree;
-      } else {
-        e.version = new_version;
+      } else if (e.isValid()) {
         e.source = u;
         const HyperedgeID backwardsEdge = findBackwardsEdge(e, current_v);
         edge(backwardsEdge).target = u;
-        ++curr_edge;
       }
-    }
-
-    if ( head.size() == 0 && current_v != v ) {
-      removeEmptyIncidentEdgeList(current_v);
     }
   }
 
@@ -284,36 +286,29 @@ void DynamicAdjacencyArray::uncontract(const HypernodeID u,
   // iterate over edges of v, update backwards edges and restore removed edges
   HypernodeID last_non_empty_v = v;
   for (HypernodeID current_v: headers(v)) {
-    Header& head = header(current_v);
-    ASSERT(head.current_version > 0);
-    const HypernodeID new_version = --head.current_version;
     const HyperedgeID first_inactive = firstInactiveEdge(current_v);
     for (HyperedgeID curr_edge = firstActiveEdge(current_v); curr_edge < first_inactive; ++curr_edge) {
       Edge& e = edge(curr_edge);
-      ASSERT(e.isSinglePin() == (e.target == u));
-      e.version = new_version;
-      e.source = v;
-      const HyperedgeID backwardsEdge = findBackwardsEdge(e, current_v);
-      edge(backwardsEdge).target = v;
-      if (e.target == u) {
-        case_one_func(curr_edge);
-      } else {
-        case_two_func(curr_edge);
+      ASSERT(e.source == u || e.isSinglePin());
+        // skip single pin edges from earlier contractions
+      if (e.source == u) {
+        e.source = v;
+        const HyperedgeID backwardsEdge = findBackwardsEdge(e, current_v);
+        edge(backwardsEdge).target = v;
+        if (e.target == u) {
+          case_one_func(curr_edge);
+        } else {
+          case_two_func(curr_edge);
+        }
+      } else if (e.source == v) {
+        ASSERT(!e.isValid());
+        e.setValid(true);
+        ++head_v.degree;
       }
     }
 
-    const HyperedgeID last_edge = lastEdge(current_v);
-    for (HyperedgeID curr_edge = first_inactive; curr_edge < last_edge; ++curr_edge) {
-      Edge& e = edge(curr_edge);
-      if (e.version != new_version) {
-        break;
-      }
-      ++head.first_inactive;
-      ++head_v.degree;
-      ASSERT(e.isSinglePin() && e.target == v);
-    }
 
-    if (head.size() > 0) {
+    if (header(current_v).size() > 0) {
       restoreItLink(v, last_non_empty_v, current_v);
       last_non_empty_v = current_v;
     }
