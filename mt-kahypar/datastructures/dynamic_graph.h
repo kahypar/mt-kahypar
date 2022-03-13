@@ -554,8 +554,8 @@ class DynamicGraph {
   }
 
   // ! Number of pins of a hyperedge
-  HypernodeID edgeSize(const HyperedgeID e) const {
-    return edge(e).isSinglePin() ? 1 : 2;
+  HypernodeID edgeSize(const HyperedgeID) const {
+    return 2;
   }
 
   // ! Maximum size of a hyperedge
@@ -565,7 +565,7 @@ class DynamicGraph {
 
   // ! Returns, whether a hyperedge is enabled or not
   bool edgeIsEnabled(const HyperedgeID e) const {
-    return _adjacency_array.edgeIsEnabled(e);
+    return _adjacency_array.edgeIsEnabled(e) && !isSinglePin(e);
   }
 
   // ! Enables a hyperedge (must be disabled before)

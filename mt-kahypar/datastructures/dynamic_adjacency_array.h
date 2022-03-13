@@ -190,17 +190,30 @@ class DynamicAdjacencyArray {
 
     RemovedEdgesOrWeight() { };
 
-    explicit RemovedEdgesOrWeight(HypernodeID header, HyperedgeID num_removed):
-      is_weight(false), header(header), _num_removed_or_weight(num_removed) { }
-
-    explicit RemovedEdgesOrWeight(HypernodeID header, HyperedgeWeight weight, HypernodeID target):
-      is_weight(true), header(header), _num_removed_or_weight(static_cast<HyperedgeID>(weight)), _target(target) {
+    explicit RemovedEdgesOrWeight(bool is_weight, HypernodeID header, HyperedgeWeight weight, HypernodeID target):
+      is_weight(is_weight),
+      header(header),
+      _num_removed_or_weight(static_cast<HyperedgeID>(weight)),
+      _degree_diff_or_target(target) {
       ASSERT(weight >= 0);
     }
 
-    HyperedgeID num_removed() const {
+    static RemovedEdgesOrWeight asEdges(HypernodeID header, HyperedgeID num_removed, HyperedgeID degree_diff) {
+      return RemovedEdgesOrWeight(false, header, static_cast<HyperedgeWeight>(num_removed), static_cast<HypernodeID>(degree_diff));
+    }
+
+    static RemovedEdgesOrWeight asWeight(HypernodeID header, HyperedgeWeight weight, HypernodeID target) {
+      return RemovedEdgesOrWeight(true, header, weight, target);
+    }
+
+    HyperedgeID numRemoved() const {
       ASSERT(!is_weight);
       return _num_removed_or_weight;
+    }
+
+    HyperedgeID degreeDiff() const {
+      ASSERT(!is_weight);
+      return static_cast<HyperedgeID>(_degree_diff_or_target);
     }
 
     HyperedgeWeight weight() const {
@@ -210,12 +223,13 @@ class DynamicAdjacencyArray {
 
     HypernodeID target() const {
       ASSERT(is_weight);
-      return _target;
+      return _degree_diff_or_target;
     }
 
-   private: 
+   private:
+    // some hand-made "union" fields
     HyperedgeID _num_removed_or_weight;
-    HypernodeID _target;
+    HypernodeID _degree_diff_or_target;
   };
 
  private:
@@ -437,8 +451,8 @@ class DynamicAdjacencyArray {
 
   size_t size_in_bytes() const {
     return _edges.size() * sizeof(Edge)
-      + _header_array.size() * sizeof(Edge)
-      + _degree_diffs.size() * sizeof(int32_t);
+      + _degree_diffs.size() * sizeof(int32_t)
+      + _header_array.size() * sizeof(Header);
   }
 
  private:

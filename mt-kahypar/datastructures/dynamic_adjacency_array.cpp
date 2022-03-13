@@ -289,8 +289,7 @@ void DynamicAdjacencyArray::uncontract(const HypernodeID u,
     const HyperedgeID first_inactive = firstInactiveEdge(current_v);
     for (HyperedgeID curr_edge = firstActiveEdge(current_v); curr_edge < first_inactive; ++curr_edge) {
       Edge& e = edge(curr_edge);
-      ASSERT(e.source == u || e.isSinglePin());
-        // skip single pin edges from earlier contractions
+      ASSERT(e.source == u || !e.isValid());
       if (e.source == u) {
         e.source = v;
         const HyperedgeID backwardsEdge = findBackwardsEdge(e, current_v);
@@ -301,7 +300,6 @@ void DynamicAdjacencyArray::uncontract(const HypernodeID u,
           case_two_func(curr_edge);
         }
       } else if (e.source == v) {
-        ASSERT(!e.isValid());
         e.setValid(true);
         ++head_v.degree;
       }
@@ -318,7 +316,7 @@ void DynamicAdjacencyArray::uncontract(const HypernodeID u,
 
 void DynamicAdjacencyArray::streamWeight(StreamingVector<RemovedEdgesOrWeight>& tmp_removed_edges,
                                          const ParallelEdgeInformation& e, HyperedgeWeight w) {
-  tmp_removed_edges.stream(RemovedEdgesOrWeight { e.header_id, edge(e.edge_id).weight, e.original_target });
+  tmp_removed_edges.stream(RemovedEdgesOrWeight::asWeight(e.header_id, edge(e.edge_id).weight, e.original_target));
   edge(e.edge_id).weight += w;
 }
 
@@ -352,7 +350,7 @@ parallel::scalable_vector<DynamicAdjacencyArray::RemovedEdgesOrWeight> DynamicAd
         return e1.target < e2.target;
       });
 
-      // scan and swap all duplicates to front
+      // scan and swap all duplicate/single pin/invalid edges to front
       HyperedgeID num_duplicates = 0;
       HyperedgeWeight current_weight = 0;
       for (size_t i = 0; i + 1 < local_vec.size(); ++i) {
@@ -362,7 +360,7 @@ parallel::scalable_vector<DynamicAdjacencyArray::RemovedEdgesOrWeight> DynamicAd
           streamWeight(tmp_removed_edges, e1, current_weight);
           current_weight = 0;
         }
-        if (e1.target == u) {
+        if (e1.target == u || e2.target == kInvalidHypernode) {
           std::swap(local_vec[num_duplicates], local_vec[i]);
           ++num_duplicates;
         } else if (e1.target == e2.target) {
@@ -384,7 +382,7 @@ parallel::scalable_vector<DynamicAdjacencyArray::RemovedEdgesOrWeight> DynamicAd
         if (current_weight > 0) {
           streamWeight(tmp_removed_edges, last, current_weight);
         }
-        if (last.target == u) {
+        if (last.target == u || last.target == kInvalidHypernode) {
           std::swap(local_vec[num_duplicates], local_vec[local_vec.size() - 1]);
           ++num_duplicates;
         }
@@ -400,20 +398,27 @@ parallel::scalable_vector<DynamicAdjacencyArray::RemovedEdgesOrWeight> DynamicAd
         // swap edges and collect output
         HypernodeID current_u = local_vec[0].header_id;
         HyperedgeID current_count = 0;
+        HyperedgeID current_degree_diff = 0;
+        HyperedgeID total_degree_diff = 0;
         for (const ParallelEdgeInformation& e: local_vec) {
           if (current_u != e.header_id) {
-            tmp_removed_edges.stream(RemovedEdgesOrWeight { current_u, current_count });
+            tmp_removed_edges.stream(RemovedEdgesOrWeight::asEdges(current_u, current_count, current_degree_diff));
             current_u = e.header_id;
             current_count = 0;
+            current_degree_diff = 0;
+          }
+          ++current_count;
+          if (e.target != kInvalidHypernode) {
+            ++current_degree_diff;
+            ++total_degree_diff;
           }
           swap_to_front(e.header_id, e.edge_id);
-          ++current_count;
           if (header(e.header_id).size() == 0 && current_u != u) {
             removeEmptyIncidentEdgeList(e.header_id);
           }
         }
-        tmp_removed_edges.stream(RemovedEdgesOrWeight { current_u, current_count });
-        header(u).degree -= num_duplicates;
+        tmp_removed_edges.stream(RemovedEdgesOrWeight::asEdges(current_u, current_count, current_degree_diff));
+        header(u).degree -= total_degree_diff;
       }
     }
   });
@@ -443,12 +448,12 @@ void DynamicAdjacencyArray::restoreSinglePinAndParallelEdges(
       unused(found);
     } else {
       // restore parallel edges, which have been swapped to the front
-      _degree_diffs[removed.header] = removed.num_removed();
-      if (removed.num_removed() > 0 && header(removed.header).size() == 0 && !header(removed.header).is_head) {
+      _degree_diffs[removed.header] = removed.degreeDiff();
+      if (removed.numRemoved() > 0 && header(removed.header).size() == 0 && !header(removed.header).is_head) {
         // we use a negative sign to mark previously empty headers
-        _degree_diffs[removed.header] *= -1;
+        _degree_diffs[removed.header] = -_degree_diffs[removed.header] - 1;
       }
-      header(removed.header).first_active -= removed.num_removed();
+      header(removed.header).first_active -= removed.numRemoved();
       ASSERT(header(removed.header).first_active <= header(removed.header).first_inactive);
     }
   });
@@ -458,7 +463,8 @@ void DynamicAdjacencyArray::restoreSinglePinAndParallelEdges(
     if (header(u).is_head) {
       bool restore_it = false;
       for (HypernodeID current_u: headers(u)) {
-        header(u).degree += std::abs(_degree_diffs[current_u]);
+        header(u).degree += _degree_diffs[current_u] >= 0 ?
+                            _degree_diffs[current_u] : -_degree_diffs[current_u] - 1;
         restore_it |= _degree_diffs[current_u] < 0;
       }
       if (restore_it) {
