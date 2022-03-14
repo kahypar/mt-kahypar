@@ -63,6 +63,7 @@ class StaticGraph {
   using AtomicHypernodeID = parallel::IntegralAtomicWrapper<HypernodeID>;
   using AtomicHypernodeWeight = parallel::IntegralAtomicWrapper<HypernodeWeight>;
   using UncontractionFunction = std::function<void (const HypernodeID, const HypernodeID, const HyperedgeID)>;
+  using MarkEdgeFunc = std::function<bool (const HyperedgeID)>;
   #define NOOP_BATCH_FUNC [] (const HypernodeID, const HypernodeID, const HyperedgeID) { }
 
   /**
@@ -714,8 +715,10 @@ class StaticGraph {
   }
 
   void uncontract(const Batch&,
+                  const MarkEdgeFunc& mark_edge,
                   const UncontractionFunction& case_one_func = NOOP_BATCH_FUNC,
                   const UncontractionFunction& case_two_func = NOOP_BATCH_FUNC) {
+    unused(mark_edge);
     unused(case_one_func);
     unused(case_two_func);
     ERROR("uncontract(batch) is not supported in static graph");

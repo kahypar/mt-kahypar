@@ -262,11 +262,13 @@ void DynamicAdjacencyArray::uncontract(const HypernodeID u,
                                        const HypernodeID v,
                                        const AcquireLockFunc& acquire_lock,
                                        const ReleaseLockFunc& release_lock) {
-  uncontract(u, v, [](HyperedgeID) {}, [](HyperedgeID) {}, acquire_lock, release_lock);
+  uncontract(u, v, [](HyperedgeID) { return false; }, [](HyperedgeID) {}, [](HyperedgeID) {},
+             acquire_lock, release_lock);
 }
 
 void DynamicAdjacencyArray::uncontract(const HypernodeID u,
                                        const HypernodeID v,
+                                       const MarkEdgeFunc& mark_edge,
                                        const CaseOneFunc& case_one_func,
                                        const CaseTwoFunc& case_two_func,
                                        const AcquireLockFunc& acquire_lock,
@@ -292,9 +294,16 @@ void DynamicAdjacencyArray::uncontract(const HypernodeID u,
       ASSERT(e.source == u || !e.isValid());
       if (e.source == u) {
         e.source = v;
+        // TODO(maas): reading e.target might be a bit of a race condition
+        const HypernodeID target = e.target;
+        bool singlePin = false;
+        if (target == u) {
+          // the edge is not truly single pin if already marked
+          singlePin = !mark_edge(curr_edge);
+        }
         const HyperedgeID backwardsEdge = findBackwardsEdge(e, current_v);
         edge(backwardsEdge).target = v;
-        if (e.target == u) {
+        if (singlePin) {
           case_one_func(curr_edge);
         } else {
           case_two_func(curr_edge);

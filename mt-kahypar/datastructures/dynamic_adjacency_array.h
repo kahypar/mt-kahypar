@@ -130,6 +130,7 @@ class DynamicAdjacencyArray {
   using NodeFilterFunc = std::function<bool (const HypernodeID)>;
   using AcquireLockFunc = std::function<void (const HypernodeID)>;
   using ReleaseLockFunc = std::function<void (const HypernodeID)>;
+  using MarkEdgeFunc = std::function<bool (const HyperedgeID)>;
   using CaseOneFunc = std::function<void (const HyperedgeID)>;
   using CaseTwoFunc = std::function<void (const HyperedgeID)>;
   #define FILTER_NONE_FUNC [] (const HypernodeID) { return true; }
@@ -429,9 +430,12 @@ class DynamicAdjacencyArray {
   // ! in v and restore all incident edges with a version number equal to the new version.
   // ! Additionally it calls case_one_func for a hyperedge he, if u and v were previously both
   // ! adjacent to he and case_two_func if only v was previously adjacent to he.
-  // ! Note, uncontraction must be done in relative contraction order
+  // ! mark_edge must return whether the edge was already locked previously in this round of uncontractions.
+  // !
+  // ! Note, uncontraction must be done in relative contraction order.
   void uncontract(const HypernodeID u,
                   const HypernodeID v,
+                  const MarkEdgeFunc& mark_edge,
                   const CaseOneFunc& case_one_func,
                   const CaseTwoFunc& case_two_func,
                   const AcquireLockFunc& acquire_lock,

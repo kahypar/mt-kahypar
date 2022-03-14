@@ -55,6 +55,7 @@ class DynamicGraph {
   // ! hypergraph passes two lambda functions to the batch uncontraction function, one for
   // ! each case.
   using UncontractionFunction = std::function<void (const HypernodeID, const HypernodeID, const HyperedgeID)>;
+  using MarkEdgeFunc = std::function<bool (const HyperedgeID)>;
   #define NOOP_BATCH_FUNC [] (const HypernodeID, const HypernodeID, const HyperedgeID) { }
 
   // Represents a uncontraction that is assigned to a certain batch
@@ -643,6 +644,7 @@ class DynamicGraph {
    * gain cache values.
    */
   void uncontract(const Batch& batch,
+                  const MarkEdgeFunc& mark_edge,
                   const UncontractionFunction& case_one_func = NOOP_BATCH_FUNC,
                   const UncontractionFunction& case_two_func = NOOP_BATCH_FUNC);
 

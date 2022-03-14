@@ -75,6 +75,26 @@ private:
     PartitionID move_target;
   };
 
+  // ! Allows to synchronize over an edge by marking it
+  class EdgeMarker {
+   public:
+    EdgeMarker() :
+      _state(0) { }
+
+    // ! Marks an edge up to twice and returns whether it was already marked
+    MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
+    bool mark() {
+      uint8_t expected = 0;
+      while (!_state.compare_exchange_weak(expected, expected + 1, std::memory_order_acq_rel)) {
+        ASSERT(expected < 2);
+      }
+      return expected > 0;
+    }
+
+   private:
+    CAtomic<uint8_t> _state;
+  };
+
   class ConnectivityIterator :
     public std::iterator<std::forward_iterator_tag,    // iterator_category
                          PartitionID,   // value_type
@@ -164,7 +184,10 @@ private:
       "Refinement", "part_ids", hypergraph.initialNumNodes(), false, false),
     _incident_weight_in_part(),
     _edge_locks(
-      "Refinement", "edge_locks", hypergraph.initialNumEdges() / 2, false, false) {
+      "Refinement", "edge_locks", hypergraph.initialNumEdges() / 2, false, false),
+    _edge_markers(
+      "Refinement", "edge_markers", Hypergraph::is_static_hypergraph ?
+      0 : hypergraph.initialNumEdges() / 2, false, false) {
     _part_ids.assign(hypergraph.initialNumNodes(), CAtomic<PartitionID>(kInvalidPartition), false);
   }
 
@@ -178,7 +201,8 @@ private:
     _part_weights(k, CAtomic<HypernodeWeight>(0)),
     _part_ids(),
     _incident_weight_in_part(),
-    _edge_locks() {
+    _edge_locks(),
+    _edge_markers() {
     tbb::parallel_invoke([&] {
       _part_ids.resize(
         "Refinement", "vertex_part_info", hypergraph.initialNumNodes());
@@ -187,6 +211,12 @@ private:
       _edge_locks.resize(
         "Refinement", "edge_locks", static_cast<size_t>(hypergraph.initialNumEdges() / 2));
       _edge_locks.assign(hypergraph.initialNumEdges() / 2, EdgeLock());
+    }, [&] {
+      if (!Hypergraph::is_static_hypergraph) {
+      _edge_markers.resize(
+        "Refinement", "edge_markers", static_cast<size_t>(hypergraph.initialNumEdges() / 2));
+      _edge_markers.assign(hypergraph.initialNumEdges() / 2, EdgeMarker());
+      }
     });
   }
 
@@ -398,9 +428,9 @@ private:
     });
 
     _hg->uncontract(batch,
+      [&](const HyperedgeID e) { return _edge_markers[uniqueEdgeID(e)].mark(); },
       [&](const HypernodeID u, const HypernodeID v, const HyperedgeID e) {
         // In this case, e was a single pin edge before uncontraction
-        ASSERT(edgeTarget(e) == u && edgeSource(e) == v);
         if ( _is_gain_cache_initialized ) {
           // the edge weight is added to u and v
           const PartitionID block = partID(u);
@@ -411,7 +441,6 @@ private:
       },
       [&](const HypernodeID u, const HypernodeID v, const HyperedgeID e) {
         // In this case, u is replaced by v in e
-        ASSERT(edgeTarget(e) != u && edgeSource(e) == v);
         if ( _is_gain_cache_initialized ) {
           // the edge weight shifts from u to v
           const PartitionID targetBlock = partID(edgeTarget(e));
@@ -1092,6 +1121,9 @@ private:
 
   // ! For each edge we use an atomic lock to synchronize moves
   Array< EdgeLock > _edge_locks;
+
+  // ! We need to synchronize uncontractions via atomic markers
+  Array< EdgeMarker > _edge_markers;
 
   // ! Fast reset threshold for edge locks
   uint32_t _lock_treshold;

@@ -326,6 +326,8 @@ DynamicHypergraphT simulateNLevel(DynamicHypergraphT& hypergraph,
       utils::Timer::instance().stop_timer(timer_key("restore_parallel_nets"));
     }
   }
+
+  partitioned_hypergraph.resetMoveState(parallel);
   utils::Timer::instance().stop_timer(timer_key("batch_uncontractions"));
 
   return coarsest_hypergraph;

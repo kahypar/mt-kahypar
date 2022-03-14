@@ -499,7 +499,7 @@ void verifyBatchUncontractions(DynamicGraph& graph,
     BatchVector& batches = versioned_batches.back();
     while ( !batches.empty() ) {
       const parallel::scalable_vector<Memento> batch = batches.back();
-      graph.uncontract(batch);
+      graph.uncontract(batch, [](const HyperedgeID&) { return false; });
       batches.pop_back();
     }
     versioned_batches.pop_back();

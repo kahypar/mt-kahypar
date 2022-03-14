@@ -112,8 +112,9 @@ size_t DynamicGraph::contract(const HypernodeID v,
    * gain cache values.
    */
 void DynamicGraph::uncontract(const Batch& batch,
-                                   const UncontractionFunction& case_one_func,
-                                   const UncontractionFunction& case_two_func) {
+                              const MarkEdgeFunc& mark_edge,
+                              const UncontractionFunction& case_one_func,
+                              const UncontractionFunction& case_two_func) {
   ASSERT(batch.size() > 0UL);
   ASSERT([&] {
     const HypernodeID expected_batch_index = hypernode(batch[0].v).batchIndex();
@@ -140,7 +141,7 @@ void DynamicGraph::uncontract(const Batch& batch,
     ASSERT(hypernode(memento.v).isDisabled(), "Hypernode" << memento.v << "is not invalid");
 
     // Restore incident net list of u and v
-    _adjacency_array.uncontract(memento.u, memento.v,
+    _adjacency_array.uncontract(memento.u, memento.v, mark_edge,
       [&](const HyperedgeID e) {
         case_one_func(memento.u, memento.v, e);
       }, [&](const HyperedgeID e) {
