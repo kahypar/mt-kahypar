@@ -360,7 +360,7 @@ parallel::scalable_vector<DynamicAdjacencyArray::RemovedEdgesOrWeight> DynamicAd
           streamWeight(tmp_removed_edges, e1, current_weight);
           current_weight = 0;
         }
-        if (e1.target == u || e2.target == kInvalidHypernode) {
+        if (e1.target == u || e1.target == kInvalidHypernode) {
           std::swap(local_vec[num_duplicates], local_vec[i]);
           ++num_duplicates;
         } else if (e1.target == e2.target) {
