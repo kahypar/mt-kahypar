@@ -131,7 +131,7 @@ class DynamicAdjacencyArray {
   using CaseTwoFunc = std::function<void (const HyperedgeID)>;
   #define NOOP_LOCK_FUNC [] (const HypernodeID) { }
 
-  static_assert(sizeof(char) == 1);
+  static constexpr bool enable_heavy_assert = false;
 
  public:
   // Represents one edge of a vertex.
@@ -174,8 +174,8 @@ class DynamicAdjacencyArray {
     HyperedgeWeight weight;
     // ! version for undoing contractions
     HypernodeID version; // TODO(maas): is it better to keep all edges?
-    // ! the header of the original target
-    HypernodeID original_target;
+    // ! id of the backwards edge
+    HyperedgeID back_edge;
     HypernodeID original_source; // TODO(maas): we wouldn't need that without `edgeIsEnabled`
     HyperedgeID unique_id; // TODO(maas): any other solution?
   };
@@ -186,20 +186,20 @@ class DynamicAdjacencyArray {
 
     RemovedEdgesOrWeight() { };
 
-    explicit RemovedEdgesOrWeight(bool is_weight, HypernodeID header, HyperedgeWeight weight, HypernodeID target):
+    explicit RemovedEdgesOrWeight(bool is_weight, HypernodeID header, HyperedgeWeight weight, HyperedgeID id):
       is_weight(is_weight),
       header(header),
       _num_removed_or_weight(static_cast<HyperedgeID>(weight)),
-      _degree_diff_or_target(target) {
+      _degree_diff_or_id(id) {
       ASSERT(weight >= 0);
     }
 
     static RemovedEdgesOrWeight asEdges(HypernodeID header, HyperedgeID num_removed, HyperedgeID degree_diff) {
-      return RemovedEdgesOrWeight(false, header, static_cast<HyperedgeWeight>(num_removed), static_cast<HypernodeID>(degree_diff));
+      return RemovedEdgesOrWeight(false, header, static_cast<HyperedgeWeight>(num_removed), degree_diff);
     }
 
-    static RemovedEdgesOrWeight asWeight(HypernodeID header, HyperedgeWeight weight, HypernodeID target) {
-      return RemovedEdgesOrWeight(true, header, weight, target);
+    static RemovedEdgesOrWeight asWeight(HypernodeID header, HyperedgeID id, HyperedgeWeight weight) {
+      return RemovedEdgesOrWeight(true, header, weight, id);
     }
 
     HyperedgeID numRemoved() const {
@@ -209,7 +209,12 @@ class DynamicAdjacencyArray {
 
     HyperedgeID degreeDiff() const {
       ASSERT(!is_weight);
-      return static_cast<HyperedgeID>(_degree_diff_or_target);
+      return _degree_diff_or_id;
+    }
+
+    HyperedgeID edgeID() const {
+      ASSERT(is_weight);
+      return _degree_diff_or_id;
     }
 
     HyperedgeWeight weight() const {
@@ -217,15 +222,10 @@ class DynamicAdjacencyArray {
       return static_cast<HyperedgeWeight>(_num_removed_or_weight);
     }
 
-    HypernodeID target() const {
-      ASSERT(is_weight);
-      return _degree_diff_or_target;
-    }
-
    private:
     // some hand-made "union" fields
     HyperedgeID _num_removed_or_weight;
-    HypernodeID _degree_diff_or_target;
+    HyperedgeID _degree_diff_or_id;
   };
 
  private:
@@ -299,16 +299,15 @@ class DynamicAdjacencyArray {
   struct ParallelEdgeInformation {
     ParallelEdgeInformation() = default;
 
-    ParallelEdgeInformation(HypernodeID target, HypernodeID original_target,
-                            HyperedgeID edge_id, HypernodeID header_id):
-        target(target), original_target(original_target), edge_id(edge_id), header_id(header_id) { }
+    ParallelEdgeInformation(HypernodeID target, HyperedgeID edge_id, HyperedgeID unique_id, HypernodeID header_id):
+        target(target), edge_id(edge_id), unique_id(unique_id), header_id(header_id) { }
 
     // ! Index of target node
     HypernodeID target;
-    // ! heade of target node
-    HypernodeID original_target;
-    // ! Index of corresponding edge
+    // ! Index of edge
     HyperedgeID edge_id;
+    // ! Unique id of edge
+    HyperedgeID unique_id;
     // ! header
     HypernodeID header_id;
   };
@@ -322,6 +321,7 @@ class DynamicAdjacencyArray {
     _num_nodes(0),
     _header_array(),
     _edges(),
+    _edge_mapping(),
     _degree_diffs() { }
 
   DynamicAdjacencyArray(const HypernodeID num_nodes,
@@ -331,13 +331,9 @@ class DynamicAdjacencyArray {
     _header_array(),
     _edges(),
     _thread_local_vec(),
+    _edge_mapping(),
     _degree_diffs() {
-    tbb::parallel_invoke([&] {
-        construct(edge_vector, edge_weight);
-      }, [&] {
-      _degree_diffs.resize(_num_nodes);
-      }
-    );
+    construct(edge_vector, edge_weight);
   }
 
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE const Edge& edge(const HyperedgeID e) const {
@@ -452,6 +448,7 @@ class DynamicAdjacencyArray {
 
   size_t size_in_bytes() const {
     return _edges.size() * sizeof(Edge)
+      + _edge_mapping.size() * sizeof(HyperedgeID)
       + _degree_diffs.size() * sizeof(int32_t)
       + _header_array.size() * sizeof(Header);
   }
@@ -461,7 +458,6 @@ class DynamicAdjacencyArray {
   friend class EdgeIterator;
 
   class HeaderIterator :
-    // TODO
     public std::iterator<std::forward_iterator_tag,    // iterator_category
                           HypernodeID,   // value_type
                           std::ptrdiff_t,   // difference_type
@@ -545,26 +541,26 @@ class DynamicAdjacencyArray {
     rhs = tmp_lhs;
   }
 
-  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE void swap_to_front(const HypernodeID u, const HyperedgeID e) {
-    ASSERT(u <= _num_nodes, "Hypernode" << u << "does not exist");
-    swap(edge(e), edge(firstActiveEdge(u)));
-    ++header(u).first_active;
-    ASSERT(header(u).first_active <= header(u).first_inactive);
-  }
-
-  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE void swap_to_back(const HypernodeID u, const HyperedgeID e) {
-    ASSERT(u <= _num_nodes, "Hypernode" << u << "does not exist");
-    swap(edge(e), edge(firstInactiveEdge(u) - 1));
-    --header(u).first_inactive;
-    ASSERT(header(u).first_active <= header(u).first_inactive);
-  }
-
   // ! Returns a range to loop over the headers of node u.
   IteratorRange<HeaderIterator> headers(const HypernodeID u) const {
     ASSERT(u < _num_nodes, "Hypernode" << u << "does not exist");
     return IteratorRange<HeaderIterator>(
       HeaderIterator(u, this, false),
       HeaderIterator(u, this, true));
+  }
+
+  void initializeEdgeMapping(Array<HyperedgeID>& mapping) {
+    ASSERT(mapping.size() == _edges.size());
+    tbb::parallel_for(ID(0), ID(mapping.size()), [&](const HyperedgeID e) {
+      mapping[e] = e;
+    });
+  }
+
+  void applyEdgeMapping(Array<HyperedgeID>& mapping) {
+    ASSERT(mapping.size() == _edges.size());
+    tbb::parallel_for(ID(0), ID(mapping.size()), [&](const HyperedgeID e) {
+      edge(e).back_edge = mapping[edge(e).back_edge];
+    });
   }
 
   // ! Restores all previously removed incident edges
@@ -586,8 +582,6 @@ class DynamicAdjacencyArray {
 
   void restoreItLink(const HypernodeID u, const HypernodeID prev, const HypernodeID current);
 
-  HyperedgeID findBackwardsEdge(const Edge& forward, HypernodeID source) const;
-
   void streamWeight(StreamingVector<RemovedEdgesOrWeight>& tmp_removed_edges,
                     const ParallelEdgeInformation& e, HyperedgeWeight w);
 
@@ -600,6 +594,7 @@ class DynamicAdjacencyArray {
   Array<Edge> _edges;
   // data used during parallel edge removal
   ThreadLocalParallelEdgeVector _thread_local_vec;
+  Array<HyperedgeID> _edge_mapping;
   Array<int32_t> _degree_diffs;
 };
 
