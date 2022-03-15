@@ -528,12 +528,16 @@ class DynamicGraph {
 
   // ! Accessor for hyperedge-related information
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE const Edge& edge(const HyperedgeID e) const {
-    return _adjacency_array.edge(e);
+    const Edge& he = _adjacency_array.edge(e);
+    ASSERT(he.isValid());
+    return he;
   }
 
   // ! To avoid code duplication we implement non-const version in terms of const version
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE Hyperedge& edge(const HyperedgeID e) {
-    return _adjacency_array.edge(e);
+    Hyperedge& he = _adjacency_array.edge(e);
+    ASSERT(he.isValid());
+    return he;
   }
 
   // ! Weight of an edge
@@ -565,7 +569,7 @@ class DynamicGraph {
 
   // ! Returns, whether a hyperedge is enabled or not
   bool edgeIsEnabled(const HyperedgeID e) const {
-    return _adjacency_array.edgeIsEnabled(e) && !isSinglePin(e);
+    return _adjacency_array.edgeIsEnabled(e);
   }
 
   // ! Enables a hyperedge (must be disabled before)

@@ -362,7 +362,7 @@ class DynamicAdjacencyArray {
 
   bool edgeIsEnabled(const HyperedgeID e) const {
     const Header& head = header(edge(e).original_source);
-    return head.first_active <= e && e < head.first_inactive;
+    return edge(e).isValid() && head.first_active <= e && e < head.first_inactive;
   }
 
   // ! Returns a range to loop over the incident edges of hypernode u.
@@ -397,7 +397,9 @@ class DynamicAdjacencyArray {
     // TODO(maas): might not be optimal
     for (HypernodeID current_u: headers(hn)) {
       tbb::parallel_for(firstActiveEdge(current_u), firstInactiveEdge(current_u), [&](const HyperedgeID& e) {
-        f(e);
+        if (edge(e).isValid()) {
+          f(e);
+        }
       });
     }
   }

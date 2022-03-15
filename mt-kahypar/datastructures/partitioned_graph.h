@@ -330,9 +330,8 @@ private:
   IteratorRange<ConnectivityIterator> connectivitySet(const HyperedgeID e) const {
     ASSERT(_hg->edgeIsEnabled(e), "Hyperedge" << e << "is disabled");
     ASSERT(e < _hg->initialNumEdges(), "Hyperedge" << e << "does not exist");
-    IncidenceIterator pin_it = _hg->pins(e).begin();
-    PartitionID first = partID(*pin_it);
-    PartitionID second = partID(*(++pin_it));
+    PartitionID first = partID(edgeSource(e));
+    PartitionID second = partID(edgeTarget(e));
     return IteratorRange<ConnectivityIterator>(
       ConnectivityIterator(first, second, 0),
       ConnectivityIterator(first, second, 2));
@@ -379,7 +378,7 @@ private:
     return _hg->edgeTarget(e);
   }
 
-  // ! Target of an edge
+  // ! Source of an edge
   HypernodeID edgeSource(const HyperedgeID e) const {
     return _hg->edgeSource(e);
   }
@@ -594,7 +593,7 @@ private:
     if (p == partID(edgeSource(e))) {
       count++;
     }
-    if (p == partID(edgeTarget(e))) {
+    if (!isSinglePin(e) && p == partID(edgeTarget(e))) {
       count++;
     }
     return count;

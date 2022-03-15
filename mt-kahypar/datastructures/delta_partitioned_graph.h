@@ -131,7 +131,7 @@ class DeltaPartitionedGraph {
     return _pg->edgeTarget(e);
   }
 
-  // ! Target of an edge
+  // ! Source of an edge
   HypernodeID edgeSource(const HyperedgeID e) const {
     return _pg->edgeSource(e);
   }
@@ -245,7 +245,7 @@ class DeltaPartitionedGraph {
     if (p == partID(edgeSource(e))) {
       count++;
     }
-    if (p == partID(edgeTarget(e))) {
+    if (!_pg->isSinglePin(e) && p == partID(edgeTarget(e))) {
       count++;
     }
     return count;
