@@ -189,7 +189,6 @@ void DynamicAdjacencyArray::construct(const EdgeVector& edge_vector, const Hyper
     head.first = incident_net_prefix_sum[u];
     head.first_active = head.first;
     head.first_inactive = head.first + head.degree;
-    head.current_version = 0;
     head.is_head = true;
   });
 
@@ -204,7 +203,6 @@ void DynamicAdjacencyArray::construct(const EdgeVector& edge_vector, const Hyper
     e1.source = source;
     e1.target = target;
     e1.weight = weight;
-    e1.version = 0;
     e1.back_edge = id2;
     e1.original_source = e1.source;
     e1.unique_id = he;
@@ -212,7 +210,6 @@ void DynamicAdjacencyArray::construct(const EdgeVector& edge_vector, const Hyper
     e2.source = target;
     e2.target = source;
     e2.weight = weight;
-    e2.version = 0;
     e2.back_edge = id1;
     e2.original_source = e2.source;
     e2.unique_id = he;
@@ -409,7 +406,7 @@ parallel::scalable_vector<DynamicAdjacencyArray::RemovedEdgesOrWeight> DynamicAd
             permutation_source = _edge_mapping[permutation_source];
           }
           ASSERT(_edge_mapping[e.edge_id] == e.edge_id && _edge_mapping[permutation_source] == new_id);
-          swap(edge(e.edge_id), edge(new_id));
+          std::swap(edge(e.edge_id), edge(new_id));
           ++head.first_active;
           _edge_mapping[e.edge_id] = new_id;
           _edge_mapping[permutation_source] = e.edge_id;
@@ -488,13 +485,7 @@ void DynamicAdjacencyArray::restoreSinglePinAndParallelEdges(
 }
 
 void DynamicAdjacencyArray::reset() {
-  tbb::parallel_for(ID(0), _num_nodes, [&](const HypernodeID u) {
-    header(u).current_version = 0;
-    ASSERT(firstEdge(u) == firstActiveEdge(u) && firstInactiveEdge(u) == lastEdge(u));
-    for ( HyperedgeID e = firstEdge(u); e < lastEdge(u); ++e ) {
-      edge(e).version = 0;
-    }
-  });
+  // Nothing to do here
 }
 
 void DynamicAdjacencyArray::sortIncidentEdges() {

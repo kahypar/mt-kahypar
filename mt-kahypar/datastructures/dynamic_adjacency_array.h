@@ -134,21 +134,11 @@ class DynamicAdjacencyArray {
   static constexpr bool enable_heavy_assert = false;
 
  public:
-  // Represents one edge of a vertex.
-  // An edge is associated with a version number. Edges
-  // with a version number greater or equal than the version number in
-  // header (see Header -> current_version) are active.
+  // Represents one (directed) edge of a vertex.
+  // Note that we maintain a direct link to the corresponding
+  // backwards edge via its edge id, which is updated when any
+  // edge ids change.
   struct Edge {
-
-    bool operator== (const Edge& rhs) const {
-      return target == rhs.target && source == rhs.source &&
-             weight == rhs.weight && version == rhs.version;
-    }
-
-    bool operator!= (const Edge& rhs) const {
-      return !operator==(rhs);
-    }
-
     bool isSinglePin() const {
       return source == target;
     }
@@ -172,8 +162,6 @@ class DynamicAdjacencyArray {
     HypernodeID source;
     // ! edge weight
     HyperedgeWeight weight;
-    // ! version for undoing contractions
-    HypernodeID version; // TODO(maas): is it better to keep all edges?
     // ! id of the backwards edge
     HyperedgeID back_edge;
     HypernodeID original_source; // TODO(maas): we wouldn't need that without `edgeIsEnabled`
@@ -241,7 +229,6 @@ class DynamicAdjacencyArray {
       first_active(0),
       first_inactive(0),
       degree(0),
-      current_version(0),
       is_head(false) { }
 
     explicit Header(const HypernodeID u) :
@@ -253,18 +240,10 @@ class DynamicAdjacencyArray {
       first_active(0),
       first_inactive(0),
       degree(0),
-      current_version(0),
       is_head(true) { }
     
     HyperedgeID size() const {
       return first_inactive - first_active;
-    }
-
-    // TODO: remove
-    void print() const {
-      LOG << V(prev) << ", " << V(next) << ", " << V(it_prev) << ", " << V(it_next) << ", " << V(is_head);
-      // LOG << V(header.tail) << ", " << V(header.first_active) << ", " << V(header.first_inactive) << V(header.degree);
-      // LOG << V(header.current_version) << V(header.is_head);
     }
 
     // ! Previous incident edge list
@@ -287,8 +266,6 @@ class DynamicAdjacencyArray {
     HyperedgeID first_inactive;
     // ! Degree of the vertex
     HyperedgeID degree;
-    // ! Current version of the incident edge list
-    HypernodeID current_version;
     // ! True, if the vertex is the head of a incident edge list
     bool is_head;
   };
@@ -403,15 +380,15 @@ class DynamicAdjacencyArray {
   // ! Contracts two incident list of u and v, whereby u is the representative and
   // ! v the contraction partner of the contraction. The contraction involves to remove
   // ! all incident edges shared between u and v from the incident edge list of v and append
-  // ! the list of v to u.
+  // ! the list of v to u, while also updating the back edges of all affected edges.
   void contract(const HypernodeID u,
                 const HypernodeID v,
                 const AcquireLockFunc& acquire_lock = NOOP_LOCK_FUNC,
                 const ReleaseLockFunc& release_lock = NOOP_LOCK_FUNC);
 
   // ! Uncontract two previously contracted vertices u and v.
-  // ! Uncontraction involves to decrement the version number of all incident lists contained
-  // ! in v and restore all incident edges with a version number equal to the new version.
+  // ! Uncontraction means restoring the incident edge list of v from the current list of u
+  // ! and updating all affected backward edges.
   // ! Note, uncontraction must be done in relative contraction order
   void uncontract(const HypernodeID u,
                   const HypernodeID v,
@@ -419,12 +396,11 @@ class DynamicAdjacencyArray {
                   const ReleaseLockFunc& release_lock = NOOP_LOCK_FUNC);
 
   // ! Uncontract two previously contracted vertices u and v.
-  // ! Uncontraction involves to decrement the version number of all incident lists contained
-  // ! in v and restore all incident edges with a version number equal to the new version.
-  // ! Additionally it calls case_one_func for a hyperedge he, if u and v were previously both
-  // ! adjacent to he and case_two_func if only v was previously adjacent to he.
+  // ! Uncontraction means restoring the incident edge list of v from the current list of u
+  // ! and updating all affected backward edges.
+  // ! Additionally it calls case_one_func for an edge e, if u and v were previously both
+  // ! adjacent to e and case_two_func if only v was previously adjacent to e.
   // ! mark_edge must return whether the edge was already locked previously in this round of uncontractions.
-  // !
   // ! Note, uncontraction must be done in relative contraction order.
   void uncontract(const HypernodeID u,
                   const HypernodeID v,
@@ -533,12 +509,6 @@ class DynamicAdjacencyArray {
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE HyperedgeID lastEdge(const HypernodeID u) const {
     ASSERT(u <= _num_nodes, "Hypernode" << u << "does not exist");
     return header(u + 1).first;
-  }
-
-  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE void swap(Edge& lhs, Edge& rhs) {
-    Edge tmp_lhs = lhs;
-    lhs = rhs;
-    rhs = tmp_lhs;
   }
 
   // ! Returns a range to loop over the headers of node u.
