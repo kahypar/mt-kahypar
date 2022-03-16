@@ -81,25 +81,25 @@ Running Mt-KaHyPar
 Mt-KaHyPar has several configuration parameters. We recommend to use one of our presets (also located in the `config` folder):
 
 - `default`: default parameters for Mt-KaHyPar-D/-Graph (`config/default_preset.ini`)
-- `default_flow`: extends the default preset with flow-based refinement (`config/default_flow_preset.ini`)
+- `default_flows`: extends the default preset with flow-based refinement (`config/default_flow_preset.ini`)
 - `deterministic`: parameters to make Mt-KaHyPar-D deterministic (`config/deterministic_preset.ini`)
 - `quality`: default parameters for Mt-KaHyPar-Q (`config/quality_preset.ini`)
-- `quality_flow`: extends the quality preset with flow-based refinement (`config/quality_flow_preset.ini`)
+- `quality_flows`: extends the quality preset with flow-based refinement (`config/quality_flow_preset.ini`)
 
 The presets can be ranked from lowest to the highest quality as follows: `deterministic`,
-`default`, `quality`, `default_flow` and `quality_flow`.
+`default`, `quality`, `default_flows` and `quality_flows`.
 Deterministic mode is only supported for Mt-KaHyPar-D, not -Graph or -Q.
 If you want to change parameters manually, please run `--help` for a detailed description of the different program options. We use the [hMetis format](http://glaros.dtc.umn.edu/gkhome/fetch/sw/hmetis/manual.pdf) for hypergraph files as well as the partition output file and the [Metis format](http://glaros.dtc.umn.edu/gkhome/fetch/sw/metis/manual.pdf) for graph files. Per default, we expect the input to be in hMetis format, but you can read graphs in Metis format via command line parameter `--input-file-format=metis`.
 
 To run Mt-KaHyPar, you can use the following command:
 
-    ./MtKaHyPar -h <path-to-hgr> --preset-type=<deterministic/default/default_flow/quality/quality_flow> --instance_type=<hypergraph/graph> -t <# threads> -k <# blocks> -e <imbalance (e.g. 0.03)> -o km1 -m direct
+    ./MtKaHyPar -h <path-to-hgr> --preset-type=<deterministic/default/default_flows/quality/quality_flows> --instance_type=<hypergraph/graph> -t <# threads> -k <# blocks> -e <imbalance (e.g. 0.03)> -o km1 -m direct
 
 or directly provide a configuration file (see `config` folder):
 
     ./MtKaHyPar -h <path-to-hgr> -p <path-to-config-file> -t <# threads> -k <# blocks> -e <imbalance (e.g. 0.03)> -o km1 -m direct
 
-Note that when `--instance-type=graph` is set, we run Mt-KaHyPar-Graph (only available for preset types `default` and `default_flow`), otherwise Mt-KaHyPar-D or -Q based on the preset type. The partition output file will be placed in the same folder as the input hypergraph file. If you want to change the default partition output folder, add the command line parameter `--partition-output-folder=path/to/folder`. There is also an option to disable writing the partition file `--write-partition-file=false`. Further, there are several useful options that can provide you with additional insights during and after the partitioning process:
+Note that when `--instance-type=graph` is set, we run Mt-KaHyPar-Graph (only available for preset types `default` and `default_flows`), otherwise Mt-KaHyPar-D or -Q based on the preset type. The partition output file will be placed in the same folder as the input hypergraph file. If you want to change the default partition output folder, add the command line parameter `--partition-output-folder=path/to/folder`. There is also an option to disable writing the partition file `--write-partition-file=false`. Further, there are several useful options that can provide you with additional insights during and after the partitioning process:
 - `--show-detailed-timings=true`: Shows detailed subtimings of each multilevel phase at the end of the partitioning process
 - `--show-memory-consumption=true`: Gives detailed information on how much memory was allocated and how memory is reused throughout the algorithm
 - `--enable-progress-bar=true`: Shows a progess bar during the coarsening and refinement phase
