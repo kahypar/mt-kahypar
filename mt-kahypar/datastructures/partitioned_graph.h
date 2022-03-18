@@ -416,6 +416,7 @@ private:
   // ####################### Uncontraction #######################
 
   void uncontract(const Batch& batch) {
+    resetMoveState();
     // Set block ids of contraction partners
     tbb::parallel_for(0UL, batch.size(), [&](const size_t i) {
       const Memento& memento = batch[i];
