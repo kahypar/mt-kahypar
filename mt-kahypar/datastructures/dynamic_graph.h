@@ -558,8 +558,8 @@ class DynamicGraph {
   }
 
   // ! Number of pins of a hyperedge
-  HypernodeID edgeSize(const HyperedgeID) const {
-    return 2;
+  HypernodeID edgeSize(const HyperedgeID e) const {
+    return isSinglePin(e) ? 1 : 2;
   }
 
   // ! Maximum size of a hyperedge
