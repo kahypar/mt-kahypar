@@ -638,6 +638,7 @@ class InitialPartitioningDataContainer {
       best_feasible_objective = best->_result._objective;
     }
 
+    _partitioned_hg.resetMoveState();
     _partitioned_hg.initializePartition();
     ASSERT(best_feasible_objective == metrics::objective(_partitioned_hg, _context.partition.objective, false),
            V(best_feasible_objective) << V(metrics::objective(_partitioned_hg, _context.partition.objective, false)));

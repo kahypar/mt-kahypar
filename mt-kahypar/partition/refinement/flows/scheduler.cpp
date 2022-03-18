@@ -104,7 +104,7 @@ bool FlowRefinementScheduler::refineImpl(
                 const parallel::scalable_vector<HypernodeID>&,
                 Metrics& best_metrics,
                 const double)  {
-  unused(phg);
+  phg.resetMoveState();
   ASSERT(_phg == &phg);
   _quotient_graph.setObjective(best_metrics.getMetric(
     Mode::direct, _context.partition.objective));

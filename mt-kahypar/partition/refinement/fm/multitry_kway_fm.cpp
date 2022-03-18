@@ -86,7 +86,7 @@ namespace mt_kahypar {
       timer.stop_timer("find_moves");
 
       timer.start_timer("rollback", "Rollback to Best Solution");
-      phg.resetMoveState(true);
+      phg.resetMoveState();
       HyperedgeWeight improvement = globalRollback.revertToBestPrefix
               <FMStrategy::maintain_gain_cache_between_rounds>(phg, sharedData, initialPartWeights);
       timer.stop_timer("rollback");

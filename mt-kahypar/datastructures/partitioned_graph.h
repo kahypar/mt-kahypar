@@ -60,90 +60,19 @@ private:
   enum class EdgeLockState : uint8_t {
     UNCONTENDED = 0,
     MOVING_SMALLER_ID_NODE = 1,
-    MOVING_LARGER_ID_NODE = 2
+    MOVING_LARGER_ID_NODE = 2,
+    LOCKED = 3
   };
 
-  // ! Multi-state lock to synchronize moves. Hides ugly details behind a nice api.
-  class EdgeLock {
-   public:
+  // ! Multi-state lock to synchronize moves
+  struct EdgeLock {
     EdgeLock() :
-      _state(UNCONTENDED),
-      _move_target(kInvalidPartition) {
+      state(0),
+      move_target(kInvalidPartition) {
     }
 
-    // ! Returns whether the lock is in UNCONTENDED state.
-    bool isUncontended() const {
-      return _state.load(std::memory_order_relaxed) == UNCONTENDED;
-    }
-
-    // ! Returns whether the lock is currently locked.
-    bool isLocked() const {
-      return _state.load(std::memory_order_relaxed) == LOCKED;
-    }
-
-    // ! Returns whether locking was successful and the partition id.
-    MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
-    std::pair<bool, PartitionID> tryLock(EdgeLockState expected) {
-      uint8_t expected_val = static_cast<uint8_t>(expected);
-      if (_state.compare_exchange_weak(expected_val, LOCKED, std::memory_order_acquire)) {
-        return {true, _move_target};
-      } else {
-        return {false, kInvalidPartition};
-      }
-    }
-
-    // ! Returns the previous state and the partition id.
-    MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
-    std::pair<EdgeLockState, PartitionID> lock(bool smaller_id) {
-      uint8_t expected = moveStateValue(!smaller_id);
-      while (!_state.compare_exchange_weak(expected, LOCKED, std::memory_order_acquire)) {
-        ASSERT(expected < 4);
-        if (expected == LOCKED) {
-          expected = moveStateValue(!smaller_id);
-        }
-      }
-      return {static_cast<EdgeLockState>(expected), _move_target};
-    }
-
-    // ! Unlocks and sets the state to uncontended.
-    MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
-    void unlock() {
-      ASSERT(_state.load() == LOCKED);
-      _move_target = kInvalidPartition;
-      _state.store(UNCONTENDED, std::memory_order_release);
-    }
-
-    // ! Unlocks, sets the state to moving and sets the partition id.
-    MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
-    void unlockMoving(bool smaller_id, PartitionID target) {
-      ASSERT(_state.load() == LOCKED);
-      _move_target = target;
-      _state.store(moveStateValue(smaller_id), std::memory_order_release);
-    }
-
-    // ! Resets the state to uncontended.
-    MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
-    void reset() {
-      ASSERT(_state.load() != LOCKED);
-      _move_target = kInvalidPartition;
-      _state.store(UNCONTENDED, std::memory_order_release);
-    }
-
-    MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
-    static EdgeLockState moveState(bool smaller_id) {
-      return smaller_id ? EdgeLockState::MOVING_SMALLER_ID_NODE : EdgeLockState::MOVING_LARGER_ID_NODE;
-    }
-
-    MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
-    static uint8_t moveStateValue(bool smaller_id) {
-      return static_cast<uint8_t>(moveState(smaller_id));
-    }
-
-   private:
-    static const uint8_t LOCKED = 3;
-    static const uint8_t UNCONTENDED = static_cast<uint8_t>(EdgeLockState::UNCONTENDED);
-    CAtomic<uint8_t> _state;
-    PartitionID _move_target;
+    CAtomic<uint32_t> state;
+    PartitionID move_target;
   };
 
   class ConnectivityIterator :
@@ -277,6 +206,7 @@ private:
 
   void resetData() {
     _is_gain_cache_initialized = false;
+    resetMoveState();
     tbb::parallel_invoke([&] {
     }, [&] {
       _part_ids.assign(_part_ids.size(), CAtomic<PartitionID>(kInvalidPartition));
@@ -691,16 +621,16 @@ private:
   // ! 2. Nodes are reassigned (via setOnlyNodePart() or changeNodePart() without a delta function)
   // ! 3. Nodes are moved again
   // ! Then, resetMoveState() must be called between steps 2 and 3.
-  void resetMoveState(bool parallel) {
-    if (parallel) {
+  void resetMoveState() {
+    if (_lock_treshold > std::numeric_limits<typeof(_lock_treshold)>::max() - 3) {
       tbb::parallel_for(ID(0), _hg->initialNumEdges() / 2, [&](const HyperedgeID id) {
-        _edge_locks[id].reset();
+        _edge_locks[id].state.store(0, std::memory_order_relaxed);
       });
+      _lock_treshold = 0;
     } else {
-      for (HyperedgeID id = 0; id < _hg->initialNumEdges() / 2; ++id) {
-        _edge_locks[id].reset();
-      }
+      _lock_treshold += 3;
     }
+    moveAssertions();
   }
 
   // ! Only for testing
@@ -936,20 +866,19 @@ private:
                                                 parallel::scalable_vector<std::pair<HyperedgeID, PartitionID>>& locks_to_restore) {
     const HypernodeID v = edgeTarget(edge);
     const bool is_smaller_id = u < v;
-    EdgeLock& lock = _edge_locks[_hg->uniqueEdgeID(edge)];
-    const auto [state, part_id] = lock.lock(is_smaller_id);
+    EdgeLock& e_lock = _edge_locks[_hg->uniqueEdgeID(edge)];
+    const auto [state, part_id] = lock(e_lock, is_smaller_id);
     PartitionID target_part;
     if (state == EdgeLockState::UNCONTENDED) {
-      ASSERT(part_id == kInvalidPartition);
       target_part = partID(v);
       DBG << "EdgeLockState::UNCONTENDED: " << V(u) << " - " << V(v);
-    } else if (state == EdgeLock::moveState(is_smaller_id)) {
+    } else if (state == moveState(is_smaller_id)) {
       // this state means u was already moved previously
       ASSERT(part_id == partID(u), "Lock in invalid state: " << V(part_id) << " - "
              << V(partID(u)) << " - " << V(to) << " - was resetMoveState() called properly?");
       target_part = partID(v);
       DBG << "EdgeLock::moveState(is_smaller_id): " << V(u) << " - " << V(v);
-    } else if (state == EdgeLock::moveState(!is_smaller_id)) {
+    } else if (state == moveState(!is_smaller_id)) {
       // this state means v might be moved concurrently
       target_part = part_id;
       DBG << "EdgeLock::moveState(!is_smaller_id): " << V(u) << " - " << V(v);
@@ -962,7 +891,7 @@ private:
     } else {
       ALWAYS_ASSERT(false, "unreachable");
     }
-    lock.unlockMoving(is_smaller_id, to);
+    unlockMoving(e_lock, is_smaller_id, to);
     return target_part;
   }
 
@@ -970,19 +899,19 @@ private:
       for (const auto& [edge, part_id] : locks_to_restore) {
         const HypernodeID v = edgeTarget(edge);
         const bool is_smaller_id = u < v;
-        EdgeLock& lock = _edge_locks[_hg->uniqueEdgeID(edge)];
-        ASSERT(!lock.isUncontended());
-        const auto [success, lock_part_id] = lock.tryLock(EdgeLock::moveState(is_smaller_id));
+        EdgeLock& e_lock = _edge_locks[_hg->uniqueEdgeID(edge)];
+        ASSERT(!isUncontended(e_lock));
+        const auto [success, lock_part_id] = tryLock(e_lock, moveState(is_smaller_id));
         if (success) {
           ASSERT(lock_part_id == partID(u));
           if (partID(v) != part_id) {
             DBG << "Reset to moving: " << V(u) << " - " << V(v);
             // reset lock to moving state for v
-            lock.unlockMoving(!is_smaller_id, part_id);
+            unlockMoving(e_lock, !is_smaller_id, part_id);
           } else {
             DBG << "Reset to uncontended: " << V(u) << " - " << V(v);
             // reset lock to uncontended state
-            lock.unlock();
+            unlock(e_lock);
           }
         }
       }
@@ -1010,7 +939,7 @@ private:
     HEAVY_REFINEMENT_ASSERT(
       [&]{
         for (size_t id = 0; id < _hg->initialNumEdges() / 2; ++id) {
-          if (!_edge_locks[id].isUncontended()) {
+          if (!isUncontended(_edge_locks[id])) {
             return false;
           }
         }
@@ -1018,6 +947,73 @@ private:
       }(),
       "Some lock is in invalid state - was resetMoveState() called properly?"
     );
+  }
+
+  // ####################### Edge Locks #######################
+
+  // ! Returns whether the lock is in UNCONTENDED state.
+  bool isUncontended(const EdgeLock& e_lock) const {
+    return lockState(e_lock.state.load(std::memory_order_relaxed)) == EdgeLockState::UNCONTENDED;
+  }
+
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
+  EdgeLockState lockState(uint32_t value) const {
+    if (value <= _lock_treshold) {
+      return EdgeLockState::UNCONTENDED;
+    }
+    return static_cast<EdgeLockState>(value - _lock_treshold);
+  }
+
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
+  uint32_t lockValue(EdgeLockState state) const {
+    return _lock_treshold + static_cast<uint32_t>(state);
+  }
+
+  // ! Returns whether locking was successful and the partition id.
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
+  std::pair<bool, PartitionID> tryLock(EdgeLock& e_lock, EdgeLockState expected) {
+    const uint32_t locked = lockValue(EdgeLockState::LOCKED);
+    uint32_t expected_val = lockValue(expected);
+    if (e_lock.state.compare_exchange_weak(expected_val, locked, std::memory_order_acquire)) {
+      return {true, e_lock.move_target};
+    } else {
+      return {false, kInvalidPartition};
+    }
+  }
+
+  // ! Returns the previous state and the partition id.
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
+  std::pair<EdgeLockState, PartitionID> lock(EdgeLock& e_lock, bool smaller_id) {
+    const uint32_t locked = lockValue(EdgeLockState::LOCKED);
+    uint32_t expected_val = lockValue(moveState(!smaller_id));
+    while (!e_lock.state.compare_exchange_weak(expected_val, locked, std::memory_order_acquire)) {
+      ASSERT(expected_val < _lock_treshold + 4);
+      if (expected_val == locked) {
+        expected_val = lockValue(moveState(!smaller_id));
+      }
+    }
+    return {lockState(expected_val), e_lock.move_target};
+  }
+
+  // ! Unlocks and sets the state to uncontended.
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
+  void unlock(EdgeLock& e_lock) {
+    ASSERT(e_lock.state.load() == lockValue(EdgeLockState::LOCKED));
+    e_lock.move_target = kInvalidPartition;
+    e_lock.state.store(lockValue(EdgeLockState::UNCONTENDED), std::memory_order_release);
+  }
+
+  // ! Unlocks, sets the state to moving and sets the partition id.
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
+  void unlockMoving(EdgeLock& e_lock, bool smaller_id, PartitionID target) {
+    ASSERT(e_lock.state.load() == lockValue(EdgeLockState::LOCKED));
+    e_lock.move_target = target;
+    e_lock.state.store(lockValue(moveState(smaller_id)), std::memory_order_release);
+  }
+
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
+  static EdgeLockState moveState(bool smaller_id) {
+    return smaller_id ? EdgeLockState::MOVING_SMALLER_ID_NODE : EdgeLockState::MOVING_LARGER_ID_NODE;
   }
 
   // ! Indicate wheater gain cache is initialized
@@ -1040,6 +1036,9 @@ private:
 
   // ! For each edge we use an atomic lock to synchronize moves
   Array< EdgeLock > _edge_locks;
+
+  // ! Fast reset threshold for edge locks
+  uint32_t _lock_treshold;
 };
 
 } // namespace ds

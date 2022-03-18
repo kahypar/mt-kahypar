@@ -138,8 +138,8 @@ bool SequentialTwoWayFmRefiner::refine(Metrics& best_metrics, std::mt19937& prng
   }
 
   // Perform rollback to best partition found during local search
+  _phg.resetMoveState();
   rollback(performed_moves, min_cut_idx);
-  _phg.resetMoveState(false);
 
   HEAVY_REFINEMENT_ASSERT(best_metrics.cut == metrics::hyperedgeCut(_phg, false));
   HEAVY_REFINEMENT_ASSERT(best_metrics.imbalance == metrics::imbalance(_phg, _context),

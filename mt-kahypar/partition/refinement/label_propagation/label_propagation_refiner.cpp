@@ -36,6 +36,7 @@ namespace mt_kahypar {
                   const parallel::scalable_vector<HypernodeID>& refinement_nodes,
                   Metrics& best_metrics,
                   const double)  {
+    hypergraph.resetMoveState();
     _gain.reset();
     _next_active.reset();
 

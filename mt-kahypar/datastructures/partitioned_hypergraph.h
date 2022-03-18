@@ -827,14 +827,8 @@ private:
     }
   }
 
-  // ! Should be called e.g. after a rollback (see PartitonedGraph).
-  // !
-  // ! More precisely, this needs to be called if (in this order):
-  // ! 1. Nodes are moved via changeNodePart(), involving a delta function
-  // ! 2. Nodes are reassigned (via setOnlyNodePart() or changeNodePart() without a delta function)
-  // ! 3. Nodes are moved again
-  // ! Then, resetMoveState() must be called between steps 2 and 3.
-  void resetMoveState(bool /*parallel*/) {
+  // ! Should be called e.g. after a rollback (see PartitionedGraph).
+  void resetMoveState() {
     // Nothing to do here
   }
 
