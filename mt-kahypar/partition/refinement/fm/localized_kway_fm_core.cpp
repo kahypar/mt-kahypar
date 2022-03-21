@@ -150,13 +150,16 @@ namespace mt_kahypar {
       }
       sharedData.nodeTracker.deactivateNode(move.node, thisSearch);
 
+      // skip if no target block available
+      if (move.to == kInvalidPartition) {
+        continue;
+      }
 
       bool expect_improvement = estimatedImprovement + move.gain > bestImprovement;
       bool high_deg = phg.nodeDegree(move.node) >= PartitionedHypergraph::HIGH_DEGREE_THRESHOLD;
 
-      // skip if no target block available
       // skip if high degree (unless it nets actual improvement; but don't apply on deltaPhg then)
-      if (move.to == kInvalidPartition || (!expect_improvement && high_deg)) {
+      if (!expect_improvement && high_deg) {
         continue;
       }
       // less restrictive option: skip if negative gain (or < -5000 or smth).
