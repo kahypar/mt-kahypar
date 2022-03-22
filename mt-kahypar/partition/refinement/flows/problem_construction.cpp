@@ -136,9 +136,9 @@ Subhypergraph ProblemConstruction::construct(const SearchID search_id,
       for ( const HyperedgeID& he : phg.incidentEdges(hn) ) {
         bfs.add_pins_of_hyperedge_to_queue(he, phg, max_bfs_distance,
           max_weight_block_0, max_weight_block_1);
-        if ( !bfs.contained_hes[he] ) {
+        if ( !bfs.contained_hes[phg.uniqueEdgeID(he)] ) {
           sub_hg.hes.push_back(he);
-          bfs.contained_hes[he] = true;
+          bfs.contained_hes[phg.uniqueEdgeID(he)] = true;
         }
       }
     }
