@@ -154,30 +154,33 @@ Subhypergraph ProblemConstruction::construct(const SearchID search_id,
   ASSERT([&]() {
     assert_map expected_hes;
     for ( const HyperedgeID& he : sub_hg.hes ) {
-      if ( expected_hes.count(he) > 0 ) {
+      const HyperedgeID id = phg.uniqueEdgeID(he);
+      if ( expected_hes.count(id) > 0 ) {
         LOG << "Hyperedge" << he << "is contained multiple times in subhypergraph!";
         return false;
       }
-      expected_hes[he] = true;
+      expected_hes[id] = true;
     }
 
     for ( const HypernodeID& hn : sub_hg.nodes_of_block_0 ) {
       for ( const HyperedgeID& he : phg.incidentEdges(hn) ) {
-        if ( expected_hes.count(he) == 0 ) {
+        const HyperedgeID id = phg.uniqueEdgeID(he);
+        if ( expected_hes.count(id) == 0 ) {
           LOG << "Hyperedge" << he << "not contained in subhypergraph!";
           return false;
         }
-        expected_hes[he] = false;
+        expected_hes[id] = false;
       }
     }
 
     for ( const HypernodeID& hn : sub_hg.nodes_of_block_1 ) {
       for ( const HyperedgeID& he : phg.incidentEdges(hn) ) {
-        if ( expected_hes.count(he) == 0 ) {
+        const HyperedgeID id = phg.uniqueEdgeID(he);
+        if ( expected_hes.count(id) == 0 ) {
           LOG << "Hyperedge" << he << "not contained in subhypergraph!";
           return false;
         }
-        expected_hes[he] = false;
+        expected_hes[id] = false;
       }
     }
 
