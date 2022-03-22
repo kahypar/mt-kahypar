@@ -204,14 +204,12 @@ void DynamicAdjacencyArray::construct(const EdgeVector& edge_vector, const Hyper
     e1.target = target;
     e1.weight = weight;
     e1.back_edge = id2;
-    e1.original_source = e1.source;
     e1.unique_id = he;
     Edge& e2 = edge(id2);
     e2.source = target;
     e2.target = source;
     e2.weight = weight;
     e2.back_edge = id1;
-    e2.original_source = e2.source;
     e2.unique_id = he;
   });
 

@@ -568,8 +568,8 @@ class DynamicGraph {
   }
 
   // ! Returns, whether a hyperedge is enabled or not
-  bool edgeIsEnabled(const HyperedgeID e) const {
-    return _adjacency_array.edgeIsEnabled(e);
+  bool edgeIsEnabled(const HyperedgeID) const {
+    return true;
   }
 
   // ! Enables a hyperedge (must be disabled before)
