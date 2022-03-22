@@ -51,7 +51,7 @@ class ALouvain : public ds::HypergraphFixture<Hypergraph, HypergraphFactory> {
     graph = std::make_unique<Graph>(hypergraph, LouvainEdgeWeight::uniform);
     karate_club_hg = io::readHypergraphFile(
       context.partition.graph_filename);
-    karate_club_graph = std::make_unique<Graph>(karate_club_hg, LouvainEdgeWeight::uniform);
+    karate_club_graph = std::make_unique<Graph>(karate_club_hg, LouvainEdgeWeight::uniform, true);
   }
 
   using Base::hypergraph;
@@ -174,7 +174,7 @@ TEST_F(ALouvain, KarateClubTest) {
   ds::Clustering expected_comm = { 1, 1, 1, 1, 0, 0, 0, 1, 3, 1, 0, 1, 1, 1, 3, 3, 0, 1,
                                              3, 1, 3, 1, 3, 2, 2, 2, 3, 2, 2, 3, 3, 2, 3, 3 };
 
-  karate_club_graph = std::make_unique<Graph>(karate_club_hg, LouvainEdgeWeight::uniform);
+  karate_club_graph = std::make_unique<Graph>(karate_club_hg, LouvainEdgeWeight::uniform, true);
   ASSERT_EQ(expected_comm, communities);
   ASSERT_EQ(metrics::modularity(*karate_club_graph, communities),
             metrics::modularity(*karate_club_graph, expected_comm));

@@ -63,7 +63,7 @@ class Graph {
   using AdjacenceIterator = typename ds::Array<Arc>::const_iterator;
 
  public:
-  Graph(Hypergraph& hypergraph, const LouvainEdgeWeight edge_weight_type);
+  Graph(Hypergraph& hypergraph, const LouvainEdgeWeight edge_weight_type, bool is_graph = false);
   Graph(Graph&& other);
   Graph& operator= (Graph&& other);
   ~Graph();
@@ -149,7 +149,7 @@ class Graph {
    * Constructs a graph from a given hypergraph.
    */
   template<typename F>
-  void construct(const Hypergraph& hypergraph, const F& edge_weight_func);
+  void construct(const Hypergraph& hypergraph, const bool is_graph, const F& edge_weight_func);
 
   template<typename F>
   void constructBipartiteGraph(const Hypergraph& hypergraph, F& edge_weight_func);

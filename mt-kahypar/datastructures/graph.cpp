@@ -34,7 +34,7 @@
 
 namespace mt_kahypar::ds {
 
-  Graph::Graph(Hypergraph& hypergraph, const LouvainEdgeWeight edge_weight_type) :
+  Graph::Graph(Hypergraph& hypergraph, const LouvainEdgeWeight edge_weight_type, bool is_graph) :
           _num_nodes(0),
           _num_arcs(0),
           _total_volume(0),
@@ -46,7 +46,7 @@ namespace mt_kahypar::ds {
 
     switch( edge_weight_type ) {
       case LouvainEdgeWeight::uniform:
-        construct(hypergraph,
+        construct(hypergraph, is_graph,
                   [&](const HyperedgeWeight edge_weight,
                       const HypernodeID,
                       const HyperedgeID) {
@@ -54,7 +54,7 @@ namespace mt_kahypar::ds {
                   });
         break;
       case LouvainEdgeWeight::non_uniform:
-        construct(hypergraph,
+        construct(hypergraph, is_graph,
                   [&](const HyperedgeWeight edge_weight,
                       const HypernodeID edge_size,
                       const HyperedgeID) {
@@ -63,7 +63,7 @@ namespace mt_kahypar::ds {
                   });
         break;
       case LouvainEdgeWeight::degree:
-        construct(hypergraph,
+        construct(hypergraph, is_graph,
                   [&](const HyperedgeWeight edge_weight,
                       const HypernodeID edge_size,
                       const HyperedgeID node_degree) {
@@ -374,26 +374,10 @@ namespace mt_kahypar::ds {
    */
   template<typename F>
   void Graph::construct(const Hypergraph& hypergraph,
-                 const F& edge_weight_func) {
-    #ifndef USE_GRAPH_PARTITIONER
-    // Test, if hypergraph is actually a graph
-    const bool is_graph = tbb::parallel_reduce(tbb::blocked_range<HyperedgeID>(
-            ID(0), hypergraph.initialNumEdges()), true, [&](const tbb::blocked_range<HyperedgeID>& range, bool isGraph) {
-      if ( isGraph ) {
-        bool tmp_is_graph = isGraph;
-        for (HyperedgeID he = range.begin(); he < range.end(); ++he) {
-          if ( hypergraph.edgeIsEnabled(he) ) {
-            tmp_is_graph &= (hypergraph.edgeSize(he) == 2);
-          }
-        }
-        return tmp_is_graph;
-      }
-      return false;
-    }, [&](const bool lhs, const bool rhs) {
-      return lhs && rhs;
-    });
-
+                        const bool is_graph,
+                        const F& edge_weight_func) {
     if ( is_graph ) {
+      ASSERT(hypergraph.maxEdgeSize() == 2);
       _num_nodes = hypergraph.initialNumNodes();
       _num_arcs = 2 * hypergraph.initialNumEdges();
       constructGraph(hypergraph, edge_weight_func);
@@ -402,11 +386,6 @@ namespace mt_kahypar::ds {
       _num_arcs = 2 * hypergraph.initialNumPins();
       constructBipartiteGraph(hypergraph, edge_weight_func);
     }
-    #else
-      _num_nodes = hypergraph.initialNumNodes();
-      _num_arcs = hypergraph.initialNumEdges();
-      constructGraph(hypergraph, edge_weight_func);
-    #endif
 
     // deterministic reduce of node volumes since double addition is not commutative or associative
     // node volumes are computed in for loop because deterministic reduce does not have dynamic load balancing

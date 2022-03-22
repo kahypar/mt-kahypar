@@ -105,7 +105,28 @@ namespace mt_kahypar {
     }
   }
 
-  bool is_mesh_graph(const Hypergraph& graph) {
+  bool isGraph(const Hypergraph& hypergraph) {
+    if (Hypergraph::is_graph) {
+      return true;
+    }
+    return tbb::parallel_reduce(tbb::blocked_range<HyperedgeID>(
+            ID(0), hypergraph.initialNumEdges()), true, [&](const tbb::blocked_range<HyperedgeID>& range, bool isGraph) {
+      if ( isGraph ) {
+        bool tmp_is_graph = isGraph;
+        for (HyperedgeID he = range.begin(); he < range.end(); ++he) {
+          if ( hypergraph.edgeIsEnabled(he) ) {
+            tmp_is_graph &= (hypergraph.edgeSize(he) == 2);
+          }
+        }
+        return tmp_is_graph;
+      }
+      return false;
+    }, [&](const bool lhs, const bool rhs) {
+      return lhs && rhs;
+    });
+  }
+
+  bool isMeshGraph(const Hypergraph& graph) {
     const HypernodeID num_nodes = graph.initialNumNodes();
     const double avg_hn_degree = utils::avgHypernodeDegree(graph);
     std::vector<HyperedgeID> hn_degrees;
@@ -130,21 +151,23 @@ namespace mt_kahypar {
 
   void preprocess(Hypergraph& hypergraph, Context& context) {
     bool use_community_detection = context.preprocessing.use_community_detection;
+    bool is_graph = false;
 
-    #ifdef USE_GRAPH_PARTITIONER
-    if (use_community_detection && context.preprocessing.disable_community_detection_for_mesh_graphs) {
-      utils::Timer::instance().start_timer("detect_mesh_graph", "Detect Mesh Graph");
-      use_community_detection = !is_mesh_graph(hypergraph);
-      utils::Timer::instance().stop_timer("detect_mesh_graph");
+    if ( context.preprocessing.use_community_detection ) {
+      utils::Timer::instance().start_timer("detect_graph_structure", "Detect Graph Structure");
+      is_graph = isGraph(hypergraph);
+      if ( is_graph && context.preprocessing.disable_community_detection_for_mesh_graphs ) {
+        use_community_detection = !isMeshGraph(hypergraph);
+      }
+      utils::Timer::instance().stop_timer("detect_graph_structure");
     }
-    #endif
 
     if ( use_community_detection ) {
       io::printTopLevelPreprocessingBanner(context);
 
       utils::Timer::instance().start_timer("community_detection", "Community Detection");
       utils::Timer::instance().start_timer("construct_graph", "Construct Graph");
-      Graph graph(hypergraph, context.preprocessing.community_detection.edge_weight_function);
+      Graph graph(hypergraph, context.preprocessing.community_detection.edge_weight_function, is_graph);
       if ( !context.preprocessing.community_detection.low_memory_contraction ) {
         graph.allocateContractionBuffers();
       }
