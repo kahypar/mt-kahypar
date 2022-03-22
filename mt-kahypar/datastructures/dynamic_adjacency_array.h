@@ -360,15 +360,15 @@ class DynamicAdjacencyArray {
   // ! Iterates in parallel over all active edges and calls function f
   // ! for each net
   template<typename F>
-  void doParallelForAllEdgesOfNode(HypernodeID hn, const F& f) const {
-    // TODO(maas): might not be optimal
-    for (HypernodeID current_u: headers(hn)) {
-      tbb::parallel_for(firstActiveEdge(current_u), firstInactiveEdge(current_u), [&](const HyperedgeID& e) {
+  void doParallelForAllEdges(const F& f) const {
+    tbb::parallel_for(ID(0), _num_nodes, [&](const HypernodeID& head) {
+      const HyperedgeID last = firstInactiveEdge(head);
+      for (HyperedgeID e = firstActiveEdge(head); e < last; ++e) {
         if (edge(e).isValid()) {
           f(e);
         }
-      });
-    }
+      }
+    });
   }
 
   // ! Contracts two incident list of u and v, whereby u is the representative and

@@ -434,11 +434,7 @@ class DynamicGraph {
   // ! for each net
   template<typename F>
   void doParallelForAllEdges(const F& f) const {
-    tbb::parallel_for(ID(0), numNodes(), [&](const HypernodeID& hn) {
-      if ( nodeIsEnabled(hn) ) {
-        _adjacency_array.doParallelForAllEdgesOfNode(hn, f);
-      }
-    });
+    _adjacency_array.doParallelForAllEdges(f);
   }
 
   // ! Returns a range of the active nodes of the hypergraph
