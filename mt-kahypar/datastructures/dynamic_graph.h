@@ -541,11 +541,14 @@ class DynamicGraph {
     return edge(e).weight;
   }
 
-  // ! Unique id of a hyperedge, in the range of [0, initialNumEdges() / 2)
+  // ! Unique id of a hyperedge
   HyperedgeID uniqueEdgeID(const HyperedgeID e) const {
-    const HyperedgeID id = edge(e).unique_id;
-    ASSERT(id < initialNumEdges() / 2);
-    return id;
+    return _adjacency_array.uniqueEdgeID(e);
+  }
+
+  // ! Range of unique id edge ids
+  HyperedgeID maxUniqueID() const {
+    return initialNumEdges();
   }
 
   // ! Sets the weight of a hyperedge

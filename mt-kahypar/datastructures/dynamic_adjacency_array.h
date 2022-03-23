@@ -164,29 +164,31 @@ class DynamicAdjacencyArray {
     HyperedgeWeight weight;
     // ! id of the backwards edge
     HyperedgeID back_edge;
-    HyperedgeID unique_id; // TODO(maas): any other solution?
   };
 
   struct RemovedEdgesOrWeight {
     bool is_weight;
     HypernodeID header;
 
+    static_assert(sizeof(HyperedgeID) == sizeof(HypernodeID));
+
     RemovedEdgesOrWeight() { };
 
-    explicit RemovedEdgesOrWeight(bool is_weight, HypernodeID header, HyperedgeWeight weight, HyperedgeID id):
+    explicit RemovedEdgesOrWeight(bool is_weight, HypernodeID header, HyperedgeWeight weight, HypernodeID target):
       is_weight(is_weight),
       header(header),
       _num_removed_or_weight(static_cast<HyperedgeID>(weight)),
-      _degree_diff_or_id(id) {
+      _degree_diff_or_target(target) {
       ASSERT(weight >= 0);
     }
 
     static RemovedEdgesOrWeight asEdges(HypernodeID header, HyperedgeID num_removed, HyperedgeID degree_diff) {
-      return RemovedEdgesOrWeight(false, header, static_cast<HyperedgeWeight>(num_removed), degree_diff);
+      return RemovedEdgesOrWeight(false, header, static_cast<HyperedgeWeight>(num_removed),
+                                  static_cast<HypernodeID>(degree_diff));
     }
 
-    static RemovedEdgesOrWeight asWeight(HypernodeID header, HyperedgeID id, HyperedgeWeight weight) {
-      return RemovedEdgesOrWeight(true, header, weight, id);
+    static RemovedEdgesOrWeight asWeight(HypernodeID header, HyperedgeWeight weight, HypernodeID target) {
+      return RemovedEdgesOrWeight(true, header, weight, target);
     }
 
     HyperedgeID numRemoved() const {
@@ -196,12 +198,12 @@ class DynamicAdjacencyArray {
 
     HyperedgeID degreeDiff() const {
       ASSERT(!is_weight);
-      return _degree_diff_or_id;
+      return static_cast<HyperedgeID>(_degree_diff_or_target);
     }
 
-    HyperedgeID edgeID() const {
+    HypernodeID target() const {
       ASSERT(is_weight);
-      return _degree_diff_or_id;
+      return _degree_diff_or_target;
     }
 
     HyperedgeWeight weight() const {
@@ -212,7 +214,7 @@ class DynamicAdjacencyArray {
    private:
     // some hand-made "union" fields
     HyperedgeID _num_removed_or_weight;
-    HyperedgeID _degree_diff_or_id;
+    HypernodeID _degree_diff_or_target;
   };
 
  private:
@@ -324,6 +326,10 @@ class DynamicAdjacencyArray {
 
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE HypernodeID numNodes() const {
     return _num_nodes;
+  }
+
+  HyperedgeID uniqueEdgeID(const HyperedgeID e) const {
+    return std::min(e, edge(e).back_edge);
   }
 
   // ! Degree of the vertex

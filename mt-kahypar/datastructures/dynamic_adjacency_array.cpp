@@ -204,13 +204,11 @@ void DynamicAdjacencyArray::construct(const EdgeVector& edge_vector, const Hyper
     e1.target = target;
     e1.weight = weight;
     e1.back_edge = id2;
-    e1.unique_id = he;
     Edge& e2 = edge(id2);
     e2.source = target;
     e2.target = source;
     e2.weight = weight;
     e2.back_edge = id1;
-    e2.unique_id = he;
   });
 
   // TODO(maas): is this the appropriate way to check this?
@@ -314,7 +312,7 @@ void DynamicAdjacencyArray::uncontract(const HypernodeID u,
 
 void DynamicAdjacencyArray::streamWeight(StreamingVector<RemovedEdgesOrWeight>& tmp_removed_edges,
                                          const ParallelEdgeInformation& e, HyperedgeWeight w) {
-  tmp_removed_edges.stream(RemovedEdgesOrWeight::asWeight(e.header_id, e.unique_id, edge(e.edge_id).weight));
+  tmp_removed_edges.stream(RemovedEdgesOrWeight::asWeight(e.header_id, edge(e.edge_id).weight, e.target));
   edge(e.edge_id).weight += w;
 }
 
@@ -331,7 +329,7 @@ parallel::scalable_vector<DynamicAdjacencyArray::RemovedEdgesOrWeight> DynamicAd
       for (HypernodeID current_u: headers(u)) {
         const HyperedgeID first_inactive = firstInactiveEdge(current_u);
         for (HyperedgeID e = firstActiveEdge(current_u); e < first_inactive; ++e) {
-          local_vec.emplace_back(edge(e).target, e, edge(e).unique_id, current_u);
+          local_vec.emplace_back(edge(e).target, e, uniqueEdgeID(e), current_u);
         }
       }
       std::sort(local_vec.begin(), local_vec.end(), [](const auto& e1, const auto& e2) {
@@ -444,11 +442,13 @@ void DynamicAdjacencyArray::restoreSinglePinAndParallelEdges(
     Header& head = header(removed.header);
     if (removed.is_weight) {
       // restore edge weight
-      const HyperedgeID first_inactive = firstInactiveEdge(removed.header);
+      // we need to scan in reverse order because we want to find the edge with
+      // the correct target which has the highest index (it was not removed)
+      const HyperedgeID first = firstEdge(removed.header);
       bool found = false;
-      for (HyperedgeID e = firstEdge(removed.header); e < first_inactive; ++e) {
-        if (edge(e).unique_id == removed.edgeID()) {
-          edge(e).weight = removed.weight();
+      for (HyperedgeID e = firstInactiveEdge(removed.header); e > first; --e) {
+        if (edge(e - 1).target == removed.target()) {
+          edge(e - 1).weight = removed.weight();
           found = true;
           break;
         }

@@ -652,6 +652,11 @@ class StaticGraph {
     return id;
   }
 
+  // ! Range of unique id edge ids
+  HyperedgeID maxUniqueID() const {
+    return initialNumEdges() / 2;
+  }
+
   // ! Sets the weight of a hyperedge
   void setEdgeWeight(const HyperedgeID e, const HyperedgeWeight weight) {
     return edge(e).setWeight(weight);

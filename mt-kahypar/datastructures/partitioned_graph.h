@@ -184,10 +184,10 @@ private:
       "Refinement", "part_ids", hypergraph.initialNumNodes(), false, false),
     _incident_weight_in_part(),
     _edge_locks(
-      "Refinement", "edge_locks", hypergraph.initialNumEdges() / 2, false, false),
+      "Refinement", "edge_locks", hypergraph.maxUniqueID(), false, false),
     _edge_markers(
       "Refinement", "edge_markers", Hypergraph::is_static_hypergraph ?
-      0 : hypergraph.initialNumEdges() / 2, false, false) {
+      0 : hypergraph.maxUniqueID(), false, false) {
     _part_ids.assign(hypergraph.initialNumNodes(), CAtomic<PartitionID>(kInvalidPartition), false);
   }
 
@@ -209,13 +209,13 @@ private:
       _part_ids.assign(hypergraph.initialNumNodes(), CAtomic<PartitionID>(kInvalidPartition));
     }, [&] {
       _edge_locks.resize(
-        "Refinement", "edge_locks", static_cast<size_t>(hypergraph.initialNumEdges() / 2));
-      _edge_locks.assign(hypergraph.initialNumEdges() / 2, EdgeLock());
+        "Refinement", "edge_locks", static_cast<size_t>(hypergraph.maxUniqueID()));
+      _edge_locks.assign(hypergraph.maxUniqueID(), EdgeLock());
     }, [&] {
       if (!Hypergraph::is_static_hypergraph) {
       _edge_markers.resize(
-        "Refinement", "edge_markers", static_cast<size_t>(hypergraph.initialNumEdges() / 2));
-      _edge_markers.assign(hypergraph.initialNumEdges() / 2, EdgeMarker());
+        "Refinement", "edge_markers", static_cast<size_t>(hypergraph.maxUniqueID()));
+      _edge_markers.assign(hypergraph.maxUniqueID(), EdgeMarker());
       }
     });
   }
@@ -393,7 +393,7 @@ private:
     return _hg->edgeWeight(e);
   }
 
-  // ! Unique id of a hyperedge, in the range of [0, initialNumEdges() / 2)
+  // ! Unique id of a hyperedge
   HyperedgeID uniqueEdgeID(const HyperedgeID e) const {
     return _hg->uniqueEdgeID(e);
   }
@@ -690,7 +690,7 @@ private:
   // ! Then, resetMoveState() must be called between steps 2 and 3.
   void resetMoveState() {
     if (_lock_treshold > std::numeric_limits<typeof(_lock_treshold)>::max() - 3) {
-      tbb::parallel_for(ID(0), _hg->initialNumEdges() / 2, [&](const HyperedgeID id) {
+      tbb::parallel_for(ID(0), _hg->maxUniqueID(), [&](const HyperedgeID id) {
         _edge_locks[id].state.store(0, std::memory_order_relaxed);
       });
       _lock_treshold = 0;
@@ -1021,7 +1021,7 @@ private:
   void moveAssertions() {
     HEAVY_REFINEMENT_ASSERT(
       [&]{
-        for (size_t id = 0; id < _hg->initialNumEdges() / 2; ++id) {
+        for (size_t id = 0; id < _hg->maxUniqueID(); ++id) {
           if (!isUncontended(_edge_locks[id])) {
             return false;
           }
