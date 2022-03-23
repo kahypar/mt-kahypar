@@ -29,7 +29,7 @@ namespace mt_kahypar::metrics {
   HyperedgeWeight hyperedgeCut(const PartitionedHypergraph& hypergraph, const bool parallel) {
     if ( parallel ) {
       tbb::enumerable_thread_specific<HyperedgeWeight> cut(0);
-      tbb::parallel_for(ID(0), hypergraph.initialNumEdges(), [&](const HyperedgeID he) {
+      hypergraph.doParallelForAllEdges([&](const HyperedgeID he) {
         if (hypergraph.edgeIsEnabled(he) && hypergraph.connectivity(he) > 1) {
           cut.local() += hypergraph.edgeWeight(he);
         }
@@ -49,7 +49,7 @@ namespace mt_kahypar::metrics {
   HyperedgeWeight km1(const PartitionedHypergraph& hypergraph, const bool parallel) {
     if ( parallel ) {
       tbb::enumerable_thread_specific<HyperedgeWeight> km1(0);
-      tbb::parallel_for(ID(0), hypergraph.initialNumEdges(), [&](const HyperedgeID he) {
+      hypergraph.doParallelForAllEdges([&](const HyperedgeID he) {
         if (hypergraph.edgeIsEnabled(he)) {
           km1.local() += std::max(hypergraph.connectivity(he) - 1, 0) * hypergraph.edgeWeight(he);
         }
@@ -67,7 +67,7 @@ namespace mt_kahypar::metrics {
   HyperedgeWeight soed(const PartitionedHypergraph& hypergraph, const bool parallel) {
     if ( parallel ) {
       tbb::enumerable_thread_specific<HyperedgeWeight> soed(0);
-      tbb::parallel_for(ID(0), hypergraph.initialNumEdges(), [&](const HyperedgeID he) {
+      hypergraph.doParallelForAllEdges([&](const HyperedgeID he) {
         if ( hypergraph.edgeIsEnabled(he) ) {
           PartitionID connectivity = hypergraph.connectivity(he);
           if (connectivity > 1) {
