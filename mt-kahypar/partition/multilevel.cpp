@@ -103,6 +103,9 @@ namespace mt_kahypar::multilevel {
       } else {
         _uncoarsener = std::make_unique<MultilevelUncoarsener>(_hg, _context, *_uncoarseningData);
       }
+      if (_context.type == kahypar::ContextType::main) {
+        LOG << V(metrics::judiciousLoad(_uncoarseningData->coarsestPartitionedHypergraph())) << "after IP";
+      }
       _partitioned_hg = _uncoarsener->uncoarsen(label_propagation, fm);
       utils::Timer::instance().stop_timer("refinement");
 

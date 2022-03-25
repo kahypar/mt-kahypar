@@ -141,7 +141,6 @@ private:
   void resetData() {
     _is_gain_cache_initialized = false;
     tbb::parallel_invoke([&] {
-    }, [&] {
       _part_ids.assign(_part_ids.size(), kInvalidPartition);
     }, [&] {
       _pins_in_part.data().assign(_pins_in_part.data().size(), 0);
@@ -152,6 +151,20 @@ private:
     }, [&] {
       for (auto& x : _part_loads) x.store(0, std::memory_order_relaxed);
     });
+  }
+
+  void reinitializePartitionData() {
+    _is_gain_cache_initialized = false;
+    tbb::parallel_invoke([&] {
+      _pins_in_part.data().assign(_pins_in_part.data().size(), 0);
+    }, [&] {
+      _connectivity_set.reset();
+    }, [&] {
+      for (auto& x : _part_weights) x.store(0, std::memory_order_relaxed);
+    }, [&] {
+      for (auto& x : _part_loads) x.store(0, std::memory_order_relaxed);
+    });
+    initializePartition();
   }
 
   // ####################### General Hypergraph Stats ######################
@@ -570,6 +583,7 @@ private:
     if (to_weight_after <= max_weight_to) {
       _part_ids[u] = to;
       _part_weights[from].fetch_sub(wu, std::memory_order_relaxed);
+      ASSERT(_part_loads[from].load(std::memory_order_relaxed) > 0);
       _part_loads[from].fetch_sub(weightOfDisabledEdges(u), std::memory_order_relaxed);
       _part_loads[to].fetch_add(weightOfDisabledEdges(u), std::memory_order_relaxed);
       report_success();
@@ -1221,6 +1235,7 @@ private:
     const HypernodeID pin_count_in_to_part_after = incrementPinCountInPartWithoutGainUpdate(he, to);
     _pin_count_update_ownership[he].unlock();
     if (pin_count_in_from_part_after == 0) {
+      ASSERT(_part_loads[from].load(std::memory_order_relaxed) > 0);
       _part_loads[from].fetch_sub(edgeWeight(he), std::memory_order_relaxed);
     }
     if (pin_count_in_to_part_after == 1) {

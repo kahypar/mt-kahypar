@@ -37,6 +37,8 @@ namespace mt_kahypar {
     PartitionedHypergraph& partitioned_hg = *_uncoarseningData.partitioned_hg;
     kahypar::Metrics current_metrics = initialize(partitioned_hg);
 
+    partitioned_hg.reinitializePartitionData();
+
     if (_context.type == kahypar::ContextType::main) {
       _context.initial_km1 = current_metrics.km1;
       _context.refinement.judicious.initial_judicious_load = metrics::judiciousLoad(partitioned_hg);
@@ -50,6 +52,9 @@ namespace mt_kahypar {
                                               _context.partition.enable_progress_bar && !debug);
     uncontraction_progress += partitioned_hg.initialNumNodes();
 
+    if (debug && _context.type == kahypar::ContextType::main) {
+      LOG << V(metrics::judiciousLoad(partitioned_hg)) << "before uncoarsening";
+    }
     // Refine Coarsest Partitioned Hypergraph
     double time_limit = refinementTimeLimit(_context, _uncoarseningData.hierarchy.back().coarseningTime());
     refine(partitioned_hg, label_propagation, fm, current_metrics, time_limit);
