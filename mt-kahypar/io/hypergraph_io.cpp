@@ -131,6 +131,7 @@ namespace mt_kahypar::io {
                                           size_t pos,
                                           const size_t length,
                                           const bool has_hyperedge_weights) {
+    return false;
     size_t num_spaces = 0;
     for ( ; pos < length; ++pos ) {
       if ( mapped_file[pos] == '\n' ) {
