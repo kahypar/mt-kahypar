@@ -191,7 +191,11 @@ namespace mt_kahypar {
 
   template<typename FMStrategy>
   void MultiTryKWayFM<FMStrategy>::initializeImpl(PartitionedHypergraph& phg) {
-    if ( !phg.isGainCacheInitialized() && FMStrategy::maintain_gain_cache_between_rounds ) {
+    if (FMStrategy::uses_gain_cache) {
+      phg.allocateGainTableIfNecessary();
+    }
+
+    if (!phg.isGainCacheInitialized() && FMStrategy::maintain_gain_cache_between_rounds) {
       phg.initializeGainCache();
     }
 

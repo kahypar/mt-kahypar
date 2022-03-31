@@ -124,8 +124,7 @@ public:
       }
 
       // Construct partitioned hypergraph for initial partitioning
-      *partitioned_hg = PartitionedHypergraph(
-        _context.partition.k, _hg, parallel_tag_t());
+      *partitioned_hg = PartitionedHypergraph(_context.partition.k, _hg, parallel_tag_t());
       if (!hierarchy.empty()) {
         partitioned_hg->setHypergraph(hierarchy.back().contractedHypergraph());
       }

@@ -76,6 +76,7 @@ private:
   explicit PartitionedHypergraph(const PartitionID k,
                                  Hypergraph& hypergraph) :
     _is_gain_cache_initialized(false),
+    _top_level_num_nodes(hypergraph.initialNumNodes()),
     _k(k),
     _hg(&hypergraph),
     _part_weights(k, CAtomic<HypernodeWeight>(0)),
@@ -83,10 +84,8 @@ private:
         "Refinement", "part_ids", hypergraph.initialNumNodes(), false, false),
     _pins_in_part(hypergraph.initialNumEdges(), k, hypergraph.maxEdgeSize(), false),
     _connectivity_set(hypergraph.initialNumEdges(), k, false),
-    _move_to_penalty(
-        "Refinement", "move_to_penalty", size_t(hypergraph.initialNumNodes()) * size_t(k + 1), true, false),
-    _move_from_benefit(
-        "Refinement", "move_from_benefit", hypergraph.initialNumNodes(), true, false),
+    _move_to_penalty(),
+    _move_from_benefit(),
     _pin_count_update_ownership(
         "Refinement", "pin_count_update_ownership", hypergraph.initialNumEdges(), true, false) {
     _part_ids.assign(hypergraph.initialNumNodes(), kInvalidPartition, false);
@@ -96,6 +95,7 @@ private:
                                  Hypergraph& hypergraph,
                                  parallel_tag_t) :
     _is_gain_cache_initialized(false),
+    _top_level_num_nodes(hypergraph.initialNumNodes()),
     _k(k),
     _hg(&hypergraph),
     _part_weights(k, CAtomic<HypernodeWeight>(0)),
@@ -113,12 +113,6 @@ private:
       _pins_in_part.initialize(hypergraph.initialNumEdges(), k, hypergraph.maxEdgeSize());
     }, [&] {
       _connectivity_set = ConnectivitySets(hypergraph.initialNumEdges(), k);
-    }, [&] {
-      _move_to_penalty.resize(
-        "Refinement", "move_to_penalty", size_t(hypergraph.initialNumNodes()) * size_t(k + 1), true);
-    }, [&] {
-      _move_from_benefit.resize(
-        "Refinement", "move_from_benefit", hypergraph.initialNumNodes(), true);
     }, [&] {
       _pin_count_update_ownership.resize(
         "Refinement", "pin_count_update_ownership", hypergraph.initialNumEdges(), true);
@@ -661,6 +655,15 @@ private:
       _move_to_penalty[penalty_index(u, p)].load(std::memory_order_relaxed);
   }
 
+  void allocateGainTableIfNecessary() {
+    if (_move_to_penalty.size() == 0) {
+      _move_to_penalty.resize(
+              "Refinement", "move_to_penalty", _top_level_num_nodes * size_t(_k + 1), false);
+      _move_from_benefit.resize(
+              "Refinement", "move_from_benefit", _top_level_num_nodes, false);
+    }
+  }
+
   void initializeGainCacheEntry(const HypernodeID u, vec<Gain>& penalty_aggregator) {
     PartitionID pu = partID(u);
     Gain benefit = 0, incident_edges_weight = 0;
@@ -715,7 +718,6 @@ private:
     ASSERT(std::none_of(nodes().begin(), nodes().end(),
                             [&](HypernodeID u) { return partID(u) == kInvalidPartition || partID(u) > k(); }) );
 
-
     auto aggregate_contribution_of_he_for_vertex =
       [&](const PartitionID block_of_u,
           const HyperedgeID he,
@@ -732,6 +734,8 @@ private:
       }
       incident_edges_weight += edge_weight;
     };
+
+
 
     // Gain calculation consist of two stages
     //  1. Compute gain of all low degree vertices sequential (with a parallel for over all vertices)
@@ -1181,6 +1185,8 @@ private:
 
   // ! Indicate wheater gain cache is initialized
   bool _is_gain_cache_initialized;
+
+  size_t _top_level_num_nodes = 0;
 
   // ! Number of blocks
   PartitionID _k = 0;
