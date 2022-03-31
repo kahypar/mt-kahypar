@@ -459,7 +459,7 @@ class DynamicGraph {
   IteratorRange<IncidenceIterator> pins(const HyperedgeID id) const {
     const Edge& e = edge(id);
     const HypernodeID source = e.source;
-    const HypernodeID target = e.target;
+    const HypernodeID target = e.target();
     return IteratorRange<IncidenceIterator>(
       IncidenceIterator(source, target, 0),
       IncidenceIterator(source, target, 2));
@@ -581,7 +581,7 @@ class DynamicGraph {
   }
 
   HyperedgeID edgeTarget(const HyperedgeID e) const {
-    return edge(e).target;
+    return edge(e).target();
   }
 
   bool isSinglePin(const HyperedgeID e) const {
