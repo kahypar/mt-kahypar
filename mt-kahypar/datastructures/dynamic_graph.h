@@ -243,7 +243,7 @@ class DynamicGraph {
       _source(source),
       _target(target),
       _iteration_count(iteration_count) {
-      ASSERT(target != kInvalidHypernode);
+      // ASSERT(target != kInvalidHypernode); -- doesn't hold for parallel contractions
     }
 
     // ! Returns the id of the element the iterator currently points to.
@@ -256,8 +256,8 @@ class DynamicGraph {
     PinIterator & operator++ () {
       ASSERT(_iteration_count < 2);
       ++_iteration_count;
-      if (_iteration_count == 1 && _source == _target) {
-        // skip duplicate pin
+      if (_iteration_count == 1 && (_source == _target || _target == kInvalidHypernode)) {
+        // the edge is a single pin edge
         ++_iteration_count;
       }
       return *this;
@@ -525,14 +525,14 @@ class DynamicGraph {
   // ! Accessor for hyperedge-related information
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE const Edge& edge(const HyperedgeID e) const {
     const Edge& he = _adjacency_array.edge(e);
-    ASSERT(he.isValid());
+    // ASSERT(he.isValid()); -- doesn't hold for parallel contractions
     return he;
   }
 
   // ! To avoid code duplication we implement non-const version in terms of const version
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE Hyperedge& edge(const HyperedgeID e) {
     Hyperedge& he = _adjacency_array.edge(e);
-    ASSERT(he.isValid());
+    // ASSERT(he.isValid()); -- doesn't hold for parallel contractions
     return he;
   }
 
