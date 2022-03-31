@@ -112,18 +112,22 @@ public:
       utils::Timer::instance().stop_timer("compactify_hypergraph");
     } else {
       utils::Timer::instance().start_timer("finalize_multilevel_hierarchy", "Finalize Multilevel Hierarchy");
+      // Free memory of temporary contraction buffer and
+      // release coarsening memory in memory pool
+      if (!hierarchy.empty()) {
+        hierarchy.back().contractedHypergraph().freeTmpContractionBuffer();
+      } else {
+        _hg.freeTmpContractionBuffer();
+      }
+      if (_context.type == kahypar::ContextType::main) {
+        parallel::MemoryPool::instance().release_mem_group("Coarsening");
+      }
+
       // Construct partitioned hypergraph for initial partitioning
       *partitioned_hg = PartitionedHypergraph(
         _context.partition.k, _hg, parallel_tag_t());
       if (!hierarchy.empty()) {
         partitioned_hg->setHypergraph(hierarchy.back().contractedHypergraph());
-      }
-
-      // Free memory of temporary contraction buffer and
-      // release coarsening memory in memory pool
-      partitioned_hg->hypergraph().freeTmpContractionBuffer();
-      if (_context.type == kahypar::ContextType::main) {
-        parallel::MemoryPool::instance().release_mem_group("Coarsening");
       }
 
       utils::Timer::instance().stop_timer("finalize_multilevel_hierarchy");
