@@ -580,6 +580,8 @@ private:
 
   // ! Initialize gain cache
   void initializeGainCache() {
+    allocateGainTableIfNecessary();
+    
     // assert that part has been initialized
     ASSERT(std::none_of(nodes().begin(), nodes().end(),
                             [&](HypernodeID u) { return partID(u) == kInvalidPartition || partID(u) > k(); }) );

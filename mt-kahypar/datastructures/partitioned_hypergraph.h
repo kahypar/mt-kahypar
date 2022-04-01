@@ -714,6 +714,8 @@ private:
   // ! NOTE: Requires that pin counts are already initialized and reflect the
   // ! current state of the partition
   void initializeGainCache() {
+    allocateGainTableIfNecessary();
+
     // check whether part has been initialized
     ASSERT(std::none_of(nodes().begin(), nodes().end(),
                             [&](HypernodeID u) { return partID(u) == kInvalidPartition || partID(u) > k(); }) );
