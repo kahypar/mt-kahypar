@@ -156,14 +156,13 @@ private:
   explicit PartitionedGraph(const PartitionID k,
                             Hypergraph& hypergraph) :
     _is_gain_cache_initialized(false),
+    _top_level_num_nodes(hypergraph.initialNumNodes()),
     _k(k),
     _hg(&hypergraph),
     _part_weights(k, CAtomic<HypernodeWeight>(0)),
     _part_ids(
       "Refinement", "part_ids", hypergraph.initialNumNodes(), false, false),
-    _incident_weight_in_part(
-      "Refinement", "incident_weight_in_part",
-      static_cast<size_t>(hypergraph.initialNumNodes()) * static_cast<size_t>(k), true, false),
+    _incident_weight_in_part(),
     _edge_locks(
       "Refinement", "edge_locks", hypergraph.initialNumEdges() / 2, false, false) {
     _part_ids.assign(hypergraph.initialNumNodes(), CAtomic<PartitionID>(kInvalidPartition), false);
@@ -173,6 +172,7 @@ private:
                             Hypergraph& hypergraph,
                             parallel_tag_t) :
     _is_gain_cache_initialized(false),
+    _top_level_num_nodes(hypergraph.initialNumNodes()),
     _k(k),
     _hg(&hypergraph),
     _part_weights(k, CAtomic<HypernodeWeight>(0)),
@@ -183,10 +183,6 @@ private:
       _part_ids.resize(
         "Refinement", "vertex_part_info", hypergraph.initialNumNodes());
       _part_ids.assign(hypergraph.initialNumNodes(), CAtomic<PartitionID>(kInvalidPartition));
-    }, [&] {
-      _incident_weight_in_part.resize(
-        "Refinement", "incident_weight_in_part",
-        static_cast<size_t>(hypergraph.initialNumNodes()) * static_cast<size_t>(k), true);
     }, [&] {
       _edge_locks.resize(
         "Refinement", "edge_locks", static_cast<size_t>(hypergraph.initialNumEdges() / 2));
@@ -644,6 +640,13 @@ private:
     }
   }
 
+  void allocateGainTableIfNecessary() {
+    if (_incident_weight_in_part.size() == 0) {
+      _incident_weight_in_part.resize("Refinement", "incident_weight_in_part", _top_level_num_nodes * size_t(_k), false);
+    }
+  }
+
+
   // ! Only for testing
   HyperedgeWeight moveFromBenefitRecomputed(const HypernodeID u) const {
     return 0;
@@ -1016,8 +1019,10 @@ private:
     return smaller_id ? EdgeLockState::MOVING_SMALLER_ID_NODE : EdgeLockState::MOVING_LARGER_ID_NODE;
   }
 
-  // ! Indicate wheater gain cache is initialized
+  // ! Indicate whether gain cache is initialized
   bool _is_gain_cache_initialized;
+
+  size_t _top_level_num_nodes = 0;
 
   // ! Number of blocks
   PartitionID _k = 0;
