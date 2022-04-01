@@ -279,43 +279,41 @@ void DynamicGraph::memoryConsumption(utils::MemoryTreeNode* parent) const {
 }
 
 // ! Only for testing
-// bool DynamicGraph::verifyIncidenceArrayAndIncidentNets() {
-//   bool success = true;
-//   tbb::parallel_invoke([&] {
-//     doParallelForAllNodes([&](const HypernodeID& hn) {
-//       for ( const HyperedgeID& he : incidentEdges(hn) ) {
-//         bool found = false;
-//         for ( const HypernodeID& pin : pins(he) ) {
-//           if ( pin == hn ) {
-//             found = true;
-//             break;
-//           }
-//         }
-//         if ( !found ) {
-//           LOG << "Hypernode" << hn << "not found in incidence array of net" << he;
-//           success = false;
-//         }
-//       }
-//     });
-//   }, [&] {
-//     doParallelForAllEdges([&](const HyperedgeID& he) {
-//       for ( const HypernodeID& pin : pins(he) ) {
-//         bool found = false;
-//         for ( const HyperedgeID& e : incidentEdges(pin) ) {
-//           if ( e == he ) {
-//             found = true;
-//             break;
-//           }
-//         }
-//         if ( !found ) {
-//           LOG << "Hyperedge" << he << "not found in incident nets of vertex" << pin;
-//           success = false;
-//         }
-//       }
-//     });
-//   });
-//   return success;
-// }
+bool DynamicGraph::verifyIncidenceArrayAndIncidentNets() {
+  LOG << "HEAVY ASSERT";
+  bool success = true;
+  tbb::parallel_invoke([&] {
+    doParallelForAllNodes([&](const HypernodeID& hn) {
+      for ( const HyperedgeID& he : incidentEdges(hn) ) {
+        if (edgeSource(he) != hn) {
+          LOG << "Edge" << he << "has source" << edgeSource(he) << "but should be" << hn;
+          success = false;
+        }
+        const HypernodeID back_target = edge(edge(he).back_edge).target();
+        if (back_target != hn) {
+          LOG << "Backedge" << edge(he).back_edge << "(of edge" << he
+              << ") has target" << back_target << "but should be" << hn;
+          success = false;
+        }
+      }
+    });
+  }, [&] {
+    doParallelForAllEdges([&](const HyperedgeID& he) {
+      bool found = false;
+      for ( const HyperedgeID& e : incidentEdges(edgeSource(he)) ) {
+        if ( e == he ) {
+          found = true;
+          break;
+        }
+      }
+      if ( !found ) {
+        LOG << "Edge" << he << "not found in incident nets of vertex" << edgeSource(he);
+        success = false;
+      }
+    });
+  });
+  return success;
+}
 
 /**!
  * Contracts a previously registered contraction. The contraction of u and v is
@@ -381,59 +379,6 @@ DynamicGraph::ContractionResult DynamicGraph::contract(const HypernodeID u,
     return res;
   }
 }
-
-// bool DynamicGraph::verifyBatchIndexAssignments(
-//   const BatchIndexAssigner& batch_assigner,
-//   const parallel::scalable_vector<parallel::scalable_vector<BatchAssignment>>& local_batch_assignments) const {
-//   parallel::scalable_vector<BatchAssignment> assignments;
-//   for ( size_t i = 0; i < local_batch_assignments.size(); ++i ) {
-//     for ( const BatchAssignment& batch_assign : local_batch_assignments[i] ) {
-//       assignments.push_back(batch_assign);
-//     }
-//   }
-//   std::sort(assignments.begin(), assignments.end(),
-//     [&](const BatchAssignment& lhs, const BatchAssignment& rhs) {
-//       return lhs.batch_index < rhs.batch_index ||
-//         (lhs.batch_index == rhs.batch_index && lhs.batch_pos < rhs.batch_pos);
-//     });
-
-//   if ( assignments.size() > 0 ) {
-//     if ( assignments[0].batch_index != 0 || assignments[0].batch_pos != 0 ) {
-//       LOG << "First uncontraction should start at batch 0 at position 0"
-//           << V(assignments[0].batch_index) << V(assignments[0].batch_pos);
-//       return false;
-//     }
-
-//     for ( size_t i = 1; i < assignments.size(); ++i ) {
-//       if ( assignments[i - 1].batch_index == assignments[i].batch_index ) {
-//         if ( assignments[i - 1].batch_pos + 1 != assignments[i].batch_pos ) {
-//           LOG << "Batch positions are not consecutive"
-//               << V(i) << V(assignments[i - 1].batch_pos) << V(assignments[i].batch_pos);
-//           return false;
-//         }
-//       } else {
-//         if ( assignments[i - 1].batch_index + 1 != assignments[i].batch_index ) {
-//           LOG << "Batch indices are not consecutive"
-//               << V(i) << V(assignments[i - 1].batch_index) << V(assignments[i].batch_index);
-//           return false;
-//         }
-//         if ( assignments[i].batch_pos != 0 ) {
-//           LOG << "First uncontraction of each batch should start at position 0"
-//               << V(assignments[i].batch_pos);
-//           return false;
-//         }
-//         if ( assignments[i - 1].batch_pos + 1 != batch_assigner.batchSize(assignments[i - 1].batch_index) ) {
-//           LOG << "Position of last uncontraction in batch" << assignments[i - 1].batch_index
-//               << "does not match size of batch"
-//               << V(assignments[i - 1].batch_pos) << V(batch_assigner.batchSize(assignments[i - 1].batch_index));
-//           return false;
-//         }
-//       }
-//     }
-//   }
-
-//   return true;
-// }
 
 } // namespace ds
 } // namespace mt_kahypar

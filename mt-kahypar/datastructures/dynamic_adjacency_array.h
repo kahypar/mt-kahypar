@@ -543,15 +543,6 @@ class DynamicAdjacencyArray {
     });
   }
 
-  // ! Restores all previously removed incident edges
-  // ! Note, function must be called in reverse order of calls to
-  // ! removeIncidentEdges(...) and all uncontraction that happens
-  // ! between two consecutive calls to removeIncidentEdges(...) must
-  // ! be processed.
-  void restoreIncidentEdges(const HypernodeID u,
-                           const CaseOneFunc& case_one_func,
-                           const CaseTwoFunc& case_two_func);
-
   void append(const HypernodeID u, const HypernodeID v);
 
   void splice(const HypernodeID u, const HypernodeID v);

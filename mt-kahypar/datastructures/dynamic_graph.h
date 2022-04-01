@@ -807,11 +807,6 @@ class DynamicGraph {
     return const_cast<Node&>(static_cast<const DynamicGraph&>(*this).hypernode(u));
   }
 
-  // MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE IteratorRange<IncidentNetsIterator> incident_nets_of(const HypernodeID u,
-  //                                                                                         const size_t pos = 0) const {
-  //   return _incident_nets.incidentEdges(u, pos);
-  // }
-
   // ####################### Contract / Uncontract #######################
 
   /**!
@@ -826,10 +821,6 @@ class DynamicGraph {
   ContractionResult contract(const HypernodeID u,
                              const HypernodeID v,
                              const HypernodeWeight max_node_weight);
-
-  // bool verifyBatchIndexAssignments(
-  //   const BatchIndexAssigner& batch_assigner,
-  //   const parallel::scalable_vector<parallel::scalable_vector<BatchAssignment>>& local_batch_assignments) const;
 
   // ! Number of removed hypernodes
   HypernodeID _num_removed_nodes;
