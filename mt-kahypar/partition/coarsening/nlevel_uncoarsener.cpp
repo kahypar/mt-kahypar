@@ -50,9 +50,14 @@ namespace mt_kahypar {
     });
     _uncoarseningData.partitioned_hg->initializePartition();
 
-    if ( _context.refinement.fm.algorithm == FMAlgorithm::fm_gain_cache ) {
-      _uncoarseningData.partitioned_hg->initializeGainCache();
+    if ( _context.refinement.fm.algorithm == FMAlgorithm::fm_gain_cache
+        || _context.refinement.fm.algorithm == FMAlgorithm::fm_gain_cache_on_demand ) {
+      _uncoarseningData.partitioned_hg->allocateGainTableIfNecessary();
+      if ( _context.refinement.fm.algorithm == FMAlgorithm::fm_gain_cache ) {
+        _uncoarseningData.partitioned_hg->initializeGainCache();
+      }
     }
+
 
     ASSERT(metrics::objective(*_uncoarseningData.compactified_phg, _context.partition.objective) ==
            metrics::objective(*_uncoarseningData.partitioned_hg, _context.partition.objective),
