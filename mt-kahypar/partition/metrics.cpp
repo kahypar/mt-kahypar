@@ -102,12 +102,13 @@ namespace mt_kahypar::metrics {
 
   HyperedgeWeight objective(const PartitionedHypergraph& hg, const kahypar::Objective& objective,
                                           const bool parallel) {
-    switch (objective) {
-      case kahypar::Objective::cut: return hyperedgeCut(hg, parallel);
-      case kahypar::Objective::km1: return km1(hg, parallel);
-      default:
-      ERROR("Unknown Objective");
-    }
+    return judiciousLoad(hg, parallel);
+    // switch (objective) {
+    //   case kahypar::Objective::cut: return hyperedgeCut(hg, parallel);
+    //   case kahypar::Objective::km1: return km1(hg, parallel);
+    //   default:
+    //   ERROR("Unknown Objective");
+    // }
   }
 
   double imbalance(const PartitionedHypergraph& hypergraph, const Context& context) {
@@ -128,11 +129,25 @@ namespace mt_kahypar::metrics {
 
   std::pair<HyperedgeWeight, HyperedgeWeight> minMaxLoad(const PartitionedHypergraph& hypergraph, const bool parallel) {
     vec<HyperedgeWeight> vol(hypergraph.k(), 0);
+    int add_pins = 0;
     if ( parallel ) {
+      std::mutex mtx;
       tbb::enumerable_thread_specific<vec<HyperedgeWeight>> ets_vol(hypergraph.k(), 0);
       tbb::parallel_for(ID(0), hypergraph.initialNumEdges(), [&](const HyperedgeID he) {
         if (hypergraph.edgeIsEnabled(he)) {
           for (const auto p : hypergraph.connectivitySet(he)) {
+            int pip = 0;
+            pip = hypergraph.pinCountInPart(he, p);
+            for (auto& u : hypergraph.pins(he)) {
+              if (hypergraph.partID(u) == p) {
+                pip--;
+              }
+            }
+            if (pip != 0) {
+              mtx.lock();
+              add_pins += std::abs(pip);
+              mtx.unlock();
+            }
             ets_vol.local()[p] += hypergraph.edgeWeight(he);
           }
         }
@@ -156,6 +171,14 @@ namespace mt_kahypar::metrics {
       for (const HypernodeID hn : hypergraph.nodes()) {
             vol[hypergraph.partID(hn)] += hypergraph.weightOfDisabledEdges(hn);
       }
+    }
+    for (int i = 0; i < hypergraph.k(); ++i) {
+      if (vol[i] != hypergraph.partLoad(i)) {
+        LOG << "Mismatching loads at block" << i;
+      }
+    }
+    if (add_pins != 0) {
+      LOG << V(add_pins);
     }
     return std::make_pair(*std::min_element(vol.begin(), vol.end()), *std::max_element(vol.begin(), vol.end()));
   }

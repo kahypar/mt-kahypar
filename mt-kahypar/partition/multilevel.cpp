@@ -32,6 +32,7 @@
 #include "mt-kahypar/io/partitioning_output.h"
 #include "mt-kahypar/partition/coarsening/multilevel_uncoarsener.h"
 #include "mt-kahypar/partition/coarsening/nlevel_uncoarsener.h"
+#include "mt-kahypar/partition/initial_partitioning/greedy_judicious_initial_partitioner.h"
 
 namespace mt_kahypar::multilevel {
 
@@ -102,9 +103,6 @@ namespace mt_kahypar::multilevel {
         _uncoarsener = std::make_unique<NLevelUncoarsener>(_hg, _context, *_uncoarseningData);
       } else {
         _uncoarsener = std::make_unique<MultilevelUncoarsener>(_hg, _context, *_uncoarseningData);
-      }
-      if (_context.type == kahypar::ContextType::main) {
-        LOG << V(metrics::judiciousLoad(_uncoarseningData->coarsestPartitionedHypergraph())) << "after IP";
       }
       _partitioned_hg = _uncoarsener->uncoarsen(label_propagation, fm);
       utils::Timer::instance().stop_timer("refinement");
@@ -198,7 +196,10 @@ namespace mt_kahypar::multilevel {
     void initialPartition(PartitionedHypergraph& phg) {
       io::printInitialPartitioningBanner(_context);
 
-      if ( !_vcycle ) {
+      if (_context.initial_partitioning.refinement.judicious.use_judicious_refinement) {
+        GreedyJudiciousInitialPartitioner ip(phg, _ip_context);
+        ip.initialPartition();
+      } else if ( !_vcycle ) {
         if ( _context.initial_partitioning.remove_degree_zero_hns_before_ip ) {
           _degree_zero_hn_remover.removeDegreeZeroHypernodes(phg.hypergraph());
         }
