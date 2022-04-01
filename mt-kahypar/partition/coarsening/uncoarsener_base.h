@@ -22,8 +22,6 @@
 
 #pragma once
 
-#include "mt-kahypar/definitions.h"
-#include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/refinement/i_refiner.h"
 #include "mt-kahypar/partition/coarsening/coarsening_commons.h"
 #include "mt-kahypar/utils/stats.h"
