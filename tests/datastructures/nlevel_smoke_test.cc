@@ -162,12 +162,10 @@ DynamicHypergraphT generateRandomHypergraph(const HypernodeID num_hypernodes,
     parallel::scalable_vector<HypernodeID> net;
     #ifdef USE_GRAPH_PARTITIONER
     unused(max_edge_size);
-    std::pair<HypernodeID, HypernodeID> edge;
-    while (graph_edges.find(edge = {rand.getRandomInt(0, num_hypernodes - 1, sched_getcpu()),
-                                    rand.getRandomInt(0, num_hypernodes - 1, sched_getcpu())})
-                            != graph_edges.end()) { }
-    graph_edges.insert(edge);
-    graph_edges.insert({edge.second, edge.first});
+    std::pair<HypernodeID, HypernodeID> edge{rand.getRandomInt(0, num_hypernodes - 1, sched_getcpu()),
+                                             rand.getRandomInt(0, num_hypernodes - 1, sched_getcpu())};
+    graph_edges.insert({edge});
+    graph_edges.insert({edge.first, edge.second});
     net.push_back(edge.first);
     net.push_back(edge.second);
     #else

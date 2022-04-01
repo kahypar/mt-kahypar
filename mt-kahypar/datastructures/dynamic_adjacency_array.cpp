@@ -210,12 +210,6 @@ void DynamicAdjacencyArray::construct(const EdgeVector& edge_vector, const Hyper
     e2.weight = weight;
     e2.back_edge = id1;
   });
-
-  // TODO(maas): is this the appropriate way to check this?
-  ASSERT([&]() {
-    auto removed_edges = removeSinglePinAndParallelEdges();
-    return removed_edges.empty();
-  }(), "Graph contains single pin edge or parallel edges!");
 }
 
 void DynamicAdjacencyArray::contract(const HypernodeID u,
