@@ -280,7 +280,6 @@ void DynamicGraph::memoryConsumption(utils::MemoryTreeNode* parent) const {
 
 // ! Only for testing
 bool DynamicGraph::verifyIncidenceArrayAndIncidentNets() {
-  LOG << "HEAVY ASSERT";
   bool success = true;
   tbb::parallel_invoke([&] {
     doParallelForAllNodes([&](const HypernodeID& hn) {
