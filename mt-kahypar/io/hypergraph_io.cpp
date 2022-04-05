@@ -247,7 +247,7 @@ namespace mt_kahypar::io {
             hyperedge.push_back(pin - 1);
           }
           line_ending(mapped_file, current_pos);
-          ASSERT(hyperedge.size() >= 2);
+          // ASSERT(hyperedge.size() >= 2);
           ++current_id;
         } else {
           goto_next_line(mapped_file, current_pos, current_end);
