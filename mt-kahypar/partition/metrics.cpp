@@ -136,17 +136,19 @@ namespace mt_kahypar::metrics {
       tbb::parallel_for(ID(0), hypergraph.initialNumEdges(), [&](const HyperedgeID he) {
         if (hypergraph.edgeIsEnabled(he)) {
           for (const auto p : hypergraph.connectivitySet(he)) {
-            int pip = 0;
-            pip = hypergraph.pinCountInPart(he, p);
-            for (auto& u : hypergraph.pins(he)) {
-              if (hypergraph.partID(u) == p) {
-                pip--;
+            if (debug) {
+              int pip = 0;
+              pip = hypergraph.pinCountInPart(he, p);
+              for (auto& u : hypergraph.pins(he)) {
+                if (hypergraph.partID(u) == p) {
+                  pip--;
+                }
               }
-            }
-            if (pip != 0) {
-              mtx.lock();
-              add_pins += std::abs(pip);
-              mtx.unlock();
+              if (pip != 0) {
+                mtx.lock();
+                add_pins += std::abs(pip);
+                mtx.unlock();
+              }
             }
             ets_vol.local()[p] += hypergraph.edgeWeight(he);
           }
@@ -172,13 +174,15 @@ namespace mt_kahypar::metrics {
             vol[hypergraph.partID(hn)] += hypergraph.weightOfDisabledEdges(hn);
       }
     }
-    for (int i = 0; i < hypergraph.k(); ++i) {
-      if (vol[i] != hypergraph.partLoad(i)) {
-        LOG << "Mismatching loads at block" << i;
+    if (debug) {
+      for (int i = 0; i < hypergraph.k(); ++i) {
+        if (vol[i] != hypergraph.partLoad(i)) {
+          LOG << "Mismatching loads at block" << i;
+        }
       }
-    }
-    if (add_pins != 0) {
-      LOG << V(add_pins);
+      if (add_pins != 0) {
+        LOG << V(add_pins);
+      }
     }
     return std::make_pair(*std::min_element(vol.begin(), vol.end()), *std::max_element(vol.begin(), vol.end()));
   }

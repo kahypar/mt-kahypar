@@ -24,6 +24,8 @@
 
 namespace mt_kahypar::metrics {
 
+static constexpr bool debug = false;
+
 HyperedgeWeight hyperedgeCut(const PartitionedHypergraph& hypergraph, bool parallel = true);
 
 HyperedgeWeight km1(const PartitionedHypergraph& hypergraph, bool parallel = true);
