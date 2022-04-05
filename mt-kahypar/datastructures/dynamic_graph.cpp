@@ -289,7 +289,7 @@ bool DynamicGraph::verifyIncidenceArrayAndIncidentNets() {
           LOG << "Edge" << he << "has source" << edgeSource(he) << "but should be" << hn;
           success = false;
         }
-        const HypernodeID back_target = edge(edge(he).back_edge).target();
+        const HypernodeID back_target = edge(edge(he).back_edge).target;
         if (back_target != hn) {
           LOG << "Backedge" << edge(he).back_edge << "(of edge" << he
               << ") has target" << back_target << "but should be" << hn;

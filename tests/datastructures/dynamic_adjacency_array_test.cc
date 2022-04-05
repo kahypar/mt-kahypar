@@ -38,11 +38,11 @@ void verifyNeighbors(const HypernodeID u,
   size_t degree = 0;
   std::vector<bool> actual_neighbors(num_nodes, false);
   for ( const HyperedgeID& he : adjacency_array.incidentEdges(u) ) {
-    const HypernodeID neighbor = adjacency_array.edge(he).target();
+    const HypernodeID neighbor = adjacency_array.edge(he).target;
     ASSERT_NE(_expected_neighbors.find(neighbor), _expected_neighbors.end())
       << "Vertex " << neighbor << " should not be neighbor of vertex " << u;
     ASSERT_EQ(u, adjacency_array.edge(he).source)
-      << "Source of " << he << " (target: " << adjacency_array.edge(he).target() << ") should be "
+      << "Source of " << he << " (target: " << adjacency_array.edge(he).target << ") should be "
       << u << " but is " << adjacency_array.edge(he).source;
     ASSERT_TRUE(!strict || !actual_neighbors[neighbor])
       << "Vertex " << u << " contain duplicate edge with target " << neighbor;
@@ -62,7 +62,7 @@ void verifyEdges(HyperedgeID expected_num_edges, const DynamicAdjacencyArray& ad
   size_t num_edges = 0;
   for ( const HyperedgeID& he : adjacency_array.edges() ) {
     const HypernodeID source = adjacency_array.edge(he).source;
-    const HypernodeID target = adjacency_array.edge(he).target();
+    const HypernodeID target = adjacency_array.edge(he).target;
     ASSERT_TRUE(_expected_edges.find({source, target}) != _expected_edges.end() ||
                 _expected_edges.find({target, source}) != _expected_edges.end())
       << "Edge (" << source << ", " << target << ") is invalid.";
@@ -85,7 +85,7 @@ void verifyEdgeWeight(const DynamicAdjacencyArray& adjacency_array, HyperedgeID 
   bool found = false;
   for (HyperedgeID edge: adjacency_array.edges()) {
     const auto& e = adjacency_array.edge(edge);
-    if ((e.source == source && e.target() == target) || (e.target() == source && e.source == target)) {
+    if ((e.source == source && e.target == target) || (e.target == source && e.source == target)) {
       ASSERT_EQ(weight, e.weight);
       found = true;
     }

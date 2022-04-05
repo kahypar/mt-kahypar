@@ -372,11 +372,11 @@ void verifyNeighbors(const HypernodeID u,
   size_t degree = 0;
   std::vector<bool> actual_neighbors(graph.initialNumNodes(), false);
   for ( const HyperedgeID& he : graph.incidentEdges(u) ) {
-    const HypernodeID neighbor = graph.edge(he).target();
+    const HypernodeID neighbor = graph.edge(he).target;
     ASSERT_NE(_expected_neighbors.find(neighbor), _expected_neighbors.end())
       << "Vertex " << neighbor << " should not be neighbor of vertex " << u;
     ASSERT_EQ(u, graph.edge(he).source)
-      << "Source of " << he << " (target: " << graph.edge(he).target() << ") should be "
+      << "Source of " << he << " (target: " << graph.edge(he).target << ") should be "
       << u << " but is " << graph.edge(he).source;
     ASSERT_TRUE(!strict || !actual_neighbors[neighbor])
       << "Vertex " << u << " contain duplicate edge with target " << neighbor;

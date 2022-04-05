@@ -140,40 +140,30 @@ class DynamicAdjacencyArray {
   // edge ids change.
   struct Edge {
     bool isSinglePin() const {
-      return source == target();
+      return source == target;
     }
 
     bool isValid() const {
-      return target() != kInvalidHypernode;
+      return target != kInvalidHypernode;
     }
 
     void setValid(bool valid) {
       if (valid) {
-        setTarget(source);
+        target = source;
       } else {
         ASSERT(isSinglePin());
-        setTarget(kInvalidHypernode);
+        target = kInvalidHypernode;
       }
     }
 
-    HypernodeID target() const {
-      return _target.load(std::memory_order_relaxed);
-    }
-
-    void setTarget(HypernodeID target) {
-      _target.store(target, std::memory_order_relaxed);
-    }
-
+    // ! Index of target node
+    HypernodeID target;
     // ! Index of source node
     HypernodeID source;
     // ! edge weight
     HyperedgeWeight weight;
     // ! id of the backwards edge
     HyperedgeID back_edge;
-
-   private:
-    // ! Index of target node
-    CAtomic<HypernodeID> _target;
   };
 
   struct RemovedEdgesOrWeight {

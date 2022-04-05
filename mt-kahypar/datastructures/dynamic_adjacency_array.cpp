@@ -200,13 +200,13 @@ void DynamicAdjacencyArray::construct(const EdgeVector& edge_vector, const Hyper
     HyperedgeID id1 = firstEdge(source) + current_incident_net_pos[source].fetch_add(1);
     HyperedgeID id2 = firstEdge(target) + current_incident_net_pos[target].fetch_add(1);
     Edge& e1 = edge(id1);
-    e1.setTarget(target);
     e1.source = source;
+    e1.target = target;
     e1.weight = weight;
     e1.back_edge = id2;
     Edge& e2 = edge(id2);
-    e2.setTarget(source);
     e2.source = target;
+    e2.target = source;
     e2.weight = weight;
     e2.back_edge = id1;
   });
@@ -228,7 +228,7 @@ void DynamicAdjacencyArray::contract(const HypernodeID u,
         --head_v.degree;
       } else if (e.isValid()) {
         e.source = u;
-        edge(e.back_edge).setTarget(u);
+        edge(e.back_edge).target = u;
       }
     }
   }
@@ -276,13 +276,14 @@ void DynamicAdjacencyArray::uncontract(const HypernodeID u,
       Edge& e = edge(curr_edge);
       ASSERT(e.source == u || !e.isValid());
       if (e.source == u) {
+        // TODO(maas): reading e.target might be a bit of a race condition
         bool singlePin = false;
-        if (e.target() == u) {
+        if (e.target == u) {
           // the edge is not truly single pin if already marked
           singlePin = !mark_edge(curr_edge);
         }
         e.source = v;
-        edge(e.back_edge).setTarget(v);
+        edge(e.back_edge).target = v;
         if (singlePin) {
           case_one_func(curr_edge);
         } else {
@@ -322,7 +323,7 @@ parallel::scalable_vector<DynamicAdjacencyArray::RemovedEdgesOrWeight> DynamicAd
       for (HypernodeID current_u: headers(u)) {
         const HyperedgeID first_inactive = firstInactiveEdge(current_u);
         for (HyperedgeID e = firstActiveEdge(current_u); e < first_inactive; ++e) {
-          local_vec.emplace_back(edge(e).target(), e, uniqueEdgeID(e), current_u);
+          local_vec.emplace_back(edge(e).target, e, uniqueEdgeID(e), current_u);
         }
       }
       std::sort(local_vec.begin(), local_vec.end(), [](const auto& e1, const auto& e2) {
@@ -440,7 +441,7 @@ void DynamicAdjacencyArray::restoreSinglePinAndParallelEdges(
       const HyperedgeID first = firstEdge(removed.header);
       bool found = false;
       for (HyperedgeID e = firstInactiveEdge(removed.header); e > first; --e) {
-        if (edge(e - 1).target() == removed.target()) {
+        if (edge(e - 1).target == removed.target()) {
           edge(e - 1).weight = removed.weight();
           found = true;
           break;
@@ -491,7 +492,7 @@ void DynamicAdjacencyArray::sortIncidentEdges() {
     const HyperedgeID end = firstInactiveEdge(u);
     std::sort(edge_permutation.data() + start, edge_permutation.data() + end,
       [&](const auto& e1, const auto& e2) {
-        return edge(e1).target() < edge(e2).target();
+        return edge(e1).target < edge(e2).target;
       }
     );
 
