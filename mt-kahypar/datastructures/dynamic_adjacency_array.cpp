@@ -154,6 +154,8 @@ void DynamicAdjacencyArray::construct(const EdgeVector& edge_vector, const Hyper
   }, [&] {
     _edges.resize(2 * num_edges);
   }, [&] {
+    _removable_edges.setSize(2 * num_edges);
+  }, [&] {
     _edge_mapping.resize(2 * num_edges);
   }, [&] {
     _degree_diffs.resize(_num_nodes);
@@ -304,16 +306,14 @@ void DynamicAdjacencyArray::uncontract(const HypernodeID u,
   ASSERT(verifyIteratorPointers(v), "Iterator pointers of vertex" << v << "are corrupted");
 }
 
-void DynamicAdjacencyArray::streamWeight(StreamingVector<RemovedEdgesOrWeight>& tmp_removed_edges,
-                                         const ParallelEdgeInformation& e, HyperedgeWeight w) {
-  tmp_removed_edges.stream(RemovedEdgesOrWeight::asWeight(e.header_id, edge(e.edge_id).weight, e.target));
-  edge(e.edge_id).weight += w;
-}
-
-parallel::scalable_vector<DynamicAdjacencyArray::RemovedEdgesOrWeight> DynamicAdjacencyArray::removeSinglePinAndParallelEdges() {
-  StreamingVector<RemovedEdgesOrWeight> tmp_removed_edges;
-  initializeEdgeMapping(_edge_mapping);
+parallel::scalable_vector<DynamicAdjacencyArray::RemovedEdge> DynamicAdjacencyArray::removeSinglePinAndParallelEdges() {
   // TODO(maas): special case for high degree nodes?
+  StreamingVector<RemovedEdge> tmp_removed_edges;
+  _removable_edges.reset();
+  initializeEdgeMapping(_edge_mapping);
+
+  // Step one: We mark each edge that should be removed and
+  // update the weight of the representative edges.
   tbb::parallel_for(ID(0), _num_nodes, [&](const HypernodeID u) {
     if (header(u).is_head) {
       vec<ParallelEdgeInformation>& local_vec = _thread_local_vec.local();
@@ -323,7 +323,7 @@ parallel::scalable_vector<DynamicAdjacencyArray::RemovedEdgesOrWeight> DynamicAd
       for (HypernodeID current_u: headers(u)) {
         const HyperedgeID first_inactive = firstInactiveEdge(current_u);
         for (HyperedgeID e = firstActiveEdge(current_u); e < first_inactive; ++e) {
-          local_vec.emplace_back(edge(e).target, e, uniqueEdgeID(e), current_u);
+          local_vec.emplace_back(edge(e).target, e, uniqueEdgeID(e));
         }
       }
       std::sort(local_vec.begin(), local_vec.end(), [](const auto& e1, const auto& e2) {
@@ -332,88 +332,83 @@ parallel::scalable_vector<DynamicAdjacencyArray::RemovedEdgesOrWeight> DynamicAd
         return e1.target < e2.target || (e1.target == e2.target && e1.unique_id < e2.unique_id);
       });
 
-      // scan and swap all duplicate/single pin/invalid edges to front
-      HyperedgeID num_duplicates = 0;
-      HyperedgeWeight current_weight = 0;
-      for (size_t i = 0; i + 1 < local_vec.size(); ++i) {
-        const ParallelEdgeInformation& e1 = local_vec[i];
-        const ParallelEdgeInformation& e2 = local_vec[i + 1];
-        if (e1.target != e2.target && current_weight > 0) {
-          streamWeight(tmp_removed_edges, e1, current_weight);
-          current_weight = 0;
-        }
-        if (e1.target == u || e1.target == kInvalidHypernode) {
-          std::swap(local_vec[num_duplicates], local_vec[i]);
-          ++num_duplicates;
-        } else if (e1.target == e2.target) {
-          // local_vec[i + 1] might also be parall to e1 and e2,
-          // thus we remove e1 and keep e2
-          current_weight += edge(e1.edge_id).weight;
-          std::swap(local_vec[num_duplicates], local_vec[i]);
-          ++num_duplicates;
-        }
-      }
       if (!local_vec.empty()) {
-        const ParallelEdgeInformation& last = local_vec[local_vec.size() - 1];
-        if (current_weight > 0) {
-          streamWeight(tmp_removed_edges, last, current_weight);
-        }
-        if (last.target == u || last.target == kInvalidHypernode) {
-          std::swap(local_vec[num_duplicates], local_vec[local_vec.size() - 1]);
-          ++num_duplicates;
-        }
-      }
-
-      if (num_duplicates > 0) {
-        // sort again based on edge id, so the edges can be processed in sorted order
-        local_vec.resize(num_duplicates);
-        std::sort(local_vec.begin(), local_vec.end(), [](const auto& e1, const auto& e2) {
-          return e1.edge_id < e2.edge_id;
-        });
-
-        // swap edges and collect output
-        HypernodeID current_u = local_vec[0].header_id;
-        HyperedgeID current_count = 0;
-        HyperedgeID current_degree_diff = 0;
-        HyperedgeID total_degree_diff = 0;
-        for (const ParallelEdgeInformation& e: local_vec) {
-          Header& head = header(e.header_id);
-          if (current_u != e.header_id) {
-            tmp_removed_edges.stream(RemovedEdgesOrWeight::asEdges(current_u, current_count, current_degree_diff));
-            current_u = e.header_id;
-            current_count = 0;
-            current_degree_diff = 0;
-          }
-          ++current_count;
-          if (e.target != kInvalidHypernode) {
-            ++current_degree_diff;
-            ++total_degree_diff;
-          }
-
-          const HyperedgeID new_id = firstActiveEdge(e.header_id);
-          HyperedgeID permutation_source = new_id;
-          while (_edge_mapping[permutation_source] < new_id) {
-            permutation_source = _edge_mapping[permutation_source];
-          }
-          ASSERT(_edge_mapping[e.edge_id] == e.edge_id && _edge_mapping[permutation_source] == new_id);
-          std::swap(edge(e.edge_id), edge(new_id));
-          ++head.first_active;
-          _edge_mapping[e.edge_id] = new_id;
-          _edge_mapping[permutation_source] = e.edge_id;
-
-          if (head.size() == 0 && current_u != u) {
-            removeEmptyIncidentEdgeList(e.header_id);
+        // scan and mark all duplicate/single pin/invalid edges, update weight
+        const ParallelEdgeInformation& first = local_vec[0];
+        if (first.target == u || first.target == kInvalidHypernode) {
+          _removable_edges.set(first.edge_id, true);
+          if (first.target == u) {
+            --header(u).degree;
           }
         }
-        tmp_removed_edges.stream(RemovedEdgesOrWeight::asEdges(current_u, current_count, current_degree_diff));
-        header(u).degree -= total_degree_diff;
+        HyperedgeID current_representative = first.edge_id;
+        for (size_t i = 0; i + 1 < local_vec.size(); ++i) {
+          const ParallelEdgeInformation& e1 = local_vec[i];
+          const ParallelEdgeInformation& e2 = local_vec[i + 1];
+          if (e1.target == e2.target && e2.target != kInvalidHypernode && e2.target != u) {
+            // we abuse the source to save the representative edge
+            edge(e2.edge_id).source = current_representative;
+            edge(current_representative).weight += edge(e2.edge_id).weight;
+            _removable_edges.set(e2.edge_id, true);
+            --header(u).degree;
+          } else {
+            current_representative = e2.edge_id;
+            if (e2.target == u) {
+              _removable_edges.set(e2.edge_id, true);
+              --header(u).degree;
+            } else if (e2.target == kInvalidHypernode) {
+              _removable_edges.set(e2.edge_id, true);
+            }
+          }
+        }
       }
     }
   });
 
-  applyEdgeMapping(_edge_mapping);
+  // Step two: We swap each marked edge and update the edge mapping accordingly.
+  tbb::parallel_for(ID(0), _num_nodes, [&](const HypernodeID u) {
+    Header& head = header(u);
+    const HyperedgeID first_inactive = firstInactiveEdge(u);
+    for (HyperedgeID e = firstActiveEdge(u); e < first_inactive; ++e) {
+      if (_removable_edges[e]) {
+        const HyperedgeID new_id = firstActiveEdge(u);
+        HyperedgeID permutation_source = new_id;
+        while (_edge_mapping[permutation_source] < new_id) {
+          permutation_source = _edge_mapping[permutation_source];
+        }
+        ASSERT(_edge_mapping[e] == e && _edge_mapping[permutation_source] == new_id);
+        std::swap(edge(e), edge(new_id));
+        _edge_mapping[e] = new_id;
+        _edge_mapping[permutation_source] = e;
 
-  HEAVY_COARSENING_ASSERT([&]() {
+        ++head.first_active;
+
+        if (head.size() == 0 && !head.is_head) {
+          removeEmptyIncidentEdgeList(u);
+        }
+        tmp_removed_edges.stream(RemovedEdge {new_id, e});
+      }
+    }
+  });
+
+  auto removed_edges = tmp_removed_edges.copy_parallel();
+  tmp_removed_edges.clear_parallel();
+
+  // Step three: Update the representative edge for all removed edges
+  // and update back edges.
+  tbb::parallel_invoke([&]() {
+    tbb::parallel_for(0UL, removed_edges.size(), [&](const size_t i) {
+      const RemovedEdge& re = removed_edges[i];
+      Edge& e = edge(re.edge_id);
+      if (e.isValid() && !e.isSinglePin()) {
+        e.source = _edge_mapping[e.source];
+      }
+    });
+  }, [&]() {
+    applyEdgeMapping(_edge_mapping);
+  });
+
+  /*HEAVY_COARSENING_*/ASSERT([&]() {
     for (HyperedgeID e = 0; e < _edges.size(); ++e) {
       if (edge(edge(e).back_edge).back_edge != e) {
         return false;
@@ -422,58 +417,92 @@ parallel::scalable_vector<DynamicAdjacencyArray::RemovedEdgesOrWeight> DynamicAd
     return true;
   }());
 
-  auto removed_edges = tmp_removed_edges.copy_parallel();
-  tmp_removed_edges.clear_parallel();
   return removed_edges;
 }
 
 void DynamicAdjacencyArray::restoreSinglePinAndParallelEdges(
-      const parallel::scalable_vector<DynamicAdjacencyArray::RemovedEdgesOrWeight>& edges_to_restore) {
-  // _degree_diffs does not need to be thread safe because all headers are handled separately
-  _degree_diffs.assign(_num_nodes, 0);
-  tbb::parallel_for(0UL, edges_to_restore.size(), [&](const size_t i) {
-    const RemovedEdgesOrWeight& removed = edges_to_restore[i];
-    Header& head = header(removed.header);
-    if (removed.is_weight) {
-      // restore edge weight
-      // we need to scan in reverse order because we want to find the edge with
-      // the correct target which has the highest index (it was not removed)
-      const HyperedgeID first = firstEdge(removed.header);
-      bool found = false;
-      for (HyperedgeID e = firstInactiveEdge(removed.header); e > first; --e) {
-        if (edge(e - 1).target == removed.target()) {
-          edge(e - 1).weight = removed.weight();
-          found = true;
-          break;
-        }
+      const parallel::scalable_vector<DynamicAdjacencyArray::RemovedEdge>& edges_to_restore) {
+  _removable_edges.reset();
+  initializeEdgeMapping(_edge_mapping);
+
+  // Step one: We restore the weight of the representative edge, mark all edges
+  // that need to be restored, save the swap target of the edges and restore the source.
+  tbb::parallel_invoke([&]() {
+    tbb::parallel_for(0UL, edges_to_restore.size(), [&](const size_t i) {
+      const RemovedEdge& re = edges_to_restore[i];
+      Edge& e = edge(re.edge_id);
+      _removable_edges.set(re.edge_id, true);
+
+      if (e.isValid() && !e.isSinglePin()) {
+        Edge& representative = edge(e.source);
+        representative.weight -= e.weight;
+        e.source = edge(e.back_edge).target;
+        // now, we abuse the edge mapping to save the swap target
+        _edge_mapping[re.edge_id] = re.old_id;
       }
-      ASSERT(found);
-      unused(found);
-    } else {
-      // restore parallel edges, which have been swapped to the front
-      _degree_diffs[removed.header] = removed.degreeDiff();
-      if (removed.numRemoved() > 0 && head.size() == 0 && !head.is_head) {
-        // we use a negative sign to mark previously empty headers
-        _degree_diffs[removed.header] = -_degree_diffs[removed.header] - 1;
+    });
+  }, [&]() {
+    _degree_diffs.assign(_num_nodes, 0);
+  });
+
+  // Step two: We swap each marked edge (in reverse order to removeSinglePinAndParallelEdges)
+  // and update the edge mapping accordingly.
+  tbb::parallel_for(ID(0), _num_nodes, [&](const HypernodeID u) {
+    Header& head = header(u);
+    const bool was_empty = (head.size() == 0);
+    const HyperedgeID first = firstEdge(u);
+    for (HyperedgeID curr = firstActiveEdge(u);
+         curr > first && _removable_edges[curr - 1]; --curr) {
+      const HyperedgeID e = curr - 1;
+      if (edge(e).isValid()) {
+        ++_degree_diffs[u];
       }
-      head.first_active -= removed.numRemoved();
+
+      const HyperedgeID new_id = _edge_mapping[e];
+      HyperedgeID permutation_source = new_id;
+      while (_edge_mapping[permutation_source] > new_id) {
+        permutation_source = _edge_mapping[permutation_source];
+      }
+      ASSERT(_edge_mapping[permutation_source] == new_id);
+      std::swap(edge(e), edge(new_id));
+      _edge_mapping[e] = new_id;
+      _edge_mapping[permutation_source] = e;
+
+      --head.first_active;
+    }
+
+    if (was_empty && !head.is_head) {
+      // we use a negative sign to mark previously empty headers
+      _degree_diffs[u] = -_degree_diffs[u];
     }
   });
 
-  // update node degrees
-  tbb::parallel_for(ID(0), _num_nodes, [&](const HypernodeID u) {
-    if (header(u).is_head) {
-      bool restore_it = false;
-      for (HypernodeID current_u: headers(u)) {
-        header(u).degree += _degree_diffs[current_u] >= 0 ?
-                            _degree_diffs[current_u] : -_degree_diffs[current_u] - 1;
-        restore_it |= _degree_diffs[current_u] < 0;
+  // Step three: Update node degrees, restore iterator pointers and update back edges
+  tbb::parallel_invoke([&]() {
+    tbb::parallel_for(ID(0), _num_nodes, [&](const HypernodeID u) {
+      if (header(u).is_head) {
+        bool restore_it = false;
+        for (HypernodeID current_u: headers(u)) {
+          header(u).degree += std::abs(_degree_diffs[current_u]);
+          restore_it |= _degree_diffs[current_u] < 0;
+        }
+        if (restore_it) {
+          restoreIteratorPointers(u);
+        }
       }
-      if (restore_it) {
-        restoreIteratorPointers(u);
+    });
+  }, [&]() {
+    applyEdgeMapping(_edge_mapping);
+  });
+
+  /*HEAVY_REFINEMENT_*/ASSERT([&]() {
+    for (HyperedgeID e = 0; e < _edges.size(); ++e) {
+      if (edge(edge(e).back_edge).back_edge != e) {
+        return false;
       }
     }
-  });
+    return true;
+  }());
 }
 
 void DynamicAdjacencyArray::reset() {
@@ -533,6 +562,8 @@ DynamicAdjacencyArray DynamicAdjacencyArray::copy(parallel_tag_t) const {
   }, [&] {
     adjacency_array._edges.resize(_edges.size());
     memcpy(adjacency_array._edges.data(), _edges.data(), sizeof(Edge) * _edges.size());
+  },[&] {
+    adjacency_array._removable_edges.setSize(_edges.size());
   }, [&] {
     adjacency_array._edge_mapping.resize(_edge_mapping.size());
   }, [&] {
@@ -551,6 +582,7 @@ DynamicAdjacencyArray DynamicAdjacencyArray::copy() const {
     sizeof(Header) * _header_array.size());
   adjacency_array._edges.resize(_edges.size());
   memcpy(adjacency_array._edges.data(), _edges.data(), sizeof(Edge) * _edges.size());
+  adjacency_array._removable_edges.setSize(_edges.size());
   adjacency_array._edge_mapping.resize(_edge_mapping.size());
   adjacency_array._degree_diffs.resize(_degree_diffs.size());
   return adjacency_array;

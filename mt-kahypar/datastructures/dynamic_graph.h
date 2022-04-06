@@ -316,7 +316,7 @@ class DynamicGraph {
   // ! Iterator to iterate over the incident edges of a node
   using IncidentNetsIterator = DynamicAdjacencyArray::const_iterator;
 
-  using ParallelHyperedge = DynamicAdjacencyArray::RemovedEdgesOrWeight;
+  using ParallelHyperedge = DynamicAdjacencyArray::RemovedEdge;
 
   explicit DynamicGraph() :
     _num_removed_nodes(0),

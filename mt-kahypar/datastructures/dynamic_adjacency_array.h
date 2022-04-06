@@ -139,6 +139,8 @@ class DynamicAdjacencyArray {
   // backwards edge via its edge id, which is updated when any
   // edge ids change.
   struct Edge {
+    static_assert(sizeof(HyperedgeID) == sizeof(HypernodeID));
+
     bool isSinglePin() const {
       return source == target;
     }
@@ -166,55 +168,11 @@ class DynamicAdjacencyArray {
     HyperedgeID back_edge;
   };
 
-  struct RemovedEdgesOrWeight {
-    bool is_weight;
-    HypernodeID header;
-
-    static_assert(sizeof(HyperedgeID) == sizeof(HypernodeID));
-
-    RemovedEdgesOrWeight() { };
-
-    explicit RemovedEdgesOrWeight(bool is_weight, HypernodeID header, HyperedgeWeight weight, HypernodeID target):
-      is_weight(is_weight),
-      header(header),
-      _num_removed_or_weight(static_cast<HyperedgeID>(weight)),
-      _degree_diff_or_target(target) {
-      ASSERT(weight >= 0);
-    }
-
-    static RemovedEdgesOrWeight asEdges(HypernodeID header, HyperedgeID num_removed, HyperedgeID degree_diff) {
-      return RemovedEdgesOrWeight(false, header, static_cast<HyperedgeWeight>(num_removed),
-                                  static_cast<HypernodeID>(degree_diff));
-    }
-
-    static RemovedEdgesOrWeight asWeight(HypernodeID header, HyperedgeWeight weight, HypernodeID target) {
-      return RemovedEdgesOrWeight(true, header, weight, target);
-    }
-
-    HyperedgeID numRemoved() const {
-      ASSERT(!is_weight);
-      return _num_removed_or_weight;
-    }
-
-    HyperedgeID degreeDiff() const {
-      ASSERT(!is_weight);
-      return static_cast<HyperedgeID>(_degree_diff_or_target);
-    }
-
-    HypernodeID target() const {
-      ASSERT(is_weight);
-      return _degree_diff_or_target;
-    }
-
-    HyperedgeWeight weight() const {
-      ASSERT(is_weight);
-      return static_cast<HyperedgeWeight>(_num_removed_or_weight);
-    }
-
-   private:
-    // some hand-made "union" fields
-    HyperedgeID _num_removed_or_weight;
-    HypernodeID _degree_diff_or_target;
+  struct RemovedEdge {
+    // current id of removed edge
+    HyperedgeID edge_id;
+    // id of the edge before it was removed
+    HyperedgeID old_id;
   };
 
  private:
@@ -277,8 +235,8 @@ class DynamicAdjacencyArray {
   struct ParallelEdgeInformation {
     ParallelEdgeInformation() = default;
 
-    ParallelEdgeInformation(HypernodeID target, HyperedgeID edge_id, HyperedgeID unique_id, HypernodeID header_id):
-        target(target), edge_id(edge_id), unique_id(unique_id), header_id(header_id) { }
+    ParallelEdgeInformation(HypernodeID target, HyperedgeID edge_id, HyperedgeID unique_id):
+        target(target), edge_id(edge_id), unique_id(unique_id) { }
 
     // ! Index of target node
     HypernodeID target;
@@ -286,8 +244,6 @@ class DynamicAdjacencyArray {
     HyperedgeID edge_id;
     // ! Unique id of edge
     HyperedgeID unique_id;
-    // ! header
-    HypernodeID header_id;
   };
 
   using ThreadLocalParallelEdgeVector = tbb::enumerable_thread_specific<vec<ParallelEdgeInformation>>;
@@ -299,6 +255,7 @@ class DynamicAdjacencyArray {
     _num_nodes(0),
     _header_array(),
     _edges(),
+    _removable_edges(),
     _edge_mapping(),
     _degree_diffs() { }
 
@@ -309,6 +266,7 @@ class DynamicAdjacencyArray {
     _header_array(),
     _edges(),
     _thread_local_vec(),
+    _removable_edges(),
     _edge_mapping(),
     _degree_diffs() {
     construct(edge_vector, edge_weight);
@@ -410,9 +368,9 @@ class DynamicAdjacencyArray {
                   const AcquireLockFunc& acquire_lock,
                   const ReleaseLockFunc& release_lock);
 
-  parallel::scalable_vector<RemovedEdgesOrWeight> removeSinglePinAndParallelEdges();
+  parallel::scalable_vector<RemovedEdge> removeSinglePinAndParallelEdges();
 
-  void restoreSinglePinAndParallelEdges(const parallel::scalable_vector<RemovedEdgesOrWeight>& edges_to_restore);
+  void restoreSinglePinAndParallelEdges(const parallel::scalable_vector<RemovedEdge>& edges_to_restore);
 
   DynamicAdjacencyArray copy(parallel_tag_t) const;
 
@@ -543,9 +501,6 @@ class DynamicAdjacencyArray {
 
   void restoreItLink(const HypernodeID u, const HypernodeID prev, const HypernodeID current);
 
-  void streamWeight(StreamingVector<RemovedEdgesOrWeight>& tmp_removed_edges,
-                    const ParallelEdgeInformation& e, HyperedgeWeight w);
-
   void construct(const EdgeVector& edge_vector, const HyperedgeWeight* edge_weight = nullptr);
 
   bool verifyIteratorPointers(const HypernodeID u) const;
@@ -555,6 +510,7 @@ class DynamicAdjacencyArray {
   Array<Edge> _edges;
   // data used during parallel edge removal
   ThreadLocalParallelEdgeVector _thread_local_vec;
+  kahypar::ds::FastResetFlagArray<> _removable_edges;
   Array<HyperedgeID> _edge_mapping;
   Array<int32_t> _degree_diffs;
 };
