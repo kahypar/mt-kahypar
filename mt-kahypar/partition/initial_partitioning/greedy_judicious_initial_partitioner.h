@@ -35,8 +35,7 @@ public:
       : _phg(phg), _context(context), _pq(context, phg.initialNumNodes()),
         _neighbor_deduplicator(phg.initialNumNodes(), 0),
         _preassign_nodes(context.initial_partitioning.preassign_nodes),
-        _random_selection(context.initial_partitioning.random_selection),
-        _part_loads(static_cast<size_t>(context.partition.k)) {
+        _random_selection(context.initial_partitioning.random_selection) {
     _default_part = _preassign_nodes ? 0 : -1;
   }
 
@@ -58,11 +57,6 @@ public:
       _phg.initializeGainCache();
     }
     _pq.initBlockPQ(_phg);
-
-    _part_loads.clear();
-    for (PartitionID i = 0; i < _context.partition.k; ++i) {
-      _part_loads.insert(i, _phg.partLoad(i));
-    }
 
     auto delta_func = [&](const HyperedgeID he, const HyperedgeWeight,
                           const HypernodeID,
@@ -90,7 +84,6 @@ public:
         _phg.changeNodePartWithGainCacheUpdate(
             move.node, move.from, move.to,
             std::numeric_limits<HypernodeWeight>::max(), [] {}, delta_func);
-        _part_loads.adjustKey(move.from, _phg.partLoad(move.from));
       } else {
         _phg.setNodePart(move.node, move.to);
         for (const auto &he : _phg.incidentEdges(move.node)) {
@@ -99,7 +92,6 @@ public:
           }
         }
       }
-      _part_loads.adjustKey(move.to, _phg.partLoad(move.to));
       updateNeighbors(move.to);
     } while (!_preassign_nodes ||
              _phg.partLoad(_default_part) > _phg.partLoad(move.to));
@@ -170,8 +162,5 @@ private:
   HypernodeID _deduplication_time = 1;
   const bool _preassign_nodes = false;
   const bool _random_selection = false;
-  ds::ExclusiveHandleHeap<
-      ds::Heap<HyperedgeWeight, PartitionID, std::greater<HyperedgeWeight>>>
-      _part_loads;
 };
 } // namespace mt_kahypar
