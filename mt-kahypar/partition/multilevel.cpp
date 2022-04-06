@@ -197,8 +197,7 @@ namespace mt_kahypar::multilevel {
       io::printInitialPartitioningBanner(_context);
 
       if (_context.initial_partitioning.refinement.judicious.use_judicious_refinement) {
-        GreedyJudiciousInitialPartitioner ip(phg, _ip_context);
-        ip.initialPartition();
+        judiciousIP(phg);
       } else if ( !_vcycle ) {
         if ( _context.initial_partitioning.remove_degree_zero_hns_before_ip ) {
           _degree_zero_hn_remover.removeDegreeZeroHypernodes(phg.hypergraph());
@@ -234,6 +233,42 @@ namespace mt_kahypar::multilevel {
         utils::Timer::instance().disable();
         utils::Stats::instance().disable();
       }
+    }
+
+    void judiciousIP(PartitionedHypergraph& phg) {
+      GreedyJudiciousInitialPartitioner ip(phg, _ip_context);
+      ip.initialPartition(_context.partition.seed);
+      // const size_t num_runs = _context.initial_partitioning.runs;
+      // std::uniform_int_distribution<> distrib(0, std::numeric_limits<int>::max());
+      // std::mt19937 g(_context.partition.seed);
+      // tbb::task_group tg;
+      // vec<std::pair<HyperedgeWeight, vec<size_t>>> partitions(num_runs);
+      // tbb::enumerable_thread_specific<PartitionedHypergraph> phgs([&] { return construct_phg(phg); });
+      // auto ip_run = [&](const size_t seed, const size_t i) {
+      //   auto &local_phg = phgs.local();
+      //   // run IP and extract part IDs
+      //   GreedyJudiciousInitialPartitioner ip(local_phg, _ip_context);
+      //   ip.initialPartition(seed);
+      //   partitions[i].second.resize(phg.initialNumNodes());
+      //   for (size_t j = 0; j < phg.initialNumNodes(); ++j) {
+      //     partitions[i].second[j] = local_phg.partID(j);
+      //   }
+      //   partitions[i].first = metrics::judiciousLoad(local_phg);
+      // };
+      // for(size_t i = 0; i < num_runs; ++i) {
+      //   tg.run(std::bind(ip_run, distrib(g), i));
+      // }
+      // tg.wait();
+      // // choose best partititon and assign it to the hypergraph
+      // auto& best_partition = *std::min_element(partitions.begin(), partitions.end());
+      // for (size_t i = 0; i < phg.initialNumNodes(); ++i) {
+      //   phg.setNodePart(i, best_partition.second[i]);
+      // }
+      // phg.initializePartition();
+    }
+
+    PartitionedHypergraph construct_phg(PartitionedHypergraph& phg) {
+      return PartitionedHypergraph(_context.partition.k, phg.hypergraph());
     }
 
     Hypergraph& _hg;
