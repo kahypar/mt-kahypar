@@ -224,6 +224,8 @@ struct InitialPartitioningParameters {
   size_t lp_maximum_iterations = 1;
   size_t lp_initial_block_size = 1;
   size_t population_size = 16;
+  bool preassign_nodes = false;
+  bool random_selection = false;
 };
 
 std::ostream & operator<< (std::ostream& str, const InitialPartitioningParameters& params);
