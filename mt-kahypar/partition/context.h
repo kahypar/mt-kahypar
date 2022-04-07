@@ -115,6 +115,8 @@ struct CoarseningParameters {
   // Those will be determined dynamically
   HypernodeWeight max_allowed_node_weight = 0;
   HypernodeID contraction_limit = 0;
+
+  bool skip_coarsening = true;
 };
 
 

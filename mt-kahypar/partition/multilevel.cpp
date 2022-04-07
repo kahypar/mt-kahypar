@@ -153,8 +153,14 @@ namespace mt_kahypar::multilevel {
 
     tbb::task* execute() override {
       // ################## COARSENING ##################
-      mt_kahypar::io::printCoarseningBanner(_context);
 
+      if (_context.coarsening.skip_coarsening) {
+        _uncoarseningData.finalizeCoarsening();
+        utils::Timer::instance().start_timer("initial_partitioning", "Initial Partitioning");
+        initialPartition(_uncoarseningData.coarsestPartitionedHypergraph());
+        return nullptr;
+      }
+      mt_kahypar::io::printCoarseningBanner(_context);
       utils::Timer::instance().start_timer("coarsening", "Coarsening");
       _coarsener = CoarsenerFactory::getInstance().createObject(
               _context.coarsening.algorithm, _hg, _context, _uncoarseningData);
