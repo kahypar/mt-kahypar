@@ -23,6 +23,7 @@
 #include <sstream>
 #include <mutex>
 
+#include "mt-kahypar/partition/initial_partitioning/greedy_judicious_initial_partitioner.h"
 #include "tbb/enumerable_thread_specific.h"
 
 #include "mt-kahypar/partition/initial_partitioning/flat/initial_partitioning_commons.h"
@@ -40,7 +41,7 @@ namespace mt_kahypar {
 
 class InitialPartitioningDataContainer {
 
-  static constexpr bool debug = false;
+  static constexpr bool debug = true;
   static constexpr bool enable_heavy_assert = false;
 
   // ! Contains information about the best thread local partition
@@ -612,6 +613,28 @@ class InitialPartitioningDataContainer {
         }
       }
 
+      GreedyJudiciousInitialPartitioner judicious_ip(_partitioned_hg, _context);
+      judicious_ip.initialPartition(_context.partition.seed);
+      HyperedgeWeight judicious_load = metrics::judiciousLoad(_partitioned_hg);
+      DBG << "Judicious IP                  [" << V(judicious_load) << "]";
+      if (judicious_load < best->_result._objective) {
+        best_feasible_objective = judicious_load;
+        best_flat_algo = InitialPartitioningAlgorithm::greedy_judicious;
+      } else {
+        _partitioned_hg.resetPartition();
+        // Applies best partition to hypergraph
+        _partitioned_hg.doParallelForAllNodes([&](const HypernodeID hn) {
+          ASSERT(hn < best->_partition.size());
+          const PartitionID part_id = best->_partition[hn];
+          ASSERT(part_id != kInvalidPartition && part_id < _partitioned_hg.k());
+          ASSERT(_partitioned_hg.partID(hn) == kInvalidPartition);
+          _partitioned_hg.setOnlyNodePart(hn, part_id);
+        });
+
+        best_flat_algo = best->_result._algorithm;
+        best_feasible_objective = best->_result._objective;
+      }
+
       ASSERT(best);
       ASSERT(worst);
       ASSERT(best_imbalance);
@@ -624,17 +647,6 @@ class InitialPartitioningDataContainer {
       DBG << "Best Balanced Partition       [" << best_imbalance->_result.str() << "]";
       DBG << "Partition with Best Objective [" << best_objective->_result.str() << "]";
 
-      // Applies best partition to hypergraph
-      _partitioned_hg.doParallelForAllNodes([&](const HypernodeID hn) {
-        ASSERT(hn < best->_partition.size());
-        const PartitionID part_id = best->_partition[hn];
-        ASSERT(part_id != kInvalidPartition && part_id < _partitioned_hg.k());
-        ASSERT(_partitioned_hg.partID(hn) == kInvalidPartition);
-        _partitioned_hg.setOnlyNodePart(hn, part_id);
-      });
-
-      best_flat_algo = best->_result._algorithm;
-      best_feasible_objective = best->_result._objective;
     }
 
     _partitioned_hg.initializePartition();

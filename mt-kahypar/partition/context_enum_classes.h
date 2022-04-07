@@ -94,7 +94,8 @@ enum class InitialPartitioningAlgorithm : uint8_t {
   greedy_round_robin_max_net = 6,
   greedy_global_max_net = 7,
   greedy_sequential_max_net = 8,
-  UNDEFINED = 9
+  UNDEFINED = 9,
+  greedy_judicious = 10
 };
 
 enum class InitialPartitioningMode : uint8_t {
