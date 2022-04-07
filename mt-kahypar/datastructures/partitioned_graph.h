@@ -32,13 +32,13 @@
 
 #include "mt-kahypar/datastructures/hypergraph_common.h"
 #include "mt-kahypar/datastructures/connectivity_set.h"
+#include "mt-kahypar/datastructures/thread_safe_fast_reset_flag_array.h"
 #include "mt-kahypar/parallel/atomic_wrapper.h"
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
 #include "mt-kahypar/parallel/stl/thread_locals.h"
 #include "mt-kahypar/utils/range.h"
 #include "mt-kahypar/utils/timer.h"
 
-// TODO: option to deactivate gain cache
 namespace mt_kahypar {
 namespace ds {
 
@@ -73,26 +73,6 @@ private:
 
     CAtomic<uint32_t> state;
     PartitionID move_target;
-  };
-
-  // ! Allows to synchronize over an edge by marking it
-  class EdgeMarker {
-   public:
-    EdgeMarker() :
-      _state(0) { }
-
-    // ! Marks an edge up to twice and returns whether it was already marked
-    MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
-    bool mark() {
-      uint8_t expected = 0;
-      while (!_state.compare_exchange_weak(expected, expected + 1, std::memory_order_acq_rel)) {
-        ASSERT(expected < 2);
-      }
-      return expected > 0;
-    }
-
-   private:
-    CAtomic<uint8_t> _state;
   };
 
   class ConnectivityIterator :
@@ -185,9 +165,7 @@ private:
     _incident_weight_in_part(),
     _edge_locks(
       "Refinement", "edge_locks", hypergraph.maxUniqueID(), false, false),
-    _edge_markers(
-      "Refinement", "edge_markers", Hypergraph::is_static_hypergraph ?
-      0 : hypergraph.maxUniqueID(), false, false) {
+    _edge_markers(Hypergraph::is_static_hypergraph ? 0 : hypergraph.maxUniqueID()) {
     _part_ids.assign(hypergraph.initialNumNodes(), CAtomic<PartitionID>(kInvalidPartition), false);
   }
 
@@ -213,9 +191,7 @@ private:
       _edge_locks.assign(hypergraph.maxUniqueID(), EdgeLock());
     }, [&] {
       if (!Hypergraph::is_static_hypergraph) {
-      _edge_markers.resize(
-        "Refinement", "edge_markers", static_cast<size_t>(hypergraph.maxUniqueID()));
-      _edge_markers.assign(hypergraph.maxUniqueID(), EdgeMarker());
+        _edge_markers.setSize(hypergraph.maxUniqueID());
       }
     });
   }
@@ -428,7 +404,7 @@ private:
     });
 
     _hg->uncontract(batch,
-      [&](const HyperedgeID e) { return _edge_markers[uniqueEdgeID(e)].mark(); },
+      [&](const HyperedgeID e) { return !_edge_markers.compare_and_set_to_true(uniqueEdgeID(e)); },
       [&](const HypernodeID u, const HypernodeID v, const HyperedgeID e) {
         // In this case, e was a single pin edge before uncontraction
         if ( _is_gain_cache_initialized ) {
@@ -458,6 +434,7 @@ private:
   }
 
   void restoreSinglePinAndParallelNets(const parallel::scalable_vector<typename Hypergraph::ParallelHyperedge>& hes_to_restore) {
+    _edge_markers.reset();
     _hg->restoreSinglePinAndParallelNets(hes_to_restore);
     // TODO(maas): add assertion?
   }
@@ -1123,7 +1100,7 @@ private:
   Array< EdgeLock > _edge_locks;
 
   // ! We need to synchronize uncontractions via atomic markers
-  Array< EdgeMarker > _edge_markers;
+  ThreadSafeFastResetFlagArray<uint8_t> _edge_markers;
 
   // ! Fast reset threshold for edge locks
   uint32_t _lock_treshold;

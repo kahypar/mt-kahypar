@@ -484,6 +484,7 @@ class DynamicAdjacencyArray {
     });
   }
 
+  // ! Updates all backedges using the provided mapping
   void applyEdgeMapping(Array<HyperedgeID>& mapping) {
     ASSERT(mapping.size() == _edges.size());
     tbb::parallel_for(ID(0), ID(mapping.size()), [&](const HyperedgeID e) {
