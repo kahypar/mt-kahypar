@@ -319,11 +319,19 @@ parallel::scalable_vector<DynamicAdjacencyArray::RemovedEdge> DynamicAdjacencyAr
       vec<ParallelEdgeInformation>& local_vec = _thread_local_vec.local();
       local_vec.clear();
 
-      // we sort all incident edges
+      // mark single pin/invalid edges and sort all other incident edges
       for (HypernodeID current_u: headers(u)) {
         const HyperedgeID first_inactive = firstInactiveEdge(current_u);
-        for (HyperedgeID e = firstActiveEdge(current_u); e < first_inactive; ++e) {
-          local_vec.emplace_back(edge(e).target, e, uniqueEdgeID(e));
+        for (HyperedgeID id = firstActiveEdge(current_u); id < first_inactive; ++id) {
+          const Edge& e = edge(id);
+          if (e.isValid() && !e.isSinglePin()) {
+            local_vec.emplace_back(e.target, id, uniqueEdgeID(id));
+          } else {
+            _removable_edges.set(id, true);
+            if (e.isValid()) {
+              --header(u).degree;
+            }
+          }
         }
       }
       std::sort(local_vec.begin(), local_vec.end(), [](const auto& e1, const auto& e2) {
@@ -332,20 +340,14 @@ parallel::scalable_vector<DynamicAdjacencyArray::RemovedEdge> DynamicAdjacencyAr
         return e1.target < e2.target || (e1.target == e2.target && e1.unique_id < e2.unique_id);
       });
 
+      // mark all duplicate edges and update weight
       if (!local_vec.empty()) {
-        // scan and mark all duplicate/single pin/invalid edges, update weight
-        const ParallelEdgeInformation& first = local_vec[0];
-        if (first.target == u || first.target == kInvalidHypernode) {
-          _removable_edges.set(first.edge_id, true);
-          if (first.target == u) {
-            --header(u).degree;
-          }
-        }
-        HyperedgeID current_representative = first.edge_id;
+        HyperedgeID current_representative = local_vec[0].edge_id;
         for (size_t i = 0; i + 1 < local_vec.size(); ++i) {
           const ParallelEdgeInformation& e1 = local_vec[i];
           const ParallelEdgeInformation& e2 = local_vec[i + 1];
-          if (e1.target == e2.target && e2.target != kInvalidHypernode && e2.target != u) {
+          ASSERT(e2.target != kInvalidHypernode && e2.target != u);
+          if (e1.target == e2.target) {
             // we abuse the source to save the representative edge
             edge(e2.edge_id).source = current_representative;
             edge(current_representative).weight += edge(e2.edge_id).weight;
@@ -353,12 +355,6 @@ parallel::scalable_vector<DynamicAdjacencyArray::RemovedEdge> DynamicAdjacencyAr
             --header(u).degree;
           } else {
             current_representative = e2.edge_id;
-            if (e2.target == u) {
-              _removable_edges.set(e2.edge_id, true);
-              --header(u).degree;
-            } else if (e2.target == kInvalidHypernode) {
-              _removable_edges.set(e2.edge_id, true);
-            }
           }
         }
       }
