@@ -484,7 +484,11 @@ void DynamicAdjacencyArray::restoreSinglePinAndParallelEdges(
         const HyperedgeID first_inactive = firstInactiveEdge(current_u);
         for (HyperedgeID id = firstActiveEdge(current_u); id < first_inactive; ++id) {
           Edge& e = edge(id);
-          if (_removable_edges[id] && e.isValid() && !e.isSinglePin()) {
+          // Note: We use e.target to check whether it is a single pin edge.
+          // Comparing e.source and e.target does not work, because e.source
+          // currently holds the representative edge and the id of the representative
+          // could accidentially be equal to e.target.
+          if (_removable_edges[id] && e.isValid() && e.target != u) {
             Edge& representative = edge(e.source);
             representative.weight -= e.weight;
             e.source = u;
