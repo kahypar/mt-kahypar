@@ -20,6 +20,7 @@
 
 #pragma once
 
+#include <limits>
 #include <vector>
 #include <cstdint>
 #include <functional>
