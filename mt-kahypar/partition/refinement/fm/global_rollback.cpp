@@ -190,10 +190,12 @@ namespace mt_kahypar {
       }
     });
 
-    // recompute moveFromBenefit values since they are potentially invalid
-    tbb::parallel_for(MoveID(0), numMoves, [&](MoveID localMoveID) {
-      phg.recomputeMoveFromBenefit(move_order[localMoveID].node);
-    });
+    if (update_gain_cache) {
+      // recompute moveFromBenefit values since they are potentially invalid
+      tbb::parallel_for(MoveID(0), numMoves, [&](const MoveID i) {
+        phg.recomputeMoveFromBenefit(move_order[i].node);
+      });
+    }
 
     sharedData.moveTracker.reset();
 
@@ -361,7 +363,7 @@ namespace mt_kahypar {
       }
     });
 
-    if constexpr (update_gain_cache) {
+    if (update_gain_cache) {
       tbb::parallel_for(0U, numMoves, [&](const MoveID i) {
         phg.recomputeMoveFromBenefit(move_order[i].node);
       });
