@@ -508,6 +508,8 @@ class DynamicAdjacencyArray {
 
   bool verifyIteratorPointers(const HypernodeID u) const;
 
+  bool verifyBackEdges() const;
+
   HypernodeID _num_nodes;
   Array<Header> _header_array;
   Array<Edge> _edges;

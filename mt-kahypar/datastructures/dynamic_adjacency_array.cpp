@@ -380,10 +380,8 @@ parallel::scalable_vector<DynamicAdjacencyArray::RemovedEdge> DynamicAdjacencyAr
     }
   });
 
-  vec<RemovedEdge> removed_edges = tmp_removed_edges.copy_parallel();
-  tmp_removed_edges.clear_parallel();
-
   // Step three: Update iterator pointers and back edges, collect removed edges.
+  vec<RemovedEdge> removed_edges;
   tbb::parallel_invoke([&]() {
     tbb::parallel_for(ID(0), _num_nodes, [&](const HypernodeID u) {
       if (header(u).is_head) {
@@ -392,17 +390,12 @@ parallel::scalable_vector<DynamicAdjacencyArray::RemovedEdge> DynamicAdjacencyAr
     });
   }, [&]() {
     applyEdgeMapping(_edge_mapping);
+  }, [&]() {
+    removed_edges = tmp_removed_edges.copy_parallel();
+    tmp_removed_edges.clear_parallel();
   });
 
-  /*HEAVY_COARSENING_*/ASSERT([&]() {
-    for (HyperedgeID e = 0; e < _edges.size(); ++e) {
-      if (edge(edge(e).back_edge).back_edge != e) {
-        return false;
-      }
-    }
-    return true;
-  }());
-
+  HEAVY_COARSENING_ASSERT(verifyBackEdges());
   return removed_edges;
 }
 
@@ -481,14 +474,7 @@ void DynamicAdjacencyArray::restoreSinglePinAndParallelEdges(
     }
   });
 
-  /*HEAVY_REFINEMENT_*/ASSERT([&]() {
-    for (HyperedgeID e = 0; e < _edges.size(); ++e) {
-      if (edge(edge(e).back_edge).back_edge != e) {
-        return false;
-      }
-    }
-    return true;
-  }());
+  HEAVY_REFINEMENT_ASSERT(verifyBackEdges());
 }
 
 void DynamicAdjacencyArray::reset() {
@@ -527,14 +513,7 @@ void DynamicAdjacencyArray::sortIncidentEdges() {
   });
   applyEdgeMapping(_edge_mapping);
 
-  HEAVY_PREPROCESSING_ASSERT([&]() {
-    for (HyperedgeID e = 0; e < _edges.size(); ++e) {
-      if (edge(edge(e).back_edge).back_edge != e) {
-        return false;
-      }
-    }
-    return true;
-  }());
+  HEAVY_PREPROCESSING_ASSERT(verifyBackEdges());
 }
 
 DynamicAdjacencyArray DynamicAdjacencyArray::copy(parallel_tag_t) const {
@@ -696,6 +675,15 @@ bool DynamicAdjacencyArray::verifyIteratorPointers(const HypernodeID u) const {
     return false;
   }
 
+  return true;
+}
+
+bool DynamicAdjacencyArray::verifyBackEdges() const {
+  for (HyperedgeID e = 0; e < _edges.size(); ++e) {
+    if (edge(edge(e).back_edge).back_edge != e) {
+      return false;
+    }
+  }
   return true;
 }
 
