@@ -492,6 +492,8 @@ class DynamicAdjacencyArray {
     });
   }
 
+  void swapAndUpdateMapping(const HyperedgeID e, const HyperedgeID new_id);
+
   void append(const HypernodeID u, const HypernodeID v);
 
   void splice(const HypernodeID u, const HypernodeID v);

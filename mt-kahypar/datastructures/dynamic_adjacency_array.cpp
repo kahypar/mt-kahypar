@@ -368,17 +368,8 @@ parallel::scalable_vector<DynamicAdjacencyArray::RemovedEdge> DynamicAdjacencyAr
     for (HyperedgeID e = firstActiveEdge(u); e < first_inactive; ++e) {
       if (_removable_edges[e]) {
         const HyperedgeID new_id = firstActiveEdge(u);
-        HyperedgeID permutation_source = new_id;
-        while (_edge_mapping[permutation_source] < new_id) {
-          permutation_source = _edge_mapping[permutation_source];
-        }
-        ASSERT(_edge_mapping[e] == e && _edge_mapping[permutation_source] == new_id);
-        std::swap(edge(e), edge(new_id));
-        _edge_mapping[e] = new_id;
-        _edge_mapping[permutation_source] = e;
-
+        swapAndUpdateMapping(e, new_id);
         ++head.first_active;
-
         tmp_removed_edges.stream(RemovedEdge {new_id, e});
       }
     }
@@ -448,16 +439,7 @@ void DynamicAdjacencyArray::restoreSinglePinAndParallelEdges(
         ++_degree_diffs[u];
       }
 
-      const HyperedgeID new_id = _edge_mapping[e];
-      HyperedgeID permutation_source = new_id;
-      while (_edge_mapping[permutation_source] > new_id) {
-        permutation_source = _edge_mapping[permutation_source];
-      }
-      ASSERT(_edge_mapping[permutation_source] == new_id);
-      std::swap(edge(e), edge(new_id));
-      _edge_mapping[e] = new_id;
-      _edge_mapping[permutation_source] = e;
-
+      swapAndUpdateMapping(e, _edge_mapping[e]);
       --head.first_active;
     }
 
@@ -590,6 +572,17 @@ DynamicAdjacencyArray DynamicAdjacencyArray::copy() const {
   adjacency_array._edge_mapping.resize(_edge_mapping.size());
   adjacency_array._degree_diffs.resize(_degree_diffs.size());
   return adjacency_array;
+}
+
+void DynamicAdjacencyArray::swapAndUpdateMapping(const HyperedgeID e, const HyperedgeID new_id) {
+  HyperedgeID permutation_source = new_id;
+  while (_edge_mapping[permutation_source] != new_id) {
+    permutation_source = _edge_mapping[permutation_source];
+  }
+  ASSERT(_edge_mapping[permutation_source] == new_id);
+  std::swap(edge(e), edge(new_id));
+  _edge_mapping[e] = new_id;
+  _edge_mapping[permutation_source] = e;
 }
 
 void DynamicAdjacencyArray::append(const HypernodeID u, const HypernodeID v) {
