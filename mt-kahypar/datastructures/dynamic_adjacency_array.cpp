@@ -277,10 +277,11 @@ void DynamicAdjacencyArray::uncontract(const HypernodeID u,
       Edge& e = edge(curr_edge);
       ASSERT(e.source == u || !e.isValid());
       if (e.source == u) {
-        // TODO(maas): reading e.target might be a bit of a race condition
         bool singlePin = false;
         if (e.target == u) {
-          // the edge is not truly single pin if already marked
+          // If we use a gain cache, it is necessary to correctly attribute
+          // which uncontraction changes an edge from single pin to two pins.
+          // To achieve this, we introduce a synchronization point with mark_edge.
           singlePin = !mark_edge(curr_edge);
         }
         e.source = v;

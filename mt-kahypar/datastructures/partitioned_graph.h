@@ -436,7 +436,6 @@ private:
   void restoreSinglePinAndParallelNets(const parallel::scalable_vector<typename Hypergraph::ParallelHyperedge>& hes_to_restore) {
     _edge_markers.reset();
     _hg->restoreSinglePinAndParallelNets(hes_to_restore);
-    // TODO(maas): add assertion?
   }
 
   // ####################### Partition Information #######################

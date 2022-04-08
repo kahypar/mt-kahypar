@@ -358,7 +358,6 @@ class InitialPartitioningDataContainer {
     _local_kway_pq(_context.partition.k),
     _is_local_pq_initialized(false),
     _local_hn_visited(_context.partition.k * hypergraph.initialNumNodes()),
-    // TODO(maas): might be a problem?
     _local_he_visited(_context.partition.k * hypergraph.initialNumEdges()),
     _local_unassigned_hypernodes(),
     _local_unassigned_hypernode_pointer(std::numeric_limits<size_t>::max()),
