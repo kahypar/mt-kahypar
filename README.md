@@ -65,15 +65,13 @@ Building Mt-KaHyPar
 3. Run cmake: `cmake .. -DCMAKE_BUILD_TYPE=RELEASE`
 4. Run make: `make MtKaHyPar -j`
 
-The build produces four executables, which will be located in `build/mt-kahypar/application/`:
+The build produces five executables, which will be located in `build/mt-kahypar/application/`:
 
-- `MtKaHyParDefault` (Mt-KaHyPar-D): computes good partitions very fast (for hypergraphs)
-- `MtKaHyParGraph` (Mt-KaHyPar-Graph): computes good partitions very fast (for graphs)
-- `MtKaHyParQuality` (Mt-KaHyPar-Q): computes high-quality partitions in reasonable time (using n levels)
-- `MtKaHyPar`: wrapper around the three binaries
+- `MtKaHyParDefault` and `MtKaHyParGraph` (Mt-KaHyPar-D): computes good partitions very fast
+- `MtKaHyPar(Graph)Quality` (Mt-KaHyPar-Q): computes high-quality partitions in reasonable time (using n levels)
+- `MtKaHyPar`: wrapper around the five binaries
 
-Note that `MtKaHyParGraph` uses the same feature set as `MtKaHyParDefault`. However, it replaces
-the internal hypergraph data structure of `MtKaHyParDefault` with a graph data structure. In fact, `MtKaHyParGraph` is a factor of 2 faster than `MtKaHyParDefault` for graphs on average.
+Note that `MtKaHyParGraph` and `MtKaHyParGraphQuality` uses the same feature set as `MtKaHyParDefault` and `MtKaHyParQuality`. However, they replace the internal hypergraph data structure of with a graph data structure. In fact, both are a factor of 2 faster for graphs on average.
 
 Running Mt-KaHyPar
 -----------
