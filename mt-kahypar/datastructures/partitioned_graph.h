@@ -721,7 +721,6 @@ private:
 
   void recomputeMoveFromBenefit(const HypernodeID u) {
     // Nothing to do here
-    // TODO(maas): is this correct?
   }
 
   // ! Only for testing

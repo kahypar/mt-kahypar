@@ -218,15 +218,16 @@ void DynamicAdjacencyArray::contract(const HypernodeID u,
                                      const ReleaseLockFunc& release_lock) {
   // iterate over edges of v and update them
   Header& head_v = header(v);
-  for (HypernodeID current_v: headers(v)) {
+  for (const HypernodeID& current_v: headers(v)) {
     const HyperedgeID last = firstInactiveEdge(current_v);
     for ( HyperedgeID curr_edge = firstActiveEdge(current_v); curr_edge < last; ++curr_edge ) {
       Edge& e = edge(curr_edge);
       if (e.isValid() && e.isSinglePin()) {
         ASSERT(e.source == v);
-        e.setValid(false);
+        e.disable();
         --head_v.degree;
       } else if (e.isValid()) {
+        ASSERT(e.source == v && edge(e.back_edge).target == v);
         e.source = u;
         edge(e.back_edge).target = u;
       }
@@ -270,7 +271,7 @@ void DynamicAdjacencyArray::uncontract(const HypernodeID u,
 
   // iterate over edges of v, update backwards edges and restore removed edges
   HypernodeID last_non_empty_v = v;
-  for (HypernodeID current_v: headers(v)) {
+  for (const HypernodeID& current_v: headers(v)) {
     const HyperedgeID first_inactive = firstInactiveEdge(current_v);
     for (HyperedgeID curr_edge = firstActiveEdge(current_v); curr_edge < first_inactive; ++curr_edge) {
       Edge& e = edge(curr_edge);
@@ -290,7 +291,7 @@ void DynamicAdjacencyArray::uncontract(const HypernodeID u,
           case_two_func(curr_edge);
         }
       } else if (e.source == v) {
-        e.setValid(true);
+        e.enable();
         ++head_v.degree;
       }
     }
@@ -318,7 +319,7 @@ parallel::scalable_vector<DynamicAdjacencyArray::RemovedEdge> DynamicAdjacencyAr
       local_vec.clear();
 
       // mark single pin/invalid edges and sort all other incident edges
-      for (HypernodeID current_u: headers(u)) {
+      for (const HypernodeID& current_u: headers(u)) {
         const HyperedgeID first_inactive = firstInactiveEdge(current_u);
         for (HyperedgeID id = firstActiveEdge(current_u); id < first_inactive; ++id) {
           const Edge& e = edge(id);
@@ -431,7 +432,7 @@ void DynamicAdjacencyArray::restoreSinglePinAndParallelEdges(
     tbb::parallel_for(ID(0), _num_nodes, [&](const HypernodeID u) {
       if (header(u).is_head) {
         bool restore_it = false;
-        for (HypernodeID current_u: headers(u)) {
+        for (const HypernodeID& current_u: headers(u)) {
           HyperedgeID num_restored = 0;
           const HyperedgeID first_inactive = firstInactiveEdge(current_u);
           for (HyperedgeID id = firstActiveEdge(current_u); id < first_inactive; ++id) {
@@ -616,7 +617,7 @@ void DynamicAdjacencyArray::removeEmptyIncidentEdgeList(const HypernodeID u) {
 void DynamicAdjacencyArray::restoreIteratorPointers(const HypernodeID u) {
   ASSERT(header(u).is_head);
   HypernodeID last_non_empty_u = u;
-  for (HypernodeID current_u: headers(u)) {
+  for (const HypernodeID& current_u: headers(u)) {
     if (header(current_u).size() > 0 || current_u == u) {
       restoreItLink(u, last_non_empty_u, current_u);
       last_non_empty_u = current_u;

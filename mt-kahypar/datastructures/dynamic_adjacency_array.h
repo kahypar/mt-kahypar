@@ -149,13 +149,13 @@ class DynamicAdjacencyArray {
       return target != kInvalidHypernode;
     }
 
-    void setValid(bool valid) {
-      if (valid) {
-        target = source;
-      } else {
-        ASSERT(isSinglePin());
-        target = kInvalidHypernode;
-      }
+    void enable() {
+      target = source;
+    }
+
+    void disable() {
+      ASSERT(isSinglePin());
+      target = kInvalidHypernode;
     }
 
     // ! Index of target node

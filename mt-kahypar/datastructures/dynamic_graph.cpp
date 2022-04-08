@@ -104,6 +104,70 @@ size_t DynamicGraph::contract(const HypernodeID v,
   return num_contractions;
 }
 
+/**!
+ * Contracts a previously registered contraction. The contraction of u and v is
+ * performed if there are no pending contractions in the subtree of v and the
+ * contractions respects the maximum allowed node weight. In case the contraction
+ * was performed successfully, enum type CONTRACTED is returned. If contraction
+ * was not performed either WEIGHT_LIMIT_REACHED (in case sum of both vertices is
+ * greater than the maximum allowed node weight) or PENDING_CONTRACTIONS (in case
+ * there are some unfinished contractions in the subtree of v) is returned.
+ */
+DynamicGraph::ContractionResult DynamicGraph::contract(const HypernodeID u,
+                                                       const HypernodeID v,
+                                                       const HypernodeWeight max_node_weight) {
+
+  // Acquire ownership in correct order to prevent deadlocks
+  if ( u < v ) {
+    acquireHypernode(u);
+    acquireHypernode(v);
+  } else {
+    acquireHypernode(v);
+    acquireHypernode(u);
+  }
+
+  // Contraction is valid if
+  //  1.) Contraction partner v is enabled
+  //  2.) There are no pending contractions on v
+  //  4.) Resulting node weight is less or equal than a predefined upper bound
+  const bool contraction_partner_valid =
+    nodeIsEnabled(v) && _contraction_tree.pendingContractions(v) == 0;
+  const bool less_or_equal_than_max_node_weight =
+    hypernode(u).weight() + hypernode(v).weight() <= max_node_weight;
+  if ( contraction_partner_valid && less_or_equal_than_max_node_weight ) {
+    ASSERT(nodeIsEnabled(u), "Hypernode" << u << "is disabled!");
+    hypernode(u).setWeight(nodeWeight(u) + nodeWeight(v));
+    hypernode(v).disable();
+    releaseHypernode(u);
+    releaseHypernode(v);
+
+    HypernodeID contraction_start = _contraction_index.load();
+
+    // Contract incident net lists of u and v
+    _adjacency_array.contract(u, v, [&](const HypernodeID u) {
+      acquireHypernode(u);
+    }, [&](const HypernodeID u) {
+      releaseHypernode(u);
+    });
+
+    HypernodeID contraction_end = ++_contraction_index;
+    acquireHypernode(u);
+    _contraction_tree.unregisterContraction(u, v, contraction_start, contraction_end);
+    releaseHypernode(u);
+    return ContractionResult::CONTRACTED;
+  } else {
+    ContractionResult res = ContractionResult::PENDING_CONTRACTIONS;
+    if ( !less_or_equal_than_max_node_weight && nodeIsEnabled(v) &&
+         _contraction_tree.parent(v) == u ) {
+      _contraction_tree.unregisterContraction(u, v,
+        kInvalidHypernode, kInvalidHypernode, true /* failed */);
+      res = ContractionResult::WEIGHT_LIMIT_REACHED;
+    }
+    releaseHypernode(u);
+    releaseHypernode(v);
+    return res;
+  }
+}
 
  /**
    * Uncontracts a batch of contractions in parallel. The batches must be uncontracted exactly
@@ -312,71 +376,6 @@ bool DynamicGraph::verifyIncidenceArrayAndIncidentNets() {
     });
   });
   return success;
-}
-
-/**!
- * Contracts a previously registered contraction. The contraction of u and v is
- * performed if there are no pending contractions in the subtree of v and the
- * contractions respects the maximum allowed node weight. In case the contraction
- * was performed successfully, enum type CONTRACTED is returned. If contraction
- * was not performed either WEIGHT_LIMIT_REACHED (in case sum of both vertices is
- * greater than the maximum allowed node weight) or PENDING_CONTRACTIONS (in case
- * there are some unfinished contractions in the subtree of v) is returned.
- */
-DynamicGraph::ContractionResult DynamicGraph::contract(const HypernodeID u,
-                                                       const HypernodeID v,
-                                                       const HypernodeWeight max_node_weight) {
-
-  // Acquire ownership in correct order to prevent deadlocks
-  if ( u < v ) {
-    acquireHypernode(u);
-    acquireHypernode(v);
-  } else {
-    acquireHypernode(v);
-    acquireHypernode(u);
-  }
-
-  // Contraction is valid if
-  //  1.) Contraction partner v is enabled
-  //  2.) There are no pending contractions on v
-  //  4.) Resulting node weight is less or equal than a predefined upper bound
-  const bool contraction_partner_valid =
-    nodeIsEnabled(v) && _contraction_tree.pendingContractions(v) == 0;
-  const bool less_or_equal_than_max_node_weight =
-    hypernode(u).weight() + hypernode(v).weight() <= max_node_weight;
-  if ( contraction_partner_valid && less_or_equal_than_max_node_weight ) {
-    ASSERT(nodeIsEnabled(u), "Hypernode" << u << "is disabled!");
-    hypernode(u).setWeight(nodeWeight(u) + nodeWeight(v));
-    hypernode(v).disable();
-    releaseHypernode(u);
-    releaseHypernode(v);
-
-    HypernodeID contraction_start = _contraction_index.load();
-
-    // Contract incident net lists of u and v
-    _adjacency_array.contract(u, v, [&](const HypernodeID u) {
-      acquireHypernode(u);
-    }, [&](const HypernodeID u) {
-      releaseHypernode(u);
-    });
-
-    HypernodeID contraction_end = ++_contraction_index;
-    acquireHypernode(u);
-    _contraction_tree.unregisterContraction(u, v, contraction_start, contraction_end);
-    releaseHypernode(u);
-    return ContractionResult::CONTRACTED;
-  } else {
-    ContractionResult res = ContractionResult::PENDING_CONTRACTIONS;
-    if ( !less_or_equal_than_max_node_weight && nodeIsEnabled(v) &&
-         _contraction_tree.parent(v) == u ) {
-      _contraction_tree.unregisterContraction(u, v,
-        kInvalidHypernode, kInvalidHypernode, true /* failed */);
-      res = ContractionResult::WEIGHT_LIMIT_REACHED;
-    }
-    releaseHypernode(u);
-    releaseHypernode(v);
-    return res;
-  }
 }
 
 } // namespace ds
