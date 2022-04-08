@@ -155,7 +155,7 @@ namespace mt_kahypar {
         continue;
       }
 
-      bool expect_improvement = move.gain != invalidGain && estimatedImprovement + move.gain > bestImprovement;
+      bool expect_improvement = estimatedImprovement + move.gain > bestImprovement;
       bool high_deg = phg.nodeDegree(move.node) >= PartitionedHypergraph::HIGH_DEGREE_THRESHOLD;
 
       // skip if high degree (unless it nets actual improvement; but don't apply on deltaPhg then)
