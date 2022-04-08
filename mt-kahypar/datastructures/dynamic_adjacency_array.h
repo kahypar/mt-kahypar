@@ -256,8 +256,7 @@ class DynamicAdjacencyArray {
     _header_array(),
     _edges(),
     _removable_edges(),
-    _edge_mapping(),
-    _degree_diffs() { }
+    _edge_mapping() { }
 
   DynamicAdjacencyArray(const HypernodeID num_nodes,
                         const EdgeVector& edge_vector,
@@ -267,8 +266,7 @@ class DynamicAdjacencyArray {
     _edges(),
     _thread_local_vec(),
     _removable_edges(),
-    _edge_mapping(),
-    _degree_diffs() {
+    _edge_mapping() {
     construct(edge_vector, edge_weight);
   }
 
@@ -383,7 +381,6 @@ class DynamicAdjacencyArray {
   size_t size_in_bytes() const {
     return _edges.size() * sizeof(Edge)
       + _edge_mapping.size() * sizeof(HyperedgeID)
-      + _degree_diffs.size() * sizeof(int32_t)
       + _header_array.size() * sizeof(Header);
   }
 
@@ -517,7 +514,6 @@ class DynamicAdjacencyArray {
   ThreadLocalParallelEdgeVector _thread_local_vec;
   kahypar::ds::FastResetFlagArray<> _removable_edges;
   Array<HyperedgeID> _edge_mapping;
-  Array<int32_t> _degree_diffs;
 };
 
 }  // namespace ds

@@ -158,8 +158,6 @@ void DynamicAdjacencyArray::construct(const EdgeVector& edge_vector, const Hyper
   }, [&] {
     _edge_mapping.resize(2 * num_edges);
   }, [&] {
-    _degree_diffs.resize(_num_nodes);
-  }, [&] {
     node_degrees.resize(_num_nodes);
   }, [&] {
     current_incident_net_pos.assign(
@@ -404,74 +402,66 @@ void DynamicAdjacencyArray::restoreSinglePinAndParallelEdges(
   _removable_edges.reset();
   initializeEdgeMapping(_edge_mapping);
 
-  // Step one: We restore the weight of the representative edge, mark all edges
-  // that need to be restored, save the swap target of the edges and restore the source.
-  tbb::parallel_invoke([&]() {
-    tbb::parallel_for(0UL, edges_to_restore.size(), [&](const size_t i) {
-      const RemovedEdge& re = edges_to_restore[i];
-      _removable_edges.set(re.edge_id, true);
-      // now, we abuse the edge mapping to save the swap target
-      _edge_mapping[re.edge_id] = re.old_id;
-    });
-  }, [&]() {
-    _degree_diffs.assign(_num_nodes, 0);
+  // Step one: We mark all edges that need to be restored and save their swap target.
+  tbb::parallel_for(0UL, edges_to_restore.size(), [&](const size_t i) {
+    const RemovedEdge& re = edges_to_restore[i];
+    _removable_edges.set(re.edge_id, true);
+    // we abuse the edge mapping to save the swap target
+    _edge_mapping[re.edge_id] = re.old_id;
   });
 
-  // Step two: We swap each marked edge (in reverse order to removeSinglePinAndParallelEdges)
-  // and update the edge mapping accordingly.
+  // Step two: We swap each marked edge (in reverse order to removeSinglePinAndParallelEdges),
+  // update the edge mapping accordingly and mark the edge again.
   tbb::parallel_for(ID(0), _num_nodes, [&](const HypernodeID u) {
     Header& head = header(u);
-    const bool was_empty = (head.size() == 0);
     const HyperedgeID first = firstEdge(u);
     for (HyperedgeID curr = firstActiveEdge(u);
          curr > first && _removable_edges[curr - 1]; --curr) {
       const HyperedgeID e = curr - 1;
       _removable_edges.set(e, false);
       _removable_edges.set(_edge_mapping[e], true);
-      if (edge(e).isValid()) {
-        ++_degree_diffs[u];
-      }
-
       swapAndUpdateMapping(e, _edge_mapping[e]);
       --head.first_active;
     }
-
-    if (was_empty && !head.is_head) {
-      // we use a negative sign to mark previously empty headers
-      _degree_diffs[u] = -_degree_diffs[u];
-    }
   });
 
-  applyEdgeMapping(_edge_mapping);
-
-  // Step three: Update node degrees, restore iterator pointers and update back edges
-  tbb::parallel_for(ID(0), _num_nodes, [&](const HypernodeID u) {
-    if (header(u).is_head) {
-      bool restore_it = false;
-      for (HypernodeID current_u: headers(u)) {
-        header(u).degree += std::abs(_degree_diffs[current_u]);
-        restore_it |= _degree_diffs[current_u] < 0;
-
-        const HyperedgeID first_inactive = firstInactiveEdge(current_u);
-        for (HyperedgeID id = firstActiveEdge(current_u); id < first_inactive; ++id) {
-          Edge& e = edge(id);
-          // Note: We use e.target to check whether it is a single pin edge.
-          // Comparing e.source and e.target does not work, because e.source
-          // currently holds the representative edge and the id of the representative
-          // could accidentially be equal to e.target.
-          if (_removable_edges[id] && e.isValid() && e.target != u) {
-            Edge& representative = edge(e.source);
-            representative.weight -= e.weight;
-            e.source = u;
-          } else if (e.isValid()) {
-            ASSERT(e.source == u);
+  // Step three: We update the node degrees, restore iterator pointers and the weights
+  // of the representatives and update the back edges.
+  tbb::parallel_invoke([&]() {
+    tbb::parallel_for(ID(0), _num_nodes, [&](const HypernodeID u) {
+      if (header(u).is_head) {
+        bool restore_it = false;
+        for (HypernodeID current_u: headers(u)) {
+          HyperedgeID num_restored = 0;
+          const HyperedgeID first_inactive = firstInactiveEdge(current_u);
+          for (HyperedgeID id = firstActiveEdge(current_u); id < first_inactive; ++id) {
+            Edge& e = edge(id);
+            // Note: We use e.target to check whether it is a single pin edge.
+            // Comparing e.source and e.target does not work, because e.source
+            // currently holds the representative edge and the id of the representative
+            // could accidentially be equal to e.target.
+            if (_removable_edges[id] && e.isValid() && e.target != u) {
+              Edge& representative = edge(e.source);
+              representative.weight -= e.weight;
+              e.source = u;
+            } else if (e.isValid()) {
+              ASSERT(e.source == u);
+            }
+            if (_removable_edges[id] && e.isValid()) {
+              ++num_restored;
+            }
           }
+          header(u).degree += num_restored;
+          restore_it |= (num_restored > 0);
+        }
+
+        if (restore_it) {
+          restoreIteratorPointers(u);
         }
       }
-      if (restore_it) {
-        restoreIteratorPointers(u);
-      }
-    }
+    });
+  }, [&]() {
+    applyEdgeMapping(_edge_mapping);
   });
 
   HEAVY_REFINEMENT_ASSERT(verifyBackEdges());
@@ -531,8 +521,6 @@ DynamicAdjacencyArray DynamicAdjacencyArray::copy(parallel_tag_t) const {
     adjacency_array._removable_edges.setSize(_edges.size());
   }, [&] {
     adjacency_array._edge_mapping.resize(_edge_mapping.size());
-  }, [&] {
-    adjacency_array._degree_diffs.resize(_degree_diffs.size());
   });
 
   return adjacency_array;
@@ -549,7 +537,6 @@ DynamicAdjacencyArray DynamicAdjacencyArray::copy() const {
   memcpy(adjacency_array._edges.data(), _edges.data(), sizeof(Edge) * _edges.size());
   adjacency_array._removable_edges.setSize(_edges.size());
   adjacency_array._edge_mapping.resize(_edge_mapping.size());
-  adjacency_array._degree_diffs.resize(_degree_diffs.size());
   return adjacency_array;
 }
 
