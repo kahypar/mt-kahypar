@@ -388,6 +388,11 @@ class StaticHypergraph {
   // ! Iterator to iterate over the incident nets of a hypernode
   using IncidentNetsIterator = typename IncidentNets::const_iterator;
 
+  struct ParallelHyperedge {
+    HyperedgeID removed_hyperedge;
+    HyperedgeID representative;
+  };
+
   explicit StaticHypergraph() :
     _num_hypernodes(0),
     _num_removed_hypernodes(0),
@@ -779,10 +784,10 @@ class StaticHypergraph {
   }
 
   // ! Copy static hypergraph in parallel
-  StaticHypergraph copy(parallel_tag_t);
+  StaticHypergraph copy(parallel_tag_t) const;
 
   // ! Copy static hypergraph sequential
-  StaticHypergraph copy();
+  StaticHypergraph copy() const;
 
   // ! Reset internal data structure
   void reset() { }

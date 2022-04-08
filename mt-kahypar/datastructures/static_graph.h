@@ -63,6 +63,7 @@ class StaticGraph {
   using AtomicHypernodeID = parallel::IntegralAtomicWrapper<HypernodeID>;
   using AtomicHypernodeWeight = parallel::IntegralAtomicWrapper<HypernodeWeight>;
   using UncontractionFunction = std::function<void (const HypernodeID, const HypernodeID, const HyperedgeID)>;
+  using MarkEdgeFunc = std::function<bool (const HyperedgeID)>;
   #define NOOP_BATCH_FUNC [] (const HypernodeID, const HypernodeID, const HyperedgeID) { }
 
   /**
@@ -438,6 +439,9 @@ class StaticGraph {
   // ! Iterator to iterate over the incident nets of a hypernode
   using IncidentNetsIterator = boost::range_detail::integer_iterator<HyperedgeID>;
 
+  // ! static graph does not support explicit parallel edge detection
+  struct ParallelHyperedge { };
+
   explicit StaticGraph() :
     _num_nodes(0),
     _num_removed_nodes(0),
@@ -577,9 +581,11 @@ class StaticGraph {
   // ! Returns a range to loop over the pins of hyperedge e.
   IteratorRange<IncidenceIterator> pins(const HyperedgeID id) const {
     const Edge& e = edge(id);
+    const HypernodeID source = e.source();
+    const HypernodeID target = e.target();
     return IteratorRange<IncidenceIterator>(
-      IncidenceIterator(e.source(), e.target(), 0),
-      IncidenceIterator(e.source(), e.target(), 2));
+      IncidenceIterator(source, target, 0),
+      IncidenceIterator(source, target, 2));
   }
 
     // ####################### Node Information #######################
@@ -624,9 +630,13 @@ class StaticGraph {
     return edge(e).target();
   }
 
-  // ! Target of an edge
+  // ! Source of an edge
   HypernodeID edgeSource(const HyperedgeID e) const {
     return edge(e).source();
+  }
+
+  bool isSinglePin(const HyperedgeID) const {
+    return false;
   }
 
   // ! Weight of a hyperedge
@@ -640,6 +650,11 @@ class StaticGraph {
     const HyperedgeID id = _unique_edge_ids[e];
     ASSERT(id < initialNumEdges() / 2);
     return id;
+  }
+
+  // ! Range of unique id edge ids
+  HyperedgeID maxUniqueID() const {
+    return initialNumEdges() / 2;
   }
 
   // ! Sets the weight of a hyperedge
@@ -705,8 +720,10 @@ class StaticGraph {
   }
 
   void uncontract(const Batch&,
+                  const MarkEdgeFunc& mark_edge,
                   const UncontractionFunction& case_one_func = NOOP_BATCH_FUNC,
                   const UncontractionFunction& case_two_func = NOOP_BATCH_FUNC) {
+    unused(mark_edge);
     unused(case_one_func);
     unused(case_two_func);
     ERROR("uncontract(batch) is not supported in static graph");
@@ -763,10 +780,10 @@ class StaticGraph {
   }
 
   // ! Copy static hypergraph in parallel
-  StaticGraph copy(parallel_tag_t);
+  StaticGraph copy(parallel_tag_t) const;
 
   // ! Copy static hypergraph sequential
-  StaticGraph copy();
+  StaticGraph copy() const;
 
   // ! Reset internal data structure
   void reset() { }

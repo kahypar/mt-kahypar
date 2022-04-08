@@ -448,7 +448,7 @@ private:
    * Restores a previously removed set of singple-pin and parallel hyperedges. Note, that hes_to_restore
    * must be exactly the same and given in the reverse order as returned by removeSinglePinAndParallelNets(...).
    */
-  void restoreSinglePinAndParallelNets(const parallel::scalable_vector<ParallelHyperedge>& hes_to_restore) {
+  void restoreSinglePinAndParallelNets(const parallel::scalable_vector<typename Hypergraph::ParallelHyperedge>& hes_to_restore) {
     // Restore hyperedges in hypergraph
     _hg->restoreSinglePinAndParallelNets(hes_to_restore);
 

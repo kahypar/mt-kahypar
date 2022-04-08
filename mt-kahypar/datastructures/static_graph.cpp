@@ -425,7 +425,7 @@ namespace mt_kahypar::ds {
 
 
   // ! Copy static hypergraph in parallel
-  StaticGraph StaticGraph::copy(parallel_tag_t) {
+  StaticGraph StaticGraph::copy(parallel_tag_t) const {
     StaticGraph hypergraph;
 
     hypergraph._num_nodes = _num_nodes;
@@ -452,7 +452,7 @@ namespace mt_kahypar::ds {
   }
 
   // ! Copy static hypergraph sequential
-  StaticGraph StaticGraph::copy() {
+  StaticGraph StaticGraph::copy() const {
     StaticGraph hypergraph;
 
     hypergraph._num_nodes = _num_nodes;

@@ -68,94 +68,9 @@ void DynamicHypergraph::updateTotalWeight() {
  * The contraction can be executed by calling function contract(v, max_node_weight).
  */
 bool DynamicHypergraph::registerContraction(const HypernodeID u, const HypernodeID v) {
-  // Acquires ownership of vertex v that gives the calling thread exclusive rights
-  // to modify the contraction tree entry of v
-  acquireHypernode(v);
-
-  // If there is no other contraction registered for vertex v
-  // we try to determine its representative in the contraction tree
-  if ( _contraction_tree.parent(v) == v ) {
-
-    HypernodeID w = u;
-    bool cycle_detected = false;
-    while ( true ) {
-      // Search for representative of u in the contraction tree.
-      // It is either a root of the contraction tree or a vertex
-      // with a reference count greater than zero, which indicates
-      // that there are still ongoing contractions on this node that
-      // have to be processed.
-      while ( _contraction_tree.parent(w) != w &&
-              _contraction_tree.pendingContractions(w) == 0 ) {
-        w = _contraction_tree.parent(w);
-        if ( w == v ) {
-          cycle_detected = true;
-          break;
-        }
-      }
-
-      if ( !cycle_detected ) {
-        // In case contraction of u and v does not induce any
-        // cycle in the contraction tree we try to acquire vertex w
-        if ( w < v ) {
-          // Acquire ownership in correct order to prevent deadlocks
-          releaseHypernode(v);
-          acquireHypernode(w);
-          acquireHypernode(v);
-          if ( _contraction_tree.parent(v) != v ) {
-            releaseHypernode(v);
-            releaseHypernode(w);
-            return false;
-          }
-        } else {
-          acquireHypernode(w);
-        }
-
-        // Double-check condition of while loop above after acquiring
-        // ownership of w
-        if ( _contraction_tree.parent(w) != w &&
-              _contraction_tree.pendingContractions(w) == 0 ) {
-          // In case something changed, we release ownership of w and
-          // search again for the representative of u.
-          releaseHypernode(w);
-        } else {
-          // Otherwise we perform final cycle check to verify that
-          // contraction of u and v will not introduce any new cycle.
-          HypernodeID x = w;
-          do {
-            x = _contraction_tree.parent(x);
-            if ( x == v ) {
-              cycle_detected = true;
-              break;
-            }
-          } while ( _contraction_tree.parent(x) != x );
-
-          if ( cycle_detected ) {
-            releaseHypernode(w);
-            releaseHypernode(v);
-            return false;
-          }
-
-          // All checks succeded, we can safely increment the
-          // reference count of w and update the contraction tree
-          break;
-        }
-      } else {
-        releaseHypernode(v);
-        return false;
-      }
-    }
-
-    // Increment reference count of w indicating that there pending
-    // contraction at vertex w and update contraction tree.
-    _contraction_tree.registerContraction(w, v, _version);
-
-    releaseHypernode(w);
-    releaseHypernode(v);
-    return true;
-  } else {
-    releaseHypernode(v);
-    return false;
-  }
+  return _contraction_tree.registerContraction(u, v, _version,
+                                               [&](HypernodeID u) { acquireHypernode(u); },
+                                               [&](HypernodeID u) { releaseHypernode(u); });
 }
 
 /**!
@@ -337,7 +252,7 @@ VersionedBatchVector DynamicHypergraph::createBatchUncontractionHierarchy(const 
  * of a set of identical nets is aggregated in one representative hyperedge
  * and single-pin hyperedges are removed. Returns a vector of removed hyperedges.
  */
-parallel::scalable_vector<ParallelHyperedge> DynamicHypergraph::removeSinglePinAndParallelHyperedges() {
+parallel::scalable_vector<DynamicHypergraph::ParallelHyperedge> DynamicHypergraph::removeSinglePinAndParallelHyperedges() {
   _removable_single_pin_and_parallel_nets.reset();
   // Remove singple-pin hyperedges directly from the hypergraph and
   // insert all other hyperedges into a bucket data structure such that
@@ -468,7 +383,7 @@ void DynamicHypergraph::restoreSinglePinAndParallelNets(const parallel::scalable
 }
 
 // ! Copy dynamic hypergraph in parallel
-DynamicHypergraph DynamicHypergraph::copy(parallel_tag_t) {
+DynamicHypergraph DynamicHypergraph::copy(parallel_tag_t) const {
   DynamicHypergraph hypergraph;
 
   hypergraph._num_hypernodes = _num_hypernodes;
@@ -524,7 +439,7 @@ DynamicHypergraph DynamicHypergraph::copy(parallel_tag_t) {
 }
 
 // ! Copy dynamic hypergraph sequential
-DynamicHypergraph DynamicHypergraph::copy() {
+DynamicHypergraph DynamicHypergraph::copy() const {
   DynamicHypergraph hypergraph;
 
   hypergraph._num_hypernodes = _num_hypernodes;
@@ -790,59 +705,6 @@ size_t DynamicHypergraph::findPositionOfPinInIncidenceArray(const HypernodeID u,
   return slot_of_u;
 }
 
-bool DynamicHypergraph::verifyBatchIndexAssignments(
-  const BatchIndexAssigner& batch_assigner,
-  const parallel::scalable_vector<parallel::scalable_vector<BatchAssignment>>& local_batch_assignments) const {
-  parallel::scalable_vector<BatchAssignment> assignments;
-  for ( size_t i = 0; i < local_batch_assignments.size(); ++i ) {
-    for ( const BatchAssignment& batch_assign : local_batch_assignments[i] ) {
-      assignments.push_back(batch_assign);
-    }
-  }
-  std::sort(assignments.begin(), assignments.end(),
-    [&](const BatchAssignment& lhs, const BatchAssignment& rhs) {
-      return lhs.batch_index < rhs.batch_index ||
-        (lhs.batch_index == rhs.batch_index && lhs.batch_pos < rhs.batch_pos);
-    });
-
-  if ( assignments.size() > 0 ) {
-    if ( assignments[0].batch_index != 0 || assignments[0].batch_pos != 0 ) {
-      LOG << "First uncontraction should start at batch 0 at position 0"
-          << V(assignments[0].batch_index) << V(assignments[0].batch_pos);
-      return false;
-    }
-
-    for ( size_t i = 1; i < assignments.size(); ++i ) {
-      if ( assignments[i - 1].batch_index == assignments[i].batch_index ) {
-        if ( assignments[i - 1].batch_pos + 1 != assignments[i].batch_pos ) {
-          LOG << "Batch positions are not consecutive"
-              << V(i) << V(assignments[i - 1].batch_pos) << V(assignments[i].batch_pos);
-          return false;
-        }
-      } else {
-        if ( assignments[i - 1].batch_index + 1 != assignments[i].batch_index ) {
-          LOG << "Batch indices are not consecutive"
-              << V(i) << V(assignments[i - 1].batch_index) << V(assignments[i].batch_index);
-          return false;
-        }
-        if ( assignments[i].batch_pos != 0 ) {
-          LOG << "First uncontraction of each batch should start at position 0"
-              << V(assignments[i].batch_pos);
-          return false;
-        }
-        if ( assignments[i - 1].batch_pos + 1 != batch_assigner.batchSize(assignments[i - 1].batch_index) ) {
-          LOG << "Position of last uncontraction in batch" << assignments[i - 1].batch_index
-              << "does not match size of batch"
-              << V(assignments[i - 1].batch_pos) << V(batch_assigner.batchSize(assignments[i - 1].batch_index));
-          return false;
-        }
-      }
-    }
-  }
-
-  return true;
-}
-
 /**
  * Computes a batch uncontraction hierarchy for a specific version of the hypergraph.
  * A batch is a vector of mementos (uncontractions) that are uncontracted in parallel.
@@ -874,149 +736,9 @@ bool DynamicHypergraph::verifyBatchIndexAssignments(
  * local searches are more effective in early stages of the uncontraction hierarchy where hyperedge sizes are
  * usually smaller than on the original hypergraph.
  */
-
 BatchVector DynamicHypergraph::createBatchUncontractionHierarchyForVersion(BatchIndexAssigner& batch_assigner,
                                                                            const size_t version) {
-
-  using PQ = std::priority_queue<PQBatchUncontractionElement,
-                                 parallel::scalable_vector<PQBatchUncontractionElement>,
-                                 PQElementComparator>;
-
-  // Checks if two contraction intervals intersect
-  auto does_interval_intersect = [&](const ContractionInterval& i1, const ContractionInterval& i2) {
-    if (i1.start == kInvalidHypernode || i2.start == kInvalidHypernode) {
-      return false;
-    }
-    return (i1.start <= i2.end && i1.end >= i2.end) ||
-            (i2.start <= i1.end && i2.end >= i1.end);
-  };
-
-  auto push_into_pq = [&](PQ& prio_q, const HypernodeID& u) {
-    auto it = _contraction_tree.childs(u);
-    auto current = it.begin();
-    auto end = it.end();
-    while ( current != end && _contraction_tree.version(*current) != version ) {
-      ++current;
-    }
-    if ( current != end ) {
-      prio_q.push(PQBatchUncontractionElement {
-        _contraction_tree.subtreeSize(*current), std::make_pair(current, end) } );
-    }
-  };
-
-  // Distribute roots of the contraction tree to local priority queues of
-  // each thread.
-  const size_t num_hardware_threads = std::thread::hardware_concurrency();
-  parallel::scalable_vector<PQ> local_pqs(num_hardware_threads);
-  const parallel::scalable_vector<HypernodeID>& roots = _contraction_tree.roots_of_version(version);
-  tbb::parallel_for(0UL, roots.size(), [&](const size_t i) {
-    const int cpu_id = sched_getcpu();
-    push_into_pq(local_pqs[cpu_id], roots[i]);
-  });
-
-  using LocalBatchAssignments = parallel::scalable_vector<BatchAssignment>;
-  parallel::scalable_vector<LocalBatchAssignments> local_batch_assignments(num_hardware_threads);
-  parallel::scalable_vector<size_t> local_batch_indices(num_hardware_threads, 0);
-  tbb::parallel_for(0UL, num_hardware_threads, [&](const size_t i) {
-    size_t& current_batch_index = local_batch_indices[i];
-    LocalBatchAssignments& batch_assignments = local_batch_assignments[i];
-    PQ& pq = local_pqs[i];
-    PQ next_pq;
-
-    while ( !pq.empty() ) {
-      // Iterator over the childs of a active vertex
-      auto it = pq.top()._iterator;
-      ASSERT(it.first != it.second);
-      const HypernodeID v = *it.first;
-      ASSERT(_contraction_tree.version(v) == version);
-      pq.pop();
-
-      const size_t start_idx = batch_assignments.size();
-      size_t num_uncontractions = 1;
-      const HypernodeID u = _contraction_tree.parent(v);
-      batch_assignments.push_back(BatchAssignment { u, v, 0UL, 0UL });
-      // Push contraction partner into pq for the next BFS level
-      push_into_pq(next_pq, v);
-
-      // Insert all childs of u that intersect the contraction time interval of
-      // (u,v) into the current batch
-      ++it.first;
-      ContractionInterval current_ival = _contraction_tree.interval(v);
-      while ( it.first != it.second && _contraction_tree.version(*it.first) == version ) {
-        const HypernodeID w = *it.first;
-        const ContractionInterval w_ival = _contraction_tree.interval(w);
-        if ( does_interval_intersect(current_ival, w_ival) ) {
-          ASSERT(_contraction_tree.parent(w) == u);
-          ++num_uncontractions;
-          batch_assignments.push_back(BatchAssignment { u, w, 0UL, 0UL });
-          current_ival.start = std::min(current_ival.start, w_ival.start);
-          current_ival.end = std::max(current_ival.end, w_ival.end);
-          push_into_pq(next_pq, w);
-        } else {
-          break;
-        }
-        ++it.first;
-      }
-
-      // If there are still childs left of u, we push the iterator again into the
-      // priority queue of the current BFS level.
-      if ( it.first != it.second && _contraction_tree.version(*it.first) == version ) {
-        pq.push(PQBatchUncontractionElement { _contraction_tree.subtreeSize(*it.first), it });
-      }
-
-      // Request batch index and its position within that batch
-      BatchAssignment assignment = batch_assigner.getBatchIndex(
-        current_batch_index, num_uncontractions);
-      for ( size_t j = start_idx; j < start_idx + num_uncontractions; ++j ) {
-        batch_assignments[j].batch_index = assignment.batch_index;
-        batch_assignments[j].batch_pos = assignment.batch_pos + (j - start_idx);
-      }
-      current_batch_index = assignment.batch_index;
-
-      if ( pq.empty() ) {
-        std::swap(pq, next_pq);
-        // Compute minimum batch index to which a thread assigned last.
-        // Afterwards, transmit information to batch assigner to speed up
-        // batch index computation.
-        ++current_batch_index;
-        size_t min_batch_index = current_batch_index;
-        for ( const size_t& batch_index : local_batch_indices ) {
-          min_batch_index = std::min(min_batch_index, batch_index);
-        }
-        batch_assigner.increaseHighWaterMark(min_batch_index);
-      }
-    }
-  });
-
-  ASSERT(verifyBatchIndexAssignments(batch_assigner, local_batch_assignments), "Batch asisignment failed");
-
-  // In the previous step we have calculated for each uncontraction a batch index and
-  // its position within that batch. We have to write the uncontractions
-  // into the global batch uncontraction vector.
-  const size_t num_batches = batch_assigner.numberOfNonEmptyBatches();
-  BatchVector batches(num_batches);
-  tbb::parallel_for(0UL, num_batches, [&](const size_t batch_index) {
-    batches[batch_index].resize(batch_assigner.batchSize(batch_index));
-  });
-
-  tbb::parallel_for(0UL, num_hardware_threads, [&](const size_t i) {
-    LocalBatchAssignments& batch_assignments = local_batch_assignments[i];
-    for ( const BatchAssignment& batch_assignment : batch_assignments ) {
-      const size_t batch_index = batch_assignment.batch_index;
-      const size_t batch_pos = batch_assignment.batch_pos;
-      ASSERT(batch_index < batches.size());
-      ASSERT(batch_pos < batches[batch_index].size());
-      batches[batch_index][batch_pos].u = batch_assignment.u;
-      batches[batch_index][batch_pos].v = batch_assignment.v;
-    }
-  });
-
-  while ( !batches.empty() && batches.back().empty() ) {
-    batches.pop_back();
-  }
-  std::reverse(batches.begin(), batches.end());
-
-  return batches;
+  return _contraction_tree.createBatchUncontractionHierarchyForVersion(batch_assigner, version);
 }
 
 } // namespace ds

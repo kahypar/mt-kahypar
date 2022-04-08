@@ -430,7 +430,6 @@ namespace mt_kahypar::io {
   }
 
   void printConnectedCutHyperedgeAnalysis(const PartitionedHypergraph& hypergraph) {
-    // TODO(maas): is this correct for graphs?
     std::vector<bool> visited_he(hypergraph.initialNumEdges(), false);
     std::vector<HyperedgeWeight> connected_cut_hyperedges;
 

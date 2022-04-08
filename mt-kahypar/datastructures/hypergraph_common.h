@@ -107,12 +107,6 @@ struct NoOpDeltaFunc {
   void operator() (const HyperedgeID, const HyperedgeWeight, const HypernodeID, const HypernodeID, const HypernodeID) { }
 };
 
-
-struct ParallelHyperedge {
-  HyperedgeID removed_hyperedge;
-  HyperedgeID representative;
-};
-
 // ! Helper function to compute delta for cut-metric after changeNodePart
 static HyperedgeWeight cutDelta(const HyperedgeID,
                                 const HyperedgeWeight edge_weight,
