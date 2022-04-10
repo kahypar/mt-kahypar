@@ -21,22 +21,19 @@
 #include <mt-kahypar/datastructures/priority_queue.h>
 #include <mt-kahypar/definitions.h>
 #include <mt-kahypar/partition/context.h>
+#include <mt-kahypar/partition/metrics.h>
 
 namespace mt_kahypar {
 class JudiciousPQ final {
 public:
-  // using positive penalties as keys to make secondary criteria of lighter
-  // blocks easier
   using PriorityQueue = ds::ExclusiveHandleHeap<
       ds::Heap<HypernodeWeight, PartitionID, std::greater<>>>;
-  using BlockPQ = ds::ExclusiveHandleHeap<
-      ds::Heap<std::pair<HypernodeWeight, HypernodeWeight>, PartitionID,
-               std::greater<>>>;
 
   explicit JudiciousPQ(const Context &context, HypernodeID num_nodes)
       : _context(context), _toPQs(static_cast<size_t>(context.partition.k),
                                   PriorityQueue(num_nodes)),
-        _blockPQ(static_cast<size_t>(context.partition.k)) {}
+        _blockPQ(static_cast<size_t>(context.partition.k)),
+        _disabled_blocks(context.partition.k, false) { }
 
   void insert(const PartitionedHypergraph &phg, const HypernodeID v) {
     const PartitionID pv = phg.partID(v);
@@ -47,26 +44,31 @@ public:
       if (pv == kInvalidPartition) {
         gain = computeGainForInvalidFrom(phg, v, i);
       } else {
-        // const Gain gain = computeGain(phg, v, pv, i);
+        gain = computeGainForValidFrom(phg, v, pv, i);
       }
       _toPQs[i].insert(v, gain);
     }
   }
 
-  void initBlockPQ(PartitionedHypergraph &phg) {
+  void initBlockPQ(const PartitionedHypergraph &phg, const PartitionID default_block) {
     ASSERT(_blockPQ.empty());
+    _judicious_load = default_block == kInvalidPartition ? 0 : phg.partLoad(default_block);
+    // ASSERT(_judicious_load == metrics::judiciousLoad(phg));
     for (PartitionID i = 0; i < _context.partition.k; ++i) {
       if (!_toPQs[i].empty()) {
-        _blockPQ.insert(i, std::make_pair(phg.partLoad(i), _toPQs[i].topKey()));
+        _blockPQ.insert(i, blockGain(phg, i));
       }
     }
   }
 
-  void updateGain(const PartitionedHypergraph &phg, const HypernodeID v,
+  void increaseGain(const PartitionedHypergraph &phg, const HypernodeID v,
                   const HyperedgeID he, const PartitionID to) {
-    if (phg.partID(v) == kInvalidPartition) {
-      _toPQs[to].increaseKey(v, _toPQs[to].keyOf(v) - phg.edgeWeight(he));
-    }
+    _toPQs[to].increaseKey(v, _toPQs[to].keyOf(v) - phg.edgeWeight(he));
+  }
+
+  void decreaseGain(const PartitionedHypergraph &phg, const HypernodeID v,
+                  const HyperedgeID he, const PartitionID to) {
+    _toPQs[to].decreaseKey(v, _toPQs[to].keyOf(v) + phg.edgeWeight(he));
   }
 
   bool findNextMove(const PartitionedHypergraph &phg, Move &m) {
@@ -77,15 +79,26 @@ public:
     const PartitionID to = _blockPQ.top();
     ASSERT(!_toPQs[to].empty());
     const HypernodeID u = _toPQs[to].top();
-    const Gain gain = -_toPQs[to].topKey();
+    const Gain gain = -_blockPQ.topKey();
     m.node = u;
     m.from = phg.partID(u);
     m.to = to;
     m.gain = gain;
     for (auto &pq : _toPQs) {
-      pq.remove(u);
+      if (pq.contains(u)) {
+        pq.remove(u);
+      }
     }
     return true;
+  }
+
+  void updateJudiciousLoad(const PartitionedHypergraph& phg, const PartitionID from, const PartitionID to) {
+    const HyperedgeWeight from_load = from != kInvalidPartition ? phg.partLoad(from) : 0;
+    _judicious_load = std::max(_judicious_load, std::max(from_load, phg.partLoad(to)));
+  }
+
+  void disableBlock(const PartitionID p) {
+    _disabled_blocks[p] = true;
   }
 
 private:
@@ -99,9 +112,8 @@ private:
   void updateOrRemoveToPQFromBlocks(const PartitionID i,
                                     const PartitionedHypergraph &phg) {
     if (!_toPQs[i].empty()) {
-      _blockPQ.insertOrAdjustKey(
-          i, std::make_pair(phg.partLoad(i), _toPQs[i].topKey()));
-    } else if (_blockPQ.contains(i)) {
+      _blockPQ.insertOrAdjustKey(i, blockGain(phg, i));
+    } else if ((_toPQs[i].empty() || _disabled_blocks[i]) && _blockPQ.contains(i)) {
       _blockPQ.remove(i);
     }
   }
@@ -119,88 +131,37 @@ private:
     return penalty;
   }
 
-  // std::pair<PartitionID, HyperedgeWeight>
-  // computeBestTargetBlock(const PartitionedHypergraph &phg, const HypernodeID
-  // u,
-  //                        const PartitionID from) {
-  //   const HyperedgeWeight from_load =
-  //       from != kInvalidPartition ? phg.partLoad(from) : 0;
-  //   PartitionID to = kInvalidPartition;
-  //   HyperedgeWeight to_load = std::numeric_limits<HyperedgeWeight>::max();
-  //   HyperedgeWeight to_load_after =
-  //   std::numeric_limits<HyperedgeWeight>::max(); HyperedgeWeight to_penalty =
-  //   std::numeric_limits<HyperedgeWeight>::max(); Gain benefit = (from !=
-  //   kInvalidPartition ? phg.moveFromBenefit(u) : 0) +
-  //                  phg.weightOfDisabledEdges(u);
-  //   HyperedgeWeight from_load_after = from_load - benefit;
-  //   bool found_positive_target = false;
-  //   for (PartitionID i = 0; i < _context.partition.k; ++i) {
-  //     if (i != from) {
-  //       const HyperedgeWeight load = phg.partLoad(i);
-  //       HyperedgeWeight penalty = 0;
-  //       if (from == kInvalidPartition) {
-  //         for (const auto &he : phg.incidentEdges(u)) {
-  //           if (phg.pinCountInPart(he, i) == 0) {
-  //             penalty += phg.edgeWeight(he);
-  //           }
-  //         }
-  //       } else {
-  //         penalty += phg.moveToPenalty(u, i);
-  //       }
-  //       HyperedgeWeight load_after = load + penalty;
-  //       if (load_after < from_load_after && penalty < to_penalty) {
-  //         to = i;
-  //         to_load = load;
-  //         to_load_after = load_after;
-  //         to_penalty = penalty;
-  //         found_positive_target = true;
-  //       } else if (!found_positive_target &&
-  //                  (load_after < to_load_after ||
-  //                   (load_after == to_load_after && load < to_load))) {
-  //         to = i;
-  //         to_load = load;
-  //         to_load_after = load_after;
-  //         to_penalty = penalty;
-  //       }
-  //     }
-  //   }
-  //   ASSERT(to != kInvalidPartition);
-  //   to_load_after += phg.weightOfDisabledEdges(u);
-  //   const Gain gain =
-  //       found_positive_target ? benefit : from_load - to_load_after;
-  //
-  //   return std::make_pair(to, gain);
-  // }
+  Gain computeGainForValidFrom(const PartitionedHypergraph &phg,
+                                 const HypernodeID u, const PartitionID from, const PartitionID to) {
+    Gain penalty = 0;
+    for (const auto &he : phg.incidentEdges(u)) {
+      const HyperedgeWeight pin_count_in_to = phg.pinCountInPart(he, to);
+      const HyperedgeWeight pin_count_in_from = phg.pinCountInPart(he, from);
+      if (pin_count_in_to == 0) {
+        penalty += phg.edgeWeight(he);
+      }
+      if (pin_count_in_from == 1) {
+        penalty -= phg.edgeWeight(he);
+      }
+    }
+    penalty += phg.weightOfDisabledEdges(u);
+    return penalty;
+  }
 
-  // Gain computeGain(const PartitionedHypergraph &phg, const HypernodeID u,
-  //                         const PartitionID from, const PartitionID to, const
-  //                         PartitionID heaviestPart) {
-  //   HyperedgeWeight highest_load = phg.partLoad(heaviestPart);
-  //   Gain gain = 0;
-  //   Gain penalty = 0;
-  //   if (from == kInvalidPartition) {
-  //     for (const auto &he : phg.incidentEdges(u)) {
-  //       const HyperedgeWeight pin_count_in_to_after =
-  //           phg.pinCountInPart(he, to);
-  //       if (pin_count_in_to_after == 0) {
-  //         penalty += phg.edgeWeight(he);
-  //       }
-  //     }
-  //   } else {
-  //     penalty = phg.moveToPenalty(u, he);
-  //   }
-  //   penalty += phg.weightOfDisabledEdges(u);
-  //   HyperedgeWeight to_load_after = partLoad(to) + penalty;
-  //   if (from != kInvalidPartition && to_load_after > highest_load) {
-  //     gain = phg.moveFromBenefit(u) + phg.weightOfDisabledEdges(u);
-  //   } else {
-  //     gain = -penalty;
-  //   }
-  //   return gain;
-  // }
+  Gain blockGain(const PartitionedHypergraph& phg, const PartitionID p) {
+    if (_context.initial_partitioning.use_judicious_increase) {
+      return std::max(phg.partLoad(p) + _toPQs[p].topKey() - _judicious_load, 0);
+    } else if (_context.initial_partitioning.use_block_load_only) {
+      return phg.partLoad(p);
+    } else {
+      return _toPQs[p].topKey();
+    }
+  }
 
   const Context &_context;
   vec<PriorityQueue> _toPQs;
-  BlockPQ _blockPQ;
+  PriorityQueue _blockPQ;
+  HyperedgeWeight _judicious_load;
+  vec<bool> _disabled_blocks;
 };
 } // namespace mt_kahypar

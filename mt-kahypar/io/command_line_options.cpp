@@ -503,7 +503,23 @@ namespace mt_kahypar {
             ("i-lp-initial-block-size",
              po::value<size_t>(&context.initial_partitioning.lp_initial_block_size)->value_name(
                      "<size_t>")->default_value(5),
-             "Initial block size used for label propagation initial partitioner");
+             "Initial block size used for label propagation initial partitioner")
+            ("i-judicious-preassign-nodes",
+             po::value<bool>(&context.initial_partitioning.preassign_nodes)->value_name(
+                     "<bool>")->default_value(false),
+             "If true, preassign nodes to block 0 for initial partitioning")
+            ("i-judicious-random-selection",
+             po::value<bool>(&context.initial_partitioning.random_selection)->value_name(
+                     "<bool>")->default_value(false),
+             "If true, randomize node selection for initial partitioning")
+            ("i-judicious-use-judicious-increase",
+             po::value<bool>(&context.initial_partitioning.use_judicious_increase)->value_name(
+                     "<bool>")->default_value(false),
+             "If true, use exact judicious increase for node selection for initial partitioning")
+            ("i-judicious-use-block-load-only",
+             po::value<bool>(&context.initial_partitioning.use_block_load_only)->value_name(
+                     "<bool>")->default_value(false),
+             "If true, prefer nodes of lowest load block for initial partitioning");
     options.add(createRefinementOptionsDescription(context, num_columns, true));
     return options;
   }

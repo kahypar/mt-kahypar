@@ -33,7 +33,6 @@ public:
   GreedyJudiciousInitialPartitioner(PartitionedHypergraph &phg,
                                     const Context &context)
       : _phg(phg), _context(context), _pq(context, phg.initialNumNodes()),
-        _neighbor_deduplicator(phg.initialNumNodes(), 0),
         _preassign_nodes(context.initial_partitioning.preassign_nodes),
         _random_selection(context.initial_partitioning.random_selection) {
     _default_part = _preassign_nodes ? 0 : -1;
@@ -54,9 +53,11 @@ public:
     }
     if (_preassign_nodes) {
       _phg.initializePartition();
-      _phg.initializeGainCache();
     }
-    _pq.initBlockPQ(_phg);
+    _pq.initBlockPQ(_phg, _default_part);
+
+    Move move;
+    std::mt19937 g(seed);
 
     auto delta_func = [&](const HyperedgeID he, const HyperedgeWeight,
                           const HypernodeID,
@@ -64,61 +65,44 @@ public:
                           const HypernodeID pin_count_in_to_part_after) {
       // Gains of the pins of a hyperedge can only change in the following
       // situations.
-      if (!_preassign_nodes && pin_count_in_to_part_after == 1) {
-        _edges_with_gain_changes.push_back(he);
-      } else if (pin_count_in_from_part_after == 0 ||
-                 pin_count_in_from_part_after == 1 ||
-                 pin_count_in_to_part_after == 1 ||
-                 pin_count_in_to_part_after == 2) {
-        _edges_with_gain_changes.push_back(he);
-      }
-    };
-    Move move;
-    std::mt19937 g(seed);
-    // TODO: other strategies, round robin, first fit?
-    do {
-      if (!getNextMove(move, g))
-        break;
-      ASSERT(move.from == _default_part);
-      if (_preassign_nodes) {
-        _phg.changeNodePartWithGainCacheUpdate(
-            move.node, move.from, move.to,
-            std::numeric_limits<HypernodeWeight>::max(), [] {}, delta_func);
-      } else {
-        _phg.setNodePart(move.node, move.to);
-        for (const auto &he : _phg.incidentEdges(move.node)) {
-          if (_phg.pinCountInPart(he, move.to) == 1) {
-            _edges_with_gain_changes.push_back(he);
+      if (_preassign_nodes && pin_count_in_from_part_after == 1) {
+        for (HypernodeID v : _phg.pins(he)) {
+          if (_phg.partID(v) == _default_part) {
+            _pq.increaseGain(_phg, v, he, move.to);
           }
         }
       }
-      updateNeighbors(move.to);
-    } while (!_preassign_nodes ||
-             _phg.partLoad(_default_part) > _phg.partLoad(move.to));
+      if (pin_count_in_to_part_after == 1) {
+        for (HypernodeID v : _phg.pins(he)) {
+          if (_phg.partID(v) == _default_part) {
+            _pq.decreaseGain(_phg, v, he, move.to);
+          }
+        }
+      }
+    };
+    while (getNextMove(move, g)) {
+      ASSERT(move.from == _default_part);
+      if (_preassign_nodes) {
+        _phg.changeNodePart(move.node, move.from, move.to, delta_func);
+      } else {
+        _phg.setNodePart(move.node, move.to);
+        for (const auto he : _phg.incidentEdges(move.node)) {
+          delta_func(he, 0, 0, 0, _phg.pinCountInPart(he, move.to));
+        }
+      }
+
+      if (_preassign_nodes &&
+          _phg.partLoad(_default_part) <= _phg.partLoad(move.to)) {
+        _pq.disableBlock(move.to);
+      }
+      _pq.updateJudiciousLoad(_phg, move.from, move.to);
+    }
     ASSERT(std::all_of(
         _phg.nodes().begin(), _phg.nodes().end(),
         [&](const auto &hn) { return _phg.partID(hn) != kInvalidPartition; }));
   }
 
 private:
-  void updateNeighbors(const PartitionID to) {
-    for (HyperedgeID e : _edges_with_gain_changes) {
-      for (HypernodeID v : _phg.pins(e)) {
-        if (_neighbor_deduplicator[v] != _deduplication_time) {
-          if (_phg.partID(v) == _default_part) {
-            _pq.updateGain(_phg, v, e, to);
-          }
-          _neighbor_deduplicator[v] = _deduplication_time;
-        }
-      }
-    }
-    _edges_with_gain_changes.clear();
-    if (++_deduplication_time == 0) {
-      _neighbor_deduplicator.assign(_neighbor_deduplicator.size(), 0);
-      _deduplication_time = 1;
-    }
-  }
-
   Move chooseRandomMove(vec<Move> &moves, std::mt19937 &g) {
     std::uniform_int_distribution<> distrib(0, moves.size() - 1);
     return moves[distrib(g)];
@@ -137,11 +121,11 @@ private:
         break;
       }
     }
-    if (_random_selection && potential_moves.size() == 0)
+    if (_random_selection && potential_moves.size() == 0) {
       return false;
-    if (potential_moves.size() == 1)
+    } else if (potential_moves.size() == 1) {
       move = potential_moves[0];
-    if (potential_moves.size() > 1) {
+    } else if (potential_moves.size() > 1) {
       move = chooseRandomMove(potential_moves, g);
       for (const auto &m : potential_moves) {
         if (m.node != move.node) {
@@ -157,9 +141,6 @@ private:
   const Context _context;
   JudiciousPQ _pq;
   PartitionID _default_part;
-  vec<HyperedgeID> _edges_with_gain_changes;
-  vec<HypernodeID> _neighbor_deduplicator;
-  HypernodeID _deduplication_time = 1;
   const bool _preassign_nodes = false;
   const bool _random_selection = false;
 };
