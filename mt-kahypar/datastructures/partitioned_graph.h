@@ -626,7 +626,7 @@ private:
   // ! Initialize gain cache
   void initializeGainCache() {
     allocateGainTableIfNecessary();
-    
+
     // assert that part has been initialized
     ASSERT(std::none_of(nodes().begin(), nodes().end(),
                             [&](HypernodeID u) { return partID(u) == kInvalidPartition || partID(u) > k(); }) );
@@ -689,7 +689,7 @@ private:
 
   void allocateGainTableIfNecessary() {
     if (_incident_weight_in_part.size() == 0) {
-      _incident_weight_in_part.resize("Refinement", "incident_weight_in_part", _top_level_num_nodes * size_t(_k), false);
+      _incident_weight_in_part.resize("Refinement", "incident_weight_in_part", _top_level_num_nodes * size_t(_k), true);
     }
   }
 

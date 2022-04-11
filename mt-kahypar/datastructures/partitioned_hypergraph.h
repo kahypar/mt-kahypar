@@ -658,9 +658,9 @@ private:
   void allocateGainTableIfNecessary() {
     if (_move_to_penalty.size() == 0) {
       _move_to_penalty.resize(
-              "Refinement", "move_to_penalty", _top_level_num_nodes * size_t(_k + 1), false);
+              "Refinement", "move_to_penalty", _top_level_num_nodes * size_t(_k + 1), true);
       _move_from_benefit.resize(
-              "Refinement", "move_from_benefit", _top_level_num_nodes, false);
+              "Refinement", "move_from_benefit", _top_level_num_nodes, true);
     }
   }
 
