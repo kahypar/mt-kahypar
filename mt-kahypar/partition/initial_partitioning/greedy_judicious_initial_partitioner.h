@@ -72,8 +72,10 @@ public:
           }
         }
       }
+      // Review Note: do we really not need a case for pin_count_in_from_part_after == 0 to remove the penalty?
       if (pin_count_in_to_part_after == 1) {
         for (HypernodeID v : _phg.pins(he)) {
+          // being in _default_part means the node is unassigned if _preassign_nodes == false
           if (_phg.partID(v) == _default_part) {
             _pq.decreaseGain(_phg, v, he, move.to);
           }
@@ -129,7 +131,7 @@ private:
       move = chooseRandomMove(potential_moves, g);
       for (const auto &m : potential_moves) {
         if (m.node != move.node) {
-          _pq.insert(_phg, m.node);
+          _pq.insert(_phg, m.node);   // Review Note: track which block and gain it was and only reinsert there
         }
       }
     }

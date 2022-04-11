@@ -85,6 +85,7 @@ public:
     m.to = to;
     m.gain = gain;
     for (auto &pq : _toPQs) {
+      // Review Note: Does it make sense to do this lazily, as in [ while (pq.top() is assigned) { pq.deleteTop() } ]
       if (pq.contains(u)) {
         pq.remove(u);
       }
@@ -118,6 +119,7 @@ private:
     }
   }
 
+  // Review Note: if not bipartitioning and code is too slow, calculate gain to all blocks at the same time using connectivity set
   Gain computeGainForInvalidFrom(const PartitionedHypergraph &phg,
                                  const HypernodeID u, const PartitionID to) {
     Gain penalty = 0;
