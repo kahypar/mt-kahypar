@@ -242,8 +242,6 @@ namespace mt_kahypar::multilevel {
     }
 
     void judiciousIP(PartitionedHypergraph& phg) {
-      GreedyJudiciousInitialPartitioner ip(phg, _ip_context);
-      ip.initialPartition(_context.partition.seed);
       const size_t num_runs = _context.initial_partitioning.runs;
       std::uniform_int_distribution<> distrib(0, std::numeric_limits<int>::max());
       std::mt19937 g(_context.partition.seed);
