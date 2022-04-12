@@ -18,6 +18,7 @@
  *
  ******************************************************************************/
 #pragma once
+#include <algorithm>
 #include <mt-kahypar/datastructures/priority_queue.h>
 #include <mt-kahypar/definitions.h>
 #include <mt-kahypar/partition/context.h>
@@ -33,6 +34,7 @@ public:
       : _context(context), _toPQs(static_cast<size_t>(context.partition.k),
                                   PriorityQueue(num_nodes)),
         _blockPQ(static_cast<size_t>(context.partition.k)),
+        _part_loads(static_cast<size_t>(context.partition.k)),
         _disabled_blocks(context.partition.k, false) { }
 
   void insert(const PartitionedHypergraph &phg, const HypernodeID v) {
@@ -50,14 +52,13 @@ public:
     }
   }
 
-  void initBlockPQ(const PartitionedHypergraph &phg, const PartitionID default_block) {
+  void initBlockPQ(const PartitionedHypergraph &phg) {
     ASSERT(_blockPQ.empty());
-    _judicious_load = default_block == kInvalidPartition ? 0 : phg.partLoad(default_block);
-    // ASSERT(_judicious_load == metrics::judiciousLoad(phg));
     for (PartitionID i = 0; i < _context.partition.k; ++i) {
-      if (!_toPQs[i].empty()) {
-        _blockPQ.insert(i, blockGain(phg, i));
-      }
+      _part_loads.insert(i, phg.partLoad(i));
+    }
+    for (PartitionID i = 0; i < _context.partition.k; ++i) {
+      _blockPQ.insert(i, blockGain(phg, i));
     }
   }
 
@@ -71,6 +72,60 @@ public:
     _toPQs[to].decreaseKey(v, _toPQs[to].keyOf(v) + phg.edgeWeight(he));
   }
 
+  // Not removing the node from all PQs leads to significantly worse IP results, not exactly sure why. This means we have to delete and reinsert a lot of moves...
+  bool getNextMove(PartitionedHypergraph& phg, Move &move, std::mt19937 &g) {
+    vec<Move> potential_moves;
+    if (!_context.initial_partitioning.random_selection) {
+      return findNextMove(phg, move);
+    }
+    while (findNextMove(phg, move)) {
+      if (potential_moves.empty() || move.gain == potential_moves[0].gain) {
+        potential_moves.push_back(move);
+      } else {
+        insert(phg, move.node);
+        break;
+      }
+    }
+    if (_context.initial_partitioning.random_selection && potential_moves.size() == 0) {
+      return false;
+    } else if (potential_moves.size() == 1) {
+      move = potential_moves[0];
+    } else if (potential_moves.size() > 1) {
+      move = chooseRandomMove(potential_moves, g);
+      for (const auto &m : potential_moves) {
+        if (m.node != move.node) {
+          insert(phg, m.node);
+        }
+      }
+    }
+    ASSERT(std::all_of(potential_moves.begin(), potential_moves.end(), [&](const auto &m) {
+      if (m.node == move.node) {
+        return true;
+      }
+      for (PartitionID i = 0; i < _context.partition.k; ++i) {
+        if (!_toPQs[i].contains(m.node)) {
+          return false;
+        }
+      }
+      return true;
+    }));
+    return true;
+  }
+
+  /* TODO: move this to getNextMove when doing correct gains there <11-04-22, @noahares> */
+  void updateJudiciousLoad(const PartitionedHypergraph& phg, const PartitionID from, const PartitionID to) {
+    _part_loads.adjustKey(to, phg.partLoad(to));
+    if (from != kInvalidPartition) {
+      _part_loads.adjustKey(from, phg.partLoad(from));
+    }
+  }
+
+  void disableBlock(const PartitionID p) {
+    _disabled_blocks[p] = true;
+    _num_disabled_blocks++;
+  }
+
+private:
   bool findNextMove(const PartitionedHypergraph &phg, Move &m) {
     if (!updatePQs(phg)) {
       return false;
@@ -79,42 +134,37 @@ public:
     const PartitionID to = _blockPQ.top();
     ASSERT(!_toPQs[to].empty());
     const HypernodeID u = _toPQs[to].top();
-    const Gain gain = -_blockPQ.topKey();
+    const Gain gain = _blockPQ.topKey();
     m.node = u;
     m.from = phg.partID(u);
     m.to = to;
     m.gain = gain;
-    for (auto &pq : _toPQs) {
-      // Review Note: Does it make sense to do this lazily, as in [ while (pq.top() is assigned) { pq.deleteTop() } ]
-      if (pq.contains(u)) {
-        pq.remove(u);
+    for (PartitionID i = 0; i < _context.partition.k; ++i) {
+      if (_toPQs[i].contains(u)) {
+        _toPQs[i].remove(u);
       }
     }
     return true;
   }
 
-  void updateJudiciousLoad(const PartitionedHypergraph& phg, const PartitionID from, const PartitionID to) {
-    const HyperedgeWeight from_load = from != kInvalidPartition ? phg.partLoad(from) : 0;
-    _judicious_load = std::max(_judicious_load, std::max(from_load, phg.partLoad(to)));
+  Move chooseRandomMove(vec<Move> &moves, std::mt19937 &g) {
+    std::uniform_int_distribution<> distrib(0, moves.size() - 1);
+    return moves[distrib(g)];
   }
 
-  void disableBlock(const PartitionID p) {
-    _disabled_blocks[p] = true;
-  }
-
-private:
   bool updatePQs(const PartitionedHypergraph &phg) {
     for (PartitionID i = 0; i < _context.partition.k; ++i) {
       updateOrRemoveToPQFromBlocks(i, phg);
     }
-    return !_blockPQ.empty();
+    return !_blockPQ.empty()
+      && _num_disabled_blocks < static_cast<size_t>(_context.partition.k + 1 / 2);
   }
 
   void updateOrRemoveToPQFromBlocks(const PartitionID i,
                                     const PartitionedHypergraph &phg) {
-    if (!_toPQs[i].empty()) {
+    if (!_toPQs[i].empty() && !_disabled_blocks[i]) {
       _blockPQ.insertOrAdjustKey(i, blockGain(phg, i));
-    } else if ((_toPQs[i].empty() || _disabled_blocks[i]) && _blockPQ.contains(i)) {
+    } else if (_blockPQ.contains(i)) {
       _blockPQ.remove(i);
     }
   }
@@ -152,7 +202,7 @@ private:
 
   Gain blockGain(const PartitionedHypergraph& phg, const PartitionID p) {
     if (_context.initial_partitioning.use_judicious_increase) {
-      return std::max(phg.partLoad(p) + _toPQs[p].topKey() - _judicious_load, 0);
+      return std::max(phg.partLoad(p) + _toPQs[p].topKey() - _part_loads.topKey(), 0);
     } else if (_context.initial_partitioning.use_block_load_only) {
       return phg.partLoad(p);
     } else {
@@ -163,7 +213,8 @@ private:
   const Context &_context;
   vec<PriorityQueue> _toPQs;
   PriorityQueue _blockPQ;
-  HyperedgeWeight _judicious_load;
+  ds::ExclusiveHandleHeap<ds::MaxHeap<HypernodeWeight, PartitionID>> _part_loads;
   vec<bool> _disabled_blocks;
+  size_t _num_disabled_blocks = 0;
 };
 } // namespace mt_kahypar

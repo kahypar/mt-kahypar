@@ -33,8 +33,7 @@ public:
   GreedyJudiciousInitialPartitioner(PartitionedHypergraph &phg,
                                     const Context &context)
       : _phg(phg), _context(context), _pq(context, phg.initialNumNodes()),
-        _preassign_nodes(context.initial_partitioning.preassign_nodes),
-        _random_selection(context.initial_partitioning.random_selection) {
+        _preassign_nodes(context.initial_partitioning.preassign_nodes) {
     _default_part = _preassign_nodes ? 0 : -1;
   }
 
@@ -51,10 +50,7 @@ public:
       }
       _pq.insert(_phg, hn);
     }
-    if (_preassign_nodes) {
-      _phg.initializePartition();
-    }
-    _pq.initBlockPQ(_phg, _default_part);
+    _pq.initBlockPQ(_phg);
 
     Move move;
     std::mt19937 g(seed);
@@ -72,7 +68,6 @@ public:
           }
         }
       }
-      // Review Note: do we really not need a case for pin_count_in_from_part_after == 0 to remove the penalty?
       if (pin_count_in_to_part_after == 1) {
         for (HypernodeID v : _phg.pins(he)) {
           // being in _default_part means the node is unassigned if _preassign_nodes == false
@@ -82,7 +77,7 @@ public:
         }
       }
     };
-    while (getNextMove(move, g)) {
+    while (_pq.getNextMove(_phg, move, g)) {
       ASSERT(move.from == _default_part);
       if (_preassign_nodes) {
         _phg.changeNodePart(move.node, move.from, move.to, delta_func);
@@ -105,45 +100,10 @@ public:
   }
 
 private:
-  Move chooseRandomMove(vec<Move> &moves, std::mt19937 &g) {
-    std::uniform_int_distribution<> distrib(0, moves.size() - 1);
-    return moves[distrib(g)];
-  }
-
-  bool getNextMove(Move &move, std::mt19937 &g) {
-    vec<Move> potential_moves;
-    if (!_random_selection) {
-      return _pq.findNextMove(_phg, move);
-    }
-    while (_pq.findNextMove(_phg, move)) {
-      if (potential_moves.empty() || move.gain == potential_moves[0].gain) {
-        potential_moves.push_back(move);
-      } else {
-        _pq.insert(_phg, move.node);
-        break;
-      }
-    }
-    if (_random_selection && potential_moves.size() == 0) {
-      return false;
-    } else if (potential_moves.size() == 1) {
-      move = potential_moves[0];
-    } else if (potential_moves.size() > 1) {
-      move = chooseRandomMove(potential_moves, g);
-      for (const auto &m : potential_moves) {
-        if (m.node != move.node) {
-          _pq.insert(_phg, m.node);   // Review Note: track which block and gain it was and only reinsert there
-        }
-      }
-    }
-    return true;
-  }
-
-private:
   PartitionedHypergraph &_phg;
   const Context _context;
   JudiciousPQ _pq;
   PartitionID _default_part;
   const bool _preassign_nodes = false;
-  const bool _random_selection = false;
 };
 } // namespace mt_kahypar
