@@ -58,7 +58,9 @@ public:
       _part_loads.insert(i, phg.partLoad(i));
     }
     for (PartitionID i = 0; i < _context.partition.k; ++i) {
-      _blockPQ.insert(i, blockGain(phg, i));
+      if (!_toPQs[i].empty()) {
+        _blockPQ.insert(i, blockGain(phg, i));
+      }
     }
   }
 
@@ -103,7 +105,7 @@ public:
         return true;
       }
       for (PartitionID i = 0; i < _context.partition.k; ++i) {
-        if (!_toPQs[i].contains(m.node)) {
+        if (!_toPQs[i].empty() && !_toPQs[i].contains(m.node)) {
           return false;
         }
       }
@@ -134,7 +136,7 @@ private:
     const PartitionID to = _blockPQ.top();
     ASSERT(!_toPQs[to].empty());
     const HypernodeID u = _toPQs[to].top();
-    const Gain gain = _blockPQ.topKey();
+    const Gain gain = -_blockPQ.topKey();
     m.node = u;
     m.from = phg.partID(u);
     m.to = to;
