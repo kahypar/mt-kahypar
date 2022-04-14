@@ -41,7 +41,7 @@ namespace mt_kahypar {
 
 class InitialPartitioningDataContainer {
 
-  static constexpr bool debug = true;
+  static constexpr bool debug = false;
   static constexpr bool enable_heavy_assert = false;
 
   // ! Contains information about the best thread local partition
@@ -613,8 +613,8 @@ class InitialPartitioningDataContainer {
         }
       }
 
-      GreedyJudiciousInitialPartitioner judicious_ip(_partitioned_hg, _context);
-      judicious_ip.initialPartition(_context.partition.seed);
+      GreedyJudiciousInitialPartitioner judicious_ip(_partitioned_hg, _context, _context.partition.seed);
+      judicious_ip.initialPartition();
       HyperedgeWeight judicious_load = metrics::judiciousLoad(_partitioned_hg);
       DBG << "Judicious IP                  [" << V(judicious_load) << "]";
       if (judicious_load < best->_result._objective) {

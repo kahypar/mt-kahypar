@@ -30,12 +30,14 @@ public:
   using PriorityQueue = ds::ExclusiveHandleHeap<
       ds::Heap<HypernodeWeight, PartitionID, std::greater<>>>;
 
-  explicit JudiciousPQ(const Context &context, HypernodeID num_nodes)
+  explicit JudiciousPQ(const Context &context, const HypernodeID num_nodes, const size_t seed)
       : _context(context), _toPQs(static_cast<size_t>(context.partition.k),
                                   PriorityQueue(num_nodes)),
         _blockPQ(static_cast<size_t>(context.partition.k)),
         _part_loads(static_cast<size_t>(context.partition.k)),
-        _disabled_blocks(context.partition.k, false) { }
+        _disabled_blocks(context.partition.k, false),
+        _g(seed),
+        _block_distrib(0, context.partition.k - 1) { }
 
   void insert(const PartitionedHypergraph &phg, const HypernodeID v) {
     const PartitionID pv = phg.partID(v);
@@ -75,7 +77,7 @@ public:
   }
 
   // Not removing the node from all PQs leads to significantly worse IP results, not exactly sure why. This means we have to delete and reinsert a lot of moves...
-  bool getNextMove(PartitionedHypergraph& phg, Move &move, std::mt19937 &g) {
+  bool getNextMove(PartitionedHypergraph& phg, Move &move) {
     vec<Move> potential_moves;
     if (!_context.initial_partitioning.random_selection) {
       return findNextMove(phg, move);
@@ -87,13 +89,16 @@ public:
         insert(phg, move.node);
         break;
       }
+      if (_context.initial_partitioning.preassign_nodes && potential_moves.size() >= std::max(1000.0, phg.initialNumNodes() * 0.1)) {
+        break;
+      }
     }
     if (_context.initial_partitioning.random_selection && potential_moves.size() == 0) {
       return false;
     } else if (potential_moves.size() == 1) {
       move = potential_moves[0];
     } else if (potential_moves.size() > 1) {
-      move = chooseRandomMove(potential_moves, g);
+      move = potential_moves[chooseRandomIndex(potential_moves.size())];
       for (const auto &m : potential_moves) {
         if (m.node != move.node) {
           insert(phg, m.node);
@@ -133,7 +138,15 @@ private:
       return false;
     }
     ASSERT(!_blockPQ.empty());
-    const PartitionID to = _blockPQ.top();
+    PartitionID to = _blockPQ.top();
+    if (_context.initial_partitioning.preassign_nodes &&
+        _part_loads.topKey() > _part_loads.keyOfSecond() &&
+        _blockPQ.keyOfSecond() == 0) {
+      to = _block_distrib(_g);
+      while (_toPQs[to].empty() || _disabled_blocks[to]) {
+        to = (to + 1) % _context.partition.k;
+      }
+    }
     ASSERT(!_toPQs[to].empty());
     const HypernodeID u = _toPQs[to].top();
     const Gain gain = -_blockPQ.topKey();
@@ -149,9 +162,9 @@ private:
     return true;
   }
 
-  Move chooseRandomMove(vec<Move> &moves, std::mt19937 &g) {
-    std::uniform_int_distribution<> distrib(0, moves.size() - 1);
-    return moves[distrib(g)];
+  size_t chooseRandomIndex(const size_t num_elements) {
+    std::uniform_int_distribution<> distrib(0, num_elements - 1);
+    return distrib(_g);
   }
 
   bool updatePQs(const PartitionedHypergraph &phg) {
@@ -218,5 +231,7 @@ private:
   ds::ExclusiveHandleHeap<ds::MaxHeap<HypernodeWeight, PartitionID>> _part_loads;
   vec<bool> _disabled_blocks;
   size_t _num_disabled_blocks = 0;
+  std::mt19937 _g;
+  std::uniform_int_distribution<> _block_distrib;
 };
 } // namespace mt_kahypar

@@ -31,8 +31,8 @@ class GreedyJudiciousInitialPartitioner {
 
 public:
   GreedyJudiciousInitialPartitioner(PartitionedHypergraph &phg,
-                                    const Context &context)
-      : _phg(phg), _context(context), _pq(context, phg.initialNumNodes()),
+                                    const Context &context, const size_t seed)
+      : _phg(phg), _context(context), _pq(context, phg.initialNumNodes(), seed),
         _preassign_nodes(context.initial_partitioning.preassign_nodes) {
     _default_part = _preassign_nodes ? 0 : -1;
   }
@@ -42,7 +42,7 @@ public:
   GreedyJudiciousInitialPartitioner(GreedyJudiciousInitialPartitioner &&) =
       delete;
 
-  void initialPartition(const size_t seed) {
+  void initialPartition() {
     _phg.resetPartition();
     for (const HypernodeID &hn : _phg.nodes()) {
       if (_preassign_nodes) {
@@ -53,7 +53,6 @@ public:
     _pq.initBlockPQ(_phg);
 
     Move move;
-    std::mt19937 g(seed);
 
     auto delta_func = [&](const HyperedgeID he, const HyperedgeWeight,
                           const HypernodeID,
@@ -77,7 +76,7 @@ public:
         }
       }
     };
-    while (_pq.getNextMove(_phg, move, g)) {
+    while (_pq.getNextMove(_phg, move)) {
       ASSERT(move.from == _default_part);
       if (_preassign_nodes) {
         _phg.changeNodePart(move.node, move.from, move.to, delta_func);

@@ -251,8 +251,8 @@ namespace mt_kahypar::multilevel {
       auto ip_run = [&](const size_t seed, const size_t i) {
         auto &local_phg = phgs.local();
         // run IP and extract part IDs
-        GreedyJudiciousInitialPartitioner ip(local_phg, _ip_context);
-        ip.initialPartition(seed);
+        GreedyJudiciousInitialPartitioner ip(local_phg, _ip_context, seed);
+        ip.initialPartition();
         partitions[i].second.resize(phg.initialNumNodes());
         for (size_t j = 0; j < phg.initialNumNodes(); ++j) {
           partitions[i].second[j] = local_phg.partID(j);
