@@ -260,7 +260,11 @@ namespace mt_kahypar {
             ("c-num-sub-rounds",
              po::value<size_t>(&context.coarsening.num_sub_rounds_deterministic)->value_name(
                      "<size_t>")->default_value(16),
-             "Number of sub-rounds used for deterministic coarsening.");
+             "Number of sub-rounds used for deterministic coarsening.")
+            ("c-skip-coarsening",
+             po::value<bool>(&context.coarsening.skip_coarsening)->value_name(
+                     "<bool>")->default_value(false),
+             "If true, partition on input graph.");
     return options;
   }
 
