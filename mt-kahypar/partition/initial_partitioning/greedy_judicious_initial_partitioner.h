@@ -31,9 +31,9 @@ class GreedyJudiciousInitialPartitioner {
 
 public:
   GreedyJudiciousInitialPartitioner(PartitionedHypergraph &phg,
-                                    const Context &context, const size_t seed)
-      : _phg(phg), _context(context), _pq(context, phg.initialNumNodes(), seed),
-        _preassign_nodes(context.initial_partitioning.preassign_nodes) {
+                                    const Context &context, const size_t seed, GreedyJudiciousInitialPartitionerStats& stats)
+      : _phg(phg), _context(context), _pq(context, phg.initialNumNodes(), seed, stats),
+        _preassign_nodes(context.initial_partitioning.preassign_nodes), _stats(stats) {
     _default_part = _preassign_nodes ? 0 : -1;
   }
 
@@ -92,6 +92,7 @@ public:
         _pq.disableBlock(move.to);
       }
       _pq.updateJudiciousLoad(_phg, move.from, move.to);
+      _stats.num_moved_nodes++;
     }
     ASSERT(std::all_of(
         _phg.nodes().begin(), _phg.nodes().end(),
@@ -104,5 +105,6 @@ private:
   JudiciousPQ _pq;
   PartitionID _default_part;
   const bool _preassign_nodes = false;
+  GreedyJudiciousInitialPartitionerStats& _stats;
 };
 } // namespace mt_kahypar

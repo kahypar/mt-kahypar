@@ -25,19 +25,39 @@
 #include <mt-kahypar/partition/metrics.h>
 
 namespace mt_kahypar {
+  struct GreedyJudiciousInitialPartitionerStats {
+    size_t num_moved_nodes = 0;
+    vec<Gain> gain_sequence;
+    vec<size_t> num_nodes_for_randomization;
+
+    void print() {
+      ASSERT(num_moved_nodes == gain_sequence.size() && num_moved_nodes == num_nodes_for_randomization.size());
+      LOG << V(num_moved_nodes);
+      for (const auto i : gain_sequence) {
+        LLOG << i;
+      }
+      LOG << "\n";
+      for (const auto i : num_nodes_for_randomization) {
+        LLOG << i;
+      }
+      LOG << "\n";
+    }
+  };
+
 class JudiciousPQ final {
 public:
   using PriorityQueue = ds::ExclusiveHandleHeap<
       ds::Heap<HypernodeWeight, PartitionID, std::greater<>>>;
 
-  explicit JudiciousPQ(const Context &context, const HypernodeID num_nodes, const size_t seed)
+  explicit JudiciousPQ(const Context &context, const HypernodeID num_nodes, const size_t seed, GreedyJudiciousInitialPartitionerStats& stats)
       : _context(context), _toPQs(static_cast<size_t>(context.partition.k),
                                   PriorityQueue(num_nodes)),
         _blockPQ(static_cast<size_t>(context.partition.k)),
         _part_loads(static_cast<size_t>(context.partition.k)),
         _disabled_blocks(context.partition.k, false),
         _g(seed),
-        _block_distrib(0, context.partition.k - 1) { }
+        _block_distrib(0, context.partition.k - 1),
+        _stats(stats) { }
 
   void insert(const PartitionedHypergraph &phg, const HypernodeID v) {
     const PartitionID pv = phg.partID(v);
@@ -89,7 +109,9 @@ public:
         insert(phg, move.node);
         break;
       }
-      if (_context.initial_partitioning.preassign_nodes && potential_moves.size() >= std::max(1000.0, phg.initialNumNodes() * 0.1)) {
+      if ((_context.initial_partitioning.preassign_nodes
+           || _context.initial_partitioning.use_block_load_only)
+          && potential_moves.size() >= std::max(1000.0, phg.initialNumNodes() * 0.1)) {
         break;
       }
     }
@@ -105,6 +127,7 @@ public:
         }
       }
     }
+    _stats.num_nodes_for_randomization.push_back(potential_moves.size());
     ASSERT(std::all_of(potential_moves.begin(), potential_moves.end(), [&](const auto &m) {
       if (m.node == move.node) {
         return true;
@@ -121,10 +144,13 @@ public:
 
   /* TODO: move this to getNextMove when doing correct gains there <11-04-22, @noahares> */
   void updateJudiciousLoad(const PartitionedHypergraph& phg, const PartitionID from, const PartitionID to) {
+    const HyperedgeWeight judicious_load_before = _part_loads.topKey();
     _part_loads.adjustKey(to, phg.partLoad(to));
     if (from != kInvalidPartition) {
       _part_loads.adjustKey(from, phg.partLoad(from));
     }
+    const HyperedgeWeight judicious_load_after = _part_loads.topKey();
+    _stats.gain_sequence.push_back(judicious_load_before - judicious_load_after);
   }
 
   void disableBlock(const PartitionID p) {
@@ -139,6 +165,7 @@ private:
     }
     ASSERT(!_blockPQ.empty());
     PartitionID to = _blockPQ.top();
+    /* TODO: try tie breaker block load here <19-04-22, @noahares> */
     if (_context.initial_partitioning.preassign_nodes &&
         _part_loads.topKey() > _part_loads.keyOfSecond() &&
         _blockPQ.keyOfSecond() == 0) {
@@ -233,5 +260,6 @@ private:
   size_t _num_disabled_blocks = 0;
   std::mt19937 _g;
   std::uniform_int_distribution<> _block_distrib;
+  GreedyJudiciousInitialPartitionerStats& _stats;
 };
 } // namespace mt_kahypar

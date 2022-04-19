@@ -613,13 +613,15 @@ class InitialPartitioningDataContainer {
         }
       }
 
-      GreedyJudiciousInitialPartitioner judicious_ip(_partitioned_hg, _context, _context.partition.seed);
+      GreedyJudiciousInitialPartitionerStats stats;
+      GreedyJudiciousInitialPartitioner judicious_ip(_partitioned_hg, _context, _context.partition.seed, stats);
       judicious_ip.initialPartition();
       HyperedgeWeight judicious_load = metrics::judiciousLoad(_partitioned_hg);
       DBG << "Judicious IP                  [" << V(judicious_load) << "]";
       if (judicious_load < best->_result._objective) {
         best_feasible_objective = judicious_load;
         best_flat_algo = InitialPartitioningAlgorithm::greedy_judicious;
+        // stats.print();
       } else {
         _partitioned_hg.resetPartition();
         // Applies best partition to hypergraph

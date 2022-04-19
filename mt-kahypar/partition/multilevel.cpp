@@ -247,11 +247,12 @@ namespace mt_kahypar::multilevel {
       std::mt19937 g(_context.partition.seed);
       tbb::task_group tg;
       vec<std::pair<HyperedgeWeight, vec<size_t>>> partitions(num_runs);
+      vec<GreedyJudiciousInitialPartitionerStats> stats(num_runs);
       tbb::enumerable_thread_specific<PartitionedHypergraph> phgs([&] { return construct_phg(phg); });
       auto ip_run = [&](const size_t seed, const size_t i) {
         auto &local_phg = phgs.local();
         // run IP and extract part IDs
-        GreedyJudiciousInitialPartitioner ip(local_phg, _ip_context, seed);
+        GreedyJudiciousInitialPartitioner ip(local_phg, _ip_context, seed, stats[i]);
         ip.initialPartition();
         partitions[i].second.resize(phg.initialNumNodes());
         for (size_t j = 0; j < phg.initialNumNodes(); ++j) {
@@ -265,9 +266,10 @@ namespace mt_kahypar::multilevel {
       tg.wait();
       phg.resetPartition();
       // choose best partititon and assign it to the hypergraph
-      auto& best_partition = *std::min_element(partitions.begin(), partitions.end());
+      auto best_partition = std::min_element(partitions.begin(), partitions.end());
+      stats[std::distance(partitions.begin(), best_partition)].print();
       for (size_t i = 0; i < phg.initialNumNodes(); ++i) {
-        phg.setNodePart(i, best_partition.second[i]);
+        phg.setNodePart(i, best_partition->second[i]);
       }
     }
 
