@@ -379,7 +379,7 @@ namespace mt_kahypar::ds {
     if ( is_graph ) {
       ASSERT(hypergraph.maxEdgeSize() == 2);
       _num_nodes = hypergraph.initialNumNodes();
-      _num_arcs = 2 * hypergraph.initialNumEdges();
+      _num_arcs = hypergraph.initialNumPins();
       constructGraph(hypergraph, edge_weight_func);
     } else {
       _num_nodes = hypergraph.initialNumNodes() + hypergraph.initialNumEdges();
