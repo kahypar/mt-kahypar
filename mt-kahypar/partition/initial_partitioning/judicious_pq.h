@@ -109,9 +109,7 @@ public:
         insert(phg, move.node);
         break;
       }
-      if ((_context.initial_partitioning.preassign_nodes
-           || _context.initial_partitioning.use_block_load_only)
-          && potential_moves.size() >= std::max(1000.0, phg.initialNumNodes() * 0.1)) {
+      if (potential_moves.size() >= _context.initial_partitioning.max_nodes_for_random_selection) {
         break;
       }
     }

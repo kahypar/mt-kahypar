@@ -230,6 +230,7 @@ struct InitialPartitioningParameters {
   bool random_selection = false;
   bool use_judicious_increase = false;
   bool use_block_load_only = false;
+  size_t max_nodes_for_random_selection = 100;
 };
 
 std::ostream & operator<< (std::ostream& str, const InitialPartitioningParameters& params);
