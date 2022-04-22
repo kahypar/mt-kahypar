@@ -69,39 +69,61 @@ namespace mt_kahypar {
 
       pool.register_memory_group("Coarsening", 2);
       if ( context.partition.paradigm == Paradigm::multilevel ) {
-        pool.register_memory_chunk("Coarsening", "mapping", num_hypernodes, sizeof(size_t));
-        pool.register_memory_chunk("Coarsening", "tmp_hypernodes", num_hypernodes, Hypergraph::SIZE_OF_HYPERNODE);
-        pool.register_memory_chunk("Coarsening", "tmp_incident_nets", num_pins, sizeof(HyperedgeID));
-        pool.register_memory_chunk("Coarsening", "tmp_num_incident_nets",
-                                  num_hypernodes, sizeof(parallel::IntegralAtomicWrapper<size_t>));
-        pool.register_memory_chunk("Coarsening", "hn_weights",
-                                  num_hypernodes, sizeof(parallel::IntegralAtomicWrapper<HypernodeWeight>));
-        pool.register_memory_chunk("Coarsening", "tmp_hyperedges", num_hyperedges, Hypergraph::SIZE_OF_HYPEREDGE);
-        pool.register_memory_chunk("Coarsening", "tmp_incidence_array", num_pins, sizeof(HypernodeID));
-        pool.register_memory_chunk("Coarsening", "he_sizes", num_hyperedges, sizeof(size_t));
-        pool.register_memory_chunk("Coarsening", "valid_hyperedges", num_hyperedges, sizeof(size_t));
+        #ifdef USE_GRAPH_PARTITIONER
+          pool.register_memory_chunk("Coarsening", "mapping", num_hypernodes, sizeof(HypernodeID));
+          pool.register_memory_chunk("Coarsening", "tmp_nodes", num_hypernodes, Hypergraph::SIZE_OF_HYPERNODE);
+          pool.register_memory_chunk("Coarsening", "node_sizes", num_hypernodes, sizeof(HyperedgeID));
+          pool.register_memory_chunk("Coarsening", "tmp_num_incident_edges",
+                                     num_hypernodes, sizeof(parallel::IntegralAtomicWrapper<HyperedgeID>));
+          pool.register_memory_chunk("Coarsening", "node_weights",
+                                     num_hypernodes, sizeof(parallel::IntegralAtomicWrapper<HypernodeWeight>));
+          pool.register_memory_chunk("Coarsening", "tmp_edges", num_hyperedges, Hypergraph::SIZE_OF_HYPEREDGE);
+          pool.register_memory_chunk("Coarsening", "edge_id_mapping", num_hyperedges / 2, sizeof(HyperedgeID));
+        #else
+          pool.register_memory_chunk("Coarsening", "mapping", num_hypernodes, sizeof(size_t));
+          pool.register_memory_chunk("Coarsening", "tmp_hypernodes", num_hypernodes, Hypergraph::SIZE_OF_HYPERNODE);
+          pool.register_memory_chunk("Coarsening", "tmp_incident_nets", num_pins, sizeof(HyperedgeID));
+          pool.register_memory_chunk("Coarsening", "tmp_num_incident_nets",
+                                    num_hypernodes, sizeof(parallel::IntegralAtomicWrapper<size_t>));
+          pool.register_memory_chunk("Coarsening", "hn_weights",
+                                    num_hypernodes, sizeof(parallel::IntegralAtomicWrapper<HypernodeWeight>));
+          pool.register_memory_chunk("Coarsening", "tmp_hyperedges", num_hyperedges, Hypergraph::SIZE_OF_HYPEREDGE);
+          pool.register_memory_chunk("Coarsening", "tmp_incidence_array", num_pins, sizeof(HypernodeID));
+          pool.register_memory_chunk("Coarsening", "he_sizes", num_hyperedges, sizeof(size_t));
+          pool.register_memory_chunk("Coarsening", "valid_hyperedges", num_hyperedges, sizeof(size_t));
+        #endif
       }
 
       // ########## Refinement Memory ##########
 
       pool.register_memory_group("Refinement", 3);
-      const HypernodeID max_he_size = hypergraph.maxEdgeSize();
       pool.register_memory_chunk("Refinement", "part_ids", num_hypernodes, sizeof(PartitionID));
-      pool.register_memory_chunk("Refinement", "pin_count_in_part",
-                                ds::PinCountInPart::num_elements(num_hyperedges, context.partition.k, max_he_size),
-                                sizeof(ds::PinCountInPart::Value));
-      pool.register_memory_chunk("Refinement", "connectivity_set",
-                                ds::ConnectivitySets::num_elements(num_hyperedges, context.partition.k),
-                                sizeof(ds::ConnectivitySets::UnsafeBlock));
-      if ( context.refinement.fm.algorithm != FMAlgorithm::do_nothing ) {
-        pool.register_memory_chunk("Refinement", "move_to_penalty",
-                                   static_cast<size_t>(num_hypernodes) * ( context.partition.k + 1 ),
-                                   sizeof(CAtomic<HyperedgeWeight>));
-        pool.register_memory_chunk("Refinement", "move_from_penalty",
-                                   num_hypernodes, sizeof(CAtomic<HyperedgeWeight>));
-      }
-      pool.register_memory_chunk("Refinement", "pin_count_update_ownership",
-                                num_hyperedges, sizeof(SpinLock));
+
+      #ifdef USE_GRAPH_PARTITIONER
+        pool.register_memory_chunk("Refinement", "edge_locks", num_hyperedges, PartitionedHypergraph::SIZE_OF_EDGE_LOCK);
+        if ( context.refinement.fm.algorithm != FMAlgorithm::do_nothing ) {
+          pool.register_memory_chunk("Refinement", "incident_weight_in_part",
+                                    static_cast<size_t>(num_hypernodes) * ( context.partition.k + 1 ),
+                                    sizeof(CAtomic<HyperedgeWeight>));
+        }
+      #else
+        const HypernodeID max_he_size = hypergraph.maxEdgeSize();
+        pool.register_memory_chunk("Refinement", "pin_count_in_part",
+                                  ds::PinCountInPart::num_elements(num_hyperedges, context.partition.k, max_he_size),
+                                  sizeof(ds::PinCountInPart::Value));
+        pool.register_memory_chunk("Refinement", "connectivity_set",
+                                  ds::ConnectivitySets::num_elements(num_hyperedges, context.partition.k),
+                                  sizeof(ds::ConnectivitySets::UnsafeBlock));
+        if ( context.refinement.fm.algorithm != FMAlgorithm::do_nothing ) {
+          pool.register_memory_chunk("Refinement", "move_to_penalty",
+                                    static_cast<size_t>(num_hypernodes) * ( context.partition.k + 1 ),
+                                    sizeof(CAtomic<HyperedgeWeight>));
+          pool.register_memory_chunk("Refinement", "move_from_penalty",
+                                    num_hypernodes, sizeof(CAtomic<HyperedgeWeight>));
+        }
+        pool.register_memory_chunk("Refinement", "pin_count_update_ownership",
+                                  num_hyperedges, sizeof(SpinLock));
+      #endif
 
       // Allocate Memory
       utils::Timer::instance().start_timer("memory_pool_allocation", "Memory Pool Allocation");

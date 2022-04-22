@@ -145,6 +145,7 @@ private:
   static constexpr bool supports_connectivity_set = true;
 
   static constexpr HyperedgeID HIGH_DEGREE_THRESHOLD = ID(100000);
+  static constexpr size_t SIZE_OF_EDGE_LOCK = sizeof(EdgeLock);
 
   using HypernodeIterator = typename Hypergraph::HypernodeIterator;
   using HyperedgeIterator = typename Hypergraph::HyperedgeIterator;
@@ -183,7 +184,7 @@ private:
     _edge_markers() {
     tbb::parallel_invoke([&] {
       _part_ids.resize(
-        "Refinement", "vertex_part_info", hypergraph.initialNumNodes());
+        "Refinement", "part_ids", hypergraph.initialNumNodes());
       _part_ids.assign(hypergraph.initialNumNodes(), CAtomic<PartitionID>(kInvalidPartition));
     }, [&] {
       _edge_locks.resize(
