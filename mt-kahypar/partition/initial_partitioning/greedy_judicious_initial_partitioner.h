@@ -74,6 +74,13 @@ public:
             _pq.decreaseGain(_phg, v, he, move.to);
           }
         }
+      } else if (pin_count_in_to_part_after == 2) {
+        for (HypernodeID v : _phg.pins(he)) {
+          // being in _default_part means the node is unassigned if _preassign_nodes == false
+          if (_phg.partID(v) == _default_part) {
+            _pq.increaseGain(_phg, v, he, move.to);
+          }
+        }
       }
     };
     while (_pq.getNextMove(_phg, move)) {
