@@ -25,29 +25,29 @@
 #include <mt-kahypar/partition/metrics.h>
 
 namespace mt_kahypar {
+
+  static constexpr bool debug = true;
+
   struct GreedyJudiciousInitialPartitionerStats {
     size_t num_moved_nodes = 0;
     vec<Gain> gain_sequence;
-    vec<size_t> num_nodes_for_randomization;
 
     void print() {
-      ASSERT(num_moved_nodes == gain_sequence.size() && num_moved_nodes == num_nodes_for_randomization.size());
+      if (!debug) {
+        return;
+      }
+      ASSERT(num_moved_nodes == gain_sequence.size());
       LOG << V(num_moved_nodes);
       for (const auto i : gain_sequence) {
         LLOG << i;
       }
-      LOG << "\n";
-      for (const auto i : num_nodes_for_randomization) {
-        LLOG << i;
-      }
-      LOG << "\n";
     }
   };
 
 class JudiciousPQ final {
 public:
   using PriorityQueue = ds::ExclusiveHandleHeap<
-      ds::Heap<HypernodeWeight, PartitionID, std::greater<>>>;
+      ds::Heap<std::pair<HypernodeWeight, size_t>, PartitionID, std::greater<>>>;
 
   explicit JudiciousPQ(const Context &context, const HypernodeID num_nodes, const size_t seed, GreedyJudiciousInitialPartitionerStats& stats)
       : _context(context), _toPQs(static_cast<size_t>(context.partition.k),
@@ -56,91 +56,42 @@ public:
         _part_loads(static_cast<size_t>(context.partition.k)),
         _disabled_blocks(context.partition.k, false),
         _g(seed),
-        _block_distrib(0, context.partition.k - 1),
         _stats(stats) { }
 
-  void insert(const PartitionedHypergraph &phg, const HypernodeID v) {
-    const PartitionID pv = phg.partID(v);
-    for (PartitionID i = 0; i < _context.partition.k; ++i) {
-      if (i == pv)
-        continue;
-      Gain gain = 0;
-      if (pv == kInvalidPartition) {
-        gain = computeGainForInvalidFrom(phg, v, i);
-      } else {
-        gain = computeGainForValidFrom(phg, v, pv, i);
-      }
-      _toPQs[i].insert(v, gain);
-    }
-  }
-
-  void initBlockPQ(const PartitionedHypergraph &phg) {
-    ASSERT(_blockPQ.empty());
-    for (PartitionID i = 0; i < _context.partition.k; ++i) {
-      _part_loads.insert(i, phg.partLoad(i));
-    }
-    for (PartitionID i = 0; i < _context.partition.k; ++i) {
-      if (!_toPQs[i].empty()) {
-        _blockPQ.insert(i, blockGain(phg, i));
+  void init(const PartitionedHypergraph& phg, const PartitionID default_part) {
+    for (const auto &v : phg.nodes()) {
+      const Gain penalty = phg.nodeDegree(v) + phg.weightOfDisabledEdges(v);
+      const size_t tag = _context.initial_partitioning.random_selection ? _g() : penalty;
+      for (PartitionID i = 0; i < _context.partition.k; ++i) {
+        if (i == default_part)
+          continue;
+        _toPQs[i].insert(v, std::make_pair(penalty, tag));
       }
     }
+    initBlockPQ(phg);
   }
 
   void increaseGain(const PartitionedHypergraph &phg, const HypernodeID v,
                   const HyperedgeID he, const PartitionID to) {
-    _toPQs[to].increaseKey(v, _toPQs[to].keyOf(v) - phg.edgeWeight(he));
+    auto key = _toPQs[to].keyOf(v);
+    _toPQs[to].increaseKey(v, std::make_pair(key.first - phg.edgeWeight(he), key.second));
   }
 
   void decreaseGain(const PartitionedHypergraph &phg, const HypernodeID v,
                   const HyperedgeID he, const PartitionID to) {
-    _toPQs[to].decreaseKey(v, _toPQs[to].keyOf(v) + phg.edgeWeight(he));
+    auto key = _toPQs[to].keyOf(v);
+    _toPQs[to].decreaseKey(v, std::make_pair(key.first + phg.edgeWeight(he), key.second));
   }
 
-  // Not removing the node from all PQs leads to significantly worse IP results, not exactly sure why. This means we have to delete and reinsert a lot of moves...
-  bool getNextMove(PartitionedHypergraph& phg, Move &move) {
-    vec<Move> potential_moves;
-    if (!_context.initial_partitioning.random_selection) {
-      return findNextMove(phg, move);
-    }
+  bool getNextMove(const PartitionedHypergraph& phg, Move &move, const PartitionID default_part) {
     while (findNextMove(phg, move)) {
-      if (potential_moves.empty() || move.gain == potential_moves[0].gain) {
-        potential_moves.push_back(move);
-      } else {
-        insert(phg, move.node);
-        break;
-      }
-      if (potential_moves.size() >= _context.initial_partitioning.max_nodes_for_random_selection) {
-        break;
-      }
-    }
-    if (_context.initial_partitioning.random_selection && potential_moves.size() == 0) {
-      return false;
-    } else if (potential_moves.size() == 1) {
-      move = potential_moves[0];
-    } else if (potential_moves.size() > 1) {
-      move = potential_moves[chooseRandomIndex(potential_moves.size())];
-      for (const auto &m : potential_moves) {
-        if (m.node != move.node) {
-          insert(phg, m.node);
-        }
-      }
-    }
-    _stats.num_nodes_for_randomization.push_back(potential_moves.size());
-    ASSERT(std::all_of(potential_moves.begin(), potential_moves.end(), [&](const auto &m) {
-      if (m.node == move.node) {
+      if (phg.partID(move.node) == default_part) {
         return true;
       }
-      for (PartitionID i = 0; i < _context.partition.k; ++i) {
-        if (!_toPQs[i].empty() && !_toPQs[i].contains(m.node)) {
-          return false;
-        }
-      }
-      return true;
-    }));
-    return true;
+    }
+    return false;
   }
 
-  /* TODO: move this to getNextMove when doing correct gains there <11-04-22, @noahares> */
   void updateJudiciousLoad(const PartitionedHypergraph& phg, const PartitionID from, const PartitionID to) {
     const HyperedgeWeight judicious_load_before = _part_loads.topKey();
     _part_loads.adjustKey(to, phg.partLoad(to));
@@ -162,34 +113,28 @@ private:
       return false;
     }
     ASSERT(!_blockPQ.empty());
-    PartitionID to = _blockPQ.top();
-    /* TODO: try tie breaker block load here <19-04-22, @noahares> */
-    if (_context.initial_partitioning.preassign_nodes &&
-        _part_loads.topKey() > _part_loads.keyOfSecond() &&
-        _blockPQ.keyOfSecond() == 0) {
-      to = _block_distrib(_g);
-      while (_toPQs[to].empty() || _disabled_blocks[to]) {
-        to = (to + 1) % _context.partition.k;
-      }
-    }
+    const PartitionID to = _blockPQ.top();
     ASSERT(!_toPQs[to].empty());
     const HypernodeID u = _toPQs[to].top();
-    const Gain gain = -_blockPQ.topKey();
+    const Gain gain = -_blockPQ.topKey().first;
     m.node = u;
     m.from = phg.partID(u);
     m.to = to;
     m.gain = gain;
-    for (PartitionID i = 0; i < _context.partition.k; ++i) {
-      if (_toPQs[i].contains(u)) {
-        _toPQs[i].remove(u);
-      }
-    }
+    _toPQs[to].deleteTop();
     return true;
   }
 
-  size_t chooseRandomIndex(const size_t num_elements) {
-    std::uniform_int_distribution<> distrib(0, num_elements - 1);
-    return distrib(_g);
+  void initBlockPQ(const PartitionedHypergraph &phg) {
+    ASSERT(_blockPQ.empty());
+    for (PartitionID i = 0; i < _context.partition.k; ++i) {
+      _part_loads.insert(i, phg.partLoad(i));
+    }
+    for (PartitionID i = 0; i < _context.partition.k; ++i) {
+      if (!_toPQs[i].empty()) {
+        _blockPQ.insert(i, blockGain(phg, i));
+      }
+    }
   }
 
   bool updatePQs(const PartitionedHypergraph &phg) {
@@ -209,45 +154,16 @@ private:
     }
   }
 
-  // Review Note: if not bipartitioning and code is too slow, calculate gain to all blocks at the same time using connectivity set
-  Gain computeGainForInvalidFrom(const PartitionedHypergraph &phg,
-                                 const HypernodeID u, const PartitionID to) {
-    Gain penalty = 0;
-    for (const auto &he : phg.incidentEdges(u)) {
-      const HyperedgeWeight pin_count_in_to = phg.pinCountInPart(he, to);
-      if (pin_count_in_to == 0) {
-        penalty += phg.edgeWeight(he);
-      }
-    }
-    penalty += phg.weightOfDisabledEdges(u);
-    return penalty;
-  }
-
-  Gain computeGainForValidFrom(const PartitionedHypergraph &phg,
-                                 const HypernodeID u, const PartitionID from, const PartitionID to) {
-    Gain penalty = 0;
-    for (const auto &he : phg.incidentEdges(u)) {
-      const HyperedgeWeight pin_count_in_to = phg.pinCountInPart(he, to);
-      const HyperedgeWeight pin_count_in_from = phg.pinCountInPart(he, from);
-      if (pin_count_in_to == 0) {
-        penalty += phg.edgeWeight(he);
-      }
-      if (pin_count_in_from == 1) {
-        penalty -= phg.edgeWeight(he);
-      }
-    }
-    penalty += phg.weightOfDisabledEdges(u);
-    return penalty;
-  }
-
-  Gain blockGain(const PartitionedHypergraph& phg, const PartitionID p) {
+  std::pair<Gain, size_t> blockGain(const PartitionedHypergraph& phg, const PartitionID p) {
+    Gain gain = 0;
     if (_context.initial_partitioning.use_judicious_increase) {
-      return std::max(phg.partLoad(p) + _toPQs[p].topKey() - _part_loads.topKey(), 0);
+      gain = std::max(phg.partLoad(p) + _toPQs[p].topKey().first - _part_loads.topKey(), 0);
     } else if (_context.initial_partitioning.use_block_load_only) {
-      return phg.partLoad(p);
+      gain = phg.partLoad(p);
     } else {
-      return _toPQs[p].topKey();
+      gain = _toPQs[p].topKey().first;
     }
+    return std::make_pair(gain, _toPQs[p].topKey().second);
   }
 
   const Context &_context;
@@ -257,7 +173,6 @@ private:
   vec<bool> _disabled_blocks;
   size_t _num_disabled_blocks = 0;
   std::mt19937 _g;
-  std::uniform_int_distribution<> _block_distrib;
   GreedyJudiciousInitialPartitionerStats& _stats;
 };
 } // namespace mt_kahypar

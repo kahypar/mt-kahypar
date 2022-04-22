@@ -44,13 +44,12 @@ public:
 
   void initialPartition() {
     _phg.resetPartition();
-    for (const HypernodeID &hn : _phg.nodes()) {
-      if (_preassign_nodes) {
+    if (_preassign_nodes) {
+      for (const HypernodeID &hn : _phg.nodes()) {
         _phg.setNodePart(hn, _default_part);
       }
-      _pq.insert(_phg, hn);
     }
-    _pq.initBlockPQ(_phg);
+    _pq.init(_phg, _default_part);
 
     Move move;
 
@@ -83,7 +82,7 @@ public:
         }
       }
     };
-    while (_pq.getNextMove(_phg, move)) {
+    while (_pq.getNextMove(_phg, move, _default_part)) {
       ASSERT(move.from == _default_part);
       if (_preassign_nodes) {
         _phg.changeNodePart(move.node, move.from, move.to, delta_func);
