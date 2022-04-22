@@ -523,11 +523,7 @@ namespace mt_kahypar {
             ("i-judicious-use-block-load-only",
              po::value<bool>(&context.initial_partitioning.use_block_load_only)->value_name(
                      "<bool>")->default_value(false),
-             "If true, prefer nodes of lowest load block for initial partitioning")
-            ("i-judicious-max-nodes-for-random-selection",
-             po::value<size_t>(&context.initial_partitioning.max_nodes_for_random_selection)->value_name(
-                     "<size_t>")->default_value(100),
-             "Maximum number of nodes to choose from for random selection");
+             "If true, prefer nodes of lowest load block for initial partitioning");
     options.add(createRefinementOptionsDescription(context, num_columns, true));
     return options;
   }
