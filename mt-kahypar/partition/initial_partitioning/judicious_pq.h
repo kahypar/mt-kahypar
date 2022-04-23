@@ -59,8 +59,14 @@ public:
         _stats(stats) { }
 
   void init(const PartitionedHypergraph& phg, const PartitionID default_part) {
+    vec<Gain> penalties(phg.initialNumNodes(), 0);
+    for (const auto& he : phg.edges()) {
+      for (const auto& v : phg.pins(he)) {
+        penalties[v] += phg.edgeWeight(he);
+      }
+    }
     for (const auto &v : phg.nodes()) {
-      const Gain penalty = phg.nodeDegree(v) + phg.weightOfDisabledEdges(v);
+      const Gain penalty = penalties[v] + phg.weightOfDisabledEdges(v);
       const size_t tag = _context.initial_partitioning.random_selection ? _g() : penalty;
       for (PartitionID i = 0; i < _context.partition.k; ++i) {
         if (i == default_part)
@@ -99,6 +105,13 @@ public:
       _part_loads.adjustKey(from, phg.partLoad(from));
     }
     const HyperedgeWeight judicious_load_after = _part_loads.topKey();
+    ASSERT([&]() {
+      HyperedgeWeight max_load = 0;
+      for (PartitionID i = 0; i < _context.partition.k; ++i) {
+        max_load = std::max(max_load, phg.partLoad(i));
+      }
+      return max_load == _part_loads.topKey();
+    }());
     _stats.gain_sequence.push_back(judicious_load_before - judicious_load_after);
   }
 
@@ -116,7 +129,7 @@ private:
     const PartitionID to = _blockPQ.top();
     ASSERT(!_toPQs[to].empty());
     const HypernodeID u = _toPQs[to].top();
-    const Gain gain = -_blockPQ.topKey().first;
+    const Gain gain = _context.initial_partitioning.use_judicious_increase ? -_blockPQ.topKey().first : std::min(_part_loads.topKey() - (phg.partLoad(to) + _toPQs[to].topKey().first), 0);
     m.node = u;
     m.from = phg.partID(u);
     m.to = to;

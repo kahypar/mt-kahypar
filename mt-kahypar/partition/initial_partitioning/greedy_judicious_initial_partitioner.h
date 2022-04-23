@@ -61,6 +61,7 @@ public:
       // situations.
       if (_preassign_nodes && pin_count_in_from_part_after == 1) {
         for (HypernodeID v : _phg.pins(he)) {
+          // being in _default_part means the node is unassigned if _preassign_nodes == false
           if (_phg.partID(v) == _default_part) {
             _pq.increaseGain(_phg, v, he, move.to);
           }
@@ -68,14 +69,6 @@ public:
       }
       if (pin_count_in_to_part_after == 1) {
         for (HypernodeID v : _phg.pins(he)) {
-          // being in _default_part means the node is unassigned if _preassign_nodes == false
-          if (_phg.partID(v) == _default_part) {
-            _pq.decreaseGain(_phg, v, he, move.to);
-          }
-        }
-      } else if (pin_count_in_to_part_after == 2) {
-        for (HypernodeID v : _phg.pins(he)) {
-          // being in _default_part means the node is unassigned if _preassign_nodes == false
           if (_phg.partID(v) == _default_part) {
             _pq.increaseGain(_phg, v, he, move.to);
           }
@@ -99,6 +92,8 @@ public:
       }
       _pq.updateJudiciousLoad(_phg, move.from, move.to);
       _stats.num_moved_nodes++;
+      ASSERT(_context.initial_partitioning.preassign_nodes ||
+             _stats.gain_sequence.back() == move.gain);
     }
     ASSERT(std::all_of(
         _phg.nodes().begin(), _phg.nodes().end(),
@@ -110,7 +105,7 @@ private:
   const Context _context;
   JudiciousPQ _pq;
   PartitionID _default_part;
-  const bool _preassign_nodes = false;
+  const bool _preassign_nodes;
   GreedyJudiciousInitialPartitionerStats& _stats;
 };
 } // namespace mt_kahypar
