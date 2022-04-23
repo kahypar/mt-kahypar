@@ -30,10 +30,13 @@ class GreedyJudiciousInitialPartitioner {
   static constexpr bool debug = false;
 
 public:
-  GreedyJudiciousInitialPartitioner(PartitionedHypergraph &phg,
-                                    const Context &context, const size_t seed, GreedyJudiciousInitialPartitionerStats& stats)
-      : _phg(phg), _context(context), _pq(context, phg.initialNumNodes(), seed, stats),
-        _preassign_nodes(context.initial_partitioning.preassign_nodes), _stats(stats) {
+  GreedyJudiciousInitialPartitioner(
+      PartitionedHypergraph &phg, const Context &context, const size_t seed,
+      GreedyJudiciousInitialPartitionerStats &stats)
+      : _phg(phg), _context(context),
+        _pq(context, phg.initialNumNodes(), seed, stats),
+        _preassign_nodes(context.initial_partitioning.preassign_nodes),
+        _stats(stats) {
     _default_part = _preassign_nodes ? 0 : -1;
   }
 
@@ -61,7 +64,8 @@ public:
       // situations.
       if (_preassign_nodes && pin_count_in_from_part_after == 1) {
         for (HypernodeID v : _phg.pins(he)) {
-          // being in _default_part means the node is unassigned if _preassign_nodes == false
+          // being in _default_part means the node is unassigned if
+          // _preassign_nodes == false
           if (_phg.partID(v) == _default_part) {
             _pq.increaseGain(_phg, v, he, move.to);
           }
@@ -106,6 +110,6 @@ private:
   JudiciousPQ _pq;
   PartitionID _default_part;
   const bool _preassign_nodes;
-  GreedyJudiciousInitialPartitionerStats& _stats;
+  GreedyJudiciousInitialPartitionerStats &_stats;
 };
 } // namespace mt_kahypar

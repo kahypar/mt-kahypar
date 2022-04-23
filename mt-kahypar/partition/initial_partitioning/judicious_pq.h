@@ -26,48 +26,50 @@
 
 namespace mt_kahypar {
 
-  static constexpr bool debug = true;
+static constexpr bool debug = false;
 
-  struct GreedyJudiciousInitialPartitionerStats {
-    size_t num_moved_nodes = 0;
-    vec<Gain> gain_sequence;
+struct GreedyJudiciousInitialPartitionerStats {
+  size_t num_moved_nodes = 0;
+  vec<Gain> gain_sequence;
 
-    void print() {
-      if (!debug) {
-        return;
-      }
-      ASSERT(num_moved_nodes == gain_sequence.size());
-      LOG << V(num_moved_nodes);
-      for (const auto i : gain_sequence) {
-        LLOG << i;
-      }
+  void print() {
+    if (!debug) {
+      return;
     }
-  };
+    ASSERT(num_moved_nodes == gain_sequence.size());
+    LOG << V(num_moved_nodes);
+    for (const auto i : gain_sequence) {
+      LLOG << i;
+    }
+  }
+};
 
 class JudiciousPQ final {
 public:
-  using PriorityQueue = ds::ExclusiveHandleHeap<
-      ds::Heap<std::pair<HypernodeWeight, size_t>, PartitionID, std::greater<>>>;
+  using PriorityQueue =
+      ds::ExclusiveHandleHeap<ds::Heap<std::pair<HypernodeWeight, size_t>,
+                                       PartitionID, std::greater<>>>;
 
-  explicit JudiciousPQ(const Context &context, const HypernodeID num_nodes, const size_t seed, GreedyJudiciousInitialPartitionerStats& stats)
+  explicit JudiciousPQ(const Context &context, const HypernodeID num_nodes,
+                       const size_t seed,
+                       GreedyJudiciousInitialPartitionerStats &stats)
       : _context(context), _toPQs(static_cast<size_t>(context.partition.k),
                                   PriorityQueue(num_nodes)),
         _blockPQ(static_cast<size_t>(context.partition.k)),
         _part_loads(static_cast<size_t>(context.partition.k)),
-        _disabled_blocks(context.partition.k, false),
-        _g(seed),
-        _stats(stats) { }
+        _disabled_blocks(context.partition.k, false), _g(seed), _stats(stats) {}
 
-  void init(const PartitionedHypergraph& phg, const PartitionID default_part) {
+  void init(const PartitionedHypergraph &phg, const PartitionID default_part) {
     vec<Gain> penalties(phg.initialNumNodes(), 0);
-    for (const auto& he : phg.edges()) {
-      for (const auto& v : phg.pins(he)) {
+    for (const auto &he : phg.edges()) {
+      for (const auto &v : phg.pins(he)) {
         penalties[v] += phg.edgeWeight(he);
       }
     }
     for (const auto &v : phg.nodes()) {
       const Gain penalty = penalties[v] + phg.weightOfDisabledEdges(v);
-      const size_t tag = _context.initial_partitioning.random_selection ? _g() : penalty;
+      const size_t tag =
+          _context.initial_partitioning.random_selection ? _g() : penalty;
       for (PartitionID i = 0; i < _context.partition.k; ++i) {
         if (i == default_part)
           continue;
@@ -78,18 +80,21 @@ public:
   }
 
   void increaseGain(const PartitionedHypergraph &phg, const HypernodeID v,
-                  const HyperedgeID he, const PartitionID to) {
+                    const HyperedgeID he, const PartitionID to) {
     auto key = _toPQs[to].keyOf(v);
-    _toPQs[to].increaseKey(v, std::make_pair(key.first - phg.edgeWeight(he), key.second));
+    _toPQs[to].increaseKey(
+        v, std::make_pair(key.first - phg.edgeWeight(he), key.second));
   }
 
   void decreaseGain(const PartitionedHypergraph &phg, const HypernodeID v,
-                  const HyperedgeID he, const PartitionID to) {
+                    const HyperedgeID he, const PartitionID to) {
     auto key = _toPQs[to].keyOf(v);
-    _toPQs[to].decreaseKey(v, std::make_pair(key.first + phg.edgeWeight(he), key.second));
+    _toPQs[to].decreaseKey(
+        v, std::make_pair(key.first + phg.edgeWeight(he), key.second));
   }
 
-  bool getNextMove(const PartitionedHypergraph& phg, Move &move, const PartitionID default_part) {
+  bool getNextMove(const PartitionedHypergraph &phg, Move &move,
+                   const PartitionID default_part) {
     while (findNextMove(phg, move)) {
       if (phg.partID(move.node) == default_part) {
         return true;
@@ -98,7 +103,8 @@ public:
     return false;
   }
 
-  void updateJudiciousLoad(const PartitionedHypergraph& phg, const PartitionID from, const PartitionID to) {
+  void updateJudiciousLoad(const PartitionedHypergraph &phg,
+                           const PartitionID from, const PartitionID to) {
     const HyperedgeWeight judicious_load_before = _part_loads.topKey();
     _part_loads.adjustKey(to, phg.partLoad(to));
     if (from != kInvalidPartition) {
@@ -112,7 +118,8 @@ public:
       }
       return max_load == _part_loads.topKey();
     }());
-    _stats.gain_sequence.push_back(judicious_load_before - judicious_load_after);
+    _stats.gain_sequence.push_back(judicious_load_before -
+                                   judicious_load_after);
   }
 
   void disableBlock(const PartitionID p) {
@@ -129,7 +136,12 @@ private:
     const PartitionID to = _blockPQ.top();
     ASSERT(!_toPQs[to].empty());
     const HypernodeID u = _toPQs[to].top();
-    const Gain gain = _context.initial_partitioning.use_judicious_increase ? -_blockPQ.topKey().first : std::min(_part_loads.topKey() - (phg.partLoad(to) + _toPQs[to].topKey().first), 0);
+    const Gain gain =
+        _context.initial_partitioning.use_judicious_increase
+            ? -_blockPQ.topKey().first
+            : std::min(_part_loads.topKey() -
+                           (phg.partLoad(to) + _toPQs[to].topKey().first),
+                       0);
     m.node = u;
     m.from = phg.partID(u);
     m.to = to;
@@ -154,8 +166,9 @@ private:
     for (PartitionID i = 0; i < _context.partition.k; ++i) {
       updateOrRemoveToPQFromBlocks(i, phg);
     }
-    return !_blockPQ.empty()
-      && _num_disabled_blocks < static_cast<size_t>(_context.partition.k + 1 / 2);
+    return !_blockPQ.empty() &&
+           _num_disabled_blocks <
+               static_cast<size_t>(_context.partition.k + 1 / 2);
   }
 
   void updateOrRemoveToPQFromBlocks(const PartitionID i,
@@ -167,10 +180,12 @@ private:
     }
   }
 
-  std::pair<Gain, size_t> blockGain(const PartitionedHypergraph& phg, const PartitionID p) {
+  std::pair<Gain, size_t> blockGain(const PartitionedHypergraph &phg,
+                                    const PartitionID p) {
     Gain gain = 0;
     if (_context.initial_partitioning.use_judicious_increase) {
-      gain = std::max(phg.partLoad(p) + _toPQs[p].topKey().first - _part_loads.topKey(), 0);
+      gain = std::max(
+          phg.partLoad(p) + _toPQs[p].topKey().first - _part_loads.topKey(), 0);
     } else if (_context.initial_partitioning.use_block_load_only) {
       gain = phg.partLoad(p);
     } else {
@@ -182,10 +197,11 @@ private:
   const Context &_context;
   vec<PriorityQueue> _toPQs;
   PriorityQueue _blockPQ;
-  ds::ExclusiveHandleHeap<ds::MaxHeap<HypernodeWeight, PartitionID>> _part_loads;
+  ds::ExclusiveHandleHeap<ds::MaxHeap<HypernodeWeight, PartitionID>>
+      _part_loads;
   vec<bool> _disabled_blocks;
   size_t _num_disabled_blocks = 0;
   std::mt19937 _g;
-  GreedyJudiciousInitialPartitionerStats& _stats;
+  GreedyJudiciousInitialPartitionerStats &_stats;
 };
 } // namespace mt_kahypar
