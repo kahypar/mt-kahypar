@@ -358,7 +358,8 @@ namespace mt_kahypar::io {
     for ( PartitionID block_1 = 0; block_1 < k; ++block_1 ) {
       std::cout << std::right << std::setw(column_width) << block_1;
       for ( PartitionID block_2 = 0; block_2 < k; ++block_2 ) {
-        std::cout << std::right << std::setw(column_width) << cut_matrix[block_1][block_2].load();
+        std::cout << std::right << std::setw(column_width)
+                  << (Hypergraph::is_graph ? cut_matrix[block_1][block_2].load() / 2 : cut_matrix[block_1][block_2].load());
       }
       std::cout << std::endl;
     }
@@ -437,7 +438,7 @@ namespace mt_kahypar::io {
       HyperedgeWeight component_weight = 0;
       std::vector<HyperedgeID> s;
       s.push_back(he);
-      visited_he[he] = true;
+      visited_he[hypergraph.uniqueEdgeID(he)] = true;
 
       while ( !s.empty() ) {
         const HyperedgeID e = s.back();
@@ -446,9 +447,9 @@ namespace mt_kahypar::io {
 
         for ( const HypernodeID& pin : hypergraph.pins(e) ) {
           for ( const HyperedgeID& tmp_e : hypergraph.incidentEdges(pin) ) {
-            if ( !visited_he[tmp_e] && hypergraph.connectivity(tmp_e) > 1 ) {
+            if ( !visited_he[hypergraph.uniqueEdgeID(tmp_e)] && hypergraph.connectivity(tmp_e) > 1 ) {
               s.push_back(tmp_e);
-              visited_he[tmp_e] = true;
+              visited_he[hypergraph.uniqueEdgeID(tmp_e)] = true;
             }
           }
         }
@@ -458,7 +459,7 @@ namespace mt_kahypar::io {
     };
 
     for ( const HyperedgeID& he : hypergraph.edges() ) {
-      if ( hypergraph.connectivity(he) > 1 && !visited_he[he] ) {
+      if ( hypergraph.connectivity(he) > 1 && !visited_he[hypergraph.uniqueEdgeID(he)] ) {
         connected_cut_hyperedges.push_back(analyse_component(he));
       }
     }
