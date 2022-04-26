@@ -78,7 +78,7 @@ class UncoarsenerBase {
     m.imbalance = metrics::imbalance(phg, _context);
 
     int64_t num_nodes = phg.initialNumNodes();
-    int64_t num_edges = phg.initialNumEdges();
+    int64_t num_edges = Hypergraph::is_graph ? phg.initialNumEdges() / 2 : phg.initialNumEdges();
     utils::Stats::instance().add_stat("initial_num_nodes", num_nodes);
     utils::Stats::instance().add_stat("initial_num_edges", num_edges);
     utils::Stats::instance().add_stat("initial_cut", m.cut);

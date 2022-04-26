@@ -56,6 +56,9 @@ double parallel_avg(const std::vector<T>& data, const size_t n) {
 }
 
 static inline double avgHyperedgeDegree(const Hypergraph& hypergraph) {
+    if (Hypergraph::is_graph) {
+        return 2;
+    }
     return static_cast<double>(hypergraph.initialNumPins()) / hypergraph.initialNumEdges();
 }
 

@@ -62,7 +62,7 @@ namespace mt_kahypar {
   }
 
   void configurePreprocessing(const Hypergraph& hypergraph, Context& context) {
-    const double density = static_cast<double>(hypergraph.initialNumEdges()) /
+    const double density = static_cast<double>(Hypergraph::is_graph ? hypergraph.initialNumEdges() / 2 : hypergraph.initialNumEdges()) /
                            static_cast<double>(hypergraph.initialNumNodes());
     if (context.preprocessing.community_detection.edge_weight_function == LouvainEdgeWeight::hybrid) {
       if (density < 0.75) {
