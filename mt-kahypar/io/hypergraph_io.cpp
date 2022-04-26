@@ -162,7 +162,8 @@ namespace mt_kahypar::io {
                              const HyperedgeID num_hyperedges,
                              const mt_kahypar::Type type,
                              HyperedgeVector& hyperedges,
-                             parallel::scalable_vector<HyperedgeWeight>& hyperedges_weight) {
+                             parallel::scalable_vector<HyperedgeWeight>& hyperedges_weight,
+                             const bool remove_single_pin_hes) {
     HyperedgeID num_removed_single_pin_hyperedges = 0;
     const bool has_hyperedge_weights = type == mt_kahypar::Type::EdgeWeights ||
                                        type == mt_kahypar::Type::EdgeAndNodeWeights ?
@@ -187,7 +188,7 @@ namespace mt_kahypar::io {
         }
 
         ASSERT(mapped_file[pos - 1] == '\n');
-        if ( !isSinglePinHyperedge(mapped_file, pos, length, has_hyperedge_weights) ) {
+        if ( !remove_single_pin_hes || !isSinglePinHyperedge(mapped_file, pos, length, has_hyperedge_weights) ) {
           ++current_range_num_hyperedges;
         } else {
           ++num_removed_single_pin_hyperedges;
@@ -239,7 +240,7 @@ namespace mt_kahypar::io {
           ASSERT(current_pos < current_end);
         }
 
-        if ( !isSinglePinHyperedge(mapped_file, current_pos, current_end, has_hyperedge_weights) ) {
+        if ( !remove_single_pin_hes || !isSinglePinHyperedge(mapped_file, current_pos, current_end, has_hyperedge_weights) ) {
           ASSERT(current_id < hyperedges.size());
           if ( has_hyperedge_weights ) {
             hyperedges_weight[current_id] = read_number(mapped_file, current_pos, current_end);
@@ -293,7 +294,8 @@ namespace mt_kahypar::io {
                           HyperedgeID& num_removed_single_pin_hyperedges,
                           HyperedgeVector& hyperedges,
                           parallel::scalable_vector<HyperedgeWeight>& hyperedges_weight,
-                          parallel::scalable_vector<HypernodeWeight>& hypernodes_weight) {
+                          parallel::scalable_vector<HypernodeWeight>& hypernodes_weight,
+                          const bool remove_single_pin_hes) {
     ASSERT(!filename.empty(), "No filename for hypergraph file specified");
     int fd = open_file(filename);
     const size_t length = file_size(fd);
@@ -306,7 +308,8 @@ namespace mt_kahypar::io {
 
     // Read Hyperedges
     num_removed_single_pin_hyperedges =
-            readHyperedges(mapped_file, pos, length, num_hyperedges, type, hyperedges, hyperedges_weight);
+            readHyperedges(mapped_file, pos, length, num_hyperedges,
+              type, hyperedges, hyperedges_weight, remove_single_pin_hes);
     num_hyperedges -= num_removed_single_pin_hyperedges;
 
     // Read Hypernode Weights
@@ -318,7 +321,8 @@ namespace mt_kahypar::io {
   }
 
   Hypergraph readHypergraphFile(const std::string& filename,
-                                const bool stable_construction_of_incident_edges) {
+                                const bool stable_construction_of_incident_edges,
+                                const bool remove_single_pin_hes) {
     // Read Hypergraph File
     HyperedgeID num_hyperedges = 0;
     HypernodeID num_hypernodes = 0;
@@ -328,7 +332,8 @@ namespace mt_kahypar::io {
     parallel::scalable_vector<HypernodeWeight> hypernodes_weight;
     mt_kahypar::utils::Timer::instance().start_timer("read_input", "Read Hypergraph File");
     readHypergraphFile(filename, num_hyperedges, num_hypernodes,
-                       num_removed_single_pin_hyperedges, hyperedges, hyperedges_weight, hypernodes_weight);
+                       num_removed_single_pin_hyperedges, hyperedges,
+                       hyperedges_weight, hypernodes_weight, remove_single_pin_hes);
     mt_kahypar::utils::Timer::instance().stop_timer("read_input");
 
     // Construct Hypergraph
@@ -613,9 +618,10 @@ namespace mt_kahypar::io {
 
   Hypergraph readInputFile(const std::string& filename,
                            const FileFormat format,
-                           const bool stable_construction_of_incident_edges) {
+                           const bool stable_construction_of_incident_edges,
+                           const bool remove_single_pin_hes) {
     switch (format) {
-      case FileFormat::hMetis: return readHypergraphFile(filename, stable_construction_of_incident_edges);
+      case FileFormat::hMetis: return readHypergraphFile(filename, stable_construction_of_incident_edges, remove_single_pin_hes);
       case FileFormat::Metis: return readMetisFile(filename, stable_construction_of_incident_edges);
         // omit default case to trigger compiler warning for missing cases
     }
