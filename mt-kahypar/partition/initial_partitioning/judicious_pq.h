@@ -37,7 +37,7 @@ struct GreedyJudiciousInitialPartitionerStats {
       return;
     }
     ASSERT(num_moved_nodes == gain_sequence.size());
-    LOG << V(num_moved_nodes);
+    LOG << "gain";
     for (const auto i : gain_sequence) {
       LLOG << i;
     }
@@ -95,6 +95,9 @@ public:
 
   bool getNextMove(const PartitionedHypergraph &phg, Move &move,
                    const PartitionID default_part) {
+    if (!updatePQs(phg)) {
+      return false;
+    }
     while (findNextMove(phg, move)) {
       if (phg.partID(move.node) == default_part) {
         return true;
@@ -129,11 +132,12 @@ public:
 
 private:
   bool findNextMove(const PartitionedHypergraph &phg, Move &m) {
-    if (!updatePQs(phg)) {
+    if (_blockPQ.empty()) {
       return false;
     }
     ASSERT(!_blockPQ.empty());
     const PartitionID to = _blockPQ.top();
+    ASSERT(_blockPQ.topKey() == blockGain(phg, to));
     ASSERT(!_toPQs[to].empty());
     const HypernodeID u = _toPQs[to].top();
     const Gain gain =
@@ -147,6 +151,7 @@ private:
     m.to = to;
     m.gain = gain;
     _toPQs[to].deleteTop();
+    updateOrRemoveToPQFromBlocks(to, phg);
     return true;
   }
 
@@ -174,7 +179,7 @@ private:
   void updateOrRemoveToPQFromBlocks(const PartitionID i,
                                     const PartitionedHypergraph &phg) {
     if (!_toPQs[i].empty() && !_disabled_blocks[i]) {
-      _blockPQ.insertOrAdjustKey(i, blockGain(phg, i));
+      _blockPQ.adjustKey(i, blockGain(phg, i));
     } else if (_blockPQ.contains(i)) {
       _blockPQ.remove(i);
     }

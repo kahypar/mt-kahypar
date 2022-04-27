@@ -79,23 +79,27 @@ public:
         }
       }
     };
-    while (_pq.getNextMove(_phg, move, _default_part)) {
-      ASSERT(move.from == _default_part);
-      if (_preassign_nodes) {
-        _phg.changeNodePart(move.node, move.from, move.to, delta_func);
-      } else {
-        _phg.setNodePart(move.node, move.to);
-        for (const auto he : _phg.incidentEdges(move.node)) {
-          delta_func(he, 0, 0, 0, _phg.pinCountInPart(he, move.to));
-        }
-      }
 
+    auto success_func = [&]() {
       if (_preassign_nodes &&
           _phg.partLoad(_default_part) <= _phg.partLoad(move.to)) {
         _pq.disableBlock(move.to);
       }
       _pq.updateJudiciousLoad(_phg, move.from, move.to);
       _stats.num_moved_nodes++;
+    };
+    while (_pq.getNextMove(_phg, move, _default_part)) {
+      ASSERT(move.from == _default_part);
+      if (_preassign_nodes) {
+        _phg.changeNodePart(move.node, move.from, move.to, std::numeric_limits<HyperedgeWeight>::max(), success_func, delta_func);
+      } else {
+        _phg.setNodePart(move.node, move.to);
+        success_func();
+        for (const auto he : _phg.incidentEdges(move.node)) {
+          delta_func(he, 0, 0, 0, _phg.pinCountInPart(he, move.to));
+        }
+      }
+
       ASSERT(_context.initial_partitioning.preassign_nodes ||
              _stats.gain_sequence.back() == move.gain);
     }
