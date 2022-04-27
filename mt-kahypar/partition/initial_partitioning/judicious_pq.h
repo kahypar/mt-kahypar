@@ -60,6 +60,7 @@ public:
         _disabled_blocks(context.partition.k, false), _g(seed), _stats(stats) {}
 
   void init(const PartitionedHypergraph &phg, const PartitionID default_part) {
+    HighResClockTimepoint refinement_start = std::chrono::high_resolution_clock::now();
     vec<Gain> penalties(phg.initialNumNodes(), 0);
     for (const auto &he : phg.edges()) {
       for (const auto &v : phg.pins(he)) {
@@ -77,6 +78,9 @@ public:
       }
     }
     initBlockPQ(phg);
+    HighResClockTimepoint refinement_stop = std::chrono::high_resolution_clock::now();
+    double init_time = std::chrono::duration<double>(refinement_stop - refinement_start).count();
+    DBG << V(init_time);
   }
 
   void increaseGain(const PartitionedHypergraph &phg, const HypernodeID v,
@@ -93,17 +97,11 @@ public:
         v, std::make_pair(key.first + phg.edgeWeight(he), key.second));
   }
 
-  bool getNextMove(const PartitionedHypergraph &phg, Move &move,
-                   const PartitionID default_part) {
+  bool getNextMove(const PartitionedHypergraph &phg, Move &move) {
     if (!updatePQs(phg)) {
       return false;
     }
-    while (findNextMove(phg, move)) {
-      if (phg.partID(move.node) == default_part) {
-        return true;
-      }
-    }
-    return false;
+    return findNextMove(phg, move);
   }
 
   void updateJudiciousLoad(const PartitionedHypergraph &phg,
@@ -132,9 +130,6 @@ public:
 
 private:
   bool findNextMove(const PartitionedHypergraph &phg, Move &m) {
-    if (_blockPQ.empty()) {
-      return false;
-    }
     ASSERT(!_blockPQ.empty());
     const PartitionID to = _blockPQ.top();
     ASSERT(_blockPQ.topKey() == blockGain(phg, to));
@@ -151,6 +146,11 @@ private:
     m.to = to;
     m.gain = gain;
     _toPQs[to].deleteTop();
+    for (PartitionID i = 0; i < _context.partition.k; ++i) {
+      if (i != to) {
+        _toPQs[i].remove(u);
+      }
+    }
     updateOrRemoveToPQFromBlocks(to, phg);
     return true;
   }

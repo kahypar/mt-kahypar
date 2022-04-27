@@ -88,7 +88,7 @@ public:
       _pq.updateJudiciousLoad(_phg, move.from, move.to);
       _stats.num_moved_nodes++;
     };
-    while (_pq.getNextMove(_phg, move, _default_part)) {
+    while (_pq.getNextMove(_phg, move)) {
       ASSERT(move.from == _default_part);
       if (_preassign_nodes) {
         _phg.changeNodePart(move.node, move.from, move.to, std::numeric_limits<HyperedgeWeight>::max(), success_func, delta_func);
