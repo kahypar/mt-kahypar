@@ -433,12 +433,12 @@ namespace mt_kahypar {
             ((initial_partitioning ? "i-r-judicious-part-load-margin" : "r-judicious-part-load-margin"),
              po::value<double>((!initial_partitioning ? &context.refinement.judicious.part_load_margin :
                               &context.initial_partitioning.refinement.judicious.part_load_margin))->value_name(
-                                "<double>")->default_value(1.03),
+                                "<double>")->default_value(1.01),
              "If a block that received a node becomes heavier (load) than the currently heaviest block times this factor, choose another block to move nodes from.")
             ((initial_partitioning ? "i-r-judicious-min-load-ratio" : "r-judicious-min-load-ratio"),
              po::value<double>((!initial_partitioning ? &context.refinement.judicious.min_load_ratio :
                               &context.initial_partitioning.refinement.judicious.min_load_ratio))->value_name(
-                                "<double>")->default_value(1.05),
+                                "<double>")->default_value(1.01),
              "If the load ratio between the heaviest and lightest block becomes less than this value, exit the refinement step.")
             ((initial_partitioning ? "i-r-judicious-abort-factor" : "r-judicious-abort-factor"),
              po::value<double>((!initial_partitioning ? &context.refinement.judicious.abort_factor :
