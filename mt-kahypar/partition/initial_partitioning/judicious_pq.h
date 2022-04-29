@@ -57,18 +57,30 @@ public:
                                   PriorityQueue(num_nodes)),
         _blockPQ(static_cast<size_t>(context.partition.k)),
         _part_loads(static_cast<size_t>(context.partition.k)),
-        _disabled_blocks(context.partition.k, false), _g(seed), _stats(stats) {}
+        _disabled_blocks(context.partition.k, false), _g(seed), _stats(stats) {
+          if (_context.initial_partitioning.preassign_nodes) {
+            _move_from_benefit.resize(num_nodes, 0);
+          }
+        }
 
   void init(const PartitionedHypergraph &phg, const PartitionID default_part) {
     HighResClockTimepoint refinement_start = std::chrono::high_resolution_clock::now();
     vec<Gain> penalties(phg.initialNumNodes(), 0);
     for (const auto &he : phg.edges()) {
+      if (_context.initial_partitioning.preassign_nodes && phg.edgeSize(he) == 1) {
+        for (const auto &v : phg.pins(he)) {
+          _move_from_benefit[v] += phg.edgeWeight(he);
+        }
+      }
       for (const auto &v : phg.pins(he)) {
         penalties[v] += phg.edgeWeight(he);
       }
     }
     for (const auto &v : phg.nodes()) {
       const Gain penalty = penalties[v] + phg.weightOfDisabledEdges(v);
+      if (_context.initial_partitioning.preassign_nodes) {
+        _move_from_benefit[v] += phg.weightOfDisabledEdges(v);
+      }
       const size_t tag =
           _context.initial_partitioning.random_selection ? _g() : penalty;
       for (PartitionID i = 0; i < _context.partition.k; ++i) {
@@ -90,11 +102,10 @@ public:
         v, std::make_pair(key.first - phg.edgeWeight(he), key.second));
   }
 
-  void decreaseGain(const PartitionedHypergraph &phg, const HypernodeID v,
-                    const HyperedgeID he, const PartitionID to) {
-    auto key = _toPQs[to].keyOf(v);
-    _toPQs[to].decreaseKey(
-        v, std::make_pair(key.first + phg.edgeWeight(he), key.second));
+  void increaseBenefit(const PartitionedHypergraph &phg, const HypernodeID v,
+                    const HyperedgeID he) {
+    ASSERT(_context.initial_partitioning.preassign_nodes);
+    _move_from_benefit[v] += phg.edgeWeight(he);
   }
 
   bool getNextMove(const PartitionedHypergraph &phg, Move &move) {
@@ -133,21 +144,25 @@ private:
     ASSERT(!_blockPQ.empty());
     const PartitionID to = _blockPQ.top();
     ASSERT(_blockPQ.topKey() == blockGain(phg, to));
-    ASSERT(!_toPQs[to].empty());
+    ASSERT(!_toPQs[to].empty() && !_disabled_blocks[to]);
     const HypernodeID u = _toPQs[to].top();
-    const Gain gain =
-        _context.initial_partitioning.use_judicious_increase
+    Gain gain = 0;
+    if (_context.initial_partitioning.preassign_nodes) {
+      gain = calculateGainWithPreassignment(phg, to);
+    } else {
+      gain = _context.initial_partitioning.use_judicious_increase
             ? -_blockPQ.topKey().first
             : std::min(_part_loads.topKey() -
                            (phg.partLoad(to) + _toPQs[to].topKey().first),
                        0);
+    }
     m.node = u;
     m.from = phg.partID(u);
     m.to = to;
     m.gain = gain;
     _toPQs[to].deleteTop();
     for (PartitionID i = 0; i < _context.partition.k; ++i) {
-      if (i != to) {
+      if (i != to && i != m.from) {
         _toPQs[i].remove(u);
       }
     }
@@ -189,14 +204,35 @@ private:
                                     const PartitionID p) {
     Gain gain = 0;
     if (_context.initial_partitioning.use_judicious_increase) {
-      gain = std::max(
-          phg.partLoad(p) + _toPQs[p].topKey().first - _part_loads.topKey(), 0);
+      if (_context.initial_partitioning.preassign_nodes) {
+        gain = calculateGainWithPreassignment(phg, p);
+      } else {
+        gain = std::max(
+            phg.partLoad(p) + _toPQs[p].topKey().first - _part_loads.topKey(), 0);
+      }
     } else if (_context.initial_partitioning.use_block_load_only) {
       gain = phg.partLoad(p);
     } else {
       gain = _toPQs[p].topKey().first;
     }
     return std::make_pair(gain, _toPQs[p].topKey().second);
+  }
+
+  Gain calculateGainWithPreassignment(const PartitionedHypergraph& phg, const PartitionID p) const {
+    ASSERT(_context.initial_partitioning.preassign_nodes);
+    const HyperedgeWeight load_of_first = _part_loads.topKey();
+    if (load_of_first == phg.partLoad(p)) return -_toPQs[p].topKey().first;
+    const HypernodeID u = _toPQs[p].top();
+    const PartitionID from = phg.partID(u);
+    const HyperedgeWeight from_load_after = phg.partLoad(from) - _move_from_benefit[u];
+    const HyperedgeWeight to_load_after = phg.partLoad(p) + _toPQs[p].topKey().first;
+    const HyperedgeWeight load_of_second = _part_loads.keyOfSecond();
+    if (_part_loads.top() == from) {
+       if (from_load_after > to_load_after && from_load_after > load_of_second) return _move_from_benefit[u];
+       else if (from_load_after == to_load_after && from_load_after >= load_of_second) return 0;
+       else return load_of_first - std::max(to_load_after, load_of_second);
+    }
+    else return std::min(load_of_first - to_load_after, 0);
   }
 
   const Context &_context;
@@ -206,6 +242,7 @@ private:
       _part_loads;
   vec<bool> _disabled_blocks;
   size_t _num_disabled_blocks = 0;
+  vec<HyperedgeWeight> _move_from_benefit;
   std::mt19937 _g;
   GreedyJudiciousInitialPartitionerStats &_stats;
 };

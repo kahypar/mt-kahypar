@@ -48,9 +48,13 @@ public:
   void initialPartition() {
     _phg.resetPartition();
     if (_preassign_nodes) {
+      HighResClockTimepoint assign_start = std::chrono::high_resolution_clock::now();
       for (const HypernodeID &hn : _phg.nodes()) {
         _phg.setNodePart(hn, _default_part);
       }
+      HighResClockTimepoint assign_stop = std::chrono::high_resolution_clock::now();
+      double assign_time = std::chrono::duration<double>(assign_stop - assign_start).count();
+      DBG << V(assign_time);
     }
     _pq.init(_phg, _default_part);
 
@@ -67,7 +71,7 @@ public:
           // being in _default_part means the node is unassigned if
           // _preassign_nodes == false
           if (_phg.partID(v) == _default_part) {
-            _pq.increaseGain(_phg, v, he, move.to);
+            _pq.increaseBenefit(_phg, v, he);
           }
         }
       }
@@ -85,7 +89,6 @@ public:
           _phg.partLoad(_default_part) <= _phg.partLoad(move.to)) {
         _pq.disableBlock(move.to);
       }
-      _pq.updateJudiciousLoad(_phg, move.from, move.to);
       _stats.num_moved_nodes++;
     };
     while (_pq.getNextMove(_phg, move)) {
@@ -100,8 +103,8 @@ public:
         }
       }
 
-      ASSERT(_context.initial_partitioning.preassign_nodes ||
-             _stats.gain_sequence.back() == move.gain);
+      _pq.updateJudiciousLoad(_phg, move.from, move.to);
+      ASSERT(_stats.gain_sequence.back() == move.gain);
     }
     ASSERT(std::all_of(
         _phg.nodes().begin(), _phg.nodes().end(),
