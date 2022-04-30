@@ -205,7 +205,7 @@ private:
     Gain gain = 0;
     if (_context.initial_partitioning.use_judicious_increase) {
       if (_context.initial_partitioning.preassign_nodes) {
-        gain = calculateGainWithPreassignment(phg, p);
+        gain = -calculateGainWithPreassignment(phg, p);
       } else {
         gain = std::max(
             phg.partLoad(p) + _toPQs[p].topKey().first - _part_loads.topKey(), 0);
