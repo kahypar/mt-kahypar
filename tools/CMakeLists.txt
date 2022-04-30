@@ -53,4 +53,9 @@ add_executable(BenchShuffle bench_deterministic_shuffling.cpp bench_deterministi
 set_property(TARGET BenchShuffle PROPERTY CXX_STANDARD 17)
 set_property(TARGET BenchShuffle PROPERTY CXX_STANDARD_REQUIRED ON)
 
-set(TARGETS_WANTING_ALL_SOURCES ${TARGETS_WANTING_ALL_SOURCES} EvaluateBipart EvaluatePartition VerifyPartition HgrToZoltan HypergraphStats MetisToScotch SnapToMetis GraphToHgr HgrToParkway SnapGraphToHgr PARENT_SCOPE)
+add_executable(DegreeBasedBipartition degree_based_bipartition.cc)
+target_link_libraries(DegreeBasedBipartition ${Boost_LIBRARIES})
+set_property(TARGET DegreeBasedBipartition PROPERTY CXX_STANDARD 17)
+set_property(TARGET DegreeBasedBipartition PROPERTY CXX_STANDARD_REQUIRED ON)
+
+set(TARGETS_WANTING_ALL_SOURCES ${TARGETS_WANTING_ALL_SOURCES} EvaluateBipart EvaluatePartition VerifyPartition HgrToZoltan HypergraphStats MetisToScotch SnapToMetis GraphToHgr HgrToParkway SnapGraphToHgr DegreeBasedBipartition PARENT_SCOPE)
