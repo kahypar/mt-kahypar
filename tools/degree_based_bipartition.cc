@@ -27,10 +27,13 @@
 
 #include "tbb/parallel_sort.h"
 
+#include "mt-kahypar/io/command_line_options.h"
 #include "mt-kahypar/macros.h"
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/metrics.h"
+#include "mt-kahypar/partition/multilevel.h"
+#include "mt-kahypar/partition/registries/register_memory_pool.h"
 #include "mt-kahypar/io/hypergraph_io.h"
 
 using namespace mt_kahypar;
@@ -38,32 +41,26 @@ namespace po = boost::program_options;
 
 int main(int argc, char* argv[]) {
   Context context;
+  mt_kahypar::processCommandLineInput(context, argc, argv);
+  context.partition.num_vcycles = 1;
 
-  po::options_description options("Options");
-  options.add_options()
-          ("hypergraph,h",
-           po::value<std::string>(&context.partition.graph_filename)->value_name("<string>")->required(),
-           "Hypergraph Filename")
-          ("input-file-format",
-            po::value<std::string>()->value_name("<string>")->notifier([&](const std::string& s) {
-              if (s == "hmetis") {
-                context.partition.file_format = FileFormat::hMetis;
-              } else if (s == "metis") {
-                context.partition.file_format = FileFormat::Metis;
-              }
-            }),
-            "Input file format: \n"
-            " - hmetis : hMETIS hypergraph file format \n"
-            " - metis : METIS graph file format");
-
-  po::variables_map cmd_vm;
-  po::store(po::parse_command_line(argc, argv, options), cmd_vm);
-  po::notify(cmd_vm);
+  size_t num_available_cpus = mt_kahypar::HardwareTopology::instance().num_cpus();
+  context.shared_memory.num_threads = num_available_cpus;
+  mt_kahypar::TBBInitializer::instance(context.shared_memory.num_threads);
 
   // Read Hypergraph
   Hypergraph hg = mt_kahypar::io::readInputFile(
     context.partition.graph_filename, context.partition.file_format, true, false);
   ALWAYS_ASSERT(hg.totalWeight() == static_cast<HypernodeWeight>(hg.initialNumNodes()));
+
+  mt_kahypar::register_memory_pool(hg, context);
+
+  context.partition.large_hyperedge_size_threshold = std::max(hg.initialNumNodes() *
+                                                              context.partition.large_hyperedge_size_threshold_factor, 100.0);
+  context.sanityCheck();
+  context.setupPartWeights(hg.totalWeight());
+  context.setupContractionLimit(hg.totalWeight());
+  context.setupThreadsPerFlowSearch();
 
   parallel::scalable_vector<std::pair<HypernodeID, HyperedgeID>> hns_with_degree;
   hns_with_degree.resize(hg.initialNumNodes());
@@ -84,6 +81,13 @@ int main(int argc, char* argv[]) {
   phg.initializePartition();
 
   HyperedgeWeight cut = metrics::hyperedgeCut(phg);
+
+  LOG << "";
+  LOG << "initial_cut=" << cut;
+
+  multilevel::partitionVCycle(hg, phg, context);
+
+  cut = metrics::hyperedgeCut(phg);
 
   std::string graph_name = context.partition.graph_filename.substr(
     context.partition.graph_filename.find_last_of("/") + 1);
