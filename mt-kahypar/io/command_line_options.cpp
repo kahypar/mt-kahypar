@@ -143,7 +143,13 @@ namespace mt_kahypar {
                      [&](auto) {
                              context.partition.use_individual_part_weights = true;
                      }),
-             "Use the specified individual part weights instead of epsilon.");
+             "Use the specified individual part weights instead of epsilon.")
+            ("input-stats-file",
+             po::value<std::string>(&context.input_stats_file)->value_name("<std::string>")->default_value(""),
+             "File to print distribution stats about input graph (csv format).")
+            ("coarsened-stats-file",
+             po::value<std::string>(&context.coarsened_stats_file)->value_name("<std::string>")->default_value(""),
+             "File to print distribution stats about coarsened graph (csv format).");
     return options;
   }
 

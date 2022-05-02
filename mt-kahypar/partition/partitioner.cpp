@@ -187,6 +187,10 @@ namespace mt_kahypar {
   }
 
   PartitionedHypergraph partition(Hypergraph& hypergraph, Context& context) {
+    if (context.input_stats_file != "") {
+      utils::printDistributionStatsToCSV(hypergraph, context.input_stats_file);
+    }
+
     configurePreprocessing(hypergraph, context);
     setupContext(hypergraph, context);
 

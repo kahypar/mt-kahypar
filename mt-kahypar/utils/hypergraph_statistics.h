@@ -20,6 +20,7 @@
  ******************************************************************************/
 
 #include <vector>
+#include <fstream>
 
 #include "tbb/parallel_reduce.h"
 
@@ -64,6 +65,22 @@ static inline double avgHyperedgeDegree(const Hypergraph& hypergraph) {
 
 static inline double avgHypernodeDegree(const Hypergraph& hypergraph) {
     return static_cast<double>(hypergraph.initialNumPins()) / hypergraph.initialNumNodes();
+}
+
+static void printDistributionStatsToCSV(const Hypergraph& hypergraph, const std::string& outfile) {
+    ALWAYS_ASSERT(outfile != "");
+    std::ofstream out(outfile.c_str());
+    out << "degree, node-weight, incident-edge-weight, ratio" << std::endl;
+    for (HypernodeID hn: hypergraph.nodes()) {
+        const HyperedgeID degree = hypergraph.nodeDegree(hn);
+        const HypernodeWeight node_weight = hypergraph.nodeWeight(hn);
+        HyperedgeWeight edge_weight = 0;
+        for (HyperedgeID he: hypergraph.incidentEdges(hn)) {
+            edge_weight += hypergraph.edgeWeight(he);
+        }
+        const double ratio = static_cast<double>(edge_weight) / static_cast<double>(node_weight);
+        out << degree << "," << node_weight << "," << edge_weight << "," << ratio << std::endl;
+    }
 }
 
 } // namespace utils

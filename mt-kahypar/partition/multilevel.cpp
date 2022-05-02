@@ -34,6 +34,7 @@
 #include "mt-kahypar/io/partitioning_output.h"
 #include "mt-kahypar/partition/coarsening/multilevel_uncoarsener.h"
 #include "mt-kahypar/partition/coarsening/nlevel_uncoarsener.h"
+#include "mt-kahypar/utils/hypergraph_statistics.h"
 
 namespace mt_kahypar::multilevel {
 
@@ -168,6 +169,9 @@ namespace mt_kahypar::multilevel {
         mt_kahypar::io::printHypergraphInfo(
                 coarsestHypergraph, "Coarsened Hypergraph",
                 _context.partition.show_memory_consumption);
+      }
+      if (_context.coarsened_stats_file != "") {
+        utils::printDistributionStatsToCSV(coarsestHypergraph, _context.coarsened_stats_file);
       }
 
       // ################## INITIAL PARTITIONING ##################

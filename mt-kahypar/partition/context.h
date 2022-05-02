@@ -258,6 +258,8 @@ class Context {
   kahypar::ContextType type = kahypar::ContextType::main;
 
   std::string algorithm_name = "Mt-KaHyPar";
+  std::string input_stats_file = "";
+  std::string coarsened_stats_file = "";
   mutable size_t initial_km1 = std::numeric_limits<size_t>::max();
 
   Context() { }
