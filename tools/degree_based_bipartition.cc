@@ -44,8 +44,6 @@ int main(int argc, char* argv[]) {
   mt_kahypar::processCommandLineInput(context, argc, argv);
   context.partition.num_vcycles = 1;
 
-  size_t num_available_cpus = mt_kahypar::HardwareTopology::instance().num_cpus();
-  context.shared_memory.num_threads = num_available_cpus;
   mt_kahypar::TBBInitializer::instance(context.shared_memory.num_threads);
 
   // Read Hypergraph
