@@ -247,7 +247,7 @@ namespace mt_kahypar::multilevel {
       std::mt19937 g(_context.partition.seed);
       tbb::task_group tg;
       vec<std::pair<HyperedgeWeight, vec<size_t>>> partitions(num_runs);
-      vec<GreedyJudiciousInitialPartitionerStats> stats(num_runs);
+      vec<GreedyJudiciousInitialPartitionerStats> stats(num_runs, phg.initialNumNodes());
       tbb::enumerable_thread_specific<PartitionedHypergraph> phgs([&] { return construct_phg(phg); });
       auto ip_run = [&](const size_t seed, const size_t i) {
         auto &local_phg = phgs.local();

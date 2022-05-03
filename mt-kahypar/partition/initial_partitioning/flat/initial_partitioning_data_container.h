@@ -613,7 +613,7 @@ class InitialPartitioningDataContainer {
         }
       }
 
-      GreedyJudiciousInitialPartitionerStats stats;
+      GreedyJudiciousInitialPartitionerStats stats(_partitioned_hg.initialNumNodes());
       GreedyJudiciousInitialPartitioner judicious_ip(_partitioned_hg, _context, _context.partition.seed, stats);
       judicious_ip.initialPartition();
       HyperedgeWeight judicious_load = metrics::judiciousLoad(_partitioned_hg);

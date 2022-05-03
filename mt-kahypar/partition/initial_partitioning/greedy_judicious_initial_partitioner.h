@@ -72,6 +72,9 @@ public:
           // _preassign_nodes == false
           if (_phg.partID(v) == _default_part) {
             _pq.increaseBenefit(_phg, v, he);
+            if constexpr (debug) {
+              _stats.update_hist[_phg.edgeSize(he)]++;
+            }
           }
         }
       }
@@ -79,6 +82,9 @@ public:
         for (HypernodeID v : _phg.pins(he)) {
           if (_phg.partID(v) == _default_part) {
             _pq.increaseGain(_phg, v, he, move.to);
+            if constexpr (debug) {
+              _stats.update_hist[_phg.edgeSize(he)]++;
+            }
           }
         }
       }
@@ -89,7 +95,9 @@ public:
           _phg.partLoad(_default_part) <= _phg.partLoad(move.to)) {
         _pq.disableBlock(move.to);
       }
-      _stats.num_moved_nodes++;
+      if constexpr (debug) {
+        _stats.num_moved_nodes++;
+      }
     };
     while (_pq.getNextMove(_phg, move)) {
       ASSERT(move.from == _default_part);

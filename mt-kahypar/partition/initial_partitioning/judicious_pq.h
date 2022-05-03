@@ -31,15 +31,23 @@ static constexpr bool debug = false;
 struct GreedyJudiciousInitialPartitionerStats {
   size_t num_moved_nodes = 0;
   vec<Gain> gain_sequence;
+  vec<size_t> update_hist;
+
+  GreedyJudiciousInitialPartitionerStats(const HypernodeID num_nodes)
+      : update_hist(num_nodes, 0) {}
 
   void print() {
     if (!debug) {
       return;
     }
     ASSERT(num_moved_nodes == gain_sequence.size());
+    // LOG << "gain";
+    // for (const auto i : gain_sequence) {
+    //   LLOG << i;
+    // }
     LOG << "gain";
-    for (const auto i : gain_sequence) {
-      LLOG << i;
+    for (const auto i : update_hist) {
+      LOG << i;
     }
   }
 };
@@ -48,7 +56,7 @@ class JudiciousPQ final {
 public:
   using PriorityQueue =
       ds::ExclusiveHandleHeap<ds::Heap<std::pair<HypernodeWeight, size_t>,
-                                       PartitionID, std::greater<>>>;
+                                       PartitionID, std::greater<>, 16>>;
 
   explicit JudiciousPQ(const Context &context, const HypernodeID num_nodes,
                        const size_t seed,
@@ -130,8 +138,10 @@ public:
       }
       return max_load == _part_loads.topKey();
     }());
-    _stats.gain_sequence.push_back(judicious_load_before -
-                                   judicious_load_after);
+    if constexpr (debug) {
+      _stats.gain_sequence.push_back(judicious_load_before -
+                                    judicious_load_after);
+    }
   }
 
   void disableBlock(const PartitionID p) {
