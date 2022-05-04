@@ -147,6 +147,7 @@ namespace mt_kahypar {
 
   void JudiciousRefiner::doRefinement(PartitionedHypergraph& phg, PartitionID part_id) {
     auto& refinement_nodes = _refinement_nodes[part_id];
+    DBG << V(refinement_nodes.size());
     _gain_cache.setActivePart(part_id);
     for (HypernodeID v : refinement_nodes) {
       _gain_cache.insert(phg, v);
@@ -221,6 +222,7 @@ namespace mt_kahypar {
   }
 
   void JudiciousRefiner::updateNeighbors(PartitionedHypergraph& phg, const Move& move) {
+    DBG << V(_edgesWithGainChanges.size());
     for (HyperedgeID e : _edgesWithGainChanges) {
       if (phg.edgeSize(e) < _context.partition.ignore_hyperedge_size_threshold) {
         for (HypernodeID v : phg.pins(e)) {
