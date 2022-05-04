@@ -264,7 +264,7 @@ namespace mt_kahypar::multilevel {
         tg.run(std::bind(ip_run, distrib(g), i));
       }
       tg.wait();
-      phg.resetPartition();
+      phg.resetData();
       // choose best partititon and assign it to the hypergraph
       auto best_partition = std::min_element(partitions.begin(), partitions.end());
       stats[std::distance(partitions.begin(), best_partition)].print();
