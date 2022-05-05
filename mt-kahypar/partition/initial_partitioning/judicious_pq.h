@@ -104,10 +104,10 @@ public:
   }
 
   void increaseGain(const PartitionedHypergraph &phg, const HypernodeID v,
-                    const HyperedgeID he, const PartitionID to) {
+                    const HyperedgeWeight w, const PartitionID to) {
     auto key = _toPQs[to].keyOf(v);
     _toPQs[to].increaseKey(
-        v, std::make_pair(key.first - phg.edgeWeight(he), key.second));
+        v, std::make_pair(key.first - w, key.second));
   }
 
   void increaseBenefit(const PartitionedHypergraph &phg, const HypernodeID v,
