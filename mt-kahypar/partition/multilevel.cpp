@@ -248,9 +248,8 @@ namespace mt_kahypar::multilevel {
       tbb::task_group tg;
       vec<std::pair<HyperedgeWeight, vec<size_t>>> partitions(num_runs);
       vec<GreedyJudiciousInitialPartitionerStats> stats(num_runs, phg.initialNumNodes());
-      tbb::enumerable_thread_specific<PartitionedHypergraph> phgs([&] { return construct_phg(phg); });
       auto ip_run = [&](const size_t seed, const size_t i) {
-        auto &local_phg = phgs.local();
+        PartitionedHypergraph local_phg(_context.partition.k, phg.hypergraph());
         // run IP and extract part IDs
         GreedyJudiciousInitialPartitioner ip(local_phg, _ip_context, seed, stats[i]);
         ip.initialPartition();
@@ -271,10 +270,6 @@ namespace mt_kahypar::multilevel {
       for (size_t i = 0; i < phg.initialNumNodes(); ++i) {
         phg.setNodePart(i, best_partition->second[i]);
       }
-    }
-
-    PartitionedHypergraph construct_phg(PartitionedHypergraph& phg) {
-      return PartitionedHypergraph(_context.partition.k, phg.hypergraph());
     }
 
     Hypergraph& _hg;
