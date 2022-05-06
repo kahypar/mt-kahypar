@@ -78,6 +78,10 @@ public:
     spinner.clear(std::memory_order_release);
   }
 
+  bool is_unlocked() const {
+    return spinner._M_i == false;
+  }
+
 private:
   std::atomic_flag spinner = ATOMIC_FLAG_INIT;
 };

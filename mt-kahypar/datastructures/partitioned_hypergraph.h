@@ -150,6 +150,8 @@ private:
       for (auto& x : _part_weights) x.store(0, std::memory_order_relaxed);
     }, [&] {
       for (auto& x : _part_loads) x.store(0, std::memory_order_relaxed);
+    }, [&] {
+      for (auto& x : _pin_count_update_ownership) x.unlock();
     });
   }
 
@@ -164,6 +166,7 @@ private:
     }, [&] {
       for (auto& x : _part_loads) x.store(0, std::memory_order_relaxed);
     });
+    ASSERT(std::all_of(_pin_count_update_ownership.begin(), _pin_count_update_ownership.end(), [](const auto& s) { return s.is_unlocked();}));
     initializePartition();
   }
 
