@@ -71,9 +71,11 @@ int main(int argc, char* argv[]) {
     }
   );
 
-  PartitionedHypergraph phg(2, hg);
+  PartitionID k = context.partition.k;
+  PartitionedHypergraph phg(k, hg);
   tbb::parallel_for(ID(0), hg.initialNumNodes(), [&](HypernodeID hn) {
-    PartitionID part = (hn <= hg.initialNumNodes() / 2) ? 0 : 1;
+    PartitionID part = (hn * k) / hg.initialNumNodes();
+    ALWAYS_ASSERT(part < k);
     phg.setOnlyNodePart(hns_with_degree[hn].first, part);
   });
   phg.initializePartition();
