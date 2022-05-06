@@ -81,13 +81,16 @@ int main(int argc, char* argv[]) {
   phg.initializePartition();
 
   HyperedgeWeight cut = metrics::hyperedgeCut(phg);
+  HyperedgeWeight km1 = metrics::km1(phg);
 
   LOG << "";
   LOG << "initial_cut=" << cut;
+  LOG << "initial_km1=" << km1;
 
   multilevel::partitionVCycle(hg, phg, context);
 
   cut = metrics::hyperedgeCut(phg);
+  km1 = metrics::km1(phg);
 
   std::string graph_name = context.partition.graph_filename.substr(
     context.partition.graph_filename.find_last_of("/") + 1);
@@ -98,6 +101,7 @@ int main(int argc, char* argv[]) {
              << " density=" << static_cast<double>(hg.initialNumEdges()) / hg.initialNumNodes()
              << " medianDegree=" << hns_with_degree[hg.initialNumNodes() / 2].second
              << " cut=" << cut
+             << " km1=" << km1
              << std::endl;
 
   return 0;
