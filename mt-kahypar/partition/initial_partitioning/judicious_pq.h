@@ -103,7 +103,7 @@ public:
     DBG << V(init_time);
   }
 
-  void increaseGain(const PartitionedHypergraph &phg, const HypernodeID v,
+  void increaseGain(const HypernodeID v,
                     const HyperedgeWeight w, const PartitionID to) {
     auto key = _toPQs[to].keyOf(v);
     _toPQs[to].increaseKey(

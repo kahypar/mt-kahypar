@@ -132,7 +132,7 @@ public:
       }
     }
     for (const auto& v : _nodes_with_gain_update) {
-      _pq.increaseGain(_phg, v, _gain_changes[v], m.to);
+      _pq.increaseGain(v, _gain_changes[v], m.to);
     }
     _edges_with_gain_changes.clear();
     _nodes_with_gain_update.clear();
