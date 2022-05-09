@@ -226,12 +226,13 @@ class InitialPartitioningDataContainer {
         metrics::km1(_partitioned_hypergraph, false),
         metrics::imbalance(_partitioned_hypergraph, _context) };
       const HyperedgeWeight quality_before_refinement =
-        current_metric.getMetric(kahypar::Mode::direct_kway, _context.partition.objective);
+        metrics::judiciousLoad(_partitioned_hypergraph, false);
 
       refineCurrentPartition(current_metric, prng);
 
+      HyperedgeWeight judicious_load = metrics::judiciousLoad(_partitioned_hypergraph, false);
       PartitioningResult result(algorithm, quality_before_refinement,
-        current_metric.getMetric(kahypar::Mode::direct_kway, _context.partition.objective),
+        judicious_load,
         current_metric.imbalance);
 
       // Aggregate Stats
@@ -240,8 +241,7 @@ class InitialPartitioningDataContainer {
       _stats[algorithm_index].total_time += time;
       ++_stats[algorithm_index].total_calls;
 
-      _global_stats.add_run(algorithm, current_metric.getMetric(kahypar::Mode::direct_kway,
-        _context.partition.objective), current_metric.imbalance <= _context.partition.epsilon);
+      _global_stats.add_run(algorithm, judicious_load, current_metric.imbalance <= _context.partition.epsilon);
 
       return result;
     }
@@ -268,10 +268,10 @@ class InitialPartitioningDataContainer {
 
       refineCurrentPartition(current_metric, prng);
 
+      HyperedgeWeight judicious_load = metrics::judiciousLoad(_partitioned_hypergraph, false);
       PartitioningResult result(_result._algorithm,
-        current_metric.getMetric(kahypar::Mode::direct_kway, _context.partition.objective),
-        current_metric.getMetric(kahypar::Mode::direct_kway, _context.partition.objective),
-        current_metric.imbalance);
+                                judicious_load, judicious_load,
+                                current_metric.imbalance);
 
       return result;
     }
@@ -612,22 +612,25 @@ class InitialPartitioningDataContainer {
           best_objective = &partition;
         }
       }
+      DBG << "Num Vertices =" << _partitioned_hg.initialNumNodes()
+      << ", Num Edges =" << _partitioned_hg.initialNumEdges()
+      << ", k =" << _context.partition.k << ", epsilon =" << _context.partition.epsilon;
 
-      GreedyJudiciousInitialPartitionerStats stats(_partitioned_hg.initialNumNodes());
+      GreedyJudiciousInitialPartitionerStats j_stats(_partitioned_hg.initialNumNodes());
       ds::JudiciousPartitionedHypergraph tmp_phg(_context.partition.k, _partitioned_hg.hypergraph());
-      GreedyJudiciousInitialPartitioner judicious_ip(tmp_phg, _context, _context.partition.seed, stats);
+      GreedyJudiciousInitialPartitioner judicious_ip(tmp_phg, _context, _context.partition.seed, j_stats);
       judicious_ip.initialPartition();
       HyperedgeWeight judicious_load = metrics::judiciousLoad(tmp_phg);
-      DBG << "Judicious IP                  [" << V(judicious_load) << "]";
       if (judicious_load < best->_result._objective) {
-        best_feasible_objective = judicious_load;
         _partitioned_hg.doParallelForAllNodes([&](const HypernodeID hn) {
           const PartitionID part_id = tmp_phg.partID(hn);
           ASSERT(part_id != kInvalidPartition && part_id < _partitioned_hg.k());
           ASSERT(_partitioned_hg.partID(hn) == kInvalidPartition);
           _partitioned_hg.setOnlyNodePart(hn, part_id);
         });
-        best_flat_algo = InitialPartitioningAlgorithm::greedy_judicious;
+        _partitioned_hg.initializePartition();
+        PartitioningResult judicious_result(InitialPartitioningAlgorithm::judicious, judicious_load, judicious_load, metrics::imbalance(_partitioned_hg, _context));
+        DBG << "Best Partition                [" << judicious_result.str() << "]";
       } else {
         // Applies best partition to hypergraph
         _partitioned_hg.doParallelForAllNodes([&](const HypernodeID hn) {
@@ -638,27 +641,24 @@ class InitialPartitioningDataContainer {
           _partitioned_hg.setOnlyNodePart(hn, part_id);
         });
 
-        best_flat_algo = best->_result._algorithm;
-        best_feasible_objective = best->_result._objective;
-      }
+        _partitioned_hg.initializePartition();
 
-      ASSERT(best);
+        ASSERT(best);
+        DBG << "Best Partition                [" << best->_result.str() << "]";
+        ASSERT(best_feasible_objective == metrics::objective(_partitioned_hg, _context.partition.objective, false),
+               V(best_feasible_objective) << V(metrics::objective(_partitioned_hg, _context.partition.objective, false)));
+      }
+      best_flat_algo = best->_result._algorithm;
+      best_feasible_objective = best->_result._objective;
+
       ASSERT(worst);
       ASSERT(best_imbalance);
       ASSERT(best_objective);
-      DBG << "Num Vertices =" << _partitioned_hg.initialNumNodes()
-          << ", Num Edges =" << _partitioned_hg.initialNumEdges()
-          << ", k =" << _context.partition.k << ", epsilon =" << _context.partition.epsilon;
-      DBG << "Best Partition                [" << best->_result.str() << "]";
       DBG << "Worst Partition               [" << worst->_result.str() << "]";
       DBG << "Best Balanced Partition       [" << best_imbalance->_result.str() << "]";
       DBG << "Partition with Best Objective [" << best_objective->_result.str() << "]";
-
     }
 
-    _partitioned_hg.initializePartition();
-    // ASSERT(best_feasible_objective == metrics::objective(_partitioned_hg, _context.partition.objective, false),
-    //        V(best_feasible_objective) << V(metrics::objective(_partitioned_hg, _context.partition.objective, false)));
     utils::InitialPartitioningStats::instance().add_initial_partitioning_result(best_flat_algo, number_of_threads, stats);
   }
 

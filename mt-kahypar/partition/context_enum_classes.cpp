@@ -130,6 +130,7 @@ namespace mt_kahypar {
       case InitialPartitioningAlgorithm::greedy_sequential_max_net: return os << "greedy_sequential_max_net";
       case InitialPartitioningAlgorithm::label_propagation: return os << "label_propagation";
       case InitialPartitioningAlgorithm::UNDEFINED: return os << "UNDEFINED";
+      case InitialPartitioningAlgorithm::judicious: return os << "judicious";
         // omit default case to trigger compiler warning for missing cases
     }
     return os << static_cast<uint8_t>(algo);
