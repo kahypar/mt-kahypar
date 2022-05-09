@@ -21,6 +21,7 @@
 #pragma once
 
 #include "mt-kahypar/partition/context.h"
+#include "mt-kahypar/datastructures/judicious_partitioned_hypergraph.h"
 
 namespace mt_kahypar::metrics {
 
@@ -42,6 +43,7 @@ HyperedgeWeight objective(
 double imbalance(const PartitionedHypergraph& hypergraph, const Context& context);
 
 HyperedgeWeight judiciousLoad(const PartitionedHypergraph& hypergraph, bool parallel = true);
+HyperedgeWeight judiciousLoad(const ds::JudiciousPartitionedHypergraph& hypergraph);
 
 HyperedgeWeight minLoad(const PartitionedHypergraph& hypergraph, const bool parallel = true);
 

@@ -113,12 +113,11 @@ class PinCountInPart {
       _entries_per_value = num_entries_per_value(k, max_value);
       _values_per_hyperedge = num_values_per_hyperedge(k, max_value);
       _extraction_mask = std::pow(2UL, _bits_per_element) - 1UL;
-      _pin_count_in_part.resize("Refinement", "pin_count_in_part",
-        num_hyperedges * _values_per_hyperedge, true, assign_parallel);
+      _pin_count_in_part.resize(num_hyperedges * _values_per_hyperedge, Value(0));
     }
   }
 
-  Array<Value>& data() {
+  vec<Value>& data() {
     return _pin_count_in_part;
   }
 
@@ -221,7 +220,7 @@ class PinCountInPart {
   size_t _entries_per_value;
   size_t _values_per_hyperedge;
   Value _extraction_mask;
-  Array<Value> _pin_count_in_part;
+  vec<Value> _pin_count_in_part;
 };
 }  // namespace ds
 }  // namespace mt_kahypar

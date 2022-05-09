@@ -199,6 +199,21 @@ namespace mt_kahypar::metrics {
     return minMaxLoad(hypergraph, parallel).first;
   }
 
+  HyperedgeWeight judiciousLoad(const ds::JudiciousPartitionedHypergraph& hypergraph) {
+    vec<HyperedgeWeight> vol(hypergraph.k(), 0);
+    for (const HyperedgeID& he : hypergraph.edges()) {
+      if (hypergraph.edgeIsEnabled(he)) {
+        for (const auto p : hypergraph.connectivitySet(he)) {
+          vol[p] += hypergraph.edgeWeight(he);
+        }
+      }
+    }
+    for (const HypernodeID hn : hypergraph.nodes()) {
+      vol[hypergraph.partID(hn)] += hypergraph.weightOfDisabledEdges(hn);
+    }
+    return *std::max_element(vol.begin(), vol.end());
+  }
+
   HyperedgeID maxHnDegree(const Hypergraph& hypergraph) {
     return hypergraph.nodeDegree(*std::max_element(hypergraph.nodes().begin(), hypergraph.nodes().end(),
                                                    [&hypergraph](const HypernodeID a, const HypernodeID b) {

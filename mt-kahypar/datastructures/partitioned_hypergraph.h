@@ -1073,8 +1073,6 @@ private:
       tbb::parallel_invoke( [&] {
         parallel::parallel_free(_part_ids, _pin_count_update_ownership);
       }, [&] {
-        parallel::free(_pins_in_part.data());
-      }, [&] {
         _connectivity_set.freeInternalData();
       } );
     }

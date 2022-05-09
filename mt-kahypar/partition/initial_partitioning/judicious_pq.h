@@ -23,6 +23,7 @@
 #include <mt-kahypar/definitions.h>
 #include <mt-kahypar/partition/context.h>
 #include <mt-kahypar/partition/metrics.h>
+#include "mt-kahypar/datastructures/judicious_partitioned_hypergraph.h"
 
 namespace mt_kahypar {
 
@@ -57,6 +58,7 @@ public:
   using PriorityQueue =
       ds::ExclusiveHandleHeap<ds::Heap<std::pair<HypernodeWeight, size_t>,
                                        PartitionID, std::greater<>, 16>>;
+  using JudiciousPartitionedHypergraph = ds::JudiciousPartitionedHypergraph;
 
   explicit JudiciousPQ(const Context &context, const HypernodeID num_nodes,
                        const size_t seed,
@@ -71,7 +73,7 @@ public:
           }
         }
 
-  void init(const PartitionedHypergraph &phg, const PartitionID default_part) {
+  void init(const JudiciousPartitionedHypergraph &phg, const PartitionID default_part) {
     HighResClockTimepoint refinement_start = std::chrono::high_resolution_clock::now();
     vec<Gain> penalties(phg.initialNumNodes(), 0);
     for (const auto &he : phg.edges()) {
@@ -110,20 +112,20 @@ public:
         v, std::make_pair(key.first - w, key.second));
   }
 
-  void increaseBenefit(const PartitionedHypergraph &phg, const HypernodeID v,
+  void increaseBenefit(const JudiciousPartitionedHypergraph &phg, const HypernodeID v,
                     const HyperedgeID he) {
     ASSERT(_context.initial_partitioning.preassign_nodes);
     _move_from_benefit[v] += phg.edgeWeight(he);
   }
 
-  bool getNextMove(const PartitionedHypergraph &phg, Move &move) {
+  bool getNextMove(const JudiciousPartitionedHypergraph &phg, Move &move) {
     if (!updatePQs(phg)) {
       return false;
     }
     return findNextMove(phg, move);
   }
 
-  void updateJudiciousLoad(const PartitionedHypergraph &phg,
+  void updateJudiciousLoad(const JudiciousPartitionedHypergraph &phg,
                            const PartitionID from, const PartitionID to) {
     const HyperedgeWeight judicious_load_before = _part_loads.topKey();
     _part_loads.adjustKey(to, phg.partLoad(to));
@@ -150,7 +152,7 @@ public:
   }
 
 private:
-  bool findNextMove(const PartitionedHypergraph &phg, Move &m) {
+  bool findNextMove(const JudiciousPartitionedHypergraph &phg, Move &m) {
     ASSERT(!_blockPQ.empty());
     const PartitionID to = _blockPQ.top();
     ASSERT(_blockPQ.topKey() == blockGain(phg, to));
@@ -180,7 +182,7 @@ private:
     return true;
   }
 
-  void initBlockPQ(const PartitionedHypergraph &phg) {
+  void initBlockPQ(const JudiciousPartitionedHypergraph &phg) {
     ASSERT(_blockPQ.empty());
     for (PartitionID i = 0; i < _context.partition.k; ++i) {
       _part_loads.insert(i, phg.partLoad(i));
@@ -192,7 +194,7 @@ private:
     }
   }
 
-  bool updatePQs(const PartitionedHypergraph &phg) {
+  bool updatePQs(const JudiciousPartitionedHypergraph &phg) {
     for (PartitionID i = 0; i < _context.partition.k; ++i) {
       updateOrRemoveToPQFromBlocks(i, phg);
     }
@@ -202,7 +204,7 @@ private:
   }
 
   void updateOrRemoveToPQFromBlocks(const PartitionID i,
-                                    const PartitionedHypergraph &phg) {
+                                    const JudiciousPartitionedHypergraph &phg) {
     if (!_toPQs[i].empty() && !_disabled_blocks[i]) {
       _blockPQ.adjustKey(i, blockGain(phg, i));
     } else if (_blockPQ.contains(i)) {
@@ -210,7 +212,7 @@ private:
     }
   }
 
-  std::pair<Gain, size_t> blockGain(const PartitionedHypergraph &phg,
+  std::pair<Gain, size_t> blockGain(const JudiciousPartitionedHypergraph &phg,
                                     const PartitionID p) {
     Gain gain = 0;
     if (_context.initial_partitioning.use_judicious_increase) {
@@ -228,7 +230,7 @@ private:
     return std::make_pair(gain, _toPQs[p].topKey().second);
   }
 
-  Gain calculateGainWithPreassignment(const PartitionedHypergraph& phg, const PartitionID p) const {
+  Gain calculateGainWithPreassignment(const JudiciousPartitionedHypergraph& phg, const PartitionID p) const {
     ASSERT(_context.initial_partitioning.preassign_nodes);
     const HyperedgeWeight load_of_first = _part_loads.topKey();
     if (load_of_first == phg.partLoad(p)) return -_toPQs[p].topKey().first;

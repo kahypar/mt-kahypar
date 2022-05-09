@@ -249,7 +249,7 @@ namespace mt_kahypar::multilevel {
       vec<std::pair<HyperedgeWeight, vec<size_t>>> partitions(num_runs);
       vec<GreedyJudiciousInitialPartitionerStats> stats(num_runs, phg.initialNumNodes());
       auto ip_run = [&](const size_t seed, const size_t i) {
-        PartitionedHypergraph local_phg(_context.partition.k, phg.hypergraph());
+        mt_kahypar::ds::JudiciousPartitionedHypergraph local_phg(_context.partition.k, phg.hypergraph());
         // run IP and extract part IDs
         GreedyJudiciousInitialPartitioner ip(local_phg, _ip_context, seed, stats[i]);
         ip.initialPartition();

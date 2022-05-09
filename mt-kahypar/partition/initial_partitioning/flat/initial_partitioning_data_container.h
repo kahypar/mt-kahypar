@@ -614,16 +614,21 @@ class InitialPartitioningDataContainer {
       }
 
       GreedyJudiciousInitialPartitionerStats stats(_partitioned_hg.initialNumNodes());
-      GreedyJudiciousInitialPartitioner judicious_ip(_partitioned_hg, _context, _context.partition.seed, stats);
+      ds::JudiciousPartitionedHypergraph tmp_phg(_context.partition.k, _partitioned_hg.hypergraph());
+      GreedyJudiciousInitialPartitioner judicious_ip(tmp_phg, _context, _context.partition.seed, stats);
       judicious_ip.initialPartition();
-      HyperedgeWeight judicious_load = metrics::judiciousLoad(_partitioned_hg);
+      HyperedgeWeight judicious_load = metrics::judiciousLoad(tmp_phg);
       DBG << "Judicious IP                  [" << V(judicious_load) << "]";
       if (judicious_load < best->_result._objective) {
         best_feasible_objective = judicious_load;
+        _partitioned_hg.doParallelForAllNodes([&](const HypernodeID hn) {
+          const PartitionID part_id = tmp_phg.partID(hn);
+          ASSERT(part_id != kInvalidPartition && part_id < _partitioned_hg.k());
+          ASSERT(_partitioned_hg.partID(hn) == kInvalidPartition);
+          _partitioned_hg.setOnlyNodePart(hn, part_id);
+        });
         best_flat_algo = InitialPartitioningAlgorithm::greedy_judicious;
-        // stats.print();
       } else {
-        _partitioned_hg.resetPartition();
         // Applies best partition to hypergraph
         _partitioned_hg.doParallelForAllNodes([&](const HypernodeID hn) {
           ASSERT(hn < best->_partition.size());
@@ -652,8 +657,8 @@ class InitialPartitioningDataContainer {
     }
 
     _partitioned_hg.initializePartition();
-    ASSERT(best_feasible_objective == metrics::objective(_partitioned_hg, _context.partition.objective, false),
-           V(best_feasible_objective) << V(metrics::objective(_partitioned_hg, _context.partition.objective, false)));
+    // ASSERT(best_feasible_objective == metrics::objective(_partitioned_hg, _context.partition.objective, false),
+    //        V(best_feasible_objective) << V(metrics::objective(_partitioned_hg, _context.partition.objective, false)));
     utils::InitialPartitioningStats::instance().add_initial_partitioning_result(best_flat_algo, number_of_threads, stats);
   }
 

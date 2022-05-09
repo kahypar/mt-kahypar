@@ -22,16 +22,18 @@
 
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/initial_partitioning/judicious_pq.h"
+#include "mt-kahypar/datastructures/judicious_partitioned_hypergraph.h"
 #include <random>
 
 namespace mt_kahypar {
 class GreedyJudiciousInitialPartitioner {
+  using JudiciousPartitionedHypergraph = ds::JudiciousPartitionedHypergraph;
 
   static constexpr bool debug = false;
 
 public:
   GreedyJudiciousInitialPartitioner(
-      PartitionedHypergraph &phg, const Context &context, const size_t seed,
+      JudiciousPartitionedHypergraph &phg, const Context &context, const size_t seed,
       GreedyJudiciousInitialPartitionerStats &stats)
       : _phg(phg), _context(context),
         _pq(context, phg.initialNumNodes(), seed, stats),
@@ -47,7 +49,6 @@ public:
       delete;
 
   void initialPartition() {
-    _phg.resetPartition();
     if (_preassign_nodes) {
       HighResClockTimepoint assign_start = std::chrono::high_resolution_clock::now();
       for (const HypernodeID &hn : _phg.nodes()) {
@@ -99,7 +100,7 @@ public:
     while (_pq.getNextMove(_phg, move)) {
       ASSERT(move.from == _default_part);
       if (_preassign_nodes) {
-        _phg.changeNodePart(move.node, move.from, move.to, std::numeric_limits<HyperedgeWeight>::max(), success_func, delta_func);
+        _phg.changeNodePart(move.node, move.from, move.to, success_func, delta_func);
       } else {
         _phg.setNodePart(move.node, move.to);
         success_func();
@@ -140,7 +141,7 @@ public:
   }
 
 private:
-  PartitionedHypergraph &_phg;
+  JudiciousPartitionedHypergraph &_phg;
   const Context _context;
   JudiciousPQ _pq;
   PartitionID _default_part;
