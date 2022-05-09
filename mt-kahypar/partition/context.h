@@ -171,7 +171,6 @@ std::ostream& operator<<(std::ostream& out, const DeterministicRefinementParamet
 
 struct JudiciousParameters {
   bool use_judicious_refinement = false;
-  bool rebalance = false;
   double part_load_margin = 1.03;
   double min_load_ratio = 1.05;
   double abort_factor = 0.2;

@@ -168,7 +168,6 @@ namespace mt_kahypar {
       }
     };
     Move move;
-    bool force_rebalancing = false;
     size_t initial_num_moves = _moves.size();
     vec<HypernodeID> accepted_moves;
     while (_gain_cache.findNextMove(phg, move)) {
@@ -183,6 +182,7 @@ namespace mt_kahypar {
       from_load = phg.partLoad(move.from);
       _part_loads.adjustKey(move.to, to_load);
       Gain gain = initial_from_load - std::max(_part_loads.topKey(), from_load);
+      // ASSERT(gain == move.gain);
       // if the maximum load decreased, accept the move immediately
       if (_total_improvement + gain >= _best_improvement) {
         _best_improvement = _total_improvement + gain;
@@ -198,16 +198,8 @@ namespace mt_kahypar {
         if (debug) LOG << "Abort due to too many negative gain moves";
         revertToBestLocalPrefix(phg, initial_num_moves);
         break;
-      } else if (_part_loads.topKey() >= from_load * _context.refinement.judicious.part_load_margin) {
-        if (!_context.refinement.judicious.rebalance) break;
-        // ...or a new block becomes heavier by a margin
-        if (_part_loads.topKey() >= _part_loads.keyOfSecond() * _context.refinement.judicious.part_load_margin) break;
-        else if (!force_rebalancing) {
-          if (debug) LOG << "Partition loads are to similar, starting rebalancing";
-          force_rebalancing = true;
-          _gain_cache.setOnlyEnabledBlock(_part_loads.top());
-        }
-      }
+      } else if (_part_loads.topKey() >= from_load * _context.refinement.judicious.part_load_margin ||
+                 _part_loads.topKey() >= _part_loads.keyOfSecond() * _context.refinement.judicious.part_load_margin) break;
       updateNeighbors(phg, move);
     }
     _edgesWithGainChanges.clear();
@@ -224,14 +216,12 @@ namespace mt_kahypar {
   void JudiciousRefiner::updateNeighbors(PartitionedHypergraph& phg, const Move& move) {
     DBG << V(_edgesWithGainChanges.size());
     for (HyperedgeID e : _edgesWithGainChanges) {
-      if (phg.edgeSize(e) < _context.partition.ignore_hyperedge_size_threshold) {
-        for (HypernodeID v : phg.pins(e)) {
-          if (_neighbor_deduplicator[v] != _deduplication_time) {
-            if (phg.partID(v) == move.from) {
-              _gain_cache.updateGain(phg, v, move);
-            }
-            _neighbor_deduplicator[v] = _deduplication_time;
+      for (HypernodeID v : phg.pins(e)) {
+        if (_neighbor_deduplicator[v] != _deduplication_time) {
+          if (phg.partID(v) == move.from) {
+            _gain_cache.updateGain(phg, v, move);
           }
+          _neighbor_deduplicator[v] = _deduplication_time;
         }
       }
     }
