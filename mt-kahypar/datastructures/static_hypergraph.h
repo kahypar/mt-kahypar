@@ -658,6 +658,7 @@ class StaticHypergraph {
   }
 
   HyperedgeWeight weightOfDisabledEdges(const HypernodeID n) const {
+    ASSERT(_weight_of_disabled_edges.empty() || n < _weight_of_disabled_edges.size());
     return _weight_of_disabled_edges.empty() ? 0 : _weight_of_disabled_edges[n];
   }
 

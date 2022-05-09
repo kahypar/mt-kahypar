@@ -553,15 +553,19 @@ private:
 
   void setOnlyNodePart(const HypernodeID u, PartitionID p) {
     ASSERT(p != kInvalidPartition && p < _k);
+    ASSERT(u < _part_ids.size());
     ASSERT(_part_ids[u] == kInvalidPartition);
     _part_ids[u] = p;
   }
 
   void setNodePart(const HypernodeID u, PartitionID p) {
     setOnlyNodePart(u, p);
+    ASSERT(p < _part_weights.size());
+    ASSERT(p < _part_loads.size());
     _part_weights[p].fetch_add(nodeWeight(u), std::memory_order_relaxed);
     _part_loads[p].fetch_add(weightOfDisabledEdges(u), std::memory_order_relaxed);
     for (HyperedgeID he : incidentEdges(u)) {
+      ASSERT(edgeIsEnabled(he));
       const HypernodeID pin_count_after = incrementPinCountInPartWithoutGainUpdate(he, p);
       if (pin_count_after == 1) {
         _part_loads[p].fetch_add(edgeWeight(he), std::memory_order_relaxed);
@@ -581,6 +585,9 @@ private:
                       DeltaFunc&& delta_func) {
     assert(partID(u) == from);
     assert(from != to);
+    ASSERT(u < _part_ids.size());
+    ASSERT(from < _part_weights.size());
+    ASSERT(to < _part_weights.size());
     const HypernodeWeight wu = nodeWeight(u);
     const HypernodeWeight to_weight_after = _part_weights[to].add_fetch(wu, std::memory_order_relaxed);
     if (to_weight_after <= max_weight_to) {
@@ -591,6 +598,7 @@ private:
       _part_loads[to].fetch_add(weightOfDisabledEdges(u), std::memory_order_relaxed);
       report_success();
       for ( const HyperedgeID he : incidentEdges(u) ) {
+        ASSERT(edgeIsEnabled(he));
         updatePinCountOfHyperedge(he, from, to, delta_func);
       }
       return true;
@@ -977,6 +985,7 @@ private:
     _connectivity_set.memoryConsumption(connectivity_set_node);
 
     parent->addChild("Part Weights", sizeof(CAtomic<HypernodeWeight>) * _k);
+    parent->addChild("Part Loads", sizeof(CAtomic<HyperedgeWeight>) * _k);
     parent->addChild("Part IDs", sizeof(PartitionID) * _hg->initialNumNodes());
     parent->addChild("Pin Count In Part", _pins_in_part.size_in_bytes());
     parent->addChild("Move From Benefit", sizeof(HyperedgeWeight) * _move_from_benefit.size());
