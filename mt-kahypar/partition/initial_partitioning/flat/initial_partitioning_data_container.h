@@ -617,49 +617,52 @@ class InitialPartitioningDataContainer {
       << ", Num Edges =" << _partitioned_hg.initialNumEdges()
       << ", k =" << _context.partition.k << ", epsilon =" << _context.partition.epsilon;
 
-      const size_t num_runs = _context.initial_partitioning.runs * 3;
-      std::uniform_int_distribution<> distrib(0, std::numeric_limits<int>::max());
-      std::mt19937 g(_context.partition.seed);
-      tbb::task_group tg;
-      vec<std::pair<HyperedgeWeight, vec<PartitionID>>> partitions(num_runs);
-      vec<GreedyJudiciousInitialPartitionerConfig> j_configs;
-      j_configs.reserve(num_runs);
-      vec<GreedyJudiciousInitialPartitionerStats> j_stats(num_runs, _partitioned_hg.initialNumNodes());
-      auto ip_run = [&](const size_t seed, const size_t i) {
-        mt_kahypar::ds::JudiciousPartitionedHypergraph local_phg(_context.partition.k, _partitioned_hg.hypergraph());
-        // run IP and extract part IDs
-        GreedyJudiciousInitialPartitioner ip(local_phg, _context, seed, j_stats[i], j_configs[i]);
-        ip.initialPartition();
-        partitions[i].second.resize(_partitioned_hg.initialNumNodes());
-        local_phg.extractPartIDs(partitions[i].second);
-        partitions[i].first = metrics::judiciousLoad(local_phg);
-      };
-      for(size_t i = 0; i < num_runs; i += 3) {
-        j_configs.emplace_back(GreedyJudiciousInitialPartitionerConfig{false, true, true, false}); // judicious increase random
-        j_configs.emplace_back(GreedyJudiciousInitialPartitionerConfig{false, true, false, true}); // block load random
-        j_configs.emplace_back(GreedyJudiciousInitialPartitionerConfig{true, true, false, true}); // preassign block load random
-        tg.run(std::bind(ip_run, distrib(g), i));
-        tg.run(std::bind(ip_run, distrib(g), i + 1));
-        tg.run(std::bind(ip_run, distrib(g), i + 2));
-      }
-      tg.wait();
+      HyperedgeWeight judicious_load = std::numeric_limits<HyperedgeWeight>::max();
+      if (_context.initial_partitioning.judicious_rb) {
+        const size_t num_runs = _context.initial_partitioning.judicious_runs * 3;
+        std::uniform_int_distribution<> distrib(0, std::numeric_limits<int>::max());
+        std::mt19937 g(_context.partition.seed);
+        tbb::task_group tg;
+        vec<std::pair<HyperedgeWeight, vec<PartitionID>>> partitions(num_runs);
+        vec<GreedyJudiciousInitialPartitionerConfig> j_configs;
+        j_configs.reserve(num_runs);
+        vec<GreedyJudiciousInitialPartitionerStats> j_stats(num_runs, _partitioned_hg.initialNumNodes());
+        auto ip_run = [&](const size_t seed, const size_t i) {
+          mt_kahypar::ds::JudiciousPartitionedHypergraph local_phg(_context.partition.k, _partitioned_hg.hypergraph());
+          // run IP and extract part IDs
+          GreedyJudiciousInitialPartitioner ip(local_phg, _context, seed, j_stats[i], j_configs[i]);
+          ip.initialPartition();
+          partitions[i].second.resize(_partitioned_hg.initialNumNodes());
+          local_phg.extractPartIDs(partitions[i].second);
+          partitions[i].first = metrics::judiciousLoad(local_phg);
+        };
+        for(size_t i = 0; i < num_runs; i += 3) {
+          j_configs.emplace_back(GreedyJudiciousInitialPartitionerConfig{false, true, true, false}); // judicious increase random
+          j_configs.emplace_back(GreedyJudiciousInitialPartitionerConfig{false, true, false, true}); // block load random
+          j_configs.emplace_back(GreedyJudiciousInitialPartitionerConfig{true, true, false, true}); // preassign block load random
+          tg.run(std::bind(ip_run, distrib(g), i));
+          tg.run(std::bind(ip_run, distrib(g), i + 1));
+          tg.run(std::bind(ip_run, distrib(g), i + 2));
+        }
+        tg.wait();
 
-      auto best_partition = std::min_element(partitions.begin(), partitions.end());
-      for(size_t i = 0; i < num_runs; ++i) {
-        DBG << "Judicious Load:" << partitions[i].first << "," << j_configs[i];
-      }
-      HyperedgeWeight judicious_load = best_partition->first;
-      if (judicious_load < best->_result._objective) {
-        _partitioned_hg.doParallelForAllNodes([&](const HypernodeID hn) {
-          const PartitionID part_id = best_partition->second[hn];
-          ASSERT(part_id != kInvalidPartition && part_id < _partitioned_hg.k());
-          ASSERT(_partitioned_hg.partID(hn) == kInvalidPartition);
-          _partitioned_hg.setOnlyNodePart(hn, part_id);
-        });
-        _partitioned_hg.initializePartition();
-        PartitioningResult judicious_result(InitialPartitioningAlgorithm::judicious, judicious_load, judicious_load, metrics::imbalance(_partitioned_hg, _context));
-        DBG << "Best Partition                [" << judicious_result.str() << "]";
-      } else {
+        auto best_partition = std::min_element(partitions.begin(), partitions.end());
+        for(size_t i = 0; i < num_runs; ++i) {
+          DBG << "Judicious Load:" << partitions[i].first << "," << j_configs[i];
+        }
+        judicious_load = best_partition->first;
+        if (judicious_load < best->_result._objective) {
+          _partitioned_hg.doParallelForAllNodes([&](const HypernodeID hn) {
+            const PartitionID part_id = best_partition->second[hn];
+            ASSERT(part_id != kInvalidPartition && part_id < _partitioned_hg.k());
+            ASSERT(_partitioned_hg.partID(hn) == kInvalidPartition);
+            _partitioned_hg.setOnlyNodePart(hn, part_id);
+          });
+          _partitioned_hg.initializePartition();
+          PartitioningResult judicious_result(InitialPartitioningAlgorithm::judicious, judicious_load, judicious_load, metrics::imbalance(_partitioned_hg, _context));
+          DBG << "Best Partition                [" << judicious_result.str() << "]";
+        }
+      } else if (judicious_load >= best->_result._objective) {
         // Applies best partition to hypergraph
         _partitioned_hg.doParallelForAllNodes([&](const HypernodeID hn) {
           ASSERT(hn < best->_partition.size());

@@ -229,6 +229,8 @@ struct InitialPartitioningParameters {
   bool random_selection = false;
   bool use_judicious_increase = false;
   bool use_block_load_only = false;
+  size_t judicious_runs = 1;
+  bool judicious_rb = false;
 };
 
 std::ostream & operator<< (std::ostream& str, const InitialPartitioningParameters& params);

@@ -518,7 +518,14 @@ namespace mt_kahypar {
             ("i-judicious-use-block-load-only",
              po::value<bool>(&context.initial_partitioning.use_block_load_only)->value_name(
                      "<bool>")->default_value(false),
-             "If true, prefer nodes of lowest load block for initial partitioning");
+             "If true, prefer nodes of lowest load block for initial partitioning")
+            ("i-judicious-runs",
+             po::value<size_t>(&context.initial_partitioning.judicious_runs)->value_name("<size_t>")->default_value(1),
+             "Number of runs for judicious IP.")
+            ("i-judicious-rb",
+             po::value<bool>(&context.initial_partitioning.judicious_rb)->value_name(
+                     "<bool>")->default_value(false),
+             "If true, use judicious IP variants during RB");
     options.add(createRefinementOptionsDescription(context, num_columns, true));
     return options;
   }
