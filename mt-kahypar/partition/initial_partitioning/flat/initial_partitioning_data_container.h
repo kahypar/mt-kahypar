@@ -662,7 +662,8 @@ class InitialPartitioningDataContainer {
           PartitioningResult judicious_result(InitialPartitioningAlgorithm::judicious, judicious_load, judicious_load, metrics::imbalance(_partitioned_hg, _context));
           DBG << "Best Partition                [" << judicious_result.str() << "]";
         }
-      } else if (judicious_load >= best->_result._objective) {
+      }
+      if (judicious_load >= best->_result._objective) {
         // Applies best partition to hypergraph
         _partitioned_hg.doParallelForAllNodes([&](const HypernodeID hn) {
           ASSERT(hn < best->_partition.size());
