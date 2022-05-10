@@ -246,17 +246,16 @@ namespace mt_kahypar::multilevel {
       std::uniform_int_distribution<> distrib(0, std::numeric_limits<int>::max());
       std::mt19937 g(_context.partition.seed);
       tbb::task_group tg;
-      vec<std::pair<HyperedgeWeight, vec<size_t>>> partitions(num_runs);
+      vec<std::pair<HyperedgeWeight, vec<PartitionID>>> partitions(num_runs);
+      GreedyJudiciousInitialPartitionerConfig j_config(_context);
       vec<GreedyJudiciousInitialPartitionerStats> stats(num_runs, phg.initialNumNodes());
       auto ip_run = [&](const size_t seed, const size_t i) {
         mt_kahypar::ds::JudiciousPartitionedHypergraph local_phg(_context.partition.k, phg.hypergraph());
         // run IP and extract part IDs
-        GreedyJudiciousInitialPartitioner ip(local_phg, _ip_context, seed, stats[i]);
+        GreedyJudiciousInitialPartitioner ip(local_phg, _ip_context, seed, stats[i], j_config);
         ip.initialPartition();
         partitions[i].second.resize(phg.initialNumNodes());
-        for (size_t j = 0; j < phg.initialNumNodes(); ++j) {
-          partitions[i].second[j] = local_phg.partID(j);
-        }
+        local_phg.extractPartIDs(partitions[i].second);
         partitions[i].first = metrics::judiciousLoad(local_phg);
       };
       for(size_t i = 0; i < num_runs; ++i) {
@@ -266,6 +265,9 @@ namespace mt_kahypar::multilevel {
       phg.resetData();
       // choose best partititon and assign it to the hypergraph
       auto best_partition = std::min_element(partitions.begin(), partitions.end());
+      // for(size_t i = 0; i < num_runs; ++i) {
+      //   DBG << "Judicious Load:" << partitions[i].first << "," << j_configs[i];
+      // }
       stats[std::distance(partitions.begin(), best_partition)].print();
       for (size_t i = 0; i < phg.initialNumNodes(); ++i) {
         phg.setNodePart(i, best_partition->second[i]);

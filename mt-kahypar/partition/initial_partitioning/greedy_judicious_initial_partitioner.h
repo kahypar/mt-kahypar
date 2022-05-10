@@ -22,6 +22,7 @@
 
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/initial_partitioning/judicious_pq.h"
+#include "mt-kahypar/partition/initial_partitioning/judicious_ip_commons.h"
 #include "mt-kahypar/datastructures/judicious_partitioned_hypergraph.h"
 #include <random>
 
@@ -34,13 +35,12 @@ class GreedyJudiciousInitialPartitioner {
 public:
   GreedyJudiciousInitialPartitioner(
       JudiciousPartitionedHypergraph &phg, const Context &context, const size_t seed,
-      GreedyJudiciousInitialPartitionerStats &stats)
+      GreedyJudiciousInitialPartitionerStats &stats, const GreedyJudiciousInitialPartitionerConfig &config)
       : _phg(phg), _context(context),
-        _pq(context, phg.initialNumNodes(), seed, stats),
-        _preassign_nodes(context.initial_partitioning.preassign_nodes),
-        _stats(stats), _gain_changes(phg.initialNumNodes(), 0),
+        _pq(context, phg.initialNumNodes(), seed, stats, config),
+        _stats(stats), _config(config), _gain_changes(phg.initialNumNodes(), 0),
         _gain_update_state(phg.initialNumNodes(), 0) {
-    _default_part = _preassign_nodes ? 0 : -1;
+    _default_part = config.preassign_nodes ? 0 : -1;
   }
 
   GreedyJudiciousInitialPartitioner(const GreedyJudiciousInitialPartitioner &) =
@@ -49,7 +49,7 @@ public:
       delete;
 
   void initialPartition() {
-    if (_preassign_nodes) {
+    if (_config.preassign_nodes) {
       HighResClockTimepoint assign_start = std::chrono::high_resolution_clock::now();
       for (const HypernodeID &hn : _phg.nodes()) {
         _phg.setNodePart(hn, _default_part);
@@ -68,7 +68,7 @@ public:
                           const HypernodeID pin_count_in_to_part_after) {
       // Gains of the pins of a hyperedge can only change in the following
       // situations.
-      if (_preassign_nodes && pin_count_in_from_part_after == 1) {
+      if (_config.preassign_nodes && pin_count_in_from_part_after == 1) {
         for (HypernodeID v : _phg.pins(he)) {
           // being in _default_part means the node is unassigned if
           // _preassign_nodes == false
@@ -89,7 +89,7 @@ public:
     };
 
     auto success_func = [&]() {
-      if (_preassign_nodes &&
+      if (_config.preassign_nodes &&
           _phg.partLoad(_default_part) <= _phg.partLoad(move.to)) {
         _pq.disableBlock(move.to);
       }
@@ -99,7 +99,7 @@ public:
     };
     while (_pq.getNextMove(_phg, move)) {
       ASSERT(move.from == _default_part);
-      if (_preassign_nodes) {
+      if (_config.preassign_nodes) {
         _phg.changeNodePart(move.node, move.from, move.to, success_func, delta_func);
       } else {
         _phg.setNodePart(move.node, move.to);
@@ -145,8 +145,8 @@ private:
   const Context _context;
   JudiciousPQ _pq;
   PartitionID _default_part;
-  const bool _preassign_nodes;
   GreedyJudiciousInitialPartitionerStats &_stats;
+  const GreedyJudiciousInitialPartitionerConfig &_config;
   vec<HyperedgeID> _edges_with_gain_changes;
   vec<HypernodeID> _nodes_with_gain_update;
   vec<HyperedgeWeight> _gain_changes;

@@ -24,34 +24,11 @@
 #include <mt-kahypar/partition/context.h>
 #include <mt-kahypar/partition/metrics.h>
 #include "mt-kahypar/datastructures/judicious_partitioned_hypergraph.h"
+#include "mt-kahypar/partition/initial_partitioning/judicious_ip_commons.h"
 
 namespace mt_kahypar {
 
 static constexpr bool debug = false;
-
-struct GreedyJudiciousInitialPartitionerStats {
-  size_t num_moved_nodes = 0;
-  vec<Gain> gain_sequence;
-  vec<size_t> update_hist;
-
-  GreedyJudiciousInitialPartitionerStats(const HypernodeID num_nodes)
-      : update_hist(num_nodes, 0) {}
-
-  void print() {
-    if (!debug) {
-      return;
-    }
-    ASSERT(num_moved_nodes == gain_sequence.size());
-    // LOG << "gain";
-    // for (const auto i : gain_sequence) {
-    //   LLOG << i;
-    // }
-    LOG << "gain";
-    for (const auto i : update_hist) {
-      LOG << i;
-    }
-  }
-};
 
 class JudiciousPQ final {
 public:
@@ -62,13 +39,14 @@ public:
 
   explicit JudiciousPQ(const Context &context, const HypernodeID num_nodes,
                        const size_t seed,
-                       GreedyJudiciousInitialPartitionerStats &stats)
+                       GreedyJudiciousInitialPartitionerStats &stats,
+                       const GreedyJudiciousInitialPartitionerConfig& config)
       : _context(context), _toPQs(static_cast<size_t>(context.partition.k),
                                   PriorityQueue(num_nodes)),
         _blockPQ(static_cast<size_t>(context.partition.k)),
         _part_loads(static_cast<size_t>(context.partition.k)),
-        _disabled_blocks(context.partition.k, false), _g(seed), _stats(stats) {
-          if (_context.initial_partitioning.preassign_nodes) {
+        _disabled_blocks(context.partition.k, false), _g(seed), _stats(stats), _config(config) {
+          if (_config.preassign_nodes) {
             _move_from_benefit.resize(num_nodes, 0);
           }
         }
@@ -77,7 +55,7 @@ public:
     HighResClockTimepoint refinement_start = std::chrono::high_resolution_clock::now();
     vec<Gain> penalties(phg.initialNumNodes(), 0);
     for (const auto &he : phg.edges()) {
-      if (_context.initial_partitioning.preassign_nodes && phg.edgeSize(he) == 1) {
+      if (_config.preassign_nodes && phg.edgeSize(he) == 1) {
         for (const auto &v : phg.pins(he)) {
           _move_from_benefit[v] += phg.edgeWeight(he);
         }
@@ -88,11 +66,11 @@ public:
     }
     for (const auto &v : phg.nodes()) {
       const Gain penalty = penalties[v] + phg.weightOfDisabledEdges(v);
-      if (_context.initial_partitioning.preassign_nodes) {
+      if (_config.preassign_nodes) {
         _move_from_benefit[v] += phg.weightOfDisabledEdges(v);
       }
       const size_t tag =
-          _context.initial_partitioning.random_selection ? _g() : penalty;
+          _config.random_selection ? _g() : penalty;
       for (PartitionID i = 0; i < _context.partition.k; ++i) {
         if (i == default_part)
           continue;
@@ -114,7 +92,7 @@ public:
 
   void increaseBenefit(const JudiciousPartitionedHypergraph &phg, const HypernodeID v,
                     const HyperedgeID he) {
-    ASSERT(_context.initial_partitioning.preassign_nodes);
+    ASSERT(_config.preassign_nodes);
     _move_from_benefit[v] += phg.edgeWeight(he);
   }
 
@@ -159,10 +137,10 @@ private:
     ASSERT(!_toPQs[to].empty() && !_disabled_blocks[to]);
     const HypernodeID u = _toPQs[to].top();
     Gain gain = 0;
-    if (_context.initial_partitioning.preassign_nodes) {
+    if (_config.preassign_nodes) {
       gain = calculateGainWithPreassignment(phg, to);
     } else {
-      gain = _context.initial_partitioning.use_judicious_increase
+      gain = _config.use_judicious_increase
             ? -_blockPQ.topKey().first
             : std::min(_part_loads.topKey() -
                            (phg.partLoad(to) + _toPQs[to].topKey().first),
@@ -215,14 +193,14 @@ private:
   std::pair<Gain, size_t> blockGain(const JudiciousPartitionedHypergraph &phg,
                                     const PartitionID p) {
     Gain gain = 0;
-    if (_context.initial_partitioning.use_judicious_increase) {
-      if (_context.initial_partitioning.preassign_nodes) {
+    if (_config.use_judicious_increase) {
+      if (_config.preassign_nodes) {
         gain = -calculateGainWithPreassignment(phg, p);
       } else {
         gain = std::max(
             phg.partLoad(p) + _toPQs[p].topKey().first - _part_loads.topKey(), 0);
       }
-    } else if (_context.initial_partitioning.use_block_load_only) {
+    } else if (_config.use_block_load_only) {
       gain = phg.partLoad(p);
     } else {
       gain = _toPQs[p].topKey().first;
@@ -231,7 +209,7 @@ private:
   }
 
   Gain calculateGainWithPreassignment(const JudiciousPartitionedHypergraph& phg, const PartitionID p) const {
-    ASSERT(_context.initial_partitioning.preassign_nodes);
+    ASSERT(_config.preassign_nodes);
     const HyperedgeWeight load_of_first = _part_loads.topKey();
     if (load_of_first == phg.partLoad(p)) return -_toPQs[p].topKey().first;
     const HypernodeID u = _toPQs[p].top();
@@ -257,5 +235,6 @@ private:
   vec<HyperedgeWeight> _move_from_benefit;
   std::mt19937 _g;
   GreedyJudiciousInitialPartitionerStats &_stats;
+  const GreedyJudiciousInitialPartitionerConfig &_config;
 };
 } // namespace mt_kahypar
