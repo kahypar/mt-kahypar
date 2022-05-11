@@ -254,9 +254,9 @@ namespace mt_kahypar::multilevel {
         // run IP and extract part IDs
         GreedyJudiciousInitialPartitioner ip(local_phg, _ip_context, seed, stats[i], j_config);
         ip.initialPartition();
+        partitions[i].first = metrics::judiciousLoad(local_phg);
         partitions[i].second.resize(phg.initialNumNodes());
         local_phg.extractPartIDs(partitions[i].second);
-        partitions[i].first = metrics::judiciousLoad(local_phg);
       };
       for(size_t i = 0; i < num_runs; ++i) {
         tg.run(std::bind(ip_run, distrib(g), i));

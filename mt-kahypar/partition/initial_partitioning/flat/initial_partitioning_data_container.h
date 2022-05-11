@@ -632,9 +632,9 @@ class InitialPartitioningDataContainer {
           // run IP and extract part IDs
           GreedyJudiciousInitialPartitioner ip(local_phg, _context, seed, j_stats[i], j_configs[i]);
           ip.initialPartition();
+          partitions[i].first = metrics::judiciousLoad(local_phg);
           partitions[i].second.resize(_partitioned_hg.initialNumNodes());
           local_phg.extractPartIDs(partitions[i].second);
-          partitions[i].first = metrics::judiciousLoad(local_phg);
         };
         for(size_t i = 0; i < num_runs; i += 3) {
           j_configs.emplace_back(GreedyJudiciousInitialPartitionerConfig{false, true, true, false}); // judicious increase random
@@ -661,6 +661,7 @@ class InitialPartitioningDataContainer {
           _partitioned_hg.initializePartition();
           PartitioningResult judicious_result(InitialPartitioningAlgorithm::judicious, judicious_load, judicious_load, metrics::imbalance(_partitioned_hg, _context));
           DBG << "Best Partition                [" << judicious_result.str() << "]";
+          ASSERT(metrics::judiciousLoad(_partitioned_hg, false) == judicious_load);
         }
       }
       if (judicious_load >= best->_result._objective) {
