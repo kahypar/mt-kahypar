@@ -23,6 +23,7 @@
 #include <sstream>
 #include <mutex>
 
+#include "mt-kahypar/partition/refinement/judicious/judicious_refinement.h"
 #include "mt-kahypar/partition/initial_partitioning/greedy_judicious_initial_partitioner.h"
 #include "mt-kahypar/partition/initial_partitioning/judicious_ip_commons.h"
 #include "tbb/enumerable_thread_specific.h"
@@ -659,9 +660,6 @@ class InitialPartitioningDataContainer {
             _partitioned_hg.setOnlyNodePart(hn, part_id);
           });
           _partitioned_hg.initializePartition();
-          PartitioningResult judicious_result(InitialPartitioningAlgorithm::judicious, judicious_load, judicious_load, metrics::imbalance(_partitioned_hg, _context));
-          DBG << "Best Partition                [" << judicious_result.str() << "]";
-          ASSERT(metrics::judiciousLoad(_partitioned_hg, false) == judicious_load);
         }
       }
       if (judicious_load >= best->_result._objective) {
@@ -677,9 +675,25 @@ class InitialPartitioningDataContainer {
         _partitioned_hg.initializePartition();
 
         ASSERT(best);
-        DBG << "Best Partition                [" << best->_result.str() << "]";
         ASSERT(best_feasible_objective == metrics::objective(_partitioned_hg, _context.partition.objective, false),
                V(best_feasible_objective) << V(metrics::objective(_partitioned_hg, _context.partition.objective, false)));
+      }
+
+      if (_context.initial_partitioning.rb_judicious_refinement) {
+        DBG << V(metrics::judiciousLoad(_partitioned_hg, false));
+        JudiciousRefiner refiner(_partitioned_hg.hypergraph(), _context);
+        refiner.initialize(_partitioned_hg);
+        kahypar::Metrics metrics;
+        refiner.refine(_partitioned_hg, {}, metrics, std::numeric_limits<double>::max());
+        judicious_load = metrics::judiciousLoad(_partitioned_hg, false);
+        PartitioningResult judicious_result(InitialPartitioningAlgorithm::judicious, judicious_load, judicious_load, metrics::imbalance(_partitioned_hg, _context));
+        DBG << "Best Partition                [" << judicious_result.str() << "]";
+        ASSERT(metrics::judiciousLoad(_partitioned_hg, false) == judicious_load);
+        if constexpr (debug) {
+          for (PartitionID i = 0; i < _context.partition.k; ++i) {
+            LOG << _partitioned_hg.partLoad(i);
+          }
+        }
       }
       best_flat_algo = best->_result._algorithm;
       best_feasible_objective = best->_result._objective;

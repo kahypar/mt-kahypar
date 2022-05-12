@@ -17,6 +17,7 @@
  * along with KaHyPar.  If not, see <http://www.gnu.org/licenses/>.
  *
  ******************************************************************************/
+#pragma once
 
 #include "mt-kahypar/partition/refinement/i_refiner.h"
 #include <mt-kahypar/partition/refinement/judicious/pq_strategy.h>
