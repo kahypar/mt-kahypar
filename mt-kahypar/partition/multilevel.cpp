@@ -173,6 +173,11 @@ namespace mt_kahypar::multilevel {
       if (_context.coarsened_stats_file != "") {
         utils::printDistributionStatsToCSV(coarsestHypergraph, _context.coarsened_stats_file);
       }
+      if (_context.graphviz_file != "") {
+        #ifdef USE_GRAPH_PARTITIONER
+        utils::outputGraphvizFile(coarsestHypergraph, _context.graphviz_file);
+        #endif
+      }
 
       // ################## INITIAL PARTITIONING ##################
       utils::Timer::instance().start_timer("initial_partitioning", "Initial Partitioning");

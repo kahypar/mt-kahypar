@@ -149,7 +149,10 @@ namespace mt_kahypar {
              "File to print distribution stats about input graph (csv format).")
             ("coarsened-stats-file",
              po::value<std::string>(&context.coarsened_stats_file)->value_name("<std::string>")->default_value(""),
-             "File to print distribution stats about coarsened graph (csv format).");
+             "File to print distribution stats about coarsened graph (csv format).")
+            ("graphviz-file",
+             po::value<std::string>(&context.graphviz_file)->value_name("<std::string>")->default_value(""),
+             "File to print visualization data of coarsened graph (dot format for graphviz).");
     return options;
   }
 
