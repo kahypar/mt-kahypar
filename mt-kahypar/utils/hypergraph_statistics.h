@@ -83,5 +83,29 @@ static void printDistributionStatsToCSV(const Hypergraph& hypergraph, const std:
     }
 }
 
+#ifdef USE_GRAPH_PARTITIONER
+static void outputGraphvizFile(const Hypergraph& hypergraph, const std::string& outfile) {
+    ALWAYS_ASSERT(outfile != "");
+    std::ofstream out(outfile.c_str());
+    out.precision(3);
+
+    out << "graph {" << std::endl;
+    out << "fixedsize=true;" << std::endl << std::endl;
+
+    for (HypernodeID hn: hypergraph.nodes()) {
+        HypernodeWeight w = hypergraph.nodeWeight(hn);
+        double root = std::sqrt(w) / 4; // std::round(100 * std::sqrt(w)) / 100.0;
+        out << hn << " [label=\"\",width=" << root << ",height=" << root << "];" << std::endl;
+    }
+
+    for (HyperedgeID e: hypergraph.edges()) {
+        double w = std::sqrt(hypergraph.edgeWeight(e));
+        out << hypergraph.edgeSource(e) << "--" << hypergraph.edgeTarget(e)
+            << " [weight=" << w << ", penwidth=" << w << "];" << std::endl;
+    }
+    out << "}" << std::endl;
+}
+#endif
+
 } // namespace utils
 } // namespace mt_kahypar

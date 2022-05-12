@@ -58,4 +58,10 @@ target_link_libraries(DegreeBasedBipartition ${Boost_LIBRARIES})
 set_property(TARGET DegreeBasedBipartition PROPERTY CXX_STANDARD 17)
 set_property(TARGET DegreeBasedBipartition PROPERTY CXX_STANDARD_REQUIRED ON)
 
-set(TARGETS_WANTING_ALL_SOURCES ${TARGETS_WANTING_ALL_SOURCES} EvaluateBipart EvaluatePartition VerifyPartition HgrToZoltan HypergraphStats MetisToScotch SnapToMetis GraphToHgr HgrToParkway SnapGraphToHgr DegreeBasedBipartition PARENT_SCOPE)
+add_executable(CreateGraphvizFile graphviz.cc)
+target_link_libraries(CreateGraphvizFile ${Boost_LIBRARIES})
+set_property(TARGET CreateGraphvizFile PROPERTY CXX_STANDARD 17)
+set_property(TARGET CreateGraphvizFile PROPERTY CXX_STANDARD_REQUIRED ON)
+target_compile_definitions(CreateGraphvizFile PUBLIC USE_GRAPH_PARTITIONER)
+
+set(TARGETS_WANTING_ALL_SOURCES ${TARGETS_WANTING_ALL_SOURCES} EvaluateBipart EvaluatePartition VerifyPartition HgrToZoltan HypergraphStats MetisToScotch SnapToMetis GraphToHgr HgrToParkway SnapGraphToHgr DegreeBasedBipartition CreateGraphvizFile PARENT_SCOPE)
