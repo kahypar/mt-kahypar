@@ -232,6 +232,7 @@ struct InitialPartitioningParameters {
   size_t judicious_runs = 1;
   bool judicious_rb = false;
   bool rb_judicious_refinement = false;
+  bool rb_chose_by_judicious = false;
 };
 
 std::ostream & operator<< (std::ostream& str, const InitialPartitioningParameters& params);

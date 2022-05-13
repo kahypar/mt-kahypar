@@ -529,7 +529,11 @@ namespace mt_kahypar {
             ("i-judicious-rb-judicious-refinement",
              po::value<bool>(&context.initial_partitioning.rb_judicious_refinement)->value_name(
                      "<bool>")->default_value(false),
-             "If true, use judicious refinement during RB");
+             "If true, use judicious refinement during RB")
+            ("i-judicious-rb-chose-by-judicious",
+             po::value<bool>(&context.initial_partitioning.rb_chose_by_judicious)->value_name(
+                     "<bool>")->default_value(false),
+             "If true, chose result with best judicious load during RB");
     options.add(createRefinementOptionsDescription(context, num_columns, true));
     return options;
   }

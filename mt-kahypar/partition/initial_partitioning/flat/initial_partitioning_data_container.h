@@ -227,14 +227,13 @@ class InitialPartitioningDataContainer {
         metrics::hyperedgeCut(_partitioned_hypergraph, false),
         metrics::km1(_partitioned_hypergraph, false),
         metrics::imbalance(_partitioned_hypergraph, _context) };
-      const HyperedgeWeight quality_before_refinement =
-        metrics::judiciousLoad(_partitioned_hypergraph, false);
+      const HyperedgeWeight quality_before_refinement = _context.initial_partitioning.rb_chose_by_judicious ? metrics::judiciousLoad(_partitioned_hypergraph, false) : current_metric.km1;
 
       refineCurrentPartition(current_metric, prng);
 
-      HyperedgeWeight judicious_load = metrics::judiciousLoad(_partitioned_hypergraph, false);
+      const HyperedgeWeight quality_after_refinement = _context.initial_partitioning.rb_chose_by_judicious ? metrics::judiciousLoad(_partitioned_hypergraph, false) : current_metric.km1;
       PartitioningResult result(algorithm, quality_before_refinement,
-        judicious_load,
+        quality_after_refinement,
         current_metric.imbalance);
 
       // Aggregate Stats
@@ -243,7 +242,7 @@ class InitialPartitioningDataContainer {
       _stats[algorithm_index].total_time += time;
       ++_stats[algorithm_index].total_calls;
 
-      _global_stats.add_run(algorithm, judicious_load, current_metric.imbalance <= _context.partition.epsilon);
+      _global_stats.add_run(algorithm, quality_after_refinement, current_metric.imbalance <= _context.partition.epsilon);
 
       return result;
     }
@@ -267,12 +266,13 @@ class InitialPartitioningDataContainer {
       HEAVY_INITIAL_PARTITIONING_ASSERT(
         current_metric.getMetric(kahypar::Mode::direct_kway, _context.partition.objective) ==
         metrics::objective(_partitioned_hypergraph, _context.partition.objective, false));
+        const HyperedgeWeight quality_before_refinement = _context.initial_partitioning.rb_chose_by_judicious ? metrics::judiciousLoad(_partitioned_hypergraph, false) : current_metric.km1;
 
       refineCurrentPartition(current_metric, prng);
 
-      HyperedgeWeight judicious_load = metrics::judiciousLoad(_partitioned_hypergraph, false);
+      const HyperedgeWeight quality_after_refinement = _context.initial_partitioning.rb_chose_by_judicious ? metrics::judiciousLoad(_partitioned_hypergraph, false) : current_metric.km1;
       PartitioningResult result(_result._algorithm,
-                                judicious_load, judicious_load,
+                                quality_before_refinement, quality_after_refinement,
                                 current_metric.imbalance);
 
       return result;
@@ -620,6 +620,7 @@ class InitialPartitioningDataContainer {
 
       HyperedgeWeight judicious_load = std::numeric_limits<HyperedgeWeight>::max();
       if (_context.initial_partitioning.judicious_rb) {
+        ASSERT(_context.initial_partitioning.rb_chose_by_judicious);
         const size_t num_runs = _context.initial_partitioning.judicious_runs * 3;
         std::uniform_int_distribution<> distrib(0, std::numeric_limits<int>::max());
         std::mt19937 g(_context.partition.seed);
@@ -652,6 +653,7 @@ class InitialPartitioningDataContainer {
           DBG << "Judicious Load:" << partitions[i].first << "," << j_configs[i];
         }
         judicious_load = best_partition->first;
+        // NOTE: only makes sense when using judicious objective for other algos <2022-05-13, noahares>
         if (judicious_load < best->_result._objective) {
           _partitioned_hg.doParallelForAllNodes([&](const HypernodeID hn) {
             const PartitionID part_id = best_partition->second[hn];

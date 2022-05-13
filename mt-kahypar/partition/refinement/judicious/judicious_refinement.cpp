@@ -46,6 +46,7 @@ namespace mt_kahypar {
     while (!done) {
       const PartitionID heaviest_part = _part_loads.top();
       calculateRefinementNodes(phg, heaviest_part);
+      // TODO: use load instead of improvement <2022-05-13, noahares>
       const Gain last_best_improvement = _best_improvement;
       HighResClockTimepoint refinement_start = std::chrono::high_resolution_clock::now();
       doRefinement(phg, heaviest_part);
@@ -68,7 +69,7 @@ namespace mt_kahypar {
       }
       const double load_ratio = static_cast<double>(current_max_load) / min_part_load;
       HyperedgeWeight delta = _best_improvement - last_best_improvement;
-      if (delta <= 0 || current_max_load == _part_loads.topKey()) {
+      if (delta <= 0) {
         num_bad_refinements++;
       } else {
         num_bad_refinements = 0;
@@ -78,6 +79,7 @@ namespace mt_kahypar {
       }
     }
     revertToBestLocalPrefix(phg, 0);
+    // TODO: extract load check to utils func <2022-05-13, noahares>
     current_max_load = phg.partLoad(0);
     HyperedgeWeight current_min_load = phg.partLoad(0);
     for (PartitionID i = 1; i < _context.partition.k; ++i) {
