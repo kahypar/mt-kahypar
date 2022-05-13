@@ -272,6 +272,7 @@ namespace mt_kahypar::multilevel {
       for (size_t i = 0; i < phg.initialNumNodes(); ++i) {
         phg.setNodePart(i, best_partition->second[i]);
       }
+      DBG << V(metrics::judiciousLoad(phg));
     }
 
     Hypergraph& _hg;

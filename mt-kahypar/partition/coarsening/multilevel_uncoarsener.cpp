@@ -39,6 +39,12 @@ namespace mt_kahypar {
 
     partitioned_hg.reinitializePartitionData();
 
+    if (debug && _context.type == kahypar::ContextType::main) {
+      for (PartitionID i = 0; i < _context.partition.k; ++i) {
+        LOG << partitioned_hg.partLoad(i);
+      }
+    }
+
     if (_context.type == kahypar::ContextType::main) {
       _context.initial_km1 = current_metrics.km1;
       _context.refinement.judicious.initial_judicious_load = metrics::judiciousLoad(partitioned_hg);
