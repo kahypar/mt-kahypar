@@ -95,13 +95,16 @@ static void outputGraphvizFile(const Hypergraph& hypergraph, const std::string& 
     for (HypernodeID hn: hypergraph.nodes()) {
         HypernodeWeight w = hypergraph.nodeWeight(hn);
         double root = std::sqrt(w) / 4; // std::round(100 * std::sqrt(w)) / 100.0;
-        out << hn << " [label=\"\",width=" << root << ",height=" << root << "];" << std::endl;
+        double penwidth = std::pow(w, 0.4);
+        out << hn << " [label=\"\",width=" << root << ", penwidth=" << penwidth  << ",height=" << root << ",color=red];" << std::endl;
     }
 
     for (HyperedgeID e: hypergraph.edges()) {
-        double w = std::sqrt(hypergraph.edgeWeight(e));
-        out << hypergraph.edgeSource(e) << "--" << hypergraph.edgeTarget(e)
-            << " [weight=" << w << ", penwidth=" << w << "];" << std::endl;
+        double w = std::sqrt(hypergraph.edgeWeight(e)) / 8;
+        if (w > 0.01) {
+            out << hypergraph.edgeSource(e) << "--" << hypergraph.edgeTarget(e)
+                << " [weight=" << w << ", penwidth=" << w << "];" << std::endl;
+        }
     }
     out << "}" << std::endl;
 }

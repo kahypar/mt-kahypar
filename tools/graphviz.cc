@@ -44,7 +44,18 @@ int main(int argc, char* argv[]) {
             po::value<std::string>()->value_name("<string>")->required()->notifier([&](const std::string& s) {
               output = s;
             }),
-            "Output file");
+            "Output file")
+          ("input-file-format",
+            po::value<std::string>()->value_name("<string>")->notifier([&](const std::string& s) {
+              if (s == "hmetis") {
+                context.partition.file_format = FileFormat::hMetis;
+              } else if (s == "metis") {
+                context.partition.file_format = FileFormat::Metis;
+              }
+            })->default_value("metis"),
+            "Input file format: \n"
+            " - hmetis : hMETIS hypergraph file format \n"
+            " - metis : METIS graph file format");
 
   po::variables_map cmd_vm;
   po::store(po::parse_command_line(argc, argv, options), cmd_vm);
@@ -52,7 +63,7 @@ int main(int argc, char* argv[]) {
 
   // Read Hypergraph
   Hypergraph hg = mt_kahypar::io::readInputFile(
-    context.partition.graph_filename, FileFormat::Metis, true, false);
+    context.partition.graph_filename, context.partition.file_format, true, false);
 
   utils::outputGraphvizFile(hg, output);
 
