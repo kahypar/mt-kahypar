@@ -34,10 +34,8 @@ namespace mt_kahypar {
     unused(refinement_nodes);
     if (_reached_lower_bound) return false;
     if (!_is_initialized) throw std::runtime_error("Call initialize on judicious refinement before calling refine");
-    if (debug) {
-      LOG << "Initial judicious load:" << V(metrics::judiciousLoad(phg));
-      ASSERT(_last_load == metrics::judiciousLoad(phg) || _last_load == 0);
-    }
+    DBG << "Initial judicious load:" << V(metrics::judiciousLoad(phg));
+    ASSERT(_last_load == metrics::judiciousLoad(phg) || _last_load == 0);
     for (PartitionID i = 0; i < _context.partition.k; ++i) {
       _part_loads.insert(i, phg.partLoad(i));
     }
@@ -46,23 +44,21 @@ namespace mt_kahypar {
     size_t num_bad_refinements = 0;
     bool done = false;
     while (!done) {
-      calculateRefinementNodes(phg);
       const PartitionID heaviest_part = _part_loads.top();
+      calculateRefinementNodes(phg, heaviest_part);
       const Gain last_best_improvement = _best_improvement;
       HighResClockTimepoint refinement_start = std::chrono::high_resolution_clock::now();
       doRefinement(phg, heaviest_part);
       HighResClockTimepoint refinement_stop = std::chrono::high_resolution_clock::now();
       double refinement_time = std::chrono::duration<double>(refinement_stop - refinement_start).count();
       _context.refinement.judicious.max_block_time = std::max(_context.refinement.judicious.max_block_time, refinement_time);
-      if (debug) {
-        LOG << "Improved best state by" << (_best_improvement - last_best_improvement);
-        LOG << "Spent" << refinement_time << "s on block" << heaviest_part;
-      }
+      DBG << "Improved best state by" << (_best_improvement - last_best_improvement);
+      DBG << "Spent" << refinement_time << "s on block" << heaviest_part;
       for (PartitionID i = 0; i < _context.partition.k; ++i) {
         _part_loads.adjustKey(i, phg.partLoad(i));
       }
-      if (debug && heaviest_part == _part_loads.top()) {
-        LOG << RED << "Heaviest part has not changed" << END;
+      if (heaviest_part == _part_loads.top()) {
+        DBG << RED << "Heaviest part has not changed" << END;
       }
       current_max_load = _part_loads.topKey();
       _total_improvement = initial_max_load - current_max_load;
@@ -72,7 +68,7 @@ namespace mt_kahypar {
       }
       const double load_ratio = static_cast<double>(current_max_load) / min_part_load;
       HyperedgeWeight delta = _best_improvement - last_best_improvement;
-      if (delta <= 0 || heaviest_part == _part_loads.top()) {
+      if (delta <= 0 || current_max_load == _part_loads.topKey()) {
         num_bad_refinements++;
       } else {
         num_bad_refinements = 0;
@@ -90,14 +86,12 @@ namespace mt_kahypar {
     }
     ASSERT(initial_max_load >= current_max_load);
     ASSERT(_best_improvement == initial_max_load - current_max_load);
-    if (debug) {
-      LOG << "improved judicious load by" << initial_max_load - current_max_load;
-      _last_load = metrics::judiciousLoad(phg);
-      LOG << V(metrics::judiciousLoad(phg));
-    }
+    DBG << "improved judicious load by" << initial_max_load - current_max_load;
+    DBG << V(metrics::judiciousLoad(phg));
+    _last_load = current_max_load;
     if (static_cast<HyperedgeID>(current_max_load) == _context.refinement.judicious.max_degree || current_max_load == current_min_load) {
       _reached_lower_bound = true;
-      if (debug) LOG << "Reached lower bound" << V(current_max_load) << V(current_min_load) << V(_context.refinement.judicious.max_degree);
+      DBG << "Reached lower bound" << V(current_max_load) << V(current_min_load) << V(_context.refinement.judicious.max_degree);
     }
     metrics.imbalance = metrics::imbalance(phg, _context);
     reset();
@@ -119,37 +113,32 @@ namespace mt_kahypar {
     _part_loads.clear();
   }
 
-  void JudiciousRefiner::calculateRefinementNodes(PartitionedHypergraph& phg) {
-    for (auto& b : _refinement_nodes) {
-      b.clear();
-    }
-    tbb::enumerable_thread_specific<vec<vec<HypernodeID>>> ets_refinement_nodes;
+  void JudiciousRefiner::calculateRefinementNodes(const PartitionedHypergraph& phg, const PartitionID p) {
+    _refinement_nodes.clear();
+    tbb::enumerable_thread_specific<vec<HypernodeID>> ets_refinement_nodes;
 
     // thread local refinement node calculation
     tbb::parallel_for(tbb::blocked_range<HypernodeID>(0, phg.initialNumNodes()),
                       [&](const tbb::blocked_range<HypernodeID> &r) {
                         auto &tl_refinement_nodes = ets_refinement_nodes.local();
-                        tl_refinement_nodes.resize(_context.partition.k);
+                        // tl_refinement_nodes.reserve(phg.partWeight(p));
                         for (HypernodeID u = r.begin(); u < r.end(); ++u) {
-                          if (phg.nodeIsEnabled(u)) {
-                            tl_refinement_nodes[phg.partID(u)].push_back(u);
+                          if (phg.nodeIsEnabled(u) && phg.partID(u) == p) {
+                            tl_refinement_nodes.push_back(u);
                           }
                         }
                       });
 
     for (const auto &tl_refinement_nodes : ets_refinement_nodes) {
-      tbb::parallel_for(PartitionID(0), _context.partition.k, [&](const auto i) {
-        _refinement_nodes[i].insert(_refinement_nodes[i].end(), tl_refinement_nodes[i].begin(),
-                               tl_refinement_nodes[i].end());
-      });
+      _refinement_nodes.insert(_refinement_nodes.end(), tl_refinement_nodes.begin(),
+                             tl_refinement_nodes.end());
     }
   }
 
-  void JudiciousRefiner::doRefinement(PartitionedHypergraph& phg, PartitionID part_id) {
-    auto& refinement_nodes = _refinement_nodes[part_id];
-    DBG << V(refinement_nodes.size());
+  void JudiciousRefiner::doRefinement(PartitionedHypergraph& phg, const PartitionID part_id) {
+    DBG << V(_refinement_nodes.size());
     _gain_cache.setActivePart(part_id);
-    for (HypernodeID v : refinement_nodes) {
+    for (const HypernodeID v : _refinement_nodes) {
       _gain_cache.insert(phg, v);
     }
     _part_loads.deleteTop();
@@ -194,8 +183,8 @@ namespace mt_kahypar {
       }
 
       // abort if too many negative gain moves were made...
-      if (_moves.size() > refinement_nodes.size() * _context.refinement.judicious.abort_factor) {
-        if (debug) LOG << "Abort due to too many negative gain moves";
+      if (_moves.size() > _refinement_nodes.size() * _context.refinement.judicious.abort_factor) {
+        DBG << "Abort due to too many negative gain moves";
         revertToBestLocalPrefix(phg, initial_num_moves);
         break;
       } else if (_part_loads.topKey() >= from_load * _context.refinement.judicious.part_load_margin ||
@@ -233,9 +222,7 @@ namespace mt_kahypar {
   }
 
   void JudiciousRefiner::revertToBestLocalPrefix(PartitionedHypergraph& phg, size_t bestGainIndex) {
-    if (debug) {
-      LOG << "reverting" << (_moves.size() - bestGainIndex) << "moves";
-    }
+    DBG << "reverting" << (_moves.size() - bestGainIndex) << "moves";
     while (_moves.size() > bestGainIndex) {
       Move& m = _moves.back();
       phg.changeNodePartWithGainCacheUpdate(m.node, m.to, m.from);

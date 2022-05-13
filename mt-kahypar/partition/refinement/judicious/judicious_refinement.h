@@ -50,16 +50,16 @@ public:
                   double) final ;
 
   void initializeImpl(PartitionedHypergraph& phg) final;
-  void calculateRefinementNodes(PartitionedHypergraph& phg);
-  void doRefinement(PartitionedHypergraph& phg, PartitionID part_id);
-  void revertToBestLocalPrefix(PartitionedHypergraph& phg, size_t bestGainIndex);
+  void calculateRefinementNodes(const PartitionedHypergraph& phg, const PartitionID heaviest_part);
+  void doRefinement(PartitionedHypergraph& phg, const PartitionID part_id);
+  void revertToBestLocalPrefix(PartitionedHypergraph& phg, const size_t bestGainIndex);
   void updateNeighbors(PartitionedHypergraph& phg, const Move& move);
   void reset();
 private:
   bool _is_initialized = false;
   Hypergraph& _hypergraph;
   const Context& _context;
-  vec<vec<HypernodeID>> _refinement_nodes;
+  vec<HypernodeID> _refinement_nodes;
   JudiciousGainCache _gain_cache;
   vec<HyperedgeID> _edgesWithGainChanges;
   vec<Move> _moves;
