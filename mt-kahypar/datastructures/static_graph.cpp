@@ -189,6 +189,10 @@ namespace mt_kahypar::ds {
         // valid_edge_index ---        tmp_edge_index ---
         size_t valid_edge_index = incident_edges_start;
         size_t tmp_edge_index = incident_edges_start + 1;
+        HyperedgeWeight incident_weight = 0;
+        if (incident_edges_start < incident_edges_end && tmp_edges[incident_edges_start].isValid()) {
+          incident_weight = tmp_edges[incident_edges_start].getWeight();
+        }
         while (tmp_edge_index < incident_edges_end && tmp_edges[tmp_edge_index].isValid()) {
           HEAVY_COARSENING_ASSERT(
             [&](){
@@ -214,6 +218,7 @@ namespace mt_kahypar::ds {
           TmpEdgeInformation& valid_edge = tmp_edges[valid_edge_index];
           TmpEdgeInformation& next_edge = tmp_edges[tmp_edge_index];
           if (next_edge.isValid()) {
+            incident_weight += next_edge.getWeight();
             if (valid_edge.getTarget() == next_edge.getTarget()) {
               valid_edge.addWeight(next_edge.getWeight());
               valid_edge.updateID(next_edge.getID());
@@ -227,6 +232,7 @@ namespace mt_kahypar::ds {
         const bool is_non_empty = (incident_edges_start < incident_edges_end) && tmp_edges[valid_edge_index].isValid();
         const HyperedgeID contracted_size = is_non_empty ? (valid_edge_index - incident_edges_start + 1) : 0;
         node_sizes[coarse_node] = contracted_size;
+        tmp_nodes[coarse_node].setIncidentWeight(incident_weight);
       } else {
         std::lock_guard<std::mutex> lock(high_degree_vertex_mutex);
         high_degree_vertices.push_back(coarse_node);
@@ -275,6 +281,16 @@ namespace mt_kahypar::ds {
         parallel::TBBPrefixSum<HyperedgeID, parallel::scalable_vector> incident_edges_pos(incident_edges_inclusion);
         tbb::parallel_scan(tbb::blocked_range<size_t>(ID(0), static_cast<size_t>(coarsened_num_nodes)), incident_edges_pos);
 
+        // calculate incident weight of node
+        HyperedgeWeight incident_weight = tbb::parallel_reduce(tbb::blocked_range<HypernodeID>(ID(0), coarsened_num_nodes), 0,
+          [&](const tbb::blocked_range<HypernodeID>& range, HyperedgeWeight init) {
+            HyperedgeWeight weight = init;
+            for (HypernodeID hn = range.begin(); hn < range.end(); ++hn) {
+              weight += summed_edge_weights_for_target[hn].load();
+            }
+            return weight;
+          }, std::plus<HyperedgeWeight>());
+
         // insert edges
         tbb::parallel_for(ID(0), coarsened_num_nodes, [&](const size_t target) {
           const HyperedgeWeight weight = summed_edge_weights_for_target[target].load();
@@ -288,6 +304,7 @@ namespace mt_kahypar::ds {
 
         const size_t contracted_size = incident_edges_pos.total_sum();
         node_sizes[coarse_node] = contracted_size;
+        tmp_nodes[coarse_node].setIncidentWeight(incident_weight);
       }
     }
 
@@ -362,6 +379,7 @@ namespace mt_kahypar::ds {
         node.enable();
         node.setFirstEntry(degree_mapping[coarse_node]);
         node.setWeight(tmp_nodes[coarse_node].weight());
+        node.setIncidentWeight(tmp_nodes[coarse_node].incidentWeight());
       });
       hypergraph._nodes.back() = Node(static_cast<size_t>(coarsened_num_edges));
     }, [&] {

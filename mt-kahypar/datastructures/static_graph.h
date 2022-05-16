@@ -124,11 +124,22 @@ class StaticGraph {
       _weight = weight;
     }
 
+    HyperedgeWeight incidentWeight() const {
+      return _incident_weight;
+    }
+
+    void setIncidentWeight(HyperedgeWeight weight) {
+      ASSERT(!isDisabled());
+      _incident_weight = weight;
+    }
+
    private:
     // ! Index of the first element in _edges
     HyperedgeID _begin;
     // ! Node weight
     HypernodeWeight _weight;
+    // ! Sum of weight of incident edges
+    HyperedgeWeight _incident_weight;
     // ! Flag indicating whether or not the element is active.
     bool _valid;
   };
@@ -610,6 +621,20 @@ class StaticGraph {
     return !node(u).isDisabled();
   }
 
+  // ! Incident edge weight of a vertex
+  HyperedgeWeight incidentWeight(const HypernodeID u) const {
+    ASSERT(
+      [&]() {
+        HyperedgeWeight incidentWeightRecomputed = 0;
+        for (HyperedgeID e: incidentEdges(u)) {
+          incidentWeightRecomputed += edgeWeight(e);
+        }
+        return node(u).incidentWeight() == incidentWeightRecomputed;
+      }()
+    );
+    return node(u).incidentWeight();
+  }
+
   // ! Removes a degree zero hypernode
   void removeDegreeZeroHypernode(const HypernodeID u) {
     ASSERT(nodeDegree(u) == 0);
@@ -659,7 +684,7 @@ class StaticGraph {
 
   // ! Sets the weight of a hyperedge
   void setEdgeWeight(const HyperedgeID e, const HyperedgeWeight weight) {
-    return edge(e).setWeight(weight);
+    ERROR("setEdgeWeight() is not supported in static graph");
   }
 
   // ! Number of pins of a hyperedge

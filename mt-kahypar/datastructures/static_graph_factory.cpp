@@ -99,12 +99,17 @@ namespace mt_kahypar::ds {
     // Compute degree for each vertex
     utils::Timer::instance().start_timer("compute_ds_sizes", "Precompute DS Size", true);
     ThreadLocalCounter local_degree_per_vertex(num_nodes);
+    ThreadLocalCounter local_incident_weight_per_vertex(edge_weight ? num_nodes : 0);
     tbb::parallel_for(ID(0), num_edges, [&](const size_t pos) {
       Counter& num_degree_per_vertex = local_degree_per_vertex.local();
+      Counter& num_incident_weight_per_vertex = local_incident_weight_per_vertex.local();
       const HypernodeID pins[2] = {edge_vector[pos].first, edge_vector[pos].second};
       for (const HypernodeID& pin : pins) {
         ASSERT(pin < num_nodes, V(pin) << V(num_nodes));
         ++num_degree_per_vertex[pin];
+        if (edge_weight) {
+          num_incident_weight_per_vertex[pin] += edge_weight[pos];
+        }
       }
     });
 
@@ -115,6 +120,14 @@ namespace mt_kahypar::ds {
       tbb::parallel_for(ID(0), num_nodes, [&](const size_t pos) {
         num_degree_per_vertex[pos] += c[pos];
       });
+    }
+    Counter num_incident_weight_per_vertex(edge_weight ? num_nodes : 0, 0);
+    if (edge_weight) {
+      for (Counter& c : local_incident_weight_per_vertex) {
+        tbb::parallel_for(ID(0), num_nodes, [&](const size_t pos) {
+          num_incident_weight_per_vertex[pos] += c[pos];
+        });
+      }
     }
     utils::Timer::instance().stop_timer("compute_ds_sizes");
 
@@ -162,6 +175,8 @@ namespace mt_kahypar::ds {
         StaticGraph::Node& node = graph._nodes[pos];
         node.enable();
         node.setFirstEntry(degree_prefix_sum[pos]);
+        node.setIncidentWeight(edge_weight ? num_incident_weight_per_vertex[pos] :
+                               degree_prefix_sum[pos + 1] - degree_prefix_sum[pos]);
         if ( node_weight ) {
           node.setWeight(node_weight[pos]);
         }

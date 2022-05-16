@@ -127,6 +127,16 @@ TEST_F(AStaticGraph, VerifiesVertexDegrees) {
   ASSERT_EQ(2, hypergraph.nodeDegree(6));
 }
 
+TEST_F(AStaticGraph, VerifiesIncidentWeight) {
+  ASSERT_EQ(0, hypergraph.incidentWeight(0));
+  ASSERT_EQ(2, hypergraph.incidentWeight(1));
+  ASSERT_EQ(2, hypergraph.incidentWeight(2));
+  ASSERT_EQ(1, hypergraph.incidentWeight(3));
+  ASSERT_EQ(3, hypergraph.incidentWeight(4));
+  ASSERT_EQ(2, hypergraph.incidentWeight(5));
+  ASSERT_EQ(2, hypergraph.incidentWeight(6));
+}
+
 TEST_F(AStaticGraph, VerifiesEdgeIDs) {
   ASSERT_EQ(0, hypergraph.uniqueEdgeID(0));
   ASSERT_EQ(2, hypergraph.uniqueEdgeID(1));
@@ -151,13 +161,6 @@ TEST_F(AStaticGraph, VerifiesEdgeWeights) {
   for ( const HyperedgeID& he : hypergraph.edges() ) {
     ASSERT_EQ(1, hypergraph.edgeWeight(he));
   }
-}
-
-TEST_F(AStaticGraph, ModifiesEdgeWeight) {
-  hypergraph.setEdgeWeight(0, 2);
-  hypergraph.setEdgeWeight(2, 2);
-  ASSERT_EQ(2, hypergraph.edgeWeight(0));
-  ASSERT_EQ(2, hypergraph.edgeWeight(2));
 }
 
 TEST_F(AStaticGraph, VerifiesEdgeSizes) {
@@ -289,6 +292,11 @@ TEST_F(AStaticGraph, ContractsCommunities1) {
   ASSERT_EQ(1, c_graph.edgeWeight(0));
   ASSERT_EQ(3, c_graph.edgeWeight(2));
 
+  // Verify Incident Weights
+  ASSERT_EQ(1, c_graph.incidentWeight(0));
+  ASSERT_EQ(4, c_graph.incidentWeight(1));
+  ASSERT_EQ(3, c_graph.incidentWeight(2));
+
   // Verify Edge IDs
   ASSERT_EQ(0, c_graph.uniqueEdgeID(0));
   ASSERT_EQ(0, c_graph.uniqueEdgeID(1));
@@ -330,6 +338,11 @@ TEST_F(AStaticGraph, ContractsCommunities2) {
 
   // Verify Edge Weights
   ASSERT_EQ(2, c_graph.edgeWeight(0));
+
+  // Verify Incident Weights
+  ASSERT_EQ(0, c_graph.incidentWeight(0));
+  ASSERT_EQ(2, c_graph.incidentWeight(1));
+  ASSERT_EQ(2, c_graph.incidentWeight(2));
 
   // Verify Edge IDs
   ASSERT_EQ(0, c_graph.uniqueEdgeID(0));
