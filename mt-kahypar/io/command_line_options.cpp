@@ -224,6 +224,13 @@ namespace mt_kahypar {
              po::value<bool>(&context.coarsening.use_adaptive_edge_size)->value_name("<bool>")->default_value(true),
              "If true, the rating function uses the number of distinct cluster IDs of a net as edge size rather\n"
              "than its original size during multilevel coarsing")
+            ("c-forbid-different-density-contractions",
+             po::value<bool>(&context.coarsening.forbid_different_density_contractions)->value_name("<bool>")->default_value(false),
+             "If true, the coarsening will calculate the incident weight to node weight ratio for contraciton partners\n"
+             "and forbid the contraction if the difference is too large.")
+            ("c-max-allowed-density-diff",
+             po::value<double>(&context.coarsening.max_allowed_density_diff)->value_name("<double>")->default_value(2),
+             "Defines the allowed difference when using c-forbid-different-density-contractions.")
             #ifdef KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES
                         ("c-use-adaptive-max-node-weight",
                 po::value<bool>(&context.coarsening.use_adaptive_max_allowed_node_weight)->value_name("<bool>")->default_value(false),

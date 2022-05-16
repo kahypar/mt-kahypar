@@ -162,6 +162,8 @@ class MultilevelVertexPairRater {
 
     int cpu_id = sched_getcpu();
     const HypernodeWeight weight_u = cluster_weight[u];
+    const double weight_ratio_u = std::max(static_cast<double>(hypergraph.incidentWeight(u))
+                                           / hypergraph.nodeWeight(u), 0.1);
     const PartitionID community_u_id = hypergraph.communityID(u);
     RatingType max_rating = std::numeric_limits<RatingType>::min();
     HypernodeID target = std::numeric_limits<HypernodeID>::max();
@@ -174,13 +176,18 @@ class MultilevelVertexPairRater {
       if ( tmp_target != u && weight_u + target_weight <= max_allowed_node_weight ) {
         HypernodeWeight penalty = HeavyNodePenaltyPolicy::penalty(weight_u, target_weight);
         penalty = penalty == 0 ? std::max(std::max(weight_u, target_weight), 1) : penalty;
+        const double tmp_weight_ratio = std::max(static_cast<double>(hypergraph.incidentWeight(tmp_target))
+                                                 / hypergraph.nodeWeight(tmp_target), 0.1);
+        const double incident_weight_diff = std::max(tmp_weight_ratio / weight_ratio_u, weight_ratio_u / tmp_weight_ratio);
         const RatingType tmp_rating = it->value / static_cast<double>(penalty);
 
         DBG << "r(" << u << "," << tmp_target << ")=" << tmp_rating;
         if ( community_u_id == hypergraph.communityID(tmp_target) &&
             AcceptancePolicy::acceptRating(tmp_rating, max_rating,
                                            target_id, tmp_target_id,
-                                           cpu_id, _already_matched) ) {
+                                           cpu_id, _already_matched) &&
+            (!_context.coarsening.forbid_different_density_contractions ||
+             incident_weight_diff < _context.coarsening.max_allowed_density_diff)) {
           max_rating = tmp_rating;
           target_id = tmp_target_id;
           target = tmp_target;
