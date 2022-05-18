@@ -40,64 +40,74 @@ namespace mt_kahypar {
       _part_loads.insert(i, phg.partLoad(i));
     }
     const HyperedgeWeight initial_max_load = _part_loads.topKey();
-    HyperedgeWeight current_max_load = initial_max_load;
     size_t num_bad_refinements = 0;
     bool done = false;
-    while (!done) {
-      const PartitionID heaviest_part = _part_loads.top();
-      calculateRefinementNodes(phg, heaviest_part);
-      // TODO: use load instead of improvement <2022-05-13, noahares>
-      const Gain last_best_improvement = _best_improvement;
+    do {
+      const PartitionID from_block = _part_loads.top();
+      calculateRefinementNodes(phg, from_block);
+      const HyperedgeWeight max_load_before_refinement = phg.partLoad(from_block);
       HighResClockTimepoint refinement_start = std::chrono::high_resolution_clock::now();
-      doRefinement(phg, heaviest_part);
+      doRefinement(phg, from_block);
       HighResClockTimepoint refinement_stop = std::chrono::high_resolution_clock::now();
       double refinement_time = std::chrono::duration<double>(refinement_stop - refinement_start).count();
+      finalizeRefinementRound(phg, refinement_time, from_block, max_load_before_refinement);
+      _total_improvement = initial_max_load - _part_loads.topKey();
+      done = shouldRefinementContinue(phg, max_load_before_refinement, num_bad_refinements);
+    } while (!done);
+    revertToBestLocalPrefix(phg, 0);
+    finalizeRefinement(phg, initial_max_load);
+    metrics.imbalance = metrics::imbalance(phg, _context);
+    reset();
+    return initial_max_load - _part_loads.topKey() > 0;
+  }
+
+  void JudiciousRefiner::finalizeRefinementRound(const PartitionedHypergraph& phg, const double refinement_time, const PartitionID block, const HyperedgeWeight load_before) {
       _context.refinement.judicious.max_block_time = std::max(_context.refinement.judicious.max_block_time, refinement_time);
-      DBG << "Improved best state by" << (_best_improvement - last_best_improvement);
-      DBG << "Spent" << refinement_time << "s on block" << heaviest_part;
+      DBG << "Reduced load of block"
+          << block
+          << "by"
+          << (load_before - phg.partLoad(block))
+          << "[Time:" << refinement_time << "s]";
       for (PartitionID i = 0; i < _context.partition.k; ++i) {
         _part_loads.adjustKey(i, phg.partLoad(i));
       }
-      if (heaviest_part == _part_loads.top()) {
+      if (block == _part_loads.top()) {
         DBG << RED << "Heaviest part has not changed" << END;
       }
-      current_max_load = _part_loads.topKey();
-      _total_improvement = initial_max_load - current_max_load;
+  }
+
+  bool JudiciousRefiner::shouldRefinementContinue(const PartitionedHypergraph& phg, const HyperedgeWeight load_before, size_t& num_bad_refinements) {
+      const HyperedgeWeight current_max_load = _part_loads.topKey();
       HyperedgeWeight min_part_load = current_max_load;
       for (PartitionID i = 0; i < _context.partition.k; ++i) {
         min_part_load = std::min(min_part_load, phg.partLoad(i));
       }
       const double load_ratio = static_cast<double>(current_max_load) / min_part_load;
-      HyperedgeWeight delta = _best_improvement - last_best_improvement;
+      HyperedgeWeight delta = load_before - current_max_load;
+      // TODO: may be too restrictive <2022-05-17, noahares>
       if (delta <= 0) {
         num_bad_refinements++;
-      } else {
-        num_bad_refinements = 0;
       }
-      if (load_ratio < _context.refinement.judicious.min_load_ratio || num_bad_refinements >= 2) {
-        done = true;
-      }
+      return load_ratio < _context.refinement.judicious.min_load_ratio ||
+        num_bad_refinements >= 2;
     }
-    revertToBestLocalPrefix(phg, 0);
-    // TODO: extract load check to utils func <2022-05-13, noahares>
-    current_max_load = phg.partLoad(0);
-    HyperedgeWeight current_min_load = phg.partLoad(0);
+
+  void JudiciousRefiner::finalizeRefinement(const PartitionedHypergraph& phg, const HyperedgeWeight initial_max_load) {
+    HyperedgeWeight max_load = phg.partLoad(0);
+    HyperedgeWeight min_load = phg.partLoad(0);
     for (PartitionID i = 1; i < _context.partition.k; ++i) {
-      current_max_load = std::max(current_max_load, phg.partLoad(i));
-      current_min_load = std::min(current_min_load, phg.partLoad(i));
+      max_load = std::max(max_load, phg.partLoad(i));
+      min_load = std::min(min_load, phg.partLoad(i));
     }
-    ASSERT(initial_max_load >= current_max_load);
-    ASSERT(_best_improvement == initial_max_load - current_max_load);
-    DBG << "improved judicious load by" << initial_max_load - current_max_load;
+    ASSERT(initial_max_load >= max_load);
+    ASSERT(_best_improvement == initial_max_load - max_load);
+    DBG << "improved judicious load by" << initial_max_load - max_load;
     DBG << V(metrics::judiciousLoad(phg));
-    _last_load = current_max_load;
-    if (static_cast<HyperedgeID>(current_max_load) == _context.refinement.judicious.max_degree || current_max_load == current_min_load) {
+    _last_load = max_load;
+    if (static_cast<HyperedgeID>(max_load) == _context.refinement.judicious.max_degree || max_load == min_load) {
       _reached_lower_bound = true;
-      DBG << "Reached lower bound" << V(current_max_load) << V(current_min_load) << V(_context.refinement.judicious.max_degree);
+      DBG << "Reached lower bound" << V(max_load) << V(min_load) << V(_context.refinement.judicious.max_degree);
     }
-    metrics.imbalance = metrics::imbalance(phg, _context);
-    reset();
-    return initial_max_load - current_max_load > 0;
   }
 
   void JudiciousRefiner::initializeImpl(PartitionedHypergraph& phg) {
@@ -108,6 +118,7 @@ namespace mt_kahypar {
 
   }
 
+  // TODO: use something like "judicious state" for this shared data <2022-05-17, noahares>
   void JudiciousRefiner::reset() {
     _best_improvement = 0;
     _total_improvement = 0;
@@ -164,6 +175,7 @@ namespace mt_kahypar {
     while (_gain_cache.findNextMove(phg, move)) {
       ASSERT(move.to != kInvalidPartition);
       ASSERT(move.from == part_id);
+      const HyperedgeWeight from_load_before_move = phg.partLoad(part_id);
       phg.changeNodePartWithGainCacheUpdate(move.node, move.from, move.to,
                                             std::numeric_limits<HypernodeWeight>::max(),
                                             []{}, delta_func);
@@ -172,11 +184,14 @@ namespace mt_kahypar {
       const HyperedgeWeight to_load = phg.partLoad(move.to);
       from_load = phg.partLoad(move.from);
       _part_loads.adjustKey(move.to, to_load);
-      Gain gain = initial_from_load - std::max(_part_loads.topKey(), from_load);
+      Gain real_gain = initial_from_load - std::max(_part_loads.topKey(), from_load);
       // ASSERT(gain == move.gain);
       // if the maximum load decreased, accept the move immediately
-      if (_total_improvement + gain >= _best_improvement) {
-        _best_improvement = _total_improvement + gain;
+      // TODO: use load instead of improvement,  <2022-05-13, noahares>
+      // want to accept all moves which do not increase the judicious load, i.e all moves s.t. to's load will not exceed from's load before the move.
+      // Moves that increase the judicious load should not be done, because they cannot help escape local minima, because if a node is moved from node A to B to C, it could be moved to C directly and its neighbors which decrease the load of B are moved when B becomes the heaviest
+      if (_total_improvement + real_gain >= _best_improvement) {
+        _best_improvement = _total_improvement + real_gain;
         for (size_t i = initial_num_moves; i < _moves.size(); ++i) {
           accepted_moves.push_back(_moves[i].node);
         }

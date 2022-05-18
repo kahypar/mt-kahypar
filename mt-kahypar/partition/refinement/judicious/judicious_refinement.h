@@ -50,6 +50,9 @@ public:
                   double) final ;
 
   void initializeImpl(PartitionedHypergraph& phg) final;
+  void finalizeRefinementRound(const PartitionedHypergraph& phg, const double refinement_time, const PartitionID block, const HyperedgeWeight load_before);
+  bool shouldRefinementContinue(const PartitionedHypergraph& phg, const HyperedgeWeight load_before, size_t& num_bad_refinements);
+  void finalizeRefinement(const PartitionedHypergraph& phg, const HyperedgeWeight initial_max_load);
   void calculateRefinementNodes(const PartitionedHypergraph& phg, const PartitionID heaviest_part);
   void doRefinement(PartitionedHypergraph& phg, const PartitionID part_id);
   void revertToBestLocalPrefix(PartitionedHypergraph& phg, const size_t bestGainIndex);
