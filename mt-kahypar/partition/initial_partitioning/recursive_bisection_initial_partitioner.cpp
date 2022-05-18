@@ -251,6 +251,16 @@ namespace mt_kahypar {
 
     tbb::task* execute() override {
       ASSERT(_hg.initialNumNodes() == _bisection_hg.initialNumNodes());
+      if (_context.initial_partitioning.rb_chose_by_judicious && _bisection_partitioned_hg.k() == 3) {
+        _hg.doParallelForAllNodes([&](const HypernodeID& hn) {
+          PartitionID part_id = _bisection_partitioned_hg.partID(hn);
+          ASSERT(part_id != kInvalidPartition && part_id < _hg.k());
+          ASSERT(_hg.partID(hn) == kInvalidPartition);
+          _hg.setOnlyNodePart(hn, part_id);
+        });
+        _hg.initializePartition();
+        return nullptr;
+      }
       // Apply partition to hypergraph
       const PartitionID block_0 = 0;
       const PartitionID block_1 = _context.partition.k / 2 + (_context.partition.k % 2 != 0 ? 1 : 0);
@@ -291,7 +301,7 @@ namespace mt_kahypar {
         recursive_continuation.set_ref_count(2);
         tbb::task::spawn(recursion_1);
         tbb::task::spawn(recursion_0);
-      } else if ( num_blocks_part_0 >= 2 ) {
+      } else if ( !_context.initial_partitioning.rb_chose_by_judicious && num_blocks_part_0 >= 2 ) {
         ASSERT(num_blocks_part_1 < 2);
         // In case only the first block has to be partitioned into more than one block, we call
         // the recursive bisection initial partitioner recusively on the block 0
@@ -323,6 +333,22 @@ namespace mt_kahypar {
       // Setup Part Weights
       const HypernodeWeight total_weight = hypergraph.totalWeight();
       const PartitionID k = context.partition.k;
+      if (context.initial_partitioning.rb_chose_by_judicious && k == 3) {
+        bisection_context.partition.k = 3;
+        // wont use individual part weights
+        bisection_context.partition.epsilon = _original_hypergraph_info.computeAdaptiveEpsilon(total_weight, k);
+
+        bisection_context.partition.perfect_balance_part_weights.clear();
+        bisection_context.partition.max_part_weights.clear();
+        const HypernodeWeight perfect_weight = std::ceil(1 / static_cast<double>(3) * static_cast<double>(total_weight));
+        bisection_context.partition.perfect_balance_part_weights.assign(3, perfect_weight);
+        bisection_context.partition.max_part_weights.assign(3, (1 + bisection_context.partition.epsilon) * perfect_weight);
+        bisection_context.setupContractionLimit(total_weight);
+        bisection_context.setupSparsificationParameters();
+
+        return bisection_context;
+      }
+
       const PartitionID k0 = k / 2 + (k % 2 != 0 ? 1 : 0);
       const PartitionID k1 = k / 2;
       ASSERT(k0 + k1 == context.partition.k);
