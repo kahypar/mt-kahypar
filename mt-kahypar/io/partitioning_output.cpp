@@ -218,6 +218,13 @@ namespace mt_kahypar::io {
                 << std::endl;
       if ( is_imbalanced ) std::cout << END;
     }
+
+    std::cout << "\nPart Loads:\n";
+    for (PartitionID i = 0; i < hypergraph.k(); ++i) {
+      std::cout << "|block " << std::left  << std::setw(k_digits) << i
+                << std::setw(1) << "| = "  << std::right << std::setw(part_digits) << hypergraph.partLoad(i)
+                << std::endl;
+    }
   }
 
   void printPartitioningResults(const PartitionedHypergraph& hypergraph,

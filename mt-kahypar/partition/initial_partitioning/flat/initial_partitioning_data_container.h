@@ -677,6 +677,7 @@ class InitialPartitioningDataContainer {
         _partitioned_hg.initializePartition();
 
         ASSERT(best);
+        best_feasible_objective = best->_result._objective;
         ASSERT(best_feasible_objective == metrics::objective(_partitioned_hg, _context.partition.objective, false),
                V(best_feasible_objective) << V(metrics::objective(_partitioned_hg, _context.partition.objective, false)));
       }
@@ -698,7 +699,6 @@ class InitialPartitioningDataContainer {
         }
       }
       best_flat_algo = best->_result._algorithm;
-      best_feasible_objective = best->_result._objective;
 
       ASSERT(worst);
       ASSERT(best_imbalance);

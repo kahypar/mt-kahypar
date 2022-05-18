@@ -155,6 +155,7 @@ namespace mt_kahypar::ds {
           const Hyperedge& e = _hyperedges[he];
           ASSERT(static_cast<size_t>(he) < tmp_hyperedges.size());
           ASSERT(e.firstInvalidEntry() <= tmp_incidence_array.size());
+          ASSERT(e.firstEntry() < tmp_incidence_array.size());
           tmp_hyperedges[he] = e;
           valid_hyperedges[he] = 1;
 
@@ -187,8 +188,9 @@ namespace mt_kahypar::ds {
             for ( size_t pos = incidence_array_start; pos < incidence_array_start + contracted_size; ++pos ) {
               footprint += cs2(tmp_incidence_array[pos]);
             }
+            ContractedHyperedgeInformation hi{ he, footprint, contracted_size, true };
             hyperedge_hash_map.insert(footprint,
-                                      ContractedHyperedgeInformation{ he, footprint, contracted_size, true });
+                                      std::move(hi));
           } else {
             // Hyperedge becomes a single-pin hyperedge
             valid_hyperedges[he] = 0;
