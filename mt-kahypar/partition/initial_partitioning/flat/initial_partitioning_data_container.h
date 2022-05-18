@@ -522,7 +522,6 @@ class InitialPartitioningDataContainer {
       stats.emplace_back(static_cast<InitialPartitioningAlgorithm>(algo));
     }
     InitialPartitioningAlgorithm best_flat_algo = InitialPartitioningAlgorithm::UNDEFINED;
-    HyperedgeWeight best_feasible_objective = std::numeric_limits<HyperedgeWeight>::max(); unused(best_feasible_objective);
 
     if ( _context.partition.deterministic ) {
       for (auto& p : _local_hg) {
@@ -569,7 +568,6 @@ class InitialPartitioningDataContainer {
       }
 
       best_flat_algo = _best_partitions[best_index].first._algorithm;
-      best_feasible_objective = _best_partitions[best_index].first._objective;
       const vec<PartitionID>& best_partition = _best_partitions[best_index].second;
       assert(std::all_of(best_partition.begin(), best_partition.end(), [&](PartitionID p) { return p != kInvalidPartition; }));
 
@@ -677,9 +675,6 @@ class InitialPartitioningDataContainer {
         _partitioned_hg.initializePartition();
 
         ASSERT(best);
-        best_feasible_objective = best->_result._objective;
-        ASSERT(best_feasible_objective == metrics::objective(_partitioned_hg, _context.partition.objective, false),
-               V(best_feasible_objective) << V(metrics::objective(_partitioned_hg, _context.partition.objective, false)));
       }
 
       if (_context.initial_partitioning.rb_judicious_refinement) {
