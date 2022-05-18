@@ -1062,7 +1062,9 @@ private:
     doParallelForAllNodes([&](const HypernodeID& hn) {
       if ( partID(hn) == block ) {
         const HypernodeID extracted_hn = hn_mapping[hn];
+        const HyperedgeWeight weight_of_disabled_edges = weightOfDisabledEdges(hn);
         extracted_hypergraph.setCommunityID(extracted_hn, _hg->communityID(hn));
+        extracted_hypergraph.setWeightOfDisabledEdges(extracted_hn, weight_of_disabled_edges);
       }
     });
     return std::make_pair(std::move(extracted_hypergraph), std::move(hn_mapping));

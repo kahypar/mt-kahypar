@@ -31,6 +31,7 @@
 #include "mt-kahypar/partition/context_enum_classes.h"
 #include "mt-kahypar/utils/memory_tree.h"
 #include "mt-kahypar/utils/range.h"
+#include <functional>
 
 namespace mt_kahypar {
 namespace ds {
@@ -660,6 +661,11 @@ class StaticHypergraph {
   HyperedgeWeight weightOfDisabledEdges(const HypernodeID n) const {
     ASSERT(_weight_of_disabled_edges.empty() || n < _weight_of_disabled_edges.size());
     return _weight_of_disabled_edges.empty() ? 0 : _weight_of_disabled_edges[n];
+  }
+
+  void setWeightOfDisabledEdges(const HypernodeID n, const HyperedgeWeight w) {
+    ASSERT(n < _weight_of_disabled_edges.size());
+    _weight_of_disabled_edges[n] = w;
   }
 
   // ! Community id which hypernode u is assigned to
