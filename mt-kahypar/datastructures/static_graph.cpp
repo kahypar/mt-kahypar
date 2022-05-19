@@ -68,23 +68,41 @@ namespace mt_kahypar::ds {
 
 
     // #################### STAGE 1 ####################
-    // Compute vertex ids of coarse graph with a parallel prefix sum
     utils::Timer::instance().start_timer("preprocess_contractions", "Preprocess Contractions");
-    mapping.assign(_num_nodes, 0);
 
+    // Extract nodes that will be separated
+    mapping.assign(_num_nodes, 0);
     doParallelForAllNodes([&](const HypernodeID& node) {
-      ASSERT(static_cast<size_t>(communities[node]) < mapping.size());
-      mapping[communities[node]] = 1UL;
+      if (communities[node] == kInvalidHypernode) {
+        mapping[node] = 1;
+      }
+    });
+
+    // Prefix sum determines vertex ids in coarse graph
+    // parallel::TBBPrefixSum<HyperedgeID, Array> separated_prefix_sum(separated_mapping);
+    // tbb::parallel_scan(tbb::blocked_range<size_t>(ID(0), _num_nodes), separated_prefix_sum);
+    // const HypernodeID separated_num_nodes = separated_prefix_sum.total_sum();
+
+    // Compute vertex ids of coarse graph with a parallel prefix sum
+    mapping.assign(_num_nodes, 0);
+    doParallelForAllNodes([&](const HypernodeID& node) {
+      if (communities[node] < mapping.size()) {
+        mapping[communities[node]] = 1;
+      } else {
+        ASSERT(communities[node] == kInvalidHypernode);
+      }
     });
 
     // Prefix sum determines vertex ids in coarse graph
     parallel::TBBPrefixSum<HyperedgeID, Array> mapping_prefix_sum(mapping);
     tbb::parallel_scan(tbb::blocked_range<size_t>(ID(0), _num_nodes), mapping_prefix_sum);
-    HypernodeID coarsened_num_nodes = mapping_prefix_sum.total_sum();
+    const HypernodeID coarsened_num_nodes = mapping_prefix_sum.total_sum();
+
+    // const HypernodeID total_num_nodes = coarsened_num_nodes + separated_num_nodes;
 
     // Remap community ids
     tbb::parallel_for(ID(0), _num_nodes, [&](const HypernodeID& node) {
-      if ( nodeIsEnabled(node) ) {
+      if ( nodeIsEnabled(node) && communities[node] != kInvalidHypernode ) {
         communities[node] = mapping_prefix_sum[communities[node]];
       } else {
         communities[node] = kInvalidHypernode;
@@ -109,11 +127,13 @@ namespace mt_kahypar::ds {
 
     doParallelForAllNodes([&](const HypernodeID& node) {
       const HypernodeID coarse_node = map_to_coarse_graph(node);
-      ASSERT(coarse_node < coarsened_num_nodes, V(coarse_node) << V(coarsened_num_nodes));
-      // Weight vector is atomic => thread-safe
-      node_weights[coarse_node] += nodeWeight(node);
-      // Aggregate upper bound for number of incident nets of the contracted vertex
-      tmp_num_incident_edges[coarse_node] += nodeDegree(node);
+      if (coarse_node != kInvalidHypernode) {
+        ASSERT(coarse_node < coarsened_num_nodes, V(coarse_node) << V(coarsened_num_nodes));
+        // Weight vector is atomic => thread-safe
+        node_weights[coarse_node] += nodeWeight(node);
+        // Aggregate upper bound for number of incident nets of the contracted vertex
+        tmp_num_incident_edges[coarse_node] += nodeDegree(node);
+      }
     });
     utils::Timer::instance().stop_timer("preprocess_contractions");
 
@@ -139,21 +159,23 @@ namespace mt_kahypar::ds {
     // Write the incident edges of each contracted vertex to the temporary edge array
     doParallelForAllNodes([&](const HypernodeID& node) {
       const HypernodeID coarse_node = map_to_coarse_graph(node);
-      const HyperedgeID node_degree = nodeDegree(node);
-      const size_t coarse_edges_pos = tmp_incident_edges_prefix_sum[coarse_node] +
-                                      tmp_incident_edges_pos[coarse_node].fetch_add(node_degree);
-      const size_t edges_pos = _nodes[node].firstEntry();
-      ASSERT(coarse_edges_pos + node_degree <= tmp_incident_edges_prefix_sum[coarse_node + 1]);
-      ASSERT(edges_pos + node_degree <= _edges.size());
-      for (size_t i = 0; i < static_cast<size_t>(node_degree); ++i) {
-        const Edge& edge = _edges[edges_pos + i];
-        const HyperedgeID unique_id = _unique_edge_ids[edges_pos + i];
-        const HypernodeID target = map_to_coarse_graph(edge.target());
-        const bool is_valid = target != coarse_node;
-        if (is_valid) {
-          tmp_edges[coarse_edges_pos + i] = TmpEdgeInformation(target, edge.weight(), unique_id);
-        } else {
-          tmp_edges[coarse_edges_pos + i] = TmpEdgeInformation();
+      if (coarse_node != kInvalidHypernode) {
+        const HyperedgeID node_degree = nodeDegree(node);
+        const size_t coarse_edges_pos = tmp_incident_edges_prefix_sum[coarse_node] +
+                                        tmp_incident_edges_pos[coarse_node].fetch_add(node_degree);
+        const size_t edges_pos = _nodes[node].firstEntry();
+        ASSERT(coarse_edges_pos + node_degree <= tmp_incident_edges_prefix_sum[coarse_node + 1]);
+        ASSERT(edges_pos + node_degree <= _edges.size());
+        for (size_t i = 0; i < static_cast<size_t>(node_degree); ++i) {
+          const Edge& edge = _edges[edges_pos + i];
+          const HyperedgeID unique_id = _unique_edge_ids[edges_pos + i];
+          const HypernodeID target = map_to_coarse_graph(edge.target());
+          const bool is_valid = target != coarse_node;
+          if (is_valid) {
+            tmp_edges[coarse_edges_pos + i] = TmpEdgeInformation(target, edge.weight(), unique_id);
+          } else {
+            tmp_edges[coarse_edges_pos + i] = TmpEdgeInformation();
+          }
         }
       }
     });
@@ -385,7 +407,10 @@ namespace mt_kahypar::ds {
     }, [&] {
       hypergraph._community_ids.resize(coarsened_num_nodes);
       doParallelForAllNodes([&](HypernodeID fine_node) {
-        hypergraph.setCommunityID(map_to_coarse_graph(fine_node), communityID(fine_node));
+        const HypernodeID coarse_node = map_to_coarse_graph(fine_node);
+        if (coarse_node != kInvalidHypernode) {
+          hypergraph.setCommunityID(coarse_node, communityID(fine_node));
+        }
       });
     });
 

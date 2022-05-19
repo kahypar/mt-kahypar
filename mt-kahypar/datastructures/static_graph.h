@@ -361,11 +361,11 @@ class StaticGraph {
       _target(target),
       _valid_or_weight(weight),
       _id(id) {
-      ASSERT(isValid());
+      ASSERT(weight != 0);
     }
 
     bool isValid() const {
-      return _valid_or_weight != 0;
+      return _valid_or_weight != 0 && _target != kInvalidHypernode;
     }
 
     HyperedgeID getTarget() const {
