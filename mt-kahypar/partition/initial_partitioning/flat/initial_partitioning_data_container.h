@@ -625,10 +625,16 @@ class InitialPartitioningDataContainer {
         tbb::task_group tg;
         vec<std::pair<HyperedgeWeight, vec<PartitionID>>> partitions(num_runs);
         vec<GreedyJudiciousInitialPartitionerConfig> j_configs;
+        tbb::enumerable_thread_specific<mt_kahypar::ds::JudiciousPartitionedHypergraph> _phgs([&] {
+          return mt_kahypar::ds::JudiciousPartitionedHypergraph(
+                 _context.partition.k, _partitioned_hg.hypergraph());
+        });
+
         j_configs.reserve(num_runs);
         vec<GreedyJudiciousInitialPartitionerStats> j_stats(num_runs, _partitioned_hg.initialNumNodes());
         auto ip_run = [&](const size_t seed, const size_t i) {
-          mt_kahypar::ds::JudiciousPartitionedHypergraph local_phg(_context.partition.k, _partitioned_hg.hypergraph());
+          auto& local_phg = _phgs.local();
+          local_phg.resetPartition();
           // run IP and extract part IDs
           GreedyJudiciousInitialPartitioner ip(local_phg, _context, seed, j_stats[i], j_configs[i]);
           ip.initialPartition();
@@ -653,6 +659,7 @@ class InitialPartitioningDataContainer {
         judicious_load = best_partition->first;
         // NOTE: only makes sense when using judicious objective for other algos <2022-05-13, noahares>
         if (judicious_load < best->_result._objective) {
+          DBG << "chose judicious IP";
           _partitioned_hg.doParallelForAllNodes([&](const HypernodeID hn) {
             const PartitionID part_id = best_partition->second[hn];
             ASSERT(part_id != kInvalidPartition && part_id < _partitioned_hg.k());
@@ -664,6 +671,7 @@ class InitialPartitioningDataContainer {
       }
       if (judicious_load >= best->_result._objective) {
         // Applies best partition to hypergraph
+        DBG << "chose other IP";
         _partitioned_hg.doParallelForAllNodes([&](const HypernodeID hn) {
           ASSERT(hn < best->_partition.size());
           const PartitionID part_id = best->_partition[hn];
@@ -687,11 +695,6 @@ class InitialPartitioningDataContainer {
         PartitioningResult judicious_result(InitialPartitioningAlgorithm::judicious, judicious_load, judicious_load, metrics::imbalance(_partitioned_hg, _context));
         DBG << "Best Partition                [" << judicious_result.str() << "]";
         ASSERT(metrics::judiciousLoad(_partitioned_hg, false) == judicious_load);
-        if constexpr (debug) {
-          for (PartitionID i = 0; i < _context.partition.k; ++i) {
-            LOG << _partitioned_hg.partLoad(i);
-          }
-        }
       }
       best_flat_algo = best->_result._algorithm;
 
