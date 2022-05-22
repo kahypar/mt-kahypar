@@ -28,7 +28,19 @@ using ::testing::Test;
 namespace mt_kahypar {
 namespace ds {
 
+using Edge = SeparatedNodes::Edge;
+
 class ASeparatedNodes: public Test { };
+
+void verifyIncidentEgdes(IteratorRange<SeparatedNodes::IncidenceIterator> it,
+                         const std::set<std::pair<HypernodeID, HyperedgeWeight>>& edges) {
+  size_t count = 0;
+  for (const Edge& edge : it) {
+    ASSERT_TRUE(edges.find({edge.target, edge.weight}) != edges.end()) << V(edge.target);
+    count++;
+  }
+  ASSERT_EQ(count, edges.size());
+}
 
 TEST_F(ASeparatedNodes, HasCorrectStats) {
   SeparatedNodes nodes(10);
@@ -37,8 +49,6 @@ TEST_F(ASeparatedNodes, HasCorrectStats) {
 }
 
 TEST_F(ASeparatedNodes, AddsNodes1) {
-   using Edge = SeparatedNodes::Edge;
-
   SeparatedNodes nodes(10);
   vec<std::pair<HyperedgeID, HypernodeWeight>> new_nodes { {0, 1}, {2, 1}, {2, 2}};
   vec<Edge> new_edges { Edge(0, 1), Edge(3, 1) };
@@ -56,10 +66,8 @@ TEST_F(ASeparatedNodes, AddsNodes1) {
 }
 
 TEST_F(ASeparatedNodes, AddsNodes2) {
-   using Edge = SeparatedNodes::Edge;
-
   SeparatedNodes nodes(10);
-  vec<std::pair<HyperedgeID, HypernodeWeight>> new_nodes { {1, 1}, {2, 1}};
+  vec<std::pair<HyperedgeID, HypernodeWeight>> new_nodes { {0, 1}, {1, 1}};
   vec<Edge> new_edges { Edge(8, 1), Edge(9, 1) };
   nodes.addNodes(new_nodes, new_edges);
 
@@ -80,6 +88,43 @@ TEST_F(ASeparatedNodes, AddsNodes2) {
   ASSERT_EQ(1,  nodes.outwardIncidentWeight(2));
   ASSERT_EQ(3,  nodes.outwardIncidentWeight(8));
   ASSERT_EQ(1,  nodes.outwardIncidentWeight(9));
+}
+
+TEST_F(ASeparatedNodes, HasCorrectNodeIterator) {
+  SeparatedNodes nodes(10);
+  vec<std::pair<HyperedgeID, HypernodeWeight>> new_nodes { {0, 1}, {2, 1}, {3, 1}};
+  vec<Edge> new_edges { Edge(0, 1), Edge(3, 1), Edge(3, 1) };
+  nodes.addNodes(new_nodes, new_edges);
+
+  HypernodeID expected_node = 0;
+  for ( const HypernodeID& node : nodes.nodes() ) {
+    ASSERT_EQ(expected_node++, node);
+  }
+  ASSERT_EQ(3, expected_node);
+}
+
+TEST_F(ASeparatedNodes, HasCorrectInwardEdgeIterator) {
+  SeparatedNodes nodes(10);
+  vec<std::pair<HyperedgeID, HypernodeWeight>> new_nodes { {0, 1}, {2, 1}, {3, 1}};
+  vec<Edge> new_edges { Edge(0, 1), Edge(3, 1), Edge(3, 1) };
+  nodes.addNodes(new_nodes, new_edges);
+
+  verifyIncidentEgdes(nodes.inwardEdges(0), { {0, 1}, {3, 1} });
+  verifyIncidentEgdes(nodes.inwardEdges(1), { {3, 1} });
+  verifyIncidentEgdes(nodes.inwardEdges(2), { });
+}
+
+TEST_F(ASeparatedNodes, HasCorrectOutwardEdgeIterator) {
+  SeparatedNodes nodes(10);
+  vec<std::pair<HyperedgeID, HypernodeWeight>> new_nodes { {0, 1}, {2, 1}, {3, 1}};
+  vec<Edge> new_edges { Edge(0, 1), Edge(3, 1), Edge(3, 1) };
+  nodes.addNodes(new_nodes, new_edges);
+
+  verifyIncidentEgdes(nodes.outwardEdges(0), { {0, 1} });
+  verifyIncidentEgdes(nodes.outwardEdges(1), { });
+  verifyIncidentEgdes(nodes.outwardEdges(2), { });
+  verifyIncidentEgdes(nodes.outwardEdges(3), { {0, 1}, {1, 1} });
+  verifyIncidentEgdes(nodes.outwardEdges(4), { });
 }
 
 }

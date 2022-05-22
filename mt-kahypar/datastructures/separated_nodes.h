@@ -159,14 +159,17 @@ class SeparatedNodes {
   }
 
   // ! Edges leading from the graph node outward to a separated node
-  // IteratorRange<IncidenceIterator> outwardEdges(const HypernodeID graph_node) const {
-  // }
+  IteratorRange<IncidenceIterator> outwardEdges(const HypernodeID graph_node) const {
+    return IteratorRange<IncidenceIterator>(
+      _outward_edges.data() + graphNode(graph_node).begin,
+      _outward_edges.data() + graphNode(graph_node + 1).begin);
+  }
 
   // ! Edges leading from the separated node to a graph node
   IteratorRange<IncidenceIterator> inwardEdges(const HypernodeID separated_node) const {
     return IteratorRange<IncidenceIterator>(
-      &_inward_edges[node(separated_node).begin],
-      &_inward_edges[node(separated_node + 1).begin]);
+      _inward_edges.data() + node(separated_node).begin,
+      _inward_edges.data() + node(separated_node + 1).begin);
   }
 
     // ####################### Node Information #######################
