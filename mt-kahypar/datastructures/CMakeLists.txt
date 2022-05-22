@@ -8,6 +8,7 @@ set(DatastructureSources
         static_hypergraph.cpp
         static_graph_factory.cpp
         static_graph.cpp
+        separated_nodes.cpp
         graph.cpp
         incident_net_array.cpp
         dynamic_adjacency_array.cpp)
