@@ -52,9 +52,9 @@ void SeparatedNodes::addNodes(const vec<std::pair<HyperedgeID, HypernodeWeight>>
     Array<parallel::IntegralAtomicWrapper<HyperedgeID>> incident_edges_pos;
     Array<Edge> new_outward_edges;
     tbb::parallel_invoke([&] {
-      num_incident_edges.resize(numGraphNodes());
+      num_incident_edges.resize(_num_graph_nodes);
     }, [&] {
-      incident_edges_pos.resize(numGraphNodes());
+      incident_edges_pos.resize(_num_graph_nodes);
     }, [&] {
       new_outward_edges.resize(_num_edges + edges.size());
     });
@@ -66,7 +66,7 @@ void SeparatedNodes::addNodes(const vec<std::pair<HyperedgeID, HypernodeWeight>>
     // calculate new degrees
     tbb::parallel_for(0UL, edges.size(), [&](const size_t& pos) {
       const Edge& e = edges[pos];
-      ASSERT(e.target < numGraphNodes());
+      ASSERT(e.target < _num_graph_nodes);
       num_incident_edges[e.target].fetch_add(1);
     });
     parallel::TBBPrefixSum<parallel::IntegralAtomicWrapper<HyperedgeID>, Array>
@@ -86,7 +86,7 @@ void SeparatedNodes::addNodes(const vec<std::pair<HyperedgeID, HypernodeWeight>>
     });
 
     // copy old edges and calculate incident weight
-    tbb::parallel_for(0UL, static_cast<size_t>(numGraphNodes()), [&](const size_t& pos) {
+    tbb::parallel_for(0UL, static_cast<size_t>(_num_graph_nodes), [&](const size_t& pos) {
       for (HyperedgeID i = 0; i < outwardDegree(pos); ++i) {
         const HyperedgeID index = incident_edges_prefix_sum[pos] + i;
         new_outward_edges[index] = _outward_edges[_graph_nodes[pos].begin + i];
@@ -114,9 +114,10 @@ void SeparatedNodes::addNodes(const vec<std::pair<HyperedgeID, HypernodeWeight>>
 
 // ! Copy in parallel
 SeparatedNodes SeparatedNodes::copy(parallel_tag_t) const {
-  SeparatedNodes sep_nodes(numGraphNodes());
+  SeparatedNodes sep_nodes(_num_graph_nodes);
 
   sep_nodes._num_nodes = _num_nodes;
+  sep_nodes._num_graph_nodes = _num_graph_nodes;
   sep_nodes._num_edges = _num_edges;
   sep_nodes._total_weight = _total_weight;
 
@@ -142,9 +143,10 @@ SeparatedNodes SeparatedNodes::copy(parallel_tag_t) const {
 
 // ! Copy sequential
 SeparatedNodes SeparatedNodes::copy() const {
-  SeparatedNodes sep_nodes(numGraphNodes());
+  SeparatedNodes sep_nodes(_num_graph_nodes);
 
   sep_nodes._num_nodes = _num_nodes;
+  sep_nodes._num_graph_nodes = _num_graph_nodes;
   sep_nodes._num_edges = _num_edges;
   sep_nodes._total_weight = _total_weight;
 

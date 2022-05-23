@@ -99,6 +99,7 @@ class SeparatedNodes {
 
   explicit SeparatedNodes(HypernodeID num_graph_nodes) :
     _num_nodes(0),
+    _num_graph_nodes(num_graph_nodes),
     _num_edges(0),
     _total_weight(0),
     _nodes{ Node(0, 0) },
@@ -111,6 +112,7 @@ class SeparatedNodes {
 
   SeparatedNodes(SeparatedNodes&& other) :
     _num_nodes(other._num_nodes),
+    _num_graph_nodes(other._num_graph_nodes),
     _num_edges(other._num_edges),
     _total_weight(other._total_weight),
     _nodes(std::move(other._nodes)),
@@ -120,6 +122,7 @@ class SeparatedNodes {
 
   SeparatedNodes & operator= (SeparatedNodes&& other) {
     _num_nodes = other._num_nodes;
+    _num_graph_nodes = other._num_graph_nodes;
     _num_edges = other._num_edges;
     _total_weight = other._total_weight;
     _nodes = std::move(other._nodes);
@@ -137,7 +140,7 @@ class SeparatedNodes {
   }
 
   HypernodeID numGraphNodes() const {
-    return _graph_nodes.size() - 1;
+    return _num_graph_nodes;
   }
 
   // ! Number of edges
@@ -238,8 +241,10 @@ class SeparatedNodes {
     return _graph_nodes[u];
   }
 
-  // ! Number of nodes
+  // ! Number of separated nodes
   HypernodeID _num_nodes;
+  // ! Number of graph nodes
+  HypernodeID _num_graph_nodes;
   // ! Number of edges (note: we have an outward and inward edge for each)
   HyperedgeID _num_edges;
   // ! Total weight of the nodes
