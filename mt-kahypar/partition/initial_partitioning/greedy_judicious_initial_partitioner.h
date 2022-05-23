@@ -137,7 +137,10 @@ public:
     }
     _edges_with_gain_changes.clear();
     _nodes_with_gain_update.clear();
-    _gain_update_time++;
+    if (++_gain_update_time == 0) {
+      _gain_update_state.assign(_gain_update_state.size(), 0);
+      _gain_update_time = 1;
+    }
   }
 
 private:
