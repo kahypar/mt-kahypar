@@ -114,18 +114,5 @@ TEST_F(ASeparatedNodes, HasCorrectInwardEdgeIterator) {
   verifyIncidentEgdes(nodes.inwardEdges(2), { });
 }
 
-TEST_F(ASeparatedNodes, HasCorrectOutwardEdgeIterator) {
-  SeparatedNodes nodes(10);
-  vec<std::pair<HyperedgeID, HypernodeWeight>> new_nodes { {0, 1}, {2, 1}, {3, 1}};
-  vec<Edge> new_edges { Edge(0, 1), Edge(3, 1), Edge(3, 1) };
-  nodes.addNodes(new_nodes, new_edges);
-
-  verifyIncidentEgdes(nodes.outwardEdges(0), { {0, 1} });
-  verifyIncidentEgdes(nodes.outwardEdges(1), { });
-  verifyIncidentEgdes(nodes.outwardEdges(2), { });
-  verifyIncidentEgdes(nodes.outwardEdges(3), { {0, 1}, {1, 1} });
-  verifyIncidentEgdes(nodes.outwardEdges(4), { });
-}
-
 }
 } // namespace mt_kahypar

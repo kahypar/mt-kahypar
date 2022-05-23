@@ -27,6 +27,7 @@
 #include "mt-kahypar/macros.h"
 #include "mt-kahypar/datastructures/array.h"
 #include "mt-kahypar/datastructures/hypergraph_common.h"
+#include "mt-kahypar/parallel/atomic_wrapper.h"
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
 #include "mt-kahypar/partition/context_enum_classes.h"
 #include "mt-kahypar/utils/memory_tree.h"
@@ -59,22 +60,6 @@ class SeparatedNodes {
     PartitionID part_id;
   };
 
-  class GraphNode {
-   public:
-    GraphNode() :
-      begin(0),
-      incident_weight(0) { }
-
-    explicit GraphNode(const HyperedgeID begin, const HyperedgeWeight incident_weight) :
-      begin(begin),
-      incident_weight(incident_weight) { }
-
-    // ! Index of the first element in _outward_edges
-    HyperedgeID begin;
-    // ! Incident edge weight of outward edges
-    HyperedgeWeight incident_weight;
-  };
-
  public:
   class Edge {
    public:
@@ -103,7 +88,8 @@ class SeparatedNodes {
     _num_edges(0),
     _total_weight(0),
     _nodes{ Node(0, 0) },
-    _graph_nodes(num_graph_nodes + 1),
+    _outward_incident_weight(num_graph_nodes),
+    _graph_nodes_begin(),
     _inward_edges(),
     _outward_edges() { }
 
@@ -116,7 +102,8 @@ class SeparatedNodes {
     _num_edges(other._num_edges),
     _total_weight(other._total_weight),
     _nodes(std::move(other._nodes)),
-    _graph_nodes(std::move(other._graph_nodes)),
+    _outward_incident_weight(std::move(other._outward_incident_weight)),
+    _graph_nodes_begin(std::move(other._graph_nodes_begin)),
     _inward_edges(std::move(other._inward_edges)),
     _outward_edges(std::move(other._outward_edges)) { }
 
@@ -126,7 +113,8 @@ class SeparatedNodes {
     _num_edges = other._num_edges;
     _total_weight = other._total_weight;
     _nodes = std::move(other._nodes);
-    _graph_nodes = std::move(other._graph_nodes);
+    _outward_incident_weight = std::move(other._outward_incident_weight);
+    _graph_nodes_begin = std::move(other._graph_nodes_begin);
     _inward_edges = std::move(other._inward_edges);
     _outward_edges = std::move(other._outward_edges);
     return *this;
@@ -163,9 +151,11 @@ class SeparatedNodes {
 
   // ! Edges leading from the graph node outward to a separated node
   IteratorRange<IncidenceIterator> outwardEdges(const HypernodeID graph_node) const {
+    ASSERT(graph_node < _num_graph_nodes, "Graph node" << graph_node << "does not exist");
+    ASSERT(!_graph_nodes_begin.empty(), "Graph nodes not initialized!");
     return IteratorRange<IncidenceIterator>(
-      _outward_edges.data() + graphNode(graph_node).begin,
-      _outward_edges.data() + graphNode(graph_node + 1).begin);
+      _outward_edges.data() + _graph_nodes_begin[graph_node],
+      _outward_edges.data() + _graph_nodes_begin[graph_node + 1]);
   }
 
   // ! Edges leading from the separated node to a graph node
@@ -183,11 +173,14 @@ class SeparatedNodes {
   }
 
   HyperedgeID outwardDegree(const HypernodeID u) const {
-    return graphNode(u + 1).begin - graphNode(u).begin;
+    ASSERT(u < _num_graph_nodes, "Graph node" << u << "does not exist");
+    ASSERT(!_graph_nodes_begin.empty(), "Graph nodes not initialized!");
+    return _graph_nodes_begin[u + 1] - _graph_nodes_begin[u];
   }
 
   HyperedgeWeight outwardIncidentWeight(const HypernodeID u) const {
-    return graphNode(u).incident_weight;
+    ASSERT(u < _num_graph_nodes, "Graph node" << u << "does not exist");
+    return _outward_incident_weight[u].load();
   }
 
   // ! Part ID of a vertex
@@ -235,12 +228,6 @@ class SeparatedNodes {
     return _nodes[u];
   }
 
-  // ! Accessor for node-related information
-  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE const GraphNode& graphNode(const HypernodeID u) const {
-    ASSERT(u < _graph_nodes.size(), "Graph node" << u << "does not exist");
-    return _graph_nodes[u];
-  }
-
   // ! Number of separated nodes
   HypernodeID _num_nodes;
   // ! Number of graph nodes
@@ -252,7 +239,8 @@ class SeparatedNodes {
 
   // ! Nodes
   vec<Node> _nodes;
-  Array<GraphNode> _graph_nodes;
+  Array<parallel::IntegralAtomicWrapper<HyperedgeWeight>> _outward_incident_weight;
+  Array<HyperedgeID> _graph_nodes_begin;
 
   // ! Edges
   vec<Edge> _inward_edges;
