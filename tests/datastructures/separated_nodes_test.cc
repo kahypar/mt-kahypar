@@ -190,5 +190,65 @@ TEST_F(ASeparatedNodes, InitializesEdges) {
   verifyIncidentEgdes(nodes.outwardEdges(4), { {0, 1}, {1, 1} });
 }
 
+TEST_F(ASeparatedNodes, CopiesSequential) {
+  SeparatedNodes nodes(5);
+  vec<std::pair<HyperedgeID, HypernodeWeight>> new_nodes { {0, 1}, {2, 1}, {4, 1}};
+  vec<Edge> new_edges { Edge(0, 1), Edge(4, 1), Edge(4, 1), Edge(3, 1) };
+  nodes.addNodes(new_nodes, new_edges);
+  nodes.initializeOutwardEdges();
+
+  SeparatedNodes other = nodes.copy();
+
+  ASSERT_EQ(3,  other.numNodes());
+  ASSERT_EQ(5,  other.numGraphNodes());
+  ASSERT_EQ(4,  other.numEdges());
+
+  verifyIncidentEgdes(other.inwardEdges(0), { {0, 1}, {4, 1} });
+  verifyIncidentEgdes(other.inwardEdges(1), { {4, 1}, {3, 1} });
+  verifyIncidentEgdes(other.inwardEdges(2), { });
+
+  ASSERT_EQ(1,  other.outwardIncidentWeight(0));
+  ASSERT_EQ(0,  other.outwardIncidentWeight(1));
+  ASSERT_EQ(0,  other.outwardIncidentWeight(2));
+  ASSERT_EQ(1,  other.outwardIncidentWeight(3));
+  ASSERT_EQ(2,  other.outwardIncidentWeight(4));
+
+  verifyIncidentEgdes(other.outwardEdges(0), { {0, 1} });
+  verifyIncidentEgdes(other.outwardEdges(1), { });
+  verifyIncidentEgdes(other.outwardEdges(2), { });
+  verifyIncidentEgdes(other.outwardEdges(3), { {1, 1} });
+  verifyIncidentEgdes(other.outwardEdges(4), { {0, 1}, {1, 1} });
+}
+
+TEST_F(ASeparatedNodes, CopiesParallel) {
+  SeparatedNodes nodes(5);
+  vec<std::pair<HyperedgeID, HypernodeWeight>> new_nodes { {0, 1}, {2, 1}, {4, 1}};
+  vec<Edge> new_edges { Edge(0, 1), Edge(4, 1), Edge(4, 1), Edge(3, 1) };
+  nodes.addNodes(new_nodes, new_edges);
+  nodes.initializeOutwardEdges();
+
+  SeparatedNodes other = nodes.copy(parallel_tag_t());
+
+  ASSERT_EQ(3,  other.numNodes());
+  ASSERT_EQ(5,  other.numGraphNodes());
+  ASSERT_EQ(4,  other.numEdges());
+
+  verifyIncidentEgdes(other.inwardEdges(0), { {0, 1}, {4, 1} });
+  verifyIncidentEgdes(other.inwardEdges(1), { {4, 1}, {3, 1} });
+  verifyIncidentEgdes(other.inwardEdges(2), { });
+
+  ASSERT_EQ(1,  other.outwardIncidentWeight(0));
+  ASSERT_EQ(0,  other.outwardIncidentWeight(1));
+  ASSERT_EQ(0,  other.outwardIncidentWeight(2));
+  ASSERT_EQ(1,  other.outwardIncidentWeight(3));
+  ASSERT_EQ(2,  other.outwardIncidentWeight(4));
+
+  verifyIncidentEgdes(other.outwardEdges(0), { {0, 1} });
+  verifyIncidentEgdes(other.outwardEdges(1), { });
+  verifyIncidentEgdes(other.outwardEdges(2), { });
+  verifyIncidentEgdes(other.outwardEdges(3), { {1, 1} });
+  verifyIncidentEgdes(other.outwardEdges(4), { {0, 1}, {1, 1} });
+}
+
 }
 } // namespace mt_kahypar
