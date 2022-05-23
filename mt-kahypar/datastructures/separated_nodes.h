@@ -208,6 +208,8 @@ class SeparatedNodes {
    */
   void contract(const vec<HypernodeID>& communities, const HypernodeID& num_coarsened_graph_nodes);
 
+  void initializeOutwardEdges();
+
   // ####################### Initialization / Reset Functions #######################
 
   // ! Copy static hypergraph in parallel

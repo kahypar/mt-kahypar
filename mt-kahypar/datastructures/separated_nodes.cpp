@@ -170,6 +170,70 @@ void SeparatedNodes::contract(const vec<HypernodeID>& communities, const Hyperno
   };
 
   tbb::parallel_invoke(update_incident_weight, update_inward_edges);
+
+  ASSERT(
+    [&] {
+      for (const Edge& e: _inward_edges) {
+        if (e.target == kInvalidHypernode) { return false; }
+      }
+      return true;
+    }()
+  );
+}
+
+void SeparatedNodes::initializeOutwardEdges() {
+  ASSERT(_graph_nodes_begin.empty() && _outward_edges.empty());
+
+  Array<parallel::IntegralAtomicWrapper<HyperedgeID>> tmp_node_degree;
+
+  tbb::parallel_invoke([&] {
+    // we use index 0 for the edge position later
+    tmp_node_degree.resize(_num_graph_nodes + 1);
+  }, [&] {
+    _graph_nodes_begin.resize(_num_graph_nodes + 1);
+  }, [&] {
+    _outward_edges.resize(_num_edges);
+  });
+
+  tbb::parallel_for(ID(0), _num_edges, [&](const HyperedgeID& pos) {
+    const Edge& e = _inward_edges[pos];
+    tmp_node_degree[e.target + 1].fetch_add(1);
+  });
+
+  parallel::TBBPrefixSum<parallel::IntegralAtomicWrapper<HyperedgeID>, Array> 
+          degree_mapping(tmp_node_degree);
+  tbb::parallel_scan(tbb::blocked_range<size_t>(
+          ID(0), static_cast<size_t>(_num_graph_nodes + 1)), degree_mapping);
+  ASSERT(degree_mapping.total_sum() == _num_edges);
+
+  tbb::parallel_for(0UL, _graph_nodes_begin.size(), [&](const size_t& pos) {
+    _graph_nodes_begin[pos] = tmp_node_degree[pos].load();
+  });
+
+  tbb::parallel_for(ID(0), _num_nodes, [&](const HyperedgeID& node) {
+    const HyperedgeID edges_start = _nodes[node].begin;
+    const HyperedgeID edges_end = _nodes[node + 1].begin;
+    for (HyperedgeID pos = edges_start; pos < edges_end; ++pos) {
+      const Edge& e = _inward_edges[pos];
+      const HyperedgeID index = tmp_node_degree[e.target].fetch_add(1);
+      _outward_edges[index] = Edge(node, _inward_edges[pos].weight);
+    }
+  });
+
+  ASSERT(
+    [&] {
+      for (HypernodeID u = 0; u < _num_graph_nodes; ++u) {
+        HyperedgeWeight incident_weight = 0;
+        for (const auto& [target, weight]: outwardEdges(u)) {
+          incident_weight += weight;
+        }
+        if (incident_weight != outwardIncidentWeight(u)) {
+          return false;
+        }
+      }
+      return true;
+    }()
+  );
 }
 
 // ! Copy in parallel

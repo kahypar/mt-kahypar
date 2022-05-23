@@ -164,5 +164,31 @@ TEST_F(ASeparatedNodes, MapsNodes2) {
   verifyIncidentEgdes(nodes.inwardEdges(3), { {3, 1} });
   verifyIncidentEgdes(nodes.inwardEdges(4), { });
 }
+
+TEST_F(ASeparatedNodes, InitializesEdges) {
+  SeparatedNodes nodes(5);
+  vec<std::pair<HyperedgeID, HypernodeWeight>> new_nodes { {0, 1}, {2, 1}, {4, 1}};
+  vec<Edge> new_edges { Edge(0, 1), Edge(4, 1), Edge(4, 1), Edge(3, 1) };
+  nodes.addNodes(new_nodes, new_edges);
+
+  nodes.initializeOutwardEdges();
+
+  ASSERT_EQ(3,  nodes.numNodes());
+  ASSERT_EQ(5,  nodes.numGraphNodes());
+  ASSERT_EQ(4,  nodes.numEdges());
+
+  ASSERT_EQ(1,  nodes.outwardIncidentWeight(0));
+  ASSERT_EQ(0,  nodes.outwardIncidentWeight(1));
+  ASSERT_EQ(0,  nodes.outwardIncidentWeight(2));
+  ASSERT_EQ(1,  nodes.outwardIncidentWeight(3));
+  ASSERT_EQ(2,  nodes.outwardIncidentWeight(4));
+
+  verifyIncidentEgdes(nodes.outwardEdges(0), { {0, 1} });
+  verifyIncidentEgdes(nodes.outwardEdges(1), { });
+  verifyIncidentEgdes(nodes.outwardEdges(2), { });
+  verifyIncidentEgdes(nodes.outwardEdges(3), { {1, 1} });
+  verifyIncidentEgdes(nodes.outwardEdges(4), { {0, 1}, {1, 1} });
+}
+
 }
 } // namespace mt_kahypar
