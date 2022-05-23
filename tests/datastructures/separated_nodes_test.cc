@@ -45,6 +45,7 @@ void verifyIncidentEgdes(IteratorRange<SeparatedNodes::IncidenceIterator> it,
 TEST_F(ASeparatedNodes, HasCorrectStats) {
   SeparatedNodes nodes(10);
   ASSERT_EQ(0,  nodes.numNodes());
+  ASSERT_EQ(10,  nodes.numGraphNodes());
   ASSERT_EQ(0,  nodes.numEdges());
 }
 
@@ -55,6 +56,7 @@ TEST_F(ASeparatedNodes, AddsNodes1) {
   nodes.addNodes(new_nodes, new_edges);
 
   ASSERT_EQ(3,  nodes.numNodes());
+  ASSERT_EQ(10,  nodes.numGraphNodes());
   ASSERT_EQ(2,  nodes.numEdges());
 
   ASSERT_EQ(1,  nodes.nodeWeight(0));
@@ -76,6 +78,7 @@ TEST_F(ASeparatedNodes, AddsNodes2) {
   nodes.addNodes(new_nodes, new_edges);
 
   ASSERT_EQ(5,  nodes.numNodes());
+  ASSERT_EQ(10,  nodes.numGraphNodes());
   ASSERT_EQ(6,  nodes.numEdges());
 
   ASSERT_EQ(1,  nodes.nodeWeight(0));
@@ -114,5 +117,52 @@ TEST_F(ASeparatedNodes, HasCorrectInwardEdgeIterator) {
   verifyIncidentEgdes(nodes.inwardEdges(2), { });
 }
 
+TEST_F(ASeparatedNodes, MapsNodes1) {
+  SeparatedNodes nodes(10);
+  vec<std::pair<HyperedgeID, HypernodeWeight>> new_nodes { {0, 1}, {2, 1}, {3, 1}};
+  vec<Edge> new_edges { Edge(0, 1), Edge(3, 1), Edge(9, 1) };
+  nodes.addNodes(new_nodes, new_edges);
+
+  vec<HypernodeID> communities { 0, 1, 1, 0, 2, kInvalidHypernode, 2, 0, 0, kInvalidHypernode };
+  nodes.contract(communities, 3);
+
+  ASSERT_EQ(3,  nodes.numNodes());
+  ASSERT_EQ(3,  nodes.numGraphNodes());
+  ASSERT_EQ(1,  nodes.numEdges());
+
+  ASSERT_EQ(2,  nodes.outwardIncidentWeight(0));
+  ASSERT_EQ(0,  nodes.outwardIncidentWeight(1));
+  ASSERT_EQ(0,  nodes.outwardIncidentWeight(2));
+
+  verifyIncidentEgdes(nodes.inwardEdges(0), { {0, 2} });
+  verifyIncidentEgdes(nodes.inwardEdges(1), { });
+  verifyIncidentEgdes(nodes.inwardEdges(2), { });
+}
+
+TEST_F(ASeparatedNodes, MapsNodes2) {
+  SeparatedNodes nodes(10);
+  vec<std::pair<HyperedgeID, HypernodeWeight>> new_nodes { {0, 1}, {2, 1}, {3, 1}, {4, 1}, {6, 1}};
+  vec<Edge> new_edges { Edge(3, 2), Edge(1, 1), Edge(1, 2), Edge(1, 1), Edge(3, 1), Edge(4, 1) };
+  nodes.addNodes(new_nodes, new_edges);
+
+  vec<HypernodeID> communities { 0, 3, 1, 3, kInvalidHypernode, kInvalidHypernode, 0, 1, 4, kInvalidHypernode };
+  nodes.contract(communities, 5);
+
+  ASSERT_EQ(5,  nodes.numNodes());
+  ASSERT_EQ(5,  nodes.numGraphNodes());
+  ASSERT_EQ(4,  nodes.numEdges());
+
+  ASSERT_EQ(0,  nodes.outwardIncidentWeight(0));
+  ASSERT_EQ(0,  nodes.outwardIncidentWeight(1));
+  ASSERT_EQ(0,  nodes.outwardIncidentWeight(2));
+  ASSERT_EQ(7,  nodes.outwardIncidentWeight(3));
+  ASSERT_EQ(0,  nodes.outwardIncidentWeight(4));
+
+  verifyIncidentEgdes(nodes.inwardEdges(0), { {3, 3} });
+  verifyIncidentEgdes(nodes.inwardEdges(1), { {3, 2} });
+  verifyIncidentEgdes(nodes.inwardEdges(2), { {3, 1} });
+  verifyIncidentEgdes(nodes.inwardEdges(3), { {3, 1} });
+  verifyIncidentEgdes(nodes.inwardEdges(4), { });
+}
 }
 } // namespace mt_kahypar

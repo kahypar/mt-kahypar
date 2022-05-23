@@ -200,6 +200,14 @@ class SeparatedNodes {
    */
   void addNodes(const vec<std::pair<HyperedgeID, HypernodeWeight>>& nodes, const vec<Edge>& edges);
 
+  /*!
+   * Contracts a given community structure. Note that the mapping must contain
+   * the node id of the node in the coarsened graph (i.e. as returned by StaticGraph::contract).
+   *
+   * If kInvalidHypernode is used as community id, the node is considered removed.
+   */
+  void contract(const vec<HypernodeID>& communities, const HypernodeID& num_coarsened_graph_nodes);
+
   // ####################### Initialization / Reset Functions #######################
 
   // ! Copy static hypergraph in parallel
@@ -239,7 +247,7 @@ class SeparatedNodes {
 
   // ! Nodes
   vec<Node> _nodes;
-  Array<parallel::IntegralAtomicWrapper<HyperedgeWeight>> _outward_incident_weight;
+  vec<parallel::IntegralAtomicWrapper<HyperedgeWeight>> _outward_incident_weight;
   Array<HyperedgeID> _graph_nodes_begin;
 
   // ! Edges
