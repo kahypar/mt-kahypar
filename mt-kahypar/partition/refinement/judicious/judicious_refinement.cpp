@@ -51,7 +51,6 @@ namespace mt_kahypar {
       HighResClockTimepoint refinement_stop = std::chrono::high_resolution_clock::now();
       double refinement_time = std::chrono::duration<double>(refinement_stop - refinement_start).count();
       finalizeRefinementRound(phg, refinement_time, from_block, max_load_before_refinement);
-      _total_improvement = initial_max_load - _part_loads.topKey();
       done = shouldRefinementContinue(phg, max_load_before_refinement, num_bad_refinements);
     } while (!done);
     revertToBestLocalPrefix(phg, 0);
@@ -100,7 +99,6 @@ namespace mt_kahypar {
       min_load = std::min(min_load, phg.partLoad(i));
     }
     ASSERT(initial_max_load >= max_load);
-    ASSERT(_best_improvement == initial_max_load - max_load);
     DBG << "improved judicious load by" << initial_max_load - max_load;
     DBG << V(metrics::judiciousLoad(phg));
     _last_load = max_load;
@@ -120,8 +118,6 @@ namespace mt_kahypar {
 
   // TODO: use something like "judicious state" for this shared data <2022-05-17, noahares>
   void JudiciousRefiner::reset() {
-    _best_improvement = 0;
-    _total_improvement = 0;
     _moves.clear();
     _part_loads.clear();
   }
@@ -150,29 +146,29 @@ namespace mt_kahypar {
 
   void JudiciousRefiner::doRefinement(PartitionedHypergraph& phg, const PartitionID part_id) {
     DBG << V(_refinement_nodes.size());
-    _gain_cache.setActivePart(part_id);
+    _pq.setActivePart(part_id);
     for (const HypernodeID v : _refinement_nodes) {
-      _gain_cache.insert(phg, v);
+      _pq.insert(phg, v);
     }
     _part_loads.deleteTop();
     const HyperedgeWeight initial_from_load = phg.partLoad(part_id);
     HyperedgeWeight from_load = initial_from_load;
-    _gain_cache.initBlockPQ();
+    _pq.initBlockPQ();
     auto delta_func = [&](const HyperedgeID he,
                           const HyperedgeWeight,
                           const HypernodeID,
                           const HypernodeID pin_count_in_from_part_after,
                           const HypernodeID pin_count_in_to_part_after) {
       // Gains of the pins of a hyperedge can only change in the following situations.
-      if (pin_count_in_from_part_after == 0 || pin_count_in_from_part_after == 1 ||
-          pin_count_in_to_part_after == 1 || pin_count_in_to_part_after == 2) {
-        _edgesWithGainChanges.push_back(he);
+      if (pin_count_in_from_part_after == 1 || pin_count_in_to_part_after == 1) {
+        _edges_with_gain_changes.push_back(he);
       }
     };
     Move move;
     size_t initial_num_moves = _moves.size();
+    DBG << V(initial_num_moves);
     vec<HypernodeID> accepted_moves;
-    while (_gain_cache.findNextMove(phg, move)) {
+    while (_pq.findNextMove(phg, move)) {
       ASSERT(move.to != kInvalidPartition);
       ASSERT(move.from == part_id);
       const HyperedgeWeight from_load_before_move = phg.partLoad(part_id);
@@ -180,23 +176,24 @@ namespace mt_kahypar {
                                             std::numeric_limits<HypernodeWeight>::max(),
                                             []{}, delta_func);
 
-      _moves.push_back(move);
       const HyperedgeWeight to_load = phg.partLoad(move.to);
       from_load = phg.partLoad(move.from);
       _part_loads.adjustKey(move.to, to_load);
-      Gain real_gain = initial_from_load - std::max(_part_loads.topKey(), from_load);
-      // ASSERT(gain == move.gain);
+      Gain real_gain = from_load_before_move - std::max(_part_loads.topKey(), from_load);
+      // ASSERT(real_gain == move.gain);
       // if the maximum load decreased, accept the move immediately
-      // TODO: use load instead of improvement,  <2022-05-13, noahares>
       // want to accept all moves which do not increase the judicious load, i.e all moves s.t. to's load will not exceed from's load before the move.
       // Moves that increase the judicious load should not be done, because they cannot help escape local minima, because if a node is moved from node A to B to C, it could be moved to C directly and its neighbors which decrease the load of B are moved when B becomes the heaviest
-      if (_total_improvement + real_gain >= _best_improvement) {
-        _best_improvement = _total_improvement + real_gain;
+      if (real_gain > 0 || phg.partLoad(move.to) <= from_load) {
         for (size_t i = initial_num_moves; i < _moves.size(); ++i) {
           accepted_moves.push_back(_moves[i].node);
         }
+        accepted_moves.push_back(move.node);
         _moves.clear();
         initial_num_moves = 0;
+      } else {
+        DBG << "Negative gain move which increased judicious load";
+        _moves.push_back(move);
       }
 
       // abort if too many negative gain moves were made...
@@ -204,12 +201,11 @@ namespace mt_kahypar {
         DBG << "Abort due to too many negative gain moves";
         revertToBestLocalPrefix(phg, initial_num_moves);
         break;
-      } else if (_part_loads.topKey() >= from_load * _context.refinement.judicious.part_load_margin ||
-                 _part_loads.topKey() >= _part_loads.keyOfSecond() * _context.refinement.judicious.part_load_margin) break;
+      } else if (_part_loads.topKey() >= from_load * _context.refinement.judicious.part_load_margin) break;
       updateNeighbors(phg, move);
     }
-    _edgesWithGainChanges.clear();
-    _gain_cache.resetGainCache();
+    _edges_with_gain_changes.clear();
+    _pq.resetGainCache();
     _part_loads.insert(part_id, from_load);
     for (size_t i = initial_num_moves; i < _moves.size(); ++i) {
       accepted_moves.push_back(_moves[i].node);
@@ -220,26 +216,24 @@ namespace mt_kahypar {
   }
 
   void JudiciousRefiner::updateNeighbors(PartitionedHypergraph& phg, const Move& move) {
-    DBG << V(_edgesWithGainChanges.size());
-    for (HyperedgeID e : _edgesWithGainChanges) {
-      for (HypernodeID v : phg.pins(e)) {
-        if (_neighbor_deduplicator[v] != _deduplication_time) {
-          if (phg.partID(v) == move.from) {
-            _gain_cache.updateGain(phg, v, move);
-          }
-          _neighbor_deduplicator[v] = _deduplication_time;
+    DBG << V(_edges_with_gain_changes.size());
+    for (const HyperedgeID& he : _edges_with_gain_changes) {
+      for (const HypernodeID& v : phg.pins(he)) {
+        if (phg.partID(v) == move.from && _gain_update_state[v] != _gain_update_time) {
+          _pq.updateGain(phg, v);
+          _gain_update_state[v] = _gain_update_time;
         }
       }
     }
-    _edgesWithGainChanges.clear();
-    if (++_deduplication_time == 0) {
-      _neighbor_deduplicator.assign(_neighbor_deduplicator.size(), 0);
-      _deduplication_time = 1;
+    _edges_with_gain_changes.clear();
+    if (++_gain_update_time == 0) {
+      _gain_update_state.assign(_gain_update_state.size(), 0);
+      _gain_update_time = 1;
     }
   }
 
-  void JudiciousRefiner::revertToBestLocalPrefix(PartitionedHypergraph& phg, size_t bestGainIndex) {
-    DBG << "reverting" << (_moves.size() - bestGainIndex) << "moves";
+  void JudiciousRefiner::revertToBestLocalPrefix(PartitionedHypergraph& phg, const size_t bestGainIndex) {
+    DBG << "reverting" << (_moves.size() - bestGainIndex) << "of" << _moves.size() << "moves";
     while (_moves.size() > bestGainIndex) {
       Move& m = _moves.back();
       phg.changeNodePartWithGainCacheUpdate(m.node, m.to, m.from);
