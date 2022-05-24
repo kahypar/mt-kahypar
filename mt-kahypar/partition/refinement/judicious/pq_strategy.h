@@ -19,22 +19,25 @@
  *
  ******************************************************************************/
 #pragma once
-#include <mt-kahypar/definitions.h>
 #include <mt-kahypar/datastructures/priority_queue.h>
+#include <mt-kahypar/definitions.h>
 #include <mt-kahypar/partition/context.h>
 
 namespace mt_kahypar {
 class JudiciousGainCache final {
 public:
-  using PriorityQueue = ds::ExclusiveHandleHeap<ds::MaxHeap<HypernodeWeight, PartitionID>>;
+  using PriorityQueue =
+      ds::ExclusiveHandleHeap<ds::MaxHeap<HypernodeWeight, PartitionID>>;
 
-  explicit JudiciousGainCache(const Context& context, const HypernodeID num_nodes) :
-    _context(context),
-    _toPQs(static_cast<size_t>(context.partition.k), PriorityQueue(num_nodes)),
-    _blockPQ(static_cast<size_t>(context.partition.k)),
-    _target_parts(num_nodes, kInvalidPartition) { }
+  explicit JudiciousGainCache(const Context &context,
+                              const HypernodeID num_nodes)
+      : _context(context), _toPQs(static_cast<size_t>(context.partition.k),
+                                  PriorityQueue(num_nodes)),
+        _blockPQ(static_cast<size_t>(context.partition.k)),
+        _target_parts(num_nodes, kInvalidPartition) {}
 
-  void init(const PartitionedHypergraph& phg, const vec<HypernodeID>& refinement_nodes, const PartitionID from) {
+  void init(const PartitionedHypergraph &phg,
+            const vec<HypernodeID> &refinement_nodes, const PartitionID from) {
     _from = from;
     for (const HypernodeID v : refinement_nodes) {
       ASSERT(phg.partID(v) == from);
@@ -45,7 +48,7 @@ public:
     initBlockPQ(phg);
   }
 
-  void updateGain(const PartitionedHypergraph& phg, const HypernodeID v) {
+  void updateGain(const PartitionedHypergraph &phg, const HypernodeID v) {
     const PartitionID designatedTargetV = _target_parts[v];
     ASSERT(_toPQs[designatedTargetV].contains(v));
     ASSERT(designatedTargetV != kInvalidPartition);
@@ -59,7 +62,7 @@ public:
     }
   }
 
-  bool findNextMove(const PartitionedHypergraph& phg, Move& m) {
+  bool findNextMove(const PartitionedHypergraph &phg, Move &m) {
     ASSERT(!_blockPQ.contains(_from));
     if (!updatePQs(phg)) {
       return false;
@@ -88,8 +91,7 @@ public:
   }
 
 private:
-
-  void initBlockPQ(const PartitionedHypergraph& phg) {
+  void initBlockPQ(const PartitionedHypergraph &phg) {
     ASSERT(_blockPQ.empty());
     for (PartitionID i = 0; i < _context.partition.k; ++i) {
       if (!_toPQs[i].empty()) {
@@ -98,23 +100,25 @@ private:
     }
   }
 
-  bool updatePQs(const PartitionedHypergraph& phg) {
+  bool updatePQs(const PartitionedHypergraph &phg) {
     for (PartitionID i = 0; i < _context.partition.k; ++i) {
       updateOrRemoveToPQFromBlocks(phg, i);
     }
     return !_blockPQ.empty();
   }
 
-  void updateOrRemoveToPQFromBlocks(const PartitionedHypergraph& phg, const PartitionID i) {
-      if (!_toPQs[i].empty()) {
-        _blockPQ.insertOrAdjustKey(i, blockGain(phg, i));
-      } else if (_blockPQ.contains(i)) {
-        _blockPQ.remove(i);
-      }
+  void updateOrRemoveToPQFromBlocks(const PartitionedHypergraph &phg,
+                                    const PartitionID i) {
+    if (!_toPQs[i].empty()) {
+      _blockPQ.insertOrAdjustKey(i, blockGain(phg, i));
+    } else if (_blockPQ.contains(i)) {
+      _blockPQ.remove(i);
+    }
   }
 
-  std::pair<PartitionID, HyperedgeWeight> computeBestTargetBlock(const PartitionedHypergraph& phg,
-                                                                 const HypernodeID u) {
+  std::pair<PartitionID, HyperedgeWeight>
+  computeBestTargetBlock(const PartitionedHypergraph &phg,
+                         const HypernodeID u) {
     PartitionID to = kInvalidPartition;
     HyperedgeWeight to_load = std::numeric_limits<HyperedgeWeight>::max();
     HyperedgeWeight to_load_after = std::numeric_limits<HyperedgeWeight>::max();
@@ -122,7 +126,8 @@ private:
       if (i != _from) {
         const HyperedgeWeight load = phg.partLoad(i);
         const HyperedgeWeight load_after = load + phg.moveToPenalty(u, i);
-        if (load_after < to_load_after || (load_after == to_load_after && load < to_load)) {
+        if (load_after < to_load_after ||
+            (load_after == to_load_after && load < to_load)) {
           to = i;
           to_load = load;
           to_load_after = load_after;
@@ -135,21 +140,25 @@ private:
     return std::make_pair(to, gain);
   }
 
-  // NOTE: optimistic gain of the top node of the block; independent of other block loads
-  Gain blockGain(const PartitionedHypergraph& phg, const PartitionID to) {
+  // optimistic gain of the top node of the block; independent of other block
+  // loads
+  Gain blockGain(const PartitionedHypergraph &phg, const PartitionID to) {
     ASSERT(!_toPQs[to].empty());
     const HypernodeID u = _toPQs[to].top();
     const Gain benefit = phg.moveFromBenefit(u) + phg.weightOfDisabledEdges(u);
-    const Gain penalty = phg.moveToPenalty(u, to) + phg.weightOfDisabledEdges(u);
+    const Gain penalty =
+        phg.moveToPenalty(u, to) + phg.weightOfDisabledEdges(u);
     const HyperedgeWeight from_load_after = phg.partLoad(_from) - benefit;
     const HyperedgeWeight to_load_after = phg.partLoad(to) + penalty;
-    return to_load_after <= from_load_after ? benefit : phg.partLoad(_from) - to_load_after;
+    return to_load_after <= from_load_after
+               ? benefit
+               : phg.partLoad(_from) - to_load_after;
   }
 
-  const Context& _context;
+  const Context &_context;
   vec<PriorityQueue> _toPQs;
   PriorityQueue _blockPQ;
   vec<PartitionID> _target_parts;
   PartitionID _from;
 };
-}
+} // namespace mt_kahypar
