@@ -18,13 +18,13 @@
  *
  ******************************************************************************/
 #pragma once
+#include "mt-kahypar/datastructures/judicious_partitioned_hypergraph.h"
+#include "mt-kahypar/partition/initial_partitioning/judicious_ip_commons.h"
 #include <algorithm>
 #include <mt-kahypar/datastructures/priority_queue.h>
 #include <mt-kahypar/definitions.h>
 #include <mt-kahypar/partition/context.h>
 #include <mt-kahypar/partition/metrics.h>
-#include "mt-kahypar/datastructures/judicious_partitioned_hypergraph.h"
-#include "mt-kahypar/partition/initial_partitioning/judicious_ip_commons.h"
 
 namespace mt_kahypar {
 
@@ -40,19 +40,22 @@ public:
   explicit JudiciousPQ(const Context &context, const HypernodeID num_nodes,
                        const size_t seed,
                        GreedyJudiciousInitialPartitionerStats &stats,
-                       const GreedyJudiciousInitialPartitionerConfig& config)
+                       const GreedyJudiciousInitialPartitionerConfig &config)
       : _context(context), _toPQs(static_cast<size_t>(context.partition.k),
                                   PriorityQueue(num_nodes)),
         _blockPQ(static_cast<size_t>(context.partition.k)),
         _part_loads(static_cast<size_t>(context.partition.k)),
-        _disabled_blocks(context.partition.k, false), _g(seed), _stats(stats), _config(config) {
-          if (_config.preassign_nodes) {
-            _move_from_benefit.resize(num_nodes, 0);
-          }
-        }
+        _disabled_blocks(context.partition.k, false), _g(seed), _stats(stats),
+        _config(config) {
+    if (_config.preassign_nodes) {
+      _move_from_benefit.resize(num_nodes, 0);
+    }
+  }
 
-  void init(const JudiciousPartitionedHypergraph &phg, const PartitionID default_part) {
-    HighResClockTimepoint refinement_start = std::chrono::high_resolution_clock::now();
+  void init(const JudiciousPartitionedHypergraph &phg,
+            const PartitionID default_part) {
+    HighResClockTimepoint init_start =
+        std::chrono::high_resolution_clock::now();
     vec<Gain> penalties(phg.initialNumNodes(), 0);
     for (const auto &he : phg.edges()) {
       if (_config.preassign_nodes && phg.edgeSize(he) == 1) {
@@ -69,8 +72,7 @@ public:
       if (_config.preassign_nodes) {
         _move_from_benefit[v] += phg.weightOfDisabledEdges(v);
       }
-      const size_t tag =
-          _config.random_selection ? _g() : penalty;
+      const size_t tag = _config.random_selection ? _g() : penalty;
       for (PartitionID i = 0; i < _context.partition.k; ++i) {
         if (i == default_part)
           continue;
@@ -78,20 +80,20 @@ public:
       }
     }
     initBlockPQ(phg);
-    HighResClockTimepoint refinement_stop = std::chrono::high_resolution_clock::now();
-    double init_time = std::chrono::duration<double>(refinement_stop - refinement_start).count();
+    HighResClockTimepoint init_stop = std::chrono::high_resolution_clock::now();
+    double init_time =
+        std::chrono::duration<double>(init_stop - init_start).count();
     DBG << V(init_time);
   }
 
-  void increaseGain(const HypernodeID v,
-                    const HyperedgeWeight w, const PartitionID to) {
+  void increaseGain(const HypernodeID v, const HyperedgeWeight w,
+                    const PartitionID to) {
     auto key = _toPQs[to].keyOf(v);
-    _toPQs[to].increaseKey(
-        v, std::make_pair(key.first - w, key.second));
+    _toPQs[to].increaseKey(v, std::make_pair(key.first - w, key.second));
   }
 
-  void increaseBenefit(const JudiciousPartitionedHypergraph &phg, const HypernodeID v,
-                    const HyperedgeID he) {
+  void increaseBenefit(const JudiciousPartitionedHypergraph &phg,
+                       const HypernodeID v, const HyperedgeID he) {
     ASSERT(_config.preassign_nodes);
     _move_from_benefit[v] += phg.edgeWeight(he);
   }
@@ -120,7 +122,7 @@ public:
     }());
     if constexpr (debug) {
       _stats.gain_sequence.push_back(judicious_load_before -
-                                    judicious_load_after);
+                                     judicious_load_after);
     }
   }
 
@@ -141,10 +143,10 @@ private:
       gain = calculateGainWithPreassignment(phg, to);
     } else {
       gain = _config.use_judicious_increase
-            ? -_blockPQ.topKey().first
-            : std::min(_part_loads.topKey() -
-                           (phg.partLoad(to) + _toPQs[to].topKey().first),
-                       0);
+                 ? -_blockPQ.topKey().first
+                 : std::min(_part_loads.topKey() -
+                                (phg.partLoad(to) + _toPQs[to].topKey().first),
+                            0);
     }
     m.node = u;
     m.from = phg.partID(u);
@@ -197,8 +199,9 @@ private:
       if (_config.preassign_nodes) {
         gain = -calculateGainWithPreassignment(phg, p);
       } else {
-        gain = std::max(
-            phg.partLoad(p) + _toPQs[p].topKey().first - _part_loads.topKey(), 0);
+        gain = std::max(phg.partLoad(p) + _toPQs[p].topKey().first -
+                            _part_loads.topKey(),
+                        0);
       }
     } else if (_config.use_block_load_only) {
       gain = phg.partLoad(p);
@@ -208,21 +211,29 @@ private:
     return std::make_pair(gain, _toPQs[p].topKey().second);
   }
 
-  Gain calculateGainWithPreassignment(const JudiciousPartitionedHypergraph& phg, const PartitionID p) const {
+  Gain calculateGainWithPreassignment(const JudiciousPartitionedHypergraph &phg,
+                                      const PartitionID p) const {
     ASSERT(_config.preassign_nodes);
     const HyperedgeWeight load_of_first = _part_loads.topKey();
-    if (load_of_first == phg.partLoad(p)) return -_toPQs[p].topKey().first;
+    if (load_of_first == phg.partLoad(p))
+      return -_toPQs[p].topKey().first;
     const HypernodeID u = _toPQs[p].top();
     const PartitionID from = phg.partID(u);
-    const HyperedgeWeight from_load_after = phg.partLoad(from) - _move_from_benefit[u];
-    const HyperedgeWeight to_load_after = phg.partLoad(p) + _toPQs[p].topKey().first;
+    const HyperedgeWeight from_load_after =
+        phg.partLoad(from) - _move_from_benefit[u];
+    const HyperedgeWeight to_load_after =
+        phg.partLoad(p) + _toPQs[p].topKey().first;
     const HyperedgeWeight load_of_second = _part_loads.keyOfSecond();
     if (_part_loads.top() == from) {
-       if (from_load_after > to_load_after && from_load_after > load_of_second) return _move_from_benefit[u];
-       else if (from_load_after == to_load_after && from_load_after >= load_of_second) return 0;
-       else return load_of_first - std::max(to_load_after, load_of_second);
-    }
-    else return std::min(load_of_first - to_load_after, 0);
+      if (from_load_after > to_load_after && from_load_after > load_of_second)
+        return _move_from_benefit[u];
+      else if (from_load_after == to_load_after &&
+               from_load_after >= load_of_second)
+        return 0;
+      else
+        return load_of_first - std::max(to_load_after, load_of_second);
+    } else
+      return std::min(load_of_first - to_load_after, 0);
   }
 
   const Context &_context;

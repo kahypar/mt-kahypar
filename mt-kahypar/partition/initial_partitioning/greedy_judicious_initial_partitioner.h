@@ -20,10 +20,10 @@
 
 #pragma once
 
-#include "mt-kahypar/definitions.h"
-#include "mt-kahypar/partition/initial_partitioning/judicious_pq.h"
-#include "mt-kahypar/partition/initial_partitioning/judicious_ip_commons.h"
 #include "mt-kahypar/datastructures/judicious_partitioned_hypergraph.h"
+#include "mt-kahypar/definitions.h"
+#include "mt-kahypar/partition/initial_partitioning/judicious_ip_commons.h"
+#include "mt-kahypar/partition/initial_partitioning/judicious_pq.h"
 #include <random>
 
 namespace mt_kahypar {
@@ -34,11 +34,12 @@ class GreedyJudiciousInitialPartitioner {
 
 public:
   GreedyJudiciousInitialPartitioner(
-      JudiciousPartitionedHypergraph &phg, const Context &context, const size_t seed,
-      GreedyJudiciousInitialPartitionerStats &stats, const GreedyJudiciousInitialPartitionerConfig &config)
+      JudiciousPartitionedHypergraph &phg, const Context &context,
+      const size_t seed, GreedyJudiciousInitialPartitionerStats &stats,
+      const GreedyJudiciousInitialPartitionerConfig &config)
       : _phg(phg), _context(context),
-        _pq(context, phg.initialNumNodes(), seed, stats, config),
-        _stats(stats), _config(config), _gain_changes(phg.initialNumNodes(), 0),
+        _pq(context, phg.initialNumNodes(), seed, stats, config), _stats(stats),
+        _config(config), _gain_changes(phg.initialNumNodes(), 0),
         _gain_update_state(phg.initialNumNodes(), 0) {
     _default_part = config.preassign_nodes ? 0 : -1;
   }
@@ -50,12 +51,15 @@ public:
 
   void initialPartition() {
     if (_config.preassign_nodes) {
-      HighResClockTimepoint assign_start = std::chrono::high_resolution_clock::now();
+      HighResClockTimepoint assign_start =
+          std::chrono::high_resolution_clock::now();
       for (const HypernodeID &hn : _phg.nodes()) {
         _phg.setNodePart(hn, _default_part);
       }
-      HighResClockTimepoint assign_stop = std::chrono::high_resolution_clock::now();
-      double assign_time = std::chrono::duration<double>(assign_stop - assign_start).count();
+      HighResClockTimepoint assign_stop =
+          std::chrono::high_resolution_clock::now();
+      double assign_time =
+          std::chrono::duration<double>(assign_stop - assign_start).count();
       DBG << V(assign_time);
     }
     _pq.init(_phg, _default_part);
@@ -100,7 +104,8 @@ public:
     while (_pq.getNextMove(_phg, move)) {
       ASSERT(move.from == _default_part);
       if (_config.preassign_nodes) {
-        _phg.changeNodePart(move.node, move.from, move.to, success_func, delta_func);
+        _phg.changeNodePart(move.node, move.from, move.to, success_func,
+                            delta_func);
       } else {
         _phg.setNodePart(move.node, move.to);
         success_func();
@@ -111,28 +116,29 @@ public:
       updateNeighbors(move);
 
       _pq.updateJudiciousLoad(_phg, move.from, move.to);
-      ASSERT(_stats.gain_sequence.empty() || _stats.gain_sequence.back() == move.gain);
+      ASSERT(_stats.gain_sequence.empty() ||
+             _stats.gain_sequence.back() == move.gain);
     }
     ASSERT(std::all_of(
         _phg.nodes().begin(), _phg.nodes().end(),
         [&](const auto &hn) { return _phg.partID(hn) != kInvalidPartition; }));
   }
 
-  void updateNeighbors(Move& m) {
+  void updateNeighbors(Move &m) {
     _nodes_with_gain_update.reserve(_edges_with_gain_changes.size());
-    for (const auto& he : _edges_with_gain_changes) {
+    for (const auto &he : _edges_with_gain_changes) {
       for (HypernodeID v : _phg.pins(he)) {
-          if (_phg.partID(v) == _default_part) {
-            if (_gain_update_state[v] != _gain_update_time) {
-              _gain_update_state[v] = _gain_update_time;
-              _nodes_with_gain_update.push_back(v);
-              _gain_changes[v] = 0;
-            }
-            _gain_changes[v] += _phg.edgeWeight(he);
+        if (_phg.partID(v) == _default_part) {
+          if (_gain_update_state[v] != _gain_update_time) {
+            _gain_update_state[v] = _gain_update_time;
+            _nodes_with_gain_update.push_back(v);
+            _gain_changes[v] = 0;
           }
+          _gain_changes[v] += _phg.edgeWeight(he);
+        }
       }
     }
-    for (const auto& v : _nodes_with_gain_update) {
+    for (const auto &v : _nodes_with_gain_update) {
       _pq.increaseGain(v, _gain_changes[v], m.to);
     }
     _edges_with_gain_changes.clear();
