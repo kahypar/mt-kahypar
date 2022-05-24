@@ -51,13 +51,11 @@ public:
 
   void initializeImpl(PartitionedHypergraph& phg) final;
   void finalizeRefinementRound(const PartitionedHypergraph& phg, const double refinement_time, const PartitionID block, const HyperedgeWeight load_before);
-  bool shouldRefinementContinue(const PartitionedHypergraph& phg, const HyperedgeWeight load_before, size_t& num_bad_refinements);
+  bool shouldRefinementContinue(const PartitionedHypergraph& phg, const HyperedgeWeight load_before);
   void finalizeRefinement(const PartitionedHypergraph& phg, const HyperedgeWeight initial_max_load);
   void calculateRefinementNodes(const PartitionedHypergraph& phg, const PartitionID heaviest_part);
   void doRefinement(PartitionedHypergraph& phg, const PartitionID part_id);
-  void revertToBestLocalPrefix(PartitionedHypergraph& phg, const size_t bestGainIndex);
   void updateNeighbors(PartitionedHypergraph& phg, const Move& move);
-  void reset();
 
 private:
   bool _is_initialized = false;
@@ -65,7 +63,6 @@ private:
   const Context& _context;
   vec<HypernodeID> _refinement_nodes;
   JudiciousGainCache _pq;
-  vec<Move> _moves;
   ds::ExclusiveHandleHeap<ds::MaxHeap<HyperedgeWeight, PartitionID>> _part_loads;
   // ! Used after a move. Stores whether a neighbor of the just moved vertex has already been updated.
   HyperedgeWeight _last_load = 0;
@@ -73,5 +70,6 @@ private:
   vec<HyperedgeID> _edges_with_gain_changes;
   vec<size_t> _gain_update_state;
   size_t _gain_update_time = 0;
+  size_t _num_bad_refinements = 0;
 };
 }

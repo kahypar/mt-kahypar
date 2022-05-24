@@ -36,11 +36,12 @@ namespace mt_kahypar {
     if (!_is_initialized) throw std::runtime_error("Call initialize on judicious refinement before calling refine");
     DBG << "Initial judicious load:" << V(metrics::judiciousLoad(phg));
     ASSERT(_last_load == metrics::judiciousLoad(phg) || _last_load == 0);
+    _part_loads.clear();
     for (PartitionID i = 0; i < _context.partition.k; ++i) {
       _part_loads.insert(i, phg.partLoad(i));
     }
     const HyperedgeWeight initial_max_load = _part_loads.topKey();
-    size_t num_bad_refinements = 0;
+    _num_bad_refinements = 0;
     bool done = false;
     do {
       const PartitionID from_block = _part_loads.top();
@@ -51,12 +52,10 @@ namespace mt_kahypar {
       HighResClockTimepoint refinement_stop = std::chrono::high_resolution_clock::now();
       double refinement_time = std::chrono::duration<double>(refinement_stop - refinement_start).count();
       finalizeRefinementRound(phg, refinement_time, from_block, max_load_before_refinement);
-      done = shouldRefinementContinue(phg, max_load_before_refinement, num_bad_refinements);
+      done = shouldRefinementContinue(phg, max_load_before_refinement);
     } while (!done);
-    revertToBestLocalPrefix(phg, 0);
     finalizeRefinement(phg, initial_max_load);
     metrics.imbalance = metrics::imbalance(phg, _context);
-    reset();
     return initial_max_load - _part_loads.topKey() > 0;
   }
 
@@ -75,20 +74,20 @@ namespace mt_kahypar {
       }
   }
 
-  bool JudiciousRefiner::shouldRefinementContinue(const PartitionedHypergraph& phg, const HyperedgeWeight load_before, size_t& num_bad_refinements) {
+  bool JudiciousRefiner::shouldRefinementContinue(const PartitionedHypergraph& phg, const HyperedgeWeight load_before) {
       const HyperedgeWeight current_max_load = _part_loads.topKey();
       HyperedgeWeight min_part_load = current_max_load;
       for (PartitionID i = 0; i < _context.partition.k; ++i) {
         min_part_load = std::min(min_part_load, phg.partLoad(i));
       }
       const double load_ratio = static_cast<double>(current_max_load) / min_part_load;
+      DBG << V(load_ratio);
       HyperedgeWeight delta = load_before - current_max_load;
-      // TODO: may be too restrictive <2022-05-17, noahares>
       if (delta <= 0) {
-        num_bad_refinements++;
+        _num_bad_refinements++;
       }
       return load_ratio < _context.refinement.judicious.min_load_ratio ||
-        num_bad_refinements >= 2;
+        _num_bad_refinements >= 2;
     }
 
   void JudiciousRefiner::finalizeRefinement(const PartitionedHypergraph& phg, const HyperedgeWeight initial_max_load) {
@@ -116,11 +115,6 @@ namespace mt_kahypar {
 
   }
 
-  // TODO: use something like "judicious state" for this shared data <2022-05-17, noahares>
-  void JudiciousRefiner::reset() {
-    _moves.clear();
-    _part_loads.clear();
-  }
 
   void JudiciousRefiner::calculateRefinementNodes(const PartitionedHypergraph& phg, const PartitionID p) {
     _refinement_nodes.clear();
@@ -146,14 +140,11 @@ namespace mt_kahypar {
 
   void JudiciousRefiner::doRefinement(PartitionedHypergraph& phg, const PartitionID part_id) {
     DBG << V(_refinement_nodes.size());
-    _pq.setActivePart(part_id);
-    for (const HypernodeID v : _refinement_nodes) {
-      _pq.insert(phg, v);
-    }
+    _pq.init(phg, _refinement_nodes, part_id);
+    // do not need load of current from-block in the PQ as it only induces updates with info that is not needed
     _part_loads.deleteTop();
     const HyperedgeWeight initial_from_load = phg.partLoad(part_id);
     HyperedgeWeight from_load = initial_from_load;
-    _pq.initBlockPQ();
     auto delta_func = [&](const HyperedgeID he,
                           const HyperedgeWeight,
                           const HypernodeID,
@@ -165,13 +156,10 @@ namespace mt_kahypar {
       }
     };
     Move move;
-    size_t initial_num_moves = _moves.size();
-    DBG << V(initial_num_moves);
-    vec<HypernodeID> accepted_moves;
+    vec<HypernodeID> moved_nodes;
     while (_pq.findNextMove(phg, move)) {
       ASSERT(move.to != kInvalidPartition);
       ASSERT(move.from == part_id);
-      const HyperedgeWeight from_load_before_move = phg.partLoad(part_id);
       phg.changeNodePartWithGainCacheUpdate(move.node, move.from, move.to,
                                             std::numeric_limits<HypernodeWeight>::max(),
                                             []{}, delta_func);
@@ -179,44 +167,29 @@ namespace mt_kahypar {
       const HyperedgeWeight to_load = phg.partLoad(move.to);
       from_load = phg.partLoad(move.from);
       _part_loads.adjustKey(move.to, to_load);
-      Gain real_gain = from_load_before_move - std::max(_part_loads.topKey(), from_load);
-      // ASSERT(real_gain == move.gain);
-      // if the maximum load decreased, accept the move immediately
       // want to accept all moves which do not increase the judicious load, i.e all moves s.t. to's load will not exceed from's load before the move.
       // Moves that increase the judicious load should not be done, because they cannot help escape local minima, because if a node is moved from node A to B to C, it could be moved to C directly and its neighbors which decrease the load of B are moved when B becomes the heaviest
-      if (real_gain > 0 || phg.partLoad(move.to) <= from_load) {
-        for (size_t i = initial_num_moves; i < _moves.size(); ++i) {
-          accepted_moves.push_back(_moves[i].node);
-        }
-        accepted_moves.push_back(move.node);
-        _moves.clear();
-        initial_num_moves = 0;
-      } else {
-        DBG << "Negative gain move which increased judicious load";
-        _moves.push_back(move);
-      }
-
-      // abort if too many negative gain moves were made...
-      if (_moves.size() > _refinement_nodes.size() * _context.refinement.judicious.abort_factor) {
-        DBG << "Abort due to too many negative gain moves";
-        revertToBestLocalPrefix(phg, initial_num_moves);
+      // NOTE: TLDR: escaping local minima would require some extra tricks, moving nodes to heavy blocks and hoping for improvements down the line is not feasible;
+      moved_nodes.push_back(move.node);
+      if (move.gain < 0) {
+        phg.changeNodePartWithGainCacheUpdate(move.node, move.to, move.from);
+        DBG << "Negative gain move which would increase judicious load";
         break;
-      } else if (_part_loads.topKey() >= from_load * _context.refinement.judicious.part_load_margin) break;
+      }
+      ASSERT(phg.partLoad(move.to) <= initial_from_load);
+
+      if (_part_loads.topKey() >= from_load * _context.refinement.judicious.part_load_margin) break;
       updateNeighbors(phg, move);
     }
     _edges_with_gain_changes.clear();
-    _pq.resetGainCache();
+    _pq.reset();
     _part_loads.insert(part_id, from_load);
-    for (size_t i = initial_num_moves; i < _moves.size(); ++i) {
-      accepted_moves.push_back(_moves[i].node);
-    }
-    tbb::parallel_for(0UL, accepted_moves.size(), [&](const MoveID i) {
-      phg.recomputeMoveFromBenefit(accepted_moves[i]);
+    tbb::parallel_for(0UL, moved_nodes.size(), [&](const MoveID i) {
+      phg.recomputeMoveFromBenefit(moved_nodes[i]);
     });
   }
 
   void JudiciousRefiner::updateNeighbors(PartitionedHypergraph& phg, const Move& move) {
-    DBG << V(_edges_with_gain_changes.size());
     for (const HyperedgeID& he : _edges_with_gain_changes) {
       for (const HypernodeID& v : phg.pins(he)) {
         if (phg.partID(v) == move.from && _gain_update_state[v] != _gain_update_time) {
@@ -229,16 +202,6 @@ namespace mt_kahypar {
     if (++_gain_update_time == 0) {
       _gain_update_state.assign(_gain_update_state.size(), 0);
       _gain_update_time = 1;
-    }
-  }
-
-  void JudiciousRefiner::revertToBestLocalPrefix(PartitionedHypergraph& phg, const size_t bestGainIndex) {
-    DBG << "reverting" << (_moves.size() - bestGainIndex) << "of" << _moves.size() << "moves";
-    while (_moves.size() > bestGainIndex) {
-      Move& m = _moves.back();
-      phg.changeNodePartWithGainCacheUpdate(m.node, m.to, m.from);
-      m.invalidate();
-      _moves.pop_back();
     }
   }
 }
