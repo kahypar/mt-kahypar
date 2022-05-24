@@ -250,5 +250,42 @@ TEST_F(ASeparatedNodes, CopiesParallel) {
   verifyIncidentEgdes(other.outwardEdges(4), { {0, 1}, {1, 1} });
 }
 
+TEST_F(ASeparatedNodes, PerformsAlternateAddingAndMapping) {
+  SeparatedNodes nodes(10);
+  vec<std::pair<HyperedgeID, HypernodeWeight>> new_nodes { {0, 1}, {2, 1}, {4, 1}, {6, 1}};
+  vec<Edge> new_edges { Edge(3, 2), Edge(1, 1), Edge(2, 1), Edge(1, 2), Edge(3, 1), Edge(4, 1) };
+  nodes.addNodes(new_nodes, new_edges);
+
+  vec<HypernodeID> communities { 0, 3, 2, 3, kInvalidHypernode, 4, 5, 0, 0, 0 };
+  nodes.contract(communities, 6);
+
+  new_nodes = { {0, 1}, {4, 1}, {5, 1} };
+  new_edges = { Edge(0, 1), Edge(1, 1), Edge(2, 1), Edge(3, 1), Edge(3, 1) };
+  nodes.addNodes(new_nodes, new_edges);
+
+  communities = { 0, kInvalidHypernode, 1, 1, kInvalidHypernode, kInvalidHypernode };
+  nodes.contract(communities, 2);
+
+  nodes.initializeOutwardEdges();
+
+  ASSERT_EQ(7,  nodes.numNodes());
+  ASSERT_EQ(2,  nodes.numGraphNodes());
+  ASSERT_EQ(6,  nodes.numEdges());
+
+  verifyIncidentEgdes(nodes.inwardEdges(0), { {1, 3} });
+  verifyIncidentEgdes(nodes.inwardEdges(1), { {1, 3} });
+  verifyIncidentEgdes(nodes.inwardEdges(2), { {1, 1} });
+  verifyIncidentEgdes(nodes.inwardEdges(3), { });
+  verifyIncidentEgdes(nodes.inwardEdges(4), { {0, 1}, {1, 2} });
+  verifyIncidentEgdes(nodes.inwardEdges(5), { {1, 1} });
+  verifyIncidentEgdes(nodes.inwardEdges(6), { });
+
+  ASSERT_EQ(1,  nodes.outwardIncidentWeight(0));
+  ASSERT_EQ(10,  nodes.outwardIncidentWeight(1));
+
+  verifyIncidentEgdes(nodes.outwardEdges(0), { {4, 1} });
+  verifyIncidentEgdes(nodes.outwardEdges(1), { {0, 3}, {1, 3}, {2, 1}, {4, 2}, {5, 1} });
+}
+
 }
 } // namespace mt_kahypar
