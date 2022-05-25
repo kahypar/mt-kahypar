@@ -98,16 +98,16 @@ namespace mt_kahypar::ds {
     tbb::parallel_scan(tbb::blocked_range<size_t>(ID(0), separated_num_nodes), separated_nodes_prefix_sum);
     const HyperedgeID separated_num_edges = separated_nodes_prefix_sum.total_sum();
 
-    vec<std::pair<HyperedgeID, HypernodeWeight>> separated_nodes;
+    vec<std::tuple<HypernodeID, HyperedgeID, HypernodeWeight>> separated_nodes;
     vec<SeparatedNodes::Edge> separated_edges;
 
     if (_separated_nodes != nullptr) {
-      separated_nodes.assign(separated_num_nodes, {0, 0});
+      separated_nodes.assign(separated_num_nodes, {0, 0, 0});
       separated_edges.assign(separated_num_edges, SeparatedNodes::Edge(0, 0));
       doParallelForAllNodes([&](const HypernodeID& u) {
         if (communities[u] == kInvalidHypernode) {
           HypernodeID separated_id = separated_prefix_sum[u];
-          separated_nodes[separated_id] = {separated_nodes_prefix_sum[separated_id], nodeWeight(u)};
+          separated_nodes[separated_id] = {u, separated_nodes_prefix_sum[separated_id], nodeWeight(u)};
           const HyperedgeID first = node(u).firstEntry();
           const HyperedgeID last = node(u + 1).firstEntry();
           for (HyperedgeID index = 0; first + index < last; ++index) {

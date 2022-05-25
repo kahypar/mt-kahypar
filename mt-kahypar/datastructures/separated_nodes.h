@@ -43,15 +43,19 @@ class SeparatedNodes {
   class Node {
    public:
     Node() :
+      original_node(kInvalidHypernode),
       begin(0),
       weight(1),
       part_id(kInvalidPartition) { }
 
-    explicit Node(const HyperedgeID begin, const HypernodeWeight weight) :
+    explicit Node(const HypernodeID original_node, const HyperedgeID begin, const HypernodeWeight weight) :
+      original_node(original_node),
       begin(begin),
       weight(weight),
       part_id(kInvalidPartition) { }
 
+    // ! ID of the original node in the graph
+    HypernodeID original_node;
     // ! Index of the first element in _inward_edges
     HyperedgeID begin;
     // ! Node weight
@@ -87,7 +91,7 @@ class SeparatedNodes {
     _num_graph_nodes(num_graph_nodes),
     _num_edges(0),
     _total_weight(0),
-    _nodes{ Node(0, 0) },
+    _nodes{ Node(kInvalidHypernode, 0, 0) },
     _outward_incident_weight(num_graph_nodes),
     _graph_nodes_begin(),
     _inward_edges(),
@@ -167,6 +171,11 @@ class SeparatedNodes {
 
     // ####################### Node Information #######################
 
+  // ! Original ID of a vertex
+  HypernodeID originalHypernodeID(const HypernodeID u) const {
+    return node(u).original_node;
+  }
+
   // ! Weight of a vertex
   HypernodeWeight nodeWeight(const HypernodeID u) const {
     return node(u).weight;
@@ -198,7 +207,7 @@ class SeparatedNodes {
    * Adds the given nodes. Each node is specified by its weight and its
    * starting index in the edge vector.
    */
-  void addNodes(const vec<std::pair<HyperedgeID, HypernodeWeight>>& nodes, const vec<Edge>& edges);
+  void addNodes(const vec<std::tuple<HypernodeID, HyperedgeID, HypernodeWeight>>& nodes, const vec<Edge>& edges);
 
   /*!
    * Contracts a given community structure. Note that the mapping must contain

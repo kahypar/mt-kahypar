@@ -25,7 +25,7 @@
 namespace mt_kahypar::ds {
 
 
-void SeparatedNodes::addNodes(const vec<std::pair<HyperedgeID, HypernodeWeight>>& nodes,
+void SeparatedNodes::addNodes(const vec<std::tuple<HypernodeID, HyperedgeID, HypernodeWeight>>& nodes,
                               const vec<Edge>& edges) {
   ASSERT(_num_nodes + 1 == _nodes.size());
   ASSERT(_num_edges == _inward_edges.size());
@@ -35,10 +35,10 @@ void SeparatedNodes::addNodes(const vec<std::pair<HyperedgeID, HypernodeWeight>>
   auto update_nodes = [&] {
     _nodes.resize(_num_nodes + nodes.size() + 1);
     tbb::parallel_for(0UL, nodes.size(), [&](const size_t& pos) {
-      auto [begin, weight] = nodes[pos];
-      _nodes[_num_nodes + pos] = Node(_num_edges + begin, weight);
+      auto [original_node, begin, weight] = nodes[pos];
+      _nodes[_num_nodes + pos] = Node(original_node, _num_edges + begin, weight);
     });
-    _nodes[_num_nodes + nodes.size()] = Node(_num_edges + edges.size(), 0);
+    _nodes[_num_nodes + nodes.size()] = Node(kInvalidHypernode, _num_edges + edges.size(), 0);
   };
 
   auto update_inward_edges_and_incident_weight = [&] {
