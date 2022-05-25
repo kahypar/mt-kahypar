@@ -24,6 +24,7 @@
 
 #include "mt-kahypar/parallel/parallel_prefix_sum.h"
 #include "mt-kahypar/datastructures/concurrent_bucket_map.h"
+#include "mt-kahypar/datastructures/separated_nodes.h"
 #include "mt-kahypar/utils/timer.h"
 #include "mt-kahypar/utils/memory_tree.h"
 
@@ -78,10 +79,44 @@ namespace mt_kahypar::ds {
       }
     });
 
-    // Prefix sum determines vertex ids in coarse graph
-    // parallel::TBBPrefixSum<HyperedgeID, Array> separated_prefix_sum(separated_mapping);
-    // tbb::parallel_scan(tbb::blocked_range<size_t>(ID(0), _num_nodes), separated_prefix_sum);
-    // const HypernodeID separated_num_nodes = separated_prefix_sum.total_sum();
+    parallel::TBBPrefixSum<HyperedgeID, Array> separated_prefix_sum(mapping);
+    tbb::parallel_scan(tbb::blocked_range<size_t>(ID(0), _num_nodes), separated_prefix_sum);
+    const HypernodeID separated_num_nodes = separated_prefix_sum.total_sum();
+
+    // Copy separated nodes
+    // TODO: not that performant
+    Array<HyperedgeID> separated_node_degrees;
+    separated_node_degrees.assign(separated_num_nodes, 0);
+    doParallelForAllNodes([&](const HypernodeID& node) {
+      if (communities[node] == kInvalidHypernode) {
+        HypernodeID separated_id = separated_prefix_sum[node];
+        separated_node_degrees[separated_id] = nodeDegree(node);
+      }
+    });
+
+    parallel::TBBPrefixSum<HyperedgeID, Array> separated_nodes_prefix_sum(separated_node_degrees);
+    tbb::parallel_scan(tbb::blocked_range<size_t>(ID(0), separated_num_nodes), separated_nodes_prefix_sum);
+    const HyperedgeID separated_num_edges = separated_nodes_prefix_sum.total_sum();
+
+    vec<std::pair<HyperedgeID, HypernodeWeight>> separated_nodes;
+    vec<SeparatedNodes::Edge> separated_edges;
+
+    if (_separated_nodes != nullptr) {
+      separated_nodes.assign(separated_num_nodes, {0, 0});
+      separated_edges.assign(separated_num_edges, SeparatedNodes::Edge(0, 0));
+      doParallelForAllNodes([&](const HypernodeID& u) {
+        if (communities[u] == kInvalidHypernode) {
+          HypernodeID separated_id = separated_prefix_sum[u];
+          separated_nodes[separated_id] = {separated_nodes_prefix_sum[separated_id], nodeWeight(u)};
+          const HyperedgeID first = node(u).firstEntry();
+          const HyperedgeID last = node(u + 1).firstEntry();
+          for (HyperedgeID index = 0; first + index < last; ++index) {
+            const Edge& e = edge(first + index);
+            separated_edges[separated_nodes_prefix_sum[separated_id] + index] = SeparatedNodes::Edge(e.target(), e.weight());
+          }
+        }
+      });
+    }
 
     // Compute vertex ids of coarse graph with a parallel prefix sum
     mapping.assign(_num_nodes, 0);
@@ -98,25 +133,6 @@ namespace mt_kahypar::ds {
     tbb::parallel_scan(tbb::blocked_range<size_t>(ID(0), _num_nodes), mapping_prefix_sum);
     const HypernodeID coarsened_num_nodes = mapping_prefix_sum.total_sum();
 
-    // const HypernodeID total_num_nodes = coarsened_num_nodes + separated_num_nodes;
-
-    // Remap community ids
-    tbb::parallel_for(ID(0), _num_nodes, [&](const HypernodeID& node) {
-      if ( nodeIsEnabled(node) && communities[node] != kInvalidHypernode ) {
-        communities[node] = mapping_prefix_sum[communities[node]];
-      } else {
-        communities[node] = kInvalidHypernode;
-      }
-
-      // Reset tmp contraction buffer
-      if ( node < coarsened_num_nodes ) {
-        node_weights[node] = 0;
-        tmp_nodes[node] = Node(true);
-        node_sizes[node] = 0;
-        tmp_num_incident_edges[node] = 0;
-      }
-    });
-
     // Mapping from a vertex id of the current hypergraph to its
     // id in the coarse hypergraph
     auto map_to_coarse_graph = [&](const HypernodeID node) {
@@ -124,17 +140,40 @@ namespace mt_kahypar::ds {
       return communities[node];
     };
 
-
-    doParallelForAllNodes([&](const HypernodeID& node) {
-      const HypernodeID coarse_node = map_to_coarse_graph(node);
-      if (coarse_node != kInvalidHypernode) {
-        ASSERT(coarse_node < coarsened_num_nodes, V(coarse_node) << V(coarsened_num_nodes));
-        // Weight vector is atomic => thread-safe
-        node_weights[coarse_node] += nodeWeight(node);
-        // Aggregate upper bound for number of incident nets of the contracted vertex
-        tmp_num_incident_edges[coarse_node] += nodeDegree(node);
+    tbb::parallel_invoke([&] {
+      if (_separated_nodes != nullptr) {
+        separatedNodes().addNodes(separated_nodes, separated_edges);
       }
+    }, [&] {
+      // Remap community ids
+      tbb::parallel_for(ID(0), _num_nodes, [&](const HypernodeID& node) {
+        if ( nodeIsEnabled(node) && communities[node] != kInvalidHypernode ) {
+          communities[node] = mapping_prefix_sum[communities[node]];
+        } else {
+          communities[node] = kInvalidHypernode;
+        }
+
+        // Reset tmp contraction buffer
+        if ( node < coarsened_num_nodes ) {
+          node_weights[node] = 0;
+          tmp_nodes[node] = Node(true);
+          node_sizes[node] = 0;
+          tmp_num_incident_edges[node] = 0;
+        }
+      });
+
+      doParallelForAllNodes([&](const HypernodeID& node) {
+        const HypernodeID coarse_node = map_to_coarse_graph(node);
+        if (coarse_node != kInvalidHypernode) {
+          ASSERT(coarse_node < coarsened_num_nodes, V(coarse_node) << V(coarsened_num_nodes));
+          // Weight vector is atomic => thread-safe
+          node_weights[coarse_node] += nodeWeight(node);
+          // Aggregate upper bound for number of incident nets of the contracted vertex
+          tmp_num_incident_edges[coarse_node] += nodeDegree(node);
+        }
+      });
     });
+
     utils::Timer::instance().stop_timer("preprocess_contractions");
 
     // #################### STAGE 2 ####################
@@ -193,75 +232,86 @@ namespace mt_kahypar::ds {
     // A list of high degree vertices that are processed afterwards
     parallel::scalable_vector<HypernodeID> high_degree_vertices;
     std::mutex high_degree_vertex_mutex;
-    tbb::parallel_for(ID(0), coarsened_num_nodes, [&](const HypernodeID& coarse_node) {
-      // Remove duplicates
-      const size_t incident_edges_start = tmp_incident_edges_prefix_sum[coarse_node];
-      const size_t incident_edges_end = tmp_incident_edges_prefix_sum[coarse_node + 1];
-      const size_t tmp_degree = incident_edges_end - incident_edges_start;
-      if (tmp_degree <= std::max(coarsened_num_nodes, HIGH_DEGREE_CONTRACTION_THRESHOLD)) {
-        std::sort(tmp_edges.begin() + incident_edges_start, tmp_edges.begin() + incident_edges_end,
-                  [](const TmpEdgeInformation& e1, const TmpEdgeInformation& e2) {
-                    return e1._target < e2._target;
-                  });
 
-        // Deduplicate, aggregate weights and calculate minimum unique id
-        //
-        // <-- deduplicated --> <-- already processed --> <-- to be processed --> <-- invalid edges -->
-        //                    ^                         ^
-        // valid_edge_index ---        tmp_edge_index ---
-        size_t valid_edge_index = incident_edges_start;
-        size_t tmp_edge_index = incident_edges_start + 1;
-        HyperedgeWeight incident_weight = 0;
-        if (incident_edges_start < incident_edges_end && tmp_edges[incident_edges_start].isValid()) {
-          incident_weight = tmp_edges[incident_edges_start].getWeight();
-        }
-        while (tmp_edge_index < incident_edges_end && tmp_edges[tmp_edge_index].isValid()) {
-          HEAVY_COARSENING_ASSERT(
-            [&](){
-              size_t i = incident_edges_start;
-              for (; i <= valid_edge_index; ++i) {
-                if (!tmp_edges[i].isValid()) {
-                  return false;
-                } else if ((i + 1 <= valid_edge_index) &&
-                  tmp_edges[i].getTarget() >= tmp_edges[i + 1].getTarget()) {
-                  return false;
-                }
-              }
-              for (; i < tmp_edge_index; ++i) {
-                if (tmp_edges[i].isValid()) {
-                  return false;
-                }
-              }
-              return true;
-            }(),
-            "Invariant violated while deduplicating incident edges!"
-          );
-
-          TmpEdgeInformation& valid_edge = tmp_edges[valid_edge_index];
-          TmpEdgeInformation& next_edge = tmp_edges[tmp_edge_index];
-          if (next_edge.isValid()) {
-            incident_weight += next_edge.getWeight();
-            if (valid_edge.getTarget() == next_edge.getTarget()) {
-              valid_edge.addWeight(next_edge.getWeight());
-              valid_edge.updateID(next_edge.getID());
-              next_edge.invalidate();
-            } else {
-              std::swap(tmp_edges[++valid_edge_index], next_edge);
-            }
-            ++tmp_edge_index;
-          }
-        }
-        const bool is_non_empty = (incident_edges_start < incident_edges_end) && tmp_edges[valid_edge_index].isValid();
-        const HyperedgeID contracted_size = is_non_empty ? (valid_edge_index - incident_edges_start + 1) : 0;
-        node_sizes[coarse_node] = contracted_size;
-        tmp_nodes[coarse_node].setIncidentWeight(incident_weight);
-      } else {
-        std::lock_guard<std::mutex> lock(high_degree_vertex_mutex);
-        high_degree_vertices.push_back(coarse_node);
+    auto deduplicate_separated_edges = [&] {
+      if (_separated_nodes != nullptr) {
+        separatedNodes().contract(communities, coarsened_num_nodes);
       }
-      tmp_nodes[coarse_node].setWeight(node_weights[coarse_node]);
-      tmp_nodes[coarse_node].setFirstEntry(incident_edges_start);
-    });
+    };
+
+    auto deduplicate_graph_edges = [&] {
+      tbb::parallel_for(ID(0), coarsened_num_nodes, [&](const HypernodeID& coarse_node) {
+        // Remove duplicates
+        const size_t incident_edges_start = tmp_incident_edges_prefix_sum[coarse_node];
+        const size_t incident_edges_end = tmp_incident_edges_prefix_sum[coarse_node + 1];
+        const size_t tmp_degree = incident_edges_end - incident_edges_start;
+        if (tmp_degree <= std::max(coarsened_num_nodes, HIGH_DEGREE_CONTRACTION_THRESHOLD)) {
+          std::sort(tmp_edges.begin() + incident_edges_start, tmp_edges.begin() + incident_edges_end,
+                    [](const TmpEdgeInformation& e1, const TmpEdgeInformation& e2) {
+                      return e1._target < e2._target;
+                    });
+
+          // Deduplicate, aggregate weights and calculate minimum unique id
+          //
+          // <-- deduplicated --> <-- already processed --> <-- to be processed --> <-- invalid edges -->
+          //                    ^                         ^
+          // valid_edge_index ---        tmp_edge_index ---
+          size_t valid_edge_index = incident_edges_start;
+          size_t tmp_edge_index = incident_edges_start + 1;
+          HyperedgeWeight incident_weight = 0;
+          if (incident_edges_start < incident_edges_end && tmp_edges[incident_edges_start].isValid()) {
+            incident_weight = tmp_edges[incident_edges_start].getWeight();
+          }
+          while (tmp_edge_index < incident_edges_end && tmp_edges[tmp_edge_index].isValid()) {
+            HEAVY_COARSENING_ASSERT(
+              [&](){
+                size_t i = incident_edges_start;
+                for (; i <= valid_edge_index; ++i) {
+                  if (!tmp_edges[i].isValid()) {
+                    return false;
+                  } else if ((i + 1 <= valid_edge_index) &&
+                    tmp_edges[i].getTarget() >= tmp_edges[i + 1].getTarget()) {
+                    return false;
+                  }
+                }
+                for (; i < tmp_edge_index; ++i) {
+                  if (tmp_edges[i].isValid()) {
+                    return false;
+                  }
+                }
+                return true;
+              }(),
+              "Invariant violated while deduplicating incident edges!"
+            );
+
+            TmpEdgeInformation& valid_edge = tmp_edges[valid_edge_index];
+            TmpEdgeInformation& next_edge = tmp_edges[tmp_edge_index];
+            if (next_edge.isValid()) {
+              incident_weight += next_edge.getWeight();
+              if (valid_edge.getTarget() == next_edge.getTarget()) {
+                valid_edge.addWeight(next_edge.getWeight());
+                valid_edge.updateID(next_edge.getID());
+                next_edge.invalidate();
+              } else {
+                std::swap(tmp_edges[++valid_edge_index], next_edge);
+              }
+              ++tmp_edge_index;
+            }
+          }
+          const bool is_non_empty = (incident_edges_start < incident_edges_end) && tmp_edges[valid_edge_index].isValid();
+          const HyperedgeID contracted_size = is_non_empty ? (valid_edge_index - incident_edges_start + 1) : 0;
+          node_sizes[coarse_node] = contracted_size;
+          tmp_nodes[coarse_node].setIncidentWeight(incident_weight);
+        } else {
+          std::lock_guard<std::mutex> lock(high_degree_vertex_mutex);
+          high_degree_vertices.push_back(coarse_node);
+        }
+        tmp_nodes[coarse_node].setWeight(node_weights[coarse_node]);
+        tmp_nodes[coarse_node].setFirstEntry(incident_edges_start);
+      });
+    };
+
+    tbb::parallel_invoke(deduplicate_separated_edges, deduplicate_graph_edges);
 
     if ( !high_degree_vertices.empty() ) {
       // High degree vertices are treated special, because sorting and afterwards
@@ -460,7 +510,9 @@ namespace mt_kahypar::ds {
       "Unique edge IDs are not initialized correctly."
     );
 
-    hypergraph._total_weight = _total_weight;
+    // TODO
+    hypergraph.computeAndSetTotalNodeWeight(parallel_tag_t());
+
     hypergraph._tmp_contraction_buffer = _tmp_contraction_buffer;
     _tmp_contraction_buffer = nullptr;
     return hypergraph;

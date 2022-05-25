@@ -40,6 +40,7 @@ namespace ds {
 
 // Forward
 class StaticGraphFactory;
+class SeparatedNodes;
 template <typename Hypergraph,
           typename HypergraphFactory>
 class PartitionedHypergraph;
@@ -804,6 +805,18 @@ class StaticGraph {
     _community_ids = std::move(communities);
   }
 
+  SeparatedNodes& separatedNodes() {
+    return *_separated_nodes;
+  }
+
+  const SeparatedNodes& separatedNodes() const {
+    return *_separated_nodes;
+  }
+
+  void setSeparatedNodes(SeparatedNodes* separated_nodes) {
+    _separated_nodes = separated_nodes;
+  }
+
   // ! Copy static hypergraph in parallel
   StaticGraph copy(parallel_tag_t) const;
 
@@ -902,6 +915,9 @@ class StaticGraph {
   Array<Edge> _edges;
   // ! Edges
   Array<HyperedgeID> _unique_edge_ids;
+
+  // ! Nodes that were separated during coarsening
+  SeparatedNodes* _separated_nodes;
 
   // ! Communities
   ds::Clustering _community_ids;
