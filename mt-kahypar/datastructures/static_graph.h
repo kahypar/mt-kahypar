@@ -462,6 +462,7 @@ class StaticGraph {
     _nodes(),
     _edges(),
     _unique_edge_ids(),
+    _separated_nodes(nullptr),
     _community_ids(),
     _tmp_contraction_buffer(nullptr) { }
 
@@ -476,6 +477,7 @@ class StaticGraph {
     _nodes(std::move(other._nodes)),
     _edges(std::move(other._edges)),
     _unique_edge_ids(std::move(other._unique_edge_ids)),
+    _separated_nodes(other._separated_nodes),
     _community_ids(std::move(other._community_ids)),
     _tmp_contraction_buffer(std::move(other._tmp_contraction_buffer)) {
     other._tmp_contraction_buffer = nullptr;
@@ -489,6 +491,7 @@ class StaticGraph {
     _nodes = std::move(other._nodes);
     _edges = std::move(other._edges);
     _unique_edge_ids = std::move(other._unique_edge_ids);
+    _separated_nodes = other._separated_nodes;
     _community_ids = std::move(other._community_ids),
     _tmp_contraction_buffer = std::move(other._tmp_contraction_buffer);
     other._tmp_contraction_buffer = nullptr;

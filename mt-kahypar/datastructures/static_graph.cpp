@@ -527,6 +527,7 @@ namespace mt_kahypar::ds {
     hypergraph._num_removed_nodes = _num_removed_nodes;
     hypergraph._num_edges = _num_edges;
     hypergraph._total_weight = _total_weight;
+    hypergraph._separated_nodes = _separated_nodes;
 
     tbb::parallel_invoke([&] {
       hypergraph._nodes.resize(_nodes.size());
@@ -554,6 +555,7 @@ namespace mt_kahypar::ds {
     hypergraph._num_removed_nodes = _num_removed_nodes;
     hypergraph._num_edges = _num_edges;
     hypergraph._total_weight = _total_weight;
+    hypergraph._separated_nodes = _separated_nodes;
 
     hypergraph._nodes.resize(_nodes.size());
     memcpy(hypergraph._nodes.data(), _nodes.data(),
