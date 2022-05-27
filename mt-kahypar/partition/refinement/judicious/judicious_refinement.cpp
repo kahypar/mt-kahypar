@@ -58,7 +58,7 @@ bool JudiciousRefiner::refineImpl(PartitionedHypergraph &phg,
             .count();
     finalizeRefinementRound(phg, refinement_time, from_block,
                             max_load_before_refinement);
-    done = shouldRefinementContinue(phg, max_load_before_refinement);
+    done = shouldRefinementStop(phg, from_block, max_load_before_refinement);
   } while (!done);
   finalizeRefinement(phg, initial_max_load);
   metrics.imbalance = metrics::imbalance(phg, _context);
@@ -81,12 +81,15 @@ void JudiciousRefiner::finalizeRefinementRound(
   }
 }
 
-bool JudiciousRefiner::shouldRefinementContinue(
-    const PartitionedHypergraph &phg, const HyperedgeWeight load_before) {
+bool JudiciousRefiner::shouldRefinementStop(const PartitionedHypergraph &phg,
+                                            const PartitionID block,
+                                            const HyperedgeWeight load_before) {
   const HyperedgeWeight current_max_load = _part_loads.topKey();
   HyperedgeWeight min_part_load = current_max_load;
   for (PartitionID i = 0; i < _context.partition.k; ++i) {
-    min_part_load = std::min(min_part_load, phg.partLoad(i));
+    if (phg.partLoad(i) > 0) {
+      min_part_load = std::min(min_part_load, phg.partLoad(i));
+    }
   }
   const double load_ratio =
       static_cast<double>(current_max_load) / min_part_load;
@@ -96,7 +99,9 @@ bool JudiciousRefiner::shouldRefinementContinue(
     _num_bad_refinements++;
   }
   return load_ratio < _context.refinement.judicious.min_load_ratio ||
-         _num_bad_refinements >= 2;
+         block == _part_loads.top() ||
+         // NOTE: last case should never happen but I am paranoid
+         _num_bad_refinements >= static_cast<size_t>(_context.partition.k);
 }
 
 void JudiciousRefiner::finalizeRefinement(

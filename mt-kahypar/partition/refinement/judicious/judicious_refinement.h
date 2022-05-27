@@ -51,8 +51,9 @@ private:
                                const double refinement_time,
                                const PartitionID block,
                                const HyperedgeWeight load_before);
-  bool shouldRefinementContinue(const PartitionedHypergraph &phg,
-                                const HyperedgeWeight load_before);
+  bool shouldRefinementStop(const PartitionedHypergraph &phg,
+                            const PartitionID block,
+                            const HyperedgeWeight load_before);
   void finalizeRefinement(const PartitionedHypergraph &phg,
                           const HyperedgeWeight initial_max_load);
   void calculateRefinementNodes(const PartitionedHypergraph &phg,
