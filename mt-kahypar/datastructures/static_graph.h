@@ -428,7 +428,7 @@ class StaticGraph {
   static constexpr bool is_static_hypergraph = true;
   static constexpr bool is_partitioned = false;
   static constexpr size_t SIZE_OF_HYPERNODE = sizeof(Node);
-  static constexpr size_t SIZE_OF_HYPEREDGE = sizeof(Edge);
+  static constexpr size_t SIZE_OF_HYPEREDGE = sizeof(TmpEdgeInformation);
 
   // ! Iterator to iterate over the hypernodes
   using HypernodeIterator = NodeIterator;
