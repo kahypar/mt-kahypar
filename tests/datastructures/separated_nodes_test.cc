@@ -47,6 +47,7 @@ TEST_F(ASeparatedNodes, HasCorrectStats) {
   ASSERT_EQ(0,  nodes.numNodes());
   ASSERT_EQ(10,  nodes.numGraphNodes());
   ASSERT_EQ(0,  nodes.numEdges());
+  ASSERT_EQ(0,  nodes.currentBatchIndex());
 }
 
 TEST_F(ASeparatedNodes, AddsNodes1) {
@@ -69,6 +70,8 @@ TEST_F(ASeparatedNodes, AddsNodes1) {
 
   ASSERT_EQ(1,  nodes.outwardIncidentWeight(0));
   ASSERT_EQ(1,  nodes.outwardIncidentWeight(3));
+
+  ASSERT_EQ(0,  nodes.currentBatchIndex());
 }
 
 TEST_F(ASeparatedNodes, AddsNodes2) {
@@ -77,7 +80,7 @@ TEST_F(ASeparatedNodes, AddsNodes2) {
   vec<Edge> new_edges { Edge(8, 1), Edge(9, 1) };
   nodes.addNodes(new_nodes, new_edges);
 
-  new_nodes = { {2, 3, 1}, {3, 3, 1}, {4, 4, 1}};
+  new_nodes = { {2, 0, 1}, {3, 3, 1}, {4, 4, 1}};
   new_edges = { Edge(1, 1), Edge(8, 1), Edge(2, 1), Edge(8, 1) };
   nodes.addNodes(new_nodes, new_edges);
 
@@ -95,6 +98,32 @@ TEST_F(ASeparatedNodes, AddsNodes2) {
   ASSERT_EQ(1,  nodes.outwardIncidentWeight(2));
   ASSERT_EQ(3,  nodes.outwardIncidentWeight(8));
   ASSERT_EQ(1,  nodes.outwardIncidentWeight(9));
+
+  ASSERT_EQ(2,  nodes.currentBatchIndex());
+}
+
+TEST_F(ASeparatedNodes, PopsBatches) {
+  SeparatedNodes nodes(10);
+  vec<std::tuple<HypernodeID, HyperedgeID, HypernodeWeight>> new_nodes { {0, 0, 1}, {1, 1, 1}};
+  vec<Edge> new_edges { Edge(8, 1), Edge(9, 1) };
+  nodes.addNodes(new_nodes, new_edges);
+
+  new_nodes = { {2, 0, 1}, {3, 3, 1}, {4, 4, 1}};
+  new_edges = { Edge(1, 1), Edge(8, 1), Edge(2, 1), Edge(8, 1) };
+  nodes.addNodes(new_nodes, new_edges);
+
+  ASSERT_EQ(2,  nodes.popBatch());
+
+  ASSERT_EQ(2,  nodes.numNodes());
+  ASSERT_EQ(10,  nodes.numGraphNodes());
+  ASSERT_EQ(2,  nodes.numEdges());
+
+  ASSERT_EQ(1,  nodes.nodeWeight(0));
+  ASSERT_EQ(1,  nodes.nodeWeight(1));
+  
+  // TODO: incident weight?
+
+  ASSERT_EQ(0,  nodes.currentBatchIndex());
 }
 
 TEST_F(ASeparatedNodes, HasCorrectNodeIterator) {

@@ -24,6 +24,19 @@
 
 namespace mt_kahypar::ds {
 
+HypernodeID SeparatedNodes::popBatch() {
+  const HypernodeID index = currentBatchIndex();
+  _batch_indices.pop_back();
+  _num_nodes = index;
+  _nodes.resize(_num_nodes + 1);
+  _num_edges = _nodes.back().begin;
+  _inward_edges.resize(_num_edges);
+  _nodes[_num_nodes] = Node(kInvalidHypernode, _num_edges, 0);
+
+  // TODO: outward edges? incident weight?!
+  return _batch_indices.back();
+}
+
 
 void SeparatedNodes::addNodes(const vec<std::tuple<HypernodeID, HyperedgeID, HypernodeWeight>>& nodes,
                               const vec<Edge>& edges) {
@@ -31,6 +44,7 @@ void SeparatedNodes::addNodes(const vec<std::tuple<HypernodeID, HyperedgeID, Hyp
   ASSERT(_num_edges == _inward_edges.size());
   ASSERT(_num_graph_nodes == _outward_incident_weight.size());
   ASSERT(_graph_nodes_begin.empty());
+  ASSERT(nodes.empty() || std::get<1>(nodes[0]) == 0);
 
   auto update_nodes = [&] {
     _nodes.resize(_num_nodes + nodes.size() + 1);
@@ -54,6 +68,7 @@ void SeparatedNodes::addNodes(const vec<std::tuple<HypernodeID, HyperedgeID, Hyp
 
   _num_nodes += nodes.size();
   _num_edges += edges.size();
+  _batch_indices.push_back(_num_nodes);
 }
 
 void SeparatedNodes::contract(const vec<HypernodeID>& communities, const HypernodeID& num_coarsened_graph_nodes) {

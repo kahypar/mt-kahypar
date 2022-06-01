@@ -95,7 +95,10 @@ class SeparatedNodes {
     _outward_incident_weight(num_graph_nodes),
     _graph_nodes_begin(),
     _inward_edges(),
-    _outward_edges() { }
+    _outward_edges(),
+    _batch_indices() {
+      _batch_indices.assign(2, 0);
+    }
 
   SeparatedNodes(const SeparatedNodes&) = delete;
   SeparatedNodes & operator= (const SeparatedNodes &) = delete;
@@ -109,7 +112,8 @@ class SeparatedNodes {
     _outward_incident_weight(std::move(other._outward_incident_weight)),
     _graph_nodes_begin(std::move(other._graph_nodes_begin)),
     _inward_edges(std::move(other._inward_edges)),
-    _outward_edges(std::move(other._outward_edges)) { }
+    _outward_edges(std::move(other._outward_edges)),
+    _batch_indices(std::move(other._batch_indices)) { }
 
   SeparatedNodes & operator= (SeparatedNodes&& other) {
     _num_nodes = other._num_nodes;
@@ -121,6 +125,7 @@ class SeparatedNodes {
     _graph_nodes_begin = std::move(other._graph_nodes_begin);
     _inward_edges = std::move(other._inward_edges);
     _outward_edges = std::move(other._outward_edges);
+    _batch_indices = std::move(other._batch_indices);
     return *this;
   }
 
@@ -201,6 +206,16 @@ class SeparatedNodes {
     node(u).part_id = id;
   }
 
+  // ####################### Batches #######################
+
+  HypernodeID currentBatchIndex() const {
+    return _batch_indices[_batch_indices.size() - 2];
+  }
+
+  // ! Returns the index of the current batch, which is also the number
+  // ! of nodes left after the pop operation.
+  HypernodeID popBatch();
+
   // ####################### Contract / Uncontract #######################
 
   /*!
@@ -264,6 +279,9 @@ class SeparatedNodes {
   // ! Edges
   vec<Edge> _inward_edges;
   Array<Edge> _outward_edges;
+
+  // ! Batches
+  vec<HyperedgeID> _batch_indices;
 };
 
 } // namespace ds
