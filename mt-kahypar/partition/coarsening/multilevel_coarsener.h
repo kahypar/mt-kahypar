@@ -231,6 +231,13 @@ class MultilevelCoarsener : public ICoarsener,
                   num_nodes_update_threshold.local() +=
                     dist_to_contraction_limit / _context.shared_memory.num_threads;
                 }
+              } else if (rating.remove_node) {
+                ASSERT(_matching_state[u] == STATE(MatchingState::UNMATCHED), V(_matching_state[u]) << V(u));
+                cluster_ids[u] = kInvalidHypernode;
+                _rater.markAsMatched(u);
+                _matching_partner[u] = kInvalidHypernode;
+                _matching_state[u] = STATE(MatchingState::MATCHED);
+                ++contracted_nodes.local();
               }
             }
           }

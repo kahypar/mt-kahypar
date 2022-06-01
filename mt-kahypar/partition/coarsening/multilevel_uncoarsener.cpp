@@ -21,16 +21,22 @@
  ******************************************************************************/
 
 #include <mt-kahypar/partition/coarsening/multilevel_uncoarsener.h>
+
+#include "mt-kahypar/datastructures/array.h"
+#include "mt-kahypar/datastructures/separated_nodes.h"
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/io/partitioning_output.h"
 #include "mt-kahypar/partition/refinement/i_refiner.h"
 #include "mt-kahypar/partition/metrics.h"
 #include "mt-kahypar/partition/refinement/flows/scheduler.h"
 #include "mt-kahypar/partition/refinement/rebalancing/rebalancer.h"
+#include "mt-kahypar/parallel/stl/thread_locals.h"
 #include "mt-kahypar/utils/progress_bar.h"
-#include "mt-kahypar/utils/stats.h"
+#include <tbb/enumerable_thread_specific.h>
 
 namespace mt_kahypar {
+  using ds::Array;
+  using ds::SeparatedNodes;
 
   PartitionedHypergraph&& MultilevelUncoarsener::doUncoarsen(
     std::unique_ptr<IRefiner>& label_propagation,
@@ -78,12 +84,77 @@ namespace mt_kahypar {
 
       partitioned_hg.doParallelForAllNodes([&](const HypernodeID hn) {
         const HypernodeID coarse_hn = (_uncoarseningData.hierarchy)[i].mapToContractedHypergraph(hn);
-        const PartitionID block = part_ids[coarse_hn];
-        ASSERT(block != kInvalidPartition && block < partitioned_hg.k());
-        partitioned_hg.setOnlyNodePart(hn, block);
+        if (coarse_hn != kInvalidHypernode) {
+          const PartitionID block = part_ids[coarse_hn];
+          ASSERT(block != kInvalidPartition && block < partitioned_hg.k());
+          partitioned_hg.setOnlyNodePart(hn, block);
+        }
       });
       partitioned_hg.initializePartition();
       utils::Timer::instance().stop_timer("projecting_partition");
+
+      utils::Timer::instance().start_timer("assign_separated_nodes", "Assign Separated Nodes");
+      SeparatedNodes& separated_nodes = partitioned_hg.separatedNodes();
+      tbb::enumerable_thread_specific<Array<HyperedgeWeight>> edge_weights(partitioned_hg.k());
+      tbb::enumerable_thread_specific<Array<HypernodeWeight>> block_weights(partitioned_hg.k());
+
+      const HypernodeID first_separated = separated_nodes.currentBatchIndex();
+      const HypernodeID last_separated = separated_nodes.numNodes();
+      tbb::parallel_for(first_separated, last_separated, [&](const HypernodeID s_node) {
+          const HypernodeID node = separated_nodes.originalHypernodeID(s_node);
+          Array<HyperedgeWeight>& local_edge_weights = edge_weights.local();
+          Array<HypernodeWeight>& local_block_weights = block_weights.local();
+          local_edge_weights.assign(partitioned_hg.k(), 0);
+          local_block_weights.assign(partitioned_hg.k(), 0);
+          for (PartitionID part = 0; part < partitioned_hg.k(); ++part) {
+            if (local_block_weights[part] == 0) {
+              local_block_weights[part] = partitioned_hg.partWeight(part);
+            }
+          }
+
+          for (HyperedgeID e: partitioned_hg.incidentEdges(node)) {
+            const PartitionID target_part = partitioned_hg.partID(partitioned_hg.edgeTarget(e));
+            if (target_part != kInvalidPartition) {
+              local_edge_weights[target_part] += partitioned_hg.edgeWeight(e);
+            }
+          }
+
+          // greedily assign separated nodes
+          while (true) {
+            PartitionID max_part = kInvalidPartition;
+            HyperedgeWeight max_gain = 0;
+            for (PartitionID part = 0; part < partitioned_hg.k(); ++part) {
+              const HypernodeWeight max_part_weight = _context.partition.max_part_weights[part];
+              if (local_edge_weights[part] >= max_gain &&
+                  local_block_weights[part] + separated_nodes.nodeWeight(s_node) <= max_part_weight) {
+                max_part = part;
+                max_gain = local_edge_weights[part];
+              }
+            }
+
+            if (max_part == kInvalidPartition) {
+              partitioned_hg.setNodePart(node, 0);
+              break;
+            }
+            const HypernodeWeight max_allowed_weight = _context.partition.max_part_weights[max_part];
+            auto [success, new_part_weight] = partitioned_hg.trySetNodePart(node, max_part, max_allowed_weight);
+            if (success) {
+              break;
+            } else {
+              local_block_weights[max_part] = new_part_weight;
+            }
+          }
+      });
+      separated_nodes.popBatch();
+
+      tbb::parallel_invoke([&] {
+        current_metrics.cut = metrics::hyperedgeCut(partitioned_hg);
+      }, [&] {
+        current_metrics.km1 = metrics::km1(partitioned_hg);
+      });
+      current_metrics.imbalance = metrics::imbalance(partitioned_hg, _context);
+
+      utils::Timer::instance().stop_timer("assign_separated_nodes");
 
       // Refinement
       time_limit = refinementTimeLimit(_context, (_uncoarseningData.hierarchy)[i].coarseningTime());

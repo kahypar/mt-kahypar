@@ -53,15 +53,17 @@ class MultilevelVertexPairRater {
 
   class VertexPairRating {
    public:
-    VertexPairRating(HypernodeID trgt, RatingType val, bool is_valid) :
+    VertexPairRating(HypernodeID trgt, RatingType val, bool is_valid, bool remove_node) :
       target(trgt),
       value(val),
-      valid(is_valid) { }
+      valid(is_valid),
+      remove_node(remove_node) { }
 
     VertexPairRating() :
-      target(std::numeric_limits<HypernodeID>::max()),
+      target(kInvalidHypernode),
       value(std::numeric_limits<RatingType>::min()),
-      valid(false) { }
+      valid(false),
+      remove_node(false) { }
 
     VertexPairRating(const VertexPairRating&) = delete;
     VertexPairRating & operator= (const VertexPairRating &) = delete;
@@ -72,6 +74,7 @@ class MultilevelVertexPairRater {
     HypernodeID target;
     RatingType value;
     bool valid;
+    bool remove_node;
   };
 
   enum class RatingMapType {
@@ -166,8 +169,9 @@ class MultilevelVertexPairRater {
                                            / hypergraph.nodeWeight(u), 0.1);
     const PartitionID community_u_id = hypergraph.communityID(u);
     RatingType max_rating = std::numeric_limits<RatingType>::min();
-    HypernodeID target = std::numeric_limits<HypernodeID>::max();
-    HypernodeID target_id = std::numeric_limits<HypernodeID>::max();
+    HypernodeID target = kInvalidHypernode;
+    HypernodeID target_id = kInvalidHypernode;
+    bool has_only_higher_density_matches = true;
     for (auto it = tmp_ratings.end() - 1; it >= tmp_ratings.begin(); --it) {
       const HypernodeID tmp_target_id = it->key;
       const HypernodeID tmp_target = tmp_target_id;
@@ -185,22 +189,29 @@ class MultilevelVertexPairRater {
         if ( community_u_id == hypergraph.communityID(tmp_target) &&
             AcceptancePolicy::acceptRating(tmp_rating, max_rating,
                                            target_id, tmp_target_id,
-                                           cpu_id, _already_matched) &&
-            (!_context.coarsening.forbid_different_density_contractions ||
-             incident_weight_diff < _context.coarsening.max_allowed_density_diff)) {
-          max_rating = tmp_rating;
-          target_id = tmp_target_id;
-          target = tmp_target;
+                                           cpu_id, _already_matched) ) {
+          if (weight_ratio_u > tmp_weight_ratio) {
+            has_only_higher_density_matches = false;
+          }
+          if (!_context.coarsening.forbid_different_density_contractions ||
+              incident_weight_diff < _context.coarsening.max_allowed_density_diff) {
+            max_rating = tmp_rating;
+            target_id = tmp_target_id;
+            target = tmp_target;
+          }
         }
       }
     }
 
     VertexPairRating ret;
     if (max_rating != std::numeric_limits<RatingType>::min()) {
-      ASSERT(target != std::numeric_limits<HypernodeID>::max(), "invalid contraction target");
+      ASSERT(target != kInvalidHypernode, "invalid contraction target");
       ret.value = max_rating;
       ret.target = target;
       ret.valid = true;
+      ret.remove_node = false;
+    } else {
+      ret.remove_node = has_only_higher_density_matches;
     }
     tmp_ratings.clear();
     return ret;
@@ -222,11 +233,13 @@ class MultilevelVertexPairRater {
           hypergraph.edgeWeight(he), edge_size);
         for ( const HypernodeID& v : hypergraph.pins(he) ) {
           const HypernodeID representative = cluster_ids[v];
-          ASSERT(representative < hypergraph.initialNumNodes());
-          const HypernodeID bloom_filter_rep = representative & _bloom_filter_mask;
-          if ( !bloom_filter[bloom_filter_rep] ) {
-            tmp_ratings[representative] += score;
-            bloom_filter.set(bloom_filter_rep, true);
+          if (representative != kInvalidHypernode) {
+            ASSERT(representative < hypergraph.initialNumNodes());
+            const HypernodeID bloom_filter_rep = representative & _bloom_filter_mask;
+            if ( !bloom_filter[bloom_filter_rep] ) {
+              tmp_ratings[representative] += score;
+              bloom_filter.set(bloom_filter_rep, true);
+            }
           }
         }
         bloom_filter.reset();
@@ -275,11 +288,13 @@ class MultilevelVertexPairRater {
     HypernodeID edge_size = 0;
     for ( const HypernodeID& v : hypergraph.pins(he) ) {
       const HypernodeID representative = cluster_ids[v];
-      ASSERT(representative < hypergraph.initialNumNodes());
-      const HypernodeID bloom_filter_rep = representative & _bloom_filter_mask;
-      if ( !bloom_filter[bloom_filter_rep] ) {
-        ++edge_size;
-        bloom_filter.set(bloom_filter_rep, true);
+      if (representative != kInvalidHypernode) {
+        ASSERT(representative < hypergraph.initialNumNodes());
+        const HypernodeID bloom_filter_rep = representative & _bloom_filter_mask;
+        if ( !bloom_filter[bloom_filter_rep] ) {
+          ++edge_size;
+          bloom_filter.set(bloom_filter_rep, true);
+        }
       }
     }
     bloom_filter.reset();

@@ -20,6 +20,7 @@
  ******************************************************************************/
 #include "partitioner.h"
 
+#include "mt-kahypar/datastructures/separated_nodes.h"
 #include "mt-kahypar/io/partitioning_output.h"
 #include "mt-kahypar/partition/multilevel.h"
 #include "mt-kahypar/partition/preprocessing/sparsification/degree_zero_hn_remover.h"
@@ -209,6 +210,8 @@ namespace mt_kahypar {
 
     // ################## MULTILEVEL & VCYCLE ##################
     PartitionedHypergraph partitioned_hypergraph;
+    ds::SeparatedNodes separated_nodes(hypergraph.initialNumNodes());
+    hypergraph.setSeparatedNodes(&separated_nodes);
     if (context.partition.mode == Mode::direct) {
       partitioned_hypergraph = multilevel::partition(hypergraph, context);
     } else if (context.partition.mode == Mode::recursive_bipartitioning) {
