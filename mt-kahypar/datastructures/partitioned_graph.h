@@ -42,6 +42,9 @@
 namespace mt_kahypar {
 namespace ds {
 
+// forward
+class SeparatedNodes;
+
 template <typename Hypergraph = Mandatory,
           typename HypergraphFactory = Mandatory>
 class PartitionedGraph {
@@ -224,6 +227,14 @@ private:
   Hypergraph& hypergraph() {
     ASSERT(_hg);
     return *_hg;
+  }
+
+  SeparatedNodes& separatedNodes() {
+    return _hg->separatedNodes();
+  }
+
+  const SeparatedNodes& separatedNodes() const {
+    return _hg->separatedNodes();
   }
 
   void setHypergraph(Hypergraph& hypergraph) {
@@ -462,6 +473,23 @@ private:
     ASSERT(_part_ids[u].load() == kInvalidPartition);
     setOnlyNodePart(u, p);
     _part_weights[p].fetch_add(nodeWeight(u), std::memory_order_relaxed);
+  }
+
+  // ! returns success or failure and the current block weight
+  std::pair<bool, HypernodeWeight> trySetNodePart(const HypernodeID u, PartitionID p, HypernodeWeight max_weight) {
+    ASSERT(p != kInvalidPartition && p < _k);
+    ASSERT(_part_ids[u].load() == kInvalidPartition);
+    moveAssertions();
+
+    const HypernodeWeight node_weight = nodeWeight(u);
+    const HypernodeWeight weight_after = _part_weights[p].add_fetch(node_weight, std::memory_order_relaxed);
+    if (weight_after <= max_weight) {
+      _part_ids[u].store(p, std::memory_order_relaxed);
+      return {true, weight_after};
+    } else {
+      _part_weights[p].sub_fetch(node_weight, std::memory_order_relaxed);
+      return {false, weight_after - node_weight};
+    }
   }
 
   // ! Changes the block id of vertex u from block 'from' to block 'to'
