@@ -514,6 +514,7 @@ namespace mt_kahypar::ds {
     hypergraph.computeAndSetTotalNodeWeight(parallel_tag_t());
 
     hypergraph._tmp_contraction_buffer = _tmp_contraction_buffer;
+    hypergraph._separated_nodes = _separated_nodes;
     _tmp_contraction_buffer = nullptr;
     return hypergraph;
   }
