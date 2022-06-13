@@ -96,8 +96,8 @@ class SeparatedNodes {
     _graph_nodes_begin(),
     _inward_edges(),
     _outward_edges(),
-    _batch_indices() {
-      _batch_indices.assign(2, 0);
+    _batch_indices_and_weights() {
+      _batch_indices_and_weights.assign(2, {0, 0});
     }
 
   SeparatedNodes(const SeparatedNodes&) = delete;
@@ -113,7 +113,7 @@ class SeparatedNodes {
     _graph_nodes_begin(std::move(other._graph_nodes_begin)),
     _inward_edges(std::move(other._inward_edges)),
     _outward_edges(std::move(other._outward_edges)),
-    _batch_indices(std::move(other._batch_indices)) { }
+    _batch_indices_and_weights(std::move(other._batch_indices_and_weights)) { }
 
   SeparatedNodes & operator= (SeparatedNodes&& other) {
     _num_nodes = other._num_nodes;
@@ -125,7 +125,7 @@ class SeparatedNodes {
     _graph_nodes_begin = std::move(other._graph_nodes_begin);
     _inward_edges = std::move(other._inward_edges);
     _outward_edges = std::move(other._outward_edges);
-    _batch_indices = std::move(other._batch_indices);
+    _batch_indices_and_weights = std::move(other._batch_indices_and_weights);
     return *this;
   }
 
@@ -209,7 +209,7 @@ class SeparatedNodes {
   // ####################### Batches #######################
 
   HypernodeID currentBatchIndex() const {
-    return _batch_indices[_batch_indices.size() - 2];
+    return _batch_indices_and_weights[_batch_indices_and_weights.size() - 2].first;
   }
 
   // ! Returns the index of the current batch, which is also the number
@@ -269,7 +269,7 @@ class SeparatedNodes {
   // ! Number of edges (note: we have an outward and inward edge for each)
   HyperedgeID _num_edges;
   // ! Total weight of the nodes
-  HypernodeWeight _total_weight; // TODO
+  HypernodeWeight _total_weight;
 
   // ! Nodes
   vec<Node> _nodes;
@@ -281,7 +281,7 @@ class SeparatedNodes {
   Array<Edge> _outward_edges;
 
   // ! Batches
-  vec<HyperedgeID> _batch_indices;
+  vec<std::pair<HyperedgeID, HypernodeWeight>> _batch_indices_and_weights;
 };
 
 } // namespace ds

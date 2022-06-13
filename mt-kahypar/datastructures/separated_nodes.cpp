@@ -22,19 +22,22 @@
 
 #include "mt-kahypar/parallel/parallel_prefix_sum.h"
 
+#include <tbb/parallel_reduce.h>
+
 namespace mt_kahypar::ds {
 
 HypernodeID SeparatedNodes::popBatch() {
-  const HypernodeID index = currentBatchIndex();
-  _batch_indices.pop_back();
+  const auto [index, weight] = _batch_indices_and_weights[_batch_indices_and_weights.size() - 2];
+  _batch_indices_and_weights.pop_back();
   _num_nodes = index;
   _nodes.resize(_num_nodes + 1);
   _num_edges = _nodes.back().begin;
   _inward_edges.resize(_num_edges);
   _nodes[_num_nodes] = Node(kInvalidHypernode, _num_edges, 0);
+  _total_weight = weight;
 
   // TODO: outward edges? incident weight?!
-  return _batch_indices.back();
+  return index;
 }
 
 
@@ -64,11 +67,23 @@ void SeparatedNodes::addNodes(const vec<std::tuple<HypernodeID, HyperedgeID, Hyp
     });
   };
 
-  tbb::parallel_invoke(update_nodes, update_inward_edges_and_incident_weight);
+  auto update_total_weight = [&] {
+    _total_weight += tbb::parallel_reduce(
+            tbb::blocked_range<HypernodeID>(0UL, nodes.size()), 0,
+              [&](const tbb::blocked_range<HypernodeID>& range, HypernodeWeight init) {
+                HypernodeWeight weight = init;
+                for (size_t i = range.begin(); i < range.end(); ++i) {
+                    weight += std::get<2>(nodes[i]);
+                }
+                return weight;
+              }, std::plus<>());
+  };
+
+  tbb::parallel_invoke(update_nodes, update_inward_edges_and_incident_weight, update_total_weight);
 
   _num_nodes += nodes.size();
   _num_edges += edges.size();
-  _batch_indices.push_back(_num_nodes);
+  _batch_indices_and_weights.push_back({_num_nodes, _total_weight});
 }
 
 void SeparatedNodes::contract(const vec<HypernodeID>& communities, const HypernodeID& num_coarsened_graph_nodes) {

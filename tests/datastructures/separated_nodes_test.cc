@@ -48,6 +48,7 @@ TEST_F(ASeparatedNodes, HasCorrectStats) {
   ASSERT_EQ(10,  nodes.numGraphNodes());
   ASSERT_EQ(0,  nodes.numEdges());
   ASSERT_EQ(0,  nodes.currentBatchIndex());
+  ASSERT_EQ(0,  nodes.totalWeight());
 }
 
 TEST_F(ASeparatedNodes, AddsNodes1) {
@@ -59,6 +60,7 @@ TEST_F(ASeparatedNodes, AddsNodes1) {
   ASSERT_EQ(3,  nodes.numNodes());
   ASSERT_EQ(10,  nodes.numGraphNodes());
   ASSERT_EQ(2,  nodes.numEdges());
+  ASSERT_EQ(4,  nodes.totalWeight());
 
   ASSERT_EQ(1,  nodes.nodeWeight(0));
   ASSERT_EQ(1,  nodes.nodeWeight(1));
@@ -87,6 +89,7 @@ TEST_F(ASeparatedNodes, AddsNodes2) {
   ASSERT_EQ(5,  nodes.numNodes());
   ASSERT_EQ(10,  nodes.numGraphNodes());
   ASSERT_EQ(6,  nodes.numEdges());
+  ASSERT_EQ(5,  nodes.totalWeight());
 
   ASSERT_EQ(1,  nodes.nodeWeight(0));
   ASSERT_EQ(1,  nodes.nodeWeight(1));
@@ -117,6 +120,7 @@ TEST_F(ASeparatedNodes, PopsBatches) {
   ASSERT_EQ(2,  nodes.numNodes());
   ASSERT_EQ(10,  nodes.numGraphNodes());
   ASSERT_EQ(2,  nodes.numEdges());
+  ASSERT_EQ(2,  nodes.totalWeight());
 
   ASSERT_EQ(1,  nodes.nodeWeight(0));
   ASSERT_EQ(1,  nodes.nodeWeight(1));
@@ -162,6 +166,7 @@ TEST_F(ASeparatedNodes, MapsNodes1) {
   ASSERT_EQ(3,  nodes.numNodes());
   ASSERT_EQ(3,  nodes.numGraphNodes());
   ASSERT_EQ(1,  nodes.numEdges());
+  ASSERT_EQ(3,  nodes.totalWeight());
 
   ASSERT_EQ(2,  nodes.outwardIncidentWeight(0));
   ASSERT_EQ(0,  nodes.outwardIncidentWeight(1));
@@ -185,6 +190,7 @@ TEST_F(ASeparatedNodes, MapsNodes2) {
   ASSERT_EQ(5,  nodes.numNodes());
   ASSERT_EQ(5,  nodes.numGraphNodes());
   ASSERT_EQ(4,  nodes.numEdges());
+  ASSERT_EQ(5,  nodes.totalWeight());
 
   ASSERT_EQ(0,  nodes.outwardIncidentWeight(0));
   ASSERT_EQ(0,  nodes.outwardIncidentWeight(1));
@@ -210,6 +216,7 @@ TEST_F(ASeparatedNodes, InitializesEdges) {
   ASSERT_EQ(3,  nodes.numNodes());
   ASSERT_EQ(5,  nodes.numGraphNodes());
   ASSERT_EQ(4,  nodes.numEdges());
+  ASSERT_EQ(3,  nodes.totalWeight());
 
   ASSERT_EQ(1,  nodes.outwardIncidentWeight(0));
   ASSERT_EQ(0,  nodes.outwardIncidentWeight(1));
@@ -236,6 +243,7 @@ TEST_F(ASeparatedNodes, CopiesSequential) {
   ASSERT_EQ(3,  other.numNodes());
   ASSERT_EQ(5,  other.numGraphNodes());
   ASSERT_EQ(4,  other.numEdges());
+  ASSERT_EQ(3,  other.totalWeight());
 
   verifyIncidentEgdes(other.inwardEdges(0), { {0, 1}, {4, 1} });
   verifyIncidentEgdes(other.inwardEdges(1), { {4, 1}, {3, 1} });
@@ -266,6 +274,7 @@ TEST_F(ASeparatedNodes, CopiesParallel) {
   ASSERT_EQ(3,  other.numNodes());
   ASSERT_EQ(5,  other.numGraphNodes());
   ASSERT_EQ(4,  other.numEdges());
+  ASSERT_EQ(3,  other.totalWeight());
 
   verifyIncidentEgdes(other.inwardEdges(0), { {0, 1}, {4, 1} });
   verifyIncidentEgdes(other.inwardEdges(1), { {4, 1}, {3, 1} });
@@ -305,6 +314,7 @@ TEST_F(ASeparatedNodes, PerformsAlternateAddingAndMapping) {
   ASSERT_EQ(7,  nodes.numNodes());
   ASSERT_EQ(2,  nodes.numGraphNodes());
   ASSERT_EQ(6,  nodes.numEdges());
+  ASSERT_EQ(7,  nodes.totalWeight());
 
   verifyIncidentEgdes(nodes.inwardEdges(0), { {1, 3} });
   verifyIncidentEgdes(nodes.inwardEdges(1), { {1, 3} });
