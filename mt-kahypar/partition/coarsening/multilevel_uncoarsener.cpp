@@ -32,6 +32,7 @@
 #include "mt-kahypar/partition/refinement/rebalancing/rebalancer.h"
 #include "mt-kahypar/parallel/stl/thread_locals.h"
 #include "mt-kahypar/utils/progress_bar.h"
+#include <tbb/parallel_sort.h>
 #include <tbb/enumerable_thread_specific.h>
 
 namespace mt_kahypar {
@@ -101,7 +102,41 @@ namespace mt_kahypar {
 
         const HypernodeID first_separated = separated_nodes.currentBatchIndex();
         const HypernodeID last_separated = separated_nodes.numNodes();
+        Array<HyperedgeWeight> max_gains(last_separated - first_separated);
         tbb::parallel_for(first_separated, last_separated, [&](const HypernodeID s_node) {
+          const HypernodeID node = separated_nodes.originalHypernodeID(s_node);
+          Array<HyperedgeWeight>& local_edge_weights = edge_weights.local();
+          local_edge_weights.assign(partitioned_hg.k(), 0);
+
+          for (HyperedgeID e: partitioned_hg.incidentEdges(node)) {
+            const PartitionID target_part = partitioned_hg.partID(partitioned_hg.edgeTarget(e));
+            if (target_part != kInvalidPartition) {
+              local_edge_weights[target_part] += partitioned_hg.edgeWeight(e);
+            }
+          }
+
+          HyperedgeWeight max_gain = 0;
+          for (PartitionID part = 0; part < partitioned_hg.k(); ++part) {
+            if (local_edge_weights[part] >= max_gain) {
+              max_gain = local_edge_weights[part];
+            }
+          }
+          max_gains[s_node - first_separated] = max_gain;
+        });
+
+        Array<HypernodeID> id_order(last_separated - first_separated);
+        tbb::parallel_for(first_separated, last_separated, [&](const HypernodeID s_node) {
+          id_order[s_node - first_separated] = s_node;
+        });
+
+        tbb::parallel_sort(id_order.begin(), id_order.end(),
+          [&](const HypernodeID& left, const HypernodeID& right) {
+            return max_gains[left - first_separated] > max_gains[right - first_separated];
+          }
+        );
+
+        for (size_t i = 0; i < id_order.size(); ++i) {
+          const HypernodeID s_node = id_order[i];
           const HypernodeID node = separated_nodes.originalHypernodeID(s_node);
           Array<HyperedgeWeight>& local_edge_weights = edge_weights.local();
           Array<HypernodeWeight>& local_block_weights = block_weights.local();
@@ -145,7 +180,7 @@ namespace mt_kahypar {
               local_block_weights[max_part] = new_part_weight;
             }
           }
-        });
+        }
         separated_nodes.popBatch();
 
         tbb::parallel_invoke([&] {
