@@ -1009,7 +1009,7 @@ private:
         // this is not enumerable_thread_specific because of the static partitioner
         parallel::scalable_vector<HypernodeWeight> part_weight_deltas(_k, 0);
         for (HypernodeID node = r.begin(); node < r.end(); ++node) {
-          if (nodeIsEnabled(node)) {
+          if (nodeIsEnabled(node) && partID(node) != kInvalidPartition) {
             part_weight_deltas[partID(node)] += nodeWeight(node);
           }
         }
