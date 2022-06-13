@@ -29,6 +29,7 @@
 #include "mt-kahypar/macros.h"
 #include "mt-kahypar/datastructures/array.h"
 #include "mt-kahypar/datastructures/hypergraph_common.h"
+#include "mt-kahypar/datastructures/separated_nodes.h"
 #include "mt-kahypar/parallel/atomic_wrapper.h"
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
 #include "mt-kahypar/partition/context_enum_classes.h"
@@ -40,7 +41,6 @@ namespace ds {
 
 // Forward
 class StaticGraphFactory;
-class SeparatedNodes;
 template <typename Hypergraph,
           typename HypergraphFactory>
 class PartitionedHypergraph;
@@ -546,7 +546,11 @@ class StaticGraph {
 
   // ! Total weight of hypergraph
   HypernodeWeight totalWeight() const {
-    return _total_weight;
+    HypernodeWeight weight = _total_weight;
+    if (hasSeparatedNodes()) {
+      weight += _separated_nodes->totalWeight();
+    }
+    return weight;
   }
 
   // ! Computes the total node weight of the hypergraph
