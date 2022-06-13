@@ -211,7 +211,8 @@ class MultilevelVertexPairRater {
       ret.valid = true;
       ret.remove_node = false;
     } else {
-      ret.remove_node = has_only_higher_density_matches;
+      ret.remove_node = _context.coarsening.forbid_different_density_contractions
+                        && has_only_higher_density_matches;
     }
     tmp_ratings.clear();
     return ret;
