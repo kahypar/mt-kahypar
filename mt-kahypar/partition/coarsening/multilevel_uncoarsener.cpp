@@ -93,14 +93,15 @@ namespace mt_kahypar {
       partitioned_hg.initializePartition();
       utils::Timer::instance().stop_timer("projecting_partition");
 
-      utils::Timer::instance().start_timer("assign_separated_nodes", "Assign Separated Nodes");
-      SeparatedNodes& separated_nodes = partitioned_hg.separatedNodes();
-      tbb::enumerable_thread_specific<Array<HyperedgeWeight>> edge_weights(partitioned_hg.k());
-      tbb::enumerable_thread_specific<Array<HypernodeWeight>> block_weights(partitioned_hg.k());
+      if (partitioned_hg.hasSeparatedNodes()) {
+        utils::Timer::instance().start_timer("assign_separated_nodes", "Assign Separated Nodes");
+        SeparatedNodes& separated_nodes = partitioned_hg.separatedNodes();
+        tbb::enumerable_thread_specific<Array<HyperedgeWeight>> edge_weights(partitioned_hg.k());
+        tbb::enumerable_thread_specific<Array<HypernodeWeight>> block_weights(partitioned_hg.k());
 
-      const HypernodeID first_separated = separated_nodes.currentBatchIndex();
-      const HypernodeID last_separated = separated_nodes.numNodes();
-      tbb::parallel_for(first_separated, last_separated, [&](const HypernodeID s_node) {
+        const HypernodeID first_separated = separated_nodes.currentBatchIndex();
+        const HypernodeID last_separated = separated_nodes.numNodes();
+        tbb::parallel_for(first_separated, last_separated, [&](const HypernodeID s_node) {
           const HypernodeID node = separated_nodes.originalHypernodeID(s_node);
           Array<HyperedgeWeight>& local_edge_weights = edge_weights.local();
           Array<HypernodeWeight>& local_block_weights = block_weights.local();
@@ -144,17 +145,28 @@ namespace mt_kahypar {
               local_block_weights[max_part] = new_part_weight;
             }
           }
-      });
-      separated_nodes.popBatch();
+        });
+        separated_nodes.popBatch();
 
-      tbb::parallel_invoke([&] {
-        current_metrics.cut = metrics::hyperedgeCut(partitioned_hg);
-      }, [&] {
-        current_metrics.km1 = metrics::km1(partitioned_hg);
-      });
-      current_metrics.imbalance = metrics::imbalance(partitioned_hg, _context);
+        tbb::parallel_invoke([&] {
+          current_metrics.cut = metrics::hyperedgeCut(partitioned_hg);
+        }, [&] {
+          current_metrics.km1 = metrics::km1(partitioned_hg);
+        }, [&] {
+          current_metrics.imbalance = metrics::imbalance(partitioned_hg, _context);
+        });
 
-      utils::Timer::instance().stop_timer("assign_separated_nodes");
+        ASSERT([&] {
+          for (HypernodeID node: partitioned_hg.nodes()) {
+            if (partitioned_hg.partID(node) == kInvalidPartition) {
+              return false;
+            }
+          }
+          return true;
+        }() );
+
+        utils::Timer::instance().stop_timer("assign_separated_nodes");
+      }
 
       // Refinement
       time_limit = refinementTimeLimit(_context, (_uncoarseningData.hierarchy)[i].coarseningTime());

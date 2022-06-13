@@ -229,6 +229,10 @@ private:
     return *_hg;
   }
 
+  bool hasSeparatedNodes() const {
+    return _hg->hasSeparatedNodes();
+  }
+
   SeparatedNodes& separatedNodes() {
     return _hg->separatedNodes();
   }

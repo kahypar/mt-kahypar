@@ -808,6 +808,10 @@ class StaticGraph {
     _community_ids = std::move(communities);
   }
 
+  bool hasSeparatedNodes() const {
+    return _separated_nodes != nullptr;
+  }
+
   SeparatedNodes& separatedNodes() {
     return *_separated_nodes;
   }

@@ -124,7 +124,7 @@ namespace mt_kahypar::ds {
       if (communities[node] < mapping.size()) {
         mapping[communities[node]] = 1;
       } else {
-        ASSERT(communities[node] == kInvalidHypernode);
+        ASSERT(_separated_nodes != nullptr && communities[node] == kInvalidHypernode);
       }
     });
 
