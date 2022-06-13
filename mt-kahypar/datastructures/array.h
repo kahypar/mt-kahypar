@@ -100,7 +100,7 @@ class Array {
       }
 
       reference operator[](const difference_type& n) const {
-        return *_ptr[n];
+        return _ptr[n];
       }
 
       bool operator==(const ArrayIterator& other) const {
