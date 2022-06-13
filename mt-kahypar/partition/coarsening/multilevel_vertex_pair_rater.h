@@ -32,6 +32,7 @@
 #include "kahypar/meta/mandatory.h"
 
 #include "mt-kahypar/datastructures/sparse_map.h"
+#include "mt-kahypar/datastructures/separated_nodes.h"
 
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/context.h"
@@ -84,6 +85,7 @@ class MultilevelVertexPairRater {
   };
 
   using AtomicWeight = parallel::IntegralAtomicWrapper<HypernodeWeight>;
+  using SeparatedNodes = ds::SeparatedNodes;
 
  public:
   using Rating = VertexPairRating;
@@ -156,6 +158,7 @@ class MultilevelVertexPairRater {
                         const parallel::scalable_vector<AtomicWeight>& cluster_weight,
                         const HypernodeWeight max_allowed_node_weight,
                         const bool use_vertex_degree_sampling) {
+    const SeparatedNodes& separated_nodes = hypergraph.separatedNodes();
 
     if ( use_vertex_degree_sampling ) {
       fillRatingMapWithSampling(hypergraph, u, tmp_ratings, cluster_ids);
@@ -212,7 +215,8 @@ class MultilevelVertexPairRater {
       ret.remove_node = false;
     } else {
       ret.remove_node = _context.coarsening.forbid_different_density_contractions
-                        && has_only_higher_density_matches;
+                        && has_only_higher_density_matches
+                        && separated_nodes.outwardIncidentWeight(u)== 0;
     }
     tmp_ratings.clear();
     return ret;
