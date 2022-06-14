@@ -138,6 +138,15 @@ namespace mt_kahypar {
         for (size_t i = 0; i < id_order.size(); ++i) {
           const HypernodeID s_node = id_order[i];
           const HypernodeID node = separated_nodes.originalHypernodeID(s_node);
+
+          if (separated_nodes.partID(s_node) != kInvalidPartition) {
+            // Note: Because the block weight already respects separated nodes, we use
+            // setOnlyNodePart instead of setNodePart.
+            // Later, the nodes are removed via popBatch().
+            partitioned_hg.setOnlyNodePart(node, separated_nodes.partID(s_node));
+            continue;
+          }
+
           Array<HyperedgeWeight>& local_edge_weights = edge_weights.local();
           Array<HypernodeWeight>& local_block_weights = block_weights.local();
           local_edge_weights.assign(partitioned_hg.k(), 0);

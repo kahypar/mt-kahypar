@@ -32,6 +32,7 @@
 
 #include "mt-kahypar/datastructures/hypergraph_common.h"
 #include "mt-kahypar/datastructures/connectivity_set.h"
+#include "mt-kahypar/datastructures/separated_nodes.h"
 #include "mt-kahypar/datastructures/thread_safe_fast_reset_flag_array.h"
 #include "mt-kahypar/parallel/atomic_wrapper.h"
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
@@ -890,6 +891,11 @@ private:
     _k = 0;
   }
 
+  void updateBlockWeights() {
+    _part_weights.assign(_part_weights.size(), CAtomic<HypernodeWeight>(0));
+    initializeBlockWeights();
+  }
+
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
   void gainCacheUpdate(const HyperedgeID he, const HyperedgeWeight we,
                        const PartitionID from, const HypernodeID /*pin_count_in_from_part_after*/,
@@ -1023,6 +1029,26 @@ private:
       },
       tbb::static_partitioner()
     );
+
+    if (_hg->hasSeparatedNodes()) {
+      const SeparatedNodes& separated_nodes = _hg->separatedNodes();
+      tbb::parallel_for(tbb::blocked_range<HypernodeID>(ID(0), separated_nodes.numNodes()),
+        [&](tbb::blocked_range<HypernodeID>& r) {
+          // this is not enumerable_thread_specific because of the static partitioner
+          parallel::scalable_vector<HypernodeWeight> part_weight_deltas(_k, 0);
+          for (HypernodeID node = r.begin(); node < r.end(); ++node) {
+            PartitionID part_id = separated_nodes.partID(node);
+            if (part_id != kInvalidPartition) {
+              part_weight_deltas[part_id] += separated_nodes.nodeWeight(node);
+            }
+          }
+          for (PartitionID p = 0; p < _k; ++p) {
+            _part_weights[p].fetch_add(part_weight_deltas[p], std::memory_order_relaxed);
+          }
+        },
+        tbb::static_partitioner()
+      );
+    }
   }
 
   void moveAssertions() {
