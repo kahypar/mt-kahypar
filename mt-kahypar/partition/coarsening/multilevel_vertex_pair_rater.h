@@ -168,6 +168,7 @@ class MultilevelVertexPairRater {
 
     int cpu_id = sched_getcpu();
     const HypernodeWeight weight_u = cluster_weight[u];
+    const bool can_be_removed = (separated_nodes.outwardIncidentWeight(u) == 0);
     const double weight_ratio_u = std::max(static_cast<double>(hypergraph.incidentWeight(u))
                                            / hypergraph.nodeWeight(u), 0.1);
     const PartitionID community_u_id = hypergraph.communityID(u);
@@ -197,7 +198,7 @@ class MultilevelVertexPairRater {
             has_only_higher_density_matches = false;
           }
           if (!_context.coarsening.forbid_different_density_contractions ||
-              incident_weight_diff < _context.coarsening.max_allowed_density_diff) {
+              incident_weight_diff < _context.coarsening.max_allowed_density_diff || !can_be_removed) {
             max_rating = tmp_rating;
             target_id = tmp_target_id;
             target = tmp_target;
@@ -215,8 +216,7 @@ class MultilevelVertexPairRater {
       ret.remove_node = false;
     } else {
       ret.remove_node = _context.coarsening.forbid_different_density_contractions
-                        && has_only_higher_density_matches
-                        && separated_nodes.outwardIncidentWeight(u)== 0;
+                        && has_only_higher_density_matches && can_be_removed;
     }
     tmp_ratings.clear();
     return ret;
