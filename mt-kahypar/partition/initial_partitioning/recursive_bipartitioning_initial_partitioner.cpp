@@ -53,74 +53,75 @@ namespace mt_kahypar {
   void RecursiveBipartitioningInitialPartitioner::initialPartitionImpl() {
     recursive_bipartitioning::partition(_hg, _context);
 
-    SeparatedNodes& separated_nodes = _hg.separatedNodes();
-    tbb::enumerable_thread_specific<Array<HyperedgeWeight>> edge_weights(_hg.k());
-    const HypernodeID num_s_nodes = separated_nodes.numNodes();
-    Array<HyperedgeWeight> max_gains(num_s_nodes);
+    if (_context.partition.separated_nodes_processing_after_ip) {
+      SeparatedNodes& separated_nodes = _hg.separatedNodes();
+      tbb::enumerable_thread_specific<Array<HyperedgeWeight>> edge_weights(_hg.k());
+      const HypernodeID num_s_nodes = separated_nodes.numNodes();
+      Array<HyperedgeWeight> max_gains(num_s_nodes);
 
-    LOG << V(num_s_nodes);
-    tbb::parallel_for(ID(0), num_s_nodes, [&](const HypernodeID s_node) {
-      Array<HyperedgeWeight>& local_edge_weights = edge_weights.local();
-      local_edge_weights.assign(_hg.k(), 0);
+      tbb::parallel_for(ID(0), num_s_nodes, [&](const HypernodeID s_node) {
+        Array<HyperedgeWeight>& local_edge_weights = edge_weights.local();
+        local_edge_weights.assign(_hg.k(), 0);
 
-      for (const auto& e: separated_nodes.inwardEdges(s_node)) {
-        const PartitionID target_part = _hg.partID(e.target);
-        if (target_part != kInvalidPartition) {
-          local_edge_weights[target_part] += e.weight;
+        for (const auto& e: separated_nodes.inwardEdges(s_node)) {
+          const PartitionID target_part = _hg.partID(e.target);
+          if (target_part != kInvalidPartition) {
+            local_edge_weights[target_part] += e.weight;
+          }
         }
-      }
 
-      HyperedgeWeight max_gain = 0;
+        HyperedgeWeight max_gain = 0;
+        for (PartitionID part = 0; part < _hg.k(); ++part) {
+          if (local_edge_weights[part] >= max_gain) {
+            max_gain = local_edge_weights[part];
+          }
+        }
+        max_gains[s_node] = max_gain;
+      });
+
+      Array<HypernodeID> id_order(num_s_nodes);
+      tbb::parallel_for(ID(0), num_s_nodes, [&](const HypernodeID s_node) {
+        id_order[s_node] = s_node;
+      });
+
+      tbb::parallel_sort(id_order.begin(), id_order.end(),
+        [&](const HypernodeID& left, const HypernodeID& right) {
+          return max_gains[left] > max_gains[right];
+        }
+      );
+
+      Array<HypernodeWeight> part_weights(_hg.k());
       for (PartitionID part = 0; part < _hg.k(); ++part) {
-        if (local_edge_weights[part] >= max_gain) {
-          max_gain = local_edge_weights[part];
+        part_weights[part] = _hg.partWeight(part);
+      }
+      for (size_t i = 0; i < id_order.size(); ++i) {
+        const HypernodeID s_node = id_order[i];
+        Array<HyperedgeWeight>& local_edge_weights = edge_weights.local();
+        local_edge_weights.assign(_hg.k(), 0);
+
+        for (const auto& e: separated_nodes.inwardEdges(s_node)) {
+          const PartitionID target_part = _hg.partID(e.target);
+          if (target_part != kInvalidPartition) {
+            local_edge_weights[target_part] += e.weight;
+          }
         }
+
+        // greedily assign separated nodes
+        PartitionID max_part = kInvalidPartition;
+        HyperedgeWeight max_gain = 0;
+        for (PartitionID part = 0; part < _hg.k(); ++part) {
+          const HypernodeWeight max_part_weight = _context.partition.max_part_weights[part];
+          if (local_edge_weights[part] >= max_gain &&
+              part_weights[part] + separated_nodes.nodeWeight(s_node) <= max_part_weight) {
+            max_part = part;
+            max_gain = local_edge_weights[part];
+          }
+        }
+        separated_nodes.setPartID(s_node, max_part);
+        part_weights[max_part] += separated_nodes.nodeWeight(s_node);
       }
-      max_gains[s_node] = max_gain;
-    });
 
-    Array<HypernodeID> id_order(num_s_nodes);
-    tbb::parallel_for(ID(0), num_s_nodes, [&](const HypernodeID s_node) {
-      id_order[s_node] = s_node;
-    });
-
-    tbb::parallel_sort(id_order.begin(), id_order.end(),
-      [&](const HypernodeID& left, const HypernodeID& right) {
-        return max_gains[left] > max_gains[right];
-      }
-    );
-
-    Array<HypernodeWeight> part_weights(_hg.k());
-    for (PartitionID part = 0; part < _hg.k(); ++part) {
-      part_weights[part] = _hg.partWeight(part);
+      _hg.updateBlockWeights();
     }
-    for (size_t i = 0; i < id_order.size(); ++i) {
-      const HypernodeID s_node = id_order[i];
-      Array<HyperedgeWeight>& local_edge_weights = edge_weights.local();
-      local_edge_weights.assign(_hg.k(), 0);
-
-      for (const auto& e: separated_nodes.inwardEdges(s_node)) {
-        const PartitionID target_part = _hg.partID(e.target);
-        if (target_part != kInvalidPartition) {
-          local_edge_weights[target_part] += e.weight;
-        }
-      }
-
-      // greedily assign separated nodes
-      PartitionID max_part = kInvalidPartition;
-      HyperedgeWeight max_gain = 0;
-      for (PartitionID part = 0; part < _hg.k(); ++part) {
-        const HypernodeWeight max_part_weight = _context.partition.max_part_weights[part];
-        if (local_edge_weights[part] >= max_gain &&
-            part_weights[part] + separated_nodes.nodeWeight(s_node) <= max_part_weight) {
-          max_part = part;
-          max_gain = local_edge_weights[part];
-        }
-      }
-      separated_nodes.setPartID(s_node, max_part);
-      part_weights[max_part] += separated_nodes.nodeWeight(s_node);
-    }
-
-    _hg.updateBlockWeights();
   }
 } // namepace mt_kahypar

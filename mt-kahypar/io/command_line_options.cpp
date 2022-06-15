@@ -135,6 +135,9 @@ namespace mt_kahypar {
              "(https://github.com/bingmann/sqlplottools)")
             ("csv", po::value<bool>(&context.partition.csv_output)->value_name("<bool>")->default_value(false),
              "Summarize results in CSV format")
+            ("separated-nodes-processing-after-ip",
+             po::value<bool>(&context.partition.separated_nodes_processing_after_ip)->value_name("<bool>")->default_value(false),
+             "Process separated nodes directly after initial partitioning (instead of during refinement)")
             ("algorithm-name",
              po::value<std::string>(&context.algorithm_name)->value_name("<std::string>")->default_value("MT-KaHyPar"),
              "An algorithm name to print into the summarized output (csv or sqlplottools). ")

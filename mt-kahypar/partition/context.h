@@ -63,6 +63,8 @@ struct PartitioningParameters {
   bool write_partition_file = false;
   bool deterministic = false;
 
+  bool separated_nodes_processing_after_ip = false;
+
   std::string graph_filename { };
   std::string graph_partition_output_folder {};
   std::string graph_partition_filename { };
