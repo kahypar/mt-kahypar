@@ -177,9 +177,9 @@ class MultilevelVertexPairRater {
     HypernodeID target_id = kInvalidHypernode;
     bool has_only_higher_density_matches = true;
     for (auto it = tmp_ratings.end() - 1; it >= tmp_ratings.begin(); --it) {
-      const HypernodeID tmp_target_id = it->key;
-      const HypernodeID tmp_target = tmp_target_id;
-      const HypernodeWeight target_weight = cluster_weight[tmp_target_id];
+      const HypernodeID tmp_target = it->key;
+      ALWAYS_ASSERT(tmp_target < cluster_weight.size(), V(tmp_target));
+      const HypernodeWeight target_weight = cluster_weight[tmp_target];
 
       if ( tmp_target != u && weight_u + target_weight <= max_allowed_node_weight ) {
         HypernodeWeight penalty = HeavyNodePenaltyPolicy::penalty(weight_u, target_weight);
@@ -190,17 +190,17 @@ class MultilevelVertexPairRater {
         const RatingType tmp_rating = it->value / static_cast<double>(penalty);
 
         DBG << "r(" << u << "," << tmp_target << ")=" << tmp_rating;
+        if ( community_u_id == hypergraph.communityID(tmp_target) && weight_ratio_u > tmp_weight_ratio ) {
+          has_only_higher_density_matches = false;
+        }
         if ( community_u_id == hypergraph.communityID(tmp_target) &&
             AcceptancePolicy::acceptRating(tmp_rating, max_rating,
-                                           target_id, tmp_target_id,
+                                           target_id, tmp_target,
                                            cpu_id, _already_matched) ) {
-          if (weight_ratio_u > tmp_weight_ratio) {
-            has_only_higher_density_matches = false;
-          }
           if (!_context.coarsening.forbid_different_density_contractions ||
               incident_weight_diff < _context.coarsening.max_allowed_density_diff || !can_be_removed) {
             max_rating = tmp_rating;
-            target_id = tmp_target_id;
+            target_id = tmp_target;
             target = tmp_target;
           }
         }
