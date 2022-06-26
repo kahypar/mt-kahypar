@@ -190,7 +190,8 @@ class MultilevelVertexPairRater {
         const RatingType tmp_rating = it->value / static_cast<double>(penalty);
 
         DBG << "r(" << u << "," << tmp_target << ")=" << tmp_rating;
-        if ( community_u_id == hypergraph.communityID(tmp_target) && weight_ratio_u > tmp_weight_ratio ) {
+        if ( community_u_id == hypergraph.communityID(tmp_target) &&
+             _context.coarsening.max_allowed_density_diff * weight_ratio_u > tmp_weight_ratio ) {
           has_only_higher_density_matches = false;
         }
         if ( community_u_id == hypergraph.communityID(tmp_target) &&
