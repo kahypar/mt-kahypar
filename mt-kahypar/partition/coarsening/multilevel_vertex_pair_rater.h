@@ -274,12 +274,14 @@ class MultilevelVertexPairRater {
           hypergraph.edgeWeight(he), edge_size);
         for ( const HypernodeID& v : hypergraph.pins(he) ) {
           const HypernodeID representative = cluster_ids[v];
-          ASSERT(representative < hypergraph.initialNumNodes());
-          const HypernodeID bloom_filter_rep = representative & _bloom_filter_mask;
-          if ( !bloom_filter[bloom_filter_rep] ) {
-            tmp_ratings[representative] += score;
-            bloom_filter.set(bloom_filter_rep, true);
-            ++num_tmp_rating_map_accesses;
+          if (representative != kInvalidHypernode) {
+            ASSERT(representative < hypergraph.initialNumNodes());
+            const HypernodeID bloom_filter_rep = representative & _bloom_filter_mask;
+            if ( !bloom_filter[bloom_filter_rep] ) {
+              tmp_ratings[representative] += score;
+              bloom_filter.set(bloom_filter_rep, true);
+              ++num_tmp_rating_map_accesses;
+            }
           }
         }
         bloom_filter.reset();
