@@ -86,6 +86,7 @@ namespace mt_kahypar::ds {
     _indices(std::move(other._indices)),
     _arcs(std::move(other._arcs)),
     _node_volumes(std::move(other._node_volumes)),
+    _isolated_nodes_bitset(std::move(other._isolated_nodes_bitset)),
     _tmp_graph_buffer(other._tmp_graph_buffer) {
     other._num_nodes = 0;
     other._num_arcs = 0;
@@ -102,6 +103,7 @@ namespace mt_kahypar::ds {
     _indices = std::move(other._indices);
     _arcs = std::move(other._arcs);
     _node_volumes = std::move(other._node_volumes);
+    _isolated_nodes_bitset = std::move(other._isolated_nodes_bitset);
     _tmp_graph_buffer = std::move(other._tmp_graph_buffer);
     other._num_nodes = 0;
     other._num_arcs = 0;
@@ -214,6 +216,7 @@ namespace mt_kahypar::ds {
  */
   Graph Graph::contract(Clustering& communities, bool low_memory) {
     if (low_memory) {
+      LOG << "LOW MEMORY!!!";
       return contract_low_memory(communities);
     }
     ASSERT(canBeUsed());
@@ -230,11 +233,13 @@ namespace mt_kahypar::ds {
     ds::Array<parallel::IntegralAtomicWrapper<size_t>>& tmp_pos = _tmp_graph_buffer->tmp_pos;
     ds::Array<parallel::IntegralAtomicWrapper<size_t>>& tmp_indices = _tmp_graph_buffer->tmp_indices;
     ds::Array<parallel::AtomicWrapper<ArcWeight>>& coarse_node_volumes = _tmp_graph_buffer->tmp_node_volumes;
+    ds::Array<char>& tmp_isolated_nodes = _tmp_graph_buffer->tmp_isolated;
     tbb::parallel_for(0U, static_cast<NodeID>(_num_nodes), [&](const NodeID u) {
       ASSERT(static_cast<size_t>(communities[u]) < _num_nodes);
       mapping[communities[u]] = 1UL;
       tmp_pos[u] = 0;
       tmp_indices[u] = 0;
+      tmp_isolated_nodes[u] = 0;
       coarse_node_volumes[u].store(0.0);
     });
 
@@ -259,6 +264,9 @@ namespace mt_kahypar::ds {
       const NodeID coarse_u = communities[u];
       ASSERT(static_cast<size_t>(coarse_u) < coarse_graph._num_nodes);
       coarse_node_volumes[coarse_u] += nodeVolume(u);     // not deterministic!
+      if (_isolated_nodes_bitset[u] != 0) {
+        tmp_isolated_nodes[coarse_u] = 1;
+      }
       for ( const Arc& arc : arcsOf(u) ) {
         const NodeID coarse_v = communities[arc.head];
         if ( coarse_u != coarse_v ) {
@@ -328,6 +336,7 @@ namespace mt_kahypar::ds {
     coarse_graph._indices = std::move(_indices);
     coarse_graph._arcs = std::move(_arcs);
     coarse_graph._node_volumes = std::move(_node_volumes);
+    coarse_graph._isolated_nodes_bitset = std::move(_isolated_nodes_bitset);
 
     tbb::parallel_invoke([&] {
       const size_t tmp_num_arcs = tmp_indices_prefix_sum.total_sum();
@@ -344,6 +353,7 @@ namespace mt_kahypar::ds {
         ASSERT(start_index_pos <= coarse_graph._num_arcs);
         coarse_graph._indices[u] = start_index_pos;
         coarse_graph._node_volumes[u] = coarse_node_volumes[u];
+        coarse_graph._isolated_nodes_bitset[u] = tmp_isolated_nodes[u];
       });
       coarse_graph._indices[coarse_graph._num_nodes] = coarse_graph._num_arcs;
     });
@@ -362,6 +372,7 @@ namespace mt_kahypar::ds {
           _indices(),
           _arcs(),
           _node_volumes(),
+          _isolated_nodes_bitset(),
           _tmp_graph_buffer(nullptr) {
 
   }
@@ -408,6 +419,7 @@ namespace mt_kahypar::ds {
     _indices.resize("Preprocessing", "indices", _num_nodes + 1);
     _arcs.resize("Preprocessing", "arcs", _num_arcs);
     _node_volumes.resize("Preprocessing", "node_volumes", _num_nodes);
+    _isolated_nodes_bitset.resize("Preprocessing", "isolated_nodes", _num_nodes);
 
     // Initialize data structure
     const HypernodeID num_hypernodes = hypergraph.initialNumNodes();
@@ -472,6 +484,7 @@ namespace mt_kahypar::ds {
     _indices.resize("Preprocessing", "indices", _num_nodes + 1);
     _arcs.resize("Preprocessing", "arcs", _num_arcs);
     _node_volumes.resize("Preprocessing", "node_volumes", _num_nodes);
+    _isolated_nodes_bitset.resize("Preprocessing", "isolated_nodes", _num_nodes);
 
     // Initialize data structure
     const HypernodeID num_hypernodes = hypergraph.initialNumNodes();

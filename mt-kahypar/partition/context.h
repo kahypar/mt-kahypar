@@ -81,6 +81,8 @@ struct CommunityDetectionParameters {
   long double min_vertex_move_fraction = std::numeric_limits<long double>::max();
   size_t vertex_degree_sampling_threshold = std::numeric_limits<size_t>::max();
   size_t num_sub_rounds_deterministic = 16;
+  bool use_isolated_nodes_treshold = true;
+  double isolated_nodes_threshold_stdev_factor = 1.0;
 };
 
 std::ostream & operator<< (std::ostream& str, const CommunityDetectionParameters& params);

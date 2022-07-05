@@ -205,7 +205,15 @@ namespace mt_kahypar {
             ("p-num-sub-rounds",
              po::value<size_t>(&context.preprocessing.community_detection.num_sub_rounds_deterministic)->value_name(
                      "<size_t>")->default_value(16),
-             "Number of sub-rounds used for deterministic community detection in preprocessing.");
+             "Number of sub-rounds used for deterministic community detection in preprocessing.")
+            ("p-use-isolated-nodes-treshold",
+             po::value<bool>(&context.preprocessing.community_detection.use_isolated_nodes_treshold)->value_name(
+                     "<bool>")->default_value(false),
+             "If set, the community detection will not add nodes to a community if the gain is below a certain treshold.")
+            ("p-isolated-nodes-threshold-stdev-factor",
+             po::value<double>(&context.preprocessing.community_detection.isolated_nodes_threshold_stdev_factor)->value_name(
+                     "<double>")->default_value(1.0),
+             "The factor for including the standard deviation in the isolated nodes treshold.");
     return options;
   }
 

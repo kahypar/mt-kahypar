@@ -113,6 +113,25 @@ bool ParallelLocalMovingModularity::localMoving(Graph& graph, ds::Clustering& co
       DBG << "Louvain-Pass #" << round << " - num moves " << number_of_nodes_moved << " - Modularity:" << metrics::modularity(graph, communities);
     }
   }
+
+  if (_context.preprocessing.community_detection.use_isolated_nodes_treshold) {
+    auto isolateNode = [&](const NodeID u) {
+      const ArcWeight volU = graph.nodeVolume(u);
+      const PartitionID from = communities[u];
+      _cluster_volumes[u] += volU;
+      _cluster_volumes[from] -= volU;
+      communities[u] = u;
+    };
+
+    const double stdev_factor = _context.preprocessing.community_detection.isolated_nodes_threshold_stdev_factor;
+    tbb::parallel_for(0UL, nodes.size(), [&](size_t i) {
+      const double gain_to_iso = computeGainComparedToIsolated(graph, communities, nodes[i]);
+      if (gain_to_iso < 1 / (avg_inv_weigh_gain + stdev_factor * stdev_inv_weigh_gain)) {
+        isolateNode(nodes[i]);
+        graph.set_isolated(nodes[i]);
+      }
+    });
+  }
   return clustering_changed;
 }
 
@@ -223,14 +242,16 @@ size_t ParallelLocalMovingModularity::parallelNonDeterministicRound(const Graph&
 
   tbb::enumerable_thread_specific<size_t> local_number_of_nodes_moved(0);
   auto moveNode = [&](const NodeID u) {
-    const ArcWeight volU = graph.nodeVolume(u);
-    const PartitionID from = communities[u];
-    PartitionID best_cluster = computeMaxGainCluster(graph, communities, u);
-    if (best_cluster != from) {
-      _cluster_volumes[best_cluster] += volU;
-      _cluster_volumes[from] -= volU;
-      communities[u] = best_cluster;
-      ++local_number_of_nodes_moved.local();
+    if (!graph.is_isolated(u)) {
+      const ArcWeight volU = graph.nodeVolume(u);
+      const PartitionID from = communities[u];
+      PartitionID best_cluster = computeMaxGainCluster(graph, communities, u);
+      if (best_cluster != from) {
+        _cluster_volumes[best_cluster] += volU;
+        _cluster_volumes[from] -= volU;
+        communities[u] = best_cluster;
+        ++local_number_of_nodes_moved.local();
+      }
     }
   };
 

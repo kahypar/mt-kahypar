@@ -148,6 +148,28 @@ class ParallelLocalMovingModularity {
   }
 
 
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
+  double computeGainComparedToIsolated(const Graph& graph,
+                                       const ds::Clustering& communities,
+                                       const NodeID u) {
+    const PartitionID from = communities[u];
+
+    ArcWeight weight_from = 0;
+    for (const Arc& arc : graph.arcsOf(u, _vertex_degree_sampling_threshold)) {
+      if (communities[arc.head] == from) {
+        weight_from +=  arc.weight;
+      }
+    }
+
+    const ArcWeight volume_from = _cluster_volumes[from].load(std::memory_order_relaxed);
+    const ArcWeight volU = graph.nodeVolume(u);
+
+    const double volMultiplier = _vol_multiplier_div_by_node_vol * volU;
+    const double gain_for_from_cluster = weight_from - volMultiplier * (volume_from - volU);
+    return gain_for_from_cluster;
+  }
+
+
   inline double modularityGain(const ArcWeight weight_to,
                                const ArcWeight volume_to,
                                const double multiplier) {
