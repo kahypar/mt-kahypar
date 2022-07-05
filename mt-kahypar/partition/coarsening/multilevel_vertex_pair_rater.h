@@ -181,19 +181,21 @@ class MultilevelVertexPairRater {
       ALWAYS_ASSERT(tmp_target < cluster_weight.size(), V(tmp_target));
       const HypernodeWeight target_weight = cluster_weight[tmp_target];
 
+      const double tmp_weight_ratio = std::max(static_cast<double>(hypergraph.incidentWeight(tmp_target))
+                                                / hypergraph.nodeWeight(tmp_target), 0.1);
+      const double incident_weight_diff = std::max(tmp_weight_ratio / weight_ratio_u, weight_ratio_u / tmp_weight_ratio);
+
+      if ( tmp_target != u && community_u_id == hypergraph.communityID(tmp_target) &&
+            _context.coarsening.max_allowed_density_diff * weight_ratio_u > tmp_weight_ratio ) {
+        has_only_higher_density_matches = false;
+      }
+
       if ( tmp_target != u && weight_u + target_weight <= max_allowed_node_weight ) {
         HypernodeWeight penalty = HeavyNodePenaltyPolicy::penalty(weight_u, target_weight);
         penalty = penalty == 0 ? std::max(std::max(weight_u, target_weight), 1) : penalty;
-        const double tmp_weight_ratio = std::max(static_cast<double>(hypergraph.incidentWeight(tmp_target))
-                                                 / hypergraph.nodeWeight(tmp_target), 0.1);
-        const double incident_weight_diff = std::max(tmp_weight_ratio / weight_ratio_u, weight_ratio_u / tmp_weight_ratio);
         const RatingType tmp_rating = it->value / static_cast<double>(penalty);
 
         DBG << "r(" << u << "," << tmp_target << ")=" << tmp_rating;
-        if ( community_u_id == hypergraph.communityID(tmp_target) &&
-             _context.coarsening.max_allowed_density_diff * weight_ratio_u > tmp_weight_ratio ) {
-          has_only_higher_density_matches = false;
-        }
         if ( community_u_id == hypergraph.communityID(tmp_target) &&
             AcceptancePolicy::acceptRating(tmp_rating, max_rating,
                                            target_id, tmp_target,
