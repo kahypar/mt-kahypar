@@ -176,6 +176,7 @@ class MultilevelVertexPairRater {
     HypernodeID target = kInvalidHypernode;
     HypernodeID target_id = kInvalidHypernode;
     bool has_only_higher_density_matches = true;
+    bool community_size_is_one = true;
     for (auto it = tmp_ratings.end() - 1; it >= tmp_ratings.begin(); --it) {
       const HypernodeID tmp_target = it->key;
       ALWAYS_ASSERT(tmp_target < cluster_weight.size(), V(tmp_target));
@@ -188,6 +189,9 @@ class MultilevelVertexPairRater {
       if ( tmp_target != u && community_u_id == hypergraph.communityID(tmp_target) &&
             _context.coarsening.max_allowed_density_diff * weight_ratio_u > tmp_weight_ratio ) {
         has_only_higher_density_matches = false;
+      }
+      if ( tmp_target != u && community_u_id == hypergraph.communityID(tmp_target) ) {
+        community_size_is_one = false;
       }
 
       if ( tmp_target != u && weight_u + target_weight <= max_allowed_node_weight ) {
@@ -218,8 +222,15 @@ class MultilevelVertexPairRater {
       ret.valid = true;
       ret.remove_node = false;
     } else {
-      ret.remove_node = _context.coarsening.forbid_different_density_contractions
-                        && has_only_higher_density_matches && can_be_removed;
+      ret.remove_node = false;
+      if (_context.coarsening.forbid_different_density_contractions
+          && has_only_higher_density_matches && can_be_removed) {
+        ret.remove_node = true;
+      }
+      if (_context.coarsening.separate_size_one_communities
+          && community_size_is_one && hypergraph.nodeWeight(u) <= 10) {
+        ret.remove_node = true;
+      }
     }
     tmp_ratings.clear();
     return ret;

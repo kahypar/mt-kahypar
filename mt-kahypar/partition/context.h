@@ -111,6 +111,7 @@ struct CoarseningParameters {
   bool use_adaptive_edge_size = false;
   bool use_adaptive_max_allowed_node_weight = false;
   bool forbid_different_density_contractions = false;
+  bool separate_size_one_communities = false;
   double max_allowed_weight_fraction = std::numeric_limits<double>::max();
   double adaptive_node_weight_shrink_factor_threshold = std::numeric_limits<double>::max();
   double max_allowed_weight_multiplier = std::numeric_limits<double>::max();

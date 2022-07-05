@@ -239,6 +239,9 @@ namespace mt_kahypar {
              po::value<bool>(&context.coarsening.forbid_different_density_contractions)->value_name("<bool>")->default_value(false),
              "If true, the coarsening will calculate the incident weight to node weight ratio for contraciton partners\n"
              "and forbid the contraction if the difference is too large.")
+            ("c-separate-size-one-communities",
+             po::value<bool>(&context.coarsening.separate_size_one_communities)->value_name("<bool>")->default_value(false),
+             "If true, the coarsening will separate small communities that are fully contracted.\n")
             ("c-max-allowed-density-diff",
              po::value<double>(&context.coarsening.max_allowed_density_diff)->value_name("<double>")->default_value(2),
              "Defines the allowed difference when using c-forbid-different-density-contractions.")
