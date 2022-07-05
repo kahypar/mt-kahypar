@@ -21,12 +21,18 @@
 
 #include "local_moving_modularity.h"
 
+#include "mt-kahypar/datastructures/array.h"
 #include "mt-kahypar/utils/timer.h"
 #include "mt-kahypar/utils/floating_point_comparisons.h"
+#include "mt-kahypar/utils/hypergraph_statistics.h"
 #include "mt-kahypar/parallel/stl/thread_locals.h"
+
+#include "kahypar/utils/math.h"
 
 #include <tbb/parallel_reduce.h>
 #include <tbb/parallel_sort.h>
+
+#include <algorithm>
 
 namespace mt_kahypar::metrics {
 double modularity(const Graph& graph, const ds::Clustering& communities) {
@@ -113,6 +119,31 @@ bool ParallelLocalMovingModularity::localMoving(Graph& graph, ds::Clustering& co
       DBG << "Louvain-Pass #" << round << " - num moves " << number_of_nodes_moved << " - Modularity:" << metrics::modularity(graph, communities);
     }
   }
+
+  auto& nodes = permutation.permutation;
+  std::vector<double> weighted_inv_gains;
+  for (size_t j = 0; j < nodes.size(); ++j) {
+    const HypernodeID u = nodes[j];
+    double gain_to_iso = computeGainComparedToIsolated(graph, communities, u);
+    const ArcWeight volU = graph.nodeVolume(u);
+    for (size_t k = 0; k < volU; ++k) {
+      const double gain_abs = std::max(gain_to_iso, 0.0);
+      if (gain_abs > 0) {
+        weighted_inv_gains.push_back(1 / gain_abs);
+      }
+    }
+  }
+
+  tbb::parallel_sort(weighted_inv_gains.begin(), weighted_inv_gains.end());
+  // cap at 99th percentile
+  const size_t w_index_99th = 99 * weighted_inv_gains.size() / 100;
+  for (size_t i = w_index_99th; i < weighted_inv_gains.size(); ++i) {
+    weighted_inv_gains[i] = weighted_inv_gains[w_index_99th];
+  }
+
+  const double avg_inv_weigh_gain = utils::parallel_avg(weighted_inv_gains, weighted_inv_gains.size());
+  const double stdev_inv_weigh_gain = utils::parallel_stdev(weighted_inv_gains, avg_inv_weigh_gain, weighted_inv_gains.size());
+
 
   if (_context.preprocessing.community_detection.use_isolated_nodes_treshold) {
     auto isolateNode = [&](const NodeID u) {
