@@ -43,6 +43,19 @@ double parallel_stdev(const std::vector<T>& data, const double avg, const size_t
             }, std::plus<double>()) / ( n- 1 ));
 }
 
+template<typename T, typename F>
+double parallel_weighted_stdev(const std::vector<T>& data, const double avg, const double n, F weight_fn) {
+    return std::sqrt(tbb::parallel_reduce(
+            tbb::blocked_range<size_t>(0UL, data.size()), 0.0,
+            [&](tbb::blocked_range<size_t>& range, double init) -> double {
+            double tmp_stdev = init;
+            for ( size_t i = range.begin(); i < range.end(); ++i ) {
+                tmp_stdev += weight_fn(i) * (data[i] - avg) * (data[i] - avg);
+            }
+            return tmp_stdev;
+            }, std::plus<double>()) / ( n- 1 ));
+}
+
 template<typename T>
 double parallel_avg(const std::vector<T>& data, const size_t n) {
     return tbb::parallel_reduce(
@@ -51,6 +64,19 @@ double parallel_avg(const std::vector<T>& data, const size_t n) {
             double tmp_avg = init;
             for ( size_t i = range.begin(); i < range.end(); ++i ) {
                 tmp_avg += static_cast<double>(data[i]);
+            }
+            return tmp_avg;
+            }, std::plus<double>()) / static_cast<double>(n);
+}
+
+template<typename T, typename F>
+double parallel_weighted_avg(const std::vector<T>& data, const double n, F weight_fn) {
+    return tbb::parallel_reduce(
+            tbb::blocked_range<size_t>(0UL, data.size()), 0.0,
+            [&](tbb::blocked_range<size_t>& range, double init) -> double {
+            double tmp_avg = init;
+            for ( size_t i = range.begin(); i < range.end(); ++i ) {
+                tmp_avg += weight_fn(i) * static_cast<double>(data[i]);
             }
             return tmp_avg;
             }, std::plus<double>()) / static_cast<double>(n);

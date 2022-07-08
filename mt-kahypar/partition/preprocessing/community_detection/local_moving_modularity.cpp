@@ -121,29 +121,22 @@ bool ParallelLocalMovingModularity::localMoving(Graph& graph, ds::Clustering& co
   }
 
   auto& nodes = permutation.permutation;
-  std::vector<double> weighted_inv_gains;
-  for (size_t j = 0; j < nodes.size(); ++j) {
-    const HypernodeID u = nodes[j];
-    double gain_to_iso = computeGainComparedToIsolated(graph, communities, u);
-    const ArcWeight volU = graph.nodeVolume(u);
-    for (size_t k = 0; k < volU; ++k) {
-      const double gain_abs = std::max(gain_to_iso, 0.0);
-      if (gain_abs > 0) {
-        weighted_inv_gains.push_back(1 / gain_abs);
-      }
-    }
-  }
+  std::vector<double> inv_gains;
+  inv_gains.assign(nodes.size(), 0);
+  tbb::parallel_for(0UL, nodes.size(), [&](size_t i) {
+    double gain_to_iso = computeGainComparedToIsolated(graph, communities, nodes[i]);
+    inv_gains[i] = 1 / std::max(gain_to_iso, 1.0);
+  });
 
-  tbb::parallel_sort(weighted_inv_gains.begin(), weighted_inv_gains.end());
-  // cap at 99th percentile
-  const size_t w_index_99th = 99 * weighted_inv_gains.size() / 100;
-  for (size_t i = w_index_99th; i < weighted_inv_gains.size(); ++i) {
-    weighted_inv_gains[i] = weighted_inv_gains[w_index_99th];
-  }
 
-  const double avg_inv_weigh_gain = utils::parallel_avg(weighted_inv_gains, weighted_inv_gains.size());
-  const double stdev_inv_weigh_gain = utils::parallel_stdev(weighted_inv_gains, avg_inv_weigh_gain, weighted_inv_gains.size());
-
+  const double avg_inv_weigh_gain = utils::parallel_weighted_avg(inv_gains, graph.totalVolume(),
+    [&](size_t i) {
+      return graph.nodeVolume(nodes[i]);
+    });
+  const double stdev_inv_weigh_gain = utils::parallel_weighted_stdev(inv_gains, avg_inv_weigh_gain, graph.totalVolume(),
+    [&](size_t i) {
+      return graph.nodeVolume(nodes[i]);
+    });
 
   if (_context.preprocessing.community_detection.use_isolated_nodes_treshold) {
     auto isolateNode = [&](const NodeID u) {
