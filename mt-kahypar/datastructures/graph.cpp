@@ -38,10 +38,12 @@ namespace mt_kahypar::ds {
           _num_nodes(0),
           _num_arcs(0),
           _total_volume(0),
+          _total_weight(0),
           _max_degree(0),
           _indices(),
           _arcs(),
           _node_volumes(),
+          _node_weights(),
           _tmp_graph_buffer(nullptr) {
 
     switch( edge_weight_type ) {
@@ -82,15 +84,18 @@ namespace mt_kahypar::ds {
     _num_nodes(other._num_nodes),
     _num_arcs(other._num_arcs),
     _total_volume(other._total_volume),
+    _total_weight(other._total_weight),
     _max_degree(other._max_degree),
     _indices(std::move(other._indices)),
     _arcs(std::move(other._arcs)),
     _node_volumes(std::move(other._node_volumes)),
+    _node_weights(std::move(other._node_weights)),
     _isolated_nodes_bitset(std::move(other._isolated_nodes_bitset)),
     _tmp_graph_buffer(other._tmp_graph_buffer) {
     other._num_nodes = 0;
     other._num_arcs = 0;
     other._total_volume = 0;
+    other._total_weight = 0;
     other._max_degree = 0;
     other._tmp_graph_buffer = nullptr;
   }
@@ -99,15 +104,18 @@ namespace mt_kahypar::ds {
     _num_nodes = other._num_nodes;
     _num_arcs = other._num_arcs;
     _total_volume = other._total_volume;
+    _total_weight = other._total_weight;
     _max_degree = other._max_degree;
     _indices = std::move(other._indices);
     _arcs = std::move(other._arcs);
     _node_volumes = std::move(other._node_volumes);
+    _node_weights = std::move(other._node_weights);
     _isolated_nodes_bitset = std::move(other._isolated_nodes_bitset);
     _tmp_graph_buffer = std::move(other._tmp_graph_buffer);
     other._num_nodes = 0;
     other._num_arcs = 0;
     other._total_volume = 0;
+    other._total_weight = 0;
     other._max_degree = 0;
     other._tmp_graph_buffer = nullptr;
     return *this;
@@ -139,6 +147,7 @@ namespace mt_kahypar::ds {
     coarse_graph._indices.resize(num_coarse_nodes + 1);
     coarse_graph._node_volumes.resize(num_coarse_nodes);
     coarse_graph._total_volume = totalVolume();
+    coarse_graph._total_weight = totalWeight();
 
     struct ClearList {
       vec<NodeID> used;
@@ -226,6 +235,7 @@ namespace mt_kahypar::ds {
     }
     Graph coarse_graph;
     coarse_graph._total_volume = _total_volume;
+    coarse_graph._total_weight = _total_weight;
 
     // #################### STAGE 1 ####################
     // Compute node ids of coarse graph with a parallel prefix sum
@@ -233,6 +243,7 @@ namespace mt_kahypar::ds {
     ds::Array<parallel::IntegralAtomicWrapper<size_t>>& tmp_pos = _tmp_graph_buffer->tmp_pos;
     ds::Array<parallel::IntegralAtomicWrapper<size_t>>& tmp_indices = _tmp_graph_buffer->tmp_indices;
     ds::Array<parallel::AtomicWrapper<ArcWeight>>& coarse_node_volumes = _tmp_graph_buffer->tmp_node_volumes;
+    ds::Array<parallel::AtomicWrapper<HypernodeWeight>>& coarse_node_weights = _tmp_graph_buffer->tmp_node_weights;
     ds::Array<char>& tmp_isolated_nodes = _tmp_graph_buffer->tmp_isolated;
     tbb::parallel_for(0U, static_cast<NodeID>(_num_nodes), [&](const NodeID u) {
       ASSERT(static_cast<size_t>(communities[u]) < _num_nodes);
@@ -241,6 +252,7 @@ namespace mt_kahypar::ds {
       tmp_indices[u] = 0;
       tmp_isolated_nodes[u] = 0;
       coarse_node_volumes[u].store(0.0);
+      coarse_node_weights[u].store(0);
     });
 
     // Prefix sum determines node ids in coarse graph
@@ -260,10 +272,12 @@ namespace mt_kahypar::ds {
     // the tmp adjacence array.
     // Compute number of arcs in tmp adjacence array with parallel prefix sum
     ASSERT(coarse_graph._num_nodes <= coarse_node_volumes.size());
+    ASSERT(coarse_graph._num_nodes <= coarse_node_weights.size());
     tbb::parallel_for(0U, static_cast<NodeID>(_num_nodes), [&](const NodeID u) {
       const NodeID coarse_u = communities[u];
       ASSERT(static_cast<size_t>(coarse_u) < coarse_graph._num_nodes);
       coarse_node_volumes[coarse_u] += nodeVolume(u);     // not deterministic!
+      coarse_node_weights[coarse_u] += nodeWeight(u);
       if (_isolated_nodes_bitset[u] != 0) {
         tmp_isolated_nodes[coarse_u] = 1;
       }
@@ -336,6 +350,7 @@ namespace mt_kahypar::ds {
     coarse_graph._indices = std::move(_indices);
     coarse_graph._arcs = std::move(_arcs);
     coarse_graph._node_volumes = std::move(_node_volumes);
+    coarse_graph._node_weights = std::move(_node_weights);
     coarse_graph._isolated_nodes_bitset = std::move(_isolated_nodes_bitset);
 
     tbb::parallel_invoke([&] {
@@ -353,6 +368,7 @@ namespace mt_kahypar::ds {
         ASSERT(start_index_pos <= coarse_graph._num_arcs);
         coarse_graph._indices[u] = start_index_pos;
         coarse_graph._node_volumes[u] = coarse_node_volumes[u];
+        coarse_graph._node_weights[u] = coarse_node_weights[u];
         coarse_graph._isolated_nodes_bitset[u] = tmp_isolated_nodes[u];
       });
       coarse_graph._indices[coarse_graph._num_nodes] = coarse_graph._num_arcs;
@@ -368,10 +384,12 @@ namespace mt_kahypar::ds {
           _num_nodes(0),
           _num_arcs(0),
           _total_volume(0),
+          _total_weight(0),
           _max_degree(0),
           _indices(),
           _arcs(),
           _node_volumes(),
+          _node_weights(),
           _isolated_nodes_bitset(),
           _tmp_graph_buffer(nullptr) {
 
@@ -411,6 +429,7 @@ namespace mt_kahypar::ds {
     };
     auto r = tbb::blocked_range<NodeID>(0U, numNodes(), 1000);
     _total_volume = tbb::parallel_deterministic_reduce(r, 0.0, aggregate_volume, std::plus<>());
+    _total_weight = hypergraph.totalWeight();
   }
 
   template<typename F>
@@ -484,6 +503,7 @@ namespace mt_kahypar::ds {
     _indices.resize("Preprocessing", "indices", _num_nodes + 1);
     _arcs.resize("Preprocessing", "arcs", _num_arcs);
     _node_volumes.resize("Preprocessing", "node_volumes", _num_nodes);
+    _node_weights.resize("Preprocessing", "node_weights", _num_nodes);
     _isolated_nodes_bitset.resize("Preprocessing", "isolated_nodes", _num_nodes);
 
     // Initialize data structure
@@ -491,6 +511,7 @@ namespace mt_kahypar::ds {
     tbb::parallel_for(ID(0), num_hypernodes, [&](const HypernodeID u) {
       ASSERT(u + 1 < _indices.size());
       _indices[u + 1] = hypergraph.nodeDegree(u);
+      _node_weights[u] = hypergraph.nodeWeight(u);
     });
 
     parallel::TBBPrefixSum<size_t, ds::Array> indices_prefix_sum(_indices);

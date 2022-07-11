@@ -49,6 +49,7 @@ class Graph {
       tmp_indices("Preprocessing", "tmp_indices", num_nodes + 1),
       tmp_pos("Preprocessing", "tmp_pos", num_nodes),
       tmp_node_volumes("Preprocessing", "tmp_node_volumes", num_nodes),
+      tmp_node_weights("Preprocessing", "tmp_node_weights", num_nodes),
       tmp_arcs("Preprocessing", "tmp_arcs", num_arcs),
       valid_arcs("Preprocessing", "valid_arcs", num_arcs),
       tmp_isolated("Preprocessing", "tmp_isolated", num_nodes) { }
@@ -56,6 +57,7 @@ class Graph {
     ds::Array<parallel::IntegralAtomicWrapper<size_t>> tmp_indices;
     ds::Array<parallel::IntegralAtomicWrapper<size_t>> tmp_pos;
     ds::Array<parallel::AtomicWrapper<ArcWeight>> tmp_node_volumes;
+    ds::Array<parallel::AtomicWrapper<HypernodeWeight>> tmp_node_weights;
     ds::Array<Arc> tmp_arcs;
     ds::Array<size_t> valid_arcs;
     ds::Array<char> tmp_isolated;
@@ -125,10 +127,19 @@ class Graph {
     return _total_volume;
   }
 
+  double totalWeight() const {
+    return _total_weight;
+  }
+
   // ! Node volume of vertex u
   ArcWeight nodeVolume(const NodeID u) const {
     ASSERT(u < _num_nodes);
     return _node_volumes[u];
+  }
+
+  double nodeWeight(const NodeID u) const {
+    ASSERT(u < _num_nodes);
+    return static_cast<double>(_node_weights[u]);
   }
 
   // ! Projects the clustering of the (likely bipartite star-expansion) graph to the hypergraph
@@ -186,6 +197,8 @@ class Graph {
   size_t _num_arcs;
   // ! Total volume of the graph (= sum of arc weights)
   ArcWeight _total_volume;
+
+  double _total_weight;
   // ! Maximum degree of a node
   size_t _max_degree;
 
@@ -195,6 +208,8 @@ class Graph {
   ds::Array<Arc> _arcs;
   // ! Node Volumes (= sum of arc weights for each node)
   ds::Array<ArcWeight> _node_volumes;
+
+  ds::Array<HypernodeWeight> _node_weights;
 
   ds::Array<char> _isolated_nodes_bitset;
   // ! Data that is reused throughout the louvain method

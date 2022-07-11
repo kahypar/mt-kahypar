@@ -90,6 +90,7 @@ bool ParallelLocalMovingModularity::localMoving(Graph& graph, ds::Clustering& co
     tbb::parallel_for(0UL, graph.numNodes(), [&](NodeID u) {
       communities[u] = u;
       _cluster_volumes[u].store(graph.nodeVolume(u), std::memory_order_relaxed);
+      _cluster_weights[u].store(graph.nodeWeight(u), std::memory_order_relaxed);
     });
   } else {
     auto& nodes = permutation.permutation;
@@ -98,6 +99,7 @@ bool ParallelLocalMovingModularity::localMoving(Graph& graph, ds::Clustering& co
       nodes[u] = u;
       communities[u] = u;
       _cluster_volumes[u].store(graph.nodeVolume(u), std::memory_order_relaxed);
+      _cluster_weights[u].store(graph.nodeWeight(u), std::memory_order_relaxed);
     });
   }
 
@@ -144,6 +146,8 @@ bool ParallelLocalMovingModularity::localMoving(Graph& graph, ds::Clustering& co
       const PartitionID from = communities[u];
       _cluster_volumes[u] += volU;
       _cluster_volumes[from] -= volU;
+      _cluster_weights[u] += graph.nodeWeight(u);
+      _cluster_weights[from] -= graph.nodeWeight(u);
       communities[u] = u;
     };
 
@@ -220,6 +224,7 @@ size_t ParallelLocalMovingModularity::synchronousParallelRound(const Graph& grap
           communities[volume_updates_to[pos].node] = c;
         }
         _cluster_volumes[c].store(_cluster_volumes[c].load(std::memory_order_relaxed) + vol_delta, std::memory_order_relaxed);
+        // ...
       }
     });
     volume_updates_to.clear();
@@ -233,6 +238,7 @@ size_t ParallelLocalMovingModularity::synchronousParallelRound(const Graph& grap
           vol_delta -= graph.nodeVolume(volume_updates_from[pos].node);
         }
         _cluster_volumes[c].store(_cluster_volumes[c].load(std::memory_order_relaxed) + vol_delta, std::memory_order_relaxed);
+        // ...
       }
     });
     volume_updates_from.clear();
@@ -251,6 +257,8 @@ size_t ParallelLocalMovingModularity::sequentialRound(const Graph& graph, ds::Cl
     if (best_cluster != communities[u]) {
       _cluster_volumes[best_cluster] += graph.nodeVolume(u);
       _cluster_volumes[communities[u]] -= graph.nodeVolume(u);
+      _cluster_weights[best_cluster] += graph.nodeWeight(u);
+      _cluster_weights[communities[u]] -= graph.nodeWeight(u);
       communities[u] = best_cluster;
       num_moved++;
     }
@@ -273,6 +281,8 @@ size_t ParallelLocalMovingModularity::parallelNonDeterministicRound(const Graph&
       if (best_cluster != from) {
         _cluster_volumes[best_cluster] += volU;
         _cluster_volumes[from] -= volU;
+        _cluster_weight[best_cluster] += graph.nodeWeight(u);
+        _cluster_weight[from] -= graph.nodeWeight(u);
         communities[u] = best_cluster;
         ++local_number_of_nodes_moved.local();
       }
@@ -323,6 +333,7 @@ bool ParallelLocalMovingModularity::verifyGain(const Graph& graph, const ds::Clu
   communities_after_move[u] = to;
   _cluster_volumes[to] += graph.nodeVolume(u);
   _cluster_volumes[from] -= graph.nodeVolume(u);
+  // ...
 
   auto accAfterMove = intraClusterWeightsAndSumOfSquaredClusterVolumes(graph, communities_after_move);
   long double coverageAfterMove = static_cast<long double>(accAfterMove.first) / graph.totalVolume();
@@ -337,6 +348,7 @@ bool ParallelLocalMovingModularity::verifyGain(const Graph& graph, const ds::Clu
 
   _cluster_volumes[to] -= graph.nodeVolume(u);
   _cluster_volumes[from] += graph.nodeVolume(u);
+  // ...
 
   return result;
 }
