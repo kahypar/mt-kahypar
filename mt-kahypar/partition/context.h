@@ -83,6 +83,7 @@ struct CommunityDetectionParameters {
   size_t num_sub_rounds_deterministic = 16;
   bool use_isolated_nodes_treshold = true;
   double isolated_nodes_threshold_stdev_factor = 1.0;
+  bool modified_modularity = false;
 };
 
 std::ostream & operator<< (std::ostream& str, const CommunityDetectionParameters& params);

@@ -210,6 +210,10 @@ namespace mt_kahypar {
              po::value<bool>(&context.preprocessing.community_detection.use_isolated_nodes_treshold)->value_name(
                      "<bool>")->default_value(false),
              "If set, the community detection will not add nodes to a community if the gain is below a certain treshold.")
+            ("p-modified-modularity",
+             po::value<bool>(&context.preprocessing.community_detection.modified_modularity)->value_name(
+                     "<bool>")->default_value(false),
+             "Use a modified definition of modularity that includes node weights.")
             ("p-isolated-nodes-threshold-stdev-factor",
              po::value<double>(&context.preprocessing.community_detection.isolated_nodes_threshold_stdev_factor)->value_name(
                      "<double>")->default_value(1.0),

@@ -61,6 +61,7 @@ class ParallelLocalMovingModularity {
           _cluster_weights(numNodes),
           non_sampling_incident_cluster_weights(numNodes),
           _disable_randomization(disable_randomization),
+          _modified_modularity(context.preprocessing.community_detection.modified_modularity),
           prng(context.partition.seed),
           volume_updates_to(0),
           volume_updates_from(0)
@@ -119,17 +120,28 @@ class ParallelLocalMovingModularity {
     }
 
     const ArcWeight volume_from = _cluster_volumes[from].load(std::memory_order_relaxed);
+    const double node_weight_from = _cluster_weights[from].load(std::memory_order_relaxed);
     const ArcWeight volU = graph.nodeVolume(u);
+    const double nodeWeightU = graph.nodeWeight(u);
     const ArcWeight weight_from = weights[from];
 
     const double volMultiplier = _vol_multiplier_div_by_node_vol * volU;
-    double bestGain = weight_from - volMultiplier * (volume_from - volU);
+    double bestGain;
+    if (_modified_modularity) {
+      bestGain = weight_from - 0.5 * volU * _weight_multiplier * (node_weight_from - nodeWeightU)
+                 - 0.5 * nodeWeightU * _vol_multiplier_div_by_node_vol * (volume_from - volU);
+    } else {
+      bestGain = weight_from - volMultiplier * (volume_from - volU);
+    }
     double best_weight_to = weight_from;
     for (const auto to : used) {
       // if from == to, we would have to remove volU from volume_to as well.
       // just skip it. it has (adjusted) gain zero.
       if (from != to) {
-        double gain = modularityGain(weights[to], _cluster_volumes[to].load(std::memory_order_relaxed), volMultiplier);
+        double gain = _modified_modularity ?
+                      modifiedModularityGain(weights[to], _cluster_volumes[to].load(std::memory_order_relaxed), volU,
+                                             _cluster_weights[to].load(std::memory_order_relaxed), nodeWeightU) :
+                      modularityGain(weights[to], _cluster_volumes[to].load(std::memory_order_relaxed), volMultiplier);
         if (gain > bestGain) {
           bestCluster = to;
           bestGain = gain;
@@ -163,11 +175,18 @@ class ParallelLocalMovingModularity {
     }
 
     const ArcWeight volume_from = _cluster_volumes[from].load(std::memory_order_relaxed);
+    const double node_weight_from = _cluster_weights[from].load(std::memory_order_relaxed);
     const ArcWeight volU = graph.nodeVolume(u);
+    const double nodeWeightU = graph.nodeWeight(u);
 
     const double volMultiplier = _vol_multiplier_div_by_node_vol * volU;
-    const double gain_for_from_cluster = weight_from - volMultiplier * (volume_from - volU);
-    return gain_for_from_cluster;
+    if (_modified_modularity) {
+      const double t1 = 0.5 * volU * _weight_multiplier * (node_weight_from - nodeWeightU);
+      const double t2 = 0.5 * nodeWeightU * _vol_multiplier_div_by_node_vol * (volume_from - volU);
+      return weight_from - t1 - t2;
+    } else {
+      return weight_from - volMultiplier * (volume_from - volU);
+    }
   }
 
 
@@ -175,6 +194,16 @@ class ParallelLocalMovingModularity {
                                const ArcWeight volume_to,
                                const double multiplier) {
     return weight_to - multiplier * volume_to;
+    // missing term is - weight_from + multiplier * (volume_from - volume_node)
+  }
+
+  inline double modifiedModularityGain(const ArcWeight weight_to,
+                                       const ArcWeight volume_to,
+                                       const ArcWeight volume_u,
+                                       const double node_weight_to,
+                                       const double node_weight_u) {
+    return weight_to - 0.5 * node_weight_u * _vol_multiplier_div_by_node_vol * volume_to
+                     - 0.5 * volume_u * _weight_multiplier * node_weight_to;
     // missing term is - weight_from + multiplier * (volume_from - volume_node)
   }
 
@@ -198,10 +227,12 @@ class ParallelLocalMovingModularity {
   const size_t _vertex_degree_sampling_threshold;
   double _reciprocal_total_volume = 0.0;
   double _vol_multiplier_div_by_node_vol = 0.0;
+  double _weight_multiplier = 0.0;
   vec<parallel::AtomicWrapper<ArcWeight>> _cluster_volumes;
   vec<parallel::AtomicWrapper<double>> _cluster_weights;
   tbb::enumerable_thread_specific<ClearList> non_sampling_incident_cluster_weights;
   const bool _disable_randomization;
+  const bool _modified_modularity;
 
   utils::ParallelPermutation<HypernodeID> permutation;
   std::mt19937 prng;
