@@ -152,7 +152,7 @@ bool ParallelLocalMovingModularity::localMoving(Graph& graph, ds::Clustering& co
       const double gain_to_iso = computeGainComparedToIsolated(graph, communities, nodes[i]);
       if (gain_to_iso < 1 / (avg_inv_weigh_gain + stdev_factor * stdev_inv_weigh_gain)) {
         isolateNode(nodes[i]);
-        graph.set_isolated(nodes[i]);
+        graph.setIsolated(nodes[i]);
       }
     });
   }
@@ -266,7 +266,7 @@ size_t ParallelLocalMovingModularity::parallelNonDeterministicRound(const Graph&
 
   tbb::enumerable_thread_specific<size_t> local_number_of_nodes_moved(0);
   auto moveNode = [&](const NodeID u) {
-    if (!graph.is_isolated(u)) {
+    if (!graph.isIsolated(u)) {
       const ArcWeight volU = graph.nodeVolume(u);
       const PartitionID from = communities[u];
       PartitionID best_cluster = computeMaxGainCluster(graph, communities, u);

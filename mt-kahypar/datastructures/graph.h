@@ -105,12 +105,12 @@ class Graph {
     return _indices[u + 1] - _indices[u];
   }
 
-  bool is_isolated(const NodeID u) const {
+  bool isIsolated(const NodeID u) const {
     ASSERT(u < _num_nodes);
     return _isolated_nodes_bitset[u] != 0;
   }
 
-  void set_isolated(const NodeID u) {
+  void setIsolated(const NodeID u) {
     ASSERT(u < _num_nodes);
     _isolated_nodes_bitset[u] = 1;
   }
