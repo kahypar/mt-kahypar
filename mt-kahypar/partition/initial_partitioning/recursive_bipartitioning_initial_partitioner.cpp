@@ -38,12 +38,12 @@
 
 #include "mt-kahypar/partition/metrics.h"
 #include "mt-kahypar/partition/recursive_bipartitioning.h"
-
-#include <tbb/parallel_sort.h>
+#include "mt-kahypar/partition/star_partitioning/simple_greedy.h"
 
 namespace mt_kahypar {
   using ds::SeparatedNodes;
   using ds::Array;
+  using star_partitioning::SimpleGreedy;
 
   RecursiveBipartitioningInitialPartitioner::RecursiveBipartitioningInitialPartitioner(PartitionedHypergraph& hypergraph,
                                                                              const Context& context) :
@@ -54,72 +54,29 @@ namespace mt_kahypar {
     recursive_bipartitioning::partition(_hg, _context);
 
     if (_context.partition.separated_nodes_processing_after_ip) {
+      SimpleGreedy sg(_context);
       SeparatedNodes& separated_nodes = _hg.separatedNodes();
-      tbb::enumerable_thread_specific<Array<HyperedgeWeight>> edge_weights(_hg.k());
-      const HypernodeID num_s_nodes = separated_nodes.numNodes();
-      Array<HyperedgeWeight> max_gains(num_s_nodes);
-
-      tbb::parallel_for(ID(0), num_s_nodes, [&](const HypernodeID s_node) {
-        Array<HyperedgeWeight>& local_edge_weights = edge_weights.local();
-        local_edge_weights.assign(_hg.k(), 0);
-
-        for (const auto& e: separated_nodes.inwardEdges(s_node)) {
-          const PartitionID target_part = _hg.partID(e.target);
-          if (target_part != kInvalidPartition) {
-            local_edge_weights[target_part] += e.weight;
-          }
-        }
-
-        HyperedgeWeight max_gain = 0;
-        for (PartitionID part = 0; part < _hg.k(); ++part) {
-          if (local_edge_weights[part] >= max_gain) {
-            max_gain = local_edge_weights[part];
-          }
-        }
-        max_gains[s_node] = max_gain;
-      });
-
-      Array<HypernodeID> id_order(num_s_nodes);
-      tbb::parallel_for(ID(0), num_s_nodes, [&](const HypernodeID s_node) {
-        id_order[s_node] = s_node;
-      });
-
-      tbb::parallel_sort(id_order.begin(), id_order.end(),
-        [&](const HypernodeID& left, const HypernodeID& right) {
-          return max_gains[left] > max_gains[right];
-        }
-      );
-
       Array<HypernodeWeight> part_weights(_hg.k());
+
       for (PartitionID part = 0; part < _hg.k(); ++part) {
         part_weights[part] = _hg.partWeight(part);
       }
-      for (size_t i = 0; i < id_order.size(); ++i) {
-        const HypernodeID s_node = id_order[i];
-        Array<HyperedgeWeight>& local_edge_weights = edge_weights.local();
-        local_edge_weights.assign(_hg.k(), 0);
 
-        for (const auto& e: separated_nodes.inwardEdges(s_node)) {
-          const PartitionID target_part = _hg.partID(e.target);
-          if (target_part != kInvalidPartition) {
-            local_edge_weights[target_part] += e.weight;
+      sg.partition(separated_nodes.numNodes(), part_weights, _context.partition.max_part_weights,
+        [&](Array<HyperedgeWeight>& weights, const HypernodeID node) {
+          for (const auto& e: separated_nodes.inwardEdges(node)) {
+            const PartitionID target_part = _hg.partID(e.target);
+            if (target_part != kInvalidPartition) {
+              weights[target_part] += e.weight;
+            }
           }
-        }
-
-        // greedily assign separated nodes
-        PartitionID max_part = kInvalidPartition;
-        HyperedgeWeight max_gain = 0;
-        for (PartitionID part = 0; part < _hg.k(); ++part) {
-          const HypernodeWeight max_part_weight = _context.partition.max_part_weights[part];
-          if (local_edge_weights[part] >= max_gain &&
-              part_weights[part] + separated_nodes.nodeWeight(s_node) <= max_part_weight) {
-            max_part = part;
-            max_gain = local_edge_weights[part];
-          }
-        }
-        separated_nodes.setPartID(s_node, max_part);
-        part_weights[max_part] += separated_nodes.nodeWeight(s_node);
-      }
+        },
+        [&](const HypernodeID node) {
+          return separated_nodes.nodeWeight(node);
+        },
+        [&](const HypernodeID node, const PartitionID part) {
+          separated_nodes.setPartID(node, part);
+        });
 
       _hg.updateBlockWeights();
     }
