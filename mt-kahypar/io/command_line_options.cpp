@@ -138,6 +138,15 @@ namespace mt_kahypar {
             ("separated-nodes-processing-after-ip",
              po::value<bool>(&context.partition.separated_nodes_processing_after_ip)->value_name("<bool>")->default_value(false),
              "Process separated nodes directly after initial partitioning (instead of during refinement)")
+            ("star-partitioning-algorithm",
+             po::value<std::string>()->value_name("<string>")->notifier(
+                     [&](const std::string& algo) {
+                       context.partition.star_partitioning_algorithm = mt_kahypar::starPartitioningAlgorithmFromString(algo);
+                     })->default_value("simple_greedy"),
+             "Star Partitioning Algorithm:\n"
+             " - simple_greedy"
+             " - approximate"
+             )
             ("algorithm-name",
              po::value<std::string>(&context.algorithm_name)->value_name("<std::string>")->default_value("MT-KaHyPar"),
              "An algorithm name to print into the summarized output (csv or sqlplottools). ")

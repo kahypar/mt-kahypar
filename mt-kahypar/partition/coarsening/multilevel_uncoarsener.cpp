@@ -124,7 +124,7 @@ namespace mt_kahypar {
         };
 
         star_partitioning::partition(partitioned_hg, _context, unassigned_nodes.size(), _context.partition.max_part_weights,
-          [&](Array<HyperedgeWeight>& weights, const HypernodeID node_id) {
+          [&](HyperedgeWeight* weights, const HypernodeID node_id) {
             for (HyperedgeID e: partitioned_hg.incidentEdges(get_node(node_id))) {
               const PartitionID target_part = partitioned_hg.partID(partitioned_hg.edgeTarget(e));
               if (target_part != kInvalidPartition) {

@@ -18,6 +18,8 @@
  *
  ******************************************************************************/
 
+#pragma once
+
 #include <vector>
 
 #include "mt-kahypar/datastructures/array.h"
@@ -35,19 +37,18 @@ using ds::Array;
 */
 class SimpleGreedy {
  public:
-  SimpleGreedy(Context context):
-    _k(context.partition.k), _tmp_edge_weights(_k) { }
+  SimpleGreedy(const PartitionID& k): _k(k), _tmp_edge_weights(k) { }
 
   template<typename F, typename G, typename H>
   void partition(const HypernodeID num_nodes, Array<HypernodeWeight>& part_weights,
-                 const std::vector<HypernodeWeight> max_part_weights,
+                 const std::vector<HypernodeWeight>& max_part_weights,
                  F get_edge_weights_of_node_fn, G get_node_weight_fn, H set_part_id_fn) {
     Array<HyperedgeWeight> max_gains(num_nodes);
 
     tbb::parallel_for(ID(0), num_nodes, [&](const HypernodeID node) {
       Array<HyperedgeWeight>& local_edge_weights = _tmp_edge_weights.local();
       local_edge_weights.assign(_k, 0, false);
-      get_edge_weights_of_node_fn(local_edge_weights, node);
+      get_edge_weights_of_node_fn(local_edge_weights.data(), node);
 
       HyperedgeWeight max_gain = 0;
       for (PartitionID part = 0; part < _k; ++part) {
@@ -72,7 +73,8 @@ class SimpleGreedy {
         } else if (weight_right == 0) {
           return false;
         }
-        return max_gains[left] / weight_left > max_gains[right] / weight_right;
+        return static_cast<double>(max_gains[left]) / weight_left
+               > static_cast<double>(max_gains[right]) / weight_right;
       }
     );
 
@@ -80,7 +82,7 @@ class SimpleGreedy {
       const HypernodeID node = sorted_nodes[i];
       Array<HyperedgeWeight>& local_edge_weights = _tmp_edge_weights.local();
       local_edge_weights.assign(_k, 0);
-      get_edge_weights_of_node_fn(local_edge_weights, node);
+      get_edge_weights_of_node_fn(local_edge_weights.data(), node);
 
       // greedily assign separated nodes
       PartitionID max_part = kInvalidPartition;

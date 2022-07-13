@@ -18,8 +18,11 @@
  *
  ******************************************************************************/
 
+#pragma once
+
 #include "mt-kahypar/datastructures/array.h"
 #include "mt-kahypar/definitions.h"
+#include "mt-kahypar/partition/star_partitioning/approximate.h"
 #include "mt-kahypar/partition/star_partitioning/simple_greedy.h"
 
 namespace mt_kahypar {
@@ -35,9 +38,15 @@ void partition(PartitionedHypergraph& hypergraph, const Context& context,
         part_weights[part] = hypergraph.partWeight(part);
     }
 
-    SimpleGreedy sg(context);
-    sg.partition(num_nodes, part_weights, max_part_weights, get_edge_weights_of_node_fn,
-                 get_node_weight_fn, set_part_id_fn);
+    if (context.partition.star_partitioning_algorithm == StarPartitioningAlgorithm::simple_greedy) {
+        SimpleGreedy sg(context.partition.k);
+        sg.partition(num_nodes, part_weights, max_part_weights, get_edge_weights_of_node_fn,
+                    get_node_weight_fn, set_part_id_fn);
+    } else if (context.partition.star_partitioning_algorithm == StarPartitioningAlgorithm::approximate) {
+        Approximate ap(context.partition.k);
+        ap.partition(num_nodes, part_weights, max_part_weights, get_edge_weights_of_node_fn,
+                    get_node_weight_fn, set_part_id_fn);
+    }
 }
 
 } // namepace star_partitioning

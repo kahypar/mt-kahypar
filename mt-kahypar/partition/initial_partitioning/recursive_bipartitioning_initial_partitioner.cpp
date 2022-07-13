@@ -56,7 +56,7 @@ namespace mt_kahypar {
       SeparatedNodes& separated_nodes = _hg.separatedNodes();
 
       star_partitioning::partition(_hg, _context, separated_nodes.numNodes(), _context.partition.max_part_weights,
-        [&](Array<HyperedgeWeight>& weights, const HypernodeID node) {
+        [&](HyperedgeWeight* weights, const HypernodeID node) {
           for (const auto& e: separated_nodes.inwardEdges(node)) {
             const PartitionID target_part = _hg.partID(e.target);
             if (target_part != kInvalidPartition) {

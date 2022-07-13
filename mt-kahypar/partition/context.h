@@ -63,6 +63,7 @@ struct PartitioningParameters {
   bool write_partition_file = false;
   bool deterministic = false;
 
+  StarPartitioningAlgorithm star_partitioning_algorithm = StarPartitioningAlgorithm::simple_greedy;
   bool separated_nodes_processing_after_ip = false;
 
   std::string graph_filename { };

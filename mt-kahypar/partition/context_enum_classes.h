@@ -140,6 +140,11 @@ enum class FlowAlgorithm : uint8_t {
   do_nothing
 };
 
+enum class StarPartitioningAlgorithm : uint8_t {
+  simple_greedy,
+  approximate
+};
+
 std::ostream & operator<< (std::ostream& os, const Type& type);
 
 std::ostream & operator<< (std::ostream& os, const FileFormat& type);
@@ -172,6 +177,8 @@ std::ostream & operator<< (std::ostream& os, const FMAlgorithm& algo);
 
 std::ostream & operator<< (std::ostream& os, const FlowAlgorithm& algo);
 
+std::ostream & operator<< (std::ostream& os, const StarPartitioningAlgorithm& algo);
+
 Mode modeFromString(const std::string& mode);
 
 InstanceType instanceTypeFromString(const std::string& type);
@@ -197,5 +204,7 @@ LabelPropagationAlgorithm labelPropagationAlgorithmFromString(const std::string&
 FMAlgorithm fmAlgorithmFromString(const std::string& type);
 
 FlowAlgorithm flowAlgorithmFromString(const std::string& type);
+
+StarPartitioningAlgorithm starPartitioningAlgorithmFromString(const std::string& type);
 
 }  // namesapce mt_kahypar

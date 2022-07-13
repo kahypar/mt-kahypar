@@ -202,6 +202,15 @@ namespace mt_kahypar {
     return os << static_cast<uint8_t>(algo);
   }
 
+  std::ostream & operator<< (std::ostream& os, const StarPartitioningAlgorithm& algo) {
+    switch (algo) {
+      case StarPartitioningAlgorithm::simple_greedy: return os << "simple_greedy";
+      case StarPartitioningAlgorithm::approximate: return os << "approximate";
+        // omit default case to trigger compiler warning for missing cases
+    }
+    return os << static_cast<uint8_t>(algo);
+  }
+
   Mode modeFromString(const std::string& mode) {
     if (mode == "rb") {
       return Mode::recursive_bipartitioning;
@@ -372,5 +381,15 @@ namespace mt_kahypar {
     }
     ERROR("Illegal option: " + type);
     return FlowAlgorithm::do_nothing;
+  }
+
+  StarPartitioningAlgorithm starPartitioningAlgorithmFromString(const std::string& type) {
+    if (type == "simple_greedy") {
+      return StarPartitioningAlgorithm::simple_greedy;
+    } else if (type == "approximate") {
+      return StarPartitioningAlgorithm::approximate;
+    }
+    ERROR("Illegal option: " + type);
+    return StarPartitioningAlgorithm::simple_greedy;
   }
 }
