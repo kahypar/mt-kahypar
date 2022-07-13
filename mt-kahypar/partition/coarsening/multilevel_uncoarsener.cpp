@@ -33,7 +33,7 @@
 #include "mt-kahypar/partition/refinement/rebalancing/rebalancer.h"
 #include "mt-kahypar/parallel/stl/thread_locals.h"
 #include "mt-kahypar/utils/progress_bar.h"
-#include "mt-kahypar/partition/star_partitioning/simple_greedy.h"
+#include "mt-kahypar/partition/star_partitioning/star_partitioning.h"
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
 
 #include <tbb/parallel_sort.h>
@@ -43,7 +43,6 @@ namespace mt_kahypar {
   using ds::Array;
   using ds::SeparatedNodes;
   using ds::StreamingVector;
-  using star_partitioning::SimpleGreedy;
 
   PartitionedHypergraph&& MultilevelUncoarsener::doUncoarsen(
     std::unique_ptr<IRefiner>& label_propagation,
@@ -102,12 +101,7 @@ namespace mt_kahypar {
 
       if (partitioned_hg.hasSeparatedNodes()) {
         utils::Timer::instance().start_timer("assign_separated_nodes", "Assign Separated Nodes");
-        SimpleGreedy sg(_context);
         SeparatedNodes& separated_nodes = partitioned_hg.separatedNodes();
-        Array<HypernodeWeight> part_weights(partitioned_hg.k());
-        for (PartitionID part = 0; part < partitioned_hg.k(); ++part) {
-          part_weights[part] = partitioned_hg.partWeight(part);
-        }
         const HypernodeID first_separated = separated_nodes.currentBatchIndex();
         const HypernodeID last_separated = separated_nodes.numNodes();
 
@@ -129,7 +123,7 @@ namespace mt_kahypar {
           return separated_nodes.originalHypernodeID(unassigned_nodes[node_id]);
         };
 
-        sg.partition(unassigned_nodes.size(), part_weights, _context.partition.max_part_weights,
+        star_partitioning::partition(partitioned_hg, _context, unassigned_nodes.size(), _context.partition.max_part_weights,
           [&](Array<HyperedgeWeight>& weights, const HypernodeID node_id) {
             for (HyperedgeID e: partitioned_hg.incidentEdges(get_node(node_id))) {
               const PartitionID target_part = partitioned_hg.partID(partitioned_hg.edgeTarget(e));

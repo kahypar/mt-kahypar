@@ -38,12 +38,11 @@
 
 #include "mt-kahypar/partition/metrics.h"
 #include "mt-kahypar/partition/recursive_bipartitioning.h"
-#include "mt-kahypar/partition/star_partitioning/simple_greedy.h"
+#include "mt-kahypar/partition/star_partitioning/star_partitioning.h"
 
 namespace mt_kahypar {
   using ds::SeparatedNodes;
   using ds::Array;
-  using star_partitioning::SimpleGreedy;
 
   RecursiveBipartitioningInitialPartitioner::RecursiveBipartitioningInitialPartitioner(PartitionedHypergraph& hypergraph,
                                                                              const Context& context) :
@@ -54,15 +53,9 @@ namespace mt_kahypar {
     recursive_bipartitioning::partition(_hg, _context);
 
     if (_context.partition.separated_nodes_processing_after_ip) {
-      SimpleGreedy sg(_context);
       SeparatedNodes& separated_nodes = _hg.separatedNodes();
-      Array<HypernodeWeight> part_weights(_hg.k());
 
-      for (PartitionID part = 0; part < _hg.k(); ++part) {
-        part_weights[part] = _hg.partWeight(part);
-      }
-
-      sg.partition(separated_nodes.numNodes(), part_weights, _context.partition.max_part_weights,
+      star_partitioning::partition(_hg, _context, separated_nodes.numNodes(), _context.partition.max_part_weights,
         [&](Array<HyperedgeWeight>& weights, const HypernodeID node) {
           for (const auto& e: separated_nodes.inwardEdges(node)) {
             const PartitionID target_part = _hg.partID(e.target);
