@@ -231,8 +231,8 @@ class MultilevelVertexPairRater {
         ret.remove_node = true;
       }
       if (_context.coarsening.separate_size_one_communities && community_size_is_one
-        ret.remove_node = true;
           && hypergraph.nodeWeight(u) <= static_cast<HypernodeWeight>(_context.coarsening.separated_communities_max_size)) {
+        ret.remove_node = true;
       }
     }
     tmp_ratings.clear();
