@@ -169,7 +169,8 @@ class MultilevelVertexPairRater {
     bool can_be_removed = true;
     if (hypergraph.hasSeparatedNodes()) {
       const SeparatedNodes& separated_nodes = hypergraph.separatedNodes();
-      can_be_removed = (separated_nodes.outwardIncidentWeight(u) == 0);
+      const double outward_ratio = _context.coarsening.outward_weight_ratio;
+      can_be_removed = (separated_nodes.outwardIncidentWeight(u) <= hypergraph.incidentWeight(u) / outward_ratio);
     }
     const double weight_ratio_u = std::max(static_cast<double>(hypergraph.incidentWeight(u))
                                            / hypergraph.nodeWeight(u), 0.1);
@@ -230,8 +231,8 @@ class MultilevelVertexPairRater {
         ret.remove_node = true;
       }
       if (_context.coarsening.separate_size_one_communities && community_size_is_one
-          && hypergraph.nodeWeight(u) <= _context.coarsening.separated_communities_max_size) {
         ret.remove_node = true;
+          && hypergraph.nodeWeight(u) <= static_cast<HypernodeWeight>(_context.coarsening.separated_communities_max_size)) {
       }
     }
     tmp_ratings.clear();

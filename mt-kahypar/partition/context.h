@@ -114,13 +114,14 @@ struct CoarseningParameters {
   bool use_adaptive_max_allowed_node_weight = false;
   bool forbid_different_density_contractions = false;
   bool separate_size_one_communities = false;
-  HypernodeID separated_communities_max_size = 100;
+  HypernodeID separated_communities_max_size = 10;
   double max_allowed_weight_fraction = std::numeric_limits<double>::max();
   double adaptive_node_weight_shrink_factor_threshold = std::numeric_limits<double>::max();
   double max_allowed_weight_multiplier = std::numeric_limits<double>::max();
   double minimum_shrink_factor = std::numeric_limits<double>::max();
   double maximum_shrink_factor = std::numeric_limits<double>::max();
   double max_allowed_density_diff = std::numeric_limits<double>::max();
+  double outward_weight_ratio = std::numeric_limits<double>::max();
   size_t vertex_degree_sampling_threshold = std::numeric_limits<size_t>::max();
   size_t num_sub_rounds_deterministic = 16;
 

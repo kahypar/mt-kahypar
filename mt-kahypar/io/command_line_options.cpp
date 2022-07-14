@@ -258,8 +258,11 @@ namespace mt_kahypar {
             ("c-max-allowed-density-diff",
              po::value<double>(&context.coarsening.max_allowed_density_diff)->value_name("<double>")->default_value(2),
              "Defines the allowed difference when using c-forbid-different-density-contractions.")
+            ("c-outward-weight-ratio",
+             po::value<double>(&context.coarsening.outward_weight_ratio)->value_name("<double>")->default_value(10),
+             "Ratio of acceptable outward weight when using c-forbid-different-density-contractions.")
             ("c-separated-communities-max-size",
-             po::value<HypernodeID>(&context.coarsening.separated_communities_max_size)->value_name("<int>")->default_value(100),
+             po::value<HypernodeID>(&context.coarsening.separated_communities_max_size)->value_name("<int>")->default_value(10),
              "Communities that are larger (in terms of total node weight) than this won't be removed.\n")
             #ifdef KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES
                         ("c-use-adaptive-max-node-weight",
