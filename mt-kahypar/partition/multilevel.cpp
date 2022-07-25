@@ -84,6 +84,12 @@ namespace mt_kahypar::multilevel {
 
       io::printPartitioningResults(_uncoarseningData->coarsestPartitionedHypergraph(),
                                    _context, "Initial Partitioning Results:");
+      if (_context.graphviz_file != "" && _context.type == kahypar::ContextType::main) {
+        #ifdef USE_GRAPH_PARTITIONER
+        utils::outputGraphvizFile(_uncoarseningData->coarsestPartitionedHypergraph(), _context.graphviz_file, false, ".result_plain");
+        utils::outputGraphvizFile(_uncoarseningData->coarsestPartitionedHypergraph(), _context.graphviz_file, true, ".result_incl");
+        #endif
+      }
       if ( _context.partition.verbose_output ) {
         utils::InitialPartitioningStats::instance().printInitialPartitioningStats();
       }
@@ -175,7 +181,8 @@ namespace mt_kahypar::multilevel {
       }
       if (_context.graphviz_file != "") {
         #ifdef USE_GRAPH_PARTITIONER
-        utils::outputGraphvizFile(coarsestHypergraph, _context.graphviz_file);
+        utils::outputGraphvizFile(coarsestHypergraph, _context.graphviz_file, false, ".coarse_plain");
+        utils::outputGraphvizFile(coarsestHypergraph, _context.graphviz_file, true, ".coarse_incl");
         #endif
       }
 
