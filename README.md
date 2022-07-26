@@ -295,7 +295,7 @@ If you are interested in a commercial license, please contact me.
       year        =	{2022},
       volume      =	{233},
       publisher   =	{Schloss Dagstuhl -- Leibniz-Zentrum f{\"u}r Informatik},
-      doi         =		{10.4230/LIPIcs.SEA.2022.5}
+      doi         =	{10.4230/LIPIcs.SEA.2022.5}
     }
 
     // Deterministic Partitioning (Technical Report)
