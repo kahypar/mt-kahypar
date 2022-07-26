@@ -284,6 +284,20 @@ If you are interested in a commercial license, please contact me.
       doi       = {10.1137/1.9781611977042.11}
     }
 
+    // Mt-KaHyPar-Q-F
+    @inproceedings{MT-KaHyPar-Q-F,
+      title       =	{Parallel Flow-Based Hypergraph Partitioning},
+      author      =	{Lars Gottesb\"{u}ren and
+                     Tobias Heuer and
+                     Peter Sanders},
+      booktitle   =	{20th International Symposium on Experimental Algorithms (SEA 2022)},
+      pages       =	{5:1--5:21},
+      year        =	{2022},
+      volume      =	{233},
+      publisher   =	{Schloss Dagstuhl -- Leibniz-Zentrum f{\"u}r Informatik},
+      doi         =		{10.4230/LIPIcs.SEA.2022.5}
+    }
+
     // Deterministic Partitioning (Technical Report)
     @techreport{MT-KAHYPAR-SDET,
       title       = {Deterministic Parallel Hypergraph Partitioning},
@@ -293,18 +307,6 @@ If you are interested in a commercial license, please contact me.
       year        = {2021},
       url         = {https://arxiv.org/pdf/2112.12704.pdf}
     }
-
-    // Flow-Based Refinement (Technical Report)
-    @techreport{MT-KAHYPAR-FLOWS,
-      title       = {Parallel Flow-Based Hypergraph Partitioning},
-      author      = {Lars Gottesb{\"{u}}ren and
-                     Tobias Heuer and
-                     Peter Sanders},
-      institution = {Karlsruhe Institute of Technology},
-      year        = {2022},
-      url         = {https://arxiv.org/pdf/2201.01556.pdf}
-    }
-
 
 Contributing
 ------------
