@@ -232,12 +232,15 @@ class MultilevelCoarsener : public ICoarsener,
                     dist_to_contraction_limit / _context.shared_memory.num_threads;
                 }
               } else if (rating.remove_node && _context.type == kahypar::ContextType::main) {
-                ASSERT(_matching_state[u] == STATE(MatchingState::UNMATCHED), V(STATE(_matching_state[u])) << V(u));
-                cluster_ids[u] = kInvalidHypernode;
-                _rater.markAsMatched(u);
-                _matching_partner[u] = kInvalidHypernode;
-                _matching_state[u] = STATE(MatchingState::MATCHED);
-                ++contracted_nodes.local();
+                uint8_t unmatched = STATE(MatchingState::UNMATCHED);
+                uint8_t match_in_progress = STATE(MatchingState::MATCHING_IN_PROGRESS);
+                if ( _matching_state[u].compare_exchange_strong(unmatched, match_in_progress) ) {
+                  cluster_ids[u] = kInvalidHypernode;
+                  _rater.markAsMatched(u);
+                  _matching_partner[u] = kInvalidHypernode;
+                  _matching_state[u] = STATE(MatchingState::MATCHED);
+                  ++contracted_nodes.local();
+                }
               }
             }
           }
