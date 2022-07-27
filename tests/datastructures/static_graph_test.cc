@@ -388,7 +388,8 @@ TEST_F(AStaticGraph, ContractsCommunitiesWithSeparatedNodes1) {
   // Verify Stats
   ASSERT_EQ(3, c_graph.initialNumNodes());
   ASSERT_EQ(4, c_graph.initialNumEdges());
-  ASSERT_EQ(5, c_graph.totalWeight());
+  ASSERT_EQ(7, c_graph.totalWeight());
+  ASSERT_EQ(5, c_graph.totalActiveWeight());
 
   // // Verify Vertex Weights
   ASSERT_EQ(2, c_graph.nodeWeight(0));

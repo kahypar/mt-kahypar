@@ -240,7 +240,7 @@ void SeparatedNodes::initializeOutwardEdges() {
     _graph_nodes_begin[pos] = tmp_node_degree[pos].load();
   });
 
-  tbb::parallel_for(ID(0), _num_nodes, [&](const HyperedgeID& node) {
+  tbb::parallel_for(ID(0), _num_nodes, [&](const HypernodeID& node) {
     const HyperedgeID edges_start = _nodes[node].begin;
     const HyperedgeID edges_end = _nodes[node + 1].begin;
     for (HyperedgeID pos = edges_start; pos < edges_end; ++pos) {

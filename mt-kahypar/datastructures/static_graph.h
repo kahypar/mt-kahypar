@@ -553,6 +553,10 @@ class StaticGraph {
     return weight;
   }
 
+  HypernodeWeight totalActiveWeight() const {
+    return _total_weight;
+  }
+
   // ! Computes the total node weight of the hypergraph
   void computeAndSetTotalNodeWeight(parallel_tag_t);
 
