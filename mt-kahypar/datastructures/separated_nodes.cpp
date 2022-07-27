@@ -26,6 +26,23 @@
 
 namespace mt_kahypar::ds {
 
+// helper function
+template<typename T>
+T parallel_max(const vec<T>& data, const T& invalid) {
+    return tbb::parallel_reduce(
+            tbb::blocked_range<size_t>(0UL, data.size()), std::numeric_limits<T>::min(),
+            [&](tbb::blocked_range<size_t>& range, T init) -> T {
+            T tmp_max = init;
+            for ( size_t i = range.begin(); i < range.end(); ++i ) {
+              if (data[i] != invalid) {
+                tmp_max = std::max(tmp_max, data[i]);
+              }
+            }
+            return tmp_max;
+            },
+            [](const T& a, const T& b) { return std::max(a, b); });
+}
+
 HypernodeID SeparatedNodes::popBatch() {
   const auto [index, weight] = _batch_indices_and_weights[_batch_indices_and_weights.size() - 2];
   _batch_indices_and_weights.pop_back();
@@ -264,6 +281,97 @@ void SeparatedNodes::initializeOutwardEdges() {
       return true;
     }()
   );
+}
+
+SeparatedNodes SeparatedNodes::extract(PartitionID block, const vec<HypernodeID>& graph_node_mapping) const {
+  ASSERT(_graph_nodes_begin.empty());
+
+  // TODO: parallelize with tmp_node_degree
+  Array<HypernodeID> sep_nodes_active;
+  sep_nodes_active.resize(_num_nodes, 0);
+  tbb::parallel_for(ID(0), _num_nodes, [&](const HypernodeID& node) {
+    if (partID(node) == block) {
+      sep_nodes_active[node] = 1;
+    }
+  });
+
+  parallel::TBBPrefixSum<HypernodeID, Array> sep_node_mapping(sep_nodes_active);
+  tbb::parallel_scan(tbb::blocked_range<size_t>(
+          ID(0), static_cast<size_t>(_num_nodes)), sep_node_mapping);
+
+  Array<HyperedgeID> tmp_node_degree;
+  tmp_node_degree.resize(_num_nodes, 0);
+  tbb::parallel_for(ID(0), _num_nodes, [&](const HypernodeID& node) {
+    if (partID(node) == block) {
+      tmp_node_degree[node] = inwardDegree(node);
+    }
+  });
+
+  parallel::TBBPrefixSum<HyperedgeID, Array> degree_mapping(tmp_node_degree);
+  tbb::parallel_scan(tbb::blocked_range<size_t>(
+          ID(0), static_cast<size_t>(_num_nodes)), degree_mapping);
+
+
+  SeparatedNodes other(_num_graph_nodes);
+  other._num_nodes = sep_node_mapping.total_sum();
+  other._num_graph_nodes = _num_graph_nodes;
+  other._num_edges = degree_mapping.total_sum();
+
+  auto set_nodes = [&] {
+    vec<Node> tmp_nodes;
+    tmp_nodes.resize(sep_node_mapping.total_sum());
+    tbb::parallel_for(ID(0), _num_nodes, [&](const HypernodeID& node) {
+      if (partID(node) == block) {
+        Node& new_node = tmp_nodes[sep_node_mapping[node]];
+        new_node = _nodes[node];
+        new_node.begin = degree_mapping[node];
+      }
+    });
+    tmp_nodes.emplace_back(kInvalidHypernode, degree_mapping.total_sum(), 0);
+    other._nodes = std::move(tmp_nodes);
+  };
+
+  auto set_edges = [&] {
+    // copy the weight vector
+    vec<parallel::IntegralAtomicWrapper<HyperedgeWeight>> tmp_outward_weight = _outward_incident_weight;
+    vec<Edge> tmp_inward_edges;
+    tmp_inward_edges.resize(degree_mapping.total_sum());
+    tbb::parallel_for(ID(0), _num_nodes, [&](const HypernodeID& node) {
+      if (partID(node) == block) {
+        const HyperedgeID start_new = degree_mapping[node];
+        const HyperedgeID start_old = _nodes[node].begin;
+        for (HyperedgeID i = 0; start_new + i < degree_mapping[node + 1]; ++i) {
+          tmp_inward_edges[start_new + i] = _inward_edges[start_old + i];
+        }
+      } else {
+        for (HyperedgeID i = _nodes[node].begin; i < _nodes[node + 1].begin; ++i) {
+          const Edge& e = _inward_edges[i];
+          tmp_outward_weight[e.target].fetch_sub(e.weight);
+        }
+      }
+    });
+    other._outward_incident_weight = std::move(tmp_outward_weight);
+    other._inward_edges = std::move(tmp_inward_edges);
+  };
+
+  auto set_total_weight = [&] {
+    other._total_weight = tbb::parallel_reduce(
+            tbb::blocked_range<HypernodeID>(0UL, _nodes.size()), 0,
+              [&](const tbb::blocked_range<HypernodeID>& range, HypernodeWeight init) {
+                HypernodeWeight weight = init;
+                for (size_t i = range.begin(); i < range.end(); ++i) {
+                  if (partID(i) == block) {
+                    weight += node(i).weight;
+                  }
+                }
+                return weight;
+              }, std::plus<>());
+  };
+
+  tbb::parallel_invoke(set_nodes, set_edges, set_total_weight);
+  const HypernodeID max_node_id = parallel_max(graph_node_mapping, kInvalidHypernode);
+  other.contract(graph_node_mapping, max_node_id + 1);
+  return other;
 }
 
 // ! Copy in parallel

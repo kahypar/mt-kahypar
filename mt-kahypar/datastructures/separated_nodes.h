@@ -186,6 +186,10 @@ class SeparatedNodes {
     return node(u).weight;
   }
 
+  HyperedgeID inwardDegree(const HypernodeID separated_node) const {
+    return node(separated_node + 1).begin - node(separated_node).begin;
+  }
+
   HyperedgeID outwardDegree(const HypernodeID u) const {
     ASSERT(u < _num_graph_nodes, "Graph node" << u << "does not exist");
     ASSERT(!_graph_nodes_begin.empty(), "Graph nodes not initialized!");
@@ -234,6 +238,11 @@ class SeparatedNodes {
 
   void initializeOutwardEdges();
 
+  // ####################### Extract Block #######################
+
+  // ! extracts one block as new separated nodes structure
+  SeparatedNodes extract(PartitionID block, const vec<HypernodeID>& graph_node_mapping) const;
+
   // ####################### Initialization / Reset Functions #######################
 
   // ! Copy static hypergraph in parallel
@@ -247,6 +256,20 @@ class SeparatedNodes {
  private:
   static_assert(std::is_trivially_copyable<Node>::value, "Node is not trivially copyable");
   static_assert(std::is_trivially_copyable<Edge>::value, "Hyperedge is not trivially copyable");
+
+  explicit SeparatedNodes() :
+    _num_nodes(0),
+    _num_graph_nodes(0),
+    _num_edges(0),
+    _total_weight(0),
+    _nodes{ Node(kInvalidHypernode, 0, 0) },
+    _outward_incident_weight(),
+    _graph_nodes_begin(),
+    _inward_edges(),
+    _outward_edges(),
+    _batch_indices_and_weights() {
+      _batch_indices_and_weights.assign(2, {0, 0});
+    }
 
   // ####################### Node Information #######################
 

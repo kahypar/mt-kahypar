@@ -331,5 +331,55 @@ TEST_F(ASeparatedNodes, PerformsAlternateAddingAndMapping) {
   verifyIncidentEgdes(nodes.outwardEdges(1), { {0, 3}, {1, 3}, {2, 1}, {4, 2}, {5, 1} });
 }
 
+TEST_F(ASeparatedNodes, ExtractsBlockWhileGraphNodesAreKept) {
+  SeparatedNodes nodes(5);
+  vec<std::tuple<HypernodeID, HyperedgeID, HypernodeWeight>> new_nodes { {0, 0, 1}, {1, 1, 1}, {2, 2, 1}};
+  vec<Edge> new_edges { Edge(0, 1), Edge(4, 1), Edge(4, 1), Edge(3, 1) };
+  nodes.addNodes(new_nodes, new_edges);
+  nodes.setPartID(0, 0);
+  nodes.setPartID(1, 0);
+  nodes.setPartID(2, 1);
+
+  SeparatedNodes extracted = nodes.extract(0, {0, 1, 2, 3, 4});
+
+  ASSERT_EQ(2,  extracted.numNodes());
+  ASSERT_EQ(5,  extracted.numGraphNodes());
+  ASSERT_EQ(2,  extracted.numEdges());
+  ASSERT_EQ(2,  extracted.totalWeight());
+
+  verifyIncidentEgdes(extracted.inwardEdges(0), { {0, 1} });
+  verifyIncidentEgdes(extracted.inwardEdges(1), { {4, 1} });
+
+  ASSERT_EQ(1,  extracted.outwardIncidentWeight(0));
+  ASSERT_EQ(0,  extracted.outwardIncidentWeight(1));
+  ASSERT_EQ(0,  extracted.outwardIncidentWeight(2));
+  ASSERT_EQ(0,  extracted.outwardIncidentWeight(3));
+  ASSERT_EQ(1,  extracted.outwardIncidentWeight(4));
+}
+
+TEST_F(ASeparatedNodes, ExtractsBlockWhileRemovingGraphNodes) {
+  SeparatedNodes nodes(5);
+  vec<std::tuple<HypernodeID, HyperedgeID, HypernodeWeight>> new_nodes { {0, 0, 1}, {1, 1, 1}, {2, 2, 1}};
+  vec<Edge> new_edges { Edge(0, 1), Edge(4, 1), Edge(4, 1), Edge(3, 1) };
+  nodes.addNodes(new_nodes, new_edges);
+  nodes.setPartID(0, 0);
+  nodes.setPartID(1, 0);
+  nodes.setPartID(2, 1);
+
+  SeparatedNodes extracted = nodes.extract(0, {0, 1, kInvalidHypernode, 2, kInvalidHypernode});
+
+  ASSERT_EQ(2,  extracted.numNodes());
+  ASSERT_EQ(3,  extracted.numGraphNodes());
+  ASSERT_EQ(1,  extracted.numEdges());
+  ASSERT_EQ(2,  extracted.totalWeight());
+
+  verifyIncidentEgdes(extracted.inwardEdges(0), { {0, 1} });
+  verifyIncidentEgdes(extracted.inwardEdges(1), { });
+
+  ASSERT_EQ(1,  extracted.outwardIncidentWeight(0));
+  ASSERT_EQ(0,  extracted.outwardIncidentWeight(1));
+  ASSERT_EQ(0,  extracted.outwardIncidentWeight(2));
+}
+
 }
 } // namespace mt_kahypar
