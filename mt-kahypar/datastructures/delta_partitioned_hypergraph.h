@@ -72,8 +72,7 @@ class DeltaPartitionedHypergraph {
     _part_weights_delta(0, 0),
     _part_ids_delta(),
     _pins_in_part_delta(),
-    _move_to_penalty_delta(),
-    _move_from_benefit_delta() {}
+    _gain_cache_delta() {}
 
   DeltaPartitionedHypergraph(const Context& context) :
     _k(context.partition.k),
@@ -81,13 +80,11 @@ class DeltaPartitionedHypergraph {
     _part_weights_delta(context.partition.k, 0),
     _part_ids_delta(),
     _pins_in_part_delta(),
-    _move_to_penalty_delta(),
-    _move_from_benefit_delta() {
+    _gain_cache_delta() {
       const bool top_level = context.type == kahypar::ContextType::main;
       _part_ids_delta.initialize(MAP_SIZE_SMALL);
       _pins_in_part_delta.initialize(MAP_SIZE_LARGE);
-      _move_from_benefit_delta.initialize(top_level ? MAP_SIZE_LARGE : MAP_SIZE_MOVE_DELTA);
-      _move_to_penalty_delta.initialize(top_level ? MAP_SIZE_LARGE : MAP_SIZE_MOVE_DELTA);
+      _gain_cache_delta.initialize(top_level ? MAP_SIZE_LARGE : MAP_SIZE_MOVE_DELTA);
     }
 
   DeltaPartitionedHypergraph(const DeltaPartitionedHypergraph&) = delete;
@@ -210,23 +207,23 @@ class DeltaPartitionedHypergraph {
     if (pin_count_in_from_part_after == 1) {
       for (HypernodeID u : pins(he)) {
         if (partID(u) == from) {
-          _move_from_benefit_delta[u] += we;
+          _gain_cache_delta[benefit_index(u)] += we;
         }
       }
     } else if (pin_count_in_from_part_after == 0) {
       for (HypernodeID u : pins(he)) {
-        _move_to_penalty_delta[penalty_index(u, from)] += we;
+        _gain_cache_delta[penalty_index(u, from)] -= we;
       }
     }
 
     if (pin_count_in_to_part_after == 1) {
       for (HypernodeID u : pins(he)) {
-        _move_to_penalty_delta[penalty_index(u, to)] -= we;
+        _gain_cache_delta[penalty_index(u, to)] += we;
       }
     } else if (pin_count_in_to_part_after == 2) {
       for (HypernodeID u : pins(he)) {
         if (partID(u) == to) {
-          _move_from_benefit_delta[u] -= we;
+          _gain_cache_delta[benefit_index(u)] -= we;
         }
       }
     }
@@ -261,7 +258,7 @@ class DeltaPartitionedHypergraph {
   HyperedgeWeight moveFromBenefit(const HypernodeID u) const {
     ASSERT(_phg);
     const HyperedgeWeight* move_from_benefit_delta =
-      _move_from_benefit_delta.get_if_contained(u);
+      _gain_cache_delta.get_if_contained(benefit_index(u));
     return _phg->moveFromBenefit(u) + ( move_from_benefit_delta ? *move_from_benefit_delta : 0 );
   }
 
@@ -271,7 +268,7 @@ class DeltaPartitionedHypergraph {
     ASSERT(_phg);
     ASSERT(p != kInvalidPartition && p < _k);
     const HyperedgeWeight* move_to_penalty_delta =
-      _move_to_penalty_delta.get_if_contained(u * _k + p);
+      _gain_cache_delta.get_if_contained(penalty_index(u, p));
     return _phg->moveToPenalty(u, p) + ( move_to_penalty_delta ? *move_to_penalty_delta : 0 );
   }
 
@@ -279,7 +276,7 @@ class DeltaPartitionedHypergraph {
     unused(from);
     ASSERT(from == partID(u), "While gain computation works for from != partID(u), such a query makes no sense");
     ASSERT(from != to, "The gain computation doesn't work for from = to");
-    return moveFromBenefit(u) - moveToPenalty(u, to);
+    return moveFromBenefit(u) + moveToPenalty(u, to);
   }
 
   void initializeGainCacheEntry(const HypernodeID u, vec<Gain>& penalty_aggregator) {
@@ -293,8 +290,7 @@ class DeltaPartitionedHypergraph {
     // Constant Time
     _part_ids_delta.clear();
     _pins_in_part_delta.clear();
-    _move_to_penalty_delta.clear();
-    _move_from_benefit_delta.clear();
+    _gain_cache_delta.clear();
   }
 
   void dropMemory() {
@@ -302,15 +298,13 @@ class DeltaPartitionedHypergraph {
       _memory_dropped = true;
       _part_ids_delta.freeInternalData();
       _pins_in_part_delta.freeInternalData();
-      _move_to_penalty_delta.freeInternalData();
-      _move_from_benefit_delta.freeInternalData();
+      _gain_cache_delta.freeInternalData();
     }
   }
 
   size_t combinedMemoryConsumption() const {
     return _pins_in_part_delta.size_in_bytes()
-           + _move_from_benefit_delta.size_in_bytes()
-           + _move_to_penalty_delta.size_in_bytes()
+           + _gain_cache_delta.size_in_bytes()
            + _part_ids_delta.size_in_bytes();
   }
 
@@ -328,17 +322,20 @@ class DeltaPartitionedHypergraph {
     part_ids_node->updateSize(_part_ids_delta.size_in_bytes());
     utils::MemoryTreeNode* pins_in_part_node = delta_phg_node->addChild("Delta Pins In Part");
     pins_in_part_node->updateSize(_pins_in_part_delta.size_in_bytes());
-    utils::MemoryTreeNode* move_from_benefit_node = delta_phg_node->addChild("Delta Move From Benefit");
-    move_from_benefit_node->updateSize(_move_from_benefit_delta.size_in_bytes());
-    utils::MemoryTreeNode* move_to_penalty_node = delta_phg_node->addChild("Delta Move To Penalty");
-    move_to_penalty_node->updateSize(_move_to_penalty_delta.size_in_bytes());
+    utils::MemoryTreeNode* gain_cache_delta_node = delta_phg_node->addChild("Delta Gain Cache");
+    gain_cache_delta_node->updateSize(_gain_cache_delta.size_in_bytes());
   }
 
  private:
 
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
+  size_t benefit_index(const HypernodeID u) const {
+    return size_t(u) * ( _k + 1 );
+  }
+
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
   size_t penalty_index(const HypernodeID u, const PartitionID p) const {
-    return size_t(u) * _k + p;
+    return size_t(u) * ( _k + 1 ) + p + 1;
   }
 
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
@@ -371,13 +368,9 @@ class DeltaPartitionedHypergraph {
   // ! relative to the _pins_in_part member in '_phg'
   DynamicFlatMap<size_t, int32_t> _pins_in_part_delta;
 
-  // ! Stores the delta of each locally touched move to penalty entry
-  // ! relative to the _move_to_penalty member in '_phg'
-  DynamicFlatMap<size_t, HyperedgeWeight> _move_to_penalty_delta;
-
-  // ! Stores the delta of each locally touched move from benefit entry
-  // ! relative to the _move_from_benefit member in '_phg'
-  DynamicFlatMap<HypernodeID, HyperedgeWeight> _move_from_benefit_delta;
+  // ! Stores the delta of each locally touched gain cache entry
+  // ! relative to the gain cache in '_phg'
+  DynamicFlatMap<size_t, HyperedgeWeight> _gain_cache_delta;
 };
 
 } // namespace ds

@@ -98,6 +98,7 @@ class LabelPropagationRefiner final : public IRefiner {
 
         Gain delta_before = _gain.localDelta();
         bool changed_part = changeNodePart(hypergraph, hn, from, to, objective_delta);
+        is_moved = true;
         if (changed_part) {
           // In case the move to block 'to' was successful, we verify that the "real" gain
           // of the move is either equal to our computed gain or if not, still improves
@@ -125,7 +126,6 @@ class LabelPropagationRefiner final : public IRefiner {
             if ( _next_active.compare_and_set_to_true(hn) ) {
               next_active_nodes.stream(hn);
             }
-            is_moved = true;
           } else {
             DBG << "Revert move of hypernode" << hn << "from block" << from << "to block" << to
                 << "( Expected Gain:" << best_move.gain << ", Real Gain:" << move_delta << ")";

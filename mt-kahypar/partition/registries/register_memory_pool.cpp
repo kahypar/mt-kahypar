@@ -117,11 +117,9 @@ namespace mt_kahypar {
                                   ds::ConnectivitySets::num_elements(num_hyperedges, context.partition.k),
                                   sizeof(ds::ConnectivitySets::UnsafeBlock));
         if ( context.refinement.fm.algorithm != FMAlgorithm::do_nothing ) {
-          pool.register_memory_chunk("Refinement", "move_to_penalty",
+          pool.register_memory_chunk("Refinement", "gain_cache",
                                     static_cast<size_t>(num_hypernodes) * ( context.partition.k + 1 ),
                                     sizeof(CAtomic<HyperedgeWeight>));
-          pool.register_memory_chunk("Refinement", "move_from_penalty",
-                                    num_hypernodes, sizeof(CAtomic<HyperedgeWeight>));
         }
         pool.register_memory_chunk("Refinement", "pin_count_update_ownership",
                                   num_hyperedges, sizeof(SpinLock));

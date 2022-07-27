@@ -189,13 +189,13 @@ private:
     const HypernodeWeight wu = phg.nodeWeight(u);
     const HypernodeWeight from_weight = phg.partWeight(from);
     PartitionID to = kInvalidPartition;
-    HyperedgeWeight to_penalty = std::numeric_limits<HyperedgeWeight>::max();
+    HyperedgeWeight to_penalty = std::numeric_limits<HyperedgeWeight>::min();
     HypernodeWeight best_to_weight = from_weight - wu;
     for (PartitionID i = 0; i < phg.k(); ++i) {
       if (i != from) {
         const HypernodeWeight to_weight = phg.partWeight(i);
         const HyperedgeWeight penalty = phg.moveToPenalty(u, i);
-        if ( ( penalty < to_penalty || ( penalty == to_penalty && to_weight < best_to_weight ) ) &&
+        if ( ( penalty > to_penalty || ( penalty == to_penalty && to_weight < best_to_weight ) ) &&
              to_weight + wu <= context.partition.max_part_weights[i] ) {
           to_penalty = penalty;
           to = i;
@@ -203,7 +203,7 @@ private:
         }
       }
     }
-    const Gain gain = to != kInvalidPartition ? phg.moveFromBenefit(u) - to_penalty
+    const Gain gain = to != kInvalidPartition ? phg.moveFromBenefit(u) + to_penalty
                                               : std::numeric_limits<HyperedgeWeight>::min();
     return std::make_pair(to, gain);
   }
@@ -216,13 +216,13 @@ private:
     const HypernodeWeight wu = phg.nodeWeight(u);
     const HypernodeWeight from_weight = phg.partWeight(from);
     PartitionID to = kInvalidPartition;
-    HyperedgeWeight to_penalty = std::numeric_limits<HyperedgeWeight>::max();
+    HyperedgeWeight to_penalty = std::numeric_limits<HyperedgeWeight>::min();
     HypernodeWeight best_to_weight = from_weight - wu;
     for (PartitionID i : parts) {
       if (i != from && i != kInvalidPartition) {
         const HypernodeWeight to_weight = phg.partWeight(i);
         const HyperedgeWeight penalty = phg.moveToPenalty(u, i);
-        if ( ( penalty < to_penalty || ( penalty == to_penalty && to_weight < best_to_weight ) ) &&
+        if ( ( penalty > to_penalty || ( penalty == to_penalty && to_weight < best_to_weight ) ) &&
              to_weight + wu <= context.partition.max_part_weights[i] ) {
           to_penalty = penalty;
           to = i;
@@ -230,7 +230,7 @@ private:
         }
       }
     }
-    const Gain gain = to != kInvalidPartition ? phg.moveFromBenefit(u) - to_penalty
+    const Gain gain = to != kInvalidPartition ? phg.moveFromBenefit(u) + to_penalty
                                               : std::numeric_limits<HyperedgeWeight>::min();
     return std::make_pair(to, gain);
   }

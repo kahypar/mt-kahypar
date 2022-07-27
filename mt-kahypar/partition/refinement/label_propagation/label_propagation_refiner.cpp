@@ -97,7 +97,6 @@ namespace mt_kahypar {
   bool LabelPropagationRefiner<GainPolicy>::labelPropagationRound(
                               PartitionedHypergraph& hypergraph,
                               NextActiveNodes& next_active_nodes) {
-
     _visited_he.reset();
     _next_active.reset();
     // This function is passed as lambda to the changeNodePart function and used
