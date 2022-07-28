@@ -579,12 +579,12 @@ private:
 
   HyperedgeWeight moveFromPenalty(const HypernodeID u) const {
     ASSERT(_is_gain_cache_initialized, "Gain cache is not initialized");
-    return -_incident_weight_in_part[incident_weight_index(u, partID(u))].load(std::memory_order_relaxed);
+    return _incident_weight_in_part[incident_weight_index(u, partID(u))].load(std::memory_order_relaxed);
   }
 
   HyperedgeWeight moveToBenefit(const HypernodeID u, PartitionID p) const {
     ASSERT(_is_gain_cache_initialized, "Gain cache is not initialized");
-    return -_incident_weight_in_part[incident_weight_index(u, p)].load(std::memory_order_relaxed);
+    return _incident_weight_in_part[incident_weight_index(u, p)].load(std::memory_order_relaxed);
   }
 
   HyperedgeWeight incidentWeightInPart(const HypernodeID u, PartitionID p) const {
@@ -611,7 +611,7 @@ private:
     ASSERT(_is_gain_cache_initialized, "Gain cache is not initialized");
     ASSERT(from == partID(u), "While gain computation works for from != partID(u), such a query makes no sense");
     ASSERT(from != to, "The gain computation doesn't work for from = to");
-    return moveFromPenalty(u) - moveToBenefit(u, to);
+    return moveToBenefit(u, to) - moveFromPenalty(u);
   }
 
   // ! Initializes the partition of the hypergraph, if block ids are assigned with
@@ -701,7 +701,7 @@ private:
     HyperedgeWeight w = 0;
     for (HyperedgeID e : incidentEdges(u)) {
       if (!isSinglePin(e) && partID(edgeTarget(e)) == part_id) {
-        w -= edgeWeight(e);
+        w += edgeWeight(e);
       }
     }
     return w;
@@ -713,7 +713,7 @@ private:
     HyperedgeWeight w = 0;
     for (HyperedgeID e : incidentEdges(u)) {
       if (!isSinglePin(e) && partID(edgeTarget(e)) == p) {
-        w -= edgeWeight(e);
+        w += edgeWeight(e);
       }
     }
     return w;

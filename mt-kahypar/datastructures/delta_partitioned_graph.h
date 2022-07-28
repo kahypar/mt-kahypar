@@ -258,7 +258,7 @@ class DeltaPartitionedGraph {
       _incident_weight_in_part_delta.get_if_contained(incident_weight_index(u, part_id));
     const HyperedgeWeight incident_weight_u = _pg->incidentWeightInPart(u, part_id) +
                                               (incident_weight_delta_u ? *incident_weight_delta_u : 0);
-    return -incident_weight_u;
+    return incident_weight_u;
   }
 
   HyperedgeWeight moveToBenefit(const HypernodeID u, const PartitionID p) const {
@@ -268,14 +268,14 @@ class DeltaPartitionedGraph {
       _incident_weight_in_part_delta.get_if_contained(incident_weight_index(u, p));
     const HyperedgeWeight incident_weight_p = _pg->incidentWeightInPart(u, p) +
                                               (incident_weight_delta_p ? *incident_weight_delta_p : 0);
-    return -incident_weight_p;
+    return incident_weight_p;
   }
 
   Gain km1Gain(const HypernodeID u, const PartitionID from, const PartitionID to) const {
     unused(from);
     ASSERT(from == partID(u), "While gain computation works for from != partID(u), such a query makes no sense");
     ASSERT(from != to, "The gain computation doesn't work for from = to");
-    return moveFromPenalty(u) - moveToBenefit(u, to);
+    return moveToBenefit(u, to) - moveFromPenalty(u);
   }
 
   void initializeGainCacheEntry(const HypernodeID u, vec<Gain>& benefit_aggregator) {
