@@ -362,19 +362,17 @@ private:
             // substract edge weight.
             for ( const HypernodeID& pin : pins(he) ) {
               if ( pin != v && partID(pin) == block ) {
-                _gain_cache[benefit_index(pin)].sub_fetch(edge_weight, std::memory_order_relaxed);
+                _gain_cache[penalty_index(pin)].add_fetch(edge_weight, std::memory_order_relaxed);
                 break;
               }
             }
           }
 
+          _gain_cache[penalty_index(v)].add_fetch(edge_weight, std::memory_order_relaxed);
           // For all blocks contained in the connectivity set of hyperedge he
-          // we increase the the move_to_penalty for vertex v by w(e) =>
-          // move_to_penalty is than w(I(v)) - move_to_penalty(v, p) for a
-          // block p
-          _gain_cache[benefit_index(v)].sub_fetch(edge_weight, std::memory_order_relaxed);
+          // we increase the move_to_benefit for vertex v by w(e)
           for ( const PartitionID block : _connectivity_set.connectivitySet(he) ) {
-            _gain_cache[penalty_index(v, block)].add_fetch(
+            _gain_cache[benefit_index(v, block)].add_fetch(
               edge_weight, std::memory_order_relaxed);
           }
         }
@@ -386,23 +384,23 @@ private:
           const PartitionID block = partID(u);
           const HyperedgeWeight edge_weight = edgeWeight(he);
           // Since u is no longer incident to hyperedge he its contribution for decreasing
-          // the connectivity of he is shifted to vertex v => b(u) -= w(e), b(v) += w(e).
+          // the connectivity of he is shifted to vertex v
           if ( pinCountInPart(he, block) == 1 ) {
-            _gain_cache[benefit_index(u)].sub_fetch(edge_weight, std::memory_order_relaxed);
-            _gain_cache[benefit_index(v)].add_fetch(edge_weight, std::memory_order_relaxed);
+            _gain_cache[penalty_index(u)].add_fetch(edge_weight, std::memory_order_relaxed);
+            _gain_cache[penalty_index(v)].sub_fetch(edge_weight, std::memory_order_relaxed);
           }
 
+          _gain_cache[penalty_index(u)].sub_fetch(
+            edge_weight, std::memory_order_relaxed);
+          _gain_cache[penalty_index(v)].add_fetch(
+            edge_weight, std::memory_order_relaxed);
           // For all blocks contained in the connectivity set of hyperedge he
-          // we decrease the the move_to_penalty for vertex u and increase it for
-          // vertex v by w(e)
-          _gain_cache[benefit_index(u)].add_fetch(
-            edge_weight, std::memory_order_relaxed);
-          _gain_cache[benefit_index(v)].sub_fetch(
-            edge_weight, std::memory_order_relaxed);
+          // we increase the move_to_benefit for vertex v by w(e) and decrease
+          // it for vertex u by w(e)
           for ( const PartitionID block : _connectivity_set.connectivitySet(he) ) {
-            _gain_cache[penalty_index(u, block)].sub_fetch(
+            _gain_cache[benefit_index(u, block)].sub_fetch(
               edge_weight, std::memory_order_relaxed);
-            _gain_cache[penalty_index(v, block)].add_fetch(
+            _gain_cache[benefit_index(v, block)].add_fetch(
               edge_weight, std::memory_order_relaxed);
           }
         }
@@ -472,7 +470,7 @@ private:
         _pins_in_part.setPinCountInPart(he, block_of_single_pin, 1);
 
         if ( _is_gain_cache_initialized ) {
-          _gain_cache[penalty_index(
+          _gain_cache[benefit_index(
             single_vertex_of_he, block_of_single_pin)].add_fetch(
               edgeWeight(he), std::memory_order_relaxed);
         }
@@ -528,7 +526,6 @@ private:
 
   // ! Changes the block id of vertex u from block 'from' to block 'to'
   // ! Returns true, if move of vertex u to corresponding block succeeds.
-
   template<typename SuccessFunc, typename DeltaFunc>
   bool changeNodePart(const HypernodeID u,
                       PartitionID from,
@@ -636,14 +633,39 @@ private:
     return _pins_in_part.pinCountInPart(e, p);
   }
 
-  HyperedgeWeight moveFromBenefit(const HypernodeID u) const {
+  /**
+   * In the following, we define functions to derive the benefit and penalty term
+   * decribed in our publications. However, we swapped the naming of both (the benefit term
+   * is now the penalty term and vice versa) due to refactoring of the gain cache.
+   */
+
+  // ! The move from penalty term stores weight of all incident edges of u for which
+  // ! we cannot reduce their connecitivity when u is moved out of its block.
+  // ! More formally, p(u) := w({ e \in I(u) | pin_count(e, partID(u)) > 1 })
+  HyperedgeWeight moveFromPenalty(const HypernodeID u) const {
     //ASSERT(_is_gain_cache_initialized, "Gain cache is not initialized");
-    return _gain_cache[benefit_index(u)].load(std::memory_order_relaxed);
+    return _gain_cache[penalty_index(u)].load(std::memory_order_relaxed);
   }
 
-  HyperedgeWeight moveToPenalty(const HypernodeID u, PartitionID p) const {
+  // ! The move to benefit term stores the weight of all incident edges of u
+  // ! for which we do not increase the connecitivity when we move u to block p.
+  // ! More formally, b(u, p) := w({ e \in I(u) | pin_count(e, p) >= 1 })
+  HyperedgeWeight moveToBenefit(const HypernodeID u, PartitionID p) const {
     //ASSERT(_is_gain_cache_initialized, "Gain cache is not initialized");
-    return _gain_cache[penalty_index(u, p)].load(std::memory_order_relaxed);
+    return _gain_cache[benefit_index(u, p)].load(std::memory_order_relaxed);
+  }
+
+  // ! The gain of moving a node u from its current block to a target block to can
+  // ! be expressed as g(u, to) = b(u, to) - p(u), which is the weight of
+  // ! all incident edges of u for which we do not increase their connectivity if moved
+  // ! to block to minus the weight of all incident edges of u for which we cannot reduce
+  // ! their connectivity if u is moved out of its current block.
+  HyperedgeWeight km1Gain(const HypernodeID u, PartitionID from, PartitionID to) const {
+    unused(from);
+    //ASSERT(_is_gain_cache_initialized, "Gain cache is not initialized");
+    ASSERT(from == partID(u), "While gain computation works for from != partID(u), such a query makes no sense");
+    ASSERT(from != to, "The gain computation doesn't work for from = to");
+    return moveToBenefit(u, to) - moveFromPenalty(u);
   }
 
   void allocateGainTableIfNecessary() {
@@ -653,35 +675,37 @@ private:
     }
   }
 
-  void initializeGainCacheEntry(const HypernodeID u, vec<Gain>& penalty_aggregator) {
-    PartitionID pu = partID(u);
-    Gain benefit = 0, incident_edges_weight = 0;
-    for (HyperedgeID e : incidentEdges(u)) {
-      HyperedgeWeight ew = edgeWeight(e);
-      if (pinCountInPart(e, pu) == 1) {
-        benefit += ew;
-      }
-      for (PartitionID i : connectivitySet(e)) {
-        penalty_aggregator[i] += ew;
-      }
-      incident_edges_weight += ew;
-    }
 
-    _gain_cache[benefit_index(u)].store(
-      benefit - incident_edges_weight, std::memory_order_relaxed);
-    for (PartitionID i = 0; i < _k; ++i) {
-      _gain_cache[penalty_index(u, i)].store(
-        penalty_aggregator[i], std::memory_order_relaxed);
-      penalty_aggregator[i] = 0;
+  // ! The move from penalty term stores weight of all incident edges of u for which
+  // ! we cannot reduce their connecitivity when u is moved out of its block.
+  // ! More formally, p(u) := w({ e \in I(u) | pin_count(e, partID(u)) > 1 })
+  HyperedgeWeight moveFromPenaltyRecomputed(const HypernodeID u) const {
+    const PartitionID p = partID(u);
+    HyperedgeWeight b = 0;
+    for (HyperedgeID e : incidentEdges(u)) {
+      if (pinCountInPart(e, p) > 1) {
+        b += edgeWeight(e);
+      }
     }
+    return b;
   }
 
-  HyperedgeWeight km1Gain(const HypernodeID u, PartitionID from, PartitionID to) const {
-    unused(from);
-    //ASSERT(_is_gain_cache_initialized, "Gain cache is not initialized");
-    ASSERT(from == partID(u), "While gain computation works for from != partID(u), such a query makes no sense");
-    ASSERT(from != to, "The gain computation doesn't work for from = to");
-    return moveFromBenefit(u) + moveToPenalty(u, to);
+  void recomputeMoveFromPenalty(const HypernodeID u) {
+    _gain_cache[penalty_index(u)].store(moveFromPenaltyRecomputed(u), std::memory_order_relaxed);
+  }
+
+  // ! Only for testing
+  // ! The move to benefit term stores the weight of all incident edges of u
+  // ! for which we do not increase the connecitivity when we move u to block p.
+  // ! More formally, b(u, p) := w({ e \in I(u) | pin_count(e, p) >= 1 })
+  HyperedgeWeight moveToBenefitRecomputed(const HypernodeID u, PartitionID p) const {
+    HyperedgeWeight w = 0;
+    for (HyperedgeID e : incidentEdges(u)) {
+      if (pinCountInPart(e, p) >= 1) {
+        w += edgeWeight(e);
+      }
+    }
+    return w;
   }
 
   // ! Initializes the partition of the hypergraph, if block ids are assigned with
@@ -698,6 +722,26 @@ private:
     return _is_gain_cache_initialized;
   }
 
+  void initializeGainCacheEntry(const HypernodeID u, vec<Gain>& benefit_aggregator) {
+    PartitionID pu = partID(u);
+    Gain penalty = 0;
+    for (const HyperedgeID& e : incidentEdges(u)) {
+      HyperedgeWeight ew = edgeWeight(e);
+      if (pinCountInPart(e, pu) > 1) {
+        penalty += ew;
+      }
+      for (const PartitionID& i : connectivitySet(e)) {
+        benefit_aggregator[i] += ew;
+      }
+    }
+
+    _gain_cache[penalty_index(u)].store(penalty, std::memory_order_relaxed);
+    for (PartitionID i = 0; i < _k; ++i) {
+      _gain_cache[benefit_index(u, i)].store(benefit_aggregator[i], std::memory_order_relaxed);
+      benefit_aggregator[i] = 0;
+    }
+  }
+
   // ! Initialize gain cache
   // ! NOTE: Requires that pin counts are already initialized and reflect the
   // ! current state of the partition
@@ -711,50 +755,45 @@ private:
     auto aggregate_contribution_of_he_for_vertex =
       [&](const PartitionID block_of_u,
           const HyperedgeID he,
-          HyperedgeWeight& l_move_from_benefit,
-          HyperedgeWeight& incident_edges_weight,
-          vec<HyperedgeWeight>& l_move_to_penalty) {
+          HyperedgeWeight& l_move_from_penalty,
+          vec<HyperedgeWeight>& l_move_to_benefit) {
       HyperedgeWeight edge_weight = edgeWeight(he);
-      if (pinCountInPart(he, block_of_u) == 1) {
-        l_move_from_benefit += edge_weight;
+      if (pinCountInPart(he, block_of_u) > 1) {
+        l_move_from_penalty += edge_weight;
       }
 
       for (const PartitionID block : connectivitySet(he)) {
-        l_move_to_penalty[block] += edge_weight;
+        l_move_to_benefit[block] += edge_weight;
       }
-      incident_edges_weight += edge_weight;
     };
 
 
 
     // Gain calculation consist of two stages
-    //  1. Compute gain of all low degree vertices sequential (with a parallel for over all vertices)
-    //  2. Compute gain of all high degree vertices parallel (with a sequential for over all high degree vertices)
-    tbb::enumerable_thread_specific< vec<HyperedgeWeight> > ets_mtp(_k, 0);
+    //  1. Compute gain of all low degree vertices sequential (iterating over all vertices in parallel)
+    //  2. Compute gain of all high degree vertices parallel (iterating over all high degree vertices sequentially)
+    tbb::enumerable_thread_specific< vec<HyperedgeWeight> > ets_mtb(_k, 0);
     std::mutex high_degree_vertex_mutex;
     parallel::scalable_vector<HypernodeID> high_degree_vertices;
 
-    // Compute gain of all low degree vertices sequential (parallel for over all vertices)
+    // Compute gain of all low degree vertices sequential (iterating over all vertices in parallel)
     tbb::parallel_for(tbb::blocked_range<HypernodeID>(HypernodeID(0), initialNumNodes()),
       [&](tbb::blocked_range<HypernodeID>& r) {
-        vec<HyperedgeWeight>& l_move_to_penalty = ets_mtp.local();
+        vec<HyperedgeWeight>& l_move_to_benefit = ets_mtb.local();
         for (HypernodeID u = r.begin(); u < r.end(); ++u) {
           if ( nodeIsEnabled(u)) {
             if ( nodeDegree(u) <= HIGH_DEGREE_THRESHOLD) {
               const PartitionID from = partID(u);
-              HyperedgeWeight incident_edges_weight = 0;
-              HyperedgeWeight l_move_from_benefit = 0;
+              HyperedgeWeight l_move_from_penalty = 0;
               for (HyperedgeID he : incidentEdges(u)) {
                 aggregate_contribution_of_he_for_vertex(from, he,
-                  l_move_from_benefit, incident_edges_weight, l_move_to_penalty);
+                  l_move_from_penalty, l_move_to_benefit);
               }
 
-              _gain_cache[benefit_index(u)].store(
-                l_move_from_benefit - incident_edges_weight, std::memory_order_relaxed);
+              _gain_cache[penalty_index(u)].store(l_move_from_penalty, std::memory_order_relaxed);
               for (PartitionID p = 0; p < _k; ++p) {
-                _gain_cache[penalty_index(u,p)].store(
-                  l_move_to_penalty[p], std::memory_order_relaxed);
-                l_move_to_penalty[p] = 0;
+                _gain_cache[benefit_index(u,p)].store(l_move_to_benefit[p], std::memory_order_relaxed);
+                l_move_to_benefit[p] = 0;
               }
             } else {
               // Collect high degree vertex for subsequent parallel gain computation
@@ -765,21 +804,19 @@ private:
         }
       });
 
-    // Compute gain of all high degree vertices parallel (sequential for over all high degree vertices)
+    // Compute gain of all high degree vertices parallel (iterating over all high degree vertices sequentially)
     for ( const HypernodeID& u : high_degree_vertices ) {
-      tbb::enumerable_thread_specific<HyperedgeWeight> ets_mfb(0);
-      tbb::enumerable_thread_specific<HyperedgeWeight> ets_iew(0);
+      tbb::enumerable_thread_specific<HyperedgeWeight> ets_mfp(0);
       const PartitionID from = partID(u);
       const HypernodeID degree_of_u = _hg->nodeDegree(u);
       tbb::parallel_for(tbb::blocked_range<HypernodeID>(ID(0), degree_of_u),
         [&](tbb::blocked_range<HypernodeID>& r) {
-        vec<HyperedgeWeight>& l_move_to_penalty = ets_mtp.local();
-        HyperedgeWeight& l_move_from_benefit = ets_mfb.local();
-        HyperedgeWeight& l_incident_edges_weight = ets_iew.local();
+        vec<HyperedgeWeight>& l_move_to_benefit = ets_mtb.local();
+        HyperedgeWeight& l_move_from_penalty = ets_mfp.local();
         size_t current_pos = r.begin();
         for ( const HyperedgeID& he : _hg->incident_nets_of(u, r.begin()) ) {
           aggregate_contribution_of_he_for_vertex(from, he,
-            l_move_from_benefit, l_incident_edges_weight, l_move_to_penalty);
+            l_move_from_penalty, l_move_to_benefit);
           ++current_pos;
           if ( current_pos == r.end() ) {
             break;
@@ -788,16 +825,15 @@ private:
       });
 
       // Aggregate thread locals to compute overall gain of the high degree vertex
-      const HyperedgeWeight benefit_term = ets_mfb.combine(std::plus<HyperedgeWeight>());
-      const HyperedgeWeight incident_edges_weight = ets_iew.combine(std::plus<HyperedgeWeight>());
-      _gain_cache[benefit_index(u)].store(benefit_term - incident_edges_weight, std::memory_order_relaxed);
+      const HyperedgeWeight penalty_term = ets_mfp.combine(std::plus<HyperedgeWeight>());
+      _gain_cache[penalty_index(u)].store(penalty_term, std::memory_order_relaxed);
       for (PartitionID p = 0; p < _k; ++p) {
-        HyperedgeWeight move_to_penalty = 0;
-        for ( auto& l_move_to_penalty : ets_mtp ) {
-          move_to_penalty += l_move_to_penalty[p];
-          l_move_to_penalty[p] = 0;
+        HyperedgeWeight move_to_benefit = 0;
+        for ( auto& l_move_to_benefit : ets_mtb ) {
+          move_to_benefit += l_move_to_benefit[p];
+          l_move_to_benefit[p] = 0;
         }
-        _gain_cache[penalty_index(u, p)].store(move_to_penalty, std::memory_order_relaxed);
+        _gain_cache[benefit_index(u, p)].store(move_to_benefit, std::memory_order_relaxed);
       }
     }
 
@@ -835,33 +871,6 @@ private:
   }
 
   // ! Only for testing
-  HyperedgeWeight moveFromBenefitRecomputed(const HypernodeID u) const {
-    const PartitionID p = partID(u);
-    HyperedgeWeight b = 0;
-    for (HyperedgeID e : incidentEdges(u)) {
-      if (pinCountInPart(e, p) > 1) {
-        b -= edgeWeight(e);
-      }
-    }
-    return b;
-  }
-
-  // ! Only for testing
-  HyperedgeWeight moveToPenaltyRecomputed(const HypernodeID u, PartitionID p) const {
-    HyperedgeWeight w = 0;
-    for (HyperedgeID e : incidentEdges(u)) {
-      if (pinCountInPart(e, p) > 0) {
-        w += edgeWeight(e);
-      }
-    }
-    return w;
-  }
-
-  void recomputeMoveFromBenefit(const HypernodeID u) {
-    _gain_cache[benefit_index(u)].store(moveFromBenefitRecomputed(u), std::memory_order_relaxed);
-  }
-
-  // ! Only for testing
   bool checkTrackedPartitionInformation() {
     bool success = true;
 
@@ -887,10 +896,10 @@ private:
 
     if ( _is_gain_cache_initialized ) {
       for (HypernodeID u : nodes()) {
-        if ( moveFromBenefit(u) != moveFromBenefitRecomputed(u) ) {
+        if ( moveFromPenalty(u) != moveFromPenaltyRecomputed(u) ) {
           LOG << "Move from benefit of hypernode" << u << "=>" <<
-              "Expected:" << V(moveFromBenefitRecomputed(u)) << ", " <<
-              "Actual:" <<  V(moveFromBenefit(u));
+              "Expected:" << V(moveFromPenaltyRecomputed(u)) << ", " <<
+              "Actual:" <<  V(moveFromPenalty(u));
           for ( const HyperedgeID& e : incidentEdges(u) ) {
             LOG << V(u) << V(partID(u)) << V(e) << V(edgeSize(e)) << V(edgeWeight(e)) << V(pinCountInPart(e, partID(u)));
           }
@@ -899,10 +908,10 @@ private:
 
         for (PartitionID i = 0; i < k(); ++i) {
           if (partID(u) != i) {
-            if ( moveToPenalty(u, i) != moveToPenaltyRecomputed(u, i) ) {
+            if ( moveToBenefit(u, i) != moveToBenefitRecomputed(u, i) ) {
               LOG << "Move to penalty of hypernode" << u << "in block" << i << "=>" <<
-                  "Expected:" << V(moveToPenaltyRecomputed(u, i)) << ", " <<
-                  "Actual:" <<  V(moveToPenalty(u, i));
+                  "Expected:" << V(moveToBenefitRecomputed(u, i)) << ", " <<
+                  "Actual:" <<  V(moveToBenefit(u, i));
               success = false;
             }
           }
@@ -1026,26 +1035,26 @@ private:
       for (const HypernodeID& u : pins(he)) {
         nodeGainAssertions(u, from);
         if (partID(u) == from) {
-          _gain_cache[benefit_index(u)].fetch_add(we, std::memory_order_relaxed);
+          _gain_cache[penalty_index(u)].fetch_sub(we, std::memory_order_relaxed);
         }
       }
     } else if (pin_count_in_from_part_after == 0) {
       for (const HypernodeID& u : pins(he)) {
         nodeGainAssertions(u, from);
-        _gain_cache[penalty_index(u, from)].fetch_sub(we, std::memory_order_relaxed);
+        _gain_cache[benefit_index(u, from)].fetch_sub(we, std::memory_order_relaxed);
       }
     }
 
     if (pin_count_in_to_part_after == 1) {
       for (const HypernodeID& u : pins(he)) {
         nodeGainAssertions(u, to);
-        _gain_cache[penalty_index(u, to)].fetch_add(we, std::memory_order_relaxed);
+        _gain_cache[benefit_index(u, to)].fetch_add(we, std::memory_order_relaxed);
       }
     } else if (pin_count_in_to_part_after == 2) {
       for (const HypernodeID& u : pins(he)) {
         nodeGainAssertions(u, to);
         if (partID(u) == to) {
-          _gain_cache[benefit_index(u)].fetch_sub(we, std::memory_order_relaxed);
+          _gain_cache[penalty_index(u)].fetch_add(we, std::memory_order_relaxed);
         }
       }
     }
@@ -1054,12 +1063,12 @@ private:
  private:
 
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
-  size_t benefit_index(const HypernodeID u) const {
+  size_t penalty_index(const HypernodeID u) const {
     return size_t(u) * ( _k + 1 );
   }
 
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
-  size_t penalty_index(const HypernodeID u, const PartitionID p) const {
+  size_t benefit_index(const HypernodeID u, const PartitionID p) const {
     return size_t(u) * ( _k + 1 )  + p + 1;
   }
 
@@ -1130,7 +1139,7 @@ private:
     ASSERT(u < initialNumNodes(), "Hypernode" << u << "does not exist");
     ASSERT(nodeIsEnabled(u), "Hypernode" << u << "is disabled");
     ASSERT(p != kInvalidPartition && p < _k);
-    ASSERT(penalty_index(u, p) < _gain_cache.size());
+    ASSERT(benefit_index(u, p) < _gain_cache.size());
   }
 
   // ! Updates pin count in part using a spinlock.
@@ -1195,12 +1204,12 @@ private:
   // ! For each hyperedge, _connectivity_set stores the set of blocks that the hyperedge spans
   ConnectivitySets _connectivity_set;
 
-  // ! For each node u, the gain cache stores k + 1 entries.
-  // ! The first entry stores the benefit term b(u) (weight of all incident hyperedges where u is the last remaining
-  // ! pin in its block) minus the weight of all incident hyperedges of u (w(I(u))).
-  // ! The remaining k entries stores for each block V_i the penalty term p(u, V_i) that stores the weight
-  // ! of all incident hyperedges of u which contains pins of block V_i
-  // ! The gain of moving a node u to block V_i can then be computed as b(u) - w(I(u)) + p(u, V_i).
+  // ! The gain of moving a node u to from its current block V_i to a target block V_j
+  // ! can be expressed as follows for the connectivity metric
+  // ! g(u, V_j) := w({ e \in I(u) | pin_count(e, V_j) >= 1 }) - w({ e \in I(u) | pin_count(e, V_i) > 1 })
+  // !            = b(u, V_j) - p(u)
+  // ! We call b(u, V_j) the benefit term and p(u) the penalty term. Our gain cache stores and maintains these
+  // ! entries for each node and block. Thus, the gain cache stores k + 1 entries per node.
   Array< CAtomic<HyperedgeWeight> > _gain_cache;
 
   // ! In order to update the pin count of a hyperedge thread-safe, a thread must acquire

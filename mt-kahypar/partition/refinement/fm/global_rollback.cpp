@@ -191,9 +191,9 @@ namespace mt_kahypar {
     });
 
     if (update_gain_cache) {
-      // recompute moveFromBenefit values since they are potentially invalid
+      // recompute moveFromPenalty values since they are potentially invalid
       tbb::parallel_for(MoveID(0), numMoves, [&](const MoveID i) {
-        phg.recomputeMoveFromBenefit(move_order[i].node);
+        phg.recomputeMoveFromPenalty(move_order[i].node);
       });
     }
 
@@ -364,7 +364,7 @@ namespace mt_kahypar {
 
     if (update_gain_cache) {
       tbb::parallel_for(0U, numMoves, [&](const MoveID i) {
-        phg.recomputeMoveFromBenefit(move_order[i].node);
+        phg.recomputeMoveFromPenalty(move_order[i].node);
       });
     }
 
@@ -382,7 +382,7 @@ namespace mt_kahypar {
     auto recompute_move_from_benefits = [&] {
       if constexpr (update_gain_cache) {
         for (MoveID localMoveID = 0; localMoveID < sharedData.moveTracker.numPerformedMoves(); ++localMoveID) {
-          phg.recomputeMoveFromBenefit(move_order[localMoveID].node);
+          phg.recomputeMoveFromPenalty(move_order[localMoveID].node);
         }
       }
     };
@@ -414,8 +414,8 @@ namespace mt_kahypar {
 
       if constexpr (update_gain_cache) {
         const Gain gain_from_cache = phg.km1Gain(m.node, m.from, m.to); unused(gain_from_cache);
-        ASSERT(phg.moveFromBenefit(m.node) == phg.moveFromBenefitRecomputed(m.node));
-        ASSERT(phg.moveToPenalty(m.node, m.to) == phg.moveToPenaltyRecomputed(m.node, m.to));
+        ASSERT(phg.moveFromPenalty(m.node) == phg.moveFromPenaltyRecomputed(m.node));
+        ASSERT(phg.moveToBenefit(m.node, m.to) == phg.moveToBenefitRecomputed(m.node, m.to));
         ASSERT(gain == gain_from_cache);
       }
 

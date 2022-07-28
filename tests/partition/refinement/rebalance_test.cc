@@ -79,7 +79,7 @@ TEST(RebalanceTests, FindsMoves) {
 
   for (Move& m : moves_to_empty_blocks) {
     ASSERT_EQ(phg.km1Gain(m.node, m.from, m.to), m.gain);
-    Gain recomputed_gain = phg.moveFromBenefitRecomputed(m.node) + phg.moveToPenaltyRecomputed(m.node, m.to);
+    Gain recomputed_gain = phg.moveToBenefitRecomputed(m.node, m.to) - phg.moveFromPenaltyRecomputed(m.node);
     if (recomputed_gain == 0) {
       ASSERT_TRUE([&]() {
         for (HyperedgeID e : phg.incidentEdges(m.node)) {

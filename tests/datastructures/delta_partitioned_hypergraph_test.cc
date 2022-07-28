@@ -68,11 +68,11 @@ class ADeltaPartitionedHypergraph : public Test {
     }
   }
 
-  void verifyMoveToPenalty(const HypernodeID hn,
+  void verifymoveToBenefit(const HypernodeID hn,
                            const std::vector<HypernodeID>& expected_penalties) {
     ASSERT(expected_penalties.size() == static_cast<size_t>(phg.k()));
     for (PartitionID block = 0; block < 3; ++block) {
-      ASSERT_EQ(expected_penalties[block], delta_phg.moveToPenalty(hn, block)) << V(hn) << V(block);
+      ASSERT_EQ(expected_penalties[block], delta_phg.moveToBenefit(hn, block)) << V(hn) << V(block);
     }
   }
 
@@ -89,24 +89,24 @@ TEST_F(ADeltaPartitionedHypergraph, VerifiesInitialPinCounts) {
   verifyPinCounts(3, { 1, 0, 2 });
 }
 
-TEST_F(ADeltaPartitionedHypergraph, VerifyInitialMoveFromBenefits) {
-  ASSERT_EQ(-2, delta_phg.moveFromBenefit(0));
-  ASSERT_EQ(-1, delta_phg.moveFromBenefit(1));
-  ASSERT_EQ(-1, delta_phg.moveFromBenefit(2));
-  ASSERT_EQ(-2, delta_phg.moveFromBenefit(3));
-  ASSERT_EQ(-2, delta_phg.moveFromBenefit(4));
-  ASSERT_EQ(-1, delta_phg.moveFromBenefit(5));
-  ASSERT_EQ(-1, delta_phg.moveFromBenefit(6));
+TEST_F(ADeltaPartitionedHypergraph, VerifyInitialmoveFromPenaltys) {
+  ASSERT_EQ(2, delta_phg.moveFromPenalty(0));
+  ASSERT_EQ(1, delta_phg.moveFromPenalty(1));
+  ASSERT_EQ(1, delta_phg.moveFromPenalty(2));
+  ASSERT_EQ(2, delta_phg.moveFromPenalty(3));
+  ASSERT_EQ(2, delta_phg.moveFromPenalty(4));
+  ASSERT_EQ(1, delta_phg.moveFromPenalty(5));
+  ASSERT_EQ(1, delta_phg.moveFromPenalty(6));
 }
 
 TEST_F(ADeltaPartitionedHypergraph, VerifyInitialMoveToPenalties) {
-  verifyMoveToPenalty(0, { 2, 1, 0 });
-  verifyMoveToPenalty(1, { 1, 1, 0 });
-  verifyMoveToPenalty(2, { 2, 0, 1 });
-  verifyMoveToPenalty(3, { 1, 2, 1 });
-  verifyMoveToPenalty(4, { 1, 2, 1 });
-  verifyMoveToPenalty(5, { 1, 0, 1 });
-  verifyMoveToPenalty(6, { 1, 1, 2 });
+  verifymoveToBenefit(0, { 2, 1, 0 });
+  verifymoveToBenefit(1, { 1, 1, 0 });
+  verifymoveToBenefit(2, { 2, 0, 1 });
+  verifymoveToBenefit(3, { 1, 2, 1 });
+  verifymoveToBenefit(4, { 1, 2, 1 });
+  verifymoveToBenefit(5, { 1, 0, 1 });
+  verifymoveToBenefit(6, { 1, 1, 2 });
 }
 TEST_F(ADeltaPartitionedHypergraph, MovesAVertex1) {
   delta_phg.changeNodePartWithGainCacheUpdate(1, 0, 1, 1000);
@@ -117,14 +117,14 @@ TEST_F(ADeltaPartitionedHypergraph, MovesAVertex1) {
   verifyPinCounts(1, { 1, 3, 0 });
 
   // Verify Move From Benefit
-  ASSERT_EQ(-1, delta_phg.moveFromBenefit(0));
-  ASSERT_EQ(-2, delta_phg.moveFromBenefit(3));
-  ASSERT_EQ(-2, delta_phg.moveFromBenefit(4));
+  ASSERT_EQ(1, delta_phg.moveFromPenalty(0));
+  ASSERT_EQ(2, delta_phg.moveFromPenalty(3));
+  ASSERT_EQ(2, delta_phg.moveFromPenalty(4));
 
   // Verify Move To Penalty
-  verifyMoveToPenalty(0, { 2, 1, 0 });
-  verifyMoveToPenalty(3, { 1, 2, 1 });
-  verifyMoveToPenalty(4, { 1, 2, 1 });
+  verifymoveToBenefit(0, { 2, 1, 0 });
+  verifymoveToBenefit(3, { 1, 2, 1 });
+  verifymoveToBenefit(4, { 1, 2, 1 });
 }
 
 TEST_F(ADeltaPartitionedHypergraph, MovesAVertex2) {
@@ -137,16 +137,16 @@ TEST_F(ADeltaPartitionedHypergraph, MovesAVertex2) {
   verifyPinCounts(3, { 1, 1, 1 });
 
   // Verify Move From Benefit
-  ASSERT_EQ(-1, delta_phg.moveFromBenefit(2));
-  ASSERT_EQ(-2, delta_phg.moveFromBenefit(3));
-  ASSERT_EQ(-2, delta_phg.moveFromBenefit(4));
-  ASSERT_EQ(0, delta_phg.moveFromBenefit(5));
+  ASSERT_EQ(1, delta_phg.moveFromPenalty(2));
+  ASSERT_EQ(2, delta_phg.moveFromPenalty(3));
+  ASSERT_EQ(2, delta_phg.moveFromPenalty(4));
+  ASSERT_EQ(0, delta_phg.moveFromPenalty(5));
 
   // Verify Move To Penalty
-  verifyMoveToPenalty(2, { 2, 1, 1 });
-  verifyMoveToPenalty(3, { 1, 2, 0 });
-  verifyMoveToPenalty(4, { 1, 2, 0 });
-  verifyMoveToPenalty(5, { 1, 1, 1 });
+  verifymoveToBenefit(2, { 2, 1, 1 });
+  verifymoveToBenefit(3, { 1, 2, 0 });
+  verifymoveToBenefit(4, { 1, 2, 0 });
+  verifymoveToBenefit(5, { 1, 1, 1 });
 }
 
 TEST_F(ADeltaPartitionedHypergraph, MovesSeveralVertices) {
@@ -167,19 +167,19 @@ TEST_F(ADeltaPartitionedHypergraph, MovesSeveralVertices) {
   verifyPinCounts(3, { 0, 3, 0 });
 
   // Verify Move From Benefit
-  ASSERT_EQ(-1, delta_phg.moveFromBenefit(0));
-  ASSERT_EQ(-1, delta_phg.moveFromBenefit(1));
-  ASSERT_EQ(-2, delta_phg.moveFromBenefit(3));
-  ASSERT_EQ(-2, delta_phg.moveFromBenefit(4));
+  ASSERT_EQ(1, delta_phg.moveFromPenalty(0));
+  ASSERT_EQ(1, delta_phg.moveFromPenalty(1));
+  ASSERT_EQ(2, delta_phg.moveFromPenalty(3));
+  ASSERT_EQ(2, delta_phg.moveFromPenalty(4));
 
   // Verify Move To Penalty
-  verifyMoveToPenalty(0, { 2, 2, 0 });
-  verifyMoveToPenalty(1, { 1, 1, 0 });
-  verifyMoveToPenalty(2, { 1, 2, 0 });
-  verifyMoveToPenalty(3, { 1, 2, 0 });
-  verifyMoveToPenalty(4, { 1, 2, 0 });
-  verifyMoveToPenalty(5, { 0, 1, 0 });
-  verifyMoveToPenalty(6, { 0, 2, 0 });
+  verifymoveToBenefit(0, { 2, 2, 0 });
+  verifymoveToBenefit(1, { 1, 1, 0 });
+  verifymoveToBenefit(2, { 1, 2, 0 });
+  verifymoveToBenefit(3, { 1, 2, 0 });
+  verifymoveToBenefit(4, { 1, 2, 0 });
+  verifymoveToBenefit(5, { 0, 1, 0 });
+  verifymoveToBenefit(6, { 0, 2, 0 });
 }
 
 } // namespace ds

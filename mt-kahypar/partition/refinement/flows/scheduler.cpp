@@ -187,7 +187,7 @@ bool FlowRefinementScheduler::refineImpl(
          phg.isGainCacheInitialized() ) {
     phg.doParallelForAllNodes([&](const HypernodeID& hn) {
       if ( _was_moved[hn] ) {
-        phg.recomputeMoveFromBenefit(hn);
+        phg.recomputeMoveFromPenalty(hn);
         _was_moved[hn] = uint8_t(false);
       }
     });

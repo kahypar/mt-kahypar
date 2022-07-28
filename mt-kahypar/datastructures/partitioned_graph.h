@@ -577,12 +577,12 @@ private:
     return count;
   }
 
-  HyperedgeWeight moveFromBenefit(const HypernodeID u) const {
+  HyperedgeWeight moveFromPenalty(const HypernodeID u) const {
     ASSERT(_is_gain_cache_initialized, "Gain cache is not initialized");
     return -_incident_weight_in_part[incident_weight_index(u, partID(u))].load(std::memory_order_relaxed);
   }
 
-  HyperedgeWeight moveToPenalty(const HypernodeID u, PartitionID p) const {
+  HyperedgeWeight moveToBenefit(const HypernodeID u, PartitionID p) const {
     ASSERT(_is_gain_cache_initialized, "Gain cache is not initialized");
     return -_incident_weight_in_part[incident_weight_index(u, p)].load(std::memory_order_relaxed);
   }
@@ -592,17 +592,17 @@ private:
     return _incident_weight_in_part[incident_weight_index(u, p)].load(std::memory_order_relaxed);
   }
 
-  void initializeGainCacheEntry(const HypernodeID u, parallel::scalable_vector<Gain>& penalty_aggregator) {
+  void initializeGainCacheEntry(const HypernodeID u, parallel::scalable_vector<Gain>& benefit_aggregator) {
     for (HyperedgeID e : incidentEdges(u)) {
       if (!isSinglePin(e)) {
-        penalty_aggregator[partID(edgeTarget(e))] += edgeWeight(e);
+        benefit_aggregator[partID(edgeTarget(e))] += edgeWeight(e);
       }
     }
 
     for (PartitionID i = 0; i < _k; ++i) {
       _incident_weight_in_part[incident_weight_index(u, i)].store(
-        penalty_aggregator[i], std::memory_order_relaxed);
-      penalty_aggregator[i] = 0;
+        benefit_aggregator[i], std::memory_order_relaxed);
+      benefit_aggregator[i] = 0;
     }
   }
 
@@ -611,7 +611,7 @@ private:
     ASSERT(_is_gain_cache_initialized, "Gain cache is not initialized");
     ASSERT(from == partID(u), "While gain computation works for from != partID(u), such a query makes no sense");
     ASSERT(from != to, "The gain computation doesn't work for from = to");
-    return moveFromBenefit(u) - moveToPenalty(u, to);
+    return moveFromPenalty(u) - moveToBenefit(u, to);
   }
 
   // ! Initializes the partition of the hypergraph, if block ids are assigned with
@@ -696,7 +696,7 @@ private:
 
 
   // ! Only for testing
-  HyperedgeWeight moveFromBenefitRecomputed(const HypernodeID u) const {
+  HyperedgeWeight moveFromPenaltyRecomputed(const HypernodeID u) const {
     PartitionID part_id = partID(u);
     HyperedgeWeight w = 0;
     for (HyperedgeID e : incidentEdges(u)) {
@@ -708,7 +708,7 @@ private:
   }
 
   // ! Only for testing
-  HyperedgeWeight moveToPenaltyRecomputed(const HypernodeID u, PartitionID p) const {
+  HyperedgeWeight moveToBenefitRecomputed(const HypernodeID u, PartitionID p) const {
     PartitionID part_id = partID(u);
     HyperedgeWeight w = 0;
     for (HyperedgeID e : incidentEdges(u)) {
@@ -719,7 +719,7 @@ private:
     return w;
   }
 
-  void recomputeMoveFromBenefit(const HypernodeID u) {
+  void recomputeMoveFromPenalty(const HypernodeID u) {
     // Nothing to do here
   }
 
@@ -742,19 +742,19 @@ private:
 
     if ( _is_gain_cache_initialized ) {
       for (HypernodeID u : nodes()) {
-        if ( moveFromBenefit(u) != moveFromBenefitRecomputed(u) ) {
+        if ( moveFromPenalty(u) != moveFromPenaltyRecomputed(u) ) {
           LOG << "Move from benefit of hypernode" << u << "=>" <<
-              "Expected:" << V(moveFromBenefitRecomputed(u)) << ", " <<
-              "Actual:" <<  V(moveFromBenefit(u));
+              "Expected:" << V(moveFromPenaltyRecomputed(u)) << ", " <<
+              "Actual:" <<  V(moveFromPenalty(u));
           success = false;
         }
 
         for (PartitionID i = 0; i < k(); ++i) {
           if (partID(u) != i) {
-            if ( moveToPenalty(u, i) != moveToPenaltyRecomputed(u, i) ) {
+            if ( moveToBenefit(u, i) != moveToBenefitRecomputed(u, i) ) {
               LOG << "Move to penalty of hypernode" << u << "in block" << i << "=>" <<
-                  "Expected:" << V(moveToPenaltyRecomputed(u, i)) << ", " <<
-                  "Actual:" <<  V(moveToPenalty(u, i));
+                  "Expected:" << V(moveToBenefitRecomputed(u, i)) << ", " <<
+                  "Actual:" <<  V(moveToBenefit(u, i));
               success = false;
             }
           }

@@ -207,23 +207,23 @@ class DeltaPartitionedHypergraph {
     if (pin_count_in_from_part_after == 1) {
       for (HypernodeID u : pins(he)) {
         if (partID(u) == from) {
-          _gain_cache_delta[benefit_index(u)] += we;
+          _gain_cache_delta[penalty_index(u)] -= we;
         }
       }
     } else if (pin_count_in_from_part_after == 0) {
       for (HypernodeID u : pins(he)) {
-        _gain_cache_delta[penalty_index(u, from)] -= we;
+        _gain_cache_delta[benefit_index(u, from)] -= we;
       }
     }
 
     if (pin_count_in_to_part_after == 1) {
       for (HypernodeID u : pins(he)) {
-        _gain_cache_delta[penalty_index(u, to)] += we;
+        _gain_cache_delta[benefit_index(u, to)] += we;
       }
     } else if (pin_count_in_to_part_after == 2) {
       for (HypernodeID u : pins(he)) {
         if (partID(u) == to) {
-          _gain_cache_delta[benefit_index(u)] -= we;
+          _gain_cache_delta[penalty_index(u)] += we;
         }
       }
     }
@@ -253,34 +253,36 @@ class DeltaPartitionedHypergraph {
       ( pin_count_delta ? *pin_count_delta : 0 ), 0);
   }
 
-  // ! Returns the sum of all edges incident to u, where u is the last remaining
-  // ! pin in its block
-  HyperedgeWeight moveFromBenefit(const HypernodeID u) const {
+  // ! The move from penalty term stores weight of all incident edges of u for which
+  // ! we cannot reduce their connecitivity when u is moved out of its block.
+  // ! More formally, p(u) := w({ e \in I(u) | pin_count(e, partID(u)) > 1 })
+  HyperedgeWeight moveFromPenalty(const HypernodeID u) const {
     ASSERT(_phg);
     const HyperedgeWeight* move_from_benefit_delta =
-      _gain_cache_delta.get_if_contained(benefit_index(u));
-    return _phg->moveFromBenefit(u) + ( move_from_benefit_delta ? *move_from_benefit_delta : 0 );
+      _gain_cache_delta.get_if_contained(penalty_index(u));
+    return _phg->moveFromPenalty(u) + ( move_from_benefit_delta ? *move_from_benefit_delta : 0 );
   }
 
-  // ! Returns the sum of all edges incident to u, where p is not part of
-  // ! their connectivity set.
-  HyperedgeWeight moveToPenalty(const HypernodeID u, const PartitionID p) const {
+  // ! The move to benefit term stores the weight of all incident edges of u
+  // ! for which we do not increase the connecitivity when we move u to block p.
+  // ! More formally, b(u, p) := w({ e \in I(u) | pin_count(e, p) >= 1 })
+  HyperedgeWeight moveToBenefit(const HypernodeID u, const PartitionID p) const {
     ASSERT(_phg);
     ASSERT(p != kInvalidPartition && p < _k);
     const HyperedgeWeight* move_to_penalty_delta =
-      _gain_cache_delta.get_if_contained(penalty_index(u, p));
-    return _phg->moveToPenalty(u, p) + ( move_to_penalty_delta ? *move_to_penalty_delta : 0 );
+      _gain_cache_delta.get_if_contained(benefit_index(u, p));
+    return _phg->moveToBenefit(u, p) + ( move_to_penalty_delta ? *move_to_penalty_delta : 0 );
   }
 
   Gain km1Gain(const HypernodeID u, const PartitionID from, const PartitionID to) const {
     unused(from);
     ASSERT(from == partID(u), "While gain computation works for from != partID(u), such a query makes no sense");
     ASSERT(from != to, "The gain computation doesn't work for from = to");
-    return moveFromBenefit(u) + moveToPenalty(u, to);
+    return moveToBenefit(u, to) - moveFromPenalty(u);
   }
 
-  void initializeGainCacheEntry(const HypernodeID u, vec<Gain>& penalty_aggregator) {
-    _phg->initializeGainCacheEntry(u, penalty_aggregator);
+  void initializeGainCacheEntry(const HypernodeID u, vec<Gain>& benefit_aggregator) {
+    _phg->initializeGainCacheEntry(u, benefit_aggregator);
   }
 
   // ! Clears all deltas applied to the partitioned hypergraph
@@ -329,12 +331,12 @@ class DeltaPartitionedHypergraph {
  private:
 
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
-  size_t benefit_index(const HypernodeID u) const {
+  size_t penalty_index(const HypernodeID u) const {
     return size_t(u) * ( _k + 1 );
   }
 
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
-  size_t penalty_index(const HypernodeID u, const PartitionID p) const {
+  size_t benefit_index(const HypernodeID u, const PartitionID p) const {
     return size_t(u) * ( _k + 1 ) + p + 1;
   }
 

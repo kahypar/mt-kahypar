@@ -75,7 +75,7 @@ class ADeltaPartitionedGraph : public Test {
       if (block != delta_phg.partID(hn)) {
         ASSERT_EQ(expected_penalties[block], delta_phg.km1Gain(hn, delta_phg.partID(hn), block)) << V(hn) << "; " << V(block);
       } else {
-        ASSERT_EQ(delta_phg.moveToPenalty(hn, block), delta_phg.moveFromBenefit(hn)) << V(hn) << "; " << V(block);
+        ASSERT_EQ(delta_phg.moveToBenefit(hn, block), delta_phg.moveFromPenalty(hn)) << V(hn) << "; " << V(block);
       }
     }
   }

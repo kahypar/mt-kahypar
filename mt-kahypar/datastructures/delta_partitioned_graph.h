@@ -251,7 +251,7 @@ class DeltaPartitionedGraph {
     return count;
   }
 
-  HyperedgeWeight moveFromBenefit(const HypernodeID u) const {
+  HyperedgeWeight moveFromPenalty(const HypernodeID u) const {
     ASSERT(_pg);
     const PartitionID part_id = partID(u);
     const HyperedgeWeight* incident_weight_delta_u =
@@ -261,7 +261,7 @@ class DeltaPartitionedGraph {
     return -incident_weight_u;
   }
 
-  HyperedgeWeight moveToPenalty(const HypernodeID u, const PartitionID p) const {
+  HyperedgeWeight moveToBenefit(const HypernodeID u, const PartitionID p) const {
     ASSERT(_pg);
     ASSERT(p != kInvalidPartition && p < _k);
     const HyperedgeWeight* incident_weight_delta_p =
@@ -275,11 +275,11 @@ class DeltaPartitionedGraph {
     unused(from);
     ASSERT(from == partID(u), "While gain computation works for from != partID(u), such a query makes no sense");
     ASSERT(from != to, "The gain computation doesn't work for from = to");
-    return moveFromBenefit(u) - moveToPenalty(u, to);
+    return moveFromPenalty(u) - moveToBenefit(u, to);
   }
 
-  void initializeGainCacheEntry(const HypernodeID u, vec<Gain>& penalty_aggregator) {
-    _pg->initializeGainCacheEntry(u, penalty_aggregator);
+  void initializeGainCacheEntry(const HypernodeID u, vec<Gain>& benefit_aggregator) {
+    _pg->initializeGainCacheEntry(u, benefit_aggregator);
   }
 
   // ! Clears all deltas applied to the partitioned hypergraph

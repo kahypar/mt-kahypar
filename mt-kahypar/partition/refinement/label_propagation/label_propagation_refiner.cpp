@@ -143,7 +143,7 @@ namespace mt_kahypar {
            hypergraph.isGainCacheInitialized() ) {
       auto recompute = [&](size_t j) {
         if ( _active_node_was_moved[j] ) {
-          hypergraph.recomputeMoveFromBenefit(_active_nodes[j]);
+          hypergraph.recomputeMoveFromPenalty(_active_nodes[j]);
           _active_node_was_moved[j] = uint8_t(false);
         }
       };
