@@ -86,6 +86,21 @@ class SeparatedNodes {
   // ! Iterator to iterate over the pins of a hyperedge
   using IncidenceIterator = const Edge*;
 
+  explicit SeparatedNodes() :
+    _num_nodes(0),
+    _num_graph_nodes(0),
+    _num_edges(0),
+    _total_weight(0),
+    _nodes{ Node(kInvalidHypernode, 0, 0) },
+    _outward_incident_weight(),
+    _graph_nodes_begin(),
+    _inward_edges(),
+    _outward_edges(),
+    _batch_indices_and_weights(),
+    _savepoints() {
+      _batch_indices_and_weights.assign(2, {0, 0});
+    }
+
   explicit SeparatedNodes(HypernodeID num_graph_nodes) :
     _num_nodes(0),
     _num_graph_nodes(num_graph_nodes),
@@ -96,7 +111,8 @@ class SeparatedNodes {
     _graph_nodes_begin(),
     _inward_edges(),
     _outward_edges(),
-    _batch_indices_and_weights() {
+    _batch_indices_and_weights(),
+    _savepoints() {
       _batch_indices_and_weights.assign(2, {0, 0});
     }
 
@@ -113,7 +129,8 @@ class SeparatedNodes {
     _graph_nodes_begin(std::move(other._graph_nodes_begin)),
     _inward_edges(std::move(other._inward_edges)),
     _outward_edges(std::move(other._outward_edges)),
-    _batch_indices_and_weights(std::move(other._batch_indices_and_weights)) { }
+    _batch_indices_and_weights(std::move(other._batch_indices_and_weights)),
+    _savepoints(std::move(other._savepoints)) { }
 
   SeparatedNodes & operator= (SeparatedNodes&& other) {
     _num_nodes = other._num_nodes;
@@ -126,6 +143,7 @@ class SeparatedNodes {
     _inward_edges = std::move(other._inward_edges);
     _outward_edges = std::move(other._outward_edges);
     _batch_indices_and_weights = std::move(other._batch_indices_and_weights);
+    _savepoints = std::move(other._savepoints);
     return *this;
   }
 
@@ -260,20 +278,6 @@ class SeparatedNodes {
  private:
   static_assert(std::is_trivially_copyable<Node>::value, "Node is not trivially copyable");
   static_assert(std::is_trivially_copyable<Edge>::value, "Hyperedge is not trivially copyable");
-
-  explicit SeparatedNodes() :
-    _num_nodes(0),
-    _num_graph_nodes(0),
-    _num_edges(0),
-    _total_weight(0),
-    _nodes{ Node(kInvalidHypernode, 0, 0) },
-    _outward_incident_weight(),
-    _graph_nodes_begin(),
-    _inward_edges(),
-    _outward_edges(),
-    _batch_indices_and_weights() {
-      _batch_indices_and_weights.assign(2, {0, 0});
-    }
 
   // ####################### Node Information #######################
 

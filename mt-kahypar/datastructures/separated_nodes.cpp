@@ -438,6 +438,11 @@ SeparatedNodes SeparatedNodes::copy(parallel_tag_t) const {
     sep_nodes._outward_edges.resize(_outward_edges.size());
     memcpy(sep_nodes._outward_edges.data(), _outward_edges.data(),
             sizeof(Edge) * _outward_edges.size());
+  }, [&] {
+    sep_nodes._batch_indices_and_weights.resize(_batch_indices_and_weights.size());
+    for (size_t i = 0; i < _batch_indices_and_weights.size(); ++i) {
+      sep_nodes._batch_indices_and_weights[i] = _batch_indices_and_weights[i];
+    }
   });
   return sep_nodes;
 }
@@ -471,6 +476,11 @@ SeparatedNodes SeparatedNodes::copy() const {
   sep_nodes._outward_edges.resize(_outward_edges.size());
   memcpy(sep_nodes._outward_edges.data(), _outward_edges.data(),
           sizeof(Edge) * _outward_edges.size());
+
+  sep_nodes._batch_indices_and_weights.resize(_batch_indices_and_weights.size());
+  for (size_t i = 0; i < _batch_indices_and_weights.size(); ++i) {
+    sep_nodes._batch_indices_and_weights[i] = _batch_indices_and_weights[i];
+  }
 
   return sep_nodes;
 }
