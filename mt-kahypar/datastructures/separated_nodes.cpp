@@ -82,6 +82,7 @@ void SeparatedNodes::restoreSavepoint() {
   _savepoints.pop_back();
   _num_edges = _inward_edges.size();
   _num_graph_nodes = num_graph_nodes;
+  _outward_incident_weight.clear(); // not correct anymore
   ASSERT(_inward_edges.size());
 }
 
@@ -377,7 +378,9 @@ SeparatedNodes SeparatedNodes::extract(PartitionID block, const vec<HypernodeID>
       } else {
         for (HyperedgeID i = _nodes[node].begin; i < _nodes[node + 1].begin; ++i) {
           const Edge& e = _inward_edges[i];
-          tmp_outward_weight[e.target].fetch_sub(e.weight);
+          if (!tmp_outward_weight.empty()) {
+            tmp_outward_weight[e.target].fetch_sub(e.weight);
+          }
         }
       }
     });
