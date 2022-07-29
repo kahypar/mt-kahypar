@@ -25,6 +25,7 @@
 #include <algorithm>
 #include <vector>
 
+#include "mt-kahypar/datastructures/separated_nodes.h"
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/macros.h"
 #include "mt-kahypar/partition/multilevel.h"
@@ -268,6 +269,9 @@ namespace mt_kahypar {
         }
       });
       _hg.initializePartition();
+      if (_hg.hasSeparatedNodes()) {
+        _hg.separatedNodes().restoreSavepoint();
+      }
 
       ASSERT(metrics::objective(_bisection_partitioned_hg, _context.partition.objective) ==
              metrics::objective(_hg, _context.partition.objective));
@@ -434,6 +438,11 @@ namespace mt_kahypar {
     bool cut_net_splitting = _context.partition.objective == kahypar::Objective::km1;
     auto copy_hypergraph = _hg.extract(_block, cut_net_splitting,
                                        _context.preprocessing.stable_construction_of_incident_edges);
+    if (_hg.hasSeparatedNodes()) {
+      ds::SeparatedNodes sn = _hg.separatedNodes().extract(_block, copy_hypergraph.second);
+      copy_hypergraph.first.setSeparatedNodes(&sn);
+      copy_hypergraph.first.setSeparatedNodes(nullptr);
+    }
     Hypergraph& rb_hypergraph = copy_hypergraph.first;
     auto& mapping = copy_hypergraph.second;
 

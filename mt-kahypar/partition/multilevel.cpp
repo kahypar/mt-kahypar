@@ -224,6 +224,9 @@ namespace mt_kahypar::multilevel {
                   PoolInitialPartitionerContinuation(phg, _ip_context);
           spawn_initial_partitioner(ip_continuation);
         } else {
+          if (phg.hasSeparatedNodes()) {
+            phg.separatedNodes().setSavepoint();
+          }
           std::unique_ptr<IInitialPartitioner> initial_partitioner =
                   InitialPartitionerFactory::getInstance().createObject(
                           _ip_context.initial_partitioning.mode, phg, _ip_context);
