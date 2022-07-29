@@ -210,7 +210,7 @@ class SeparatedNodes {
     node(u).part_id = id;
   }
 
-  // ####################### Batches #######################
+  // ####################### Batches and Savepoints #######################
 
   HypernodeID currentBatchIndex() const {
     return _batch_indices_and_weights[_batch_indices_and_weights.size() - 2].first;
@@ -219,6 +219,10 @@ class SeparatedNodes {
   // ! Returns the index of the current batch, which is also the number
   // ! of nodes left after the pop operation.
   HypernodeID popBatch();
+
+  void setSavepoint();
+
+  void restoreSavepoint();
 
   // ####################### Contract / Uncontract #######################
 
@@ -304,7 +308,12 @@ class SeparatedNodes {
   Array<Edge> _outward_edges;
 
   // ! Batches
+  // - allow to restore nodes of a previous state (but not edges)
   vec<std::pair<HyperedgeID, HypernodeWeight>> _batch_indices_and_weights;
+  // ! Savepoints
+  // - allow to restore edges of a previous state, must be set manually
+  // edges, edge_indices, num_graph_nodes
+  vec<std::tuple<vec<Edge>, vec<HyperedgeID>, HypernodeID>> _savepoints;
 };
 
 } // namespace ds

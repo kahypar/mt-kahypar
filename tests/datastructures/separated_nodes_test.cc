@@ -381,5 +381,28 @@ TEST_F(ASeparatedNodes, ExtractsBlockWhileRemovingGraphNodes) {
   ASSERT_EQ(0,  extracted.outwardIncidentWeight(2));
 }
 
+TEST_F(ASeparatedNodes, RestoresSavepoint) {
+  SeparatedNodes nodes(10);
+  vec<std::tuple<HypernodeID, HyperedgeID, HypernodeWeight>> new_nodes { {0, 0, 1}, {1, 2, 1}, {2, 3, 1}};
+  vec<Edge> new_edges { Edge(0, 1), Edge(3, 1), Edge(9, 1) };
+  nodes.addNodes(new_nodes, new_edges);
+
+  nodes.setSavepoint();
+
+  vec<HypernodeID> communities { 0, 1, 1, 0, 2, kInvalidHypernode, 2, 0, 0, kInvalidHypernode };
+  nodes.contract(communities, 3);
+
+  nodes.restoreSavepoint();
+
+  ASSERT_EQ(3,  nodes.numNodes());
+  ASSERT_EQ(10,  nodes.numGraphNodes());
+  ASSERT_EQ(3,  nodes.numEdges());
+  ASSERT_EQ(3,  nodes.totalWeight());
+
+  verifyIncidentEgdes(nodes.inwardEdges(0), { {0, 1}, {3, 1} });
+  verifyIncidentEgdes(nodes.inwardEdges(1), { {9, 1} });
+  verifyIncidentEgdes(nodes.inwardEdges(2), { });
+}
+
 }
 } // namespace mt_kahypar

@@ -57,12 +57,40 @@ HypernodeID SeparatedNodes::popBatch() {
   return index;
 }
 
+void SeparatedNodes::setSavepoint() {
+  vec<Edge> copied_edges;
+  vec<HyperedgeID> edge_indices;
+  tbb::parallel_invoke([&] {
+    copied_edges = _inward_edges;
+  }, [&] {
+    edge_indices.resize(_nodes.size());
+    tbb::parallel_for(0UL, edge_indices.size(), [&](const size_t& pos) {
+      edge_indices[pos] = _nodes[pos].begin;
+    });
+  });
+  _savepoints.emplace_back(std::move(copied_edges), std::move(edge_indices), _num_graph_nodes);
+}
+
+void SeparatedNodes::restoreSavepoint() {
+  ASSERT(!_savepoints.empty());
+  const auto& [edges, indices, num_graph_nodes] = _savepoints.back();
+  _inward_edges = std::move(edges);
+  ASSERT(_nodes.size() == indices.size());
+  tbb::parallel_for(0UL, _nodes.size(), [&](const size_t& pos) {
+    _nodes[pos].begin = indices[pos];
+  });
+  _savepoints.pop_back();
+  _num_edges = _inward_edges.size();
+  _num_graph_nodes = num_graph_nodes;
+  ASSERT(_inward_edges.size());
+}
+
 
 void SeparatedNodes::addNodes(const vec<std::tuple<HypernodeID, HyperedgeID, HypernodeWeight>>& nodes,
                               const vec<Edge>& edges) {
   ASSERT(_num_nodes + 1 == _nodes.size());
   ASSERT(_num_edges == _inward_edges.size());
-  ASSERT(_num_graph_nodes == _outward_incident_weight.size());
+  // ASSERT(_num_graph_nodes == _outward_incident_weight.size());
   ASSERT(_graph_nodes_begin.empty());
   ASSERT(nodes.empty() || std::get<1>(nodes[0]) == 0);
 
@@ -80,7 +108,9 @@ void SeparatedNodes::addNodes(const vec<std::tuple<HypernodeID, HyperedgeID, Hyp
     tbb::parallel_for(0UL, edges.size(), [&](const size_t& pos) {
       const Edge& e = edges[pos];
       _inward_edges[_num_edges + pos] = e;
-      _outward_incident_weight[e.target].fetch_add(e.weight);
+      if (!_outward_incident_weight.empty()) {
+        _outward_incident_weight[e.target].fetch_add(e.weight);
+      }
     });
   };
 
@@ -106,13 +136,13 @@ void SeparatedNodes::addNodes(const vec<std::tuple<HypernodeID, HyperedgeID, Hyp
 void SeparatedNodes::contract(const vec<HypernodeID>& communities, const HypernodeID& num_coarsened_graph_nodes) {
   ASSERT(_num_nodes + 1 == _nodes.size());
   ASSERT(_num_edges == _inward_edges.size());
-  ASSERT(_num_graph_nodes == _outward_incident_weight.size() && _num_graph_nodes == communities.size());
+  ASSERT(/*_num_graph_nodes == _outward_incident_weight.size() && */_num_graph_nodes == communities.size());
   ASSERT(_graph_nodes_begin.empty());
 
   auto update_incident_weight = [&] {
     vec<parallel::IntegralAtomicWrapper<HyperedgeWeight>> new_incident_weight;
     new_incident_weight.assign(num_coarsened_graph_nodes, parallel::IntegralAtomicWrapper<HyperedgeWeight>(0));
-    tbb::parallel_for(ID(0), _num_graph_nodes, [&](const HypernodeID& pos) {
+    tbb::parallel_for(ID(0), static_cast<HypernodeID>(_outward_incident_weight.size()), [&](const HypernodeID& pos) {
       if (communities[pos] != kInvalidHypernode) {
         new_incident_weight[communities[pos]].fetch_add(_outward_incident_weight[pos]);
       }
@@ -284,6 +314,7 @@ void SeparatedNodes::initializeOutwardEdges() {
 }
 
 SeparatedNodes SeparatedNodes::extract(PartitionID block, const vec<HypernodeID>& graph_node_mapping) const {
+  ASSERT(/*_num_graph_nodes == _outward_incident_weight.size() &&*/ _num_graph_nodes == graph_node_mapping.size());
   ASSERT(_graph_nodes_begin.empty());
 
   // TODO: parallelize with tmp_node_degree
