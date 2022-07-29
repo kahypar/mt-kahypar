@@ -66,6 +66,7 @@ namespace mt_kahypar {
 
 
   using BlockRange = std::pair<PartitionID, PartitionID>;
+  using ds::SeparatedNodes;
 
   struct OriginalHypergraphInfo {
 
@@ -104,6 +105,7 @@ namespace mt_kahypar {
                                                  Context&& context,
                                                  Hypergraph&& rb_hypergraph,
                                                  parallel::scalable_vector<HypernodeID>&& mapping,
+                                                 SeparatedNodes&& s_nodes,
                                                  const PartitionID k,
                                                  const PartitionID part_id) :
             _original_hg(original_hypergraph),
@@ -111,7 +113,10 @@ namespace mt_kahypar {
             _rb_hg(std::move(rb_hypergraph)),
             _rb_partitioned_hg(k, _rb_hg, parallel_tag_t()),
             _mapping(std::move(mapping)),
-            _part_id(part_id) { }
+            _s_nodes(std::move(s_nodes)),
+            _part_id(part_id) {
+              rb_hypergraph.setSeparatedNodes(&s_nodes);
+            }
 
     tbb::task* execute() override {
       // Applying partition of the recursively bisected hypergraph (_rb_partitioned_hg) to
@@ -146,6 +151,7 @@ namespace mt_kahypar {
     Hypergraph _rb_hg;
     PartitionedHypergraph _rb_partitioned_hg;
     const parallel::scalable_vector<HypernodeID> _mapping;
+    SeparatedNodes _s_nodes;
     const PartitionID _part_id;
   };
 
@@ -432,6 +438,7 @@ namespace mt_kahypar {
   tbb::task * RecursiveBipartitioningChildTask::execute() {
     const PartitionID k = _range.second - _range.first;
     Context rb_context = setupRecursiveBipartitioningContext(k);
+    SeparatedNodes sn; // needs to be defined here to not be dropped too early
 
     // Extracts the block of the hypergraph which we recursively want to partition as
     // seperate unpartitioned hypergraph.
@@ -439,9 +446,7 @@ namespace mt_kahypar {
     auto copy_hypergraph = _hg.extract(_block, cut_net_splitting,
                                        _context.preprocessing.stable_construction_of_incident_edges);
     if (_hg.hasSeparatedNodes()) {
-      ds::SeparatedNodes sn = _hg.separatedNodes().extract(_block, copy_hypergraph.second);
-      copy_hypergraph.first.setSeparatedNodes(&sn);
-      copy_hypergraph.first.setSeparatedNodes(nullptr);
+      sn = _hg.separatedNodes().extract(_block, copy_hypergraph.second);
     }
     Hypergraph& rb_hypergraph = copy_hypergraph.first;
     auto& mapping = copy_hypergraph.second;
@@ -451,7 +456,7 @@ namespace mt_kahypar {
     if ( rb_hypergraph.initialNumNodes() > 0 ) {
       RecursiveBipartitioningChildContinuationTask& child_continuation = *new(allocate_continuation())
               RecursiveBipartitioningChildContinuationTask(_hg, std::move(rb_context),
-                                                      std::move(rb_hypergraph), std::move(mapping), k, _block);
+                                                      std::move(rb_hypergraph), std::move(mapping), std::move(sn), k, _block);
       RecursiveMultilevelBipartitioningTask& recursion = *new(child_continuation.allocate_child())
               RecursiveMultilevelBipartitioningTask(
               _original_hypergraph_info,
