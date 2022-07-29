@@ -83,7 +83,6 @@ void SeparatedNodes::restoreSavepoint() {
   _num_edges = _inward_edges.size();
   _num_graph_nodes = num_graph_nodes;
   _outward_incident_weight.clear(); // not correct anymore
-  ASSERT(_inward_edges.size());
 }
 
 
