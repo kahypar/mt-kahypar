@@ -115,7 +115,7 @@ namespace mt_kahypar {
             _mapping(std::move(mapping)),
             _s_nodes(std::move(s_nodes)),
             _part_id(part_id) {
-              rb_hypergraph.setSeparatedNodes(&s_nodes);
+              _rb_hg.setSeparatedNodes(&_s_nodes);
             }
 
     tbb::task* execute() override {
@@ -447,6 +447,7 @@ namespace mt_kahypar {
                                        _context.preprocessing.stable_construction_of_incident_edges);
     if (_hg.hasSeparatedNodes()) {
       sn = _hg.separatedNodes().extract(_block, copy_hypergraph.second);
+      sn.setSavepoint();
     }
     Hypergraph& rb_hypergraph = copy_hypergraph.first;
     auto& mapping = copy_hypergraph.second;
