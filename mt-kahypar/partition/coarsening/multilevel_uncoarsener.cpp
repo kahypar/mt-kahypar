@@ -107,11 +107,11 @@ namespace mt_kahypar {
 
         StreamingVector<HypernodeID> node_ids;
         tbb::parallel_for(first_separated, last_separated, [&](const HypernodeID s_node) {
-          if (separated_nodes.partID(s_node) != kInvalidPartition) {
+          if (partitioned_hg.separatedPartID(s_node) != kInvalidPartition) {
             // Note: Because the block weight already respects separated nodes, we use
             // setOnlyNodePart instead of setNodePart.
             // Later, the nodes are removed via popBatch().
-            partitioned_hg.setOnlyNodePart(separated_nodes.originalHypernodeID(s_node), separated_nodes.partID(s_node));
+            partitioned_hg.setOnlyNodePart(separated_nodes.originalHypernodeID(s_node), partitioned_hg.separatedPartID(s_node));
           } else {
             node_ids.stream(s_node);
           }
@@ -138,7 +138,7 @@ namespace mt_kahypar {
           [&](const HypernodeID node_id, const PartitionID part) {
             partitioned_hg.setNodePart(get_node(node_id), part);
           });
-        separated_nodes.popBatch();
+        partitioned_hg.popSeparated();
 
         tbb::parallel_invoke([&] {
           current_metrics.cut = metrics::hyperedgeCut(partitioned_hg);

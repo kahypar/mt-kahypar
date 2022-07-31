@@ -446,7 +446,7 @@ namespace mt_kahypar {
     auto copy_hypergraph = _hg.extract(_block, cut_net_splitting,
                                        _context.preprocessing.stable_construction_of_incident_edges);
     if (_hg.hasSeparatedNodes()) {
-      sn = _hg.separatedNodes().extract(_block, copy_hypergraph.second);
+      sn = _hg.extractSeparated(_block, copy_hypergraph.second);
       sn.setSavepoint();
     }
     Hypergraph& rb_hypergraph = copy_hypergraph.first;

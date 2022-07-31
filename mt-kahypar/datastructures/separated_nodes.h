@@ -45,14 +45,12 @@ class SeparatedNodes {
     Node() :
       original_node(kInvalidHypernode),
       begin(0),
-      weight(1),
-      part_id(kInvalidPartition) { }
+      weight(1) { }
 
     explicit Node(const HypernodeID original_node, const HyperedgeID begin, const HypernodeWeight weight) :
       original_node(original_node),
       begin(begin),
-      weight(weight),
-      part_id(kInvalidPartition) { }
+      weight(weight) { }
 
     // ! ID of the original node in the graph
     HypernodeID original_node;
@@ -60,8 +58,6 @@ class SeparatedNodes {
     HyperedgeID begin;
     // ! Node weight
     HypernodeWeight weight;
-    // ! Partition ID
-    PartitionID part_id;
   };
 
  public:
@@ -219,15 +215,6 @@ class SeparatedNodes {
     return _outward_incident_weight[u].load();
   }
 
-  // ! Part ID of a vertex
-  PartitionID partID(const HypernodeID u) const {
-    return node(u).part_id;
-  }
-
-  void setPartID(const HypernodeID u, const PartitionID id) {
-    node(u).part_id = id;
-  }
-
   // ####################### Batches and Savepoints #######################
 
   HypernodeID currentBatchIndex() const {
@@ -263,7 +250,8 @@ class SeparatedNodes {
   // ####################### Extract Block #######################
 
   // ! extracts one block as new separated nodes structure
-  SeparatedNodes extract(PartitionID block, const vec<HypernodeID>& graph_node_mapping) const;
+  SeparatedNodes extract(PartitionID block, const vec<HypernodeID>& graph_node_mapping,
+                         const vec<CAtomic<PartitionID>>& part_ids) const;
 
   // ####################### Initialization / Reset Functions #######################
 

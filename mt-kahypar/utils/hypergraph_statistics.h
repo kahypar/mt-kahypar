@@ -131,6 +131,11 @@ struct Proxy<false> {
   static PartitionID partID(const HypergraphT&, HypernodeID) {
     return kInvalidPartition;
   }
+
+  template<typename HypergraphT>
+  static PartitionID sepPartID(const HypergraphT&, HypernodeID) {
+    return kInvalidPartition;
+  }
 };
 
 template<>
@@ -152,6 +157,12 @@ struct Proxy<true> {
     ALWAYS_ASSERT(hg.partID(hn) != kInvalidPartition);
     return hg.partID(hn);
   }
+
+  template<typename HypergraphT>
+  static PartitionID sepPartID(const HypergraphT& hg, HypernodeID hn) {
+    ALWAYS_ASSERT(hg.partID(hn) != kInvalidPartition);
+    return hg.separatedPartID(hn);
+  }
 };
 
 } // namespace _private
@@ -169,6 +180,11 @@ static bool isCut(const HypergraphT& hg, HyperedgeID he) {
 template<typename HypergraphT, bool ColorBlocks>
 static PartitionID partID(const HypergraphT& hg, HypernodeID hn) {
     return _private::Proxy<ColorBlocks>::partID(hg, hn);
+}
+
+template<typename HypergraphT, bool ColorBlocks>
+static PartitionID sepPartID(const HypergraphT& hg, HypernodeID hn) {
+    return _private::Proxy<ColorBlocks>::sepPartID(hg, hn);
 }
 
 template<typename HypergraphT, bool ColorBlocks=HypergraphT::is_partitioned>

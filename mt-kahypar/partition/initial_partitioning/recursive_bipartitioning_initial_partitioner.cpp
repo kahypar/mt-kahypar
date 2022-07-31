@@ -68,10 +68,10 @@ namespace mt_kahypar {
           return separated_nodes.nodeWeight(node);
         },
         [&](const HypernodeID node, const PartitionID part) {
-          separated_nodes.setPartID(node, part);
+          _hg.separatedSetNodePart(node, part);
         });
 
-      _hg.updateBlockWeights();
+      _hg.updateBlockWeights(); // TODO: not necessary anymore?
     }
   }
 } // namepace mt_kahypar

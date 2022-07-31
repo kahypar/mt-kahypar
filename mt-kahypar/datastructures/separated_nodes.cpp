@@ -313,15 +313,20 @@ void SeparatedNodes::initializeOutwardEdges() {
   );
 }
 
-SeparatedNodes SeparatedNodes::extract(PartitionID block, const vec<HypernodeID>& graph_node_mapping) const {
+SeparatedNodes SeparatedNodes::extract(PartitionID block, const vec<HypernodeID>& graph_node_mapping,
+                                       const vec<CAtomic<PartitionID>>& part_ids) const {
   ASSERT(/*_num_graph_nodes == _outward_incident_weight.size() &&*/ _num_graph_nodes == graph_node_mapping.size());
   ASSERT(_graph_nodes_begin.empty());
+
+  auto get_part_id = [&](HypernodeID node) {
+    return part_ids[node].load(std::memory_order_relaxed);
+  };
 
   // TODO: parallelize with tmp_node_degree
   Array<HypernodeID> sep_nodes_active;
   sep_nodes_active.resize(_num_nodes, 0);
   tbb::parallel_for(ID(0), _num_nodes, [&](const HypernodeID& node) {
-    if (partID(node) == block) {
+    if (get_part_id(node) == block) {
       sep_nodes_active[node] = 1;
     }
   });
@@ -333,7 +338,7 @@ SeparatedNodes SeparatedNodes::extract(PartitionID block, const vec<HypernodeID>
   Array<HyperedgeID> tmp_node_degree;
   tmp_node_degree.resize(_num_nodes, 0);
   tbb::parallel_for(ID(0), _num_nodes, [&](const HypernodeID& node) {
-    if (partID(node) == block) {
+    if (get_part_id(node) == block) {
       tmp_node_degree[node] = inwardDegree(node);
     }
   });
@@ -352,7 +357,7 @@ SeparatedNodes SeparatedNodes::extract(PartitionID block, const vec<HypernodeID>
     vec<Node> tmp_nodes;
     tmp_nodes.resize(sep_node_mapping.total_sum());
     tbb::parallel_for(ID(0), _num_nodes, [&](const HypernodeID& node) {
-      if (partID(node) == block) {
+      if (get_part_id(node) == block) {
         Node& new_node = tmp_nodes[sep_node_mapping[node]];
         new_node = _nodes[node];
         new_node.begin = degree_mapping[node];
@@ -368,7 +373,7 @@ SeparatedNodes SeparatedNodes::extract(PartitionID block, const vec<HypernodeID>
     vec<Edge> tmp_inward_edges;
     tmp_inward_edges.resize(degree_mapping.total_sum());
     tbb::parallel_for(ID(0), _num_nodes, [&](const HypernodeID& node) {
-      if (partID(node) == block) {
+      if (get_part_id(node) == block) {
         const HyperedgeID start_new = degree_mapping[node];
         const HyperedgeID start_old = _nodes[node].begin;
         for (HyperedgeID i = 0; start_new + i < degree_mapping[node + 1]; ++i) {
@@ -389,11 +394,11 @@ SeparatedNodes SeparatedNodes::extract(PartitionID block, const vec<HypernodeID>
 
   auto set_total_weight = [&] {
     other._total_weight = tbb::parallel_reduce(
-            tbb::blocked_range<HypernodeID>(0UL, _nodes.size()), 0,
+            tbb::blocked_range<HypernodeID>(0UL, _num_nodes), 0,
               [&](const tbb::blocked_range<HypernodeID>& range, HypernodeWeight init) {
                 HypernodeWeight weight = init;
                 for (size_t i = range.begin(); i < range.end(); ++i) {
-                  if (partID(i) == block) {
+                  if (get_part_id(i) == block) {
                     weight += node(i).weight;
                   }
                 }

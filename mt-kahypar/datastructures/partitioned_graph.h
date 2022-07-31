@@ -242,6 +242,17 @@ private:
     return _hg->separatedNodes();
   }
 
+  HyperedgeID popSeparated() {
+    ASSERT(hasSeparatedNodes() && _sep_part_ids.size() == separatedNodes().numNodes());
+    const HypernodeID num_sep_nodes = separatedNodes().popBatch();
+    _sep_part_ids.resize(num_sep_nodes);
+    return num_sep_nodes;
+  }
+
+  SeparatedNodes extractSeparated(PartitionID block, const vec<HypernodeID>& graph_node_mapping) const {
+    return separatedNodes().extract(block, graph_node_mapping, _sep_part_ids);
+  }
+
   void setHypergraph(Hypergraph& hypergraph) {
     _hg = &hypergraph;
   }
@@ -462,6 +473,24 @@ private:
     return _part_ids[u].load(std::memory_order_relaxed);
   }
 
+  PartitionID separatedPartID(const HypernodeID sep_node) const {
+    ASSERT(hasSeparatedNodes() && _sep_part_ids.size() == separatedNodes().numNodes());
+    ASSERT(sep_node < _sep_part_ids.size(), "Node" << sep_node << "does not exist");
+    return _sep_part_ids[sep_node].load(std::memory_order_relaxed);
+  }
+
+  void separatedSetOnlyNodePart(const HypernodeID sep_node, PartitionID p) {
+    ASSERT(p != kInvalidPartition && p < _k);
+    ASSERT(hasSeparatedNodes() && _sep_part_ids.size() == separatedNodes().numNodes());
+    ASSERT(_sep_part_ids[sep_node].load() == kInvalidPartition);
+    _sep_part_ids[sep_node].store(p, std::memory_order_relaxed);
+  }
+
+  void separatedSetNodePart(const HypernodeID sep_node, PartitionID p) {
+    separatedSetOnlyNodePart(sep_node, p);
+    _part_weights[p].fetch_add(separatedNodes().nodeWeight(sep_node), std::memory_order_relaxed);
+  }
+
   void extractPartIDs(Array<CAtomic<PartitionID>>& part_ids) {
     std::swap(_part_ids, part_ids);
   }
@@ -649,6 +678,9 @@ private:
   // ! Initializes the partition of the hypergraph, if block ids are assigned with
   // ! setOnlyNodePart(...). In that case, block weights must be initialized explicitly here.
   void initializePartition() {
+    if (hasSeparatedNodes()) {
+      _sep_part_ids.resize(separatedNodes().numNodes(), CAtomic<PartitionID>(kInvalidPartition));
+    }
     initializeBlockWeights();
   }
 
@@ -892,6 +924,7 @@ private:
   }
 
   void updateBlockWeights() {
+    ASSERT(!hasSeparatedNodes() || _sep_part_ids.size() == separatedNodes().numNodes());
     _part_weights.assign(_part_weights.size(), CAtomic<HypernodeWeight>(0));
     initializeBlockWeights();
   }
@@ -1037,7 +1070,7 @@ private:
           // this is not enumerable_thread_specific because of the static partitioner
           parallel::scalable_vector<HypernodeWeight> part_weight_deltas(_k, 0);
           for (HypernodeID node = r.begin(); node < r.end(); ++node) {
-            PartitionID part_id = separated_nodes.partID(node);
+            PartitionID part_id = separatedPartID(node);
             if (part_id != kInvalidPartition) {
               part_weight_deltas[part_id] += separated_nodes.nodeWeight(node);
             }
@@ -1160,6 +1193,9 @@ private:
 
   // ! Fast reset threshold for edge locks
   uint32_t _lock_treshold;
+
+  // ! Current block IDs of the separated nodes
+  vec< CAtomic<PartitionID> > _sep_part_ids;
 };
 
 } // namespace ds
