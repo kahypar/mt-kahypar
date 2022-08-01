@@ -336,11 +336,12 @@ TEST_F(ASeparatedNodes, ExtractsBlockWhileGraphNodesAreKept) {
   vec<std::tuple<HypernodeID, HyperedgeID, HypernodeWeight>> new_nodes { {0, 0, 1}, {1, 1, 1}, {2, 2, 1}};
   vec<Edge> new_edges { Edge(0, 1), Edge(4, 1), Edge(4, 1), Edge(3, 1) };
   nodes.addNodes(new_nodes, new_edges);
-  nodes.setPartID(0, 0);
-  nodes.setPartID(1, 0);
-  nodes.setPartID(2, 1);
+  vec<CAtomic<PartitionID>> part_ids;
+  part_ids.emplace_back(0);
+  part_ids.emplace_back(0);
+  part_ids.emplace_back(1);
 
-  SeparatedNodes extracted = nodes.extract(0, {0, 1, 2, 3, 4});
+  SeparatedNodes extracted = nodes.extract(0, {0, 1, 2, 3, 4}, part_ids);
 
   ASSERT_EQ(2,  extracted.numNodes());
   ASSERT_EQ(5,  extracted.numGraphNodes());
@@ -361,12 +362,12 @@ TEST_F(ASeparatedNodes, ExtractsBlockWhileRemovingGraphNodes) {
   SeparatedNodes nodes(5);
   vec<std::tuple<HypernodeID, HyperedgeID, HypernodeWeight>> new_nodes { {0, 0, 1}, {1, 1, 1}, {2, 2, 1}};
   vec<Edge> new_edges { Edge(0, 1), Edge(4, 1), Edge(4, 1), Edge(3, 1) };
-  nodes.addNodes(new_nodes, new_edges);
-  nodes.setPartID(0, 0);
-  nodes.setPartID(1, 0);
-  nodes.setPartID(2, 1);
+  vec<CAtomic<PartitionID>> part_ids;
+  part_ids.emplace_back(0);
+  part_ids.emplace_back(0);
+  part_ids.emplace_back(1);
 
-  SeparatedNodes extracted = nodes.extract(0, {0, 1, kInvalidHypernode, 2, kInvalidHypernode});
+  SeparatedNodes extracted = nodes.extract(0, {0, 1, kInvalidHypernode, 2, kInvalidHypernode}, part_ids);
 
   ASSERT_EQ(2,  extracted.numNodes());
   ASSERT_EQ(3,  extracted.numGraphNodes());
