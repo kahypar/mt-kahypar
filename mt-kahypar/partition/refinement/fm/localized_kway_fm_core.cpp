@@ -176,7 +176,9 @@ namespace mt_kahypar {
         toWeight = deltaPhg.partWeight(move.to);
         if (expect_improvement) {
           // since we will flush the move sequence, don't bother running it through the deltaPhg
-          // this is intended to allow moving high deg nodes (blow up hash tables) if they give an improvement
+          // this is intended to allow moving high deg nodes (blow up hash tables) if they give an improvement.
+          // The nets affected by a gain cache update are collected when we apply this improvement on the
+          // global partition (used to expand the localized search and update the gain values).
           moved = toWeight + phg.nodeWeight(move.node) <= context.partition.max_part_weights[move.to];
         } else {
           moved = deltaPhg.changeNodePart(move.node, move.from, move.to,
@@ -247,28 +249,54 @@ namespace mt_kahypar {
           PartitionedHypergraph& phg,
           const size_t best_index_locally_observed,
           const Gain best_improvement_locally_observed,
-          bool apply_all_moves) {
+          const bool apply_delta_improvement) {
 
     Gain improvement_from_attributed_gains = 0;
     Gain attributed_gain = 0;
+    bool is_last_move = false;
 
     auto delta_gain_func = [&](const HyperedgeID he,
-                               const HyperedgeWeight edge_weight,
-                               const HypernodeID edge_size,
-                               const HypernodeID pin_count_in_from_part_after,
-                               const HypernodeID pin_count_in_to_part_after) {
+                                    const HyperedgeWeight edge_weight,
+                                    const HypernodeID edge_size,
+                                    const HypernodeID pin_count_in_from_part_after,
+                                    const HypernodeID pin_count_in_to_part_after) {
       attributed_gain += km1Delta(he, edge_weight, edge_size,
                                   pin_count_in_from_part_after, pin_count_in_to_part_after);
+
+      // Gains of the pins of a hyperedge can only change in the following situations.
+      if ( is_last_move &&
+           ( pin_count_in_from_part_after == 0 || pin_count_in_from_part_after == 1 ||
+             pin_count_in_to_part_after == 1 || pin_count_in_to_part_after == 2 ) ) {
+        edgesWithGainChanges.push_back(he);
+      }
+
+      // TODO: We have different strategies to maintain the gain values during an FM search.
+      // Some use the gain cache, others compute them each time from scratch or use delta gain updates.
+      // In case  the delta gain update strategy is used, we would have to call the deltaGainUpdate function
+      // of the FM strategy here. However, the current strategy in our presets use the gain cache and calling the deltaGainUpdate
+      // function would apply the updates on the thread-local partition, which we do not want here.
+      // Keep in mind that the gain values of the FMGainDeltaStrategy might be incorrect afterwards.
+      // However, this strategy is only experimental We should remove the
+      // different strategies since we do not use them.
     };
 
     // Apply move sequence to original hypergraph and update gain values
     Gain best_improvement_from_attributed_gains = 0;
     size_t best_index_from_attributed_gains = 0;
     for (size_t i = 0; i < best_index_locally_observed; ++i) {
-      assert(i < localMoves.size());
+      ASSERT(i < localMoves.size());
       Move& local_move = localMoves[i].first;
       MoveID& move_id = localMoves[i].second;
       attributed_gain = 0;
+      // In a localized FM search, we apply all moves to a thread-local partition (delta_phg)
+      // using hash table. Once we find an improvement, we immediately apply the corresponding move
+      // sequence to the global partition. To safe memory (due to the hash tables), we do not apply
+      // the last move that leads to the improvement to the thread-local partition as we reset them anyway after
+      // an improvement is found. However, when applying a move on the thread-local partition,
+      // we collect all nets affected by a gain cache update and expand the search to pins
+      // contained in these nets. Since, we do not apply last move on the thread-local partition we collect
+      // these nets here.
+      is_last_move = apply_delta_improvement && i == best_index_locally_observed - 1;
 
       if constexpr (FMStrategy::uses_gain_cache) {
         phg.changeNodePartWithGainCacheUpdate(local_move.node, local_move.from, local_move.to,
@@ -292,12 +320,12 @@ namespace mt_kahypar {
     }
 
     runStats.local_reverts += localMoves.size() - best_index_locally_observed;
-    if (!apply_all_moves && best_index_from_attributed_gains != best_index_locally_observed) {
+    if (!apply_delta_improvement && best_index_from_attributed_gains != best_index_locally_observed) {
       runStats.best_prefix_mismatch++;
     }
 
     // kind of double rollback, if attributed gains say we overall made things worse
-    if (!apply_all_moves && improvement_from_attributed_gains < 0) {
+    if (!apply_delta_improvement && improvement_from_attributed_gains < 0) {
       // always using the if-branch gave similar results
       runStats.local_reverts += best_index_locally_observed - best_index_from_attributed_gains + 1;
       for (size_t i = best_index_from_attributed_gains + 1; i < best_index_locally_observed; ++i) {
