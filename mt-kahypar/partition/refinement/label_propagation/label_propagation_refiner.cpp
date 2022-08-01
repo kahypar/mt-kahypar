@@ -97,7 +97,6 @@ namespace mt_kahypar {
   bool LabelPropagationRefiner<GainPolicy>::labelPropagationRound(
                               PartitionedHypergraph& hypergraph,
                               NextActiveNodes& next_active_nodes) {
-
     _visited_he.reset();
     _next_active.reset();
     // This function is passed as lambda to the changeNodePart function and used
@@ -144,7 +143,7 @@ namespace mt_kahypar {
            hypergraph.isGainCacheInitialized() ) {
       auto recompute = [&](size_t j) {
         if ( _active_node_was_moved[j] ) {
-          hypergraph.recomputeMoveFromBenefit(_active_nodes[j]);
+          hypergraph.recomputeMoveFromPenalty(_active_nodes[j]);
           _active_node_was_moved[j] = uint8_t(false);
         }
       };

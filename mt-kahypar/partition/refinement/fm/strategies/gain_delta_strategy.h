@@ -139,12 +139,12 @@ namespace mt_kahypar {
         vertexPQs[i].decreaseKey(u, vertexPQs[i].getKey(u) - edge_weight);
       };
 
-      // gain = moveFromBenefit - moveToPenalty
+      // gain = moveToBenefit - moveFromPenalty
 
       if (pin_count_in_from_part_after == 1) {
         for (HypernodeID u : phg.pins(he)) {
           if (phg.partID(u) == from && in_search(u)) {
-            // move from benefit increased --> gain increased
+            // move to benefit increased --> gain increased
             for (PartitionID i = 0; i < k; ++i) {
               if (i != from) {
                 increase(u, i);
@@ -154,7 +154,7 @@ namespace mt_kahypar {
         }
       } else if (pin_count_in_from_part_after == 0) {
         for (HypernodeID u : phg.pins(he)) {
-          // moveToPenalty increased --> gain decreased
+          // moveToBenefit increased --> gain decreased
           if (in_search(u)) {
             decrease(u, from);
           }
@@ -163,7 +163,7 @@ namespace mt_kahypar {
 
       if (pin_count_in_to_part_after == 1) {
         for (HypernodeID u : phg.pins(he)) {
-          // moveToPenalty decreased --> gain increased
+          // moveToBenefit decreased --> gain increased
           if (in_search(u))  {
             increase(u, to);
           }

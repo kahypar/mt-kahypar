@@ -55,8 +55,8 @@ TEST(GainUpdates, Example1) {
 
     phg.initializeGainCache();
   ASSERT_EQ(phg.km1Gain(0, phg.partID(0), 1), -1);
-  ASSERT_EQ(phg.moveFromBenefit(0), 1);
-  ASSERT_EQ(phg.moveToPenalty(0, 1), 2);
+  ASSERT_EQ(phg.moveFromPenalty(0), 2);
+  ASSERT_EQ(phg.moveToBenefit(0, 1), 1);
 
   ASSERT_EQ(phg.km1Gain(2, phg.partID(2), 0), -1);
 
@@ -68,7 +68,7 @@ TEST(GainUpdates, Example1) {
 
     phg.changeNodePartWithGainCacheUpdate(8, 0, 1);
 
-  phg.recomputeMoveFromBenefit(8);  // nodes are allowed to move once before moveFromBenefit must be recomputed
+  phg.recomputeMoveFromPenalty(8);  // nodes are allowed to move once before moveFromPenalty must be recomputed
   ASSERT_EQ(phg.km1Gain(8, 1, 0), 2);
 
   ASSERT_EQ(phg.km1Gain(6, 0, 1), 0);

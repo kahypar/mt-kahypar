@@ -222,14 +222,14 @@ TEST_F(ADynamicPartitionedHypergraph, UpdatesGainCacheCorrectlyIfWeRestoreSingle
   auto removed_hyperedges = hypergraph.removeSinglePinAndParallelHyperedges();
 
   initializePartition();
-    partitioned_hypergraph.initializeGainCache();
-  ASSERT_EQ(1, partitioned_hypergraph.moveFromBenefit(0));
-  ASSERT_EQ(1, partitioned_hypergraph.moveToPenalty(0, 1));
-  ASSERT_EQ(1, partitioned_hypergraph.moveToPenalty(0, 2));
+  partitioned_hypergraph.initializeGainCache();
+  ASSERT_EQ(1, partitioned_hypergraph.moveFromPenalty(0));
+  ASSERT_EQ(1, partitioned_hypergraph.moveToBenefit(0, 1));
+  ASSERT_EQ(1, partitioned_hypergraph.moveToBenefit(0, 2));
   partitioned_hypergraph.restoreSinglePinAndParallelNets(removed_hyperedges);
-  ASSERT_EQ(2, partitioned_hypergraph.moveFromBenefit(0));
-  ASSERT_EQ(2, partitioned_hypergraph.moveToPenalty(0, 1));
-  ASSERT_EQ(2, partitioned_hypergraph.moveToPenalty(0, 2));
+  ASSERT_EQ(1, partitioned_hypergraph.moveFromPenalty(0));
+  ASSERT_EQ(1, partitioned_hypergraph.moveToBenefit(0, 1));
+  ASSERT_EQ(1, partitioned_hypergraph.moveToBenefit(0, 2));
   verifyAllKm1GainValues();
 }
 
@@ -246,19 +246,19 @@ TEST_F(ADynamicPartitionedHypergraph, UpdatesGainCacheCorrectlyIfWeRestoreSingle
 
   initializePartition();
     partitioned_hypergraph.initializeGainCache();
-  ASSERT_EQ(2, partitioned_hypergraph.moveFromBenefit(0));
-  ASSERT_EQ(2, partitioned_hypergraph.moveToPenalty(0, 1));
-  ASSERT_EQ(0, partitioned_hypergraph.moveToPenalty(0, 2));
-  ASSERT_EQ(2, partitioned_hypergraph.moveFromBenefit(6));
-  ASSERT_EQ(0, partitioned_hypergraph.moveToPenalty(6, 0));
-  ASSERT_EQ(2, partitioned_hypergraph.moveToPenalty(6, 1));
+  ASSERT_EQ(0, partitioned_hypergraph.moveFromPenalty(0));
+  ASSERT_EQ(0, partitioned_hypergraph.moveToBenefit(0, 1));
+  ASSERT_EQ(2, partitioned_hypergraph.moveToBenefit(0, 2));
+  ASSERT_EQ(0, partitioned_hypergraph.moveFromPenalty(6));
+  ASSERT_EQ(2, partitioned_hypergraph.moveToBenefit(6, 0));
+  ASSERT_EQ(0, partitioned_hypergraph.moveToBenefit(6, 1));
   partitioned_hypergraph.restoreSinglePinAndParallelNets(removed_hyperedges);
-  ASSERT_EQ(3, partitioned_hypergraph.moveFromBenefit(0));
-  ASSERT_EQ(3, partitioned_hypergraph.moveToPenalty(0, 1));
-  ASSERT_EQ(1, partitioned_hypergraph.moveToPenalty(0, 2));
-  ASSERT_EQ(3, partitioned_hypergraph.moveFromBenefit(6));
-  ASSERT_EQ(1, partitioned_hypergraph.moveToPenalty(6, 0));
-  ASSERT_EQ(3, partitioned_hypergraph.moveToPenalty(6, 1));
+  ASSERT_EQ(0, partitioned_hypergraph.moveFromPenalty(0));
+  ASSERT_EQ(0, partitioned_hypergraph.moveToBenefit(0, 1));
+  ASSERT_EQ(2, partitioned_hypergraph.moveToBenefit(0, 2));
+  ASSERT_EQ(0, partitioned_hypergraph.moveFromPenalty(6));
+  ASSERT_EQ(2, partitioned_hypergraph.moveToBenefit(6, 0));
+  ASSERT_EQ(0, partitioned_hypergraph.moveToBenefit(6, 1));
   verifyAllKm1GainValues();
 }
 
@@ -325,12 +325,12 @@ TEST_F(ADynamicPartitionedHypergraph, UpdatesGainCacheCorrectlyAfterUncontractio
   initializePartition();
     partitioned_hypergraph.initializeGainCache();
   partitioned_hypergraph.uncontract(hierarchy.back().back());
-  ASSERT_EQ(0, partitioned_hypergraph.moveFromBenefit(0));
-  ASSERT_EQ(1, partitioned_hypergraph.moveToPenalty(0, 1));
-  ASSERT_EQ(2, partitioned_hypergraph.moveToPenalty(0, 2));
-  ASSERT_EQ(1, partitioned_hypergraph.moveFromBenefit(2));
-  ASSERT_EQ(2, partitioned_hypergraph.moveToPenalty(2, 1));
-  ASSERT_EQ(1, partitioned_hypergraph.moveToPenalty(2, 2));
+  ASSERT_EQ(2, partitioned_hypergraph.moveFromPenalty(0));
+  ASSERT_EQ(1, partitioned_hypergraph.moveToBenefit(0, 1));
+  ASSERT_EQ(0, partitioned_hypergraph.moveToBenefit(0, 2));
+  ASSERT_EQ(1, partitioned_hypergraph.moveFromPenalty(2));
+  ASSERT_EQ(0, partitioned_hypergraph.moveToBenefit(2, 1));
+  ASSERT_EQ(1, partitioned_hypergraph.moveToBenefit(2, 2));
   verifyAllKm1GainValues();
 }
 
@@ -347,7 +347,7 @@ TEST_F(ADynamicPartitionedHypergraph, UpdatesGainCacheCorrectlyAfterUncontractio
   VersionedBatchVector hierarchy = hypergraph.createBatchUncontractionHierarchy(2);
 
   initializePartition();
-    partitioned_hypergraph.initializeGainCache();
+  partitioned_hypergraph.initializeGainCache();
 
   while ( !hierarchy.empty() ) {
     BatchVector& batches = hierarchy.back();
@@ -359,27 +359,27 @@ TEST_F(ADynamicPartitionedHypergraph, UpdatesGainCacheCorrectlyAfterUncontractio
     hierarchy.pop_back();
   }
 
-  ASSERT_EQ(0, partitioned_hypergraph.moveFromBenefit(0));
-  ASSERT_EQ(2, partitioned_hypergraph.moveToPenalty(0, 1));
-  ASSERT_EQ(1, partitioned_hypergraph.moveToPenalty(0, 2));
-  ASSERT_EQ(0, partitioned_hypergraph.moveFromBenefit(1));
-  ASSERT_EQ(1, partitioned_hypergraph.moveToPenalty(1, 1));
-  ASSERT_EQ(0, partitioned_hypergraph.moveToPenalty(1, 2));
-  ASSERT_EQ(1, partitioned_hypergraph.moveFromBenefit(2));
-  ASSERT_EQ(2, partitioned_hypergraph.moveToPenalty(2, 1));
-  ASSERT_EQ(1, partitioned_hypergraph.moveToPenalty(2, 2));
-  ASSERT_EQ(0, partitioned_hypergraph.moveFromBenefit(3));
-  ASSERT_EQ(1, partitioned_hypergraph.moveToPenalty(3, 0));
-  ASSERT_EQ(2, partitioned_hypergraph.moveToPenalty(3, 1));
-  ASSERT_EQ(0, partitioned_hypergraph.moveFromBenefit(4));
-  ASSERT_EQ(1, partitioned_hypergraph.moveToPenalty(4, 0));
-  ASSERT_EQ(2, partitioned_hypergraph.moveToPenalty(4, 1));
-  ASSERT_EQ(0, partitioned_hypergraph.moveFromBenefit(5));
-  ASSERT_EQ(0, partitioned_hypergraph.moveToPenalty(5, 0));
-  ASSERT_EQ(1, partitioned_hypergraph.moveToPenalty(5, 1));
-  ASSERT_EQ(0, partitioned_hypergraph.moveFromBenefit(6));
-  ASSERT_EQ(1, partitioned_hypergraph.moveToPenalty(6, 0));
-  ASSERT_EQ(2, partitioned_hypergraph.moveToPenalty(6, 1));
+  ASSERT_EQ(2, partitioned_hypergraph.moveFromPenalty(0));
+  ASSERT_EQ(0, partitioned_hypergraph.moveToBenefit(0, 1));
+  ASSERT_EQ(1, partitioned_hypergraph.moveToBenefit(0, 2));
+  ASSERT_EQ(1, partitioned_hypergraph.moveFromPenalty(1));
+  ASSERT_EQ(0, partitioned_hypergraph.moveToBenefit(1, 1));
+  ASSERT_EQ(1, partitioned_hypergraph.moveToBenefit(1, 2));
+  ASSERT_EQ(1, partitioned_hypergraph.moveFromPenalty(2));
+  ASSERT_EQ(0, partitioned_hypergraph.moveToBenefit(2, 1));
+  ASSERT_EQ(1, partitioned_hypergraph.moveToBenefit(2, 2));
+  ASSERT_EQ(2, partitioned_hypergraph.moveFromPenalty(3));
+  ASSERT_EQ(1, partitioned_hypergraph.moveToBenefit(3, 0));
+  ASSERT_EQ(0, partitioned_hypergraph.moveToBenefit(3, 1));
+  ASSERT_EQ(2, partitioned_hypergraph.moveFromPenalty(4));
+  ASSERT_EQ(1, partitioned_hypergraph.moveToBenefit(4, 0));
+  ASSERT_EQ(0, partitioned_hypergraph.moveToBenefit(4, 1));
+  ASSERT_EQ(1, partitioned_hypergraph.moveFromPenalty(5));
+  ASSERT_EQ(1, partitioned_hypergraph.moveToBenefit(5, 0));
+  ASSERT_EQ(0, partitioned_hypergraph.moveToBenefit(5, 1));
+  ASSERT_EQ(2, partitioned_hypergraph.moveFromPenalty(6));
+  ASSERT_EQ(1, partitioned_hypergraph.moveToBenefit(6, 0));
+  ASSERT_EQ(0, partitioned_hypergraph.moveToBenefit(6, 1));
   verifyAllKm1GainValues();
 }
 
