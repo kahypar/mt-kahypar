@@ -366,8 +366,8 @@ SeparatedNodes SeparatedNodes::extract(PartitionID block, const vec<HypernodeID>
       if (get_part_id(node) == block) {
         Node& new_node = tmp_nodes[sep_node_mapping[node]];
         new_node = _nodes[node];
-        new_node.original_node = graph_node_mapping[_nodes[node].original_node];
         new_node.begin = degree_mapping[node];
+        new_node.original_node = kInvalidHypernode; // doesn't make sense in extracted graph
       }
     });
     tmp_nodes.emplace_back(kInvalidHypernode, degree_mapping.total_sum(), 0);

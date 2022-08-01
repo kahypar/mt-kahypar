@@ -358,28 +358,6 @@ TEST_F(ASeparatedNodes, ExtractsBlockWhileGraphNodesAreKept) {
   ASSERT_EQ(1,  extracted.outwardIncidentWeight(4));
 }
 
-TEST_F(ASeparatedNodes, ExtractsBlockAndRemapsNodeIds) {
-  SeparatedNodes nodes(5);
-  vec<std::tuple<HypernodeID, HyperedgeID, HypernodeWeight>> new_nodes { {0, 0, 1}, {1, 1, 1}, {2, 2, 1}};
-  vec<Edge> new_edges { Edge(0, 1), Edge(4, 1) };
-  nodes.addNodes(new_nodes, new_edges);
-  vec<CAtomic<PartitionID>> part_ids;
-  part_ids.emplace_back(0);
-  part_ids.emplace_back(1);
-  part_ids.emplace_back(0);
-
-  SeparatedNodes extracted = nodes.extract(1, {4, 3, 2, 1, 0}, part_ids);
-
-  ASSERT_EQ(1,  extracted.numNodes());
-  ASSERT_EQ(5,  extracted.numGraphNodes());
-  ASSERT_EQ(1,  extracted.numEdges());
-  ASSERT_EQ(1,  extracted.totalWeight());
-
-  verifyIncidentEgdes(extracted.inwardEdges(0), { {0, 1} });
-
-  ASSERT_EQ(3,  extracted.originalHypernodeID(0));
-}
-
 TEST_F(ASeparatedNodes, ExtractsBlockWhileRemovingGraphNodes) {
   SeparatedNodes nodes(5);
   vec<std::tuple<HypernodeID, HyperedgeID, HypernodeWeight>> new_nodes { {0, 0, 1}, {1, 1, 1}, {2, 2, 1}};
