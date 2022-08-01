@@ -225,6 +225,8 @@ class SeparatedNodes {
   // ! of nodes left after the pop operation.
   HypernodeID popBatch();
 
+  void cleanBatchState();
+
   void setSavepoint();
 
   void restoreSavepoint();

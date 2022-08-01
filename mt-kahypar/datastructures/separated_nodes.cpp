@@ -54,7 +54,12 @@ HypernodeID SeparatedNodes::popBatch() {
   _total_weight = weight;
 
   // TODO: outward edges? incident weight?!
+  ASSERT(_batch_indices_and_weights.size() >= 2);
   return index;
+}
+
+void SeparatedNodes::cleanBatchState() {
+  _batch_indices_and_weights.assign(2, {_num_nodes, _total_weight});
 }
 
 void SeparatedNodes::setSavepoint() {
@@ -433,17 +438,21 @@ SeparatedNodes SeparatedNodes::copy(parallel_tag_t) const {
       sep_nodes._outward_incident_weight[i] = _outward_incident_weight[i];
     }
   }, [&] {
-    sep_nodes._graph_nodes_begin.resize(_graph_nodes_begin.size());
-    memcpy(sep_nodes._graph_nodes_begin.data(), _graph_nodes_begin.data(),
-            sizeof(HyperedgeID) * _graph_nodes_begin.size());
+    if (!_graph_nodes_begin.empty()) {
+      sep_nodes._graph_nodes_begin.resize(_graph_nodes_begin.size());
+      memcpy(sep_nodes._graph_nodes_begin.data(), _graph_nodes_begin.data(),
+              sizeof(HyperedgeID) * _graph_nodes_begin.size());
+    }
   }, [&] {
     sep_nodes._inward_edges.resize(_inward_edges.size());
     memcpy(sep_nodes._inward_edges.data(), _inward_edges.data(),
             sizeof(Edge) * _inward_edges.size());
   }, [&] {
-    sep_nodes._outward_edges.resize(_outward_edges.size());
-    memcpy(sep_nodes._outward_edges.data(), _outward_edges.data(),
-            sizeof(Edge) * _outward_edges.size());
+    if (!_outward_edges.empty()) {
+      sep_nodes._outward_edges.resize(_outward_edges.size());
+      memcpy(sep_nodes._outward_edges.data(), _outward_edges.data(),
+              sizeof(Edge) * _outward_edges.size());
+    }
   }, [&] {
     sep_nodes._batch_indices_and_weights.resize(_batch_indices_and_weights.size());
     for (size_t i = 0; i < _batch_indices_and_weights.size(); ++i) {
@@ -471,17 +480,21 @@ SeparatedNodes SeparatedNodes::copy() const {
     sep_nodes._outward_incident_weight[i] = _outward_incident_weight[i];
   }
 
-  sep_nodes._graph_nodes_begin.resize(_graph_nodes_begin.size());
-  memcpy(sep_nodes._graph_nodes_begin.data(), _graph_nodes_begin.data(),
-          sizeof(HyperedgeID) * _graph_nodes_begin.size());
+  if (!_graph_nodes_begin.empty()) {
+    sep_nodes._graph_nodes_begin.resize(_graph_nodes_begin.size());
+    memcpy(sep_nodes._graph_nodes_begin.data(), _graph_nodes_begin.data(),
+            sizeof(HyperedgeID) * _graph_nodes_begin.size());
+  }
 
   sep_nodes._inward_edges.resize(_inward_edges.size());
   memcpy(sep_nodes._inward_edges.data(), _inward_edges.data(),
           sizeof(Edge) * _inward_edges.size());
 
-  sep_nodes._outward_edges.resize(_outward_edges.size());
-  memcpy(sep_nodes._outward_edges.data(), _outward_edges.data(),
-          sizeof(Edge) * _outward_edges.size());
+  if (!_outward_edges.empty()) {
+    sep_nodes._outward_edges.resize(_outward_edges.size());
+    memcpy(sep_nodes._outward_edges.data(), _outward_edges.data(),
+            sizeof(Edge) * _outward_edges.size());
+  }
 
   sep_nodes._batch_indices_and_weights.resize(_batch_indices_and_weights.size());
   for (size_t i = 0; i < _batch_indices_and_weights.size(); ++i) {
