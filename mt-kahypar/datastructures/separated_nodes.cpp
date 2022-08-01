@@ -416,6 +416,7 @@ SeparatedNodes SeparatedNodes::extract(PartitionID block, const vec<HypernodeID>
   tbb::parallel_invoke(set_nodes, set_edges, set_total_weight);
   const HypernodeID max_node_id = parallel_max(graph_node_mapping, kInvalidHypernode);
   other.contract(graph_node_mapping, max_node_id + 1);
+  other.cleanBatchState();
   return other;
 }
 

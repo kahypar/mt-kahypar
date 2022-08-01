@@ -172,7 +172,7 @@ private:
     _edge_markers(Hypergraph::is_static_hypergraph ? 0 : hypergraph.maxUniqueID()) {
     _part_ids.assign(hypergraph.initialNumNodes(), CAtomic<PartitionID>(kInvalidPartition), false);
     if (hasSeparatedNodes()) {
-      _sep_part_ids.resize(separatedNodes().numNodes(), CAtomic<PartitionID>(kInvalidPartition));
+      initializeSeparatedParts();
     }
   }
 
@@ -202,7 +202,7 @@ private:
       }
     }, [&] {
       if (hasSeparatedNodes()) {
-        _sep_part_ids.resize(separatedNodes().numNodes(), CAtomic<PartitionID>(kInvalidPartition));
+        initializeSeparatedParts();
       }
     });
   }
@@ -237,6 +237,10 @@ private:
     return *_hg;
   }
 
+  void setSeparatedNodes(SeparatedNodes* sn) {
+    return _hg->setSeparatedNodes(sn);
+  }
+
   bool hasSeparatedNodes() const {
     return _hg->hasSeparatedNodes();
   }
@@ -258,6 +262,15 @@ private:
 
   SeparatedNodes extractSeparated(PartitionID block, const vec<HypernodeID>& graph_node_mapping) const {
     return separatedNodes().extract(block, graph_node_mapping, _sep_part_ids);
+  }
+
+  void initializeSeparatedParts() {
+    _sep_part_ids.resize(separatedNodes().numNodes(), CAtomic<PartitionID>(kInvalidPartition));
+  }
+
+  void resetSeparatedParts() {
+    _sep_part_ids.assign(separatedNodes().numNodes(), CAtomic<PartitionID>(kInvalidPartition));
+    updateBlockWeights();
   }
 
   void setHypergraph(Hypergraph& hypergraph) {

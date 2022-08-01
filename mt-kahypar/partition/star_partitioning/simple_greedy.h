@@ -88,7 +88,7 @@ class SimpleGreedy {
       get_edge_weights_of_node_fn(local_edge_weights.data(), node);
 
       // greedily assign separated nodes
-      PartitionID max_part = kInvalidPartition;
+      PartitionID max_part = 0;
       HyperedgeWeight max_gain = 0;
       for (PartitionID part = 0; part < _k; ++part) {
         if (local_edge_weights[part] >= max_gain &&

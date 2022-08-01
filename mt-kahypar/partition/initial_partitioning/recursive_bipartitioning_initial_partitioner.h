@@ -21,12 +21,13 @@
 
 #pragma once
 
-
+#include"mt-kahypar/datastructures/separated_nodes.h"
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/initial_partitioning/i_initial_partitioner.h"
 
 
 namespace mt_kahypar {
+using ds::SeparatedNodes;
 
 /*!
  * RECURSIVE BIPARTITIONING INITIAL PARTITIONER
@@ -53,6 +54,8 @@ class RecursiveBipartitioningInitialPartitioner : public IInitialPartitioner {
 
   PartitionedHypergraph& _hg;
   const Context& _context;
+  SeparatedNodes* _original_s_nodes;
+  SeparatedNodes _s_nodes;
 };
 
 

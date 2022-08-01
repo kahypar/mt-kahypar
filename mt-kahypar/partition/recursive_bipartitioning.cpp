@@ -274,10 +274,23 @@ namespace mt_kahypar {
           _hg.setOnlyNodePart(hn, block_1);
         }
       });
-      _hg.initializePartition();
       if (_hg.hasSeparatedNodes()) {
-        _hg.separatedNodes().restoreSavepoint();
+        _hg.initializeSeparatedParts();
+        SeparatedNodes& s_nodes = _hg.separatedNodes();
+        s_nodes.restoreSavepoint();
+        ASSERT(s_nodes.numNodes() == _bisection_hg.separatedNodes().numNodes());
+        tbb::parallel_for(ID(0), s_nodes.numNodes(), [&](const HypernodeID& node) {
+          PartitionID part_id = _bisection_partitioned_hg.separatedPartID(node);
+          ASSERT(part_id != kInvalidPartition && part_id < _hg.k());
+          ASSERT(_hg.separatedPartID(node) == kInvalidPartition);
+          if ( part_id == 0 ) {
+            _hg.separatedSetOnlyNodePart(node, block_0);
+          } else {
+            _hg.separatedSetOnlyNodePart(node, block_1);
+          }
+        });
       }
+      _hg.initializePartition();
 
       ASSERT(metrics::objective(_bisection_partitioned_hg, _context.partition.objective) ==
              metrics::objective(_hg, _context.partition.objective));

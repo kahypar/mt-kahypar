@@ -290,6 +290,13 @@ class InitialPartitioningDataContainer {
           ASSERT(part_id != kInvalidPartition);
           _partition[hn] = part_id;
         }
+        for ( const HypernodeID& s_node : _partitioned_hypergraph.separatedNodes().nodes() ) {
+          const PartitionID part_id = _partitioned_hypergraph.separatedPartID(s_node);
+          const HypernodeID node_id = _partitioned_hypergraph.initialNumNodes() + s_node;
+          ASSERT(node_id < _partition.size());
+          ASSERT(part_id != kInvalidPartition);
+          _partition[node_id] = part_id;
+        }
         _result = refined;
       }
     }
@@ -659,6 +666,15 @@ class InitialPartitioningDataContainer {
         ASSERT(part_id != kInvalidPartition && part_id < _partitioned_hg.k());
         ASSERT(_partitioned_hg.partID(hn) == kInvalidPartition);
         _partitioned_hg.setOnlyNodePart(hn, part_id);
+      });
+      const ds::SeparatedNodes& s_nodes = _partitioned_hg.separatedNodes();
+      tbb::parallel_for(ID(0), s_nodes.numNodes(), [&](const HypernodeID& node) {
+        const HypernodeID node_id = _partitioned_hg.initialNumNodes() + node;
+        ASSERT(node_id < best->_partition.size());
+        const PartitionID part_id = best->_partition[node_id];
+        ASSERT(part_id != kInvalidPartition && part_id < _partitioned_hg.k());
+        ASSERT(_partitioned_hg.separatedPartID(node) == kInvalidPartition);
+        _partitioned_hg.separatedSetOnlyNodePart(node, part_id);
       });
 
       best_flat_algo = best->_result._algorithm;
