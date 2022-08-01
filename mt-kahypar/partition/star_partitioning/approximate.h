@@ -78,7 +78,7 @@ class Approximate {
       local_node_index_in_part.assign(num_nodes, 0);
       tbb::parallel_for(ID(0), num_nodes, [&](const HypernodeID node) {
         if (preferred_part[node] == part) {
-          local_node_index_in_part[node] = 1;
+          local_node_index_in_part[node] = 1; // <---- TODO: segfault here?!
         }
       });
       parallel::TBBPrefixSum<HypernodeID> index_prefix_sum(local_node_index_in_part);
@@ -89,7 +89,7 @@ class Approximate {
       local_nodes.assign(index_prefix_sum.total_sum(), 0);
       tbb::parallel_for(ID(0), num_nodes, [&](const HypernodeID node) {
         if (preferred_part[node] == part) {
-          local_nodes[index_prefix_sum[node]] = node;
+          local_nodes[index_prefix_sum[node]] = node; // <---- TODO: segfault here?! tbb::internal::parallel_for_body<mt_kahypar::star_partitioning::Approximate::partition<mt_kahypar::RecursiveBipartitioningInitialPartitioner::initialPartitionImpl()::<lambda(mt_kahypar::HyperedgeWeight*, mt_kahypar::HypernodeID)>, mt_kahypar::RecursiveBipartitioningInitialPartitioner::initialPartitionImpl()::<lambda(mt_kahypar::HypernodeID)>, mt_kahypar::RecursiveBipartitioningInitialPartitioner::initialPartitionImpl()::<lambda(mt_kahypar::HypernodeID, mt_kahypar::PartitionID)> >::<lambda(mt_kahypar::PartitionID)>::<lambda(mt_kahypar::HypernodeID)>, unsigned int>::operator()
         }
       });
 
@@ -117,7 +117,8 @@ class Approximate {
     sg.partition(unassigned.size(), part_weights, max_part_weights,
       [&](HyperedgeWeight* weights, const HypernodeID node) { get_edge_weights_of_node_fn(weights, unassigned[node]); },
       [&](const HypernodeID node) { return get_node_weight_fn(unassigned[node]); },
-      [&](const HypernodeID node, const PartitionID part) { set_part_id_fn(unassigned[node], part); }
+      [&](const HypernodeID node, const PartitionID part) { set_part_id_fn(unassigned[node], part); },
+      true
     );
   }
 
@@ -127,8 +128,9 @@ class Approximate {
                  F get_edge_weights_of_node_fn, G get_node_weight_fn, H set_part_id_fn) {
     Array<HyperedgeWeight> gains(num_nodes * _k);
     Array<PartitionID> preferred_part(num_nodes);
-    Array<vec<HypernodeID>> nodes_per_part(_k);
+    vec<vec<HypernodeID>> nodes_per_part(_k);
 
+    LOG << "##0";
     for (HypernodeID node = 0; node < num_nodes; ++node) {
       get_edge_weights_of_node_fn(&gains[node * _k], node);
 
@@ -171,35 +173,36 @@ class Approximate {
       }
       ALWAYS_ASSERT(i + 1 >= excluded.size());
     }
+    LOG << "##1";
 
     // assign all currently unassigned nodes via the simple greedy algorithm
     SimpleGreedy sg(_k);
     sg.partition(unassigned.size(), part_weights, max_part_weights,
       [&](HyperedgeWeight* weights, const HypernodeID node) { get_edge_weights_of_node_fn(weights, unassigned[node]); },
       [&](const HypernodeID node) { return get_node_weight_fn(unassigned[node]); },
-      [&](const HypernodeID node, const PartitionID part) { set_part_id_fn(unassigned[node], part); }
+      [&](const HypernodeID node, const PartitionID part) { set_part_id_fn(unassigned[node], part); },
+      false
     );
+  }
+
+  template<typename F, typename G>
+  auto compare_gain_weight_ratio(F get_gain, G get_node_weight) {
+    return [get_gain, get_node_weight](const HypernodeID& left, const HypernodeID& right) {
+      const HypernodeWeight weight_left = get_node_weight(left);
+      const HypernodeWeight weight_right = get_node_weight(right);
+      if (weight_left == 0) {
+        return false;
+      } else if (weight_right == 0) {
+        return true;
+      }
+      return static_cast<double>(get_gain(left)) / weight_left
+              < static_cast<double>(get_gain(right)) / weight_right;
+    };
   }
 
  private:
   PartitionID _k;
 };
-
-template<typename F, typename G>
-auto compare_gain_weight_ratio(F get_gain, G get_node_weight) {
-  return [get_gain, get_node_weight](const HypernodeID& left, const HypernodeID& right) {
-    const HypernodeWeight weight_left = get_node_weight(left);
-    const HypernodeWeight weight_right = get_node_weight(right);
-    if (weight_left == 0) {
-      return false;
-    } else if (weight_right == 0) {
-      return true;
-    }
-    return static_cast<double>(get_gain(left)) / weight_left
-            < static_cast<double>(get_gain(right)) / weight_right;
-  };
-}
-
 
 /*
 * Returns the nodes that are _not_ included in ascending order.

@@ -332,7 +332,7 @@ class InitialPartitioningDataContainer {
         },
         [&](const HypernodeID node, const PartitionID part) {
           _partitioned_hypergraph.separatedSetNodePart(node, part);
-        });
+        }, false);
       current_metric.updateMetric(current_metric.getMetric(Mode::direct, _context.partition.objective) + added_cut,
                                   Mode::direct, _context.partition.objective);
       current_metric.imbalance = metrics::imbalance(_partitioned_hypergraph, _context);

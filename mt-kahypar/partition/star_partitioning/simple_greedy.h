@@ -21,6 +21,7 @@
 #pragma once
 
 #include <vector>
+#include <algorithm>
 
 #include "mt-kahypar/datastructures/array.h"
 #include "mt-kahypar/definitions.h"
@@ -42,10 +43,11 @@ class SimpleGreedy {
   template<typename F, typename G, typename H>
   void partition(const HypernodeID num_nodes, Array<HypernodeWeight>& part_weights,
                  const std::vector<HypernodeWeight>& max_part_weights,
-                 F get_edge_weights_of_node_fn, G get_node_weight_fn, H set_part_id_fn) {
+                 F get_edge_weights_of_node_fn, G get_node_weight_fn, H set_part_id_fn, bool parallel = true) {
     Array<HyperedgeWeight> max_gains(num_nodes);
+    Array<HypernodeID> sorted_nodes(num_nodes);
 
-    tbb::parallel_for(ID(0), num_nodes, [&](const HypernodeID node) {
+    auto set_node_gain = [&](const HypernodeID& node) {
       Array<HyperedgeWeight>& local_edge_weights = _tmp_edge_weights.local();
       local_edge_weights.assign(_k, 0, false);
       get_edge_weights_of_node_fn(local_edge_weights.data(), node);
@@ -57,26 +59,27 @@ class SimpleGreedy {
         }
       }
       max_gains[node] = max_gain;
-    });
-
-    Array<HypernodeID> sorted_nodes(num_nodes);
-    tbb::parallel_for(ID(0), num_nodes, [&](const HypernodeID node) {
       sorted_nodes[node] = node;
-    });
+    };
 
-    tbb::parallel_sort(sorted_nodes.begin(), sorted_nodes.end(),
-      [&](const HypernodeID& left, const HypernodeID& right) {
-        const HypernodeWeight weight_left = get_node_weight_fn(left);
-        const HypernodeWeight weight_right = get_node_weight_fn(right);
-        if (weight_left == 0) {
-          return true;
-        } else if (weight_right == 0) {
-          return false;
-        }
-        return static_cast<double>(max_gains[left]) / weight_left
-               > static_cast<double>(max_gains[right]) / weight_right;
+    if (parallel) {
+      tbb::parallel_for(ID(0), num_nodes, [&](const HypernodeID node) {
+        set_node_gain(node);
+      });
+    } else {
+      for (HypernodeID node = 0; node < num_nodes; ++node) {
+        set_node_gain(node);
       }
+    }
+    
+    auto compare = compare_gain_weight_ratio(
+      [&](const HypernodeID& node) { return max_gains[node]; }, get_node_weight_fn
     );
+    if (parallel) {
+      tbb::parallel_sort(sorted_nodes.begin(), sorted_nodes.end(), compare);
+    } else {
+      std::sort(sorted_nodes.begin(), sorted_nodes.end(), compare);
+    }
 
     for (size_t i = 0; i < sorted_nodes.size(); ++i) {
       const HypernodeID node = sorted_nodes[i];
@@ -99,6 +102,21 @@ class SimpleGreedy {
       part_weights[max_part] += get_node_weight_fn(node);
     }
 
+  }
+
+  template<typename F, typename G>
+  auto compare_gain_weight_ratio(F get_gain, G get_node_weight) {
+    return [get_gain, get_node_weight](const HypernodeID& left, const HypernodeID& right) {
+      const HypernodeWeight weight_left = get_node_weight(left);
+      const HypernodeWeight weight_right = get_node_weight(right);
+      if (weight_left == 0) {
+        return false;
+      } else if (weight_right == 0) {
+        return true;
+      }
+      return static_cast<double>(get_gain(left)) / weight_left
+              < static_cast<double>(get_gain(right)) / weight_right;
+    };
   }
 
  private:
