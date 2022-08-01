@@ -323,8 +323,10 @@ class InitialPartitioningDataContainer {
         [&](HyperedgeWeight* weights, const HypernodeID node) {
           for (const auto& e: separated_nodes.inwardEdges(node)) {
             const PartitionID target_part = _partitioned_hypergraph.partID(e.target);
-            ASSERT(target_part != kInvalidPartition);
-            weights[target_part] += e.weight;
+            ASSERT(!_partitioned_hypergraph.nodeIsEnabled(e.target) || target_part != kInvalidPartition);
+            if (target_part != kInvalidPartition) {
+              weights[target_part] += e.weight;
+            }
           }
         },
         [&](const HypernodeID node) {

@@ -491,6 +491,7 @@ private:
     ASSERT(p != kInvalidPartition && p < _k);
     ASSERT(hasSeparatedNodes() && _sep_part_ids.size() == separatedNodes().numNodes());
     ASSERT(_sep_part_ids[sep_node].load() == kInvalidPartition);
+    ASSERT(sep_node < _sep_part_ids.size());
     _sep_part_ids[sep_node].store(p, std::memory_order_relaxed);
   }
 
