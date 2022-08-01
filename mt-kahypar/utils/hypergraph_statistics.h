@@ -190,65 +190,66 @@ static PartitionID sepPartID(const HypergraphT& hg, HypernodeID hn) {
 template<typename HypergraphT, bool ColorBlocks=HypergraphT::is_partitioned>
 static void outputGraphvizFile(const HypergraphT& hypergraph, const std::string& outfile,
                                bool includeSeparated = false, const std::string& suffix = "") {
-    ALWAYS_ASSERT(outfile != "");
-    std::string file = outfile + suffix;
-    std::ofstream out(file.c_str());
-    out.precision(3);
+    unused(hypergraph); unused(outfile); unused(includeSeparated); unused(suffix);
+    // ALWAYS_ASSERT(outfile != "");
+    // std::string file = outfile + suffix;
+    // std::ofstream out(file.c_str());
+    // out.precision(3);
 
-    out << "graph {" << std::endl;
-    out << "fixedsize=true;" << std::endl << std::endl;
+    // out << "graph {" << std::endl;
+    // out << "fixedsize=true;" << std::endl << std::endl;
 
-    for (HypernodeID hn: hypergraph.nodes()) {
-        HypernodeWeight w = hypergraph.nodeWeight(hn);
-        double root = std::sqrt(w) / 4; // std::round(100 * std::sqrt(w)) / 100.0;
-        double penwidth = std::pow(w, 0.4);
-        const char* color = getNodeColor<HypergraphT, ColorBlocks>(hypergraph, hn);
-        out << hn << " [label=\"\",width=" << root << ", penwidth=" << penwidth  << ",height="
-            << root << ",color=" << color << "];" << std::endl;
-    }
-    if (includeSeparated && hypergraph.hasSeparatedNodes()) {
-        const ds::SeparatedNodes& sn = hypergraph.separatedNodes();
-        for (HypernodeID sep: sn.nodes()) {
-            HypernodeWeight w = sn.nodeWeight(sep);
-            double root = std::sqrt(w) / 4;
-            double penwidth = std::pow(w, 0.4);
-            const char* color = getNodeColor<ds::SeparatedNodes, ColorBlocks>(sn, sep, true);
-            out << sep + hypergraph.initialNumNodes() << " [label=\"\",width=" << root << ", penwidth=" << penwidth  << ",height="
-                << root << ",color=" << color << "];" << std::endl;
-        }
-    }
+    // for (HypernodeID hn: hypergraph.nodes()) {
+    //     HypernodeWeight w = hypergraph.nodeWeight(hn);
+    //     double root = std::sqrt(w) / 4; // std::round(100 * std::sqrt(w)) / 100.0;
+    //     double penwidth = std::pow(w, 0.4);
+    //     const char* color = getNodeColor<HypergraphT, ColorBlocks>(hypergraph, hn);
+    //     out << hn << " [label=\"\",width=" << root << ", penwidth=" << penwidth  << ",height="
+    //         << root << ",color=" << color << "];" << std::endl;
+    // }
+    // if (includeSeparated && hypergraph.hasSeparatedNodes()) {
+    //     const ds::SeparatedNodes& sn = hypergraph.separatedNodes();
+    //     for (HypernodeID sep: sn.nodes()) {
+    //         HypernodeWeight w = sn.nodeWeight(sep);
+    //         double root = std::sqrt(w) / 4;
+    //         double penwidth = std::pow(w, 0.4);
+    //         const char* color = getNodeColor<ds::SeparatedNodes, ColorBlocks>(sn, sep, true);
+    //         out << sep + hypergraph.initialNumNodes() << " [label=\"\",width=" << root << ", penwidth=" << penwidth  << ",height="
+    //             << root << ",color=" << color << "];" << std::endl;
+    //     }
+    // }
 
 
-    for (HyperedgeID e: hypergraph.edges()) {
-        if (hypergraph.edgeTarget(e) >= hypergraph.edgeSource(e)) {
-            // don't duplicate edges
-            continue;
-        }
-        bool is_cut = isCut<HypergraphT, ColorBlocks>(hypergraph, e);
-        double w = std::sqrt(hypergraph.edgeWeight(e)) / 8;
-        if (w > 0.01) {
-            out << hypergraph.edgeSource(e) << "--" << hypergraph.edgeTarget(e)
-                << " [weight=" << w << ", penwidth=" << (is_cut ? 10 * w : w)
-                << (is_cut ? ", color=green" : "")
-                << "];" << std::endl;
-        }
-    }
-    if (includeSeparated && hypergraph.hasSeparatedNodes()) {
-        const ds::SeparatedNodes& sn = hypergraph.separatedNodes();
-        for (HypernodeID sep: sn.nodes()) {
-            for (auto e: sn.inwardEdges(sep)) {
-                bool is_cut = partID<HypergraphT, ColorBlocks>(hypergraph, e.target) != sn.partID(sep);
-                double w = std::sqrt(e.weight) / 8;
-                if (w > 0.01) {
-                    out << sep + hypergraph.initialNumNodes() << "--" << e.target
-                        << " [weight=" << w << ", penwidth=" << (is_cut ? 10 * w : w)
-                        << (is_cut ? ", color=green" : "")
-                        << "];" << std::endl;
-                }
-            }
-        }
-    }
-    out << "}" << std::endl;
+    // for (HyperedgeID e: hypergraph.edges()) {
+    //     if (hypergraph.edgeTarget(e) >= hypergraph.edgeSource(e)) {
+    //         // don't duplicate edges
+    //         continue;
+    //     }
+    //     bool is_cut = isCut<HypergraphT, ColorBlocks>(hypergraph, e);
+    //     double w = std::sqrt(hypergraph.edgeWeight(e)) / 8;
+    //     if (w > 0.01) {
+    //         out << hypergraph.edgeSource(e) << "--" << hypergraph.edgeTarget(e)
+    //             << " [weight=" << w << ", penwidth=" << (is_cut ? 10 * w : w)
+    //             << (is_cut ? ", color=green" : "")
+    //             << "];" << std::endl;
+    //     }
+    // }
+    // if (includeSeparated && hypergraph.hasSeparatedNodes()) {
+    //     const ds::SeparatedNodes& sn = hypergraph.separatedNodes();
+    //     for (HypernodeID sep: sn.nodes()) {
+    //         for (auto e: sn.inwardEdges(sep)) {
+    //             bool is_cut = partID<HypergraphT, ColorBlocks>(hypergraph, e.target) != sepPartID<HypergraphT, ColorBlocks>(hypergraph, sep);
+    //             double w = std::sqrt(e.weight) / 8;
+    //             if (w > 0.01) {
+    //                 out << sep + hypergraph.initialNumNodes() << "--" << e.target
+    //                     << " [weight=" << w << ", penwidth=" << (is_cut ? 10 * w : w)
+    //                     << (is_cut ? ", color=green" : "")
+    //                     << "];" << std::endl;
+    //             }
+    //         }
+    //     }
+    // }
+    // out << "}" << std::endl;
 }
 #endif
 

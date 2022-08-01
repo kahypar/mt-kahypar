@@ -27,6 +27,7 @@
 
 #include "mt-kahypar/partition/initial_partitioning/flat/initial_partitioning_commons.h"
 
+#include "mt-kahypar/datastructures/separated_nodes.h"
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/metrics.h"
@@ -34,6 +35,7 @@
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
 #include "mt-kahypar/utils/initial_partitioning_stats.h"
 #include "mt-kahypar/partition/refinement/fm/sequential_twoway_fm_refiner.h"
+#include "mt-kahypar/partition/star_partitioning/star_partitioning.h"
 
 
 namespace mt_kahypar {
@@ -186,7 +188,7 @@ class InitialPartitioningDataContainer {
       _partitioned_hypergraph(context.partition.k, hypergraph),
       _context(context),
       _global_stats(global_stats),
-      _partition(hypergraph.initialNumNodes(), kInvalidPartition),
+      _partition(hypergraph.initialNumNodes() + hypergraph.separatedNodes().numNodes(), kInvalidPartition),
       _result(InitialPartitioningAlgorithm::UNDEFINED,
               std::numeric_limits<HypernodeWeight>::max(),
               std::numeric_limits<HypernodeWeight>::max(),
@@ -297,6 +299,10 @@ class InitialPartitioningDataContainer {
         ASSERT(_partitioned_hypergraph.partID(node) != kInvalidPartition);
         partition_store[node] = _partitioned_hypergraph.partID(node);
       }
+      for (HypernodeID node : _partitioned_hypergraph.separatedNodes().nodes()) {
+        ASSERT(_partitioned_hypergraph.separatedPartID(node) != kInvalidPartition);
+        partition_store[_partitioned_hypergraph.initialNumNodes() + node] = _partitioned_hypergraph.separatedPartID(node);
+      }
     }
 
     void refineCurrentPartition(Metrics& current_metric, std::mt19937& prng) {
@@ -310,6 +316,26 @@ class InitialPartitioningDataContainer {
         _label_propagation->refine(_partitioned_hypergraph, {},
           current_metric, std::numeric_limits<double>::max());
       }
+
+      const ds::SeparatedNodes& separated_nodes = _partitioned_hypergraph.separatedNodes();
+      const HyperedgeWeight added_cut = star_partitioning::partition(_partitioned_hypergraph, _context,
+        separated_nodes.numNodes(), _context.partition.max_part_weights,
+        [&](HyperedgeWeight* weights, const HypernodeID node) {
+          for (const auto& e: separated_nodes.inwardEdges(node)) {
+            const PartitionID target_part = _partitioned_hypergraph.partID(e.target);
+            ASSERT(target_part != kInvalidPartition);
+            weights[target_part] += e.weight;
+          }
+        },
+        [&](const HypernodeID node) {
+          return separated_nodes.nodeWeight(node);
+        },
+        [&](const HypernodeID node, const PartitionID part) {
+          _partitioned_hypergraph.separatedSetNodePart(node, part);
+        });
+      current_metric.updateMetric(current_metric.getMetric(Mode::direct, _context.partition.objective) + added_cut,
+                                  Mode::direct, _context.partition.objective);
+      current_metric.imbalance = metrics::imbalance(_partitioned_hypergraph, _context);
 
       HEAVY_INITIAL_PARTITIONING_ASSERT(
         current_metric.getMetric(Mode::direct, _context.partition.objective) ==
@@ -639,8 +665,8 @@ class InitialPartitioningDataContainer {
 
     _partitioned_hg.resetMoveState();
     _partitioned_hg.initializePartition();
-    ASSERT(best_feasible_objective == metrics::objective(_partitioned_hg, _context.partition.objective, false),
-           V(best_feasible_objective) << V(metrics::objective(_partitioned_hg, _context.partition.objective, false)));
+    // ASSERT(best_feasible_objective == metrics::objective(_partitioned_hg, _context.partition.objective, false),
+    //        V(best_feasible_objective) << V(metrics::objective(_partitioned_hg, _context.partition.objective, false)));
     utils::InitialPartitioningStats::instance().add_initial_partitioning_result(best_flat_algo, number_of_threads, stats);
   }
 

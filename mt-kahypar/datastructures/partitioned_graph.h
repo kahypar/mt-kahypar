@@ -171,6 +171,9 @@ private:
       "Refinement", "edge_locks", hypergraph.maxUniqueID(), false, false),
     _edge_markers(Hypergraph::is_static_hypergraph ? 0 : hypergraph.maxUniqueID()) {
     _part_ids.assign(hypergraph.initialNumNodes(), CAtomic<PartitionID>(kInvalidPartition), false);
+    if (hasSeparatedNodes()) {
+      _sep_part_ids.resize(separatedNodes().numNodes(), CAtomic<PartitionID>(kInvalidPartition));
+    }
   }
 
   explicit PartitionedGraph(const PartitionID k,
@@ -196,6 +199,10 @@ private:
     }, [&] {
       if (!Hypergraph::is_static_hypergraph) {
         _edge_markers.setSize(hypergraph.maxUniqueID());
+      }
+    }, [&] {
+      if (hasSeparatedNodes()) {
+        _sep_part_ids.resize(separatedNodes().numNodes(), CAtomic<PartitionID>(kInvalidPartition));
       }
     });
   }
@@ -474,7 +481,8 @@ private:
   }
 
   PartitionID separatedPartID(const HypernodeID sep_node) const {
-    ASSERT(hasSeparatedNodes() && _sep_part_ids.size() == separatedNodes().numNodes());
+    ASSERT(hasSeparatedNodes() && _sep_part_ids.size() == separatedNodes().numNodes(),
+           V(_sep_part_ids.size()) << V(separatedNodes().numNodes()));
     ASSERT(sep_node < _sep_part_ids.size(), "Node" << sep_node << "does not exist");
     return _sep_part_ids[sep_node].load(std::memory_order_relaxed);
   }
@@ -678,9 +686,9 @@ private:
   // ! Initializes the partition of the hypergraph, if block ids are assigned with
   // ! setOnlyNodePart(...). In that case, block weights must be initialized explicitly here.
   void initializePartition() {
-    if (hasSeparatedNodes()) {
-      _sep_part_ids.resize(separatedNodes().numNodes(), CAtomic<PartitionID>(kInvalidPartition));
-    }
+    // if (hasSeparatedNodes()) {
+    //   _sep_part_ids.resize(separatedNodes().numNodes(), CAtomic<PartitionID>(kInvalidPartition));
+    // }
     initializeBlockWeights();
   }
 
@@ -716,6 +724,7 @@ private:
   // ! Reset partition (not thread-safe)
   void resetPartition() {
     _part_ids.assign(_part_ids.size(), CAtomic<PartitionID>(kInvalidPartition), false);
+    _sep_part_ids.assign(_sep_part_ids.size(), CAtomic<PartitionID>(kInvalidPartition));
     _incident_weight_in_part.assign(_incident_weight_in_part.size(),  CAtomic<HyperedgeWeight>(0), false);
     for (auto& weight : _part_weights) {
       weight.store(0, std::memory_order_relaxed);

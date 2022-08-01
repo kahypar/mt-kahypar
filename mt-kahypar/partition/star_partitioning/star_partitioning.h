@@ -21,6 +21,7 @@
 #pragma once
 
 #include "mt-kahypar/datastructures/array.h"
+#include "mt-kahypar/datastructures/separated_nodes.h"
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/star_partitioning/approximate.h"
 #include "mt-kahypar/partition/star_partitioning/simple_greedy.h"
@@ -28,11 +29,21 @@
 namespace mt_kahypar {
 namespace star_partitioning {
 using ds::Array;
+using ds::SeparatedNodes;
 
 template<typename F, typename G, typename H>
-void partition(PartitionedHypergraph& hypergraph, const Context& context,
+HyperedgeWeight partition(PartitionedHypergraph& hypergraph, const Context& context,
                const HypernodeID num_nodes, const std::vector<HypernodeWeight>& max_part_weights,
                F get_edge_weights_of_node_fn, G get_node_weight_fn, H set_part_id_fn) {
+      ASSERT([&]() {
+          for (const HypernodeID& hn : hypergraph.nodes()) {
+            if (hypergraph.partID(hn) == kInvalidPartition) {
+              return false;
+            }
+          }
+          return true;
+        } (), "There are unassigned hypernodes!");
+
     Array<HypernodeWeight> part_weights(hypergraph.k());
     for (PartitionID part = 0; part < hypergraph.k(); ++part) {
         part_weights[part] = hypergraph.partWeight(part);
@@ -47,6 +58,18 @@ void partition(PartitionedHypergraph& hypergraph, const Context& context,
         ap.partition(num_nodes, part_weights, max_part_weights, get_edge_weights_of_node_fn,
                     get_node_weight_fn, set_part_id_fn);
     }
+
+    const SeparatedNodes& sn = hypergraph.separatedNodes();
+    tbb::enumerable_thread_specific<HyperedgeWeight> cut(0);
+    tbb::parallel_for(ID(0), sn.numNodes(), [&](const HypernodeID node) {
+        HyperedgeWeight& local_sum = cut.local();
+        for (const auto& e: sn.inwardEdges(node)) {
+            if (hypergraph.partID(e.target) != hypergraph.separatedPartID(node)) {
+                local_sum += e.weight;
+            }
+        }
+    });
+    return cut.combine(std::plus<>());
 }
 
 } // namepace star_partitioning
