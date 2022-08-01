@@ -78,7 +78,7 @@ class Approximate {
       local_node_index_in_part.assign(num_nodes, 0);
       tbb::parallel_for(ID(0), num_nodes, [&](const HypernodeID node) {
         if (preferred_part[node] == part) {
-          local_node_index_in_part[node] = 1; // <---- TODO: segfault here?!
+          local_node_index_in_part[node] = 1;
         }
       });
       parallel::TBBPrefixSum<HypernodeID> index_prefix_sum(local_node_index_in_part);
@@ -89,7 +89,7 @@ class Approximate {
       local_nodes.assign(index_prefix_sum.total_sum(), 0);
       tbb::parallel_for(ID(0), num_nodes, [&](const HypernodeID node) {
         if (preferred_part[node] == part) {
-          local_nodes[index_prefix_sum[node]] = node; // <---- TODO: segfault here?! tbb::internal::parallel_for_body<mt_kahypar::star_partitioning::Approximate::partition<mt_kahypar::RecursiveBipartitioningInitialPartitioner::initialPartitionImpl()::<lambda(mt_kahypar::HyperedgeWeight*, mt_kahypar::HypernodeID)>, mt_kahypar::RecursiveBipartitioningInitialPartitioner::initialPartitionImpl()::<lambda(mt_kahypar::HypernodeID)>, mt_kahypar::RecursiveBipartitioningInitialPartitioner::initialPartitionImpl()::<lambda(mt_kahypar::HypernodeID, mt_kahypar::PartitionID)> >::<lambda(mt_kahypar::PartitionID)>::<lambda(mt_kahypar::HypernodeID)>, unsigned int>::operator()
+          local_nodes[index_prefix_sum[node]] = node;
         }
       });
 
@@ -130,7 +130,6 @@ class Approximate {
     Array<PartitionID> preferred_part(num_nodes);
     vec<vec<HypernodeID>> nodes_per_part(_k);
 
-    LOG << "##0";
     for (HypernodeID node = 0; node < num_nodes; ++node) {
       get_edge_weights_of_node_fn(&gains[node * _k], node);
 
@@ -173,7 +172,6 @@ class Approximate {
       }
       ALWAYS_ASSERT(i + 1 >= excluded.size());
     }
-    LOG << "##1";
 
     // assign all currently unassigned nodes via the simple greedy algorithm
     SimpleGreedy sg(_k);
