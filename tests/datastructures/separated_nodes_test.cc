@@ -362,6 +362,7 @@ TEST_F(ASeparatedNodes, ExtractsBlockWhileRemovingGraphNodes) {
   SeparatedNodes nodes(5);
   vec<std::tuple<HypernodeID, HyperedgeID, HypernodeWeight>> new_nodes { {0, 0, 1}, {1, 1, 1}, {2, 2, 1}};
   vec<Edge> new_edges { Edge(0, 1), Edge(4, 1), Edge(4, 1), Edge(3, 1) };
+  nodes.addNodes(new_nodes, new_edges);
   vec<CAtomic<PartitionID>> part_ids;
   part_ids.emplace_back(0);
   part_ids.emplace_back(0);
