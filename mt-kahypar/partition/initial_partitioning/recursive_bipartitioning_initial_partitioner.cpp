@@ -61,26 +61,7 @@ namespace mt_kahypar {
     _hg.resetSeparatedParts();
 
     // TODO: compare quality?!
-    if (_context.partition.separated_nodes_processing_after_ip) {
-      SeparatedNodes& separated_nodes = _hg.separatedNodes();
-
-      star_partitioning::partition(_hg, _context, separated_nodes.numNodes(), _context.partition.max_part_weights,
-        [&](HyperedgeWeight* weights, const HypernodeID node) {
-          for (const auto& e: separated_nodes.inwardEdges(node)) {
-            const PartitionID target_part = _hg.partID(e.target);
-            if (target_part != kInvalidPartition) {
-              weights[target_part] += e.weight;
-            }
-          }
-        },
-        [&](const HypernodeID node) {
-          return separated_nodes.nodeWeight(node);
-        },
-        [&](const HypernodeID node, const PartitionID part) {
-          _hg.separatedSetNodePart(node, part);
-        });
-
-      _hg.updateBlockWeights(); // TODO: not necessary anymore?
-    }
+    star_partitioning::partition(_hg, _context);
+    _hg.updateBlockWeights(); // TODO: not necessary anymore?
   }
 } // namepace mt_kahypar

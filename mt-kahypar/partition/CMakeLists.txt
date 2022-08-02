@@ -3,6 +3,7 @@ add_subdirectory(coarsening)
 add_subdirectory(refinement)
 add_subdirectory(initial_partitioning)
 add_subdirectory(registries)
+add_subdirectory(star_partitioning)
 
 set(PartitionSources
         partitioner.cpp

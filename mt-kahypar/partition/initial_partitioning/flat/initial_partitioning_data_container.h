@@ -324,24 +324,7 @@ class InitialPartitioningDataContainer {
           current_metric, std::numeric_limits<double>::max());
       }
 
-      const ds::SeparatedNodes& separated_nodes = _partitioned_hypergraph.separatedNodes();
-      const HyperedgeWeight added_cut = star_partitioning::partition(_partitioned_hypergraph, _context,
-        separated_nodes.numNodes(), _context.partition.max_part_weights,
-        [&](HyperedgeWeight* weights, const HypernodeID node) {
-          for (const auto& e: separated_nodes.inwardEdges(node)) {
-            const PartitionID target_part = _partitioned_hypergraph.partID(e.target);
-            ASSERT(!_partitioned_hypergraph.nodeIsEnabled(e.target) || target_part != kInvalidPartition);
-            if (target_part != kInvalidPartition) {
-              weights[target_part] += e.weight;
-            }
-          }
-        },
-        [&](const HypernodeID node) {
-          return separated_nodes.nodeWeight(node);
-        },
-        [&](const HypernodeID node, const PartitionID part) {
-          _partitioned_hypergraph.separatedSetNodePart(node, part);
-        }, false);
+      const HyperedgeWeight added_cut = star_partitioning::partition(_partitioned_hypergraph, _context, false);
       current_metric.updateMetric(current_metric.getMetric(Mode::direct, _context.partition.objective) + added_cut,
                                   Mode::direct, _context.partition.objective);
       current_metric.imbalance = metrics::imbalance(_partitioned_hypergraph, _context);

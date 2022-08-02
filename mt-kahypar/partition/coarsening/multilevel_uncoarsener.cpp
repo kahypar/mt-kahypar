@@ -107,37 +107,12 @@ namespace mt_kahypar {
 
         StreamingVector<HypernodeID> node_ids;
         tbb::parallel_for(first_separated, last_separated, [&](const HypernodeID s_node) {
-          if (partitioned_hg.separatedPartID(s_node) != kInvalidPartition) {
-            // Note: Because the block weight already respects separated nodes, we use
-            // setOnlyNodePart instead of setNodePart.
-            // Later, the nodes are removed via popBatch().
-            partitioned_hg.setOnlyNodePart(separated_nodes.originalHypernodeID(s_node), partitioned_hg.separatedPartID(s_node));
-          } else {
-            node_ids.stream(s_node);
-          }
+          ASSERT(partitioned_hg.separatedPartID(s_node) != kInvalidPartition);
+          // Note: Because the block weight already respects separated nodes, we use
+          // setOnlyNodePart instead of setNodePart.
+          // Later, the nodes are removed via popBatch().
+          partitioned_hg.setOnlyNodePart(separated_nodes.originalHypernodeID(s_node), partitioned_hg.separatedPartID(s_node));
         });
-        parallel::scalable_vector<HypernodeID> unassigned_nodes = node_ids.copy_parallel();
-
-
-        auto get_node = [&](const HypernodeID node_id) {
-          return separated_nodes.originalHypernodeID(unassigned_nodes[node_id]);
-        };
-
-        star_partitioning::partition(partitioned_hg, _context, unassigned_nodes.size(), _context.partition.max_part_weights,
-          [&](HyperedgeWeight* weights, const HypernodeID node_id) {
-            for (HyperedgeID e: partitioned_hg.incidentEdges(get_node(node_id))) {
-              const PartitionID target_part = partitioned_hg.partID(partitioned_hg.edgeTarget(e));
-              if (target_part != kInvalidPartition) {
-                weights[target_part] += partitioned_hg.edgeWeight(e);
-              }
-            }
-          },
-          [&](const HypernodeID node_id) {
-            return separated_nodes.nodeWeight(unassigned_nodes[node_id]);
-          },
-          [&](const HypernodeID node_id, const PartitionID part) {
-            partitioned_hg.setNodePart(get_node(node_id), part);
-          });
         partitioned_hg.popSeparated();
 
         tbb::parallel_invoke([&] {
