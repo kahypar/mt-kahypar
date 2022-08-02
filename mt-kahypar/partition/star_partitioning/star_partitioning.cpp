@@ -56,6 +56,19 @@ HyperedgeWeight partition(PartitionedHypergraph& hypergraph, const Context& cont
     } else {
       ap.partition(hypergraph, context, part_weights);
     }
+  } else if (context.partition.star_partitioning_algorithm == StarPartitioningAlgorithm::debug) {
+    SeparatedNodes& s_nodes = hypergraph.separatedNodes();
+    for (HypernodeID node = 0; node < s_nodes.numNodes(); ++node) {
+      PartitionID chosen_part = 0;
+      for (PartitionID part = 0; part < hypergraph.k(); ++part) {
+        if (part_weights[part] + s_nodes.nodeWeight(node) <= context.partition.max_part_weights[part]) {
+          chosen_part = part;
+          break;
+        }
+      }
+      hypergraph.separatedSetNodePart(node, chosen_part);
+      part_weights[chosen_part] += s_nodes.nodeWeight(node);
+    }
   }
 
   const SeparatedNodes& sn = hypergraph.separatedNodes();

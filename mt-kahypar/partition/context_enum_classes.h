@@ -142,7 +142,8 @@ enum class FlowAlgorithm : uint8_t {
 
 enum class StarPartitioningAlgorithm : uint8_t {
   simple_greedy,
-  approximate
+  approximate,
+  debug
 };
 
 std::ostream & operator<< (std::ostream& os, const Type& type);

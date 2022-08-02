@@ -206,6 +206,7 @@ namespace mt_kahypar {
     switch (algo) {
       case StarPartitioningAlgorithm::simple_greedy: return os << "simple_greedy";
       case StarPartitioningAlgorithm::approximate: return os << "approximate";
+      case StarPartitioningAlgorithm::debug: return os << "debug";
         // omit default case to trigger compiler warning for missing cases
     }
     return os << static_cast<uint8_t>(algo);
@@ -388,6 +389,8 @@ namespace mt_kahypar {
       return StarPartitioningAlgorithm::simple_greedy;
     } else if (type == "approximate") {
       return StarPartitioningAlgorithm::approximate;
+    } else if (type == "debug") {
+      return StarPartitioningAlgorithm::debug;
     }
     ERROR("Illegal option: " + type);
     return StarPartitioningAlgorithm::simple_greedy;

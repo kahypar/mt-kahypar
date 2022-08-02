@@ -146,6 +146,7 @@ namespace mt_kahypar {
              "Star Partitioning Algorithm:\n"
              " - simple_greedy"
              " - approximate"
+             " - debug"
              )
             ("algorithm-name",
              po::value<std::string>(&context.algorithm_name)->value_name("<std::string>")->default_value("MT-KaHyPar"),
