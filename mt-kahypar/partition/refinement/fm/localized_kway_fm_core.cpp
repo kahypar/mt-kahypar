@@ -268,7 +268,7 @@ namespace mt_kahypar {
            ( pin_count_in_from_part_after == 0 || pin_count_in_from_part_after == 1 ||
              pin_count_in_to_part_after == 1 || pin_count_in_to_part_after == 2 ) ) {
         // This vector is used by the acquireOrUpdateNeighbor function to expand to neighbors
-        // or update the gain values of neighbors of the moved node.
+        // or update the gain values of neighbors of the moved node and is cleared afterward.
         edgesWithGainChanges.push_back(he);
       }
 
