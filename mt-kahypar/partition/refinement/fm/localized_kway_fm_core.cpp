@@ -268,13 +268,15 @@ namespace mt_kahypar {
            ( pin_count_in_from_part_after == 0 || pin_count_in_from_part_after == 1 ||
              pin_count_in_to_part_after == 1 || pin_count_in_to_part_after == 2 ) ) {
         // This vector is used by the acquireOrUpdateNeighbor function to expand to neighbors
-        // or update the gain values of neighbors of the moved node and is cleared afterward.
+        // or update the gain values of neighbors of the moved node and is cleared afterwards.
+        // BEWARE. Adding the nets at this stage works, because the vector is cleared before the move,
+        // and the expansion happens after applyBestLocalPrefixToSharedPartition.
         edgesWithGainChanges.push_back(he);
       }
 
       // TODO: We have different strategies to maintain the gain values during an FM search.
       // Some use the gain cache, others compute them each time from scratch or use delta gain updates.
-      // In case  the delta gain update strategy is used, we would have to call the deltaGainUpdate function
+      // In case the delta gain update strategy is used, we would have to call the deltaGainUpdate function
       // of the FM strategy here. However, the current strategy in our presets use the gain cache and calling the deltaGainUpdate
       // function would apply the updates on the thread-local partition, which we do not want here.
       // Keep in mind that the gain values of the FMGainDeltaStrategy might be incorrect afterwards.
@@ -291,10 +293,10 @@ namespace mt_kahypar {
       MoveID& move_id = localMoves[i].second;
       attributed_gain = 0;
       // In a localized FM search, we apply all moves to a thread-local partition (delta_phg)
-      // using hash table. Once we find an improvement, we immediately apply the corresponding move
-      // sequence to the global partition. To safe memory (due to the hash tables), we do not apply
-      // the last move that leads to the improvement to the thread-local partition as we reset them anyway after
-      // an improvement is found. However, when applying a move on the thread-local partition,
+      // using hash tables. Once we find an improvement, we apply the corresponding move
+      // sequence to the global partition. To save memory (in the hash tables), we do not apply
+      // the last move that leads to the improvement to the thread-local partition as we reset them after
+      // an improvement is found, anyways. However, when applying a move on the thread-local partition,
       // we collect all nets affected by a gain cache update and expand the search to pins
       // contained in these nets. Since, we do not apply last move on the thread-local partition we collect
       // these nets here.
