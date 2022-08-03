@@ -113,9 +113,11 @@ void Approximate::partition(PartitionedHypergraph& phg, const Context& context,
 void Approximate::partition(PartitionedHypergraph& phg, const Context& context,
                             Array<HypernodeWeight>& part_weights) {
   SeparatedNodes& s_nodes = phg.separatedNodes();
-  Array<HyperedgeWeight> gains(s_nodes.numNodes() * _k);
-  Array<PartitionID> preferred_part(s_nodes.numNodes());
   vec<vec<HypernodeID>> nodes_per_part(_k);
+  Array<HyperedgeWeight> gains;
+  gains.assign(s_nodes.numNodes() * _k, 0, false);
+  Array<PartitionID> preferred_part;
+  preferred_part.assign(s_nodes.numNodes(), 0, false);
 
   for (HypernodeID node = 0; node < s_nodes.numNodes(); ++node) {
     getEdgeWeightsOfNode(phg, gains, node, node * _k);

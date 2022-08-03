@@ -503,6 +503,7 @@ private:
   void separatedSetOnlyNodePart(const HypernodeID sep_node, PartitionID p) {
     ASSERT(p != kInvalidPartition && p < _k);
     ASSERT(hasSeparatedNodes() && _sep_part_ids.size() == separatedNodes().numNodes());
+    ASSERT(sep_node < _sep_part_ids.size(), "Node" << sep_node << "does not exist");
     ASSERT(_sep_part_ids[sep_node].load() == kInvalidPartition);
     ASSERT(sep_node < _sep_part_ids.size());
     _sep_part_ids[sep_node].store(p, std::memory_order_relaxed);

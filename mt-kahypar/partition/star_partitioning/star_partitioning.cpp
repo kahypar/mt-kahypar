@@ -41,7 +41,8 @@ HyperedgeWeight partition(PartitionedHypergraph& hypergraph, const Context& cont
       return true;
     } (), "There are unassigned hypernodes!");
 
-  Array<HypernodeWeight> part_weights(hypergraph.k());
+  Array<HypernodeWeight> part_weights;
+  part_weights.assign(hypergraph.k(), 0, parallel);
   for (PartitionID part = 0; part < hypergraph.k(); ++part) {
     part_weights[part] = hypergraph.partWeight(part);
   }
