@@ -101,7 +101,7 @@ namespace mt_kahypar {
 
       if (partitioned_hg.hasSeparatedNodes()) {
         utils::Timer::instance().start_timer("assign_separated_nodes", "Assign Separated Nodes");
-        SeparatedNodes& separated_nodes = partitioned_hg.separatedNodes();
+        SeparatedNodes& separated_nodes = partitioned_hg.separatedNodes().onliest();
         const HypernodeID first_separated = separated_nodes.currentBatchIndex();
         const HypernodeID last_separated = separated_nodes.numNodes();
 

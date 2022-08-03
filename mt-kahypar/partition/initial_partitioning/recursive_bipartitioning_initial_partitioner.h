@@ -27,7 +27,7 @@
 
 
 namespace mt_kahypar {
-using ds::SeparatedNodes;
+using ds::SepNodesStack;
 
 /*!
  * RECURSIVE BIPARTITIONING INITIAL PARTITIONER
@@ -54,8 +54,8 @@ class RecursiveBipartitioningInitialPartitioner : public IInitialPartitioner {
 
   PartitionedHypergraph& _hg;
   const Context& _context;
-  SeparatedNodes* _original_s_nodes;
-  SeparatedNodes _s_nodes;
+  SepNodesStack* _original_s_nodes;
+  SepNodesStack _s_nodes;
 };
 
 

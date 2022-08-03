@@ -49,12 +49,12 @@ namespace mt_kahypar {
     _hg(hypergraph),
     _context(context),
     _original_s_nodes(&hypergraph.separatedNodes()),
-    _s_nodes(hypergraph.separatedNodes().copy(parallel_tag_t())) {
+    _s_nodes(hypergraph.separatedNodes().coarsest().copy(parallel_tag_t())) {
     }
 
   void RecursiveBipartitioningInitialPartitioner::initialPartitionImpl() {
-    _s_nodes.cleanBatchState();
-    _s_nodes.setSavepoint();
+    _s_nodes.onliest().cleanBatchState();
+    _s_nodes.onliest().setSavepoint();
     _hg.setSeparatedNodes(&_s_nodes);
     recursive_bipartitioning::partition(_hg, _context);
     _hg.setSeparatedNodes(_original_s_nodes);

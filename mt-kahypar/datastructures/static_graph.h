@@ -548,7 +548,7 @@ class StaticGraph {
   HypernodeWeight totalWeight() const {
     HypernodeWeight weight = _total_weight;
     if (hasSeparatedNodes()) {
-      weight += _separated_nodes->totalWeight();
+      weight += _separated_nodes->coarsest().totalWeight();
     }
     return weight;
   }
@@ -820,15 +820,15 @@ class StaticGraph {
     return _separated_nodes != nullptr;
   }
 
-  SeparatedNodes& separatedNodes() {
+  SepNodesStack& separatedNodes() {
     return *_separated_nodes;
   }
 
-  const SeparatedNodes& separatedNodes() const {
+  const SepNodesStack& separatedNodes() const {
     return *_separated_nodes;
   }
 
-  void setSeparatedNodes(SeparatedNodes* separated_nodes) {
+  void setSeparatedNodes(SepNodesStack* separated_nodes) {
     _separated_nodes = separated_nodes;
   }
 
@@ -932,7 +932,7 @@ class StaticGraph {
   Array<HyperedgeID> _unique_edge_ids;
 
   // ! Nodes that were separated during coarsening
-  SeparatedNodes* _separated_nodes;
+  SepNodesStack* _separated_nodes;
 
   // ! Communities
   ds::Clustering _community_ids;

@@ -58,7 +58,7 @@ HyperedgeWeight partition(PartitionedHypergraph& hypergraph, const Context& cont
       ap.partition(hypergraph, context, part_weights);
     }
   } else if (context.partition.star_partitioning_algorithm == StarPartitioningAlgorithm::debug) {
-    SeparatedNodes& s_nodes = hypergraph.separatedNodes();
+    SeparatedNodes& s_nodes = hypergraph.separatedNodes().finest();
     for (HypernodeID node = 0; node < s_nodes.numNodes(); ++node) {
       PartitionID chosen_part = 0;
       for (PartitionID part = 0; part < hypergraph.k(); ++part) {
@@ -72,7 +72,7 @@ HyperedgeWeight partition(PartitionedHypergraph& hypergraph, const Context& cont
     }
   }
 
-  const SeparatedNodes& sn = hypergraph.separatedNodes();
+  const SeparatedNodes& sn = hypergraph.separatedNodes().finest();
   if (parallel) {
     tbb::enumerable_thread_specific<HyperedgeWeight> cut(0);
     tbb::parallel_for(ID(0), sn.numNodes(), [&](const HypernodeID node) {
@@ -99,7 +99,7 @@ HyperedgeWeight partition(PartitionedHypergraph& hypergraph, const Context& cont
 
 void getEdgeWeightsOfNode(PartitionedHypergraph& phg, Array<HyperedgeWeight>& weights_per_part,
                           const HypernodeID& node, const HypernodeID& index) {
-  const SeparatedNodes& s_nodes = phg.separatedNodes();
+  const SeparatedNodes& s_nodes = phg.separatedNodes().finest();
   for (const auto& e: s_nodes.inwardEdges(node)) {
     const PartitionID target_part = phg.partID(e.target);
     ASSERT(!phg.nodeIsEnabled(e.target) || target_part != kInvalidPartition);

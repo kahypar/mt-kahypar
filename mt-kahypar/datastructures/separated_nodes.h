@@ -20,6 +20,8 @@
 
 #pragma once
 
+#include <memory>
+
 #include <boost/range/irange.hpp>
 
 #include "tbb/parallel_for.h"
@@ -29,6 +31,7 @@
 #include "mt-kahypar/datastructures/hypergraph_common.h"
 #include "mt-kahypar/parallel/atomic_wrapper.h"
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
+#include "mt-kahypar/parallel/stl/scalable_unique_ptr.h"
 #include "mt-kahypar/partition/context_enum_classes.h"
 #include "mt-kahypar/utils/memory_tree.h"
 #include "mt-kahypar/utils/range.h"
@@ -312,6 +315,57 @@ class SeparatedNodes {
   // - allow to restore edges of a previous state, must be set manually
   // edges, edge_indices, num_graph_nodes
   vec<std::tuple<vec<Edge>, vec<HyperedgeID>, HypernodeID>> _savepoints;
+};
+
+class SepNodesStack {
+ public:
+  explicit SepNodesStack(HypernodeID num_graph_nodes):
+    _data(),
+    _mappings() {
+      _data.push_back(std::make_unique<SeparatedNodes>(num_graph_nodes));
+  }
+
+  explicit SepNodesStack(SeparatedNodes&& s_nodes):
+    _data(),
+    _mappings() {
+      _data.push_back(std::make_unique<SeparatedNodes>(std::move(s_nodes)));
+  }
+
+  SeparatedNodes& coarsest() {
+    return *_data.back();
+  }
+
+  const SeparatedNodes& coarsest() const {
+    return *_data.back();
+  }
+
+  SeparatedNodes& finest() {
+    return *_data.front();
+  }
+
+  const SeparatedNodes& finest() const {
+    return *_data.front();
+  }
+
+  SeparatedNodes& onliest() {
+    ASSERT(_data.size() == 1);
+    return coarsest();
+  }
+
+  const SeparatedNodes& onliest() const {
+    ASSERT(_data.size() == 1);
+    return coarsest();
+  }
+
+  void coarsen(vec<HypernodeID>&& communities) {
+    SeparatedNodes next = coarsest().coarsen(communities);
+    _data.push_back(std::make_unique<SeparatedNodes>(std::move(next)));
+    _mappings.push_back(std::move(communities));
+  }
+
+ private:
+  vec<std::unique_ptr<SeparatedNodes>> _data;
+  vec<vec<HypernodeID>> _mappings;
 };
 
 } // namespace ds

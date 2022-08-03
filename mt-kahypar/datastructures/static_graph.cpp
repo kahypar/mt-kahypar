@@ -142,7 +142,7 @@ namespace mt_kahypar::ds {
 
     tbb::parallel_invoke([&] {
       if (_separated_nodes != nullptr) {
-        separatedNodes().addNodes(separated_nodes, separated_edges);
+        separatedNodes().onliest().addNodes(separated_nodes, separated_edges);
       }
     }, [&] {
       // Remap community ids
@@ -235,7 +235,7 @@ namespace mt_kahypar::ds {
 
     auto deduplicate_separated_edges = [&] {
       if (_separated_nodes != nullptr) {
-        separatedNodes().contract(communities, coarsened_num_nodes);
+        separatedNodes().onliest().contract(communities, coarsened_num_nodes);
       }
     };
 

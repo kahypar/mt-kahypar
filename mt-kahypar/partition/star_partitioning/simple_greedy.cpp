@@ -35,7 +35,7 @@ using ds::SeparatedNodes;
 
 void SimpleGreedy::partition(PartitionedHypergraph& phg, const Context& context,
                              Array<HypernodeWeight>& part_weights, bool parallel) {
-  SeparatedNodes& s_nodes = phg.separatedNodes();
+  SeparatedNodes& s_nodes = phg.separatedNodes().finest();
   Array<HyperedgeWeight> max_gains;
   max_gains.assign(s_nodes.numNodes(), 0, parallel);
   Array<HypernodeID> sorted_nodes;

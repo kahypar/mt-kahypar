@@ -43,9 +43,6 @@
 namespace mt_kahypar {
 namespace ds {
 
-// forward
-class SeparatedNodes;
-
 template <typename Hypergraph = Mandatory,
           typename HypergraphFactory = Mandatory>
 class PartitionedGraph {
@@ -237,7 +234,7 @@ private:
     return *_hg;
   }
 
-  void setSeparatedNodes(SeparatedNodes* sn) {
+  void setSeparatedNodes(SepNodesStack* sn) {
     return _hg->setSeparatedNodes(sn);
   }
 
@@ -245,31 +242,31 @@ private:
     return _hg->hasSeparatedNodes();
   }
 
-  SeparatedNodes& separatedNodes() {
+  SepNodesStack& separatedNodes() {
     return _hg->separatedNodes();
   }
 
-  const SeparatedNodes& separatedNodes() const {
+  const SepNodesStack& separatedNodes() const {
     return _hg->separatedNodes();
   }
 
   HyperedgeID popSeparated() {
-    ASSERT(hasSeparatedNodes() && _sep_part_ids.size() == separatedNodes().numNodes());
-    const HypernodeID num_sep_nodes = separatedNodes().popBatch();
+    ASSERT(hasSeparatedNodes() && _sep_part_ids.size() == separatedNodes().onliest().numNodes());
+    const HypernodeID num_sep_nodes = separatedNodes().onliest().popBatch();
     _sep_part_ids.resize(num_sep_nodes);
     return num_sep_nodes;
   }
 
   SeparatedNodes extractSeparated(PartitionID block, const vec<HypernodeID>& graph_node_mapping) const {
-    return separatedNodes().extract(block, graph_node_mapping, _sep_part_ids);
+    return separatedNodes().onliest().extract(block, graph_node_mapping, _sep_part_ids);
   }
 
   void initializeSeparatedParts() {
-    _sep_part_ids.resize(separatedNodes().numNodes(), CAtomic<PartitionID>(kInvalidPartition));
+    _sep_part_ids.resize(separatedNodes().onliest().numNodes(), CAtomic<PartitionID>(kInvalidPartition));
   }
 
   void resetSeparatedParts() {
-    _sep_part_ids.assign(separatedNodes().numNodes(), CAtomic<PartitionID>(kInvalidPartition));
+    _sep_part_ids.assign(separatedNodes().onliest().numNodes(), CAtomic<PartitionID>(kInvalidPartition));
     updateBlockWeights();
   }
 
@@ -494,15 +491,14 @@ private:
   }
 
   PartitionID separatedPartID(const HypernodeID sep_node) const {
-    ASSERT(hasSeparatedNodes() && _sep_part_ids.size() == separatedNodes().numNodes(),
-           V(_sep_part_ids.size()) << V(separatedNodes().numNodes()));
+    ASSERT(hasSeparatedNodes() && _sep_part_ids.size() == separatedNodes().onliest().numNodes());
     ASSERT(sep_node < _sep_part_ids.size(), "Node" << sep_node << "does not exist");
     return _sep_part_ids[sep_node].load(std::memory_order_relaxed);
   }
 
   void separatedSetOnlyNodePart(const HypernodeID sep_node, PartitionID p) {
     ASSERT(p != kInvalidPartition && p < _k);
-    ASSERT(hasSeparatedNodes() && _sep_part_ids.size() == separatedNodes().numNodes());
+    ASSERT(hasSeparatedNodes() && _sep_part_ids.size() == separatedNodes().onliest().numNodes());
     ASSERT(sep_node < _sep_part_ids.size(), "Node" << sep_node << "does not exist");
     ASSERT(_sep_part_ids[sep_node].load() == kInvalidPartition);
     ASSERT(sep_node < _sep_part_ids.size());
@@ -511,7 +507,7 @@ private:
 
   void separatedSetNodePart(const HypernodeID sep_node, PartitionID p) {
     separatedSetOnlyNodePart(sep_node, p);
-    _part_weights[p].fetch_add(separatedNodes().nodeWeight(sep_node), std::memory_order_relaxed);
+    _part_weights[p].fetch_add(separatedNodes().onliest().nodeWeight(sep_node), std::memory_order_relaxed);
   }
 
   void extractPartIDs(Array<CAtomic<PartitionID>>& part_ids) {
@@ -948,7 +944,7 @@ private:
   }
 
   void updateBlockWeights() {
-    ASSERT(!hasSeparatedNodes() || _sep_part_ids.size() == separatedNodes().numNodes());
+    ASSERT(!hasSeparatedNodes() || _sep_part_ids.size() == separatedNodes().onliest().numNodes());
     _part_weights.assign(_part_weights.size(), CAtomic<HypernodeWeight>(0));
     initializeBlockWeights();
   }
@@ -1088,7 +1084,7 @@ private:
     );
 
     if (_hg->hasSeparatedNodes()) {
-      const SeparatedNodes& separated_nodes = _hg->separatedNodes();
+      const SeparatedNodes& separated_nodes = _hg->separatedNodes().onliest();
       tbb::parallel_for(tbb::blocked_range<HypernodeID>(ID(0), separated_nodes.numNodes()),
         [&](tbb::blocked_range<HypernodeID>& r) {
           // this is not enumerable_thread_specific because of the static partitioner

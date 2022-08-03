@@ -66,6 +66,7 @@ namespace mt_kahypar {
 
 
   using BlockRange = std::pair<PartitionID, PartitionID>;
+  using ds::SepNodesStack;
   using ds::SeparatedNodes;
 
   struct OriginalHypergraphInfo {
@@ -105,7 +106,7 @@ namespace mt_kahypar {
                                                  Context&& context,
                                                  Hypergraph&& rb_hypergraph,
                                                  parallel::scalable_vector<HypernodeID>&& mapping,
-                                                 SeparatedNodes&& s_nodes,
+                                                 SepNodesStack&& s_nodes,
                                                  const PartitionID k,
                                                  const PartitionID part_id) :
             _original_hg(original_hypergraph),
@@ -151,7 +152,7 @@ namespace mt_kahypar {
     Hypergraph _rb_hg;
     PartitionedHypergraph _rb_partitioned_hg;
     const parallel::scalable_vector<HypernodeID> _mapping;
-    SeparatedNodes _s_nodes;
+    SepNodesStack _s_nodes;
     const PartitionID _part_id;
   };
 
@@ -276,9 +277,9 @@ namespace mt_kahypar {
       });
       if (_hg.hasSeparatedNodes()) {
         _hg.initializeSeparatedParts();
-        SeparatedNodes& s_nodes = _hg.separatedNodes();
+        SeparatedNodes& s_nodes = _hg.separatedNodes().onliest();
         s_nodes.restoreSavepoint();
-        ASSERT(s_nodes.numNodes() == _bisection_hg.separatedNodes().numNodes());
+        ASSERT(s_nodes.numNodes() == _bisection_hg.separatedNodes().onliest().numNodes());
         tbb::parallel_for(ID(0), s_nodes.numNodes(), [&](const HypernodeID& node) {
           PartitionID part_id = _bisection_partitioned_hg.separatedPartID(node);
           ASSERT(part_id != kInvalidPartition && part_id < _hg.k());
@@ -469,8 +470,8 @@ namespace mt_kahypar {
     // into the desired number of blocks
     if ( rb_hypergraph.initialNumNodes() > 0 ) {
       RecursiveBipartitioningChildContinuationTask& child_continuation = *new(allocate_continuation())
-              RecursiveBipartitioningChildContinuationTask(_hg, std::move(rb_context),
-                                                      std::move(rb_hypergraph), std::move(mapping), std::move(sn), k, _block);
+              RecursiveBipartitioningChildContinuationTask(_hg, std::move(rb_context), std::move(rb_hypergraph),
+                                                           std::move(mapping), SepNodesStack(std::move(sn)), k, _block);
       RecursiveMultilevelBipartitioningTask& recursion = *new(child_continuation.allocate_child())
               RecursiveMultilevelBipartitioningTask(
               _original_hypergraph_info,

@@ -188,7 +188,7 @@ class InitialPartitioningDataContainer {
       _partitioned_hypergraph(context.partition.k, hypergraph),
       _context(context),
       _global_stats(global_stats),
-      _partition(hypergraph.initialNumNodes() + hypergraph.separatedNodes().numNodes(), kInvalidPartition),
+      _partition(hypergraph.initialNumNodes() + hypergraph.separatedNodes().onliest().numNodes(), kInvalidPartition),
       _result(InitialPartitioningAlgorithm::UNDEFINED,
               std::numeric_limits<HypernodeWeight>::max(),
               std::numeric_limits<HypernodeWeight>::max(),
@@ -290,7 +290,7 @@ class InitialPartitioningDataContainer {
           ASSERT(part_id != kInvalidPartition);
           _partition[hn] = part_id;
         }
-        for ( const HypernodeID& s_node : _partitioned_hypergraph.separatedNodes().nodes() ) {
+        for ( const HypernodeID& s_node : _partitioned_hypergraph.separatedNodes().onliest().nodes() ) {
           const PartitionID part_id = _partitioned_hypergraph.separatedPartID(s_node);
           const HypernodeID node_id = _partitioned_hypergraph.initialNumNodes() + s_node;
           ASSERT(node_id < _partition.size());
@@ -306,7 +306,7 @@ class InitialPartitioningDataContainer {
         ASSERT(_partitioned_hypergraph.partID(node) != kInvalidPartition);
         partition_store[node] = _partitioned_hypergraph.partID(node);
       }
-      for (HypernodeID node : _partitioned_hypergraph.separatedNodes().nodes()) {
+      for (HypernodeID node : _partitioned_hypergraph.separatedNodes().onliest().nodes()) {
         ASSERT(_partitioned_hypergraph.separatedPartID(node) != kInvalidPartition);
         partition_store[_partitioned_hypergraph.initialNumNodes() + node] = _partitioned_hypergraph.separatedPartID(node);
       }
@@ -650,7 +650,7 @@ class InitialPartitioningDataContainer {
         ASSERT(_partitioned_hg.partID(hn) == kInvalidPartition);
         _partitioned_hg.setOnlyNodePart(hn, part_id);
       });
-      const ds::SeparatedNodes& s_nodes = _partitioned_hg.separatedNodes();
+      const ds::SeparatedNodes& s_nodes = _partitioned_hg.separatedNodes().onliest();
       tbb::parallel_for(ID(0), s_nodes.numNodes(), [&](const HypernodeID& node) {
         const HypernodeID node_id = _partitioned_hg.initialNumNodes() + node;
         ASSERT(node_id < best->_partition.size());

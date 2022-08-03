@@ -210,7 +210,7 @@ namespace mt_kahypar {
 
     // ################## MULTILEVEL & VCYCLE ##################
     PartitionedHypergraph partitioned_hypergraph;
-    ds::SeparatedNodes separated_nodes(hypergraph.initialNumNodes());
+    ds::SepNodesStack separated_nodes(hypergraph.initialNumNodes());
     hypergraph.setSeparatedNodes(&separated_nodes);
     if (context.partition.mode == Mode::direct) {
       partitioned_hypergraph = multilevel::partition(hypergraph, context);
