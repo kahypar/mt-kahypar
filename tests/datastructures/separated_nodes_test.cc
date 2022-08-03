@@ -205,6 +205,83 @@ TEST_F(ASeparatedNodes, MapsNodes2) {
   verifyIncidentEgdes(nodes.inwardEdges(4), { });
 }
 
+TEST_F(ASeparatedNodes, Coarsens1) {
+  SeparatedNodes nodes(4);
+  vec<std::tuple<HypernodeID, HyperedgeID, HypernodeWeight>> new_nodes { {0, 0, 1}, {1, 2, 1}, {2, 3, 1}};
+  vec<Edge> new_edges { Edge(2, 1), Edge(1, 1), Edge(0, 1), Edge(2, 1) };
+  nodes.addNodes(new_nodes, new_edges);
+
+  vec<HypernodeID> communities { 1, 2, 2 };
+  SeparatedNodes other = nodes.coarsen(communities);
+
+  ASSERT_EQ(0, communities[0]);
+  ASSERT_EQ(1, communities[1]);
+  ASSERT_EQ(1, communities[2]);
+
+  ASSERT_EQ(2,  other.numNodes());
+  ASSERT_EQ(4,  other.numGraphNodes());
+  ASSERT_EQ(4,  other.numEdges());
+  ASSERT_EQ(3,  other.totalWeight());
+
+  ASSERT_EQ(1,  other.outwardIncidentWeight(0));
+  ASSERT_EQ(1,  other.outwardIncidentWeight(1));
+  ASSERT_EQ(2,  other.outwardIncidentWeight(2));
+  ASSERT_EQ(0,  other.outwardIncidentWeight(3));
+
+  verifyIncidentEgdes(other.inwardEdges(0), { {2, 1}, {1, 1} });
+  verifyIncidentEgdes(other.inwardEdges(1), { {0, 1}, {2, 1} });
+
+  communities = { 0, 0 };
+  SeparatedNodes next = other.coarsen(communities);
+
+  ASSERT_EQ(0, communities[0]);
+  ASSERT_EQ(0, communities[1]);
+
+  ASSERT_EQ(1,  next.numNodes());
+  ASSERT_EQ(4,  next.numGraphNodes());
+  ASSERT_EQ(3,  next.numEdges());
+  ASSERT_EQ(3,  next.totalWeight());
+
+  ASSERT_EQ(1,  next.outwardIncidentWeight(0));
+  ASSERT_EQ(1,  next.outwardIncidentWeight(1));
+  ASSERT_EQ(2,  next.outwardIncidentWeight(2));
+  ASSERT_EQ(0,  next.outwardIncidentWeight(3));
+
+  verifyIncidentEgdes(next.inwardEdges(0), { {0, 1}, {1, 1}, {2, 2} });
+}
+
+TEST_F(ASeparatedNodes, Coarsens2) {
+  SeparatedNodes nodes(4);
+  vec<std::tuple<HypernodeID, HyperedgeID, HypernodeWeight>> new_nodes
+           { {0, 0, 1}, {1, 3, 1}, {2, 5, 1}, {3, 5, 1}, {4, 7, 1} };
+  vec<Edge> new_edges { Edge(3, 1), Edge(1, 1), Edge(0, 1), Edge(1, 1),
+                        Edge(3, 1), Edge(0, 1), Edge(1, 1), Edge(0, 1) };
+  nodes.addNodes(new_nodes, new_edges);
+
+  vec<HypernodeID> communities { 0, 0, 1, 2, 2 };
+  SeparatedNodes other = nodes.coarsen(communities);
+
+  ASSERT_EQ(0, communities[0]);
+  ASSERT_EQ(0, communities[1]);
+  ASSERT_EQ(1, communities[2]);
+  ASSERT_EQ(2, communities[3]);
+  ASSERT_EQ(2, communities[4]);
+
+  ASSERT_EQ(3,  other.numNodes());
+  ASSERT_EQ(4,  other.numGraphNodes());
+  ASSERT_EQ(5,  other.numEdges());
+  ASSERT_EQ(5,  other.totalWeight());
+
+  ASSERT_EQ(3,  other.outwardIncidentWeight(0));
+  ASSERT_EQ(3,  other.outwardIncidentWeight(1));
+  ASSERT_EQ(0,  other.outwardIncidentWeight(2));
+  ASSERT_EQ(2,  other.outwardIncidentWeight(3));
+
+  verifyIncidentEgdes(other.inwardEdges(0), { {0, 1}, {1, 2}, {3, 2} });
+  verifyIncidentEgdes(other.inwardEdges(1), { });
+  verifyIncidentEgdes(other.inwardEdges(2), { {0, 2}, {1, 1} });
+}
+
 TEST_F(ASeparatedNodes, InitializesEdges) {
   SeparatedNodes nodes(5);
   vec<std::tuple<HypernodeID, HyperedgeID, HypernodeWeight>> new_nodes { {0, 0, 1}, {1, 2, 1}, {2, 4, 1}};

@@ -247,6 +247,8 @@ class SeparatedNodes {
    */
   void contract(const vec<HypernodeID>& communities, const HypernodeID& num_coarsened_graph_nodes);
 
+  SeparatedNodes coarsen(vec<HypernodeID>& communities) const;
+
   void initializeOutwardEdges();
 
   // ####################### Extract Block #######################
@@ -268,6 +270,8 @@ class SeparatedNodes {
  private:
   static_assert(std::is_trivially_copyable<Node>::value, "Node is not trivially copyable");
   static_assert(std::is_trivially_copyable<Edge>::value, "Hyperedge is not trivially copyable");
+
+  void deduplicateEdges();
 
   // ####################### Node Information #######################
 

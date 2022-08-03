@@ -158,97 +158,13 @@ void SeparatedNodes::contract(const vec<HypernodeID>& communities, const Hyperno
   };
 
   auto update_inward_edges = [&] {
-    Array<HyperedgeID> node_sizes;
-
-    tbb::parallel_invoke([&] {
-      // update edge targets
-      tbb::parallel_for(ID(0), _num_edges, [&](const HyperedgeID& pos) {
-        Edge& e = _inward_edges[pos];
-        e.target = communities[e.target];
-      });
-    }, [&] {
-      node_sizes.resize(_num_nodes);
+    // update edge targets
+    tbb::parallel_for(ID(0), _num_edges, [&](const HyperedgeID& pos) {
+      Edge& e = _inward_edges[pos];
+      e.target = communities[e.target];
     });
 
-    // TODO: deduplicate code
-    // deduplicate edges
-    tbb::parallel_for(ID(0), _num_nodes, [&](const HypernodeID& pos) {
-      const HyperedgeID edges_start = _nodes[pos].begin;
-      const HyperedgeID edges_end = _nodes[pos + 1].begin;
-      std::sort(_inward_edges.begin() + edges_start, _inward_edges.begin() + edges_end,
-                [](const Edge& e1, const Edge& e2) { return e1.target < e2.target; });
-
-        // Deduplicate, aggregate weights and calculate minimum unique id
-        //
-        // <-- deduplicated --> <-- already processed --> <-- to be processed --> <-- invalid edges -->
-        //                    ^                         ^
-        // valid_edge_index ---        tmp_edge_index ---
-        size_t valid_edge_index = edges_start;
-        size_t tmp_edge_index = edges_start + 1;
-        while (tmp_edge_index < edges_end && _inward_edges[tmp_edge_index].target != kInvalidHypernode) {
-          HEAVY_COARSENING_ASSERT(
-            [&](){
-              size_t i = edges_start;
-              for (; i <= valid_edge_index; ++i) {
-                if (_inward_edges[i].target == kInvalidHypernode) {
-                  return false;
-                } else if ((i + 1 <= valid_edge_index) &&
-                  _inward_edges[i].target >= _inward_edges[i + 1].target) {
-                  return false;
-                }
-              }
-              for (; i < tmp_edge_index; ++i) {
-                if (_inward_edges[i].target != kInvalidHypernode) {
-                  return false;
-                }
-              }
-              return true;
-            }(),
-            "Invariant violated while deduplicating incident edges!"
-          );
-
-          Edge& valid_edge = _inward_edges[valid_edge_index];
-          Edge& next_edge = _inward_edges[tmp_edge_index];
-          if (next_edge.target != kInvalidHypernode) {
-            if (valid_edge.target == next_edge.target) {
-              valid_edge.weight += next_edge.weight;
-              next_edge.target = kInvalidHypernode;
-            } else {
-              std::swap(_inward_edges[++valid_edge_index], next_edge);
-            }
-            ++tmp_edge_index;
-          }
-        }
-        const bool is_non_empty = (edges_start < edges_end) &&
-                                  (_inward_edges[valid_edge_index].target != kInvalidHypernode);
-        const HyperedgeID contracted_size = is_non_empty ? (valid_edge_index - edges_start + 1) : 0;
-        node_sizes[pos] = contracted_size;
-    });
-
-    parallel::TBBPrefixSum<HyperedgeID, Array> degree_mapping(node_sizes);
-    tbb::parallel_scan(tbb::blocked_range<size_t>(
-            ID(0), static_cast<size_t>(_num_nodes)), degree_mapping);
-    const HyperedgeID coarsened_num_edges = degree_mapping.total_sum();
-
-    // copy edges
-    vec<Edge> new_edges;
-    new_edges.resize(coarsened_num_edges);
-    tbb::parallel_for(ID(0), _num_nodes, [&](const HyperedgeID& pos) {
-      const HyperedgeID old_edges_start = _nodes[pos].begin;
-      const HyperedgeID new_edges_start = degree_mapping[pos];
-      for (size_t index = 0; index < degree_mapping.value(pos); ++index) {
-        ASSERT(old_edges_start + index < _inward_edges.size() && new_edges_start + index < new_edges.size());
-        new_edges[new_edges_start + index] = _inward_edges[old_edges_start + index];
-      }
-    });
-
-    // update nodes
-    tbb::parallel_for(0UL, _nodes.size(), [&](const size_t& pos) {
-      _nodes[pos].begin = degree_mapping[pos];
-    });
-
-    std::swap(_inward_edges, new_edges);
-    _num_edges = coarsened_num_edges;
+    deduplicateEdges();
   };
 
   tbb::parallel_invoke(update_incident_weight, update_inward_edges);
@@ -261,6 +177,73 @@ void SeparatedNodes::contract(const vec<HypernodeID>& communities, const Hyperno
       return true;
     }()
   );
+}
+
+SeparatedNodes SeparatedNodes::coarsen(vec<HypernodeID>& communities) const {
+  ASSERT(communities.size() == _num_nodes);
+  SeparatedNodes other(_num_graph_nodes);
+
+  Array<HypernodeID> mapping;
+
+  // Compute vertex ids of coarse graph with a parallel prefix sum
+  mapping.assign(_num_nodes, 0);
+  tbb::parallel_for(ID(0), _num_nodes, [&](const HyperedgeID& node) {
+    ASSERT(communities[node] < mapping.size());
+    mapping[communities[node]] = 1;
+  });
+
+  // Prefix sum determines vertex ids in coarse graph
+  parallel::TBBPrefixSum<HyperedgeID, Array> mapping_prefix_sum(mapping);
+  tbb::parallel_scan(tbb::blocked_range<size_t>(ID(0), _num_nodes), mapping_prefix_sum);
+  const HypernodeID coarsened_num_nodes = mapping_prefix_sum.total_sum();
+
+  Array<parallel::IntegralAtomicWrapper<HypernodeWeight>> node_weights;
+  node_weights.assign(coarsened_num_nodes, parallel::IntegralAtomicWrapper<HypernodeWeight>(0));
+  Array<parallel::IntegralAtomicWrapper<HyperedgeID>> tmp_num_incident_edges;
+  // sentinel for first element
+  tmp_num_incident_edges.assign(coarsened_num_nodes + 1, parallel::IntegralAtomicWrapper<HyperedgeID>(0));
+
+  tbb::parallel_for(ID(0), _num_nodes, [&](const HyperedgeID& node) {
+    const HypernodeID coarse_node = mapping_prefix_sum[communities[node]];
+    communities[node] = coarse_node;
+    node_weights[coarse_node].fetch_add(nodeWeight(node));
+    tmp_num_incident_edges[coarse_node + 1].fetch_add(inwardDegree(node));
+  });
+
+  parallel::TBBPrefixSum<parallel::IntegralAtomicWrapper<HyperedgeID>, Array>
+          tmp_incident_edges_prefix_sum(tmp_num_incident_edges);
+  tbb::parallel_scan(tbb::blocked_range<size_t>(
+          ID(0), static_cast<size_t>(coarsened_num_nodes + 1)), tmp_incident_edges_prefix_sum);
+  ASSERT(tmp_incident_edges_prefix_sum.total_sum() == _num_edges);
+
+  tbb::parallel_invoke([&] {
+    other._nodes.resize(coarsened_num_nodes);
+  }, [&] {
+    other._inward_edges.resize(_num_edges);
+  }, [&] {
+    other._outward_incident_weight = _outward_incident_weight;
+  });
+
+  tbb::parallel_for(ID(0), coarsened_num_nodes, [&](const HyperedgeID& node) {
+    other._nodes[node] = Node(kInvalidHypernode, tmp_num_incident_edges[node], node_weights[node]);
+  });
+  other._nodes.emplace_back(kInvalidHypernode, _num_edges, 0);
+
+  tbb::parallel_for(ID(0), _num_nodes, [&](const HyperedgeID& node) {
+    const HypernodeID coarse_node = communities[node];
+    // modify the underlying data of the prefix sum
+    const HyperedgeID start = tmp_num_incident_edges[coarse_node].fetch_add(inwardDegree(node));
+    for (HyperedgeID i = 0; i < inwardDegree(node); ++i) {
+      other._inward_edges[start + i] = _inward_edges[_nodes[node].begin + i];
+    }
+  });
+
+  other._num_nodes = coarsened_num_nodes;
+  other._num_edges = _num_edges;
+  other._total_weight = _total_weight;
+
+  other.deduplicateEdges();
+  return other;
 }
 
 void SeparatedNodes::initializeOutwardEdges() {
@@ -418,6 +401,91 @@ SeparatedNodes SeparatedNodes::extract(PartitionID block, const vec<HypernodeID>
   other.contract(graph_node_mapping, max_node_id + 1);
   other.cleanBatchState();
   return other;
+}
+
+void SeparatedNodes::deduplicateEdges() {
+  Array<HyperedgeID> node_sizes;
+  node_sizes.resize(_num_nodes);
+
+  // TODO: deduplicate code
+  // deduplicate edges
+  tbb::parallel_for(ID(0), _num_nodes, [&](const HypernodeID& pos) {
+    const HyperedgeID edges_start = _nodes[pos].begin;
+    const HyperedgeID edges_end = _nodes[pos + 1].begin;
+    std::sort(_inward_edges.begin() + edges_start, _inward_edges.begin() + edges_end,
+              [](const Edge& e1, const Edge& e2) { return e1.target < e2.target; });
+
+      // Deduplicate, aggregate weights and calculate minimum unique id
+      //
+      // <-- deduplicated --> <-- already processed --> <-- to be processed --> <-- invalid edges -->
+      //                    ^                         ^
+      // valid_edge_index ---        tmp_edge_index ---
+      size_t valid_edge_index = edges_start;
+      size_t tmp_edge_index = edges_start + 1;
+      while (tmp_edge_index < edges_end && _inward_edges[tmp_edge_index].target != kInvalidHypernode) {
+        HEAVY_COARSENING_ASSERT(
+          [&](){
+            size_t i = edges_start;
+            for (; i <= valid_edge_index; ++i) {
+              if (_inward_edges[i].target == kInvalidHypernode) {
+                return false;
+              } else if ((i + 1 <= valid_edge_index) &&
+                _inward_edges[i].target >= _inward_edges[i + 1].target) {
+                return false;
+              }
+            }
+            for (; i < tmp_edge_index; ++i) {
+              if (_inward_edges[i].target != kInvalidHypernode) {
+                return false;
+              }
+            }
+            return true;
+          }(),
+          "Invariant violated while deduplicating incident edges!"
+        );
+
+        Edge& valid_edge = _inward_edges[valid_edge_index];
+        Edge& next_edge = _inward_edges[tmp_edge_index];
+        if (next_edge.target != kInvalidHypernode) {
+          if (valid_edge.target == next_edge.target) {
+            valid_edge.weight += next_edge.weight;
+            next_edge.target = kInvalidHypernode;
+          } else {
+            std::swap(_inward_edges[++valid_edge_index], next_edge);
+          }
+          ++tmp_edge_index;
+        }
+      }
+      const bool is_non_empty = (edges_start < edges_end) &&
+                                (_inward_edges[valid_edge_index].target != kInvalidHypernode);
+      const HyperedgeID contracted_size = is_non_empty ? (valid_edge_index - edges_start + 1) : 0;
+      node_sizes[pos] = contracted_size;
+  });
+
+  parallel::TBBPrefixSum<HyperedgeID, Array> degree_mapping(node_sizes);
+  tbb::parallel_scan(tbb::blocked_range<size_t>(
+          ID(0), static_cast<size_t>(_num_nodes)), degree_mapping);
+  const HyperedgeID coarsened_num_edges = degree_mapping.total_sum();
+
+  // copy edges
+  vec<Edge> new_edges;
+  new_edges.resize(coarsened_num_edges);
+  tbb::parallel_for(ID(0), _num_nodes, [&](const HyperedgeID& pos) {
+    const HyperedgeID old_edges_start = _nodes[pos].begin;
+    const HyperedgeID new_edges_start = degree_mapping[pos];
+    for (size_t index = 0; index < degree_mapping.value(pos); ++index) {
+      ASSERT(old_edges_start + index < _inward_edges.size() && new_edges_start + index < new_edges.size());
+      new_edges[new_edges_start + index] = _inward_edges[old_edges_start + index];
+    }
+  });
+
+  // update nodes
+  tbb::parallel_for(0UL, _nodes.size(), [&](const size_t& pos) {
+    _nodes[pos].begin = degree_mapping[pos];
+  });
+
+  std::swap(_inward_edges, new_edges);
+  _num_edges = coarsened_num_edges;
 }
 
 // ! Copy in parallel
