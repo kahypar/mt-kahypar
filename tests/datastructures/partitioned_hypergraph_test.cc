@@ -24,8 +24,11 @@
 
 #include "gmock/gmock.h"
 
-#include "mt-kahypar/datastructures/static_hypergraph_factory.h"
+#ifdef USE_STRONG_PARTITIONER
 #include "mt-kahypar/datastructures/dynamic_hypergraph_factory.h"
+#else
+#include "mt-kahypar/datastructures/static_hypergraph_factory.h"
+#endif
 #include "mt-kahypar/datastructures/partitioned_hypergraph.h"
 
 using ::testing::Test;
@@ -147,18 +150,23 @@ void executeConcurrent(const F1& f1, const F2& f2) {
   });
 }
 
+#ifdef USE_STRONG_PARTITIONER
+using PartitionedHypergraphTestTypes =
+  ::testing::Types<
+          PartitionedHypergraphTypeTraits<
+                          PartitionedHypergraph<DynamicHypergraph, DynamicHypergraphFactory>,
+                          DynamicHypergraph,
+                          DynamicHypergraphFactory>
+                          >;
+#else
 using PartitionedHypergraphTestTypes =
   ::testing::Types<
           PartitionedHypergraphTypeTraits<
                           PartitionedHypergraph<StaticHypergraph, StaticHypergraphFactory>,
                           StaticHypergraph,
                           StaticHypergraphFactory>
-                          ,
-          PartitionedHypergraphTypeTraits<
-                          PartitionedHypergraph<DynamicHypergraph, DynamicHypergraphFactory>,
-                          DynamicHypergraph,
-                          DynamicHypergraphFactory>
                           >;
+#endif
 
 TYPED_TEST_CASE(APartitionedHypergraph, PartitionedHypergraphTestTypes);
 

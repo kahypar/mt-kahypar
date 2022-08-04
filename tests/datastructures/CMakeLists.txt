@@ -1,6 +1,5 @@
 target_sources(mt_kahypar_fast_tests PRIVATE
         static_hypergraph_test.cc
-        dynamic_partitioned_hypergraph_test.cc
         partitioned_hypergraph_test.cc
         delta_partitioned_hypergraph_test.cc
         partitioned_hypergraph_smoke_test.cc
