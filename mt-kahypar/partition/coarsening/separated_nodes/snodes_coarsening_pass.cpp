@@ -28,9 +28,104 @@
 
 #include "mt-kahypar/parallel/atomic_wrapper.h"
 #include "mt-kahypar/parallel/parallel_prefix_sum.h"
+#include "mt-kahypar/utils/randomize.h"
 
 namespace mt_kahypar {
 namespace star_partitioning {
+using HashFunc = kahypar::math::MurmurHash<HypernodeID>;
+using HashValue = typename HashFunc::HashValue;
+
+struct SNodesCoarseningPass::Footprint {
+  bool operator==(const Footprint& other) const {
+    for ( size_t i = 0; i < NUM_HASHES; ++i ) {
+      if ( footprint[i] != other.footprint[i] ) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  bool operator<(const Footprint& other) const {
+    for ( size_t i = 0; i < NUM_HASHES; ++i ) {
+      if ( footprint[i] < other.footprint[i] ) {
+        return true;
+      } else if ( footprint[i] > other.footprint[i] ) {
+        return false;
+      }
+    }
+    return false;
+  }
+
+  HashValue footprint[NUM_HASHES];
+};
+
+// a similarity hashing function (see also hypergraph_sparsifier.h)
+struct SNodesCoarseningPass::SimilarityHash {
+  using HashResult = Footprint;
+
+  explicit SimilarityHash() {
+    for (size_t i = 0; i < NUM_HASHES; ++i) {
+      int seed = utils::Randomize::instance().getRandomInt(0, 1000, sched_getcpu());
+      hash_functions[i] = HashFunc(seed);
+    }
+  }
+
+  HashResult calculateHash(const vec<HypernodeID>& nodes) const {
+    Footprint footprint;
+    for ( size_t i = 0; i < NUM_HASHES; ++i ) {
+      footprint.footprint[i] = minHash(hash_functions[i], nodes);
+    }
+    return footprint;
+  }
+
+  size_t combineHash(const HashResult& footprint) const {
+    HashValue hash_value = kEdgeHashSeed;
+    for ( const HashValue& value : footprint.footprint ) {
+      hash_value ^= value;
+    }
+    return hash_value;
+  }
+
+ private:
+  HashValue minHash(const HashFunc& hash_function,
+                    const vec<HypernodeID>& nodes ) const {
+    HashValue hash_value = std::numeric_limits<HashValue>::max();
+    for ( const HypernodeID& node : nodes ) {
+      hash_value = std::min(hash_value, hash_function(node));
+    }
+    return hash_value;
+  }
+
+  HashFunc hash_functions[NUM_HASHES];
+};
+
+struct SNodesCoarseningPass::EqualityHash {
+  using HashResult = HashValue;
+
+  explicit EqualityHash() {
+    seed = utils::Randomize::instance().getRandomInt(0, 1000, sched_getcpu());
+  }
+
+  HashResult calculateHash(vec<HypernodeID>& nodes) const {
+    HashFunc hash(seed);
+    std::sort(nodes.begin(), nodes.end());
+    HashValue hash_value = kEdgeHashSeed;
+    for ( const HypernodeID& node: nodes ) {
+      HashValue next_hash = hash(node);
+      hash_value *= 37;
+      hash_value += 5;
+      hash_value ^= next_hash;
+    }
+    return hash_value;
+  }
+
+  size_t combineHash(const HashResult& hash) const {
+    return hash;
+  }
+
+ private:
+  uint32_t seed;
+};
 
 bool allowsDegreeTwo(const SNodesCoarseningStage& stage) {
   return static_cast<uint8_t>(stage) >= 3;
@@ -152,6 +247,9 @@ HypernodeID SNodesCoarseningPass::runCurrentStage(vec<HypernodeID>& communities)
     params.degree_one_cluster_size = _stage == SNodesCoarseningStage::PREFERABLE_DEGREE_ONE ? MAX_CLUSTER_SIZE : 2;
     params.max_node_weight = _context.coarsening.max_allowed_node_weight;
 
+    if (appliesTwins(_stage)) {
+      applyHashingRound<EqualityHash>(params, communities, data, 2);
+    }
     _hg.doParallelForAllNodes([&](const HypernodeID& node) {
       applyCoarseningForNode(params, communities, data, node);
     });

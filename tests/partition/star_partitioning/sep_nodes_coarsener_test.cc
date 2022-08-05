@@ -73,6 +73,7 @@ TEST_F(ACoarseningPass, setupData) {
                                        {{0, 1}, {1, 2}}, {{1, 2}, {2, 1}}, {{0, 1}, {1, 1}, {2, 2}} });
   SNodesCoarseningPass c_pass = setupPass(4, SNodesCoarseningStage::DEGREE_ZERO);
   c_pass.run(communities);
+  ASSERT_EQ(7, communities.size());
 
   const auto& info = c_pass.nodeInfo();
   ASSERT_EQ(0, info[0].assigned_graph_node);
@@ -117,6 +118,23 @@ TEST_F(ACoarseningPass, coarsensDegreeOneNodes) {
   ASSERT_EQ(2, communities[2]);
   ASSERT_EQ(2, communities[3]);
   ASSERT_EQ(4, communities[4]);
+}
+
+TEST_F(ACoarseningPass, findsTwins) {
+  initialize(4, 0, {}, { {{0, 1}, {1, 1}}, {{0, 1}, {1, 1}},
+                         {{0, 1}, {1, 1}, {2, 1}}, {{2, 1}, {1, 1}, {0, 1}}, {{2, 2}, {1, 1}, {0, 3}}, {{2, 2}, {0, 2}, {1, 1}},
+                         {{0, 1}, {3, 1}, {2, 1}}, {{2, 1}, {3, 1}, {0, 1}}, {{1, 1}, {2, 1}, {3, 1}},
+                         {{0, 1}, {1, 1}, {2, 1}, {3, 1}}, {{0, 3}, {1, 3}, {2, 3}, {3, 3}} });
+  SNodesCoarseningPass c_pass_2 = setupPass(6, SNodesCoarseningStage::DEGREE_ONE_AND_TWINS);
+  c_pass_2.run(communities);
+
+  ASSERT_EQ(communities[0], communities[1]);
+  ASSERT_EQ(communities[2], communities[3]);
+  ASSERT_EQ(communities[4], communities[5]);
+  ASSERT_EQ(communities[6], communities[7]);
+  ASSERT_EQ(8, communities[8]);
+  ASSERT_EQ(9, communities[9]);
+  ASSERT_EQ(10, communities[10]);
 }
 
 }  // namespace mt_kahypar

@@ -22,8 +22,11 @@
 
 #include <tbb/enumerable_thread_specific.h>
 
+#include "kahypar/utils/math.h"
+
 #include "mt-kahypar/datastructures/separated_nodes.h"
 #include "mt-kahypar/datastructures/array.h"
+#include "mt-kahypar/datastructures/concurrent_bucket_map.h"
 #include "mt-kahypar/definitions.h"
 
 namespace mt_kahypar {
@@ -90,8 +93,13 @@ class SNodesCoarseningPass {
     HypernodeID degree_one_cluster_size;
   };
 
+  struct Footprint;
+  struct SimilarityHash;
+  struct EqualityHash;
+
   // tuning constants
   static const HypernodeID MAX_CLUSTER_SIZE = 4;
+  static constexpr size_t NUM_HASHES = 3;
   static constexpr double PREFERRED_DENSITY_DIFF = 1.6;
   static constexpr double TOLERABLE_DENSITY_DIFF = 2.1;
   static constexpr double RELAXED_DENSITY_DIFF = 4.1;
@@ -122,6 +130,60 @@ class SNodesCoarseningPass {
                               LocalizedData& data, const HypernodeID& node);
 
   void sortByDensity(vec<HypernodeID>& nodes);
+  
+  template<typename Hasher>
+  void applyHashingRound(const Params& params, vec<HypernodeID>& communities,
+                         LocalizedData& data, const HypernodeID min_degree) {
+    Hasher hasher;
+    ds::ConcurrentBucketMap<std::pair<HypernodeID, typename Hasher::HashResult>> bucket_map;
+    tbb::enumerable_thread_specific<vec<HypernodeID>> adjacent_nodes;
+    bucket_map.reserve_for_estimated_number_of_insertions(_node_info.size()); // TODO: more precise estimation?
+
+    tbb::parallel_for(0UL, _node_info.size(), [&](const size_t& index) {
+      const HypernodeID node = info(index).node;
+      if (communities[node] == kInvalidHypernode && info(index).degree >= min_degree) {
+        vec<HypernodeID>& local_adjacent_nodes = adjacent_nodes.local();
+        local_adjacent_nodes.clear();
+        for (const SeparatedNodes::Edge& e: _s_nodes.inwardEdges(node)) {
+          local_adjacent_nodes.push_back(e.target);
+        }
+        typename Hasher::HashResult hash = hasher.calculateHash(local_adjacent_nodes);
+        bucket_map.insert(hasher.combineHash(hash), {index, hash});
+      }
+    });
+
+    tbb::parallel_for(0UL, bucket_map.numBuckets(), [&](const size_t i) {
+      auto& bucket = bucket_map.getBucket(i);
+      if (bucket.size() > 1) {
+        // sort by hash and afterwards by density
+        std::sort(bucket.begin(), bucket.end(), [&](const auto& left, const auto& right) {
+          if (left.second == right.second) {
+            return info(left.first).density < info(right.first).density;
+          }
+          return left.second < right.second;
+        });
+
+        // calculate pair-wise matching
+        size_t pos = 0;
+        HypernodeID& counter = data.match_counter.local();
+        while (pos + 1 < bucket.size()) {
+          const auto& [curr_index, curr_hash] = bucket[pos];
+          const double curr_density = info(curr_index).density;
+          const auto& [next_index, next_hash] = bucket[pos + 1];
+          const double next_density = info(next_index).density;
+          if (curr_hash == next_hash && next_density / curr_density <= params.accepted_density_diff) {
+            // TODO: check actual similarity?!
+            const HypernodeID curr_node = info(curr_index).node;
+            communities[curr_node] = curr_node;
+            communities[info(next_index).node] = curr_node;
+            ++counter;
+            ++pos;
+          }
+          ++pos;
+        }
+      }
+    });
+  }
 
   const FullNodeInfo& info(HypernodeID index) const {
     return _node_info[index];
