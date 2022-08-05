@@ -244,24 +244,7 @@ HypernodeID SNodesCoarseningPass::runCurrentStage(vec<HypernodeID>& communities)
   }
 
   if (_stage == SNodesCoarseningStage::DEGREE_ZERO) {
-    const HypernodeID first_d0 = _node_info_begin.back();
-    const HypernodeID last_d0 = _node_info.size();
-    const HypernodeID num_clusters = (last_d0 - first_d0 + DEGREE_ZERO_CLUSTER_SIZE - 1) / DEGREE_ZERO_CLUSTER_SIZE;
-    tbb::parallel_for(ID(0), num_clusters, [&](const HypernodeID cluster) {
-      const HypernodeID start = first_d0 + cluster * DEGREE_ZERO_CLUSTER_SIZE;
-      HypernodeID& counter = data.match_counter.local();
-      HypernodeWeight weight = 0;
-      for (HypernodeID i = 0; i < DEGREE_ZERO_CLUSTER_SIZE && start + i < last_d0; ++i) {
-        const HypernodeID node = info(start + i).node;
-        if (weight + _s_nodes.nodeWeight(node) <= params.max_node_weight) {
-          communities[node] = info(start).node;
-          weight += _s_nodes.nodeWeight(node);
-          if (i > 0) {
-            ++counter;
-          }
-        }
-      }
-    });
+    applyDegreeZeroCoarsening(params, communities, data);
   } else {
     if (appliesTwins(_stage)) {
       applyHashingRound<EqualityHash>(params, communities, data, 2);
@@ -271,6 +254,34 @@ HypernodeID SNodesCoarseningPass::runCurrentStage(vec<HypernodeID>& communities)
     });
   }
   return data.match_counter.combine(std::plus<>());
+}
+
+void SNodesCoarseningPass::applyDegreeZeroCoarsening(const Params& params, vec<HypernodeID>& communities, LocalizedData& data) {
+  const HypernodeID first_d0 = _node_info_begin.back();
+  const HypernodeID last_d0 = _node_info.size();
+  const HypernodeID num_clusters = (last_d0 - first_d0 + DEGREE_ZERO_CLUSTER_SIZE - 1) / DEGREE_ZERO_CLUSTER_SIZE;
+  tbb::parallel_for(ID(0), num_clusters, [&](const HypernodeID cluster) {
+    const HypernodeID first_node_of_block = first_d0 + cluster * DEGREE_ZERO_CLUSTER_SIZE;
+    HypernodeID offset = 0;
+    while (offset < DEGREE_ZERO_CLUSTER_SIZE && first_node_of_block + offset < last_d0) {
+      const HypernodeID start = first_node_of_block + offset;
+      HypernodeID& counter = data.match_counter.local();
+      HypernodeWeight weight = 0;
+      for (HypernodeID i = 0; i < DEGREE_ZERO_CLUSTER_SIZE && start + i < last_d0; ++i) {
+        const HypernodeID node = info(start + i).node;
+        if (weight + _s_nodes.nodeWeight(node) <= params.max_node_weight) {
+          ++offset;
+          communities[node] = info(start).node;
+          weight += _s_nodes.nodeWeight(node);
+          if (i > 0) {
+            ++counter;
+          }
+        } else if (i > 0) {
+          break;
+        }
+      }
+    }
+  });
 }
 
 void SNodesCoarseningPass::applyCoarseningForNode(const Params& params, vec<HypernodeID>& communities,

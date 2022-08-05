@@ -96,6 +96,27 @@ TEST_F(ACoarseningPass, setupData) {
   ASSERT_EQ(5, info_begin[3]);
 }
 
+TEST_F(ACoarseningPass, removesDegreeZero) {
+  initialize(1, 0, {}, { {}, {}, {}, {}, {}, {} });
+  context.coarsening.max_allowed_node_weight = 3;
+  SNodesCoarseningPass c_pass = setupPass(2, SNodesCoarseningStage::DEGREE_ZERO);
+  c_pass.run(communities);
+
+  HypernodeID c_0 = communities[0];
+  HyperedgeID c_1 = kInvalidHypernode;
+  HypernodeID num_c_0 = 1;
+  for (size_t i = 1; i < communities.size(); ++i) {
+    if (communities[i] == c_0) {
+      ++num_c_0;
+    } else if (c_1 == kInvalidHypernode) {
+      c_1 = communities[i];
+    } else {
+      ASSERT_EQ(c_1, communities[i]);
+    }
+  }
+  ASSERT_EQ(num_c_0, 3);
+}
+
 TEST_F(ACoarseningPass, coarsensDegreeOneNodes) {
   initialize(1, 0, {}, { {{0, 1}}, {{0, 2}}, {{0, 3}}, {{0, 6}}, {{0, 7}}, {{0, 8}}, {{0, 8}}, {{0, 8}} });
   SNodesCoarseningPass c_pass = setupPass(4, SNodesCoarseningStage::PREFERABLE_DEGREE_ONE);
