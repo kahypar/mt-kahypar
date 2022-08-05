@@ -20,6 +20,8 @@
 
 #pragma once
 
+#include <tbb/enumerable_thread_specific.h>
+
 #include "mt-kahypar/datastructures/separated_nodes.h"
 #include "mt-kahypar/datastructures/array.h"
 #include "mt-kahypar/definitions.h"
@@ -76,7 +78,23 @@ class SNodesCoarseningPass {
     // TODO: position in spanning tree
   };
 
+  struct LocalizedData {
+    tbb::enumerable_thread_specific<HypernodeID> match_counter;
+    tbb::enumerable_thread_specific<vec<HypernodeID>> degree_one_nodes;
+    tbb::enumerable_thread_specific<vec<HypernodeID>> degree_two_nodes;
+  };
+
+  struct Params {
+    double accepted_density_diff;
+    HypernodeWeight max_node_weight;
+    HypernodeID degree_one_cluster_size;
+  };
+
+  // tuning constants
   static const HypernodeID MAX_CLUSTER_SIZE = 4;
+  static constexpr double PREFERRED_DENSITY_DIFF = 1.6;
+  static constexpr double TOLERABLE_DENSITY_DIFF = 2.1;
+  static constexpr double RELAXED_DENSITY_DIFF = 4.1;
 
  public:
   SNodesCoarseningPass(const Hypergraph& hg, const Context& context,
@@ -96,6 +114,19 @@ class SNodesCoarseningPass {
   }
 
  private:
+  void setupNodeInfo();
+
+  HypernodeID runCurrentStage(vec<HypernodeID>& communities);
+
+  void applyCoarseningForNode(const Params& params, vec<HypernodeID>& communities,
+                              LocalizedData& data, const HypernodeID& node);
+
+  void sortByDensity(vec<HypernodeID>& nodes);
+
+  const FullNodeInfo& info(HypernodeID index) const {
+    return _node_info[index];
+  }
+
   const Hypergraph& _hg;
   const Context& _context;
   const SeparatedNodes& _s_nodes;

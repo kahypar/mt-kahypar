@@ -20,6 +20,9 @@
 
 #include "snodes_coarsening_pass.h"
 
+
+#include <algorithm>
+
 #include "tbb/parallel_for.h"
 #include "tbb/parallel_invoke.h"
 
@@ -62,56 +65,143 @@ SNodesCoarseningPass::SNodesCoarseningPass(const Hypergraph& hg, const Context& 
   }
 
 void SNodesCoarseningPass::run(vec<HypernodeID>& communities) {
-  // setup data
   tbb::parallel_invoke([&] {
     communities.clear();
     communities.assign(_current_num_nodes, kInvalidHypernode);
   }, [&] {
-    Array<NodeInfo> tmp_node_info;
-    tmp_node_info.assign(_s_nodes.numNodes(), NodeInfo());
-    Array<parallel::IntegralAtomicWrapper<HypernodeID>> num_assigned_nodes;
-    // sentinel for counting up later
-    num_assigned_nodes.assign(_hg.initialNumNodes() + 1, parallel::IntegralAtomicWrapper<HypernodeID>(0));
-    tbb::parallel_for(ID(0), _s_nodes.numNodes(), [&](const HypernodeID node) {
-      HyperedgeWeight incident_weight_sum = 0;
-      HyperedgeWeight max_weight = 0;
-      HypernodeID max_target = kInvalidHypernode;
-      for (const SeparatedNodes::Edge& e: _s_nodes.inwardEdges(node)) {
-        incident_weight_sum += e.weight;
-        if (e.weight >= max_weight) {
-          max_weight = e.weight;
-          max_target = e.target;
-        }
-      }
-      NodeInfo& info = tmp_node_info[node];
-      info.density = _s_nodes.nodeWeight(node) == 0 ? std::numeric_limits<double>::infinity()
-                          : static_cast<double>(incident_weight_sum) / static_cast<double>(_s_nodes.nodeWeight(node));
-      info.assigned_graph_node = max_target;
-      if (max_target != kInvalidHypernode) {
-        num_assigned_nodes[max_target + 1].fetch_add(1);
-      }
-    });
-
-    parallel::TBBPrefixSum<parallel::IntegralAtomicWrapper<HypernodeID>, Array>
-            num_assigned_prefix_sum(num_assigned_nodes);
-    tbb::parallel_scan(tbb::blocked_range<size_t>(ID(0), _hg.initialNumNodes() + 1), num_assigned_prefix_sum);
-
-    tbb::parallel_for(ID(0), _hg.initialNumNodes() + 1, [&](const HypernodeID node) {
-      _node_info_begin[node] = num_assigned_nodes[node].load();
-    });
-
-    tbb::parallel_for(ID(0), _s_nodes.numNodes(), [&](const HypernodeID node) {
-      const NodeInfo& tmp_info = tmp_node_info[node];
-      if (tmp_info.assigned_graph_node != kInvalidHypernode) {
-        const HypernodeID new_index = num_assigned_nodes[tmp_info.assigned_graph_node].fetch_add(1);
-        _node_info[new_index] = FullNodeInfo(node, _s_nodes.inwardDegree(node), tmp_info);
-      } else {
-        const HypernodeID new_index = num_assigned_nodes[_hg.initialNumNodes()].fetch_add(1);
-        _node_info[new_index] = FullNodeInfo(node, 0, tmp_info);
-      }
-    });
+    setupNodeInfo();
   });
 
+  HypernodeID num_matches = runCurrentStage(communities);
+  while (_current_num_nodes - num_matches > _target_num_nodes
+         && _stage != SNodesCoarseningStage::ANYTHING) {
+    _stage = static_cast<SNodesCoarseningStage>(static_cast<uint8_t>(_stage) + 1);
+    num_matches += runCurrentStage(communities);
+  }
+
+  // assign any unmatched node to itself
+  tbb::parallel_for(0UL, communities.size(), [&](const size_t i) {
+    if (communities[i] == kInvalidHypernode) {
+      communities[i] = i;
+    }
+  });
+}
+
+void SNodesCoarseningPass::setupNodeInfo() {
+  Array<NodeInfo> tmp_node_info;
+  tmp_node_info.assign(_s_nodes.numNodes(), NodeInfo());
+  Array<parallel::IntegralAtomicWrapper<HypernodeID>> num_assigned_nodes;
+  // sentinel for counting up later
+  num_assigned_nodes.assign(_hg.initialNumNodes() + 1, parallel::IntegralAtomicWrapper<HypernodeID>(0));
+  tbb::parallel_for(ID(0), _s_nodes.numNodes(), [&](const HypernodeID node) {
+    HyperedgeWeight incident_weight_sum = 0;
+    HyperedgeWeight max_weight = 0;
+    HypernodeID max_target = kInvalidHypernode;
+    for (const SeparatedNodes::Edge& e: _s_nodes.inwardEdges(node)) {
+      incident_weight_sum += e.weight;
+      if (e.weight >= max_weight) {
+        max_weight = e.weight;
+        max_target = e.target;
+      }
+    }
+    NodeInfo& info = tmp_node_info[node];
+    info.density = _s_nodes.nodeWeight(node) == 0 ? std::numeric_limits<double>::infinity()
+                        : static_cast<double>(incident_weight_sum) / static_cast<double>(_s_nodes.nodeWeight(node));
+    info.assigned_graph_node = max_target;
+    if (max_target != kInvalidHypernode) {
+      num_assigned_nodes[max_target + 1].fetch_add(1);
+    }
+  });
+
+  parallel::TBBPrefixSum<parallel::IntegralAtomicWrapper<HypernodeID>, Array>
+          num_assigned_prefix_sum(num_assigned_nodes);
+  tbb::parallel_scan(tbb::blocked_range<size_t>(ID(0), _hg.initialNumNodes() + 1), num_assigned_prefix_sum);
+
+  tbb::parallel_for(ID(0), _hg.initialNumNodes() + 1, [&](const HypernodeID node) {
+    _node_info_begin[node] = num_assigned_nodes[node].load();
+  });
+
+  tbb::parallel_for(ID(0), _s_nodes.numNodes(), [&](const HypernodeID node) {
+    const NodeInfo& tmp_info = tmp_node_info[node];
+    if (tmp_info.assigned_graph_node != kInvalidHypernode) {
+      const HypernodeID new_index = num_assigned_nodes[tmp_info.assigned_graph_node].fetch_add(1);
+      _node_info[new_index] = FullNodeInfo(node, _s_nodes.inwardDegree(node), tmp_info);
+    } else {
+      const HypernodeID new_index = num_assigned_nodes[_hg.initialNumNodes()].fetch_add(1);
+      _node_info[new_index] = FullNodeInfo(node, 0, tmp_info);
+    }
+  });
+}
+
+HypernodeID SNodesCoarseningPass::runCurrentStage(vec<HypernodeID>& communities) {
+  if (_stage == SNodesCoarseningStage::DEGREE_ZERO) {
+    // TODO
+    return 0;
+  } else {
+    LocalizedData data;
+    Params params;
+    if (_stage == SNodesCoarseningStage::PREFERABLE_DEGREE_ONE) {
+      params.accepted_density_diff = PREFERRED_DENSITY_DIFF;
+    } else if (_stage == SNodesCoarseningStage::ANY_DEGREE_RELAXED) {
+      params.accepted_density_diff = RELAXED_DENSITY_DIFF;
+    } else if (_stage == SNodesCoarseningStage::ANYTHING) {
+      params.accepted_density_diff = std::numeric_limits<double>::infinity();
+    } else {
+      params.accepted_density_diff = TOLERABLE_DENSITY_DIFF;
+    }
+    params.degree_one_cluster_size = _stage == SNodesCoarseningStage::PREFERABLE_DEGREE_ONE ? MAX_CLUSTER_SIZE : 2;
+    params.max_node_weight = _context.coarsening.max_allowed_node_weight;
+
+    _hg.doParallelForAllNodes([&](const HypernodeID& node) {
+      applyCoarseningForNode(params, communities, data, node);
+    });
+    return data.match_counter.combine(std::plus<>());
+  }
+}
+
+void SNodesCoarseningPass::applyCoarseningForNode(const Params& params, vec<HypernodeID>& communities,
+                                                  LocalizedData& data, const HypernodeID& node) {
+  HyperedgeID& counter = data.match_counter.local();
+  vec<HypernodeID>& degree_one = data.degree_one_nodes.local();
+  vec<HypernodeID>& degree_two = data.degree_two_nodes.local();
+
+  for (HypernodeID index = _node_info_begin[node]; index < _node_info_begin[node + 1]; ++index) {
+    ASSERT(info(index).assigned_graph_node == node && info(index).density > 0);
+    if (communities[info(index).node] == kInvalidHypernode) {
+      if (info(index).degree == 1) {
+        degree_one.push_back(index);
+      } else if (info(index).degree == 2) {
+        degree_two.push_back(index);
+      } else {
+        // TODO
+      }
+    }
+  }
+
+  // degree one nodes
+  sortByDensity(degree_one);
+  size_t current_index = 0;
+  while (current_index < degree_one.size()) {
+    const double starting_density = info(degree_one[current_index]).density;
+    const HypernodeID starting_node = info(degree_one[current_index]).node;
+    HypernodeID cluster_size = 1;
+    ++current_index;
+    while (cluster_size < params.degree_one_cluster_size
+           && current_index < degree_one.size()
+           && info(degree_one[current_index]).density / starting_density <= params.accepted_density_diff) {
+      communities[info(degree_one[current_index]).node] = starting_node;
+      communities[starting_node] = starting_node;
+      ++current_index;
+      ++cluster_size;
+    }
+    counter += (cluster_size - 1);
+  }
+}
+
+void SNodesCoarseningPass::sortByDensity(vec<HypernodeID>& nodes) {
+  std::sort(nodes.begin(), nodes.end(), [&](const HypernodeID& left, const HypernodeID& right) {
+    return info(left).density < info(right).density;
+  });
 }
 
 } // namepace star_partitioning

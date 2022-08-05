@@ -36,7 +36,9 @@ class ACoarseningPass : public Test {
  using vec = parallel::scalable_vector<T>;
 
  public:
-  ACoarseningPass() : graph(), context(), stack(), communities() { }
+  ACoarseningPass() : graph(), context(), stack(), communities() {
+    context.coarsening.max_allowed_node_weight = 10;
+  }
 
   void initialize(HypernodeID num_nodes, HyperedgeID num_edges, vec<vec<HypernodeID>> edges,
                   vec<vec<std::pair<HypernodeID, HyperedgeWeight>>> sep_nodes) {
@@ -91,6 +93,30 @@ TEST_F(ACoarseningPass, setupData) {
   ASSERT_EQ(2, info_begin[1]);
   ASSERT_EQ(4, info_begin[2]);
   ASSERT_EQ(5, info_begin[3]);
+}
+
+TEST_F(ACoarseningPass, coarsensDegreeOneNodes) {
+  initialize(1, 0, {}, { {{0, 1}}, {{0, 2}}, {{0, 3}}, {{0, 6}}, {{0, 7}}, {{0, 8}}, {{0, 8}}, {{0, 8}} });
+  SNodesCoarseningPass c_pass = setupPass(4, SNodesCoarseningStage::PREFERABLE_DEGREE_ONE);
+  c_pass.run(communities);
+
+  ASSERT_EQ(0, communities[0]);
+  ASSERT_EQ(1, communities[1]);
+  ASSERT_EQ(1, communities[2]);
+  ASSERT_EQ(3, communities[3]);
+  ASSERT_EQ(3, communities[4]);
+  ASSERT_EQ(3, communities[5]);
+  ASSERT_EQ(3, communities[6]);
+  ASSERT_EQ(7, communities[7]);
+
+  SNodesCoarseningPass c_pass_2 = setupPass(5, SNodesCoarseningStage::DEGREE_ONE_AND_TWINS);
+  c_pass_2.run(communities);
+
+  ASSERT_EQ(0, communities[0]);
+  ASSERT_EQ(0, communities[1]);
+  ASSERT_EQ(2, communities[2]);
+  ASSERT_EQ(2, communities[3]);
+  ASSERT_EQ(4, communities[4]);
 }
 
 }  // namespace mt_kahypar
