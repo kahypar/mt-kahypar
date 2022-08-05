@@ -98,6 +98,7 @@ class SNodesCoarseningPass {
   struct EqualityHash;
 
   // tuning constants
+  static const HypernodeID DEGREE_ZERO_CLUSTER_SIZE = 64;
   static const HypernodeID MAX_CLUSTER_SIZE = 4;
   static constexpr size_t NUM_HASHES = 3;
   static constexpr double PREFERRED_DENSITY_DIFF = 1.6;
@@ -171,7 +172,8 @@ class SNodesCoarseningPass {
           const double curr_density = info(curr_index).density;
           const auto& [next_index, next_hash] = bucket[pos + 1];
           const double next_density = info(next_index).density;
-          if (curr_hash == next_hash && next_density / curr_density <= params.accepted_density_diff) {
+          if (curr_hash == next_hash && next_density / curr_density <= params.accepted_density_diff
+              && _s_nodes.nodeWeight(info(curr_index).node) + _s_nodes.nodeWeight(info(next_index).node) <= params.max_node_weight) {
             // TODO: check actual similarity?!
             const HypernodeID curr_node = info(curr_index).node;
             communities[curr_node] = curr_node;

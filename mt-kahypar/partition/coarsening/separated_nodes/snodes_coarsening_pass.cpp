@@ -229,32 +229,48 @@ void SNodesCoarseningPass::setupNodeInfo() {
 }
 
 HypernodeID SNodesCoarseningPass::runCurrentStage(vec<HypernodeID>& communities) {
-  if (_stage == SNodesCoarseningStage::DEGREE_ZERO) {
-    // TODO
-    return 0;
+  LocalizedData data;
+  Params params;
+  params.max_node_weight = _context.coarsening.max_allowed_node_weight;
+  params.degree_one_cluster_size = _stage == SNodesCoarseningStage::PREFERABLE_DEGREE_ONE ? MAX_CLUSTER_SIZE : 2;
+  if (_stage == SNodesCoarseningStage::PREFERABLE_DEGREE_ONE) {
+    params.accepted_density_diff = PREFERRED_DENSITY_DIFF;
+  } else if (_stage == SNodesCoarseningStage::ANY_DEGREE_RELAXED) {
+    params.accepted_density_diff = RELAXED_DENSITY_DIFF;
+  } else if (_stage == SNodesCoarseningStage::ANYTHING) {
+    params.accepted_density_diff = std::numeric_limits<double>::infinity();
   } else {
-    LocalizedData data;
-    Params params;
-    if (_stage == SNodesCoarseningStage::PREFERABLE_DEGREE_ONE) {
-      params.accepted_density_diff = PREFERRED_DENSITY_DIFF;
-    } else if (_stage == SNodesCoarseningStage::ANY_DEGREE_RELAXED) {
-      params.accepted_density_diff = RELAXED_DENSITY_DIFF;
-    } else if (_stage == SNodesCoarseningStage::ANYTHING) {
-      params.accepted_density_diff = std::numeric_limits<double>::infinity();
-    } else {
-      params.accepted_density_diff = TOLERABLE_DENSITY_DIFF;
-    }
-    params.degree_one_cluster_size = _stage == SNodesCoarseningStage::PREFERABLE_DEGREE_ONE ? MAX_CLUSTER_SIZE : 2;
-    params.max_node_weight = _context.coarsening.max_allowed_node_weight;
+    params.accepted_density_diff = TOLERABLE_DENSITY_DIFF;
+  }
 
+  if (_stage == SNodesCoarseningStage::DEGREE_ZERO) {
+    const HypernodeID first_d0 = _node_info_begin.back();
+    const HypernodeID last_d0 = _node_info.size();
+    const HypernodeID num_clusters = (last_d0 - first_d0 + DEGREE_ZERO_CLUSTER_SIZE - 1) / DEGREE_ZERO_CLUSTER_SIZE;
+    tbb::parallel_for(ID(0), num_clusters, [&](const HypernodeID cluster) {
+      const HypernodeID start = first_d0 + cluster * DEGREE_ZERO_CLUSTER_SIZE;
+      HypernodeID& counter = data.match_counter.local();
+      HypernodeWeight weight = 0;
+      for (HypernodeID i = 0; i < DEGREE_ZERO_CLUSTER_SIZE && start + i < last_d0; ++i) {
+        const HypernodeID node = info(start + i).node;
+        if (weight + _s_nodes.nodeWeight(node) <= params.max_node_weight) {
+          communities[node] = info(start).node;
+          weight += _s_nodes.nodeWeight(node);
+          if (i > 0) {
+            ++counter;
+          }
+        }
+      }
+    });
+  } else {
     if (appliesTwins(_stage)) {
       applyHashingRound<EqualityHash>(params, communities, data, 2);
     }
     _hg.doParallelForAllNodes([&](const HypernodeID& node) {
       applyCoarseningForNode(params, communities, data, node);
     });
-    return data.match_counter.combine(std::plus<>());
   }
+  return data.match_counter.combine(std::plus<>());
 }
 
 void SNodesCoarseningPass::applyCoarseningForNode(const Params& params, vec<HypernodeID>& communities,
@@ -279,6 +295,7 @@ void SNodesCoarseningPass::applyCoarseningForNode(const Params& params, vec<Hype
   // degree one nodes
   sortByDensity(degree_one);
   size_t current_index = 0;
+  HypernodeWeight weight = 0;
   while (current_index < degree_one.size()) {
     const double starting_density = info(degree_one[current_index]).density;
     const HypernodeID starting_node = info(degree_one[current_index]).node;
@@ -286,9 +303,11 @@ void SNodesCoarseningPass::applyCoarseningForNode(const Params& params, vec<Hype
     ++current_index;
     while (cluster_size < params.degree_one_cluster_size
            && current_index < degree_one.size()
-           && info(degree_one[current_index]).density / starting_density <= params.accepted_density_diff) {
+           && info(degree_one[current_index]).density / starting_density <= params.accepted_density_diff
+           && weight + _s_nodes.nodeWeight(info(degree_one[current_index]).node) <= params.max_node_weight) {
       communities[info(degree_one[current_index]).node] = starting_node;
       communities[starting_node] = starting_node;
+      weight += _s_nodes.nodeWeight(info(degree_one[current_index]).node);
       ++current_index;
       ++cluster_size;
     }
