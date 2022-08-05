@@ -237,8 +237,8 @@ class SeparatedNodes {
   // ####################### Contract / Uncontract #######################
 
   /*!
-   * Adds the given nodes. Each node is specified by its weight and its
-   * starting index in the edge vector.
+   * Adds the given nodes. Each node is specified by the original node id,
+   * its starting index in the edge vector and its weight.
    */
   void addNodes(const vec<std::tuple<HypernodeID, HyperedgeID, HypernodeWeight>>& nodes, const vec<Edge>& edges);
 
@@ -319,6 +319,12 @@ class SeparatedNodes {
 
 class SepNodesStack {
  public:
+  explicit SepNodesStack():
+    _data(),
+    _mappings() {
+      _data.push_back(std::make_unique<SeparatedNodes>());
+  }
+
   explicit SepNodesStack(HypernodeID num_graph_nodes):
     _data(),
     _mappings() {
