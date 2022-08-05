@@ -1,3 +1,6 @@
+
+add_subdirectory(separated_nodes)
+
 set(CoarseningSources
         deterministic_multilevel_coarsener.cpp
         multilevel_uncoarsener.cpp
