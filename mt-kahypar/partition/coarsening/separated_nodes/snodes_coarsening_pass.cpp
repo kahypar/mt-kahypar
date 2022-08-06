@@ -167,7 +167,7 @@ void SNodesCoarseningPass::run(vec<HypernodeID>& communities) {
     setupNodeInfo();
   });
 
-  HypernodeID num_matches = runCurrentStage(communities);
+  HypernodeID num_matches = runCurrentStage(communities, true);
   while (_current_num_nodes - num_matches > _target_num_nodes
          && _stage != SNodesCoarseningStage::ANYTHING) {
     _stage = static_cast<SNodesCoarseningStage>(static_cast<uint8_t>(_stage) + 1);
@@ -228,7 +228,7 @@ void SNodesCoarseningPass::setupNodeInfo() {
   });
 }
 
-HypernodeID SNodesCoarseningPass::runCurrentStage(vec<HypernodeID>& communities) {
+HypernodeID SNodesCoarseningPass::runCurrentStage(vec<HypernodeID>& communities, bool first) {
   LocalizedData data;
   Params params;
   params.max_node_weight = _context.coarsening.max_allowed_node_weight;
@@ -243,8 +243,9 @@ HypernodeID SNodesCoarseningPass::runCurrentStage(vec<HypernodeID>& communities)
     params.accepted_density_diff = TOLERABLE_DENSITY_DIFF;
   }
 
-  applyDegreeZeroCoarsening(params, communities, data);
-
+  if (first) {
+    applyDegreeZeroCoarsening(params, communities, data);
+  }
   if (appliesTwins(_stage)) {
     applyHashingRound<EqualityHash>(params, communities, data, 2);
   }
@@ -266,10 +267,11 @@ void SNodesCoarseningPass::applyDegreeZeroCoarsening(const Params& params, vec<H
         const HypernodeID start = first_node_of_block + offset;
         HypernodeID& counter = data.match_counter.local();
         HypernodeWeight weight = 0;
-        for (HypernodeID i = 0; i < DEGREE_ZERO_CLUSTER_SIZE && start + i < last_d0; ++i) {
+        for (HypernodeID i = 0; offset + i < DEGREE_ZERO_CLUSTER_SIZE && start + i < last_d0; ++i) {
           const HypernodeID node = info(start + i).node;
           if (weight + _s_nodes.nodeWeight(node) <= params.max_node_weight) {
             ++offset;
+            ASSERT(communities[node] == kInvalidHypernode);
             communities[node] = info(start).node;
             weight += _s_nodes.nodeWeight(node);
             if (i > 0) {

@@ -124,7 +124,7 @@ class SNodesCoarseningPass {
  private:
   void setupNodeInfo();
 
-  HypernodeID runCurrentStage(vec<HypernodeID>& communities);
+  HypernodeID runCurrentStage(vec<HypernodeID>& communities, bool first = false);
 
   void applyDegreeZeroCoarsening(const Params& params, vec<HypernodeID>& communities, LocalizedData& data);
 
