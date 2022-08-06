@@ -61,6 +61,7 @@ struct SNodesCoarseningPass::Footprint {
 
 // a similarity hashing function (see also hypergraph_sparsifier.h)
 struct SNodesCoarseningPass::SimilarityHash {
+  static constexpr bool requires_check = true;
   using HashResult = Footprint;
 
   explicit SimilarityHash() {
@@ -100,6 +101,7 @@ struct SNodesCoarseningPass::SimilarityHash {
 };
 
 struct SNodesCoarseningPass::EqualityHash {
+  static constexpr bool requires_check = false;
   using HashResult = HashValue;
 
   explicit EqualityHash() {
@@ -180,6 +182,16 @@ void SNodesCoarseningPass::run(vec<HypernodeID>& communities) {
       communities[i] = i;
     }
   });
+
+  ASSERT([&] {
+    HypernodeID count = 0;
+    for (HypernodeID i = 0; i < communities.size(); ++i) {
+      if (communities[i] != i) {
+        count++;
+      }
+    }
+    return num_matches == count;
+  }());
 }
 
 void SNodesCoarseningPass::setupNodeInfo() {
@@ -226,6 +238,7 @@ void SNodesCoarseningPass::setupNodeInfo() {
       _node_info[new_index] = FullNodeInfo(node, 0, tmp_info);
     }
   });
+  ASSERT(_node_info.size() == _s_nodes.numNodes());
 }
 
 HypernodeID SNodesCoarseningPass::runCurrentStage(vec<HypernodeID>& communities, bool first) {
@@ -334,6 +347,38 @@ void SNodesCoarseningPass::sortByDensity(vec<HypernodeID>& nodes) {
   std::sort(nodes.begin(), nodes.end(), [&](const HypernodeID& left, const HypernodeID& right) {
     return info(left).density < info(right).density;
   });
+}
+
+
+std::pair<HyperedgeID, HyperedgeID> SNodesCoarseningPass::intersection_and_union(
+            const HypernodeID& s_node_left, const HypernodeID& s_node_right,
+            vec<HypernodeID>& lhs, vec<HypernodeID>& rhs) {
+  lhs.clear();
+  for (const SeparatedNodes::Edge& e: _s_nodes.inwardEdges(s_node_left)) {
+    lhs.push_back(e.target);
+  }
+  std::sort(lhs.begin(), lhs.end());
+  rhs.clear();
+  for (const SeparatedNodes::Edge& e: _s_nodes.inwardEdges(s_node_right)) {
+    rhs.push_back(e.target);
+  }
+  std::sort(rhs.begin(), rhs.end());
+  HyperedgeID intersection_size = 0;
+  size_t i = 0;
+  size_t j = 0;
+  while ( i < lhs.size() && j < rhs.size() ) {
+    if ( lhs[i] == rhs[j] ) {
+      ++intersection_size;
+      ++i;
+      ++j;
+    } else if ( lhs[i] < rhs[j] ) {
+      ++i;
+    } else {
+      ++j;
+    }
+  }
+  const HyperedgeID union_size = lhs.size() + rhs.size() - intersection_size;
+  return {intersection_size, union_size};
 }
 
 } // namepace star_partitioning

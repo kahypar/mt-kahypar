@@ -99,7 +99,9 @@ class SNodesCoarseningPass {
   // tuning constants
   static const HypernodeID DEGREE_ZERO_CLUSTER_SIZE = 64;
   static const HypernodeID MAX_CLUSTER_SIZE = 4;
-  static constexpr size_t NUM_HASHES = 3;
+  static constexpr size_t NUM_HASHES = 4;
+  static constexpr size_t NUM_SIMILARITY_ROUNDS = 5;
+  static constexpr size_t SIMILARITY_SEARCH_RANGE = 1;
   static constexpr double PREFERRED_DENSITY_DIFF = 1.6;
   static constexpr double TOLERABLE_DENSITY_DIFF = 2.1;
   static constexpr double RELAXED_DENSITY_DIFF = 4.1;
@@ -135,7 +137,8 @@ class SNodesCoarseningPass {
   
   template<typename Hasher>
   void applyHashingRound(const Params& params, vec<HypernodeID>& communities,
-                         LocalizedData& data, const HypernodeID min_degree) {
+                         LocalizedData& data, const HypernodeID min_degree,
+                         const double required_similarity = 1.0) {
     Hasher hasher;
     ds::ConcurrentBucketMap<std::pair<HypernodeID, typename Hasher::HashResult>> bucket_map;
     tbb::enumerable_thread_specific<vec<HypernodeID>> adjacent_nodes;
@@ -169,24 +172,52 @@ class SNodesCoarseningPass {
         size_t pos = 0;
         HypernodeID& counter = data.match_counter.local();
         while (pos + 1 < bucket.size()) {
-          const auto& [curr_index, curr_hash] = bucket[pos];
+          const auto [curr_index, curr_hash] = bucket[pos];
           const double curr_density = info(curr_index).density;
-          const auto& [next_index, next_hash] = bucket[pos + 1];
-          const double next_density = info(next_index).density;
-          if (curr_hash == next_hash && next_density / curr_density <= params.accepted_density_diff
-              && _s_nodes.nodeWeight(info(curr_index).node) + _s_nodes.nodeWeight(info(next_index).node) <= params.max_node_weight) {
-            // TODO: check actual similarity?!
-            const HypernodeID curr_node = info(curr_index).node;
-            communities[curr_node] = curr_node;
-            communities[info(next_index).node] = curr_node;
-            ++counter;
-            ++pos;
+
+          size_t search_offset = 1;
+          auto [next_index, next_hash] = bucket[pos + 1];
+          double next_density = info(next_index).density;
+          while (curr_hash == next_hash && next_density / curr_density <= params.accepted_density_diff
+              && _s_nodes.nodeWeight(info(curr_index).node) + _s_nodes.nodeWeight(info(next_index).node) <= params.max_node_weight
+              && search_offset <= (Hasher::requires_check ? SIMILARITY_SEARCH_RANGE : 1)
+              && pos + search_offset < bucket.size()) {
+            bool matches = true;
+            if (Hasher::requires_check) {
+              vec<HypernodeID>& buffer_left = data.degree_one_nodes.local();
+              vec<HypernodeID>& buffer_right = data.degree_two_nodes.local();
+              auto intersec_union = intersection_and_union(info(curr_index).node, info(next_index).node, buffer_left, buffer_right);
+              matches = static_cast<double>(intersec_union.first) / static_cast<double>(intersec_union.second) >= required_similarity;
+              matches &= intersec_union.first > 1;
+            }
+            if (matches) {
+              const HypernodeID curr_node = info(curr_index).node;
+              ALWAYS_ASSERT(communities[curr_node] == kInvalidHypernode
+                            && communities[info(next_index).node] == kInvalidHypernode);
+              ALWAYS_ASSERT(curr_node != info(next_index).node);
+              communities[curr_node] = curr_node;
+              communities[info(next_index).node] = curr_node;
+              std::swap(bucket[pos + search_offset], bucket[pos + 1]);
+              ++counter;
+              ++pos;
+              break;
+            }
+
+            ++search_offset;
+            if (pos + search_offset < bucket.size()) {
+              next_index = bucket[pos + search_offset].first;
+              next_hash = bucket[pos + search_offset].second;
+              next_density = info(next_index).density;
+            }
           }
           ++pos;
         }
       }
     });
   }
+
+  std::pair<HyperedgeID, HyperedgeID> intersection_and_union(const HypernodeID& s_node_left, const HypernodeID& s_node_right,
+                                                             vec<HypernodeID>& buffer_left, vec<HypernodeID>& buffer_right);
 
   const FullNodeInfo& info(HypernodeID index) const {
     return _node_info[index];
