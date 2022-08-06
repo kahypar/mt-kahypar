@@ -368,8 +368,9 @@ TEST_F(AStaticGraph, ContractsCommunities2) {
 }
 
 TEST_F(AStaticGraph, ContractsCommunitiesWithSeparatedNodes1) {
-  SeparatedNodes s_nodes(hypergraph.initialNumNodes());
-  hypergraph.setSeparatedNodes(&s_nodes);
+  SepNodesStack stack(hypergraph.initialNumNodes());
+  hypergraph.setSeparatedNodes(&stack);
+  SeparatedNodes& s_nodes = stack.onliest();
 
   parallel::scalable_vector<HypernodeID> c_mapping = {1, 4, 4, 1, 5, kInvalidHypernode, kInvalidHypernode};
   StaticGraph c_graph = hypergraph.contract(c_mapping);
