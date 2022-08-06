@@ -36,14 +36,13 @@ using ds::SeparatedNodes;
 using ds::Array;
 
 enum class SNodesCoarseningStage : uint8_t {
-  DEGREE_ZERO = 0,
-  PREFERABLE_DEGREE_ONE = 1,
-  DEGREE_ONE_AND_TWINS = 2,
-  DEGREE_ONE_AND_DEGREE_TWO_AND_TWINS = 3,
+  PREFERABLE_DEGREE_ONE = 0,
+  DEGREE_ONE_AND_TWINS = 1,
+  DEGREE_ONE_AND_DEGREE_TWO_AND_TWINS = 2,
   // TODO: mixing with high degree??
-  ANY_DEGREE = 4,
-  ANY_DEGREE_RELAXED = 5,
-  ANYTHING = 6
+  ANY_DEGREE = 3,
+  ANY_DEGREE_RELAXED = 4,
+  ANYTHING = 5
 };
 
 bool allowsDegreeTwo(const SNodesCoarseningStage& stage);

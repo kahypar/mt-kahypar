@@ -71,7 +71,7 @@ class ACoarseningPass : public Test {
 TEST_F(ACoarseningPass, setupData) {
   initialize(3, 2, {{0, 1}, {1, 2}}, { {}, {}, {{0, 1}}, {{0, 2}},
                                        {{0, 1}, {1, 2}}, {{1, 2}, {2, 1}}, {{0, 1}, {1, 1}, {2, 2}} });
-  SNodesCoarseningPass c_pass = setupPass(4, SNodesCoarseningStage::DEGREE_ZERO);
+  SNodesCoarseningPass c_pass = setupPass(4, SNodesCoarseningStage::PREFERABLE_DEGREE_ONE);
   c_pass.run(communities);
   ASSERT_EQ(7, communities.size());
 
@@ -99,7 +99,7 @@ TEST_F(ACoarseningPass, setupData) {
 TEST_F(ACoarseningPass, removesDegreeZero) {
   initialize(1, 0, {}, { {}, {}, {}, {}, {}, {} });
   context.coarsening.max_allowed_node_weight = 3;
-  SNodesCoarseningPass c_pass = setupPass(2, SNodesCoarseningStage::DEGREE_ZERO);
+  SNodesCoarseningPass c_pass = setupPass(2, SNodesCoarseningStage::PREFERABLE_DEGREE_ONE);
   c_pass.run(communities);
 
   HypernodeID c_0 = communities[0];
