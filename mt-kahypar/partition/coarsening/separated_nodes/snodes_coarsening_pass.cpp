@@ -288,7 +288,9 @@ void SNodesCoarseningPass::applyCoarseningForNode(const Params& params, vec<Hype
                                                   LocalizedData& data, const HypernodeID& node) {
   HyperedgeID& counter = data.match_counter.local();
   vec<HypernodeID>& degree_one = data.degree_one_nodes.local();
+  degree_one.clear();
   vec<HypernodeID>& degree_two = data.degree_two_nodes.local();
+  degree_two.clear();
 
   for (HypernodeID index = _node_info_begin[node]; index < _node_info_begin[node + 1]; ++index) {
     ASSERT(info(index).assigned_graph_node == node && info(index).density > 0);
@@ -306,11 +308,11 @@ void SNodesCoarseningPass::applyCoarseningForNode(const Params& params, vec<Hype
   // degree one nodes
   sortByDensity(degree_one);
   size_t current_index = 0;
-  HypernodeWeight weight = 0;
   while (current_index < degree_one.size()) {
     const double starting_density = info(degree_one[current_index]).density;
     const HypernodeID starting_node = info(degree_one[current_index]).node;
     HypernodeID cluster_size = 1;
+    HypernodeWeight weight = 0;
     ++current_index;
     while (cluster_size < params.degree_one_cluster_size
            && current_index < degree_one.size()
