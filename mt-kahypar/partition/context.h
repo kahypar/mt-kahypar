@@ -20,7 +20,7 @@
  ******************************************************************************/
 #pragma once
 
-#include "mt-kahypar/definitions.h"
+#include "mt-kahypar/datastructures/hypergraph_common.h"
 #include "mt-kahypar/partition/context_enum_classes.h"
 
 #include "kahypar/partition/context_enum_classes.h"

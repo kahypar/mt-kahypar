@@ -16,6 +16,6 @@ set(RefinementSources
         flows/flow_hypergraph_builder.cpp
         )
 
-foreach(modtarget IN LISTS TARGETS_WANTING_ALL_SOURCES)
-    target_sources(${modtarget} PRIVATE ${RefinementSources})
+foreach(partitioner_lib ${PARTITION_LIBRARIES})
+  target_sources(${partitioner_lib} PRIVATE ${RefinementSources})
 endforeach()

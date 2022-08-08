@@ -24,6 +24,7 @@
 #include "datastructure/flow_hypergraph.h"
 
 #include "mt-kahypar/macros.h"
+#include "mt-kahypar/parallel/stl/scalable_vector.h"
 
 namespace mt_kahypar {
 

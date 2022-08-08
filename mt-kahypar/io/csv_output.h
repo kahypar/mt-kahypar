@@ -24,6 +24,7 @@
 #include <chrono>
 #include <string>
 
+#include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/context.h"
 
 namespace mt_kahypar::io::csv {

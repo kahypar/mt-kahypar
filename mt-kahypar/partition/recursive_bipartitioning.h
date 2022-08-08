@@ -21,8 +21,8 @@
 
 #pragma once
 
+#include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/context.h"
-
 
 namespace mt_kahypar {
 namespace recursive_bipartitioning {

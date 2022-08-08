@@ -4,6 +4,6 @@ set(CoarseningSources
         nlevel_uncoarsener.cpp
         )
 
-foreach(modtarget IN LISTS TARGETS_WANTING_ALL_SOURCES)
-    target_sources(${modtarget} PRIVATE ${CoarseningSources})
+foreach(partitioner_lib ${PARTITION_LIBRARIES})
+  target_sources(${partitioner_lib} PRIVATE ${CoarseningSources})
 endforeach()

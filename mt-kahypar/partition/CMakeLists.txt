@@ -14,6 +14,6 @@ set(PartitionSources
         deep_multilevel.cpp
         )
 
-foreach(modtarget IN LISTS TARGETS_WANTING_ALL_SOURCES)
-    target_sources(${modtarget} PRIVATE ${PartitionSources})
+foreach(partitioner_lib ${PARTITION_LIBRARIES})
+  target_sources(${partitioner_lib} PRIVATE ${PartitionSources})
 endforeach()

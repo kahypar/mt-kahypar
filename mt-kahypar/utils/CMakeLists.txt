@@ -2,6 +2,6 @@ set(UtilSources
         memory_tree.cpp
         )
 
-foreach(modtarget IN LISTS TARGETS_WANTING_ALL_SOURCES)
-    target_sources(${modtarget} PRIVATE ${UtilSources})
+foreach(partitioner_lib ${PARTITION_LIBRARIES})
+  target_sources(${partitioner_lib} PRIVATE ${UtilSources})
 endforeach()

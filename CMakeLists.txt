@@ -312,7 +312,48 @@ add_subdirectory(lib)
 add_subdirectory(tests)
 
 # This adds the source files. It's important that this happens after the compile targets have been added
+list(APPEND PARTITION_LIBRARIES
+      MtKaHyParDefaultLib
+      MtKaHyParQualityLib
+      MtKaHyParGraphLib
+      MtKaHyParGraphQualityLib)
+foreach(partitioner_lib ${PARTITION_LIBRARIES})
+  add_library(${partitioner_lib} STATIC)
+endforeach()
+
 add_subdirectory(mt-kahypar)
+
+target_compile_definitions(MtKaHyParQualityLib PUBLIC USE_STRONG_PARTITIONER)
+target_compile_definitions(MtKaHyParGraphLib PUBLIC USE_GRAPH_PARTITIONER)
+target_compile_definitions(MtKaHyParGraphQualityLib PUBLIC USE_STRONG_PARTITIONER)
+target_compile_definitions(MtKaHyParGraphQualityLib PUBLIC USE_GRAPH_PARTITIONER)
+foreach(partitioner_lib ${PARTITION_LIBRARIES})
+  set_property(TARGET ${partitioner_lib} PROPERTY CXX_STANDARD 17)
+  set_property(TARGET ${partitioner_lib} PROPERTY CXX_STANDARD_REQUIRED ON)
+endforeach()
+
+foreach(modtarget IN LISTS TARGETS_WANTING_ALL_SOURCES)
+  get_target_property(compile_defs ${modtarget} COMPILE_DEFINITIONS)
+  SET(STRONG FALSE)
+  SET(GRAPH FALSE)
+  foreach( property ${compile_defs} )
+    if(${property} MATCHES ".*STRONG.*")
+      SET(STRONG TRUE)
+    elseif(${property} MATCHES ".*GRAPH.*")
+      SET(GRAPH TRUE)
+    endif()
+  endforeach()
+
+  if ( NOT GRAPH AND NOT STRONG )
+    target_link_libraries(${modtarget} MtKaHyParDefaultLib)
+  elseif( GRAPH AND NOT STRONG )
+    target_link_libraries(${modtarget} MtKaHyParQualityLib)
+  elseif( NOT GRAPH AND STRONG )
+    target_link_libraries(${modtarget} MtKaHyParGraphLib)
+  elseif( GRAPH AND STRONG )
+    target_link_libraries(${modtarget} MtKaHyParGraphQualityLib)
+  endif()
+endforeach()
 
 add_custom_target(MtKaHyPar
   COMMAND $(MAKE) MtKaHyParDefault

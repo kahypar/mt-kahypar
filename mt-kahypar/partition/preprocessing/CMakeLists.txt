@@ -3,6 +3,6 @@ set(PreprocessingSources
         community_detection/local_moving_modularity.cpp
         ${PROJECT_SOURCE_DIR}/mt-kahypar/datastructures/graph.cpp)
 
-foreach(modtarget IN LISTS TARGETS_WANTING_ALL_SOURCES)
-    target_sources(${modtarget} PRIVATE ${PreprocessingSources})
+foreach(partitioner_lib ${PARTITION_LIBRARIES})
+  target_sources(${partitioner_lib} PRIVATE ${PreprocessingSources})
 endforeach()
