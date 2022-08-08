@@ -61,8 +61,8 @@ class SpinLock {
 public:
   // boilerplate to make it 'copyable'. but we just clear the spinlock. there is never a use case to copy a locked spinlock
   SpinLock() { }
-  SpinLock(const SpinLock& other) { }
-  SpinLock& operator=(const SpinLock& other) { spinner.clear(std::memory_order_relaxed); return *this; }
+  SpinLock(const SpinLock&) { }
+  SpinLock& operator=(const SpinLock&) { spinner.clear(std::memory_order_relaxed); return *this; }
 
   bool tryLock() {
     return !spinner.test_and_set(std::memory_order_acquire);

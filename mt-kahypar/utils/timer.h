@@ -349,7 +349,7 @@ inline std::ostream & operator<< (std::ostream& str, const TimerT& timer) {
 
   std::function<void(std::ostream&, const TimerT::Timing&, int)> dfs =
     [&](std::ostream& str, const TimerT::Timing& parent, int level) {
-      if ( level <= timer._max_output_depth ) {
+      if ( static_cast<size_t>(level) <= timer._max_output_depth ) {
         for (const TimerT::Timing& timing : timings) {
           if (timing.parent() == parent.key()) {
             print(str, timing, level);
@@ -380,7 +380,7 @@ class DoNothingTimer {
   DoNothingTimer(DoNothingTimer&&) = delete;
   DoNothingTimer & operator= (DoNothingTimer &&) = delete;
 
-  static DoNothingTimer& instance(bool show_detailed_timings = false) {
+  static DoNothingTimer& instance(bool) {
     static DoNothingTimer instance;
     return instance;
   }
@@ -402,7 +402,7 @@ class DoNothingTimer {
 
   friend std::ostream & operator<< (std::ostream& str, const DoNothingTimer&);
 
-  double get(std::string key) const {
+  double get(std::string) const {
     return 0.0;
   }
 
