@@ -38,7 +38,7 @@ class SpanningTree {
  public:
   static const size_t max_children = 7;
 
-  SpanningTree(HypernodeID num_nodes, HypernodeID root, uint8_t max_depth):
+  explicit SpanningTree(HypernodeID num_nodes, HypernodeID root, uint8_t max_depth):
           _max_depth(max_depth), _num_nodes(num_nodes), _nodes(), _depth() {
     ASSERT(num_nodes < 50000);
     ASSERT(root < num_nodes);
@@ -47,30 +47,36 @@ class SpanningTree {
     _depth[root] = 0;
   }
 
-  bool isLeaf(HypernodeID node) {
-    ASSERT(node < _depth.size() && depth(node) != kInvalidDepth);
+  bool contains(HypernodeID node) const {
+    ASSERT(node < _depth.size());
+    return _depth[node] != kInvalidDepth;
+  }
+
+  bool isLeaf(HypernodeID node) const {
+    ASSERT(node < _depth.size() && contains(node));
     return _nodes[node * max_children] == kInvalidHypernode;
   }
 
-  uint8_t depth(HypernodeID node) {
+  uint8_t depth(HypernodeID node) const {
     ASSERT(node < _depth.size());
     return _depth[node];
   }
 
-  uint8_t requiredDepthForChild(HypernodeID node) {
+  uint8_t requiredDepthForChild(HypernodeID node) const {
+    ASSERT(contains(node));
     auto [target_node, slot, do_allocate]  = locateSlotForChild(node);
     return depth(target_node) + (do_allocate ? 2 : 1);
   }
 
-  bool mayAddChild(HypernodeID node) {
-    ASSERT(node < _num_nodes);
+  bool mayAddChild(HypernodeID node) const {
+    ASSERT(contains(node));
     return requiredDepthForChild(node) < _max_depth;
   }
 
   void addChild(HypernodeID node, HypernodeID child);
 
   IteratorRange<const HypernodeID*> children(HypernodeID node) const {
-    ASSERT(node * max_children < _nodes.size());
+    ASSERT(contains(node));
     size_t i = node * max_children;
     for (; i < (node + 1) * max_children; ++i) {
       if (_nodes[i] == kInvalidHypernode) {
@@ -84,9 +90,9 @@ class SpanningTree {
 
  private:
   // the node, the slot index of the node, whether a pseudo node needs to be allocated
-  std::tuple<HypernodeID, HypernodeID, bool> locateSlotForChild(HypernodeID node);
+  std::tuple<HypernodeID, HypernodeID, bool> locateSlotForChild(HypernodeID node) const;
 
-  bool isPseudoNode(HypernodeID node) {
+  bool isPseudoNode(HypernodeID node) const {
     ASSERT(node != kInvalidHypernode);
     return node >= _num_nodes;
   }

@@ -24,8 +24,8 @@ namespace mt_kahypar {
 namespace star_partitioning {
 
 void SpanningTree::addChild(HypernodeID node, HypernodeID child) {
-  ASSERT(node < _num_nodes && child < _num_nodes);
-  ASSERT(depth(child) == kInvalidDepth);
+  ASSERT(child < _num_nodes);
+  ASSERT(contains(node) && !contains(child));
   auto [target_node, slot, do_allocate] = locateSlotForChild(node);
   if (do_allocate) {
     ASSERT(_nodes[target_node * max_children + slot] == kInvalidHypernode
@@ -52,8 +52,8 @@ void SpanningTree::addChild(HypernodeID node, HypernodeID child) {
   ASSERT(_depth[child] < _max_depth);
 }
 
-std::tuple<HypernodeID, HypernodeID, bool> SpanningTree::locateSlotForChild(HypernodeID node) {
-  ASSERT(node < _depth.size());
+std::tuple<HypernodeID, HypernodeID, bool> SpanningTree::locateSlotForChild(HypernodeID node) const {
+  ASSERT(contains(node));
   const uint8_t parent_depth = depth(node);
   const size_t start = node * max_children;
   const size_t end = (node + 1) * max_children - 1;
