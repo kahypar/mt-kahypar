@@ -20,6 +20,12 @@
 
 #include "spanning_tree.h"
 
+#include "tbb/parallel_for.h"
+#include "tbb/parallel_invoke.h"
+#include <tbb/enumerable_thread_specific.h>
+
+#include "mt-kahypar/datastructures/priority_queue.h"
+
 namespace mt_kahypar {
 namespace star_partitioning {
 
@@ -91,6 +97,81 @@ std::tuple<HypernodeID, HypernodeID, bool> SpanningTree::locateSlotForChild(Hype
     ASSERT(last_node == kInvalidHypernode);
     return {node, max_children - 1, true};
   }
+}
+
+SpanningTree constructMaxSpanningTree(const Hypergraph& hg, const HypernodeID& max_depth) {
+  using PriorityQueue = ds::ExclusiveHandleHeap< ds::MaxHeap<Gain, PartitionID> >;
+
+  Array<HypernodeID> node_to_current_parent;
+  PriorityQueue pq(0);
+  HypernodeID root;
+  SpanningTree tree;
+  tbb::parallel_invoke([&] {
+    node_to_current_parent.assign(hg.initialNumNodes(), kInvalidHypernode);
+  }, [&] {
+    pq = std::move(PriorityQueue(hg.initialNumNodes()));
+  }, [&] {
+    tbb::enumerable_thread_specific<std::pair<HypernodeID, HypernodeWeight>>
+              high_degree_node(std::make_pair(kInvalidHypernode, -1));
+    tbb::parallel_for(ID(0), hg.initialNumNodes(), [&](const HypernodeID& node) {
+      auto& [best_node, best_incident_weight] = high_degree_node.local();
+      if (hg.incidentWeight(node) > best_incident_weight) {
+        best_incident_weight = hg.incidentWeight(node);
+        best_node = node;
+      }
+    });
+    root = high_degree_node.combine([&](auto left, auto right) {
+      return left.second > right.second ? left : right;
+    }).first;
+    tree = SpanningTree(hg.initialNumNodes(), root, max_depth);
+  });
+
+  // use modified jarnik prim algorithm
+  for (const HyperedgeID e: hg.incidentEdges(root)) {
+    pq.insert(hg.edgeTarget(e), hg.edgeWeight(e));
+    node_to_current_parent[hg.edgeTarget(e)] = root;
+  }
+  while (!pq.empty()) {
+    const HypernodeID current = pq.top();
+    const HypernodeID parent = node_to_current_parent[current];
+    ASSERT(!tree.contains(current) && parent != kInvalidHypernode);
+    pq.deleteTop();
+    if (tree.mayAddChild(parent)) {
+      tree.addChild(parent, current);
+      if (tree.mayAddChild(current)) {
+        for (const HyperedgeID e: hg.incidentEdges(current)) {
+          const HypernodeID next = hg.edgeTarget(e);
+          if (!tree.contains(next) && !pq.contains(next)) {
+            pq.insert(next, hg.edgeWeight(e));
+            node_to_current_parent[next] = current;
+          } else if (!tree.contains(next) && hg.edgeWeight(e) > pq.getKey(next)) {
+            pq.increaseKey(next, hg.edgeWeight(e));
+            node_to_current_parent[next] = current;
+          }
+        }
+      }
+    } else {
+      // reinsert with valid edge, if possible
+      // (otherwise the node won't be part of the tree)
+      HypernodeID best_parent = kInvalidHypernode;
+      HypernodeWeight best_weight = -1;
+      for (const HyperedgeID e: hg.incidentEdges(current)) {
+        const HypernodeID possible_parent = hg.edgeTarget(e);
+        if (possible_parent != parent
+            && tree.contains(possible_parent)
+            && tree.mayAddChild(possible_parent)
+            && hg.edgeWeight(e) > best_weight) {
+          best_parent = possible_parent;
+          best_weight = hg.edgeWeight(e);
+        }
+      }
+      if (best_parent != kInvalidHypernode) {
+        pq.insert(best_parent, best_weight);
+        node_to_current_parent[current] = best_parent;
+      }
+    }
+  }
+  return tree;
 }
 
 } // namespace mt_kahypar

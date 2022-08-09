@@ -109,4 +109,14 @@ TEST_F(ASpanningTree, addsChildrenAndTracesDepth2) {
   assertChildrenEqual(tree, num_nodes + 1, second_pseudo);
 }
 
+TEST_F(ASpanningTree, ConstructsSpanningTree) {
+  std::vector<HyperedgeWeight> edge_weights{4, 3, 2, 4, 1};
+  Hypergraph hg = HypergraphFactory::construct(4, 5, { {0, 1}, {0, 2}, {0, 3}, {1, 2}, {2, 3} }, edge_weights.data());
+  SpanningTree tree = star_partitioning::constructMaxSpanningTree(hg, 3);
+  assertChildrenEqual(tree, 0, { 1, 3 });
+  assertChildrenEqual(tree, 1, { 2 });
+  tree = star_partitioning::constructMaxSpanningTree(hg, 2);
+  assertChildrenEqual(tree, 0, { 1, 2, 3 });
+}
+
 }  // namespace mt_kahypar

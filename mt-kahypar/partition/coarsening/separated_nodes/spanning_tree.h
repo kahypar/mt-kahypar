@@ -38,6 +38,8 @@ class SpanningTree {
  public:
   static const size_t max_children = 7;
 
+  explicit SpanningTree(): _max_depth(0), _num_nodes(0), _nodes(), _depth() { }
+
   explicit SpanningTree(HypernodeID num_nodes, HypernodeID root, uint8_t max_depth):
           _max_depth(max_depth), _num_nodes(num_nodes), _nodes(), _depth() {
     ASSERT(num_nodes < 50000);
@@ -102,6 +104,8 @@ class SpanningTree {
   vec<HypernodeID> _nodes;
   vec<uint8_t> _depth;
 };
+
+SpanningTree constructMaxSpanningTree(const Hypergraph& hg, const HypernodeID& max_depth);
 
 } // namespace mt_kahypar
 } // namespace star_partitioning

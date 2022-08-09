@@ -302,6 +302,9 @@ public:
 
                                                                               //at this point this->handles is already a deep copy of other.handles
   ExclusiveHandleHeap(const ExclusiveHandleHeap& other) : HandlesPBase(other), HeapT(this->handles.data(), this->handles.size()) { }
+
+  ExclusiveHandleHeap(ExclusiveHandleHeap&& other) = default;
+  ExclusiveHandleHeap& operator=(ExclusiveHandleHeap&& other) = default;
 };
 
 template<typename KeyT, typename IdT>
