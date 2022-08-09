@@ -28,6 +28,7 @@
 
 #include "mt-kahypar/parallel/atomic_wrapper.h"
 #include "mt-kahypar/parallel/parallel_prefix_sum.h"
+#include "mt-kahypar/partition/coarsening/separated_nodes/spanning_tree.h"
 #include "mt-kahypar/utils/randomize.h"
 
 namespace mt_kahypar {
