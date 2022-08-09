@@ -25,9 +25,11 @@ namespace star_partitioning {
 
 void SpanningTree::addChild(HypernodeID node, HypernodeID child) {
   ASSERT(node < _num_nodes && child < _num_nodes);
+  ASSERT(depth(child) == kInvalidDepth);
   auto [target_node, slot, do_allocate] = locateSlotForChild(node);
   if (do_allocate) {
-    ASSERT(isLeaf(_nodes[target_node * max_children + slot]));
+    ASSERT(_nodes[target_node * max_children + slot] == kInvalidHypernode
+           || isLeaf(_nodes[target_node * max_children + slot]));
     const size_t first_slot_of_pseudo_node = _nodes.size();
     const HypernodeID pseudo_node = first_slot_of_pseudo_node / max_children;
     _nodes.resize(_nodes.size() + max_children, kInvalidHypernode);
@@ -35,11 +37,13 @@ void SpanningTree::addChild(HypernodeID node, HypernodeID child) {
 
     const HypernodeID swapped_node = _nodes[target_node * max_children + slot];
     _nodes[target_node * max_children + slot] = pseudo_node;
-    _nodes[first_slot_of_pseudo_node] = swapped_node;
-    _nodes[first_slot_of_pseudo_node + 1] = child;
+    _nodes[first_slot_of_pseudo_node] = child;
+    _nodes[first_slot_of_pseudo_node + 1] = swapped_node;
     _depth[pseudo_node] = depth(target_node) + 1;
-    _depth[swapped_node] = depth(target_node) + 2;
     _depth[child] = depth(target_node) + 2;
+    if (swapped_node != kInvalidHypernode) {
+      _depth[swapped_node] = depth(target_node) + 2;
+    }
   } else {
     ASSERT(_nodes[target_node * max_children + slot] == kInvalidHypernode);
     _nodes[target_node * max_children + slot] = child;
@@ -52,34 +56,41 @@ std::tuple<HypernodeID, HypernodeID, bool> SpanningTree::locateSlotForChild(Hype
   ASSERT(node < _depth.size());
   const uint8_t parent_depth = depth(node);
   const size_t start = node * max_children;
-  const size_t end = (node + 1) * max_children;
+  const size_t end = (node + 1) * max_children - 1;
+  const HypernodeID last_node = _nodes[end];
 
-  bool allocate_pseudo_node = false;
-  std::tuple<HypernodeID, HypernodeID, bool> best;
-  uint8_t best_depth = kInvalidDepth;
-  for (size_t i = 0; start + i < end; ++i) {
-    const HypernodeID current_node = _nodes[start + i];
-    if (current_node == kInvalidHypernode) {
-      return {node, i, false};
-    } else if (isPseudoNode(current_node)) {
-      ASSERT(depth(current_node) == parent_depth + 1);
-      // if there is already an allocated pseudo node, will need to use one of those
-      allocate_pseudo_node = true;
-      auto [target_node, slot, do_allocate]  = locateSlotForChild(current_node);
-      const uint8_t new_depth = depth(target_node) + do_allocate ? 2 : 1;
-      if (new_depth == parent_depth + 1) {
-        return {target_node, slot, do_allocate};
-      } else if (new_depth < best_depth) {
-        best = {target_node, slot, do_allocate};
-        best_depth = new_depth;
+  const bool allocate_pseudo_node = (last_node != kInvalidHypernode);
+  if (allocate_pseudo_node) {
+    ASSERT(isPseudoNode(last_node));
+    std::tuple<HypernodeID, HypernodeID, bool> best;
+    uint8_t best_depth = kInvalidDepth;
+    for (size_t i = 0; i < max_children; ++i) {
+      const HypernodeID current_node = _nodes[end - i];
+      ASSERT(current_node != kInvalidHypernode);
+      if (isPseudoNode(current_node)) {
+        // if there is already an allocated pseudo node, will need to use one of those
+        auto [target_node, slot, do_allocate] = locateSlotForChild(current_node);
+        const uint8_t new_depth = depth(target_node) + (do_allocate ? 2 : 1);
+        if (new_depth == parent_depth + 1) {
+          return {target_node, slot, do_allocate};
+        } else if (new_depth < best_depth) {
+          best = {target_node, slot, do_allocate};
+          best_depth = new_depth;
+        }
+      } else if (isLeaf(current_node) && (best_depth > parent_depth + 2)) {
+        return {node, max_children - i - 1, true};
       }
-    } else if (allocate_pseudo_node && isLeaf(current_node)) {
-      ASSERT(depth(current_node) == parent_depth + 1);
-      return {node, i, true};
     }
+    return best;
+  } else {
+    for (size_t i = 0; start + i < end; ++i) {
+      if (_nodes[start + i] == kInvalidHypernode) {
+        return {node, i, false};
+      }
+    }
+    ASSERT(last_node == kInvalidHypernode);
+    return {node, max_children - 1, true};
   }
-  ASSERT(false);
-  return {0, 0, false};
 }
 
 } // namespace mt_kahypar

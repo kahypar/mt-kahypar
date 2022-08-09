@@ -65,4 +65,48 @@ TEST_F(ASpanningTree, addsChildrenAndTracesDepth1) {
   assertChildrenEqual(tree, 0, {1, 2});
 }
 
+TEST_F(ASpanningTree, addsChildrenAndTracesDepth2) {
+  const HypernodeID num_nodes = 4 * SpanningTree::max_children + 10;
+  std::vector<HypernodeID> first_pseudo;
+  std::vector<HypernodeID> second_pseudo{ 1 };
+
+  SpanningTree tree(num_nodes, 0, 3);
+  HypernodeID current_node = 1;
+  for (HypernodeID i = 1; i < SpanningTree::max_children; ++i) {
+    ASSERT_EQ(1, tree.requiredDepthForChild(0));
+    tree.addChild(0, current_node++);
+  }
+  ASSERT_EQ(2, tree.requiredDepthForChild(0));
+  tree.addChild(0, current_node++);
+  assertChildrenEqual(tree, num_nodes, {current_node - 1});
+  first_pseudo.push_back(current_node - 1);
+
+  // make nodes > 1 to non-leafs
+  ASSERT_EQ(2, tree.requiredDepthForChild(0));
+  for (HypernodeID i = 2; i < SpanningTree::max_children; ++i) {
+    ASSERT_EQ(2, tree.requiredDepthForChild(i));
+    tree.addChild(i, current_node++);
+  }
+  ASSERT_TRUE(tree.isLeaf(1));
+  ASSERT_FALSE(tree.isLeaf(2));
+
+  // fill the two pseudo nodes
+  for (HypernodeID i = 2; i < SpanningTree::max_children; ++i) {
+    tree.addChild(0, current_node++);
+    first_pseudo.push_back(current_node - 1);
+  }
+  ASSERT_EQ(2, tree.requiredDepthForChild(0));
+  ASSERT_TRUE(tree.mayAddChild(0));
+  for (HypernodeID i = 2; i < SpanningTree::max_children; ++i) {
+    tree.addChild(0, current_node++);
+    second_pseudo.push_back(current_node - 1);
+  }
+  std::swap(second_pseudo[0], second_pseudo[1]);
+  ASSERT_EQ(3, tree.requiredDepthForChild(0));
+  ASSERT_FALSE(tree.mayAddChild(0));
+
+  assertChildrenEqual(tree, num_nodes, first_pseudo);
+  assertChildrenEqual(tree, num_nodes + 1, second_pseudo);
+}
+
 }  // namespace mt_kahypar

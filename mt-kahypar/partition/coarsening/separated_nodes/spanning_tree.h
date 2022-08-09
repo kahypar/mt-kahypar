@@ -48,7 +48,7 @@ class SpanningTree {
   }
 
   bool isLeaf(HypernodeID node) {
-    ASSERT(node < _num_nodes && depth(node) != kInvalidDepth);
+    ASSERT(node < _depth.size() && depth(node) != kInvalidDepth);
     return _nodes[node * max_children] == kInvalidHypernode;
   }
 
@@ -59,7 +59,7 @@ class SpanningTree {
 
   uint8_t requiredDepthForChild(HypernodeID node) {
     auto [target_node, slot, do_allocate]  = locateSlotForChild(node);
-    return depth(target_node) + do_allocate ? 2 : 1;
+    return depth(target_node) + (do_allocate ? 2 : 1);
   }
 
   bool mayAddChild(HypernodeID node) {
