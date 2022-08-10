@@ -225,24 +225,23 @@ class SNodesCoarseningPass {
           auto [next_index, next_hash] = bucket[pos + 1];
           double next_density = info(next_index).density;
           while (curr_hash == next_hash && next_density / curr_density <= params.accepted_density_diff
-              && _s_nodes.nodeWeight(info(curr_index).node) + _s_nodes.nodeWeight(info(next_index).node) <= params.max_node_weight
               && search_offset <= (Hasher::requires_check ? SIMILARITY_SEARCH_RANGE : 1)
               && pos + search_offset < bucket.size()) {
-            bool matches = true;
+            const HypernodeID curr_node = info(curr_index).node;
+            const HypernodeID next_node = info(next_index).node;
+            bool matches = _s_nodes.nodeWeight(curr_node) + _s_nodes.nodeWeight(next_node) <= params.max_node_weight;
             if (Hasher::requires_check) {
               vec<HypernodeID>& buffer_left = data.degree_one_nodes.local();
               vec<HypernodeID>& buffer_right = data.degree_two_nodes.local();
-              auto intersec_union = intersection_and_union(info(curr_index).node, info(next_index).node, buffer_left, buffer_right);
+              auto intersec_union = intersection_and_union(curr_node, next_node, buffer_left, buffer_right);
               matches = static_cast<double>(intersec_union.first) / static_cast<double>(intersec_union.second) >= required_similarity;
               matches &= intersec_union.first > 1;
             }
             if (matches) {
-              const HypernodeID curr_node = info(curr_index).node;
-              ALWAYS_ASSERT(communities[curr_node] == kInvalidHypernode
-                            && communities[info(next_index).node] == kInvalidHypernode);
-              ALWAYS_ASSERT(curr_node != info(next_index).node);
+              ASSERT(communities[curr_node] == kInvalidHypernode && communities[next_node] == kInvalidHypernode);
+              ASSERT(curr_node != next_node);
               communities[curr_node] = curr_node;
-              communities[info(next_index).node] = curr_node;
+              communities[next_node] = curr_node;
               std::swap(bucket[pos + search_offset], bucket[pos + 1]);
               ++counter;
               ++pos;
