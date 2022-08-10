@@ -151,6 +151,7 @@ class SNodesCoarseningPass {
   static constexpr size_t SIMILARITY_SEARCH_RANGE = 8;
   static constexpr double SIMILARITY_RATIO = 0.5;
   static constexpr double SIMILARITY_RATIO_RELAXED = 0.3;
+  static constexpr size_t D2_SEARCH_RANGE = 3;
 
  public:
   SNodesCoarseningPass(const Hypergraph& hg, const Context& context,

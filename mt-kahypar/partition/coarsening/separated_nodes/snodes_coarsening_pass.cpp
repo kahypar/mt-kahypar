@@ -307,6 +307,32 @@ void SNodesCoarseningPass::applyCoarseningForNode(const Params& params, vec<Hype
     }
     counter += (cluster_size - 1);
   }
+
+  if (appliesDegreeTwo(_stage)) {
+    // degree two nodes
+    std::sort(degree_two.begin(), degree_two.end(), [&](const HypernodeID& left, const HypernodeID& right) {
+      if (info(left).tree_path == info(right).tree_path) {
+        return info(left).density < info(right).density;
+      }
+      return info(left).tree_path < info(right).tree_path;
+    });
+    for (size_t i = 0; i + 1 < degree_two.size(); ++i) {
+      for (size_t j = 1; j <= D2_SEARCH_RANGE && i + j < degree_two.size(); ++j) {
+        const NodeInfo& curr = info(degree_two[i]);
+        const NodeInfo& next = info(degree_two[i + j]);
+        if (std::max(curr.density / next.density, next.density / curr.density) <= params.accepted_density_diff
+            && _s_nodes.nodeWeight(curr.node) + _s_nodes.nodeWeight(next.node) <= params.max_node_weight) {
+          ASSERT(communities[curr.node] == kInvalidHypernode && communities[next.node] == kInvalidHypernode);
+          communities[curr.node] = curr.node;
+          communities[next.node] = curr.node;
+          std::swap(degree_two[i + j], degree_two[i + 1]);
+          ++counter;
+          ++i;
+          break;
+        }
+      }
+    }
+  }
 }
 
 void SNodesCoarseningPass::sortByDensity(vec<HypernodeID>& nodes) {

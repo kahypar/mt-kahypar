@@ -168,4 +168,15 @@ TEST_F(ACoarseningPass, findsTwins) {
   ASSERT_EQ(10, communities[10]);
 }
 
+TEST_F(ACoarseningPass, coarsensDegreeTwoNodes) {
+  initialize(6, 5, {{0, 1}, {1, 2}, {2, 3}, {3, 4}, {4, 5}},
+             { {{0, 2}, {1, 1}}, {{0, 2}, {2, 1}}, {{0, 4}, {3, 3}}, {{0, 9}, {4, 8}}, {{0, 4}, {5, 3}} });
+  SNodesCoarseningPass c_pass = setupPass(3, SNodesCoarseningStage::D1_D2_TWINS);
+  c_pass.run(communities);
+
+  ASSERT_EQ(communities[0], communities[1]);
+  ASSERT_EQ(communities[2], communities[4]);
+  ASSERT_EQ(communities[3], communities[3]);
+}
+
 }  // namespace mt_kahypar
