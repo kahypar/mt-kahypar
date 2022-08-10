@@ -163,4 +163,28 @@ TEST_F(ASpanningTree, ComparesPaths) {
   ASSERT_EQ(0, pathA.distance(pathA));
 }
 
+TEST_F(ASpanningTree, CalculatesPaths) {
+  std::vector<HyperedgeWeight> edge_weights{4, 3, 2, 4, 1};
+  Hypergraph hg = HypergraphFactory::construct(4, 5, { {0, 1}, {0, 2}, {0, 3}, {1, 2}, {2, 3} }, edge_weights.data());
+  SpanningTree tree = star_partitioning::constructMaxSpanningTree(hg, 3);
+  assertChildrenEqual(tree, 0, { 1, 3 });
+  assertChildrenEqual(tree, 1, { 2 });
+
+  std::vector<TreePath> paths;
+  paths.assign(4, TreePath());
+  paths[1].append(0);
+  paths[3].append(1);
+  paths[2].append(0);
+  paths[2].append(0);
+  std::vector<bool> visited;
+  visited.assign(4, false);
+  tree.calculatePaths([&](const HypernodeID& node, TreePath path) {
+    visited[node] = true;
+    ASSERT_EQ(paths[node], path);
+  });
+  for (size_t i = 0; i < 4; ++i) {
+    ASSERT_TRUE(visited[i]);
+  }
+}
+
 }  // namespace mt_kahypar
