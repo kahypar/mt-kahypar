@@ -220,10 +220,12 @@ HypernodeID SNodesCoarseningPass::runCurrentStage(vec<HypernodeID>& communities,
       applyHashingRound<EqualityHash>(params, communities, data, 2);
     }
     if (appliesSimilarity(_stage)) {
-      if (relaxedSimilartiy(_stage)) {
-        applyHashingRound<SimilarityHash<2>>(params, communities, data, 3, SIMILARITY_RATIO_RELAXED);
-      } else {
-        applyHashingRound<SimilarityHash<3>>(params, communities, data, 3, SIMILARITY_RATIO);
+      for (size_t i = 0; i < NUM_SIMILARITY_ROUNDS; ++i) {
+        if (relaxedSimilartiy(_stage)) {
+          applyHashingRound<SimilarityHash<2>>(params, communities, data, 3, SIMILARITY_RATIO_RELAXED);
+        } else {
+          applyHashingRound<SimilarityHash<3>>(params, communities, data, 3, SIMILARITY_RATIO);
+        }
       }
     }
 

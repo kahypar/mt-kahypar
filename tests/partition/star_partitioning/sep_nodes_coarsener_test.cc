@@ -156,7 +156,7 @@ TEST_F(ACoarseningPass, findsTwins) {
                          {{0, 1}, {1, 1}, {2, 1}}, {{2, 1}, {1, 1}, {0, 1}}, {{2, 2}, {1, 1}, {0, 3}}, {{2, 2}, {0, 2}, {1, 1}},
                          {{0, 1}, {3, 1}, {2, 1}}, {{2, 1}, {3, 1}, {0, 1}}, {{1, 1}, {2, 1}, {3, 1}},
                          {{0, 1}, {1, 1}, {2, 1}, {3, 1}}, {{0, 3}, {1, 3}, {2, 3}, {3, 3}} });
-  SNodesCoarseningPass c_pass_2 = setupPass(7, SNodesCoarseningStage::D1_D2_TWINS_SIMILARITY);
+  SNodesCoarseningPass c_pass_2 = setupPass(7, SNodesCoarseningStage::D1_D2_TWINS);
   c_pass_2.run(communities);
 
   ASSERT_EQ(communities[0], communities[1]);
