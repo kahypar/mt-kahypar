@@ -66,6 +66,15 @@ bool appliesDegreeTwo(const SNodesCoarseningStage& stage) {
   return (stage != SNodesCoarseningStage::ANYTHING) && static_cast<uint8_t>(stage) >= 1;
 }
 
+uint32_t treeDistanceForStage(const SNodesCoarseningStage& stage) {
+  if (static_cast<uint8_t>(stage) <= 1) {
+    return 3;
+  } else if (static_cast<uint8_t>(stage) <= 2) {
+    return 6;
+  }
+  return 0;
+}
+
 bool appliesHighDegree(const SNodesCoarseningStage& stage) {
   return (stage != SNodesCoarseningStage::ANYTHING) && static_cast<uint8_t>(stage) >= 4;
 }
@@ -211,6 +220,7 @@ HypernodeID SNodesCoarseningPass::runCurrentStage(vec<HypernodeID>& communities,
   params.max_node_weight = _context.coarsening.max_allowed_node_weight;
   params.degree_one_cluster_size = (_stage == SNodesCoarseningStage::D1_TWINS) ? MAX_CLUSTER_SIZE : 2;
   params.accepted_density_diff = densityDiffForStage(_stage);
+  params.max_tree_distance = treeDistanceForStage(_stage);
 
   if (first) {
     applyDegreeZeroCoarsening(params, communities, data);
@@ -323,6 +333,7 @@ void SNodesCoarseningPass::applyCoarseningForNode(const Params& params, vec<Hype
         const NodeInfo& curr = info(degree_two[i]);
         const NodeInfo& next = info(degree_two[i + j]);
         if (std::max(curr.density / next.density, next.density / curr.density) <= params.accepted_density_diff
+            && (params.max_tree_distance == 0 || curr.tree_path.distance(next.tree_path) <= params.max_tree_distance)
             && _s_nodes.nodeWeight(curr.node) + _s_nodes.nodeWeight(next.node) <= params.max_node_weight) {
           ASSERT(communities[curr.node] == kInvalidHypernode && communities[next.node] == kInvalidHypernode);
           communities[curr.node] = curr.node;

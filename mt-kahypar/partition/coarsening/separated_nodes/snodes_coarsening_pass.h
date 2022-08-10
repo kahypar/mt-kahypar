@@ -73,6 +73,7 @@ class SNodesCoarseningPass {
     double accepted_density_diff;
     HypernodeWeight max_node_weight;
     HypernodeID degree_one_cluster_size;
+    uint32_t max_tree_distance;
   };
 
   template<size_t NUM_HASHES>
