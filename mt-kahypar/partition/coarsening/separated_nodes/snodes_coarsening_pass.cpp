@@ -28,7 +28,6 @@
 
 #include "mt-kahypar/parallel/atomic_wrapper.h"
 #include "mt-kahypar/parallel/parallel_prefix_sum.h"
-#include "mt-kahypar/partition/coarsening/separated_nodes/spanning_tree.h"
 #include "mt-kahypar/utils/randomize.h"
 
 namespace mt_kahypar {
@@ -155,10 +154,11 @@ SNodesCoarseningPass::SNodesCoarseningPass(const Hypergraph& hg, const Context& 
   _current_num_nodes(_s_nodes.numNodes()),
   _target_num_nodes(target_num_nodes),
   _stage(stage) {
+    ASSERT(_hg.initialNumNodes() == _s_nodes.numGraphNodes());
     tbb::parallel_invoke([&] {
       _node_info_begin.assign(_hg.initialNumNodes() + 1, 0);
     }, [&] {
-      _node_info.assign(_current_num_nodes, FullNodeInfo());
+      _node_info.assign(_current_num_nodes, NodeInfo());
     });
   }
 
@@ -196,6 +196,8 @@ void SNodesCoarseningPass::run(vec<HypernodeID>& communities) {
 }
 
 void SNodesCoarseningPass::setupNodeInfo() {
+  ASSERT(_s_nodes.outwardEdgesInitialized());
+
   Array<NodeInfo> tmp_node_info;
   tmp_node_info.assign(_s_nodes.numNodes(), NodeInfo());
   Array<parallel::IntegralAtomicWrapper<HypernodeID>> num_assigned_nodes;
@@ -213,6 +215,8 @@ void SNodesCoarseningPass::setupNodeInfo() {
       }
     }
     NodeInfo& info = tmp_node_info[node];
+    info.node = node;
+    info.degree = _s_nodes.inwardDegree(node);
     info.density = _s_nodes.nodeWeight(node) == 0 ? std::numeric_limits<double>::infinity()
                         : static_cast<double>(incident_weight_sum) / static_cast<double>(_s_nodes.nodeWeight(node));
     info.assigned_graph_node = max_target;
@@ -223,20 +227,32 @@ void SNodesCoarseningPass::setupNodeInfo() {
 
   parallel::TBBPrefixSum<parallel::IntegralAtomicWrapper<HypernodeID>, Array>
           num_assigned_prefix_sum(num_assigned_nodes);
-  tbb::parallel_scan(tbb::blocked_range<size_t>(ID(0), _hg.initialNumNodes() + 1), num_assigned_prefix_sum);
 
-  tbb::parallel_for(ID(0), _hg.initialNumNodes() + 1, [&](const HypernodeID node) {
-    _node_info_begin[node] = num_assigned_nodes[node].load();
+  tbb::parallel_invoke([&] {
+    tbb::parallel_scan(tbb::blocked_range<size_t>(ID(0), _hg.initialNumNodes() + 1), num_assigned_prefix_sum);
+    tbb::parallel_for(ID(0), _hg.initialNumNodes() + 1, [&](const HypernodeID node) {
+      _node_info_begin[node] = num_assigned_nodes[node].load();
+    });
+  }, [&] {
+    SpanningTree tree = constructMaxSpanningTree(_hg, TreePath::max_path_length);
+    tree.calculatePaths([&](const HypernodeID& graph_node, TreePath path) {
+      for (const SeparatedNodes::Edge& e: _s_nodes.outwardEdges(graph_node)) {
+        NodeInfo& info = tmp_node_info[e.target];
+        if (info.degree == 2 && info.assigned_graph_node != graph_node) {
+          info.tree_path = path;
+        }
+      }
+    });
   });
 
   tbb::parallel_for(ID(0), _s_nodes.numNodes(), [&](const HypernodeID node) {
     const NodeInfo& tmp_info = tmp_node_info[node];
     if (tmp_info.assigned_graph_node != kInvalidHypernode) {
       const HypernodeID new_index = num_assigned_nodes[tmp_info.assigned_graph_node].fetch_add(1);
-      _node_info[new_index] = FullNodeInfo(node, _s_nodes.inwardDegree(node), tmp_info);
+      _node_info[new_index] = tmp_info;
     } else {
       const HypernodeID new_index = num_assigned_nodes[_hg.initialNumNodes()].fetch_add(1);
-      _node_info[new_index] = FullNodeInfo(node, 0, tmp_info);
+      _node_info[new_index] = tmp_info;
     }
   });
   ASSERT(_node_info.size() == _s_nodes.numNodes());

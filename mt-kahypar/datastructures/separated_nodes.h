@@ -252,6 +252,10 @@ class SeparatedNodes {
 
   SeparatedNodes coarsen(vec<HypernodeID>& communities) const;
 
+  bool outwardEdgesInitialized() const {
+    return !_graph_nodes_begin.empty();
+  }
+
   void initializeOutwardEdges();
 
   // ####################### Extract Block #######################

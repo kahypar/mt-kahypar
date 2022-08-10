@@ -28,6 +28,7 @@
 #include "mt-kahypar/datastructures/array.h"
 #include "mt-kahypar/datastructures/concurrent_bucket_map.h"
 #include "mt-kahypar/definitions.h"
+#include "mt-kahypar/partition/coarsening/separated_nodes/spanning_tree.h"
 
 namespace mt_kahypar {
 namespace star_partitioning {
@@ -53,31 +54,17 @@ bool appliesTwins(const SNodesCoarseningStage& stage);
 
 class SNodesCoarseningPass {
   struct NodeInfo {
-    NodeInfo(): density(0.0), assigned_graph_node(kInvalidHypernode) { }
-
-    double density;
-    HypernodeID assigned_graph_node;
-    // TODO: position in spanning tree
-  };
-
-  struct FullNodeInfo {
-    FullNodeInfo():
-                 node(kInvalidHypernode),
-                 degree(0),
-                 density(0),
-                 assigned_graph_node(kInvalidHypernode)  { }
-
-    FullNodeInfo(HypernodeID node, HyperedgeID degree, const NodeInfo& info):
-                 node(node),
-                 degree(degree),
-                 density(info.density),
-                 assigned_graph_node(info.assigned_graph_node)  { }
+    NodeInfo(): node(kInvalidHypernode),
+                degree(0),
+                density(0),
+                tree_path(kInvalidPath),
+                assigned_graph_node(kInvalidHypernode)  { }
 
     HypernodeID node;
     HyperedgeID degree;
     double density;
+    TreePath tree_path;
     HypernodeID assigned_graph_node;
-    // TODO: position in spanning tree
   };
 
   struct LocalizedData {
@@ -119,7 +106,7 @@ class SNodesCoarseningPass {
   }
 
   // only for testing
-  const Array<FullNodeInfo>& nodeInfo() const {
+  const Array<NodeInfo>& nodeInfo() const {
     return _node_info;
   }
 
@@ -219,7 +206,7 @@ class SNodesCoarseningPass {
   std::pair<HyperedgeID, HyperedgeID> intersection_and_union(const HypernodeID& s_node_left, const HypernodeID& s_node_right,
                                                              vec<HypernodeID>& buffer_left, vec<HypernodeID>& buffer_right);
 
-  const FullNodeInfo& info(HypernodeID index) const {
+  const NodeInfo& info(HypernodeID index) const {
     return _node_info[index];
   }
 
@@ -227,7 +214,7 @@ class SNodesCoarseningPass {
   const Context& _context;
   const SeparatedNodes& _s_nodes;
   Array<HypernodeID> _node_info_begin;
-  Array<FullNodeInfo> _node_info;
+  Array<NodeInfo> _node_info;
   HypernodeID _current_num_nodes;
   HypernodeID _target_num_nodes;
   SNodesCoarseningStage _stage;

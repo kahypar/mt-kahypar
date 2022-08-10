@@ -28,6 +28,7 @@ using ::testing::Test;
 namespace mt_kahypar {
 using star_partitioning::SNodesCoarseningPass;
 using star_partitioning::SNodesCoarseningStage;
+using star_partitioning::kInvalidPath;
 using ds::SeparatedNodes;
 using ds::SepNodesStack;
 
@@ -56,6 +57,7 @@ class ACoarseningPass : public Test {
       }
     }
     s_nodes.addNodes(nodes, s_edges);
+    s_nodes.initializeOutwardEdges();
   }
 
   SNodesCoarseningPass setupPass(const HypernodeID& target_num_nodes, const SNodesCoarseningStage& stage) {
@@ -88,6 +90,14 @@ TEST_F(ACoarseningPass, setupData) {
   ASSERT_EQ(4, info[4].density);
   ASSERT_EQ(0, info[5].density);
   ASSERT_EQ(0, info[6].density);
+
+  ASSERT_EQ(kInvalidPath, info[0].tree_path);
+  ASSERT_EQ(kInvalidPath, info[1].tree_path);
+  ASSERT_NE(kInvalidPath, info[2].tree_path);
+  ASSERT_NE(kInvalidPath, info[3].tree_path);
+  ASSERT_EQ(kInvalidPath, info[4].tree_path);
+  ASSERT_EQ(kInvalidPath, info[5].tree_path);
+  ASSERT_EQ(kInvalidPath, info[6].tree_path);
 
   const auto& info_begin = c_pass.nodeInfoBegin();
   ASSERT_EQ(0, info_begin[0]);
