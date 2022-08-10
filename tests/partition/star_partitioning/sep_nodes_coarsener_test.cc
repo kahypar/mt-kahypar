@@ -128,7 +128,7 @@ TEST_F(ACoarseningPass, removesDegreeZero) {
 }
 
 TEST_F(ACoarseningPass, coarsensDegreeOneNodes) {
-  initialize(1, 0, {}, { {{0, 1}}, {{0, 2}}, {{0, 3}}, {{0, 6}}, {{0, 7}}, {{0, 8}}, {{0, 8}}, {{0, 8}} });
+  initialize(1, 0, {}, { {{0, 1}}, {{0, 2}}, {{0, 3}}, {{0, 6}}, {{0, 7}}, {{0, 8}}, {{0, 8}}, {{0, 9}} });
   SNodesCoarseningPass c_pass = setupPass(4, SNodesCoarseningStage::PREFERABLE_DEGREE_ONE);
   c_pass.run(communities);
 
