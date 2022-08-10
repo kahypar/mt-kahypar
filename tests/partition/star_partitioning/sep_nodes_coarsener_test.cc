@@ -73,7 +73,7 @@ class ACoarseningPass : public Test {
 TEST_F(ACoarseningPass, setupData) {
   initialize(3, 2, {{0, 1}, {1, 2}}, { {}, {}, {{0, 1}}, {{0, 2}},
                                        {{0, 1}, {1, 2}}, {{1, 2}, {2, 1}}, {{0, 1}, {1, 1}, {2, 2}} });
-  SNodesCoarseningPass c_pass = setupPass(4, SNodesCoarseningStage::PREFERABLE_DEGREE_ONE);
+  SNodesCoarseningPass c_pass = setupPass(4, SNodesCoarseningStage::D1_TWINS);
   c_pass.run(communities);
   ASSERT_EQ(7, communities.size());
 
@@ -109,7 +109,7 @@ TEST_F(ACoarseningPass, setupData) {
 TEST_F(ACoarseningPass, removesDegreeZero) {
   initialize(1, 0, {}, { {}, {}, {}, {}, {}, {} });
   context.coarsening.max_allowed_node_weight = 3;
-  SNodesCoarseningPass c_pass = setupPass(2, SNodesCoarseningStage::PREFERABLE_DEGREE_ONE);
+  SNodesCoarseningPass c_pass = setupPass(2, SNodesCoarseningStage::D1_TWINS);
   c_pass.run(communities);
 
   HypernodeID c_0 = communities[0];
@@ -129,7 +129,7 @@ TEST_F(ACoarseningPass, removesDegreeZero) {
 
 TEST_F(ACoarseningPass, coarsensDegreeOneNodes) {
   initialize(1, 0, {}, { {{0, 1}}, {{0, 2}}, {{0, 3}}, {{0, 6}}, {{0, 7}}, {{0, 8}}, {{0, 8}}, {{0, 9}} });
-  SNodesCoarseningPass c_pass = setupPass(4, SNodesCoarseningStage::PREFERABLE_DEGREE_ONE);
+  SNodesCoarseningPass c_pass = setupPass(4, SNodesCoarseningStage::D1_TWINS);
   c_pass.run(communities);
 
   ASSERT_EQ(0, communities[0]);
@@ -141,7 +141,7 @@ TEST_F(ACoarseningPass, coarsensDegreeOneNodes) {
   ASSERT_EQ(3, communities[6]);
   ASSERT_EQ(7, communities[7]);
 
-  SNodesCoarseningPass c_pass_2 = setupPass(5, SNodesCoarseningStage::DEGREE_ONE_AND_TWINS);
+  SNodesCoarseningPass c_pass_2 = setupPass(5, SNodesCoarseningStage::D1_D2_TWINS_SIMILARITY);
   c_pass_2.run(communities);
 
   ASSERT_EQ(0, communities[0]);
@@ -156,7 +156,7 @@ TEST_F(ACoarseningPass, findsTwins) {
                          {{0, 1}, {1, 1}, {2, 1}}, {{2, 1}, {1, 1}, {0, 1}}, {{2, 2}, {1, 1}, {0, 3}}, {{2, 2}, {0, 2}, {1, 1}},
                          {{0, 1}, {3, 1}, {2, 1}}, {{2, 1}, {3, 1}, {0, 1}}, {{1, 1}, {2, 1}, {3, 1}},
                          {{0, 1}, {1, 1}, {2, 1}, {3, 1}}, {{0, 3}, {1, 3}, {2, 3}, {3, 3}} });
-  SNodesCoarseningPass c_pass_2 = setupPass(6, SNodesCoarseningStage::DEGREE_ONE_AND_TWINS);
+  SNodesCoarseningPass c_pass_2 = setupPass(7, SNodesCoarseningStage::D1_D2_TWINS_SIMILARITY);
   c_pass_2.run(communities);
 
   ASSERT_EQ(communities[0], communities[1]);

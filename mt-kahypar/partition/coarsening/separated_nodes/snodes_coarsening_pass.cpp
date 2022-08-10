@@ -32,74 +32,6 @@
 
 namespace mt_kahypar {
 namespace star_partitioning {
-using HashFunc = kahypar::math::MurmurHash<HypernodeID>;
-using HashValue = typename HashFunc::HashValue;
-
-struct SNodesCoarseningPass::Footprint {
-  bool operator==(const Footprint& other) const {
-    for ( size_t i = 0; i < NUM_HASHES; ++i ) {
-      if ( footprint[i] != other.footprint[i] ) {
-        return false;
-      }
-    }
-    return true;
-  }
-
-  bool operator<(const Footprint& other) const {
-    for ( size_t i = 0; i < NUM_HASHES; ++i ) {
-      if ( footprint[i] < other.footprint[i] ) {
-        return true;
-      } else if ( footprint[i] > other.footprint[i] ) {
-        return false;
-      }
-    }
-    return false;
-  }
-
-  HashValue footprint[NUM_HASHES];
-};
-
-// a similarity hashing function (see also hypergraph_sparsifier.h)
-struct SNodesCoarseningPass::SimilarityHash {
-  static constexpr bool requires_check = true;
-  using HashResult = Footprint;
-
-  explicit SimilarityHash() {
-    for (size_t i = 0; i < NUM_HASHES; ++i) {
-      int seed = utils::Randomize::instance().getRandomInt(0, 1000, sched_getcpu());
-      hash_functions[i] = HashFunc(seed);
-    }
-  }
-
-  HashResult calculateHash(const vec<HypernodeID>& nodes) const {
-    Footprint footprint;
-    for ( size_t i = 0; i < NUM_HASHES; ++i ) {
-      footprint.footprint[i] = minHash(hash_functions[i], nodes);
-    }
-    return footprint;
-  }
-
-  size_t combineHash(const HashResult& footprint) const {
-    HashValue hash_value = kEdgeHashSeed;
-    for ( const HashValue& value : footprint.footprint ) {
-      hash_value ^= value;
-    }
-    return hash_value;
-  }
-
- private:
-  HashValue minHash(const HashFunc& hash_function,
-                    const vec<HypernodeID>& nodes ) const {
-    HashValue hash_value = std::numeric_limits<HashValue>::max();
-    for ( const HypernodeID& node : nodes ) {
-      hash_value = std::min(hash_value, hash_function(node));
-    }
-    return hash_value;
-  }
-
-  HashFunc hash_functions[NUM_HASHES];
-};
-
 struct SNodesCoarseningPass::EqualityHash {
   static constexpr bool requires_check = false;
   using HashResult = HashValue;
@@ -129,19 +61,34 @@ struct SNodesCoarseningPass::EqualityHash {
   uint32_t seed;
 };
 
-bool allowsDegreeTwo(const SNodesCoarseningStage& stage) {
-  return static_cast<uint8_t>(stage) >= 3;
+// policies for different stages
+bool appliesDegreeTwo(const SNodesCoarseningStage& stage) {
+  return (stage != SNodesCoarseningStage::ANYTHING) && static_cast<uint8_t>(stage) >= 1;
 }
 
-bool allowsHighDegree(const SNodesCoarseningStage& stage) {
-  return static_cast<uint8_t>(stage) >= 4;
+bool appliesHighDegree(const SNodesCoarseningStage& stage) {
+  return (stage != SNodesCoarseningStage::ANYTHING) && static_cast<uint8_t>(stage) >= 4;
 }
 
 bool appliesTwins(const SNodesCoarseningStage& stage) {
-  // Note: We don't apply twins at later stages because most probably there
-  // aren't any twins left anymore.
-  return stage == SNodesCoarseningStage::DEGREE_ONE_AND_TWINS
-      || stage == SNodesCoarseningStage::DEGREE_ONE_AND_DEGREE_TWO_AND_TWINS;
+  return (stage != SNodesCoarseningStage::ANYTHING);
+}
+
+bool appliesSimilarity(const SNodesCoarseningStage& stage) {
+  return static_cast<uint8_t>(stage) >= 2;
+}
+
+bool relaxedSimilartiy(const SNodesCoarseningStage& stage) {
+  return static_cast<uint8_t>(stage) >= 3;
+}
+
+bool mixesDegreeOneAndTwo(const SNodesCoarseningStage& stage) {
+  return static_cast<uint8_t>(stage) >= 3;
+}
+
+double densityDiffForStage(const SNodesCoarseningStage& stage) {
+  static const double diffs[6] = {1.4, 1.8, 2.1, 2.6, 4.1, 1000};
+  return diffs[static_cast<uint8_t>(stage)];
 }
 
 SNodesCoarseningPass::SNodesCoarseningPass(const Hypergraph& hg, const Context& context,
@@ -262,26 +209,28 @@ HypernodeID SNodesCoarseningPass::runCurrentStage(vec<HypernodeID>& communities,
   LocalizedData data;
   Params params;
   params.max_node_weight = _context.coarsening.max_allowed_node_weight;
-  params.degree_one_cluster_size = _stage == SNodesCoarseningStage::PREFERABLE_DEGREE_ONE ? MAX_CLUSTER_SIZE : 2;
-  if (_stage == SNodesCoarseningStage::PREFERABLE_DEGREE_ONE) {
-    params.accepted_density_diff = PREFERRED_DENSITY_DIFF;
-  } else if (_stage == SNodesCoarseningStage::ANY_DEGREE_RELAXED) {
-    params.accepted_density_diff = RELAXED_DENSITY_DIFF;
-  } else if (_stage == SNodesCoarseningStage::ANYTHING) {
-    params.accepted_density_diff = std::numeric_limits<double>::infinity();
-  } else {
-    params.accepted_density_diff = TOLERABLE_DENSITY_DIFF;
-  }
+  params.degree_one_cluster_size = (_stage == SNodesCoarseningStage::D1_TWINS) ? MAX_CLUSTER_SIZE : 2;
+  params.accepted_density_diff = densityDiffForStage(_stage);
 
   if (first) {
     applyDegreeZeroCoarsening(params, communities, data);
   }
-  if (appliesTwins(_stage)) {
-    applyHashingRound<EqualityHash>(params, communities, data, 2);
+  if (_stage != SNodesCoarseningStage::ANYTHING) {
+    if (appliesTwins(_stage)) {
+      applyHashingRound<EqualityHash>(params, communities, data, 2);
+    }
+    if (appliesSimilarity(_stage)) {
+      if (relaxedSimilartiy(_stage)) {
+        applyHashingRound<SimilarityHash<2>>(params, communities, data, 3, SIMILARITY_RATIO_RELAXED);
+      } else {
+        applyHashingRound<SimilarityHash<3>>(params, communities, data, 3, SIMILARITY_RATIO);
+      }
+    }
+
+    _hg.doParallelForAllNodes([&](const HypernodeID& node) {
+      applyCoarseningForNode(params, communities, data, node);
+    });
   }
-  _hg.doParallelForAllNodes([&](const HypernodeID& node) {
-    applyCoarseningForNode(params, communities, data, node);
-  });
   return data.match_counter.combine(std::plus<>());
 }
 

@@ -37,22 +37,18 @@ using ds::SeparatedNodes;
 using ds::Array;
 
 enum class SNodesCoarseningStage : uint8_t {
-  PREFERABLE_DEGREE_ONE = 0,
-  DEGREE_ONE_AND_TWINS = 1,
-  DEGREE_ONE_AND_DEGREE_TWO_AND_TWINS = 2,
-  // TODO: mixing with high degree??
-  ANY_DEGREE = 3,
-  ANY_DEGREE_RELAXED = 4,
+  D1_TWINS = 0,
+  D1_D2_TWINS = 1,
+  D1_D2_TWINS_SIMILARITY = 2,
+  D1_D2_TWINS_SIMILARITY_RELAXED = 3,
+  D1_D2_DX_TWINS_SIMILARITY = 4,
   ANYTHING = 5
 };
 
-bool allowsDegreeTwo(const SNodesCoarseningStage& stage);
-
-bool allowsHighDegree(const SNodesCoarseningStage& stage);
-
-bool appliesTwins(const SNodesCoarseningStage& stage);
-
 class SNodesCoarseningPass {
+  using HashFunc = kahypar::math::MurmurHash<HypernodeID>;
+  using HashValue = typename HashFunc::HashValue;
+
   struct NodeInfo {
     NodeInfo(): node(kInvalidHypernode),
                 degree(0),
@@ -79,19 +75,82 @@ class SNodesCoarseningPass {
     HypernodeID degree_one_cluster_size;
   };
 
-  struct Footprint;
-  struct SimilarityHash;
+  template<size_t NUM_HASHES>
+  struct Footprint {
+    bool operator==(const Footprint& other) const {
+      for ( size_t i = 0; i < NUM_HASHES; ++i ) {
+        if ( footprint[i] != other.footprint[i] ) {
+          return false;
+        }
+      }
+      return true;
+    }
+
+    bool operator<(const Footprint& other) const {
+      for ( size_t i = 0; i < NUM_HASHES; ++i ) {
+        if ( footprint[i] < other.footprint[i] ) {
+          return true;
+        } else if ( footprint[i] > other.footprint[i] ) {
+          return false;
+        }
+      }
+      return false;
+    }
+
+    HashValue footprint[NUM_HASHES];
+  };
+
+  // a similarity hashing function (see also hypergraph_sparsifier.h)
+  template<size_t NUM_HASHES>
+  struct SimilarityHash {
+    static constexpr bool requires_check = true;
+    using HashResult = Footprint<NUM_HASHES>;
+
+    explicit SimilarityHash() {
+      for (size_t i = 0; i < NUM_HASHES; ++i) {
+        int seed = utils::Randomize::instance().getRandomInt(0, 1000, sched_getcpu());
+        hash_functions[i] = HashFunc(seed);
+      }
+    }
+
+    HashResult calculateHash(const vec<HypernodeID>& nodes) const {
+      HashResult footprint;
+      for ( size_t i = 0; i < NUM_HASHES; ++i ) {
+        footprint.footprint[i] = minHash(hash_functions[i], nodes);
+      }
+      return footprint;
+    }
+
+    size_t combineHash(const HashResult& footprint) const {
+      HashValue hash_value = kEdgeHashSeed;
+      for ( const HashValue& value : footprint.footprint ) {
+        hash_value ^= value;
+      }
+      return hash_value;
+    }
+
+  private:
+    HashValue minHash(const HashFunc& hash_function,
+                      const vec<HypernodeID>& nodes ) const {
+      HashValue hash_value = std::numeric_limits<HashValue>::max();
+      for ( const HypernodeID& node : nodes ) {
+        hash_value = std::min(hash_value, hash_function(node));
+      }
+      return hash_value;
+    }
+
+    HashFunc hash_functions[NUM_HASHES];
+  };
+
   struct EqualityHash;
 
   // tuning constants
   static const HypernodeID DEGREE_ZERO_CLUSTER_SIZE = 64;
   static const HypernodeID MAX_CLUSTER_SIZE = 4;
-  static constexpr size_t NUM_HASHES = 4;
-  static constexpr size_t NUM_SIMILARITY_ROUNDS = 5;
-  static constexpr size_t SIMILARITY_SEARCH_RANGE = 1;
-  static constexpr double PREFERRED_DENSITY_DIFF = 1.6;
-  static constexpr double TOLERABLE_DENSITY_DIFF = 2.1;
-  static constexpr double RELAXED_DENSITY_DIFF = 4.1;
+  static constexpr size_t NUM_SIMILARITY_ROUNDS = 3;
+  static constexpr size_t SIMILARITY_SEARCH_RANGE = 8;
+  static constexpr double SIMILARITY_RATIO = 0.5;
+  static constexpr double SIMILARITY_RATIO_RELAXED = 0.3;
 
  public:
   SNodesCoarseningPass(const Hypergraph& hg, const Context& context,
