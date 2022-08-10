@@ -29,6 +29,8 @@ using ::testing::Test;
 
 namespace mt_kahypar {
 using star_partitioning::SpanningTree;
+using star_partitioning::TreePath;
+using star_partitioning::kInvalidPath;
 
 class ASpanningTree : public Test {
  public:
@@ -117,6 +119,48 @@ TEST_F(ASpanningTree, ConstructsSpanningTree) {
   assertChildrenEqual(tree, 1, { 2 });
   tree = star_partitioning::constructMaxSpanningTree(hg, 2);
   assertChildrenEqual(tree, 0, { 1, 2, 3 });
+}
+
+TEST_F(ASpanningTree, ConstructsPath) {
+  TreePath path;
+  ASSERT_TRUE(path.isValid());
+  ASSERT_EQ(0, path.length());
+  path.append(0);
+  ASSERT_EQ(1, path.length());
+  path.append(6);
+  ASSERT_EQ(2, path.length());
+  path.append(4);
+  ASSERT_EQ(3, path.length());
+  path.append(2);
+  ASSERT_EQ(4, path.length());
+  path.append(1);
+  ASSERT_EQ(5, path.length());
+  path.append(0);
+  ASSERT_EQ(6, path.length());
+}
+
+TEST_F(ASpanningTree, ComparesPaths) {
+  TreePath pathA;
+  TreePath pathB;
+  TreePath pathC;
+  pathA.append(6);
+  pathB.append(6);
+  pathC.append(0);
+  pathA.append(5);
+  pathB.append(6);
+  pathA.append(6);
+
+  ASSERT_NE(pathA, kInvalidPath);
+  ASSERT_NE(pathA, pathB);
+  ASSERT_NE(pathA, pathC);
+  ASSERT_NE(pathB, pathC);
+  ASSERT_EQ(pathA, pathA);
+
+  ASSERT_EQ(std::numeric_limits<uint32_t>::max(), pathA.distance(kInvalidPath));
+  ASSERT_EQ(3, pathA.distance(pathB));
+  ASSERT_EQ(4, pathA.distance(pathC));
+  ASSERT_EQ(3, pathB.distance(pathC));
+  ASSERT_EQ(0, pathA.distance(pathA));
 }
 
 }  // namespace mt_kahypar

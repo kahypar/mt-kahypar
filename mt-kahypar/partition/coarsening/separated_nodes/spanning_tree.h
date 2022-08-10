@@ -23,6 +23,7 @@
 #include "mt-kahypar/datastructures/array.h"
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/utils/range.h"
+#include "mt-kahypar/utils/bit_ops.h"
 
 namespace mt_kahypar {
 namespace star_partitioning {
@@ -104,6 +105,91 @@ class SpanningTree {
   vec<HypernodeID> _nodes;
   vec<uint8_t> _depth;
 };
+
+/*
+ * Represents a path in a (depth-constrained) tree using a 64 bit integer.
+*/
+class TreePath {
+  using ValT = uint64_t;
+  static_assert(sizeof(ValT) * 8 == 64);
+
+  static constexpr uint32_t BITS_PER_STEP = 3;
+  static constexpr uint32_t MAX_STEP = (1UL << BITS_PER_STEP);
+  static constexpr ValT LEADING_ONE = (1UL << 63);
+
+ public:
+  static constexpr uint32_t max_path_length = 63 / BITS_PER_STEP;
+
+  explicit TreePath(): _val(LEADING_ONE) { }
+
+  explicit TreePath(ValT val): _val(val) {
+    ASSERT(_val == 0 || (_val | LEADING_ONE) != 0);
+  }
+
+  bool isValid() const {
+    ASSERT(_val == 0 || (_val | LEADING_ONE) != 0);
+    return _val != 0;
+  }
+
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE uint32_t length() const {
+    ASSERT(isValid());
+    int used_bits = 63 - utils::lowest_set_bit_64(_val); // highest bit is reserved
+    return (used_bits + BITS_PER_STEP - 1) / BITS_PER_STEP;
+  }
+
+  void append(uint32_t step) {
+    ASSERT(step + 1 < MAX_STEP);
+    ASSERT(isValid() && length() + 1 <= max_path_length);
+    uint32_t n_zeros = 63 - BITS_PER_STEP;
+    uint32_t shift = n_zeros - length() * BITS_PER_STEP;
+    // zeros indicate end of path, thus add one to step
+    _val |= (static_cast<ValT>(step + 1) << shift);
+  }
+
+  uint32_t distance(const TreePath& other) const {
+    if (!isValid() || !other.isValid()) {
+      return std::numeric_limits<uint32_t>::max();
+    }
+
+    ValT diff = _val ^ other._val;
+    if (diff == 0) {
+      return 0;
+    }
+    uint32_t common_length = (utils::leading_zeros_64(diff) - 1) / BITS_PER_STEP;
+    ASSERT(common_length <= length() && common_length <= other.length());
+    return length() + other.length() - 2 * common_length;
+  }
+
+  // comparison operators
+  bool operator==(const TreePath& other) const {
+    return _val == other._val;
+  }
+
+  bool operator!=(const TreePath& other) const {
+    return _val != other._val;
+  }
+
+  bool operator<(const TreePath& other) const {
+    return _val < other._val;
+  }
+
+  bool operator>(const TreePath& other) const {
+    return _val > other._val;
+  }
+
+  bool operator<=(const TreePath& other) const {
+    return _val <= other._val;
+  }
+
+  bool operator>=(const TreePath& other) const {
+    return _val >= other._val;
+  }
+
+ private:
+  ValT _val;
+};
+
+static const TreePath kInvalidPath = TreePath(0);
 
 SpanningTree constructMaxSpanningTree(const Hypergraph& hg, const HypernodeID& max_depth);
 

@@ -31,4 +31,8 @@ inline int lowest_set_bit_64(const uint64_t x) {
   return __builtin_ctzll(x);
 }
 
+inline int leading_zeros_64(const uint64_t x) {
+  return __builtin_clzll(x);
+}
+
 }  // namespace
