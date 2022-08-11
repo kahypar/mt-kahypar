@@ -24,9 +24,11 @@
 
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/context.h"
+#include "mt-kahypar/datastructures/separated_nodes.h"
 #include "mt-kahypar/datastructures/streaming_vector.h"
 
 namespace mt_kahypar {
+using ds::SeparatedNodes;
 
 class DegreeZeroHypernodeRemover {
 
@@ -51,6 +53,13 @@ class DegreeZeroHypernodeRemover {
         break;
       }
       if ( hypergraph.nodeDegree(hn) == 0 ) {
+        if (hypergraph.hasSeparatedNodes()) {
+          // TODO
+          const SeparatedNodes& s_nodes = hypergraph.separatedNodes().onliest();
+          if ( s_nodes.outwardIncidentWeight(hn) > 0 ) {
+            continue;
+          }
+        }
         hypergraph.removeDegreeZeroHypernode(hn);
         _removed_hns.push_back(hn);
         ++num_removed_degree_zero_hypernodes;
