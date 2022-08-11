@@ -242,6 +242,21 @@ HypernodeID SNodesCoarseningPass::runCurrentStage(vec<HypernodeID>& communities,
     _hg.doParallelForAllNodes([&](const HypernodeID& node) {
       applyCoarseningForNode(params, communities, data, node);
     });
+  } else {
+    _hg.doParallelForAllNodes([&](const HypernodeID& node) {
+      HyperedgeID& counter = data.match_counter.local();
+      vec<HypernodeID>& any_nodes = data.high_degree_nodes.local();
+      any_nodes.clear();
+      for (HypernodeID index = _node_info_begin[node]; index < _node_info_begin[node + 1]; ++index) {
+        ASSERT(info(index).assigned_graph_node == node && info(index).density > 0);
+        if (communities[info(index).node] == kInvalidHypernode) {
+          any_nodes.push_back(index);
+        }
+      }
+
+      sortByDensity(any_nodes);
+      matchPairs(params, communities, any_nodes, counter);
+    });
   }
   return data.match_counter.combine(std::plus<>());
 }
@@ -284,6 +299,8 @@ void SNodesCoarseningPass::applyCoarseningForNode(const Params& params, vec<Hype
   degree_one.clear();
   vec<HypernodeID>& degree_two = data.degree_two_nodes.local();
   degree_two.clear();
+  vec<HypernodeID>& high_degree = data.high_degree_nodes.local();
+  high_degree.clear();
 
   for (HypernodeID index = _node_info_begin[node]; index < _node_info_begin[node + 1]; ++index) {
     ASSERT(info(index).assigned_graph_node == node && info(index).density > 0);
@@ -293,7 +310,7 @@ void SNodesCoarseningPass::applyCoarseningForNode(const Params& params, vec<Hype
       } else if (info(index).degree == 2) {
         degree_two.push_back(index);
       } else {
-        // TODO
+        high_degree.push_back(index);
       }
     }
   }
@@ -346,6 +363,11 @@ void SNodesCoarseningPass::applyCoarseningForNode(const Params& params, vec<Hype
       }
     }
   }
+
+  if (appliesHighDegree(_stage)) {
+    sortByDensity(high_degree);
+    matchPairs(params, communities, high_degree, counter);
+  }
 }
 
 void SNodesCoarseningPass::sortByDensity(vec<HypernodeID>& nodes) {
@@ -354,6 +376,21 @@ void SNodesCoarseningPass::sortByDensity(vec<HypernodeID>& nodes) {
   });
 }
 
+void SNodesCoarseningPass::matchPairs(const Params& params, vec<HypernodeID>& communities,
+                                      vec<HypernodeID>& nodes, HypernodeID& counter) {
+  for (size_t i = 0; i + 1 < nodes.size(); ++i) {
+    const NodeInfo& curr = info(nodes[i]);
+    const NodeInfo& next = info(nodes[i + 1]);
+    if (std::max(curr.density / next.density, next.density / curr.density) <= params.accepted_density_diff
+        && _s_nodes.nodeWeight(curr.node) + _s_nodes.nodeWeight(next.node) <= params.max_node_weight) {
+      ASSERT(communities[curr.node] == kInvalidHypernode && communities[next.node] == kInvalidHypernode);
+      communities[curr.node] = curr.node;
+      communities[next.node] = curr.node;
+      ++counter;
+      ++i;
+    }
+  }
+}
 
 std::pair<HyperedgeID, HyperedgeID> SNodesCoarseningPass::intersection_and_union(
             const HypernodeID& s_node_left, const HypernodeID& s_node_right,

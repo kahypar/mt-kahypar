@@ -67,6 +67,7 @@ class SNodesCoarseningPass {
     tbb::enumerable_thread_specific<HypernodeID> match_counter;
     tbb::enumerable_thread_specific<vec<HypernodeID>> degree_one_nodes;
     tbb::enumerable_thread_specific<vec<HypernodeID>> degree_two_nodes;
+    tbb::enumerable_thread_specific<vec<HypernodeID>> high_degree_nodes;
   };
 
   struct Params {
@@ -182,6 +183,9 @@ class SNodesCoarseningPass {
                               LocalizedData& data, const HypernodeID& node);
 
   void sortByDensity(vec<HypernodeID>& nodes);
+
+  void matchPairs(const Params& params, vec<HypernodeID>& communities,
+                  vec<HypernodeID>& nodes, HypernodeID& counter);
   
   template<typename Hasher>
   void applyHashingRound(const Params& params, vec<HypernodeID>& communities,
