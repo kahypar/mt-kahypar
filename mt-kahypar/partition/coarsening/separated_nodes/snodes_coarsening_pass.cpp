@@ -104,7 +104,7 @@ SNodesCoarseningPass::SNodesCoarseningPass(const Hypergraph& hg, const Context& 
                                            const HypernodeID& target_num_nodes, const SNodesCoarseningStage& stage) :
   _hg(hg),
   _context(context),
-  _s_nodes(_hg.separatedNodes().onliest()),
+  _s_nodes(_hg.separatedNodes().coarsest()),
   _node_info_begin(),
   _node_info(),
   _current_num_nodes(_s_nodes.numNodes()),

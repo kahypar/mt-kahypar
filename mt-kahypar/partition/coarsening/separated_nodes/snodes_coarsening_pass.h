@@ -162,6 +162,10 @@ class SNodesCoarseningPass {
   // note: communities are allowed to be an empty vec
   void run(vec<HypernodeID>& communities);
 
+  SNodesCoarseningStage stage() const {
+    return _stage;
+  }
+
   // only for testing
   const Array<HypernodeID>& nodeInfoBegin() const {
     return _node_info_begin;
