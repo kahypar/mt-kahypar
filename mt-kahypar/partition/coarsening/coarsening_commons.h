@@ -187,7 +187,8 @@ public:
 
 private:
   HypernodeID calculateSeparatedNodesTargetSize(const Hypergraph& coarsened_hg) {
-    return 4 * coarsened_hg.initialNumNodes();
+    const HypernodeID result = 4 * coarsened_hg.initialNumNodes();
+    return std::max(result, 2 * _context.coarsening.contraction_limit_multiplier);
   }
 
   Hypergraph& _hg;
