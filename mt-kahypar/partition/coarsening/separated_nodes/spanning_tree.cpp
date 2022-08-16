@@ -166,7 +166,7 @@ SpanningTree constructMaxSpanningTree(const Hypergraph& hg, const HypernodeID& m
         }
       }
       if (best_parent != kInvalidHypernode) {
-        pq.insert(best_parent, best_weight);
+        pq.insert(current, best_weight);
         node_to_current_parent[current] = best_parent;
       }
     }
