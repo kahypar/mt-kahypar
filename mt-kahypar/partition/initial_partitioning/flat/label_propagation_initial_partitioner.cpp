@@ -39,7 +39,7 @@ tbb::task* LabelPropagationInitialPartitioner::execute() {
 
     parallel::scalable_vector<HypernodeID> start_nodes =
       PseudoPeripheralStartNodes::computeStartNodes(_ip_data, _context, kInvalidPartition, _rng);
-    for ( PartitionID block = 0; block < _context.partition.k; ++block ) {
+    for ( PartitionID block = 0; block < _context.partition.k && block < static_cast<PartitionID>(start_nodes.size()); ++block ) {
       if ( hg.partID(start_nodes[block]) == kInvalidPartition ) {
         hg.setNodePart(start_nodes[block], block);
       }
@@ -47,7 +47,7 @@ tbb::task* LabelPropagationInitialPartitioner::execute() {
     // Each block is extended with 5 additional vertices which are adjacent
     // to their corresponding seed vertices. This should prevent that block
     // becomes empty after several label propagation rounds.
-    for ( PartitionID block = 0; block < _context.partition.k; ++block ) {
+    for ( PartitionID block = 0; block < _context.partition.k && block < static_cast<PartitionID>(start_nodes.size()); ++block ) {
       if ( hg.partID(start_nodes[block]) == block ) {
         extendBlockToInitialBlockSize(hg, start_nodes[block], block);
       }

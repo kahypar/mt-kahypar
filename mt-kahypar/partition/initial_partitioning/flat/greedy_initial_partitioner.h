@@ -76,9 +76,9 @@ class GreedyInitialPartitioner : public tbb::task {
       _ip_data.reset_unassigned_hypernodes(_rng);
       parallel::scalable_vector<HypernodeID> start_nodes =
         PseudoPeripheralStartNodes::computeStartNodes(_ip_data, _context, _default_block, _rng);
-      ASSERT(static_cast<size_t>(_context.partition.k) == start_nodes.size());
+      // ASSERT(static_cast<size_t>(_context.partition.k) == start_nodes.size());
       kway_pq.clear();
-      for ( PartitionID block = 0; block < _context.partition.k; ++block ) {
+      for ( PartitionID block = 0; block < _context.partition.k && block < static_cast<PartitionID>(start_nodes.size()); ++block ) {
         if ( block != _default_block ) {
           insertVertexIntoPQ(hg, kway_pq, start_nodes[block], block);
         }

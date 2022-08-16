@@ -44,7 +44,7 @@ tbb::task* BFSInitialPartitioner::execute() {
       hyperedges_in_queue.reset();
       parallel::scalable_vector<Queue> queues(_context.partition.k);
 
-      for (PartitionID block = 0; block < _context.partition.k; ++block) {
+      for (PartitionID block = 0; block < _context.partition.k && block < static_cast<PartitionID>(start_nodes.size()); ++block) {
         queues[block].push(start_nodes[block]);
         markHypernodeAsInQueue(hypergraph, hypernodes_in_queue, start_nodes[block], block);
       }

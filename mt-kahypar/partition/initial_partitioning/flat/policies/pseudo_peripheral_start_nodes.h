@@ -46,7 +46,7 @@ class PseudoPeripheralStartNodes {
     kahypar::ds::FastResetFlagArray<>& hyperedges_in_queue =
       ip_data.local_hyperedge_fast_reset_flag_array();
 
-    ASSERT(hypergraph.initialNumNodes() - hypergraph.numRemovedHypernodes() >= ID(hypergraph.k()));
+    // ASSERT(hypergraph.initialNumNodes() - hypergraph.numRemovedHypernodes() >= ID(hypergraph.k()));
     StartNodes start_nodes;
     HypernodeID start_hn =
             std::uniform_int_distribution<HypernodeID>(0, hypergraph.initialNumNodes() -1 )(rng);
@@ -55,6 +55,9 @@ class PseudoPeripheralStartNodes {
     }
     ASSERT(start_hn != kInvalidHypernode && hypergraph.nodeIsEnabled(start_hn));
     start_nodes.push_back(start_hn);
+    if (hypergraph.initialNumNodes() - hypergraph.numRemovedHypernodes() < ID(hypergraph.k())) {
+      return start_nodes;
+    }
 
     // We perform k - 1 BFS on the hypergraph to find k vertices that
     // are "far" away from each other. Each BFS adds a new hypernode to
