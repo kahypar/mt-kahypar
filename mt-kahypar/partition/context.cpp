@@ -424,6 +424,12 @@ namespace mt_kahypar {
                   partition.max_part_weights.size());
     }
 
+    if (preprocessing.community_detection.use_isolated_nodes_treshold != coarsening.separate_size_one_communities) {
+      ERROR("--p-use-isolated-nodes-treshold and --c-separate-size-one-communities are intended to be used together");
+    }
+    if (!initial_partitioning.apply_star_partitioning_per_candidate && !initial_partitioning.apply_star_partitioning_to_best) {
+      ERROR("some kind of star partitioning required in initial partitioning");
+    }
 
     shared_memory.static_balancing_work_packages = std::clamp(shared_memory.static_balancing_work_packages, 4UL, 256UL);
 

@@ -808,6 +808,16 @@ private:
     // Nothing to do here
   }
 
+  // ! Only for debugging
+  bool checkSeparatedUnassigned() {
+    for (PartitionID p: _sep_part_ids) {
+      if (p != kInvalidPartition) {
+        return false;
+      }
+    }
+    return true;
+  }
+
   // ! Only for testing
   bool checkTrackedPartitionInformation() {
     bool success = true;

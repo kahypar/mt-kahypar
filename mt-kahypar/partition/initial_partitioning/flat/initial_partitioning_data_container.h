@@ -188,7 +188,7 @@ class InitialPartitioningDataContainer {
       _partitioned_hypergraph(context.partition.k, hypergraph),
       _context(context),
       _global_stats(global_stats),
-      _partition(hypergraph.initialNumNodes() + hypergraph.separatedNodes().onliest().numNodes(), kInvalidPartition),
+      _partition(hypergraph.initialNumNodes() + hypergraph.separatedNodes().finest().numNodes(), kInvalidPartition),
       _result(InitialPartitioningAlgorithm::UNDEFINED,
               std::numeric_limits<HypernodeWeight>::max(),
               std::numeric_limits<HypernodeWeight>::max(),
@@ -290,12 +290,14 @@ class InitialPartitioningDataContainer {
           ASSERT(part_id != kInvalidPartition);
           _partition[hn] = part_id;
         }
-        for ( const HypernodeID& s_node : _partitioned_hypergraph.separatedNodes().onliest().nodes() ) {
-          const PartitionID part_id = _partitioned_hypergraph.separatedPartID(s_node);
-          const HypernodeID node_id = _partitioned_hypergraph.initialNumNodes() + s_node;
-          ASSERT(node_id < _partition.size());
-          ASSERT(part_id != kInvalidPartition);
-          _partition[node_id] = part_id;
+        if (_context.initial_partitioning.apply_star_partitioning_per_candidate) {
+          for ( const HypernodeID& s_node : _partitioned_hypergraph.separatedNodes().finest().nodes() ) {
+            const PartitionID part_id = _partitioned_hypergraph.separatedPartID(s_node);
+            const HypernodeID node_id = _partitioned_hypergraph.initialNumNodes() + s_node;
+            ASSERT(node_id < _partition.size());
+            ASSERT(part_id != kInvalidPartition);
+            _partition[node_id] = part_id;
+          }
         }
         _result = refined;
       }
@@ -306,9 +308,11 @@ class InitialPartitioningDataContainer {
         ASSERT(_partitioned_hypergraph.partID(node) != kInvalidPartition);
         partition_store[node] = _partitioned_hypergraph.partID(node);
       }
-      for (HypernodeID node : _partitioned_hypergraph.separatedNodes().onliest().nodes()) {
-        ASSERT(_partitioned_hypergraph.separatedPartID(node) != kInvalidPartition);
-        partition_store[_partitioned_hypergraph.initialNumNodes() + node] = _partitioned_hypergraph.separatedPartID(node);
+      if (_context.initial_partitioning.apply_star_partitioning_per_candidate) {
+        for (HypernodeID node : _partitioned_hypergraph.separatedNodes().finest().nodes()) {
+          ASSERT(_partitioned_hypergraph.separatedPartID(node) != kInvalidPartition);
+          partition_store[_partitioned_hypergraph.initialNumNodes() + node] = _partitioned_hypergraph.separatedPartID(node);
+        }
       }
     }
 
@@ -324,10 +328,12 @@ class InitialPartitioningDataContainer {
           current_metric, std::numeric_limits<double>::max());
       }
 
-      const HyperedgeWeight added_cut = star_partitioning::partition(_partitioned_hypergraph, _context, false);
-      current_metric.updateMetric(current_metric.getMetric(Mode::direct, _context.partition.objective) + added_cut,
-                                  Mode::direct, _context.partition.objective);
-      current_metric.imbalance = metrics::imbalance(_partitioned_hypergraph, _context);
+      if (_context.initial_partitioning.apply_star_partitioning_per_candidate) {
+        const HyperedgeWeight added_cut = star_partitioning::partition(_partitioned_hypergraph, _context, false);
+        current_metric.updateMetric(current_metric.getMetric(Mode::direct, _context.partition.objective) + added_cut,
+                                    Mode::direct, _context.partition.objective);
+        current_metric.imbalance = metrics::imbalance(_partitioned_hypergraph, _context);
+      }
 
       HEAVY_INITIAL_PARTITIONING_ASSERT(
         current_metric.getMetric(Mode::direct, _context.partition.objective) ==
@@ -650,15 +656,18 @@ class InitialPartitioningDataContainer {
         ASSERT(_partitioned_hg.partID(hn) == kInvalidPartition);
         _partitioned_hg.setOnlyNodePart(hn, part_id);
       });
-      const ds::SeparatedNodes& s_nodes = _partitioned_hg.separatedNodes().onliest();
-      tbb::parallel_for(ID(0), s_nodes.numNodes(), [&](const HypernodeID& node) {
-        const HypernodeID node_id = _partitioned_hg.initialNumNodes() + node;
-        ASSERT(node_id < best->_partition.size());
-        const PartitionID part_id = best->_partition[node_id];
-        ASSERT(part_id != kInvalidPartition && part_id < _partitioned_hg.k());
-        ASSERT(_partitioned_hg.separatedPartID(node) == kInvalidPartition);
-        _partitioned_hg.separatedSetOnlyNodePart(node, part_id);
-      });
+      const ds::SeparatedNodes& s_nodes = _partitioned_hg.separatedNodes().finest();
+      if (_context.initial_partitioning.apply_star_partitioning_per_candidate
+          && !_context.initial_partitioning.apply_star_partitioning_to_best) {
+        tbb::parallel_for(ID(0), s_nodes.numNodes(), [&](const HypernodeID& node) {
+          const HypernodeID node_id = _partitioned_hg.initialNumNodes() + node;
+          ASSERT(node_id < best->_partition.size());
+          const PartitionID part_id = best->_partition[node_id];
+          ASSERT(part_id != kInvalidPartition && part_id < _partitioned_hg.k());
+          ASSERT(_partitioned_hg.separatedPartID(node) == kInvalidPartition);
+          _partitioned_hg.separatedSetOnlyNodePart(node, part_id);
+        });
+      }
 
       best_flat_algo = best->_result._algorithm;
       best_feasible_objective = best->_result._objective;
@@ -666,6 +675,11 @@ class InitialPartitioningDataContainer {
 
     _partitioned_hg.resetMoveState();
     _partitioned_hg.initializePartition();
+
+    if (_context.initial_partitioning.apply_star_partitioning_to_best) {
+      ASSERT(_partitioned_hg.checkSeparatedUnassigned());
+      star_partitioning::partition(_partitioned_hg, _context);
+    }
     // ASSERT(best_feasible_objective == metrics::objective(_partitioned_hg, _context.partition.objective, false),
     //        V(best_feasible_objective) << V(metrics::objective(_partitioned_hg, _context.partition.objective, false)));
     utils::InitialPartitioningStats::instance().add_initial_partitioning_result(best_flat_algo, number_of_threads, stats);

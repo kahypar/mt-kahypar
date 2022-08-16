@@ -277,9 +277,9 @@ namespace mt_kahypar {
       });
       if (_hg.hasSeparatedNodes()) {
         _hg.initializeSeparatedParts();
-        SeparatedNodes& s_nodes = _hg.separatedNodes().onliest();
+        SeparatedNodes& s_nodes = _hg.separatedNodes().finest();
         s_nodes.restoreSavepoint();
-        ASSERT(s_nodes.numNodes() == _bisection_hg.separatedNodes().onliest().numNodes());
+        ASSERT(s_nodes.numNodes() == _bisection_hg.separatedNodes().finest().numNodes());
         tbb::parallel_for(ID(0), s_nodes.numNodes(), [&](const HypernodeID& node) {
           PartitionID part_id = _bisection_partitioned_hg.separatedPartID(node);
           ASSERT(part_id != kInvalidPartition && part_id < _hg.k());

@@ -55,7 +55,7 @@ class DegreeZeroHypernodeRemover {
       if ( hypergraph.nodeDegree(hn) == 0 ) {
         if (hypergraph.hasSeparatedNodes()) {
           // TODO
-          const SeparatedNodes& s_nodes = hypergraph.separatedNodes().onliest();
+          const SeparatedNodes& s_nodes = hypergraph.separatedNodes().finest();
           if ( s_nodes.outwardIncidentWeight(hn) > 0 ) {
             continue;
           }

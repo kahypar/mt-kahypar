@@ -614,7 +614,13 @@ namespace mt_kahypar {
             ("i-lp-initial-block-size",
              po::value<size_t>(&context.initial_partitioning.lp_initial_block_size)->value_name(
                      "<size_t>")->default_value(5),
-             "Initial block size used for label propagation initial partitioner");
+             "Initial block size used for label propagation initial partitioner")
+            ("i-apply-star-partitioning-per-candidate",
+             po::value<bool>(&context.initial_partitioning.apply_star_partitioning_per_candidate)->value_name("<bool>")->default_value(false),
+             "If true, evaluating each candidate of the pool initial partitioner includes a star partitioning pass.")
+            ("i-apply-star-partitioning-to-best",
+             po::value<bool>(&context.initial_partitioning.apply_star_partitioning_to_best)->value_name("<bool>")->default_value(false),
+             "If true, applies a star partitioning pass after the best partition is found.");
     options.add(createRefinementOptionsDescription(context, num_columns, true));
     options.add(createFlowRefinementOptionsDescription(context, num_columns, true));
     return options;
