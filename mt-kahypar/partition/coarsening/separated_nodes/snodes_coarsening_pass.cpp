@@ -285,6 +285,9 @@ void SNodesCoarseningPass::applyDegreeZeroCoarsening(const Params& params, vec<H
             }
           } else if (i > 0) {
             break;
+          } else {
+            ++offset;
+            break;
           }
         }
       }

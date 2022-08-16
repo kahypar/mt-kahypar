@@ -42,7 +42,7 @@ class ACoarseningPass : public Test {
   }
 
   void initialize(HypernodeID num_nodes, HyperedgeID num_edges, vec<vec<HypernodeID>> edges,
-                  vec<vec<std::pair<HypernodeID, HyperedgeWeight>>> sep_nodes) {
+                  vec<vec<std::pair<HypernodeID, HyperedgeWeight>>> sep_nodes, vec<HypernodeWeight> node_weights = {}) {
     graph = HypergraphFactory::construct(num_nodes, num_edges, edges);
     stack = SepNodesStack(num_nodes);
     graph.setSeparatedNodes(&stack);
@@ -50,8 +50,10 @@ class ACoarseningPass : public Test {
     SeparatedNodes& s_nodes = stack.onliest();
     vec<std::tuple<HypernodeID, HyperedgeID, HypernodeWeight>> nodes;
     vec<SeparatedNodes::Edge> s_edges;
+    size_t i = 0;
     for (const auto& edges_of_node: sep_nodes) {
-      nodes.emplace_back(kInvalidHypernode, s_edges.size(), 1);
+      const HypernodeWeight weight = node_weights.empty() ? 1 : node_weights[i++];
+      nodes.emplace_back(kInvalidHypernode, s_edges.size(), weight);
       for (const auto& [target, weight]: edges_of_node) {
         s_edges.emplace_back(target, weight);
       }
@@ -125,6 +127,17 @@ TEST_F(ACoarseningPass, removesDegreeZero) {
     }
   }
   ASSERT_EQ(num_c_0, 3);
+}
+
+TEST_F(ACoarseningPass, removesDegreeZero2) {
+  initialize(1, 0, {}, { {}, {}, {}, {}, {}, {} }, {1, 1, 1, 4, 2, 2});
+  context.coarsening.max_allowed_node_weight = 3;
+  SNodesCoarseningPass c_pass = setupPass(2, SNodesCoarseningStage::D1_TWINS);
+  c_pass.run(communities);
+
+  ASSERT_EQ(3, communities[3]);
+  ASSERT_EQ(4, communities[4]);
+  ASSERT_EQ(5, communities[5]);
 }
 
 TEST_F(ACoarseningPass, coarsensDegreeOneNodes) {
