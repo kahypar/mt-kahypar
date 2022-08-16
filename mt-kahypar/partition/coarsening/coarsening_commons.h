@@ -129,10 +129,10 @@ public:
       *partitioned_hg = PartitionedHypergraph(_context.partition.k, _hg, parallel_tag_t());
       if (!hierarchy.empty()) {
         partitioned_hg->setHypergraph(hierarchy.back().contractedHypergraph());
-        const HypernodeID separatedTargetSize = calculateSeparatedNodesTargetSize(partitioned_hg->hypergraph());
-        if (separatedTargetSize < partitioned_hg->separatedNodes().onliest().numNodes()) {
-          star_partitioning::coarsen(partitioned_hg->hypergraph(), _context, separatedTargetSize);
-        }
+      }
+      const HypernodeID separatedTargetSize = calculateSeparatedNodesTargetSize(partitioned_hg->hypergraph());
+      if (separatedTargetSize < partitioned_hg->separatedNodes().onliest().numNodes()) {
+        star_partitioning::coarsen(partitioned_hg->hypergraph(), _context, separatedTargetSize);
       }
 
       utils::Timer::instance().stop_timer("finalize_multilevel_hierarchy");
