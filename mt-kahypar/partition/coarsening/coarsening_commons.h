@@ -23,6 +23,8 @@
 
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/context.h"
+#include "mt-kahypar/partition/coarsening/separated_nodes/snodes_coarsening.h"
+
 namespace mt_kahypar {
 class Level {
 
@@ -127,6 +129,10 @@ public:
       *partitioned_hg = PartitionedHypergraph(_context.partition.k, _hg, parallel_tag_t());
       if (!hierarchy.empty()) {
         partitioned_hg->setHypergraph(hierarchy.back().contractedHypergraph());
+        const HypernodeID separatedTargetSize = calculateSeparatedNodesTargetSize(partitioned_hg->hypergraph());
+        if (separatedTargetSize < partitioned_hg->separatedNodes().onliest().numNodes()) {
+          star_partitioning::coarsen(partitioned_hg->hypergraph(), _context, separatedTargetSize);
+        }
       }
 
       utils::Timer::instance().stop_timer("finalize_multilevel_hierarchy");
@@ -180,6 +186,10 @@ public:
   bool nlevel;
 
 private:
+  HypernodeID calculateSeparatedNodesTargetSize(const Hypergraph& coarsened_hg) {
+    return 4 * coarsened_hg.initialNumNodes();
+  }
+
   Hypergraph& _hg;
   const Context& _context;
 };
