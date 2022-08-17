@@ -136,8 +136,8 @@ TEST_F(ACoarseningPass, removesDegreeZero2) {
   c_pass.run(communities);
 
   ASSERT_EQ(3, communities[3]);
-  ASSERT_EQ(4, communities[4]);
-  ASSERT_EQ(5, communities[5]);
+  ASSERT_NE(3, communities[4]);
+  ASSERT_NE(3, communities[5]);
 }
 
 TEST_F(ACoarseningPass, coarsensDegreeOneNodes) {
