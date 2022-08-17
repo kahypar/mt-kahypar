@@ -24,6 +24,7 @@
 
 #include "tbb/enumerable_thread_specific.h"
 
+#include "mt-kahypar/datastructures/separated_nodes.h"
 #include "mt-kahypar/datastructures/static_graph.h"
 #include "mt-kahypar/parallel/atomic_wrapper.h"
 
@@ -55,6 +56,9 @@ class StaticGraphFactory {
                                                 const HyperedgeWeight* edge_weight = nullptr,
                                                 const HypernodeWeight* node_weight = nullptr,
                                                 const bool stable_construction_of_incident_edges = false);
+
+  // ! Constructs a new graph with the separated nodes reinserted (and numIncludedSeparated() set accordingly)
+  static StaticGraph reinsertSeparatedNodes(const StaticGraph& graph, const SeparatedNodes& s_nodes);
 
   static std::pair<StaticGraph, parallel::scalable_vector<HypernodeID> > compactify(const StaticGraph&) {
     ERROR("Compactify not implemented for static graph.");

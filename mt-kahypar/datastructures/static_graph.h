@@ -464,6 +464,7 @@ class StaticGraph {
     _unique_edge_ids(),
     _separated_nodes(nullptr),
     _community_ids(),
+    _n_separated(0),
     _tmp_contraction_buffer(nullptr) { }
 
   StaticGraph(const StaticGraph&) = delete;
@@ -479,6 +480,7 @@ class StaticGraph {
     _unique_edge_ids(std::move(other._unique_edge_ids)),
     _separated_nodes(other._separated_nodes),
     _community_ids(std::move(other._community_ids)),
+    _n_separated(other._n_separated),
     _tmp_contraction_buffer(std::move(other._tmp_contraction_buffer)) {
     other._tmp_contraction_buffer = nullptr;
   }
@@ -492,7 +494,8 @@ class StaticGraph {
     _edges = std::move(other._edges);
     _unique_edge_ids = std::move(other._unique_edge_ids);
     _separated_nodes = other._separated_nodes;
-    _community_ids = std::move(other._community_ids),
+    _community_ids = std::move(other._community_ids);
+    _n_separated = other._n_separated;
     _tmp_contraction_buffer = std::move(other._tmp_contraction_buffer);
     other._tmp_contraction_buffer = nullptr;
     return *this;
@@ -832,6 +835,14 @@ class StaticGraph {
     _separated_nodes = separated_nodes;
   }
 
+  HypernodeID numIncludedSeparated() const {
+    return _n_separated;
+  }
+
+  HypernodeID firstIncludedSeparated() const {
+    return _num_nodes - _n_separated;
+  }
+
   // ! Copy static hypergraph in parallel
   StaticGraph copy(parallel_tag_t) const;
 
@@ -936,6 +947,9 @@ class StaticGraph {
 
   // ! Communities
   ds::Clustering _community_ids;
+
+  // ! separated nodes counter
+  HypernodeID _n_separated;
 
   // ! Data that is reused throughout the multilevel hierarchy
   // ! to contract the hypergraph and to prevent expensive allocations

@@ -207,6 +207,10 @@ class SeparatedNodes {
     return node(separated_node + 1).begin - node(separated_node).begin;
   }
 
+  HyperedgeID inwardEdgesStartID(const HypernodeID separated_node) const {
+    return node(separated_node).begin;
+  }
+
   HyperedgeID outwardDegree(const HypernodeID u) const {
     ASSERT(u < _num_graph_nodes, "Graph node" << u << "does not exist");
     ASSERT(!_graph_nodes_begin.empty(), "Graph nodes not initialized!");

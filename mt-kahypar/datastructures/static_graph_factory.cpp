@@ -198,4 +198,48 @@ namespace mt_kahypar::ds {
     utils::Timer::instance().stop_timer("setup_hypergraph");
     return graph;
   }
+
+  StaticGraph StaticGraphFactory::reinsertSeparatedNodes(const StaticGraph& graph,
+                                                         const SeparatedNodes& s_nodes) {
+    ASSERT(graph.initialNumNodes() == s_nodes.numGraphNodes());
+    const HypernodeID num_nodes = graph.initialNumNodes() + s_nodes.numNodes();
+    const HyperedgeID num_edges = graph.initialNumEdges() / 2 + s_nodes.numEdges();
+    EdgeVector edge_vector;
+    Array<HyperedgeWeight> edge_weight;
+    Array<HypernodeWeight> node_weight;
+    tbb::parallel_invoke([&] {
+      edge_vector.resize(num_edges);
+    }, [&] {
+      edge_weight.resize(num_edges);
+    }, [&] {
+      node_weight.resize(num_nodes);
+    });
+
+    tbb::parallel_invoke([&] {
+      tbb::parallel_for(ID(0), graph.initialNumEdges(), [&](const HyperedgeID e) {
+        ASSERT(graph.uniqueEdgeID(e) < graph.initialNumEdges());
+        edge_vector[graph.uniqueEdgeID(e)] = {graph.edgeSource(e), graph.edgeTarget(e)};
+        edge_weight[graph.uniqueEdgeID(e)] = graph.edgeWeight(e);
+      });
+    }, [&] {
+      tbb::parallel_for(ID(0), graph.initialNumNodes(), [&](const HypernodeID node) {
+        node_weight[node] = graph.nodeWeight(node);
+      });
+    }, [&] {
+      tbb::parallel_for(ID(0), s_nodes.numNodes(), [&](const HypernodeID sep) {
+        node_weight[graph.initialNumNodes() + sep] = s_nodes.nodeWeight(sep);
+        HyperedgeID index = graph.initialNumEdges() / 2 + s_nodes.inwardEdgesStartID(sep);
+        for (const SeparatedNodes::Edge& e: s_nodes.inwardEdges(sep)) {
+          edge_vector[index] = {graph.initialNumNodes() + sep, e.target};
+          edge_weight[index] = e.weight;
+          index++;
+        }
+      });
+    });
+
+    StaticGraph result = construct_from_graph_edges(num_nodes, num_edges, edge_vector,
+                                                    edge_weight.data(), node_weight.data());
+    result._n_separated = s_nodes.numNodes();
+    return result;
+  }
 }

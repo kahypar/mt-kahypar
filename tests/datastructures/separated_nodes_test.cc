@@ -20,6 +20,8 @@
 
 #include "gmock/gmock.h"
 
+#include <algorithm>
+
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/datastructures/separated_nodes.h"
 
@@ -40,6 +42,19 @@ void verifyIncidentEgdes(IteratorRange<SeparatedNodes::IncidenceIterator> it,
     count++;
   }
   ASSERT_EQ(count, edges.size());
+}
+
+void verifyGraphNeighbors(const Hypergraph& graph, const HypernodeID& node, vec<HypernodeID> expected) {
+  std::sort(expected.begin(), expected.end());
+  vec<HypernodeID> neighbors;
+  for (HyperedgeID e: graph.incidentEdges(node)) {
+    neighbors.push_back(graph.edgeTarget(e));
+  }
+  std::sort(neighbors.begin(), neighbors.end());
+  ASSERT_EQ(neighbors.size(), expected.size());
+  for (size_t i = 0; i < neighbors.size(); ++i) {
+    ASSERT_EQ(neighbors[i], expected[i]);
+  }
 }
 
 TEST_F(ASeparatedNodes, HasCorrectStats) {
@@ -481,6 +496,29 @@ TEST_F(ASeparatedNodes, RestoresSavepoint) {
   verifyIncidentEgdes(nodes.inwardEdges(0), { {0, 1}, {3, 1} });
   verifyIncidentEgdes(nodes.inwardEdges(1), { {9, 1} });
   verifyIncidentEgdes(nodes.inwardEdges(2), { });
+}
+
+TEST_F(ASeparatedNodes, ReinsertsSeparated) {
+  SeparatedNodes nodes(3);
+  vec<std::tuple<HypernodeID, HyperedgeID, HypernodeWeight>> new_nodes { {0, 0, 1}, {1, 1, 1}, {2, 2, 2}};
+  vec<Edge> new_edges { Edge(0, 1), Edge(2, 2), Edge(2, 1), Edge(1, 1) };
+  nodes.addNodes(new_nodes, new_edges);
+
+  vec<HypernodeWeight> weight = {1, 2, 3};
+  Hypergraph original = HypergraphFactory::construct(3, 2, {{0, 1}, {1, 2}}, nullptr, weight.data());
+  Hypergraph graph = HypergraphFactory::reinsertSeparatedNodes(original, nodes);
+
+  ASSERT_EQ(6, graph.initialNumNodes());
+  ASSERT_EQ(12, graph.initialNumEdges());
+  ASSERT_EQ(10, graph.totalWeight());
+  ASSERT_EQ(3, graph.numIncludedSeparated());
+
+  verifyGraphNeighbors(graph, 0, {1, 3});
+  verifyGraphNeighbors(graph, 1, {0, 2, 5});
+  verifyGraphNeighbors(graph, 2, {1, 4, 5});
+  verifyGraphNeighbors(graph, 3, {0});
+  verifyGraphNeighbors(graph, 4, {2});
+  verifyGraphNeighbors(graph, 5, {1, 2});
 }
 
 }
