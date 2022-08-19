@@ -619,7 +619,7 @@ namespace mt_kahypar {
              po::value<bool>(&context.initial_partitioning.apply_star_partitioning_per_candidate)->value_name("<bool>")->default_value(false),
              "If true, evaluating each candidate of the pool initial partitioner includes a star partitioning pass.")
             ("i-apply-star-partitioning-to-best",
-             po::value<bool>(&context.initial_partitioning.apply_star_partitioning_to_best)->value_name("<bool>")->default_value(false),
+             po::value<bool>(&context.initial_partitioning.apply_star_partitioning_to_best)->value_name("<bool>")->default_value(true),
              "If true, applies a star partitioning pass after the best partition is found.");
     options.add(createRefinementOptionsDescription(context, num_columns, true));
     options.add(createFlowRefinementOptionsDescription(context, num_columns, true));
