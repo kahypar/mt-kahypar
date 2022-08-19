@@ -293,7 +293,7 @@ namespace mt_kahypar {
         // Spawn Initial Partitioner
         PoolInitialPartitionerContinuation& ip_continuation = *new(allocate_continuation())
                 PoolInitialPartitionerContinuation(
-                _result.partitioned_hypergraph, _result.context);
+                _result.partitioned_hypergraph.copy(parallel_tag_t()), _result.partitioned_hypergraph, _result.context);
         spawn_initial_partitioner(ip_continuation);
       }
       return nullptr;
@@ -556,7 +556,7 @@ namespace mt_kahypar {
       ASSERT(_context.partition.k == 2);
       ASSERT(_context.partition.max_part_weights.size() == 2);
       PoolInitialPartitionerContinuation& ip_continuation = *new(allocate_continuation())
-              PoolInitialPartitionerContinuation(_hg, _context);
+              PoolInitialPartitionerContinuation(_hg.copy(parallel_tag_t()), _hg, _context);
       spawn_initial_partitioner(ip_continuation);
     } else {
       // We do parallel recursion, if the contract limit is equal to 2 * p * t
