@@ -151,8 +151,8 @@ class SNodesCoarseningPass {
   static const HypernodeID MAX_CLUSTER_SIZE = 4;
   static constexpr size_t NUM_SIMILARITY_ROUNDS = 3;
   static constexpr size_t SIMILARITY_SEARCH_RANGE = 8;
-  static constexpr double SIMILARITY_RATIO = 0.5;
-  static constexpr double SIMILARITY_RATIO_RELAXED = 0.3;
+  static constexpr double SIMILARITY_RATIO = 0.4;
+  static constexpr double SIMILARITY_RATIO_RELAXED = 0.25;
   static constexpr size_t D2_SEARCH_RANGE = 3;
 
  public:
@@ -248,8 +248,9 @@ class SNodesCoarseningPass {
             bool matches = _s_nodes.nodeWeight(curr_node) + _s_nodes.nodeWeight(next_node) <= params.max_node_weight;
             if (Hasher::requires_check) {
               auto intersec_union = intersection_and_union(curr_node, next_node, buffer_left, buffer_right);
-              matches = static_cast<double>(intersec_union.first) / static_cast<double>(intersec_union.second) >= required_similarity;
-              matches &= intersec_union.first > 1;
+              const double similarity_target = std::max(required_similarity,
+                  1.5 / static_cast<double>(std::min(_s_nodes.inwardDegree(curr_node), _s_nodes.inwardDegree(next_node))));
+              matches = static_cast<double>(intersec_union.first) / static_cast<double>(intersec_union.second) >= similarity_target;
             }
             if (matches) {
               ASSERT(communities[curr_node] == kInvalidHypernode && communities[next_node] == kInvalidHypernode);
