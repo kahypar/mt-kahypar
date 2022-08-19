@@ -22,6 +22,7 @@
 
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/coarsening/separated_nodes/snodes_coarsening_pass.h"
+#include "mt-kahypar/parallel/stl/scalable_vector.h"
 
 using ::testing::Test;
 
@@ -33,8 +34,6 @@ using ds::SeparatedNodes;
 using ds::SepNodesStack;
 
 class ACoarseningPass : public Test {
- template<typename T>
- using vec = parallel::scalable_vector<T>;
 
  public:
   ACoarseningPass() : graph(), context(), stack(), communities() {
@@ -179,6 +178,25 @@ TEST_F(ACoarseningPass, findsTwins) {
   ASSERT_EQ(8, communities[8]);
   ASSERT_EQ(9, communities[9]);
   ASSERT_EQ(10, communities[10]);
+}
+
+TEST_F(ACoarseningPass, similarityIntersectionCalculation) {
+  vec<std::pair<HypernodeID, HyperedgeWeight>> lhs {};
+  vec<std::pair<HypernodeID, HyperedgeWeight>> rhs {};
+
+  ASSERT_EQ(std::make_pair(0, 0), SNodesCoarseningPass::intersection_and_union(lhs, rhs));
+
+  lhs = {{0, 1}, {1, 2}, {2, 3}};
+  rhs = {};
+  ASSERT_EQ(std::make_pair(0, 6), SNodesCoarseningPass::intersection_and_union(lhs, rhs));
+
+  lhs = {{5, 4}};
+  rhs = {{0, 1}, {1, 2}, {2, 3}};
+  ASSERT_EQ(std::make_pair(0, 10), SNodesCoarseningPass::intersection_and_union(lhs, rhs));
+
+  lhs = {{0, 2}, {1, 1}, {5, 4}};
+  rhs = {{0, 1}, {1, 2}, {2, 3}};
+  ASSERT_EQ(std::make_pair(2, 11), SNodesCoarseningPass::intersection_and_union(lhs, rhs));
 }
 
 TEST_F(ACoarseningPass, coarsensDegreeTwoNodes) {

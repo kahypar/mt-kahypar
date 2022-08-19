@@ -395,35 +395,51 @@ void SNodesCoarseningPass::matchPairs(const Params& params, vec<HypernodeID>& co
   }
 }
 
-std::pair<HyperedgeID, HyperedgeID> SNodesCoarseningPass::intersection_and_union(
+std::pair<HyperedgeWeight, HyperedgeWeight> SNodesCoarseningPass::intersection_and_union(
             const HypernodeID& s_node_left, const HypernodeID& s_node_right,
-            vec<HypernodeID>& lhs, vec<HypernodeID>& rhs) {
+            vec<std::pair<HypernodeID, HyperedgeWeight>>& lhs,
+            vec<std::pair<HypernodeID, HyperedgeWeight>>& rhs) {
   lhs.clear();
   for (const SeparatedNodes::Edge& e: _s_nodes.inwardEdges(s_node_left)) {
-    lhs.push_back(e.target);
+    lhs.emplace_back(e.target, e.weight);
   }
-  std::sort(lhs.begin(), lhs.end());
   rhs.clear();
   for (const SeparatedNodes::Edge& e: _s_nodes.inwardEdges(s_node_right)) {
-    rhs.push_back(e.target);
+    rhs.emplace_back(e.target, e.weight);
   }
-  std::sort(rhs.begin(), rhs.end());
-  HyperedgeID intersection_size = 0;
+  return intersection_and_union(lhs, rhs);
+}
+
+std::pair<HyperedgeWeight, HyperedgeWeight>
+SNodesCoarseningPass::intersection_and_union(vec<std::pair<HypernodeID, HyperedgeWeight>>& lhs,
+                                             vec<std::pair<HypernodeID, HyperedgeWeight>>& rhs) {
+  std::sort(lhs.begin(), lhs.end(), [](const auto& l, const auto& r) {
+    return l.first < r.first;
+  });
+  lhs.emplace_back(std::numeric_limits<HypernodeID>::max(), 0);
+  std::sort(rhs.begin(), rhs.end(), [](const auto& l, const auto& r) {
+    return l.first < r.first;
+  });
+  rhs.emplace_back(std::numeric_limits<HypernodeID>::max(), 0);
+  HyperedgeWeight intersection_weight = 0;
+  HyperedgeWeight union_weight = 0;
   size_t i = 0;
   size_t j = 0;
   while ( i < lhs.size() && j < rhs.size() ) {
-    if ( lhs[i] == rhs[j] ) {
-      ++intersection_size;
+    if ( lhs[i].first == rhs[j].first ) {
+      union_weight += std::max(lhs[i].second, rhs[j].second);
+      intersection_weight += std::min(lhs[i].second, rhs[j].second);
       ++i;
       ++j;
-    } else if ( lhs[i] < rhs[j] ) {
+    } else if ( lhs[i].first < rhs[j].first ) {
+      union_weight += lhs[i].second;
       ++i;
     } else {
+      union_weight += rhs[j].second;
       ++j;
     }
   }
-  const HyperedgeID union_size = lhs.size() + rhs.size() - intersection_size;
-  return {intersection_size, union_size};
+  return {intersection_weight, union_weight};
 }
 
 } // namepace star_partitioning

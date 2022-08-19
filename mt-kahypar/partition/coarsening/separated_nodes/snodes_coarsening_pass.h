@@ -176,6 +176,10 @@ class SNodesCoarseningPass {
     return _node_info;
   }
 
+  // public for testing
+  static std::pair<HyperedgeWeight, HyperedgeWeight> intersection_and_union(vec<std::pair<HypernodeID, HyperedgeWeight>>& lhs,
+                                                                            vec<std::pair<HypernodeID, HyperedgeWeight>>& rhs);
+
  private:
   void setupNodeInfo();
 
@@ -227,6 +231,8 @@ class SNodesCoarseningPass {
         // calculate pair-wise matching
         size_t pos = 0;
         HypernodeID& counter = data.match_counter.local();
+        vec<std::pair<HypernodeID, HyperedgeWeight>> buffer_left;
+        vec<std::pair<HypernodeID, HyperedgeWeight>> buffer_right;
         while (pos + 1 < bucket.size()) {
           const auto [curr_index, curr_hash] = bucket[pos];
           const double curr_density = info(curr_index).density;
@@ -241,8 +247,6 @@ class SNodesCoarseningPass {
             const HypernodeID next_node = info(next_index).node;
             bool matches = _s_nodes.nodeWeight(curr_node) + _s_nodes.nodeWeight(next_node) <= params.max_node_weight;
             if (Hasher::requires_check) {
-              vec<HypernodeID>& buffer_left = data.degree_one_nodes.local();
-              vec<HypernodeID>& buffer_right = data.degree_two_nodes.local();
               auto intersec_union = intersection_and_union(curr_node, next_node, buffer_left, buffer_right);
               matches = static_cast<double>(intersec_union.first) / static_cast<double>(intersec_union.second) >= required_similarity;
               matches &= intersec_union.first > 1;
@@ -271,8 +275,9 @@ class SNodesCoarseningPass {
     });
   }
 
-  std::pair<HyperedgeID, HyperedgeID> intersection_and_union(const HypernodeID& s_node_left, const HypernodeID& s_node_right,
-                                                             vec<HypernodeID>& buffer_left, vec<HypernodeID>& buffer_right);
+  std::pair<HyperedgeWeight, HyperedgeWeight> intersection_and_union(const HypernodeID& s_node_left, const HypernodeID& s_node_right,
+                                                                     vec<std::pair<HypernodeID, HyperedgeWeight>>& buffer_left,
+                                                                     vec<std::pair<HypernodeID, HyperedgeWeight>>& buffer_right);
 
   const NodeInfo& info(HypernodeID index) const {
     return _node_info[index];
