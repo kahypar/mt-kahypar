@@ -245,6 +245,7 @@ struct InitialPartitioningParameters {
   size_t population_size = 16;
   bool apply_star_partitioning_per_candidate = false;
   bool apply_star_partitioning_to_best = true;
+  bool reinsert_separated = false;
 };
 
 std::ostream & operator<< (std::ostream& str, const InitialPartitioningParameters& params);
