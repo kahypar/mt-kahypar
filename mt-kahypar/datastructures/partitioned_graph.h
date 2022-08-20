@@ -262,10 +262,6 @@ private:
     return separatedNodes().finest().extract(block, graph_node_mapping, _sep_part_ids);
   }
 
-  HypernodeID numAssignedSeparated() const {
-    return separatedNodes().finest().numNodes();
-  }
-
   void initializeSeparatedParts() {
     _sep_part_ids.resize(separatedNodes().finest().numNodes(), CAtomic<PartitionID>(kInvalidPartition));
   }
@@ -973,38 +969,6 @@ private:
     _incident_weight_in_part[index_in_from_part].fetch_sub(we, std::memory_order_relaxed);
     const size_t index_in_to_part = incident_weight_index(target, to);
     _incident_weight_in_part[index_in_to_part].fetch_add(we, std::memory_order_relaxed);
-  }
-
-  // ! Copy partitioned graph in parallel
-  PartitionedGraph copy(parallel_tag_t) const {
-    ASSERT(!_is_gain_cache_initialized && _incident_weight_in_part.size() == 0);
-    PartitionedGraph graph;
-    graph._is_gain_cache_initialized = _is_gain_cache_initialized;
-    graph._top_level_num_nodes = _top_level_num_nodes;
-    graph._k = _k;
-    graph._hg = _hg;
-    graph._lock_treshold = _lock_treshold;
-
-    tbb::parallel_invoke([&] {
-      graph._part_weights = _part_weights;
-    }, [&] {
-      graph._part_ids.resize(_part_ids.size(), CAtomic<PartitionID>(kInvalidPartition));
-      for (size_t i = 0; i < _part_ids.size(); ++i) {
-        graph._part_ids[i] = _part_ids[i];
-      }
-    }, [&] {
-      graph._edge_locks.resize(_edge_locks.size(), EdgeLock());
-      for (size_t i = 0; i < _edge_locks.size(); ++i) {
-        graph._edge_locks[i] = _edge_locks[i];
-      }
-    }, [&] {
-      if (!Hypergraph::is_static_hypergraph) {
-        graph._edge_markers.setSize(_hg->maxUniqueID());
-      }
-    }, [&] {
-      graph._sep_part_ids = _sep_part_ids;
-    });
-    return graph;
   }
 
  private:

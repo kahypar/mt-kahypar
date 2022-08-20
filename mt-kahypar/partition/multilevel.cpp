@@ -34,7 +34,6 @@
 #include "mt-kahypar/io/partitioning_output.h"
 #include "mt-kahypar/partition/coarsening/multilevel_uncoarsener.h"
 #include "mt-kahypar/partition/coarsening/nlevel_uncoarsener.h"
-#include "mt-kahypar/partition/coarsening/separated_nodes/snodes_coarsening.h"
 #include "mt-kahypar/utils/hypergraph_statistics.h"
 
 namespace mt_kahypar::multilevel {
@@ -222,7 +221,7 @@ namespace mt_kahypar::multilevel {
         if ( _context.initial_partitioning.mode == Mode::direct ) {
           disableTimerAndStats();
           PoolInitialPartitionerContinuation& ip_continuation = *new(allocate_continuation())
-                  PoolInitialPartitionerContinuation(phg.copy(parallel_tag_t()), phg, _ip_context);
+                  PoolInitialPartitionerContinuation(phg, _ip_context);
           spawn_initial_partitioner(ip_continuation);
         } else {
           std::unique_ptr<IInitialPartitioner> initial_partitioner =

@@ -35,14 +35,11 @@ using IPTaskList = vec< std::tuple<InitialPartitioningAlgorithm, int, int> >;
 
 class PoolInitialPartitionerContinuation : public tbb::task {
 public:
-  PoolInitialPartitionerContinuation(PartitionedHypergraph&& hypergraph,
-                                     PartitionedHypergraph& original_hg,
+  PoolInitialPartitionerContinuation(PartitionedHypergraph& hypergraph,
                                      const Context& context);
 
   tbb::task* execute() override ;
 
-  PartitionedHypergraph _hg;
-  PartitionedHypergraph& _original_hg;
   InitialPartitioningDataContainer _ip_data;
   const Context& _context;
   vec<IPTaskList> _ip_task_lists;

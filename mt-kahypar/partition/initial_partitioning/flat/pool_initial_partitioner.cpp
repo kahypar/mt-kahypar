@@ -62,16 +62,12 @@ namespace mt_kahypar {
   };
 
 
-  PoolInitialPartitionerContinuation::PoolInitialPartitionerContinuation(PartitionedHypergraph&& hypergraph,
-                                                                         PartitionedHypergraph& original_hg,
+  PoolInitialPartitionerContinuation::PoolInitialPartitionerContinuation(PartitionedHypergraph& hypergraph,
                                                                          const Context& context) :
-          _hg(std::move(hypergraph)),
-          _original_hg(original_hg),
-          _ip_data(_hg, context),
+          _ip_data(hypergraph, context),
           _context(context),
           _ip_task_lists(context.shared_memory.num_threads) {
-    ASSERT(hypergraph.initialNumNodes() - hypergraph.hypergraph().numIncludedSeparated()
-           == original_hg.initialNumNodes() - original_hg.hypergraph().numIncludedSeparated());
+
     ASSERT(context.shared_memory.num_threads > 0);
     if ( context.initial_partitioning.enabled_ip_algos.size() <
          static_cast<size_t>(InitialPartitioningAlgorithm::UNDEFINED) ) {
@@ -94,23 +90,6 @@ namespace mt_kahypar {
 
   tbb::task* PoolInitialPartitionerContinuation::execute() {
     _ip_data.apply();
-    const HypernodeID first_sep = _hg.hypergraph().firstIncludedSeparated();
-
-    tbb::parallel_for(ID(0), _hg.initialNumNodes(), [&](const HypernodeID& node) {
-      if (node >= first_sep) {
-        // TODO
-        _original_hg.separatedSetOnlyNodePart(node - first_sep, _hg.partID(node));
-      } else {
-        _original_hg.setOnlyNodePart(node, _hg.partID(node));
-      }
-    });
-    if (_hg.hasSeparatedNodes()) {
-      ASSERT(_hg.numAssignedSeparated() == _original_hg.numAssignedSeparated());
-      tbb::parallel_for(ID(0), _hg.numAssignedSeparated(), [&](const HypernodeID& s_node) {
-        _original_hg.separatedSetOnlyNodePart(s_node, _hg.separatedPartID(s_node));
-      });
-    }
-    _original_hg.updateBlockWeights();
     return nullptr;
   }
 
@@ -139,7 +118,7 @@ namespace mt_kahypar {
 
   tbb::task* PoolInitialPartitioner::execute() {
     PoolInitialPartitionerContinuation& ip_continuation = *new(allocate_continuation())
-            PoolInitialPartitionerContinuation(_hg.copy(parallel_tag_t()), _hg, _context);
+            PoolInitialPartitionerContinuation(_hg, _context);
     spawn_initial_partitioner(ip_continuation);
     return nullptr;
   }
