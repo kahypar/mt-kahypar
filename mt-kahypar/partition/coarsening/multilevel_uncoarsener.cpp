@@ -73,21 +73,28 @@ namespace mt_kahypar {
       current_metrics.getMetric(Mode::direct, _context.partition.objective));
     uncontraction_progress += partitioned_hg.initialNumNodes();
 
-    ds::Array<PartIdType> part_ids(_hg.initialNumNodes(), PartIdType(kInvalidPartition));
+    ds::Array<PartIdType> part_ids(_hg.initialNumNodes() + _hg.numSeparatedNodes(), PartIdType(kInvalidPartition));
 
     for (int i = _uncoarseningData.hierarchy.size() - 1; i >= 0; --i) {
       // Project partition to next level finer hypergraph
       utils::Timer::instance().start_timer("projecting_partition", "Projecting Partition");
       const size_t num_nodes = partitioned_hg.initialNumNodes();
+      const HypernodeID first_included_sep = partitioned_hg.hypergraph().firstIncludedSeparated();
+      // extract part_ids to reset partition
+      partitioned_hg.extractPartIDs(part_ids);
+
       if (i == 0) {
         partitioned_hg.setHypergraph(_hg);
       } else {
         partitioned_hg.setHypergraph((_uncoarseningData.hierarchy)[i-1].contractedHypergraph());
       }
-      // extract part_ids to reset partition
-      partitioned_hg.extractPartIDs(part_ids);
-      partitioned_hg.resetData();
 
+      partitioned_hg.resetData();
+      partitioned_hg.initializeSeparatedParts();
+      ASSERT(part_ids.size() >= num_nodes + partitioned_hg.numSeparatedNodes());
+      tbb::parallel_for(first_included_sep, ID(num_nodes + partitioned_hg.numSeparatedNodes()), [&] (const HypernodeID& node) {
+        partitioned_hg.separatedSetOnlyNodePart(node - first_included_sep, part_ids[node].load());
+      });
       partitioned_hg.doParallelForAllNodes([&](const HypernodeID hn) {
         const HypernodeID coarse_hn = (_uncoarseningData.hierarchy)[i].mapToContractedHypergraph(hn);
         if (coarse_hn != kInvalidHypernode) {
@@ -127,6 +134,14 @@ namespace mt_kahypar {
           for (HypernodeID node: partitioned_hg.nodes()) {
             if (partitioned_hg.partID(node) == kInvalidPartition) {
               return false;
+            }
+          }
+          if (partitioned_hg.hasSeparatedNodes()) {
+            SeparatedNodes& separated_nodes = partitioned_hg.separatedNodes().finest();
+            for (HypernodeID node = 0; node < separated_nodes.numNodes(); ++node) {
+              if (partitioned_hg.separatedPartID(node) == kInvalidPartition) {
+                return false;
+              }
             }
           }
           return true;

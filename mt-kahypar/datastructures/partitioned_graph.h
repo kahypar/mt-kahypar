@@ -224,6 +224,8 @@ private:
       _incident_weight_in_part.assign(_incident_weight_in_part.size(),  CAtomic<HyperedgeWeight>(0));
     }, [&] {
       for (auto& x : _part_weights) x.store(0, std::memory_order_relaxed);
+    }, [&] {
+      _sep_part_ids.assign(_sep_part_ids.size(), CAtomic<PartitionID>(kInvalidPartition));
     });
   }
 
@@ -250,9 +252,13 @@ private:
     return _hg->separatedNodes();
   }
 
+  HypernodeID numSeparatedNodes() const {
+    return _hg->numSeparatedNodes();
+  }
+
   HyperedgeID popSeparated() {
     // TODO(maas): is finest() correct here?
-    ASSERT(hasSeparatedNodes() && _sep_part_ids.size() == separatedNodes().finest().numNodes());
+    ASSERT(hasSeparatedNodes() && _sep_part_ids.size() == numSeparatedNodes());
     const HypernodeID num_sep_nodes = separatedNodes().finest().popBatch();
     _sep_part_ids.resize(num_sep_nodes);
     return num_sep_nodes;
@@ -492,14 +498,16 @@ private:
   }
 
   PartitionID separatedPartID(const HypernodeID sep_node) const {
-    ASSERT(hasSeparatedNodes() && _sep_part_ids.size() == separatedNodes().finest().numNodes());
+    ASSERT(hasSeparatedNodes() && _sep_part_ids.size() >= numSeparatedNodes());
+    ASSERT(_hg->numIncludedSeparated() == 0 || !hasSeparatedNodes() || numSeparatedNodes() == 0);
     ASSERT(sep_node < _sep_part_ids.size(), "Node" << sep_node << "does not exist");
     return _sep_part_ids[sep_node].load(std::memory_order_relaxed);
   }
 
   void separatedSetOnlyNodePart(const HypernodeID sep_node, PartitionID p) {
     ASSERT(p != kInvalidPartition && p < _k);
-    ASSERT(hasSeparatedNodes() && _sep_part_ids.size() == separatedNodes().finest().numNodes());
+    ASSERT(hasSeparatedNodes() && _sep_part_ids.size() >= numSeparatedNodes());
+    ASSERT(_hg->numIncludedSeparated() == 0 || !hasSeparatedNodes() || numSeparatedNodes() == 0);
     ASSERT(sep_node < _sep_part_ids.size(), "Node" << sep_node << "does not exist");
     ASSERT(_sep_part_ids[sep_node].load() == kInvalidPartition);
     ASSERT(sep_node < _sep_part_ids.size());
@@ -512,7 +520,13 @@ private:
   }
 
   void extractPartIDs(Array<CAtomic<PartitionID>>& part_ids) {
-    std::swap(_part_ids, part_ids);
+    ASSERT(part_ids.size() >= initialNumNodes() + numSeparatedNodes());
+    tbb::parallel_for(ID(0), initialNumNodes(), [&](const HypernodeID& node) {
+      part_ids[node].store(_part_ids[node].load());
+    });
+    tbb::parallel_for(ID(0), numSeparatedNodes(), [&](const HypernodeID& sep_node) {
+      part_ids[initialNumNodes() + sep_node].store(_sep_part_ids[sep_node].load());
+    });
   }
 
 
@@ -955,7 +969,7 @@ private:
   }
 
   void updateBlockWeights() {
-    ASSERT(!hasSeparatedNodes() || _sep_part_ids.size() == separatedNodes().finest().numNodes());
+    ASSERT(!hasSeparatedNodes() || _sep_part_ids.size() == numSeparatedNodes());
     _part_weights.assign(_part_weights.size(), CAtomic<HypernodeWeight>(0));
     initializeBlockWeights();
   }

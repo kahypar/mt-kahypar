@@ -125,14 +125,20 @@ public:
         parallel::MemoryPool::instance().release_mem_group("Coarsening");
       }
 
+      Hypergraph& coarsest_hg = hierarchy.empty() ? _hg : hierarchy.back().contractedHypergraph();
+      const HypernodeID separatedTargetSize = calculateSeparatedNodesTargetSize(coarsest_hg);
+      if (separatedTargetSize < coarsest_hg.separatedNodes().onliest().numNodes()) {
+        star_partitioning::coarsen(coarsest_hg, _context, separatedTargetSize);
+      }
+      if (_context.initial_partitioning.reinsert_separated) {
+        // TODO(maas): might be problematic if hierarchy is empty
+        coarsest_hg = HypergraphFactory::reinsertSeparatedNodes(coarsest_hg, coarsest_hg.separatedNodes().coarsest());
+      }
+
       // Construct partitioned hypergraph for initial partitioning
       *partitioned_hg = PartitionedHypergraph(_context.partition.k, _hg, parallel_tag_t());
       if (!hierarchy.empty()) {
         partitioned_hg->setHypergraph(hierarchy.back().contractedHypergraph());
-      }
-      const HypernodeID separatedTargetSize = calculateSeparatedNodesTargetSize(partitioned_hg->hypergraph());
-      if (separatedTargetSize < partitioned_hg->separatedNodes().onliest().numNodes()) {
-        star_partitioning::coarsen(partitioned_hg->hypergraph(), _context, separatedTargetSize);
       }
 
       utils::Timer::instance().stop_timer("finalize_multilevel_hierarchy");

@@ -831,15 +831,21 @@ class StaticGraph {
     return *_separated_nodes;
   }
 
+  HypernodeID numSeparatedNodes() const {
+    return separatedNodes().finest().numNodes();
+  }
+
   void setSeparatedNodes(SepNodesStack* separated_nodes) {
     _separated_nodes = separated_nodes;
   }
 
   HypernodeID numIncludedSeparated() const {
+    ASSERT(_n_separated == 0 || !hasSeparatedNodes() || numSeparatedNodes() == 0);
     return _n_separated;
   }
 
   HypernodeID firstIncludedSeparated() const {
+    ASSERT(_n_separated == 0 || !hasSeparatedNodes() || numSeparatedNodes() == 0);
     return _num_nodes - _n_separated;
   }
 
