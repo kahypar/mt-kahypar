@@ -302,6 +302,7 @@ private:
     buffer.assign(_sep_part_ids.size(), CAtomic<PartitionID>(kInvalidPartition));
     for (size_t level = 0; level + 1 < stack.numLevels(); ++level) {
       const auto& mapping = stack.mapping(level);
+      ASSERT(_sep_part_ids[stack.atLevel(level).numNodes()] == kInvalidHypernode);
       tbb::parallel_for(ID(0), stack.atLevel(level + 1).numNodes(), [&](const HypernodeID& node) {
         const HypernodeID coarse_node = mapping[node];
         ASSERT(_sep_part_ids[coarse_node].load() != kInvalidPartition);

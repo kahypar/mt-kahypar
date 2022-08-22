@@ -261,10 +261,13 @@ namespace mt_kahypar {
     }
 
     tbb::task* execute() override {
-      ASSERT(_hg.initialNumNodes() == _bisection_hg.initialNumNodes());
+      ASSERT(_hg.initialNumNodes() + (_hg.hasSeparatedNodes() ? _hg.separatedNodes().coarsest().numNodes() : 0)
+             == _bisection_hg.initialNumNodes() + (_bisection_hg.hasSeparatedNodes() ? _bisection_hg.separatedNodes().coarsest().numNodes() : 0));
       // Apply partition to hypergraph
       const PartitionID block_0 = 0;
       const PartitionID block_1 = _context.partition.k / 2 + (_context.partition.k % 2 != 0 ? 1 : 0);
+
+      // TODO(maas): the following code could be deduplicated
       _hg.doParallelForAllNodes([&](const HypernodeID& hn) {
         PartitionID part_id = _bisection_partitioned_hg.partID(hn);
         ASSERT(part_id != kInvalidPartition && part_id < _hg.k());
@@ -277,21 +280,45 @@ namespace mt_kahypar {
       });
       if (_hg.hasSeparatedNodes()) {
         _hg.initializeSeparatedParts();
-        SeparatedNodes& s_nodes = _hg.separatedNodes().finest();
-        s_nodes.restoreSavepoint();
-        ASSERT(s_nodes.numNodes() == _bisection_hg.separatedNodes().finest().numNodes());
-        tbb::parallel_for(ID(0), s_nodes.numNodes(), [&](const HypernodeID& node) {
-          PartitionID part_id = _bisection_partitioned_hg.separatedPartID(node);
+        _hg.separatedNodes().finest().restoreSavepoint();
+        const HypernodeID num_nodes = _bisection_hg.initialNumNodes() + _bisection_hg.numSeparatedNodes();
+        const HyperedgeID first_included_sep = _bisection_hg.firstIncludedSeparated();
+        ds::Array<PartIdType> part_ids(num_nodes, PartIdType(kInvalidPartition));
+        _bisection_partitioned_hg.extractPartIDs(part_ids);
+
+        tbb::parallel_for(first_included_sep, num_nodes, [&] (const HypernodeID& node) {
+          PartitionID part_id = part_ids[node].load();
           ASSERT(part_id != kInvalidPartition && part_id < _hg.k());
-          ASSERT(_hg.separatedPartID(node) == kInvalidPartition);
+          ASSERT(_hg.separatedPartID(node - first_included_sep) == kInvalidPartition);
           if ( part_id == 0 ) {
-            _hg.separatedSetOnlyNodePart(node, block_0);
+            _hg.separatedSetOnlyNodePart(node - first_included_sep, block_0);
           } else {
-            _hg.separatedSetOnlyNodePart(node, block_1);
+            _hg.separatedSetOnlyNodePart(node - first_included_sep, block_1);
           }
         });
+        if (_context.initial_partitioning.reinsert_separated && _context.type != kahypar::ContextType::main) {
+          _hg.propagateSeparatedPartIDsToFinest();
+        }
       }
       _hg.initializePartition();
+
+      ASSERT([&] {
+        for (HypernodeID node: _hg.nodes()) {
+          if (_hg.partID(node) == kInvalidPartition) {
+            return false;
+          }
+        }
+        if (_hg.hasSeparatedNodes()) {
+          SeparatedNodes& separated_nodes = _hg.separatedNodes().finest();
+          for (HypernodeID node = 0; node < separated_nodes.numNodes(); ++node) {
+            if (_hg.separatedPartID(node) == kInvalidPartition) {
+              // LOG << V(node) << V(_hg.separatedNodes().coarsest().numNodes()) << V(separated_nodes.numNodes());
+              return false;
+            }
+          }
+        }
+        return true;
+      }() );
 
       ASSERT(metrics::objective(_bisection_partitioned_hg, _context.partition.objective) ==
              metrics::objective(_hg, _context.partition.objective));
