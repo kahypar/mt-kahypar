@@ -832,7 +832,11 @@ class StaticGraph {
   }
 
   HypernodeID numSeparatedNodes() const {
-    return separatedNodes().finest().numNodes();
+    return hasSeparatedNodes() ? separatedNodes().finest().numNodes() : 0;
+  }
+
+  HypernodeID numSeparatedEdges() const {
+    return hasSeparatedNodes() ? separatedNodes().finest().numEdges() : 0;
   }
 
   void setSeparatedNodes(SepNodesStack* separated_nodes) {

@@ -204,6 +204,34 @@ private:
     });
   }
 
+  explicit PartitionedGraph(const PartitionID k,
+                            HypernodeID top_level_num_nodes,
+                            HyperedgeID top_level_num_edges,
+                            parallel_tag_t) :
+    _is_gain_cache_initialized(false),
+    _top_level_num_nodes(top_level_num_nodes),
+    _k(k),
+    _hg(nullptr),
+    _part_weights(k, CAtomic<HypernodeWeight>(0)),
+    _part_ids(),
+    _incident_weight_in_part(),
+    _edge_locks(),
+    _edge_markers() {
+    tbb::parallel_invoke([&] {
+      _part_ids.resize(
+        "Refinement", "vertex_part_info", top_level_num_nodes);
+      _part_ids.assign(top_level_num_nodes, CAtomic<PartitionID>(kInvalidPartition));
+    }, [&] {
+      _edge_locks.resize(
+        "Refinement", "edge_locks", static_cast<size_t>(top_level_num_edges));
+      _edge_locks.assign(top_level_num_edges, EdgeLock());
+    }, [&] {
+      if (!Hypergraph::is_static_hypergraph) {
+        _edge_markers.setSize(top_level_num_edges);
+      }
+    });
+  }
+
   PartitionedGraph(const PartitionedGraph&) = delete;
   PartitionedGraph & operator= (const PartitionedGraph &) = delete;
 
@@ -279,6 +307,9 @@ private:
 
   void setHypergraph(Hypergraph& hypergraph) {
     _hg = &hypergraph;
+    if (hasSeparatedNodes()) {
+      initializeSeparatedParts();
+    }
   }
 
   // ! Initial number of hypernodes

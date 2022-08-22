@@ -188,7 +188,7 @@ class InitialPartitioningDataContainer {
       _partitioned_hypergraph(context.partition.k, hypergraph),
       _context(context),
       _global_stats(global_stats),
-      _partition(hypergraph.initialNumNodes() + hypergraph.separatedNodes().finest().numNodes(), kInvalidPartition),
+      _partition(hypergraph.initialNumNodes() + hypergraph.numSeparatedNodes(), kInvalidPartition),
       _result(InitialPartitioningAlgorithm::UNDEFINED,
               std::numeric_limits<HypernodeWeight>::max(),
               std::numeric_limits<HypernodeWeight>::max(),
@@ -656,9 +656,10 @@ class InitialPartitioningDataContainer {
         ASSERT(_partitioned_hg.partID(hn) == kInvalidPartition);
         _partitioned_hg.setOnlyNodePart(hn, part_id);
       });
-      const ds::SeparatedNodes& s_nodes = _partitioned_hg.separatedNodes().finest();
       if (_context.initial_partitioning.apply_star_partitioning_per_candidate
           && !_context.initial_partitioning.apply_star_partitioning_to_best) {
+        ASSERT(_partitioned_hg.hasSeparatedNodes());
+        const ds::SeparatedNodes& s_nodes = _partitioned_hg.separatedNodes().finest();
         tbb::parallel_for(ID(0), s_nodes.numNodes(), [&](const HypernodeID& node) {
           const HypernodeID node_id = _partitioned_hg.initialNumNodes() + node;
           ASSERT(node_id < best->_partition.size());

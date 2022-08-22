@@ -21,11 +21,14 @@
  ******************************************************************************/
 #pragma once
 
+#include "mt-kahypar/datastructures/separated_nodes.h"
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/coarsening/separated_nodes/snodes_coarsening.h"
 
 namespace mt_kahypar {
+  using ds::SepNodesStack;
+
 class Level {
 
 public:
@@ -130,16 +133,15 @@ public:
       if (separatedTargetSize < coarsest_hg.separatedNodes().onliest().numNodes()) {
         star_partitioning::coarsen(coarsest_hg, _context, separatedTargetSize);
       }
-      if (_context.initial_partitioning.reinsert_separated) {
+      if (_context.initial_partitioning.reinsert_separated && _context.type != kahypar::ContextType::main) {
         // TODO(maas): might be problematic if hierarchy is empty
         coarsest_hg = HypergraphFactory::reinsertSeparatedNodes(coarsest_hg, coarsest_hg.separatedNodes().coarsest());
       }
 
       // Construct partitioned hypergraph for initial partitioning
-      *partitioned_hg = PartitionedHypergraph(_context.partition.k, _hg, parallel_tag_t());
-      if (!hierarchy.empty()) {
-        partitioned_hg->setHypergraph(hierarchy.back().contractedHypergraph());
-      }
+      *partitioned_hg = PartitionedHypergraph(_context.partition.k, _hg.initialNumNodes() + _hg.numSeparatedNodes(),
+                                              _hg.initialNumEdges() + 2 * _hg.numSeparatedEdges(), parallel_tag_t());
+      partitioned_hg->setHypergraph(coarsest_hg);
 
       utils::Timer::instance().stop_timer("finalize_multilevel_hierarchy");
     }

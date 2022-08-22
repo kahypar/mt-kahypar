@@ -427,10 +427,14 @@ namespace mt_kahypar {
     if (preprocessing.community_detection.use_isolated_nodes_treshold != coarsening.separate_size_one_communities) {
       ERROR("--p-use-isolated-nodes-treshold and --c-separate-size-one-communities are intended to be used together");
     }
-    if (!initial_partitioning.apply_star_partitioning_per_candidate
-        && !initial_partitioning.apply_star_partitioning_to_best
-        && !initial_partitioning.reinsert_separated) {
-      ERROR("some kind of star partitioning required in initial partitioning");
+    if (!(initial_partitioning.apply_star_partitioning_per_candidate
+        ^ initial_partitioning.apply_star_partitioning_to_best
+        ^ initial_partitioning.reinsert_separated) ||
+        (initial_partitioning.apply_star_partitioning_per_candidate
+        && initial_partitioning.apply_star_partitioning_to_best
+        && initial_partitioning.reinsert_separated)) {
+      ERROR("exactly one of --i-apply-star-partitioning-per-canditate, --i-apply-star-partitioning-to-best and "
+            "--i-reinsert-separated must be true");
     }
 
     shared_memory.static_balancing_work_packages = std::clamp(shared_memory.static_balancing_work_packages, 4UL, 256UL);
