@@ -23,6 +23,19 @@
 #include "mt-kahypar/parallel/hardware_topology.h"
 #include "mt-kahypar/parallel/tbb_initializer.h"
 
+/** NOTE
+ * We have different configurations of our partitioner (resulting in several executables)
+ * using different hypergraph data structures. The concrete implementation is set via compile
+ * definitions in our CMake script and is configured in this file here. If you use a CMake version < 3.19
+ * each executable will depend on all header files included in the following, since previous CMake versions do not evaluate
+ * #ifdef definitions. This means that all executables are recompiled if you change one of these header files.
+ * (even though the target does not depend on it). In later CMake versions (>= 3.19), the header dependencies are
+ * extracted from the compiler, which evaluates the following #ifdef defintions correctly.
+ * Therefore, we strongly recommend to use a CMake version >= 3.19 to reduce dependencies between
+ * the different compile targets.
+ */
+
+
 #ifdef USE_GRAPH_PARTITIONER
 #ifdef USE_STRONG_PARTITIONER
 #include "mt-kahypar/datastructures/dynamic_graph.h"
