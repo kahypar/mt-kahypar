@@ -39,7 +39,7 @@ public:
           round(1)
   {
     if (context.refinement.fm.iter_moves_on_recalc && context.refinement.fm.rollback_parallel) {
-      last_recalc_round.resize(hg.initialNumEdges(), CAtomic<uint32_t>(0));
+      last_recalc_round.resize(hg.initialNumEdges() + 2 * hg.numSeparatedEdges(), CAtomic<uint32_t>(0));
     }
   }
 

@@ -296,12 +296,27 @@ private:
     return separatedNodes().finest().extract(block, graph_node_mapping, _sep_part_ids);
   }
 
+  void propagateSeparatedPartIDsToFinest() {
+    SepNodesStack& stack = separatedNodes();
+    vec< CAtomic<PartitionID> > buffer;
+    buffer.assign(_sep_part_ids.size(), CAtomic<PartitionID>(kInvalidPartition));
+    for (size_t level = 0; level + 1 < stack.numLevels(); ++level) {
+      const auto& mapping = stack.mapping(level);
+      tbb::parallel_for(ID(0), stack.atLevel(level + 1).numNodes(), [&](const HypernodeID& node) {
+        const HypernodeID coarse_node = mapping[node];
+        ASSERT(_sep_part_ids[coarse_node].load() != kInvalidPartition);
+        buffer[node].store(_sep_part_ids[coarse_node].load());
+      });
+      std::swap(_sep_part_ids, buffer);
+    }
+  }
+
   void initializeSeparatedParts() {
-    _sep_part_ids.resize(separatedNodes().finest().numNodes(), CAtomic<PartitionID>(kInvalidPartition));
+    _sep_part_ids.assign(numSeparatedNodes(), CAtomic<PartitionID>(kInvalidPartition));
   }
 
   void resetSeparatedParts() {
-    _sep_part_ids.assign(separatedNodes().finest().numNodes(), CAtomic<PartitionID>(kInvalidPartition));
+    _sep_part_ids.assign(numSeparatedNodes(), CAtomic<PartitionID>(kInvalidPartition));
     updateBlockWeights();
   }
 
@@ -550,7 +565,8 @@ private:
     _part_weights[p].fetch_add(separatedNodes().finest().nodeWeight(sep_node), std::memory_order_relaxed);
   }
 
-  void extractPartIDs(Array<CAtomic<PartitionID>>& part_ids) {
+  void extractPartIDs(Array<CAtomic<PartitionID>>& part_ids) const {
+    ASSERT(_hg->numIncludedSeparated() == 0 || !hasSeparatedNodes() || numSeparatedNodes() == 0);
     ASSERT(part_ids.size() >= initialNumNodes() + numSeparatedNodes());
     tbb::parallel_for(ID(0), initialNumNodes(), [&](const HypernodeID& node) {
       part_ids[node].store(_part_ids[node].load());

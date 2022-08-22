@@ -371,6 +371,26 @@ class SepNodesStack {
     return coarsest();
   }
 
+  size_t numLevels() const {
+    return _data.size();
+  }
+
+  const SeparatedNodes& atLevel(size_t level) const {
+    ASSERT(level < _data.size());
+    return *_data[_data.size() - level - 1];
+  }
+
+  SeparatedNodes& atLevel(size_t level) {
+    ASSERT(level < _data.size());
+    return *_data[_data.size() - level - 1];
+  }
+
+  // the mapping from the next finest level to the specified level (0 is the coarsest level)
+  const vec<HypernodeID>& mapping(size_t level) const {
+    ASSERT(level < _mappings.size());
+    return _mappings[_mappings.size() - level - 1];
+  }
+
   void coarsen(vec<HypernodeID>&& communities) {
     SeparatedNodes next = coarsest().coarsen(communities);
     _data.push_back(std::make_unique<SeparatedNodes>(std::move(next)));

@@ -43,9 +43,9 @@ public:
 
   MultiTryKWayFM(const Hypergraph& hypergraph,
                  const Context& c) :
-    initial_num_nodes(hypergraph.initialNumNodes()),
+    initial_num_nodes(hypergraph.initialNumNodes() + hypergraph.numSeparatedNodes()),
     context(c),
-    sharedData(hypergraph.initialNumNodes(), context),
+    sharedData(hypergraph.initialNumNodes() + hypergraph.numSeparatedNodes(), context),
     globalRollback(hypergraph, context),
     ets_fm([&] { return constructLocalizedKWayFMSearch(); })
   {

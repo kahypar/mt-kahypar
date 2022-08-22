@@ -50,9 +50,9 @@ class LabelPropagationRefiner final : public IRefiner {
     _current_num_edges(kInvalidHyperedge),
     _gain(context),
     _active_nodes(),
-    _active_node_was_moved(hypergraph.initialNumNodes(), uint8_t(false)),
-    _next_active(hypergraph.initialNumNodes()),
-    _visited_he(hypergraph.initialNumEdges()) { }
+    _active_node_was_moved(hypergraph.initialNumNodes() + hypergraph.numSeparatedNodes(), uint8_t(false)),
+    _next_active(hypergraph.initialNumNodes() + hypergraph.numSeparatedNodes()),
+    _visited_he(hypergraph.initialNumEdges() + 2 * hypergraph.numSeparatedEdges()) { }
 
   LabelPropagationRefiner(const LabelPropagationRefiner&) = delete;
   LabelPropagationRefiner(LabelPropagationRefiner&&) = delete;
