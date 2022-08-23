@@ -184,6 +184,9 @@ namespace mt_kahypar {
             ("p-disable-community-detection-on-mesh-graphs",
              po::value<bool>(&context.preprocessing.disable_community_detection_for_mesh_graphs)->value_name("<bool>")->default_value(true),
              "If true, community detection is dynamically disabled for mesh graphs (as it is not effective for this type of graphs).")
+            ("p-disable-star-partitioning-on-mesh-graphs",
+             po::value<bool>(&context.preprocessing.disable_star_partitioning_for_mesh_graphs)->value_name("<bool>")->default_value(true),
+             "If true, star partitioning is dynamically disabled for mesh graphs.")
             #endif
             ("p-louvain-edge-weight-function",
              po::value<std::string>()->value_name("<string>")->notifier(

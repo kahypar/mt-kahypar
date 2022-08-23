@@ -133,7 +133,9 @@ public:
       if (separatedTargetSize < coarsest_hg.separatedNodes().onliest().numNodes()) {
         star_partitioning::coarsen(coarsest_hg, _context, separatedTargetSize);
       }
-      if (_context.initial_partitioning.reinsert_separated && _context.type != kahypar::ContextType::main) {
+      if (_context.initial_partitioning.reinsert_separated
+          && _context.type != kahypar::ContextType::main
+          && coarsest_hg.separatedNodes().coarsest().numNodes() > 0) {
         // TODO(maas): might be problematic if hierarchy is empty
         coarsest_hg = HypergraphFactory::reinsertSeparatedNodes(coarsest_hg, coarsest_hg.separatedNodes().coarsest());
       }

@@ -93,7 +93,9 @@ struct PreprocessingParameters {
   bool stable_construction_of_incident_edges = false;
   bool use_community_detection = false;
   bool disable_community_detection_for_mesh_graphs = true;
+  bool disable_star_partitioning_for_mesh_graphs = true;
   CommunityDetectionParameters community_detection = { };
+  bool mesh_graph_detected = false;
 };
 
 std::ostream & operator<< (std::ostream& str, const PreprocessingParameters& params);

@@ -226,13 +226,15 @@ class MultilevelVertexPairRater {
       ret.remove_node = false;
     } else {
       ret.remove_node = false;
-      if (_context.coarsening.forbid_different_density_contractions
-          && has_only_higher_density_matches && can_be_removed) {
-        ret.remove_node = true;
-      }
-      if (_context.coarsening.separate_size_one_communities && community_size_is_one
-          && hypergraph.nodeWeight(u) <= static_cast<HypernodeWeight>(_context.coarsening.separated_communities_max_size)) {
-        ret.remove_node = true;
+      if (!_context.preprocessing.disable_star_partitioning_for_mesh_graphs || !_context.preprocessing.mesh_graph_detected) {
+        if (_context.coarsening.forbid_different_density_contractions
+            && has_only_higher_density_matches && can_be_removed) {
+          ret.remove_node = true;
+        }
+        if (_context.coarsening.separate_size_one_communities && community_size_is_one
+            && hypergraph.nodeWeight(u) <= static_cast<HypernodeWeight>(_context.coarsening.separated_communities_max_size)) {
+          ret.remove_node = true;
+        }
       }
     }
     tmp_ratings.clear();
