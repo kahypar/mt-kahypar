@@ -222,6 +222,7 @@ namespace mt_kahypar {
     } else {
       ERROR("Invalid mode: " << context.partition.mode);
     }
+    hypergraph.setSeparatedNodes(nullptr); // prevent use after free
 
     // ################## POSTPROCESSING ##################
     utils::Timer::instance().start_timer("postprocessing", "Postprocessing");
