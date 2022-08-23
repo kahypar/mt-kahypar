@@ -38,6 +38,7 @@ using ds::SeparatedNodes;
 
 void Approximate::partition(PartitionedHypergraph& phg, const Context& context,
                             Array<HypernodeWeight>& part_weights, parallel_tag_t) {
+  // TODO(maas): there's a bug in the parallel implementation (and it's not too performant anyways)
   SeparatedNodes& s_nodes = phg.separatedNodes().finest();
   Array<HyperedgeWeight> gains(s_nodes.numNodes() * _k);
   Array<PartitionID> preferred_part(s_nodes.numNodes());

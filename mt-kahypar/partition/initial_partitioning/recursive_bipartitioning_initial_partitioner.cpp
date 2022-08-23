@@ -61,7 +61,7 @@ namespace mt_kahypar {
     _hg.resetSeparatedParts();
 
     // TODO: compare quality?!
-    star_partitioning::partition(_hg, _context);
+    star_partitioning::partition(_hg, _context, false);
     _hg.updateBlockWeights(); // TODO: not necessary anymore?
   }
 } // namepace mt_kahypar

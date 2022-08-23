@@ -78,8 +78,9 @@ namespace mt_kahypar {
     for (int i = _uncoarseningData.hierarchy.size() - 1; i >= 0; --i) {
       // Project partition to next level finer hypergraph
       utils::Timer::instance().start_timer("projecting_partition", "Projecting Partition");
+      const bool requires_propagation = (partitioned_hg.hypergraph().numIncludedSeparated() > 0);
       const size_t num_nodes = partitioned_hg.initialNumNodes();
-      const HypernodeID num_separated = + partitioned_hg.numSeparatedNodes();
+      const HypernodeID num_separated = partitioned_hg.numSeparatedNodes();
       const HypernodeID first_included_sep = partitioned_hg.hypergraph().firstIncludedSeparated();
       // extract part_ids to reset partition
       partitioned_hg.extractPartIDs(part_ids);
@@ -96,7 +97,8 @@ namespace mt_kahypar {
       tbb::parallel_for(first_included_sep, ID(num_nodes + num_separated), [&] (const HypernodeID& node) {
         partitioned_hg.separatedSetOnlyNodePart(node - first_included_sep, part_ids[node].load());
       });
-      if (_context.initial_partitioning.reinsert_separated && _context.type != kahypar::ContextType::main) {
+      if (requires_propagation) {
+        ASSERT(_context.initial_partitioning.reinsert_separated && _context.type != kahypar::ContextType::main);
         partitioned_hg.propagateSeparatedPartIDsToFinest();
       }
       partitioned_hg.doParallelForAllNodes([&](const HypernodeID hn) {

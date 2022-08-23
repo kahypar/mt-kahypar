@@ -302,9 +302,11 @@ private:
     buffer.assign(_sep_part_ids.size(), CAtomic<PartitionID>(kInvalidPartition));
     for (size_t level = 0; level + 1 < stack.numLevels(); ++level) {
       const auto& mapping = stack.mapping(level);
-      ASSERT(_sep_part_ids[stack.atLevel(level).numNodes()] == kInvalidHypernode);
+      ASSERT(stack.atLevel(level).numNodes() >= _sep_part_ids.size()
+             || _sep_part_ids[stack.atLevel(level).numNodes()] == kInvalidHypernode);
       tbb::parallel_for(ID(0), stack.atLevel(level + 1).numNodes(), [&](const HypernodeID& node) {
         const HypernodeID coarse_node = mapping[node];
+        ASSERT(node < mapping.size() && node < buffer.size() && coarse_node < _sep_part_ids.size());
         ASSERT(_sep_part_ids[coarse_node].load() != kInvalidPartition);
         buffer[node].store(_sep_part_ids[coarse_node].load());
       });
@@ -313,11 +315,11 @@ private:
   }
 
   void initializeSeparatedParts() {
-    _sep_part_ids.assign(numSeparatedNodes(), CAtomic<PartitionID>(kInvalidPartition));
+    _sep_part_ids.assign(std::max(numSeparatedNodes(), ID(_sep_part_ids.size())), CAtomic<PartitionID>(kInvalidPartition));
   }
 
   void resetSeparatedParts() {
-    _sep_part_ids.assign(numSeparatedNodes(), CAtomic<PartitionID>(kInvalidPartition));
+    _sep_part_ids.assign(std::max(numSeparatedNodes(), ID(_sep_part_ids.size())), CAtomic<PartitionID>(kInvalidPartition));
     updateBlockWeights();
   }
 
@@ -557,7 +559,6 @@ private:
     ASSERT(_hg->numIncludedSeparated() == 0 || !hasSeparatedNodes() || numSeparatedNodes() == 0);
     ASSERT(sep_node < _sep_part_ids.size(), "Node" << sep_node << "does not exist");
     ASSERT(_sep_part_ids[sep_node].load() == kInvalidPartition);
-    ASSERT(sep_node < _sep_part_ids.size());
     _sep_part_ids[sep_node].store(p, std::memory_order_relaxed);
   }
 
@@ -570,9 +571,11 @@ private:
     ASSERT(_hg->numIncludedSeparated() == 0 || !hasSeparatedNodes() || numSeparatedNodes() == 0);
     ASSERT(part_ids.size() >= initialNumNodes() + numSeparatedNodes());
     tbb::parallel_for(ID(0), initialNumNodes(), [&](const HypernodeID& node) {
+      ASSERT(node < part_ids.size() && node < _part_ids.size());
       part_ids[node].store(_part_ids[node].load());
     });
     tbb::parallel_for(ID(0), numSeparatedNodes(), [&](const HypernodeID& sep_node) {
+      ASSERT(initialNumNodes() + sep_node < part_ids.size() && sep_node < _sep_part_ids.size());
       part_ids[initialNumNodes() + sep_node].store(_sep_part_ids[sep_node].load());
     });
   }

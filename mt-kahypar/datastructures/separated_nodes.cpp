@@ -304,7 +304,7 @@ void SeparatedNodes::initializeOutwardEdges() {
 SeparatedNodes SeparatedNodes::extract(PartitionID block, const vec<HypernodeID>& graph_node_mapping,
                                        const vec<CAtomic<PartitionID>>& part_ids) const {
   ASSERT(/*_num_graph_nodes == _outward_incident_weight.size() &&*/ _num_graph_nodes == graph_node_mapping.size());
-  ASSERT(part_ids.size() == _num_nodes);
+  ASSERT(part_ids.size() >= _num_nodes);
   // ASSERT(_graph_nodes_begin.empty());
 
   auto get_part_id = [&](HypernodeID node) {

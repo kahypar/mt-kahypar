@@ -281,6 +281,7 @@ namespace mt_kahypar {
       if (_hg.hasSeparatedNodes()) {
         _hg.initializeSeparatedParts();
         _hg.separatedNodes().finest().restoreSavepoint();
+        const bool requires_propagation = (_bisection_hg.numIncludedSeparated() > 0);
         const HypernodeID num_nodes = _bisection_hg.initialNumNodes() + _bisection_hg.numSeparatedNodes();
         const HyperedgeID first_included_sep = _bisection_hg.firstIncludedSeparated();
         ds::Array<PartIdType> part_ids(num_nodes, PartIdType(kInvalidPartition));
@@ -296,7 +297,8 @@ namespace mt_kahypar {
             _hg.separatedSetOnlyNodePart(node - first_included_sep, block_1);
           }
         });
-        if (_context.initial_partitioning.reinsert_separated && _context.type != kahypar::ContextType::main) {
+        if (requires_propagation) {
+          ASSERT(_context.initial_partitioning.reinsert_separated);
           _hg.propagateSeparatedPartIDsToFinest();
         }
       }
@@ -320,7 +322,8 @@ namespace mt_kahypar {
         return true;
       }() );
 
-      ASSERT(metrics::objective(_bisection_partitioned_hg, _context.partition.objective) ==
+      ASSERT(_bisection_partitioned_hg.numSeparatedNodes() != _hg.numSeparatedNodes() ||
+             metrics::objective(_bisection_partitioned_hg, _context.partition.objective) ==
              metrics::objective(_hg, _context.partition.objective));
 
       ASSERT(_context.partition.k >= 2);
