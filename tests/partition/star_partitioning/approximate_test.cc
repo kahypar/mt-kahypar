@@ -106,46 +106,46 @@ TEST_F(AnApproximate, WeightZero) {
     applyMinKnapsack(2, {});
 }
 
-TEST_F(AnApproximate, TestMultipleParts) {
-    Array<HypernodeWeight> part_weights;
-    part_weights.assign(2, 0);
-    std::vector<HypernodeWeight> max_part_weights{5, 5};
-    std::vector<HypernodeWeight> weights{3, 1, 3, 2, 1};
-    std::vector<HyperedgeWeight> gains{10, 9, 2, 1, 4, 0, 3, 0, 2, 0};
+// TEST_F(AnApproximate, TestMultipleParts) {
+//     Array<HypernodeWeight> part_weights;
+//     part_weights.assign(2, 0);
+//     std::vector<HypernodeWeight> max_part_weights{5, 5};
+//     std::vector<HypernodeWeight> weights{3, 1, 3, 2, 1};
+//     std::vector<HyperedgeWeight> gains{10, 9, 2, 1, 4, 0, 3, 0, 2, 0};
 
-    star_partitioning::Approximate ap(2);
-    ap.partition(5, part_weights, max_part_weights,
-      [&](HyperedgeWeight* w, const HypernodeID node) { w[0] = gains[2 * node]; w[1] = gains[2 * node + 1]; },
-      [&](const HypernodeID node) { return weights[node]; },
-      [&](const HypernodeID node, const PartitionID part) {
-        if (node == 0 || node == 1 || node == 4) {
-            ASSERT_EQ(part, 1);
-        } else {
-            ASSERT_EQ(part, 0);
-        }
-      }
-    );
-}
+//     star_partitioning::Approximate ap(2);
+//     ap.partition(5, part_weights, max_part_weights,
+//       [&](HyperedgeWeight* w, const HypernodeID node) { w[0] = gains[2 * node]; w[1] = gains[2 * node + 1]; },
+//       [&](const HypernodeID node) { return weights[node]; },
+//       [&](const HypernodeID node, const PartitionID part) {
+//         if (node == 0 || node == 1 || node == 4) {
+//             ASSERT_EQ(part, 1);
+//         } else {
+//             ASSERT_EQ(part, 0);
+//         }
+//       }
+//     );
+// }
 
-TEST_F(AnApproximate, TestMultiplePartsParallel) {
-    Array<HypernodeWeight> part_weights;
-    part_weights.assign(2, 0);
-    std::vector<HypernodeWeight> max_part_weights{5, 5};
-    std::vector<HypernodeWeight> weights{3, 1, 3, 2, 1};
-    std::vector<HyperedgeWeight> gains{10, 9, 2, 1, 4, 0, 3, 0, 2, 0};
+// TEST_F(AnApproximate, TestMultiplePartsParallel) {
+//     Array<HypernodeWeight> part_weights;
+//     part_weights.assign(2, 0);
+//     std::vector<HypernodeWeight> max_part_weights{5, 5};
+//     std::vector<HypernodeWeight> weights{3, 1, 3, 2, 1};
+//     std::vector<HyperedgeWeight> gains{10, 9, 2, 1, 4, 0, 3, 0, 2, 0};
 
-    star_partitioning::Approximate ap(2);
-    ap.partition(5, part_weights, max_part_weights,
-      [&](HyperedgeWeight* w, const HypernodeID node) { w[0] = gains[2 * node]; w[1] = gains[2 * node + 1]; },
-      [&](const HypernodeID node) { return weights[node]; },
-      [&](const HypernodeID node, const PartitionID part) {
-        if (node == 0 || node == 1 || node == 4) {
-            ASSERT_EQ(part, 1);
-        } else {
-            ASSERT_EQ(part, 0);
-        }
-      }, parallel_tag_t()
-    );
-}
+//     star_partitioning::Approximate ap(2);
+//     ap.partition(5, part_weights, max_part_weights,
+//       [&](HyperedgeWeight* w, const HypernodeID node) { w[0] = gains[2 * node]; w[1] = gains[2 * node + 1]; },
+//       [&](const HypernodeID node) { return weights[node]; },
+//       [&](const HypernodeID node, const PartitionID part) {
+//         if (node == 0 || node == 1 || node == 4) {
+//             ASSERT_EQ(part, 1);
+//         } else {
+//             ASSERT_EQ(part, 0);
+//         }
+//       }, parallel_tag_t()
+//     );
+// }
 
 }  // namespace mt_kahypar
