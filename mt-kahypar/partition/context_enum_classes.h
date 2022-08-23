@@ -146,6 +146,12 @@ enum class StarPartitioningAlgorithm : uint8_t {
   debug
 };
 
+enum class SNodesCoarseningSize : uint8_t {
+  constant,
+  logarithmic,
+  do_not_coarsen
+};
+
 std::ostream & operator<< (std::ostream& os, const Type& type);
 
 std::ostream & operator<< (std::ostream& os, const FileFormat& type);
@@ -180,6 +186,8 @@ std::ostream & operator<< (std::ostream& os, const FlowAlgorithm& algo);
 
 std::ostream & operator<< (std::ostream& os, const StarPartitioningAlgorithm& algo);
 
+std::ostream & operator<< (std::ostream& os, const SNodesCoarseningSize& algo);
+
 Mode modeFromString(const std::string& mode);
 
 InstanceType instanceTypeFromString(const std::string& type);
@@ -207,5 +215,7 @@ FMAlgorithm fmAlgorithmFromString(const std::string& type);
 FlowAlgorithm flowAlgorithmFromString(const std::string& type);
 
 StarPartitioningAlgorithm starPartitioningAlgorithmFromString(const std::string& type);
+
+SNodesCoarseningSize sNodesCoarseningSizeFromString(const std::string& type);
 
 }  // namesapce mt_kahypar

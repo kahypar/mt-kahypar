@@ -129,7 +129,7 @@ public:
       }
 
       Hypergraph& coarsest_hg = hierarchy.empty() ? _hg : hierarchy.back().contractedHypergraph();
-      const HypernodeID separatedTargetSize = calculateSeparatedNodesTargetSize(coarsest_hg);
+      const HypernodeID separatedTargetSize = calculateSeparatedNodesTargetSize(coarsest_hg, _hg);
       if (separatedTargetSize < coarsest_hg.separatedNodes().onliest().numNodes()) {
         star_partitioning::coarsen(coarsest_hg, _context, separatedTargetSize);
       }
@@ -196,8 +196,19 @@ public:
   bool nlevel;
 
 private:
-  HypernodeID calculateSeparatedNodesTargetSize(const Hypergraph& coarsened_hg) {
-    const HypernodeID result = 4 * coarsened_hg.initialNumNodes();
+  HypernodeID calculateSeparatedNodesTargetSize(const Hypergraph& coarsened_hg, const Hypergraph& original_hg) {
+    if (_context.coarsening.sep_nodes_coarsening_type == SNodesCoarseningSize::do_not_coarsen) {
+      return coarsened_hg.numSeparatedNodes();
+    }
+
+    HypernodeID result = _context.coarsening.sep_nodes_coarsening_size_factor * coarsened_hg.initialNumNodes();
+    // TODO: logarithmic does not work in initial partitioning
+    if (_context.coarsening.sep_nodes_coarsening_type == SNodesCoarseningSize::logarithmic && original_hg.initialNumNodes() > 10000) {
+      result *= std::log2(static_cast<double>(original_hg.initialNumNodes()) / 10000.0);
+    }
+    if (_context.type == kahypar::ContextType::main) {
+      result *= _context.coarsening.sep_nodes_coarsening_relax_main_factor;
+    }
     return std::max(result, 3 * _context.coarsening.contraction_limit_multiplier);
   }
 

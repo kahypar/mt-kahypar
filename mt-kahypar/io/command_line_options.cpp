@@ -268,6 +268,21 @@ namespace mt_kahypar {
             ("c-separated-communities-max-size",
              po::value<HypernodeID>(&context.coarsening.separated_communities_max_size)->value_name("<int>")->default_value(10),
              "Communities that are larger (in terms of total node weight) than this won't be removed.\n")
+            ("c-sep-nodes-coarsening-type",
+             po::value<std::string>()->value_name("<string>")->notifier(
+                     [&](const std::string& type) {
+                       context.coarsening.sep_nodes_coarsening_type = mt_kahypar::sNodesCoarseningSizeFromString(type);
+                     })->default_value("constant"),
+             "Separated Nodes Coarsening Type (target size):\n"
+             " - constant"
+             " - logarithmic"
+             " - do_not_coarsen")
+            ("c-sep-nodes-coarsening-size-factor",
+             po::value<double>(&context.coarsening.sep_nodes_coarsening_size_factor)->value_name("<double>")->default_value(4.0),
+             "Factor in relation to size of the remaining coarsened graph.")
+            ("c-sep-nodes-coarsening-relax-main-factor",
+             po::value<double>(&context.coarsening.sep_nodes_coarsening_relax_main_factor)->value_name("<double>")->default_value(1.0),
+             "Use a relaxed size in main coarsening and coarsen to the final size during RB initial partitioning.")
             #ifdef KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES
                         ("c-use-adaptive-max-node-weight",
                 po::value<bool>(&context.coarsening.use_adaptive_max_allowed_node_weight)->value_name("<bool>")->default_value(false),
