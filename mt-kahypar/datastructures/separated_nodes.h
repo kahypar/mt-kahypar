@@ -238,6 +238,8 @@ class SeparatedNodes {
 
   void restoreSavepoint();
 
+  SeparatedNodes createCopyFromSavepoint();
+
   // ####################### Contract / Uncontract #######################
 
   /*!

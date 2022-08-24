@@ -498,6 +498,29 @@ TEST_F(ASeparatedNodes, RestoresSavepoint) {
   verifyIncidentEgdes(nodes.inwardEdges(2), { });
 }
 
+TEST_F(ASeparatedNodes, CreatesCopyFromSavepoint) {
+  SeparatedNodes nodes(5);
+  vec<std::tuple<HypernodeID, HyperedgeID, HypernodeWeight>> new_nodes { {0, 0, 1}, {1, 2, 1}, {2, 4, 1}};
+  vec<Edge> new_edges { Edge(0, 1), Edge(4, 1), Edge(4, 1), Edge(3, 1) };
+  nodes.addNodes(new_nodes, new_edges);
+
+  nodes.setSavepoint();
+
+  vec<HypernodeID> communities { 0, 1, 1, kInvalidHypernode, 2 };
+  nodes.contract(communities, 4);
+
+  SeparatedNodes other = nodes.createCopyFromSavepoint();
+
+  ASSERT_EQ(3,  other.numNodes());
+  ASSERT_EQ(5,  other.numGraphNodes());
+  ASSERT_EQ(4,  other.numEdges());
+  ASSERT_EQ(3,  other.totalWeight());
+
+  verifyIncidentEgdes(other.inwardEdges(0), { {0, 1}, {4, 1} });
+  verifyIncidentEgdes(other.inwardEdges(1), { {4, 1}, {3, 1} });
+  verifyIncidentEgdes(other.inwardEdges(2), { });
+}
+
 TEST_F(ASeparatedNodes, ReinsertsSeparated) {
   SeparatedNodes nodes(3);
   vec<std::tuple<HypernodeID, HyperedgeID, HypernodeWeight>> new_nodes { {0, 0, 1}, {1, 1, 1}, {2, 2, 2}};

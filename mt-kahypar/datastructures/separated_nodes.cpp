@@ -78,7 +78,7 @@ void SeparatedNodes::setSavepoint() {
 
 void SeparatedNodes::restoreSavepoint() {
   ASSERT(!_savepoints.empty());
-  const auto& [edges, indices, num_graph_nodes] = _savepoints.back();
+  auto& [edges, indices, num_graph_nodes] = _savepoints.back();
   _inward_edges = std::move(edges);
   ASSERT(_nodes.size() == indices.size());
   tbb::parallel_for(0UL, _nodes.size(), [&](const size_t& pos) {
@@ -90,6 +90,36 @@ void SeparatedNodes::restoreSavepoint() {
   _outward_incident_weight.clear(); // not correct anymore
 }
 
+SeparatedNodes SeparatedNodes::createCopyFromSavepoint() {
+  ASSERT(!_savepoints.empty() && _outward_edges.empty());
+  auto& [edges, indices, num_graph_nodes] = _savepoints.back();
+  ASSERT(_nodes.size() == indices.size());
+  _outward_incident_weight.clear(); // not correct anymore
+
+  SeparatedNodes sep_nodes(num_graph_nodes);
+  sep_nodes._num_nodes = _num_nodes;
+  sep_nodes._num_graph_nodes = num_graph_nodes;
+  sep_nodes._num_edges = edges.size();
+  sep_nodes._total_weight = _total_weight;
+  sep_nodes._inward_edges = std::move(edges);
+
+  tbb::parallel_invoke([&] {
+    sep_nodes._nodes.resize(_nodes.size());
+    memcpy(sep_nodes._nodes.data(), _nodes.data(),
+            sizeof(Node) * _nodes.size());
+  }, [&] {
+    sep_nodes._batch_indices_and_weights.resize(_batch_indices_and_weights.size());
+    for (size_t i = 0; i < _batch_indices_and_weights.size(); ++i) {
+      sep_nodes._batch_indices_and_weights[i] = _batch_indices_and_weights[i];
+    }
+  });
+  tbb::parallel_for(0UL, sep_nodes._nodes.size(), [&](const size_t& pos) {
+    sep_nodes._nodes[pos].begin = indices[pos];
+  });
+
+  _savepoints.pop_back();
+  return sep_nodes;
+}
 
 void SeparatedNodes::addNodes(const vec<std::tuple<HypernodeID, HyperedgeID, HypernodeWeight>>& nodes,
                               const vec<Edge>& edges) {
