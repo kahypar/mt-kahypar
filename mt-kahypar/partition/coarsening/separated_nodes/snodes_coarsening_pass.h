@@ -42,7 +42,8 @@ enum class SNodesCoarseningStage : uint8_t {
   D1_D2_TWINS_SIMILARITY = 2,
   D1_D2_TWINS_SIMILARITY_RELAXED = 3,
   D1_D2_DX_TWINS_SIMILARITY = 4,
-  ANYTHING = 5
+  ANYTHING = 5,
+  ON_LARGE_GRAPH = 6
 };
 
 class SNodesCoarseningPass {
@@ -160,7 +161,7 @@ class SNodesCoarseningPass {
                        const HypernodeID& target_num_nodes, const SNodesCoarseningStage& stage);
 
   // note: communities are allowed to be an empty vec
-  void run(vec<HypernodeID>& communities);
+  void run(vec<HypernodeID>& communities, bool use_spanning_tree = true);
 
   SNodesCoarseningStage stage() const {
     return _stage;
@@ -181,7 +182,7 @@ class SNodesCoarseningPass {
                                                                             vec<std::pair<HypernodeID, HyperedgeWeight>>& rhs);
 
  private:
-  void setupNodeInfo();
+  void setupNodeInfo(bool use_spanning_tree = true);
 
   HypernodeID runCurrentStage(vec<HypernodeID>& communities, bool first = false);
 

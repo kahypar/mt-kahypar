@@ -63,7 +63,9 @@ struct SNodesCoarseningPass::EqualityHash {
 
 // policies for different stages
 bool appliesDegreeTwo(const SNodesCoarseningStage& stage) {
-  return (stage != SNodesCoarseningStage::ANYTHING) && static_cast<uint8_t>(stage) >= 1;
+  return (stage != SNodesCoarseningStage::ANYTHING)
+      && (stage != SNodesCoarseningStage::ON_LARGE_GRAPH)
+      && static_cast<uint8_t>(stage) >= 1;
 }
 
 uint32_t treeDistanceForStage(const SNodesCoarseningStage& stage) {
@@ -76,7 +78,9 @@ uint32_t treeDistanceForStage(const SNodesCoarseningStage& stage) {
 }
 
 bool appliesHighDegree(const SNodesCoarseningStage& stage) {
-  return (stage != SNodesCoarseningStage::ANYTHING) && static_cast<uint8_t>(stage) >= 4;
+  return (stage != SNodesCoarseningStage::ANYTHING)
+      && (stage != SNodesCoarseningStage::ON_LARGE_GRAPH)
+      && static_cast<uint8_t>(stage) >= 4;
 }
 
 bool appliesTwins(const SNodesCoarseningStage& stage) {
@@ -84,19 +88,23 @@ bool appliesTwins(const SNodesCoarseningStage& stage) {
 }
 
 bool appliesSimilarity(const SNodesCoarseningStage& stage) {
-  return static_cast<uint8_t>(stage) >= 2;
+  return (stage != SNodesCoarseningStage::ANYTHING) && static_cast<uint8_t>(stage) >= 2;
 }
 
 bool relaxedSimilartiy(const SNodesCoarseningStage& stage) {
-  return static_cast<uint8_t>(stage) >= 3;
+  return (stage != SNodesCoarseningStage::ANYTHING)
+      && (stage != SNodesCoarseningStage::ON_LARGE_GRAPH)
+      && static_cast<uint8_t>(stage) >= 3;
 }
 
 bool mixesDegreeOneAndTwo(const SNodesCoarseningStage& stage) {
-  return static_cast<uint8_t>(stage) >= 3;
+  return (stage != SNodesCoarseningStage::ANYTHING)
+      && (stage != SNodesCoarseningStage::ON_LARGE_GRAPH)
+      && static_cast<uint8_t>(stage) >= 3;
 }
 
 double densityDiffForStage(const SNodesCoarseningStage& stage) {
-  static const double diffs[6] = {1.4, 1.8, 2.1, 2.6, 4.1, 1000};
+  static const double diffs[7] = {1.4, 1.8, 2.1, 2.6, 4.1, 1000, 1.8};
   return diffs[static_cast<uint8_t>(stage)];
 }
 
@@ -118,17 +126,17 @@ SNodesCoarseningPass::SNodesCoarseningPass(const Hypergraph& hg, const Context& 
     });
   }
 
-void SNodesCoarseningPass::run(vec<HypernodeID>& communities) {
+void SNodesCoarseningPass::run(vec<HypernodeID>& communities, bool use_spanning_tree) {
   tbb::parallel_invoke([&] {
     communities.clear();
     communities.assign(_current_num_nodes, kInvalidHypernode);
   }, [&] {
-    setupNodeInfo();
+    setupNodeInfo(use_spanning_tree);
   });
 
   HypernodeID num_matches = runCurrentStage(communities, true);
   while (_current_num_nodes - num_matches > _target_num_nodes
-         && _stage != SNodesCoarseningStage::ANYTHING) {
+         && static_cast<uint8_t>(_stage) < static_cast<uint8_t>(SNodesCoarseningStage::ANYTHING)) {
     _stage = static_cast<SNodesCoarseningStage>(static_cast<uint8_t>(_stage) + 1);
     num_matches += runCurrentStage(communities);
   }
@@ -151,7 +159,7 @@ void SNodesCoarseningPass::run(vec<HypernodeID>& communities) {
   }());
 }
 
-void SNodesCoarseningPass::setupNodeInfo() {
+void SNodesCoarseningPass::setupNodeInfo(bool use_spanning_tree) {
   ASSERT(_s_nodes.outwardEdgesInitialized());
 
   Array<NodeInfo> tmp_node_info;
@@ -190,15 +198,17 @@ void SNodesCoarseningPass::setupNodeInfo() {
       _node_info_begin[node] = num_assigned_nodes[node].load();
     });
   }, [&] {
-    SpanningTree tree = constructMaxSpanningTree(_hg, TreePath::max_path_length);
-    tree.calculatePaths([&](const HypernodeID& graph_node, TreePath path) {
-      for (const SeparatedNodes::Edge& e: _s_nodes.outwardEdges(graph_node)) {
-        NodeInfo& info = tmp_node_info[e.target];
-        if (info.degree == 2 && info.assigned_graph_node != graph_node) {
-          info.tree_path = path;
+    if (use_spanning_tree) {
+      SpanningTree tree = constructMaxSpanningTree(_hg, TreePath::max_path_length);
+      tree.calculatePaths([&](const HypernodeID& graph_node, TreePath path) {
+        for (const SeparatedNodes::Edge& e: _s_nodes.outwardEdges(graph_node)) {
+          NodeInfo& info = tmp_node_info[e.target];
+          if (info.degree == 2 && info.assigned_graph_node != graph_node) {
+            info.tree_path = path;
+          }
         }
-      }
-    });
+      });
+    }
   });
 
   tbb::parallel_for(ID(0), _s_nodes.numNodes(), [&](const HypernodeID node) {
