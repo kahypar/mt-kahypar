@@ -816,7 +816,7 @@ private:
   // ! 3. Nodes are moved again
   // ! Then, resetMoveState() must be called between steps 2 and 3.
   void resetMoveState() {
-    if (_lock_treshold > std::numeric_limits<typeof(_lock_treshold)>::max() - 3) {
+    if (_lock_treshold > std::numeric_limits<decltype(_lock_treshold)>::max() - 3) {
       tbb::parallel_for(ID(0), _hg->maxUniqueID(), [&](const HyperedgeID id) {
         _edge_locks[id].state.store(0, std::memory_order_relaxed);
       });
