@@ -70,4 +70,10 @@ target_link_libraries(CreateStats ${Boost_LIBRARIES})
 set_property(TARGET CreateStats PROPERTY CXX_STANDARD 17)
 set_property(TARGET CreateStats PROPERTY CXX_STANDARD_REQUIRED ON)
 
-set(TARGETS_WANTING_ALL_SOURCES ${TARGETS_WANTING_ALL_SOURCES} EvaluateBipart EvaluatePartition VerifyPartition HgrToZoltan HypergraphStats MetisToScotch SnapToMetis GraphToHgr HgrToParkway SnapGraphToHgr DegreeBasedBipartition CreateGraphvizFile CreateStats PARENT_SCOPE)
+add_executable(DetectMeshGraph detect_mesh_graph.cc)
+target_link_libraries(DetectMeshGraph ${Boost_LIBRARIES})
+set_property(TARGET DetectMeshGraph PROPERTY CXX_STANDARD 17)
+set_property(TARGET DetectMeshGraph PROPERTY CXX_STANDARD_REQUIRED ON)
+target_compile_definitions(DetectMeshGraph PUBLIC USE_GRAPH_PARTITIONER)
+
+set(TARGETS_WANTING_ALL_SOURCES ${TARGETS_WANTING_ALL_SOURCES} EvaluateBipart EvaluatePartition VerifyPartition HgrToZoltan HypergraphStats MetisToScotch SnapToMetis GraphToHgr HgrToParkway SnapGraphToHgr DegreeBasedBipartition CreateGraphvizFile CreateStats DetectMeshGraph PARENT_SCOPE)

@@ -94,6 +94,29 @@ static inline double avgHypernodeDegree(const Hypergraph& hypergraph) {
     return static_cast<double>(hypergraph.initialNumPins()) / hypergraph.initialNumNodes();
 }
 
+static inline bool isMeshGraph(const Hypergraph& graph) {
+  const HypernodeID num_nodes = graph.initialNumNodes();
+  const double avg_hn_degree = utils::avgHypernodeDegree(graph);
+  std::vector<HyperedgeID> hn_degrees;
+  hn_degrees.resize(graph.initialNumNodes());
+  graph.doParallelForAllNodes([&](const HypernodeID& hn) {
+    hn_degrees[hn] = graph.nodeDegree(hn);
+  });
+  const double stdev_hn_degree = utils::parallel_stdev(hn_degrees, avg_hn_degree, num_nodes);
+  if (stdev_hn_degree > avg_hn_degree / 2) {
+    return false;
+  }
+
+  // test whether 99.9th percentile hypernode degree is at most 4 times the average degree
+  tbb::enumerable_thread_specific<size_t> num_high_degree_nodes(0);
+  graph.doParallelForAllNodes([&](const HypernodeID& node) {
+    if (graph.nodeDegree(node) > 4 * avg_hn_degree) {
+      num_high_degree_nodes.local() += 1;
+    }
+  });
+  return num_high_degree_nodes.combine(std::plus<>()) <= num_nodes / 1000;
+}
+
 static void printDistributionStatsToCSV(const Hypergraph& hypergraph, const std::string& outfile) {
     ALWAYS_ASSERT(outfile != "");
     std::ofstream out(outfile.c_str());

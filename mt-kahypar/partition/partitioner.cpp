@@ -127,29 +127,6 @@ namespace mt_kahypar {
     });
   }
 
-  bool isMeshGraph(const Hypergraph& graph) {
-    const HypernodeID num_nodes = graph.initialNumNodes();
-    const double avg_hn_degree = utils::avgHypernodeDegree(graph);
-    std::vector<HyperedgeID> hn_degrees;
-    hn_degrees.resize(graph.initialNumNodes());
-    graph.doParallelForAllNodes([&](const HypernodeID& hn) {
-      hn_degrees[hn] = graph.nodeDegree(hn);
-    });
-    const double stdev_hn_degree = utils::parallel_stdev(hn_degrees, avg_hn_degree, num_nodes);
-    if (stdev_hn_degree > avg_hn_degree / 2) {
-      return false;
-    }
-
-    // test whether 99.9th percentile hypernode degree is at most 4 times the average degree
-    tbb::enumerable_thread_specific<size_t> num_high_degree_nodes(0);
-    graph.doParallelForAllNodes([&](const HypernodeID& node) {
-      if (graph.nodeDegree(node) > 4 * avg_hn_degree) {
-        num_high_degree_nodes.local() += 1;
-      }
-    });
-    return num_high_degree_nodes.combine(std::plus<>()) <= num_nodes / 1000;
-  }
-
   void preprocess(Hypergraph& hypergraph, Context& context) {
     bool use_community_detection = context.preprocessing.use_community_detection;
     bool is_graph = false;
@@ -158,7 +135,7 @@ namespace mt_kahypar {
       utils::Timer::instance().start_timer("detect_graph_structure", "Detect Graph Structure");
       is_graph = isGraph(hypergraph);
       if ( is_graph && context.preprocessing.disable_community_detection_for_mesh_graphs ) {
-        context.preprocessing.mesh_graph_detected = isMeshGraph(hypergraph);
+        context.preprocessing.mesh_graph_detected = utils::isMeshGraph(hypergraph);
         use_community_detection = !context.preprocessing.mesh_graph_detected;
       }
       utils::Timer::instance().stop_timer("detect_graph_structure");
