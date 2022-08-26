@@ -160,8 +160,12 @@ class SNodesCoarseningPass {
   SNodesCoarseningPass(const Hypergraph& hg, const Context& context,
                        const HypernodeID& target_num_nodes, const SNodesCoarseningStage& stage);
 
-  // note: communities are allowed to be an empty vec
-  void run(vec<HypernodeID>& communities, bool use_spanning_tree = true);
+  SNodesCoarseningPass(const SeparatedNodes& s_nodes, const Hypergraph& hg, const Context& context,
+                       const HypernodeID& target_num_nodes, const SNodesCoarseningStage& stage);
+
+  // ! Note: communities are allowed to be an empty vec
+  // ! Returns the number of coarsened nodes
+  HypernodeID run(vec<HypernodeID>& communities, bool use_spanning_tree = true);
 
   SNodesCoarseningStage stage() const {
     return _stage;

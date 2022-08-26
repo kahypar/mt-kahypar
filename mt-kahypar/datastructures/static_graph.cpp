@@ -32,6 +32,64 @@
 
 
 namespace mt_kahypar::ds {
+  void StaticGraph::handleSeparatedNodes(Array<HypernodeID>& mapping,
+                                         vec<std::tuple<HypernodeID, HyperedgeID, HypernodeWeight>>& separated_nodes,
+                                         vec<SeparatedNodes::Edge>& separated_edges,
+                                         const vec<HypernodeID>& communities) const {
+    // Extract nodes that will be separated
+    mapping.assign(_num_nodes, 0);
+    doParallelForAllNodes([&](const HypernodeID& node) {
+      if (communities[node] == kInvalidHypernode) {
+        mapping[node] = 1;
+      }
+    });
+
+    parallel::TBBPrefixSum<HyperedgeID, Array> separated_prefix_sum(mapping);
+    tbb::parallel_scan(tbb::blocked_range<size_t>(ID(0), _num_nodes), separated_prefix_sum);
+    const HypernodeID separated_num_nodes = separated_prefix_sum.total_sum();
+
+    // Copy separated nodes
+    // TODO: not that performant
+    Array<HyperedgeID> separated_node_degrees;
+    separated_node_degrees.assign(separated_num_nodes, 0);
+    doParallelForAllNodes([&](const HypernodeID& node) {
+      if (communities[node] == kInvalidHypernode) {
+        HypernodeID separated_id = separated_prefix_sum[node];
+        separated_node_degrees[separated_id] = nodeDegree(node);
+      }
+    });
+
+    parallel::TBBPrefixSum<HyperedgeID, Array> separated_nodes_prefix_sum(separated_node_degrees);
+    tbb::parallel_scan(tbb::blocked_range<size_t>(ID(0), separated_num_nodes), separated_nodes_prefix_sum);
+    const HyperedgeID separated_num_edges = separated_nodes_prefix_sum.total_sum();
+
+    separated_nodes.assign(separated_num_nodes, {0, 0, 0});
+    separated_edges.assign(separated_num_edges, SeparatedNodes::Edge(0, 0));
+    doParallelForAllNodes([&](const HypernodeID& u) {
+      if (communities[u] == kInvalidHypernode) {
+        HypernodeID separated_id = separated_prefix_sum[u];
+        separated_nodes[separated_id] = {u, separated_nodes_prefix_sum[separated_id], nodeWeight(u)};
+        const HyperedgeID first = node(u).firstEntry();
+        const HyperedgeID last = node(u + 1).firstEntry();
+        for (HyperedgeID index = 0; first + index < last; ++index) {
+          const Edge& e = edge(first + index);
+          separated_edges[separated_nodes_prefix_sum[separated_id] + index] = SeparatedNodes::Edge(e.target(), e.weight());
+        }
+      }
+    });
+  }
+
+  HypernodeID StaticGraph::replaySeparated(const vec<HypernodeID>& communities, SeparatedNodes& s_nodes) const {
+    ASSERT(_num_nodes == s_nodes.numGraphNodes());
+    Array<HypernodeID> mapping; // TODO: that might go wrong in refinement
+    vec<std::tuple<HypernodeID, HyperedgeID, HypernodeWeight>> separated_nodes;
+    vec<SeparatedNodes::Edge> separated_edges;
+
+    handleSeparatedNodes(mapping, separated_nodes, separated_edges, communities);
+    s_nodes.addNodes(separated_nodes, separated_edges);
+    return separated_nodes.size();
+  }
+
   /*!
    * Contracts a given community structure. All vertices with the same label
    * are collapsed into the same vertex. The resulting single-pin and parallel
@@ -71,52 +129,10 @@ namespace mt_kahypar::ds {
     // #################### STAGE 1 ####################
     utils::Timer::instance().start_timer("preprocess_contractions", "Preprocess Contractions");
 
-    // Extract nodes that will be separated
-    mapping.assign(_num_nodes, 0);
-    doParallelForAllNodes([&](const HypernodeID& node) {
-      if (communities[node] == kInvalidHypernode) {
-        mapping[node] = 1;
-      }
-    });
-
-    parallel::TBBPrefixSum<HyperedgeID, Array> separated_prefix_sum(mapping);
-    tbb::parallel_scan(tbb::blocked_range<size_t>(ID(0), _num_nodes), separated_prefix_sum);
-    const HypernodeID separated_num_nodes = separated_prefix_sum.total_sum();
-
-    // Copy separated nodes
-    // TODO: not that performant
-    Array<HyperedgeID> separated_node_degrees;
-    separated_node_degrees.assign(separated_num_nodes, 0);
-    doParallelForAllNodes([&](const HypernodeID& node) {
-      if (communities[node] == kInvalidHypernode) {
-        HypernodeID separated_id = separated_prefix_sum[node];
-        separated_node_degrees[separated_id] = nodeDegree(node);
-      }
-    });
-
-    parallel::TBBPrefixSum<HyperedgeID, Array> separated_nodes_prefix_sum(separated_node_degrees);
-    tbb::parallel_scan(tbb::blocked_range<size_t>(ID(0), separated_num_nodes), separated_nodes_prefix_sum);
-    const HyperedgeID separated_num_edges = separated_nodes_prefix_sum.total_sum();
-
     vec<std::tuple<HypernodeID, HyperedgeID, HypernodeWeight>> separated_nodes;
     vec<SeparatedNodes::Edge> separated_edges;
 
-    if (_separated_nodes != nullptr) {
-      separated_nodes.assign(separated_num_nodes, {0, 0, 0});
-      separated_edges.assign(separated_num_edges, SeparatedNodes::Edge(0, 0));
-      doParallelForAllNodes([&](const HypernodeID& u) {
-        if (communities[u] == kInvalidHypernode) {
-          HypernodeID separated_id = separated_prefix_sum[u];
-          separated_nodes[separated_id] = {u, separated_nodes_prefix_sum[separated_id], nodeWeight(u)};
-          const HyperedgeID first = node(u).firstEntry();
-          const HyperedgeID last = node(u + 1).firstEntry();
-          for (HyperedgeID index = 0; first + index < last; ++index) {
-            const Edge& e = edge(first + index);
-            separated_edges[separated_nodes_prefix_sum[separated_id] + index] = SeparatedNodes::Edge(e.target(), e.weight());
-          }
-        }
-      });
-    }
+    handleSeparatedNodes(mapping, separated_nodes, separated_edges, communities);
 
     // Compute vertex ids of coarse graph with a parallel prefix sum
     mapping.assign(_num_nodes, 0);

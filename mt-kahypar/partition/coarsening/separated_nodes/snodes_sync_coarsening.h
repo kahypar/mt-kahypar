@@ -22,13 +22,14 @@
 
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/datastructures/separated_nodes.h"
+#include "mt-kahypar/partition/coarsening/coarsening_commons.h"
 
 namespace mt_kahypar {
 namespace star_partitioning {
 using ds::SepNodesStack;
 
-void coarsen(SepNodesStack& stack, const Hypergraph& coarsened_hg,
-             const Context& context, const HypernodeID& target_num_nodes);
+void coarsenSynchronized(SepNodesStack& stack, const Hypergraph& original_hg, const vec<Level>& levels,
+                         const Context& context, const HypernodeID& start_num_nodes, const HypernodeID& target_num_nodes);
 
 } // namepace star_partitioning
 } // namespace mt_kahypar

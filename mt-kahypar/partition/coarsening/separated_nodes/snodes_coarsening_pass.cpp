@@ -115,7 +115,7 @@ SNodesCoarseningPass::SNodesCoarseningPass(const Hypergraph& hg, const Context& 
   _s_nodes(_hg.separatedNodes().coarsest()),
   _node_info_begin(),
   _node_info(),
-  _current_num_nodes(_s_nodes.numNodes()),
+  _current_num_nodes(_s_nodes.numVisibleNodes()),
   _target_num_nodes(target_num_nodes),
   _stage(stage) {
     ASSERT(_hg.initialNumNodes() == _s_nodes.numGraphNodes());
@@ -126,7 +126,25 @@ SNodesCoarseningPass::SNodesCoarseningPass(const Hypergraph& hg, const Context& 
     });
   }
 
-void SNodesCoarseningPass::run(vec<HypernodeID>& communities, bool use_spanning_tree) {
+SNodesCoarseningPass::SNodesCoarseningPass(const SeparatedNodes& s_nodes, const Hypergraph& hg, const Context& context,
+                                           const HypernodeID& target_num_nodes, const SNodesCoarseningStage& stage) :
+  _hg(hg),
+  _context(context),
+  _s_nodes(s_nodes),
+  _node_info_begin(),
+  _node_info(),
+  _current_num_nodes(_s_nodes.numVisibleNodes()),
+  _target_num_nodes(target_num_nodes),
+  _stage(stage) {
+    ASSERT(_hg.initialNumNodes() == _s_nodes.numGraphNodes());
+    tbb::parallel_invoke([&] {
+      _node_info_begin.assign(_hg.initialNumNodes() + 1, 0);
+    }, [&] {
+      _node_info.assign(_current_num_nodes, NodeInfo());
+    });
+  }
+
+HypernodeID SNodesCoarseningPass::run(vec<HypernodeID>& communities, bool use_spanning_tree) {
   tbb::parallel_invoke([&] {
     communities.clear();
     communities.assign(_current_num_nodes, kInvalidHypernode);
@@ -157,17 +175,18 @@ void SNodesCoarseningPass::run(vec<HypernodeID>& communities, bool use_spanning_
     }
     return num_matches == count;
   }());
+  return num_matches;
 }
 
 void SNodesCoarseningPass::setupNodeInfo(bool use_spanning_tree) {
   ASSERT(_s_nodes.outwardEdgesInitialized());
 
   Array<NodeInfo> tmp_node_info;
-  tmp_node_info.assign(_s_nodes.numNodes(), NodeInfo());
+  tmp_node_info.assign(_s_nodes.numVisibleNodes(), NodeInfo());
   Array<parallel::IntegralAtomicWrapper<HypernodeID>> num_assigned_nodes;
   // sentinel for counting up later
   num_assigned_nodes.assign(_hg.initialNumNodes() + 1, parallel::IntegralAtomicWrapper<HypernodeID>(0));
-  tbb::parallel_for(ID(0), _s_nodes.numNodes(), [&](const HypernodeID node) {
+  tbb::parallel_for(ID(0), _s_nodes.numVisibleNodes(), [&](const HypernodeID node) {
     HyperedgeWeight incident_weight_sum = 0;
     HyperedgeWeight max_weight = 0;
     HypernodeID max_target = kInvalidHypernode;
@@ -211,7 +230,7 @@ void SNodesCoarseningPass::setupNodeInfo(bool use_spanning_tree) {
     }
   });
 
-  tbb::parallel_for(ID(0), _s_nodes.numNodes(), [&](const HypernodeID node) {
+  tbb::parallel_for(ID(0), _s_nodes.numVisibleNodes(), [&](const HypernodeID node) {
     const NodeInfo& tmp_info = tmp_node_info[node];
     if (tmp_info.assigned_graph_node != kInvalidHypernode) {
       const HypernodeID new_index = num_assigned_nodes[tmp_info.assigned_graph_node].fetch_add(1);
@@ -221,7 +240,7 @@ void SNodesCoarseningPass::setupNodeInfo(bool use_spanning_tree) {
       _node_info[new_index] = tmp_info;
     }
   });
-  ASSERT(_node_info.size() == _s_nodes.numNodes());
+  ASSERT(_node_info.size() == _s_nodes.numVisibleNodes());
 }
 
 HypernodeID SNodesCoarseningPass::runCurrentStage(vec<HypernodeID>& communities, bool first) {

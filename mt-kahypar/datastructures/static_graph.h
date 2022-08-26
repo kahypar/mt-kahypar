@@ -736,6 +736,11 @@ class StaticGraph {
 
   // ####################### Contract / Uncontract #######################
 
+  // ! Extracts separated nodes as defined by the community structure and
+  // ! adds them to to the separated nodes structure.
+  // ! Returns the number of added nodes
+  HypernodeID replaySeparated(const parallel::scalable_vector<HypernodeID>& communities, SeparatedNodes& s_nodes) const;
+
   /*!
    * Contracts a given community structure. All vertices with the same label
    * are collapsed into the same vertex. The resulting single-pin and parallel
@@ -893,6 +898,11 @@ class StaticGraph {
   template <typename Hypergraph,
             typename HypergraphFactory>
   friend class PartitionedGraph;
+
+  void handleSeparatedNodes(Array<HypernodeID>& mapping,
+                            vec<std::tuple<HypernodeID, HyperedgeID, HypernodeWeight>>& separated_nodes,
+                            vec<SeparatedNodes::Edge>& separated_edges,
+                            const vec<HypernodeID>& communities) const;
 
   // ####################### Node Information #######################
 

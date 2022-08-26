@@ -25,6 +25,7 @@
 
 #include "tbb/task.h"
 
+#include "mt-kahypar/partition/coarsening/separated_nodes/snodes_sync_coarsening.h"
 #include "mt-kahypar/partition/factories.h"
 #include "mt-kahypar/partition/preprocessing/sparsification/degree_zero_hn_remover.h"
 #include "mt-kahypar/partition/preprocessing/sparsification/large_he_remover.h"
@@ -93,6 +94,13 @@ namespace mt_kahypar::multilevel {
       if ( _context.partition.verbose_output ) {
         utils::InitialPartitioningStats::instance().printInitialPartitioningStats();
       }
+
+      // ################## SEPARATED NODES COARSENING ##################
+      SepNodesStack stack(_hg.initialNumNodes());
+      const HypernodeID start_num_nodes = _hg.numSeparatedNodes();
+      const HypernodeID target_num_nodes = _uncoarseningData->calculateSeparatedNodesTargetSize(
+                                             _uncoarseningData->coarsestPartitionedHypergraph().hypergraph(), _hg);
+      star_partitioning::coarsenSynchronized(stack, _hg, _uncoarseningData->hierarchy, _context, start_num_nodes, target_num_nodes);
 
       // ################## LOCAL SEARCH ##################
       io::printLocalSearchBanner(_context);

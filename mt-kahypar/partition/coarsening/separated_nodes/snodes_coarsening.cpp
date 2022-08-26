@@ -28,9 +28,9 @@ namespace star_partitioning {
 using ds::SepNodesStack;
 using ds::SeparatedNodes;
 
-void coarsen(Hypergraph& coarsened_hg, const Context& context, const HypernodeID& target_num_nodes) {
-  SepNodesStack& stack = coarsened_hg.separatedNodes();
-
+void coarsen(SepNodesStack& stack, const Hypergraph& coarsened_hg,
+             const Context& context, const HypernodeID& target_num_nodes) {
+  stack.coarsest().revealAll();
   HypernodeID previous_num_nodes = stack.coarsest().numNodes();
   SNodesCoarseningStage stage = SNodesCoarseningStage::D1_TWINS;
   while (stack.coarsest().numNodes() > target_num_nodes) {

@@ -1,6 +1,7 @@
 set(SeparatedNodesSources
         snodes_coarsening_pass.cpp
         snodes_coarsening.cpp
+        snodes_sync_coarsening.cpp
         spanning_tree.cpp
         )
 
