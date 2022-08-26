@@ -90,6 +90,7 @@ class SeparatedNodes {
     _num_graph_nodes(0),
     _num_edges(0),
     _total_weight(0),
+    _hidden_nodes_batch_index(1),
     _nodes{ Node(kInvalidHypernode, 0, 0) },
     _outward_incident_weight(),
     _graph_nodes_begin(),
@@ -105,6 +106,7 @@ class SeparatedNodes {
     _num_graph_nodes(num_graph_nodes),
     _num_edges(0),
     _total_weight(0),
+    _hidden_nodes_batch_index(1),
     _nodes{ Node(kInvalidHypernode, 0, 0) },
     _outward_incident_weight(num_graph_nodes),
     _graph_nodes_begin(),
@@ -123,6 +125,7 @@ class SeparatedNodes {
     _num_graph_nodes(other._num_graph_nodes),
     _num_edges(other._num_edges),
     _total_weight(other._total_weight),
+    _hidden_nodes_batch_index(other._hidden_nodes_batch_index),
     _nodes(std::move(other._nodes)),
     _outward_incident_weight(std::move(other._outward_incident_weight)),
     _graph_nodes_begin(std::move(other._graph_nodes_begin)),
@@ -136,6 +139,7 @@ class SeparatedNodes {
     _num_graph_nodes = other._num_graph_nodes;
     _num_edges = other._num_edges;
     _total_weight = other._total_weight;
+    _hidden_nodes_batch_index = other._hidden_nodes_batch_index;
     _nodes = std::move(other._nodes);
     _outward_incident_weight = std::move(other._outward_incident_weight);
     _graph_nodes_begin = std::move(other._graph_nodes_begin);
@@ -164,6 +168,11 @@ class SeparatedNodes {
 
   HypernodeWeight totalWeight() const {
     return _total_weight;
+  }
+
+  HypernodeID numVisibleNodes() const {
+    ASSERT(_hidden_nodes_batch_index < _batch_indices_and_weights.size());
+    return _batch_indices_and_weights[_hidden_nodes_batch_index].first;
   }
 
   // ####################### Iterators #######################
@@ -233,6 +242,13 @@ class SeparatedNodes {
   HypernodeID popBatch();
 
   void cleanBatchState();
+
+  // ! Make next Batch visible for coarsening
+  void revealNextBatch();
+
+  void revealAll() {
+    _hidden_nodes_batch_index = _batch_indices_and_weights.size() - 1;
+  }
 
   void setSavepoint();
 
@@ -308,6 +324,9 @@ class SeparatedNodes {
   HyperedgeID _num_edges;
   // ! Total weight of the nodes
   HypernodeWeight _total_weight;
+  // ! Index of first node which is conceptually hidden from coarsening
+  // ! Always corresponds to a batch
+  size_t _hidden_nodes_batch_index;
 
   // ! Nodes
   vec<Node> _nodes;
@@ -320,7 +339,7 @@ class SeparatedNodes {
 
   // ! Batches
   // - allow to restore nodes of a previous state (but not edges)
-  vec<std::pair<HyperedgeID, HypernodeWeight>> _batch_indices_and_weights;
+  vec<std::pair<HypernodeID, HypernodeWeight>> _batch_indices_and_weights;
   // ! Savepoints
   // - allow to restore edges of a previous state, must be set manually
   // edges, edge_indices, num_graph_nodes

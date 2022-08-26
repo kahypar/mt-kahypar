@@ -62,6 +62,11 @@ void SeparatedNodes::cleanBatchState() {
   _batch_indices_and_weights.assign(2, {_num_nodes, _total_weight});
 }
 
+void SeparatedNodes::revealNextBatch() {
+  ++_hidden_nodes_batch_index;
+  ASSERT(_hidden_nodes_batch_index < _batch_indices_and_weights.size());
+}
+
 void SeparatedNodes::setSavepoint() {
   vec<Edge> copied_edges;
   vec<HyperedgeID> edge_indices;
@@ -102,6 +107,7 @@ SeparatedNodes SeparatedNodes::createCopyFromSavepoint() {
   sep_nodes._num_edges = edges.size();
   sep_nodes._total_weight = _total_weight;
   sep_nodes._inward_edges = std::move(edges);
+  sep_nodes._hidden_nodes_batch_index = _hidden_nodes_batch_index;
 
   tbb::parallel_invoke([&] {
     sep_nodes._nodes.resize(_nodes.size());
@@ -210,21 +216,22 @@ void SeparatedNodes::contract(const vec<HypernodeID>& communities, const Hyperno
 }
 
 SeparatedNodes SeparatedNodes::coarsen(vec<HypernodeID>& communities) const {
-  ASSERT(communities.size() == _num_nodes);
+  ASSERT(communities.size() == numVisibleNodes());
+  ASSERT(_hidden_nodes_batch_index > 0);
   SeparatedNodes other(_num_graph_nodes);
 
   Array<HypernodeID> mapping;
 
   // Compute vertex ids of coarse graph with a parallel prefix sum
-  mapping.assign(_num_nodes, 0);
-  tbb::parallel_for(ID(0), _num_nodes, [&](const HyperedgeID& node) {
+  mapping.assign(numVisibleNodes(), 0);
+  tbb::parallel_for(ID(0), numVisibleNodes(), [&](const HyperedgeID& node) {
     ASSERT(communities[node] < mapping.size());
     mapping[communities[node]] = 1;
   });
 
   // Prefix sum determines vertex ids in coarse graph
   parallel::TBBPrefixSum<HyperedgeID, Array> mapping_prefix_sum(mapping);
-  tbb::parallel_scan(tbb::blocked_range<size_t>(ID(0), _num_nodes), mapping_prefix_sum);
+  tbb::parallel_scan(tbb::blocked_range<size_t>(ID(0), numVisibleNodes()), mapping_prefix_sum);
   const HypernodeID coarsened_num_nodes = mapping_prefix_sum.total_sum();
 
   Array<parallel::IntegralAtomicWrapper<HypernodeWeight>> node_weights;
@@ -233,7 +240,7 @@ SeparatedNodes SeparatedNodes::coarsen(vec<HypernodeID>& communities) const {
   // sentinel for first element
   tmp_num_incident_edges.assign(coarsened_num_nodes + 1, parallel::IntegralAtomicWrapper<HyperedgeID>(0));
 
-  tbb::parallel_for(ID(0), _num_nodes, [&](const HyperedgeID& node) {
+  tbb::parallel_for(ID(0), numVisibleNodes(), [&](const HyperedgeID& node) {
     const HypernodeID coarse_node = mapping_prefix_sum[communities[node]];
     communities[node] = coarse_node;
     node_weights[coarse_node].fetch_add(nodeWeight(node));
@@ -244,31 +251,50 @@ SeparatedNodes SeparatedNodes::coarsen(vec<HypernodeID>& communities) const {
           tmp_incident_edges_prefix_sum(tmp_num_incident_edges);
   tbb::parallel_scan(tbb::blocked_range<size_t>(
           ID(0), static_cast<size_t>(coarsened_num_nodes + 1)), tmp_incident_edges_prefix_sum);
-  ASSERT(tmp_incident_edges_prefix_sum.total_sum() == _num_edges);
+  ASSERT(tmp_incident_edges_prefix_sum.total_sum() == _nodes[numVisibleNodes()].begin);
+  const HypernodeID total_coarsened_nodes = coarsened_num_nodes + _num_nodes - numVisibleNodes();
 
   tbb::parallel_invoke([&] {
-    other._nodes.resize(coarsened_num_nodes);
+    other._nodes.resize(total_coarsened_nodes);
   }, [&] {
     other._inward_edges.resize(_num_edges);
   }, [&] {
     other._outward_incident_weight = _outward_incident_weight;
   });
 
-  tbb::parallel_for(ID(0), coarsened_num_nodes, [&](const HyperedgeID& node) {
-    other._nodes[node] = Node(kInvalidHypernode, tmp_num_incident_edges[node], node_weights[node]);
+  tbb::parallel_for(ID(0), total_coarsened_nodes, [&](const HyperedgeID& node) {
+    if (node < coarsened_num_nodes) {
+      other._nodes[node] = Node(kInvalidHypernode, tmp_num_incident_edges[node], node_weights[node]);
+    } else {
+      other._nodes[node] = _nodes[node + numVisibleNodes() - coarsened_num_nodes];
+    }
   });
   other._nodes.emplace_back(kInvalidHypernode, _num_edges, 0);
 
   tbb::parallel_for(ID(0), _num_nodes, [&](const HyperedgeID& node) {
-    const HypernodeID coarse_node = communities[node];
-    // modify the underlying data of the prefix sum
-    const HyperedgeID start = tmp_num_incident_edges[coarse_node].fetch_add(inwardDegree(node));
+    HypernodeID coarse_node;
+    HyperedgeID start;
+    if (node < numVisibleNodes()) {
+      coarse_node = communities[node];
+      // modify the underlying data of the prefix sum
+      start = tmp_num_incident_edges[coarse_node].fetch_add(inwardDegree(node));
+    } else {
+      coarse_node = node - numVisibleNodes() + coarsened_num_nodes;
+      start = _nodes[coarse_node].begin;
+    }
     for (HyperedgeID i = 0; i < inwardDegree(node); ++i) {
       other._inward_edges[start + i] = _inward_edges[_nodes[node].begin + i];
     }
   });
 
-  other._num_nodes = coarsened_num_nodes;
+  other._batch_indices_and_weights = {std::make_pair(coarsened_num_nodes, _total_weight)};
+  for (size_t i = _hidden_nodes_batch_index; i < _batch_indices_and_weights.size(); ++i) {
+    std::pair<HypernodeID, HypernodeWeight> batch = _batch_indices_and_weights[i];
+    batch.first -= (numVisibleNodes() - coarsened_num_nodes);
+    other._batch_indices_and_weights.push_back(batch);
+  }
+
+  other._num_nodes = total_coarsened_nodes;
   other._num_edges = _num_edges;
   other._total_weight = _total_weight;
 
@@ -526,6 +552,7 @@ SeparatedNodes SeparatedNodes::copy(parallel_tag_t) const {
   sep_nodes._num_graph_nodes = _num_graph_nodes;
   sep_nodes._num_edges = _num_edges;
   sep_nodes._total_weight = _total_weight;
+  sep_nodes._hidden_nodes_batch_index = _hidden_nodes_batch_index;
 
   tbb::parallel_invoke([&] {
     sep_nodes._nodes.resize(_nodes.size());
@@ -569,6 +596,7 @@ SeparatedNodes SeparatedNodes::copy() const {
   sep_nodes._num_graph_nodes = _num_graph_nodes;
   sep_nodes._num_edges = _num_edges;
   sep_nodes._total_weight = _total_weight;
+  sep_nodes._hidden_nodes_batch_index = _hidden_nodes_batch_index;
 
   sep_nodes._nodes.resize(_nodes.size());
   memcpy(sep_nodes._nodes.data(), _nodes.data(),
