@@ -32,6 +32,7 @@ void coarsenSynchronized(SepNodesStack& stack, const Hypergraph& original_hg, co
                          const Context& context, const HypernodeID& start_num_nodes, const HypernodeID& target_num_nodes) {
   size_t j = 0;
   HypernodeID current_num_nodes = start_num_nodes;
+  SNodesCoarseningStage stage = SNodesCoarseningStage::ON_LARGE_GRAPH;
   for (size_t i = 0; i < levels.size(); ++i) {
     const double reduction_factor = std::pow(static_cast<double>(target_num_nodes) / static_cast<double>(current_num_nodes),
                                              1 / static_cast<double>(levels.size() - i));
@@ -44,27 +45,34 @@ void coarsenSynchronized(SepNodesStack& stack, const Hypergraph& original_hg, co
         const Hypergraph& old_hg = (j == 0) ? original_hg : levels[j - 1].contractedHypergraph();
         current_step_start_nodes += old_hg.replaySeparated(levels[j].communities(), stack.coarsest());
         stack.coarsest().contract(levels[j].communities(), hg->initialNumNodes());
-        if (i == j) {
-          stack.coarsest().revealNextBatch();
-          reveal_batch = false;
-        }
         ++j;
       }
+      if (reveal_batch) {
+        stack.coarsest().revealNextBatch();
+        reveal_batch = false;
+      }
 
+      double tmp_factor = reduction_factor * current_step_start_nodes / stack.coarsest().numVisibleNodes();
+      if (tmp_factor < 0.65) {
+        tmp_factor = std::max(0.65, std::sqrt(tmp_factor));
+      }
+      const HypernodeID tmp_target = tmp_factor * stack.coarsest().numVisibleNodes();
+      if (j == levels.size() && stage == SNodesCoarseningStage::ON_LARGE_GRAPH) {
+        stage = SNodesCoarseningStage::D1_TWINS;
+      }
       stack.coarsest().initializeOutwardEdges();
-      const HypernodeID tmp_target = std::max(0.65 * stack.coarsest().numVisibleNodes(),
-                                              reduction_factor * current_step_start_nodes);
-      SNodesCoarseningStage stage = (j == levels.size()) ? SNodesCoarseningStage::D1_TWINS : SNodesCoarseningStage::ON_LARGE_GRAPH;
       SNodesCoarseningPass c_pass(stack.coarsest(), *hg, context, tmp_target, stage);
       vec<HypernodeID> communities;
       current_num_nodes -= c_pass.run(communities, false);
+      stage = c_pass.stage();
+      if (static_cast<uint8_t>(stage) > 0 && stage != SNodesCoarseningStage::ON_LARGE_GRAPH) {
+        stage = static_cast<SNodesCoarseningStage>(static_cast<uint8_t>(stage) - 1);
+      }
       stack.coarsen(std::move(communities));
     } while (static_cast<double>(stack.coarsest().numVisibleNodes()) / current_step_start_nodes > reduction_factor
              && stack.coarsest().numVisibleNodes() > target_num_nodes);
 
-    if (reveal_batch) {
-      stack.coarsest().revealNextBatch();
-    }
+    stack.contractToNLevels(i + 2);
   }
 }
 
