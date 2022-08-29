@@ -396,20 +396,25 @@ class SepNodesStack {
     return _data.size();
   }
 
-  const SeparatedNodes& atLevel(size_t level) const {
+  const SeparatedNodes& atLevel(size_t level, bool rev_index = true) const {
     ASSERT(level < _data.size());
-    return *_data[_data.size() - level - 1];
+    return *_data[rev_index ? _data.size() - level - 1 : level];
   }
 
-  SeparatedNodes& atLevel(size_t level) {
+  SeparatedNodes& atLevel(size_t level, bool rev_index = true) {
     ASSERT(level < _data.size());
-    return *_data[_data.size() - level - 1];
+    return *_data[rev_index ? _data.size() - level - 1 : level];
   }
 
   // the mapping from the next finest level to the specified level (0 is the coarsest level)
-  const vec<HypernodeID>& mapping(size_t level) const {
+  const vec<HypernodeID>& mapping(size_t level, bool rev_index = true) const {
     ASSERT(level < _mappings.size());
-    return _mappings[_mappings.size() - level - 1];
+    return _mappings[rev_index ? _mappings.size() - level - 1 : level];
+  }
+
+  vec<HypernodeID>&& move_mapping(size_t level, bool rev_index = true) {
+    ASSERT(level < _mappings.size());
+    return std::move(_mappings[rev_index ? _mappings.size() - level - 1 : level]);
   }
 
   void coarsen(vec<HypernodeID>&& communities) {

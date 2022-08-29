@@ -28,6 +28,20 @@ namespace star_partitioning {
 using ds::SepNodesStack;
 using ds::SeparatedNodes;
 
+void replayToSynchronizeLevels(SepNodesStack& stack, const Hypergraph& original_hg, const vec<Level>& levels) {
+  ASSERT(stack.numLevels() == levels.size() + 1);
+  SepNodesStack new_stack(original_hg.initialNumNodes());
+  const Hypergraph* hg = &original_hg;
+  for (size_t i = 0; i < levels.size(); ++i) {
+    hg->replaySeparated(levels[i].communities(), new_stack.coarsest());
+    new_stack.coarsest().revealNextBatch();
+    hg = &levels[i].contractedHypergraph();
+    new_stack.coarsest().contract(levels[i].communities(), hg->initialNumNodes());
+    new_stack.coarsen(std::move(stack.move_mapping(i, false)));
+  }
+  std::swap(stack, new_stack);
+}
+
 void coarsenSynchronized(SepNodesStack& stack, const Hypergraph& original_hg, const vec<Level>& levels,
                          const Context& context, const HypernodeID& start_num_nodes, const HypernodeID& target_num_nodes) {
   size_t j = 0;
@@ -74,6 +88,19 @@ void coarsenSynchronized(SepNodesStack& stack, const Hypergraph& original_hg, co
 
     stack.contractToNLevels(i + 2);
   }
+
+  replayToSynchronizeLevels(stack, original_hg, levels);
+
+  ASSERT(stack.numLevels() == levels.size() + 1);
+  ASSERT([&] {
+    for (size_t i = 0; i < levels.size(); ++i) {
+      const Hypergraph& hg = levels[i].contractedHypergraph();
+      if (stack.atLevel(i, false).numGraphNodes() !=  hg.initialNumNodes()) {
+        return false;
+      }
+    }
+    return true;
+  }(), "Constructed separated nodes stack does not match graph levels!");
 }
 
 } // namepace star_partitioning
