@@ -372,6 +372,10 @@ namespace mt_kahypar {
              po::value<size_t>((!initial_partitioning ? &context.refinement.min_border_vertices_per_thread :
                                 &context.initial_partitioning.refinement.min_border_vertices_per_thread))->value_name("<size_t>")->default_value(0),
              "Minimum number of border vertices per thread with which we perform a localized search (n-Level Partitioner).")
+            (( initial_partitioning ? "i-r-include-separated" : "r-include-separated"),
+             po::value<bool>((!initial_partitioning ? &context.refinement.include_separated :
+                              &context.initial_partitioning.refinement.include_separated))->value_name("<bool>")->default_value(false),
+             "Include separated nodes in refinement.")
             ((initial_partitioning ? "i-r-lp-type" : "r-lp-type"),
              po::value<std::string>()->value_name("<string>")->notifier(
                      [&, initial_partitioning](const std::string& type) {

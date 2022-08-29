@@ -99,11 +99,13 @@ namespace mt_kahypar::multilevel {
       }
 
       // ################## SEPARATED NODES COARSENING ##################
-      SepNodesStack stack(_hg.separatedNodes().finest().createCopyFromSavepoint());
-      const HypernodeID start_num_nodes = _hg.numSeparatedNodes();
-      const HypernodeID target_num_nodes = _uncoarseningData->calculateSeparatedNodesTargetSize(
-                                             _uncoarseningData->coarsestPartitionedHypergraph().hypergraph(), _hg);
-      star_partitioning::coarsenSynchronized(stack, _hg, _uncoarseningData->hierarchy, _context, start_num_nodes, target_num_nodes);
+      if (_context.refinement.include_separated) {
+        SepNodesStack stack(_hg.separatedNodes().finest().createCopyFromSavepoint());
+        const HypernodeID start_num_nodes = _hg.numSeparatedNodes();
+        const HypernodeID target_num_nodes = _uncoarseningData->calculateSeparatedNodesTargetSize(
+                                              _uncoarseningData->coarsestPartitionedHypergraph().hypergraph(), _hg);
+        star_partitioning::coarsenSynchronized(stack, _hg, _uncoarseningData->hierarchy, _context, start_num_nodes, target_num_nodes);
+      }
 
       // ################## LOCAL SEARCH ##################
       io::printLocalSearchBanner(_context);
@@ -171,8 +173,10 @@ namespace mt_kahypar::multilevel {
             _uncoarseningData(uncoarseningData) { }
 
     tbb::task* execute() override {
-      // separated nodes
-      _hg.separatedNodes().finest().setSavepoint();
+      if (_context.refinement.include_separated) {
+        // separated nodes
+        _hg.separatedNodes().finest().setSavepoint();
+      }
 
       // ################## COARSENING ##################
       mt_kahypar::io::printCoarseningBanner(_context);
