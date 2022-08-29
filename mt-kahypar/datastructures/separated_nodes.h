@@ -288,10 +288,10 @@ class SeparatedNodes {
 
   // ####################### Initialization / Reset Functions #######################
 
-  // ! Copy static hypergraph in parallel
   SeparatedNodes copy(parallel_tag_t) const;
 
-  // ! Copy static hypergraph sequential
+  SeparatedNodes copy_first_batch(parallel_tag_t) const;
+
   SeparatedNodes copy() const;
 
   void memoryConsumption(utils::MemoryTreeNode* parent) const;

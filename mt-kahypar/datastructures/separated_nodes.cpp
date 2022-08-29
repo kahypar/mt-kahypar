@@ -589,6 +589,35 @@ SeparatedNodes SeparatedNodes::copy(parallel_tag_t) const {
   return sep_nodes;
 }
 
+// ! Copy in parallel
+SeparatedNodes SeparatedNodes::copy_first_batch(parallel_tag_t) const {
+  SeparatedNodes sep_nodes(_num_graph_nodes);
+
+  const HypernodeID num_nodes = _batch_indices_and_weights[0].first;
+  const HyperedgeID num_edges = _nodes[num_nodes].begin;
+  sep_nodes._num_nodes = num_nodes;
+  sep_nodes._num_graph_nodes = _num_graph_nodes;
+  sep_nodes._num_edges = num_edges;
+  sep_nodes._total_weight = _batch_indices_and_weights[0].second;
+  sep_nodes._batch_indices_and_weights = {_batch_indices_and_weights[0], _batch_indices_and_weights[1]};
+
+  tbb::parallel_invoke([&] {
+    sep_nodes._nodes.resize(num_nodes + 1);
+    memcpy(sep_nodes._nodes.data(), _nodes.data(), sizeof(Node) * num_nodes);
+    sep_nodes._nodes.push_back(Node(kInvalidHypernode, num_edges, 0));
+  }, [&] {
+    sep_nodes._outward_incident_weight.resize(_outward_incident_weight.size());
+    for (size_t i = 0; i < _outward_incident_weight.size(); ++i) {
+      sep_nodes._outward_incident_weight[i] = _outward_incident_weight[i];
+    }
+  }, [&] {
+    sep_nodes._inward_edges.resize(num_edges);
+    memcpy(sep_nodes._inward_edges.data(), _inward_edges.data(),
+            sizeof(Edge) * num_edges);
+  });
+  return sep_nodes;
+}
+
 // ! Copy sequential
 SeparatedNodes SeparatedNodes::copy() const {
   SeparatedNodes sep_nodes(_num_graph_nodes);
