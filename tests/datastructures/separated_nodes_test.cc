@@ -343,6 +343,44 @@ TEST_F(ASeparatedNodes, CoarsensWithHiddenNodes) {
   verifyIncidentEgdes(other.inwardEdges(3), { {0, 1} });
 }
 
+TEST_F(ASeparatedNodes, ContractsStack) {
+  SeparatedNodes nodes(4);
+  vec<std::tuple<HypernodeID, HyperedgeID, HypernodeWeight>> new_nodes { {0, 0, 1}, {1, 2, 1}, {2, 3, 1}, {3, 4, 1}};
+  vec<Edge> new_edges { Edge(2, 1), Edge(1, 1), Edge(0, 1), Edge(2, 1), Edge(3, 1) };
+  nodes.addNodes(new_nodes, new_edges);
+  nodes.revealAll();
+
+  SepNodesStack stack(std::move(nodes));
+  stack.coarsen({ 1, 2, 2, 0 });
+  stack.coarsen({ 0, 0, 1 });
+
+  ASSERT_EQ(3, stack.numLevels());
+  stack.contractToNLevels(2);
+  ASSERT_EQ(2, stack.numLevels());
+
+  const SeparatedNodes& coarse = stack.coarsest();
+  ASSERT_EQ(2,  coarse.numNodes());
+  ASSERT_EQ(4,  coarse.numGraphNodes());
+  ASSERT_EQ(5,  coarse.numEdges());
+  ASSERT_EQ(4,  coarse.totalWeight());
+  ASSERT_EQ(2,  coarse.numVisibleNodes());
+
+  ASSERT_EQ(1,  coarse.outwardIncidentWeight(0));
+  ASSERT_EQ(1,  coarse.outwardIncidentWeight(1));
+  ASSERT_EQ(2,  coarse.outwardIncidentWeight(2));
+  ASSERT_EQ(1,  coarse.outwardIncidentWeight(3));
+
+  verifyIncidentEgdes(coarse.inwardEdges(0), { {2, 1}, {1, 1}, {3, 1} });
+  verifyIncidentEgdes(coarse.inwardEdges(1), { {0, 1}, {2, 1} });
+
+  const vec<HypernodeID>& mapping = stack.mapping(0);
+  ASSERT_EQ(4, mapping.size());
+  ASSERT_EQ(0, mapping[0]);
+  ASSERT_EQ(1, mapping[1]);
+  ASSERT_EQ(1, mapping[2]);
+  ASSERT_EQ(0, mapping[3]);
+}
+
 TEST_F(ASeparatedNodes, InitializesEdges) {
   SeparatedNodes nodes(5);
   vec<std::tuple<HypernodeID, HyperedgeID, HypernodeWeight>> new_nodes { {0, 0, 1}, {1, 2, 1}, {2, 4, 1}};

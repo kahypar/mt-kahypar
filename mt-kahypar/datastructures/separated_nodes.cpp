@@ -631,4 +631,25 @@ SeparatedNodes SeparatedNodes::copy() const {
   return sep_nodes;
 }
 
+
+void SepNodesStack::contractToNLevels(size_t n) {
+  ASSERT(n <= numLevels() && n > 1);
+  vec<HypernodeID>& mapping = _mappings[n - 2];
+  tbb::parallel_for(0UL, mapping.size(), [&](const size_t& pos) {
+    HypernodeID mapped_node = mapping[pos];
+    for (size_t i = n - 1; i < _mappings.size(); ++i) {
+      mapped_node = _mappings[i][mapped_node];
+    }
+    mapping[pos] = mapped_node;
+  });
+
+  std::unique_ptr<SeparatedNodes> last_nodes = std::move(_data.back());
+  _data.pop_back();
+  while (_data.size() >= n) {
+    _data.pop_back();
+    _mappings.pop_back();
+  }
+  _data.push_back(std::move(last_nodes));
+}
+
 } // namespace

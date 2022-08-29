@@ -418,6 +418,10 @@ class SepNodesStack {
     _mappings.push_back(std::move(communities));
   }
 
+  // merges recently added levels into one combined level, such that there are
+  // n levels left afterwards
+  void contractToNLevels(size_t n);
+
  private:
   vec<std::unique_ptr<SeparatedNodes>> _data;
   vec<vec<HypernodeID>> _mappings;
