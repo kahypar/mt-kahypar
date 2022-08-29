@@ -21,6 +21,7 @@
  ******************************************************************************/
 #pragma once
 
+#include "mt-kahypar/datastructures/array.h"
 #include "mt-kahypar/datastructures/separated_nodes.h"
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/context.h"
@@ -28,6 +29,7 @@
 
 namespace mt_kahypar {
   using ds::SepNodesStack;
+  using ds::SeparatedNodes;
 
 class Level {
 
@@ -142,17 +144,57 @@ public:
           && _context.type != kahypar::ContextType::main
           && coarsest_hg.separatedNodes().coarsest().numNodes() > 0) {
         // TODO(maas): might be problematic if hierarchy is empty
-        coarsest_hg = HypergraphFactory::reinsertSeparatedNodes(coarsest_hg, coarsest_hg.separatedNodes().coarsest());
+        hierarchy.emplace_back(HypergraphFactory::reinsertSeparatedNodes(coarsest_hg, coarsest_hg.separatedNodes().coarsest()),
+                                                                         parallel::scalable_vector<HypernodeID>(), 0);
       }
 
       // Construct partitioned hypergraph for initial partitioning
       *partitioned_hg = PartitionedHypergraph(_context.partition.k, _hg.initialNumNodes() + _hg.numSeparatedNodes(),
                                               _hg.initialNumEdges() + 2 * _hg.numSeparatedEdges(), parallel_tag_t());
-      partitioned_hg->setHypergraph(coarsest_hg);
+      partitioned_hg->setHypergraph(hierarchy.empty() ? _hg : hierarchy.back().contractedHypergraph());
 
       utils::Timer::instance().stop_timer("finalize_multilevel_hierarchy");
     }
     is_finalized = true;
+  }
+
+  void initializeRefinement() {
+    if (_context.initial_partitioning.reinsert_separated
+        && _context.type != kahypar::ContextType::main
+        && !hierarchy.empty() && hierarchy.back().contractedHypergraph().numIncludedSeparated() > 0) {
+      const Hypergraph& ip_graph = hierarchy.back().contractedHypergraph();
+      ASSERT(&partitioned_hg->hypergraph() == &ip_graph);
+      Hypergraph& hg = hierarchy.size() == 1 ? _hg : hierarchy[hierarchy.size() - 2].contractedHypergraph();
+      ASSERT(ip_graph.firstIncludedSeparated() == hg.initialNumNodes());
+      ds::Array<PartIdType> part_ids(ip_graph.initialNumNodes(), PartIdType(kInvalidPartition));
+      partitioned_hg->extractPartIDs(part_ids);
+
+      partitioned_hg->setHypergraph(hg);
+      partitioned_hg->initializeSeparatedParts();
+      const HypernodeID first_included_sep = ip_graph.firstIncludedSeparated();
+      tbb::parallel_for(first_included_sep, ip_graph.initialNumNodes(), [&] (const HypernodeID& node) {
+        partitioned_hg->separatedSetOnlyNodePart(node - first_included_sep, part_ids[node].load());
+      });
+      partitioned_hg->propagateSeparatedPartIDsToFinest();
+      hierarchy.pop_back();
+
+      ASSERT([&] {
+        for (HypernodeID node: partitioned_hg->nodes()) {
+          if (partitioned_hg->partID(node) == kInvalidPartition) {
+            return false;
+          }
+        }
+        if (partitioned_hg->hasSeparatedNodes()) {
+          SeparatedNodes& separated_nodes = partitioned_hg->separatedNodes().finest();
+          for (HypernodeID node = 0; node < separated_nodes.numNodes(); ++node) {
+            if (partitioned_hg->separatedPartID(node) == kInvalidPartition) {
+              return false;
+            }
+          }
+        }
+        return true;
+      }() );
+    }
   }
 
   void performMultilevelContraction(

@@ -81,6 +81,9 @@ namespace mt_kahypar::multilevel {
           _uncoarseningData->coarsestPartitionedHypergraph());
       }
 
+      // undo replacement of IP hypergraph for separated nodes
+      _uncoarseningData->initializeRefinement();
+
       utils::Timer::instance().stop_timer("initial_partitioning");
 
       io::printPartitioningResults(_uncoarseningData->coarsestPartitionedHypergraph(),
