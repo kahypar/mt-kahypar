@@ -99,7 +99,7 @@ namespace mt_kahypar::multilevel {
       }
 
       // ################## SEPARATED NODES COARSENING ##################
-      SepNodesStack stack(_hg.initialNumNodes());
+      SepNodesStack stack(_hg.separatedNodes().finest().createCopyFromSavepoint());
       const HypernodeID start_num_nodes = _hg.numSeparatedNodes();
       const HypernodeID target_num_nodes = _uncoarseningData->calculateSeparatedNodesTargetSize(
                                              _uncoarseningData->coarsestPartitionedHypergraph().hypergraph(), _hg);
@@ -171,6 +171,9 @@ namespace mt_kahypar::multilevel {
             _uncoarseningData(uncoarseningData) { }
 
     tbb::task* execute() override {
+      // separated nodes
+      _hg.separatedNodes().finest().setSavepoint();
+
       // ################## COARSENING ##################
       mt_kahypar::io::printCoarseningBanner(_context);
 

@@ -96,13 +96,14 @@ void SeparatedNodes::restoreSavepoint() {
 }
 
 SeparatedNodes SeparatedNodes::createCopyFromSavepoint() {
-  ASSERT(!_savepoints.empty() && _outward_edges.empty());
+  ASSERT(!_savepoints.empty());
   auto& [edges, indices, num_graph_nodes] = _savepoints.back();
-  ASSERT(_nodes.size() == indices.size());
+  ASSERT(_nodes.size() >= indices.size() && indices.back() == edges.size());
+  const HypernodeID num_nodes = indices.size() - 1;
   _outward_incident_weight.clear(); // not correct anymore
 
   SeparatedNodes sep_nodes(num_graph_nodes);
-  sep_nodes._num_nodes = _num_nodes;
+  sep_nodes._num_nodes = num_nodes;
   sep_nodes._num_graph_nodes = num_graph_nodes;
   sep_nodes._num_edges = edges.size();
   sep_nodes._total_weight = _total_weight;
@@ -110,12 +111,12 @@ SeparatedNodes SeparatedNodes::createCopyFromSavepoint() {
   sep_nodes._hidden_nodes_batch_index = _hidden_nodes_batch_index;
 
   tbb::parallel_invoke([&] {
-    sep_nodes._nodes.resize(_nodes.size());
-    memcpy(sep_nodes._nodes.data(), _nodes.data(),
-            sizeof(Node) * _nodes.size());
+    sep_nodes._nodes.resize(num_nodes + 1);
+    memcpy(sep_nodes._nodes.data(), _nodes.data(), sizeof(Node) * num_nodes);
+    sep_nodes._nodes.back() = Node(kInvalidHypernode, edges.size(), 0);
   }, [&] {
     sep_nodes._batch_indices_and_weights.resize(_batch_indices_and_weights.size());
-    for (size_t i = 0; i < _batch_indices_and_weights.size(); ++i) {
+    for (size_t i = 0; i < _batch_indices_and_weights.size() && _batch_indices_and_weights[i].first <= num_nodes; ++i) {
       sep_nodes._batch_indices_and_weights[i] = _batch_indices_and_weights[i];
     }
   });

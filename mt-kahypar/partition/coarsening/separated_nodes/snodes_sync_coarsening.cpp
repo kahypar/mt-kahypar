@@ -30,7 +30,7 @@ using ds::SeparatedNodes;
 
 void replayToSynchronizeLevels(SepNodesStack& stack, const Hypergraph& original_hg, const vec<Level>& levels) {
   ASSERT(stack.numLevels() == levels.size() + 1);
-  SepNodesStack new_stack(original_hg.initialNumNodes());
+  SepNodesStack new_stack(stack.finest().createCopyFromSavepoint());
   const Hypergraph* hg = &original_hg;
   for (size_t i = 0; i < levels.size(); ++i) {
     hg->replaySeparated(levels[i].communities(), new_stack.coarsest());
