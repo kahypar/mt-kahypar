@@ -221,9 +221,11 @@ void SNodesCoarseningPass::setupNodeInfo(bool use_spanning_tree) {
       SpanningTree tree = constructMaxSpanningTree(_hg, TreePath::max_path_length);
       tree.calculatePaths([&](const HypernodeID& graph_node, TreePath path) {
         for (const SeparatedNodes::Edge& e: _s_nodes.outwardEdges(graph_node)) {
-          NodeInfo& info = tmp_node_info[e.target];
-          if (info.degree == 2 && info.assigned_graph_node != graph_node) {
-            info.tree_path = path;
+          if (e.target < _s_nodes.numVisibleNodes()) {
+            NodeInfo& info = tmp_node_info[e.target];
+            if (info.degree == 2 && info.assigned_graph_node != graph_node) {
+              info.tree_path = path;
+            }
           }
         }
       });

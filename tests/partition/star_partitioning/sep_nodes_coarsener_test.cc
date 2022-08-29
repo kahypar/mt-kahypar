@@ -58,6 +58,7 @@ class ACoarseningPass : public Test {
       }
     }
     s_nodes.addNodes(nodes, s_edges);
+    s_nodes.revealAll();
     s_nodes.initializeOutwardEdges();
   }
 
