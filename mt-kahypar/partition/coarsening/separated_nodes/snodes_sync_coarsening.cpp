@@ -36,14 +36,15 @@ void replayToSynchronizeLevels(SepNodesStack& stack, const Hypergraph& original_
     hg->replaySeparated(levels[i].communities(), new_stack.coarsest());
     new_stack.coarsest().revealNextBatch();
     hg = &levels[i].contractedHypergraph();
-    new_stack.coarsest().contract(levels[i].communities(), hg->initialNumNodes());
     new_stack.coarsen(std::move(stack.move_mapping(i, false)));
+    new_stack.coarsest().contract(levels[i].communities(), hg->initialNumNodes());
   }
   std::swap(stack, new_stack);
 }
 
 void coarsenSynchronized(SepNodesStack& stack, const Hypergraph& original_hg, const vec<Level>& levels,
                          const Context& context, const HypernodeID& start_num_nodes, const HypernodeID& target_num_nodes) {
+  stack.finest().setSavepoint();
   size_t j = 0;
   HypernodeID current_num_nodes = start_num_nodes;
   SNodesCoarseningStage stage = SNodesCoarseningStage::ON_LARGE_GRAPH;
@@ -93,8 +94,8 @@ void coarsenSynchronized(SepNodesStack& stack, const Hypergraph& original_hg, co
 
   ASSERT(stack.numLevels() == levels.size() + 1);
   ASSERT([&] {
-    for (size_t i = 0; i < levels.size(); ++i) {
-      const Hypergraph& hg = levels[i].contractedHypergraph();
+    for (size_t i = 0; i < stack.numLevels(); ++i) {
+      const Hypergraph& hg = (i == 0) ? original_hg : levels[i - 1].contractedHypergraph();
       if (stack.atLevel(i, false).numGraphNodes() !=  hg.initialNumNodes()) {
         return false;
       }
