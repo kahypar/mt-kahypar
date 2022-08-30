@@ -57,8 +57,9 @@ class StaticGraphFactory {
                                                 const HypernodeWeight* node_weight = nullptr,
                                                 const bool stable_construction_of_incident_edges = false);
 
-  // ! Constructs a new graph with the separated nodes reinserted (and numIncludedSeparated() set accordingly)
   static StaticGraph reinsertSeparatedNodes(const StaticGraph& graph, const SeparatedNodes& s_nodes);
+  // ! Constructs a new graph with the separated nodes reinserted (and numIncludedSeparated() set accordingly).
+  // ! Further, the relative order of the node ids is preserved, i.e., new_id = old_id + graph.initialNumNodes()
 
   static std::pair<StaticGraph, parallel::scalable_vector<HypernodeID> > compactify(const StaticGraph&) {
     ERROR("Compactify not implemented for static graph.");

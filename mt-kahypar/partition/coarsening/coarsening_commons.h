@@ -72,6 +72,10 @@ public:
     return _communities;
   }
 
+  vec<HypernodeID>& communities() {
+    return _communities;
+  }
+
 private:
   // ! Contracted Hypergraph
   Hypergraph _contracted_hypergraph;
