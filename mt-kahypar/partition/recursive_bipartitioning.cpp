@@ -261,8 +261,10 @@ namespace mt_kahypar {
     }
 
     tbb::task* execute() override {
-      ASSERT(_hg.initialNumNodes() + (_hg.hasSeparatedNodes() ? _hg.separatedNodes().coarsest().numNodes() : 0)
-             == _bisection_hg.initialNumNodes() + (_bisection_hg.hasSeparatedNodes() ? _bisection_hg.separatedNodes().coarsest().numNodes() : 0));
+      ASSERT(_hg.initialNumNodes() + _hg.numSeparatedNodes()
+             == _bisection_hg.initialNumNodes() + _bisection_hg.numSeparatedNodes(),
+             V(_hg.initialNumNodes()) << V(_hg.numSeparatedNodes())
+             << V(_bisection_hg.initialNumNodes()) << V(_bisection_hg.numSeparatedNodes()));
       // Apply partition to hypergraph
       const PartitionID block_0 = 0;
       const PartitionID block_1 = _context.partition.k / 2 + (_context.partition.k % 2 != 0 ? 1 : 0);
@@ -281,7 +283,6 @@ namespace mt_kahypar {
       if (_hg.hasSeparatedNodes()) {
         _hg.initializeSeparatedParts();
         _hg.separatedNodes().finest().restoreSavepoint();
-        const bool requires_propagation = (_bisection_hg.numIncludedSeparated() > 0);
         const HypernodeID num_nodes = _bisection_hg.initialNumNodes() + _bisection_hg.numSeparatedNodes();
         const HyperedgeID first_included_sep = _bisection_hg.firstIncludedSeparated();
         ds::Array<PartIdType> part_ids(num_nodes, PartIdType(kInvalidPartition));
@@ -297,10 +298,6 @@ namespace mt_kahypar {
             _hg.separatedSetOnlyNodePart(node - first_included_sep, block_1);
           }
         });
-        if (requires_propagation) {
-          ASSERT(_context.initial_partitioning.reinsert_separated);
-          _hg.propagateSeparatedPartIDsToFinest();
-        }
       }
       _hg.initializePartition();
 

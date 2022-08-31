@@ -78,7 +78,6 @@ namespace mt_kahypar {
     for (int i = _uncoarseningData.hierarchy.size() - 1; i >= 0; --i) {
       // Project partition to next level finer hypergraph
       utils::Timer::instance().start_timer("projecting_partition", "Projecting Partition");
-      const bool requires_propagation = (partitioned_hg.hypergraph().numIncludedSeparated() > 0);
       const size_t num_nodes = partitioned_hg.initialNumNodes();
       const HypernodeID num_separated = partitioned_hg.numSeparatedNodes();
       const HypernodeID first_included_sep = partitioned_hg.hypergraph().firstIncludedSeparated();
@@ -92,14 +91,12 @@ namespace mt_kahypar {
       }
 
       partitioned_hg.resetData();
-      partitioned_hg.initializeSeparatedParts();
-      ASSERT(part_ids.size() >= num_nodes + num_separated);
-      tbb::parallel_for(first_included_sep, ID(num_nodes + num_separated), [&] (const HypernodeID& node) {
-        partitioned_hg.separatedSetOnlyNodePart(node - first_included_sep, part_ids[node].load());
-      });
-      if (requires_propagation) {
-        ASSERT(_context.initial_partitioning.reinsert_separated && _context.type != kahypar::ContextType::main);
-        partitioned_hg.propagateSeparatedPartIDsToFinest();
+      if (partitioned_hg.hasSeparatedNodes()) {
+        partitioned_hg.initializeSeparatedParts();
+        ASSERT(part_ids.size() >= num_nodes + num_separated);
+        tbb::parallel_for(first_included_sep, ID(num_nodes + num_separated), [&] (const HypernodeID& node) {
+          partitioned_hg.separatedSetOnlyNodePart(node - first_included_sep, part_ids[node].load());
+        });
       }
       partitioned_hg.doParallelForAllNodes([&](const HypernodeID hn) {
         const HypernodeID coarse_hn = (_uncoarseningData.hierarchy)[i].mapToContractedHypergraph(hn);
@@ -136,25 +133,25 @@ namespace mt_kahypar {
           current_metrics.imbalance = metrics::imbalance(partitioned_hg, _context);
         });
 
-        ASSERT([&] {
-          for (HypernodeID node: partitioned_hg.nodes()) {
-            if (partitioned_hg.partID(node) == kInvalidPartition) {
+        utils::Timer::instance().stop_timer("assign_separated_nodes");
+      }
+
+      ASSERT([&] {
+        for (HypernodeID node: partitioned_hg.nodes()) {
+          if (partitioned_hg.partID(node) == kInvalidPartition) {
+            return false;
+          }
+        }
+        if (partitioned_hg.hasSeparatedNodes()) {
+          SeparatedNodes& separated_nodes = partitioned_hg.separatedNodes().finest();
+          for (HypernodeID node = 0; node < separated_nodes.numNodes(); ++node) {
+            if (partitioned_hg.separatedPartID(node) == kInvalidPartition) {
               return false;
             }
           }
-          if (partitioned_hg.hasSeparatedNodes()) {
-            SeparatedNodes& separated_nodes = partitioned_hg.separatedNodes().finest();
-            for (HypernodeID node = 0; node < separated_nodes.numNodes(); ++node) {
-              if (partitioned_hg.separatedPartID(node) == kInvalidPartition) {
-                return false;
-              }
-            }
-          }
-          return true;
-        }() );
-
-        utils::Timer::instance().stop_timer("assign_separated_nodes");
-      }
+        }
+        return true;
+      }() );
 
       // Refinement
       time_limit = refinementTimeLimit(_context, (_uncoarseningData.hierarchy)[i].coarseningTime());
