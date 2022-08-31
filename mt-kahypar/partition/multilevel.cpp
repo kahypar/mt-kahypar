@@ -69,6 +69,12 @@ namespace mt_kahypar::multilevel {
       utils::Timer::instance().start_timer("reconstruct_hierarchy", "Reconstruct Hierarchy");
 
       vec<Level>& levels = _uncoarseningData->hierarchy;
+      HypernodeWeight correct_weight = _hg.totalActiveWeight();
+      unused(correct_weight);
+      ASSERT([&] {
+        correct_weight += _hg.separatedNodes().finest().initialWeight();
+        return true;
+      }());
       ASSERT(stack.numLevels() == levels.size() + 1);
 
       for (size_t i = 0; i < levels.size(); ++i) {
@@ -88,7 +94,7 @@ namespace mt_kahypar::multilevel {
             ASSERT(old_communities[pos] == kInvalidHypernode || old_communities[pos] < num_graph_nodes);
             new_communities[pos] = old_communities[pos];
           } else {
-            ASSERT(sep_mapping[pos - old_size] < stack.atLevel(i + 1).numNodes());
+            ASSERT(sep_mapping[pos - old_size] < stack.atLevel(i + 1, false).numNodes());
             new_communities[pos] = sep_mapping[pos - old_size] + num_graph_nodes;
           }
         });
@@ -104,6 +110,7 @@ namespace mt_kahypar::multilevel {
 
         old_hg = HypergraphFactory::reinsertSeparatedNodes(old_hg, stack.atLevel(i, false));
         old_hg.setSeparatedNodes(nullptr);
+        ASSERT(correct_weight == old_hg.totalWeight(), V(correct_weight) << V(old_hg.totalWeight()));
       }
       Hypergraph& last_hg = (levels.size() == 0) ? _hg : levels.back().contractedHypergraph();
       Array<PartIdType> part_ids(last_hg.initialNumNodes() + last_hg.numSeparatedNodes(), PartIdType(kInvalidPartition));
@@ -112,6 +119,7 @@ namespace mt_kahypar::multilevel {
 
       last_hg = HypergraphFactory::reinsertSeparatedNodes(last_hg, stack.coarsest());
       last_hg.setSeparatedNodes(nullptr);
+      ASSERT(correct_weight == last_hg.totalWeight());
       phg.setHypergraph(last_hg);
       phg.resetData();
       phg.doParallelForAllNodes([&](const HypernodeID node) {

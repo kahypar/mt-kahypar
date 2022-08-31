@@ -175,6 +175,15 @@ class SeparatedNodes {
     return _batch_indices_and_weights[_hidden_nodes_batch_index].first;
   }
 
+  // ! only for testing
+  HypernodeWeight initialWeight() const {
+    HypernodeWeight weight = 0;
+    for (HypernodeID node = 0; node < _batch_indices_and_weights[0].first; ++node) {
+      weight += nodeWeight(node);
+    }
+    return weight;
+  }
+
   // ####################### Iterators #######################
 
   // ! Returns a range of the active nodes of the hypergraph
