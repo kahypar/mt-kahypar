@@ -21,15 +21,18 @@
 #pragma once
 
 #include "mt-kahypar/datastructures/array.h"
+#include "mt-kahypar/datastructures/separated_nodes.h"
 #include "mt-kahypar/definitions.h"
 
 namespace mt_kahypar {
 namespace star_partitioning {
 using ds::Array;
+using ds::SeparatedNodes;
 
-HyperedgeWeight partition(PartitionedHypergraph& hypergraph, const Context& context, bool parallel = true);
+HyperedgeWeight partition(PartitionedHypergraph& hypergraph, SeparatedNodes& s_nodes,
+                          const Context& context, bool parallel = true);
 
-void getEdgeWeightsOfNode(PartitionedHypergraph& phg, Array<HyperedgeWeight>& weights_per_part,
+void getEdgeWeightsOfNode(PartitionedHypergraph& phg, const SeparatedNodes& s_nodes, Array<HyperedgeWeight>& weights_per_part,
                           const HypernodeID& node, const HypernodeID& index = 0);
 
 template<typename F, typename G>

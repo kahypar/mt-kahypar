@@ -22,6 +22,7 @@
 
 #include <vector>
 
+#include "mt-kahypar/datastructures/separated_nodes.h"
 #include "mt-kahypar/datastructures/array.h"
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
@@ -31,15 +32,16 @@
 namespace mt_kahypar {
 namespace star_partitioning {
 using ds::Array;
+using ds::SeparatedNodes;
 
 class Approximate {
  public:
   Approximate(const PartitionID& k): _k(k) { }
 
-  void partition(PartitionedHypergraph& phg, const Context& context,
+  void partition(PartitionedHypergraph& phg, SeparatedNodes& s_nodes, const Context& context,
                  Array<HypernodeWeight>& part_weights, parallel_tag_t);
 
-  void partition(PartitionedHypergraph& phg, const Context& context,
+  void partition(PartitionedHypergraph& phg, SeparatedNodes& s_nodes, const Context& context,
                  Array<HypernodeWeight>& part_weights);
 
  private:

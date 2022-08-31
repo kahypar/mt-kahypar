@@ -329,7 +329,8 @@ class InitialPartitioningDataContainer {
       }
 
       if (_context.initial_partitioning.apply_star_partitioning_per_candidate) {
-        const HyperedgeWeight added_cut = star_partitioning::partition(_partitioned_hypergraph, _context, false);
+        SeparatedNodes& s_nodes = _partitioned_hypergraph.separatedNodes().finest();
+        const HyperedgeWeight added_cut = star_partitioning::partition(_partitioned_hypergraph, s_nodes, _context, false);
         current_metric.updateMetric(current_metric.getMetric(Mode::direct, _context.partition.objective) + added_cut,
                                     Mode::direct, _context.partition.objective);
         current_metric.imbalance = metrics::imbalance(_partitioned_hypergraph, _context);
@@ -679,7 +680,8 @@ class InitialPartitioningDataContainer {
 
     if (_context.initial_partitioning.apply_star_partitioning_to_best) {
       ASSERT(_partitioned_hg.checkSeparatedUnassigned());
-      star_partitioning::partition(_partitioned_hg, _context);
+      SeparatedNodes& s_nodes = _partitioned_hg.separatedNodes().finest();
+      star_partitioning::partition(_partitioned_hg, s_nodes, _context);
     }
     // ASSERT(best_feasible_objective == metrics::objective(_partitioned_hg, _context.partition.objective, false),
     //        V(best_feasible_objective) << V(metrics::objective(_partitioned_hg, _context.partition.objective, false)));

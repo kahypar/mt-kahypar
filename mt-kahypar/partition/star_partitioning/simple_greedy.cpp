@@ -23,7 +23,6 @@
 #include <vector>
 #include <algorithm>
 
-#include "mt-kahypar/datastructures/separated_nodes.h"
 #include "mt-kahypar/partition/star_partitioning/star_partitioning.h"
 
 #include <tbb/parallel_sort.h>
@@ -31,11 +30,9 @@
 namespace mt_kahypar {
 namespace star_partitioning {
 using ds::Array;
-using ds::SeparatedNodes;
 
-void SimpleGreedy::partition(PartitionedHypergraph& phg, const Context& context,
+void SimpleGreedy::partition(PartitionedHypergraph& phg, SeparatedNodes& s_nodes, const Context& context,
                              Array<HypernodeWeight>& part_weights, bool parallel) {
-  SeparatedNodes& s_nodes = phg.separatedNodes().finest();
   Array<HyperedgeWeight> max_gains;
   max_gains.assign(s_nodes.numNodes(), 0, parallel);
   Array<HypernodeID> sorted_nodes;
@@ -44,7 +41,7 @@ void SimpleGreedy::partition(PartitionedHypergraph& phg, const Context& context,
   auto set_node_gain = [&](const HypernodeID& node) {
     Array<HyperedgeWeight>& local_edge_weights = _tmp_edge_weights.local();
     local_edge_weights.assign(phg.k(), 0, false);
-    getEdgeWeightsOfNode(phg, local_edge_weights, node);
+    getEdgeWeightsOfNode(phg, s_nodes, local_edge_weights, node);
 
     HyperedgeWeight max_gain = 0;
     for (PartitionID part = 0; part < _k; ++part) {
@@ -81,7 +78,7 @@ void SimpleGreedy::partition(PartitionedHypergraph& phg, const Context& context,
     if (phg.separatedPartID(node) == kInvalidPartition) {
       Array<HyperedgeWeight>& local_edge_weights = _tmp_edge_weights.local();
       local_edge_weights.assign(phg.k(), 0, false);
-      getEdgeWeightsOfNode(phg, local_edge_weights, node);
+      getEdgeWeightsOfNode(phg, s_nodes, local_edge_weights, node);
 
       // greedily assign separated nodes
       PartitionID max_part = 0;

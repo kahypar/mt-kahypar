@@ -20,12 +20,14 @@
 
 #pragma once
 
+#include "mt-kahypar/datastructures/separated_nodes.h"
 #include "mt-kahypar/datastructures/array.h"
 #include "mt-kahypar/definitions.h"
 
 namespace mt_kahypar {
 namespace star_partitioning {
 using ds::Array;
+using ds::SeparatedNodes;
 
 /*!
  * Simple star partitioning implementation that sorts all leaf nodes
@@ -35,7 +37,7 @@ class SimpleGreedy {
  public:
   SimpleGreedy(const PartitionID& k): _k(k), _tmp_edge_weights(k) { }
 
-  void partition(PartitionedHypergraph& hypergraph, const Context& context,
+  void partition(PartitionedHypergraph& hypergraph, SeparatedNodes& s_nodes, const Context& context,
                  Array<HypernodeWeight>& part_weights, bool parallel = true);
 
  private:

@@ -22,7 +22,6 @@
 
 #include <algorithm>
 
-#include "mt-kahypar/datastructures/separated_nodes.h"
 #include "mt-kahypar/datastructures/streaming_vector.h"
 #include "mt-kahypar/parallel/parallel_prefix_sum.h"
 #include "mt-kahypar/partition/star_partitioning/simple_greedy.h"
@@ -34,17 +33,15 @@ namespace mt_kahypar {
 namespace star_partitioning {
 using ds::Array;
 using ds::StreamingVector;
-using ds::SeparatedNodes;
 
-void Approximate::partition(PartitionedHypergraph& phg, const Context& context,
+void Approximate::partition(PartitionedHypergraph& phg, SeparatedNodes& s_nodes, const Context& context,
                             Array<HypernodeWeight>& part_weights, parallel_tag_t) {
   // TODO(maas): there's a bug in the parallel implementation (and it's not too performant anyways)
-  SeparatedNodes& s_nodes = phg.separatedNodes().finest();
   Array<HyperedgeWeight> gains(s_nodes.numNodes() * _k);
   Array<PartitionID> preferred_part(s_nodes.numNodes());
 
   tbb::parallel_for(ID(0), s_nodes.numNodes(), [&](const HypernodeID node) {
-    getEdgeWeightsOfNode(phg, gains, node, node * _k);
+    getEdgeWeightsOfNode(phg, s_nodes, gains, node, node * _k);
 
     HyperedgeWeight max_gain = 0;
     HyperedgeWeight min_gain = std::numeric_limits<HyperedgeWeight>::max();
@@ -108,12 +105,11 @@ void Approximate::partition(PartitionedHypergraph& phg, const Context& context,
 
   // assign all currently unassigned nodes via the simple greedy algorithm
   SimpleGreedy sg(_k);
-  sg.partition(phg, context, part_weights, true);
+  sg.partition(phg, s_nodes, context, part_weights, true);
 }
 
-void Approximate::partition(PartitionedHypergraph& phg, const Context& context,
+void Approximate::partition(PartitionedHypergraph& phg, SeparatedNodes& s_nodes, const Context& context,
                             Array<HypernodeWeight>& part_weights) {
-  SeparatedNodes& s_nodes = phg.separatedNodes().finest();
   vec<vec<HypernodeID>> nodes_per_part(_k);
   Array<HyperedgeWeight> gains;
   gains.assign(s_nodes.numNodes() * _k, 0, false);
@@ -121,7 +117,7 @@ void Approximate::partition(PartitionedHypergraph& phg, const Context& context,
   preferred_part.assign(s_nodes.numNodes(), 0, false);
 
   for (HypernodeID node = 0; node < s_nodes.numNodes(); ++node) {
-    getEdgeWeightsOfNode(phg, gains, node, node * _k);
+    getEdgeWeightsOfNode(phg, s_nodes, gains, node, node * _k);
 
     HyperedgeWeight max_gain = 0;
     HyperedgeWeight min_gain = std::numeric_limits<HyperedgeWeight>::max();
@@ -165,7 +161,7 @@ void Approximate::partition(PartitionedHypergraph& phg, const Context& context,
 
   // assign all currently unassigned nodes via the simple greedy algorithm
   SimpleGreedy sg(_k);
-  sg.partition(phg, context, part_weights, false);
+  sg.partition(phg, s_nodes, context, part_weights, false);
 }
 
 } // namepace star_partitioning
