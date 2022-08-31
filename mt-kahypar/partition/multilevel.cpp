@@ -25,6 +25,7 @@
 
 #include "tbb/task.h"
 
+#include "mt-kahypar/datastructures/array.h"
 #include "mt-kahypar/partition/coarsening/separated_nodes/snodes_sync_coarsening.h"
 #include "mt-kahypar/partition/factories.h"
 #include "mt-kahypar/partition/preprocessing/sparsification/degree_zero_hn_remover.h"
@@ -38,6 +39,7 @@
 #include "mt-kahypar/utils/hypergraph_statistics.h"
 
 namespace mt_kahypar::multilevel {
+  using ds::Array;
 
   class RefinementTask : public tbb::task {
 
@@ -63,9 +65,10 @@ namespace mt_kahypar::multilevel {
       _ip_context.refinement = _context.initial_partitioning.refinement;
       }
 
-    void reconstructHierarchyWithSeparatedNodes(const SepNodesStack& stack, vec<Level>& levels) {
+    void reconstructHierarchyWithSeparatedNodes(const SepNodesStack& stack) {
       utils::Timer::instance().start_timer("reconstruct_hierarchy", "Reconstruct Hierarchy");
 
+      vec<Level>& levels = _uncoarseningData->hierarchy;
       ASSERT(stack.numLevels() == levels.size() + 1);
 
       for (size_t i = 0; i < levels.size(); ++i) {
@@ -82,7 +85,7 @@ namespace mt_kahypar::multilevel {
         const size_t old_size = old_communities.size();
         tbb::parallel_for(0UL, new_communities.size(), [&](const size_t& pos) {
           if (pos < old_size) {
-            ASSERT(old_communities[pos] < num_graph_nodes);
+            ASSERT(old_communities[pos] == kInvalidHypernode || old_communities[pos] < num_graph_nodes);
             new_communities[pos] = old_communities[pos];
           } else {
             ASSERT(sep_mapping[pos - old_size] < stack.atLevel(i + 1).numNodes());
@@ -103,8 +106,18 @@ namespace mt_kahypar::multilevel {
         old_hg.setSeparatedNodes(nullptr);
       }
       Hypergraph& last_hg = (levels.size() == 0) ? _hg : levels.back().contractedHypergraph();
+      Array<PartIdType> part_ids(last_hg.initialNumNodes() + last_hg.numSeparatedNodes(), PartIdType(kInvalidPartition));
+      PartitionedHypergraph& phg = *_uncoarseningData->partitioned_hg;
+      phg.extractPartIDs(part_ids);
+
       last_hg = HypergraphFactory::reinsertSeparatedNodes(last_hg, stack.coarsest());
       last_hg.setSeparatedNodes(nullptr);
+      phg.setHypergraph(last_hg);
+      phg.resetData();
+      phg.doParallelForAllNodes([&](const HypernodeID node) {
+        phg.setOnlyNodePart(node, part_ids[node].load());
+      });
+      phg.initializePartition();
 
       ASSERT([&] {
         for (size_t i = 0; i < levels.size(); ++i) {
@@ -116,6 +129,14 @@ namespace mt_kahypar::multilevel {
             if (node == kInvalidHypernode || node >= levels[i].contractedHypergraph().initialNumNodes()) {
               return false;
             }
+          }
+        }
+        return true;
+      }());
+      ASSERT([&] {
+        for (const HypernodeID& node: phg.nodes()) {
+          if (phg.partID(node) == kInvalidPartition) {
+            return false;
           }
         }
         return true;
@@ -167,7 +188,7 @@ namespace mt_kahypar::multilevel {
                                               _uncoarseningData->coarsestPartitionedHypergraph().hypergraph(), _hg);
         star_partitioning::coarsenSynchronized(stack, _hg, _uncoarseningData->hierarchy, _context, start_num_nodes, target_num_nodes);
 
-        reconstructHierarchyWithSeparatedNodes(stack, _uncoarseningData->hierarchy);
+        reconstructHierarchyWithSeparatedNodes(stack);
       }
 
       // ################## LOCAL SEARCH ##################

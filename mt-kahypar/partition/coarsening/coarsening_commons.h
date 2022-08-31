@@ -181,24 +181,24 @@ public:
       });
       partitioned_hg->propagateSeparatedPartIDsToFinest();
       hierarchy.pop_back();
+    }
 
-      ASSERT([&] {
-        for (HypernodeID node: partitioned_hg->nodes()) {
-          if (partitioned_hg->partID(node) == kInvalidPartition) {
+    ASSERT([&] {
+      for (HypernodeID node: partitioned_hg->nodes()) {
+        if (partitioned_hg->partID(node) == kInvalidPartition) {
+          return false;
+        }
+      }
+      if (partitioned_hg->hasSeparatedNodes()) {
+        SeparatedNodes& separated_nodes = partitioned_hg->separatedNodes().finest();
+        for (HypernodeID node = 0; node < separated_nodes.numNodes(); ++node) {
+          if (partitioned_hg->separatedPartID(node) == kInvalidPartition) {
             return false;
           }
         }
-        if (partitioned_hg->hasSeparatedNodes()) {
-          SeparatedNodes& separated_nodes = partitioned_hg->separatedNodes().finest();
-          for (HypernodeID node = 0; node < separated_nodes.numNodes(); ++node) {
-            if (partitioned_hg->separatedPartID(node) == kInvalidPartition) {
-              return false;
-            }
-          }
-        }
-        return true;
-      }() );
-    }
+      }
+      return true;
+    }() );
   }
 
   void performMultilevelContraction(

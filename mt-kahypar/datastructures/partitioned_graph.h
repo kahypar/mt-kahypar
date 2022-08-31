@@ -249,7 +249,9 @@ private:
     }, [&] {
       _part_ids.assign(_part_ids.size(), CAtomic<PartitionID>(kInvalidPartition));
     }, [&] {
-      _incident_weight_in_part.assign(_incident_weight_in_part.size(),  CAtomic<HyperedgeWeight>(0));
+      if (_incident_weight_in_part.size() > 0) {
+        _incident_weight_in_part.assign(_incident_weight_in_part.size(),  CAtomic<HyperedgeWeight>(0));
+      }
     }, [&] {
       for (auto& x : _part_weights) x.store(0, std::memory_order_relaxed);
     }, [&] {
@@ -572,10 +574,12 @@ private:
     ASSERT(part_ids.size() >= initialNumNodes() + numSeparatedNodes());
     tbb::parallel_for(ID(0), initialNumNodes(), [&](const HypernodeID& node) {
       ASSERT(node < part_ids.size() && node < _part_ids.size());
+      ASSERT(_part_ids[node].load() != kInvalidPartition);
       part_ids[node].store(_part_ids[node].load());
     });
     tbb::parallel_for(ID(0), numSeparatedNodes(), [&](const HypernodeID& sep_node) {
       ASSERT(initialNumNodes() + sep_node < part_ids.size() && sep_node < _sep_part_ids.size());
+      ASSERT(_sep_part_ids[sep_node].load() != kInvalidPartition);
       part_ids[initialNumNodes() + sep_node].store(_sep_part_ids[sep_node].load());
     });
   }
@@ -802,7 +806,9 @@ private:
   void resetPartition() {
     _part_ids.assign(_part_ids.size(), CAtomic<PartitionID>(kInvalidPartition), false);
     _sep_part_ids.assign(_sep_part_ids.size(), CAtomic<PartitionID>(kInvalidPartition));
-    _incident_weight_in_part.assign(_incident_weight_in_part.size(),  CAtomic<HyperedgeWeight>(0), false);
+    if (_incident_weight_in_part.size() > 0) {
+      _incident_weight_in_part.assign(_incident_weight_in_part.size(),  CAtomic<HyperedgeWeight>(0), false);
+    }
     for (auto& weight : _part_weights) {
       weight.store(0, std::memory_order_relaxed);
     }
