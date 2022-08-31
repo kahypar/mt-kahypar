@@ -65,7 +65,7 @@ namespace mt_kahypar::multilevel {
       _ip_context.refinement = _context.initial_partitioning.refinement;
       }
 
-    void reconstructHierarchyWithSeparatedNodes(const SepNodesStack& stack) {
+    void reconstructHierarchyWithSeparatedNodes(SepNodesStack& stack) {
       utils::Timer::instance().start_timer("reconstruct_hierarchy", "Reconstruct Hierarchy");
 
       vec<Level>& levels = _uncoarseningData->hierarchy;
@@ -83,12 +83,13 @@ namespace mt_kahypar::multilevel {
         const HypernodeID num_graph_nodes = levels[i].contractedHypergraph().initialNumNodes();
         const vec<HypernodeID>& old_communities = levels[i].communities();
         const vec<HypernodeID>& sep_mapping = stack.mapping(i, false);
-        ASSERT(stack.atLevel(i, false).numGraphNodes() == old_hg.initialNumNodes());
+        SeparatedNodes& s_nodes = stack.atLevel(i, false);
+        ASSERT(s_nodes.numGraphNodes() == old_hg.initialNumNodes());
         ASSERT(old_communities.size() == old_hg.initialNumNodes());
-        ASSERT(sep_mapping.size() == stack.atLevel(i, false).numNodes());
+        ASSERT(sep_mapping.size() >= s_nodes.numNodes());
 
-        vec<HypernodeID> new_communities(old_communities.size() + sep_mapping.size());
         const size_t old_size = old_communities.size();
+        vec<HypernodeID> new_communities(old_size + s_nodes.currentBatchIndex());
         tbb::parallel_for(0UL, new_communities.size(), [&](const size_t& pos) {
           if (pos < old_size) {
             ASSERT(old_communities[pos] == kInvalidHypernode || old_communities[pos] < num_graph_nodes);
@@ -100,14 +101,14 @@ namespace mt_kahypar::multilevel {
         });
         levels[i].communities() = std::move(new_communities);
 
-        const SeparatedNodes& s_nodes = stack.atLevel(i + 1, false);
         vec<HypernodeID>& communities = levels[i].communities();
         tbb::parallel_for(s_nodes.currentBatchIndex(), s_nodes.numNodes(), [&](const HypernodeID& node) {
           const HypernodeID original_id = s_nodes.originalHypernodeID(node);
           ASSERT(original_id != kInvalidHypernode && communities[original_id] == kInvalidHypernode);
-          communities[original_id] = node + num_graph_nodes;
+          communities[original_id] = sep_mapping[node] + num_graph_nodes;
         });
 
+        s_nodes.popBatch();
         old_hg = HypergraphFactory::reinsertSeparatedNodes(old_hg, stack.atLevel(i, false));
         old_hg.setSeparatedNodes(nullptr);
         ASSERT(correct_weight == old_hg.totalWeight(), V(correct_weight) << V(old_hg.totalWeight()));
