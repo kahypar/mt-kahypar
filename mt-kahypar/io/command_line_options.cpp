@@ -283,6 +283,10 @@ namespace mt_kahypar {
             ("c-sep-nodes-coarsening-relax-main-factor",
              po::value<double>(&context.coarsening.sep_nodes_coarsening_relax_main_factor)->value_name("<double>")->default_value(1.0),
              "Use a relaxed size in main coarsening and coarsen to the final size during RB initial partitioning.")
+            ("c-sep-nodes-coarsening-levelwise",
+             po::value<bool>(&context.coarsening.sep_nodes_coarsening_levelwise)->value_name("<bool>")->default_value(false),
+             "If true, the separated nodes coarsener will only consider the current corresponding level of the graph hierarchy "
+             "(instead of progressing to the coarsest level).")
             #ifdef KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES
                         ("c-use-adaptive-max-node-weight",
                 po::value<bool>(&context.coarsening.use_adaptive_max_allowed_node_weight)->value_name("<bool>")->default_value(false),

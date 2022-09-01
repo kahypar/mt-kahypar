@@ -124,13 +124,14 @@ class SpanningTree {
   static constexpr uint8_t kInvalidDepth = std::numeric_limits<uint8_t>::max();
 
  public:
+  static const HypernodeID max_num_nodes = 50000;
   static const size_t max_children = 7;
 
   explicit SpanningTree(): _max_depth(0), _num_nodes(0), _root(kInvalidHypernode), _nodes(), _depth() { }
 
   explicit SpanningTree(HypernodeID num_nodes, HypernodeID root, uint8_t max_depth):
           _max_depth(max_depth), _num_nodes(num_nodes), _root(root), _nodes(), _depth() {
-    ASSERT(num_nodes < 50000);
+    ASSERT(num_nodes < max_num_nodes);
     ASSERT(root < num_nodes);
     _nodes.assign(num_nodes * max_children, kInvalidHypernode);
     _depth.assign(num_nodes, kInvalidDepth);

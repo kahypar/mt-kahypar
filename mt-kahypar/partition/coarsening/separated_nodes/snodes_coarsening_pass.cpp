@@ -156,7 +156,7 @@ HypernodeID SNodesCoarseningPass::run(vec<HypernodeID>& communities, bool use_sp
     communities.clear();
     communities.assign(_current_num_nodes, kInvalidHypernode);
   }, [&] {
-    setupNodeInfo(use_spanning_tree);
+    setupNodeInfo(use_spanning_tree && _hg.initialNumNodes() < SpanningTree::max_num_nodes);
   });
 
   HypernodeID num_matches = runCurrentStage(communities, true);
