@@ -569,15 +569,21 @@ private:
     _part_weights[p].fetch_add(separatedNodes().finest().nodeWeight(sep_node), std::memory_order_relaxed);
   }
 
-  void extractPartIDs(Array<CAtomic<PartitionID>>& part_ids) const {
+  HypernodeID partIDsSize(bool finest = true) const {
+    const HypernodeID num_sep = finest ? numSeparatedNodes() : separatedNodes().coarsest().numNodes();
+    return initialNumNodes() + num_sep;
+  }
+
+  void extractPartIDs(Array<CAtomic<PartitionID>>& part_ids, bool finest = true) const {
+    const HypernodeID num_sep = finest ? numSeparatedNodes() : separatedNodes().coarsest().numNodes();
     ASSERT(_hg->numIncludedSeparated() == 0 || !hasSeparatedNodes() || numSeparatedNodes() == 0);
-    ASSERT(part_ids.size() >= initialNumNodes() + numSeparatedNodes());
+    ASSERT(part_ids.size() >= initialNumNodes() + num_sep);
     tbb::parallel_for(ID(0), initialNumNodes(), [&](const HypernodeID& node) {
       ASSERT(node < part_ids.size() && node < _part_ids.size());
       ASSERT(_part_ids[node].load() != kInvalidPartition);
       part_ids[node].store(_part_ids[node].load());
     });
-    tbb::parallel_for(ID(0), numSeparatedNodes(), [&](const HypernodeID& sep_node) {
+    tbb::parallel_for(ID(0), num_sep, [&](const HypernodeID& sep_node) {
       ASSERT(initialNumNodes() + sep_node < part_ids.size() && sep_node < _sep_part_ids.size());
       ASSERT(_sep_part_ids[sep_node].load() != kInvalidPartition);
       part_ids[initialNumNodes() + sep_node].store(_sep_part_ids[sep_node].load());

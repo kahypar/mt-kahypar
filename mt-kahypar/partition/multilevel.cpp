@@ -78,7 +78,6 @@ namespace mt_kahypar::multilevel {
       ASSERT(stack.numLevels() == levels.size() + 1);
 
       for (size_t i = 0; i < levels.size(); ++i) {
-        LOG << V(i) << V(stack.atLevel(i, false).numNodes());
         Hypergraph& old_hg = (i == 0) ? _hg : levels[i - 1].contractedHypergraph();
         const HypernodeID num_graph_nodes = levels[i].contractedHypergraph().initialNumNodes();
         const vec<HypernodeID>& old_communities = levels[i].communities();
@@ -109,14 +108,16 @@ namespace mt_kahypar::multilevel {
         });
 
         s_nodes.popBatch();
-        old_hg = HypergraphFactory::reinsertSeparatedNodes(old_hg, stack.atLevel(i, false));
+        if (s_nodes.numNodes() > 0) {
+          old_hg = HypergraphFactory::reinsertSeparatedNodes(old_hg, s_nodes);
+        }
         old_hg.setSeparatedNodes(nullptr);
         ASSERT(correct_weight == old_hg.totalWeight(), V(correct_weight) << V(old_hg.totalWeight()));
       }
       Hypergraph& last_hg = (levels.size() == 0) ? _hg : levels.back().contractedHypergraph();
-      Array<PartIdType> part_ids(last_hg.initialNumNodes() + last_hg.numSeparatedNodes(), PartIdType(kInvalidPartition));
       PartitionedHypergraph& phg = *_uncoarseningData->partitioned_hg;
-      phg.extractPartIDs(part_ids);
+      Array<PartIdType> part_ids(phg.partIDsSize(_context.type != kahypar::ContextType::main), PartIdType(kInvalidPartition));
+      phg.extractPartIDs(part_ids, false);
 
       last_hg = HypergraphFactory::reinsertSeparatedNodes(last_hg, stack.coarsest());
       last_hg.setSeparatedNodes(nullptr);
@@ -196,6 +197,12 @@ namespace mt_kahypar::multilevel {
         const HypernodeID target_num_nodes = _uncoarseningData->calculateSeparatedNodesTargetSize(
                                               _uncoarseningData->coarsestPartitionedHypergraph().hypergraph(), _hg);
         star_partitioning::coarsenSynchronized(stack, _hg, _uncoarseningData->hierarchy, _context, start_num_nodes, target_num_nodes);
+
+        // TODO!!
+        _uncoarseningData->partitioned_hg->setSeparatedNodes(&stack);
+        _uncoarseningData->partitioned_hg->resetSeparatedParts();
+        const HyperedgeWeight added_cut = star_partitioning::partition(*_uncoarseningData->partitioned_hg,
+                                                                       stack.coarsest(), _context, false);
 
         reconstructHierarchyWithSeparatedNodes(stack);
       }

@@ -189,14 +189,14 @@ public:
           return false;
         }
       }
-      if (partitioned_hg->hasSeparatedNodes()) {
-        SeparatedNodes& separated_nodes = partitioned_hg->separatedNodes().finest();
-        for (HypernodeID node = 0; node < separated_nodes.numNodes(); ++node) {
-          if (partitioned_hg->separatedPartID(node) == kInvalidPartition) {
-            return false;
-          }
-        }
-      }
+      // if (partitioned_hg->hasSeparatedNodes()) {
+      //   SeparatedNodes& separated_nodes = partitioned_hg->separatedNodes().finest();
+      //   for (HypernodeID node = 0; node < separated_nodes.numNodes(); ++node) {
+      //     if (partitioned_hg->separatedPartID(node) == kInvalidPartition) {
+      //       return false;
+      //     }
+      //   }
+      // }
       return true;
     }() );
   }

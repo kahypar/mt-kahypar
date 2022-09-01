@@ -125,16 +125,16 @@ namespace mt_kahypar {
         });
         partitioned_hg.popSeparated();
 
-        tbb::parallel_invoke([&] {
-          current_metrics.cut = metrics::hyperedgeCut(partitioned_hg);
-        }, [&] {
-          current_metrics.km1 = metrics::km1(partitioned_hg);
-        }, [&] {
-          current_metrics.imbalance = metrics::imbalance(partitioned_hg, _context);
-        });
-
         utils::Timer::instance().stop_timer("assign_separated_nodes");
       }
+
+      tbb::parallel_invoke([&] {
+        current_metrics.cut = metrics::hyperedgeCut(partitioned_hg);
+      }, [&] {
+        current_metrics.km1 = metrics::km1(partitioned_hg);
+      }, [&] {
+        current_metrics.imbalance = metrics::imbalance(partitioned_hg, _context);
+      });
 
       ASSERT([&] {
         for (HypernodeID node: partitioned_hg.nodes()) {
