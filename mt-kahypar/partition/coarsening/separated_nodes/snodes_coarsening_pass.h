@@ -46,6 +46,8 @@ enum class SNodesCoarseningStage : uint8_t {
   ON_LARGE_GRAPH = 6
 };
 
+SNodesCoarseningStage previous(SNodesCoarseningStage stage);
+
 class SNodesCoarseningPass {
   using HashFunc = kahypar::math::MurmurHash<HypernodeID>;
   using HashValue = typename HashFunc::HashValue;

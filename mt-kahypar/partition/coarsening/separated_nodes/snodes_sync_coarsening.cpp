@@ -80,9 +80,7 @@ void coarsenSynchronized(SepNodesStack& stack, const Hypergraph& original_hg, co
       vec<HypernodeID> communities;
       current_num_nodes -= c_pass.run(communities, false);
       stage = c_pass.stage();
-      if (static_cast<uint8_t>(stage) > 0 && stage != SNodesCoarseningStage::ON_LARGE_GRAPH) {
-        stage = static_cast<SNodesCoarseningStage>(static_cast<uint8_t>(stage) - 1);
-      }
+      stage = previous(stage);
       stack.coarsen(std::move(communities));
     } while (static_cast<double>(stack.coarsest().numVisibleNodes()) / current_step_start_nodes > reduction_factor
              && stack.coarsest().numVisibleNodes() > target_num_nodes);

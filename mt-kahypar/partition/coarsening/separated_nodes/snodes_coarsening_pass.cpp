@@ -32,6 +32,13 @@
 
 namespace mt_kahypar {
 namespace star_partitioning {
+SNodesCoarseningStage previous(SNodesCoarseningStage stage) {
+  if (static_cast<uint8_t>(stage) > 0 && stage != SNodesCoarseningStage::ON_LARGE_GRAPH) {
+    return static_cast<SNodesCoarseningStage>(static_cast<uint8_t>(stage) - 1);
+  }
+  return stage;
+}
+
 struct SNodesCoarseningPass::EqualityHash {
   static constexpr bool requires_check = false;
   using HashResult = HashValue;

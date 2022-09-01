@@ -41,6 +41,7 @@ void coarsen(SepNodesStack& stack, const Hypergraph& coarsened_hg,
     c_pass.run(communities);
     stack.coarsen(std::move(communities));
     stage = c_pass.stage();
+    stage = previous(stage);
 
     if (stack.coarsest().numNodes() < static_cast<HypernodeID>(0.8 * previous_num_nodes)) {
       previous_num_nodes = stack.coarsest().numNodes();
