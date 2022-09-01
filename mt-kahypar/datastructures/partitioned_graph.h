@@ -564,10 +564,10 @@ private:
     _sep_part_ids[sep_node].store(p, std::memory_order_relaxed);
   }
 
-  void separatedSetNodePart(const HypernodeID sep_node, PartitionID p) {
-    separatedSetOnlyNodePart(sep_node, p);
-    _part_weights[p].fetch_add(separatedNodes().finest().nodeWeight(sep_node), std::memory_order_relaxed);
-  }
+  // void separatedSetNodePart(const HypernodeID sep_node, PartitionID p) {
+  //   separatedSetOnlyNodePart(sep_node, p);
+  //   _part_weights[p].fetch_add(separatedNodes().finest().nodeWeight(sep_node), std::memory_order_relaxed);
+  // }
 
   HypernodeID partIDsSize(bool finest = true) const {
     const HypernodeID num_sep = finest ? numSeparatedNodes() : separatedNodes().coarsest().numNodes();
@@ -1031,10 +1031,10 @@ private:
     _k = 0;
   }
 
-  void updateBlockWeights() {
-    ASSERT(!hasSeparatedNodes() || _sep_part_ids.size() == numSeparatedNodes());
+  void updateBlockWeights(bool parallel = true) {
+    // ASSERT(!hasSeparatedNodes() || _sep_part_ids.size() == numSeparatedNodes());
     _part_weights.assign(_part_weights.size(), CAtomic<HypernodeWeight>(0));
-    initializeBlockWeights();
+    initializeBlockWeights(parallel);
   }
 
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
@@ -1154,33 +1154,15 @@ private:
       }
   }
 
-  void initializeBlockWeights() {
-    tbb::parallel_for(tbb::blocked_range<HypernodeID>(HypernodeID(0), initialNumNodes()),
-      [&](tbb::blocked_range<HypernodeID>& r) {
-        // this is not enumerable_thread_specific because of the static partitioner
-        parallel::scalable_vector<HypernodeWeight> part_weight_deltas(_k, 0);
-        for (HypernodeID node = r.begin(); node < r.end(); ++node) {
-          if (nodeIsEnabled(node) && partID(node) != kInvalidPartition) {
-            part_weight_deltas[partID(node)] += nodeWeight(node);
-          }
-        }
-        for (PartitionID p = 0; p < _k; ++p) {
-          _part_weights[p].fetch_add(part_weight_deltas[p], std::memory_order_relaxed);
-        }
-      },
-      tbb::static_partitioner()
-    );
-
-    if (_hg->hasSeparatedNodes()) {
-      const SeparatedNodes& separated_nodes = _hg->separatedNodes().finest();
-      tbb::parallel_for(tbb::blocked_range<HypernodeID>(ID(0), separated_nodes.numNodes()),
+  void initializeBlockWeights(bool parallel = true) {
+    if (parallel) {
+      tbb::parallel_for(tbb::blocked_range<HypernodeID>(HypernodeID(0), initialNumNodes()),
         [&](tbb::blocked_range<HypernodeID>& r) {
           // this is not enumerable_thread_specific because of the static partitioner
           parallel::scalable_vector<HypernodeWeight> part_weight_deltas(_k, 0);
           for (HypernodeID node = r.begin(); node < r.end(); ++node) {
-            PartitionID part_id = separatedPartID(node);
-            if (part_id != kInvalidPartition) {
-              part_weight_deltas[part_id] += separated_nodes.nodeWeight(node);
+            if (nodeIsEnabled(node) && partID(node) != kInvalidPartition) {
+              part_weight_deltas[partID(node)] += nodeWeight(node);
             }
           }
           for (PartitionID p = 0; p < _k; ++p) {
@@ -1189,6 +1171,36 @@ private:
         },
         tbb::static_partitioner()
       );
+
+      if (_hg->hasSeparatedNodes()) {
+        const SeparatedNodes& separated_nodes = _hg->separatedNodes().finest();
+        tbb::parallel_for(tbb::blocked_range<HypernodeID>(ID(0), separated_nodes.numNodes()),
+          [&](tbb::blocked_range<HypernodeID>& r) {
+            // this is not enumerable_thread_specific because of the static partitioner
+            parallel::scalable_vector<HypernodeWeight> part_weight_deltas(_k, 0);
+            for (HypernodeID node = r.begin(); node < r.end(); ++node) {
+              PartitionID part_id = separatedPartID(node);
+              if (part_id != kInvalidPartition) {
+                part_weight_deltas[part_id] += separated_nodes.nodeWeight(node);
+              }
+            }
+            for (PartitionID p = 0; p < _k; ++p) {
+              _part_weights[p].fetch_add(part_weight_deltas[p], std::memory_order_relaxed);
+            }
+          },
+          tbb::static_partitioner()
+        );
+      }
+    } else {
+      for (HypernodeID node = 0; node < initialNumNodes(); ++node) {
+        _part_weights[partID(node)].fetch_add(nodeWeight(node), std::memory_order_relaxed);
+      }
+      if (_hg->hasSeparatedNodes()) {
+        const SeparatedNodes& separated_nodes = _hg->separatedNodes().finest();
+        for (HypernodeID node = 0; node < separated_nodes.numNodes(); ++node) {
+          _part_weights[separatedPartID(node)].fetch_add(separated_nodes.nodeWeight(node), std::memory_order_relaxed);
+        }
+      }
     }
   }
 

@@ -65,7 +65,7 @@ HyperedgeWeight partition(PartitionedHypergraph& hypergraph, SeparatedNodes& s_n
           break;
         }
       }
-      hypergraph.separatedSetNodePart(node, chosen_part);
+      hypergraph.separatedSetOnlyNodePart(node, chosen_part);
       part_weights[chosen_part] += s_nodes.nodeWeight(node);
     }
   }

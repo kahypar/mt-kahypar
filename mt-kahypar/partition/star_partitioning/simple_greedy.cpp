@@ -92,7 +92,7 @@ void SimpleGreedy::partition(PartitionedHypergraph& phg, SeparatedNodes& s_nodes
         }
       }
 
-      phg.separatedSetNodePart(node, max_part);
+      phg.separatedSetOnlyNodePart(node, max_part);
       part_weights[max_part] += s_nodes.nodeWeight(node);
     }
   }

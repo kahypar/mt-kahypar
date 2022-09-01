@@ -96,7 +96,7 @@ void Approximate::partition(PartitionedHypergraph& phg, SeparatedNodes& s_nodes,
       if (i < excluded.size() && node == excluded[i]) {
         ++i;
       } else {
-        phg.separatedSetNodePart(node, part);
+        phg.separatedSetOnlyNodePart(node, part);
         part_weights[part] += get_node_weight_fn(node);
       }
     }
@@ -152,7 +152,7 @@ void Approximate::partition(PartitionedHypergraph& phg, SeparatedNodes& s_nodes,
       if (i < excluded.size() && node == excluded[i]) {
         ++i;
       } else {
-        phg.separatedSetNodePart(node, part);
+        phg.separatedSetOnlyNodePart(node, part);
         part_weights[part] += get_node_weight_fn(node);
       }
     }

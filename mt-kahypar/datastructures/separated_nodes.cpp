@@ -108,17 +108,18 @@ SeparatedNodes SeparatedNodes::createCopyFromSavepoint() {
   sep_nodes._num_edges = edges.size();
   sep_nodes._total_weight = _total_weight;
   sep_nodes._inward_edges = std::move(edges);
-  sep_nodes._hidden_nodes_batch_index = _hidden_nodes_batch_index;
 
   tbb::parallel_invoke([&] {
     sep_nodes._nodes.resize(num_nodes + 1);
     memcpy(sep_nodes._nodes.data(), _nodes.data(), sizeof(Node) * num_nodes);
     sep_nodes._nodes.back() = Node(kInvalidHypernode, edges.size(), 0);
   }, [&] {
-    sep_nodes._batch_indices_and_weights.resize(_batch_indices_and_weights.size());
+    sep_nodes._batch_indices_and_weights.clear();
     for (size_t i = 0; i < _batch_indices_and_weights.size() && _batch_indices_and_weights[i].first <= num_nodes; ++i) {
-      sep_nodes._batch_indices_and_weights[i] = _batch_indices_and_weights[i];
+      sep_nodes._hidden_nodes_batch_index = i;
+      sep_nodes._batch_indices_and_weights.push_back(_batch_indices_and_weights[i]);
     }
+    ASSERT(sep_nodes._hidden_nodes_batch_index > 0);
   });
   tbb::parallel_for(0UL, sep_nodes._nodes.size(), [&](const size_t& pos) {
     sep_nodes._nodes[pos].begin = indices[pos];

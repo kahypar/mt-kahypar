@@ -62,6 +62,6 @@ namespace mt_kahypar {
 
     // TODO: compare quality?!
     const HyperedgeWeight added_cut = star_partitioning::partition(_hg, _hg.separatedNodes().finest(), _context, false);
-    _hg.updateBlockWeights(); // TODO: not necessary anymore?
+    _hg.updateBlockWeights();
   }
 } // namepace mt_kahypar

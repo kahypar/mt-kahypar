@@ -44,7 +44,7 @@ void replayToSynchronizeLevels(SepNodesStack& stack, const Hypergraph& original_
 
 void coarsenSynchronized(SepNodesStack& stack, const Hypergraph& original_hg, const vec<Level>& levels,
                          const Context& context, const HypernodeID& start_num_nodes, const HypernodeID& target_num_nodes) {
-  stack.finest().setSavepoint();
+  stack.onliest().setSavepoint();
   size_t j = 0;
   HypernodeID current_num_nodes = start_num_nodes;
   SNodesCoarseningStage stage = SNodesCoarseningStage::ON_LARGE_GRAPH;
