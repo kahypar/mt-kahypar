@@ -120,6 +120,7 @@ SNodesCoarseningPass::SNodesCoarseningPass(const Hypergraph& hg, const Context& 
   _hg(hg),
   _context(context),
   _s_nodes(_hg.separatedNodes().coarsest()),
+  _part_ids(nullptr),
   _node_info_begin(),
   _node_info(),
   _current_num_nodes(_s_nodes.numVisibleNodes()),
@@ -138,6 +139,7 @@ SNodesCoarseningPass::SNodesCoarseningPass(const SeparatedNodes& s_nodes, const 
   _hg(hg),
   _context(context),
   _s_nodes(s_nodes),
+  _part_ids(nullptr),
   _node_info_begin(),
   _node_info(),
   _current_num_nodes(_s_nodes.numVisibleNodes()),
@@ -305,6 +307,11 @@ HypernodeID SNodesCoarseningPass::runCurrentStage(vec<HypernodeID>& communities,
 void SNodesCoarseningPass::applyDegreeZeroCoarsening(const Params& params, vec<HypernodeID>& communities, LocalizedData& data) {
   const HypernodeID first_d0 = _node_info_begin.back();
   const HypernodeID last_d0 = _node_info.size();
+  if (_part_ids != nullptr) {
+    std::sort(_node_info.begin() + first_d0, _node_info.end(), [&] (const NodeInfo& l, const NodeInfo& r) {
+      return _part_ids[l.node] < _part_ids[r.node];
+    });
+  }
   const HypernodeID num_clusters = (last_d0 - first_d0 + DEGREE_ZERO_CLUSTER_SIZE - 1) / DEGREE_ZERO_CLUSTER_SIZE;
   if (last_d0 - first_d0 > 4) { // TODO: magic number
     tbb::parallel_for(ID(0), num_clusters, [&](const HypernodeID cluster) {
@@ -316,7 +323,8 @@ void SNodesCoarseningPass::applyDegreeZeroCoarsening(const Params& params, vec<H
         HypernodeWeight weight = 0;
         for (HypernodeID i = 0; offset + i < DEGREE_ZERO_CLUSTER_SIZE && start + i < last_d0; ++i) {
           const HypernodeID node = info(start + i).node;
-          if (weight + _s_nodes.nodeWeight(node) <= params.max_node_weight) {
+          if (weight + _s_nodes.nodeWeight(node) <= params.max_node_weight
+              && (_part_ids == nullptr || _part_ids[start] == _part_ids[node])) {
             ++offset;
             ASSERT(communities[node] == kInvalidHypernode);
             communities[node] = info(start).node;
@@ -371,7 +379,8 @@ void SNodesCoarseningPass::applyCoarseningForNode(const Params& params, vec<Hype
     while (cluster_size < params.degree_one_cluster_size
            && current_index < degree_one.size()
            && info(degree_one[current_index]).density / starting_density <= params.accepted_density_diff
-           && weight + _s_nodes.nodeWeight(info(degree_one[current_index]).node) <= params.max_node_weight) {
+           && weight + _s_nodes.nodeWeight(info(degree_one[current_index]).node) <= params.max_node_weight
+           && (_part_ids == nullptr || _part_ids[starting_node] == _part_ids[info(degree_one[current_index]).node])) {
       communities[info(degree_one[current_index]).node] = starting_node;
       communities[starting_node] = starting_node;
       weight += _s_nodes.nodeWeight(info(degree_one[current_index]).node);
@@ -384,10 +393,13 @@ void SNodesCoarseningPass::applyCoarseningForNode(const Params& params, vec<Hype
   if (appliesDegreeTwo(_stage)) {
     // degree two nodes
     std::sort(degree_two.begin(), degree_two.end(), [&](const HypernodeID& left, const HypernodeID& right) {
-      if (info(left).tree_path == info(right).tree_path) {
-        return info(left).density < info(right).density;
+      if (_part_ids == nullptr || _part_ids[info(left).node] == _part_ids[info(right).node]) {
+        if (info(left).tree_path == info(right).tree_path) {
+          return info(left).density < info(right).density;
+        }
+        return info(left).tree_path < info(right).tree_path;
       }
-      return info(left).tree_path < info(right).tree_path;
+      return _part_ids[info(left).node] < _part_ids[info(right).node];
     });
     for (size_t i = 0; i + 1 < degree_two.size(); ++i) {
       for (size_t j = 1; j <= D2_SEARCH_RANGE && i + j < degree_two.size(); ++j) {
@@ -395,7 +407,7 @@ void SNodesCoarseningPass::applyCoarseningForNode(const Params& params, vec<Hype
         const NodeInfo& next = info(degree_two[i + j]);
         if (std::max(curr.density / next.density, next.density / curr.density) <= params.accepted_density_diff
             && (params.max_tree_distance == 0 || curr.tree_path.distance(next.tree_path) <= params.max_tree_distance)
-            && _s_nodes.nodeWeight(curr.node) + _s_nodes.nodeWeight(next.node) <= params.max_node_weight) {
+            && validPair(params, curr.node, next.node)) {
           ASSERT(communities[curr.node] == kInvalidHypernode && communities[next.node] == kInvalidHypernode);
           communities[curr.node] = curr.node;
           communities[next.node] = curr.node;
@@ -416,7 +428,10 @@ void SNodesCoarseningPass::applyCoarseningForNode(const Params& params, vec<Hype
 
 void SNodesCoarseningPass::sortByDensity(vec<HypernodeID>& nodes) {
   std::sort(nodes.begin(), nodes.end(), [&](const HypernodeID& left, const HypernodeID& right) {
-    return info(left).density < info(right).density;
+    if (_part_ids == nullptr || _part_ids[info(left).node] == _part_ids[info(right).node]) {
+      return info(left).density < info(right).density;
+    }
+    return _part_ids[info(left).node] < _part_ids[info(right).node];
   });
 }
 
@@ -426,7 +441,7 @@ void SNodesCoarseningPass::matchPairs(const Params& params, vec<HypernodeID>& co
     const NodeInfo& curr = info(nodes[i]);
     const NodeInfo& next = info(nodes[i + 1]);
     if (std::max(curr.density / next.density, next.density / curr.density) <= params.accepted_density_diff
-        && _s_nodes.nodeWeight(curr.node) + _s_nodes.nodeWeight(next.node) <= params.max_node_weight) {
+        && validPair(params, curr.node, next.node)) {
       ASSERT(communities[curr.node] == kInvalidHypernode && communities[next.node] == kInvalidHypernode);
       communities[curr.node] = curr.node;
       communities[next.node] = curr.node;
@@ -434,6 +449,13 @@ void SNodesCoarseningPass::matchPairs(const Params& params, vec<HypernodeID>& co
       ++i;
     }
   }
+}
+
+bool SNodesCoarseningPass::validPair(const Params& params, const HypernodeID& l, const HypernodeID& r) {
+  if (_s_nodes.nodeWeight(l) + _s_nodes.nodeWeight(r) > params.max_node_weight) {
+    return false;
+  }
+  return _part_ids == nullptr || _part_ids[l] == _part_ids[r];
 }
 
 std::pair<HyperedgeWeight, HyperedgeWeight> SNodesCoarseningPass::intersection_and_union(

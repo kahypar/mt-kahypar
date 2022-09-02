@@ -211,4 +211,31 @@ TEST_F(ACoarseningPass, coarsensDegreeTwoNodes) {
   ASSERT_EQ(communities[3], communities[3]);
 }
 
+TEST_F(ACoarseningPass, respectsPartIDs) {
+  initialize(3, 2, {{0, 1}, {1, 2}},
+             { {}, {}, {}, {}, {}, {{0, 2}}, {{0, 3}}, {{0, 4}},
+               {{0, 2}, {1, 1}}, {{0, 3}, {2, 1}}, {{0, 4}, {2, 1}},
+               {{0, 1}, {1, 1}, {2, 1}}, {{0, 1}, {1, 1}, {2, 1}}, {{0, 2}, {1, 2}, {2, 1}}});
+  SNodesCoarseningPass c_pass = setupPass(8, SNodesCoarseningStage::D1_D2_TWINS);
+  vec<PartitionID> part_ids{ 0, 1, 0, 0, 1, 0, 1, 0,
+                             1, 0, 1, 0, 1, 0};
+  c_pass.setPartIDs(part_ids);
+  c_pass.run(communities);
+
+  ASSERT_EQ(communities.size(), part_ids.size());
+  ASSERT_EQ(communities[0], communities[2]);
+  ASSERT_EQ(communities[0], communities[3]);
+  ASSERT_EQ(communities[1], communities[4]);
+  ASSERT_EQ(communities[5], communities[7]);
+  ASSERT_EQ(communities[8], communities[10]);
+  ASSERT_EQ(communities[11], communities[13]);
+  for (size_t i = 0; i < communities.size(); ++i) {
+    for (size_t j = 0; j < communities.size(); ++j) {
+      if (communities[i] == communities[j]) {
+        ASSERT_EQ(part_ids[i], part_ids[j]);
+      }
+    }
+  }
+}
+
 }  // namespace mt_kahypar

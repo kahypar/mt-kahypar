@@ -183,6 +183,12 @@ class SNodesCoarseningPass {
     return _node_info;
   }
 
+  template<typename ArrayT>
+  void setPartIDs(const ArrayT& part_ids) {
+    ASSERT(part_ids.size() == _s_nodes.numVisibleNodes());
+    _part_ids = part_ids.data();
+  }
+
   // public for testing
   static std::pair<HyperedgeWeight, HyperedgeWeight> intersection_and_union(vec<std::pair<HypernodeID, HyperedgeWeight>>& lhs,
                                                                             vec<std::pair<HypernodeID, HyperedgeWeight>>& rhs);
@@ -201,6 +207,8 @@ class SNodesCoarseningPass {
 
   void matchPairs(const Params& params, vec<HypernodeID>& communities,
                   vec<HypernodeID>& nodes, HypernodeID& counter);
+
+  bool validPair(const Params& params, const HypernodeID& l, const HypernodeID& r);
   
   template<typename Hasher>
   void applyHashingRound(const Params& params, vec<HypernodeID>& communities,
@@ -227,10 +235,15 @@ class SNodesCoarseningPass {
     tbb::parallel_for(0UL, bucket_map.numBuckets(), [&](const size_t i) {
       auto& bucket = bucket_map.getBucket(i);
       if (bucket.size() > 1) {
-        // sort by hash and afterwards by density
+        // sort by hash, then by part id and last by density
         std::sort(bucket.begin(), bucket.end(), [&](const auto& left, const auto& right) {
           if (left.second == right.second) {
-            return info(left.first).density < info(right.first).density;
+            const NodeInfo& l = info(left.first);
+            const NodeInfo& r = info(right.first);
+            if (_part_ids == nullptr || _part_ids[l.node] == _part_ids[r.node]) {
+              return l.density < r.density;
+            }
+            return _part_ids[l.node] < _part_ids[r.node];
           }
           return left.second < right.second;
         });
@@ -252,7 +265,7 @@ class SNodesCoarseningPass {
               && pos + search_offset < bucket.size()) {
             const HypernodeID curr_node = info(curr_index).node;
             const HypernodeID next_node = info(next_index).node;
-            bool matches = _s_nodes.nodeWeight(curr_node) + _s_nodes.nodeWeight(next_node) <= params.max_node_weight;
+            bool matches = validPair(params, curr_node, next_node);
             if (Hasher::requires_check) {
               auto intersec_union = intersection_and_union(curr_node, next_node, buffer_left, buffer_right);
               const double similarity_target = std::max(required_similarity,
@@ -294,6 +307,7 @@ class SNodesCoarseningPass {
   const Hypergraph& _hg;
   const Context& _context;
   const SeparatedNodes& _s_nodes;
+  const PartitionID* _part_ids;
   Array<HypernodeID> _node_info_begin;
   Array<NodeInfo> _node_info;
   HypernodeID _current_num_nodes;
