@@ -75,10 +75,10 @@ bool appliesDegreeTwo(const SNodesCoarseningStage& stage) {
       && static_cast<uint8_t>(stage) >= 1;
 }
 
-uint32_t treeDistanceForStage(const SNodesCoarseningStage& stage) {
-  if (static_cast<uint8_t>(stage) <= 1) {
+uint32_t treeDistanceForStage(const SNodesCoarseningStage& stage, bool use_spanning_tree) {
+  if (use_spanning_tree && static_cast<uint8_t>(stage) <= 1) {
     return 3;
-  } else if (static_cast<uint8_t>(stage) <= 2) {
+  } else if (use_spanning_tree && static_cast<uint8_t>(stage) <= 2) {
     return 6;
   }
   return 0;
@@ -159,11 +159,11 @@ HypernodeID SNodesCoarseningPass::run(vec<HypernodeID>& communities, bool use_sp
     setupNodeInfo(use_spanning_tree && _hg.initialNumNodes() < SpanningTree::max_num_nodes);
   });
 
-  HypernodeID num_matches = runCurrentStage(communities, true);
+  HypernodeID num_matches = runCurrentStage(communities, use_spanning_tree, true);
   while (_current_num_nodes - num_matches > _target_num_nodes
          && static_cast<uint8_t>(_stage) < static_cast<uint8_t>(SNodesCoarseningStage::ANYTHING)) {
     _stage = static_cast<SNodesCoarseningStage>(static_cast<uint8_t>(_stage) + 1);
-    num_matches += runCurrentStage(communities);
+    num_matches += runCurrentStage(communities, use_spanning_tree);
   }
 
   // assign any unmatched node to itself
@@ -224,6 +224,9 @@ void SNodesCoarseningPass::setupNodeInfo(bool use_spanning_tree) {
       _node_info_begin[node] = num_assigned_nodes[node].load();
     });
   }, [&] {
+    // Note: If the graph is too large, we don't construct a spanning tree. In this case,
+    // the paths are initialized to kInvalidPath, but we also allow arbitrary distance.
+    // This means that degree two nodes will be coarsened without regards to the tree distance.
     if (use_spanning_tree) {
       SpanningTree tree = constructMaxSpanningTree(_hg, TreePath::max_path_length);
       tree.calculatePaths([&](const HypernodeID& graph_node, TreePath path) {
@@ -252,13 +255,13 @@ void SNodesCoarseningPass::setupNodeInfo(bool use_spanning_tree) {
   ASSERT(_node_info.size() == _s_nodes.numVisibleNodes());
 }
 
-HypernodeID SNodesCoarseningPass::runCurrentStage(vec<HypernodeID>& communities, bool first) {
+HypernodeID SNodesCoarseningPass::runCurrentStage(vec<HypernodeID>& communities, bool use_spanning_tree, bool first) {
   LocalizedData data;
   Params params;
   params.max_node_weight = _context.coarsening.max_allowed_node_weight;
   params.degree_one_cluster_size = (_stage == SNodesCoarseningStage::D1_TWINS) ? MAX_CLUSTER_SIZE : 2;
   params.accepted_density_diff = densityDiffForStage(_stage);
-  params.max_tree_distance = treeDistanceForStage(_stage);
+  params.max_tree_distance = treeDistanceForStage(_stage, use_spanning_tree);
 
   if (first) {
     applyDegreeZeroCoarsening(params, communities, data);
