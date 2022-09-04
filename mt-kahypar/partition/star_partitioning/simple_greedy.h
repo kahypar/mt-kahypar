@@ -37,7 +37,7 @@ class SimpleGreedy {
  public:
   SimpleGreedy(const PartitionID& k): _k(k), _tmp_edge_weights(k) { }
 
-  void partition(PartitionedHypergraph& hypergraph, SeparatedNodes& s_nodes, const Context& context,
+  void partition(PartitionedHypergraph& hypergraph, const SeparatedNodes& s_nodes, const Context& context,
                  Array<HypernodeWeight>& part_weights, bool parallel = true);
 
  private:

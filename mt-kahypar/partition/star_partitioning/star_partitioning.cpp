@@ -29,7 +29,7 @@ namespace mt_kahypar {
 namespace star_partitioning {
 using ds::Array;
 
-HyperedgeWeight partition(PartitionedHypergraph& hypergraph, SeparatedNodes& s_nodes,
+HyperedgeWeight partition(PartitionedHypergraph& hypergraph, const SeparatedNodes& s_nodes,
                           const Context& context, bool parallel) {
   ASSERT([&]() {
       for (const HypernodeID& hn : hypergraph.nodes()) {

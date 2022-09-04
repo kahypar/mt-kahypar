@@ -34,7 +34,7 @@ namespace star_partitioning {
 using ds::Array;
 using ds::StreamingVector;
 
-void Approximate::partition(PartitionedHypergraph& phg, SeparatedNodes& s_nodes, const Context& context,
+void Approximate::partition(PartitionedHypergraph& phg, const SeparatedNodes& s_nodes, const Context& context,
                             Array<HypernodeWeight>& part_weights, parallel_tag_t) {
   // TODO(maas): there's a bug in the parallel implementation (and it's not too performant anyways)
   Array<HyperedgeWeight> gains(s_nodes.numNodes() * _k);
@@ -108,7 +108,7 @@ void Approximate::partition(PartitionedHypergraph& phg, SeparatedNodes& s_nodes,
   sg.partition(phg, s_nodes, context, part_weights, true);
 }
 
-void Approximate::partition(PartitionedHypergraph& phg, SeparatedNodes& s_nodes, const Context& context,
+void Approximate::partition(PartitionedHypergraph& phg, const SeparatedNodes& s_nodes, const Context& context,
                             Array<HypernodeWeight>& part_weights) {
   vec<vec<HypernodeID>> nodes_per_part(_k);
   Array<HyperedgeWeight> gains;

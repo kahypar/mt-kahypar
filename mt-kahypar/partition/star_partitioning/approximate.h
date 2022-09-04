@@ -38,10 +38,10 @@ class Approximate {
  public:
   Approximate(const PartitionID& k): _k(k) { }
 
-  void partition(PartitionedHypergraph& phg, SeparatedNodes& s_nodes, const Context& context,
+  void partition(PartitionedHypergraph& phg, const SeparatedNodes& s_nodes, const Context& context,
                  Array<HypernodeWeight>& part_weights, parallel_tag_t);
 
-  void partition(PartitionedHypergraph& phg, SeparatedNodes& s_nodes, const Context& context,
+  void partition(PartitionedHypergraph& phg, const SeparatedNodes& s_nodes, const Context& context,
                  Array<HypernodeWeight>& part_weights);
 
  private:

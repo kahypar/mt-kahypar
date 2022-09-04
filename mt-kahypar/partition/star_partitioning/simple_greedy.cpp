@@ -31,7 +31,7 @@ namespace mt_kahypar {
 namespace star_partitioning {
 using ds::Array;
 
-void SimpleGreedy::partition(PartitionedHypergraph& phg, SeparatedNodes& s_nodes, const Context& context,
+void SimpleGreedy::partition(PartitionedHypergraph& phg, const SeparatedNodes& s_nodes, const Context& context,
                              Array<HypernodeWeight>& part_weights, bool parallel) {
   Array<HyperedgeWeight> max_gains;
   max_gains.assign(s_nodes.numNodes(), 0, parallel);

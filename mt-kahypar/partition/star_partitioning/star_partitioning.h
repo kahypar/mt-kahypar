@@ -29,7 +29,7 @@ namespace star_partitioning {
 using ds::Array;
 using ds::SeparatedNodes;
 
-HyperedgeWeight partition(PartitionedHypergraph& hypergraph, SeparatedNodes& s_nodes,
+HyperedgeWeight partition(PartitionedHypergraph& hypergraph, const SeparatedNodes& s_nodes,
                           const Context& context, bool parallel = true);
 
 void getEdgeWeightsOfNode(PartitionedHypergraph& phg, const SeparatedNodes& s_nodes, Array<HyperedgeWeight>& weights_per_part,
