@@ -380,6 +380,10 @@ namespace mt_kahypar {
              po::value<bool>((!initial_partitioning ? &context.refinement.include_separated :
                               &context.initial_partitioning.refinement.include_separated))->value_name("<bool>")->default_value(false),
              "Include separated nodes in refinement.")
+            ( initial_partitioning ? "i-r-separated-partition-aware-coarsening" : "r-separated-partition-aware-coarsening",
+             po::value<bool>((!initial_partitioning ? &context.refinement.separated_partition_aware_coarsening :
+                              &context.initial_partitioning.refinement.separated_partition_aware_coarsening))->value_name("<bool>")->default_value(true),
+             "If true, star partitioning will be applied beforehand and the separated nodes coarsening will respect the resulting partition.")
             ((initial_partitioning ? "i-r-lp-type" : "r-lp-type"),
              po::value<std::string>()->value_name("<string>")->notifier(
                      [&, initial_partitioning](const std::string& type) {

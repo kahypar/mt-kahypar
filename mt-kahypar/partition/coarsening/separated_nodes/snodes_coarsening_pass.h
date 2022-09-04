@@ -185,7 +185,7 @@ class SNodesCoarseningPass {
 
   template<typename ArrayT>
   void setPartIDs(const ArrayT& part_ids) {
-    ASSERT(part_ids.size() == _s_nodes.numVisibleNodes());
+    ASSERT(part_ids.size() >= _s_nodes.numVisibleNodes());
     _part_ids = part_ids.data();
   }
 
@@ -270,7 +270,7 @@ class SNodesCoarseningPass {
               auto intersec_union = intersection_and_union(curr_node, next_node, buffer_left, buffer_right);
               const double similarity_target = std::max(required_similarity,
                   1.5 / static_cast<double>(std::min(_s_nodes.inwardDegree(curr_node), _s_nodes.inwardDegree(next_node))));
-              matches = static_cast<double>(intersec_union.first) / static_cast<double>(intersec_union.second) >= similarity_target;
+              matches &= static_cast<double>(intersec_union.first) / static_cast<double>(intersec_union.second) >= similarity_target;
             }
             if (matches) {
               ASSERT(communities[curr_node] == kInvalidHypernode && communities[next_node] == kInvalidHypernode);

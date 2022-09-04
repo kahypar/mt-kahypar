@@ -21,15 +21,17 @@
 #pragma once
 
 #include "mt-kahypar/definitions.h"
+#include "mt-kahypar/datastructures/array.h"
 #include "mt-kahypar/datastructures/separated_nodes.h"
 #include "mt-kahypar/partition/coarsening/coarsening_commons.h"
 
 namespace mt_kahypar {
 namespace star_partitioning {
 using ds::SepNodesStack;
+using ds::Array;
 
 void coarsenSynchronized(SepNodesStack& stack, const Hypergraph& original_hg, const vec<Level>& levels,
-                         const Context& context, const HypernodeID& start_num_nodes, const HypernodeID& target_num_nodes);
-
+                         const Context& context, const HypernodeID& start_num_nodes, const HypernodeID& target_num_nodes,
+                         Array<PartitionID>* part_ids = nullptr);
 } // namepace star_partitioning
 } // namespace mt_kahypar

@@ -316,6 +316,10 @@ private:
     }
   }
 
+  vec<CAtomic<PartitionID>>& separatedPartIDs() {
+    return _sep_part_ids;
+  }
+
   void initializeSeparatedParts() {
     _sep_part_ids.assign(std::max(numSeparatedNodes(), ID(_sep_part_ids.size())), CAtomic<PartitionID>(kInvalidPartition));
   }

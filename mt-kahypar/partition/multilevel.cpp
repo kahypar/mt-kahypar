@@ -192,17 +192,42 @@ namespace mt_kahypar::multilevel {
 
       // ################## SEPARATED NODES COARSENING ##################
       if (_context.refinement.include_separated) {
+        Array<PartitionID> part_ids;
+        Array<PartitionID>* part_id_ptr = nullptr;
+        if (_context.refinement.separated_partition_aware_coarsening) {
+          _uncoarseningData->partitioned_hg->resetSeparatedParts();
+          const SeparatedNodes& s_nodes = _hg.separatedNodes().finest();
+          const HyperedgeWeight added_cut = star_partitioning::partition(*_uncoarseningData->partitioned_hg,
+                                                                         s_nodes, _context, false);
+          part_ids.resize(s_nodes.numNodes(), kInvalidPartition);
+          tbb::parallel_for(ID(0), s_nodes.numNodes(), [&] (const HypernodeID& node) {
+            part_ids[node] = _uncoarseningData->partitioned_hg->separatedPartID(node);
+          });
+          part_id_ptr = &part_ids;
+        }
         SepNodesStack stack(_hg.separatedNodes().finest().createCopyFromSavepoint());
         const HypernodeID start_num_nodes = _hg.numSeparatedNodes();
         const HypernodeID target_num_nodes = _uncoarseningData->calculateSeparatedNodesTargetSize(
                                               _uncoarseningData->coarsestPartitionedHypergraph().hypergraph(), _hg);
-        star_partitioning::coarsenSynchronized(stack, _hg, _uncoarseningData->hierarchy, _context, start_num_nodes, target_num_nodes);
-
-        // TODO!!
+        star_partitioning::coarsenSynchronized(stack, _hg, _uncoarseningData->hierarchy, _context,
+                                               start_num_nodes, target_num_nodes, part_id_ptr);
         _uncoarseningData->partitioned_hg->setSeparatedNodes(&stack);
-        _uncoarseningData->partitioned_hg->resetSeparatedParts();
-        const HyperedgeWeight added_cut = star_partitioning::partition(*_uncoarseningData->partitioned_hg,
-                                                                       stack.coarsest(), _context, false);
+        if (_context.refinement.separated_partition_aware_coarsening) {
+          vec<CAtomic<PartitionID>>& graph_part_ids = _uncoarseningData->partitioned_hg->separatedPartIDs();
+          ASSERT(graph_part_ids.size() >= part_ids.size());
+          tbb::parallel_for(0UL, graph_part_ids.size(), [&] (const size_t& pos) {
+            if (pos < part_ids.size()) {
+              graph_part_ids[pos].store(part_ids[pos]);
+            } else {
+              graph_part_ids[pos].store(kInvalidPartition);
+            }
+          });
+        } else {
+          // TODO!!
+          _uncoarseningData->partitioned_hg->resetSeparatedParts();
+          const HyperedgeWeight added_cut = star_partitioning::partition(*_uncoarseningData->partitioned_hg,
+                                                                         stack.coarsest(), _context, false);
+        }
 
         reconstructHierarchyWithSeparatedNodes(stack);
       }

@@ -43,7 +43,10 @@ void replayToSynchronizeLevels(SepNodesStack& stack, const Hypergraph& original_
 }
 
 void coarsenSynchronized(SepNodesStack& stack, const Hypergraph& original_hg, const vec<Level>& levels,
-                         const Context& context, const HypernodeID& start_num_nodes, const HypernodeID& target_num_nodes) {
+                         const Context& context, const HypernodeID& start_num_nodes, const HypernodeID& target_num_nodes,
+                         Array<PartitionID>* part_ids) {
+  ASSERT(part_ids == nullptr || part_ids->size() == start_num_nodes);
+
   stack.onliest().setSavepoint();
   size_t j = 0;
   HypernodeID current_num_nodes = start_num_nodes;
@@ -53,6 +56,7 @@ void coarsenSynchronized(SepNodesStack& stack, const Hypergraph& original_hg, co
                                              1 / static_cast<double>(levels.size() - i));
     HypernodeID current_step_start_nodes = stack.coarsest().numVisibleNodes();
     bool reveal_batch = true;
+    bool any_contracted = true;
     const Hypergraph* hg;
     do {
       if (j < levels.size() && (!context.coarsening.sep_nodes_coarsening_levelwise || i == j)) {
@@ -79,13 +83,34 @@ void coarsenSynchronized(SepNodesStack& stack, const Hypergraph& original_hg, co
       }
       stack.coarsest().initializeOutwardEdges();
       SNodesCoarseningPass c_pass(stack.coarsest(), *hg, context, tmp_target, stage);
+      if (part_ids != nullptr) {
+        c_pass.setPartIDs(*part_ids);
+      }
       vec<HypernodeID> communities;
-      current_num_nodes -= c_pass.run(communities);
+      const HypernodeID n_contracted = c_pass.run(communities);
+      any_contracted = n_contracted > 0;
+      current_num_nodes -= n_contracted;
       stage = c_pass.stage();
       stage = previous(stage);
       stack.coarsen(std::move(communities));
+
+      if (part_ids != nullptr) {
+        const size_t diff = part_ids->size() - current_num_nodes;
+        Array<PartitionID> new_part_ids(current_num_nodes, kInvalidPartition);
+        const vec<HypernodeID>& communities = stack.mapping(0);
+        tbb::parallel_for(0UL, part_ids->size(), [&] (const size_t& pos) {
+          if (pos < communities.size()) {
+            const HypernodeID mapped_node = communities[pos];
+            ASSERT(new_part_ids[mapped_node] == kInvalidPartition || new_part_ids[mapped_node] == (*part_ids)[pos]);
+            new_part_ids[mapped_node] = (*part_ids)[pos];
+          } else {
+            new_part_ids[pos - diff] = (*part_ids)[pos];
+          }
+        });
+        std::swap(*part_ids, new_part_ids);
+      }
     } while (static_cast<double>(stack.coarsest().numVisibleNodes()) / current_step_start_nodes > reduction_factor
-             && stack.coarsest().numVisibleNodes() > target_num_nodes);
+             && stack.coarsest().numVisibleNodes() > target_num_nodes && any_contracted);
 
     stack.contractToNLevels(i + 2);
   }
