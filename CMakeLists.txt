@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.16)
-list(APPEND CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake/modules)
+list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake/modules)
 
 project(KaHyPar CXX C)
 set(PROJECT_VENDOR "Tobias Heuer")
@@ -325,4 +325,3 @@ add_custom_target(mt_kahypar_tests
   COMMAND ${CMAKE_COMMAND} --build . --target mt_kahypar_fast_tests
   COMMAND ${CMAKE_COMMAND} --build . --target mt_kahypar_strong_tests
   COMMAND ${CMAKE_COMMAND} --build . --target mt_kahypar_graph_tests)
-
