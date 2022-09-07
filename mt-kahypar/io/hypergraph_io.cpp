@@ -156,15 +156,26 @@ namespace mt_kahypar::io {
     return has_hyperedge_weights ? num_spaces == 1 : num_spaces == 0;
   }
 
-  HyperedgeID readHyperedges(char* mapped_file,
-                             size_t& pos,
-                             const size_t length,
-                             const HyperedgeID num_hyperedges,
-                             const mt_kahypar::Type type,
-                             HyperedgeVector& hyperedges,
-                             parallel::scalable_vector<HyperedgeWeight>& hyperedges_weight,
-                             const bool remove_single_pin_hes) {
-    HyperedgeID num_removed_single_pin_hyperedges = 0;
+  struct HyperedgeReadResult {
+    HyperedgeReadResult() :
+      num_removed_single_pin_hyperedges(0),
+      num_duplicated_pins(0),
+      num_hes_with_duplicated_pins(0) { }
+
+    size_t num_removed_single_pin_hyperedges;
+    size_t num_duplicated_pins;
+    size_t num_hes_with_duplicated_pins;
+  };
+
+  HyperedgeReadResult readHyperedges(char* mapped_file,
+                                     size_t& pos,
+                                     const size_t length,
+                                     const HyperedgeID num_hyperedges,
+                                     const mt_kahypar::Type type,
+                                     HyperedgeVector& hyperedges,
+                                     parallel::scalable_vector<HyperedgeWeight>& hyperedges_weight,
+                                     const bool remove_single_pin_hes) {
+    HyperedgeReadResult res;
     const bool has_hyperedge_weights = type == mt_kahypar::Type::EdgeWeights ||
                                        type == mt_kahypar::Type::EdgeAndNodeWeights ?
                                        true : false;
@@ -191,7 +202,7 @@ namespace mt_kahypar::io {
         if ( !remove_single_pin_hes || !isSinglePinHyperedge(mapped_file, pos, length, has_hyperedge_weights) ) {
           ++current_range_num_hyperedges;
         } else {
-          ++num_removed_single_pin_hyperedges;
+          ++res.num_removed_single_pin_hyperedges;
         }
         ++current_num_hyperedges;
         goto_next_line(mapped_file, pos, length);
@@ -218,7 +229,7 @@ namespace mt_kahypar::io {
       }
     });
 
-    const HyperedgeID tmp_num_hyperedges = num_hyperedges - num_removed_single_pin_hyperedges;
+    const HyperedgeID tmp_num_hyperedges = num_hyperedges - res.num_removed_single_pin_hyperedges;
     hyperedges.resize(tmp_num_hyperedges);
     if ( has_hyperedge_weights ) {
       hyperedges_weight.resize(tmp_num_hyperedges);
@@ -257,6 +268,24 @@ namespace mt_kahypar::io {
             hyperedge.push_back(pin - 1);
           }
           do_line_ending(mapped_file, current_pos);
+
+          // Detect duplicated pins
+          std::sort(hyperedge.begin(), hyperedge.end());
+          size_t j = 1;
+          for ( size_t i = 1; i < hyperedge.size(); ++i ) {
+            if ( hyperedge[j - 1] != hyperedge[i] ) {
+              std::swap(hyperedge[i], hyperedge[j++]);
+            }
+          }
+          if ( j < hyperedge.size() ) {
+            // Remove duplicated pins
+            __atomic_fetch_add(&res.num_hes_with_duplicated_pins, 1, __ATOMIC_RELAXED);
+            __atomic_fetch_add(&res.num_duplicated_pins, hyperedge.size() - j, __ATOMIC_RELAXED);
+            for ( size_t i = j; i < hyperedge.size(); ++i ) {
+              hyperedge.pop_back();
+            }
+          }
+
           ASSERT(hyperedge.size() >= 2);
           ++current_id;
         } else {
@@ -264,7 +293,7 @@ namespace mt_kahypar::io {
         }
       }
     });
-    return num_removed_single_pin_hyperedges;
+    return res;
   }
 
   void readHypernodeWeights(char* mapped_file,
@@ -307,10 +336,16 @@ namespace mt_kahypar::io {
     readHGRHeader(mapped_file, pos, length, num_hyperedges, num_hypernodes, type);
 
     // Read Hyperedges
-    num_removed_single_pin_hyperedges =
+    HyperedgeReadResult res =
             readHyperedges(mapped_file, pos, length, num_hyperedges,
               type, hyperedges, hyperedges_weight, remove_single_pin_hes);
-    num_hyperedges -= num_removed_single_pin_hyperedges;
+    num_hyperedges -= res.num_removed_single_pin_hyperedges;
+    num_removed_single_pin_hyperedges = res.num_removed_single_pin_hyperedges;
+
+    if ( res.num_hes_with_duplicated_pins > 0 ) {
+      WARNING("Removed" << res.num_duplicated_pins << "duplicated pins in"
+        << res.num_hes_with_duplicated_pins << "hyperedges!");
+    }
 
     // Read Hypernode Weights
     readHypernodeWeights(mapped_file, pos, length, num_hypernodes, type, hypernodes_weight);
