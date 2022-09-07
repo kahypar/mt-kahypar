@@ -34,10 +34,10 @@ set_target_properties(mtkahypargraph PROPERTIES
 set_target_properties(mtkahypargq PROPERTIES
     PUBLIC_HEADER ../include/libmtkahypar.h)
 
-target_include_directories(mtkahypard PRIVATE ../include)
-target_include_directories(mtkahyparq PRIVATE ../include)
-target_include_directories(mtkahypargraph PRIVATE ../include)
-target_include_directories(mtkahypargq PRIVATE ../include)
+target_include_directories(mtkahypard SYSTEM PUBLIC ../include)
+target_include_directories(mtkahyparq SYSTEM PUBLIC ../include)
+target_include_directories(mtkahypargraph SYSTEM PUBLIC ../include)
+target_include_directories(mtkahypargq SYSTEM PUBLIC ../include)
 
 configure_file(libmtkahypard.pc.in libmtkahypard.pc @ONLY)
 configure_file(libmtkahyparq.pc.in libmtkahyparq.pc @ONLY)
