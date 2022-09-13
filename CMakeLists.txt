@@ -315,13 +315,15 @@ add_subdirectory(tests)
 add_subdirectory(mt-kahypar)
 
 add_custom_target(MtKaHyPar
-  COMMAND $(MAKE) MtKaHyParDefault
-  COMMAND $(MAKE) MtKaHyParQuality
-  COMMAND $(MAKE) MtKaHyParGraph
-  COMMAND $(MAKE) MtKaHyParGraphQuality
-  COMMAND $(MAKE) MtKaHyParWrapper)
+  DEPENDS
+  MtKaHyParDefault
+  MtKaHyParQuality
+  MtKaHyParGraph
+  MtKaHyParGraphQuality
+  MtKaHyParWrapper)
 
 add_custom_target(mt_kahypar_tests
-  COMMAND $(MAKE) mt_kahypar_fast_tests
-  COMMAND $(MAKE) mt_kahypar_strong_tests
-  COMMAND $(MAKE) mt_kahypar_graph_tests)
+  DEPENDS
+  mt_kahypar_fast_tests
+  mt_kahypar_strong_tests
+  mt_kahypar_graph_tests)
