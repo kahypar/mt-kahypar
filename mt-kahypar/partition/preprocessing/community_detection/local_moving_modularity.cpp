@@ -79,7 +79,7 @@ double modularity(const Graph& graph, const ds::Clustering& communities) {
 
 namespace mt_kahypar::community_detection {
 
-bool ParallelLocalMovingModularity::localMoving(Graph& graph, ds::Clustering& communities) {
+bool ParallelLocalMovingModularity::localMoving(Graph& graph, ds::Clustering& communities, bool top_level) {
   ASSERT(graph.canBeUsed());
   _max_degree = graph.max_degree();
   _reciprocal_total_volume = 1.0 / graph.totalVolume();
@@ -123,43 +123,88 @@ bool ParallelLocalMovingModularity::localMoving(Graph& graph, ds::Clustering& co
     }
   }
 
-  auto& nodes = permutation.permutation;
-  std::vector<double> inv_gains;
-  inv_gains.assign(nodes.size(), 0);
-  tbb::parallel_for(0UL, nodes.size(), [&](size_t i) {
-    double gain_to_iso = computeGainComparedToIsolated(graph, communities, nodes[i]);
-    inv_gains[i] = 1 / std::max(gain_to_iso, 1.0);
-  });
-
-
-  const double avg_inv_weigh_gain = utils::parallel_weighted_avg(inv_gains, graph.totalVolume(),
-    [&](size_t i) {
-      return graph.nodeVolume(nodes[i]);
-    });
-  const double stdev_inv_weigh_gain = utils::parallel_weighted_stdev(inv_gains, avg_inv_weigh_gain, graph.totalVolume(),
-    [&](size_t i) {
-      return graph.nodeVolume(nodes[i]);
+  if (top_level && clustering_changed && _context.preprocessing.community_detection.use_isolated_nodes_treshold) {
+    ASSERT(!_context.partition.deterministic);
+    auto& nodes = permutation.permutation;
+    std::vector<double> inv_gains;
+    inv_gains.assign(nodes.size(), 0);
+    tbb::parallel_for(0UL, nodes.size(), [&](size_t i) {
+      double gain_to_iso = computeGainComparedToIsolated(graph, communities, nodes[i]);
+      inv_gains[i] = 1 / std::max(gain_to_iso, 1.0);
     });
 
-  auto isolateNode = [&](const NodeID u) {
-    const ArcWeight volU = graph.nodeVolume(u);
-    const PartitionID from = communities[u];
-    _cluster_volumes[u] += volU;
-    _cluster_volumes[from] -= volU;
-    _cluster_weights[u] += graph.nodeWeight(u);
-    _cluster_weights[from] -= graph.nodeWeight(u);
-    communities[u] = u;
-  };
 
-  const double stdev_factor = _context.preprocessing.community_detection.isolated_nodes_threshold_stdev_factor;
-  tbb::parallel_for(0UL, nodes.size(), [&](size_t i) {
-    const double gain_to_iso = computeGainComparedToIsolated(graph, communities, nodes[i]);
-    if (gain_to_iso <= 0 || (_context.preprocessing.community_detection.use_isolated_nodes_treshold
-            && gain_to_iso < 1 / (avg_inv_weigh_gain + stdev_factor * stdev_inv_weigh_gain))) {
-      isolateNode(nodes[i]);
-      graph.setIsolated(nodes[i]);
+    const double avg_inv_weigh_gain = utils::parallel_weighted_avg(inv_gains, graph.totalVolume(),
+      [&](size_t i) {
+        return graph.nodeVolume(nodes[i]);
+      });
+    const double stdev_inv_weigh_gain = utils::parallel_weighted_stdev(inv_gains, avg_inv_weigh_gain, graph.totalVolume(),
+      [&](size_t i) {
+        return graph.nodeVolume(nodes[i]);
+      });
+
+    const double stdev_factor = _context.preprocessing.community_detection.isolated_nodes_threshold_stdev_factor;
+    HypernodeID first_separated = kInvalidHypernode;
+    if (top_level && _context.preprocessing.community_detection.single_community_of_separated) {
+      // we need to find one representative of the community of separated nodes
+      for (size_t i = 0; i < nodes.size(); ++i) {
+        const double gain_to_iso = computeGainComparedToIsolated(graph, communities, nodes[i]);
+        if (gain_to_iso <= 0 || gain_to_iso < 1 / (avg_inv_weigh_gain + stdev_factor * stdev_inv_weigh_gain)) {
+          first_separated = nodes[i];
+          break;
+        }
+      }
     }
-  });
+
+    auto isolateNode = [&](const NodeID u) {
+      const ArcWeight volU = graph.nodeVolume(u);
+      const PartitionID from = communities[u];
+      _cluster_volumes[from] -= volU;
+      _cluster_weights[from] -= graph.nodeWeight(u);
+
+      if (top_level && _context.preprocessing.community_detection.single_community_of_separated) {
+        _cluster_volumes[first_separated] += volU;
+        _cluster_weights[first_separated] += graph.nodeWeight(u);
+        communities[u] = first_separated;
+      } else {
+        _cluster_volumes[u] += volU;
+        _cluster_weights[u] += graph.nodeWeight(u);
+        communities[u] = u;
+      }
+    };
+
+    tbb::parallel_for(0UL, nodes.size(), [&](size_t i) {
+      const double gain_to_iso = computeGainComparedToIsolated(graph, communities, nodes[i]);
+      if (gain_to_iso <= 0 || gain_to_iso < 1 / (avg_inv_weigh_gain + stdev_factor * stdev_inv_weigh_gain)) {
+        isolateNode(nodes[i]);
+        graph.setIsolated(nodes[i]);
+      }
+    });
+
+    if (_context.preprocessing.community_detection.single_community_of_separated) {
+      tbb::parallel_for(0UL, nodes.size(), [&](size_t i) {
+        if (!graph.isIsolated(nodes[i])) {
+          const double comm_weight = _cluster_weights[communities[nodes[i]]].load(std::memory_order_relaxed);
+          const double node_weight = graph.nodeWeight(nodes[i]);
+          if (comm_weight == node_weight) {
+            isolateNode(nodes[i]);
+            graph.setIsolated(nodes[i]);
+          }
+        }
+      });
+    }
+
+    if (top_level && !_context.preprocessing.community_detection.single_community_of_separated
+        && _context.preprocessing.community_detection.separated_sub_communities) {
+      size_t number_of_nodes_moved = graph.numNodes();
+      for (size_t round = 0;
+          number_of_nodes_moved >= _context.preprocessing.community_detection.min_vertex_move_fraction * graph.numNodes()
+          && round < _context.preprocessing.community_detection.max_pass_iterations; round++) {
+        number_of_nodes_moved = parallelNonDeterministicRound(graph, communities, true);
+      }
+    }
+  }
+
   return clustering_changed;
 }
 
@@ -193,7 +238,7 @@ size_t ParallelLocalMovingModularity::synchronousParallelRound(const Graph& grap
     tbb::enumerable_thread_specific<size_t> num_moved_local(0);
     tbb::parallel_for(first, last, [&](size_t pos) {
       HypernodeID u = permutation.at(pos);
-      PartitionID best_cluster = computeMaxGainCluster(graph, communities, u);
+      PartitionID best_cluster = computeMaxGainCluster(graph, communities, u, false);
       if (best_cluster != communities[u]) {
         volume_updates_from.push_back_buffered({ communities[u], u });
         volume_updates_to.push_back_buffered({best_cluster, u });
@@ -253,7 +298,7 @@ size_t ParallelLocalMovingModularity::sequentialRound(const Graph& graph, ds::Cl
   size_t num_moved = 0;
   for (size_t i = 0; i < graph.numNodes(); ++i) {
     NodeID u = permutation.at(i);
-    PartitionID best_cluster = computeMaxGainCluster(graph, communities, u);
+    PartitionID best_cluster = computeMaxGainCluster(graph, communities, u, false);
     if (best_cluster != communities[u]) {
       _cluster_volumes[best_cluster] += graph.nodeVolume(u);
       _cluster_volumes[communities[u]] -= graph.nodeVolume(u);
@@ -266,7 +311,8 @@ size_t ParallelLocalMovingModularity::sequentialRound(const Graph& graph, ds::Cl
   return num_moved;
 }
 
-size_t ParallelLocalMovingModularity::parallelNonDeterministicRound(const Graph& graph, ds::Clustering& communities) {
+size_t ParallelLocalMovingModularity::parallelNonDeterministicRound(const Graph& graph, ds::Clustering& communities,
+                                                                    const bool apply_to_isolated) {
   auto& nodes = permutation.permutation;
   if ( !_disable_randomization ) {
     utils::Randomize::instance().parallelShuffleVector(nodes, 0UL, nodes.size());
@@ -274,10 +320,10 @@ size_t ParallelLocalMovingModularity::parallelNonDeterministicRound(const Graph&
 
   tbb::enumerable_thread_specific<size_t> local_number_of_nodes_moved(0);
   auto moveNode = [&](const NodeID u) {
-    if (!graph.isIsolated(u)) {
+    if (graph.isIsolated(u) == apply_to_isolated) {
       const ArcWeight volU = graph.nodeVolume(u);
       const PartitionID from = communities[u];
-      PartitionID best_cluster = computeMaxGainCluster(graph, communities, u);
+      PartitionID best_cluster = computeMaxGainCluster(graph, communities, u, apply_to_isolated);
       if (best_cluster != from) {
         _cluster_volumes[best_cluster] += volU;
         _cluster_volumes[from] -= volU;

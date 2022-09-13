@@ -436,6 +436,9 @@ namespace mt_kahypar {
       ERROR("exactly one of --i-apply-star-partitioning-per-canditate, --i-apply-star-partitioning-to-best and "
             "--i-reinsert-separated must be true");
     }
+    if (preprocessing.community_detection.single_community_of_separated && preprocessing.community_detection.separated_sub_communities) {
+      ERROR("--p-single-community-of-separated and --p-separated-sub-communities can not be combined");
+    }
     if (preprocessing.disable_star_partitioning_for_mesh_graphs && !preprocessing.disable_community_detection_for_mesh_graphs) {
       ERROR("--p-disable-star-partitioning-for-mesh-graphs implies --p-disable-community-detection-for-mesh-graphs");
     }

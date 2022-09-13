@@ -69,10 +69,10 @@ class ParallelLocalMovingModularity {
 
   ~ParallelLocalMovingModularity();
 
-  bool localMoving(Graph& graph, ds::Clustering& communities);
+  bool localMoving(Graph& graph, ds::Clustering& communities, bool top_level);
 
  private:
-  size_t parallelNonDeterministicRound(const Graph& graph, ds::Clustering& communities);
+  size_t parallelNonDeterministicRound(const Graph& graph, ds::Clustering& communities, const bool apply_to_isolated = false);
   size_t synchronousParallelRound(const Graph& graph, ds::Clustering& communities);
   size_t sequentialRound(const Graph& graph, ds::Clustering& communities);
 
@@ -99,14 +99,16 @@ class ParallelLocalMovingModularity {
 
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE PartitionID computeMaxGainCluster(const Graph& graph,
                                                                        const ds::Clustering& communities,
-                                                                       const NodeID u) {
-    return computeMaxGainCluster(graph, communities, u, non_sampling_incident_cluster_weights.local());
+                                                                       const NodeID u,
+                                                                       const bool is_isolated) {
+    return computeMaxGainCluster(graph, communities, u, non_sampling_incident_cluster_weights.local(), is_isolated);
   }
 
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE PartitionID computeMaxGainCluster(const Graph& graph,
                                                                        const ds::Clustering& communities,
                                                                        const NodeID u,
-                                                                       ClearList& incident_cluster_weights) {
+                                                                       ClearList& incident_cluster_weights,
+                                                                       const bool is_isolated) {
     const PartitionID from = communities[u];
     PartitionID bestCluster = communities[u];
 
@@ -137,7 +139,7 @@ class ParallelLocalMovingModularity {
     for (const auto to : used) {
       // if from == to, we would have to remove volU from volume_to as well.
       // just skip it. it has (adjusted) gain zero.
-      if (from != to) {
+      if (from != to && is_isolated == graph.isIsolated(to)) {
         double gain = _modified_modularity ?
                       modifiedModularityGain(weights[to], _cluster_volumes[to].load(std::memory_order_relaxed), volU,
                                              _cluster_weights[to].load(std::memory_order_relaxed), nodeWeightU) :

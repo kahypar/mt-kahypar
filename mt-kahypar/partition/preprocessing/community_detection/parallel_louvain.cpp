@@ -25,10 +25,10 @@
 
 namespace mt_kahypar::community_detection {
 
-  ds::Clustering local_moving_contract_recurse(Graph& fine_graph, ParallelLocalMovingModularity& mlv, const Context& context) {
+  ds::Clustering local_moving_contract_recurse(Graph& fine_graph, ParallelLocalMovingModularity& mlv, const Context& context, bool top_level) {
     utils::Timer::instance().start_timer("local_moving", "Local Moving");
     ds::Clustering communities(fine_graph.numNodes());
-    bool communities_changed = mlv.localMoving(fine_graph, communities);
+    bool communities_changed = mlv.localMoving(fine_graph, communities, top_level);
     utils::Timer::instance().stop_timer("local_moving");
 
     if (communities_changed) {
@@ -39,7 +39,7 @@ namespace mt_kahypar::community_detection {
       utils::Timer::instance().stop_timer("contraction");
 
       // Recurse on contracted graph
-      ds::Clustering coarse_communities = local_moving_contract_recurse(coarse_graph, mlv, context);
+      ds::Clustering coarse_communities = local_moving_contract_recurse(coarse_graph, mlv, context, false);
 
       utils::Timer::instance().start_timer("project", "Project");
       // Prolong Clustering
@@ -55,7 +55,7 @@ namespace mt_kahypar::community_detection {
 
   ds::Clustering run_parallel_louvain(Graph& graph, const Context& context, bool disable_randomization) {
     ParallelLocalMovingModularity mlv(context, graph.numNodes(), disable_randomization);
-    ds::Clustering communities = local_moving_contract_recurse(graph, mlv, context);
+    ds::Clustering communities = local_moving_contract_recurse(graph, mlv, context, true);
     return communities;
   }
 }
