@@ -162,6 +162,8 @@ namespace mt_kahypar {
       if (context.partition.verbose_output) {
         io::printCommunityInformation(hypergraph);
       }
+    } else {
+      utils::Stats::instance().add_stat("num_separated_in_community_detection", 0);
     }
     parallel::MemoryPool::instance().release_mem_group("Preprocessing");
   }
