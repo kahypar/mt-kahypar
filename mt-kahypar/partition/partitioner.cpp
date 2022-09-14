@@ -181,6 +181,8 @@ namespace mt_kahypar {
     io::printInputInformation(context, hypergraph);
 
     utils::Stats::instance().add_stat<int64_t>("total_num_nodes", hypergraph.initialNumNodes());
+    utils::Stats::instance().add_stat<int64_t>("num_separated", 0);
+    utils::Stats::instance().add_stat<HypernodeWeight>("separated_weight", 0);
 
     // ################## PREPROCESSING ##################
     utils::Timer::instance().start_timer("preprocessing", "Preprocessing");
