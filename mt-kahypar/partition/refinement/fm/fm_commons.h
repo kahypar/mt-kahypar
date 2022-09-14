@@ -100,7 +100,7 @@ struct NodeTracker {
   void deactivateNode(HypernodeID u, SearchID search_id) {
     assert(searchOfNode[u].load() == search_id);
     unused(search_id);
-    searchOfNode[u].store(deactivatedNodeMarker, std::memory_order_acq_rel);
+    searchOfNode[u].store(deactivatedNodeMarker, std::memory_order_release);
   }
 
   bool isLocked(HypernodeID u) {
@@ -120,7 +120,7 @@ struct NodeTracker {
   }
 
   bool tryAcquireNode(HypernodeID u, SearchID new_search) {
-    SearchID current_search = searchOfNode[u].load(std::memory_order_acq_rel);
+    SearchID current_search = searchOfNode[u].load(std::memory_order_relaxed);
     return isSearchInactive(current_search)
             && searchOfNode[u].compare_exchange_strong(current_search, new_search, std::memory_order_acq_rel);
   }

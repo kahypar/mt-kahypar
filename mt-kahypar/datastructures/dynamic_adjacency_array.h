@@ -43,13 +43,14 @@ namespace ds {
 class DynamicAdjacencyArray;
 
 // Iterator over the incident edges of a vertex u
-class IncidentEdgeIterator :
-  public std::iterator<std::forward_iterator_tag,    // iterator_category
-                        HyperedgeID,   // value_type
-                        std::ptrdiff_t,   // difference_type
-                        const HyperedgeID*,   // pointer
-                        HyperedgeID> {   // reference
+class IncidentEdgeIterator {
   public:
+    using iterator_category = std::forward_iterator_tag;
+    using value_type = HyperedgeID;
+    using reference = HyperedgeID&;
+    using pointer = const HyperedgeID*;
+    using difference_type = std::ptrdiff_t;
+
   IncidentEdgeIterator(const HypernodeID u,
                       const DynamicAdjacencyArray* dynamic_adjacency_array,
                       const size_t pos,
@@ -83,13 +84,14 @@ class IncidentEdgeIterator :
 };
 
 // Iterator over all edges
-class EdgeIterator :
-  public std::iterator<std::forward_iterator_tag,    // iterator_category
-                        HyperedgeID,   // value_type
-                        std::ptrdiff_t,   // difference_type
-                        const HyperedgeID*,   // pointer
-                        HyperedgeID> {   // reference
+class EdgeIterator {
   public:
+  using iterator_category = std::forward_iterator_tag;
+  using value_type = HyperedgeID;
+  using reference = HyperedgeID&;
+  using pointer = const HyperedgeID*;
+  using difference_type = std::ptrdiff_t;
+
   EdgeIterator(const HypernodeID u,
                const DynamicAdjacencyArray* dynamic_adjacency_array);
 
@@ -200,7 +202,7 @@ class DynamicAdjacencyArray {
       first_inactive(0),
       degree(0),
       is_head(true) { }
-    
+
     HyperedgeID size() const {
       return first_inactive - first_active;
     }
@@ -388,13 +390,14 @@ class DynamicAdjacencyArray {
   friend class IncidentEdgeIterator;
   friend class EdgeIterator;
 
-  class HeaderIterator :
-    public std::iterator<std::forward_iterator_tag,    // iterator_category
-                          HypernodeID,   // value_type
-                          std::ptrdiff_t,   // difference_type
-                          const HypernodeID*,   // pointer
-                          HypernodeID> {   // reference
+  class HeaderIterator {
     public:
+    using iterator_category = std::forward_iterator_tag;
+    using value_type = HypernodeID;
+    using reference = HypernodeID&;
+    using pointer = const HypernodeID*;
+    using difference_type = std::ptrdiff_t;
+
     HeaderIterator(const HypernodeID u,
                    const DynamicAdjacencyArray* dynamic_adjacency_array,
                    const bool end):

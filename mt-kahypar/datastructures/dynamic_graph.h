@@ -156,14 +156,14 @@ class DynamicGraph {
    * hypernodes/hyperedges.
    */
   template <typename ElementType>
-  class HypergraphElementIterator :
-    public std::iterator<std::forward_iterator_tag,    // iterator_category
-                         typename ElementType::IDType,   // value_type
-                         std::ptrdiff_t,   // difference_type
-                         const typename ElementType::IDType*,   // pointer
-                         typename ElementType::IDType> {   // reference
+  class HypergraphElementIterator {
    public:
     using IDType = typename ElementType::IDType;
+    using iterator_category = std::forward_iterator_tag;
+    using value_type = IDType;
+    using reference = IDType&;
+    using pointer = const IDType*;
+    using difference_type = std::ptrdiff_t;
 
     /*!
      * Construct a HypergraphElementIterator
@@ -229,13 +229,14 @@ class DynamicGraph {
    *
    * Note that because this is a graph, each edge has exactly two pins.
    */
-  class PinIterator :
-    public std::iterator<std::forward_iterator_tag,    // iterator_category
-                         HypernodeID,   // value_type
-                         std::ptrdiff_t,   // difference_type
-                         const HypernodeID*,   // pointer
-                         HypernodeID> {   // reference
+  class PinIterator {
    public:
+    using iterator_category = std::forward_iterator_tag;
+    using value_type = HypernodeID;
+    using reference = HypernodeID&;
+    using pointer = const HypernodeID*;
+    using difference_type = std::ptrdiff_t;
+
     /*!
      * Constructs a pin iterator based on the IDs of the two nodes
      */

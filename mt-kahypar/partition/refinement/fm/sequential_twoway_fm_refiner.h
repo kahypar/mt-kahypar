@@ -20,7 +20,10 @@
 
 #pragma once
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
 #include "kahypar/datastructure/kway_priority_queue.h"
+#pragma GCC diagnostic pop
 
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/refinement/i_refiner.h"

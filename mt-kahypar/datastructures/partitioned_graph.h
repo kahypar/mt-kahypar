@@ -75,13 +75,14 @@ private:
     PartitionID move_target;
   };
 
-  class ConnectivityIterator :
-    public std::iterator<std::forward_iterator_tag,    // iterator_category
-                         PartitionID,   // value_type
-                         std::ptrdiff_t,   // difference_type
-                         const PartitionID*,   // pointer
-                         PartitionID> {
+  class ConnectivityIterator {
    public:
+    using iterator_category = std::forward_iterator_tag;
+    using value_type = PartitionID;
+    using reference = PartitionID&;
+    using pointer = const PartitionID*;
+    using difference_type = std::ptrdiff_t;
+
     /*!
      * Constructs a connectivity iterator based on a pin iterator
      */

@@ -22,6 +22,7 @@
 
 #include <thread>
 #include <memory>
+#include <iterator>
 
 #include "tbb/parallel_for.h"
 #include "tbb/scalable_allocator.h"
@@ -37,15 +38,14 @@ namespace ds {
 template <typename T>
 class Array {
 
-  class ArrayIterator : public std::iterator<std::random_access_iterator_tag, T> {
-
-    using Base = std::iterator<std::random_access_iterator_tag, T>;
+  class ArrayIterator {
 
     public:
-      using value_type = typename Base::value_type;
-      using reference = typename Base::reference;
-      using pointer = typename Base::pointer;
-      using difference_type = typename Base::difference_type;
+      using iterator_category = std::random_access_iterator_tag;
+      using value_type = T;
+      using reference = T&;
+      using pointer = T*;
+      using difference_type = std::ptrdiff_t;
 
       ArrayIterator() : _ptr(nullptr) { }
       ArrayIterator(T* ptr) : _ptr(ptr) { }

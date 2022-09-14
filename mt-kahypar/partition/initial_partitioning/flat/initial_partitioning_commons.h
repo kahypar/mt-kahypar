@@ -20,7 +20,11 @@
 
 #pragma once
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
 #include "kahypar/datastructure/kway_priority_queue.h"
+#pragma GCC diagnostic pop
+
 #include "tbb/enumerable_thread_specific.h"
 #include "mt-kahypar/datastructures/hypergraph_common.h"
 #include "kahypar/datastructure/fast_reset_flag_array.h"

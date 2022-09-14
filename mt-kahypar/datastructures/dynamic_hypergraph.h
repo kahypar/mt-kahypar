@@ -278,14 +278,14 @@ class DynamicHypergraph {
    *
    */
   template <typename ElementType>
-  class HypergraphElementIterator :
-    public std::iterator<std::forward_iterator_tag,    // iterator_category
-                         typename ElementType::IDType,   // value_type
-                         std::ptrdiff_t,   // difference_type
-                         const typename ElementType::IDType*,   // pointer
-                         typename ElementType::IDType> {   // reference
+  class HypergraphElementIterator {
    public:
     using IDType = typename ElementType::IDType;
+    using iterator_category = std::forward_iterator_tag;
+    using value_type = IDType;
+    using reference = IDType&;
+    using pointer = const IDType*;
+    using difference_type = std::ptrdiff_t;
 
     /*!
      * Construct a HypergraphElementIterator

@@ -44,13 +44,14 @@ namespace ds {
 class IncidentNetArray;
 
 // Iterator over the incident nets of a vertex u
-class IncidentNetIterator :
-  public std::iterator<std::forward_iterator_tag,    // iterator_category
-                        HyperedgeID,   // value_type
-                        std::ptrdiff_t,   // difference_type
-                        const HyperedgeID*,   // pointer
-                        HyperedgeID> {   // reference
+class IncidentNetIterator {
   public:
+  using iterator_category = std::forward_iterator_tag;
+  using value_type = HyperedgeID;
+  using reference = HyperedgeID&;
+  using pointer = const HyperedgeID*;
+  using difference_type = std::ptrdiff_t;
+
   IncidentNetIterator(const HypernodeID u,
                       const IncidentNetArray* incident_net_array,
                       const size_t pos,

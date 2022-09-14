@@ -151,8 +151,14 @@ private:
 
 public:
 
-  class Iterator : public std::iterator<std::forward_iterator_tag, PartitionID, std::ptrdiff_t, const PartitionID*, PartitionID> {
+  class Iterator {
   public:
+    using iterator_category = std::forward_iterator_tag;
+    using value_type = PartitionID;
+    using reference = PartitionID&;
+    using pointer = PartitionID*;
+    using difference_type = std::ptrdiff_t;
+
     Iterator(BlockIterator first, PartitionID part, PartitionID k) : currentPartition(part), _k(k), firstBlockIt(first) {
       findNextBit();
     }
@@ -187,10 +193,10 @@ public:
 
     void findNextBit() {
       ++currentPartition;
-      UnsafeBlock b = currentBlock()->load(std::memory_order_release);
+      UnsafeBlock b = currentBlock()->load(std::memory_order_relaxed);
       while (b >> (currentPartition % BITS_PER_BLOCK) == 0 && currentPartition < _k) {
         currentPartition += (BITS_PER_BLOCK - (currentPartition % BITS_PER_BLOCK));   // skip rest of block
-        b = currentBlock()->load(std::memory_order_release);
+        b = currentBlock()->load(std::memory_order_relaxed);
       }
       if (currentPartition < _k) {
         currentPartition += utils::lowest_set_bit_64(b >> (currentPartition % BITS_PER_BLOCK));

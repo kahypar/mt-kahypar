@@ -210,13 +210,14 @@ class StaticGraph {
    * internal representation. Instead only handles to the respective elements
    * are returned, i.e. the IDs of the corresponding hypernodes/hyperedges.
    */
-  class NodeIterator :
-    public std::iterator<std::forward_iterator_tag,    // iterator_category
-                         HypernodeID,   // value_type
-                         std::ptrdiff_t,   // difference_type
-                         const HypernodeID*,   // pointer
-                         HypernodeID> {   // reference
+  class NodeIterator {
    public:
+    using iterator_category = std::forward_iterator_tag;
+    using value_type = HypernodeID;
+    using reference = HypernodeID&;
+    using pointer = const HypernodeID*;
+    using difference_type = std::ptrdiff_t;
+
     /*!
      * If start_element is invalid, the iterator advances to the first valid
      * element.
@@ -278,13 +279,14 @@ class StaticGraph {
    *
    * Note that because this is a graph, each edge has exactly two pins.
    */
-  class PinIterator :
-    public std::iterator<std::forward_iterator_tag,    // iterator_category
-                         HypernodeID,   // value_type
-                         std::ptrdiff_t,   // difference_type
-                         const HypernodeID*,   // pointer
-                         HypernodeID> {   // reference
+  class PinIterator {
    public:
+    using iterator_category = std::forward_iterator_tag;
+    using value_type = HypernodeID;
+    using reference = HypernodeID&;
+    using pointer = const HypernodeID*;
+    using difference_type = std::ptrdiff_t;
+
     /*!
      * Constructs a pin iterator based on the IDs of the two nodes
      */
