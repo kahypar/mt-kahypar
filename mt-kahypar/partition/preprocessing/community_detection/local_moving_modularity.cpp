@@ -123,7 +123,7 @@ bool ParallelLocalMovingModularity::localMoving(Graph& graph, ds::Clustering& co
     }
   }
 
-  if (top_level && clustering_changed && _context.preprocessing.community_detection.use_isolated_nodes_treshold) {
+  if (clustering_changed && _context.preprocessing.community_detection.use_isolated_nodes_treshold) {
     ASSERT(!_context.partition.deterministic);
     auto& nodes = permutation.permutation;
     std::vector<double> inv_gains;
@@ -181,7 +181,7 @@ bool ParallelLocalMovingModularity::localMoving(Graph& graph, ds::Clustering& co
       }
     });
 
-    if (_context.preprocessing.community_detection.single_community_of_separated) {
+    if (top_level && _context.preprocessing.community_detection.single_community_of_separated) {
       tbb::parallel_for(0UL, nodes.size(), [&](size_t i) {
         if (!graph.isIsolated(nodes[i])) {
           const double comm_weight = _cluster_weights[communities[nodes[i]]].load(std::memory_order_relaxed);
