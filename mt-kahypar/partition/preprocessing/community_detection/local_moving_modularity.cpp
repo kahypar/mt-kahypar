@@ -25,6 +25,7 @@
 #include "mt-kahypar/utils/timer.h"
 #include "mt-kahypar/utils/floating_point_comparisons.h"
 #include "mt-kahypar/utils/hypergraph_statistics.h"
+#include "mt-kahypar/utils/stats.h"
 #include "mt-kahypar/parallel/stl/thread_locals.h"
 
 #include "kahypar/utils/math.h"
@@ -173,6 +174,8 @@ bool ParallelLocalMovingModularity::localMoving(Graph& graph, ds::Clustering& co
       }
     };
 
+    tbb::enumerable_thread_specific<int64_t> num_separated_local(0);
+
     tbb::parallel_for(0UL, nodes.size(), [&](size_t i) {
       const double gain_to_iso = computeGainComparedToIsolated(graph, communities, nodes[i]);
       if (gain_to_iso <= 0 || gain_to_iso < 1 / (avg_inv_weigh_gain + stdev_factor * stdev_inv_weigh_gain)) {
@@ -181,7 +184,7 @@ bool ParallelLocalMovingModularity::localMoving(Graph& graph, ds::Clustering& co
       }
     });
 
-    if (top_level && _context.preprocessing.community_detection.single_community_of_separated) {
+    if (top_level) {
       tbb::parallel_for(0UL, nodes.size(), [&](size_t i) {
         if (!graph.isIsolated(nodes[i])) {
           const double comm_weight = _cluster_weights[communities[nodes[i]]].load(std::memory_order_relaxed);
@@ -189,10 +192,12 @@ bool ParallelLocalMovingModularity::localMoving(Graph& graph, ds::Clustering& co
           if (comm_weight == node_weight) {
             isolateNode(nodes[i]);
             graph.setIsolated(nodes[i]);
+            num_separated_local.local()++;
           }
         }
       });
     }
+    utils::Stats::instance().add_stat("num_separated_in_community_detection", num_separated_local.combine(std::plus<>()));
 
     if (top_level && !_context.preprocessing.community_detection.single_community_of_separated
         && _context.preprocessing.community_detection.separated_sub_communities) {

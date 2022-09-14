@@ -191,6 +191,8 @@ class MultilevelCoarsener : public ICoarsener,
       HypernodeID current_num_nodes = num_hns_before_pass;
       tbb::enumerable_thread_specific<HypernodeID> contracted_nodes(0);
       tbb::enumerable_thread_specific<HypernodeID> num_nodes_update_threshold(0);
+      tbb::enumerable_thread_specific<int64_t> num_separated(0);
+      tbb::enumerable_thread_specific<HypernodeWeight> separated_weight(0);
       tbb::parallel_for(0U, current_hg.initialNumNodes(), [&](const HypernodeID id) {
         ASSERT(id < _current_vertices.size());
         const HypernodeID hn = _current_vertices[id];
@@ -240,12 +242,17 @@ class MultilevelCoarsener : public ICoarsener,
                   _matching_partner[u] = kInvalidHypernode;
                   _matching_state[u] = STATE(MatchingState::MATCHED);
                   ++contracted_nodes.local();
+                  ++num_separated.local();
+                  separated_weight.local() += current_hg.nodeWeight(u);
                 }
               }
             }
           }
         }
       });
+      utils::Stats::instance().update_stat("num_separated", num_separated.combine(std::plus<>()));
+      utils::Stats::instance().update_stat("separated_weight", separated_weight.combine(std::plus<>()));
+
       if ( _context.partition.show_detailed_clustering_timings ) {
         utils::Timer::instance().stop_timer("clustering_level_" + std::to_string(pass_nr));
       }

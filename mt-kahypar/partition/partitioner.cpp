@@ -136,6 +136,7 @@ namespace mt_kahypar {
       is_graph = isGraph(hypergraph);
       if ( is_graph && context.preprocessing.disable_community_detection_for_mesh_graphs ) {
         context.preprocessing.mesh_graph_detected = utils::isMeshGraph(hypergraph);
+        utils::Stats::instance().add_stat("is_mesh_graph", context.preprocessing.mesh_graph_detected);
         use_community_detection = !context.preprocessing.mesh_graph_detected;
       }
       utils::Timer::instance().stop_timer("detect_graph_structure");
