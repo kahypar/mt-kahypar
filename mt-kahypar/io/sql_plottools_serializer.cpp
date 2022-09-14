@@ -52,6 +52,7 @@ std::string serialize(const PartitionedHypergraph& hypergraph,
         << " num_vcycles=" << context.partition.num_vcycles
         << " deterministic=" << context.partition.deterministic;
     oss << " large_hyperedge_size_threshold_factor=" << context.partition.large_hyperedge_size_threshold_factor
+        << " smallest_large_he_size_threshold=" << context.partition.smallest_large_he_size_threshold
         << " large_hyperedge_size_threshold=" << context.partition.large_hyperedge_size_threshold
         << " ignore_hyperedge_size_threshold=" << context.partition.ignore_hyperedge_size_threshold
         << " time_limit=" << context.partition.time_limit

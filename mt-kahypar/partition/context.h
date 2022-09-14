@@ -48,6 +48,7 @@ struct PartitioningParameters {
   std::vector<HypernodeWeight> max_part_weights;
   double large_hyperedge_size_threshold_factor = std::numeric_limits<double>::max();
   HypernodeID large_hyperedge_size_threshold = std::numeric_limits<HypernodeID>::max();
+  HypernodeID smallest_large_he_size_threshold = std::numeric_limits<HypernodeID>::max();
   HypernodeID ignore_hyperedge_size_threshold = std::numeric_limits<HypernodeID>::max();
 
   bool verbose_output = true;

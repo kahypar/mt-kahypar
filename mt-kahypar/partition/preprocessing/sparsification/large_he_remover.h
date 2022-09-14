@@ -28,8 +28,6 @@ namespace mt_kahypar {
 
 class LargeHyperedgeRemover {
 
- #define LARGE_HE_THRESHOLD ID(50000)
-
  public:
   LargeHyperedgeRemover(const Context& context) :
     _context(context),
@@ -91,7 +89,9 @@ class LargeHyperedgeRemover {
   }
 
   HypernodeID largeHyperedgeThreshold() const {
-    return std::max(_context.partition.large_hyperedge_size_threshold, LARGE_HE_THRESHOLD);
+    return std::max(
+      _context.partition.large_hyperedge_size_threshold,
+      _context.partition.smallest_large_he_size_threshold);
   }
 
   void reset() {

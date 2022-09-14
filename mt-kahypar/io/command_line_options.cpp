@@ -96,10 +96,13 @@ namespace mt_kahypar {
             ("num-vcycles",
              po::value<size_t>(&context.partition.num_vcycles)->value_name("<size_t>")->default_value(0),
              "Number of V-Cycles")
-            ("maxnet-remove-factor",
+            ("smallest-maxnet-threshold",
+            po::value<uint32_t>(&context.partition.smallest_large_he_size_threshold)->value_name("<uint32_t>"),
+            "No hyperedge whose size is smaller than this threshold is removed in the large hyperedge removal step (see maxnet-removal-factor)")
+            ("maxnet-removal-factor",
              po::value<double>(&context.partition.large_hyperedge_size_threshold_factor)->value_name(
                      "<double>")->default_value(0.01),
-             "Hyperedges larger than |V| * (this factor) are removed before partitioning.")
+             "Hyperedges larger than max(|V| * (this factor), p-smallest-maxnet-threshold) are removed before partitioning.")
             ("maxnet-ignore",
              po::value<HyperedgeID>(&context.partition.ignore_hyperedge_size_threshold)->value_name(
                      "<uint64_t>")->default_value(1000),
