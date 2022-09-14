@@ -181,6 +181,7 @@ bool ParallelLocalMovingModularity::localMoving(Graph& graph, ds::Clustering& co
       if (gain_to_iso <= 0 || gain_to_iso < 1 / (avg_inv_weigh_gain + stdev_factor * stdev_inv_weigh_gain)) {
         isolateNode(nodes[i]);
         graph.setIsolated(nodes[i]);
+        num_separated_local.local()++;
       }
     });
 

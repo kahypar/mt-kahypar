@@ -178,6 +178,8 @@ namespace mt_kahypar {
     io::printMemoryPoolConsumption(context);
     io::printInputInformation(context, hypergraph);
 
+    utils::Stats::instance().add_stat<int64_t>("total_num_nodes", hypergraph.initialNumNodes());
+
     // ################## PREPROCESSING ##################
     utils::Timer::instance().start_timer("preprocessing", "Preprocessing");
     preprocess(hypergraph, context);
