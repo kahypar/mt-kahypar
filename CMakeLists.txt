@@ -26,6 +26,9 @@ include_directories(external_tools/WHFC)
 option(KAHYPAR_USE_MINIMAL_BOOST
   "Download boost automatically and compile required libraries." OFF)
 
+  option(KAHYPAR_USE_COMPATIBLE_TBB_VERSION
+  "Download compatible TBB version automatically." OFF)
+
 option(KAHYPAR_USE_GCOV
   "Compile and run tests with gcov for coverage analysis." OFF)
 
@@ -120,6 +123,11 @@ else()
     endif()
 
   endif()
+endif()
+
+if(KAHYPAR_USE_COMPATIBLE_TBB_VERSION)
+  execute_process(COMMAND cmake -P ${CMAKE_CURRENT_SOURCE_DIR}/scripts/download_tbb.cmake)
+  set(TBB_ROOT ${CMAKE_CURRENT_BINARY_DIR}/external_tools/tbb/tbb)
 endif()
 
 if(KAHYPAR_USE_GCOV)
