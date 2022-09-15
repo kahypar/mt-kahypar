@@ -87,6 +87,7 @@ struct CommunityDetectionParameters {
   bool single_community_of_separated = true;
   bool separated_sub_communities = false;
   bool modified_modularity = false;
+  bool collect_component_stats = false;
 };
 
 std::ostream & operator<< (std::ostream& str, const CommunityDetectionParameters& params);

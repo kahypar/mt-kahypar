@@ -78,6 +78,36 @@ double modularity(const Graph& graph, const ds::Clustering& communities) {
 }
 }
 
+
+namespace internal {
+  template <typename T>
+  struct Statistic {
+    T min = 0;
+    T q1 = 0;
+    T med = 0;
+    T q3 = 0;
+    T max = 0;
+    double avg = 0.0;
+    double sd = 0.0;
+  };
+
+  template <typename T>
+  Statistic<T> createStats(const std::vector<T>& vec, const double avg, const double stdev) {
+    Statistic<T> stats;
+    if (!vec.empty()) {
+      const auto quartiles = kahypar::math::firstAndThirdQuartile(vec);
+      stats.min = vec.front();
+      stats.q1 = quartiles.first;
+      stats.med = kahypar::math::median(vec);
+      stats.q3 = quartiles.second;
+      stats.max = vec.back();
+      stats.avg = avg;
+      stats.sd = stdev;
+    }
+    return stats;
+  }
+} // namespace internal
+
 namespace mt_kahypar::community_detection {
 
 bool ParallelLocalMovingModularity::localMoving(Graph& graph, ds::Clustering& communities, bool top_level) {
@@ -199,6 +229,117 @@ bool ParallelLocalMovingModularity::localMoving(Graph& graph, ds::Clustering& co
       });
     }
     utils::Stats::instance().add_stat("num_separated_in_community_detection", num_separated_local.combine(std::plus<>()));
+
+
+    if (top_level && _context.preprocessing.community_detection.collect_component_stats) {
+      // some general stats
+      ArcWeight adjacent_edges = 0;
+      ArcWeight intern_edges = 0;
+      ArcWeight adjacent_edges_non_iso = 0;
+      HypernodeID truly_isolated_nodes = 0;
+      for (const HypernodeID& node: nodes) {
+        bool truly_isolated = true;
+        ArcWeight current_adj = 0;
+        if (graph.isIsolated(node)) {
+          for (const Arc& arc : graph.arcsOf(node)) {
+            truly_isolated &= !graph.isIsolated(arc.head);
+            if (node < arc.head || !graph.isIsolated(arc.head)) {
+              adjacent_edges += arc.weight;
+              current_adj += arc.weight;
+              if (graph.isIsolated(arc.head)) {
+                intern_edges += arc.weight;
+              }
+            }
+          }
+          if (truly_isolated) {
+            ++truly_isolated_nodes;
+          } else {
+            adjacent_edges_non_iso += current_adj;
+          }
+        }
+      }
+      utils::Stats::instance().add_stat("sep_total_edges", adjacent_edges);
+      utils::Stats::instance().add_stat("sep_intern_edge_fraction", static_cast<double>(intern_edges) / static_cast<double>(adjacent_edges));
+      utils::Stats::instance().add_stat<int32_t>("sep_single_nodes", truly_isolated_nodes);
+      utils::Stats::instance().add_stat("sep_comp_intern_edge_fraction", static_cast<double>(intern_edges) / static_cast<double>(adjacent_edges_non_iso));
+
+      // component analysis
+      std::vector<bool> visited;
+      visited.resize(graph.numNodes(), false);
+      std::vector<HypernodeID> comp_sizes;
+      std::vector<ArcWeight> comp_adjacent_edges;
+      std::vector<double> comp_intern_edge_fracs;
+
+      std::vector<HypernodeID> queue;
+      for (const HypernodeID& node: nodes) {
+        if (graph.isIsolated(node) && !visited.at(node)) {
+          HypernodeID size = 0;
+          ArcWeight adjacent = 0;
+          ArcWeight intern = 0;
+          queue.clear();
+          queue.push_back(node);
+          while (!queue.empty()) {
+            const HypernodeID curr = queue.back();
+            queue.pop_back();
+            if (!visited[curr]) {
+              visited[curr] = true;
+              for (const Arc& arc : graph.arcsOf(curr)) {
+                if (!visited[arc.head]) {
+                  adjacent += arc.weight;
+                  if (graph.isIsolated(arc.head)) {
+                    intern += arc.weight;
+                    queue.push_back(arc.head);
+                  }
+                }
+              }
+              ++size;
+            }
+          }
+
+          ASSERT(size > 0);
+          if (size > 1) {
+            comp_sizes.push_back(size);
+            comp_adjacent_edges.push_back(adjacent);
+            comp_intern_edge_fracs.push_back(static_cast<double>(intern) / static_cast<double>(adjacent));
+          }
+        }
+      }
+
+      tbb::parallel_invoke([&] {
+        std::sort(comp_sizes.begin(), comp_sizes.end());
+      }, [&] {
+        std::sort(comp_adjacent_edges.begin(), comp_adjacent_edges.end());
+      }, [&] {
+        std::sort(comp_intern_edge_fracs.begin(), comp_intern_edge_fracs.end());
+      });
+      double size_avg = utils::parallel_avg(comp_sizes, comp_sizes.size());
+      auto size_stats = internal::createStats(comp_sizes, size_avg,
+                                              utils::parallel_stdev(comp_sizes, size_avg, comp_sizes.size()));
+      double adj_avg = utils::parallel_avg(comp_adjacent_edges, comp_adjacent_edges.size());
+      auto adj_stats = internal::createStats(comp_adjacent_edges, adj_avg,
+                                             utils::parallel_stdev(comp_adjacent_edges, adj_avg, comp_adjacent_edges.size()));
+      double intern_avg = utils::parallel_avg(comp_intern_edge_fracs, comp_intern_edge_fracs.size());
+      auto intern_stats = internal::createStats(comp_intern_edge_fracs, intern_avg,
+                                                utils::parallel_stdev(comp_intern_edge_fracs, intern_avg, comp_intern_edge_fracs.size()));
+
+      LOG << "total_num_node, sep_nodes, sep_single_nodes, sep_total_edges, sep_intern_edge_fraction, sep_comp_intern_edge_fraction"
+             "num_components, comp_size_avg, comp_size_median, comp_size_sd, comp_size_max, "
+             "adj_edges_avg, adj_edges_median, adj_edges_sd, adj_edges_max, "
+             "intern_frac_avg, intern_frac_median, intern_frac_sd, intern_frac_max";
+      const utils::Stats& stats = utils::Stats::instance();
+      std::cout << stats.get("total_num_nodes") << ","
+                << stats.get("num_separated_in_community_detection") << ","
+                << stats.get("sep_single_nodes") << ","
+                << stats.get("sep_total_edges") << ","
+                << stats.get("sep_intern_edge_fraction") << ","
+                << stats.get("sep_comp_intern_edge_fraction") << ","
+                << comp_sizes.size() << ","
+                << size_stats.avg << "," << size_stats.med << "," << size_stats.sd << "," << size_stats.max << ","
+                << adj_stats.avg << "," << adj_stats.med << "," << adj_stats.sd << "," << adj_stats.max << ","
+                << intern_stats.avg << "," << intern_stats.med << "," << intern_stats.sd << "," << intern_stats.max
+                << std::endl;
+      std::exit(0);
+    }
 
     if (top_level && !_context.preprocessing.community_detection.single_community_of_separated
         && _context.preprocessing.community_detection.separated_sub_communities) {

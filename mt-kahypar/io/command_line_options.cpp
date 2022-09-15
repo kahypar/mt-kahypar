@@ -235,6 +235,10 @@ namespace mt_kahypar {
              po::value<bool>(&context.preprocessing.community_detection.modified_modularity)->value_name(
                      "<bool>")->default_value(false),
              "Use a modified definition of modularity that includes node weights.")
+            ("p-collect-component-stats",
+             po::value<bool>(&context.preprocessing.community_detection.collect_component_stats)->value_name(
+                     "<bool>")->default_value(false),
+             "Collect and output stats about components of separated nodes.")
             ("p-isolated-nodes-threshold-stdev-factor",
              po::value<double>(&context.preprocessing.community_detection.isolated_nodes_threshold_stdev_factor)->value_name(
                      "<double>")->default_value(1.0),
