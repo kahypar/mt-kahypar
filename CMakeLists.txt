@@ -128,6 +128,7 @@ endif()
 if(KAHYPAR_USE_COMPATIBLE_TBB_VERSION)
   execute_process(COMMAND cmake -P ${CMAKE_CURRENT_SOURCE_DIR}/scripts/download_tbb.cmake)
   set(TBB_ROOT ${CMAKE_CURRENT_BINARY_DIR}/external_tools/tbb/tbb)
+  set(TBB_INSTALL_DIR ${CMAKE_CURRENT_BINARY_DIR}/external_tools/tbb/tbb)
 endif()
 
 if(KAHYPAR_USE_GCOV)

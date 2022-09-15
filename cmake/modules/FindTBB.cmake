@@ -193,7 +193,7 @@ mark_as_advanced(TBB_INCLUDE_DIR)
 #-- Look for libraries
 # GvdB: $ENV{TBB_ARCH_PLATFORM} is set by the build script tbbvars[.bat|.sh|.csh]
 if (NOT $ENV{TBB_ARCH_PLATFORM} STREQUAL "")
-    set (_TBB_LIBRARY_DIR 
+    set (_TBB_LIBRARY_DIR
          ${_TBB_INSTALL_DIR}/lib/$ENV{TBB_ARCH_PLATFORM}
          ${_TBB_INSTALL_DIR}/$ENV{TBB_ARCH_PLATFORM}/lib
         )
@@ -222,9 +222,10 @@ list(APPEND _TBB_LIBRARY_DIR ${_TBB_INSTALL_DIR}/lib)
 #       and LD_LIBRARY_PATH environment variables is now even more important
 #       that tbbvars doesn't export TBB_ARCH_PLATFORM and it facilitates
 #       the use of TBB built from sources.
-find_library(TBB_LIBRARY ${_TBB_LIB_NAME} HINTS ${_TBB_LIBRARY_DIR}
+message(${_TBB_LIBRARY_DIR})
+find_library(TBB_LIBRARY ${_TBB_LIB_NAME} HINTS ${_TBB_LIBRARY_DIR} ${_TBB_LIBRARY_DIR}/intel64/gcc4.8
         PATHS ENV LIBRARY_PATH ENV LD_LIBRARY_PATH)
-find_library(TBB_MALLOC_LIBRARY ${_TBB_LIB_MALLOC_NAME} HINTS ${_TBB_LIBRARY_DIR}
+find_library(TBB_MALLOC_LIBRARY ${_TBB_LIB_MALLOC_NAME} HINTS ${_TBB_LIBRARY_DIR} ${_TBB_LIBRARY_DIR}/intel64/gcc4.8
         PATHS ENV LIBRARY_PATH ENV LD_LIBRARY_PATH)
 
 #Extract path from TBB_LIBRARY name
@@ -236,9 +237,9 @@ mark_as_advanced(TBB_LIBRARY TBB_MALLOC_LIBRARY)
 
 #-- Look for debug libraries
 # Jiri: Changed the same way as for the release libraries.
-find_library(TBB_LIBRARY_DEBUG ${_TBB_LIB_DEBUG_NAME} HINTS ${_TBB_LIBRARY_DIR}
+find_library(TBB_LIBRARY_DEBUG ${_TBB_LIB_DEBUG_NAME} HINTS ${_TBB_LIBRARY_DIR} ${_TBB_LIBRARY_DIR}/intel64/gcc4.8
         PATHS ENV LIBRARY_PATH ENV LD_LIBRARY_PATH)
-find_library(TBB_MALLOC_LIBRARY_DEBUG ${_TBB_LIB_MALLOC_DEBUG_NAME} HINTS ${_TBB_LIBRARY_DIR}
+find_library(TBB_MALLOC_LIBRARY_DEBUG ${_TBB_LIB_MALLOC_DEBUG_NAME} HINTS ${_TBB_LIBRARY_DIR} ${_TBB_LIBRARY_DIR}/intel64/gcc4.8
         PATHS ENV LIBRARY_PATH ENV LD_LIBRARY_PATH)
 
 # Jiri: Self-built TBB stores the debug libraries in a separate directory.
