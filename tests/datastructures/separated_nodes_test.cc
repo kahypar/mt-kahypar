@@ -31,14 +31,39 @@ namespace mt_kahypar {
 namespace ds {
 
 using Edge = SeparatedNodes::Edge;
+using InternalEdge = SeparatedNodes::InternalEdge;
 
-class ASeparatedNodes: public Test { };
+class ASeparatedNodes: public Test {
+ public:
+  void initialize(HypernodeID num_nodes, vec<std::pair<HypernodeID, HypernodeID>> edges) {
+    base_graph = HypergraphFactory::construct_from_graph_edges(num_nodes, edges.size(), edges);
+  }
+
+  void contract(vec<HypernodeID> communities) {
+    SepNodesStack dummy(base_graph.initialNumNodes());
+    base_graph.setSeparatedNodes(&dummy);
+    base_graph = base_graph.contract(communities);
+  }
+
+  Hypergraph base_graph;
+};
 
 void verifyIncidentEgdes(IteratorRange<SeparatedNodes::IncidenceIterator> it,
                          const std::set<std::pair<HypernodeID, HyperedgeWeight>>& edges) {
   size_t count = 0;
   for (const Edge& edge : it) {
     ASSERT_TRUE(edges.find({edge.target, edge.weight}) != edges.end()) << V(edge.target);
+    count++;
+  }
+  ASSERT_EQ(count, edges.size());
+}
+
+void verifyInternalEgdes(IteratorRange<SeparatedNodes::InternalEdgeIterator> it,
+                         const std::set<std::tuple<HypernodeID, HypernodeID, HyperedgeWeight>>& edges) {
+  size_t count = 0;
+  for (const InternalEdge& edge : it) {
+    ASSERT_TRUE(edges.find({edge.pin0, edge.pin1, edge.weight}) != edges.end()
+                || edges.find({edge.pin1, edge.pin0, edge.weight}) != edges.end()) << V(edge.pin0) << V(edge.pin1);
     count++;
   }
   ASSERT_EQ(count, edges.size());
@@ -63,21 +88,24 @@ TEST_F(ASeparatedNodes, HasCorrectStats) {
   ASSERT_EQ(0,  nodes.numVisibleNodes());
   ASSERT_EQ(10,  nodes.numGraphNodes());
   ASSERT_EQ(0,  nodes.numEdges());
+  ASSERT_EQ(0,  nodes.numInternalEdges());
   ASSERT_EQ(0,  nodes.currentBatchIndex());
   ASSERT_EQ(0,  nodes.totalWeight());
 }
 
 TEST_F(ASeparatedNodes, AddsNodes1) {
+  initialize(10, {{0, 4}});
   SeparatedNodes nodes(10);
   vec<std::tuple<HypernodeID, HyperedgeID, HypernodeWeight>> new_nodes { {0, 0, 1}, {1, 2, 1}, {2, 2, 2}};
   vec<Edge> new_edges { Edge(0, 1), Edge(3, 1) };
-  nodes.addNodes(new_nodes, new_edges);
+  nodes.addNodes(base_graph, new_nodes, new_edges);
   nodes.revealAll();
 
   ASSERT_EQ(3,  nodes.numNodes());
   ASSERT_EQ(10,  nodes.numGraphNodes());
   ASSERT_EQ(2,  nodes.numEdges());
   ASSERT_EQ(4,  nodes.totalWeight());
+  ASSERT_EQ(0,  nodes.numInternalEdges());
 
   ASSERT_EQ(1,  nodes.nodeWeight(0));
   ASSERT_EQ(1,  nodes.nodeWeight(1));
@@ -95,20 +123,22 @@ TEST_F(ASeparatedNodes, AddsNodes1) {
 }
 
 TEST_F(ASeparatedNodes, AddsNodes2) {
+  initialize(10, {{0, 1}, {3, 6}});
   SeparatedNodes nodes(10);
   vec<std::tuple<HypernodeID, HyperedgeID, HypernodeWeight>> new_nodes { {0, 0, 1}, {1, 1, 1}};
   vec<Edge> new_edges { Edge(8, 1), Edge(9, 1) };
-  nodes.addNodes(new_nodes, new_edges);
+  nodes.addNodes(base_graph, new_nodes, new_edges);
 
   new_nodes = { {2, 0, 1}, {3, 3, 1}, {4, 4, 1}};
   new_edges = { Edge(1, 1), Edge(8, 1), Edge(2, 1), Edge(8, 1) };
-  nodes.addNodes(new_nodes, new_edges);
+  nodes.addNodes(base_graph, new_nodes, new_edges);
   nodes.revealNextBatch();
 
   ASSERT_EQ(5,  nodes.numNodes());
   ASSERT_EQ(10,  nodes.numGraphNodes());
   ASSERT_EQ(6,  nodes.numEdges());
   ASSERT_EQ(5,  nodes.totalWeight());
+  ASSERT_EQ(1,  nodes.numInternalEdges());
 
   ASSERT_EQ(1,  nodes.nodeWeight(0));
   ASSERT_EQ(1,  nodes.nodeWeight(1));
@@ -126,14 +156,15 @@ TEST_F(ASeparatedNodes, AddsNodes2) {
 }
 
 TEST_F(ASeparatedNodes, PopsBatches) {
+  initialize(10, {});
   SeparatedNodes nodes(10);
   vec<std::tuple<HypernodeID, HyperedgeID, HypernodeWeight>> new_nodes { {0, 0, 1}, {1, 1, 1}};
   vec<Edge> new_edges { Edge(8, 1), Edge(9, 1) };
-  nodes.addNodes(new_nodes, new_edges);
+  nodes.addNodes(base_graph, new_nodes, new_edges);
 
   new_nodes = { {2, 0, 1}, {3, 3, 1}, {4, 4, 1}};
   new_edges = { Edge(1, 1), Edge(8, 1), Edge(2, 1), Edge(8, 1) };
-  nodes.addNodes(new_nodes, new_edges);
+  nodes.addNodes(base_graph, new_nodes, new_edges);
 
   ASSERT_EQ(2,  nodes.popBatch());
 
@@ -151,10 +182,11 @@ TEST_F(ASeparatedNodes, PopsBatches) {
 }
 
 TEST_F(ASeparatedNodes, HasCorrectNodeIterator) {
+  initialize(10, {});
   SeparatedNodes nodes(10);
   vec<std::tuple<HypernodeID, HyperedgeID, HypernodeWeight>> new_nodes { {0, 0, 1}, {1, 2, 1}, {2, 3, 1}};
   vec<Edge> new_edges { Edge(0, 1), Edge(3, 1), Edge(3, 1) };
-  nodes.addNodes(new_nodes, new_edges);
+  nodes.addNodes(base_graph, new_nodes, new_edges);
 
   HypernodeID expected_node = 0;
   for ( const HypernodeID& node : nodes.nodes() ) {
@@ -164,21 +196,33 @@ TEST_F(ASeparatedNodes, HasCorrectNodeIterator) {
 }
 
 TEST_F(ASeparatedNodes, HasCorrectInwardEdgeIterator) {
+  initialize(10, {});
   SeparatedNodes nodes(10);
   vec<std::tuple<HypernodeID, HyperedgeID, HypernodeWeight>> new_nodes { {0, 0, 1}, {1, 2, 1}, {2, 3, 1}};
   vec<Edge> new_edges { Edge(0, 1), Edge(3, 1), Edge(3, 1) };
-  nodes.addNodes(new_nodes, new_edges);
+  nodes.addNodes(base_graph, new_nodes, new_edges);
 
   verifyIncidentEgdes(nodes.inwardEdges(0), { {0, 1}, {3, 1} });
   verifyIncidentEgdes(nodes.inwardEdges(1), { {3, 1} });
   verifyIncidentEgdes(nodes.inwardEdges(2), { });
 }
 
+TEST_F(ASeparatedNodes, HasCorrectInternalEdgeIterator) {
+  initialize(10, {{0, 1}, {1, 2}});
+  SeparatedNodes nodes(10);
+  vec<std::tuple<HypernodeID, HyperedgeID, HypernodeWeight>> new_nodes { {0, 0, 1}, {1, 2, 1}, {2, 3, 1}};
+  vec<Edge> new_edges { Edge(0, 1), Edge(3, 1), Edge(3, 1) };
+  nodes.addNodes(base_graph, new_nodes, new_edges);
+
+  verifyInternalEgdes(nodes.internalEdges(), { {0, 1, 1}, {1, 2, 1} });
+}
+
 TEST_F(ASeparatedNodes, MapsNodes1) {
+  initialize(10, {});
   SeparatedNodes nodes(10);
   vec<std::tuple<HypernodeID, HyperedgeID, HypernodeWeight>> new_nodes { {0, 0, 1}, {1, 2, 1}, {2, 3, 1}};
   vec<Edge> new_edges { Edge(0, 1), Edge(3, 1), Edge(9, 1) };
-  nodes.addNodes(new_nodes, new_edges);
+  nodes.addNodes(base_graph, new_nodes, new_edges);
 
   vec<HypernodeID> communities { 0, 1, 1, 0, 2, kInvalidHypernode, 2, 0, 0, kInvalidHypernode };
   nodes.contract(communities, 3);
@@ -198,11 +242,12 @@ TEST_F(ASeparatedNodes, MapsNodes1) {
 }
 
 TEST_F(ASeparatedNodes, MapsNodes2) {
+  initialize(10, {});
   SeparatedNodes nodes(10);
   vec<std::tuple<HypernodeID, HyperedgeID, HypernodeWeight>> new_nodes
           { {0, 0, 1}, {1, 2, 1}, {2, 3, 1}, {3, 4, 1}, {4, 6, 1}};
   vec<Edge> new_edges { Edge(3, 2), Edge(1, 1), Edge(1, 2), Edge(1, 1), Edge(3, 1), Edge(4, 1) };
-  nodes.addNodes(new_nodes, new_edges);
+  nodes.addNodes(base_graph, new_nodes, new_edges);
 
   vec<HypernodeID> communities { 0, 3, 1, 3, kInvalidHypernode, kInvalidHypernode, 0, 1, 4, kInvalidHypernode };
   nodes.contract(communities, 5);
@@ -226,10 +271,11 @@ TEST_F(ASeparatedNodes, MapsNodes2) {
 }
 
 TEST_F(ASeparatedNodes, Coarsens1) {
+  initialize(4, {});
   SeparatedNodes nodes(4);
   vec<std::tuple<HypernodeID, HyperedgeID, HypernodeWeight>> new_nodes { {0, 0, 1}, {1, 2, 1}, {2, 3, 1}};
   vec<Edge> new_edges { Edge(2, 1), Edge(1, 1), Edge(0, 1), Edge(2, 1) };
-  nodes.addNodes(new_nodes, new_edges);
+  nodes.addNodes(base_graph, new_nodes, new_edges);
 
   vec<HypernodeID> communities { 1, 2, 2 };
   nodes.revealAll();
@@ -274,12 +320,13 @@ TEST_F(ASeparatedNodes, Coarsens1) {
 }
 
 TEST_F(ASeparatedNodes, Coarsens2) {
-  SeparatedNodes nodes(4);
+  initialize(5, {});
+  SeparatedNodes nodes(5);
   vec<std::tuple<HypernodeID, HyperedgeID, HypernodeWeight>> new_nodes
            { {0, 0, 1}, {1, 3, 1}, {2, 5, 1}, {3, 5, 1}, {4, 7, 1} };
   vec<Edge> new_edges { Edge(3, 1), Edge(1, 1), Edge(0, 1), Edge(1, 1),
                         Edge(3, 1), Edge(0, 1), Edge(1, 1), Edge(0, 1) };
-  nodes.addNodes(new_nodes, new_edges);
+  nodes.addNodes(base_graph, new_nodes, new_edges);
 
   vec<HypernodeID> communities { 0, 0, 1, 2, 2 };
   nodes.revealAll();
@@ -292,7 +339,7 @@ TEST_F(ASeparatedNodes, Coarsens2) {
   ASSERT_EQ(2, communities[4]);
 
   ASSERT_EQ(3,  other.numNodes());
-  ASSERT_EQ(4,  other.numGraphNodes());
+  ASSERT_EQ(5,  other.numGraphNodes());
   ASSERT_EQ(5,  other.numEdges());
   ASSERT_EQ(5,  other.totalWeight());
   ASSERT_EQ(3,  other.numVisibleNodes());
@@ -308,46 +355,51 @@ TEST_F(ASeparatedNodes, Coarsens2) {
 }
 
 TEST_F(ASeparatedNodes, CoarsensWithHiddenNodes) {
-  SeparatedNodes nodes(4);
-  vec<std::tuple<HypernodeID, HyperedgeID, HypernodeWeight>> new_nodes
-           { {0, 0, 1}, {1, 3, 1}, {2, 5, 1} };
-  vec<Edge> new_edges { Edge(3, 1), Edge(1, 1), Edge(0, 1), Edge(1, 1), Edge(3, 1) };
-  nodes.addNodes(new_nodes, new_edges);
+  for (int i = 0; i < 100; ++i) {
+    initialize(5, {});
+    SeparatedNodes nodes(5);
+    vec<std::tuple<HypernodeID, HyperedgeID, HypernodeWeight>> new_nodes
+            { {0, 0, 1}, {1, 3, 1}, {2, 5, 1} };
+    vec<Edge> new_edges { Edge(3, 1), Edge(1, 1), Edge(0, 1), Edge(1, 1), Edge(3, 1) };
+    nodes.addNodes(base_graph, new_nodes, new_edges);
 
-  new_nodes = { {3, 0, 1}, {4, 2, 1} };
-  new_edges = { Edge(0, 1), Edge(1, 1), Edge(0, 1) };
-  nodes.addNodes(new_nodes, new_edges);
+    new_nodes = { {3, 0, 1}, {4, 2, 1} };
+    new_edges = { Edge(0, 1), Edge(1, 1), Edge(0, 1) };
+    nodes.addNodes(base_graph, new_nodes, new_edges);
 
-  vec<HypernodeID> communities { 0, 0, 1 };
-  nodes.revealNextBatch();
-  SeparatedNodes other = nodes.coarsen(communities);
+    vec<HypernodeID> communities { 0, 0, 1 };
+    nodes.revealNextBatch();
+    SeparatedNodes other = nodes.coarsen(communities);
 
-  ASSERT_EQ(0, communities[0]);
-  ASSERT_EQ(0, communities[1]);
-  ASSERT_EQ(1, communities[2]);
+    ASSERT_EQ(0, communities[0]);
+    ASSERT_EQ(0, communities[1]);
+    ASSERT_EQ(1, communities[2]);
 
-  ASSERT_EQ(4,  other.numNodes());
-  ASSERT_EQ(4,  other.numGraphNodes());
-  ASSERT_EQ(6,  other.numEdges());
-  ASSERT_EQ(5,  other.totalWeight());
-  ASSERT_EQ(2,  other.numVisibleNodes());
+    ASSERT_EQ(4,  other.numNodes());
+    ASSERT_EQ(5,  other.numGraphNodes());
+    ASSERT_EQ(6,  other.numEdges());
+    ASSERT_EQ(2,  other.numInternalEdges());
+    ASSERT_EQ(5,  other.totalWeight());
+    ASSERT_EQ(2,  other.numVisibleNodes());
 
-  ASSERT_EQ(3,  other.outwardIncidentWeight(0));
-  ASSERT_EQ(3,  other.outwardIncidentWeight(1));
-  ASSERT_EQ(0,  other.outwardIncidentWeight(2));
-  ASSERT_EQ(2,  other.outwardIncidentWeight(3));
+    ASSERT_EQ(3,  other.outwardIncidentWeight(0));
+    ASSERT_EQ(3,  other.outwardIncidentWeight(1));
+    ASSERT_EQ(0,  other.outwardIncidentWeight(2));
+    ASSERT_EQ(2,  other.outwardIncidentWeight(3));
 
-  verifyIncidentEgdes(other.inwardEdges(0), { {0, 1}, {1, 2}, {3, 2} });
-  verifyIncidentEgdes(other.inwardEdges(1), { });
-  verifyIncidentEgdes(other.inwardEdges(2), { {0, 1}, {1, 1} });
-  verifyIncidentEgdes(other.inwardEdges(3), { {0, 1} });
+    verifyIncidentEgdes(other.inwardEdges(0), { {0, 1}, {1, 2}, {3, 2} });
+    verifyIncidentEgdes(other.inwardEdges(1), { });
+    verifyIncidentEgdes(other.inwardEdges(2), { {0, 1}, {1, 1} });
+    verifyIncidentEgdes(other.inwardEdges(3), { {0, 1} });
+  }
 }
 
 TEST_F(ASeparatedNodes, ContractsStack) {
+  initialize(4, {});
   SeparatedNodes nodes(4);
   vec<std::tuple<HypernodeID, HyperedgeID, HypernodeWeight>> new_nodes { {0, 0, 1}, {1, 2, 1}, {2, 3, 1}, {3, 4, 1}};
   vec<Edge> new_edges { Edge(2, 1), Edge(1, 1), Edge(0, 1), Edge(2, 1), Edge(3, 1) };
-  nodes.addNodes(new_nodes, new_edges);
+  nodes.addNodes(base_graph, new_nodes, new_edges);
   nodes.revealAll();
 
   SepNodesStack stack(std::move(nodes));
@@ -382,10 +434,11 @@ TEST_F(ASeparatedNodes, ContractsStack) {
 }
 
 TEST_F(ASeparatedNodes, InitializesEdges) {
+  initialize(5, {});
   SeparatedNodes nodes(5);
   vec<std::tuple<HypernodeID, HyperedgeID, HypernodeWeight>> new_nodes { {0, 0, 1}, {1, 2, 1}, {2, 4, 1}};
   vec<Edge> new_edges { Edge(0, 1), Edge(4, 1), Edge(4, 1), Edge(3, 1) };
-  nodes.addNodes(new_nodes, new_edges);
+  nodes.addNodes(base_graph, new_nodes, new_edges);
 
   nodes.initializeOutwardEdges();
 
@@ -408,10 +461,11 @@ TEST_F(ASeparatedNodes, InitializesEdges) {
 }
 
 TEST_F(ASeparatedNodes, CopiesSequential) {
+  initialize(5, {{0, 1}});
   SeparatedNodes nodes(5);
   vec<std::tuple<HypernodeID, HyperedgeID, HypernodeWeight>> new_nodes { {0, 0, 1}, {1, 2, 1}, {2, 4, 1}};
   vec<Edge> new_edges { Edge(0, 1), Edge(4, 1), Edge(4, 1), Edge(3, 1) };
-  nodes.addNodes(new_nodes, new_edges);
+  nodes.addNodes(base_graph, new_nodes, new_edges);
   nodes.initializeOutwardEdges();
 
   SeparatedNodes other = nodes.copy();
@@ -419,6 +473,7 @@ TEST_F(ASeparatedNodes, CopiesSequential) {
   ASSERT_EQ(3,  other.numNodes());
   ASSERT_EQ(5,  other.numGraphNodes());
   ASSERT_EQ(4,  other.numEdges());
+  ASSERT_EQ(1,  other.numInternalEdges());
   ASSERT_EQ(3,  other.totalWeight());
 
   verifyIncidentEgdes(other.inwardEdges(0), { {0, 1}, {4, 1} });
@@ -436,13 +491,16 @@ TEST_F(ASeparatedNodes, CopiesSequential) {
   verifyIncidentEgdes(other.outwardEdges(2), { });
   verifyIncidentEgdes(other.outwardEdges(3), { {1, 1} });
   verifyIncidentEgdes(other.outwardEdges(4), { {0, 1}, {1, 1} });
+
+  verifyInternalEgdes(other.internalEdges(), { {0, 1, 1} });
 }
 
 TEST_F(ASeparatedNodes, CopiesParallel) {
+  initialize(5, {{0, 1}});
   SeparatedNodes nodes(5);
   vec<std::tuple<HypernodeID, HyperedgeID, HypernodeWeight>> new_nodes { {0, 0, 1}, {1, 2, 1}, {2, 4, 1}};
   vec<Edge> new_edges { Edge(0, 1), Edge(4, 1), Edge(4, 1), Edge(3, 1) };
-  nodes.addNodes(new_nodes, new_edges);
+  nodes.addNodes(base_graph, new_nodes, new_edges);
   nodes.initializeOutwardEdges();
 
   SeparatedNodes other = nodes.copy(parallel_tag_t());
@@ -450,6 +508,7 @@ TEST_F(ASeparatedNodes, CopiesParallel) {
   ASSERT_EQ(3,  other.numNodes());
   ASSERT_EQ(5,  other.numGraphNodes());
   ASSERT_EQ(4,  other.numEdges());
+  ASSERT_EQ(1,  other.numInternalEdges());
   ASSERT_EQ(3,  other.totalWeight());
 
   verifyIncidentEgdes(other.inwardEdges(0), { {0, 1}, {4, 1} });
@@ -467,20 +526,24 @@ TEST_F(ASeparatedNodes, CopiesParallel) {
   verifyIncidentEgdes(other.outwardEdges(2), { });
   verifyIncidentEgdes(other.outwardEdges(3), { {1, 1} });
   verifyIncidentEgdes(other.outwardEdges(4), { {0, 1}, {1, 1} });
+
+  verifyInternalEgdes(other.internalEdges(), { {0, 1, 1} });
 }
 
 TEST_F(ASeparatedNodes, PerformsAlternateAddingAndMapping) {
+  initialize(10, {});
   SeparatedNodes nodes(10);
   vec<std::tuple<HypernodeID, HyperedgeID, HypernodeWeight>> new_nodes { {0, 0, 1}, {1, 2, 1}, {2, 4, 1}, {3, 6, 1}};
   vec<Edge> new_edges { Edge(3, 2), Edge(1, 1), Edge(2, 1), Edge(1, 2), Edge(3, 1), Edge(4, 1) };
-  nodes.addNodes(new_nodes, new_edges);
+  nodes.addNodes(base_graph, new_nodes, new_edges);
 
-  vec<HypernodeID> communities { 0, 3, 2, 3, kInvalidHypernode, 4, 5, 0, 0, 0 };
+  vec<HypernodeID> communities { 0, 3, 2, 3, kInvalidHypernode, 4, 5, 0, 0, 1 };
   nodes.contract(communities, 6);
+  contract(communities);
 
-  new_nodes = { {4, 0, 1}, {5, 4, 1}, {6, 5, 1} };
+  new_nodes = { {4, 0, 1}, {5, 4, 1}, {3, 5, 1} };
   new_edges = { Edge(0, 1), Edge(1, 1), Edge(2, 1), Edge(3, 1), Edge(3, 1) };
-  nodes.addNodes(new_nodes, new_edges);
+  nodes.addNodes(base_graph, new_nodes, new_edges);
 
   communities = { 0, kInvalidHypernode, 1, 1, kInvalidHypernode, kInvalidHypernode };
   nodes.contract(communities, 2);
@@ -507,11 +570,56 @@ TEST_F(ASeparatedNodes, PerformsAlternateAddingAndMapping) {
   verifyIncidentEgdes(nodes.outwardEdges(1), { {0, 3}, {1, 3}, {2, 1}, {4, 2}, {5, 1} });
 }
 
+TEST_F(ASeparatedNodes, PerformsAlternateAddingAndMappingWithInternalEdges) {
+  initialize(12, {{0, 2}, {1, 8}, {3, 8}, {1, 9}, {2, 9}, {0, 10}, {3, 10}, {4, 11},
+                  {8, 10}, {10, 11}});
+  SeparatedNodes nodes(12);
+  vec<std::tuple<HypernodeID, HyperedgeID, HypernodeWeight>> new_nodes { {8, 0, 1}, {9, 2, 1}, {10, 4, 1}, {11, 6, 1}};
+  vec<Edge> new_edges { Edge(3, 1), Edge(1, 1), Edge(2, 1), Edge(1, 1), Edge(3, 1), Edge(0, 1), Edge(4, 1) };
+  nodes.addNodes(base_graph, new_nodes, new_edges);
+
+  vec<HypernodeID> communities { 1, 3, 2, 3, 4, 0, 2, 5, kInvalidHypernode, kInvalidHypernode, kInvalidHypernode, kInvalidHypernode };
+  nodes.contract(communities, 6);
+  contract(communities);
+
+  new_nodes = { {1, 0, 1}, {4, 1, 1}, {5, 1, 1} };
+  new_edges = { Edge(2, 1) };
+  nodes.addNodes(base_graph, new_nodes, new_edges);
+
+  communities = { 0, kInvalidHypernode, 0, 1, kInvalidHypernode, kInvalidHypernode };
+  nodes.contract(communities, 2);
+
+  nodes.initializeOutwardEdges();
+
+  ASSERT_EQ(7,  nodes.numNodes());
+  ASSERT_EQ(2,  nodes.numGraphNodes());
+  ASSERT_EQ(5,  nodes.numEdges());
+  ASSERT_EQ(4,  nodes.numInternalEdges());
+  ASSERT_EQ(7,  nodes.totalWeight());
+
+  verifyIncidentEgdes(nodes.inwardEdges(0), { {1, 2} });
+  verifyIncidentEgdes(nodes.inwardEdges(1), { {0, 1}, {1, 1} });
+  verifyIncidentEgdes(nodes.inwardEdges(2), { {1, 1} });
+  verifyIncidentEgdes(nodes.inwardEdges(3), { });
+  verifyIncidentEgdes(nodes.inwardEdges(4), { {0, 1} });
+  verifyIncidentEgdes(nodes.inwardEdges(5), { });
+  verifyIncidentEgdes(nodes.inwardEdges(6), { });
+
+  ASSERT_EQ(2,  nodes.outwardIncidentWeight(0));
+  ASSERT_EQ(4,  nodes.outwardIncidentWeight(1));
+
+  verifyIncidentEgdes(nodes.outwardEdges(0), { {1, 1}, {4, 1} });
+  verifyIncidentEgdes(nodes.outwardEdges(1), { {0, 2}, {1, 1}, {2, 1} });
+
+  verifyInternalEgdes(nodes.internalEdges(), { {0, 2, 1}, {2, 3, 1}, {3, 5, 1}, {2, 4, 1} });
+}
+
 TEST_F(ASeparatedNodes, ExtractsBlockWhileGraphNodesAreKept) {
+  initialize(5, {{0, 1}, {1, 2}, {0, 2}});
   SeparatedNodes nodes(5);
   vec<std::tuple<HypernodeID, HyperedgeID, HypernodeWeight>> new_nodes { {0, 0, 1}, {1, 1, 1}, {2, 2, 1}};
   vec<Edge> new_edges { Edge(0, 1), Edge(4, 1), Edge(4, 1), Edge(3, 1) };
-  nodes.addNodes(new_nodes, new_edges);
+  nodes.addNodes(base_graph, new_nodes, new_edges);
   vec<CAtomic<PartitionID>> part_ids;
   part_ids.emplace_back(0);
   part_ids.emplace_back(0);
@@ -522,6 +630,7 @@ TEST_F(ASeparatedNodes, ExtractsBlockWhileGraphNodesAreKept) {
   ASSERT_EQ(2,  extracted.numNodes());
   ASSERT_EQ(5,  extracted.numGraphNodes());
   ASSERT_EQ(2,  extracted.numEdges());
+  ASSERT_EQ(1,  extracted.numInternalEdges());
   ASSERT_EQ(2,  extracted.totalWeight());
 
   verifyIncidentEgdes(extracted.inwardEdges(0), { {0, 1} });
@@ -532,13 +641,16 @@ TEST_F(ASeparatedNodes, ExtractsBlockWhileGraphNodesAreKept) {
   ASSERT_EQ(0,  extracted.outwardIncidentWeight(2));
   ASSERT_EQ(0,  extracted.outwardIncidentWeight(3));
   ASSERT_EQ(1,  extracted.outwardIncidentWeight(4));
+
+  verifyInternalEgdes(extracted.internalEdges(), { {0, 1, 1} });
 }
 
 TEST_F(ASeparatedNodes, ExtractsBlockWhileRemovingGraphNodes) {
+  initialize(5, {{0, 1}, {1, 2}, {0, 2}});
   SeparatedNodes nodes(5);
   vec<std::tuple<HypernodeID, HyperedgeID, HypernodeWeight>> new_nodes { {0, 0, 1}, {1, 1, 1}, {2, 2, 1}};
   vec<Edge> new_edges { Edge(0, 1), Edge(4, 1), Edge(4, 1), Edge(3, 1) };
-  nodes.addNodes(new_nodes, new_edges);
+  nodes.addNodes(base_graph, new_nodes, new_edges);
   vec<CAtomic<PartitionID>> part_ids;
   part_ids.emplace_back(0);
   part_ids.emplace_back(0);
@@ -549,6 +661,7 @@ TEST_F(ASeparatedNodes, ExtractsBlockWhileRemovingGraphNodes) {
   ASSERT_EQ(2,  extracted.numNodes());
   ASSERT_EQ(3,  extracted.numGraphNodes());
   ASSERT_EQ(1,  extracted.numEdges());
+  ASSERT_EQ(1,  extracted.numInternalEdges());
   ASSERT_EQ(2,  extracted.totalWeight());
 
   verifyIncidentEgdes(extracted.inwardEdges(0), { {0, 1} });
@@ -557,13 +670,16 @@ TEST_F(ASeparatedNodes, ExtractsBlockWhileRemovingGraphNodes) {
   ASSERT_EQ(1,  extracted.outwardIncidentWeight(0));
   ASSERT_EQ(0,  extracted.outwardIncidentWeight(1));
   ASSERT_EQ(0,  extracted.outwardIncidentWeight(2));
+
+  verifyInternalEgdes(extracted.internalEdges(), { {0, 1, 1} });
 }
 
 TEST_F(ASeparatedNodes, RestoresSavepoint) {
+  initialize(10, {{1, 2}});
   SeparatedNodes nodes(10);
   vec<std::tuple<HypernodeID, HyperedgeID, HypernodeWeight>> new_nodes { {0, 0, 1}, {1, 2, 1}, {2, 3, 1}};
   vec<Edge> new_edges { Edge(0, 1), Edge(3, 1), Edge(9, 1) };
-  nodes.addNodes(new_nodes, new_edges);
+  nodes.addNodes(base_graph, new_nodes, new_edges);
 
   nodes.setSavepoint();
 
@@ -575,18 +691,22 @@ TEST_F(ASeparatedNodes, RestoresSavepoint) {
   ASSERT_EQ(3,  nodes.numNodes());
   ASSERT_EQ(10,  nodes.numGraphNodes());
   ASSERT_EQ(3,  nodes.numEdges());
+  ASSERT_EQ(1,  nodes.numInternalEdges());
   ASSERT_EQ(3,  nodes.totalWeight());
 
   verifyIncidentEgdes(nodes.inwardEdges(0), { {0, 1}, {3, 1} });
   verifyIncidentEgdes(nodes.inwardEdges(1), { {9, 1} });
   verifyIncidentEgdes(nodes.inwardEdges(2), { });
+
+  verifyInternalEgdes(nodes.internalEdges(), { {1, 2, 1} });
 }
 
 TEST_F(ASeparatedNodes, CreatesCopyFromSavepoint) {
+  initialize(5, {{1, 2}});
   SeparatedNodes nodes(5);
   vec<std::tuple<HypernodeID, HyperedgeID, HypernodeWeight>> new_nodes { {0, 0, 1}, {1, 2, 1}, {2, 4, 1}};
   vec<Edge> new_edges { Edge(0, 1), Edge(4, 1), Edge(4, 1), Edge(3, 1) };
-  nodes.addNodes(new_nodes, new_edges);
+  nodes.addNodes(base_graph, new_nodes, new_edges);
 
   nodes.setSavepoint();
 
@@ -598,18 +718,22 @@ TEST_F(ASeparatedNodes, CreatesCopyFromSavepoint) {
   ASSERT_EQ(3,  other.numNodes());
   ASSERT_EQ(5,  other.numGraphNodes());
   ASSERT_EQ(4,  other.numEdges());
+  ASSERT_EQ(1,  other.numInternalEdges());
   ASSERT_EQ(3,  other.totalWeight());
 
   verifyIncidentEgdes(other.inwardEdges(0), { {0, 1}, {4, 1} });
   verifyIncidentEgdes(other.inwardEdges(1), { {4, 1}, {3, 1} });
   verifyIncidentEgdes(other.inwardEdges(2), { });
+
+  verifyInternalEgdes(other.internalEdges(), { {1, 2, 1} });
 }
 
 TEST_F(ASeparatedNodes, ReinsertsSeparated) {
+  initialize(3, {});
   SeparatedNodes nodes(3);
   vec<std::tuple<HypernodeID, HyperedgeID, HypernodeWeight>> new_nodes { {0, 0, 1}, {1, 1, 1}, {2, 2, 2}};
   vec<Edge> new_edges { Edge(0, 1), Edge(2, 2), Edge(2, 1), Edge(1, 1) };
-  nodes.addNodes(new_nodes, new_edges);
+  nodes.addNodes(base_graph, new_nodes, new_edges);
 
   vec<HypernodeWeight> weight = {1, 2, 3};
   Hypergraph original = HypergraphFactory::construct(3, 2, {{0, 1}, {1, 2}}, nullptr, weight.data());

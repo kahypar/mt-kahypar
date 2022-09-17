@@ -57,7 +57,7 @@ class ACoarseningPass : public Test {
         s_edges.emplace_back(target, weight);
       }
     }
-    s_nodes.addNodes(nodes, s_edges);
+    s_nodes.addNodes(graph, nodes, s_edges);
     s_nodes.revealAll();
     s_nodes.initializeOutwardEdges();
   }

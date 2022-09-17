@@ -20,9 +20,12 @@
 
 #include "separated_nodes.h"
 
+#include "mt-kahypar/definitions.h"
+#include "mt-kahypar/datastructures/streaming_vector.h"
 #include "mt-kahypar/parallel/parallel_prefix_sum.h"
 
 #include <tbb/parallel_reduce.h>
+#include <tbb/parallel_sort.h>
 
 namespace mt_kahypar::ds {
 
@@ -44,10 +47,11 @@ T parallel_max(const vec<T>& data, const T& invalid) {
 }
 
 HypernodeID SeparatedNodes::popBatch() {
-  const auto [index, weight] = _batch_indices_and_weights[_batch_indices_and_weights.size() - 2];
+  const auto [index, weight, num_internal_edges] = _batch_indices_and_weights[_batch_indices_and_weights.size() - 2];
   _batch_indices_and_weights.pop_back();
   _num_nodes = index;
   _nodes.resize(_num_nodes + 1);
+  _internal_edges.resize(num_internal_edges);
   _num_edges = _nodes.back().begin;
   _inward_edges.resize(_num_edges);
   _nodes[_num_nodes] = Node(kInvalidHypernode, _num_edges, 0);
@@ -59,7 +63,7 @@ HypernodeID SeparatedNodes::popBatch() {
 }
 
 void SeparatedNodes::cleanBatchState() {
-  _batch_indices_and_weights.assign(2, {_num_nodes, _total_weight});
+  _batch_indices_and_weights.assign(2, {_num_nodes, _total_weight, _internal_edges.size()});
 }
 
 void SeparatedNodes::revealNextBatch() {
@@ -70,6 +74,7 @@ void SeparatedNodes::revealNextBatch() {
 void SeparatedNodes::setSavepoint() {
   vec<Edge> copied_edges;
   vec<HyperedgeID> edge_indices;
+  vec<InternalEdge> copied_internal_edges;
   tbb::parallel_invoke([&] {
     copied_edges = _inward_edges;
   }, [&] {
@@ -77,60 +82,67 @@ void SeparatedNodes::setSavepoint() {
     tbb::parallel_for(0UL, edge_indices.size(), [&](const size_t& pos) {
       edge_indices[pos] = _nodes[pos].begin;
     });
+  }, [&] {
+    copied_internal_edges = _internal_edges;
   });
-  _savepoints.emplace_back(std::move(copied_edges), std::move(edge_indices), _num_graph_nodes);
+  _savepoints.push_back({std::move(copied_edges), std::move(edge_indices),
+                         std::move(copied_internal_edges), _num_graph_nodes});
 }
 
 void SeparatedNodes::restoreSavepoint() {
   ASSERT(!_savepoints.empty());
-  auto& [edges, indices, num_graph_nodes] = _savepoints.back();
-  _inward_edges = std::move(edges);
-  ASSERT(_nodes.size() == indices.size());
+  Memento& m = _savepoints.back();
+  _inward_edges = std::move(m.edges);
+  _internal_edges = std::move(m.internal_edges);
+  ASSERT(_nodes.size() == m.edge_indices.size());
   tbb::parallel_for(0UL, _nodes.size(), [&](const size_t& pos) {
-    _nodes[pos].begin = indices[pos];
+    _nodes[pos].begin = m.edge_indices[pos];
   });
   _savepoints.pop_back();
   _num_edges = _inward_edges.size();
-  _num_graph_nodes = num_graph_nodes;
+  _num_graph_nodes = m.num_graph_nodes;
   _outward_incident_weight.clear(); // not correct anymore
 }
 
 SeparatedNodes SeparatedNodes::createCopyFromSavepoint() {
   ASSERT(!_savepoints.empty());
-  auto& [edges, indices, num_graph_nodes] = _savepoints.back();
-  ASSERT(_nodes.size() >= indices.size() && indices.back() == edges.size());
-  const HypernodeID num_nodes = indices.size() - 1;
+  Memento& m = _savepoints.back();
+  ASSERT(_nodes.size() >= m.edge_indices.size() && m.edge_indices.back() == m.edges.size());
+  const HypernodeID num_nodes = m.edge_indices.size() - 1;
   _outward_incident_weight.clear(); // not correct anymore
 
-  SeparatedNodes sep_nodes(num_graph_nodes);
+  SeparatedNodes sep_nodes(m.num_graph_nodes);
   sep_nodes._num_nodes = num_nodes;
-  sep_nodes._num_graph_nodes = num_graph_nodes;
-  sep_nodes._num_edges = edges.size();
+  sep_nodes._num_graph_nodes = m.num_graph_nodes;
+  sep_nodes._num_edges = m.edges.size();
   sep_nodes._total_weight = _total_weight;
-  sep_nodes._inward_edges = std::move(edges);
+  sep_nodes._inward_edges = std::move(m.edges);
+  sep_nodes._internal_edges = std::move(m.internal_edges);
 
   tbb::parallel_invoke([&] {
     sep_nodes._nodes.resize(num_nodes + 1);
     memcpy(sep_nodes._nodes.data(), _nodes.data(), sizeof(Node) * num_nodes);
-    sep_nodes._nodes.back() = Node(kInvalidHypernode, edges.size(), 0);
+    sep_nodes._nodes.back() = Node(kInvalidHypernode, sep_nodes._num_edges, 0);
   }, [&] {
     sep_nodes._batch_indices_and_weights.clear();
-    for (size_t i = 0; i < _batch_indices_and_weights.size() && _batch_indices_and_weights[i].first <= num_nodes; ++i) {
+    for (size_t i = 0; i < _batch_indices_and_weights.size() && std::get<0>(_batch_indices_and_weights[i]) <= num_nodes; ++i) {
       sep_nodes._hidden_nodes_batch_index = i;
       sep_nodes._batch_indices_and_weights.push_back(_batch_indices_and_weights[i]);
     }
     ASSERT(sep_nodes._hidden_nodes_batch_index > 0);
   });
   tbb::parallel_for(0UL, sep_nodes._nodes.size(), [&](const size_t& pos) {
-    sep_nodes._nodes[pos].begin = indices[pos];
+    sep_nodes._nodes[pos].begin = m.edge_indices[pos];
   });
 
   _savepoints.pop_back();
   return sep_nodes;
 }
 
-void SeparatedNodes::addNodes(const vec<std::tuple<HypernodeID, HyperedgeID, HypernodeWeight>>& nodes,
+void SeparatedNodes::addNodes(const Hypergraph& hg,
+                              const vec<std::tuple<HypernodeID, HyperedgeID, HypernodeWeight>>& nodes,
                               const vec<Edge>& edges) {
+  ASSERT(hg.initialNumNodes() == _num_graph_nodes);
   ASSERT(_num_nodes + 1 == _nodes.size());
   ASSERT(_num_edges == _inward_edges.size());
   // ASSERT(_num_graph_nodes == _outward_incident_weight.size());
@@ -157,6 +169,33 @@ void SeparatedNodes::addNodes(const vec<std::tuple<HypernodeID, HyperedgeID, Hyp
     });
   };
 
+  StreamingVector<InternalEdge> edges_stream;
+  Array<HypernodeID> graph_node_to_sep_node;
+  auto add_intern_edges = [&] {
+    graph_node_to_sep_node.resize(_num_graph_nodes, kInvalidHypernode);
+    // initialize node set
+    tbb::parallel_for(0UL, nodes.size(), [&](const size_t& pos) {
+      const HypernodeID original_node = std::get<0>(nodes[pos]);
+      if (original_node != kInvalidHypernode) {
+        graph_node_to_sep_node[original_node] = pos + _num_nodes;
+      }
+    });
+    // edges between added nodes
+    tbb::parallel_for(0UL, nodes.size(), [&](const size_t& pos) {
+      const HypernodeID original_node = std::get<0>(nodes[pos]);
+      if (original_node != kInvalidHypernode) {
+        for (const HyperedgeID& e: hg.incidentEdges(original_node)) {
+          if (graph_node_to_sep_node[hg.edgeTarget(e)] != kInvalidHypernode) {
+            const HypernodeID target = graph_node_to_sep_node[hg.edgeTarget(e)];
+            if (pos + _num_nodes < target) {
+              edges_stream.stream(pos + _num_nodes, target, hg.edgeWeight(e));
+            }
+          }
+        }
+      }
+    });
+  };
+
   auto update_total_weight = [&] {
     _total_weight += tbb::parallel_reduce(
             tbb::blocked_range<HypernodeID>(0UL, nodes.size()), 0,
@@ -169,11 +208,21 @@ void SeparatedNodes::addNodes(const vec<std::tuple<HypernodeID, HyperedgeID, Hyp
               }, std::plus<>());
   };
 
-  tbb::parallel_invoke(update_nodes, update_inward_edges_and_incident_weight, update_total_weight);
+  tbb::parallel_invoke(update_nodes, update_inward_edges_and_incident_weight, update_total_weight, add_intern_edges);
+
+  // edges from already separated nodes
+  tbb::parallel_for(ID(0), _num_nodes, [&](const HypernodeID& node) {
+    for (const Edge& e: inwardEdges(node)) {
+      if (graph_node_to_sep_node[e.target] != kInvalidHypernode) {
+        edges_stream.stream(node, graph_node_to_sep_node[e.target], e.weight);
+      }
+    }
+  });
+  edges_stream.append_parallel(_internal_edges);
 
   _num_nodes += nodes.size();
   _num_edges += edges.size();
-  _batch_indices_and_weights.push_back({_num_nodes, _total_weight});
+  _batch_indices_and_weights.push_back({_num_nodes, _total_weight, _internal_edges.size()});
 }
 
 void SeparatedNodes::contract(const vec<HypernodeID>& communities, const HypernodeID& num_coarsened_graph_nodes) {
@@ -262,6 +311,8 @@ SeparatedNodes SeparatedNodes::coarsen(vec<HypernodeID>& communities) const {
     other._inward_edges.resize(_num_edges);
   }, [&] {
     other._outward_incident_weight = _outward_incident_weight;
+  }, [&] {
+    other._internal_edges = _internal_edges;
   });
 
   tbb::parallel_for(ID(0), total_coarsened_nodes, [&](const HyperedgeID& node) {
@@ -289,18 +340,28 @@ SeparatedNodes SeparatedNodes::coarsen(vec<HypernodeID>& communities) const {
     }
   });
 
-  other._batch_indices_and_weights = {std::make_pair(coarsened_num_nodes, _total_weight)};
-  for (size_t i = _hidden_nodes_batch_index; i < _batch_indices_and_weights.size(); ++i) {
-    std::pair<HypernodeID, HypernodeWeight> batch = _batch_indices_and_weights[i];
-    batch.first -= (numVisibleNodes() - coarsened_num_nodes);
-    other._batch_indices_and_weights.push_back(batch);
-  }
-
   other._num_nodes = total_coarsened_nodes;
   other._num_edges = _num_edges;
   other._total_weight = _total_weight;
 
-  other.deduplicateEdges();
+  tbb::parallel_invoke([&] {
+    other.deduplicateEdges();
+  }, [&] {
+    tbb::parallel_for(0UL, other._internal_edges.size(), [&](const size_t& pos) {
+      InternalEdge& e = other._internal_edges[pos];
+      ASSERT(e.pin0 != kInvalidHypernode && e.pin1 != kInvalidHypernode);
+      e.pin0 = communities[e.pin0];
+      e.pin1 = communities[e.pin1];
+    });
+    other.deduplicateInternalEdges();
+  });
+
+  other._batch_indices_and_weights = { {coarsened_num_nodes, _total_weight, other._internal_edges.size()} };
+  for (size_t i = _hidden_nodes_batch_index; i < _batch_indices_and_weights.size(); ++i) {
+    auto batch = _batch_indices_and_weights[i];
+    std::get<0>(batch) -= (numVisibleNodes() - coarsened_num_nodes);
+    other._batch_indices_and_weights.push_back(batch);
+  }
   return other;
 }
 
@@ -440,6 +501,17 @@ SeparatedNodes SeparatedNodes::extract(PartitionID block, const vec<HypernodeID>
     other._inward_edges = std::move(tmp_inward_edges);
   };
 
+  auto set_internal_edges = [&] {
+    StreamingVector<InternalEdge> internal_edges;
+    tbb::parallel_for(0UL, _internal_edges.size(), [&](const size_t& pos) {
+      const InternalEdge& e = _internal_edges[pos];
+      if (get_part_id(e.pin0) == block && get_part_id(e.pin1) == block) {
+        internal_edges.stream(sep_node_mapping[e.pin0], sep_node_mapping[e.pin1], e.weight);
+      }
+    });
+    other._internal_edges = internal_edges.copy_parallel();
+  };
+
   auto set_total_weight = [&] {
     other._total_weight = tbb::parallel_reduce(
             tbb::blocked_range<HypernodeID>(0UL, _num_nodes), 0,
@@ -454,7 +526,7 @@ SeparatedNodes SeparatedNodes::extract(PartitionID block, const vec<HypernodeID>
               }, std::plus<>());
   };
 
-  tbb::parallel_invoke(set_nodes, set_edges, set_total_weight);
+  tbb::parallel_invoke(set_nodes, set_edges, set_internal_edges, set_total_weight);
   const HypernodeID max_node_id = parallel_max(graph_node_mapping, kInvalidHypernode);
   other.contract(graph_node_mapping, max_node_id + 1);
   other.cleanBatchState();
@@ -546,6 +618,34 @@ void SeparatedNodes::deduplicateEdges() {
   _num_edges = coarsened_num_edges;
 }
 
+void SeparatedNodes::deduplicateInternalEdges() {
+  const HyperedgeID edges_end = _internal_edges.size();
+  tbb::parallel_sort(_internal_edges.begin(), _internal_edges.end(), [](const InternalEdge& e1, const InternalEdge& e2) {
+    return e1.pin0 < e2.pin0 || (e1.pin0 == e2.pin0 && e1.pin1 < e2.pin1);
+  });
+
+  // Deduplicate and aggregate weights
+  //
+  // <-- deduplicated --> <-- already processed --> <-- to be processed -->
+  //                    ^                         ^
+  // valid_edge_index ---        tmp_edge_index ---
+  size_t valid_edge_index = 0;
+  size_t tmp_edge_index = 1;
+  while (tmp_edge_index < edges_end) {
+    InternalEdge& valid_edge = _internal_edges[valid_edge_index];
+    InternalEdge& next_edge = _internal_edges[tmp_edge_index];
+    ASSERT(next_edge.pin0 != kInvalidHypernode && next_edge.pin1 != kInvalidHypernode);
+    if (valid_edge.pin0 == next_edge.pin0 && valid_edge.pin1 == next_edge.pin1) {
+      valid_edge.weight += next_edge.weight;
+    } else {
+      std::swap(_internal_edges[++valid_edge_index], next_edge);
+    }
+    ++tmp_edge_index;
+  }
+  const size_t new_size = _internal_edges.empty() ? 0 : tmp_edge_index;
+  _internal_edges.resize(new_size);
+}
+
 // ! Copy in parallel
 SeparatedNodes SeparatedNodes::copy(parallel_tag_t) const {
   SeparatedNodes sep_nodes(_num_graph_nodes);
@@ -582,6 +682,10 @@ SeparatedNodes SeparatedNodes::copy(parallel_tag_t) const {
               sizeof(Edge) * _outward_edges.size());
     }
   }, [&] {
+    sep_nodes._internal_edges.resize(_internal_edges.size());
+    memcpy(sep_nodes._internal_edges.data(), _internal_edges.data(),
+            sizeof(InternalEdge) * _internal_edges.size());
+  }, [&] {
     sep_nodes._batch_indices_and_weights.resize(_batch_indices_and_weights.size());
     for (size_t i = 0; i < _batch_indices_and_weights.size(); ++i) {
       sep_nodes._batch_indices_and_weights[i] = _batch_indices_and_weights[i];
@@ -594,12 +698,13 @@ SeparatedNodes SeparatedNodes::copy(parallel_tag_t) const {
 SeparatedNodes SeparatedNodes::copy_first_batch(parallel_tag_t) const {
   SeparatedNodes sep_nodes(_num_graph_nodes);
 
-  const HypernodeID num_nodes = _batch_indices_and_weights[0].first;
+  const HypernodeID num_nodes = std::get<0>(_batch_indices_and_weights[0]);
   const HyperedgeID num_edges = _nodes[num_nodes].begin;
+  const HyperedgeID num_internal_edges = std::get<2>(_batch_indices_and_weights[0]);
   sep_nodes._num_nodes = num_nodes;
   sep_nodes._num_graph_nodes = _num_graph_nodes;
   sep_nodes._num_edges = num_edges;
-  sep_nodes._total_weight = _batch_indices_and_weights[0].second;
+  sep_nodes._total_weight = std::get<1>(_batch_indices_and_weights[0]);
   sep_nodes._batch_indices_and_weights = {_batch_indices_and_weights[0], _batch_indices_and_weights[1]};
 
   tbb::parallel_invoke([&] {
@@ -615,6 +720,10 @@ SeparatedNodes SeparatedNodes::copy_first_batch(parallel_tag_t) const {
     sep_nodes._inward_edges.resize(num_edges);
     memcpy(sep_nodes._inward_edges.data(), _inward_edges.data(),
             sizeof(Edge) * num_edges);
+  }, [&] {
+    sep_nodes._internal_edges.resize(num_internal_edges);
+    memcpy(sep_nodes._internal_edges.data(), _internal_edges.data(),
+            sizeof(InternalEdge) * num_internal_edges);
   });
   return sep_nodes;
 }
@@ -653,6 +762,10 @@ SeparatedNodes SeparatedNodes::copy() const {
     memcpy(sep_nodes._outward_edges.data(), _outward_edges.data(),
             sizeof(Edge) * _outward_edges.size());
   }
+
+  sep_nodes._internal_edges.resize(_internal_edges.size());
+  memcpy(sep_nodes._internal_edges.data(), _internal_edges.data(),
+          sizeof(InternalEdge) * _internal_edges.size());
 
   sep_nodes._batch_indices_and_weights.resize(_batch_indices_and_weights.size());
   for (size_t i = 0; i < _batch_indices_and_weights.size(); ++i) {

@@ -86,7 +86,7 @@ namespace mt_kahypar::ds {
     vec<SeparatedNodes::Edge> separated_edges;
 
     handleSeparatedNodes(mapping, separated_nodes, separated_edges, communities);
-    s_nodes.addNodes(separated_nodes, separated_edges);
+    s_nodes.addNodes(*this, separated_nodes, separated_edges);
     return separated_nodes.size();
   }
 
@@ -158,7 +158,7 @@ namespace mt_kahypar::ds {
 
     tbb::parallel_invoke([&] {
       if (_separated_nodes != nullptr) {
-        separatedNodes().onliest().addNodes(separated_nodes, separated_edges);
+        separatedNodes().onliest().addNodes(*this, separated_nodes, separated_edges);
       }
     }, [&] {
       // Remap community ids

@@ -38,6 +38,8 @@
 
 namespace mt_kahypar {
 namespace ds {
+// forward
+class StaticGraph;
 
 class SeparatedNodes {
 
@@ -80,11 +82,41 @@ class SeparatedNodes {
     HyperedgeWeight weight;
   };
 
+  class InternalEdge {
+   public:
+    InternalEdge() :
+      pin0(kInvalidHypernode),
+      pin1(kInvalidHypernode),
+      weight(1) { }
+
+    explicit InternalEdge(HypernodeID pin0, HypernodeID pin1, HyperedgeWeight weight) :
+      pin0(pin0),
+      pin1(pin1),
+      weight(weight) { }
+
+    // ! incident nodes
+    HypernodeID pin0;
+    HypernodeID pin1;
+    // ! edge weight
+    HyperedgeWeight weight;
+  };
+
   // ! Iterator to iterate over the nodes
   using HypernodeIterator = boost::range_detail::integer_iterator<HyperedgeID>;
-  // ! Iterator to iterate over the pins of a hyperedge
+  // ! Iterator to iterate over inward/outward edges
   using IncidenceIterator = const Edge*;
+  // ! Iterator to iterate over internal edges
+  using InternalEdgeIterator = vec<InternalEdge>::const_iterator;
 
+ private:
+  struct Memento {
+    vec<Edge> edges;
+    vec<HyperedgeID> edge_indices;
+    vec<InternalEdge> internal_edges;
+    HypernodeID  num_graph_nodes;
+  };
+
+ public:
   explicit SeparatedNodes() :
     _num_nodes(0),
     _num_graph_nodes(0),
@@ -96,9 +128,10 @@ class SeparatedNodes {
     _graph_nodes_begin(),
     _inward_edges(),
     _outward_edges(),
+    _internal_edges(),
     _batch_indices_and_weights(),
     _savepoints() {
-      _batch_indices_and_weights.assign(2, {0, 0});
+      _batch_indices_and_weights.assign(2, {0, 0, 0});
     }
 
   explicit SeparatedNodes(HypernodeID num_graph_nodes) :
@@ -112,9 +145,10 @@ class SeparatedNodes {
     _graph_nodes_begin(),
     _inward_edges(),
     _outward_edges(),
+    _internal_edges(),
     _batch_indices_and_weights(),
     _savepoints() {
-      _batch_indices_and_weights.assign(2, {0, 0});
+      _batch_indices_and_weights.assign(2, {0, 0, 0});
     }
 
   SeparatedNodes(const SeparatedNodes&) = delete;
@@ -131,6 +165,7 @@ class SeparatedNodes {
     _graph_nodes_begin(std::move(other._graph_nodes_begin)),
     _inward_edges(std::move(other._inward_edges)),
     _outward_edges(std::move(other._outward_edges)),
+    _internal_edges(std::move(other._internal_edges)),
     _batch_indices_and_weights(std::move(other._batch_indices_and_weights)),
     _savepoints(std::move(other._savepoints)) { }
 
@@ -145,6 +180,7 @@ class SeparatedNodes {
     _graph_nodes_begin = std::move(other._graph_nodes_begin);
     _inward_edges = std::move(other._inward_edges);
     _outward_edges = std::move(other._outward_edges);
+    _internal_edges = std::move(other._internal_edges);
     _batch_indices_and_weights = std::move(other._batch_indices_and_weights);
     _savepoints = std::move(other._savepoints);
     return *this;
@@ -166,19 +202,23 @@ class SeparatedNodes {
     return _num_edges;
   }
 
+  HypernodeID numInternalEdges() const {
+    return _internal_edges.size();
+  }
+
   HypernodeWeight totalWeight() const {
     return _total_weight;
   }
 
   HypernodeID numVisibleNodes() const {
     ASSERT(_hidden_nodes_batch_index < _batch_indices_and_weights.size());
-    return _batch_indices_and_weights[_hidden_nodes_batch_index].first;
+    return std::get<0>(_batch_indices_and_weights[_hidden_nodes_batch_index]);
   }
 
   // ! only for testing
   HypernodeWeight initialWeight() const {
     HypernodeWeight weight = 0;
-    for (HypernodeID node = 0; node < _batch_indices_and_weights[0].first; ++node) {
+    for (HypernodeID node = 0; node < std::get<0>(_batch_indices_and_weights[0]); ++node) {
       weight += nodeWeight(node);
     }
     return weight;
@@ -207,6 +247,11 @@ class SeparatedNodes {
     return IteratorRange<IncidenceIterator>(
       _inward_edges.data() + node(separated_node).begin,
       _inward_edges.data() + node(separated_node + 1).begin);
+  }
+
+  // ! Edges leading from a separated node to another separated node
+  IteratorRange<InternalEdgeIterator> internalEdges() const {
+    return IteratorRange<InternalEdgeIterator>(_internal_edges.begin(), _internal_edges.end());
   }
 
     // ####################### Node Information #######################
@@ -243,7 +288,7 @@ class SeparatedNodes {
   // ####################### Batches and Savepoints #######################
 
   HypernodeID currentBatchIndex() const {
-    return _batch_indices_and_weights[_batch_indices_and_weights.size() - 2].first;
+    return std::get<0>(_batch_indices_and_weights[_batch_indices_and_weights.size() - 2]);
   }
 
   // ! Returns the index of the current batch, which is also the number
@@ -271,7 +316,7 @@ class SeparatedNodes {
    * Adds the given nodes. Each node is specified by the original node id,
    * its starting index in the edge vector and its weight.
    */
-  void addNodes(const vec<std::tuple<HypernodeID, HyperedgeID, HypernodeWeight>>& nodes, const vec<Edge>& edges);
+  void addNodes(const StaticGraph& hg, const vec<std::tuple<HypernodeID, HyperedgeID, HypernodeWeight>>& nodes, const vec<Edge>& edges);
 
   /*!
    * Contracts a given community structure. Note that the mapping must contain
@@ -311,6 +356,8 @@ class SeparatedNodes {
 
   void deduplicateEdges();
 
+  void deduplicateInternalEdges();
+
   // ####################### Node Information #######################
 
   // ! Accessor for node-related information
@@ -345,14 +392,14 @@ class SeparatedNodes {
   // ! Edges
   vec<Edge> _inward_edges;
   Array<Edge> _outward_edges;
+  vec<InternalEdge> _internal_edges;
 
   // ! Batches
   // - allow to restore nodes of a previous state (but not edges)
-  vec<std::pair<HypernodeID, HypernodeWeight>> _batch_indices_and_weights;
+  vec<std::tuple<HypernodeID, HypernodeWeight, HyperedgeID>> _batch_indices_and_weights;
   // ! Savepoints
   // - allow to restore edges of a previous state, must be set manually
-  // edges, edge_indices, num_graph_nodes
-  vec<std::tuple<vec<Edge>, vec<HyperedgeID>, HypernodeID>> _savepoints;
+  vec<Memento> _savepoints;
 };
 
 class SepNodesStack {
