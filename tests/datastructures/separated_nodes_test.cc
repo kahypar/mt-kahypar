@@ -729,27 +729,27 @@ TEST_F(ASeparatedNodes, CreatesCopyFromSavepoint) {
 }
 
 TEST_F(ASeparatedNodes, ReinsertsSeparated) {
-  initialize(3, {});
+  initialize(3, {{0, 1}, {0, 2}});
   SeparatedNodes nodes(3);
   vec<std::tuple<HypernodeID, HyperedgeID, HypernodeWeight>> new_nodes { {0, 0, 1}, {1, 1, 1}, {2, 2, 2}};
   vec<Edge> new_edges { Edge(0, 1), Edge(2, 2), Edge(2, 1), Edge(1, 1) };
   nodes.addNodes(base_graph, new_nodes, new_edges);
 
   vec<HypernodeWeight> weight = {1, 2, 3};
-  Hypergraph original = HypergraphFactory::construct(3, 2, {{0, 1}, {1, 2}}, nullptr, weight.data());
+  Hypergraph original = HypergraphFactory::construct(3, 2, {{0, 1}, {1, 2}}, nullptr, weight.data(), true);
   Hypergraph graph = HypergraphFactory::reinsertSeparatedNodes(original, nodes);
 
   ASSERT_EQ(6, graph.initialNumNodes());
-  ASSERT_EQ(12, graph.initialNumEdges());
+  ASSERT_EQ(16, graph.initialNumEdges());
   ASSERT_EQ(10, graph.totalWeight());
   ASSERT_EQ(3, graph.numIncludedSeparated());
 
   verifyGraphNeighbors(graph, 0, {1, 3});
   verifyGraphNeighbors(graph, 1, {0, 2, 5});
   verifyGraphNeighbors(graph, 2, {1, 4, 5});
-  verifyGraphNeighbors(graph, 3, {0});
-  verifyGraphNeighbors(graph, 4, {2});
-  verifyGraphNeighbors(graph, 5, {1, 2});
+  verifyGraphNeighbors(graph, 3, {0, 4, 5});
+  verifyGraphNeighbors(graph, 4, {2, 3});
+  verifyGraphNeighbors(graph, 5, {1, 2, 3});
 }
 
 }

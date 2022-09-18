@@ -203,7 +203,7 @@ namespace mt_kahypar::ds {
                                                          const SeparatedNodes& s_nodes) {
     ASSERT(graph.initialNumNodes() == s_nodes.numGraphNodes());
     const HypernodeID num_nodes = graph.initialNumNodes() + s_nodes.numNodes();
-    const HyperedgeID num_edges = graph.initialNumEdges() / 2 + s_nodes.numEdges();
+    const HyperedgeID num_edges = graph.initialNumEdges() / 2 + s_nodes.numEdges() + s_nodes.numInternalEdges();
     EdgeVector edge_vector;
     Array<HyperedgeWeight> edge_weight;
     Array<HypernodeWeight> node_weight;
@@ -234,6 +234,13 @@ namespace mt_kahypar::ds {
           edge_weight[index] = e.weight;
           index++;
         }
+      });
+    }, [&] {
+      const HyperedgeID base_index = graph.initialNumEdges() / 2 + s_nodes.numEdges();
+      tbb::parallel_for(ID(0), s_nodes.numInternalEdges(), [&](const HyperedgeID e_id) {
+        const auto& e = s_nodes.internalEdge(e_id);
+        edge_vector[base_index + e_id] = {graph.initialNumNodes() + e.pin0, graph.initialNumNodes() + e.pin1};
+        edge_weight[base_index + e_id] = e.weight;
       });
     });
 

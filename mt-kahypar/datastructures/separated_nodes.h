@@ -202,8 +202,13 @@ class SeparatedNodes {
     return _num_edges;
   }
 
-  HypernodeID numInternalEdges() const {
+  HyperedgeID numInternalEdges() const {
     return _internal_edges.size();
+  }
+
+  const InternalEdge& internalEdge(const HyperedgeID& e) const {
+    ASSERT(e < _internal_edges.size(),"internal edge" << e << "does not exist");
+    return _internal_edges[e];
   }
 
   HypernodeWeight totalWeight() const {
