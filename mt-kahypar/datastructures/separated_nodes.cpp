@@ -347,11 +347,18 @@ SeparatedNodes SeparatedNodes::coarsen(vec<HypernodeID>& communities) const {
   tbb::parallel_invoke([&] {
     other.deduplicateEdges();
   }, [&] {
+    auto map_node = [&](const HypernodeID& node) {
+      if (node < numVisibleNodes()) {
+        return communities[node];
+      } else {
+        return node - numVisibleNodes() + coarsened_num_nodes;
+      }
+    };
     tbb::parallel_for(0UL, other._internal_edges.size(), [&](const size_t& pos) {
       InternalEdge& e = other._internal_edges[pos];
       ASSERT(e.pin0 != kInvalidHypernode && e.pin1 != kInvalidHypernode);
-      e.pin0 = communities[e.pin0];
-      e.pin1 = communities[e.pin1];
+      e.pin0 = map_node(e.pin0);
+      e.pin1 = map_node(e.pin1);
     });
     other.deduplicateInternalEdges();
   });

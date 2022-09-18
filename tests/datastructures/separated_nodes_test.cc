@@ -362,45 +362,43 @@ TEST_F(ASeparatedNodes, Coarsens2) {
 }
 
 TEST_F(ASeparatedNodes, CoarsensWithHiddenNodes) {
-  for (int i = 0; i < 100; ++i) {
-    initialize(5, {});
-    SeparatedNodes nodes(5);
-    vec<std::tuple<HypernodeID, HyperedgeID, HypernodeWeight>> new_nodes
-            { {0, 0, 1}, {1, 3, 1}, {2, 5, 1} };
-    vec<Edge> new_edges { Edge(3, 1), Edge(1, 1), Edge(0, 1), Edge(1, 1), Edge(3, 1) };
-    nodes.addNodes(base_graph, new_nodes, new_edges);
+  initialize(5, {{3, 4}});
+  SeparatedNodes nodes(5);
+  vec<std::tuple<HypernodeID, HyperedgeID, HypernodeWeight>> new_nodes
+          { {0, 0, 1}, {1, 3, 1}, {2, 5, 1} };
+  vec<Edge> new_edges { Edge(3, 1), Edge(1, 1), Edge(0, 1), Edge(1, 1), Edge(3, 1) };
+  nodes.addNodes(base_graph, new_nodes, new_edges);
 
-    new_nodes = { {3, 0, 1}, {4, 2, 1} };
-    new_edges = { Edge(0, 1), Edge(1, 1), Edge(0, 1) };
-    nodes.addNodes(base_graph, new_nodes, new_edges);
+  new_nodes = { {3, 0, 1}, {4, 2, 1} };
+  new_edges = { Edge(0, 1), Edge(1, 1), Edge(0, 1) };
+  nodes.addNodes(base_graph, new_nodes, new_edges);
 
-    vec<HypernodeID> communities { 0, 0, 1 };
-    nodes.revealNextBatch();
-    SeparatedNodes other = nodes.coarsen(communities);
+  vec<HypernodeID> communities { 0, 0, 1 };
+  nodes.revealNextBatch();
+  SeparatedNodes other = nodes.coarsen(communities);
 
-    ASSERT_EQ(0, communities[0]);
-    ASSERT_EQ(0, communities[1]);
-    ASSERT_EQ(1, communities[2]);
+  ASSERT_EQ(0, communities[0]);
+  ASSERT_EQ(0, communities[1]);
+  ASSERT_EQ(1, communities[2]);
 
-    ASSERT_EQ(4,  other.numNodes());
-    ASSERT_EQ(5,  other.numGraphNodes());
-    ASSERT_EQ(6,  other.numEdges());
-    ASSERT_EQ(1,  other.numInternalEdges());
-    ASSERT_EQ(5,  other.totalWeight());
-    ASSERT_EQ(2,  other.numVisibleNodes());
+  ASSERT_EQ(4,  other.numNodes());
+  ASSERT_EQ(5,  other.numGraphNodes());
+  ASSERT_EQ(6,  other.numEdges());
+  ASSERT_EQ(2,  other.numInternalEdges());
+  ASSERT_EQ(5,  other.totalWeight());
+  ASSERT_EQ(2,  other.numVisibleNodes());
 
-    ASSERT_EQ(3,  other.outwardIncidentWeight(0));
-    ASSERT_EQ(3,  other.outwardIncidentWeight(1));
-    ASSERT_EQ(0,  other.outwardIncidentWeight(2));
-    ASSERT_EQ(2,  other.outwardIncidentWeight(3));
+  ASSERT_EQ(3,  other.outwardIncidentWeight(0));
+  ASSERT_EQ(3,  other.outwardIncidentWeight(1));
+  ASSERT_EQ(0,  other.outwardIncidentWeight(2));
+  ASSERT_EQ(2,  other.outwardIncidentWeight(3));
 
-    verifyIncidentEgdes(other.inwardEdges(0), { {0, 1}, {1, 2}, {3, 2} });
-    verifyIncidentEgdes(other.inwardEdges(1), { });
-    verifyIncidentEgdes(other.inwardEdges(2), { {0, 1}, {1, 1} });
-    verifyIncidentEgdes(other.inwardEdges(3), { {0, 1} });
+  verifyIncidentEgdes(other.inwardEdges(0), { {0, 1}, {1, 2}, {3, 2} });
+  verifyIncidentEgdes(other.inwardEdges(1), { });
+  verifyIncidentEgdes(other.inwardEdges(2), { {0, 1}, {1, 1} });
+  verifyIncidentEgdes(other.inwardEdges(3), { {0, 1} });
 
-    verifyInternalEgdes(other.internalEdges(), { {0, 1, 2} });
-  }
+  verifyInternalEgdes(other.internalEdges(), { {0, 2, 2}, {2, 3, 1} });
 }
 
 TEST_F(ASeparatedNodes, ContractsStack) {
