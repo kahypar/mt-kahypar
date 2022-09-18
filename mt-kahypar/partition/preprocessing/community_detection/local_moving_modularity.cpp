@@ -322,12 +322,13 @@ bool ParallelLocalMovingModularity::localMoving(Graph& graph, ds::Clustering& co
       auto intern_stats = internal::createStats(comp_intern_edge_fracs, intern_avg,
                                                 utils::parallel_stdev(comp_intern_edge_fracs, intern_avg, comp_intern_edge_fracs.size()));
 
-      LOG << "total_num_node, sep_nodes, sep_single_nodes, sep_total_edges, sep_intern_edge_fraction, sep_comp_intern_edge_fraction"
+      LOG << "name, total_num_node, sep_nodes, sep_single_nodes, sep_total_edges, sep_intern_edge_fraction, sep_comp_intern_edge_fraction"
              "num_components, comp_size_avg, comp_size_median, comp_size_sd, comp_size_max, "
              "adj_edges_avg, adj_edges_median, adj_edges_sd, adj_edges_max, "
              "intern_frac_avg, intern_frac_median, intern_frac_sd, intern_frac_max";
       const utils::Stats& stats = utils::Stats::instance();
-      std::cout << stats.get("total_num_nodes") << ","
+      std::cout << _context.partition.graph_filename.substr(_context.partition.graph_filename.find_last_of('/') + 1) << ","
+                << stats.get("total_num_nodes") << ","
                 << stats.get("num_separated_in_community_detection") << ","
                 << stats.get("sep_single_nodes") << ","
                 << stats.get("sep_total_edges") << ","

@@ -164,6 +164,14 @@ class StatsT {
     }
   }
 
+  Stat get(const std::string& key) const {
+    if (_stats.find(key) != _stats.end()) {
+      return _stats.at(key);
+    } else {
+      return Stat(false);
+    }
+  }
+
   void clear() {
     _stats.clear();
   }
