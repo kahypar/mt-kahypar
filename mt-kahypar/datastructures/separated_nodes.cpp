@@ -619,31 +619,40 @@ void SeparatedNodes::deduplicateEdges() {
 }
 
 void SeparatedNodes::deduplicateInternalEdges() {
-  const HyperedgeID edges_end = _internal_edges.size();
-  tbb::parallel_sort(_internal_edges.begin(), _internal_edges.end(), [](const InternalEdge& e1, const InternalEdge& e2) {
-    return e1.pin0 < e2.pin0 || (e1.pin0 == e2.pin0 && e1.pin1 < e2.pin1);
-  });
+  if (!_internal_edges.empty()) {
+    const HyperedgeID edges_end = _internal_edges.size();
+    tbb::parallel_sort(_internal_edges.begin(), _internal_edges.end(), [](const InternalEdge& e1, const InternalEdge& e2) {
+      return e1.pin0 < e2.pin0 || (e1.pin0 == e2.pin0 && e1.pin1 < e2.pin1);
+    });
 
-  // Deduplicate and aggregate weights
-  //
-  // <-- deduplicated --> <-- already processed --> <-- to be processed -->
-  //                    ^                         ^
-  // valid_edge_index ---        tmp_edge_index ---
-  size_t valid_edge_index = 0;
-  size_t tmp_edge_index = 1;
-  while (tmp_edge_index < edges_end) {
-    InternalEdge& valid_edge = _internal_edges[valid_edge_index];
-    InternalEdge& next_edge = _internal_edges[tmp_edge_index];
-    ASSERT(next_edge.pin0 != kInvalidHypernode && next_edge.pin1 != kInvalidHypernode);
-    if (valid_edge.pin0 == next_edge.pin0 && valid_edge.pin1 == next_edge.pin1) {
-      valid_edge.weight += next_edge.weight;
-    } else {
-      std::swap(_internal_edges[++valid_edge_index], next_edge);
+    // Deduplicate and aggregate weights
+    //
+    // <-- deduplicated --> <-- already processed --> <-- to be processed -->
+    //                    ^                         ^
+    // valid_edge_index ---        tmp_edge_index ---
+    size_t valid_edge_index = 0;
+    size_t tmp_edge_index = 1;
+    while (tmp_edge_index < edges_end) {
+      InternalEdge& valid_edge = _internal_edges[valid_edge_index];
+      InternalEdge& next_edge = _internal_edges[tmp_edge_index];
+      ASSERT(next_edge.pin0 != kInvalidHypernode && next_edge.pin1 != kInvalidHypernode);
+      if (valid_edge.pin0 == next_edge.pin0 && valid_edge.pin1 == next_edge.pin1) {
+        valid_edge.weight += next_edge.weight;
+      } else if (next_edge.pin0 != next_edge.pin1) {
+        std::swap(_internal_edges[++valid_edge_index], next_edge);
+      }
+      ++tmp_edge_index;
     }
-    ++tmp_edge_index;
+
+    size_t new_size = valid_edge_index + 1;
+    // special case: first edge is single pin
+    InternalEdge& first = _internal_edges[0];
+    if (first.pin0 == first.pin1) {
+      std::swap(first, _internal_edges[valid_edge_index]);
+      --new_size;
+    }
+    _internal_edges.resize(new_size);
   }
-  const size_t new_size = _internal_edges.empty() ? 0 : tmp_edge_index;
-  _internal_edges.resize(new_size);
 }
 
 // ! Copy in parallel

@@ -154,6 +154,7 @@ namespace mt_kahypar::ds {
         const HyperedgeID incident_edges_pos1 = degree_prefix_sum[pin1] + incident_edges_position[pin1]++;
         ASSERT(incident_edges_pos1 < graph._edges.size());
         StaticGraph::Edge& edge1 = graph._edges[incident_edges_pos1];
+        ASSERT(pin0 != pin1);
 
         edge0.setTarget(pin1);
         edge0.setSource(pin0);

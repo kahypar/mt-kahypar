@@ -271,7 +271,7 @@ TEST_F(ASeparatedNodes, MapsNodes2) {
 }
 
 TEST_F(ASeparatedNodes, Coarsens1) {
-  initialize(4, {});
+  initialize(4, {{0, 1}, {0, 2}});
   SeparatedNodes nodes(4);
   vec<std::tuple<HypernodeID, HyperedgeID, HypernodeWeight>> new_nodes { {0, 0, 1}, {1, 2, 1}, {2, 3, 1}};
   vec<Edge> new_edges { Edge(2, 1), Edge(1, 1), Edge(0, 1), Edge(2, 1) };
@@ -288,6 +288,7 @@ TEST_F(ASeparatedNodes, Coarsens1) {
   ASSERT_EQ(2,  other.numNodes());
   ASSERT_EQ(4,  other.numGraphNodes());
   ASSERT_EQ(4,  other.numEdges());
+  ASSERT_EQ(1,  other.numInternalEdges());
   ASSERT_EQ(3,  other.totalWeight());
   ASSERT_EQ(2,  other.numVisibleNodes());
 
@@ -299,6 +300,8 @@ TEST_F(ASeparatedNodes, Coarsens1) {
   verifyIncidentEgdes(other.inwardEdges(0), { {2, 1}, {1, 1} });
   verifyIncidentEgdes(other.inwardEdges(1), { {0, 1}, {2, 1} });
 
+  verifyInternalEgdes(other.internalEdges(), { {0, 1, 2} });
+
   communities = { 0, 0 };
   SeparatedNodes next = other.coarsen(communities);
 
@@ -308,6 +311,7 @@ TEST_F(ASeparatedNodes, Coarsens1) {
   ASSERT_EQ(1,  next.numNodes());
   ASSERT_EQ(4,  next.numGraphNodes());
   ASSERT_EQ(3,  next.numEdges());
+  ASSERT_EQ(0,  next.numInternalEdges());
   ASSERT_EQ(3,  next.totalWeight());
   ASSERT_EQ(1,  next.numVisibleNodes());
 
@@ -320,7 +324,7 @@ TEST_F(ASeparatedNodes, Coarsens1) {
 }
 
 TEST_F(ASeparatedNodes, Coarsens2) {
-  initialize(5, {});
+  initialize(5, {{1, 2}, {3, 4}});
   SeparatedNodes nodes(5);
   vec<std::tuple<HypernodeID, HyperedgeID, HypernodeWeight>> new_nodes
            { {0, 0, 1}, {1, 3, 1}, {2, 5, 1}, {3, 5, 1}, {4, 7, 1} };
@@ -341,6 +345,7 @@ TEST_F(ASeparatedNodes, Coarsens2) {
   ASSERT_EQ(3,  other.numNodes());
   ASSERT_EQ(5,  other.numGraphNodes());
   ASSERT_EQ(5,  other.numEdges());
+  ASSERT_EQ(1,  other.numInternalEdges());
   ASSERT_EQ(5,  other.totalWeight());
   ASSERT_EQ(3,  other.numVisibleNodes());
 
@@ -352,6 +357,8 @@ TEST_F(ASeparatedNodes, Coarsens2) {
   verifyIncidentEgdes(other.inwardEdges(0), { {0, 1}, {1, 2}, {3, 2} });
   verifyIncidentEgdes(other.inwardEdges(1), { });
   verifyIncidentEgdes(other.inwardEdges(2), { {0, 2}, {1, 1} });
+
+  verifyInternalEgdes(other.internalEdges(), { {0, 1, 1} });
 }
 
 TEST_F(ASeparatedNodes, CoarsensWithHiddenNodes) {
@@ -378,7 +385,7 @@ TEST_F(ASeparatedNodes, CoarsensWithHiddenNodes) {
     ASSERT_EQ(4,  other.numNodes());
     ASSERT_EQ(5,  other.numGraphNodes());
     ASSERT_EQ(6,  other.numEdges());
-    ASSERT_EQ(2,  other.numInternalEdges());
+    ASSERT_EQ(1,  other.numInternalEdges());
     ASSERT_EQ(5,  other.totalWeight());
     ASSERT_EQ(2,  other.numVisibleNodes());
 
@@ -391,6 +398,8 @@ TEST_F(ASeparatedNodes, CoarsensWithHiddenNodes) {
     verifyIncidentEgdes(other.inwardEdges(1), { });
     verifyIncidentEgdes(other.inwardEdges(2), { {0, 1}, {1, 1} });
     verifyIncidentEgdes(other.inwardEdges(3), { {0, 1} });
+
+    verifyInternalEgdes(other.internalEdges(), { {0, 1, 2} });
   }
 }
 
