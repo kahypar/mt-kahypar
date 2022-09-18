@@ -240,6 +240,7 @@ namespace mt_kahypar::ds {
       const HyperedgeID base_index = graph.initialNumEdges() / 2 + s_nodes.numEdges();
       tbb::parallel_for(ID(0), s_nodes.numInternalEdges(), [&](const HyperedgeID e_id) {
         const auto& e = s_nodes.internalEdge(e_id);
+        ASSERT(e.pin0 < s_nodes.numNodes() && e.pin1 < s_nodes.numNodes());
         edge_vector[base_index + e_id] = {graph.initialNumNodes() + e.pin0, graph.initialNumNodes() + e.pin1};
         edge_weight[base_index + e_id] = e.weight;
       });

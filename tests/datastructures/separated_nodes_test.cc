@@ -399,6 +399,15 @@ TEST_F(ASeparatedNodes, CoarsensWithHiddenNodes) {
   verifyIncidentEgdes(other.inwardEdges(3), { {0, 1} });
 
   verifyInternalEgdes(other.internalEdges(), { {0, 2, 2}, {2, 3, 1} });
+
+  other.popBatch();
+
+  ASSERT_EQ(2,  other.numNodes());
+  ASSERT_EQ(5,  other.numGraphNodes());
+  ASSERT_EQ(3,  other.numEdges());
+  ASSERT_EQ(0,  other.numInternalEdges());
+  ASSERT_EQ(3,  other.totalWeight());
+  ASSERT_EQ(2,  other.numVisibleNodes());
 }
 
 TEST_F(ASeparatedNodes, ContractsStack) {

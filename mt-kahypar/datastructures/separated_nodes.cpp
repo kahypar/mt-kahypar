@@ -48,6 +48,7 @@ T parallel_max(const vec<T>& data, const T& invalid) {
 
 HypernodeID SeparatedNodes::popBatch() {
   const auto [index, weight, num_internal_edges] = _batch_indices_and_weights[_batch_indices_and_weights.size() - 2];
+  ASSERT(num_internal_edges != kInvalidHyperedge, V(_batch_indices_and_weights.size()));
   _batch_indices_and_weights.pop_back();
   _num_nodes = index;
   _nodes.resize(_num_nodes + 1);
@@ -344,6 +345,10 @@ SeparatedNodes SeparatedNodes::coarsen(vec<HypernodeID>& communities) const {
   other._num_edges = _num_edges;
   other._total_weight = _total_weight;
 
+  auto internal_edge_visible = [&](const InternalEdge& e) {
+    return e.pin0 < coarsened_num_nodes && e.pin1 < coarsened_num_nodes;
+  };
+
   tbb::parallel_invoke([&] {
     other.deduplicateEdges();
   }, [&] {
@@ -359,14 +364,29 @@ SeparatedNodes SeparatedNodes::coarsen(vec<HypernodeID>& communities) const {
       ASSERT(e.pin0 != kInvalidHypernode && e.pin1 != kInvalidHypernode);
       e.pin0 = map_node(e.pin0);
       e.pin1 = map_node(e.pin1);
+      ASSERT(e.pin0 < other._num_nodes && e.pin1 < other._num_nodes);
     });
     other.deduplicateInternalEdges();
+    tbb::parallel_sort(other._internal_edges.begin(), other._internal_edges.end(),
+      [&](const InternalEdge& l, const InternalEdge& r) {
+        return internal_edge_visible(l) && !internal_edge_visible(r);
+      });
+  });
+  HyperedgeID visible_internal_edges = 0;
+  tbb::parallel_for(ID(0), other.numInternalEdges(), [&](const HyperedgeID& e) {
+    if (internal_edge_visible(other.internalEdge(e))
+        && (e + 1 == other.numInternalEdges() || !internal_edge_visible(other.internalEdge(e + 1)))) {
+      visible_internal_edges = e + 1;
+    }
   });
 
-  other._batch_indices_and_weights = { {coarsened_num_nodes, _total_weight, other._internal_edges.size()} };
-  for (size_t i = _hidden_nodes_batch_index; i < _batch_indices_and_weights.size(); ++i) {
+  other._batch_indices_and_weights = { {coarsened_num_nodes,
+        std::get<1>(_batch_indices_and_weights.at(_hidden_nodes_batch_index)), visible_internal_edges} };
+  other._batch_indices_and_weights.push_back(other._batch_indices_and_weights[0]);
+  for (size_t i = _hidden_nodes_batch_index + 1; i < _batch_indices_and_weights.size(); ++i) {
     auto batch = _batch_indices_and_weights[i];
     std::get<0>(batch) -= (numVisibleNodes() - coarsened_num_nodes);
+    std::get<2>(batch) = kInvalidHyperedge;
     other._batch_indices_and_weights.push_back(batch);
   }
   return other;
