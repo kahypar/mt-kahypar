@@ -280,6 +280,12 @@ namespace mt_kahypar {
             ("c-separated-communities-max-size",
              po::value<HypernodeID>(&context.coarsening.separated_communities_max_size)->value_name("<int>")->default_value(10),
              "Communities that are larger (in terms of total node weight) than this won't be removed.\n")
+            ("c-separate-degree-one-nodes",
+             po::value<bool>(&context.coarsening.separate_degree_one_nodes)->value_name("<bool>")->default_value(false),
+             "Separation of degree one nodes during coarsening.\n")
+            ("c-degree-one-max-weight",
+             po::value<HypernodeWeight>(&context.coarsening.degree_one_max_weight)->value_name("<int>")->default_value(30),
+             "Maximum weight of separated degree one nodes.\n")
             ("c-sep-nodes-coarsening-type",
              po::value<std::string>()->value_name("<string>")->notifier(
                      [&](const std::string& type) {

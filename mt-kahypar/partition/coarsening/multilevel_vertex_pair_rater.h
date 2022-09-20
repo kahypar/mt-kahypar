@@ -164,6 +164,13 @@ class MultilevelVertexPairRater {
       fillRatingMap(hypergraph, u, tmp_ratings, cluster_ids);
     }
 
+    auto remove_degree_one = [&](const HypernodeID& node) {
+      const SeparatedNodes& separated_nodes = hypergraph.separatedNodes().onliest();
+      return _context.coarsening.separate_degree_one_nodes && hypergraph.nodeDegree(node) <= 1
+             && hypergraph.nodeWeight(node) <= _context.coarsening.degree_one_max_weight
+             && separated_nodes.outwardIncidentWeight(node) == 0;
+    };
+
     int cpu_id = sched_getcpu();
     const HypernodeWeight weight_u = cluster_weight[u];
     bool can_be_removed = true;
@@ -206,7 +213,8 @@ class MultilevelVertexPairRater {
         if ( community_u_id == hypergraph.communityID(tmp_target) &&
             AcceptancePolicy::acceptRating(tmp_rating, max_rating,
                                            target_id, tmp_target,
-                                           cpu_id, _already_matched) ) {
+                                           cpu_id, _already_matched) &&
+            !remove_degree_one(tmp_target) ) {
           if (!_context.coarsening.forbid_different_density_contractions ||
               incident_weight_diff < _context.coarsening.max_allowed_density_diff || !can_be_removed) {
             max_rating = tmp_rating;
@@ -227,6 +235,9 @@ class MultilevelVertexPairRater {
     } else {
       ret.remove_node = false;
       if (!_context.preprocessing.disable_star_partitioning_for_mesh_graphs || !_context.preprocessing.mesh_graph_detected) {
+        if (remove_degree_one(u)) {
+          ret.remove_node = true;
+        }
         if (_context.coarsening.forbid_different_density_contractions
             && has_only_higher_density_matches && can_be_removed) {
           ret.remove_node = true;
