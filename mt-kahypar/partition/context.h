@@ -107,6 +107,7 @@ struct RatingParameters {
   RatingFunction rating_function = RatingFunction::UNDEFINED;
   HeavyNodePenaltyPolicy heavy_node_penalty_policy = HeavyNodePenaltyPolicy::UNDEFINED;
   AcceptancePolicy acceptance_policy = AcceptancePolicy::UNDEFINED;
+  bool consider_density_diff = false;
 };
 
 std::ostream & operator<< (std::ostream& str, const RatingParameters& params);

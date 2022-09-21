@@ -360,6 +360,9 @@ namespace mt_kahypar {
              "Acceptance/Tiebreaking criterion for contraction partners having the same score:\n"
              "- best\n"
              "- best_prefer_unmatched")
+            ("c-rating-consider-density-diff",
+             po::value<bool>(&context.coarsening.rating.consider_density_diff)->value_name("<bool>")->default_value(false),
+             "Consider incident weight / node weight ratio relative to target in rating.")
             ("c-vertex-degree-sampling-threshold",
              po::value<size_t>(&context.coarsening.vertex_degree_sampling_threshold)->value_name(
                      "<size_t>")->default_value(std::numeric_limits<size_t>::max()),
