@@ -231,7 +231,7 @@ public:
     if (_context.coarsening.sep_nodes_coarsening_type == SNodesCoarseningSize::logarithmic && original_hg.initialNumNodes() > 10000) {
       result *= std::log2(static_cast<double>(original_hg.initialNumNodes()) / 10000.0);
     }
-    if (_context.type == kahypar::ContextType::main) {
+    if (_context.type == kahypar::ContextType::main && _context.partition.k > 2) {
       result *= _context.coarsening.sep_nodes_coarsening_relax_main_factor;
     }
     return std::max(result, 3 * _context.coarsening.contraction_limit_multiplier);
