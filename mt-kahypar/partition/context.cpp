@@ -427,20 +427,32 @@ namespace mt_kahypar {
     if (preprocessing.community_detection.use_isolated_nodes_treshold != coarsening.separate_size_one_communities) {
       ERROR("--p-use-isolated-nodes-treshold and --c-separate-size-one-communities are intended to be used together");
     }
-    if (!(initial_partitioning.apply_star_partitioning_per_candidate
-        ^ initial_partitioning.apply_star_partitioning_to_best
-        ^ initial_partitioning.reinsert_separated) ||
-        (initial_partitioning.apply_star_partitioning_per_candidate
-        && initial_partitioning.apply_star_partitioning_to_best
-        && initial_partitioning.reinsert_separated)) {
-      ERROR("exactly one of --i-apply-star-partitioning-per-canditate, --i-apply-star-partitioning-to-best and "
-            "--i-reinsert-separated must be true");
-    }
     if (preprocessing.community_detection.single_community_of_separated && preprocessing.community_detection.separated_sub_communities) {
       ERROR("--p-single-community-of-separated and --p-separated-sub-communities can not be combined");
     }
     if (preprocessing.disable_star_partitioning_for_mesh_graphs && !preprocessing.disable_community_detection_for_mesh_graphs) {
       ERROR("--p-disable-star-partitioning-for-mesh-graphs implies --p-disable-community-detection-for-mesh-graphs");
+    }
+    if (coarsening.sep_nodes_sync_coarsening) {
+      if (refinement.separated_partition_aware_coarsening || initial_partitioning.refinement.separated_partition_aware_coarsening) {
+        ERROR("Partition aware coarsening not possible with sync coarsening.");
+      }
+      if (refinement.include_separated || initial_partitioning.refinement.include_separated) {
+        ERROR("--r-include-separated not combinable with --c-sep-nodes-sync-coarsening");
+      }
+      if (initial_partitioning.reinsert_separated) {
+        ERROR("--i-reinsert-separated not combinable with --c-sep-nodes-sync-coarsening");
+      }
+    } else {
+      if (!(initial_partitioning.apply_star_partitioning_per_candidate
+          ^ initial_partitioning.apply_star_partitioning_to_best
+          ^ initial_partitioning.reinsert_separated) ||
+          (initial_partitioning.apply_star_partitioning_per_candidate
+          && initial_partitioning.apply_star_partitioning_to_best
+          && initial_partitioning.reinsert_separated)) {
+        ERROR("exactly one of --i-apply-star-partitioning-per-canditate, --i-apply-star-partitioning-to-best and "
+              "--i-reinsert-separated must be true (or --c-sep-nodes-sync-coarsening)");
+      }
     }
 
     shared_memory.static_balancing_work_packages = std::clamp(shared_memory.static_balancing_work_packages, 4UL, 256UL);

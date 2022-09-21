@@ -137,6 +137,7 @@ struct CoarseningParameters {
   double sep_nodes_coarsening_size_factor = 4;
   double sep_nodes_coarsening_relax_main_factor = 1;
   bool sep_nodes_coarsening_levelwise = false;
+  bool sep_nodes_sync_coarsening = false;
 
   // Those will be determined dynamically
   HypernodeWeight max_allowed_node_weight = 0;

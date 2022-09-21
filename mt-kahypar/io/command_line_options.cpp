@@ -305,6 +305,9 @@ namespace mt_kahypar {
              po::value<bool>(&context.coarsening.sep_nodes_coarsening_levelwise)->value_name("<bool>")->default_value(false),
              "If true, the separated nodes coarsener will only consider the current corresponding level of the graph hierarchy "
              "(instead of progressing to the coarsest level).")
+            ("c-sep-nodes-sync-coarsening",
+             po::value<bool>(&context.coarsening.sep_nodes_sync_coarsening)->value_name("<bool>")->default_value(false),
+             "Perform the separated nodes coarsening during usual coarsening (thus integrating to IP and refinement).")
             #ifdef KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES
                         ("c-use-adaptive-max-node-weight",
                 po::value<bool>(&context.coarsening.use_adaptive_max_allowed_node_weight)->value_name("<bool>")->default_value(false),

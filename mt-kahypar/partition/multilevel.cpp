@@ -41,44 +41,22 @@
 namespace mt_kahypar::multilevel {
   using ds::Array;
 
-  class RefinementTask : public tbb::task {
-
-  public:
-    RefinementTask(Hypergraph& hypergraph,
-                   PartitionedHypergraph& partitioned_hypergraph,
-                   const Context& context,
-                   std::shared_ptr<UncoarseningData> uncoarseningData) :
-            _sparsifier(nullptr),
-            _ip_context(context),
-            _degree_zero_hn_remover(context),
-            _uncoarsener(nullptr),
-            _hg(hypergraph),
-            _partitioned_hg(partitioned_hypergraph),
-            _context(context),
-            _uncoarseningData(uncoarseningData) {
-      // Must be empty, because final partitioned hypergraph
-      // is moved into this object
-      _sparsifier = HypergraphSparsifierFactory::getInstance().createObject(
-              _context.sparsification.similiar_net_combiner_strategy, _context);
-
-      // Switch refinement context from IP to main
-      _ip_context.refinement = _context.initial_partitioning.refinement;
-      }
-
-    void reconstructHierarchyWithSeparatedNodes(SepNodesStack& stack) {
+  void reconstructHierarchyWithSeparatedNodes(Hypergraph& hg, const Context& context,
+                                              SepNodesStack& stack, UncoarseningData& uncoarseningData,
+                                              bool with_partition=true) {
       utils::Timer::instance().start_timer("reconstruct_hierarchy", "Reconstruct Hierarchy");
 
-      vec<Level>& levels = _uncoarseningData->hierarchy;
-      HypernodeWeight correct_weight = _hg.totalActiveWeight();
+      vec<Level>& levels = uncoarseningData.hierarchy;
+      HypernodeWeight correct_weight = hg.totalActiveWeight();
       unused(correct_weight);
       ASSERT([&] {
-        correct_weight += _hg.separatedNodes().finest().initialWeight();
+        correct_weight += hg.separatedNodes().finest().initialWeight();
         return true;
       }());
       ASSERT(stack.numLevels() == levels.size() + 1);
 
       for (size_t i = 0; i < levels.size(); ++i) {
-        Hypergraph& old_hg = (i == 0) ? _hg : levels[i - 1].contractedHypergraph();
+        Hypergraph& old_hg = (i == 0) ? hg : levels[i - 1].contractedHypergraph();
         const HypernodeID num_graph_nodes = levels[i].contractedHypergraph().initialNumNodes();
         const vec<HypernodeID>& old_communities = levels[i].communities();
         const vec<HypernodeID>& sep_mapping = stack.mapping(i, false);
@@ -114,24 +92,33 @@ namespace mt_kahypar::multilevel {
         old_hg.setSeparatedNodes(nullptr);
         ASSERT(correct_weight == old_hg.totalWeight(), V(correct_weight) << V(old_hg.totalWeight()));
       }
-      Hypergraph& last_hg = (levels.size() == 0) ? _hg : levels.back().contractedHypergraph();
-      PartitionedHypergraph& phg = *_uncoarseningData->partitioned_hg;
-      Array<PartIdType> part_ids(phg.partIDsSize(_context.type != kahypar::ContextType::main), PartIdType(kInvalidPartition));
-      phg.extractPartIDs(part_ids, false);
 
-      last_hg = HypergraphFactory::reinsertSeparatedNodes(last_hg, stack.coarsest());
+      Hypergraph& last_hg = (levels.size() == 0) ? hg : levels.back().contractedHypergraph();
+      PartitionedHypergraph& phg = *uncoarseningData.partitioned_hg;
+      Array<PartIdType> part_ids;
+      if (with_partition) {
+        part_ids.resize(phg.partIDsSize(context.type != kahypar::ContextType::main), PartIdType(kInvalidPartition));
+        phg.extractPartIDs(part_ids, false);
+      }
+
+      if (stack.coarsest().numNodes() > 0) {
+        last_hg = HypergraphFactory::reinsertSeparatedNodes(last_hg, stack.coarsest());
+      }
       last_hg.setSeparatedNodes(nullptr);
       ASSERT(correct_weight == last_hg.totalWeight());
       phg.setHypergraph(last_hg);
-      phg.resetData();
-      phg.doParallelForAllNodes([&](const HypernodeID node) {
-        phg.setOnlyNodePart(node, part_ids[node].load());
-      });
-      phg.initializePartition();
+
+      if (with_partition) {
+        phg.resetData();
+        phg.doParallelForAllNodes([&](const HypernodeID node) {
+          phg.setOnlyNodePart(node, part_ids[node].load());
+        });
+        phg.initializePartition();
+      }
 
       ASSERT([&] {
         for (size_t i = 0; i < levels.size(); ++i) {
-          const Hypergraph& old_hg = (i == 0) ? _hg : levels[i - 1].contractedHypergraph();
+          const Hypergraph& old_hg = (i == 0) ? hg : levels[i - 1].contractedHypergraph();
           if (old_hg.initialNumNodes() != levels[i].communities().size()) {
             return false;
           }
@@ -143,7 +130,7 @@ namespace mt_kahypar::multilevel {
         }
         return true;
       }());
-      ASSERT([&] {
+      ASSERT(!with_partition || [&] {
         for (const HypernodeID& node: phg.nodes()) {
           if (phg.partID(node) == kInvalidPartition) {
             return false;
@@ -154,6 +141,30 @@ namespace mt_kahypar::multilevel {
 
       utils::Timer::instance().stop_timer("reconstruct_hierarchy");
     }
+
+  class RefinementTask : public tbb::task {
+
+  public:
+    RefinementTask(Hypergraph& hypergraph,
+                   PartitionedHypergraph& partitioned_hypergraph,
+                   const Context& context,
+                   std::shared_ptr<UncoarseningData> uncoarseningData) :
+            _sparsifier(nullptr),
+            _ip_context(context),
+            _degree_zero_hn_remover(context),
+            _uncoarsener(nullptr),
+            _hg(hypergraph),
+            _partitioned_hg(partitioned_hypergraph),
+            _context(context),
+            _uncoarseningData(uncoarseningData) {
+      // Must be empty, because final partitioned hypergraph
+      // is moved into this object
+      _sparsifier = HypergraphSparsifierFactory::getInstance().createObject(
+              _context.sparsification.similiar_net_combiner_strategy, _context);
+
+      // Switch refinement context from IP to main
+      _ip_context.refinement = _context.initial_partitioning.refinement;
+      }
 
     tbb::task* execute() override {
       enableTimerAndStats();
@@ -229,7 +240,7 @@ namespace mt_kahypar::multilevel {
                                                                          stack.coarsest(), _context, false);
         }
 
-        reconstructHierarchyWithSeparatedNodes(stack);
+        reconstructHierarchyWithSeparatedNodes(_hg, _context, stack, *_uncoarseningData);
       }
 
       // ################## LOCAL SEARCH ##################
@@ -298,7 +309,7 @@ namespace mt_kahypar::multilevel {
             _uncoarseningData(uncoarseningData) { }
 
     tbb::task* execute() override {
-      if (_context.refinement.include_separated) {
+      if (_context.refinement.include_separated || _context.coarsening.sep_nodes_sync_coarsening) {
         // separated nodes
         _hg.separatedNodes().finest().setSavepoint();
       }
@@ -327,6 +338,19 @@ namespace mt_kahypar::multilevel {
         utils::outputGraphvizFile(coarsestHypergraph, _context.graphviz_file, false, ".coarse_plain");
         utils::outputGraphvizFile(coarsestHypergraph, _context.graphviz_file, true, ".coarse_incl");
         #endif
+      }
+
+      // ################## SEPARATED NODES COARSENING ##################
+      if (_context.coarsening.sep_nodes_sync_coarsening) {
+        SepNodesStack stack(_hg.separatedNodes().finest().createCopyFromSavepoint());
+        const HypernodeID start_num_nodes = _hg.numSeparatedNodes();
+        const HypernodeID target_num_nodes = _uncoarseningData.calculateSeparatedNodesTargetSize(
+                                              _uncoarseningData.coarsestPartitionedHypergraph().hypergraph(), _hg);
+        star_partitioning::coarsenSynchronized(stack, _hg, _uncoarseningData.hierarchy, _context,
+                                               start_num_nodes, target_num_nodes, nullptr);
+        _uncoarseningData.partitioned_hg->setSeparatedNodes(&stack);
+        _uncoarseningData.partitioned_hg->resetSeparatedParts();
+        reconstructHierarchyWithSeparatedNodes(_hg, _context, stack, _uncoarseningData, false);
       }
 
       // ################## INITIAL PARTITIONING ##################

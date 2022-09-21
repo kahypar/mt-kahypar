@@ -42,6 +42,7 @@
 
 namespace mt_kahypar {
   using ds::SeparatedNodes;
+  using ds::SepNodesStack;
   using ds::Array;
 
   RecursiveBipartitioningInitialPartitioner::RecursiveBipartitioningInitialPartitioner(PartitionedHypergraph& hypergraph,
@@ -49,7 +50,8 @@ namespace mt_kahypar {
     _hg(hypergraph),
     _context(context),
     _original_s_nodes(&hypergraph.separatedNodes()),
-    _s_nodes(hypergraph.separatedNodes().coarsest().copy(parallel_tag_t())) {
+    _s_nodes(hypergraph.hasSeparatedNodes() ?
+             hypergraph.separatedNodes().coarsest().copy(parallel_tag_t()) : SeparatedNodes(_hg.initialNumNodes())) {
     }
 
   void RecursiveBipartitioningInitialPartitioner::initialPartitionImpl() {
@@ -61,7 +63,9 @@ namespace mt_kahypar {
     _hg.resetSeparatedParts();
 
     // TODO: compare quality?!
-    const HyperedgeWeight added_cut = star_partitioning::partition(_hg, _hg.separatedNodes().finest(), _context, false);
+    if (_original_s_nodes) {
+      const HyperedgeWeight added_cut = star_partitioning::partition(_hg, _hg.separatedNodes().finest(), _context, false);
+    }
     _hg.updateBlockWeights();
   }
 } // namepace mt_kahypar

@@ -138,18 +138,20 @@ public:
         parallel::MemoryPool::instance().release_mem_group("Coarsening");
       }
 
-      Hypergraph& coarsest_hg = hierarchy.empty() ? _hg : hierarchy.back().contractedHypergraph();
-      const HypernodeID separatedTargetSize = calculateSeparatedNodesTargetSize(coarsest_hg, _hg);
-      if (separatedTargetSize < coarsest_hg.separatedNodes().onliest().numNodes()) {
-        star_partitioning::coarsen(coarsest_hg.separatedNodes(),
-                                   coarsest_hg, _context, separatedTargetSize);
-      }
-      if (_context.initial_partitioning.reinsert_separated
-          && _context.type != kahypar::ContextType::main
-          && coarsest_hg.separatedNodes().coarsest().numNodes() > 0) {
-        // TODO(maas): might be problematic if hierarchy is empty
-        hierarchy.emplace_back(HypergraphFactory::reinsertSeparatedNodes(coarsest_hg, coarsest_hg.separatedNodes().coarsest()),
-                                                                         parallel::scalable_vector<HypernodeID>(), 0);
+      if (!_context.coarsening.sep_nodes_sync_coarsening) {
+        Hypergraph& coarsest_hg = hierarchy.empty() ? _hg : hierarchy.back().contractedHypergraph();
+        const HypernodeID separatedTargetSize = calculateSeparatedNodesTargetSize(coarsest_hg, _hg);
+        if (separatedTargetSize < coarsest_hg.separatedNodes().onliest().numNodes()) {
+          star_partitioning::coarsen(coarsest_hg.separatedNodes(),
+                                    coarsest_hg, _context, separatedTargetSize);
+        }
+        if (_context.initial_partitioning.reinsert_separated
+            && _context.type != kahypar::ContextType::main
+            && coarsest_hg.separatedNodes().coarsest().numNodes() > 0) {
+          // TODO(maas): might be problematic if hierarchy is empty
+          hierarchy.emplace_back(HypergraphFactory::reinsertSeparatedNodes(coarsest_hg, coarsest_hg.separatedNodes().coarsest()),
+                                                                          parallel::scalable_vector<HypernodeID>(), 0);
+        }
       }
 
       // Construct partitioned hypergraph for initial partitioning
