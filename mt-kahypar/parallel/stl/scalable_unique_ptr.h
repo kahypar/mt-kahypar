@@ -22,6 +22,7 @@
 #pragma once
 
 #include <memory>
+#include <type_traits>
 
 #include "tbb/scalable_allocator.h"
 
@@ -40,7 +41,14 @@ using tbb_unique_ptr = std::unique_ptr<T, tbb_deleter<T>>;
 
 template<typename T>
 static tbb_unique_ptr<T> make_unique(const size_t size) {
-  T* ptr = (T*) scalable_malloc(sizeof(T) * size);
+  constexpr bool zero_initialize = !std::is_trivially_copyable<T>::value;
+  // For types that are trivially copyable, it is unproblematic to return
+  // uninitialized (non-zeroed) memory. However, in case of complex types it can
+  // easily happen that the destructor is called on uninitialized data, causing
+  // UB in the process.
+  // We guard against this by returning zeroed memory in such cases (note: this
+  // still might be problematic if zero is not a valid instance of T).
+  T* ptr = (T*) (zero_initialize ? scalable_calloc(size, sizeof(T)) : scalable_malloc(sizeof(T) * size));
   return tbb_unique_ptr<T>(ptr, parallel::tbb_deleter<T>());
 }
 
