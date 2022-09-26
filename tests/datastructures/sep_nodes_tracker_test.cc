@@ -34,9 +34,9 @@ namespace ds {
 
 using Handle = SepNodesTracker::Handle;
 using Bucket = SepNodesTracker::BucketT;
-using Entry = Bucket::Entry;
+using Entry = SepNodesTracker::Entry;
 
-class ASNodesTracker: public Test {
+class ABucket: public Test {
  public:
   void setupForBucket(HypernodeID num_nodes) {
     handles = Array<std::pair<PartitionID, Handle>>();
@@ -75,7 +75,15 @@ class ASNodesTracker: public Test {
   Array<std::pair<PartitionID, Handle>> handles;
 };
 
-TEST_F(ASNodesTracker, AddsNodesAndReorders1) {
+vec<Entry> entries(vec<HypernodeWeight>&& weights) {
+  vec<Entry> result;
+  for (const HypernodeWeight& w: weights) {
+    result.push_back(Entry{kInvalidHypernode, w, w});
+  }
+  return result;
+}
+
+TEST_F(ABucket, AddsNodesAndReorders1) {
   setupForBucket(3);
   addNode(0, 1, 3);
   addNode(1, 1, 2);
@@ -91,7 +99,7 @@ TEST_F(ASNodesTracker, AddsNodesAndReorders1) {
   verifyHandles();
 }
 
-TEST_F(ASNodesTracker, AddsNodesAndReorders2) {
+TEST_F(ABucket, AddsNodesAndReorders2) {
   setupForBucket(4);
   addNode(0, 1, 3);
   addNode(1, 2, 2);
@@ -108,7 +116,7 @@ TEST_F(ASNodesTracker, AddsNodesAndReorders2) {
   verifyHandles();
 }
 
-TEST_F(ASNodesTracker, AddRemoveReorder) {
+TEST_F(ABucket, AddRemoveReorder) {
   setupForBucket(4);
   addNode(0, 2, 3);
   addNode(1, 4, 2);
@@ -136,7 +144,7 @@ TEST_F(ASNodesTracker, AddRemoveReorder) {
   ASSERT_EQ(0, bucket.firstRemoved());
 }
 
-TEST_F(ASNodesTracker, DeltaForRemoval) {
+TEST_F(ABucket, DeltaForRemoval) {
   setNodesForBucket({ {1, 1}, {1, 2}, {2, 5}, {1, 3} });
   bucket.updateWeight(5);
   vec<double> result;
@@ -144,49 +152,48 @@ TEST_F(ASNodesTracker, DeltaForRemoval) {
   // empty
   bucket.calculateDeltasForNodeRemoval({}, {}, result, handles);
   ASSERT_EQ(0, result.size());
-  bucket.calculateDeltasForNodeRemoval({1}, {}, result, handles);
+  bucket.calculateDeltasForNodeRemoval(entries({1}), {}, result, handles);
   ASSERT_EQ(1, result.size());
   ASSERT_EQ(0.0, result[0]);
-  bucket.calculateDeltasForNodeRemoval({1, 2, 3}, {}, result, handles);
+  bucket.calculateDeltasForNodeRemoval(entries({1, 2, 3}), {}, result, handles);
   ASSERT_EQ(3, result.size());
   ASSERT_EQ(0.0, result[0]);
   ASSERT_EQ(0.0, result[1]);
   ASSERT_EQ(0.0, result[2]);
 
   // some new nodes
-  bucket.calculateDeltasForNodeRemoval({3}, {Entry{0, 1, 2}, Entry{0, 1, 1}}, result, handles);
+  bucket.calculateDeltasForNodeRemoval(entries({3}), {Entry{0, 1, 2}, Entry{0, 1, 1}}, result, handles);
   ASSERT_EQ(1, result.size());
   ASSERT_EQ(3.0, result[0]);
-  bucket.calculateDeltasForNodeRemoval({1, 1}, {Entry{0, 1, 2}, Entry{0, 1, 1}}, result, handles);
+  bucket.calculateDeltasForNodeRemoval(entries({1, 1}), {Entry{0, 1, 2}, Entry{0, 1, 1}}, result, handles);
   ASSERT_EQ(2, result.size());
-  LOG << V(result[0]) << V(result[1]);
   ASSERT_EQ(2.0, result[0]);
   ASSERT_EQ(1.0, result[1]);
 
   // now use a full one
   bucket.updateWeight(3);
-  bucket.calculateDeltasForNodeRemoval({1}, {}, result, handles);
+  bucket.calculateDeltasForNodeRemoval(entries({1}), {}, result, handles);
   ASSERT_EQ(1, result.size());
   ASSERT_EQ(2.0, result[0]);
-  bucket.calculateDeltasForNodeRemoval({1, 2, 1}, {}, result, handles);
+  bucket.calculateDeltasForNodeRemoval(entries({1, 2, 1}), {}, result, handles);
   ASSERT_EQ(3, result.size());
   ASSERT_EQ(2.0, result[0]);
   ASSERT_EQ(1.0, result[1]);
   ASSERT_EQ(0.0, result[2]);
 
   // combined
-  bucket.calculateDeltasForNodeRemoval({2, 1, 1}, {Entry{0, 2, 3}}, result, handles);
+  bucket.calculateDeltasForNodeRemoval(entries({2, 1, 1}), {Entry{0, 2, 3}}, result, handles);
   ASSERT_EQ(3, result.size());
   ASSERT_EQ(3.5, result[0]);
   ASSERT_EQ(1.5, result[1]);
   ASSERT_EQ(1.0, result[2]);
   bucket.updateWeight(2);
-  bucket.calculateDeltasForNodeRemoval({2}, {}, result, handles);
+  bucket.calculateDeltasForNodeRemoval(entries({2}), {}, result, handles);
   ASSERT_EQ(1, result.size());
   ASSERT_EQ(4.5, result[0]);
 }
 
-TEST_F(ASNodesTracker, DeltaForAdding) {
+TEST_F(ABucket, DeltaForAdding) {
   setNodesForBucket({ {1, 1}, {2, 5}, {1, 3} });
   bucket.updateWeight(7);
   vec<double> result;
@@ -194,34 +201,34 @@ TEST_F(ASNodesTracker, DeltaForAdding) {
   // empty
   bucket.calculateDeltasForAddingNodes({}, {}, result, handles);
   ASSERT_EQ(0, result.size());
-  bucket.calculateDeltasForAddingNodes({2, 1}, {}, result, handles);
+  bucket.calculateDeltasForAddingNodes(entries({2, 1}), {}, result, handles);
   ASSERT_EQ(2, result.size());
   ASSERT_EQ(0.0, result[0]);
   ASSERT_EQ(0.0, result[1]);
-  bucket.calculateDeltasForAddingNodes({2, 3}, {Entry{0, 2, 5}}, result, handles);
+  bucket.calculateDeltasForAddingNodes(entries({2, 3}), {Entry{0, 2, 5}}, result, handles);
   ASSERT_EQ(2, result.size());
   ASSERT_EQ(0.0, result[0]);
   ASSERT_EQ(0.0, result[1]);
 
   // now it gets interesting
   bucket.updateWeight(5);
-  bucket.calculateDeltasForAddingNodes({2, 1}, {}, result, handles);
+  bucket.calculateDeltasForAddingNodes(entries({2, 1}), {}, result, handles);
   ASSERT_EQ(2, result.size());
   ASSERT_EQ(1.0, result[0]);
   ASSERT_EQ(2.5, result[1]);
-  bucket.calculateDeltasForAddingNodes({1, 2, 2}, {}, result, handles);
+  bucket.calculateDeltasForAddingNodes(entries({1, 2, 2}), {}, result, handles);
   ASSERT_EQ(3, result.size());
   ASSERT_EQ(0.0, result[0]);
   ASSERT_EQ(3.5, result[1]);
   ASSERT_EQ(5.5, result[2]);
-  bucket.calculateDeltasForAddingNodes({3, 2}, {Entry{0, 1, 1}, Entry{0, 1, 3}}, result, handles);
+  bucket.calculateDeltasForAddingNodes(entries({3, 2}), {Entry{0, 1, 1}, Entry{0, 1, 3}}, result, handles);
   ASSERT_EQ(2, result.size());
   ASSERT_EQ(0.0, result[0]);
   ASSERT_EQ(5.0, result[1]);
 
   setNodesForBucket({ {1, 1}, {2, 4}, {2, 5}, {1, 3} });
   bucket.updateWeight(4);
-  bucket.calculateDeltasForAddingNodes({1, 2}, {Entry{0, 1, 1}, Entry{0, 2, 4}, Entry{0, 1, 3}}, result, handles);
+  bucket.calculateDeltasForAddingNodes(entries({1, 2}), {Entry{0, 1, 1}, Entry{0, 2, 4}, Entry{0, 1, 3}}, result, handles);
   ASSERT_EQ(2, result.size());
   ASSERT_EQ(0.0, result[0]);
   ASSERT_EQ(2.5, result[1]);

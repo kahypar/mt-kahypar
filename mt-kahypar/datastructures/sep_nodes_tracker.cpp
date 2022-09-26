@@ -72,14 +72,17 @@ void Bucket::ensureOrdered(Array<std::pair<PartitionID, Handle>>& handles) {
   }
 }
 
-void Bucket::calculateDeltasForNodeRemoval(const vec<HypernodeWeight>& node_weights,
+void Bucket::calculateDeltasForNodeRemoval(const vec<Entry>& node_weights,
                                            const vec<Entry>& new_nodes,
                                            vec<double>& out,
                                            Array<std::pair<PartitionID, Handle>>& handles) {
   ASSERT([&]{
     HypernodeWeight r_sum = 0;
-    for (const HypernodeWeight& w: node_weights) {
-      r_sum += w;
+    for (size_t i = 0; i < node_weights.size(); ++i) {
+      if (i > 0 && node_weights[i - 1] < node_weights[i]) {
+        return false;
+      }
+      r_sum += node_weights[i].weight;
     }
     HypernodeWeight n_sum = 0;
     for (size_t i = 0; i < new_nodes.size(); ++i) {
@@ -116,9 +119,9 @@ void Bucket::calculateDeltasForNodeRemoval(const vec<HypernodeWeight>& node_weig
   Entry current_node = next_node();
   double current_density = current_node.density();
   current_node.weight -= std::max(_allowed_weight - _current_weight, 0);
-  for (const HypernodeWeight& w: node_weights) {
+  for (const Entry& e: node_weights) {
     double delta = 0;
-    HypernodeWeight remaining = w;
+    HypernodeWeight remaining = e.weight;
     while (remaining > 0) {
       const HypernodeWeight diff = std::min(current_node.weight, remaining);
       current_node.weight -= diff;
@@ -134,11 +137,16 @@ void Bucket::calculateDeltasForNodeRemoval(const vec<HypernodeWeight>& node_weig
   }
 }
 
-void Bucket::calculateDeltasForAddingNodes(const vec<HypernodeWeight>& node_weights,
+void Bucket::calculateDeltasForAddingNodes(const vec<Entry>& node_weights,
                                            const vec<Entry>& removed_nodes,
                                            vec<double>& out,
                                            Array<std::pair<PartitionID, Handle>>& handles) {
   ASSERT([&]{
+    for (size_t i = 0; i < node_weights.size(); ++i) {
+      if (i > 0 && node_weights[i - 1] < node_weights[i]) {
+        return false;
+      }
+    }
     for (size_t i = 0; i < removed_nodes.size(); ++i) {
       if (i > 0 && removed_nodes[i] < removed_nodes[i - 1]) {
         return false;
@@ -149,8 +157,8 @@ void Bucket::calculateDeltasForAddingNodes(const vec<HypernodeWeight>& node_weig
 
   HypernodeWeight total_added_weight = 0;
   HypernodeWeight total_removed_weight = 0;
-  for (const HypernodeWeight& weight: node_weights) {
-    total_added_weight += weight;
+  for (const Entry& e: node_weights) {
+    total_added_weight += e.weight;
   }
   ASSERT(total_added_weight <= _allowed_weight);
   for (const Entry& e: removed_nodes) {
@@ -199,9 +207,9 @@ void Bucket::calculateDeltasForAddingNodes(const vec<HypernodeWeight>& node_weig
   Entry current_node = (index == _nodes.size()) ? Entry{0, 1, 0} : _nodes[index];
   double current_density = current_node.density();
   current_node.weight = remaining_weight_upward;
-  for (const HypernodeWeight& w: node_weights) {
+  for (const Entry& e: node_weights) {
     double delta = 0;
-    HypernodeWeight remaining = w;
+    HypernodeWeight remaining = e.weight;
     while (remaining > 0) {
       if (current_node.weight == 0) {
         current_node = next_node();
@@ -230,11 +238,11 @@ SepNodesTracker::SepNodesTracker(const SeparatedNodes& s_nodes,
                                  const std::vector<HypernodeWeight>& max_part_weights,
                                  PartitionID k) :
         _buckets(),
-        _max_part_weights(max_part_weights),
         _handles() {
+        _max_part_weights(&max_part_weights),
+  ASSERT(max_part_weights.size() == static_cast<size_t>(k));
   _buckets.resize(k, Bucket(), false);
   _handles.resize(s_nodes.numNodes(), {kInvalidPartition, BucketT::empty_handle}, false);
-  ASSERT(_max_part_weights.size() == static_cast<size_t>(k));
 }
 
 bool SepNodesTracker::applyMove(const SeparatedNodes& s_nodes, const vec<CAtomic<HypernodeWeight>>& part_weights,
@@ -284,7 +292,7 @@ bool SepNodesTracker::applyMove(const SeparatedNodes& s_nodes, const vec<CAtomic
   }
 
   for (size_t part = 0; part < _buckets.size(); ++part) {
-    _buckets[part].updateWeight(_max_part_weights[part] - part_weights[part].load());
+    _buckets[part].updateWeight((*_max_part_weights)[part] - part_weights[part].load());
   }
   return true; // TODO
 }

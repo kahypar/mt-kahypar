@@ -32,30 +32,35 @@ namespace ds {
 
 class SepNodesTracker {
  public:
+  struct Entry {
+    HypernodeID id;
+    HypernodeWeight weight;
+    HyperedgeWeight incident_weight;
+
+    double density() const {
+      return static_cast<double>(incident_weight) / static_cast<double>(weight);
+    }
+
+    bool operator<(const Entry& other) const {
+      return density() < other.density();
+    }
+
+    bool equalStats(const Entry& other) const {
+      return weight == other.weight && incident_weight == other.incident_weight;
+    }
+  };
+
   class Bucket {
    public:
-    struct Entry {
-      HypernodeID id;
-      HypernodeWeight weight;
-      HyperedgeWeight incident_weight;
-
-      double density() const {
-        return static_cast<double>(incident_weight) / static_cast<double>(weight);
-      }
-
-      bool operator<(const Entry& other) const {
-        return density() < other.density();
-      }
-
-      bool equalStats(const Entry& other) const {
-        return weight == other.weight && incident_weight == other.incident_weight;
-      }
-    };
-
     using Handle = size_t;
     static constexpr Handle empty_handle = std::numeric_limits<Handle>::max();
 
     explicit Bucket();
+
+    const Entry& get(const Handle& handle) const {
+      ASSERT(handle < _nodes.size());
+      return _nodes[handle];
+    }
 
     void addNode(HypernodeID id, HypernodeWeight node_weight, HyperedgeWeight incident_weight, Handle& handle);
 
@@ -65,12 +70,12 @@ class SepNodesTracker {
 
     void reorder(Array<std::pair<PartitionID, Handle>>& handles);
 
-    void calculateDeltasForNodeRemoval(const vec<HypernodeWeight>& node_weights,
+    void calculateDeltasForNodeRemoval(const vec<Entry>& node_weights,
                                        const vec<Entry>& new_nodes,
                                        vec<double>& out,
                                        Array<std::pair<PartitionID, Handle>>& handles);
 
-    void calculateDeltasForAddingNodes(const vec<HypernodeWeight>& node_weights,
+    void calculateDeltasForAddingNodes(const vec<Entry>& node_weights,
                                        const vec<Entry>& removed_nodes,
                                        vec<double>& out,
                                        Array<std::pair<PartitionID, Handle>>& handles);
@@ -113,6 +118,8 @@ class SepNodesTracker {
   using Handle = typename BucketT::Handle;
 
  public:
+  explicit SepNodesTracker() { }
+
   explicit SepNodesTracker(const SeparatedNodes& s_nodes, const std::vector<HypernodeWeight>& max_part_weights, PartitionID k);
 
   // return whether moves need be updated globally
@@ -140,9 +147,8 @@ class SepNodesTracker {
 
  private:
   Array<BucketT> _buckets;
-  const std::vector<HypernodeWeight> _max_part_weights;
+  const std::vector<HypernodeWeight>* _max_part_weights;
   Array<std::pair<PartitionID, Handle>> _handles;
-  HypernodeWeight _max_node_weight;
 };
 
 } // namespace ds
