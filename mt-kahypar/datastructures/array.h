@@ -23,6 +23,7 @@
 #include <thread>
 #include <memory>
 #include <iterator>
+#include <type_traits>
 
 #include "tbb/parallel_for.h"
 #include "tbb/scalable_allocator.h"
@@ -139,6 +140,9 @@ class Array {
       T* _ptr;
 
   };
+
+  // determine whether it is ok for the array to contain uninitialized memory
+  static constexpr bool must_be_initialized = !std::is_trivially_assignable_v<T, T> || !std::is_trivially_destructible_v<T>;
 
  public:
 
@@ -289,7 +293,7 @@ class Array {
       ERROR("Memory of vector already allocated");
     }
     allocate_data(size);
-    assign(size, init_value, assign_parallel);
+    initial_assign(size, init_value, assign_parallel);
   }
 
   void resize(const std::string& group,
@@ -297,6 +301,9 @@ class Array {
               const size_type size,
               const bool zero_initialize = false,
               const bool assign_parallel = true) {
+    if ( _data || _underlying_data ) {
+      ERROR("Memory of vector already allocated");
+    }
     _size = size;
     char* data = parallel::MemoryPool::instance().request_mem_chunk(
       group, key, size, sizeof(value_type));
@@ -304,8 +311,8 @@ class Array {
       _group = group;
       _key = key;
       _underlying_data = reinterpret_cast<value_type*>(data);
-      if ( zero_initialize ) {
-        assign(size, value_type(), assign_parallel);
+      if ( zero_initialize || must_be_initialized ) {
+        initial_assign(size, value_type(), assign_parallel);
       }
     } else {
       resize_with_unused_memory(size, zero_initialize, assign_parallel);
@@ -315,12 +322,15 @@ class Array {
   void resize_with_unused_memory(const size_type size,
                                  const bool zero_initialize = false,
                                  const bool assign_parallel = true) {
+    if ( _data || _underlying_data ) {
+      ERROR("Memory of vector already allocated");
+    }
     _size = size;
     char* data = parallel::MemoryPool::instance().request_unused_mem_chunk(size, sizeof(value_type));
     if ( data ) {
       _underlying_data = reinterpret_cast<value_type*>(data);
-      if ( zero_initialize ) {
-        assign(size, value_type(), assign_parallel);
+      if ( zero_initialize || must_be_initialized ) {
+        initial_assign(size, value_type(), assign_parallel);
       }
     } else {
       resize(size, value_type(), assign_parallel);
@@ -355,6 +365,26 @@ class Array {
     _data = parallel::make_unique<value_type>(size);
     _underlying_data = _data.get();
     _size = size;
+  }
+
+  // ! Initial assignment of container values.
+  // ! We need placement new to correctly handle non-trivial value types
+  void initial_assign(const size_type count,
+                      const value_type value,
+                      const bool assign_parallel = true) {
+    ASSERT(count <= _size);
+    if ( assign_parallel ) {
+      const size_t step = std::max(count / std::thread::hardware_concurrency(), 1UL);
+      tbb::parallel_for(0UL, count, step, [&](const size_type i) {
+        for ( size_t j = i; j < std::min(i + step, count); ++j ) {
+          new (&_underlying_data[j]) value_type(value);
+        }
+      });
+    } else {
+      for ( size_t i = 0; i < count; ++i ) {
+        new (&_underlying_data[i]) value_type(value);
+      }
+    }
   }
 
   std::string _group;
