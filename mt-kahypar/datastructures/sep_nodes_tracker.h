@@ -126,9 +126,30 @@ class SepNodesTracker {
   bool applyMove(const SeparatedNodes& s_nodes, const vec<CAtomic<HypernodeWeight>>& part_weights,
                  const Array<CAtomic<PartitionID>>& part_ids, HypernodeID node);
 
+  HyperedgeWeight rateMove(const SeparatedNodes& s_nodes, const Array<CAtomic<PartitionID>>& part_ids, PartitionID k,
+                           HypernodeID node, HypernodeWeight weight, PartitionID from, PartitionID to);
+
   void reset();
 
+  // ! only for testing
+  const Array<BucketT>& buckets() const {
+    return _buckets;
+  }
+
  private:
+  // returns new part and rating
+  std::pair<PartitionID, HyperedgeWeight>
+  calculateNewPartOfSeparated(HypernodeID separated, const SeparatedNodes& s_nodes,
+                              const Array<CAtomic<PartitionID>>& part_ids, PartitionID k,
+                              Array<HyperedgeWeight>& block_scores);
+
+  // returns new part and rating
+  std::pair<PartitionID, HyperedgeWeight>
+  calculateNewPartOfSeparated(HypernodeID separated, const SeparatedNodes& s_nodes,
+                              const Array<CAtomic<PartitionID>>& part_ids, PartitionID k,
+                              Array<HyperedgeWeight>& block_scores,
+                              PartitionID from, PartitionID to, HyperedgeWeight diff);
+
   PartitionID currentPart(HypernodeID s_node) const {
     return _handles[s_node].first;
   }
@@ -149,6 +170,13 @@ class SepNodesTracker {
   Array<BucketT> _buckets;
   const std::vector<HypernodeWeight>* _max_part_weights;
   Array<std::pair<PartitionID, Handle>> _handles;
+
+  // buffer
+  vec<Entry> _removed_from;
+  vec<Entry> _inserted_from;
+  vec<Entry> _removed_to;
+  vec<Entry> _inserted_to;
+  vec<double> _out;
 };
 
 } // namespace ds

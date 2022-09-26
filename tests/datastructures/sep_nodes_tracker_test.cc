@@ -75,6 +75,44 @@ class ABucket: public Test {
   Array<std::pair<PartitionID, Handle>> handles;
 };
 
+class ATracker: public Test {
+ public:
+  void setupWithUnitWeights(HypernodeID num_graph_nodes,
+                            vec<vec<std::pair<HypernodeID, HyperedgeWeight>>> separated,
+                            const std::vector<HypernodeWeight>& max_part_weights,
+                            const vec<PartitionID>& input_part_ids) {
+    ASSERT(num_graph_nodes == input_part_ids.size());
+    Hypergraph graph = HypergraphFactory::construct(num_graph_nodes, 0, {});
+    vec<std::tuple<HypernodeID, HyperedgeID, HypernodeWeight>> nodes;
+    vec<SeparatedNodes::Edge> s_edges;
+    for (const auto& edges_of_node: separated) {
+      nodes.emplace_back(kInvalidHypernode, s_edges.size(), 1);
+      for (const auto& [target, weight]: edges_of_node) {
+        s_edges.emplace_back(target, weight);
+      }
+    }
+    s_nodes = SeparatedNodes(num_graph_nodes);
+    s_nodes.addNodes(graph, nodes, s_edges);
+    s_nodes.revealAll();
+    s_nodes.initializeOutwardEdges();
+
+    tracker = SepNodesTracker(s_nodes, max_part_weights, max_part_weights.size());
+    vec<CAtomic<HypernodeWeight>> part_weights;
+    part_weights.resize(max_part_weights.size(), CAtomic<HypernodeWeight>(0));
+    part_ids = Array<CAtomic<PartitionID>>();
+    part_ids.resize(input_part_ids.size(), CAtomic<PartitionID>(kInvalidPartition));
+    for (HypernodeID node = 0; node < num_graph_nodes; ++node) {
+      part_ids[node].store(input_part_ids[node]);
+      tracker.applyMove(s_nodes, part_weights, part_ids, node);
+    }
+  }
+
+ public:
+  SeparatedNodes s_nodes;
+  SepNodesTracker tracker;
+  Array<CAtomic<PartitionID>> part_ids;
+};
+
 vec<Entry> entries(vec<HypernodeWeight>&& weights) {
   vec<Entry> result;
   for (const HypernodeWeight& w: weights) {
@@ -187,6 +225,10 @@ TEST_F(ABucket, DeltaForRemoval) {
   ASSERT_EQ(3.5, result[0]);
   ASSERT_EQ(1.5, result[1]);
   ASSERT_EQ(1.0, result[2]);
+  bucket.updateWeight(7);
+  bucket.calculateDeltasForNodeRemoval(entries({2}), {Entry{0, 2, 2}}, result, handles);
+  ASSERT_EQ(1, result.size());
+  ASSERT_EQ(2, result[0]);
   bucket.updateWeight(2);
   bucket.calculateDeltasForNodeRemoval(entries({2}), {}, result, handles);
   ASSERT_EQ(1, result.size());
@@ -232,6 +274,43 @@ TEST_F(ABucket, DeltaForAdding) {
   ASSERT_EQ(2, result.size());
   ASSERT_EQ(0.0, result[0]);
   ASSERT_EQ(2.5, result[1]);
+}
+
+TEST_F(ATracker, InitializesWithCorrectStats) {
+  setupWithUnitWeights(1, { {{0, 1}} }, {2, 2}, {0});
+  ASSERT_EQ(1, tracker.buckets()[0].totalWeight());
+  ASSERT_EQ(0, tracker.buckets()[1].totalWeight());
+  setupWithUnitWeights(2, { {{0, 1}, {1, 2}}, {{0, 2}, {1, 1}} }, {2, 2}, {0, 1});
+  ASSERT_EQ(1, tracker.buckets()[0].totalWeight());
+  ASSERT_EQ(1, tracker.buckets()[1].totalWeight());
+}
+
+TEST_F(ATracker, UnitWeightBasicCases) {
+  setupWithUnitWeights(1, { {{0, 1}} }, {2, 2}, {0});
+  ASSERT_EQ(0, tracker.rateMove(s_nodes, part_ids, 2, 0, 0, 0, 0));
+  ASSERT_EQ(0, tracker.rateMove(s_nodes, part_ids, 2, 0, 0, 0, 1));
+  setupWithUnitWeights(2, { {{0, 1}, {1, 1}} }, {2, 2}, {0, 1});
+  ASSERT_EQ(1, tracker.rateMove(s_nodes, part_ids, 2, 0, 0, 0, 1));
+  setupWithUnitWeights(2, { {{0, 1}, {1, 1}} }, {2, 2}, {0, 0});
+  ASSERT_EQ(-1, tracker.rateMove(s_nodes, part_ids, 2, 0, 0, 0, 1));
+  setupWithUnitWeights(2, { {{0, 1}, {1, 3}} }, {2, 2}, {0, 0});
+  ASSERT_EQ(-1, tracker.rateMove(s_nodes, part_ids, 2, 0, 0, 0, 1));
+  setupWithUnitWeights(2, { {{0, 1}}, {{1, 1}} }, {1, 1}, {0, 0});
+  ASSERT_EQ(1, tracker.rateMove(s_nodes, part_ids, 2, 0, 0, 0, 1));
+  setupWithUnitWeights(2, { {{0, 2}}, {{1, 1}}, {{1, 1}} }, {1, 1}, {0, 0});
+  ASSERT_EQ(1, tracker.rateMove(s_nodes, part_ids, 2, 0, 0, 0, 1));
+  setupWithUnitWeights(2, { {{0, 2}}, {{1, 1}} }, {1, 1}, {0, 1});
+  ASSERT_EQ(-1, tracker.rateMove(s_nodes, part_ids, 2, 0, 0, 0, 1));
+  setupWithUnitWeights(2, { {{0, 2}}, {{1, 1}}, {{1, 1}} }, {1, 1}, {0, 1});
+  ASSERT_EQ(-1, tracker.rateMove(s_nodes, part_ids, 2, 0, 0, 0, 1));
+
+  // with node weight
+  setupWithUnitWeights(1, { {{0, 1}} }, {2, 2}, {0});
+  ASSERT_EQ(0, tracker.rateMove(s_nodes, part_ids, 2, 0, 1, 0, 1));
+  setupWithUnitWeights(2, { {{0, 2}}, {{1, 1}}, {{1, 1}}, {{1, 1}} }, {1, 3}, {0, 0});
+  ASSERT_EQ(3, tracker.rateMove(s_nodes, part_ids, 2, 0, 2, 0, 1));
+  setupWithUnitWeights(2, { {{0, 2}}, {{1, 1}}, {{1, 1}} }, {1, 2}, {0, 1});
+  ASSERT_EQ(-2, tracker.rateMove(s_nodes, part_ids, 2, 0, 1, 0, 1));
 }
 
 }
