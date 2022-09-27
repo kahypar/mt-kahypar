@@ -81,7 +81,8 @@ class SepNodesTracker {
 
     void reorder(Array<std::pair<PartitionID, Handle>>& handles);
 
-    void calculateDeltasForNodeRemoval(const vec<Entry>& node_weights,
+    void calculateDeltasForNodeRemoval(vec<Entry>& node_weights,
+                                       vec<Entry>& filtered,
                                        const vec<Entry>& new_nodes,
                                        vec<double>& out,
                                        Array<std::pair<PartitionID, Handle>>& handles);
@@ -190,6 +191,7 @@ class SepNodesTracker {
 
   // buffer
   vec<Entry> _removed_from;
+  vec<Entry> _removed_from_filtered;
   vec<Entry> _inserted_from;
   vec<Entry> _removed_to;
   vec<Entry> _inserted_to;
