@@ -336,7 +336,7 @@ HyperedgeWeight SepNodesTracker::rateMove(const SeparatedNodes& s_nodes, const A
       not_in_bucket = true;
       moved_benefit += _removed_from[i].incident_weight;
     } else {
-      moved_benefit -= _removed_from[i].incident_weight;
+      moved_benefit -= (i == 0) ? 0 : _removed_from[i].incident_weight;
       result += _out[i];
     }
   }
