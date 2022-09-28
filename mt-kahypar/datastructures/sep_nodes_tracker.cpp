@@ -168,7 +168,6 @@ void Bucket::calculateDeltasForAddingNodes(const vec<Entry>& node_weights,
   for (const Entry& e: node_weights) {
     total_added_weight += e.weight;
   }
-  ASSERT(total_added_weight <= _allowed_weight);
   for (const Entry& e: removed_nodes) {
     total_removed_weight += e.weight;
   }
@@ -200,11 +199,15 @@ void Bucket::calculateDeltasForAddingNodes(const vec<Entry>& node_weights,
 
   size_t i_right = 0;
   auto next_node = [&] {
-    ASSERT(index > 0);
+    if (index == 0) {
+      return Entry{0, 10, std::numeric_limits<HyperedgeWeight>::max()}; // sentinel
+    }
     --index;
     while (i_right < removed_nodes.size()
            && _nodes[index].equalStats(removed_nodes[i_right])) {
-      ASSERT(index > 0);
+      if (index == 0) {
+        return Entry{0, 10, std::numeric_limits<HyperedgeWeight>::max()}; // sentinel
+      }
       --index;
       ++i_right;
     }
@@ -341,6 +344,7 @@ HyperedgeWeight SepNodesTracker::rateMove(const SeparatedNodes& s_nodes, const A
     }
   }
   // calculate to part
+  ASSERT(weight <= _buckets[to].allowedWeight());
   _buckets[to].calculateDeltasForAddingNodes(_inserted_to, _removed_to, _out, _handles);
   ASSERT(_inserted_to.size() == _out.size());
   for (size_t i = 0; i < _out.size(); ++i) {

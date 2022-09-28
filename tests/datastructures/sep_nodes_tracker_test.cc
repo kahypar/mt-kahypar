@@ -310,6 +310,8 @@ TEST_F(ATracker, UnitWeightBasicCases) {
   ASSERT_EQ(-1, tracker.rateMove(s_nodes, part_ids, 2, 0, 0, 0, 1));
   setupWithUnitWeights(2, { {{0, 1}}, {{0, 1}}, {{1, 2}} }, {2, 2}, {0, 0});
   ASSERT_EQ(1, tracker.rateMove(s_nodes, part_ids, 2, 0, 0, 0, 1));
+  setupWithUnitWeights(1, { {{0, 1}} }, {1, 0}, {0});
+  ASSERT_EQ(-1, tracker.rateMove(s_nodes, part_ids, 2, 0, 0, 0, 1));
 
   // with node weight
   setupWithUnitWeights(1, { {{0, 1}} }, {2, 2}, {0});
