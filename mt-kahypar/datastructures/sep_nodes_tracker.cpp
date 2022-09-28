@@ -306,7 +306,11 @@ HyperedgeWeight SepNodesTracker::rateMove(const SeparatedNodes& s_nodes, const A
       } else {
         ASSERT(currentPart(u) == to);
         _removed_to.push_back(old_entry);
-        moved_benefit += old_entry.incident_weight;
+        if (_buckets[to].isIncluded(handle(u), _handles)) {
+          moved_benefit -= old_entry.incident_weight;
+        } else {
+          moved_benefit += old_entry.incident_weight;
+        }
       }
     }
 

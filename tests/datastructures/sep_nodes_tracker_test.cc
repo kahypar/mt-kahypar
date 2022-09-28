@@ -313,6 +313,26 @@ TEST_F(ATracker, UnitWeightBasicCases) {
   setupWithUnitWeights(1, { {{0, 1}} }, {1, 0}, {0});
   ASSERT_EQ(-1, tracker.rateMove(s_nodes, part_ids, 2, 0, 0, 0, 1));
 
+  // removed_to tests
+  setupWithUnitWeights(2, { {{0, 0}, {1, 1}} }, {1, 1}, {0, 1});
+  ASSERT_EQ(0, tracker.rateMove(s_nodes, part_ids, 2, 0, 0, 0, 1));
+  setupWithUnitWeights(2, { {{0, 0}, {1, 1}}, {{0, 2}} }, {1, 1}, {0, 1});
+  ASSERT_EQ(-1, tracker.rateMove(s_nodes, part_ids, 2, 0, 0, 0, 1));
+  setupWithUnitWeights(2, { {{0, 0}, {1, 1}}, {{0, 2}} }, {1, 1}, {1, 1});
+  ASSERT_EQ(1, tracker.rateMove(s_nodes, part_ids, 2, 0, 0, 1, 0));
+  setupWithUnitWeights(2, { {{0, 0}, {1, 1}}, {{1, 2}} }, {1, 1}, {0, 1});
+  ASSERT_EQ(0, tracker.rateMove(s_nodes, part_ids, 2, 0, 0, 0, 1));
+
+  // inserted_from tests
+  setupWithUnitWeights(2, { {{0, 0}, {1, 1}} }, {1, 1}, {0, 0});
+  ASSERT_EQ(0, tracker.rateMove(s_nodes, part_ids, 2, 0, 0, 0, 1));
+  setupWithUnitWeights(2, { {{0, 0}, {1, 2}}, {{1, 1}} }, {1, 1}, {0, 0});
+  ASSERT_EQ(0, tracker.rateMove(s_nodes, part_ids, 2, 0, 0, 0, 1));
+  setupWithUnitWeights(2, { {{0, 1}, {1, 1}}, {{1, 1}} }, {1, 1}, {0, 0});
+  ASSERT_EQ(0, tracker.rateMove(s_nodes, part_ids, 2, 0, 0, 0, 1));
+  setupWithUnitWeights(2, { {{0, 1}, {1, 2}}, {{1, 1}} }, {1, 1}, {0, 0});
+  ASSERT_EQ(-1, tracker.rateMove(s_nodes, part_ids, 2, 0, 0, 0, 1));
+
   // with node weight
   setupWithUnitWeights(1, { {{0, 1}} }, {2, 2}, {0});
   ASSERT_EQ(0, tracker.rateMove(s_nodes, part_ids, 2, 0, 1, 0, 1));

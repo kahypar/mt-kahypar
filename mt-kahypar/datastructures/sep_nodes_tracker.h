@@ -64,7 +64,7 @@ class SepNodesTracker {
 
     bool isIncluded(const Handle& handle, Array<std::pair<PartitionID, Handle>>& handles) {
       ASSERT(handle < _nodes.size());
-      if (_total_weight >= _allowed_weight) {
+      if (_total_weight <= _allowed_weight) {
         return true;
       } else {
         const size_t id = get(handle).id;
