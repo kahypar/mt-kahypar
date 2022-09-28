@@ -347,7 +347,7 @@ HyperedgeWeight SepNodesTracker::rateMove(const SeparatedNodes& s_nodes, const A
     if (static_cast<double>(_inserted_to[i].incident_weight) < _out[i]) {
       moved_benefit -= _inserted_to[i].incident_weight;
     } else {
-      moved_benefit += _inserted_to[i].incident_weight;
+      moved_benefit += (i == 0) ? 0 : _inserted_to[i].incident_weight;
       result -= _out[i];
     }
   }

@@ -80,7 +80,8 @@ class ATracker: public Test {
   void setupWithUnitWeights(HypernodeID num_graph_nodes,
                             vec<vec<std::pair<HypernodeID, HyperedgeWeight>>> separated,
                             const std::vector<HypernodeWeight>& max_part_weights,
-                            const vec<PartitionID>& input_part_ids) {
+                            const vec<PartitionID>& input_part_ids,
+                            const Array<HypernodeWeight>& node_weights = {}) {
     ASSERT(num_graph_nodes == input_part_ids.size());
     Hypergraph graph = HypergraphFactory::construct(num_graph_nodes, 0, {});
     vec<std::tuple<HypernodeID, HyperedgeID, HypernodeWeight>> nodes;
@@ -103,6 +104,9 @@ class ATracker: public Test {
     part_ids.resize(input_part_ids.size(), CAtomic<PartitionID>(kInvalidPartition));
     for (HypernodeID node = 0; node < num_graph_nodes; ++node) {
       part_ids[node].store(input_part_ids[node]);
+      if (!node_weights.empty()) {
+        part_weights[input_part_ids[node]] += node_weights[node];
+      }
       tracker.applyMove(s_nodes, part_weights, part_ids, node);
     }
   }
@@ -287,7 +291,7 @@ TEST_F(ATracker, InitializesWithCorrectStats) {
 
 TEST_F(ATracker, UnitWeightBasicCases) {
   setupWithUnitWeights(1, { {{0, 1}} }, {2, 2}, {0});
-  ASSERT_EQ(0, tracker.rateMove(s_nodes, part_ids, 2, 0, 0, 0, 0));
+  // ASSERT_EQ(0, tracker.rateMove(s_nodes, part_ids, 2, 0, 0, 0, 0));
   ASSERT_EQ(0, tracker.rateMove(s_nodes, part_ids, 2, 0, 0, 0, 1));
   setupWithUnitWeights(2, { {{0, 1}, {1, 1}} }, {2, 2}, {0, 1});
   ASSERT_EQ(1, tracker.rateMove(s_nodes, part_ids, 2, 0, 0, 0, 1));
@@ -303,6 +307,8 @@ TEST_F(ATracker, UnitWeightBasicCases) {
   ASSERT_EQ(-1, tracker.rateMove(s_nodes, part_ids, 2, 0, 0, 0, 1));
   setupWithUnitWeights(2, { {{0, 2}}, {{1, 1}}, {{1, 1}} }, {1, 1}, {0, 1});
   ASSERT_EQ(-1, tracker.rateMove(s_nodes, part_ids, 2, 0, 0, 0, 1));
+  setupWithUnitWeights(2, { {{0, 1}}, {{0, 1}}, {{1, 2}} }, {2, 2}, {0, 0});
+  ASSERT_EQ(1, tracker.rateMove(s_nodes, part_ids, 2, 0, 0, 0, 1));
 
   // with node weight
   setupWithUnitWeights(1, { {{0, 1}} }, {2, 2}, {0});

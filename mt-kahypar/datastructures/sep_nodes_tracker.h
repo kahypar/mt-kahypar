@@ -42,7 +42,7 @@ class SepNodesTracker {
     }
 
     bool operator<(const Entry& other) const {
-      return density() < other.density();
+      return density() < other.density() || (density() == other.density() && weight < other.weight);
     }
 
     bool equalStats(const Entry& other) const {
@@ -60,6 +60,17 @@ class SepNodesTracker {
     const Entry& get(const Handle& handle) const {
       ASSERT(handle < _nodes.size());
       return _nodes[handle];
+    }
+
+    bool isIncluded(const Handle& handle, Array<std::pair<PartitionID, Handle>>& handles) {
+      ASSERT(handle < _nodes.size());
+      if (_total_weight >= _allowed_weight) {
+        return true;
+      } else {
+        const size_t id = get(handle).id;
+        ensureOrdered(handles);
+        return handles[id].second < _first_removed;
+      }
     }
 
     void addNode(HypernodeID id, HypernodeWeight node_weight, HyperedgeWeight incident_weight, Handle& handle);
@@ -95,6 +106,11 @@ class SepNodesTracker {
     // ! only for testing
     HypernodeWeight totalWeight() const {
       return _total_weight;
+    }
+
+    // ! only for testing
+    HypernodeWeight allowedWeight() const {
+      return _allowed_weight;
     }
 
     // ! only for testing
@@ -136,6 +152,11 @@ class SepNodesTracker {
     return _buckets;
   }
 
+  // ! only for testing
+  PartitionID currentPart(HypernodeID s_node) const {
+    return _handles[s_node].first;
+  }
+
  private:
   // returns new part and rating
   std::pair<PartitionID, HyperedgeWeight>
@@ -149,10 +170,6 @@ class SepNodesTracker {
                               const Array<CAtomic<PartitionID>>& part_ids, PartitionID k,
                               Array<HyperedgeWeight>& block_scores,
                               PartitionID from, PartitionID to, HyperedgeWeight diff);
-
-  PartitionID currentPart(HypernodeID s_node) const {
-    return _handles[s_node].first;
-  }
 
   void setPart(HypernodeID s_node, PartitionID part) {
     _handles[s_node].first = part;
