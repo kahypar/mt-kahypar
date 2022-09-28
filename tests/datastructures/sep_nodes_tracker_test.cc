@@ -119,8 +119,9 @@ class ATracker: public Test {
 
 vec<Entry> entries(vec<HypernodeWeight>&& weights) {
   vec<Entry> result;
+  HyperedgeWeight bonus = weights.size();
   for (const HypernodeWeight& w: weights) {
-    result.push_back(Entry{kInvalidHypernode, w, w});
+    result.push_back(Entry{kInvalidHypernode, w, w * (bonus--)});
   }
   return result;
 }
@@ -192,49 +193,70 @@ TEST_F(ABucket, DeltaForRemoval) {
   vec<double> result;
 
   // empty
-  bucket.calculateDeltasForNodeRemoval({}, {}, result, handles);
+  vec<Entry> l;
+  vec<Entry> r;
+  bucket.calculateDeltasForNodeRemoval(l, r, {}, result, handles);
   ASSERT_EQ(0, result.size());
-  bucket.calculateDeltasForNodeRemoval(entries({1}), {}, result, handles);
+  l = entries({1});
+  bucket.calculateDeltasForNodeRemoval(l, r, {}, result, handles);
   ASSERT_EQ(1, result.size());
   ASSERT_EQ(0.0, result[0]);
-  bucket.calculateDeltasForNodeRemoval(entries({1, 2, 3}), {}, result, handles);
+  l = entries({1, 2, 3});
+  bucket.calculateDeltasForNodeRemoval(l, r, {}, result, handles);
   ASSERT_EQ(3, result.size());
   ASSERT_EQ(0.0, result[0]);
   ASSERT_EQ(0.0, result[1]);
   ASSERT_EQ(0.0, result[2]);
 
   // some new nodes
-  bucket.calculateDeltasForNodeRemoval(entries({3}), {Entry{0, 1, 2}, Entry{0, 1, 1}}, result, handles);
+  l = entries({3});
+  bucket.calculateDeltasForNodeRemoval(l, r, {Entry{0, 1, 2}, Entry{0, 1, 1}}, result, handles);
   ASSERT_EQ(1, result.size());
   ASSERT_EQ(3.0, result[0]);
-  bucket.calculateDeltasForNodeRemoval(entries({1, 1}), {Entry{0, 1, 2}, Entry{0, 1, 1}}, result, handles);
+  l = entries({1, 1});
+  bucket.calculateDeltasForNodeRemoval(l, r, {Entry{0, 1, 2}, Entry{0, 1, 1}}, result, handles);
   ASSERT_EQ(2, result.size());
   ASSERT_EQ(2.0, result[0]);
   ASSERT_EQ(1.0, result[1]);
 
   // now use a full one
   bucket.updateWeight(3);
-  bucket.calculateDeltasForNodeRemoval(entries({1}), {}, result, handles);
+  l = entries({1});
+  bucket.calculateDeltasForNodeRemoval(l, r, {}, result, handles);
   ASSERT_EQ(1, result.size());
   ASSERT_EQ(2.0, result[0]);
-  bucket.calculateDeltasForNodeRemoval(entries({1, 2, 1}), {}, result, handles);
+  l = entries({1, 2, 1});
+  bucket.calculateDeltasForNodeRemoval(l, r, {}, result, handles);
   ASSERT_EQ(3, result.size());
   ASSERT_EQ(2.0, result[0]);
   ASSERT_EQ(1.0, result[1]);
   ASSERT_EQ(0.0, result[2]);
 
   // combined
-  bucket.calculateDeltasForNodeRemoval(entries({2, 1, 1}), {Entry{0, 2, 3}}, result, handles);
+  l = entries({2, 1, 1});
+  bucket.calculateDeltasForNodeRemoval(l, r, {Entry{0, 2, 3}}, result, handles);
   ASSERT_EQ(3, result.size());
   ASSERT_EQ(3.5, result[0]);
   ASSERT_EQ(1.5, result[1]);
   ASSERT_EQ(1.0, result[2]);
   bucket.updateWeight(7);
-  bucket.calculateDeltasForNodeRemoval(entries({2}), {Entry{0, 2, 2}}, result, handles);
+  l = entries({2});
+  bucket.calculateDeltasForNodeRemoval(l, r, {Entry{0, 2, 2}}, result, handles);
   ASSERT_EQ(1, result.size());
   ASSERT_EQ(2, result[0]);
+
+  // with filters
+  // TODO
+  // bucket.updateWeight(4);
+  // bucket.calculateDeltasForNodeRemoval(entries({2, 1}), {Entry{0, 1, 2}}, {Entry{0, 2, 7}}, result, handles);
+  // ASSERT_EQ(2, result.size());
+  // ASSERT_EQ(3.5, result[0]);
+  // ASSERT_EQ(0, result[1]);
+
+  // current_weight edge case
   bucket.updateWeight(2);
-  bucket.calculateDeltasForNodeRemoval(entries({2}), {}, result, handles);
+  l = entries({2});
+  bucket.calculateDeltasForNodeRemoval(l, r, {}, result, handles);
   ASSERT_EQ(1, result.size());
   ASSERT_EQ(4.5, result[0]);
 }
