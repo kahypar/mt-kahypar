@@ -296,8 +296,11 @@ namespace mt_kahypar {
              " - logarithmic"
              " - do_not_coarsen")
             ("c-sep-nodes-coarsening-size-factor",
-             po::value<double>(&context.coarsening.sep_nodes_coarsening_size_factor)->value_name("<double>")->default_value(4.0),
+             po::value<double>(&context.coarsening.sep_nodes_coarsening_size_factor)->value_name("<double>")->default_value(2.0),
              "Factor in relation to size of the remaining coarsened graph.")
+            ("c-sep-nodes-coarsening-size-factor-pre",
+             po::value<double>(&context.coarsening.sep_nodes_coarsening_size_factor_pre)->value_name("<double>")->default_value(2.0),
+             "Factor in relation to size of the remaining coarsened graph (coarsening before IP).")
             ("c-sep-nodes-coarsening-relax-main-factor",
              po::value<double>(&context.coarsening.sep_nodes_coarsening_relax_main_factor)->value_name("<double>")->default_value(1.0),
              "Use a relaxed size in main coarsening and coarsen to the final size during RB initial partitioning.")

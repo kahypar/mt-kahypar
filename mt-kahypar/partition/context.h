@@ -134,7 +134,8 @@ struct CoarseningParameters {
   size_t num_sub_rounds_deterministic = 16;
 
   SNodesCoarseningSize sep_nodes_coarsening_type = SNodesCoarseningSize::constant;
-  double sep_nodes_coarsening_size_factor = 4;
+  double sep_nodes_coarsening_size_factor = 2;
+  double sep_nodes_coarsening_size_factor_pre = 2;
   double sep_nodes_coarsening_relax_main_factor = 1;
   bool sep_nodes_coarsening_levelwise = false;
   bool sep_nodes_sync_coarsening = false;
