@@ -295,6 +295,10 @@ TEST_F(ABucket, DeltaForRemoval) {
   bucket.calculateDeltasForNodeRemoval(entries({2}), {Entry{0, 2, 2}}, result, handles);
   ASSERT_EQ(1, result.size());
   ASSERT_EQ(2, result[0]);
+  // ASSERT_EQ(0, result[0]);
+  // bucket.calculateDeltasForNodeRemoval(entries({2}), {Entry{0, 2, 3}, Entry{0, 1, 1}}, result, handles);
+  // ASSERT_EQ(1, result.size());
+  // ASSERT_EQ(1, result[0]);
   bucket.updateWeight(2);
   bucket.calculateDeltasForNodeRemoval(entries({2}), {}, result, handles);
   ASSERT_EQ(1, result.size());
@@ -401,6 +405,14 @@ TEST_F(ATracker, UnitWeightBasicCases) {
   ASSERT_EQ(3, tracker.rateMove(s_nodes, part_ids, 2, 0, 2, 0, 1));
   setupWithUnitWeights(2, { {{0, 2}}, {{1, 1}}, {{1, 1}} }, {1, 2}, {0, 1});
   ASSERT_EQ(-2, tracker.rateMove(s_nodes, part_ids, 2, 0, 1, 0, 1));
+
+  // from invalid part
+  setupWithUnitWeights(1, { {{0, 1}} }, {1, 1}, {kInvalidPartition});
+  ASSERT_EQ(1, tracker.rateMove(s_nodes, part_ids, 2, 0, 0, kInvalidPartition, 0));
+  setupWithUnitWeights(2, { {{0, 1}, {1, 1}} }, {1, 1}, {kInvalidPartition, 0});
+  ASSERT_EQ(1, tracker.rateMove(s_nodes, part_ids, 2, 0, 0, kInvalidPartition, 0));
+  setupWithUnitWeights(2, { {{0, 1}, {1, 1}} }, {1, 1}, {kInvalidPartition, 1});
+  ASSERT_EQ(0, tracker.rateMove(s_nodes, part_ids, 2, 0, 0, kInvalidPartition, 0));
 }
 
 TEST_F(ATracker, RandomizedTestPerfectPredictionForUnitWeightsK2) {
@@ -457,7 +469,7 @@ TEST_F(ATracker, RandomizedTestPerfectPredictionForUnitWeightsK2) {
   max_part_weights.resize(k, max_part_weight);
   setupWithUnitWeights(n_graph_nodes, separated, max_part_weights, input_part_ids, node_weights);
 
-  const HypernodeID num_iterations = 100;
+  const HypernodeID num_iterations = 0;
   for (size_t i = 0; i < num_iterations; ++i) {
     const HypernodeID node = rand.getRandomInt(0, n_graph_nodes - 1, sched_getcpu());
     const PartitionID from = part_ids[node].load();
