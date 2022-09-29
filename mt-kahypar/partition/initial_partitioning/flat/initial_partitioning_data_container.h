@@ -209,6 +209,10 @@ class InitialPartitioningDataContainer {
         _label_propagation = LabelPropagationFactory::getInstance().createObject(
           _context.refinement.label_propagation.algorithm, hypergraph, _context);
       }
+
+      if (context.initial_partitioning.rater == IPSNodesRater::tracker) {
+        _partitioned_hypergraph.initializeTracker(_context.partition.max_part_weights, _context.partition.k);
+      }
     }
 
     PartitioningResult refineAndUpdateStats(const InitialPartitioningAlgorithm algorithm, std::mt19937& prng,

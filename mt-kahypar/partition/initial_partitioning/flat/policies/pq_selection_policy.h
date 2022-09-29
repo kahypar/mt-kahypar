@@ -53,7 +53,9 @@ class RoundRobinPQSelectionPolicy {
 
     ASSERT(to != kInvalidPartition && to < hypergraph.k());
     ASSERT(pq.isEnabled(to));
-    pq.deleteMaxFromPartition(hn, gain, to);
+    pq.deleteMaxFromPartitionWithRater(hn, gain, to, [&](const HypernodeID& node) {
+      return hypergraph.rateSeparated(node, to);
+    });
     ASSERT(hn != kInvalidHypernode);
     return true;
   }
@@ -72,7 +74,7 @@ class RoundRobinPQSelectionPolicy {
 class GlobalPQSelectionPolicy {
 
  public:
-  static inline bool pop(const PartitionedHypergraph&,
+  static inline bool pop(const PartitionedHypergraph& hypergraph,
                          KWayPriorityQueue& pq,
                          HypernodeID& hn,
                          PartitionID& to,
@@ -83,7 +85,9 @@ class GlobalPQSelectionPolicy {
     gain = kInvalidGain;
 
     if ( pq.numNonEmptyParts() > 0 && pq.numEnabledParts() > 0 ) {
-      pq.deleteMax(hn, gain, to);
+      pq.deleteMaxWithRater(hn, gain, to, [&](const HypernodeID& node, const PartitionID& part) {
+        return hypergraph.rateSeparated(node, part);
+      });
       ASSERT(hn != kInvalidHypernode);
       return true;
     } else {
@@ -125,7 +129,9 @@ class SequentialPQSelectionPolicy {
 
       if ( to < hypergraph.k() ) {
         ASSERT(pq.size(to) > 0);
-        pq.deleteMaxFromPartition(hn, gain, to);
+        pq.deleteMaxFromPartitionWithRater(hn, gain, to, [&](const HypernodeID& node) {
+          return hypergraph.rateSeparated(node, to);
+        });
         ASSERT(hn != kInvalidHypernode);
         return true;
       } else {

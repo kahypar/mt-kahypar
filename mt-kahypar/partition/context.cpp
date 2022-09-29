@@ -454,6 +454,9 @@ namespace mt_kahypar {
               "--i-reinsert-separated must be true (or --c-sep-nodes-sync-coarsening)");
       }
     }
+    if (initial_partitioning.reinsert_separated && initial_partitioning.rater != IPSNodesRater::none) {
+      ERROR("separated nodes rater not compatible with --i-reinsert-separated");
+    }
 
     shared_memory.static_balancing_work_packages = std::clamp(shared_memory.static_balancing_work_packages, 4UL, 256UL);
 

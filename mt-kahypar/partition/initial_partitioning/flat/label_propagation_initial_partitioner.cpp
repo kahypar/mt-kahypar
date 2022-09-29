@@ -216,11 +216,12 @@ MaxGainMove LabelPropagationInitialPartitioner::findMaxGainMove(PartitionedHyper
   for (PartitionID block = 0; block < _context.partition.k; ++block) {
     if (from != block && _valid_blocks[block]) {
       _tmp_scores[block] -= internal_weight;
+      const HyperedgeWeight sep_score = hypergraph.rateSeparated(hn, block);
 
       // Since we perform size-constraint label propagation, the move to the
       // corresponding block is only valid, if it fullfils the balanced constraint.
-      if (fitsIntoBlock(hypergraph, hn, block) && _tmp_scores[block] > best_score) {
-        best_score = _tmp_scores[block];
+      if (fitsIntoBlock(hypergraph, hn, block) && _tmp_scores[block] - sep_score > best_score) {
+        best_score = _tmp_scores[block] - sep_score;
         best_block = block;
       }
     }

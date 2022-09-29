@@ -677,7 +677,15 @@ namespace mt_kahypar {
              "If true, applies a star partitioning pass after the best partition is found.")
             ("i-reinsert-separated",
              po::value<bool>(&context.initial_partitioning.reinsert_separated)->value_name("<bool>")->default_value(false),
-             "If true, reinserts the separated nodes as first-class citizens for the initial partitioning.");
+             "If true, reinserts the separated nodes as first-class citizens for the initial partitioning.")
+            ("i-sep-nodes-rater",
+             po::value<std::string>()->value_name("<string>")->notifier(
+                     [&](const std::string& rater) {
+                       context.initial_partitioning.rater = ipSNodesRaterFromString(rater);
+                     })->default_value("none"),
+             "Whether a special rating for separated nodes is used in initial partitioning:\n"
+             "- none\n"
+             "- tracker");
     options.add(createRefinementOptionsDescription(context, num_columns, true));
     options.add(createFlowRefinementOptionsDescription(context, num_columns, true));
     return options;

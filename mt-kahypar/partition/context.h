@@ -262,6 +262,7 @@ struct InitialPartitioningParameters {
   bool apply_star_partitioning_per_candidate = false;
   bool apply_star_partitioning_to_best = true;
   bool reinsert_separated = false;
+  IPSNodesRater rater = IPSNodesRater::none;
 };
 
 std::ostream & operator<< (std::ostream& str, const InitialPartitioningParameters& params);

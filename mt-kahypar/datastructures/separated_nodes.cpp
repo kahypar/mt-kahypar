@@ -393,7 +393,9 @@ SeparatedNodes SeparatedNodes::coarsen(vec<HypernodeID>& communities) const {
 }
 
 void SeparatedNodes::initializeOutwardEdges() {
-  ASSERT(_graph_nodes_begin.empty() && _outward_edges.empty());
+  if (!_outward_edges.empty()) {
+    return;
+  }
 
   Array<parallel::IntegralAtomicWrapper<HyperedgeID>> tmp_node_degree;
 

@@ -222,6 +222,15 @@ namespace mt_kahypar {
     return os << static_cast<uint8_t>(type);
   }
 
+  std::ostream & operator<< (std::ostream& os, const IPSNodesRater& type) {
+    switch (type) {
+      case IPSNodesRater::none: return os << "none";
+      case IPSNodesRater::tracker: return os << "tracker";
+        // omit default case to trigger compiler warning for missing cases
+    }
+    return os << static_cast<uint8_t>(type);
+  }
+
   Mode modeFromString(const std::string& mode) {
     if (mode == "rb") {
       return Mode::recursive_bipartitioning;
@@ -416,5 +425,15 @@ namespace mt_kahypar {
     }
     ERROR("Illegal option: " + type);
     return SNodesCoarseningSize::constant;
+  }
+
+  IPSNodesRater ipSNodesRaterFromString(const std::string& type) {
+    if (type == "none") {
+      return IPSNodesRater::none;
+    } else if (type == "tracker") {
+      return IPSNodesRater::tracker;
+    }
+    ERROR("Illegal option: " + type);
+    return IPSNodesRater::none;
   }
 }

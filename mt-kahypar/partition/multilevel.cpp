@@ -386,6 +386,9 @@ namespace mt_kahypar::multilevel {
         }
 
         if ( _context.initial_partitioning.mode == Mode::direct ) {
+          if (_context.initial_partitioning.rater == IPSNodesRater::tracker) {
+            phg.separatedNodes().finest().initializeOutwardEdges();
+          }
           disableTimerAndStats();
           PoolInitialPartitionerContinuation& ip_continuation = *new(allocate_continuation())
                   PoolInitialPartitionerContinuation(phg, _ip_context);
