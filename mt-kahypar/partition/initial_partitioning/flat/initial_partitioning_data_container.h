@@ -686,7 +686,7 @@ class InitialPartitioningDataContainer {
     if (_context.initial_partitioning.apply_star_partitioning_to_best) {
       ASSERT(_partitioned_hg.checkSeparatedUnassigned());
       SeparatedNodes& s_nodes = _partitioned_hg.separatedNodes().finest();
-      star_partitioning::partition(_partitioned_hg, s_nodes, _context);
+      star_partitioning::partition(_partitioned_hg, s_nodes, _context, false);
       _partitioned_hg.updateBlockWeights(false);
     }
     // ASSERT(best_feasible_objective == metrics::objective(_partitioned_hg, _context.partition.objective, false),

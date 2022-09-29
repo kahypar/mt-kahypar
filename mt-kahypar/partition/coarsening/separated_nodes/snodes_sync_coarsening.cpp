@@ -57,7 +57,7 @@ void coarsenSynchronized(SepNodesStack& stack, const Hypergraph& original_hg, co
     HypernodeID current_step_start_nodes = stack.coarsest().numVisibleNodes();
     bool reveal_batch = true;
     bool any_contracted = true;
-    const Hypergraph* hg;
+    const Hypergraph* hg = nullptr;
     do {
       if (j < levels.size() && (!context.coarsening.sep_nodes_coarsening_levelwise || i == j)) {
         hg = &levels[j].contractedHypergraph();

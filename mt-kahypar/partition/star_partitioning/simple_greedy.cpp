@@ -73,22 +73,22 @@ void SimpleGreedy::partition(PartitionedHypergraph& phg, const SeparatedNodes& s
     std::sort(sorted_nodes.begin(), sorted_nodes.end(), compare);
   }
 
+  Array<HyperedgeWeight> edge_weights;
   for (size_t i = 0; i < sorted_nodes.size(); ++i) {
     const HypernodeID node = sorted_nodes[i];
     if (phg.separatedPartID(node) == kInvalidPartition) {
-      Array<HyperedgeWeight>& local_edge_weights = _tmp_edge_weights.local();
-      local_edge_weights.assign(phg.k(), 0, false);
-      getEdgeWeightsOfNode(phg, s_nodes, local_edge_weights, node);
+      edge_weights.assign(phg.k(), 0, false);
+      getEdgeWeightsOfNode(phg, s_nodes, edge_weights, node);
 
       // greedily assign separated nodes
       PartitionID max_part = 0;
       HyperedgeWeight max_gain = 0;
       const std::vector<HypernodeWeight>& max_part_weights = context.partition.max_part_weights;
       for (PartitionID part = 0; part < _k; ++part) {
-        if (local_edge_weights[part] >= max_gain &&
+        if (edge_weights[part] >= max_gain &&
             part_weights[part] + s_nodes.nodeWeight(node) <= max_part_weights[part]) {
           max_part = part;
-          max_gain = local_edge_weights[part];
+          max_gain = edge_weights[part];
         }
       }
 
