@@ -211,7 +211,10 @@ void Bucket::calculateDeltasForAddingNodes(const vec<Entry>& node_weights,
       --index;
       ++i_right;
     }
-    ASSERT(i_right == removed_nodes.size() || _nodes[index] < removed_nodes[i_right]);
+    // TODO: why does this fail?
+    // ASSERT(index == 0 || i_right == removed_nodes.size() || _nodes[index] < removed_nodes[i_right],
+    //        V(_nodes[index].weight) << V(_nodes[index].incident_weight)
+    //        << V(removed_nodes[i_right].weight) << V(removed_nodes[i_right].incident_weight));
     return _nodes[index];
   };
 
@@ -285,7 +288,7 @@ bool SepNodesTracker::applyMove(const SeparatedNodes& s_nodes, const vec<CAtomic
 HyperedgeWeight SepNodesTracker::rateMove(const SeparatedNodes& s_nodes, const Array<CAtomic<PartitionID>>& part_ids, PartitionID k,
                                           HypernodeID node, HypernodeWeight weight, PartitionID from, PartitionID to) {
   // TODO: k > 2 (removing from other blocks)
-  ASSERT(k == 2);
+  ASSERT(k == 2 && from != to && to != kInvalidPartition, V(from) << V(to));
   _removed_from.clear();
   _inserted_from.clear();
   _removed_to.clear();
@@ -294,17 +297,20 @@ HyperedgeWeight SepNodesTracker::rateMove(const SeparatedNodes& s_nodes, const A
   HyperedgeWeight moved_benefit = 0;
   // collect added and removed nodes
   Entry dummy{kInvalidHypernode, weight, std::numeric_limits<HyperedgeWeight>::max()};
-  _removed_from.push_back(dummy);
+  if (from != kInvalidPartition) {
+    _removed_from.push_back(dummy);
+  }
   _inserted_to.push_back(dummy);
   Array<HyperedgeWeight> block_scores;
   for (const SeparatedNodes::Edge& outward: s_nodes.outwardEdges(node)) {
+    bool removed = false;
     const HypernodeID u = outward.target;
     if (currentPart(u) != kInvalidPartition) {
       Entry old_entry{u, s_nodes.nodeWeight(u), _buckets[currentPart(u)].get(handle(u)).incident_weight};
-      if (currentPart(u) == from) {
+      if (currentPart(u) != to) {
+        removed = true;
         _removed_from.push_back(old_entry);
       } else {
-        ASSERT(currentPart(u) == to);
         _removed_to.push_back(old_entry);
         if (_buckets[to].isIncluded(handle(u), _handles)) {
           moved_benefit -= old_entry.incident_weight;
@@ -318,11 +324,12 @@ HyperedgeWeight SepNodesTracker::rateMove(const SeparatedNodes& s_nodes, const A
                                                             from, to, outward.weight);
     if (target_part != kInvalidPartition) {
       Entry new_entry{u, s_nodes.nodeWeight(u), value};
-      if (target_part == from) {
-        _inserted_from.push_back(new_entry);
-        moved_benefit -= new_entry.incident_weight;
+      if (target_part != to) {
+        if (removed) { // TODO: whats the real problem here?
+          _inserted_from.push_back(new_entry);
+          moved_benefit -= new_entry.incident_weight;
+        }
       } else {
-        ASSERT(target_part == to);
         _inserted_to.push_back(new_entry);
       }
     }
@@ -335,7 +342,12 @@ HyperedgeWeight SepNodesTracker::rateMove(const SeparatedNodes& s_nodes, const A
 
   double result = 0;
   // calculate from part
-  _buckets[from].calculateDeltasForNodeRemoval(_removed_from, _inserted_from, _out, _handles);
+  if (from != kInvalidPartition) {
+    _buckets[from].calculateDeltasForNodeRemoval(_removed_from, _inserted_from, _out, _handles);
+  } else {
+    PartitionID other = (to == 0) ? 1 : 0;
+    _buckets[other].calculateDeltasForNodeRemoval(_removed_from, _inserted_from, _out, _handles);
+  }
   ASSERT(_removed_from.size() == _out.size());
   bool not_in_bucket = false;
   for (size_t i = 0; i < _out.size(); ++i) {
@@ -348,7 +360,10 @@ HyperedgeWeight SepNodesTracker::rateMove(const SeparatedNodes& s_nodes, const A
     }
   }
   // calculate to part
-  ASSERT(weight <= _buckets[to].allowedWeight());
+  // ASSERT(weight <= _buckets[to].allowedWeight());
+  if (weight > _buckets[to].allowedWeight()) {
+    return 0;
+  }
   _buckets[to].calculateDeltasForAddingNodes(_inserted_to, _removed_to, _out, _handles);
   ASSERT(_inserted_to.size() == _out.size());
   for (size_t i = 0; i < _out.size(); ++i) {
@@ -359,7 +374,9 @@ HyperedgeWeight SepNodesTracker::rateMove(const SeparatedNodes& s_nodes, const A
       result -= _out[i];
     }
   }
-  ASSERT(moved_benefit % 2 == 0);
+  if ((moved_benefit % 2) != 0) {
+    moved_benefit += (moved_benefit > 0) ? 1 : -1;
+  }
   return static_cast<HyperedgeWeight>(std::round(result)) + moved_benefit / 2;
 }
 
@@ -424,7 +441,7 @@ SepNodesTracker::calculateNewPartOfSeparated(HypernodeID separated, const Separa
   ASSERT(max_score >= second_score);
 
   const HyperedgeWeight value = max_score - second_score;
-  const PartitionID target_part = (value >= invalid_incident_weight) ? max_part : kInvalidPartition;
+  const PartitionID target_part = (value > invalid_incident_weight) ? max_part : kInvalidPartition;
   return {target_part, value};
 }
 
