@@ -210,6 +210,7 @@ class InitialPartitioningDataContainer {
           _context.refinement.label_propagation.algorithm, hypergraph, _context);
       }
 
+      _partitioned_hypergraph.initializeContext(_context);
       if (context.initial_partitioning.rater == IPSNodesRater::tracker) {
         _partitioned_hypergraph.initializeTracker(_context.partition.max_part_weights, _context.partition.k);
       }

@@ -688,7 +688,8 @@ namespace mt_kahypar {
                      })->default_value("none"),
              "Whether a special rating for separated nodes is used in initial partitioning:\n"
              "- none\n"
-             "- tracker");
+             "- tracker\n"
+             "- naive");
     options.add(createRefinementOptionsDescription(context, num_columns, true));
     options.add(createFlowRefinementOptionsDescription(context, num_columns, true));
     return options;

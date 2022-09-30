@@ -31,14 +31,14 @@ using ds::Array;
 
 HyperedgeWeight partition(PartitionedHypergraph& hypergraph, const SeparatedNodes& s_nodes,
                           const Context& context, bool parallel) {
-  ASSERT([&]() {
-      for (const HypernodeID& hn : hypergraph.nodes()) {
-        if (hypergraph.partID(hn) == kInvalidPartition) {
-          return false;
-        }
-      }
-      return true;
-    } (), "There are unassigned hypernodes!");
+  // ASSERT([&]() {
+  //     for (const HypernodeID& hn : hypergraph.nodes()) {
+  //       if (hypergraph.partID(hn) == kInvalidPartition) {
+  //         return false;
+  //       }
+  //     }
+  //     return true;
+  //   } (), "There are unassigned hypernodes!");
 
   Array<HypernodeWeight> part_weights;
   part_weights.assign(hypergraph.k(), 0, parallel);
@@ -100,7 +100,7 @@ void getEdgeWeightsOfNode(PartitionedHypergraph& phg, const SeparatedNodes& s_no
                           const HypernodeID& node, const HypernodeID& index) {
   for (const auto& e: s_nodes.inwardEdges(node)) {
     const PartitionID target_part = phg.partID(e.target);
-    ASSERT(!phg.nodeIsEnabled(e.target) || target_part != kInvalidPartition);
+    // ASSERT(!phg.nodeIsEnabled(e.target) || target_part != kInvalidPartition);
     if (target_part != kInvalidPartition) {
       weights_per_part[index + target_part] += e.weight;
     }

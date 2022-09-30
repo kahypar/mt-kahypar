@@ -154,7 +154,8 @@ enum class SNodesCoarseningSize : uint8_t {
 
 enum class IPSNodesRater : uint8_t {
   none,
-  tracker
+  tracker,
+  naive
 };
 
 std::ostream & operator<< (std::ostream& os, const Type& type);

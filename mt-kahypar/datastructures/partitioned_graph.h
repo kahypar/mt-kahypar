@@ -31,6 +31,8 @@
 
 #include "kahypar/meta/mandatory.h"
 
+#include "mt-kahypar/partition/context_enum_classes.h"
+#include "mt-kahypar/partition/star_partitioning/rate_separated.h"
 #include "mt-kahypar/datastructures/hypergraph_common.h"
 #include "mt-kahypar/datastructures/connectivity_set.h"
 #include "mt-kahypar/datastructures/separated_nodes.h"
@@ -43,6 +45,10 @@
 #include "mt-kahypar/utils/timer.h"
 
 namespace mt_kahypar {
+
+// forward
+class Context;
+
 namespace ds {
 
 template <typename Hypergraph = Mandatory,
@@ -169,7 +175,8 @@ private:
     _edge_locks(
       "Refinement", "edge_locks", hypergraph.maxUniqueID(), false, false),
     _edge_markers(Hypergraph::is_static_hypergraph ? 0 : hypergraph.maxUniqueID()),
-    _tracker(nullptr) {
+    _tracker(nullptr),
+    _context(nullptr) {
     _part_ids.assign(hypergraph.initialNumNodes(), CAtomic<PartitionID>(kInvalidPartition), false);
     if (hasSeparatedNodes()) {
       initializeSeparatedParts();
@@ -295,15 +302,26 @@ private:
 
   void initializeTracker(const std::vector<HypernodeWeight>& max_part_weights, PartitionID k) {
     ASSERT(k == 2);
-    _tracker = std::make_unique<SepNodesTracker>(separatedNodes().finest(), max_part_weights, k);
+    if (_context->initial_partitioning.rater == IPSNodesRater::tracker) {
+      _tracker = std::make_unique<SepNodesTracker>(separatedNodes().finest(), max_part_weights, k);
+    }
+  }
+
+  void initializeContext(const Context& context) {
+    _context = &context;
   }
 
   HyperedgeWeight rateSeparated(const HypernodeID u, const PartitionID to) const {
-    if (_tracker) {
+    ASSERT(_context);
+    if (_context->initial_partitioning.rater == IPSNodesRater::tracker) {
+      ASSERT(_tracker);
       return _tracker->rateMove(separatedNodes().finest(), _part_ids,
                                 _k, u, nodeWeight(u), _part_ids[u], to);
-    } else {
+    } else if (_context->initial_partitioning.rater == IPSNodesRater::none) {
       return 0;
+    } else {
+      ASSERT(_context->initial_partitioning.rater == IPSNodesRater::naive);
+      return star_partitioning::rateSeparated(const_cast<PartitionedGraph&>(*this), *_context, u, to);
     }
   }
 
@@ -345,9 +363,9 @@ private:
     _sep_part_ids.assign(std::max(numSeparatedNodes(), ID(_sep_part_ids.size())), CAtomic<PartitionID>(kInvalidPartition));
   }
 
-  void resetSeparatedParts() {
+  void resetSeparatedParts(bool parallel = true) {
     _sep_part_ids.assign(std::max(numSeparatedNodes(), ID(_sep_part_ids.size())), CAtomic<PartitionID>(kInvalidPartition));
-    updateBlockWeights();
+    updateBlockWeights(parallel);
   }
 
   void setHypergraph(Hypergraph& hypergraph) {
@@ -627,6 +645,16 @@ private:
     ASSERT(_part_ids[u].load() == kInvalidPartition);
     setOnlyNodePart(u, p);
     _part_weights[p].fetch_add(nodeWeight(u), std::memory_order_relaxed);
+    if (_tracker) {
+      _tracker->applyMove(separatedNodes().finest(), _part_weights, _part_ids, u);
+    }
+  }
+
+  void resetPart(const HypernodeID u, PartitionID current) {
+    ASSERT(u < _part_ids.size());
+    ASSERT(_part_ids[u].load() == current && current != kInvalidPartition);
+    _part_ids[u].store(kInvalidPartition, std::memory_order_relaxed);
+    _part_weights[current].fetch_sub(nodeWeight(u), std::memory_order_relaxed);
     if (_tracker) {
       _tracker->applyMove(separatedNodes().finest(), _part_weights, _part_ids, u);
     }
@@ -1227,12 +1255,19 @@ private:
       }
     } else {
       for (HypernodeID node = 0; node < initialNumNodes(); ++node) {
-        _part_weights[partID(node)].fetch_add(nodeWeight(node), std::memory_order_relaxed);
+        if (partID(node) != kInvalidPartition) {
+          ASSERT(partID(node) < _part_weights.size());
+          _part_weights[partID(node)].fetch_add(nodeWeight(node), std::memory_order_relaxed);
+        }
       }
       if (_hg->hasSeparatedNodes()) {
         const SeparatedNodes& separated_nodes = _hg->separatedNodes().finest();
         for (HypernodeID node = 0; node < separated_nodes.numNodes(); ++node) {
-          _part_weights[separatedPartID(node)].fetch_add(separated_nodes.nodeWeight(node), std::memory_order_relaxed);
+          PartitionID part_id = separatedPartID(node);
+          if (part_id != kInvalidPartition) {
+            ASSERT(separatedPartID(node) < _part_weights.size());
+            _part_weights[part_id].fetch_add(separated_nodes.nodeWeight(node), std::memory_order_relaxed);
+          }
         }
       }
     }
@@ -1352,6 +1387,8 @@ private:
   vec< CAtomic<PartitionID> > _sep_part_ids;
 
   std::unique_ptr<SepNodesTracker> _tracker;
+
+  const Context* _context;
 };
 
 } // namespace ds

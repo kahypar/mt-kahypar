@@ -2,6 +2,7 @@ set(SPSources
         star_partitioning.cpp
         simple_greedy.cpp
         approximate.cpp
+        rate_separated.cpp
         )
 
 foreach(modtarget IN LISTS TARGETS_WANTING_ALL_SOURCES)

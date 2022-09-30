@@ -226,6 +226,7 @@ namespace mt_kahypar {
     switch (type) {
       case IPSNodesRater::none: return os << "none";
       case IPSNodesRater::tracker: return os << "tracker";
+      case IPSNodesRater::naive: return os << "naive";
         // omit default case to trigger compiler warning for missing cases
     }
     return os << static_cast<uint8_t>(type);
@@ -432,6 +433,8 @@ namespace mt_kahypar {
       return IPSNodesRater::none;
     } else if (type == "tracker") {
       return IPSNodesRater::tracker;
+    } else if (type == "naive") {
+      return IPSNodesRater::naive;
     }
     ERROR("Illegal option: " + type);
     return IPSNodesRater::none;

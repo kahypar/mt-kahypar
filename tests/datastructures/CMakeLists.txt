@@ -34,4 +34,5 @@ target_sources(mt_kahypar_graph_tests PRIVATE
         dynamic_graph_test.cc
         separated_nodes_test.cc
         nlevel_smoke_test.cc
+        sep_nodes_tracker_test.cc
 )
