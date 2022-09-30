@@ -220,8 +220,8 @@ MaxGainMove LabelPropagationInitialPartitioner::findMaxGainMove(PartitionedHyper
 
       // Since we perform size-constraint label propagation, the move to the
       // corresponding block is only valid, if it fullfils the balanced constraint.
-      if (fitsIntoBlock(hypergraph, hn, block) && _tmp_scores[block] - sep_score > best_score) {
-        best_score = _tmp_scores[block] - sep_score;
+      if (fitsIntoBlock(hypergraph, hn, block) && _tmp_scores[block] + sep_score > best_score) {
+        best_score = _tmp_scores[block] + sep_score;
         best_block = block;
       }
     }
