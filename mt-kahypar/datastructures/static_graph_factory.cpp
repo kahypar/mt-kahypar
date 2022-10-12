@@ -218,9 +218,11 @@ namespace mt_kahypar::ds {
 
     tbb::parallel_invoke([&] {
       tbb::parallel_for(ID(0), graph.initialNumEdges(), [&](const HyperedgeID e) {
-        ASSERT(graph.uniqueEdgeID(e) < graph.initialNumEdges());
-        edge_vector[graph.uniqueEdgeID(e)] = {graph.edgeSource(e), graph.edgeTarget(e)};
-        edge_weight[graph.uniqueEdgeID(e)] = graph.edgeWeight(e);
+        ASSERT(graph.uniqueEdgeID(e) < graph.initialNumEdges() / 2);
+        if (graph.edgeSource(e) < graph.edgeTarget(e)) {
+          edge_vector[graph.uniqueEdgeID(e)] = {graph.edgeSource(e), graph.edgeTarget(e)};
+          edge_weight[graph.uniqueEdgeID(e)] = graph.edgeWeight(e);
+        }
       });
     }, [&] {
       tbb::parallel_for(ID(0), graph.initialNumNodes(), [&](const HypernodeID node) {
