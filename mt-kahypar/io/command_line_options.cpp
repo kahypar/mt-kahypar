@@ -407,6 +407,10 @@ namespace mt_kahypar {
              po::value<bool>((!initial_partitioning ? &context.refinement.include_separated :
                               &context.initial_partitioning.refinement.include_separated))->value_name("<bool>")->default_value(false),
              "Include separated nodes in refinement.")
+            (( initial_partitioning ? "i-r-use-snodes-rater" : "r-use-snodes-rater"),
+             po::value<bool>((!initial_partitioning ? &context.refinement.use_snodes_rater :
+                              &context.initial_partitioning.refinement.use_snodes_rater))->value_name("<bool>")->default_value(false),
+             "Use rater for separated nodes in refinement.")
             ( initial_partitioning ? "i-r-separated-partition-aware-coarsening" : "r-separated-partition-aware-coarsening",
              po::value<bool>((!initial_partitioning ? &context.refinement.separated_partition_aware_coarsening :
                               &context.initial_partitioning.refinement.separated_partition_aware_coarsening))->value_name("<bool>")->default_value(true),

@@ -224,6 +224,7 @@ struct RefinementParameters {
   size_t max_batch_size = std::numeric_limits<size_t>::max();
   size_t min_border_vertices_per_thread = 0;
   bool include_separated = false;
+  bool use_snodes_rater = false;
   bool separated_partition_aware_coarsening = true;
 };
 

@@ -70,9 +70,13 @@ bool SequentialTwoWayFmRefiner::refine(Metrics& best_metrics, std::mt19937& prng
     Gain gain = invalidGain;
     HypernodeID hn = kInvalidHypernode;
     PartitionID to = kInvalidPartition;
-    _pq.deleteMaxWithRater(hn, gain, to, [&](const HypernodeID& node, const PartitionID& part) {
-      return _phg.rateSeparated(node, part);
-    });
+    if (_context.refinement.use_snodes_rater && _context.initial_partitioning.rater != IPSNodesRater::none) {
+      _pq.deleteMaxWithRater(hn, gain, to, [&](const HypernodeID& node, const PartitionID& part) {
+        return _phg.rateSeparated(node, part);
+      });
+    } else {
+      _pq.deleteMax(hn, gain, to);
+    }
 
     ASSERT(hn != kInvalidHypernode);
     ASSERT(_border_vertices.isBorderNode(hn));
