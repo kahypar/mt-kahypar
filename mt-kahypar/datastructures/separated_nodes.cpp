@@ -393,7 +393,7 @@ SeparatedNodes SeparatedNodes::coarsen(vec<HypernodeID>& communities) const {
 }
 
 void SeparatedNodes::initializeOutwardEdges() {
-  if (!_outward_edges.empty()) {
+  if (!_graph_nodes_begin.empty()) {
     return;
   }
 
