@@ -26,6 +26,7 @@
 namespace mt_kahypar {
 
 bool SequentialTwoWayFmRefiner::refine(Metrics& best_metrics, std::mt19937& prng) {
+  const bool use_rater = _context.refinement.use_snodes_rater && _context.initial_partitioning.rater != IPSNodesRater::none;
 
   // Activate all border nodes
   _pq.clear();
@@ -59,6 +60,8 @@ bool SequentialTwoWayFmRefiner::refine(Metrics& best_metrics, std::mt19937& prng
 
   parallel::scalable_vector<HypernodeID> performed_moves;
   HyperedgeWeight current_cut = best_metrics.cut;
+  HyperedgeWeight current_orig_cut = best_metrics.cut;
+  HyperedgeWeight best_orig_cut = best_metrics.cut;
   double current_imbalance = best_metrics.imbalance;
   size_t min_cut_idx = 0;
   StopRule stopping_rule(_phg.initialNumNodes());
@@ -68,10 +71,11 @@ bool SequentialTwoWayFmRefiner::refine(Metrics& best_metrics, std::mt19937& prng
 
     // Retrieve max gain move from PQ
     Gain gain = invalidGain;
+    Gain gain_with_sep = invalidGain;
     HypernodeID hn = kInvalidHypernode;
     PartitionID to = kInvalidPartition;
-    if (_context.refinement.use_snodes_rater && _context.initial_partitioning.rater != IPSNodesRater::none) {
-      _pq.deleteMaxWithRater(hn, gain, to, [&](const HypernodeID& node, const PartitionID& part) {
+    if (use_rater) {
+      _pq.deleteMaxWithRater(hn, gain_with_sep, gain, to, [&](const HypernodeID& node, const PartitionID& part) {
         return _phg.rateSeparated(node, part);
       });
     } else {
@@ -114,6 +118,10 @@ bool SequentialTwoWayFmRefiner::refine(Metrics& best_metrics, std::mt19937& prng
 
       performed_moves.push_back(hn);
       DBG << "Moved hypernode" << hn << "from block" << from << "to block" << to << "with gain" << gain;
+      if (use_rater) {
+        current_orig_cut -= gain;
+        gain = gain_with_sep;
+      }
       current_cut -= gain;
       current_imbalance = metrics::imbalance(_phg, _context);
       stopping_rule.update(gain);
@@ -132,6 +140,7 @@ bool SequentialTwoWayFmRefiner::refine(Metrics& best_metrics, std::mt19937& prng
         DBG << GREEN << "2Way FM improved cut from" << best_metrics.cut << "to" << current_cut
             << "(Imbalance:" << current_imbalance << ")" << END;
         stopping_rule.reset();
+        best_orig_cut = current_orig_cut;
         best_metrics.cut = current_cut;
         best_metrics.km1 = current_cut;
         best_metrics.imbalance = current_imbalance;
@@ -146,6 +155,11 @@ bool SequentialTwoWayFmRefiner::refine(Metrics& best_metrics, std::mt19937& prng
   // Perform rollback to best partition found during local search
   _phg.resetMoveState();
   rollback(performed_moves, min_cut_idx);
+
+  if (use_rater) {
+    best_metrics.cut = best_orig_cut;
+    best_metrics.km1 = best_orig_cut;
+  }
 
   HEAVY_REFINEMENT_ASSERT(best_metrics.cut == metrics::hyperedgeCut(_phg, false));
   HEAVY_REFINEMENT_ASSERT(best_metrics.imbalance == metrics::imbalance(_phg, _context),
