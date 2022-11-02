@@ -252,11 +252,10 @@ We encourage you to report any problems with Mt-KaHyPar via the [github issue tr
 Licensing
 ---------
 
-Mt-KaHyPar is free software provided under the GNU General Public License (GPLv3).
+Mt-KaHyPar is a free software provided under the MIT License.
 For more information see the [LICENSE file][LF].
 We distribute this framework freely to foster the use and development of hypergraph partitioning tools.
 If you use Mt-KaHyPar in an academic setting please cite the appropriate papers.
-If you are interested in a commercial license, please contact me.
 
     // Mt-KaHyPar-D
     @inproceedings{MT-KAHYPAR-D,
