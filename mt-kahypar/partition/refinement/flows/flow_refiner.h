@@ -108,7 +108,7 @@ class FlowRefiner final : public IFlowRefiner {
 
   bool canHyperedgeBeDropped(const PartitionedHypergraph& phg,
                              const HyperedgeID he) {
-    return _context.partition.objective == kahypar::Objective::cut &&
+    return _context.partition.objective == Objective::cut &&
       phg.pinCountInPart(he, _block_0) + phg.pinCountInPart(he, _block_1) < phg.edgeSize(he);
   }
 

@@ -92,7 +92,7 @@ class AFlatInitialPartitionerTest : public Test {
     context() {
     context.partition.k = Config::K;
     context.partition.epsilon = 0.2;
-    context.partition.objective = kahypar::Objective::km1;
+    context.partition.objective = Objective::km1;
     context.initial_partitioning.lp_initial_block_size = 5;
     context.initial_partitioning.lp_maximum_iterations = 100;
     hypergraph = io::readHypergraphFile(

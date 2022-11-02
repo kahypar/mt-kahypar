@@ -97,11 +97,11 @@ namespace mt_kahypar::metrics {
     return num_empty_parts <= phg.numRemovedHypernodes();
   }
 
-  HyperedgeWeight objective(const PartitionedHypergraph& hg, const kahypar::Objective& objective,
+  HyperedgeWeight objective(const PartitionedHypergraph& hg, const Objective& objective,
                                           const bool parallel) {
     switch (objective) {
-      case kahypar::Objective::cut: return hyperedgeCut(hg, parallel);
-      case kahypar::Objective::km1: return km1(hg, parallel);
+      case Objective::cut: return hyperedgeCut(hg, parallel);
+      case Objective::km1: return km1(hg, parallel);
       default:
       ERROR("Unknown Objective");
     }

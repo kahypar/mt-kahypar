@@ -163,7 +163,7 @@ class ParallelConstruction {
                              const HyperedgeID he,
                              const PartitionID block_0,
                              const PartitionID block_1) {
-    return _context.partition.objective == kahypar::Objective::cut &&
+    return _context.partition.objective == Objective::cut &&
       phg.pinCountInPart(he, block_0) + phg.pinCountInPart(he, block_1) < phg.edgeSize(he);
   }
 

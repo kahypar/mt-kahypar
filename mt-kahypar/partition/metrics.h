@@ -29,22 +29,22 @@ struct Metrics {
   HyperedgeWeight cut;
   double imbalance;
 
-  void updateMetric(const HyperedgeWeight value, const Mode mode, const kahypar::Objective objective) {
-    if (mode == Mode::recursive_bipartitioning || objective == kahypar::Objective::cut) {
+  void updateMetric(const HyperedgeWeight value, const Mode mode, const Objective objective) {
+    if (mode == Mode::recursive_bipartitioning || objective == Objective::cut) {
       // in recursive bisection, km1 is also optimized via the cut net metric
       cut = value;
     } else {
-      ASSERT(objective == kahypar::Objective::km1);
+      ASSERT(objective == Objective::km1);
       km1 = value;
     }
   }
 
-  HyperedgeWeight getMetric(const Mode mode, const kahypar::Objective objective) {
-    if (mode == Mode::recursive_bipartitioning || objective == kahypar::Objective::cut) {
+  HyperedgeWeight getMetric(const Mode mode, const Objective objective) {
+    if (mode == Mode::recursive_bipartitioning || objective == Objective::cut) {
       // in recursive bisection, km1 is also optimized via the cut net metric
       return cut;
     } else {
-      ASSERT(objective == kahypar::Objective::km1);
+      ASSERT(objective == Objective::km1);
       return km1;
     }
   }
@@ -62,7 +62,7 @@ bool isBalanced(const PartitionedHypergraph& phg, const Context& context);
 
 HyperedgeWeight objective(
         const PartitionedHypergraph& hg,
-        const kahypar::Objective& objective,
+        const Objective& objective,
         bool parallel = true);
 
 double imbalance(const PartitionedHypergraph& hypergraph, const Context& context);

@@ -77,6 +77,15 @@ namespace mt_kahypar {
     return os << static_cast<uint8_t>(paradigm);
   }
 
+  std::ostream& operator<< (std::ostream& os, const ContextType& type) {
+    if (type == ContextType::main) {
+      return os << "main";
+    } else {
+      return os << "ip";
+    }
+    return os << static_cast<uint8_t>(type);
+  }
+
   std::ostream & operator<< (std::ostream& os, const Mode& mode) {
     switch (mode) {
       case Mode::recursive_bipartitioning: return os << "recursive_bipartitioning";
@@ -86,6 +95,16 @@ namespace mt_kahypar {
         // omit default case to trigger compiler warning for missing cases
     }
     return os << static_cast<uint8_t>(mode);
+  }
+
+  std::ostream& operator<< (std::ostream& os, const Objective& objective) {
+    switch (objective) {
+      case Objective::cut: return os << "cut";
+      case Objective::km1: return os << "km1";
+      case Objective::UNDEFINED: return os << "UNDEFINED";
+        // omit default case to trigger compiler warning for missing cases
+    }
+    return os << static_cast<uint8_t>(objective);
   }
 
   std::ostream & operator<< (std::ostream& os, const LouvainEdgeWeight& type) {

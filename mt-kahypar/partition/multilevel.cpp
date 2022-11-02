@@ -120,7 +120,7 @@ namespace mt_kahypar::multilevel {
 
   private:
     void enableTimerAndStats() {
-      if ( _context.type == kahypar::ContextType::main && _context.partition.mode == Mode::direct ) {
+      if ( _context.type == ContextType::main && _context.partition.mode == Mode::direct ) {
         parallel::MemoryPool::instance().activate_unused_memory_allocations();
         utils::Timer::instance().enable();
         utils::Stats::instance().enable();
@@ -227,7 +227,7 @@ namespace mt_kahypar::multilevel {
     }
 
     void disableTimerAndStats() {
-      if ( _context.type == kahypar::ContextType::main && _context.partition.mode == Mode::direct ) {
+      if ( _context.type == ContextType::main && _context.partition.mode == Mode::direct ) {
         parallel::MemoryPool::instance().deactivate_unused_memory_allocations();
         utils::Timer::instance().disable();
         utils::Stats::instance().disable();
@@ -345,7 +345,7 @@ PartitionedHypergraph partition(Hypergraph& hypergraph, const Context& context) 
             MultilevelPartitioningTask(hypergraph, partitioned_hypergraph, context, false);
     tbb::task::spawn_root_and_wait(multilevel_task);
 
-    if ( context.partition.num_vcycles > 0 && context.type == kahypar::ContextType::main ) {
+    if ( context.partition.num_vcycles > 0 && context.type == ContextType::main ) {
       partitionVCycle(hypergraph, partitioned_hypergraph, context);
     }
   return partitioned_hypergraph;
@@ -356,7 +356,7 @@ void partition_async(Hypergraph& hypergraph, PartitionedHypergraph& partitioned_
                      const Context& context, tbb::task* parent) {
   ASSERT(parent);
 
-  if ( context.partition.num_vcycles > 0 && context.type == kahypar::ContextType::main ) {
+  if ( context.partition.num_vcycles > 0 && context.type == ContextType::main ) {
     VCycleTask& vcycle_task = *new(parent->allocate_continuation())
             VCycleTask(hypergraph, partitioned_hypergraph, context);
     MultilevelPartitioningTask& multilevel_task = *new(vcycle_task.allocate_child())

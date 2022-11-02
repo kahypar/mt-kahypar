@@ -79,7 +79,7 @@ TEST_F(ACoarsener, ProjectsPartitionBackToOriginalHypergraph) {
   UncoarseningData uncoarseningData(nlevel, hypergraph, context);
   Coarsener coarsener(hypergraph, context, uncoarseningData);
   Uncoarsener uncoarsener(hypergraph, context, uncoarseningData);
-  context.type = kahypar::ContextType::initial_partitioning;
+  context.type = ContextType::initial_partitioning;
   doCoarsening(coarsener);
   PartitionedHyperGraph& coarsest_partitioned_hypergraph =
     coarsener.coarsestPartitionedHypergraph();

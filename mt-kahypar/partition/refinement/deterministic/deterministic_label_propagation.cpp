@@ -101,7 +101,7 @@ namespace mt_kahypar {
 
     best_metrics.km1 -= overall_improvement;
     best_metrics.imbalance = metrics::imbalance(phg, context);
-    if (context.type == kahypar::ContextType::main) {
+    if (context.type == ContextType::main) {
       DBG << V(best_metrics.km1) << V(best_metrics.imbalance);
     }
     return overall_improvement > 0;

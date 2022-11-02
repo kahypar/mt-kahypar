@@ -119,7 +119,7 @@ public:
       } else {
         _hg.freeTmpContractionBuffer();
       }
-      if (_context.type == kahypar::ContextType::main) {
+      if (_context.type == ContextType::main) {
         parallel::MemoryPool::instance().release_mem_group("Coarsening");
       }
 

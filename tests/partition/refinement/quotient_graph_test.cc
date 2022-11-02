@@ -41,7 +41,7 @@ namespace mt_kahypar {
     context.partition.k = 8;
     context.partition.epsilon = 0.03;
     context.partition.mode = Mode::direct;
-    context.partition.objective = kahypar::Objective::km1;
+    context.partition.objective = Objective::km1;
     context.shared_memory.num_threads = std::thread::hardware_concurrency();
     context.refinement.flows.algorithm = FlowAlgorithm::mock;
     context.refinement.flows.max_bfs_distance = 2;

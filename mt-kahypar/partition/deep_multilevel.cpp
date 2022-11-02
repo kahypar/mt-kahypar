@@ -282,7 +282,7 @@ namespace mt_kahypar {
       _result.context.partition.k = 2;
 
       // Extract Block of Hypergraph
-      bool cut_net_splitting = _result.context.partition.objective == kahypar::Objective::km1;
+      bool cut_net_splitting = _result.context.partition.objective == Objective::km1;
       auto tmp_hypergraph = _hg.extract(_block, cut_net_splitting, _stable_construction_of_incident_edges);
       _result.hypergraph = std::move(tmp_hypergraph.first);
       _result.mapping = std::move(tmp_hypergraph.second);
@@ -495,7 +495,7 @@ namespace mt_kahypar {
       Context context(_context);
 
       if (!is_top_level) {
-        context.type = kahypar::ContextType::initial_partitioning;
+        context.type = ContextType::initial_partitioning;
       }
       context.partition.verbose_output = debug;
 
@@ -605,7 +605,7 @@ namespace deep_multilevel {
     if (context.partition.mode == Mode::deep_multilevel) {
       utils::Timer::instance().start_timer("deep", "Deep Multilevel");
     }
-    if (context.type == kahypar::ContextType::main) {
+    if (context.type == ContextType::main) {
       parallel::MemoryPool::instance().deactivate_unused_memory_allocations();
       utils::Timer::instance().disable();
       utils::Stats::instance().disable();
@@ -616,11 +616,11 @@ namespace deep_multilevel {
             hypergraph, context, context.partition.mode == Mode::deep_multilevel);
     tbb::task::spawn_root_and_wait(root_recursive_task);
 
-    if (context.partition.num_vcycles > 0 && context.type == kahypar::ContextType::main) {
+    if (context.partition.num_vcycles > 0 && context.type == ContextType::main) {
       multilevel::partitionVCycle(hypergraph.hypergraph(), hypergraph, context);
     }
 
-    if (context.type == kahypar::ContextType::main) {
+    if (context.type == ContextType::main) {
       parallel::MemoryPool::instance().activate_unused_memory_allocations();
       utils::Timer::instance().enable();
       utils::Stats::instance().enable();

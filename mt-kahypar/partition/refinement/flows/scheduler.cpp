@@ -318,10 +318,10 @@ HyperedgeWeight FlowRefinementScheduler::applyMoves(const SearchID search_id,
                         const HypernodeID edge_size,
                         const HypernodeID pin_count_in_from_part_after,
                         const HypernodeID pin_count_in_to_part_after) {
-    if ( _context.partition.objective == kahypar::Objective::km1 ) {
+    if ( _context.partition.objective == Objective::km1 ) {
       improvement -= km1Delta(he, edge_weight, edge_size,
         pin_count_in_from_part_after, pin_count_in_to_part_after);
-    } else if ( _context.partition.objective == kahypar::Objective::cut ) {
+    } else if ( _context.partition.objective == Objective::cut ) {
       improvement -= cutDelta(he, edge_weight, edge_size,
         pin_count_in_from_part_after, pin_count_in_to_part_after);
     }

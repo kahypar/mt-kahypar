@@ -58,10 +58,21 @@ enum class Paradigm : int8_t {
   nlevel
 };
 
+enum class ContextType : bool {
+  main,
+  initial_partitioning
+};
+
 enum class Mode : uint8_t {
   recursive_bipartitioning,
   direct,
   deep_multilevel,
+  UNDEFINED
+};
+
+enum class Objective : uint8_t {
+  cut,
+  km1,
   UNDEFINED
 };
 
@@ -150,7 +161,11 @@ std::ostream & operator<< (std::ostream& os, const PresetType& type);
 
 std::ostream & operator<< (std::ostream& os, const Paradigm& paradigm);
 
+std::ostream & operator<< (std::ostream& os, const ContextType& type);
+
 std::ostream & operator<< (std::ostream& os, const Mode& mode);
+
+std::ostream & operator<< (std::ostream& os, const Objective& objective);
 
 std::ostream & operator<< (std::ostream& os, const LouvainEdgeWeight& type);
 

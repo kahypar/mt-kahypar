@@ -33,22 +33,22 @@
 using ::testing::Test;
 
 namespace mt_kahypar {
-template <PartitionID k, kahypar::Objective objective>
+template <PartitionID k, Objective objective>
 struct TestConfig { };
 
 template <PartitionID k>
-struct TestConfig<k, kahypar::Objective::km1> {
+struct TestConfig<k, Objective::km1> {
   using Refiner = LabelPropagationKm1Refiner;
   static constexpr PartitionID K = k;
-  static constexpr kahypar::Objective OBJECTIVE = kahypar::Objective::km1;
+  static constexpr Objective OBJECTIVE = Objective::km1;
   static constexpr LabelPropagationAlgorithm LP_ALGO = LabelPropagationAlgorithm::label_propagation_km1;
 };
 
 template <PartitionID k>
-struct TestConfig<k, kahypar::Objective::cut> {
+struct TestConfig<k, Objective::cut> {
   using Refiner = LabelPropagationCutRefiner;
   static constexpr PartitionID K = k;
-  static constexpr kahypar::Objective OBJECTIVE = kahypar::Objective::cut;
+  static constexpr Objective OBJECTIVE = Objective::cut;
   static constexpr LabelPropagationAlgorithm LP_ALGO = LabelPropagationAlgorithm::label_propagation_cut;
 };
 
@@ -121,12 +121,12 @@ size_t ALabelPropagationRefiner<Config>::num_threads = HardwareTopology::instanc
 
 static constexpr double EPS = 0.05;
 
-typedef ::testing::Types<TestConfig<2, kahypar::Objective::cut>,
-                         TestConfig<4, kahypar::Objective::cut>,
-                         TestConfig<8, kahypar::Objective::cut>,
-                         TestConfig<2, kahypar::Objective::km1>,
-                         TestConfig<4, kahypar::Objective::km1>,
-                         TestConfig<8, kahypar::Objective::km1> > TestConfigs;
+typedef ::testing::Types<TestConfig<2, Objective::cut>,
+                         TestConfig<4, Objective::cut>,
+                         TestConfig<8, Objective::cut>,
+                         TestConfig<2, Objective::km1>,
+                         TestConfig<4, Objective::km1>,
+                         TestConfig<8, Objective::km1> > TestConfigs;
 
 TYPED_TEST_CASE(ALabelPropagationRefiner, TestConfigs);
 

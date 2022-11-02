@@ -61,7 +61,7 @@ class AFlowHypergraphConstructor : public Test {
     context.partition.k = 3;
     context.partition.perfect_balance_part_weights.assign(3, 5);
     context.partition.max_part_weights.assign(2, 4);
-    context.partition.objective = kahypar::Objective::km1;
+    context.partition.objective = Objective::km1;
 
     context.shared_memory.num_threads = 2;
     context.refinement.flows.algorithm = FlowAlgorithm::mock;

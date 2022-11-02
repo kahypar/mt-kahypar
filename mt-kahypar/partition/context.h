@@ -23,8 +23,6 @@
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/context_enum_classes.h"
 
-#include "kahypar/partition/context_enum_classes.h"
-
 namespace mt_kahypar {
 struct PartitioningParameters {
   #ifdef USE_STRONG_PARTITIONER
@@ -33,7 +31,7 @@ struct PartitioningParameters {
   Paradigm paradigm = Paradigm::multilevel;
   #endif
   Mode mode = Mode::UNDEFINED;
-  kahypar::Objective objective = kahypar::Objective::UNDEFINED;
+  Objective objective = Objective::UNDEFINED;
   FileFormat file_format = FileFormat::hMetis;
   InstanceType instance_type = InstanceType::UNDEFINED;
   PresetType preset_type = PresetType::UNDEFINED;
@@ -256,7 +254,7 @@ class Context {
   RefinementParameters refinement { };
   SparsificationParameters sparsification { };
   SharedMemoryParameters shared_memory { };
-  kahypar::ContextType type = kahypar::ContextType::main;
+  ContextType type = ContextType::main;
 
   std::string algorithm_name = "Mt-KaHyPar";
   mutable size_t initial_km1 = std::numeric_limits<size_t>::max();

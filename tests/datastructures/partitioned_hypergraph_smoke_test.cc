@@ -39,10 +39,10 @@ using ::testing::Test;
 namespace mt_kahypar {
 namespace ds {
 template <PartitionID k,
-          kahypar::Objective objective>
+          Objective objective>
 struct TestConfig {
   static constexpr PartitionID K = k;
-  static constexpr kahypar::Objective OBJECTIVE = objective;
+  static constexpr Objective OBJECTIVE = objective;
 };
 
 template <typename Config>
@@ -72,32 +72,32 @@ class AConcurrentHypergraph : public Test {
   }
 
   PartitionID k;
-  kahypar::Objective objective;
+  Objective objective;
   Hypergraph underlying_hypergraph;
   mt_kahypar::PartitionedHypergraph hypergraph;
 };
 
-typedef ::testing::Types<TestConfig<2, kahypar::Objective::cut>,
-                         TestConfig<4, kahypar::Objective::cut>,
-                         TestConfig<8, kahypar::Objective::cut>,
-                         TestConfig<16, kahypar::Objective::cut>,
-                         TestConfig<32, kahypar::Objective::cut>,
-                         TestConfig<64, kahypar::Objective::cut>,
-                         TestConfig<128, kahypar::Objective::cut>,
-                         TestConfig<2, kahypar::Objective::km1>,
-                         TestConfig<4, kahypar::Objective::km1>,
-                         TestConfig<8, kahypar::Objective::km1>,
-                         TestConfig<16, kahypar::Objective::km1>,
-                         TestConfig<32, kahypar::Objective::km1>,
-                         TestConfig<64, kahypar::Objective::km1>,
-                         TestConfig<128, kahypar::Objective::km1>> TestConfigs;
+typedef ::testing::Types<TestConfig<2, Objective::cut>,
+                         TestConfig<4, Objective::cut>,
+                         TestConfig<8, Objective::cut>,
+                         TestConfig<16, Objective::cut>,
+                         TestConfig<32, Objective::cut>,
+                         TestConfig<64, Objective::cut>,
+                         TestConfig<128, Objective::cut>,
+                         TestConfig<2, Objective::km1>,
+                         TestConfig<4, Objective::km1>,
+                         TestConfig<8, Objective::km1>,
+                         TestConfig<16, Objective::km1>,
+                         TestConfig<32, Objective::km1>,
+                         TestConfig<64, Objective::km1>,
+                         TestConfig<128, Objective::km1>> TestConfigs;
 
 TYPED_TEST_CASE(AConcurrentHypergraph, TestConfigs);
 
 template<typename HyperGraph>
 void moveAllNodesOfHypergraphRandom(HyperGraph& hypergraph,
                                     const PartitionID k,
-                                    const kahypar::Objective objective,
+                                    const Objective objective,
                                     const bool show_timings) {
 
   tbb::enumerable_thread_specific<HyperedgeWeight> deltas(0);
@@ -107,10 +107,10 @@ void moveAllNodesOfHypergraphRandom(HyperGraph& hypergraph,
                              const HypernodeID edge_size,
                              const HypernodeID pin_count_in_from_part_after,
                              const HypernodeID pin_count_in_to_part_after) {
-                           if (objective == kahypar::Objective::km1) {
+                           if (objective == Objective::km1) {
                              deltas.local() += km1Delta(
                                he, edge_weight, edge_size, pin_count_in_from_part_after, pin_count_in_to_part_after);
-                           } else if (objective == kahypar::Objective::cut) {
+                           } else if (objective == Objective::cut) {
                              deltas.local() += cutDelta(
                                he, edge_weight, edge_size, pin_count_in_from_part_after, pin_count_in_to_part_after);
                            }

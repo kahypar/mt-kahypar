@@ -37,7 +37,7 @@ namespace mt_kahypar {
                                                          std::unique_ptr<IRefiner>& fm) {
     ASSERT(_uncoarseningData.is_finalized);
     Metrics current_metrics = initialize(*_uncoarseningData.compactified_phg);
-    if (_context.type == kahypar::ContextType::main) {
+    if (_context.type == ContextType::main) {
       _context.initial_km1 = current_metrics.km1;
     }
 
@@ -79,7 +79,7 @@ namespace mt_kahypar {
     }
 
     utils::ProgressBar uncontraction_progress(_hg.initialNumNodes(),
-                                              _context.partition.objective == kahypar::Objective::km1 ? current_metrics.km1 : current_metrics.cut,
+                                              _context.partition.objective == Objective::km1 ? current_metrics.km1 : current_metrics.cut,
                                               _context.partition.verbose_output && _context.partition.enable_progress_bar && !debug);
     uncontraction_progress += _uncoarseningData.compactified_hg->initialNumNodes();
 
@@ -93,7 +93,7 @@ namespace mt_kahypar {
 
     // Perform batch uncontractions
     bool is_timer_disabled = false;
-    bool force_measure_timings = _context.partition.measure_detailed_uncontraction_timings && _context.type == kahypar::ContextType::main;
+    bool force_measure_timings = _context.partition.measure_detailed_uncontraction_timings && _context.type == ContextType::main;
     if ( utils::Timer::instance().isEnabled() ) {
       utils::Timer::instance().disable();
       is_timer_disabled = true;
@@ -211,7 +211,7 @@ namespace mt_kahypar {
     }
 
     // If we finish batch uncontractions and partition is imbalanced, we try to rebalance it
-    if ( _context.type == kahypar::ContextType::main && !metrics::isBalanced(*_uncoarseningData.partitioned_hg, _context)) {
+    if ( _context.type == ContextType::main && !metrics::isBalanced(*_uncoarseningData.partitioned_hg, _context)) {
       const HyperedgeWeight quality_before = current_metrics.getMetric(
         Mode::direct, _context.partition.objective);
       if ( _context.partition.verbose_output ) {
@@ -224,10 +224,10 @@ namespace mt_kahypar {
       }
 
       utils::Timer::instance().start_timer("rebalance", "Rebalance");
-      if ( _context.partition.objective == kahypar::Objective::km1 ) {
+      if ( _context.partition.objective == Objective::km1 ) {
         Km1Rebalancer rebalancer(*_uncoarseningData.partitioned_hg, _context);
         rebalancer.rebalance(current_metrics);
-      } else if ( _context.partition.objective == kahypar::Objective::cut ) {
+      } else if ( _context.partition.objective == Objective::cut ) {
         CutRebalancer rebalancer(*_uncoarseningData.partitioned_hg, _context);
         rebalancer.rebalance(current_metrics);
       }
@@ -265,7 +265,7 @@ namespace mt_kahypar {
                                           std::unique_ptr<IRefiner>& fm,
                                           Metrics& current_metrics,
                                           const bool force_measure_timings) {
-    if ( debug && _context.type == kahypar::ContextType::main ) {
+    if ( debug && _context.type == ContextType::main ) {
       io::printHypergraphInfo(partitioned_hypergraph.hypergraph(), "Refinement Hypergraph", false);
       DBG << "Start Refinement - km1 = " << current_metrics.km1
       << ", imbalance = " << current_metrics.imbalance;
@@ -291,7 +291,7 @@ namespace mt_kahypar {
         utils::Timer::instance().stop_timer("fm", force_measure_timings);
       }
 
-      if ( _context.type == kahypar::ContextType::main ) {
+      if ( _context.type == ContextType::main ) {
         ASSERT(current_metrics.km1 == metrics::km1(partitioned_hypergraph),
                "Actual metric" << V(metrics::km1(partitioned_hypergraph))
                << "does not match the metric updated by the refiners" << V(current_metrics.km1));
@@ -302,7 +302,7 @@ namespace mt_kahypar {
       }
     }
 
-    if ( _context.type == kahypar::ContextType::main) {
+    if ( _context.type == ContextType::main) {
       DBG << "--------------------------------------------------\n";
     }
   }
@@ -323,7 +323,7 @@ namespace mt_kahypar {
     };
 
     if ( _context.refinement.global_fm.use_global_fm ) {
-      if ( debug && _context.type == kahypar::ContextType::main ) {
+      if ( debug && _context.type == ContextType::main ) {
         io::printHypergraphInfo(partitioned_hypergraph.hypergraph(), "Refinement Hypergraph", false);
         DBG << "Start Refinement - km1 = " << current_metrics.km1
         << ", imbalance = " << current_metrics.imbalance;
@@ -332,7 +332,7 @@ namespace mt_kahypar {
       // Enable Timings
       bool was_enabled = false;
       if ( !utils::Timer::instance().isEnabled() &&
-           _context.type == kahypar::ContextType::main ) {
+           _context.type == ContextType::main ) {
         utils::Timer::instance().enable();
         was_enabled = true;
       }
@@ -363,7 +363,7 @@ namespace mt_kahypar {
           utils::Timer::instance().stop_timer("flow_refinement_scheduler");
         }
 
-        if ( _context.type == kahypar::ContextType::main ) {
+        if ( _context.type == ContextType::main ) {
           ASSERT(current_metrics.km1 == metrics::km1(partitioned_hypergraph),
                  "Actual metric" << V(metrics::km1(partitioned_hypergraph))
                  << "does not match the metric updated by the refiners" << V(current_metrics.km1));
@@ -386,7 +386,7 @@ namespace mt_kahypar {
         utils::Timer::instance().disable();
       }
 
-      if ( _context.type == kahypar::ContextType::main) {
+      if ( _context.type == ContextType::main) {
         DBG << "--------------------------------------------------\n";
       }
     }

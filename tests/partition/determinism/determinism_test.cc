@@ -20,7 +20,6 @@
 
 #include "gmock/gmock.h"
 
-#include "kahypar/partition/context_enum_classes.h"
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/io/hypergraph_io.h"
 
@@ -76,7 +75,7 @@ namespace mt_kahypar {
       context.refinement.deterministic_refinement.use_active_node_set = false;
       context.refinement.deterministic_refinement.recalculate_gains_on_second_apply = false;
 
-      context.partition.objective = kahypar::Objective::km1;
+      context.partition.objective = Objective::km1;
 
       // Read hypergraph
       hypergraph = io::readHypergraphFile(context.partition.graph_filename, true);

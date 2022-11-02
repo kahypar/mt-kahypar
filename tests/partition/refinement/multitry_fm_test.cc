@@ -20,7 +20,6 @@
 
 #include "gmock/gmock.h"
 
-#include "kahypar/partition/context_enum_classes.h"
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/io/hypergraph_io.h"
 
@@ -62,7 +61,7 @@ class MultiTryFMTest : public ::testing::TestWithParam<PartitionID> {
       context.refinement.fm.multitry_rounds = 10;
       context.refinement.fm.num_seed_nodes = 5;
 
-      context.partition.objective = kahypar::Objective::km1;
+      context.partition.objective = Objective::km1;
 
       // Read hypergraph
       hypergraph = io::readHypergraphFile(

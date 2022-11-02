@@ -81,7 +81,7 @@ class DeltaPartitionedHypergraph {
     _part_ids_delta(),
     _pins_in_part_delta(),
     _gain_cache_delta() {
-      const bool top_level = context.type == kahypar::ContextType::main;
+      const bool top_level = context.type == ContextType::main;
       _part_ids_delta.initialize(MAP_SIZE_SMALL);
       _pins_in_part_delta.initialize(MAP_SIZE_LARGE);
       _gain_cache_delta.initialize(top_level ? MAP_SIZE_LARGE : MAP_SIZE_MOVE_DELTA);

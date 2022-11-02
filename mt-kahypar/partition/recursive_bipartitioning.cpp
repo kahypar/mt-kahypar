@@ -206,7 +206,7 @@ namespace mt_kahypar {
       Context rb_context(_context);
       rb_context.partition.k = k;
       if (_context.partition.mode == Mode::direct) {
-        rb_context.type = kahypar::ContextType::initial_partitioning;
+        rb_context.type = ContextType::initial_partitioning;
       }
 
       rb_context.partition.perfect_balance_part_weights.assign(k, 0);
@@ -323,7 +323,7 @@ namespace mt_kahypar {
       bisection_context.initial_partitioning.mode = Mode::direct;
       // TODO(maas): other type for context?
       if (context.partition.mode == Mode::direct) {
-        bisection_context.type = kahypar::ContextType::initial_partitioning;
+        bisection_context.type = ContextType::initial_partitioning;
       }
 
       // Setup Part Weights
@@ -431,7 +431,7 @@ namespace mt_kahypar {
 
     // Extracts the block of the hypergraph which we recursively want to partition as
     // seperate unpartitioned hypergraph.
-    bool cut_net_splitting = _context.partition.objective == kahypar::Objective::km1;
+    bool cut_net_splitting = _context.partition.objective == Objective::km1;
     auto copy_hypergraph = _hg.extract(_block, cut_net_splitting,
                                        _context.preprocessing.stable_construction_of_incident_edges);
     Hypergraph& rb_hypergraph = copy_hypergraph.first;
@@ -467,7 +467,7 @@ namespace recursive_bipartitioning {
     if (context.partition.mode == Mode::recursive_bipartitioning) {
       utils::Timer::instance().start_timer("rb", "Recursive Bipartitioning");
     }
-    if (context.type == kahypar::ContextType::main) {
+    if (context.type == ContextType::main) {
       parallel::MemoryPool::instance().deactivate_unused_memory_allocations();
       utils::Timer::instance().disable();
       utils::Stats::instance().disable();
@@ -477,7 +477,7 @@ namespace recursive_bipartitioning {
             OriginalHypergraphInfo { hypergraph.totalWeight(), context.partition.k, context.partition.epsilon }, hypergraph, context);
     tbb::task::spawn_root_and_wait(root_bisection_task);
 
-    if (context.type == kahypar::ContextType::main) {
+    if (context.type == ContextType::main) {
       parallel::MemoryPool::instance().activate_unused_memory_allocations();
       utils::Timer::instance().enable();
       utils::Stats::instance().enable();

@@ -69,7 +69,7 @@ class DeltaPartitionedGraph {
     _part_weights_delta(context.partition.k, 0),
     _part_ids_delta(),
     _incident_weight_in_part_delta() {
-      const bool top_level = context.type == kahypar::ContextType::main;
+      const bool top_level = context.type == ContextType::main;
       _part_ids_delta.initialize(MAP_SIZE_SMALL);
       _incident_weight_in_part_delta.initialize(top_level ? MAP_SIZE_LARGE : MAP_SIZE_MOVE_DELTA);
     }

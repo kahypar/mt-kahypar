@@ -50,7 +50,7 @@ class APoolInitialPartitionerTest : public Test {
     context() {
     context.partition.k = Config::K;
     context.partition.epsilon = 0.2;
-    context.partition.objective = kahypar::Objective::km1;
+    context.partition.objective = Objective::km1;
     context.initial_partitioning.runs = Config::RUNS;
     context.refinement.label_propagation.algorithm =
       LabelPropagationAlgorithm::label_propagation_km1;

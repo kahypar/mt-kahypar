@@ -42,7 +42,7 @@ class ATwoWayFmRefiner : public Test {
     refiner(nullptr),
     metrics() {
     context.partition.mode = Mode::direct;
-    context.partition.objective = kahypar::Objective::cut;
+    context.partition.objective = Objective::cut;
     context.partition.epsilon = 0.25;
     context.partition.k = 2;
     context.partition.verbose_output = false;

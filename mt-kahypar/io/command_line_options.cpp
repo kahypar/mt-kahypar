@@ -656,9 +656,9 @@ namespace mt_kahypar {
             ("objective,o",
              po::value<std::string>()->value_name("<string>")->required()->notifier([&](const std::string& s) {
                if (s == "cut") {
-                 context.partition.objective = kahypar::Objective::cut;
+                 context.partition.objective = Objective::cut;
                } else if (s == "km1") {
-                 context.partition.objective = kahypar::Objective::km1;
+                 context.partition.objective = Objective::km1;
                }
              }),
              "Objective: \n"

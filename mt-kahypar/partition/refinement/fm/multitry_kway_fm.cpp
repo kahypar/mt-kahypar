@@ -61,7 +61,7 @@ namespace mt_kahypar {
         break;
       }
       size_t num_seeds = context.refinement.fm.num_seed_nodes;
-      if (context.type == kahypar::ContextType::main
+      if (context.type == ContextType::main
           && !refinement_nodes.empty()  /* n-level */
           && num_border_nodes < 20 * context.shared_memory.num_threads) {
         num_seeds = num_border_nodes / (4 * context.shared_memory.num_threads);
@@ -101,7 +101,7 @@ namespace mt_kahypar {
 
       HighResClockTimepoint fm_timestamp = std::chrono::high_resolution_clock::now();
       const double elapsed_time = std::chrono::duration<double>(fm_timestamp - fm_start).count();
-      if (debug && context.type == kahypar::ContextType::main) {
+      if (debug && context.type == ContextType::main) {
         FMStats stats;
         for (auto& fm : ets_fm) {
           fm.stats.merge(stats);
@@ -132,7 +132,7 @@ namespace mt_kahypar {
     }
 
     if (context.partition.show_memory_consumption && context.partition.verbose_output
-        && context.type == kahypar::ContextType::main
+        && context.type == ContextType::main
         && phg.initialNumNodes() == sharedData.moveTracker.moveOrder.size() /* top level */) {
       printMemoryConsumption();
     }
