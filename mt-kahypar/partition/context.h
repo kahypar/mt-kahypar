@@ -176,6 +176,7 @@ struct JudiciousParameters {
   double abort_factor = 0.2;
   mutable HyperedgeWeight initial_judicious_load = std::numeric_limits<HyperedgeWeight>::max();
   mutable HyperedgeID max_degree = 0;
+  mutable HyperedgeID min_degree = 0;
   mutable double max_block_time = 0.0;
 };
 

@@ -221,4 +221,11 @@ namespace mt_kahypar::metrics {
                                                    }));
   }
 
+  HyperedgeID minHnDegree(const Hypergraph& hypergraph) {
+    return hypergraph.nodeDegree(*std::min_element(hypergraph.nodes().begin(), hypergraph.nodes().end(),
+                                                   [&hypergraph](const HypernodeID a, const HypernodeID b) {
+                                                     return hypergraph.nodeDegree(a) < hypergraph.nodeDegree(b);
+                                                   }));
+  }
+
 } // namespace mt_kahypar::metrics

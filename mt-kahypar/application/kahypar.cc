@@ -30,6 +30,7 @@
 #include "mt-kahypar/partition/partitioner.h"
 
 #include "mt-kahypar/utils/randomize.h"
+#include "mt-kahypar/partition/metrics.h"
 
 int main(int argc, char* argv[]) {
 
@@ -73,6 +74,19 @@ int main(int argc, char* argv[]) {
 
   // Partition Hypergraph
   mt_kahypar::HighResClockTimepoint start = std::chrono::high_resolution_clock::now();
+  if (context.refinement.judicious.use_judicious_refinement && hypergraph.initialNumNodes() <= context.partition.k) {
+    mt_kahypar::PartitionedHypergraph partitioned_hypergraph;
+    mt_kahypar::HighResClockTimepoint end = std::chrono::high_resolution_clock::now();
+    context.refinement.judicious.max_degree = mt_kahypar::metrics::maxHnDegree(hypergraph);
+    context.refinement.judicious.min_degree = mt_kahypar::metrics::minHnDegree(hypergraph);
+
+    // Print Stats
+    std::chrono::duration<double> elapsed_seconds(end - start);
+    if ( context.partition.csv_output ) {
+      std::cout << mt_kahypar::io::csv::serializeSimple(partitioned_hypergraph, context, elapsed_seconds) << std::endl;
+    }
+  return 0;
+  }
   mt_kahypar::PartitionedHypergraph partitioned_hypergraph = mt_kahypar::partition(hypergraph, context);
   mt_kahypar::HighResClockTimepoint end = std::chrono::high_resolution_clock::now();
 
