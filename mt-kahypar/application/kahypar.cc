@@ -40,8 +40,9 @@
 
 int main(int argc, char* argv[]) {
 
-  mt_kahypar::Context context;
+  mt_kahypar::Context context(false);
   mt_kahypar::processCommandLineInput(context, argc, argv);
+  context.utility_id = mt_kahypar::utils::Utilities::instance().registerNewUtilityObjects();
   if (context.partition.verbose_output) {
     mt_kahypar::io::printBanner();
   }

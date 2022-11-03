@@ -268,8 +268,10 @@ class Context {
   mutable size_t initial_km1 = std::numeric_limits<size_t>::max();
   size_t utility_id = std::numeric_limits<size_t>::max();
 
-  Context() {
-    utility_id = utils::Utilities::instance().registerNewUtilityObjects();
+  Context(const bool register_utilities = true) {
+    if ( register_utilities ) {
+      utility_id = utils::Utilities::instance().registerNewUtilityObjects();
+    }
   }
 
   bool useSparsification() const ;
