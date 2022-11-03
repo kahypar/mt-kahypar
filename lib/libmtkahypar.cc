@@ -41,6 +41,7 @@
 #include "mt-kahypar/partition/metrics.h"
 #include "mt-kahypar/io/hypergraph_io.h"
 #include "mt-kahypar/utils/randomize.h"
+#include "mt-kahypar/utils/utilities.h"
 
 namespace {
   template<typename T>
@@ -167,6 +168,7 @@ void mt_kahypar_partition(const mt_kahypar_hypernode_id_t num_vertices,
   context.partition.seed = seed;
   context.partition.verbose_output = verbose;
   context.partition.write_partition_file = false;
+  context.utility_id = mt_kahypar::utils::Utilities::instance().registerNewUtilityObjects();
 
   mt_kahypar::utils::Randomize::instance().setSeed(context.partition.seed);
 

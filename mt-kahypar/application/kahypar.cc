@@ -35,13 +35,14 @@
 #include "mt-kahypar/io/csv_output.h"
 #include "mt-kahypar/io/partitioning_output.h"
 #include "mt-kahypar/partition/partitioner.h"
-
 #include "mt-kahypar/utils/randomize.h"
+#include "mt-kahypar/utils/utilities.h"
 
 int main(int argc, char* argv[]) {
 
   mt_kahypar::Context context;
   mt_kahypar::processCommandLineInput(context, argc, argv);
+  context.utility_id = mt_kahypar::utils::Utilities::instance().registerNewUtilityObjects();
   if (context.partition.verbose_output) {
     mt_kahypar::io::printBanner();
   }

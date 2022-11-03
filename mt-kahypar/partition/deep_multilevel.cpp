@@ -39,7 +39,7 @@
 
 #include "mt-kahypar/partition/initial_partitioning/flat/pool_initial_partitioner.h"
 #include "mt-kahypar/utils/randomize.h"
-#include "mt-kahypar/utils/stats.h"
+#include "mt-kahypar/utils/utilities.h"
 #include "mt-kahypar/utils/timer.h"
 
 
@@ -608,13 +608,14 @@ namespace deep_multilevel {
   }
 
   void partition(PartitionedHypergraph& hypergraph, const Context& context) {
+    utils::Utilities& utils = utils::Utilities::instance();
     if (context.partition.mode == Mode::deep_multilevel) {
       utils::Timer::instance().start_timer("deep", "Deep Multilevel");
     }
     if (context.type == ContextType::main) {
       parallel::MemoryPool::instance().deactivate_unused_memory_allocations();
       utils::Timer::instance().disable();
-      utils::Stats::instance().disable();
+      utils.getStats(context.utility_id).disable();
     }
 
     DeepPartitionTask& root_recursive_task = *new(tbb::task::allocate_root()) DeepPartitionTask(
@@ -629,7 +630,7 @@ namespace deep_multilevel {
     if (context.type == ContextType::main) {
       parallel::MemoryPool::instance().activate_unused_memory_allocations();
       utils::Timer::instance().enable();
-      utils::Stats::instance().enable();
+      utils.getStats(context.utility_id).enable();
     }
     if (context.partition.mode == Mode::deep_multilevel) {
       utils::Timer::instance().stop_timer("deep");

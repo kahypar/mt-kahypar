@@ -34,24 +34,23 @@
 namespace mt_kahypar {
 
 void FlowRefinementScheduler::RefinementStats::update_global_stats() {
-  utils::Stats& global_stats = utils::Stats::instance();
-  global_stats.update_stat("num_flow_refinements",
+  _stats.update_stat("num_flow_refinements",
     num_refinements.load(std::memory_order_relaxed));
-  global_stats.update_stat("num_flow_improvement",
+  _stats.update_stat("num_flow_improvement",
     num_improvements.load(std::memory_order_relaxed));
-  global_stats.update_stat("num_time_limits",
+  _stats.update_stat("num_time_limits",
     num_time_limits.load(std::memory_order_relaxed));
-  global_stats.update_stat("correct_expected_improvement",
+  _stats.update_stat("correct_expected_improvement",
     correct_expected_improvement.load(std::memory_order_relaxed));
-  global_stats.update_stat("zero_gain_improvement",
+  _stats.update_stat("zero_gain_improvement",
     zero_gain_improvement.load(std::memory_order_relaxed));
-  global_stats.update_stat("failed_updates_due_to_conflicting_moves",
+  _stats.update_stat("failed_updates_due_to_conflicting_moves",
     failed_updates_due_to_conflicting_moves.load(std::memory_order_relaxed));
-  global_stats.update_stat("failed_updates_due_to_conflicting_moves_without_rollback",
+  _stats.update_stat("failed_updates_due_to_conflicting_moves_without_rollback",
     failed_updates_due_to_conflicting_moves_without_rollback.load(std::memory_order_relaxed));
-  global_stats.update_stat("failed_updates_due_to_balance_constraint",
+  _stats.update_stat("failed_updates_due_to_balance_constraint",
     failed_updates_due_to_balance_constraint.load(std::memory_order_relaxed));
-  global_stats.update_stat("total_flow_refinement_improvement",
+  _stats.update_stat("total_flow_refinement_improvement",
     total_improvement.load(std::memory_order_relaxed));
 }
 

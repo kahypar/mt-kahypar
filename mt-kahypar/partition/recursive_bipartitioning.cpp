@@ -37,7 +37,7 @@
 
 #include "mt-kahypar/parallel/memory_pool.h"
 #include "mt-kahypar/utils/randomize.h"
-#include "mt-kahypar/utils/stats.h"
+#include "mt-kahypar/utils/utilities.h"
 #include "mt-kahypar/utils/timer.h"
 
 #include "mt-kahypar/partition/metrics.h"
@@ -470,13 +470,15 @@ namespace recursive_bipartitioning {
   }
 
   void partition(PartitionedHypergraph& hypergraph, const Context& context) {
+    utils::Utilities& utils = utils::Utilities::instance();
     if (context.partition.mode == Mode::recursive_bipartitioning) {
       utils::Timer::instance().start_timer("rb", "Recursive Bipartitioning");
     }
+
     if (context.type == ContextType::main) {
       parallel::MemoryPool::instance().deactivate_unused_memory_allocations();
       utils::Timer::instance().disable();
-      utils::Stats::instance().disable();
+      utils.getStats(context.utility_id).disable();
     }
 
     RecursiveMultilevelBipartitioningTask& root_bisection_task = *new(tbb::task::allocate_root()) RecursiveMultilevelBipartitioningTask(
@@ -486,7 +488,7 @@ namespace recursive_bipartitioning {
     if (context.type == ContextType::main) {
       parallel::MemoryPool::instance().activate_unused_memory_allocations();
       utils::Timer::instance().enable();
-      utils::Stats::instance().enable();
+      utils.getStats(context.utility_id).enable();
     }
     if (context.partition.mode == Mode::recursive_bipartitioning) {
       utils::Timer::instance().stop_timer("rb");

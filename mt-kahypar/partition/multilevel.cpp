@@ -40,6 +40,7 @@
 #include "mt-kahypar/io/partitioning_output.h"
 #include "mt-kahypar/partition/coarsening/multilevel_uncoarsener.h"
 #include "mt-kahypar/partition/coarsening/nlevel_uncoarsener.h"
+#include "mt-kahypar/utils/utilities.h"
 
 namespace mt_kahypar::multilevel {
 
@@ -127,9 +128,10 @@ namespace mt_kahypar::multilevel {
   private:
     void enableTimerAndStats() {
       if ( _context.type == ContextType::main && _context.partition.mode == Mode::direct ) {
+        utils::Utilities& utils = utils::Utilities::instance();
         parallel::MemoryPool::instance().activate_unused_memory_allocations();
         utils::Timer::instance().enable();
-        utils::Stats::instance().enable();
+        utils.getStats(_context.utility_id).enable();
       }
     }
 
@@ -234,9 +236,10 @@ namespace mt_kahypar::multilevel {
 
     void disableTimerAndStats() {
       if ( _context.type == ContextType::main && _context.partition.mode == Mode::direct ) {
+        utils::Utilities& utils = utils::Utilities::instance();
         parallel::MemoryPool::instance().deactivate_unused_memory_allocations();
         utils::Timer::instance().disable();
-        utils::Stats::instance().disable();
+        utils.getStats(_context.utility_id).disable();
       }
     }
 

@@ -36,6 +36,7 @@
 #include "mt-kahypar/partition/refinement/rebalancing/rebalancer.h"
 #include "mt-kahypar/utils/progress_bar.h"
 #include "mt-kahypar/io/partitioning_output.h"
+#include "mt-kahypar/utils/utilities.h"
 
 namespace mt_kahypar {
 
@@ -254,8 +255,8 @@ namespace mt_kahypar {
     }
 
     double avg_batch_size = static_cast<double>(total_batches_size) / num_batches;
-    utils::Stats::instance().add_stat("num_batches", static_cast<int64_t>(num_batches));
-    utils::Stats::instance().add_stat("avg_batch_size", avg_batch_size);
+    utils::Utilities::instance().getStats(_context.utility_id).add_stat("num_batches", static_cast<int64_t>(num_batches));
+    utils::Utilities::instance().getStats(_context.utility_id).add_stat("avg_batch_size", avg_batch_size);
     DBG << V(num_batches) << V(avg_batch_size);
 
     ASSERT(metrics::objective(*_uncoarseningData.partitioned_hg, _context.partition.objective) ==

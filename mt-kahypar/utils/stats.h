@@ -123,16 +123,24 @@ class StatsT {
   };
 
  public:
-  StatsT(const StatsT&) = delete;
+  explicit StatsT() :
+    _stat_mutex(),
+    _stats(),
+    _enable(true) { }
+
+  StatsT(const StatsT& other) :
+    _stat_mutex(),
+    _stats(other._stats),
+    _enable(other._enable) { }
+
   StatsT & operator= (const StatsT &) = delete;
 
-  StatsT(StatsT&&) = delete;
-  StatsT & operator= (StatsT &&) = delete;
+  StatsT(StatsT&& other) :
+    _stat_mutex(),
+    _stats(std::move(other._stats)),
+    _enable(std::move(other._enable)) { }
 
-  static StatsT& instance() {
-    static StatsT instance;
-    return instance;
-  }
+  StatsT & operator= (StatsT &&) = delete;
 
   void enable() {
     std::lock_guard<std::mutex> lock(_stat_mutex);
@@ -178,11 +186,6 @@ class StatsT {
   friend std::ostream & operator<< (std::ostream& str, const StatsT& stats);
 
  private:
-  explicit StatsT() :
-    _stat_mutex(),
-    _stats(),
-    _enable(true) { }
-
   std::mutex _stat_mutex;
   std::unordered_map<std::string, Stat> _stats;
   bool _enable;

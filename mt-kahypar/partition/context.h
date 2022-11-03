@@ -265,6 +265,7 @@ class Context {
 
   std::string algorithm_name = "Mt-KaHyPar";
   mutable size_t initial_km1 = std::numeric_limits<size_t>::max();
+  size_t utility_id = std::numeric_limits<size_t>::max();
 
   Context() { }
 
