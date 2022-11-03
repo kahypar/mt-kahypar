@@ -34,7 +34,7 @@
 #include "mt-kahypar/partition/refinement/i_refiner.h"
 #include "mt-kahypar/partition/refinement/flows/i_flow_refiner.h"
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
-#include "mt-kahypar/utils/timer.h"
+#include "mt-kahypar/utils/utilities.h"
 #include <mt-kahypar/partition/coarsening/coarsening_commons.h>
 
 namespace mt_kahypar {
@@ -53,6 +53,7 @@ class NLevelCoarsenerBase {
                       UncoarseningData& uncoarseningData) :
     _hg(hypergraph),
     _context(context),
+    _timer(utils::Utilities::instance().getTimer(context.utility_id)),
     _uncoarseningData(uncoarseningData) { }
 
   NLevelCoarsenerBase(const NLevelCoarsenerBase&) = delete;
@@ -75,20 +76,19 @@ class NLevelCoarsenerBase {
   }
 
   void removeSinglePinAndParallelNets(const HighResClockTimepoint& round_start) {
-    utils::Timer::instance().start_timer("remove_single_pin_and_parallel_nets", "Remove Single Pin and Parallel Nets");
+    _timer.start_timer("remove_single_pin_and_parallel_nets", "Remove Single Pin and Parallel Nets");
     _uncoarseningData.removed_hyperedges_batches.emplace_back(_hg.removeSinglePinAndParallelHyperedges());
     const HighResClockTimepoint round_end = std::chrono::high_resolution_clock::now();
     const double elapsed_time = std::chrono::duration<double>(round_end - round_start).count();
     _uncoarseningData.round_coarsening_times.push_back(elapsed_time);
-    utils::Timer::instance().stop_timer("remove_single_pin_and_parallel_nets");
+    _timer.stop_timer("remove_single_pin_and_parallel_nets");
   }
 
  protected:
   // ! Original hypergraph
   Hypergraph& _hg;
-
   const Context& _context;
-
+  utils::Timer& _timer;
   UncoarseningData& _uncoarseningData;
 };
 }  // namespace mt_kahypar

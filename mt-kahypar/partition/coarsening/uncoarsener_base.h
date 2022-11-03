@@ -32,7 +32,7 @@
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/refinement/i_refiner.h"
 #include "mt-kahypar/partition/coarsening/coarsening_commons.h"
-#include "mt-kahypar/utils/stats.h"
+#include "mt-kahypar/utils/utilities.h"
 #include "mt-kahypar/partition/metrics.h"
 
 
@@ -49,6 +49,7 @@ class UncoarsenerBase {
                           UncoarseningData& uncoarseningData) :
           _hg(hypergraph),
           _context(context),
+          _timer(utils::Utilities::instance().getTimer(context.utility_id)),
           _uncoarseningData(uncoarseningData) {}
 
   UncoarsenerBase(const UncoarsenerBase&) = delete;
@@ -61,6 +62,7 @@ class UncoarsenerBase {
   protected:
     Hypergraph& _hg;
     const Context& _context;
+    utils::Timer& _timer;
     UncoarseningData& _uncoarseningData;
 
   protected:
@@ -85,11 +87,12 @@ class UncoarsenerBase {
 
     int64_t num_nodes = phg.initialNumNodes();
     int64_t num_edges = Hypergraph::is_graph ? phg.initialNumEdges() / 2 : phg.initialNumEdges();
-    utils::Stats::instance().add_stat("initial_num_nodes", num_nodes);
-    utils::Stats::instance().add_stat("initial_num_edges", num_edges);
-    utils::Stats::instance().add_stat("initial_cut", m.cut);
-    utils::Stats::instance().add_stat("initial_km1", m.km1);
-    utils::Stats::instance().add_stat("initial_imbalance", m.imbalance);
+    utils::Stats& stats = utils::Utilities::instance().getStats(_context.utility_id);
+    stats.add_stat("initial_num_nodes", num_nodes);
+    stats.add_stat("initial_num_edges", num_edges);
+    stats.add_stat("initial_cut", m.cut);
+    stats.add_stat("initial_km1", m.km1);
+    stats.add_stat("initial_imbalance", m.imbalance);
     return m;
   }
 

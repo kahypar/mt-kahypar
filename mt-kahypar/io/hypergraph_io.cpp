@@ -371,20 +371,16 @@ namespace mt_kahypar::io {
     HyperedgeVector hyperedges;
     parallel::scalable_vector<HyperedgeWeight> hyperedges_weight;
     parallel::scalable_vector<HypernodeWeight> hypernodes_weight;
-    mt_kahypar::utils::Timer::instance().start_timer("read_input", "Read Hypergraph File");
     readHypergraphFile(filename, num_hyperedges, num_hypernodes,
                        num_removed_single_pin_hyperedges, hyperedges,
                        hyperedges_weight, hypernodes_weight, remove_single_pin_hes);
-    mt_kahypar::utils::Timer::instance().stop_timer("read_input");
 
     // Construct Hypergraph
-    utils::Timer::instance().start_timer("construct_hypergraph", "Construct Hypergraph");
     Hypergraph hypergraph = HypergraphFactory::construct(
             num_hypernodes, num_hyperedges,
             hyperedges, hyperedges_weight.data(), hypernodes_weight.data(),
             stable_construction_of_incident_edges);
     hypergraph.setNumRemovedHyperedges(num_removed_single_pin_hyperedges);
-    utils::Timer::instance().stop_timer("construct_hypergraph");
     return hypergraph;
   }
 
@@ -636,12 +632,9 @@ namespace mt_kahypar::io {
     EdgeVector edges;
     parallel::scalable_vector<HyperedgeWeight> edges_weight;
     parallel::scalable_vector<HypernodeWeight> nodes_weight;
-    mt_kahypar::utils::Timer::instance().start_timer("read_input", "Read Hypergraph File");
     readMetisFile(filename, num_edges, num_vertices, edges, edges_weight, nodes_weight);
-    mt_kahypar::utils::Timer::instance().stop_timer("read_input");
 
     // Construct Graph
-    utils::Timer::instance().start_timer("construct_hypergraph", "Construct Hypergraph");
     #ifdef USE_GRAPH_PARTITIONER
     Hypergraph graph = HypergraphFactory::construct_from_graph_edges(
             num_vertices, num_edges, edges,
@@ -653,7 +646,6 @@ namespace mt_kahypar::io {
             edges, edges_weight.data(), nodes_weight.data(),
             stable_construction_of_incident_edges);
     #endif
-    utils::Timer::instance().stop_timer("construct_hypergraph");
     return graph;
   }
 

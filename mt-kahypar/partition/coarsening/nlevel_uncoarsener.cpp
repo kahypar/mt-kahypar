@@ -36,6 +36,7 @@
 #include "mt-kahypar/partition/refinement/rebalancing/rebalancer.h"
 #include "mt-kahypar/utils/progress_bar.h"
 #include "mt-kahypar/io/partitioning_output.h"
+#include "mt-kahypar/utils/utilities.h"
 
 namespace mt_kahypar {
 
@@ -48,7 +49,7 @@ namespace mt_kahypar {
     }
 
     // Project partition from compactified hypergraph to original hypergraph
-    utils::Timer::instance().start_timer("initialize_partition", "Initialize Partition");
+    _timer.start_timer("initialize_partition", "Initialize Partition");
     *_uncoarseningData.partitioned_hg = PartitionedHypergraph(_context.partition.k, _hg, parallel_tag_t());
     _uncoarseningData.partitioned_hg->doParallelForAllNodes([&](const HypernodeID hn) {
       ASSERT(static_cast<size_t>(hn) < _uncoarseningData.compactified_hn_mapping.size());
@@ -76,7 +77,7 @@ namespace mt_kahypar {
            metrics::imbalance(*_uncoarseningData.partitioned_hg, _context),
            V(metrics::imbalance(*_uncoarseningData.compactified_phg, _context)) <<
            V(metrics::imbalance(*_uncoarseningData.partitioned_hg, _context)));
-    utils::Timer::instance().stop_timer("initialize_partition");
+    _timer.stop_timer("initialize_partition");
 
     // Initialize Flow Refinement Scheduler
     std::unique_ptr<IRefiner> flows(nullptr);
@@ -100,8 +101,8 @@ namespace mt_kahypar {
     // Perform batch uncontractions
     bool is_timer_disabled = false;
     bool force_measure_timings = _context.partition.measure_detailed_uncontraction_timings && _context.type == ContextType::main;
-    if ( utils::Timer::instance().isEnabled() ) {
-      utils::Timer::instance().disable();
+    if ( _timer.isEnabled() ) {
+      _timer.disable();
       is_timer_disabled = true;
     }
 
@@ -134,9 +135,9 @@ namespace mt_kahypar {
                                   current_metrics.getMetric(Mode::direct, _context.partition.objective),
                                   V(current_metrics.getMetric(Mode::direct, _context.partition.objective)) <<
                                   V(metrics::objective(*_uncoarseningData.partitioned_hg, _context.partition.objective)));
-          utils::Timer::instance().start_timer("batch_uncontractions", "Batch Uncontractions", false, force_measure_timings);
+          _timer.start_timer("batch_uncontractions", "Batch Uncontractions", false, force_measure_timings);
           _uncoarseningData.partitioned_hg->uncontract(batch);
-          utils::Timer::instance().stop_timer("batch_uncontractions", force_measure_timings);
+          _timer.stop_timer("batch_uncontractions", force_measure_timings);
           HEAVY_REFINEMENT_ASSERT(_hg.verifyIncidenceArrayAndIncidentNets());
           HEAVY_REFINEMENT_ASSERT(_uncoarseningData.partitioned_hg->checkTrackedPartitionInformation());
           HEAVY_REFINEMENT_ASSERT(metrics::objective(*_uncoarseningData.partitioned_hg, _context.partition.objective) ==
@@ -144,7 +145,7 @@ namespace mt_kahypar {
                                   V(current_metrics.getMetric(Mode::direct, _context.partition.objective)) <<
                                   V(metrics::objective(*_uncoarseningData.partitioned_hg, _context.partition.objective)));
 
-          utils::Timer::instance().start_timer("collect_border_vertices", "Collect Border Vertices", false, force_measure_timings);
+          _timer.start_timer("collect_border_vertices", "Collect Border Vertices", false, force_measure_timings);
           tbb::parallel_for(0UL, batch.size(), [&](const size_t i) {
             const Memento& memento = batch[i];
             if ( !border_vertices_of_batch[memento.u] && _uncoarseningData.partitioned_hg->isBorderNode(memento.u) ) {
@@ -156,7 +157,7 @@ namespace mt_kahypar {
               tmp_refinement_nodes.stream(memento.v);
             }
           });
-          utils::Timer::instance().stop_timer("collect_border_vertices", force_measure_timings);
+          _timer.stop_timer("collect_border_vertices", force_measure_timings);
 
           if ( tmp_refinement_nodes.size() >= minimum_required_number_of_border_vertices ) {
             // Perform localized refinement if we uncontract more
@@ -181,10 +182,10 @@ namespace mt_kahypar {
 
       // Restore single-pin and parallel nets to continue with the next vector of batches
       if ( !_uncoarseningData.removed_hyperedges_batches.empty() ) {
-        utils::Timer::instance().start_timer("restore_single_pin_and_parallel_nets", "Restore Single Pin and Parallel Nets", false, force_measure_timings);
+        _timer.start_timer("restore_single_pin_and_parallel_nets", "Restore Single Pin and Parallel Nets", false, force_measure_timings);
         _uncoarseningData.partitioned_hg->restoreSinglePinAndParallelNets(_uncoarseningData.removed_hyperedges_batches.back());
         _uncoarseningData.removed_hyperedges_batches.pop_back();
-        utils::Timer::instance().stop_timer("restore_single_pin_and_parallel_nets", force_measure_timings);
+        _timer.stop_timer("restore_single_pin_and_parallel_nets", force_measure_timings);
         HEAVY_REFINEMENT_ASSERT(_hg.verifyIncidenceArrayAndIncidentNets());
         HEAVY_REFINEMENT_ASSERT(_uncoarseningData.partitioned_hg->checkTrackedPartitionInformation());
 
@@ -213,7 +214,7 @@ namespace mt_kahypar {
     }
 
     if ( is_timer_disabled ) {
-      utils::Timer::instance().enable();
+      _timer.enable();
     }
 
     // If we finish batch uncontractions and partition is imbalanced, we try to rebalance it
@@ -229,7 +230,7 @@ namespace mt_kahypar {
         io::printPartWeightsAndSizes(*_uncoarseningData.partitioned_hg, _context);
       }
 
-      utils::Timer::instance().start_timer("rebalance", "Rebalance");
+      _timer.start_timer("rebalance", "Rebalance");
       if ( _context.partition.objective == Objective::km1 ) {
         Km1Rebalancer rebalancer(*_uncoarseningData.partitioned_hg, _context);
         rebalancer.rebalance(current_metrics);
@@ -237,7 +238,7 @@ namespace mt_kahypar {
         CutRebalancer rebalancer(*_uncoarseningData.partitioned_hg, _context);
         rebalancer.rebalance(current_metrics);
       }
-      utils::Timer::instance().stop_timer("rebalance");
+      _timer.stop_timer("rebalance");
 
       const HyperedgeWeight quality_after = current_metrics.getMetric(
         Mode::direct, _context.partition.objective);
@@ -254,8 +255,8 @@ namespace mt_kahypar {
     }
 
     double avg_batch_size = static_cast<double>(total_batches_size) / num_batches;
-    utils::Stats::instance().add_stat("num_batches", static_cast<int64_t>(num_batches));
-    utils::Stats::instance().add_stat("avg_batch_size", avg_batch_size);
+    utils::Utilities::instance().getStats(_context.utility_id).add_stat("num_batches", static_cast<int64_t>(num_batches));
+    utils::Utilities::instance().getStats(_context.utility_id).add_stat("avg_batch_size", avg_batch_size);
     DBG << V(num_batches) << V(avg_batch_size);
 
     ASSERT(metrics::objective(*_uncoarseningData.partitioned_hg, _context.partition.objective) ==
@@ -283,18 +284,18 @@ namespace mt_kahypar {
 
       if ( label_propagation &&
           _context.refinement.label_propagation.algorithm != LabelPropagationAlgorithm::do_nothing ) {
-        utils::Timer::instance().start_timer("label_propagation", "Label Propagation", false, force_measure_timings);
+        _timer.start_timer("label_propagation", "Label Propagation", false, force_measure_timings);
         improvement_found |= label_propagation->refine(partitioned_hypergraph,
                                                        refinement_nodes, current_metrics, std::numeric_limits<double>::max());
-        utils::Timer::instance().stop_timer("label_propagation", force_measure_timings);
+        _timer.stop_timer("label_propagation", force_measure_timings);
       }
 
       if ( fm &&
           _context.refinement.fm.algorithm != FMAlgorithm::do_nothing ) {
-        utils::Timer::instance().start_timer("fm", "FM", false, force_measure_timings);
+        _timer.start_timer("fm", "FM", false, force_measure_timings);
         improvement_found |= fm->refine(partitioned_hypergraph,
                                         refinement_nodes, current_metrics, std::numeric_limits<double>::max());
-        utils::Timer::instance().stop_timer("fm", force_measure_timings);
+        _timer.stop_timer("fm", force_measure_timings);
       }
 
       if ( _context.type == ContextType::main ) {
@@ -337,14 +338,14 @@ namespace mt_kahypar {
 
       // Enable Timings
       bool was_enabled = false;
-      if ( !utils::Timer::instance().isEnabled() &&
+      if ( !_timer.isEnabled() &&
            _context.type == ContextType::main ) {
-        utils::Timer::instance().enable();
+        _timer.enable();
         was_enabled = true;
       }
 
       // Apply global FM parameters to FM context and temporary store old fm context
-      utils::Timer::instance().start_timer("global_refinement", "Global Refinement");
+      _timer.start_timer("global_refinement", "Global Refinement");
       NLevelGlobalFMParameters tmp_global_fm = applyGlobalFMParameters(
         _context.refinement.fm, _context.refinement.global_fm);
       bool improvement_found = true;
@@ -354,19 +355,19 @@ namespace mt_kahypar {
           Mode::direct, _context.partition.objective);
 
         if ( fm && _context.refinement.fm.algorithm != FMAlgorithm::do_nothing ) {
-          utils::Timer::instance().start_timer("fm", "FM");
+          _timer.start_timer("fm", "FM");
           improvement_found |= fm->refine(partitioned_hypergraph, {}, current_metrics, time_limit);
-          utils::Timer::instance().stop_timer("fm");
+          _timer.stop_timer("fm");
         }
 
         if ( flows && _context.refinement.flows.algorithm != FlowAlgorithm::do_nothing ) {
-          utils::Timer::instance().start_timer("initialize_flow_scheduler", "Initialize Flow Scheduler");
+          _timer.start_timer("initialize_flow_scheduler", "Initialize Flow Scheduler");
           flows->initialize(partitioned_hypergraph);
-          utils::Timer::instance().stop_timer("initialize_flow_scheduler");
+          _timer.stop_timer("initialize_flow_scheduler");
 
-          utils::Timer::instance().start_timer("flow_refinement_scheduler", "Flow Refinement Scheduler");
+          _timer.start_timer("flow_refinement_scheduler", "Flow Refinement Scheduler");
           improvement_found |= flows->refine(partitioned_hypergraph, {}, current_metrics, time_limit);
-          utils::Timer::instance().stop_timer("flow_refinement_scheduler");
+          _timer.stop_timer("flow_refinement_scheduler");
         }
 
         if ( _context.type == ContextType::main ) {
@@ -386,10 +387,10 @@ namespace mt_kahypar {
       }
       // Reset FM context
       applyGlobalFMParameters(_context.refinement.fm, tmp_global_fm);
-      utils::Timer::instance().stop_timer("global_refinement");
+      _timer.stop_timer("global_refinement");
 
       if ( was_enabled ) {
-        utils::Timer::instance().disable();
+        _timer.disable();
       }
 
       if ( _context.type == ContextType::main) {

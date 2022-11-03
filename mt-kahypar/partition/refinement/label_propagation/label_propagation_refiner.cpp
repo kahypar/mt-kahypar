@@ -31,7 +31,7 @@
 
 #include "mt-kahypar/partition/metrics.h"
 #include "mt-kahypar/utils/randomize.h"
-#include "mt-kahypar/utils/stats.h"
+#include "mt-kahypar/utils/utilities.h"
 #include "mt-kahypar/utils/timer.h"
 
 namespace mt_kahypar {
@@ -70,7 +70,7 @@ namespace mt_kahypar {
                                                                     _context.refinement.label_propagation.execute_sequential)));
 
     best_metrics.updateMetric(current_metric + delta, Mode::direct, _context.partition.objective);
-    utils::Stats::instance().update_stat("lp_improvement", std::abs(delta));
+    utils::Utilities::instance().getStats(_context.utility_id).update_stat("lp_improvement", std::abs(delta));
     return delta < 0;
   }
 

@@ -26,6 +26,7 @@
 
 #include "deterministic_multilevel_coarsener.h"
 #include "mt-kahypar/utils/progress_bar.h"
+#include "mt-kahypar/utils/utilities.h"
 
 #include <tbb/parallel_sort.h>
 
@@ -33,7 +34,7 @@
 namespace mt_kahypar {
 
 void DeterministicMultilevelCoarsener::coarsenImpl() {
-  auto& timer = utils::Timer::instance();
+  auto& timer = utils::Utilities::instance().getTimer(_context.utility_id);
   HypernodeID initial_num_nodes = currentNumNodes();
   utils::ProgressBar progress_bar(initial_num_nodes, 0,
                                   _context.partition.verbose_output && _context.partition.enable_progress_bar);

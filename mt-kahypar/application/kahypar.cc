@@ -35,13 +35,14 @@
 #include "mt-kahypar/io/csv_output.h"
 #include "mt-kahypar/io/partitioning_output.h"
 #include "mt-kahypar/partition/partitioner.h"
-
 #include "mt-kahypar/utils/randomize.h"
+#include "mt-kahypar/utils/utilities.h"
 
 int main(int argc, char* argv[]) {
 
-  mt_kahypar::Context context;
+  mt_kahypar::Context context(false);
   mt_kahypar::processCommandLineInput(context, argc, argv);
+  context.utility_id = mt_kahypar::utils::Utilities::instance().registerNewUtilityObjects();
   if (context.partition.verbose_output) {
     mt_kahypar::io::printBanner();
   }
@@ -70,10 +71,14 @@ int main(int argc, char* argv[]) {
   hwloc_bitmap_free(cpuset);
 
   // Read Hypergraph
+  mt_kahypar::utils::Timer& timer =
+    mt_kahypar::utils::Utilities::instance().getTimer(context.utility_id);
+  timer.start_timer("io_hypergraph", "I/O Hypergraph");
   mt_kahypar::Hypergraph hypergraph = mt_kahypar::io::readInputFile(
       context.partition.graph_filename,
       context.partition.file_format,
       context.preprocessing.stable_construction_of_incident_edges);
+  timer.stop_timer("io_hypergraph");
 
   // Initialize Memory Pool
   mt_kahypar::register_memory_pool(hypergraph, context);
@@ -102,5 +107,6 @@ int main(int argc, char* argv[]) {
 
   mt_kahypar::parallel::MemoryPool::instance().free_memory_chunks();
   mt_kahypar::TBBInitializer::instance().terminate();
+
   return 0;
 }

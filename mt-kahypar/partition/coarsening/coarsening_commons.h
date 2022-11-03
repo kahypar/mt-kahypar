@@ -30,6 +30,8 @@
 
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/context.h"
+#include "mt-kahypar/utils/timer.h"
+
 namespace mt_kahypar {
 class Level {
 
@@ -108,17 +110,18 @@ public:
   }
 
   void finalizeCoarsening() {
+    utils::Timer& timer = utils::Utilities::instance().getTimer(_context.utility_id);
     if (nlevel) {
       // Create compactified hypergraph containing only enabled vertices and hyperedges
       // with consecutive IDs => Less complexity in initial partitioning.
-      utils::Timer::instance().start_timer("compactify_hypergraph", "Compactify Hypergraph");
+      timer.start_timer("compactify_hypergraph", "Compactify Hypergraph");
       auto compactification = HypergraphFactory::compactify(_hg);
       *compactified_hg = std::move(compactification.first);
       compactified_hn_mapping = std::move(compactification.second);
       *compactified_phg = PartitionedHypergraph(_context.partition.k, *compactified_hg, parallel_tag_t());
-      utils::Timer::instance().stop_timer("compactify_hypergraph");
+      timer.stop_timer("compactify_hypergraph");
     } else {
-      utils::Timer::instance().start_timer("finalize_multilevel_hierarchy", "Finalize Multilevel Hierarchy");
+      timer.start_timer("finalize_multilevel_hierarchy", "Finalize Multilevel Hierarchy");
       // Free memory of temporary contraction buffer and
       // release coarsening memory in memory pool
       if (!hierarchy.empty()) {
@@ -135,8 +138,7 @@ public:
       if (!hierarchy.empty()) {
         partitioned_hg->setHypergraph(hierarchy.back().contractedHypergraph());
       }
-
-      utils::Timer::instance().stop_timer("finalize_multilevel_hierarchy");
+      timer.stop_timer("finalize_multilevel_hierarchy");
     }
     is_finalized = true;
   }

@@ -32,7 +32,7 @@
 
 #include "tests/datastructures/hypergraph_fixtures.h"
 #include "mt-kahypar/definitions.h"
-#include "mt-kahypar/utils/timer.h"
+#include "mt-kahypar/utils/utilities.h"
 #include "mt-kahypar/partition/initial_partitioning/flat/initial_partitioning_data_container.h"
 
 using ::testing::Test;
@@ -52,7 +52,7 @@ class AInitialPartitioningDataContainer : public ds::HypergraphFixture<Hypergrap
     context.partition.objective = Objective::km1;
     // Max Part Weight = 4
     context.setupPartWeights(hypergraph.totalWeight());
-    utils::Timer::instance().disable();
+    utils::Utilities::instance().getTimer(context.utility_id).disable();
   }
 
   using Base::hypergraph;

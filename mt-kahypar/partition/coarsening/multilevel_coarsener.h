@@ -184,9 +184,9 @@ class MultilevelCoarsener : public ICoarsener,
       // Matched vertices are linked in a concurrent union find data structure, that also aggregates
       // weights of the resulting clusters and keep track of the number of nodes left, if we would
       // contract all matched vertices.
-      utils::Timer::instance().start_timer("clustering", "Clustering");
+      _timer.start_timer("clustering", "Clustering");
       if ( _context.partition.show_detailed_clustering_timings ) {
-        utils::Timer::instance().start_timer("clustering_level_" + std::to_string(pass_nr), "Level " + std::to_string(pass_nr));
+        _timer.start_timer("clustering_level_" + std::to_string(pass_nr), "Level " + std::to_string(pass_nr));
       }
       _rater.resetMatches();
       _rater.setCurrentNumberOfNodes(current_hg.initialNumNodes());
@@ -243,9 +243,9 @@ class MultilevelCoarsener : public ICoarsener,
         }
       });
       if ( _context.partition.show_detailed_clustering_timings ) {
-        utils::Timer::instance().stop_timer("clustering_level_" + std::to_string(pass_nr));
+        _timer.stop_timer("clustering_level_" + std::to_string(pass_nr));
       }
-      utils::Timer::instance().stop_timer("clustering");
+      _timer.stop_timer("clustering");
       current_num_nodes = num_hns_before_pass - contracted_nodes.combine(std::plus<>());
       DBG << V(current_num_nodes);
 
@@ -284,10 +284,10 @@ class MultilevelCoarsener : public ICoarsener,
       }
       _progress_bar += (num_hns_before_pass - current_num_nodes);
 
-      utils::Timer::instance().start_timer("contraction", "Contraction");
+      _timer.start_timer("contraction", "Contraction");
       // Perform parallel contraction
       _uncoarseningData.performMultilevelContraction(std::move(cluster_ids), round_start);
-      utils::Timer::instance().stop_timer("contraction");
+      _timer.stop_timer("contraction");
 
       if ( _context.coarsening.use_adaptive_max_allowed_node_weight ) {
         // If the reduction ratio of the number of vertices or pins is below

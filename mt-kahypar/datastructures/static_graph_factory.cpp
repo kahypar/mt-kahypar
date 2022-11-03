@@ -103,7 +103,6 @@ namespace mt_kahypar::ds {
     ASSERT(edge_vector.size() == num_edges);
 
     // Compute degree for each vertex
-    utils::Timer::instance().start_timer("compute_ds_sizes", "Precompute DS Size", true);
     ThreadLocalCounter local_degree_per_vertex(num_nodes);
     tbb::parallel_for(ID(0), num_edges, [&](const size_t pos) {
       Counter& num_degree_per_vertex = local_degree_per_vertex.local();
@@ -122,16 +121,12 @@ namespace mt_kahypar::ds {
         num_degree_per_vertex[pos] += c[pos];
       });
     }
-    utils::Timer::instance().stop_timer("compute_ds_sizes");
 
     // Compute prefix sum over the degrees. The prefix sum is used than
     // as start position for each node in the edge array.
-    utils::Timer::instance().start_timer("compute_prefix_sums", "Compute Prefix Sums", true);
     parallel::TBBPrefixSum<size_t> degree_prefix_sum(num_degree_per_vertex);
     tbb::parallel_scan(tbb::blocked_range<size_t>( 0UL, UI64(num_nodes)), degree_prefix_sum);
-    utils::Timer::instance().stop_timer("compute_prefix_sums");
 
-    utils::Timer::instance().start_timer("setup_hypergraph", "Setup hypergraph", true);
     ASSERT(degree_prefix_sum.total_sum() == 2 * num_edges);
 
     AtomicCounter incident_edges_position(num_nodes,
@@ -186,7 +181,6 @@ namespace mt_kahypar::ds {
       sort_incident_edges(graph);
     }
     graph.computeAndSetTotalNodeWeight(parallel_tag_t());
-    utils::Timer::instance().stop_timer("setup_hypergraph");
     return graph;
   }
 }

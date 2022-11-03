@@ -31,8 +31,7 @@
 
 
 #include "mt-kahypar/partition/metrics.h"
-#include "mt-kahypar/utils/initial_partitioning_stats.h"
-#include "mt-kahypar/utils/stats.h"
+#include "mt-kahypar/utils/utilities.h"
 #include "mt-kahypar/utils/timer.h"
 
 namespace mt_kahypar::io::serializer {
@@ -164,13 +163,15 @@ std::string serialize(const PartitionedHypergraph& hypergraph,
     oss << " totalPartitionTime=" << elapsed_seconds.count();
 
     // Timings
-    utils::Timer::instance(context.partition.show_detailed_timings).serialize(oss);
+    utils::Timer& timer = utils::Utilities::instance().getTimer(context.utility_id);
+    timer.showDetailedTimings(context.partition.show_detailed_timings);
+    timer.serialize(oss);
 
     // Stats
-    oss << utils::Stats::instance();
+    oss << utils::Utilities::instance().getStats(context.utility_id);
 
     // Initial Partitioning Stats
-    oss << utils::InitialPartitioningStats::instance();
+    oss << utils::Utilities::instance().getInitialPartitioningStats(context.utility_id);
 
     return oss.str();
   } else {

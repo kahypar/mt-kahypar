@@ -43,7 +43,7 @@ namespace mt_kahypar::io::csv {
   }
 
   std::string serialize(const PartitionedHypergraph& phg, const Context& context,
-                                      const std::chrono::duration<double>& elapsed_seconds) {
+                        const std::chrono::duration<double>& elapsed_seconds) {
     const char sep = ',';
     std::stringstream s;
 
@@ -71,7 +71,8 @@ namespace mt_kahypar::io::csv {
     s << context.initial_km1 << sep;
     s << elapsed_seconds.count() << sep;
 
-    utils::Timer& timer = utils::Timer::instance(context.partition.show_detailed_timings);
+    utils::Timer& timer = utils::Utilities::instance().getTimer(context.utility_id);
+    timer.showDetailedTimings(context.partition.show_detailed_timings);
     s << (timer.get("fm") + timer.get("initialize_fm_refiner"))<< sep;
     s << (timer.get("label_propagation") + timer.get("initialize_lp_refiner")) << sep;
     s << timer.get("coarsening") << sep;

@@ -456,7 +456,6 @@ private:
     // Compute pin counts of restored hyperedges and gain cache values of vertices contained
     // single-pin hyperedges. Note, that restoring parallel hyperedges does not change any
     // value in the gain cache, since it already contributes to the gain via its representative.
-    utils::Timer::instance().start_timer("update_pin_counts_and_gain_cache", "Update Pin Counts And Gain Cache");
     tls_enumerable_thread_specific< vec<HypernodeID> > ets_pin_count_in_part(_k, 0);
     tbb::parallel_for(0UL, hes_to_restore.size(), [&](const size_t i) {
       const HyperedgeID he = hes_to_restore[i].removed_hyperedge;
@@ -501,7 +500,6 @@ private:
         }());
       }
     });
-    utils::Timer::instance().stop_timer("update_pin_counts_and_gain_cache");
   }
 
   // ####################### Partition Information #######################

@@ -239,7 +239,7 @@ class NLevelCoarsener : public ICoarsener,
     }
 
     HighResClockTimepoint round_start = std::chrono::high_resolution_clock::now();
-    utils::Timer::instance().start_timer("clustering", "Clustering");
+    _timer.start_timer("clustering", "Clustering");
     tbb::parallel_for(0UL, _current_vertices.size(), [&](const size_t i) {
       if ( _cl_tracker.currentNumNodes() > contraction_limit ) {
         const HypernodeID& hn = _current_vertices[i];
@@ -247,7 +247,7 @@ class NLevelCoarsener : public ICoarsener,
         _cl_tracker.update(num_contractions, contraction_limit);
       }
     });
-    utils::Timer::instance().stop_timer("clustering");
+    _timer.stop_timer("clustering");
 
     // Remove single-pin and parallel nets
     Base::removeSinglePinAndParallelNets(round_start);

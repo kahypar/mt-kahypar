@@ -28,30 +28,28 @@
 
 #include "mt-kahypar/partition/metrics.h"
 #include "mt-kahypar/io/partitioning_output.h"
-#include "mt-kahypar/utils/stats.h"
-#include "mt-kahypar/utils/timer.h"
+#include "mt-kahypar/utils/utilities.h"
 
 namespace mt_kahypar {
 
 void FlowRefinementScheduler::RefinementStats::update_global_stats() {
-  utils::Stats& global_stats = utils::Stats::instance();
-  global_stats.update_stat("num_flow_refinements",
+  _stats.update_stat("num_flow_refinements",
     num_refinements.load(std::memory_order_relaxed));
-  global_stats.update_stat("num_flow_improvement",
+  _stats.update_stat("num_flow_improvement",
     num_improvements.load(std::memory_order_relaxed));
-  global_stats.update_stat("num_time_limits",
+  _stats.update_stat("num_time_limits",
     num_time_limits.load(std::memory_order_relaxed));
-  global_stats.update_stat("correct_expected_improvement",
+  _stats.update_stat("correct_expected_improvement",
     correct_expected_improvement.load(std::memory_order_relaxed));
-  global_stats.update_stat("zero_gain_improvement",
+  _stats.update_stat("zero_gain_improvement",
     zero_gain_improvement.load(std::memory_order_relaxed));
-  global_stats.update_stat("failed_updates_due_to_conflicting_moves",
+  _stats.update_stat("failed_updates_due_to_conflicting_moves",
     failed_updates_due_to_conflicting_moves.load(std::memory_order_relaxed));
-  global_stats.update_stat("failed_updates_due_to_conflicting_moves_without_rollback",
+  _stats.update_stat("failed_updates_due_to_conflicting_moves_without_rollback",
     failed_updates_due_to_conflicting_moves_without_rollback.load(std::memory_order_relaxed));
-  global_stats.update_stat("failed_updates_due_to_balance_constraint",
+  _stats.update_stat("failed_updates_due_to_balance_constraint",
     failed_updates_due_to_balance_constraint.load(std::memory_order_relaxed));
-  global_stats.update_stat("total_flow_refinement_improvement",
+  _stats.update_stat("total_flow_refinement_improvement",
     total_improvement.load(std::memory_order_relaxed));
 }
 
@@ -116,6 +114,7 @@ bool FlowRefinementScheduler::refineImpl(
     Mode::direct, _context.partition.objective));
 
   std::atomic<HyperedgeWeight> overall_delta(0);
+  utils::Timer& timer = utils::Utilities::instance().getTimer(_context.utility_id);
   tbb::parallel_for(0UL, _refiner.numAvailableRefiner(), [&](const size_t i) {
     while ( i < std::max(1UL, static_cast<size_t>(
         std::ceil(_context.refinement.flows.parallel_searches_multiplier *
@@ -125,11 +124,11 @@ bool FlowRefinementScheduler::refineImpl(
         DBG << "Start search" << search_id
             << "( Blocks =" << blocksOfSearch(search_id)
             << ", Refiner =" << i << ")";
-        utils::Timer::instance().start_timer("region_growing", "Grow Region", true);
+        timer.start_timer("region_growing", "Grow Region", true);
         const Subhypergraph sub_hg =
           _constructor.construct(search_id, _quotient_graph, phg);
         _quotient_graph.finalizeConstruction(search_id);
-        utils::Timer::instance().stop_timer("region_growing");
+        timer.stop_timer("region_growing");
 
         HyperedgeWeight delta = 0;
         bool improved_solution = false;
@@ -138,11 +137,11 @@ bool FlowRefinementScheduler::refineImpl(
           MoveSequence sequence = _refiner.refine(search_id, phg, sub_hg);
 
           if ( !sequence.moves.empty() ) {
-            utils::Timer::instance().start_timer("apply_moves", "Apply Moves", true);
+            timer.start_timer("apply_moves", "Apply Moves", true);
             delta = applyMoves(search_id, sequence);
             overall_delta -= delta;
             improved_solution = sequence.state == MoveSequenceState::SUCCESS && delta > 0;
-            utils::Timer::instance().stop_timer("apply_moves");
+            timer.stop_timer("apply_moves");
           } else if ( sequence.state == MoveSequenceState::TIME_LIMIT ) {
             ++_stats.num_time_limits;
             DBG << RED << "Search" << search_id << "reaches the time limit ( Time Limit ="
@@ -215,9 +214,10 @@ void FlowRefinementScheduler::initializeImpl(PartitionedHypergraph& phg)  {
   }
 
   _stats.reset();
-  utils::Timer::instance().start_timer("initialize_quotient_graph", "Initialize Quotient Graph");
+  utils::Timer& timer = utils::Utilities::instance().getTimer(_context.utility_id);
+  timer.start_timer("initialize_quotient_graph", "Initialize Quotient Graph");
   _quotient_graph.initialize(phg);
-  utils::Timer::instance().stop_timer("initialize_quotient_graph");
+  timer.stop_timer("initialize_quotient_graph");
 
   const size_t max_parallism = _context.refinement.flows.num_parallel_searches;
   DBG << "Initial Active Block Pairs =" << _quotient_graph.numActiveBlockPairs()

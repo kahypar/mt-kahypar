@@ -79,19 +79,37 @@ inline std::ostream & operator<< (std::ostream& str, const InitialPartitionerSum
   return str;
 }
 
-class InitialPartitioningStatsT {
+class InitialPartitioningStats {
 
  public:
-  InitialPartitioningStatsT(const InitialPartitioningStatsT&) = delete;
-  InitialPartitioningStatsT & operator= (const InitialPartitioningStatsT &) = delete;
-
-  InitialPartitioningStatsT(InitialPartitioningStatsT&&) = delete;
-  InitialPartitioningStatsT & operator= (InitialPartitioningStatsT &&) = delete;
-
-  static InitialPartitioningStatsT& instance() {
-    static InitialPartitioningStatsT instance;
-    return instance;
+  explicit InitialPartitioningStats() :
+    _stat_mutex(),
+    _num_initial_partitioner(static_cast<uint8_t>(InitialPartitioningAlgorithm::UNDEFINED)),
+    _ip_summary(),
+    _total_ip_calls(0),
+    _total_sum_number_of_threads(0) {
+    for ( uint8_t algo = 0; algo < _num_initial_partitioner; ++algo ) {
+      _ip_summary.emplace_back(static_cast<InitialPartitioningAlgorithm>(algo));
+    }
   }
+
+  InitialPartitioningStats(const InitialPartitioningStats& other) :
+    _stat_mutex(),
+    _num_initial_partitioner(other._num_initial_partitioner),
+    _ip_summary(other._ip_summary),
+    _total_ip_calls(other._total_ip_calls),
+    _total_sum_number_of_threads(other._total_sum_number_of_threads) { }
+
+  InitialPartitioningStats & operator= (const InitialPartitioningStats &) = delete;
+
+  InitialPartitioningStats(InitialPartitioningStats&& other) :
+    _stat_mutex(),
+    _num_initial_partitioner(std::move(other._num_initial_partitioner)),
+    _ip_summary(std::move(other._ip_summary)),
+    _total_ip_calls(std::move(other._total_ip_calls)),
+    _total_sum_number_of_threads(std::move(other._total_sum_number_of_threads)) { }
+
+  InitialPartitioningStats & operator= (InitialPartitioningStats &&) = delete;
 
   void add_initial_partitioning_result(const InitialPartitioningAlgorithm best_algorithm,
                                        const size_t number_of_threads,
@@ -134,20 +152,9 @@ class InitialPartitioningStatsT {
     }
   }
 
-  friend std::ostream & operator<< (std::ostream& str, const InitialPartitioningStatsT& stats);
+  friend std::ostream & operator<< (std::ostream& str, const InitialPartitioningStats& stats);
 
  private:
-  explicit InitialPartitioningStatsT() :
-    _stat_mutex(),
-    _num_initial_partitioner(static_cast<uint8_t>(InitialPartitioningAlgorithm::UNDEFINED)),
-    _ip_summary(),
-    _total_ip_calls(0),
-    _total_sum_number_of_threads(0) {
-    for ( uint8_t algo = 0; algo < _num_initial_partitioner; ++algo ) {
-      _ip_summary.emplace_back(static_cast<InitialPartitioningAlgorithm>(algo));
-    }
-  }
-
   std::mutex _stat_mutex;
   const uint8_t _num_initial_partitioner;
   parallel::scalable_vector<InitialPartitionerSummary> _ip_summary;
@@ -155,7 +162,7 @@ class InitialPartitioningStatsT {
   size_t _total_sum_number_of_threads;
 };
 
-inline std::ostream & operator<< (std::ostream& str, const InitialPartitioningStatsT& stats) {
+inline std::ostream & operator<< (std::ostream& str, const InitialPartitioningStats& stats) {
   str << " average_number_of_threads_per_ip_call="
       << stats.average_number_of_threads_per_ip_call();
   for ( const InitialPartitionerSummary& summary : stats._ip_summary ) {
@@ -163,46 +170,6 @@ inline std::ostream & operator<< (std::ostream& str, const InitialPartitioningSt
   }
   return str;
 }
-
-class DoNothingInitialPartitioningStats {
-
- public:
-  DoNothingInitialPartitioningStats(const DoNothingInitialPartitioningStats&) = delete;
-  DoNothingInitialPartitioningStats & operator= (const DoNothingInitialPartitioningStats &) = delete;
-
-  DoNothingInitialPartitioningStats(DoNothingInitialPartitioningStats&&) = delete;
-  DoNothingInitialPartitioningStats & operator= (DoNothingInitialPartitioningStats &&) = delete;
-
-  static DoNothingInitialPartitioningStats& instance() {
-    static DoNothingInitialPartitioningStats instance;
-    return instance;
-  }
-
-  void add_initial_partitioning_result(const InitialPartitioningAlgorithm,
-                                       const size_t,
-                                       const parallel::scalable_vector<InitialPartitionerSummary>&) { }
-
-  double average_number_of_threads_per_ip_call() const {
-    return 0.0;
-  }
-
-  void printInitialPartitioningStats() { }
-
-  friend std::ostream & operator<< (std::ostream& str, const DoNothingInitialPartitioningStats& stats);
-
- private:
-  explicit DoNothingInitialPartitioningStats() { }
-};
-
-inline std::ostream & operator<< (std::ostream& str, const DoNothingInitialPartitioningStats&) {
-  return str;
-}
-
-#ifdef MT_KAHYPAR_LIBRARY_MODE
-using InitialPartitioningStats = DoNothingInitialPartitioningStats;
-#else
-using InitialPartitioningStats = InitialPartitioningStatsT;
-#endif
 
 }  // namespace utils
 }  // namespace mt_kahypar

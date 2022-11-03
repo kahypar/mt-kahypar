@@ -29,6 +29,7 @@
 
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/context_enum_classes.h"
+#include "mt-kahypar/utils/utilities.h"
 
 namespace mt_kahypar {
 struct PartitioningParameters {
@@ -265,8 +266,13 @@ class Context {
 
   std::string algorithm_name = "Mt-KaHyPar";
   mutable size_t initial_km1 = std::numeric_limits<size_t>::max();
+  size_t utility_id = std::numeric_limits<size_t>::max();
 
-  Context() { }
+  Context(const bool register_utilities = true) {
+    if ( register_utilities ) {
+      utility_id = utils::Utilities::instance().registerNewUtilityObjects();
+    }
+  }
 
   bool useSparsification() const ;
 

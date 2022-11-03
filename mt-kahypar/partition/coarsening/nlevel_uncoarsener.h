@@ -79,10 +79,10 @@ namespace mt_kahypar {
   }
   void initHierarchy() {
     // Create n-level batch uncontraction hierarchy
-    utils::Timer::instance().start_timer("create_batch_uncontraction_hierarchy", "Create n-Level Hierarchy");
+    _timer.start_timer("create_batch_uncontraction_hierarchy", "Create n-Level Hierarchy");
     _hierarchy = _hg.createBatchUncontractionHierarchy(_context.refinement.max_batch_size);
     ASSERT(_uncoarseningData.removed_hyperedges_batches.size() == _hierarchy.size() - 1);
-    utils::Timer::instance().stop_timer("create_batch_uncontraction_hierarchy");
+    _timer.stop_timer("create_batch_uncontraction_hierarchy");
   }
 
   // ! Represents the n-level hierarchy

@@ -32,7 +32,7 @@
 #include "mt-kahypar/parallel/memory_pool.h"
 #include "mt-kahypar/parallel/atomic_wrapper.h"
 #include "mt-kahypar/utils/memory_tree.h"
-#include "mt-kahypar/utils/timer.h"
+#include "mt-kahypar/utils/utilities.h"
 
 namespace mt_kahypar {
 
@@ -132,9 +132,10 @@ namespace mt_kahypar {
       }
 
       // Allocate Memory
-      utils::Timer::instance().start_timer("memory_pool_allocation", "Memory Pool Allocation");
+      utils::Timer& timer = utils::Utilities::instance().getTimer(context.utility_id);
+      timer.start_timer("memory_pool_allocation", "Memory Pool Allocation");
       pool.allocate_memory_chunks();
-      utils::Timer::instance().stop_timer("memory_pool_allocation");
+      timer.stop_timer("memory_pool_allocation");
     }
   }
 

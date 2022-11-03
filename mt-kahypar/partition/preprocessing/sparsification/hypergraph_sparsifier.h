@@ -38,6 +38,7 @@
 #include "mt-kahypar/partition/preprocessing/sparsification/i_hypergraph_sparsifier.h"
 #include "mt-kahypar/parallel/atomic_wrapper.h"
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
+#include "mt-kahypar/utils/utilities.h"
 
 namespace mt_kahypar {
 template<typename SimiliarNetCombiner>
@@ -114,22 +115,23 @@ class HypergraphSparsifier : public IHypergraphSparsifier {
   void sparsifyImpl(const Hypergraph& hypergraph) override final {
     ASSERT(_context.useSparsification());
     SparsifierHypergraph sparsified_hypergraph(hypergraph);
+    utils::Timer& timer = utils::Utilities::instance().getTimer(_context.utility_id);
 
     // #################### STAGE 1 ####################
     // Heavy Hyperedge Removal
     // If the weight of all pins of a hyperedge is greater than a
     // certain threshold, we remove them from the hypergraph
     if ( _context.sparsification.use_heavy_net_removal ) {
-      utils::Timer::instance().start_timer("heavy_hyperedge_removal", "Heavy HE Removal");
+      timer.start_timer("heavy_hyperedge_removal", "Heavy HE Removal");
       heavyHyperedgeRemovalSparsification(sparsified_hypergraph);
-      utils::Timer::instance().stop_timer("heavy_hyperedge_removal");
+      timer.stop_timer("heavy_hyperedge_removal");
     }
 
     // #################### STAGE 2 ####################
     if ( _context.sparsification.use_similiar_net_removal ) {
-      utils::Timer::instance().start_timer("similiar_hyperedge_removal", "Similiar HE Removal");
+      timer.start_timer("similiar_hyperedge_removal", "Similiar HE Removal");
       similiarHyperedgeRemoval(hypergraph, sparsified_hypergraph);
-      utils::Timer::instance().stop_timer("similiar_hyperedge_removal");
+      timer.stop_timer("similiar_hyperedge_removal");
     }
 
     // #################### STAGE 3 ####################
@@ -138,19 +140,19 @@ class HypergraphSparsifier : public IHypergraphSparsifier {
     // each supervertex has a weight smaller than the maximum allowed
     // node weight.
     if ( _context.sparsification.use_degree_zero_contractions ) {
-      utils::Timer::instance().start_timer("degree_zero_contraction", "Degree-Zero Contractions");
+      timer.start_timer("degree_zero_contraction", "Degree-Zero Contractions");
       degreeZeroSparsification(sparsified_hypergraph);
-      utils::Timer::instance().stop_timer("degree_zero_contraction");
+      timer.stop_timer("degree_zero_contraction");
     }
 
     // #################### STAGE 4 ####################
     // Construct sparsified hypergraph
-    utils::Timer::instance().start_timer("construct_sparsified_hypergraph", "Construct Sparsified HG");
+    timer.start_timer("construct_sparsified_hypergraph", "Construct Sparsified HG");
     _sparsified_hg = sparsified_hypergraph.sparsify();
     _mapping = sparsified_hypergraph.getMapping();
     _sparsified_partitioned_hg = PartitionedHypergraph(
       _context.partition.k, _sparsified_hg, parallel_tag_t());
-    utils::Timer::instance().stop_timer("construct_sparsified_hypergraph");
+    timer.stop_timer("construct_sparsified_hypergraph");
   }
 
   void undoSparsificationImpl(PartitionedHypergraph& hypergraph) override final {

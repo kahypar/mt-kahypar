@@ -36,10 +36,10 @@
 #include "mt-kahypar/partition/preprocessing/sparsification/large_he_remover.h"
 #include "mt-kahypar/partition/initial_partitioning/flat/pool_initial_partitioner.h"
 #include "mt-kahypar/parallel/memory_pool.h"
-#include "mt-kahypar/utils/initial_partitioning_stats.h"
 #include "mt-kahypar/io/partitioning_output.h"
 #include "mt-kahypar/partition/coarsening/multilevel_uncoarsener.h"
 #include "mt-kahypar/partition/coarsening/nlevel_uncoarsener.h"
+#include "mt-kahypar/utils/utilities.h"
 
 namespace mt_kahypar::multilevel {
 
@@ -85,18 +85,20 @@ namespace mt_kahypar::multilevel {
           _uncoarseningData->coarsestPartitionedHypergraph());
       }
 
-      utils::Timer::instance().stop_timer("initial_partitioning");
+      utils::Timer& timer = utils::Utilities::instance().getTimer(_context.utility_id);
+      timer.stop_timer("initial_partitioning");
 
       io::printPartitioningResults(_uncoarseningData->coarsestPartitionedHypergraph(),
                                    _context, "Initial Partitioning Results:");
       if ( _context.partition.verbose_output ) {
-        utils::InitialPartitioningStats::instance().printInitialPartitioningStats();
+        utils::Utilities::instance().getInitialPartitioningStats(
+          _context.utility_id).printInitialPartitioningStats();
       }
 
       // ################## LOCAL SEARCH ##################
       io::printLocalSearchBanner(_context);
 
-      utils::Timer::instance().start_timer("refinement", "Refinement");
+      timer.start_timer("refinement", "Refinement");
       std::unique_ptr<IRefiner> label_propagation =
               LabelPropagationFactory::getInstance().createObject(
                       _context.refinement.label_propagation.algorithm,
@@ -112,7 +114,7 @@ namespace mt_kahypar::multilevel {
         _uncoarsener = std::make_unique<MultilevelUncoarsener>(_hg, _context, *_uncoarseningData);
       }
       _partitioned_hg = _uncoarsener->uncoarsen(label_propagation, fm);
-      utils::Timer::instance().stop_timer("refinement");
+      timer.stop_timer("refinement");
 
       io::printPartitioningResults(_partitioned_hg, _context, "Local Search Results:");
 
@@ -127,9 +129,10 @@ namespace mt_kahypar::multilevel {
   private:
     void enableTimerAndStats() {
       if ( _context.type == ContextType::main && _context.partition.mode == Mode::direct ) {
+        utils::Utilities& utils = utils::Utilities::instance();
         parallel::MemoryPool::instance().activate_unused_memory_allocations();
-        utils::Timer::instance().enable();
-        utils::Stats::instance().enable();
+        utils.getTimer(_context.utility_id).enable();
+        utils.getStats(_context.utility_id).enable();
       }
     }
 
@@ -162,11 +165,12 @@ namespace mt_kahypar::multilevel {
       // ################## COARSENING ##################
       mt_kahypar::io::printCoarseningBanner(_context);
 
-      utils::Timer::instance().start_timer("coarsening", "Coarsening");
+      utils::Timer& timer = utils::Utilities::instance().getTimer(_context.utility_id);
+      timer.start_timer("coarsening", "Coarsening");
       _coarsener = CoarsenerFactory::getInstance().createObject(
               _context.coarsening.algorithm, _hg, _context, _uncoarseningData);
       _coarsener->coarsen();
-      utils::Timer::instance().stop_timer("coarsening");
+      timer.stop_timer("coarsening");
 
       Hypergraph& coarsestHypergraph = _coarsener->coarsestHypergraph();
       _coarsener.reset();
@@ -177,12 +181,12 @@ namespace mt_kahypar::multilevel {
       }
 
       // ################## INITIAL PARTITIONING ##################
-      utils::Timer::instance().start_timer("initial_partitioning", "Initial Partitioning");
+      timer.start_timer("initial_partitioning", "Initial Partitioning");
       if ( _context.useSparsification() ) {
         // Sparsify Hypergraph, if heavy hyperedge removal is enabled
-        utils::Timer::instance().start_timer("sparsify_hypergraph", "Sparsify Hypergraph");
+        timer.start_timer("sparsify_hypergraph", "Sparsify Hypergraph");
         _sparsifier.sparsify(coarsestHypergraph);
-        utils::Timer::instance().stop_timer("sparsify_hypergraph");
+        timer.stop_timer("sparsify_hypergraph");
       }
 
       if ( _sparsifier.isSparsified() ) {
@@ -234,9 +238,10 @@ namespace mt_kahypar::multilevel {
 
     void disableTimerAndStats() {
       if ( _context.type == ContextType::main && _context.partition.mode == Mode::direct ) {
+        utils::Utilities& utils = utils::Utilities::instance();
         parallel::MemoryPool::instance().deactivate_unused_memory_allocations();
-        utils::Timer::instance().disable();
-        utils::Stats::instance().disable();
+        utils.getTimer(_context.utility_id).disable();
+        utils.getStats(_context.utility_id).disable();
       }
     }
 

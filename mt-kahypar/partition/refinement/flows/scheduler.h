@@ -33,6 +33,7 @@
 #include "mt-kahypar/partition/refinement/flows/refiner_adapter.h"
 #include "mt-kahypar/partition/refinement/flows/problem_construction.h"
 #include "mt-kahypar/parallel/atomic_wrapper.h"
+#include "mt-kahypar/utils/utilities.h"
 
 namespace mt_kahypar {
 
@@ -42,7 +43,8 @@ class FlowRefinementScheduler final : public IRefiner {
   static constexpr bool enable_heavy_assert = false;
 
   struct RefinementStats {
-    RefinementStats() :
+    RefinementStats(utils::Stats& stats) :
+      _stats(stats),
       num_refinements(0),
       num_improvements(0),
       num_time_limits(0),
@@ -67,6 +69,7 @@ class FlowRefinementScheduler final : public IRefiner {
 
     void update_global_stats();
 
+    utils::Stats& _stats;
     CAtomic<int64_t> num_refinements;
     CAtomic<int64_t> num_improvements;
     CAtomic<int64_t> num_time_limits;
@@ -98,7 +101,7 @@ public:
     _part_weights_lock(),
     _part_weights(context.partition.k, 0),
     _max_part_weights(context.partition.k, 0),
-    _stats(),
+    _stats(utils::Utilities::instance().getStats(context.utility_id)),
     _apply_moves_lock() { }
 
   FlowRefinementScheduler(const FlowRefinementScheduler&) = delete;

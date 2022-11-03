@@ -39,7 +39,7 @@
 
 #include "mt-kahypar/partition/initial_partitioning/flat/pool_initial_partitioner.h"
 #include "mt-kahypar/utils/randomize.h"
-#include "mt-kahypar/utils/stats.h"
+#include "mt-kahypar/utils/utilities.h"
 #include "mt-kahypar/utils/timer.h"
 
 
@@ -80,14 +80,6 @@
 namespace mt_kahypar {
 
   struct DeepPartitionResult {
-    DeepPartitionResult() :
-            hypergraph(),
-            partitioned_hypergraph(),
-            mapping(),
-            context(),
-            objective(std::numeric_limits<HyperedgeWeight>::max()),
-            imbalance(1.0) { }
-
     explicit DeepPartitionResult(Context&& c) :
             hypergraph(),
             partitioned_hypergraph(),
@@ -329,6 +321,8 @@ namespace mt_kahypar {
                                   const Context& context,
                                   const bool was_recursion,
                                   const bool is_top_level) :
+            r1(context),
+            r2(context),
             _original_hypergraph_info(original_hypergraph_info),
             _hg(hypergraph),
             _context(context),
@@ -341,7 +335,7 @@ namespace mt_kahypar {
     tbb::task* execute() override {
       ASSERT(r1.objective < std::numeric_limits<HyperedgeWeight>::max());
 
-      DeepPartitionResult best;
+      DeepPartitionResult best(_context);
       // Choose best partition of both parallel recursion
       bool r1_has_better_quality = r1.objective < r2.objective;
       bool r1_is_balanced = r1.imbalance < r1.context.partition.epsilon;
@@ -608,13 +602,14 @@ namespace deep_multilevel {
   }
 
   void partition(PartitionedHypergraph& hypergraph, const Context& context) {
+    utils::Utilities& utils = utils::Utilities::instance();
     if (context.partition.mode == Mode::deep_multilevel) {
-      utils::Timer::instance().start_timer("deep", "Deep Multilevel");
+      utils.getTimer(context.utility_id).start_timer("deep", "Deep Multilevel");
     }
     if (context.type == ContextType::main) {
       parallel::MemoryPool::instance().deactivate_unused_memory_allocations();
-      utils::Timer::instance().disable();
-      utils::Stats::instance().disable();
+      utils.getTimer(context.utility_id).disable();
+      utils.getStats(context.utility_id).disable();
     }
 
     DeepPartitionTask& root_recursive_task = *new(tbb::task::allocate_root()) DeepPartitionTask(
@@ -628,11 +623,11 @@ namespace deep_multilevel {
 
     if (context.type == ContextType::main) {
       parallel::MemoryPool::instance().activate_unused_memory_allocations();
-      utils::Timer::instance().enable();
-      utils::Stats::instance().enable();
+      utils.getTimer(context.utility_id).enable();
+      utils.getStats(context.utility_id).enable();
     }
     if (context.partition.mode == Mode::deep_multilevel) {
-      utils::Timer::instance().stop_timer("deep");
+      utils.getTimer(context.utility_id).stop_timer("deep");
     }
   }
 } // namespace deep_multilevel
