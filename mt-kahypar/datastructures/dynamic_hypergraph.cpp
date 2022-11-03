@@ -198,13 +198,10 @@ void DynamicHypergraph::uncontract(const Batch& batch,
 VersionedBatchVector DynamicHypergraph::createBatchUncontractionHierarchy(const size_t batch_size,
                                                                           const bool test) {
   const size_t num_versions = _version + 1;
-  utils::Timer::instance().start_timer("finalize_contraction_tree", "Finalize Contraction Tree");
   // Finalizes the contraction tree such that it is traversable in a top-down fashion
   // and contains subtree size for each  tree node
   _contraction_tree.finalize(num_versions);
-  utils::Timer::instance().stop_timer("finalize_contraction_tree");
 
-  utils::Timer::instance().start_timer("create_versioned_batches", "Create Versioned Batches");
   VersionedBatchVector versioned_batches(num_versions);
   parallel::scalable_vector<size_t> batch_sizes_prefix_sum(num_versions, 0);
   BatchIndexAssigner batch_index_assigner(_num_hypernodes, batch_size);
@@ -218,11 +215,8 @@ VersionedBatchVector DynamicHypergraph::createBatchUncontractionHierarchy(const 
     }
     batch_index_assigner.reset(versioned_batches[version].size());
   }
-  utils::Timer::instance().stop_timer("create_versioned_batches");
 
   if ( !test ) {
-    utils::Timer::instance().start_timer("prepare_hg_for_uncontraction", "Prepare HG For Uncontraction");
-
     // Store the batch index of each vertex in its hypernode data structure
     tbb::parallel_for(0UL, num_versions, [&](const size_t version) {
       tbb::parallel_for(0UL, versioned_batches[version].size(), [&](const size_t local_batch_idx) {
@@ -247,7 +241,6 @@ VersionedBatchVector DynamicHypergraph::createBatchUncontractionHierarchy(const 
                   return hypernode(u).batchIndex() > hypernode(v).batchIndex();
                 });
     });
-    utils::Timer::instance().stop_timer("prepare_hg_for_uncontraction");
   }
 
   return versioned_batches;

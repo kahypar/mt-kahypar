@@ -71,7 +71,7 @@ namespace mt_kahypar {
 
     for (int i = _uncoarseningData.hierarchy.size() - 1; i >= 0; --i) {
       // Project partition to next level finer hypergraph
-      utils::Timer::instance().start_timer("projecting_partition", "Projecting Partition");
+      _timer.start_timer("projecting_partition", "Projecting Partition");
       const size_t num_nodes = partitioned_hg.initialNumNodes();
       if (i == 0) {
         partitioned_hg.setHypergraph(_hg);
@@ -89,7 +89,7 @@ namespace mt_kahypar {
         partitioned_hg.setOnlyNodePart(hn, block);
       });
       partitioned_hg.initializePartition();
-      utils::Timer::instance().stop_timer("projecting_partition");
+      _timer.stop_timer("projecting_partition");
 
       // Refinement
       time_limit = refinementTimeLimit(_context, (_uncoarseningData.hierarchy)[i].coarseningTime());
@@ -121,7 +121,7 @@ namespace mt_kahypar {
         if (_context.partition.verbose_output) {
           LOG << RED << "Start rebalancing!" << END;
         }
-        utils::Timer::instance().start_timer("rebalance", "Rebalance");
+        _timer.start_timer("rebalance", "Rebalance");
         if (_context.partition.objective == Objective::km1) {
           Km1Rebalancer rebalancer(*_uncoarseningData.partitioned_hg, _context);
           rebalancer.rebalance(current_metrics);
@@ -129,7 +129,7 @@ namespace mt_kahypar {
           CutRebalancer rebalancer(*_uncoarseningData.partitioned_hg, _context);
           rebalancer.rebalance(current_metrics);
         }
-        utils::Timer::instance().stop_timer("rebalance");
+        _timer.stop_timer("rebalance");
 
         const HyperedgeWeight quality_after = current_metrics.getMetric(
           Mode::direct, _context.partition.objective);
@@ -175,33 +175,33 @@ namespace mt_kahypar {
         Mode::direct, _context.partition.objective);
 
       if ( label_propagation && _context.refinement.label_propagation.algorithm != LabelPropagationAlgorithm::do_nothing ) {
-        utils::Timer::instance().start_timer("initialize_lp_refiner", "Initialize LP Refiner");
+        _timer.start_timer("initialize_lp_refiner", "Initialize LP Refiner");
         label_propagation->initialize(partitioned_hypergraph);
-        utils::Timer::instance().stop_timer("initialize_lp_refiner");
+        _timer.stop_timer("initialize_lp_refiner");
 
-        utils::Timer::instance().start_timer("label_propagation", "Label Propagation");
+        _timer.start_timer("label_propagation", "Label Propagation");
         improvement_found |= label_propagation->refine(partitioned_hypergraph, dummy, current_metrics, time_limit);
-        utils::Timer::instance().stop_timer("label_propagation");
+        _timer.stop_timer("label_propagation");
       }
 
       if ( fm && _context.refinement.fm.algorithm != FMAlgorithm::do_nothing ) {
-        utils::Timer::instance().start_timer("initialize_fm_refiner", "Initialize FM Refiner");
+        _timer.start_timer("initialize_fm_refiner", "Initialize FM Refiner");
         fm->initialize(partitioned_hypergraph);
-        utils::Timer::instance().stop_timer("initialize_fm_refiner");
+        _timer.stop_timer("initialize_fm_refiner");
 
-        utils::Timer::instance().start_timer("fm", "FM");
+        _timer.start_timer("fm", "FM");
         improvement_found |= fm->refine(partitioned_hypergraph, dummy, current_metrics, time_limit);
-        utils::Timer::instance().stop_timer("fm");
+        _timer.stop_timer("fm");
       }
 
       if ( flows && _context.refinement.flows.algorithm != FlowAlgorithm::do_nothing ) {
-        utils::Timer::instance().start_timer("initialize_flow_scheduler", "Initialize Flow Scheduler");
+        _timer.start_timer("initialize_flow_scheduler", "Initialize Flow Scheduler");
         flows->initialize(partitioned_hypergraph);
-        utils::Timer::instance().stop_timer("initialize_flow_scheduler");
+        _timer.stop_timer("initialize_flow_scheduler");
 
-        utils::Timer::instance().start_timer("flow_refinement_scheduler", "Flow Refinement Scheduler");
+        _timer.start_timer("flow_refinement_scheduler", "Flow Refinement Scheduler");
         improvement_found |= flows->refine(partitioned_hypergraph, dummy, current_metrics, time_limit);
-        utils::Timer::instance().stop_timer("flow_refinement_scheduler");
+        _timer.stop_timer("flow_refinement_scheduler");
       }
 
       if ( _context.type == ContextType::main ) {

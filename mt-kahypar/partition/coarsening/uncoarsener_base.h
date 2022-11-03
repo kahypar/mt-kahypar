@@ -49,6 +49,7 @@ class UncoarsenerBase {
                           UncoarseningData& uncoarseningData) :
           _hg(hypergraph),
           _context(context),
+          _timer(utils::Utilities::instance().getTimer(context.utility_id)),
           _uncoarseningData(uncoarseningData) {}
 
   UncoarsenerBase(const UncoarsenerBase&) = delete;
@@ -61,6 +62,7 @@ class UncoarsenerBase {
   protected:
     Hypergraph& _hg;
     const Context& _context;
+    utils::Timer& _timer;
     UncoarseningData& _uncoarseningData;
 
   protected:

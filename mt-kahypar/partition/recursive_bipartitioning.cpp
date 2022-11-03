@@ -472,12 +472,12 @@ namespace recursive_bipartitioning {
   void partition(PartitionedHypergraph& hypergraph, const Context& context) {
     utils::Utilities& utils = utils::Utilities::instance();
     if (context.partition.mode == Mode::recursive_bipartitioning) {
-      utils::Timer::instance().start_timer("rb", "Recursive Bipartitioning");
+      utils.getTimer(context.utility_id).start_timer("rb", "Recursive Bipartitioning");
     }
 
     if (context.type == ContextType::main) {
       parallel::MemoryPool::instance().deactivate_unused_memory_allocations();
-      utils::Timer::instance().disable();
+      utils.getTimer(context.utility_id).disable();
       utils.getStats(context.utility_id).disable();
     }
 
@@ -487,11 +487,11 @@ namespace recursive_bipartitioning {
 
     if (context.type == ContextType::main) {
       parallel::MemoryPool::instance().activate_unused_memory_allocations();
-      utils::Timer::instance().enable();
+      utils.getTimer(context.utility_id).enable();
       utils.getStats(context.utility_id).enable();
     }
     if (context.partition.mode == Mode::recursive_bipartitioning) {
-      utils::Timer::instance().stop_timer("rb");
+      utils.getTimer(context.utility_id).stop_timer("rb");
     }
   }
 } // namespace recursive_bipartitioning

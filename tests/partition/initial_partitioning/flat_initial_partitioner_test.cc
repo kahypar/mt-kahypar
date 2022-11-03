@@ -31,7 +31,7 @@
 #include "tbb/parallel_invoke.h"
 
 #include "tests/datastructures/hypergraph_fixtures.h"
-#include "mt-kahypar/utils/timer.h"
+#include "mt-kahypar/utils/utilities.h"
 #include "mt-kahypar/io/hypergraph_io.h"
 #include "mt-kahypar/partition/initial_partitioning/flat/random_initial_partitioner.h"
 #include "mt-kahypar/partition/initial_partitioning/flat/bfs_initial_partitioner.h"
@@ -108,7 +108,7 @@ class AFlatInitialPartitionerTest : public Test {
     context.setupPartWeights(hypergraph.totalWeight());
     context.refinement.label_propagation.algorithm = LabelPropagationAlgorithm::do_nothing;
     context.initial_partitioning.refinement.label_propagation.algorithm = LabelPropagationAlgorithm::do_nothing;
-    utils::Timer::instance().disable();
+    utils::Utilities::instance().getTimer(context.utility_id).disable();
   }
 
   void execute() {

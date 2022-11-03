@@ -27,7 +27,7 @@
 
 #include "mt-kahypar/partition/refinement/fm/multitry_kway_fm.h"
 
-#include "mt-kahypar/utils/timer.h"
+#include "mt-kahypar/utils/utilities.h"
 #include "mt-kahypar/partition/metrics.h"
 #include "mt-kahypar/utils/memory_tree.h"
 
@@ -51,7 +51,7 @@ namespace mt_kahypar {
     tbb::task_group tg;
     vec<HypernodeWeight> initialPartWeights(size_t(sharedData.numParts));
     HighResClockTimepoint fm_start = std::chrono::high_resolution_clock::now();
-    utils::Timer& timer = utils::Timer::instance();
+    utils::Timer& timer = utils::Utilities::instance().getTimer(context.utility_id);
 
     for (size_t round = 0; round < context.refinement.fm.multitry_rounds; ++round) { // global multi try rounds
       for (PartitionID i = 0; i < sharedData.numParts; ++i) {

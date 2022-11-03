@@ -31,6 +31,7 @@
 #include "mt-kahypar/partition/refinement/i_refiner.h"
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
 #include "mt-kahypar/partition/coarsening/coarsening_commons.h"
+#include "mt-kahypar/utils/timer.h"
 
 
 namespace mt_kahypar {
@@ -46,6 +47,7 @@ class MultilevelCoarsenerBase {
                           UncoarseningData& uncoarseningData) :
           _hg(hypergraph),
           _context(context),
+          _timer(utils::Utilities::instance().getTimer(context.utility_id)),
           _uncoarseningData(uncoarseningData) {}
 
   MultilevelCoarsenerBase(const MultilevelCoarsenerBase&) = delete;
@@ -81,6 +83,7 @@ class MultilevelCoarsenerBase {
  protected:
   Hypergraph& _hg;
   const Context& _context;
+  utils::Timer& _timer;
   UncoarseningData& _uncoarseningData;
 };
 }  // namespace mt_kahypar

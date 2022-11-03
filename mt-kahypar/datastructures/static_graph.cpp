@@ -75,7 +75,6 @@ namespace mt_kahypar::ds {
 
     // #################### STAGE 1 ####################
     // Compute vertex ids of coarse graph with a parallel prefix sum
-    utils::Timer::instance().start_timer("preprocess_contractions", "Preprocess Contractions");
     mapping.assign(_num_nodes, 0);
 
     doParallelForAllNodes([&](const HypernodeID& node) {
@@ -121,14 +120,12 @@ namespace mt_kahypar::ds {
       // Aggregate upper bound for number of incident nets of the contracted vertex
       tmp_num_incident_edges[coarse_node] += nodeDegree(node);
     });
-    utils::Timer::instance().stop_timer("preprocess_contractions");
 
     // #################### STAGE 2 ####################
     // In this step the incident edges of vertices are processed and stored inside the temporary
     // buffer. The vertex ids of the targets are remapped and edges that are contained inside
     // one community after contraction are marked as invalid. Note that parallel edges are not
     // invalidated yet.
-    utils::Timer::instance().start_timer("tmp_copy_incident_edges", "Tmp Copy Incident Edges", true);
 
     // Compute start position the incident nets of a coarse vertex in the
     // temporary incident nets array with a parallel prefix sum
@@ -164,7 +161,6 @@ namespace mt_kahypar::ds {
       }
     });
 
-    utils::Timer::instance().stop_timer("tmp_copy_incident_edges");
 
     // #################### STAGE 3 ####################
     // In this step, we deduplicate parallel edges. To this end, the incident edges
@@ -172,7 +168,6 @@ namespace mt_kahypar::ds {
     // for vertices with extremely high degree, as they might become a bottleneck
     // otherwise. Afterwards, for all parallel edges all but one are invalidated and
     // the weight of the remaining edge is set to the sum of the weights.
-    utils::Timer::instance().start_timer("remove_parallel_edges", "Remove Parallel Edges", true);
 
     // A list of high degree vertices that are processed afterwards
     parallel::scalable_vector<HypernodeID> high_degree_vertices;
@@ -297,15 +292,12 @@ namespace mt_kahypar::ds {
       }
     }
 
-    utils::Timer::instance().stop_timer("remove_parallel_edges");
-
     // #################### STAGE 4 ####################
     // Coarsened graph is constructed here by writting data from temporary
     // buffers to corresponding members in coarsened graph. We compute
     // a prefix sum over the vertex sizes to determine the start index
     // of the edges in the edge array, removing all invalid edges.
     // Additionally, we need to calculate new unique edge ids.
-    utils::Timer::instance().start_timer("contract_hypergraph", "Contract Hypergraph");
 
     StaticGraph hypergraph;
 
@@ -332,7 +324,6 @@ namespace mt_kahypar::ds {
     );
 
     tbb::parallel_invoke([&] {
-      utils::Timer::instance().start_timer("setup_edges", "Setup Edges", true);
       // Copy edges
       edge_id_mapping.assign(_num_edges / 2, 0);
       hypergraph._edges.resize(coarsened_num_edges);
@@ -360,7 +351,6 @@ namespace mt_kahypar::ds {
           }
         }
       });
-      utils::Timer::instance().stop_timer("setup_edges");
     }, [&] {
       hypergraph._nodes.resize(coarsened_num_nodes + 1);
       tbb::parallel_for(ID(0), coarsened_num_nodes, [&](const HyperedgeID& coarse_node) {
@@ -377,8 +367,6 @@ namespace mt_kahypar::ds {
       });
     });
 
-    utils::Timer::instance().start_timer("remap_edge_ids", "Remap Edge IDs", true);
-
     // Remap unique edge ids via prefix sum
     parallel::TBBPrefixSum<HyperedgeID, Array> edge_id_prefix_sum(edge_id_mapping);
     tbb::parallel_scan(tbb::blocked_range<size_t>(ID(0), _num_edges / 2), edge_id_prefix_sum);
@@ -388,10 +376,6 @@ namespace mt_kahypar::ds {
       HyperedgeID& unique_id = hypergraph._unique_edge_ids[e];
       unique_id = edge_id_prefix_sum[unique_id];
     });
-
-    utils::Timer::instance().stop_timer("remap_edge_ids");
-
-    utils::Timer::instance().stop_timer("contract_hypergraph");
 
     HEAVY_COARSENING_ASSERT(
       [&](){

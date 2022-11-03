@@ -28,33 +28,34 @@
 
 #include "parallel_louvain.h"
 
-#include "mt-kahypar/utils/timer.h"
+#include "mt-kahypar/utils/utilities.h"
 
 namespace mt_kahypar::community_detection {
 
   ds::Clustering local_moving_contract_recurse(Graph& fine_graph, ParallelLocalMovingModularity& mlv, const Context& context) {
-    utils::Timer::instance().start_timer("local_moving", "Local Moving");
+    utils::Timer& timer = utils::Utilities::instance().getTimer(context.utility_id);
+    timer.start_timer("local_moving", "Local Moving");
     ds::Clustering communities(fine_graph.numNodes());
     bool communities_changed = mlv.localMoving(fine_graph, communities);
-    utils::Timer::instance().stop_timer("local_moving");
+    timer.stop_timer("local_moving");
 
     if (communities_changed) {
-      utils::Timer::instance().start_timer("contraction", "Contraction");
+      timer.start_timer("contraction", "Contraction");
       // Contract Communities
       Graph coarse_graph = fine_graph.contract(communities, context.preprocessing.community_detection.low_memory_contraction);
       ASSERT(coarse_graph.totalVolume() == fine_graph.totalVolume());
-      utils::Timer::instance().stop_timer("contraction");
+      timer.stop_timer("contraction");
 
       // Recurse on contracted graph
       ds::Clustering coarse_communities = local_moving_contract_recurse(coarse_graph, mlv, context);
 
-      utils::Timer::instance().start_timer("project", "Project");
+      timer.start_timer("project", "Project");
       // Prolong Clustering
       tbb::parallel_for(0UL, fine_graph.numNodes(), [&](const NodeID u) {
         ASSERT(communities[u] < static_cast<PartitionID>(coarse_communities.size()));
         communities[u] = coarse_communities[communities[u]];
       });
-      utils::Timer::instance().stop_timer("project");
+      timer.stop_timer("project");
     }
 
     return communities;

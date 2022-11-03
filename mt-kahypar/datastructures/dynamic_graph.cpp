@@ -242,13 +242,10 @@ void DynamicGraph::uncontract(const Batch& batch,
  */
 VersionedBatchVector DynamicGraph::createBatchUncontractionHierarchy(const size_t batch_size) {
   const size_t num_versions = _version + 1;
-  utils::Timer::instance().start_timer("finalize_contraction_tree", "Finalize Contraction Tree");
   // Finalizes the contraction tree such that it is traversable in a top-down fashion
   // and contains subtree size for each  tree node
   _contraction_tree.finalize(num_versions);
-  utils::Timer::instance().stop_timer("finalize_contraction_tree");
 
-  utils::Timer::instance().start_timer("create_versioned_batches", "Create Versioned Batches");
   VersionedBatchVector versioned_batches(num_versions);
   parallel::scalable_vector<size_t> batch_sizes_prefix_sum(num_versions, 0);
   BatchIndexAssigner batch_index_assigner(numNodes(), batch_size);
@@ -261,7 +258,6 @@ VersionedBatchVector DynamicGraph::createBatchUncontractionHierarchy(const size_
     }
     batch_index_assigner.reset(versioned_batches[version].size());
   }
-  utils::Timer::instance().stop_timer("create_versioned_batches");
 
   return versioned_batches;
 }

@@ -84,15 +84,16 @@ namespace mt_kahypar {
                 DegreeZeroHypernodeRemover& degree_zero_hn_remover,
                 LargeHyperedgeRemover& large_he_remover) {
 
-    utils::Timer::instance().start_timer("degree_zero_hypernode_removal", "Degree Zero Hypernode Removal");
+    utils::Timer& timer = utils::Utilities::instance().getTimer(context.utility_id);
+    timer.start_timer("degree_zero_hypernode_removal", "Degree Zero Hypernode Removal");
     const HypernodeID num_removed_degree_zero_hypernodes =
             degree_zero_hn_remover.removeDegreeZeroHypernodes(hypergraph);
-    utils::Timer::instance().stop_timer("degree_zero_hypernode_removal");
+    timer.stop_timer("degree_zero_hypernode_removal");
 
-    utils::Timer::instance().start_timer("large_hyperedge_removal", "Large Hyperedge Removal");
+    timer.start_timer("large_hyperedge_removal", "Large Hyperedge Removal");
     const HypernodeID num_removed_large_hyperedges =
             large_he_remover.removeLargeHyperedges(hypergraph);
-    utils::Timer::instance().stop_timer("large_hyperedge_removal");
+    timer.stop_timer("large_hyperedge_removal");
 
     const HyperedgeID num_removed_single_node_hes = hypergraph.numRemovedHyperedges();
     if (context.partition.verbose_output &&
@@ -160,31 +161,32 @@ namespace mt_kahypar {
     bool use_community_detection = context.preprocessing.use_community_detection;
     bool is_graph = false;
 
+    utils::Timer& timer = utils::Utilities::instance().getTimer(context.utility_id);
     if ( context.preprocessing.use_community_detection ) {
-      utils::Timer::instance().start_timer("detect_graph_structure", "Detect Graph Structure");
+      timer.start_timer("detect_graph_structure", "Detect Graph Structure");
       is_graph = isGraph(hypergraph);
       if ( is_graph && context.preprocessing.disable_community_detection_for_mesh_graphs ) {
         use_community_detection = !isMeshGraph(hypergraph);
       }
-      utils::Timer::instance().stop_timer("detect_graph_structure");
+      timer.stop_timer("detect_graph_structure");
     }
 
     if ( use_community_detection ) {
       io::printTopLevelPreprocessingBanner(context);
 
-      utils::Timer::instance().start_timer("community_detection", "Community Detection");
-      utils::Timer::instance().start_timer("construct_graph", "Construct Graph");
+      timer.start_timer("community_detection", "Community Detection");
+      timer.start_timer("construct_graph", "Construct Graph");
       Graph graph(hypergraph, context.preprocessing.community_detection.edge_weight_function, is_graph);
       if ( !context.preprocessing.community_detection.low_memory_contraction ) {
         graph.allocateContractionBuffers();
       }
-      utils::Timer::instance().stop_timer("construct_graph");
-      utils::Timer::instance().start_timer("perform_community_detection", "Perform Community Detection");
+      timer.stop_timer("construct_graph");
+      timer.start_timer("perform_community_detection", "Perform Community Detection");
       ds::Clustering communities = community_detection::run_parallel_louvain(graph, context);
       graph.restrictClusteringToHypernodes(hypergraph, communities);
       hypergraph.setCommunityIDs(std::move(communities));
-      utils::Timer::instance().stop_timer("perform_community_detection");
-      utils::Timer::instance().stop_timer("community_detection");
+      timer.stop_timer("perform_community_detection");
+      timer.stop_timer("community_detection");
 
       if (context.partition.verbose_output) {
         io::printCommunityInformation(hypergraph);
@@ -202,13 +204,14 @@ namespace mt_kahypar {
     io::printInputInformation(context, hypergraph);
 
     // ################## PREPROCESSING ##################
-    utils::Timer::instance().start_timer("preprocessing", "Preprocessing");
+    utils::Timer& timer = utils::Utilities::instance().getTimer(context.utility_id);
+    timer.start_timer("preprocessing", "Preprocessing");
     preprocess(hypergraph, context);
 
     DegreeZeroHypernodeRemover degree_zero_hn_remover(context);
     LargeHyperedgeRemover large_he_remover(context);
     sanitize(hypergraph, context, degree_zero_hn_remover, large_he_remover);
-    utils::Timer::instance().stop_timer("preprocessing");
+    timer.stop_timer("preprocessing");
 
     // ################## MULTILEVEL & VCYCLE ##################
     PartitionedHypergraph partitioned_hypergraph;
@@ -223,10 +226,10 @@ namespace mt_kahypar {
     }
 
     // ################## POSTPROCESSING ##################
-    utils::Timer::instance().start_timer("postprocessing", "Postprocessing");
+    timer.start_timer("postprocessing", "Postprocessing");
     large_he_remover.restoreLargeHyperedges(partitioned_hypergraph);
     degree_zero_hn_remover.restoreDegreeZeroHypernodes(partitioned_hypergraph);
-    utils::Timer::instance().stop_timer("postprocessing");
+    timer.stop_timer("postprocessing");
 
     if (context.partition.verbose_output) {
       io::printHypergraphInfo(partitioned_hypergraph.hypergraph(), "Uncoarsened Hypergraph",

@@ -26,6 +26,7 @@
  ******************************************************************************/
 
 #include "mt-kahypar/partition/refinement/flows/flow_refiner.h"
+#include "mt-kahypar/utils/utilities.h"
 
 #include "tbb/concurrent_queue.h"
 
@@ -35,17 +36,18 @@ MoveSequence FlowRefiner::refineImpl(const PartitionedHypergraph& phg,
                                      const Subhypergraph& sub_hg,
                                      const HighResClockTimepoint& start) {
   MoveSequence sequence { { }, 0 };
+  utils::Timer& timer = utils::Utilities::instance().getTimer(_context.utility_id);
   // Construct flow network that contains all vertices given in refinement nodes
-  utils::Timer::instance().start_timer("construct_flow_network", "Construct Flow Network", true);
+  timer.start_timer("construct_flow_network", "Construct Flow Network", true);
   FlowProblem flow_problem = constructFlowHypergraph(phg, sub_hg);
-  utils::Timer::instance().stop_timer("construct_flow_network");
+  timer.stop_timer("construct_flow_network");
   if ( flow_problem.total_cut - flow_problem.non_removable_cut > 0 ) {
 
     // Solve max-flow min-cut problem
     bool time_limit_reached = false;
-    utils::Timer::instance().start_timer("hyper_flow_cutter", "HyperFlowCutter", true);
+    timer.start_timer("hyper_flow_cutter", "HyperFlowCutter", true);
     bool flowcutter_succeeded = runFlowCutter(flow_problem, start, time_limit_reached);
-    utils::Timer::instance().stop_timer("hyper_flow_cutter");
+    timer.stop_timer("hyper_flow_cutter");
     if ( flowcutter_succeeded ) {
       // We apply the solution if it either improves the cut or the balance of
       // the bipartition induced by the two blocks

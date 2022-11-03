@@ -70,10 +70,14 @@ int main(int argc, char* argv[]) {
   hwloc_bitmap_free(cpuset);
 
   // Read Hypergraph
+  mt_kahypar::utils::Timer& timer =
+    mt_kahypar::utils::Utilities::instance().getTimer(context.utility_id);
+  timer.start_timer("io_hypergraph", "I/O Hypergraph");
   mt_kahypar::Hypergraph hypergraph = mt_kahypar::io::readInputFile(
       context.partition.graph_filename,
       context.partition.file_format,
       context.preprocessing.stable_construction_of_incident_edges);
+  timer.stop_timer("io_hypergraph");
 
   // Initialize Memory Pool
   mt_kahypar::register_memory_pool(hypergraph, context);

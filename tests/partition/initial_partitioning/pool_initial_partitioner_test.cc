@@ -31,7 +31,7 @@
 #include "tbb/parallel_invoke.h"
 
 #include "mt-kahypar/definitions.h"
-#include "mt-kahypar/utils/timer.h"
+#include "mt-kahypar/utils/utilities.h"
 #include "mt-kahypar/io/hypergraph_io.h"
 #include "mt-kahypar/partition/registries/register_flat_initial_partitioning_algorithms.h"
 #include "mt-kahypar/partition/registries/register_refinement_algorithms.cpp"
@@ -67,7 +67,7 @@ class APoolInitialPartitionerTest : public Test {
     partitioned_hypergraph = PartitionedHypergraph(
       context.partition.k, hypergraph, parallel_tag_t());
     context.setupPartWeights(hypergraph.totalWeight());
-    utils::Timer::instance().disable();
+    utils::Utilities::instance().getTimer(context.utility_id).disable();
   }
 
   static void SetUpTestSuite() {

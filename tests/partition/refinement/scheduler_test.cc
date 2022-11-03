@@ -277,7 +277,7 @@ class AFlowRefinementEndToEnd : public Test {
       }
     });
 
-    utils::Timer::instance().clear();
+    utils::Utilities::instance().getTimer(context.utility_id).clear();
     utils::Utilities::instance().getStats(context.utility_id).clear();
   }
 
@@ -309,7 +309,8 @@ TEST_F(AFlowRefinementEndToEnd, SmokeTestWithTwoBlocksPerRefiner) {
   }
 
   if ( debug ) {
-    LOG << utils::Timer::instance(true);
+    utils::Utilities::instance().getTimer(context.utility_id).showDetailedTimings(true);
+    LOG << utils::Utilities::instance().getTimer(context.utility_id);
     LOG << utils::Utilities::instance().getStats(context.utility_id);
   }
 
@@ -342,7 +343,8 @@ TEST_F(AFlowRefinementEndToEnd, SmokeTestWithFourBlocksPerRefiner) {
   }
 
   if ( debug ) {
-    LOG << utils::Timer::instance(true);
+    utils::Utilities::instance().getTimer(context.utility_id).showDetailedTimings(true);
+    LOG << utils::Utilities::instance().getTimer(context.utility_id);
     LOG << utils::Utilities::instance().getStats(context.utility_id);
   }
 
