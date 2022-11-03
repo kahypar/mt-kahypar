@@ -115,7 +115,6 @@ bool ParallelLocalMovingModularity::localMoving(Graph& graph, ds::Clustering& co
   _max_degree = graph.max_degree();
   _reciprocal_total_volume = 1.0 / graph.totalVolume();
   _vol_multiplier_div_by_node_vol = _reciprocal_total_volume;
-  _weight_multiplier = 5.0 / graph.totalWeight();
 
   // init
   if (_context.partition.deterministic) {

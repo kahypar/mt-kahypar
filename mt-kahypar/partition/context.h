@@ -86,7 +86,6 @@ struct CommunityDetectionParameters {
   double isolated_nodes_threshold_stdev_factor = 1.0;
   bool single_community_of_separated = true;
   bool separated_sub_communities = false;
-  bool modified_modularity = false;
   bool collect_component_stats = false;
 };
 
@@ -97,6 +96,7 @@ struct PreprocessingParameters {
   bool use_community_detection = false;
   bool disable_community_detection_for_mesh_graphs = true;
   bool disable_star_partitioning_for_mesh_graphs = true;
+  bool detect_low_degree_nodes = false;
   CommunityDetectionParameters community_detection = { };
   bool mesh_graph_detected = false;
 };
@@ -293,6 +293,7 @@ class Context {
   std::string algorithm_name = "Mt-KaHyPar";
   std::string input_stats_file = "";
   std::string coarsened_stats_file = "";
+  std::string community_stats_file = "";
   std::string graphviz_file = "";
   mutable size_t initial_km1 = std::numeric_limits<size_t>::max();
 

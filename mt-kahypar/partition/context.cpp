@@ -424,8 +424,13 @@ namespace mt_kahypar {
                   partition.max_part_weights.size());
     }
 
-    if (preprocessing.community_detection.use_isolated_nodes_treshold != coarsening.separate_size_one_communities) {
-      ERROR("--p-use-isolated-nodes-treshold and --c-separate-size-one-communities are intended to be used together");
+    if (preprocessing.community_detection.use_isolated_nodes_treshold && preprocessing.detect_low_degree_nodes) {
+      ERROR("--p-use-isolated-nodes-treshold is not compatible with --p-detect-low-degree-nodes");
+    }
+    if (preprocessing.community_detection.use_isolated_nodes_treshold || preprocessing.detect_low_degree_nodes) {
+      if (!coarsening.separate_size_one_communities || coarsening.separated_communities_max_size == 0) {
+        ERROR("--c-separate-size-one-communities should be true");
+      }
     }
     if (preprocessing.community_detection.single_community_of_separated && preprocessing.community_detection.separated_sub_communities) {
       ERROR("--p-single-community-of-separated and --p-separated-sub-communities can not be combined");

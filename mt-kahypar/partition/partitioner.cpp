@@ -27,6 +27,7 @@
 #include "mt-kahypar/partition/preprocessing/sparsification/large_he_remover.h"
 #include "mt-kahypar/partition/preprocessing/community_detection/parallel_louvain.h"
 #include "mt-kahypar/partition/recursive_bipartitioning.h"
+#include "mt-kahypar/partition/star_partitioning/detect_low_degree_nodes.h"
 #include "mt-kahypar/partition/deep_multilevel.h"
 #include "mt-kahypar/utils/hypergraph_statistics.h"
 #include "mt-kahypar/utils/stats.h"
@@ -154,6 +155,9 @@ namespace mt_kahypar {
       utils::Timer::instance().stop_timer("construct_graph");
       utils::Timer::instance().start_timer("perform_community_detection", "Perform Community Detection");
       ds::Clustering communities = community_detection::run_parallel_louvain(graph, context);
+      if (context.preprocessing.detect_low_degree_nodes) {
+        star_partitioning::detectLowDegreeNodes(hypergraph, context, communities);
+      }
       graph.restrictClusteringToHypernodes(hypergraph, communities);
       hypergraph.setCommunityIDs(std::move(communities));
       utils::Timer::instance().stop_timer("perform_community_detection");

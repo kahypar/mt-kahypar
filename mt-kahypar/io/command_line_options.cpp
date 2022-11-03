@@ -188,6 +188,9 @@ namespace mt_kahypar {
              po::value<bool>(&context.preprocessing.disable_star_partitioning_for_mesh_graphs)->value_name("<bool>")->default_value(true),
              "If true, star partitioning is dynamically disabled for mesh graphs.")
             #endif
+            ("p-detect-low-degree-nodes",
+             po::value<bool>(&context.preprocessing.detect_low_degree_nodes)->value_name("<bool>")->default_value(false),
+             "Enables statistical detection of low degree nodes.")
             ("p-louvain-edge-weight-function",
              po::value<std::string>()->value_name("<string>")->notifier(
                      [&](const std::string& type) {
@@ -231,10 +234,6 @@ namespace mt_kahypar {
              po::value<bool>(&context.preprocessing.community_detection.separated_sub_communities)->value_name(
                      "<bool>")->default_value(false),
              "If set, run one round of community detection on the separated nodes.")
-            ("p-modified-modularity",
-             po::value<bool>(&context.preprocessing.community_detection.modified_modularity)->value_name(
-                     "<bool>")->default_value(false),
-             "Use a modified definition of modularity that includes node weights.")
             ("p-collect-component-stats",
              po::value<bool>(&context.preprocessing.community_detection.collect_component_stats)->value_name(
                      "<bool>")->default_value(false),
