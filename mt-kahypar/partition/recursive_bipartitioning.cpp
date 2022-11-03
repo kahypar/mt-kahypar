@@ -251,7 +251,7 @@ namespace mt_kahypar {
                                              const Context& context) :
             _bisection_hg(),
             _bisection_partitioned_hg(),
-            _bisection_context(),
+            _bisection_context(context),
             _original_hypergraph_info(original_hypergraph_info),
             _hg(hypergraph),
             _context(context) {

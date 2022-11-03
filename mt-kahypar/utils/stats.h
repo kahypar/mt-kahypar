@@ -34,7 +34,7 @@
 
 namespace mt_kahypar {
 namespace utils {
-class StatsT {
+class Stats {
   static constexpr bool debug = false;
 
  public:
@@ -123,24 +123,24 @@ class StatsT {
   };
 
  public:
-  explicit StatsT() :
+  explicit Stats() :
     _stat_mutex(),
     _stats(),
     _enable(true) { }
 
-  StatsT(const StatsT& other) :
+  Stats(const Stats& other) :
     _stat_mutex(),
     _stats(other._stats),
     _enable(other._enable) { }
 
-  StatsT & operator= (const StatsT &) = delete;
+  Stats & operator= (const Stats &) = delete;
 
-  StatsT(StatsT&& other) :
+  Stats(Stats&& other) :
     _stat_mutex(),
     _stats(std::move(other._stats)),
     _enable(std::move(other._enable)) { }
 
-  StatsT & operator= (StatsT &&) = delete;
+  Stats & operator= (Stats &&) = delete;
 
   void enable() {
     std::lock_guard<std::mutex> lock(_stat_mutex);
@@ -183,7 +183,7 @@ class StatsT {
     _stats.clear();
   }
 
-  friend std::ostream & operator<< (std::ostream& str, const StatsT& stats);
+  friend std::ostream & operator<< (std::ostream& str, const Stats& stats);
 
  private:
   std::mutex _stat_mutex;
@@ -191,21 +191,21 @@ class StatsT {
   bool _enable;
 };
 
-inline std::ostream & operator<< (std::ostream& str, const StatsT::Stat& stat) {
+inline std::ostream & operator<< (std::ostream& str, const Stats::Stat& stat) {
   switch (stat._type) {
-    case StatsT::Type::BOOLEAN:
+    case Stats::Type::BOOLEAN:
       str << std::boolalpha << stat._value_1;
       break;
-    case StatsT::Type::INT32:
+    case Stats::Type::INT32:
       str << stat._value_2;
       break;
-    case StatsT::Type::INT64:
+    case Stats::Type::INT64:
       str << stat._value_3;
       break;
-    case StatsT::Type::FLOAT:
+    case Stats::Type::FLOAT:
       str << stat._value_4;
       break;
-    case StatsT::Type::DOUBLE:
+    case Stats::Type::DOUBLE:
       str << stat._value_5;
       break;
     default:
@@ -214,7 +214,7 @@ inline std::ostream & operator<< (std::ostream& str, const StatsT::Stat& stat) {
   return str;
 }
 
-inline std::ostream & operator<< (std::ostream& str, const StatsT& stats) {
+inline std::ostream & operator<< (std::ostream& str, const Stats& stats) {
   std::vector<std::string> keys;
   for (const auto& stat : stats._stats) {
     keys.emplace_back(stat.first);
@@ -226,44 +226,6 @@ inline std::ostream & operator<< (std::ostream& str, const StatsT& stats) {
   }
   return str;
 }
-
-class DoNothingStats {
- public:
-  DoNothingStats(const DoNothingStats&) = delete;
-  DoNothingStats & operator= (const DoNothingStats &) = delete;
-
-  DoNothingStats(DoNothingStats&&) = delete;
-  DoNothingStats & operator= (DoNothingStats &&) = delete;
-
-  static DoNothingStats& instance() {
-    static DoNothingStats instance;
-    return instance;
-  }
-
-  void enable() { }
-  void disable() { }
-
-  template <typename T>
-  void add_stat(const std::string&, const T) { }
-
-  template <typename T>
-  void update_stat(const std::string&, const T) { }
-
-  friend std::ostream & operator<< (std::ostream& str, const DoNothingStats& stats);
-
- private:
-  explicit DoNothingStats() { }
-};
-
-inline std::ostream & operator<< (std::ostream& str, const DoNothingStats&) {
-  return str;
-}
-
-#ifdef MT_KAHYPAR_LIBRARY_MODE
-using Stats = DoNothingStats;
-#else
-using Stats = StatsT;
-#endif
 
 }  // namespace utils
 }  // namespace mt_kahypar

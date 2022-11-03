@@ -80,14 +80,6 @@
 namespace mt_kahypar {
 
   struct DeepPartitionResult {
-    DeepPartitionResult() :
-            hypergraph(),
-            partitioned_hypergraph(),
-            mapping(),
-            context(),
-            objective(std::numeric_limits<HyperedgeWeight>::max()),
-            imbalance(1.0) { }
-
     explicit DeepPartitionResult(Context&& c) :
             hypergraph(),
             partitioned_hypergraph(),
@@ -329,6 +321,8 @@ namespace mt_kahypar {
                                   const Context& context,
                                   const bool was_recursion,
                                   const bool is_top_level) :
+            r1(context),
+            r2(context),
             _original_hypergraph_info(original_hypergraph_info),
             _hg(hypergraph),
             _context(context),
@@ -341,7 +335,7 @@ namespace mt_kahypar {
     tbb::task* execute() override {
       ASSERT(r1.objective < std::numeric_limits<HyperedgeWeight>::max());
 
-      DeepPartitionResult best;
+      DeepPartitionResult best(_context);
       // Choose best partition of both parallel recursion
       bool r1_has_better_quality = r1.objective < r2.objective;
       bool r1_is_balanced = r1.imbalance < r1.context.partition.epsilon;

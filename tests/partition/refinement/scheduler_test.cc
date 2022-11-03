@@ -278,7 +278,7 @@ class AFlowRefinementEndToEnd : public Test {
     });
 
     utils::Timer::instance().clear();
-    utils::Stats::instance().clear();
+    utils::Utilities::instance().getStats(context.utility_id).clear();
   }
 
   Hypergraph hg;
@@ -310,7 +310,7 @@ TEST_F(AFlowRefinementEndToEnd, SmokeTestWithTwoBlocksPerRefiner) {
 
   if ( debug ) {
     LOG << utils::Timer::instance(true);
-    LOG << utils::Stats::instance();
+    LOG << utils::Utilities::instance().getStats(context.utility_id);
   }
 
   ASSERT_EQ(metrics::km1(phg), metrics.km1);
@@ -343,7 +343,7 @@ TEST_F(AFlowRefinementEndToEnd, SmokeTestWithFourBlocksPerRefiner) {
 
   if ( debug ) {
     LOG << utils::Timer::instance(true);
-    LOG << utils::Stats::instance();
+    LOG << utils::Utilities::instance().getStats(context.utility_id);
   }
 
   ASSERT_EQ(metrics::km1(phg), metrics.km1);
