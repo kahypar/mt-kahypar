@@ -533,7 +533,10 @@ namespace mt_kahypar {
             ("i-judicious-rb-chose-by-judicious",
              po::value<bool>(&context.initial_partitioning.rb_chose_by_judicious)->value_name(
                      "<bool>")->default_value(false),
-             "If true, chose result with best judicious load during RB");
+             "If true, chose result with best judicious load during RB")
+            ("i-rb-judicious-direct-threshold",
+             po::value<size_t>(&context.initial_partitioning.rb_judicious_direct_threshold)->value_name("<size_t>")->default_value(3),
+             "When to switch to direct partitioning if k is not a power of 2.");
     options.add(createRefinementOptionsDescription(context, num_columns, true));
     return options;
   }

@@ -251,7 +251,9 @@ namespace mt_kahypar {
 
     tbb::task* execute() override {
       ASSERT(_hg.initialNumNodes() == _bisection_hg.initialNumNodes());
-      if (_context.initial_partitioning.rb_chose_by_judicious && _bisection_partitioned_hg.k() == 3) {
+      if (_context.initial_partitioning.rb_chose_by_judicious
+          && _bisection_partitioned_hg.k() <= _context.initial_partitioning.rb_judicious_direct_threshold
+          && (_bisection_partitioned_hg.k() % 2)) {
         _hg.doParallelForAllNodes([&](const HypernodeID& hn) {
           PartitionID part_id = _bisection_partitioned_hg.partID(hn);
           ASSERT(part_id != kInvalidPartition && part_id < _hg.k());
@@ -333,16 +335,17 @@ namespace mt_kahypar {
       // Setup Part Weights
       const HypernodeWeight total_weight = hypergraph.totalWeight();
       const PartitionID k = context.partition.k;
-      if (context.initial_partitioning.rb_chose_by_judicious && k == 3) {
-        bisection_context.partition.k = 3;
+      if (context.initial_partitioning.rb_chose_by_judicious && k <= _context.initial_partitioning.rb_judicious_direct_threshold && (k % 2)) {
+        // LOG << "performing base case direct partition with k =" << k;
+        bisection_context.partition.k = k;
         // wont use individual part weights
         bisection_context.partition.epsilon = _original_hypergraph_info.computeAdaptiveEpsilon(total_weight, k);
 
         bisection_context.partition.perfect_balance_part_weights.clear();
         bisection_context.partition.max_part_weights.clear();
-        const HypernodeWeight perfect_weight = std::ceil(1 / static_cast<double>(3) * static_cast<double>(total_weight));
-        bisection_context.partition.perfect_balance_part_weights.assign(3, perfect_weight);
-        bisection_context.partition.max_part_weights.assign(3, (1 + bisection_context.partition.epsilon) * perfect_weight);
+        const HypernodeWeight perfect_weight = std::ceil(1 / static_cast<double>(k) * static_cast<double>(total_weight));
+        bisection_context.partition.perfect_balance_part_weights.assign(k, perfect_weight);
+        bisection_context.partition.max_part_weights.assign(k, (1 + bisection_context.partition.epsilon) * perfect_weight);
         bisection_context.setupContractionLimit(total_weight);
         bisection_context.setupSparsificationParameters();
 
