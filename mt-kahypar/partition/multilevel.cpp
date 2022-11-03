@@ -36,7 +36,6 @@
 #include "mt-kahypar/partition/preprocessing/sparsification/large_he_remover.h"
 #include "mt-kahypar/partition/initial_partitioning/flat/pool_initial_partitioner.h"
 #include "mt-kahypar/parallel/memory_pool.h"
-#include "mt-kahypar/utils/initial_partitioning_stats.h"
 #include "mt-kahypar/io/partitioning_output.h"
 #include "mt-kahypar/partition/coarsening/multilevel_uncoarsener.h"
 #include "mt-kahypar/partition/coarsening/nlevel_uncoarsener.h"
@@ -91,7 +90,8 @@ namespace mt_kahypar::multilevel {
       io::printPartitioningResults(_uncoarseningData->coarsestPartitionedHypergraph(),
                                    _context, "Initial Partitioning Results:");
       if ( _context.partition.verbose_output ) {
-        utils::InitialPartitioningStats::instance().printInitialPartitioningStats();
+        utils::Utilities::instance().getInitialPartitioningStats(
+          _context.utility_id).printInitialPartitioningStats();
       }
 
       // ################## LOCAL SEARCH ##################

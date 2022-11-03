@@ -31,6 +31,7 @@
 
 #include "mt-kahypar/macros.h"
 #include "mt-kahypar/utils/stats.h"
+#include "mt-kahypar/utils/initial_partitioning_stats.h"
 
 namespace mt_kahypar {
 namespace utils {
@@ -40,9 +41,11 @@ class Utilities {
 
   struct UtilityObjects {
     UtilityObjects() :
-      stats() { }
+      stats(),
+      ip_stats() { }
 
     Stats stats;
+    InitialPartitioningStats ip_stats;
   };
 
  public:
@@ -67,6 +70,11 @@ class Utilities {
   Stats& getStats(const size_t id) {
     ASSERT(id < _utilities.size());
     return _utilities[id].stats;
+  }
+
+  InitialPartitioningStats& getInitialPartitioningStats(const size_t id) {
+    ASSERT(id < _utilities.size());
+    return _utilities[id].ip_stats;
   }
 
  private:

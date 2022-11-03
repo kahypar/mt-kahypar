@@ -38,7 +38,7 @@
 #include "mt-kahypar/partition/metrics.h"
 #include "mt-kahypar/partition/factories.h"
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
-#include "mt-kahypar/utils/initial_partitioning_stats.h"
+#include "mt-kahypar/utils/utilities.h"
 #include "mt-kahypar/partition/refinement/fm/sequential_twoway_fm_refiner.h"
 
 
@@ -647,7 +647,8 @@ class InitialPartitioningDataContainer {
     _partitioned_hg.initializePartition();
     ASSERT(best_feasible_objective == metrics::objective(_partitioned_hg, _context.partition.objective, false),
            V(best_feasible_objective) << V(metrics::objective(_partitioned_hg, _context.partition.objective, false)));
-    utils::InitialPartitioningStats::instance().add_initial_partitioning_result(best_flat_algo, number_of_threads, stats);
+    utils::Utilities::instance().getInitialPartitioningStats(
+      _context.utility_id).add_initial_partitioning_result(best_flat_algo, number_of_threads, stats);
   }
 
  private:
