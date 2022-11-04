@@ -54,6 +54,7 @@ extern "C" {
 struct mt_kahypar_context_s;
 typedef struct mt_kahypar_context_s mt_kahypar_context_t;
 typedef struct mt_kahypar_hypergraph_s mt_kahypar_hypergraph_t;
+typedef struct mt_kahypar_partitioned_hypergraph_s mt_kahypar_partitioned_hypergraph_t;
 
 typedef unsigned long int mt_kahypar_hypernode_id_t;
 typedef unsigned long int mt_kahypar_hyperedge_id_t;
@@ -132,10 +133,20 @@ MT_KAHYPAR_API mt_kahypar_hypernode_id_t mt_kahypar_total_weight(mt_kahypar_hype
 
 // ####################### Partition #######################
 
-MT_KAHYPAR_API void mt_kahypar_partition(mt_kahypar_hypergraph_t* hypergraph,
-                                         mt_kahypar_context_t* context,
-                                         mt_kahypar_hyperedge_weight_t* objective,
-                                         mt_kahypar_partition_id_t* partition);
+MT_KAHYPAR_API void mt_kahypar_free_partitioned_hypergraph(mt_kahypar_partitioned_hypergraph_t* partitioned_hg);
+
+MT_KAHYPAR_API mt_kahypar_partitioned_hypergraph_t* mt_kahypar_partition(mt_kahypar_hypergraph_t* hypergraph,
+                                                                         mt_kahypar_context_t* context);
+
+MT_KAHYPAR_API void mt_kahypar_get_partition(const mt_kahypar_partitioned_hypergraph_t* partitioned_hg,
+                                             mt_kahypar_partition_id_t* partition);
+MT_KAHYPAR_API void mt_kahypar_get_block_weights(const mt_kahypar_partitioned_hypergraph_t* partitioned_hg,
+                                                 mt_kahypar_hypernode_weight_t* block_weights);
+MT_KAHYPAR_API double mt_kahypar_imbalance(const mt_kahypar_partitioned_hypergraph_t* partitioned_hg,
+                                           const mt_kahypar_context_t* context);
+MT_KAHYPAR_API mt_kahypar_hyperedge_weight_t mt_kahypar_cut(const mt_kahypar_partitioned_hypergraph_t* partitioned_hg);
+MT_KAHYPAR_API mt_kahypar_hyperedge_weight_t mt_kahypar_km1(const mt_kahypar_partitioned_hypergraph_t* partitioned_hg);
+MT_KAHYPAR_API mt_kahypar_hyperedge_weight_t mt_kahypar_soed(const mt_kahypar_partitioned_hypergraph_t* partitioned_hg);
 
 
 #ifdef __cplusplus

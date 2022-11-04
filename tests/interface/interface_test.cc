@@ -113,13 +113,39 @@ namespace mt_kahypar {
         mt_kahypar_read_hypergraph_from_file(filename, context, file_format);
 
       // Partition Hypergraph
-      mt_kahypar_hyperedge_weight_t objective = 0;
+      mt_kahypar_partitioned_hypergraph_t* partitioned_hg =
+        mt_kahypar_partition(hypergraph, context);
+
+      double imbalance = mt_kahypar_imbalance(partitioned_hg, context);
+      mt_kahypar_hyperedge_weight_t objective = mt_kahypar_km1(partitioned_hg);
+      LOG << " imbalance =" << imbalance << "\n"
+          << "cut =" << mt_kahypar_cut(partitioned_hg) << "\n"
+          << "km1 =" << objective << "\n"
+          << "soed =" << mt_kahypar_soed(partitioned_hg);
+      EXPECT_LE(imbalance, 0.03);
+
+      // Verify Partition IDs
       std::unique_ptr<mt_kahypar_partition_id_t[]> partition =
         std::make_unique<mt_kahypar_partition_id_t[]>(mt_kahypar_num_nodes(hypergraph));
-      mt_kahypar_partition(hypergraph, context, &objective, partition.get());
+      mt_kahypar_get_partition(partitioned_hg, partition.get());
+      std::vector<mt_kahypar_hypernode_weight_t> expected_block_weights(num_blocks);
+      for ( mt_kahypar_hypernode_id_t hn = 0; hn < mt_kahypar_num_nodes(hypergraph); ++hn ) {
+        EXPECT_GE(partition[hn], 0);
+        EXPECT_LT(partition[hn], num_blocks);
+        ++expected_block_weights[partition[hn]];
+      }
+
+      // Verify Block Weights
+      std::unique_ptr<mt_kahypar_hypernode_weight_t[]> block_weights =
+        std::make_unique<mt_kahypar_hypernode_weight_t[]>(num_blocks);
+      mt_kahypar_get_block_weights(partitioned_hg, block_weights.get());
+      for ( mt_kahypar_partition_id_t i = 0; i < num_blocks; ++i ) {
+        EXPECT_EQ(expected_block_weights[i], block_weights[i]);
+      }
 
       mt_kahypar_free_context(context);
       mt_kahypar_free_hypergraph(hypergraph);
+      mt_kahypar_free_partitioned_hypergraph(partitioned_hg);
       return objective;
     }
   }

@@ -217,11 +217,17 @@ mt_kahypar_hypernode_id_t mt_kahypar_total_weight(mt_kahypar_hypergraph_t* hyper
   return reinterpret_cast<mt_kahypar::Hypergraph*>(hypergraph)->totalWeight();
 }
 
-void mt_kahypar_partition(mt_kahypar_hypergraph_t* hypergraph,
-                          mt_kahypar_context_t* context,
-                          mt_kahypar_hyperedge_weight_t* objective,
-                          mt_kahypar_partition_id_t* partition) {
+MT_KAHYPAR_API void mt_kahypar_free_partitioned_hypergraph(mt_kahypar_partitioned_hypergraph_t* partitioned_hg) {
+  if (partitioned_hg == nullptr) {
+    return;
+  }
+  delete reinterpret_cast<mt_kahypar::PartitionedHypergraph*>(partitioned_hg);
+}
+
+mt_kahypar_partitioned_hypergraph_t* mt_kahypar_partition(mt_kahypar_hypergraph_t* hypergraph,
+                                                          mt_kahypar_context_t* context) {
   mt_kahypar::Hypergraph& hg = *reinterpret_cast<mt_kahypar::Hypergraph*>(hypergraph);
+  mt_kahypar::PartitionedHypergraph* phg = new mt_kahypar::PartitionedHypergraph();
   mt_kahypar::Context& c = *reinterpret_cast<mt_kahypar::Context*>(context);
   c.partition.mode = mt_kahypar::Mode::direct;
   c.partition.write_partition_file = false;
@@ -231,14 +237,51 @@ void mt_kahypar_partition(mt_kahypar_hypergraph_t* hypergraph,
   mt_kahypar::utils::Randomize::instance().setSeed(c.partition.seed);
 
   // Partition Hypergraph
-  mt_kahypar::PartitionedHypergraph partitioned_hypergraph = mt_kahypar::partition(hg, c);
-
-  // Store partition
-  *objective = mt_kahypar::metrics::objective(partitioned_hypergraph, c.partition.objective);
-  ASSERT(partition != nullptr);
-  partitioned_hypergraph.doParallelForAllNodes([&](const mt_kahypar::HypernodeID& hn) {
-    partition[hn] = partitioned_hypergraph.partID(hn);
-  });
+  *phg = mt_kahypar::partition(hg, c);
 
   // TODO: write partition file
+
+  return reinterpret_cast<mt_kahypar_partitioned_hypergraph_t*>(phg);
+}
+
+void mt_kahypar_get_partition(const mt_kahypar_partitioned_hypergraph_t* partitioned_hg,
+                              mt_kahypar_partition_id_t* partition) {
+  ASSERT(partition != nullptr);
+  const mt_kahypar::PartitionedHypergraph* phg =
+    reinterpret_cast<const mt_kahypar::PartitionedHypergraph*>(partitioned_hg);
+  phg->doParallelForAllNodes([&](const mt_kahypar::HypernodeID& hn) {
+    partition[hn] = phg->partID(hn);
+  });
+}
+
+void mt_kahypar_get_block_weights(const mt_kahypar_partitioned_hypergraph_t* partitioned_hg,
+                                  mt_kahypar_hypernode_weight_t* block_weights) {
+  ASSERT(block_weights != nullptr);
+  const mt_kahypar::PartitionedHypergraph* phg =
+    reinterpret_cast<const mt_kahypar::PartitionedHypergraph*>(partitioned_hg);
+  for ( mt_kahypar::PartitionID i = 0; i < phg->k(); ++i ) {
+    block_weights[i] = phg->partWeight(i);
+  }
+}
+
+double mt_kahypar_imbalance(const mt_kahypar_partitioned_hypergraph_t* partitioned_hg,
+                            const mt_kahypar_context_t* context) {
+  return mt_kahypar::metrics::imbalance(
+    *reinterpret_cast<const mt_kahypar::PartitionedHypergraph*>(partitioned_hg),
+    *reinterpret_cast<const mt_kahypar::Context*>(context));
+}
+
+mt_kahypar_hyperedge_weight_t mt_kahypar_cut(const mt_kahypar_partitioned_hypergraph_t* partitioned_hg) {
+  return mt_kahypar::metrics::hyperedgeCut(
+    *reinterpret_cast<const mt_kahypar::PartitionedHypergraph*>(partitioned_hg));
+}
+
+mt_kahypar_hyperedge_weight_t mt_kahypar_km1(const mt_kahypar_partitioned_hypergraph_t* partitioned_hg) {
+  return mt_kahypar::metrics::km1(
+    *reinterpret_cast<const mt_kahypar::PartitionedHypergraph*>(partitioned_hg));
+}
+
+mt_kahypar_hyperedge_weight_t mt_kahypar_soed(const mt_kahypar_partitioned_hypergraph_t* partitioned_hg) {
+  return mt_kahypar::metrics::soed(
+    *reinterpret_cast<const mt_kahypar::PartitionedHypergraph*>(partitioned_hg));
 }
