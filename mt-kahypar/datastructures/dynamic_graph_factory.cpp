@@ -69,9 +69,9 @@ void DynamicGraphFactory::construct(
     }
     edges.push_back({e[0], e[1]});
   }
-  return construct_from_graph_edges(graph, num_nodes, num_edges, edges,
-                                    edge_weight, node_weight,
-                                    stable_construction_of_incident_edges);
+  construct_from_graph_edges(graph, num_nodes, num_edges, edges,
+                             edge_weight, node_weight,
+                             stable_construction_of_incident_edges);
 }
 
 DynamicGraph DynamicGraphFactory::construct_from_graph_edges(
@@ -126,7 +126,6 @@ void DynamicGraphFactory::construct_from_graph_edges(
 
   // Compute total weight of the graph
   graph.updateTotalWeight(parallel_tag_t());
-  return graph;
 }
 
 
