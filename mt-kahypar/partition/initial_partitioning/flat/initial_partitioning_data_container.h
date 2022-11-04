@@ -642,13 +642,11 @@ class InitialPartitioningDataContainer {
           partitions[i].second.resize(_partitioned_hg.initialNumNodes());
           local_phg.extractPartIDs(partitions[i].second);
         };
-        for(size_t i = 0; i < num_runs; i += 3) {
+        for(size_t i = 0; i < num_runs; i += 2) {
           j_configs.emplace_back(GreedyJudiciousInitialPartitionerConfig{false, true, true, false}); // judicious increase random
           j_configs.emplace_back(GreedyJudiciousInitialPartitionerConfig{false, true, false, true}); // block load random
-          j_configs.emplace_back(GreedyJudiciousInitialPartitionerConfig{true, true, false, true}); // preassign block load random
           tg.run(std::bind(ip_run, distrib(g), i));
           tg.run(std::bind(ip_run, distrib(g), i + 1));
-          tg.run(std::bind(ip_run, distrib(g), i + 2));
         }
         tg.wait();
 
