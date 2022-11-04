@@ -76,3 +76,7 @@ jobs:
       - name: Run Mt-KaHyPar Integration Tests
         run: |
           ./tests/end_to_end/integration_tests.py
+
+      - name: Run Mt-KaHyPar Library Interface Tests
+        run: |
+          make -j2 interface_test

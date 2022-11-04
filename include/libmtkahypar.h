@@ -33,26 +33,27 @@
 extern "C" {
 #endif
 
-#ifndef KAHYPAR_API
+#ifndef MT_KAHYPAR_API
 #  ifdef _WIN32
 #     if defined(KAHYPAR_BUILD_SHARED)  /* build dll */
-#         define KAHYPAR_API __declspec(dllexport)
+#         define MT_KAHYPAR_API __declspec(dllexport)
 #     elif !defined(KAHYPAR_BUILD_STATIC)  /* use dll */
-#         define KAHYPAR_API __declspec(dllimport)
+#         define MT_KAHYPAR_API __declspec(dllimport)
 #     else  /* static library */
-#         define KAHYPAR_API
+#         define MT_KAHYPAR_API
 #     endif
 #  else
 #     if __GNUC__ >= 4
-#         define KAHYPAR_API __attribute__ ((visibility("default")))
+#         define MT_KAHYPAR_API __attribute__ ((visibility("default")))
 #     else
-#         define KAHYPAR_API
+#         define MT_KAHYPAR_API
 #     endif
 #  endif
 #endif
 
 struct mt_kahypar_context_s;
 typedef struct mt_kahypar_context_s mt_kahypar_context_t;
+typedef struct mt_kahypar_hypergraph_s mt_kahypar_hypergraph_t;
 
 typedef unsigned long int mt_kahypar_hypernode_id_t;
 typedef unsigned long int mt_kahypar_hyperedge_id_t;
@@ -60,35 +61,56 @@ typedef int mt_kahypar_hypernode_weight_t;
 typedef int mt_kahypar_hyperedge_weight_t;
 typedef unsigned int mt_kahypar_partition_id_t;
 
-KAHYPAR_API mt_kahypar_context_t* mt_kahypar_context_new();
-KAHYPAR_API void mt_kahypar_context_free(mt_kahypar_context_t* kahypar_context);
-KAHYPAR_API void mt_kahypar_configure_context_from_file(mt_kahypar_context_t* kahypar_context,
-                                                        const char* ini_file_name);
+typedef enum {
+  NUM_BLOCKS,
+  EPSILON,
+  OBJECTIVE, /** either 'cut' or 'km1' **/
+  SEED,
+  NUM_VCYCLES,
+  VERBOSE
+} mt_kahypar_context_parameter_type_t;
 
-KAHYPAR_API void mt_kahypar_initialize_thread_pool(const size_t num_threads,
-                                                   const bool interleaved_allocations);
+typedef enum {
+  DETERMINISTIC,
+  SPEED,
+  HIGH_QUALITY
+} mt_kahypar_preset_type_t;
 
-KAHYPAR_API void mt_kahypar_read_hypergraph_from_file(const char* file_name,
-                                                      mt_kahypar_hypernode_id_t* num_vertices,
-                                                      mt_kahypar_hyperedge_id_t* num_hyperedges,
-                                                      size_t** hyperedge_indices,
-                                                      mt_kahypar_hyperedge_id_t** hyperedges,
-                                                      mt_kahypar_hyperedge_weight_t** hyperedge_weights,
-                                                      mt_kahypar_hypernode_weight_t** vertex_weights);
+MT_KAHYPAR_API mt_kahypar_context_t* mt_kahypar_context_new();
+MT_KAHYPAR_API void mt_kahypar_context_free(mt_kahypar_context_t* context);
+MT_KAHYPAR_API void mt_kahypar_configure_context_from_file(mt_kahypar_context_t* context,
+                                                           const char* ini_file_name);
+MT_KAHYPAR_API void mt_kahypar_load_preset(mt_kahypar_context_t* context,
+                                           const mt_kahypar_preset_type_t preset);
+MT_KAHYPAR_API int mt_kahypar_set_context_parameter(mt_kahypar_context_t* context,
+                                                    const mt_kahypar_context_parameter_type_t type,
+                                                    const char* value);
 
-KAHYPAR_API void mt_kahypar_partition(const mt_kahypar_hypernode_id_t num_vertices,
-                                      const mt_kahypar_hyperedge_id_t num_hyperedges,
-                                      const double epsilon,
-                                      const mt_kahypar_partition_id_t num_blocks,
-                                      const int seed,
-                                      const mt_kahypar_hypernode_weight_t* vertex_weights,
-                                      const mt_kahypar_hyperedge_weight_t* hyperedge_weights,
-                                      const size_t* hyperedge_indices,
-                                      const mt_kahypar_hyperedge_id_t* hyperedges,
-                                      mt_kahypar_hyperedge_weight_t* objective,
-                                      mt_kahypar_context_t* kahypar_context,
-                                      mt_kahypar_partition_id_t* partition,
-                                      const bool verbose = false);
+MT_KAHYPAR_API void mt_kahypar_initialize_thread_pool(const size_t num_threads,
+                                                      const bool interleaved_allocations);
+
+
+MT_KAHYPAR_API void mt_kahypar_read_hypergraph_from_file(const char* file_name,
+                                                         mt_kahypar_hypernode_id_t* num_vertices,
+                                                         mt_kahypar_hyperedge_id_t* num_hyperedges,
+                                                         size_t** hyperedge_indices,
+                                                         mt_kahypar_hyperedge_id_t** hyperedges,
+                                                         mt_kahypar_hyperedge_weight_t** hyperedge_weights,
+                                                         mt_kahypar_hypernode_weight_t** vertex_weights);
+
+MT_KAHYPAR_API void mt_kahypar_partition(const mt_kahypar_hypernode_id_t num_vertices,
+                                         const mt_kahypar_hyperedge_id_t num_hyperedges,
+                                         const double epsilon,
+                                         const mt_kahypar_partition_id_t num_blocks,
+                                         const int seed,
+                                         const mt_kahypar_hypernode_weight_t* vertex_weights,
+                                         const mt_kahypar_hyperedge_weight_t* hyperedge_weights,
+                                         const size_t* hyperedge_indices,
+                                         const mt_kahypar_hyperedge_id_t* hyperedges,
+                                         mt_kahypar_hyperedge_weight_t* objective,
+                                         mt_kahypar_context_t* kahypar_context,
+                                         mt_kahypar_partition_id_t* partition,
+                                         const bool verbose = false);
 
 
 #ifdef __cplusplus

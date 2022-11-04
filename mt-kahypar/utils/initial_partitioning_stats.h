@@ -29,8 +29,8 @@
 #include <mutex>
 #include <string>
 
-#include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/context_enum_classes.h"
+#include "mt-kahypar/parallel/stl/scalable_vector.h"
 
 namespace mt_kahypar {
 namespace utils {

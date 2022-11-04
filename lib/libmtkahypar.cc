@@ -48,21 +48,75 @@ namespace {
   using vec = mt_kahypar::parallel::scalable_vector<T>;
 }
 
+
 mt_kahypar_context_t* mt_kahypar_context_new() {
   return reinterpret_cast<mt_kahypar_context_t*>(new mt_kahypar::Context(false));
 }
 
-void mt_kahypar_context_free(mt_kahypar_context_t* kahypar_context) {
-  if (kahypar_context == nullptr) {
+void mt_kahypar_context_free(mt_kahypar_context_t* context) {
+  if (context == nullptr) {
     return;
   }
-  delete reinterpret_cast<mt_kahypar::Context*>(kahypar_context);
+  delete reinterpret_cast<mt_kahypar::Context*>(context);
 }
 
 void mt_kahypar_configure_context_from_file(mt_kahypar_context_t* kahypar_context,
                                             const char* ini_file_name) {
-  mt_kahypar::parseIniToContext(*reinterpret_cast<mt_kahypar::Context*>(kahypar_context),
-                                ini_file_name);
+  mt_kahypar::parseIniToContext(
+    *reinterpret_cast<mt_kahypar::Context*>(kahypar_context), ini_file_name);
+}
+
+MT_KAHYPAR_API void mt_kahypar_load_preset(mt_kahypar_context_t* context,
+                                           const mt_kahypar_preset_type_t preset) {
+  mt_kahypar::Context& c = *reinterpret_cast<mt_kahypar::Context*>(context);
+  switch(preset) {
+    case DETERMINISTIC:
+      c.load_deterministic_preset();
+      break;
+    case SPEED:
+      c.load_default_preset();
+      break;
+    case HIGH_QUALITY:
+      c.load_default_flow_preset();
+      break;
+  }
+}
+
+int mt_kahypar_set_context_parameter(mt_kahypar_context_t* context,
+                                     const mt_kahypar_context_parameter_type_t type,
+                                     const char* value) {
+  mt_kahypar::Context& c = *reinterpret_cast<mt_kahypar::Context*>(context);
+  switch(type) {
+    case NUM_BLOCKS:
+      c.partition.k = atoi(value);
+      if ( c.partition.k > 0 ) return 0; /** success **/
+      else return 2; /** integer conversion error **/
+    case EPSILON:
+      c.partition.epsilon = atof(value);
+      return 0;
+    case OBJECTIVE:
+      {
+        std::string objective(value);
+        if ( objective == "km1" ) {
+          c.partition.objective = mt_kahypar::Objective::km1;
+          return 0;
+        } else if ( objective == "cut" ) {
+          c.partition.objective = mt_kahypar::Objective::cut;
+          return 0;
+        }
+        return 3;
+      }
+    case SEED:
+      c.partition.seed = atoi(value);
+      return 0;
+    case NUM_VCYCLES:
+      c.partition.num_vcycles = atoi(value);
+      return 0;
+    case VERBOSE:
+      c.partition.verbose_output = atoi(value);
+      return 0;
+  }
+  return 1; /** no valid parameter type **/
 }
 
 

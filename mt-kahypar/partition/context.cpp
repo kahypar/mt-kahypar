@@ -469,6 +469,233 @@ namespace mt_kahypar {
     }
   }
 
+  void Context::load_default_preset() {
+    // General
+    partition.large_hyperedge_size_threshold_factor = 0.01;
+    partition.smallest_large_he_size_threshold = 50000;
+    partition.ignore_hyperedge_size_threshold = 1000;
+    partition.num_vcycles = 0;
+
+    // shared_memory
+    shared_memory.use_localized_random_shuffle = false;
+    shared_memory.static_balancing_work_packages = 128;
+
+    // preprocessing
+    preprocessing.use_community_detection = true;
+    preprocessing.community_detection.edge_weight_function = LouvainEdgeWeight::hybrid;
+    preprocessing.community_detection.max_pass_iterations = 5;
+    preprocessing.community_detection.min_vertex_move_fraction = 0.01;
+    preprocessing.community_detection.vertex_degree_sampling_threshold = 200000;
+
+    // coarsening
+    coarsening.algorithm = CoarseningAlgorithm::multilevel_coarsener;
+    coarsening.use_adaptive_edge_size= true;
+    coarsening.minimum_shrink_factor = 1.01;
+    coarsening.maximum_shrink_factor = 2.5;
+    coarsening.max_allowed_weight_multiplier = 1.0;
+    coarsening.contraction_limit_multiplier = 160;
+    coarsening.vertex_degree_sampling_threshold = 200000;
+
+    // coarsening -> rating
+    coarsening.rating.rating_function = RatingFunction::heavy_edge;
+    coarsening.rating.heavy_node_penalty_policy = HeavyNodePenaltyPolicy::no_penalty;
+    coarsening.rating.acceptance_policy = AcceptancePolicy::best_prefer_unmatched;
+
+    // initial partitioning
+    initial_partitioning.mode = Mode::recursive_bipartitioning;
+    initial_partitioning.runs = 20;
+    initial_partitioning.use_adaptive_ip_runs = true;
+    initial_partitioning.min_adaptive_ip_runs = 5;
+    initial_partitioning.perform_refinement_on_best_partitions = true;
+    initial_partitioning.fm_refinment_rounds = 1;
+    initial_partitioning.lp_maximum_iterations = 20;
+    initial_partitioning.lp_initial_block_size = 5;
+    initial_partitioning.remove_degree_zero_hns_before_ip = true;
+
+    // initial partitioning -> refinement
+    initial_partitioning.refinement.refine_until_no_improvement = false;
+    initial_partitioning.refinement.max_batch_size = 1000;
+
+    // initial partitioning -> refinement -> label propagation
+    initial_partitioning.refinement.label_propagation.algorithm = LabelPropagationAlgorithm::label_propagation_km1;
+    initial_partitioning.refinement.label_propagation.maximum_iterations = 5;
+    initial_partitioning.refinement.label_propagation.rebalancing = true;
+    initial_partitioning.refinement.label_propagation.hyperedge_size_activation_threshold = 100;
+
+    // initial partitioning -> refinement -> fm
+    initial_partitioning.refinement.fm.algorithm = FMAlgorithm::fm_gain_cache;
+    initial_partitioning.refinement.fm.multitry_rounds = 5;
+    initial_partitioning.refinement.fm.perform_moves_global = false;
+    initial_partitioning.refinement.fm.rollback_parallel = true;
+    initial_partitioning.refinement.fm.rollback_balance_violation_factor = 1;
+    initial_partitioning.refinement.fm.num_seed_nodes = 25;
+    initial_partitioning.refinement.fm.obey_minimal_parallelism = false;
+    initial_partitioning.refinement.fm.release_nodes = true;
+    initial_partitioning.refinement.fm.time_limit_factor = 0.25;
+    initial_partitioning.refinement.fm.iter_moves_on_recalc = true;
+
+    // initial partitioning -> refinement -> flows
+    initial_partitioning.refinement.flows.algorithm = FlowAlgorithm::do_nothing;
+
+    // initial partitioning -> refinement -> deterministic
+    initial_partitioning.refinement.deterministic_refinement.use_active_node_set = true;
+
+    // refinement
+    refinement.refine_until_no_improvement = false;
+    refinement.max_batch_size = 1000;
+
+    // refinement -> label propagation
+    refinement.label_propagation.algorithm = LabelPropagationAlgorithm::label_propagation_km1;
+    refinement.label_propagation.maximum_iterations = 5;
+    refinement.label_propagation.rebalancing = true;
+    refinement.label_propagation.hyperedge_size_activation_threshold = 100;
+
+    // refinement -> fm
+    refinement.fm.algorithm = FMAlgorithm::fm_gain_cache;
+    refinement.fm.multitry_rounds = 10;
+    refinement.fm.perform_moves_global = false;
+    refinement.fm.rollback_parallel = true;
+    refinement.fm.rollback_balance_violation_factor = 1.25;
+    refinement.fm.num_seed_nodes = 25;
+    refinement.fm.obey_minimal_parallelism = true;
+    refinement.fm.release_nodes = true;
+    refinement.fm.time_limit_factor = 0.25;
+    refinement.fm.min_improvement = -1;
+    refinement.fm.iter_moves_on_recalc = true;
+
+    // refinement -> flows
+    refinement.flows.algorithm = FlowAlgorithm::do_nothing;
+
+    // refinement -> deterministic
+    refinement.deterministic_refinement.use_active_node_set = true;
+  }
+
+  void Context::load_default_flow_preset() {
+    load_default_preset();
+
+    // refinement
+    refinement.refine_until_no_improvement = true;
+    refinement.relative_improvement_threshold = 0.0025;
+
+    // refinement -> flows;
+    refinement.flows.algorithm = FlowAlgorithm::flow_cutter;
+    refinement.flows.alpha = 16;
+    refinement.flows.max_num_pins = 4294967295;
+    refinement.flows.find_most_balanced_cut = true;
+    refinement.flows.determine_distance_from_cut = true;
+    refinement.flows.parallel_searches_multiplier = 1.0;
+    refinement.flows.max_bfs_distance = 2;
+    refinement.flows.time_limit_factor = 8;
+    refinement.flows.skip_small_cuts = true;
+    refinement.flows.skip_unpromising_blocks = true;
+    refinement.flows.pierce_in_bulk = true;
+    refinement.flows.min_relative_improvement_per_round = 0.001;
+  }
+
+  void Context::load_deterministic_preset() {
+    // General
+    partition.deterministic = true;
+    partition.large_hyperedge_size_threshold_factor = 0.01;
+    partition.smallest_large_he_size_threshold = 50000;
+    partition.ignore_hyperedge_size_threshold = 1000;
+    partition.num_vcycles = 0;
+
+    // shared_memory
+    shared_memory.use_localized_random_shuffle = false;
+    shared_memory.static_balancing_work_packages = 128;
+
+    // preprocessing
+    preprocessing.use_community_detection = true;
+    preprocessing.stable_construction_of_incident_edges = true;
+    preprocessing.community_detection.edge_weight_function = LouvainEdgeWeight::hybrid;
+    preprocessing.community_detection.max_pass_iterations = 5;
+    preprocessing.community_detection.min_vertex_move_fraction = 0.01;
+    preprocessing.community_detection.vertex_degree_sampling_threshold = 200000;
+    preprocessing.community_detection.low_memory_contraction = true;
+    preprocessing.community_detection.num_sub_rounds_deterministic = 16;
+
+    // coarsening
+    coarsening.algorithm = CoarseningAlgorithm::deterministic_multilevel_coarsener;
+    coarsening.use_adaptive_edge_size= true;
+    coarsening.minimum_shrink_factor = 1.01;
+    coarsening.maximum_shrink_factor = 2.5;
+    coarsening.max_allowed_weight_multiplier = 1.0;
+    coarsening.contraction_limit_multiplier = 160;
+    coarsening.vertex_degree_sampling_threshold = 200000;
+    coarsening.num_sub_rounds_deterministic = 3;
+
+    // coarsening -> rating
+    coarsening.rating.rating_function = RatingFunction::heavy_edge;
+    coarsening.rating.heavy_node_penalty_policy = HeavyNodePenaltyPolicy::no_penalty;
+    coarsening.rating.acceptance_policy = AcceptancePolicy::best_prefer_unmatched;
+
+    // initial partitioning
+    initial_partitioning.mode = Mode::recursive_bipartitioning;
+    initial_partitioning.runs = 20;
+    initial_partitioning.use_adaptive_ip_runs = false;
+    initial_partitioning.min_adaptive_ip_runs = 5;
+    initial_partitioning.perform_refinement_on_best_partitions = false;
+    initial_partitioning.fm_refinment_rounds = 3;
+    initial_partitioning.lp_maximum_iterations = 20;
+    initial_partitioning.lp_initial_block_size = 5;
+    initial_partitioning.population_size = 64;
+    initial_partitioning.remove_degree_zero_hns_before_ip = true;
+
+    // initial partitioning -> refinement
+    initial_partitioning.refinement.refine_until_no_improvement = false;
+    initial_partitioning.refinement.max_batch_size = 1000;
+
+    // initial partitioning -> refinement -> label propagation
+    initial_partitioning.refinement.label_propagation.algorithm = LabelPropagationAlgorithm::deterministic;
+    initial_partitioning.refinement.label_propagation.maximum_iterations = 5;
+    initial_partitioning.refinement.label_propagation.hyperedge_size_activation_threshold = 100;
+
+    // initial partitioning -> refinement -> deterministic
+    initial_partitioning.refinement.deterministic_refinement.num_sub_rounds_sync_lp = 1;
+    initial_partitioning.refinement.deterministic_refinement.use_active_node_set = true;
+
+    // initial partitioning -> refinement -> fm
+    initial_partitioning.refinement.fm.algorithm = FMAlgorithm::do_nothing;
+    initial_partitioning.refinement.fm.multitry_rounds = 10;
+    initial_partitioning.refinement.fm.perform_moves_global = false;
+    initial_partitioning.refinement.fm.rollback_parallel = true;
+    initial_partitioning.refinement.fm.rollback_balance_violation_factor = 1.25;
+    initial_partitioning.refinement.fm.num_seed_nodes = 25;
+    initial_partitioning.refinement.fm.obey_minimal_parallelism = true;
+    initial_partitioning.refinement.fm.release_nodes = true;
+    initial_partitioning.refinement.fm.time_limit_factor = 0.25;
+
+    // initial partitioning -> refinement -> flows
+    initial_partitioning.refinement.flows.algorithm = FlowAlgorithm::do_nothing;
+
+    // refinement
+    refinement.refine_until_no_improvement = false;
+    refinement.max_batch_size = 1000;
+
+    // refinement -> label propagation
+    refinement.label_propagation.algorithm = LabelPropagationAlgorithm::deterministic;
+    refinement.label_propagation.maximum_iterations = 5;
+    refinement.label_propagation.hyperedge_size_activation_threshold = 100;
+
+    // refinement -> deterministic
+    refinement.deterministic_refinement.num_sub_rounds_sync_lp = 1;
+    refinement.deterministic_refinement.use_active_node_set = true;
+
+    // refinement -> fm
+    refinement.fm.algorithm = FMAlgorithm::do_nothing;
+    refinement.fm.multitry_rounds = 10;
+    refinement.fm.perform_moves_global = false;
+    refinement.fm.rollback_parallel = true;
+    refinement.fm.rollback_balance_violation_factor = 1.25;
+    refinement.fm.num_seed_nodes = 25;
+    refinement.fm.obey_minimal_parallelism = true;
+    refinement.fm.release_nodes = true;
+    refinement.fm.time_limit_factor = 0.25;
+
+    // refinement -> flows
+    refinement.flows.algorithm = FlowAlgorithm::do_nothing;
+  }
+
   std::ostream & operator<< (std::ostream& str, const Context& context) {
     str << "*******************************************************************************\n"
         << "*                            Partitioning Context                             *\n"
@@ -491,5 +718,4 @@ namespace mt_kahypar {
         << "-------------------------------------------------------------------------------";
     return str;
   }
-
 }
