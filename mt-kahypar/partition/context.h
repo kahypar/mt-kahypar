@@ -86,6 +86,7 @@ struct CommunityDetectionParameters {
   double isolated_nodes_threshold_stdev_factor = 1.0;
   bool single_community_of_separated = true;
   bool separated_sub_communities = false;
+  bool isolated_nodes_local_threshold = true;
   bool collect_component_stats = false;
 };
 

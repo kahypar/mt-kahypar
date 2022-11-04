@@ -109,6 +109,7 @@ namespace internal {
 } // namespace internal
 
 namespace mt_kahypar::community_detection {
+using ds::Array;
 
 bool ParallelLocalMovingModularity::localMoving(Graph& graph, ds::Clustering& communities, bool top_level) {
   ASSERT(graph.canBeUsed());
@@ -156,35 +157,8 @@ bool ParallelLocalMovingModularity::localMoving(Graph& graph, ds::Clustering& co
   if (clustering_changed && _context.preprocessing.community_detection.use_isolated_nodes_treshold) {
     ASSERT(!_context.partition.deterministic);
     auto& nodes = permutation.permutation;
-    std::vector<double> inv_gains;
-    inv_gains.assign(nodes.size(), 0);
-    tbb::parallel_for(0UL, nodes.size(), [&](size_t i) {
-      double gain_to_iso = computeGainComparedToIsolated(graph, communities, nodes[i]);
-      inv_gains[i] = 1 / std::max(gain_to_iso, 1.0);
-    });
-
-
-    const double avg_inv_weigh_gain = utils::parallel_weighted_avg(inv_gains, graph.totalVolume(),
-      [&](size_t i) {
-        return graph.nodeVolume(nodes[i]);
-      });
-    const double stdev_inv_weigh_gain = utils::parallel_weighted_stdev(inv_gains, avg_inv_weigh_gain, graph.totalVolume(),
-      [&](size_t i) {
-        return graph.nodeVolume(nodes[i]);
-      });
-
-    const double stdev_factor = _context.preprocessing.community_detection.isolated_nodes_threshold_stdev_factor;
+    tbb::enumerable_thread_specific<int64_t> num_separated_local(0);
     HypernodeID first_separated = kInvalidHypernode;
-    if (top_level && _context.preprocessing.community_detection.single_community_of_separated) {
-      // we need to find one representative of the community of separated nodes
-      for (size_t i = 0; i < nodes.size(); ++i) {
-        const double gain_to_iso = computeGainComparedToIsolated(graph, communities, nodes[i]);
-        if (gain_to_iso <= 0 || gain_to_iso < 1 / (avg_inv_weigh_gain + stdev_factor * stdev_inv_weigh_gain)) {
-          first_separated = nodes[i];
-          break;
-        }
-      }
-    }
 
     auto isolateNode = [&](const NodeID u) {
       const ArcWeight volU = graph.nodeVolume(u);
@@ -203,16 +177,116 @@ bool ParallelLocalMovingModularity::localMoving(Graph& graph, ds::Clustering& co
       }
     };
 
-    tbb::enumerable_thread_specific<int64_t> num_separated_local(0);
+    const double stdev_factor = _context.preprocessing.community_detection.isolated_nodes_threshold_stdev_factor;
+    if (!_context.preprocessing.community_detection.isolated_nodes_local_threshold) {
+      std::vector<double> inv_gains;
+      inv_gains.assign(nodes.size(), 0);
+      tbb::parallel_for(0UL, nodes.size(), [&](size_t i) {
+        double gain_to_iso = computeGainComparedToIsolated(graph, communities, nodes[i]);
+        inv_gains[i] = 1 / std::max(gain_to_iso, 1.0);
+      });
 
-    tbb::parallel_for(0UL, nodes.size(), [&](size_t i) {
-      const double gain_to_iso = computeGainComparedToIsolated(graph, communities, nodes[i]);
-      if (gain_to_iso <= 0 || gain_to_iso < 1 / (avg_inv_weigh_gain + stdev_factor * stdev_inv_weigh_gain)) {
-        isolateNode(nodes[i]);
-        graph.setIsolated(nodes[i]);
-        num_separated_local.local()++;
+      const double avg_inv_weigh_gain = utils::parallel_weighted_avg(inv_gains, graph.totalVolume(),
+        [&](size_t i) {
+          return graph.nodeVolume(nodes[i]);
+        });
+      const double stdev_inv_weigh_gain = utils::parallel_weighted_stdev(inv_gains, avg_inv_weigh_gain, graph.totalVolume(),
+        [&](size_t i) {
+          return graph.nodeVolume(nodes[i]);
+        });
+
+      if (top_level && _context.preprocessing.community_detection.single_community_of_separated) {
+        // we need to find one representative of the community of separated nodes
+        for (size_t i = 0; i < nodes.size(); ++i) {
+          const double gain_to_iso = computeGainComparedToIsolated(graph, communities, nodes[i]);
+          if (gain_to_iso <= 0 || gain_to_iso < 1 / (avg_inv_weigh_gain + stdev_factor * stdev_inv_weigh_gain)) {
+            first_separated = nodes[i];
+            break;
+          }
+        }
       }
-    });
+
+      tbb::parallel_for(0UL, nodes.size(), [&](size_t i) {
+        const double gain_to_iso = computeGainComparedToIsolated(graph, communities, nodes[i]);
+        if (gain_to_iso <= 0 || gain_to_iso < 1 / (avg_inv_weigh_gain + stdev_factor * stdev_inv_weigh_gain)) {
+          isolateNode(nodes[i]);
+          graph.setIsolated(nodes[i]);
+          num_separated_local.local()++;
+        }
+      });
+    } else {
+      // Compute mapped community ids with a parallel prefix sum
+      Array<NodeID> mapping;
+      mapping.assign(nodes.size(), 0);
+      tbb::parallel_for(0UL, nodes.size(), [&](const HypernodeID& node) {
+        if (!graph.isIsolated(node)) {
+          mapping[communities[node]] = 1;
+        }
+      });
+      parallel::TBBPrefixSum<NodeID, Array> mapping_prefix_sum(mapping);
+      tbb::parallel_scan(tbb::blocked_range<size_t>(0UL, mapping.size()), mapping_prefix_sum);
+      const NodeID max_community_id = mapping_prefix_sum.total_sum();
+
+      auto community_id = [&] (const NodeID node) {
+        return mapping_prefix_sum[communities[node]];
+      };
+
+      Array<parallel::IntegralAtomicWrapper<NodeID>> first_node_index;
+      first_node_index.assign(max_community_id + 1, parallel::IntegralAtomicWrapper<NodeID>(0)); // sentry
+      tbb::parallel_for(0UL, nodes.size(), [&](const HypernodeID& node) {
+        if (!graph.isIsolated(node)) {
+          first_node_index[community_id(node) + 1].fetch_add(1);
+        }
+      });
+      parallel::TBBPrefixSum<parallel::IntegralAtomicWrapper<NodeID>, Array> first_node_index_prefix_sum(first_node_index);
+      tbb::parallel_scan(tbb::blocked_range<size_t>(0UL, first_node_index.size()), first_node_index_prefix_sum);
+
+      Array<NodeID> nodes_per_community;
+      nodes_per_community.assign(nodes.size(), 0);
+      tbb::parallel_for(0UL, nodes.size(), [&](const NodeID& node) {
+        if (!graph.isIsolated(node)) {
+          const NodeID pos = first_node_index[community_id(node)].fetch_add(1);
+          nodes_per_community[pos] = node;
+        }
+      });
+
+      std::vector<double> inv_gains;
+      for (NodeID c = 0; c < nodes.size(); ++c) {
+        if (mapping_prefix_sum[c + 1] > mapping_prefix_sum[c]) {
+          const NodeID community = mapping_prefix_sum[c];
+          inv_gains.clear();
+          const NodeID start_pos = first_node_index_prefix_sum[community];
+          const NodeID end_pos = first_node_index_prefix_sum[community + 1];
+
+          inv_gains.assign(end_pos - start_pos, 0);
+          tbb::parallel_for(start_pos, end_pos, [&](NodeID i) {
+            const NodeID node = nodes_per_community[i];
+            ASSERT(community_id(node) == community);
+            double gain_to_iso = computeGainComparedToIsolated(graph, communities, node);
+            inv_gains[i - start_pos] = 1 / std::max(gain_to_iso, 1.0);
+          });
+
+          const double avg_inv_weigh_gain = utils::parallel_weighted_avg(inv_gains, _cluster_volumes[c],
+            [&](size_t i) {
+              return graph.nodeVolume(nodes_per_community[i + start_pos]);
+            });
+          const double stdev_inv_weigh_gain = utils::parallel_weighted_stdev(inv_gains, avg_inv_weigh_gain, _cluster_volumes[c],
+            [&](size_t i) {
+              return graph.nodeVolume(nodes_per_community[i + start_pos]);
+            });
+
+          tbb::parallel_for(start_pos, end_pos, [&](NodeID i) {
+            const NodeID node = nodes_per_community[i];
+            const double gain_to_iso = computeGainComparedToIsolated(graph, communities, node);
+            if (gain_to_iso <= 0 || gain_to_iso < 1 / (avg_inv_weigh_gain + stdev_factor * stdev_inv_weigh_gain)) {
+              isolateNode(node);
+              graph.setIsolated(node);
+              num_separated_local.local()++;
+            }
+          });
+        }
+      }
+    }
 
     if (top_level) {
       tbb::parallel_for(0UL, nodes.size(), [&](size_t i) {

@@ -234,6 +234,10 @@ namespace mt_kahypar {
              po::value<bool>(&context.preprocessing.community_detection.separated_sub_communities)->value_name(
                      "<bool>")->default_value(false),
              "If set, run one round of community detection on the separated nodes.")
+            ("p-isolated-nodes-local-threshold",
+             po::value<bool>(&context.preprocessing.community_detection.isolated_nodes_local_threshold)->value_name(
+                     "<bool>")->default_value(false),
+             "If set, the threshold is calculated per community instead of globally.")
             ("p-collect-component-stats",
              po::value<bool>(&context.preprocessing.community_detection.collect_component_stats)->value_name(
                      "<bool>")->default_value(false),
