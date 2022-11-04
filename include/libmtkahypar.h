@@ -71,6 +71,11 @@ typedef enum {
 } mt_kahypar_context_parameter_type_t;
 
 typedef enum {
+  CUT,
+  KM1
+} mt_kahypar_objective_t;
+
+typedef enum {
   DETERMINISTIC,
   SPEED,
   HIGH_QUALITY
@@ -93,6 +98,11 @@ MT_KAHYPAR_API void mt_kahypar_load_preset(mt_kahypar_context_t* context,
 MT_KAHYPAR_API int mt_kahypar_set_context_parameter(mt_kahypar_context_t* context,
                                                     const mt_kahypar_context_parameter_type_t type,
                                                     const char* value);
+MT_KAHYPAR_API void mt_kahypar_set_partitioning_parameters(mt_kahypar_context_t* context,
+                                                           const mt_kahypar_partition_id_t num_blocks,
+                                                           const double epsilon,
+                                                           const mt_kahypar_objective_t objective,
+                                                           const size_t seed);
 // TODO: set individual part weights
 
 
@@ -122,19 +132,10 @@ MT_KAHYPAR_API mt_kahypar_hypernode_id_t mt_kahypar_total_weight(mt_kahypar_hype
 
 // ####################### Partition #######################
 
-MT_KAHYPAR_API void mt_kahypar_partition(const mt_kahypar_hypernode_id_t num_vertices,
-                                         const mt_kahypar_hyperedge_id_t num_hyperedges,
-                                         const double epsilon,
-                                         const mt_kahypar_partition_id_t num_blocks,
-                                         const int seed,
-                                         const mt_kahypar_hypernode_weight_t* vertex_weights,
-                                         const mt_kahypar_hyperedge_weight_t* hyperedge_weights,
-                                         const size_t* hyperedge_indices,
-                                         const mt_kahypar_hyperedge_id_t* hyperedges,
+MT_KAHYPAR_API void mt_kahypar_partition(mt_kahypar_hypergraph_t* hypergraph,
+                                         mt_kahypar_context_t* context,
                                          mt_kahypar_hyperedge_weight_t* objective,
-                                         mt_kahypar_context_t* kahypar_context,
-                                         mt_kahypar_partition_id_t* partition,
-                                         const bool verbose = false);
+                                         mt_kahypar_partition_id_t* partition);
 
 
 #ifdef __cplusplus

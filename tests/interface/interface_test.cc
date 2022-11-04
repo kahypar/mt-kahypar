@@ -1,5 +1,9 @@
 #include "gmock/gmock.h"
 
+#include <thread>
+
+#include "tbb/parallel_invoke.h"
+
 #include "include/libmtkahypar.h"
 #include "mt-kahypar/macros.h"
 #include "mt-kahypar/partition/context.h"
@@ -91,6 +95,88 @@ namespace mt_kahypar {
     ASSERT_EQ(28, mt_kahypar_total_weight(hypergraph));
 
     mt_kahypar_free_hypergraph(hypergraph);
+  }
+
+  namespace {
+    mt_kahypar_hyperedge_weight_t partition(const char* filename,
+                                            const mt_kahypar_file_format_type_t file_format,
+                                            const mt_kahypar_preset_type_t preset,
+                                            const mt_kahypar_partition_id_t num_blocks) {
+      // Setup Partitioning Context
+      mt_kahypar_context_t* context = mt_kahypar_context_new();
+      mt_kahypar_load_preset(context, preset);
+      mt_kahypar_set_partitioning_parameters(context, num_blocks, 0.03, KM1, 0);
+      mt_kahypar_set_context_parameter(context, VERBOSE, "1");
+
+      // Load Hypergraph
+      mt_kahypar_hypergraph_t* hypergraph =
+        mt_kahypar_read_hypergraph_from_file(filename, context, file_format);
+
+      // Partition Hypergraph
+      mt_kahypar_hyperedge_weight_t objective = 0;
+      std::unique_ptr<mt_kahypar_partition_id_t[]> partition =
+        std::make_unique<mt_kahypar_partition_id_t[]>(mt_kahypar_num_nodes(hypergraph));
+      mt_kahypar_partition(hypergraph, context, &objective, partition.get());
+
+      mt_kahypar_free_context(context);
+      mt_kahypar_free_hypergraph(hypergraph);
+      return objective;
+    }
+  }
+
+  TEST(MtKaHyPar, PartitionsAHypergraphInTwoBlocksWithSpeedPreset) {
+    mt_kahypar_initialize_thread_pool(std::thread::hardware_concurrency(), false);
+    partition("test_instances/ibm01.hgr", HMETIS, SPEED, 2);
+  }
+
+  TEST(MtKaHyPar, PartitionsAHypergraphInFourBlocksWithSpeedPreset) {
+    mt_kahypar_initialize_thread_pool(std::thread::hardware_concurrency(), false);
+    partition("test_instances/ibm01.hgr", HMETIS, SPEED, 4);
+  }
+
+  TEST(MtKaHyPar, PartitionsAHypergraphInTwoBlocksWithHighQualityPreset) {
+    mt_kahypar_initialize_thread_pool(std::thread::hardware_concurrency(), false);
+    partition("test_instances/ibm01.hgr", HMETIS, HIGH_QUALITY, 2);
+  }
+
+  TEST(MtKaHyPar, PartitionsAHypergraphInFourBlocksWithHighQualityPreset) {
+    mt_kahypar_initialize_thread_pool(std::thread::hardware_concurrency(), false);
+    partition("test_instances/ibm01.hgr", HMETIS, HIGH_QUALITY, 4);
+  }
+
+  TEST(MtKaHyPar, PartitionsAHypergraphInTwoBlocksWithDeterministicPreset) {
+    mt_kahypar_initialize_thread_pool(std::thread::hardware_concurrency(), false);
+    partition("test_instances/ibm01.hgr", HMETIS, DETERMINISTIC, 2);
+  }
+
+  TEST(MtKaHyPar, PartitionsAHypergraphInFourBlocksWithDeterministicPreset) {
+    mt_kahypar_initialize_thread_pool(std::thread::hardware_concurrency(), false);
+    partition("test_instances/ibm01.hgr", HMETIS, DETERMINISTIC, 4);
+  }
+
+  TEST(MTKaHyPar, CanPartitionTwoHypergraphsSimultanously) {
+    mt_kahypar_initialize_thread_pool(std::thread::hardware_concurrency(), false);
+    tbb::parallel_invoke([&]() {
+      partition("test_instances/ibm01.hgr", HMETIS, SPEED, 4);
+    }, [&] {
+      partition("test_instances/ibm01.hgr", HMETIS, DETERMINISTIC, 4);
+    });
+  }
+
+  TEST(MtKaHyPar, ChecksIfDeterministicPresetProducesSameResults) {
+    mt_kahypar_hyperedge_weight_t objective_1 = partition("test_instances/ibm01.hgr", HMETIS, DETERMINISTIC, 8);
+    mt_kahypar_hyperedge_weight_t objective_2 = partition("test_instances/ibm01.hgr", HMETIS, DETERMINISTIC, 8);
+    mt_kahypar_hyperedge_weight_t objective_3 = partition("test_instances/ibm01.hgr", HMETIS, DETERMINISTIC, 8);
+    ASSERT_EQ(objective_1, objective_2);
+    ASSERT_EQ(objective_1, objective_3);
+  }
+
+  TEST(MtKaHyPar, PartitionsAGraphInTwoBlocksWithSpeedPreset) {
+    partition("test_instances/delaunay_n15.graph", METIS, SPEED, 2);
+  }
+
+  TEST(MtKaHyPar, PartitionsAGraphInFourBlocksWithSpeedPreset) {
+    partition("test_instances/delaunay_n15.graph", METIS, SPEED, 4);
   }
 
   TEST(MtKaHyPar, CanSetContextParameter) {
