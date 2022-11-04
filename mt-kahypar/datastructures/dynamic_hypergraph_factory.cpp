@@ -39,13 +39,28 @@
 namespace mt_kahypar {
 namespace ds {
 
-DynamicHypergraph DynamicHypergraphFactory::construct(const HypernodeID num_hypernodes,
-                                                      const HyperedgeID num_hyperedges,
-                                                      const HyperedgeVector& edge_vector,
-                                                      const HyperedgeWeight* hyperedge_weight,
-                                                      const HypernodeWeight* hypernode_weight,
-                                                      const bool) {
+DynamicHypergraph DynamicHypergraphFactory::construct(
+        const HypernodeID num_hypernodes,
+        const HyperedgeID num_hyperedges,
+        const HyperedgeVector& edge_vector,
+        const HyperedgeWeight* hyperedge_weight,
+        const HypernodeWeight* hypernode_weight,
+        const bool stable_construction_of_incident_edges) {
   DynamicHypergraph hypergraph;
+  construct(hypergraph, num_hypernodes, num_hyperedges,
+    edge_vector, hyperedge_weight, hypernode_weight,
+    stable_construction_of_incident_edges);
+  return hypergraph;
+}
+
+void DynamicHypergraphFactory::construct(
+        DynamicHypergraph& hypergraph,
+        const HypernodeID num_hypernodes,
+        const HyperedgeID num_hyperedges,
+        const HyperedgeVector& edge_vector,
+        const HyperedgeWeight* hyperedge_weight,
+        const HypernodeWeight* hypernode_weight,
+        const bool) {
   hypergraph._num_hypernodes = num_hypernodes;
   hypergraph._num_hyperedges = num_hyperedges;
   tbb::parallel_invoke([&] {
@@ -137,7 +152,6 @@ DynamicHypergraph DynamicHypergraphFactory::construct(const HypernodeID num_hype
 
   // Compute total weight of hypergraph
   hypergraph.updateTotalWeight(parallel_tag_t());
-  return hypergraph;
 }
 
 /**

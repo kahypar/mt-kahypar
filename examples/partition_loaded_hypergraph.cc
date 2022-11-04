@@ -49,5 +49,5 @@ int main(int argc, char* argv[]) {
   delete(hyperedges);
   delete(hypernode_weights);
   delete(hyperedge_weights);
-  mt_kahypar_context_free(context);
+  mt_kahypar_free_context(context);
 }

@@ -71,6 +71,21 @@ namespace mt_kahypar::ds {
           const HyperedgeWeight* edge_weight,
           const HypernodeWeight* node_weight,
           const bool stable_construction_of_incident_edges) {
+    StaticGraph graph;
+    construct(graph, num_nodes, num_edges, edge_vector,
+              edge_weight, node_weight,
+              stable_construction_of_incident_edges);
+    return graph;
+  }
+
+  void StaticGraphFactory::construct(
+          StaticGraph& graph,
+          const HypernodeID num_nodes,
+          const HyperedgeID num_edges,
+          const HyperedgeVector& edge_vector,
+          const HyperedgeWeight* edge_weight,
+          const HypernodeWeight* node_weight,
+          const bool stable_construction_of_incident_edges) {
     ASSERT(edge_vector.size() == num_edges);
 
     EdgeVector edges;
@@ -81,9 +96,9 @@ namespace mt_kahypar::ds {
       }
       edges.push_back({e[0], e[1]});
     }
-    return construct_from_graph_edges(num_nodes, num_edges, edges,
-                                      edge_weight, node_weight,
-                                      stable_construction_of_incident_edges);
+    construct_from_graph_edges(graph, num_nodes, num_edges, edges,
+                               edge_weight, node_weight,
+                               stable_construction_of_incident_edges);
   }
 
   StaticGraph StaticGraphFactory::construct_from_graph_edges(
@@ -94,6 +109,20 @@ namespace mt_kahypar::ds {
           const HypernodeWeight* node_weight,
           const bool stable_construction_of_incident_edges) {
     StaticGraph graph;
+    construct_from_graph_edges(graph, num_nodes, num_edges,
+      edge_vector, edge_weight, node_weight,
+      stable_construction_of_incident_edges);
+    return graph;
+  }
+
+  void StaticGraphFactory::construct_from_graph_edges(
+          StaticGraph& graph,
+          const HypernodeID num_nodes,
+          const HyperedgeID num_edges,
+          const EdgeVector& edge_vector,
+          const HyperedgeWeight* edge_weight,
+          const HypernodeWeight* node_weight,
+          const bool stable_construction_of_incident_edges) {
     graph._num_nodes = num_nodes;
     graph._num_edges = 2 * num_edges;
     graph._nodes.resize(num_nodes + 1);
@@ -181,6 +210,5 @@ namespace mt_kahypar::ds {
       sort_incident_edges(graph);
     }
     graph.computeAndSetTotalNodeWeight(parallel_tag_t());
-    return graph;
   }
 }

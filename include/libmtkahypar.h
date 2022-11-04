@@ -76,8 +76,16 @@ typedef enum {
   HIGH_QUALITY
 } mt_kahypar_preset_type_t;
 
+typedef enum {
+  METIS, /** for graph files **/
+  HMETIS /** for hypergraph files **/
+} mt_kahypar_file_format_type_t;
+
+
+// ####################### Setup Context #######################
+
 MT_KAHYPAR_API mt_kahypar_context_t* mt_kahypar_context_new();
-MT_KAHYPAR_API void mt_kahypar_context_free(mt_kahypar_context_t* context);
+MT_KAHYPAR_API void mt_kahypar_free_context(mt_kahypar_context_t* context);
 MT_KAHYPAR_API void mt_kahypar_configure_context_from_file(mt_kahypar_context_t* context,
                                                            const char* ini_file_name);
 MT_KAHYPAR_API void mt_kahypar_load_preset(mt_kahypar_context_t* context,
@@ -85,18 +93,34 @@ MT_KAHYPAR_API void mt_kahypar_load_preset(mt_kahypar_context_t* context,
 MT_KAHYPAR_API int mt_kahypar_set_context_parameter(mt_kahypar_context_t* context,
                                                     const mt_kahypar_context_parameter_type_t type,
                                                     const char* value);
+// TODO: set individual part weights
+
+
+// ####################### Thread Pool Initialization #######################
 
 MT_KAHYPAR_API void mt_kahypar_initialize_thread_pool(const size_t num_threads,
                                                       const bool interleaved_allocations);
 
+// ####################### Load/Construct Hypergraph #######################
 
-MT_KAHYPAR_API void mt_kahypar_read_hypergraph_from_file(const char* file_name,
-                                                         mt_kahypar_hypernode_id_t* num_vertices,
-                                                         mt_kahypar_hyperedge_id_t* num_hyperedges,
-                                                         size_t** hyperedge_indices,
-                                                         mt_kahypar_hyperedge_id_t** hyperedges,
-                                                         mt_kahypar_hyperedge_weight_t** hyperedge_weights,
-                                                         mt_kahypar_hypernode_weight_t** vertex_weights);
+MT_KAHYPAR_API mt_kahypar_hypergraph_t* mt_kahypar_read_hypergraph_from_file(const char* file_name,
+                                                                             const mt_kahypar_context_t* context,
+                                                                             const mt_kahypar_file_format_type_t file_format);
+MT_KAHYPAR_API mt_kahypar_hypergraph_t* mt_kahypar_create_hypergraph(const mt_kahypar_hypernode_id_t num_vertices,
+                                                                     const mt_kahypar_hyperedge_id_t num_hyperedges,
+                                                                     const size_t* hyperedge_indices,
+                                                                     const mt_kahypar_hyperedge_id_t* hyperedges,
+                                                                     const mt_kahypar_hyperedge_weight_t* hyperedge_weights,
+                                                                     const mt_kahypar_hypernode_weight_t* vertex_weights);
+MT_KAHYPAR_API void mt_kahypar_free_hypergraph(mt_kahypar_hypergraph_t* hypergraph);
+
+
+MT_KAHYPAR_API mt_kahypar_hypernode_id_t mt_kahypar_num_nodes(mt_kahypar_hypergraph_t* hypergraph);
+MT_KAHYPAR_API mt_kahypar_hyperedge_id_t mt_kahypar_num_hyperedges(mt_kahypar_hypergraph_t* hypergraph);
+MT_KAHYPAR_API mt_kahypar_hypernode_id_t mt_kahypar_num_pins(mt_kahypar_hypergraph_t* hypergraph);
+MT_KAHYPAR_API mt_kahypar_hypernode_id_t mt_kahypar_total_weight(mt_kahypar_hypergraph_t* hypergraph);
+
+// ####################### Partition #######################
 
 MT_KAHYPAR_API void mt_kahypar_partition(const mt_kahypar_hypernode_id_t num_vertices,
                                          const mt_kahypar_hyperedge_id_t num_hyperedges,

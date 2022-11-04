@@ -6,6 +6,93 @@
 
 namespace mt_kahypar {
 
+  TEST(MtKaHyPar, ReadHypergraphFile) {
+    mt_kahypar_context_t* context = mt_kahypar_context_new();
+    mt_kahypar_load_preset(context, SPEED);
+
+    mt_kahypar_hypergraph_t* hypergraph =
+      mt_kahypar_read_hypergraph_from_file("test_instances/ibm01.hgr", context, HMETIS);
+
+    ASSERT_EQ(12752, mt_kahypar_num_nodes(hypergraph));
+    ASSERT_EQ(14111, mt_kahypar_num_hyperedges(hypergraph));
+    ASSERT_EQ(50566, mt_kahypar_num_pins(hypergraph));
+    ASSERT_EQ(12752, mt_kahypar_total_weight(hypergraph));
+
+    mt_kahypar_free_context(context);
+    mt_kahypar_free_hypergraph(hypergraph);
+  }
+
+  TEST(MtKaHyPar, ReadGraphFile) {
+    mt_kahypar_context_t* context = mt_kahypar_context_new();
+    mt_kahypar_load_preset(context, SPEED);
+
+    mt_kahypar_hypergraph_t* hypergraph =
+      mt_kahypar_read_hypergraph_from_file("test_instances/delaunay_n15.graph", context, METIS);
+
+    ASSERT_EQ(32768, mt_kahypar_num_nodes(hypergraph));
+    ASSERT_EQ(98274, mt_kahypar_num_hyperedges(hypergraph));
+    ASSERT_EQ(196548, mt_kahypar_num_pins(hypergraph));
+    ASSERT_EQ(32768, mt_kahypar_total_weight(hypergraph));
+
+    mt_kahypar_free_context(context);
+    mt_kahypar_free_hypergraph(hypergraph);
+  }
+
+  TEST(MtKaHyPar, ConstructUnweightedHypergraph) {
+    const mt_kahypar_hypernode_id_t num_vertices = 7;
+    const mt_kahypar_hyperedge_id_t num_hyperedges = 4;
+
+    std::unique_ptr<size_t[]> hyperedge_indices = std::make_unique<size_t[]>(5);
+    hyperedge_indices[0] = 0; hyperedge_indices[1] = 2; hyperedge_indices[2] = 6;
+    hyperedge_indices[3] = 9; hyperedge_indices[4] = 12;
+
+    std::unique_ptr<mt_kahypar_hyperedge_id_t[]> hyperedges = std::make_unique<mt_kahypar_hyperedge_id_t[]>(12);
+    hyperedges[0] = 0;  hyperedges[1] = 2;                                        // Hyperedge 0
+    hyperedges[2] = 0;  hyperedges[3] = 1; hyperedges[4] = 3;  hyperedges[5] = 4; // Hyperedge 1
+    hyperedges[6] = 3;  hyperedges[7] = 4; hyperedges[8] = 6;                     // Hyperedge 2
+    hyperedges[9] = 2; hyperedges[10] = 5; hyperedges[11] = 6;                    // Hyperedge 3
+
+    mt_kahypar_hypergraph_t* hypergraph = mt_kahypar_create_hypergraph(
+      num_vertices, num_hyperedges, hyperedge_indices.get(), hyperedges.get(), nullptr, nullptr);
+
+    ASSERT_EQ(7, mt_kahypar_num_nodes(hypergraph));
+    ASSERT_EQ(4, mt_kahypar_num_hyperedges(hypergraph));
+    ASSERT_EQ(12, mt_kahypar_num_pins(hypergraph));
+    ASSERT_EQ(7, mt_kahypar_total_weight(hypergraph));
+
+    mt_kahypar_free_hypergraph(hypergraph);
+  }
+
+  TEST(MtKaHyPar, ConstructHypergraphWithNodeWeights) {
+    const mt_kahypar_hypernode_id_t num_vertices = 7;
+    const mt_kahypar_hyperedge_id_t num_hyperedges = 4;
+
+    std::unique_ptr<mt_kahypar_hypernode_weight_t[]> vertex_weights =
+      std::make_unique<mt_kahypar_hypernode_weight_t[]>(7);
+    vertex_weights[0] = 1; vertex_weights[1] = 2; vertex_weights[2] = 3; vertex_weights[3] = 4;
+    vertex_weights[4] = 5; vertex_weights[5] = 6; vertex_weights[6] = 7;
+
+    std::unique_ptr<size_t[]> hyperedge_indices = std::make_unique<size_t[]>(5);
+    hyperedge_indices[0] = 0; hyperedge_indices[1] = 2; hyperedge_indices[2] = 6;
+    hyperedge_indices[3] = 9; hyperedge_indices[4] = 12;
+
+    std::unique_ptr<mt_kahypar_hyperedge_id_t[]> hyperedges = std::make_unique<mt_kahypar_hyperedge_id_t[]>(12);
+    hyperedges[0] = 0;  hyperedges[1] = 2;                                        // Hyperedge 0
+    hyperedges[2] = 0;  hyperedges[3] = 1; hyperedges[4] = 3;  hyperedges[5] = 4; // Hyperedge 1
+    hyperedges[6] = 3;  hyperedges[7] = 4; hyperedges[8] = 6;                     // Hyperedge 2
+    hyperedges[9] = 2; hyperedges[10] = 5; hyperedges[11] = 6;                    // Hyperedge 3
+
+    mt_kahypar_hypergraph_t* hypergraph = mt_kahypar_create_hypergraph(
+      num_vertices, num_hyperedges, hyperedge_indices.get(), hyperedges.get(), nullptr, vertex_weights.get());
+
+    ASSERT_EQ(7, mt_kahypar_num_nodes(hypergraph));
+    ASSERT_EQ(4, mt_kahypar_num_hyperedges(hypergraph));
+    ASSERT_EQ(12, mt_kahypar_num_pins(hypergraph));
+    ASSERT_EQ(28, mt_kahypar_total_weight(hypergraph));
+
+    mt_kahypar_free_hypergraph(hypergraph);
+  }
+
   TEST(MtKaHyPar, CanSetContextParameter) {
     mt_kahypar_context_t* context = mt_kahypar_context_new();
     ASSERT_EQ(0, mt_kahypar_set_context_parameter(context, NUM_BLOCKS, "4"));
@@ -24,7 +111,7 @@ namespace mt_kahypar {
     ASSERT_EQ(3, c.partition.num_vcycles);
     ASSERT_TRUE(c.partition.verbose_output);
 
-    mt_kahypar_context_free(context);
+    mt_kahypar_free_context(context);
   }
 
   namespace {
@@ -324,8 +411,8 @@ namespace mt_kahypar {
 
     checkIfContextAreEqual(default_context, default_context_ini);
 
-    mt_kahypar_context_free(default_preset);
-    mt_kahypar_context_free(default_preset_ini);
+    mt_kahypar_free_context(default_preset);
+    mt_kahypar_free_context(default_preset_ini);
   }
 
   TEST(MtKaHyPar, LoadDefaultFlowPreset) {
@@ -339,8 +426,8 @@ namespace mt_kahypar {
 
     checkIfContextAreEqual(default_flow_context, default_flow_context_ini);
 
-    mt_kahypar_context_free(default_flow_preset);
-    mt_kahypar_context_free(default_flow_preset_ini);
+    mt_kahypar_free_context(default_flow_preset);
+    mt_kahypar_free_context(default_flow_preset_ini);
   }
 
   TEST(MtKaHyPar, LoadDeterministicPreset) {
@@ -354,8 +441,8 @@ namespace mt_kahypar {
 
     checkIfContextAreEqual(deterministic_context, deterministic_context_ini);
 
-    mt_kahypar_context_free(deterministic_preset);
-    mt_kahypar_context_free(deterministic_preset_ini);
+    mt_kahypar_free_context(deterministic_preset);
+    mt_kahypar_free_context(deterministic_preset_ini);
   }
 
 }

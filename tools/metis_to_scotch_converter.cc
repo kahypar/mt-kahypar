@@ -79,7 +79,7 @@ int main(int argc, char* argv[]) {
   po::store(po::parse_command_line(argc, argv, options), cmd_vm);
   po::notify(cmd_vm);
 
-  Hypergraph graph = mt_kahypar::io::readMetisFile(graph_filename, true);
+  Hypergraph graph = mt_kahypar::io::readGraphFile(graph_filename, true);
   writeScotchGraphFile(graph, out_filename);
 
   return 0;

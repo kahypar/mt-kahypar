@@ -79,4 +79,5 @@ jobs:
 
       - name: Run Mt-KaHyPar Library Interface Tests
         run: |
+          cd build
           make -j2 interface_test

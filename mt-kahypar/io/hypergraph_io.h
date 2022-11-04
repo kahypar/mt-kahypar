@@ -50,26 +50,41 @@ namespace io {
                           HyperedgeVector& hyperedges,
                           parallel::scalable_vector<HyperedgeWeight>& hyperedges_weight,
                           parallel::scalable_vector<HypernodeWeight>& hypernodes_weight,
-                           const bool remove_single_pin_hes = true);
+                          const bool remove_single_pin_hes = true);
 
   Hypergraph readHypergraphFile(const std::string& filename,
                                 const bool stable_construction_of_incident_edges = false,
                                 const bool remove_single_pin_hes = true);
 
-  void readMetisFile(const std::string& filename,
+  void readHypergraphFile(Hypergraph& hypergraph,
+                          const std::string& filename,
+                          const bool stable_construction_of_incident_edges = false,
+                          const bool remove_single_pin_hes = true);
+
+  void readGraphFile(const std::string& filename,
                      HyperedgeID& num_hyperedges,
                      HypernodeID& num_hypernodes,
                      EdgeVector& hyperedges,
                      parallel::scalable_vector<HyperedgeWeight>& hyperedges_weight,
                      parallel::scalable_vector<HypernodeWeight>& hypernodes_weight);
 
-  Hypergraph readMetisFile(const std::string& filename,
+  Hypergraph readGraphFile(const std::string& filename,
                            const bool stable_construction_of_incident_edges = false);
+
+  void readGraphFile(Hypergraph& hypergraph,
+                     const std::string& filename,
+                     const bool stable_construction_of_incident_edges = false);
 
   Hypergraph readInputFile(const std::string& filename,
                            const FileFormat format,
                            const bool stable_construction_of_incident_edges = false,
                            const bool remove_single_pin_hes = true);
+
+  void readInputFile(Hypergraph& hypergraph,
+                     const std::string& filename,
+                     const FileFormat format,
+                     const bool stable_construction_of_incident_edges = false,
+                     const bool remove_single_pin_hes = true);
 
   void readPartitionFile(const std::string& filename, std::vector<PartitionID>& partition);
   void writePartitionFile(const PartitionedHypergraph& phg, const std::string& filename);

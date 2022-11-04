@@ -84,5 +84,5 @@ int main(int argc, char* argv[]) {
   std::cout << "Objective (k=4): " << objective_1 << std::endl;
   std::cout << "Objective (k=8): " << objective_2 << std::endl;
 
-  mt_kahypar_context_free(context);
+  mt_kahypar_free_context(context);
 }

@@ -64,5 +64,5 @@ int main(int argc, char* argv[]) {
     std::cout << "Vertex " << i << " = " << partition[i] << std::endl;
   }
 
-  mt_kahypar_context_free(context);
+  mt_kahypar_free_context(context);
 }
