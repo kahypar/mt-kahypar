@@ -619,7 +619,7 @@ class InitialPartitioningDataContainer {
       HyperedgeWeight judicious_load = std::numeric_limits<HyperedgeWeight>::max();
       if (_context.initial_partitioning.judicious_rb) {
         ASSERT(_context.initial_partitioning.rb_chose_by_judicious);
-        const size_t num_runs = _context.initial_partitioning.judicious_runs * 3;
+        const size_t num_runs = _context.initial_partitioning.judicious_runs * 2;
         std::uniform_int_distribution<> distrib(0, std::numeric_limits<int>::max());
         std::mt19937 g(_context.partition.seed);
         tbb::task_group tg;
