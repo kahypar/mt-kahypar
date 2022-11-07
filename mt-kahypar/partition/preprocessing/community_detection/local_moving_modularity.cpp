@@ -408,7 +408,7 @@ bool ParallelLocalMovingModularity::localMoving(Graph& graph, ds::Clustering& co
                                                 // utils::parallel_stdev(comp_intern_edge_fracs, intern_avg, comp_intern_edge_fracs.size()));
 
       LOG << "name, total_num_node, sep_nodes, sep_single_nodes, sep_total_edges, sep_intern_edge_fraction,"
-          << "total_density, core_density, sep_density, core_edge_fraction, sep_edge_fraction, border_edge_fraction, stdev_factor";
+          << "total_density, core_density, sep_density, core_edge_fraction, sep_edge_fraction, border_edge_fraction, core_weight, stdev_factor";
             //  "num_components, comp_size_avg, comp_size_median, comp_size_sd, comp_size_max, "
             //  "adj_edges_avg, adj_edges_median, adj_edges_sd, adj_edges_max, "
             //  "intern_frac_avg, intern_frac_median, intern_frac_sd, intern_frac_max";
@@ -425,6 +425,7 @@ bool ParallelLocalMovingModularity::localMoving(Graph& graph, ds::Clustering& co
                 << core_edges / static_cast<double>(graph.totalVolume()) << ","
                 << intern_edges / static_cast<double>(graph.totalVolume()) << ","
                 << (graph.totalVolume() - core_edges - intern_edges) / static_cast<double>(graph.totalVolume()) << ","
+                << core_weight / static_cast<double>(graph.totalWeight()) << ","
                 << _context.preprocessing.community_detection.isolated_nodes_threshold_stdev_factor
                 // << stats.get("sep_comp_intern_edge_fraction") << ","
                 // << comp_sizes.size() << ","
