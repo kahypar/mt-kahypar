@@ -60,7 +60,7 @@ typedef unsigned long int mt_kahypar_hypernode_id_t;
 typedef unsigned long int mt_kahypar_hyperedge_id_t;
 typedef int mt_kahypar_hypernode_weight_t;
 typedef int mt_kahypar_hyperedge_weight_t;
-typedef unsigned int mt_kahypar_partition_id_t;
+typedef int mt_kahypar_partition_id_t;
 
 typedef enum {
   NUM_BLOCKS,
@@ -133,10 +133,22 @@ MT_KAHYPAR_API mt_kahypar_hypernode_id_t mt_kahypar_total_weight(mt_kahypar_hype
 
 // ####################### Partition #######################
 
-MT_KAHYPAR_API void mt_kahypar_free_partitioned_hypergraph(mt_kahypar_partitioned_hypergraph_t* partitioned_hg);
-
 MT_KAHYPAR_API mt_kahypar_partitioned_hypergraph_t* mt_kahypar_partition(mt_kahypar_hypergraph_t* hypergraph,
                                                                          mt_kahypar_context_t* context);
+
+// TODO
+MT_KAHYPAR_API void mt_kahypar_improve_partition(mt_kahypar_partitioned_hypergraph_t* partitioned_hg,
+                                                 mt_kahypar_context_t* context,
+                                                 const size_t num_vcycles);
+
+MT_KAHYPAR_API mt_kahypar_partitioned_hypergraph_t* mt_kahypar_create_partitioned_hypergraph(mt_kahypar_hypergraph_t* hypergraph,
+                                                                                             const mt_kahypar_partition_id_t num_blocks,
+                                                                                             const mt_kahypar_partition_id_t* partition);
+MT_KAHYPAR_API mt_kahypar_partitioned_hypergraph_t* mt_kahypar_read_partition_from_file(mt_kahypar_hypergraph_t* hypergraph,
+                                                                                        const mt_kahypar_partition_id_t num_blocks,
+                                                                                        const char* partition_file);
+MT_KAHYPAR_API void mt_kahypar_write_partition_to_file(const mt_kahypar_partitioned_hypergraph_t* partitioned_hg,
+                                                       const char* partition_file);
 
 MT_KAHYPAR_API void mt_kahypar_get_partition(const mt_kahypar_partitioned_hypergraph_t* partitioned_hg,
                                              mt_kahypar_partition_id_t* partition);
@@ -147,6 +159,9 @@ MT_KAHYPAR_API double mt_kahypar_imbalance(const mt_kahypar_partitioned_hypergra
 MT_KAHYPAR_API mt_kahypar_hyperedge_weight_t mt_kahypar_cut(const mt_kahypar_partitioned_hypergraph_t* partitioned_hg);
 MT_KAHYPAR_API mt_kahypar_hyperedge_weight_t mt_kahypar_km1(const mt_kahypar_partitioned_hypergraph_t* partitioned_hg);
 MT_KAHYPAR_API mt_kahypar_hyperedge_weight_t mt_kahypar_soed(const mt_kahypar_partitioned_hypergraph_t* partitioned_hg);
+
+
+MT_KAHYPAR_API void mt_kahypar_free_partitioned_hypergraph(mt_kahypar_partitioned_hypergraph_t* partitioned_hg);
 
 
 #ifdef __cplusplus

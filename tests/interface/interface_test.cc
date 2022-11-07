@@ -10,6 +10,8 @@
 
 namespace mt_kahypar {
 
+  static constexpr bool debug = false;
+
   TEST(MtKaHyPar, ReadHypergraphFile) {
     mt_kahypar_context_t* context = mt_kahypar_context_new();
     mt_kahypar_load_preset(context, SPEED);
@@ -97,6 +99,86 @@ namespace mt_kahypar {
     mt_kahypar_free_hypergraph(hypergraph);
   }
 
+  TEST(MtKaHyPar, CreatesPartitionedHypergraph) {
+    const mt_kahypar_hypernode_id_t num_vertices = 7;
+    const mt_kahypar_hyperedge_id_t num_hyperedges = 4;
+
+    std::unique_ptr<size_t[]> hyperedge_indices = std::make_unique<size_t[]>(5);
+    hyperedge_indices[0] = 0; hyperedge_indices[1] = 2; hyperedge_indices[2] = 6;
+    hyperedge_indices[3] = 9; hyperedge_indices[4] = 12;
+
+    std::unique_ptr<mt_kahypar_hyperedge_id_t[]> hyperedges = std::make_unique<mt_kahypar_hyperedge_id_t[]>(12);
+    hyperedges[0] = 0;  hyperedges[1] = 2;                                        // Hyperedge 0
+    hyperedges[2] = 0;  hyperedges[3] = 1; hyperedges[4] = 3;  hyperedges[5] = 4; // Hyperedge 1
+    hyperedges[6] = 3;  hyperedges[7] = 4; hyperedges[8] = 6;                     // Hyperedge 2
+    hyperedges[9] = 2; hyperedges[10] = 5; hyperedges[11] = 6;                    // Hyperedge 3
+
+    mt_kahypar_hypergraph_t* hypergraph = mt_kahypar_create_hypergraph(
+      num_vertices, num_hyperedges, hyperedge_indices.get(), hyperedges.get(), nullptr, nullptr);
+
+    std::unique_ptr<mt_kahypar_partition_id_t[]> partition = std::make_unique<mt_kahypar_partition_id_t[]>(7);
+    partition[0] = 0; partition[1] = 0; partition[2] = 0;
+    partition[3] = 1; partition[4] = 1; partition[5] = 1; partition[6] = 1;
+
+    mt_kahypar_partitioned_hypergraph_t* partitioned_hg =
+      mt_kahypar_create_partitioned_hypergraph(hypergraph, 2, partition.get());
+
+    std::unique_ptr<mt_kahypar_partition_id_t[]> actual_partition =
+      std::make_unique<mt_kahypar_partition_id_t[]>(7);
+    mt_kahypar_get_partition(partitioned_hg, actual_partition.get());
+
+    ASSERT_EQ(2, mt_kahypar_km1(partitioned_hg));
+    for ( mt_kahypar_hypernode_id_t hn = 0; hn < 7; ++hn ) {
+      ASSERT_EQ(partition[hn], actual_partition[hn]);
+    }
+
+    mt_kahypar_free_hypergraph(hypergraph);
+    mt_kahypar_free_partitioned_hypergraph(partitioned_hg);
+  }
+
+  TEST(MtKaHyPar, WritesAndLoadsPartitionFile) {
+    const mt_kahypar_hypernode_id_t num_vertices = 7;
+    const mt_kahypar_hyperedge_id_t num_hyperedges = 4;
+
+    std::unique_ptr<size_t[]> hyperedge_indices = std::make_unique<size_t[]>(5);
+    hyperedge_indices[0] = 0; hyperedge_indices[1] = 2; hyperedge_indices[2] = 6;
+    hyperedge_indices[3] = 9; hyperedge_indices[4] = 12;
+
+    std::unique_ptr<mt_kahypar_hyperedge_id_t[]> hyperedges = std::make_unique<mt_kahypar_hyperedge_id_t[]>(12);
+    hyperedges[0] = 0;  hyperedges[1] = 2;                                        // Hyperedge 0
+    hyperedges[2] = 0;  hyperedges[3] = 1; hyperedges[4] = 3;  hyperedges[5] = 4; // Hyperedge 1
+    hyperedges[6] = 3;  hyperedges[7] = 4; hyperedges[8] = 6;                     // Hyperedge 2
+    hyperedges[9] = 2; hyperedges[10] = 5; hyperedges[11] = 6;                    // Hyperedge 3
+
+    mt_kahypar_hypergraph_t* hypergraph = mt_kahypar_create_hypergraph(
+      num_vertices, num_hyperedges, hyperedge_indices.get(), hyperedges.get(), nullptr, nullptr);
+
+    std::unique_ptr<mt_kahypar_partition_id_t[]> partition = std::make_unique<mt_kahypar_partition_id_t[]>(7);
+    partition[0] = 0; partition[1] = 0; partition[2] = 0;
+    partition[3] = 1; partition[4] = 1; partition[5] = 1; partition[6] = 1;
+
+    mt_kahypar_partitioned_hypergraph_t* partitioned_hg =
+      mt_kahypar_create_partitioned_hypergraph(hypergraph, 2, partition.get());
+
+    mt_kahypar_write_partition_to_file(partitioned_hg, "tmp.partition");
+
+    mt_kahypar_partitioned_hypergraph_t* partitioned_hg_2 =
+      mt_kahypar_read_partition_from_file(hypergraph, 2, "tmp.partition");
+
+    std::unique_ptr<mt_kahypar_partition_id_t[]> actual_partition =
+      std::make_unique<mt_kahypar_partition_id_t[]>(7);
+    mt_kahypar_get_partition(partitioned_hg_2, actual_partition.get());
+
+    ASSERT_EQ(2, mt_kahypar_km1(partitioned_hg_2));
+    for ( mt_kahypar_hypernode_id_t hn = 0; hn < 7; ++hn ) {
+      ASSERT_EQ(partition[hn], actual_partition[hn]);
+    }
+
+    mt_kahypar_free_hypergraph(hypergraph);
+    mt_kahypar_free_partitioned_hypergraph(partitioned_hg);
+    mt_kahypar_free_partitioned_hypergraph(partitioned_hg_2);
+  }
+
   namespace {
     mt_kahypar_hyperedge_weight_t partition(const char* filename,
                                             const mt_kahypar_file_format_type_t file_format,
@@ -106,7 +188,7 @@ namespace mt_kahypar {
       mt_kahypar_context_t* context = mt_kahypar_context_new();
       mt_kahypar_load_preset(context, preset);
       mt_kahypar_set_partitioning_parameters(context, num_blocks, 0.03, KM1, 0);
-      mt_kahypar_set_context_parameter(context, VERBOSE, "1");
+      mt_kahypar_set_context_parameter(context, VERBOSE, debug ? "1" : "0");
 
       // Load Hypergraph
       mt_kahypar_hypergraph_t* hypergraph =
@@ -118,10 +200,12 @@ namespace mt_kahypar {
 
       double imbalance = mt_kahypar_imbalance(partitioned_hg, context);
       mt_kahypar_hyperedge_weight_t objective = mt_kahypar_km1(partitioned_hg);
-      LOG << " imbalance =" << imbalance << "\n"
-          << "cut =" << mt_kahypar_cut(partitioned_hg) << "\n"
-          << "km1 =" << objective << "\n"
-          << "soed =" << mt_kahypar_soed(partitioned_hg);
+      if ( debug ) {
+        LOG << " imbalance =" << imbalance << "\n"
+            << "cut =" << mt_kahypar_cut(partitioned_hg) << "\n"
+            << "km1 =" << objective << "\n"
+            << "soed =" << mt_kahypar_soed(partitioned_hg);
+      }
       EXPECT_LE(imbalance, 0.03);
 
       // Verify Partition IDs
@@ -180,7 +264,7 @@ namespace mt_kahypar {
     partition("test_instances/ibm01.hgr", HMETIS, DETERMINISTIC, 4);
   }
 
-  TEST(MTKaHyPar, CanPartitionTwoHypergraphsSimultanously) {
+  TEST(MtKaHyPar, CanPartitionTwoHypergraphsSimultanously) {
     mt_kahypar_initialize_thread_pool(std::thread::hardware_concurrency(), false);
     tbb::parallel_invoke([&]() {
       partition("test_instances/ibm01.hgr", HMETIS, SPEED, 4);

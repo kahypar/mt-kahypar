@@ -239,9 +239,36 @@ mt_kahypar_partitioned_hypergraph_t* mt_kahypar_partition(mt_kahypar_hypergraph_
   // Partition Hypergraph
   *phg = mt_kahypar::partition(hg, c);
 
-  // TODO: write partition file
-
   return reinterpret_cast<mt_kahypar_partitioned_hypergraph_t*>(phg);
+}
+
+mt_kahypar_partitioned_hypergraph_t* mt_kahypar_create_partitioned_hypergraph(mt_kahypar_hypergraph_t* hypergraph,
+                                                                              const mt_kahypar_partition_id_t num_blocks,
+                                                                              const mt_kahypar_partition_id_t* partition) {
+  mt_kahypar::Hypergraph& hg = *reinterpret_cast<mt_kahypar::Hypergraph*>(hypergraph);
+  mt_kahypar::PartitionedHypergraph* partitioned_hg = new mt_kahypar::PartitionedHypergraph(num_blocks, hg, mt_kahypar::parallel_tag_t { });
+
+  const mt_kahypar::HypernodeID num_nodes = hg.initialNumNodes();
+  tbb::parallel_for(ID(0), num_nodes, [&](const mt_kahypar::HypernodeID& hn) {
+    partitioned_hg->setOnlyNodePart(hn, partition[hn]);
+  });
+  partitioned_hg->initializePartition();
+
+  return reinterpret_cast<mt_kahypar_partitioned_hypergraph_t*>(partitioned_hg);
+}
+
+mt_kahypar_partitioned_hypergraph_t* mt_kahypar_read_partition_from_file(mt_kahypar_hypergraph_t* hypergraph,
+                                                                         const mt_kahypar_partition_id_t num_blocks,
+                                                                         const char* partition_file) {
+  std::vector<mt_kahypar::PartitionID> partition;
+  mt_kahypar::io::readPartitionFile(partition_file, partition);
+  return mt_kahypar_create_partitioned_hypergraph(hypergraph, num_blocks, partition.data());
+}
+
+void mt_kahypar_write_partition_to_file(const mt_kahypar_partitioned_hypergraph_t* partitioned_hg,
+                                        const char* partition_file) {
+  const mt_kahypar::PartitionedHypergraph& hg = *reinterpret_cast<const mt_kahypar::PartitionedHypergraph*>(partitioned_hg);
+  mt_kahypar::io::writePartitionFile(hg, partition_file);
 }
 
 void mt_kahypar_get_partition(const mt_kahypar_partitioned_hypergraph_t* partitioned_hg,
