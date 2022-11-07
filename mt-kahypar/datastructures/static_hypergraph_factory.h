@@ -50,14 +50,6 @@ class StaticHypergraphFactory {
                                     const HypernodeWeight* hypernode_weight = nullptr,
                                     const bool stable_construction_of_incident_edges = false);
 
-  static void construct(StaticHypergraph& hypergraph,
-                        const HypernodeID num_hypernodes,
-                        const HyperedgeID num_hyperedges,
-                        const HyperedgeVector& edge_vector,
-                        const HyperedgeWeight* hyperedge_weight = nullptr,
-                        const HypernodeWeight* hypernode_weight = nullptr,
-                        const bool stable_construction_of_incident_edges = false);
-
   static std::pair<StaticHypergraph, vec<HypernodeID>> compactify(const StaticHypergraph&) {
     ERROR("Compactify not implemented for static hypergraph.");
   }

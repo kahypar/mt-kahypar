@@ -44,21 +44,6 @@ DynamicGraph DynamicGraphFactory::construct(
         const HyperedgeWeight* edge_weight,
         const HypernodeWeight* node_weight,
         const bool stable_construction_of_incident_edges) {
-  DynamicGraph graph;
-  construct(graph, num_nodes, num_edges, edge_vector,
-            edge_weight, node_weight,
-            stable_construction_of_incident_edges);
-  return graph;
-}
-
-void DynamicGraphFactory::construct(
-        DynamicGraph& graph,
-        const HypernodeID num_nodes,
-        const HyperedgeID num_edges,
-        const HyperedgeVector& edge_vector,
-        const HyperedgeWeight* edge_weight,
-        const HypernodeWeight* node_weight,
-        const bool stable_construction_of_incident_edges) {
   ASSERT(edge_vector.size() == num_edges);
 
   EdgeVector edges;
@@ -69,9 +54,8 @@ void DynamicGraphFactory::construct(
     }
     edges.push_back({e[0], e[1]});
   }
-  construct_from_graph_edges(graph, num_nodes, num_edges, edges,
-                             edge_weight, node_weight,
-                             stable_construction_of_incident_edges);
+  return construct_from_graph_edges(num_nodes, num_edges, edges,
+    edge_weight, node_weight, stable_construction_of_incident_edges);
 }
 
 DynamicGraph DynamicGraphFactory::construct_from_graph_edges(
@@ -82,20 +66,6 @@ DynamicGraph DynamicGraphFactory::construct_from_graph_edges(
         const HypernodeWeight* node_weight,
         const bool stable_construction_of_incident_edges) {
   DynamicGraph graph;
-  construct_from_graph_edges(graph, num_nodes, num_edges,
-    edge_vector, edge_weight, node_weight,
-    stable_construction_of_incident_edges);
-  return graph;
-}
-
-void DynamicGraphFactory::construct_from_graph_edges(
-        DynamicGraph& graph,
-        const HypernodeID num_nodes,
-        const HyperedgeID num_edges,
-        const EdgeVector& edge_vector,
-        const HyperedgeWeight* edge_weight,
-        const HypernodeWeight* node_weight,
-        const bool stable_construction_of_incident_edges) {
   ASSERT(edge_vector.size() == num_edges);
   graph._num_edges = 2 * num_edges;
 
@@ -126,6 +96,7 @@ void DynamicGraphFactory::construct_from_graph_edges(
 
   // Compute total weight of the graph
   graph.updateTotalWeight(parallel_tag_t());
+  return graph;
 }
 
 

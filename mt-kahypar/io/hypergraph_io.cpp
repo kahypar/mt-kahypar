@@ -364,16 +364,6 @@ namespace mt_kahypar::io {
   Hypergraph readHypergraphFile(const std::string& filename,
                                 const bool stable_construction_of_incident_edges,
                                 const bool remove_single_pin_hes) {
-    Hypergraph hypergraph;
-    readHypergraphFile(hypergraph, filename,
-      stable_construction_of_incident_edges, remove_single_pin_hes);
-    return hypergraph;
-  }
-
-  void readHypergraphFile(Hypergraph& hypergraph,
-                          const std::string& filename,
-                          const bool stable_construction_of_incident_edges,
-                          const bool remove_single_pin_hes) {
     // Read Hypergraph File
     HyperedgeID num_hyperedges = 0;
     HypernodeID num_hypernodes = 0;
@@ -386,11 +376,12 @@ namespace mt_kahypar::io {
                        hyperedges_weight, hypernodes_weight, remove_single_pin_hes);
 
     // Construct Hypergraph
-    HypergraphFactory::construct(
-      hypergraph, num_hypernodes, num_hyperedges,
-      hyperedges, hyperedges_weight.data(), hypernodes_weight.data(),
+    Hypergraph hypergraph = HypergraphFactory::construct(
+      num_hypernodes, num_hyperedges, hyperedges,
+      hyperedges_weight.data(), hypernodes_weight.data(),
       stable_construction_of_incident_edges);
     hypergraph.setNumRemovedHyperedges(num_removed_single_pin_hyperedges);
+    return hypergraph;
   }
 
   void readPartitionFile(const std::string& filename, std::vector<PartitionID>& partition) {
@@ -635,14 +626,6 @@ namespace mt_kahypar::io {
 
   Hypergraph readGraphFile(const std::string& filename,
                            const bool stable_construction_of_incident_edges) {
-    Hypergraph hypergraph;
-    readGraphFile(hypergraph, filename, stable_construction_of_incident_edges);
-    return hypergraph;
-  }
-
-  void readGraphFile(Hypergraph& hypergraph,
-                     const std::string& filename,
-                     const bool stable_construction_of_incident_edges) {
     // Read Metis File
     HyperedgeID num_edges = 0;
     HypernodeID num_vertices = 0;
@@ -653,15 +636,15 @@ namespace mt_kahypar::io {
 
     // Construct Graph
     #ifdef USE_GRAPH_PARTITIONER
-    HypergraphFactory::construct_from_graph_edges(
-      hypergraph, num_vertices, num_edges, edges,
-      edges_weight.data(), nodes_weight.data(),
-      stable_construction_of_incident_edges);
+    return HypergraphFactory::construct_from_graph_edges(
+            num_vertices, num_edges, edges,
+            edges_weight.data(), nodes_weight.data(),
+            stable_construction_of_incident_edges);
     #else
-    HypergraphFactory::construct(
-      hypergraph, num_vertices, num_edges,
-      edges, edges_weight.data(), nodes_weight.data(),
-      stable_construction_of_incident_edges);
+    return HypergraphFactory::construct(
+            num_vertices, num_edges,
+            edges, edges_weight.data(), nodes_weight.data(),
+            stable_construction_of_incident_edges);
     #endif
   }
 
@@ -670,25 +653,16 @@ namespace mt_kahypar::io {
                            const bool stable_construction_of_incident_edges,
                            const bool remove_single_pin_hes) {
     Hypergraph hypergraph;
-    readInputFile(hypergraph, filename, format,
-      stable_construction_of_incident_edges, remove_single_pin_hes);
-    return hypergraph;
-  }
-
-  void readInputFile(Hypergraph& hypergraph,
-                     const std::string& filename,
-                     const FileFormat format,
-                     const bool stable_construction_of_incident_edges,
-                     const bool remove_single_pin_hes) {
     switch (format) {
       case FileFormat::hMetis:
-        return readHypergraphFile(hypergraph, filename,
+        return readHypergraphFile(filename,
           stable_construction_of_incident_edges, remove_single_pin_hes);
       case FileFormat::Metis:
-        return readGraphFile(hypergraph, filename,
+        return readGraphFile(filename,
           stable_construction_of_incident_edges);
         // omit default case to trigger compiler warning for missing cases
     }
+    return hypergraph;
   }
 
 } // namespace

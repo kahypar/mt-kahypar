@@ -164,7 +164,7 @@ mt_kahypar_hypergraph_t* mt_kahypar_read_hypergraph_from_file(const char* file_n
   mt_kahypar::FileFormat format = file_format == HMETIS ?
     mt_kahypar::FileFormat::hMetis : mt_kahypar::FileFormat::Metis;
 
-  mt_kahypar::io::readInputFile(*hypergraph, file_name, format,
+  *hypergraph = mt_kahypar::io::readInputFile(file_name, format,
     c.preprocessing.stable_construction_of_incident_edges);
 
   return reinterpret_cast<mt_kahypar_hypergraph_t*>(hypergraph);
@@ -187,7 +187,7 @@ mt_kahypar_hypergraph_t* mt_kahypar_create_hypergraph(const mt_kahypar_hypernode
   });
 
   mt_kahypar::Hypergraph* hypergraph = new mt_kahypar::Hypergraph();
-  mt_kahypar::HypergraphFactory::construct(*hypergraph,
+  *hypergraph = mt_kahypar::HypergraphFactory::construct(
     num_vertices, num_hyperedges, edge_vector,
     hyperedge_weights, vertex_weights);
 

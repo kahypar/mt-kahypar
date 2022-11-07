@@ -42,21 +42,7 @@ namespace mt_kahypar::ds {
           const HyperedgeWeight* hyperedge_weight,
           const HypernodeWeight* hypernode_weight,
           const bool stable_construction_of_incident_edges) {
-    StaticHypergraph hypergraph;
-    construct(hypergraph, num_hypernodes, num_hyperedges,
-      edge_vector, hyperedge_weight, hypernode_weight,
-      stable_construction_of_incident_edges);
-    return hypergraph;
-  }
-
-  void StaticHypergraphFactory::construct(
-          StaticHypergraph& hypergraph,
-          const HypernodeID num_hypernodes,
-          const HyperedgeID num_hyperedges,
-          const HyperedgeVector& edge_vector,
-          const HyperedgeWeight* hyperedge_weight,
-          const HypernodeWeight* hypernode_weight,
-          const bool stable_construction_of_incident_edges) {
+    Hypergraph hypergraph;
     hypergraph._num_hypernodes = num_hypernodes;
     hypergraph._num_hyperedges = num_hyperedges;
     hypergraph._hypernodes.resize(num_hypernodes + 1);
@@ -174,6 +160,7 @@ namespace mt_kahypar::ds {
     hypergraph._hyperedges.back() = StaticHypergraph::Hyperedge(hypergraph._incidence_array.size());
 
     hypergraph.computeAndSetTotalNodeWeight(parallel_tag_t());
+    return hypergraph;
   }
 
 }
