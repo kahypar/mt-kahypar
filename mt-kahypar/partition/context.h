@@ -84,7 +84,7 @@ struct CommunityDetectionParameters {
   size_t num_sub_rounds_deterministic = 16;
   bool use_isolated_nodes_treshold = true;
   double isolated_nodes_threshold_stdev_factor = 1.0;
-  bool single_community_of_separated = true;
+  bool single_community_of_separated = false;
   bool separated_sub_communities = false;
   bool isolated_nodes_local_threshold = true;
   bool collect_component_stats = false;

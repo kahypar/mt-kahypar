@@ -228,7 +228,7 @@ namespace mt_kahypar {
              "If set, the community detection will not add nodes to a community if the gain is below a certain treshold.")
             ("p-single-community-of-separated",
              po::value<bool>(&context.preprocessing.community_detection.single_community_of_separated)->value_name(
-                     "<bool>")->default_value(true),
+                     "<bool>")->default_value(false),
              "If set, separated nodes are grouped into one large community instead of single communities.")
             ("p-separated-sub-communities",
              po::value<bool>(&context.preprocessing.community_detection.separated_sub_communities)->value_name(

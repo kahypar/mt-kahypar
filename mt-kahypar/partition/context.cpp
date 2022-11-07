@@ -432,6 +432,9 @@ namespace mt_kahypar {
         ERROR("--c-separate-size-one-communities should be true");
       }
     }
+    if (preprocessing.community_detection.isolated_nodes_local_threshold && preprocessing.community_detection.single_community_of_separated) {
+      ERROR("--p-isolated-nodes-local-treshold is not compatible with --p-single-community-of-separated");
+    }
     if (preprocessing.community_detection.single_community_of_separated && preprocessing.community_detection.separated_sub_communities) {
       ERROR("--p-single-community-of-separated and --p-separated-sub-communities can not be combined");
     }
