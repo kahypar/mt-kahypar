@@ -132,6 +132,17 @@ void mt_kahypar_set_partitioning_parameters(mt_kahypar_context_t* context,
   c.partition.seed = seed;
 }
 
+void mt_kahypar_set_individual_target_block_weights(mt_kahypar_context_t* context,
+                                                    const mt_kahypar_partition_id_t num_blocks,
+                                                    const mt_kahypar_hypernode_weight_t* block_weights) {
+  mt_kahypar::Context& c = *reinterpret_cast<mt_kahypar::Context*>(context);
+  c.partition.use_individual_part_weights = true;
+  c.partition.max_part_weights.assign(num_blocks, 0);
+  for ( mt_kahypar_partition_id_t i = 0; i < num_blocks; ++i ) {
+    c.partition.max_part_weights[i] = block_weights[i];
+  }
+}
+
 
 void mt_kahypar_initialize_thread_pool(const size_t num_threads,
                                        const bool interleaved_allocations) {

@@ -34,21 +34,11 @@ extern "C" {
 #endif
 
 #ifndef MT_KAHYPAR_API
-#  ifdef _WIN32
-#     if defined(KAHYPAR_BUILD_SHARED)  /* build dll */
-#         define MT_KAHYPAR_API __declspec(dllexport)
-#     elif !defined(KAHYPAR_BUILD_STATIC)  /* use dll */
-#         define MT_KAHYPAR_API __declspec(dllimport)
-#     else  /* static library */
-#         define MT_KAHYPAR_API
-#     endif
-#  else
-#     if __GNUC__ >= 4
-#         define MT_KAHYPAR_API __attribute__ ((visibility("default")))
-#     else
-#         define MT_KAHYPAR_API
-#     endif
-#  endif
+#   if __GNUC__ >= 4
+#       define MT_KAHYPAR_API __attribute__ ((visibility("default")))
+#   else
+#       define MT_KAHYPAR_API
+#   endif
 #endif
 
 struct mt_kahypar_context_s;
@@ -72,7 +62,7 @@ typedef enum {
 } mt_kahypar_context_parameter_type_t;
 
 typedef enum {
-  CUT,
+  CUT, // TODO: add cut tests
   KM1
 } mt_kahypar_objective_t;
 
@@ -90,21 +80,60 @@ typedef enum {
 
 // ####################### Setup Context #######################
 
+/**
+ * Creates a new empty partitioning context object.
+ */
 MT_KAHYPAR_API mt_kahypar_context_t* mt_kahypar_context_new();
+
+/**
+ * Deletes the partitioning context object.
+ */
 MT_KAHYPAR_API void mt_kahypar_free_context(mt_kahypar_context_t* context);
+
+/**
+ * Loads a partitioning context from a configuration file.
+ */
 MT_KAHYPAR_API void mt_kahypar_configure_context_from_file(mt_kahypar_context_t* context,
                                                            const char* ini_file_name);
+
+/**
+ * Loads a partitioning context of a predefined preset type.
+ * Possible preset types are DETERMINISTIC (corresponds to Mt-KaHyPar-SDet),
+ * SPEED (corresponds to Mt-KaHyPar-D) and HIGH_QUALITY (corresponds to Mt-KaHyPar-D-F)
+ */
 MT_KAHYPAR_API void mt_kahypar_load_preset(mt_kahypar_context_t* context,
                                            const mt_kahypar_preset_type_t preset);
+
+/**
+ * Sets a new value for a context parameter.
+ *
+ * Usage:
+ * mt_kahypar_set_context_parameter(context, OBJECTIVE, "km1") // sets the objective function to the connectivity metric
+ *
+ * Returns exit code zero if the corresponding parameter is successfully set to the value. Otherwise, it returns
+ * 1 for an unknown parameter type, 2 for an integer conversion error or 3 for an unknown value type.
+ */
 MT_KAHYPAR_API int mt_kahypar_set_context_parameter(mt_kahypar_context_t* context,
                                                     const mt_kahypar_context_parameter_type_t type,
                                                     const char* value);
+
+/**
+ * Sets all required parameters for a partitioning call.
+ */
 MT_KAHYPAR_API void mt_kahypar_set_partitioning_parameters(mt_kahypar_context_t* context,
                                                            const mt_kahypar_partition_id_t num_blocks,
                                                            const double epsilon,
                                                            const mt_kahypar_objective_t objective,
                                                            const size_t seed);
-// TODO: set individual part weights
+
+/**
+ * Sets individual target block weights for each block of the partition.
+ * A balanced partition then satisfies that the weight of each block is smaller or equal than the
+ * defined target block weight for the corresponding block.
+ */
+MT_KAHYPAR_API void mt_kahypar_set_individual_target_block_weights(mt_kahypar_context_t* context,
+                                                                   const mt_kahypar_partition_id_t num_blocks,
+                                                                   const mt_kahypar_hypernode_weight_t* block_weights);
 
 
 // ####################### Thread Pool Initialization #######################

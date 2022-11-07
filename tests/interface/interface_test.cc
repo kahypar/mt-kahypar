@@ -282,14 +282,26 @@ namespace mt_kahypar {
 
   TEST(MtKaHyPar, ChecksIfDeterministicPresetProducesSameResults) {
     mt_kahypar_initialize_thread_pool(std::thread::hardware_concurrency(), false);
-    mt_kahypar_partitioned_hypergraph_t* partitioned_hg_1 =  partition("test_instances/ibm01.hgr", HMETIS, DETERMINISTIC, 8);
-    mt_kahypar_partitioned_hypergraph_t* partitioned_hg_2 =  partition("test_instances/ibm01.hgr", HMETIS, DETERMINISTIC, 8);
-    mt_kahypar_partitioned_hypergraph_t* partitioned_hg_3 =  partition("test_instances/ibm01.hgr", HMETIS, DETERMINISTIC, 8);
+
+    // Setup Context
+    mt_kahypar_context_t* context = mt_kahypar_context_new();
+    mt_kahypar_load_preset(context, DETERMINISTIC);
+    mt_kahypar_set_partitioning_parameters(context, 8, 0.03, KM1, 0);
+    mt_kahypar_set_context_parameter(context, VERBOSE, debug ? "1" : "0");
+
+    // Load Hypergraph
+    mt_kahypar_hypergraph_t* hypergraph =
+      mt_kahypar_read_hypergraph_from_file("test_instances/ibm01.hgr", context, HMETIS);
+
+    mt_kahypar_partitioned_hypergraph_t* partitioned_hg_1 =  mt_kahypar_partition(hypergraph, context);
+    mt_kahypar_partitioned_hypergraph_t* partitioned_hg_2 =  mt_kahypar_partition(hypergraph, context);
+    mt_kahypar_partitioned_hypergraph_t* partitioned_hg_3 =  mt_kahypar_partition(hypergraph, context);
     ASSERT_EQ(mt_kahypar_km1(partitioned_hg_1), mt_kahypar_km1(partitioned_hg_2));
     ASSERT_EQ(mt_kahypar_km1(partitioned_hg_1), mt_kahypar_km1(partitioned_hg_3));
     mt_kahypar_free_partitioned_hypergraph(partitioned_hg_1);
     mt_kahypar_free_partitioned_hypergraph(partitioned_hg_2);
     mt_kahypar_free_partitioned_hypergraph(partitioned_hg_3);
+    mt_kahypar_free_hypergraph(hypergraph);
   }
 
   TEST(MtKaHyPar, PartitionsAGraphInTwoBlocksWithSpeedPreset) {
@@ -381,6 +393,79 @@ namespace mt_kahypar {
     mt_kahypar_improve_partition(partitioned_hg, context, 3);
     mt_kahypar_hyperedge_weight_t after = mt_kahypar_km1(partitioned_hg);
     ASSERT_LE(after, before);
+
+    mt_kahypar_free_partitioned_hypergraph(partitioned_hg);
+    mt_kahypar_free_hypergraph(hypergraph);
+    mt_kahypar_free_context(context);
+  }
+
+  TEST(MtKaHyPar, PartitionsHypergraphWithIndividualBlockWeights) {
+    mt_kahypar_initialize_thread_pool(std::thread::hardware_concurrency(), false);
+
+    // Setup Context
+    mt_kahypar_context_t* context = mt_kahypar_context_new();
+    mt_kahypar_load_preset(context, SPEED);
+    mt_kahypar_set_partitioning_parameters(context, 4, 0.03, KM1, 0);
+    mt_kahypar_set_context_parameter(context, VERBOSE, debug ? "1" : "0");
+
+    // Load Hypergraph
+    mt_kahypar_hypergraph_t* hypergraph =
+      mt_kahypar_read_hypergraph_from_file("test_instances/ibm01.hgr", context, HMETIS);
+
+    // Setup Individual Block Weights
+    std::unique_ptr<mt_kahypar_hypernode_weight_t[]> block_weights =
+      std::make_unique<mt_kahypar_hypernode_weight_t[]>(4);
+    block_weights[0] = 2131; block_weights[1] = 1213; block_weights[2] = 7287; block_weights[3] = 2501;
+    mt_kahypar_set_individual_target_block_weights(context, 4, block_weights.get());
+
+    // Partition Hypergraph
+    mt_kahypar_partitioned_hypergraph_t* partitioned_hg =
+      mt_kahypar_partition(hypergraph, context);
+
+    // Verify Block Weights
+    std::unique_ptr<mt_kahypar_hypernode_weight_t[]> actual_block_weights =
+      std::make_unique<mt_kahypar_hypernode_weight_t[]>(4);
+    mt_kahypar_get_block_weights(partitioned_hg, actual_block_weights.get());
+    for ( mt_kahypar_partition_id_t i = 0; i < 4; ++i ) {
+      ASSERT_LE(actual_block_weights[i], block_weights[i]);
+    }
+
+    mt_kahypar_free_partitioned_hypergraph(partitioned_hg);
+    mt_kahypar_free_hypergraph(hypergraph);
+    mt_kahypar_free_context(context);
+  }
+
+  TEST(MtKaHyPar, PartitionsHypergraphWithIndividualBlockWeightsAndVCycle) {
+    mt_kahypar_initialize_thread_pool(std::thread::hardware_concurrency(), false);
+
+    // Setup Context
+    mt_kahypar_context_t* context = mt_kahypar_context_new();
+    mt_kahypar_load_preset(context, SPEED);
+    mt_kahypar_set_partitioning_parameters(context, 4, 0.03, KM1, 0);
+    mt_kahypar_set_context_parameter(context, VERBOSE, debug ? "1" : "0");
+
+    // Load Hypergraph
+    mt_kahypar_hypergraph_t* hypergraph =
+      mt_kahypar_read_hypergraph_from_file("test_instances/ibm01.hgr", context, HMETIS);
+
+    // Setup Individual Block Weights
+    std::unique_ptr<mt_kahypar_hypernode_weight_t[]> block_weights =
+      std::make_unique<mt_kahypar_hypernode_weight_t[]>(4);
+    block_weights[0] = 2131; block_weights[1] = 1213; block_weights[2] = 7287; block_weights[3] = 2501;
+    mt_kahypar_set_individual_target_block_weights(context, 4, block_weights.get());
+
+    // Partition Hypergraph
+    mt_kahypar_partitioned_hypergraph_t* partitioned_hg =
+      mt_kahypar_partition(hypergraph, context);
+    mt_kahypar_improve_partition(partitioned_hg, context, 1);
+
+    // Verify Block Weights
+    std::unique_ptr<mt_kahypar_hypernode_weight_t[]> actual_block_weights =
+      std::make_unique<mt_kahypar_hypernode_weight_t[]>(4);
+    mt_kahypar_get_block_weights(partitioned_hg, actual_block_weights.get());
+    for ( mt_kahypar_partition_id_t i = 0; i < 4; ++i ) {
+      ASSERT_LE(actual_block_weights[i], block_weights[i]);
+    }
 
     mt_kahypar_free_partitioned_hypergraph(partitioned_hg);
     mt_kahypar_free_hypergraph(hypergraph);
