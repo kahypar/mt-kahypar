@@ -180,10 +180,10 @@ namespace mt_kahypar {
   }
 
   namespace {
-    mt_kahypar_hyperedge_weight_t partition(const char* filename,
-                                            const mt_kahypar_file_format_type_t file_format,
-                                            const mt_kahypar_preset_type_t preset,
-                                            const mt_kahypar_partition_id_t num_blocks) {
+    mt_kahypar_partitioned_hypergraph_t* partition(const char* filename,
+                                                   const mt_kahypar_file_format_type_t file_format,
+                                                   const mt_kahypar_preset_type_t preset,
+                                                   const mt_kahypar_partition_id_t num_blocks) {
       // Setup Partitioning Context
       mt_kahypar_context_t* context = mt_kahypar_context_new();
       mt_kahypar_load_preset(context, preset);
@@ -229,64 +229,162 @@ namespace mt_kahypar {
 
       mt_kahypar_free_context(context);
       mt_kahypar_free_hypergraph(hypergraph);
-      mt_kahypar_free_partitioned_hypergraph(partitioned_hg);
-      return objective;
+      return partitioned_hg;
     }
   }
 
   TEST(MtKaHyPar, PartitionsAHypergraphInTwoBlocksWithSpeedPreset) {
     mt_kahypar_initialize_thread_pool(std::thread::hardware_concurrency(), false);
-    partition("test_instances/ibm01.hgr", HMETIS, SPEED, 2);
+    mt_kahypar_partitioned_hypergraph_t* partitioned_hg = partition("test_instances/ibm01.hgr", HMETIS, SPEED, 2);
+    mt_kahypar_free_partitioned_hypergraph(partitioned_hg);
   }
 
   TEST(MtKaHyPar, PartitionsAHypergraphInFourBlocksWithSpeedPreset) {
     mt_kahypar_initialize_thread_pool(std::thread::hardware_concurrency(), false);
-    partition("test_instances/ibm01.hgr", HMETIS, SPEED, 4);
+    mt_kahypar_partitioned_hypergraph_t* partitioned_hg = partition("test_instances/ibm01.hgr", HMETIS, SPEED, 4);
+    mt_kahypar_free_partitioned_hypergraph(partitioned_hg);
   }
 
   TEST(MtKaHyPar, PartitionsAHypergraphInTwoBlocksWithHighQualityPreset) {
     mt_kahypar_initialize_thread_pool(std::thread::hardware_concurrency(), false);
-    partition("test_instances/ibm01.hgr", HMETIS, HIGH_QUALITY, 2);
+    mt_kahypar_partitioned_hypergraph_t* partitioned_hg = partition("test_instances/ibm01.hgr", HMETIS, HIGH_QUALITY, 2);
+    mt_kahypar_free_partitioned_hypergraph(partitioned_hg);
   }
 
   TEST(MtKaHyPar, PartitionsAHypergraphInFourBlocksWithHighQualityPreset) {
     mt_kahypar_initialize_thread_pool(std::thread::hardware_concurrency(), false);
-    partition("test_instances/ibm01.hgr", HMETIS, HIGH_QUALITY, 4);
+    mt_kahypar_partitioned_hypergraph_t* partitioned_hg = partition("test_instances/ibm01.hgr", HMETIS, HIGH_QUALITY, 4);
+    mt_kahypar_free_partitioned_hypergraph(partitioned_hg);
   }
 
   TEST(MtKaHyPar, PartitionsAHypergraphInTwoBlocksWithDeterministicPreset) {
     mt_kahypar_initialize_thread_pool(std::thread::hardware_concurrency(), false);
-    partition("test_instances/ibm01.hgr", HMETIS, DETERMINISTIC, 2);
+    mt_kahypar_partitioned_hypergraph_t* partitioned_hg = partition("test_instances/ibm01.hgr", HMETIS, DETERMINISTIC, 2);
+    mt_kahypar_free_partitioned_hypergraph(partitioned_hg);
   }
 
   TEST(MtKaHyPar, PartitionsAHypergraphInFourBlocksWithDeterministicPreset) {
     mt_kahypar_initialize_thread_pool(std::thread::hardware_concurrency(), false);
-    partition("test_instances/ibm01.hgr", HMETIS, DETERMINISTIC, 4);
+    mt_kahypar_partitioned_hypergraph_t* partitioned_hg = partition("test_instances/ibm01.hgr", HMETIS, DETERMINISTIC, 4);
+    mt_kahypar_free_partitioned_hypergraph(partitioned_hg);
   }
 
   TEST(MtKaHyPar, CanPartitionTwoHypergraphsSimultanously) {
     mt_kahypar_initialize_thread_pool(std::thread::hardware_concurrency(), false);
     tbb::parallel_invoke([&]() {
-      partition("test_instances/ibm01.hgr", HMETIS, SPEED, 4);
+      mt_kahypar_partitioned_hypergraph_t* partitioned_hg = partition("test_instances/ibm01.hgr", HMETIS, SPEED, 4);
+    mt_kahypar_free_partitioned_hypergraph(partitioned_hg);
     }, [&] {
-      partition("test_instances/ibm01.hgr", HMETIS, DETERMINISTIC, 4);
+      mt_kahypar_partitioned_hypergraph_t* partitioned_hg = partition("test_instances/ibm01.hgr", HMETIS, DETERMINISTIC, 4);
+    mt_kahypar_free_partitioned_hypergraph(partitioned_hg);
     });
   }
 
   TEST(MtKaHyPar, ChecksIfDeterministicPresetProducesSameResults) {
-    mt_kahypar_hyperedge_weight_t objective_1 = partition("test_instances/ibm01.hgr", HMETIS, DETERMINISTIC, 8);
-    mt_kahypar_hyperedge_weight_t objective_2 = partition("test_instances/ibm01.hgr", HMETIS, DETERMINISTIC, 8);
-    mt_kahypar_hyperedge_weight_t objective_3 = partition("test_instances/ibm01.hgr", HMETIS, DETERMINISTIC, 8);
-    ASSERT_EQ(objective_1, objective_2);
-    ASSERT_EQ(objective_1, objective_3);
+    mt_kahypar_initialize_thread_pool(std::thread::hardware_concurrency(), false);
+    mt_kahypar_partitioned_hypergraph_t* partitioned_hg_1 =  partition("test_instances/ibm01.hgr", HMETIS, DETERMINISTIC, 8);
+    mt_kahypar_partitioned_hypergraph_t* partitioned_hg_2 =  partition("test_instances/ibm01.hgr", HMETIS, DETERMINISTIC, 8);
+    mt_kahypar_partitioned_hypergraph_t* partitioned_hg_3 =  partition("test_instances/ibm01.hgr", HMETIS, DETERMINISTIC, 8);
+    ASSERT_EQ(mt_kahypar_km1(partitioned_hg_1), mt_kahypar_km1(partitioned_hg_2));
+    ASSERT_EQ(mt_kahypar_km1(partitioned_hg_1), mt_kahypar_km1(partitioned_hg_3));
+    mt_kahypar_free_partitioned_hypergraph(partitioned_hg_1);
+    mt_kahypar_free_partitioned_hypergraph(partitioned_hg_2);
+    mt_kahypar_free_partitioned_hypergraph(partitioned_hg_3);
   }
 
   TEST(MtKaHyPar, PartitionsAGraphInTwoBlocksWithSpeedPreset) {
-    partition("test_instances/delaunay_n15.graph", METIS, SPEED, 2);
+    mt_kahypar_initialize_thread_pool(std::thread::hardware_concurrency(), false);
+    mt_kahypar_partitioned_hypergraph_t* partitioned_hg = partition("test_instances/delaunay_n15.graph", METIS, SPEED, 2);
+    mt_kahypar_free_partitioned_hypergraph(partitioned_hg);
   }
 
   TEST(MtKaHyPar, PartitionsAGraphInFourBlocksWithSpeedPreset) {
-    partition("test_instances/delaunay_n15.graph", METIS, SPEED, 4);
+    mt_kahypar_initialize_thread_pool(std::thread::hardware_concurrency(), false);
+    mt_kahypar_partitioned_hypergraph_t* partitioned_hg = partition("test_instances/delaunay_n15.graph", METIS, SPEED, 4);
+    mt_kahypar_free_partitioned_hypergraph(partitioned_hg);
+  }
+
+  TEST(MtKaHyPar, ImprovesPartitionWithOneVCycle) {
+    mt_kahypar_initialize_thread_pool(std::thread::hardware_concurrency(), false);
+
+    // Setup Context
+    mt_kahypar_context_t* context = mt_kahypar_context_new();
+    mt_kahypar_load_preset(context, SPEED);
+    mt_kahypar_set_partitioning_parameters(context, 4, 0.03, KM1, 0);
+    mt_kahypar_set_context_parameter(context, VERBOSE, debug ? "1" : "0");
+
+    // Load Hypergraph
+    mt_kahypar_hypergraph_t* hypergraph =
+      mt_kahypar_read_hypergraph_from_file("test_instances/ibm01.hgr", context, HMETIS);
+
+    // Partition Hypergraph
+    mt_kahypar_partitioned_hypergraph_t* partitioned_hg =
+      mt_kahypar_partition(hypergraph, context);
+
+    mt_kahypar_hyperedge_weight_t before = mt_kahypar_km1(partitioned_hg);
+    mt_kahypar_improve_partition(partitioned_hg, context, 1);
+    mt_kahypar_hyperedge_weight_t after = mt_kahypar_km1(partitioned_hg);
+    ASSERT_LE(after, before);
+
+    mt_kahypar_free_partitioned_hypergraph(partitioned_hg);
+    mt_kahypar_free_hypergraph(hypergraph);
+    mt_kahypar_free_context(context);
+  }
+
+
+  TEST(MtKaHyPar, ImprovesPartitionWithOneVCycleAndDifferentPresetType) {
+    mt_kahypar_initialize_thread_pool(std::thread::hardware_concurrency(), false);
+
+    // Setup Context
+    mt_kahypar_context_t* context = mt_kahypar_context_new();
+    mt_kahypar_load_preset(context, SPEED);
+    mt_kahypar_set_partitioning_parameters(context, 4, 0.03, KM1, 0);
+    mt_kahypar_set_context_parameter(context, VERBOSE, debug ? "1" : "0");
+
+    // Load Hypergraph
+    mt_kahypar_hypergraph_t* hypergraph =
+      mt_kahypar_read_hypergraph_from_file("test_instances/ibm01.hgr", context, HMETIS);
+
+    // Partition Hypergraph
+    mt_kahypar_partitioned_hypergraph_t* partitioned_hg =
+      mt_kahypar_partition(hypergraph, context);
+
+    mt_kahypar_hyperedge_weight_t before = mt_kahypar_km1(partitioned_hg);
+    mt_kahypar_load_preset(context, HIGH_QUALITY);
+    mt_kahypar_improve_partition(partitioned_hg, context, 1);
+    mt_kahypar_hyperedge_weight_t after = mt_kahypar_km1(partitioned_hg);
+    ASSERT_LE(after, before);
+
+    mt_kahypar_free_partitioned_hypergraph(partitioned_hg);
+    mt_kahypar_free_hypergraph(hypergraph);
+    mt_kahypar_free_context(context);
+  }
+
+  TEST(MtKaHyPar, ImprovesPartitionWithThreeVCycles) {
+    mt_kahypar_initialize_thread_pool(std::thread::hardware_concurrency(), false);
+
+    // Setup Context
+    mt_kahypar_context_t* context = mt_kahypar_context_new();
+    mt_kahypar_load_preset(context, SPEED);
+    mt_kahypar_set_partitioning_parameters(context, 4, 0.03, KM1, 0);
+    mt_kahypar_set_context_parameter(context, VERBOSE, debug ? "1" : "0");
+
+    // Load Hypergraph
+    mt_kahypar_hypergraph_t* hypergraph =
+      mt_kahypar_read_hypergraph_from_file("test_instances/ibm01.hgr", context, HMETIS);
+
+    // Partition Hypergraph
+    mt_kahypar_partitioned_hypergraph_t* partitioned_hg =
+      mt_kahypar_partition(hypergraph, context);
+
+    mt_kahypar_hyperedge_weight_t before = mt_kahypar_km1(partitioned_hg);
+    mt_kahypar_improve_partition(partitioned_hg, context, 3);
+    mt_kahypar_hyperedge_weight_t after = mt_kahypar_km1(partitioned_hg);
+    ASSERT_LE(after, before);
+
+    mt_kahypar_free_partitioned_hypergraph(partitioned_hg);
+    mt_kahypar_free_hypergraph(hypergraph);
+    mt_kahypar_free_context(context);
   }
 
   TEST(MtKaHyPar, CanSetContextParameter) {

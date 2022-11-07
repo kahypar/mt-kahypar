@@ -228,8 +228,8 @@ namespace mt_kahypar::io {
   }
 
   void printPartitioningResults(const PartitionedHypergraph& hypergraph,
-                                              const Context& context,
-                                              const std::string& description) {
+                                const Context& context,
+                                const std::string& description) {
     if (context.partition.verbose_output) {
       LOG << description;
       LOG << context.partition.objective << "      ="

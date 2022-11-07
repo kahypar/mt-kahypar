@@ -230,7 +230,6 @@ mt_kahypar_partitioned_hypergraph_t* mt_kahypar_partition(mt_kahypar_hypergraph_
   mt_kahypar::PartitionedHypergraph* phg = new mt_kahypar::PartitionedHypergraph();
   mt_kahypar::Context& c = *reinterpret_cast<mt_kahypar::Context*>(context);
   c.partition.mode = mt_kahypar::Mode::direct;
-  c.partition.write_partition_file = false;
   c.shared_memory.num_threads = mt_kahypar::TBBInitializer::instance().total_number_of_threads();
   c.utility_id = mt_kahypar::utils::Utilities::instance().registerNewUtilityObjects();
 
@@ -240,6 +239,22 @@ mt_kahypar_partitioned_hypergraph_t* mt_kahypar_partition(mt_kahypar_hypergraph_
   *phg = mt_kahypar::partition(hg, c);
 
   return reinterpret_cast<mt_kahypar_partitioned_hypergraph_t*>(phg);
+}
+
+void mt_kahypar_improve_partition(mt_kahypar_partitioned_hypergraph_t* partitioned_hg,
+                                  mt_kahypar_context_t* context,
+                                  const size_t num_vcycles) {
+  mt_kahypar::PartitionedHypergraph& phg = *reinterpret_cast<mt_kahypar::PartitionedHypergraph*>(partitioned_hg);
+  mt_kahypar::Context& c = *reinterpret_cast<mt_kahypar::Context*>(context);
+  c.partition.mode = mt_kahypar::Mode::direct;
+  c.partition.num_vcycles = num_vcycles;
+  c.shared_memory.num_threads = mt_kahypar::TBBInitializer::instance().total_number_of_threads();
+  c.utility_id = mt_kahypar::utils::Utilities::instance().registerNewUtilityObjects();
+
+  mt_kahypar::utils::Randomize::instance().setSeed(c.partition.seed);
+
+  // Perform V-Cycle
+  mt_kahypar::partitionVCycle(phg, c);
 }
 
 mt_kahypar_partitioned_hypergraph_t* mt_kahypar_create_partitioned_hypergraph(mt_kahypar_hypergraph_t* hypergraph,

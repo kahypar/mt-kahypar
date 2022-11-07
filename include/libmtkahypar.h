@@ -136,7 +136,6 @@ MT_KAHYPAR_API mt_kahypar_hypernode_id_t mt_kahypar_total_weight(mt_kahypar_hype
 MT_KAHYPAR_API mt_kahypar_partitioned_hypergraph_t* mt_kahypar_partition(mt_kahypar_hypergraph_t* hypergraph,
                                                                          mt_kahypar_context_t* context);
 
-// TODO
 MT_KAHYPAR_API void mt_kahypar_improve_partition(mt_kahypar_partitioned_hypergraph_t* partitioned_hg,
                                                  mt_kahypar_context_t* context,
                                                  const size_t num_vcycles);
