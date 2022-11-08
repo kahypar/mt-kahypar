@@ -175,31 +175,51 @@ bool ParallelLocalMovingModularity::localMoving(Graph& graph, ds::Clustering& co
         _cluster_weights[u] += graph.nodeWeight(u);
         communities[u] = u;
       }
+      graph.setIsolated(u);
+      num_separated_local.local()++;
     };
 
     const double stdev_factor = _context.preprocessing.community_detection.isolated_nodes_threshold_stdev_factor;
+    const double stdev_factor_min = _context.preprocessing.community_detection.isolated_nodes_threshold_stdev_factor_min;
     if (!_context.preprocessing.community_detection.isolated_nodes_local_threshold) {
-      std::vector<double> inv_gains;
-      inv_gains.assign(nodes.size(), 0);
+      std::vector<std::pair<double, HypernodeWeight>> inv_gains;
+      inv_gains.assign(nodes.size(), std::make_pair(0, 0));
       tbb::parallel_for(0UL, nodes.size(), [&](size_t i) {
         double gain_to_iso = computeGainComparedToIsolated(graph, communities, nodes[i]);
-        inv_gains[i] = 1 / std::max(gain_to_iso, 1.0);
+        inv_gains[i] = std::make_pair(1 / std::max(gain_to_iso, 1.0), graph.nodeWeight(nodes[i]));
       });
+      auto map_to_first = std::function([](const std::pair<double, HypernodeWeight>& pair) { return pair.first; });
 
       const double avg_inv_weigh_gain = utils::parallel_weighted_avg(inv_gains, graph.totalVolume(),
         [&](size_t i) {
           return graph.nodeVolume(nodes[i]);
-        });
+        }, map_to_first);
       const double stdev_inv_weigh_gain = utils::parallel_weighted_stdev(inv_gains, avg_inv_weigh_gain, graph.totalVolume(),
         [&](size_t i) {
           return graph.nodeVolume(nodes[i]);
-        });
+        }, map_to_first);
+
+      double min_gain = 1 / (avg_inv_weigh_gain + stdev_factor * stdev_inv_weigh_gain);
+      const double min_gain_limit = 1 / (avg_inv_weigh_gain + stdev_factor_min * stdev_inv_weigh_gain);
+      if (top_level && _context.preprocessing.community_detection.adjust_sd_factor) {
+        tbb::parallel_sort(inv_gains.begin(), inv_gains.end(), [](auto l, auto r) { return l.first > r.first; });
+        HypernodeWeight sum = 0;
+        for (auto pair: inv_gains) {
+          sum += pair.second;
+          if (sum >= (1 - _context.preprocessing.community_detection.sd_factor_core_size_target) * graph.totalWeight()) {
+            const double max_inv_gain = pair.first;
+            min_gain = std::max(min_gain, 1 / max_inv_gain);
+            min_gain = std::min(min_gain, min_gain_limit);
+            break;
+          }
+        }
+      }
 
       if (top_level && _context.preprocessing.community_detection.single_community_of_separated) {
         // we need to find one representative of the community of separated nodes
         for (size_t i = 0; i < nodes.size(); ++i) {
           const double gain_to_iso = computeGainComparedToIsolated(graph, communities, nodes[i]);
-          if (gain_to_iso <= 0 || gain_to_iso < 1 / (avg_inv_weigh_gain + stdev_factor * stdev_inv_weigh_gain)) {
+          if (gain_to_iso <= 0 || gain_to_iso <= min_gain) {
             first_separated = nodes[i];
             break;
           }
@@ -208,10 +228,8 @@ bool ParallelLocalMovingModularity::localMoving(Graph& graph, ds::Clustering& co
 
       tbb::parallel_for(0UL, nodes.size(), [&](size_t i) {
         const double gain_to_iso = computeGainComparedToIsolated(graph, communities, nodes[i]);
-        if (gain_to_iso <= 0 || gain_to_iso < 1 / (avg_inv_weigh_gain + stdev_factor * stdev_inv_weigh_gain)) {
+        if (gain_to_iso <= 0 || gain_to_iso <= min_gain) {
           isolateNode(nodes[i]);
-          graph.setIsolated(nodes[i]);
-          num_separated_local.local()++;
         }
       });
     } else {
@@ -280,8 +298,6 @@ bool ParallelLocalMovingModularity::localMoving(Graph& graph, ds::Clustering& co
             const double gain_to_iso = computeGainComparedToIsolated(graph, communities, node);
             if (gain_to_iso <= 0 || gain_to_iso < 1 / (avg_inv_weigh_gain + stdev_factor * stdev_inv_weigh_gain)) {
               isolateNode(node);
-              graph.setIsolated(node);
-              num_separated_local.local()++;
             }
           });
         }
@@ -295,8 +311,6 @@ bool ParallelLocalMovingModularity::localMoving(Graph& graph, ds::Clustering& co
           const double node_weight = graph.nodeWeight(nodes[i]);
           if (comm_weight == node_weight) {
             isolateNode(nodes[i]);
-            graph.setIsolated(nodes[i]);
-            num_separated_local.local()++;
           }
         }
       });

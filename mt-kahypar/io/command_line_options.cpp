@@ -245,7 +245,18 @@ namespace mt_kahypar {
             ("p-isolated-nodes-threshold-stdev-factor",
              po::value<double>(&context.preprocessing.community_detection.isolated_nodes_threshold_stdev_factor)->value_name(
                      "<double>")->default_value(1.0),
-             "The factor for including the standard deviation in the isolated nodes treshold.");
+             "The factor for including the standard deviation in the isolated nodes treshold.")
+            ("p-sd-factor-core-size-target",
+             po::value<double>(&context.preprocessing.community_detection.sd_factor_core_size_target)->value_name(
+                     "<double>")->notifier([&](const double& val) {
+                        context.preprocessing.community_detection.adjust_sd_factor = (val < 1.0);
+                      })->default_value(1.0),
+             "If a dynamic factor for stdev of isolated nodes detection is used, determines the target core size. "
+             "Set to 1 to deactivate. (default: 1)")
+            ("p-isolated-nodes-threshold-stdev-factor-min",
+             po::value<double>(&context.preprocessing.community_detection.isolated_nodes_threshold_stdev_factor_min)->value_name(
+                     "<double>")->default_value(1.0),
+             "Minimum i a dynamic factor for stdev of isolated nodes detection is used.");
     return options;
   }
 

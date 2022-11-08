@@ -441,6 +441,9 @@ namespace mt_kahypar {
     if (preprocessing.disable_star_partitioning_for_mesh_graphs && !preprocessing.disable_community_detection_for_mesh_graphs) {
       ERROR("--p-disable-star-partitioning-for-mesh-graphs implies --p-disable-community-detection-for-mesh-graphs");
     }
+    if (preprocessing.community_detection.sd_factor_core_size_target < 0.1) {
+      ERROR("--p-sd-factor-core-size-target should be at least 0.1");
+    }
     if (coarsening.sep_nodes_sync_coarsening) {
       if (refinement.separated_partition_aware_coarsening || initial_partitioning.refinement.separated_partition_aware_coarsening) {
         ERROR("Partition aware coarsening not possible with sync coarsening.");
