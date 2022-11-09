@@ -28,6 +28,7 @@
 #pragma once
 
 #include "mt-kahypar/datastructures/buffered_vector.h"
+#include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/refinement/i_refiner.h"
 

@@ -31,8 +31,13 @@
 #include <limits>
 
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
+#include "mt-kahypar/parallel/hardware_topology.h"
+#include "mt-kahypar/parallel/tbb_initializer.h"
 
 namespace mt_kahypar {
+
+using HardwareTopology = mt_kahypar::parallel::HardwareTopology<>;
+using TBBInitializer = mt_kahypar::parallel::TBBInitializer<HardwareTopology, false>;
 
 #define UI64(X) static_cast<uint64_t>(X)
 

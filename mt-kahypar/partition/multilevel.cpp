@@ -355,13 +355,13 @@ namespace mt_kahypar::multilevel {
 
 PartitionedHypergraph partition(Hypergraph& hypergraph, const Context& context) {
   PartitionedHypergraph partitioned_hypergraph;
-    MultilevelPartitioningTask& multilevel_task = *new(tbb::task::allocate_root())
-            MultilevelPartitioningTask(hypergraph, partitioned_hypergraph, context, false);
-    tbb::task::spawn_root_and_wait(multilevel_task);
+  MultilevelPartitioningTask& multilevel_task = *new(tbb::task::allocate_root())
+          MultilevelPartitioningTask(hypergraph, partitioned_hypergraph, context, false);
+  tbb::task::spawn_root_and_wait(multilevel_task);
 
-    if ( context.partition.num_vcycles > 0 && context.type == ContextType::main ) {
-      partitionVCycle(hypergraph, partitioned_hypergraph, context);
-    }
+  if ( context.partition.num_vcycles > 0 && context.type == ContextType::main ) {
+    partitionVCycle(hypergraph, partitioned_hypergraph, context);
+  }
   return partitioned_hypergraph;
 }
 

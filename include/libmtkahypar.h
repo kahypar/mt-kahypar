@@ -24,33 +24,16 @@
  * SOFTWARE.
  ******************************************************************************/
 
-#ifndef LIBKAHYPAR_H
-#define LIBKAHYPAR_H
+#ifndef LIBMTKAHYPAR_H
+#define LIBMTKAHYPAR_H
 
 #include <stddef.h>
+
+#include "typedefs.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-#ifndef MT_KAHYPAR_API
-#   if __GNUC__ >= 4
-#       define MT_KAHYPAR_API __attribute__ ((visibility("default")))
-#   else
-#       define MT_KAHYPAR_API
-#   endif
-#endif
-
-struct mt_kahypar_context_s;
-typedef struct mt_kahypar_context_s mt_kahypar_context_t;
-typedef struct mt_kahypar_hypergraph_s mt_kahypar_hypergraph_t;
-typedef struct mt_kahypar_partitioned_hypergraph_s mt_kahypar_partitioned_hypergraph_t;
-
-typedef unsigned long int mt_kahypar_hypernode_id_t;
-typedef unsigned long int mt_kahypar_hyperedge_id_t;
-typedef int mt_kahypar_hypernode_weight_t;
-typedef int mt_kahypar_hyperedge_weight_t;
-typedef int mt_kahypar_partition_id_t;
 
 /**
  * Configurable parameters of the partitioning context.
@@ -90,16 +73,6 @@ typedef enum {
   // -> computes high-quality partitions (corresponds to Mt-KaHyPar-D-F)
   HIGH_QUALITY
 } mt_kahypar_preset_type_t;
-
-/**
- * Supported (hyper)graph file formats.
- */
-typedef enum {
-  // Standard file format for graphs
-  METIS,
-  // Standard file format for hypergraphs
-  HMETIS
-} mt_kahypar_file_format_type_t;
 
 
 // ####################### Setup Context #######################
@@ -168,14 +141,19 @@ MT_KAHYPAR_API void mt_kahypar_initialize_thread_pool(const size_t num_threads,
 // ####################### Load/Construct Hypergraph #######################
 
 /**
- * Reads a hypergraph from a file. The file can be either in hMetis or Metis file format.
+ * Reads a (hyper)graph from a file. The file can be either in hMetis or Metis file format.
  *
  * \note Note that for deterministic partitioning, you must call
  *       mt_kahypar_load_preset(context, DETERMINISTIC) before reading the hypergraph.
+ * \note When reading a hMetis file with mt_kahypar_read_graph_from_file(...), make sure that
+ *       the file represents graph. Otherwise, your program terminates.
  */
 MT_KAHYPAR_API mt_kahypar_hypergraph_t* mt_kahypar_read_hypergraph_from_file(const char* file_name,
                                                                              const mt_kahypar_context_t* context,
                                                                              const mt_kahypar_file_format_type_t file_format);
+MT_KAHYPAR_API mt_kahypar_graph_t* mt_kahypar_read_graph_from_file(const char* file_name,
+                                                                   const mt_kahypar_context_t* context,
+                                                                   const mt_kahypar_file_format_type_t file_format);
 
 /**
  * Constructs a hypergraph from a given adjacency array that specifies the hyperedges.
@@ -196,19 +174,39 @@ MT_KAHYPAR_API mt_kahypar_hypergraph_t* mt_kahypar_create_hypergraph(const mt_ka
                                                                      const mt_kahypar_hypernode_weight_t* vertex_weights);
 
 /**
- * Deletes the hypergraph object.
+ * Constructs a graph from a given edge list vector.
+ *
+ * Example:
+ * edges:        | 0 2 | 0 1 | 2 3 | 1 3 |
+ * Defines a graph with four edges -> e_0 = {0,2}, e_1 = {0,1}, e_2 = {2,3}, e_3 = {1,3}
+ *
+ * \note For unweighted graphs, you can pass nullptr to either hyperedge_weights or vertex_weights.
+ * \note After construction, the arguments of this function are no longer needed and can be deleted.
+ */
+MT_KAHYPAR_API mt_kahypar_graph_t* mt_kahypar_create_graph(const mt_kahypar_hypernode_id_t num_vertices,
+                                                           const mt_kahypar_hyperedge_id_t num_edges,
+                                                           const mt_kahypar_hypernode_id_t* edges,
+                                                           const mt_kahypar_hyperedge_weight_t* edge_weights,
+                                                           const mt_kahypar_hypernode_weight_t* vertex_weights);
+
+
+/**
+ * Deletes the (hyper)graph object.
  */
 MT_KAHYPAR_API void mt_kahypar_free_hypergraph(mt_kahypar_hypergraph_t* hypergraph);
+MT_KAHYPAR_API void mt_kahypar_free_graph(mt_kahypar_graph_t* graph);
 
 /**
- * Returns the number of nodes of the hypergraph.
+ * Returns the number of nodes of the (hyper)graph.
  */
-MT_KAHYPAR_API mt_kahypar_hypernode_id_t mt_kahypar_num_nodes(mt_kahypar_hypergraph_t* hypergraph);
+MT_KAHYPAR_API mt_kahypar_hypernode_id_t mt_kahypar_num_hypernodes(mt_kahypar_hypergraph_t* hypergraph);
+MT_KAHYPAR_API mt_kahypar_hypernode_id_t mt_kahypar_num_nodes(mt_kahypar_graph_t* graph);
 
 /**
- * Returns the number of hyperedges of the hypergraph.
+ * Returns the number of (hyper)edges of the (hyper)graph.
  */
 MT_KAHYPAR_API mt_kahypar_hyperedge_id_t mt_kahypar_num_hyperedges(mt_kahypar_hypergraph_t* hypergraph);
+MT_KAHYPAR_API mt_kahypar_hyperedge_id_t mt_kahypar_num_edges(mt_kahypar_graph_t* graph);
 
 /**
  * Returns the number of pins of the hypergraph.
@@ -216,21 +214,24 @@ MT_KAHYPAR_API mt_kahypar_hyperedge_id_t mt_kahypar_num_hyperedges(mt_kahypar_hy
 MT_KAHYPAR_API mt_kahypar_hypernode_id_t mt_kahypar_num_pins(mt_kahypar_hypergraph_t* hypergraph);
 
 /**
- * Returns the sum of all node weights of the hypergraph.
+ * Returns the sum of all node weights of the (hyper)graph.
  */
-MT_KAHYPAR_API mt_kahypar_hypernode_id_t mt_kahypar_total_weight(mt_kahypar_hypergraph_t* hypergraph);
+MT_KAHYPAR_API mt_kahypar_hypernode_id_t mt_kahypar_hypergraph_weight(mt_kahypar_hypergraph_t* hypergraph);
+MT_KAHYPAR_API mt_kahypar_hypernode_id_t mt_kahypar_graph_weight(mt_kahypar_graph_t* graph);
 
 // ####################### Partition #######################
 
 /**
- * Partitions a hypergraph according to the parameters specified in the partitioning context.
+ * Partitions a (hyper)graph according to the parameters specified in the partitioning context.
  *
  * \note Before partitioning, the number of blocks, imbalance parameter and objective function must be
  *       set in the partitioning context. This can be done either via mt_kahypar_set_context_parameter(...)
  *       or mt_kahypar_set_partitioning_parameters(...).
  */
-MT_KAHYPAR_API mt_kahypar_partitioned_hypergraph_t* mt_kahypar_partition(mt_kahypar_hypergraph_t* hypergraph,
-                                                                         mt_kahypar_context_t* context);
+MT_KAHYPAR_API mt_kahypar_partitioned_hypergraph_t* mt_kahypar_partition_hypergraph(mt_kahypar_hypergraph_t* hypergraph,
+                                                                                    mt_kahypar_context_t* context);
+MT_KAHYPAR_API mt_kahypar_partitioned_graph_t* mt_kahypar_partition_graph(mt_kahypar_graph_t* graph,
+                                                                          mt_kahypar_context_t* context);
 
 /**
  * Improves a given partition (using the V-cycle technique).
@@ -239,52 +240,70 @@ MT_KAHYPAR_API mt_kahypar_partitioned_hypergraph_t* mt_kahypar_partition(mt_kahy
  *       number of blocks of the given partition.
  * \note There is no guarantee that this call will find an improvement.
  */
-MT_KAHYPAR_API void mt_kahypar_improve_partition(mt_kahypar_partitioned_hypergraph_t* partitioned_hg,
-                                                 mt_kahypar_context_t* context,
-                                                 const size_t num_vcycles);
+MT_KAHYPAR_API void mt_kahypar_improve_hypergraph_partition(mt_kahypar_partitioned_hypergraph_t* partitioned_hg,
+                                                            mt_kahypar_context_t* context,
+                                                            const size_t num_vcycles);
+MT_KAHYPAR_API void mt_kahypar_improve_graph_partition(mt_kahypar_partitioned_graph_t* partitioned_graph,
+                                                       mt_kahypar_context_t* context,
+                                                       const size_t num_vcycles);
 
 /**
- * Constructs a partitioned hypergraph out of the given partition.
+ * Constructs a partitioned (hyper)graph out of the given partition.
  */
 MT_KAHYPAR_API mt_kahypar_partitioned_hypergraph_t* mt_kahypar_create_partitioned_hypergraph(mt_kahypar_hypergraph_t* hypergraph,
                                                                                              const mt_kahypar_partition_id_t num_blocks,
                                                                                              const mt_kahypar_partition_id_t* partition);
+MT_KAHYPAR_API mt_kahypar_partitioned_graph_t* mt_kahypar_create_partitioned_graph(mt_kahypar_graph_t* graph,
+                                                                                   const mt_kahypar_partition_id_t num_blocks,
+                                                                                   const mt_kahypar_partition_id_t* partition);
 
 /**
- * Constructs a partitioned hypergraph from a given partition file.
+ * Constructs a partitioned (hyper)graph from a given partition file.
  */
-MT_KAHYPAR_API mt_kahypar_partitioned_hypergraph_t* mt_kahypar_read_partition_from_file(mt_kahypar_hypergraph_t* hypergraph,
-                                                                                        const mt_kahypar_partition_id_t num_blocks,
-                                                                                        const char* partition_file);
+MT_KAHYPAR_API mt_kahypar_partitioned_hypergraph_t* mt_kahypar_read_hypergraph_partition_from_file(mt_kahypar_hypergraph_t* hypergraph,
+                                                                                                   const mt_kahypar_partition_id_t num_blocks,
+                                                                                                   const char* partition_file);
+MT_KAHYPAR_API mt_kahypar_partitioned_graph_t* mt_kahypar_read_graph_partition_from_file(mt_kahypar_graph_t* graph,
+                                                                                         const mt_kahypar_partition_id_t num_blocks,
+                                                                                         const char* partition_file);
 
 /**
  * Writes a partition to a file.
  */
-MT_KAHYPAR_API void mt_kahypar_write_partition_to_file(const mt_kahypar_partitioned_hypergraph_t* partitioned_hg,
-                                                       const char* partition_file);
+MT_KAHYPAR_API void mt_kahypar_write_hypergraph_partition_to_file(const mt_kahypar_partitioned_hypergraph_t* partitioned_hg,
+                                                                  const char* partition_file);
+MT_KAHYPAR_API void mt_kahypar_write_graph_partition_to_file(const mt_kahypar_partitioned_graph_t* partitioned_graph,
+                                                             const char* partition_file);
 
 /**
- * Extracts a partition from a partitioned hypergraph.
+ * Extracts a partition from a partitioned (hyper)graph.
  */
-MT_KAHYPAR_API void mt_kahypar_get_partition(const mt_kahypar_partitioned_hypergraph_t* partitioned_hg,
-                                             mt_kahypar_partition_id_t* partition);
+MT_KAHYPAR_API void mt_kahypar_get_hypergraph_partition(const mt_kahypar_partitioned_hypergraph_t* partitioned_hg,
+                                                        mt_kahypar_partition_id_t* partition);
+MT_KAHYPAR_API void mt_kahypar_get_graph_partition(const mt_kahypar_partitioned_graph_t* partitioned_graph,
+                                                   mt_kahypar_partition_id_t* partition);
 
 /**
  * Extracts the weight of each block from a partition.
  */
-MT_KAHYPAR_API void mt_kahypar_get_block_weights(const mt_kahypar_partitioned_hypergraph_t* partitioned_hg,
-                                                 mt_kahypar_hypernode_weight_t* block_weights);
+MT_KAHYPAR_API void mt_kahypar_get_hypergraph_block_weights(const mt_kahypar_partitioned_hypergraph_t* partitioned_hg,
+                                                            mt_kahypar_hypernode_weight_t* block_weights);
+MT_KAHYPAR_API void mt_kahypar_get_graph_block_weights(const mt_kahypar_partitioned_graph_t* partitioned_graph,
+                                                       mt_kahypar_hypernode_weight_t* block_weights);
 
 /**
  * Computes the imbalance of the partition.
  */
-MT_KAHYPAR_API double mt_kahypar_imbalance(const mt_kahypar_partitioned_hypergraph_t* partitioned_hg,
-                                           const mt_kahypar_context_t* context);
+MT_KAHYPAR_API double mt_kahypar_hypergraph_imbalance(const mt_kahypar_partitioned_hypergraph_t* partitioned_hg,
+                                                      const mt_kahypar_context_t* context);
+MT_KAHYPAR_API double mt_kahypar_graph_imbalance(const mt_kahypar_partitioned_graph_t* partitioned_graph,
+                                                 const mt_kahypar_context_t* context);
 
 /**
  * Computes the cut metric.
  */
-MT_KAHYPAR_API mt_kahypar_hyperedge_weight_t mt_kahypar_cut(const mt_kahypar_partitioned_hypergraph_t* partitioned_hg);
+MT_KAHYPAR_API mt_kahypar_hyperedge_weight_t mt_kahypar_hypergraph_cut(const mt_kahypar_partitioned_hypergraph_t* partitioned_hg);
+MT_KAHYPAR_API mt_kahypar_hyperedge_weight_t mt_kahypar_graph_cut(const mt_kahypar_partitioned_graph_t* partitioned_graph);
 
 /**
  * Computes the connectivity metric.
@@ -298,12 +317,13 @@ MT_KAHYPAR_API mt_kahypar_hyperedge_weight_t mt_kahypar_soed(const mt_kahypar_pa
 
 
 /**
- * Deletes the partitioned hypergraph object.
+ * Deletes the partitioned (hyper)graph object.
  */
 MT_KAHYPAR_API void mt_kahypar_free_partitioned_hypergraph(mt_kahypar_partitioned_hypergraph_t* partitioned_hg);
+MT_KAHYPAR_API void mt_kahypar_free_partitioned_graph(mt_kahypar_partitioned_graph_t* partitioned_graph);
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif    // LIBKAHYPAR_H
+#endif    // LIBMTKAHYPAR_H

@@ -47,8 +47,6 @@ class IHypergraphSparsifier {
   IHypergraphSparsifier & operator= (const IHypergraphSparsifier &) = delete;
   IHypergraphSparsifier & operator= (IHypergraphSparsifier &&) = delete;
 
-  virtual ~IHypergraphSparsifier() = default;
-
   bool isSparsified() const {
     return _is_sparsified;
   }

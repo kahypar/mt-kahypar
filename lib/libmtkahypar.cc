@@ -26,22 +26,13 @@
  ******************************************************************************/
 
 #include "libmtkahypar.h"
+#include "libmtkahyparhgp.h"
+#include "libmtkahypargp.h"
 
-#include "tbb/parallel_for.h"
-#include "tbb/parallel_invoke.h"
-
+#include "mt-kahypar/parallel/tbb_initializer.h"
+#include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/io/command_line_options.h"
 #include "mt-kahypar/macros.h"
-#include "mt-kahypar/definitions.h"
-#include "mt-kahypar/partition/context.h"
-#include "mt-kahypar/parallel/memory_pool.h"
-#include "mt-kahypar/parallel/parallel_prefix_sum.h"
-#include "mt-kahypar/partition/partitioner.h"
-#include "mt-kahypar/partition/registries/register_memory_pool.h"
-#include "mt-kahypar/partition/metrics.h"
-#include "mt-kahypar/io/hypergraph_io.h"
-#include "mt-kahypar/utils/randomize.h"
-#include "mt-kahypar/utils/utilities.h"
 
 namespace {
   template<typename T>
@@ -66,7 +57,7 @@ void mt_kahypar_configure_context_from_file(mt_kahypar_context_t* kahypar_contex
     *reinterpret_cast<mt_kahypar::Context*>(kahypar_context), ini_file_name);
 }
 
-MT_KAHYPAR_API void mt_kahypar_load_preset(mt_kahypar_context_t* context,
+void mt_kahypar_load_preset(mt_kahypar_context_t* context,
                                            const mt_kahypar_preset_type_t preset) {
   mt_kahypar::Context& c = *reinterpret_cast<mt_kahypar::Context*>(context);
   switch(preset) {
@@ -170,15 +161,13 @@ void mt_kahypar_initialize_thread_pool(const size_t num_threads,
 mt_kahypar_hypergraph_t* mt_kahypar_read_hypergraph_from_file(const char* file_name,
                                                               const mt_kahypar_context_t* context,
                                                               const mt_kahypar_file_format_type_t file_format) {
-  mt_kahypar::Hypergraph* hypergraph = new mt_kahypar::Hypergraph();
-  const mt_kahypar::Context& c = *reinterpret_cast<const mt_kahypar::Context*>(context);
-  mt_kahypar::FileFormat format = file_format == HMETIS ?
-    mt_kahypar::FileFormat::hMetis : mt_kahypar::FileFormat::Metis;
+  return hgp::mt_kahypar_read_hypergraph_from_file(file_name, context, file_format);
+}
 
-  *hypergraph = mt_kahypar::io::readInputFile(file_name, format,
-    c.preprocessing.stable_construction_of_incident_edges);
-
-  return reinterpret_cast<mt_kahypar_hypergraph_t*>(hypergraph);
+mt_kahypar_graph_t* mt_kahypar_read_graph_from_file(const char* file_name,
+                                                    const mt_kahypar_context_t* context,
+                                                    const mt_kahypar_file_format_type_t file_format) {
+  return gp::mt_kahypar_read_graph_from_file(file_name, context, file_format);
 }
 
 mt_kahypar_hypergraph_t* mt_kahypar_create_hypergraph(const mt_kahypar_hypernode_id_t num_vertices,
@@ -187,154 +176,161 @@ mt_kahypar_hypergraph_t* mt_kahypar_create_hypergraph(const mt_kahypar_hypernode
                                                       const mt_kahypar_hyperedge_id_t* hyperedges,
                                                       const mt_kahypar_hyperedge_weight_t* hyperedge_weights,
                                                       const mt_kahypar_hypernode_weight_t* vertex_weights) {
-  // Transform adjacence array into adjacence list
-  vec<vec<mt_kahypar::HypernodeID>> edge_vector(num_hyperedges);
-  tbb::parallel_for(0UL, num_hyperedges, [&](const mt_kahypar::HyperedgeID& he) {
-    const size_t num_pins = hyperedge_indices[he + 1] - hyperedge_indices[he];
-    edge_vector[he].resize(num_pins);
-    for ( size_t i = 0; i < num_pins; ++i ) {
-      edge_vector[he][i] = hyperedges[hyperedge_indices[he] + i];
-    }
-  });
+  return hgp::mt_kahypar_create_hypergraph(num_vertices, num_hyperedges,
+    hyperedge_indices, hyperedges, hyperedge_weights, vertex_weights);
+}
 
-  mt_kahypar::Hypergraph* hypergraph = new mt_kahypar::Hypergraph();
-  *hypergraph = mt_kahypar::HypergraphFactory::construct(
-    num_vertices, num_hyperedges, edge_vector,
-    hyperedge_weights, vertex_weights);
-
-  return reinterpret_cast<mt_kahypar_hypergraph_t*>(hypergraph);
+mt_kahypar_graph_t* mt_kahypar_create_graph(const mt_kahypar_hypernode_id_t num_vertices,
+                                            const mt_kahypar_hyperedge_id_t num_edges,
+                                            const mt_kahypar_hypernode_id_t* edges,
+                                            const mt_kahypar_hyperedge_weight_t* edge_weights,
+                                            const mt_kahypar_hypernode_weight_t* vertex_weights) {
+  return gp::mt_kahypar_create_graph(num_vertices, num_edges, edges, edge_weights, vertex_weights);
 }
 
 void mt_kahypar_free_hypergraph(mt_kahypar_hypergraph_t* hypergraph) {
-  if (hypergraph == nullptr) {
-    return;
-  }
-  delete reinterpret_cast<mt_kahypar::Hypergraph*>(hypergraph);
+  hgp::mt_kahypar_free_hypergraph(hypergraph);
 }
 
-mt_kahypar_hypernode_id_t mt_kahypar_num_nodes(mt_kahypar_hypergraph_t* hypergraph) {
-  return reinterpret_cast<mt_kahypar::Hypergraph*>(hypergraph)->initialNumNodes();
+void mt_kahypar_free_graph(mt_kahypar_graph_t* graph) {
+  gp::mt_kahypar_free_graph(graph);
+}
+
+mt_kahypar_hypernode_id_t mt_kahypar_num_hypernodes(mt_kahypar_hypergraph_t* hypergraph) {
+  return hgp::mt_kahypar_num_nodes(hypergraph);
+}
+
+mt_kahypar_hypernode_id_t mt_kahypar_num_nodes(mt_kahypar_graph_t* graph) {
+  return gp::mt_kahypar_num_nodes(graph);
 }
 
 mt_kahypar_hyperedge_id_t mt_kahypar_num_hyperedges(mt_kahypar_hypergraph_t* hypergraph) {
-  return reinterpret_cast<mt_kahypar::Hypergraph*>(hypergraph)->initialNumEdges();
+  return hgp::mt_kahypar_num_hyperedges(hypergraph);
+}
+
+mt_kahypar_hyperedge_id_t mt_kahypar_num_edges(mt_kahypar_graph_t* graph) {
+  return gp::mt_kahypar_num_edges(graph);
 }
 
 mt_kahypar_hypernode_id_t mt_kahypar_num_pins(mt_kahypar_hypergraph_t* hypergraph) {
-  return reinterpret_cast<mt_kahypar::Hypergraph*>(hypergraph)->initialNumPins();
+  return hgp::mt_kahypar_num_pins(hypergraph);
 }
 
-mt_kahypar_hypernode_id_t mt_kahypar_total_weight(mt_kahypar_hypergraph_t* hypergraph) {
-  return reinterpret_cast<mt_kahypar::Hypergraph*>(hypergraph)->totalWeight();
+mt_kahypar_hypernode_id_t mt_kahypar_hypergraph_weight(mt_kahypar_hypergraph_t* hypergraph) {
+  return hgp::mt_kahypar_total_weight(hypergraph);
 }
 
-MT_KAHYPAR_API void mt_kahypar_free_partitioned_hypergraph(mt_kahypar_partitioned_hypergraph_t* partitioned_hg) {
-  if (partitioned_hg == nullptr) {
-    return;
-  }
-  delete reinterpret_cast<mt_kahypar::PartitionedHypergraph*>(partitioned_hg);
+mt_kahypar_hypernode_id_t mt_kahypar_graph_weight(mt_kahypar_graph_t* graph) {
+  return gp::mt_kahypar_total_weight(graph);
 }
 
-mt_kahypar_partitioned_hypergraph_t* mt_kahypar_partition(mt_kahypar_hypergraph_t* hypergraph,
-                                                          mt_kahypar_context_t* context) {
-  mt_kahypar::Hypergraph& hg = *reinterpret_cast<mt_kahypar::Hypergraph*>(hypergraph);
-  mt_kahypar::PartitionedHypergraph* phg = new mt_kahypar::PartitionedHypergraph();
-  mt_kahypar::Context& c = *reinterpret_cast<mt_kahypar::Context*>(context);
-  c.partition.mode = mt_kahypar::Mode::direct;
-  c.shared_memory.num_threads = mt_kahypar::TBBInitializer::instance().total_number_of_threads();
-  c.utility_id = mt_kahypar::utils::Utilities::instance().registerNewUtilityObjects();
-
-  mt_kahypar::utils::Randomize::instance().setSeed(c.partition.seed);
-
-  // Partition Hypergraph
-  *phg = mt_kahypar::partition(hg, c);
-
-  return reinterpret_cast<mt_kahypar_partitioned_hypergraph_t*>(phg);
+void mt_kahypar_free_partitioned_hypergraph(mt_kahypar_partitioned_hypergraph_t* partitioned_hg) {
+  hgp::mt_kahypar_free_partitioned_hypergraph(partitioned_hg);
 }
 
-void mt_kahypar_improve_partition(mt_kahypar_partitioned_hypergraph_t* partitioned_hg,
-                                  mt_kahypar_context_t* context,
-                                  const size_t num_vcycles) {
-  mt_kahypar::PartitionedHypergraph& phg = *reinterpret_cast<mt_kahypar::PartitionedHypergraph*>(partitioned_hg);
-  mt_kahypar::Context& c = *reinterpret_cast<mt_kahypar::Context*>(context);
-  c.partition.mode = mt_kahypar::Mode::direct;
-  c.partition.num_vcycles = num_vcycles;
-  c.shared_memory.num_threads = mt_kahypar::TBBInitializer::instance().total_number_of_threads();
-  c.utility_id = mt_kahypar::utils::Utilities::instance().registerNewUtilityObjects();
+void mt_kahypar_free_partitioned_graph(mt_kahypar_partitioned_graph_t* partitioned_graph) {
+  gp::mt_kahypar_free_partitioned_graph(partitioned_graph);
+}
 
-  mt_kahypar::utils::Randomize::instance().setSeed(c.partition.seed);
+mt_kahypar_partitioned_hypergraph_t* mt_kahypar_partition_hypergraph(mt_kahypar_hypergraph_t* hypergraph,
+                                                                     mt_kahypar_context_t* context) {
+  return hgp::mt_kahypar_partition(hypergraph, context);
+}
 
-  // Perform V-Cycle
-  mt_kahypar::partitionVCycle(phg, c);
+mt_kahypar_partitioned_graph_t* mt_kahypar_partition_graph(mt_kahypar_graph_t* graph,
+                                                           mt_kahypar_context_t* context) {
+  return gp::mt_kahypar_partition(graph, context);
+}
+
+
+void mt_kahypar_improve_hypergraph_partition(mt_kahypar_partitioned_hypergraph_t* partitioned_hg,
+                                             mt_kahypar_context_t* context,
+                                             const size_t num_vcycles) {
+  hgp::mt_kahypar_improve_partition(partitioned_hg, context, num_vcycles);
+}
+
+void mt_kahypar_improve_graph_partition(mt_kahypar_partitioned_graph_t* partitioned_graph,
+                                        mt_kahypar_context_t* context,
+                                        const size_t num_vcycles) {
+  gp::mt_kahypar_improve_partition(partitioned_graph, context, num_vcycles);
 }
 
 mt_kahypar_partitioned_hypergraph_t* mt_kahypar_create_partitioned_hypergraph(mt_kahypar_hypergraph_t* hypergraph,
                                                                               const mt_kahypar_partition_id_t num_blocks,
                                                                               const mt_kahypar_partition_id_t* partition) {
-  mt_kahypar::Hypergraph& hg = *reinterpret_cast<mt_kahypar::Hypergraph*>(hypergraph);
-  mt_kahypar::PartitionedHypergraph* partitioned_hg = new mt_kahypar::PartitionedHypergraph(num_blocks, hg, mt_kahypar::parallel_tag_t { });
-
-  const mt_kahypar::HypernodeID num_nodes = hg.initialNumNodes();
-  tbb::parallel_for(ID(0), num_nodes, [&](const mt_kahypar::HypernodeID& hn) {
-    partitioned_hg->setOnlyNodePart(hn, partition[hn]);
-  });
-  partitioned_hg->initializePartition();
-
-  return reinterpret_cast<mt_kahypar_partitioned_hypergraph_t*>(partitioned_hg);
+  return hgp::mt_kahypar_create_partitioned_hypergraph(hypergraph, num_blocks, partition);
 }
 
-mt_kahypar_partitioned_hypergraph_t* mt_kahypar_read_partition_from_file(mt_kahypar_hypergraph_t* hypergraph,
-                                                                         const mt_kahypar_partition_id_t num_blocks,
-                                                                         const char* partition_file) {
-  std::vector<mt_kahypar::PartitionID> partition;
-  mt_kahypar::io::readPartitionFile(partition_file, partition);
-  return mt_kahypar_create_partitioned_hypergraph(hypergraph, num_blocks, partition.data());
+mt_kahypar_partitioned_graph_t* mt_kahypar_create_partitioned_graph(mt_kahypar_graph_t* graph,
+                                                                    const mt_kahypar_partition_id_t num_blocks,
+                                                                    const mt_kahypar_partition_id_t* partition) {
+  return gp::mt_kahypar_create_partitioned_graph(graph, num_blocks, partition);
 }
 
-void mt_kahypar_write_partition_to_file(const mt_kahypar_partitioned_hypergraph_t* partitioned_hg,
-                                        const char* partition_file) {
-  const mt_kahypar::PartitionedHypergraph& hg = *reinterpret_cast<const mt_kahypar::PartitionedHypergraph*>(partitioned_hg);
-  mt_kahypar::io::writePartitionFile(hg, partition_file);
+mt_kahypar_partitioned_hypergraph_t* mt_kahypar_read_hypergraph_partition_from_file(mt_kahypar_hypergraph_t* hypergraph,
+                                                                                    const mt_kahypar_partition_id_t num_blocks,
+                                                                                    const char* partition_file) {
+  return hgp::mt_kahypar_read_partition_from_file(hypergraph, num_blocks, partition_file);
 }
 
-void mt_kahypar_get_partition(const mt_kahypar_partitioned_hypergraph_t* partitioned_hg,
-                              mt_kahypar_partition_id_t* partition) {
-  ASSERT(partition != nullptr);
-  const mt_kahypar::PartitionedHypergraph* phg =
-    reinterpret_cast<const mt_kahypar::PartitionedHypergraph*>(partitioned_hg);
-  phg->doParallelForAllNodes([&](const mt_kahypar::HypernodeID& hn) {
-    partition[hn] = phg->partID(hn);
-  });
+mt_kahypar_partitioned_graph_t* mt_kahypar_read_graph_partition_from_file(mt_kahypar_graph_t* graph,
+                                                                          const mt_kahypar_partition_id_t num_blocks,
+                                                                          const char* partition_file) {
+  return gp::mt_kahypar_read_partition_from_file(graph, num_blocks, partition_file);
 }
 
-void mt_kahypar_get_block_weights(const mt_kahypar_partitioned_hypergraph_t* partitioned_hg,
-                                  mt_kahypar_hypernode_weight_t* block_weights) {
-  ASSERT(block_weights != nullptr);
-  const mt_kahypar::PartitionedHypergraph* phg =
-    reinterpret_cast<const mt_kahypar::PartitionedHypergraph*>(partitioned_hg);
-  for ( mt_kahypar::PartitionID i = 0; i < phg->k(); ++i ) {
-    block_weights[i] = phg->partWeight(i);
-  }
+void mt_kahypar_write_hypergraph_partition_to_file(const mt_kahypar_partitioned_hypergraph_t* partitioned_hg,
+                                                   const char* partition_file) {
+  hgp::mt_kahypar_write_partition_to_file(partitioned_hg, partition_file);
 }
 
-double mt_kahypar_imbalance(const mt_kahypar_partitioned_hypergraph_t* partitioned_hg,
+void mt_kahypar_write_graph_partition_to_file(const mt_kahypar_partitioned_graph_t* partitioned_graph,
+                                              const char* partition_file) {
+  gp::mt_kahypar_write_partition_to_file(partitioned_graph, partition_file);
+}
+
+void mt_kahypar_get_hypergraph_partition(const mt_kahypar_partitioned_hypergraph_t* partitioned_hg,
+                                         mt_kahypar_partition_id_t* partition) {
+  hgp::mt_kahypar_get_partition(partitioned_hg, partition);
+}
+
+void mt_kahypar_get_graph_partition(const mt_kahypar_partitioned_graph_t* partitioned_graph,
+                                    mt_kahypar_partition_id_t* partition) {
+  gp::mt_kahypar_get_partition(partitioned_graph, partition);
+}
+
+void mt_kahypar_get_hypergraph_block_weights(const mt_kahypar_partitioned_hypergraph_t* partitioned_hg,
+                                             mt_kahypar_hypernode_weight_t* block_weights) {
+  hgp::mt_kahypar_get_block_weights(partitioned_hg, block_weights);
+}
+
+void mt_kahypar_get_graph_block_weights(const mt_kahypar_partitioned_graph_t* partitioned_graph,
+                                        mt_kahypar_hypernode_weight_t* block_weights) {
+  gp::mt_kahypar_get_block_weights(partitioned_graph, block_weights);
+}
+
+double mt_kahypar_hypergraph_imbalance(const mt_kahypar_partitioned_hypergraph_t* partitioned_hg,
+                                       const mt_kahypar_context_t* context) {
+  return hgp::mt_kahypar_imbalance(partitioned_hg, context);
+}
+
+double mt_kahypar_graph_imbalance(const mt_kahypar_partitioned_graph_t* partitioned_graph,
                             const mt_kahypar_context_t* context) {
-  return mt_kahypar::metrics::imbalance(
-    *reinterpret_cast<const mt_kahypar::PartitionedHypergraph*>(partitioned_hg),
-    *reinterpret_cast<const mt_kahypar::Context*>(context));
+  return gp::mt_kahypar_imbalance(partitioned_graph, context);
 }
 
-mt_kahypar_hyperedge_weight_t mt_kahypar_cut(const mt_kahypar_partitioned_hypergraph_t* partitioned_hg) {
-  return mt_kahypar::metrics::hyperedgeCut(
-    *reinterpret_cast<const mt_kahypar::PartitionedHypergraph*>(partitioned_hg));
+mt_kahypar_hyperedge_weight_t mt_kahypar_hypergraph_cut(const mt_kahypar_partitioned_hypergraph_t* partitioned_hg) {
+  return hgp::mt_kahypar_cut(partitioned_hg);
+}
+
+mt_kahypar_hyperedge_weight_t mt_kahypar_graph_cut(const mt_kahypar_partitioned_graph_t* partitioned_graph) {
+  return gp::mt_kahypar_cut(partitioned_graph);
 }
 
 mt_kahypar_hyperedge_weight_t mt_kahypar_km1(const mt_kahypar_partitioned_hypergraph_t* partitioned_hg) {
-  return mt_kahypar::metrics::km1(
-    *reinterpret_cast<const mt_kahypar::PartitionedHypergraph*>(partitioned_hg));
+  return hgp::mt_kahypar_km1(partitioned_hg);
 }
 
 mt_kahypar_hyperedge_weight_t mt_kahypar_soed(const mt_kahypar_partitioned_hypergraph_t* partitioned_hg) {
-  return mt_kahypar::metrics::soed(
-    *reinterpret_cast<const mt_kahypar::PartitionedHypergraph*>(partitioned_hg));
+  return hgp::mt_kahypar_soed(partitioned_hg);
 }

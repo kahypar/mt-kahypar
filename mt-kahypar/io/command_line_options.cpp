@@ -33,9 +33,6 @@
 #include <fstream>
 #include <limits>
 
-#include "mt-kahypar/io/partitioning_output.h"
-
-
 namespace po = boost::program_options;
 
 namespace mt_kahypar {
@@ -727,9 +724,6 @@ namespace mt_kahypar {
     // placing vm.count("help") here prevents required attributes raising an
     // error if only help was supplied
     if (cmd_vm.count("help") != 0 || argc == 1) {
-      if (context.partition.verbose_output) {
-        mt_kahypar::io::printBanner();
-      }
       LOG << cmd_line_options;
       exit(0);
     }
