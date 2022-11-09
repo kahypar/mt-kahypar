@@ -74,7 +74,7 @@ int main(int argc, char* argv[]) {
 
   // Partition Hypergraph
   mt_kahypar::HighResClockTimepoint start = std::chrono::high_resolution_clock::now();
-  if (context.refinement.judicious.use_judicious_refinement && hypergraph.initialNumNodes() <= context.partition.k) {
+  if ((context.refinement.judicious.use_judicious_refinement || context.initial_partitioning.rb_chose_by_judicious) && hypergraph.initialNumNodes() <= context.partition.k) {
     mt_kahypar::PartitionedHypergraph partitioned_hypergraph;
     mt_kahypar::HighResClockTimepoint end = std::chrono::high_resolution_clock::now();
     context.refinement.judicious.max_degree = mt_kahypar::metrics::maxHnDegree(hypergraph);
