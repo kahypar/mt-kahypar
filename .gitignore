@@ -39,3 +39,7 @@ example_1
 example_2
 example_3
 config/nlevel_interleaved_preset.ini
+lib/examples/example
+python/tests/os
+python/tests/unittest
+python/tests/*.so
