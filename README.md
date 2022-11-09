@@ -124,107 +124,77 @@ make install.mtkahypar # use sudo to install system-wide
 ```
 
 Note: When installing locally, the build will exit with an error due to missing permissions.
-However, the library is still built successfully and is available in `lib/`.
+However, the library is still built successfully and is available in the build folder.
 
-It can be used like this:
+The library interface can be found in `include/libmtkahypar.h` where you can also find a detailed documentation of its functionality. We also provide several examples in the folder `lib/examples` that show how to use library.
+
+Here is a short example how you can partition a hypergraph using our library interface:
 
 ```cpp
 #include <memory>
 #include <vector>
 #include <iostream>
+#include <thread>
 
-#include <libkahypar.h>
+#include <libmtkahypar.h>
 
 int main(int argc, char* argv[]) {
 
-  // Initialize thread pool with 8 threads and NUMA allocation policy INTERLEAVED
-  mt_kahypar_initialize_thread_pool(8, true /* activate interleaved NUMA allocation policy */ );
+  // Initialize thread pool
+  mt_kahypar_initialize_thread_pool(
+    std::thread::hardware_concurrency() /* use all available cores */,
+    true /* activate interleaved NUMA allocation policy */ );
 
-  // Load context from file
+  // Setup partitioning context
   mt_kahypar_context_t* context = mt_kahypar_context_new();
-  mt_kahypar_configure_context_from_file(context, "path/to/config/file");
+  mt_kahypar_load_preset(context, SPEED /* corresponds to MT-KaHyPar-D */);
+  // In the following, we partition a hypergraph into two blocks
+  // with an allowed imbalance of 3% and optimize the connective metric (KM1)
+  mt_kahypar_set_partitioning_parameters(context,
+    2 /* number of blocks */, 0.03 /* imbalance parameter */,
+    KM1 /* objective function */, 42 /* seed */);
+  // Enable logging
+  mt_kahypar_set_context_parameter(context, VERBOSE, "1");
 
-  // Setup Hypergraph
-  const mt_kahypar_hypernode_id_t num_vertices = 7;
-  const mt_kahypar_hyperedge_id_t num_hyperedges = 4;
-
-  std::unique_ptr<mt_kahypar_hyperedge_weight_t[]> hyperedge_weights =
-    std::make_unique<mt_kahypar_hyperedge_weight_t[]>(4);
-
-  // force the cut to contain hyperedge 0 and 2
-  hyperedge_weights[0] = 1;  hyperedge_weights[1] = 1000;
-  hyperedge_weights[2] = 1;  hyperedge_weights[3] = 1000;
-
-  std::unique_ptr<size_t[]> hyperedge_indices = std::make_unique<size_t[]>(5);
-
-  hyperedge_indices[0] = 0; hyperedge_indices[1] = 2;
-  hyperedge_indices[2] = 6; hyperedge_indices[3] = 9;
-  hyperedge_indices[4] = 12;
-
-  std::unique_ptr<mt_kahypar_hyperedge_id_t[]> hyperedges = std::make_unique<mt_kahypar_hyperedge_id_t[]>(12);
-
-  // hypergraph from hMetis manual page 14
-  hyperedges[0] = 0;  hyperedges[1] = 2;
-  hyperedges[2] = 0;  hyperedges[3] = 1;
-  hyperedges[4] = 3;  hyperedges[5] = 4;
-  hyperedges[6] = 3;  hyperedges[7] = 4;
-  hyperedges[8] = 6;  hyperedges[9] = 2;
-  hyperedges[10] = 5; hyperedges[11] = 6;
-
-  const double imbalance = 0.03;
-  const mt_kahypar_partition_id_t k = 2;
-
-  mt_kahypar_hyperedge_weight_t objective = 0;
-
-  std::vector<mt_kahypar_partition_id_t> partition(num_vertices, -1);
+  // Load Hypergraph
+  mt_kahypar_hypergraph_t* hypergraph =
+    mt_kahypar_read_hypergraph_from_file("path/to/hypergraph/file", context, HMETIS /* file format */);
 
   // Partition Hypergraph
-  mt_kahypar_partition(num_vertices, num_hyperedges,
-       	               imbalance, k, 0 /* seed */,
-               	       nullptr /* unit vertex_weights */, hyperedge_weights.get(),
-               	       hyperedge_indices.get(), hyperedges.get(),
-       	               &objective, context, partition.data(),
-                       false /* verbose output */ );
+  mt_kahypar_partitioned_hypergraph_t* partitioned_hg =
+    mt_kahypar_partition_hypergraph(hypergraph, context);
 
-  // Print objective and block of each vertex
-  std::cout << "Objective: " << objective << std::endl;
-  for ( int i = 0; i != num_vertices; ++i ) {
-    std::cout << "Vertex " << i << " = " << partition[i] << std::endl;
-  }
+  // Extract Partition
+  std::unique_ptr<mt_kahypar_partition_id_t[]> partition =
+    std::make_unique<mt_kahypar_partition_id_t[]>(mt_kahypar_num_hypernodes(hypergraph));
+  mt_kahypar_get_hypergraph_partition(partitioned_hg, partition.get());
+
+  // Extract Block Weights
+  std::unique_ptr<mt_kahypar_hypernode_weight_t[]> block_weights =
+    std::make_unique<mt_kahypar_hypernode_weight_t[]>(2);
+  mt_kahypar_get_hypergraph_block_weights(partitioned_hg, block_weights.get());
+
+  // Compute Metrics
+  const double imbalance = mt_kahypar_hypergraph_imbalance(partitioned_hg, context);
+  const double km1 = mt_kahypar_km1(partitioned_hg);
+
+  // Output Results
+  std::cout << "Partitioning Results:" << std::endl;
+  std::cout << "Imbalance         = " << imbalance << std::endl;
+  std::cout << "Km1               = " << km1 << std::endl;
+  std::cout << "Weight of Block 0 = " << block_weights[0] << std::endl;
+  std::cout << "Weight of Block 1 = " << block_weights[1] << std::endl;
 
   mt_kahypar_free_context(context);
+  mt_kahypar_free_hypergraph(hypergraph);
+  mt_kahypar_free_partitioned_hypergraph(partitioned_hg);
 }
 ```
 
-If you want to load a hypergraph from a file, you can use the following code snippet:
-
-```cpp
-mt_kahypar_hypernode_id_t num_vertices = 0;
-mt_kahypar_hyperedge_id_t num_hyperedges = 0;
-size_t* hyperedge_indices(nullptr);
-mt_kahypar_hyperedge_id_t* hyperedges(nullptr);
-mt_kahypar_hypernode_weight_t* hypernode_weights(nullptr);
-mt_kahypar_hyperedge_weight_t* hyperedge_weights(nullptr);
-mt_kahypar_read_hypergraph_from_file("path/to/hypergraph/file", &num_vertices, &num_hyperedges,
-  &hyperedge_indices, &hyperedges, &hyperedge_weights, &hypernode_weights);
-```
-
-To compile the program using `g++` and our default hypergraph partitioner (Mt-KaHyPar-D) run:
+To compile the program using `g++` run:
 
 ```sh
-g++ -std=c++17 -DNDEBUG -O3 your_program.cc -o your_program -lmtkahypard
-```
-
-To compile the program using `g++` and our fast graph partitioner (Mt-KaHyPar-Graph) run:
-
-```sh
-g++ -std=c++17 -DNDEBUG -O3 your_program.cc -o your_program -lmtkahypargraph
-```
-
-To compile the program using `g++` and our strong hypergraph partitioner (Mt-KaHyPar-Q) run:
-
-```sh
-g++ -std=c++17 -DNDEBUG -O3 your_program.cc -o your_program -lmtkahyparq
+g++ -std=c++17 -DNDEBUG -O3 your_program.cc -o your_program -lmtkahypar
 ```
 
 To execute the binary, you need to ensure that the installation directory (probably `/usr/local/lib` for system-wide installation)
@@ -241,8 +211,6 @@ To remove the library from your system use the provided uninstall target:
 ```sh
 make uninstall-mtkahypar
 ```
-
-You can find detailed examples how to use our library interface in the folder `examples`.
 
 Bug Reports
 -----------
