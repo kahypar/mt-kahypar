@@ -29,9 +29,10 @@ int main(int argc, char* argv[]) {
   mt_kahypar_hypergraph_t* hypergraph =
     mt_kahypar_read_hypergraph_from_file("ibm01.hgr", context, HMETIS /* file format */);
 
-  // Partition Hypergraph
+  // Read Partition File
   mt_kahypar_partitioned_hypergraph_t* partitioned_hg =
-    mt_kahypar_partition_hypergraph(hypergraph, context);
+    mt_kahypar_read_hypergraph_partition_from_file(
+      hypergraph, 8 /* number of blocks */, "ibm01.hgr.part8");
   const double km1_before = mt_kahypar_km1(partitioned_hg);
 
   // Improve Partition
