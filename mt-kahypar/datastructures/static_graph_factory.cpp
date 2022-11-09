@@ -82,8 +82,7 @@ namespace mt_kahypar::ds {
       edges.push_back({e[0], e[1]});
     }
     return construct_from_graph_edges(num_nodes, num_edges, edges,
-                                      edge_weight, node_weight,
-                                      stable_construction_of_incident_edges);
+      edge_weight, node_weight, stable_construction_of_incident_edges);
   }
 
   StaticGraph StaticGraphFactory::construct_from_graph_edges(

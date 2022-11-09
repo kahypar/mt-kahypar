@@ -29,6 +29,7 @@
 #include <mutex>
 #include <string>
 #include <unordered_map>
+#include <algorithm>
 
 #include "mt-kahypar/macros.h"
 

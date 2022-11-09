@@ -55,8 +55,7 @@ DynamicGraph DynamicGraphFactory::construct(
     edges.push_back({e[0], e[1]});
   }
   return construct_from_graph_edges(num_nodes, num_edges, edges,
-                                    edge_weight, node_weight,
-                                    stable_construction_of_incident_edges);
+    edge_weight, node_weight, stable_construction_of_incident_edges);
 }
 
 DynamicGraph DynamicGraphFactory::construct_from_graph_edges(
@@ -66,8 +65,8 @@ DynamicGraph DynamicGraphFactory::construct_from_graph_edges(
         const HyperedgeWeight* edge_weight,
         const HypernodeWeight* node_weight,
         const bool stable_construction_of_incident_edges) {
-  ASSERT(edge_vector.size() == num_edges);
   DynamicGraph graph;
+  ASSERT(edge_vector.size() == num_edges);
   graph._num_edges = 2 * num_edges;
 
   // TODO: calculate required id range

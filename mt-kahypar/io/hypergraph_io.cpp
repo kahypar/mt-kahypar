@@ -377,9 +377,9 @@ namespace mt_kahypar::io {
 
     // Construct Hypergraph
     Hypergraph hypergraph = HypergraphFactory::construct(
-            num_hypernodes, num_hyperedges,
-            hyperedges, hyperedges_weight.data(), hypernodes_weight.data(),
-            stable_construction_of_incident_edges);
+      num_hypernodes, num_hyperedges, hyperedges,
+      hyperedges_weight.data(), hypernodes_weight.data(),
+      stable_construction_of_incident_edges);
     hypergraph.setNumRemovedHyperedges(num_removed_single_pin_hyperedges);
     return hypergraph;
   }
@@ -597,7 +597,7 @@ namespace mt_kahypar::io {
     });
   }
 
-  void readMetisFile(const std::string& filename,
+  void readGraphFile(const std::string& filename,
                      HyperedgeID& num_edges,
                      HypernodeID& num_vertices,
                      EdgeVector& edges,
@@ -624,7 +624,7 @@ namespace mt_kahypar::io {
     close(fd);
   }
 
-  Hypergraph readMetisFile(const std::string& filename,
+  Hypergraph readGraphFile(const std::string& filename,
                            const bool stable_construction_of_incident_edges) {
     // Read Metis File
     HyperedgeID num_edges = 0;
@@ -632,33 +632,37 @@ namespace mt_kahypar::io {
     EdgeVector edges;
     parallel::scalable_vector<HyperedgeWeight> edges_weight;
     parallel::scalable_vector<HypernodeWeight> nodes_weight;
-    readMetisFile(filename, num_edges, num_vertices, edges, edges_weight, nodes_weight);
+    readGraphFile(filename, num_edges, num_vertices, edges, edges_weight, nodes_weight);
 
     // Construct Graph
     #ifdef USE_GRAPH_PARTITIONER
-    Hypergraph graph = HypergraphFactory::construct_from_graph_edges(
+    return HypergraphFactory::construct_from_graph_edges(
             num_vertices, num_edges, edges,
             edges_weight.data(), nodes_weight.data(),
             stable_construction_of_incident_edges);
     #else
-    Hypergraph graph = HypergraphFactory::construct(
+    return HypergraphFactory::construct(
             num_vertices, num_edges,
             edges, edges_weight.data(), nodes_weight.data(),
             stable_construction_of_incident_edges);
     #endif
-    return graph;
   }
 
   Hypergraph readInputFile(const std::string& filename,
                            const FileFormat format,
                            const bool stable_construction_of_incident_edges,
                            const bool remove_single_pin_hes) {
+    Hypergraph hypergraph;
     switch (format) {
-      case FileFormat::hMetis: return readHypergraphFile(filename, stable_construction_of_incident_edges, remove_single_pin_hes);
-      case FileFormat::Metis: return readMetisFile(filename, stable_construction_of_incident_edges);
+      case FileFormat::hMetis:
+        return readHypergraphFile(filename,
+          stable_construction_of_incident_edges, remove_single_pin_hes);
+      case FileFormat::Metis:
+        return readGraphFile(filename,
+          stable_construction_of_incident_edges);
         // omit default case to trigger compiler warning for missing cases
     }
-    return Hypergraph();
+    return hypergraph;
   }
 
 } // namespace

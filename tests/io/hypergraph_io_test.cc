@@ -201,7 +201,7 @@ TEST_F(AHypergraphReader, ReadsAnHypergraphWithNodeAndEdgeWeights) {
 }
 
 TEST_F(AHypergraphReader, ReadsAMetisGraph) {
-  this->hypergraph = readMetisFile("../tests/instances/unweighted_graph.graph", true);
+  this->hypergraph = readGraphFile("../tests/instances/unweighted_graph.graph", true);
 
   // Verify Incident Edges
   this->verifyIncidentNets(
@@ -232,7 +232,7 @@ TEST_F(AHypergraphReader, ReadsAMetisGraph) {
 }
 
 TEST_F(AHypergraphReader, ReadsAMetisGraphWithNodeWeights) {
-  this->hypergraph = readMetisFile("../tests/instances/graph_with_node_weights.graph", true);
+  this->hypergraph = readGraphFile("../tests/instances/graph_with_node_weights.graph", true);
 
   // Verify Incident Edges
   this->verifyIncidentNets(
@@ -263,7 +263,7 @@ TEST_F(AHypergraphReader, ReadsAMetisGraphWithNodeWeights) {
 }
 
 TEST_F(AHypergraphReader, ReadsAMetisGraphWithEdgeWeights) {
-  this->hypergraph = readMetisFile("../tests/instances/graph_with_edge_weights.graph", true);
+  this->hypergraph = readGraphFile("../tests/instances/graph_with_edge_weights.graph", true);
 
   // Verify Incident Edges
   this->verifyIncidentNets(
@@ -300,7 +300,7 @@ TEST_F(AHypergraphReader, ReadsAMetisGraphWithEdgeWeights) {
 }
 
 TEST_F(AHypergraphReader, ReadsAMetisGraphWithNodeAndEdgeWeights) {
-  this->hypergraph = readMetisFile("../tests/instances/graph_with_node_and_edge_weights.graph", true);
+  this->hypergraph = readGraphFile("../tests/instances/graph_with_node_and_edge_weights.graph", true);
 
   // Verify Incident Edges
   this->verifyIncidentNets(
@@ -339,7 +339,7 @@ TEST_F(AHypergraphReader, ReadsAMetisGraphWithNodeAndEdgeWeights) {
 
 #ifdef USE_GRAPH_PARTITIONER
 TEST_F(AHypergraphReader, ReadsAMetisGraph) {
-  this->hypergraph = readMetisFile("../tests/instances/unweighted_graph.graph", true);
+  this->hypergraph = readGraphFile("../tests/instances/unweighted_graph.graph", true);
 
   // Verify Incident Edges
   this->verifyIncidentNets(
@@ -382,7 +382,7 @@ TEST_F(AHypergraphReader, ReadsAMetisGraph) {
 }
 
 TEST_F(AHypergraphReader, ReadsAMetisGraphNoNewline) {
-  this->hypergraph = readMetisFile("../tests/instances/graph_no_newline.graph", true);
+  this->hypergraph = readGraphFile("../tests/instances/graph_no_newline.graph", true);
 
   // Verify Incident Edges
   this->verifyIncidentNets(
@@ -424,7 +424,7 @@ TEST_F(AHypergraphReader, ReadsAMetisGraphNoNewline) {
 }
 
 TEST_F(AHypergraphReader, ReadsAMetisGraphWithNodeWeights) {
-  this->hypergraph = readMetisFile("../tests/instances/graph_with_node_weights.graph", true);
+  this->hypergraph = readGraphFile("../tests/instances/graph_with_node_weights.graph", true);
 
   // Verify Incident Edges
   this->verifyIncidentNets(
@@ -467,7 +467,7 @@ TEST_F(AHypergraphReader, ReadsAMetisGraphWithNodeWeights) {
 }
 
 TEST_F(AHypergraphReader, ReadsAMetisGraphWithEdgeWeights) {
-  this->hypergraph = readMetisFile("../tests/instances/graph_with_edge_weights.graph", true);
+  this->hypergraph = readGraphFile("../tests/instances/graph_with_edge_weights.graph", true);
 
   // Verify Incident Edges
   this->verifyIncidentNets(
@@ -521,7 +521,7 @@ TEST_F(AHypergraphReader, ReadsAMetisGraphWithEdgeWeights) {
 }
 
 TEST_F(AHypergraphReader, ReadsAMetisGraphWithNodeAndEdgeWeights) {
-  this->hypergraph = readMetisFile("../tests/instances/graph_with_node_and_edge_weights.graph", true);
+  this->hypergraph = readGraphFile("../tests/instances/graph_with_node_and_edge_weights.graph", true);
 
   // Verify Incident Edges
   this->verifyIncidentNets(

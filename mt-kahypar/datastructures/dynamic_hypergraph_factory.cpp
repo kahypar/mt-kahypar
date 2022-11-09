@@ -39,12 +39,13 @@
 namespace mt_kahypar {
 namespace ds {
 
-DynamicHypergraph DynamicHypergraphFactory::construct(const HypernodeID num_hypernodes,
-                                                      const HyperedgeID num_hyperedges,
-                                                      const HyperedgeVector& edge_vector,
-                                                      const HyperedgeWeight* hyperedge_weight,
-                                                      const HypernodeWeight* hypernode_weight,
-                                                      const bool) {
+DynamicHypergraph DynamicHypergraphFactory::construct(
+        const HypernodeID num_hypernodes,
+        const HyperedgeID num_hyperedges,
+        const HyperedgeVector& edge_vector,
+        const HyperedgeWeight* hyperedge_weight,
+        const HypernodeWeight* hypernode_weight,
+        const bool) {
   DynamicHypergraph hypergraph;
   hypergraph._num_hypernodes = num_hypernodes;
   hypergraph._num_hyperedges = num_hyperedges;

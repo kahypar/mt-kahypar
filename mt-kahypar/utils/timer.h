@@ -372,7 +372,7 @@ inline std::ostream & operator<< (std::ostream& str, const Timer& timer) {
 
   std::function<void(std::ostream&, const Timer::Timing&, int)> dfs =
     [&](std::ostream& str, const Timer::Timing& parent, int level) {
-      if ( level <= timer._max_output_depth ) {
+      if ( static_cast<size_t>(level) <= timer._max_output_depth ) {
         for (const Timer::Timing& timing : timings) {
           if (timing.parent() == parent.key()) {
             print(str, timing, level);

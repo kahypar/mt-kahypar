@@ -49,7 +49,8 @@ namespace mt_kahypar::multilevel {
     RefinementTask(Hypergraph& hypergraph,
                    PartitionedHypergraph& partitioned_hypergraph,
                    const Context& context,
-                   std::shared_ptr<UncoarseningData> uncoarseningData) :
+                   std::shared_ptr<UncoarseningData> uncoarseningData,
+                   const bool vcycle) :
             _sparsifier(nullptr),
             _ip_context(context),
             _degree_zero_hn_remover(context),
@@ -57,7 +58,8 @@ namespace mt_kahypar::multilevel {
             _hg(hypergraph),
             _partitioned_hg(partitioned_hypergraph),
             _context(context),
-            _uncoarseningData(uncoarseningData) {
+            _uncoarseningData(uncoarseningData),
+            _vcycle(vcycle) {
       // Must be empty, because final partitioned hypergraph
       // is moved into this object
       _sparsifier = HypergraphSparsifierFactory::getInstance().createObject(
@@ -90,7 +92,7 @@ namespace mt_kahypar::multilevel {
 
       io::printPartitioningResults(_uncoarseningData->coarsestPartitionedHypergraph(),
                                    _context, "Initial Partitioning Results:");
-      if ( _context.partition.verbose_output ) {
+      if ( _context.partition.verbose_output && !_vcycle ) {
         utils::Utilities::instance().getInitialPartitioningStats(
           _context.utility_id).printInitialPartitioningStats();
       }
@@ -141,6 +143,7 @@ namespace mt_kahypar::multilevel {
     PartitionedHypergraph& _partitioned_hg;
     const Context& _context;
     std::shared_ptr<UncoarseningData> _uncoarseningData;
+    const bool _vcycle;
   };
 
   class CoarseningTask : public tbb::task {
@@ -151,15 +154,15 @@ namespace mt_kahypar::multilevel {
                    const Context& context,
                    const Context& ip_context,
                    DegreeZeroHypernodeRemover& degree_zero_hn_remover,
-                   const bool vcycle,
-                   UncoarseningData& uncoarseningData) :
+                   UncoarseningData& uncoarseningData,
+                   const bool vcycle) :
             _hg(hypergraph),
             _sparsifier(sparsifier),
             _context(context),
             _ip_context(ip_context),
             _degree_zero_hn_remover(degree_zero_hn_remover),
-            _vcycle(vcycle),
-            _uncoarseningData(uncoarseningData) { }
+            _uncoarseningData(uncoarseningData),
+            _vcycle(vcycle) { }
 
     tbb::task* execute() override {
       // ################## COARSENING ##################
@@ -251,8 +254,8 @@ namespace mt_kahypar::multilevel {
     const Context& _ip_context;
     DegreeZeroHypernodeRemover& _degree_zero_hn_remover;
     std::unique_ptr<ICoarsener> _coarsener;
-    const bool _vcycle;
     UncoarseningData& _uncoarseningData;
+    const bool _vcycle;
   };
 
 // ! Helper function that spawns the multilevel partitioner in
@@ -269,11 +272,11 @@ namespace mt_kahypar::multilevel {
       std::make_shared<UncoarseningData>(nlevel, hypergraph, context);
 
     RefinementTask& refinement_task = *new(parent.allocate_continuation())
-            RefinementTask(hypergraph, partitioned_hypergraph, context, uncoarseningData);
+            RefinementTask(hypergraph, partitioned_hypergraph, context, uncoarseningData, vcycle);
     refinement_task.set_ref_count(1);
     CoarseningTask& coarsening_task = *new(refinement_task.allocate_child()) CoarseningTask(
             hypergraph, *refinement_task._sparsifier, context, refinement_task._ip_context,
-            refinement_task._degree_zero_hn_remover, vcycle, *uncoarseningData);
+            refinement_task._degree_zero_hn_remover, *uncoarseningData, vcycle);
     tbb::task::spawn(coarsening_task);
   }
 
@@ -352,13 +355,13 @@ namespace mt_kahypar::multilevel {
 
 PartitionedHypergraph partition(Hypergraph& hypergraph, const Context& context) {
   PartitionedHypergraph partitioned_hypergraph;
-    MultilevelPartitioningTask& multilevel_task = *new(tbb::task::allocate_root())
-            MultilevelPartitioningTask(hypergraph, partitioned_hypergraph, context, false);
-    tbb::task::spawn_root_and_wait(multilevel_task);
+  MultilevelPartitioningTask& multilevel_task = *new(tbb::task::allocate_root())
+          MultilevelPartitioningTask(hypergraph, partitioned_hypergraph, context, false);
+  tbb::task::spawn_root_and_wait(multilevel_task);
 
-    if ( context.partition.num_vcycles > 0 && context.type == ContextType::main ) {
-      partitionVCycle(hypergraph, partitioned_hypergraph, context);
-    }
+  if ( context.partition.num_vcycles > 0 && context.type == ContextType::main ) {
+    partitionVCycle(hypergraph, partitioned_hypergraph, context);
+  }
   return partitioned_hypergraph;
 }
 

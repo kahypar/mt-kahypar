@@ -27,8 +27,10 @@
 
 #pragma once
 
+#include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/context.h"
 
 namespace mt_kahypar {
   PartitionedHypergraph partition(Hypergraph& hypergraph, Context& context);
+  void partitionVCycle(PartitionedHypergraph& partitioned_hg, Context& context);
 }  // namespace mt_kahypar

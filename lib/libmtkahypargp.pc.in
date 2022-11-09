@@ -10,5 +10,5 @@ Version: @PROJECT_VERSION@
 URL: @PROJECT_URL@
 
 Requires:
-Libs: -L${libdir} -lmtkahypargq
+Libs: -L${libdir} -lmtkahypargp
 Cflags: -I${includedir}

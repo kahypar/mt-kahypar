@@ -241,5 +241,44 @@ namespace mt_kahypar {
   }
 
 
+  void partitionVCycle(PartitionedHypergraph& partitioned_hg, Context& context) {
+    Hypergraph& hypergraph = partitioned_hg.hypergraph();
+    configurePreprocessing(hypergraph, context);
+    setupContext(hypergraph, context);
+
+    io::printContext(context);
+    io::printMemoryPoolConsumption(context);
+    io::printInputInformation(context, hypergraph);
+    io::printPartitioningResults(partitioned_hg, context, "\nInput Partition:");
+
+    // ################## PREPROCESSING ##################
+    utils::Timer& timer = utils::Utilities::instance().getTimer(context.utility_id);
+    timer.start_timer("preprocessing", "Preprocessing");
+    DegreeZeroHypernodeRemover degree_zero_hn_remover(context);
+    LargeHyperedgeRemover large_he_remover(context);
+    sanitize(hypergraph, context, degree_zero_hn_remover, large_he_remover);
+    timer.stop_timer("preprocessing");
+
+    // ################## MULTILEVEL & VCYCLE ##################
+    if (context.partition.mode == Mode::direct) {
+      multilevel::partitionVCycle(hypergraph, partitioned_hg, context);
+    } else {
+      ERROR("Invalid V-cycle mode: " << context.partition.mode);
+    }
+
+    // ################## POSTPROCESSING ##################
+    timer.start_timer("postprocessing", "Postprocessing");
+    large_he_remover.restoreLargeHyperedges(partitioned_hg);
+    degree_zero_hn_remover.restoreDegreeZeroHypernodes(partitioned_hg);
+    timer.stop_timer("postprocessing");
+
+    if (context.partition.verbose_output) {
+      io::printHypergraphInfo(partitioned_hg.hypergraph(),
+        "Uncoarsened Hypergraph", context.partition.show_memory_consumption);
+      io::printStripe();
+    }
+  }
+
+
 
 }

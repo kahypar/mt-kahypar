@@ -27,7 +27,7 @@
 
 #pragma once
 
-#include "mt-kahypar/definitions.h"
+#include "mt-kahypar/datastructures/hypergraph_common.h"
 #include "mt-kahypar/partition/context_enum_classes.h"
 #include "mt-kahypar/utils/utilities.h"
 
@@ -287,6 +287,12 @@ class Context {
   void setupThreadsPerFlowSearch();
 
   void sanityCheck();
+
+  void load_default_preset();
+
+  void load_default_flow_preset();
+
+  void load_deterministic_preset();
 };
 
 std::ostream & operator<< (std::ostream& str, const Context& context);

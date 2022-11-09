@@ -160,7 +160,6 @@ namespace mt_kahypar::ds {
     hypergraph._hyperedges.back() = StaticHypergraph::Hyperedge(hypergraph._incidence_array.size());
 
     hypergraph.computeAndSetTotalNodeWeight(parallel_tag_t());
-
     return hypergraph;
   }
 
