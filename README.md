@@ -158,7 +158,8 @@ int main(int argc, char* argv[]) {
 
   // Load Hypergraph
   mt_kahypar_hypergraph_t* hypergraph =
-    mt_kahypar_read_hypergraph_from_file("path/to/hypergraph/file", context, HMETIS /* file format */);
+    mt_kahypar_read_hypergraph_from_file(
+      "path/to/hypergraph/file", context, HMETIS /* file format */);
 
   // Partition Hypergraph
   mt_kahypar_partitioned_hypergraph_t* partitioned_hg =
