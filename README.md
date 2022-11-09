@@ -126,7 +126,7 @@ make install.mtkahypar # use sudo to install system-wide
 Note: When installing locally, the build will exit with an error due to missing permissions.
 However, the library is still built successfully and is available in the build folder.
 
-The library interface can be found in `include/libmtkahypar.h` where you can also find a detailed documentation of its functionality. We also provide several examples in the folder `lib/examples` that show how to use library.
+The library interface can be found in `include/libmtkahypar.h` with a detailed documentation of its functionality. We also provide several examples in the folder `lib/examples` that show how to use the library.
 
 Here is a short example how you can partition a hypergraph using our library interface:
 
