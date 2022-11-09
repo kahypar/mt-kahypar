@@ -27,11 +27,11 @@ set(LibMtKaHyParSources
 target_sources(mtkahypar PRIVATE ${LibMtKaHyParSources})
 
 set_target_properties(mtkahyparhgp PROPERTIES
-    PUBLIC_HEADER ../include/libmtkahyparhgp.h)
+    PUBLIC_HEADER "../include/libmtkahyparhgp.h")
 set_target_properties(mtkahypargp PROPERTIES
-    PUBLIC_HEADER ../include/libmtkahypargp.h)
+    PUBLIC_HEADER "../include/libmtkahypargp.h")
 set_target_properties(mtkahypar PROPERTIES
-    PUBLIC_HEADER ../include/libmtkahypar.h)
+    PUBLIC_HEADER "../include/libmtkahypar.h;../include/libmtkahypartypes.h")
 
 target_include_directories(mtkahyparhgp SYSTEM PUBLIC ../include)
 target_include_directories(mtkahypargp SYSTEM PUBLIC ../include)

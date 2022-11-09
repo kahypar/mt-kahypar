@@ -29,7 +29,7 @@
 
 #include <stddef.h>
 
-#include "include/typedefs.h"
+#include "include/libmtkahypartypes.h"
 
 namespace hgp {
 
