@@ -11,6 +11,7 @@ ignore:
   - "external_tools/kahypar/**/*"  # ignore KaHyPar
   - "tests/**/*"
   - "tools/*"
+  - "python/**/*"
   - "mt-kahypar/definitions.h"
   - "mt-kahypar/application/kahypar.cc"
   - "mt-kahypar/io/command_line_options.h"

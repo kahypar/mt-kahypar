@@ -66,6 +66,17 @@ namespace {
     hwloc_bitmap_free(cpuset);
   }
 
+  double imbalance(const mt_kahypar::PartitionedHypergraph& partitioned_hg) {
+    const mt_kahypar::HypernodeWeight perfectly_balanced_weight =
+      std::ceil(partitioned_hg.totalWeight() / static_cast<double>(partitioned_hg.k()));
+    double max_balance = partitioned_hg.partWeight(0) / static_cast<double>(perfectly_balanced_weight);
+    for ( mt_kahypar::PartitionID i = 1; i < partitioned_hg.k(); ++i ) {
+      max_balance = std::max(max_balance,
+        partitioned_hg.partWeight(i) / static_cast<double>(perfectly_balanced_weight));
+    }
+    return max_balance - 1.0;
+  }
+
   void prepare_context(mt_kahypar::Context& context) {
     context.partition.mode = mt_kahypar::Mode::direct;
     context.shared_memory.num_threads = mt_kahypar::TBBInitializer::instance().total_number_of_threads();
@@ -320,6 +331,9 @@ Construct a partitioned hypergraph.
         }
       }, "Executes lambda expression on blocks contained in the given hyperedge",
       py::arg("hyperedge"), py::arg("lambda expression"))
+    .def("imbalance", [](PartitionedHypergraph& partitioned_hg) {
+        return imbalance(partitioned_hg);
+      }, "Computes the imbalance of the partition")
     .def("cut", [](PartitionedHypergraph& partitioned_hg) {
         return mt_kahypar::metrics::hyperedgeCut(partitioned_hg);
       },

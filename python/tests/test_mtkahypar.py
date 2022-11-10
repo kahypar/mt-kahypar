@@ -24,13 +24,16 @@
 # SOFTWARE.
 #*****************************************************************************/
 
+from tokenize import Double
 import unittest
 import os
 import multiprocessing
+import math
 
 import mtkahypar as mtkahypar
 
 mydir = os.path.dirname(os.path.realpath(__file__))
+logging = False
 
 class MainTest(unittest.TestCase):
 
@@ -206,20 +209,126 @@ class MainTest(unittest.TestCase):
     if os.path.isfile(mydir + "/test_partition.part3"):
       os.remove(mydir + "/test_partition.part3")
 
-  def test_TEST(self):
+  def partitionHypergraph(self, preset_type, num_blocks, epsilon, objective, force_logging):
     context = mtkahypar.Context()
-    context.loadPreset(mtkahypar.PresetType.SPEED)
-    context.setPartitioningParameters(4, 0.03, mtkahypar.Objective.KM1, 42)
-    context.enableLogging(True)
+    context.loadPreset(preset_type)
+    context.setPartitioningParameters(num_blocks, epsilon, objective, 42)
+    context.enableLogging(logging or force_logging)
     hypergraph = mtkahypar.Hypergraph(
       mydir + "/test_instances/ibm01.hgr", mtkahypar.FileFormat.HMETIS)
 
     partitioned_hg = mtkahypar.partition(hypergraph, context)
 
-    context.loadPreset(mtkahypar.PresetType.HIGH_QUALITY)
-    mtkahypar.improvePartition(partitioned_hg, context, 3)
+  class HypergraphPartitioner(unittest.TestCase):
 
-    print(partitioned_hg.km1())
+    def __init__(self, preset_type, num_blocks, epsilon, objective, force_logging):
+      self.context = mtkahypar.Context()
+      self.context.loadPreset(preset_type)
+      self.context.setPartitioningParameters(num_blocks, epsilon, objective, 42)
+      self.context.enableLogging(logging or force_logging)
+      self.hypergraph = mtkahypar.Hypergraph(
+        mydir + "/test_instances/ibm01.hgr", mtkahypar.FileFormat.HMETIS)
+      self.useIndividualBlockWeights = False
+      self.k = num_blocks
+      self.epsilon = epsilon
+      self.maxAllowedBlockWeight = math.floor((1.0 + epsilon) *
+        math.ceil(self.hypergraph.totalWeight() / float(num_blocks)))
+
+    def setIndividualBlockWeights(self, individualBlockWeights):
+      self.useIndividualBlockWeights = True
+      self.individualBlockWeights = individualBlockWeights
+      self.context.setIndividualBlockWeights(individualBlockWeights)
+
+    def partition(self):
+      self.partitioned_hg = mtkahypar.partition(self.hypergraph, self.context)
+      self.__verifyPartition()
+
+    def improvePartition(self, num_vcycles):
+      objective_before = self.partitioned_hg.km1()
+      mtkahypar.improvePartition(self.partitioned_hg, self.context, num_vcycles)
+      objective_after = self.partitioned_hg.km1()
+      self.assertLessEqual(objective_after, objective_before)
+      self.__verifyPartition()
+
+    def __verifyPartition(self):
+      if not self.useIndividualBlockWeights:
+        # Check if imbalance is smaller than allowed imbalance
+        self.assertLessEqual(self.partitioned_hg.imbalance(), self.epsilon)
+        # Check if block weights are smaller than maximum allowed block weight
+        for block in range(self.k):
+          self.assertLessEqual(self.partitioned_hg.blockWeight(block), self.maxAllowedBlockWeight)
+      else:
+        for block in range(self.k):
+          self.assertLessEqual(self.partitioned_hg.blockWeight(block), self.individualBlockWeights[block])
+
+      # Verify block IDs of nodes
+      self.hypergraph.doForAllNodes(lambda hn : (
+        self.assertGreaterEqual(self.partitioned_hg.blockID(hn), 0),
+        self.assertLess(self.partitioned_hg.blockID(hn), self.k)
+      ))
+
+
+  def test_partitions_a_hypergraph_with_speed_preset_into_two_blocks(self):
+    partitioner = self.HypergraphPartitioner(mtkahypar.PresetType.SPEED, 2, 0.03, mtkahypar.Objective.KM1, False)
+    partitioner.partition()
+
+  def test_partitions_a_hypergraph_with_speed_preset_into_four_blocks(self):
+    partitioner = self.HypergraphPartitioner(mtkahypar.PresetType.SPEED, 4, 0.03, mtkahypar.Objective.KM1, False)
+    partitioner.partition()
+
+  def test_partitions_a_hypergraph_with_high_quality_preset_into_two_blocks(self):
+    partitioner = self.HypergraphPartitioner(mtkahypar.PresetType.HIGH_QUALITY, 2, 0.03, mtkahypar.Objective.KM1, False)
+    partitioner.partition()
+
+  def test_partitions_a_hypergraph_with_high_quality_preset_into_four_blocks(self):
+    partitioner = self.HypergraphPartitioner(mtkahypar.PresetType.HIGH_QUALITY, 4, 0.03, mtkahypar.Objective.KM1, False)
+    partitioner.partition()
+
+  def test_partitions_a_hypergraph_with_deterministic_preset_into_two_blocks(self):
+    partitioner = self.HypergraphPartitioner(mtkahypar.PresetType.DETERMINISTIC, 2, 0.03, mtkahypar.Objective.KM1, False)
+    partitioner.partition()
+
+  def test_partitions_a_hypergraph_with_deterministic_preset_into_four_blocks(self):
+    partitioner = self.HypergraphPartitioner(mtkahypar.PresetType.DETERMINISTIC, 4, 0.03, mtkahypar.Objective.KM1, False)
+    partitioner.partition()
+
+  def test_checks_if_deterministic_preset_produces_same_result_for_hypergraphs(self):
+    partitioner = self.HypergraphPartitioner(mtkahypar.PresetType.DETERMINISTIC, 8, 0.03, mtkahypar.Objective.KM1, False)
+    partitioner.partition()
+    objective_1 = partitioner.partitioned_hg.km1()
+    partitioner.partition()
+    objective_2 = partitioner.partitioned_hg.km1()
+    partitioner.partition()
+    objective_3 = partitioner.partitioned_hg.km1()
+    self.assertEqual(objective_1, objective_2)
+    self.assertEqual(objective_1, objective_3)
+
+  def test_improves_a_partition_with_one_vcycle(self):
+    partitioner = self.HypergraphPartitioner(mtkahypar.PresetType.SPEED, 4, 0.03, mtkahypar.Objective.KM1, False)
+    partitioner.partition()
+    partitioner.improvePartition(1)
+
+  def test_improves_a_partition_with_one_vcycle_and_different_preset_type(self):
+    partitioner = self.HypergraphPartitioner(mtkahypar.PresetType.SPEED, 4, 0.03, mtkahypar.Objective.KM1, False)
+    partitioner.partition()
+    partitioner.context.loadPreset(mtkahypar.PresetType.HIGH_QUALITY)
+    partitioner.improvePartition(1)
+
+  def test_improves_a_partition_with_three_vcycle(self):
+    partitioner = self.HypergraphPartitioner(mtkahypar.PresetType.SPEED, 4, 0.03, mtkahypar.Objective.KM1, False)
+    partitioner.partition()
+    partitioner.improvePartition(3)
+
+  def test_partitions_a_hypergraph_with_individual_block_weights(self):
+    partitioner = self.HypergraphPartitioner(mtkahypar.PresetType.SPEED, 4, 0.03, mtkahypar.Objective.KM1, False)
+    partitioner.setIndividualBlockWeights([2131,1213,7287,2501])
+    partitioner.partition()
+
+  def test_partitions_a_hypergraph_with_individual_block_weights_and_one_vcycle(self):
+    partitioner = self.HypergraphPartitioner(mtkahypar.PresetType.SPEED, 4, 0.03, mtkahypar.Objective.KM1, False)
+    partitioner.setIndividualBlockWeights([2131,1213,7287,2501])
+    partitioner.partition()
+    partitioner.improvePartition(1)
 
 if __name__ == '__main__':
   unittest.main()
