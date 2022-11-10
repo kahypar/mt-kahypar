@@ -33,14 +33,76 @@ mydir = os.path.dirname(os.path.realpath(__file__))
 
 class MainTest(unittest.TestCase):
 
-  def test_hello_world(self):
-    context = mtkahypar.Context()
-    context.loadConfigurationFile("../../config/default_flow_preset.ini")
-    context.setPartitioningParameters(8, 0.01, mtkahypar.Objective.CUT, 41)
-    context.setIndividualBlockWeights([20, 30, 40, 20, 10, 30, 40, 50])
-    context.setNumberOfVCycles(3)
-    context.enableLogging(True)
-    context.outputConfiguration()
+  def test_check_hypergraph_stats(self):
+    hypergraph = mtkahypar.Hypergraph()
+    hypergraph.construct(7, 4, [[0,2],[0,1,3,4],[3,4,6],[2,5,6]])
+
+    self.assertEqual(hypergraph.numNodes(), 7)
+    self.assertEqual(hypergraph.numEdges(), 4)
+    self.assertEqual(hypergraph.numPins(), 12)
+    self.assertEqual(hypergraph.totalWeight(), 7)
+
+  def test_check_node_degrees(self):
+    hypergraph = mtkahypar.Hypergraph()
+    hypergraph.construct(7, 4, [[0,2],[0,1,3,4],[3,4,6],[2,5,6]])
+
+    self.assertEqual(hypergraph.nodeDegree(0), 2)
+    self.assertEqual(hypergraph.nodeDegree(1), 1)
+    self.assertEqual(hypergraph.nodeDegree(2), 2)
+    self.assertEqual(hypergraph.nodeDegree(3), 2)
+    self.assertEqual(hypergraph.nodeDegree(4), 2)
+    self.assertEqual(hypergraph.nodeDegree(5), 1)
+    self.assertEqual(hypergraph.nodeDegree(6), 2)
+
+  def test_check_edge_sizes(self):
+    hypergraph = mtkahypar.Hypergraph()
+    hypergraph.construct(7, 4, [[0,2],[0,1,3,4],[3,4,6],[2,5,6]])
+
+    self.assertEqual(hypergraph.edgeSize(0), 2)
+    self.assertEqual(hypergraph.edgeSize(1), 4)
+    self.assertEqual(hypergraph.edgeSize(2), 3)
+    self.assertEqual(hypergraph.edgeSize(3), 3)
+
+  def test_check_node_weights(self):
+    hypergraph = mtkahypar.Hypergraph()
+    hypergraph.construct(7, 4, [[0,2],[0,1,3,4],[3,4,6],[2,5,6]],
+      [1,2,3,4,5,6,7], [1,1,1,1])
+
+    self.assertEqual(hypergraph.totalWeight(), 28)
+    self.assertEqual(hypergraph.nodeWeight(0), 1)
+    self.assertEqual(hypergraph.nodeWeight(1), 2)
+    self.assertEqual(hypergraph.nodeWeight(2), 3)
+    self.assertEqual(hypergraph.nodeWeight(3), 4)
+    self.assertEqual(hypergraph.nodeWeight(4), 5)
+    self.assertEqual(hypergraph.nodeWeight(5), 6)
+    self.assertEqual(hypergraph.nodeWeight(6), 7)
+
+  def test_check_edge_weights(self):
+    hypergraph = mtkahypar.Hypergraph()
+    hypergraph.construct(7, 4, [[0,2],[0,1,3,4],[3,4,6],[2,5,6]],
+      [1,2,3,4,5,6,7], [1,2,3,4])
+
+    self.assertEqual(hypergraph.edgeWeight(0), 1)
+    self.assertEqual(hypergraph.edgeWeight(1), 2)
+    self.assertEqual(hypergraph.edgeWeight(2), 3)
+    self.assertEqual(hypergraph.edgeWeight(3), 4)
+
+  def test_load_hypergraph_in_hmetis_file_format(self):
+    hypergraph = mtkahypar.Hypergraph()
+    hypergraph.construct(mydir + "/test_instances/ibm01.hgr", mtkahypar.FileFormat.HMETIS)
+
+    self.assertEqual(hypergraph.numNodes(), 12752)
+    self.assertEqual(hypergraph.numEdges(), 14111)
+    self.assertEqual(hypergraph.numPins(), 50566)
+    self.assertEqual(hypergraph.totalWeight(), 12752)
+
+  def test_load_hypergraph_in_metis_file_format(self):
+    hypergraph = mtkahypar.Hypergraph()
+    hypergraph.construct(mydir + "/test_instances/delaunay_n15.graph", mtkahypar.FileFormat.METIS)
+
+    self.assertEqual(hypergraph.numNodes(), 32768)
+    self.assertEqual(hypergraph.numEdges(), 98274)
+    self.assertEqual(hypergraph.totalWeight(), 32768)
 
 if __name__ == '__main__':
   unittest.main()

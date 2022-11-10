@@ -26,6 +26,9 @@
 
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
+#include <pybind11/functional.h>
+
+#include "tbb/parallel_for.h"
 
 #include <string>
 #include <vector>
@@ -38,18 +41,19 @@
 
 namespace py = pybind11;
 
+namespace {
+  template<typename T>
+  using vec = mt_kahypar::parallel::scalable_vector<T>;
+}
 
 PYBIND11_MODULE(mtkahypar, m) {
-  using mt_kahypar::HypernodeID;
-  using mt_kahypar::HyperedgeID;
-  using mt_kahypar::PartitionID;
-  using mt_kahypar::HypernodeWeight;
-  using mt_kahypar::HyperedgeWeight;
-  using mt_kahypar::HypernodeWeight;
 
+  // ####################### Enum Types #######################
 
-
-  // ####################### Setup Context #######################
+  using mt_kahypar::FileFormat;
+  py::enum_<FileFormat>(m, "FileFormat")
+    .value("HMETIS", FileFormat::hMetis)
+    .value("METIS", FileFormat::Metis);
 
   using mt_kahypar::PresetType;
   py::enum_<PresetType>(m, "PresetType")
@@ -61,6 +65,111 @@ PYBIND11_MODULE(mtkahypar, m) {
   py::enum_<Objective>(m, "Objective")
     .value("CUT", Objective::cut)
     .value("KM1", Objective::km1);
+
+  // ####################### Hypergraph #######################
+
+  using mt_kahypar::HypernodeID;
+  using mt_kahypar::HyperedgeID;
+  using mt_kahypar::PartitionID;
+  using mt_kahypar::HypernodeWeight;
+  using mt_kahypar::HyperedgeWeight;
+  using mt_kahypar::Hypergraph;
+
+  py::class_<Hypergraph>(m, "Hypergraph")
+    .def(py::init<>())
+    .def("construct", [](Hypergraph& hypergraph,
+                         const HypernodeID num_hypernodes,
+                         const HyperedgeID num_hyperedges,
+                         const vec<vec<HypernodeID>>& hyperedges) {
+        hypergraph = mt_kahypar::HypergraphFactory::construct(
+          num_hypernodes, num_hyperedges, hyperedges);
+      }, R"pbdoc(
+Construct an unweighted hypergraph.
+
+:param num_hypernodes: Number of nodes
+:param num_hyperedges: Number of hyperedges
+:param hyperedges: list containing all hyperedges (e.g., [[0,1],[0,2,3],...])
+          )pbdoc",
+      py::arg("num_hypernodes"),
+      py::arg("num_hyperedges"),
+      py::arg("hyperedges"))
+    .def("construct", [](Hypergraph& hypergraph,
+                         const HypernodeID num_hypernodes,
+                         const HyperedgeID num_hyperedges,
+                         const vec<vec<HypernodeID>>& hyperedges,
+                         const vec<HypernodeWeight>& node_weights,
+                         const vec<HyperedgeWeight>& hyperedge_weights) {
+        hypergraph = mt_kahypar::HypergraphFactory::construct(
+          num_hypernodes, num_hyperedges, hyperedges,
+          hyperedge_weights.data(), node_weights.data());
+      }, R"pbdoc(
+Construct a weighted hypergraph.
+
+:param num_hypernodes: Number of nodes
+:param num_hyperedges: Number of hyperedges
+:param hyperedges: List containing all hyperedges (e.g., [[0,1],[0,2,3],...])
+:param node_weights: Weights of all hypernodes
+:param hyperedge_weights: Weights of all hyperedges
+          )pbdoc",
+      py::arg("num_hypernodes"),
+      py::arg("num_hyperedges"),
+      py::arg("hyperedges"),
+      py::arg("node_weights"),
+      py::arg("hyperedge_weights"))
+    .def("construct", [](Hypergraph& hypergraph,
+                         const std::string& file_name,
+                         const FileFormat file_format) {
+        hypergraph = mt_kahypar::io::readInputFile(file_name, file_format, true);
+      }, "Reads a hypergraph from a file (supported file formats are METIS and HMETIS)",
+      py::arg("path to hypergraph file"), py::arg("file format"))
+    .def("numNodes", &Hypergraph::initialNumNodes,
+      "Number of nodes")
+    .def("numEdges", &Hypergraph::initialNumEdges,
+      "Number of hyperedges")
+    .def("numPins", &Hypergraph::initialNumPins,
+      "Number of pins")
+    .def("totalWeight", &Hypergraph::totalWeight,
+      "Total weight of all nodes")
+    .def("nodeDegree", &Hypergraph::nodeDegree,
+      "Degree of node", py::arg("node"))
+    .def("nodeWeight", &Hypergraph::nodeWeight,
+      "Weight of node", py::arg("node"))
+    .def("edgeSize", &Hypergraph::edgeSize,
+      "Size of hyperedge", py::arg("hyperedge"))
+    .def("edgeWeight", &Hypergraph::edgeWeight,
+      "Weight of hyperedge", py::arg("hyperedge"))
+    .def("doForAllNodes", [&](Hypergraph& hypergraph,
+                              const std::function<void(const HypernodeID&)>& f) {
+        for ( const HypernodeID& hn : hypergraph.nodes() ) {
+          f(hn);
+        }
+      }, "Executes lambda expression for all nodes",
+      py::arg("lambda expression"))
+    .def("doForAllEdges", [&](Hypergraph& hypergraph,
+                              const std::function<void(const HyperedgeID&)>& f) {
+        for ( const HyperedgeID& he : hypergraph.edges() ) {
+          f(he);
+        }
+      }, "Executes lambda expression for all edges",
+      py::arg("lambda expression"))
+    .def("doForAllIncidentEdges", [&](Hypergraph& hypergraph,
+                                      const HypernodeID hn,
+                                      const std::function<void(const HyperedgeID&)>& f) {
+        for ( const HyperedgeID& he : hypergraph.incidentEdges(hn) ) {
+          f(he);
+        }
+      }, "Executes lambda expression for all incident edges of a node",
+      py::arg("node"), py::arg("lambda expression"))
+    .def("doForAllPins", [&](Hypergraph& hypergraph,
+                             const HyperedgeID& he,
+                             const std::function<void(const HypernodeID&)>& f) {
+        for ( const HyperedgeID& hn : hypergraph.pins(he) ) {
+          f(hn);
+        }
+      }, "Executes lambda expression for all pins of a hyperedge",
+      py::arg("hyperedge"), py::arg("lambda expression"));
+
+  // ####################### Setup Context #######################
 
   using mt_kahypar::Context;
   py::class_<Context>(m, "Context")
