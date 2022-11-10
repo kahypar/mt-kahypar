@@ -34,7 +34,13 @@ mydir = os.path.dirname(os.path.realpath(__file__))
 class MainTest(unittest.TestCase):
 
   def test_hello_world(self):
-    mtkahypar.helloworld()
+    context = mtkahypar.Context()
+    context.loadConfigurationFile("../../config/default_flow_preset.ini")
+    context.setPartitioningParameters(8, 0.01, mtkahypar.Objective.CUT, 41)
+    context.setIndividualBlockWeights([20, 30, 40, 20, 10, 30, 40, 50])
+    context.setNumberOfVCycles(3)
+    context.enableLogging(True)
+    context.outputConfiguration()
 
 if __name__ == '__main__':
   unittest.main()
