@@ -26,12 +26,16 @@
 
 import unittest
 import os
+import multiprocessing
 
 import mtkahypar as mtkahypar
 
 mydir = os.path.dirname(os.path.realpath(__file__))
 
 class MainTest(unittest.TestCase):
+
+  def setUp(self):
+    mtkahypar.initializeThreadPool(multiprocessing.cpu_count())
 
   def test_check_hypergraph_stats(self):
     hypergraph = mtkahypar.Hypergraph()

@@ -44,6 +44,25 @@ namespace py = pybind11;
 namespace {
   template<typename T>
   using vec = mt_kahypar::parallel::scalable_vector<T>;
+
+  void initialize_thread_pool(const size_t num_threads) {
+    size_t P = num_threads;
+    size_t num_available_cpus = mt_kahypar::HardwareTopology::instance().num_cpus();
+    if ( num_available_cpus < num_threads ) {
+      WARNING("There are currently only" << num_available_cpus << "cpus available."
+        << "Setting number of threads from" << num_threads
+        << "to" << num_available_cpus);
+      P = num_available_cpus;
+    }
+
+    // Initialize TBB task arenas on numa nodes
+    mt_kahypar::TBBInitializer::instance(P);
+    // We set the membind policy to interleaved allocations in order to
+    // distribute allocations evenly across NUMA nodes
+    hwloc_cpuset_t cpuset = mt_kahypar::TBBInitializer::instance().used_cpuset();
+    mt_kahypar::parallel::HardwareTopology<>::instance().activate_interleaved_membind_policy(cpuset);
+    hwloc_bitmap_free(cpuset);
+  }
 }
 
 PYBIND11_MODULE(mtkahypar, m) {
@@ -65,6 +84,12 @@ PYBIND11_MODULE(mtkahypar, m) {
   py::enum_<Objective>(m, "Objective")
     .value("CUT", Objective::cut)
     .value("KM1", Objective::km1);
+
+  // ####################### Initialize Thread Pool #######################
+
+  m.def("initializeThreadPool", &initialize_thread_pool,
+    "Initializes the thread pool with the given number of threads",
+    py::arg("number of threads"));
 
   // ####################### Hypergraph #######################
 
