@@ -28,8 +28,6 @@ import unittest
 import os
 import multiprocessing
 
-from numpy import partition
-
 import mtkahypar as mtkahypar
 
 mydir = os.path.dirname(os.path.realpath(__file__))
@@ -186,6 +184,42 @@ class MainTest(unittest.TestCase):
     self.assertEqual(partitioned_hg.blockID(5), 1)
     self.assertEqual(partitioned_hg.blockID(6), 2)
 
+  def test_write_partition_to_file(self):
+    if os.path.isfile(mydir + "/test_partition.part3"):
+      os.remove(mydir + "/test_partition.part3")
+
+    hypergraph = mtkahypar.Hypergraph(7, 4, [[0,2],[0,1,3,4],[3,4,6],[2,5,6]])
+    partitioned_hg = mtkahypar.PartitionedHypergraph(hypergraph, 3, [0,0,0,1,1,2,2])
+
+    partitioned_hg.writePartitionToFile(mydir + "/test_partition.part3")
+    partitioned_hg_2 = mtkahypar.PartitionedHypergraph(hypergraph, 3,
+      mydir + "/test_partition.part3")
+
+    self.assertEqual(partitioned_hg.blockID(0), 0)
+    self.assertEqual(partitioned_hg.blockID(1), 0)
+    self.assertEqual(partitioned_hg.blockID(2), 0)
+    self.assertEqual(partitioned_hg.blockID(3), 1)
+    self.assertEqual(partitioned_hg.blockID(4), 1)
+    self.assertEqual(partitioned_hg.blockID(5), 2)
+    self.assertEqual(partitioned_hg.blockID(6), 2)
+
+    if os.path.isfile(mydir + "/test_partition.part3"):
+      os.remove(mydir + "/test_partition.part3")
+
+  def test_TEST(self):
+    context = mtkahypar.Context()
+    context.loadPreset(mtkahypar.PresetType.SPEED)
+    context.setPartitioningParameters(4, 0.03, mtkahypar.Objective.KM1, 42)
+    context.enableLogging(True)
+    hypergraph = mtkahypar.Hypergraph(
+      mydir + "/test_instances/ibm01.hgr", mtkahypar.FileFormat.HMETIS)
+
+    partitioned_hg = mtkahypar.partition(hypergraph, context)
+
+    context.loadPreset(mtkahypar.PresetType.HIGH_QUALITY)
+    mtkahypar.improvePartition(partitioned_hg, context, 3)
+
+    print(partitioned_hg.km1())
 
 if __name__ == '__main__':
   unittest.main()

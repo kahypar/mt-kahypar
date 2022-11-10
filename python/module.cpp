@@ -37,6 +37,7 @@
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/metrics.h"
+#include "mt-kahypar/partition/partitioner.h"
 #include "mt-kahypar/io/command_line_options.h"
 #include "mt-kahypar/io/hypergraph_io.h"
 
@@ -63,6 +64,59 @@ namespace {
     hwloc_cpuset_t cpuset = mt_kahypar::TBBInitializer::instance().used_cpuset();
     mt_kahypar::parallel::HardwareTopology<>::instance().activate_interleaved_membind_policy(cpuset);
     hwloc_bitmap_free(cpuset);
+  }
+
+  void prepare_context(mt_kahypar::Context& context) {
+    context.partition.mode = mt_kahypar::Mode::direct;
+    context.shared_memory.num_threads = mt_kahypar::TBBInitializer::instance().total_number_of_threads();
+    context.utility_id = mt_kahypar::utils::Utilities::instance().registerNewUtilityObjects();
+    mt_kahypar::utils::Randomize::instance().setSeed(context.partition.seed);
+
+    context.partition.perfect_balance_part_weights.clear();
+    if ( !context.partition.use_individual_part_weights ) {
+      context.partition.max_part_weights.clear();
+    }
+
+    if ( context.partition.objective == mt_kahypar::Objective::cut &&
+         context.refinement.label_propagation.algorithm ==
+         mt_kahypar::LabelPropagationAlgorithm::label_propagation_km1 ) {
+      context.refinement.label_propagation.algorithm =
+        mt_kahypar::LabelPropagationAlgorithm::label_propagation_cut;
+    }
+
+    if ( context.partition.objective == mt_kahypar::Objective::cut &&
+         context.initial_partitioning.refinement.label_propagation.algorithm ==
+         mt_kahypar::LabelPropagationAlgorithm::label_propagation_km1 ) {
+      context.initial_partitioning.refinement.label_propagation.algorithm =
+        mt_kahypar::LabelPropagationAlgorithm::label_propagation_cut;
+    }
+
+    if ( context.partition.objective == mt_kahypar::Objective::km1 &&
+         context.refinement.label_propagation.algorithm ==
+         mt_kahypar::LabelPropagationAlgorithm::label_propagation_cut ) {
+      context.refinement.label_propagation.algorithm =
+        mt_kahypar::LabelPropagationAlgorithm::label_propagation_km1;
+    }
+
+    if ( context.partition.objective == mt_kahypar::Objective::km1 &&
+         context.initial_partitioning.refinement.label_propagation.algorithm ==
+         mt_kahypar::LabelPropagationAlgorithm::label_propagation_cut ) {
+      context.initial_partitioning.refinement.label_propagation.algorithm =
+        mt_kahypar::LabelPropagationAlgorithm::label_propagation_km1;
+    }
+  }
+
+  mt_kahypar::PartitionedHypergraph partition(mt_kahypar::Hypergraph& hypergraph, mt_kahypar::Context& context) {
+    prepare_context(context);
+    return mt_kahypar::partition(hypergraph, context);
+  }
+
+  void improve_partition(mt_kahypar::PartitionedHypergraph& partitioned_hg,
+                         mt_kahypar::Context& context,
+                         const size_t num_vcycles) {
+    prepare_context(context);
+    context.partition.num_vcycles = num_vcycles;
+    mt_kahypar::partitionVCycle(partitioned_hg, context);
   }
 }
 
@@ -277,8 +331,24 @@ Construct a partitioned hypergraph.
     .def("soed", [](PartitionedHypergraph& partitioned_hg) {
         return mt_kahypar::metrics::soed(partitioned_hg);
       },
-      "Computes the sum-of-external-degree metric for the partitioned hypergraph");
+      "Computes the sum-of-external-degree metric for the partitioned hypergraph")
+    .def("writePartitionToFile", [](PartitionedHypergraph& partitioned_hg,
+                                    const std::string& partition_file) {
+        mt_kahypar::io::writePartitionFile(partitioned_hg, partition_file);
+      }, "Writes the partition to a file",
+      py::arg("target partition file"));
 
+  // ####################### Partitioning #######################
+
+  m.def(
+    "partition", &partition,
+    "Compute a k-way partition of the hypergraph",
+    py::arg("hypergraph"), py::arg("context"));
+
+  m.def(
+    "improvePartition", &improve_partition,
+    "Improves a k-way partition (using the V-cycle technique)",
+    py::arg("partitioned hypergraph"), py::arg("context"), py::arg("number of V-cycles"));
 
   // ####################### Setup Context #######################
 
