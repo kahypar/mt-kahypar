@@ -77,7 +77,18 @@ jobs:
         run: |
           ./tests/end_to_end/integration_tests.py
 
-      - name: Run Mt-KaHyPar Library Interface Tests
+      - name: Run Mt-KaHyPar C Library Interface Tests
         run: |
           cd build
           make -j2 interface_test
+
+      - name: Build Mt-KaHyPar Python Interface
+        run: |
+          cd build/python
+          make -j2
+
+      - name: Run Mt-KaHyPar Python Interface Tests
+        run: |
+          cd python/tests
+          cp ../../build/python/mtkahypar*.so mtkahypar.so
+          python3 test_mtkahypar.py -v
