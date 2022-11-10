@@ -427,7 +427,13 @@ namespace mt_kahypar {
     if (preprocessing.community_detection.use_isolated_nodes_treshold && preprocessing.detect_low_degree_nodes) {
       ERROR("--p-use-isolated-nodes-treshold is not compatible with --p-detect-low-degree-nodes");
     }
-    if (preprocessing.community_detection.use_isolated_nodes_treshold || preprocessing.detect_low_degree_nodes) {
+    if (preprocessing.community_detection.use_isolated_nodes_treshold && preprocessing.detect_via_obj_func) {
+      ERROR("...");
+    }
+    if (preprocessing.detect_low_degree_nodes && preprocessing.detect_via_obj_func) {
+      ERROR(".");
+    }
+    if (preprocessing.community_detection.use_isolated_nodes_treshold || preprocessing.detect_low_degree_nodes || preprocessing.detect_via_obj_func) {
       if (!coarsening.separate_size_one_communities || coarsening.separated_communities_max_size == 0) {
         ERROR("--c-separate-size-one-communities should be true");
       }

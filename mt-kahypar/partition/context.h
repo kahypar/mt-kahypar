@@ -101,6 +101,7 @@ struct PreprocessingParameters {
   bool disable_community_detection_for_mesh_graphs = true;
   bool disable_star_partitioning_for_mesh_graphs = true;
   bool detect_low_degree_nodes = false;
+  bool detect_via_obj_func = false;
   CommunityDetectionParameters community_detection = { };
   bool mesh_graph_detected = false;
 };

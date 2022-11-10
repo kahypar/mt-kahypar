@@ -157,6 +157,11 @@ namespace mt_kahypar {
       ds::Clustering communities = community_detection::run_parallel_louvain(graph, context);
       if (context.preprocessing.detect_low_degree_nodes) {
         star_partitioning::detectLowDegreeNodes(hypergraph, context, communities);
+      } else if (context.preprocessing.detect_via_obj_func) {
+        star_partitioning::detectViaObjectiveFunction(hypergraph, context, communities,
+          [](double core_density, double sep_density) {
+            return sep_density / core_density;
+          });
       }
       graph.restrictClusteringToHypernodes(hypergraph, communities);
       hypergraph.setCommunityIDs(std::move(communities));

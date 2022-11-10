@@ -28,5 +28,8 @@ namespace star_partitioning {
 // all low degree nodes are placed in a single-node community
 void detectLowDegreeNodes(const Hypergraph& hg, const Context& context, ds::Clustering& communities);
 
+void detectViaObjectiveFunction(const Hypergraph& hg, const Context& context, ds::Clustering& communities,
+                                std::function<double(double, double)> objective);
+
 } // namepace star_partitioning
 } // namepace mt_kahypar

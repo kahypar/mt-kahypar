@@ -191,6 +191,9 @@ namespace mt_kahypar {
             ("p-detect-low-degree-nodes",
              po::value<bool>(&context.preprocessing.detect_low_degree_nodes)->value_name("<bool>")->default_value(false),
              "Enables statistical detection of low degree nodes.")
+            ("p-detect-via-obj-func",
+             po::value<bool>(&context.preprocessing.detect_via_obj_func)->value_name("<bool>")->default_value(false),
+             "Enables detection of low degree nodes via an greedy approach using an objective function.")
             ("p-louvain-edge-weight-function",
              po::value<std::string>()->value_name("<string>")->notifier(
                      [&](const std::string& type) {
