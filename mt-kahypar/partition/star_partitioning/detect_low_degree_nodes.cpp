@@ -104,7 +104,7 @@ void detectViaObjectiveFunction(const Hypergraph& hg, const Context& context, ds
       return hg.incidentWeight(i);
     }, map_to_first);
 
-  const double stdev_factor = 4;
+  const double stdev_factor = context.preprocessing.community_detection.isolated_nodes_threshold_stdev_factor;
   const double max_inv_gain = avg_rate + stdev_factor * stdev_rate;
   tbb::enumerable_thread_specific<HypernodeWeight> removed_node_weight_local(0);
   tbb::parallel_for(ID(0), hg.initialNumNodes(), [&](HypernodeID u) {
