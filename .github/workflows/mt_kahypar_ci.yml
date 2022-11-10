@@ -90,5 +90,7 @@ jobs:
       - name: Run Mt-KaHyPar Python Interface Tests
         run: |
           cd python/tests
-          cp ../../build/python/mtkahypar*.so mtkahypar.so
-          python3 test_mtkahypar.py -v
+          cp ../../build/python/mtkahyparhgp*.so mtkahyparhgp.so
+          cp ../../build/python/mtkahypargp*.so mtkahypargp.so
+          python3 test_mtkahyparhgp.py -v
+          python3 test_mtkahypargp.py -v
