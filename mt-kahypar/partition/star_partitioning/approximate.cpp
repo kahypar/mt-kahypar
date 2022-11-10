@@ -60,34 +60,48 @@ void Approximate::partition(PartitionedHypergraph& phg, const SeparatedNodes& s_
     preferred_part[node] = max_part;
   });
   
-  tbb::enumerable_thread_specific<parallel::scalable_vector<HypernodeID>> node_index_in_part;
-  tbb::enumerable_thread_specific<parallel::scalable_vector<HypernodeID>> nodes;
+  parallel::scalable_vector<parallel::scalable_vector<HypernodeID>> node_index_in_part;
+  parallel::scalable_vector<parallel::TBBPrefixSum<HypernodeID>> prefix_sums;
+  parallel::scalable_vector<parallel::scalable_vector<HypernodeID>> nodes;
+  node_index_in_part.resize(_k);
+  nodes.resize(_k);
+  tbb::parallel_for(0, _k, [&](const PartitionID part) {
+    node_index_in_part[part].assign(s_nodes.numNodes(), 0);
+  });
+
+  // mapping the indizes: we first setup the data... 
+  tbb::parallel_for(ID(0), s_nodes.numNodes(), [&](const HypernodeID node) {
+    node_index_in_part[preferred_part[node]][node] = 1;
+  });
+  for (PartitionID part = 0; part < _k; ++part) {
+    prefix_sums.emplace_back(node_index_in_part[part]);
+  }
+  // ...and calculate the mapped index via a prefix sum 
+  tbb::parallel_for(0, _k, [&](const PartitionID part) {
+    tbb::parallel_scan(tbb::blocked_range<size_t>(ID(0), s_nodes.numNodes()), prefix_sums[part]);
+    nodes[part].assign(prefix_sums[part].total_sum(), 0);
+  });
+
+  // then, we can copy the nodes to the vector of their respective part
+  tbb::parallel_for(ID(0), s_nodes.numNodes(), [&](const HypernodeID node) {
+    const PartitionID part = preferred_part[node];
+    nodes[part][prefix_sums[part][node]] = node;
+  });
+
+  // now, we solve the knapsack problem for each part in parallel
   tbb::parallel_for(0, _k, [&](const PartitionID part) {
     auto get_gain = [&](HypernodeID node) { return gains[node * _k + part]; };
- 
-    auto& local_node_index_in_part = node_index_in_part.local();
-    local_node_index_in_part.assign(s_nodes.numNodes(), 0);
-    tbb::parallel_for(ID(0), s_nodes.numNodes(), [&](const HypernodeID node) {
-      if (preferred_part[node] == part) {
-        local_node_index_in_part[node] = 1;
-      }
-    });
-    parallel::TBBPrefixSum<HypernodeID> index_prefix_sum(local_node_index_in_part);
-    tbb::parallel_scan(tbb::blocked_range<size_t>(ID(0), s_nodes.numNodes()), index_prefix_sum);
-
-    parallel::scalable_vector<HypernodeID>& local_nodes = nodes.local();
-    local_nodes.clear();
-    local_nodes.assign(index_prefix_sum.total_sum(), 0);
-    tbb::parallel_for(ID(0), s_nodes.numNodes(), [&](const HypernodeID node) {
-      if (preferred_part[node] == part) {
-        local_nodes[index_prefix_sum[node]] = node;
-      }
-    });
-
     auto get_node_weight_fn = [&](const HypernodeID& node) { return s_nodes.nodeWeight(node); };
+
     const std::vector<HypernodeWeight>& max_part_weights = context.partition.max_part_weights;
-    tbb::parallel_sort(local_nodes.begin(), local_nodes.end(),
-                        compare_gain_weight_ratio(get_gain, get_node_weight_fn));
+    parallel::scalable_vector<HypernodeID>& local_nodes = nodes[part];
+    if (context.shared_memory.num_threads >= 2 * static_cast<size_t>(_k)) {
+      tbb::parallel_sort(local_nodes.begin(), local_nodes.end(),
+                          compare_gain_weight_ratio(get_gain, get_node_weight_fn));
+    } else {
+      std::sort(local_nodes.begin(), local_nodes.end(),
+                compare_gain_weight_ratio(get_gain, get_node_weight_fn));
+    }
     std::vector<HypernodeID> excluded = minKnapsack(local_nodes, max_part_weights[part] - part_weights[part],
                                                     get_gain, get_node_weight_fn);
 

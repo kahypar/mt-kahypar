@@ -210,7 +210,7 @@ namespace mt_kahypar::multilevel {
           _uncoarseningData->partitioned_hg->resetSeparatedParts();
           const SeparatedNodes& s_nodes = _hg.separatedNodes().finest();
           const HyperedgeWeight added_cut = star_partitioning::partition(*_uncoarseningData->partitioned_hg,
-                                                                         s_nodes, _context, false);
+                                                                         s_nodes, _context, true);
           part_ids.resize(s_nodes.numNodes(), kInvalidPartition);
           tbb::parallel_for(ID(0), s_nodes.numNodes(), [&] (const HypernodeID& node) {
             part_ids[node] = _uncoarseningData->partitioned_hg->separatedPartID(node);
@@ -238,7 +238,7 @@ namespace mt_kahypar::multilevel {
           // TODO!!
           _uncoarseningData->partitioned_hg->resetSeparatedParts();
           const HyperedgeWeight added_cut = star_partitioning::partition(*_uncoarseningData->partitioned_hg,
-                                                                         stack.coarsest(), _context, false);
+                                                                         stack.coarsest(), _context, true);
         }
 
         reconstructHierarchyWithSeparatedNodes(_hg, _context, stack, *_uncoarseningData);
