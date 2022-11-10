@@ -45,6 +45,9 @@ void replayToSynchronizeLevels(SepNodesStack& stack, const Hypergraph& original_
 void coarsenSynchronized(SepNodesStack& stack, const Hypergraph& original_hg, const vec<Level>& levels,
                          const Context& context, const HypernodeID& start_num_nodes, const HypernodeID& target_num_nodes,
                          Array<PartitionID>* part_ids) {
+  utils::Timer::instance().start_timer("star_partitioning", "Star Partitioning");
+  utils::Timer::instance().start_timer("coarsen_synchronized", "Synchronized Coarsening");
+
   ASSERT(part_ids == nullptr || part_ids->size() == start_num_nodes);
 
   stack.onliest().setSavepoint();
@@ -127,6 +130,9 @@ void coarsenSynchronized(SepNodesStack& stack, const Hypergraph& original_hg, co
     }
     return true;
   }(), "Constructed separated nodes stack does not match graph levels!");
+
+  utils::Timer::instance().stop_timer("coarsen_synchronized");
+  utils::Timer::instance().stop_timer("star_partitioning");
 }
 
 } // namepace star_partitioning

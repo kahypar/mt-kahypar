@@ -44,6 +44,7 @@ namespace mt_kahypar::multilevel {
   void reconstructHierarchyWithSeparatedNodes(Hypergraph& hg, const Context& context,
                                               SepNodesStack& stack, UncoarseningData& uncoarseningData,
                                               bool with_partition=true) {
+      utils::Timer::instance().start_timer("star_partitioning", "Star Partitioning");
       utils::Timer::instance().start_timer("reconstruct_hierarchy", "Reconstruct Hierarchy");
 
       vec<Level>& levels = uncoarseningData.hierarchy;
@@ -141,6 +142,7 @@ namespace mt_kahypar::multilevel {
       }());
 
       utils::Timer::instance().stop_timer("reconstruct_hierarchy");
+      utils::Timer::instance().stop_timer("star_partitioning");
     }
 
   class RefinementTask : public tbb::task {

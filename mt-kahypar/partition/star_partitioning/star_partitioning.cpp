@@ -31,6 +31,8 @@ using ds::Array;
 
 HyperedgeWeight partition(PartitionedHypergraph& hypergraph, const SeparatedNodes& s_nodes,
                           const Context& context, bool parallel) {
+  utils::Timer::instance().start_timer("star_partitioning", "Star Partitioning");
+  utils::Timer::instance().start_timer("approximation", "Approximation Algorithm");
   // ASSERT([&]() {
   //     for (const HypernodeID& hn : hypergraph.nodes()) {
   //       if (hypergraph.partID(hn) == kInvalidPartition) {
@@ -70,6 +72,7 @@ HyperedgeWeight partition(PartitionedHypergraph& hypergraph, const SeparatedNode
     }
   }
 
+  HyperedgeWeight result = 0;
   const SeparatedNodes& sn = s_nodes;
   if (parallel) {
     tbb::enumerable_thread_specific<HyperedgeWeight> cut(0);
@@ -81,7 +84,7 @@ HyperedgeWeight partition(PartitionedHypergraph& hypergraph, const SeparatedNode
         }
       }
     });
-    return cut.combine(std::plus<>());
+    result = cut.combine(std::plus<>());
   } else {
     HyperedgeWeight cut = 0;
     for (HypernodeID node = 0; node < sn.numNodes(); ++node) {
@@ -91,8 +94,12 @@ HyperedgeWeight partition(PartitionedHypergraph& hypergraph, const SeparatedNode
         }
       }
     }
-    return cut;
+    result = cut;
   }
+
+  utils::Timer::instance().stop_timer("approximation");
+  utils::Timer::instance().stop_timer("star_partitioning");
+  return result;
 }
 
 void getEdgeWeightsOfNode(PartitionedHypergraph& phg, const SeparatedNodes& s_nodes,

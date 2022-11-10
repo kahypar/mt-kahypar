@@ -30,6 +30,9 @@ using ds::SeparatedNodes;
 
 void coarsen(SepNodesStack& stack, const Hypergraph& coarsened_hg,
              const Context& context, const HypernodeID& target_num_nodes) {
+  utils::Timer::instance().start_timer("star_partitioning", "Star Partitioning");
+  utils::Timer::instance().start_timer("coarsen", "Direct Coarsening");
+
   stack.coarsest().revealAll();
   HypernodeID previous_num_nodes = stack.coarsest().numNodes();
   SNodesCoarseningStage stage = SNodesCoarseningStage::D1_TWINS;
@@ -49,6 +52,9 @@ void coarsen(SepNodesStack& stack, const Hypergraph& coarsened_hg,
       break;
     }
   }
+
+  utils::Timer::instance().stop_timer("coarsen");
+  utils::Timer::instance().stop_timer("star_partitioning");
 }
 
 } // namepace star_partitioning
