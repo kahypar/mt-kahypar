@@ -131,7 +131,7 @@ struct CoarseningParameters {
   double minimum_shrink_factor = std::numeric_limits<double>::max();
   double maximum_shrink_factor = std::numeric_limits<double>::max();
   double max_allowed_density_diff = std::numeric_limits<double>::max();
-  double outward_weight_ratio = std::numeric_limits<double>::max();
+  double outward_weight_ratio = 1;
   size_t vertex_degree_sampling_threshold = std::numeric_limits<size_t>::max();
   size_t num_sub_rounds_deterministic = 16;
 

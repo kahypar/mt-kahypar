@@ -167,10 +167,11 @@ class MultilevelVertexPairRater {
     int cpu_id = sched_getcpu();
     const HypernodeWeight weight_u = cluster_weight[u];
     bool can_be_removed = true;
-    if (hypergraph.hasSeparatedNodes() && _context.type == kahypar::ContextType::main) {
+    if (_context.coarsening.outward_weight_ratio < 1 && hypergraph.hasSeparatedNodes()
+        && _context.type == kahypar::ContextType::main) {
       const SeparatedNodes& separated_nodes = hypergraph.separatedNodes().onliest();
-      const double outward_ratio = _context.coarsening.outward_weight_ratio;
-      can_be_removed = (separated_nodes.outwardIncidentWeight(u) <= hypergraph.incidentWeight(u) / outward_ratio);
+      const HypernodeWeight outward_weight = separated_nodes.outwardIncidentWeight(u);
+      can_be_removed = (outward_weight <= _context.coarsening.outward_weight_ratio * (hypergraph.incidentWeight(u) + outward_weight));
     }
     const double weight_ratio_u = std::max(static_cast<double>(hypergraph.incidentWeight(u))
                                            / hypergraph.nodeWeight(u), 0.1);
