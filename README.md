@@ -213,7 +213,7 @@ To remove the library from your system use the provided uninstall target:
 make uninstall-mtkahypar
 ```
 
-The Python Library Interfaces
+The Python Library Interface
 -----------
 
 To compile the Python interface, do the following:
