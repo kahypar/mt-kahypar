@@ -135,9 +135,6 @@ namespace mt_kahypar {
              "(https://github.com/bingmann/sqlplottools)")
             ("csv", po::value<bool>(&context.partition.csv_output)->value_name("<bool>")->default_value(false),
              "Summarize results in CSV format")
-            ("separated-nodes-processing-after-ip",
-             po::value<bool>(&context.partition.separated_nodes_processing_after_ip)->value_name("<bool>")->default_value(false),
-             "Process separated nodes directly after initial partitioning (instead of during refinement)")
             ("star-partitioning-algorithm",
              po::value<std::string>()->value_name("<string>")->notifier(
                      [&](const std::string& algo) {
@@ -297,12 +294,6 @@ namespace mt_kahypar {
             ("c-separated-communities-max-size",
              po::value<HypernodeID>(&context.coarsening.separated_communities_max_size)->value_name("<int>")->default_value(10),
              "Communities that are larger (in terms of total node weight) than this won't be removed.\n")
-            ("c-separate-degree-one-nodes",
-             po::value<bool>(&context.coarsening.separate_degree_one_nodes)->value_name("<bool>")->default_value(false),
-             "Separation of degree one nodes during coarsening.\n")
-            ("c-degree-one-max-weight",
-             po::value<HypernodeWeight>(&context.coarsening.degree_one_max_weight)->value_name("<int>")->default_value(30),
-             "Maximum weight of separated degree one nodes.\n")
             ("c-sep-nodes-coarsening-type",
              po::value<std::string>()->value_name("<string>")->notifier(
                      [&](const std::string& type) {
@@ -310,7 +301,6 @@ namespace mt_kahypar {
                      })->default_value("constant"),
              "Separated Nodes Coarsening Type (target size):\n"
              " - constant"
-             " - logarithmic"
              " - do_not_coarsen")
             ("c-sep-nodes-coarsening-size-factor",
              po::value<double>(&context.coarsening.sep_nodes_coarsening_size_factor)->value_name("<double>")->default_value(2.0),
@@ -697,7 +687,7 @@ namespace mt_kahypar {
              po::value<bool>(&context.initial_partitioning.apply_star_partitioning_per_candidate)->value_name("<bool>")->default_value(false),
              "If true, evaluating each candidate of the pool initial partitioner includes a star partitioning pass.")
             ("i-apply-star-partitioning-to-best",
-             po::value<bool>(&context.initial_partitioning.apply_star_partitioning_to_best)->value_name("<bool>")->default_value(true),
+             po::value<bool>(&context.initial_partitioning.apply_star_partitioning_to_best)->value_name("<bool>")->default_value(false),
              "If true, applies a star partitioning pass after the best partition is found.")
             ("i-reinsert-separated",
              po::value<bool>(&context.initial_partitioning.reinsert_separated)->value_name("<bool>")->default_value(false),

@@ -148,7 +148,6 @@ enum class StarPartitioningAlgorithm : uint8_t {
 
 enum class SNodesCoarseningSize : uint8_t {
   constant,
-  logarithmic,
   do_not_coarsen
 };
 

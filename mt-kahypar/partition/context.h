@@ -64,7 +64,6 @@ struct PartitioningParameters {
   bool deterministic = false;
 
   StarPartitioningAlgorithm star_partitioning_algorithm = StarPartitioningAlgorithm::simple_greedy;
-  bool separated_nodes_processing_after_ip = false;
 
   std::string graph_filename { };
   std::string graph_partition_output_folder {};
@@ -126,8 +125,6 @@ struct CoarseningParameters {
   bool forbid_different_density_contractions = false;
   bool separate_size_one_communities = false;
   HypernodeID separated_communities_max_size = 10;
-  bool separate_degree_one_nodes = false;
-  HypernodeWeight degree_one_max_weight = 30;
   double max_allowed_weight_fraction = std::numeric_limits<double>::max();
   double adaptive_node_weight_shrink_factor_threshold = std::numeric_limits<double>::max();
   double max_allowed_weight_multiplier = std::numeric_limits<double>::max();
@@ -267,7 +264,7 @@ struct InitialPartitioningParameters {
   size_t lp_initial_block_size = 1;
   size_t population_size = 16;
   bool apply_star_partitioning_per_candidate = false;
-  bool apply_star_partitioning_to_best = true;
+  bool apply_star_partitioning_to_best = false;
   bool reinsert_separated = false;
   IPSNodesRater rater = IPSNodesRater::none;
 };

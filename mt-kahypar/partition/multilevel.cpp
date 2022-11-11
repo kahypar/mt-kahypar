@@ -224,7 +224,7 @@ namespace mt_kahypar::multilevel {
         SepNodesStack stack(_hg.separatedNodes().finest().createCopyFromSavepoint());
         const HypernodeID start_num_nodes = _hg.numSeparatedNodes();
         const HypernodeID target_num_nodes = _uncoarseningData->calculateSeparatedNodesTargetSize(
-                                              _uncoarseningData->coarsestPartitionedHypergraph().hypergraph(), _hg);
+                                              _uncoarseningData->coarsestPartitionedHypergraph().hypergraph());
         star_partitioning::coarsenSynchronized(stack, _hg, _uncoarseningData->hierarchy, _context,
                                                start_num_nodes, target_num_nodes, part_id_ptr);
         _uncoarseningData->partitioned_hg->setSeparatedNodes(&stack);
@@ -351,7 +351,7 @@ namespace mt_kahypar::multilevel {
         SepNodesStack stack(_hg.separatedNodes().finest().createCopyFromSavepoint());
         const HypernodeID start_num_nodes = _hg.numSeparatedNodes();
         const HypernodeID target_num_nodes = _uncoarseningData.calculateSeparatedNodesTargetSize(
-                                              _uncoarseningData.coarsestPartitionedHypergraph().hypergraph(), _hg);
+                                              _uncoarseningData.coarsestPartitionedHypergraph().hypergraph());
         star_partitioning::coarsenSynchronized(stack, _hg, _uncoarseningData.hierarchy, _context,
                                                start_num_nodes, target_num_nodes, nullptr);
         _uncoarseningData.partitioned_hg->setSeparatedNodes(&stack);

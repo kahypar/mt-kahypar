@@ -215,7 +215,6 @@ namespace mt_kahypar {
   std::ostream & operator<< (std::ostream& os, const SNodesCoarseningSize& type) {
     switch (type) {
       case SNodesCoarseningSize::constant: return os << "constant";
-      case SNodesCoarseningSize::logarithmic: return os << "logarithmic";
       case SNodesCoarseningSize::do_not_coarsen: return os << "do_not_coarsen";
         // omit default case to trigger compiler warning for missing cases
     }
@@ -419,8 +418,6 @@ namespace mt_kahypar {
   SNodesCoarseningSize sNodesCoarseningSizeFromString(const std::string& type) {
     if (type == "constant") {
       return SNodesCoarseningSize::constant;
-    } else if (type == "logarithmic") {
-      return SNodesCoarseningSize::logarithmic;
     } else if (type == "do_not_coarsen") {
       return SNodesCoarseningSize::do_not_coarsen;
     }
