@@ -27,7 +27,7 @@ hyperedge with the number of blocks connected by that hyperedge (sum over the te
 
 When we started to work on this topic, we realized there was a large gap between the solution quality of the partitions produced by sequential and parallel partitioning algorithms. We then started to parallelize all techniques used in the best sequential partitioning algorithms without compromises in solution quality. The main outcome of our work is a parallel partitioning algorithm that can partition extremely large graphs and hypergraphs (with billion of edges) with comparable solution quality to the best sequential graph partitioner [KaFFPa](https://github.com/KaHIP/KaHIP) and hypergraph partitioner [KaHyPar](https://kahypar.org/) while being (more) than an order of magnitude faster with only ten threads.
 
-Initially, we focused on hypergraph partitioning but recently implemented optimized data structures for graph partitioning (which led to a speedup by a factor of 2 for graphs). Besides our high-quality configuration, we provide several other faster configurations that are already
+Initially, we focused on hypergraph partitioning but recently implemented optimized data structures for graph partitioning (which led to a speedup by a factor of two for graphs). Besides our high-quality configuration, we provide several other faster configurations that are already
 able to outperform most of the existing partitioning algorithms with regard to solution quality and running time. Moreover, we also provide a deterministic version of our partitioning algorithm. We refer the reader to our [publications](#licensing) for more information.
 
 <img src="https://cloud.githubusercontent.com/assets/484403/25314222/3a3bdbda-2840-11e7-9961-3bbc59b59177.png" alt="alt text" width="50%" height="50%"><img src="https://cloud.githubusercontent.com/assets/484403/25314225/3e061e42-2840-11e7-860c-028a345d1641.png" alt="alt text" width="50%" height="50%">
@@ -60,29 +60,24 @@ Building Mt-KaHyPar
 3. Run cmake: `cmake .. -DCMAKE_BUILD_TYPE=RELEASE`
 4. Run make: `make MtKaHyPar -j`
 
-The build produces five executables, which will be located in `build/mt-kahypar/application/`:
-
-- `MtKaHyParDefault` and `MtKaHyParGraph` (Mt-KaHyPar-D): computes good partitions very fast
-- `MtKaHyPar(Graph)Quality` (Mt-KaHyPar-Q): computes high-quality partitions in reasonable time (using n levels)
-- `MtKaHyPar`: wrapper around the five binaries
-
-Note that `MtKaHyParGraph` and `MtKaHyParGraphQuality` uses the same feature set as `MtKaHyParDefault` and `MtKaHyParQuality`. However, they replace the internal hypergraph data structure of with a graph data structure. In fact, both are a factor of 2 faster for graphs on average.
+The build produces the executable `MtKaHyPar`, which can be found in `build/mt-kahypar/application/`
 
 Running Mt-KaHyPar
 -----------
 
 Mt-KaHyPar has several configuration parameters. We recommend to use one of our presets (also located in the `config` folder):
 
-- `default`: default parameters for Mt-KaHyPar-D/-Graph (`config/default_preset.ini`)
-- `default_flows`: extends the default preset with flow-based refinement (`config/default_flow_preset.ini`)
-- `deterministic`: parameters to make Mt-KaHyPar-D deterministic (`config/deterministic_preset.ini`)
-- `quality`: default parameters for Mt-KaHyPar-Q (`config/quality_preset.ini`)
-- `quality_flows`: extends the quality preset with flow-based refinement (`config/quality_flow_preset.ini`)
+- `default`: corresponds to Mt-KaHyPar-D in our publications (`config/default_preset.ini`)
+- `default_flows`: corresponds to Mt-KaHyPar-D-F (`config/default_flow_preset.ini`)
+- `quality`: corresponds to Mt-KaHyPar-Q (`config/quality_preset.ini`)
+- `quality_flows`: corresponds to Mt-KaHyPar-Q-F (`config/quality_flow_preset.ini`)
+- `deterministic`: configuration for deterministic partitioning (`config/deterministic_preset.ini`)
 
 The presets can be ranked from lowest to the highest quality as follows: `deterministic`,
 `default`, `quality`, `default_flows` and `quality_flows`.
-Deterministic mode is only supported for Mt-KaHyPar-D, not -Graph or -Q.
-If you want to change parameters manually, please run `--help` for a detailed description of the different program options. We use the [hMetis format](http://glaros.dtc.umn.edu/gkhome/fetch/sw/hmetis/manual.pdf) for hypergraph files as well as the partition output file and the [Metis format](http://glaros.dtc.umn.edu/gkhome/fetch/sw/metis/manual.pdf) for graph files. Per default, we expect the input to be in hMetis format, but you can read graphs in Metis format via command line parameter `--input-file-format=metis`.
+Initially, we started with the `default` and `quality` configuration and then extended both configurations with flow-based refinement (`default_flows` and `quality_flows`). We then found that our `default_flows` configuration produces better partitions than the `quality` configuration. However, we still keep the naming due to the naming in our publications. In general, we recommend to use the `default` configuration to compute good partitions very fast and the `default_flows` configuration to compute high-quality solutions. The `quality_flows` configuration computes better partitions than our `default_flows` configuration by 0.5% on average at the cost of a two times longer running time for medium-sized instances (up to 100 million pins).
+
+If you want to change configuration parameters manually, please run `--help` for a detailed description of the different program options. We use the [hMetis format](http://glaros.dtc.umn.edu/gkhome/fetch/sw/hmetis/manual.pdf) for hypergraph files as well as the partition output file and the [Metis format](http://glaros.dtc.umn.edu/gkhome/fetch/sw/metis/manual.pdf) for graph files. Per default, we expect the input to be in hMetis format, but you can read graphs in Metis format via command line parameter `--input-file-format=metis`. If your input file is a graph, you can switch to our optimized graph data structures via command line parameter `--instance-type=graph`.
 
 To run Mt-KaHyPar, you can use the following command:
 
@@ -90,14 +85,14 @@ To run Mt-KaHyPar, you can use the following command:
 
 or directly provide a configuration file (see `config` folder):
 
-    ./MtKaHyPar -h <path-to-hgr> -p <path-to-config-file> -t <# threads> -k <# blocks> -e <imbalance (e.g. 0.03)> -o km1 -m direct
+    ./MtKaHyPar -h <path-to-hgr> -p <path-to-config-file> --instance_type=<hypergraph/graph> -t <# threads> -k <# blocks> -e <imbalance (e.g. 0.03)> -o km1 -m direct
 
-Note that when `--instance-type=graph` is set, we run Mt-KaHyPar-Graph (only available for preset types `default` and `default_flows`), otherwise Mt-KaHyPar-D or -Q based on the preset type. The partition output file will be placed in the same folder as the input hypergraph file. If you want to change the default partition output folder, add the command line parameter `--partition-output-folder=path/to/folder`. There is also an option to disable writing the partition file `--write-partition-file=false`. Further, there are several useful options that can provide you with additional insights during and after the partitioning process:
-- `--show-detailed-timings=true`: Shows detailed subtimings of each multilevel phase at the end of the partitioning process
-- `--show-memory-consumption=true`: Gives detailed information on how much memory was allocated and how memory is reused throughout the algorithm
+The partition output file will be placed in the same folder as the input hypergraph file. If you want to change the default partition output folder, add the command line parameter `--partition-output-folder=path/to/folder`. There is also an option to disable writing the partition file `--write-partition-file=false`. Further, there are several useful options that can provide you with additional insights during and after the partitioning process:
+- `--verbose=true`: Enables partitioning output
+- `--show-detailed-timings=true`: Shows detailed subtimings of each phase of the algorithm at the end of partitioning
 - `--enable-progress-bar=true`: Shows a progess bar during the coarsening and refinement phase
 
-Mt-KaHyPar uses 32-bit vertex and hyperedge IDs. If you want to partition hypergraphs with more than 4.294.967.295 vertices or hyperedges, add option `-DKAHYPAR_USE_64_BIT_IDS=ON` to the `cmake` build command.
+Mt-KaHyPar uses 32-bit node and hyperedge IDs. If you want to partition hypergraphs with more than 4.294.967.295 nodes or hyperedges, add option `-DKAHYPAR_USE_64_BIT_IDS=ON` to the `cmake` build command.
 
 Performance
 -----------
