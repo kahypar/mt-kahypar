@@ -114,7 +114,7 @@ overview of Mt-KaHyPar's performance compared to other prominent state-of-the-ar
 and quality.
 
 
-Using the Library Interfaces
+The C Library Interface
 -----------
 
 We provide a simple C-style interface to use Mt-KaHyPar as a library.  The library can be built and installed via
@@ -211,6 +211,61 @@ To remove the library from your system use the provided uninstall target:
 
 ```sh
 make uninstall-mtkahypar
+```
+
+The Python Library Interfaces
+-----------
+
+To compile the Python interface, do the following:
+
+1. Create a build directory: `mkdir build && cd build`
+2. Run cmake: `cmake .. -DCMAKE_BUILD_TYPE=RELEASE`
+3. Go to the python libary folder: `cd python`
+4. Compile the libarary: `make`
+5. Copy the libary to your site-packages directory: `cp mtkahyparhgp.so <path-to-site-packages>` and `cp mtkahypargp.so <path-to-site-packages>`
+
+The build produces two python modules: `mtkahyparhgp` and `mtkahypargp`. `mtkahyparhgp` can be used to partition hypergraphs and `mtkahypargp` to
+partition graphs. **Note** that it is **not** possible to import both modules in the same python project.
+
+A documentation of the python modules can be found in `python/module_hgp.cpp` and `python_gp.cpp`. We also provide several examples
+in the folder `python/examples` that show how to use the python interface.
+
+Here is a short example how you can partition a hypergraph using our python interface:
+
+```py
+import multiprocessing
+import mtkahyparhgp as hgp
+
+# Initialize thread pool
+hgp.initializeThreadPool(multiprocessing.cpu_count()) # use all available cores
+
+# Setup partitioning context
+context = hgp.Context()
+context.loadPreset(hgp.PresetType.SPEED) # corresponds to Mt-KaHyPar-D
+# In the following, we partition a hypergraph into two blocks
+# with an allowed imbalance of 3% and optimize the connectivity metric
+context.setPartitioningParameters(
+  2,                 # number of blocks
+  0.03,              # imbalance parameter
+  hgp.Objective.KM1, # objective function
+  42)                # seed
+context.enableLogging(True)
+
+# Load hypergraph from file
+hypergraph = hgp.Hypergraph(
+  "path/to/hypergraph/file", # hypergraph file
+  hgp.FileFormat.HMETIS) # hypergraph is stored in hMetis file format
+
+# Partition hypergraph
+partitioned_hg = hgp.partition(hypergraph, context)
+
+# Output metrics
+print("Partition Stats:")
+print("Imbalance = " + str(partitioned_hg.imbalance()))
+print("km1       = " + str(partitioned_hg.km1()))
+print("Block Weights:")
+print("Weight of Block 0 = " + str(partitioned_hg.blockWeight(0)))
+print("Weight of Block 1 = " + str(partitioned_hg.blockWeight(1)))
 ```
 
 Bug Reports
