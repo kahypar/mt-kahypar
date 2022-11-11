@@ -24,7 +24,6 @@
 # SOFTWARE.
 #*****************************************************************************/
 
-from tokenize import Double
 import unittest
 import os
 import multiprocessing

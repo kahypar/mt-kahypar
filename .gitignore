@@ -43,3 +43,4 @@ lib/examples/example
 python/tests/os
 python/tests/unittest
 python/tests/*.so
+python/examples/*.so
