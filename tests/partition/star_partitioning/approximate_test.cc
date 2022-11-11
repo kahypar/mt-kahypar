@@ -24,6 +24,7 @@
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
 #include "mt-kahypar/partition/star_partitioning/approximate.h"
 #include "mt-kahypar/datastructures/array.h"
+#include "mt-kahypar/datastructures/separated_nodes.h"
 
 #include <tbb/parallel_sort.h>
 
@@ -31,8 +32,11 @@ using ::testing::Test;
 
 namespace mt_kahypar {
 using ds::Array;
+using ds::SeparatedNodes;
+using ds::SepNodesStack;
+using star_partitioning::Approximate;
 
-class AnApproximate : public Test {
+class AMinKnapsack : public Test {
  public:
   void initialize(std::vector<HypernodeWeight>&& weights, std::vector<HyperedgeWeight>&& gains) {
     ASSERT(weights.size() == gains.size());
@@ -76,7 +80,67 @@ class AnApproximate : public Test {
   std::vector<HyperedgeWeight> _gains;
 };
 
-TEST_F(AnApproximate, EdgeCase) {
+class AnApproximate : public Test {
+
+ public:
+  AnApproximate() : graph(), context(), stack() {
+  }
+
+  void initialize(HypernodeID num_nodes, std::vector<HypernodeWeight> max_part_weights,
+                  vec<vec<std::pair<HypernodeID, HyperedgeWeight>>> sep_nodes, vec<HypernodeWeight> node_weights = {}) {
+    graph = HypergraphFactory::construct(num_nodes, 0, {});
+    stack = SepNodesStack(num_nodes);
+    graph.setSeparatedNodes(&stack);
+
+    context.partition.k = max_part_weights.size();
+    context.partition.max_part_weights = std::move(max_part_weights);
+
+    SeparatedNodes& s_nodes = stack.onliest();
+    vec<std::tuple<HypernodeID, HyperedgeID, HypernodeWeight>> nodes;
+    vec<SeparatedNodes::Edge> s_edges;
+    size_t i = 0;
+    for (const auto& edges_of_node: sep_nodes) {
+      const HypernodeWeight weight = node_weights.empty() ? 1 : node_weights[i++];
+      nodes.emplace_back(kInvalidHypernode, s_edges.size(), weight);
+      for (const auto& [target, weight]: edges_of_node) {
+        s_edges.emplace_back(target, weight);
+      }
+    }
+    s_nodes.addNodes(graph, nodes, s_edges);
+    s_nodes.revealAll();
+    s_nodes.initializeOutwardEdges();
+
+    phg = PartitionedHypergraph(context.partition.k, graph);
+    phg.initializeSeparatedParts();
+    phg.initializePartition();
+  }
+
+  void setup(vec<PartitionID> parts) {
+    phg.resetPartition();
+    ASSERT(parts.size() == phg.initialNumNodes());
+    for (size_t i = 0; i < parts.size(); ++i) {
+      phg.setOnlyNodePart(i, parts[i]);
+    }
+  }
+
+  void partition(bool parallel) {
+    Approximate ap(context.partition.k);
+    Array<HypernodeWeight> part_weights;
+    part_weights.assign(context.partition.k, 0, parallel);
+    if (parallel) {
+      ap.partition(phg, stack.onliest(), context, part_weights, parallel_tag_t());
+    } else {
+      ap.partition(phg, stack.onliest(), context, part_weights);
+    }
+  }
+
+  PartitionedHypergraph phg;
+  Hypergraph graph;
+  Context context;
+  SepNodesStack stack;
+};
+
+TEST_F(AMinKnapsack, EdgeCase) {
     initialize({}, {});
     applyMinKnapsack(0, {});
     applyMinKnapsack(10, {});
@@ -86,7 +150,7 @@ TEST_F(AnApproximate, EdgeCase) {
     applyMinKnapsack(3, {});
 }
 
-TEST_F(AnApproximate, SimpleCases) {
+TEST_F(AMinKnapsack, SimpleCases) {
     initialize({4, 3, 2}, {5, 4, 3});
     applyMinKnapsack(2, {0, 1});
     applyMinKnapsack(3, {0, 2});
@@ -99,53 +163,33 @@ TEST_F(AnApproximate, SimpleCases) {
     applyMinKnapsack(10, {});
 }
 
-TEST_F(AnApproximate, WeightZero) {
+TEST_F(AMinKnapsack, WeightZero) {
     initialize({1, 1, 0, 0}, {1, 2, 1, 0});
     applyMinKnapsack(0, {0, 1});
     applyMinKnapsack(1, {0});
     applyMinKnapsack(2, {});
 }
 
-// TEST_F(AnApproximate, TestMultipleParts) {
-//     Array<HypernodeWeight> part_weights;
-//     part_weights.assign(2, 0);
-//     std::vector<HypernodeWeight> max_part_weights{5, 5};
-//     std::vector<HypernodeWeight> weights{3, 1, 3, 2, 1};
-//     std::vector<HyperedgeWeight> gains{10, 9, 2, 1, 4, 0, 3, 0, 2, 0};
+TEST_F(AnApproximate, TestMultipleParts) {
+    initialize(2, {5, 5}, { {{0, 10}, {1, 9}}, {{0, 2}, {1, 1}}, {{0, 4}, {1, 0}},
+                            {{0, 3}, {1, 0}}, {{0, 2}, {1, 0}} }, {3, 1, 3, 2, 1});
+    setup({0, 1});
+    partition(false);
 
-//     star_partitioning::Approximate ap(2);
-//     ap.partition(5, part_weights, max_part_weights,
-//       [&](HyperedgeWeight* w, const HypernodeID node) { w[0] = gains[2 * node]; w[1] = gains[2 * node + 1]; },
-//       [&](const HypernodeID node) { return weights[node]; },
-//       [&](const HypernodeID node, const PartitionID part) {
-//         if (node == 0 || node == 1 || node == 4) {
-//             ASSERT_EQ(part, 1);
-//         } else {
-//             ASSERT_EQ(part, 0);
-//         }
-//       }
-//     );
-// }
+    ASSERT_EQ(1, phg.separatedPartID(0));
+    ASSERT_EQ(1, phg.separatedPartID(1));
+    ASSERT_EQ(0, phg.separatedPartID(2));
+    ASSERT_EQ(0, phg.separatedPartID(3));
+    ASSERT_EQ(1, phg.separatedPartID(4));
 
-// TEST_F(AnApproximate, TestMultiplePartsParallel) {
-//     Array<HypernodeWeight> part_weights;
-//     part_weights.assign(2, 0);
-//     std::vector<HypernodeWeight> max_part_weights{5, 5};
-//     std::vector<HypernodeWeight> weights{3, 1, 3, 2, 1};
-//     std::vector<HyperedgeWeight> gains{10, 9, 2, 1, 4, 0, 3, 0, 2, 0};
+    setup({0, 1});
+    partition(true);
 
-//     star_partitioning::Approximate ap(2);
-//     ap.partition(5, part_weights, max_part_weights,
-//       [&](HyperedgeWeight* w, const HypernodeID node) { w[0] = gains[2 * node]; w[1] = gains[2 * node + 1]; },
-//       [&](const HypernodeID node) { return weights[node]; },
-//       [&](const HypernodeID node, const PartitionID part) {
-//         if (node == 0 || node == 1 || node == 4) {
-//             ASSERT_EQ(part, 1);
-//         } else {
-//             ASSERT_EQ(part, 0);
-//         }
-//       }, parallel_tag_t()
-//     );
-// }
+    ASSERT_EQ(1, phg.separatedPartID(0));
+    ASSERT_EQ(1, phg.separatedPartID(1));
+    ASSERT_EQ(0, phg.separatedPartID(2));
+    ASSERT_EQ(0, phg.separatedPartID(3));
+    ASSERT_EQ(1, phg.separatedPartID(4));
+}
 
 }  // namespace mt_kahypar
