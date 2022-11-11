@@ -7,8 +7,7 @@ License|Linux Build|Code Coverage|Code Quality
 Table of Contents
 -----------
 
-   * [What is a Hypergraph? What is Hypergraph Partitioning?](#what-is-a-hypergraph-what-is-hypergraph-partitioning)
-   * [What is Mt-KaHyPar?](#what-is-mt-kahypar)
+   * [About Mt-KaHyPar](#about-mt-kahypar)
    * [Requirements](#requirements)
    * [Building Mt-KaHyPar](#building-mt-kahypar)
    * [Running Mt-KaHyPar](#running-mt-kahypar)
@@ -17,40 +16,21 @@ Table of Contents
    * [The Python Library Interface](#the-python-library-interface)
    * [Licensing](#licensing)
 
-What is a Hypergraph? What is Hypergraph Partitioning?
+About Mt-KaHyPar
 -----------
-Hypergraphs are a generalization of graphs, where each (hyper)edge (also called net) can
-connect more than two vertices. The *k*-way hypergraph partitioning problem is the generalization of the well-known graph partitioning problem: partition the vertex set into *k* disjoint
-blocks of bounded size (at most 1 + ε times the average block size), while minimizing an
-objective function defined on the nets.
+Mt-KaHyPar is a shared-memory algorithm for partitioning graphs and hypergraphs. The balanced (hyper)graph partitioning problem
+asks for a partition of the node set of a (hyper)graph into *k* disjoint blocks of roughly the same size (usually a small imbalance
+is allowed by at most 1 + ε times the average block weight), while simultanously minimizing an objective function defined on the (hyper)edges.
+The edge-cut metric is the most prominent objective function for graph partitioning, which sums over the weight of all edges that connect
+two blocks. For hypergraph partitioning, research has focused on the connectivity metric that additionally multiplies the weight of each
+hyperedge with the number of blocks connected by that hyperedge (sum over the terms (λ(e) − 1) * ω(e) where λ(e) is the number of blocks connected by hyperedge e and ω(e) is the weight of the hyperedge).
 
-The two most prominent objective functions are the cut-net and the connectivity (or λ − 1)
-metrics. Cut-net is a straightforward generalization of the edge-cut objective in graph partitioning
-(i.e., minimizing the sum of the weights of those nets that connect more than one block). The
-connectivity metric additionally takes into account the actual number λ of blocks connected by a
-net. By summing the (λ − 1)-values of all nets, one accurately models the total communication
-volume of parallel sparse matrix-vector multiplication and once more gets a metric that reverts
-to edge-cut for plain graphs.
+When we started to work on this topic, we realized there was a large gap between the solution quality of the partitions produced by sequential and parallel partitioning algorithms. We then started to parallelize all techniques used in the best sequential partitioning algorithms without compromises in solution quality. The main outcome of our work is a parallel partitioning algorithm that can partition extremely large graphs and hypergraphs (with billion of edges) with comparable solution quality to the best sequential graph partitioner [KaFFPa](https://github.com/KaHIP/KaHIP) and hypergraph partitioner [KaHyPar](https://kahypar.org/) while being (more) than an order of magnitude faster with only ten threads.
 
+Initially, we focused on hypergraph partitioning but recently implemented optimized data structures for graph partitioning (which led to a speedup by a factor of 2 for graphs). Besides our high-quality configuration, we provide several other faster configurations that are already
+able to outperform most of the existing partitioning algorithms with regard to solution quality and running time. Moreover, we also provide a deterministic version of our partitioning algorithm. We refer the reader to our [publications](#licensing) for more information.
 
 <img src="https://cloud.githubusercontent.com/assets/484403/25314222/3a3bdbda-2840-11e7-9961-3bbc59b59177.png" alt="alt text" width="50%" height="50%"><img src="https://cloud.githubusercontent.com/assets/484403/25314225/3e061e42-2840-11e7-860c-028a345d1641.png" alt="alt text" width="50%" height="50%">
-
-What is Mt-KaHyPar?
------------
-Mt-KaHyPar is a shared-memory multilevel hypergraph partitioning framework
-for optimizing the (λ − 1)-metric.
-As a multilevel algorithm, it consist of three phases: In the *coarsening phase*, the
-hypergraph is coarsened to obtain a hierarchy of smaller hypergraphs. After applying an
-*initial partitioning* algorithm to the smallest hypergraph in the second phase, coarsening is
-undone and, at each level, several *local search* methods are used to improve the partition induced by
-the coarser level. Additionally, we use a hypergraph clustering algorithm as preprocessing
-to restrict contractions to densely coupled regions during coarsening.
-
-The Mt-KaHyPar framework provides two hypergraph partitioners and a graph partitioner:
-
-- **Mt-KaHyPar-D**: A scalable partitioner that computes good partitions very fast (for hypergraphs)
-- **Mt-KaHyPar-Graph**: A scalable partitioner that computes good partitions very fast (for graphs)
-- **Mt-KaHyPar-Q**: A scalable partitioner that computes high-quality partitions
 
 Requirements
 -----------
