@@ -138,7 +138,7 @@ public:
         parallel::MemoryPool::instance().release_mem_group("Coarsening");
       }
 
-      if (!_context.coarsening.sep_nodes_sync_coarsening) {
+      if (!_context.coarsening.sep_nodes_sync_coarsening && _hg.hasSeparatedNodes()) {
         Hypergraph& coarsest_hg = hierarchy.empty() ? _hg : hierarchy.back().contractedHypergraph();
         const HypernodeID separatedTargetSize = calculateSeparatedNodesTargetSize(coarsest_hg, _hg, true);
         if (separatedTargetSize < coarsest_hg.separatedNodes().onliest().numNodes()) {

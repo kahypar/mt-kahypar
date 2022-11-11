@@ -151,7 +151,8 @@ namespace mt_kahypar::multilevel {
     RefinementTask(Hypergraph& hypergraph,
                    PartitionedHypergraph& partitioned_hypergraph,
                    const Context& context,
-                   std::shared_ptr<UncoarseningData> uncoarseningData) :
+                   std::shared_ptr<UncoarseningData> uncoarseningData,
+                   bool vcycle) :
             _sparsifier(nullptr),
             _ip_context(context),
             _degree_zero_hn_remover(context),
@@ -159,7 +160,8 @@ namespace mt_kahypar::multilevel {
             _hg(hypergraph),
             _partitioned_hg(partitioned_hypergraph),
             _context(context),
-            _uncoarseningData(uncoarseningData) {
+            _uncoarseningData(uncoarseningData),
+            _vcycle(vcycle) {
       // Must be empty, because final partitioned hypergraph
       // is moved into this object
       _sparsifier = HypergraphSparsifierFactory::getInstance().createObject(
@@ -205,7 +207,7 @@ namespace mt_kahypar::multilevel {
       }
 
       // ################## SEPARATED NODES COARSENING ##################
-      if (_context.refinement.include_separated) {
+      if (_context.refinement.include_separated && !_vcycle) {
         Array<PartitionID> part_ids;
         Array<PartitionID>* part_id_ptr = nullptr;
         if (_context.refinement.separated_partition_aware_coarsening) {
@@ -291,6 +293,7 @@ namespace mt_kahypar::multilevel {
     PartitionedHypergraph& _partitioned_hg;
     const Context& _context;
     std::shared_ptr<UncoarseningData> _uncoarseningData;
+    bool _vcycle;
   };
 
   class CoarseningTask : public tbb::task {
@@ -312,7 +315,7 @@ namespace mt_kahypar::multilevel {
             _uncoarseningData(uncoarseningData) { }
 
     tbb::task* execute() override {
-      if (_context.refinement.include_separated || _context.coarsening.sep_nodes_sync_coarsening) {
+      if ((_context.refinement.include_separated || _context.coarsening.sep_nodes_sync_coarsening) && !_vcycle) {
         // separated nodes
         _hg.separatedNodes().finest().setSavepoint();
       }
@@ -344,7 +347,7 @@ namespace mt_kahypar::multilevel {
       }
 
       // ################## SEPARATED NODES COARSENING ##################
-      if (_context.coarsening.sep_nodes_sync_coarsening) {
+      if (_context.coarsening.sep_nodes_sync_coarsening && !_vcycle) {
         SepNodesStack stack(_hg.separatedNodes().finest().createCopyFromSavepoint());
         const HypernodeID start_num_nodes = _hg.numSeparatedNodes();
         const HypernodeID target_num_nodes = _uncoarseningData.calculateSeparatedNodesTargetSize(
@@ -447,7 +450,7 @@ namespace mt_kahypar::multilevel {
       std::make_shared<UncoarseningData>(nlevel, hypergraph, context);
 
     RefinementTask& refinement_task = *new(parent.allocate_continuation())
-            RefinementTask(hypergraph, partitioned_hypergraph, context, uncoarseningData);
+            RefinementTask(hypergraph, partitioned_hypergraph, context, uncoarseningData, vcycle);
     refinement_task.set_ref_count(1);
     CoarseningTask& coarsening_task = *new(refinement_task.allocate_child()) CoarseningTask(
             hypergraph, *refinement_task._sparsifier, context, refinement_task._ip_context,
@@ -528,13 +531,20 @@ namespace mt_kahypar::multilevel {
   };
 
 
-PartitionedHypergraph partition(Hypergraph& hypergraph, const Context& context) {
+PartitionedHypergraph partition(Hypergraph& hypergraph, Context& context) {
   PartitionedHypergraph partitioned_hypergraph;
     MultilevelPartitioningTask& multilevel_task = *new(tbb::task::allocate_root())
             MultilevelPartitioningTask(hypergraph, partitioned_hypergraph, context, false);
     tbb::task::spawn_root_and_wait(multilevel_task);
 
     if ( context.partition.num_vcycles > 0 && context.type == kahypar::ContextType::main ) {
+      // this is a hack, of course
+      context.coarsening.forbid_different_density_contractions = false;
+      context.coarsening.separate_size_one_communities = false;
+      context.initial_partitioning.rater = IPSNodesRater::none;
+      context.initial_partitioning.refinement.use_snodes_rater = false;
+      context.refinement.use_snodes_rater = false;
+
       partitionVCycle(hypergraph, partitioned_hypergraph, context);
     }
   return partitioned_hypergraph;

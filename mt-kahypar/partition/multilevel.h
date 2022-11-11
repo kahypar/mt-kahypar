@@ -27,7 +27,7 @@ namespace mt_kahypar::multilevel {
 
 // ! Performs multilevel partitioning on the given hypergraph
 // ! in TBB blocking-style.
-PartitionedHypergraph partition(Hypergraph& hypergraph, const Context& context);
+PartitionedHypergraph partition(Hypergraph& hypergraph, Context& context);
 // ! Performs multilevel partitioning on the given hypergraph
 // ! in TBB continuation-style.
 // ! Note, the final partitioned hypergraph is moved into the
