@@ -79,7 +79,7 @@ void detectLowDegreeNodes(const Hypergraph& hg, const Context& context, ds::Clus
 }
 
 void detectViaObjectiveFunction(const Hypergraph& hg, const Context& context, ds::Clustering& communities,
-                                std::function<double(double, double)> objective) {
+                                std::function<double(double, double, HypernodeWeight, HyperedgeWeight)> objective) {
   const HypernodeWeight total_weight = hg.totalWeight();
   tbb::enumerable_thread_specific<HyperedgeWeight> incident_weight_local(0);
   std::vector<std::pair<double, HypernodeID>> weight_to_gain_rates;
@@ -135,8 +135,10 @@ void detectViaObjectiveFunction(const Hypergraph& hg, const Context& context, ds
   HyperedgeWeight cut_weight = cut_weight_local.combine(std::plus<>());
   auto get_objective = [&] {
     const HyperedgeWeight core_edge_weight = total_incident_weight - cut_weight - internal_weight;
-    return objective(core_edge_weight / static_cast<double>(hg.totalWeight() - removed_node_weight),
-                     internal_weight / static_cast<double>(removed_node_weight));
+    const HypernodeWeight core_weight = hg.totalWeight() - removed_node_weight;
+    return objective(core_edge_weight / static_cast<double>(core_weight),
+                     internal_weight / static_cast<double>(removed_node_weight),
+                     core_weight, removed_node_weight);
   };
 
   tbb::parallel_sort(weight_to_gain_rates.begin(), weight_to_gain_rates.end(),
@@ -161,7 +163,7 @@ void detectViaObjectiveFunction(const Hypergraph& hg, const Context& context, ds
       }
       removed_node_weight += hg.nodeWeight(u);
     }
-    if (get_objective() >= old_obj) {
+    if (get_objective() > old_obj) {
       internal_weight = old_internal_weight;
       cut_weight = old_cut_weight;
       removed_node_weight -= hg.nodeWeight(u);

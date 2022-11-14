@@ -231,6 +231,15 @@ namespace mt_kahypar {
     return os << static_cast<uint8_t>(type);
   }
 
+  std::ostream & operator<< (std::ostream& os, const ClusteringObjFunc& type) {
+    switch (type) {
+      case ClusteringObjFunc::multiply: return os << "multiply";
+      case ClusteringObjFunc::squared: return os << "squared";
+        // omit default case to trigger compiler warning for missing cases
+    }
+    return os << static_cast<uint8_t>(type);
+  }
+
   Mode modeFromString(const std::string& mode) {
     if (mode == "rb") {
       return Mode::recursive_bipartitioning;
@@ -435,5 +444,15 @@ namespace mt_kahypar {
     }
     ERROR("Illegal option: " + type);
     return IPSNodesRater::none;
+  }
+
+  ClusteringObjFunc clusteringObjFuncFromString(const std::string& type) {
+    if (type == "multiply") {
+      return ClusteringObjFunc::multiply;
+    } else if (type == "squared") {
+      return ClusteringObjFunc::squared;
+    }
+    ERROR("Illegal option: " + type);
+    return ClusteringObjFunc::multiply;
   }
 }

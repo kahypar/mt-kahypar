@@ -158,10 +158,23 @@ namespace mt_kahypar {
       if (context.preprocessing.detect_low_degree_nodes) {
         star_partitioning::detectLowDegreeNodes(hypergraph, context, communities);
       } else if (context.preprocessing.detect_via_obj_func) {
-        star_partitioning::detectViaObjectiveFunction(hypergraph, context, communities,
-          [](double core_density, double sep_density) {
-            return sep_density / core_density;
-          });
+        switch (context.preprocessing.obj_func) {
+          case ClusteringObjFunc::multiply:
+            star_partitioning::detectViaObjectiveFunction(hypergraph, context, communities,
+              [](double core_density, double sep_density, HypernodeWeight, HypernodeWeight) {
+                return sep_density / core_density;
+              });
+            break;
+          case ClusteringObjFunc::squared:
+            star_partitioning::detectViaObjectiveFunction(hypergraph, context, communities,
+              [](double core_density, double sep_density, HypernodeWeight core_weight, HypernodeWeight sep_weight) {
+                return sep_density / core_density * (static_cast<double>(core_weight) / static_cast<double>(sep_weight));
+              });
+            break;
+
+          default:
+            ERROR("Invalid objective function");
+        }
       }
       graph.restrictClusteringToHypernodes(hypergraph, communities);
       hypergraph.setCommunityIDs(std::move(communities));

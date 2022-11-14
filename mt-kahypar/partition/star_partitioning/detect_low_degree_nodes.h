@@ -29,7 +29,7 @@ namespace star_partitioning {
 void detectLowDegreeNodes(const Hypergraph& hg, const Context& context, ds::Clustering& communities);
 
 void detectViaObjectiveFunction(const Hypergraph& hg, const Context& context, ds::Clustering& communities,
-                                std::function<double(double, double)> objective);
+                                std::function<double(double, double, HypernodeWeight, HyperedgeWeight)> objective);
 
 } // namepace star_partitioning
 } // namepace mt_kahypar

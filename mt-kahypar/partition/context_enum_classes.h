@@ -157,6 +157,11 @@ enum class IPSNodesRater : uint8_t {
   naive
 };
 
+enum class ClusteringObjFunc : uint8_t {
+  multiply,
+  squared
+};
+
 std::ostream & operator<< (std::ostream& os, const Type& type);
 
 std::ostream & operator<< (std::ostream& os, const FileFormat& type);
@@ -195,6 +200,8 @@ std::ostream & operator<< (std::ostream& os, const SNodesCoarseningSize& algo);
 
 std::ostream & operator<< (std::ostream& os, const IPSNodesRater& algo);
 
+std::ostream & operator<< (std::ostream& os, const ClusteringObjFunc& algo);
+
 Mode modeFromString(const std::string& mode);
 
 InstanceType instanceTypeFromString(const std::string& type);
@@ -226,5 +233,7 @@ StarPartitioningAlgorithm starPartitioningAlgorithmFromString(const std::string&
 SNodesCoarseningSize sNodesCoarseningSizeFromString(const std::string& type);
 
 IPSNodesRater ipSNodesRaterFromString(const std::string& type);
+
+ClusteringObjFunc clusteringObjFuncFromString(const std::string& type);
 
 }  // namesapce mt_kahypar
