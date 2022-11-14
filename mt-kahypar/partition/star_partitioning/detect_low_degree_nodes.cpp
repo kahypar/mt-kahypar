@@ -22,6 +22,7 @@
 
 #include "mt-kahypar/utils/hypergraph_statistics.h"
 #include "mt-kahypar/utils/stats.h"
+#include "mt-kahypar/parallel/stl/thread_locals.h"
 
 #include <tbb/parallel_sort.h>
 
@@ -29,6 +30,53 @@
 
 namespace mt_kahypar {
 namespace star_partitioning {
+
+template<typename F>
+void collectStats(const Hypergraph& hg, const Context& context, F is_separated) {
+  tbb::enumerable_thread_specific<ArcWeight> total_edges_l(0);
+  tbb::enumerable_thread_specific<ArcWeight> adjacent_edges_l(0);
+  tbb::enumerable_thread_specific<ArcWeight> intern_edges_l(0);
+  tbb::enumerable_thread_specific<ArcWeight> core_edges_l(0);
+  tbb::enumerable_thread_specific<HypernodeWeight> sep_weight_l(0);
+  tbb::enumerable_thread_specific<HypernodeWeight> core_weight_l(0);
+  hg.doParallelForAllNodes([&](const HypernodeID& node) {
+    if (is_separated(node)) {
+      for (const HyperedgeID& e : hg.incidentEdges(node)) {
+        const HypernodeID target = hg.edgeTarget(e);
+        adjacent_edges_l.local() += hg.edgeWeight(e);
+        if (is_separated(target)) {
+          intern_edges_l.local() += hg.edgeWeight(e);
+        }
+        total_edges_l.local() += hg.nodeWeight(node);
+      }
+      sep_weight_l.local() += hg.nodeWeight(node);
+    } else {
+      for (const HyperedgeID& e : hg.incidentEdges(node)) {
+        if (!is_separated(hg.edgeTarget(e))) {
+          core_edges_l.local() += hg.edgeWeight(e);
+        } else {
+          adjacent_edges_l.local() += hg.edgeWeight(e);
+        }
+        total_edges_l.local() += hg.nodeWeight(node);
+      }
+      core_weight_l.local() += hg.nodeWeight(node);
+    }
+  });
+
+  const ArcWeight total_edges = total_edges_l.combine(std::plus<>());
+  const ArcWeight adjacent_edges = adjacent_edges_l.combine(std::plus<>());
+  const ArcWeight intern_edges = intern_edges_l.combine(std::plus<>());
+  const ArcWeight core_edges = core_edges_l.combine(std::plus<>());
+  const HypernodeWeight sep_weight = sep_weight_l.combine(std::plus<>());
+  const HypernodeWeight core_weight = core_weight_l.combine(std::plus<>());
+  utils::Stats::instance().update_stat("sep_total_edges", adjacent_edges);
+  utils::Stats::instance().update_stat("sep_intern_edge_fraction", static_cast<double>(intern_edges) / static_cast<double>(adjacent_edges));
+  utils::Stats::instance().update_stat("total_density", total_edges / static_cast<double>(hg.totalWeight()));
+  utils::Stats::instance().update_stat("core_density", core_edges / static_cast<double>(core_weight));
+  utils::Stats::instance().update_stat("sep_density", intern_edges / static_cast<double>(sep_weight));
+  utils::Stats::instance().update_stat("core_weight", core_weight / static_cast<double>(hg.totalWeight()));
+  utils::Stats::instance().update_stat("stdev_factor", context.preprocessing.community_detection.isolated_nodes_threshold_stdev_factor);
+}
 
 void detectLowDegreeNodes(const Hypergraph& hg, const Context& context, ds::Clustering& communities) {
   const HypernodeWeight total_weight = hg.totalWeight();
@@ -76,6 +124,21 @@ void detectLowDegreeNodes(const Hypergraph& hg, const Context& context, ds::Clus
       communities[u] = u;
     }
   });
+
+  if (context.preprocessing.community_detection.collect_component_stats) {
+    collectStats(hg, context, [&](const HypernodeID& u) {
+      const double incident_weight = hg.incidentWeight(u);
+      if (incident_weight <= 0 || incident_weight <= static_cast<double>(hg.nodeWeight(u)) * min_gain) {
+        return true;
+      }
+      for (const HyperedgeID& e : hg.incidentEdges(u)) {
+        if (communities[hg.edgeTarget(e)] != communities[u]) {
+          return false;
+        }
+      }
+      return true;
+    });
+  }
 }
 
 void detectViaObjectiveFunction(const Hypergraph& hg, const Context& context, ds::Clustering& communities,
@@ -168,9 +231,24 @@ void detectViaObjectiveFunction(const Hypergraph& hg, const Context& context, ds
       cut_weight = old_cut_weight;
       removed_node_weight -= hg.nodeWeight(u);
     } else {
+      removed_nodes[u] = 1;
       communities[u] = u;
       ++num_iter;
     }
+  }
+
+  if (context.preprocessing.community_detection.collect_component_stats) {
+    collectStats(hg, context, [&](const HypernodeID& u) {
+      if (removed_nodes[u] != 0) {
+        return true;
+      }
+      for (const HyperedgeID& e : hg.incidentEdges(u)) {
+        if (communities[hg.edgeTarget(e)] != communities[u]) {
+          return false;
+        }
+      }
+      return true;
+    });
   }
 }
 

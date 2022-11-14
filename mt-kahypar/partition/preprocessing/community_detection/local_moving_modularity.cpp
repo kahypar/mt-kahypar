@@ -320,134 +320,45 @@ bool ParallelLocalMovingModularity::localMoving(Graph& graph, ds::Clustering& co
 
     if (top_level && _context.preprocessing.community_detection.collect_component_stats) {
       // some general stats
-      ArcWeight adjacent_edges = 0;
-      ArcWeight intern_edges = 0;
-      ArcWeight adjacent_edges_non_iso = 0;
-      HypernodeID truly_isolated_nodes = 0;
-      HypernodeWeight sep_weight = 0;
-      HypernodeWeight core_weight = 0;
-      ArcWeight core_edges = 0;
-      for (const HypernodeID& node: nodes) {
-        bool truly_isolated = true;
-        ArcWeight current_adj = 0;
+      tbb::enumerable_thread_specific<ArcWeight> adjacent_edges_l(0);
+      tbb::enumerable_thread_specific<ArcWeight> intern_edges_l(0);
+      tbb::enumerable_thread_specific<ArcWeight> core_edges_l(0);
+      tbb::enumerable_thread_specific<HypernodeWeight> sep_weight_l(0);
+      tbb::enumerable_thread_specific<HypernodeWeight> core_weight_l(0);
+      tbb::parallel_for(0UL, nodes.size(), [&](size_t i) {
+        const HypernodeID node = nodes[i];
         if (graph.isIsolated(node)) {
           for (const Arc& arc : graph.arcsOf(node)) {
-            truly_isolated &= !graph.isIsolated(arc.head);
-            if (node < arc.head || !graph.isIsolated(arc.head)) {
-              adjacent_edges += arc.weight;
-              current_adj += arc.weight;
-              if (graph.isIsolated(arc.head)) {
-                intern_edges += arc.weight;
-              }
+            adjacent_edges_l.local() += arc.weight;
+            if (graph.isIsolated(arc.head)) {
+              intern_edges_l.local() += arc.weight;
             }
           }
-          if (truly_isolated) {
-            ++truly_isolated_nodes;
-          } else {
-            adjacent_edges_non_iso += current_adj;
-          }
-          sep_weight += graph.nodeWeight(node);
+          sep_weight_l.local() += graph.nodeWeight(node);
         } else {
           for (const Arc& arc : graph.arcsOf(node)) {
             if (!graph.isIsolated(arc.head)) {
-              core_edges += arc.weight;
+              core_edges_l.local() += arc.weight;
+            } else {
+              adjacent_edges_l.local() += arc.weight;
             }
           }
-          core_weight += graph.nodeWeight(node);
+          core_weight_l.local() += graph.nodeWeight(node);
         }
-      }
-      utils::Stats::instance().add_stat("sep_total_edges", adjacent_edges);
-      utils::Stats::instance().add_stat("sep_intern_edge_fraction", static_cast<double>(intern_edges) / static_cast<double>(adjacent_edges));
-      utils::Stats::instance().add_stat<int32_t>("sep_single_nodes", truly_isolated_nodes);
-      utils::Stats::instance().add_stat("sep_comp_intern_edge_fraction", static_cast<double>(intern_edges) / static_cast<double>(adjacent_edges_non_iso));
+      });
 
-      // component analysis
-      // std::vector<bool> visited;
-      // visited.resize(graph.numNodes(), false);
-      // std::vector<HypernodeID> comp_sizes;
-      // std::vector<ArcWeight> comp_adjacent_edges;
-      // std::vector<double> comp_intern_edge_fracs;
-
-      // std::vector<HypernodeID> queue;
-      // for (const HypernodeID& node: nodes) {
-      //   if (graph.isIsolated(node) && !visited.at(node)) {
-      //     HypernodeID size = 0;
-      //     ArcWeight adjacent = 0;
-      //     ArcWeight intern = 0;
-      //     queue.clear();
-      //     queue.push_back(node);
-      //     while (!queue.empty()) {
-      //       const HypernodeID curr = queue.back();
-      //       queue.pop_back();
-      //       if (!visited[curr]) {
-      //         visited[curr] = true;
-      //         for (const Arc& arc : graph.arcsOf(curr)) {
-      //           if (!visited[arc.head]) {
-      //             adjacent += arc.weight;
-      //             if (graph.isIsolated(arc.head)) {
-      //               intern += arc.weight;
-      //               queue.push_back(arc.head);
-      //             }
-      //           }
-      //         }
-      //         ++size;
-      //       }
-      //     }
-
-      //     ASSERT(size > 0);
-      //     if (size > 1) {
-      //       comp_sizes.push_back(size);
-      //       comp_adjacent_edges.push_back(adjacent);
-      //       ASSERT(intern > 0);
-      //       comp_intern_edge_fracs.push_back(static_cast<double>(intern) / static_cast<double>(adjacent));
-      //     }
-      //   }
-      // }
-
-      // tbb::parallel_invoke([&] {
-      //   std::sort(comp_sizes.begin(), comp_sizes.end());
-      // }, [&] {
-      //   std::sort(comp_adjacent_edges.begin(), comp_adjacent_edges.end());
-      // }, [&] {
-      //   std::sort(comp_intern_edge_fracs.begin(), comp_intern_edge_fracs.end());
-      // });
-      // double size_avg = utils::parallel_avg(comp_sizes, comp_sizes.size());
-      // auto size_stats = internal::createStats(comp_sizes, size_avg,
-      //                                         utils::parallel_stdev(comp_sizes, size_avg, comp_sizes.size()));
-      // double adj_avg = utils::parallel_avg(comp_adjacent_edges, comp_adjacent_edges.size());
-      // auto adj_stats = internal::createStats(comp_adjacent_edges, adj_avg,
-      //                                        utils::parallel_stdev(comp_adjacent_edges, adj_avg, comp_adjacent_edges.size()));
-      // double intern_avg = utils::parallel_avg(comp_intern_edge_fracs, comp_intern_edge_fracs.size());
-      // auto intern_stats = internal::createStats(comp_intern_edge_fracs, intern_avg,
-                                                // utils::parallel_stdev(comp_intern_edge_fracs, intern_avg, comp_intern_edge_fracs.size()));
-
-      LOG << "name, total_num_node, sep_nodes, sep_single_nodes, sep_total_edges, sep_intern_edge_fraction,"
-          << "total_density, core_density, sep_density, core_edge_fraction, sep_edge_fraction, border_edge_fraction, core_weight, stdev_factor";
-            //  "num_components, comp_size_avg, comp_size_median, comp_size_sd, comp_size_max, "
-            //  "adj_edges_avg, adj_edges_median, adj_edges_sd, adj_edges_max, "
-            //  "intern_frac_avg, intern_frac_median, intern_frac_sd, intern_frac_max";
-      const utils::Stats& stats = utils::Stats::instance();
-      std::cout << _context.partition.graph_filename.substr(_context.partition.graph_filename.find_last_of('/') + 1) << ","
-                << stats.get("total_num_nodes") << ","
-                << stats.get("num_separated_in_community_detection") << ","
-                << stats.get("sep_single_nodes") << ","
-                << stats.get("sep_total_edges") << ","
-                << stats.get("sep_intern_edge_fraction") << ","
-                << graph.totalVolume() / static_cast<double>(graph.totalWeight()) << ","
-                << core_edges / static_cast<double>(core_weight) << ","
-                << intern_edges / static_cast<double>(sep_weight) << ","
-                << core_edges / static_cast<double>(graph.totalVolume()) << ","
-                << intern_edges / static_cast<double>(graph.totalVolume()) << ","
-                << (graph.totalVolume() - core_edges - intern_edges) / static_cast<double>(graph.totalVolume()) << ","
-                << core_weight / static_cast<double>(graph.totalWeight()) << ","
-                << _context.preprocessing.community_detection.isolated_nodes_threshold_stdev_factor
-                // << stats.get("sep_comp_intern_edge_fraction") << ","
-                // << comp_sizes.size() << ","
-                // << size_stats.avg << "," << size_stats.med << "," << size_stats.sd << "," << size_stats.max << ","
-                // << adj_stats.avg << "," << adj_stats.med << "," << adj_stats.sd << "," << adj_stats.max << ","
-                // << intern_stats.avg << "," << intern_stats.med << "," << intern_stats.sd << "," << intern_stats.max
-                << std::endl;
-      std::exit(0);
+      const ArcWeight adjacent_edges = adjacent_edges_l.combine(std::plus<>());
+      const ArcWeight intern_edges = intern_edges_l.combine(std::plus<>());
+      const ArcWeight core_edges = core_edges_l.combine(std::plus<>());
+      const HypernodeWeight sep_weight = sep_weight_l.combine(std::plus<>());
+      const HypernodeWeight core_weight = core_weight_l.combine(std::plus<>());
+      utils::Stats::instance().update_stat("sep_total_edges", adjacent_edges);
+      utils::Stats::instance().update_stat("sep_intern_edge_fraction", static_cast<double>(intern_edges) / static_cast<double>(adjacent_edges));
+      utils::Stats::instance().update_stat("total_density", graph.totalVolume() / static_cast<double>(graph.totalWeight()));
+      utils::Stats::instance().update_stat("core_density", core_edges / static_cast<double>(core_weight));
+      utils::Stats::instance().update_stat("sep_density", intern_edges / static_cast<double>(sep_weight));
+      utils::Stats::instance().update_stat("core_weight", core_weight / static_cast<double>(graph.totalWeight()));
+      utils::Stats::instance().update_stat("stdev_factor", _context.preprocessing.community_detection.isolated_nodes_threshold_stdev_factor);
     }
 
     if (top_level && !_context.preprocessing.community_detection.single_community_of_separated

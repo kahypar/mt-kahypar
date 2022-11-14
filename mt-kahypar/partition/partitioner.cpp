@@ -202,6 +202,13 @@ namespace mt_kahypar {
     io::printMemoryPoolConsumption(context);
     io::printInputInformation(context, hypergraph);
 
+    utils::Stats::instance().add_stat<int32_t>("sep_total_edges", 0);
+    utils::Stats::instance().add_stat<double>("sep_intern_edge_fraction", 0);
+    utils::Stats::instance().add_stat<double>("total_density", 0);
+    utils::Stats::instance().add_stat<double>("core_density", 0);
+    utils::Stats::instance().add_stat<double>("sep_density", 0);
+    utils::Stats::instance().add_stat<double>("core_weight", 0);
+    utils::Stats::instance().add_stat<double>("stdev_factor", 0);
     utils::Stats::instance().add_stat<int64_t>("total_num_nodes", hypergraph.initialNumNodes());
     utils::Stats::instance().add_stat<int64_t>("num_separated", 0);
     utils::Stats::instance().add_stat<HypernodeWeight>("separated_weight", 0);
