@@ -143,7 +143,7 @@ private:
       gain = calculateGainWithPreassignment(phg, to);
     } else {
       gain = _config.use_judicious_increase
-                 ? -_blockPQ.topKey().first
+                 ? std::min(-_blockPQ.topKey().first, 0)
                  : std::min(_part_loads.topKey() -
                                 (phg.partLoad(to) + _toPQs[to].topKey().first),
                             0);
@@ -199,9 +199,8 @@ private:
       if (_config.preassign_nodes) {
         gain = -calculateGainWithPreassignment(phg, p);
       } else {
-        gain = std::max(phg.partLoad(p) + _toPQs[p].topKey().first -
-                            _part_loads.topKey(),
-                        0);
+        gain = phg.partLoad(p) + _toPQs[p].topKey().first -
+                            _part_loads.topKey();
       }
     } else if (_config.use_block_load_only) {
       gain = phg.partLoad(p);
