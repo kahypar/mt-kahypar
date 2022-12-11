@@ -29,6 +29,7 @@
 namespace mt_kahypar {
 
 static constexpr bool debug = false;
+static constexpr bool track_gain_sequence = true;
 
 class JudiciousPQ final {
 public:
@@ -120,7 +121,7 @@ public:
       }
       return max_load == _part_loads.topKey();
     }());
-    if constexpr (debug) {
+    if constexpr (track_gain_sequence) {
       _stats.gain_sequence.push_back(judicious_load_before -
                                      judicious_load_after);
     }

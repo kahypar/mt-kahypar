@@ -18,12 +18,14 @@
  *
  ******************************************************************************/
 #pragma once
+#include <algorithm>
 #include <mt-kahypar/definitions.h>
 
 namespace mt_kahypar {
 struct GreedyJudiciousInitialPartitionerStats {
 
   static constexpr bool debug = false;
+  static constexpr bool track_gain_sequence = true;
 
   size_t num_moved_nodes = 0;
   vec<Gain> gain_sequence;
@@ -33,18 +35,12 @@ struct GreedyJudiciousInitialPartitionerStats {
       : update_hist(num_nodes, 0) {}
 
   void print() {
-    if (!debug) {
+    if (!track_gain_sequence) {
       return;
     }
     ASSERT(num_moved_nodes == gain_sequence.size());
-    // LOG << "gain";
-    // for (const auto i : gain_sequence) {
-    //   LLOG << i;
-    // }
-    LOG << "gain";
-    for (const auto i : update_hist) {
-      LOG << i;
-    }
+    double zero_gain_ratio = static_cast<double>(std::count_if(gain_sequence.begin(), gain_sequence.end(), [](auto gain) { return gain == 0; })) / gain_sequence.size();
+    LOG << zero_gain_ratio;
   }
 };
 
