@@ -60,6 +60,7 @@ struct PartitioningParameters {
   bool csv_output = false;
   bool write_partition_file = false;
   bool deterministic = false;
+  bool judicious_objective = false;
 
   std::string graph_filename { };
   std::string graph_partition_output_folder {};

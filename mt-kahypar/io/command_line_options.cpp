@@ -126,7 +126,10 @@ namespace mt_kahypar {
                      [&](auto) {
                              context.partition.use_individual_part_weights = true;
                      }),
-             "Use the specified individual part weights instead of epsilon.");
+             "Use the specified individual part weights instead of epsilon.")
+            ("judicious-objective",
+             po::value<bool>(&context.partition.judicious_objective)->value_name("<bool>")->default_value(false),
+             "If true, use judicious objective. This trivially solves instances where n <= k.");
     return options;
   }
 
