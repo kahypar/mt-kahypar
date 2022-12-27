@@ -44,6 +44,7 @@ class IHypergraphSparsifier {
  public:
   IHypergraphSparsifier(const IHypergraphSparsifier&) = delete;
   IHypergraphSparsifier(IHypergraphSparsifier&&) = delete;
+  virtual ~IHypergraphSparsifier() = default;
   IHypergraphSparsifier & operator= (const IHypergraphSparsifier &) = delete;
   IHypergraphSparsifier & operator= (IHypergraphSparsifier &&) = delete;
 
