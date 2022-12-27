@@ -4,7 +4,7 @@ on: [ push, pull_request ]
 
 jobs:
   mt_kahypar_tests:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     env:
       BOOST_ROOT : "/usr/local/share/boost/1.72.0"
       CI_ACTIVE : 1
@@ -47,7 +47,7 @@ jobs:
           bash <(curl -s https://codecov.io/bash) || echo "Codecov did not collect coverage reports"
 
   mt_kahypar_integration:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     env:
       BOOST_ROOT : "/usr/local/share/boost/1.72.0"
       CI_ACTIVE : 1
