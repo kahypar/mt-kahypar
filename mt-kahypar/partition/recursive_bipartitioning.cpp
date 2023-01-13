@@ -43,39 +43,25 @@
 
 #include "mt-kahypar/partition/metrics.h"
 
-/** RecursiveBipartitioning Implementation Details
-  *
-  * Note, the recursive bipartitioning algorithm is written in TBBInitializer continuation style. The TBBInitializer
-  * continuation style is especially useful for recursive patterns. Each task defines its continuation
-  * task. A continuation task defines how computation should continue, if all its child tasks are completed.
-  * As a consequence, tasks can be spawned without waiting for their completion, because the continuation
-  * task is automatically invoked if all child tasks are terminated. Therefore, no thread will waste CPU
-  * time while waiting for their recursive tasks to complete.
-  *
-  * ----------------------
-  * The recursive bipartitioning algorithm starts by spawning the root RecursiveMultilevelBipartitioningTask. The RecursiveMultilevelBipartitioningTask
-  * spawns a MultilevelBipartitioningTask that bisects the hypergraph (multilevel-fashion). Afterwards, the MultilevelBipartitioningContinuationTask continues
-  * and applies the bisection to the hypergraph and spawns two RecursiveBipartitioningChildTasks. Both are responsible for exactly one block of
-  * the partition. The RecursiveBipartitioningChildTask extracts its corresponding block as unpartitioned hypergraph and spawns
-  * recursively a RecursiveMultilevelBipartitioningTask for that hypergraph. Once that RecursiveMultilevelBipartitioningTask is completed, a
-  * RecursiveBipartitioningChildContinuationTask is started and the partition of the recursion is applied to the original hypergraph.
-*/
-
 namespace mt_kahypar {
 
 
 struct OriginalHypergraphInfo {
 
+  // The initial allowed imbalance cannot be used for each bipartition as this could result in an
+  // imbalanced k-way partition when performing recursive bipartitioning. We therefore adaptively
+  // adjust the allowed imbalance for each bipartition individually based on the adaptive imbalance
+  // definition described in our papers.
   double computeAdaptiveEpsilon(const HypernodeWeight current_hypergraph_weight,
                                 const PartitionID current_k) const {
     if ( current_hypergraph_weight == 0 ) {
       return 0.0;
     } else {
       double base = ceil(static_cast<double>(original_hypergraph_weight) / original_k)
-                    / ceil(static_cast<double>(current_hypergraph_weight) / current_k)
-                    * (1.0 + original_epsilon);
+        / ceil(static_cast<double>(current_hypergraph_weight) / current_k)
+        * (1.0 + original_epsilon);
       double adaptive_epsilon = std::min(0.99, std::max(std::pow(base, 1.0 /
-                                                                        ceil(log2(static_cast<double>(current_k)))) - 1.0,0.0));
+        ceil(log2(static_cast<double>(current_k)))) - 1.0,0.0));
       return adaptive_epsilon;
     }
   }
@@ -89,6 +75,7 @@ namespace tmp {
 
   static constexpr bool debug = false;
 
+  // Sets the appropriate parameters for the multilevel bipartitioning call
   Context setupBipartitioningContext(const Hypergraph& hypergraph,
                                      const Context& context,
                                      const OriginalHypergraphInfo& info) {
@@ -97,7 +84,6 @@ namespace tmp {
     b_context.partition.k = 2;
     b_context.partition.verbose_output = false;
     b_context.initial_partitioning.mode = Mode::direct;
-    // TODO(maas): other type for context?
     if (context.partition.mode == Mode::direct) {
       b_context.type = ContextType::initial_partitioning;
     }
@@ -161,6 +147,7 @@ namespace tmp {
     return b_context;
   }
 
+  // Sets the appropriate parameters for the recursive bipartitioning call
   Context setupRecursiveBipartitioningContext(const Context& context,
                                               const PartitionID k0, const PartitionID k1,
                                               const double degree_of_parallelism) {
@@ -185,22 +172,30 @@ namespace tmp {
     return rb_context;
   }
 
+  // Takes a hypergraph partitioned into two blocks as input and then recursively
+  // partitions one block into (k1 - b0) blocks
   void recursively_bipartition_block(PartitionedHypergraph& phg,
                                      const Context& context,
                                      const PartitionID block, const PartitionID k0, const PartitionID k1,
                                      const OriginalHypergraphInfo& info,
                                      const double degree_of_parallism);
 
+  // Uses recursive bipartitioning to partition the given hypergraph into (k1 - k0) blocks
   void recursive_bipartitioning(PartitionedHypergraph& phg,
                                 const Context& context,
                                 const PartitionID k0, const PartitionID k1,
                                 const OriginalHypergraphInfo& info) {
     // Multilevel Bipartitioning
-    Hypergraph& hg = phg.hypergraph(); // previous codes makes here a copy, I do not know why...
+    Hypergraph& hg = phg.hypergraph();
     Context b_context = setupBipartitioningContext(hg, context, info);
     DBG << "Multilevel Bipartitioning - Range = (" << k0 << "," << k1 << "), Epsilon =" << b_context.partition.epsilon;
     PartitionedHypergraph bipartitioned_hg = multilevel::partition(hg, b_context);
+    DBG << "Bipartitioning Result -"
+        << "Objective =" << metrics::objective(bipartitioned_hg, context.partition.objective)
+        << "Imbalance =" << metrics::imbalance(bipartitioned_hg, b_context)
+        << "(Target Imbalance =" << b_context.partition.epsilon << ")";
 
+    // Apply bipartition to the input hypergraph
     const PartitionID k = (k1 - k0);
     const PartitionID block_0 = 0;
     const PartitionID block_1 = k / 2 + (k % 2);
@@ -223,9 +218,7 @@ namespace tmp {
     PartitionID rb_k0 = context.partition.k / 2 + context.partition.k % 2;
     PartitionID rb_k1 = context.partition.k / 2;
     if ( rb_k0 >= 2 && rb_k1 >= 2 ) {
-      // In case we have to partition both blocks from the bisection further into
-      // more than one block, we call the recursive bipartitioning algorithm
-      // recursively in parallel
+      // Both blocks of the bipartition must to be further partitioned into at least two blocks.
       DBG << "Current k = " << context.partition.k << "\n"
           << "Block" << block_0 << "is further partitioned into k =" << rb_k0 << "blocks\n"
           << "Block" << block_1 << "is further partitioned into k =" << rb_k1 << "blocks\n";
@@ -235,8 +228,7 @@ namespace tmp {
       tg.wait();
     } else if ( rb_k0 >= 2 ) {
       ASSERT(rb_k1 < 2);
-      // In case only the first block has to be partitioned into more than one block, we call
-      // the recursive bipartitioning algorithm recusively on the block 0
+      // Only the first block needs to be further partitioned into at least two blocks.
       DBG << "Current k = " << context.partition.k << "\n"
           << "Block" << block_0 << "is further partitioned into k =" << rb_k0 << "blocks\n";
       recursively_bipartition_block(phg, context,
@@ -259,10 +251,12 @@ void tmp::recursively_bipartition_block(PartitionedHypergraph& phg,
   auto& mapping = copy_hypergraph.second;
 
   if ( rb_hg.initialNumNodes() > 0 ) {
+    // Recursively partition the given block into (k1 - k0) blocks
     PartitionedHypergraph rb_phg(rb_context.partition.k, rb_hg, parallel_tag_t());
     recursive_bipartitioning(rb_phg, rb_context, k0, k1, info);
 
     ASSERT(phg.initialNumNodes() == mapping.size());
+    // Apply k-way partition to the input hypergraph
     phg.doParallelForAllNodes([&](const HypernodeID& hn) {
       if ( phg.partID(hn) == block ) {
         ASSERT(hn < mapping.size());
@@ -273,6 +267,12 @@ void tmp::recursively_bipartition_block(PartitionedHypergraph& phg,
         }
       }
     });
+    DBG << "Recursive Bipartitioning Result -"
+        << "k =" << (k1 - k0)
+        << "Objective =" << metrics::objective(phg, context.partition.objective)
+        << "Imbalance =" << metrics::imbalance(phg, rb_context)
+        << "(Target Imbalance =" << rb_context.partition.epsilon << ")";
+
   }
 }
 
@@ -295,10 +295,6 @@ namespace recursive_bipartitioning {
       utils.getTimer(context.utility_id).disable();
       utils.getStats(context.utility_id).disable();
     }
-
-    // RecursiveMultilevelBipartitioningTask& root_bisection_task = *new(tbb::task::allocate_root()) RecursiveMultilevelBipartitioningTask(
-    //         OriginalHypergraphInfo { hypergraph.totalWeight(), context.partition.k, context.partition.epsilon }, hypergraph, context);
-    // tbb::task::spawn_root_and_wait(root_bisection_task);
 
     tmp::recursive_bipartitioning(hypergraph, context, 0, context.partition.k,
       OriginalHypergraphInfo { hypergraph.totalWeight(), context.partition.k, context.partition.epsilon });
