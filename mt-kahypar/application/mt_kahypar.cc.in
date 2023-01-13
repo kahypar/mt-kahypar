@@ -48,12 +48,7 @@ static std::string getGitRevisionFile(const mt_kahypar::Context& context) {
 static std::string readGitRevisionFile(const std::string& revision_file) {
   std::ifstream file(revision_file.c_str());
   if ( !file ) {
-    WARNING("No git revision file for preset available (binary might be not up to date). Do you want to continue? (Y/N)");
-    char yes_no;
-    std::cin >> yes_no;
-    if ( yes_no == 'N' ) {
-      std::exit(0);
-    }
+    WARNING("No git revision file for preset available (binary might be not up to date).");
     return "";
   } else {
     std::string git = "";
@@ -107,12 +102,7 @@ static void configureContext(mt_kahypar::Context& context) {
   if ( preset_content != "" && head_content != preset_content ) {
     WARNING("Git Revision Head = " << head_content);
     WARNING("Git Revision Binary = " << preset_content);
-    WARNING("Git Revision of binary is not equal to HEAD (consider to recompile Mt-KaHyPar). Do you want to continue (Y/N)?");
-    char yes_no;
-    std::cin >> yes_no;
-    if ( yes_no == 'N' ) {
-      std::exit(0);
-    }
+    WARNING("Git Revision of binary is not equal to HEAD (consider to recompile Mt-KaHyPar).");
   }
 }
 
