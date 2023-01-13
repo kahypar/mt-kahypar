@@ -355,7 +355,7 @@ namespace mt_kahypar::multilevel {
 
 PartitionedHypergraph partition(Hypergraph& hypergraph, const Context& context) {
   PartitionedHypergraph partitioned_hypergraph;
-  MultilevelPartitioningTask& multilevel_task = *new(tbb::task::allocate_root())
+    MultilevelPartitioningTask& multilevel_task = *new(tbb::task::allocate_root())
           MultilevelPartitioningTask(hypergraph, partitioned_hypergraph, context, false);
   tbb::task::spawn_root_and_wait(multilevel_task);
 
@@ -364,7 +364,6 @@ PartitionedHypergraph partition(Hypergraph& hypergraph, const Context& context) 
   }
   return partitioned_hypergraph;
 }
-
 
 void partition_async(Hypergraph& hypergraph, PartitionedHypergraph& partitioned_hypergraph,
                      const Context& context, tbb::task* parent) {
