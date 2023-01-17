@@ -25,7 +25,6 @@ ignore:
   - "mt-kahypar/partition/metrics.h"
   - "mt-kahypar/partition/metrics.cpp"
   - "mt-kahypar/partition/registries/register_policies.cpp"
-  - "mt-kahypar/partition/registries/register_preprocessing_algorithms.cpp"
   - "mt-kahypar/partition/registries/register_coarsening_algorithms.cpp"
   - "mt-kahypar/partition/registries/register_initial_partitioning_algorithms.cpp"
   - "mt-kahypar/partition/registries/register_flat_initial_partitioning_algorithms.h"

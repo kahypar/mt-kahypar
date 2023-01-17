@@ -576,44 +576,6 @@ namespace mt_kahypar {
     return options;
   }
 
-#ifdef KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES
-  po::options_description createSparsificationOptionsDescription(Context& context,
-                                                               const int num_columns) {
-  po::options_description sparsification_options("Sparsification Options", num_columns);
-  sparsification_options.add_options()
-    ("sp-use-degree-zero-contractions",
-    po::value<bool>(&context.sparsification.use_degree_zero_contractions)->value_name("<bool>"),
-    "If true, then vertices with degree zero are contracted to supervertices")
-    ("sp-use-heavy-net-removal",
-    po::value<bool>(&context.sparsification.use_heavy_net_removal)->value_name("<bool>"),
-    "If true, then hyperedges with a weight greater than a certain threshold are removed before IP")
-    ("sp-use-similiar-net-removal",
-    po::value<bool>(&context.sparsification.use_similiar_net_removal)->value_name("<bool>"),
-    "If true, then hyperedges with a jaccard similiarity greater than a certain threshold are removed before IP")
-    ("sp-hyperedge-pin-weight-fraction",
-    po::value<double>(&context.sparsification.hyperedge_pin_weight_fraction)->value_name("<double>"),
-    "Hyperedges where the sum of the weights of all pins are greater than ((1 + eps)|V|/k) / fraction are removed before IP")
-    ("sp-min-hash-footprint-size",
-    po::value<size_t>(&context.sparsification.min_hash_footprint_size)->value_name("<size_t>"),
-    "Number of locality sensitive hash functions used for similiar hyperedge removal")
-    ("sp-jaccard-threshold",
-    po::value<double>(&context.sparsification.jaccard_threshold)->value_name("<double>"),
-    "Jaccard threshold for which to hyperedges are considered as similiar")
-    ("sp-similiar-net-combiner-strategy",
-    po::value<std::string>()->value_name("<string>")->notifier(
-      [&](const std::string& strategy) {
-      context.sparsification.similiar_net_combiner_strategy =
-        similiarNetCombinerStrategyFromString(strategy);
-    }),
-    "Determines how similiar nets are combined:\n"
-    "- union: set union of both nets\n"
-    "- max_size: largest net\n"
-    "- importance: net with most 'important' pins");
-
-  return sparsification_options;
-}
-#endif
-
   po::options_description createSharedMemoryOptionsDescription(Context& context,
                                                                const int num_columns) {
     po::options_description shared_memory_options("Shared Memory Options", num_columns);
@@ -696,10 +658,6 @@ namespace mt_kahypar {
             createRefinementOptionsDescription(context, num_columns, false);
     po::options_description flow_options =
             createFlowRefinementOptionsDescription(context, num_columns, false);
-#ifdef KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES
-    po::options_description sparsification_options =
-    createSparsificationOptionsDescription(context, num_columns);
-#endif
     po::options_description shared_memory_options =
             createSharedMemoryOptionsDescription(context, num_columns);
 
@@ -713,9 +671,6 @@ namespace mt_kahypar {
             .add(initial_paritioning_options)
             .add(refinement_options)
             .add(flow_options)
-#ifdef KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES
-                    .add(sparsification_options)
-#endif
             .add(shared_memory_options);
 
     po::variables_map cmd_vm;
@@ -743,9 +698,6 @@ namespace mt_kahypar {
               .add(initial_paritioning_options)
               .add(refinement_options)
               .add(flow_options)
-  #ifdef KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES
-              .add(sparsification_options)
-  #endif
               .add(shared_memory_options);
 
       po::store(po::parse_config_file(file, ini_line_options, true), cmd_vm);
@@ -801,10 +753,6 @@ namespace mt_kahypar {
             createRefinementOptionsDescription(context, num_columns, false);
     po::options_description flow_options =
             createFlowRefinementOptionsDescription(context, num_columns, false);
-#ifdef KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES
-    po::options_description sparsification_options =
-    createSparsificationOptionsDescription(context, num_columns);
-#endif
     po::options_description shared_memory_options =
             createSharedMemoryOptionsDescription(context, num_columns);
 
@@ -816,9 +764,6 @@ namespace mt_kahypar {
             .add(initial_paritioning_options)
             .add(refinement_options)
             .add(flow_options)
-#ifdef KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES
-                    .add(sparsification_options)
-#endif
             .add(shared_memory_options);
 
     po::store(po::parse_config_file(file, ini_line_options, true), cmd_vm);
