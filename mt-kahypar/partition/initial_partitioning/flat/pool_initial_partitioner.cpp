@@ -118,7 +118,7 @@ namespace mt_kahypar {
   }
 
   PoolInitialPartitioner::PoolInitialPartitioner(PartitionedHypergraph& hypergraph,
-                         const Context& context) :
+                          const Context& context) :
           _hg(hypergraph),
           _context(context) { }
 

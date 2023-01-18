@@ -48,7 +48,7 @@ class RecursiveBipartitioningInitialPartitioner : public IInitialPartitioner {
 
  public:
   RecursiveBipartitioningInitialPartitioner(PartitionedHypergraph& hypergraph,
-                                        const Context& context);
+                                            const Context& context);
 
   RecursiveBipartitioningInitialPartitioner(const RecursiveBipartitioningInitialPartitioner&) = delete;
   RecursiveBipartitioningInitialPartitioner(RecursiveBipartitioningInitialPartitioner&&) = delete;

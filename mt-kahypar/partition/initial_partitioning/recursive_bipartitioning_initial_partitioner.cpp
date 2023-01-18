@@ -45,7 +45,7 @@
 
 namespace mt_kahypar {
   RecursiveBipartitioningInitialPartitioner::RecursiveBipartitioningInitialPartitioner(PartitionedHypergraph& hypergraph,
-                                                                             const Context& context) :
+                                                                                       const Context& context) :
     _hg(hypergraph),
     _context(context) { }
 
