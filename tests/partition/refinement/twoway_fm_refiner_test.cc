@@ -30,7 +30,7 @@
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/io/hypergraph_io.h"
 #include "mt-kahypar/partition/context.h"
-#include "mt-kahypar/partition/initial_partitioning/flat/bfs_initial_partitioner.h"
+#include "mt-kahypar/partition/initial_partitioning/bfs_initial_partitioner.h"
 #include "mt-kahypar/partition/refinement/fm/sequential_twoway_fm_refiner.h"
 #include "mt-kahypar/utils/randomize.h"
 
@@ -76,9 +76,8 @@ class ATwoWayFmRefiner : public Test {
     Context ip_context(context);
     ip_context.refinement.label_propagation.algorithm = LabelPropagationAlgorithm::do_nothing;
     InitialPartitioningDataContainer ip_data(partitioned_hypergraph, ip_context);
-    BFSInitialPartitioner& initial_partitioner = *new(tbb::task::allocate_root())
-      BFSInitialPartitioner(InitialPartitioningAlgorithm::bfs, ip_data, ip_context, 420, 0);
-    tbb::task::spawn_root_and_wait(initial_partitioner);
+    BFSInitialPartitioner initial_partitioner(InitialPartitioningAlgorithm::bfs, ip_data, ip_context, 420, 0);
+    initial_partitioner.partition();
     ip_data.apply();
     metrics.km1 = metrics::km1(partitioned_hypergraph);
     metrics.cut = metrics::hyperedgeCut(partitioned_hypergraph);

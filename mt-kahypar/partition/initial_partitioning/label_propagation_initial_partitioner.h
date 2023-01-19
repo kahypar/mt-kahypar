@@ -26,14 +26,13 @@
 
 #pragma once
 
-#include "tbb/task.h"
-
 #include "mt-kahypar/definitions.h"
-#include "mt-kahypar/partition/initial_partitioning/flat/initial_partitioning_data_container.h"
+#include "mt-kahypar/partition/initial_partitioning/i_initial_partitioner.h"
+#include "mt-kahypar/partition/initial_partitioning/initial_partitioning_data_container.h"
 
 namespace mt_kahypar {
 
-class LabelPropagationInitialPartitioner : public tbb::task {
+class LabelPropagationInitialPartitioner : public IInitialPartitioner {
 
   using DeltaFunction = std::function<void (const HyperedgeID, const HyperedgeWeight, const HypernodeID, const HypernodeID, const HypernodeID)>;
   #define NOOP_FUNC [] (const HyperedgeID, const HyperedgeWeight, const HypernodeID, const HypernodeID, const HypernodeID) { }
@@ -58,9 +57,9 @@ class LabelPropagationInitialPartitioner : public tbb::task {
     _rng(seed),
     _tag(tag) { }
 
-  tbb::task* execute() override ;
-
  private:
+  void partitionImpl() final;
+
   bool fitsIntoBlock(PartitionedHypergraph& hypergraph,
                      const HypernodeID hn,
                      const PartitionID block) const {

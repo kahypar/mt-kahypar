@@ -33,9 +33,9 @@
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/utils/utilities.h"
 #include "mt-kahypar/io/hypergraph_io.h"
-#include "mt-kahypar/partition/registries/register_flat_initial_partitioning_algorithms.h"
+#include "mt-kahypar/partition/registries/register_initial_partitioning_algorithms.h"
 #include "mt-kahypar/partition/registries/register_refinement_algorithms.cpp"
-#include "mt-kahypar/partition/initial_partitioning/flat/pool_initial_partitioner.h"
+#include "mt-kahypar/partition/initial_partitioning/pool_initial_partitioner.h"
 
 using ::testing::Test;
 
@@ -95,18 +95,14 @@ typedef ::testing::Types<TestConfig<2, 1>,
 TYPED_TEST_CASE(APoolInitialPartitionerTest, TestConfigs);
 
 TYPED_TEST(APoolInitialPartitionerTest, HasValidImbalance) {
-  PoolInitialPartitioner& initial_partitioner = *new(tbb::task::allocate_root())
-    PoolInitialPartitioner(this->partitioned_hypergraph, this->context);
-  tbb::task::spawn_root_and_wait(initial_partitioner);
+  pool::bipartition(this->partitioned_hypergraph, this->context);
 
   ASSERT_LE(metrics::imbalance(this->partitioned_hypergraph, this->context),
             this->context.partition.epsilon);
 }
 
 TYPED_TEST(APoolInitialPartitionerTest, AssginsEachHypernode) {
-  PoolInitialPartitioner& initial_partitioner = *new(tbb::task::allocate_root())
-    PoolInitialPartitioner(this->partitioned_hypergraph, this->context);
-  tbb::task::spawn_root_and_wait(initial_partitioner);
+  pool::bipartition(this->partitioned_hypergraph, this->context);
 
   for ( const HypernodeID& hn : this->partitioned_hypergraph.nodes() ) {
     ASSERT_NE(this->partitioned_hypergraph.partID(hn), -1);
@@ -114,9 +110,7 @@ TYPED_TEST(APoolInitialPartitionerTest, AssginsEachHypernode) {
 }
 
 TYPED_TEST(APoolInitialPartitionerTest, HasNoSignificantLowPartitionWeights) {
-  PoolInitialPartitioner& initial_partitioner = *new(tbb::task::allocate_root())
-    PoolInitialPartitioner(this->partitioned_hypergraph, this->context);
-  tbb::task::spawn_root_and_wait(initial_partitioner);
+  pool::bipartition(this->partitioned_hypergraph, this->context);
 
   // Each block should have a weight greater or equal than 20% of the average
   // block weight.

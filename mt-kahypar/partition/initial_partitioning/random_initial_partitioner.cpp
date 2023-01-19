@@ -24,13 +24,13 @@
  * SOFTWARE.
  ******************************************************************************/
 
-#include "mt-kahypar/partition/initial_partitioning/flat/random_initial_partitioner.h"
+#include "mt-kahypar/partition/initial_partitioning/random_initial_partitioner.h"
 
 #include "mt-kahypar/utils/randomize.h"
 
 namespace mt_kahypar {
 
-tbb::task* RandomInitialPartitioner::execute() {
+void RandomInitialPartitioner::partitionImpl() {
   if ( _ip_data.should_initial_partitioner_run(InitialPartitioningAlgorithm::random) ) {
     HighResClockTimepoint start = std::chrono::high_resolution_clock::now();
     PartitionedHypergraph& hg = _ip_data.local_partitioned_hypergraph();
@@ -58,7 +58,6 @@ tbb::task* RandomInitialPartitioner::execute() {
     double time = std::chrono::duration<double>(end - start).count();
     _ip_data.commit(InitialPartitioningAlgorithm::random, _rng, _tag, time);
   }
-  return nullptr;
 }
 
 } // namespace mt_kahypar

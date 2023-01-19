@@ -32,19 +32,13 @@
 
 namespace mt_kahypar::multilevel {
 
-// ! Performs multilevel partitioning on the given hypergraph
-// ! in TBB blocking-style.
+// ! Partitions a hypergraph using the multilevel paradigm.
 PartitionedHypergraph partition(Hypergraph& hypergraph, const Context& context);
-// ! Performs multilevel partitioning on the given hypergraph
-// ! in TBB continuation-style.
-// ! Note, the final partitioned hypergraph is moved into the
-// ! passed partitioned hypergraph object.
-void partition_async(Hypergraph& hypergraph, PartitionedHypergraph& partitioned_hypergraph,
-                     const Context& context, tbb::task* parent);
 
-// ! Performs a multilevel partitioning v-cycle on the given hypergraph
-// ! in TBB blocking-style.
-void partitionVCycle(Hypergraph& hypergraph, PartitionedHypergraph& partitioned_hypergraph,
+// ! Improves an existing partition using the iterated multilevel cycle technique
+// ! (also called V-cycle).
+void partitionVCycle(Hypergraph& hypergraph,
+                     PartitionedHypergraph& partitioned_hg,
                      const Context& context);
 
 }  // namespace mt_kahypar

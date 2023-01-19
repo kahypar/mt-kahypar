@@ -32,7 +32,7 @@
 #include "mt-kahypar/partition/refinement/fm/multitry_kway_fm.h"
 #include "mt-kahypar/partition/refinement/fm/strategies/gain_cache_strategy.h"
 
-#include "mt-kahypar/partition/initial_partitioning/flat/bfs_initial_partitioner.h"
+#include "mt-kahypar/partition/initial_partitioning/bfs_initial_partitioner.h"
 
 using ::testing::Test;
 
@@ -85,9 +85,8 @@ class MultiTryFMTest : public ::testing::TestWithParam<PartitionID> {
       Context ip_context(context);
       ip_context.refinement.label_propagation.algorithm = LabelPropagationAlgorithm::do_nothing;
       InitialPartitioningDataContainer ip_data(partitioned_hypergraph, ip_context);
-      BFSInitialPartitioner& initial_partitioner = *new(tbb::task::allocate_root())
-              BFSInitialPartitioner(InitialPartitioningAlgorithm::bfs, ip_data, ip_context, 420, 0);
-      tbb::task::spawn_root_and_wait(initial_partitioner);
+      BFSInitialPartitioner initial_partitioner(InitialPartitioningAlgorithm::bfs, ip_data, ip_context, 420, 0);
+      initial_partitioner.partition();
       ip_data.apply();
       metrics.km1 = metrics::km1(partitioned_hypergraph);
       metrics.cut = metrics::hyperedgeCut(partitioned_hypergraph);

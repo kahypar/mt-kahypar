@@ -43,14 +43,14 @@ namespace io {
 std::vector<std::string> target_structs =
   { "PartitioningParameters", "CommunityDetectionParameters", "CommunityRedistributionParameters",
     "PreprocessingParameters", "RatingParameters", "CoarseningParameters", "InitialPartitioningParameters",
-    "SparsificationParameters", "LabelPropagationParameters", "FMParameters", "NLevelGlobalFMParameters",
+    "LabelPropagationParameters", "FMParameters", "NLevelGlobalFMParameters",
     "FlowParameters", "RefinementParameters", "SharedMemoryParameters", "DeterministicRefinement",
     "FlowParameters" };
 
 std::unordered_map<std::string, std::string> target_struct_prefix =
   { {"PartitioningParameters", ""}, {"CommunityDetectionParameters", "community_"}, {"CommunityRedistributionParameters", "community_redistribution_"},
     {"PreprocessingParameters", ""}, {"RatingParameters", "rating_"}, {"CoarseningParameters", "coarsening_"},
-    {"InitialPartitioningParameters", "initial_partitioning_"}, {"SparsificationParameters", "sparsification_"},
+    {"InitialPartitioningParameters", "initial_partitioning_"},
     {"LabelPropagationParameters", "lp_"}, {"FMParameters", "fm_"}, {"NLevelGlobalFMParameters", "global_fm_"},
     {"RefinementParameters", ""}, {"SharedMemoryParameters", ""},
     {"DeterministicRefinement", "sync_lp_"}, {"FlowParameters", "flow_"} };
@@ -59,7 +59,7 @@ std::set<std::string> excluded_members =
   { "verbose_output", "show_detailed_timings", "show_detailed_clustering_timings", "timings_output_depth", "show_memory_consumption", "show_advanced_cut_analysis", "enable_progress_bar", "sp_process_output",
     "measure_detailed_uncontraction_timings", "write_partition_file", "graph_partition_output_folder", "graph_partition_filename", "graph_community_filename", "community_detection",
     "community_redistribution", "coarsening_rating", "label_propagation", "lp_execute_sequential", "deterministic_refinement",
-    "snapshot_interval", "initial_partitioning_refinement", "initial_partitioning_sparsification", "initial_partitioning_enabled_ip_algos",
+    "snapshot_interval", "initial_partitioning_refinement", "initial_partitioning_enabled_ip_algos",
     "stable_construction_of_incident_edges", "fm", "global_fm", "flows", "csv_output", "preset_file", "preset_type", "instance_type", "degree_of_parallelism" };
 
 bool is_target_struct(const std::string& line) {

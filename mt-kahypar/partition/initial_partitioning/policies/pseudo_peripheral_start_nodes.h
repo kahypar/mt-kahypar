@@ -30,7 +30,7 @@
 
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
 #include "mt-kahypar/parallel/stl/scalable_queue.h"
-#include "mt-kahypar/partition/initial_partitioning/flat/initial_partitioning_data_container.h"
+#include "mt-kahypar/partition/initial_partitioning/initial_partitioning_data_container.h"
 #include "mt-kahypar/utils/randomize.h"
 
 namespace mt_kahypar {

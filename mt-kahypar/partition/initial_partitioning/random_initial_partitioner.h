@@ -4,7 +4,6 @@
  * This file is part of Mt-KaHyPar.
  *
  * Copyright (C) 2019 Tobias Heuer <tobias.heuer@kit.edu>
- * Copyright (C) 2021 Nikolai Maas <nikolai.maas@student.kit.edu>
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -25,32 +24,42 @@
  * SOFTWARE.
  ******************************************************************************/
 
-#include "mt-kahypar/partition/initial_partitioning/deep_initial_partitioner.h"
+#pragma once
 
-#include <algorithm>
-#include <limits>
-#include <vector>
-
-#include "tbb/parallel_invoke.h"
-#include "mt-kahypar/macros.h"
-#include "mt-kahypar/partition/multilevel.h"
-#include "mt-kahypar/partition/coarsening/multilevel_uncoarsener.h"
-#include "mt-kahypar/partition/coarsening/nlevel_uncoarsener.h"
-#include "mt-kahypar/partition/deep_multilevel.h"
-
-#include "mt-kahypar/partition/initial_partitioning/flat/pool_initial_partitioner.h"
-#include "mt-kahypar/utils/randomize.h"
-#include "mt-kahypar/utils/stats.h"
-#include "mt-kahypar/utils/timer.h"
-
+#include "mt-kahypar/definitions.h"
+#include "mt-kahypar/partition/initial_partitioning/i_initial_partitioner.h"
+#include "mt-kahypar/partition/initial_partitioning/initial_partitioning_data_container.h"
 
 namespace mt_kahypar {
-  DeepInitialPartitioner::DeepInitialPartitioner(PartitionedHypergraph& hypergraph,
-                                                 const Context& context) :
-    _hg(hypergraph),
-    _context(context) { }
+class RandomInitialPartitioner : public IInitialPartitioner {
 
-  void DeepInitialPartitioner::initialPartitionImpl() {
-    deep_multilevel::partition(_hg, _context);
+  static constexpr bool debug = false;
+
+ public:
+  RandomInitialPartitioner(const InitialPartitioningAlgorithm,
+                            InitialPartitioningDataContainer& ip_data,
+                            const Context& context,
+                            const int seed, const int tag) :
+    _ip_data(ip_data),
+    _context(context),
+    _rng(seed),
+    _tag(tag) { }
+
+ private:
+  void partitionImpl() final;
+
+  bool fitsIntoBlock(PartitionedHypergraph& hypergraph,
+                     const HypernodeID hn,
+                     const PartitionID block) const {
+    ASSERT(block != kInvalidPartition && block < _context.partition.k);
+    return hypergraph.partWeight(block) + hypergraph.nodeWeight(hn) <=
+      _context.partition.perfect_balance_part_weights[block];
   }
-} // namepace mt_kahypar
+
+  InitialPartitioningDataContainer& _ip_data;
+  const Context& _context;
+  std::mt19937 _rng;
+  const int _tag;
+};
+
+} // namespace mt_kahypar

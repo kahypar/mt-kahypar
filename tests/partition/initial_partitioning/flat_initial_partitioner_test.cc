@@ -33,12 +33,12 @@
 #include "tests/datastructures/hypergraph_fixtures.h"
 #include "mt-kahypar/utils/utilities.h"
 #include "mt-kahypar/io/hypergraph_io.h"
-#include "mt-kahypar/partition/initial_partitioning/flat/random_initial_partitioner.h"
-#include "mt-kahypar/partition/initial_partitioning/flat/bfs_initial_partitioner.h"
-#include "mt-kahypar/partition/initial_partitioning/flat/greedy_initial_partitioner.h"
-#include "mt-kahypar/partition/initial_partitioning/flat/label_propagation_initial_partitioner.h"
-#include "mt-kahypar/partition/initial_partitioning/flat/policies/gain_computation_policy.h"
-#include "mt-kahypar/partition/initial_partitioning/flat/policies/pq_selection_policy.h"
+#include "mt-kahypar/partition/initial_partitioning/random_initial_partitioner.h"
+#include "mt-kahypar/partition/initial_partitioning/bfs_initial_partitioner.h"
+#include "mt-kahypar/partition/initial_partitioning/greedy_initial_partitioner.h"
+#include "mt-kahypar/partition/initial_partitioning/label_propagation_initial_partitioner.h"
+#include "mt-kahypar/partition/initial_partitioning/policies/gain_computation_policy.h"
+#include "mt-kahypar/partition/initial_partitioning/policies/pq_selection_policy.h"
 
 using ::testing::Test;
 
@@ -54,48 +54,17 @@ struct TestConfig {
   static constexpr size_t RUNS = runs;
 };
 
-template<class InitialPartitionerTask>
-class InitialPartitionerRootTaskT : public tbb::task {
-
- public:
-  InitialPartitionerRootTaskT(PartitionedHypergraph& hypergraph,
-                              const Context& context,
-                              const InitialPartitioningAlgorithm algorithm,
-                              const size_t runs) :
-    _ip_data(hypergraph, context),
-    _context(context),
-    _algorithm(algorithm),
-    _runs(runs) {}
-
-  tbb::task* execute() override {
-    tbb::task::set_ref_count(_runs + 1);
-    const int seed = 420;
-    for ( size_t i = 0; i < _runs; ++i ) {
-      tbb::task::spawn(*new(tbb::task::allocate_child())
-        InitialPartitionerTask(_algorithm, _ip_data, _context, seed + i, i));
-    }
-    tbb::task::wait_for_all();
-    _ip_data.apply();
-    return nullptr;
-  }
-
- private:
-  InitialPartitioningDataContainer _ip_data;
-  const Context& _context;
-  const InitialPartitioningAlgorithm _algorithm;
-  const size_t _runs;
-};
-
 template<typename Config>
 class AFlatInitialPartitionerTest : public Test {
 
  public:
-  using InitialPartitionerRootTask = InitialPartitionerRootTaskT<typename Config::InitialPartitionerTask>;
+  using InitialPartitioner = typename Config::InitialPartitionerTask;
 
   AFlatInitialPartitionerTest() :
     hypergraph(),
     partitioned_hypergraph(),
-    context() {
+    context(),
+    ip_data(nullptr) {
     context.partition.k = Config::K;
     context.partition.epsilon = 0.2;
     context.partition.objective = Objective::km1;
@@ -109,17 +78,26 @@ class AFlatInitialPartitionerTest : public Test {
     context.refinement.label_propagation.algorithm = LabelPropagationAlgorithm::do_nothing;
     context.initial_partitioning.refinement.label_propagation.algorithm = LabelPropagationAlgorithm::do_nothing;
     utils::Utilities::instance().getTimer(context.utility_id).disable();
+    ip_data = std::make_unique<InitialPartitioningDataContainer>(partitioned_hypergraph, context);
   }
 
   void execute() {
-    InitialPartitionerRootTask& root_ip_task = *new(tbb::task::allocate_root())
-      InitialPartitionerRootTask(partitioned_hypergraph, context, Config::ALGORITHM, Config::RUNS);
-    tbb::task::spawn_root_and_wait(root_ip_task);
+    tbb::task_group tg;
+    const int seed = 420;
+    for ( size_t i = 0; i < Config::RUNS; ++i ) {
+      tg.run([&, i] {
+        InitialPartitioner ip(Config::ALGORITHM, *ip_data.get(), context, seed + i, i);
+        ip.partition();
+      });
+    }
+    tg.wait();
+    ip_data->apply();
   }
 
   Hypergraph hypergraph;
   PartitionedHypergraph partitioned_hypergraph;
   Context context;
+  std::unique_ptr<InitialPartitioningDataContainer> ip_data;
 };
 
 using GreedyRoundRobinFMInitialPartitioner = GreedyInitialPartitioner<CutGainPolicy, RoundRobinPQSelectionPolicy>;

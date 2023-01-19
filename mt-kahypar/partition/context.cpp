@@ -202,23 +202,6 @@ namespace mt_kahypar {
     return str;
   }
 
-  std::ostream & operator<< (std::ostream& str, const SparsificationParameters& params) {
-    str << "Sparsification Parameters:" << std::endl;
-    str << "  Use Degree-Zero HN Contractions:    " << std::boolalpha << params.use_degree_zero_contractions << std::endl;
-    str << "  Use Heavy Net Removal:              " << std::boolalpha << params.use_heavy_net_removal << std::endl;
-    str << "  Use Similiar Net Removal:           " << std::boolalpha << params.use_similiar_net_removal << std::endl;
-    if ( params.use_heavy_net_removal ) {
-      str << "  Hyperedge Pin Weight Fraction:      " << params.hyperedge_pin_weight_fraction << std::endl;
-      str << "  Maximum Hyperedge Pin Weight:       " << params.max_hyperedge_pin_weight << std::endl;
-    }
-    if ( params.use_similiar_net_removal ) {
-      str << "  Min-Hash Footprint Size:            " << params.min_hash_footprint_size << std::endl;
-      str << "  Jaccard Threshold:                  " << params.jaccard_threshold << std::endl;
-      str << "  Similiar Net Combiner Strategy:     " << params.similiar_net_combiner_strategy << std::endl;
-    }
-    return str;
-  }
-
   std::ostream & operator<< (std::ostream& str, const InitialPartitioningParameters& params) {
     str << "Initial Partitioning Parameters:" << std::endl;
     str << "  Initial Partitioning Mode:          " << params.mode << std::endl;
@@ -244,13 +227,6 @@ namespace mt_kahypar {
     str << "  Use Localized Random Shuffle:       " << std::boolalpha << params.use_localized_random_shuffle << std::endl;
     str << "  Random Shuffle Block Size:          " << params.shuffle_block_size << std::endl;
     return str;
-  }
-
-
-  bool Context::useSparsification() const {
-    return sparsification.use_degree_zero_contractions ||
-           sparsification.use_heavy_net_removal ||
-           sparsification.use_similiar_net_removal;
   }
 
   void Context::setupPartWeights(const HypernodeWeight total_hypergraph_weight) {
@@ -292,8 +268,6 @@ namespace mt_kahypar {
         partition.max_part_weights.push_back(partition.max_part_weights[0]);
       }
     }
-
-    setupSparsificationParameters();
   }
 
   void Context::setupContractionLimit(const HypernodeWeight total_hypergraph_weight) {
@@ -324,18 +298,6 @@ namespace mt_kahypar {
             std::ceil(hypernode_weight_fraction * total_hypergraph_weight);
     coarsening.max_allowed_node_weight =
             std::min(coarsening.max_allowed_node_weight, min_block_weight);
-  }
-
-  void Context::setupSparsificationParameters() {
-    if ( sparsification.use_heavy_net_removal ) {
-      HypernodeWeight max_block_weight = 0;
-      for ( PartitionID block = 0; block < partition.k; ++block ) {
-        max_block_weight = std::max(max_block_weight, partition.max_part_weights[block]);
-      }
-
-      sparsification.max_hyperedge_pin_weight = max_block_weight /
-                                                sparsification.hyperedge_pin_weight_fraction;
-    }
   }
 
   void Context::sanityCheck() {
@@ -714,10 +676,6 @@ namespace mt_kahypar {
         << "-------------------------------------------------------------------------------\n"
         << context.refinement
         << "-------------------------------------------------------------------------------\n"
-        #ifdef KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES
-        << context.sparsification
-        << "-------------------------------------------------------------------------------\n"
-        #endif
         << context.shared_memory
         << "-------------------------------------------------------------------------------";
     return str;

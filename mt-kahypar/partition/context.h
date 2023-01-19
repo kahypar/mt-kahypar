@@ -208,20 +208,6 @@ struct RefinementParameters {
 
 std::ostream & operator<< (std::ostream& str, const RefinementParameters& params);
 
-struct SparsificationParameters {
-  bool use_degree_zero_contractions = false;
-  bool use_heavy_net_removal = false;
-  bool use_similiar_net_removal = false;
-  double hyperedge_pin_weight_fraction = 0.0;
-  size_t min_hash_footprint_size = 0;
-  double jaccard_threshold = 1.0;
-  SimiliarNetCombinerStrategy similiar_net_combiner_strategy = SimiliarNetCombinerStrategy::UNDEFINED;
-  // Those will be determined dynamically
-  HypernodeWeight max_hyperedge_pin_weight = std::numeric_limits<HypernodeWeight>::max();
-};
-
-std::ostream & operator<< (std::ostream& str, const SparsificationParameters& params);
-
 struct InitialPartitioningParameters {
   InitialPartitioningParameters() :
     // Enable all initial partitioner per default
@@ -260,7 +246,6 @@ class Context {
   CoarseningParameters coarsening { };
   InitialPartitioningParameters initial_partitioning { };
   RefinementParameters refinement { };
-  SparsificationParameters sparsification { };
   SharedMemoryParameters shared_memory { };
   ContextType type = ContextType::main;
 
@@ -274,15 +259,11 @@ class Context {
     }
   }
 
-  bool useSparsification() const ;
-
   void setupPartWeights(const HypernodeWeight total_hypergraph_weight);
 
   void setupContractionLimit(const HypernodeWeight total_hypergraph_weight);
 
   void setupMaximumAllowedNodeWeight(const HypernodeWeight total_hypergraph_weight);
-
-  void setupSparsificationParameters();
 
   void setupThreadsPerFlowSearch();
 

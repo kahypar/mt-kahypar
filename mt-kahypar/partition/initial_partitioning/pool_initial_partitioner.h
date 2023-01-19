@@ -29,50 +29,16 @@
 #include "tbb/task.h"
 
 #include "mt-kahypar/definitions.h"
-#include "mt-kahypar/partition/initial_partitioning/flat/initial_partitioning_data_container.h"
+#include "mt-kahypar/partition/initial_partitioning/initial_partitioning_data_container.h"
 
 
 namespace mt_kahypar {
 
+namespace pool {
 
+// Bipartitions a hypergraph using a portfolio of nine different bipartitioning techniques.
+void bipartition(PartitionedHypergraph& hypergraph, const Context& context);
 
-// IP algorithm and random seed
-using IPTaskList = vec< std::tuple<InitialPartitioningAlgorithm, int, int> >;
+}
 
-class PoolInitialPartitionerContinuation : public tbb::task {
-public:
-  PoolInitialPartitionerContinuation(PartitionedHypergraph& hypergraph,
-                                     const Context& context);
-
-  tbb::task* execute() override ;
-
-  InitialPartitioningDataContainer _ip_data;
-  const Context& _context;
-  vec<IPTaskList> _ip_task_lists;
-};
-
-
-void spawn_initial_partitioner(PoolInitialPartitionerContinuation& continuation_task );
-
-
-/*!
- * The pool initial partitioner spawns for each initial partitioning run and algorithm
- * exactly one initial partitioning task. The number of initial partitions computed during
- * an invocation of the pool initial partitioner is exactly ( num IP runs ) * (num IP algos).
- * The best partition is applied to the hypergraph.
- */
-class PoolInitialPartitioner : public tbb::task {
-
-  static constexpr bool debug = false;
-
- public:
-  PoolInitialPartitioner(PartitionedHypergraph& hypergraph,
-                         const Context& context);
-
-  tbb::task* execute() override ;
-
- private:
-  PartitionedHypergraph& _hg;
-  const Context& _context;
-};
 } // namespace mt_kahypar

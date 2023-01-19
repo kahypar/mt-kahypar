@@ -34,8 +34,8 @@ class IInitialPartitioner {
   IInitialPartitioner & operator= (const IInitialPartitioner &) = delete;
   IInitialPartitioner & operator= (IInitialPartitioner &&) = delete;
 
-  void initialPartition() {
-    initialPartitionImpl();
+  void partition() {
+    partitionImpl();
   }
 
   virtual ~IInitialPartitioner() = default;
@@ -44,6 +44,6 @@ class IInitialPartitioner {
   IInitialPartitioner() = default;
 
  private:
-  virtual void initialPartitionImpl() = 0;
+  virtual void partitionImpl() = 0;
 };
 }  // namespace mt_kahypar

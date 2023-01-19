@@ -33,7 +33,7 @@
 #include "tests/datastructures/hypergraph_fixtures.h"
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/utils/utilities.h"
-#include "mt-kahypar/partition/initial_partitioning/flat/initial_partitioning_data_container.h"
+#include "mt-kahypar/partition/initial_partitioning/initial_partitioning_data_container.h"
 
 using ::testing::Test;
 

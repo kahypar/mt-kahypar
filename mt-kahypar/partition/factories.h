@@ -37,15 +37,10 @@
 #include "mt-kahypar/partition/coarsening/policies/rating_acceptance_policy.h"
 #include "mt-kahypar/partition/coarsening/policies/rating_heavy_node_penalty_policy.h"
 #include "mt-kahypar/partition/context.h"
-#include "mt-kahypar/partition/initial_partitioning/i_initial_partitioner.h"
-#include "mt-kahypar/partition/preprocessing/sparsification/i_hypergraph_sparsifier.h"
 #include "mt-kahypar/partition/refinement/i_refiner.h"
 #include "mt-kahypar/partition/refinement/flows/i_flow_refiner.h"
 
 namespace mt_kahypar {
-
-using HypergraphSparsifierFactory = kahypar::meta::Factory<SimiliarNetCombinerStrategy,
-                                                           IHypergraphSparsifier* (*)(const Context&)>;
 
 using CoarsenerFactory = kahypar::meta::Factory<CoarseningAlgorithm,
                                                 ICoarsener* (*)(Hypergraph&, const Context&, UncoarseningData&)>;
@@ -61,9 +56,6 @@ using NLevelCoarsenerDispatcher = kahypar::meta::StaticMultiDispatchFactory<NLev
                                                                             kahypar::meta::Typelist<RatingScorePolicies,
                                                                                                         HeavyNodePenaltyPolicies,
                                                                                                         AcceptancePolicies> >;
-
-using InitialPartitionerFactory = kahypar::meta::Factory<Mode,
-                                                         IInitialPartitioner* (*)(PartitionedHypergraph&, const Context&)>;
 
 using LabelPropagationFactory = kahypar::meta::Factory<LabelPropagationAlgorithm,
                                                        IRefiner* (*)(Hypergraph&, const Context&)>;

@@ -99,14 +99,6 @@ std::string serialize(const PartitionedHypergraph& hypergraph,
         << " initial_partitioning_lp_maximum_iterations=" << context.initial_partitioning.lp_maximum_iterations
         << " initial_partitioning_lp_initial_block_size=" << context.initial_partitioning.lp_initial_block_size
         << " initial_partitioning_population_size=" << context.initial_partitioning.population_size;
-    oss << " sparsification_use_degree_zero_contractions=" << std::boolalpha << context.sparsification.use_degree_zero_contractions
-        << " sparsification_use_heavy_net_removal=" << std::boolalpha << context.sparsification.use_heavy_net_removal
-        << " sparsification_use_similiar_net_removal=" << std::boolalpha << context.sparsification.use_similiar_net_removal
-        << " sparsification_hyperedge_pin_weight_fraction=" << context.sparsification.hyperedge_pin_weight_fraction
-        << " sparsification_max_hyperedge_pin_weight=" << context.sparsification.max_hyperedge_pin_weight
-        << " sparsification_min_hash_footprint_size=" << context.sparsification.min_hash_footprint_size
-        << " sparsification_jaccard_threshold=" << context.sparsification.jaccard_threshold
-        << " sparsification_similiar_net_combiner_strategy=" << context.sparsification.similiar_net_combiner_strategy;
     oss << " refine_until_no_improvement=" << std::boolalpha << context.refinement.refine_until_no_improvement
         << " relative_improvement_threshold=" << context.refinement.relative_improvement_threshold
         << " max_batch_size=" << context.refinement.max_batch_size
