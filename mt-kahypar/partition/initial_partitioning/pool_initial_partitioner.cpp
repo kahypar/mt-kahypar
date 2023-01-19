@@ -60,7 +60,7 @@ void bipartition(PartitionedHypergraph& hypergraph, const Context& context) {
   }
   // Random shuffle task list to evenly schedule the initial
   // partitioning algorithms to the threads
-  std::random_shuffle(_ip_task_lists.begin(), _ip_task_lists.end());
+  std::shuffle(_ip_task_lists.begin(), _ip_task_lists.end(), rng);
 
   tbb::task_group tg;
   InitialPartitioningDataContainer ip_data(hypergraph, context);
