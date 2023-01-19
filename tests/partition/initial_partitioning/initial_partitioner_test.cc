@@ -30,25 +30,22 @@
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/io/hypergraph_io.h"
 #include "mt-kahypar/partition/context.h"
-
-#include "mt-kahypar/partition/initial_partitioning/deep_initial_partitioner.h"
-#include "mt-kahypar/partition/initial_partitioning/recursive_bipartitioning_initial_partitioner.h"
+#include "mt-kahypar/partition/recursive_bipartitioning.h"
+#include "mt-kahypar/partition/deep_multilevel.h"
 
 using ::testing::Test;
 
 namespace mt_kahypar {
 
 
-template <class InitialPartitioner, Mode mode, PartitionID k>
+template <Mode mode, PartitionID k>
 struct TestConfig {
-  using Partitioner = InitialPartitioner;
   static constexpr Mode MODE = mode;
   static constexpr PartitionID K = k;
 };
 
 template <typename Config>
 class AInitialPartitionerTest : public Test {
-  using InitialPartitioner = typename Config::Partitioner;
 
   static size_t num_threads;
 
@@ -104,8 +101,6 @@ class AInitialPartitionerTest : public Test {
     context.setupPartWeights(hypergraph.totalWeight());
     context.setupContractionLimit(hypergraph.totalWeight());
     assignCommunities();
-
-    initial_partitioner = std::make_unique<InitialPartitioner>(partitioned_hypergraph, context);
   }
 
   void assignCommunities() {
@@ -117,10 +112,21 @@ class AInitialPartitionerTest : public Test {
     }
   }
 
+  void runInitialPartitioning() {
+    switch ( context.initial_partitioning.mode ) {
+      case Mode::recursive_bipartitioning:
+        recursive_bipartitioning::partition(partitioned_hypergraph, context); break;
+      case Mode::deep_multilevel:
+        deep_multilevel::partition(partitioned_hypergraph, context); break;
+      case Mode::direct:
+      case Mode::UNDEFINED:
+        ERROR("Undefined initial partitioning algorithm.");
+    }
+  }
+
   Hypergraph hypergraph;
   PartitionedHypergraph partitioned_hypergraph;
   Context context;
-  std::unique_ptr<InitialPartitioner> initial_partitioner;
 };
 
 template <typename Config>
@@ -128,17 +134,17 @@ size_t AInitialPartitionerTest<Config>::num_threads = HardwareTopology::instance
 
 static constexpr double EPS = 0.05;
 
-typedef ::testing::Types<TestConfig<DeepInitialPartitioner, Mode::deep_multilevel, 2>,
-                         TestConfig<DeepInitialPartitioner, Mode::deep_multilevel, 3>,
-                         TestConfig<DeepInitialPartitioner, Mode::deep_multilevel, 4>,
-                         TestConfig<RecursiveBipartitioningInitialPartitioner, Mode::recursive_bipartitioning, 2>,
-                         TestConfig<RecursiveBipartitioningInitialPartitioner, Mode::recursive_bipartitioning, 3>,
-                         TestConfig<RecursiveBipartitioningInitialPartitioner, Mode::recursive_bipartitioning, 4> > TestConfigs;
+typedef ::testing::Types<TestConfig<Mode::deep_multilevel, 2>,
+                         TestConfig<Mode::deep_multilevel, 3>,
+                         TestConfig<Mode::deep_multilevel, 4>,
+                         TestConfig<Mode::recursive_bipartitioning, 2>,
+                         TestConfig<Mode::recursive_bipartitioning, 3>,
+                         TestConfig<Mode::recursive_bipartitioning, 4> > TestConfigs;
 
 TYPED_TEST_CASE(AInitialPartitionerTest, TestConfigs);
 
 TYPED_TEST(AInitialPartitionerTest, VerifiesComputedPartition) {
-  this->initial_partitioner->initialPartition();
+  this->runInitialPartitioning();
 
   // Check that each vertex is assigned to a block
   for ( const HypernodeID& hn : this->partitioned_hypergraph.nodes() ) {

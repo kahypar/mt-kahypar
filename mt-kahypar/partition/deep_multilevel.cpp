@@ -37,7 +37,7 @@
 #include "mt-kahypar/partition/coarsening/multilevel_uncoarsener.h"
 #include "mt-kahypar/partition/coarsening/nlevel_uncoarsener.h"
 
-#include "mt-kahypar/partition/initial_partitioning/flat/pool_initial_partitioner.h"
+#include "mt-kahypar/partition/initial_partitioning/pool_initial_partitioner.h"
 #include "mt-kahypar/utils/randomize.h"
 #include "mt-kahypar/utils/utilities.h"
 #include "mt-kahypar/utils/timer.h"
@@ -276,10 +276,7 @@ namespace mt_kahypar {
 
       if ( _result.hypergraph.initialNumNodes() > 0 ) {
         // Spawn Initial Partitioner
-        PoolInitialPartitionerContinuation& ip_continuation = *new(allocate_continuation())
-                PoolInitialPartitionerContinuation(
-                _result.partitioned_hypergraph, _result.context);
-        spawn_initial_partitioner(ip_continuation);
+        pool::bipartition(_result.partitioned_hypergraph, _result.context);
       }
       return nullptr;
     }
@@ -532,9 +529,7 @@ namespace mt_kahypar {
       // Base Case -> Bisect Hypergraph
       ASSERT(_context.partition.k == 2);
       ASSERT(_context.partition.max_part_weights.size() == 2);
-      PoolInitialPartitionerContinuation& ip_continuation = *new(allocate_continuation())
-              PoolInitialPartitionerContinuation(_hg, _context);
-      spawn_initial_partitioner(ip_continuation);
+      pool::bipartition(_hg, _context);
     } else {
       // We do parallel recursion, if the contract limit is equal to 2 * p * t
       // ( where p is the number of threads and t the contract limit multiplier )

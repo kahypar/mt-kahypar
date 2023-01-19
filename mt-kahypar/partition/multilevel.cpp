@@ -34,7 +34,9 @@
 #include "mt-kahypar/partition/factories.h"
 #include "mt-kahypar/partition/preprocessing/sparsification/degree_zero_hn_remover.h"
 #include "mt-kahypar/partition/preprocessing/sparsification/large_he_remover.h"
-#include "mt-kahypar/partition/initial_partitioning/flat/pool_initial_partitioner.h"
+#include "mt-kahypar/partition/initial_partitioning/pool_initial_partitioner.h"
+#include "mt-kahypar/partition/recursive_bipartitioning.h"
+#include "mt-kahypar/partition/deep_multilevel.h"
 #include "mt-kahypar/parallel/memory_pool.h"
 #include "mt-kahypar/io/partitioning_output.h"
 #include "mt-kahypar/partition/coarsening/multilevel_uncoarsener.h"
@@ -101,21 +103,24 @@ namespace {
 
       Context ip_context(context);
       ip_context.refinement = context.initial_partitioning.refinement;
-      if ( context.initial_partitioning.mode == Mode::direct ) {
-        disableTimerAndStats(context);
-        PoolInitialPartitioner& initial_partitioner = *new(tbb::task::allocate_root())
-          PoolInitialPartitioner(phg, ip_context);
-        tbb::task::spawn_root_and_wait(initial_partitioner);
-        enableTimerAndStats(context);
-      } else {
-        std::unique_ptr<IInitialPartitioner> initial_partitioner =
-                InitialPartitionerFactory::getInstance().createObject(
-                        ip_context.initial_partitioning.mode, phg, ip_context);
-        initial_partitioner->initialPartition();
+      disableTimerAndStats(context);
+      switch ( context.initial_partitioning.mode ) {
+        case Mode::direct:
+          // The pool initial partitioner consist of several flat bipartitioning
+          // techniques. This case runs as a base case (k = 2) within recursive bipartitioning
+          // or the deep multilevel scheme.
+          pool::bipartition(phg, ip_context); break;
+        // k-way partitions can be computed either by recursive bipartitioning
+        // or deep multilevel partitioning.
+        case Mode::recursive_bipartitioning:
+          recursive_bipartitioning::partition(phg, ip_context); break;
+        case Mode::deep_multilevel:
+          deep_multilevel::partition(phg, ip_context); break;
+        case Mode::UNDEFINED: ERROR("Undefined initial partitioning algorithm");
       }
       degree_zero_hn_remover.restoreDegreeZeroHypernodes(phg);
     } else {
-      // When initializing a V-cycle, we store the block IDs
+      // When performing a V-cycle, we store the block IDs
       // of the input hypergraph as community IDs
       const Hypergraph& hypergraph = phg.hypergraph();
       phg.doParallelForAllNodes([&](const HypernodeID hn) {
@@ -182,19 +187,20 @@ void partitionVCycle(Hypergraph& hypergraph,
     parallel::MemoryPool::instance().release_mem_group("Preprocessing");
 
     if ( context.partition.paradigm == Paradigm::nlevel ) {
-      // Workaround: reset() function of hypergraph reinserts all removed
-      // hyperedges to incident net lists of each vertex again.
+      // Workaround: reset() function of hypergraph reinserts all removed hyperedges again.
       LargeHyperedgeRemover large_he_remover(context);
       large_he_remover.removeLargeHyperedgesInNLevelVCycle(hypergraph);
     }
 
-    // Store partition and assign it as community ids in order to
-    // restrict contractions in v-cycle to partition ids
+    // The block IDs of the current partition are stored as community IDs.
+    // This way coarsening does not contract nodes that do not belong to same block
+    // of the input partition. For initial partitioning, we use the community IDs of
+    // smallest hypergraph as initial partition.
     hypergraph.doParallelForAllNodes([&](const HypernodeID& hn) {
       hypergraph.setCommunityID(hn, partitioned_hg.partID(hn));
     });
 
-    // V-Cycle Multilevel Partitioning
+    // Perform V-cycle
     io::printVCycleBanner(context, i + 1);
     partitioned_hg = multilevel_partitioning(hypergraph, context, true /* V-cycle flag */ );
   }

@@ -179,7 +179,7 @@ namespace tmp {
                                      const OriginalHypergraphInfo& info,
                                      const double degree_of_parallism);
 
-  // Uses recursive bipartitioning to partition the given hypergraph into (k1 - k0) blocks
+  // Uses multilevel recursive bipartitioning to partition the given hypergraph into (k1 - k0) blocks
   void recursive_bipartitioning(PartitionedHypergraph& phg,
                                 const Context& context,
                                 const PartitionID k0, const PartitionID k1,

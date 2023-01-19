@@ -24,10 +24,10 @@
  * SOFTWARE.
  ******************************************************************************/
 
-#include "mt-kahypar/partition/initial_partitioning/flat/label_propagation_initial_partitioner.h"
+#include "mt-kahypar/partition/initial_partitioning/label_propagation_initial_partitioner.h"
 
-#include "mt-kahypar/partition/initial_partitioning/flat/policies/pseudo_peripheral_start_nodes.h"
-#include "mt-kahypar/partition/initial_partitioning/flat/policies/gain_computation_policy.h"
+#include "mt-kahypar/partition/initial_partitioning/policies/pseudo_peripheral_start_nodes.h"
+#include "mt-kahypar/partition/initial_partitioning/policies/gain_computation_policy.h"
 #include "mt-kahypar/utils/randomize.h"
 
 namespace mt_kahypar {
@@ -36,7 +36,7 @@ namespace {
   using MaxGainMove = typename LabelPropagationInitialPartitioner::MaxGainMove;
 } // namespace
 
-tbb::task* LabelPropagationInitialPartitioner::execute() {
+void LabelPropagationInitialPartitioner::partitionImpl() {
   if ( _ip_data.should_initial_partitioner_run(InitialPartitioningAlgorithm::label_propagation) ) {
     HighResClockTimepoint start = std::chrono::high_resolution_clock::now();
     PartitionedHypergraph& hg = _ip_data.local_partitioned_hypergraph();
@@ -139,7 +139,6 @@ tbb::task* LabelPropagationInitialPartitioner::execute() {
     double time = std::chrono::duration<double>(end - start).count();
     _ip_data.commit(InitialPartitioningAlgorithm::label_propagation, _rng, _tag, time);
   }
-  return nullptr;
 }
 
 MaxGainMove LabelPropagationInitialPartitioner::computeMaxGainMoveForUnassignedVertex(PartitionedHypergraph& hypergraph,

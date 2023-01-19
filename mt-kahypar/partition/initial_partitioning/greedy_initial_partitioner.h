@@ -26,16 +26,15 @@
 
 #pragma once
 
-#include "tbb/task.h"
-
 #include "mt-kahypar/definitions.h"
-#include "mt-kahypar/partition/initial_partitioning/flat/initial_partitioning_data_container.h"
-#include "mt-kahypar/partition/initial_partitioning/flat/policies/pseudo_peripheral_start_nodes.h"
+#include "mt-kahypar/partition/initial_partitioning/i_initial_partitioner.h"
+#include "mt-kahypar/partition/initial_partitioning/initial_partitioning_data_container.h"
+#include "mt-kahypar/partition/initial_partitioning/policies/pseudo_peripheral_start_nodes.h"
 
 namespace mt_kahypar {
 template<typename GainPolicy,
          typename PQSelectionPolicy>
-class GreedyInitialPartitioner : public tbb::task {
+class GreedyInitialPartitioner : public IInitialPartitioner {
 
   using DeltaFunction = std::function<void (const HyperedgeID, const HyperedgeWeight, const HypernodeID, const HypernodeID, const HypernodeID)>;
   #define NOOP_FUNC [] (const HyperedgeID, const HyperedgeWeight, const HypernodeID, const HypernodeID, const HypernodeID) { }
@@ -56,7 +55,8 @@ class GreedyInitialPartitioner : public tbb::task {
     _tag(tag)
     { }
 
-  tbb::task* execute() override {
+ private:
+  void partitionImpl() final {
     if ( _ip_data.should_initial_partitioner_run(_algorithm) ) {
       HighResClockTimepoint start = std::chrono::high_resolution_clock::now();
       PartitionedHypergraph& hg = _ip_data.local_partitioned_hypergraph();
@@ -149,10 +149,8 @@ class GreedyInitialPartitioner : public tbb::task {
       double time = std::chrono::duration<double>(end - start).count();
       _ip_data.commit(_algorithm, _rng, _tag, time);
     }
-    return nullptr;
   }
 
- private:
   bool fitsIntoBlock(PartitionedHypergraph& hypergraph,
                      const HypernodeID hn,
                      const PartitionID block,
