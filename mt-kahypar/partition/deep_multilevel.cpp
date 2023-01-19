@@ -144,7 +144,12 @@ void recursively_perform_multilevel_partitioning(PartitionedHypergraph& partitio
                                                  const bool is_parallel_recursion,
                                                  const bool is_top_level);
 
-using BipartitioningResult = std::pair<PartitionedHypergraph, vec<HypernodeID>>;
+struct BipartitioningResult {
+  Hypergraph hg;
+  PartitionedHypergraph partitioned_hg;
+  vec<HypernodeID> mapping;
+};
+
 BipartitioningResult bipartion_block(PartitionedHypergraph& partitioned_hg,
                                      const Context& context,
                                      const PartitionID block) {
@@ -171,7 +176,7 @@ BipartitioningResult bipartion_block(PartitionedHypergraph& partitioned_hg,
     pool::bipartition(bipartitioned_hg, b_context);
   }
 
-  return std::make_pair(std::move(bipartitioned_hg), std::move(mapping));
+  return BipartitioningResult { std::move(hg), std::move(bipartitioned_hg), std::move(mapping) };
 }
 
 void deep_multilevel_partitioning(PartitionedHypergraph& partitioned_hg,
@@ -257,6 +262,9 @@ void deep_multilevel_partitioning(PartitionedHypergraph& partitioned_hg,
         tg.run([&, block] { result[block] = bipartion_block(partitioned_hg, context, block); });
       }
       tg.wait();
+      for (PartitionID block = 0; block < context.partition.k / 2; ++block) {
+        result[block].partitioned_hg.setHypergraph(result[block].hg);
+      }
 
       // We now assign the nodes of block b to the blocks 2*b and 2*b + 1 based on
       // the bipartition of block b. Note that when k is odd, there exists one block
@@ -267,7 +275,7 @@ void deep_multilevel_partitioning(PartitionedHypergraph& partitioned_hg,
         const PartitionID from = partitioned_hg.partID(hn);
         PartitionID to = context.partition.k - 1;
         if ( from != non_bipartitioned_block ) {
-          to = result[from].first.partID(result[from].second[hn]) == 0 ? 2 * from : 2 * from + 1;
+          to = result[from].partitioned_hg.partID(result[from].mapping[hn]) == 0 ? 2 * from : 2 * from + 1;
         }
         if ( from != to ) {
           partitioned_hg.changeNodePart(hn, from, to);
