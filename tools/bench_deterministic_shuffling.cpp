@@ -2,13 +2,13 @@
 
 #include <iostream>
 #include <random>
-#include <tbb/task_scheduler_init.h>
+#include <tbb/global_control.h>
 
 namespace mt_kahypar::utils {
 
 
 void benchShuffle(size_t n, int num_threads) {
-  tbb::task_scheduler_init tsi(num_threads);
+  tbb::global_control gc(tbb::global_control::max_allowed_parallelism, num_threads);
 
 #ifndef NDEBUG
   auto is_permutation = [&](vec<int>& r1, vec<int>& r2) {
@@ -44,7 +44,7 @@ void benchShuffle(size_t n, int num_threads) {
 }
 
 void testGroupingReproducibility(size_t n, int num_threads) {
-  tbb::task_scheduler_init tsi(num_threads);
+  tbb::global_control gc(tbb::global_control::max_allowed_parallelism, num_threads);
 
   size_t num_reps = 5;
   using Permutation = ParallelPermutation<int, PrecomputeBucketOpt>;
