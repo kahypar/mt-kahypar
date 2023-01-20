@@ -23,8 +23,11 @@ include_directories(external_tools/kahypar)
 #include WHFC
 include_directories(external_tools/WHFC)
 
-option(KAHYPAR_USE_MINIMAL_BOOST
+option(KAHYPAR_DOWNLOAD_BOOST
   "Download boost automatically and compile required libraries." OFF)
+
+option(KAHYPAR_DOWNLOAD_TBB
+  "Download TBB automatically." OFF)
 
 option(KAHYPAR_USE_GCOV
   "Compile and run tests with gcov for coverage analysis." OFF)
@@ -92,7 +95,7 @@ if(KAHYPAR_TRAVIS_BUILD)
   add_compile_definitions(KAHYPAR_TRAVIS_BUILD)
 endif(KAHYPAR_TRAVIS_BUILD)
 
-if(KAHYPAR_USE_MINIMAL_BOOST)
+if(KAHYPAR_DOWNLOAD_BOOST)
   execute_process(COMMAND cmake -P ${CMAKE_CURRENT_SOURCE_DIR}/scripts/download_boost.cmake)
 
   include_directories(SYSTEM ${CMAKE_CURRENT_BINARY_DIR}/external_tools/boost/)
@@ -120,6 +123,12 @@ else()
     endif()
 
   endif()
+endif()
+
+if(KAHYPAR_DOWNLOAD_TBB)
+  execute_process(COMMAND cmake -P ${CMAKE_CURRENT_SOURCE_DIR}/scripts/download_tbb.cmake)
+  set(TBB_ROOT ${CMAKE_CURRENT_BINARY_DIR}/external_tools/tbb)
+  set(TBB_INSTALL_DIR ${CMAKE_CURRENT_BINARY_DIR}/external_tools/tbb)
 endif()
 
 if(KAHYPAR_USE_GCOV)
