@@ -39,6 +39,7 @@
 #include "mt-kahypar/datastructures/concurrent_bucket_map.h"
 #include "mt-kahypar/partition/refinement/flows/i_flow_refiner.h"
 #include "mt-kahypar/partition/refinement/flows/flow_hypergraph_builder.h"
+#include "mt-kahypar/parallel/stl/zero_allocator.h"
 
 namespace mt_kahypar {
 
@@ -70,7 +71,7 @@ class ParallelConstruction {
     };
 
     using IdenticalNetVector = tbb::concurrent_vector<
-      ThresholdHyperedge, tbb::zero_allocator<ThresholdHyperedge>>;
+      ThresholdHyperedge, parallel::zero_allocator<ThresholdHyperedge>>;
 
     struct HashBucket {
       HashBucket() :
