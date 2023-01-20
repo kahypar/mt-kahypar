@@ -45,7 +45,7 @@ The Multi-Threaded Karlsruhe Hypergraph Partitioning Framework requires:
    to the cmake command to download, extract, and build the neccessary dependencies automatically.
  - The [Intel Thread Building Blocks][tbb] library (TBB).
    If you don't want to install TBB by yourself, you can add the `-DKAHYPAR_DOWNLOAD_TBB=On` flag
-   to the cmake command to download (oneTBB 2021.7.0) and extract the neccessary dependencies automatically.
+   to the cmake command to download oneTBB 2021.7.0 and extract the neccessary dependencies automatically.
  - The [Portable Hardware Locality][hwloc] library (hwloc)
 
 The following command will install most of the required dependencies on a Ubuntu machine:
