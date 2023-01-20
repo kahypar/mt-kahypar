@@ -377,10 +377,8 @@ endforeach ()
 
 # add general search paths
 foreach (dir IN LISTS TBB_PREFIX_PATH)
-  list(APPEND TBB_LIB_SEARCH_PATH ${dir}/lib ${dir}/Lib ${dir}/lib/tbb
-    ${dir}/Libs)
-  list(APPEND TBB_INC_SEARCH_PATH ${dir}/include ${dir}/Include
-    ${dir}/include/tbb)
+  list(APPEND TBB_LIB_SEARCH_PATH ${dir}/lib ${dir}/Lib ${dir}/lib/tbb ${dir}/Libs)
+  list(APPEND TBB_INC_SEARCH_PATH ${dir}/include ${dir}/Include ${dir}/include/tbb)
 endforeach ()
 
 set(TBB_LIBRARY_NAMES tbb)

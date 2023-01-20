@@ -48,8 +48,6 @@ The following command will install most of the required dependencies on a Ubuntu
 
     sudo apt-get install libboost-program-options-dev libnuma-dev numactl libhwloc-dev moreutils linux-tools-common linux-tools-generic libtbb-dev
 
-**Note** that Mt-KaHyPar is not compatible with newer versions of TBB (OneTBB). However, you can add the flag `-DKAHYPAR_USE_COMPATIBLE_TBB_VERSION=ON` to the cmake build command. This downloads a compatible TBB version and automically links Mt-KaHyPar against it.
-
 Building Mt-KaHyPar
 -----------
 
