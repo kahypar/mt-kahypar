@@ -33,7 +33,7 @@ jobs:
         run: |
           cd debug
           ./tests/mt_kahypar_multilevel_tests;
-          ./tests/mt_kahypar_strong_tests;
+          ./tests/mt_kahypar_nlevel_tests;
           ./tests/mt_kahypar_graph_tests;
 
       - name: Report Code Coverage

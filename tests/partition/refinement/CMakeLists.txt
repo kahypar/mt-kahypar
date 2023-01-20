@@ -14,7 +14,7 @@ target_sources(mt_kahypar_multilevel_tests PRIVATE
         flow_construction_test.cc
         )
 
-target_sources(mt_kahypar_strong_tests PRIVATE
+target_sources(mt_kahypar_nlevel_tests PRIVATE
         refinement_adapter_test.cc
         problem_construction_test.cc
         scheduler_test.cc

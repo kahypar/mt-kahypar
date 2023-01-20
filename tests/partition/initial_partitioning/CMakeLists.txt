@@ -5,7 +5,7 @@ target_sources(mt_kahypar_multilevel_tests PRIVATE
         pool_initial_partitioner_test.cc
         )
 
-target_sources(mt_kahypar_strong_tests PRIVATE
+target_sources(mt_kahypar_nlevel_tests PRIVATE
         flat_initial_partitioner_test.cc
         initial_partitioner_test.cc
         initial_partitioning_data_container_test.cc

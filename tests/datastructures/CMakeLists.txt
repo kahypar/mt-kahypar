@@ -12,7 +12,7 @@ target_sources(mt_kahypar_multilevel_tests PRIVATE
         pin_count_in_part_test.cc
 )
 
-target_sources(mt_kahypar_strong_tests PRIVATE
+target_sources(mt_kahypar_nlevel_tests PRIVATE
         dynamic_hypergraph_test.cc
         dynamic_partitioned_hypergraph_test.cc
         partitioned_hypergraph_test.cc
