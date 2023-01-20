@@ -1,4 +1,4 @@
-target_sources(mt_kahypar_fast_tests PRIVATE
+target_sources(mt_kahypar_multilevel_tests PRIVATE
         coarsener_test.cc)
 
 target_sources(mt_kahypar_strong_tests PRIVATE

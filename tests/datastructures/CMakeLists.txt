@@ -1,4 +1,4 @@
-target_sources(mt_kahypar_fast_tests PRIVATE
+target_sources(mt_kahypar_multilevel_tests PRIVATE
         static_hypergraph_test.cc
         partitioned_hypergraph_test.cc
         delta_partitioned_hypergraph_test.cc

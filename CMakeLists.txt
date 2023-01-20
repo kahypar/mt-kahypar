@@ -334,6 +334,6 @@ add_custom_target(MtKaHyPar
 
 add_custom_target(mt_kahypar_tests
   DEPENDS
-  mt_kahypar_fast_tests
+  mt_kahypar_multilevel_tests
   mt_kahypar_strong_tests
   mt_kahypar_graph_tests)

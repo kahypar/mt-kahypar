@@ -32,7 +32,7 @@ jobs:
       - name: Run Mt-KaHyPar Tests
         run: |
           cd debug
-          ./tests/mt_kahypar_fast_tests;
+          ./tests/mt_kahypar_multilevel_tests;
           ./tests/mt_kahypar_strong_tests;
           ./tests/mt_kahypar_graph_tests;
 
