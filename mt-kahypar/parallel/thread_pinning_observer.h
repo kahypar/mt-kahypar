@@ -79,7 +79,7 @@ class ThreadPinningObserver : public tbb::task_scheduler_observer {
   // Observer is pinned to the global task arena and is reponsible for
   // pinning threads to unique CPU id.
   explicit ThreadPinningObserver(const std::vector<int>& cpus) :
-    Base(true),
+    Base(),
     _num_cpus(HwTopology::instance().num_cpus()),
     _numa_node(-1),
     _is_global_thread_pool(true),

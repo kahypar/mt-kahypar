@@ -34,6 +34,7 @@
 #include <atomic>
 #include <vector>
 #include <algorithm>
+#include <unistd.h>
 
 #include "tbb/parallel_for.h"
 #include "tbb/scalable_allocator.h"
