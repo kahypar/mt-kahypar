@@ -196,9 +196,16 @@ endif()
 
 #find TBB
 find_package(TBB REQUIRED)
-include_directories(SYSTEM ${TBB_INCLUDE_DIRS})
-link_libraries(${TBB_LIBRARIES})
-MESSAGE(STATUS "Found TBB library: inc=${TBB_INCLUDE_DIRS}, lib=${TBB_LIBRARIES}")
+if (TBB_FOUND)
+  include_directories(SYSTEM ${TBB_INCLUDE_DIRS} ${TBB_MALLOC_INCLUDE_DIRS})
+  link_libraries(${TBB_LIBRARIES} ${TBB_MALLOC_LIBRARIES})
+  MESSAGE(STATUS "TBB Version: ${TBB_VERSION_MAJOR}.${TBB_VERSION_MINOR} (Interface Version=${TBB_INTERFACE_VERSION})")
+  MESSAGE(STATUS "Found TBB library: inc=${TBB_INCLUDE_DIRS}, lib=${TBB_LIBRARIES}")
+  MESSAGE(STATUS "Found TBB Malloc library: inc=${TBB_MALLOC_INCLUDE_DIRS}, lib=${TBB_MALLOC_LIBRARIES}")
+ELSE ()
+  MESSAGE(STATUS "WARNING: TBB library not found.")
+  MESSAGE(STATUS "Try: sudo apt-get install libtbb-dev")
+ENDIF()
 
 # find LIBNUMA
 FIND_PATH(NUMA_INCLUDE_DIR NAME numa.h
