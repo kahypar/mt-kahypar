@@ -55,6 +55,8 @@ The following command will install most of the required dependencies on a Ubuntu
 Building Mt-KaHyPar
 -----------
 
+To build Mt-KaHyPar, you can run the `build.sh` script (creates a `build` folder) or use the following commands:
+
 1. Clone the repository including submodules:
 
    ```git clone --depth=1 --recursive git@github.com:kahypar/mt-kahypar.git```
