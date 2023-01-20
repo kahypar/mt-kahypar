@@ -41,14 +41,16 @@ The Multi-Threaded Karlsruhe Hypergraph Partitioning Framework requires:
   - A modern, ![C++17](https://img.shields.io/badge/C++-17-blue.svg?style=flat)-ready compiler such as `g++` version 7 or higher or `clang` version 11.0.3 or higher.
  - The [cmake][cmake] build system (>= 3.16).
  - The [Boost - Program Options][Boost.Program_options] library and the boost header files (>= 1.48).
- - The [Intel Thread Building Blocks][tbb] library (TBB)
+   If you don't want to install boost by yourself, you can add the `-DKAHYPAR_DOWNLOAD_BOOST=On` flag
+   to the cmake command to download, extract, and build the neccessary dependencies automatically.
+ - The [Intel Thread Building Blocks][tbb] library (TBB).
+   If you don't want to install TBB by yourself, you can add the `-DKAHYPAR_DOWNLOAD_TBB=On` flag
+   to the cmake command to download oneTBB 2021.7.0 and extract the neccessary dependencies automatically.
  - The [Portable Hardware Locality][hwloc] library (hwloc)
 
 The following command will install most of the required dependencies on a Ubuntu machine:
 
     sudo apt-get install libboost-program-options-dev libnuma-dev numactl libhwloc-dev moreutils linux-tools-common linux-tools-generic libtbb-dev
-
-**Note** that Mt-KaHyPar is not compatible with newer versions of TBB (OneTBB). However, you can add the flag `-DKAHYPAR_USE_COMPATIBLE_TBB_VERSION=ON` to the cmake build command. This downloads a compatible TBB version and automically links Mt-KaHyPar against it.
 
 Building Mt-KaHyPar
 -----------
@@ -60,7 +62,7 @@ Building Mt-KaHyPar
 3. Run cmake: `cmake .. -DCMAKE_BUILD_TYPE=RELEASE`
 4. Run make: `make MtKaHyPar -j`
 
-The build produces the executable `MtKaHyPar`, which can be found in `build/mt-kahypar/application/`
+The build produces the executable `MtKaHyPar`, which can be found in `build/mt-kahypar/application/`.
 
 Running Mt-KaHyPar
 -----------
