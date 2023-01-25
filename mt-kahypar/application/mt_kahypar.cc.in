@@ -149,7 +149,7 @@ static std::string configurePartitionerCall(const mt_kahypar::Context& context, 
         argv[i + 1] = strdup("deep");
       }
     }
-    ss << " " << argv[i];
+    ss << " " << param;
   }
   if ( context.partition.preset_file == "" ) {
     ss << " -p " << getPresetFile(context);
