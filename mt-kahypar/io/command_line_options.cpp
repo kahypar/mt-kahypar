@@ -89,6 +89,7 @@ namespace mt_kahypar {
              }),
              "Preset Type: \n"
              " - deterministic (Mt-KaHyPar-Det)\n"
+             " - large_k (Mt-KaHyPar-D without FM and the deep multilevel partitioning scheme)\n"
              " - default (Mt-KaHyPar-D)\n"
              " - default_flows (Mt-KaHyPar-D-F)\n"
              " - quality (Mt-KaHyPar-Q)\n"
