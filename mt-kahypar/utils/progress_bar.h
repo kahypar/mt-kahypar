@@ -32,6 +32,9 @@
 #include <atomic>
 #include <sstream>
 #include <chrono>
+#include <sys/ioctl.h>
+#include <stdio.h>
+#include <unistd.h>
 
 #include "mt-kahypar/macros.h"
 
@@ -39,7 +42,6 @@ namespace mt_kahypar {
 namespace utils {
 class ProgressBar {
 
- static constexpr size_t PROGRESS_BAR_SIZE = 75;
  using HighResClockTimepoint = std::chrono::time_point<std::chrono::high_resolution_clock>;
 
  public:
@@ -52,7 +54,11 @@ class ProgressBar {
     _expected_count(expected_count),
     _start(std::chrono::high_resolution_clock::now()),
     _objective(objective),
+    _progress_bar_size(0),
     _enable(enable) {
+    struct winsize w;
+    ioctl(STDOUT_FILENO, TIOCGWINSZ, &w);
+    _progress_bar_size = w.ws_col / 2;
     display_progress();
   }
 
@@ -116,7 +122,7 @@ class ProgressBar {
         std::cout << "#";
       }
       std::cout << END;
-      for ( size_t i = 0; i < PROGRESS_BAR_SIZE - current_tics; ++i ) {
+      for ( size_t i = 0; i < _progress_bar_size - current_tics; ++i ) {
         std::cout << " ";
       }
       std::cout << " ] ";
@@ -153,15 +159,15 @@ class ProgressBar {
 
   size_t get_tics(const size_t current_count) {
     return ( static_cast<double>(current_count) /
-      static_cast<double>(_expected_count) ) * PROGRESS_BAR_SIZE;
+      static_cast<double>(_expected_count) ) * _progress_bar_size;
   }
 
   size_t compute_next_tic_count(const size_t current_count) {
     size_t next_tics = get_tics(current_count) + 1;
-    if ( next_tics > PROGRESS_BAR_SIZE ) {
+    if ( next_tics > _progress_bar_size ) {
       return std::numeric_limits<size_t>::max();
     } else {
-      return ( static_cast<double>(next_tics) / static_cast<double>(PROGRESS_BAR_SIZE) ) *
+      return ( static_cast<double>(next_tics) / static_cast<double>(_progress_bar_size) ) *
         static_cast<double>(_expected_count);
     }
   }
@@ -172,6 +178,7 @@ class ProgressBar {
   size_t _expected_count;
   HighResClockTimepoint _start;
   HyperedgeWeight _objective;
+  size_t _progress_bar_size;
   bool _enable;
 };
 
