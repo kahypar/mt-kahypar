@@ -36,11 +36,11 @@
 #include "mt-kahypar/partition/multilevel.h"
 #include "mt-kahypar/partition/coarsening/multilevel_uncoarsener.h"
 #include "mt-kahypar/partition/coarsening/nlevel_uncoarsener.h"
-
 #include "mt-kahypar/partition/initial_partitioning/pool_initial_partitioner.h"
 #include "mt-kahypar/utils/randomize.h"
 #include "mt-kahypar/utils/utilities.h"
 #include "mt-kahypar/utils/timer.h"
+#include "mt-kahypar/io/partitioning_output.h"
 
 namespace mt_kahypar {
 
@@ -96,7 +96,8 @@ Context setupMultilevelContext(const Hypergraph& hypergraph,
   if (!is_top_level) {
     d_context.type = ContextType::initial_partitioning;
   }
-  d_context.partition.verbose_output = false;
+  d_context.partition.verbose_output =
+    context.partition.verbose_output && is_top_level;
 
   // Shared Memory Parameters
   d_context.shared_memory.num_threads = num_threads;
@@ -104,7 +105,7 @@ Context setupMultilevelContext(const Hypergraph& hypergraph,
 
   // Partitioning Parameters
   bool reduce_k = !is_top_level && context.partition.k > 2 &&
-    context.shared_memory.num_threads < (size_t) context.partition.k;
+    context.shared_memory.num_threads < static_cast<size_t>(context.partition.k);
   if (reduce_k) {
     d_context.partition.k = std::ceil(((double)d_context.partition.k) / 2.0);
     d_context.partition.perfect_balance_part_weights.assign(d_context.partition.k, 0);
@@ -122,10 +123,9 @@ Context setupMultilevelContext(const Hypergraph& hypergraph,
   }
 
   // Coarsening Parameters
-  d_context.coarsening.contraction_limit = std::max(
-          d_context.partition.k * d_context.coarsening.contraction_limit_multiplier,
-          2 * ID(d_context.shared_memory.num_threads) *
-          d_context.coarsening.contraction_limit_multiplier);
+  d_context.coarsening.contraction_limit =
+    std::max(static_cast<size_t>(d_context.partition.k), 2 * d_context.shared_memory.num_threads) *
+      d_context.coarsening.contraction_limit_multiplier;
   d_context.setupMaximumAllowedNodeWeight(hypergraph.totalWeight());
   d_context.setupThreadsPerFlowSearch();
 
@@ -182,6 +182,7 @@ BipartitioningResult bipartion_block(PartitionedHypergraph& partitioned_hg,
 void deep_multilevel_partitioning(PartitionedHypergraph& partitioned_hg,
                                   const Context& context,
                                   const OriginalHypergraphInfo& info,
+                                  const HypernodeID current_num_nodes,
                                   const bool is_top_level) {
   const HypernodeID contraction_limit_for_bipartitioning = 2 * context.coarsening.contraction_limit_multiplier;
   if ( context.shared_memory.num_threads == 1 &&
@@ -196,7 +197,7 @@ void deep_multilevel_partitioning(PartitionedHypergraph& partitioned_hg,
     // a hypergraph with at least t * C nodes (C = contraction_limit_for_bipartitioning).
     // If we reach the contraction limit where this invariant is violated, we copy the
     // hypergraph and continue the deep multilevel partitioning on both copies recursively.
-    const bool do_parallel_recursion = context.coarsening.contraction_limit ==
+    const bool do_parallel_recursion = current_num_nodes ==
       context.shared_memory.num_threads * contraction_limit_for_bipartitioning;
     tbb::task_group tg;
     DeepPartitionResult r1(context);
@@ -312,15 +313,18 @@ void tmp::recursively_perform_multilevel_partitioning(PartitionedHypergraph& par
 
   // ################## COARSENING ##################
   {
+    mt_kahypar::io::printCoarseningBanner(context);
     std::unique_ptr<ICoarsener> coarsener = CoarsenerFactory::getInstance().createObject(
       context.coarsening.algorithm, hypergraph, context, uncoarseningData);
     coarsener->coarsen();
   }
 
   // ################## DEEP MULTILEVEL PARTITIONING ##################
-  deep_multilevel_partitioning(uncoarseningData.coarsestPartitionedHypergraph(), context, info, false);
+  deep_multilevel_partitioning(uncoarseningData.coarsestPartitionedHypergraph(),
+    context, info, context.coarsening.contraction_limit, false);
 
   // ################## UNCOARSENING ##################
+  io::printLocalSearchBanner(context);
   std::unique_ptr<IRefiner> label_propagation =
     LabelPropagationFactory::getInstance().createObject(
       context.refinement.label_propagation.algorithm, hypergraph, context);
@@ -359,9 +363,12 @@ void partition(PartitionedHypergraph& hypergraph, const Context& context) {
   }
 
   // ################## DEEP MULTILEVEL PARTITIONING ##################
+  const bool is_top_level = context.partition.mode == Mode::deep_multilevel;
+  const HypernodeID current_num_nodes = !is_top_level ?
+      context.coarsening.contraction_limit : std::numeric_limits<HypernodeID>::max();
   tmp::deep_multilevel_partitioning(hypergraph, context,
     OriginalHypergraphInfo { context.partition.k, context.partition.epsilon },
-    context.partition.mode == Mode::deep_multilevel);
+    current_num_nodes, is_top_level);
 
   // ################## V-CYCLES ##################
   if (context.partition.num_vcycles > 0 && context.type == ContextType::main) {

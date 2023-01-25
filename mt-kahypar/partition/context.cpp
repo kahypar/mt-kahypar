@@ -274,8 +274,8 @@ namespace mt_kahypar {
     // Setup contraction limit
     if (initial_partitioning.mode == Mode::deep_multilevel) {
       coarsening.contraction_limit =
-              2 * std::max(shared_memory.num_threads, static_cast<size_t>(partition.k)) *
-              coarsening.contraction_limit_multiplier;
+        std::max(2 * shared_memory.num_threads, static_cast<size_t>(partition.k)) *
+          coarsening.contraction_limit_multiplier;
     } else {
       coarsening.contraction_limit =
               coarsening.contraction_limit_multiplier * partition.k;
