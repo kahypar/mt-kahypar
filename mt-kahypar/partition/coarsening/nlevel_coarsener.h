@@ -131,11 +131,13 @@ class NLevelCoarsener : public ICoarsener,
                   UncoarseningData& uncoarseningData) :
     Base(hypergraph, context, uncoarseningData),
     _rater(hypergraph, context),
+    _initial_num_nodes(hypergraph.initialNumNodes() - hypergraph.numRemovedHypernodes()),
     _current_vertices(),
     _tmp_current_vertices(),
     _enabled_vertex_flag_array(),
     _cl_tracker(context),
     _max_allowed_node_weight(context.coarsening.max_allowed_node_weight),
+    _pass_nr(0),
     _progress_bar(hypergraph.initialNumNodes(), 0, false),
     _enable_randomization(true) {
     _progress_bar += hypergraph.numRemovedHypernodes();
@@ -164,73 +166,19 @@ class NLevelCoarsener : public ICoarsener,
   }
 
  private:
-  void coarsenImpl() override {
+  void initializeImpl() override {
     if ( _context.partition.verbose_output && _context.partition.enable_progress_bar ) {
       _progress_bar.enable();
     }
+    _cl_tracker.initialize(_initial_num_nodes);
+  }
 
-    // Contraction function
-    auto contraction = [&](const HypernodeID& hn) {
-      HypernodeID num_contractions = 0;
-      if ( _hg.nodeIsEnabled(hn) ) {
-        const Rating rating = _rater.rate(_hg, hn, _max_allowed_node_weight);
-        if ( rating.target != kInvalidHypernode ) {
-          HypernodeID u = hn;
-          HypernodeID v = rating.target;
-          // In case v is a high degree vertex, we reverse contraction order to improve performance
-          if ( _hg.nodeDegree(u) < _hg.nodeDegree(v) && _hg.nodeDegree(v) > HIGH_DEGREE_VERTEX_THRESHOLD ) {
-            u = rating.target;
-            v = hn;
-          }
-
-          if ( _hg.registerContraction(u, v) ) {
-            _rater.markAsMatched(u);
-            _rater.markAsMatched(v);
-            num_contractions = _hg.contract(v, _max_allowed_node_weight);
-            _progress_bar += num_contractions;
-          }
-        }
-      }
-      return num_contractions;
-    };
-
-    const HypernodeID initial_num_nodes = _hg.initialNumNodes() - _hg.numRemovedHypernodes();
-    _cl_tracker.initialize(initial_num_nodes);
-    int pass_nr = 0;
-    while ( _cl_tracker.currentNumNodes() > _context.coarsening.contraction_limit ) {
-      DBG << V(pass_nr) << V(_cl_tracker.currentNumNodes());
-      const HypernodeID num_hns_before_pass = _cl_tracker.currentNumNodes();
+  bool coarseningPassImpl() override {
+    DBG << V(_pass_nr) << V(_cl_tracker.currentNumNodes());
+    const HypernodeID num_hns_before_pass = _cl_tracker.currentNumNodes();
 
       // Coarsening Pass
       _rater.resetMatches();
-      coarseningPass(contraction);
-
-      // Writes all enabled vertices to _current_vertices
-      _cl_tracker.updateCurrentNumNodes();
-      compactifyVertices();
-      utils::Randomize::instance().parallelShuffleVector(
-        _current_vertices, 0UL, _current_vertices.size());
-
-      // Terminate contraction if the number of contracted vertices in this round
-      // is smaller than a certain fraction.
-      const double reduction_vertices_percentage =
-        static_cast<double>(num_hns_before_pass) /
-        static_cast<double>(_cl_tracker.currentNumNodes());
-      if ( reduction_vertices_percentage <= _context.coarsening.minimum_shrink_factor ) {
-        break;
-      }
-
-      ++pass_nr;
-    }
-
-    _progress_bar += (initial_num_nodes - _progress_bar.count());
-    _progress_bar.disable();
-    _uncoarseningData.finalizeCoarsening();
-  }
-
-
-  template<class F>
-  void coarseningPass(const F& contraction) {
     double contraction_limit =
       std::max(static_cast<HypernodeID>(_cl_tracker.currentNumNodes() /
         _context.coarsening.maximum_shrink_factor), _context.coarsening.contraction_limit);
@@ -243,7 +191,7 @@ class NLevelCoarsener : public ICoarsener,
     tbb::parallel_for(0UL, _current_vertices.size(), [&](const size_t i) {
       if ( _cl_tracker.currentNumNodes() > contraction_limit ) {
         const HypernodeID& hn = _current_vertices[i];
-        const HypernodeID num_contractions = contraction(hn);
+        const HypernodeID num_contractions = contract(hn);
         _cl_tracker.update(num_contractions, contraction_limit);
       }
     });
@@ -252,6 +200,58 @@ class NLevelCoarsener : public ICoarsener,
     // Remove single-pin and parallel nets
     Base::removeSinglePinAndParallelNets(round_start);
     HEAVY_COARSENING_ASSERT(_hg.verifyIncidenceArrayAndIncidentNets());
+
+    // Writes all enabled vertices to _current_vertices
+    _cl_tracker.updateCurrentNumNodes();
+    compactifyVertices();
+    utils::Randomize::instance().parallelShuffleVector(
+      _current_vertices, 0UL, _current_vertices.size());
+
+    // Terminate contraction if the number of contracted vertices in this round
+    // is smaller than a certain fraction.
+    const double reduction_vertices_percentage =
+      static_cast<double>(num_hns_before_pass) /
+      static_cast<double>(_cl_tracker.currentNumNodes());
+    if ( reduction_vertices_percentage <= _context.coarsening.minimum_shrink_factor ) {
+      return false;
+    }
+
+    ++_pass_nr;
+    return true;
+  }
+
+  bool shouldTerminateImpl() const override {
+    return _cl_tracker.currentNumNodes() > _context.coarsening.contraction_limit;
+  }
+
+  void terminateImpl() override {
+    _progress_bar += (_initial_num_nodes - _progress_bar.count());
+    _progress_bar.disable();
+    _uncoarseningData.finalizeCoarsening();
+  }
+
+  HypernodeID contract(const HypernodeID hn) {
+    HypernodeID num_contractions = 0;
+    if ( _hg.nodeIsEnabled(hn) ) {
+      const Rating rating = _rater.rate(_hg, hn, _max_allowed_node_weight);
+      if ( rating.target != kInvalidHypernode ) {
+        HypernodeID u = hn;
+        HypernodeID v = rating.target;
+        // In case v is a high degree vertex, we reverse contraction order to improve performance
+        if ( _hg.nodeDegree(u) < _hg.nodeDegree(v) && _hg.nodeDegree(v) > HIGH_DEGREE_VERTEX_THRESHOLD ) {
+          u = rating.target;
+          v = hn;
+        }
+
+        if ( _hg.registerContraction(u, v) ) {
+          _rater.markAsMatched(u);
+          _rater.markAsMatched(v);
+          num_contractions = _hg.contract(v, _max_allowed_node_weight);
+          _progress_bar += num_contractions;
+        }
+      }
+    }
+    return num_contractions;
   }
 
   Hypergraph& coarsestHypergraphImpl() override {
@@ -294,11 +294,13 @@ class NLevelCoarsener : public ICoarsener,
 
   using Base::_hg;
   Rater _rater;
+  const HypernodeID _initial_num_nodes;
   parallel::scalable_vector<HypernodeID> _current_vertices;
   parallel::scalable_vector<HypernodeID> _tmp_current_vertices;
   parallel::scalable_vector<size_t> _enabled_vertex_flag_array;
   ContractionLimitTracker _cl_tracker;
   HypernodeWeight _max_allowed_node_weight;
+  int _pass_nr;
   utils::ProgressBar _progress_bar;
   bool _enable_randomization;
 };
