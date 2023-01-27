@@ -488,20 +488,13 @@ void tmp::recursively_perform_multilevel_partitioning(PartitionedHypergraph& par
 
   // ################## UNCOARSENING ##################
   io::printLocalSearchBanner(context);
-  std::unique_ptr<IRefiner> label_propagation =
-    LabelPropagationFactory::getInstance().createObject(
-      context.refinement.label_propagation.algorithm, hypergraph, context);
-  std::unique_ptr<IRefiner> fm =
-    FMFactory::getInstance().createObject(
-      context.refinement.fm.algorithm, hypergraph, context);
-
   std::unique_ptr<IUncoarsener> uncoarsener;
   if ( uncoarseningData.nlevel ) {
     uncoarsener = std::make_unique<NLevelUncoarsener>(hypergraph, context, uncoarseningData);
   } else {
     uncoarsener = std::make_unique<MultilevelUncoarsener>(hypergraph, context, uncoarseningData);
   }
-  result.partitioned_hypergraph = uncoarsener->uncoarsen(label_propagation, fm);
+  result.partitioned_hypergraph = uncoarsener->uncoarsen();
 
   // Compute metrics
   result.objective = metrics::objective(result.partitioned_hypergraph, context.partition.objective);

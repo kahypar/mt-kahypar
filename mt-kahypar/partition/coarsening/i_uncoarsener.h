@@ -42,9 +42,8 @@ namespace mt_kahypar {
     IUncoarsener & operator= (const IUncoarsener &) = delete;
     IUncoarsener & operator= (IUncoarsener &&) = delete;
 
-    PartitionedHypergraph&& uncoarsen(std::unique_ptr<IRefiner>& label_propagation,
-                                      std::unique_ptr<IRefiner>& fm) {
-      return uncoarsenImpl(label_propagation, fm);
+    PartitionedHypergraph&& uncoarsen() {
+      return uncoarsenImpl();
     }
 
     virtual ~IUncoarsener() = default;
@@ -53,7 +52,6 @@ namespace mt_kahypar {
     IUncoarsener() = default;
 
   private:
-    virtual PartitionedHypergraph&& uncoarsenImpl(std::unique_ptr<IRefiner>& label_propagation,
-                                                  std::unique_ptr<IRefiner>& fm) = 0;
+    virtual PartitionedHypergraph&& uncoarsenImpl() = 0;
   };
 }

@@ -82,6 +82,9 @@ TEST_F(ACoarsener, RemovesParallelHyperedgesDuringCoarsening) {
 
 TEST_F(ACoarsener, ProjectsPartitionBackToOriginalHypergraph) {
   context.coarsening.contraction_limit = 4;
+  context.refinement.label_propagation.algorithm = LabelPropagationAlgorithm::do_nothing;
+  context.refinement.fm.algorithm = FMAlgorithm::do_nothing;
+  context.refinement.flows.algorithm = FlowAlgorithm::do_nothing;
   UncoarseningData uncoarseningData(nlevel, hypergraph, context);
   Coarsener coarsener(hypergraph, context, uncoarseningData);
   Uncoarsener uncoarsener(hypergraph, context, uncoarseningData);
@@ -90,7 +93,7 @@ TEST_F(ACoarsener, ProjectsPartitionBackToOriginalHypergraph) {
   PartitionedHyperGraph& coarsest_partitioned_hypergraph =
     coarsener.coarsestPartitionedHypergraph();
   assignPartitionIDs(coarsest_partitioned_hypergraph);
-  PartitionedHyperGraph partitioned_hypergraph = uncoarsener.uncoarsen(nullptr_refiner, nullptr_refiner);
+  PartitionedHyperGraph partitioned_hypergraph = uncoarsener.uncoarsen();
   for ( const HypernodeID& hn : partitioned_hypergraph.nodes() ) {
     PartitionID part_id = 0;
     ASSERT_EQ(part_id, partitioned_hypergraph.partID(hn));

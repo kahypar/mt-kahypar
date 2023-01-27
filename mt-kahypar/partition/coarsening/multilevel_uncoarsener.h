@@ -37,10 +37,10 @@ namespace mt_kahypar {
   class MultilevelUncoarsener : public IUncoarsener,
                                 private UncoarsenerBase {
 
-  public:
+ public:
     MultilevelUncoarsener(Hypergraph& hypergraph,
-                        const Context& context,
-                        UncoarseningData& uncoarseningData) :
+                          const Context& context,
+                          UncoarseningData& uncoarseningData) :
       UncoarsenerBase(hypergraph, context, uncoarseningData) { }
 
   MultilevelUncoarsener(const MultilevelUncoarsener&) = delete;
@@ -48,23 +48,17 @@ namespace mt_kahypar {
   MultilevelUncoarsener & operator= (const MultilevelUncoarsener &) = delete;
   MultilevelUncoarsener & operator= (MultilevelUncoarsener &&) = delete;
 
-  private:
-  PartitionedHypergraph&& doUncoarsen(std::unique_ptr<IRefiner>& label_propagation,
-                                      std::unique_ptr<IRefiner>& fm);
+ private:
+  PartitionedHypergraph&& doUncoarsen();
 
   void refine(
     PartitionedHypergraph& partitioned_hypergraph,
-    std::unique_ptr<IRefiner>& label_propagation,
-    std::unique_ptr<IRefiner>& fm,
-    std::unique_ptr<IRefiner>& flows,
     Metrics& current_metrics,
     const double time_limit);
 
-  PartitionedHypergraph&& uncoarsenImpl(
-    std::unique_ptr<IRefiner>& label_propagation,
-    std::unique_ptr<IRefiner>& fm) override {
-    return doUncoarsen(label_propagation, fm);
+  PartitionedHypergraph&& uncoarsenImpl() override {
+    return doUncoarsen();
   }
-  };
+};
 
 }

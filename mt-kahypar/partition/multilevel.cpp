@@ -142,20 +142,13 @@ namespace {
     // ################## UNCOARSENING ##################
     io::printLocalSearchBanner(context);
     timer.start_timer("refinement", "Refinement");
-    std::unique_ptr<IRefiner> label_propagation =
-      LabelPropagationFactory::getInstance().createObject(
-        context.refinement.label_propagation.algorithm, hypergraph, context);
-    std::unique_ptr<IRefiner> fm =
-      FMFactory::getInstance().createObject(
-        context.refinement.fm.algorithm, hypergraph, context);
-
     std::unique_ptr<IUncoarsener> uncoarsener(nullptr);
     if (uncoarseningData.nlevel) {
       uncoarsener = std::make_unique<NLevelUncoarsener>(hypergraph, context, uncoarseningData);
     } else {
       uncoarsener = std::make_unique<MultilevelUncoarsener>(hypergraph, context, uncoarseningData);
     }
-    partitioned_hg = uncoarsener->uncoarsen(label_propagation, fm);
+    partitioned_hg = uncoarsener->uncoarsen();
 
     io::printPartitioningResults(partitioned_hg, context, "Local Search Results:");
     timer.stop_timer("refinement");
