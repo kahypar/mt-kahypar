@@ -32,6 +32,8 @@
 #include "mt-kahypar/partition/coarsening/coarsening_commons.h"
 #include "mt-kahypar/partition/coarsening/i_uncoarsener.h"
 #include "mt-kahypar/partition/coarsening/uncoarsener_base.h"
+#include "mt-kahypar/utils/progress_bar.h"
+
 namespace mt_kahypar {
 
   class MultilevelUncoarsener : public IUncoarsener,
@@ -41,7 +43,12 @@ namespace mt_kahypar {
     MultilevelUncoarsener(Hypergraph& hypergraph,
                           const Context& context,
                           UncoarseningData& uncoarseningData) :
-      UncoarsenerBase(hypergraph, context, uncoarseningData) { }
+      UncoarsenerBase(hypergraph, context, uncoarseningData),
+      _current_level(0),
+      _num_levels(0),
+      _block_ids(hypergraph.initialNumNodes(), PartIdType(kInvalidPartition)),
+      _current_metrics(),
+      _progress(hypergraph.initialNumNodes(), 0, false) { }
 
   MultilevelUncoarsener(const MultilevelUncoarsener&) = delete;
   MultilevelUncoarsener(MultilevelUncoarsener&&) = delete;
@@ -49,16 +56,25 @@ namespace mt_kahypar {
   MultilevelUncoarsener & operator= (MultilevelUncoarsener &&) = delete;
 
  private:
-  PartitionedHypergraph&& doUncoarsen();
+  void initializeImpl() override;
 
-  void refine(
-    PartitionedHypergraph& partitioned_hypergraph,
-    Metrics& current_metrics,
-    const double time_limit);
+  bool isTopLevelImpl() const override;
 
-  PartitionedHypergraph&& uncoarsenImpl() override {
-    return doUncoarsen();
-  }
+  void projectToNextLevelAndRefineImpl() override;
+
+  void rebalancingImpl() override;
+
+  HypernodeID currentNumberOfNodesImpl() const override;
+
+  PartitionedHypergraph&& movePartitionedHypergraphImpl() override;
+
+  void refine(PartitionedHypergraph& partitioned_hypergraph, const double time_limit);
+
+  int _current_level;
+  int _num_levels;
+  ds::Array<PartIdType> _block_ids;
+  Metrics _current_metrics;
+  utils::ProgressBar _progress;
 };
 
 }

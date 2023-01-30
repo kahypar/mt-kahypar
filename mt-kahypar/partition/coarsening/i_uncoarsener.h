@@ -43,7 +43,35 @@ namespace mt_kahypar {
     IUncoarsener & operator= (IUncoarsener &&) = delete;
 
     PartitionedHypergraph&& uncoarsen() {
-      return uncoarsenImpl();
+      initialize();
+
+      while ( !isTopLevelImpl() ) {
+        projectToNextLevelAndRefine();
+      }
+
+      rebalancing();
+
+      return movePartitionedHypergraph();
+    }
+
+    void initialize() {
+      initializeImpl();
+    }
+
+    bool isTopLevel() const {
+      return isTopLevelImpl();
+    }
+
+    void projectToNextLevelAndRefine() {
+      projectToNextLevelAndRefineImpl();
+    }
+
+    void rebalancing() {
+      rebalancingImpl();
+    }
+
+    HypernodeID currentNumberOfNodes() const {
+      return currentNumberOfNodesImpl();
     }
 
     virtual ~IUncoarsener() = default;
@@ -51,7 +79,16 @@ namespace mt_kahypar {
   protected:
     IUncoarsener() = default;
 
+    PartitionedHypergraph&& movePartitionedHypergraph() {
+      return movePartitionedHypergraphImpl();
+    }
+
   private:
-    virtual PartitionedHypergraph&& uncoarsenImpl() = 0;
+    virtual void initializeImpl() = 0;
+    virtual bool isTopLevelImpl() const = 0;
+    virtual void projectToNextLevelAndRefineImpl() = 0;
+    virtual void rebalancingImpl() = 0;
+    virtual HypernodeID currentNumberOfNodesImpl() const = 0;
+    virtual PartitionedHypergraph&& movePartitionedHypergraphImpl() = 0;
   };
 }
