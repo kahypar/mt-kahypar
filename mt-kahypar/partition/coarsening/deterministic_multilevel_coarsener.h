@@ -115,6 +115,10 @@ private:
 
   size_t approveVerticesInTooHeavyClusters(vec<HypernodeID>& clusters);
 
+  HypernodeID currentNumberOfNodesImpl() const override {
+    return Base::currentNumNodes();
+  }
+
   Hypergraph& coarsestHypergraphImpl() override {
     return Base::currentHypergraph();
   }

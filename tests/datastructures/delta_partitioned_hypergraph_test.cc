@@ -62,7 +62,7 @@ class ADeltaPartitionedHypergraph : public Test {
     phg.initializeGainCache();
 
     context.partition.k = 3;
-    delta_phg = std::move(DeltaPartitionedHyperGraph(context));
+    delta_phg = DeltaPartitionedHyperGraph(context, 3);
     delta_phg.setPartitionedHypergraph(&phg);
   }
 

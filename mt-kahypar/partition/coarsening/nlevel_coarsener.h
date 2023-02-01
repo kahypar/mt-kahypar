@@ -254,6 +254,10 @@ class NLevelCoarsener : public ICoarsener,
     return num_contractions;
   }
 
+  HypernodeID currentNumberOfNodesImpl() const override {
+    return _cl_tracker.currentNumNodes();
+  }
+
   Hypergraph& coarsestHypergraphImpl() override {
     return Base::compactifiedHypergraph();
   }

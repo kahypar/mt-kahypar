@@ -450,6 +450,10 @@ class MultilevelCoarsener : public ICoarsener,
     return success;
   }
 
+  HypernodeID currentNumberOfNodesImpl() const override {
+    return Base::currentNumNodes();
+  }
+
   Hypergraph& coarsestHypergraphImpl() override {
     return Base::currentHypergraph();
   }

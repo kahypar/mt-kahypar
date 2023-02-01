@@ -73,6 +73,10 @@ class ICoarsener {
     terminateImpl();
   }
 
+  HypernodeID currentNumberOfNodes() const {
+    return currentNumberOfNodesImpl();
+  }
+
   Hypergraph& coarsestHypergraph() {
     return coarsestHypergraphImpl();
   }
@@ -91,6 +95,7 @@ class ICoarsener {
   virtual bool shouldTerminateImpl() const = 0;
   virtual bool coarseningPassImpl() = 0;
   virtual void terminateImpl() = 0;
+  virtual HypernodeID currentNumberOfNodesImpl() const = 0;
   virtual Hypergraph& coarsestHypergraphImpl() = 0;
   virtual PartitionedHypergraph& coarsestPartitionedHypergraphImpl() = 0;
 };

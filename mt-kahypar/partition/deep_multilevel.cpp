@@ -537,7 +537,7 @@ void deep_multilevel_partitioning(PartitionedHypergraph& partitioned_hg,
     // no further contractions are possible (should_continue)
     while ( coarsener->shouldTerminate() && should_continue ) {
       DBG << "Coarsening Pass" << pass_nr
-          << "- Number of Nodes =" << coarsener->coarsestHypergraph().initialNumNodes()
+          << "- Number of Nodes =" << coarsener->currentNumberOfNodes()
           << "- Number of HEs =" << coarsener->coarsestHypergraph().initialNumEdges()
           << "- Number of Pins =" << coarsener->coarsestHypergraph().initialNumPins();
 
@@ -545,7 +545,7 @@ void deep_multilevel_partitioning(PartitionedHypergraph& partitioned_hg,
       // at least t * C nodes (C = contraction_limit_for_bipartitioning). If this invariant is violated,
       // we terminate coarsening and call the deep multilevel scheme recursively in parallel with the
       // appriopriate number of threads to restore the invariant.
-      const HypernodeID current_num_nodes = coarsener->coarsestHypergraph().initialNumNodes();
+      const HypernodeID current_num_nodes = coarsener->currentNumberOfNodes();
       if ( current_num_nodes < context.shared_memory.num_threads * contraction_limit_for_bipartitioning ) {
         reaches_contraction_limit = false;
         break;
@@ -651,6 +651,7 @@ void deep_multilevel_partitioning(PartitionedHypergraph& partitioned_hg,
     uncoarsener = std::make_unique<MultilevelUncoarsener>(hypergraph, context, uncoarseningData);
   }
 
+
   uncoarsener->initialize();
 
   // Determine the current number of blocks (k), the number of blocks in which the
@@ -718,7 +719,9 @@ void deep_multilevel_partitioning(PartitionedHypergraph& partitioned_hg,
   }
 
   // TODO: When we should perform rebalancing?
-  // uncoarsener->rebalancing();
+  if ( context.type == ContextType::main ) {
+    uncoarsener->rebalancing();
+  }
 
   partitioned_hg = uncoarsener->movePartitionedHypergraph();
 

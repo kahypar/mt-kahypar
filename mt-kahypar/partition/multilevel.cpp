@@ -102,6 +102,8 @@ namespace {
       }
 
       Context ip_context(context);
+      ip_context.type = ContextType::initial_partitioning;
+      ip_context.partition.verbose_output = false;
       ip_context.refinement = context.initial_partitioning.refinement;
       disableTimerAndStats(context);
       switch ( context.initial_partitioning.mode ) {
@@ -118,6 +120,7 @@ namespace {
           deep_multilevel::partition(phg, ip_context); break;
         case Mode::UNDEFINED: ERROR("Undefined initial partitioning algorithm");
       }
+      enableTimerAndStats(context);
       degree_zero_hn_remover.restoreDegreeZeroHypernodes(phg);
     } else {
       // When performing a V-cycle, we store the block IDs

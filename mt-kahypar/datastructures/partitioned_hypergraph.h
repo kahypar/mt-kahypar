@@ -511,7 +511,14 @@ private:
   }
 
   void extractPartIDs(Array<PartitionID>& part_ids) {
-    std::swap(_part_ids, part_ids);
+    if ( _part_ids.size() == part_ids.size() ) {
+      std::swap(_part_ids, part_ids);
+    } else {
+      ASSERT(part_ids.size() <= _part_ids.size());
+      tbb::parallel_for(0UL, part_ids.size(), [&](const size_t i) {
+        part_ids[i] = _part_ids[i];
+      });
+    }
   }
 
   void setOnlyNodePart(const HypernodeID u, PartitionID p) {
