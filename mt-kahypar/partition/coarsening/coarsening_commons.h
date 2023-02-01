@@ -100,6 +100,7 @@ public:
         }
         hierarchy.reserve(estimated_number_of_levels);
       }
+      is_phg_initialized = false;
       partitioned_hg = std::make_unique<PartitionedHypergraph>();
     }
 
@@ -107,6 +108,12 @@ public:
     tbb::parallel_for(0UL, hierarchy.size(), [&](const size_t i) {
       (hierarchy)[i].freeInternalData();
     }, tbb::static_partitioner());
+  }
+
+  void setPartitionedHypergraph(PartitionedHypergraph&& phg) {
+    ASSERT(!is_phg_initialized);
+    partitioned_hg = std::make_unique<PartitionedHypergraph>(std::move(phg));
+    is_phg_initialized = true;
   }
 
   void finalizeCoarsening() {
@@ -134,10 +141,13 @@ public:
       }
 
       // Construct partitioned hypergraph for initial partitioning
-      *partitioned_hg = PartitionedHypergraph(_context.partition.k, _hg, parallel_tag_t());
+      if ( !is_phg_initialized ) {
+        *partitioned_hg = PartitionedHypergraph(_context.partition.k, _hg, parallel_tag_t());
+      }
       if (!hierarchy.empty()) {
         partitioned_hg->setHypergraph(hierarchy.back().contractedHypergraph());
       }
+      is_phg_initialized = true;
       timer.stop_timer("finalize_multilevel_hierarchy");
     }
     is_finalized = true;
@@ -184,6 +194,7 @@ public:
   vec<double> round_coarsening_times;
 
   // Both
+  bool is_phg_initialized;
   std::unique_ptr<PartitionedHypergraph> partitioned_hg;
   bool is_finalized = false;
   bool nlevel;

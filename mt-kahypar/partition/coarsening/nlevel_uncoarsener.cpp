@@ -271,6 +271,10 @@ namespace mt_kahypar {
            V(metrics::objective(*_uncoarseningData.partitioned_hg, _context.partition.objective)));
   }
 
+  PartitionedHypergraph& NLevelUncoarsener::currentPartitionedHypergraphImpl() {
+    return *_uncoarseningData.partitioned_hg;
+  }
+
   HypernodeID NLevelUncoarsener::currentNumberOfNodesImpl() const {
     return _stats.current_number_of_nodes;
   }

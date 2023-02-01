@@ -172,6 +172,10 @@ namespace mt_kahypar {
     }
   }
 
+  PartitionedHypergraph& MultilevelUncoarsener::currentPartitionedHypergraphImpl() {
+    return *_uncoarseningData.partitioned_hg;
+  }
+
   HypernodeID MultilevelUncoarsener::currentNumberOfNodesImpl() const {
     return _uncoarseningData.partitioned_hg->initialNumNodes();
   }

@@ -200,7 +200,7 @@ namespace mt_kahypar::io {
   }
 
   void printPartWeightsAndSizes(const PartitionedHypergraph& hypergraph, const Context& context) {
-    vec<HypernodeID> part_sizes(hypergraph.k(), 0);
+    vec<HypernodeID> part_sizes(context.partition.k, 0);
     for (HypernodeID u : hypergraph.nodes()) {
       part_sizes[hypergraph.partID(u)]++;
     }
@@ -211,7 +211,7 @@ namespace mt_kahypar::io {
     HypernodeWeight max_part_weight = 0;
     HypernodeID max_part_size = 0;
     size_t num_imbalanced_blocks = 0;
-    for (PartitionID i = 0; i < hypergraph.k(); ++i) {
+    for (PartitionID i = 0; i < context.partition.k; ++i) {
       avg_part_weight += hypergraph.partWeight(i);
       if ( hypergraph.partWeight(i) < min_part_weight ) {
         min_block = i;
@@ -225,12 +225,12 @@ namespace mt_kahypar::io {
       num_imbalanced_blocks += (hypergraph.partWeight(i) == 0 ||
         hypergraph.partWeight(i) > context.partition.max_part_weights[i]);
     }
-    avg_part_weight /= hypergraph.k();
+    avg_part_weight /= context.partition.k;
 
     const uint8_t part_digits = kahypar::math::digits(max_part_weight);
-    const uint8_t k_digits = kahypar::math::digits(hypergraph.k());
-    if ( hypergraph.k() <= 32 ) {
-      for (PartitionID i = 0; i != hypergraph.k(); ++i) {
+    const uint8_t k_digits = kahypar::math::digits(context.partition.k);
+    if ( context.partition.k <= 32 ) {
+      for (PartitionID i = 0; i != context.partition.k; ++i) {
         bool is_imbalanced =
                 hypergraph.partWeight(i) > context.partition.max_part_weights[i] || hypergraph.partWeight(i) == 0;
         if ( is_imbalanced ) std::cout << RED;
@@ -253,7 +253,7 @@ namespace mt_kahypar::io {
                 << context.partition.max_part_weights[max_block]  << " (Block " << max_block << ")" << std::endl;
       if ( num_imbalanced_blocks > 0 ) {
         LOG << RED << "Number of Imbalanced Blocks =" << num_imbalanced_blocks << END;
-        for (PartitionID i = 0; i != hypergraph.k(); ++i) {
+        for (PartitionID i = 0; i != context.partition.k; ++i) {
           const bool is_imbalanced = hypergraph.partWeight(i) == 0 ||
             hypergraph.partWeight(i) > context.partition.max_part_weights[i];
           if ( is_imbalanced ) {

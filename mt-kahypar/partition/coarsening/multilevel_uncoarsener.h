@@ -64,6 +64,8 @@ namespace mt_kahypar {
 
   void rebalancingImpl() override;
 
+  PartitionedHypergraph& currentPartitionedHypergraphImpl() override;
+
   HypernodeID currentNumberOfNodesImpl() const override;
 
   PartitionedHypergraph&& movePartitionedHypergraphImpl() override;
