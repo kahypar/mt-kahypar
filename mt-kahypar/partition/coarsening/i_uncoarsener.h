@@ -70,6 +70,10 @@ namespace mt_kahypar {
       rebalancingImpl();
     }
 
+    void updateMetrics() {
+      updateMetricsImpl();
+    }
+
     PartitionedHypergraph& currentPartitionedHypergraph() {
       return currentPartitionedHypergraphImpl();
     }
@@ -92,6 +96,7 @@ namespace mt_kahypar {
     virtual bool isTopLevelImpl() const = 0;
     virtual void projectToNextLevelAndRefineImpl() = 0;
     virtual void rebalancingImpl() = 0;
+    virtual void updateMetricsImpl() = 0;
     virtual PartitionedHypergraph& currentPartitionedHypergraphImpl() = 0;
     virtual HypernodeID currentNumberOfNodesImpl() const = 0;
     virtual PartitionedHypergraph&& movePartitionedHypergraphImpl() = 0;

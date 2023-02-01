@@ -48,8 +48,7 @@ namespace mt_kahypar {
             runStats(runStats),
             sharedData(sharedData),
             pq(VertexPriorityQueue(sharedData.vertexPQHandles.data(), numNodes)),
-            gc(sharedData.numParts)
-    { }
+            gc(context, sharedData.original_k) { }
 
     template<typename PHG>
     MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE

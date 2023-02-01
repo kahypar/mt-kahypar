@@ -172,6 +172,11 @@ namespace mt_kahypar {
     }
   }
 
+  void MultilevelUncoarsener::updateMetricsImpl() {
+    _current_metrics = initializeMetrics(*_uncoarseningData.partitioned_hg);
+    _progress.setObjective(_current_metrics.getMetric(Mode::direct, _context.partition.objective));
+  }
+
   PartitionedHypergraph& MultilevelUncoarsener::currentPartitionedHypergraphImpl() {
     return *_uncoarseningData.partitioned_hg;
   }

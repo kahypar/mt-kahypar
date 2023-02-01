@@ -151,8 +151,8 @@ struct FMSharedData {
   // ! PQ handles shared by all threads (each vertex is only held by one thread)
   vec<PosT> vertexPQHandles;
 
-  // ! num parts
-  PartitionID numParts;
+  // ! original number of blocks (can change during deep multilevel partitioning)
+  PartitionID original_k;
 
   // ! Stores the sequence of performed moves and assigns IDs to moves that can be used in the global rollback code
   GlobalMoveTracker moveTracker;
@@ -177,7 +177,7 @@ struct FMSharedData {
   FMSharedData(size_t numNodes = 0, PartitionID numParts = 0, size_t numThreads = 0, size_t numPQHandles = 0) :
           refinementNodes(), //numNodes, numThreads),
           vertexPQHandles(), //numPQHandles, invalid_position),
-          numParts(numParts),
+          original_k(numParts),
           moveTracker(), //numNodes),
           nodeTracker(), //numNodes),
           targetPart()
@@ -272,7 +272,8 @@ struct FMStats {
   std::string serialize() const {
     std::stringstream os;
     os  << V(retries) << " " << V(extractions) << " " << V(pushes) << " "
-        << V(moves) << " " << V(local_reverts) << " " << V(best_prefix_mismatch);
+        << V(moves) << " " << V(local_reverts) << " " << V(estimated_improvement) << " "
+        << V(best_prefix_mismatch);
     return os.str();
   }
 };

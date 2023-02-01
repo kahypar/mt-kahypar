@@ -100,6 +100,8 @@ class NLevelUncoarsener : public IUncoarsener,
 
   void rebalancingImpl() override;
 
+  void updateMetricsImpl() override;
+
   PartitionedHypergraph& currentPartitionedHypergraphImpl() override;
 
   HypernodeID currentNumberOfNodesImpl() const override;

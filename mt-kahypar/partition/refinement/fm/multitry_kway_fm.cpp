@@ -49,12 +49,12 @@ namespace mt_kahypar {
     sharedData.perform_moves_global = context.refinement.fm.perform_moves_global;
     double current_time_limit = time_limit;
     tbb::task_group tg;
-    vec<HypernodeWeight> initialPartWeights(size_t(sharedData.numParts));
+    vec<HypernodeWeight> initialPartWeights(size_t(context.partition.k));
     HighResClockTimepoint fm_start = std::chrono::high_resolution_clock::now();
     utils::Timer& timer = utils::Utilities::instance().getTimer(context.utility_id);
 
     for (size_t round = 0; round < context.refinement.fm.multitry_rounds; ++round) { // global multi try rounds
-      for (PartitionID i = 0; i < sharedData.numParts; ++i) {
+      for (PartitionID i = 0; i < context.partition.k; ++i) {
         initialPartWeights[i] = phg.partWeight(i);
       }
 
@@ -94,7 +94,7 @@ namespace mt_kahypar {
       timer.start_timer("rollback", "Rollback to Best Solution");
       phg.resetMoveState();
       HyperedgeWeight improvement = globalRollback.revertToBestPrefix
-              <FMStrategy::maintain_gain_cache_between_rounds>(phg, sharedData, initialPartWeights);
+        <FMStrategy::maintain_gain_cache_between_rounds>(phg, sharedData, initialPartWeights);
       timer.stop_timer("rollback");
 
       const double roundImprovementFraction = improvementFraction(improvement, metrics.km1 - overall_improvement);

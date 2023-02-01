@@ -61,8 +61,8 @@ public:
       context(context),
       runStats(runStats),
       sharedData(sharedData),
-      blockPQ(static_cast<size_t>(context.partition.k)),
-      vertexPQs(static_cast<size_t>(context.partition.k),
+      blockPQ(static_cast<size_t>(sharedData.original_k)),
+      vertexPQs(static_cast<size_t>(sharedData.original_k),
                 VertexPriorityQueue(sharedData.vertexPQHandles.data(), numNodes))
       { }
 
@@ -70,7 +70,9 @@ public:
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
   void insertIntoPQ(const PHG& phg, const HypernodeID v, const SearchID ) {
     const PartitionID pv = phg.partID(v);
+    ASSERT(pv < context.partition.k);
     auto [target, gain] = computeBestTargetBlock(phg, v, pv);
+    ASSERT(target < context.partition.k);
     sharedData.targetPart[v] = target;
     vertexPQs[pv].insert(v, gain);  // blockPQ updates are done later, collectively.
     runStats.pushes++;
@@ -85,7 +87,7 @@ public:
     Gain gain = 0;
     PartitionID newTarget = kInvalidPartition;
 
-    if (phg.k() < 4 || designatedTargetV == move.from || designatedTargetV == move.to) {
+    if (context.partition.k < 4 || designatedTargetV == move.from || designatedTargetV == move.to) {
       // moveToBenefit of designatedTargetV is affected.
       // and may now be greater than that of other blocks --> recompute full
       std::tie(newTarget, gain) = computeBestTargetBlock(phg, v, pv);
@@ -197,7 +199,7 @@ private:
     PartitionID to = kInvalidPartition;
     HyperedgeWeight to_benefit = std::numeric_limits<HyperedgeWeight>::min();
     HypernodeWeight best_to_weight = from_weight - wu;
-    for (PartitionID i = 0; i < phg.k(); ++i) {
+    for (PartitionID i = 0; i < context.partition.k; ++i) {
       if (i != from) {
         const HypernodeWeight to_weight = phg.partWeight(i);
         const HyperedgeWeight penalty = phg.moveToBenefit(u, i);

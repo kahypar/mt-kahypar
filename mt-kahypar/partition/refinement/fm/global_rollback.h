@@ -39,8 +39,7 @@ public:
   explicit GlobalRollback(const Hypergraph& hg, const Context& context) :
           context(context),
           max_part_weight_scaling(context.refinement.fm.rollback_balance_violation_factor),
-          num_parts(context.partition.k),
-          ets_recalc_data(vec<RecalculationData>(num_parts)),
+          ets_recalc_data(vec<RecalculationData>(context.partition.k)),
           last_recalc_round(),
           round(1)
   {
@@ -86,8 +85,6 @@ private:
 
   // ! Factor to multiply max part weight with, in order to relax or disable the balance criterion. Set to zero for disabling
   double max_part_weight_scaling;
-
-  PartitionID num_parts;
 
   struct RecalculationData {
     MoveID first_in, last_out;

@@ -57,7 +57,7 @@ namespace mt_kahypar {
 
     // Update metrics statistics
     HyperedgeWeight current_metric = best_metrics.getMetric(
-    Mode::direct, _context.partition.objective);
+      Mode::direct, _context.partition.objective);
     Gain delta = _gain.delta();
     ASSERT(delta <= 0, "LP refiner worsen solution quality");
 

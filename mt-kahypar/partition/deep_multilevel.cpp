@@ -50,7 +50,7 @@ namespace deep_multilevel {
 namespace {
 
 static constexpr bool enable_heavy_assert = false;
-static constexpr bool debug = true;
+static constexpr bool debug = false;
 
 struct DeepPartitioningResult {
   Hypergraph hypergraph;
@@ -570,11 +570,6 @@ void deep_multilevel_partitioning(PartitionedHypergraph& partitioned_hg,
   timer.start_timer("initial_partitioning", "Initial Partitioning");
   PartitionedHypergraph& coarsest_phg = uncoarseningData.coarsestPartitionedHypergraph();
   if ( reaches_contraction_limit ) {
-    DegreeZeroHypernodeRemover degree_zero_hn_remover(context);
-    if ( context.initial_partitioning.remove_degree_zero_hns_before_ip ) {
-      degree_zero_hn_remover.removeDegreeZeroHypernodes(coarsest_phg.hypergraph());
-    }
-
     // If we reach the contraction limit, we bipartition the smallest hypergraph
     // and continue with uncoarsening.
     Context b_context = setupBipartitioningContext(
@@ -585,8 +580,6 @@ void deep_multilevel_partitioning(PartitionedHypergraph& partitioned_hg,
         << "- Objective =" << metrics::objective(coarsest_phg, b_context.partition.objective)
         << "- Imbalance =" << metrics::imbalance(coarsest_phg, b_context)
         << "- Epsilon =" << b_context.partition.epsilon;
-
-    degree_zero_hn_remover.restoreDegreeZeroHypernodes(coarsest_phg);
   } else {
     // If we do not reach the contraction limit, then the invariant that t threads
     // work on a hypergraph with at least t * C nodes is violated. To restore the
@@ -672,6 +665,10 @@ void deep_multilevel_partitioning(PartitionedHypergraph& partitioned_hg,
     contraction_limit_for_rb = next_k != kInvalidPartition ?
       next_k * context.coarsening.contraction_limit_multiplier :
       std::numeric_limits<HypernodeID>::max();
+    context.partition.k = current_k;
+    context.partition.perfect_balance_part_weights = rb_tree.perfectlyBalancedWeightVector(current_k);
+    context.partition.max_part_weights = rb_tree.maxPartWeightVector(current_k);
+    uncoarsener->updateMetrics();
   };
   adapt_contraction_limit_for_recursive_bipartitioning(
     get_current_k(uncoarseningData.coarsestPartitionedHypergraph()));

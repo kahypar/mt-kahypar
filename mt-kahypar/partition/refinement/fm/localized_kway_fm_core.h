@@ -45,8 +45,7 @@ public:
   explicit LocalizedKWayFM(const Context& context, HypernodeID numNodes, FMSharedData& sharedData) :
           context(context),
           thisSearch(0),
-          k(context.partition.k),
-          deltaPhg(context),
+          deltaPhg(context, sharedData.original_k),
           neighborDeduplicator(numNodes, 0),
           fm_strategy(context, numNodes, sharedData, runStats),
           sharedData(sharedData)
@@ -91,9 +90,6 @@ private:
 
   // ! Unique search id associated with the current local search
   SearchID thisSearch;
-
-  // ! Number of blocks
-  PartitionID k;
 
   // ! Local data members required for one localized search run
   //FMLocalData localData;

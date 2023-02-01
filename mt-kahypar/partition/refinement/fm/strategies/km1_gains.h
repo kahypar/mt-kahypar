@@ -30,7 +30,9 @@
 
 namespace mt_kahypar {
 struct Km1GainComputer {
-  Km1GainComputer(PartitionID k) : gains(k, 0) { }
+  Km1GainComputer(const Context& context, PartitionID k) :
+    context(context),
+    gains(k, 0) { }
 
   template<typename PHG>
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
@@ -58,7 +60,7 @@ struct Km1GainComputer {
         }
       } else {
         // case for deltaPhg since maintaining connectivity sets is too slow
-        for (size_t i = 0; i < gains.size(); ++i) {
+        for (PartitionID i = 0; i < context.partition.k; ++i) {
           if (phg.pinCountInPart(e, i) > 0) {
             gains[i] += edge_weight;
           }
@@ -83,7 +85,7 @@ struct Km1GainComputer {
     PartitionID best_target = kInvalidPartition;
     HypernodeWeight best_target_weight = std::numeric_limits<HypernodeWeight>::max();
     Gain best_gain = std::numeric_limits<Gain>::min();
-    for (PartitionID target = 0; target < int(gains.size()); ++target) {
+    for (PartitionID target = 0; target < context.partition.k; ++target) {
       if (target != from) {
         const HypernodeWeight target_weight = phg.partWeight(target);
         const Gain gain = gains[target];
@@ -107,7 +109,7 @@ struct Km1GainComputer {
     const Gain internal_weight = computeGainsPlusInternalWeight(phg, u);
     PartitionID best_target = kInvalidPartition;
     Gain best_gain = std::numeric_limits<Gain>::min();
-    for (PartitionID target = 0; target < int(gains.size()); ++target) {
+    for (PartitionID target = 0; target < context.partition.k; ++target) {
       if (target != from && gains[target] > best_gain) {
         best_gain = gains[target];
         best_target = target;
@@ -118,7 +120,7 @@ struct Km1GainComputer {
     return std::make_pair(best_target, best_gain);
   }
 
-
+  const Context& context;
   vec<Gain> gains;
 };
 

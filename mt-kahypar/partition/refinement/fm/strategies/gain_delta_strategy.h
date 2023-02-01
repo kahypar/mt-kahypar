@@ -44,14 +44,13 @@ namespace mt_kahypar {
                           FMSharedData& sharedData,
                           FMStats& runStats) :
             context(context),
-            k(context.partition.k),
             runStats(runStats),
             sharedData(sharedData),
             vertexPQs(),
-            gc(sharedData.numParts)
+            gc(context, sharedData.original_k)
     {
-      vertexPQs.reserve(k);
-      for (PartitionID i = 0; i < k; ++i) {
+      vertexPQs.reserve(sharedData.original_k);
+      for (PartitionID i = 0; i < sharedData.original_k; ++i) {
         vertexPQs.emplace_back(sharedData.vertexPQHandles.data() + (i * numNodes), numNodes);
       }
     }
@@ -60,7 +59,7 @@ namespace mt_kahypar {
     MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
     void insertIntoPQ(const PHG& phg, const HypernodeID v, const SearchID ) {
       gc.computeGains(phg, v);
-      for (PartitionID i = 0; i < k; ++i) {
+      for (PartitionID i = 0; i < context.partition.k; ++i) {
         if (i != phg.partID(v)) {
           vertexPQs[i].insert(v, gc.gains[i]);
           ASSERT(vertexPQs[i].contains(v));
@@ -88,7 +87,7 @@ namespace mt_kahypar {
       m.node = u; m.to = target; m.from = phg.partID(u);
       m.gain = estimated_gain;
       runStats.extractions++;
-      for (PartitionID i = 0; i < k; ++i) {
+      for (PartitionID i = 0; i < context.partition.k; ++i) {
         if (i != m.from && i != target) {
           vertexPQs[i].remove(u);
         }
@@ -117,7 +116,7 @@ namespace mt_kahypar {
 
       }
 
-      for (PartitionID i = 0; i < k; ++i) {
+      for (PartitionID i = 0; i < context.partition.k; ++i) {
         vertexPQs[i].clear();
       }
     }
@@ -130,7 +129,7 @@ namespace mt_kahypar {
                           const PartitionID to, const HypernodeID pin_count_in_to_part_after) {
 
       auto some_other_block = [&](const PartitionID i) {
-        return k - 1 - i;
+        return context.partition.k - 1 - i;
       };
 
       auto in_search = [&](const HypernodeID u) {
@@ -151,7 +150,7 @@ namespace mt_kahypar {
         for (HypernodeID u : phg.pins(he)) {
           if (phg.partID(u) == from && in_search(u)) {
             // move to benefit increased --> gain increased
-            for (PartitionID i = 0; i < k; ++i) {
+            for (PartitionID i = 0; i < context.partition.k; ++i) {
               if (i != from) {
                 increase(u, i);
               }
@@ -178,7 +177,7 @@ namespace mt_kahypar {
         for (HypernodeID u : phg.pins(he)) {
           if (phg.partID(u) == to && in_search(u)) {
             // move from benefit decreased --> gain decreased
-            for (PartitionID i = 0; i < k; ++i) {
+            for (PartitionID i = 0; i < context.partition.k; ++i) {
               if (i != to) {
                 decrease(u, i);
               }
@@ -191,7 +190,7 @@ namespace mt_kahypar {
 
     template<typename F>
     void doParallelForAllEntries(F&& f) {
-      tbb::parallel_for(0, k, [&](PartitionID i) {
+      tbb::parallel_for(0, context.partition.k, [&](PartitionID i) {
         for (size_t j = 0; j < vertexPQs[i].size(); ++j) {
           f(i, vertexPQs[i].at(j), vertexPQs[i].keyAtPos(j));
         }
@@ -204,7 +203,7 @@ namespace mt_kahypar {
                     [](size_t init, const VertexPriorityQueue& pq) { return init + pq.size_in_bytes(); }
       );
       parent->addChild("PQs", vertex_pq_sizes);
-      parent->addChild("Initial Gain Comp", k * sizeof(Gain));
+      parent->addChild("Initial Gain Comp", context.partition.k * sizeof(Gain));
     }
 
   private:
@@ -214,7 +213,7 @@ namespace mt_kahypar {
       PartitionID target = kInvalidPartition;
       HypernodeWeight best_gain = std::numeric_limits<Gain>::min();
       HypernodeWeight best_weight = std::numeric_limits<HypernodeWeight>::max();
-      for (PartitionID i = 0; i < k; ++i) {
+      for (PartitionID i = 0; i < context.partition.k; ++i) {
         const HypernodeWeight pw = phg.partWeight(i);
         if (!vertexPQs[i].empty() && pw < context.partition.max_part_weights[i]) {
           const Gain gain = vertexPQs[i].topKey();
@@ -230,12 +229,10 @@ namespace mt_kahypar {
 
 
     size_t handle(HypernodeID u, PartitionID p) const {
-      return size_t(u) * k +  p;
+      return size_t(u) * context.partition.k +  p;
     }
 
     const Context& context;
-
-    PartitionID k;
 
     FMStats& runStats;
 

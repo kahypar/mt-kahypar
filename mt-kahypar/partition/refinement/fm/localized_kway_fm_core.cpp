@@ -65,10 +65,10 @@ namespace mt_kahypar {
 
   template<typename Partition>
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE std::pair<PartitionID, HypernodeWeight>
-  heaviestPartAndWeight(const Partition& partition) {
+  heaviestPartAndWeight(const Partition& partition, const PartitionID k) {
     PartitionID p = kInvalidPartition;
     HypernodeWeight w = std::numeric_limits<HypernodeWeight>::min();
-    for (PartitionID i = 0; i < partition.k(); ++i) {
+    for (PartitionID i = 0; i < k; ++i) {
       if (partition.partWeight(i) > w) {
         w = partition.partWeight(i);
         p = i;
@@ -177,7 +177,7 @@ namespace mt_kahypar {
       MoveID move_id = std::numeric_limits<MoveID>::max();
       bool moved = false;
       if constexpr (use_delta) {
-        heaviestPartWeight = heaviestPartAndWeight(deltaPhg).second;
+        heaviestPartWeight = heaviestPartAndWeight(deltaPhg, context.partition.k).second;
         fromWeight = deltaPhg.partWeight(move.from);
         toWeight = deltaPhg.partWeight(move.to);
         if (expect_improvement) {
@@ -191,7 +191,7 @@ namespace mt_kahypar {
                                           context.partition.max_part_weights[move.to], delta_func);
         }
       } else {
-        heaviestPartWeight = heaviestPartAndWeight(phg).second;
+        heaviestPartWeight = heaviestPartAndWeight(phg, context.partition.k).second;
         fromWeight = phg.partWeight(move.from);
         toWeight = phg.partWeight(move.to);
         moved = phg.changeNodePart(move.node, move.from, move.to,
