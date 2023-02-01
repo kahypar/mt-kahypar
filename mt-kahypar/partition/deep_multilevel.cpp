@@ -89,6 +89,11 @@ struct OriginalHypergraphInfo {
 // contains for each partition information in how many blocks we have to further bipartition each block,
 // the range of block IDs in the final partition of each block, and the perfectly balanced and maximum
 // allowed block weight for each block.
+
+// COMMENT Is this predetermined once we enter initial partitioning? It looks like it.
+// Wouldn't it be better to determine the next split once extension to more blocks becomes necessary,
+// so we can better adapt to current block weights? Seems less restrictive, but maybe there are issues
+// if we can't find a good fit, whereas predetermined + adaptive epsilon and tighter balance should work.
 class RBTree {
 
  public:
@@ -384,6 +389,7 @@ const DeepPartitioningResult& select_best_partition(const vec<DeepPartitioningRe
 
   // Compute objective value and perform balance check for each partition
   tbb::task_group tg;
+  // COMMENT Was this really faster than a parallel_for?
   for ( size_t i = 0; i < partitions.size(); ++i ) {
     tg.run([&, i] {
       objectives[i] = metrics::objective(
@@ -487,6 +493,9 @@ void bipartition_each_block(PartitionedHypergraph& partitioned_hg,
       partitioned_hg.changeNodePart(hn, from, to);
     }
   });
+
+  // COMMENT I think there should be balancing and refinement here!
+
 }
 
 DeepPartitioningResult deep_multilevel_recursion(const Hypergraph& hypergraph,
@@ -535,6 +544,7 @@ void deep_multilevel_partitioning(PartitionedHypergraph& partitioned_hg,
     int pass_nr = 1;
     // Coarsening proceeds until we reach the contraction limit (shouldTerminate()) or
     // no further contractions are possible (should_continue)
+    // NIT shouldTerminate() --> shouldNotTerminate() or shouldContinue()?
     while ( coarsener->shouldTerminate() && should_continue ) {
       DBG << "Coarsening Pass" << pass_nr
           << "- Number of Nodes =" << coarsener->currentNumberOfNodes()
@@ -544,7 +554,11 @@ void deep_multilevel_partitioning(PartitionedHypergraph& partitioned_hg,
       // In the coarsening phase, we maintain the invariant that t threads process a hypergraph with
       // at least t * C nodes (C = contraction_limit_for_bipartitioning). If this invariant is violated,
       // we terminate coarsening and call the deep multilevel scheme recursively in parallel with the
-      // appriopriate number of threads to restore the invariant.
+      // appropriate number of threads to restore the invariant.
+
+      // COMMENT This is only conceptual thread splitting, right? We're not pinning threads to arenas or anything?
+      // NIT Should it be 2 * t * C?
+      // COMMENT Can we keep one coarsener object alive and keep using it down to 2 * C?
       const HypernodeID current_num_nodes = coarsener->currentNumberOfNodes();
       if ( current_num_nodes < context.shared_memory.num_threads * contraction_limit_for_bipartitioning ) {
         reaches_contraction_limit = false;
@@ -569,6 +583,8 @@ void deep_multilevel_partitioning(PartitionedHypergraph& partitioned_hg,
   io::printInitialPartitioningBanner(context);
   timer.start_timer("initial_partitioning", "Initial Partitioning");
   PartitionedHypergraph& coarsest_phg = uncoarseningData.coarsestPartitionedHypergraph();
+  // COMMENT What happens if we don't reach the contraction limit but the coarsening algorithm already
+  // converged and cannot shrink the hypergraph further?
   if ( reaches_contraction_limit ) {
     // If we reach the contraction limit, we bipartition the smallest hypergraph
     // and continue with uncoarsening.
@@ -584,7 +600,7 @@ void deep_multilevel_partitioning(PartitionedHypergraph& partitioned_hg,
     // If we do not reach the contraction limit, then the invariant that t threads
     // work on a hypergraph with at least t * C nodes is violated. To restore the
     // invariant, we call the deep multilevel scheme recursively in parallel. Each
-    // recursive call is initialized with the apprioprate number of threads. After
+    // recursive call is initialized with the appropriate number of threads. After
     // returning from the recursion, we continue uncoarsening with the best partition
     // from the recursive calls.
     disableTimerAndStats(context);
@@ -595,6 +611,11 @@ void deep_multilevel_partitioning(PartitionedHypergraph& partitioned_hg,
     const HypernodeID current_num_nodes = coarsest_hg.initialNumNodes();
     size_t num_threads_per_recursion = std::max(current_num_nodes,
       contraction_limit_for_bipartitioning ) / contraction_limit_for_bipartitioning;
+    // COMMENT We should have a mechanism for disabling this replication/tournament-tree style thing
+    // Maybe this already exists by continuing the coarsening loop above, but I'm not sure.
+    // I consider it an optional addon to deep multilevel, because it has the potential to seriously
+    // blow up running time.
+    // COMMENT Are the IP repetitions scaled down somewhere? Otherwise we will get performance issues.
     const size_t num_parallel_calls = context.shared_memory.num_threads / num_threads_per_recursion +
       (context.shared_memory.num_threads % num_threads_per_recursion != 0);
     num_threads_per_recursion = context.shared_memory.num_threads / num_parallel_calls +
@@ -678,6 +699,10 @@ void deep_multilevel_partitioning(PartitionedHypergraph& partitioned_hg,
   while ( !uncoarsener->isTopLevel() ) {
     // In the uncoarsening phase, we recursively bipartition each block when
     // the number of nodes gets larger than k' * C.
+
+    // COMMENT factoring this out into a separate function extend_blocks_until_desired_k
+    // could make this loop more understadable. Also less code duplication with the following
+    // loop for top-level
     while ( uncoarsener->currentNumberOfNodes() >= contraction_limit_for_rb ) {
       PartitionedHypergraph& current_phg = uncoarsener->currentPartitionedHypergraph();
       bipartition_each_block(current_phg, context, info, rb_tree, current_k);
@@ -719,6 +744,7 @@ void deep_multilevel_partitioning(PartitionedHypergraph& partitioned_hg,
   }
 
   // TODO: When we should perform rebalancing?
+  // COMMENT After every extension? See also my other comment in that function
   if ( context.type == ContextType::main ) {
     uncoarsener->rebalancing();
   }
