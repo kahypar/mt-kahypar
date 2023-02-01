@@ -568,7 +568,7 @@ void ParallelConstruction::determineDistanceFromCut(const PartitionedHypergraph&
 
   // Initialize bfs queue with vertices contained in cut hyperedges
   size_t q_idx = 0;
-  LOG << V(_context.shared_memory.num_threads);
+
   vec<BFSQueue<whfc::Node>> q(2, BFSQueue<whfc::Node>(_context.shared_memory.num_threads));
   tbb::parallel_for(0UL, _cut_hes.size(), [&](const size_t i) {
     const whfc::Hyperedge he = _flow_hg.originalHyperedgeID(_cut_hes[i].bucket, _cut_hes[i].e);
