@@ -339,8 +339,6 @@ Context setupDeepMultilevelRecursionContext(const Context& context,
     std::ceil(static_cast<double>(context.initial_partitioning.runs) *
       thread_reduction_factor), 1.0);
 
-  r_context.setupThreadsPerFlowSearch();
-
   return r_context;
 }
 
@@ -669,6 +667,7 @@ void deep_multilevel_partitioning(PartitionedHypergraph& partitioned_hg,
     context.partition.k = current_k;
     context.partition.perfect_balance_part_weights = rb_tree.perfectlyBalancedWeightVector(current_k);
     context.partition.max_part_weights = rb_tree.maxPartWeightVector(current_k);
+    context.setupThreadsPerFlowSearch();
     uncoarsener->updateMetrics();
   };
   adapt_contraction_limit_for_recursive_bipartitioning(
