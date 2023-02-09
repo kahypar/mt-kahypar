@@ -61,6 +61,8 @@ class MultiTryKWayFM final : public IRefiner {
     }
   }
 
+  void printMemoryConsumption();
+
  private:
   bool refineImpl(PartitionedHypergraph& phg,
                   const vec<HypernodeID>& refinement_nodes,
@@ -85,8 +87,6 @@ class MultiTryKWayFM final : public IRefiner {
   }
 
   void resizeDataStructuresForCurrentK();
-
-  void printMemoryConsumption();
 
   bool is_initialized = false;
   bool enable_light_fm = false;

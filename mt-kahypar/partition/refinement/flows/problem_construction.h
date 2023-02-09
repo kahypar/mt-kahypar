@@ -120,6 +120,8 @@ class ProblemConstruction {
                           QuotientGraph& quotient_graph,
                           const PartitionedHypergraph& phg);
 
+  void changeNumberOfBlocks(const PartitionID new_k);
+
  private:
 
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE bool isMaximumProblemSizeReached(

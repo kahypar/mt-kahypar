@@ -94,6 +94,7 @@ public:
                                    const Context& context) :
     _phg(nullptr),
     _context(context),
+    _current_k(context.partition.k),
     _quotient_graph(hg, context),
     _refiner(hg, context),
     _constructor(hg, context),
@@ -141,6 +142,8 @@ private:
 
   void initializeImpl(PartitionedHypergraph& phg) final;
 
+  void resizeDataStructuresForCurrentK();
+
   PartWeightUpdateResult partWeightUpdate(const vec<HypernodeWeight>& part_weight_deltas,
                                           const bool rollback);
 
@@ -151,6 +154,7 @@ private:
 
   PartitionedHypergraph* _phg;
   const Context& _context;
+  PartitionID _current_k;
 
   // ! Contains information of all cut hyperedges between the
   // ! blocks of the partition

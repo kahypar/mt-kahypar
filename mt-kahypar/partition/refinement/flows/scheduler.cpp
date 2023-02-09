@@ -205,6 +205,7 @@ bool FlowRefinementScheduler::refineImpl(
 
 void FlowRefinementScheduler::initializeImpl(PartitionedHypergraph& phg)  {
   _phg = &phg;
+  resizeDataStructuresForCurrentK();
 
   // Initialize Part Weights
   for ( PartitionID i = 0; i < _context.partition.k; ++i ) {
@@ -223,6 +224,21 @@ void FlowRefinementScheduler::initializeImpl(PartitionedHypergraph& phg)  {
   DBG << "Initial Active Block Pairs =" << _quotient_graph.numActiveBlockPairs()
       << ", Initial Num Threads =" << max_parallism;
   _refiner.initialize(max_parallism);
+}
+
+void FlowRefinementScheduler::resizeDataStructuresForCurrentK() {
+  if ( _current_k != _context.partition.k ) {
+    _current_k = _context.partition.k;
+    // Note that in general changing the number of blocks should not resize
+    // any data structure as we initialize the scheduler with the final
+    // number of blocks. This is just a fallback if someone changes this in the future.
+    if ( static_cast<size_t>(_current_k) > _part_weights.size() ) {
+      _part_weights.resize(_current_k);
+      _max_part_weights.resize(_current_k);
+    }
+    _quotient_graph.changeNumberOfBlocks(_current_k);
+    _constructor.changeNumberOfBlocks(_current_k);
+  }
 }
 
 namespace {
