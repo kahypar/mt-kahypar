@@ -67,8 +67,7 @@ namespace mt_kahypar {
       // We always start with a refinement pass on the smallest hypergraph.
       // The next calls to this function will then project the partition to the next level
       // and perform refinement until we reach the input hypergraph.
-      const double time_limit = refinementTimeLimit(_context, _uncoarseningData.hierarchy.back().coarseningTime());
-      refine(partitioned_hg, time_limit);
+      refine();
       _progress.setObjective(
         _current_metrics.getMetric(Mode::direct, _context.partition.objective));
       _progress += partitioned_hg.initialNumNodes();
@@ -99,8 +98,7 @@ namespace mt_kahypar {
       _timer.stop_timer("projecting_partition");
 
       // Improve partition
-      const double time_limit = refinementTimeLimit(_context, (_uncoarseningData.hierarchy)[_current_level].coarseningTime());
-      refine(partitioned_hg, time_limit);
+      refine();
 
       // Update Progress Bar
       _progress.setObjective(
@@ -190,9 +188,9 @@ namespace mt_kahypar {
     return std::move(*_uncoarseningData.partitioned_hg);
   }
 
-  void MultilevelUncoarsener::refine(
-    PartitionedHypergraph& partitioned_hypergraph,
-    const double time_limit) {
+  void MultilevelUncoarsener::refineImpl() {
+    PartitionedHypergraph& partitioned_hypergraph = *_uncoarseningData.partitioned_hg;
+    const double time_limit = refinementTimeLimit(_context, (_uncoarseningData.hierarchy)[_current_level].coarseningTime());
 
     if ( debug && _context.type == ContextType::main ) {
       io::printHypergraphInfo(partitioned_hypergraph.hypergraph(), "Refinement Hypergraph", false);

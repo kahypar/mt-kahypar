@@ -62,6 +62,8 @@ namespace mt_kahypar {
 
   void projectToNextLevelAndRefineImpl() override;
 
+  void refineImpl() override;
+
   void rebalancingImpl() override;
 
   void updateMetricsImpl() override;
@@ -71,8 +73,6 @@ namespace mt_kahypar {
   HypernodeID currentNumberOfNodesImpl() const override;
 
   PartitionedHypergraph&& movePartitionedHypergraphImpl() override;
-
-  void refine(PartitionedHypergraph& partitioned_hypergraph, const double time_limit);
 
   int _current_level;
   int _num_levels;

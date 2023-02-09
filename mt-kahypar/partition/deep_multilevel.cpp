@@ -498,9 +498,6 @@ void bipartition_each_block(PartitionedHypergraph& partitioned_hg,
       partitioned_hg.changeNodePart(hn, from, to);
     }
   });
-
-  // COMMENT I think there should be balancing and refinement here!
-
 }
 
 DeepPartitioningResult deep_multilevel_recursion(const Hypergraph& hypergraph,
@@ -720,6 +717,10 @@ void deep_multilevel_partitioning(PartitionedHypergraph& partitioned_hg,
           << "- isBalanced =" << std::boolalpha << is_balanced(current_phg, rb_tree);
 
       adapt_contraction_limit_for_recursive_bipartitioning(next_k);
+      // Improve partition
+      uncoarsener->refine();
+
+      // COMMENT I think there should be also balancing here!
     }
 
     // Perform next uncontraction step and improve solution
@@ -742,11 +743,8 @@ void deep_multilevel_partitioning(PartitionedHypergraph& partitioned_hg,
         << "- isBalanced =" << std::boolalpha << is_balanced(current_phg, rb_tree);
 
     adapt_contraction_limit_for_recursive_bipartitioning(next_k);
-
-    // TODO: We should perform here an additional refinement pass.
-    // Possible design choices are to do this after each bipartitioning step or
-    // after the hypergraph is partitioned into the desired number of blocks
-    // (outside the loop). Should we also do this during uncoarsening?
+    // Improve partition
+    uncoarsener->refine();
   }
 
   // TODO: When we should perform rebalancing?

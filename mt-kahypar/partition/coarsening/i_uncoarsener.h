@@ -66,6 +66,10 @@ namespace mt_kahypar {
       projectToNextLevelAndRefineImpl();
     }
 
+    void refine() {
+      refineImpl();
+    }
+
     void rebalancing() {
       rebalancingImpl();
     }
@@ -95,6 +99,7 @@ namespace mt_kahypar {
     virtual void initializeImpl() = 0;
     virtual bool isTopLevelImpl() const = 0;
     virtual void projectToNextLevelAndRefineImpl() = 0;
+    virtual void refineImpl() = 0;
     virtual void rebalancingImpl() = 0;
     virtual void updateMetricsImpl() = 0;
     virtual PartitionedHypergraph& currentPartitionedHypergraphImpl() = 0;

@@ -98,6 +98,8 @@ class NLevelUncoarsener : public IUncoarsener,
 
   void projectToNextLevelAndRefineImpl() override;
 
+  void refineImpl() override;
+
   void rebalancingImpl() override;
 
   void updateMetricsImpl() override;

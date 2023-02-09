@@ -194,8 +194,7 @@ namespace mt_kahypar {
 
       // After restoring all single-pin and identical-nets, we perform an additional
       // refinement step on all border nodes.
-      const double time_limit = refinementTimeLimit(_context, _uncoarseningData.round_coarsening_times.back());
-      globalRefine(*_uncoarseningData.partitioned_hg, time_limit);
+      refine();
       _progress.setObjective(_current_metrics.getMetric(
           _context.partition.mode, _context.partition.objective));
       _uncoarseningData.round_coarsening_times.pop_back();
@@ -223,6 +222,11 @@ namespace mt_kahypar {
         _timer.enable();
       }
     }
+  }
+
+  void NLevelUncoarsener::refineImpl() {
+    const double time_limit = refinementTimeLimit(_context, _uncoarseningData.round_coarsening_times.back());
+    globalRefine(*_uncoarseningData.partitioned_hg, time_limit);
   }
 
   void NLevelUncoarsener::rebalancingImpl() {
