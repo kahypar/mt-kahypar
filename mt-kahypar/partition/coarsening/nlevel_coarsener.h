@@ -136,7 +136,6 @@ class NLevelCoarsener : public ICoarsener,
     _tmp_current_vertices(),
     _enabled_vertex_flag_array(),
     _cl_tracker(context),
-    _max_allowed_node_weight(context.coarsening.max_allowed_node_weight),
     _pass_nr(0),
     _progress_bar(hypergraph.initialNumNodes(), 0, false),
     _enable_randomization(true) {
@@ -233,7 +232,7 @@ class NLevelCoarsener : public ICoarsener,
   HypernodeID contract(const HypernodeID hn) {
     HypernodeID num_contractions = 0;
     if ( _hg.nodeIsEnabled(hn) ) {
-      const Rating rating = _rater.rate(_hg, hn, _max_allowed_node_weight);
+      const Rating rating = _rater.rate(_hg, hn, _context.coarsening.max_allowed_node_weight);
       if ( rating.target != kInvalidHypernode ) {
         HypernodeID u = hn;
         HypernodeID v = rating.target;
@@ -246,7 +245,7 @@ class NLevelCoarsener : public ICoarsener,
         if ( _hg.registerContraction(u, v) ) {
           _rater.markAsMatched(u);
           _rater.markAsMatched(v);
-          num_contractions = _hg.contract(v, _max_allowed_node_weight);
+          num_contractions = _hg.contract(v, _context.coarsening.max_allowed_node_weight);
           _progress_bar += num_contractions;
         }
       }
@@ -303,7 +302,6 @@ class NLevelCoarsener : public ICoarsener,
   parallel::scalable_vector<HypernodeID> _tmp_current_vertices;
   parallel::scalable_vector<size_t> _enabled_vertex_flag_array;
   ContractionLimitTracker _cl_tracker;
-  HypernodeWeight _max_allowed_node_weight;
   int _pass_nr;
   utils::ProgressBar _progress_bar;
   bool _enable_randomization;

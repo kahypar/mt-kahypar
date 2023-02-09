@@ -512,25 +512,26 @@ void deep_multilevel_partitioning(PartitionedHypergraph& partitioned_hg,
   // ################## COARSENING ##################
   mt_kahypar::io::printCoarseningBanner(context);
 
-  // We adapt the contraction limit to 2C nodes which is the contraction limit where traditional
+  // We change the contraction limit to 2C nodes which is the contraction limit where traditional
   // multilevel partitioning bipartitions the smallest hypergraph into two blocks.
   const HypernodeID contraction_limit_for_bipartitioning = 2 * context.coarsening.contraction_limit_multiplier;
   context.coarsening.contraction_limit = contraction_limit_for_bipartitioning;
-  // TODO: Consider to dynamically adapt the maximum allowed node weight during coarsening.
-  // The weight of some nodes could be to heavy when we recursively bipartition the block
-  // during uncoarsening. However, this could affect the number of levels and also the running
-  // time. Therefore, we should perform experiments whether or not this is really neccassary.
-  double hypernode_weight_fraction =
-    context.coarsening.max_allowed_weight_multiplier / context.coarsening.contraction_limit;
-  context.coarsening.max_allowed_node_weight =
-    std::ceil(hypernode_weight_fraction * hypergraph.totalWeight());
+  PartitionID actual_k = std::min(static_cast<HypernodeID>(context.partition.k),
+    partitioned_hg.initialNumNodes() / contraction_limit_for_bipartitioning);
+  // We adapt the maximum allowed node weight dynamically during coarsening. For the
+  // first coarsening pass, we set the maximum allowed node weight to
+  // epsilon * ( c(V) / k ) (see KaMinPar paper)
+  context.coarsening.max_allowed_node_weight = std::max(std::ceil(
+    context.partition.epsilon * ( partitioned_hg.totalWeight() / actual_k )), 2.0);
+  DBG << "Set contraction limit to" << context.coarsening.contraction_limit
+      << "and max allowed node weight to" << context.coarsening.max_allowed_node_weight;
 
   const bool nlevel = context.coarsening.algorithm == CoarseningAlgorithm::nlevel_coarsener;
   UncoarseningData uncoarseningData(nlevel, hypergraph, context);
   uncoarseningData.setPartitionedHypergraph(std::move(partitioned_hg));
 
   utils::Timer& timer = utils::Utilities::instance().getTimer(context.utility_id);
-  bool reaches_contraction_limit = true;
+  bool no_further_contractions_possible = true;
   timer.start_timer("coarsening", "Coarsening");
   {
     std::unique_ptr<ICoarsener> coarsener = CoarsenerFactory::getInstance().createObject(
@@ -553,17 +554,21 @@ void deep_multilevel_partitioning(PartitionedHypergraph& partitioned_hg,
       // at least t * C nodes (C = contraction_limit_for_bipartitioning). If this invariant is violated,
       // we terminate coarsening and call the deep multilevel scheme recursively in parallel with the
       // appropriate number of threads to restore the invariant.
-
-      // COMMENT This is only conceptual thread splitting, right? We're not pinning threads to arenas or anything?
-      // NIT Should it be 2 * t * C?
-      // COMMENT Can we keep one coarsener object alive and keep using it down to 2 * C?
       const HypernodeID current_num_nodes = coarsener->currentNumberOfNodes();
       if ( current_num_nodes < context.shared_memory.num_threads * contraction_limit_for_bipartitioning ) {
-        reaches_contraction_limit = false;
+        no_further_contractions_possible = false;
         break;
       }
 
       should_continue = coarsener->coarseningPass();
+
+      // Adapt maximum allowed node for coarsening dynamically (see KaMinPar paper)
+      if ( current_num_nodes <= ( actual_k / 2 ) * contraction_limit_for_bipartitioning ) {
+        actual_k = std::max(actual_k / 2, 2);
+        context.coarsening.max_allowed_node_weight = std::max(std::ceil(
+          context.partition.epsilon * ( partitioned_hg.totalWeight() / actual_k )), 2.0);
+      DBG << "Set max allowed node weight to" << context.coarsening.max_allowed_node_weight;
+      }
       ++pass_nr;
     }
     coarsener->terminate();
@@ -583,7 +588,7 @@ void deep_multilevel_partitioning(PartitionedHypergraph& partitioned_hg,
   PartitionedHypergraph& coarsest_phg = uncoarseningData.coarsestPartitionedHypergraph();
   // COMMENT What happens if we don't reach the contraction limit but the coarsening algorithm already
   // converged and cannot shrink the hypergraph further?
-  if ( reaches_contraction_limit ) {
+  if ( no_further_contractions_possible ) {
     // If we reach the contraction limit, we bipartition the smallest hypergraph
     // and continue with uncoarsening.
     Context b_context = setupBipartitioningContext(

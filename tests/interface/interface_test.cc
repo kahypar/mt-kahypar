@@ -851,8 +851,6 @@ namespace mt_kahypar {
       ASSERT_EQ(lhs.coarsening.algorithm, rhs.coarsening.algorithm);
       ASSERT_EQ(lhs.coarsening.contraction_limit_multiplier, rhs.coarsening.contraction_limit_multiplier);
       ASSERT_EQ(lhs.coarsening.use_adaptive_edge_size, rhs.coarsening.use_adaptive_edge_size);
-      ASSERT_EQ(lhs.coarsening.use_adaptive_max_allowed_node_weight, rhs.coarsening.use_adaptive_max_allowed_node_weight);
-      ASSERT_EQ(lhs.coarsening.adaptive_node_weight_shrink_factor_threshold, rhs.coarsening.adaptive_node_weight_shrink_factor_threshold);
       ASSERT_EQ(lhs.coarsening.max_allowed_weight_multiplier, rhs.coarsening.max_allowed_weight_multiplier);
       ASSERT_EQ(lhs.coarsening.minimum_shrink_factor, rhs.coarsening.minimum_shrink_factor);
       ASSERT_EQ(lhs.coarsening.maximum_shrink_factor, rhs.coarsening.maximum_shrink_factor);

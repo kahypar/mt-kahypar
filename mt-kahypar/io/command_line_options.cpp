@@ -222,20 +222,6 @@ namespace mt_kahypar {
              po::value<bool>(&context.coarsening.use_adaptive_edge_size)->value_name("<bool>")->default_value(true),
              "If true, the rating function uses the number of distinct cluster IDs of a net as edge size rather\n"
              "than its original size during multilevel coarsing")
-            #ifdef KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES
-                        ("c-use-adaptive-max-node-weight",
-                po::value<bool>(&context.coarsening.use_adaptive_max_allowed_node_weight)->value_name("<bool>")->default_value(false),
-                "If true, we double the maximum allowed node weight each time if we are not able\n"
-                "to significantly reduce the size of the hypergraph during coarsening.")
-                ("c-adaptive-s",
-                po::value<double>(&context.coarsening.max_allowed_weight_fraction)->value_name("<double>"),
-                "The maximum allowed node weight is not allowed to become greater than\n"
-                "((1 + epsilon) * w(H)/k) / (adaptive_s), if adaptive maximum node weight is enabled\n")
-                ("c-adaptive-threshold",
-                po::value<double>(&context.coarsening.adaptive_node_weight_shrink_factor_threshold)->value_name("<double>"),
-                "The maximum allowed node weight is adapted, if the reduction ratio of vertices or pins\n"
-                "is lower than this threshold\n")
-            #endif
             ("c-s",
              po::value<double>(&context.coarsening.max_allowed_weight_multiplier)->value_name(
                      "<double>")->default_value(1),

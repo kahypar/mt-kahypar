@@ -88,7 +88,6 @@ class MultilevelCoarsener : public ICoarsener,
     _matching_state(),
     _cluster_weight(),
     _matching_partner(),
-    _max_allowed_node_weight(context.coarsening.max_allowed_node_weight),
     _pass_nr(0),
     _progress_bar(hypergraph.initialNumNodes(), 0, false),
     _enable_randomization(true) {
@@ -104,32 +103,6 @@ class MultilevelCoarsener : public ICoarsener,
     }, [&] {
       _matching_partner.resize(hypergraph.initialNumNodes());
     });
-
-    if ( _context.coarsening.use_adaptive_max_allowed_node_weight &&
-          hypergraph.totalWeight() !=
-          static_cast<HypernodeWeight>(hypergraph.initialNumNodes()) ) {
-      // If we have a weighted instance and adaptive maximum node weight is
-      // enabled we adapt the maximum allowed node such that it is greater
-      // than the heaviest node of the hypergraph.
-      const HypernodeWeight max_vertex_weight = tbb::parallel_reduce(
-      tbb::blocked_range<HypernodeID>(ID(0), hypergraph.initialNumNodes()), 0,
-      [&](const tbb::blocked_range<HypernodeID>& range, HypernodeWeight init) {
-        HypernodeWeight weight = init;
-        for (HypernodeID hn = range.begin(); hn < range.end(); ++hn) {
-          if ( hypergraph.nodeIsEnabled(hn) ) {
-            weight = std::max(weight, hypergraph.nodeWeight(hn));
-          }
-        }
-        return weight;
-      }, [](const HypernodeWeight lhs, const HypernodeWeight rhs) {
-        return std::max(lhs, rhs);
-      });
-      double node_weight_multiplier = std::pow(2.0, std::ceil(std::log2(
-        static_cast<double>(max_vertex_weight) / static_cast<double>(_max_allowed_node_weight))));
-      if ( node_weight_multiplier > 1.0 ) {
-        _max_allowed_node_weight = increaseMaximumAllowedNodeWeight(node_weight_multiplier);
-      }
-    }
   }
 
   MultilevelCoarsener(const MultilevelCoarsener&) = delete;
@@ -196,7 +169,6 @@ class MultilevelCoarsener : public ICoarsener,
     _rater.resetMatches();
     _rater.setCurrentNumberOfNodes(current_hg.initialNumNodes());
     const HypernodeID num_hns_before_pass = current_hg.initialNumNodes() - current_hg.numRemovedHypernodes();
-    const HypernodeID num_pins_before_pass = current_hg.initialNumPins();
     const HypernodeID hierarchy_contraction_limit = hierarchyContractionLimit(current_hg);
     DBG << V(current_hg.initialNumNodes()) << V(hierarchy_contraction_limit);
     HypernodeID current_num_nodes = num_hns_before_pass;
@@ -214,7 +186,7 @@ class MultilevelCoarsener : public ICoarsener,
           if (current_num_nodes > hierarchy_contraction_limit) {
             ASSERT(current_hg.nodeIsEnabled(hn));
             const Rating rating = _rater.rate(current_hg, hn,
-                                              cluster_ids, _cluster_weight, _max_allowed_node_weight);
+              cluster_ids, _cluster_weight, _context.coarsening.max_allowed_node_weight);
             if (rating.target != kInvalidHypernode) {
               const HypernodeID v = rating.target;
               HypernodeID& local_contracted_nodes = contracted_nodes.local();
@@ -294,28 +266,6 @@ class MultilevelCoarsener : public ICoarsener,
     _uncoarseningData.performMultilevelContraction(std::move(cluster_ids), round_start);
     _timer.stop_timer("contraction");
 
-    if ( _context.coarsening.use_adaptive_max_allowed_node_weight ) {
-      // If the reduction ratio of the number of vertices or pins is below
-      // a certain threshold, we increase the maximum allowed node weight by
-      // a factor of two. Idea behind this is that if we are not able to reduce
-      // the number of nodes or pins by a significant ratio, then some vertices
-      // reach their maximum allowed node weight and are not able to contract
-      // with other nodes, which prevents some high score contractions.
-      const double reduction_pins_percentage =
-        static_cast<double>(num_pins_before_pass) /
-        static_cast<double>(Base::currentHypergraph().initialNumPins());
-      const bool reduction_vertices_below_threshold = reduction_vertices_percentage <
-        _context.coarsening.adaptive_node_weight_shrink_factor_threshold;
-      const bool reduction_pins_below_threshold = reduction_pins_percentage <
-        _context.coarsening.adaptive_node_weight_shrink_factor_threshold;
-      if ( ( reduction_vertices_below_threshold && reduction_pins_below_threshold ) ||
-            ( !reduction_vertices_below_threshold && reduction_pins_below_threshold ) ) {
-        _max_allowed_node_weight = increaseMaximumAllowedNodeWeight(2.0);
-      }
-      DBG << V(reduction_vertices_percentage)
-          << V(reduction_pins_percentage)
-          << V(_max_allowed_node_weight);
-    }
     ++_pass_nr;
     return true;
   }
@@ -358,7 +308,7 @@ class MultilevelCoarsener : public ICoarsener,
     bool success = false;
     const HypernodeWeight weight_u = hypergraph.nodeWeight(u);
     HypernodeWeight weight_v = _cluster_weight[v];
-    if ( weight_u + weight_v <= _max_allowed_node_weight ) {
+    if ( weight_u + weight_v <= _context.coarsening.max_allowed_node_weight ) {
 
       if ( _matching_state[u].compare_exchange_strong(unmatched, match_in_progress) ) {
         _matching_partner[u] = v;
@@ -381,7 +331,7 @@ class MultilevelCoarsener : public ICoarsener,
             // representative of the cluster.
             const HypernodeID cluster_v = cluster_ids[v];
             weight_v = _cluster_weight[cluster_v];
-            if ( weight_u + weight_v <= _max_allowed_node_weight ) {
+            if ( weight_u + weight_v <= _context.coarsening.max_allowed_node_weight ) {
               ASSERT(_matching_state[cluster_v] == STATE(MatchingState::MATCHED));
               cluster_ids[u] = cluster_v;
               _cluster_weight[cluster_v] += weight_u;
@@ -433,7 +383,7 @@ class MultilevelCoarsener : public ICoarsener,
             ASSERT( _matching_state[v] == STATE(MatchingState::MATCHED) );
             const HypernodeID cluster_v = cluster_ids[v];
             const HypernodeWeight weight_v = _cluster_weight[cluster_v];
-            if ( weight_u + weight_v <= _max_allowed_node_weight ){
+            if ( weight_u + weight_v <= _context.coarsening.max_allowed_node_weight ){
               cluster_ids[u] = cluster_v;
               _cluster_weight[cluster_v] += weight_u;
               ++contracted_nodes;
@@ -468,17 +418,6 @@ class MultilevelCoarsener : public ICoarsener,
       _context.coarsening.contraction_limit );
   }
 
-  HypernodeWeight increaseMaximumAllowedNodeWeight(const double multiplier) {
-    HypernodeWeight max_part_weight = 0;
-    for ( PartitionID block = 0; block < _context.partition.k; ++block ) {
-      max_part_weight = std::max(max_part_weight,
-        _context.partition.max_part_weights[block]);
-    }
-    return std::min( multiplier * static_cast<double>(_max_allowed_node_weight),
-      std::max( max_part_weight / _context.coarsening.max_allowed_weight_fraction,
-        static_cast<double>(_context.coarsening.max_allowed_node_weight ) ) );
-  }
-
   using Base::_context;
   Rater _rater;
   HypernodeID _initial_num_nodes;
@@ -486,7 +425,6 @@ class MultilevelCoarsener : public ICoarsener,
   parallel::scalable_vector<AtomicMatchingState> _matching_state;
   parallel::scalable_vector<AtomicWeight> _cluster_weight;
   parallel::scalable_vector<HypernodeID> _matching_partner;
-  HypernodeWeight _max_allowed_node_weight;
   int _pass_nr;
   utils::ProgressBar _progress_bar;
   bool _enable_randomization;

@@ -95,17 +95,8 @@ namespace mt_kahypar {
     str << "Coarsening Parameters:" << std::endl;
     str << "  Algorithm:                          " << params.algorithm << std::endl;
     str << "  Use Adaptive Edge Size:             " << std::boolalpha << params.use_adaptive_edge_size << std::endl;
-#ifdef KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES
-    str << "  Use Adaptive Max Node Weight:       " << std::boolalpha << params.use_adaptive_max_allowed_node_weight << std::endl;
-#endif
-    if ( params.use_adaptive_max_allowed_node_weight ) {
-      str << "  Max Allowed Weight Fraction:        " << params.max_allowed_weight_fraction << std::endl;
-      str << "  Adaptive Node Weight Threshold:     " << params.adaptive_node_weight_shrink_factor_threshold << std::endl;
-      str << "  Initial Max Hypernode Weight:       " << params.max_allowed_node_weight << std::endl;
-    } else {
-      str << "  Max Allowed Weight Multiplier:      " << params.max_allowed_weight_multiplier << std::endl;
-      str << "  Maximum Allowed Hypernode Weight:   " << params.max_allowed_node_weight << std::endl;
-    }
+    str << "  Max Allowed Weight Multiplier:      " << params.max_allowed_weight_multiplier << std::endl;
+    str << "  Maximum Allowed Hypernode Weight:   " << params.max_allowed_node_weight << std::endl;
     str << "  Contraction Limit Multiplier:       " << params.contraction_limit_multiplier << std::endl;
     str << "  Contraction Limit:                  " << params.contraction_limit << std::endl;
     str << "  Minimum Shrink Factor:              " << params.minimum_shrink_factor << std::endl;
@@ -291,13 +282,23 @@ namespace mt_kahypar {
       min_block_weight = std::min(min_block_weight, partition.max_part_weights[part_id]);
     }
 
-    double hypernode_weight_fraction =
-            coarsening.max_allowed_weight_multiplier
-            / coarsening.contraction_limit;
-    coarsening.max_allowed_node_weight =
-            std::ceil(hypernode_weight_fraction * total_hypergraph_weight);
-    coarsening.max_allowed_node_weight =
-            std::min(coarsening.max_allowed_node_weight, min_block_weight);
+    if ( partition.mode != Mode::deep_multilevel ) {
+      double hypernode_weight_fraction =
+              coarsening.max_allowed_weight_multiplier
+              / coarsening.contraction_limit;
+      coarsening.max_allowed_node_weight =
+              std::ceil(hypernode_weight_fraction * total_hypergraph_weight);
+      coarsening.max_allowed_node_weight =
+              std::min(coarsening.max_allowed_node_weight, min_block_weight);
+    } else {
+      // see KaMinPar paper
+      const HypernodeID contraction_limit_for_bipartitioning =
+        2 * coarsening.contraction_limit_multiplier;
+      const PartitionID current_k = std::min(static_cast<HypernodeID>(partition.k),
+        total_hypergraph_weight / contraction_limit_for_bipartitioning);
+      coarsening.max_allowed_node_weight = std::max(std::ceil(partition.epsilon *
+        ( total_hypergraph_weight / current_k )), 2.0);
+    }
   }
 
   void Context::sanityCheck() {
