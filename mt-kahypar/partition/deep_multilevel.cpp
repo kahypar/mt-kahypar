@@ -595,8 +595,9 @@ void deep_multilevel_partitioning(PartitionedHypergraph& partitioned_hg,
   if ( no_further_contractions_possible ) {
     // If we reach the contraction limit, we bipartition the smallest hypergraph
     // and continue with uncoarsening.
+    const auto target_blocks = rb_tree.targetBlocksInFinalPartition(1, 0);
     Context b_context = setupBipartitioningContext(
-      hypergraph, context, info, 0, context.partition.k);
+      hypergraph, context, info, target_blocks.first, target_blocks.second);
     pool::bipartition(coarsest_phg, b_context);
 
     DBG << BOLD << "Peform Initial Bipartitioning" << END
@@ -766,15 +767,15 @@ DeepPartitioningResult deep_multilevel_recursion(const Hypergraph& hypergraph,
                                                  const RBTree& rb_tree,
                                                  const size_t num_threads) {
   DeepPartitioningResult result;
+  Context r_context = setupDeepMultilevelRecursionContext(context, num_threads);
+  r_context.partition.k = rb_tree.get_maximum_number_of_blocks(hypergraph.initialNumNodes());
   // Copy hypergraph
   result.hypergraph = hypergraph.copy(parallel_tag_t());
   result.partitioned_hg = PartitionedHypergraph(
-    context.partition.k, result.hypergraph, parallel_tag_t());
+    r_context.partition.k, result.hypergraph, parallel_tag_t());
   result.valid = true;
 
   // Recursively call deep multilevel partitioning
-  Context r_context = setupDeepMultilevelRecursionContext(context, num_threads);
-  r_context.partition.k = rb_tree.get_maximum_number_of_blocks(hypergraph.initialNumNodes());
   deep_multilevel_partitioning(result.partitioned_hg, r_context, info, rb_tree);
 
   return result;
