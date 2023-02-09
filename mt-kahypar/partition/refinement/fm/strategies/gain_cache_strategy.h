@@ -55,16 +55,14 @@ public:
   static constexpr bool maintain_gain_cache_between_rounds = true;
 
   GainCacheStrategy(const Context& context,
-                    HypernodeID numNodes,
                     FMSharedData& sharedData,
                     FMStats& runStats) :
       context(context),
       runStats(runStats),
       sharedData(sharedData),
-      blockPQ(static_cast<size_t>(sharedData.original_k)),
-      vertexPQs(static_cast<size_t>(sharedData.original_k),
-                VertexPriorityQueue(sharedData.vertexPQHandles.data(), numNodes))
-      { }
+      blockPQ(static_cast<size_t>(context.partition.k)),
+      vertexPQs(static_cast<size_t>(context.partition.k),
+        VertexPriorityQueue(sharedData.vertexPQHandles.data(), sharedData.numberOfNodes)) { }
 
   template<typename PHG>
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
@@ -167,6 +165,16 @@ public:
     phg.gainCacheUpdate(he, edge_weight, from, pin_count_in_from_part_after, to, pin_count_in_to_part_after);
   }
 
+  void changeNumberOfBlocks(const PartitionID new_k) {
+    blockPQ.resize(new_k);
+    for ( VertexPriorityQueue& pq : vertexPQs ) {
+      pq.setHandle(sharedData.vertexPQHandles.data(), sharedData.numberOfNodes);
+    }
+    while ( static_cast<size_t>(new_k) > vertexPQs.size() ) {
+      vertexPQs.emplace_back(sharedData.vertexPQHandles.data(), sharedData.numberOfNodes);
+    }
+  }
+
   void memoryConsumption(utils::MemoryTreeNode *parent) const {
     size_t vertex_pq_sizes = std::accumulate(
             vertexPQs.begin(), vertexPQs.end(), 0,
@@ -249,8 +257,6 @@ private:
 
 protected:
   FMSharedData& sharedData;
-
-private:
 
   // ! Priority Queue that contains for each block of the partition
   // ! the vertex with the best gain value

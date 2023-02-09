@@ -205,6 +205,25 @@ namespace mt_kahypar {
       phg.initializeGainCache();
     }
 
+    // If the number of blocks changes, we resize data structures
+    // (can happen during deep multilevel partitioning)
+    if ( current_k != context.partition.k ) {
+      current_k = context.partition.k;
+      // Note that we must change the number of blocks in the shared data before
+      // changing the number of blocks in the localized fm searches as this call
+      // could resize the vertex PQ handles which must be updated then in the
+      // localized FM searches.
+      // Moreover, note that in general changing the number of blocks in the shared
+      // data and global rollback data structure should not resize any data structure
+      // as we initialize them with the final number of blocks. This is just a fallback
+      // if someone changes this in the future.
+      sharedData.changeNumberOfBlocks(context.refinement.fm.algorithm, current_k);
+      globalRollback.changeNumberOfBlocks(current_k);
+      for ( auto& localized_fm : ets_fm ) {
+        localized_fm.changeNumberOfBlocks(current_k);
+      }
+    }
+
     is_initialized = true;
   }
 

@@ -69,10 +69,10 @@ class DeltaPartitionedGraph {
     _part_ids_delta(),
     _incident_weight_in_part_delta() {}
 
-  DeltaPartitionedGraph(const Context& context, const PartitionID original_k) :
-    _k(original_k),
+  DeltaPartitionedGraph(const Context& context) :
+    _k(context.partition.k),
     _pg(nullptr),
-    _part_weights_delta(original_k, 0),
+    _part_weights_delta(context.partition.k, 0),
     _part_ids_delta(),
     _incident_weight_in_part_delta() {
       const bool top_level = context.type == ContextType::main;
@@ -312,6 +312,13 @@ class DeltaPartitionedGraph {
 
   PartitionID k() const {
     return _k;
+  }
+
+  void changeNumberOfBlocks(const PartitionID new_k) {
+    if ( new_k > _k ) {
+      _part_weights_delta.assign(new_k, 0);
+    }
+    _k = new_k;
   }
 
   void memoryConsumption(utils::MemoryTreeNode* parent) const {

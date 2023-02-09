@@ -82,10 +82,10 @@ TEST(StrategyTests, FindNextMove) {
   FMStats fm_stats;
   fm_stats.moves = 1;
 
-  GainCacheStrategy gain_caching(context, hg.initialNumNodes(), sd, fm_stats);
-  GainDeltaStrategy gain_deltas(context, hg.initialNumNodes(), sd, fm_stats);
-  RecomputeGainStrategy recompute_gain(context, hg.initialNumNodes(), sd, fm_stats);
-  GainCacheOnDemandStrategy gain_caching_on_demand(context, hg.initialNumNodes(), sd, fm_stats);
+  GainCacheStrategy gain_caching(context, sd, fm_stats);
+  GainDeltaStrategy gain_deltas(context, sd, fm_stats);
+  RecomputeGainStrategy recompute_gain(context, sd, fm_stats);
+  GainCacheOnDemandStrategy gain_caching_on_demand(context, sd, fm_stats);
 
   vec<Gain> gains_from_deltas = insertAndExtractAllMoves(gain_deltas, phg);
   ASSERT_TRUE(std::is_sorted(gains_from_deltas.begin(), gains_from_deltas.end(), std::greater<Gain>()));
@@ -128,7 +128,7 @@ TEST(StrategyTests, DeltaUpdatesWork) {
   FMSharedData sd(hg.initialNumNodes(), context);
   FMStats fm_stats;
 
-  GainDeltaStrategy strat(context, hg.initialNumNodes(), sd, fm_stats);
+  GainDeltaStrategy strat(context, sd, fm_stats);
   for (HypernodeID u : hg.nodes())
     strat.insertIntoPQ(phg, u, 0);
 

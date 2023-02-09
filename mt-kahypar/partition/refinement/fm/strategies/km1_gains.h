@@ -30,9 +30,9 @@
 
 namespace mt_kahypar {
 struct Km1GainComputer {
-  Km1GainComputer(const Context& context, PartitionID k) :
+  Km1GainComputer(const Context& context) :
     context(context),
-    gains(k, 0) { }
+    gains(context.partition.k, 0) { }
 
   template<typename PHG>
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE

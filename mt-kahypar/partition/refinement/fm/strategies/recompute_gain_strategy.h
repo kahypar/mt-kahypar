@@ -41,14 +41,13 @@ namespace mt_kahypar {
     static constexpr bool maintain_gain_cache_between_rounds = false;
 
     RecomputeGainStrategy(const Context& context,
-                      HypernodeID numNodes,
                       FMSharedData& sharedData,
                       FMStats& runStats) :
-            context(context),
-            runStats(runStats),
-            sharedData(sharedData),
-            pq(VertexPriorityQueue(sharedData.vertexPQHandles.data(), numNodes)),
-            gc(context, sharedData.original_k) { }
+      context(context),
+      runStats(runStats),
+      sharedData(sharedData),
+      pq(VertexPriorityQueue(sharedData.vertexPQHandles.data(), sharedData.numberOfNodes)),
+      gc(context) { }
 
     template<typename PHG>
     MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
@@ -105,6 +104,10 @@ namespace mt_kahypar {
                           const PartitionID , const HypernodeID ,
                           const PartitionID , const HypernodeID ) {
       // do nothing!
+    }
+
+    void changeNumberOfBlocks(const PartitionID) {
+      pq.setHandle(sharedData.vertexPQHandles.data(), sharedData.numberOfNodes);
     }
 
     void memoryConsumption(utils::MemoryTreeNode *parent) const {

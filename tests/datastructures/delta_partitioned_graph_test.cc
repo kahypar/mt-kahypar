@@ -62,7 +62,7 @@ class ADeltaPartitionedGraph : public Test {
     phg.initializeGainCache();
 
     context.partition.k = 3;
-    delta_phg = DeltaPartitionedGraph(context, 3);
+    delta_phg = DeltaPartitionedGraph(context);
     delta_phg.setPartitionedHypergraph(&phg);
   }
 

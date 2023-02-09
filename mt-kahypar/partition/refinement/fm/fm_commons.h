@@ -144,15 +144,14 @@ struct NodeTracker {
 
 
 struct FMSharedData {
+  // ! Number of Nodes
+  size_t numberOfNodes;
 
   // ! Nodes to initialize the localized FM searches with
   WorkContainer<HypernodeID> refinementNodes;
 
   // ! PQ handles shared by all threads (each vertex is only held by one thread)
   vec<PosT> vertexPQHandles;
-
-  // ! original number of blocks (can change during deep multilevel partitioning)
-  PartitionID original_k;
 
   // ! Stores the sequence of performed moves and assigns IDs to moves that can be used in the global rollback code
   GlobalMoveTracker moveTracker;
@@ -174,14 +173,13 @@ struct FMSharedData {
   bool release_nodes = true;
   bool perform_moves_global = true;
 
-  FMSharedData(size_t numNodes = 0, PartitionID numParts = 0, size_t numThreads = 0, size_t numPQHandles = 0) :
-          refinementNodes(), //numNodes, numThreads),
-          vertexPQHandles(), //numPQHandles, invalid_position),
-          original_k(numParts),
-          moveTracker(), //numNodes),
-          nodeTracker(), //numNodes),
-          targetPart()
-  {
+  FMSharedData(size_t numNodes = 0, size_t numThreads = 0, size_t numPQHandles = 0) :
+    numberOfNodes(numNodes),
+    refinementNodes(), //numNodes, numThreads),
+    vertexPQHandles(), //numPQHandles, invalid_position),
+    moveTracker(), //numNodes),
+    nodeTracker(), //numNodes),
+    targetPart() {
     finishedTasks.store(0, std::memory_order_relaxed);
 
     // 128 * 3/2 GB --> roughly 1.5 GB per thread on our biggest machine
@@ -203,19 +201,30 @@ struct FMSharedData {
   }
 
   FMSharedData(size_t numNodes, const Context& context) :
-        FMSharedData(
-                numNodes,
-                context.partition.k,
-                TBBInitializer::instance().total_number_of_threads(),
-                getNumberOfPQHandles(context, numNodes)
-                )  { }
+    FMSharedData(
+      numNodes,
+      TBBInitializer::instance().total_number_of_threads(),
+      getNumberOfPQHandles(context.refinement.fm.algorithm,
+        context.partition.k, numNodes))  { }
 
 
-  size_t getNumberOfPQHandles(const Context& context, size_t numNodes) {
-    if (context.refinement.fm.algorithm == FMAlgorithm::fm_gain_delta) {
-      return numNodes * context.partition.k;
+  size_t getNumberOfPQHandles(const FMAlgorithm algorithm,
+                              const PartitionID k,
+                              const size_t numNodes) {
+    if (algorithm == FMAlgorithm::fm_gain_delta) {
+      return numNodes * k;
     } else {
       return numNodes;
+    }
+  }
+
+  void changeNumberOfBlocks(const FMAlgorithm algorithm, const PartitionID new_k) {
+    const size_t num_pq_handles = getNumberOfPQHandles(algorithm, new_k, numberOfNodes);
+    if ( num_pq_handles > vertexPQHandles.size() ) {
+      // Note that in general this should never be called as we initialize
+      // the shared data with the final number of blocks. However, this is just
+      // a fallback if someone changes this in the future.
+      vertexPQHandles.assign(num_pq_handles, invalid_position);
     }
   }
 

@@ -51,6 +51,7 @@ public:
                  const Context& c) :
     initial_num_nodes(hypergraph.initialNumNodes()),
     context(c),
+    current_k(c.partition.k),
     sharedData(hypergraph.initialNumNodes(), context),
     globalRollback(hypergraph, context),
     ets_fm([&] { return constructLocalizedKWayFMSearch(); })
@@ -88,6 +89,7 @@ public:
   bool enable_light_fm = false;
   const HypernodeID initial_num_nodes;
   const Context& context;
+  PartitionID current_k;
   FMSharedData sharedData;
   GlobalRollback globalRollback;
   tbb::enumerable_thread_specific<LocalizedKWayFM<FMStrategy>> ets_fm;

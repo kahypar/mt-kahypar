@@ -51,7 +51,7 @@ namespace mt_kahypar {
       context.partition.k = K;
       context.partition.max_part_weights.assign(K, std::numeric_limits<HypernodeWeight>::max());
       phg = PartitionedHypergraph(K, hg, parallel_tag_t());
-      gain = std::make_unique<Km1GainComputer>(context, K);
+      gain = std::make_unique<Km1GainComputer>(context);
     }
 
     void assignPartitionIDs(const std::vector<PartitionID>& part_ids) {

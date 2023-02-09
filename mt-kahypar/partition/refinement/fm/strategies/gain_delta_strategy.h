@@ -40,18 +40,18 @@ namespace mt_kahypar {
     static constexpr bool maintain_gain_cache_between_rounds = false;
 
     GainDeltaStrategy(const Context& context,
-                          HypernodeID numNodes,
                           FMSharedData& sharedData,
                           FMStats& runStats) :
             context(context),
             runStats(runStats),
             sharedData(sharedData),
             vertexPQs(),
-            gc(context, sharedData.original_k)
-    {
-      vertexPQs.reserve(sharedData.original_k);
-      for (PartitionID i = 0; i < sharedData.original_k; ++i) {
-        vertexPQs.emplace_back(sharedData.vertexPQHandles.data() + (i * numNodes), numNodes);
+            gc(context) {
+      vertexPQs.reserve(context.partition.k);
+      for (PartitionID i = 0; i < context.partition.k; ++i) {
+        vertexPQs.emplace_back(
+          sharedData.vertexPQHandles.data() + (i * sharedData.numberOfNodes),
+          sharedData.numberOfNodes);
       }
     }
 
@@ -195,6 +195,20 @@ namespace mt_kahypar {
           f(i, vertexPQs[i].at(j), vertexPQs[i].keyAtPos(j));
         }
       });
+    }
+
+    void changeNumberOfBlocks(const PartitionID new_k) {
+      const PartitionID current_k = static_cast<PartitionID>(vertexPQs.size());
+      for (PartitionID i = 0; i < current_k; ++i) {
+        vertexPQs[i].setHandle(
+          sharedData.vertexPQHandles.data() + (i * sharedData.numberOfNodes),
+          sharedData.numberOfNodes);
+      }
+      for (PartitionID i = current_k; i < new_k; ++i) {
+        vertexPQs.emplace_back(
+          sharedData.vertexPQHandles.data() + (i * sharedData.numberOfNodes),
+          sharedData.numberOfNodes);
+      }
     }
 
     void memoryConsumption(utils::MemoryTreeNode *parent) const {

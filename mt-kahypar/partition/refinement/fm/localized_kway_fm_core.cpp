@@ -371,6 +371,12 @@ namespace mt_kahypar {
   }
 
   template<typename FMStrategy>
+  void LocalizedKWayFM<FMStrategy>::changeNumberOfBlocks(const PartitionID new_k) {
+    deltaPhg.changeNumberOfBlocks(new_k);
+    fm_strategy.changeNumberOfBlocks(new_k);
+  }
+
+  template<typename FMStrategy>
   void LocalizedKWayFM<FMStrategy>::memoryConsumption(utils::MemoryTreeNode *parent) const {
     ASSERT(parent);
 

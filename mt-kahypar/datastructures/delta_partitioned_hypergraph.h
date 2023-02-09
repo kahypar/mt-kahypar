@@ -80,10 +80,10 @@ class DeltaPartitionedHypergraph {
     _pins_in_part_delta(),
     _gain_cache_delta() {}
 
-  DeltaPartitionedHypergraph(const Context& context, const PartitionID original_k) :
-    _k(original_k),
+  DeltaPartitionedHypergraph(const Context& context) :
+    _k(context.partition.k),
     _phg(nullptr),
-    _part_weights_delta(original_k, 0),
+    _part_weights_delta(context.partition.k, 0),
     _part_ids_delta(),
     _pins_in_part_delta(),
     _gain_cache_delta() {
@@ -318,6 +318,13 @@ class DeltaPartitionedHypergraph {
 
   PartitionID k() const {
     return _k;
+  }
+
+  void changeNumberOfBlocks(const PartitionID new_k) {
+    if ( new_k > _k ) {
+      _part_weights_delta.assign(new_k, 0);
+    }
+    _k = new_k;
   }
 
   void memoryConsumption(utils::MemoryTreeNode* parent) const {
