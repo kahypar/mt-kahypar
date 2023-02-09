@@ -45,7 +45,7 @@ class MultiTryKWayFM final : public IRefiner {
   static constexpr bool enable_heavy_assert = false;
 
 
-public:
+ public:
 
   MultiTryKWayFM(const Hypergraph& hypergraph,
                  const Context& c) :
@@ -61,6 +61,7 @@ public:
     }
   }
 
+ private:
   bool refineImpl(PartitionedHypergraph& phg,
                   const vec<HypernodeID>& refinement_nodes,
                   Metrics& metrics,
@@ -82,6 +83,8 @@ public:
     else
       return static_cast<double>(gain) / static_cast<double>(old_km1);
   }
+
+  void resizeDataStructuresForCurrentK();
 
   void printMemoryConsumption();
 

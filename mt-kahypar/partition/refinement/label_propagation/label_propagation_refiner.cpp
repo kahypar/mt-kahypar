@@ -42,6 +42,7 @@ namespace mt_kahypar {
                   const parallel::scalable_vector<HypernodeID>& refinement_nodes,
                   Metrics& best_metrics,
                   const double)  {
+    resizeDataStructuresForCurrentK();
     hypergraph.resetMoveState();
     _gain.reset();
     _next_active.reset();
@@ -191,13 +192,6 @@ namespace mt_kahypar {
       });
 
       _active_nodes = tmp_active_nodes.copy_parallel();
-    }
-
-    // If the number of blocks changes, we resize data structures
-    // (can happen during deep multilevel partitioning)
-    if ( _current_k != _context.partition.k ) {
-      _current_k = _context.partition.k;
-      _gain.changeNumberOfBlocks(_current_k);
     }
   }
 

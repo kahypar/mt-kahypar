@@ -68,7 +68,6 @@ class LabelPropagationRefiner final : public IRefiner {
   LabelPropagationRefiner & operator= (LabelPropagationRefiner &&) = delete;
 
  private:
-
   bool refineImpl(PartitionedHypergraph& hypergraph,
                   const parallel::scalable_vector<HypernodeID>& refinement_nodes,
                   Metrics& best_metrics,
@@ -168,6 +167,15 @@ class LabelPropagationRefiner final : public IRefiner {
         _context.partition.max_part_weights[to], []{}, objective_delta);
     }
     return success;
+  }
+
+  void resizeDataStructuresForCurrentK() {
+    // If the number of blocks changes, we resize data structures
+    // (can happen during deep multilevel partitioning)
+    if ( _current_k != _context.partition.k ) {
+      _current_k = _context.partition.k;
+      _gain.changeNumberOfBlocks(_current_k);
+    }
   }
 
   const Context& _context;

@@ -41,6 +41,7 @@ namespace mt_kahypar {
               const double time_limit) {
 
     if (!is_initialized) throw std::runtime_error("Call initialize on fm before calling refine");
+    resizeDataStructuresForCurrentK();
 
     Gain overall_improvement = 0;
     size_t consecutive_rounds_with_too_little_improvement = 0;
@@ -205,6 +206,11 @@ namespace mt_kahypar {
       phg.initializeGainCache();
     }
 
+    is_initialized = true;
+  }
+
+  template<typename FMStrategy>
+  void MultiTryKWayFM<FMStrategy>::resizeDataStructuresForCurrentK() {
     // If the number of blocks changes, we resize data structures
     // (can happen during deep multilevel partitioning)
     if ( current_k != context.partition.k ) {
@@ -223,8 +229,6 @@ namespace mt_kahypar {
         localized_fm.changeNumberOfBlocks(current_k);
       }
     }
-
-    is_initialized = true;
   }
 
   template<typename FMStrategy>
