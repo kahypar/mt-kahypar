@@ -219,7 +219,7 @@ class NLevelCoarsener : public ICoarsener,
     return true;
   }
 
-  bool shouldTerminateImpl() const override {
+  bool shouldNotTerminateImpl() const override {
     return _cl_tracker.currentNumNodes() > _context.coarsening.contraction_limit;
   }
 

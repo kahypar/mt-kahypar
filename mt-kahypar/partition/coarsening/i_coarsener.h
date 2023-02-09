@@ -49,9 +49,9 @@ class ICoarsener {
     // Coarsening algorithms proceed in passes where each pass computes a clustering
     // of the nodes and subsequently contracts it. Each pass induces one level of the
     // hierarchy. The coarsening algorithms proceeds until the number of nodes equals
-    // a predefined contraction limit (shouldTerminate) or the number of nodes could
+    // a predefined contraction limit (!shouldNotTerminate) or the number of nodes could
     // not be significantly reduced within one coarsening pass (should_continue).
-    while ( shouldTerminate() && should_continue ) {
+    while ( shouldNotTerminate() && should_continue ) {
       should_continue = coarseningPass();
     }
     terminate();
@@ -61,8 +61,8 @@ class ICoarsener {
     initializeImpl();
   }
 
-  bool shouldTerminate() const {
-    return shouldTerminateImpl();
+  bool shouldNotTerminate() const {
+    return shouldNotTerminateImpl();
   }
 
   bool coarseningPass() {
@@ -92,7 +92,7 @@ class ICoarsener {
 
  private:
   virtual void initializeImpl() = 0;
-  virtual bool shouldTerminateImpl() const = 0;
+  virtual bool shouldNotTerminateImpl() const = 0;
   virtual bool coarseningPassImpl() = 0;
   virtual void terminateImpl() = 0;
   virtual HypernodeID currentNumberOfNodesImpl() const = 0;

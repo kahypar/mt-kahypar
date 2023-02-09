@@ -89,11 +89,6 @@ struct OriginalHypergraphInfo {
 // contains for each partition information in how many blocks we have to further bipartition each block,
 // the range of block IDs in the final partition of each block, and the perfectly balanced and maximum
 // allowed block weight for each block.
-
-// COMMENT Is this predetermined once we enter initial partitioning? It looks like it.
-// Wouldn't it be better to determine the next split once extension to more blocks becomes necessary,
-// so we can better adapt to current block weights? Seems less restrictive, but maybe there are issues
-// if we can't find a good fit, whereas predetermined + adaptive epsilon and tighter balance should work.
 class RBTree {
 
  public:
@@ -387,7 +382,6 @@ const DeepPartitioningResult& select_best_partition(const vec<DeepPartitioningRe
 
   // Compute objective value and perform balance check for each partition
   tbb::task_group tg;
-  // COMMENT Was this really faster than a parallel_for?
   for ( size_t i = 0; i < partitions.size(); ++i ) {
     tg.run([&, i] {
       objectives[i] = metrics::objective(
@@ -541,10 +535,9 @@ void deep_multilevel_partitioning(PartitionedHypergraph& partitioned_hg,
     coarsener->initialize();
     bool should_continue = true;
     int pass_nr = 1;
-    // Coarsening proceeds until we reach the contraction limit (shouldTerminate()) or
+    // Coarsening proceeds until we reach the contraction limit (!shouldNotTerminate()) or
     // no further contractions are possible (should_continue)
-    // NIT shouldTerminate() --> shouldNotTerminate() or shouldContinue()?
-    while ( coarsener->shouldTerminate() && should_continue ) {
+    while ( coarsener->shouldNotTerminate() && should_continue ) {
       DBG << "Coarsening Pass" << pass_nr
           << "- Number of Nodes =" << coarsener->currentNumberOfNodes()
           << "- Number of HEs =" << coarsener->coarsestHypergraph().initialNumEdges()
@@ -586,8 +579,6 @@ void deep_multilevel_partitioning(PartitionedHypergraph& partitioned_hg,
   io::printInitialPartitioningBanner(context);
   timer.start_timer("initial_partitioning", "Initial Partitioning");
   PartitionedHypergraph& coarsest_phg = uncoarseningData.coarsestPartitionedHypergraph();
-  // COMMENT What happens if we don't reach the contraction limit but the coarsening algorithm already
-  // converged and cannot shrink the hypergraph further?
   if ( no_further_contractions_possible ) {
     // If we reach the contraction limit, we bipartition the smallest hypergraph
     // and continue with uncoarsening.
@@ -618,7 +609,6 @@ void deep_multilevel_partitioning(PartitionedHypergraph& partitioned_hg,
     // Maybe this already exists by continuing the coarsening loop above, but I'm not sure.
     // I consider it an optional addon to deep multilevel, because it has the potential to seriously
     // blow up running time.
-    // COMMENT Are the IP repetitions scaled down somewhere? Otherwise we will get performance issues.
     const size_t num_parallel_calls = context.shared_memory.num_threads / num_threads_per_recursion +
       (context.shared_memory.num_threads % num_threads_per_recursion != 0);
     num_threads_per_recursion = context.shared_memory.num_threads / num_parallel_calls +
@@ -703,10 +693,6 @@ void deep_multilevel_partitioning(PartitionedHypergraph& partitioned_hg,
   while ( !uncoarsener->isTopLevel() ) {
     // In the uncoarsening phase, we recursively bipartition each block when
     // the number of nodes gets larger than k' * C.
-
-    // COMMENT factoring this out into a separate function extend_blocks_until_desired_k
-    // could make this loop more understadable. Also less code duplication with the following
-    // loop for top-level
     while ( uncoarsener->currentNumberOfNodes() >= contraction_limit_for_rb ) {
       PartitionedHypergraph& current_phg = uncoarsener->currentPartitionedHypergraph();
       bipartition_each_block(current_phg, context, info, rb_tree, current_k);

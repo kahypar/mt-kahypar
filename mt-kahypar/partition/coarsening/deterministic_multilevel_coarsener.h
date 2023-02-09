@@ -94,7 +94,7 @@ private:
 
   bool coarseningPassImpl() override;
 
-  bool shouldTerminateImpl() const override {
+  bool shouldNotTerminateImpl() const override {
     return currentNumNodes() > _context.coarsening.contraction_limit;
   }
 

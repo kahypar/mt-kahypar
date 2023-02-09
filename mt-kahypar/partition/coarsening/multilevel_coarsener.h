@@ -127,7 +127,7 @@ class MultilevelCoarsener : public ICoarsener,
     }
   }
 
-  bool shouldTerminateImpl() const override {
+  bool shouldNotTerminateImpl() const override {
     return Base::currentNumNodes() > _context.coarsening.contraction_limit;
   }
 
