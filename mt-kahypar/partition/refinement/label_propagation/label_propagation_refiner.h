@@ -52,6 +52,7 @@ class LabelPropagationRefiner final : public IRefiner {
   explicit LabelPropagationRefiner(Hypergraph& hypergraph,
                                    const Context& context) :
     _context(context),
+    _current_k(context.partition.k),
     _current_num_nodes(kInvalidHypernode),
     _current_num_edges(kInvalidHyperedge),
     _gain(context),
@@ -170,6 +171,7 @@ class LabelPropagationRefiner final : public IRefiner {
   }
 
   const Context& _context;
+  PartitionID _current_k;
   HypernodeID _current_num_nodes;
   HyperedgeID _current_num_edges;
   GainCalculator _gain;
