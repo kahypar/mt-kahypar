@@ -93,6 +93,7 @@ class RBTree {
 
  public:
   explicit RBTree(const Context& context) :
+    _contraction_limit_multiplier(context.coarsening.contraction_limit_multiplier),
     _desired_blocks(),
     _target_blocks(),
     _perfectly_balanced_weights(),
@@ -169,6 +170,17 @@ class RBTree {
     return _max_part_weights[_partition_to_level.at(current_k)];
   }
 
+  PartitionID get_maximum_number_of_blocks(const HypernodeID current_num_nodes) const {
+    const int num_levels = _desired_blocks.size();
+    for ( int i = num_levels - 1; i >= 0; --i ) {
+      const PartitionID k = _desired_blocks[i].size();
+      if ( current_num_nodes >= k * _contraction_limit_multiplier ) {
+        return k;
+      }
+    }
+    return _desired_blocks.back().size();
+  }
+
   void printRBTree() const {
     for ( size_t level = 0; level < _desired_blocks.size(); ++level ) {
       std::cout << "Level " << (level + 1) << std::endl;
@@ -228,6 +240,7 @@ class RBTree {
     }
   }
 
+  const HypernodeID _contraction_limit_multiplier;
   vec<vec<PartitionID>> _desired_blocks;
   vec<vec<PartitionID>> _target_blocks;
   vec<std::vector<HypernodeWeight>> _perfectly_balanced_weights;
@@ -614,10 +627,12 @@ void deep_multilevel_partitioning(PartitionedHypergraph& partitioned_hg,
     num_threads_per_recursion = context.shared_memory.num_threads / num_parallel_calls +
       (context.shared_memory.num_threads % num_parallel_calls != 0);
 
+
     DBG << BOLD << "Perform Parallel Recursion" << END
-        << "- Number of Nodes =" << current_num_nodes
+        << "- Num. Nodes =" << current_num_nodes
         << "- Parallel Calls =" << num_parallel_calls
-        << "- Threads Per Call =" << num_threads_per_recursion;
+        << "- Threads Per Call =" << num_threads_per_recursion
+        << "- k =" << rb_tree.get_maximum_number_of_blocks(current_num_nodes);
 
     // Call deep multilevel scheme recursively
     tbb::task_group tg;
@@ -758,7 +773,8 @@ DeepPartitioningResult deep_multilevel_recursion(const Hypergraph& hypergraph,
   result.valid = true;
 
   // Recursively call deep multilevel partitioning
-  const Context r_context = setupDeepMultilevelRecursionContext(context, num_threads);
+  Context r_context = setupDeepMultilevelRecursionContext(context, num_threads);
+  r_context.partition.k = rb_tree.get_maximum_number_of_blocks(hypergraph.initialNumNodes());
   deep_multilevel_partitioning(result.partitioned_hg, r_context, info, rb_tree);
 
   return result;
@@ -767,8 +783,6 @@ DeepPartitioningResult deep_multilevel_recursion(const Hypergraph& hypergraph,
 }
 
 PartitionedHypergraph partition(Hypergraph& hypergraph, const Context& context) {
-  // TODO: We should initialize the partitioned hypergraph with k = 2
-  // and resize the data structure when we increase k.
   PartitionedHypergraph partitioned_hypergraph(
     context.partition.k, hypergraph, parallel_tag_t());
   partition(partitioned_hypergraph, context);
