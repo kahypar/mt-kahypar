@@ -188,7 +188,7 @@ bool FlowRefinementScheduler::refineImpl(
 
   // Update Gain Cache
   if ( ( _context.partition.paradigm == Paradigm::nlevel ||
-         _context.refinement.refine_until_no_improvement ) &&
+         _context.partition.mode == Mode::deep_multilevel ) &&
          phg.isGainCacheInitialized() ) {
     phg.doParallelForAllNodes([&](const HypernodeID& hn) {
       if ( _was_moved[hn] ) {
@@ -361,7 +361,7 @@ HyperedgeWeight FlowRefinementScheduler::applyMoves(const SearchID search_id,
     // Apply move sequence to partition
     const bool gain_cache_update =
       _context.partition.paradigm == Paradigm::nlevel ||
-      _context.refinement.refine_until_no_improvement;
+      _context.partition.mode == Mode::deep_multilevel;
     applyMoveSequence(*_phg, sequence, delta_func, gain_cache_update, _was_moved, new_cut_hes);
 
     if ( improvement < 0 ) {

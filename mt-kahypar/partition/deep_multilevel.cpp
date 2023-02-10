@@ -492,9 +492,21 @@ void bipartition_each_block(PartitionedHypergraph& partitioned_hg,
 
     ASSERT(to > kInvalidPartition && to < block_ranges.back());
     if ( from != to ) {
-      partitioned_hg.changeNodePart(hn, from, to);
+      if ( partitioned_hg.isGainCacheInitialized() ) {
+        partitioned_hg.changeNodePartWithGainCacheUpdate(hn, from, to);
+      } else {
+        partitioned_hg.changeNodePart(hn, from, to);
+      }
     }
   });
+
+  if ( partitioned_hg.isGainCacheInitialized() ) {
+    partitioned_hg.doParallelForAllNodes([&](const HypernodeID& hn) {
+      partitioned_hg.recomputeMoveFromPenalty(hn);
+    });
+  }
+
+  HEAVY_REFINEMENT_ASSERT(partitioned_hg.checkTrackedPartitionInformation());
 }
 
 DeepPartitioningResult deep_multilevel_recursion(const Hypergraph& hypergraph,
