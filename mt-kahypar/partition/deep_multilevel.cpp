@@ -50,12 +50,11 @@ namespace deep_multilevel {
 namespace {
 
 static constexpr bool enable_heavy_assert = false;
-static constexpr bool debug = false;
+static constexpr bool debug = true;
 
 struct DeepPartitioningResult {
   Hypergraph hypergraph;
   PartitionedHypergraph partitioned_hg;
-  vec<HypernodeID> mapping;
   bool valid = false;
 };
 
@@ -422,19 +421,16 @@ DeepPartitioningResult bipartition_block(PartitionedHypergraph& partitioned_hg,
                                          const Context& context,
                                          const OriginalHypergraphInfo& info,
                                          const PartitionID block,
+                                         vec<HypernodeID>& mapping,
                                          const PartitionID start_k,
                                          const PartitionID end_k) {
   DeepPartitioningResult bipartition;
 
   // Extract subhypergraph representing the corresponding block
   const bool cut_net_splitting = context.partition.objective == Objective::km1;
-  auto extracted_block = partitioned_hg.extract(block, cut_net_splitting,
-    context.preprocessing.stable_construction_of_incident_edges);
-  bipartition.hypergraph = std::move(extracted_block.first);
+  bipartition.hypergraph = partitioned_hg.extract(block, mapping,
+    cut_net_splitting, context.preprocessing.stable_construction_of_incident_edges);
   bipartition.partitioned_hg = PartitionedHypergraph(2, bipartition.hypergraph, parallel_tag_t());
-  // TODO: Mapping currently returns a vector of size n where n is the number of nodes
-  // in the input hypergraph.
-  bipartition.mapping = std::move(extracted_block.second);
   bipartition.valid = true;
 
   if ( bipartition.hypergraph.initialNumNodes() > 0 ) {
@@ -453,20 +449,21 @@ void bipartition_each_block(PartitionedHypergraph& partitioned_hg,
                             const RBTree& rb_tree,
                             const PartitionID current_k) {
   vec<DeepPartitioningResult> bipartitions(current_k);
-  // The recursive bipartitioning tree stores for each block of the current partition
-  // the number of blocks in which we have to further bipartition the corresponding block
-  // recursively. This is important for computing the adjusted imbalance factor to ensure
-  // that the final k-way partition is balanced.
   vec<PartitionID> block_ranges(1, 0);
+  vec<HypernodeID> mapping(partitioned_hg.initialNumNodes(), kInvalidHypernode);
   tbb::task_group tg;
   for ( PartitionID block = 0; block < current_k; ++block ) {
+    // The recursive bipartitioning tree stores for each block of the current partition
+    // the number of blocks in which we have to further bipartition the corresponding block
+    // recursively. This is important for computing the adjusted imbalance factor to ensure
+    // that the final k-way partition is balanced.
     const PartitionID desired_blocks = rb_tree.desiredNumberOfBlocks(current_k, block);
     if ( desired_blocks > 1 ) {
       // Spawn a task that bipartitions the corresponding block
       tg.run([&, block, desired_blocks] {
         const auto target_blocks = rb_tree.targetBlocksInFinalPartition(current_k, block);
-        bipartitions[block] = bipartition_block(
-          partitioned_hg, context, info, block, target_blocks.first, target_blocks.second);
+        bipartitions[block] = bipartition_block(partitioned_hg, context,
+          info, block, mapping, target_blocks.first, target_blocks.second);
         bipartitions[block].partitioned_hg.setHypergraph(bipartitions[block].hypergraph);
       });
       block_ranges.push_back(block_ranges.back() + 2);
@@ -485,8 +482,8 @@ void bipartition_each_block(PartitionedHypergraph& partitioned_hg,
     PartitionID to = kInvalidPartition;
     const DeepPartitioningResult& bipartition = bipartitions[from];
     if ( bipartition.valid ) {
-      ASSERT(static_cast<size_t>(hn) < bipartition.mapping.size());
-      const HypernodeID mapped_hn = bipartition.mapping[hn];
+      ASSERT(static_cast<size_t>(hn) < mapping.size());
+      const HypernodeID mapped_hn = mapping[hn];
       to = bipartition.partitioned_hg.partID(mapped_hn) == 0 ?
         block_ranges[from] : block_ranges[from] + 1;
     } else {

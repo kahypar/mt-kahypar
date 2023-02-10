@@ -951,19 +951,31 @@ private:
 
   // ####################### Extract Block #######################
 
+  std::pair<Hypergraph, vec<HypernodeID> > extract(
+          const PartitionID block,
+          bool cut_net_splitting,
+          bool stable_construction_of_incident_edges) {
+    ASSERT(block != kInvalidPartition && block < _k);
+    vec<HypernodeID> hn_mapping(_hg->initialNumNodes(), kInvalidHypernode);
+    Hypergraph block_hg = extract(block, hn_mapping,
+      cut_net_splitting, stable_construction_of_incident_edges);
+    return std::make_pair(std::move(block_hg), std::move(hn_mapping));
+  }
+
+
   // ! Extracts a block of a partition as separate hypergraph.
   // ! It also returns a vertex-mapping from the original hypergraph to the sub-hypergraph.
   // ! If cut_net_splitting is activated, hyperedges that span more than one block (cut nets) are split, which is used for the connectivity metric.
   // ! Otherwise cut nets are discarded (cut metric).
-  std::pair<Hypergraph, parallel::scalable_vector<HypernodeID> > extract(
-          PartitionID block,
-          bool cut_net_splitting,
-          bool stable_construction_of_incident_edges) {
+  Hypergraph extract(const PartitionID block,
+                     vec<HypernodeID>& hn_mapping,
+                     bool cut_net_splitting,
+                     bool stable_construction_of_incident_edges) {
     ASSERT(block != kInvalidPartition && block < _k);
+    ASSERT(_hg->initialNumNodes() == static_cast<HypernodeID>(hn_mapping.size()));
 
     // Compactify vertex ids
-    parallel::scalable_vector<HypernodeID> hn_mapping(_hg->initialNumNodes(), kInvalidHypernode);
-    parallel::scalable_vector<HyperedgeID> he_mapping(_hg->initialNumEdges(), kInvalidHyperedge);
+    vec<HyperedgeID> he_mapping(_hg->initialNumEdges(), kInvalidHyperedge);
     HypernodeID num_hypernodes = 0;
     HypernodeID num_hyperedges = 0;
     tbb::parallel_invoke([&] {
@@ -982,10 +994,10 @@ private:
     });
 
     // Extract plain hypergraph data for corresponding block
-    using HyperedgeVector = parallel::scalable_vector<parallel::scalable_vector<HypernodeID>>;
+    using HyperedgeVector = vec<vec<HypernodeID>>;
     HyperedgeVector edge_vector;
-    parallel::scalable_vector<HyperedgeWeight> hyperedge_weight;
-    parallel::scalable_vector<HypernodeWeight> hypernode_weight;
+    vec<HyperedgeWeight> hyperedge_weight;
+    vec<HypernodeWeight> hypernode_weight;
     tbb::parallel_invoke([&] {
       edge_vector.resize(num_hyperedges);
       hyperedge_weight.resize(num_hyperedges);
@@ -1021,7 +1033,7 @@ private:
         extracted_hypergraph.setCommunityID(extracted_hn, _hg->communityID(hn));
       }
     });
-    return std::make_pair(std::move(extracted_hypergraph), std::move(hn_mapping));
+    return extracted_hypergraph;
   }
 
   void freeInternalData() {
