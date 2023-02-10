@@ -613,10 +613,6 @@ void deep_multilevel_partitioning(PartitionedHypergraph& partitioned_hg,
     const HypernodeID current_num_nodes = coarsest_hg.initialNumNodes();
     size_t num_threads_per_recursion = std::max(current_num_nodes,
       contraction_limit_for_bipartitioning ) / contraction_limit_for_bipartitioning;
-    // COMMENT We should have a mechanism for disabling this replication/tournament-tree style thing
-    // Maybe this already exists by continuing the coarsening loop above, but I'm not sure.
-    // I consider it an optional addon to deep multilevel, because it has the potential to seriously
-    // blow up running time.
     const size_t num_parallel_calls = context.shared_memory.num_threads / num_threads_per_recursion +
       (context.shared_memory.num_threads % num_threads_per_recursion != 0);
     num_threads_per_recursion = context.shared_memory.num_threads / num_parallel_calls +
@@ -716,8 +712,6 @@ void deep_multilevel_partitioning(PartitionedHypergraph& partitioned_hg,
       adapt_contraction_limit_for_recursive_bipartitioning(next_k);
       // Improve partition
       uncoarsener->refine();
-
-      // COMMENT I think there should be also balancing here!
     }
 
     // Perform next uncontraction step and improve solution
@@ -744,9 +738,10 @@ void deep_multilevel_partitioning(PartitionedHypergraph& partitioned_hg,
     uncoarsener->refine();
   }
 
-  // TODO: When we should perform rebalancing?
-  // COMMENT After every extension? See also my other comment in that function
   if ( context.type == ContextType::main ) {
+    // The choice of the maximum allowed node weight and adaptive imbalance ratio should
+    // ensure that we find on each level a balanced partition for unweighted inputs. Thus,
+    // we do not use rebalancing on each level as in the original deep multilevel algorithm.
     uncoarsener->rebalancing();
   }
 
