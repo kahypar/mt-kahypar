@@ -227,6 +227,7 @@ struct InitialPartitioningParameters {
 std::ostream & operator<< (std::ostream& str, const InitialPartitioningParameters& params);
 
 struct SharedMemoryParameters {
+  size_t original_num_threads = 1;
   size_t num_threads = 1;
   size_t static_balancing_work_packages = 128;
   bool use_localized_random_shuffle = false;

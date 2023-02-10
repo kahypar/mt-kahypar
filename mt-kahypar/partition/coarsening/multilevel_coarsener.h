@@ -212,7 +212,7 @@ class MultilevelCoarsener : public ICoarsener,
                   current_num_nodes > hierarchy_contraction_limit ?
                   current_num_nodes - hierarchy_contraction_limit : 0;
                 num_nodes_update_threshold.local() +=
-                  dist_to_contraction_limit / _context.shared_memory.num_threads;
+                  dist_to_contraction_limit / _context.shared_memory.original_num_threads;
               }
             }
           }

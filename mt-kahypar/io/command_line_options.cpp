@@ -567,7 +567,10 @@ namespace mt_kahypar {
     po::options_description shared_memory_options("Shared Memory Options", num_columns);
     shared_memory_options.add_options()
             ("s-num-threads,t",
-             po::value<size_t>(&context.shared_memory.num_threads)->value_name("<size_t>"),
+             po::value<size_t>()->value_name("<size_t>")->notifier([&](const size_t num_threads) {
+               context.shared_memory.num_threads = num_threads;
+               context.shared_memory.original_num_threads = num_threads;
+             }),
              "Number of Threads")
             ("s-static-balancing-work-packages",
              po::value<size_t>(&context.shared_memory.static_balancing_work_packages)->value_name("<size_t>"),

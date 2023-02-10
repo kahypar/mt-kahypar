@@ -104,7 +104,7 @@ class NLevelCoarsener : public ICoarsener,
           const HypernodeID dist_to_cl = _current_num_nodes > contraction_limit ?
             _current_num_nodes - contraction_limit : 0;
           _num_nodes_update_threshold.local() +=
-            dist_to_cl / _context.shared_memory.num_threads;
+            dist_to_cl / _context.shared_memory.original_num_threads;
         }
       }
     }

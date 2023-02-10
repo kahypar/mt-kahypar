@@ -567,7 +567,7 @@ void deep_multilevel_partitioning(PartitionedHypergraph& partitioned_hg,
         actual_k = std::max(actual_k / 2, 2);
         context.coarsening.max_allowed_node_weight = std::max(std::ceil(
           context.partition.epsilon * ( partitioned_hg.totalWeight() / actual_k )), 2.0);
-      DBG << "Set max allowed node weight to" << context.coarsening.max_allowed_node_weight;
+        DBG << "Set max allowed node weight to" << context.coarsening.max_allowed_node_weight;
       }
       ++pass_nr;
     }
@@ -587,6 +587,11 @@ void deep_multilevel_partitioning(PartitionedHypergraph& partitioned_hg,
   timer.start_timer("initial_partitioning", "Initial Partitioning");
   PartitionedHypergraph& coarsest_phg = uncoarseningData.coarsestPartitionedHypergraph();
   if ( no_further_contractions_possible ) {
+    DBG << "Smallest Hypergraph"
+        << "- Number of Nodes =" << coarsest_phg.initialNumNodes()
+        << "- Number of HEs =" << coarsest_phg.initialNumEdges()
+        << "- Number of Pins =" << coarsest_phg.initialNumPins();
+
     // If we reach the contraction limit, we bipartition the smallest hypergraph
     // and continue with uncoarsening.
     const auto target_blocks = rb_tree.targetBlocksInFinalPartition(1, 0);
