@@ -759,6 +759,8 @@ DeepPartitioningResult deep_multilevel_recursion(const Hypergraph& hypergraph,
   DeepPartitioningResult result;
   Context r_context = setupDeepMultilevelRecursionContext(context, num_threads);
   r_context.partition.k = rb_tree.get_maximum_number_of_blocks(hypergraph.initialNumNodes());
+  r_context.partition.perfect_balance_part_weights = rb_tree.perfectlyBalancedWeightVector(r_context.partition.k);
+  r_context.partition.max_part_weights = rb_tree.maxPartWeightVector(r_context.partition.k);
   // Copy hypergraph
   result.hypergraph = hypergraph.copy(parallel_tag_t());
   result.partitioned_hg = PartitionedHypergraph(

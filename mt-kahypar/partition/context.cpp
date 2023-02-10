@@ -294,8 +294,8 @@ namespace mt_kahypar {
       // see KaMinPar paper
       const HypernodeID contraction_limit_for_bipartitioning =
         2 * coarsening.contraction_limit_multiplier;
-      const PartitionID current_k = std::min(static_cast<HypernodeID>(partition.k),
-        total_hypergraph_weight / contraction_limit_for_bipartitioning);
+      const PartitionID current_k = std::max(std::min(static_cast<HypernodeID>(partition.k),
+        total_hypergraph_weight / contraction_limit_for_bipartitioning), 2U);
       coarsening.max_allowed_node_weight = std::max(std::ceil(partition.epsilon *
         ( total_hypergraph_weight / current_k )), 2.0);
     }
