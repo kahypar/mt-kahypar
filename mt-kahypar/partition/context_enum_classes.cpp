@@ -64,7 +64,6 @@ namespace mt_kahypar {
   std::ostream & operator<< (std::ostream& os, const PresetType& type) {
     switch (type) {
       case PresetType::deterministic: return os << "deterministic";
-      case PresetType::large_k: return os << "large_k";
       case PresetType::default_preset: return os << "default";
       case PresetType::default_flows: return os << "default_flows";
       case PresetType::quality_preset: return os << "quality";
@@ -253,8 +252,6 @@ namespace mt_kahypar {
   PresetType presetTypeFromString(const std::string& type) {
     if (type == "deterministic") {
       return PresetType::deterministic;
-    } else if (type == "large_k") {
-      return PresetType::large_k;
     } else if (type == "default") {
       return PresetType::default_preset;
     } else if (type == "default_flows") {
