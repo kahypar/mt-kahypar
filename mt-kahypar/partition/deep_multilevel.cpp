@@ -677,6 +677,7 @@ void deep_multilevel_partitioning(PartitionedHypergraph& partitioned_hg,
   // Determine the current number of blocks (k), the number of blocks in which the
   // hypergraph should be partitioned next (k'), and the contraction limit at which we
   // have to partition the hypergraph into k' blocks (k' * C).
+  const PartitionID final_k = context.partition.k;
   PartitionID current_k = kInvalidPartition;
   PartitionID next_k = kInvalidPartition;
   HypernodeID contraction_limit_for_rb = std::numeric_limits<HypernodeID>::max();
@@ -723,7 +724,7 @@ void deep_multilevel_partitioning(PartitionedHypergraph& partitioned_hg,
   // we still did not reach the desired number of blocks, we recursively bipartition
   // each block until the number of blocks equals the desired number of blocks.
   while ( uncoarsener->currentNumberOfNodes() >= contraction_limit_for_rb ||
-          ( context.type == ContextType::main && current_k != context.partition.k ) ) {
+          ( context.type == ContextType::main && current_k != final_k ) ) {
     PartitionedHypergraph& current_phg = uncoarsener->currentPartitionedHypergraph();
     bipartition_each_block(current_phg, context, info, rb_tree, current_k);
 
