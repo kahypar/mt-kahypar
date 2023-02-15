@@ -292,23 +292,13 @@ namespace mt_kahypar {
       min_block_weight = std::min(min_block_weight, partition.max_part_weights[part_id]);
     }
 
-    if ( partition.mode != Mode::deep_multilevel ) {
-      double hypernode_weight_fraction =
-              coarsening.max_allowed_weight_multiplier
-              / coarsening.contraction_limit;
-      coarsening.max_allowed_node_weight =
-              std::ceil(hypernode_weight_fraction * total_hypergraph_weight);
-      coarsening.max_allowed_node_weight =
-              std::min(coarsening.max_allowed_node_weight, min_block_weight);
-    } else {
-      // see KaMinPar paper
-      const HypernodeID contraction_limit_for_bipartitioning =
-        2 * coarsening.contraction_limit_multiplier;
-      const PartitionID current_k = std::max(std::min(static_cast<HypernodeID>(partition.k),
-        total_hypergraph_weight / contraction_limit_for_bipartitioning), 2U);
-      coarsening.max_allowed_node_weight = std::max(std::ceil(partition.epsilon *
-        ( total_hypergraph_weight / current_k )), 2.0);
-    }
+    double hypernode_weight_fraction =
+            coarsening.max_allowed_weight_multiplier
+            / coarsening.contraction_limit;
+    coarsening.max_allowed_node_weight =
+            std::ceil(hypernode_weight_fraction * total_hypergraph_weight);
+    coarsening.max_allowed_node_weight =
+            std::min(coarsening.max_allowed_node_weight, min_block_weight);
   }
 
   void Context::sanityCheck() {

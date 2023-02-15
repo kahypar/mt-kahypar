@@ -50,7 +50,7 @@ namespace deep_multilevel {
 namespace {
 
 static constexpr bool enable_heavy_assert = false;
-static constexpr bool debug = false;
+static constexpr bool debug = true;
 
 struct DeepPartitioningResult {
   Hypergraph hypergraph;
@@ -531,13 +531,8 @@ void deep_multilevel_partitioning(PartitionedHypergraph& partitioned_hg,
   context.coarsening.contraction_limit = contraction_limit_for_bipartitioning;
   PartitionID actual_k = std::min(static_cast<HypernodeID>(context.partition.k),
     partitioned_hg.initialNumNodes() / contraction_limit_for_bipartitioning);
-  // We adapt the maximum allowed node weight dynamically during coarsening. For the
-  // first coarsening pass, we set the maximum allowed node weight to
-  // epsilon * ( c(V) / k ) (see KaMinPar paper)
-  // context.coarsening.max_allowed_node_weight = std::max(std::ceil(
-  //   context.partition.epsilon * ( partitioned_hg.totalWeight() / actual_k )), 2.0);
   double hypernode_weight_fraction = context.coarsening.max_allowed_weight_multiplier /
-    static_cast<double>((actual_k / 2) * context.coarsening.contraction_limit_multiplier);
+    static_cast<double>(actual_k * context.coarsening.contraction_limit_multiplier);
   context.coarsening.max_allowed_node_weight = std::ceil(hypernode_weight_fraction * hypergraph.totalWeight());
   DBG << "Set contraction limit to" << context.coarsening.contraction_limit
       << "and max allowed node weight to" << context.coarsening.max_allowed_node_weight;
@@ -579,13 +574,12 @@ void deep_multilevel_partitioning(PartitionedHypergraph& partitioned_hg,
       should_continue = coarsener->coarseningPass();
 
       // Adapt maximum allowed node for coarsening dynamically (see KaMinPar paper)
-      while ( current_num_nodes <= ( actual_k / 2 ) * contraction_limit_for_bipartitioning && actual_k > 2 ) {
+      while ( current_num_nodes <= actual_k * contraction_limit_for_bipartitioning && actual_k > 2 ) {
         actual_k = std::max(actual_k / 2, 2);
-        // context.coarsening.max_allowed_node_weight = std::max(std::ceil(
-        //   context.partition.epsilon * ( partitioned_hg.totalWeight() / actual_k )), 2.0);
         hypernode_weight_fraction = context.coarsening.max_allowed_weight_multiplier /
-            static_cast<double>((actual_k / 2) * context.coarsening.contraction_limit_multiplier);
+            static_cast<double>(actual_k * context.coarsening.contraction_limit_multiplier);
           context.coarsening.max_allowed_node_weight = std::ceil(hypernode_weight_fraction * hypergraph.totalWeight());
+        should_continue = true;
         DBG << "Set max allowed node weight to" << context.coarsening.max_allowed_node_weight;
       }
       ++pass_nr;
