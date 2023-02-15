@@ -220,6 +220,12 @@ namespace mt_kahypar {
     return str;
   }
 
+  bool Context::forceGainCacheUpdates() const {
+    return partition.paradigm == Paradigm::nlevel ||
+      partition.mode == Mode::deep_multilevel ||
+      refinement.refine_until_no_improvement;
+  }
+
   void Context::setupPartWeights(const HypernodeWeight total_hypergraph_weight) {
     if (partition.use_individual_part_weights) {
       ASSERT(static_cast<size_t>(partition.k) == partition.max_part_weights.size());

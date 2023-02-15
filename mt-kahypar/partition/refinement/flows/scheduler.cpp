@@ -187,9 +187,7 @@ bool FlowRefinementScheduler::refineImpl(
   _stats.update_global_stats();
 
   // Update Gain Cache
-  if ( ( _context.partition.paradigm == Paradigm::nlevel ||
-         _context.partition.mode == Mode::deep_multilevel ) &&
-         phg.isGainCacheInitialized() ) {
+  if ( _context.forceGainCacheUpdates() && phg.isGainCacheInitialized() ) {
     phg.doParallelForAllNodes([&](const HypernodeID& hn) {
       if ( _was_moved[hn] ) {
         phg.recomputeMoveFromPenalty(hn);
@@ -359,10 +357,8 @@ HyperedgeWeight FlowRefinementScheduler::applyMoves(const SearchID search_id,
   PartWeightUpdateResult update_res = partWeightUpdate(part_weight_deltas, false);
   if ( update_res.is_balanced ) {
     // Apply move sequence to partition
-    const bool gain_cache_update =
-      _context.partition.paradigm == Paradigm::nlevel ||
-      _context.partition.mode == Mode::deep_multilevel;
-    applyMoveSequence(*_phg, sequence, delta_func, gain_cache_update, _was_moved, new_cut_hes);
+    applyMoveSequence(*_phg, sequence, delta_func,
+      _context.forceGainCacheUpdates(), _was_moved, new_cut_hes);
 
     if ( improvement < 0 ) {
       update_res = partWeightUpdate(part_weight_deltas, true);
@@ -372,7 +368,7 @@ HyperedgeWeight FlowRefinementScheduler::applyMoves(const SearchID search_id,
             << "Expected Improvement =" << sequence.expected_improvement
             << ", Real Improvement =" << improvement
             << ", Search ID =" << search_id << ")" << END;
-        revertMoveSequence(*_phg, sequence, delta_func, gain_cache_update);
+        revertMoveSequence(*_phg, sequence, delta_func, _context.forceGainCacheUpdates());
         ++_stats.failed_updates_due_to_conflicting_moves;
         sequence.state = MoveSequenceState::WORSEN_SOLUTION_QUALITY;
       } else {

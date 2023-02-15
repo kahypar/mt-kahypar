@@ -257,6 +257,8 @@ class Context {
     }
   }
 
+  bool forceGainCacheUpdates() const;
+
   void setupPartWeights(const HypernodeWeight total_hypergraph_weight);
 
   void setupContractionLimit(const HypernodeWeight total_hypergraph_weight);

@@ -145,9 +145,7 @@ namespace mt_kahypar {
       });
     }
 
-    if ( ( _context.partition.paradigm == Paradigm::nlevel ||
-           _context.partition.mode == Mode::deep_multilevel ) &&
-           hypergraph.isGainCacheInitialized() ) {
+    if ( _context.forceGainCacheUpdates() && hypergraph.isGainCacheInitialized() ) {
       auto recompute = [&](size_t j) {
         if ( _active_node_was_moved[j] ) {
           hypergraph.recomputeMoveFromPenalty(_active_nodes[j]);
