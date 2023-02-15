@@ -50,7 +50,7 @@ namespace deep_multilevel {
 namespace {
 
 static constexpr bool enable_heavy_assert = false;
-static constexpr bool debug = true;
+static constexpr bool debug = false;
 
 struct DeepPartitioningResult {
   Hypergraph hypergraph;
@@ -567,8 +567,8 @@ void deep_multilevel_partitioning(PartitionedHypergraph& partitioned_hg,
     while ( coarsener->shouldNotTerminate() && should_continue ) {
       DBG << "Coarsening Pass" << pass_nr
           << "- Number of Nodes =" << coarsener->currentNumberOfNodes()
-          << "- Number of HEs =" << coarsener->coarsestHypergraph().initialNumEdges()
-          << "- Number of Pins =" << coarsener->coarsestHypergraph().initialNumPins();
+          << "- Number of HEs =" << (nlevel ? 0 : coarsener->coarsestHypergraph().initialNumEdges())
+          << "- Number of Pins =" << (nlevel ? 0 : coarsener->coarsestHypergraph().initialNumPins());
 
       // In the coarsening phase, we maintain the invariant that t threads process a hypergraph with
       // at least t * C nodes (C = contraction_limit_for_bipartitioning). If this invariant is violated,
