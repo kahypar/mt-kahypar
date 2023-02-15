@@ -91,8 +91,11 @@ or directly provide a configuration file (see `config` folder):
 
     ./MtKaHyPar -h <path-to-hgr> -p <path-to-config-file> --instance_type=<hypergraph/graph> -t <# threads> -k <# blocks> -e <imbalance (e.g. 0.03)> -o km1 -m direct
 
-The partition output file will be placed in the same folder as the input hypergraph file. If you want to change the default partition output folder, add the command line parameter `--partition-output-folder=path/to/folder`. There is also an option to disable writing the partition file `--write-partition-file=false`. Further, there are several useful options that can provide you with additional insights during and after the partitioning process:
-- `--verbose=true`: Enables partitioning output
+To enable writing the partition to a file set the flag `--write-partition-file=true`.
+By default the file will be placed in the same folder as the input hypergraph file. Set `--partition-output-folder=path/to/folder` to specify a desired output folder. The partition file name is generated automatically based on parameters such as `k`, `imbalance`, `seed` and the input file name.
+
+Further, there are several useful options that can provide you with additional insights during and after the partitioning process:
+- `--verbose=true`: Displays detailed information on the partitioning process
 - `--show-detailed-timings=true`: Shows detailed subtimings of each phase of the algorithm at the end of partitioning
 - `--enable-progress-bar=true`: Shows a progess bar during the coarsening and refinement phase
 
