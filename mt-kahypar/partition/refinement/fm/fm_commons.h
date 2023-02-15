@@ -203,7 +203,13 @@ struct FMSharedData {
   FMSharedData(size_t numNodes, const Context& context) :
     FMSharedData(
       numNodes,
-      TBBInitializer::instance().total_number_of_threads(),
+      // In really rare cases, the tbb::this_task_arena::current_thread_index()
+      // function returns max_concurrency() as thread id which causes an
+      // segmentation fault if we do not add one here. This is caused by
+      // our working queue for border nodes with which we initialize the localized
+      // FM searches. For now, we do not know why this occurs but this prevents
+      // the segmentation fault.
+      TBBInitializer::instance().total_number_of_threads() + 1,
       getNumberOfPQHandles(context.refinement.fm.algorithm,
         context.partition.k, numNodes))  { }
 
