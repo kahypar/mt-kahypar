@@ -50,7 +50,7 @@ namespace deep_multilevel {
 namespace {
 
 static constexpr bool enable_heavy_assert = false;
-static constexpr bool debug = false;
+static constexpr bool debug = true;
 
 struct DeepPartitioningResult {
   Hypergraph hypergraph;
@@ -567,7 +567,8 @@ void deep_multilevel_partitioning(PartitionedHypergraph& partitioned_hg,
       // we terminate coarsening and call the deep multilevel scheme recursively in parallel with the
       // appropriate number of threads to restore the invariant.
       const HypernodeID current_num_nodes = coarsener->currentNumberOfNodes();
-      if ( current_num_nodes < context.shared_memory.num_threads * contraction_limit_for_bipartitioning ) {
+      if (  context.partition.perform_parallel_recursion_in_deep_multilevel &&
+            current_num_nodes < context.shared_memory.num_threads * contraction_limit_for_bipartitioning ) {
         no_further_contractions_possible = false;
         break;
       }

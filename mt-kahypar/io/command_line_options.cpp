@@ -99,6 +99,9 @@ namespace mt_kahypar {
             ("num-vcycles",
              po::value<size_t>(&context.partition.num_vcycles)->value_name("<size_t>")->default_value(0),
              "Number of V-Cycles")
+            ("perform-parallel-recursion-in-deep-multilevel",
+             po::value<bool>(&context.partition.perform_parallel_recursion_in_deep_multilevel)->value_name("<bool>")->default_value(true),
+             "If true, then we perform parallel recursion within the deep multilevel scheme.")
             ("smallest-maxnet-threshold",
             po::value<uint32_t>(&context.partition.smallest_large_he_size_threshold)->value_name("<uint32_t>"),
             "No hyperedge whose size is smaller than this threshold is removed in the large hyperedge removal step (see maxnet-removal-factor)")

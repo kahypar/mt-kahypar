@@ -47,6 +47,7 @@ struct PartitioningParameters {
   PartitionID k = std::numeric_limits<PartitionID>::max();
   int seed = 0;
   size_t num_vcycles = 0;
+  bool perform_parallel_recursion_in_deep_multilevel = true;
 
   int time_limit = 0;
   bool use_individual_part_weights = false;

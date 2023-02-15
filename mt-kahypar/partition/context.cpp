@@ -58,6 +58,10 @@ namespace mt_kahypar {
       }
       str << std::endl;
     }
+    if ( params.mode == Mode::deep_multilevel ) {
+      str << "  Perform Parallel Recursion:         " << std::boolalpha
+          << params.perform_parallel_recursion_in_deep_multilevel << std::endl;
+    }
     return str;
   }
 
