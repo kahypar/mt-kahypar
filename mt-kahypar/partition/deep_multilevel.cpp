@@ -50,7 +50,7 @@ namespace deep_multilevel {
 namespace {
 
 static constexpr bool enable_heavy_assert = false;
-static constexpr bool debug = true;
+static constexpr bool debug = false;
 
 struct DeepPartitioningResult {
   Hypergraph hypergraph;
