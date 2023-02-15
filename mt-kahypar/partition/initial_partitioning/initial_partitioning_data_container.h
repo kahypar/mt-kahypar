@@ -46,7 +46,7 @@ namespace mt_kahypar {
 
 class InitialPartitioningDataContainer {
 
-  static constexpr bool debug = true;
+  static constexpr bool debug = false;
   static constexpr bool enable_heavy_assert = false;
 
   // ! Contains information about the best thread local partition
