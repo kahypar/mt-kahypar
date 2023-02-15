@@ -50,7 +50,7 @@ namespace deep_multilevel {
 namespace {
 
 static constexpr bool enable_heavy_assert = false;
-static constexpr bool debug = false;
+static constexpr bool debug = true;
 
 struct DeepPartitioningResult {
   Hypergraph hypergraph;
@@ -532,13 +532,9 @@ void deep_multilevel_partitioning(PartitionedHypergraph& partitioned_hg,
   PartitionID actual_k = std::max(std::min(static_cast<HypernodeID>(context.partition.k),
     partitioned_hg.initialNumNodes() / context.coarsening.contraction_limit_multiplier), ID(2));
   auto adapt_max_allowed_node_weight = [&](const HypernodeID current_num_nodes, bool& should_continue) {
-    const HypernodeID next_hierarchy_contraction_limit = std::max(
-      static_cast<double>(current_num_nodes - hypergraph.numRemovedHypernodes()) /
-      context.coarsening.maximum_shrink_factor, static_cast<double>(context.coarsening.contraction_limit));
-    // In case our actual k is not two, we check if the contraction limit for the next coarsening pass is smaller
-    // than k * contraction_limit. If so, we increase the maximum allowed node weight accordingly to reach
-    // this contraction limit.
-    while ( ( next_hierarchy_contraction_limit < actual_k * context.coarsening.contraction_limit ||
+    // In case our actual k is not two, we check if the current number of nodes is smaller
+    // than k * contraction_limit. If so, we increase the maximum allowed node weight.
+    while ( ( current_num_nodes <= actual_k * context.coarsening.contraction_limit ||
               !should_continue ) && actual_k > 2 ) {
       actual_k = std::max(actual_k / 2, 2);
       const double hypernode_weight_fraction = context.coarsening.max_allowed_weight_multiplier /
