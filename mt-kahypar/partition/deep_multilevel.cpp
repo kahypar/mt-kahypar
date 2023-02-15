@@ -50,7 +50,7 @@ namespace deep_multilevel {
 namespace {
 
 static constexpr bool enable_heavy_assert = false;
-static constexpr bool debug = true;
+static constexpr bool debug = false;
 
 struct DeepPartitioningResult {
   Hypergraph hypergraph;
@@ -529,13 +529,14 @@ void deep_multilevel_partitioning(PartitionedHypergraph& partitioned_hg,
   // multilevel partitioning bipartitions the smallest hypergraph into two blocks.
   const HypernodeID contraction_limit_for_bipartitioning = 2 * context.coarsening.contraction_limit_multiplier;
   context.coarsening.contraction_limit = contraction_limit_for_bipartitioning;
-  PartitionID actual_k = std::min(static_cast<HypernodeID>(context.partition.k),
-    partitioned_hg.initialNumNodes() / contraction_limit_for_bipartitioning);
+  PartitionID actual_k = std::max(std::min(static_cast<HypernodeID>(context.partition.k),
+    partitioned_hg.initialNumNodes() / contraction_limit_for_bipartitioning), ID(2));
   double hypernode_weight_fraction = context.coarsening.max_allowed_weight_multiplier /
     static_cast<double>(actual_k * context.coarsening.contraction_limit_multiplier);
   context.coarsening.max_allowed_node_weight = std::ceil(hypernode_weight_fraction * hypergraph.totalWeight());
   DBG << "Set contraction limit to" << context.coarsening.contraction_limit
-      << "and max allowed node weight to" << context.coarsening.max_allowed_node_weight;
+      << "and max allowed node weight to" << context.coarsening.max_allowed_node_weight
+      << V(actual_k);
 
   const bool nlevel = context.coarsening.algorithm == CoarseningAlgorithm::nlevel_coarsener;
   UncoarseningData uncoarseningData(nlevel, hypergraph, context);
@@ -574,7 +575,7 @@ void deep_multilevel_partitioning(PartitionedHypergraph& partitioned_hg,
       should_continue = coarsener->coarseningPass();
 
       // Adapt maximum allowed node for coarsening dynamically (see KaMinPar paper)
-      while ( current_num_nodes <= actual_k * contraction_limit_for_bipartitioning && actual_k > 2 ) {
+      while ( ( current_num_nodes <= actual_k * contraction_limit_for_bipartitioning || !should_continue ) && actual_k > 2 ) {
         actual_k = std::max(actual_k / 2, 2);
         hypernode_weight_fraction = context.coarsening.max_allowed_weight_multiplier /
             static_cast<double>(actual_k * context.coarsening.contraction_limit_multiplier);
