@@ -59,6 +59,9 @@ option(KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES
 option(KAHYPAR_TRAVIS_BUILD
   "Indicate that this build is executed on Travis CI." OFF)
 
+option(KAHYPAR_ADD_ADDRESS_SANITIZER
+  "Adds address sanitizer to compile options." OFF)
+
 if(KAHYPAR_DISABLE_ASSERTIONS)
   add_compile_definitions(KAHYPAR_DISABLE_ASSERTIONS)
 endif(KAHYPAR_DISABLE_ASSERTIONS)
@@ -297,10 +300,10 @@ if(NOT MSVC)
   set(CMAKE_LINKER_FLAGS_DEBUG "${CMAKE_LINKER_FLAGS_DEBUG} -fno-omit-frame-pointer")
   set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-O3 -mtune=native -march=native -g3 ")
 
-  # if(NOT KAHYPAR_CI_BUILD)
-  #   set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -fsanitize=address")
-  #   set(CMAKE_LINKER_FLAGS_DEBUG "${CMAKE_LINKER_FLAGS_DEBUG} -fsanitize=address")
-  # endif()
+  if(KAHYPAR_ADD_ADDRESS_SANITIZER)
+    set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -fsanitize=address")
+    set(CMAKE_LINKER_FLAGS_DEBUG "${CMAKE_LINKER_FLAGS_DEBUG} -fsanitize=address")
+  endif()
 
   if(ENABLE_PROFILE MATCHES ON)
     message(STATUS "Profiling activated")
