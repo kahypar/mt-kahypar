@@ -42,6 +42,7 @@ namespace mt_kahypar {
                   const parallel::scalable_vector<HypernodeID>& refinement_nodes,
                   Metrics& best_metrics,
                   const double)  {
+    resizeDataStructuresForCurrentK();
     hypergraph.resetMoveState();
     _gain.reset();
     _next_active.reset();
@@ -57,7 +58,7 @@ namespace mt_kahypar {
 
     // Update metrics statistics
     HyperedgeWeight current_metric = best_metrics.getMetric(
-    Mode::direct, _context.partition.objective);
+      Mode::direct, _context.partition.objective);
     Gain delta = _gain.delta();
     ASSERT(delta <= 0, "LP refiner worsen solution quality");
 
@@ -144,9 +145,7 @@ namespace mt_kahypar {
       });
     }
 
-    if ( ( _context.partition.paradigm == Paradigm::nlevel ||
-           _context.refinement.refine_until_no_improvement ) &&
-           hypergraph.isGainCacheInitialized() ) {
+    if ( _context.forceGainCacheUpdates() && hypergraph.isGainCacheInitialized() ) {
       auto recompute = [&](size_t j) {
         if ( _active_node_was_moved[j] ) {
           hypergraph.recomputeMoveFromPenalty(_active_nodes[j]);

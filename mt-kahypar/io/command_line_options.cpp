@@ -99,6 +99,9 @@ namespace mt_kahypar {
             ("num-vcycles",
              po::value<size_t>(&context.partition.num_vcycles)->value_name("<size_t>")->default_value(0),
              "Number of V-Cycles")
+            ("perform-parallel-recursion-in-deep-multilevel",
+             po::value<bool>(&context.partition.perform_parallel_recursion_in_deep_multilevel)->value_name("<bool>")->default_value(true),
+             "If true, then we perform parallel recursion within the deep multilevel scheme.")
             ("smallest-maxnet-threshold",
             po::value<uint32_t>(&context.partition.smallest_large_he_size_threshold)->value_name("<uint32_t>"),
             "No hyperedge whose size is smaller than this threshold is removed in the large hyperedge removal step (see maxnet-removal-factor)")
@@ -221,20 +224,6 @@ namespace mt_kahypar {
              po::value<bool>(&context.coarsening.use_adaptive_edge_size)->value_name("<bool>")->default_value(true),
              "If true, the rating function uses the number of distinct cluster IDs of a net as edge size rather\n"
              "than its original size during multilevel coarsing")
-            #ifdef KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES
-                        ("c-use-adaptive-max-node-weight",
-                po::value<bool>(&context.coarsening.use_adaptive_max_allowed_node_weight)->value_name("<bool>")->default_value(false),
-                "If true, we double the maximum allowed node weight each time if we are not able\n"
-                "to significantly reduce the size of the hypergraph during coarsening.")
-                ("c-adaptive-s",
-                po::value<double>(&context.coarsening.max_allowed_weight_fraction)->value_name("<double>"),
-                "The maximum allowed node weight is not allowed to become greater than\n"
-                "((1 + epsilon) * w(H)/k) / (adaptive_s), if adaptive maximum node weight is enabled\n")
-                ("c-adaptive-threshold",
-                po::value<double>(&context.coarsening.adaptive_node_weight_shrink_factor_threshold)->value_name("<double>"),
-                "The maximum allowed node weight is adapted, if the reduction ratio of vertices or pins\n"
-                "is lower than this threshold\n")
-            #endif
             ("c-s",
              po::value<double>(&context.coarsening.max_allowed_weight_multiplier)->value_name(
                      "<double>")->default_value(1),
@@ -581,7 +570,10 @@ namespace mt_kahypar {
     po::options_description shared_memory_options("Shared Memory Options", num_columns);
     shared_memory_options.add_options()
             ("s-num-threads,t",
-             po::value<size_t>(&context.shared_memory.num_threads)->value_name("<size_t>"),
+             po::value<size_t>()->value_name("<size_t>")->notifier([&](const size_t num_threads) {
+               context.shared_memory.num_threads = num_threads;
+               context.shared_memory.original_num_threads = num_threads;
+             }),
              "Number of Threads")
             ("s-static-balancing-work-packages",
              po::value<size_t>(&context.shared_memory.static_balancing_work_packages)->value_name("<size_t>"),

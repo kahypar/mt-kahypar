@@ -37,13 +37,11 @@ class GlobalRollback {
   static constexpr bool enable_heavy_assert = false;
 public:
   explicit GlobalRollback(const Hypergraph& hg, const Context& context) :
-          context(context),
-          max_part_weight_scaling(context.refinement.fm.rollback_balance_violation_factor),
-          num_parts(context.partition.k),
-          ets_recalc_data(vec<RecalculationData>(num_parts)),
-          last_recalc_round(),
-          round(1)
-  {
+    context(context),
+    max_part_weight_scaling(context.refinement.fm.rollback_balance_violation_factor),
+    ets_recalc_data([&] { return vec<RecalculationData>(context.partition.k); }),
+    last_recalc_round(),
+    round(1) {
     if (context.refinement.fm.iter_moves_on_recalc && context.refinement.fm.rollback_parallel) {
       last_recalc_round.resize(hg.initialNumEdges(), CAtomic<uint32_t>(0));
     }
@@ -78,6 +76,15 @@ public:
       phg.changeNodePart(u, from, to);
     }
   }
+
+  void changeNumberOfBlocks(const PartitionID new_k) {
+    for ( auto& recalc_data : ets_recalc_data ) {
+      if ( static_cast<size_t>(new_k) > recalc_data.size() ) {
+        recalc_data.resize(new_k);
+      }
+    }
+  }
+
   template<bool update_gain_cache>
   bool verifyGains(PartitionedHypergraph& phg, FMSharedData& sharedData);
 
@@ -86,8 +93,6 @@ private:
 
   // ! Factor to multiply max part weight with, in order to relax or disable the balance criterion. Set to zero for disabling
   double max_part_weight_scaling;
-
-  PartitionID num_parts;
 
   struct RecalculationData {
     MoveID first_in, last_out;

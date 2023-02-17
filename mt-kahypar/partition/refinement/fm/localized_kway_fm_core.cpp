@@ -65,10 +65,10 @@ namespace mt_kahypar {
 
   template<typename Partition>
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE std::pair<PartitionID, HypernodeWeight>
-  heaviestPartAndWeight(const Partition& partition) {
+  heaviestPartAndWeight(const Partition& partition, const PartitionID k) {
     PartitionID p = kInvalidPartition;
     HypernodeWeight w = std::numeric_limits<HypernodeWeight>::min();
-    for (PartitionID i = 0; i < partition.k(); ++i) {
+    for (PartitionID i = 0; i < k; ++i) {
       if (partition.partWeight(i) > w) {
         w = partition.partWeight(i);
         p = i;
@@ -177,7 +177,7 @@ namespace mt_kahypar {
       MoveID move_id = std::numeric_limits<MoveID>::max();
       bool moved = false;
       if constexpr (use_delta) {
-        heaviestPartWeight = heaviestPartAndWeight(deltaPhg).second;
+        heaviestPartWeight = heaviestPartAndWeight(deltaPhg, context.partition.k).second;
         fromWeight = deltaPhg.partWeight(move.from);
         toWeight = deltaPhg.partWeight(move.to);
         if (expect_improvement) {
@@ -191,7 +191,7 @@ namespace mt_kahypar {
                                           context.partition.max_part_weights[move.to], delta_func);
         }
       } else {
-        heaviestPartWeight = heaviestPartAndWeight(phg).second;
+        heaviestPartWeight = heaviestPartAndWeight(phg, context.partition.k).second;
         fromWeight = phg.partWeight(move.from);
         toWeight = phg.partWeight(move.to);
         moved = phg.changeNodePart(move.node, move.from, move.to,
@@ -208,7 +208,6 @@ namespace mt_kahypar {
         bool improved_balance_less_equal_km1 = estimatedImprovement >= bestImprovement
                                                      && fromWeight == heaviestPartWeight
                                                      && toWeight + phg.nodeWeight(move.node) < heaviestPartWeight;
-
         if (improved_km1 || improved_balance_less_equal_km1) {
           stopRule.reset();
           bestImprovement = estimatedImprovement;
@@ -368,6 +367,12 @@ namespace mt_kahypar {
       m.invalidate();
       localMoves.pop_back();
     }
+  }
+
+  template<typename FMStrategy>
+  void LocalizedKWayFM<FMStrategy>::changeNumberOfBlocks(const PartitionID new_k) {
+    deltaPhg.changeNumberOfBlocks(new_k);
+    fm_strategy.changeNumberOfBlocks(new_k);
   }
 
   template<typename FMStrategy>

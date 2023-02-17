@@ -92,6 +92,14 @@ class GainPolicy : public kahypar::meta::PolicyBase {
     }
   }
 
+  void changeNumberOfBlocks(const PartitionID new_k) {
+    for ( auto& tmp_score : _tmp_scores ) {
+      if ( static_cast<size_t>(new_k) > tmp_score.size() ) {
+        tmp_score.assign(new_k, 0);
+      }
+    }
+  }
+
  protected:
   const Context& _context;
   DeltaGain _deltas;

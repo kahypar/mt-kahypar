@@ -66,7 +66,7 @@ class AInitialPartitionerTest : public Test {
     context.partition.objective = Objective::km1;
     context.partition.epsilon = 0.2;
     context.partition.k = Config::K;
-    context.partition.verbose_output = true;
+    context.partition.verbose_output = false;
 
     // Shared Memory
     context.shared_memory.num_threads = num_threads;

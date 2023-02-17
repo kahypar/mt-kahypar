@@ -392,6 +392,8 @@ public:
     return _quotient_graph[i][j].cut_he_weight;
   }
 
+  void changeNumberOfBlocks(const PartitionID new_k);
+
  private:
 
   void resetQuotientGraphEdges();

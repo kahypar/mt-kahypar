@@ -43,9 +43,12 @@ The Multi-Threaded Karlsruhe Hypergraph Partitioning Framework requires:
  - The [Boost - Program Options][Boost.Program_options] library and the boost header files (>= 1.48).
    If you don't want to install boost by yourself, you can add the `-DKAHYPAR_DOWNLOAD_BOOST=On` flag
    to the cmake command to download, extract, and build the neccessary dependencies automatically.
- - The [Intel Thread Building Blocks][tbb] library (TBB).
+ - The [Intel Thread Building Blocks][tbb] library (TBB, minimum required version is OneTBB 2021.7.0).
    If you don't want to install TBB by yourself, you can add the `-DKAHYPAR_DOWNLOAD_TBB=On` flag
    to the cmake command to download oneTBB 2021.7.0 and extract the neccessary dependencies automatically.
+   Mt-KaHyPar also compiles with older version of TBB. However, we observed unexpected behavior of a TBB function
+   on which we rely on which causes on our side a segmentation fault in really rare cases. If you want to ignore these
+   warning, you can add `-DKAHYPAR_ENFORCE_MINIMUM_TBB_VERSION=OFF` to the cmake build command.
  - The [Portable Hardware Locality][hwloc] library (hwloc)
 
 The following command will install most of the required dependencies on a Ubuntu machine:

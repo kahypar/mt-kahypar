@@ -14,27 +14,33 @@ integration_test_json_file = mt_kahypar_dir + "tests/end_to_end/integration_test
 num_threads = multiprocessing.cpu_count()
 
 
-partitioners = { "Mt-KaHyPar-D":     { "executable": executable_dir + "MtKaHyParDefault",
-                                       "config":  config_dir + "default_preset.ini",
-                                       "mode": "direct" },
-                 "Mt-KaHyPar-Q":     { "executable": executable_dir + "MtKaHyParQuality",
-                                       "config":  config_dir + "quality_preset.ini",
-                                       "mode": "direct" },
-                 "Mt-KaHyPar-Graph": { "executable": executable_dir + "MtKaHyParGraph",
-                                       "config":  config_dir + "default_preset.ini",
-                                       "mode": "direct" },
-                 "Mt-KaHyPar-GraphQ": { "executable": executable_dir + "MtKaHyParGraphQuality",
-                                       "config":  config_dir + "quality_preset.ini",
-                                       "mode": "direct" },
-                 "Mt-KaHyPar-Det":   { "executable": executable_dir + "MtKaHyParDefault",
-                                       "config":  config_dir + "deterministic_preset.ini",
-                                       "mode": "direct" },
-                 "Mt-KaHyPar-RB":    { "executable": executable_dir + "MtKaHyParDefault",
-                                       "config":  config_dir + "default_preset.ini",
-                                       "mode": "rb" },
-                 "Mt-KaHyPar-Deep":  { "executable": executable_dir + "MtKaHyParDefault",
-                                       "config":  config_dir + "default_preset.ini",
-                                       "mode": "deep" } }
+partitioners = { "Mt-KaHyPar-D":       { "executable": executable_dir + "MtKaHyParDefault",
+                                         "config":  config_dir + "default_preset.ini",
+                                         "mode": "direct" },
+                 "Mt-KaHyPar-Q":       { "executable": executable_dir + "MtKaHyParQuality",
+                                         "config":  config_dir + "quality_preset.ini",
+                                         "mode": "direct" },
+                 "Mt-KaHyPar-D-Graph": { "executable": executable_dir + "MtKaHyParGraph",
+                                         "config":  config_dir + "default_preset.ini",
+                                         "mode": "direct" },
+                 "Mt-KaHyPar-Q-Graph":  { "executable": executable_dir + "MtKaHyParGraphQuality",
+                                         "config":  config_dir + "quality_preset.ini",
+                                         "mode": "direct" },
+                 "Mt-KaHyPar-SDet":    { "executable": executable_dir + "MtKaHyParDefault",
+                                         "config":  config_dir + "deterministic_preset.ini",
+                                         "mode": "direct" },
+                 "Mt-KaHyPar-D-RB":    { "executable": executable_dir + "MtKaHyParDefault",
+                                         "config":  config_dir + "default_preset.ini",
+                                         "mode": "rb" },
+                 "Mt-KaHyPar-Q-RB":    { "executable": executable_dir + "MtKaHyParQuality",
+                                         "config":  config_dir + "quality_preset.ini",
+                                         "mode": "rb" },
+                 "Mt-KaHyPar-D-Deep":  { "executable": executable_dir + "MtKaHyParDefault",
+                                         "config":  config_dir + "default_preset.ini",
+                                         "mode": "deep" },
+                 "Mt-KaHyPar-Q-Deep":  { "executable": executable_dir + "MtKaHyParQuality",
+                                         "config":  config_dir + "quality_preset.ini",
+                                         "mode": "deep" } }
 
 def bold(msg):
   return "\033[1m" + msg + "\033[0m"
@@ -61,7 +67,7 @@ def command(test, instance, k, epsilon):
          "-okm1",
          "-m" + partitioner["mode"],
          "--seed=1",
-         "--show-detailed-timings=true",
+         "--show-detailed-timings=false",
          "--sp-process=true",
          "--write-partition-file=true"] + parameters
 

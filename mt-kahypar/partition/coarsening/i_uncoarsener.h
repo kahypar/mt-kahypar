@@ -42,9 +42,52 @@ namespace mt_kahypar {
     IUncoarsener & operator= (const IUncoarsener &) = delete;
     IUncoarsener & operator= (IUncoarsener &&) = delete;
 
-    PartitionedHypergraph&& uncoarsen(std::unique_ptr<IRefiner>& label_propagation,
-                                      std::unique_ptr<IRefiner>& fm) {
-      return uncoarsenImpl(label_propagation, fm);
+    PartitionedHypergraph&& uncoarsen() {
+      initialize();
+
+      while ( !isTopLevel() ) {
+        projectToNextLevelAndRefine();
+      }
+
+      rebalancing();
+
+      return movePartitionedHypergraph();
+    }
+
+    void initialize() {
+      initializeImpl();
+    }
+
+    bool isTopLevel() const {
+      return isTopLevelImpl();
+    }
+
+    void projectToNextLevelAndRefine() {
+      projectToNextLevelAndRefineImpl();
+    }
+
+    void refine() {
+      refineImpl();
+    }
+
+    void rebalancing() {
+      rebalancingImpl();
+    }
+
+    void updateMetrics() {
+      updateMetricsImpl();
+    }
+
+    PartitionedHypergraph& currentPartitionedHypergraph() {
+      return currentPartitionedHypergraphImpl();
+    }
+
+    HypernodeID currentNumberOfNodes() const {
+      return currentNumberOfNodesImpl();
+    }
+
+    PartitionedHypergraph&& movePartitionedHypergraph() {
+      return movePartitionedHypergraphImpl();
     }
 
     virtual ~IUncoarsener() = default;
@@ -53,7 +96,14 @@ namespace mt_kahypar {
     IUncoarsener() = default;
 
   private:
-    virtual PartitionedHypergraph&& uncoarsenImpl(std::unique_ptr<IRefiner>& label_propagation,
-                                                  std::unique_ptr<IRefiner>& fm) = 0;
+    virtual void initializeImpl() = 0;
+    virtual bool isTopLevelImpl() const = 0;
+    virtual void projectToNextLevelAndRefineImpl() = 0;
+    virtual void refineImpl() = 0;
+    virtual void rebalancingImpl() = 0;
+    virtual void updateMetricsImpl() = 0;
+    virtual PartitionedHypergraph& currentPartitionedHypergraphImpl() = 0;
+    virtual HypernodeID currentNumberOfNodesImpl() const = 0;
+    virtual PartitionedHypergraph&& movePartitionedHypergraphImpl() = 0;
   };
 }

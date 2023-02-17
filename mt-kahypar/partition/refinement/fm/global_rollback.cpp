@@ -154,11 +154,11 @@ namespace mt_kahypar {
           const vec<HypernodeWeight>& partWeights) {
     std::vector<HypernodeWeight> maxPartWeights = context.partition.perfect_balance_part_weights;
     if (max_part_weight_scaling == 0.0) {
-      for (PartitionID i = 0; i < num_parts; ++i) {
+      for (PartitionID i = 0; i < context.partition.k; ++i) {
         maxPartWeights[i] = std::numeric_limits<HypernodeWeight>::max();
       }
     } else {
-      for (PartitionID i = 0; i < num_parts; ++i) {
+      for (PartitionID i = 0; i < context.partition.k; ++i) {
         maxPartWeights[i] *= ( 1.0 + context.partition.epsilon * max_part_weight_scaling );
       }
     }
@@ -252,9 +252,9 @@ namespace mt_kahypar {
         }
       }
 
-      if (num_parts <= static_cast<int>(2 * phg.edgeSize(e))) {
+      if (context.partition.k <= static_cast<int>(2 * phg.edgeSize(e))) {
         // this branch is an optimization. in case it is cheaper to iterate over the parts, do that
-        for (PartitionID i = 0; i < num_parts; ++i) {
+        for (PartitionID i = 0; i < context.partition.k; ++i) {
           r[i] = RecalculationData();
         }
       } else {
@@ -316,7 +316,7 @@ namespace mt_kahypar {
     size_t num_unbalanced_slots = 0;
 
     size_t overloaded = 0;
-    for (PartitionID i = 0; i < num_parts; ++i) {
+    for (PartitionID i = 0; i < context.partition.k; ++i) {
       if (phg.partWeight(i) > maxPartWeights[i]) {
         overloaded++;
       }

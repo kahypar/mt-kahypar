@@ -187,9 +187,7 @@ bool FlowRefinementScheduler::refineImpl(
   _stats.update_global_stats();
 
   // Update Gain Cache
-  if ( ( _context.partition.paradigm == Paradigm::nlevel ||
-         _context.refinement.refine_until_no_improvement ) &&
-         phg.isGainCacheInitialized() ) {
+  if ( _context.forceGainCacheUpdates() && phg.isGainCacheInitialized() ) {
     phg.doParallelForAllNodes([&](const HypernodeID& hn) {
       if ( _was_moved[hn] ) {
         phg.recomputeMoveFromPenalty(hn);
@@ -205,6 +203,7 @@ bool FlowRefinementScheduler::refineImpl(
 
 void FlowRefinementScheduler::initializeImpl(PartitionedHypergraph& phg)  {
   _phg = &phg;
+  resizeDataStructuresForCurrentK();
 
   // Initialize Part Weights
   for ( PartitionID i = 0; i < _context.partition.k; ++i ) {
@@ -223,6 +222,21 @@ void FlowRefinementScheduler::initializeImpl(PartitionedHypergraph& phg)  {
   DBG << "Initial Active Block Pairs =" << _quotient_graph.numActiveBlockPairs()
       << ", Initial Num Threads =" << max_parallism;
   _refiner.initialize(max_parallism);
+}
+
+void FlowRefinementScheduler::resizeDataStructuresForCurrentK() {
+  if ( _current_k != _context.partition.k ) {
+    _current_k = _context.partition.k;
+    // Note that in general changing the number of blocks should not resize
+    // any data structure as we initialize the scheduler with the final
+    // number of blocks. This is just a fallback if someone changes this in the future.
+    if ( static_cast<size_t>(_current_k) > _part_weights.size() ) {
+      _part_weights.resize(_current_k);
+      _max_part_weights.resize(_current_k);
+    }
+    _quotient_graph.changeNumberOfBlocks(_current_k);
+    _constructor.changeNumberOfBlocks(_current_k);
+  }
 }
 
 namespace {
@@ -343,10 +357,8 @@ HyperedgeWeight FlowRefinementScheduler::applyMoves(const SearchID search_id,
   PartWeightUpdateResult update_res = partWeightUpdate(part_weight_deltas, false);
   if ( update_res.is_balanced ) {
     // Apply move sequence to partition
-    const bool gain_cache_update =
-      _context.partition.paradigm == Paradigm::nlevel ||
-      _context.refinement.refine_until_no_improvement;
-    applyMoveSequence(*_phg, sequence, delta_func, gain_cache_update, _was_moved, new_cut_hes);
+    applyMoveSequence(*_phg, sequence, delta_func,
+      _context.forceGainCacheUpdates(), _was_moved, new_cut_hes);
 
     if ( improvement < 0 ) {
       update_res = partWeightUpdate(part_weight_deltas, true);
@@ -356,7 +368,7 @@ HyperedgeWeight FlowRefinementScheduler::applyMoves(const SearchID search_id,
             << "Expected Improvement =" << sequence.expected_improvement
             << ", Real Improvement =" << improvement
             << ", Search ID =" << search_id << ")" << END;
-        revertMoveSequence(*_phg, sequence, delta_func, gain_cache_update);
+        revertMoveSequence(*_phg, sequence, delta_func, _context.forceGainCacheUpdates());
         ++_stats.failed_updates_due_to_conflicting_moves;
         sequence.state = MoveSequenceState::WORSEN_SOLUTION_QUALITY;
       } else {

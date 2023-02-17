@@ -55,7 +55,6 @@ public:
   static constexpr bool maintain_gain_cache_between_rounds = true;
 
   GainCacheStrategy(const Context& context,
-                    HypernodeID numNodes,
                     FMSharedData& sharedData,
                     FMStats& runStats) :
       context(context),
@@ -63,14 +62,15 @@ public:
       sharedData(sharedData),
       blockPQ(static_cast<size_t>(context.partition.k)),
       vertexPQs(static_cast<size_t>(context.partition.k),
-                VertexPriorityQueue(sharedData.vertexPQHandles.data(), numNodes))
-      { }
+        VertexPriorityQueue(sharedData.vertexPQHandles.data(), sharedData.numberOfNodes)) { }
 
   template<typename PHG>
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
   void insertIntoPQ(const PHG& phg, const HypernodeID v, const SearchID ) {
     const PartitionID pv = phg.partID(v);
+    ASSERT(pv < context.partition.k);
     auto [target, gain] = computeBestTargetBlock(phg, v, pv);
+    ASSERT(target < context.partition.k);
     sharedData.targetPart[v] = target;
     vertexPQs[pv].insert(v, gain);  // blockPQ updates are done later, collectively.
     runStats.pushes++;
@@ -85,7 +85,7 @@ public:
     Gain gain = 0;
     PartitionID newTarget = kInvalidPartition;
 
-    if (phg.k() < 4 || designatedTargetV == move.from || designatedTargetV == move.to) {
+    if (context.partition.k < 4 || designatedTargetV == move.from || designatedTargetV == move.to) {
       // moveToBenefit of designatedTargetV is affected.
       // and may now be greater than that of other blocks --> recompute full
       std::tie(newTarget, gain) = computeBestTargetBlock(phg, v, pv);
@@ -165,6 +165,16 @@ public:
     phg.gainCacheUpdate(he, edge_weight, from, pin_count_in_from_part_after, to, pin_count_in_to_part_after);
   }
 
+  void changeNumberOfBlocks(const PartitionID new_k) {
+    blockPQ.resize(new_k);
+    for ( VertexPriorityQueue& pq : vertexPQs ) {
+      pq.setHandle(sharedData.vertexPQHandles.data(), sharedData.numberOfNodes);
+    }
+    while ( static_cast<size_t>(new_k) > vertexPQs.size() ) {
+      vertexPQs.emplace_back(sharedData.vertexPQHandles.data(), sharedData.numberOfNodes);
+    }
+  }
+
   void memoryConsumption(utils::MemoryTreeNode *parent) const {
     size_t vertex_pq_sizes = std::accumulate(
             vertexPQs.begin(), vertexPQs.end(), 0,
@@ -197,7 +207,7 @@ private:
     PartitionID to = kInvalidPartition;
     HyperedgeWeight to_benefit = std::numeric_limits<HyperedgeWeight>::min();
     HypernodeWeight best_to_weight = from_weight - wu;
-    for (PartitionID i = 0; i < phg.k(); ++i) {
+    for (PartitionID i = 0; i < context.partition.k; ++i) {
       if (i != from) {
         const HypernodeWeight to_weight = phg.partWeight(i);
         const HyperedgeWeight penalty = phg.moveToBenefit(u, i);
@@ -247,8 +257,6 @@ private:
 
 protected:
   FMSharedData& sharedData;
-
-private:
 
   // ! Priority Queue that contains for each block of the partition
   // ! the vertex with the best gain value

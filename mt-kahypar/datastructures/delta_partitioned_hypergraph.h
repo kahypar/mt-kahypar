@@ -320,6 +320,13 @@ class DeltaPartitionedHypergraph {
     return _k;
   }
 
+  void changeNumberOfBlocks(const PartitionID new_k) {
+    if ( new_k > _k ) {
+      _part_weights_delta.assign(new_k, 0);
+    }
+    _k = new_k;
+  }
+
   void memoryConsumption(utils::MemoryTreeNode* parent) const {
     ASSERT(parent);
 

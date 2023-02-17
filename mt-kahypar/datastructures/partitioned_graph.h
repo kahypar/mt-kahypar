@@ -455,7 +455,19 @@ private:
   }
 
   void extractPartIDs(Array<CAtomic<PartitionID>>& part_ids) {
-    std::swap(_part_ids, part_ids);
+    // If we pass the input hypergraph to initial partitioning, then initial partitioning
+    // will pass an part ID vector of size |V'|, where V' are the number of nodes of
+    // smallest hypergraph, while the _part_ids vector of the input hypergraph is initialized
+    // with the original number of nodes. This can cause segmentation fault when we simply swap them
+    // during main uncoarsening.
+    if ( _part_ids.size() == part_ids.size() ) {
+      std::swap(_part_ids, part_ids);
+    } else {
+      ASSERT(part_ids.size() <= _part_ids.size());
+      tbb::parallel_for(0UL, part_ids.size(), [&](const size_t i) {
+        part_ids[i].store(_part_ids[i], std::memory_order_relaxed);
+      });
+    }
   }
 
 
@@ -786,18 +798,28 @@ private:
 
   // ####################### Extract Block #######################
 
+  std::pair<Hypergraph, vec<HypernodeID> > extract(
+          const PartitionID block,
+          bool cut_net_splitting,
+          bool stable_construction_of_incident_edges) {
+    ASSERT(block != kInvalidPartition && block < _k);
+    vec<HypernodeID> node_mapping(_hg->initialNumNodes(), kInvalidHypernode);
+    Hypergraph block_graph = extract(block, node_mapping,
+      cut_net_splitting, stable_construction_of_incident_edges);
+    return std::make_pair(std::move(block_graph), std::move(node_mapping));
+  }
+
   // ! Extracts a block of a partition as separate graph.
   // ! It also returns a vertex-mapping from the original graph to the sub-graph.
-  std::pair<Hypergraph, parallel::scalable_vector<HypernodeID> > extract(
-    PartitionID block,
-    bool /*cut_net_splitting*/,
-    bool stable_construction_of_incident_edges
-  ) {
+  Hypergraph extract(const PartitionID block,
+                     vec<HypernodeID>& node_mapping,
+                     bool /*cut_net_splitting*/,
+                     bool stable_construction_of_incident_edges) {
     ASSERT(block != kInvalidPartition && block < _k);
+    ASSERT(_hg->initialNumNodes() == static_cast<HypernodeID>(node_mapping.size()));
 
     // Compactify vertex ids
-    parallel::scalable_vector<HypernodeID> node_mapping(_hg->initialNumNodes(), kInvalidHypernode);
-    parallel::scalable_vector<HyperedgeID> he_mapping(_hg->initialNumEdges(), kInvalidHyperedge);
+    vec<HyperedgeID> he_mapping(_hg->initialNumEdges(), kInvalidHyperedge);
     HypernodeID num_nodes = 0;
     HypernodeID num_edges = 0;
     tbb::parallel_invoke([&] {
@@ -817,10 +839,10 @@ private:
     });
 
     // Extract plain hypergraph data for corresponding block
-    using EdgeVector = parallel::scalable_vector<std::pair<HypernodeID, HypernodeID>>;
+    using EdgeVector = vec<std::pair<HypernodeID, HypernodeID>>;
     EdgeVector edge_vector;
-    parallel::scalable_vector<HyperedgeWeight> edge_weight;
-    parallel::scalable_vector<HypernodeWeight> node_weight;
+    vec<HyperedgeWeight> edge_weight;
+    vec<HypernodeWeight> node_weight;
     tbb::parallel_invoke([&] {
       edge_vector.resize(num_edges);
       edge_weight.resize(num_edges);
@@ -846,8 +868,8 @@ private:
 
     // Construct hypergraph
     Hypergraph extracted_graph = HypergraphFactory::construct_from_graph_edges(
-               num_nodes, num_edges, edge_vector, edge_weight.data(), node_weight.data(),
-               stable_construction_of_incident_edges);
+      num_nodes, num_edges, edge_vector, edge_weight.data(), node_weight.data(),
+      stable_construction_of_incident_edges);
 
     // Set community ids
     doParallelForAllNodes([&](const HypernodeID& node) {
@@ -856,7 +878,7 @@ private:
         extracted_graph.setCommunityID(extracted_node, _hg->communityID(node));
       }
     });
-    return std::make_pair(std::move(extracted_graph), std::move(node_mapping));
+    return extracted_graph;
   }
 
   void freeInternalData() {

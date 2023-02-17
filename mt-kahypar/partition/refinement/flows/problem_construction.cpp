@@ -204,6 +204,14 @@ Subhypergraph ProblemConstruction::construct(const SearchID search_id,
   return sub_hg;
 }
 
+void ProblemConstruction::changeNumberOfBlocks(const PartitionID new_k) {
+  for ( BFSData& data : _local_bfs ) {
+    if ( static_cast<size_t>(new_k) > data.locked_blocks.size() ) {
+      data.locked_blocks.assign(new_k, false);
+    }
+  }
+}
+
 MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE bool ProblemConstruction::isMaximumProblemSizeReached(
   const Subhypergraph& sub_hg,
   const HypernodeWeight max_weight_block_0,

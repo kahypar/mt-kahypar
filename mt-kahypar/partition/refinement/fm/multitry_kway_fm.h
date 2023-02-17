@@ -45,12 +45,13 @@ class MultiTryKWayFM final : public IRefiner {
   static constexpr bool enable_heavy_assert = false;
 
 
-public:
+ public:
 
   MultiTryKWayFM(const Hypergraph& hypergraph,
                  const Context& c) :
     initial_num_nodes(hypergraph.initialNumNodes()),
     context(c),
+    current_k(c.partition.k),
     sharedData(hypergraph.initialNumNodes(), context),
     globalRollback(hypergraph, context),
     ets_fm([&] { return constructLocalizedKWayFMSearch(); })
@@ -60,6 +61,9 @@ public:
     }
   }
 
+  void printMemoryConsumption();
+
+ private:
   bool refineImpl(PartitionedHypergraph& phg,
                   const vec<HypernodeID>& refinement_nodes,
                   Metrics& metrics,
@@ -82,12 +86,13 @@ public:
       return static_cast<double>(gain) / static_cast<double>(old_km1);
   }
 
-  void printMemoryConsumption();
+  void resizeDataStructuresForCurrentK();
 
   bool is_initialized = false;
   bool enable_light_fm = false;
   const HypernodeID initial_num_nodes;
   const Context& context;
+  PartitionID current_k;
   FMSharedData sharedData;
   GlobalRollback globalRollback;
   tbb::enumerable_thread_specific<LocalizedKWayFM<FMStrategy>> ets_fm;

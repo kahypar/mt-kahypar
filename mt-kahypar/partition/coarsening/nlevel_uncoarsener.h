@@ -33,57 +33,87 @@
 #include "mt-kahypar/partition/coarsening/uncoarsener_base.h"
 #include "mt-kahypar/partition/refinement/i_refiner.h"
 #include "mt-kahypar/partition/coarsening/coarsening_commons.h"
+#include "mt-kahypar/datastructures/streaming_vector.h"
+
 namespace mt_kahypar {
 
-  class NLevelUncoarsener : public IUncoarsener,
-                            private UncoarsenerBase {
+class NLevelUncoarsener : public IUncoarsener,
+                          private UncoarsenerBase {
 
-  private:
-    static constexpr bool enable_heavy_assert = false;
+ private:
+  static constexpr bool enable_heavy_assert = false;
 
-    using ParallelHyperedgeVector = parallel::scalable_vector<parallel::scalable_vector<ParallelHyperedge>>;
+  using ParallelHyperedgeVector = parallel::scalable_vector<parallel::scalable_vector<ParallelHyperedge>>;
 
-  public:
-    NLevelUncoarsener(Hypergraph& hypergraph,
-                      const Context& context,
-                      UncoarseningData& uncoarseningData) :
-      UncoarsenerBase(hypergraph, context, uncoarseningData) {}
+  struct NLevelStats {
+    explicit NLevelStats(const Context& context) :
+      utility_id(context.utility_id),
+      num_batches(0),
+      total_batch_sizes(0),
+      current_number_of_nodes(0),
+      min_num_border_vertices(0) {
+      min_num_border_vertices = std::max(context.refinement.max_batch_size,
+        context.shared_memory.num_threads * context.refinement.min_border_vertices_per_thread);
+    }
 
-    NLevelUncoarsener(const NLevelUncoarsener&) = delete;
-    NLevelUncoarsener(NLevelUncoarsener&&) = delete;
-    NLevelUncoarsener & operator= (const NLevelUncoarsener &) = delete;
-    NLevelUncoarsener & operator= (NLevelUncoarsener &&) = delete;
+    ~NLevelStats() {
+      double avg_batch_size = static_cast<double>(total_batch_sizes) / num_batches;
+      utils::Utilities::instance().getStats(utility_id).add_stat(
+        "num_batches", static_cast<int64_t>(num_batches));
+      utils::Utilities::instance().getStats(utility_id).add_stat(
+        "avg_batch_size", avg_batch_size);
+      DBG << V(num_batches) << V(avg_batch_size);
+    }
 
-  private:
-    PartitionedHypergraph&& doUncoarsen(std::unique_ptr<IRefiner>& label_propagation,
-                                        std::unique_ptr<IRefiner>& fm);
+    const size_t utility_id;
+    size_t num_batches;
+    size_t total_batch_sizes;
+    HypernodeID current_number_of_nodes;
+    size_t min_num_border_vertices;
+  };
 
-    void localizedRefine(PartitionedHypergraph& partitioned_hypergraph,
-                         const parallel::scalable_vector<HypernodeID>& refinement_nodes,
-                         std::unique_ptr<IRefiner>& label_propagation,
-                         std::unique_ptr<IRefiner>& fm,
-                         Metrics& current_metrics,
-                         const bool force_measure_timings);
+ public:
+  NLevelUncoarsener(Hypergraph& hypergraph,
+                    const Context& context,
+                    UncoarseningData& uncoarseningData) :
+    UncoarsenerBase(hypergraph, context, uncoarseningData),
+    _hierarchy(),
+    _tmp_refinement_nodes(),
+    _border_vertices_of_batch(hypergraph.initialNumNodes()),
+    _stats(context),
+    _current_metrics(),
+    _progress(hypergraph.initialNumNodes(), 0, false),
+    _is_timer_disabled(false),
+    _force_measure_timings(context.partition.measure_detailed_uncontraction_timings && context.type == ContextType::main) { }
 
-    void globalRefine(PartitionedHypergraph& partitioned_hypergraph,
-                      std::unique_ptr<IRefiner>& fm,
-                      std::unique_ptr<IRefiner>& flows,
-                      Metrics& current_metrics,
-                      const double time_limit);
+  NLevelUncoarsener(const NLevelUncoarsener&) = delete;
+  NLevelUncoarsener(NLevelUncoarsener&&) = delete;
+  NLevelUncoarsener & operator= (const NLevelUncoarsener &) = delete;
+  NLevelUncoarsener & operator= (NLevelUncoarsener &&) = delete;
 
-  PartitionedHypergraph&& uncoarsenImpl(
-      std::unique_ptr<IRefiner>& label_propagation,
-      std::unique_ptr<IRefiner>& fm) override {
-    initHierarchy();
-    return doUncoarsen(label_propagation, fm);
-  }
-  void initHierarchy() {
-    // Create n-level batch uncontraction hierarchy
-    _timer.start_timer("create_batch_uncontraction_hierarchy", "Create n-Level Hierarchy");
-    _hierarchy = _hg.createBatchUncontractionHierarchy(_context.refinement.max_batch_size);
-    ASSERT(_uncoarseningData.removed_hyperedges_batches.size() == _hierarchy.size() - 1);
-    _timer.stop_timer("create_batch_uncontraction_hierarchy");
-  }
+ private:
+  void initializeImpl() override;
+
+  bool isTopLevelImpl() const override;
+
+  void projectToNextLevelAndRefineImpl() override;
+
+  void refineImpl() override;
+
+  void rebalancingImpl() override;
+
+  void updateMetricsImpl() override;
+
+  PartitionedHypergraph& currentPartitionedHypergraphImpl() override;
+
+  HypernodeID currentNumberOfNodesImpl() const override;
+
+  PartitionedHypergraph&& movePartitionedHypergraphImpl() override;
+
+  void localizedRefine(PartitionedHypergraph& partitioned_hypergraph);
+
+  void globalRefine(PartitionedHypergraph& partitioned_hypergraph,
+                    const double time_limit);
 
   // ! Represents the n-level hierarchy
   // ! A batch is vector of uncontractions/mementos that can be uncontracted in parallel
@@ -92,5 +122,14 @@ namespace mt_kahypar {
   // ! a new version (simply increment a counter) of the hypergraph. Once a batch vector is
   // ! completly processed single-pin and parallel nets have to be restored.
   VersionedBatchVector _hierarchy;
-  };
+
+  ds::StreamingVector<HypernodeID> _tmp_refinement_nodes;
+  kahypar::ds::FastResetFlagArray<> _border_vertices_of_batch;
+
+  NLevelStats _stats;
+  Metrics _current_metrics;
+  utils::ProgressBar _progress;
+  bool _is_timer_disabled;
+  bool _force_measure_timings;
+};
 }

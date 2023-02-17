@@ -52,6 +52,7 @@ class LabelPropagationRefiner final : public IRefiner {
   explicit LabelPropagationRefiner(Hypergraph& hypergraph,
                                    const Context& context) :
     _context(context),
+    _current_k(context.partition.k),
     _current_num_nodes(kInvalidHypernode),
     _current_num_edges(kInvalidHyperedge),
     _gain(context),
@@ -67,7 +68,6 @@ class LabelPropagationRefiner final : public IRefiner {
   LabelPropagationRefiner & operator= (LabelPropagationRefiner &&) = delete;
 
  private:
-
   bool refineImpl(PartitionedHypergraph& hypergraph,
                   const parallel::scalable_vector<HypernodeID>& refinement_nodes,
                   Metrics& best_metrics,
@@ -159,9 +159,9 @@ class LabelPropagationRefiner final : public IRefiner {
                       const PartitionID to,
                       const F& objective_delta) {
     bool success = false;
-    if ( _context.partition.paradigm == Paradigm::nlevel && phg.isGainCacheInitialized()) {
+    if ( _context.forceGainCacheUpdates() && phg.isGainCacheInitialized() ) {
       success = phg.changeNodePartWithGainCacheUpdate(hn, from, to,
-                                                      _context.partition.max_part_weights[to], [] { }, objective_delta);
+        _context.partition.max_part_weights[to], [] { }, objective_delta);
     } else {
       success = phg.changeNodePart(hn, from, to,
         _context.partition.max_part_weights[to], []{}, objective_delta);
@@ -169,7 +169,17 @@ class LabelPropagationRefiner final : public IRefiner {
     return success;
   }
 
+  void resizeDataStructuresForCurrentK() {
+    // If the number of blocks changes, we resize data structures
+    // (can happen during deep multilevel partitioning)
+    if ( _current_k != _context.partition.k ) {
+      _current_k = _context.partition.k;
+      _gain.changeNumberOfBlocks(_current_k);
+    }
+  }
+
   const Context& _context;
+  PartitionID _current_k;
   HypernodeID _current_num_nodes;
   HyperedgeID _current_num_edges;
   GainCalculator _gain;

@@ -109,6 +109,14 @@ class ThreadPinningObserver : public tbb::task_scheduler_observer {
   void on_scheduler_entry(bool) override {
     const int slot = tbb::this_task_arena::current_thread_index();
     ASSERT(static_cast<size_t>(slot) < _cpus.size(), V(slot) << V(_cpus.size()));
+
+    if ( slot >= _cpus.size() ) {
+      ERROR("Thread" << std::this_thread::get_id() << "entered the global task arena"
+        << "in a slot that should not exist (Slot =" << slot << ", Max Slots =" <<_cpus.size()
+        << ", slots are 0-indexed). This bug only occurs in older versions of TBB."
+        << "We recommend upgrading TBB to the newest version.");
+    }
+
     DBG << pin_thread_message(_cpus[slot]);
     if(!_is_global_thread_pool) {
       std::thread::id thread_id = std::this_thread::get_id();
@@ -135,6 +143,9 @@ class ThreadPinningObserver : public tbb::task_scheduler_observer {
       if ( cpu_before != -1 ) {
         pin_thread_to_cpu(cpu_before);
       }
+    } else {
+          DBG << "Thread with PID" << std::this_thread::get_id()
+            << "leaves GLOBAL task arena";
     }
   }
 

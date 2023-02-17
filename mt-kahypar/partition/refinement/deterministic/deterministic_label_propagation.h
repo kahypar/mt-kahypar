@@ -42,7 +42,7 @@ public:
   explicit DeterministicLabelPropagationRefiner(Hypergraph& hypergraph,
                                                 const Context& context) :
       context(context),
-      compute_gains(context.partition.k),
+      compute_gains(context),
       moves(hypergraph.initialNumNodes()),
       sorted_moves(hypergraph.initialNumNodes()),
       prng(context.partition.seed),

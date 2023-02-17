@@ -102,6 +102,8 @@ namespace {
       }
 
       Context ip_context(context);
+      ip_context.type = ContextType::initial_partitioning;
+      ip_context.partition.verbose_output = false;
       ip_context.refinement = context.initial_partitioning.refinement;
       disableTimerAndStats(context);
       switch ( context.initial_partitioning.mode ) {
@@ -118,6 +120,7 @@ namespace {
           deep_multilevel::partition(phg, ip_context); break;
         case Mode::UNDEFINED: ERROR("Undefined initial partitioning algorithm");
       }
+      enableTimerAndStats(context);
       degree_zero_hn_remover.restoreDegreeZeroHypernodes(phg);
     } else {
       // When performing a V-cycle, we store the block IDs
@@ -142,20 +145,13 @@ namespace {
     // ################## UNCOARSENING ##################
     io::printLocalSearchBanner(context);
     timer.start_timer("refinement", "Refinement");
-    std::unique_ptr<IRefiner> label_propagation =
-      LabelPropagationFactory::getInstance().createObject(
-        context.refinement.label_propagation.algorithm, hypergraph, context);
-    std::unique_ptr<IRefiner> fm =
-      FMFactory::getInstance().createObject(
-        context.refinement.fm.algorithm, hypergraph, context);
-
     std::unique_ptr<IUncoarsener> uncoarsener(nullptr);
     if (uncoarseningData.nlevel) {
       uncoarsener = std::make_unique<NLevelUncoarsener>(hypergraph, context, uncoarseningData);
     } else {
       uncoarsener = std::make_unique<MultilevelUncoarsener>(hypergraph, context, uncoarseningData);
     }
-    partitioned_hg = uncoarsener->uncoarsen(label_propagation, fm);
+    partitioned_hg = uncoarsener->uncoarsen();
 
     io::printPartitioningResults(partitioned_hg, context, "Local Search Results:");
     timer.stop_timer("refinement");

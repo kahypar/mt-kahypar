@@ -42,20 +42,22 @@ namespace mt_kahypar {
 template<typename FMStrategy>
 class LocalizedKWayFM {
 public:
-  explicit LocalizedKWayFM(const Context& context, HypernodeID numNodes, FMSharedData& sharedData) :
-          context(context),
-          thisSearch(0),
-          k(context.partition.k),
-          deltaPhg(context),
-          neighborDeduplicator(numNodes, 0),
-          fm_strategy(context, numNodes, sharedData, runStats),
-          sharedData(sharedData)
-          { }
+  explicit LocalizedKWayFM(const Context& context,
+                           const HypernodeID numNodes,
+                           FMSharedData& sharedData) :
+    context(context),
+    thisSearch(0),
+    deltaPhg(context),
+    neighborDeduplicator(numNodes, 0),
+    fm_strategy(context, sharedData, runStats),
+    sharedData(sharedData) { }
 
 
   bool findMoves(PartitionedHypergraph& phg, size_t taskID, size_t numSeeds);
 
-  void memoryConsumption(utils::MemoryTreeNode* parent) const ;
+  void memoryConsumption(utils::MemoryTreeNode* parent) const;
+
+  void changeNumberOfBlocks(const PartitionID new_k);
 
   FMStats stats;
 
@@ -91,9 +93,6 @@ private:
 
   // ! Unique search id associated with the current local search
   SearchID thisSearch;
-
-  // ! Number of blocks
-  PartitionID k;
 
   // ! Local data members required for one localized search run
   //FMLocalData localData;

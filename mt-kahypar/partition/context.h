@@ -47,6 +47,7 @@ struct PartitioningParameters {
   PartitionID k = std::numeric_limits<PartitionID>::max();
   int seed = 0;
   size_t num_vcycles = 0;
+  bool perform_parallel_recursion_in_deep_multilevel = true;
 
   int time_limit = 0;
   bool use_individual_part_weights = false;
@@ -112,9 +113,6 @@ struct CoarseningParameters {
   RatingParameters rating = { };
   HypernodeID contraction_limit_multiplier = std::numeric_limits<HypernodeID>::max();
   bool use_adaptive_edge_size = false;
-  bool use_adaptive_max_allowed_node_weight = false;
-  double max_allowed_weight_fraction = std::numeric_limits<double>::max();
-  double adaptive_node_weight_shrink_factor_threshold = std::numeric_limits<double>::max();
   double max_allowed_weight_multiplier = std::numeric_limits<double>::max();
   double minimum_shrink_factor = std::numeric_limits<double>::max();
   double maximum_shrink_factor = std::numeric_limits<double>::max();
@@ -230,6 +228,7 @@ struct InitialPartitioningParameters {
 std::ostream & operator<< (std::ostream& str, const InitialPartitioningParameters& params);
 
 struct SharedMemoryParameters {
+  size_t original_num_threads = 1;
   size_t num_threads = 1;
   size_t static_balancing_work_packages = 128;
   bool use_localized_random_shuffle = false;
@@ -258,6 +257,8 @@ class Context {
       utility_id = utils::Utilities::instance().registerNewUtilityObjects();
     }
   }
+
+  bool forceGainCacheUpdates() const;
 
   void setupPartWeights(const HypernodeWeight total_hypergraph_weight);
 

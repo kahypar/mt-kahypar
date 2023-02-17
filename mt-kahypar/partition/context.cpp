@@ -58,6 +58,10 @@ namespace mt_kahypar {
       }
       str << std::endl;
     }
+    if ( params.mode == Mode::deep_multilevel ) {
+      str << "  Perform Parallel Recursion:         " << std::boolalpha
+          << params.perform_parallel_recursion_in_deep_multilevel << std::endl;
+    }
     return str;
   }
 
@@ -95,17 +99,8 @@ namespace mt_kahypar {
     str << "Coarsening Parameters:" << std::endl;
     str << "  Algorithm:                          " << params.algorithm << std::endl;
     str << "  Use Adaptive Edge Size:             " << std::boolalpha << params.use_adaptive_edge_size << std::endl;
-#ifdef KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES
-    str << "  Use Adaptive Max Node Weight:       " << std::boolalpha << params.use_adaptive_max_allowed_node_weight << std::endl;
-#endif
-    if ( params.use_adaptive_max_allowed_node_weight ) {
-      str << "  Max Allowed Weight Fraction:        " << params.max_allowed_weight_fraction << std::endl;
-      str << "  Adaptive Node Weight Threshold:     " << params.adaptive_node_weight_shrink_factor_threshold << std::endl;
-      str << "  Initial Max Hypernode Weight:       " << params.max_allowed_node_weight << std::endl;
-    } else {
-      str << "  Max Allowed Weight Multiplier:      " << params.max_allowed_weight_multiplier << std::endl;
-      str << "  Maximum Allowed Hypernode Weight:   " << params.max_allowed_node_weight << std::endl;
-    }
+    str << "  Max Allowed Weight Multiplier:      " << params.max_allowed_weight_multiplier << std::endl;
+    str << "  Maximum Allowed Hypernode Weight:   " << params.max_allowed_node_weight << std::endl;
     str << "  Contraction Limit Multiplier:       " << params.contraction_limit_multiplier << std::endl;
     str << "  Contraction Limit:                  " << params.contraction_limit << std::endl;
     str << "  Minimum Shrink Factor:              " << params.minimum_shrink_factor << std::endl;
@@ -229,6 +224,12 @@ namespace mt_kahypar {
     return str;
   }
 
+  bool Context::forceGainCacheUpdates() const {
+    return partition.paradigm == Paradigm::nlevel ||
+      partition.mode == Mode::deep_multilevel ||
+      refinement.refine_until_no_improvement;
+  }
+
   void Context::setupPartWeights(const HypernodeWeight total_hypergraph_weight) {
     if (partition.use_individual_part_weights) {
       ASSERT(static_cast<size_t>(partition.k) == partition.max_part_weights.size());
@@ -274,8 +275,8 @@ namespace mt_kahypar {
     // Setup contraction limit
     if (initial_partitioning.mode == Mode::deep_multilevel) {
       coarsening.contraction_limit =
-              2 * std::max(shared_memory.num_threads, static_cast<size_t>(partition.k)) *
-              coarsening.contraction_limit_multiplier;
+        std::max(2 * shared_memory.num_threads, static_cast<size_t>(partition.k)) *
+          coarsening.contraction_limit_multiplier;
     } else {
       coarsening.contraction_limit =
               coarsening.contraction_limit_multiplier * partition.k;

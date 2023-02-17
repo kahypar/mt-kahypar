@@ -343,6 +343,21 @@ void QuotientGraph::initialize(const PartitionedHypergraph& phg) {
   _active_block_scheduler.initialize(active_blocks, isInputHypergraph());
 }
 
+void QuotientGraph::changeNumberOfBlocks(const PartitionID new_k) {
+  // Reset improvement history as the number of blocks had changed
+  for ( size_t i = 0; i < _quotient_graph.size(); ++i ) {
+    for ( size_t j = 0; j < _quotient_graph.size(); ++j ) {
+      _quotient_graph[i][j].num_improvements_found.store(0, std::memory_order_relaxed);
+      _quotient_graph[i][j].total_improvement.store(0, std::memory_order_relaxed);
+    }
+  }
+
+  if ( static_cast<size_t>(new_k) > _quotient_graph.size() ) {
+    _quotient_graph.clear();
+    _quotient_graph.assign(new_k, vec<QuotientGraphEdge>(new_k));
+  }
+}
+
 size_t QuotientGraph::numActiveBlockPairs() const {
   return _active_block_scheduler.numRemainingBlocks() + _num_active_searches;
 }

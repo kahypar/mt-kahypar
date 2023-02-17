@@ -41,6 +41,7 @@ namespace mt_kahypar {
               const double time_limit) {
 
     if (!is_initialized) throw std::runtime_error("Call initialize on fm before calling refine");
+    resizeDataStructuresForCurrentK();
 
     Gain overall_improvement = 0;
     size_t consecutive_rounds_with_too_little_improvement = 0;
@@ -49,12 +50,12 @@ namespace mt_kahypar {
     sharedData.perform_moves_global = context.refinement.fm.perform_moves_global;
     double current_time_limit = time_limit;
     tbb::task_group tg;
-    vec<HypernodeWeight> initialPartWeights(size_t(sharedData.numParts));
+    vec<HypernodeWeight> initialPartWeights(size_t(context.partition.k));
     HighResClockTimepoint fm_start = std::chrono::high_resolution_clock::now();
     utils::Timer& timer = utils::Utilities::instance().getTimer(context.utility_id);
 
     for (size_t round = 0; round < context.refinement.fm.multitry_rounds; ++round) { // global multi try rounds
-      for (PartitionID i = 0; i < sharedData.numParts; ++i) {
+      for (PartitionID i = 0; i < context.partition.k; ++i) {
         initialPartWeights[i] = phg.partWeight(i);
       }
 
@@ -94,7 +95,7 @@ namespace mt_kahypar {
       timer.start_timer("rollback", "Rollback to Best Solution");
       phg.resetMoveState();
       HyperedgeWeight improvement = globalRollback.revertToBestPrefix
-              <FMStrategy::maintain_gain_cache_between_rounds>(phg, sharedData, initialPartWeights);
+        <FMStrategy::maintain_gain_cache_between_rounds>(phg, sharedData, initialPartWeights);
       timer.stop_timer("rollback");
 
       const double roundImprovementFraction = improvementFraction(improvement, metrics.km1 - overall_improvement);
@@ -165,10 +166,17 @@ namespace mt_kahypar {
       tbb::parallel_for(tbb::blocked_range<HypernodeID>(0, phg.initialNumNodes()),
         [&](const tbb::blocked_range<HypernodeID>& r) {
           const int task_id = tbb::this_task_arena::current_thread_index();
-          ASSERT(task_id >= 0 && task_id < TBBInitializer::instance().total_number_of_threads());
-          for (HypernodeID u = r.begin(); u < r.end(); ++u) {
-            if (phg.nodeIsEnabled(u) && phg.isBorderNode(u)) {
-              sharedData.refinementNodes.safe_push(u, task_id);
+          // In really rare cases, the tbb::this_task_arena::current_thread_index()
+          // function a thread id greater than max_concurrency which causes an
+          // segmentation fault if we do not perform the check here. This is caused by
+          // our working queue for border nodes with which we initialize the localized
+          // FM searches. For now, we do not know why this occurs but this prevents
+          // the segmentation fault.
+          if ( task_id >= 0 && task_id < TBBInitializer::instance().total_number_of_threads() ) {
+            for (HypernodeID u = r.begin(); u < r.end(); ++u) {
+              if (phg.nodeIsEnabled(u) && phg.isBorderNode(u)) {
+                sharedData.refinementNodes.safe_push(u, task_id);
+              }
             }
           }
         });
@@ -177,9 +185,10 @@ namespace mt_kahypar {
       tbb::parallel_for(0UL, refinement_nodes.size(), [&](const size_t i) {
         const HypernodeID u = refinement_nodes[i];
         const int task_id = tbb::this_task_arena::current_thread_index();
-        ASSERT(task_id >= 0 && task_id < TBBInitializer::instance().total_number_of_threads());
-        if (phg.nodeIsEnabled(u) && phg.isBorderNode(u)) {
-          sharedData.refinementNodes.safe_push(u, task_id);
+        if ( task_id >= 0 && task_id < TBBInitializer::instance().total_number_of_threads() ) {
+          if (phg.nodeIsEnabled(u) && phg.isBorderNode(u)) {
+            sharedData.refinementNodes.safe_push(u, task_id);
+          }
         }
       });
     }
@@ -206,6 +215,28 @@ namespace mt_kahypar {
     }
 
     is_initialized = true;
+  }
+
+  template<typename FMStrategy>
+  void MultiTryKWayFM<FMStrategy>::resizeDataStructuresForCurrentK() {
+    // If the number of blocks changes, we resize data structures
+    // (can happen during deep multilevel partitioning)
+    if ( current_k != context.partition.k ) {
+      current_k = context.partition.k;
+      // Note that we must change the number of blocks in the shared data before
+      // changing the number of blocks in the localized fm searches as this call
+      // could resize the vertex PQ handles which must be updated then in the
+      // localized FM searches.
+      // Moreover, note that in general changing the number of blocks in the shared
+      // data and global rollback data structure should not resize any data structure
+      // as we initialize them with the final number of blocks. This is just a fallback
+      // if someone changes this in the future.
+      sharedData.changeNumberOfBlocks(context.refinement.fm.algorithm, current_k);
+      globalRollback.changeNumberOfBlocks(current_k);
+      for ( auto& localized_fm : ets_fm ) {
+        localized_fm.changeNumberOfBlocks(current_k);
+      }
+    }
   }
 
   template<typename FMStrategy>

@@ -47,10 +47,11 @@ namespace mt_kahypar {
                                                    {3, 4, 6},
                                                    {2, 5, 6}})),
             context(),
-            gain(K) {
+            gain(nullptr) {
       context.partition.k = K;
       context.partition.max_part_weights.assign(K, std::numeric_limits<HypernodeWeight>::max());
       phg = PartitionedHypergraph(K, hg, parallel_tag_t());
+      gain = std::make_unique<Km1GainComputer>(context);
     }
 
     void assignPartitionIDs(const std::vector<PartitionID>& part_ids) {
@@ -64,14 +65,14 @@ namespace mt_kahypar {
     Hypergraph hg;
     PartitionedHypergraph phg;
     Context context;
-    Km1GainComputer gain;
+    std::unique_ptr<Km1GainComputer> gain;
   };
 
   using Km1GainsK2 = GainComputerTest<2>;
 
   TEST_F(Km1GainsK2, ComputesCorrectMoveGainForVertex1) {
     assignPartitionIDs({1, 0, 0, 0, 0, 1, 1});
-    auto [to, g] = gain.computeBestTargetBlock(phg, 0, context.partition.max_part_weights);
+    auto [to, g] = gain->computeBestTargetBlock(phg, 0, context.partition.max_part_weights);
     ASSERT_EQ(0, to);
     ASSERT_EQ(2, g);
   }
@@ -79,7 +80,7 @@ namespace mt_kahypar {
 
   TEST_F(Km1GainsK2, ComputesCorrectMoveGainForVertex2) {
     assignPartitionIDs({0, 0, 0, 1, 0, 1, 1});
-    auto [to, g] = gain.computeBestTargetBlock(phg, 3, context.partition.max_part_weights);
+    auto [to, g] = gain->computeBestTargetBlock(phg, 3, context.partition.max_part_weights);
     ASSERT_EQ(0, to);
     ASSERT_EQ(1, g);
   }
@@ -87,7 +88,7 @@ namespace mt_kahypar {
 
   TEST_F(Km1GainsK2, ComputesCorrectMoveGainForVertex3) {
     assignPartitionIDs({0, 0, 0, 0, 0, 1, 1});
-    auto [to, g] = gain.computeBestTargetBlock(phg, 4, context.partition.max_part_weights);
+    auto [to, g] = gain->computeBestTargetBlock(phg, 4, context.partition.max_part_weights);
     ASSERT_EQ(1, to);
     ASSERT_EQ(-1, g);   // computeBestTarget block will select negative gain moves!
   }
@@ -98,12 +99,12 @@ namespace mt_kahypar {
 
   TEST_F(Km1GainsK4, ComputesCorrectMoveGainForVertex1) {
     assignPartitionIDs({0, 1, 2, 3, 3, 1, 2});
-    auto [to, g] = gain.computeBestTargetBlock(phg, 0, context.partition.max_part_weights);
+    auto [to, g] = gain->computeBestTargetBlock(phg, 0, context.partition.max_part_weights);
 
-    gain.computeGains(phg, 0);
-    ASSERT_EQ(gain.gains[1], 1);
-    ASSERT_EQ(gain.gains[2], 1);
-    ASSERT_EQ(gain.gains[3], 1);
+    gain->computeGains(phg, 0);
+    ASSERT_EQ(gain->gains[1], 1);
+    ASSERT_EQ(gain->gains[2], 1);
+    ASSERT_EQ(gain->gains[3], 1);
 
     ASSERT_EQ(1, to); // all target blocks have equal weight --> take the first
     ASSERT_EQ(1, g);
@@ -112,22 +113,22 @@ namespace mt_kahypar {
 
   TEST_F(Km1GainsK4, ComputesCorrectMoveGainForVertex2) {
     assignPartitionIDs({0, 3, 1, 2, 2, 0, 3});
-    auto [to, g] = gain.computeBestTargetBlock(phg, 6, context.partition.max_part_weights);
+    auto [to, g] = gain->computeBestTargetBlock(phg, 6, context.partition.max_part_weights);
 
-    gain.computeGains(phg, 6);
-    ASSERT_EQ(gain.gains[0], 1);
-    ASSERT_EQ(gain.gains[1], 1);
-    ASSERT_EQ(gain.gains[2], 1);
+    gain->computeGains(phg, 6);
+    ASSERT_EQ(gain->gains[0], 1);
+    ASSERT_EQ(gain->gains[1], 1);
+    ASSERT_EQ(gain->gains[2], 1);
     ASSERT_EQ(1, to); // block 1 is lighter than block 0
     ASSERT_EQ(1, g);
 
-    gain.clear();
-    std::tie(to, g) = gain.computeBestTargetBlock(phg, 2, context.partition.max_part_weights);
+    gain->clear();
+    std::tie(to, g) = gain->computeBestTargetBlock(phg, 2, context.partition.max_part_weights);
 
-    gain.computeGains(phg, 2);
-    ASSERT_EQ(gain.gains[0], 2);
-    ASSERT_EQ(gain.gains[2], 0);
-    ASSERT_EQ(gain.gains[3], 1);
+    gain->computeGains(phg, 2);
+    ASSERT_EQ(gain->gains[0], 2);
+    ASSERT_EQ(gain->gains[2], 0);
+    ASSERT_EQ(gain->gains[3], 1);
 
     ASSERT_EQ(to, 0);
     ASSERT_EQ(g, 2);
@@ -136,12 +137,12 @@ namespace mt_kahypar {
 
   TEST_F(Km1GainsK4, ComputesCorrectMoveGainForVertex3) {
     assignPartitionIDs({0, 3, 1, 2, 2, 0, 3});
-    auto [to, g] = gain.computeBestTargetBlock(phg, 3, context.partition.max_part_weights);
+    auto [to, g] = gain->computeBestTargetBlock(phg, 3, context.partition.max_part_weights);
 
-    gain.computeGains(phg, 3);
-    ASSERT_EQ(gain.gains[0], -1);
-    ASSERT_EQ(gain.gains[1], -2);
-    ASSERT_EQ(gain.gains[3], 0);
+    gain->computeGains(phg, 3);
+    ASSERT_EQ(gain->gains[0], -1);
+    ASSERT_EQ(gain->gains[1], -2);
+    ASSERT_EQ(gain->gains[3], 0);
 
     ASSERT_EQ(3, to);
     ASSERT_EQ(0, g);

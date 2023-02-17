@@ -44,7 +44,37 @@ class ICoarsener {
   ICoarsener & operator= (ICoarsener &&) = delete;
 
   void coarsen() {
-    coarsenImpl();
+    initialize();
+    bool should_continue = true;
+    // Coarsening algorithms proceed in passes where each pass computes a clustering
+    // of the nodes and subsequently contracts it. Each pass induces one level of the
+    // hierarchy. The coarsening algorithms proceeds until the number of nodes equals
+    // a predefined contraction limit (!shouldNotTerminate) or the number of nodes could
+    // not be significantly reduced within one coarsening pass (should_continue).
+    while ( shouldNotTerminate() && should_continue ) {
+      should_continue = coarseningPass();
+    }
+    terminate();
+  }
+
+  void initialize() {
+    initializeImpl();
+  }
+
+  bool shouldNotTerminate() const {
+    return shouldNotTerminateImpl();
+  }
+
+  bool coarseningPass() {
+    return coarseningPassImpl();
+  }
+
+  void terminate() {
+    terminateImpl();
+  }
+
+  HypernodeID currentNumberOfNodes() const {
+    return currentNumberOfNodesImpl();
   }
 
   Hypergraph& coarsestHypergraph() {
@@ -61,7 +91,11 @@ class ICoarsener {
   ICoarsener() = default;
 
  private:
-  virtual void coarsenImpl() = 0;
+  virtual void initializeImpl() = 0;
+  virtual bool shouldNotTerminateImpl() const = 0;
+  virtual bool coarseningPassImpl() = 0;
+  virtual void terminateImpl() = 0;
+  virtual HypernodeID currentNumberOfNodesImpl() const = 0;
   virtual Hypergraph& coarsestHypergraphImpl() = 0;
   virtual PartitionedHypergraph& coarsestPartitionedHypergraphImpl() = 0;
 };

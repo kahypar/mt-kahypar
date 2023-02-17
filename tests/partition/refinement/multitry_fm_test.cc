@@ -48,6 +48,7 @@ class MultiTryFMTest : public ::testing::TestWithParam<PartitionID> {
             context(),
             refiner(nullptr),
             metrics() {
+      TBBInitializer::instance(std::thread::hardware_concurrency());
       context.partition.graph_filename = "../tests/instances/contracted_ibm01.hgr";
       context.partition.graph_community_filename = "../tests/instances/contracted_ibm01.hgr.community";
       context.partition.mode = Mode::direct;
@@ -55,6 +56,7 @@ class MultiTryFMTest : public ::testing::TestWithParam<PartitionID> {
       context.partition.verbose_output = false;
 
       // Shared Memory
+      context.shared_memory.original_num_threads = std::thread::hardware_concurrency();
       context.shared_memory.num_threads = std::thread::hardware_concurrency();
 
       // Initial Partitioning
@@ -66,6 +68,7 @@ class MultiTryFMTest : public ::testing::TestWithParam<PartitionID> {
       context.refinement.fm.algorithm = FMAlgorithm::fm_gain_cache;
       context.refinement.fm.multitry_rounds = 10;
       context.refinement.fm.num_seed_nodes = 5;
+      context.refinement.fm.rollback_balance_violation_factor = 1.0;
 
       context.partition.objective = Objective::km1;
 
@@ -154,6 +157,37 @@ class MultiTryFMTest : public ::testing::TestWithParam<PartitionID> {
     std::streambuf* old = std::cout.rdbuf(buffer.rdbuf());  // redirect std::cout to discard output
     this->refiner->printMemoryConsumption();
     std::cout.rdbuf(old);                                   // and reset again
+  }
+
+  TEST_P(MultiTryFMTest, IncreasesTheNumberOfBlocks) {
+    HyperedgeWeight objective_before = metrics::objective(this->partitioned_hypergraph, this->context.partition.objective);
+    this->refiner->refine(this->partitioned_hypergraph, {}, this->metrics, std::numeric_limits<double>::max());
+    ASSERT_LE(this->metrics.getMetric(Mode::direct, this->context.partition.objective), objective_before);
+
+    // Initialize partition with larger K
+    const PartitionID old_k = this->context.partition.k;
+    this->context.partition.k = 2 * old_k;
+    this->context.setupPartWeights(this->hypergraph.totalWeight());
+    PartitionedHypergraph phg_with_larger_k(
+      this->context.partition.k, this->hypergraph, mt_kahypar::parallel_tag_t());
+    utils::Randomize& rand = utils::Randomize::instance();
+    vec<PartitionID> non_optimized_partition(this->hypergraph.initialNumNodes(), kInvalidPartition);
+    this->partitioned_hypergraph.doParallelForAllNodes([&](const HypernodeID hn) {
+      const PartitionID block = this->partitioned_hypergraph.partID(hn);
+      phg_with_larger_k.setOnlyNodePart(hn, rand.flipCoin(sched_getcpu()) ? 2 * block : 2 * block + 1);
+      non_optimized_partition[hn] = phg_with_larger_k.partID(hn);
+    });
+    phg_with_larger_k.initializePartition();
+    this->metrics.km1 = metrics::km1(phg_with_larger_k);
+    this->metrics.cut = metrics::hyperedgeCut(phg_with_larger_k);
+    this->metrics.imbalance = metrics::imbalance(phg_with_larger_k, this->context);
+
+    objective_before = metrics::objective(phg_with_larger_k, this->context.partition.objective);
+    this->refiner->initialize(phg_with_larger_k);
+    this->refiner->refine(phg_with_larger_k, {}, this->metrics, std::numeric_limits<double>::max());
+    ASSERT_LE(this->metrics.getMetric(Mode::direct, this->context.partition.objective), objective_before);
+    ASSERT_EQ(metrics::objective(phg_with_larger_k, this->context.partition.objective),
+              this->metrics.getMetric(Mode::direct, this->context.partition.objective));
   }
 
 

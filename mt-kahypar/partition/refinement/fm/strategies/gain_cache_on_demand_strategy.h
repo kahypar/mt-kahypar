@@ -37,10 +37,9 @@ namespace mt_kahypar {
     static constexpr bool maintain_gain_cache_between_rounds = false;
 
     GainCacheOnDemandStrategy(const Context& context,
-                              HypernodeID numNodes,
                               FMSharedData& sharedData,
                               FMStats& runStats) :
-            GainCacheStrategy(context, numNodes, sharedData, runStats),
+            GainCacheStrategy(context, sharedData, runStats),
             gainCacheInitMem(context.partition.k, 0)
     { }
 
@@ -53,6 +52,19 @@ namespace mt_kahypar {
         phg.initializeGainCacheEntry(v, gainCacheInitMem);
       }
       GainCacheStrategy::insertIntoPQ(phg, v, previous_search_of_v);
+    }
+
+    void changeNumberOfBlocks(const PartitionID new_k) {
+      if ( static_cast<size_t>(new_k) > gainCacheInitMem.size() ) {
+        gainCacheInitMem.assign(new_k, 0);
+      }
+      blockPQ.resize(new_k);
+      for ( VertexPriorityQueue& pq : vertexPQs ) {
+        pq.setHandle(sharedData.vertexPQHandles.data(), sharedData.numberOfNodes);
+      }
+      while ( static_cast<size_t>(new_k) > vertexPQs.size() ) {
+        vertexPQs.emplace_back(sharedData.vertexPQHandles.data(), sharedData.numberOfNodes);
+      }
     }
 
     void memoryConsumption(utils::MemoryTreeNode *parent) const {

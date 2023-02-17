@@ -200,30 +200,73 @@ namespace mt_kahypar::io {
   }
 
   void printPartWeightsAndSizes(const PartitionedHypergraph& hypergraph, const Context& context) {
-    vec<HypernodeID> part_sizes(hypergraph.k(), 0);
+    vec<HypernodeID> part_sizes(context.partition.k, 0);
     for (HypernodeID u : hypergraph.nodes()) {
       part_sizes[hypergraph.partID(u)]++;
     }
+    PartitionID min_block = kInvalidPartition;
+    HypernodeWeight min_part_weight = std::numeric_limits<HypernodeWeight>::max();
+    HypernodeWeight avg_part_weight = 0;
+    PartitionID max_block = kInvalidPartition;
     HypernodeWeight max_part_weight = 0;
     HypernodeID max_part_size = 0;
-    for (PartitionID i = 0; i < hypergraph.k(); ++i) {
-      max_part_weight = std::max(max_part_weight, hypergraph.partWeight(i));
+    size_t num_imbalanced_blocks = 0;
+    for (PartitionID i = 0; i < context.partition.k; ++i) {
+      avg_part_weight += hypergraph.partWeight(i);
+      if ( hypergraph.partWeight(i) < min_part_weight ) {
+        min_block = i;
+        min_part_weight = hypergraph.partWeight(i);
+      }
+      if ( hypergraph.partWeight(i) > max_part_weight ) {
+        max_block = i;
+        max_part_weight = hypergraph.partWeight(i);
+      }
       max_part_size = std::max(max_part_size, part_sizes[i]);
+      num_imbalanced_blocks += (hypergraph.partWeight(i) == 0 ||
+        hypergraph.partWeight(i) > context.partition.max_part_weights[i]);
     }
+    avg_part_weight /= context.partition.k;
+
     const uint8_t part_digits = kahypar::math::digits(max_part_weight);
-    const uint8_t k_digits = kahypar::math::digits(hypergraph.k());
-    for (PartitionID i = 0; i != hypergraph.k(); ++i) {
-      bool is_imbalanced =
-              hypergraph.partWeight(i) > context.partition.max_part_weights[i] || hypergraph.partWeight(i) == 0;
-      if ( is_imbalanced ) std::cout << RED;
-      std::cout << "|block " << std::left  << std::setw(k_digits) << i
-                << std::setw(1) << "| = "  << std::right << std::setw(part_digits) << part_sizes[i]
-                << std::setw(1) << "  w( "  << std::right << std::setw(k_digits) << i
-                << std::setw(1) << " ) = "  << std::right << std::setw(part_digits) << hypergraph.partWeight(i)
-                << std::setw(1) << "  max( " << std::right << std::setw(k_digits) << i
-                << std::setw(1) << " ) = "  << std::right << std::setw(part_digits) << context.partition.max_part_weights[i]
-                << std::endl;
-      if ( is_imbalanced ) std::cout << END;
+    const uint8_t k_digits = kahypar::math::digits(context.partition.k);
+    if ( context.partition.k <= 32 ) {
+      for (PartitionID i = 0; i != context.partition.k; ++i) {
+        bool is_imbalanced =
+                hypergraph.partWeight(i) > context.partition.max_part_weights[i] || hypergraph.partWeight(i) == 0;
+        if ( is_imbalanced ) std::cout << RED;
+        std::cout << "|block " << std::left  << std::setw(k_digits) << i
+                  << std::setw(1) << "| = "  << std::right << std::setw(part_digits) << part_sizes[i]
+                  << std::setw(1) << "  w( "  << std::right << std::setw(k_digits) << i
+                  << std::setw(1) << " ) = "  << std::right << std::setw(part_digits) << hypergraph.partWeight(i)
+                  << std::setw(1) << "  max( " << std::right << std::setw(k_digits) << i
+                  << std::setw(1) << " ) = "  << std::right << std::setw(part_digits) << context.partition.max_part_weights[i]
+                  << std::endl;
+        if ( is_imbalanced ) std::cout << END;
+      }
+    } else {
+      std::cout << "Avg Block Weight = " << avg_part_weight << std::endl;
+      std::cout << "Min Block Weight = " << min_part_weight
+                << (min_part_weight <= context.partition.max_part_weights[min_block] ? " <= " : " > ")
+                << context.partition.max_part_weights[min_block]  << " (Block " << min_block << ")" << std::endl;
+      std::cout << "Max Block Weight = " << max_part_weight
+                << (max_part_weight <= context.partition.max_part_weights[max_block] ? " <= " : " > ")
+                << context.partition.max_part_weights[max_block]  << " (Block " << max_block << ")" << std::endl;
+      if ( num_imbalanced_blocks > 0 ) {
+        LOG << RED << "Number of Imbalanced Blocks =" << num_imbalanced_blocks << END;
+        for (PartitionID i = 0; i != context.partition.k; ++i) {
+          const bool is_imbalanced = hypergraph.partWeight(i) == 0 ||
+            hypergraph.partWeight(i) > context.partition.max_part_weights[i];
+          if ( is_imbalanced ) {
+            std::cout << RED << "|block " << std::left  << std::setw(k_digits) << i
+                      << std::setw(1) << "| = "  << std::right << std::setw(part_digits) << part_sizes[i]
+                      << std::setw(1) << "  w( "  << std::right << std::setw(k_digits) << i
+                      << std::setw(1) << " ) = "  << std::right << std::setw(part_digits) << hypergraph.partWeight(i)
+                      << std::setw(1) << "  max( " << std::right << std::setw(k_digits) << i
+                      << std::setw(1) << " ) = "  << std::right << std::setw(part_digits) << context.partition.max_part_weights[i]
+                      << END << std::endl;
+          }
+        }
+      }
     }
   }
 
@@ -313,6 +356,14 @@ namespace mt_kahypar::io {
       LOG << "********************************************************************************";
     }
   }
+  void printDeepMultilevelBanner(const Context& context) {
+    if (context.partition.verbose_output) {
+      LOG << "\n********************************************************************************";
+      LOG << "*                       Deep Multilevel Partitioning...                        *";
+      LOG << "********************************************************************************";
+    }
+  }
+
 
   void printObjectives(const PartitionedHypergraph& hypergraph,
                               const Context& context,

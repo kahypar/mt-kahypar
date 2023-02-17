@@ -29,6 +29,9 @@ option(KAHYPAR_DOWNLOAD_BOOST
 option(KAHYPAR_DOWNLOAD_TBB
   "Download TBB automatically." OFF)
 
+option(KAHYPAR_ENFORCE_MINMUM_TBB_VERSION
+  "Enforces the minimum required TBB version." ON)
+
 option(KAHYPAR_USE_GCOV
   "Compile and run tests with gcov for coverage analysis." OFF)
 
@@ -53,11 +56,14 @@ option(KAHYPAR_ENABLE_HEAVY_REFINEMENT_ASSERTIONS
 option(KAHYPAR_USE_64_BIT_IDS
   "Enables 64-bit vertex and hyperedge IDs." OFF)
 
-option(KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES
-  "Enables experimental and non-evaluated features." OFF)
-
 option(KAHYPAR_TRAVIS_BUILD
   "Indicate that this build is executed on Travis CI." OFF)
+
+option(KAHYPAR_CI_BUILD
+  "Indicate that this build is executed on GitHub Actions." OFF)
+
+option(KAHYPAR_ADD_ADDRESS_SANITIZER
+  "Adds address sanitizer to compile options." ON)
 
 if(KAHYPAR_DISABLE_ASSERTIONS)
   add_compile_definitions(KAHYPAR_DISABLE_ASSERTIONS)
@@ -86,10 +92,6 @@ endif(KAHYPAR_ENABLE_HEAVY_REFINEMENT_ASSERTIONS)
 if(KAHYPAR_USE_64_BIT_IDS)
   add_compile_definitions(KAHYPAR_USE_64_BIT_IDS)
 endif(KAHYPAR_USE_64_BIT_IDS)
-
-if(KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES)
-  add_compile_definitions(KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES)
-endif(KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES)
 
 if(KAHYPAR_TRAVIS_BUILD)
   add_compile_definitions(KAHYPAR_TRAVIS_BUILD)
@@ -128,8 +130,32 @@ endif()
 if(KAHYPAR_DOWNLOAD_TBB)
   execute_process(COMMAND cmake -P ${CMAKE_CURRENT_SOURCE_DIR}/scripts/download_tbb.cmake)
   set(TBB_ROOT ${CMAKE_CURRENT_BINARY_DIR}/external_tools/tbb)
-  set(TBB_INSTALL_DIR ${CMAKE_CURRENT_BINARY_DIR}/external_tools/tbb)
 endif()
+
+#find TBB
+find_package(TBB REQUIRED)
+if (TBB_FOUND)
+  if ((TBB_INTERFACE_VERSION GREATER_EQUAL 12070) OR (NOT KAHYPAR_ENFORCE_MINMUM_TBB_VERSION) OR KAHYPAR_CI_BUILD)
+    include_directories(SYSTEM ${TBB_INCLUDE_DIRS} ${TBB_MALLOC_INCLUDE_DIRS})
+    link_libraries(${TBB_LIBRARIES} ${TBB_MALLOC_LIBRARIES})
+    MESSAGE(STATUS "TBB Version: ${TBB_VERSION_MAJOR}.${TBB_VERSION_MINOR} (Interface Version=${TBB_INTERFACE_VERSION})")
+    MESSAGE(STATUS "Found TBB library: inc=${TBB_INCLUDE_DIRS}, lib=${TBB_LIBRARIES}")
+    MESSAGE(STATUS "Found TBB Malloc library: inc=${TBB_MALLOC_INCLUDE_DIRS}, lib=${TBB_MALLOC_LIBRARIES}")
+  ELSE ()
+    MESSAGE(FATAL_ERROR "
+      Your current TBB version is too old. Your interface version is ${TBB_INTERFACE_VERSION}, but the minimum
+      required version is 12070 (OneTBB 2021.7). You can download a suitable version by adding
+      -DKAHYPAR_DOWNLOAD_TBB=ON to the cmake build command (may require to clear the cmake cache).
+      Note that Mt-KaHyPar also compiles with older versions of TBB. However, we found some unexpected
+      behavior of a TBB function that causes on our side segmentation faults in really rare cases.
+      If you want to ignore these warnings, you can add -DKAHYPAR_ENFORCE_MINIMUM_TBB_VERSION=OFF to the
+      cmake build command which will build Mt-KaHyPar with your current TBB version.")
+  ENDIF()
+ELSE ()
+  MESSAGE(FATAL_ERROR "
+    TBB library not found. Try to install TBB with sudo apt-get install libtbb-dev or
+    add -DKAHYPAR_DOWNLOAD_TBB=ON to the cmake build command.")
+ENDIF()
 
 if(KAHYPAR_USE_GCOV)
 
@@ -193,19 +219,6 @@ if(NOT CMAKE_BUILD_TYPE)
        "Choose the type of build, options are: Debug Release, RelWithDebInfo"
        FORCE )
 endif()
-
-#find TBB
-find_package(TBB REQUIRED)
-if (TBB_FOUND)
-  include_directories(SYSTEM ${TBB_INCLUDE_DIRS} ${TBB_MALLOC_INCLUDE_DIRS})
-  link_libraries(${TBB_LIBRARIES} ${TBB_MALLOC_LIBRARIES})
-  MESSAGE(STATUS "TBB Version: ${TBB_VERSION_MAJOR}.${TBB_VERSION_MINOR} (Interface Version=${TBB_INTERFACE_VERSION})")
-  MESSAGE(STATUS "Found TBB library: inc=${TBB_INCLUDE_DIRS}, lib=${TBB_LIBRARIES}")
-  MESSAGE(STATUS "Found TBB Malloc library: inc=${TBB_MALLOC_INCLUDE_DIRS}, lib=${TBB_MALLOC_LIBRARIES}")
-ELSE ()
-  MESSAGE(STATUS "WARNING: TBB library not found.")
-  MESSAGE(STATUS "Try: sudo apt-get install libtbb-dev")
-ENDIF()
 
 # find LIBNUMA
 FIND_PATH(NUMA_INCLUDE_DIR NAME numa.h
@@ -297,7 +310,7 @@ if(NOT MSVC)
   set(CMAKE_LINKER_FLAGS_DEBUG "${CMAKE_LINKER_FLAGS_DEBUG} -fno-omit-frame-pointer")
   set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-O3 -mtune=native -march=native -g3 ")
 
-  if(NOT KAHYPAR_CI_BUILD)
+  if(KAHYPAR_ADD_ADDRESS_SANITIZER AND (NOT KAHYPAR_CI_BUILD))
     set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -fsanitize=address")
     set(CMAKE_LINKER_FLAGS_DEBUG "${CMAKE_LINKER_FLAGS_DEBUG} -fsanitize=address")
   endif()

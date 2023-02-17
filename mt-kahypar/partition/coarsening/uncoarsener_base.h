@@ -32,9 +32,10 @@
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/refinement/i_refiner.h"
 #include "mt-kahypar/partition/coarsening/coarsening_commons.h"
+#include "mt-kahypar/partition/refinement/flows/scheduler.h"
 #include "mt-kahypar/utils/utilities.h"
 #include "mt-kahypar/partition/metrics.h"
-
+#include "mt-kahypar/partition/factories.h"
 
 namespace mt_kahypar {
 
@@ -45,12 +46,15 @@ class UncoarsenerBase {
 
  public:
   UncoarsenerBase(Hypergraph& hypergraph,
-                          const Context& context,
-                          UncoarseningData& uncoarseningData) :
+                  const Context& context,
+                  UncoarseningData& uncoarseningData) :
           _hg(hypergraph),
           _context(context),
           _timer(utils::Utilities::instance().getTimer(context.utility_id)),
-          _uncoarseningData(uncoarseningData) {}
+          _uncoarseningData(uncoarseningData),
+          _label_propagation(nullptr),
+          _fm(nullptr),
+          _flows(nullptr) {}
 
   UncoarsenerBase(const UncoarsenerBase&) = delete;
   UncoarsenerBase(UncoarsenerBase&&) = delete;
@@ -59,24 +63,27 @@ class UncoarsenerBase {
 
   virtual ~UncoarsenerBase() = default;
 
-  protected:
-    Hypergraph& _hg;
-    const Context& _context;
-    utils::Timer& _timer;
-    UncoarseningData& _uncoarseningData;
+ protected:
+  Hypergraph& _hg;
+  const Context& _context;
+  utils::Timer& _timer;
+  UncoarseningData& _uncoarseningData;
+  std::unique_ptr<IRefiner> _label_propagation;
+  std::unique_ptr<IRefiner> _fm;
+  std::unique_ptr<IRefiner> _flows;
 
-  protected:
+ protected:
 
-    double refinementTimeLimit(const Context& context, const double time) {
-      if ( context.refinement.fm.time_limit_factor != std::numeric_limits<double>::max() ) {
-        const double time_limit_factor = std::max(1.0,  context.refinement.fm.time_limit_factor * context.partition.k);
-        return std::max(5.0, time_limit_factor * time);
-      } else {
-        return std::numeric_limits<double>::max();
-      }
+  double refinementTimeLimit(const Context& context, const double time) {
+    if ( context.refinement.fm.time_limit_factor != std::numeric_limits<double>::max() ) {
+      const double time_limit_factor = std::max(1.0,  context.refinement.fm.time_limit_factor * context.partition.k);
+      return std::max(5.0, time_limit_factor * time);
+    } else {
+      return std::numeric_limits<double>::max();
     }
+  }
 
-  Metrics initialize(PartitionedHypergraph& phg) {
+  Metrics initializeMetrics(PartitionedHypergraph& phg) {
     Metrics m = { 0, 0, 0.0 };
     tbb::parallel_invoke([&] {
       m.cut = metrics::hyperedgeCut(phg);
@@ -96,5 +103,14 @@ class UncoarsenerBase {
     return m;
   }
 
+  void initializeRefinementAlgorithms() {
+    _label_propagation = LabelPropagationFactory::getInstance().createObject(
+      _context.refinement.label_propagation.algorithm, _hg, _context);
+    _fm = FMFactory::getInstance().createObject(
+      _context.refinement.fm.algorithm, _hg, _context);
+    if ( _context.refinement.flows.algorithm != FlowAlgorithm::do_nothing ) {
+      _flows = std::make_unique<FlowRefinementScheduler>(_hg, _context);
+    }
+  }
 };
 }

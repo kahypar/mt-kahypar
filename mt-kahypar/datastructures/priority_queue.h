@@ -47,7 +47,11 @@ static constexpr bool enable_heavy_assert = false;
 public:
   static_assert(arity > 1);
 
-  explicit Heap(PosT* positions, size_t positions_size) : comp(), heap(), positions(positions), positions_size(positions_size) { }
+  explicit Heap(PosT* positions, size_t positions_size) :
+    comp(),
+    heap(),
+    positions(positions),
+    positions_size(positions_size) { }
 
   IdT top() const {
     return heap[0].id;
@@ -158,6 +162,12 @@ public:
 
   IdT at(const PosT pos) const {
     return heap[pos].id;
+  }
+
+  void setHandle(PosT* pos, size_t pos_size) {
+    clear();
+    positions = pos;
+    positions_size = pos_size;
   }
 
   void print() {
@@ -296,17 +306,29 @@ protected:
 
 // used to initialize handles in ExclusiveHandleHeap before handing a ref to Heap
 struct HandlesPBase {
-  explicit HandlesPBase(size_t n) : handles(n, invalid_position) { }
+  explicit HandlesPBase(size_t n) :
+    handles(n, invalid_position) { }
   vec<PosT> handles;
 };
 
 template<typename HeapT>
 class ExclusiveHandleHeap : protected HandlesPBase, public HeapT {
 public:
-  explicit ExclusiveHandleHeap(size_t nHandles) : HandlesPBase(nHandles), HeapT(this->handles.data(), this->handles.size()) { }
+  explicit ExclusiveHandleHeap(size_t nHandles) :
+    HandlesPBase(nHandles),
+    HeapT(this->handles.data(), this->handles.size()) { }
 
                                                                               //at this point this->handles is already a deep copy of other.handles
-  ExclusiveHandleHeap(const ExclusiveHandleHeap& other) : HandlesPBase(other), HeapT(this->handles.data(), this->handles.size()) { }
+  ExclusiveHandleHeap(const ExclusiveHandleHeap& other) :
+    HandlesPBase(other),
+    HeapT(this->handles.data(), this->handles.size()) { }
+
+  void resize(const size_t new_n) {
+    if ( this->handles.size() < new_n ) {
+      this->handles.assign(new_n, invalid_position);
+      this->setHandle(this->handles.data(), new_n);
+    }
+  }
 };
 
 template<typename KeyT, typename IdT>
