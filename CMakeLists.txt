@@ -65,8 +65,11 @@ option(KAHYPAR_CI_BUILD
 option(KAHYPAR_ADD_ADDRESS_SANITIZER
   "Adds address sanitizer to compile options." ON)
 
-  option(KAHYPAR_ENABLE_THREAD_PINNING
-    "Enables thread pinning in Mt-KaHyPar." ON)
+option(KAHYPAR_ENABLE_THREAD_PINNING
+  "Enables thread pinning in Mt-KaHyPar." ON)
+
+option(KAHYPAR_ENABLE_ARCH_COMPILE_OPTIMIZATIONS
+  "Adds the compile flags `-mtune=native -march=native`" ON)
 
 if(KAHYPAR_DISABLE_ASSERTIONS)
   add_compile_definitions(KAHYPAR_DISABLE_ASSERTIONS)
@@ -142,7 +145,7 @@ endif()
 #find TBB
 find_package(TBB REQUIRED)
 if (TBB_FOUND)
-  if ((TBB_INTERFACE_VERSION GREATER_EQUAL 12070) OR (NOT KAHYPAR_ENFORCE_MINMUM_TBB_VERSION) OR KAHYPAR_CI_BUILD)
+  if ((TBB_INTERFACE_VERSION GREATER_EQUAL 12070) OR (NOT KAHYPAR_ENFORCE_MINIMUM_TBB_VERSION) OR KAHYPAR_CI_BUILD)
     include_directories(SYSTEM ${TBB_INCLUDE_DIRS} ${TBB_MALLOC_INCLUDE_DIRS})
     link_libraries(${TBB_LIBRARIES} ${TBB_MALLOC_LIBRARIES})
     MESSAGE(STATUS "TBB Version: ${TBB_VERSION_MAJOR}.${TBB_VERSION_MINOR} (Interface Version=${TBB_INTERFACE_VERSION})")
@@ -311,11 +314,15 @@ if(NOT MSVC)
   endif()
 
 
-  set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -g3")
-  set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -fsanitize=undefined -fno-omit-frame-pointer")
-  set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O3 -mtune=native -march=native")
+  set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -g3 -fsanitize=undefined -fno-omit-frame-pointer")
+  set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O3")
   set(CMAKE_LINKER_FLAGS_DEBUG "${CMAKE_LINKER_FLAGS_DEBUG} -fno-omit-frame-pointer")
-  set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-O3 -mtune=native -march=native -g3 ")
+  set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-O3 -g3 ")
+
+  if(KAHYPAR_ENABLE_ARCH_COMPILE_OPTIMIZATIONS)
+    set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -mtune=native -march=native")
+    set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDEBINFO} -mtune=native -march=native")
+  endif()
 
   if(KAHYPAR_ADD_ADDRESS_SANITIZER AND (NOT KAHYPAR_CI_BUILD))
     set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -fsanitize=address")
@@ -338,6 +345,7 @@ add_custom_target(AnalyzeAllSources  perl "${PROJECT_SOURCE_DIR}/codestyle/analy
 message(STATUS "CMAKE_CXX_FLAGS: ${CMAKE_CXX_FLAGS}")
 message(STATUS "CMAKE_CXX_FLAGS_RELEASE: ${CMAKE_CXX_FLAGS_RELEASE}")
 message(STATUS "CMAKE_CXX_FLAGS_DEBUG: ${CMAKE_CXX_FLAGS_DEBUG}")
+message(STATUS "CMAKE_CXX_FLAGS_RELWITHDEBINFO: ${CMAKE_CXX_FLAGS_RELWITHDEBINFO}")
 
 include(gmock)
 enable_testing()
