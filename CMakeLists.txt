@@ -59,6 +59,9 @@ option(KAHYPAR_USE_64_BIT_IDS
 option(KAHYPAR_TRAVIS_BUILD
   "Indicate that this build is executed on Travis CI." OFF)
 
+option(KAHYPAR_CI_BUILD
+  "Indicate that this build is executed on GitHub Actions." OFF)
+
 option(KAHYPAR_ADD_ADDRESS_SANITIZER
   "Adds address sanitizer to compile options." ON)
 
@@ -132,7 +135,7 @@ endif()
 #find TBB
 find_package(TBB REQUIRED)
 if (TBB_FOUND)
-  if ((TBB_INTERFACE_VERSION GREATER_EQUAL 12070) OR (NOT KAHYPAR_ENFORCE_MINMUM_TBB_VERSION))
+  if ((TBB_INTERFACE_VERSION GREATER_EQUAL 12070) OR (NOT KAHYPAR_ENFORCE_MINMUM_TBB_VERSION) or KAHYPAR_CI_BUILD)
     include_directories(SYSTEM ${TBB_INCLUDE_DIRS} ${TBB_MALLOC_INCLUDE_DIRS})
     link_libraries(${TBB_LIBRARIES} ${TBB_MALLOC_LIBRARIES})
     MESSAGE(STATUS "TBB Version: ${TBB_VERSION_MAJOR}.${TBB_VERSION_MINOR} (Interface Version=${TBB_INTERFACE_VERSION})")
