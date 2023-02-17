@@ -65,9 +65,6 @@ option(KAHYPAR_CI_BUILD
 option(KAHYPAR_ADD_ADDRESS_SANITIZER
   "Adds address sanitizer to compile options." ON)
 
-option(KAHYPAR_ADD_ADDRESS_SANITIZER
-  "Adds address sanitizer to compile options." ON)
-
 option(KAHYPAR_ENABLE_ARCH_COMPILE_OPTIMIZATIONS
   "Adds the compile flags `-mtune=native -march=native`" ON)
 
