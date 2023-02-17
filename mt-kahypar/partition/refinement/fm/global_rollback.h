@@ -39,7 +39,7 @@ public:
   explicit GlobalRollback(const Hypergraph& hg, const Context& context) :
     context(context),
     max_part_weight_scaling(context.refinement.fm.rollback_balance_violation_factor),
-    ets_recalc_data(vec<RecalculationData>(context.partition.k)),
+    ets_recalc_data([&] { return vec<RecalculationData>(context.partition.k); }),
     last_recalc_round(),
     round(1) {
     if (context.refinement.fm.iter_moves_on_recalc && context.refinement.fm.rollback_parallel) {

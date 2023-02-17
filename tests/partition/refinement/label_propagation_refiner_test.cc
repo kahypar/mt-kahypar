@@ -156,4 +156,48 @@ TYPED_TEST(ALabelPropagationRefiner, DoesNotWorsenSolutionQuality) {
   this->refiner->refine(this->partitioned_hypergraph, {}, this->metrics, std::numeric_limits<double>::max());
   ASSERT_LE(this->metrics.getMetric(Mode::direct, this->context.partition.objective), objective_before);
 }
+
+
+TYPED_TEST(ALabelPropagationRefiner, IncreasesTheNumberOfBlocks) {
+  HyperedgeWeight objective_before = metrics::objective(this->partitioned_hypergraph, this->context.partition.objective);
+  this->refiner->refine(this->partitioned_hypergraph, {}, this->metrics, std::numeric_limits<double>::max());
+  ASSERT_LE(this->metrics.getMetric(Mode::direct, this->context.partition.objective), objective_before);
+
+  // Initialize partition with larger K
+  const PartitionID old_k = this->context.partition.k;
+  this->context.partition.k = 2 * old_k;
+  this->context.setupPartWeights(this->hypergraph.totalWeight());
+  PartitionedHypergraph phg_with_larger_k(
+    this->context.partition.k, this->hypergraph, mt_kahypar::parallel_tag_t());
+  utils::Randomize& rand = utils::Randomize::instance();
+  vec<PartitionID> non_optimized_partition(this->hypergraph.initialNumNodes(), kInvalidPartition);
+  this->partitioned_hypergraph.doParallelForAllNodes([&](const HypernodeID hn) {
+    const PartitionID block = this->partitioned_hypergraph.partID(hn);
+    phg_with_larger_k.setOnlyNodePart(hn, rand.flipCoin(sched_getcpu()) ? 2 * block : 2 * block + 1);
+    non_optimized_partition[hn] = phg_with_larger_k.partID(hn);
+  });
+  phg_with_larger_k.initializePartition();
+  this->metrics.km1 = metrics::km1(phg_with_larger_k);
+  this->metrics.cut = metrics::hyperedgeCut(phg_with_larger_k);
+  this->metrics.imbalance = metrics::imbalance(phg_with_larger_k, this->context);
+
+  objective_before = metrics::objective(phg_with_larger_k, this->context.partition.objective);
+  this->refiner->initialize(phg_with_larger_k);
+  this->refiner->refine(phg_with_larger_k, {}, this->metrics, std::numeric_limits<double>::max());
+  ASSERT_LE(this->metrics.getMetric(Mode::direct, this->context.partition.objective), objective_before);
+  ASSERT_EQ(metrics::objective(phg_with_larger_k, this->context.partition.objective),
+            this->metrics.getMetric(Mode::direct, this->context.partition.objective));
+
+  // Check if refiner has moved some nodes from new blocks
+  bool has_moved_nodes = false;
+  for ( const HypernodeID hn : phg_with_larger_k.nodes() ) {
+    if ( non_optimized_partition[hn] >= old_k &&
+         non_optimized_partition[hn] != phg_with_larger_k.partID(hn) ) {
+      has_moved_nodes = true;
+      break;
+    }
+  }
+  ASSERT_TRUE(has_moved_nodes);
+}
+
 }  // namespace mt_kahypar

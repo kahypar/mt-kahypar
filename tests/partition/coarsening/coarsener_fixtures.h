@@ -62,6 +62,8 @@ class ACoarsener : public Test {
     context.coarsening.minimum_shrink_factor = 1.0;
     context.coarsening.maximum_shrink_factor = 4.0;
     context.refinement.max_batch_size = 5;
+    context.shared_memory.original_num_threads = std::thread::hardware_concurrency();
+    context.shared_memory.num_threads = std::thread::hardware_concurrency();
     context.setupPartWeights(hypergraph.totalWeight());
   }
 
