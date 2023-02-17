@@ -75,7 +75,7 @@ class ThreadPinningObserver : public tbb::task_scheduler_observer {
     }
 
     #ifdef KAHYPAR_ENABLE_THREAD_PINNING
-    #ifndef KAHYPAR_LIBRARY_MODE
+    #ifndef MT_KAHYPAR_LIBRARY_MODE
     observe(true); // Enable thread pinning
     #endif
     #endif
@@ -96,7 +96,7 @@ class ThreadPinningObserver : public tbb::task_scheduler_observer {
     }
 
     #ifdef KAHYPAR_ENABLE_THREAD_PINNING
-    #ifndef KAHYPAR_LIBRARY_MODE
+    #ifndef MT_KAHYPAR_LIBRARY_MODE
     observe(true); // Enable thread pinning
     #endif
     #endif
