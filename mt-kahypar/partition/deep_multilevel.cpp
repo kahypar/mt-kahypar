@@ -67,6 +67,9 @@ struct OriginalHypergraphInfo {
   double computeAdaptiveEpsilon(const HypernodeWeight current_hypergraph_weight,
                                 const PartitionID current_k) const {
     if ( current_hypergraph_weight == 0 ) {
+      // In recursive bipartitioning, it can happen that a block becomes too light that
+      // all nodes of the block fit into one block in a subsequent bipartitioning step.
+      // This will create an empty block, which we fix later in a rebalancing step.
       return 0.0;
     } else {
       double base = ceil(static_cast<double>(original_hypergraph_weight) / original_k)
