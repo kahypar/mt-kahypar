@@ -73,7 +73,12 @@ class ThreadPinningObserver : public tbb::task_scheduler_observer {
     if ( _cpus.size() == 1 ) {
       _cpus.push_back(HwTopology::instance().get_backup_cpu(_numa_node, _cpus[0]));
     }
-    observe(true);
+
+    #ifdef KAHYPAR_ENABLE_THREAD_PINNING
+    #ifndef KAHYPAR_LIBRARY_MODE
+    observe(true); // Enable thread pinning
+    #endif
+    #endif
   }
 
   // Observer is pinned to the global task arena and is reponsible for
@@ -89,7 +94,12 @@ class ThreadPinningObserver : public tbb::task_scheduler_observer {
     if ( _cpus.size() == 1 ) {
       _cpus.push_back(HwTopology::instance().get_backup_cpu(0, _cpus[0]));
     }
-    observe(true);
+
+    #ifdef KAHYPAR_ENABLE_THREAD_PINNING
+    #ifndef KAHYPAR_LIBRARY_MODE
+    observe(true); // Enable thread pinning
+    #endif
+    #endif
   }
 
 
@@ -110,7 +120,7 @@ class ThreadPinningObserver : public tbb::task_scheduler_observer {
     const int slot = tbb::this_task_arena::current_thread_index();
     ASSERT(static_cast<size_t>(slot) < _cpus.size(), V(slot) << V(_cpus.size()));
 
-    if ( slot >= _cpus.size() ) {
+    if ( slot >= static_cast<int>(_cpus.size()) ) {
       ERROR("Thread" << std::this_thread::get_id() << "entered the global task arena"
         << "in a slot that should not exist (Slot =" << slot << ", Max Slots =" <<_cpus.size()
         << ", slots are 0-indexed). This bug only occurs in older versions of TBB."

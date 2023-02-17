@@ -29,7 +29,7 @@ option(KAHYPAR_DOWNLOAD_BOOST
 option(KAHYPAR_DOWNLOAD_TBB
   "Download TBB automatically." OFF)
 
-option(KAHYPAR_ENFORCE_MINMUM_TBB_VERSION
+option(KAHYPAR_ENFORCE_MINIMUM_TBB_VERSION
   "Enforces the minimum required TBB version." ON)
 
 option(KAHYPAR_USE_GCOV
@@ -65,6 +65,9 @@ option(KAHYPAR_CI_BUILD
 option(KAHYPAR_ADD_ADDRESS_SANITIZER
   "Adds address sanitizer to compile options." ON)
 
+  option(KAHYPAR_ENABLE_THREAD_PINNING
+    "Enables thread pinning in Mt-KaHyPar." ON)
+
 if(KAHYPAR_DISABLE_ASSERTIONS)
   add_compile_definitions(KAHYPAR_DISABLE_ASSERTIONS)
 endif(KAHYPAR_DISABLE_ASSERTIONS)
@@ -96,6 +99,10 @@ endif(KAHYPAR_USE_64_BIT_IDS)
 if(KAHYPAR_TRAVIS_BUILD)
   add_compile_definitions(KAHYPAR_TRAVIS_BUILD)
 endif(KAHYPAR_TRAVIS_BUILD)
+
+if(KAHYPAR_ENABLE_THREAD_PINNING)
+  add_compile_definitions(KAHYPAR_ENABLE_THREAD_PINNING)
+endif(KAHYPAR_ENABLE_THREAD_PINNING)
 
 if(KAHYPAR_DOWNLOAD_BOOST)
   execute_process(COMMAND cmake -P ${CMAKE_CURRENT_SOURCE_DIR}/scripts/download_boost.cmake)
