@@ -511,6 +511,11 @@ private:
   }
 
   void extractPartIDs(Array<PartitionID>& part_ids) {
+    // If we pass the input hypergraph to initial partitioning, then initial partitioning
+    // will pass an part ID vector of size |V'|, where V' are the number of nodes of
+    // smallest hypergraph, while the _part_ids vector of the input hypergraph is initialized
+    // with the original number of nodes. This can cause segmentation fault when we simply swap them
+    // during main uncoarsening.
     if ( _part_ids.size() == part_ids.size() ) {
       std::swap(_part_ids, part_ids);
     } else {
