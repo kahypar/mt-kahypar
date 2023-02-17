@@ -118,6 +118,7 @@ void mt_kahypar_free_partitioned_graph(mt_kahypar_partitioned_graph_t* partition
 namespace {
   void prepare_context(mt_kahypar::Context& context) {
     context.partition.mode = mt_kahypar::Mode::direct;
+    context.shared_memory.original_num_threads = mt_kahypar::TBBInitializer::instance().total_number_of_threads();
     context.shared_memory.num_threads = mt_kahypar::TBBInitializer::instance().total_number_of_threads();
     context.utility_id = mt_kahypar::utils::Utilities::instance().registerNewUtilityObjects();
 
