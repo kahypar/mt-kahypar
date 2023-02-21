@@ -61,7 +61,7 @@ class AConcurrentHypergraph : public Test {
     underlying_hypergraph(),
     hypergraph()
   {
-    int cpu_id = sched_getcpu();
+    int cpu_id = SCHED_GETCPU;
     underlying_hypergraph = io::readHypergraphFile(
       "../tests/instances/contracted_ibm01.hgr");
     hypergraph = mt_kahypar::PartitionedHypergraph(k, underlying_hypergraph, parallel_tag_t());
@@ -125,7 +125,7 @@ void moveAllNodesOfHypergraphRandom(HyperGraph& hypergraph,
   HyperedgeWeight metric_before = metrics::objective(hypergraph, objective);
   HighResClockTimepoint start = std::chrono::high_resolution_clock::now();
   tbb::parallel_for(ID(0), hypergraph.initialNumNodes(), [&](const HypernodeID& hn) {
-    int cpu_id = sched_getcpu();
+    int cpu_id = SCHED_GETCPU;
     const PartitionID from = hypergraph.partID(hn);
     PartitionID to = -1;
     while (to == -1 || to == from) {

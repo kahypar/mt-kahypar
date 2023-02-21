@@ -159,7 +159,7 @@ class Km1Policy : public GainPolicy<Km1Policy<HyperGraph>, HyperGraph> {
 
     Move best_move { from, from, hn, rebalance ? std::numeric_limits<Gain>::max() : 0 };
     HypernodeWeight hn_weight = hypergraph.nodeWeight(hn);
-    int cpu_id = sched_getcpu();
+    int cpu_id = SCHED_GETCPU;
     utils::Randomize& rand = utils::Randomize::instance();
     for (PartitionID to = 0; to < _context.partition.k; ++to) {
       if (from != to) {
@@ -246,7 +246,7 @@ class CutPolicy : public GainPolicy<CutPolicy<HyperGraph>, HyperGraph> {
 
     Move best_move { from, from, hn, rebalance ? std::numeric_limits<Gain>::max() : 0 };
     HypernodeWeight hn_weight = hypergraph.nodeWeight(hn);
-    int cpu_id = sched_getcpu();
+    int cpu_id = SCHED_GETCPU;
     utils::Randomize& rand = utils::Randomize::instance();
     for (PartitionID to = 0; to < _context.partition.k; ++to) {
       if (from != to) {

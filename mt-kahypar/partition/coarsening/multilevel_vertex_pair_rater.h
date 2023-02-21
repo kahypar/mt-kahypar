@@ -166,7 +166,7 @@ class MultilevelVertexPairRater {
       fillRatingMap(hypergraph, u, tmp_ratings, cluster_ids);
     }
 
-    int cpu_id = sched_getcpu();
+    int cpu_id = SCHED_GETCPU;
     const HypernodeWeight weight_u = cluster_weight[u];
     const PartitionID community_u_id = hypergraph.communityID(u);
     RatingType max_rating = std::numeric_limits<RatingType>::min();

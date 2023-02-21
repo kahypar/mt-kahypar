@@ -136,7 +136,7 @@ class Randomize {
   template <typename T>
   void shuffleVector(std::vector<T>& vector, int cpu_id = -1) {
     if (cpu_id == -1)
-      cpu_id = sched_getcpu();
+      cpu_id = SCHED_GETCPU;
     ASSERT(cpu_id < (int)std::thread::hardware_concurrency());
     std::shuffle(vector.begin(), vector.end(), _rand[cpu_id].getGenerator());
   }
@@ -144,7 +144,7 @@ class Randomize {
   template <typename T>
   void shuffleVector(parallel::scalable_vector<T>& vector, int cpu_id = -1) {
     if (cpu_id == -1)
-      cpu_id = sched_getcpu();
+      cpu_id = SCHED_GETCPU;
     ASSERT(cpu_id < (int)std::thread::hardware_concurrency());
     std::shuffle(vector.begin(), vector.end(), _rand[cpu_id].getGenerator());
   }
@@ -184,14 +184,14 @@ class Randomize {
       tbb::parallel_for(UL(0), P, [&](const size_t k) {
         const size_t start = i + k * step;
         const size_t end = i + (k == P - 1 ? N : (k + 1) * step);
-        localizedShuffleVector(vector, start, end, sched_getcpu());
+        localizedShuffleVector(vector, start, end, SCHED_GETCPU);
       });
     } else {
       // Compute blocks that should be swapped before
       // random shuffling
       parallel::scalable_vector<SwapBlock> swap_blocks;
       parallel::scalable_vector<bool> matched_blocks(P, false);
-      int cpu_id = sched_getcpu();
+      int cpu_id = SCHED_GETCPU;
       for ( size_t a = 0; a < P; ++a ) {
         if ( !matched_blocks[a] ) {
           matched_blocks[a] = true;
@@ -212,7 +212,7 @@ class Randomize {
         const size_t end_1 = i + (block_1 == P - 1 ? N : (block_1 + 1) * step);
         const size_t start_2 = i + block_2 * step;
         const size_t end_2 = i + (block_2 == P - 1 ? N : (block_2 + 1) * step);
-        const int cpu_id = sched_getcpu();
+        const int cpu_id = SCHED_GETCPU;
         swapBlocks(vector, start_1, end_1, start_2, end_2);
         std::shuffle(vector.begin() + start_1, vector.begin() + end_1, _rand[cpu_id].getGenerator());
         std::shuffle(vector.begin() + start_2, vector.begin() + end_2, _rand[cpu_id].getGenerator());
@@ -238,7 +238,7 @@ class Randomize {
   }
 
   std::mt19937& getGenerator() {
-    int cpu_id = sched_getcpu();
+    int cpu_id = SCHED_GETCPU;
     return _rand[cpu_id].getGenerator();
   }
 

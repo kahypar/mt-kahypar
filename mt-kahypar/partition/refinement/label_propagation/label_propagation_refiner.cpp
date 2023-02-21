@@ -121,7 +121,7 @@ namespace mt_kahypar {
     bool converged = true;
     if ( _context.refinement.label_propagation.execute_sequential ) {
       utils::Randomize::instance().shuffleVector(
-              _active_nodes, UL(0), _active_nodes.size(), sched_getcpu());
+              _active_nodes, UL(0), _active_nodes.size(), SCHED_GETCPU);
 
       for ( size_t j = 0; j < _active_nodes.size(); ++j ) {
         const HypernodeID hn = _active_nodes[j];

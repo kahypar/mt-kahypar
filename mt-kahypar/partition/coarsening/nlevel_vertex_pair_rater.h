@@ -151,7 +151,7 @@ class NLevelVertexPairRater {
       fillRatingMap(hypergraph, u, tmp_ratings);
     }
 
-    int cpu_id = sched_getcpu();
+    int cpu_id = SCHED_GETCPU;
     const HypernodeWeight weight_u = hypergraph.nodeWeight(u);
     const PartitionID community_u_id = hypergraph.communityID(u);
     RatingType max_rating = std::numeric_limits<RatingType>::min();

@@ -28,6 +28,14 @@
 
 #include <type_traits>
 
+#ifdef __linux__
+#include <sched.h>
+#define SCHED_GETCPU sched_getcpu()
+#elif _WIN32
+#include <processthreadsapi.h>
+#define SCHED_GETCPU GetCurrentProcessorNumber()
+#endif
+
 #include "kahypar/macros.h"
 
 #define SPECIALIZATION(EXPR, TYPE)          \
@@ -139,3 +147,5 @@
     ERR(error_msg);                                                            \
   }
 #endif
+
+

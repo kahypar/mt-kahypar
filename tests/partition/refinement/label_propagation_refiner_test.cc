@@ -173,7 +173,7 @@ TYPED_TEST(ALabelPropagationRefiner, IncreasesTheNumberOfBlocks) {
   vec<PartitionID> non_optimized_partition(this->hypergraph.initialNumNodes(), kInvalidPartition);
   this->partitioned_hypergraph.doParallelForAllNodes([&](const HypernodeID hn) {
     const PartitionID block = this->partitioned_hypergraph.partID(hn);
-    phg_with_larger_k.setOnlyNodePart(hn, rand.flipCoin(sched_getcpu()) ? 2 * block : 2 * block + 1);
+    phg_with_larger_k.setOnlyNodePart(hn, rand.flipCoin(SCHED_GETCPU) ? 2 * block : 2 * block + 1);
     non_optimized_partition[hn] = phg_with_larger_k.partID(hn);
   });
   phg_with_larger_k.initializePartition();

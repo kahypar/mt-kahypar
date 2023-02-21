@@ -264,14 +264,14 @@ class AFlowRefinementEndToEnd : public Test {
     // Move approx. 0.5% of the vertices randomly to a different block
     double p = 0.05;
     phg.doParallelForAllNodes([&](const HypernodeID& hn) {
-      const int rand_int = utils::Randomize::instance().getRandomInt(0, 100, sched_getcpu());
+      const int rand_int = utils::Randomize::instance().getRandomInt(0, 100, SCHED_GETCPU);
       if ( rand_int <= p * 100 ) {
         const PartitionID from = phg.partID(hn);
         PartitionID to = utils::Randomize::instance().getRandomInt(
-            0, context.partition.k - 1, sched_getcpu());
+            0, context.partition.k - 1, SCHED_GETCPU);
         while ( from == to ) {
           to = utils::Randomize::instance().getRandomInt(
-            0, context.partition.k - 1, sched_getcpu());
+            0, context.partition.k - 1, SCHED_GETCPU);
         }
         phg.changeNodePart(hn, from, to, context.partition.max_part_weights[to], []{ }, NOOP_FUNC);
       }
