@@ -41,7 +41,7 @@ void bipartition(PartitionedHypergraph& hypergraph, const Context& context) {
   ASSERT(context.shared_memory.num_threads > 0);
   if ( context.initial_partitioning.enabled_ip_algos.size() <
         static_cast<size_t>(InitialPartitioningAlgorithm::UNDEFINED) ) {
-    ERROR("Size of enabled IP algorithms vector is smaller than number of IP algorithms!");
+    ERR("Size of enabled IP algorithms vector is smaller than number of IP algorithms!");
   }
 
   int tag = 0;

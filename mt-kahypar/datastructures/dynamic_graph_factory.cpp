@@ -50,7 +50,7 @@ DynamicGraph DynamicGraphFactory::construct(
   edges.reserve(num_edges);
   for (const auto& e : edge_vector) {
     if (e.size() != 2) {
-      ERROR("Using graph data structure; but the input hypergraph is not a graph.");
+      ERR("Using graph data structure; but the input hypergraph is not a graph.");
     }
     edges.push_back({e[0], e[1]});
   }

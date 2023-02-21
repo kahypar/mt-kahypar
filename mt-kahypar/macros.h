@@ -122,11 +122,11 @@
 #define END "\033[0m"
 #define INFO(msg) LOG << CYAN << "[INFO]" << END << msg
 #define WARNING(msg) LOG << YELLOW << "[WARNING]" << END << msg
-#define ERROR(msg) LOG << RED << "[ERROR]" << END << msg; std::exit(-1)
+#define ERR(msg) LOG << RED << "[ERROR]" << END << msg; std::exit(-1)
 
 #ifdef MT_KAHYPAR_LIBRARY_MODE
 #define ALGO_SWITCH(warning_msg, error_msg, context_variable, alternative_value) \
-  ERROR(error_msg);
+  ERR(error_msg);
 #else
 #define ALGO_SWITCH(warning_msg, error_msg, context_variable, alternative_value) \
   WARNING(warning_msg);                                                          \
@@ -136,6 +136,6 @@
   if (answer == 'Y') {                                                           \
     context_variable = alternative_value;                                        \
   } else {                                                                       \
-    ERROR(error_msg);                                                            \
+    ERR(error_msg);                                                            \
   }
 #endif

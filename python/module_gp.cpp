@@ -276,7 +276,7 @@ Construct a weighted graph.
         PartitionedGraph partitioned_graph(num_blocks, graph, mt_kahypar::parallel_tag_t { });
         partitioned_graph.doParallelForAllNodes([&](const HypernodeID& hn) {
           if ( partition[hn] < 0 || partition[hn] >= num_blocks ) {
-            ERROR("Invalid block ID for node" << hn << "( block ID =" << partition[hn] << ")");
+            ERR("Invalid block ID for node" << hn << "( block ID =" << partition[hn] << ")");
           }
           partitioned_graph.setOnlyNodePart(hn, partition[hn]);
         });
@@ -300,7 +300,7 @@ Construct a partitioned graph.
         PartitionedGraph partitioned_graph(num_blocks, graph, mt_kahypar::parallel_tag_t { });
         partitioned_graph.doParallelForAllNodes([&](const HypernodeID& hn) {
           if ( partition[hn] < 0 || partition[hn] >= num_blocks ) {
-            ERROR("Invalid block ID for node" << hn << "( block ID =" << partition[hn] << ")");
+            ERR("Invalid block ID for node" << hn << "( block ID =" << partition[hn] << ")");
           }
           partitioned_graph.setOnlyNodePart(hn, partition[hn]);
         });

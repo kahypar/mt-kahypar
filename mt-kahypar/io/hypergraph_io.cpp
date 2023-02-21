@@ -46,7 +46,7 @@ namespace mt_kahypar::io {
   int open_file(const std::string& filename) {
     int fd = open(filename.c_str(), O_RDONLY);
     if ( fd == -1 ) {
-      ERROR("Could not open:" << filename);
+      ERR("Could not open:" << filename);
     }
     return fd;
   }
@@ -54,7 +54,7 @@ namespace mt_kahypar::io {
   size_t file_size(int fd) {
     struct stat file_info;
     if ( fstat(fd, &file_info) == -1 ) {
-      ERROR("Error while getting file stats");
+      ERR("Error while getting file stats");
     }
     return static_cast<size_t>(file_info.st_size);
   }
@@ -63,7 +63,7 @@ namespace mt_kahypar::io {
     char* mapped_file = (char*) mmap(0, length, PROT_READ, MAP_SHARED, fd, 0);
     if ( mapped_file == MAP_FAILED ) {
       close(fd);
-      ERROR("Error while mapping file to memory");
+      ERR("Error while mapping file to memory");
     }
     return mapped_file;
   }
@@ -71,7 +71,7 @@ namespace mt_kahypar::io {
   void munmap_file(char* mapped_file, int fd, const size_t length) {
     if ( munmap(mapped_file, length) == -1 ) {
       close(fd);
-      ERROR("Error while unmapping file from memory");
+      ERR("Error while unmapping file from memory");
     }
   }
 

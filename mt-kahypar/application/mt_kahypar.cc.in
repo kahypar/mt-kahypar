@@ -153,7 +153,7 @@ int main(int argc, char* argv[]) {
 
   if ( context.partition.preset_file == "" &&
        context.partition.preset_type == mt_kahypar::PresetType::UNDEFINED ) {
-    ERROR("No preset specified");
+    ERR("No preset specified");
   }
   configureContext(context);
   std::string partitioner_call = configurePartitionerCall(context, argc, argv);

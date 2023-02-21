@@ -80,7 +80,7 @@ namespace mt_kahypar::ds {
         break;
       case LouvainEdgeWeight::hybrid:
       case LouvainEdgeWeight::UNDEFINED:
-      ERROR("No valid louvain edge weight");
+      ERR("No valid louvain edge weight");
     }
   }
 

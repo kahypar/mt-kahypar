@@ -118,7 +118,7 @@ namespace {
           recursive_bipartitioning::partition(phg, ip_context); break;
         case Mode::deep_multilevel:
           deep_multilevel::partition(phg, ip_context); break;
-        case Mode::UNDEFINED: ERROR("Undefined initial partitioning algorithm");
+        case Mode::UNDEFINED: ERR("Undefined initial partitioning algorithm");
       }
       enableTimerAndStats(context);
       degree_zero_hn_remover.restoreDegreeZeroHypernodes(phg);

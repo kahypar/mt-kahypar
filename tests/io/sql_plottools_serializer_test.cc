@@ -125,7 +125,7 @@ std::vector<std::string> get_all_members_in_context() {
     }
     context_file.close();
   } else {
-    ERROR("Context file not found");
+    ERR("Context file not found");
   }
 
   return members;

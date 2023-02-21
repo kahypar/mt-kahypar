@@ -34,7 +34,11 @@
 #include <atomic>
 #include <vector>
 #include <algorithm>
+#ifdef __linux__
 #include <unistd.h>
+#elif _WIN32
+#include <sysinfoapi.h>
+#endif
 
 #include "tbb/parallel_for.h"
 #include "tbb/scalable_allocator.h"
@@ -576,14 +580,22 @@ class MemoryPoolT {
   explicit MemoryPoolT() :
     _memory_mutex(),
     _is_initialized(false),
-    _page_size(sysconf(_SC_PAGE_SIZE)),
+    _page_size(0),
     _memory_groups(),
     _memory_chunks(),
     _next_active_memory_chunk(0),
     _active_memory_chunks(),
     _use_round_robin_assignment(true),
     _use_minimum_allocation_size(true),
-    _use_unused_memory_chunks(true) { }
+    _use_unused_memory_chunks(true) { 
+    #ifdef __linux__
+      _page_size = sysconf(_SC_PAGE_SIZE);
+    #elif _WIN32
+      SYSTEM_INFO sysInfo;
+      GetSystemInfo(&sysInfo);
+      _page_size = sysInfo.dwPageSize;
+    #endif
+  }
 
   // ! Returns a pointer to memory chunk under the corresponding group with
   // ! the specified key.

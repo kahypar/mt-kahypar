@@ -63,7 +63,7 @@ class StaticGraphFactory {
                                                 const bool stable_construction_of_incident_edges = false);
 
   static std::pair<StaticGraph, parallel::scalable_vector<HypernodeID> > compactify(const StaticGraph&) {
-    ERROR("Compactify not implemented for static graph.");
+    ERR("Compactify not implemented for static graph.");
   }
 
  private:

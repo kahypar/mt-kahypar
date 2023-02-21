@@ -245,7 +245,7 @@ namespace mt_kahypar {
       }
 
       if (max_part_weights_sum < total_hypergraph_weight) {
-        ERROR("Sum of individual part weights is less than the total hypergraph weight. Finding a valid partition is impossible.\n"
+        ERR("Sum of individual part weights is less than the total hypergraph weight. Finding a valid partition is impossible.\n"
                 << "Total hypergraph weight: " << total_hypergraph_weight << "\n"
                 << "Sum of part weights:     " << max_part_weights_sum);
       } else {

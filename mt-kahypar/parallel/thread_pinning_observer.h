@@ -121,7 +121,7 @@ class ThreadPinningObserver : public tbb::task_scheduler_observer {
     ASSERT(static_cast<size_t>(slot) < _cpus.size(), V(slot) << V(_cpus.size()));
 
     if ( slot >= static_cast<int>(_cpus.size()) ) {
-      ERROR("Thread" << std::this_thread::get_id() << "entered the global task arena"
+      ERR("Thread" << std::this_thread::get_id() << "entered the global task arena"
         << "in a slot that should not exist (Slot =" << slot << ", Max Slots =" <<_cpus.size()
         << ", slots are 0-indexed). This bug only occurs in older versions of TBB."
         << "We recommend upgrading TBB to the newest version.");
@@ -170,7 +170,7 @@ class ThreadPinningObserver : public tbb::task_scheduler_observer {
 
     if (err) {
       const int error = errno;
-      ERROR("Failed to set thread affinity to cpu" << cpu_id
+      ERR("Failed to set thread affinity to cpu" << cpu_id
         << "." << strerror(error));
     }
 
