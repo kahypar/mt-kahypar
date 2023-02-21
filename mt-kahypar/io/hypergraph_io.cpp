@@ -35,7 +35,16 @@
 #include <vector>
 #include <fcntl.h>
 #include <sys/stat.h>
+
+#ifdef __linux__
 #include <sys/mman.h>
+#include <unistd.h>
+#elif _WIN32
+#include <windows.h>
+#include <process.h>
+#include <memoryapi.h>
+#endif
+
 
 #include "tbb/parallel_for.h"
 #include "mt-kahypar/partition/context_enum_classes.h"
@@ -51,28 +60,84 @@ namespace mt_kahypar::io {
     return fd;
   }
 
-  size_t file_size(int fd) {
-    struct stat file_info;
-    if ( fstat(fd, &file_info) == -1 ) {
-      ERR("Error while getting file stats");
+  size_t file_size(const std::string& filename) {
+    struct stat stat_buf;
+    const int res = stat( filename.c_str(), &stat_buf);
+    if (res < 0) {
+      ERR("Could not open:" << filename);
     }
-    return static_cast<size_t>(file_info.st_size);
+    return static_cast<size_t>(stat_buf.st_size);
   }
 
-  char* mmap_file(int fd, const size_t length) {
-    char* mapped_file = (char*) mmap(0, length, PROT_READ, MAP_SHARED, fd, 0);
-    if ( mapped_file == MAP_FAILED ) {
+  char* mmap_file(const std::string& filename, const size_t length) {
+    #ifdef _WIN32
+      PSECURITY_DESCRIPTOR pSD;
+      HANDLE hFile, hMem;
+      SECURITY_ATTRIBUTES  sa;
+
+      /* create security descriptor (needed for Windows NT) */
+      pSD = (PSECURITY_DESCRIPTOR) malloc( SECURITY_DESCRIPTOR_MIN_LENGTH );
+      if( pSD == NULL ) {
+        ERR("Error while creating security descriptor!");
+      }
+
+      InitializeSecurityDescriptor(pSD, SECURITY_DESCRIPTOR_REVISION);
+      SetSecurityDescriptorDacl(pSD, TRUE, (PACL) NULL, FALSE);
+
+      sa.nLength = sizeof(sa);
+      sa.lpSecurityDescriptor = pSD;
+      sa.bInheritHandle = TRUE;
+
+      // open file
+      hFile = CreateFile ( filename.c_str(), GENERIC_READ | GENERIC_WRITE,
+        FILE_SHARE_READ | FILE_SHARE_WRITE, &sa, OPEN_EXISTING,
+        FILE_ATTRIBUTE_NORMAL, NULL);
+
+      if (hFile == INVALID_HANDLE_VALUE) {
+        free( pSD);
+        ERR("Could not open:" << filename);
+      }
+
+      // Create file mapping
+      char buffer[1024];
+      hMem = CreateFileMapping( hFile, &sa, PAGE_READWRITE, 0, length, buffer);
+      free(pSD);
+      if (hMem == NULL) {
+        ERR("Could not open:" << filename);
+      } 
+
+      // map file to memory
+      char* mapped_file = (char*) MapViewOfFile(hMem, FILE_MAP_ALL_ACCESS, 0, 0, 0);
+      if ( mapped_file == NULL ) {
+        ERR("Could not open:" << filename);
+      }
+
+      CloseHandle(hFile);
+      CloseHandle(hMem);
+
+    #elif __linux__
+      int fd = open(filename.c_str(), O_RDONLY);
+      if ( fd < -1 ) {
+        ERR("Could not open:" << filename);
+      }
+      char* mapped_file = (char*) mmap(0, length, PROT_READ, MAP_SHARED, fd, 0);
+      if ( mapped_file == MAP_FAILED ) {
+        close(fd);
+        ERR("Error while mapping file to memory");
+      }
       close(fd);
-      ERR("Error while mapping file to memory");
-    }
+    #endif
+
     return mapped_file;
   }
 
-  void munmap_file(char* mapped_file, int fd, const size_t length) {
-    if ( munmap(mapped_file, length) == -1 ) {
-      close(fd);
-      ERR("Error while unmapping file from memory");
-    }
+  void munmap_file(char* mapped_file, const size_t length) {
+    #ifdef _WIN32
+    unused(length);
+    UnmapViewOfFile(mapped_file);
+    #elif
+    munmap(mapped_file, length);
+    #endif
   }
 
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
@@ -332,9 +397,8 @@ namespace mt_kahypar::io {
                           parallel::scalable_vector<HypernodeWeight>& hypernodes_weight,
                           const bool remove_single_pin_hes) {
     ASSERT(!filename.empty(), "No filename for hypergraph file specified");
-    int fd = open_file(filename);
-    const size_t length = file_size(fd);
-    char* mapped_file = mmap_file(fd, length);
+    const size_t length = file_size(filename);
+    char* mapped_file = mmap_file(filename, length);
     size_t pos = 0;
 
     // Read Hypergraph Header
@@ -357,8 +421,7 @@ namespace mt_kahypar::io {
     readHypernodeWeights(mapped_file, pos, length, num_hypernodes, type, hypernodes_weight);
     ASSERT(pos == length);
 
-    munmap_file(mapped_file, fd, length);
-    close(fd);
+    munmap_file(mapped_file, length);
   }
 
   Hypergraph readHypergraphFile(const std::string& filename,
@@ -604,9 +667,8 @@ namespace mt_kahypar::io {
                      parallel::scalable_vector<HyperedgeWeight>& edges_weight,
                      parallel::scalable_vector<HypernodeWeight>& vertices_weight) {
     ASSERT(!filename.empty(), "No filename for metis file specified");
-    int fd = open_file(filename);
-    const size_t length = file_size(fd);
-    char* mapped_file = mmap_file(fd, length);
+    const size_t length = file_size(filename);
+    char* mapped_file = mmap_file(filename, length);
     size_t pos = 0;
 
     // Read Metis Header
@@ -620,8 +682,7 @@ namespace mt_kahypar::io {
       has_edge_weights, has_vertex_weights, edges, edges_weight, vertices_weight);
     ASSERT(pos == length);
 
-    munmap_file(mapped_file, fd, length);
-    close(fd);
+    munmap_file(mapped_file, length);
   }
 
   Hypergraph readGraphFile(const std::string& filename,

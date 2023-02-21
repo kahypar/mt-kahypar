@@ -32,6 +32,12 @@
 #include <mutex>
 #include <sstream>
 
+#ifdef __linux__
+#include <sched.h>
+#elif _WIN32
+#include <winbase.h>
+#endif
+
 #undef __TBB_ARENA_OBSERVER
 #define __TBB_ARENA_OBSERVER true
 #include "tbb/task_scheduler_observer.h"
@@ -162,11 +168,16 @@ class ThreadPinningObserver : public tbb::task_scheduler_observer {
  private:
 
   void pin_thread_to_cpu(const int cpu_id) {
+    #ifdef __linux__
     const size_t size = CPU_ALLOC_SIZE(_num_cpus);
     cpu_set_t mask;
     CPU_ZERO(&mask);
     CPU_SET(cpu_id, &mask);
     const int err = sched_setaffinity(0, size, &mask);
+    #elif _WIN32
+    auto mask = (static_cast<DWORD_PTR>(1) << cpu_id);
+    const int err = SetThreadAffinityMask(GetCurrentThread(), mask) == 0;
+    #endif
 
     if (err) {
       const int error = errno;

@@ -51,7 +51,7 @@ inline uint32_t hash32(uint32_t a) {
 inline uint32_t hash32_2(uint32_t a) {
   uint32_t z = (a + 0x6D2B79F5UL);
   z = (z ^ (z >> 15)) * (z | UL(1));
-  z ^= z + (z ^ (z >> 7)) * (z | 6UL(1));
+  z ^= z + (z ^ (z >> 7)) * (z | UL(61));
   return z ^ (z >> 14);
 }
 
@@ -65,7 +65,7 @@ inline uint32_t hash32_3(uint32_t a) {
 }
 
 inline uint64_t hash64(uint64_t u) {
-  uint64_t v = u * 3935559000370003845ul + 269134368944950768UL(1);
+  uint64_t v = u * 3935559000370003845ul + UL(2691343689449507681);
   v ^= v >> 21;
   v ^= v << 37;
   v ^= v >> 4;
