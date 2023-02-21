@@ -147,7 +147,7 @@ namespace mt_kahypar {
 
         // Extracts all border vertices of the current batch
         _timer.start_timer("collect_border_vertices", "Collect Border Vertices", false, _force_measure_timings);
-        tbb::parallel_for(0UL, batch.size(), [&](const size_t i) {
+        tbb::parallel_for(UL(0), batch.size(), [&](const size_t i) {
           const Memento& memento = batch[i];
           if ( !_border_vertices_of_batch[memento.u] && _uncoarseningData.partitioned_hg->isBorderNode(memento.u) ) {
             _border_vertices_of_batch.set(memento.u, true);

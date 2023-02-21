@@ -242,7 +242,7 @@ namespace mt_kahypar::io {
     }
 
     // Process all ranges in parallel and build hyperedge vector
-    tbb::parallel_for(0UL, hyperedge_ranges.size(), [&](const size_t i) {
+    tbb::parallel_for(UL(0), hyperedge_ranges.size(), [&](const size_t i) {
       HyperedgeRange& range = hyperedge_ranges[i];
       size_t current_pos = range.start;
       const size_t current_end = range.end;
@@ -550,7 +550,7 @@ namespace mt_kahypar::io {
     );
 
     // Process all ranges in parallel, build edge vector and assign weights
-    tbb::parallel_for(0UL, vertex_ranges.size(), [&](const size_t i) {
+    tbb::parallel_for(UL(0), vertex_ranges.size(), [&](const size_t i) {
       const VertexRange& range = vertex_ranges[i];
       size_t current_pos = range.start;
       const size_t current_end = range.end;

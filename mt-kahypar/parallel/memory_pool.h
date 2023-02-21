@@ -275,7 +275,7 @@ class MemoryPoolT {
       optimize_memory_allocations();
     }
     const size_t num_memory_segments = _memory_chunks.size();
-    tbb::parallel_for(0UL, num_memory_segments, [&](const size_t i) {
+    tbb::parallel_for(UL(0), num_memory_segments, [&](const size_t i) {
       if (_memory_chunks[i].allocate()) {
         DBG << "Allocate memory chunk of size"
             << size_in_megabyte(_memory_chunks[i].size_in_bytes()) << "MB";
@@ -336,7 +336,7 @@ class MemoryPoolT {
             size_t memory_id = _active_memory_chunks[i];
             ASSERT(memory_id < _memory_chunks.size());
             char *data = _memory_chunks[memory_id].request_unused_chunk(
-                    size_in_bytes, align_with_page_size ? _page_size : 1UL);
+                    size_in_bytes, align_with_page_size ? _page_size : UL(1));
             if (data) {
               DBG << "Memory chunk request for an unsed memory chunk was successful";
               if (_use_round_robin_assignment) {
@@ -460,7 +460,7 @@ class MemoryPoolT {
   void free_memory_chunks() {
     std::unique_lock<std::shared_timed_mutex> lock(_memory_mutex);
     const size_t num_memory_segments = _memory_chunks.size();
-    tbb::parallel_for(0UL, num_memory_segments, [&](const size_t i) {
+    tbb::parallel_for(UL(0), num_memory_segments, [&](const size_t i) {
       _memory_chunks[i].free();
     });
     _memory_chunks.clear();
@@ -514,7 +514,7 @@ class MemoryPoolT {
         const size_t memory_id = element.second;
         ASSERT(memory_id < _memory_chunks.size());
         group_node->addChild(key,
-          std::max(_memory_chunks[memory_id].size_in_bytes(), 1UL));
+          std::max(_memory_chunks[memory_id].size_in_bytes(), UL(1)));
       }
     }
   }

@@ -52,7 +52,7 @@ static inline void free(scalable_vector<T>& vec) {
 
 template<typename T>
 MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE static void parallel_free(scalable_vector<scalable_vector<T>>& vec) {
-  tbb::parallel_for(0UL, vec.size(), [&](const size_t i) {
+  tbb::parallel_for(UL(0), vec.size(), [&](const size_t i) {
     free(vec[i]);
   });
 }

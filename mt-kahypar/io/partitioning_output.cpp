@@ -647,7 +647,7 @@ namespace mt_kahypar::io {
     std::vector<size_t> internal_degree(num_communities, 0);
 
     auto reduce_nodes = [&] {
-      tbb::enumerable_thread_specific< vec< std::pair<size_t, size_t> > > ets_nodes(num_communities, std::make_pair(0UL, 0UL));
+      tbb::enumerable_thread_specific< vec< std::pair<size_t, size_t> > > ets_nodes(num_communities, std::make_pair(UL(0), UL(0)));
       hypergraph.doParallelForAllNodes([&](const HypernodeID u) {
         const PartitionID cu = hypergraph.communityID(u);
         ets_nodes.local()[cu].first++;

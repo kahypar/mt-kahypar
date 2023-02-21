@@ -246,7 +246,7 @@ DynamicHypergraphT simulateNLevel(DynamicHypergraphT& hypergraph,
     timer.start_timer(timer_key("contractions"), "Contractions");
     const parallel::scalable_vector<Memento>& contractions = contraction_batches[i];
     if ( parallel ) {
-      tbb::parallel_for(0UL, contractions.size(), [&](const size_t j) {
+      tbb::parallel_for(UL(0), contractions.size(), [&](const size_t j) {
         const Memento& memento = contractions[j];
         hypergraph.registerContraction(memento.u, memento.v);
         hypergraph.contract(memento.v);
@@ -428,7 +428,7 @@ TEST(ANlevel, SimulatesParallelContractionsAndAccessToHypergraph) {
     }
   }, [&] {
     // Perform contractions in parallel
-    tbb::parallel_for(0UL, contractions.back().size(), [&](const size_t i) {
+    tbb::parallel_for(UL(0), contractions.back().size(), [&](const size_t i) {
       const Memento& memento = contractions.back()[i];
       hypergraph.registerContraction(memento.u, memento.v);
       hypergraph.contract(memento.v);
@@ -439,7 +439,7 @@ TEST(ANlevel, SimulatesParallelContractionsAndAccessToHypergraph) {
 
   if ( debug ) LOG << "Perform Parallel Contractions Without Parallel Access";
   timer.start_timer("contractions_without_access", "Contractions Without Access");
-  tbb::parallel_for(0UL, contractions.back().size(), [&](const size_t i) {
+  tbb::parallel_for(UL(0), contractions.back().size(), [&](const size_t i) {
     const Memento& memento = contractions.back()[i];
     tmp_hypergraph.registerContraction(memento.u, memento.v);
     tmp_hypergraph.contract(memento.v);

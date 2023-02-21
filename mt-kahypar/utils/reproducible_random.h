@@ -88,7 +88,7 @@ struct PrecomputeBucket {
 
     const size_t chunk_size = parallel::chunking::idiv_ceil(n, num_tasks);
 
-    tbb::parallel_for(0UL, num_tasks, [&](size_t i) {
+    tbb::parallel_for(UL(0), num_tasks, [&](size_t i) {
       std::mt19937 rng(seed);
       rng.discard(i);
       rng.seed(rng());
@@ -122,7 +122,7 @@ struct PrecomputeBucketOpt {
     assert(chunk_size % 4 == 0);
     size_t num_tasks_needed = parallel::chunking::idiv_ceil(n, chunk_size);
 
-    tbb::parallel_for(0UL, num_tasks_needed, [&](size_t i) {
+    tbb::parallel_for(UL(0), num_tasks_needed, [&](size_t i) {
       std::mt19937 rng(seed);
       rng.discard(i);
       size_t local_seed = rng();
@@ -209,7 +209,7 @@ public:
       for (size_t i = 0; i < num_buckets; ++i) {
         seeds[i] = rng();
       }
-      tbb::parallel_for(0UL, num_buckets, [&](size_t i) {
+      tbb::parallel_for(UL(0), num_buckets, [&](size_t i) {
         std::mt19937 local_rng(seeds[i]);    // alternative: seed with hash of seed and range begin
         std::shuffle(permutation.begin() + bucket_bounds[i], permutation.begin() + bucket_bounds[i + 1], local_rng);
       });
@@ -336,7 +336,7 @@ public:
   }
 
   size_t max_num_entries() const {
-    return 1UL << (num_right_bits + num_left_bits);
+    return UL(1) << (num_right_bits + num_left_bits);
   }
 
 private:

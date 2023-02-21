@@ -119,7 +119,7 @@ size_t DynamicHypergraph::contract(const HypernodeID v,
 void DynamicHypergraph::uncontract(const Batch& batch,
                                    const UncontractionFunction& case_one_func,
                                    const UncontractionFunction& case_two_func) {
-  ASSERT(batch.size() > 0UL);
+  ASSERT(batch.size() > UL(0));
   ASSERT([&] {
     const HypernodeID expected_batch_index = hypernode(batch[0].v).batchIndex();
     for ( const Memento& memento : batch ) {
@@ -140,7 +140,7 @@ void DynamicHypergraph::uncontract(const Batch& batch,
   }(), "Batch contains uncontractions from different batches or from a different hypergraph version");
 
   _hes_to_resize_flag_array.reset();
-  tbb::parallel_for(0UL, batch.size(), [&](const size_t i) {
+  tbb::parallel_for(UL(0), batch.size(), [&](const size_t i) {
     const Memento& memento = batch[i];
     ASSERT(!hypernode(memento.u).isDisabled(), "Hypernode" << memento.u << "is disabled");
     ASSERT(hypernode(memento.v).isDisabled(), "Hypernode" << memento.v << "is not invalid");
@@ -218,8 +218,8 @@ VersionedBatchVector DynamicHypergraph::createBatchUncontractionHierarchy(const 
 
   if ( !test ) {
     // Store the batch index of each vertex in its hypernode data structure
-    tbb::parallel_for(0UL, num_versions, [&](const size_t version) {
-      tbb::parallel_for(0UL, versioned_batches[version].size(), [&](const size_t local_batch_idx) {
+    tbb::parallel_for(UL(0), num_versions, [&](const size_t version) {
+      tbb::parallel_for(UL(0), versioned_batches[version].size(), [&](const size_t local_batch_idx) {
         const size_t batch_idx = batch_sizes_prefix_sum[version] + local_batch_idx;
         for ( const Memento& memento : versioned_batches[version][local_batch_idx] ) {
           hypernode(memento.v).setBatchIndex(batch_idx);
@@ -303,7 +303,7 @@ parallel::scalable_vector<DynamicHypergraph::ParallelHyperedge> DynamicHypergrap
   // after its hash. A bucket is processed by one thread and parallel
   // hyperedges are detected by comparing the pins of hyperedges with
   // the same hash.
-  tbb::parallel_for(0UL, hyperedge_hash_map.numBuckets(), [&](const size_t bucket) {
+  tbb::parallel_for(UL(0), hyperedge_hash_map.numBuckets(), [&](const size_t bucket) {
     auto& hyperedge_bucket = hyperedge_hash_map.getBucket(bucket);
     std::sort(hyperedge_bucket.begin(), hyperedge_bucket.end(),
       [&](const ContractedHyperedgeInformation& lhs, const ContractedHyperedgeInformation& rhs) {
@@ -359,7 +359,7 @@ parallel::scalable_vector<DynamicHypergraph::ParallelHyperedge> DynamicHypergrap
  */
 void DynamicHypergraph::restoreSinglePinAndParallelNets(const parallel::scalable_vector<ParallelHyperedge>& hes_to_restore) {
   // Restores all previously removed hyperedges
-  tbb::parallel_for(0UL, hes_to_restore.size(), [&](const size_t i) {
+  tbb::parallel_for(UL(0), hes_to_restore.size(), [&](const size_t i) {
     const ParallelHyperedge& parallel_he = hes_to_restore[i];
     const HyperedgeID he = parallel_he.removed_hyperedge;
     ASSERT(!edgeIsEnabled(he), "Hyperedge" << he << "should be disabled");

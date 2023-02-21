@@ -52,7 +52,7 @@ struct GlobalMoveTracker {
   // Returns true if stored move IDs should be reset
   bool reset() {
     if (runningMoveID.load() >= std::numeric_limits<MoveID>::max() - moveOrder.size() - 20) {
-      tbb::parallel_for(0UL, moveOfNode.size(), [&](size_t i) { moveOfNode[i] = 0; }, tbb::static_partitioner());
+      tbb::parallel_for(UL(0), moveOfNode.size(), [&](size_t i) { moveOfNode[i] = 0; }, tbb::static_partitioner());
       firstMoveID = 1;
       runningMoveID.store(1);
       return true;
@@ -132,7 +132,7 @@ struct NodeTracker {
 
   void requestNewSearches(SearchID max_num_searches) {
     if (highestActiveSearchID.load(std::memory_order_relaxed) >= std::numeric_limits<SearchID>::max() - max_num_searches - 20) {
-      tbb::parallel_for(0UL, searchOfNode.size(), [&](const size_t i) {
+      tbb::parallel_for(UL(0), searchOfNode.size(), [&](const size_t i) {
         searchOfNode[i].store(0, std::memory_order_relaxed);
       });
       highestActiveSearchID.store(1, std::memory_order_relaxed);
@@ -183,7 +183,7 @@ struct FMSharedData {
     finishedTasks.store(0, std::memory_order_relaxed);
 
     // 128 * 3/2 GB --> roughly 1.5 GB per thread on our biggest machine
-    deltaMemoryLimitPerThread = 128UL * (1UL << 30) * 3 / ( 2 * std::max(1UL, numThreads) );
+    deltaMemoryLimitPerThread = 128UL * (UL(1) << 30) * 3 / ( 2 * std::max(UL(1), numThreads) );
 
     tbb::parallel_invoke([&] {
       moveTracker.moveOrder.resize(numNodes);

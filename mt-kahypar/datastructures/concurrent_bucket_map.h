@@ -87,7 +87,7 @@ class ConcurrentBucketMap {
 
   template<typename F>
   void doParallelForAllBuckets(const F& f) {
-    tbb::parallel_for(0UL, _num_buckets, [&](const size_t i) {
+    tbb::parallel_for(UL(0), _num_buckets, [&](const size_t i) {
       f(i);
     });
   }
@@ -108,8 +108,8 @@ class ConcurrentBucketMap {
   void reserve_for_estimated_number_of_insertions(const size_t estimated_num_insertions) {
     // ! Assumption is that keys are evenly distributed among buckets (with a small buffer)
     const size_t estimated_bucket_size = std::max(
-      static_cast<size_t>( 1.5 * estimated_num_insertions ) / _num_buckets, 1UL);
-    tbb::parallel_for(0UL, _num_buckets, [&](const size_t i) {
+      static_cast<size_t>( 1.5 * estimated_num_insertions ) / _num_buckets, UL(1));
+    tbb::parallel_for(UL(0), _num_buckets, [&](const size_t i) {
       _buckets[i].reserve(estimated_bucket_size);
     });
   }

@@ -124,7 +124,7 @@ namespace mt_kahypar::ds {
     // Compute prefix sum over the degrees. The prefix sum is used than
     // as start position for each node in the edge array.
     parallel::TBBPrefixSum<size_t> degree_prefix_sum(num_degree_per_vertex);
-    tbb::parallel_scan(tbb::blocked_range<size_t>( 0UL, UI64(num_nodes)), degree_prefix_sum);
+    tbb::parallel_scan(tbb::blocked_range<size_t>( UL(0), UI64(num_nodes)), degree_prefix_sum);
 
     ASSERT(degree_prefix_sum.total_sum() == 2 * num_edges);
 

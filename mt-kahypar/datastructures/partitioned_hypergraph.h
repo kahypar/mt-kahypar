@@ -341,7 +341,7 @@ private:
    */
   void uncontract(const Batch& batch) {
     // Set block ids of contraction partners
-    tbb::parallel_for(0UL, batch.size(), [&](const size_t i) {
+    tbb::parallel_for(UL(0), batch.size(), [&](const size_t i) {
       const Memento& memento = batch[i];
       ASSERT(nodeIsEnabled(memento.u));
       ASSERT(!nodeIsEnabled(memento.v));
@@ -457,7 +457,7 @@ private:
     // single-pin hyperedges. Note, that restoring parallel hyperedges does not change any
     // value in the gain cache, since it already contributes to the gain via its representative.
     tls_enumerable_thread_specific< vec<HypernodeID> > ets_pin_count_in_part(_k, 0);
-    tbb::parallel_for(0UL, hes_to_restore.size(), [&](const size_t i) {
+    tbb::parallel_for(UL(0), hes_to_restore.size(), [&](const size_t i) {
       const HyperedgeID he = hes_to_restore[i].removed_hyperedge;
       const HyperedgeID representative = hes_to_restore[i].representative;
       ASSERT(edgeIsEnabled(he));
@@ -520,7 +520,7 @@ private:
       std::swap(_part_ids, part_ids);
     } else {
       ASSERT(part_ids.size() <= _part_ids.size());
-      tbb::parallel_for(0UL, part_ids.size(), [&](const size_t i) {
+      tbb::parallel_for(UL(0), part_ids.size(), [&](const size_t i) {
         part_ids[i] = _part_ids[i];
       });
     }

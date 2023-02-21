@@ -54,7 +54,7 @@ namespace mt_kahypar::ds {
     // of incident nets per vertex
     Counter num_pins_per_hyperedge(num_hyperedges, 0);
     ThreadLocalCounter local_incident_nets_per_vertex(num_hypernodes, 0);
-    tbb::enumerable_thread_specific<size_t> local_max_edge_size(0UL);
+    tbb::enumerable_thread_specific<size_t> local_max_edge_size(UL(0));
     tbb::parallel_for(ID(0), num_hyperedges, [&](const size_t pos) {
       Counter& num_incident_nets_per_vertex = local_incident_nets_per_vertex.local();
       num_pins_per_hyperedge[pos] = edge_vector[pos].size();
@@ -88,10 +88,10 @@ namespace mt_kahypar::ds {
     parallel::TBBPrefixSum<size_t> incident_net_prefix_sum(num_incident_nets_per_vertex);
     tbb::parallel_invoke([&] {
       tbb::parallel_scan(tbb::blocked_range<size_t>(
-              0UL, UI64(num_hyperedges)), pin_prefix_sum);
+              UL(0), UI64(num_hyperedges)), pin_prefix_sum);
     }, [&] {
       tbb::parallel_scan(tbb::blocked_range<size_t>(
-              0UL, UI64(num_hypernodes)), incident_net_prefix_sum);
+              UL(0), UI64(num_hypernodes)), incident_net_prefix_sum);
     });
 
     ASSERT(pin_prefix_sum.total_sum() == incident_net_prefix_sum.total_sum());

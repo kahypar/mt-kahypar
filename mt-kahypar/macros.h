@@ -109,6 +109,9 @@
   #define ASSERT_FOR_HG_ONLY(cond) ASSERT(cond);
 #endif
 
+// In windows unisgned long != size_t
+#define UL(X) (size_t) X
+
 // Info, Warning and Error Output Macros
 #define GREEN "\033[1;92m"
 #define CYAN "\033[1;96m"
@@ -136,4 +139,3 @@
     ERROR(error_msg);                                                            \
   }
 #endif
-

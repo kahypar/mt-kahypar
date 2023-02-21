@@ -60,7 +60,7 @@ class FlowRefinerAdapter {
     size_t acquireFreeThreads() {
       lock.lock();
       const size_t num_threads_per_search =
-        std::max(1UL, static_cast<size_t>(std::ceil(
+        std::max(UL(1), static_cast<size_t>(std::ceil(
           static_cast<double>(num_threads - num_used_threads) /
           ( num_parallel_refiners - num_active_refiners ) )));
       const size_t num_free_threads = std::min(

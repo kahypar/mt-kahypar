@@ -54,11 +54,11 @@ struct InitialPartitionerSummary {
   }
 
   double average_quality() const {
-    return static_cast<double>(total_sum_quality) / std::max(total_calls, 1UL);
+    return static_cast<double>(total_sum_quality) / std::max(total_calls, UL(1));
   }
 
   double average_running_time() const {
-    return static_cast<double>(total_time) / std::max(total_calls, 1UL);
+    return static_cast<double>(total_time) / std::max(total_calls, UL(1));
   }
 
   double percentage_best(const size_t total_ip_calls) const {

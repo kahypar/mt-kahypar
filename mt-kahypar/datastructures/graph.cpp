@@ -126,11 +126,11 @@ namespace mt_kahypar::ds {
   Graph Graph::contract_low_memory(Clustering& communities) {
     // map cluster IDs to consecutive range
     vec<NodeID> mapping(numNodes(), 0);   // TODO use memory pool?
-    tbb::parallel_for(0UL, numNodes(), [&](NodeID u) { mapping[communities[u]] = 1; });
+    tbb::parallel_for(UL(0), numNodes(), [&](NodeID u) { mapping[communities[u]] = 1; });
     parallel_prefix_sum(mapping.begin(), mapping.begin() + numNodes(), mapping.begin(), std::plus<>(), 0);
     NodeID num_coarse_nodes = mapping[numNodes() - 1];
     // apply mapping to cluster IDs. subtract one because prefix sum is inclusive
-    tbb::parallel_for(0UL, numNodes(), [&](NodeID u) { communities[u] = mapping[communities[u]] - 1; });
+    tbb::parallel_for(UL(0), numNodes(), [&](NodeID u) { communities[u] = mapping[communities[u]] - 1; });
 
     // sort nodes by cluster
     auto get_cluster = [&](NodeID u) { assert(u < communities.size()); return communities[u]; };
@@ -178,7 +178,7 @@ namespace mt_kahypar::ds {
     });
 
     // prefix sum coarse node degrees for offsets to write the coarse arcs in second pass
-    parallel_prefix_sum(coarse_graph._indices.begin(), coarse_graph._indices.end(), coarse_graph._indices.begin(), std::plus<>(), 0UL);
+    parallel_prefix_sum(coarse_graph._indices.begin(), coarse_graph._indices.end(), coarse_graph._indices.begin(), std::plus<>(), UL(0));
     size_t num_coarse_arcs = coarse_graph._indices.back();
     coarse_graph._arcs.resize(num_coarse_arcs);
     coarse_graph._num_arcs = num_coarse_arcs;
@@ -232,13 +232,13 @@ namespace mt_kahypar::ds {
 
     // #################### STAGE 1 ####################
     // Compute node ids of coarse graph with a parallel prefix sum
-    parallel::scalable_vector<size_t> mapping(_num_nodes, 0UL);
+    parallel::scalable_vector<size_t> mapping(_num_nodes, UL(0));
     ds::Array<parallel::IntegralAtomicWrapper<size_t>>& tmp_pos = _tmp_graph_buffer->tmp_pos;
     ds::Array<parallel::IntegralAtomicWrapper<size_t>>& tmp_indices = _tmp_graph_buffer->tmp_indices;
     ds::Array<parallel::AtomicWrapper<ArcWeight>>& coarse_node_volumes = _tmp_graph_buffer->tmp_node_volumes;
     tbb::parallel_for(0U, static_cast<NodeID>(_num_nodes), [&](const NodeID u) {
       ASSERT(static_cast<size_t>(communities[u]) < _num_nodes);
-      mapping[communities[u]] = 1UL;
+      mapping[communities[u]] = UL(1);
       tmp_pos[u] = 0;
       tmp_indices[u] = 0;
       coarse_node_volumes[u].store(0.0);
@@ -246,7 +246,7 @@ namespace mt_kahypar::ds {
 
     // Prefix sum determines node ids in coarse graph
     parallel::TBBPrefixSum<size_t> mapping_prefix_sum(mapping);
-    tbb::parallel_scan(tbb::blocked_range<size_t>(0UL, _num_nodes), mapping_prefix_sum);
+    tbb::parallel_scan(tbb::blocked_range<size_t>(UL(0), _num_nodes), mapping_prefix_sum);
 
     // Remap community ids
     coarse_graph._num_nodes = mapping_prefix_sum.total_sum();
@@ -274,7 +274,7 @@ namespace mt_kahypar::ds {
     });
 
     parallel::TBBPrefixSum<parallel::IntegralAtomicWrapper<size_t>, ds::Array> tmp_indices_prefix_sum(tmp_indices);
-    tbb::parallel_scan(tbb::blocked_range<size_t>(0UL, _num_nodes), tmp_indices_prefix_sum);
+    tbb::parallel_scan(tbb::blocked_range<size_t>(UL(0), _num_nodes), tmp_indices_prefix_sum);
 
     // Write all arcs into corresponding tmp adjacence array blocks
     ds::Array<Arc>& tmp_arcs = _tmp_graph_buffer->tmp_arcs;
@@ -288,7 +288,7 @@ namespace mt_kahypar::ds {
           const size_t tmp_arcs_pos = tmp_indices_prefix_sum[coarse_u] + tmp_pos[coarse_u]++;
           ASSERT(tmp_arcs_pos < tmp_indices_prefix_sum[coarse_u + 1]);
           tmp_arcs[tmp_arcs_pos] = Arc { coarse_v, arc.weight };
-          valid_arcs[tmp_arcs_pos] = 1UL;
+          valid_arcs[tmp_arcs_pos] = UL(1);
         }
       }
     });
@@ -311,7 +311,7 @@ namespace mt_kahypar::ds {
       for ( size_t pos = tmp_arc_start + 1; pos < tmp_arc_end; ++pos ) {
         if ( tmp_arcs[arc_rep].head == tmp_arcs[pos].head ) {
           tmp_arcs[arc_rep].weight += tmp_arcs[pos].weight;
-          valid_arcs[pos] = 0UL;
+          valid_arcs[pos] = UL(0);
         } else {
           arc_rep = pos;
           ++degree;
@@ -326,7 +326,7 @@ namespace mt_kahypar::ds {
 
     // Write all arcs to coarse graph
     parallel::TBBPrefixSum<size_t, ds::Array> valid_arcs_prefix_sum(valid_arcs);
-    tbb::parallel_scan(tbb::blocked_range<size_t>(0UL,
+    tbb::parallel_scan(tbb::blocked_range<size_t>(UL(0),
                                                   tmp_indices_prefix_sum.total_sum()), valid_arcs_prefix_sum);
     coarse_graph._num_arcs = valid_arcs_prefix_sum.total_sum();
 
@@ -337,7 +337,7 @@ namespace mt_kahypar::ds {
 
     tbb::parallel_invoke([&] {
       const size_t tmp_num_arcs = tmp_indices_prefix_sum.total_sum();
-      tbb::parallel_for(0UL, tmp_num_arcs, [&](const size_t i) {
+      tbb::parallel_for(UL(0), tmp_num_arcs, [&](const size_t i) {
         if ( valid_arcs_prefix_sum.value(i) ) {
           const size_t pos = valid_arcs_prefix_sum[i];
           ASSERT(pos < coarse_graph._num_arcs);
@@ -432,7 +432,7 @@ namespace mt_kahypar::ds {
     });
 
     parallel::TBBPrefixSum<size_t, ds::Array> indices_prefix_sum(_indices);
-    tbb::parallel_scan(tbb::blocked_range<size_t>(0UL, _indices.size()), indices_prefix_sum);
+    tbb::parallel_scan(tbb::blocked_range<size_t>(UL(0), _indices.size()), indices_prefix_sum);
 
     tbb::enumerable_thread_specific<size_t> local_max_degree(0);
     tbb::parallel_invoke([&] {
@@ -487,7 +487,7 @@ namespace mt_kahypar::ds {
     });
 
     parallel::TBBPrefixSum<size_t, ds::Array> indices_prefix_sum(_indices);
-    tbb::parallel_scan(tbb::blocked_range<size_t>(0UL, num_hypernodes + 1), indices_prefix_sum);
+    tbb::parallel_scan(tbb::blocked_range<size_t>(UL(0), num_hypernodes + 1), indices_prefix_sum);
 
     tbb::enumerable_thread_specific<size_t> local_max_degree(0);
     tbb::parallel_for(ID(0), num_hypernodes, [&](const HypernodeID u) {

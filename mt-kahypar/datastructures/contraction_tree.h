@@ -121,7 +121,7 @@ class BatchIndexAssigner {
   void reset(const size_t num_batches) {
     ASSERT(num_batches <= _current_batch_sizes.size());
     _high_water_mark = 0;
-    tbb::parallel_for(0UL, num_batches, [&](const size_t i) {
+    tbb::parallel_for(UL(0), num_batches, [&](const size_t i) {
       _current_batch_counter[i] = 0;
       _current_batch_sizes[i] = 0;
     });

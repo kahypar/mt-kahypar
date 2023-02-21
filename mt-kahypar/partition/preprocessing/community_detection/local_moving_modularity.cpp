@@ -42,7 +42,7 @@ double modularity(const Graph& graph, const ds::Clustering& communities) {
   vec<double> cluster_mod(graph.numNodes(), 0.0);
 
   // make summation order deterministic!
-  tbb::parallel_for(0UL, graph.numNodes(), [&](size_t pos) {
+  tbb::parallel_for(UL(0), graph.numNodes(), [&](size_t pos) {
     nodes[pos] = pos;
   });
   tbb::parallel_sort(nodes.begin(), nodes.end(), [&](NodeID lhs, NodeID rhs) {
@@ -50,7 +50,7 @@ double modularity(const Graph& graph, const ds::Clustering& communities) {
   });
 
   // deterministic reduce doesn't have dynamic load balancing --> precompute the contributions and then sum them
-  tbb::parallel_for(0UL, graph.numNodes(), [&](size_t pos) {
+  tbb::parallel_for(UL(0), graph.numNodes(), [&](size_t pos) {
     NodeID x = nodes[pos];
     PartitionID comm = communities[x];
     double comm_vol = 0.0, internal = 0.0;
@@ -69,7 +69,7 @@ double modularity(const Graph& graph, const ds::Clustering& communities) {
     }
   });
 
-  auto r = tbb::blocked_range<size_t>(0UL, graph.numNodes(), 1000);
+  auto r = tbb::blocked_range<size_t>(UL(0), graph.numNodes(), 1000);
   auto combine_range = [&](const tbb::blocked_range<size_t>& r, double partial) {
     return std::accumulate(cluster_mod.begin() + r.begin(), cluster_mod.begin() + r.end(), partial);
   };
@@ -87,7 +87,7 @@ bool ParallelLocalMovingModularity::localMoving(Graph& graph, ds::Clustering& co
 
   // init
   if (_context.partition.deterministic) {
-    tbb::parallel_for(0UL, graph.numNodes(), [&](NodeID u) {
+    tbb::parallel_for(UL(0), graph.numNodes(), [&](NodeID u) {
       communities[u] = u;
       _cluster_volumes[u].store(graph.nodeVolume(u), std::memory_order_relaxed);
     });
@@ -174,7 +174,7 @@ size_t ParallelLocalMovingModularity::synchronousParallelRound(const Graph& grap
     });
 
     const size_t sz_to = volume_updates_to.size();
-    tbb::parallel_for(0UL, sz_to, [&](size_t pos) {
+    tbb::parallel_for(UL(0), sz_to, [&](size_t pos) {
       PartitionID c = volume_updates_to[pos].cluster;
       if (pos == 0 || volume_updates_to[pos - 1].cluster != c) {
         ArcWeight vol_delta = 0.0;
@@ -188,7 +188,7 @@ size_t ParallelLocalMovingModularity::synchronousParallelRound(const Graph& grap
     volume_updates_to.clear();
 
     const size_t sz_from = volume_updates_from.size();
-    tbb::parallel_for(0UL, sz_from, [&](size_t pos) {
+    tbb::parallel_for(UL(0), sz_from, [&](size_t pos) {
       PartitionID c = volume_updates_from[pos].cluster;
       if (pos == 0 || volume_updates_from[pos - 1].cluster != c) {
         ArcWeight vol_delta = 0.0;
@@ -224,7 +224,7 @@ size_t ParallelLocalMovingModularity::sequentialRound(const Graph& graph, ds::Cl
 size_t ParallelLocalMovingModularity::parallelNonDeterministicRound(const Graph& graph, ds::Clustering& communities) {
   auto& nodes = permutation.permutation;
   if ( !_disable_randomization ) {
-    utils::Randomize::instance().parallelShuffleVector(nodes, 0UL, nodes.size());
+    utils::Randomize::instance().parallelShuffleVector(nodes, UL(0), nodes.size());
   }
 
   tbb::enumerable_thread_specific<size_t> local_number_of_nodes_moved(0);
@@ -243,7 +243,7 @@ size_t ParallelLocalMovingModularity::parallelNonDeterministicRound(const Graph&
 #ifdef KAHYPAR_ENABLE_HEAVY_PREPROCESSING_ASSERTIONS
   std::for_each(nodes.begin(), nodes.end(), moveNode);
 #else
-  tbb::parallel_for(0UL, nodes.size(), [&](size_t i) { moveNode(nodes[i]); });
+  tbb::parallel_for(UL(0), nodes.size(), [&](size_t i) { moveNode(nodes[i]); });
 #endif
   size_t number_of_nodes_moved = local_number_of_nodes_moved.combine(std::plus<>());
   return number_of_nodes_moved;

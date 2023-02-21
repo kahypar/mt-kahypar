@@ -79,7 +79,7 @@ namespace mt_kahypar::ds {
 
     doParallelForAllNodes([&](const HypernodeID& node) {
       ASSERT(static_cast<size_t>(communities[node]) < mapping.size());
-      mapping[communities[node]] = 1UL;
+      mapping[communities[node]] = UL(1);
     });
 
     // Prefix sum determines vertex ids in coarse graph
@@ -340,7 +340,7 @@ namespace mt_kahypar::ds {
           edge.setWeight(tmp_edge.getWeight());
           hypergraph._unique_edge_ids[edges_start + index] = tmp_edge.getID();
           ASSERT(static_cast<size_t>(tmp_edge.getID()) < edge_id_mapping.size());
-          edge_id_mapping[tmp_edge.getID()] = 1UL;
+          edge_id_mapping[tmp_edge.getID()] = UL(1);
         };
 
         if (degree_mapping.value(coarse_node) > HIGH_DEGREE_CONTRACTION_THRESHOLD) {

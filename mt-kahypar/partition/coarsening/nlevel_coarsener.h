@@ -145,7 +145,7 @@ class NLevelCoarsener : public ICoarsener,
       tbb::parallel_for(ID(0), hypergraph.initialNumNodes(), [&](const HypernodeID hn) {
         _current_vertices[hn] = hn;
       });
-      utils::Randomize::instance().parallelShuffleVector(_current_vertices, 0UL, _current_vertices.size());
+      utils::Randomize::instance().parallelShuffleVector(_current_vertices, UL(0), _current_vertices.size());
     }, [&] {
       _tmp_current_vertices.resize(hypergraph.initialNumNodes());
     }, [&] {
@@ -187,7 +187,7 @@ class NLevelCoarsener : public ICoarsener,
 
     HighResClockTimepoint round_start = std::chrono::high_resolution_clock::now();
     _timer.start_timer("clustering", "Clustering");
-    tbb::parallel_for(0UL, _current_vertices.size(), [&](const size_t i) {
+    tbb::parallel_for(UL(0), _current_vertices.size(), [&](const size_t i) {
       if ( _cl_tracker.currentNumNodes() > contraction_limit ) {
         const HypernodeID& hn = _current_vertices[i];
         const HypernodeID num_contractions = contract(hn);
@@ -204,7 +204,7 @@ class NLevelCoarsener : public ICoarsener,
     _cl_tracker.updateCurrentNumNodes();
     compactifyVertices();
     utils::Randomize::instance().parallelShuffleVector(
-      _current_vertices, 0UL, _current_vertices.size());
+      _current_vertices, UL(0), _current_vertices.size());
 
     // Terminate contraction if the number of contracted vertices in this round
     // is smaller than a certain fraction.
@@ -268,7 +268,7 @@ class NLevelCoarsener : public ICoarsener,
   void compactifyVertices() {
     // Mark all vertices that are still enabled
     const HypernodeID current_num_nodes = _cl_tracker.currentNumNodes();
-    tbb::parallel_for(0UL, _current_vertices.size(), [&](const size_t i) {
+    tbb::parallel_for(UL(0), _current_vertices.size(), [&](const size_t i) {
       const HypernodeID hn = _current_vertices[i];
       _enabled_vertex_flag_array[i] = _hg.nodeIsEnabled(hn);
     });
@@ -277,12 +277,12 @@ class NLevelCoarsener : public ICoarsener,
     // in _current_vertices
     parallel::TBBPrefixSum<size_t> active_vertex_prefix_sum(_enabled_vertex_flag_array);
     tbb::parallel_scan(tbb::blocked_range<size_t>(
-      0UL, _enabled_vertex_flag_array.size()), active_vertex_prefix_sum);
+      UL(0), _enabled_vertex_flag_array.size()), active_vertex_prefix_sum);
     ASSERT(active_vertex_prefix_sum.total_sum() == static_cast<size_t>(current_num_nodes));
 
     // Write all enabled vertices to _tmp_current_vertices
     _tmp_current_vertices.resize(current_num_nodes);
-    tbb::parallel_for(0UL, _current_vertices.size(), [&](const size_t i) {
+    tbb::parallel_for(UL(0), _current_vertices.size(), [&](const size_t i) {
       const HypernodeID hn = _current_vertices[i];
       if ( _hg.nodeIsEnabled(hn) ) {
         const size_t pos = active_vertex_prefix_sum[i];

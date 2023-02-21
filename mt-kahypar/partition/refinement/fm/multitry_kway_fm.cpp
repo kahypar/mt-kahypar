@@ -73,7 +73,7 @@ namespace mt_kahypar {
           && num_border_nodes < 20 * context.shared_memory.num_threads) {
         num_seeds = num_border_nodes / (4 * context.shared_memory.num_threads);
         num_seeds = std::min(num_seeds, context.refinement.fm.num_seed_nodes);
-        num_seeds = std::max(num_seeds, 1UL);
+        num_seeds = std::max(num_seeds, UL(1));
       }
 
       timer.start_timer("find_moves", "Find Moves");
@@ -182,7 +182,7 @@ namespace mt_kahypar {
         });
     } else {
       // n-level case
-      tbb::parallel_for(0UL, refinement_nodes.size(), [&](const size_t i) {
+      tbb::parallel_for(UL(0), refinement_nodes.size(), [&](const size_t i) {
         const HypernodeID u = refinement_nodes[i];
         const int task_id = tbb::this_task_arena::current_thread_index();
         if ( task_id >= 0 && task_id < TBBInitializer::instance().total_number_of_threads() ) {
