@@ -72,7 +72,7 @@ mt_kahypar_hypergraph_t* mt_kahypar_create_hypergraph(const mt_kahypar_hypernode
                                                       const mt_kahypar_hypernode_weight_t* vertex_weights) {
   // Transform adjacence array into adjacence list
   vec<vec<mt_kahypar::HypernodeID>> edge_vector(num_hyperedges);
-  tbb::parallel_for(UL(0), num_hyperedges, [&](const mt_kahypar::HyperedgeID& he) {
+  tbb::parallel_for<mt_kahypar::HyperedgeID>(0, num_hyperedges, [&](const mt_kahypar::HyperedgeID& he) {
     const size_t num_pins = hyperedge_indices[he + 1] - hyperedge_indices[he];
     edge_vector[he].resize(num_pins);
     for ( size_t i = 0; i < num_pins; ++i ) {

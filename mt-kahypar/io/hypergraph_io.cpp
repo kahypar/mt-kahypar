@@ -95,21 +95,20 @@ namespace mt_kahypar::io {
 
       if (hFile == INVALID_HANDLE_VALUE) {
         free( pSD);
-        ERR("Could not open:" << filename);
+        ERR("Invalid file handle when opening:" << filename);
       }
 
       // Create file mapping
-      char buffer[1024];
-      hMem = CreateFileMapping( hFile, &sa, PAGE_READWRITE, 0, length, buffer);
+      hMem = CreateFileMapping( hFile, &sa, PAGE_READWRITE, 0, length, NULL);
       free(pSD);
       if (hMem == NULL) {
-        ERR("Could not open:" << filename);
+        ERR("Invalid file mapping when opening:" << filename);
       } 
 
       // map file to memory
       char* mapped_file = (char*) MapViewOfFile(hMem, FILE_MAP_ALL_ACCESS, 0, 0, 0);
       if ( mapped_file == NULL ) {
-        ERR("Could not open:" << filename);
+        ERR("Failed to map file to main memory:" << filename);
       }
 
       CloseHandle(hFile);

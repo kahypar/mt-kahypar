@@ -78,7 +78,7 @@ mt_kahypar_graph_t* mt_kahypar_create_graph(const mt_kahypar_hypernode_id_t num_
                                             const mt_kahypar_hypernode_weight_t* vertex_weights) {
   // Transform adjacence array into adjacence list
   vec<std::pair<mt_kahypar::HypernodeID, mt_kahypar::HypernodeID>> edge_vector(num_edges);
-  tbb::parallel_for(UL(0), num_edges, [&](const mt_kahypar::HyperedgeID& he) {
+  tbb::parallel_for<mt_kahypar::HyperedgeID>(0, num_edges, [&](const mt_kahypar::HyperedgeID& he) {
     edge_vector[he] = std::make_pair(edges[2*he], edges[2*he + 1]);
   });
 
