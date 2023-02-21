@@ -27,6 +27,8 @@
 
 #include "context.h"
 
+#include <algorithm>
+
 namespace mt_kahypar {
 
   std::ostream & operator<< (std::ostream& str, const PartitioningParameters& params) {
@@ -398,7 +400,7 @@ namespace mt_kahypar {
     }
 
 
-    shared_memory.static_balancing_work_packages = std::clamp(shared_memory.static_balancing_work_packages, 4UL, 256UL);
+    shared_memory.static_balancing_work_packages = std::clamp(shared_memory.static_balancing_work_packages, UL(4), UL(256));
 
     if ( partition.deterministic ) {
       coarsening.algorithm = CoarseningAlgorithm::deterministic_multilevel_coarsener;

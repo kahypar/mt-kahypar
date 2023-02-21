@@ -155,7 +155,7 @@ if (TBB_FOUND)
     link_libraries(${TBB_LIBRARIES} ${TBB_MALLOC_LIBRARIES})
     MESSAGE(STATUS "TBB Version: ${TBB_VERSION_MAJOR}.${TBB_VERSION_MINOR} (Interface Version=${TBB_INTERFACE_VERSION})")
     MESSAGE(STATUS "Found TBB library: inc=${TBB_INCLUDE_DIRS}, lib=${TBB_LIBRARIES}")
-    MESSAGE(STATUS "Found TBB Malloc library: inc=${TBB_MALLOC_INCLUDE_DIRS}, lib=${TBB_MALLOC_LIBRARIES}")
+    MESSAGE(STATUS "Found TBB Malloc Proxy library: inc=${TBB_MALLOC_PROXY_INCLUDE_DIRS}, lib=${TBB_MALLOC_PROXY_LIBRARIES}")
   ELSE ()
     MESSAGE(FATAL_ERROR "
       Your current TBB version is too old. Your interface version is ${TBB_INTERFACE_VERSION}, but the minimum

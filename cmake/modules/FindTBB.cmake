@@ -240,7 +240,7 @@ endmacro()
 getenv_path(TBB_ROOT)
 
 # initialize search paths
-set(TBB_PREFIX_PATH ${TBB_ROOT} ${ENV_TBB_ROOT} "C:/Program Files (x86)/Intel/oneAPI/tbb/latest")
+set(TBB_PREFIX_PATH ${TBB_ROOT} ${ENV_TBB_ROOT} "C:/msys64/mingw64")
 set(TBB_INC_SEARCH_PATH "")
 set(TBB_LIB_SEARCH_PATH "")
 
@@ -370,8 +370,9 @@ endforeach ()
 
 # add general search paths
 foreach (dir IN LISTS TBB_PREFIX_PATH)
+  message(STATUS ${dir})
   list(APPEND TBB_LIB_SEARCH_PATH ${dir}/lib ${dir}/Lib ${dir}/lib/tbb ${dir}/Libs)
-  list(APPEND TBB_INC_SEARCH_PATH ${dir}/include ${dir}/Include ${dir}/include/tbb)
+  list(APPEND TBB_INC_SEARCH_PATH ${dir}/include ${dir}/Include ${dir}/include/tbb ${dir}/include/oneapi/tbb)
 endforeach ()
 
 set(TBB_LIBRARY_NAMES tbb)
