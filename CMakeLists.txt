@@ -138,8 +138,13 @@ else()
 endif()
 
 if(KAHYPAR_DOWNLOAD_TBB)
-  execute_process(COMMAND cmake -P ${CMAKE_CURRENT_SOURCE_DIR}/scripts/download_tbb.cmake)
-  set(TBB_ROOT ${CMAKE_CURRENT_BINARY_DIR}/external_tools/tbb)
+  if ( NOT (WIN32 OR MSVC) )
+    execute_process(COMMAND cmake -P ${CMAKE_CURRENT_SOURCE_DIR}/scripts/download_tbb_linux.cmake)
+    set(TBB_ROOT ${CMAKE_CURRENT_BINARY_DIR}/external_tools/tbb)
+  else()
+    execute_process(COMMAND cmake -G ${CMAKE_GENERATOR} -P ${CMAKE_CURRENT_SOURCE_DIR}/scripts/download_tbb_windows.cmake)
+    set(TBB_ROOT ${CMAKE_CURRENT_BINARY_DIR}/external_tools/tbb)
+  endif()
 endif()
 
 #find TBB

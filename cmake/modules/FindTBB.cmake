@@ -240,7 +240,7 @@ endmacro()
 getenv_path(TBB_ROOT)
 
 # initialize search paths
-set(TBB_PREFIX_PATH ${TBB_ROOT} ${ENV_TBB_ROOT})
+set(TBB_PREFIX_PATH ${TBB_ROOT} ${ENV_TBB_ROOT} "C:/Program Files (x86)/Intel/oneAPI/tbb/latest")
 set(TBB_INC_SEARCH_PATH "")
 set(TBB_LIB_SEARCH_PATH "")
 
@@ -270,21 +270,15 @@ endif ()
 # to detect the "best" version to use. The user will have to manually
 # select the right files. (Chances are the distributions are shipping their
 # custom version of tbb, anyway, so the problem is probably nonexistent.)
-if (WIN32 AND MSVC)
-  set(COMPILER_PREFIX "vc7.1")
-  if (MSVC_VERSION EQUAL 1400)
-    set(COMPILER_PREFIX "vc8")
-  elseif(MSVC_VERSION EQUAL 1500)
-    set(COMPILER_PREFIX "vc9")
-  elseif(MSVC_VERSION EQUAL 1600)
-    set(COMPILER_PREFIX "vc10")
-  elseif(MSVC_VERSION EQUAL 1700)
-    set(COMPILER_PREFIX "vc11")
-  elseif(MSVC_VERSION EQUAL 1800)
-    set(COMPILER_PREFIX "vc12")
-  elseif(MSVC_VERSION GREATER_EQUAL 1900)
-    set(COMPILER_PREFIX "vc14")
-  endif ()
+if (WIN32 OR MSVC)
+  list(APPEND COMPILER_PREFIX "vc7.1")
+  list(APPEND COMPILER_PREFIX "vc8")
+  list(APPEND COMPILER_PREFIX "vc9")
+  list(APPEND COMPILER_PREFIX "vc10")
+  list(APPEND COMPILER_PREFIX "vc11")
+  list(APPEND COMPILER_PREFIX "vc12")
+  list(APPEND COMPILER_PREFIX "vc13")
+  list(APPEND COMPILER_PREFIX "vc14")
 
   # for each prefix path, add ia32/64\${COMPILER_PREFIX}\lib to the lib search path
   foreach (dir IN LISTS TBB_PREFIX_PATH)
@@ -326,7 +320,6 @@ endif ()
 
 # check compiler ABI
 if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-  set(COMPILER_PREFIX)
   if (NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 4.8)
     list(APPEND COMPILER_PREFIX "gcc4.8")
   endif()
