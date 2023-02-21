@@ -32,7 +32,11 @@
 #include <atomic>
 #include <sstream>
 #include <chrono>
+#ifdef __linux__
 #include <sys/ioctl.h>
+#elif _WIN32
+#include <windows.h>
+#endif
 #include <stdio.h>
 #include <unistd.h>
 
@@ -56,9 +60,15 @@ class ProgressBar {
     _objective(objective),
     _progress_bar_size(0),
     _enable(enable) {
+    #ifdef __linux__
     struct winsize w;
     ioctl(STDOUT_FILENO, TIOCGWINSZ, &w);
     _progress_bar_size = w.ws_col / 2;
+    #elif _WIN32
+    CONSOLE_SCREEN_BUFFER_INFO csbi;
+    GetConsoleScreenBufferInfo(GetStdHandle(STD_OUTPUT_HANDLE), &csbi);
+    _progress_bar_size = (csbi.srWindow.Right - csbi.srWindow.Left + 1)/2;
+    #endif
     display_progress();
   }
 

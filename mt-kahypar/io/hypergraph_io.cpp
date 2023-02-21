@@ -135,7 +135,7 @@ namespace mt_kahypar::io {
     #ifdef _WIN32
     unused(length);
     UnmapViewOfFile(mapped_file);
-    #elif
+    #elif __linux__
     munmap(mapped_file, length);
     #endif
   }

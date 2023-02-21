@@ -28,7 +28,12 @@
 #include "command_line_options.h"
 
 #include <boost/program_options.hpp>
+#ifdef __linux__
 #include <sys/ioctl.h>
+#elif _WIN32
+#include <windows.h>
+#include <process.h>
+#endif
 
 #include <fstream>
 #include <limits>
@@ -39,14 +44,24 @@ namespace mt_kahypar {
   namespace platform {
     int getTerminalWidth() {
       int columns = 0;
+      #if defined(_WIN32)
+      CONSOLE_SCREEN_BUFFER_INFO csbi;
+      GetConsoleScreenBufferInfo(GetStdHandle(STD_OUTPUT_HANDLE), &csbi);
+      columns = csbi.srWindow.Right - csbi.srWindow.Left + 1;
+      #else
       struct winsize w = { };
       ioctl(0, TIOCGWINSZ, &w);
       columns = w.ws_col;
+      #endif
       return columns;
     }
 
     int getProcessID() {
+      #if defined(_WIN32)
+      return _getpid();
+      #else
       return getpid();
+      #endif
     }
   }  // namespace platform
 

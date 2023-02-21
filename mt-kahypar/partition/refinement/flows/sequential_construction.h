@@ -76,7 +76,7 @@ class SequentialConstruction {
       _flow_hg(flow_hg),
       _hash_buckets(),
       _threshold(1) {
-      _hash_buckets.resize(std::max(1024UL, hg.initialNumEdges() /
+      _hash_buckets.resize(std::max(UL(1024), hg.initialNumEdges() /
         context.refinement.flows.num_parallel_searches));
     }
 
