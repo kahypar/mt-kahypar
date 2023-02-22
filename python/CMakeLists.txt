@@ -25,4 +25,9 @@ set(TARGETS_WANTING_ALL_SOURCES ${TARGETS_WANTING_ALL_SOURCES} mtkahyparhgp_pyth
 set_target_properties(mtkahyparhgp_python PROPERTIES OUTPUT_NAME mtkahyparhgp)
 set_target_properties(mtkahypargp_python PROPERTIES OUTPUT_NAME mtkahypargp)
 
+add_custom_target(mtkahypar_python
+  DEPENDS
+  mtkahyparhgp_python
+  mtkahypargp_python)
+
 ################################################################################

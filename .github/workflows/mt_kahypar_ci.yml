@@ -105,8 +105,8 @@ jobs:
 
       - name: Build Mt-KaHyPar Python Interface
         run: |
-          cd build/python
-          make -j2
+          cd build
+          make mtkahypar_python -j2
 
       - name: Run Mt-KaHyPar Python Interface Tests
         run: |
