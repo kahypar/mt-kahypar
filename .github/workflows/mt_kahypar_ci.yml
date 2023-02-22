@@ -156,6 +156,6 @@ jobs:
           rm -rf build
           mkdir build
           cd build
-          export CMAKE_GENERATOR="Ninja"
+          export CMAKE_GENERATOR="MSYS Makefiles"
           /mingw64/bin/cmake .. -DCMAKE_BUILD_TYPE=RELEASE -DKAHYPAR_CI_BUILD=ON
           make -j2 MtKaHyParDefault
