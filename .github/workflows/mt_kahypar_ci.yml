@@ -148,7 +148,7 @@ jobs:
         run: |
           Ren ${{ runner.temp }}/msys64/mingw64/lib/libtbb12.dll.a ${{ runner.temp }}/msys64/mingw64/lib/libtbb.dll.a
 
-      - name: Install Mt-KaHyPar
+      - name: Install Mt-KaHyPar Multilevel Tests
         shell: msys2 {0}
         run: |
           git submodule init
@@ -158,4 +158,10 @@ jobs:
           cd build
           export CMAKE_GENERATOR="MSYS Makefiles"
           /mingw64/bin/cmake .. -DCMAKE_BUILD_TYPE=RELEASE -DKAHYPAR_DOWNLOAD_BOOST=On -DKAHYPAR_CI_BUILD=ON
-          make -j2 MtKaHyParDefault
+          make -j2 mt_kahypar_multilevel_tests
+
+      - name: Run Mt-KaHyPar Multilevel Tests
+        shell: msys2 {0}
+        run: |
+          cd build
+          ./tests/mt_kahypar_multilevel_tests
