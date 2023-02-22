@@ -115,3 +115,47 @@ jobs:
           cp ../../build/python/mtkahypargp*.so mtkahypargp.so
           python3 test_mtkahyparhgp.py -v
           python3 test_mtkahypargp.py -v
+
+  mt_kahypar_windows_build:
+    runs-on: windows-latest
+    env:
+      CI_ACTIVE : 1
+
+    steps:
+      - name: Checkout HEAD
+        uses: actions/checkout@v2
+        with:
+         fetch-depth: 1
+
+      - name: Setup MSYS2
+        uses: msys2/setup-msys2@v2
+        with:
+          install: git make
+ 
+      - name: Install Boost and TBB
+        shell: msys2 {0}
+        run: |
+          pacman --noconfirm -S mingw-w64-x86_64-boost
+          pacman --noconfirm -S mingw-w64-x86_64-tbb
+          pacman --noconfirm -S mingw-w64-x86_64-cmake
+          pacman --noconfirm -S mingw-w64-x86_64-gcc
+
+      - name: Put MSYS2_MinGW64 on Path
+        run: |
+          echo "${{ runner.temp }}/msys64/mingw64" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+
+      - name: Rename TBB library file
+        run: |
+          Ren ${{ runner.temp }}/msys64/mingw64/lib/libtbb12.dll.a ${{ runner.temp }}/msys64/mingw64/lib/libtbb.dll.a
+
+      - name: Install Mt-KaHyPar
+        shell: msys2 {0}
+        run: |
+          git submodule init
+          git submodule update
+          rm -rf build
+          mkdir build
+          cd build
+          export CMAKE_GENERATOR="Ninja"
+          /mingw64/bin/cmake .. -DCMAKE_BUILD_TYPE=RELEASE -DKAHYPAR_CI_BUILD=ON
+          make -j2 MtKaHyParDefault
