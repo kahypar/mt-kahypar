@@ -53,7 +53,7 @@ The Multi-Threaded Karlsruhe Hypergraph Partitioning Framework requires:
 
 The following command will install most of the required dependencies on a Ubuntu machine:
 
-    sudo apt-get install libboost-program-options-dev libnuma-dev numactl libhwloc-dev moreutils linux-tools-common linux-tools-generic libtbb-dev
+    sudo apt-get install libtbb-dev libhwloc-dev libboost-program-options-dev
 
 Building Mt-KaHyPar
 -----------
