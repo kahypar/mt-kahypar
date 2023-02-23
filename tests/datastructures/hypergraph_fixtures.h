@@ -28,7 +28,6 @@
 
 #include "gmock/gmock.h"
 
-#include "kahypar/definitions.h"
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/parallel/hardware_topology.h"
 #include "mt-kahypar/parallel/tbb_initializer.h"
