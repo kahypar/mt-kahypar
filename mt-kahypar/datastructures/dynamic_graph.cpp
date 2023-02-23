@@ -185,7 +185,7 @@ void DynamicGraph::uncontract(const Batch& batch,
                               const MarkEdgeFunc& mark_edge,
                               const UncontractionFunction& case_one_func,
                               const UncontractionFunction& case_two_func) {
-  ASSERT(batch.size() > 0UL);
+  ASSERT(batch.size() > UL(0));
   ASSERT([&] {
     const HypernodeID expected_batch_index = hypernode(batch[0].v).batchIndex();
     for ( const Memento& memento : batch ) {
@@ -205,7 +205,7 @@ void DynamicGraph::uncontract(const Batch& batch,
     return true;
   }(), "Batch contains uncontractions from different batches or from a different hypergraph version");
 
-  tbb::parallel_for(0UL, batch.size(), [&](const size_t i) {
+  tbb::parallel_for(UL(0), batch.size(), [&](const size_t i) {
     const Memento& memento = batch[i];
     ASSERT(!hypernode(memento.u).isDisabled(), "Hypernode" << memento.u << "is disabled");
     ASSERT(hypernode(memento.v).isDisabled(), "Hypernode" << memento.v << "is not invalid");

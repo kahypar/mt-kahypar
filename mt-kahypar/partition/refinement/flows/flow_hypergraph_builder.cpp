@@ -102,7 +102,7 @@ void FlowHypergraphBuilder::finalizeHyperedges() {
       _tmp_csr_buckets[i - 1]._global_start_pin_idx + _tmp_csr_buckets[i - 1]._num_pins;
   }
 
-  tbb::parallel_for(0UL, _tmp_csr_buckets.size(), [&](const size_t idx) {
+  tbb::parallel_for(UL(0), _tmp_csr_buckets.size(), [&](const size_t idx) {
     _tmp_csr_buckets[idx].copyDataToFlowHypergraph(hyperedges, pins);
   });
 
@@ -120,7 +120,7 @@ void FlowHypergraphBuilder::finalizeParallel() {
   tbb::parallel_invoke([&] {
     // Determine maximum edge capacity
     maxHyperedgeCapacity = tbb::parallel_reduce(
-      tbb::blocked_range<size_t>(0UL, hyperedges.size()), whfc::Flow(0),
+      tbb::blocked_range<size_t>(UL(0), hyperedges.size()), whfc::Flow(0),
       [&](const tbb::blocked_range<size_t>& range, whfc::Flow init) {
         whfc::Flow max_capacity = init;
         for (size_t i = range.begin(); i < range.end(); ++i) {
@@ -133,7 +133,7 @@ void FlowHypergraphBuilder::finalizeParallel() {
   }, [&] {
     // Determine total node weight
     total_node_weight = tbb::parallel_reduce(
-      tbb::blocked_range<size_t>(0UL, static_cast<size_t>(numNodes())), whfc::NodeWeight(0),
+      tbb::blocked_range<size_t>(UL(0), static_cast<size_t>(numNodes())), whfc::NodeWeight(0),
       [&](const tbb::blocked_range<size_t>& range, whfc::NodeWeight init) {
         whfc::NodeWeight weight = init;
         for (size_t i = range.begin(); i < range.end(); ++i) {
@@ -149,7 +149,7 @@ void FlowHypergraphBuilder::finalizeParallel() {
 
   // Compute node degree prefix sum
   tbb::parallel_scan(
-    tbb::blocked_range<size_t>(0UL, numNodes() + 1), whfc::InHeIndex(0),
+    tbb::blocked_range<size_t>(UL(0), numNodes() + 1), whfc::InHeIndex(0),
     [&](const tbb::blocked_range<size_t>& r, whfc::InHeIndex sum, bool is_final_scan) -> whfc::InHeIndex {
       whfc::InHeIndex tmp = sum;
       for ( size_t i = r.begin(); i < r.end(); ++i ) {
@@ -164,7 +164,7 @@ void FlowHypergraphBuilder::finalizeParallel() {
     }
   );
 
-  tbb::parallel_for(0UL, numHyperedges(), [&](const size_t i) {
+  tbb::parallel_for(UL(0), numHyperedges(), [&](const size_t i) {
     const whfc::Hyperedge e(i);
     for ( auto pin_it = beginIndexPins(e); pin_it != endIndexPins(e); pin_it++ ) {
       Pin& p = pins[pin_it];

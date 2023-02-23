@@ -145,7 +145,7 @@ namespace mt_kahypar::utils {
   }
 
   std::ostream & operator<< (std::ostream& str, const MemoryTreeNode& root) {
-    root.dfs(str, 0UL, 0);
+    root.dfs(str, UL(0), 0);
     return str;
   }
 

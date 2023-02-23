@@ -51,7 +51,7 @@ class StaticHypergraphFactory {
                                     const bool stable_construction_of_incident_edges = false);
 
   static std::pair<StaticHypergraph, vec<HypernodeID>> compactify(const StaticHypergraph&) {
-    ERROR("Compactify not implemented for static hypergraph.");
+    ERR("Compactify not implemented for static hypergraph.");
   }
 
  private:

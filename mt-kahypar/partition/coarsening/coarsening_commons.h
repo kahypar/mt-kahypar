@@ -91,12 +91,12 @@ public:
         compactified_hg = std::make_unique<Hypergraph>();
         compactified_phg = std::make_unique<PartitionedHypergraph>();
       } else {
-        size_t estimated_number_of_levels = 1UL;
+        size_t estimated_number_of_levels = UL(1);
         if ( hg.initialNumNodes() > context.coarsening.contraction_limit ) {
           estimated_number_of_levels = std::ceil( std::log2(
               static_cast<double>(hg.initialNumNodes()) /
               static_cast<double>(context.coarsening.contraction_limit)) /
-            std::log2(context.coarsening.maximum_shrink_factor) ) + 1UL;
+            std::log2(context.coarsening.maximum_shrink_factor) ) + UL(1);
         }
         hierarchy.reserve(estimated_number_of_levels);
       }
@@ -105,7 +105,7 @@ public:
     }
 
   ~UncoarseningData() noexcept {
-    tbb::parallel_for(0UL, hierarchy.size(), [&](const size_t i) {
+    tbb::parallel_for(UL(0), hierarchy.size(), [&](const size_t i) {
       (hierarchy)[i].freeInternalData();
     }, tbb::static_partitioner());
   }

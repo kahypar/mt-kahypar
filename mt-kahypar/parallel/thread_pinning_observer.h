@@ -32,6 +32,12 @@
 #include <mutex>
 #include <sstream>
 
+#ifdef __linux__
+#include <sched.h>
+#elif _WIN32
+#include <winbase.h>
+#endif
+
 #undef __TBB_ARENA_OBSERVER
 #define __TBB_ARENA_OBSERVER true
 #include "tbb/task_scheduler_observer.h"
@@ -121,7 +127,7 @@ class ThreadPinningObserver : public tbb::task_scheduler_observer {
     ASSERT(static_cast<size_t>(slot) < _cpus.size(), V(slot) << V(_cpus.size()));
 
     if ( slot >= static_cast<int>(_cpus.size()) ) {
-      ERROR("Thread" << std::this_thread::get_id() << "entered the global task arena"
+      ERR("Thread" << std::this_thread::get_id() << "entered the global task arena"
         << "in a slot that should not exist (Slot =" << slot << ", Max Slots =" <<_cpus.size()
         << ", slots are 0-indexed). This bug only occurs in older versions of TBB."
         << "We recommend upgrading TBB to the newest version.");
@@ -130,7 +136,7 @@ class ThreadPinningObserver : public tbb::task_scheduler_observer {
     DBG << pin_thread_message(_cpus[slot]);
     if(!_is_global_thread_pool) {
       std::thread::id thread_id = std::this_thread::get_id();
-      int current_cpu = sched_getcpu();
+      int current_cpu = SCHED_GETCPU;
       std::lock_guard<std::mutex> lock(_mutex);
       _cpu_before[thread_id] = current_cpu;
     }
@@ -162,19 +168,24 @@ class ThreadPinningObserver : public tbb::task_scheduler_observer {
  private:
 
   void pin_thread_to_cpu(const int cpu_id) {
+    #ifdef __linux__
     const size_t size = CPU_ALLOC_SIZE(_num_cpus);
     cpu_set_t mask;
     CPU_ZERO(&mask);
     CPU_SET(cpu_id, &mask);
     const int err = sched_setaffinity(0, size, &mask);
+    #elif _WIN32
+    auto mask = (static_cast<DWORD_PTR>(1) << cpu_id);
+    const int err = SetThreadAffinityMask(GetCurrentThread(), mask) == 0;
+    #endif
 
     if (err) {
       const int error = errno;
-      ERROR("Failed to set thread affinity to cpu" << cpu_id
+      ERR("Failed to set thread affinity to cpu" << cpu_id
         << "." << strerror(error));
     }
 
-    ASSERT(sched_getcpu() == cpu_id);
+    ASSERT(SCHED_GETCPU == cpu_id);
     DBG << "Thread with PID" << std::this_thread::get_id()
         << "successfully pinned to CPU" << cpu_id;
   }
@@ -194,7 +205,7 @@ class ThreadPinningObserver : public tbb::task_scheduler_observer {
   std::string unpin_thread_message() {
     std::stringstream ss;
     ss << "Unassign thread with PID " << std::this_thread::get_id()
-       << " on CPU " << sched_getcpu();
+       << " on CPU " << SCHED_GETCPU;
     if ( _numa_node != -1 ) {
       ss << " from NUMA node " << _numa_node;
     } else {

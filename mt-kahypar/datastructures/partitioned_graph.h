@@ -402,7 +402,7 @@ private:
   void uncontract(const Batch& batch) {
     resetMoveState();
     // Set block ids of contraction partners
-    tbb::parallel_for(0UL, batch.size(), [&](const size_t i) {
+    tbb::parallel_for(UL(0), batch.size(), [&](const size_t i) {
       const Memento& memento = batch[i];
       ASSERT(nodeIsEnabled(memento.u));
       ASSERT(!nodeIsEnabled(memento.v));
@@ -464,7 +464,7 @@ private:
       std::swap(_part_ids, part_ids);
     } else {
       ASSERT(part_ids.size() <= _part_ids.size());
-      tbb::parallel_for(0UL, part_ids.size(), [&](const size_t i) {
+      tbb::parallel_for(UL(0), part_ids.size(), [&](const size_t i) {
         part_ids[i].store(_part_ids[i], std::memory_order_relaxed);
       });
     }

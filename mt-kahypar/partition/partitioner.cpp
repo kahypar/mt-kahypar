@@ -53,7 +53,7 @@ namespace mt_kahypar {
     if ( context.initial_partitioning.enabled_ip_algos.size() > 0 &&
          context.initial_partitioning.enabled_ip_algos.size() <
          static_cast<size_t>(InitialPartitioningAlgorithm::UNDEFINED) ) {
-      ERROR("Size of enabled IP algorithms vector is smaller than number of IP algorithms!");
+      ERR("Size of enabled IP algorithms vector is smaller than number of IP algorithms!");
     } else if ( context.initial_partitioning.enabled_ip_algos.size() == 0 ) {
       context.initial_partitioning.enabled_ip_algos.assign(
         static_cast<size_t>(InitialPartitioningAlgorithm::UNDEFINED), true);
@@ -63,7 +63,7 @@ namespace mt_kahypar {
         is_one_ip_algo_enabled |= context.initial_partitioning.enabled_ip_algos[i];
       }
       if ( !is_one_ip_algo_enabled ) {
-        ERROR("At least one initial partitioning algorithm must be enabled!");
+        ERR("At least one initial partitioning algorithm must be enabled!");
       }
     }
   }
@@ -222,7 +222,7 @@ namespace mt_kahypar {
     } else if (context.partition.mode == Mode::deep_multilevel) {
       partitioned_hypergraph = deep_multilevel::partition(hypergraph, context);
     } else {
-      ERROR("Invalid mode: " << context.partition.mode);
+      ERR("Invalid mode: " << context.partition.mode);
     }
 
     // ################## POSTPROCESSING ##################
@@ -263,7 +263,7 @@ namespace mt_kahypar {
     if (context.partition.mode == Mode::direct) {
       multilevel::partitionVCycle(hypergraph, partitioned_hg, context);
     } else {
-      ERROR("Invalid V-cycle mode: " << context.partition.mode);
+      ERR("Invalid V-cycle mode: " << context.partition.mode);
     }
 
     // ################## POSTPROCESSING ##################

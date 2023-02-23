@@ -50,7 +50,7 @@ DynamicGraph DynamicGraphFactory::construct(
   edges.reserve(num_edges);
   for (const auto& e : edge_vector) {
     if (e.size() != 2) {
-      ERROR("Using graph data structure; but the input hypergraph is not a graph.");
+      ERR("Using graph data structure; but the input hypergraph is not a graph.");
     }
     edges.push_back({e[0], e[1]});
   }
@@ -115,7 +115,7 @@ std::pair<DynamicGraph, parallel::scalable_vector<HypernodeID> > DynamicGraphFac
 
     parallel::TBBPrefixSum<HypernodeID, parallel::scalable_vector> hn_mapping_prefix_sum(hn_mapping);
     tbb::parallel_scan(tbb::blocked_range<size_t>(
-      0UL, graph.numNodes() + 1), hn_mapping_prefix_sum);
+      UL(0), graph.numNodes() + 1), hn_mapping_prefix_sum);
     num_nodes = hn_mapping_prefix_sum.total_sum();
   }, [&] {
     he_mapping.assign(graph._num_edges + 1, 0);
@@ -127,7 +127,7 @@ std::pair<DynamicGraph, parallel::scalable_vector<HypernodeID> > DynamicGraphFac
 
     parallel::TBBPrefixSum<HyperedgeID, parallel::scalable_vector> he_mapping_prefix_sum(he_mapping);
     tbb::parallel_scan(tbb::blocked_range<size_t>(
-      0UL, graph._num_edges + 1), he_mapping_prefix_sum);
+      UL(0), graph._num_edges + 1), he_mapping_prefix_sum);
     num_edges = he_mapping_prefix_sum.total_sum();
   });
 

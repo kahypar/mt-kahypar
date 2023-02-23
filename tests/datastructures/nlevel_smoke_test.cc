@@ -130,7 +130,7 @@ void verifyGainCache(DynamicPartitionedHypergraphT& partitioned_hypergraph) {
   HyperedgeWeight expected_gain = 0;
   for ( const HypernodeID& hn : partitioned_hypergraph.nodes() ) {
     const PartitionID from = partitioned_hypergraph.partID(hn);
-    PartitionID to = rand.getRandomInt(0, k - 1, sched_getcpu());
+    PartitionID to = rand.getRandomInt(0, k - 1, SCHED_GETCPU);
     if ( from == to ) to = (to + 1) % k;
     expected_gain += partitioned_hypergraph.km1Gain(hn, from, to);
     partitioned_hypergraph.changeNodePartWithGainCacheUpdate(hn, from, to);
@@ -168,16 +168,16 @@ DynamicHypergraphT generateRandomHypergraph(const HypernodeID num_hypernodes,
     parallel::scalable_vector<HypernodeID> net;
     #ifdef USE_GRAPH_PARTITIONER
     unused(max_edge_size);
-    std::pair<HypernodeID, HypernodeID> edge{rand.getRandomInt(0, num_hypernodes - 1, sched_getcpu()),
-                                             rand.getRandomInt(0, num_hypernodes - 1, sched_getcpu())};
+    std::pair<HypernodeID, HypernodeID> edge{rand.getRandomInt(0, num_hypernodes - 1, SCHED_GETCPU),
+                                             rand.getRandomInt(0, num_hypernodes - 1, SCHED_GETCPU)};
     graph_edges.insert({edge});
     graph_edges.insert({edge.first, edge.second});
     net.push_back(edge.first);
     net.push_back(edge.second);
     #else
-    const size_t edge_size = rand.getRandomInt(2, max_edge_size, sched_getcpu());
+    const size_t edge_size = rand.getRandomInt(2, max_edge_size, SCHED_GETCPU);
     for ( size_t i = 0; i < edge_size; ++i ) {
-      const HypernodeID pin = rand.getRandomInt(0, num_hypernodes - 1, sched_getcpu());
+      const HypernodeID pin = rand.getRandomInt(0, num_hypernodes - 1, SCHED_GETCPU);
       if ( std::find(net.begin(), net.end(), pin) == net.end() ) {
         net.push_back(pin);
       }
@@ -197,7 +197,7 @@ BatchVector generateRandomContractions(const HypernodeID num_hypernodes,
  parallel::scalable_vector<HypernodeID> active_hns(num_hypernodes);
  std::iota(active_hns.begin(), active_hns.end(), 0);
  utils::Randomize& rand = utils::Randomize::instance();
- const int cpu_id = sched_getcpu();
+ const int cpu_id = SCHED_GETCPU;
  while ( tmp_num_contractions > 0 ) {
    HypernodeID current_num_contractions = tmp_num_contractions;
    if ( multi_versioned && current_num_contractions > 25 ) current_num_contractions /= 2;
@@ -222,7 +222,7 @@ void generateRandomPartition(DynamicPartitionedHypergraphT& partitioned_hypergra
   const PartitionID k = partitioned_hypergraph.k();
   utils::Randomize& rand = utils::Randomize::instance();
   partitioned_hypergraph.doParallelForAllNodes([&](const HypernodeID& hn) {
-    partitioned_hypergraph.setOnlyNodePart(hn, rand.getRandomInt(0, k - 1, sched_getcpu()));
+    partitioned_hypergraph.setOnlyNodePart(hn, rand.getRandomInt(0, k - 1, SCHED_GETCPU));
   });
 }
 
@@ -246,7 +246,7 @@ DynamicHypergraphT simulateNLevel(DynamicHypergraphT& hypergraph,
     timer.start_timer(timer_key("contractions"), "Contractions");
     const parallel::scalable_vector<Memento>& contractions = contraction_batches[i];
     if ( parallel ) {
-      tbb::parallel_for(0UL, contractions.size(), [&](const size_t j) {
+      tbb::parallel_for(UL(0), contractions.size(), [&](const size_t j) {
         const Memento& memento = contractions[j];
         hypergraph.registerContraction(memento.u, memento.v);
         hypergraph.contract(memento.v);
@@ -428,7 +428,7 @@ TEST(ANlevel, SimulatesParallelContractionsAndAccessToHypergraph) {
     }
   }, [&] {
     // Perform contractions in parallel
-    tbb::parallel_for(0UL, contractions.back().size(), [&](const size_t i) {
+    tbb::parallel_for(UL(0), contractions.back().size(), [&](const size_t i) {
       const Memento& memento = contractions.back()[i];
       hypergraph.registerContraction(memento.u, memento.v);
       hypergraph.contract(memento.v);
@@ -439,7 +439,7 @@ TEST(ANlevel, SimulatesParallelContractionsAndAccessToHypergraph) {
 
   if ( debug ) LOG << "Perform Parallel Contractions Without Parallel Access";
   timer.start_timer("contractions_without_access", "Contractions Without Access");
-  tbb::parallel_for(0UL, contractions.back().size(), [&](const size_t i) {
+  tbb::parallel_for(UL(0), contractions.back().size(), [&](const size_t i) {
     const Memento& memento = contractions.back()[i];
     tmp_hypergraph.registerContraction(memento.u, memento.v);
     tmp_hypergraph.contract(memento.v);

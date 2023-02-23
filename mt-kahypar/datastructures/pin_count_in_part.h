@@ -121,7 +121,7 @@ class PinCountInPart {
       _bits_per_element = num_bits_per_element(max_value);
       _entries_per_value = num_entries_per_value(k, max_value);
       _values_per_hyperedge = num_values_per_hyperedge(k, max_value);
-      _extraction_mask = std::pow(2UL, _bits_per_element) - 1UL;
+      _extraction_mask = std::pow(2UL, _bits_per_element) - UL(1);
       _pin_count_in_part.resize("Refinement", "pin_count_in_part",
         num_hyperedges * _values_per_hyperedge, true, assign_parallel);
     }
@@ -178,7 +178,7 @@ class PinCountInPart {
     const Value mask = _extraction_mask << bit_pos;
     Value& current_value = _pin_count_in_part[value_pos];
     Value pin_count_in_part = (current_value & mask) >> bit_pos;
-    ASSERT(pin_count_in_part > 0UL);
+    ASSERT(pin_count_in_part > UL(0));
     updateEntry(current_value, bit_pos, pin_count_in_part - 1);
     return pin_count_in_part - 1;
   }

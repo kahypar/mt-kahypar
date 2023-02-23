@@ -68,7 +68,7 @@ void testGroupingReproducibility(size_t n, int num_threads) {
 void testFeistel() {
   std::mt19937 rng(420);
 
-  size_t max_num_entries = 1UL << 62;
+  size_t max_num_entries = UL(1) << 62;
   FeistelPermutation feistel;
   feistel.create_permutation(251, max_num_entries, rng);
 

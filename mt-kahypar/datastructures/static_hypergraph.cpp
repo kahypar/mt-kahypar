@@ -95,12 +95,12 @@ namespace mt_kahypar::ds {
 
     doParallelForAllNodes([&](const HypernodeID& hn) {
       ASSERT(static_cast<size_t>(communities[hn]) < mapping.size());
-      mapping[communities[hn]] = 1UL;
+      mapping[communities[hn]] = UL(1);
     });
 
     // Prefix sum determines vertex ids in coarse hypergraph
     parallel::TBBPrefixSum<size_t, Array> mapping_prefix_sum(mapping);
-    tbb::parallel_scan(tbb::blocked_range<size_t>(0UL, _num_hypernodes), mapping_prefix_sum);
+    tbb::parallel_scan(tbb::blocked_range<size_t>(UL(0), _num_hypernodes), mapping_prefix_sum);
     HypernodeID num_hypernodes = mapping_prefix_sum.total_sum();
 
     // Remap community ids
@@ -209,7 +209,7 @@ namespace mt_kahypar::ds {
               tmp_incident_nets_prefix_sum(tmp_num_incident_nets);
       tbb::parallel_invoke([&] {
         tbb::parallel_scan(tbb::blocked_range<size_t>(
-                0UL, UI64(num_hypernodes)), tmp_incident_nets_prefix_sum);
+                UL(0), UI64(num_hypernodes)), tmp_incident_nets_prefix_sum);
       }, [&] {
         tmp_incident_nets_pos.assign(num_hypernodes, parallel::IntegralAtomicWrapper<size_t>(0));
       });
@@ -274,7 +274,7 @@ namespace mt_kahypar::ds {
 
           // Process each bucket in parallel and remove duplicates
           std::atomic<size_t> incident_nets_pos(incident_nets_start);
-          tbb::parallel_for(0UL, duplicate_incident_nets_map.numBuckets(), [&](const size_t bucket) {
+          tbb::parallel_for(UL(0), duplicate_incident_nets_map.numBuckets(), [&](const size_t bucket) {
             auto& incident_net_bucket = duplicate_incident_nets_map.getBucket(bucket);
             std::sort(incident_net_bucket.begin(), incident_net_bucket.end());
             auto first_invalid_entry_it = std::unique(incident_net_bucket.begin(), incident_net_bucket.end());
@@ -323,7 +323,7 @@ namespace mt_kahypar::ds {
       }
     };
 
-    tbb::parallel_for(0UL, hyperedge_hash_map.numBuckets(), [&](const size_t bucket) {
+    tbb::parallel_for(UL(0), hyperedge_hash_map.numBuckets(), [&](const size_t bucket) {
       auto& hyperedge_bucket = hyperedge_hash_map.getBucket(bucket);
       std::sort(hyperedge_bucket.begin(), hyperedge_bucket.end(),
                 [&](const ContractedHyperedgeInformation& lhs, const ContractedHyperedgeInformation& rhs) {
@@ -374,7 +374,7 @@ namespace mt_kahypar::ds {
     parallel::TBBPrefixSum<size_t, Array> he_mapping(valid_hyperedges);
     tbb::parallel_invoke([&] {
       tbb::parallel_scan(tbb::blocked_range<size_t>(
-              0UL, UI64(_num_hyperedges)), he_mapping);
+              UL(0), UI64(_num_hyperedges)), he_mapping);
     }, [&] {
       hypergraph._hypernodes.resize(num_hypernodes);
     });
@@ -402,7 +402,7 @@ namespace mt_kahypar::ds {
           }
         });
 
-        tbb::parallel_scan(tbb::blocked_range<size_t>(0UL, UI64(_num_hyperedges)), num_pins_prefix_sum);
+        tbb::parallel_scan(tbb::blocked_range<size_t>(UL(0), UI64(_num_hyperedges)), num_pins_prefix_sum);
 
         const size_t num_pins = num_pins_prefix_sum.total_sum();
         hypergraph._num_pins = num_pins;
@@ -412,7 +412,7 @@ namespace mt_kahypar::ds {
       });
 
       // Write hyperedges from temporary buffers to incidence array
-      tbb::enumerable_thread_specific<size_t> local_max_edge_size(0UL);
+      tbb::enumerable_thread_specific<size_t> local_max_edge_size(UL(0));
       tbb::parallel_for(ID(0), _num_hyperedges, [&](const HyperedgeID& id) {
         if ( he_mapping.value(id) /* hyperedge is valid */ ) {
           const size_t he_pos = he_mapping[id];
@@ -458,7 +458,7 @@ namespace mt_kahypar::ds {
       parallel::TBBPrefixSum<parallel::IntegralAtomicWrapper<size_t>, Array>
               num_incident_nets_prefix_sum(tmp_num_incident_nets);
       tbb::parallel_scan(tbb::blocked_range<size_t>(
-              0UL, UI64(num_hypernodes)), num_incident_nets_prefix_sum);
+              UL(0), UI64(num_hypernodes)), num_incident_nets_prefix_sum);
       const size_t total_degree = num_incident_nets_prefix_sum.total_sum();
       hypergraph._total_degree = total_degree;
       hypergraph._incident_nets.resize(total_degree);

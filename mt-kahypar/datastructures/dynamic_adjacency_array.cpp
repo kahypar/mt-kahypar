@@ -411,7 +411,7 @@ void DynamicAdjacencyArray::restoreSinglePinAndParallelEdges(
   initializeEdgeMapping(_edge_mapping);
 
   // Step one: We mark all edges that need to be restored and save their swap target.
-  tbb::parallel_for(0UL, edges_to_restore.size(), [&](const size_t i) {
+  tbb::parallel_for(UL(0), edges_to_restore.size(), [&](const size_t i) {
     const RemovedEdge& re = edges_to_restore[i];
     _removable_edges.set(re.edge_id, true);
     // we abuse the edge mapping to save the swap target

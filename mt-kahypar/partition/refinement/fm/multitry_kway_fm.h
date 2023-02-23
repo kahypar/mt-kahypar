@@ -57,7 +57,7 @@ class MultiTryKWayFM final : public IRefiner {
     ets_fm([&] { return constructLocalizedKWayFMSearch(); })
   {
     if (context.refinement.fm.obey_minimal_parallelism) {
-      sharedData.finishedTasksLimit = std::min(8UL, context.shared_memory.num_threads);
+      sharedData.finishedTasksLimit = std::min(UL(8), context.shared_memory.num_threads);
     }
   }
 

@@ -690,14 +690,14 @@ class StaticHypergraph {
   StaticHypergraph contract(parallel::scalable_vector<HypernodeID>& communities);
 
   bool registerContraction(const HypernodeID, const HypernodeID) {
-    ERROR("registerContraction(u, v) is not supported in static hypergraph");
+    ERR("registerContraction(u, v) is not supported in static hypergraph");
     return false;
   }
 
   size_t contract(const HypernodeID,
                   const HypernodeWeight max_node_weight = std::numeric_limits<HypernodeWeight>::max()) {
     unused(max_node_weight);
-    ERROR("contract(v, max_node_weight) is not supported in static hypergraph");
+    ERR("contract(v, max_node_weight) is not supported in static hypergraph");
     return 0;
   }
 
@@ -706,11 +706,11 @@ class StaticHypergraph {
                   const UncontractionFunction& case_two_func = NOOP_BATCH_FUNC) {
     unused(case_one_func);
     unused(case_two_func);
-    ERROR("uncontract(batch) is not supported in static hypergraph");
+    ERR("uncontract(batch) is not supported in static hypergraph");
   }
 
   VersionedBatchVector createBatchUncontractionHierarchy(const size_t) {
-    ERROR("createBatchUncontractionHierarchy(batch_size) is not supported in static hypergraph");
+    ERR("createBatchUncontractionHierarchy(batch_size) is not supported in static hypergraph");
     return { };
   }
 
@@ -766,12 +766,12 @@ class StaticHypergraph {
   }
 
   parallel::scalable_vector<ParallelHyperedge> removeSinglePinAndParallelHyperedges() {
-    ERROR("removeSinglePinAndParallelHyperedges() is not supported in static hypergraph");
+    ERR("removeSinglePinAndParallelHyperedges() is not supported in static hypergraph");
     return { };
   }
 
   void restoreSinglePinAndParallelNets(const parallel::scalable_vector<ParallelHyperedge>&) {
-    ERROR("restoreSinglePinAndParallelNets(hes_to_restore) is not supported in static hypergraph");
+    ERR("restoreSinglePinAndParallelNets(hes_to_restore) is not supported in static hypergraph");
   }
 
   // ####################### Initialization / Reset Functions #######################
@@ -818,7 +818,7 @@ class StaticHypergraph {
 
     // ! Only for testing
   bool verifyIncidenceArrayAndIncidentNets() {
-    ERROR("verifyIncidenceArrayAndIncidentNets() not supported in static hypergraph");
+    ERR("verifyIncidenceArrayAndIncidentNets() not supported in static hypergraph");
     return false;
   }
 

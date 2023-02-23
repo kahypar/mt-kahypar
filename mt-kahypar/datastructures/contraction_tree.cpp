@@ -76,7 +76,7 @@ void ContractionTree::finalize(const size_t num_versions) {
   parallel::TBBPrefixSum<parallel::IntegralAtomicWrapper<HypernodeID>, parallel::scalable_vector>
     out_degree_prefix_sum(_out_degrees);
   tbb::parallel_invoke([&] {
-    tbb::parallel_scan(tbb::blocked_range<size_t>(0UL, _out_degrees.size()), out_degree_prefix_sum);
+    tbb::parallel_scan(tbb::blocked_range<size_t>(UL(0), _out_degrees.size()), out_degree_prefix_sum);
   }, [&] {
     incidence_array_pos.assign(_num_hypernodes, parallel::IntegralAtomicWrapper<HypernodeID>(0));
   });
@@ -136,13 +136,13 @@ void ContractionTree::finalize(const size_t num_versions) {
     }
   });
   _version_roots.resize(num_versions);
-  tbb::parallel_for(0UL, num_versions, [&](const size_t i) {
+  tbb::parallel_for(UL(0), num_versions, [&](const size_t i) {
     _version_roots[i] = tmp_version_roots[i].copy_parallel();
     tmp_version_roots[i].clear_parallel();
   });
 
   // Compute subtree sizes of each root in parallel via dfs
-  tbb::parallel_for(0UL, _roots.size(), [&](const size_t i) {
+  tbb::parallel_for(UL(0), _roots.size(), [&](const size_t i) {
     parallel::scalable_vector<HypernodeID> dfs;
     dfs.push_back(_roots[i]);
     while( !dfs.empty() ) {
@@ -195,7 +195,7 @@ ContractionTree ContractionTree::copy(parallel_tag_t) const {
   }, [&] {
     const size_t num_versions = _version_roots.size();
     tree._version_roots.resize(num_versions);
-    tbb::parallel_for(0UL, num_versions, [&](const size_t i) {
+    tbb::parallel_for(UL(0), num_versions, [&](const size_t i) {
       if (!_version_roots[i].empty()) {
         tree._version_roots[i].resize(_version_roots[i].size());
         memcpy(tree._version_roots[i].data(), _version_roots[i].data(),
@@ -390,15 +390,15 @@ BatchVector ContractionTree::createBatchUncontractionHierarchyForVersion(BatchIn
   const size_t num_hardware_threads = std::thread::hardware_concurrency();
   parallel::scalable_vector<PQ> local_pqs(num_hardware_threads);
   const parallel::scalable_vector<HypernodeID>& roots = roots_of_version(version);
-  tbb::parallel_for(0UL, roots.size(), [&](const size_t i) {
-    const int cpu_id = sched_getcpu();
+  tbb::parallel_for(UL(0), roots.size(), [&](const size_t i) {
+    const int cpu_id = SCHED_GETCPU;
     push_into_pq(local_pqs[cpu_id], roots[i]);
   });
 
   using LocalBatchAssignments = parallel::scalable_vector<BatchAssignment>;
   parallel::scalable_vector<LocalBatchAssignments> local_batch_assignments(num_hardware_threads);
   parallel::scalable_vector<size_t> local_batch_indices(num_hardware_threads, 0);
-  tbb::parallel_for(0UL, num_hardware_threads, [&](const size_t i) {
+  tbb::parallel_for(UL(0), num_hardware_threads, [&](const size_t i) {
     size_t& current_batch_index = local_batch_indices[i];
     LocalBatchAssignments& batch_assignments = local_batch_assignments[i];
     PQ& pq = local_pqs[i];
@@ -415,7 +415,7 @@ BatchVector ContractionTree::createBatchUncontractionHierarchyForVersion(BatchIn
       const size_t start_idx = batch_assignments.size();
       size_t num_uncontractions = 1;
       const HypernodeID u = parent(v);
-      batch_assignments.push_back(BatchAssignment { u, v, 0UL, 0UL });
+      batch_assignments.push_back(BatchAssignment { u, v, UL(0), UL(0) });
       // Push contraction partner into pq for the next BFS level
       push_into_pq(next_pq, v);
 
@@ -429,7 +429,7 @@ BatchVector ContractionTree::createBatchUncontractionHierarchyForVersion(BatchIn
         if ( does_interval_intersect(current_ival, w_ival) ) {
           ASSERT(parent(w) == u);
           ++num_uncontractions;
-          batch_assignments.push_back(BatchAssignment { u, w, 0UL, 0UL });
+          batch_assignments.push_back(BatchAssignment { u, w, UL(0), UL(0) });
           current_ival.start = std::min(current_ival.start, w_ival.start);
           current_ival.end = std::max(current_ival.end, w_ival.end);
           push_into_pq(next_pq, w);
@@ -476,11 +476,11 @@ BatchVector ContractionTree::createBatchUncontractionHierarchyForVersion(BatchIn
   // into the global batch uncontraction vector.
   const size_t num_batches = batch_assigner.numberOfNonEmptyBatches();
   BatchVector batches(num_batches);
-  tbb::parallel_for(0UL, num_batches, [&](const size_t batch_index) {
+  tbb::parallel_for(UL(0), num_batches, [&](const size_t batch_index) {
     batches[batch_index].resize(batch_assigner.batchSize(batch_index));
   });
 
-  tbb::parallel_for(0UL, num_hardware_threads, [&](const size_t i) {
+  tbb::parallel_for(UL(0), num_hardware_threads, [&](const size_t i) {
     LocalBatchAssignments& batch_assignments = local_batch_assignments[i];
     for ( const BatchAssignment& batch_assignment : batch_assignments ) {
       const size_t batch_index = batch_assignment.batch_index;

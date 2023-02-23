@@ -155,7 +155,7 @@ class MultilevelCoarsener : public ICoarsener,
     });
 
     if ( _enable_randomization ) {
-      utils::Randomize::instance().parallelShuffleVector( _current_vertices, 0UL, _current_vertices.size());
+      utils::Randomize::instance().parallelShuffleVector( _current_vertices, UL(0), _current_vertices.size());
     }
 
     // We iterate in parallel over all vertices of the hypergraph and compute its contraction partner.

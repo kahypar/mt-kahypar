@@ -177,8 +177,8 @@ class IncidentNetArray {
   IteratorRange<IncidentNetIterator> incidentEdges(const HypernodeID u) const {
     ASSERT(u < _num_hypernodes, "Hypernode" << u << "does not exist");
     return IteratorRange<IncidentNetIterator>(
-      IncidentNetIterator(u, this, 0UL, false),
-      IncidentNetIterator(u, this, 0UL, true));
+      IncidentNetIterator(u, this, UL(0), false),
+      IncidentNetIterator(u, this, UL(0), true));
   }
 
   // ! Returns a range to loop over the incident nets of hypernode u.
@@ -187,7 +187,7 @@ class IncidentNetArray {
     ASSERT(u < _num_hypernodes, "Hypernode" << u << "does not exist");
     return IteratorRange<IncidentNetIterator>(
       IncidentNetIterator(u, this, pos, false),
-      IncidentNetIterator(u, this, 0UL, true));
+      IncidentNetIterator(u, this, UL(0), true));
   }
 
   // ! Contracts two incident list of u and v, whereby u is the representative and

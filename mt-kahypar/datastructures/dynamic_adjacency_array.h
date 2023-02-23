@@ -306,8 +306,8 @@ class DynamicAdjacencyArray {
   IteratorRange<IncidentEdgeIterator> incidentEdges(const HypernodeID u) const {
     ASSERT(u < _num_nodes, "Hypernode" << u << "does not exist");
     return IteratorRange<IncidentEdgeIterator>(
-      IncidentEdgeIterator(u, this, 0UL, false),
-      IncidentEdgeIterator(u, this, 0UL, true));
+      IncidentEdgeIterator(u, this, UL(0), false),
+      IncidentEdgeIterator(u, this, UL(0), true));
   }
 
   // ! Returns a range to loop over the incident edges of hypernode u.
@@ -316,7 +316,7 @@ class DynamicAdjacencyArray {
     ASSERT(u < _num_nodes, "Hypernode" << u << "does not exist");
     return IteratorRange<IncidentEdgeIterator>(
       IncidentEdgeIterator(u, this, pos, false),
-      IncidentEdgeIterator(u, this, 0UL, true));
+      IncidentEdgeIterator(u, this, UL(0), true));
   }
 
   // ! Returns a range to loop over all edges.

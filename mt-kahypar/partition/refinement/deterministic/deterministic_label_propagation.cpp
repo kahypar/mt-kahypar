@@ -148,7 +148,7 @@ namespace mt_kahypar {
   template<typename Predicate>
   Gain DeterministicLabelPropagationRefiner::applyMovesIf(
           PartitionedHypergraph& phg, const vec<Move>& my_moves, size_t end, Predicate&& predicate) {
-    auto range = tbb::blocked_range<size_t>(0UL, end);
+    auto range = tbb::blocked_range<size_t>(UL(0), end);
     auto accum = [&](const tbb::blocked_range<size_t>& r, const Gain& init) -> Gain {
       Gain my_gain = init;
       for (size_t i = r.begin(); i < r.end(); ++i) {
@@ -172,7 +172,7 @@ namespace mt_kahypar {
         part_weights[moves[i].to] += phg.nodeWeight(moves[i].node);
       }
     };
-    tbb::parallel_for(tbb::blocked_range<size_t>(0UL, end), accum);
+    tbb::parallel_for(tbb::blocked_range<size_t>(UL(0), end), accum);
     vec<HypernodeWeight> res(phg.k(), 0);
     auto combine = [&](const vec<HypernodeWeight>& a) {
       for (size_t i = 0; i < res.size(); ++i) {
@@ -313,7 +313,7 @@ namespace mt_kahypar {
     vec<size_t> swap_prefix(max_key, 0);
     vec<int64_t> part_weight_deltas(k, 0);
 
-    tbb::parallel_for(0UL, relevant_block_pairs.size(), [&](size_t bp_index) {
+    tbb::parallel_for(UL(0), relevant_block_pairs.size(), [&](size_t bp_index) {
       // sort both directions by gain (alternative: gain / weight?)
       auto[p1, p2] = relevant_block_pairs[bp_index];
       auto comp = [&](const Move& m1, const Move& m2) {
@@ -329,8 +329,8 @@ namespace mt_kahypar {
       // get balanced swap prefix
       HypernodeWeight budget_p1 = context.partition.max_part_weights[p1] - phg.partWeight(p1),
                       budget_p2 = context.partition.max_part_weights[p2] - phg.partWeight(p2);
-      HypernodeWeight slack_p1 = budget_p1 / std::max(1UL, involvements[p1]),
-                      slack_p2 = budget_p2 / std::max(1UL, involvements[p2]);
+      HypernodeWeight slack_p1 = budget_p1 / std::max(UL(1), involvements[p1]),
+                      slack_p2 = budget_p2 / std::max(UL(1), involvements[p2]);
 
       int64_t balance = 0;
       std::tuple<size_t, size_t, int64_t> best{0, 0, 0};
@@ -431,7 +431,7 @@ namespace mt_kahypar {
       return m1.gain > m2.gain || (m1.gain == m2.gain && m1.node < m2.node);
     });
 
-    tbb::parallel_for(0UL, num_moves, [&](size_t pos) {
+    tbb::parallel_for(UL(0), num_moves, [&](size_t pos) {
       move_pos_of_node[moves[pos].node] = pos + 1;    // pos + 1 to handle zero init of last_out
       moves[pos].gain = 0;
     });
@@ -439,7 +439,7 @@ namespace mt_kahypar {
     auto was_node_moved_in_this_round = [&](HypernodeID u) { return move_pos_of_node[u] != invalid_pos; };
 
     // recalculate gains
-    tbb::parallel_for(0UL, num_moves, [&](size_t pos) {
+    tbb::parallel_for(UL(0), num_moves, [&](size_t pos) {
       auto& r = ets_recalc_data.local();
 
       HypernodeID u = moves[pos].node;
@@ -508,7 +508,7 @@ namespace mt_kahypar {
 #endif
 
     // remove markers again
-    tbb::parallel_for(0UL, num_moves, [&](size_t pos) { move_pos_of_node[moves[pos].node] = invalid_pos; });
+    tbb::parallel_for(UL(0), num_moves, [&](size_t pos) { move_pos_of_node[moves[pos].node] = invalid_pos; });
 
     // calculate number of overloaded blocks
     size_t num_overloaded_blocks_before_pass = 0, num_overloaded_blocks = 0;

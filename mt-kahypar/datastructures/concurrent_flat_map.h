@@ -54,7 +54,7 @@ class ConcurrentFlatMap {
  public:
   static constexpr size_t MAP_SIZE = 32768; // Size of sparse map is approx. 1 MB
 
-  static_assert(MAP_SIZE && ((MAP_SIZE & (MAP_SIZE - 1)) == 0UL), "Size of map is not a power of two!");
+  static_assert(MAP_SIZE && ((MAP_SIZE & (MAP_SIZE - 1)) == UL(0)), "Size of map is not a power of two!");
 
   explicit ConcurrentFlatMap() :
     _map_size(0),

@@ -120,7 +120,7 @@ class AInitialPartitionerTest : public Test {
         deep_multilevel::partition(partitioned_hypergraph, context); break;
       case Mode::direct:
       case Mode::UNDEFINED:
-        ERROR("Undefined initial partitioning algorithm.");
+        ERR("Undefined initial partitioning algorithm.");
     }
   }
 

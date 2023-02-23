@@ -723,7 +723,7 @@ class DynamicHypergraph {
   // ####################### Contract / Uncontract #######################
 
   DynamicHypergraph contract(parallel::scalable_vector<HypernodeID>&) {
-    ERROR("contract(c, id) is not supported in dynamic hypergraph");
+    ERR("contract(c, id) is not supported in dynamic hypergraph");
     return DynamicHypergraph();
   }
 
@@ -898,7 +898,7 @@ class DynamicHypergraph {
   }
 
   void freeTmpContractionBuffer() {
-    ERROR("freeTmpContractionBuffer() is not supported in dynamic hypergraph");
+    ERR("freeTmpContractionBuffer() is not supported in dynamic hypergraph");
   }
 
   void memoryConsumption(utils::MemoryTreeNode* parent) const;

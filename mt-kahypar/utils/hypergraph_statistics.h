@@ -38,7 +38,7 @@ namespace utils {
 template<typename T>
 double parallel_stdev(const std::vector<T>& data, const double avg, const size_t n) {
     return std::sqrt(tbb::parallel_reduce(
-            tbb::blocked_range<size_t>(0UL, data.size()), 0.0,
+            tbb::blocked_range<size_t>(UL(0), data.size()), 0.0,
             [&](tbb::blocked_range<size_t>& range, double init) -> double {
             double tmp_stdev = init;
             for ( size_t i = range.begin(); i < range.end(); ++i ) {
@@ -51,7 +51,7 @@ double parallel_stdev(const std::vector<T>& data, const double avg, const size_t
 template<typename T>
 double parallel_avg(const std::vector<T>& data, const size_t n) {
     return tbb::parallel_reduce(
-            tbb::blocked_range<size_t>(0UL, data.size()), 0.0,
+            tbb::blocked_range<size_t>(UL(0), data.size()), 0.0,
             [&](tbb::blocked_range<size_t>& range, double init) -> double {
             double tmp_avg = init;
             for ( size_t i = range.begin(); i < range.end(); ++i ) {

@@ -28,6 +28,14 @@
 
 #include <type_traits>
 
+#ifdef __linux__
+#include <sched.h>
+#define SCHED_GETCPU sched_getcpu()
+#elif _WIN32
+#include <processthreadsapi.h>
+#define SCHED_GETCPU GetCurrentProcessorNumber()
+#endif
+
 #include "kahypar/macros.h"
 
 #define SPECIALIZATION(EXPR, TYPE)          \
@@ -109,6 +117,9 @@
   #define ASSERT_FOR_HG_ONLY(cond) ASSERT(cond);
 #endif
 
+// In windows unisgned long != size_t
+#define UL(X) (size_t) X
+
 // Info, Warning and Error Output Macros
 #define GREEN "\033[1;92m"
 #define CYAN "\033[1;96m"
@@ -119,11 +130,11 @@
 #define END "\033[0m"
 #define INFO(msg) LOG << CYAN << "[INFO]" << END << msg
 #define WARNING(msg) LOG << YELLOW << "[WARNING]" << END << msg
-#define ERROR(msg) LOG << RED << "[ERROR]" << END << msg; std::exit(-1)
+#define ERR(msg) LOG << RED << "[ERROR]" << END << msg; std::exit(-1)
 
 #ifdef MT_KAHYPAR_LIBRARY_MODE
 #define ALGO_SWITCH(warning_msg, error_msg, context_variable, alternative_value) \
-  ERROR(error_msg);
+  ERR(error_msg);
 #else
 #define ALGO_SWITCH(warning_msg, error_msg, context_variable, alternative_value) \
   WARNING(warning_msg);                                                          \
@@ -133,7 +144,8 @@
   if (answer == 'Y') {                                                           \
     context_variable = alternative_value;                                        \
   } else {                                                                       \
-    ERROR(error_msg);                                                            \
+    ERR(error_msg);                                                            \
   }
 #endif
+
 

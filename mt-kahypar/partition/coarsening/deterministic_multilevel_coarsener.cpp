@@ -40,7 +40,7 @@ bool DeterministicMultilevelCoarsener::coarseningPassImpl() {
   size_t num_nodes = currentNumNodes();
   const double num_nodes_before_pass = num_nodes;
   vec<HypernodeID> clusters(num_nodes, kInvalidHypernode);
-  tbb::parallel_for(0UL, num_nodes, [&](HypernodeID u) {
+  tbb::parallel_for(UL(0), num_nodes, [&](HypernodeID u) {
     cluster_weight[u] = hg.nodeWeight(u);
     opportunistic_cluster_weight[u] = cluster_weight[u];
     propositions[u] = u;
@@ -165,7 +165,7 @@ size_t DeterministicMultilevelCoarsener::approveVerticesInTooHeavyClusters(vec<H
   };
   tbb::parallel_sort(nodes_in_too_heavy_clusters.begin(), nodes_in_too_heavy_clusters.end(), comp);
 
-  tbb::parallel_for(0UL, nodes_in_too_heavy_clusters.size(), [&](size_t pos) {
+  tbb::parallel_for(UL(0), nodes_in_too_heavy_clusters.size(), [&](size_t pos) {
     HypernodeID target = propositions[nodes_in_too_heavy_clusters[pos]];
     // the first vertex for this cluster handles the approval
     size_t num_contracted_local = 0;

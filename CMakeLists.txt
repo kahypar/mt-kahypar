@@ -1,27 +1,14 @@
 cmake_minimum_required(VERSION 3.16)
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake/modules)
 
-project(KaHyPar CXX C)
+project(MtKaHyPar CXX C)
 set(PROJECT_VENDOR "Tobias Heuer")
 set(PROJECT_CONTACT "tobias.heuer@kit.edu")
 set(PROJECT_URL "https://github.com/kittobi1992/mt-kahypar")
 set(PROJECT_DESCRIPTION "Mt-KaHyPar: Multi-Threaded Karlsruhe Hypergraph Partitioning")
 set(PROJECT_VERSION "1.0.0")
 
-include_directories(${PROJECT_SOURCE_DIR})
-
-find_package(Threads REQUIRED)
-message(STATUS "Found Threads: ${CMAKE_THREAD_LIBS_INIT}")
-
-#ensure that gmock is built before tests are executed
-add_subdirectory(external_tools/googletest EXCLUDE_FROM_ALL)
-include_directories(SYSTEM ${gtest_SOURCE_DIR}/include ${gtest_SOURCE_DIR})
-include_directories(SYSTEM ${gtest_SOURCE_DIR}/../googlemock/include ${gtest_SOURCE_DIR}/../googlemock/)
-
-#include KaHyPar
-include_directories(external_tools/kahypar)
-#include WHFC
-include_directories(external_tools/WHFC)
+# CMake Options
 
 option(KAHYPAR_DOWNLOAD_BOOST
   "Download boost automatically and compile required libraries." OFF)
@@ -107,12 +94,21 @@ if(KAHYPAR_ENABLE_THREAD_PINNING)
   add_compile_definitions(KAHYPAR_ENABLE_THREAD_PINNING)
 endif(KAHYPAR_ENABLE_THREAD_PINNING)
 
+include_directories(${PROJECT_SOURCE_DIR})
+find_package(Threads REQUIRED)
+message(STATUS "Found Threads: ${CMAKE_THREAD_LIBS_INIT}")
+
+# Include Submodules
+add_subdirectory(external_tools/googletest EXCLUDE_FROM_ALL)
+include_directories(SYSTEM ${gtest_SOURCE_DIR}/include ${gtest_SOURCE_DIR})
+include_directories(SYSTEM ${gtest_SOURCE_DIR}/../googlemock/include ${gtest_SOURCE_DIR}/../googlemock/)
+include_directories(external_tools/kahypar)
+include_directories(external_tools/WHFC)
+
 if(KAHYPAR_DOWNLOAD_BOOST)
+  # Download Boost
   execute_process(COMMAND cmake -P ${CMAKE_CURRENT_SOURCE_DIR}/scripts/download_boost.cmake)
-
   include_directories(SYSTEM ${CMAKE_CURRENT_BINARY_DIR}/external_tools/boost/)
-
-  # glob boost sources
   file(GLOB MINI_BOOST_SOURCES ${CMAKE_CURRENT_BINARY_DIR}/external_tools/boost/libs/program_options/src/*.cpp)
 
   add_library(mini_boost STATIC ${MINI_BOOST_SOURCES})
@@ -121,6 +117,7 @@ if(KAHYPAR_DOWNLOAD_BOOST)
   set(Boost_INCLUDE_DIRS ${CMAKE_CURRENT_BINARY_DIR}/external_tools/boost/boost/)
   include_directories(SYSTEM ${Boost_INCLUDE_DIRS})
 else()
+  # Find Boost Program Options Library
   find_package(Boost 1.69 REQUIRED COMPONENTS program_options)
   if(Boost_FOUND)
     include_directories(SYSTEM ${Boost_INCLUDE_DIRS})
@@ -133,28 +130,41 @@ else()
       add_definitions(-DBOOST_ALL_NO_LIB)
       add_definitions(-DBOOST_PROGRAM_OPTIONS_DYN_LINK=1)
     endif()
-
+  else()
+    MESSAGE(FATAL_ERROR "
+      Boost not found. Install Boost on your system or
+      add -DKAHYPAR_DOWNLOAD_BOOST=On to the cmake build command.")
   endif()
 endif()
 
+# Download TBB
 if(KAHYPAR_DOWNLOAD_TBB)
-  execute_process(COMMAND cmake -P ${CMAKE_CURRENT_SOURCE_DIR}/scripts/download_tbb.cmake)
-  set(TBB_ROOT ${CMAKE_CURRENT_BINARY_DIR}/external_tools/tbb)
+  if ( UNIX AND NOT WIN32 )
+    execute_process(COMMAND cmake -P ${CMAKE_CURRENT_SOURCE_DIR}/scripts/download_tbb_linux.cmake)
+    set(TBB_ROOT ${CMAKE_CURRENT_BINARY_DIR}/external_tools/tbb)
+  elseif ( MSVC )
+    execute_process(COMMAND cmake -G ${CMAKE_GENERATOR} -P ${CMAKE_CURRENT_SOURCE_DIR}/scripts/download_tbb_windows.cmake)
+    set(TBB_ROOT ${CMAKE_CURRENT_BINARY_DIR}/external_tools/tbb)
+  else()
+    MESSAGE(WARNING "
+      We did not find a TBB version for your platform online.
+      The build uses the TBB version installed on your system.")
+  endif()
 endif()
 
-#find TBB
+# Find TBB Library
 find_package(TBB REQUIRED)
 if (TBB_FOUND)
-  if ((TBB_INTERFACE_VERSION GREATER_EQUAL 12070) OR (NOT KAHYPAR_ENFORCE_MINIMUM_TBB_VERSION) OR KAHYPAR_CI_BUILD)
+  if ((TBB_INTERFACE_VERSION GREATER_EQUAL 12050) OR (NOT KAHYPAR_ENFORCE_MINIMUM_TBB_VERSION) OR KAHYPAR_CI_BUILD)
     include_directories(SYSTEM ${TBB_INCLUDE_DIRS} ${TBB_MALLOC_INCLUDE_DIRS})
     link_libraries(${TBB_LIBRARIES} ${TBB_MALLOC_LIBRARIES})
     MESSAGE(STATUS "TBB Version: ${TBB_VERSION_MAJOR}.${TBB_VERSION_MINOR} (Interface Version=${TBB_INTERFACE_VERSION})")
     MESSAGE(STATUS "Found TBB library: inc=${TBB_INCLUDE_DIRS}, lib=${TBB_LIBRARIES}")
-    MESSAGE(STATUS "Found TBB Malloc library: inc=${TBB_MALLOC_INCLUDE_DIRS}, lib=${TBB_MALLOC_LIBRARIES}")
+    MESSAGE(STATUS "Found TBB Malloc Proxy library: inc=${TBB_MALLOC_PROXY_INCLUDE_DIRS}, lib=${TBB_MALLOC_PROXY_LIBRARIES}")
   ELSE ()
     MESSAGE(FATAL_ERROR "
       Your current TBB version is too old. Your interface version is ${TBB_INTERFACE_VERSION}, but the minimum
-      required version is 12070 (OneTBB 2021.7). You can download a suitable version by adding
+      required version is 12050 (OneTBB 2021.5). You can download a suitable version by adding
       -DKAHYPAR_DOWNLOAD_TBB=ON to the cmake build command (may require to clear the cmake cache).
       Note that Mt-KaHyPar also compiles with older versions of TBB. However, we found some unexpected
       behavior of a TBB function that causes on our side segmentation faults in really rare cases.
@@ -163,10 +173,28 @@ if (TBB_FOUND)
   ENDIF()
 ELSE ()
   MESSAGE(FATAL_ERROR "
-    TBB library not found. Try to install TBB with sudo apt-get install libtbb-dev or
-    add -DKAHYPAR_DOWNLOAD_TBB=ON to the cmake build command.")
+    TBB library not found. Install TBB on your system or
+    add -DKAHYPAR_DOWNLOAD_TBB=On to the cmake build command
+    (only available for Linux and MSVC).")
 ENDIF()
 
+# Find HWLOC Library
+FIND_PATH(HWLOCK_INCLUDE_DIR NAME hwloc.h
+  HINTS $ENV{HOME}/local/include /opt/local/include /usr/local/include /usr/include)
+FIND_LIBRARY(HWLOCK_LIBRARY NAME hwloc
+  HINTS $ENV{HOME}/local/lib64 $ENV{HOME}/local/lib /usr/local/lib64 /usr/local/lib /opt/local/lib64 /opt/local/lib /usr/lib64 /usr/lib
+)
+
+IF (HWLOCK_INCLUDE_DIR AND HWLOCK_LIBRARY)
+  MESSAGE(STATUS "Found hwlock library: inc=${HWLOCK_INCLUDE_DIR}, lib=${HWLOCK_LIBRARY}")
+  include_directories(${HWLOCK_INCLUDE_DIR})
+  link_libraries(${HWLOCK_LIBRARY})
+ELSE ()
+  MESSAGE(FATAL_ERROR "
+    HwLoc library not found. Install HwLoc on your system.")
+ENDIF ()
+
+# Add targets for code coverage analysis
 if(KAHYPAR_USE_GCOV)
 
   include(CodeCoverage)
@@ -224,50 +252,14 @@ if(KAHYPAR_USE_GCOV)
 
 endif(KAHYPAR_USE_GCOV)
 
+# Set default build type if not set
 if(NOT CMAKE_BUILD_TYPE)
-  set( CMAKE_BUILD_TYPE Debug CACHE STRING
-       "Choose the type of build, options are: Debug Release, RelWithDebInfo"
+  set( CMAKE_BUILD_TYPE Release CACHE STRING
+       "Choose the type of build, options are: Debug, Release, RelWithDebInfo"
        FORCE )
 endif()
 
-# find LIBNUMA
-FIND_PATH(NUMA_INCLUDE_DIR NAME numa.h
-  HINTS $ENV{HOME}/local/include /opt/local/include /usr/local/include /usr/include)
-
-FIND_LIBRARY(NUMA_LIBRARY NAME numa
-  HINTS $ENV{HOME}/local/lib64 $ENV{HOME}/local/lib /usr/local/lib64 /usr/local/lib /opt/local/lib64 /opt/local/lib /usr/lib64 /usr/lib
-)
-
-IF (NUMA_INCLUDE_DIR AND NUMA_LIBRARY)
-    SET(NUMA_FOUND TRUE)
-    MESSAGE(STATUS "Found numa library: inc=${NUMA_INCLUDE_DIR}, lib=${NUMA_LIBRARY}")
-    include_directories(${NUMA_INCLUDE_DIR})
-    link_libraries(${NUMA_LIBRARY})
-ELSE ()
-    SET(NUMA_FOUND FALSE)
-    MESSAGE(STATUS "WARNING: Numa library not found.")
-    MESSAGE(STATUS "Try: 'sudo yum install numactl numactl-devel' (or sudo apt-get install libnuma libnuma-dev)")
-ENDIF ()
-
-# find HWLOC
-
-FIND_PATH(HWLOCK_INCLUDE_DIR NAME hwloc.h
-  HINTS $ENV{HOME}/local/include /opt/local/include /usr/local/include /usr/include)
-
-FIND_LIBRARY(HWLOCK_LIBRARY NAME hwloc
-  HINTS $ENV{HOME}/local/lib64 $ENV{HOME}/local/lib /usr/local/lib64 /usr/local/lib /opt/local/lib64 /opt/local/lib /usr/lib64 /usr/lib
-)
-
-IF (HWLOCK_INCLUDE_DIR AND HWLOCK_LIBRARY)
-    SET(HWLOCK_FOUND TRUE)
-    MESSAGE(STATUS "Found hwlock library: inc=${HWLOCK_INCLUDE_DIR}, lib=${HWLOCK_LIBRARY}")
-    include_directories(${HWLOCK_INCLUDE_DIR})
-    link_libraries(${HWLOCK_LIBRARY})
-ELSE ()
-    SET(HWLOCK_FOUND FALSE)
-    MESSAGE(STATUS "WARNING: hwlock library not found.")
-ENDIF ()
-
+# Get current commit hash
 find_package(Git)
 include(GetGitRevisionDescription)
 get_git_head_revision(MT_KAHYPAR_VERSION_GIT_REFSPEC MT_KAHYPAR_VERSION_GIT_SHA1)
@@ -277,6 +269,7 @@ if(MT_KAHYPAR_VERSION_GIT_REFSPEC)
 endif(MT_KAHYPAR_VERSION_GIT_REFSPEC)
 
 if(NOT MSVC)
+  # Add compile flags
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -W -Wall -Wextra ")
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wunused ")
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wuninitialized")
@@ -314,10 +307,14 @@ if(NOT MSVC)
   endif()
 
 
-  set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -g3 -fsanitize=undefined -fno-omit-frame-pointer")
+  set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -g3 -fno-omit-frame-pointer")
   set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O3")
   set(CMAKE_LINKER_FLAGS_DEBUG "${CMAKE_LINKER_FLAGS_DEBUG} -fno-omit-frame-pointer")
   set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-O3 -g3 ")
+
+  if(UNIX AND NOT WIN32)
+  set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -g3 -fsanitize=undefined")
+  endif()
 
   if(KAHYPAR_ENABLE_ARCH_COMPILE_OPTIMIZATIONS)
     set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -mtune=native -march=native")
@@ -336,7 +333,7 @@ if(NOT MSVC)
     set(PROFILE_FLAGS "-lprofiler")
   endif()
 elseif(MSVC)
-  message(STATUS "MSVC not supported")
+  message(FATAL_ERROR "MSVC not supported at the moment")
 endif()
 
 add_custom_target(AnalyzeModifiedSources  perl "${PROJECT_SOURCE_DIR}/codestyle/analyze-source.pl" "-w")
@@ -359,6 +356,7 @@ add_subdirectory(python)
 # This adds the source files. It's important that this happens after the compile targets have been added
 add_subdirectory(mt-kahypar)
 
+# Target for MtKaHyPar standalone application
 add_custom_target(MtKaHyPar
   DEPENDS
   MtKaHyParDefault
@@ -367,6 +365,7 @@ add_custom_target(MtKaHyPar
   MtKaHyParGraphQuality
   MtKaHyParWrapper)
 
+# Target for Mt-KaHyPar Test Suite
 add_custom_target(mt_kahypar_tests
   DEPENDS
   mt_kahypar_multilevel_tests

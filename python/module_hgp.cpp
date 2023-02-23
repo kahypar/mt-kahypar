@@ -266,7 +266,7 @@ Construct a weighted hypergraph.
         PartitionedHypergraph partitioned_hg(num_blocks, hypergraph, mt_kahypar::parallel_tag_t { });
         partitioned_hg.doParallelForAllNodes([&](const HypernodeID& hn) {
           if ( partition[hn] < 0 || partition[hn] >= num_blocks ) {
-            ERROR("Invalid block ID for node" << hn << "( block ID =" << partition[hn] << ")");
+            ERR("Invalid block ID for node" << hn << "( block ID =" << partition[hn] << ")");
           }
           partitioned_hg.setOnlyNodePart(hn, partition[hn]);
         });
@@ -290,7 +290,7 @@ Construct a partitioned hypergraph.
         PartitionedHypergraph partitioned_hg(num_blocks, hypergraph, mt_kahypar::parallel_tag_t { });
         partitioned_hg.doParallelForAllNodes([&](const HypernodeID& hn) {
           if ( partition[hn] < 0 || partition[hn] >= num_blocks ) {
-            ERROR("Invalid block ID for node" << hn << "( block ID =" << partition[hn] << ")");
+            ERR("Invalid block ID for node" << hn << "( block ID =" << partition[hn] << ")");
           }
           partitioned_hg.setOnlyNodePart(hn, partition[hn]);
         });

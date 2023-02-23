@@ -109,7 +109,7 @@ namespace mt_kahypar::metrics {
       case Objective::cut: return hyperedgeCut(hg, parallel);
       case Objective::km1: return km1(hg, parallel);
       default:
-      ERROR("Unknown Objective");
+      ERR("Unknown Objective");
     }
   }
 

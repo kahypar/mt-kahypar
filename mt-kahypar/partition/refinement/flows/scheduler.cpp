@@ -59,7 +59,7 @@ namespace {
 
   template<typename F>
   std::string progress_bar(const size_t value, const size_t max, const F& f) {
-    const double percentage = static_cast<double>(value) / std::max(max,1UL);
+    const double percentage = static_cast<double>(value) / std::max(max,UL(1));
     const size_t ticks = PROGRESS_BAR_SIZE * percentage;
     std::stringstream pbar_str;
     pbar_str << "|"
@@ -115,8 +115,8 @@ bool FlowRefinementScheduler::refineImpl(
 
   std::atomic<HyperedgeWeight> overall_delta(0);
   utils::Timer& timer = utils::Utilities::instance().getTimer(_context.utility_id);
-  tbb::parallel_for(0UL, _refiner.numAvailableRefiner(), [&](const size_t i) {
-    while ( i < std::max(1UL, static_cast<size_t>(
+  tbb::parallel_for(UL(0), _refiner.numAvailableRefiner(), [&](const size_t i) {
+    while ( i < std::max(UL(1), static_cast<size_t>(
         std::ceil(_context.refinement.flows.parallel_searches_multiplier *
             _quotient_graph.numActiveBlockPairs()))) ) {
       SearchID search_id = _quotient_graph.requestNewSearch(_refiner);

@@ -64,7 +64,7 @@ vec<uint32_t> counting_sort(const InputRange& input, OutputRange& output,
 
     // prefix sum local bucket sizes for local offsets
     if (max_num_buckets > 1 << 10) {
-      tbb::parallel_for(0UL, max_num_buckets, [&](size_t bucket) {
+      tbb::parallel_for(UL(0), max_num_buckets, [&](size_t bucket) {
         for (size_t i = 1; i < num_tasks; ++i) {
           thread_local_bucket_ends[i][bucket] += thread_local_bucket_ends[i - 1][bucket]; // EVIL for locality!
         }

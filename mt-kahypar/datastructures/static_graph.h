@@ -689,7 +689,7 @@ class StaticGraph {
 
   // ! Enables a hyperedge (must be disabled before)
   void enableHyperedge(const HyperedgeID) {
-    ERROR("enableHyperedge() is not supported in static graph");
+    ERR("enableHyperedge() is not supported in static graph");
   }
 
   // ! Community id which hypernode u is assigned to
@@ -716,14 +716,14 @@ class StaticGraph {
   StaticGraph contract(parallel::scalable_vector<HypernodeID>& communities);
 
   bool registerContraction(const HypernodeID, const HypernodeID) {
-    ERROR("registerContraction(u, v) is not supported in static graph");
+    ERR("registerContraction(u, v) is not supported in static graph");
     return false;
   }
 
   size_t contract(const HypernodeID,
                   const HypernodeWeight max_node_weight = std::numeric_limits<HypernodeWeight>::max()) {
     unused(max_node_weight);
-    ERROR("contract(v, max_node_weight) is not supported in static graph");
+    ERR("contract(v, max_node_weight) is not supported in static graph");
     return 0;
   }
 
@@ -734,11 +734,11 @@ class StaticGraph {
     unused(mark_edge);
     unused(case_one_func);
     unused(case_two_func);
-    ERROR("uncontract(batch) is not supported in static graph");
+    ERR("uncontract(batch) is not supported in static graph");
   }
 
   VersionedBatchVector createBatchUncontractionHierarchy(const size_t) {
-    ERROR("createBatchUncontractionHierarchy(batch_size) is not supported in static graph");
+    ERR("createBatchUncontractionHierarchy(batch_size) is not supported in static graph");
     return { };
   }
 
@@ -753,23 +753,23 @@ class StaticGraph {
   * setting.
   */
   void removeLargeEdge(const HyperedgeID) {
-    ERROR("removeLargeEdge() is not supported in static graph");
+    ERR("removeLargeEdge() is not supported in static graph");
   }
 
   /*!
    * Restores a large hyperedge previously removed from the hypergraph.
    */
   void restoreLargeEdge(const HyperedgeID&) {
-    ERROR("restoreLargeEdge() is not supported in static graph");
+    ERR("restoreLargeEdge() is not supported in static graph");
   }
 
   parallel::scalable_vector<ParallelHyperedge> removeSinglePinAndParallelHyperedges() {
-    ERROR("removeSinglePinAndParallelHyperedges() is not supported in static graph");
+    ERR("removeSinglePinAndParallelHyperedges() is not supported in static graph");
     return { };
   }
 
   void restoreSinglePinAndParallelNets(const parallel::scalable_vector<ParallelHyperedge>&) {
-    ERROR("restoreSinglePinAndParallelNets(hes_to_restore) is not supported in static graph");
+    ERR("restoreSinglePinAndParallelNets(hes_to_restore) is not supported in static graph");
   }
 
   // ####################### Initialization / Reset Functions #######################
@@ -816,7 +816,7 @@ class StaticGraph {
 
     // ! Only for testing
   bool verifyIncidenceArrayAndIncidentNets() {
-    ERROR("verifyIncidenceArrayAndIncidentNets() not supported in static graph");
+    ERR("verifyIncidenceArrayAndIncidentNets() not supported in static graph");
     return false;
   }
 

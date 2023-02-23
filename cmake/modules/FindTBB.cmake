@@ -270,7 +270,7 @@ endif ()
 # to detect the "best" version to use. The user will have to manually
 # select the right files. (Chances are the distributions are shipping their
 # custom version of tbb, anyway, so the problem is probably nonexistent.)
-if (WIN32 AND MSVC)
+if (WIN32 OR MSVC)
   set(COMPILER_PREFIX "vc7.1")
   if (MSVC_VERSION EQUAL 1400)
     set(COMPILER_PREFIX "vc8")
@@ -326,7 +326,6 @@ endif ()
 
 # check compiler ABI
 if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-  set(COMPILER_PREFIX)
   if (NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 4.8)
     list(APPEND COMPILER_PREFIX "gcc4.8")
   endif()
@@ -378,7 +377,7 @@ endforeach ()
 # add general search paths
 foreach (dir IN LISTS TBB_PREFIX_PATH)
   list(APPEND TBB_LIB_SEARCH_PATH ${dir}/lib ${dir}/Lib ${dir}/lib/tbb ${dir}/Libs)
-  list(APPEND TBB_INC_SEARCH_PATH ${dir}/include ${dir}/Include ${dir}/include/tbb)
+  list(APPEND TBB_INC_SEARCH_PATH ${dir}/include ${dir}/Include ${dir}/include/tbb ${dir}/include/oneapi/tbb)
 endforeach ()
 
 set(TBB_LIBRARY_NAMES tbb)

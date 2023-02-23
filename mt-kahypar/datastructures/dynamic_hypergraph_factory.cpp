@@ -66,7 +66,7 @@ DynamicHypergraph DynamicHypergraphFactory::construct(
 
   // Compute number of pins per hyperedge
   Counter num_pins_per_hyperedge(num_hyperedges, 0);
-  tbb::enumerable_thread_specific<size_t> local_max_edge_size(0UL);
+  tbb::enumerable_thread_specific<size_t> local_max_edge_size(UL(0));
   tbb::parallel_for(ID(0), num_hyperedges, [&](const size_t pos) {
     num_pins_per_hyperedge[pos] = edge_vector[pos].size();
     local_max_edge_size.local() = std::max(
@@ -82,7 +82,7 @@ DynamicHypergraph DynamicHypergraphFactory::construct(
   // start position for each hyperedge in the incidence array.
   parallel::TBBPrefixSum<size_t> pin_prefix_sum(num_pins_per_hyperedge);
   tbb::parallel_scan(tbb::blocked_range<size_t>(
-    0UL, UI64(num_hyperedges)), pin_prefix_sum);
+    UL(0), UI64(num_hyperedges)), pin_prefix_sum);
 
   hypergraph._num_pins = pin_prefix_sum.total_sum();
   hypergraph._total_degree = pin_prefix_sum.total_sum();
@@ -161,7 +161,7 @@ DynamicHypergraphFactory::compactify(const DynamicHypergraph& hypergraph) {
 
     parallel::TBBPrefixSum<HypernodeID, parallel::scalable_vector> hn_mapping_prefix_sum(hn_mapping);
     tbb::parallel_scan(tbb::blocked_range<size_t>(
-      0UL, hypergraph._num_hypernodes + 1), hn_mapping_prefix_sum);
+      UL(0), hypergraph._num_hypernodes + 1), hn_mapping_prefix_sum);
     num_hypernodes = hn_mapping_prefix_sum.total_sum();
     hn_mapping.resize(hypergraph._num_hypernodes);
   }, [&] {
@@ -172,7 +172,7 @@ DynamicHypergraphFactory::compactify(const DynamicHypergraph& hypergraph) {
 
     parallel::TBBPrefixSum<HyperedgeID, parallel::scalable_vector> he_mapping_prefix_sum(he_mapping);
     tbb::parallel_scan(tbb::blocked_range<size_t>(
-      0UL, hypergraph._num_hyperedges + 1), he_mapping_prefix_sum);
+      UL(0), hypergraph._num_hyperedges + 1), he_mapping_prefix_sum);
     num_hyperedges = he_mapping_prefix_sum.total_sum();
     he_mapping.resize(hypergraph._num_hyperedges);
   });

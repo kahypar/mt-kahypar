@@ -27,6 +27,8 @@
 
 #include "context.h"
 
+#include <algorithm>
+
 namespace mt_kahypar {
 
   std::ostream & operator<< (std::ostream& str, const PartitioningParameters& params) {
@@ -245,7 +247,7 @@ namespace mt_kahypar {
       }
 
       if (max_part_weights_sum < total_hypergraph_weight) {
-        ERROR("Sum of individual part weights is less than the total hypergraph weight. Finding a valid partition is impossible.\n"
+        ERR("Sum of individual part weights is less than the total hypergraph weight. Finding a valid partition is impossible.\n"
                 << "Total hypergraph weight: " << total_hypergraph_weight << "\n"
                 << "Sum of part weights:     " << max_part_weights_sum);
       } else {
@@ -398,7 +400,7 @@ namespace mt_kahypar {
     }
 
 
-    shared_memory.static_balancing_work_packages = std::clamp(shared_memory.static_balancing_work_packages, 4UL, 256UL);
+    shared_memory.static_balancing_work_packages = std::clamp(shared_memory.static_balancing_work_packages, UL(4), UL(256));
 
     if ( partition.deterministic ) {
       coarsening.algorithm = CoarseningAlgorithm::deterministic_multilevel_coarsener;
@@ -430,7 +432,7 @@ namespace mt_kahypar {
       // t = number of threads
       // k * (k - 1) / 2 = maximum number of edges in the quotient graph
       refinement.flows.num_parallel_searches = partition.k == 2 ? 1 :
-        std::min(shared_memory.num_threads, std::min(std::max(1UL, static_cast<size_t>(
+        std::min(shared_memory.num_threads, std::min(std::max(UL(1), static_cast<size_t>(
           refinement.flows.parallel_searches_multiplier * partition.k)),
             static_cast<size_t>((partition.k * (partition.k - 1)) / 2) ));
     }

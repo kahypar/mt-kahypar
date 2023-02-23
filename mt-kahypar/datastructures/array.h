@@ -293,7 +293,7 @@ class Array {
               const value_type init_value = value_type(),
               const bool assign_parallel = true) {
     if ( _data || _underlying_data ) {
-      ERROR("Memory of vector already allocated");
+      ERR("Memory of vector already allocated");
     }
     allocate_data(size);
     assign(size, init_value, assign_parallel);
@@ -341,8 +341,8 @@ class Array {
     if ( _underlying_data ) {
       ASSERT(count <= _size);
       if ( assign_parallel ) {
-        const size_t step = std::max(count / std::thread::hardware_concurrency(), 1UL);
-        tbb::parallel_for(0UL, count, step, [&](const size_type i) {
+        const size_t step = std::max(count / std::thread::hardware_concurrency(), UL(1));
+        tbb::parallel_for(UL(0), count, step, [&](const size_type i) {
           for ( size_t j = i; j < std::min(i + step, count); ++j ) {
             _underlying_data[j] = value;
           }

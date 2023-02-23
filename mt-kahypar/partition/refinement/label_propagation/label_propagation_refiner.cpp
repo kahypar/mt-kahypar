@@ -121,7 +121,7 @@ namespace mt_kahypar {
     bool converged = true;
     if ( _context.refinement.label_propagation.execute_sequential ) {
       utils::Randomize::instance().shuffleVector(
-              _active_nodes, 0UL, _active_nodes.size(), sched_getcpu());
+              _active_nodes, UL(0), _active_nodes.size(), SCHED_GETCPU);
 
       for ( size_t j = 0; j < _active_nodes.size(); ++j ) {
         const HypernodeID hn = _active_nodes[j];
@@ -133,9 +133,9 @@ namespace mt_kahypar {
       }
     } else {
       utils::Randomize::instance().parallelShuffleVector(
-              _active_nodes, 0UL, _active_nodes.size());
+              _active_nodes, UL(0), _active_nodes.size());
 
-      tbb::parallel_for(0UL, _active_nodes.size(), [&](const size_t& j) {
+      tbb::parallel_for(UL(0), _active_nodes.size(), [&](const size_t& j) {
         const HypernodeID hn = _active_nodes[j];
         if ( moveVertex(hypergraph, hn, next_active_nodes, objective_delta) ) {
           _active_node_was_moved[j] = uint8_t(true);
@@ -158,7 +158,7 @@ namespace mt_kahypar {
           recompute(j);
         }
       } else {
-        tbb::parallel_for(0UL, _active_nodes.size(), recompute);
+        tbb::parallel_for(UL(0), _active_nodes.size(), recompute);
       }
     }
 
