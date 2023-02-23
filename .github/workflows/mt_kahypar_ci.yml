@@ -135,10 +135,7 @@ jobs:
       - name: Install Boost and TBB
         shell: msys2 {0}
         run: |
-          pacman --noconfirm -S mingw-w64-x86_64-boost
-          pacman --noconfirm -S mingw-w64-x86_64-tbb
-          pacman --noconfirm -S mingw-w64-x86_64-cmake
-          pacman --noconfirm -S mingw-w64-x86_64-gcc
+          pacman --noconfirm -S mingw-w64-x86_64-boost mingw-w64-x86_64-tbb mingw-w64-x86_64-gcc
 
       - name: Put MSYS2_MinGW64 on Path
         run: |
@@ -158,10 +155,10 @@ jobs:
           cd build
           export CMAKE_GENERATOR="MSYS Makefiles"
           /mingw64/bin/cmake .. -DCMAKE_BUILD_TYPE=RELEASE -DKAHYPAR_DOWNLOAD_BOOST=On -DKAHYPAR_CI_BUILD=ON
-          make -j2 mt_kahypar_multilevel_tests
+          make -j2 MtKaHyParDefault
 
-      - name: Run Mt-KaHyPar Multilevel Tests
+      - name: Check if Mt-KaHyPar can partition a hypergraph
         shell: msys2 {0}
         run: |
           cd build
-          ./tests/mt_kahypar_multilevel_tests
+          ./mt-kahypar/application/MtKaHyParDefault -h ../tests/instances/ibm01.hgr -p ../config/default_preset.ini -t 2 -k 8 -e 0.03 -o km1 -m direct --verbose=true
