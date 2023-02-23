@@ -120,7 +120,7 @@ namespace mt_kahypar::io {
       free(pSD);
       if (handle.hMem == NULL) {
         ERR("Invalid file mapping when opening:" << filename);
-      } 
+      }
 
       // map file to memory
       handle.mapped_file = (char*) MapViewOfFile(handle.hMem, FILE_MAP_READ, 0, 0, 0);
@@ -129,7 +129,7 @@ namespace mt_kahypar::io {
       }
     #elif __linux__
       handle.fd = open(filename.c_str(), O_RDONLY);
-      if ( fd < -1 ) {
+      if ( handle.fd < -1 ) {
         ERR("Could not open:" << filename);
       }
       handle.mapped_file = (char*) mmap(0, handle.length, PROT_READ, MAP_SHARED, handle.fd, 0);
