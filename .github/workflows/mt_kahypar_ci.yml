@@ -122,6 +122,11 @@ jobs:
       CI_ACTIVE : 1
 
     steps:
+      - name: Set git to use UNIX line endings
+        run: |
+          git config --global core.autocrlf false
+          git config --global core.eol lf
+
       - name: Checkout HEAD
         uses: actions/checkout@v2
         with:
@@ -155,4 +160,10 @@ jobs:
           cd build
           export CMAKE_GENERATOR="MSYS Makefiles"
           /mingw64/bin/cmake .. -DCMAKE_BUILD_TYPE=RELEASE -DKAHYPAR_DOWNLOAD_BOOST=On -DKAHYPAR_CI_BUILD=ON
-          make -j2 MtKaHyParDefault
+          make -j2 mt_kahypar_multilevel_tests
+
+      - name: Run Mt-KaHyPar Tests
+        shell: msys2 {0}
+        run: |
+          cd build
+          ./tests/mt_kahypar_multilevel_tests
