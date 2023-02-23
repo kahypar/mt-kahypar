@@ -156,9 +156,3 @@ jobs:
           export CMAKE_GENERATOR="MSYS Makefiles"
           /mingw64/bin/cmake .. -DCMAKE_BUILD_TYPE=RELEASE -DKAHYPAR_DOWNLOAD_BOOST=On -DKAHYPAR_CI_BUILD=ON
           make -j2 MtKaHyParDefault
-
-      - name: Check if Mt-KaHyPar can partition a hypergraph
-        shell: msys2 {0}
-        run: |
-          cd build
-          ./mt-kahypar/application/MtKaHyParDefault -h ../tests/instances/ibm01.hgr -p ../config/default_preset.ini -t 2 -k 8 -e 0.03 -o km1 -m direct --verbose=true

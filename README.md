@@ -37,23 +37,44 @@ Requirements
 
 The Multi-Threaded Karlsruhe Hypergraph Partitioning Framework requires:
 
-  - A 64-bit Linux operating system.
-  - A modern, ![C++17](https://img.shields.io/badge/C++-17-blue.svg?style=flat)-ready compiler such as `g++` version 7 or higher or `clang` version 11.0.3 or higher.
+  - A 64-bit Linux or Windows operating system.
+  - A modern, ![C++17](https://img.shields.io/badge/C++-17-blue.svg?style=flat)-ready compiler such as `g++` version 7 or higher, `clang` version 11.0.3 or higher, or `MinGW` compiler on Windows (tested with version 12.1).
  - The [cmake][cmake] build system (>= 3.16).
  - The [Boost - Program Options][Boost.Program_options] library and the boost header files (>= 1.48).
    If you don't want to install boost by yourself, you can add the `-DKAHYPAR_DOWNLOAD_BOOST=On` flag
    to the cmake command to download, extract, and build the neccessary dependencies automatically.
- - The [Intel Thread Building Blocks][tbb] library (TBB, minimum required version is OneTBB 2021.7.0).
-   If you don't want to install TBB by yourself, you can add the `-DKAHYPAR_DOWNLOAD_TBB=On` flag
+ - The [Intel Thread Building Blocks][tbb] library (TBB, minimum required version is OneTBB 2021.5.0).
+   If you don't want to install TBB by yourself, you can add the `-DKAHYPAR_DOWNLOAD_TBB=On` flag (only available on Linux)
    to the cmake command to download oneTBB 2021.7.0 and extract the neccessary dependencies automatically.
    Mt-KaHyPar also compiles with older version of TBB. However, we observed unexpected behavior of a TBB function
    on which we rely on which causes on our side a segmentation fault in really rare cases. If you want to ignore these
    warning, you can add `-DKAHYPAR_ENFORCE_MINIMUM_TBB_VERSION=OFF` to the cmake build command.
  - The [Portable Hardware Locality][hwloc] library (hwloc)
 
+### Linux
+
 The following command will install most of the required dependencies on a Ubuntu machine:
 
     sudo apt-get install libtbb-dev libhwloc-dev libboost-program-options-dev
+
+### Windows
+
+The following instructions setup the environment used to build Mt-KaHyPar on Windows machines:
+
+  1. Download and install [MSYS2][MSYS2] from the official website (https://www.msys2.org/).
+  2. Launch the `MSYS2 MinGW x64` terminal.
+  3. Update the package manager database by running the following command:
+
+    pacman -Syu
+
+  4. The following command will then install all required dependencies:
+
+    pacman -S make mingw-w64-x86_64-cmake mingw-w64-x86_64-gcc mingw-w64-x86_64-python3 mingw-w64-x86_64-tbb
+
+  5. Rename `libtbb12.dll.a` to `libtbb.dll.a` which is located in `C:\msys64\mingw64\lib` (or `/mingw64/lib` within the
+     `MSYS2 MinGW x64` terminal)
+
+Please **note** that Mt-KaHyPar was primarily tested and evaluated on Linux machines. While a Windows build has been provided and tested on `MSYS2` using `pacman` to install the required dependencies, we cannot provide any performance guarantees or ensure that the Windows version is free of bugs. At this stage, Windows support is experimental. We are happy to accept contributions to improve Windows support.
 
 Building Mt-KaHyPar
 -----------
@@ -63,8 +84,10 @@ To build Mt-KaHyPar, you can run the `build.sh` script (creates a `build` folder
 1. Clone the repository including submodules:
 
    ```git clone --depth=1 --recursive git@github.com:kahypar/mt-kahypar.git```
+
 2. Create a build directory: `mkdir build && cd build`
-3. Run cmake: `cmake .. -DCMAKE_BUILD_TYPE=RELEASE`
+3. *Only on Windows machines*: `export CMAKE_GENERATOR="MSYS Makefiles"`
+3. Run cmake: `cmake .. -DCMAKE_BUILD_TYPE=RELEASE` (on Windows machines add `-DKAHYPAR_DOWNLOAD_BOOST=On`)
 4. Run make: `make MtKaHyPar -j`
 
 The build produces the executable `MtKaHyPar`, which can be found in `build/mt-kahypar/application/`.
@@ -118,7 +141,7 @@ The C Library Interface
 We provide a simple C-style interface to use Mt-KaHyPar as a library.  The library can be built and installed via
 
 ```sh
-make install.mtkahypar # use sudo to install system-wide
+make install.mtkahypar # use sudo (Linux) or run shell as an adminstrator (Windows) to install system-wide
 ```
 
 Note: When installing locally, the build will exit with an error due to missing permissions.
@@ -196,14 +219,17 @@ To compile the program using `g++` run:
 g++ -std=c++17 -DNDEBUG -O3 your_program.cc -o your_program -lmtkahypar
 ```
 
-To execute the binary, you need to ensure that the installation directory (probably `/usr/local/lib` for system-wide installation)
+To execute the binary, you need to ensure that the installation directory
+(probably `/usr/local/lib` (Linux) and `C:\Program Files (x86)\MtKaHyPar\bin` (Windows) for system-wide installation)
 is included in the dynamic library path.
-The path can be updated with:
+The path can be updated on Linux with:
 
 ```sh
 LD_LIBRARY_PATH="$LD_LIBRARY_PATH;/usr/local/lib"
 export LD_LIBRARY_PATH
 ```
+
+On Windows, add `C:\Program Files (x86)\KaHyPar\bin` to `PATH` in the environment variables settings.
 
 To remove the library from your system use the provided uninstall target:
 
@@ -214,18 +240,17 @@ make uninstall-mtkahypar
 The Python Library Interface
 -----------
 
-To compile the Python interface, do the following:
+You can install the Python library interface via
 
-1. Create a build directory: `mkdir build && cd build`
-2. Run cmake: `cmake .. -DCMAKE_BUILD_TYPE=RELEASE`
-3. Go to the python libary folder: `cd python`
-4. Compile the libarary: `make`
-5. Copy the libary to your site-packages directory: `cp mtkahyparhgp.so <path-to-site-packages>` and `cp mtkahypargp.so <path-to-site-packages>`
+```sh
+make mtkahypar_python
+```
 
-The build produces two python modules: `mtkahyparhgp` and `mtkahypargp`. `mtkahyparhgp` can be used to partition hypergraphs and `mtkahypargp` to
-partition graphs. **Note** that it is **not** possible to import both modules in the same python project.
+This will create to two shared libraries in the `build/python` folder: one to partition graphs (`mtkahypargp.so` on Linux and `mtkahypargp.pyd` on Windows) and one to partition hypergraphs (`mtkahyparhgp.so` on Linux and `mtkahyparhgp.pyd` on Windows).
+Copy the libaries to your python project directory to import them as modules.
+**Note** that it is **not** possible to import both modules in the same python project.
 
-A documentation of the python modules can be found in `python/module_hgp.cpp` and `python_gp.cpp`. We also provide several examples
+A documentation of the python modules can be found in `python/module_hgp.cpp` and `python/python_gp.cpp`. We also provide several examples
 in the folder `python/examples` that show how to use the python interface.
 
 Here is a short example how you can partition a hypergraph using our python interface:
@@ -345,3 +370,4 @@ feel free to contact us or create an issue on the
 [SetA]: http://algo2.iti.kit.edu/heuer/alenex21/instances.html?benchmark=set_a
 [SetB]: http://algo2.iti.kit.edu/heuer/alenex21/instances.html?benchmark=set_b
 [ExperimentalResults]: https://algo2.iti.kit.edu/heuer/mt_kahypar/
+[MSYS2]: https://www.msys2.org/

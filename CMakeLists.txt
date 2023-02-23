@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.16)
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake/modules)
 
-project(KaHyPar CXX C)
+project(MtKaHyPar CXX C)
 set(PROJECT_VENDOR "Tobias Heuer")
 set(PROJECT_CONTACT "tobias.heuer@kit.edu")
 set(PROJECT_URL "https://github.com/kittobi1992/mt-kahypar")
@@ -139,7 +139,7 @@ endif()
 
 # Download TBB
 if(KAHYPAR_DOWNLOAD_TBB)
-  if ( LINUX )
+  if ( UNIX AND NOT WIN32 )
     execute_process(COMMAND cmake -P ${CMAKE_CURRENT_SOURCE_DIR}/scripts/download_tbb_linux.cmake)
     set(TBB_ROOT ${CMAKE_CURRENT_BINARY_DIR}/external_tools/tbb)
   elseif ( MSVC )
@@ -147,7 +147,7 @@ if(KAHYPAR_DOWNLOAD_TBB)
     set(TBB_ROOT ${CMAKE_CURRENT_BINARY_DIR}/external_tools/tbb)
   else()
     MESSAGE(WARNING "
-      We did not find a TBB version for your platform online. 
+      We did not find a TBB version for your platform online.
       The build uses the TBB version installed on your system.")
   endif()
 endif()
@@ -312,7 +312,7 @@ if(NOT MSVC)
   set(CMAKE_LINKER_FLAGS_DEBUG "${CMAKE_LINKER_FLAGS_DEBUG} -fno-omit-frame-pointer")
   set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-O3 -g3 ")
 
-  if(LINUX)
+  if(UNIX AND NOT WIN32)
   set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -g3 -fsanitize=undefined")
   endif()
 
