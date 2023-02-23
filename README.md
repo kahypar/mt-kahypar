@@ -246,7 +246,7 @@ You can install the Python library interface via
 make mtkahypar_python
 ```
 
-This will create to two shared libraries in the `build/python` folder: one to partition graphs (`mtkahypargp.so` on Linux and `mtkahypargp.pyd` on Windows) and one to partition hypergraphs (`mtkahyparhgp.so` on Linux and `mtkahyparhgp.pyd` on Windows).
+This will create two shared libraries in the `build/python` folder: one to partition graphs (`mtkahypargp.so` on Linux and `mtkahypargp.pyd` on Windows) and one to partition hypergraphs (`mtkahyparhgp.so` on Linux and `mtkahyparhgp.pyd` on Windows).
 Copy the libaries to your python project directory to import them as modules.
 **Note** that it is **not** possible to import both modules in the same python project.
 
