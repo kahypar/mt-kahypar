@@ -52,14 +52,6 @@
 
 namespace mt_kahypar::io {
 
-  int open_file(const std::string& filename) {
-    int fd = open(filename.c_str(), O_RDONLY);
-    if ( fd == -1 ) {
-      ERR("Could not open:" << filename);
-    }
-    return fd;
-  }
-
   size_t file_size(const std::string& filename) {
     struct stat stat_buf;
     const int res = stat( filename.c_str(), &stat_buf);
@@ -89,9 +81,8 @@ namespace mt_kahypar::io {
       sa.bInheritHandle = TRUE;
 
       // open file
-      hFile = CreateFile ( filename.c_str(), GENERIC_READ | GENERIC_WRITE,
-        FILE_SHARE_READ | FILE_SHARE_WRITE, &sa, OPEN_EXISTING,
-        FILE_ATTRIBUTE_NORMAL, NULL);
+      hFile = CreateFile ( filename.c_str(), GENERIC_READ, FILE_SHARE_READ,
+        &sa, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
 
       if (hFile == INVALID_HANDLE_VALUE) {
         free( pSD);
@@ -99,14 +90,14 @@ namespace mt_kahypar::io {
       }
 
       // Create file mapping
-      hMem = CreateFileMapping( hFile, &sa, PAGE_READWRITE, 0, length, NULL);
+      hMem = CreateFileMapping( hFile, &sa, PAGE_READONLY, 0, length, NULL);
       free(pSD);
       if (hMem == NULL) {
         ERR("Invalid file mapping when opening:" << filename);
       } 
 
       // map file to memory
-      char* mapped_file = (char*) MapViewOfFile(hMem, FILE_MAP_ALL_ACCESS, 0, 0, 0);
+      char* mapped_file = (char*) MapViewOfFile(hMem, FILE_MAP_READ, 0, 0, 0);
       if ( mapped_file == NULL ) {
         ERR("Failed to map file to main memory:" << filename);
       }

@@ -117,7 +117,7 @@ jobs:
           python3 test_mtkahypargp.py -v
 
   mt_kahypar_windows_build:
-    runs-on: windows-2019
+    runs-on: windows-latest
     env:
       CI_ACTIVE : 1
 
