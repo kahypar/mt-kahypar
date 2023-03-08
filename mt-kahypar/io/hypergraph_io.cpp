@@ -151,26 +151,31 @@ namespace mt_kahypar::io {
     handle.closeHandle();
   }
 
-  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
-  void goto_next_line(char* mapped_file, size_t& pos, const size_t length) {
-    for ( ; ; ++pos ) {
-      if ( pos == length || mapped_file[pos] == '\n' ) {
-        ++pos;
-        break;
-      }
-    }
-  }
 
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
-  bool is_line_ending(char* mapped_file, size_t& pos) {
-    return mapped_file[pos] == '\n' || mapped_file[pos] == '\0';
+  bool is_line_ending(char* mapped_file, size_t pos) {
+    return mapped_file[pos] == '\r' || mapped_file[pos] == '\n' || mapped_file[pos] == '\0';
   }
 
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
   void do_line_ending(char* mapped_file, size_t& pos) {
     ASSERT(is_line_ending(mapped_file, pos));
     if (mapped_file[pos] != '\0') {
+      if (mapped_file[pos] == '\r') {     // windows line ending
+        ++pos;
+        ASSERT(mapped_file[pos] == '\n');
+      }
       ++pos;
+    }
+  }
+
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
+  void goto_next_line(char* mapped_file, size_t& pos, const size_t length) {
+    for ( ; ; ++pos ) {
+      if ( pos == length || is_line_ending(mapped_file, pos) ) {
+        do_line_ending(mapped_file, pos);
+        break;
+      }
     }
   }
 
@@ -206,7 +211,7 @@ namespace mt_kahypar::io {
 
     num_hyperedges = read_number(mapped_file, pos, length);
     num_hypernodes = read_number(mapped_file, pos, length);
-    if ( mapped_file[pos] != '\n' ) {
+    if (!is_line_ending(mapped_file, pos)) {
       type = static_cast<mt_kahypar::Type>(read_number(mapped_file, pos, length));
     }
     do_line_ending(mapped_file, pos);
@@ -225,7 +230,7 @@ namespace mt_kahypar::io {
                                           const bool has_hyperedge_weights) {
     size_t num_spaces = 0;
     for ( ; pos < length; ++pos ) {
-      if ( mapped_file[pos] == '\n' ) {
+      if (is_line_ending(mapped_file, pos)) {
         break;
       } else if ( mapped_file[pos] == ' ' ) {
         ++num_spaces;
@@ -280,6 +285,7 @@ namespace mt_kahypar::io {
           ASSERT(pos < length);
         }
 
+        // This check is fine even with windows line endings!
         ASSERT(mapped_file[pos - 1] == '\n');
         if ( !remove_single_pin_hes || !isSinglePinHyperedge(mapped_file, pos, length, has_hyperedge_weights) ) {
           ++current_range_num_hyperedges;
@@ -328,7 +334,7 @@ namespace mt_kahypar::io {
       while ( current_id < last_id ) {
         // Skip Comments
         ASSERT(current_pos < current_end);
-        while ( mapped_file[pos] == '%' ) {
+        while ( mapped_file[current_pos] == '%' ) {
           goto_next_line(mapped_file, current_pos, current_end);
           ASSERT(current_pos < current_end);
         }
@@ -344,7 +350,7 @@ namespace mt_kahypar::io {
           HypernodeID pin = read_number(mapped_file, current_pos, current_end);
           ASSERT(pin > 0, V(current_id));
           hyperedge.push_back(pin - 1);
-          while ( mapped_file[current_pos] != '\n' ) {
+          while ( !is_line_ending(mapped_file, current_pos) ) {
             pin = read_number(mapped_file, current_pos, current_end);
             ASSERT(pin > 0, V(current_id));
             hyperedge.push_back(pin - 1);
@@ -504,7 +510,7 @@ namespace mt_kahypar::io {
     num_vertices = read_number(mapped_file, pos, length);
     num_edges = read_number(mapped_file, pos, length);
 
-    if ( mapped_file[pos] != '\n' ) {
+    if (!is_line_ending(mapped_file, pos)) {
       // read the (up to) three 0/1 format digits
       uint32_t format_num = read_number(mapped_file, pos, length);
       ASSERT(format_num < 100, "Vertex sizes in input file are not supported.");
@@ -564,7 +570,7 @@ namespace mt_kahypar::io {
           read_number(mapped_file, pos, length);
         }
         HyperedgeID vertex_degree = 0;
-        while (mapped_file[pos] != '\n' && pos < length) {
+        while (!is_line_ending(mapped_file, pos) && pos < length) {
           const HypernodeID source = current_range_vertex_id + current_range_num_vertices;
           const HypernodeID target = read_number(mapped_file, pos, length);
           ASSERT(source != target);
