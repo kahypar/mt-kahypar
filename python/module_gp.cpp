@@ -141,18 +141,18 @@ PYBIND11_MODULE(mtkahypargp, m) {
   // ####################### Enum Types #######################
 
   using mt_kahypar::FileFormat;
-  py::enum_<FileFormat>(m, "FileFormat")
+  py::enum_<FileFormat>(m, "FileFormat", py::module_local())
     .value("HMETIS", FileFormat::hMetis)
     .value("METIS", FileFormat::Metis);
 
   using mt_kahypar::PresetType;
-  py::enum_<PresetType>(m, "PresetType")
+  py::enum_<PresetType>(m, "PresetType", py::module_local())
     .value("DETERMINISTIC", PresetType::deterministic)
     .value("SPEED", PresetType::default_preset)
     .value("HIGH_QUALITY", PresetType::default_flows);
 
   using mt_kahypar::Objective;
-  py::enum_<Objective>(m, "Objective")
+  py::enum_<Objective>(m, "Objective", py::module_local())
     .value("CUT", Objective::cut)
     .value("KM1", Objective::km1);
 
@@ -170,7 +170,7 @@ PYBIND11_MODULE(mtkahypargp, m) {
   using mt_kahypar::HyperedgeWeight;
   using Graph = mt_kahypar::Hypergraph;
   using GraphFactory = mt_kahypar::HypergraphFactory;
-  py::class_<Graph>(m, "Graph")
+  py::class_<Graph>(m, "Graph", py::module_local())
     .def(py::init<>([](const HypernodeID num_nodes,
                        const HyperedgeID num_edges,
                        const vec<std::pair<HypernodeID,HypernodeID>>& edges) {
@@ -269,7 +269,7 @@ Construct a weighted graph.
 
   using mt_kahypar::PartitionID;
   using PartitionedGraph = mt_kahypar::PartitionedHypergraph;
-  py::class_<PartitionedGraph>(m, "PartitionedGraph")
+  py::class_<PartitionedGraph>(m, "PartitionedGraph", py::module_local())
     .def(py::init<>([](Graph& graph,
                        const PartitionID num_blocks,
                        const vec<PartitionID>& partition) {
@@ -367,7 +367,7 @@ Construct a partitioned graph.
   // ####################### Setup Context #######################
 
   using mt_kahypar::Context;
-  py::class_<Context>(m, "Context")
+  py::class_<Context>(m, "Context", py::module_local())
     .def(py::init<>())
     .def("loadPreset", [](Context& context, const PresetType preset) {
         switch ( preset ) {
