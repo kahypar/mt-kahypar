@@ -60,658 +60,679 @@ void executeConcurrent(F f1, K f2) {
   group.wait();
 }
 
-TEST(APinCountInPart, IsZeroInitialized_k32_Max2) {
+template<typename PinCounts>
+class APinCountDataStructure : public Test {
+
+ public:
+  APinCountDataStructure() :
+    pin_count() { }
+
+  void initialize(const HyperedgeID num_hyperedges,
+                  const PartitionID k,
+                  const HypernodeID max_value) {
+    pin_count.initialize(num_hyperedges, k, max_value);
+  }
+
+  PinCounts pin_count;
+};
+
+using PinCountTestTypes =
+  ::testing::Types<PinCountInPart, SparsePinCounts>;
+
+TYPED_TEST_CASE(APinCountDataStructure, PinCountTestTypes);
+
+TYPED_TEST(APinCountDataStructure, IsZeroInitialized_k32_Max2) {
   const HyperedgeID num_hyperedges = 100;
   const PartitionID k = 32;
   const HypernodeID max_value = 2;
-  SparsePinCounts pin_count(num_hyperedges, k, max_value);
+  this->initialize(num_hyperedges, k, max_value);
 
   for ( HyperedgeID he = 0; he < num_hyperedges; ++he ) {
     for ( PartitionID block = 0; block < k; ++block ) {
-      ASSERT_EQ(0, pin_count.pinCountInPart(he, block));
+      ASSERT_EQ(0, this->pin_count.pinCountInPart(he, block));
     }
   }
 }
 
-TEST(APinCountInPart, SetsPinCountPart1_k32_Max2) {
+TYPED_TEST(APinCountDataStructure, SetsPinCountPart1_k32_Max2) {
   const HyperedgeID num_hyperedges = 100;
   const PartitionID k = 32;
   const HypernodeID max_value = 2;
-  SparsePinCounts pin_count(num_hyperedges, k, max_value);
+  this->initialize(num_hyperedges, k, max_value);
 
-  pin_count.setPinCountInPart(4, 2, 2);
-  ASSERT_EQ(2, pin_count.pinCountInPart(4, 2));
+  this->pin_count.setPinCountInPart(4, 2, 2);
+  ASSERT_EQ(2, this->pin_count.pinCountInPart(4, 2));
 }
 
-TEST(APinCountInPart, SetsPinCountPart2_k32_Max2) {
+TYPED_TEST(APinCountDataStructure, SetsPinCountPart2_k32_Max2) {
   const HyperedgeID num_hyperedges = 100;
   const PartitionID k = 32;
   const HypernodeID max_value = 2;
-  SparsePinCounts pin_count(num_hyperedges, k, max_value);
+  this->initialize(num_hyperedges, k, max_value);
 
-  pin_count.setPinCountInPart(4, 31, 1);
-  ASSERT_EQ(1, pin_count.pinCountInPart(4, 31));
+  this->pin_count.setPinCountInPart(4, 31, 1);
+  ASSERT_EQ(1, this->pin_count.pinCountInPart(4, 31));
 }
 
-TEST(APinCountInPart, SetsPinCountPart3_k32_Max2) {
+TYPED_TEST(APinCountDataStructure, SetsPinCountPart3_k32_Max2) {
   const HyperedgeID num_hyperedges = 100;
   const PartitionID k = 32;
   const HypernodeID max_value = 2;
-  SparsePinCounts pin_count(num_hyperedges, k, max_value);
+  this->initialize(num_hyperedges, k, max_value);
 
-  pin_count.setPinCountInPart(32, 4, 2);
-  pin_count.setPinCountInPart(32, 5, 1);
-  ASSERT_EQ(2, pin_count.pinCountInPart(32, 4));
-  ASSERT_EQ(1, pin_count.pinCountInPart(32, 5));
+  this->pin_count.setPinCountInPart(32, 4, 2);
+  this->pin_count.setPinCountInPart(32, 5, 1);
+  ASSERT_EQ(2, this->pin_count.pinCountInPart(32, 4));
+  ASSERT_EQ(1, this->pin_count.pinCountInPart(32, 5));
 }
 
-TEST(APinCountInPart, SetsPinCountPart4_k32_Max2) {
+TYPED_TEST(APinCountDataStructure, SetsPinCountPart4_k32_Max2) {
   const HyperedgeID num_hyperedges = 100;
   const PartitionID k = 32;
   const HypernodeID max_value = 2;
-  SparsePinCounts pin_count(num_hyperedges, k, max_value);
+  this->initialize(num_hyperedges, k, max_value);
 
   std::vector<HypernodeID> expected_pin_count(k, 0);
   for ( PartitionID block = 0; block < k; ++block ) {
     expected_pin_count[block] = rand() % max_value;
-    pin_count.setPinCountInPart(16, block, expected_pin_count[block]);
+    this->pin_count.setPinCountInPart(16, block, expected_pin_count[block]);
   }
 
   for ( PartitionID block = 0; block < k; ++block ) {
-    ASSERT_EQ(expected_pin_count[block], pin_count.pinCountInPart(16, block));
+    ASSERT_EQ(expected_pin_count[block], this->pin_count.pinCountInPart(16, block));
   }
 }
 
-TEST(APinCountInPart, SetsPinCountPart5_k32_Max2) {
+TYPED_TEST(APinCountDataStructure, SetsPinCountPart5_k32_Max2) {
   const HyperedgeID num_hyperedges = 100;
   const PartitionID k = 32;
   const HypernodeID max_value = 2;
-  SparsePinCounts pin_count(num_hyperedges, k, max_value);
+  this->initialize(num_hyperedges, k, max_value);
 
   std::vector<std::vector<HypernodeID>> expected_pin_count(
     num_hyperedges, std::vector<HypernodeID>(k, 0));
   for ( HyperedgeID he = 0; he < num_hyperedges; ++he ) {
     for ( PartitionID block = 0; block < k; ++block ) {
       expected_pin_count[he][block] = rand() % max_value;
-      pin_count.setPinCountInPart(he, block, expected_pin_count[he][block]);
+      this->pin_count.setPinCountInPart(he, block, expected_pin_count[he][block]);
     }
   }
 
   for ( HyperedgeID he = 0; he < num_hyperedges; ++he ) {
     for ( PartitionID block = 0; block < k; ++block ) {
-      ASSERT_EQ(expected_pin_count[he][block], pin_count.pinCountInPart(he, block));
+      ASSERT_EQ(expected_pin_count[he][block], this->pin_count.pinCountInPart(he, block));
     }
   }
 }
 
-TEST(APinCountInPart, IncrementsPinCountInPart1_k32_Max2) {
+TYPED_TEST(APinCountDataStructure, IncrementsPinCountInPart1_k32_Max2) {
   const HyperedgeID num_hyperedges = 100;
   const PartitionID k = 32;
   const HypernodeID max_value = 2;
-  SparsePinCounts pin_count(num_hyperedges, k, max_value);
+  this->initialize(num_hyperedges, k, max_value);
 
-  pin_count.incrementPinCountInPart(5, 31);
-  ASSERT_EQ(1, pin_count.pinCountInPart(5, 31));
+  this->pin_count.incrementPinCountInPart(5, 31);
+  ASSERT_EQ(1, this->pin_count.pinCountInPart(5, 31));
 }
 
-TEST(APinCountInPart, IncrementsPinCountInPart2_k32_Max2) {
+TYPED_TEST(APinCountDataStructure, IncrementsPinCountInPart2_k32_Max2) {
   const HyperedgeID num_hyperedges = 100;
   const PartitionID k = 32;
   const HypernodeID max_value = 2;
-  SparsePinCounts pin_count(num_hyperedges, k, max_value);
+  this->initialize(num_hyperedges, k, max_value);
 
-  pin_count.incrementPinCountInPart(5, 31);
-  pin_count.incrementPinCountInPart(5, 30);
-  ASSERT_EQ(1, pin_count.pinCountInPart(5, 31));
-  ASSERT_EQ(1, pin_count.pinCountInPart(5, 30));
+  this->pin_count.incrementPinCountInPart(5, 31);
+  this->pin_count.incrementPinCountInPart(5, 30);
+  ASSERT_EQ(1, this->pin_count.pinCountInPart(5, 31));
+  ASSERT_EQ(1, this->pin_count.pinCountInPart(5, 30));
 }
 
-TEST(APinCountInPart, IncrementsPinCountInPart3_k32_Max2) {
+TYPED_TEST(APinCountDataStructure, IncrementsPinCountInPart3_k32_Max2) {
   const HyperedgeID num_hyperedges = 100;
   const PartitionID k = 32;
   const HypernodeID max_value = 2;
-  SparsePinCounts pin_count(num_hyperedges, k, max_value);
+  this->initialize(num_hyperedges, k, max_value);
 
-  pin_count.incrementPinCountInPart(5, 31);
-  pin_count.incrementPinCountInPart(5, 31);
-  ASSERT_EQ(2, pin_count.pinCountInPart(5, 31));
+  this->pin_count.incrementPinCountInPart(5, 31);
+  this->pin_count.incrementPinCountInPart(5, 31);
+  ASSERT_EQ(2, this->pin_count.pinCountInPart(5, 31));
 }
 
-TEST(APinCountInPart, DecrementsPinCountInPart1_k32_Max2) {
+TYPED_TEST(APinCountDataStructure, DecrementsPinCountInPart1_k32_Max2) {
   const HyperedgeID num_hyperedges = 100;
   const PartitionID k = 32;
   const HypernodeID max_value = 2;
-  SparsePinCounts pin_count(num_hyperedges, k, max_value);
+  this->initialize(num_hyperedges, k, max_value);
 
-  pin_count.setPinCountInPart(5, 31, 2);
-  pin_count.decrementPinCountInPart(5, 31);
-  ASSERT_EQ(1, pin_count.pinCountInPart(5, 31));
+  this->pin_count.setPinCountInPart(5, 31, 2);
+  this->pin_count.decrementPinCountInPart(5, 31);
+  ASSERT_EQ(1, this->pin_count.pinCountInPart(5, 31));
 }
 
-TEST(APinCountInPart, DecrementsPinCountInPart2_k32_Max2) {
+TYPED_TEST(APinCountDataStructure, DecrementsPinCountInPart2_k32_Max2) {
   const HyperedgeID num_hyperedges = 100;
   const PartitionID k = 32;
   const HypernodeID max_value = 2;
-  SparsePinCounts pin_count(num_hyperedges, k, max_value);
+  this->initialize(num_hyperedges, k, max_value);
 
-  pin_count.setPinCountInPart(5, 31, 2);
-  pin_count.setPinCountInPart(5, 30, 1);
-  pin_count.decrementPinCountInPart(5, 31);
-  pin_count.decrementPinCountInPart(5, 30);
-  ASSERT_EQ(1, pin_count.pinCountInPart(5, 31));
-  ASSERT_EQ(0, pin_count.pinCountInPart(5, 30));
+  this->pin_count.setPinCountInPart(5, 31, 2);
+  this->pin_count.setPinCountInPart(5, 30, 1);
+  this->pin_count.decrementPinCountInPart(5, 31);
+  this->pin_count.decrementPinCountInPart(5, 30);
+  ASSERT_EQ(1, this->pin_count.pinCountInPart(5, 31));
+  ASSERT_EQ(0, this->pin_count.pinCountInPart(5, 30));
 }
 
-TEST(APinCountInPart, DecrementsPinCountInPart3_k32_Max2) {
+TYPED_TEST(APinCountDataStructure, DecrementsPinCountInPart3_k32_Max2) {
   const HyperedgeID num_hyperedges = 100;
   const PartitionID k = 32;
   const HypernodeID max_value = 2;
-  SparsePinCounts pin_count(num_hyperedges, k, max_value);
+  this->initialize(num_hyperedges, k, max_value);
 
-  pin_count.setPinCountInPart(5, 31, 2);
-  pin_count.decrementPinCountInPart(5, 31);
-  pin_count.decrementPinCountInPart(5, 31);
-  ASSERT_EQ(0, pin_count.pinCountInPart(5, 31));
+  this->pin_count.setPinCountInPart(5, 31, 2);
+  this->pin_count.decrementPinCountInPart(5, 31);
+  this->pin_count.decrementPinCountInPart(5, 31);
+  ASSERT_EQ(0, this->pin_count.pinCountInPart(5, 31));
 }
 
-TEST(APinCountInPart, ModifyTwoHyperedgesConcurrently1_k32_Max2) {
+TYPED_TEST(APinCountDataStructure, ModifyTwoHyperedgesConcurrently1_k32_Max2) {
   const HyperedgeID num_hyperedges = 100;
   const PartitionID k = 32;
   const HypernodeID max_value = 2;
-  SparsePinCounts pin_count(num_hyperedges, k, max_value);
+  this->initialize(num_hyperedges, k, max_value);
 
   executeConcurrent([&] {
-    pin_count.setPinCountInPart(5, 4, 2);
+    this->pin_count.setPinCountInPart(5, 4, 2);
   }, [&] {
-    pin_count.setPinCountInPart(6, 1, 1);
+    this->pin_count.setPinCountInPart(6, 1, 1);
   });
 
-  ASSERT_EQ(2, pin_count.pinCountInPart(5, 4));
-  ASSERT_EQ(1, pin_count.pinCountInPart(6, 1));
+  ASSERT_EQ(2, this->pin_count.pinCountInPart(5, 4));
+  ASSERT_EQ(1, this->pin_count.pinCountInPart(6, 1));
 }
 
-TEST(APinCountInPart, ModifyTwoHyperedgesConcurrently2_k32_Max2) {
+TYPED_TEST(APinCountDataStructure, ModifyTwoHyperedgesConcurrently2_k32_Max2) {
   const HyperedgeID num_hyperedges = 100;
   const PartitionID k = 32;
   const HypernodeID max_value = 2;
-  SparsePinCounts pin_count(num_hyperedges, k, max_value);
+  this->initialize(num_hyperedges, k, max_value);
 
   executeConcurrent([&] {
-    pin_count.setPinCountInPart(5, 4, 2);
-    pin_count.decrementPinCountInPart(5, 4);
+    this->pin_count.setPinCountInPart(5, 4, 2);
+    this->pin_count.decrementPinCountInPart(5, 4);
   }, [&] {
-    pin_count.setPinCountInPart(6, 1, 1);
-    pin_count.incrementPinCountInPart(6, 1);
+    this->pin_count.setPinCountInPart(6, 1, 1);
+    this->pin_count.incrementPinCountInPart(6, 1);
   });
 
-  ASSERT_EQ(1, pin_count.pinCountInPart(5, 4));
-  ASSERT_EQ(2, pin_count.pinCountInPart(6, 1));
+  ASSERT_EQ(1, this->pin_count.pinCountInPart(5, 4));
+  ASSERT_EQ(2, this->pin_count.pinCountInPart(6, 1));
 }
 
-TEST(APinCountInPart, ModifyTwoHyperedgesConcurrently3_k32_Max2) {
+TYPED_TEST(APinCountDataStructure, ModifyTwoHyperedgesConcurrently3_k32_Max2) {
   const HyperedgeID num_hyperedges = 100;
   const PartitionID k = 32;
   const HypernodeID max_value = 2;
-  SparsePinCounts pin_count(num_hyperedges, k, max_value);
+  this->initialize(num_hyperedges, k, max_value);
 
   executeConcurrent([&] {
-    pin_count.setPinCountInPart(5, 4, 2);
-    pin_count.decrementPinCountInPart(5, 4);
-    pin_count.setPinCountInPart(7, 19, 2);
+    this->pin_count.setPinCountInPart(5, 4, 2);
+    this->pin_count.decrementPinCountInPart(5, 4);
+    this->pin_count.setPinCountInPart(7, 19, 2);
   }, [&] {
-    pin_count.setPinCountInPart(6, 1, 1);
-    pin_count.incrementPinCountInPart(6, 1);
-    pin_count.setPinCountInPart(4, 18, 1);
+    this->pin_count.setPinCountInPart(6, 1, 1);
+    this->pin_count.incrementPinCountInPart(6, 1);
+    this->pin_count.setPinCountInPart(4, 18, 1);
   });
 
-  ASSERT_EQ(1, pin_count.pinCountInPart(4, 18));
-  ASSERT_EQ(1, pin_count.pinCountInPart(5, 4));
-  ASSERT_EQ(2, pin_count.pinCountInPart(6, 1));
-  ASSERT_EQ(2, pin_count.pinCountInPart(7, 19));
+  ASSERT_EQ(1, this->pin_count.pinCountInPart(4, 18));
+  ASSERT_EQ(1, this->pin_count.pinCountInPart(5, 4));
+  ASSERT_EQ(2, this->pin_count.pinCountInPart(6, 1));
+  ASSERT_EQ(2, this->pin_count.pinCountInPart(7, 19));
 }
 
-TEST(APinCountInPart, IsZeroInitialized_k20_Max8) {
+TYPED_TEST(APinCountDataStructure, IsZeroInitialized_k20_Max8) {
   const HyperedgeID num_hyperedges = 100;
   const PartitionID k = 20;
   const HypernodeID max_value = 8;
-  SparsePinCounts pin_count(num_hyperedges, k, max_value);
+  this->initialize(num_hyperedges, k, max_value);
 
   for ( HyperedgeID he = 0; he < num_hyperedges; ++he ) {
     for ( PartitionID block = 0; block < k; ++block ) {
-      ASSERT_EQ(0, pin_count.pinCountInPart(he, block));
+      ASSERT_EQ(0, this->pin_count.pinCountInPart(he, block));
     }
   }
 }
 
-TEST(APinCountInPart, SetsPinCountPart1_k20_Max8) {
+TYPED_TEST(APinCountDataStructure, SetsPinCountPart1_k20_Max8) {
   const HyperedgeID num_hyperedges = 100;
   const PartitionID k = 20;
   const HypernodeID max_value = 8;
-  SparsePinCounts pin_count(num_hyperedges, k, max_value);
+  this->initialize(num_hyperedges, k, max_value);
 
-  pin_count.setPinCountInPart(4, 2, 8);
-  ASSERT_EQ(8, pin_count.pinCountInPart(4, 2));
+  this->pin_count.setPinCountInPart(4, 2, 8);
+  ASSERT_EQ(8, this->pin_count.pinCountInPart(4, 2));
 }
 
 
-TEST(APinCountInPart, SetsPinCountPart2_k20_Max8) {
+TYPED_TEST(APinCountDataStructure, SetsPinCountPart2_k20_Max8) {
   const HyperedgeID num_hyperedges = 100;
   const PartitionID k = 20;
   const HypernodeID max_value = 8;
-  SparsePinCounts pin_count(num_hyperedges, k, max_value);
+  this->initialize(num_hyperedges, k, max_value);
 
-  pin_count.setPinCountInPart(4, 19, 7);
-  ASSERT_EQ(7, pin_count.pinCountInPart(4, 19));
+  this->pin_count.setPinCountInPart(4, 19, 7);
+  ASSERT_EQ(7, this->pin_count.pinCountInPart(4, 19));
 }
 
-TEST(APinCountInPart, SetsPinCountPart3_k20_Max8) {
+TYPED_TEST(APinCountDataStructure, SetsPinCountPart3_k20_Max8) {
   const HyperedgeID num_hyperedges = 100;
   const PartitionID k = 20;
   const HypernodeID max_value = 8;
-  SparsePinCounts pin_count(num_hyperedges, k, max_value);
+  this->initialize(num_hyperedges, k, max_value);
 
-  pin_count.setPinCountInPart(32, 4, 7);
-  pin_count.setPinCountInPart(32, 5, 6);
-  ASSERT_EQ(7, pin_count.pinCountInPart(32, 4));
-  ASSERT_EQ(6, pin_count.pinCountInPart(32, 5));
+  this->pin_count.setPinCountInPart(32, 4, 7);
+  this->pin_count.setPinCountInPart(32, 5, 6);
+  ASSERT_EQ(7, this->pin_count.pinCountInPart(32, 4));
+  ASSERT_EQ(6, this->pin_count.pinCountInPart(32, 5));
 }
 
-TEST(APinCountInPart, SetsPinCountPart4_k20_Max8) {
+TYPED_TEST(APinCountDataStructure, SetsPinCountPart4_k20_Max8) {
   const HyperedgeID num_hyperedges = 100;
   const PartitionID k = 20;
   const HypernodeID max_value = 8;
-  SparsePinCounts pin_count(num_hyperedges, k, max_value);
+  this->initialize(num_hyperedges, k, max_value);
 
   std::vector<HypernodeID> expected_pin_count(k, 0);
   for ( PartitionID block = 0; block < k; ++block ) {
     expected_pin_count[block] = rand() % max_value;
-    pin_count.setPinCountInPart(16, block, expected_pin_count[block]);
+    this->pin_count.setPinCountInPart(16, block, expected_pin_count[block]);
   }
 
   for ( PartitionID block = 0; block < k; ++block ) {
-    ASSERT_EQ(expected_pin_count[block], pin_count.pinCountInPart(16, block));
+    ASSERT_EQ(expected_pin_count[block], this->pin_count.pinCountInPart(16, block));
   }
 }
 
-TEST(APinCountInPart, SetsPinCountPart5_k20_Max8) {
+TYPED_TEST(APinCountDataStructure, SetsPinCountPart5_k20_Max8) {
   const HyperedgeID num_hyperedges = 100;
   const PartitionID k = 20;
   const HypernodeID max_value = 8;
-  SparsePinCounts pin_count(num_hyperedges, k, max_value);
+  this->initialize(num_hyperedges, k, max_value);
 
   std::vector<std::vector<HypernodeID>> expected_pin_count(
     num_hyperedges, std::vector<HypernodeID>(k, 0));
   for ( HyperedgeID he = 0; he < num_hyperedges; ++he ) {
     for ( PartitionID block = 0; block < k; ++block ) {
       expected_pin_count[he][block] = rand() % max_value;
-      pin_count.setPinCountInPart(he, block, expected_pin_count[he][block]);
+      this->pin_count.setPinCountInPart(he, block, expected_pin_count[he][block]);
     }
   }
 
   for ( HyperedgeID he = 0; he < num_hyperedges; ++he ) {
     for ( PartitionID block = 0; block < k; ++block ) {
-      ASSERT_EQ(expected_pin_count[he][block], pin_count.pinCountInPart(he, block));
+      ASSERT_EQ(expected_pin_count[he][block], this->pin_count.pinCountInPart(he, block));
     }
   }
 }
 
-TEST(APinCountInPart, IncrementsPinCountInPart1_k20_Max8) {
+TYPED_TEST(APinCountDataStructure, IncrementsPinCountInPart1_k20_Max8) {
   const HyperedgeID num_hyperedges = 100;
   const PartitionID k = 20;
   const HypernodeID max_value = 8;
-  SparsePinCounts pin_count(num_hyperedges, k, max_value);
+  this->initialize(num_hyperedges, k, max_value);
 
-  pin_count.incrementPinCountInPart(5, 19);
-  ASSERT_EQ(1, pin_count.pinCountInPart(5, 19));
+  this->pin_count.incrementPinCountInPart(5, 19);
+  ASSERT_EQ(1, this->pin_count.pinCountInPart(5, 19));
 }
 
-TEST(APinCountInPart, IncrementsPinCountInPart2_k20_Max8) {
+TYPED_TEST(APinCountDataStructure, IncrementsPinCountInPart2_k20_Max8) {
   const HyperedgeID num_hyperedges = 100;
   const PartitionID k = 20;
   const HypernodeID max_value = 8;
-  SparsePinCounts pin_count(num_hyperedges, k, max_value);
+  this->initialize(num_hyperedges, k, max_value);
 
-  pin_count.incrementPinCountInPart(5, 19);
-  pin_count.incrementPinCountInPart(5, 19);
-  pin_count.incrementPinCountInPart(5, 18);
-  ASSERT_EQ(2, pin_count.pinCountInPart(5, 19));
-  ASSERT_EQ(1, pin_count.pinCountInPart(5, 18));
+  this->pin_count.incrementPinCountInPart(5, 19);
+  this->pin_count.incrementPinCountInPart(5, 19);
+  this->pin_count.incrementPinCountInPart(5, 18);
+  ASSERT_EQ(2, this->pin_count.pinCountInPart(5, 19));
+  ASSERT_EQ(1, this->pin_count.pinCountInPart(5, 18));
 }
 
-TEST(APinCountInPart, IncrementsPinCountInPart3_k20_Max8) {
+TYPED_TEST(APinCountDataStructure, IncrementsPinCountInPart3_k20_Max8) {
   const HyperedgeID num_hyperedges = 100;
   const PartitionID k = 20;
   const HypernodeID max_value = 8;
-  SparsePinCounts pin_count(num_hyperedges, k, max_value);
+  this->initialize(num_hyperedges, k, max_value);
 
-  pin_count.incrementPinCountInPart(5, 19);
-  pin_count.incrementPinCountInPart(5, 19);
-  pin_count.incrementPinCountInPart(5, 19);
-  pin_count.incrementPinCountInPart(5, 19);
-  pin_count.incrementPinCountInPart(5, 19);
-  ASSERT_EQ(5, pin_count.pinCountInPart(5, 19));
+  this->pin_count.incrementPinCountInPart(5, 19);
+  this->pin_count.incrementPinCountInPart(5, 19);
+  this->pin_count.incrementPinCountInPart(5, 19);
+  this->pin_count.incrementPinCountInPart(5, 19);
+  this->pin_count.incrementPinCountInPart(5, 19);
+  ASSERT_EQ(5, this->pin_count.pinCountInPart(5, 19));
 }
 
-TEST(APinCountInPart, DecrementsPinCountInPart1_k20_Max8) {
+TYPED_TEST(APinCountDataStructure, DecrementsPinCountInPart1_k20_Max8) {
   const HyperedgeID num_hyperedges = 100;
   const PartitionID k = 20;
   const HypernodeID max_value = 8;
-  SparsePinCounts pin_count(num_hyperedges, k, max_value);
+  this->initialize(num_hyperedges, k, max_value);
 
-  pin_count.setPinCountInPart(5, 19, 5);
-  pin_count.decrementPinCountInPart(5, 19);
-  ASSERT_EQ(4, pin_count.pinCountInPart(5, 19));
+  this->pin_count.setPinCountInPart(5, 19, 5);
+  this->pin_count.decrementPinCountInPart(5, 19);
+  ASSERT_EQ(4, this->pin_count.pinCountInPart(5, 19));
 }
 
-TEST(APinCountInPart, DecrementsPinCountInPart2_k20_Max8) {
+TYPED_TEST(APinCountDataStructure, DecrementsPinCountInPart2_k20_Max8) {
   const HyperedgeID num_hyperedges = 100;
   const PartitionID k = 20;
   const HypernodeID max_value = 8;
-  SparsePinCounts pin_count(num_hyperedges, k, max_value);
+  this->initialize(num_hyperedges, k, max_value);
 
-  pin_count.setPinCountInPart(5, 19, 5);
-  pin_count.setPinCountInPart(5, 18, 4);
-  pin_count.decrementPinCountInPart(5, 19);
-  pin_count.decrementPinCountInPart(5, 18);
-  ASSERT_EQ(4, pin_count.pinCountInPart(5, 19));
-  ASSERT_EQ(3, pin_count.pinCountInPart(5, 18));
+  this->pin_count.setPinCountInPart(5, 19, 5);
+  this->pin_count.setPinCountInPart(5, 18, 4);
+  this->pin_count.decrementPinCountInPart(5, 19);
+  this->pin_count.decrementPinCountInPart(5, 18);
+  ASSERT_EQ(4, this->pin_count.pinCountInPart(5, 19));
+  ASSERT_EQ(3, this->pin_count.pinCountInPart(5, 18));
 }
 
-TEST(APinCountInPart, DecrementsPinCountInPart3_k20_Max8) {
+TYPED_TEST(APinCountDataStructure, DecrementsPinCountInPart3_k20_Max8) {
   const HyperedgeID num_hyperedges = 100;
   const PartitionID k = 20;
   const HypernodeID max_value = 8;
-  SparsePinCounts pin_count(num_hyperedges, k, max_value);
+  this->initialize(num_hyperedges, k, max_value);
 
-  pin_count.setPinCountInPart(5, 19, 5);
-  pin_count.decrementPinCountInPart(5, 19);
-  pin_count.decrementPinCountInPart(5, 19);
-  pin_count.decrementPinCountInPart(5, 19);
-  pin_count.decrementPinCountInPart(5, 19);
-  ASSERT_EQ(1, pin_count.pinCountInPart(5, 19));
+  this->pin_count.setPinCountInPart(5, 19, 5);
+  this->pin_count.decrementPinCountInPart(5, 19);
+  this->pin_count.decrementPinCountInPart(5, 19);
+  this->pin_count.decrementPinCountInPart(5, 19);
+  this->pin_count.decrementPinCountInPart(5, 19);
+  ASSERT_EQ(1, this->pin_count.pinCountInPart(5, 19));
 }
 
-TEST(APinCountInPart, ModifyTwoHyperedgesConcurrently1_k20_Max8) {
+TYPED_TEST(APinCountDataStructure, ModifyTwoHyperedgesConcurrently1_k20_Max8) {
   const HyperedgeID num_hyperedges = 100;
   const PartitionID k = 20;
   const HypernodeID max_value = 8;
-  SparsePinCounts pin_count(num_hyperedges, k, max_value);
+  this->initialize(num_hyperedges, k, max_value);
 
   executeConcurrent([&] {
-    pin_count.setPinCountInPart(5, 4, 2);
+    this->pin_count.setPinCountInPart(5, 4, 2);
   }, [&] {
-    pin_count.setPinCountInPart(6, 1, 1);
+    this->pin_count.setPinCountInPart(6, 1, 1);
   });
 
-  ASSERT_EQ(2, pin_count.pinCountInPart(5, 4));
-  ASSERT_EQ(1, pin_count.pinCountInPart(6, 1));
+  ASSERT_EQ(2, this->pin_count.pinCountInPart(5, 4));
+  ASSERT_EQ(1, this->pin_count.pinCountInPart(6, 1));
 }
 
-TEST(APinCountInPart, ModifyTwoHyperedgesConcurrently2_k20_Max8) {
+TYPED_TEST(APinCountDataStructure, ModifyTwoHyperedgesConcurrently2_k20_Max8) {
   const HyperedgeID num_hyperedges = 100;
   const PartitionID k = 20;
   const HypernodeID max_value = 8;
-  SparsePinCounts pin_count(num_hyperedges, k, max_value);
+  this->initialize(num_hyperedges, k, max_value);
 
   executeConcurrent([&] {
-    pin_count.setPinCountInPart(5, 4, 2);
-    pin_count.decrementPinCountInPart(5, 4);
+    this->pin_count.setPinCountInPart(5, 4, 2);
+    this->pin_count.decrementPinCountInPart(5, 4);
   }, [&] {
-    pin_count.setPinCountInPart(6, 1, 1);
-    pin_count.incrementPinCountInPart(6, 1);
+    this->pin_count.setPinCountInPart(6, 1, 1);
+    this->pin_count.incrementPinCountInPart(6, 1);
   });
 
-  ASSERT_EQ(1, pin_count.pinCountInPart(5, 4));
-  ASSERT_EQ(2, pin_count.pinCountInPart(6, 1));
+  ASSERT_EQ(1, this->pin_count.pinCountInPart(5, 4));
+  ASSERT_EQ(2, this->pin_count.pinCountInPart(6, 1));
 }
 
-TEST(APinCountInPart, ModifyTwoHyperedgesConcurrently3_k20_Max8) {
+TYPED_TEST(APinCountDataStructure, ModifyTwoHyperedgesConcurrently3_k20_Max8) {
   const HyperedgeID num_hyperedges = 100;
   const PartitionID k = 20;
   const HypernodeID max_value = 8;
-  SparsePinCounts pin_count(num_hyperedges, k, max_value);
+  this->initialize(num_hyperedges, k, max_value);
 
   executeConcurrent([&] {
-    pin_count.setPinCountInPart(5, 4, 8);
-    pin_count.decrementPinCountInPart(5, 4);
-    pin_count.setPinCountInPart(7, 19, 7);
+    this->pin_count.setPinCountInPart(5, 4, 8);
+    this->pin_count.decrementPinCountInPart(5, 4);
+    this->pin_count.setPinCountInPart(7, 19, 7);
   }, [&] {
-    pin_count.setPinCountInPart(6, 1, 6);
-    pin_count.incrementPinCountInPart(6, 1);
-    pin_count.setPinCountInPart(4, 18, 4);
+    this->pin_count.setPinCountInPart(6, 1, 6);
+    this->pin_count.incrementPinCountInPart(6, 1);
+    this->pin_count.setPinCountInPart(4, 18, 4);
   });
 
-  ASSERT_EQ(4, pin_count.pinCountInPart(4, 18));
-  ASSERT_EQ(7, pin_count.pinCountInPart(5, 4));
-  ASSERT_EQ(7, pin_count.pinCountInPart(6, 1));
-  ASSERT_EQ(7, pin_count.pinCountInPart(7, 19));
+  ASSERT_EQ(4, this->pin_count.pinCountInPart(4, 18));
+  ASSERT_EQ(7, this->pin_count.pinCountInPart(5, 4));
+  ASSERT_EQ(7, this->pin_count.pinCountInPart(6, 1));
+  ASSERT_EQ(7, this->pin_count.pinCountInPart(7, 19));
 }
 
-TEST(APinCountInPart, IsZeroInitialized_k30_Max30) {
+TYPED_TEST(APinCountDataStructure, IsZeroInitialized_k30_Max30) {
   const HyperedgeID num_hyperedges = 100;
   const PartitionID k = 30;
   const HypernodeID max_value = 30;
-  SparsePinCounts pin_count(num_hyperedges, k, max_value);
+  this->initialize(num_hyperedges, k, max_value);
 
   for ( HyperedgeID he = 0; he < num_hyperedges; ++he ) {
     for ( PartitionID block = 0; block < k; ++block ) {
-      ASSERT_EQ(0, pin_count.pinCountInPart(he, block));
+      ASSERT_EQ(0, this->pin_count.pinCountInPart(he, block));
     }
   }
 }
 
-TEST(APinCountInPart, SetsPinCountPart1_k30_Max30) {
+TYPED_TEST(APinCountDataStructure, SetsPinCountPart1_k30_Max30) {
   const HyperedgeID num_hyperedges = 100;
   const PartitionID k = 30;
   const HypernodeID max_value = 30;
-  SparsePinCounts pin_count(num_hyperedges, k, max_value);
+  this->initialize(num_hyperedges, k, max_value);
 
-  pin_count.setPinCountInPart(4, 2, 30);
-  ASSERT_EQ(30, pin_count.pinCountInPart(4, 2));
+  this->pin_count.setPinCountInPart(4, 2, 30);
+  ASSERT_EQ(30, this->pin_count.pinCountInPart(4, 2));
 }
 
 
-TEST(APinCountInPart, SetsPinCountPart2_k30_Max30) {
+TYPED_TEST(APinCountDataStructure, SetsPinCountPart2_k30_Max30) {
   const HyperedgeID num_hyperedges = 100;
   const PartitionID k = 30;
   const HypernodeID max_value = 30;
-  SparsePinCounts pin_count(num_hyperedges, k, max_value);
+  this->initialize(num_hyperedges, k, max_value);
 
-  pin_count.setPinCountInPart(4, 19, 29);
-  ASSERT_EQ(29, pin_count.pinCountInPart(4, 19));
+  this->pin_count.setPinCountInPart(4, 19, 29);
+  ASSERT_EQ(29, this->pin_count.pinCountInPart(4, 19));
 }
 
-TEST(APinCountInPart, SetsPinCountPart3_k30_Max30) {
+TYPED_TEST(APinCountDataStructure, SetsPinCountPart3_k30_Max30) {
   const HyperedgeID num_hyperedges = 100;
   const PartitionID k = 30;
   const HypernodeID max_value = 30;
-  SparsePinCounts pin_count(num_hyperedges, k, max_value);
+  this->initialize(num_hyperedges, k, max_value);
 
-  pin_count.setPinCountInPart(32, 4, 23);
-  pin_count.setPinCountInPart(32, 5, 22);
-  ASSERT_EQ(23, pin_count.pinCountInPart(32, 4));
-  ASSERT_EQ(22, pin_count.pinCountInPart(32, 5));
+  this->pin_count.setPinCountInPart(32, 4, 23);
+  this->pin_count.setPinCountInPart(32, 5, 22);
+  ASSERT_EQ(23, this->pin_count.pinCountInPart(32, 4));
+  ASSERT_EQ(22, this->pin_count.pinCountInPart(32, 5));
 }
 
-TEST(APinCountInPart, SetsPinCountPart4_k30_Max30) {
+TYPED_TEST(APinCountDataStructure, SetsPinCountPart4_k30_Max30) {
   const HyperedgeID num_hyperedges = 100;
   const PartitionID k = 30;
   const HypernodeID max_value = 30;
-  SparsePinCounts pin_count(num_hyperedges, k, max_value);
+  this->initialize(num_hyperedges, k, max_value);
 
   std::vector<HypernodeID> expected_pin_count(k, 0);
   for ( PartitionID block = 0; block < k; ++block ) {
     expected_pin_count[block] = rand() % max_value;
-    pin_count.setPinCountInPart(16, block, expected_pin_count[block]);
+    this->pin_count.setPinCountInPart(16, block, expected_pin_count[block]);
   }
 
   for ( PartitionID block = 0; block < k; ++block ) {
-    ASSERT_EQ(expected_pin_count[block], pin_count.pinCountInPart(16, block));
+    ASSERT_EQ(expected_pin_count[block], this->pin_count.pinCountInPart(16, block));
   }
 }
 
-TEST(APinCountInPart, SetsPinCountPart5_k30_Max30) {
+TYPED_TEST(APinCountDataStructure, SetsPinCountPart5_k30_Max30) {
   const HyperedgeID num_hyperedges = 100;
   const PartitionID k = 30;
   const HypernodeID max_value = 30;
-  SparsePinCounts pin_count(num_hyperedges, k, max_value);
+  this->initialize(num_hyperedges, k, max_value);
 
   std::vector<std::vector<HypernodeID>> expected_pin_count(
     num_hyperedges, std::vector<HypernodeID>(k, 0));
   for ( HyperedgeID he = 0; he < num_hyperedges; ++he ) {
     for ( PartitionID block = 0; block < k; ++block ) {
       expected_pin_count[he][block] = rand() % max_value;
-      pin_count.setPinCountInPart(he, block, expected_pin_count[he][block]);
+      this->pin_count.setPinCountInPart(he, block, expected_pin_count[he][block]);
     }
   }
 
   for ( HyperedgeID he = 0; he < num_hyperedges; ++he ) {
     for ( PartitionID block = 0; block < k; ++block ) {
-      ASSERT_EQ(expected_pin_count[he][block], pin_count.pinCountInPart(he, block));
+      ASSERT_EQ(expected_pin_count[he][block], this->pin_count.pinCountInPart(he, block));
     }
   }
 }
 
-TEST(APinCountInPart, IncrementsPinCountInPart1_k30_Max30) {
+TYPED_TEST(APinCountDataStructure, IncrementsPinCountInPart1_k30_Max30) {
   const HyperedgeID num_hyperedges = 100;
   const PartitionID k = 30;
   const HypernodeID max_value = 30;
-  SparsePinCounts pin_count(num_hyperedges, k, max_value);
+  this->initialize(num_hyperedges, k, max_value);
 
-  pin_count.incrementPinCountInPart(5, 19);
-  ASSERT_EQ(1, pin_count.pinCountInPart(5, 19));
+  this->pin_count.incrementPinCountInPart(5, 19);
+  ASSERT_EQ(1, this->pin_count.pinCountInPart(5, 19));
 }
 
-TEST(APinCountInPart, IncrementsPinCountInPart2_k30_Max30) {
+TYPED_TEST(APinCountDataStructure, IncrementsPinCountInPart2_k30_Max30) {
   const HyperedgeID num_hyperedges = 100;
   const PartitionID k = 30;
   const HypernodeID max_value = 30;
-  SparsePinCounts pin_count(num_hyperedges, k, max_value);
+  this->initialize(num_hyperedges, k, max_value);
 
-  pin_count.incrementPinCountInPart(5, 19);
-  pin_count.incrementPinCountInPart(5, 19);
-  pin_count.incrementPinCountInPart(5, 18);
-  ASSERT_EQ(2, pin_count.pinCountInPart(5, 19));
-  ASSERT_EQ(1, pin_count.pinCountInPart(5, 18));
+  this->pin_count.incrementPinCountInPart(5, 19);
+  this->pin_count.incrementPinCountInPart(5, 19);
+  this->pin_count.incrementPinCountInPart(5, 18);
+  ASSERT_EQ(2, this->pin_count.pinCountInPart(5, 19));
+  ASSERT_EQ(1, this->pin_count.pinCountInPart(5, 18));
 }
 
-TEST(APinCountInPart, IncrementsPinCountInPart3_k30_Max30) {
+TYPED_TEST(APinCountDataStructure, IncrementsPinCountInPart3_k30_Max30) {
   const HyperedgeID num_hyperedges = 100;
   const PartitionID k = 30;
   const HypernodeID max_value = 30;
-  SparsePinCounts pin_count(num_hyperedges, k, max_value);
+  this->initialize(num_hyperedges, k, max_value);
 
-  pin_count.incrementPinCountInPart(5, 19);
-  pin_count.incrementPinCountInPart(5, 19);
-  pin_count.incrementPinCountInPart(5, 19);
-  pin_count.incrementPinCountInPart(5, 19);
-  pin_count.incrementPinCountInPart(5, 19);
-  pin_count.incrementPinCountInPart(5, 19);
-  pin_count.incrementPinCountInPart(5, 19);
-  pin_count.incrementPinCountInPart(5, 19);
-  pin_count.incrementPinCountInPart(5, 19);
-  ASSERT_EQ(9, pin_count.pinCountInPart(5, 19));
+  this->pin_count.incrementPinCountInPart(5, 19);
+  this->pin_count.incrementPinCountInPart(5, 19);
+  this->pin_count.incrementPinCountInPart(5, 19);
+  this->pin_count.incrementPinCountInPart(5, 19);
+  this->pin_count.incrementPinCountInPart(5, 19);
+  this->pin_count.incrementPinCountInPart(5, 19);
+  this->pin_count.incrementPinCountInPart(5, 19);
+  this->pin_count.incrementPinCountInPart(5, 19);
+  this->pin_count.incrementPinCountInPart(5, 19);
+  ASSERT_EQ(9, this->pin_count.pinCountInPart(5, 19));
 }
 
-TEST(APinCountInPart, DecrementsPinCountInPart1_k30_Max30) {
+TYPED_TEST(APinCountDataStructure, DecrementsPinCountInPart1_k30_Max30) {
   const HyperedgeID num_hyperedges = 100;
   const PartitionID k = 30;
   const HypernodeID max_value = 30;
-  SparsePinCounts pin_count(num_hyperedges, k, max_value);
+  this->initialize(num_hyperedges, k, max_value);
 
-  pin_count.setPinCountInPart(5, 19, 20);
-  pin_count.decrementPinCountInPart(5, 19);
-  ASSERT_EQ(19, pin_count.pinCountInPart(5, 19));
+  this->pin_count.setPinCountInPart(5, 19, 20);
+  this->pin_count.decrementPinCountInPart(5, 19);
+  ASSERT_EQ(19, this->pin_count.pinCountInPart(5, 19));
 }
 
-TEST(APinCountInPart, DecrementsPinCountInPart2_k30_Max30) {
+TYPED_TEST(APinCountDataStructure, DecrementsPinCountInPart2_k30_Max30) {
   const HyperedgeID num_hyperedges = 100;
   const PartitionID k = 30;
   const HypernodeID max_value = 30;
-  SparsePinCounts pin_count(num_hyperedges, k, max_value);
+  this->initialize(num_hyperedges, k, max_value);
 
-  pin_count.setPinCountInPart(5, 19, 20);
-  pin_count.setPinCountInPart(5, 18, 19);
-  pin_count.decrementPinCountInPart(5, 19);
-  pin_count.decrementPinCountInPart(5, 18);
-  ASSERT_EQ(19, pin_count.pinCountInPart(5, 19));
-  ASSERT_EQ(18, pin_count.pinCountInPart(5, 18));
+  this->pin_count.setPinCountInPart(5, 19, 20);
+  this->pin_count.setPinCountInPart(5, 18, 19);
+  this->pin_count.decrementPinCountInPart(5, 19);
+  this->pin_count.decrementPinCountInPart(5, 18);
+  ASSERT_EQ(19, this->pin_count.pinCountInPart(5, 19));
+  ASSERT_EQ(18, this->pin_count.pinCountInPart(5, 18));
 }
 
-TEST(APinCountInPart, DecrementsPinCountInPart3_k30_Max30) {
+TYPED_TEST(APinCountDataStructure, DecrementsPinCountInPart3_k30_Max30) {
   const HyperedgeID num_hyperedges = 100;
   const PartitionID k = 30;
   const HypernodeID max_value = 30;
-  SparsePinCounts pin_count(num_hyperedges, k, max_value);
+  this->initialize(num_hyperedges, k, max_value);
 
-  pin_count.setPinCountInPart(5, 19, 20);
-  pin_count.decrementPinCountInPart(5, 19);
-  pin_count.decrementPinCountInPart(5, 19);
-  pin_count.decrementPinCountInPart(5, 19);
-  pin_count.decrementPinCountInPart(5, 19);
-  pin_count.decrementPinCountInPart(5, 19);
-  pin_count.decrementPinCountInPart(5, 19);
-  pin_count.decrementPinCountInPart(5, 19);
-  pin_count.decrementPinCountInPart(5, 19);
-  pin_count.decrementPinCountInPart(5, 19);
-  pin_count.decrementPinCountInPart(5, 19);
-  ASSERT_EQ(10, pin_count.pinCountInPart(5, 19));
+  this->pin_count.setPinCountInPart(5, 19, 20);
+  this->pin_count.decrementPinCountInPart(5, 19);
+  this->pin_count.decrementPinCountInPart(5, 19);
+  this->pin_count.decrementPinCountInPart(5, 19);
+  this->pin_count.decrementPinCountInPart(5, 19);
+  this->pin_count.decrementPinCountInPart(5, 19);
+  this->pin_count.decrementPinCountInPart(5, 19);
+  this->pin_count.decrementPinCountInPart(5, 19);
+  this->pin_count.decrementPinCountInPart(5, 19);
+  this->pin_count.decrementPinCountInPart(5, 19);
+  this->pin_count.decrementPinCountInPart(5, 19);
+  ASSERT_EQ(10, this->pin_count.pinCountInPart(5, 19));
 }
 
-TEST(APinCountInPart, ModifyTwoHyperedgesConcurrently1_k30_Max30) {
+TYPED_TEST(APinCountDataStructure, ModifyTwoHyperedgesConcurrently1_k30_Max30) {
   const HyperedgeID num_hyperedges = 100;
   const PartitionID k = 30;
   const HypernodeID max_value = 30;
-  SparsePinCounts pin_count(num_hyperedges, k, max_value);
+  this->initialize(num_hyperedges, k, max_value);
 
   executeConcurrent([&] {
-    pin_count.setPinCountInPart(5, 4, 2);
+    this->pin_count.setPinCountInPart(5, 4, 2);
   }, [&] {
-    pin_count.setPinCountInPart(6, 1, 1);
+    this->pin_count.setPinCountInPart(6, 1, 1);
   });
 
-  ASSERT_EQ(2, pin_count.pinCountInPart(5, 4));
-  ASSERT_EQ(1, pin_count.pinCountInPart(6, 1));
+  ASSERT_EQ(2, this->pin_count.pinCountInPart(5, 4));
+  ASSERT_EQ(1, this->pin_count.pinCountInPart(6, 1));
 }
 
-TEST(APinCountInPart, ModifyTwoHyperedgesConcurrently2_k30_Max30) {
+TYPED_TEST(APinCountDataStructure, ModifyTwoHyperedgesConcurrently2_k30_Max30) {
   const HyperedgeID num_hyperedges = 100;
   const PartitionID k = 30;
   const HypernodeID max_value = 30;
-  SparsePinCounts pin_count(num_hyperedges, k, max_value);
+  this->initialize(num_hyperedges, k, max_value);
 
   executeConcurrent([&] {
-    pin_count.setPinCountInPart(5, 4, 2);
-    pin_count.decrementPinCountInPart(5, 4);
+    this->pin_count.setPinCountInPart(5, 4, 2);
+    this->pin_count.decrementPinCountInPart(5, 4);
   }, [&] {
-    pin_count.setPinCountInPart(6, 1, 1);
-    pin_count.incrementPinCountInPart(6, 1);
+    this->pin_count.setPinCountInPart(6, 1, 1);
+    this->pin_count.incrementPinCountInPart(6, 1);
   });
 
-  ASSERT_EQ(1, pin_count.pinCountInPart(5, 4));
-  ASSERT_EQ(2, pin_count.pinCountInPart(6, 1));
+  ASSERT_EQ(1, this->pin_count.pinCountInPart(5, 4));
+  ASSERT_EQ(2, this->pin_count.pinCountInPart(6, 1));
 }
 
-TEST(APinCountInPart, ModifyTwoHyperedgesConcurrently3_k30_Max30) {
+TYPED_TEST(APinCountDataStructure, ModifyTwoHyperedgesConcurrently3_k30_Max30) {
   const HyperedgeID num_hyperedges = 100;
   const PartitionID k = 30;
   const HypernodeID max_value = 30;
-  SparsePinCounts pin_count(num_hyperedges, k, max_value);
+  this->initialize(num_hyperedges, k, max_value);
 
   executeConcurrent([&] {
-    pin_count.setPinCountInPart(5, 4, 20);
-    pin_count.decrementPinCountInPart(5, 4);
-    pin_count.setPinCountInPart(7, 19, 30);
+    this->pin_count.setPinCountInPart(5, 4, 20);
+    this->pin_count.decrementPinCountInPart(5, 4);
+    this->pin_count.setPinCountInPart(7, 19, 30);
   }, [&] {
-    pin_count.setPinCountInPart(6, 1, 26);
-    pin_count.incrementPinCountInPart(6, 1);
-    pin_count.setPinCountInPart(4, 18, 25);
+    this->pin_count.setPinCountInPart(6, 1, 26);
+    this->pin_count.incrementPinCountInPart(6, 1);
+    this->pin_count.setPinCountInPart(4, 18, 25);
   });
 
-  ASSERT_EQ(25, pin_count.pinCountInPart(4, 18));
-  ASSERT_EQ(19, pin_count.pinCountInPart(5, 4));
-  ASSERT_EQ(27, pin_count.pinCountInPart(6, 1));
-  ASSERT_EQ(30, pin_count.pinCountInPart(7, 19));
+  ASSERT_EQ(25, this->pin_count.pinCountInPart(4, 18));
+  ASSERT_EQ(19, this->pin_count.pinCountInPart(5, 4));
+  ASSERT_EQ(27, this->pin_count.pinCountInPart(6, 1));
+  ASSERT_EQ(30, this->pin_count.pinCountInPart(7, 19));
 }
 
 }  // namespace ds
