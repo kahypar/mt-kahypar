@@ -39,7 +39,7 @@ foreach(modtarget IN LISTS TARGETS_WANTING_ALL_SOURCES)
     endforeach()
 
     if ( GRAPH_TEST )
-    target_sources(${modtarget} PRIVATE ${MultilevelGraphDatastructureSources} ${NLevelGraphDatastructureSources})
+      target_sources(${modtarget} PRIVATE ${MultilevelGraphDatastructureSources} ${NLevelGraphDatastructureSources})
     elseif ( NOT GRAPH AND NOT STRONG )
       target_sources(${modtarget} PRIVATE ${MultilevelDatastructureSources})
     elseif( GRAPH AND NOT STRONG )
