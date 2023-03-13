@@ -27,7 +27,7 @@
 
 #include "register_memory_pool.h"
 
-#include "mt-kahypar/datastructures/pin_count_in_part.h"
+#include "mt-kahypar/datastructures/sparse_pin_counts.h"
 #include "mt-kahypar/datastructures/connectivity_set.h"
 #include "mt-kahypar/parallel/memory_pool.h"
 #include "mt-kahypar/parallel/atomic_wrapper.h"
@@ -117,8 +117,8 @@ namespace mt_kahypar {
       } else {
         const HypernodeID max_he_size = hypergraph.maxEdgeSize();
         pool.register_memory_chunk("Refinement", "pin_count_in_part",
-                                  ds::PinCountInPart::num_elements(num_hyperedges, context.partition.k, max_he_size),
-                                  sizeof(ds::PinCountInPart::Value));
+                                  ds::SparsePinCounts::num_elements(num_hyperedges, context.partition.k, max_he_size),
+                                  sizeof(ds::SparsePinCounts::Value));
         pool.register_memory_chunk("Refinement", "connectivity_set",
                                   ds::ConnectivitySets::num_elements(num_hyperedges, context.partition.k),
                                   sizeof(ds::ConnectivitySets::UnsafeBlock));

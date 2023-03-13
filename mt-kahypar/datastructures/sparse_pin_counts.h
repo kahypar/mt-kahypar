@@ -58,7 +58,7 @@ class SparsePinCounts {
 
   static constexpr bool debug = false;
 
-  static constexpr size_t MAX_ENTRIES_PER_HYPEREDGE = 10; // = c
+  static constexpr size_t MAX_ENTRIES_PER_HYPEREDGE = 8; // = c
 
   struct PinCountHeader {
     // Stores the connectivity of a hyperedge
@@ -75,6 +75,8 @@ class SparsePinCounts {
   };
 
  public:
+  using Value = char;
+
   SparsePinCounts() :
     _num_hyperedges(0),
     _k(0),
@@ -82,7 +84,8 @@ class SparsePinCounts {
     _size_of_pin_counts_per_he(0),
     _pin_count_in_part(),
     _pin_count_ptr(nullptr),
-    _ext_pin_count_list() { }
+    _ext_pin_count_list(),
+    _num_overflows(0) { }
 
   SparsePinCounts(const HyperedgeID num_hyperedges,
                   const PartitionID k,
@@ -94,7 +97,8 @@ class SparsePinCounts {
     _size_of_pin_counts_per_he(0),
     _pin_count_in_part(),
     _pin_count_ptr(nullptr),
-    _ext_pin_count_list() {
+    _ext_pin_count_list(),
+    _num_overflows(0) {
     initialize(num_hyperedges, k, max_value, assign_parallel);
   }
 
@@ -107,7 +111,8 @@ class SparsePinCounts {
     _entries_per_hyperedge(other._entries_per_hyperedge),
     _pin_count_in_part(std::move(other._pin_count_in_part)),
     _pin_count_ptr(nullptr),
-    _ext_pin_count_list(std::move(other._ext_pin_count_list)) {
+    _ext_pin_count_list(std::move(other._ext_pin_count_list)),
+    _num_overflows(std::move(other._num_overflows)) {
     _pin_count_ptr = _pin_count_in_part.data();
   }
 
@@ -119,7 +124,13 @@ class SparsePinCounts {
     _pin_count_in_part = std::move(other._pin_count_in_part);
     _pin_count_ptr = _pin_count_in_part.data();
     _ext_pin_count_list = std::move(other._ext_pin_count_list);
+    _num_overflows = std::move(other._num_overflows);
     return *this;
+  }
+
+  ~SparsePinCounts() {
+    LOG << _num_overflows.load() << "/" << _num_hyperedges << "="
+        << ( static_cast<double>(_num_overflows.load()) / _num_hyperedges ) << "%";
   }
 
   // ! Initializes the data structure
@@ -137,7 +148,10 @@ class SparsePinCounts {
       _size_of_pin_counts_per_he * num_hyperedges, false, assign_parallel);
     _pin_count_ptr = _pin_count_in_part.data();
     _ext_pin_count_list.resize(_num_hyperedges);
+    reset(assign_parallel);
+  }
 
+  void reset(const bool assign_parallel = true) {
     if ( assign_parallel ) {
       tbb::parallel_for(ID(0), _num_hyperedges, [&](const HyperedgeID he) {
         init_pin_count_of_hyperedge(he);
@@ -211,6 +225,22 @@ class SparsePinCounts {
     return dec_pin_count;
   }
 
+  // ! Returns the size in bytes of this data structure
+  size_t size_in_bytes() const {
+    // TODO: size of external list is missing
+    return sizeof(char) * _pin_count_in_part.size();
+  }
+
+  static size_t num_elements(const HyperedgeID num_hyperedges,
+                             const PartitionID k,
+                             const HypernodeID) {
+    const size_t entries_per_hyperedge = std::min(
+      static_cast<size_t>(k), MAX_ENTRIES_PER_HYPEREDGE);
+    const size_t size_of_pin_counts_per_he = sizeof(PinCountHeader) +
+      sizeof(PinCountEntry) * entries_per_hyperedge;
+    return size_of_pin_counts_per_he * num_hyperedges;
+  }
+
  private:
   inline void init_pin_count_of_hyperedge(const HyperedgeID& he) {
     PinCountHeader* head = header(he);
@@ -256,6 +286,7 @@ class SparsePinCounts {
     for ( size_t i = 0; i < _entries_per_hyperedge; ++i ) {
       _ext_pin_count_list[he].push_back(*entry(he, i));
     }
+    ++_num_overflows;
     head->is_external = true;
   }
 
@@ -344,6 +375,8 @@ class SparsePinCounts {
   // ! Note that we have to use concurrent_vector since we allow concurrent
   // ! read while modyfing the entries.
   vec<tbb::concurrent_vector<PinCountEntry>> _ext_pin_count_list;
+
+  parallel::AtomicWrapper<size_t> _num_overflows;
 };
 }  // namespace ds
 }  // namespace mt_kahypar

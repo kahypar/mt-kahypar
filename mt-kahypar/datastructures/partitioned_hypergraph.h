@@ -37,7 +37,7 @@
 
 #include "mt-kahypar/datastructures/hypergraph_common.h"
 #include "mt-kahypar/datastructures/connectivity_set.h"
-#include "mt-kahypar/datastructures/pin_count_in_part.h"
+#include "mt-kahypar/datastructures/sparse_pin_counts.h"
 #include "mt-kahypar/parallel/atomic_wrapper.h"
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
 #include "mt-kahypar/parallel/stl/thread_locals.h"
@@ -140,7 +140,7 @@ private:
     }, [&] {
       _part_ids.assign(_part_ids.size(), kInvalidPartition);
     }, [&] {
-      _pins_in_part.data().assign(_pins_in_part.data().size(), 0);
+      _pins_in_part.reset();
     }, [&] {
       _connectivity_set.reset();
     }, [&] {
@@ -862,10 +862,8 @@ private:
     for (auto& x : _part_weights) x.store(0, std::memory_order_relaxed);
 
     // Reset pin count in part and connectivity set
+    _pins_in_part.reset(false);
     for ( const HyperedgeID& he : edges() ) {
-      for ( const PartitionID& block : connectivitySet(he) ) {
-        _pins_in_part.setPinCountInPart(he, block, 0);
-      }
       _connectivity_set.clear(he);
     }
   }
@@ -1045,9 +1043,9 @@ private:
     if ( _k > 0 ) {
       tbb::parallel_invoke( [&] {
         parallel::parallel_free(_part_ids, _pin_count_update_ownership);
-      }, [&] {
+      }, /*[&] {
         parallel::free(_pins_in_part.data());
-      }, [&] {
+      },*/ [&] {
         _connectivity_set.freeInternalData();
       } );
     }
@@ -1227,7 +1225,7 @@ private:
 
   // ! For each hyperedge and each block, _pins_in_part stores the
   // ! number of pins in that block
-  PinCountInPart _pins_in_part;
+  SparsePinCounts _pins_in_part;
 
   // ! For each hyperedge, _connectivity_set stores the set of blocks that the hyperedge spans
   ConnectivitySets _connectivity_set;

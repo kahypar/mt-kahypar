@@ -127,8 +127,8 @@ class PinCountInPart {
     }
   }
 
-  Array<Value>& data() {
-    return _pin_count_in_part;
+  void reset(const bool assign_parallel = true) {
+    _pin_count_in_part.assign(_pin_count_in_part.size(), 0, assign_parallel);
   }
 
   // ! Returns the pin count of the hyperedge in the corresponding block
