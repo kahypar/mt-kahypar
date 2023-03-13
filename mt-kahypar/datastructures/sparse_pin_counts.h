@@ -84,8 +84,7 @@ class SparsePinCounts {
     _size_of_pin_counts_per_he(0),
     _pin_count_in_part(),
     _pin_count_ptr(nullptr),
-    _ext_pin_count_list(),
-    _num_overflows(0) { }
+    _ext_pin_count_list() { }
 
   SparsePinCounts(const HyperedgeID num_hyperedges,
                   const PartitionID k,
@@ -97,8 +96,7 @@ class SparsePinCounts {
     _size_of_pin_counts_per_he(0),
     _pin_count_in_part(),
     _pin_count_ptr(nullptr),
-    _ext_pin_count_list(),
-    _num_overflows(0) {
+    _ext_pin_count_list() {
     initialize(num_hyperedges, k, max_value, assign_parallel);
   }
 
@@ -112,8 +110,7 @@ class SparsePinCounts {
     _size_of_pin_counts_per_he(other._size_of_pin_counts_per_he),
     _pin_count_in_part(std::move(other._pin_count_in_part)),
     _pin_count_ptr(std::move(other._pin_count_ptr)),
-    _ext_pin_count_list(std::move(other._ext_pin_count_list)),
-    _num_overflows(std::move(other._num_overflows)) { }
+    _ext_pin_count_list(std::move(other._ext_pin_count_list)) { }
 
   SparsePinCounts & operator= (SparsePinCounts&& other) {
     _num_hyperedges = other._num_hyperedges;
@@ -123,7 +120,6 @@ class SparsePinCounts {
     _pin_count_in_part = std::move(other._pin_count_in_part);
     _pin_count_ptr = std::move(other._pin_count_ptr);
     _ext_pin_count_list = std::move(other._ext_pin_count_list);
-    _num_overflows = std::move(other._num_overflows);
     return *this;
   }
 
@@ -289,7 +285,6 @@ class SparsePinCounts {
     for ( size_t i = 0; i < _entries_per_hyperedge; ++i ) {
       _ext_pin_count_list[he].push_back(*entry(he, i));
     }
-    ++_num_overflows;
     head->is_external = true;
   }
 
@@ -378,8 +373,6 @@ class SparsePinCounts {
   // ! Note that we have to use concurrent_vector since we allow concurrent
   // ! read while modyfing the entries.
   vec<tbb::concurrent_vector<PinCountEntry>> _ext_pin_count_list;
-
-  parallel::AtomicWrapper<size_t> _num_overflows;
 };
 }  // namespace ds
 }  // namespace mt_kahypar

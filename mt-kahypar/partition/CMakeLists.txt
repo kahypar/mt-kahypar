@@ -17,3 +17,9 @@ set(PartitionSources
 foreach(modtarget IN LISTS TARGETS_WANTING_ALL_SOURCES)
     target_sources(${modtarget} PRIVATE ${PartitionSources})
 endforeach()
+
+set(ContextWrapperSources
+        context.cpp
+        context_enum_classes.cpp
+        )
+target_sources(MtKaHyParWrapper PRIVATE ${ContextWrapperSources})
