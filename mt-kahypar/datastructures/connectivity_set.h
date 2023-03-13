@@ -106,9 +106,15 @@ public:
     }
   }
 
-  void reset() {
-    for (size_t i = 0; i < _bits.size(); ++i) {
-      _bits[i].store(0, std::memory_order_relaxed);
+  void reset(const bool reset_parallel = false) {
+    if ( reset_parallel ) {
+      tbb::parallel_for(UL(0), _bits.size(), [&](const size_t i) {
+        _bits[i].store(0, std::memory_order_relaxed);
+      });
+    } else {
+      for (size_t i = 0; i < _bits.size(); ++i) {
+        _bits[i].store(0, std::memory_order_relaxed);
+      }
     }
   }
 
@@ -159,7 +165,7 @@ private:
 public:
 
   class Iterator {
-  public:
+   public:
     using iterator_category = std::forward_iterator_tag;
     using value_type = PartitionID;
     using reference = PartitionID&;

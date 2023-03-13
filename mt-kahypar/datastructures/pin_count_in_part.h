@@ -188,6 +188,15 @@ class PinCountInPart {
     return sizeof(Value) * _pin_count_in_part.size();
   }
 
+  void freeInternalData() {
+    parallel::free(_pin_count_in_part);
+  }
+
+  void memoryConsumption(utils::MemoryTreeNode* parent) const {
+    ASSERT(parent);
+    parent->addChild("Pin Count Values", sizeof(Value) * _pin_count_in_part.size());
+  }
+
   static size_t num_elements(const HyperedgeID num_hyperedges,
                              const PartitionID k,
                              const HypernodeID max_value) {

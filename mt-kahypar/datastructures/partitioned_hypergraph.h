@@ -36,8 +36,7 @@
 #include "kahypar/meta/mandatory.h"
 
 #include "mt-kahypar/datastructures/hypergraph_common.h"
-#include "mt-kahypar/datastructures/connectivity_set.h"
-#include "mt-kahypar/datastructures/sparse_pin_counts.h"
+#include "mt-kahypar/datastructures/connectivity_info.h"
 #include "mt-kahypar/parallel/atomic_wrapper.h"
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
 #include "mt-kahypar/parallel/stl/thread_locals.h"
@@ -88,8 +87,7 @@ private:
     _part_weights(k, CAtomic<HypernodeWeight>(0)),
     _part_ids(
         "Refinement", "part_ids", hypergraph.initialNumNodes(), false, false),
-    _pins_in_part(hypergraph.initialNumEdges(), k, hypergraph.maxEdgeSize(), false),
-    _connectivity_set(hypergraph.initialNumEdges(), k, false),
+    _con_info(hypergraph.initialNumEdges(), k, hypergraph.maxEdgeSize()),
     _gain_cache(),
     _pin_count_update_ownership(
         "Refinement", "pin_count_update_ownership", hypergraph.initialNumEdges(), true, false) {
@@ -105,8 +103,7 @@ private:
     _hg(&hypergraph),
     _part_weights(k, CAtomic<HypernodeWeight>(0)),
     _part_ids(),
-    _pins_in_part(),
-    _connectivity_set(0, 0),
+    _con_info(),
     _gain_cache(),
     _pin_count_update_ownership() {
     tbb::parallel_invoke([&] {
@@ -114,9 +111,8 @@ private:
         "Refinement", "vertex_part_info", hypergraph.initialNumNodes());
       _part_ids.assign(hypergraph.initialNumNodes(), kInvalidPartition);
     }, [&] {
-      _pins_in_part.initialize(hypergraph.initialNumEdges(), k, hypergraph.maxEdgeSize());
-    }, [&] {
-      _connectivity_set = ConnectivitySets(hypergraph.initialNumEdges(), k);
+      _con_info = ConnectivityInfo(
+        hypergraph.initialNumEdges(), k, hypergraph.maxEdgeSize(), parallel_tag_t { });
     }, [&] {
       _pin_count_update_ownership.resize(
         "Refinement", "pin_count_update_ownership", hypergraph.initialNumEdges(), true);
@@ -140,9 +136,7 @@ private:
     }, [&] {
       _part_ids.assign(_part_ids.size(), kInvalidPartition);
     }, [&] {
-      _pins_in_part.reset();
-    }, [&] {
-      _connectivity_set.reset();
+      _con_info.reset();
     }, [&] {
       for (auto& x : _part_weights) x.store(0, std::memory_order_relaxed);
     });
@@ -249,7 +243,7 @@ private:
   IteratorRange<ConnectivitySets::Iterator> connectivitySet(const HyperedgeID e) const {
     ASSERT(_hg->edgeIsEnabled(e), "Hyperedge" << e << "is disabled");
     ASSERT(e < _hg->initialNumEdges(), "Hyperedge" << e << "does not exist");
-    return _connectivity_set.connectivitySet(e);
+    return _con_info.connectivitySet(e);
   }
 
   // ####################### Hypernode Information #######################
@@ -377,7 +371,7 @@ private:
           _gain_cache[penalty_index(v)].add_fetch(edge_weight, std::memory_order_relaxed);
           // For all blocks contained in the connectivity set of hyperedge he
           // we increase the move_to_benefit for vertex v by w(e)
-          for ( const PartitionID block : _connectivity_set.connectivitySet(he) ) {
+          for ( const PartitionID block : _con_info.connectivitySet(he) ) {
             _gain_cache[benefit_index(v, block)].add_fetch(
               edge_weight, std::memory_order_relaxed);
           }
@@ -403,7 +397,7 @@ private:
           // For all blocks contained in the connectivity set of hyperedge he
           // we increase the move_to_benefit for vertex v by w(e) and decrease
           // it for vertex u by w(e)
-          for ( const PartitionID block : _connectivity_set.connectivitySet(he) ) {
+          for ( const PartitionID block : _con_info.connectivitySet(he) ) {
             _gain_cache[benefit_index(u, block)].sub_fetch(
               edge_weight, std::memory_order_relaxed);
             _gain_cache[benefit_index(v, block)].add_fetch(
@@ -439,8 +433,8 @@ private:
       }
 
       if ( pin_count_in_part > 0 ) {
-        _pins_in_part.setPinCountInPart(he, block, pin_count_in_part);
-        _connectivity_set.add(he, block);
+        _con_info.setPinCountInPart(he, block, pin_count_in_part);
+        _con_info.addBlock(he, block);
       }
     }
   }
@@ -471,8 +465,8 @@ private:
         ASSERT(single_vertex_of_he != kInvalidHypernode);
 
         const PartitionID block_of_single_pin = partID(single_vertex_of_he);
-        _connectivity_set.add(he, block_of_single_pin);
-        _pins_in_part.setPinCountInPart(he, block_of_single_pin, 1);
+        _con_info.addBlock(he, block_of_single_pin);
+        _con_info.setPinCountInPart(he, block_of_single_pin, 1);
 
         if ( _is_gain_cache_initialized ) {
           _gain_cache[benefit_index(
@@ -483,8 +477,8 @@ private:
         // Restore parallel net => pin count information given by representative
         ASSERT(edgeIsEnabled(representative));
         for ( const PartitionID& block : connectivitySet(representative) ) {
-          _connectivity_set.add(he, block);
-          _pins_in_part.setPinCountInPart(he, block, pinCountInPart(representative, block));
+          _con_info.addBlock(he, block);
+          _con_info.setPinCountInPart(he, block, pinCountInPart(representative, block));
         }
 
         HEAVY_REFINEMENT_ASSERT([&] {
@@ -638,7 +632,7 @@ private:
   PartitionID connectivity(const HyperedgeID e) const {
     ASSERT(e < _hg->initialNumEdges(), "Hyperedge" << e << "does not exist");
     ASSERT(edgeIsEnabled(e), "Hyperedge" << e << "is disabled");
-    return _connectivity_set.connectivity(e);
+    return _con_info.connectivity(e);
   }
 
   // ! Returns the number pins of hyperedge e that are part of block id
@@ -646,7 +640,7 @@ private:
     ASSERT(e < _hg->initialNumEdges(), "Hyperedge" << e << "does not exist");
     ASSERT(edgeIsEnabled(e), "Hyperedge" << e << "is disabled");
     ASSERT(p != kInvalidPartition && p < _k);
-    return _pins_in_part.pinCountInPart(e, p);
+    return _con_info.pinCountInPart(e, p);
   }
 
   /**
@@ -862,10 +856,7 @@ private:
     for (auto& x : _part_weights) x.store(0, std::memory_order_relaxed);
 
     // Reset pin count in part and connectivity set
-    _pins_in_part.reset(false);
-    for ( const HyperedgeID& he : edges() ) {
-      _connectivity_set.clear(he);
-    }
+    _con_info.reset(false);
   }
 
   // ! Should be called e.g. after a rollback (see PartitionedGraph).
@@ -942,12 +933,11 @@ private:
 
     utils::MemoryTreeNode* hypergraph_node = parent->addChild("Hypergraph");
     _hg->memoryConsumption(hypergraph_node);
-    utils::MemoryTreeNode* connectivity_set_node = parent->addChild("Connectivity Sets");
-    _connectivity_set.memoryConsumption(connectivity_set_node);
+    utils::MemoryTreeNode* connectivity_info_node = parent->addChild("Connectivity Information");
+    _con_info.memoryConsumption(connectivity_info_node);
 
     parent->addChild("Part Weights", sizeof(CAtomic<HypernodeWeight>) * _k);
     parent->addChild("Part IDs", sizeof(PartitionID) * _hg->initialNumNodes());
-    parent->addChild("Pin Count In Part", _pins_in_part.size_in_bytes());
     parent->addChild("Gain Cache", sizeof(HyperedgeWeight) * _gain_cache.size());
     parent->addChild("HE Ownership", sizeof(SpinLock) * _hg->initialNumNodes());
   }
@@ -1043,10 +1033,8 @@ private:
     if ( _k > 0 ) {
       tbb::parallel_invoke( [&] {
         parallel::parallel_free(_part_ids, _pin_count_update_ownership);
-      }, /*[&] {
-        parallel::free(_pins_in_part.data());
-      },*/ [&] {
-        _connectivity_set.freeInternalData();
+      }, [&] {
+        _con_info.freeInternalData();
       } );
     }
     _k = 0;
@@ -1137,8 +1125,8 @@ private:
           for (PartitionID p = 0; p < _k; ++p) {
             ASSERT(pinCountInPart(he, p) == 0);
             if (pin_counts[p] > 0) {
-              _connectivity_set.add(he, p);
-              _pins_in_part.setPinCountInPart(he, p, pin_counts[p]);
+              _con_info.addBlock(he, p);
+              _con_info.setPinCountInPart(he, p, pin_counts[p]);
             }
             pin_counts[p] = 0;
           }
@@ -1186,9 +1174,9 @@ private:
     ASSERT(e < _hg->initialNumEdges(), "Hyperedge" << e << "does not exist");
     ASSERT(edgeIsEnabled(e), "Hyperedge" << e << "is disabled");
     ASSERT(p != kInvalidPartition && p < _k);
-    const HypernodeID pin_count_after = _pins_in_part.decrementPinCountInPart(e, p);
+    const HypernodeID pin_count_after = _con_info.decrementPinCountInPart(e, p);
     if ( pin_count_after == 0 ) {
-      _connectivity_set.remove(e, p);
+      _con_info.removeBlock(e, p);
     }
     return pin_count_after;
   }
@@ -1198,9 +1186,9 @@ private:
     ASSERT(e < _hg->initialNumEdges(), "Hyperedge" << e << "does not exist");
     ASSERT(edgeIsEnabled(e), "Hyperedge" << e << "is disabled");
     ASSERT(p != kInvalidPartition && p < _k);
-    const HypernodeID pin_count_after = _pins_in_part.incrementPinCountInPart(e, p);
+    const HypernodeID pin_count_after = _con_info.incrementPinCountInPart(e, p);
     if ( pin_count_after == 1 ) {
-      _connectivity_set.add(e, p);
+      _con_info.addBlock(e, p);
     }
     return pin_count_after;
   }
@@ -1223,12 +1211,8 @@ private:
   // ! Current block IDs of the vertices
   Array< PartitionID > _part_ids;
 
-  // ! For each hyperedge and each block, _pins_in_part stores the
-  // ! number of pins in that block
-  SparsePinCounts _pins_in_part;
-
-  // ! For each hyperedge, _connectivity_set stores the set of blocks that the hyperedge spans
-  ConnectivitySets _connectivity_set;
+  // ! Stores the pin count values and connectivity sets
+  ConnectivityInfo _con_info;
 
   // ! The gain of moving a node u to from its current block V_i to a target block V_j
   // ! can be expressed as follows for the connectivity metric
