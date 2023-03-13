@@ -128,11 +128,6 @@ class SparsePinCounts {
     return *this;
   }
 
-  ~SparsePinCounts() {
-    LOG << _num_overflows.load() << "/" << _num_hyperedges << "="
-        << ( static_cast<double>(_num_overflows.load()) / _num_hyperedges ) << "%";
-  }
-
   // ! Initializes the data structure
   void initialize(const HyperedgeID num_hyperedges,
                   const PartitionID k,
@@ -155,10 +150,12 @@ class SparsePinCounts {
     if ( assign_parallel ) {
       tbb::parallel_for(ID(0), _num_hyperedges, [&](const HyperedgeID he) {
         init_pin_count_of_hyperedge(he);
+        _ext_pin_count_list[he].clear();
       });
     } else {
       for ( HyperedgeID he = 0; he < _num_hyperedges; ++he ) {
         init_pin_count_of_hyperedge(he);
+        _ext_pin_count_list[he].clear();
       }
     }
   }

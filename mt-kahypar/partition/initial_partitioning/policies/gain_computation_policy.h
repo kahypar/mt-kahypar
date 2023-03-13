@@ -188,7 +188,7 @@ class CutGainPolicy {
         const HyperedgeWeight he_weight = hypergraph.edgeWeight(he);
 
         if ( pin_count_in_from_part_before == he_size ) {
-          ASSERT(hypergraph.connectivity(he) == 2, V(pin_count_in_from_part_before) << V(pin_count_in_to_part_after) << V(he_size));
+          ASSERT(hypergraph.connectivity(he) == 2);
           ASSERT(pin_count_in_to_part_after == 1);
           // In case, the pin count in hyperedge he of block from was equal to the
           // hyperedge size before, we have made the hyperedge a cut hyperedge.
