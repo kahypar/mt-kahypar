@@ -109,12 +109,11 @@ class SparsePinCounts {
     _num_hyperedges(other._num_hyperedges),
     _k(other._k),
     _entries_per_hyperedge(other._entries_per_hyperedge),
+    _size_of_pin_counts_per_he(other._size_of_pin_counts_per_he),
     _pin_count_in_part(std::move(other._pin_count_in_part)),
-    _pin_count_ptr(nullptr),
+    _pin_count_ptr(std::move(other._pin_count_ptr)),
     _ext_pin_count_list(std::move(other._ext_pin_count_list)),
-    _num_overflows(std::move(other._num_overflows)) {
-    _pin_count_ptr = _pin_count_in_part.data();
-  }
+    _num_overflows(std::move(other._num_overflows)) { }
 
   SparsePinCounts & operator= (SparsePinCounts&& other) {
     _num_hyperedges = other._num_hyperedges;
@@ -122,7 +121,7 @@ class SparsePinCounts {
     _entries_per_hyperedge = other._entries_per_hyperedge;
     _size_of_pin_counts_per_he = other._size_of_pin_counts_per_he;
     _pin_count_in_part = std::move(other._pin_count_in_part);
-    _pin_count_ptr = _pin_count_in_part.data();
+    _pin_count_ptr = std::move(other._pin_count_ptr);
     _ext_pin_count_list = std::move(other._ext_pin_count_list);
     _num_overflows = std::move(other._num_overflows);
     return *this;
@@ -150,12 +149,10 @@ class SparsePinCounts {
     if ( assign_parallel ) {
       tbb::parallel_for(ID(0), _num_hyperedges, [&](const HyperedgeID he) {
         init_pin_count_of_hyperedge(he);
-        _ext_pin_count_list[he].clear();
       });
     } else {
       for ( HyperedgeID he = 0; he < _num_hyperedges; ++he ) {
         init_pin_count_of_hyperedge(he);
-        _ext_pin_count_list[he].clear();
       }
     }
   }
@@ -163,6 +160,8 @@ class SparsePinCounts {
   // ! Returns the pin count of the hyperedge in the corresponding block
   inline HypernodeID pinCountInPart(const HyperedgeID he,
                                     const PartitionID id) const {
+    ASSERT(he < _num_hyperedges);
+    ASSERT(id < _k);
     const PinCountEntry* val = find_entry(he, id);
     return val ? val->pin_count : 0;
   }
@@ -171,12 +170,16 @@ class SparsePinCounts {
   inline void setPinCountInPart(const HyperedgeID he,
                                 const PartitionID id,
                                 const HypernodeID value) {
+    ASSERT(he < _num_hyperedges);
+    ASSERT(id < _k);
     add_pin_count_entry(he, id, value);
   }
 
   // ! Increments the pin count of the hyperedge in the corresponding block
   inline HypernodeID incrementPinCountInPart(const HyperedgeID he,
                                              const PartitionID id) {
+    ASSERT(he < _num_hyperedges);
+    ASSERT(id < _k);
     PinCountEntry* val = find_entry(he, id);
     HypernodeID inc_pin_count = 0;
     if ( val ) {
@@ -191,6 +194,8 @@ class SparsePinCounts {
   // ! Decrements the pin count of the hyperedge in the corresponding block
   inline HypernodeID decrementPinCountInPart(const HyperedgeID he,
                                              const PartitionID id) {
+    ASSERT(he < _num_hyperedges);
+    ASSERT(id < _k);
     PinCountEntry* val = find_entry(he, id);
     ASSERT(val);
     const HypernodeID dec_pin_count = --val->pin_count;
@@ -248,6 +253,7 @@ class SparsePinCounts {
       pin_count->block = kInvalidPartition;
       pin_count->pin_count = 0;
     }
+    _ext_pin_count_list[he].clear();
   }
 
   inline void add_pin_count_entry(const HyperedgeID he,
