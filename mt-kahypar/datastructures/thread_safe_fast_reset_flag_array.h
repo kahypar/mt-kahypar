@@ -107,6 +107,10 @@ public:
     ++_threshold;
   }
 
+  size_t size() const {
+    return _size;
+  }
+
   void setSize(const size_t size, const bool init = false) {
     ASSERT(_v == nullptr, "Error");
     _v = std::make_unique<Type[]>(size);

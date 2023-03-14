@@ -37,7 +37,9 @@ namespace pool {
 // IP algorithm and random seed
 using IPTask = std::tuple<InitialPartitioningAlgorithm, int, int>;
 
-void bipartition(PartitionedHypergraph& hypergraph, const Context& context) {
+void bipartition(PartitionedHypergraph& hypergraph,
+                 const Context& context,
+                 const bool run_parallel) {
   ASSERT(context.shared_memory.num_threads > 0);
   if ( context.initial_partitioning.enabled_ip_algos.size() <
         static_cast<size_t>(InitialPartitioningAlgorithm::UNDEFINED) ) {
@@ -65,12 +67,19 @@ void bipartition(PartitionedHypergraph& hypergraph, const Context& context) {
   tbb::task_group tg;
   InitialPartitioningDataContainer ip_data(hypergraph, context);
   for ( const auto [algorithm, seed, tag] : _ip_task_lists ) {
-    tg.run([&, algorithm, seed, tag] {
+    if ( run_parallel ) {
+      tg.run([&, algorithm, seed, tag] {
+        std::unique_ptr<IInitialPartitioner> initial_partitioner =
+          InitialPartitionerFactory::getInstance().createObject(
+            algorithm, algorithm, ip_data, context, seed, tag);
+        initial_partitioner->partition();
+      });
+    } else {
       std::unique_ptr<IInitialPartitioner> initial_partitioner =
         InitialPartitionerFactory::getInstance().createObject(
           algorithm, algorithm, ip_data, context, seed, tag);
       initial_partitioner->partition();
-    });
+    }
   }
   tg.wait();
   ip_data.apply();

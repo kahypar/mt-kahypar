@@ -1031,6 +1031,20 @@ private:
     return extracted_hypergraph;
   }
 
+  std::pair<vec<Hypergraph>, vec<HypernodeID>> extractAllBlocks(const PartitionID k,
+                                                                const bool cut_net_splitting,
+                                                                const bool stable_construction_of_incident_edges) {
+    ASSERT(k <= _k);
+    // TODO: optimize this
+    vec<HypernodeID> hn_mapping(_hg->initialNumNodes(), kInvalidHypernode);
+    vec<Hypergraph> extracted_hypergraphs(k);
+    tbb::parallel_for(static_cast<PartitionID>(0), k, [&](const PartitionID p) {
+      extracted_hypergraphs[p] = extract(p, hn_mapping,
+        cut_net_splitting, stable_construction_of_incident_edges);
+    });
+    return std::make_pair(std::move(extracted_hypergraphs), std::move(hn_mapping));
+  }
+
   void freeInternalData() {
     if ( _k > 0 ) {
       tbb::parallel_invoke( [&] {

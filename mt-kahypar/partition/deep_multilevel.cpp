@@ -420,19 +420,14 @@ const DeepPartitioningResult& select_best_partition(const vec<DeepPartitioningRe
   return partitions[best_idx];
 }
 
-DeepPartitioningResult bipartition_block(PartitionedHypergraph& partitioned_hg,
+DeepPartitioningResult bipartition_block(Hypergraph&& hg,
                                          const Context& context,
                                          const OriginalHypergraphInfo& info,
-                                         const PartitionID block,
-                                         vec<HypernodeID>& mapping,
                                          const PartitionID start_k,
-                                         const PartitionID end_k) {
+                                         const PartitionID end_k,
+                                         const bool bipartition_parallel) {
   DeepPartitioningResult bipartition;
-
-  // Extract subhypergraph representing the corresponding block
-  const bool cut_net_splitting = context.partition.objective == Objective::km1;
-  bipartition.hypergraph = partitioned_hg.extract(block, mapping,
-    cut_net_splitting, context.preprocessing.stable_construction_of_incident_edges);
+  bipartition.hypergraph = std::move(hg);
   bipartition.partitioned_hg = PartitionedHypergraph(2, bipartition.hypergraph, parallel_tag_t());
   bipartition.valid = true;
 
@@ -440,7 +435,7 @@ DeepPartitioningResult bipartition_block(PartitionedHypergraph& partitioned_hg,
     // Bipartition block
     Context b_context = setupBipartitioningContext(
       bipartition.hypergraph, context, info, start_k, end_k);
-    pool::bipartition(bipartition.partitioned_hg, b_context);
+    pool::bipartition(bipartition.partitioned_hg, b_context, bipartition_parallel);
   }
 
   return bipartition;
@@ -451,9 +446,21 @@ void bipartition_each_block(PartitionedHypergraph& partitioned_hg,
                             const OriginalHypergraphInfo& info,
                             const RBTree& rb_tree,
                             const PartitionID current_k) {
+  utils::Timer& timer = utils::Utilities::instance().getTimer(context.utility_id);
+  // Extract all blocks of hypergraph
+  timer.start_timer("extract_blocks", "Extract Blocks");
+  const bool cut_net_splitting = context.partition.objective == Objective::km1;
+  auto extracted_blocks = partitioned_hg.extractAllBlocks(current_k,
+    cut_net_splitting, context.preprocessing.stable_construction_of_incident_edges);
+  vec<Hypergraph>& hypergraphs = extracted_blocks.first;
+  const vec<HypernodeID>& mapping = extracted_blocks.second;
+  timer.stop_timer("extract_blocks");
+
+
+  timer.start_timer("bipartition_blocks", "Bipartition Blocks");
   vec<DeepPartitioningResult> bipartitions(current_k);
   vec<PartitionID> block_ranges(1, 0);
-  vec<HypernodeID> mapping(partitioned_hg.initialNumNodes(), kInvalidHypernode);
+  const bool bipartition_parallel = context.shared_memory.num_threads > UL(2 * current_k);
   tbb::task_group tg;
   for ( PartitionID block = 0; block < current_k; ++block ) {
     // The recursive bipartitioning tree stores for each block of the current partition
@@ -465,8 +472,8 @@ void bipartition_each_block(PartitionedHypergraph& partitioned_hg,
       // Spawn a task that bipartitions the corresponding block
       tg.run([&, block, desired_blocks] {
         const auto target_blocks = rb_tree.targetBlocksInFinalPartition(current_k, block);
-        bipartitions[block] = bipartition_block(partitioned_hg, context,
-          info, block, mapping, target_blocks.first, target_blocks.second);
+        bipartitions[block] = bipartition_block(std::move(hypergraphs[block]), context,
+          info, target_blocks.first, target_blocks.second, bipartition_parallel);
         bipartitions[block].partitioned_hg.setHypergraph(bipartitions[block].hypergraph);
       });
       block_ranges.push_back(block_ranges.back() + 2);
@@ -477,7 +484,9 @@ void bipartition_each_block(PartitionedHypergraph& partitioned_hg,
     }
   }
   tg.wait();
+  timer.stop_timer("bipartition_blocks");
 
+  timer.start_timer("apply_bipartitions", "Apply Bipartition");
   // Apply all bipartitions to current hypergraph
   partitioned_hg.doParallelForAllNodes([&](const HypernodeID& hn) {
     const PartitionID from = partitioned_hg.partID(hn);
@@ -508,6 +517,7 @@ void bipartition_each_block(PartitionedHypergraph& partitioned_hg,
       partitioned_hg.recomputeMoveFromPenalty(hn);
     });
   }
+  timer.stop_timer("apply_bipartitions");
 
   HEAVY_REFINEMENT_ASSERT(partitioned_hg.checkTrackedPartitionInformation());
 }
@@ -724,7 +734,9 @@ void deep_multilevel_partitioning(PartitionedHypergraph& partitioned_hg,
     // the number of nodes gets larger than k' * C.
     while ( uncoarsener->currentNumberOfNodes() >= contraction_limit_for_rb ) {
       PartitionedHypergraph& current_phg = uncoarsener->currentPartitionedHypergraph();
+      timer.start_timer("bipartitioning", "Bipartitioning");
       bipartition_each_block(current_phg, context, info, rb_tree, current_k);
+      timer.stop_timer("bipartitioning");
 
       ASSERT(get_current_k(current_phg) == next_k);
       DBG << "Increase number of blocks from" << current_k << "to" << next_k
@@ -748,7 +760,9 @@ void deep_multilevel_partitioning(PartitionedHypergraph& partitioned_hg,
   while ( uncoarsener->currentNumberOfNodes() >= contraction_limit_for_rb ||
           ( context.type == ContextType::main && current_k != final_k ) ) {
     PartitionedHypergraph& current_phg = uncoarsener->currentPartitionedHypergraph();
+    timer.start_timer("bipartitioning", "Bipartitioning");
     bipartition_each_block(current_phg, context, info, rb_tree, current_k);
+    timer.stop_timer("bipartitioning");
 
     ASSERT(get_current_k(current_phg) == next_k);
     DBG << "Increase number of blocks from" << current_k << "to" << next_k
