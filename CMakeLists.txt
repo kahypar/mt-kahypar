@@ -360,6 +360,7 @@ add_subdirectory(mt-kahypar)
 add_custom_target(MtKaHyPar
   DEPENDS
   MtKaHyParDefault
+  MtKaHyParLargeK
   MtKaHyParQuality
   MtKaHyParGraph
   MtKaHyParGraphQuality

@@ -37,7 +37,7 @@ namespace io {
 
   using Hyperedge = parallel::scalable_vector<HypernodeID>;
   using HyperedgeVector = parallel::scalable_vector<Hyperedge>;
-  #ifdef USE_GRAPH_PARTITIONER
+  #ifdef ENABLE_GRAPH_PARTITIONER
   using EdgeVector = parallel::scalable_vector<std::pair<HypernodeID, HypernodeID>>;
   #else
   using EdgeVector = HyperedgeVector;

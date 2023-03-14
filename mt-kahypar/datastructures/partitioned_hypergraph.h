@@ -47,7 +47,8 @@ namespace mt_kahypar {
 namespace ds {
 
 template <typename Hypergraph = Mandatory,
-          typename HypergraphFactory = Mandatory>
+          typename HypergraphFactory = Mandatory,
+          typename ConnectivityInformation = ConnectivityInfo>
 class PartitionedHypergraph {
 private:
   static_assert(!Hypergraph::is_partitioned,  "Only unpartitioned hypergraphs are allowed");
@@ -111,7 +112,7 @@ private:
         "Refinement", "vertex_part_info", hypergraph.initialNumNodes());
       _part_ids.assign(hypergraph.initialNumNodes(), kInvalidPartition);
     }, [&] {
-      _con_info = ConnectivityInfo(
+      _con_info = ConnectivityInformation(
         hypergraph.initialNumEdges(), k, hypergraph.maxEdgeSize(), parallel_tag_t { });
     }, [&] {
       _pin_count_update_ownership.resize(
@@ -1212,7 +1213,7 @@ private:
   Array< PartitionID > _part_ids;
 
   // ! Stores the pin count values and connectivity sets
-  ConnectivityInfo _con_info;
+  ConnectivityInformation _con_info;
 
   // ! The gain of moving a node u to from its current block V_i to a target block V_j
   // ! can be expressed as follows for the connectivity metric

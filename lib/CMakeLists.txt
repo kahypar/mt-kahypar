@@ -10,7 +10,7 @@ SET_TARGET_PROPERTIES(mtkahyparhgp PROPERTIES COMPILE_FLAGS "-fvisibility=hidden
 add_library(mtkahypargp SHARED libmtkahypargp.cpp)
 target_link_libraries(mtkahypargp ${Boost_LIBRARIES})
 target_compile_definitions(mtkahypargp PUBLIC MT_KAHYPAR_LIBRARY_MODE)
-target_compile_definitions(mtkahypargp PUBLIC USE_GRAPH_PARTITIONER)
+target_compile_definitions(mtkahypargp PUBLIC ENABLE_GRAPH_PARTITIONER)
 SET_TARGET_PROPERTIES(mtkahypargp PROPERTIES COMPILE_FLAGS "-fvisibility=hidden")
 
 set(TARGETS_WANTING_ALL_SOURCES ${TARGETS_WANTING_ALL_SOURCES} mtkahyparhgp mtkahypargp PARENT_SCOPE)

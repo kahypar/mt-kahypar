@@ -29,19 +29,22 @@
 #include <set>
 
 #include "mt-kahypar/definitions.h"
-#include "mt-kahypar/datastructures/dynamic_hypergraph.h"
-#include "mt-kahypar/datastructures/dynamic_hypergraph_factory.h"
-#include "mt-kahypar/datastructures/partitioned_hypergraph.h"
+#ifdef ENABLE_GRAPH_PARTITIONER
 #include "mt-kahypar/datastructures/dynamic_graph.h"
 #include "mt-kahypar/datastructures/dynamic_graph_factory.h"
 #include "mt-kahypar/datastructures/partitioned_graph.h"
+#else
+#include "mt-kahypar/datastructures/dynamic_hypergraph.h"
+#include "mt-kahypar/datastructures/dynamic_hypergraph_factory.h"
+#include "mt-kahypar/datastructures/partitioned_hypergraph.h"
+#endif
 #include "mt-kahypar/partition/metrics.h"
 #include "mt-kahypar/utils/randomize.h"
 
 namespace mt_kahypar {
 namespace ds {
 
-#ifdef USE_GRAPH_PARTITIONER
+#ifdef ENABLE_GRAPH_PARTITIONER
 using DynamicHypergraphT = DynamicGraph;
 using DynamicHypergraphFactoryT = DynamicGraphFactory;
 using DynamicPartitionedHypergraphT = PartitionedGraph<DynamicHypergraphT, DynamicHypergraphFactoryT>;
@@ -55,7 +58,7 @@ void verifyEqualityOfHypergraphs(const DynamicHypergraphT& e_hypergraph,
                                  const DynamicHypergraphT& a_hypergraph) {
   DynamicHypergraphT expected_hypergraph = e_hypergraph.copy();
   DynamicHypergraphT actual_hypergraph = a_hypergraph.copy();
-  #ifdef USE_GRAPH_PARTITIONER
+  #ifdef ENABLE_GRAPH_PARTITIONER
   expected_hypergraph.sortIncidentEdges();
   actual_hypergraph.sortIncidentEdges();
   #endif
@@ -76,7 +79,7 @@ void verifyEqualityOfHypergraphs(const DynamicHypergraphT& e_hypergraph,
     std::sort(actual_incident_edges.begin(), actual_incident_edges.end());
     ASSERT_EQ(expected_incident_edges.size(), actual_incident_edges.size());
 
-    #ifdef USE_GRAPH_PARTITIONER
+    #ifdef ENABLE_GRAPH_PARTITIONER
     for ( size_t i = 0; i < expected_incident_edges.size(); ++i ) {
       HyperedgeID exp = expected_incident_edges[i];
       HyperedgeID act = actual_incident_edges[i];
@@ -93,7 +96,7 @@ void verifyEqualityOfHypergraphs(const DynamicHypergraphT& e_hypergraph,
     actual_incident_edges.clear();
   }
 
-  #ifndef USE_GRAPH_PARTITIONER
+  #ifndef ENABLE_GRAPH_PARTITIONER
   parallel::scalable_vector<HypernodeID> expected_pins;
   parallel::scalable_vector<HypernodeID> actual_pins;
   for ( const HyperedgeID& he : expected_hypergraph.edges() ) {
@@ -157,7 +160,7 @@ DynamicHypergraphT generateRandomHypergraph(const HypernodeID num_hypernodes,
   parallel::scalable_vector<parallel::scalable_vector<HypernodeID>> hyperedges;
   utils::Randomize& rand = utils::Randomize::instance();
 
-  #ifdef USE_GRAPH_PARTITIONER
+  #ifdef ENABLE_GRAPH_PARTITIONER
   std::set<std::pair<HypernodeID, HypernodeID>> graph_edges;
   for ( size_t i = 0; i < num_hypernodes; ++i ) {
     graph_edges.insert({i, i});
@@ -166,7 +169,7 @@ DynamicHypergraphT generateRandomHypergraph(const HypernodeID num_hypernodes,
 
   for ( size_t i = 0; i < num_hyperedges; ++i ) {
     parallel::scalable_vector<HypernodeID> net;
-    #ifdef USE_GRAPH_PARTITIONER
+    #ifdef ENABLE_GRAPH_PARTITIONER
     unused(max_edge_size);
     std::pair<HypernodeID, HypernodeID> edge{rand.getRandomInt(0, num_hypernodes - 1, SCHED_GETCPU),
                                              rand.getRandomInt(0, num_hypernodes - 1, SCHED_GETCPU)};

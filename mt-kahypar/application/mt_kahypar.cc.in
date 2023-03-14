@@ -37,10 +37,17 @@
 static std::string getGitRevisionFile(const mt_kahypar::Context& context) {
   std::string revision_file = std::string(MT_KAHYPAR_BINARY_DIR) + "git_mt_kahypar_d.txt";
   if ( context.partition.instance_type == mt_kahypar::InstanceType::graph ) {
-    revision_file = std::string(MT_KAHYPAR_BINARY_DIR) + "git_mt_kahypar_graph.txt";
+    if ( context.partition.preset_type == mt_kahypar::PresetType::quality_preset ||
+         context.partition.preset_type == mt_kahypar::PresetType::quality_flows ) {
+      revision_file = std::string(MT_KAHYPAR_BINARY_DIR) + "git_mt_kahypar_gq.txt";
+    } else {
+      revision_file = std::string(MT_KAHYPAR_BINARY_DIR) + "git_mt_kahypar_graph.txt";
+    }
   } else if ( context.partition.preset_type == mt_kahypar::PresetType::quality_preset ||
               context.partition.preset_type == mt_kahypar::PresetType::quality_flows ) {
     revision_file = std::string(MT_KAHYPAR_BINARY_DIR) + "git_mt_kahypar_q.txt";
+  } else if ( context.partition.preset_type == mt_kahypar::PresetType::large_k ) {
+    revision_file = std::string(MT_KAHYPAR_BINARY_DIR) + "git_mt_kahypar_large_k.txt";
   }
   return revision_file;
 }
@@ -118,6 +125,8 @@ static std::string getBinary(const mt_kahypar::Context& context) {
   } else if ( context.partition.preset_type == mt_kahypar::PresetType::quality_preset ||
               context.partition.preset_type == mt_kahypar::PresetType::quality_flows ) {
     binary = std::string(MT_KAHYPAR_BINARY_DIR) + "MtKaHyParQuality";
+  } else if ( context.partition.preset_type == mt_kahypar::PresetType::large_k ) {
+    binary = std::string(MT_KAHYPAR_BINARY_DIR) + "MtKaHyParLargeK";
   }
   return binary;
 }
@@ -125,6 +134,7 @@ static std::string getBinary(const mt_kahypar::Context& context) {
 static std::string getPresetFile(const mt_kahypar::Context& context) {
   switch ( context.partition.preset_type ) {
     case mt_kahypar::PresetType::deterministic: return std::string(MT_KAHYPAR_CONFIG_DIR) + "deterministic_preset.ini";
+    case mt_kahypar::PresetType::large_k: return std::string(MT_KAHYPAR_CONFIG_DIR) + "large_k_preset.ini";
     case mt_kahypar::PresetType::default_preset: return std::string(MT_KAHYPAR_CONFIG_DIR) + "default_preset.ini";
     case mt_kahypar::PresetType::default_flows: return std::string(MT_KAHYPAR_CONFIG_DIR) + "default_flow_preset.ini";
     case mt_kahypar::PresetType::quality_preset: return std::string(MT_KAHYPAR_CONFIG_DIR) + "quality_preset.ini";
@@ -138,7 +148,17 @@ static std::string configurePartitionerCall(const mt_kahypar::Context& context, 
   std::stringstream ss;
   ss << getBinary(context);
   for ( int i = 1; i < argc; ++i ) {
-    ss << " " << argv[i];
+    std::string param(argv[i]);
+    if ( context.partition.preset_type == mt_kahypar::PresetType::large_k ) {
+      // Partitioning into a large number of blocks uses the deep multilevel scheme
+      if ( param.find("--mode=") != std::string::npos ) {
+        param = "--mode=deep";
+      } else if ( param.find("-m") != std::string::npos ) {
+        ASSERT(i + 1 < argc);
+        argv[i + 1] = strdup("deep");
+      }
+    }
+    ss << " " << param;
   }
   if ( context.partition.preset_file == "" ) {
     ss << " -p " << getPresetFile(context);

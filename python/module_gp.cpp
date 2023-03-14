@@ -34,8 +34,8 @@
 #include <vector>
 #include <iostream>
 
-#ifndef USE_GRAPH_PARTITIONER
-#define USE_GRAPH_PARTITIONER
+#ifndef ENABLE_GRAPH_PARTITIONER
+#define ENABLE_GRAPH_PARTITIONER
 #endif
 
 #include "mt-kahypar/definitions.h"

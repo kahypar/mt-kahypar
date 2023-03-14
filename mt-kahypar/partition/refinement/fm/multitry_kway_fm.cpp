@@ -144,7 +144,7 @@ namespace mt_kahypar {
       printMemoryConsumption();
     }
 
-    #ifndef USE_STRONG_PARTITIONER
+    #ifndef ENABLE_QUALITY_PRESET
     is_initialized = false;
     #endif
 

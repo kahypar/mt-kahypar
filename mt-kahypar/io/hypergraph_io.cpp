@@ -711,7 +711,7 @@ namespace mt_kahypar::io {
     readGraphFile(filename, num_edges, num_vertices, edges, edges_weight, nodes_weight);
 
     // Construct Graph
-    #ifdef USE_GRAPH_PARTITIONER
+    #ifdef ENABLE_GRAPH_PARTITIONER
     return HypergraphFactory::construct_from_graph_edges(
             num_vertices, num_edges, edges,
             edges_weight.data(), nodes_weight.data(),

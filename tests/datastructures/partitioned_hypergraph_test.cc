@@ -31,7 +31,7 @@
 
 #include "gmock/gmock.h"
 
-#ifdef USE_STRONG_PARTITIONER
+#ifdef ENABLE_QUALITY_PRESET
 #include "mt-kahypar/datastructures/dynamic_hypergraph_factory.h"
 #else
 #include "mt-kahypar/datastructures/static_hypergraph_factory.h"
@@ -157,7 +157,7 @@ void executeConcurrent(const F1& f1, const F2& f2) {
   });
 }
 
-#ifdef USE_STRONG_PARTITIONER
+#ifdef ENABLE_QUALITY_PRESET
 using PartitionedHypergraphTestTypes =
   ::testing::Types<
           PartitionedHypergraphTypeTraits<

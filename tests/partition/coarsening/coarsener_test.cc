@@ -34,7 +34,7 @@
 using ::testing::Test;
 
 namespace mt_kahypar {
-#ifdef USE_STRONG_PARTITIONER
+#ifdef ENABLE_QUALITY_PRESET
 using Coarsener = NLevelCoarsener<HeavyEdgeScore, NoWeightPenalty, BestRatingWithoutTieBreaking>;
 using Uncoarsener = NLevelUncoarsener;
 bool nlevel = true;

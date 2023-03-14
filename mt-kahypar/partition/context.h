@@ -33,7 +33,7 @@
 
 namespace mt_kahypar {
 struct PartitioningParameters {
-  #ifdef USE_STRONG_PARTITIONER
+  #ifdef ENABLE_QUALITY_PRESET
   Paradigm paradigm = Paradigm::nlevel;
   #else
   Paradigm paradigm = Paradigm::multilevel;

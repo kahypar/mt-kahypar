@@ -28,6 +28,7 @@
 #include "register_memory_pool.h"
 
 #include "mt-kahypar/datastructures/sparse_pin_counts.h"
+#include "mt-kahypar/datastructures/pin_count_in_part.h"
 #include "mt-kahypar/datastructures/connectivity_set.h"
 #include "mt-kahypar/parallel/memory_pool.h"
 #include "mt-kahypar/parallel/atomic_wrapper.h"
@@ -106,7 +107,7 @@ namespace mt_kahypar {
       pool.register_memory_chunk("Refinement", "part_ids", num_hypernodes, sizeof(PartitionID));
 
       if (Hypergraph::is_graph) {
-        #ifdef USE_GRAPH_PARTITIONER // SIZE_OF_EDGE_LOCK is only available in the graph data structure
+        #ifdef ENABLE_GRAPH_PARTITIONER // SIZE_OF_EDGE_LOCK is only available in the graph data structure
           pool.register_memory_chunk("Refinement", "edge_locks", num_hyperedges, PartitionedHypergraph::SIZE_OF_EDGE_LOCK);
         #endif
         if ( context.refinement.fm.algorithm != FMAlgorithm::do_nothing ) {
@@ -116,9 +117,15 @@ namespace mt_kahypar {
         }
       } else {
         const HypernodeID max_he_size = hypergraph.maxEdgeSize();
+        #ifdef ENABLE_LARGE_K
         pool.register_memory_chunk("Refinement", "pin_count_in_part",
                                   ds::SparsePinCounts::num_elements(num_hyperedges, context.partition.k, max_he_size),
                                   sizeof(ds::SparsePinCounts::Value));
+        #else
+        pool.register_memory_chunk("Refinement", "pin_count_in_part",
+                                  ds::PinCountInPart::num_elements(num_hyperedges, context.partition.k, max_he_size),
+                                  sizeof(ds::PinCountInPart::Value));
+        #endif
         pool.register_memory_chunk("Refinement", "connectivity_set",
                                   ds::ConnectivitySets::num_elements(num_hyperedges, context.partition.k),
                                   sizeof(ds::ConnectivitySets::UnsafeBlock));
@@ -128,7 +135,7 @@ namespace mt_kahypar {
                                     sizeof(CAtomic<HyperedgeWeight>));
         }
         pool.register_memory_chunk("Refinement", "pin_count_update_ownership",
-                                  num_hyperedges, sizeof(SpinLock));
+                                   num_hyperedges, sizeof(SpinLock));
       }
 
       // Allocate Memory
