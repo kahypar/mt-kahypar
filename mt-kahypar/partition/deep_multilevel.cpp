@@ -519,6 +519,13 @@ void bipartition_each_block(PartitionedHypergraph& partitioned_hg,
   }
   timer.stop_timer("apply_bipartitions");
 
+  timer.start_timer("free_hypergraphs", "Free Hypergraphs");
+  tbb::parallel_for(UL(0), bipartitions.size(), [&](const size_t i) {
+    DeepPartitioningResult tmp_res;
+    tmp_res = std::move(bipartitions[i]);
+  });
+  timer.stop_timer("free_hypergraphs");
+
   HEAVY_REFINEMENT_ASSERT(partitioned_hg.checkTrackedPartitionInformation());
 }
 

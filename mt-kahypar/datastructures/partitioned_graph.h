@@ -969,6 +969,9 @@ private:
       }
     });
 
+    parallel::parallel_free(edge_vector);
+    parallel::parallel_free(edge_weight, node_weight);
+
     return std::make_pair(std::move(extracted_graphs), std::move(hn_mapping));
   }
 
