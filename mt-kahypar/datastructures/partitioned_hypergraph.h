@@ -76,6 +76,7 @@ private:
   using HyperedgeIterator = typename Hypergraph::HyperedgeIterator;
   using IncidenceIterator = typename Hypergraph::IncidenceIterator;
   using IncidentNetsIterator = typename Hypergraph::IncidentNetsIterator;
+  using ConnectivitySetIterator = typename ConnectivityInformation::Iterator;
 
   PartitionedHypergraph() = default;
 
@@ -241,7 +242,7 @@ private:
   }
 
   // ! Returns a range to loop over the set of block ids contained in hyperedge e.
-  IteratorRange<ConnectivitySets::Iterator> connectivitySet(const HyperedgeID e) const {
+  IteratorRange<ConnectivitySetIterator> connectivitySet(const HyperedgeID e) const {
     ASSERT(_hg->edgeIsEnabled(e), "Hyperedge" << e << "is disabled");
     ASSERT(e < _hg->initialNumEdges(), "Hyperedge" << e << "does not exist");
     return _con_info.connectivitySet(e);

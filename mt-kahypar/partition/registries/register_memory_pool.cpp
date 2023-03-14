@@ -125,10 +125,10 @@ namespace mt_kahypar {
         pool.register_memory_chunk("Refinement", "pin_count_in_part",
                                   ds::PinCountInPart::num_elements(num_hyperedges, context.partition.k, max_he_size),
                                   sizeof(ds::PinCountInPart::Value));
-        #endif
         pool.register_memory_chunk("Refinement", "connectivity_set",
                                   ds::ConnectivitySets::num_elements(num_hyperedges, context.partition.k),
                                   sizeof(ds::ConnectivitySets::UnsafeBlock));
+        #endif
         if ( context.refinement.fm.algorithm != FMAlgorithm::do_nothing ) {
           pool.register_memory_chunk("Refinement", "gain_cache",
                                     static_cast<size_t>(num_hypernodes) * ( context.partition.k + 1 ),

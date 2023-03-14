@@ -28,6 +28,8 @@
 #pragma once
 
 #include <tbb/concurrent_vector.h>
+#include <tbb/parallel_for.h>
+#include <tbb/enumerable_thread_specific.h>
 
 #include "mt-kahypar/macros.h"
 #include "mt-kahypar/datastructures/hypergraph_common.h"
@@ -77,6 +79,93 @@ class SparsePinCounts {
  public:
   using Value = char;
 
+  class Iterator {
+   public:
+    using iterator_category = std::forward_iterator_tag;
+    using value_type = PartitionID;
+    using reference = PartitionID&;
+    using pointer = PartitionID*;
+    using difference_type = std::ptrdiff_t;
+
+    Iterator(const size_t start, const size_t end, const PartitionID k, const PinCountEntry* data) :
+      _cur_entry( { kInvalidPartition, 0 } ),
+      _cur(start),
+      _end(end),
+      _k(k),
+      _pin_count_list(data),
+      _ext_pin_count_list(nullptr) {
+      next_valid_entry();
+    }
+
+    Iterator(const size_t start, const size_t end, const PartitionID k,
+             const tbb::concurrent_vector<PinCountEntry>* data) :
+      _cur_entry( { kInvalidPartition, 0 } ),
+      _cur(start),
+      _end(end),
+      _k(k),
+      _pin_count_list(nullptr),
+      _ext_pin_count_list(data) {
+      next_valid_entry();
+    }
+
+    PartitionID operator*() const {
+      return _cur_entry.block;
+    }
+
+    Iterator& operator++() {
+      ++_cur;
+      next_valid_entry();
+      return *this;
+    }
+
+    Iterator operator++(int ) {
+      const Iterator res = *this;
+      ++_cur;
+      next_valid_entry();
+      return res;
+    }
+
+    bool operator==(const Iterator& o) const {
+      return _cur == o._cur && _end == o._end;
+    }
+
+    bool operator!=(const Iterator& o) const {
+      return !operator==(o);
+    }
+
+   private:
+    inline void next_valid_entry() {
+      // Note that the pin list can change due to concurrent writes.
+      // Therefore, we only return valid pin count entries
+      get_current_entry();
+      while ( !is_valid() && _cur < _end ) {
+        ++_cur;
+        get_current_entry();
+      }
+    }
+
+    inline void get_current_entry() {
+      if ( _cur < _end ) {
+        if ( _pin_count_list ) {
+          _cur_entry = *(_pin_count_list + _cur);
+        } else {
+          _cur_entry = (*_ext_pin_count_list)[_cur];
+        }
+      }
+    }
+
+    inline bool is_valid() {
+      return _cur_entry.block >= 0 && _cur_entry.block < _k && _cur_entry.pin_count > 0;
+    }
+
+    PinCountEntry _cur_entry;
+    size_t _cur;
+    const size_t _end;
+    const PartitionID _k;
+    const PinCountEntry* _pin_count_list;
+    const tbb::concurrent_vector<PinCountEntry>* _ext_pin_count_list;
+  };
+
   SparsePinCounts() :
     _num_hyperedges(0),
     _k(0),
@@ -123,6 +212,114 @@ class SparsePinCounts {
     return *this;
   }
 
+  // ################## Connectivity Set ##################
+
+  inline bool contains(const HyperedgeID he, const PartitionID p) const {
+    ASSERT(he < _num_hyperedges);
+    ASSERT(p < _k);
+    return find_entry(he, p) != nullptr;
+  }
+
+  inline void clear(const HyperedgeID he) {
+    ASSERT(he < _num_hyperedges);
+    init_pin_count_of_hyperedge(he);
+  }
+
+  inline PartitionID connectivity(const HyperedgeID he) const {
+    ASSERT(he < _num_hyperedges);
+    const PinCountHeader* head = header(he);
+    return head->connectivity;
+  }
+
+  IteratorRange<Iterator> connectivitySet(const HyperedgeID he) const {
+    ASSERT(he < _num_hyperedges);
+    const PinCountHeader* head = header(he);
+    const size_t con = head->connectivity;
+    if ( likely(!head->is_external) ) {
+      return IteratorRange<Iterator>(
+        Iterator(UL(0), con, _k, entry(he, 0)),
+        Iterator(con, con, _k, entry(he, 0)));
+    } else {
+      return IteratorRange<Iterator>(
+        Iterator(UL(0), con, _k, &_ext_pin_count_list[he]),
+        Iterator(con, con, _k, &_ext_pin_count_list[he]));
+    }
+  }
+
+  // ################## Pin Count In Part ##################
+
+  // ! Returns the pin count of the hyperedge in the corresponding block
+  inline HypernodeID pinCountInPart(const HyperedgeID he,
+                                    const PartitionID p) const {
+    ASSERT(he < _num_hyperedges);
+    ASSERT(p < _k);
+    const PinCountEntry* val = find_entry(he, p);
+    return val ? val->pin_count : 0;
+  }
+
+  // ! Sets the pin count of the hyperedge in the corresponding block to value
+  inline void setPinCountInPart(const HyperedgeID he,
+                                const PartitionID p,
+                                const HypernodeID value) {
+    ASSERT(he < _num_hyperedges);
+    ASSERT(p < _k);
+    add_pin_count_entry(he, p, value);
+  }
+
+  // ! Increments the pin count of the hyperedge in the corresponding block
+  inline HypernodeID incrementPinCountInPart(const HyperedgeID he,
+                                             const PartitionID p) {
+    ASSERT(he < _num_hyperedges);
+    ASSERT(p < _k);
+    PinCountEntry* val = find_entry(he, p);
+    HypernodeID inc_pin_count = 0;
+    if ( val ) {
+      inc_pin_count = ++val->pin_count;
+    } else {
+      inc_pin_count = 1;
+      add_pin_count_entry(he, p, inc_pin_count);
+    }
+    return inc_pin_count;
+  }
+
+  // ! Decrements the pin count of the hyperedge in the corresponding block
+  inline HypernodeID decrementPinCountInPart(const HyperedgeID he,
+                                             const PartitionID p) {
+    ASSERT(he < _num_hyperedges);
+    ASSERT(p < _k);
+    PinCountEntry* val = find_entry(he, p);
+    ASSERT(val);
+    const HypernodeID dec_pin_count = --val->pin_count;
+    if ( dec_pin_count == 0 ) {
+      // Remove pin count entry
+      // Note that only one thread can modify the pin count list of
+      // a hyperedge at the same time. Therefore, this operation is thread-safe.
+      PinCountHeader* head = header(he);
+      --head->connectivity;
+      if ( likely(!head->is_external) ) {
+        PinCountEntry* back = entry(he, head->connectivity);
+        *val = *back;
+        back->block = kInvalidPartition;
+        back->pin_count = 0;
+      } else {
+        // Note that in case the connectivity becomes smaller than c,
+        // we do not fallback to the smaller pin count list bounded by c.
+        size_t pos = 0;
+        for ( ; pos < _ext_pin_count_list[he].size(); ++pos ) {
+          if ( _ext_pin_count_list[he][pos].block == p ) {
+            break;
+          }
+        }
+        std::swap(_ext_pin_count_list[he][pos], _ext_pin_count_list[he][head->connectivity]);
+        _ext_pin_count_list[he][head->connectivity].block = kInvalidPartition;
+        _ext_pin_count_list[he][head->connectivity].pin_count = 0;
+      }
+    }
+    return dec_pin_count;
+  }
+
+  // ################## Miscellaneous ##################
+
   // ! Initializes the data structure
   void initialize(const HyperedgeID num_hyperedges,
                   const PartitionID k,
@@ -153,76 +350,6 @@ class SparsePinCounts {
     }
   }
 
-  // ! Returns the pin count of the hyperedge in the corresponding block
-  inline HypernodeID pinCountInPart(const HyperedgeID he,
-                                    const PartitionID id) const {
-    ASSERT(he < _num_hyperedges);
-    ASSERT(id < _k);
-    const PinCountEntry* val = find_entry(he, id);
-    return val ? val->pin_count : 0;
-  }
-
-  // ! Sets the pin count of the hyperedge in the corresponding block to value
-  inline void setPinCountInPart(const HyperedgeID he,
-                                const PartitionID id,
-                                const HypernodeID value) {
-    ASSERT(he < _num_hyperedges);
-    ASSERT(id < _k);
-    add_pin_count_entry(he, id, value);
-  }
-
-  // ! Increments the pin count of the hyperedge in the corresponding block
-  inline HypernodeID incrementPinCountInPart(const HyperedgeID he,
-                                             const PartitionID id) {
-    ASSERT(he < _num_hyperedges);
-    ASSERT(id < _k);
-    PinCountEntry* val = find_entry(he, id);
-    HypernodeID inc_pin_count = 0;
-    if ( val ) {
-      inc_pin_count = ++val->pin_count;
-    } else {
-      inc_pin_count = 1;
-      add_pin_count_entry(he, id, inc_pin_count);
-    }
-    return inc_pin_count;
-  }
-
-  // ! Decrements the pin count of the hyperedge in the corresponding block
-  inline HypernodeID decrementPinCountInPart(const HyperedgeID he,
-                                             const PartitionID id) {
-    ASSERT(he < _num_hyperedges);
-    ASSERT(id < _k);
-    PinCountEntry* val = find_entry(he, id);
-    ASSERT(val);
-    const HypernodeID dec_pin_count = --val->pin_count;
-    if ( dec_pin_count == 0 ) {
-      // Remove pin count entry
-      // Note that only one thread can modify the pin count list of
-      // a hyperedge at the same time. Therefore, this operation is thread-safe.
-      PinCountHeader* head = header(he);
-      --head->connectivity;
-      if ( likely(!head->is_external) ) {
-        PinCountEntry* back = entry(he, head->connectivity);
-        *val = *back;
-        back->block = kInvalidPartition;
-        back->pin_count = 0;
-      } else {
-        // Note that in case the connectivity becomes smaller than c,
-        // we do not fallback to the smaller pin count list bounded by c.
-        size_t pos = 0;
-        for ( ; pos < _ext_pin_count_list[he].size(); ++pos ) {
-          if ( _ext_pin_count_list[he][pos].block == id ) {
-            break;
-          }
-        }
-        std::swap(_ext_pin_count_list[he][pos], _ext_pin_count_list[he][head->connectivity]);
-        _ext_pin_count_list[he][head->connectivity].block = kInvalidPartition;
-        _ext_pin_count_list[he][head->connectivity].pin_count = 0;
-      }
-    }
-    return dec_pin_count;
-  }
-
   // ! Returns the size in bytes of this data structure
   size_t size_in_bytes() const {
     // TODO: size of external list is missing
@@ -236,6 +363,12 @@ class SparsePinCounts {
   void memoryConsumption(utils::MemoryTreeNode* parent) const {
     ASSERT(parent);
     parent->addChild("Pin Count Values", sizeof(char) * _pin_count_in_part.size());
+    tbb::enumerable_thread_specific<size_t> ext_pin_count_entries(0);
+    tbb::parallel_for(ID(0), _num_hyperedges, [&](const HyperedgeID he) {
+      ext_pin_count_entries.local() += _ext_pin_count_list[he].size();
+    });
+    parent->addChild("External Pin Count Values", sizeof(PinCountEntry) *
+      ext_pin_count_entries.combine(std::plus<size_t>()));
   }
 
   static size_t num_elements(const HyperedgeID num_hyperedges,
@@ -262,7 +395,7 @@ class SparsePinCounts {
   }
 
   inline void add_pin_count_entry(const HyperedgeID he,
-                                  const PartitionID id,
+                                  const PartitionID p,
                                   const HypernodeID value) {
     // Assumes that the block with the given ID does not exist
     // and inserts it at the end of the pin count list
@@ -274,16 +407,16 @@ class SparsePinCounts {
       if ( connectivity < _entries_per_hyperedge ) {
         // Still enough entries to add the pin count entry
         PinCountEntry* pin_count = entry(he, connectivity);
-        pin_count->block = id;
+        pin_count->block = p;
         pin_count->pin_count = value;
       } else {
         // Connecitivity is now larger than c
         // => copy entries to external pin count list
         handle_overflow(he);
-        add_pin_count_entry_to_external(he, id, value);
+        add_pin_count_entry_to_external(he, p, value);
       }
     } else {
-      add_pin_count_entry_to_external(he, id, value);
+      add_pin_count_entry_to_external(he, p, value);
     }
     ++head->connectivity;
   }
@@ -298,21 +431,21 @@ class SparsePinCounts {
   }
 
   inline void add_pin_count_entry_to_external(const HyperedgeID he,
-                                              const PartitionID id,
+                                              const PartitionID p,
                                               const HypernodeID value) {
     PinCountHeader* head = header(he);
     ASSERT(head->is_external);
     if ( static_cast<size_t>(head->connectivity) < _ext_pin_count_list[he].size() ) {
       // Reuse existing entry that was removed due to decrementing the pin count
       ASSERT(_ext_pin_count_list[he][head->connectivity].block == kInvalidPartition);
-      _ext_pin_count_list[he][head->connectivity].block = id;
+      _ext_pin_count_list[he][head->connectivity].block = p;
       _ext_pin_count_list[he][head->connectivity].pin_count = value;
     } else {
-      _ext_pin_count_list[he].push_back(PinCountEntry { id, value });
+      _ext_pin_count_list[he].push_back(PinCountEntry { p, value });
     }
   }
 
-  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE const PinCountEntry* find_entry(const HyperedgeID he, const PartitionID id) const {
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE const PinCountEntry* find_entry(const HyperedgeID he, const PartitionID p) const {
     const PinCountHeader* head = header(he);
     if ( likely(!head->is_external) ) {
       // Due to concurrent writes, the connectivity can become larger than MAX_ENTRIES_PER_HYPEREDGE.
@@ -320,7 +453,7 @@ class SparsePinCounts {
         std::min(static_cast<size_t>(head->connectivity), MAX_ENTRIES_PER_HYPEREDGE);
       for ( size_t i = 0; i < connectivity; ++i ) {
         const PinCountEntry* value = entry(he, i);
-        if ( value->block == id ) {
+        if ( value->block == p ) {
           return value;
         }
       }
@@ -328,7 +461,7 @@ class SparsePinCounts {
       const size_t num_entries = head->connectivity;
       for ( size_t i = 0; i < num_entries; ++i ) {
         const PinCountEntry& value = _ext_pin_count_list[he][i];
-        if ( value.block == id ) {
+        if ( value.block == p ) {
           return &value;
         }
       }
@@ -336,8 +469,8 @@ class SparsePinCounts {
     return nullptr;
   }
 
-  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE PinCountEntry* find_entry(const HyperedgeID he, const PartitionID id) {
-    return const_cast<PinCountEntry*>(static_cast<const SparsePinCounts&>(*this).find_entry(he, id));
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE PinCountEntry* find_entry(const HyperedgeID he, const PartitionID p) {
+    return const_cast<PinCountEntry*>(static_cast<const SparsePinCounts&>(*this).find_entry(he, p));
   }
 
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE const PinCountHeader* header(const HyperedgeID he) const {

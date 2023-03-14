@@ -121,8 +121,8 @@ namespace mt_kahypar::io {
   }  // namespace internal
 
   void printHypergraphInfo(const Hypergraph& hypergraph,
-                                  const std::string& name,
-                                  const bool show_memory_consumption) {
+                           const std::string& name,
+                           const bool show_memory_consumption) {
     std::vector<HypernodeID> he_sizes;
     std::vector<HyperedgeWeight> he_weights;
     std::vector<HyperedgeID> hn_degrees;
@@ -557,6 +557,16 @@ namespace mt_kahypar::io {
 
       LOG << "\nPartition sizes and weights: ";
       printPartWeightsAndSizes(hypergraph, context);
+
+      if ( context.partition.show_memory_consumption ) {
+        // Print Memory Consumption
+        utils::MemoryTreeNode hypergraph_memory_consumption(
+          "Partitioned Hypergraph", utils::OutputType::MEGABYTE);
+        hypergraph.memoryConsumption(&hypergraph_memory_consumption);
+        hypergraph_memory_consumption.finalize();
+        LOG << "\nPartitioned Hypergraph Memory Consumption";
+        LOG << hypergraph_memory_consumption;
+      }
 
       LOG << "\nTimings:";
       utils::Timer& timer = utils::Utilities::instance().getTimer(context.utility_id);
