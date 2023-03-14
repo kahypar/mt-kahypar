@@ -40,7 +40,8 @@ namespace mt_kahypar {
   void register_memory_pool(const Hypergraph& hypergraph,
                             const Context& context) {
 
-    if (context.partition.mode == Mode::direct) {
+    if (context.partition.mode == Mode::direct ||
+        context.partition.mode == Mode::deep_multilevel ) {
 
       // ########## Preprocessing Memory ##########
 

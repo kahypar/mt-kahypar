@@ -820,6 +820,7 @@ DeepPartitioningResult deep_multilevel_recursion(const Hypergraph& hypergraph,
 }
 
 PartitionedHypergraph partition(Hypergraph& hypergraph, const Context& context) {
+  // TODO: Memory for partitioned hypergraph is not available at this point
   PartitionedHypergraph partitioned_hypergraph(
     context.partition.k, hypergraph, parallel_tag_t());
   partition(partitioned_hypergraph, context);
