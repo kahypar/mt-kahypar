@@ -35,23 +35,39 @@
 
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/metrics.h"
+#include "mt-kahypar/datastructures/sparse_map.h"
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/utils/randomize.h"
 
 namespace mt_kahypar {
 
+#if defined(ENABLE_LARGE_K) || defined(ENABLE_GRAPH_PARTITIONER)
+#define USE_SPARSE_MAP
+#endif
+
 template <class Derived = Mandatory,
           class HyperGraph = Mandatory>
 class GainPolicy : public kahypar::meta::PolicyBase {
   using DeltaGain = tbb::enumerable_thread_specific<Gain>;
-  using TmpScores = tbb::enumerable_thread_specific<parallel::scalable_vector<Gain> >;
 
  public:
+  #ifdef USE_SPARSE_MAP
+  using RatingMap = ds::SparseMap<PartitionID, Gain>;
+  #else
+  using RatingMap = parallel::scalable_vector<Gain>;
+  #endif
+  using TmpScores = tbb::enumerable_thread_specific<RatingMap>;
+
   GainPolicy(const Context& context) :
     _context(context),
     _deltas(0),
-    _tmp_scores(context.partition.k, 0) { }
+    #ifdef USE_SPARSE_MAP
+    _tmp_scores(context.partition.k)
+    #else
+    _tmp_scores(context.partition.k, 0)
+    #endif
+    { }
 
   Move computeMaxGainMove(const HyperGraph& hypergraph,
                           const HypernodeID hn,
@@ -95,7 +111,11 @@ class GainPolicy : public kahypar::meta::PolicyBase {
   void changeNumberOfBlocks(const PartitionID new_k) {
     for ( auto& tmp_score : _tmp_scores ) {
       if ( static_cast<size_t>(new_k) > tmp_score.size() ) {
+        #ifdef USE_SPARSE_MAP
+        tmp_score = RatingMap(new_k);
+        #else
         tmp_score.assign(new_k, 0);
+        #endif
       }
     }
   }
@@ -109,6 +129,7 @@ class GainPolicy : public kahypar::meta::PolicyBase {
 template <class HyperGraph = Mandatory>
 class Km1Policy : public GainPolicy<Km1Policy<HyperGraph>, HyperGraph> {
   using Base = GainPolicy<Km1Policy<HyperGraph>, HyperGraph>;
+  using RatingMap = typename Base::RatingMap;
 
   static constexpr bool enable_heavy_assert = false;
 
@@ -131,7 +152,7 @@ class Km1Policy : public GainPolicy<Km1Policy<HyperGraph>, HyperGraph> {
       } (), "Scores and valid parts not correctly reset");
 
     PartitionID from = hypergraph.partID(hn);
-    parallel::scalable_vector<Gain>& tmp_scores = _tmp_scores.local();
+    RatingMap& tmp_scores = _tmp_scores.local();
     Gain internal_weight = 0;
     for (const HyperedgeID& he : hypergraph.incidentEdges(hn)) {
       HypernodeID pin_count_in_from_part = hypergraph.pinCountInPart(he, from);
@@ -161,9 +182,15 @@ class Km1Policy : public GainPolicy<Km1Policy<HyperGraph>, HyperGraph> {
     HypernodeWeight hn_weight = hypergraph.nodeWeight(hn);
     int cpu_id = SCHED_GETCPU;
     utils::Randomize& rand = utils::Randomize::instance();
+    #ifdef USE_SPARSE_MAP
+    for ( const auto& entry : tmp_scores ) {
+      const PartitionID to = entry.key;
+      const Gain score = entry.value + internal_weight;
+    #else
     for (PartitionID to = 0; to < _context.partition.k; ++to) {
+      const Gain score = tmp_scores[to] + internal_weight;
+    #endif
       if (from != to) {
-        Gain score = tmp_scores[to] + internal_weight;
         bool new_best_gain = (score < best_move.gain) ||
                              (score == best_move.gain &&
                               !_disable_randomization &&
@@ -176,6 +203,9 @@ class Km1Policy : public GainPolicy<Km1Policy<HyperGraph>, HyperGraph> {
       }
       tmp_scores[to] = 0;
     }
+    #ifdef USE_SPARSE_MAP
+    tmp_scores.clear();
+    #endif
     return best_move;
   }
 
@@ -198,6 +228,7 @@ class Km1Policy : public GainPolicy<Km1Policy<HyperGraph>, HyperGraph> {
 template <class HyperGraph = Mandatory>
 class CutPolicy : public GainPolicy<CutPolicy<HyperGraph>, HyperGraph> {
   using Base = GainPolicy<CutPolicy<HyperGraph>, HyperGraph>;
+  using RatingMap = typename Base::RatingMap;
 
   static constexpr bool enable_heavy_assert = false;
 
@@ -220,7 +251,7 @@ class CutPolicy : public GainPolicy<CutPolicy<HyperGraph>, HyperGraph> {
       } (), "Scores and valid parts not correctly reset");
 
     PartitionID from = hypergraph.partID(hn);
-    parallel::scalable_vector<Gain>& tmp_scores = _tmp_scores.local();
+    RatingMap& tmp_scores = _tmp_scores.local();
     Gain internal_weight = 0;
     for (const HyperedgeID& he : hypergraph.incidentEdges(hn)) {
       PartitionID connectivity = hypergraph.connectivity(he);
@@ -248,9 +279,15 @@ class CutPolicy : public GainPolicy<CutPolicy<HyperGraph>, HyperGraph> {
     HypernodeWeight hn_weight = hypergraph.nodeWeight(hn);
     int cpu_id = SCHED_GETCPU;
     utils::Randomize& rand = utils::Randomize::instance();
+    #ifdef USE_SPARSE_MAP
+    for ( const auto& entry : tmp_scores ) {
+      const PartitionID to = entry.key;
+      const Gain score = entry.value + internal_weight;
+    #else
     for (PartitionID to = 0; to < _context.partition.k; ++to) {
+      const Gain score = tmp_scores[to] + internal_weight;
+    #endif
       if (from != to) {
-        Gain score = tmp_scores[to] + internal_weight;
         bool new_best_gain = (score < best_move.gain) ||
                              (score == best_move.gain &&
                               !_disable_randomization &&
@@ -263,6 +300,9 @@ class CutPolicy : public GainPolicy<CutPolicy<HyperGraph>, HyperGraph> {
       }
       tmp_scores[to] = 0;
     }
+    #ifdef USE_SPARSE_MAP
+    tmp_scores.clear();
+    #endif
     return best_move;
   }
 
