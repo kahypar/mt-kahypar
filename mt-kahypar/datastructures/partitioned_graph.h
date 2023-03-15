@@ -891,24 +891,47 @@ private:
       k, parallel::AtomicWrapper<HypernodeID>(0));
     vec<parallel::AtomicWrapper<HyperedgeID>> edges_cnt(
       k, parallel::AtomicWrapper<HyperedgeID>(0));
-    // TODO: this introduces non-deterministic node and edge IDs
-    // consider doing this sequentially
-    tbb::parallel_invoke([&] {
-      doParallelForAllNodes([&](const HypernodeID& hn) {
-        const PartitionID block = partID(hn);
-        if ( block < k ) {
-          hn_mapping[hn] = nodes_cnt[block]++;
+    if ( stable_construction_of_incident_edges ) {
+      // Stable construction for deterministic behavior requires
+      // to determine node and edge IDs sequentially
+      tbb::parallel_invoke([&] {
+        for ( const HypernodeID& hn : nodes() ) {
+          const PartitionID block = partID(hn);
+          if ( block < k ) {
+            hn_mapping[hn] = nodes_cnt[block]++;
+          }
+        }
+      }, [&] {
+        for ( const HyperedgeID& he : edges() ) {
+          const HypernodeID source = edgeSource(he);
+          const HypernodeID target = edgeTarget(he);
+          const PartitionID sourceBlock = partID(source);
+          const PartitionID targetBlock = partID(target);
+          if (source < target && sourceBlock == targetBlock && sourceBlock < k) {
+            he_mapping[he] = edges_cnt[sourceBlock]++;
+          }
         }
       });
-    }, [&] {
-      doParallelForAllEdges([&](const HyperedgeID& he) {
-        const PartitionID sourceBlock = partID(edgeSource(he));
-        const PartitionID targetBlock = partID(edgeTarget(he));
-        if (sourceBlock == targetBlock && sourceBlock < k) {
-          he_mapping[he] = edges_cnt[sourceBlock]++;
-        }
+    } else {
+      tbb::parallel_invoke([&] {
+        doParallelForAllNodes([&](const HypernodeID& hn) {
+          const PartitionID block = partID(hn);
+          if ( block < k ) {
+            hn_mapping[hn] = nodes_cnt[block]++;
+          }
+        });
+      }, [&] {
+        doParallelForAllEdges([&](const HyperedgeID& he) {
+          const HypernodeID source = edgeSource(he);
+          const HypernodeID target = edgeTarget(he);
+          const PartitionID sourceBlock = partID(source);
+          const PartitionID targetBlock = partID(target);
+          if (source < target && sourceBlock == targetBlock && sourceBlock < k) {
+            he_mapping[he] = edges_cnt[sourceBlock]++;
+          }
+        });
       });
-    });
+    }
 
     using EdgeVector = vec<std::pair<HypernodeID, HypernodeID>>;
     vec<EdgeVector> edge_vector(k);
@@ -931,9 +954,11 @@ private:
     tbb::parallel_invoke([&] {
       doParallelForAllEdges([&](const HyperedgeID& he) {
         const HyperedgeID mapped_he = he_mapping[he];
-        const PartitionID sourceBlock = partID(edgeSource(he));
-        const PartitionID targetBlock = partID(edgeTarget(he));
-        if (sourceBlock == targetBlock && sourceBlock < k) {
+        const HypernodeID source = edgeSource(he);
+        const HypernodeID target = edgeTarget(he);
+        const PartitionID sourceBlock = partID(source);
+        const PartitionID targetBlock = partID(target);
+        if (source < target && sourceBlock == targetBlock && sourceBlock < k) {
           ASSERT(UL(mapped_he) < edge_weight[sourceBlock].size());
           edge_weight[sourceBlock][mapped_he] = edgeWeight(he);
           edge_vector[sourceBlock][mapped_he] =

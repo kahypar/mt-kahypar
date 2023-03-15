@@ -621,6 +621,73 @@ TYPED_TEST(APartitionedHypergraph, ExtractBlockTwoWithCutNetRemoval) {
     { {node_id[0], node_id[1], node_id[2]} });
 }
 
+TYPED_TEST(APartitionedHypergraph, ExtractAllBlockBlocksWithCutNetSplitting) {
+  auto extracted_hg = this->partitioned_hypergraph.extractAllBlocks(3, true, true);
+  auto& hypergraphs = extracted_hg.first;
+  vec<HypernodeID>& hn_mapping = extracted_hg.second;
+
+  ASSERT_EQ(3, hypergraphs[0].initialNumNodes());
+  ASSERT_EQ(2, hypergraphs[0].initialNumEdges());
+  ASSERT_EQ(4, hypergraphs[0].initialNumPins());
+  ASSERT_EQ(2, hypergraphs[0].maxEdgeSize());
+
+  parallel::scalable_vector<HypernodeID> node_id = {
+    hn_mapping[0], hn_mapping[1], hn_mapping[2] };
+  this->verifyPins(hypergraphs[0], {0, 1},
+    { { node_id[0], node_id[2] }, { node_id[0], node_id[1] } });
+
+  ASSERT_EQ(2, hypergraphs[1].initialNumNodes());
+  ASSERT_EQ(2, hypergraphs[1].initialNumEdges());
+  ASSERT_EQ(4, hypergraphs[1].initialNumPins());
+  ASSERT_EQ(2, hypergraphs[1].maxEdgeSize());
+
+  node_id = { hn_mapping[3], hn_mapping[4] };
+  this->verifyPins(hypergraphs[1], {0, 1},
+    { { node_id[0], node_id[1] }, { node_id[0], node_id[1] } });
+
+  ASSERT_EQ(2, hypergraphs[2].initialNumNodes());
+  ASSERT_EQ(1, hypergraphs[2].initialNumEdges());
+  ASSERT_EQ(2, hypergraphs[2].initialNumPins());
+  ASSERT_EQ(2, hypergraphs[2].maxEdgeSize());
+
+  node_id = { hn_mapping[5], hn_mapping[6] };
+  this->verifyPins(hypergraphs[2], { 0 },
+    { { node_id[0], node_id[1] } });
+}
+
+TYPED_TEST(APartitionedHypergraph, ExtractAllBlockBlocksWithCutNetRemoval) {
+  this->partitioned_hypergraph.changeNodePart(6, 2, 1);
+  auto extracted_hg = this->partitioned_hypergraph.extractAllBlocks(3, false, true);
+  auto& hypergraphs = extracted_hg.first;
+  vec<HypernodeID>& hn_mapping = extracted_hg.second;
+
+  ASSERT_EQ(3, hypergraphs[0].initialNumNodes());
+  ASSERT_EQ(1, hypergraphs[0].initialNumEdges());
+  ASSERT_EQ(2, hypergraphs[0].initialNumPins());
+  ASSERT_EQ(2, hypergraphs[0].maxEdgeSize());
+
+  parallel::scalable_vector<HypernodeID> node_id = {
+    hn_mapping[0], hn_mapping[1], hn_mapping[2] };
+  this->verifyPins(hypergraphs[0], {0},
+    { { node_id[0], node_id[2] } });
+
+  ASSERT_EQ(3, hypergraphs[1].initialNumNodes());
+  ASSERT_EQ(1, hypergraphs[1].initialNumEdges());
+  ASSERT_EQ(3, hypergraphs[1].initialNumPins());
+  ASSERT_EQ(3, hypergraphs[1].maxEdgeSize());
+
+  node_id = { hn_mapping[3], hn_mapping[4], hn_mapping[6] };
+  this->verifyPins(hypergraphs[1], {0},
+    { { node_id[0], node_id[1], node_id[2] } });
+
+  ASSERT_EQ(1, hypergraphs[2].initialNumNodes());
+  ASSERT_EQ(0, hypergraphs[2].initialNumEdges());
+  ASSERT_EQ(0, hypergraphs[2].initialNumPins());
+  ASSERT_EQ(0, hypergraphs[2].maxEdgeSize());
+
+  this->verifyPins(hypergraphs[2], { }, { });
+}
+
 TYPED_TEST(APartitionedHypergraph, ExtractBlockZeroWithCommunityInformation) {
   this->hypergraph.setCommunityID(0, 0);
   this->hypergraph.setCommunityID(1, 1);

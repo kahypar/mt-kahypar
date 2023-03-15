@@ -1040,31 +1040,56 @@ private:
     vec<HypernodeID> hn_mapping(_hg->initialNumNodes(), kInvalidHypernode);
     vec<parallel::AtomicWrapper<HypernodeID>> nodes_cnt(
       k, parallel::AtomicWrapper<HypernodeID>(0));
-    vec<ds::StreamingVector<HyperedgeID>> hes2block_stream(k);
     vec<vec<HyperedgeID>> hes2block(k);
-    tbb::parallel_invoke([&] {
-      // Compactify node IDs
-      doParallelForAllNodes([&](const HypernodeID& hn) {
-        const PartitionID block = partID(hn);
-        if ( block < k ) {
-          hn_mapping[hn] = nodes_cnt[block]++;
+
+    if ( stable_construction_of_incident_edges ) {
+      // Stable construction for deterministic behavior requires
+      // to determine node and edge IDs sequentially
+      tbb::parallel_invoke([&] {
+        // Compactify node IDs
+        for ( const HypernodeID& hn : nodes() ) {
+          const PartitionID block = partID(hn);
+          if ( block < k ) {
+            hn_mapping[hn] = nodes_cnt[block]++;
+          }
         }
-      });
-    }, [&] {
-      // Get hyperedges contained in each block
-      doParallelForAllEdges([&](const HyperedgeID& he) {
-        for ( const PartitionID& block : connectivitySet(he) ) {
-          if ( pinCountInPart(he, block) > 1 &&
-              (cut_net_splitting || connectivity(he) == 1) ) {
-            hes2block_stream[block].stream(he);
+      }, [&] {
+        // Get hyperedges contained in each block
+        for ( const HyperedgeID& he : edges() ) {
+          for ( const PartitionID& block : connectivitySet(he) ) {
+            if ( pinCountInPart(he, block) > 1 &&
+                (cut_net_splitting || connectivity(he) == 1) ) {
+              hes2block[block].push_back(he);
+            }
           }
         }
       });
-      // Copy hyperedges of a block into one vector
-      tbb::parallel_for(static_cast<PartitionID>(0), k, [&](const PartitionID p) {
-        hes2block[p] = hes2block_stream[p].copy_parallel();
+    } else {
+      vec<ds::StreamingVector<HyperedgeID>> hes2block_stream(k);
+      tbb::parallel_invoke([&] {
+        // Compactify node IDs
+        doParallelForAllNodes([&](const HypernodeID& hn) {
+          const PartitionID block = partID(hn);
+          if ( block < k ) {
+            hn_mapping[hn] = nodes_cnt[block]++;
+          }
+        });
+      }, [&] {
+        // Get hyperedges contained in each block
+        doParallelForAllEdges([&](const HyperedgeID& he) {
+          for ( const PartitionID& block : connectivitySet(he) ) {
+            if ( pinCountInPart(he, block) > 1 &&
+                (cut_net_splitting || connectivity(he) == 1) ) {
+              hes2block_stream[block].stream(he);
+            }
+          }
+        });
+        // Copy hyperedges of a block into one vector
+        tbb::parallel_for(static_cast<PartitionID>(0), k, [&](const PartitionID p) {
+          hes2block[p] = hes2block_stream[p].copy_parallel();
+        });
       });
-    });
+    }
 
     // Extract plain hypergraph data for corresponding block
     using HyperedgeVector = vec<vec<HypernodeID>>;
