@@ -289,6 +289,7 @@ Context setupBipartitioningContext(const Hypergraph& hypergraph,
   }
   b_context.coarsening.contraction_limit_multiplier =
     b_context.coarsening.deep_ml_contraction_limit_multiplier;
+  b_context.refinement = b_context.initial_partitioning.refinement;
 
   // Setup Part Weights
   const HypernodeWeight total_weight = hypergraph.totalWeight();
@@ -787,12 +788,19 @@ void deep_multilevel_partitioning(PartitionedHypergraph& partitioned_hg,
       if ( context.partition.verbose_output && context.type == ContextType::main ) {
         LOG << "Refinement improved" << context.partition.objective
             << "from" << obj_before << "to" << obj_after
-            << "( Improvement =" << (double(obj_before) / double(obj_after)) << "% )\n";
+            << "( Improvement =" << ((double(obj_before) / obj_after - 1.0) * 100.0) << "% )\n";
       }
     }
 
     // Perform next uncontraction step and improve solution
+    const HyperedgeWeight obj_before = uncoarsener->getObjective();
     uncoarsener->projectToNextLevelAndRefine();
+    const HyperedgeWeight obj_after = uncoarsener->getObjective();
+    if ( context.partition.verbose_output && context.type == ContextType::main ) {
+      LOG << "Refinement after projecting partition to next level improved"
+          << context.partition.objective << "from" << obj_before << "to" << obj_after
+          << "( Improvement =" << ((double(obj_before) / obj_after - 1.0) * 100.0) << "% )\n";
+    }
   }
 
   // Top-Level Bipartitioning

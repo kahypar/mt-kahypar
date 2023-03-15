@@ -86,6 +86,13 @@ namespace mt_kahypar {
             moveVertex(hn, rebalance_move, objective_delta);
           } else if ( rebalance_move.gain != std::numeric_limits<Gain>::max() ) {
             move_pqs.local().pq.emplace(std::move(rebalance_move));
+          } else {
+            // Try to find a move to an non-adjacent block
+            rebalance_move = _gain.computeMaxGainMove(_hg, hn,
+              true /* rebalance move */, true /* non-adjacent block */ );
+            if ( rebalance_move.gain != std::numeric_limits<Gain>::max() ) {
+              move_pqs.local().pq.emplace(std::move(rebalance_move));
+            }
           }
         }
       });
@@ -106,7 +113,7 @@ namespace mt_kahypar {
         // Initialize minimum gain value of each priority queue
         parallel::scalable_vector<uint8_t> active_pqs(idx.load(), false);
         parallel::scalable_vector<Gain> min_pq_gain(idx.load(),
-                                                    std::numeric_limits<Gain>::max() - MIN_PQ_GAIN_THRESHOLD);
+          std::numeric_limits<Gain>::max() - MIN_PQ_GAIN_THRESHOLD);
         for ( const IndexedMovePQ& idx_pq : move_pqs ) {
           if ( !idx_pq.pq.empty() ) {
             min_pq_gain[idx_pq.idx] = idx_pq.pq.top().gain;
@@ -149,6 +156,11 @@ namespace mt_kahypar {
             const PartitionID from = move.from;
             if ( _hg.partWeight(from) > _context.partition.max_part_weights[from] ) {
               Move real_move = _gain.computeMaxGainMove(_hg, move.node, true /* rebalance move */);
+              if ( real_move.gain == std::numeric_limits<Gain>::max() ) {
+                // Compute move to non-adjacent block
+                real_move = _gain.computeMaxGainMove(_hg, move.node,
+                  true /* rebalance move */, true /* non-adjacent block */);
+              }
               if ( real_move.gain <= move.gain ) {
                 moveVertex(real_move.node, real_move, objective_delta);
               } else if ( real_move.gain != std::numeric_limits<Gain>::max() ) {
