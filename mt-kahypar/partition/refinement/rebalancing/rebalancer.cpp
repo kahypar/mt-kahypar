@@ -35,6 +35,7 @@
 #include "tbb/enumerable_thread_specific.h"
 #include "tbb/parallel_for.h"
 #include "mt-kahypar/partition/metrics.h"
+#include "mt-kahypar/utils/timer.h"
 
 namespace mt_kahypar {
 
@@ -62,11 +63,12 @@ namespace mt_kahypar {
       };
 
 
-
-
-      vec<Move> moves_to_empty_blocks = repairEmptyBlocks();
-      for (Move& m : moves_to_empty_blocks) {
-        moveVertex(m.node, m, objective_delta);
+      if ( _context.partition.preset_type != PresetType::large_k ) {
+        // TODO: This code must be optimized to work for large k
+        vec<Move> moves_to_empty_blocks = repairEmptyBlocks();
+        for (Move& m : moves_to_empty_blocks) {
+          moveVertex(m.node, m, objective_delta);
+        }
       }
 
       // We first try to perform moves that does not worsen solution quality of the partition
@@ -176,9 +178,11 @@ namespace mt_kahypar {
     // First detect if there are any empty blocks.
     const size_t k = size_t(_context.partition.k);
     boost::dynamic_bitset<> is_empty(k);
+    vec<PartitionID> empty_blocks;
     for (size_t i = 0; i < k; ++i) {
       if (_hg.partWeight(PartitionID(i)) == 0) {
         is_empty.set(i, true);
+        empty_blocks.push_back(PartitionID(i));
       }
     }
 
@@ -197,11 +201,11 @@ namespace mt_kahypar {
         vec<Gain>& scores = ets_scores.local();
         vec< vec<Move> >& move_proposals = ets_best_move.local();
 
-        const PartitionID pu = _hg.partID(u);
+        const PartitionID from = _hg.partID(u);
         Gain unremovable = 0;
         for (HyperedgeID e : _hg.incidentEdges(u)) {
           const HyperedgeWeight edge_weight = _hg.edgeWeight(e);
-          if (_hg.pinCountInPart(e, pu) > 1) {
+          if (_hg.pinCountInPart(e, from) > 1) {
             unremovable += edge_weight;
           }
           for (PartitionID i : _hg.connectivitySet(e)) {
@@ -210,21 +214,22 @@ namespace mt_kahypar {
         }
 
         // maintain thread local priority queues of up to k best gains
-        for (PartitionID i = 0; i < PartitionID(k); ++i) {
-          if (i != pu && is_empty[i] && _hg.partWeight(pu) > _hg.nodeWeight(u)
-              && _hg.nodeWeight(u) <= _context.partition.max_part_weights[i]) {
-            const Gain gain = scores[i] - unremovable;
-            vec<Move>& c = move_proposals[i];
+        for (const PartitionID to : empty_blocks) {
+          ASSERT(is_empty[to]);
+          if (to != from && _hg.partWeight(from) > _hg.nodeWeight(u)
+              && _hg.nodeWeight(u) <= _context.partition.max_part_weights[to]) {
+            const Gain gain = scores[to] - unremovable;
+            vec<Move>& c = move_proposals[to];
             if (c.size() < k) {
-              c.push_back(Move { pu, i, u, gain });
+              c.push_back(Move { from, to, u, gain });
               std::push_heap(c.begin(), c.end(), MoveGainComparator());
             } else if (c.front().gain < gain) {
               std::pop_heap(c.begin(), c.end(), MoveGainComparator());
-              c.back() = { pu, i, u, gain };
+              c.back() = { from, to, u, gain };
               std::push_heap(c.begin(), c.end(), MoveGainComparator());
             }
           }
-          scores[i] = 0;
+          scores[to] = 0;
         }
       });
 
