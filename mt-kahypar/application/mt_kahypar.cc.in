@@ -153,7 +153,7 @@ static std::string configurePartitionerCall(const mt_kahypar::Context& context, 
       // Partitioning into a large number of blocks uses the deep multilevel scheme
       if ( param.find("--mode=") != std::string::npos ) {
         param = "--mode=deep";
-      } else if ( param.find("-m") != std::string::npos ) {
+      } else if ( param == "-m" ) {
         ASSERT(i + 1 < argc);
         argv[i + 1] = strdup("deep");
       }

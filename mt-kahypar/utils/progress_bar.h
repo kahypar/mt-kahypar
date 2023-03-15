@@ -109,6 +109,10 @@ class ProgressBar {
     _objective = objective;
   }
 
+  void addToObjective(const HyperedgeWeight delta) {
+    __atomic_fetch_add(&_objective, delta, __ATOMIC_RELAXED);
+  }
+
  private:
   void finalize() {
     if ( _count.load() < _expected_count ) {

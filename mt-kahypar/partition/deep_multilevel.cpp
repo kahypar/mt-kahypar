@@ -41,6 +41,7 @@
 #include "mt-kahypar/utils/randomize.h"
 #include "mt-kahypar/utils/utilities.h"
 #include "mt-kahypar/utils/timer.h"
+#include "mt-kahypar/utils/progress_bar.h"
 #include "mt-kahypar/io/partitioning_output.h"
 
 namespace mt_kahypar {
@@ -279,9 +280,7 @@ Context setupBipartitioningContext(const Hypergraph& hypergraph,
   b_context.partition.k = 2;
   b_context.partition.verbose_output = false;
   b_context.initial_partitioning.mode = Mode::direct;
-  if (context.partition.mode == Mode::direct) {
-    b_context.type = ContextType::initial_partitioning;
-  }
+  b_context.type = ContextType::initial_partitioning;
 
   if ( b_context.coarsening.deep_ml_contraction_limit_multiplier ==
        std::numeric_limits<HypernodeID>::max() ) {
@@ -455,7 +454,9 @@ void bipartition_each_block(PartitionedHypergraph& partitioned_hg,
                             const Context& context,
                             const OriginalHypergraphInfo& info,
                             const RBTree& rb_tree,
-                            const PartitionID current_k) {
+                            const PartitionID current_k,
+                            const HyperedgeWeight current_objective,
+                            const bool progress_bar_enabled) {
   utils::Timer& timer = utils::Utilities::instance().getTimer(context.utility_id);
   // Extract all blocks of hypergraph
   timer.start_timer("extract_blocks", "Extract Blocks");
@@ -466,9 +467,10 @@ void bipartition_each_block(PartitionedHypergraph& partitioned_hg,
   const vec<HypernodeID>& mapping = extracted_blocks.second;
   timer.stop_timer("extract_blocks");
 
-
   timer.start_timer("bipartition_blocks", "Bipartition Blocks");
+  const bool timer_was_enabled = timer.isEnabled(); // n-level disables timer
   disableTimerAndStats(context);
+  utils::ProgressBar progress(current_k, current_objective, progress_bar_enabled);
   vec<DeepPartitioningResult> bipartitions(current_k);
   vec<PartitionID> block_ranges(1, 0);
   tbb::task_group tg;
@@ -485,16 +487,23 @@ void bipartition_each_block(PartitionedHypergraph& partitioned_hg,
         bipartitions[block] = bipartition_block(std::move(hypergraphs[block]), context,
           info, target_blocks.first, target_blocks.second);
         bipartitions[block].partitioned_hg.setHypergraph(bipartitions[block].hypergraph);
+        progress.addToObjective(progress_bar_enabled ?
+          metrics::objective(bipartitions[block].partitioned_hg, context.partition.objective) : 0 );
+        progress += 1;
       });
       block_ranges.push_back(block_ranges.back() + 2);
     } else {
       // No further bipartitions required for the corresponding block
       bipartitions[block].valid = false;
       block_ranges.push_back(block_ranges.back() + 1);
+      progress += 1;
     }
   }
   tg.wait();
   enableTimerAndStats(context);
+  if ( !timer_was_enabled ) {
+    timer.disable();
+  }
   timer.stop_timer("bipartition_blocks");
 
   timer.start_timer("apply_bipartitions", "Apply Bipartition");
@@ -714,6 +723,9 @@ void deep_multilevel_partitioning(PartitionedHypergraph& partitioned_hg,
   // ################## UNCOARSENING ##################
   io::printLocalSearchBanner(context);
   timer.start_timer("refinement", "Refinement");
+  const bool progress_bar_enabled = context.partition.verbose_output &&
+    context.partition.enable_progress_bar && !debug;
+  context.partition.enable_progress_bar = false;
   std::unique_ptr<IUncoarsener> uncoarsener(nullptr);
   if (uncoarseningData.nlevel) {
     uncoarsener = std::make_unique<NLevelUncoarsener>(hypergraph, context, uncoarseningData);
@@ -752,8 +764,13 @@ void deep_multilevel_partitioning(PartitionedHypergraph& partitioned_hg,
     // the number of nodes gets larger than k' * C.
     while ( uncoarsener->currentNumberOfNodes() >= contraction_limit_for_rb ) {
       PartitionedHypergraph& current_phg = uncoarsener->currentPartitionedHypergraph();
+      if ( context.partition.verbose_output && context.type == ContextType::main ) {
+        LOG << "Extend number of blocks from" << current_k << "to" << next_k
+            << "( Current Number of Nodes =" << current_phg.initialNumNodes() << ")";
+      }
       timer.start_timer("bipartitioning", "Bipartitioning");
-      bipartition_each_block(current_phg, context, info, rb_tree, current_k);
+      bipartition_each_block(current_phg, context, info, rb_tree,
+        current_k, uncoarsener->getObjective(), progress_bar_enabled);
       timer.stop_timer("bipartitioning");
 
       ASSERT(get_current_k(current_phg) == next_k);
@@ -764,7 +781,14 @@ void deep_multilevel_partitioning(PartitionedHypergraph& partitioned_hg,
 
       adapt_contraction_limit_for_recursive_bipartitioning(next_k);
       // Improve partition
+      const HyperedgeWeight obj_before = uncoarsener->getObjective();
       uncoarsener->refine();
+      const HyperedgeWeight obj_after = uncoarsener->getObjective();
+      if ( context.partition.verbose_output && context.type == ContextType::main ) {
+        LOG << "Refinement improved" << context.partition.objective
+            << "from" << obj_before << "to" << obj_after
+            << "( Improvement =" << (double(obj_before) / double(obj_after)) << "% )\n";
+      }
     }
 
     // Perform next uncontraction step and improve solution
@@ -778,8 +802,13 @@ void deep_multilevel_partitioning(PartitionedHypergraph& partitioned_hg,
   while ( uncoarsener->currentNumberOfNodes() >= contraction_limit_for_rb ||
           ( context.type == ContextType::main && current_k != final_k ) ) {
     PartitionedHypergraph& current_phg = uncoarsener->currentPartitionedHypergraph();
+    if ( context.partition.verbose_output && context.type == ContextType::main ) {
+      LOG << "Extend number of blocks from" << current_k << "to" << next_k
+          << "( Current Number of Nodes =" << current_phg.initialNumNodes() << ")";
+    }
     timer.start_timer("bipartitioning", "Bipartitioning");
-    bipartition_each_block(current_phg, context, info, rb_tree, current_k);
+    bipartition_each_block(current_phg, context, info, rb_tree,
+      current_k, uncoarsener->getObjective(), progress_bar_enabled);
     timer.stop_timer("bipartitioning");
 
     ASSERT(get_current_k(current_phg) == next_k);
@@ -790,7 +819,14 @@ void deep_multilevel_partitioning(PartitionedHypergraph& partitioned_hg,
 
     adapt_contraction_limit_for_recursive_bipartitioning(next_k);
     // Improve partition
+    const HyperedgeWeight obj_before = uncoarsener->getObjective();
     uncoarsener->refine();
+    const HyperedgeWeight obj_after = uncoarsener->getObjective();
+    if ( context.partition.verbose_output && context.type == ContextType::main ) {
+      LOG << "Refinement improved" << context.partition.objective
+          << "from" << obj_before << "to" << obj_after
+          << "( Improvement =" << ((double(obj_before) / obj_after - 1.0) * 100.0) << "% )\n";
+    }
   }
 
   if ( context.type == ContextType::main ) {

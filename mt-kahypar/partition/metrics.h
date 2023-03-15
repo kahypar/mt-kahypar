@@ -47,7 +47,7 @@ struct Metrics {
     }
   }
 
-  HyperedgeWeight getMetric(const Mode mode, const Objective objective) {
+  HyperedgeWeight getMetric(const Mode mode, const Objective objective) const {
     if (mode == Mode::recursive_bipartitioning || objective == Objective::cut) {
       // in recursive bisection, km1 is also optimized via the cut net metric
       return cut;
