@@ -248,6 +248,9 @@ namespace mt_kahypar {
              po::value<HypernodeID>(&context.coarsening.contraction_limit_multiplier)->value_name(
                      "<int>")->default_value(160),
              "Coarsening stops when there are no more than t * k hypernodes left")
+            ("c-deep-t",
+             po::value<HypernodeID>(&context.coarsening.deep_ml_contraction_limit_multiplier)->value_name("<int>"),
+             "Deep multilevel performs coarsening until 2 * deep-t hypernodes are left for bipartitioning calls")
             ("c-min-shrink-factor",
              po::value<double>(&context.coarsening.minimum_shrink_factor)->value_name("<double>")->default_value(1.01),
              "Minimum factor a hypergraph must shrink in a multilevel pass. Otherwise, we terminate coarsening phase.")

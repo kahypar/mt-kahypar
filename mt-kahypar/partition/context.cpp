@@ -104,6 +104,7 @@ namespace mt_kahypar {
     str << "  Max Allowed Weight Multiplier:      " << params.max_allowed_weight_multiplier << std::endl;
     str << "  Maximum Allowed Hypernode Weight:   " << params.max_allowed_node_weight << std::endl;
     str << "  Contraction Limit Multiplier:       " << params.contraction_limit_multiplier << std::endl;
+    str << "  Deep ML Contraction Limit Multi.:   " << params.deep_ml_contraction_limit_multiplier << std::endl;
     str << "  Contraction Limit:                  " << params.contraction_limit << std::endl;
     str << "  Minimum Shrink Factor:              " << params.minimum_shrink_factor << std::endl;
     str << "  Maximum Shrink Factor:              " << params.maximum_shrink_factor << std::endl;

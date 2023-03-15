@@ -171,6 +171,14 @@ PartitionedHypergraph partition(Hypergraph& hypergraph, const Context& context) 
   return partitioned_hg;
 }
 
+void partition(PartitionedHypergraph& partitioned_hg, const Context& context) {
+  PartitionedHypergraph tmp_phg = partition(partitioned_hg.hypergraph(), context);
+  tmp_phg.doParallelForAllNodes([&](const HypernodeID& hn) {
+    partitioned_hg.setOnlyNodePart(hn, tmp_phg.partID(hn));
+  });
+  partitioned_hg.initializePartition();
+}
+
 void partitionVCycle(Hypergraph& hypergraph,
                      PartitionedHypergraph& partitioned_hg,
                      const Context& context) {
