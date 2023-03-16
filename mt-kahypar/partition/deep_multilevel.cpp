@@ -56,6 +56,7 @@ static constexpr bool debug = false;
 struct DeepPartitioningResult {
   Hypergraph hypergraph;
   PartitionedHypergraph partitioned_hg;
+  PartitionID k;
   bool valid = false;
 };
 
@@ -369,22 +370,13 @@ Context setupDeepMultilevelRecursionContext(const Context& context,
   return r_context;
 }
 
-// The current number of blocks are the first k' blocks with non-zero weight
-PartitionID get_current_k(const PartitionedHypergraph& partitioned_hg) {
-  PartitionID k = 0;
-  for ( PartitionID i = 0; i < partitioned_hg.k(); ++i ) {
-    if ( partitioned_hg.partWeight(i) > 0 ) ++k;
-    else break;
-  }
-  return k;
-}
-
 void printInitialPartitioningResult(const PartitionedHypergraph& partitioned_hg,
                                     const Context& context,
+                                    const PartitionID k,
                                     const RBTree& rb_tree) {
   if ( context.partition.verbose_output ) {
     Context m_context(context);
-    m_context.partition.k = get_current_k(partitioned_hg);
+    m_context.partition.k = k;
     m_context.partition.perfect_balance_part_weights = rb_tree.perfectlyBalancedWeightVector(m_context.partition.k);
     m_context.partition.max_part_weights = rb_tree.maxPartWeightVector(m_context.partition.k);
     io::printPartitioningResults(partitioned_hg, m_context, "Initial Partitioning Results:");
@@ -392,8 +384,8 @@ void printInitialPartitioningResult(const PartitionedHypergraph& partitioned_hg,
 }
 
 bool is_balanced(const PartitionedHypergraph& partitioned_hg,
+                 const PartitionID k,
                  const RBTree& rb_tree) {
-  const PartitionID k = get_current_k(partitioned_hg);
   bool isBalanced = true;
   for ( PartitionID i = 0; i < k; ++i ) {
     isBalanced = isBalanced && partitioned_hg.partWeight(i) <= rb_tree.maxPartWeight(k, i);
@@ -403,6 +395,7 @@ bool is_balanced(const PartitionedHypergraph& partitioned_hg,
 
 const DeepPartitioningResult& select_best_partition(const vec<DeepPartitioningResult>& partitions,
                                                     const Context& context,
+                                                    const PartitionID k,
                                                     const RBTree& rb_tree) {
   vec<HyperedgeWeight> objectives(partitions.size(), 0);
   vec<bool> isBalanced(partitions.size(), false);
@@ -413,7 +406,7 @@ const DeepPartitioningResult& select_best_partition(const vec<DeepPartitioningRe
     tg.run([&, i] {
       objectives[i] = metrics::objective(
         partitions[i].partitioned_hg, context.partition.objective);
-      isBalanced[i] = is_balanced(partitions[i].partitioned_hg, rb_tree);
+      isBalanced[i] = is_balanced(partitions[i].partitioned_hg, k, rb_tree);
     });
   }
   tg.wait();
@@ -555,10 +548,10 @@ DeepPartitioningResult deep_multilevel_recursion(const Hypergraph& hypergraph,
                                                  const RBTree& rb_tree,
                                                  const size_t num_threads);
 
-void deep_multilevel_partitioning(PartitionedHypergraph& partitioned_hg,
-                                  const Context& c,
-                                  const OriginalHypergraphInfo& info,
-                                  const RBTree& rb_tree) {
+PartitionID deep_multilevel_partitioning(PartitionedHypergraph& partitioned_hg,
+                                         const Context& c,
+                                         const OriginalHypergraphInfo& info,
+                                         const RBTree& rb_tree) {
   Hypergraph& hypergraph = partitioned_hg.hypergraph();
   Context context(c);
 
@@ -641,6 +634,7 @@ void deep_multilevel_partitioning(PartitionedHypergraph& partitioned_hg,
   timer.start_timer("initial_partitioning", "Initial Partitioning");
   const bool was_enabled_before = disableTimerAndStats(context);
   PartitionedHypergraph& coarsest_phg = uncoarseningData.coarsestPartitionedHypergraph();
+  PartitionID current_k = kInvalidPartition;
   if ( no_further_contractions_possible ) {
     DBG << "Smallest Hypergraph"
         << "- Number of Nodes =" << coarsest_phg.initialNumNodes()
@@ -653,6 +647,7 @@ void deep_multilevel_partitioning(PartitionedHypergraph& partitioned_hg,
     Context b_context = setupBipartitioningContext(
       hypergraph, context, info, target_blocks.first, target_blocks.second);
     multilevel::partition(coarsest_phg, b_context);
+    current_k = 2;
 
     DBG << BOLD << "Peform Initial Bipartitioning" << END
         << "- Objective =" << metrics::objective(coarsest_phg, b_context.partition.objective)
@@ -697,8 +692,17 @@ void deep_multilevel_partitioning(PartitionedHypergraph& partitioned_hg,
     }
     tg.wait();
 
+    ASSERT([&] {
+      const PartitionID expected_k = results[0].k;
+      for ( size_t i = 1; i < num_parallel_calls; ++i ) {
+        if ( expected_k != results[i].k ) return false;
+      }
+      return true;
+    }(), "Not all hypergraphs from recursion are partitioned into the same number of blocks!");
+    current_k = results[0].k;
+
     // Apply best bipartition from the recursive calls to the current hypergraph
-    const DeepPartitioningResult& best = select_best_partition(results, context, rb_tree);
+    const DeepPartitioningResult& best = select_best_partition(results, context, current_k, rb_tree);
     const PartitionedHypergraph& best_phg = best.partitioned_hg;
     coarsest_phg.doParallelForAllNodes([&](const HypernodeID& hn) {
       const PartitionID block = best_phg.partID(hn);
@@ -708,10 +712,11 @@ void deep_multilevel_partitioning(PartitionedHypergraph& partitioned_hg,
 
     DBG << BOLD << "Best Partition from Recursive Calls" << END
         << "- Objective =" << metrics::objective(coarsest_phg, context.partition.objective)
-        << "- isBalanced =" << std::boolalpha << is_balanced(coarsest_phg, rb_tree);
+        << "- isBalanced =" << std::boolalpha << is_balanced(coarsest_phg, current_k, rb_tree);
   }
+  ASSERT(current_k != kInvalidPartition);
 
-  printInitialPartitioningResult(coarsest_phg, context, rb_tree);
+  printInitialPartitioningResult(coarsest_phg, context, current_k, rb_tree);
   if ( context.partition.verbose_output ) {
     utils::Utilities::instance().getInitialPartitioningStats(
       context.utility_id).printInitialPartitioningStats();
@@ -732,14 +737,12 @@ void deep_multilevel_partitioning(PartitionedHypergraph& partitioned_hg,
     uncoarsener = std::make_unique<MultilevelUncoarsener>(hypergraph, context, uncoarseningData);
   }
 
-
   uncoarsener->initialize();
 
   // Determine the current number of blocks (k), the number of blocks in which the
   // hypergraph should be partitioned next (k'), and the contraction limit at which we
   // have to partition the hypergraph into k' blocks (k' * C).
   const PartitionID final_k = context.partition.k;
-  PartitionID current_k = kInvalidPartition;
   PartitionID next_k = kInvalidPartition;
   HypernodeID contraction_limit_for_rb = std::numeric_limits<HypernodeID>::max();
   auto adapt_contraction_limit_for_recursive_bipartitioning = [&](const PartitionID k) {
@@ -754,8 +757,7 @@ void deep_multilevel_partitioning(PartitionedHypergraph& partitioned_hg,
     context.setupThreadsPerFlowSearch();
     uncoarsener->updateMetrics();
   };
-  adapt_contraction_limit_for_recursive_bipartitioning(
-    get_current_k(uncoarseningData.coarsestPartitionedHypergraph()));
+  adapt_contraction_limit_for_recursive_bipartitioning(current_k);
 
   // Start uncoarsening
   while ( !uncoarsener->isTopLevel() ) {
@@ -772,11 +774,10 @@ void deep_multilevel_partitioning(PartitionedHypergraph& partitioned_hg,
         current_k, uncoarsener->getObjective(), progress_bar_enabled);
       timer.stop_timer("bipartitioning");
 
-      ASSERT(get_current_k(current_phg) == next_k);
       DBG << "Increase number of blocks from" << current_k << "to" << next_k
           << "( Number of Nodes =" << current_phg.initialNumNodes()
           << "- Objective =" << metrics::objective(current_phg, context.partition.objective)
-          << "- isBalanced =" << std::boolalpha << is_balanced(current_phg, rb_tree);
+          << "- isBalanced =" << std::boolalpha << is_balanced(current_phg, next_k, rb_tree);
 
       adapt_contraction_limit_for_recursive_bipartitioning(next_k);
       // Improve partition
@@ -817,11 +818,10 @@ void deep_multilevel_partitioning(PartitionedHypergraph& partitioned_hg,
       current_k, uncoarsener->getObjective(), progress_bar_enabled);
     timer.stop_timer("bipartitioning");
 
-    ASSERT(get_current_k(current_phg) == next_k);
     DBG << "Increase number of blocks from" << current_k << "to" << next_k
         << "( Num Nodes =" << current_phg.initialNumNodes()
         << "- Objective =" << metrics::objective(current_phg, context.partition.objective)
-        << "- isBalanced =" << std::boolalpha << is_balanced(current_phg, rb_tree);
+        << "- isBalanced =" << std::boolalpha << is_balanced(current_phg, next_k, rb_tree);
 
     adapt_contraction_limit_for_recursive_bipartitioning(next_k);
     // Improve partition
@@ -846,6 +846,8 @@ void deep_multilevel_partitioning(PartitionedHypergraph& partitioned_hg,
 
   io::printPartitioningResults(partitioned_hg, context, "Local Search Results:");
   timer.stop_timer("refinement");
+
+  return current_k;
 }
 
 DeepPartitioningResult deep_multilevel_recursion(const Hypergraph& hypergraph,
@@ -865,7 +867,7 @@ DeepPartitioningResult deep_multilevel_recursion(const Hypergraph& hypergraph,
   result.valid = true;
 
   // Recursively call deep multilevel partitioning
-  deep_multilevel_partitioning(result.partitioned_hg, r_context, info, rb_tree);
+  result.k = deep_multilevel_partitioning(result.partitioned_hg, r_context, info, rb_tree);
 
   return result;
 }
