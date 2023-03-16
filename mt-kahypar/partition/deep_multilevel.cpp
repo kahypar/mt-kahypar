@@ -251,17 +251,20 @@ class RBTree {
   std::unordered_map<PartitionID, size_t> _partition_to_level;
 };
 
-void disableTimerAndStats(const Context& context) {
+bool disableTimerAndStats(const Context& context) {
+  const bool was_enabled_before =
+    utils::Utilities::instance().getTimer(context.utility_id).isEnabled();
   if ( context.type == ContextType::main ) {
     utils::Utilities& utils = utils::Utilities::instance();
     parallel::MemoryPool::instance().deactivate_unused_memory_allocations();
     utils.getTimer(context.utility_id).disable();
     utils.getStats(context.utility_id).disable();
   }
+  return was_enabled_before;
 }
 
-void enableTimerAndStats(const Context& context) {
-  if ( context.type == ContextType::main ) {
+void enableTimerAndStats(const Context& context, const bool was_enabled_before) {
+  if ( context.type == ContextType::main && was_enabled_before ) {
     utils::Utilities& utils = utils::Utilities::instance();
     parallel::MemoryPool::instance().activate_unused_memory_allocations();
     utils.getTimer(context.utility_id).enable();
@@ -469,8 +472,7 @@ void bipartition_each_block(PartitionedHypergraph& partitioned_hg,
   timer.stop_timer("extract_blocks");
 
   timer.start_timer("bipartition_blocks", "Bipartition Blocks");
-  const bool timer_was_enabled = timer.isEnabled(); // n-level disables timer
-  disableTimerAndStats(context);
+  const bool was_enabled_before = disableTimerAndStats(context); // n-level disables timer
   utils::ProgressBar progress(current_k, current_objective, progress_bar_enabled);
   vec<DeepPartitioningResult> bipartitions(current_k);
   vec<PartitionID> block_ranges(1, 0);
@@ -501,10 +503,7 @@ void bipartition_each_block(PartitionedHypergraph& partitioned_hg,
     }
   }
   tg.wait();
-  enableTimerAndStats(context);
-  if ( !timer_was_enabled ) {
-    timer.disable();
-  }
+  enableTimerAndStats(context, was_enabled_before);
   timer.stop_timer("bipartition_blocks");
 
   timer.start_timer("apply_bipartitions", "Apply Bipartition");
@@ -640,6 +639,7 @@ void deep_multilevel_partitioning(PartitionedHypergraph& partitioned_hg,
   // ################## Initial Partitioning ##################
   io::printInitialPartitioningBanner(context);
   timer.start_timer("initial_partitioning", "Initial Partitioning");
+  const bool was_enabled_before = disableTimerAndStats(context);
   PartitionedHypergraph& coarsest_phg = uncoarseningData.coarsestPartitionedHypergraph();
   if ( no_further_contractions_possible ) {
     DBG << "Smallest Hypergraph"
@@ -665,7 +665,6 @@ void deep_multilevel_partitioning(PartitionedHypergraph& partitioned_hg,
     // recursive call is initialized with the appropriate number of threads. After
     // returning from the recursion, we continue uncoarsening with the best partition
     // from the recursive calls.
-    disableTimerAndStats(context);
 
     // Determine the number of parallel recursive calls and the number of threads
     // used for each recursive call.
@@ -710,8 +709,6 @@ void deep_multilevel_partitioning(PartitionedHypergraph& partitioned_hg,
     DBG << BOLD << "Best Partition from Recursive Calls" << END
         << "- Objective =" << metrics::objective(coarsest_phg, context.partition.objective)
         << "- isBalanced =" << std::boolalpha << is_balanced(coarsest_phg, rb_tree);
-
-    enableTimerAndStats(context);
   }
 
   printInitialPartitioningResult(coarsest_phg, context, rb_tree);
@@ -719,6 +716,7 @@ void deep_multilevel_partitioning(PartitionedHypergraph& partitioned_hg,
     utils::Utilities::instance().getInitialPartitioningStats(
       context.utility_id).printInitialPartitioningStats();
   }
+  enableTimerAndStats(context, was_enabled_before);
   timer.stop_timer("initial_partitioning");
 
   // ################## UNCOARSENING ##################
