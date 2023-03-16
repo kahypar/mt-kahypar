@@ -532,6 +532,7 @@ void bipartition_each_block(PartitionedHypergraph& partitioned_hg,
     }
   });
 
+  partitioned_hg.resetMoveState();
   if ( partitioned_hg.isGainCacheInitialized() ) {
     partitioned_hg.doParallelForAllNodes([&](const HypernodeID& hn) {
       partitioned_hg.recomputeMoveFromPenalty(hn);
