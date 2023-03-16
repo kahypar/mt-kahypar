@@ -43,7 +43,6 @@ namespace mt_kahypar {
                   Metrics& best_metrics,
                   const double)  {
     resizeDataStructuresForCurrentK();
-    hypergraph.resetMoveState();
     _gain.reset();
     _next_active.reset();
 
@@ -81,7 +80,6 @@ namespace mt_kahypar {
     NextActiveNodes next_active_nodes;
     for (size_t i = 0; i < _context.refinement.label_propagation.maximum_iterations; ++i) {
       DBG << "Starting Label Propagation Round" << i;
-      hypergraph.resetMoveState();
 
       if ( _active_nodes.size() > 0 ) {
         labelPropagationRound(hypergraph, next_active_nodes);

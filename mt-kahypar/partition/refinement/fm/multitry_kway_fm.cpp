@@ -78,7 +78,6 @@ namespace mt_kahypar {
 
       timer.start_timer("find_moves", "Find Moves");
       sharedData.finishedTasks.store(0, std::memory_order_relaxed);
-      phg.resetMoveState();
 
       auto task = [&](const size_t task_id) {
         auto& fm = ets_fm.local();
@@ -94,7 +93,6 @@ namespace mt_kahypar {
       timer.stop_timer("find_moves");
 
       timer.start_timer("rollback", "Rollback to Best Solution");
-      phg.resetMoveState();
       HyperedgeWeight improvement = globalRollback.revertToBestPrefix
         <FMStrategy::maintain_gain_cache_between_rounds>(phg, sharedData, initialPartWeights);
       timer.stop_timer("rollback");

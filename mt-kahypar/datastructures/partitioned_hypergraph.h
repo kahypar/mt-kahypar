@@ -862,11 +862,6 @@ private:
     _con_info.reset(false);
   }
 
-  // ! Should be called e.g. after a rollback (see PartitionedGraph).
-  void resetMoveState() {
-    // Nothing to do here
-  }
-
   // ! Only for testing
   void recomputePartWeights() {
     for (PartitionID p = 0; p < _k; ++p) {

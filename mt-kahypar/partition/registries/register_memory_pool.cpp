@@ -109,7 +109,7 @@ namespace mt_kahypar {
 
       if (Hypergraph::is_graph) {
         #ifdef ENABLE_GRAPH_PARTITIONER // SIZE_OF_EDGE_LOCK is only available in the graph data structure
-          pool.register_memory_chunk("Refinement", "edge_locks", num_hyperedges, PartitionedHypergraph::SIZE_OF_EDGE_LOCK);
+          pool.register_memory_chunk("Refinement", "edge_sync", num_hyperedges, PartitionedHypergraph::SIZE_OF_EDGE_LOCK);
         #endif
         if ( context.refinement.fm.algorithm != FMAlgorithm::do_nothing ) {
           pool.register_memory_chunk("Refinement", "incident_weight_in_part",
