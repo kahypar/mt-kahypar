@@ -101,17 +101,18 @@ Mt-KaHyPar has several configuration parameters. We recommend to use one of our 
 - `default_flows`: corresponds to Mt-KaHyPar-D-F (`config/default_flow_preset.ini`)
 - `quality`: corresponds to Mt-KaHyPar-Q (`config/quality_preset.ini`)
 - `quality_flows`: corresponds to Mt-KaHyPar-Q-F (`config/quality_flow_preset.ini`)
+- `large_k`: configuration for partitioning a (hyper)graph into a large number of blocks (e.g. >= 1024 blocks, `config/large_k_preset.ini`)
 - `deterministic`: configuration for deterministic partitioning (`config/deterministic_preset.ini`)
 
-The presets can be ranked from lowest to the highest quality as follows: `deterministic`,
+The presets can be ranked from lowest to the highest quality as follows: `large_k`, `deterministic`,
 `default`, `quality`, `default_flows` and `quality_flows`.
-Initially, we started with the `default` and `quality` configuration and then extended both configurations with flow-based refinement (`default_flows` and `quality_flows`). We then found that our `default_flows` configuration produces better partitions than the `quality` configuration. However, we still keep the naming due to the naming in our publications. In general, we recommend to use the `default` configuration to compute good partitions very fast and the `default_flows` configuration to compute high-quality solutions. The `quality_flows` configuration computes better partitions than our `default_flows` configuration by 0.5% on average at the cost of a two times longer running time for medium-sized instances (up to 100 million pins).
+Initially, we started with the `default` and `quality` configuration and then extended both configurations with flow-based refinement (`default_flows` and `quality_flows`). We then found that our `default_flows` configuration produces better partitions than the `quality` configuration. However, we still keep the naming due to the naming in our publications. In general, we recommend to use the `default` configuration to compute good partitions very fast and the `default_flows` configuration to compute high-quality solutions. The `quality_flows` configuration computes better partitions than our `default_flows` configuration by 0.5% on average at the cost of a two times longer running time for medium-sized instances (up to 100 million pins). When you have to partition a (hyper)graph into a large number of blocks (e.g., >= 1024 blocks), you can use our `large_k` configuration. However, we only recommend to use this if you experience high running times with one of our other configurations as this can significantly worsen the partitioning quality.
 
 If you want to change configuration parameters manually, please run `--help` for a detailed description of the different program options. We use the [hMetis format](http://glaros.dtc.umn.edu/gkhome/fetch/sw/hmetis/manual.pdf) for hypergraph files as well as the partition output file and the [Metis format](http://glaros.dtc.umn.edu/gkhome/fetch/sw/metis/manual.pdf) for graph files. Per default, we expect the input to be in hMetis format, but you can read graphs in Metis format via command line parameter `--input-file-format=metis`. If your input file is a graph, you can switch to our optimized graph data structures via command line parameter `--instance-type=graph`.
 
 To run Mt-KaHyPar, you can use the following command:
 
-    ./MtKaHyPar -h <path-to-hgr> --preset-type=<deterministic/default/default_flows/quality/quality_flows> --instance_type=<hypergraph/graph> -t <# threads> -k <# blocks> -e <imbalance (e.g. 0.03)> -o km1 -m direct
+    ./MtKaHyPar -h <path-to-hgr> --preset-type=<large_k/deterministic/default/default_flows/quality/quality_flows> --instance_type=<hypergraph/graph> -t <# threads> -k <# blocks> -e <imbalance (e.g. 0.03)> -o km1 -m direct
 
 or directly provide a configuration file (see `config` folder):
 
