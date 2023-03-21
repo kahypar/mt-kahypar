@@ -170,6 +170,11 @@ namespace mt_kahypar {
     }
   }
 
+  HyperedgeWeight MultilevelUncoarsener::getObjectiveImpl() const {
+    return _current_metrics.getMetric(
+      _context.partition.mode, _context.partition.objective);
+  }
+
   void MultilevelUncoarsener::updateMetricsImpl() {
     _current_metrics = initializeMetrics(*_uncoarseningData.partitioned_hg);
     _progress.setObjective(_current_metrics.getMetric(Mode::direct, _context.partition.objective));

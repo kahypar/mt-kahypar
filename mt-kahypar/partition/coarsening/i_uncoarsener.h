@@ -74,6 +74,10 @@ namespace mt_kahypar {
       rebalancingImpl();
     }
 
+    HyperedgeWeight getObjective() const {
+      return getObjectiveImpl();
+    }
+
     void updateMetrics() {
       updateMetricsImpl();
     }
@@ -101,6 +105,7 @@ namespace mt_kahypar {
     virtual void projectToNextLevelAndRefineImpl() = 0;
     virtual void refineImpl() = 0;
     virtual void rebalancingImpl() = 0;
+    virtual HyperedgeWeight getObjectiveImpl() const = 0;
     virtual void updateMetricsImpl() = 0;
     virtual PartitionedHypergraph& currentPartitionedHypergraphImpl() = 0;
     virtual HypernodeID currentNumberOfNodesImpl() const = 0;

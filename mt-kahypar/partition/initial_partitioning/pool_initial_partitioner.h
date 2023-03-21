@@ -37,7 +37,9 @@ namespace mt_kahypar {
 namespace pool {
 
 // Bipartitions a hypergraph using a portfolio of nine different bipartitioning techniques.
-void bipartition(PartitionedHypergraph& hypergraph, const Context& context);
+void bipartition(PartitionedHypergraph& hypergraph,
+                 const Context& context,
+                 const bool run_parallel = true);
 
 }
 

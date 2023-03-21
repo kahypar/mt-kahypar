@@ -587,7 +587,7 @@ class MemoryPoolT {
     _active_memory_chunks(),
     _use_round_robin_assignment(true),
     _use_minimum_allocation_size(true),
-    _use_unused_memory_chunks(true) { 
+    _use_unused_memory_chunks(true) {
     #ifdef __linux__
       _page_size = sysconf(_SC_PAGE_SIZE);
     #elif _WIN32

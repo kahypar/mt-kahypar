@@ -43,7 +43,6 @@ namespace mt_kahypar {
                   Metrics& best_metrics,
                   const double)  {
     resizeDataStructuresForCurrentK();
-    hypergraph.resetMoveState();
     _gain.reset();
     _next_active.reset();
 

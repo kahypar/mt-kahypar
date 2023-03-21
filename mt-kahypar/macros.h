@@ -111,7 +111,7 @@
 #define HEAVY_REFINEMENT_ASSERT(...) EXPAND(HEAVY_ASSERT_EVAL(REFINEMENT, EXPAND(NARG(__VA_ARGS__)))(__VA_ARGS__))
 
 // An assertion that triggers for the hypergraph partitioners but not for the graph partitioner
-#ifdef USE_GRAPH_PARTITIONER
+#ifdef ENABLE_GRAPH_PARTITIONER
   #define ASSERT_FOR_HG_ONLY(cond);
 #else
   #define ASSERT_FOR_HG_ONLY(cond) ASSERT(cond);

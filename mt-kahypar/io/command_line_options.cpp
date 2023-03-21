@@ -182,7 +182,7 @@ namespace mt_kahypar {
             ("p-enable-community-detection",
              po::value<bool>(&context.preprocessing.use_community_detection)->value_name("<bool>")->default_value(true),
              "If true, community detection is used as preprocessing step to restrict contractions to densely coupled regions in coarsening phase")
-            #ifdef USE_GRAPH_PARTITIONER
+            #ifdef ENABLE_GRAPH_PARTITIONER
             ("p-disable-community-detection-on-mesh-graphs",
              po::value<bool>(&context.preprocessing.disable_community_detection_for_mesh_graphs)->value_name("<bool>")->default_value(true),
              "If true, community detection is dynamically disabled for mesh graphs (as it is not effective for this type of graphs).")
@@ -248,6 +248,9 @@ namespace mt_kahypar {
              po::value<HypernodeID>(&context.coarsening.contraction_limit_multiplier)->value_name(
                      "<int>")->default_value(160),
              "Coarsening stops when there are no more than t * k hypernodes left")
+            ("c-deep-t",
+             po::value<HypernodeID>(&context.coarsening.deep_ml_contraction_limit_multiplier)->value_name("<int>"),
+             "Deep multilevel performs coarsening until 2 * deep-t hypernodes are left for bipartitioning calls")
             ("c-min-shrink-factor",
              po::value<double>(&context.coarsening.minimum_shrink_factor)->value_name("<double>")->default_value(1.01),
              "Minimum factor a hypergraph must shrink in a multilevel pass. Otherwise, we terminate coarsening phase.")
@@ -425,7 +428,7 @@ namespace mt_kahypar {
              "If the FM time exceeds time_limit := k * factor * coarsening_time, than the FM config is switched into a light version."
              "If the FM refiner exceeds 2 * time_limit, than the current multitry FM run is aborted and the algorithm proceeds to"
              "the next finer level.")
-            #ifdef USE_STRONG_PARTITIONER
+            #ifdef ENABLE_QUALITY_PRESET
             ((initial_partitioning ? "i-r-use-global-fm" : "r-use-global-fm"),
              po::value<bool>((!initial_partitioning ? &context.refinement.global_fm.use_global_fm :
                               &context.initial_partitioning.refinement.global_fm.use_global_fm))->value_name(

@@ -45,7 +45,8 @@ namespace ds {
 // Forward
 class StaticHypergraphFactory;
 template <typename Hypergraph,
-          typename HypergraphFactory>
+          typename HypergraphFactory,
+          typename ConnectivityInformation>
 class PartitionedHypergraph;
 
 class StaticHypergraph {
@@ -827,7 +828,8 @@ class StaticHypergraph {
   template<typename Hypergraph>
   friend class CommunitySupport;
   template <typename Hypergraph,
-            typename HypergraphFactory>
+            typename HypergraphFactory,
+            typename ConnectivityInformation>
   friend class PartitionedHypergraph;
 
   // ####################### Hypernode Information #######################

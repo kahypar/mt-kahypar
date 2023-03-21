@@ -71,7 +71,7 @@ class AHypergraphReader : public Test {
     }
   }
 
-#ifdef USE_GRAPH_PARTITIONER
+#ifdef ENABLE_GRAPH_PARTITIONER
   void verifyIDs(const std::vector<std::pair<HyperedgeID, HyperedgeID>>& edge_pairs, HyperedgeID expected_max) {
     HyperedgeID max_id = 0;
     for (auto [forward, backward] : edge_pairs) {
@@ -87,7 +87,7 @@ class AHypergraphReader : public Test {
   Hypergraph hypergraph;
 };
 
-#ifndef USE_GRAPH_PARTITIONER
+#ifndef ENABLE_GRAPH_PARTITIONER
 TEST_F(AHypergraphReader, ReadsAnUnweightedHypergraph) {
   this->readHypergraph("../tests/instances/unweighted_hypergraph.hgr");
 
@@ -337,7 +337,7 @@ TEST_F(AHypergraphReader, ReadsAMetisGraphWithNodeAndEdgeWeights) {
 }
 #endif
 
-#ifdef USE_GRAPH_PARTITIONER
+#ifdef ENABLE_GRAPH_PARTITIONER
 TEST_F(AHypergraphReader, ReadsAMetisGraph) {
   this->hypergraph = readGraphFile("../tests/instances/unweighted_graph.graph", true);
 

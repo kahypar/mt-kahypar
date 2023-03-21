@@ -127,8 +127,8 @@ class PinCountInPart {
     }
   }
 
-  Array<Value>& data() {
-    return _pin_count_in_part;
+  void reset(const bool assign_parallel = true) {
+    _pin_count_in_part.assign(_pin_count_in_part.size(), 0, assign_parallel);
   }
 
   // ! Returns the pin count of the hyperedge in the corresponding block
@@ -186,6 +186,15 @@ class PinCountInPart {
   // ! Returns the size in bytes of this data structure
   size_t size_in_bytes() const {
     return sizeof(Value) * _pin_count_in_part.size();
+  }
+
+  void freeInternalData() {
+    parallel::free(_pin_count_in_part);
+  }
+
+  void memoryConsumption(utils::MemoryTreeNode* parent) const {
+    ASSERT(parent);
+    parent->addChild("Pin Count Values", sizeof(Value) * _pin_count_in_part.size());
   }
 
   static size_t num_elements(const HyperedgeID num_hyperedges,

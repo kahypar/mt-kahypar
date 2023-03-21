@@ -28,52 +28,58 @@
 
 #include <chrono>
 
-#ifdef USE_GRAPH_PARTITIONER
-#ifdef USE_STRONG_PARTITIONER
-#include "mt-kahypar/datastructures/dynamic_graph.h"
-#include "mt-kahypar/datastructures/dynamic_graph_factory.h"
+#ifdef ENABLE_GRAPH_PARTITIONER
+  #ifdef ENABLE_QUALITY_PRESET
+    #include "mt-kahypar/datastructures/dynamic_graph.h"
+    #include "mt-kahypar/datastructures/dynamic_graph_factory.h"
+  #else
+    #include "mt-kahypar/datastructures/static_graph.h"
+    #include "mt-kahypar/datastructures/static_graph_factory.h"
+  #endif
+  #include "mt-kahypar/datastructures/partitioned_graph.h"
+  #include "mt-kahypar/datastructures/delta_partitioned_graph.h"
 #else
-#include "mt-kahypar/datastructures/static_graph.h"
-#include "mt-kahypar/datastructures/static_graph_factory.h"
-#endif
-#include "mt-kahypar/datastructures/partitioned_graph.h"
-#include "mt-kahypar/datastructures/delta_partitioned_graph.h"
-#else
-#ifdef USE_STRONG_PARTITIONER
-#include "mt-kahypar/datastructures/dynamic_hypergraph.h"
-#include "mt-kahypar/datastructures/dynamic_hypergraph_factory.h"
-#else
-#include "mt-kahypar/datastructures/static_hypergraph.h"
-#include "mt-kahypar/datastructures/static_hypergraph_factory.h"
-#endif
-#include "mt-kahypar/datastructures/partitioned_hypergraph.h"
-#include "mt-kahypar/datastructures/delta_partitioned_hypergraph.h"
+  #ifdef ENABLE_QUALITY_PRESET
+    #include "mt-kahypar/datastructures/dynamic_hypergraph.h"
+    #include "mt-kahypar/datastructures/dynamic_hypergraph_factory.h"
+  #else
+    #include "mt-kahypar/datastructures/static_hypergraph.h"
+    #include "mt-kahypar/datastructures/static_hypergraph_factory.h"
+  #endif
+  #include "mt-kahypar/datastructures/partitioned_hypergraph.h"
+  #include "mt-kahypar/datastructures/delta_partitioned_hypergraph.h"
 #endif
 
 namespace mt_kahypar {
 
-#ifdef USE_GRAPH_PARTITIONER
-#ifdef USE_STRONG_PARTITIONER
-using Hypergraph = ds::DynamicGraph;
-using HypergraphFactory = ds::DynamicGraphFactory;
+#ifdef ENABLE_GRAPH_PARTITIONER
+  #ifdef ENABLE_QUALITY_PRESET
+    using Hypergraph = ds::DynamicGraph;
+    using HypergraphFactory = ds::DynamicGraphFactory;
+  #else
+    using Hypergraph = ds::StaticGraph;
+    using HypergraphFactory = ds::StaticGraphFactory;
+  #endif
+  using PartitionedHypergraph = ds::PartitionedGraph<Hypergraph, HypergraphFactory>;
+  using DeltaPartitionedHypergraph = ds::DeltaPartitionedGraph<PartitionedHypergraph>;
 #else
-using Hypergraph = ds::StaticGraph;
-using HypergraphFactory = ds::StaticGraphFactory;
+  #ifdef ENABLE_QUALITY_PRESET
+    using Hypergraph = ds::DynamicHypergraph;
+    using HypergraphFactory = ds::DynamicHypergraphFactory;
+  #else
+    using Hypergraph = ds::StaticHypergraph;
+    using HypergraphFactory = ds::StaticHypergraphFactory;
+  #endif
+
+  #ifdef ENABLE_LARGE_K
+    using PartitionedHypergraph = ds::PartitionedHypergraph<Hypergraph, HypergraphFactory, ds::SparseConnectivityInfo>;
+  #else
+    using PartitionedHypergraph = ds::PartitionedHypergraph<Hypergraph, HypergraphFactory, ds::ConnectivityInfo>;
+  #endif
+  using DeltaPartitionedHypergraph = ds::DeltaPartitionedHypergraph<PartitionedHypergraph>;
 #endif
-using PartitionedHypergraph = ds::PartitionedGraph<Hypergraph, HypergraphFactory>;
-using DeltaPartitionedHypergraph = ds::DeltaPartitionedGraph<PartitionedHypergraph>;
-#else
-#ifdef USE_STRONG_PARTITIONER
-using Hypergraph = ds::DynamicHypergraph;
-using HypergraphFactory = ds::DynamicHypergraphFactory;
-#else
-using Hypergraph = ds::StaticHypergraph;
-using HypergraphFactory = ds::StaticHypergraphFactory;
-#endif
-using PartitionedHypergraph = ds::PartitionedHypergraph<Hypergraph, HypergraphFactory>;
-using DeltaPartitionedHypergraph = ds::DeltaPartitionedHypergraph<PartitionedHypergraph>;
-#endif
-#ifdef USE_GRAPH_PARTITIONER
+
+#ifdef ENABLE_GRAPH_PARTITIONER
 using PartIdType = CAtomic<PartitionID>;
 #else
 using PartIdType = PartitionID;

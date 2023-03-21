@@ -49,9 +49,9 @@ namespace ds {
 // Forward
 class DynamicHypergraphFactory;
 template <typename Hypergraph,
-          typename HypergraphFactory>
+          typename HypergraphFactory,
+          typename ConnectivityInformation>
 class PartitionedHypergraph;
-
 
 class DynamicHypergraph {
 
@@ -911,7 +911,8 @@ class DynamicHypergraph {
   template<typename Hypergraph>
   friend class CommunitySupport;
   template <typename Hypergraph,
-            typename HypergraphFactory>
+            typename HypergraphFactory,
+            typename ConnectivityInformation>
   friend class PartitionedHypergraph;
 
   // ####################### Acquiring / Releasing Ownership #######################

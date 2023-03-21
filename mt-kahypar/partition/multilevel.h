@@ -35,6 +35,9 @@ namespace mt_kahypar::multilevel {
 // ! Partitions a hypergraph using the multilevel paradigm.
 PartitionedHypergraph partition(Hypergraph& hypergraph, const Context& context);
 
+// ! Partitions a hypergraph using the multilevel paradigm.
+void partition(PartitionedHypergraph& partitioned_hg, const Context& context);
+
 // ! Improves an existing partition using the iterated multilevel cycle technique
 // ! (also called V-cycle).
 void partitionVCycle(Hypergraph& hypergraph,

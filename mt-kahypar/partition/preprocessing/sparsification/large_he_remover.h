@@ -49,7 +49,7 @@ class LargeHyperedgeRemover {
   // ! Returns the number of removed large hyperedges.
   HypernodeID removeLargeHyperedges(Hypergraph& hypergraph) {
     HypernodeID num_removed_large_hyperedges = 0;
-    #ifndef USE_GRAPH_PARTITIONER
+    #ifndef ENABLE_GRAPH_PARTITIONER
     for ( const HyperedgeID& he : hypergraph.edges() ) {
       if ( hypergraph.edgeSize(he) > largeHyperedgeThreshold() ) {
         hypergraph.removeLargeEdge(he);

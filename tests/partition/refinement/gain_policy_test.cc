@@ -177,7 +177,7 @@ TEST_F(AKm1PolicyK4, ComputesCorrectMoveGainForVertex1) {
   assignPartitionIDs({ 0, 1, 2, 3, 3, 1, 2 });
   Move move = gain->computeMaxGainMove(hypergraph, 0);
   ASSERT_EQ(0, move.from);
-  ASSERT_EQ(1, move.to);
+  ASSERT_EQ(2, move.to);
   ASSERT_EQ(-1, move.gain);
 }
 
@@ -199,7 +199,7 @@ TEST_F(AKm1PolicyK4, ComputesCorrectMoveGainForVertex2) {
   assignPartitionIDs({ 0, 3, 1, 2, 2, 0, 3 });
   Move move = gain->computeMaxGainMove(hypergraph, 6);
   ASSERT_EQ(3, move.from);
-  ASSERT_EQ(0, move.to);
+  ASSERT_EQ(2, move.to);
   ASSERT_EQ(-1, move.gain);
 }
 

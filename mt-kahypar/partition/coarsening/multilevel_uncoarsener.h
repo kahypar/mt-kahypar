@@ -66,6 +66,8 @@ namespace mt_kahypar {
 
   void rebalancingImpl() override;
 
+  HyperedgeWeight getObjectiveImpl() const override;
+
   void updateMetricsImpl() override;
 
   PartitionedHypergraph& currentPartitionedHypergraphImpl() override;

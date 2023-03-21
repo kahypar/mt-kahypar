@@ -39,7 +39,6 @@ namespace mt_kahypar {
                                                         const vec<HypernodeID>&,
                                                         Metrics& best_metrics,
                                                         const double) {
-    phg.resetMoveState();
     Gain overall_improvement = 0;
     constexpr size_t num_buckets = utils::ParallelPermutation<HypernodeID>::num_buckets;
     const size_t num_sub_rounds = context.refinement.deterministic_refinement.num_sub_rounds_sync_lp;

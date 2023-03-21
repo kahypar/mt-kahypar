@@ -31,7 +31,7 @@
 
 #include "gmock/gmock.h"
 
-#ifdef USE_STRONG_PARTITIONER
+#ifdef ENABLE_QUALITY_PRESET
 #include "mt-kahypar/datastructures/dynamic_hypergraph_factory.h"
 #else
 #include "mt-kahypar/datastructures/static_hypergraph_factory.h"
@@ -157,7 +157,7 @@ void executeConcurrent(const F1& f1, const F2& f2) {
   });
 }
 
-#ifdef USE_STRONG_PARTITIONER
+#ifdef ENABLE_QUALITY_PRESET
 using PartitionedHypergraphTestTypes =
   ::testing::Types<
           PartitionedHypergraphTypeTraits<
@@ -619,6 +619,73 @@ TYPED_TEST(APartitionedHypergraph, ExtractBlockTwoWithCutNetRemoval) {
 
   this->verifyPins(hg, {0},
     { {node_id[0], node_id[1], node_id[2]} });
+}
+
+TYPED_TEST(APartitionedHypergraph, ExtractAllBlockBlocksWithCutNetSplitting) {
+  auto extracted_hg = this->partitioned_hypergraph.extractAllBlocks(3, true, true);
+  auto& hypergraphs = extracted_hg.first;
+  vec<HypernodeID>& hn_mapping = extracted_hg.second;
+
+  ASSERT_EQ(3, hypergraphs[0].initialNumNodes());
+  ASSERT_EQ(2, hypergraphs[0].initialNumEdges());
+  ASSERT_EQ(4, hypergraphs[0].initialNumPins());
+  ASSERT_EQ(2, hypergraphs[0].maxEdgeSize());
+
+  parallel::scalable_vector<HypernodeID> node_id = {
+    hn_mapping[0], hn_mapping[1], hn_mapping[2] };
+  this->verifyPins(hypergraphs[0], {0, 1},
+    { { node_id[0], node_id[2] }, { node_id[0], node_id[1] } });
+
+  ASSERT_EQ(2, hypergraphs[1].initialNumNodes());
+  ASSERT_EQ(2, hypergraphs[1].initialNumEdges());
+  ASSERT_EQ(4, hypergraphs[1].initialNumPins());
+  ASSERT_EQ(2, hypergraphs[1].maxEdgeSize());
+
+  node_id = { hn_mapping[3], hn_mapping[4] };
+  this->verifyPins(hypergraphs[1], {0, 1},
+    { { node_id[0], node_id[1] }, { node_id[0], node_id[1] } });
+
+  ASSERT_EQ(2, hypergraphs[2].initialNumNodes());
+  ASSERT_EQ(1, hypergraphs[2].initialNumEdges());
+  ASSERT_EQ(2, hypergraphs[2].initialNumPins());
+  ASSERT_EQ(2, hypergraphs[2].maxEdgeSize());
+
+  node_id = { hn_mapping[5], hn_mapping[6] };
+  this->verifyPins(hypergraphs[2], { 0 },
+    { { node_id[0], node_id[1] } });
+}
+
+TYPED_TEST(APartitionedHypergraph, ExtractAllBlockBlocksWithCutNetRemoval) {
+  this->partitioned_hypergraph.changeNodePart(6, 2, 1);
+  auto extracted_hg = this->partitioned_hypergraph.extractAllBlocks(3, false, true);
+  auto& hypergraphs = extracted_hg.first;
+  vec<HypernodeID>& hn_mapping = extracted_hg.second;
+
+  ASSERT_EQ(3, hypergraphs[0].initialNumNodes());
+  ASSERT_EQ(1, hypergraphs[0].initialNumEdges());
+  ASSERT_EQ(2, hypergraphs[0].initialNumPins());
+  ASSERT_EQ(2, hypergraphs[0].maxEdgeSize());
+
+  parallel::scalable_vector<HypernodeID> node_id = {
+    hn_mapping[0], hn_mapping[1], hn_mapping[2] };
+  this->verifyPins(hypergraphs[0], {0},
+    { { node_id[0], node_id[2] } });
+
+  ASSERT_EQ(3, hypergraphs[1].initialNumNodes());
+  ASSERT_EQ(1, hypergraphs[1].initialNumEdges());
+  ASSERT_EQ(3, hypergraphs[1].initialNumPins());
+  ASSERT_EQ(3, hypergraphs[1].maxEdgeSize());
+
+  node_id = { hn_mapping[3], hn_mapping[4], hn_mapping[6] };
+  this->verifyPins(hypergraphs[1], {0},
+    { { node_id[0], node_id[1], node_id[2] } });
+
+  ASSERT_EQ(1, hypergraphs[2].initialNumNodes());
+  ASSERT_EQ(0, hypergraphs[2].initialNumEdges());
+  ASSERT_EQ(0, hypergraphs[2].initialNumPins());
+  ASSERT_EQ(0, hypergraphs[2].maxEdgeSize());
+
+  this->verifyPins(hypergraphs[2], { }, { });
 }
 
 TYPED_TEST(APartitionedHypergraph, ExtractBlockZeroWithCommunityInformation) {

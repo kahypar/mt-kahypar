@@ -76,6 +76,7 @@ std::string serialize(const PartitionedHypergraph& hypergraph,
         << " community_low_memory_contraction=" << context.preprocessing.community_detection.low_memory_contraction;
     oss << " coarsening_algorithm=" << context.coarsening.algorithm
         << " coarsening_contraction_limit_multiplier=" << context.coarsening.contraction_limit_multiplier
+        << " coarsening_deep_ml_contraction_limit_multiplier=" << context.coarsening.deep_ml_contraction_limit_multiplier
         << " coarsening_use_adaptive_edge_size=" << std::boolalpha << context.coarsening.use_adaptive_edge_size
         << " coarsening_max_allowed_weight_multiplier=" << context.coarsening.max_allowed_weight_multiplier
         << " coarsening_minimum_shrink_factor=" << context.coarsening.minimum_shrink_factor

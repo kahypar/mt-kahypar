@@ -80,7 +80,7 @@ namespace mt_kahypar {
   std::ostream & operator<< (std::ostream& str, const PreprocessingParameters& params) {
     str << "Preprocessing Parameters:" << std::endl;
     str << "  Use Community Detection:            " << std::boolalpha << params.use_community_detection << std::endl;
-    #ifdef USE_GRAPH_PARTITIONER
+    #ifdef ENABLE_GRAPH_PARTITIONER
     str << "  Disable C. D. for Mesh Graphs:      " << std::boolalpha << params.disable_community_detection_for_mesh_graphs << std::endl;
     #endif
     if (params.use_community_detection) {
@@ -104,6 +104,7 @@ namespace mt_kahypar {
     str << "  Max Allowed Weight Multiplier:      " << params.max_allowed_weight_multiplier << std::endl;
     str << "  Maximum Allowed Hypernode Weight:   " << params.max_allowed_node_weight << std::endl;
     str << "  Contraction Limit Multiplier:       " << params.contraction_limit_multiplier << std::endl;
+    str << "  Deep ML Contraction Limit Multi.:   " << params.deep_ml_contraction_limit_multiplier << std::endl;
     str << "  Contraction Limit:                  " << params.contraction_limit << std::endl;
     str << "  Minimum Shrink Factor:              " << params.minimum_shrink_factor << std::endl;
     str << "  Maximum Shrink Factor:              " << params.maximum_shrink_factor << std::endl;
@@ -186,13 +187,13 @@ namespace mt_kahypar {
     str << "Refinement Parameters:" << std::endl;
     str << "  Refine Until No Improvement:        " << std::boolalpha << params.refine_until_no_improvement << std::endl;
     str << "  Relative Improvement Threshold:     " << params.relative_improvement_threshold << std::endl;
-#ifdef USE_STRONG_PARTITIONER
+#ifdef ENABLE_QUALITY_PRESET
     str << "  Maximum Batch Size:                 " << params.max_batch_size << std::endl;
     str << "  Min Border Vertices Per Thread:     " << params.min_border_vertices_per_thread << std::endl;
 #endif
     str << "\n" << params.label_propagation;
     str << "\n" << params.fm;
-#ifdef USE_STRONG_PARTITIONER
+#ifdef ENABLE_QUALITY_PRESET
     str << "\n" << params.global_fm;
 #endif
     str << "\n" << params.flows;

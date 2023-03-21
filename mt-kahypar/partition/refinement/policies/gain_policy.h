@@ -35,6 +35,7 @@
 
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/metrics.h"
+#include "mt-kahypar/datastructures/sparse_map.h"
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/utils/randomize.h"
@@ -45,18 +46,22 @@ template <class Derived = Mandatory,
           class HyperGraph = Mandatory>
 class GainPolicy : public kahypar::meta::PolicyBase {
   using DeltaGain = tbb::enumerable_thread_specific<Gain>;
-  using TmpScores = tbb::enumerable_thread_specific<parallel::scalable_vector<Gain> >;
 
  public:
+  using RatingMap = ds::SparseMap<PartitionID, Gain>;
+  using TmpScores = tbb::enumerable_thread_specific<RatingMap>;
+
   GainPolicy(const Context& context) :
     _context(context),
     _deltas(0),
-    _tmp_scores(context.partition.k, 0) { }
+    _tmp_scores(context.partition.k) { }
 
   Move computeMaxGainMove(const HyperGraph& hypergraph,
                           const HypernodeID hn,
-                          const bool rebalance = false) {
-    return static_cast<Derived*>(this)->computeMaxGainMoveImpl(hypergraph, hn, rebalance);
+                          const bool rebalance = false,
+                          const bool consider_non_adjacent_blocks = false) {
+    return static_cast<Derived*>(this)->computeMaxGainMoveImpl(
+      hypergraph, hn, rebalance, consider_non_adjacent_blocks);
   }
 
   inline void computeDeltaForHyperedge(const HyperedgeID he,
@@ -95,7 +100,7 @@ class GainPolicy : public kahypar::meta::PolicyBase {
   void changeNumberOfBlocks(const PartitionID new_k) {
     for ( auto& tmp_score : _tmp_scores ) {
       if ( static_cast<size_t>(new_k) > tmp_score.size() ) {
-        tmp_score.assign(new_k, 0);
+        tmp_score = RatingMap(new_k);
       }
     }
   }
@@ -109,6 +114,7 @@ class GainPolicy : public kahypar::meta::PolicyBase {
 template <class HyperGraph = Mandatory>
 class Km1Policy : public GainPolicy<Km1Policy<HyperGraph>, HyperGraph> {
   using Base = GainPolicy<Km1Policy<HyperGraph>, HyperGraph>;
+  using RatingMap = typename Base::RatingMap;
 
   static constexpr bool enable_heavy_assert = false;
 
@@ -120,18 +126,12 @@ class Km1Policy : public GainPolicy<Km1Policy<HyperGraph>, HyperGraph> {
 
   Move computeMaxGainMoveImpl(const HyperGraph& hypergraph,
                               const HypernodeID hn,
-                              const bool rebalance) {
-    HEAVY_REFINEMENT_ASSERT([&] {
-        for (PartitionID k = 0; k < _context.partition.k; ++k) {
-          if (_tmp_scores.local()[k] != 0) {
-            return false;
-          }
-        }
-        return true;
-      } (), "Scores and valid parts not correctly reset");
+                              const bool rebalance,
+                              const bool consider_non_adjacent_blocks) {
+    RatingMap& tmp_scores = _tmp_scores.local();
+    ASSERT(tmp_scores.size() == 0, "Rating map not empty");
 
     PartitionID from = hypergraph.partID(hn);
-    parallel::scalable_vector<Gain>& tmp_scores = _tmp_scores.local();
     Gain internal_weight = 0;
     for (const HyperedgeID& he : hypergraph.incidentEdges(hn)) {
       HypernodeID pin_count_in_from_part = hypergraph.pinCountInPart(he, from);
@@ -161,21 +161,53 @@ class Km1Policy : public GainPolicy<Km1Policy<HyperGraph>, HyperGraph> {
     HypernodeWeight hn_weight = hypergraph.nodeWeight(hn);
     int cpu_id = SCHED_GETCPU;
     utils::Randomize& rand = utils::Randomize::instance();
-    for (PartitionID to = 0; to < _context.partition.k; ++to) {
+    auto test_and_apply = [&](const PartitionID to,
+                              const Gain score,
+                              const bool no_tie_breaking = false) {
+      bool new_best_gain = (score < best_move.gain) ||
+                            (score == best_move.gain &&
+                            !_disable_randomization &&
+                            (no_tie_breaking || rand.flipCoin(cpu_id)));
+      if (new_best_gain && hypergraph.partWeight(to) + hn_weight <=
+          _context.partition.max_part_weights[to]) {
+        best_move.to = to;
+        best_move.gain = score;
+        return true;
+      } else {
+        return false;
+      }
+    };
+
+    for ( const auto& entry : tmp_scores ) {
+      const PartitionID to = entry.key;
       if (from != to) {
-        Gain score = tmp_scores[to] + internal_weight;
-        bool new_best_gain = (score < best_move.gain) ||
-                             (score == best_move.gain &&
-                              !_disable_randomization &&
-                              rand.flipCoin(cpu_id));
-        if (new_best_gain &&
-            hypergraph.partWeight(to) + hn_weight <= _context.partition.max_part_weights[to]) {
-          best_move.to = to;
-          best_move.gain = score;
+        const Gain score = entry.value + internal_weight;
+        test_and_apply(to, score);
+      }
+    }
+
+    if ( consider_non_adjacent_blocks && best_move.from == from ) {
+      // This is important for our rebalancer as the last fallback strategy
+      vec<PartitionID> non_adjacent_block;
+      for ( PartitionID to = 0; to < _context.partition.k; ++to ) {
+        if ( from != to && !tmp_scores.contains(to) ) {
+          // This block is not adjacent to the current node
+          if ( test_and_apply(to, internal_weight, true /* no tie breaking */ ) ) {
+            non_adjacent_block.push_back(to);
+          }
         }
       }
-      tmp_scores[to] = 0;
+
+      if ( non_adjacent_block.size() > 0 ) {
+        // Choose one at random
+        const PartitionID to = non_adjacent_block[
+          rand.getRandomInt(0, static_cast<int>(non_adjacent_block.size() - 1), cpu_id)];
+        best_move.to = to;
+        best_move.gain = internal_weight;
+      }
     }
+
+    tmp_scores.clear();
     return best_move;
   }
 
@@ -198,6 +230,7 @@ class Km1Policy : public GainPolicy<Km1Policy<HyperGraph>, HyperGraph> {
 template <class HyperGraph = Mandatory>
 class CutPolicy : public GainPolicy<CutPolicy<HyperGraph>, HyperGraph> {
   using Base = GainPolicy<CutPolicy<HyperGraph>, HyperGraph>;
+  using RatingMap = typename Base::RatingMap;
 
   static constexpr bool enable_heavy_assert = false;
 
@@ -209,18 +242,12 @@ class CutPolicy : public GainPolicy<CutPolicy<HyperGraph>, HyperGraph> {
 
   Move computeMaxGainMoveImpl(const HyperGraph& hypergraph,
                               const HypernodeID hn,
-                              const bool rebalance) {
-    HEAVY_REFINEMENT_ASSERT([&] {
-        for (PartitionID k = 0; k < _context.partition.k; ++k) {
-          if (_tmp_scores.local()[k] != 0) {
-            return false;
-          }
-        }
-        return true;
-      } (), "Scores and valid parts not correctly reset");
+                              const bool rebalance,
+                              const bool consider_non_adjacent_blocks) {
+    RatingMap& tmp_scores = _tmp_scores.local();
+    ASSERT(tmp_scores.size() == 0, "Rating map not empty");
 
     PartitionID from = hypergraph.partID(hn);
-    parallel::scalable_vector<Gain>& tmp_scores = _tmp_scores.local();
     Gain internal_weight = 0;
     for (const HyperedgeID& he : hypergraph.incidentEdges(hn)) {
       PartitionID connectivity = hypergraph.connectivity(he);
@@ -248,21 +275,53 @@ class CutPolicy : public GainPolicy<CutPolicy<HyperGraph>, HyperGraph> {
     HypernodeWeight hn_weight = hypergraph.nodeWeight(hn);
     int cpu_id = SCHED_GETCPU;
     utils::Randomize& rand = utils::Randomize::instance();
-    for (PartitionID to = 0; to < _context.partition.k; ++to) {
+    auto test_and_apply = [&](const PartitionID to,
+                              const Gain score,
+                              const bool no_tie_breaking = false) {
+      bool new_best_gain = (score < best_move.gain) ||
+                            (score == best_move.gain &&
+                            !_disable_randomization &&
+                            (no_tie_breaking || rand.flipCoin(cpu_id)));
+      if (new_best_gain && hypergraph.partWeight(to) + hn_weight <=
+          _context.partition.max_part_weights[to]) {
+        best_move.to = to;
+        best_move.gain = score;
+        return true;
+      } else {
+        return false;
+      }
+    };
+
+    for ( const auto& entry : tmp_scores ) {
+      const PartitionID to = entry.key;
       if (from != to) {
-        Gain score = tmp_scores[to] + internal_weight;
-        bool new_best_gain = (score < best_move.gain) ||
-                             (score == best_move.gain &&
-                              !_disable_randomization &&
-                              rand.flipCoin(cpu_id));
-        if (new_best_gain && hypergraph.partWeight(to) + hn_weight <=
-            _context.partition.max_part_weights[to]) {
-          best_move.to = to;
-          best_move.gain = score;
+        const Gain score = entry.value + internal_weight;
+        test_and_apply(to, score);
+      }
+    }
+
+    if ( consider_non_adjacent_blocks && best_move.from == from ) {
+      // This is important for our rebalancer as the last fallback strategy
+      vec<PartitionID> non_adjacent_block;
+      for ( PartitionID to = 0; to < _context.partition.k; ++to ) {
+        if ( from != to && !tmp_scores.contains(to) ) {
+          // This block is not adjacent to the current node
+          if ( test_and_apply(to, internal_weight, true /* no tie breaking */ ) ) {
+            non_adjacent_block.push_back(to);
+          }
         }
       }
-      tmp_scores[to] = 0;
+
+      if ( non_adjacent_block.size() > 0 ) {
+        // Choose one at random
+        const PartitionID to = non_adjacent_block[
+          rand.getRandomInt(0, static_cast<int>(non_adjacent_block.size() - 1), cpu_id)];
+        best_move.to = to;
+        best_move.gain = internal_weight;
+      }
     }
+
+    tmp_scores.clear();
     return best_move;
   }
 

@@ -33,7 +33,7 @@
 
 namespace mt_kahypar {
 struct PartitioningParameters {
-  #ifdef USE_STRONG_PARTITIONER
+  #ifdef ENABLE_QUALITY_PRESET
   Paradigm paradigm = Paradigm::nlevel;
   #else
   Paradigm paradigm = Paradigm::multilevel;
@@ -112,6 +112,7 @@ struct CoarseningParameters {
   CoarseningAlgorithm algorithm = CoarseningAlgorithm::UNDEFINED;
   RatingParameters rating = { };
   HypernodeID contraction_limit_multiplier = std::numeric_limits<HypernodeID>::max();
+  HypernodeID deep_ml_contraction_limit_multiplier = std::numeric_limits<HypernodeID>::max();
   bool use_adaptive_edge_size = false;
   double max_allowed_weight_multiplier = std::numeric_limits<double>::max();
   double minimum_shrink_factor = std::numeric_limits<double>::max();

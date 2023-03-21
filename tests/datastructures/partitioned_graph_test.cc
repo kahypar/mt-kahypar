@@ -329,6 +329,35 @@ TYPED_TEST(APartitionedGraph, ExtractBlockTwo) {
     { {mapping[5], mapping[6]}, {mapping[5], mapping[6]} });
 }
 
+TYPED_TEST(APartitionedGraph, ExtractsAllBlocks) {
+  auto extracted_hg = this->partitioned_hypergraph.extractAllBlocks(3, true, true);
+  auto& graphs = extracted_hg.first;
+  auto& mapping = extracted_hg.second;
+
+  ASSERT_EQ(3, graphs[0].initialNumNodes());
+  ASSERT_EQ(2, graphs[0].initialNumEdges());
+  ASSERT_EQ(2, graphs[0].initialNumPins());
+  ASSERT_EQ(2, graphs[0].maxEdgeSize());
+
+  this->verifyPins(graphs[0], {0, 1},
+    { {mapping[1], mapping[2]}, {mapping[1], mapping[2]} });
+
+  ASSERT_EQ(2, graphs[1].initialNumNodes());
+  ASSERT_EQ(0, graphs[1].initialNumEdges());
+  ASSERT_EQ(0, graphs[1].initialNumPins());
+  ASSERT_EQ(2, graphs[1].maxEdgeSize());
+
+  this->verifyPins(graphs[1], {}, { });
+
+  ASSERT_EQ(2, graphs[2].initialNumNodes());
+  ASSERT_EQ(2, graphs[2].initialNumEdges());
+  ASSERT_EQ(2, graphs[2].initialNumPins());
+  ASSERT_EQ(2, graphs[2].maxEdgeSize());
+
+  this->verifyPins(graphs[2], {0, 1},
+    { {mapping[5], mapping[6]}, {mapping[5], mapping[6]} });
+}
+
 TYPED_TEST(APartitionedGraph, ExtractBlockZeroWithCommunityInformation) {
   this->hypergraph.setCommunityID(0, 0);
   this->hypergraph.setCommunityID(1, 1);

@@ -100,7 +100,8 @@ namespace mt_kahypar::metrics {
         num_empty_parts++;
       }
     }
-    return num_empty_parts <= phg.numRemovedHypernodes();
+    return context.partition.preset_type == PresetType::large_k ||
+      num_empty_parts <= phg.numRemovedHypernodes();
   }
 
   HyperedgeWeight objective(const PartitionedHypergraph& hg, const Objective& objective,
