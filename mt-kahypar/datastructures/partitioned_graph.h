@@ -709,7 +709,6 @@ private:
 
   // ! Only for testing
   HyperedgeWeight moveToBenefitRecomputed(const HypernodeID u, PartitionID p) const {
-    PartitionID part_id = partID(u);
     HyperedgeWeight w = 0;
     for (HyperedgeID e : incidentEdges(u)) {
       if (!isSinglePin(e) && partID(edgeTarget(e)) == p) {

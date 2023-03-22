@@ -31,7 +31,6 @@
 #include <mt-kahypar/partition/context.h>
 #include <mt-kahypar/partition/metrics.h>
 
-#include "mt-kahypar/definitions.h"
 #include "mt-kahypar/datastructures/sparse_map.h"
 #include "mt-kahypar/partition/refinement/fm/fm_commons.h"
 #include "mt-kahypar/partition/refinement/fm/stop_rule.h"
@@ -39,8 +38,12 @@
 namespace mt_kahypar {
 
 
-template<typename FMStrategy>
+template<typename TypeTraits, typename FMStrategy>
 class LocalizedKWayFM {
+
+  using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
+  using DeltaPartitionedHypergraph = typename TypeTraits::DeltaPartitionedHypergraph;
+
 public:
   explicit LocalizedKWayFM(const Context& context,
                            const HypernodeID numNodes,

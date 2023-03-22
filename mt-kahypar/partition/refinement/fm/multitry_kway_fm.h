@@ -38,22 +38,26 @@
 
 namespace mt_kahypar {
 
-template<typename FMStrategy>
+template<typename TypeTraits, typename FMStrategy>
 class MultiTryKWayFM final : public IRefiner {
 
   static constexpr bool debug = false;
   static constexpr bool enable_heavy_assert = false;
 
+  using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
+  using LocalizedFMSearch = LocalizedKWayFM<TypeTraits, FMStrategy>;
+  using Rollback = GlobalRollback<TypeTraits, FMStrategy::maintain_gain_cache_between_rounds>;
 
  public:
 
-  MultiTryKWayFM(const Hypergraph& hypergraph,
+  MultiTryKWayFM(const HypernodeID num_hypernodes,
+                 const HyperedgeID num_hyperedges,
                  const Context& c) :
-    initial_num_nodes(hypergraph.initialNumNodes()),
+    initial_num_nodes(num_hypernodes),
     context(c),
     current_k(c.partition.k),
-    sharedData(hypergraph.initialNumNodes(), context),
-    globalRollback(hypergraph, context),
+    sharedData(num_hypernodes, context),
+    globalRollback(num_hyperedges, context),
     ets_fm([&] { return constructLocalizedKWayFMSearch(); })
   {
     if (context.refinement.fm.obey_minimal_parallelism) {
@@ -75,8 +79,8 @@ class MultiTryKWayFM final : public IRefiner {
                            const vec<HypernodeID>& refinement_nodes);
 
 
-  LocalizedKWayFM<FMStrategy> constructLocalizedKWayFMSearch() {
-    return LocalizedKWayFM<FMStrategy>(context, initial_num_nodes, sharedData);
+  LocalizedFMSearch constructLocalizedKWayFMSearch() {
+    return LocalizedFMSearch(context, initial_num_nodes, sharedData);
   }
 
   static double improvementFraction(Gain gain, HyperedgeWeight old_km1) {
@@ -94,8 +98,8 @@ class MultiTryKWayFM final : public IRefiner {
   const Context& context;
   PartitionID current_k;
   FMSharedData sharedData;
-  GlobalRollback globalRollback;
-  tbb::enumerable_thread_specific<LocalizedKWayFM<FMStrategy>> ets_fm;
+  Rollback globalRollback;
+  tbb::enumerable_thread_specific<LocalizedFMSearch> ets_fm;
 };
 
 } // namespace mt_kahypar

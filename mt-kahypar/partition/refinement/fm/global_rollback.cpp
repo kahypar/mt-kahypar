@@ -27,11 +27,14 @@
 #include "mt-kahypar/partition/refinement/fm/global_rollback.h"
 
 #include "tbb/parallel_scan.h"
+
+#include "mt-kahypar/one_definitions.h"
 #include "mt-kahypar/partition/metrics.h"
 #include "mt-kahypar/utils/timer.h"
 
 namespace mt_kahypar {
 
+  template<typename PartitionedHypergraph>
   struct BalanceAndBestIndexScan {
     const PartitionedHypergraph& phg;
     const vec<Move>& moves;
@@ -148,32 +151,8 @@ namespace mt_kahypar {
     }
   };
 
-  template<bool update_gain_cache>
-  HyperedgeWeight GlobalRollback::revertToBestPrefix(
-          PartitionedHypergraph& phg, FMSharedData& sharedData,
-          const vec<HypernodeWeight>& partWeights) {
-    std::vector<HypernodeWeight> maxPartWeights = context.partition.perfect_balance_part_weights;
-    if (max_part_weight_scaling == 0.0) {
-      for (PartitionID i = 0; i < context.partition.k; ++i) {
-        maxPartWeights[i] = std::numeric_limits<HypernodeWeight>::max();
-      }
-    } else {
-      for (PartitionID i = 0; i < context.partition.k; ++i) {
-        maxPartWeights[i] *= ( 1.0 + context.partition.epsilon * max_part_weight_scaling );
-      }
-    }
-
-    if (context.refinement.fm.rollback_parallel) {
-      return revertToBestPrefixParallel<update_gain_cache>(phg, sharedData, partWeights, maxPartWeights);
-    } else {
-      return revertToBestPrefixSequential<update_gain_cache>(phg, sharedData, partWeights, maxPartWeights);
-    }
-
-  }
-
-
-  template<bool update_gain_cache>
-  HyperedgeWeight GlobalRollback::revertToBestPrefixParallel(
+  template<typename TypeTraits, bool update_gain_cache>
+  HyperedgeWeight GlobalRollback<TypeTraits, update_gain_cache>::revertToBestPrefixParallel(
           PartitionedHypergraph& phg, FMSharedData& sharedData,
           const vec<HypernodeWeight>& partWeights, const std::vector<HypernodeWeight>& maxPartWeights) {
     const MoveID numMoves = sharedData.moveTracker.numPerformedMoves();
@@ -182,17 +161,17 @@ namespace mt_kahypar {
     const vec<Move>& move_order = sharedData.moveTracker.moveOrder;
 
     recalculateGains(phg, sharedData);
-    HEAVY_REFINEMENT_ASSERT(verifyGains<update_gain_cache>(phg, sharedData));
+    HEAVY_REFINEMENT_ASSERT(verifyGains(phg, sharedData));
 
-    BalanceAndBestIndexScan s(phg, move_order, partWeights, maxPartWeights);
+    BalanceAndBestIndexScan<PartitionedHypergraph> s(phg, move_order, partWeights, maxPartWeights);
     // TODO set grain size in blocked_range? to avoid too many copies of part weights array. experiment with different values
     tbb::parallel_scan(tbb::blocked_range<MoveID>(0, numMoves), s);
-    BalanceAndBestIndexScan::Prefix b = s.finalize(partWeights);
+    typename BalanceAndBestIndexScan<PartitionedHypergraph>::Prefix b = s.finalize(partWeights);
 
     tbb::parallel_for(b.best_index, numMoves, [&](const MoveID moveID) {
       const Move& m = move_order[moveID];
       if (m.isValid()) {
-        moveVertex<update_gain_cache>(phg, m.node, m.to, m.from);
+        moveVertex(phg, m.node, m.to, m.from);
       }
     });
 
@@ -209,8 +188,8 @@ namespace mt_kahypar {
     return b.gain;
   }
 
-
-  void GlobalRollback::recalculateGains(PartitionedHypergraph& phg, FMSharedData& sharedData) {
+  template<typename TypeTraits, bool update_gain_cache>
+  void GlobalRollback<TypeTraits, update_gain_cache>::recalculateGains(PartitionedHypergraph& phg, FMSharedData& sharedData) {
     GlobalMoveTracker& tracker = sharedData.moveTracker;
 
     auto recalculate_and_distribute_for_hyperedge = [&](const HyperedgeID e) {
@@ -294,8 +273,9 @@ namespace mt_kahypar {
     }
   }
 
-  template<bool update_gain_cache>
-  HyperedgeWeight GlobalRollback::revertToBestPrefixSequential(PartitionedHypergraph& phg,
+  template<typename TypeTraits, bool update_gain_cache>
+  HyperedgeWeight GlobalRollback<TypeTraits, update_gain_cache>::revertToBestPrefixSequential(
+                                               PartitionedHypergraph& phg,
                                                FMSharedData& sharedData,
                                                const vec<HypernodeWeight>&,
                                                const std::vector<HypernodeWeight>& maxPartWeights) {
@@ -308,7 +288,7 @@ namespace mt_kahypar {
     tbb::parallel_for(0U, numMoves, [&](const MoveID localMoveID) {
       const Move& m = move_order[localMoveID];
       if (m.isValid()) {
-        moveVertex<update_gain_cache>(phg, m.node, m.to, m.from);
+        moveVertex(phg, m.node, m.to, m.from);
       }
     });
 
@@ -342,7 +322,7 @@ namespace mt_kahypar {
 
       const bool from_overloaded = phg.partWeight(m.from) > maxPartWeights[m.from];
       const bool to_overloaded = phg.partWeight(m.to) > maxPartWeights[m.to];
-      moveVertex<update_gain_cache>(phg, m.node, m.from, m.to);
+      moveVertex(phg, m.node, m.from, m.to);
       if (from_overloaded && phg.partWeight(m.from) <= maxPartWeights[m.from]) {
         overloaded--;
       }
@@ -364,7 +344,7 @@ namespace mt_kahypar {
     tbb::parallel_for(best_index, numMoves, [&](const MoveID i) {
       const Move& m = move_order[i];
       if (m.isValid()) {
-        moveVertex<update_gain_cache>(phg, m.node, m.to, m.from);
+        moveVertex(phg, m.node, m.to, m.from);
       }
     });
 
@@ -380,9 +360,8 @@ namespace mt_kahypar {
   }
 
 
-
-  template<bool update_gain_cache>
-  bool GlobalRollback::verifyGains(PartitionedHypergraph& phg, FMSharedData& sharedData) {
+  template<typename TypeTraits, bool update_gain_cache>
+  bool GlobalRollback<TypeTraits, update_gain_cache>::verifyGains(PartitionedHypergraph& phg, FMSharedData& sharedData) {
     vec<Move>& move_order = sharedData.moveTracker.moveOrder;
 
     auto recompute_move_from_benefits = [&] {
@@ -400,7 +379,7 @@ namespace mt_kahypar {
     for (MoveID localMoveID = 0; localMoveID < sharedData.moveTracker.numPerformedMoves(); ++localMoveID) {
       const Move& m = sharedData.moveTracker.moveOrder[localMoveID];
       if (m.isValid()) {
-        moveVertex<update_gain_cache>(phg, m.node, m.to, m.from);
+        moveVertex(phg, m.node, m.to, m.from);
       }
     }
 
@@ -426,7 +405,7 @@ namespace mt_kahypar {
       }
 
       const HyperedgeWeight km1_before_move = metrics::km1(phg, false);
-      moveVertex<update_gain_cache>(phg, m.node, m.from, m.to);
+      moveVertex(phg, m.node, m.from, m.to);
       const HyperedgeWeight km1_after_move = metrics::km1(phg, false);
 
       ASSERT(km1_after_move + gain == km1_before_move);
@@ -439,18 +418,11 @@ namespace mt_kahypar {
     return true;
   }
 
+  namespace {
+  #define GLOBAL_ROLLBACK_TRUE(X) GlobalRollback<X, true>
+  #define GLOBAL_ROLLBACK_FALSE(X) GlobalRollback<X, false>
+  }
 
-  // template instantiations
-  template HyperedgeWeight GlobalRollback::revertToBestPrefix<false>
-          (PartitionedHypergraph& , FMSharedData& , const vec<HypernodeWeight>& );
-
-  template HyperedgeWeight GlobalRollback::revertToBestPrefix<true>
-          (PartitionedHypergraph& , FMSharedData& , const vec<HypernodeWeight>& );
-
-  template bool GlobalRollback::verifyGains<false>
-          (PartitionedHypergraph& , FMSharedData& );
-
-  template bool GlobalRollback::verifyGains<true>
-          (PartitionedHypergraph& , FMSharedData& );
-
+  INSTANTIATE_CLASS_WITH_TYPE_TRAITS(GLOBAL_ROLLBACK_TRUE)
+  INSTANTIATE_CLASS_WITH_TYPE_TRAITS(GLOBAL_ROLLBACK_FALSE)
 }

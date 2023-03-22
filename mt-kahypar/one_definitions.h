@@ -108,7 +108,6 @@ using TypeTraitsList = kahypar::meta::Typelist<StaticGraphTypeTraits,
   template class C(DynamicHypergraphTypeTraits);    \
   template class C(LargeKHypergraphTypeTraits);
 
-
 using HighResClockTimepoint = std::chrono::time_point<std::chrono::high_resolution_clock>;
 
 }  // namespace mt_kahypar

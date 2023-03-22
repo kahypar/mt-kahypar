@@ -34,11 +34,6 @@
 #include "mt-kahypar/partition/refinement/flows/flow_refiner.h"
 #include "mt-kahypar/partition/refinement/label_propagation/label_propagation_refiner.h"
 #include "mt-kahypar/partition/refinement/deterministic/deterministic_label_propagation.h"
-#include "mt-kahypar/partition/refinement/fm/multitry_kway_fm.h"
-#include "mt-kahypar/partition/refinement/fm/strategies/gain_cache_strategy.h"
-#include "mt-kahypar/partition/refinement/fm/strategies/gain_delta_strategy.h"
-#include "mt-kahypar/partition/refinement/fm/strategies/recompute_gain_strategy.h"
-#include "mt-kahypar/partition/refinement/fm/strategies/gain_cache_on_demand_strategy.h"
 
 #define REGISTER_DISPATCHED_LP_REFINER(id, dispatcher, ...)                                            \
   static kahypar::meta::Registrar<LabelPropagationFactory> register_ ## dispatcher(                    \
@@ -54,21 +49,31 @@
   static kahypar::meta::Registrar<LabelPropagationFactory> JOIN(register_ ## refiner, t)(                          \
     id,                                                                                                            \
     [](const HypernodeID num_hypernodes, const HyperedgeID num_hyperedges, const Context& context) -> IRefiner* {  \
-    return new refiner(num_hypernodes, num_hyperedges, context);                                                                       \
+    return new refiner(num_hypernodes, num_hyperedges, context);                                                   \
   })
 
-#define REGISTER_FM_REFINER(id, refiner, t)                                                     \
-  static kahypar::meta::Registrar<FMFactory> JOIN(register_ ## refiner, t)(                     \
+#define REGISTER_DISPATCHED_FM_REFINER(id, dispatcher, ...)                                            \
+  static kahypar::meta::Registrar<FMFactory> register_ ## dispatcher(                                  \
+    id,                                                                                                \
+    [](const HypernodeID num_hypernodes, const HyperedgeID num_hyperedges, const Context& context) {   \
+    return dispatcher::create(                                                                         \
+      std::forward_as_tuple(num_hypernodes, num_hyperedges, context),                                  \
+      __VA_ARGS__                                                                                      \
+      );                                                                                               \
+  })
+
+#define REGISTER_FM_REFINER(id, refiner, t)                                                                        \
+  static kahypar::meta::Registrar<FMFactory> JOIN(register_ ## refiner, t)(                                        \
+    id,                                                                                                            \
+    [](const HypernodeID num_hypernodes, const HyperedgeID num_hyperedges, const Context& context) -> IRefiner* {  \
+    return new refiner(num_hypernodes, num_hyperedges, context);                                                   \
+  })
+
+#define REGISTER_FLOW_REFINER(id, refiner, t)                                                   \
+  static kahypar::meta::Registrar<FlowRefinementFactory> JOIN(register_ ## refiner, t)(         \
     id,                                                                                         \
-    [](Hypergraph& hypergraph, const Context& context) -> IRefiner* {                           \
+    [](const Hypergraph& hypergraph, const Context& context) -> IFlowRefiner* {                 \
     return new refiner(hypergraph, context);                                                    \
-  })
-
-#define REGISTER_FLOW_REFINER(id, refiner, t)                                                 \
-  static kahypar::meta::Registrar<FlowRefinementFactory> JOIN(register_ ## refiner, t)(       \
-    id,                                                                                       \
-    [](const Hypergraph& hypergraph, const Context& context) -> IFlowRefiner* {               \
-    return new refiner(hypergraph, context);                                                  \
   })
 
 namespace mt_kahypar {
@@ -86,14 +91,22 @@ REGISTER_DISPATCHED_LP_REFINER(LabelPropagationAlgorithm::deterministic,
                                 context.partition.trait_type));
 REGISTER_LP_REFINER(LabelPropagationAlgorithm::do_nothing, DoNothingRefiner, 1);
 
-using MultiTryKWayFMWithGainGache = MultiTryKWayFM<GainCacheStrategy>;
-using MultiTryKWayFMWithGainGacheOnDemand = MultiTryKWayFM<GainCacheOnDemandStrategy>;
-using MultiTryKWayFMWithGainDelta = MultiTryKWayFM<GainDeltaStrategy>;
-using MultiTryKWayFMWithGainRecomputation = MultiTryKWayFM<RecomputeGainStrategy>;
-REGISTER_FM_REFINER(FMAlgorithm::fm_gain_cache, MultiTryKWayFMWithGainGache, FMWithGainCache);
-REGISTER_FM_REFINER(FMAlgorithm::fm_gain_cache_on_demand, MultiTryKWayFMWithGainGacheOnDemand, FMWithGainCacheOnDemand);
-REGISTER_FM_REFINER(FMAlgorithm::fm_gain_delta, MultiTryKWayFMWithGainDelta, FMWithGainDelta);
-REGISTER_FM_REFINER(FMAlgorithm::fm_recompute_gain, MultiTryKWayFMWithGainRecomputation, FMWithGainRecomputation);
+REGISTER_DISPATCHED_FM_REFINER(FMAlgorithm::fm_gain_cache,
+                               FMGainCacheDispatcher,
+                               kahypar::meta::PolicyRegistry<TraitTypes>::getInstance().getPolicy(
+                                context.partition.trait_type));
+REGISTER_DISPATCHED_FM_REFINER(FMAlgorithm::fm_gain_cache_on_demand,
+                               FMGainCacheOnDemandDispatcher,
+                               kahypar::meta::PolicyRegistry<TraitTypes>::getInstance().getPolicy(
+                                context.partition.trait_type));
+REGISTER_DISPATCHED_FM_REFINER(FMAlgorithm::fm_gain_delta,
+                               FMGainDeltaDispatcher,
+                               kahypar::meta::PolicyRegistry<TraitTypes>::getInstance().getPolicy(
+                                context.partition.trait_type));
+REGISTER_DISPATCHED_FM_REFINER(FMAlgorithm::fm_recompute_gain,
+                               FMGainRecomputationDispatcher,
+                               kahypar::meta::PolicyRegistry<TraitTypes>::getInstance().getPolicy(
+                                context.partition.trait_type));
 REGISTER_FM_REFINER(FMAlgorithm::do_nothing, DoNothingRefiner, 2);
 
 REGISTER_FLOW_REFINER(FlowAlgorithm::do_nothing, DoNothingFlowRefiner, 3);
