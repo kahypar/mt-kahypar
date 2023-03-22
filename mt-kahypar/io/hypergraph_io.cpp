@@ -47,6 +47,8 @@
 
 
 #include "tbb/parallel_for.h"
+
+#include "mt-kahypar/one_definitions.h"
 #include "mt-kahypar/partition/context_enum_classes.h"
 #include "mt-kahypar/utils/timer.h"
 
@@ -440,38 +442,6 @@ namespace mt_kahypar::io {
     munmap_file(handle);
   }
 
-  void readPartitionFile(const std::string& filename, std::vector<PartitionID>& partition) {
-    ASSERT(!filename.empty(), "No filename for partition file specified");
-    ASSERT(partition.empty(), "Partition vector is not empty");
-    std::ifstream file(filename);
-    if (file) {
-      int part;
-      while (file >> part) {
-        partition.push_back(part);
-      }
-      file.close();
-    } else {
-      std::cerr << "Error: File not found: " << std::endl;
-    }
-  }
-
-  void writePartitionFile(const PartitionedHypergraph& phg, const std::string& filename) {
-    if (filename.empty()) {
-      LOG << "No filename for partition file specified";
-    } else {
-      std::ofstream out_stream(filename.c_str());
-      std::vector<PartitionID> partition(phg.initialNumNodes(), -1);
-      for (const HypernodeID& hn : phg.nodes()) {
-        ASSERT(hn < partition.size());
-        partition[hn] = phg.partID(hn);
-      }
-      for (const PartitionID& part : partition) {
-        out_stream << part << std::endl;
-      }
-      out_stream.close();
-    }
-  }
-
   void readMetisHeader(char* mapped_file,
                        size_t& pos,
                        const size_t length,
@@ -676,5 +646,44 @@ namespace mt_kahypar::io {
 
     munmap_file(handle);
   }
+
+  void readPartitionFile(const std::string& filename, std::vector<PartitionID>& partition) {
+    ASSERT(!filename.empty(), "No filename for partition file specified");
+    ASSERT(partition.empty(), "Partition vector is not empty");
+    std::ifstream file(filename);
+    if (file) {
+      int part;
+      while (file >> part) {
+        partition.push_back(part);
+      }
+      file.close();
+    } else {
+      std::cerr << "Error: File not found: " << std::endl;
+    }
+  }
+
+  template<typename PartitionedHypergraph>
+  void writePartitionFile(const PartitionedHypergraph& phg, const std::string& filename) {
+    if (filename.empty()) {
+      LOG << "No filename for partition file specified";
+    } else {
+      std::ofstream out_stream(filename.c_str());
+      std::vector<PartitionID> partition(phg.initialNumNodes(), -1);
+      for (const HypernodeID& hn : phg.nodes()) {
+        ASSERT(hn < partition.size());
+        partition[hn] = phg.partID(hn);
+      }
+      for (const PartitionID& part : partition) {
+        out_stream << part << std::endl;
+      }
+      out_stream.close();
+    }
+  }
+
+  namespace {
+  #define WRITE_PARTITION_FILE(X) void writePartitionFile(const X& phg, const std::string& filename)
+  }
+
+  INSTANTIATE_FUNC_WITH_PARTITIONED_HG(WRITE_PARTITION_FILE)
 
 } // namespace

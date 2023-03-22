@@ -29,16 +29,17 @@
 
 #include <sstream>
 
-
+#include "mt-kahypar/one_definitions.h"
 #include "mt-kahypar/partition/metrics.h"
 #include "mt-kahypar/utils/utilities.h"
 #include "mt-kahypar/utils/timer.h"
 
 namespace mt_kahypar::io::serializer {
 
+template<typename PartitionedHypergraph>
 std::string serialize(const PartitionedHypergraph& hypergraph,
-                                    const Context& context,
-                                    const std::chrono::duration<double>& elapsed_seconds) {
+                      const Context& context,
+                      const std::chrono::duration<double>& elapsed_seconds) {
   if (context.partition.sp_process_output) {
     std::stringstream oss;
     oss << "RESULT"
@@ -46,7 +47,7 @@ std::string serialize(const PartitionedHypergraph& hypergraph,
         << " graph=" << context.partition.graph_filename.substr(
             context.partition.graph_filename.find_last_of('/') + 1)
         << " numHNs=" << hypergraph.initialNumNodes()
-        << " numHEs=" << (Hypergraph::is_graph ? hypergraph.initialNumEdges() / 2 : hypergraph.initialNumEdges())
+        << " numHEs=" << (PartitionedHypergraph::is_graph ? hypergraph.initialNumEdges() / 2 : hypergraph.initialNumEdges())
         << " paradigm=" << context.partition.paradigm
         << " mode=" << context.partition.mode
         << " objective=" << context.partition.objective
@@ -169,4 +170,13 @@ std::string serialize(const PartitionedHypergraph& hypergraph,
     return "";
   }
 }
+
+namespace {
+#define SERIALIZE(X) std::string serialize(const X& hypergraph,                                  \
+                                           const Context& context,                               \
+                                           const std::chrono::duration<double>& elapsed_seconds)
+} // namespace
+
+INSTANTIATE_FUNC_WITH_PARTITIONED_HG(SERIALIZE)
+
 }  // namespace

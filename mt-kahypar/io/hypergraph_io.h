@@ -29,7 +29,7 @@
 
 #include <string>
 
-#include "mt-kahypar/definitions.h"
+#include "mt-kahypar/datastructures/hypergraph_common.h"
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
 
 namespace mt_kahypar {
@@ -54,6 +54,8 @@ namespace io {
                      vec<HypernodeWeight>& hypernodes_weight);
 
   void readPartitionFile(const std::string& filename, std::vector<PartitionID>& partition);
+
+  template<typename PartitionedHypergraph>
   void writePartitionFile(const PartitionedHypergraph& phg, const std::string& filename);
 
 }  // namespace io

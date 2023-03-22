@@ -29,9 +29,6 @@
 
 #include "tbb/parallel_reduce.h"
 
-#include "mt-kahypar/definitions.h"
-
-
 namespace mt_kahypar {
 namespace utils {
 
@@ -61,6 +58,7 @@ double parallel_avg(const std::vector<T>& data, const size_t n) {
             }, std::plus<double>()) / static_cast<double>(n);
 }
 
+template<typename Hypergraph>
 static inline double avgHyperedgeDegree(const Hypergraph& hypergraph) {
     if (Hypergraph::is_graph) {
         return 2;
@@ -68,6 +66,7 @@ static inline double avgHyperedgeDegree(const Hypergraph& hypergraph) {
     return static_cast<double>(hypergraph.initialNumPins()) / hypergraph.initialNumEdges();
 }
 
+template<typename Hypergraph>
 static inline double avgHypernodeDegree(const Hypergraph& hypergraph) {
     return static_cast<double>(hypergraph.initialNumPins()) / hypergraph.initialNumNodes();
 }

@@ -70,6 +70,7 @@ private:
 
  public:
   static constexpr bool is_static_hypergraph = Hypergraph::is_static_hypergraph;
+  static constexpr bool is_graph = Hypergraph::is_graph;
   static constexpr bool is_partitioned = true;
   static constexpr bool supports_connectivity_set = true;
   static constexpr mt_kahypar_partition_type_t TYPE =

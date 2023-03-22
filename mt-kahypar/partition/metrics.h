@@ -27,7 +27,6 @@
 
 #pragma once
 
-#include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/context.h"
 
 namespace mt_kahypar {
@@ -60,19 +59,24 @@ struct Metrics {
 
 namespace metrics {
 
+template<typename PartitionedHypergraph>
 HyperedgeWeight hyperedgeCut(const PartitionedHypergraph& hypergraph, bool parallel = true);
 
+template<typename PartitionedHypergraph>
 HyperedgeWeight km1(const PartitionedHypergraph& hypergraph, bool parallel = true);
 
+template<typename PartitionedHypergraph>
 HyperedgeWeight soed(const PartitionedHypergraph& hypergraph, bool parallel = true);
 
+template<typename PartitionedHypergraph>
 bool isBalanced(const PartitionedHypergraph& phg, const Context& context);
 
-HyperedgeWeight objective(
-        const PartitionedHypergraph& hg,
-        const Objective& objective,
-        bool parallel = true);
+template<typename PartitionedHypergraph>
+HyperedgeWeight objective(const PartitionedHypergraph& hg,
+                          const Objective& objective,
+                          bool parallel = true);
 
+template<typename PartitionedHypergraph>
 double imbalance(const PartitionedHypergraph& hypergraph, const Context& context);
 
 }  // namespace metrics

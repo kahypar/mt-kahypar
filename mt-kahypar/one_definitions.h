@@ -43,33 +43,39 @@
 
 namespace mt_kahypar {
 
+using StaticPartitionedGraph = ds::PartitionedGraph<ds::StaticGraph>;
+using DynamicPartitionedGraph = ds::PartitionedGraph<ds::DynamicGraph>;
+using StaticPartitionedHypergraph = ds::PartitionedHypergraph<ds::StaticHypergraph, ds::ConnectivityInfo>;
+using StaticSparsePartitionedHypergraph = ds::PartitionedHypergraph<ds::StaticHypergraph, ds::SparseConnectivityInfo>;
+using DynamicPartitionedHypergraph = ds::PartitionedHypergraph<ds::DynamicHypergraph, ds::ConnectivityInfo>;
+
 struct StaticGraphTypeTraits {
   using Hypergraph = ds::StaticGraph;
-  using PartitionedHypergraph = ds::PartitionedGraph<Hypergraph>;
+  using PartitionedHypergraph = StaticPartitionedGraph;
   using DeltaPartitionedHypergraph = ds::DeltaPartitionedGraph<PartitionedHypergraph>;
 };
 
 struct DynamicGraphTypeTraits {
   using Hypergraph = ds::DynamicGraph;
-  using PartitionedHypergraph = ds::PartitionedGraph<Hypergraph>;
+  using PartitionedHypergraph = DynamicPartitionedGraph;
   using DeltaPartitionedHypergraph = ds::DeltaPartitionedGraph<PartitionedHypergraph>;
 };
 
 struct StaticHypergraphTypeTraits {
   using Hypergraph = ds::StaticHypergraph;
-  using PartitionedHypergraph = ds::PartitionedHypergraph<Hypergraph, ds::ConnectivityInfo>;
+  using PartitionedHypergraph = StaticPartitionedHypergraph;
   using DeltaPartitionedHypergraph = ds::DeltaPartitionedHypergraph<PartitionedHypergraph>;
 };
 
 struct DynamicHypergraphTypeTraits {
   using Hypergraph = ds::DynamicHypergraph;
-  using PartitionedHypergraph = ds::PartitionedHypergraph<Hypergraph, ds::ConnectivityInfo>;
+  using PartitionedHypergraph = DynamicPartitionedHypergraph;
   using DeltaPartitionedHypergraph = ds::DeltaPartitionedHypergraph<PartitionedHypergraph>;
 };
 
 struct LargeKHypergraphTypeTraits {
   using Hypergraph = ds::StaticHypergraph;
-  using PartitionedHypergraph = ds::PartitionedHypergraph<Hypergraph, ds::SparseConnectivityInfo>;
+  using PartitionedHypergraph = StaticSparsePartitionedHypergraph;
   using DeltaPartitionedHypergraph = ds::DeltaPartitionedHypergraph<PartitionedHypergraph>;
 };
 
@@ -78,5 +84,15 @@ struct LargeKHypergraphTypeTraits {
   template FUNC(ds::DynamicHypergraph);         \
   template FUNC(ds::StaticGraph);               \
   template FUNC(ds::DynamicGraph);
+
+#define INSTANTIATE_FUNC_WITH_PARTITIONED_HG(FUNC)  \
+  template FUNC(StaticPartitionedGraph);            \
+  template FUNC(DynamicPartitionedGraph);           \
+  template FUNC(StaticPartitionedHypergraph);       \
+  template FUNC(StaticSparsePartitionedHypergraph); \
+  template FUNC(DynamicPartitionedHypergraph);
+
+
+using HighResClockTimepoint = std::chrono::time_point<std::chrono::high_resolution_clock>;
 
 }  // namespace mt_kahypar

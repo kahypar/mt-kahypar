@@ -29,6 +29,9 @@
 
 #include "mt-kahypar/one_definitions.h"
 #include "mt-kahypar/io/partitioning_output.h"
+#include "mt-kahypar/io/hypergraph_io.h"
+#include "mt-kahypar/io/csv_output.h"
+#include "mt-kahypar/io/sql_plottools_serializer.h"
 #include "mt-kahypar/utils/cast.h"
 #include "mt-kahypar/utils/randomize.h"
 
@@ -100,6 +103,94 @@ namespace internal {
         return mt_kahypar_partitioned_hypergraph_t { nullptr, NULLPTR_PARTITION };
     }
     return mt_kahypar_partitioned_hypergraph_t { nullptr, NULLPTR_PARTITION };
+  }
+
+  void PartitionerFacade::printPartitioningResults(const mt_kahypar_partitioned_hypergraph_t phg,
+                                                   const Context& context,
+                                                   const std::chrono::duration<double>& elapsed_seconds) {
+    const mt_kahypar_partition_type_t type = phg.type;
+    switch ( type ) {
+      case STATIC_PARTITIONED_GRAPH:
+        io::printPartitioningResults(utils::cast_const<StaticPartitionedGraph>(phg), context, elapsed_seconds);
+        break;
+      case DYNAMIC_PARTITIONED_GRAPH:
+        io::printPartitioningResults(utils::cast_const<DynamicPartitionedGraph>(phg), context, elapsed_seconds);
+        break;
+      case STATIC_PARTITIONED_HYPERGRAPH:
+        io::printPartitioningResults(utils::cast_const<StaticPartitionedHypergraph>(phg), context, elapsed_seconds);
+        break;
+      case STATIC_SPARSE_PARTITIONED_HYPERGRAPH:
+        io::printPartitioningResults(utils::cast_const<StaticSparsePartitionedHypergraph>(phg), context, elapsed_seconds);
+        break;
+      case DYNAMIC_PARTITIONED_HYPERGRAPH:
+        io::printPartitioningResults(utils::cast_const<DynamicPartitionedHypergraph>(phg), context, elapsed_seconds);
+        break;
+      case NULLPTR_PARTITION: break;
+    }
+  }
+
+  std::string PartitionerFacade::serializeCSV(const mt_kahypar_partitioned_hypergraph_t phg,
+                                              const Context& context,
+                                              const std::chrono::duration<double>& elapsed_seconds) {
+    const mt_kahypar_partition_type_t type = phg.type;
+    switch ( type ) {
+      case STATIC_PARTITIONED_GRAPH:
+        return io::csv::serialize(utils::cast_const<StaticPartitionedGraph>(phg), context, elapsed_seconds);
+        break;
+      case DYNAMIC_PARTITIONED_GRAPH:
+        return io::csv::serialize(utils::cast_const<DynamicPartitionedGraph>(phg), context, elapsed_seconds);
+      case STATIC_PARTITIONED_HYPERGRAPH:
+        return io::csv::serialize(utils::cast_const<StaticPartitionedHypergraph>(phg), context, elapsed_seconds);
+      case STATIC_SPARSE_PARTITIONED_HYPERGRAPH:
+        return io::csv::serialize(utils::cast_const<StaticSparsePartitionedHypergraph>(phg), context, elapsed_seconds);
+      case DYNAMIC_PARTITIONED_HYPERGRAPH:
+        return io::csv::serialize(utils::cast_const<DynamicPartitionedHypergraph>(phg), context, elapsed_seconds);
+      case NULLPTR_PARTITION: return "";
+    }
+    return "";
+  }
+
+  std::string PartitionerFacade::serializeResultLine(const mt_kahypar_partitioned_hypergraph_t phg,
+                                                     const Context& context,
+                                                     const std::chrono::duration<double>& elapsed_seconds) {
+    const mt_kahypar_partition_type_t type = phg.type;
+    switch ( type ) {
+      case STATIC_PARTITIONED_GRAPH:
+        return io::serializer::serialize(utils::cast_const<StaticPartitionedGraph>(phg), context, elapsed_seconds);
+      case DYNAMIC_PARTITIONED_GRAPH:
+        return io::serializer::serialize(utils::cast_const<DynamicPartitionedGraph>(phg), context, elapsed_seconds);
+      case STATIC_PARTITIONED_HYPERGRAPH:
+        return io::serializer::serialize(utils::cast_const<StaticPartitionedHypergraph>(phg), context, elapsed_seconds);
+      case STATIC_SPARSE_PARTITIONED_HYPERGRAPH:
+        return io::serializer::serialize(utils::cast_const<StaticSparsePartitionedHypergraph>(phg), context, elapsed_seconds);
+      case DYNAMIC_PARTITIONED_HYPERGRAPH:
+        return io::serializer::serialize(utils::cast_const<DynamicPartitionedHypergraph>(phg), context, elapsed_seconds);
+      case NULLPTR_PARTITION: return "";
+    }
+    return "";
+  }
+
+  void PartitionerFacade::writePartitionFile(const mt_kahypar_partitioned_hypergraph_t phg,
+                                             const std::string& filename) {
+    const mt_kahypar_partition_type_t type = phg.type;
+    switch ( type ) {
+      case STATIC_PARTITIONED_GRAPH:
+        io::writePartitionFile(utils::cast_const<StaticPartitionedGraph>(phg), filename);
+        break;
+      case DYNAMIC_PARTITIONED_GRAPH:
+        io::writePartitionFile(utils::cast_const<DynamicPartitionedGraph>(phg), filename);
+        break;
+      case STATIC_PARTITIONED_HYPERGRAPH:
+        io::writePartitionFile(utils::cast_const<StaticPartitionedHypergraph>(phg), filename);
+        break;
+      case STATIC_SPARSE_PARTITIONED_HYPERGRAPH:
+        io::writePartitionFile(utils::cast_const<StaticSparsePartitionedHypergraph>(phg), filename);
+        break;
+      case DYNAMIC_PARTITIONED_HYPERGRAPH:
+        io::writePartitionFile(utils::cast_const<DynamicPartitionedHypergraph>(phg), filename);
+        break;
+      case NULLPTR_PARTITION: break;
+    }
   }
 
 }  // namespace mt_kahypar

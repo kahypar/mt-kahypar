@@ -29,8 +29,11 @@
 #include "mt-kahypar/one_definitions.h"
 #include "mt-kahypar/io/command_line_options.h"
 #include "mt-kahypar/io/hypergraph_factory.h"
+#include "mt-kahypar/io/partitioning_output.h"
 #include "mt-kahypar/partition/partitioner_facade.h"
+#include "mt-kahypar/partition/registries/register_memory_pool.h"
 #include "mt-kahypar/utils/cast.h"
+#include "mt-kahypar/utils/delete.h"
 #include "mt-kahypar/utils/randomize.h"
 #include "mt-kahypar/utils/utilities.h"
 
@@ -39,6 +42,9 @@ int main(int argc, char* argv[]) {
   mt_kahypar::Context context(false);
   mt_kahypar::processCommandLineInput(context, argc, argv);
   context.utility_id = mt_kahypar::utils::Utilities::instance().registerNewUtilityObjects();
+  if (context.partition.verbose_output) {
+    mt_kahypar::io::printBanner();
+  }
 
   mt_kahypar::utils::Randomize::instance().setSeed(context.partition.seed);
   if ( context.shared_memory.use_localized_random_shuffle ) {
@@ -73,11 +79,41 @@ int main(int argc, char* argv[]) {
       context.preprocessing.stable_construction_of_incident_edges);
   timer.stop_timer("io_hypergraph");
 
-  mt_kahypar::TBBInitializer::instance().terminate();
+
+  // Initialize Memory Pool
+  mt_kahypar::register_memory_pool(hypergraph, context);
 
   // Partition Hypergraph
+  mt_kahypar::HighResClockTimepoint start = std::chrono::high_resolution_clock::now();
   mt_kahypar_partitioned_hypergraph_t partitioned_hypergraph =
     mt_kahypar::PartitionerFacade::partition(hypergraph, context);
+  mt_kahypar::HighResClockTimepoint end = std::chrono::high_resolution_clock::now();
+
+  // Print Stats
+  std::chrono::duration<double> elapsed_seconds(end - start);
+  mt_kahypar::PartitionerFacade::printPartitioningResults(
+    partitioned_hypergraph, context, elapsed_seconds);
+
+  if ( context.partition.sp_process_output ) {
+    std::cout << mt_kahypar::PartitionerFacade::serializeResultLine(
+      partitioned_hypergraph, context, elapsed_seconds) << std::endl;
+  }
+
+  if ( context.partition.csv_output ) {
+    std::cout << mt_kahypar::PartitionerFacade::serializeCSV(
+      partitioned_hypergraph, context, elapsed_seconds) << std::endl;
+  }
+
+  if (context.partition.write_partition_file) {
+    mt_kahypar::PartitionerFacade::writePartitionFile(
+      partitioned_hypergraph, context.partition.graph_partition_filename);
+  }
+
+  mt_kahypar::parallel::MemoryPool::instance().free_memory_chunks();
+  mt_kahypar::TBBInitializer::instance().terminate();
+
+  mt_kahypar::utils::delete_hypergraph(hypergraph);
+  mt_kahypar::utils::delete_partitioned_hypergraph(partitioned_hypergraph);
 
   return 0;
 }
