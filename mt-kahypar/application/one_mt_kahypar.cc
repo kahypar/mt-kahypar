@@ -3,8 +3,7 @@
  *
  * This file is part of Mt-KaHyPar.
  *
- * Copyright (C) 2019 Lars Gottesbüren <lars.gottesbueren@kit.edu>
- * Copyright (C) 2019 Tobias Heuer <tobias.heuer@kit.edu>
+ * Copyright (C) 2023 Tobias Heuer <tobias.heuer@kit.edu>
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -27,15 +26,9 @@
 
 #include <iostream>
 
-
+#include "mt-kahypar/one_definitions.h"
 #include "mt-kahypar/io/command_line_options.h"
-#include "mt-kahypar/partition/registries/register_memory_pool.h"
 #include "mt-kahypar/io/hypergraph_factory.h"
-#include "mt-kahypar/io/hypergraph_io.h"
-#include "mt-kahypar/io/sql_plottools_serializer.h"
-#include "mt-kahypar/io/csv_output.h"
-#include "mt-kahypar/io/partitioning_output.h"
-#include "mt-kahypar/partition/partitioner.h"
 #include "mt-kahypar/utils/cast.h"
 #include "mt-kahypar/utils/randomize.h"
 #include "mt-kahypar/utils/utilities.h"
@@ -45,9 +38,6 @@ int main(int argc, char* argv[]) {
   mt_kahypar::Context context(false);
   mt_kahypar::processCommandLineInput(context, argc, argv);
   context.utility_id = mt_kahypar::utils::Utilities::instance().registerNewUtilityObjects();
-  if (context.partition.verbose_output) {
-    mt_kahypar::io::printBanner();
-  }
 
   mt_kahypar::utils::Randomize::instance().setSeed(context.partition.seed);
   if ( context.shared_memory.use_localized_random_shuffle ) {
@@ -76,39 +66,14 @@ int main(int argc, char* argv[]) {
   mt_kahypar::utils::Timer& timer =
     mt_kahypar::utils::Utilities::instance().getTimer(context.utility_id);
   timer.start_timer("io_hypergraph", "I/O Hypergraph");
-  mt_kahypar::Hypergraph hypergraph =
-    mt_kahypar::io::readInputFile<mt_kahypar::Hypergraph>(
-      context.partition.graph_filename, context.partition.file_format,
+  mt_kahypar_hypergraph_t hypergraph = mt_kahypar::io::readInputFile(
+      context.partition.graph_filename, context.partition.preset_type,
+      context.partition.instance_type, context.partition.file_format,
       context.preprocessing.stable_construction_of_incident_edges);
   timer.stop_timer("io_hypergraph");
 
-  // Initialize Memory Pool
-  mt_kahypar::register_memory_pool(hypergraph, context);
-
-  // Partition Hypergraph
-  mt_kahypar::HighResClockTimepoint start = std::chrono::high_resolution_clock::now();
-  mt_kahypar::PartitionedHypergraph partitioned_hypergraph = mt_kahypar::partition(hypergraph, context);
-  mt_kahypar::HighResClockTimepoint end = std::chrono::high_resolution_clock::now();
-
-  // Print Stats
-  std::chrono::duration<double> elapsed_seconds(end - start);
-  mt_kahypar::io::printPartitioningResults(partitioned_hypergraph, context, elapsed_seconds);
-
-
-  if ( context.partition.sp_process_output ) {
-    std::cout << mt_kahypar::io::serializer::serialize(partitioned_hypergraph, context, elapsed_seconds) << std::endl;
-  }
-
-  if ( context.partition.csv_output ) {
-    std::cout << mt_kahypar::io::csv::serialize(partitioned_hypergraph, context, elapsed_seconds) << std::endl;
-  }
-
-  if (context.partition.write_partition_file) {
-    mt_kahypar::io::writePartitionFile(partitioned_hypergraph, context.partition.graph_partition_filename);
-  }
-
-  mt_kahypar::parallel::MemoryPool::instance().free_memory_chunks();
   mt_kahypar::TBBInitializer::instance().terminate();
+
 
   return 0;
 }

@@ -3,8 +3,7 @@
  *
  * This file is part of Mt-KaHyPar.
  *
- * Copyright (C) 2019 Lars Gottesbüren <lars.gottesbueren@kit.edu>
- * Copyright (C) 2019 Tobias Heuer <tobias.heuer@kit.edu>
+ * Copyright (C) 2023 Tobias Heuer <tobias.heuer@kit.edu>
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -29,32 +28,26 @@
 
 #include <string>
 
-#include "mt-kahypar/definitions.h"
-#include "mt-kahypar/parallel/stl/scalable_vector.h"
+#include "include/libmtkahypartypes.h"
+
+#include "mt-kahypar/partition/context_enum_classes.h"
+#include "mt-kahypar/utils/cast.h"
 
 namespace mt_kahypar {
 namespace io {
-  using Hyperedge = vec<HypernodeID>;
-  using HyperedgeVector = vec<Hyperedge>;
 
-  void readHypergraphFile(const std::string& filename,
-                          HyperedgeID& num_hyperedges,
-                          HypernodeID& num_hypernodes,
-                          HyperedgeID& num_removed_single_pin_hyperedges,
-                          HyperedgeVector& hyperedges,
-                          vec<HyperedgeWeight>& hyperedges_weight,
-                          vec<HypernodeWeight>& hypernodes_weight,
-                          const bool remove_single_pin_hes = true);
+mt_kahypar_hypergraph_t readInputFile(const std::string& filename,
+                                      const PresetType& preset,
+                                      const InstanceType& instance,
+                                      const FileFormat& format,
+                                      const bool stable_construction = false,
+                                      const bool remove_single_pin_hes = true);
 
-  void readGraphFile(const std::string& filename,
-                     HyperedgeID& num_hyperedges,
-                     HypernodeID& num_hypernodes,
-                     HyperedgeVector& hyperedges,
-                     vec<HyperedgeWeight>& hyperedges_weight,
-                     vec<HypernodeWeight>& hypernodes_weight);
-
-  void readPartitionFile(const std::string& filename, std::vector<PartitionID>& partition);
-  void writePartitionFile(const PartitionedHypergraph& phg, const std::string& filename);
+template<typename Hypergraph>
+Hypergraph readInputFile(const std::string& filename,
+                         const FileFormat& format,
+                         const bool stable_construction = false,
+                         const bool remove_single_pin_hes = true);
 
 }  // namespace io
 }  // namespace mt_kahypar

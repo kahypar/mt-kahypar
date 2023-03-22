@@ -48,7 +48,6 @@ namespace mt_kahypar {
 namespace ds {
 
 template <typename Hypergraph = Mandatory,
-          typename HypergraphFactory = Mandatory,
           typename ConnectivityInformation = ConnectivityInfo>
 class PartitionedHypergraph {
 private:
@@ -59,6 +58,9 @@ private:
   // ! Can be implemented to obtain correct km1 or cut improvements of the move
   using DeltaFunction = std::function<void (const HyperedgeID, const HyperedgeWeight, const HypernodeID, const HypernodeID, const HypernodeID)>;
   #define NOOP_FUNC [] (const HyperedgeID, const HyperedgeWeight, const HypernodeID, const HypernodeID, const HypernodeID) { }
+
+  // Factory
+  using HypergraphFactory = typename Hypergraph::Factory;
 
   // REVIEW NOTE: Can't we use a lambda in changeNodePart. And write a second function that calls the first with a lambda that does nothing.
   // Then we could guarantee inlining

@@ -260,14 +260,14 @@ namespace mt_kahypar::io {
                                      const HyperedgeID num_hyperedges,
                                      const mt_kahypar::Type type,
                                      HyperedgeVector& hyperedges,
-                                     parallel::scalable_vector<HyperedgeWeight>& hyperedges_weight,
+                                     vec<HyperedgeWeight>& hyperedges_weight,
                                      const bool remove_single_pin_hes) {
     HyperedgeReadResult res;
     const bool has_hyperedge_weights = type == mt_kahypar::Type::EdgeWeights ||
                                        type == mt_kahypar::Type::EdgeAndNodeWeights ?
                                        true : false;
 
-    parallel::scalable_vector<HyperedgeRange> hyperedge_ranges;
+    vec<HyperedgeRange> hyperedge_ranges;
     tbb::parallel_invoke([&] {
       // Sequential pass over all hyperedges to determine ranges in the
       // input file that are read in parallel.
@@ -389,7 +389,7 @@ namespace mt_kahypar::io {
                             const size_t length,
                             const HypernodeID num_hypernodes,
                             const mt_kahypar::Type type,
-                            parallel::scalable_vector<HypernodeWeight>& hypernodes_weight) {
+                            vec<HypernodeWeight>& hypernodes_weight) {
     bool has_hypernode_weights = type == mt_kahypar::Type::NodeWeights ||
                                  type == mt_kahypar::Type::EdgeAndNodeWeights ?
                                  true : false;
@@ -410,8 +410,8 @@ namespace mt_kahypar::io {
                           HypernodeID& num_hypernodes,
                           HyperedgeID& num_removed_single_pin_hyperedges,
                           HyperedgeVector& hyperedges,
-                          parallel::scalable_vector<HyperedgeWeight>& hyperedges_weight,
-                          parallel::scalable_vector<HypernodeWeight>& hypernodes_weight,
+                          vec<HyperedgeWeight>& hyperedges_weight,
+                          vec<HypernodeWeight>& hypernodes_weight,
                           const bool remove_single_pin_hes) {
     ASSERT(!filename.empty(), "No filename for hypergraph file specified");
     FileHandle handle = mmap_file(filename);
@@ -438,29 +438,6 @@ namespace mt_kahypar::io {
     ASSERT(pos == handle.length);
 
     munmap_file(handle);
-  }
-
-  Hypergraph readHypergraphFile(const std::string& filename,
-                                const bool stable_construction_of_incident_edges,
-                                const bool remove_single_pin_hes) {
-    // Read Hypergraph File
-    HyperedgeID num_hyperedges = 0;
-    HypernodeID num_hypernodes = 0;
-    HyperedgeID num_removed_single_pin_hyperedges = 0;
-    HyperedgeVector hyperedges;
-    parallel::scalable_vector<HyperedgeWeight> hyperedges_weight;
-    parallel::scalable_vector<HypernodeWeight> hypernodes_weight;
-    readHypergraphFile(filename, num_hyperedges, num_hypernodes,
-                       num_removed_single_pin_hyperedges, hyperedges,
-                       hyperedges_weight, hypernodes_weight, remove_single_pin_hes);
-
-    // Construct Hypergraph
-    Hypergraph hypergraph = HypergraphFactory::construct(
-      num_hypernodes, num_hyperedges, hyperedges,
-      hyperedges_weight.data(), hypernodes_weight.data(),
-      stable_construction_of_incident_edges);
-    hypergraph.setNumRemovedHyperedges(num_removed_single_pin_hyperedges);
-    return hypergraph;
   }
 
   void readPartitionFile(const std::string& filename, std::vector<PartitionID>& partition) {
@@ -537,10 +514,10 @@ namespace mt_kahypar::io {
                     const HypernodeID num_vertices,
                     const bool has_edge_weights,
                     const bool has_vertex_weights,
-                    EdgeVector& edges,
-                    parallel::scalable_vector<HyperedgeWeight>& edges_weight,
-                    parallel::scalable_vector<HypernodeWeight>& vertices_weight) {
-    parallel::scalable_vector<VertexRange> vertex_ranges;
+                    HyperedgeVector& edges,
+                    vec<HyperedgeWeight>& edges_weight,
+                    vec<HypernodeWeight>& vertices_weight) {
+    vec<VertexRange> vertex_ranges;
     tbb::parallel_invoke([&] {
       // Sequential pass over all vertices to determine ranges in the
       // input file that are read in parallel.
@@ -679,9 +656,9 @@ namespace mt_kahypar::io {
   void readGraphFile(const std::string& filename,
                      HyperedgeID& num_edges,
                      HypernodeID& num_vertices,
-                     EdgeVector& edges,
-                     parallel::scalable_vector<HyperedgeWeight>& edges_weight,
-                     parallel::scalable_vector<HypernodeWeight>& vertices_weight) {
+                     HyperedgeVector& edges,
+                     vec<HyperedgeWeight>& edges_weight,
+                     vec<HypernodeWeight>& vertices_weight) {
     ASSERT(!filename.empty(), "No filename for metis file specified");
     FileHandle handle = mmap_file(filename);
     size_t pos = 0;
@@ -698,47 +675,6 @@ namespace mt_kahypar::io {
     ASSERT(pos == handle.length);
 
     munmap_file(handle);
-  }
-
-  Hypergraph readGraphFile(const std::string& filename,
-                           const bool stable_construction_of_incident_edges) {
-    // Read Metis File
-    HyperedgeID num_edges = 0;
-    HypernodeID num_vertices = 0;
-    EdgeVector edges;
-    parallel::scalable_vector<HyperedgeWeight> edges_weight;
-    parallel::scalable_vector<HypernodeWeight> nodes_weight;
-    readGraphFile(filename, num_edges, num_vertices, edges, edges_weight, nodes_weight);
-
-    // Construct Graph
-    #ifdef ENABLE_GRAPH_PARTITIONER
-    return HypergraphFactory::construct_from_graph_edges(
-            num_vertices, num_edges, edges,
-            edges_weight.data(), nodes_weight.data(),
-            stable_construction_of_incident_edges);
-    #else
-    return HypergraphFactory::construct(
-            num_vertices, num_edges,
-            edges, edges_weight.data(), nodes_weight.data(),
-            stable_construction_of_incident_edges);
-    #endif
-  }
-
-  Hypergraph readInputFile(const std::string& filename,
-                           const FileFormat format,
-                           const bool stable_construction_of_incident_edges,
-                           const bool remove_single_pin_hes) {
-    Hypergraph hypergraph;
-    switch (format) {
-      case FileFormat::hMetis:
-        return readHypergraphFile(filename,
-          stable_construction_of_incident_edges, remove_single_pin_hes);
-      case FileFormat::Metis:
-        return readGraphFile(filename,
-          stable_construction_of_incident_edges);
-        // omit default case to trigger compiler warning for missing cases
-    }
-    return hypergraph;
   }
 
 } // namespace

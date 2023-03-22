@@ -23,3 +23,4 @@ set(ContextWrapperSources
         context_enum_classes.cpp
         )
 target_sources(MtKaHyParWrapper PRIVATE ${ContextWrapperSources})
+target_sources(OneMtKaHyPar PRIVATE ${ContextWrapperSources})

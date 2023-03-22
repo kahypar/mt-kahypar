@@ -32,6 +32,8 @@
 
 #include "tbb/parallel_for.h"
 
+#include "include/libmtkahypartypes.h"
+
 #include "mt-kahypar/macros.h"
 #include "mt-kahypar/datastructures/array.h"
 #include "mt-kahypar/datastructures/hypergraph_common.h"
@@ -46,9 +48,8 @@ namespace ds {
 
 // Forward
 class StaticGraphFactory;
-template <typename Hypergraph,
-          typename HypergraphFactory>
-class PartitionedHypergraph;
+template <typename Hypergraph>
+class PartitionedGraph;
 
 class StaticGraph {
 
@@ -437,7 +438,10 @@ class StaticGraph {
   static constexpr bool is_partitioned = false;
   static constexpr size_t SIZE_OF_HYPERNODE = sizeof(Node);
   static constexpr size_t SIZE_OF_HYPEREDGE = sizeof(TmpEdgeInformation);
+  static constexpr mt_kahypar_hypergraph_type_t TYPE = STATIC_GRAPH;
 
+  // ! Factory
+  using Factory = StaticGraphFactory;
   // ! Iterator to iterate over the hypernodes
   using HypernodeIterator = NodeIterator;
   // ! Iterator to iterate over the hyperedges
@@ -824,8 +828,7 @@ class StaticGraph {
   friend class StaticGraphFactory;
   template<typename Hypergraph>
   friend class CommunitySupport;
-  template <typename Hypergraph,
-            typename HypergraphFactory>
+  template <typename Hypergraph>
   friend class PartitionedGraph;
 
   // ####################### Node Information #######################

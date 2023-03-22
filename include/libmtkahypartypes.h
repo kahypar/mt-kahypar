@@ -1,9 +1,22 @@
 #ifndef TYPEDEFS_H
 #define TYPEDEFS_H
 
+typedef enum {
+  STATIC_GRAPH,
+  STATIC_HYPERGRAPH,
+  DYNAMIC_GRAPH,
+  DYNAMIC_HYPERGRAPH,
+  NULLPTR
+} mt_kahypar_hypergraph_type_t;
+
 struct mt_kahypar_context_s;
 typedef struct mt_kahypar_context_s mt_kahypar_context_t;
-typedef struct mt_kahypar_hypergraph_s mt_kahypar_hypergraph_t;
+struct mt_kahypar_hypergraph_s;
+typedef struct {
+  mt_kahypar_hypergraph_s* hypergraph;
+  mt_kahypar_hypergraph_type_t type;
+} mt_kahypar_hypergraph_t;
+
 typedef struct mt_kahypar_graph_s mt_kahypar_graph_t;
 typedef struct mt_kahypar_partitioned_hypergraph_s mt_kahypar_partitioned_hypergraph_t;
 typedef struct mt_kahypar_partitioned_graph_s mt_kahypar_partitioned_graph_t;

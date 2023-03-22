@@ -48,8 +48,7 @@
 namespace mt_kahypar {
 namespace ds {
 
-template <typename Hypergraph = Mandatory,
-          typename HypergraphFactory = Mandatory>
+template <typename Hypergraph = Mandatory>
 class PartitionedGraph {
 private:
   static_assert(!Hypergraph::is_partitioned,  "Only unpartitioned hypergraphs are allowed");
@@ -59,6 +58,9 @@ private:
   // ! Can be implemented to obtain correct km1 or cut improvements of the move
   using DeltaFunction = std::function<void (const HyperedgeID, const HyperedgeWeight, const HypernodeID, const HypernodeID, const HypernodeID)>;
   #define NOOP_FUNC [] (const HyperedgeID, const HyperedgeWeight, const HypernodeID, const HypernodeID, const HypernodeID) { }
+
+  // Factory
+  using HypergraphFactory = typename Hypergraph::Factory;
 
   static constexpr bool debug = false;
   static constexpr bool enable_heavy_assert = false;

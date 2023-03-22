@@ -41,7 +41,7 @@ struct PartitioningParameters {
   Mode mode = Mode::UNDEFINED;
   Objective objective = Objective::UNDEFINED;
   FileFormat file_format = FileFormat::hMetis;
-  InstanceType instance_type = InstanceType::UNDEFINED;
+  InstanceType instance_type = InstanceType::hypergraph;
   PresetType preset_type = PresetType::UNDEFINED;
   double epsilon = std::numeric_limits<double>::max();
   PartitionID k = std::numeric_limits<PartitionID>::max();

@@ -60,7 +60,7 @@ namespace mt_kahypar {
     using Hypergraph = ds::StaticGraph;
     using HypergraphFactory = ds::StaticGraphFactory;
   #endif
-  using PartitionedHypergraph = ds::PartitionedGraph<Hypergraph, HypergraphFactory>;
+  using PartitionedHypergraph = ds::PartitionedGraph<Hypergraph>;
   using DeltaPartitionedHypergraph = ds::DeltaPartitionedGraph<PartitionedHypergraph>;
 #else
   #ifdef ENABLE_QUALITY_PRESET
@@ -72,9 +72,9 @@ namespace mt_kahypar {
   #endif
 
   #ifdef ENABLE_LARGE_K
-    using PartitionedHypergraph = ds::PartitionedHypergraph<Hypergraph, HypergraphFactory, ds::SparseConnectivityInfo>;
+    using PartitionedHypergraph = ds::PartitionedHypergraph<Hypergraph, ds::SparseConnectivityInfo>;
   #else
-    using PartitionedHypergraph = ds::PartitionedHypergraph<Hypergraph, HypergraphFactory, ds::ConnectivityInfo>;
+    using PartitionedHypergraph = ds::PartitionedHypergraph<Hypergraph, ds::ConnectivityInfo>;
   #endif
   using DeltaPartitionedHypergraph = ds::DeltaPartitionedHypergraph<PartitionedHypergraph>;
 #endif
