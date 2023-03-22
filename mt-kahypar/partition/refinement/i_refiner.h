@@ -31,12 +31,14 @@
 #include <utility>
 #include <vector>
 
-#include "mt-kahypar/definitions.h"
+#include "include/libmtkahypartypes.h"
+
 #include "mt-kahypar/macros.h"
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
 #include "mt-kahypar/partition/metrics.h"
 
 namespace mt_kahypar {
+
 class IRefiner {
 
  public:
@@ -47,11 +49,11 @@ class IRefiner {
 
   virtual ~IRefiner() = default;
 
-  void initialize(PartitionedHypergraph& hypergraph) {
+  void initialize(mt_kahypar_partitioned_hypergraph_t& hypergraph) {
     initializeImpl(hypergraph);
   }
 
-  bool refine(PartitionedHypergraph& hypergraph,
+  bool refine(mt_kahypar_partitioned_hypergraph_t& hypergraph,
               const parallel::scalable_vector<HypernodeID>& refinement_nodes,
               Metrics& best_metrics,
               const double time_limit) {
@@ -62,9 +64,9 @@ class IRefiner {
   IRefiner() = default;
 
  private:
-  virtual void initializeImpl(PartitionedHypergraph& hypergraph) = 0;
+  virtual void initializeImpl(mt_kahypar_partitioned_hypergraph_t& hypergraph) = 0;
 
-  virtual bool refineImpl(PartitionedHypergraph& hypergraph,
+  virtual bool refineImpl(mt_kahypar_partitioned_hypergraph_t& hypergraph,
                           const parallel::scalable_vector<HypernodeID>& refinement_nodes,
                           Metrics& best_metrics,
                           const double time_limit) = 0;

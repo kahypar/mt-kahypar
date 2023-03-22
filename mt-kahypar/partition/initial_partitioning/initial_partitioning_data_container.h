@@ -38,6 +38,7 @@
 #include "mt-kahypar/partition/metrics.h"
 #include "mt-kahypar/partition/factories.h"
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
+#include "mt-kahypar/utils/cast.h"
 #include "mt-kahypar/utils/utilities.h"
 #include "mt-kahypar/partition/refinement/fm/sequential_twoway_fm_refiner.h"
 
@@ -211,7 +212,8 @@ class InitialPartitioningDataContainer {
       } else if ( _context.refinement.label_propagation.algorithm != LabelPropagationAlgorithm::do_nothing ) {
         // In case of a direct-kway initial partition we instantiate the LP refiner
         _label_propagation = LabelPropagationFactory::getInstance().createObject(
-          _context.refinement.label_propagation.algorithm, hypergraph, _context);
+          _context.refinement.label_propagation.algorithm,
+          hypergraph.initialNumNodes(), hypergraph.initialNumEdges(), _context);
       }
     }
 
@@ -312,9 +314,11 @@ class InitialPartitioningDataContainer {
           improvement = _twoway_fm->refine(current_metric, prng);
         }
       } else if ( _label_propagation ) {
-        _label_propagation->initialize(_partitioned_hypergraph);
-        _label_propagation->refine(_partitioned_hypergraph, {},
-          current_metric, std::numeric_limits<double>::max());
+        mt_kahypar_partitioned_hypergraph_t phg =
+          utils::partitioned_hg_cast(_partitioned_hypergraph);
+        _label_propagation->initialize(phg);
+        _label_propagation->refine(phg, {}, current_metric,
+          std::numeric_limits<double>::max());
       }
 
       HEAVY_INITIAL_PARTITIONING_ASSERT(

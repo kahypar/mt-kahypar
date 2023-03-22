@@ -64,12 +64,12 @@ class MultiTryKWayFM final : public IRefiner {
   void printMemoryConsumption();
 
  private:
-  bool refineImpl(PartitionedHypergraph& phg,
+  bool refineImpl(mt_kahypar_partitioned_hypergraph_t& phg,
                   const vec<HypernodeID>& refinement_nodes,
                   Metrics& metrics,
                   double time_limit) final ;
 
-  void initializeImpl(PartitionedHypergraph& phg) final ;
+  void initializeImpl(mt_kahypar_partitioned_hypergraph_t& phg) final ;
 
   void roundInitialization(PartitionedHypergraph& phg,
                            const vec<HypernodeID>& refinement_nodes);

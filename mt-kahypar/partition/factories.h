@@ -31,6 +31,7 @@
 #include "kahypar/meta/static_multi_dispatch_factory.h"
 #include "kahypar/meta/typelist.h"
 
+#include "mt-kahypar/one_definitions.h"
 #include "mt-kahypar/partition/coarsening/nlevel_coarsener.h"
 #include "mt-kahypar/partition/coarsening/multilevel_coarsener.h"
 #include "mt-kahypar/partition/coarsening/i_coarsener.h"
@@ -39,6 +40,8 @@
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/refinement/i_refiner.h"
 #include "mt-kahypar/partition/refinement/flows/i_flow_refiner.h"
+#include "mt-kahypar/partition/refinement/label_propagation/label_propagation_refiner.h"
+#include "mt-kahypar/partition/refinement/deterministic/deterministic_label_propagation.h"
 
 namespace mt_kahypar {
 
@@ -54,11 +57,26 @@ using MultilevelCoarsenerDispatcher = kahypar::meta::StaticMultiDispatchFactory<
 using NLevelCoarsenerDispatcher = kahypar::meta::StaticMultiDispatchFactory<NLevelCoarsener,
                                                                             ICoarsener,
                                                                             kahypar::meta::Typelist<RatingScorePolicies,
-                                                                                                        HeavyNodePenaltyPolicies,
-                                                                                                        AcceptancePolicies> >;
+                                                                                                    HeavyNodePenaltyPolicies,
+                                                                                                    AcceptancePolicies> >;
 
 using LabelPropagationFactory = kahypar::meta::Factory<LabelPropagationAlgorithm,
-                                                       IRefiner* (*)(Hypergraph&, const Context&)>;
+                                                       IRefiner* (*)(HypernodeID, HyperedgeID, const Context&)>;
+
+using Km1LabelPropagationDispatcher = kahypar::meta::StaticMultiDispatchFactory<
+                                        LabelPropagationKm1Refiner,
+                                        IRefiner,
+                                        kahypar::meta::Typelist<TypeTraitsList>>;
+
+using CutLabelPropagationDispatcher = kahypar::meta::StaticMultiDispatchFactory<
+                                        LabelPropagationCutRefiner,
+                                        IRefiner,
+                                        kahypar::meta::Typelist<TypeTraitsList>>;
+
+using DeterministicLabelPropagationDispatcher = kahypar::meta::StaticMultiDispatchFactory<
+                                                  DeterministicLabelPropagationRefiner,
+                                                  IRefiner,
+                                                  kahypar::meta::Typelist<TypeTraitsList>>;
 
 using FMFactory = kahypar::meta::Factory<FMAlgorithm,
                                          IRefiner* (*)(Hypergraph&, const Context&)>;

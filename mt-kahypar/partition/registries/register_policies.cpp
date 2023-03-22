@@ -28,6 +28,7 @@
 #include "kahypar/meta/policy_registry.h"
 #include "kahypar/meta/registrar.h"
 
+#include "mt-kahypar/one_definitions.h"
 #include "mt-kahypar/partition/coarsening/policies/rating_acceptance_policy.h"
 #include "mt-kahypar/partition/coarsening/policies/rating_heavy_node_penalty_policy.h"
 #include "mt-kahypar/partition/coarsening/policies/rating_score_policy.h"
@@ -38,6 +39,20 @@
     id, new policy_class())
 
 namespace mt_kahypar {
+// //////////////////////////////////////////////////////////////////////////////
+//                            Hypergraph Type Traits
+// //////////////////////////////////////////////////////////////////////////////
+REGISTER_POLICY(TraitTypes, TraitTypes::static_graph,
+                StaticGraphTypeTraits);
+REGISTER_POLICY(TraitTypes, TraitTypes::dynamic_graph,
+                DynamicGraphTypeTraits);
+REGISTER_POLICY(TraitTypes, TraitTypes::static_hypergraph,
+                StaticHypergraphTypeTraits);
+REGISTER_POLICY(TraitTypes, TraitTypes::sparse_static_hypergraph,
+                LargeKHypergraphTypeTraits);
+REGISTER_POLICY(TraitTypes, TraitTypes::dynamic_hypergraph,
+                DynamicHypergraphTypeTraits);
+
 // //////////////////////////////////////////////////////////////////////////////
 //                       Coarsening / Rating Policies
 // //////////////////////////////////////////////////////////////////////////////

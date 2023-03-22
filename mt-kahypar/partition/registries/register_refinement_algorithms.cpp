@@ -40,11 +40,21 @@
 #include "mt-kahypar/partition/refinement/fm/strategies/recompute_gain_strategy.h"
 #include "mt-kahypar/partition/refinement/fm/strategies/gain_cache_on_demand_strategy.h"
 
-#define REGISTER_LP_REFINER(id, refiner, t)                                                     \
-  static kahypar::meta::Registrar<LabelPropagationFactory> JOIN(register_ ## refiner, t)(       \
-    id,                                                                                         \
-    [](Hypergraph& hypergraph, const Context& context) -> IRefiner* {                           \
-    return new refiner(hypergraph, context);                                                    \
+#define REGISTER_DISPATCHED_LP_REFINER(id, dispatcher, ...)                                            \
+  static kahypar::meta::Registrar<LabelPropagationFactory> register_ ## dispatcher(                    \
+    id,                                                                                                \
+    [](const HypernodeID num_hypernodes, const HyperedgeID num_hyperedges, const Context& context) {   \
+    return dispatcher::create(                                                                         \
+      std::forward_as_tuple(num_hypernodes, num_hyperedges, context),                                  \
+      __VA_ARGS__                                                                                      \
+      );                                                                                               \
+  })
+
+#define REGISTER_LP_REFINER(id, refiner, t)                                                                        \
+  static kahypar::meta::Registrar<LabelPropagationFactory> JOIN(register_ ## refiner, t)(                          \
+    id,                                                                                                            \
+    [](const HypernodeID num_hypernodes, const HyperedgeID num_hyperedges, const Context& context) -> IRefiner* {  \
+    return new refiner(num_hypernodes, num_hyperedges, context);                                                                       \
   })
 
 #define REGISTER_FM_REFINER(id, refiner, t)                                                     \
@@ -62,9 +72,18 @@
   })
 
 namespace mt_kahypar {
-REGISTER_LP_REFINER(LabelPropagationAlgorithm::label_propagation_cut, LabelPropagationCutRefiner, Cut);
-REGISTER_LP_REFINER(LabelPropagationAlgorithm::label_propagation_km1, LabelPropagationKm1Refiner, Km1);
-REGISTER_LP_REFINER(LabelPropagationAlgorithm::deterministic, DeterministicLabelPropagationRefiner, Km1);
+REGISTER_DISPATCHED_LP_REFINER(LabelPropagationAlgorithm::label_propagation_km1,
+                               Km1LabelPropagationDispatcher,
+                               kahypar::meta::PolicyRegistry<TraitTypes>::getInstance().getPolicy(
+                                context.partition.trait_type));
+REGISTER_DISPATCHED_LP_REFINER(LabelPropagationAlgorithm::label_propagation_cut,
+                               CutLabelPropagationDispatcher,
+                               kahypar::meta::PolicyRegistry<TraitTypes>::getInstance().getPolicy(
+                                context.partition.trait_type));
+REGISTER_DISPATCHED_LP_REFINER(LabelPropagationAlgorithm::deterministic,
+                               DeterministicLabelPropagationDispatcher,
+                               kahypar::meta::PolicyRegistry<TraitTypes>::getInstance().getPolicy(
+                                context.partition.trait_type));
 REGISTER_LP_REFINER(LabelPropagationAlgorithm::do_nothing, DoNothingRefiner, 1);
 
 using MultiTryKWayFMWithGainGache = MultiTryKWayFM<GainCacheStrategy>;

@@ -36,6 +36,7 @@
 #include "mt-kahypar/utils/progress_bar.h"
 #include "mt-kahypar/io/partitioning_output.h"
 #include "mt-kahypar/utils/utilities.h"
+#include "mt-kahypar/utils/cast.h"
 
 namespace mt_kahypar {
 
@@ -97,11 +98,13 @@ namespace mt_kahypar {
     }
 
     // Initialize Refiner
+    mt_kahypar_partitioned_hypergraph_t phg =
+      utils::partitioned_hg_cast(*_uncoarseningData.partitioned_hg);
     if ( _label_propagation ) {
-      _label_propagation->initialize(*_uncoarseningData.partitioned_hg);
+      _label_propagation->initialize(phg);
     }
     if ( _fm ) {
-      _fm->initialize(*_uncoarseningData.partitioned_hg);
+      _fm->initialize(phg);
     }
 
     ASSERT(_uncoarseningData.round_coarsening_times.size() == _uncoarseningData.removed_hyperedges_batches.size());
@@ -311,19 +314,20 @@ namespace mt_kahypar {
     }
 
     bool improvement_found = true;
+    mt_kahypar_partitioned_hypergraph_t phg = utils::partitioned_hg_cast(partitioned_hypergraph);
     while( improvement_found ) {
       improvement_found = false;
 
       if ( _label_propagation && _context.refinement.label_propagation.algorithm != LabelPropagationAlgorithm::do_nothing ) {
         _timer.start_timer("label_propagation", "Label Propagation", false, _force_measure_timings);
-        improvement_found |= _label_propagation->refine(partitioned_hypergraph,
+        improvement_found |= _label_propagation->refine(phg,
           refinement_nodes, _current_metrics, std::numeric_limits<double>::max());
         _timer.stop_timer("label_propagation", _force_measure_timings);
       }
 
       if ( _fm && _context.refinement.fm.algorithm != FMAlgorithm::do_nothing ) {
         _timer.start_timer("fm", "FM", false, _force_measure_timings);
-        improvement_found |= _fm->refine(partitioned_hypergraph,
+        improvement_found |= _fm->refine(phg,
           refinement_nodes, _current_metrics, std::numeric_limits<double>::max());
         _timer.stop_timer("fm", _force_measure_timings);
       }
@@ -376,6 +380,7 @@ namespace mt_kahypar {
       NLevelGlobalFMParameters tmp_global_fm = applyGlobalFMParameters(
         _context.refinement.fm, _context.refinement.global_fm);
       bool improvement_found = true;
+      mt_kahypar_partitioned_hypergraph_t phg = utils::partitioned_hg_cast(partitioned_hypergraph);
       while( improvement_found ) {
         improvement_found = false;
         const HyperedgeWeight metric_before = _current_metrics.getMetric(
@@ -383,17 +388,17 @@ namespace mt_kahypar {
 
         if ( _fm && _context.refinement.fm.algorithm != FMAlgorithm::do_nothing ) {
           _timer.start_timer("fm", "FM");
-          improvement_found |= _fm->refine(partitioned_hypergraph, {}, _current_metrics, time_limit);
+          improvement_found |= _fm->refine(phg, {}, _current_metrics, time_limit);
           _timer.stop_timer("fm");
         }
 
         if ( _flows && _context.refinement.flows.algorithm != FlowAlgorithm::do_nothing ) {
           _timer.start_timer("initialize_flow_scheduler", "Initialize Flow Scheduler");
-          _flows->initialize(partitioned_hypergraph);
+          _flows->initialize(phg);
           _timer.stop_timer("initialize_flow_scheduler");
 
           _timer.start_timer("flow_refinement_scheduler", "Flow Refinement Scheduler");
-          improvement_found |= _flows->refine(partitioned_hypergraph, {}, _current_metrics, time_limit);
+          improvement_found |= _flows->refine(phg, {}, _current_metrics, time_limit);
           _timer.stop_timer("flow_refinement_scheduler");
         }
 

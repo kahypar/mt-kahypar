@@ -77,6 +77,18 @@ const Hypergraph& cast_const(const mt_kahypar_hypergraph_t hypergraph) {
   return *reinterpret_cast<const Hypergraph*>(hypergraph.hypergraph);
 }
 
+template<typename Hypergraph>
+mt_kahypar_hypergraph_t hypergraph_cast(Hypergraph& hypergraph) {
+  return mt_kahypar_hypergraph_t {
+    reinterpret_cast<mt_kahypar_hypergraph_s*>(&hypergraph), Hypergraph::TYPE };
+}
+
+template<typename Hypergraph>
+const mt_kahypar_hypergraph_t hypergraph_const_cast(const Hypergraph& hypergraph) {
+  return mt_kahypar_hypergraph_t {
+    reinterpret_cast<const mt_kahypar_hypergraph_s*>(&hypergraph), Hypergraph::TYPE };
+}
+
 template<typename PartitionedHypergraph>
 PartitionedHypergraph& cast(mt_kahypar_partitioned_hypergraph_t phg) {
   if ( PartitionedHypergraph::TYPE != phg.type ) {
@@ -91,6 +103,18 @@ const PartitionedHypergraph& cast_const(const mt_kahypar_partitioned_hypergraph_
     ERR("Cannot cast" << typeToString(phg.type) << "to" << typeToString(PartitionedHypergraph::TYPE));
   }
   return *reinterpret_cast<const PartitionedHypergraph*>(phg.partitioned_hg);
+}
+
+template<typename PartitionedHypergraph>
+mt_kahypar_partitioned_hypergraph_t partitioned_hg_cast(PartitionedHypergraph& phg) {
+  return mt_kahypar_partitioned_hypergraph_t {
+    reinterpret_cast<mt_kahypar_partitioned_hypergraph_s*>(&phg), PartitionedHypergraph::TYPE };
+}
+
+template<typename PartitionedHypergraph>
+const mt_kahypar_partitioned_hypergraph_t partitioned_hg_const_cast(const PartitionedHypergraph& phg) {
+  return mt_kahypar_partitioned_hypergraph_t {
+    reinterpret_cast<const mt_kahypar_partitioned_hypergraph_s*>(&phg), PartitionedHypergraph::TYPE };
 }
 
 }  // namespace mt_kahypar

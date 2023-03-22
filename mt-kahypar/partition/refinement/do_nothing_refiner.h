@@ -44,9 +44,9 @@ class DoNothingRefiner final : public IRefiner {
   DoNothingRefiner & operator= (DoNothingRefiner &&) = delete;
 
  private:
-  void initializeImpl(PartitionedHypergraph&) override final { }
+  void initializeImpl(mt_kahypar_partitioned_hypergraph_t&) override final { }
 
-  bool refineImpl(PartitionedHypergraph&,
+  bool refineImpl(mt_kahypar_partitioned_hypergraph_t&,
                   const parallel::scalable_vector<HypernodeID>&,
                   Metrics &,
                   const double) override final {

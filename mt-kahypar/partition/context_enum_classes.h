@@ -60,6 +60,15 @@ enum class PresetType : int8_t {
   UNDEFINED
 };
 
+enum class TraitTypes : int8_t {
+  static_graph,
+  dynamic_graph,
+  static_hypergraph,
+  sparse_static_hypergraph,
+  dynamic_hypergraph,
+  UNDEFINED
+};
+
 enum class Paradigm : int8_t {
   multilevel,
   nlevel
@@ -165,6 +174,8 @@ std::ostream & operator<< (std::ostream& os, const FileFormat& type);
 std::ostream & operator<< (std::ostream& os, const InstanceType& type);
 
 std::ostream & operator<< (std::ostream& os, const PresetType& type);
+
+std::ostream & operator<< (std::ostream& os, const TraitTypes& type);
 
 std::ostream & operator<< (std::ostream& os, const Paradigm& paradigm);
 

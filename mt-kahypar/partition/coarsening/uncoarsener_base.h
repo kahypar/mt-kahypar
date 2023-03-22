@@ -36,6 +36,7 @@
 #include "mt-kahypar/utils/utilities.h"
 #include "mt-kahypar/partition/metrics.h"
 #include "mt-kahypar/partition/factories.h"
+#include "mt-kahypar/utils/cast.h"
 
 namespace mt_kahypar {
 
@@ -105,7 +106,8 @@ class UncoarsenerBase {
 
   void initializeRefinementAlgorithms() {
     _label_propagation = LabelPropagationFactory::getInstance().createObject(
-      _context.refinement.label_propagation.algorithm, _hg, _context);
+      _context.refinement.label_propagation.algorithm,
+      _hg.initialNumNodes(), _hg.initialNumEdges(), _context);
     _fm = FMFactory::getInstance().createObject(
       _context.refinement.fm.algorithm, _hg, _context);
     if ( _context.refinement.flows.algorithm != FlowAlgorithm::do_nothing ) {

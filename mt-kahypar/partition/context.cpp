@@ -47,6 +47,7 @@ namespace mt_kahypar {
     if ( params.preset_type != PresetType::UNDEFINED ) {
       str << "  Preset Type:                        " << params.preset_type << std::endl;
     }
+    str << "  Trait Type:                         " << params.trait_type << std::endl;
     str << "  k:                                  " << params.k << std::endl;
     str << "  epsilon:                            " << params.epsilon << std::endl;
     str << "  seed:                               " << params.seed << std::endl;
@@ -423,6 +424,30 @@ namespace mt_kahypar {
       lp_algo = initial_partitioning.refinement.label_propagation.algorithm;
       if ( lp_algo != LabelPropagationAlgorithm::do_nothing && lp_algo != LabelPropagationAlgorithm::deterministic ) {
         initial_partitioning.refinement.label_propagation.algorithm = LabelPropagationAlgorithm::deterministic;
+      }
+    }
+
+    // Setup type traits
+    if ( partition.instance_type == InstanceType::graph ) {
+      if ( partition.preset_type == PresetType::default_preset ||
+           partition.preset_type == PresetType::default_flows ||
+           partition.preset_type == PresetType::large_k ||
+           partition.preset_type == PresetType::deterministic ) {
+        partition.trait_type = TraitTypes::static_graph;
+      } else if ( partition.preset_type == PresetType::quality_preset ||
+                  partition.preset_type == PresetType::quality_flows ) {
+        partition.trait_type = TraitTypes::dynamic_graph;
+      }
+    } else if ( partition.instance_type == InstanceType::hypergraph ) {
+      if ( partition.preset_type == PresetType::default_preset ||
+           partition.preset_type == PresetType::default_flows ||
+           partition.preset_type == PresetType::deterministic ) {
+        partition.trait_type = TraitTypes::static_hypergraph;
+      } else if ( partition.preset_type == PresetType::quality_preset ||
+                  partition.preset_type == PresetType::quality_flows ) {
+        partition.trait_type = TraitTypes::dynamic_hypergraph;
+      } else if ( partition.preset_type == PresetType::large_k ) {
+        partition.trait_type = TraitTypes::sparse_static_hypergraph;
       }
     }
   }

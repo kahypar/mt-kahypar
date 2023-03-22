@@ -34,6 +34,7 @@
 #include "mt-kahypar/partition/refinement/flows/scheduler.h"
 #include "mt-kahypar/partition/refinement/rebalancing/rebalancer.h"
 #include "mt-kahypar/utils/stats.h"
+#include "mt-kahypar/utils/cast.h"
 
 namespace mt_kahypar {
 
@@ -205,6 +206,7 @@ namespace mt_kahypar {
 
     parallel::scalable_vector<HypernodeID> dummy;
     bool improvement_found = true;
+    mt_kahypar_partitioned_hypergraph_t phg = utils::partitioned_hg_cast(partitioned_hypergraph);
     while( improvement_found ) {
       improvement_found = false;
       const HyperedgeWeight metric_before = _current_metrics.getMetric(
@@ -212,31 +214,31 @@ namespace mt_kahypar {
 
       if ( _label_propagation && _context.refinement.label_propagation.algorithm != LabelPropagationAlgorithm::do_nothing ) {
         _timer.start_timer("initialize_lp_refiner", "Initialize LP Refiner");
-        _label_propagation->initialize(partitioned_hypergraph);
+        _label_propagation->initialize(phg);
         _timer.stop_timer("initialize_lp_refiner");
 
         _timer.start_timer("label_propagation", "Label Propagation");
-        improvement_found |= _label_propagation->refine(partitioned_hypergraph, dummy, _current_metrics, time_limit);
+        improvement_found |= _label_propagation->refine(phg, dummy, _current_metrics, time_limit);
         _timer.stop_timer("label_propagation");
       }
 
       if ( _fm && _context.refinement.fm.algorithm != FMAlgorithm::do_nothing ) {
         _timer.start_timer("initialize_fm_refiner", "Initialize FM Refiner");
-        _fm->initialize(partitioned_hypergraph);
+        _fm->initialize(phg);
         _timer.stop_timer("initialize_fm_refiner");
 
         _timer.start_timer("fm", "FM");
-        improvement_found |= _fm->refine(partitioned_hypergraph, dummy, _current_metrics, time_limit);
+        improvement_found |= _fm->refine(phg, dummy, _current_metrics, time_limit);
         _timer.stop_timer("fm");
       }
 
       if ( _flows && _context.refinement.flows.algorithm != FlowAlgorithm::do_nothing ) {
         _timer.start_timer("initialize_flow_scheduler", "Initialize Flow Scheduler");
-        _flows->initialize(partitioned_hypergraph);
+        _flows->initialize(phg);
         _timer.stop_timer("initialize_flow_scheduler");
 
         _timer.start_timer("flow_refinement_scheduler", "Flow Refinement Scheduler");
-        improvement_found |= _flows->refine(partitioned_hypergraph, dummy, _current_metrics, time_limit);
+        improvement_found |= _flows->refine(phg, dummy, _current_metrics, time_limit);
         _timer.stop_timer("flow_refinement_scheduler");
       }
 

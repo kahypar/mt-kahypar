@@ -30,15 +30,17 @@
 #include "mt-kahypar/utils/utilities.h"
 #include "mt-kahypar/partition/metrics.h"
 #include "mt-kahypar/utils/memory_tree.h"
+#include "mt-kahypar/utils/cast.h"
 
 namespace mt_kahypar {
 
   template<typename FMStrategy>
   bool MultiTryKWayFM<FMStrategy>::refineImpl(
-              PartitionedHypergraph& phg,
+              mt_kahypar_partitioned_hypergraph_t& hypergraph,
               const vec<HypernodeID>& refinement_nodes,
               Metrics& metrics,
               const double time_limit) {
+    PartitionedHypergraph& phg = utils::cast<PartitionedHypergraph>(hypergraph);
 
     if (!is_initialized) throw std::runtime_error("Call initialize on fm before calling refine");
     resizeDataStructuresForCurrentK();
@@ -204,7 +206,8 @@ namespace mt_kahypar {
 
 
   template<typename FMStrategy>
-  void MultiTryKWayFM<FMStrategy>::initializeImpl(PartitionedHypergraph& phg) {
+  void MultiTryKWayFM<FMStrategy>::initializeImpl(mt_kahypar_partitioned_hypergraph_t& hypergraph) {
+    PartitionedHypergraph& phg = utils::cast<PartitionedHypergraph>(hypergraph);
     if (FMStrategy::uses_gain_cache) {
       phg.allocateGainTableIfNecessary();
     }

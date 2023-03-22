@@ -43,6 +43,7 @@ struct PartitioningParameters {
   FileFormat file_format = FileFormat::hMetis;
   InstanceType instance_type = InstanceType::hypergraph;
   PresetType preset_type = PresetType::UNDEFINED;
+  TraitTypes trait_type =  TraitTypes::UNDEFINED;
   double epsilon = std::numeric_limits<double>::max();
   PartitionID k = std::numeric_limits<PartitionID>::max();
   int seed = 0;

@@ -29,6 +29,7 @@
 #include "mt-kahypar/partition/metrics.h"
 #include "mt-kahypar/io/partitioning_output.h"
 #include "mt-kahypar/utils/utilities.h"
+#include "mt-kahypar/utils/cast.h"
 
 namespace mt_kahypar {
 
@@ -104,10 +105,11 @@ inline std::ostream & operator<< (std::ostream& str, const FlowRefinementSchedul
 
 
 bool FlowRefinementScheduler::refineImpl(
-                PartitionedHypergraph& phg,
+                mt_kahypar_partitioned_hypergraph_t& hypergraph,
                 const parallel::scalable_vector<HypernodeID>&,
                 Metrics& best_metrics,
                 const double)  {
+  PartitionedHypergraph& phg = utils::cast<PartitionedHypergraph>(hypergraph);
   ASSERT(_phg == &phg);
   _quotient_graph.setObjective(best_metrics.getMetric(
     Mode::direct, _context.partition.objective));
@@ -200,7 +202,8 @@ bool FlowRefinementScheduler::refineImpl(
   return overall_delta.load(std::memory_order_relaxed) < 0;
 }
 
-void FlowRefinementScheduler::initializeImpl(PartitionedHypergraph& phg)  {
+void FlowRefinementScheduler::initializeImpl(mt_kahypar_partitioned_hypergraph_t& hypergraph)  {
+  PartitionedHypergraph& phg = utils::cast<PartitionedHypergraph>(hypergraph);
   _phg = &phg;
   resizeDataStructuresForCurrentK();
 

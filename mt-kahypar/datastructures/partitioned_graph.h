@@ -719,7 +719,7 @@ private:
     return w;
   }
 
-  void recomputeMoveFromPenalty(const HypernodeID u) {
+  void recomputeMoveFromPenalty(const HypernodeID) {
     // Nothing to do here
   }
 
