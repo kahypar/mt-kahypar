@@ -30,6 +30,8 @@
 
 #include "include/libmtkahypartypes.h"
 
+#include "mt-kahypar/macros.h"
+
 namespace mt_kahypar::utils {
 
 namespace {
@@ -40,7 +42,19 @@ std::string typeToString(const mt_kahypar_hypergraph_type_t type) {
     case DYNAMIC_GRAPH: return "DYNAMIC_GRAPH";
     case STATIC_HYPERGRAPH: return "STATIC_HYPERGRAPH";
     case DYNAMIC_HYPERGRAPH: return "DYNAMIC_HYPERGRAPH";
-    case NULLPTR: return "NULLPTR";
+    case NULLPTR_HYPERGRAPH: return "NULLPTR_HYPERGRAPH";
+  }
+  return "UNDEFINED";
+}
+
+std::string typeToString(const mt_kahypar_partition_type_t type) {
+  switch ( type ) {
+    case STATIC_PARTITIONED_GRAPH: return "STATIC_PARTITIONED_GRAPH";
+    case STATIC_PARTITIONED_HYPERGRAPH: return "STATIC_PARTITIONED_HYPERGRAPH";
+    case STATIC_SPARSE_PARTITIONED_HYPERGRAPH: return "STATIC_SPARSE_PARTITIONED_HYPERGRAPH";
+    case DYNAMIC_PARTITIONED_GRAPH: return "DYNAMIC_PARTITIONED_GRAPH";
+    case DYNAMIC_PARTITIONED_HYPERGRAPH: return "DYNAMIC_PARTITIONED_HYPERGRAPH";
+    case NULLPTR_PARTITION: return "NULLPTR_PARTITION";
   }
   return "UNDEFINED";
 }
@@ -61,6 +75,22 @@ const Hypergraph& cast_const(const mt_kahypar_hypergraph_t hypergraph) {
     ERR("Cannot cast" << typeToString(hypergraph.type) << "to" << typeToString(Hypergraph::TYPE));
   }
   return *reinterpret_cast<const Hypergraph*>(hypergraph.hypergraph);
+}
+
+template<typename PartitionedHypergraph>
+PartitionedHypergraph& cast(mt_kahypar_partitioned_hypergraph_t phg) {
+  if ( PartitionedHypergraph::TYPE != phg.type ) {
+    ERR("Cannot cast" << typeToString(phg.type) << "to" << typeToString(PartitionedHypergraph::TYPE));
+  }
+  return *reinterpret_cast<PartitionedHypergraph*>(phg.partitioned_hg);
+}
+
+template<typename PartitionedHypergraph>
+const PartitionedHypergraph& cast_const(const mt_kahypar_partitioned_hypergraph_t phg) {
+  if ( PartitionedHypergraph::TYPE != phg.type ) {
+    ERR("Cannot cast" << typeToString(phg.type) << "to" << typeToString(PartitionedHypergraph::TYPE));
+  }
+  return *reinterpret_cast<const PartitionedHypergraph*>(phg.partitioned_hg);
 }
 
 }  // namespace mt_kahypar

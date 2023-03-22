@@ -30,6 +30,8 @@
 #include <cstdint>
 #include <limits>
 
+#include "include/libmtkahypartypes.h"
+
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
 #include "mt-kahypar/parallel/hardware_topology.h"
 #include "mt-kahypar/parallel/tbb_initializer.h"
@@ -145,5 +147,51 @@ static HyperedgeWeight km1Delta(const HyperedgeID,
   return (pin_count_in_to_part_after == 1 ? edge_weight : 0) +
          (pin_count_in_from_part_after == 0 ? -edge_weight : 0);
 }
+
+namespace ds {
+// Forward Declaration
+class StaticGraph;
+class StaticHypergraph;
+class DynamicGraph;
+class DynamicHypergraph;
+class ConnectivityInfo;
+class SparseConnectivityInfo;
+}
+
+template<typename Hypergraph, typename ConInfo>
+struct PartitionedHypergraphType {
+  static constexpr mt_kahypar_partition_type_t TYPE = NULLPTR_PARTITION;
+};
+
+template<>
+struct PartitionedHypergraphType<ds::StaticHypergraph, ds::ConnectivityInfo> {
+  static constexpr mt_kahypar_partition_type_t TYPE = STATIC_PARTITIONED_HYPERGRAPH;
+};
+
+template<>
+struct PartitionedHypergraphType<ds::StaticHypergraph, ds::SparseConnectivityInfo> {
+  static constexpr mt_kahypar_partition_type_t TYPE = STATIC_SPARSE_PARTITIONED_HYPERGRAPH;
+};
+
+template<>
+struct PartitionedHypergraphType<ds::DynamicHypergraph, ds::ConnectivityInfo> {
+  static constexpr mt_kahypar_partition_type_t TYPE = STATIC_SPARSE_PARTITIONED_HYPERGRAPH;
+};
+
+template<typename Graph>
+struct PartitionedGraphType {
+  static constexpr mt_kahypar_partition_type_t TYPE = NULLPTR_PARTITION;
+};
+
+template<>
+struct PartitionedGraphType<ds::StaticGraph> {
+  static constexpr mt_kahypar_partition_type_t TYPE = STATIC_PARTITIONED_GRAPH;
+};
+
+template<>
+struct PartitionedGraphType<ds::DynamicGraph> {
+  static constexpr mt_kahypar_partition_type_t TYPE = DYNAMIC_PARTITIONED_GRAPH;
+};
+
 
 } // namespace mt_kahypar

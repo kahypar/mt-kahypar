@@ -145,6 +145,7 @@ private:
   static constexpr bool is_static_hypergraph = Hypergraph::is_static_hypergraph;
   static constexpr bool is_partitioned = true;
   static constexpr bool supports_connectivity_set = true;
+  static constexpr mt_kahypar_partition_type_t TYPE = PartitionedGraphType<Hypergraph>::TYPE;
 
   static constexpr HyperedgeID HIGH_DEGREE_THRESHOLD = ID(100000);
   static constexpr size_t SIZE_OF_EDGE_LOCK = sizeof(EdgeMove);

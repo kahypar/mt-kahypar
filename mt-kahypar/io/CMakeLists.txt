@@ -16,6 +16,7 @@ target_sources(MtKaHyParWrapper PRIVATE ${IOWrapperSources})
 
 set(OneMtKaHyParSources
         hypergraph_io.cpp
+        partitioning_output.cpp
         hypergraph_factory.cpp
         command_line_options.cpp)
 target_sources(OneMtKaHyPar PRIVATE ${OneMtKaHyParSources})

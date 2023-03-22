@@ -6,19 +6,34 @@ typedef enum {
   STATIC_HYPERGRAPH,
   DYNAMIC_GRAPH,
   DYNAMIC_HYPERGRAPH,
-  NULLPTR
+  NULLPTR_HYPERGRAPH
 } mt_kahypar_hypergraph_type_t;
+
+typedef enum {
+  STATIC_PARTITIONED_GRAPH,
+  STATIC_PARTITIONED_HYPERGRAPH,
+  STATIC_SPARSE_PARTITIONED_HYPERGRAPH,
+  DYNAMIC_PARTITIONED_GRAPH,
+  DYNAMIC_PARTITIONED_HYPERGRAPH,
+  NULLPTR_PARTITION
+} mt_kahypar_partition_type_t;
 
 struct mt_kahypar_context_s;
 typedef struct mt_kahypar_context_s mt_kahypar_context_t;
+
 struct mt_kahypar_hypergraph_s;
 typedef struct {
   mt_kahypar_hypergraph_s* hypergraph;
   mt_kahypar_hypergraph_type_t type;
 } mt_kahypar_hypergraph_t;
 
+struct mt_kahypar_partitioned_hypergraph_s;
+typedef struct {
+  mt_kahypar_partitioned_hypergraph_s* partitioned_hg;
+  mt_kahypar_partition_type_t type;
+} mt_kahypar_partitioned_hypergraph_t;
+
 typedef struct mt_kahypar_graph_s mt_kahypar_graph_t;
-typedef struct mt_kahypar_partitioned_hypergraph_s mt_kahypar_partitioned_hypergraph_t;
 typedef struct mt_kahypar_partitioned_graph_s mt_kahypar_partitioned_graph_t;
 
 typedef unsigned long int mt_kahypar_hypernode_id_t;

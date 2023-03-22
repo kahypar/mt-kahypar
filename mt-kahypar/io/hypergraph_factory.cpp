@@ -86,11 +86,11 @@ mt_kahypar_hypergraph_t readHMetisFile(const std::string& filename,
         num_hypernodes, num_hyperedges, hyperedges,
         hyperedges_weight.data(), hypernodes_weight.data(),
         num_removed_single_pin_hyperedges, stable_construction);
-    case NULLPTR:
-      return mt_kahypar_hypergraph_t { nullptr, NULLPTR };
+    case NULLPTR_HYPERGRAPH:
+      return mt_kahypar_hypergraph_t { nullptr, NULLPTR_HYPERGRAPH };
   }
 
-  return mt_kahypar_hypergraph_t { nullptr, NULLPTR };
+  return mt_kahypar_hypergraph_t { nullptr, NULLPTR_HYPERGRAPH };
 }
 
 mt_kahypar_hypergraph_t readMetisFile(const std::string& filename,
@@ -120,11 +120,11 @@ mt_kahypar_hypergraph_t readMetisFile(const std::string& filename,
       return constructHypergraph<ds::DynamicHypergraph>(
         num_vertices, num_edges, edges,
         edges_weight.data(), nodes_weight.data(), 0, stable_construction);
-    case NULLPTR:
-      return mt_kahypar_hypergraph_t { nullptr, NULLPTR };
+    case NULLPTR_HYPERGRAPH:
+      return mt_kahypar_hypergraph_t { nullptr, NULLPTR_HYPERGRAPH };
   }
 
-  return mt_kahypar_hypergraph_t { nullptr, NULLPTR };
+  return mt_kahypar_hypergraph_t { nullptr, NULLPTR_HYPERGRAPH };
 }
 
 mt_kahypar_hypergraph_type_t getHypergraphType(const PresetType& preset,
@@ -170,7 +170,7 @@ mt_kahypar_hypergraph_t readInputFile(const std::string& filename,
     case FileFormat::Metis: return readMetisFile(
       filename, type, stable_construction);
   }
-  return mt_kahypar_hypergraph_t { nullptr, NULLPTR };
+  return mt_kahypar_hypergraph_t { nullptr, NULLPTR_HYPERGRAPH };
 }
 
 template<typename Hypergraph>
@@ -178,7 +178,7 @@ Hypergraph readInputFile(const std::string& filename,
                          const FileFormat& format,
                          const bool stable_construction,
                          const bool remove_single_pin_hes) {
-  mt_kahypar_hypergraph_t hypergraph { nullptr, NULLPTR };
+  mt_kahypar_hypergraph_t hypergraph { nullptr, NULLPTR_HYPERGRAPH };
   switch ( format ) {
     case FileFormat::hMetis: hypergraph = readHMetisFile(
       filename, Hypergraph::TYPE, stable_construction, remove_single_pin_hes);

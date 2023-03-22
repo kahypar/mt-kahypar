@@ -29,6 +29,7 @@
 #include "mt-kahypar/one_definitions.h"
 #include "mt-kahypar/io/command_line_options.h"
 #include "mt-kahypar/io/hypergraph_factory.h"
+#include "mt-kahypar/partition/partitioner_facade.h"
 #include "mt-kahypar/utils/cast.h"
 #include "mt-kahypar/utils/randomize.h"
 #include "mt-kahypar/utils/utilities.h"
@@ -74,6 +75,9 @@ int main(int argc, char* argv[]) {
 
   mt_kahypar::TBBInitializer::instance().terminate();
 
+  // Partition Hypergraph
+  mt_kahypar_partitioned_hypergraph_t partitioned_hypergraph =
+    mt_kahypar::PartitionerFacade::partition(hypergraph, context);
 
   return 0;
 }
