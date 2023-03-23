@@ -115,6 +115,12 @@ using TypeTraitsList = kahypar::meta::Typelist<StaticGraphTypeTraits,
   template class C<DynamicHypergraphTypeTraits>;    \
   template class C<LargeKHypergraphTypeTraits>;
 
+#define INSTANTIATE_CLASS_WITH_HYPERGRAPHS(C) \
+  template class C<ds::StaticHypergraph>;     \
+  template class C<ds::DynamicHypergraph>;    \
+  template class C<ds::StaticGraph>;          \
+  template class C<ds::DynamicGraph>;         \
+
 using HighResClockTimepoint = std::chrono::time_point<std::chrono::high_resolution_clock>;
 
 }  // namespace mt_kahypar

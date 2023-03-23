@@ -33,6 +33,7 @@
 #include <tbb/parallel_invoke.h>
 #include <tbb/enumerable_thread_specific.h>
 
+#include "mt-kahypar/one_definitions.h"
 #include "mt-kahypar/parallel/parallel_prefix_sum.h"
 #include "mt-kahypar/parallel/atomic_wrapper.h"
 #include "mt-kahypar/utils/timer.h"
@@ -40,15 +41,16 @@
 
 namespace mt_kahypar::ds {
 
-  Graph::Graph(Hypergraph& hypergraph, const LouvainEdgeWeight edge_weight_type, bool is_graph) :
-          _num_nodes(0),
-          _num_arcs(0),
-          _total_volume(0),
-          _max_degree(0),
-          _indices(),
-          _arcs(),
-          _node_volumes(),
-          _tmp_graph_buffer(nullptr) {
+  template<typename Hypergraph>
+  Graph<Hypergraph>::Graph(Hypergraph& hypergraph, const LouvainEdgeWeight edge_weight_type, bool is_graph) :
+    _num_nodes(0),
+    _num_arcs(0),
+    _total_volume(0),
+    _max_degree(0),
+    _indices(),
+    _arcs(),
+    _node_volumes(),
+    _tmp_graph_buffer(nullptr) {
 
     switch( edge_weight_type ) {
       case LouvainEdgeWeight::uniform:
@@ -84,7 +86,8 @@ namespace mt_kahypar::ds {
     }
   }
 
-  Graph::Graph(Graph&& other) :
+  template<typename Hypergraph>
+  Graph<Hypergraph>::Graph(Graph<Hypergraph>&& other) :
     _num_nodes(other._num_nodes),
     _num_arcs(other._num_arcs),
     _total_volume(other._total_volume),
@@ -100,7 +103,8 @@ namespace mt_kahypar::ds {
     other._tmp_graph_buffer = nullptr;
   }
 
-  Graph& Graph::operator= (Graph&& other) {
+  template<typename Hypergraph>
+  Graph<Hypergraph>& Graph<Hypergraph>::operator= (Graph<Hypergraph>&& other) {
     _num_nodes = other._num_nodes;
     _num_arcs = other._num_arcs;
     _total_volume = other._total_volume;
@@ -117,13 +121,15 @@ namespace mt_kahypar::ds {
     return *this;
   }
 
-  Graph::~Graph() {
+  template<typename Hypergraph>
+  Graph<Hypergraph>::~Graph() {
     if ( _tmp_graph_buffer ) {
       delete(_tmp_graph_buffer);
     }
   }
 
-  Graph Graph::contract_low_memory(Clustering& communities) {
+  template<typename Hypergraph>
+  Graph<Hypergraph> Graph<Hypergraph>::contract_low_memory(Clustering& communities) {
     // map cluster IDs to consecutive range
     vec<NodeID> mapping(numNodes(), 0);   // TODO use memory pool?
     tbb::parallel_for(UL(0), numNodes(), [&](NodeID u) { mapping[communities[u]] = 1; });
@@ -218,7 +224,8 @@ namespace mt_kahypar::ds {
  * coarse graph. Finally, the weights of each multiedge in that temporary graph
  * are aggregated and the result is written to the final contracted graph.
  */
-  Graph Graph::contract(Clustering& communities, bool low_memory) {
+  template<typename Hypergraph>
+  Graph<Hypergraph> Graph<Hypergraph>::contract(Clustering& communities, bool low_memory) {
     if (low_memory) {
       return contract_low_memory(communities);
     }
@@ -359,29 +366,25 @@ namespace mt_kahypar::ds {
     return coarse_graph;
   }
 
-
-  Graph::Graph() :
-          _num_nodes(0),
-          _num_arcs(0),
-          _total_volume(0),
-          _max_degree(0),
-          _indices(),
-          _arcs(),
-          _node_volumes(),
-          _tmp_graph_buffer(nullptr) {
-
-  }
-
-
-
+  template<typename Hypergraph>
+  Graph<Hypergraph>::Graph() :
+    _num_nodes(0),
+    _num_arcs(0),
+    _total_volume(0),
+    _max_degree(0),
+    _indices(),
+    _arcs(),
+    _node_volumes(),
+    _tmp_graph_buffer(nullptr) { }
 
   /*!
    * Constructs a graph from a given hypergraph.
    */
+  template<typename Hypergraph>
   template<typename F>
-  void Graph::construct(const Hypergraph& hypergraph,
-                        const bool is_graph,
-                        const F& edge_weight_func) {
+  void Graph<Hypergraph>::construct(const Hypergraph& hypergraph,
+                                    const bool is_graph,
+                                    const F& edge_weight_func) {
     if ( is_graph ) {
       ASSERT(hypergraph.maxEdgeSize() == 2);
       _num_nodes = hypergraph.initialNumNodes();
@@ -408,9 +411,10 @@ namespace mt_kahypar::ds {
     _total_volume = tbb::parallel_deterministic_reduce(r, 0.0, aggregate_volume, std::plus<>());
   }
 
+  template<typename Hypergraph>
   template<typename F>
-  void Graph::constructBipartiteGraph(const Hypergraph& hypergraph,
-                               F& edge_weight_func) {
+  void Graph<Hypergraph>::constructBipartiteGraph(const Hypergraph& hypergraph,
+                                                  F& edge_weight_func) {
     _indices.resize("Preprocessing", "indices", _num_nodes + 1);
     _arcs.resize("Preprocessing", "arcs", _num_arcs);
     _node_volumes.resize("Preprocessing", "node_volumes", _num_nodes);
@@ -473,8 +477,9 @@ namespace mt_kahypar::ds {
     });
   }
 
+  template<typename Hypergraph>
   template<typename F>
-  void Graph::constructGraph(const Hypergraph& hypergraph, const F& edge_weight_func) {
+  void Graph<Hypergraph>::constructGraph(const Hypergraph& hypergraph, const F& edge_weight_func) {
     _indices.resize("Preprocessing", "indices", _num_nodes + 1);
     _arcs.resize("Preprocessing", "arcs", _num_arcs);
     _node_volumes.resize("Preprocessing", "node_volumes", _num_nodes);
@@ -516,7 +521,8 @@ namespace mt_kahypar::ds {
     });
   }
 
-  bool Graph::canBeUsed(const bool verbose) const {
+  template<typename Hypergraph>
+  bool Graph<Hypergraph>::canBeUsed(const bool verbose) const {
     const bool result = _indices.size() >= numNodes() + 1 && _arcs.size() >= numArcs() && _node_volumes.size() >= numNodes();
     if (verbose && !result) {
       LOG << "Some of the graph's members were stolen. For example the contract function does this. "
@@ -525,5 +531,7 @@ namespace mt_kahypar::ds {
     }
     return result;
   }
+
+  INSTANTIATE_CLASS_WITH_HYPERGRAPHS(Graph)
 
 } // namespace mt_kahypar::ds
