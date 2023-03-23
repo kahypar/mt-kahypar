@@ -30,7 +30,7 @@
 
 #include "kahypar/datastructure/fast_reset_flag_array.h"
 
-#include "mt-kahypar/one_definitions.h"
+#include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/refinement/flows/scheduler.h"
 #include "mt-kahypar/partition/refinement/rebalancing/rebalancer.h"
 #include "mt-kahypar/utils/progress_bar.h"

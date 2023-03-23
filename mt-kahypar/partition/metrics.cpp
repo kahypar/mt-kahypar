@@ -30,7 +30,7 @@
 #include <cmath>
 #include <algorithm>
 
-#include "mt-kahypar/one_definitions.h"
+#include "mt-kahypar/definitions.h"
 
 namespace mt_kahypar::metrics {
 

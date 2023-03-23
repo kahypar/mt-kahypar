@@ -28,7 +28,7 @@
 
 #include <mt-kahypar/partition/coarsening/multilevel_uncoarsener.h>
 
-#include "mt-kahypar/one_definitions.h"
+#include "mt-kahypar/definitions.h"
 #include "mt-kahypar/io/partitioning_output.h"
 #include "mt-kahypar/partition/refinement/i_refiner.h"
 #include "mt-kahypar/partition/metrics.h"

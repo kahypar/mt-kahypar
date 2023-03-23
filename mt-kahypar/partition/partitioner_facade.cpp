@@ -27,7 +27,7 @@
 
 #include "mt-kahypar/partition/partitioner_facade.h"
 
-#include "mt-kahypar/one_definitions.h"
+#include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/partitioner.h"
 #include "mt-kahypar/io/partitioning_output.h"
 #include "mt-kahypar/io/hypergraph_io.h"

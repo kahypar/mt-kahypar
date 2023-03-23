@@ -27,7 +27,7 @@
 
 #include "partitioner.h"
 
-#include "mt-kahypar/one_definitions.h"
+#include "mt-kahypar/definitions.h"
 #include "mt-kahypar/io/partitioning_output.h"
 #include "mt-kahypar/partition/multilevel.h"
 #include "mt-kahypar/partition/preprocessing/sparsification/degree_zero_hn_remover.h"

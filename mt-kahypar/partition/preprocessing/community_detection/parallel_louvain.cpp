@@ -28,7 +28,7 @@
 
 #include "parallel_louvain.h"
 
-#include "mt-kahypar/one_definitions.h"
+#include "mt-kahypar/definitions.h"
 #include "mt-kahypar/utils/utilities.h"
 
 namespace mt_kahypar::community_detection {

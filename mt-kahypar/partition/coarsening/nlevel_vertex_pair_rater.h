@@ -38,7 +38,6 @@
 
 #include "mt-kahypar/datastructures/sparse_map.h"
 
-#include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/context.h"
 
 namespace mt_kahypar {

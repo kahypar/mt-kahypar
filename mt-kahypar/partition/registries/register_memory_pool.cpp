@@ -27,7 +27,7 @@
 
 #include "register_memory_pool.h"
 
-#include "mt-kahypar/one_definitions.h"
+#include "mt-kahypar/definitions.h"
 #include "mt-kahypar/datastructures/sparse_pin_counts.h"
 #include "mt-kahypar/datastructures/pin_count_in_part.h"
 #include "mt-kahypar/datastructures/connectivity_set.h"

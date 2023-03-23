@@ -27,7 +27,7 @@
 
 #include "mt-kahypar/partition/refinement/fm/localized_kway_fm_core.h"
 
-#include "mt-kahypar/one_definitions.h"
+#include "mt-kahypar/definitions.h"
 
 namespace mt_kahypar {
 

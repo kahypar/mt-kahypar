@@ -38,7 +38,6 @@
 #define ENABLE_GRAPH_PARTITIONER
 #endif
 
-#include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/metrics.h"
 #include "mt-kahypar/partition/partitioner.h"

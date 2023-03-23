@@ -26,58 +26,100 @@
 
 #pragma once
 
-#include <chrono>
+#include "kahypar/meta/policy_registry.h"
+#include "kahypar/meta/typelist.h"
 
-#ifdef ENABLE_GRAPH_PARTITIONER
-  #ifdef ENABLE_QUALITY_PRESET
-    #include "mt-kahypar/datastructures/dynamic_graph.h"
-    #include "mt-kahypar/datastructures/dynamic_graph_factory.h"
-  #else
-    #include "mt-kahypar/datastructures/static_graph.h"
-    #include "mt-kahypar/datastructures/static_graph_factory.h"
-  #endif
-  #include "mt-kahypar/datastructures/partitioned_graph.h"
-  #include "mt-kahypar/datastructures/delta_partitioned_graph.h"
-#else
-  #ifdef ENABLE_QUALITY_PRESET
-    #include "mt-kahypar/datastructures/dynamic_hypergraph.h"
-    #include "mt-kahypar/datastructures/dynamic_hypergraph_factory.h"
-  #else
-    #include "mt-kahypar/datastructures/static_hypergraph.h"
-    #include "mt-kahypar/datastructures/static_hypergraph_factory.h"
-  #endif
-  #include "mt-kahypar/datastructures/partitioned_hypergraph.h"
-  #include "mt-kahypar/datastructures/delta_partitioned_hypergraph.h"
-#endif
+#include "include/libmtkahypartypes.h"
+
+#include "mt-kahypar/datastructures/dynamic_graph.h"
+#include "mt-kahypar/datastructures/dynamic_graph_factory.h"
+#include "mt-kahypar/datastructures/static_graph.h"
+#include "mt-kahypar/datastructures/static_graph_factory.h"
+#include "mt-kahypar/datastructures/partitioned_graph.h"
+#include "mt-kahypar/datastructures/delta_partitioned_graph.h"
+#include "mt-kahypar/datastructures/dynamic_hypergraph.h"
+#include "mt-kahypar/datastructures/dynamic_hypergraph_factory.h"
+#include "mt-kahypar/datastructures/static_hypergraph.h"
+#include "mt-kahypar/datastructures/static_hypergraph_factory.h"
+#include "mt-kahypar/datastructures/partitioned_hypergraph.h"
+#include "mt-kahypar/datastructures/delta_partitioned_hypergraph.h"
 
 namespace mt_kahypar {
 
-#ifdef ENABLE_GRAPH_PARTITIONER
-  #ifdef ENABLE_QUALITY_PRESET
-    using Hypergraph = ds::DynamicGraph;
-    using HypergraphFactory = ds::DynamicGraphFactory;
-  #else
-    using Hypergraph = ds::StaticGraph;
-    using HypergraphFactory = ds::StaticGraphFactory;
-  #endif
-  using PartitionedHypergraph = ds::PartitionedGraph<Hypergraph>;
-  using DeltaPartitionedHypergraph = ds::DeltaPartitionedGraph<PartitionedHypergraph>;
-#else
-  #ifdef ENABLE_QUALITY_PRESET
-    using Hypergraph = ds::DynamicHypergraph;
-    using HypergraphFactory = ds::DynamicHypergraphFactory;
-  #else
-    using Hypergraph = ds::StaticHypergraph;
-    using HypergraphFactory = ds::StaticHypergraphFactory;
-  #endif
+using StaticPartitionedGraph = ds::PartitionedGraph<ds::StaticGraph>;
+using DynamicPartitionedGraph = ds::PartitionedGraph<ds::DynamicGraph>;
+using StaticPartitionedHypergraph = ds::PartitionedHypergraph<ds::StaticHypergraph, ds::ConnectivityInfo>;
+using StaticSparsePartitionedHypergraph = ds::PartitionedHypergraph<ds::StaticHypergraph, ds::SparseConnectivityInfo>;
+using DynamicPartitionedHypergraph = ds::PartitionedHypergraph<ds::DynamicHypergraph, ds::ConnectivityInfo>;
 
-  #ifdef ENABLE_LARGE_K
-    using PartitionedHypergraph = ds::PartitionedHypergraph<Hypergraph, ds::SparseConnectivityInfo>;
-  #else
-    using PartitionedHypergraph = ds::PartitionedHypergraph<Hypergraph, ds::ConnectivityInfo>;
-  #endif
+struct StaticGraphTypeTraits : public kahypar::meta::PolicyBase {
+  using Hypergraph = ds::StaticGraph;
+  using PartitionedHypergraph = StaticPartitionedGraph;
+  using DeltaPartitionedHypergraph = ds::DeltaPartitionedGraph<PartitionedHypergraph>;
+};
+
+struct DynamicGraphTypeTraits : public kahypar::meta::PolicyBase {
+  using Hypergraph = ds::DynamicGraph;
+  using PartitionedHypergraph = DynamicPartitionedGraph;
+  using DeltaPartitionedHypergraph = ds::DeltaPartitionedGraph<PartitionedHypergraph>;
+};
+
+struct StaticHypergraphTypeTraits : public kahypar::meta::PolicyBase {
+  using Hypergraph = ds::StaticHypergraph;
+  using PartitionedHypergraph = StaticPartitionedHypergraph;
   using DeltaPartitionedHypergraph = ds::DeltaPartitionedHypergraph<PartitionedHypergraph>;
-#endif
+};
+
+struct DynamicHypergraphTypeTraits : public kahypar::meta::PolicyBase {
+  using Hypergraph = ds::DynamicHypergraph;
+  using PartitionedHypergraph = DynamicPartitionedHypergraph;
+  using DeltaPartitionedHypergraph = ds::DeltaPartitionedHypergraph<PartitionedHypergraph>;
+};
+
+struct LargeKHypergraphTypeTraits : public kahypar::meta::PolicyBase {
+  using Hypergraph = ds::StaticHypergraph;
+  using PartitionedHypergraph = StaticSparsePartitionedHypergraph;
+  using DeltaPartitionedHypergraph = ds::DeltaPartitionedHypergraph<PartitionedHypergraph>;
+};
+
+using TypeTraitsList = kahypar::meta::Typelist<StaticGraphTypeTraits,
+                                               DynamicGraphTypeTraits,
+                                               StaticHypergraphTypeTraits,
+                                               DynamicHypergraphTypeTraits,
+                                               LargeKHypergraphTypeTraits>;
+
+#define INSTANTIATE_FUNC_WITH_HYPERGRAPHS(FUNC) \
+  template FUNC(ds::StaticHypergraph);          \
+  template FUNC(ds::DynamicHypergraph);         \
+  template FUNC(ds::StaticGraph);               \
+  template FUNC(ds::DynamicGraph);
+
+#define INSTANTIATE_FUNC_WITH_PARTITIONED_HG(FUNC)  \
+  template FUNC(StaticPartitionedGraph);            \
+  template FUNC(DynamicPartitionedGraph);           \
+  template FUNC(StaticPartitionedHypergraph);       \
+  template FUNC(StaticSparsePartitionedHypergraph); \
+  template FUNC(DynamicPartitionedHypergraph);
+
+#define INSTANTIATE_CLASS_MACRO_WITH_TYPE_TRAITS(C) \
+  template class C(StaticGraphTypeTraits);          \
+  template class C(DynamicGraphTypeTraits);         \
+  template class C(StaticHypergraphTypeTraits);     \
+  template class C(DynamicHypergraphTypeTraits);    \
+  template class C(LargeKHypergraphTypeTraits);
+
+#define INSTANTIATE_CLASS_WITH_TYPE_TRAITS(C)       \
+  template class C<StaticGraphTypeTraits>;          \
+  template class C<DynamicGraphTypeTraits>;         \
+  template class C<StaticHypergraphTypeTraits>;     \
+  template class C<DynamicHypergraphTypeTraits>;    \
+  template class C<LargeKHypergraphTypeTraits>;
+
+#define INSTANTIATE_CLASS_WITH_HYPERGRAPHS(C) \
+  template class C<ds::StaticHypergraph>;     \
+  template class C<ds::DynamicHypergraph>;    \
+  template class C<ds::StaticGraph>;          \
+  template class C<ds::DynamicGraph>;         \
 
 using HighResClockTimepoint = std::chrono::time_point<std::chrono::high_resolution_clock>;
 

@@ -31,7 +31,7 @@
 
 #include "tbb/parallel_sort.h"
 
-#include "mt-kahypar/one_definitions.h"
+#include "mt-kahypar/definitions.h"
 #include "mt-kahypar/datastructures/sparse_map.h"
 
 

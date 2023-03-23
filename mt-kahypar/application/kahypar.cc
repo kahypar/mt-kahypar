@@ -27,7 +27,7 @@
 
 #include <iostream>
 
-#include "mt-kahypar/one_definitions.h"
+#include "mt-kahypar/definitions.h"
 #include "mt-kahypar/io/command_line_options.h"
 #include "mt-kahypar/io/hypergraph_factory.h"
 #include "mt-kahypar/io/partitioning_output.h"

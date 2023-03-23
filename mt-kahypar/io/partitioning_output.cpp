@@ -35,7 +35,7 @@
 #include "tbb/parallel_reduce.h"
 #include "tbb/enumerable_thread_specific.h"
 
-#include "mt-kahypar/one_definitions.h"
+#include "mt-kahypar/definitions.h"
 #include "mt-kahypar/parallel/memory_pool.h"
 #include "mt-kahypar/parallel/atomic_wrapper.h"
 #include "mt-kahypar/partition/metrics.h"

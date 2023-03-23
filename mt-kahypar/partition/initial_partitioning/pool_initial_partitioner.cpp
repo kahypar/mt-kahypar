@@ -28,7 +28,7 @@
 
 #include "tbb/task_group.h"
 
-#include "mt-kahypar/one_definitions.h"
+#include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/registries/register_initial_partitioning_algorithms.h"
 #include "mt-kahypar/utils/cast.h"
 

@@ -26,7 +26,7 @@
 
 #include "mt-kahypar/partition/initial_partitioning/label_propagation_initial_partitioner.h"
 
-#include "mt-kahypar/one_definitions.h"
+#include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/initial_partitioning/policies/pseudo_peripheral_start_nodes.h"
 #include "mt-kahypar/partition/initial_partitioning/policies/gain_computation_policy.h"
 #include "mt-kahypar/utils/randomize.h"

@@ -26,7 +26,7 @@
 
 #include "deterministic_label_propagation.h"
 
-#include "mt-kahypar/one_definitions.h"
+#include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/metrics.h"
 #include "mt-kahypar/parallel/chunking.h"
 #include "mt-kahypar/parallel/parallel_counting_sort.h"

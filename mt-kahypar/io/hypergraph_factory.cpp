@@ -27,7 +27,7 @@
 #include "hypergraph_factory.h"
 
 #include "mt-kahypar/macros.h"
-#include "mt-kahypar/one_definitions.h"
+#include "mt-kahypar/definitions.h"
 #include "mt-kahypar/io/hypergraph_io.h"
 
 namespace mt_kahypar {

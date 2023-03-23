@@ -28,7 +28,7 @@
 
 #include <tbb/parallel_sort.h>
 
-#include "mt-kahypar/one_definitions.h"
+#include "mt-kahypar/definitions.h"
 
 namespace mt_kahypar {
 

@@ -33,7 +33,7 @@
 #include "kahypar/meta/registrar.h"
 
 #include "mt-kahypar/partition/context.h"
-#include "mt-kahypar/one_definitions.h"
+#include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/initial_partitioning/i_initial_partitioner.h"
 #include "mt-kahypar/partition/initial_partitioning/random_initial_partitioner.h"
 #include "mt-kahypar/partition/initial_partitioning/bfs_initial_partitioner.h"

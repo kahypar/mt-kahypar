@@ -30,7 +30,7 @@
 
 #include "include/libmtkahypartypes.h"
 
-#include "mt-kahypar/one_definitions.h"
+#include "mt-kahypar/definitions.h"
 #include "mt-kahypar/macros.h"
 
 namespace mt_kahypar::utils {

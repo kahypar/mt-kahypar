@@ -27,7 +27,7 @@
 
 #include "local_moving_modularity.h"
 
-#include "mt-kahypar/one_definitions.h"
+#include "mt-kahypar/definitions.h"
 #include "mt-kahypar/utils/timer.h"
 #include "mt-kahypar/utils/floating_point_comparisons.h"
 #include "mt-kahypar/parallel/stl/thread_locals.h"

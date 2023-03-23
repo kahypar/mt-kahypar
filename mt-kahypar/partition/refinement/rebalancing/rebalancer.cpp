@@ -34,7 +34,7 @@
 #include "tbb/enumerable_thread_specific.h"
 #include "tbb/parallel_for.h"
 
-#include "mt-kahypar/one_definitions.h"
+#include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/metrics.h"
 #include "mt-kahypar/utils/timer.h"
 

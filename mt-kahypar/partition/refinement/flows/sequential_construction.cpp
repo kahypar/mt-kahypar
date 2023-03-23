@@ -28,7 +28,7 @@
 
 #include "kahypar/utils/math.h"
 
-#include "mt-kahypar/one_definitions.h"
+#include "mt-kahypar/definitions.h"
 #include "mt-kahypar/parallel/stl/scalable_queue.h"
 
 namespace mt_kahypar {

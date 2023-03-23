@@ -31,7 +31,6 @@
 #include "kahypar/meta/policy_registry.h"
 #include "kahypar/meta/typelist.h"
 
-#include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/coarsening/policies/rating_tie_breaking_policy.h"
 
 namespace mt_kahypar {

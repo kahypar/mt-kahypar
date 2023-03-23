@@ -26,7 +26,7 @@
 
 #include "mt-kahypar/partition/refinement/fm/sequential_twoway_fm_refiner.h"
 
-#include "mt-kahypar/one_definitions.h"
+#include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/metrics.h"
 #include "mt-kahypar/partition/refinement/fm/stop_rule.h"
 

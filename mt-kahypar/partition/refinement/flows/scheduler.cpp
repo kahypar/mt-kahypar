@@ -26,7 +26,7 @@
 
 #include "mt-kahypar/partition/refinement/flows/scheduler.h"
 
-#include "mt-kahypar/one_definitions.h"
+#include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/metrics.h"
 #include "mt-kahypar/io/partitioning_output.h"
 #include "mt-kahypar/utils/utilities.h"

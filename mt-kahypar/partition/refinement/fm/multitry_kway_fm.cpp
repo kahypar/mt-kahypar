@@ -27,7 +27,7 @@
 
 #include "mt-kahypar/partition/refinement/fm/multitry_kway_fm.h"
 
-#include "mt-kahypar/one_definitions.h"
+#include "mt-kahypar/definitions.h"
 #include "mt-kahypar/utils/utilities.h"
 #include "mt-kahypar/partition/metrics.h"
 #include "mt-kahypar/utils/memory_tree.h"

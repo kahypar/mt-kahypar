@@ -26,7 +26,7 @@
 
 #include "mt-kahypar/partition/initial_partitioning/bfs_initial_partitioner.h"
 
-#include "mt-kahypar/one_definitions.h"
+#include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/initial_partitioning/policies/pseudo_peripheral_start_nodes.h"
 #include "mt-kahypar/utils/randomize.h"
 

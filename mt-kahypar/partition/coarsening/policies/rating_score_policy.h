@@ -29,8 +29,6 @@
 #include "kahypar/meta/policy_registry.h"
 #include "kahypar/meta/typelist.h"
 
-#include "mt-kahypar/definitions.h"
-
 namespace mt_kahypar {
 class HeavyEdgeScore final : public kahypar::meta::PolicyBase {
  public:

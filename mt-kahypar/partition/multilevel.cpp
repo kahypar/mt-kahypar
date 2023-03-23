@@ -33,7 +33,7 @@
 
 #include "include/libmtkahypartypes.h"
 
-#include "mt-kahypar/one_definitions.h"
+#include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/factories.h"
 #include "mt-kahypar/partition/preprocessing/sparsification/degree_zero_hn_remover.h"
 #include "mt-kahypar/partition/preprocessing/sparsification/large_he_remover.h"

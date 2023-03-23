@@ -31,7 +31,7 @@
 #include "kahypar/meta/static_multi_dispatch_factory.h"
 #include "kahypar/meta/typelist.h"
 
-#include "mt-kahypar/one_definitions.h"
+#include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/coarsening/nlevel_coarsener.h"
 #include "mt-kahypar/partition/coarsening/multilevel_coarsener.h"
 #include "mt-kahypar/partition/coarsening/deterministic_multilevel_coarsener.h"

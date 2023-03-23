@@ -64,6 +64,7 @@ class NLevelCoarsener : public ICoarsener,
                                       AcceptancePolicy>;
   using Rating = typename Rater::Rating;
   using Hypergraph = typename TypeTraits::Hypergraph;
+  using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
 
   class ContractionLimitTracker {
 
