@@ -5,5 +5,3 @@ set(UtilSources
 foreach(modtarget IN LISTS TARGETS_WANTING_ALL_SOURCES)
     target_sources(${modtarget} PRIVATE ${UtilSources})
 endforeach()
-
-target_sources(OneMtKaHyPar PRIVATE ${UtilSources})

@@ -13,5 +13,3 @@ endforeach()
 set(IOWrapperSources
         command_line_options.cpp)
 target_sources(MtKaHyParWrapper PRIVATE ${IOWrapperSources})
-
-target_sources(OneMtKaHyPar PRIVATE ${IOSources})

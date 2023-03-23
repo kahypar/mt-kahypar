@@ -32,7 +32,7 @@
 #include <algorithm>
 #include <vector>
 
-#include "mt-kahypar/definitions.h"
+#include "mt-kahypar/one_definitions.h"
 #include "mt-kahypar/macros.h"
 #include "mt-kahypar/partition/multilevel.h"
 
@@ -76,6 +76,7 @@ namespace tmp {
   static constexpr bool debug = false;
 
   // Sets the appropriate parameters for the multilevel bipartitioning call
+  template<typename Hypergraph>
   Context setupBipartitioningContext(const Hypergraph& hypergraph,
                                      const Context& context,
                                      const OriginalHypergraphInfo& info) {
@@ -173,22 +174,26 @@ namespace tmp {
 
   // Takes a hypergraph partitioned into two blocks as input and then recursively
   // partitions one block into (k1 - b0) blocks
-  void recursively_bipartition_block(PartitionedHypergraph& phg,
+  template<typename TypeTraits>
+  void recursively_bipartition_block(typename TypeTraits::PartitionedHypergraph& phg,
                                      const Context& context,
                                      const PartitionID block, const PartitionID k0, const PartitionID k1,
                                      const OriginalHypergraphInfo& info,
                                      const double degree_of_parallism);
 
   // Uses multilevel recursive bipartitioning to partition the given hypergraph into (k1 - k0) blocks
-  void recursive_bipartitioning(PartitionedHypergraph& phg,
+  template<typename TypeTraits>
+  void recursive_bipartitioning(typename TypeTraits::PartitionedHypergraph& phg,
                                 const Context& context,
                                 const PartitionID k0, const PartitionID k1,
                                 const OriginalHypergraphInfo& info) {
+    using Hypergraph = typename TypeTraits::Hypergraph;
+    using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
     // Multilevel Bipartitioning
     Hypergraph& hg = phg.hypergraph();
     Context b_context = setupBipartitioningContext(hg, context, info);
     DBG << "Multilevel Bipartitioning - Range = (" << k0 << "," << k1 << "), Epsilon =" << b_context.partition.epsilon;
-    PartitionedHypergraph bipartitioned_hg = multilevel::partition(hg, b_context);
+    PartitionedHypergraph bipartitioned_hg = Multilevel<TypeTraits>::partition(hg, b_context);
     DBG << "Bipartitioning Result -"
         << "Objective =" << metrics::objective(bipartitioned_hg, context.partition.objective)
         << "Imbalance =" << metrics::imbalance(bipartitioned_hg, b_context)
@@ -222,25 +227,27 @@ namespace tmp {
           << "Block" << block_0 << "is further partitioned into k =" << rb_k0 << "blocks\n"
           << "Block" << block_1 << "is further partitioned into k =" << rb_k1 << "blocks\n";
       tbb::task_group tg;
-      tg.run([&] { recursively_bipartition_block(phg, context, block_0, 0, rb_k0, info, 0.5); });
-      tg.run([&] { recursively_bipartition_block(phg, context, block_1, rb_k0, rb_k0 + rb_k1, info, 0.5); });
+      tg.run([&] { recursively_bipartition_block<TypeTraits>(phg, context, block_0, 0, rb_k0, info, 0.5); });
+      tg.run([&] { recursively_bipartition_block<TypeTraits>(phg, context, block_1, rb_k0, rb_k0 + rb_k1, info, 0.5); });
       tg.wait();
     } else if ( rb_k0 >= 2 ) {
       ASSERT(rb_k1 < 2);
       // Only the first block needs to be further partitioned into at least two blocks.
       DBG << "Current k = " << context.partition.k << "\n"
           << "Block" << block_0 << "is further partitioned into k =" << rb_k0 << "blocks\n";
-      recursively_bipartition_block(phg, context,
-        block_0, 0, rb_k0, info, 1.0);
+      recursively_bipartition_block<TypeTraits>(phg, context, block_0, 0, rb_k0, info, 1.0);
     }
   }
 }
 
-void tmp::recursively_bipartition_block(PartitionedHypergraph& phg,
+template<typename TypeTraits>
+void tmp::recursively_bipartition_block(typename TypeTraits::PartitionedHypergraph& phg,
                                         const Context& context,
                                         const PartitionID block, const PartitionID k0, const PartitionID k1,
                                         const OriginalHypergraphInfo& info,
                                         const double degree_of_parallism) {
+  using Hypergraph = typename TypeTraits::Hypergraph;
+  using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
   Context rb_context = setupRecursiveBipartitioningContext(context, k0, k1, degree_of_parallism);
   // Extracts the block of the hypergraph which we recursively want to partition
   bool cut_net_splitting = context.partition.objective == Objective::km1;
@@ -252,7 +259,7 @@ void tmp::recursively_bipartition_block(PartitionedHypergraph& phg,
   if ( rb_hg.initialNumNodes() > 0 ) {
     // Recursively partition the given block into (k1 - k0) blocks
     PartitionedHypergraph rb_phg(rb_context.partition.k, rb_hg, parallel_tag_t());
-    recursive_bipartitioning(rb_phg, rb_context, k0, k1, info);
+    recursive_bipartitioning<TypeTraits>(rb_phg, rb_context, k0, k1, info);
 
     ASSERT(phg.initialNumNodes() == mapping.size());
     // Apply k-way partition to the input hypergraph
@@ -275,37 +282,40 @@ void tmp::recursively_bipartition_block(PartitionedHypergraph& phg,
   }
 }
 
-namespace recursive_bipartitioning {
+template<typename TypeTraits>
+typename RecursiveBipartitioning<TypeTraits>::PartitionedHypergraph
+RecursiveBipartitioning<TypeTraits>::partition(Hypergraph& hypergraph, const Context& context) {
+  PartitionedHypergraph partitioned_hypergraph(context.partition.k, hypergraph, parallel_tag_t());
+  partition(partitioned_hypergraph, context);
+  return partitioned_hypergraph;
+}
 
-  PartitionedHypergraph partition(Hypergraph& hypergraph, const Context& context) {
-    PartitionedHypergraph partitioned_hypergraph(context.partition.k, hypergraph, parallel_tag_t());
-    partition(partitioned_hypergraph, context);
-    return partitioned_hypergraph;
+template<typename TypeTraits>
+void RecursiveBipartitioning<TypeTraits>::partition(PartitionedHypergraph& hypergraph, const Context& context) {
+  utils::Utilities& utils = utils::Utilities::instance();
+  if (context.partition.mode == Mode::recursive_bipartitioning) {
+    utils.getTimer(context.utility_id).start_timer("rb", "Recursive Bipartitioning");
   }
 
-  void partition(PartitionedHypergraph& hypergraph, const Context& context) {
-    utils::Utilities& utils = utils::Utilities::instance();
-    if (context.partition.mode == Mode::recursive_bipartitioning) {
-      utils.getTimer(context.utility_id).start_timer("rb", "Recursive Bipartitioning");
-    }
-
-    if (context.type == ContextType::main) {
-      parallel::MemoryPool::instance().deactivate_unused_memory_allocations();
-      utils.getTimer(context.utility_id).disable();
-      utils.getStats(context.utility_id).disable();
-    }
-
-    tmp::recursive_bipartitioning(hypergraph, context, 0, context.partition.k,
-      OriginalHypergraphInfo { hypergraph.totalWeight(), context.partition.k, context.partition.epsilon });
-
-    if (context.type == ContextType::main) {
-      parallel::MemoryPool::instance().activate_unused_memory_allocations();
-      utils.getTimer(context.utility_id).enable();
-      utils.getStats(context.utility_id).enable();
-    }
-    if (context.partition.mode == Mode::recursive_bipartitioning) {
-      utils.getTimer(context.utility_id).stop_timer("rb");
-    }
+  if (context.type == ContextType::main) {
+    parallel::MemoryPool::instance().deactivate_unused_memory_allocations();
+    utils.getTimer(context.utility_id).disable();
+    utils.getStats(context.utility_id).disable();
   }
-} // namespace recursive_bipartitioning
+
+  tmp::recursive_bipartitioning<TypeTraits>(hypergraph, context, 0, context.partition.k,
+    OriginalHypergraphInfo { hypergraph.totalWeight(), context.partition.k, context.partition.epsilon });
+
+  if (context.type == ContextType::main) {
+    parallel::MemoryPool::instance().activate_unused_memory_allocations();
+    utils.getTimer(context.utility_id).enable();
+    utils.getStats(context.utility_id).enable();
+  }
+  if (context.partition.mode == Mode::recursive_bipartitioning) {
+    utils.getTimer(context.utility_id).stop_timer("rb");
+  }
+}
+
+INSTANTIATE_CLASS_WITH_TYPE_TRAITS(RecursiveBipartitioning)
+
 } // namepace mt_kahypar

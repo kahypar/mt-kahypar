@@ -8,8 +8,3 @@ set(RegistrySources
 foreach(modtarget IN LISTS TARGETS_WANTING_ALL_SOURCES)
     target_sources(${modtarget} PRIVATE ${RegistrySources})
 endforeach()
-
-set(OneMtKaHyParRegistrySources
-        register_memory_pool.cpp
-        )
-target_sources(OneMtKaHyPar PRIVATE ${OneMtKaHyParRegistrySources})

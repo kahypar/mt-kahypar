@@ -27,16 +27,21 @@
 
 #pragma once
 
-#include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/context.h"
 
-
 namespace mt_kahypar {
-namespace recursive_bipartitioning {
 
-// ! Partitions a hypergraph using multilevel recursive bipartitioning.
-PartitionedHypergraph partition(Hypergraph& hypergraph, const Context& context);
-void partition(PartitionedHypergraph& hypergraph, const Context& context);
+template<typename TypeTraits>
+class RecursiveBipartitioning {
 
-}  // namespace recursive_bipartitioning
+  using Hypergraph = typename TypeTraits::Hypergraph;
+  using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
+
+ public:
+  // ! Partitions a hypergraph using multilevel recursive bipartitioning.
+  static PartitionedHypergraph partition(Hypergraph& hypergraph, const Context& context);
+  static void partition(PartitionedHypergraph& hypergraph, const Context& context);
+
+};
+
 }  // namespace mt_kahypar

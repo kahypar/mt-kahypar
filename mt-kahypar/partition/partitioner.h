@@ -27,10 +27,19 @@
 
 #pragma once
 
-#include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/context.h"
 
 namespace mt_kahypar {
-  PartitionedHypergraph partition(Hypergraph& hypergraph, Context& context);
-  void partitionVCycle(PartitionedHypergraph& partitioned_hg, Context& context);
+
+template<typename TypeTraits>
+class Partitioner {
+
+  using Hypergraph = typename TypeTraits::Hypergraph;
+  using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
+
+ public:
+  static PartitionedHypergraph partition(Hypergraph& hypergraph, Context& context);
+  static void partitionVCycle(PartitionedHypergraph& partitioned_hg, Context& context);
+};
+
 }  // namespace mt_kahypar

@@ -40,11 +40,10 @@ using IPTask = std::tuple<InitialPartitioningAlgorithm, int, int>;
 }
 
 template<typename TypeTraits>
-void Pool<TypeTraits>::bipartition(mt_kahypar_partitioned_hypergraph_t& phg,
+void Pool<TypeTraits>::bipartition(PartitionedHypergraph& hypergraph,
                                    const Context& context,
                                    const bool run_parallel) {
   ASSERT(context.shared_memory.num_threads > 0);
-  PartitionedHypergraph& hypergraph = utils::cast<PartitionedHypergraph>(phg);
   if ( context.initial_partitioning.enabled_ip_algos.size() <
         static_cast<size_t>(InitialPartitioningAlgorithm::UNDEFINED) ) {
     ERR("Size of enabled IP algorithms vector is smaller than number of IP algorithms!");
@@ -91,27 +90,5 @@ void Pool<TypeTraits>::bipartition(mt_kahypar_partitioned_hypergraph_t& phg,
 }
 
 INSTANTIATE_CLASS_WITH_TYPE_TRAITS(Pool)
-
-namespace pool {
-
-void bipartition(mt_kahypar_partitioned_hypergraph_t& phg,
-                 const Context& context,
-                 const bool run_parallel) {
-  if ( phg.type ==  STATIC_PARTITIONED_GRAPH) {
-    Pool<StaticGraphTypeTraits>::bipartition(phg, context, run_parallel);
-  } else if ( phg.type ==  STATIC_PARTITIONED_HYPERGRAPH) {
-    Pool<StaticHypergraphTypeTraits>::bipartition(phg, context, run_parallel);
-  } else if ( phg.type ==  STATIC_SPARSE_PARTITIONED_HYPERGRAPH) {
-    Pool<LargeKHypergraphTypeTraits>::bipartition(phg, context, run_parallel);
-  } else if ( phg.type ==  DYNAMIC_PARTITIONED_GRAPH) {
-    Pool<DynamicGraphTypeTraits>::bipartition(phg, context, run_parallel);
-  } else if ( phg.type ==  DYNAMIC_PARTITIONED_HYPERGRAPH) {
-    Pool<DynamicHypergraphTypeTraits>::bipartition(phg, context, run_parallel);
-  } else {
-    ERR("No valid partitioned hypergraph type");
-  }
-}
-
-}
 
 } // namespace mt_kahypar

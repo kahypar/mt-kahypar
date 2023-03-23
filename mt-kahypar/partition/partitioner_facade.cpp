@@ -28,6 +28,7 @@
 #include "mt-kahypar/partition/partitioner_facade.h"
 
 #include "mt-kahypar/one_definitions.h"
+#include "mt-kahypar/partition/partitioner.h"
 #include "mt-kahypar/io/partitioning_output.h"
 #include "mt-kahypar/io/hypergraph_io.h"
 #include "mt-kahypar/io/csv_output.h"
@@ -45,24 +46,14 @@ namespace internal {
     using Hypergraph = typename TypeTraits::Hypergraph;
     using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
     Hypergraph& hg = utils::cast<Hypergraph>(hypergraph);
-    PartitionedHypergraph* phg = new PartitionedHypergraph(context.partition.k, hg, parallel_tag_t { });
 
-    // Setup Context
-    context.sanityCheck();
-    context.setupPartWeights(hg.totalWeight());
-    context.setupContractionLimit(hg.totalWeight());
-    context.setupThreadsPerFlowSearch();
-    io::printContext(context);
-
-    // Compute random partition
-    utils::Randomize& rand = utils::Randomize::instance();
-    phg->doParallelForAllNodes([&](const HypernodeID& hn) {
-      phg->setOnlyNodePart(hn, rand.getRandomInt(0, context.partition.k - 1, SCHED_GETCPU));
-    });
-    phg->initializePartition();
+    // Partition Hypergraph
+    PartitionedHypergraph partitioned_hg =
+      Partitioner<TypeTraits>::partition(hg, context);
 
     return mt_kahypar_partitioned_hypergraph_t {
-      reinterpret_cast<mt_kahypar_partitioned_hypergraph_s*>(phg), PartitionedHypergraph::TYPE };
+      reinterpret_cast<mt_kahypar_partitioned_hypergraph_s*>(
+        new PartitionedHypergraph(std::move(partitioned_hg))), PartitionedHypergraph::TYPE };
   }
 
   mt_kahypar_partition_type_t getPartitionedHypergraphType(const mt_kahypar_hypergraph_t hypergraph,

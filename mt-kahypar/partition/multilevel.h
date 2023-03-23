@@ -27,21 +27,28 @@
 
 #pragma once
 
-#include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/context.h"
 
-namespace mt_kahypar::multilevel {
+namespace mt_kahypar {
 
-// ! Partitions a hypergraph using the multilevel paradigm.
-PartitionedHypergraph partition(Hypergraph& hypergraph, const Context& context);
+template<typename TypeTraits>
+class Multilevel {
 
-// ! Partitions a hypergraph using the multilevel paradigm.
-void partition(PartitionedHypergraph& partitioned_hg, const Context& context);
+  using Hypergraph = typename TypeTraits::Hypergraph;
+  using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
 
-// ! Improves an existing partition using the iterated multilevel cycle technique
-// ! (also called V-cycle).
-void partitionVCycle(Hypergraph& hypergraph,
-                     PartitionedHypergraph& partitioned_hg,
-                     const Context& context);
+ public:
+  // ! Partitions a hypergraph using the multilevel paradigm.
+  static PartitionedHypergraph partition(Hypergraph& hypergraph, const Context& context);
+
+  // ! Partitions a hypergraph using the multilevel paradigm.
+  static void partition(PartitionedHypergraph& partitioned_hg, const Context& context);
+
+  // ! Improves an existing partition using the iterated multilevel cycle technique
+  // ! (also called V-cycle).
+  static void partitionVCycle(Hypergraph& hypergraph,
+                              PartitionedHypergraph& partitioned_hg,
+                              const Context& context);
+};
 
 }  // namespace mt_kahypar

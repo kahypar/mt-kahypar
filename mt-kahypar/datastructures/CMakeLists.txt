@@ -28,8 +28,3 @@ foreach(modtarget IN LISTS TARGETS_WANTING_ALL_SOURCES)
                                       ${MultilevelDatastructureSources}
                                       ${NLevelDatastructureSources})
 endforeach()
-
-target_sources(OneMtKaHyPar PRIVATE ${MultilevelGraphDatastructureSources}
-                                    ${NLevelGraphDatastructureSources}
-                                    ${MultilevelDatastructureSources}
-                                    ${NLevelDatastructureSources})

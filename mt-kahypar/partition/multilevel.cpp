@@ -33,6 +33,7 @@
 
 #include "include/libmtkahypartypes.h"
 
+#include "mt-kahypar/one_definitions.h"
 #include "mt-kahypar/partition/factories.h"
 #include "mt-kahypar/partition/preprocessing/sparsification/degree_zero_hn_remover.h"
 #include "mt-kahypar/partition/preprocessing/sparsification/large_he_remover.h"
@@ -46,7 +47,7 @@
 #include "mt-kahypar/utils/cast.h"
 #include "mt-kahypar/utils/utilities.h"
 
-namespace mt_kahypar::multilevel {
+namespace mt_kahypar {
 
 namespace {
   void disableTimerAndStats(const Context& context) {
@@ -67,9 +68,11 @@ namespace {
     }
   }
 
-  PartitionedHypergraph multilevel_partitioning(Hypergraph& hypergraph,
-                                                const Context& context,
-                                                const bool is_vcycle) {
+  template<typename TypeTraits>
+  typename TypeTraits::PartitionedHypergraph multilevel_partitioning(
+    typename TypeTraits::Hypergraph& hypergraph,
+    const Context& context,
+    const bool is_vcycle) {
     PartitionedHypergraph partitioned_hg;
 
     // ################## COARSENING ##################
@@ -113,12 +116,11 @@ namespace {
         // The pool initial partitioner consist of several flat bipartitioning
         // techniques. This case runs as a base case (k = 2) within recursive bipartitioning
         // or the deep multilevel scheme.
-        mt_kahypar_partitioned_hypergraph_t partitioned_hg = utils::partitioned_hg_cast(phg);
-        pool::bipartition(partitioned_hg, ip_context);
+        Pool<TypeTraits>::bipartition(phg, ip_context);
       } else if ( context.initial_partitioning.mode == Mode::recursive_bipartitioning ) {
-        recursive_bipartitioning::partition(phg, ip_context);
+        RecursiveBipartitioning<TypeTraits>::partition(phg, ip_context);
       } else if ( context.initial_partitioning.mode == Mode::deep_multilevel ) {
-        deep_multilevel::partition(phg, ip_context);
+        DeepMultilevel<TypeTraits>::partition(phg, ip_context);
       } else {
         ERR("Undefined initial partitioning algorithm");
       }
@@ -162,8 +164,11 @@ namespace {
   }
 }
 
-PartitionedHypergraph partition(Hypergraph& hypergraph, const Context& context) {
-  PartitionedHypergraph partitioned_hg = multilevel_partitioning(hypergraph, context, false);
+template<typename TypeTraits>
+typename Multilevel<TypeTraits>::PartitionedHypergraph Multilevel<TypeTraits>::partition(
+  Hypergraph& hypergraph, const Context& context) {
+  PartitionedHypergraph partitioned_hg =
+    multilevel_partitioning<TypeTraits>(hypergraph, context, false);
 
   // ################## V-CYCLES ##################
   if ( context.partition.num_vcycles > 0 && context.type == ContextType::main ) {
@@ -173,7 +178,8 @@ PartitionedHypergraph partition(Hypergraph& hypergraph, const Context& context) 
   return partitioned_hg;
 }
 
-void partition(PartitionedHypergraph& partitioned_hg, const Context& context) {
+template<typename TypeTraits>
+void Multilevel<TypeTraits>::partition(PartitionedHypergraph& partitioned_hg, const Context& context) {
   PartitionedHypergraph tmp_phg = partition(partitioned_hg.hypergraph(), context);
   tmp_phg.doParallelForAllNodes([&](const HypernodeID& hn) {
     partitioned_hg.setOnlyNodePart(hn, tmp_phg.partID(hn));
@@ -181,9 +187,10 @@ void partition(PartitionedHypergraph& partitioned_hg, const Context& context) {
   partitioned_hg.initializePartition();
 }
 
-void partitionVCycle(Hypergraph& hypergraph,
-                     PartitionedHypergraph& partitioned_hg,
-                     const Context& context) {
+template<typename TypeTraits>
+void Multilevel<TypeTraits>::partitionVCycle(Hypergraph& hypergraph,
+                                             PartitionedHypergraph& partitioned_hg,
+                                             const Context& context) {
   ASSERT(context.partition.num_vcycles > 0);
 
   for ( size_t i = 0; i < context.partition.num_vcycles; ++i ) {
@@ -194,7 +201,7 @@ void partitionVCycle(Hypergraph& hypergraph,
 
     if ( context.partition.paradigm == Paradigm::nlevel ) {
       // Workaround: reset() function of hypergraph reinserts all removed hyperedges again.
-      LargeHyperedgeRemover large_he_remover(context);
+      LargeHyperedgeRemover<TypeTraits> large_he_remover(context);
       large_he_remover.removeLargeHyperedgesInNLevelVCycle(hypergraph);
     }
 
@@ -208,8 +215,11 @@ void partitionVCycle(Hypergraph& hypergraph,
 
     // Perform V-cycle
     io::printVCycleBanner(context, i + 1);
-    partitioned_hg = multilevel_partitioning(hypergraph, context, true /* V-cycle flag */ );
+    partitioned_hg = multilevel_partitioning<TypeTraits>(
+      hypergraph, context, true /* V-cycle flag */ );
   }
 }
+
+INSTANTIATE_CLASS_WITH_TYPE_TRAITS(Multilevel)
 
 }

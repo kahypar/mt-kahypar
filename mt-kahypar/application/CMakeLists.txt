@@ -6,12 +6,6 @@ target_link_libraries(MtKaHyParWrapper pthread)
 set_property(TARGET MtKaHyParWrapper PROPERTY CXX_STANDARD 17)
 set_property(TARGET MtKaHyParWrapper PROPERTY CXX_STANDARD_REQUIRED ON)
 
-add_executable(OneMtKaHyPar one_mt_kahypar.cc)
-target_link_libraries(OneMtKaHyPar ${Boost_LIBRARIES})
-target_link_libraries(OneMtKaHyPar pthread)
-set_property(TARGET OneMtKaHyPar PROPERTY CXX_STANDARD 17)
-set_property(TARGET OneMtKaHyPar PROPERTY CXX_STANDARD_REQUIRED ON)
-
 add_executable(MtKaHyParDefault kahypar.cc)
 target_link_libraries(MtKaHyParDefault ${Boost_LIBRARIES})
 target_link_libraries(MtKaHyParDefault pthread)
@@ -68,7 +62,6 @@ add_custom_command(TARGET MtKaHyParGraphQuality PRE_BUILD
 
 if(ENABLE_PROFILE MATCHES ON)
   target_link_libraries(MtKaHyParWrapper ${PROFILE_FLAGS})
-  target_link_libraries(OneMtKaHyPar ${PROFILE_FLAGS})
   target_link_libraries(MtKaHyParDefault ${PROFILE_FLAGS})
   target_link_libraries(MtKaHyParLargeK ${PROFILE_FLAGS})
   target_link_libraries(MtKaHyParQuality ${PROFILE_FLAGS})
