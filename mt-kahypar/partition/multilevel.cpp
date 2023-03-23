@@ -31,6 +31,8 @@
 
 #include "tbb/task.h"
 
+#include "include/libmtkahypartypes.h"
+
 #include "mt-kahypar/partition/factories.h"
 #include "mt-kahypar/partition/preprocessing/sparsification/degree_zero_hn_remover.h"
 #include "mt-kahypar/partition/preprocessing/sparsification/large_he_remover.h"
@@ -41,6 +43,7 @@
 #include "mt-kahypar/io/partitioning_output.h"
 #include "mt-kahypar/partition/coarsening/multilevel_uncoarsener.h"
 #include "mt-kahypar/partition/coarsening/nlevel_uncoarsener.h"
+#include "mt-kahypar/utils/cast.h"
 #include "mt-kahypar/utils/utilities.h"
 
 namespace mt_kahypar::multilevel {
@@ -106,19 +109,18 @@ namespace {
       ip_context.partition.verbose_output = false;
       ip_context.refinement = context.initial_partitioning.refinement;
       disableTimerAndStats(context);
-      switch ( context.initial_partitioning.mode ) {
-        case Mode::direct:
-          // The pool initial partitioner consist of several flat bipartitioning
-          // techniques. This case runs as a base case (k = 2) within recursive bipartitioning
-          // or the deep multilevel scheme.
-          pool::bipartition(phg, ip_context); break;
-        // k-way partitions can be computed either by recursive bipartitioning
-        // or deep multilevel partitioning.
-        case Mode::recursive_bipartitioning:
-          recursive_bipartitioning::partition(phg, ip_context); break;
-        case Mode::deep_multilevel:
-          deep_multilevel::partition(phg, ip_context); break;
-        case Mode::UNDEFINED: ERR("Undefined initial partitioning algorithm");
+      if ( context.initial_partitioning.mode == Mode::direct ) {
+        // The pool initial partitioner consist of several flat bipartitioning
+        // techniques. This case runs as a base case (k = 2) within recursive bipartitioning
+        // or the deep multilevel scheme.
+        mt_kahypar_partitioned_hypergraph_t partitioned_hg = utils::partitioned_hg_cast(phg);
+        pool::bipartition(partitioned_hg, ip_context);
+      } else if ( context.initial_partitioning.mode == Mode::recursive_bipartitioning ) {
+        recursive_bipartitioning::partition(phg, ip_context);
+      } else if ( context.initial_partitioning.mode == Mode::deep_multilevel ) {
+        deep_multilevel::partition(phg, ip_context);
+      } else {
+        ERR("Undefined initial partitioning algorithm");
       }
       enableTimerAndStats(context);
       degree_zero_hn_remover.restoreDegreeZeroHypernodes(phg);

@@ -26,11 +26,13 @@
 
 #include "mt-kahypar/partition/initial_partitioning/random_initial_partitioner.h"
 
+#include "mt-kahypar/one_definitions.h"
 #include "mt-kahypar/utils/randomize.h"
 
 namespace mt_kahypar {
 
-void RandomInitialPartitioner::partitionImpl() {
+template<typename TypeTraits>
+void RandomInitialPartitioner<TypeTraits>::partitionImpl() {
   if ( _ip_data.should_initial_partitioner_run(InitialPartitioningAlgorithm::random) ) {
     HighResClockTimepoint start = std::chrono::high_resolution_clock::now();
     PartitionedHypergraph& hg = _ip_data.local_partitioned_hypergraph();
@@ -59,5 +61,7 @@ void RandomInitialPartitioner::partitionImpl() {
     _ip_data.commit(InitialPartitioningAlgorithm::random, _rng, _tag, time);
   }
 }
+
+INSTANTIATE_CLASS_WITH_TYPE_TRAITS(RandomInitialPartitioner)
 
 } // namespace mt_kahypar

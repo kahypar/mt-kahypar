@@ -26,14 +26,22 @@
 
 #pragma once
 
-#include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/initial_partitioning/i_initial_partitioner.h"
 #include "mt-kahypar/partition/initial_partitioning/initial_partitioning_data_container.h"
 
 namespace mt_kahypar {
 
+namespace {
+  struct MaxGainMove {
+    const PartitionID block;
+    const Gain gain;
+  };
+}
+
+template<typename TypeTraits>
 class LabelPropagationInitialPartitioner : public IInitialPartitioner {
 
+  using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
   using DeltaFunction = std::function<void (const HyperedgeID, const HyperedgeWeight, const HypernodeID, const HypernodeID, const HypernodeID)>;
   #define NOOP_FUNC [] (const HyperedgeID, const HyperedgeWeight, const HypernodeID, const HypernodeID, const HypernodeID) { }
 
@@ -41,16 +49,11 @@ class LabelPropagationInitialPartitioner : public IInitialPartitioner {
   static constexpr bool enable_heavy_assert = false;
 
  public:
-  struct MaxGainMove {
-    const PartitionID block;
-    const Gain gain;
-  };
-
   LabelPropagationInitialPartitioner(const InitialPartitioningAlgorithm,
-                                      InitialPartitioningDataContainer& ip_data,
-                                      const Context& context,
-                                      const int seed, const int tag) :
-    _ip_data(ip_data),
+                                     ip_data_container_t* ip_data,
+                                     const Context& context,
+                                     const int seed, const int tag) :
+    _ip_data(ip::to_reference<TypeTraits>(ip_data)),
     _context(context),
     _valid_blocks(context.partition.k),
     _tmp_scores(context.partition.k),
@@ -95,7 +98,7 @@ class LabelPropagationInitialPartitioner : public IInitialPartitioner {
   void assignVertexToBlockWithMinimumWeight(PartitionedHypergraph& hypergraph,
                                             const HypernodeID hn);
 
-  InitialPartitioningDataContainer& _ip_data;
+  InitialPartitioningDataContainer<TypeTraits>& _ip_data;
   const Context& _context;
   kahypar::ds::FastResetFlagArray<> _valid_blocks;
   parallel::scalable_vector<Gain> _tmp_scores;

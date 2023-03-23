@@ -35,14 +35,17 @@
 
 namespace mt_kahypar {
 
+template<typename TypeTraits>
 class PseudoPeripheralStartNodes {
-  using StartNodes = parallel::scalable_vector<HypernodeID>;
-  using Queue = parallel::scalable_queue<HypernodeID>;
 
   static constexpr bool debug = false;
 
+  using StartNodes = parallel::scalable_vector<HypernodeID>;
+  using Queue = parallel::scalable_queue<HypernodeID>;
+  using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
+
  public:
-  static inline StartNodes computeStartNodes(InitialPartitioningDataContainer& ip_data,
+  static inline StartNodes computeStartNodes(InitialPartitioningDataContainer<TypeTraits>& ip_data,
                                              const Context& context,
                                              const PartitionID default_block,
                                              std::mt19937& rng) {

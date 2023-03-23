@@ -28,16 +28,26 @@
 
 #include "tbb/task.h"
 
-#include "mt-kahypar/definitions.h"
+#include "include/libmtkahypartypes.h"
+
 #include "mt-kahypar/partition/initial_partitioning/initial_partitioning_data_container.h"
 
 
 namespace mt_kahypar {
 
+template<typename TypeTraits>
+class Pool {
+ using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
+ public:
+  static void bipartition(mt_kahypar_partitioned_hypergraph_t& hypergraph,
+                          const Context& context,
+                          const bool run_parallel = true);
+};
+
 namespace pool {
 
 // Bipartitions a hypergraph using a portfolio of nine different bipartitioning techniques.
-void bipartition(PartitionedHypergraph& hypergraph,
+void bipartition(mt_kahypar_partitioned_hypergraph_t& hypergraph,
                  const Context& context,
                  const bool run_parallel = true);
 

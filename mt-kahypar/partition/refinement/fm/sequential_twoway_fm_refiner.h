@@ -42,12 +42,14 @@ namespace mt_kahypar {
  * in a multilevel context. It is used after each bisection during initial partitioning to refine
  * a given bipartition.
  */
+template<typename TypeTraits>
 class SequentialTwoWayFmRefiner {
 
   static constexpr bool debug = false;
   static constexpr bool enable_heavy_assert = false;
 
   using KWayRefinementPQ = kahypar::ds::KWayPriorityQueue<HypernodeID, Gain, std::numeric_limits<Gain> >;
+  using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
 
   /**
    * A hyperedge can be in three states during FM refinement: FREE, LOOSE and LOCKED.

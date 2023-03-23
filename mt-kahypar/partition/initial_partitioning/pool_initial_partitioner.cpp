@@ -28,19 +28,23 @@
 
 #include "tbb/task_group.h"
 
+#include "mt-kahypar/one_definitions.h"
 #include "mt-kahypar/partition/registries/register_initial_partitioning_algorithms.h"
+#include "mt-kahypar/utils/cast.h"
 
 namespace mt_kahypar {
 
-namespace pool {
-
+namespace {
 // IP algorithm and random seed
 using IPTask = std::tuple<InitialPartitioningAlgorithm, int, int>;
+}
 
-void bipartition(PartitionedHypergraph& hypergraph,
-                 const Context& context,
-                 const bool run_parallel) {
+template<typename TypeTraits>
+void Pool<TypeTraits>::bipartition(mt_kahypar_partitioned_hypergraph_t& phg,
+                                   const Context& context,
+                                   const bool run_parallel) {
   ASSERT(context.shared_memory.num_threads > 0);
+  PartitionedHypergraph& hypergraph = utils::cast<PartitionedHypergraph>(phg);
   if ( context.initial_partitioning.enabled_ip_algos.size() <
         static_cast<size_t>(InitialPartitioningAlgorithm::UNDEFINED) ) {
     ERR("Size of enabled IP algorithms vector is smaller than number of IP algorithms!");
@@ -65,24 +69,47 @@ void bipartition(PartitionedHypergraph& hypergraph,
   std::shuffle(_ip_task_lists.begin(), _ip_task_lists.end(), rng);
 
   tbb::task_group tg;
-  InitialPartitioningDataContainer ip_data(hypergraph, context);
+  InitialPartitioningDataContainer<TypeTraits> ip_data(hypergraph, context);
+  ip_data_container_t* ip_data_ptr = ip::to_pointer(ip_data);
   for ( const auto [algorithm, seed, tag] : _ip_task_lists ) {
     if ( run_parallel ) {
       tg.run([&, algorithm, seed, tag] {
         std::unique_ptr<IInitialPartitioner> initial_partitioner =
           InitialPartitionerFactory::getInstance().createObject(
-            algorithm, algorithm, ip_data, context, seed, tag);
+            algorithm, algorithm, ip_data_ptr, context, seed, tag);
         initial_partitioner->partition();
       });
     } else {
       std::unique_ptr<IInitialPartitioner> initial_partitioner =
         InitialPartitionerFactory::getInstance().createObject(
-          algorithm, algorithm, ip_data, context, seed, tag);
+          algorithm, algorithm, ip_data_ptr, context, seed, tag);
       initial_partitioner->partition();
     }
   }
   tg.wait();
   ip_data.apply();
+}
+
+INSTANTIATE_CLASS_WITH_TYPE_TRAITS(Pool)
+
+namespace pool {
+
+void bipartition(mt_kahypar_partitioned_hypergraph_t& phg,
+                 const Context& context,
+                 const bool run_parallel) {
+  if ( phg.type ==  STATIC_PARTITIONED_GRAPH) {
+    Pool<StaticGraphTypeTraits>::bipartition(phg, context, run_parallel);
+  } else if ( phg.type ==  STATIC_PARTITIONED_HYPERGRAPH) {
+    Pool<StaticHypergraphTypeTraits>::bipartition(phg, context, run_parallel);
+  } else if ( phg.type ==  STATIC_SPARSE_PARTITIONED_HYPERGRAPH) {
+    Pool<LargeKHypergraphTypeTraits>::bipartition(phg, context, run_parallel);
+  } else if ( phg.type ==  DYNAMIC_PARTITIONED_GRAPH) {
+    Pool<DynamicGraphTypeTraits>::bipartition(phg, context, run_parallel);
+  } else if ( phg.type ==  DYNAMIC_PARTITIONED_HYPERGRAPH) {
+    Pool<DynamicHypergraphTypeTraits>::bipartition(phg, context, run_parallel);
+  } else {
+    ERR("No valid partitioned hypergraph type");
+  }
 }
 
 }

@@ -34,7 +34,10 @@
 namespace mt_kahypar {
 
 // ! Selects the PQs in a round-robin fashion.
+template<typename TypeTraits>
 class RoundRobinPQSelectionPolicy {
+
+  using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
 
  public:
   static inline bool pop(const PartitionedHypergraph& hypergraph,
@@ -75,7 +78,10 @@ class RoundRobinPQSelectionPolicy {
 
 
 // ! Selects the PQ which contains the maximum gain move
+template<typename TypeTraits>
 class GlobalPQSelectionPolicy {
+
+  using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
 
  public:
   static inline bool pop(const PartitionedHypergraph&,
@@ -108,7 +114,10 @@ class GlobalPQSelectionPolicy {
 
 
 // ! Selects the PQs one by one until they are disabled
+template<typename TypeTraits>
 class SequentialPQSelectionPolicy {
+
+  using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
 
  public:
   static inline bool pop(const PartitionedHypergraph& hypergraph,
@@ -138,7 +147,7 @@ class SequentialPQSelectionPolicy {
         return false;
       }
     } else {
-      return GlobalPQSelectionPolicy::pop(hypergraph,
+      return GlobalPQSelectionPolicy<TypeTraits>::pop(hypergraph,
         pq, hn, to, gain, use_perfect_balanced_as_upper_bound);
     }
   }
