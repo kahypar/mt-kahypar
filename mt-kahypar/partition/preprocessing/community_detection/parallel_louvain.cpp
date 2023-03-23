@@ -46,7 +46,7 @@ namespace mt_kahypar::community_detection {
     if (communities_changed) {
       timer.start_timer("contraction", "Contraction");
       // Contract Communities
-      Graph coarse_graph = fine_graph.contract(communities, context.preprocessing.community_detection.low_memory_contraction);
+      Graph<Hypergraph> coarse_graph = fine_graph.contract(communities, context.preprocessing.community_detection.low_memory_contraction);
       ASSERT(coarse_graph.totalVolume() == fine_graph.totalVolume());
       timer.stop_timer("contraction");
 
