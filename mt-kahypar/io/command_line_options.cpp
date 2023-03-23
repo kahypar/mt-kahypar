@@ -182,11 +182,9 @@ namespace mt_kahypar {
             ("p-enable-community-detection",
              po::value<bool>(&context.preprocessing.use_community_detection)->value_name("<bool>")->default_value(true),
              "If true, community detection is used as preprocessing step to restrict contractions to densely coupled regions in coarsening phase")
-            #ifdef ENABLE_GRAPH_PARTITIONER
             ("p-disable-community-detection-on-mesh-graphs",
              po::value<bool>(&context.preprocessing.disable_community_detection_for_mesh_graphs)->value_name("<bool>")->default_value(true),
              "If true, community detection is dynamically disabled for mesh graphs (as it is not effective for this type of graphs).")
-            #endif
             ("p-louvain-edge-weight-function",
              po::value<std::string>()->value_name("<string>")->notifier(
                      [&](const std::string& type) {
@@ -428,7 +426,6 @@ namespace mt_kahypar {
              "If the FM time exceeds time_limit := k * factor * coarsening_time, than the FM config is switched into a light version."
              "If the FM refiner exceeds 2 * time_limit, than the current multitry FM run is aborted and the algorithm proceeds to"
              "the next finer level.")
-            #ifdef ENABLE_QUALITY_PRESET
             ((initial_partitioning ? "i-r-use-global-fm" : "r-use-global-fm"),
              po::value<bool>((!initial_partitioning ? &context.refinement.global_fm.use_global_fm :
                               &context.initial_partitioning.refinement.global_fm.use_global_fm))->value_name(
@@ -448,9 +445,7 @@ namespace mt_kahypar {
              po::value<bool>(
                      (initial_partitioning ? &context.initial_partitioning.refinement.global_fm.obey_minimal_parallelism :
                       &context.refinement.global_fm.obey_minimal_parallelism))->value_name("<bool>")->default_value(true),
-             "If true, then the globalized FM local search stops if more than a certain number of threads are finished.")
-            #endif
-            ;
+             "If true, then the globalized FM local search stops if more than a certain number of threads are finished.");
     return options;
   }
 

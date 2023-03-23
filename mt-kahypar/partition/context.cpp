@@ -81,9 +81,7 @@ namespace mt_kahypar {
   std::ostream & operator<< (std::ostream& str, const PreprocessingParameters& params) {
     str << "Preprocessing Parameters:" << std::endl;
     str << "  Use Community Detection:            " << std::boolalpha << params.use_community_detection << std::endl;
-    #ifdef ENABLE_GRAPH_PARTITIONER
     str << "  Disable C. D. for Mesh Graphs:      " << std::boolalpha << params.disable_community_detection_for_mesh_graphs << std::endl;
-    #endif
     if (params.use_community_detection) {
       str << std::endl << params.community_detection;
     }
@@ -188,15 +186,13 @@ namespace mt_kahypar {
     str << "Refinement Parameters:" << std::endl;
     str << "  Refine Until No Improvement:        " << std::boolalpha << params.refine_until_no_improvement << std::endl;
     str << "  Relative Improvement Threshold:     " << params.relative_improvement_threshold << std::endl;
-#ifdef ENABLE_QUALITY_PRESET
     str << "  Maximum Batch Size:                 " << params.max_batch_size << std::endl;
     str << "  Min Border Vertices Per Thread:     " << params.min_border_vertices_per_thread << std::endl;
-#endif
     str << "\n" << params.label_propagation;
     str << "\n" << params.fm;
-#ifdef ENABLE_QUALITY_PRESET
-    str << "\n" << params.global_fm;
-#endif
+    if ( params.global_fm.use_global_fm ) {
+      str << "\n" << params.global_fm;
+    }
     str << "\n" << params.flows;
     return str;
   }
@@ -434,20 +430,25 @@ namespace mt_kahypar {
            partition.preset_type == PresetType::large_k ||
            partition.preset_type == PresetType::deterministic ) {
         partition.trait_type = TraitTypes::static_graph;
+        partition.paradigm = Paradigm::multilevel;
       } else if ( partition.preset_type == PresetType::quality_preset ||
                   partition.preset_type == PresetType::quality_flows ) {
         partition.trait_type = TraitTypes::dynamic_graph;
+        partition.paradigm = Paradigm::nlevel;
       }
     } else if ( partition.instance_type == InstanceType::hypergraph ) {
       if ( partition.preset_type == PresetType::default_preset ||
            partition.preset_type == PresetType::default_flows ||
            partition.preset_type == PresetType::deterministic ) {
         partition.trait_type = TraitTypes::static_hypergraph;
+        partition.paradigm = Paradigm::multilevel;
       } else if ( partition.preset_type == PresetType::quality_preset ||
                   partition.preset_type == PresetType::quality_flows ) {
         partition.trait_type = TraitTypes::dynamic_hypergraph;
+        partition.paradigm = Paradigm::nlevel;
       } else if ( partition.preset_type == PresetType::large_k ) {
         partition.trait_type = TraitTypes::sparse_static_hypergraph;
+        partition.paradigm = Paradigm::multilevel;
       }
     }
   }

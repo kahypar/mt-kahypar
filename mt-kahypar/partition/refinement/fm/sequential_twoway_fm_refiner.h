@@ -112,7 +112,6 @@ class SequentialTwoWayFmRefiner {
                             const parallel::scalable_vector<VertexState>& vertex_state) {
       // assertion doesn't hold for graph structure, because edge pin counts
       // are not updated until the move is completed
-      ASSERT_FOR_HG_ONLY(phg.connectivity(he) > 1);
       for ( const HypernodeID& pin : phg.pins(he) ) {
         ASSERT(pin <  _num_hypernodes);
         ASSERT(_num_incident_cut_hes[pin] <= phg.nodeDegree(pin));
@@ -128,7 +127,6 @@ class SequentialTwoWayFmRefiner {
                                const parallel::scalable_vector<VertexState>& vertex_state) {
       // assertion doesn't hold for graph structure, because edge pin counts
       // are not updated until the move is completed
-      ASSERT_FOR_HG_ONLY(phg.connectivity(he) == 1);
       for ( const HypernodeID& pin : phg.pins(he) ) {
         ASSERT(pin <  _num_hypernodes);
         ASSERT(_num_incident_cut_hes[pin] > 0);

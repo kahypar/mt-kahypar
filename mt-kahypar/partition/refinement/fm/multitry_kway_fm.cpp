@@ -146,9 +146,9 @@ namespace mt_kahypar {
       printMemoryConsumption();
     }
 
-    #ifndef ENABLE_QUALITY_PRESET
-    is_initialized = false;
-    #endif
+    if ( context.partition.paradigm == Paradigm::nlevel ) {
+      is_initialized = false;
+    }
 
     metrics.km1 -= overall_improvement;
     metrics.imbalance = metrics::imbalance(phg, context);

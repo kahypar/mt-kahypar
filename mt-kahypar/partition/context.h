@@ -33,11 +33,7 @@
 
 namespace mt_kahypar {
 struct PartitioningParameters {
-  #ifdef ENABLE_QUALITY_PRESET
-  Paradigm paradigm = Paradigm::nlevel;
-  #else
   Paradigm paradigm = Paradigm::multilevel;
-  #endif
   Mode mode = Mode::UNDEFINED;
   Objective objective = Objective::UNDEFINED;
   FileFormat file_format = FileFormat::hMetis;
