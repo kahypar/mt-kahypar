@@ -30,11 +30,15 @@
 
 #include "tbb/concurrent_queue.h"
 
+#include "mt-kahypar/one_definitions.h"
+
 namespace mt_kahypar {
 
-MoveSequence FlowRefiner::refineImpl(const PartitionedHypergraph& phg,
-                                     const Subhypergraph& sub_hg,
-                                     const HighResClockTimepoint& start) {
+template<typename TypeTraits>
+MoveSequence FlowRefiner<TypeTraits>::refineImpl(mt_kahypar_partitioned_hypergraph_const_t& hypergraph,
+                                                 const Subhypergraph& sub_hg,
+                                                 const HighResClockTimepoint& start) {
+  const PartitionedHypergraph& phg = utils::cast_const<PartitionedHypergraph>(hypergraph);
   MoveSequence sequence { { }, 0 };
   utils::Timer& timer = utils::Utilities::instance().getTimer(_context.utility_id);
   // Construct flow network that contains all vertices given in refinement nodes
@@ -96,9 +100,10 @@ MoveSequence FlowRefiner::refineImpl(const PartitionedHypergraph& phg,
 #define NOW std::chrono::high_resolution_clock::now()
 #define RUNNING_TIME(X) std::chrono::duration<double>(NOW - X).count();
 
-bool FlowRefiner::runFlowCutter(const FlowProblem& flow_problem,
-                                const HighResClockTimepoint& start,
-                                bool& time_limit_reached) {
+template<typename TypeTraits>
+bool FlowRefiner<TypeTraits>::runFlowCutter(const FlowProblem& flow_problem,
+                                            const HighResClockTimepoint& start,
+                                            bool& time_limit_reached) {
   whfc::Node s = flow_problem.source;
   whfc::Node t = flow_problem.sink;
   bool result = false;
@@ -140,8 +145,9 @@ bool FlowRefiner::runFlowCutter(const FlowProblem& flow_problem,
   return result;
 }
 
-FlowProblem FlowRefiner::constructFlowHypergraph(const PartitionedHypergraph& phg,
-                                                 const Subhypergraph& sub_hg) {
+template<typename TypeTraits>
+FlowProblem FlowRefiner<TypeTraits>::constructFlowHypergraph(const PartitionedHypergraph& phg,
+                                                             const Subhypergraph& sub_hg) {
   _block_0 = sub_hg.block_0;
   _block_1 = sub_hg.block_1;
   ASSERT(_block_0 != kInvalidPartition && _block_1 != kInvalidPartition);
@@ -164,4 +170,7 @@ FlowProblem FlowRefiner::constructFlowHypergraph(const PartitionedHypergraph& ph
 
   return flow_problem;
 }
+
+INSTANTIATE_CLASS_WITH_TYPE_TRAITS(FlowRefiner)
+
 } // namespace mt_kahypar

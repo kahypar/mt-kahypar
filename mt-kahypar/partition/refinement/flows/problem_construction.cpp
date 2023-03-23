@@ -31,14 +31,18 @@
 
 #include "tbb/parallel_for.h"
 
+#include "mt-kahypar/one_definitions.h"
+
 namespace mt_kahypar {
 
-void ProblemConstruction::BFSData::clearQueue() {
+template<typename TypeTraits>
+void ProblemConstruction<TypeTraits>::BFSData::clearQueue() {
   while ( !queue.empty() ) queue.pop();
   while ( !next_queue.empty() ) next_queue.pop();
 }
 
-void ProblemConstruction::BFSData::reset() {
+template<typename TypeTraits>
+void ProblemConstruction<TypeTraits>::BFSData::reset() {
   current_distance = 0;
   queue_weight_block_0 = 0;
   queue_weight_block_1 = 0;
@@ -50,14 +54,16 @@ void ProblemConstruction::BFSData::reset() {
   std::fill(locked_blocks.begin(), locked_blocks.end(), false);
 }
 
-HypernodeID ProblemConstruction::BFSData::pop_hypernode() {
+template<typename TypeTraits>
+HypernodeID ProblemConstruction<TypeTraits>::BFSData::pop_hypernode() {
   ASSERT(!queue.empty());
   const HypernodeID hn = queue.front();
   queue.pop();
   return hn;
 }
 
-void ProblemConstruction::BFSData::add_pins_of_hyperedge_to_queue(
+template<typename TypeTraits>
+void ProblemConstruction<TypeTraits>::BFSData::add_pins_of_hyperedge_to_queue(
   const HyperedgeID& he,
   const PartitionedHypergraph& phg,
   const size_t max_bfs_distance,
@@ -92,9 +98,10 @@ namespace {
   using assert_map = std::unordered_map<HyperedgeID, bool>;
 }
 
-Subhypergraph ProblemConstruction::construct(const SearchID search_id,
-                                             QuotientGraph& quotient_graph,
-                                             const PartitionedHypergraph& phg) {
+template<typename TypeTraits>
+Subhypergraph ProblemConstruction<TypeTraits>::construct(const SearchID search_id,
+                                                         QuotientGraph<TypeTraits>& quotient_graph,
+                                                         const PartitionedHypergraph& phg) {
   Subhypergraph sub_hg;
   BFSData& bfs = _local_bfs.local();
   bfs.reset();
@@ -204,7 +211,8 @@ Subhypergraph ProblemConstruction::construct(const SearchID search_id,
   return sub_hg;
 }
 
-void ProblemConstruction::changeNumberOfBlocks(const PartitionID new_k) {
+template<typename TypeTraits>
+void ProblemConstruction<TypeTraits>::changeNumberOfBlocks(const PartitionID new_k) {
   for ( BFSData& data : _local_bfs ) {
     if ( static_cast<size_t>(new_k) > data.locked_blocks.size() ) {
       data.locked_blocks.assign(new_k, false);
@@ -212,7 +220,8 @@ void ProblemConstruction::changeNumberOfBlocks(const PartitionID new_k) {
   }
 }
 
-MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE bool ProblemConstruction::isMaximumProblemSizeReached(
+template<typename TypeTraits>
+MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE bool ProblemConstruction<TypeTraits>::isMaximumProblemSizeReached(
   const Subhypergraph& sub_hg,
   const HypernodeWeight max_weight_block_0,
   const HypernodeWeight max_weight_block_1,
@@ -230,5 +239,7 @@ MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE bool ProblemConstruction::isMaximumProblemSiz
 
   return locked_blocks[sub_hg.block_0] && locked_blocks[sub_hg.block_1];
 }
+
+INSTANTIATE_CLASS_WITH_TYPE_TRAITS(ProblemConstruction)
 
 } // namespace mt_kahypar

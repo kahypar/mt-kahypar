@@ -27,11 +27,22 @@ typedef struct {
   mt_kahypar_hypergraph_type_t type;
 } mt_kahypar_hypergraph_t;
 
+typedef struct {
+  const mt_kahypar_hypergraph_s* hypergraph;
+  mt_kahypar_hypergraph_type_t type;
+} mt_kahypar_hypergraph_const_t;
+
 struct mt_kahypar_partitioned_hypergraph_s;
 typedef struct {
   mt_kahypar_partitioned_hypergraph_s* partitioned_hg;
   mt_kahypar_partition_type_t type;
 } mt_kahypar_partitioned_hypergraph_t;
+
+typedef struct {
+  const mt_kahypar_partitioned_hypergraph_s* partitioned_hg;
+  mt_kahypar_partition_type_t type;
+} mt_kahypar_partitioned_hypergraph_const_t;
+
 
 typedef struct mt_kahypar_graph_s mt_kahypar_graph_t;
 typedef struct mt_kahypar_partitioned_graph_s mt_kahypar_partitioned_graph_t;

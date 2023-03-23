@@ -41,9 +41,12 @@ namespace mt_kahypar {
 
 struct FlowProblem;
 
+template<typename TypeTraits>
 class SequentialConstruction {
 
   static constexpr bool debug = false;
+
+  using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
 
   struct TmpPin {
     HyperedgeID e;
@@ -70,13 +73,13 @@ class SequentialConstruction {
     };
 
    public:
-    explicit DynamicIdenticalNetDetection(const Hypergraph& hg,
+    explicit DynamicIdenticalNetDetection(const HyperedgeID num_hyperedges,
                                           FlowHypergraphBuilder& flow_hg,
                                           const Context& context) :
       _flow_hg(flow_hg),
       _hash_buckets(),
       _threshold(1) {
-      _hash_buckets.resize(std::max(UL(1024), hg.initialNumEdges() /
+      _hash_buckets.resize(std::max(UL(1024), num_hyperedges /
         context.refinement.flows.num_parallel_searches));
     }
 
@@ -99,7 +102,7 @@ class SequentialConstruction {
   };
 
  public:
-  explicit SequentialConstruction(const Hypergraph& hg,
+  explicit SequentialConstruction(const HyperedgeID num_hyperedges,
                                   FlowHypergraphBuilder& flow_hg,
                                   whfc::HyperFlowCutter<whfc::SequentialPushRelabel>& hfc,
                                   const Context& context) :
@@ -112,7 +115,7 @@ class SequentialConstruction {
     _cut_hes(),
     _pins(),
     _he_to_whfc(),
-    _identical_nets(hg, flow_hg, context) { }
+    _identical_nets(num_hyperedges, flow_hg, context) { }
 
   SequentialConstruction(const SequentialConstruction&) = delete;
   SequentialConstruction(SequentialConstruction&&) = delete;

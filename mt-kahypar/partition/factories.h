@@ -47,6 +47,8 @@
 #include "mt-kahypar/partition/refinement/fm/strategies/gain_delta_strategy.h"
 #include "mt-kahypar/partition/refinement/fm/strategies/recompute_gain_strategy.h"
 #include "mt-kahypar/partition/refinement/fm/strategies/gain_cache_on_demand_strategy.h"
+#include "mt-kahypar/partition/refinement/flows/scheduler.h"
+#include "mt-kahypar/partition/refinement/flows/flow_refiner.h"
 
 namespace mt_kahypar {
 
@@ -114,7 +116,17 @@ using FMGainRecomputationDispatcher = kahypar::meta::StaticMultiDispatchFactory<
                                         IRefiner,
                                         kahypar::meta::Typelist<TypeTraitsList>>;
 
+using FlowSchedulerFactory = kahypar::meta::Factory<FlowAlgorithm,
+                              IRefiner* (*)(const HypernodeID, const HyperedgeID, const Context&)>;
+using FlowSchedulerDispatcher = kahypar::meta::StaticMultiDispatchFactory<
+                                  FlowRefinementScheduler,
+                                  IRefiner,
+                                  kahypar::meta::Typelist<TypeTraitsList>>;
 
 using FlowRefinementFactory = kahypar::meta::Factory<FlowAlgorithm,
-                              IFlowRefiner* (*)(const Hypergraph&, const Context&)>;
+                              IFlowRefiner* (*)(const HyperedgeID, const Context&)>;
+using FlowRefinementDispatcher = kahypar::meta::StaticMultiDispatchFactory<
+                                  FlowRefiner,
+                                  IFlowRefiner,
+                                  kahypar::meta::Typelist<TypeTraitsList>>;
 }  // namespace mt_kahypar

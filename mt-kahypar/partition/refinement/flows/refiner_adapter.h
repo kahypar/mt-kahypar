@@ -28,7 +28,6 @@
 #include "tbb/concurrent_vector.h"
 #include "tbb/concurrent_queue.h"
 
-#include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/refinement/flows/i_flow_refiner.h"
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
@@ -36,11 +35,14 @@
 
 namespace mt_kahypar {
 
+template<typename TypeTraits>
 class FlowRefinerAdapter {
 
   static constexpr bool debug = false;
   static constexpr bool enable_heavy_assert = false;
   static constexpr size_t INVALID_REFINER_IDX = std::numeric_limits<size_t>::max();
+
+  using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
 
   struct ActiveSearch {
     size_t refiner_idx;
@@ -94,9 +96,9 @@ class FlowRefinerAdapter {
   };
 
 public:
-  explicit FlowRefinerAdapter(const Hypergraph& hg,
+  explicit FlowRefinerAdapter(const HyperedgeID num_hyperedges,
                               const Context& context) :
-    _hg(hg),
+    _num_hyperedges(num_hyperedges),
     _context(context),
     _unused_refiners(),
     _refiner(),
@@ -169,7 +171,7 @@ private:
       _context.refinement.flows.time_limit_factor > 1.0;
   }
 
-  const Hypergraph& _hg;
+  const HyperedgeID _num_hyperedges;
   const Context& _context;
 
   // ! Indices of unused refiners

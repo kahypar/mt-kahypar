@@ -26,6 +26,7 @@
 
 #include "mt-kahypar/partition/refinement/flows/scheduler.h"
 
+#include "mt-kahypar/one_definitions.h"
 #include "mt-kahypar/partition/metrics.h"
 #include "mt-kahypar/io/partitioning_output.h"
 #include "mt-kahypar/utils/utilities.h"
@@ -33,7 +34,8 @@
 
 namespace mt_kahypar {
 
-void FlowRefinementScheduler::RefinementStats::update_global_stats() {
+template<typename TypeTraits>
+void FlowRefinementScheduler<TypeTraits>::RefinementStats::update_global_stats() {
   _stats.update_stat("num_flow_refinements",
     num_refinements.load(std::memory_order_relaxed));
   _stats.update_stat("num_flow_improvement",
@@ -54,57 +56,8 @@ void FlowRefinementScheduler::RefinementStats::update_global_stats() {
     total_improvement.load(std::memory_order_relaxed));
 }
 
-namespace {
-
-  static constexpr size_t PROGRESS_BAR_SIZE = 50;
-
-  template<typename F>
-  std::string progress_bar(const size_t value, const size_t max, const F& f) {
-    const double percentage = static_cast<double>(value) / std::max(max,UL(1));
-    const size_t ticks = PROGRESS_BAR_SIZE * percentage;
-    std::stringstream pbar_str;
-    pbar_str << "|"
-             << f(percentage) << std::string(ticks, '|') << END
-             << std::string(PROGRESS_BAR_SIZE - ticks, ' ')
-             << "| " << std::setprecision(2) << (100.0 * percentage) << "% (" << value << ")";
-    return pbar_str.str();
-  }
-}
-
-inline std::ostream & operator<< (std::ostream& str, const FlowRefinementScheduler::RefinementStats& stats) {
-  str << "\n";
-  str << "Total Improvement                   = " << stats.total_improvement << "\n";
-  str << "Number of Flow-Based Refinements    = " << stats.num_refinements << "\n";
-  str << "+ No Improvements                   = "
-      << progress_bar(stats.num_refinements - stats.num_improvements, stats.num_refinements,
-          [&](const double percentage) { return percentage > 0.9 ? RED : percentage > 0.75 ? YELLOW : GREEN; }) << "\n";
-  str << "+ Number of Improvements            = "
-      << progress_bar(stats.num_improvements, stats.num_refinements,
-          [&](const double percentage) { return percentage < 0.05 ? RED : percentage < 0.15 ? YELLOW : GREEN; }) << "\n";
-  str << "  + Correct Expected Improvements   = "
-      << progress_bar(stats.correct_expected_improvement, stats.num_improvements,
-          [&](const double percentage) { return percentage > 0.9 ? GREEN : percentage > 0.75 ? YELLOW : RED; }) << "\n";
-  str << "  + Incorrect Expected Improvements = "
-      << progress_bar(stats.num_improvements - stats.correct_expected_improvement, stats.num_improvements,
-          [&](const double percentage) { return percentage < 0.1 ? GREEN : percentage < 0.25 ? YELLOW : RED; }) << "\n";
-  str << "  + Zero-Gain Improvements          = "
-      << progress_bar(stats.zero_gain_improvement, stats.num_improvements,
-          [&](const double) { return WHITE; }) << "\n";
-  str << "+ Failed due to Balance Constraint  = "
-      << progress_bar(stats.failed_updates_due_to_balance_constraint, stats.num_refinements,
-          [&](const double percentage) { return percentage < 0.01 ? GREEN : percentage < 0.05 ? YELLOW : RED; }) << "\n";
-  str << "+ Failed due to Conflicting Moves   = "
-      << progress_bar(stats.failed_updates_due_to_conflicting_moves, stats.num_refinements,
-          [&](const double percentage) { return percentage < 0.01 ? GREEN : percentage < 0.05 ? YELLOW : RED; }) << "\n";
-  str << "+ Time Limits                       = "
-      << progress_bar(stats.num_time_limits, stats.num_refinements,
-          [&](const double percentage) { return percentage < 0.0025 ? GREEN : percentage < 0.01 ? YELLOW : RED; }) << "\n";
-  str << "---------------------------------------------------------------";
-  return str;
-}
-
-
-bool FlowRefinementScheduler::refineImpl(
+template<typename TypeTraits>
+bool FlowRefinementScheduler<TypeTraits>::refineImpl(
                 mt_kahypar_partitioned_hypergraph_t& hypergraph,
                 const parallel::scalable_vector<HypernodeID>&,
                 Metrics& best_metrics,
@@ -121,7 +74,7 @@ bool FlowRefinementScheduler::refineImpl(
         std::ceil(_context.refinement.flows.parallel_searches_multiplier *
             _quotient_graph.numActiveBlockPairs()))) ) {
       SearchID search_id = _quotient_graph.requestNewSearch(_refiner);
-      if ( search_id != QuotientGraph::INVALID_SEARCH_ID ) {
+      if ( search_id != QuotientGraph<TypeTraits>::INVALID_SEARCH_ID ) {
         DBG << "Start search" << search_id
             << "( Blocks =" << blocksOfSearch(search_id)
             << ", Refiner =" << i << ")";
@@ -202,7 +155,8 @@ bool FlowRefinementScheduler::refineImpl(
   return overall_delta.load(std::memory_order_relaxed) < 0;
 }
 
-void FlowRefinementScheduler::initializeImpl(mt_kahypar_partitioned_hypergraph_t& hypergraph)  {
+template<typename TypeTraits>
+void FlowRefinementScheduler<TypeTraits>::initializeImpl(mt_kahypar_partitioned_hypergraph_t& hypergraph)  {
   PartitionedHypergraph& phg = utils::cast<PartitionedHypergraph>(hypergraph);
   _phg = &phg;
   resizeDataStructuresForCurrentK();
@@ -226,7 +180,8 @@ void FlowRefinementScheduler::initializeImpl(mt_kahypar_partitioned_hypergraph_t
   _refiner.initialize(max_parallism);
 }
 
-void FlowRefinementScheduler::resizeDataStructuresForCurrentK() {
+template<typename TypeTraits>
+void FlowRefinementScheduler<TypeTraits>::resizeDataStructuresForCurrentK() {
   if ( _current_k != _context.partition.k ) {
     _current_k = _context.partition.k;
     // Note that in general changing the number of blocks should not resize
@@ -248,7 +203,7 @@ struct NewCutHyperedge {
   PartitionID block;
 };
 
-template<typename F>
+template<typename PartitionedHypergraph, typename F>
 bool changeNodePart(PartitionedHypergraph& phg,
                     const HypernodeID hn,
                     const PartitionID from,
@@ -267,7 +222,7 @@ bool changeNodePart(PartitionedHypergraph& phg,
   return success;
 }
 
-template<typename F>
+template<typename PartitionedHypergraph, typename F>
 void applyMoveSequence(PartitionedHypergraph& phg,
                        const MoveSequence& sequence,
                        const F& objective_delta,
@@ -290,7 +245,7 @@ void applyMoveSequence(PartitionedHypergraph& phg,
   }
 }
 
-template<typename F>
+template<typename PartitionedHypergraph, typename F>
 void revertMoveSequence(PartitionedHypergraph& phg,
                         const MoveSequence& sequence,
                         const F& objective_delta,
@@ -303,7 +258,8 @@ void revertMoveSequence(PartitionedHypergraph& phg,
   }
 }
 
-void addCutHyperedgesToQuotientGraph(QuotientGraph& quotient_graph,
+template<typename TypeTraits>
+void addCutHyperedgesToQuotientGraph(QuotientGraph<TypeTraits>& quotient_graph,
                                      const vec<NewCutHyperedge>& new_cut_hes) {
   for ( const NewCutHyperedge& new_cut_he : new_cut_hes ) {
     ASSERT(new_cut_he.block != kInvalidPartition);
@@ -313,8 +269,9 @@ void addCutHyperedgesToQuotientGraph(QuotientGraph& quotient_graph,
 
 } // namespace
 
-HyperedgeWeight FlowRefinementScheduler::applyMoves(const SearchID search_id,
-                                                        MoveSequence& sequence) {
+template<typename TypeTraits>
+HyperedgeWeight FlowRefinementScheduler<TypeTraits>::applyMoves(const SearchID search_id,
+                                                                MoveSequence& sequence) {
   unused(search_id);
   ASSERT(_phg);
 
@@ -413,7 +370,8 @@ HyperedgeWeight FlowRefinementScheduler::applyMoves(const SearchID search_id,
   return improvement;
 }
 
-FlowRefinementScheduler::PartWeightUpdateResult FlowRefinementScheduler::partWeightUpdate(
+template<typename TypeTraits>
+typename FlowRefinementScheduler<TypeTraits>::PartWeightUpdateResult FlowRefinementScheduler<TypeTraits>::partWeightUpdate(
   const vec<HypernodeWeight>& part_weight_deltas, const bool rollback) {
   const HypernodeWeight multiplier = rollback ? -1 : 1;
   PartWeightUpdateResult res;
@@ -440,5 +398,7 @@ FlowRefinementScheduler::PartWeightUpdateResult FlowRefinementScheduler::partWei
   _part_weights_lock.unlock();
   return res;
 }
+
+INSTANTIATE_CLASS_WITH_TYPE_TRAITS(FlowRefinementScheduler)
 
 }

@@ -101,12 +101,19 @@ using TypeTraitsList = kahypar::meta::Typelist<StaticGraphTypeTraits,
   template FUNC(StaticSparsePartitionedHypergraph); \
   template FUNC(DynamicPartitionedHypergraph);
 
-#define INSTANTIATE_CLASS_WITH_TYPE_TRAITS(C)       \
+#define INSTANTIATE_CLASS_MACRO_WITH_TYPE_TRAITS(C) \
   template class C(StaticGraphTypeTraits);          \
   template class C(DynamicGraphTypeTraits);         \
   template class C(StaticHypergraphTypeTraits);     \
   template class C(DynamicHypergraphTypeTraits);    \
   template class C(LargeKHypergraphTypeTraits);
+
+#define INSTANTIATE_CLASS_WITH_TYPE_TRAITS(C)       \
+  template class C<StaticGraphTypeTraits>;          \
+  template class C<DynamicGraphTypeTraits>;         \
+  template class C<StaticHypergraphTypeTraits>;     \
+  template class C<DynamicHypergraphTypeTraits>;    \
+  template class C<LargeKHypergraphTypeTraits>;
 
 using HighResClockTimepoint = std::chrono::time_point<std::chrono::high_resolution_clock>;
 

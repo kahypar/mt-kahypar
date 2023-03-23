@@ -44,9 +44,9 @@ class DoNothingFlowRefiner final : public IFlowRefiner {
   DoNothingFlowRefiner & operator= (DoNothingFlowRefiner &&) = delete;
 
  private:
-  void initializeImpl(const PartitionedHypergraph&) override final { }
+  void initializeImpl(mt_kahypar_partitioned_hypergraph_const_t&) override final { }
 
-  MoveSequence refineImpl(const PartitionedHypergraph&,
+  MoveSequence refineImpl(mt_kahypar_partitioned_hypergraph_const_t&,
                           const Subhypergraph&,
                           const HighResClockTimepoint&) override final {
     return MoveSequence { {}, 0 };

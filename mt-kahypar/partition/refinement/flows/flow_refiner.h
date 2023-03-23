@@ -41,15 +41,19 @@
 #include "mt-kahypar/partition/refinement/flows/sequential_construction.h"
 #include "mt-kahypar/partition/refinement/flows/parallel_construction.h"
 #include "mt-kahypar/partition/refinement/flows/flow_hypergraph_builder.h"
+#include "mt-kahypar/utils/cast.h"
 
 namespace mt_kahypar {
 
+template<typename TypeTraits>
 class FlowRefiner final : public IFlowRefiner {
 
   static constexpr bool debug = false;
 
+  using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
+
  public:
-  explicit FlowRefiner(const Hypergraph& hg,
+  explicit FlowRefiner(const HyperedgeID num_hyperedges,
                        const Context& context) :
     _phg(nullptr),
     _context(context),
@@ -60,9 +64,8 @@ class FlowRefiner final : public IFlowRefiner {
     _sequential_hfc(_flow_hg, context.partition.seed),
     _parallel_hfc(_flow_hg, context.partition.seed),
     _whfc_to_node(),
-    _sequential_construction(hg, _flow_hg, _sequential_hfc, context),
-    _parallel_construction(hg, _flow_hg, _parallel_hfc, context)
-    {
+    _sequential_construction(num_hyperedges, _flow_hg, _sequential_hfc, context),
+    _parallel_construction(num_hyperedges, _flow_hg, _parallel_hfc, context) {
       _sequential_hfc.find_most_balanced = _context.refinement.flows.find_most_balanced_cut;
       _sequential_hfc.timer.active = false;
       _sequential_hfc.forceSequential(true);
@@ -84,7 +87,8 @@ class FlowRefiner final : public IFlowRefiner {
  protected:
 
  private:
-  void initializeImpl(const PartitionedHypergraph& phg) {
+  void initializeImpl(mt_kahypar_partitioned_hypergraph_const_t& hypergraph) override {
+    const PartitionedHypergraph& phg = utils::cast_const<PartitionedHypergraph>(hypergraph);
     _phg = &phg;
     _time_limit = std::numeric_limits<double>::max();
     _block_0 = kInvalidPartition;
@@ -93,9 +97,9 @@ class FlowRefiner final : public IFlowRefiner {
     _whfc_to_node.clear();
   }
 
-  MoveSequence refineImpl(const PartitionedHypergraph& phg,
+  MoveSequence refineImpl(mt_kahypar_partitioned_hypergraph_const_t& hypergraph,
                           const Subhypergraph& sub_hg,
-                          const HighResClockTimepoint& start);
+                          const HighResClockTimepoint& start) override;
 
   bool runFlowCutter(const FlowProblem& flow_problem,
                      const HighResClockTimepoint& start,
@@ -130,7 +134,7 @@ class FlowRefiner final : public IFlowRefiner {
   whfc::HyperFlowCutter<whfc::ParallelPushRelabel> _parallel_hfc;
 
   vec<HypernodeID> _whfc_to_node;
-  SequentialConstruction _sequential_construction;
-  ParallelConstruction _parallel_construction;
+  SequentialConstruction<TypeTraits> _sequential_construction;
+  ParallelConstruction<TypeTraits> _parallel_construction;
 };
 }  // namespace mt_kahypar

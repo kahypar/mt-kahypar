@@ -111,9 +111,9 @@ class UncoarsenerBase {
     _fm = FMFactory::getInstance().createObject(
       _context.refinement.fm.algorithm,
       _hg.initialNumNodes(), _hg.initialNumEdges(), _context);
-    if ( _context.refinement.flows.algorithm != FlowAlgorithm::do_nothing ) {
-      _flows = std::make_unique<FlowRefinementScheduler>(_hg, _context);
-    }
+    _flows = FlowSchedulerFactory::getInstance().createObject(
+      _context.refinement.flows.algorithm,
+      _hg.initialNumNodes(), _hg.initialNumEdges(), _context);
   }
 };
 }

@@ -557,10 +557,6 @@ namespace mt_kahypar {
     return best_gain;
   }
 
-  namespace {
-  #define DETERMINISTIC_LABEL_PROPAGATION_REFINER(X) DeterministicLabelPropagationRefiner<X>
-  }
-
-  INSTANTIATE_CLASS_WITH_TYPE_TRAITS(DETERMINISTIC_LABEL_PROPAGATION_REFINER)
+  INSTANTIATE_CLASS_WITH_TYPE_TRAITS(DeterministicLabelPropagationRefiner)
 
 } // namespace mt_kahypar
