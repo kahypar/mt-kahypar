@@ -79,14 +79,6 @@ namespace mt_kahypar {
   using DeltaPartitionedHypergraph = ds::DeltaPartitionedHypergraph<PartitionedHypergraph>;
 #endif
 
-#ifdef ENABLE_GRAPH_PARTITIONER
-using PartIdType = CAtomic<PartitionID>;
-#else
-using PartIdType = PartitionID;
-#endif
-
-using ParallelHyperedge = Hypergraph::ParallelHyperedge;
-
 using HighResClockTimepoint = std::chrono::time_point<std::chrono::high_resolution_clock>;
 
 }  // namespace mt_kahypar

@@ -73,24 +73,28 @@ namespace {
     typename TypeTraits::Hypergraph& hypergraph,
     const Context& context,
     const bool is_vcycle) {
+    using Hypergraph = typename TypeTraits::Hypergraph;
+    using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
     PartitionedHypergraph partitioned_hg;
 
     // ################## COARSENING ##################
     mt_kahypar::io::printCoarseningBanner(context);
 
     const bool nlevel = context.coarsening.algorithm == CoarseningAlgorithm::nlevel_coarsener;
-    UncoarseningData uncoarseningData(nlevel, hypergraph, context);
+    UncoarseningData<TypeTraits> uncoarseningData(nlevel, hypergraph, context);
 
     utils::Timer& timer = utils::Utilities::instance().getTimer(context.utility_id);
     timer.start_timer("coarsening", "Coarsening");
     {
       std::unique_ptr<ICoarsener> coarsener = CoarsenerFactory::getInstance().createObject(
-        context.coarsening.algorithm, hypergraph, context, uncoarseningData);
+        context.coarsening.algorithm, utils::hypergraph_cast(hypergraph),
+        context, uncoarsening::to_pointer(uncoarseningData));
       coarsener->coarsen();
 
       if (context.partition.verbose_output) {
-        Hypergraph& coarsestHypergraph = coarsener->coarsestHypergraph();
-        mt_kahypar::io::printHypergraphInfo(coarsestHypergraph,
+        mt_kahypar_hypergraph_t coarsestHypergraph = coarsener->coarsestHypergraph();
+        mt_kahypar::io::printHypergraphInfo(
+          utils::cast<Hypergraph>(coarsestHypergraph),
           "Coarsened Hypergraph", context.partition.show_memory_consumption);
       }
     }
@@ -102,7 +106,7 @@ namespace {
     PartitionedHypergraph& phg = uncoarseningData.coarsestPartitionedHypergraph();
 
     if ( !is_vcycle ) {
-      DegreeZeroHypernodeRemover degree_zero_hn_remover(context);
+      DegreeZeroHypernodeRemover<TypeTraits> degree_zero_hn_remover(context);
       if ( context.initial_partitioning.remove_degree_zero_hns_before_ip ) {
         degree_zero_hn_remover.removeDegreeZeroHypernodes(phg.hypergraph());
       }
@@ -149,11 +153,11 @@ namespace {
     // ################## UNCOARSENING ##################
     io::printLocalSearchBanner(context);
     timer.start_timer("refinement", "Refinement");
-    std::unique_ptr<IUncoarsener> uncoarsener(nullptr);
+    std::unique_ptr<IUncoarsener<TypeTraits>> uncoarsener(nullptr);
     if (uncoarseningData.nlevel) {
-      uncoarsener = std::make_unique<NLevelUncoarsener>(hypergraph, context, uncoarseningData);
+      uncoarsener = std::make_unique<NLevelUncoarsener<TypeTraits>>(hypergraph, context, uncoarseningData);
     } else {
-      uncoarsener = std::make_unique<MultilevelUncoarsener>(hypergraph, context, uncoarseningData);
+      uncoarsener = std::make_unique<MultilevelUncoarsener<TypeTraits>>(hypergraph, context, uncoarseningData);
     }
     partitioned_hg = uncoarsener->uncoarsen();
 

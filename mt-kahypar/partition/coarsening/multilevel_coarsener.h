@@ -36,7 +36,8 @@
 
 #include "kahypar/meta/mandatory.h"
 
-#include "mt-kahypar/definitions.h"
+#include "include/libmtkahypartypes.h"
+
 #include "mt-kahypar/partition/coarsening/multilevel_coarsener_base.h"
 #include "mt-kahypar/partition/coarsening/multilevel_vertex_pair_rater.h"
 #include "mt-kahypar/partition/coarsening/i_coarsener.h"
@@ -44,24 +45,27 @@
 #include "mt-kahypar/partition/coarsening/policies/rating_heavy_node_penalty_policy.h"
 #include "mt-kahypar/partition/coarsening/policies/rating_score_policy.h"
 #include "mt-kahypar/parallel/atomic_wrapper.h"
+#include "mt-kahypar/utils/cast.h"
 #include "mt-kahypar/utils/progress_bar.h"
 #include "mt-kahypar/utils/randomize.h"
 #include "mt-kahypar/utils/stats.h"
 #include "mt-kahypar/utils/timer.h"
 
 namespace mt_kahypar {
-template <class ScorePolicy = HeavyEdgeScore,
+template <class TypeTraits = Mandatory,
+          class ScorePolicy = HeavyEdgeScore,
           class HeavyNodePenaltyPolicy = MultiplicativePenalty,
           class AcceptancePolicy = BestRatingPreferringUnmatched>
 class MultilevelCoarsener : public ICoarsener,
-                            private MultilevelCoarsenerBase {
+                            private MultilevelCoarsenerBase<TypeTraits> {
  private:
 
-  using Base = MultilevelCoarsenerBase;
+  using Base = MultilevelCoarsenerBase<TypeTraits>;
   using Rater = MultilevelVertexPairRater<ScorePolicy,
                                           HeavyNodePenaltyPolicy,
                                           AcceptancePolicy>;
   using Rating = typename Rater::Rating;
+  using Hypergraph = typename TypeTraits::Hypergraph;
 
   enum class MatchingState : uint8_t {
     UNMATCHED = 0,
@@ -78,30 +82,33 @@ class MultilevelCoarsener : public ICoarsener,
   static constexpr HypernodeID kInvalidHypernode = std::numeric_limits<HypernodeID>::max();
 
  public:
-  MultilevelCoarsener(Hypergraph& hypergraph,
+  MultilevelCoarsener(mt_kahypar_hypergraph_t hypergraph,
                       const Context& context,
-                      UncoarseningData& uncoarseningData) :
-    Base(hypergraph, context, uncoarseningData),
-    _rater(hypergraph, context),
-    _initial_num_nodes(hypergraph.initialNumNodes()),
+                      uncoarsening_data_t* uncoarseningData) :
+    Base(utils::cast<Hypergraph>(hypergraph),
+         context,
+         uncoarsening::to_reference<TypeTraits>(uncoarseningData)),
+    _rater(utils::cast<Hypergraph>(hypergraph).initialNumNodes(),
+           utils::cast<Hypergraph>(hypergraph).maxEdgeSize(), context),
+    _initial_num_nodes(utils::cast<Hypergraph>(hypergraph).initialNumNodes()),
     _current_vertices(),
     _matching_state(),
     _cluster_weight(),
     _matching_partner(),
     _pass_nr(0),
-    _progress_bar(hypergraph.initialNumNodes(), 0, false),
+    _progress_bar(utils::cast<Hypergraph>(hypergraph).initialNumNodes(), 0, false),
     _enable_randomization(true) {
-    _progress_bar += hypergraph.numRemovedHypernodes();
+    _progress_bar += _hg.numRemovedHypernodes();
 
     // Initialize internal data structures parallel
     tbb::parallel_invoke([&] {
-      _current_vertices.resize(hypergraph.initialNumNodes());
+      _current_vertices.resize(_hg.initialNumNodes());
     }, [&] {
-      _matching_state.resize(hypergraph.initialNumNodes());
+      _matching_state.resize(_hg.initialNumNodes());
     }, [&] {
-      _cluster_weight.resize(hypergraph.initialNumNodes());
+      _cluster_weight.resize(_hg.initialNumNodes());
     }, [&] {
-      _matching_partner.resize(hypergraph.initialNumNodes());
+      _matching_partner.resize(_hg.initialNumNodes());
     });
   }
 
@@ -404,12 +411,16 @@ class MultilevelCoarsener : public ICoarsener,
     return Base::currentNumNodes();
   }
 
-  Hypergraph& coarsestHypergraphImpl() override {
-    return Base::currentHypergraph();
+  mt_kahypar_hypergraph_t coarsestHypergraphImpl() override {
+    return mt_kahypar_hypergraph_t {
+      reinterpret_cast<mt_kahypar_hypergraph_s*>(
+        &Base::currentHypergraph()), Hypergraph::TYPE };
   }
 
-  PartitionedHypergraph& coarsestPartitionedHypergraphImpl() override {
-    return Base::currentPartitionedHypergraph();
+  mt_kahypar_partitioned_hypergraph_t coarsestPartitionedHypergraphImpl() override {
+    return mt_kahypar_partitioned_hypergraph_t {
+      reinterpret_cast<mt_kahypar_partitioned_hypergraph_s*>(
+        &Base::currentPartitionedHypergraph()), PartitionedHypergraph::TYPE };
   }
 
   HypernodeID hierarchyContractionLimit(const Hypergraph& hypergraph) const {
@@ -418,7 +429,10 @@ class MultilevelCoarsener : public ICoarsener,
       _context.coarsening.contraction_limit );
   }
 
+  using Base::_hg;
   using Base::_context;
+  using Base::_timer;
+  using Base::_uncoarseningData;
   Rater _rater;
   HypernodeID _initial_num_nodes;
   parallel::scalable_vector<HypernodeID> _current_vertices;

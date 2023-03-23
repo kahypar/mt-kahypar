@@ -27,7 +27,6 @@
 
 #pragma once
 
-#include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/refinement/i_refiner.h"
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
@@ -37,15 +36,18 @@
 
 namespace mt_kahypar {
 
+template<typename TypeTraits>
 class MultilevelCoarsenerBase {
  private:
 
   static constexpr bool debug = false;
+  using Hypergraph = typename TypeTraits::Hypergraph;
+  using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
 
  public:
   MultilevelCoarsenerBase(Hypergraph& hypergraph,
                           const Context& context,
-                          UncoarseningData& uncoarseningData) :
+                          UncoarseningData<TypeTraits>& uncoarseningData) :
           _hg(hypergraph),
           _context(context),
           _timer(utils::Utilities::instance().getTimer(context.utility_id)),
@@ -85,6 +87,6 @@ class MultilevelCoarsenerBase {
   Hypergraph& _hg;
   const Context& _context;
   utils::Timer& _timer;
-  UncoarseningData& _uncoarseningData;
+  UncoarseningData<TypeTraits>& _uncoarseningData;
 };
 }  // namespace mt_kahypar

@@ -30,7 +30,7 @@
 
 #include "kahypar/datastructure/fast_reset_flag_array.h"
 
-#include "mt-kahypar/definitions.h"
+#include "mt-kahypar/one_definitions.h"
 #include "mt-kahypar/partition/refinement/flows/scheduler.h"
 #include "mt-kahypar/partition/refinement/rebalancing/rebalancer.h"
 #include "mt-kahypar/utils/progress_bar.h"
@@ -40,7 +40,8 @@
 
 namespace mt_kahypar {
 
-  void NLevelUncoarsener::initializeImpl() {
+  template<typename TypeTraits>
+  void NLevelUncoarsener<TypeTraits>::initializeImpl() {
     // Initialize n-level batch uncontraction hierarchy
     _timer.start_timer("create_batch_uncontraction_hierarchy", "Create n-Level Hierarchy");
     _hierarchy = _hg.createBatchUncontractionHierarchy(_context.refinement.max_batch_size);
@@ -48,9 +49,9 @@ namespace mt_kahypar {
     _timer.stop_timer("create_batch_uncontraction_hierarchy");
 
     ASSERT(_uncoarseningData.is_finalized);
-    _current_metrics = initializeMetrics(*_uncoarseningData.compactified_phg);
+    _current_metrics = Base::initializeMetrics(*_uncoarseningData.compactified_phg);
     _stats.current_number_of_nodes = _uncoarseningData.compactified_hg->initialNumNodes();
-    initializeRefinementAlgorithms();
+    Base::initializeRefinementAlgorithms();
 
     if (_context.type == ContextType::main) {
       _context.initial_km1 = _current_metrics.km1;
@@ -117,11 +118,13 @@ namespace mt_kahypar {
     }
   }
 
-  bool NLevelUncoarsener::isTopLevelImpl() const {
+  template<typename TypeTraits>
+  bool NLevelUncoarsener<TypeTraits>::isTopLevelImpl() const {
     return _hierarchy.empty();
   }
 
-  void NLevelUncoarsener::projectToNextLevelAndRefineImpl() {
+  template<typename TypeTraits>
+  void NLevelUncoarsener<TypeTraits>::projectToNextLevelAndRefineImpl() {
     BatchVector& batches = _hierarchy.back();
 
     // Uncontracts all batches from one coarsening pass. One coarsening pass iterates over all
@@ -189,7 +192,8 @@ namespace mt_kahypar {
     // Restore single-pin and identical nets
     if ( !_uncoarseningData.removed_hyperedges_batches.empty() ) {
       _timer.start_timer("restore_single_pin_and_parallel_nets", "Restore Single Pin and Parallel Nets", false, _force_measure_timings);
-      _uncoarseningData.partitioned_hg->restoreSinglePinAndParallelNets(_uncoarseningData.removed_hyperedges_batches.back());
+      _uncoarseningData.partitioned_hg->restoreSinglePinAndParallelNets(
+        _uncoarseningData.removed_hyperedges_batches.back());
       _uncoarseningData.removed_hyperedges_batches.pop_back();
       _timer.stop_timer("restore_single_pin_and_parallel_nets", _force_measure_timings);
       HEAVY_REFINEMENT_ASSERT(_hg.verifyIncidenceArrayAndIncidentNets());
@@ -197,7 +201,7 @@ namespace mt_kahypar {
 
       // After restoring all single-pin and identical-nets, we perform an additional
       // refinement step on all border nodes.
-      refine();
+      IUncoarsener<TypeTraits>::refine();
       _progress.setObjective(_current_metrics.getMetric(
           _context.partition.mode, _context.partition.objective));
       _uncoarseningData.round_coarsening_times.pop_back();
@@ -210,7 +214,7 @@ namespace mt_kahypar {
       // refinement step on all border nodes.
       const HyperedgeWeight objective_before = _current_metrics.getMetric(
         _context.partition.mode, _context.partition.objective);
-      const double time_limit = refinementTimeLimit(_context, _uncoarseningData.round_coarsening_times.back());
+      const double time_limit = Base::refinementTimeLimit(_context, _uncoarseningData.round_coarsening_times.back());
       globalRefine(*_uncoarseningData.partitioned_hg, time_limit);
       _uncoarseningData.round_coarsening_times.pop_back();
       ASSERT(_uncoarseningData.round_coarsening_times.size() == 0);
@@ -227,12 +231,14 @@ namespace mt_kahypar {
     }
   }
 
-  void NLevelUncoarsener::refineImpl() {
-    const double time_limit = refinementTimeLimit(_context, _uncoarseningData.round_coarsening_times.back());
+  template<typename TypeTraits>
+  void NLevelUncoarsener<TypeTraits>::refineImpl() {
+    const double time_limit = Base::refinementTimeLimit(_context, _uncoarseningData.round_coarsening_times.back());
     globalRefine(*_uncoarseningData.partitioned_hg, time_limit);
   }
 
-  void NLevelUncoarsener::rebalancingImpl() {
+  template<typename TypeTraits>
+  void NLevelUncoarsener<TypeTraits>::rebalancingImpl() {
     // If we reach the top-level hypergraph and the partition is still imbalanced,
     // we use a rebalancing algorithm to restore balance.
     if ( _context.type == ContextType::main && !metrics::isBalanced(*_uncoarseningData.partitioned_hg, _context)) {
@@ -250,10 +256,10 @@ namespace mt_kahypar {
         // Preform rebalancing
       _timer.start_timer("rebalance", "Rebalance");
       if ( _context.partition.objective == Objective::km1 ) {
-        Km1Rebalancer rebalancer(*_uncoarseningData.partitioned_hg, _context);
+        Km1Rebalancer<TypeTraits> rebalancer(*_uncoarseningData.partitioned_hg, _context);
         rebalancer.rebalance(_current_metrics);
       } else if ( _context.partition.objective == Objective::cut ) {
-        CutRebalancer rebalancer(*_uncoarseningData.partitioned_hg, _context);
+        CutRebalancer<TypeTraits> rebalancer(*_uncoarseningData.partitioned_hg, _context);
         rebalancer.rebalance(_current_metrics);
       }
       _timer.stop_timer("rebalance");
@@ -278,30 +284,36 @@ namespace mt_kahypar {
            V(metrics::objective(*_uncoarseningData.partitioned_hg, _context.partition.objective)));
   }
 
-  HyperedgeWeight NLevelUncoarsener::getObjectiveImpl() const {
+  template<typename TypeTraits>
+  HyperedgeWeight NLevelUncoarsener<TypeTraits>::getObjectiveImpl() const {
     return _current_metrics.getMetric(
       _context.partition.mode, _context.partition.objective);
   }
 
-  void NLevelUncoarsener::updateMetricsImpl() {
-    _current_metrics = initializeMetrics(*_uncoarseningData.partitioned_hg);
+  template<typename TypeTraits>
+  void NLevelUncoarsener<TypeTraits>::updateMetricsImpl() {
+    _current_metrics = Base::initializeMetrics(*_uncoarseningData.partitioned_hg);
     _progress.setObjective(_current_metrics.getMetric(Mode::direct, _context.partition.objective));
   }
 
-  PartitionedHypergraph& NLevelUncoarsener::currentPartitionedHypergraphImpl() {
+  template<typename TypeTraits>
+  typename TypeTraits::PartitionedHypergraph& NLevelUncoarsener<TypeTraits>::currentPartitionedHypergraphImpl() {
     return *_uncoarseningData.partitioned_hg;
   }
 
-  HypernodeID NLevelUncoarsener::currentNumberOfNodesImpl() const {
+  template<typename TypeTraits>
+  HypernodeID NLevelUncoarsener<TypeTraits>::currentNumberOfNodesImpl() const {
     return _stats.current_number_of_nodes;
   }
 
-  PartitionedHypergraph&& NLevelUncoarsener::movePartitionedHypergraphImpl() {
+  template<typename TypeTraits>
+  typename TypeTraits::PartitionedHypergraph&& NLevelUncoarsener<TypeTraits>::movePartitionedHypergraphImpl() {
     ASSERT(isTopLevelImpl());
     return std::move(*_uncoarseningData.partitioned_hg);
   }
 
-  void NLevelUncoarsener::localizedRefine(PartitionedHypergraph& partitioned_hypergraph) {
+  template<typename TypeTraits>
+  void NLevelUncoarsener<TypeTraits>::localizedRefine(PartitionedHypergraph& partitioned_hypergraph) {
     // Copy all border nodes into one vector
     vec<HypernodeID> refinement_nodes = _tmp_refinement_nodes.copy_parallel();
     _tmp_refinement_nodes.clear_parallel();
@@ -348,7 +360,8 @@ namespace mt_kahypar {
     }
   }
 
-  void NLevelUncoarsener::globalRefine(PartitionedHypergraph& partitioned_hypergraph,
+  template<typename TypeTraits>
+  void NLevelUncoarsener<TypeTraits>::globalRefine(PartitionedHypergraph& partitioned_hypergraph,
                                        const double time_limit) {
 
     auto applyGlobalFMParameters = [&](const FMParameters& fm, const NLevelGlobalFMParameters global_fm){
@@ -430,5 +443,7 @@ namespace mt_kahypar {
       }
     }
   }
+
+  INSTANTIATE_CLASS_WITH_TYPE_TRAITS(NLevelUncoarsener)
 
 }

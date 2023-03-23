@@ -30,30 +30,24 @@
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/factories.h"
 
-#include "mt-kahypar/partition/coarsening/deterministic_multilevel_coarsener.h"
 
 
-#define REGISTER_DISPATCHED_COARSENER(id, dispatcher, ...)                                      \
-  static kahypar::meta::Registrar<CoarsenerFactory> register_ ## dispatcher(                    \
-    id,                                                                                         \
-    [](Hypergraph& hypergraph, const Context& context, UncoarseningData& uncoarseningData) {                  \
-    return dispatcher::create(                                                                  \
-      std::forward_as_tuple(hypergraph, context, uncoarseningData),                                    \
-      __VA_ARGS__                                                                               \
-      );                                                                                        \
-  })
-
-#define REGISTER_COARSENER(id, coarsener)                                                       \
-  static kahypar::meta::Registrar<CoarsenerFactory> register_ ## coarsener(                     \
-    id,                                                                                         \
-    [](Hypergraph& hypergraph, const Context& context, UncoarseningData& uncoarseningData) -> ICoarsener* {   \
-    return new coarsener(hypergraph, context, uncoarseningData);                                       \
+#define REGISTER_DISPATCHED_COARSENER(id, dispatcher, ...)                                                    \
+  static kahypar::meta::Registrar<CoarsenerFactory> register_ ## dispatcher(                                  \
+    id,                                                                                                       \
+    [](mt_kahypar_hypergraph_t hypergraph, const Context& context, uncoarsening_data_t* uncoarseningData) {   \
+    return dispatcher::create(                                                                                \
+      std::forward_as_tuple(hypergraph, context, uncoarseningData),                                           \
+      __VA_ARGS__                                                                                             \
+      );                                                                                                      \
   })
 
 
 namespace mt_kahypar {
 REGISTER_DISPATCHED_COARSENER(CoarseningAlgorithm::multilevel_coarsener,
                               MultilevelCoarsenerDispatcher,
+                              kahypar::meta::PolicyRegistry<TraitTypes>::getInstance().getPolicy(
+                                context.partition.trait_type),
                               kahypar::meta::PolicyRegistry<RatingFunction>::getInstance().getPolicy(
                                 context.coarsening.rating.rating_function),
                               kahypar::meta::PolicyRegistry<HeavyNodePenaltyPolicy>::getInstance().getPolicy(
@@ -63,6 +57,8 @@ REGISTER_DISPATCHED_COARSENER(CoarseningAlgorithm::multilevel_coarsener,
 
 REGISTER_DISPATCHED_COARSENER(CoarseningAlgorithm::nlevel_coarsener,
                               NLevelCoarsenerDispatcher,
+                              kahypar::meta::PolicyRegistry<TraitTypes>::getInstance().getPolicy(
+                                context.partition.trait_type),
                               kahypar::meta::PolicyRegistry<RatingFunction>::getInstance().getPolicy(
                                 context.coarsening.rating.rating_function),
                               kahypar::meta::PolicyRegistry<HeavyNodePenaltyPolicy>::getInstance().getPolicy(
@@ -70,6 +66,9 @@ REGISTER_DISPATCHED_COARSENER(CoarseningAlgorithm::nlevel_coarsener,
                               kahypar::meta::PolicyRegistry<AcceptancePolicy>::getInstance().getPolicy(
                                 context.coarsening.rating.acceptance_policy));
 
-REGISTER_COARSENER(CoarseningAlgorithm::deterministic_multilevel_coarsener, DeterministicMultilevelCoarsener);
+REGISTER_DISPATCHED_COARSENER(CoarseningAlgorithm::deterministic_multilevel_coarsener,
+                              DeterministicCoarsenerDispatcher,
+                              kahypar::meta::PolicyRegistry<TraitTypes>::getInstance().getPolicy(
+                                context.partition.trait_type));
 
 }  // namespace mt_kahypar

@@ -36,17 +36,25 @@
 
 namespace mt_kahypar {
 
-  class MultilevelUncoarsener : public IUncoarsener,
-                                private UncoarsenerBase {
+template<typename TypeTraits>
+class MultilevelUncoarsener : public IUncoarsener<TypeTraits>,
+                              private UncoarsenerBase<TypeTraits> {
+
+  using Base = UncoarsenerBase<TypeTraits>;
+  using Hypergraph = typename TypeTraits::Hypergraph;
+  using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
+
+  static constexpr bool debug = false;
+  static constexpr bool enable_heavy_assert = false;
 
  public:
     MultilevelUncoarsener(Hypergraph& hypergraph,
                           const Context& context,
-                          UncoarseningData& uncoarseningData) :
-      UncoarsenerBase(hypergraph, context, uncoarseningData),
+                          UncoarseningData<TypeTraits>& uncoarseningData) :
+      Base(hypergraph, context, uncoarseningData),
       _current_level(0),
       _num_levels(0),
-      _block_ids(hypergraph.initialNumNodes(), PartIdType(kInvalidPartition)),
+      _block_ids(hypergraph.initialNumNodes(), kInvalidPartition),
       _current_metrics(),
       _progress(hypergraph.initialNumNodes(), 0, false) { }
 
@@ -76,9 +84,17 @@ namespace mt_kahypar {
 
   PartitionedHypergraph&& movePartitionedHypergraphImpl() override;
 
+  using Base::_hg;
+  using Base::_context;
+  using Base::_uncoarseningData;
+  using Base::_label_propagation;
+  using Base::_fm;
+  using Base::_flows;
+  using Base::_timer;
+
   int _current_level;
   int _num_levels;
-  ds::Array<PartIdType> _block_ids;
+  ds::Array<PartitionID> _block_ids;
   Metrics _current_metrics;
   utils::ProgressBar _progress;
 };

@@ -493,7 +493,7 @@ void bipartition_each_block(typename TypeTraits::PartitionedHypergraph& partitio
       // Spawn a task that bipartitions the corresponding block
       tg.run([&, block, desired_blocks] {
         const auto target_blocks = rb_tree.targetBlocksInFinalPartition(current_k, block);
-        bipartitions[block] = bipartition_block(std::move(hypergraphs[block]), context,
+        bipartitions[block] = bipartition_block<TypeTraits>(std::move(hypergraphs[block]), context,
           info, target_blocks.first, target_blocks.second);
         bipartitions[block].partitioned_hg.setHypergraph(bipartitions[block].hypergraph);
         progress.addToObjective(progress_bar_enabled ?
@@ -568,6 +568,7 @@ PartitionID deep_multilevel_partitioning(typename TypeTraits::PartitionedHypergr
                                          const OriginalHypergraphInfo& info,
                                          const RBTree& rb_tree) {
   using Hypergraph = typename TypeTraits::Hypergraph;
+  using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
   Hypergraph& hypergraph = partitioned_hg.hypergraph();
   Context context(c);
 
@@ -596,7 +597,7 @@ PartitionID deep_multilevel_partitioning(typename TypeTraits::PartitionedHypergr
   };
 
   const bool nlevel = context.coarsening.algorithm == CoarseningAlgorithm::nlevel_coarsener;
-  UncoarseningData uncoarseningData(nlevel, hypergraph, context);
+  UncoarseningData<TypeTraits> uncoarseningData(nlevel, hypergraph, context);
   uncoarseningData.setPartitionedHypergraph(std::move(partitioned_hg));
 
   utils::Timer& timer = utils::Utilities::instance().getTimer(context.utility_id);
@@ -606,7 +607,8 @@ PartitionID deep_multilevel_partitioning(typename TypeTraits::PartitionedHypergr
   timer.start_timer("coarsening", "Coarsening");
   {
     std::unique_ptr<ICoarsener> coarsener = CoarsenerFactory::getInstance().createObject(
-      context.coarsening.algorithm, hypergraph, context, uncoarseningData);
+      context.coarsening.algorithm, utils::hypergraph_cast(hypergraph),
+      context, uncoarsening::to_pointer(uncoarseningData));
 
     // Perform coarsening
     coarsener->initialize();
@@ -616,8 +618,10 @@ PartitionID deep_multilevel_partitioning(typename TypeTraits::PartitionedHypergr
     while ( coarsener->shouldNotTerminate() && should_continue ) {
       DBG << "Coarsening Pass" << pass_nr
           << "- Number of Nodes =" << coarsener->currentNumberOfNodes()
-          << "- Number of HEs =" << (nlevel ? 0 : coarsener->coarsestHypergraph().initialNumEdges())
-          << "- Number of Pins =" << (nlevel ? 0 : coarsener->coarsestHypergraph().initialNumPins());
+          << "- Number of HEs =" << (nlevel ? 0 :
+             utils::cast<Hypergraph>(coarsener->coarsestHypergraph()).initialNumEdges())
+          << "- Number of Pins =" << (nlevel ? 0 :
+             utils::cast<Hypergraph>(coarsener->coarsestHypergraph()).initialNumPins());
 
       // In the coarsening phase, we maintain the invariant that t threads process a hypergraph with
       // at least t * C nodes (C = contraction_limit_for_bipartitioning). If this invariant is violated,
@@ -638,8 +642,9 @@ PartitionID deep_multilevel_partitioning(typename TypeTraits::PartitionedHypergr
 
 
     if (context.partition.verbose_output) {
-      Hypergraph& coarsestHypergraph = coarsener->coarsestHypergraph();
-      mt_kahypar::io::printHypergraphInfo(coarsestHypergraph,
+      mt_kahypar_hypergraph_t coarsestHypergraph = coarsener->coarsestHypergraph();
+      mt_kahypar::io::printHypergraphInfo(
+        utils::cast<Hypergraph>(coarsestHypergraph),
         "Coarsened Hypergraph", context.partition.show_memory_consumption);
     }
   }
@@ -746,11 +751,11 @@ PartitionID deep_multilevel_partitioning(typename TypeTraits::PartitionedHypergr
   const bool progress_bar_enabled = context.partition.verbose_output &&
     context.partition.enable_progress_bar && !debug;
   context.partition.enable_progress_bar = false;
-  std::unique_ptr<IUncoarsener> uncoarsener(nullptr);
+  std::unique_ptr<IUncoarsener<TypeTraits>> uncoarsener(nullptr);
   if (uncoarseningData.nlevel) {
-    uncoarsener = std::make_unique<NLevelUncoarsener>(hypergraph, context, uncoarseningData);
+    uncoarsener = std::make_unique<NLevelUncoarsener<TypeTraits>>(hypergraph, context, uncoarseningData);
   } else {
-    uncoarsener = std::make_unique<MultilevelUncoarsener>(hypergraph, context, uncoarseningData);
+    uncoarsener = std::make_unique<MultilevelUncoarsener<TypeTraits>>(hypergraph, context, uncoarseningData);
   }
 
   uncoarsener->initialize();

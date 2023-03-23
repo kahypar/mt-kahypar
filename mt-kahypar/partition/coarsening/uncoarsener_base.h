@@ -28,7 +28,6 @@
 
 #pragma once
 
-#include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/refinement/i_refiner.h"
 #include "mt-kahypar/partition/coarsening/coarsening_commons.h"
@@ -40,15 +39,19 @@
 
 namespace mt_kahypar {
 
+template<typename TypeTraits>
 class UncoarsenerBase {
 
  protected:
   static constexpr bool debug = false;
 
+  using Hypergraph = typename TypeTraits::Hypergraph;
+  using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
+
  public:
   UncoarsenerBase(Hypergraph& hypergraph,
                   const Context& context,
-                  UncoarseningData& uncoarseningData) :
+                  UncoarseningData<TypeTraits>& uncoarseningData) :
           _hg(hypergraph),
           _context(context),
           _timer(utils::Utilities::instance().getTimer(context.utility_id)),
@@ -68,7 +71,7 @@ class UncoarsenerBase {
   Hypergraph& _hg;
   const Context& _context;
   utils::Timer& _timer;
-  UncoarseningData& _uncoarseningData;
+  UncoarseningData<TypeTraits>& _uncoarseningData;
   std::unique_ptr<IRefiner> _label_propagation;
   std::unique_ptr<IRefiner> _fm;
   std::unique_ptr<IRefiner> _flows;

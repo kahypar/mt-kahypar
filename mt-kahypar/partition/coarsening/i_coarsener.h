@@ -28,8 +28,9 @@
 
 #include <string>
 
+#include "include/libmtkahypartypes.h"
+
 #include "mt-kahypar/macros.h"
-#include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/refinement/i_refiner.h"
 #include "mt-kahypar/partition/coarsening/coarsening_commons.h"
 
@@ -77,11 +78,11 @@ class ICoarsener {
     return currentNumberOfNodesImpl();
   }
 
-  Hypergraph& coarsestHypergraph() {
+  mt_kahypar_hypergraph_t coarsestHypergraph() {
     return coarsestHypergraphImpl();
   }
 
-  PartitionedHypergraph& coarsestPartitionedHypergraph() {
+  mt_kahypar_partitioned_hypergraph_t coarsestPartitionedHypergraph() {
     return coarsestPartitionedHypergraphImpl();
   }
 
@@ -96,8 +97,8 @@ class ICoarsener {
   virtual bool coarseningPassImpl() = 0;
   virtual void terminateImpl() = 0;
   virtual HypernodeID currentNumberOfNodesImpl() const = 0;
-  virtual Hypergraph& coarsestHypergraphImpl() = 0;
-  virtual PartitionedHypergraph& coarsestPartitionedHypergraphImpl() = 0;
+  virtual mt_kahypar_hypergraph_t coarsestHypergraphImpl() = 0;
+  virtual mt_kahypar_partitioned_hypergraph_t coarsestPartitionedHypergraphImpl() = 0;
 };
 
 }  // namespace kahypar

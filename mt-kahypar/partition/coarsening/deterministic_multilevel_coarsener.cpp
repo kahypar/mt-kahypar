@@ -28,16 +28,18 @@
 
 #include <tbb/parallel_sort.h>
 
+#include "mt-kahypar/one_definitions.h"
 
 namespace mt_kahypar {
 
-bool DeterministicMultilevelCoarsener::coarseningPassImpl() {
+template<typename TypeTraits>
+bool DeterministicMultilevelCoarsener<TypeTraits>::coarseningPassImpl() {
   auto& timer = utils::Utilities::instance().getTimer(_context.utility_id);
   const auto pass_start_time = std::chrono::high_resolution_clock::now();
   timer.start_timer("coarsening_pass", "Clustering");
 
-  const Hypergraph& hg = currentHypergraph();
-  size_t num_nodes = currentNumNodes();
+  const Hypergraph& hg = Base::currentHypergraph();
+  size_t num_nodes = Base::currentNumNodes();
   const double num_nodes_before_pass = num_nodes;
   vec<HypernodeID> clusters(num_nodes, kInvalidHypernode);
   tbb::parallel_for(UL(0), num_nodes, [&](HypernodeID u) {
@@ -99,8 +101,9 @@ bool DeterministicMultilevelCoarsener::coarseningPassImpl() {
   return true;
 }
 
-void DeterministicMultilevelCoarsener::calculatePreferredTargetCluster(HypernodeID u, const vec<HypernodeID>& clusters) {
-  const Hypergraph& hg = currentHypergraph();
+template<typename TypeTraits>
+void DeterministicMultilevelCoarsener<TypeTraits>::calculatePreferredTargetCluster(HypernodeID u, const vec<HypernodeID>& clusters) {
+  const Hypergraph& hg = Base::currentHypergraph();
   auto& ratings = default_rating_maps.local();
   ratings.clear();
 
@@ -154,8 +157,9 @@ void DeterministicMultilevelCoarsener::calculatePreferredTargetCluster(Hypernode
   }
 }
 
-size_t DeterministicMultilevelCoarsener::approveVerticesInTooHeavyClusters(vec<HypernodeID>& clusters) {
-  const Hypergraph& hg = currentHypergraph();
+template<typename TypeTraits>
+size_t DeterministicMultilevelCoarsener<TypeTraits>::approveVerticesInTooHeavyClusters(vec<HypernodeID>& clusters) {
+  const Hypergraph& hg = Base::currentHypergraph();
   tbb::enumerable_thread_specific<size_t> num_contracted_nodes { 0 };
 
   // group vertices by desired cluster, if their cluster is too heavy. approve the lower weight nodes first
@@ -195,5 +199,7 @@ size_t DeterministicMultilevelCoarsener::approveVerticesInTooHeavyClusters(vec<H
 
   return num_contracted_nodes.combine(std::plus<>());
 }
+
+INSTANTIATE_CLASS_WITH_TYPE_TRAITS(DeterministicMultilevelCoarsener)
 
 }

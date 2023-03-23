@@ -34,6 +34,7 @@
 #include "mt-kahypar/one_definitions.h"
 #include "mt-kahypar/partition/coarsening/nlevel_coarsener.h"
 #include "mt-kahypar/partition/coarsening/multilevel_coarsener.h"
+#include "mt-kahypar/partition/coarsening/deterministic_multilevel_coarsener.h"
 #include "mt-kahypar/partition/coarsening/i_coarsener.h"
 #include "mt-kahypar/partition/coarsening/policies/rating_acceptance_policy.h"
 #include "mt-kahypar/partition/coarsening/policies/rating_heavy_node_penalty_policy.h"
@@ -53,17 +54,23 @@
 namespace mt_kahypar {
 
 using CoarsenerFactory = kahypar::meta::Factory<CoarseningAlgorithm,
-                                                ICoarsener* (*)(Hypergraph&, const Context&, UncoarseningData&)>;
+                                                ICoarsener* (*)(mt_kahypar_hypergraph_t, const Context&, uncoarsening_data_t*)>;
 
 using MultilevelCoarsenerDispatcher = kahypar::meta::StaticMultiDispatchFactory<MultilevelCoarsener,
                                                                                 ICoarsener,
-                                                                                kahypar::meta::Typelist<RatingScorePolicies,
+                                                                                kahypar::meta::Typelist<TypeTraitsList,
+                                                                                                        RatingScorePolicies,
                                                                                                         HeavyNodePenaltyPolicies,
                                                                                                         AcceptancePolicies> >;
 
+using DeterministicCoarsenerDispatcher = kahypar::meta::StaticMultiDispatchFactory<DeterministicMultilevelCoarsener,
+                                                                                   ICoarsener,
+                                                                                   kahypar::meta::Typelist<TypeTraitsList>>;
+
 using NLevelCoarsenerDispatcher = kahypar::meta::StaticMultiDispatchFactory<NLevelCoarsener,
                                                                             ICoarsener,
-                                                                            kahypar::meta::Typelist<RatingScorePolicies,
+                                                                            kahypar::meta::Typelist<TypeTraitsList,
+                                                                                                    RatingScorePolicies,
                                                                                                     HeavyNodePenaltyPolicies,
                                                                                                     AcceptancePolicies> >;
 

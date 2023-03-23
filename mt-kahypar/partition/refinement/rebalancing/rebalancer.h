@@ -34,9 +34,11 @@
 #include "mt-kahypar/partition/refinement/policies/gain_policy.h"
 
 namespace mt_kahypar {
-template <template <typename> class GainPolicy>
+template <typename TypeTraits,
+          template <typename> class GainPolicy>
 class Rebalancer {
  private:
+  using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
   using GainCalculator = GainPolicy<PartitionedHypergraph>;
   using AtomicWeight = parallel::IntegralAtomicWrapper<HypernodeWeight>;
 
@@ -112,6 +114,8 @@ private:
   parallel::scalable_vector<AtomicWeight> _part_weights;
 };
 
-using Km1Rebalancer = Rebalancer<Km1Policy>;
-using CutRebalancer = Rebalancer<CutPolicy>;
+template<typename TypeTraits>
+using Km1Rebalancer = Rebalancer<TypeTraits, Km1Policy>;
+template<typename TypeTraits>
+using CutRebalancer = Rebalancer<TypeTraits, CutPolicy>;
 }  // namespace kahypar

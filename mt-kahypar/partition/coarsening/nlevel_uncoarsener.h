@@ -37,13 +37,20 @@
 
 namespace mt_kahypar {
 
-class NLevelUncoarsener : public IUncoarsener,
-                          private UncoarsenerBase {
+template<typename TypeTraits>
+class NLevelUncoarsener : public IUncoarsener<TypeTraits>,
+                          private UncoarsenerBase<TypeTraits> {
+
+  using Base = UncoarsenerBase<TypeTraits>;
+  using Hypergraph = typename TypeTraits::Hypergraph;
+  using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
+  using ParallelHyperedge = typename Hypergraph::ParallelHyperedge;
+  using ParallelHyperedgeVector = vec<vec<ParallelHyperedge>>;
 
  private:
+  static constexpr bool debug = false;
   static constexpr bool enable_heavy_assert = false;
 
-  using ParallelHyperedgeVector = parallel::scalable_vector<parallel::scalable_vector<ParallelHyperedge>>;
 
   struct NLevelStats {
     explicit NLevelStats(const Context& context) :
@@ -75,8 +82,8 @@ class NLevelUncoarsener : public IUncoarsener,
  public:
   NLevelUncoarsener(Hypergraph& hypergraph,
                     const Context& context,
-                    UncoarseningData& uncoarseningData) :
-    UncoarsenerBase(hypergraph, context, uncoarseningData),
+                    UncoarseningData<TypeTraits>& uncoarseningData) :
+    Base(hypergraph, context, uncoarseningData),
     _hierarchy(),
     _tmp_refinement_nodes(),
     _border_vertices_of_batch(hypergraph.initialNumNodes()),
@@ -116,6 +123,14 @@ class NLevelUncoarsener : public IUncoarsener,
 
   void globalRefine(PartitionedHypergraph& partitioned_hypergraph,
                     const double time_limit);
+
+  using Base::_hg;
+  using Base::_context;
+  using Base::_uncoarseningData;
+  using Base::_label_propagation;
+  using Base::_fm;
+  using Base::_flows;
+  using Base::_timer;
 
   // ! Represents the n-level hierarchy
   // ! A batch is vector of uncontractions/mementos that can be uncontracted in parallel
