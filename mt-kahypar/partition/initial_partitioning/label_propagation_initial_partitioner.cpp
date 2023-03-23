@@ -74,7 +74,7 @@ void LabelPropagationInitialPartitioner<TypeTraits>::partitionImpl() {
               ASSERT(fitsIntoBlock(hg, hn, to));
 
               HEAVY_INITIAL_PARTITIONING_ASSERT([&] {
-                Gain expected_gain = CutGainPolicy::calculateGain(hg, hn, to);
+                Gain expected_gain = CutGainPolicy<TypeTraits>::calculateGain(hg, hn, to);
                 if ( expected_gain != max_gain_move.gain ) {
                   LOG << V(hn);
                   LOG << V(from);

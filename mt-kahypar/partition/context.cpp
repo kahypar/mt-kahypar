@@ -302,6 +302,35 @@ namespace mt_kahypar {
   }
 
   void Context::sanityCheck() {
+    // Setup type traits
+    if ( partition.instance_type == InstanceType::graph ) {
+      if ( partition.preset_type == PresetType::default_preset ||
+           partition.preset_type == PresetType::default_flows ||
+           partition.preset_type == PresetType::large_k ||
+           partition.preset_type == PresetType::deterministic ) {
+        partition.trait_type = TraitTypes::static_graph;
+        partition.paradigm = Paradigm::multilevel;
+      } else if ( partition.preset_type == PresetType::quality_preset ||
+                  partition.preset_type == PresetType::quality_flows ) {
+        partition.trait_type = TraitTypes::dynamic_graph;
+        partition.paradigm = Paradigm::nlevel;
+      }
+    } else if ( partition.instance_type == InstanceType::hypergraph ) {
+      if ( partition.preset_type == PresetType::default_preset ||
+           partition.preset_type == PresetType::default_flows ||
+           partition.preset_type == PresetType::deterministic ) {
+        partition.trait_type = TraitTypes::static_hypergraph;
+        partition.paradigm = Paradigm::multilevel;
+      } else if ( partition.preset_type == PresetType::quality_preset ||
+                  partition.preset_type == PresetType::quality_flows ) {
+        partition.trait_type = TraitTypes::dynamic_hypergraph;
+        partition.paradigm = Paradigm::nlevel;
+      } else if ( partition.preset_type == PresetType::large_k ) {
+        partition.trait_type = TraitTypes::sparse_static_hypergraph;
+        partition.paradigm = Paradigm::multilevel;
+      }
+    }
+
     if ( partition.paradigm == Paradigm::nlevel &&
          coarsening.algorithm == CoarseningAlgorithm::multilevel_coarsener ) {
         ALGO_SWITCH("Coarsening algorithm" << coarsening.algorithm << "is only supported in multilevel mode."
@@ -420,35 +449,6 @@ namespace mt_kahypar {
       lp_algo = initial_partitioning.refinement.label_propagation.algorithm;
       if ( lp_algo != LabelPropagationAlgorithm::do_nothing && lp_algo != LabelPropagationAlgorithm::deterministic ) {
         initial_partitioning.refinement.label_propagation.algorithm = LabelPropagationAlgorithm::deterministic;
-      }
-    }
-
-    // Setup type traits
-    if ( partition.instance_type == InstanceType::graph ) {
-      if ( partition.preset_type == PresetType::default_preset ||
-           partition.preset_type == PresetType::default_flows ||
-           partition.preset_type == PresetType::large_k ||
-           partition.preset_type == PresetType::deterministic ) {
-        partition.trait_type = TraitTypes::static_graph;
-        partition.paradigm = Paradigm::multilevel;
-      } else if ( partition.preset_type == PresetType::quality_preset ||
-                  partition.preset_type == PresetType::quality_flows ) {
-        partition.trait_type = TraitTypes::dynamic_graph;
-        partition.paradigm = Paradigm::nlevel;
-      }
-    } else if ( partition.instance_type == InstanceType::hypergraph ) {
-      if ( partition.preset_type == PresetType::default_preset ||
-           partition.preset_type == PresetType::default_flows ||
-           partition.preset_type == PresetType::deterministic ) {
-        partition.trait_type = TraitTypes::static_hypergraph;
-        partition.paradigm = Paradigm::multilevel;
-      } else if ( partition.preset_type == PresetType::quality_preset ||
-                  partition.preset_type == PresetType::quality_flows ) {
-        partition.trait_type = TraitTypes::dynamic_hypergraph;
-        partition.paradigm = Paradigm::nlevel;
-      } else if ( partition.preset_type == PresetType::large_k ) {
-        partition.trait_type = TraitTypes::sparse_static_hypergraph;
-        partition.paradigm = Paradigm::multilevel;
       }
     }
   }

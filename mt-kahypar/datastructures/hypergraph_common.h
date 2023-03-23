@@ -175,7 +175,7 @@ struct PartitionedHypergraphType<ds::StaticHypergraph, ds::SparseConnectivityInf
 
 template<>
 struct PartitionedHypergraphType<ds::DynamicHypergraph, ds::ConnectivityInfo> {
-  static constexpr mt_kahypar_partition_type_t TYPE = STATIC_SPARSE_PARTITIONED_HYPERGRAPH;
+  static constexpr mt_kahypar_partition_type_t TYPE = DYNAMIC_PARTITIONED_HYPERGRAPH;
 };
 
 template<typename Graph>
