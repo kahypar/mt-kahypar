@@ -203,7 +203,7 @@ void Multilevel<TypeTraits>::partitionVCycle(Hypergraph& hypergraph,
     parallel::MemoryPool::instance().reset();
     parallel::MemoryPool::instance().release_mem_group("Preprocessing");
 
-    if ( context.partition.paradigm == Paradigm::nlevel ) {
+    if ( context.isNLevelPartitioning() ) {
       // Workaround: reset() function of hypergraph reinserts all removed hyperedges again.
       LargeHyperedgeRemover<TypeTraits> large_he_remover(context);
       large_he_remover.removeLargeHyperedgesInNLevelVCycle(hypergraph);

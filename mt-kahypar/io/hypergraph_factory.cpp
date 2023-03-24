@@ -29,6 +29,7 @@
 #include "mt-kahypar/macros.h"
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/io/hypergraph_io.h"
+#include "mt-kahypar/partition/conversion.h"
 
 namespace mt_kahypar {
 namespace io {
@@ -127,34 +128,6 @@ mt_kahypar_hypergraph_t readMetisFile(const std::string& filename,
   return mt_kahypar_hypergraph_t { nullptr, NULLPTR_HYPERGRAPH };
 }
 
-mt_kahypar_hypergraph_type_t getHypergraphType(const PresetType& preset,
-                                               const InstanceType& instance) {
-  if ( instance == InstanceType::hypergraph ) {
-    switch ( preset ) {
-      case PresetType::deterministic:
-      case PresetType::large_k:
-      case PresetType::default_preset:
-      case PresetType::default_flows: return STATIC_HYPERGRAPH;
-      case PresetType::quality_preset:
-      case PresetType::quality_flows: return DYNAMIC_HYPERGRAPH;
-      case PresetType::UNDEFINED: ERR("Unknown preset type!");
-    }
-  } else if ( instance == InstanceType::graph ) {
-    switch ( preset ) {
-      case PresetType::deterministic:
-      case PresetType::large_k:
-      case PresetType::default_preset:
-      case PresetType::default_flows: return STATIC_GRAPH;
-      case PresetType::quality_preset:
-      case PresetType::quality_flows: return DYNAMIC_GRAPH;
-      case PresetType::UNDEFINED: ERR("Unknown preset type!");
-    }
-  } else {
-    ERR("Unknown instance type. Should be either graph or hypergraph");
-  }
-  return STATIC_HYPERGRAPH;
-}
-
 } // namespace
 
 mt_kahypar_hypergraph_t readInputFile(const std::string& filename,
@@ -163,7 +136,7 @@ mt_kahypar_hypergraph_t readInputFile(const std::string& filename,
                                       const FileFormat& format,
                                       const bool stable_construction,
                                       const bool remove_single_pin_hes) {
-  mt_kahypar_hypergraph_type_t type = getHypergraphType(preset, instance);
+  mt_kahypar_hypergraph_type_t type = to_hypergraph_c_type(preset, instance);
   switch ( format ) {
     case FileFormat::hMetis: return readHMetisFile(
       filename, type, stable_construction, remove_single_pin_hes);

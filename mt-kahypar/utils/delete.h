@@ -51,15 +51,15 @@ void delete_hypergraph(mt_kahypar_hypergraph_t hg) {
 
 void delete_partitioned_hypergraph(mt_kahypar_partitioned_hypergraph_t phg) {
   switch ( phg.type ) {
-    case STATIC_PARTITIONED_GRAPH:
+    case MULTILEVEL_GRAPH_PARTITIONING:
       delete reinterpret_cast<StaticPartitionedGraph*>(phg.partitioned_hg); break;
-    case DYNAMIC_PARTITIONED_GRAPH:
+    case N_LEVEL_GRAPH_PARTITIONING:
       delete reinterpret_cast<DynamicPartitionedGraph*>(phg.partitioned_hg); break;
-    case STATIC_PARTITIONED_HYPERGRAPH:
+    case MULTILEVEL_HYPERGRAPH_PARTITIONING:
       delete reinterpret_cast<StaticPartitionedHypergraph*>(phg.partitioned_hg); break;
-    case STATIC_SPARSE_PARTITIONED_HYPERGRAPH:
+    case LARGE_K_PARTITIONING:
       delete reinterpret_cast<StaticSparsePartitionedHypergraph*>(phg.partitioned_hg); break;
-    case DYNAMIC_PARTITIONED_HYPERGRAPH:
+    case N_LEVEL_HYPERGRAPH_PARTITIONING:
       delete reinterpret_cast<DynamicPartitionedHypergraph*>(phg.partitioned_hg); break;
     case NULLPTR_PARTITION: break;
   }

@@ -27,6 +27,7 @@
 
 #include "context_enum_classes.h"
 
+#include "include/libmtkahypartypes.h"
 #include "mt-kahypar/macros.h"
 
 namespace mt_kahypar {
@@ -75,26 +76,17 @@ namespace mt_kahypar {
     return os << static_cast<uint8_t>(type);
   }
 
-  std::ostream & operator<< (std::ostream& os, const TraitTypes& type) {
+  std::ostream & operator<< (std::ostream& os, const mt_kahypar_partition_type_t& type) {
     switch (type) {
-      case TraitTypes::static_graph: return os << "static_graph";
-      case TraitTypes::dynamic_graph: return os << "dynamic_graph";
-      case TraitTypes::static_hypergraph: return os << "static_hypergraph";
-      case TraitTypes::sparse_static_hypergraph: return os << "sparse_static_hypergraph";
-      case TraitTypes::dynamic_hypergraph: return os << "dynamic_hypergraph";
-      case TraitTypes::UNDEFINED: return os << "UNDEFINED";
+      case MULTILEVEL_GRAPH_PARTITIONING: return os << "multilevel_graph_partitioning";
+      case MULTILEVEL_HYPERGRAPH_PARTITIONING: return os << "multilevel_hypergraph_partitioning";
+      case LARGE_K_PARTITIONING: return os << "large_k_partitioning";
+      case N_LEVEL_GRAPH_PARTITIONING: return os << "n_level_graph_partitioning";
+      case N_LEVEL_HYPERGRAPH_PARTITIONING: return os << "n_level_hypergraph_partitioning";
+      case NULLPTR_PARTITION: return os << "UNDEFINED";
         // omit default case to trigger compiler warning for missing cases
     }
     return os << static_cast<uint8_t>(type);
-  }
-
-  std::ostream & operator<< (std::ostream& os, const Paradigm& paradigm) {
-    switch (paradigm) {
-      case Paradigm::multilevel: return os << "multilevel";
-      case Paradigm::nlevel: return os << "nlevel";
-        // omit default case to trigger compiler warning for missing cases
-    }
-    return os << static_cast<uint8_t>(paradigm);
   }
 
   std::ostream& operator<< (std::ostream& os, const ContextType& type) {

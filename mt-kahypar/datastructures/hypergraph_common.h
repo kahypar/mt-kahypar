@@ -165,17 +165,17 @@ struct PartitionedHypergraphType {
 
 template<>
 struct PartitionedHypergraphType<ds::StaticHypergraph, ds::ConnectivityInfo> {
-  static constexpr mt_kahypar_partition_type_t TYPE = STATIC_PARTITIONED_HYPERGRAPH;
+  static constexpr mt_kahypar_partition_type_t TYPE = MULTILEVEL_HYPERGRAPH_PARTITIONING;
 };
 
 template<>
 struct PartitionedHypergraphType<ds::StaticHypergraph, ds::SparseConnectivityInfo> {
-  static constexpr mt_kahypar_partition_type_t TYPE = STATIC_SPARSE_PARTITIONED_HYPERGRAPH;
+  static constexpr mt_kahypar_partition_type_t TYPE = LARGE_K_PARTITIONING;
 };
 
 template<>
 struct PartitionedHypergraphType<ds::DynamicHypergraph, ds::ConnectivityInfo> {
-  static constexpr mt_kahypar_partition_type_t TYPE = DYNAMIC_PARTITIONED_HYPERGRAPH;
+  static constexpr mt_kahypar_partition_type_t TYPE = N_LEVEL_HYPERGRAPH_PARTITIONING;
 };
 
 template<typename Graph>
@@ -185,12 +185,12 @@ struct PartitionedGraphType {
 
 template<>
 struct PartitionedGraphType<ds::StaticGraph> {
-  static constexpr mt_kahypar_partition_type_t TYPE = STATIC_PARTITIONED_GRAPH;
+  static constexpr mt_kahypar_partition_type_t TYPE = MULTILEVEL_GRAPH_PARTITIONING;
 };
 
 template<>
 struct PartitionedGraphType<ds::DynamicGraph> {
-  static constexpr mt_kahypar_partition_type_t TYPE = DYNAMIC_PARTITIONED_GRAPH;
+  static constexpr mt_kahypar_partition_type_t TYPE = N_LEVEL_GRAPH_PARTITIONING;
 };
 
 

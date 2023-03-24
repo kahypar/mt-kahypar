@@ -37,7 +37,6 @@ namespace mt_kahypar {
     if ( params.write_partition_file ) {
       str << "  Partition File:                     " << params.graph_partition_filename << std::endl;
     }
-    str << "  Paradigm:                           " << params.paradigm << std::endl;
     str << "  Mode:                               " << params.mode << std::endl;
     str << "  Objective:                          " << params.objective << std::endl;
     str << "  Input File Format:                  " << params.file_format << std::endl;
@@ -47,7 +46,7 @@ namespace mt_kahypar {
     if ( params.preset_type != PresetType::UNDEFINED ) {
       str << "  Preset Type:                        " << params.preset_type << std::endl;
     }
-    str << "  Trait Type:                         " << params.trait_type << std::endl;
+    str << "  Partition Type:                     " << params.partition_type << std::endl;
     str << "  k:                                  " << params.k << std::endl;
     str << "  epsilon:                            " << params.epsilon << std::endl;
     str << "  seed:                               " << params.seed << std::endl;
@@ -224,8 +223,13 @@ namespace mt_kahypar {
     return str;
   }
 
+  bool Context::isNLevelPartitioning() const {
+    return partition.partition_type == N_LEVEL_GRAPH_PARTITIONING ||
+      partition.partition_type == N_LEVEL_HYPERGRAPH_PARTITIONING;
+  }
+
   bool Context::forceGainCacheUpdates() const {
-    return partition.paradigm == Paradigm::nlevel ||
+    return isNLevelPartitioning() ||
       partition.mode == Mode::deep_multilevel ||
       refinement.refine_until_no_improvement;
   }
@@ -302,45 +306,14 @@ namespace mt_kahypar {
   }
 
   void Context::sanityCheck() {
-    // Setup type traits
-    if ( partition.instance_type == InstanceType::graph ) {
-      if ( partition.preset_type == PresetType::default_preset ||
-           partition.preset_type == PresetType::default_flows ||
-           partition.preset_type == PresetType::large_k ||
-           partition.preset_type == PresetType::deterministic ) {
-        partition.trait_type = TraitTypes::static_graph;
-        partition.paradigm = Paradigm::multilevel;
-      } else if ( partition.preset_type == PresetType::quality_preset ||
-                  partition.preset_type == PresetType::quality_flows ) {
-        partition.trait_type = TraitTypes::dynamic_graph;
-        partition.paradigm = Paradigm::nlevel;
-      }
-    } else if ( partition.instance_type == InstanceType::hypergraph ) {
-      if ( partition.preset_type == PresetType::default_preset ||
-           partition.preset_type == PresetType::default_flows ||
-           partition.preset_type == PresetType::deterministic ) {
-        partition.trait_type = TraitTypes::static_hypergraph;
-        partition.paradigm = Paradigm::multilevel;
-      } else if ( partition.preset_type == PresetType::quality_preset ||
-                  partition.preset_type == PresetType::quality_flows ) {
-        partition.trait_type = TraitTypes::dynamic_hypergraph;
-        partition.paradigm = Paradigm::nlevel;
-      } else if ( partition.preset_type == PresetType::large_k ) {
-        partition.trait_type = TraitTypes::sparse_static_hypergraph;
-        partition.paradigm = Paradigm::multilevel;
-      }
-    }
-
-    if ( partition.paradigm == Paradigm::nlevel &&
-         coarsening.algorithm == CoarseningAlgorithm::multilevel_coarsener ) {
+    if ( isNLevelPartitioning() && coarsening.algorithm == CoarseningAlgorithm::multilevel_coarsener ) {
         ALGO_SWITCH("Coarsening algorithm" << coarsening.algorithm << "is only supported in multilevel mode."
                                            << "Do you want to use the n-level version instead (Y/N)?",
                     "Partitioning with" << coarsening.algorithm
                                         << "coarsener in n-level mode is not supported!",
                     coarsening.algorithm,
                     CoarseningAlgorithm::nlevel_coarsener);
-    } else if ( partition.paradigm == Paradigm::multilevel &&
-                coarsening.algorithm == CoarseningAlgorithm::nlevel_coarsener ) {
+    } else if ( !isNLevelPartitioning() && coarsening.algorithm == CoarseningAlgorithm::nlevel_coarsener ) {
         ALGO_SWITCH("Coarsening algorithm" << coarsening.algorithm << "is only supported in n-Level mode."
                                            << "Do you want to use the multilevel version instead (Y/N)?",
                     "Partitioning with" << coarsening.algorithm

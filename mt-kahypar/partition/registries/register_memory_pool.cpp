@@ -102,7 +102,7 @@ namespace mt_kahypar {
       // ########## Coarsening Memory ##########
 
       pool.register_memory_group("Coarsening", 2);
-      if ( context.partition.paradigm == Paradigm::multilevel ) {
+      if ( !context.isNLevelPartitioning() ) {
         if (Hypergraph::is_graph) {
           pool.register_memory_chunk("Coarsening", "mapping", num_hypernodes, sizeof(HypernodeID));
           pool.register_memory_chunk("Coarsening", "tmp_nodes", num_hypernodes, Hypergraph::SIZE_OF_HYPERNODE);

@@ -46,8 +46,8 @@
 namespace mt_kahypar {
 REGISTER_DISPATCHED_COARSENER(CoarseningAlgorithm::multilevel_coarsener,
                               MultilevelCoarsenerDispatcher,
-                              kahypar::meta::PolicyRegistry<TraitTypes>::getInstance().getPolicy(
-                                context.partition.trait_type),
+                              kahypar::meta::PolicyRegistry<mt_kahypar_partition_type_t>::getInstance().getPolicy(
+                                context.partition.partition_type),
                               kahypar::meta::PolicyRegistry<RatingFunction>::getInstance().getPolicy(
                                 context.coarsening.rating.rating_function),
                               kahypar::meta::PolicyRegistry<HeavyNodePenaltyPolicy>::getInstance().getPolicy(
@@ -57,8 +57,8 @@ REGISTER_DISPATCHED_COARSENER(CoarseningAlgorithm::multilevel_coarsener,
 
 REGISTER_DISPATCHED_COARSENER(CoarseningAlgorithm::nlevel_coarsener,
                               NLevelCoarsenerDispatcher,
-                              kahypar::meta::PolicyRegistry<TraitTypes>::getInstance().getPolicy(
-                                context.partition.trait_type),
+                              kahypar::meta::PolicyRegistry<mt_kahypar_partition_type_t>::getInstance().getPolicy(
+                                context.partition.partition_type),
                               kahypar::meta::PolicyRegistry<RatingFunction>::getInstance().getPolicy(
                                 context.coarsening.rating.rating_function),
                               kahypar::meta::PolicyRegistry<HeavyNodePenaltyPolicy>::getInstance().getPolicy(
@@ -68,7 +68,7 @@ REGISTER_DISPATCHED_COARSENER(CoarseningAlgorithm::nlevel_coarsener,
 
 REGISTER_DISPATCHED_COARSENER(CoarseningAlgorithm::deterministic_multilevel_coarsener,
                               DeterministicCoarsenerDispatcher,
-                              kahypar::meta::PolicyRegistry<TraitTypes>::getInstance().getPolicy(
-                                context.partition.trait_type));
+                              kahypar::meta::PolicyRegistry<mt_kahypar_partition_type_t>::getInstance().getPolicy(
+                                context.partition.partition_type));
 
 }  // namespace mt_kahypar

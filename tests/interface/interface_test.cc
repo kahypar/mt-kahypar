@@ -790,7 +790,6 @@ namespace mt_kahypar {
   namespace {
     void checkIfContextAreEqual(const Context& lhs, const Context& rhs) {
       // partition
-      ASSERT_EQ(lhs.partition.paradigm, rhs.partition.paradigm);
       ASSERT_EQ(lhs.partition.mode, rhs.partition.mode);
       ASSERT_EQ(lhs.partition.objective, rhs.partition.objective);
       ASSERT_EQ(lhs.partition.file_format, rhs.partition.file_format);

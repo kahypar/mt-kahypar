@@ -33,41 +33,13 @@
 #include "mt-kahypar/io/partitioning_output.h"
 #include "mt-kahypar/partition/partitioner_facade.h"
 #include "mt-kahypar/partition/registries/register_memory_pool.h"
+#include "mt-kahypar/partition/conversion.h"
 #include "mt-kahypar/utils/cast.h"
 #include "mt-kahypar/utils/delete.h"
 #include "mt-kahypar/utils/randomize.h"
 #include "mt-kahypar/utils/utilities.h"
 
 #define MT_KAHYPAR_CONFIG_DIR "@PROJECT_SOURCE_DIR@/config/"
-
-static void configurePresetAndInstanceType(mt_kahypar::Context& context) {
-  const bool use_flows = context.refinement.flows.algorithm == mt_kahypar::FlowAlgorithm::flow_cutter;
-  if ( context.partition.preset_type == mt_kahypar::PresetType::UNDEFINED ) {
-    if ( context.coarsening.algorithm == mt_kahypar::CoarseningAlgorithm::deterministic_multilevel_coarsener ) {
-      context.partition.preset_type = mt_kahypar::PresetType::deterministic;
-    } else if ( context.coarsening.algorithm == mt_kahypar::CoarseningAlgorithm::multilevel_coarsener ) {
-      if ( use_flows ) {
-        context.partition.preset_type = mt_kahypar::PresetType::default_flows;
-      } else {
-        context.partition.preset_type = mt_kahypar::PresetType::default_preset;
-      }
-    } else if ( context.coarsening.algorithm == mt_kahypar::CoarseningAlgorithm::nlevel_coarsener ) {
-      if ( use_flows ) {
-        context.partition.preset_type = mt_kahypar::PresetType::quality_flows;
-      } else {
-        context.partition.preset_type = mt_kahypar::PresetType::quality_preset;
-      }
-    }
-  }
-
-  if ( context.partition.instance_type == mt_kahypar::InstanceType::UNDEFINED ) {
-    if ( context.partition.file_format == mt_kahypar::FileFormat::Metis ) {
-      context.partition.instance_type = mt_kahypar::InstanceType::graph;
-    } else {
-      context.partition.instance_type = mt_kahypar::InstanceType::hypergraph;
-    }
-  }
-}
 
 static std::string getPresetFile(const mt_kahypar::Context& context) {
   switch ( context.partition.preset_type ) {
@@ -92,13 +64,22 @@ int main(int argc, char* argv[]) {
     ERR("No preset specified");
   } else if ( context.partition.preset_type == mt_kahypar::PresetType::UNDEFINED ) {
     // Context was loaded from an ini configuration file
-    // => determine preset and instance type
-    configurePresetAndInstanceType(context);
+    // => determine preset type
+    context.partition.preset_type = mt_kahypar::to_preset_type(
+      context.partition.mode, context.partition.k,
+      context.coarsening.algorithm, context.refinement.flows.algorithm);
   } else {
     // Only a preset type available => load context from corresponding ini file
     context.partition.preset_file = getPresetFile(context);
     mt_kahypar::processCommandLineInput(context, argc, argv);
   }
+
+  // Determine instance (graph or hypergraph) and partition type
+  if ( context.partition.instance_type == mt_kahypar::InstanceType::UNDEFINED ) {
+    context.partition.instance_type = mt_kahypar::to_instance_type(context.partition.file_format);
+  }
+  context.partition.partition_type = mt_kahypar::to_partition_c_type(
+    context.partition.preset_type, context.partition.instance_type);
 
 
   context.utility_id = mt_kahypar::utils::Utilities::instance().registerNewUtilityObjects();

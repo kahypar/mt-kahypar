@@ -33,13 +33,12 @@
 
 namespace mt_kahypar {
 struct PartitioningParameters {
-  Paradigm paradigm = Paradigm::multilevel;
   Mode mode = Mode::UNDEFINED;
   Objective objective = Objective::UNDEFINED;
   FileFormat file_format = FileFormat::hMetis;
   InstanceType instance_type = InstanceType::hypergraph;
   PresetType preset_type = PresetType::UNDEFINED;
-  TraitTypes trait_type =  TraitTypes::UNDEFINED;
+  mt_kahypar_partition_type_t partition_type =  NULLPTR_PARTITION;
   double epsilon = std::numeric_limits<double>::max();
   PartitionID k = std::numeric_limits<PartitionID>::max();
   int seed = 0;
@@ -255,6 +254,8 @@ class Context {
       utility_id = utils::Utilities::instance().registerNewUtilityObjects();
     }
   }
+
+  bool isNLevelPartitioning() const;
 
   bool forceGainCacheUpdates() const;
 

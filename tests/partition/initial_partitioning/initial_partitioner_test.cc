@@ -54,7 +54,7 @@ class AInitialPartitionerTest : public Test {
     hypergraph(),
     context() {
 
-    if ( context.partition.paradigm == Paradigm::multilevel ) {
+    if ( !context.isNLevelPartitioning() ) {
       parseIniToContext(context, "../config/default_preset.ini");
     } else {
       parseIniToContext(context, "../config/quality_preset.ini");
@@ -72,7 +72,7 @@ class AInitialPartitionerTest : public Test {
     context.shared_memory.num_threads = num_threads;
 
     // Coarsening
-    if ( context.partition.paradigm == Paradigm::nlevel ) {
+    if ( context.isNLevelPartitioning() ) {
       context.refinement.max_batch_size = 100;
     }
 

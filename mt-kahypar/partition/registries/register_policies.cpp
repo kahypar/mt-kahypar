@@ -42,15 +42,15 @@ namespace mt_kahypar {
 // //////////////////////////////////////////////////////////////////////////////
 //                            Hypergraph Type Traits
 // //////////////////////////////////////////////////////////////////////////////
-REGISTER_POLICY(TraitTypes, TraitTypes::static_graph,
+REGISTER_POLICY(mt_kahypar_partition_type_t, MULTILEVEL_GRAPH_PARTITIONING,
                 StaticGraphTypeTraits);
-REGISTER_POLICY(TraitTypes, TraitTypes::dynamic_graph,
+REGISTER_POLICY(mt_kahypar_partition_type_t, N_LEVEL_GRAPH_PARTITIONING,
                 DynamicGraphTypeTraits);
-REGISTER_POLICY(TraitTypes, TraitTypes::static_hypergraph,
+REGISTER_POLICY(mt_kahypar_partition_type_t, MULTILEVEL_HYPERGRAPH_PARTITIONING,
                 StaticHypergraphTypeTraits);
-REGISTER_POLICY(TraitTypes, TraitTypes::sparse_static_hypergraph,
+REGISTER_POLICY(mt_kahypar_partition_type_t, LARGE_K_PARTITIONING,
                 LargeKHypergraphTypeTraits);
-REGISTER_POLICY(TraitTypes, TraitTypes::dynamic_hypergraph,
+REGISTER_POLICY(mt_kahypar_partition_type_t, N_LEVEL_HYPERGRAPH_PARTITIONING,
                 DynamicHypergraphTypeTraits);
 
 // //////////////////////////////////////////////////////////////////////////////

@@ -146,7 +146,7 @@ namespace mt_kahypar {
       printMemoryConsumption();
     }
 
-    if ( context.partition.paradigm != Paradigm::nlevel ) {
+    if ( !context.isNLevelPartitioning() ) {
       is_initialized = false;
     }
 
