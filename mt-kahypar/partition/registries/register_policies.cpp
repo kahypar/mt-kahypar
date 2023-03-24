@@ -45,15 +45,19 @@ namespace mt_kahypar {
 #ifdef KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES
 REGISTER_POLICY(mt_kahypar_partition_type_t, MULTILEVEL_GRAPH_PARTITIONING,
                 StaticGraphTypeTraits);
+#ifdef KAHYPAR_ENABLE_N_LEVEL_PARTITIONING_FEATURES
 REGISTER_POLICY(mt_kahypar_partition_type_t, N_LEVEL_GRAPH_PARTITIONING,
                 DynamicGraphTypeTraits);
+#endif
 #endif
 REGISTER_POLICY(mt_kahypar_partition_type_t, MULTILEVEL_HYPERGRAPH_PARTITIONING,
                 StaticHypergraphTypeTraits);
 REGISTER_POLICY(mt_kahypar_partition_type_t, LARGE_K_PARTITIONING,
                 LargeKHypergraphTypeTraits);
+#ifdef KAHYPAR_ENABLE_N_LEVEL_PARTITIONING_FEATURES
 REGISTER_POLICY(mt_kahypar_partition_type_t, N_LEVEL_HYPERGRAPH_PARTITIONING,
                 DynamicHypergraphTypeTraits);
+#endif
 
 // //////////////////////////////////////////////////////////////////////////////
 //                       Coarsening / Rating Policies

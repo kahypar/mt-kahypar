@@ -59,8 +59,10 @@ enum class PresetType : int8_t {
   large_k,
   default_preset,
   default_flows,
+  #ifdef KAHYPAR_ENABLE_N_LEVEL_PARTITIONING_FEATURES
   quality_preset,
   quality_flows,
+  #endif
   UNDEFINED
 };
 
@@ -100,7 +102,9 @@ enum class SimiliarNetCombinerStrategy : uint8_t {
 enum class CoarseningAlgorithm : uint8_t {
   multilevel_coarsener,
   deterministic_multilevel_coarsener,
+  #ifdef KAHYPAR_ENABLE_N_LEVEL_PARTITIONING_FEATURES
   nlevel_coarsener,
+  #endif
   UNDEFINED
 };
 

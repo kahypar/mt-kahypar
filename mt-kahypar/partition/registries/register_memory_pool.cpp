@@ -42,7 +42,12 @@ namespace mt_kahypar {
     template<typename Hypergraph>
     size_t size_of_edge_locks() {
       #ifdef KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES
-      if ( Hypergraph::TYPE == STATIC_GRAPH || Hypergraph::TYPE == DYNAMIC_GRAPH ) {
+      #ifdef KAHYPAR_ENABLE_N_LEVEL_PARTITIONING_FEATURES
+      const bool is_graph = Hypergraph::TYPE == STATIC_GRAPH || Hypergraph::TYPE == DYNAMIC_GRAPH;
+      #else
+      const bool is_graph = Hypergraph::TYPE == STATIC_GRAPH;
+      #endif
+      if ( is_graph) {
         return StaticPartitionedGraph::SIZE_OF_EDGE_LOCK;
       }
       #endif
@@ -55,15 +60,22 @@ namespace mt_kahypar {
     #ifdef KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES
     if ( hypergraph.type == STATIC_GRAPH ) {
       register_memory_pool(utils::cast_const<ds::StaticGraph>(hypergraph), context);
-    } else if ( hypergraph.type == DYNAMIC_GRAPH ) {
+    }
+    #ifdef KAHYPAR_ENABLE_N_LEVEL_PARTITIONING_FEATURES
+    else if ( hypergraph.type == DYNAMIC_GRAPH ) {
       register_memory_pool(utils::cast_const<ds::DynamicGraph>(hypergraph), context);
-    } else
+    }
+    #endif
+    else
     #endif
     if ( hypergraph.type == STATIC_HYPERGRAPH ) {
       register_memory_pool(utils::cast_const<ds::StaticHypergraph>(hypergraph), context);
-    } else if ( hypergraph.type == DYNAMIC_HYPERGRAPH ) {
+    }
+    #ifdef KAHYPAR_ENABLE_N_LEVEL_PARTITIONING_FEATURES
+    else if ( hypergraph.type == DYNAMIC_HYPERGRAPH ) {
       register_memory_pool(utils::cast_const<ds::DynamicHypergraph>(hypergraph), context);
     }
+    #endif
   }
 
   template<typename Hypergraph>

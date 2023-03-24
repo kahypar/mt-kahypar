@@ -70,8 +70,10 @@ namespace mt_kahypar {
       case PresetType::large_k: return os << "large_k";
       case PresetType::default_preset: return os << "default";
       case PresetType::default_flows: return os << "default_flows";
+      #ifdef KAHYPAR_ENABLE_N_LEVEL_PARTITIONING_FEATURES
       case PresetType::quality_preset: return os << "quality";
       case PresetType::quality_flows: return os << "quality_flows";
+      #endif
       case PresetType::UNDEFINED: return os << "UNDEFINED";
         // omit default case to trigger compiler warning for missing cases
     }
@@ -82,11 +84,15 @@ namespace mt_kahypar {
     switch (type) {
       #ifdef KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES
       case MULTILEVEL_GRAPH_PARTITIONING: return os << "multilevel_graph_partitioning";
+      #ifdef KAHYPAR_ENABLE_N_LEVEL_PARTITIONING_FEATURES
       case N_LEVEL_GRAPH_PARTITIONING: return os << "n_level_graph_partitioning";
+      #endif
       #endif
       case MULTILEVEL_HYPERGRAPH_PARTITIONING: return os << "multilevel_hypergraph_partitioning";
       case LARGE_K_PARTITIONING: return os << "large_k_partitioning";
+      #ifdef KAHYPAR_ENABLE_N_LEVEL_PARTITIONING_FEATURES
       case N_LEVEL_HYPERGRAPH_PARTITIONING: return os << "n_level_hypergraph_partitioning";
+      #endif
       case NULLPTR_PARTITION: return os << "UNDEFINED";
         // omit default case to trigger compiler warning for missing cases
     }
@@ -150,7 +156,9 @@ namespace mt_kahypar {
     switch (algo) {
       case CoarseningAlgorithm::multilevel_coarsener: return os << "multilevel_coarsener";
       case CoarseningAlgorithm::deterministic_multilevel_coarsener: return os << "deterministic_multilevel_coarsener";
+      #ifdef KAHYPAR_ENABLE_N_LEVEL_PARTITIONING_FEATURES
       case CoarseningAlgorithm::nlevel_coarsener: return os << "nlevel_coarsener";
+      #endif
       case CoarseningAlgorithm::UNDEFINED: return os << "UNDEFINED";
         // omit default case to trigger compiler warning for missing cases
     }
@@ -279,11 +287,14 @@ namespace mt_kahypar {
       return PresetType::default_preset;
     } else if (type == "default_flows") {
       return PresetType::default_flows;
-    } else if (type == "quality") {
+    }
+    #ifdef KAHYPAR_ENABLE_N_LEVEL_PARTITIONING_FEATURES
+    else if (type == "quality") {
       return PresetType::quality_preset;
     } else if (type == "quality_flows") {
       return PresetType::quality_flows;
     }
+    #endif
     ERR("Illegal option: " + type);
     return PresetType::UNDEFINED;
   }
@@ -317,9 +328,13 @@ namespace mt_kahypar {
   CoarseningAlgorithm coarseningAlgorithmFromString(const std::string& type) {
     if (type == "multilevel_coarsener") {
       return CoarseningAlgorithm::multilevel_coarsener;
-    } else if (type == "nlevel_coarsener") {
+    }
+    #ifdef KAHYPAR_ENABLE_N_LEVEL_PARTITIONING_FEATURES
+    else if (type == "nlevel_coarsener") {
       return CoarseningAlgorithm::nlevel_coarsener;
-    } else if (type == "deterministic_multilevel_coarsener") {
+    }
+    #endif
+    else if (type == "deterministic_multilevel_coarsener") {
       return CoarseningAlgorithm::deterministic_multilevel_coarsener;
     }
     ERR("Illegal option: " + type);

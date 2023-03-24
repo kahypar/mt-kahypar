@@ -43,7 +43,9 @@
 #include "mt-kahypar/parallel/memory_pool.h"
 #include "mt-kahypar/io/partitioning_output.h"
 #include "mt-kahypar/partition/coarsening/multilevel_uncoarsener.h"
+#ifdef KAHYPAR_ENABLE_N_LEVEL_PARTITIONING_FEATURES
 #include "mt-kahypar/partition/coarsening/nlevel_uncoarsener.h"
+#endif
 #include "mt-kahypar/utils/cast.h"
 #include "mt-kahypar/utils/utilities.h"
 
@@ -80,7 +82,7 @@ namespace {
     // ################## COARSENING ##################
     mt_kahypar::io::printCoarseningBanner(context);
 
-    const bool nlevel = context.coarsening.algorithm == CoarseningAlgorithm::nlevel_coarsener;
+    const bool nlevel = context.isNLevelPartitioning();
     UncoarseningData<TypeTraits> uncoarseningData(nlevel, hypergraph, context);
 
     utils::Timer& timer = utils::Utilities::instance().getTimer(context.utility_id);
@@ -154,11 +156,15 @@ namespace {
     io::printLocalSearchBanner(context);
     timer.start_timer("refinement", "Refinement");
     std::unique_ptr<IUncoarsener<TypeTraits>> uncoarsener(nullptr);
+    #ifdef KAHYPAR_ENABLE_N_LEVEL_PARTITIONING_FEATURES
     if (uncoarseningData.nlevel) {
       uncoarsener = std::make_unique<NLevelUncoarsener<TypeTraits>>(hypergraph, context, uncoarseningData);
     } else {
       uncoarsener = std::make_unique<MultilevelUncoarsener<TypeTraits>>(hypergraph, context, uncoarseningData);
     }
+    #else
+    uncoarsener = std::make_unique<MultilevelUncoarsener<TypeTraits>>(hypergraph, context, uncoarseningData);
+    #endif
     partitioned_hg = uncoarsener->uncoarsen();
 
     io::printPartitioningResults(partitioned_hg, context, "Local Search Results:");

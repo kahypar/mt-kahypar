@@ -37,7 +37,9 @@
 #include "mt-kahypar/macros.h"
 #include "mt-kahypar/partition/multilevel.h"
 #include "mt-kahypar/partition/coarsening/multilevel_uncoarsener.h"
+#ifdef KAHYPAR_ENABLE_N_LEVEL_PARTITIONING_FEATURES
 #include "mt-kahypar/partition/coarsening/nlevel_uncoarsener.h"
+#endif
 #include "mt-kahypar/partition/initial_partitioning/pool_initial_partitioner.h"
 #include "mt-kahypar/partition/preprocessing/sparsification/degree_zero_hn_remover.h"
 #include "mt-kahypar/utils/randomize.h"
@@ -596,7 +598,7 @@ PartitionID deep_multilevel_partitioning(typename TypeTraits::PartitionedHypergr
     }
   };
 
-  const bool nlevel = context.coarsening.algorithm == CoarseningAlgorithm::nlevel_coarsener;
+  const bool nlevel = context.isNLevelPartitioning();
   UncoarseningData<TypeTraits> uncoarseningData(nlevel, hypergraph, context);
   uncoarseningData.setPartitionedHypergraph(std::move(partitioned_hg));
 
@@ -752,11 +754,15 @@ PartitionID deep_multilevel_partitioning(typename TypeTraits::PartitionedHypergr
     context.partition.enable_progress_bar && !debug;
   context.partition.enable_progress_bar = false;
   std::unique_ptr<IUncoarsener<TypeTraits>> uncoarsener(nullptr);
+  #ifdef KAHYPAR_ENABLE_N_LEVEL_PARTITIONING_FEATURES
   if (uncoarseningData.nlevel) {
     uncoarsener = std::make_unique<NLevelUncoarsener<TypeTraits>>(hypergraph, context, uncoarseningData);
   } else {
     uncoarsener = std::make_unique<MultilevelUncoarsener<TypeTraits>>(hypergraph, context, uncoarseningData);
   }
+  #else
+  uncoarsener = std::make_unique<MultilevelUncoarsener<TypeTraits>>(hypergraph, context, uncoarseningData);
+  #endif
 
   uncoarsener->initialize();
 

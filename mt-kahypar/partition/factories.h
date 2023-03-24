@@ -32,7 +32,9 @@
 #include "kahypar/meta/typelist.h"
 
 #include "mt-kahypar/definitions.h"
+#ifdef KAHYPAR_ENABLE_N_LEVEL_PARTITIONING_FEATURES
 #include "mt-kahypar/partition/coarsening/nlevel_coarsener.h"
+#endif
 #include "mt-kahypar/partition/coarsening/multilevel_coarsener.h"
 #include "mt-kahypar/partition/coarsening/deterministic_multilevel_coarsener.h"
 #include "mt-kahypar/partition/coarsening/i_coarsener.h"
@@ -69,12 +71,14 @@ using DeterministicCoarsenerDispatcher = kahypar::meta::StaticMultiDispatchFacto
                                                                                    ICoarsener,
                                                                                    kahypar::meta::Typelist<TypeTraitsList>>;
 
+#ifdef KAHYPAR_ENABLE_N_LEVEL_PARTITIONING_FEATURES
 using NLevelCoarsenerDispatcher = kahypar::meta::StaticMultiDispatchFactory<NLevelCoarsener,
                                                                             ICoarsener,
                                                                             kahypar::meta::Typelist<TypeTraitsList,
                                                                                                     RatingScorePolicies,
                                                                                                     HeavyNodePenaltyPolicies,
                                                                                                     AcceptancePolicies> >;
+#endif
 
 using LabelPropagationFactory = kahypar::meta::Factory<LabelPropagationAlgorithm,
                                                        IRefiner* (*)(HypernodeID, HyperedgeID, const Context&)>;

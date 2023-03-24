@@ -24,15 +24,25 @@ set(NLevelGraphDatastructureSources
 
 if(KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES)
   foreach(modtarget IN LISTS PARTITIONING_SUITE_TARGETS)
-    target_sources(${modtarget} PRIVATE ${MultilevelGraphDatastructureSources}
-                                        ${NLevelGraphDatastructureSources})
+    target_sources(${modtarget} PRIVATE ${MultilevelGraphDatastructureSources})
   endforeach()
+
+  if ( KAHYPAR_ENABLE_N_LEVEL_PARTITIONING_FEATURES )
+    foreach(modtarget IN LISTS PARTITIONING_SUITE_TARGETS)
+      target_sources(${modtarget} PRIVATE ${NLevelGraphDatastructureSources})
+    endforeach()
+  endif()
 endif()
 
 foreach(modtarget IN LISTS PARTITIONING_SUITE_TARGETS)
-  target_sources(${modtarget} PRIVATE ${MultilevelDatastructureSources}
-                                      ${NLevelDatastructureSources})
+  target_sources(${modtarget} PRIVATE ${MultilevelDatastructureSources})
 endforeach()
+
+if ( KAHYPAR_ENABLE_N_LEVEL_PARTITIONING_FEATURES )
+  foreach(modtarget IN LISTS PARTITIONING_SUITE_TARGETS)
+    target_sources(${modtarget} PRIVATE ${NLevelDatastructureSources})
+  endforeach()
+endif()
 
 set(ToolsDatastructureSources
       static_hypergraph_factory.cpp

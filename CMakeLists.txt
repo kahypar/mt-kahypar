@@ -59,10 +59,13 @@ option(KAHYPAR_ENABLE_ARCH_COMPILE_OPTIMIZATIONS
   "Adds the compile flags `-mtune=native -march=native`" ON)
 
 option(KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES
-  "Enables some experimental features. Can be turned off for faster compilation." ON)
+  "Enables some experimental features. Can be turned off for faster compilation." OFF)
 
 option(KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES
   "Enables graph partitioning features. Can be turned off for faster compilation." ON)
+
+  option(KAHYPAR_ENABLE_N_LEVEL_PARTITIONING_FEATURES
+  "Enables n-level partitioning features. Can be turned off for faster compilation." ON)
 
 if(KAHYPAR_DISABLE_ASSERTIONS)
   add_compile_definitions(KAHYPAR_DISABLE_ASSERTIONS)
@@ -107,6 +110,10 @@ endif(KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES)
 if(KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES)
   add_compile_definitions(KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES)
 endif(KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES)
+
+if(KAHYPAR_ENABLE_N_LEVEL_PARTITIONING_FEATURES)
+  add_compile_definitions(KAHYPAR_ENABLE_N_LEVEL_PARTITIONING_FEATURES)
+endif(KAHYPAR_ENABLE_N_LEVEL_PARTITIONING_FEATURES)
 
 include_directories(${PROJECT_SOURCE_DIR})
 find_package(Threads REQUIRED)

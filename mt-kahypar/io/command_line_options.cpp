@@ -108,8 +108,11 @@ namespace mt_kahypar {
              " - deterministic (Mt-KaHyPar-Det)\n"
              " - default (Mt-KaHyPar-D)\n"
              " - default_flows (Mt-KaHyPar-D-F)\n"
+             #ifdef KAHYPAR_ENABLE_N_LEVEL_PARTITIONING_FEATURES
              " - quality (Mt-KaHyPar-Q)\n"
-             " - quality_flows (Mt-KaHyPar-Q-F)\n")
+             " - quality_flows (Mt-KaHyPar-Q-F)\n"
+             #endif
+             )
             ("seed",
              po::value<int>(&context.partition.seed)->value_name("<int>")->default_value(0),
              "Seed for random number generator")
@@ -232,7 +235,9 @@ namespace mt_kahypar {
                      })->default_value("multilevel_coarsener"),
              "Coarsening Algorithm:\n"
              " - multilevel_coarsener"
+             #ifdef KAHYPAR_ENABLE_N_LEVEL_PARTITIONING_FEATURES
              " - nlevel_coarsener"
+             #endif
              " - deterministic_multilevel_coarsener"
              )
             ("c-use-adaptive-edge-size",

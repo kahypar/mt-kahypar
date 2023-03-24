@@ -224,11 +224,15 @@ namespace mt_kahypar {
   }
 
   bool Context::isNLevelPartitioning() const {
+    #ifdef KAHYPAR_ENABLE_N_LEVEL_PARTITIONING_FEATURES
     return
       #ifdef KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES
       partition.partition_type == N_LEVEL_GRAPH_PARTITIONING ||
       #endif
       partition.partition_type == N_LEVEL_HYPERGRAPH_PARTITIONING;
+    #else
+    return false;
+    #endif
   }
 
   bool Context::forceGainCacheUpdates() const {
@@ -309,6 +313,7 @@ namespace mt_kahypar {
   }
 
   void Context::sanityCheck() {
+    #ifdef KAHYPAR_ENABLE_N_LEVEL_PARTITIONING_FEATURES
     if ( isNLevelPartitioning() && coarsening.algorithm == CoarseningAlgorithm::multilevel_coarsener ) {
         ALGO_SWITCH("Coarsening algorithm" << coarsening.algorithm << "is only supported in multilevel mode."
                                            << "Do you want to use the n-level version instead (Y/N)?",
@@ -324,6 +329,7 @@ namespace mt_kahypar {
                     coarsening.algorithm,
                     CoarseningAlgorithm::multilevel_coarsener);
     }
+    #endif
 
     if (partition.objective == Objective::cut) {
       if ( refinement.label_propagation.algorithm == LabelPropagationAlgorithm::label_propagation_km1 ) {
@@ -426,6 +432,11 @@ namespace mt_kahypar {
       if ( lp_algo != LabelPropagationAlgorithm::do_nothing && lp_algo != LabelPropagationAlgorithm::deterministic ) {
         initial_partitioning.refinement.label_propagation.algorithm = LabelPropagationAlgorithm::deterministic;
       }
+    }
+
+    if ( partition.preset_type == PresetType::large_k ) {
+      // Silently switch to deep multilevel scheme for large k partitioning
+      partition.mode = Mode::deep_multilevel;
     }
   }
 
