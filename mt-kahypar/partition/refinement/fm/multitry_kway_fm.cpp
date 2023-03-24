@@ -158,7 +158,7 @@ namespace mt_kahypar {
 
   template<typename TypeTraits, typename FMStrategy>
   void MultiTryKWayFM<TypeTraits, FMStrategy>::roundInitialization(PartitionedHypergraph& phg,
-                                                       const vec<HypernodeID>& refinement_nodes) {
+                                                                   const vec<HypernodeID>& refinement_nodes) {
     // clear border nodes
     sharedData.refinementNodes.clear();
 

@@ -47,5 +47,4 @@ using GraphTestTypes = ::testing::Types<ds::StaticGraph>;
 using GraphAndHypergraphTestTypes = ::testing::Types<ds::StaticHypergraph, ds::StaticGraph>;
 #endif
 
-
 }  // namespace mt_kahypar::tests
