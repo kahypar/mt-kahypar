@@ -112,6 +112,9 @@ namespace mt_kahypar {
              " - quality (Mt-KaHyPar-Q)\n"
              " - quality_flows (Mt-KaHyPar-Q-F)\n"
              #endif
+             #ifdef KAHYPAR_ENABLE_LARGE_K_PARTITIONING_FEATURES
+             " - large_k"
+             #endif
              )
             ("seed",
              po::value<int>(&context.partition.seed)->value_name("<int>")->default_value(0),

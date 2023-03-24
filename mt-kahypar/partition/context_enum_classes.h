@@ -56,7 +56,9 @@ enum class InstanceType : int8_t {
 
 enum class PresetType : int8_t {
   deterministic,
+  #ifdef KAHYPAR_ENABLE_LARGE_K_PARTITIONING_FEATURES
   large_k,
+  #endif
   default_preset,
   default_flows,
   #ifdef KAHYPAR_ENABLE_N_LEVEL_PARTITIONING_FEATURES

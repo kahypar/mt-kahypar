@@ -52,8 +52,10 @@ REGISTER_POLICY(mt_kahypar_partition_type_t, N_LEVEL_GRAPH_PARTITIONING,
 #endif
 REGISTER_POLICY(mt_kahypar_partition_type_t, MULTILEVEL_HYPERGRAPH_PARTITIONING,
                 StaticHypergraphTypeTraits);
+#ifdef KAHYPAR_ENABLE_LARGE_K_PARTITIONING_FEATURES
 REGISTER_POLICY(mt_kahypar_partition_type_t, LARGE_K_PARTITIONING,
                 LargeKHypergraphTypeTraits);
+#endif
 #ifdef KAHYPAR_ENABLE_N_LEVEL_PARTITIONING_FEATURES
 REGISTER_POLICY(mt_kahypar_partition_type_t, N_LEVEL_HYPERGRAPH_PARTITIONING,
                 DynamicHypergraphTypeTraits);

@@ -33,7 +33,9 @@
 #include "tbb/task_group.h"
 
 #include "mt-kahypar/datastructures/pin_count_in_part.h"
+#ifdef KAHYPAR_ENABLE_LARGE_K_PARTITIONING_FEATURES
 #include "mt-kahypar/datastructures/sparse_pin_counts.h"
+#endif
 
 using ::testing::Test;
 
@@ -76,8 +78,13 @@ class APinCountDataStructure : public Test {
   PinCounts pin_count;
 };
 
+#ifdef KAHYPAR_ENABLE_LARGE_K_PARTITIONING_FEATURES
 using PinCountTestTypes =
   ::testing::Types<PinCountInPart, SparsePinCounts>;
+#else
+using PinCountTestTypes =
+  ::testing::Types<PinCountInPart>;
+#endif
 
 TYPED_TEST_CASE(APinCountDataStructure, PinCountTestTypes);
 

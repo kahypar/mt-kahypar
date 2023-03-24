@@ -74,8 +74,10 @@ namespace internal {
       #endif
       case MULTILEVEL_HYPERGRAPH_PARTITIONING:
         return internal::partition<StaticHypergraphTypeTraits>(hypergraph, context);
+      #ifdef KAHYPAR_ENABLE_LARGE_K_PARTITIONING_FEATURES
       case LARGE_K_PARTITIONING:
         return internal::partition<LargeKHypergraphTypeTraits>(hypergraph, context);
+      #endif
       #ifdef KAHYPAR_ENABLE_N_LEVEL_PARTITIONING_FEATURES
       case N_LEVEL_HYPERGRAPH_PARTITIONING:
         return internal::partition<DynamicHypergraphTypeTraits>(hypergraph, context);
@@ -104,9 +106,11 @@ namespace internal {
       case MULTILEVEL_HYPERGRAPH_PARTITIONING:
         io::printPartitioningResults(utils::cast_const<StaticPartitionedHypergraph>(phg), context, elapsed_seconds);
         break;
+      #ifdef KAHYPAR_ENABLE_LARGE_K_PARTITIONING_FEATURES
       case LARGE_K_PARTITIONING:
         io::printPartitioningResults(utils::cast_const<StaticSparsePartitionedHypergraph>(phg), context, elapsed_seconds);
         break;
+      #endif
       #ifdef KAHYPAR_ENABLE_N_LEVEL_PARTITIONING_FEATURES
       case N_LEVEL_HYPERGRAPH_PARTITIONING:
         io::printPartitioningResults(utils::cast_const<DynamicPartitionedHypergraph>(phg), context, elapsed_seconds);
@@ -132,8 +136,10 @@ namespace internal {
       #endif
       case MULTILEVEL_HYPERGRAPH_PARTITIONING:
         return io::csv::serialize(utils::cast_const<StaticPartitionedHypergraph>(phg), context, elapsed_seconds);
+      #ifdef KAHYPAR_ENABLE_LARGE_K_PARTITIONING_FEATURES
       case LARGE_K_PARTITIONING:
         return io::csv::serialize(utils::cast_const<StaticSparsePartitionedHypergraph>(phg), context, elapsed_seconds);
+      #endif
       #ifdef KAHYPAR_ENABLE_N_LEVEL_PARTITIONING_FEATURES
       case N_LEVEL_HYPERGRAPH_PARTITIONING:
         return io::csv::serialize(utils::cast_const<DynamicPartitionedHypergraph>(phg), context, elapsed_seconds);
@@ -158,8 +164,10 @@ namespace internal {
       #endif
       case MULTILEVEL_HYPERGRAPH_PARTITIONING:
         return io::serializer::serialize(utils::cast_const<StaticPartitionedHypergraph>(phg), context, elapsed_seconds);
+      #ifdef KAHYPAR_ENABLE_LARGE_K_PARTITIONING_FEATURES
       case LARGE_K_PARTITIONING:
         return io::serializer::serialize(utils::cast_const<StaticSparsePartitionedHypergraph>(phg), context, elapsed_seconds);
+      #endif
       #ifdef KAHYPAR_ENABLE_N_LEVEL_PARTITIONING_FEATURES
       case N_LEVEL_HYPERGRAPH_PARTITIONING:
         return io::serializer::serialize(utils::cast_const<DynamicPartitionedHypergraph>(phg), context, elapsed_seconds);
@@ -186,9 +194,11 @@ namespace internal {
       case MULTILEVEL_HYPERGRAPH_PARTITIONING:
         io::writePartitionFile(utils::cast_const<StaticPartitionedHypergraph>(phg), filename);
         break;
+      #ifdef KAHYPAR_ENABLE_LARGE_K_PARTITIONING_FEATURES
       case LARGE_K_PARTITIONING:
         io::writePartitionFile(utils::cast_const<StaticSparsePartitionedHypergraph>(phg), filename);
         break;
+      #endif
       #ifdef KAHYPAR_ENABLE_N_LEVEL_PARTITIONING_FEATURES
       case N_LEVEL_HYPERGRAPH_PARTITIONING:
         io::writePartitionFile(utils::cast_const<DynamicPartitionedHypergraph>(phg), filename);

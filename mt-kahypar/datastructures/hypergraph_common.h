@@ -168,10 +168,12 @@ struct PartitionedHypergraphType<ds::StaticHypergraph, ds::ConnectivityInfo> {
   static constexpr mt_kahypar_partition_type_t TYPE = MULTILEVEL_HYPERGRAPH_PARTITIONING;
 };
 
+#ifdef KAHYPAR_ENABLE_LARGE_K_PARTITIONING_FEATURES
 template<>
 struct PartitionedHypergraphType<ds::StaticHypergraph, ds::SparseConnectivityInfo> {
   static constexpr mt_kahypar_partition_type_t TYPE = LARGE_K_PARTITIONING;
 };
+#endif
 
 #ifdef KAHYPAR_ENABLE_N_LEVEL_PARTITIONING_FEATURES
 template<>

@@ -434,10 +434,12 @@ namespace mt_kahypar {
       }
     }
 
+    #ifdef KAHYPAR_ENABLE_LARGE_K_PARTITIONING_FEATURES
     if ( partition.preset_type == PresetType::large_k ) {
       // Silently switch to deep multilevel scheme for large k partitioning
       partition.mode = Mode::deep_multilevel;
     }
+    #endif
   }
 
   void Context::setupThreadsPerFlowSearch() {

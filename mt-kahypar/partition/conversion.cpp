@@ -36,7 +36,9 @@ mt_kahypar_hypergraph_type_t to_hypergraph_c_type(const PresetType preset,
   if ( instance == InstanceType::hypergraph ) {
     switch ( preset ) {
       case PresetType::deterministic:
+      #ifdef KAHYPAR_ENABLE_LARGE_K_PARTITIONING_FEATURES
       case PresetType::large_k:
+      #endif
       case PresetType::default_preset:
       case PresetType::default_flows: return STATIC_HYPERGRAPH;
       #ifdef KAHYPAR_ENABLE_N_LEVEL_PARTITIONING_FEATURES
@@ -50,7 +52,9 @@ mt_kahypar_hypergraph_type_t to_hypergraph_c_type(const PresetType preset,
   else if ( instance == InstanceType::graph ) {
     switch ( preset ) {
       case PresetType::deterministic:
+      #ifdef KAHYPAR_ENABLE_LARGE_K_PARTITIONING_FEATURES
       case PresetType::large_k:
+      #endif
       case PresetType::default_preset:
       case PresetType::default_flows: return STATIC_GRAPH;
       #ifdef KAHYPAR_ENABLE_N_LEVEL_PARTITIONING_FEATURES
@@ -73,7 +77,9 @@ mt_kahypar_partition_type_t to_partition_c_type(const PresetType preset,
   if ( instance == InstanceType::graph ) {
     if ( preset == PresetType::default_preset ||
          preset == PresetType::default_flows ||
+         #ifdef KAHYPAR_ENABLE_LARGE_K_PARTITIONING_FEATURES
          preset == PresetType::large_k ||
+         #endif
          preset == PresetType::deterministic ) {
       return MULTILEVEL_GRAPH_PARTITIONING;
     }
@@ -97,9 +103,11 @@ mt_kahypar_partition_type_t to_partition_c_type(const PresetType preset,
       return N_LEVEL_HYPERGRAPH_PARTITIONING;
     }
     #endif
+    #ifdef KAHYPAR_ENABLE_LARGE_K_PARTITIONING_FEATURES
     else if ( preset == PresetType::large_k ) {
       return LARGE_K_PARTITIONING;
     }
+    #endif
   }
   return NULLPTR_PARTITION;
 }
@@ -108,11 +116,19 @@ PresetType to_preset_type(const Mode mode,
                           const PartitionID k,
                           const CoarseningAlgorithm coarsening_algo,
                           const FlowAlgorithm flow_algo) {
+  #ifndef KAHYPAR_ENABLE_LARGE_K_PARTITIONING_FEATURES
+  unused(mode);
+  unused(k);
+  #endif
   if ( coarsening_algo == CoarseningAlgorithm::deterministic_multilevel_coarsener ) {
     return PresetType::deterministic;
-  } else if ( mode == Mode::deep_multilevel && k >= 1024 ) {
+  }
+  #ifdef KAHYPAR_ENABLE_LARGE_K_PARTITIONING_FEATURES
+  else if ( mode == Mode::deep_multilevel && k >= 1024 ) {
     return PresetType::large_k;
-  } else if ( coarsening_algo == CoarseningAlgorithm::multilevel_coarsener ) {
+  }
+  #endif
+  else if ( coarsening_algo == CoarseningAlgorithm::multilevel_coarsener ) {
     if ( flow_algo == FlowAlgorithm::flow_cutter ) {
       return PresetType::default_flows;
     } else {

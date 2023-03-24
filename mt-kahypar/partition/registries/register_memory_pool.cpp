@@ -28,7 +28,9 @@
 #include "register_memory_pool.h"
 
 #include "mt-kahypar/definitions.h"
+#ifdef KAHYPAR_ENABLE_LARGE_K_PARTITIONING_FEATURES
 #include "mt-kahypar/datastructures/sparse_pin_counts.h"
+#endif
 #include "mt-kahypar/datastructures/pin_count_in_part.h"
 #include "mt-kahypar/datastructures/connectivity_set.h"
 #include "mt-kahypar/parallel/memory_pool.h"
@@ -158,6 +160,7 @@ namespace mt_kahypar {
         }
       } else {
         const HypernodeID max_he_size = hypergraph.maxEdgeSize();
+        #ifdef KAHYPAR_ENABLE_LARGE_K_PARTITIONING_FEATURES
         if ( context.partition.preset_type == PresetType::large_k ) {
           pool.register_memory_chunk("Refinement", "pin_count_in_part",
                                     ds::SparsePinCounts::num_elements(num_hyperedges, context.partition.k, max_he_size),
@@ -170,6 +173,14 @@ namespace mt_kahypar {
                                     ds::ConnectivitySets::num_elements(num_hyperedges, context.partition.k),
                                     sizeof(ds::ConnectivitySets::UnsafeBlock));
         }
+        #else
+        pool.register_memory_chunk("Refinement", "pin_count_in_part",
+                                  ds::PinCountInPart::num_elements(num_hyperedges, context.partition.k, max_he_size),
+                                  sizeof(ds::PinCountInPart::Value));
+        pool.register_memory_chunk("Refinement", "connectivity_set",
+                                  ds::ConnectivitySets::num_elements(num_hyperedges, context.partition.k),
+                                  sizeof(ds::ConnectivitySets::UnsafeBlock));
+        #endif
         if ( context.refinement.fm.algorithm != FMAlgorithm::do_nothing ) {
           pool.register_memory_chunk("Refinement", "gain_cache",
                                     static_cast<size_t>(num_hypernodes) * ( context.partition.k + 1 ),

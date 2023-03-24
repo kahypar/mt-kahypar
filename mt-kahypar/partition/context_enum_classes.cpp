@@ -67,7 +67,9 @@ namespace mt_kahypar {
   std::ostream & operator<< (std::ostream& os, const PresetType& type) {
     switch (type) {
       case PresetType::deterministic: return os << "deterministic";
+      #ifdef KAHYPAR_ENABLE_LARGE_K_PARTITIONING_FEATURES
       case PresetType::large_k: return os << "large_k";
+      #endif
       case PresetType::default_preset: return os << "default";
       case PresetType::default_flows: return os << "default_flows";
       #ifdef KAHYPAR_ENABLE_N_LEVEL_PARTITIONING_FEATURES
@@ -89,7 +91,9 @@ namespace mt_kahypar {
       #endif
       #endif
       case MULTILEVEL_HYPERGRAPH_PARTITIONING: return os << "multilevel_hypergraph_partitioning";
+      #ifdef KAHYPAR_ENABLE_LARGE_K_PARTITIONING_FEATURES
       case LARGE_K_PARTITIONING: return os << "large_k_partitioning";
+      #endif
       #ifdef KAHYPAR_ENABLE_N_LEVEL_PARTITIONING_FEATURES
       case N_LEVEL_HYPERGRAPH_PARTITIONING: return os << "n_level_hypergraph_partitioning";
       #endif
@@ -281,9 +285,13 @@ namespace mt_kahypar {
   PresetType presetTypeFromString(const std::string& type) {
     if (type == "deterministic") {
       return PresetType::deterministic;
-    } else if (type == "large_k") {
+    }
+    #ifdef KAHYPAR_ENABLE_LARGE_K_PARTITIONING_FEATURES
+    else if (type == "large_k") {
       return PresetType::large_k;
-    } else if (type == "default") {
+    }
+    #endif
+    else if (type == "default") {
       return PresetType::default_preset;
     } else if (type == "default_flows") {
       return PresetType::default_flows;

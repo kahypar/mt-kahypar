@@ -62,7 +62,9 @@ std::string typeToString(const mt_kahypar_partition_type_t type) {
     #endif
     #endif
     case MULTILEVEL_HYPERGRAPH_PARTITIONING: return "MULTILEVEL_HYPERGRAPH_PARTITIONING";
+    #ifdef KAHYPAR_ENABLE_LARGE_K_PARTITIONING_FEATURES
     case LARGE_K_PARTITIONING: return "LARGE_K_PARTITIONING";
+    #endif
     #ifdef KAHYPAR_ENABLE_N_LEVEL_PARTITIONING_FEATURES
     case N_LEVEL_HYPERGRAPH_PARTITIONING: return "N_LEVEL_HYPERGRAPH_PARTITIONING";
     #endif

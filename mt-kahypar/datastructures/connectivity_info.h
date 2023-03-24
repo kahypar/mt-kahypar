@@ -29,8 +29,10 @@
 #include "tbb/parallel_invoke.h"
 
 #include "mt-kahypar/datastructures/pin_count_in_part.h"
-#include "mt-kahypar/datastructures/sparse_pin_counts.h"
 #include "mt-kahypar/datastructures/connectivity_set.h"
+#ifdef KAHYPAR_ENABLE_LARGE_K_PARTITIONING_FEATURES
+#include "mt-kahypar/datastructures/sparse_pin_counts.h"
+#endif
 
 namespace mt_kahypar {
 namespace ds {
@@ -169,6 +171,8 @@ class ConnectivityInfo {
   ConnectivitySets _con_set;
 };
 
+
+#ifdef KAHYPAR_ENABLE_LARGE_K_PARTITIONING_FEATURES
 class SparseConnectivityInfo {
 
  public:
@@ -283,6 +287,7 @@ class SparseConnectivityInfo {
   // ! number of pins in that block and also the connectivity set
   SparsePinCounts _pin_counts;
 };
+#endif
 
 }  // namespace ds
 }  // namespace mt_kahypar
