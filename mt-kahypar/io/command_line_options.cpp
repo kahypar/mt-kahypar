@@ -96,7 +96,9 @@ namespace mt_kahypar {
                context.partition.instance_type = instanceTypeFromString(type);
              }),
              "Instance Type: \n"
+             #ifdef KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES
              " - graph\n"
+             #endif
              " - hypergraph")
             ("preset-type",
              po::value<std::string>()->value_name("<string>")->notifier([&](const std::string& type) {

@@ -224,7 +224,10 @@ namespace mt_kahypar {
   }
 
   bool Context::isNLevelPartitioning() const {
-    return partition.partition_type == N_LEVEL_GRAPH_PARTITIONING ||
+    return
+      #ifdef KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES
+      partition.partition_type == N_LEVEL_GRAPH_PARTITIONING ||
+      #endif
       partition.partition_type == N_LEVEL_HYPERGRAPH_PARTITIONING;
   }
 

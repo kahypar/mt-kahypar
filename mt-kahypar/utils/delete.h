@@ -37,10 +37,12 @@ namespace mt_kahypar::utils {
 
 void delete_hypergraph(mt_kahypar_hypergraph_t hg) {
   switch ( hg.type ) {
+    #ifdef KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES
     case STATIC_GRAPH:
       delete reinterpret_cast<ds::StaticGraph*>(hg.hypergraph); break;
     case DYNAMIC_GRAPH:
       delete reinterpret_cast<ds::DynamicGraph*>(hg.hypergraph); break;
+    #endif
     case STATIC_HYPERGRAPH:
       delete reinterpret_cast<ds::StaticHypergraph*>(hg.hypergraph); break;
     case DYNAMIC_HYPERGRAPH:
@@ -51,10 +53,12 @@ void delete_hypergraph(mt_kahypar_hypergraph_t hg) {
 
 void delete_partitioned_hypergraph(mt_kahypar_partitioned_hypergraph_t phg) {
   switch ( phg.type ) {
+    #ifdef KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES
     case MULTILEVEL_GRAPH_PARTITIONING:
       delete reinterpret_cast<StaticPartitionedGraph*>(phg.partitioned_hg); break;
     case N_LEVEL_GRAPH_PARTITIONING:
       delete reinterpret_cast<DynamicPartitionedGraph*>(phg.partitioned_hg); break;
+    #endif
     case MULTILEVEL_HYPERGRAPH_PARTITIONING:
       delete reinterpret_cast<StaticPartitionedHypergraph*>(phg.partitioned_hg); break;
     case LARGE_K_PARTITIONING:

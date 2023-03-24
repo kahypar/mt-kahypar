@@ -67,18 +67,20 @@ mt_kahypar_hypergraph_t readHMetisFile(const std::string& filename,
                      hyperedges_weight, hypernodes_weight, remove_single_pin_hes);
 
   switch ( type ) {
+    #ifdef KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES
     case STATIC_GRAPH:
       return constructHypergraph<ds::StaticGraph>(
         num_hypernodes, num_hyperedges, hyperedges,
         hyperedges_weight.data(), hypernodes_weight.data(),
         num_removed_single_pin_hyperedges, stable_construction);
-    case STATIC_HYPERGRAPH:
-      return constructHypergraph<ds::StaticHypergraph>(
+    case DYNAMIC_GRAPH:
+      return constructHypergraph<ds::DynamicGraph>(
         num_hypernodes, num_hyperedges, hyperedges,
         hyperedges_weight.data(), hypernodes_weight.data(),
         num_removed_single_pin_hyperedges, stable_construction);
-    case DYNAMIC_GRAPH:
-      return constructHypergraph<ds::DynamicGraph>(
+    #endif
+    case STATIC_HYPERGRAPH:
+      return constructHypergraph<ds::StaticHypergraph>(
         num_hypernodes, num_hyperedges, hyperedges,
         hyperedges_weight.data(), hypernodes_weight.data(),
         num_removed_single_pin_hyperedges, stable_construction);
@@ -105,16 +107,18 @@ mt_kahypar_hypergraph_t readMetisFile(const std::string& filename,
   readGraphFile(filename, num_edges, num_vertices, edges, edges_weight, nodes_weight);
 
   switch ( type ) {
+    #ifdef KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES
     case STATIC_GRAPH:
       return constructHypergraph<ds::StaticGraph>(
         num_vertices, num_edges, edges,
         edges_weight.data(), nodes_weight.data(), 0, stable_construction);
-    case STATIC_HYPERGRAPH:
-      return constructHypergraph<ds::StaticHypergraph>(
-        num_vertices, num_edges, edges,
-        edges_weight.data(), nodes_weight.data(), 0, stable_construction);
     case DYNAMIC_GRAPH:
       return constructHypergraph<ds::DynamicGraph>(
+        num_vertices, num_edges, edges,
+        edges_weight.data(), nodes_weight.data(), 0, stable_construction);
+    #endif
+    case STATIC_HYPERGRAPH:
+      return constructHypergraph<ds::StaticHypergraph>(
         num_vertices, num_edges, edges,
         edges_weight.data(), nodes_weight.data(), 0, stable_construction);
     case DYNAMIC_HYPERGRAPH:

@@ -22,10 +22,15 @@ set(NLevelGraphDatastructureSources
       graph.cpp
       dynamic_adjacency_array.cpp)
 
+if(KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES)
+  foreach(modtarget IN LISTS PARTITIONING_SUITE_TARGETS)
+    target_sources(${modtarget} PRIVATE ${MultilevelGraphDatastructureSources}
+                                        ${NLevelGraphDatastructureSources})
+  endforeach()
+endif()
+
 foreach(modtarget IN LISTS PARTITIONING_SUITE_TARGETS)
-  target_sources(${modtarget} PRIVATE ${MultilevelGraphDatastructureSources}
-                                      ${NLevelGraphDatastructureSources}
-                                      ${MultilevelDatastructureSources}
+  target_sources(${modtarget} PRIVATE ${MultilevelDatastructureSources}
                                       ${NLevelDatastructureSources})
 endforeach()
 

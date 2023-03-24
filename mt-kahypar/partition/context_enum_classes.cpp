@@ -54,7 +54,9 @@ namespace mt_kahypar {
 
   std::ostream & operator<< (std::ostream& os, const InstanceType& type) {
     switch (type) {
+      #ifdef KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES
       case InstanceType::graph: return os << "graph";
+      #endif
       case InstanceType::hypergraph: return os << "hypergraph";
       case InstanceType::UNDEFINED: return os << "UNDEFINED";
         // omit default case to trigger compiler warning for missing cases
@@ -78,10 +80,12 @@ namespace mt_kahypar {
 
   std::ostream & operator<< (std::ostream& os, const mt_kahypar_partition_type_t& type) {
     switch (type) {
+      #ifdef KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES
       case MULTILEVEL_GRAPH_PARTITIONING: return os << "multilevel_graph_partitioning";
+      case N_LEVEL_GRAPH_PARTITIONING: return os << "n_level_graph_partitioning";
+      #endif
       case MULTILEVEL_HYPERGRAPH_PARTITIONING: return os << "multilevel_hypergraph_partitioning";
       case LARGE_K_PARTITIONING: return os << "large_k_partitioning";
-      case N_LEVEL_GRAPH_PARTITIONING: return os << "n_level_graph_partitioning";
       case N_LEVEL_HYPERGRAPH_PARTITIONING: return os << "n_level_hypergraph_partitioning";
       case NULLPTR_PARTITION: return os << "UNDEFINED";
         // omit default case to trigger compiler warning for missing cases
@@ -254,9 +258,12 @@ namespace mt_kahypar {
   }
 
   InstanceType instanceTypeFromString(const std::string& type) {
+    #ifdef KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES
     if (type == "graph") {
       return InstanceType::graph;
-    } else if (type == "hypergraph") {
+    } else
+    #endif
+    if (type == "hypergraph") {
       return InstanceType::hypergraph;
     }
     ERR("Illegal option: " + type);

@@ -42,10 +42,12 @@ namespace mt_kahypar {
 // //////////////////////////////////////////////////////////////////////////////
 //                            Hypergraph Type Traits
 // //////////////////////////////////////////////////////////////////////////////
+#ifdef KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES
 REGISTER_POLICY(mt_kahypar_partition_type_t, MULTILEVEL_GRAPH_PARTITIONING,
                 StaticGraphTypeTraits);
 REGISTER_POLICY(mt_kahypar_partition_type_t, N_LEVEL_GRAPH_PARTITIONING,
                 DynamicGraphTypeTraits);
+#endif
 REGISTER_POLICY(mt_kahypar_partition_type_t, MULTILEVEL_HYPERGRAPH_PARTITIONING,
                 StaticHypergraphTypeTraits);
 REGISTER_POLICY(mt_kahypar_partition_type_t, LARGE_K_PARTITIONING,

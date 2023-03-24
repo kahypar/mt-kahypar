@@ -38,8 +38,10 @@ namespace {
 
 std::string typeToString(const mt_kahypar_hypergraph_type_t type) {
   switch ( type ) {
+    #ifdef KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES
     case STATIC_GRAPH: return "STATIC_GRAPH";
     case DYNAMIC_GRAPH: return "DYNAMIC_GRAPH";
+    #endif
     case STATIC_HYPERGRAPH: return "STATIC_HYPERGRAPH";
     case DYNAMIC_HYPERGRAPH: return "DYNAMIC_HYPERGRAPH";
     case NULLPTR_HYPERGRAPH: return "NULLPTR_HYPERGRAPH";
@@ -49,10 +51,12 @@ std::string typeToString(const mt_kahypar_hypergraph_type_t type) {
 
 std::string typeToString(const mt_kahypar_partition_type_t type) {
   switch ( type ) {
+    #ifdef KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES
     case MULTILEVEL_GRAPH_PARTITIONING: return "MULTILEVEL_GRAPH_PARTITIONING";
+    case N_LEVEL_GRAPH_PARTITIONING: return "N_LEVEL_GRAPH_PARTITIONING";
+    #endif
     case MULTILEVEL_HYPERGRAPH_PARTITIONING: return "MULTILEVEL_HYPERGRAPH_PARTITIONING";
     case LARGE_K_PARTITIONING: return "LARGE_K_PARTITIONING";
-    case N_LEVEL_GRAPH_PARTITIONING: return "N_LEVEL_GRAPH_PARTITIONING";
     case N_LEVEL_HYPERGRAPH_PARTITIONING: return "N_LEVEL_HYPERGRAPH_PARTITIONING";
     case NULLPTR_PARTITION: return "NULLPTR_PARTITION";
   }

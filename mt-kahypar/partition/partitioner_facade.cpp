@@ -64,10 +64,12 @@ namespace internal {
     const mt_kahypar_partition_type_t type = to_partition_c_type(
       context.partition.preset_type, context.partition.instance_type);
     switch ( type ) {
+      #ifdef KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES
       case MULTILEVEL_GRAPH_PARTITIONING:
         return internal::partition<StaticGraphTypeTraits>(hypergraph, context);
       case N_LEVEL_GRAPH_PARTITIONING:
         return internal::partition<DynamicGraphTypeTraits>(hypergraph, context);
+      #endif
       case MULTILEVEL_HYPERGRAPH_PARTITIONING:
         return internal::partition<StaticHypergraphTypeTraits>(hypergraph, context);
       case LARGE_K_PARTITIONING:
@@ -85,12 +87,14 @@ namespace internal {
                                                    const std::chrono::duration<double>& elapsed_seconds) {
     const mt_kahypar_partition_type_t type = phg.type;
     switch ( type ) {
+      #ifdef KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES
       case MULTILEVEL_GRAPH_PARTITIONING:
         io::printPartitioningResults(utils::cast_const<StaticPartitionedGraph>(phg), context, elapsed_seconds);
         break;
       case N_LEVEL_GRAPH_PARTITIONING:
         io::printPartitioningResults(utils::cast_const<DynamicPartitionedGraph>(phg), context, elapsed_seconds);
         break;
+      #endif
       case MULTILEVEL_HYPERGRAPH_PARTITIONING:
         io::printPartitioningResults(utils::cast_const<StaticPartitionedHypergraph>(phg), context, elapsed_seconds);
         break;
@@ -109,11 +113,13 @@ namespace internal {
                                               const std::chrono::duration<double>& elapsed_seconds) {
     const mt_kahypar_partition_type_t type = phg.type;
     switch ( type ) {
+      #ifdef KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES
       case MULTILEVEL_GRAPH_PARTITIONING:
         return io::csv::serialize(utils::cast_const<StaticPartitionedGraph>(phg), context, elapsed_seconds);
         break;
       case N_LEVEL_GRAPH_PARTITIONING:
         return io::csv::serialize(utils::cast_const<DynamicPartitionedGraph>(phg), context, elapsed_seconds);
+      #endif
       case MULTILEVEL_HYPERGRAPH_PARTITIONING:
         return io::csv::serialize(utils::cast_const<StaticPartitionedHypergraph>(phg), context, elapsed_seconds);
       case LARGE_K_PARTITIONING:
@@ -130,10 +136,12 @@ namespace internal {
                                                      const std::chrono::duration<double>& elapsed_seconds) {
     const mt_kahypar_partition_type_t type = phg.type;
     switch ( type ) {
+      #ifdef KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES
       case MULTILEVEL_GRAPH_PARTITIONING:
         return io::serializer::serialize(utils::cast_const<StaticPartitionedGraph>(phg), context, elapsed_seconds);
       case N_LEVEL_GRAPH_PARTITIONING:
         return io::serializer::serialize(utils::cast_const<DynamicPartitionedGraph>(phg), context, elapsed_seconds);
+      #endif
       case MULTILEVEL_HYPERGRAPH_PARTITIONING:
         return io::serializer::serialize(utils::cast_const<StaticPartitionedHypergraph>(phg), context, elapsed_seconds);
       case LARGE_K_PARTITIONING:
@@ -149,12 +157,14 @@ namespace internal {
                                              const std::string& filename) {
     const mt_kahypar_partition_type_t type = phg.type;
     switch ( type ) {
+      #ifdef KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES
       case MULTILEVEL_GRAPH_PARTITIONING:
         io::writePartitionFile(utils::cast_const<StaticPartitionedGraph>(phg), filename);
         break;
       case N_LEVEL_GRAPH_PARTITIONING:
         io::writePartitionFile(utils::cast_const<DynamicPartitionedGraph>(phg), filename);
         break;
+      #endif
       case MULTILEVEL_HYPERGRAPH_PARTITIONING:
         io::writePartitionFile(utils::cast_const<StaticPartitionedHypergraph>(phg), filename);
         break;

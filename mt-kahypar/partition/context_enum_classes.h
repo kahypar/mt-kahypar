@@ -47,7 +47,9 @@ enum class FileFormat : int8_t {
 };
 
 enum class InstanceType : int8_t {
+  #ifdef KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES
   graph = 0,
+  #endif
   hypergraph = 1,
   UNDEFINED = 2
 };

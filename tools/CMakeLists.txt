@@ -52,11 +52,11 @@ add_executable(BenchShuffle bench_deterministic_shuffling.cpp bench_deterministi
 set_property(TARGET BenchShuffle PROPERTY CXX_STANDARD 17)
 set_property(TARGET BenchShuffle PROPERTY CXX_STANDARD_REQUIRED ON)
 
-set(TOOLS_TARGETS ${PARTITIONING_SUITE_TARGETS} EvaluateBipart
-                                                VerifyPartition
-                                                EvaluatePartition
-                                                HgrToParkway
-                                                HgrToZoltan
-                                                HypergraphStats
-                                                MetisToScotch
-                                                PARENT_SCOPE)
+set(TOOLS_TARGETS ${TOOLS_TARGETS} EvaluateBipart
+                                   VerifyPartition
+                                   EvaluatePartition
+                                   HgrToParkway
+                                   HgrToZoltan
+                                   HypergraphStats
+                                   MetisToScotch
+                                   PARENT_SCOPE)

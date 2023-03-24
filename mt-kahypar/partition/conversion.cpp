@@ -43,7 +43,9 @@ mt_kahypar_hypergraph_type_t to_hypergraph_c_type(const PresetType preset,
       case PresetType::quality_flows: return DYNAMIC_HYPERGRAPH;
       case PresetType::UNDEFINED: ERR("Unknown preset type!");
     }
-  } else if ( instance == InstanceType::graph ) {
+  }
+  #ifdef KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES
+  else if ( instance == InstanceType::graph ) {
     switch ( preset ) {
       case PresetType::deterministic:
       case PresetType::large_k:
@@ -53,7 +55,9 @@ mt_kahypar_hypergraph_type_t to_hypergraph_c_type(const PresetType preset,
       case PresetType::quality_flows: return DYNAMIC_GRAPH;
       case PresetType::UNDEFINED: ERR("Unknown preset type!");
     }
-  } else {
+  }
+  #endif
+  else {
     ERR("Unknown instance type. Should be either graph or hypergraph");
   }
   return NULLPTR_HYPERGRAPH;
@@ -61,6 +65,7 @@ mt_kahypar_hypergraph_type_t to_hypergraph_c_type(const PresetType preset,
 
 mt_kahypar_partition_type_t to_partition_c_type(const PresetType preset,
                                                 const InstanceType instance) {
+  #ifdef KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES
   if ( instance == InstanceType::graph ) {
     if ( preset == PresetType::default_preset ||
          preset == PresetType::default_flows ||
@@ -71,7 +76,9 @@ mt_kahypar_partition_type_t to_partition_c_type(const PresetType preset,
                 preset == PresetType::quality_flows ) {
       return N_LEVEL_HYPERGRAPH_PARTITIONING;
     }
-  } else if ( instance == InstanceType::hypergraph ) {
+  } else
+  #endif
+  if ( instance == InstanceType::hypergraph ) {
     if ( preset == PresetType::default_preset ||
          preset == PresetType::default_flows ||
          preset == PresetType::deterministic ) {
@@ -112,7 +119,11 @@ PresetType to_preset_type(const Mode mode,
 
 InstanceType to_instance_type(const FileFormat format) {
   if ( format == FileFormat::Metis ) {
+    #ifdef KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES
     return InstanceType::graph;
+    #else
+    return InstanceType::hypergraph;
+    #endif
   } else if ( format == FileFormat::hMetis ) {
     return InstanceType::hypergraph;
   }
