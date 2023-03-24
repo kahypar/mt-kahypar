@@ -31,14 +31,19 @@
 #include <string>
 
 #include "mt-kahypar/macros.h"
-#include "mt-kahypar/definitions.h"
+#include "mt-kahypar/datastructures/static_hypergraph.h"
+#include "mt-kahypar/partition/context.h"
+#include "mt-kahypar/io/hypergraph_factory.h"
 #include "mt-kahypar/io/hypergraph_io.h"
+#include "mt-kahypar/utils/cast.h"
+#include "mt-kahypar/utils/delete.h"
 
 using namespace mt_kahypar;
 namespace po = boost::program_options;
 
 using HypernodeID = mt_kahypar::HypernodeID;
 using HyperedgeID = mt_kahypar::HyperedgeID;
+using Hypergraph = ds::StaticHypergraph;
 
 static void writeParkwayHypergraphForProc(const Hypergraph& hypergraph,
                                           const std::string& hgr_filename,
@@ -106,12 +111,18 @@ int main(int argc, char* argv[]) {
   po::store(po::parse_command_line(argc, argv, options), cmd_vm);
   po::notify(cmd_vm);
 
-  Hypergraph hypergraph =
-    mt_kahypar::io::readHypergraphFile(hgr_filename, true);
+  // Read Hypergraph
+  mt_kahypar_hypergraph_t hypergraph =
+    mt_kahypar::io::readInputFile(
+      hgr_filename, PresetType::default_preset,
+      InstanceType::hypergraph, FileFormat::hMetis, true);
+  Hypergraph& hg = utils::cast<Hypergraph>(hypergraph);
 
   for ( int p = 0; p < num_procs; ++p ) {
-    writeParkwayHypergraphForProc(hypergraph, out_filename, num_procs, p);
+    writeParkwayHypergraphForProc(hg, out_filename, num_procs, p);
   }
+
+  utils::delete_hypergraph(hypergraph);
 
   return 0;
 }

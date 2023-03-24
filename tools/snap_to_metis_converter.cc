@@ -32,15 +32,13 @@
 #include <string>
 
 #include "mt-kahypar/macros.h"
-#include "mt-kahypar/definitions.h"
-#include "mt-kahypar/io/hypergraph_io.h"
+#include "mt-kahypar/datastructures/hypergraph_common.h"
 
 using namespace mt_kahypar;
 namespace po = boost::program_options;
 
 using HypernodeID = mt_kahypar::HypernodeID;
 using HyperedgeID = mt_kahypar::HyperedgeID;
-
 
 int main(int argc, char* argv[]) {
   std::string graph_filename;

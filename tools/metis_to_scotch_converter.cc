@@ -31,16 +31,21 @@
 #include <string>
 
 #include "mt-kahypar/macros.h"
-#include "mt-kahypar/definitions.h"
+#include "mt-kahypar/datastructures/static_graph.h"
+#include "mt-kahypar/partition/context.h"
+#include "mt-kahypar/io/hypergraph_factory.h"
 #include "mt-kahypar/io/hypergraph_io.h"
+#include "mt-kahypar/utils/cast.h"
+#include "mt-kahypar/utils/delete.h"
 
 using namespace mt_kahypar;
 namespace po = boost::program_options;
 
 using HypernodeID = mt_kahypar::HypernodeID;
 using HyperedgeID = mt_kahypar::HyperedgeID;
+using Graph = ds::StaticGraph;
 
-static void writeScotchGraphFile(const Hypergraph& graph,
+static void writeScotchGraphFile(const Graph& graph,
                                  const std::string& hgr_filename) {
   std::ofstream out(hgr_filename.c_str());
   out << "0" << std::endl;
@@ -79,8 +84,16 @@ int main(int argc, char* argv[]) {
   po::store(po::parse_command_line(argc, argv, options), cmd_vm);
   po::notify(cmd_vm);
 
-  Hypergraph graph = mt_kahypar::io::readGraphFile(graph_filename, true);
+  // Read Hypergraph
+  mt_kahypar_hypergraph_t gr =
+    mt_kahypar::io::readInputFile(
+      graph_filename, PresetType::default_preset,
+      InstanceType::graph, FileFormat::Metis, true);
+  Graph& graph = utils::cast<Graph>(gr);
+
   writeScotchGraphFile(graph, out_filename);
+
+  utils::delete_hypergraph(gr);
 
   return 0;
 }

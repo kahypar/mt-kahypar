@@ -5,6 +5,6 @@ set(RegistrySources
         register_coarsening_algorithms.cpp
         )
 
-foreach(modtarget IN LISTS TARGETS_WANTING_ALL_SOURCES)
+foreach(modtarget IN LISTS PARTITIONING_SUITE_TARGETS)
     target_sources(${modtarget} PRIVATE ${RegistrySources})
 endforeach()

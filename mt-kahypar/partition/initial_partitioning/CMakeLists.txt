@@ -5,6 +5,6 @@ set(InitialPartitioningSources
         label_propagation_initial_partitioner.cpp
         )
 
-foreach(modtarget IN LISTS TARGETS_WANTING_ALL_SOURCES)
+foreach(modtarget IN LISTS PARTITIONING_SUITE_TARGETS)
     target_sources(${modtarget} PRIVATE ${InitialPartitioningSources})
 endforeach()

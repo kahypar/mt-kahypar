@@ -8,7 +8,6 @@ target_link_libraries(GraphToHgr ${Boost_LIBRARIES})
 set_property(TARGET GraphToHgr PROPERTY CXX_STANDARD 17)
 set_property(TARGET GraphToHgr PROPERTY CXX_STANDARD_REQUIRED ON)
 
-
 add_executable(HgrToParkway hgr_to_parkway_converter.cc)
 target_link_libraries(HgrToParkway ${Boost_LIBRARIES})
 set_property(TARGET HgrToParkway PROPERTY CXX_STANDARD 17)
@@ -53,4 +52,11 @@ add_executable(BenchShuffle bench_deterministic_shuffling.cpp bench_deterministi
 set_property(TARGET BenchShuffle PROPERTY CXX_STANDARD 17)
 set_property(TARGET BenchShuffle PROPERTY CXX_STANDARD_REQUIRED ON)
 
-set(TARGETS_WANTING_ALL_SOURCES ${TARGETS_WANTING_ALL_SOURCES} EvaluateBipart EvaluatePartition VerifyPartition HgrToZoltan HypergraphStats MetisToScotch SnapToMetis GraphToHgr HgrToParkway SnapGraphToHgr PARENT_SCOPE)
+set(TOOLS_TARGETS ${PARTITIONING_SUITE_TARGETS} EvaluateBipart
+                                                VerifyPartition
+                                                EvaluatePartition
+                                                HgrToParkway
+                                                HgrToZoltan
+                                                HypergraphStats
+                                                MetisToScotch
+                                                PARENT_SCOPE)

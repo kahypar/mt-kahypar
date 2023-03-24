@@ -19,7 +19,7 @@ SET_TARGET_PROPERTIES(mtkahypargp_python PROPERTIES COMPILE_FLAGS "-fvisibility=
 target_compile_definitions(mtkahypargp_python PUBLIC ENABLE_GRAPH_PARTITIONER)
 target_compile_definitions(mtkahypargp_python PUBLIC MT_KAHYPAR_LIBRARY_MODE)
 
-set(TARGETS_WANTING_ALL_SOURCES ${TARGETS_WANTING_ALL_SOURCES} mtkahyparhgp_python mtkahypargp_python PARENT_SCOPE)
+set(PARTITIONING_SUITE_TARGETS ${PARTITIONING_SUITE_TARGETS} mtkahyparhgp_python mtkahypargp_python PARENT_SCOPE)
 
 # rename mtkahypar_python target output to mtkahypar
 set_target_properties(mtkahyparhgp_python PROPERTIES OUTPUT_NAME mtkahyparhgp)

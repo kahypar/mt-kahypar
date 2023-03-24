@@ -27,4 +27,4 @@ add_subdirectory(io)
 add_subdirectory(parallel)
 add_subdirectory(partition)
 
-set(TARGETS_WANTING_ALL_SOURCES ${TARGETS_WANTING_ALL_SOURCES} mt_kahypar_multilevel_tests mt_kahypar_nlevel_tests mt_kahypar_graph_tests PARENT_SCOPE)
+set(PARTITIONING_SUITE_TARGETS ${PARTITIONING_SUITE_TARGETS} mt_kahypar_multilevel_tests mt_kahypar_nlevel_tests mt_kahypar_graph_tests PARENT_SCOPE)

@@ -6,6 +6,14 @@ set(IOSources
         partitioning_output.cpp
         command_line_options.cpp)
 
-foreach(modtarget IN LISTS TARGETS_WANTING_ALL_SOURCES)
+foreach(modtarget IN LISTS PARTITIONING_SUITE_TARGETS)
     target_sources(${modtarget} PRIVATE ${IOSources})
+endforeach()
+
+set(ToolsIOSources
+        hypergraph_io.cpp
+        hypergraph_factory.cpp)
+
+foreach(modtarget IN LISTS TOOLS_TARGETS)
+    target_sources(${modtarget} PRIVATE ${ToolsIOSources})
 endforeach()

@@ -22,9 +22,27 @@ set(NLevelGraphDatastructureSources
       graph.cpp
       dynamic_adjacency_array.cpp)
 
-foreach(modtarget IN LISTS TARGETS_WANTING_ALL_SOURCES)
+foreach(modtarget IN LISTS PARTITIONING_SUITE_TARGETS)
   target_sources(${modtarget} PRIVATE ${MultilevelGraphDatastructureSources}
                                       ${NLevelGraphDatastructureSources}
                                       ${MultilevelDatastructureSources}
                                       ${NLevelDatastructureSources})
+endforeach()
+
+set(ToolsDatastructureSources
+      static_hypergraph_factory.cpp
+      static_hypergraph.cpp
+      static_graph_factory.cpp
+      static_graph.cpp
+      contraction_tree.cpp
+      dynamic_hypergraph.cpp
+      dynamic_hypergraph_factory.cpp
+      incident_net_array.cpp
+      contraction_tree.cpp
+      dynamic_graph.cpp
+      dynamic_graph_factory.cpp
+      dynamic_adjacency_array.cpp)
+
+foreach(modtarget IN LISTS TOOLS_TARGETS)
+  target_sources(${modtarget} PRIVATE ${ToolsDatastructureSources})
 endforeach()

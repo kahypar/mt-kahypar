@@ -13,7 +13,7 @@ target_compile_definitions(mtkahypargp PUBLIC MT_KAHYPAR_LIBRARY_MODE)
 target_compile_definitions(mtkahypargp PUBLIC ENABLE_GRAPH_PARTITIONER)
 SET_TARGET_PROPERTIES(mtkahypargp PROPERTIES COMPILE_FLAGS "-fvisibility=hidden")
 
-set(TARGETS_WANTING_ALL_SOURCES ${TARGETS_WANTING_ALL_SOURCES} mtkahyparhgp mtkahypargp PARENT_SCOPE)
+set(PARTITIONING_SUITE_TARGETS ${PARTITIONING_SUITE_TARGETS} mtkahyparhgp mtkahypargp PARENT_SCOPE)
 
 # Library for Mt-KaHyPar
 add_library(mtkahypar SHARED libmtkahypar.cc)

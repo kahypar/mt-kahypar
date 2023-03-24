@@ -30,10 +30,18 @@
 #include <iostream>
 #include <string>
 
+#include "mt-kahypar/macros.h"
+#include "mt-kahypar/datastructures/static_hypergraph.h"
+#include "mt-kahypar/partition/context.h"
+#include "mt-kahypar/io/hypergraph_factory.h"
 #include "mt-kahypar/io/hypergraph_io.h"
+#include "mt-kahypar/utils/cast.h"
+#include "mt-kahypar/utils/delete.h"
 
 using namespace mt_kahypar;
 namespace po = boost::program_options;
+
+using Hypergraph = ds::StaticHypergraph;
 
 static void writeZoltanHypergraph(const Hypergraph& hypergraph,
                                   const std::string& hgr_filename) {
@@ -74,9 +82,15 @@ int main(int argc, char* argv[]) {
   po::store(po::parse_command_line(argc, argv, options), cmd_vm);
   po::notify(cmd_vm);
 
-  Hypergraph hypergraph =
-    mt_kahypar::io::readHypergraphFile(hgr_filename, true);
+  mt_kahypar_hypergraph_t hypergraph =
+    mt_kahypar::io::readInputFile(
+      hgr_filename, PresetType::default_preset,
+      InstanceType::hypergraph, FileFormat::hMetis, true);
+  Hypergraph& hg = utils::cast<Hypergraph>(hypergraph);
 
-  writeZoltanHypergraph(hypergraph, out_filename);
+  writeZoltanHypergraph(hg, out_filename);
+
+  utils::delete_hypergraph(hypergraph);
+
   return 0;
 }
