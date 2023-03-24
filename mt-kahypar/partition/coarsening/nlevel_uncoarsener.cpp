@@ -73,7 +73,10 @@ namespace mt_kahypar {
 
     // Initialize Gain Cache
     if ( _context.refinement.fm.algorithm == FMAlgorithm::fm_gain_cache
-        || _context.refinement.fm.algorithm == FMAlgorithm::fm_gain_cache_on_demand ) {
+        #ifdef KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES
+        || _context.refinement.fm.algorithm == FMAlgorithm::fm_gain_cache_on_demand
+        #endif
+        ) {
       _uncoarseningData.partitioned_hg->allocateGainTableIfNecessary();
       if ( _context.refinement.fm.algorithm == FMAlgorithm::fm_gain_cache ) {
         _uncoarseningData.partitioned_hg->initializeGainCache();

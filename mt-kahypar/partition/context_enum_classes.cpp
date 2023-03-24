@@ -155,9 +155,11 @@ namespace mt_kahypar {
 
   std::ostream & operator<< (std::ostream& os, const HeavyNodePenaltyPolicy& heavy_hn_policy) {
     switch (heavy_hn_policy) {
-      case HeavyNodePenaltyPolicy::multiplicative_penalty: return os << "multiplicative";
       case HeavyNodePenaltyPolicy::no_penalty: return os << "no_penalty";
+      #ifdef KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES
       case HeavyNodePenaltyPolicy::additive: return os << "additive";
+      case HeavyNodePenaltyPolicy::multiplicative_penalty: return os << "multiplicative";
+      #endif
       case HeavyNodePenaltyPolicy::UNDEFINED: return os << "UNDEFINED";
     }
     return os << static_cast<uint8_t>(heavy_hn_policy);
@@ -165,7 +167,9 @@ namespace mt_kahypar {
 
   std::ostream & operator<< (std::ostream& os, const AcceptancePolicy& acceptance_policy) {
     switch (acceptance_policy) {
+      #ifdef KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES
       case AcceptancePolicy::best: return os << "best";
+      #endif
       case AcceptancePolicy::best_prefer_unmatched: return os << "best_prefer_unmatched";
       case AcceptancePolicy::UNDEFINED: return os << "UNDEFINED";
         // omit default case to trigger compiler warning for missing cases
@@ -176,7 +180,9 @@ namespace mt_kahypar {
   std::ostream & operator<< (std::ostream& os, const RatingFunction& func) {
     switch (func) {
       case RatingFunction::heavy_edge: return os << "heavy_edge";
+      #ifdef KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES
       case RatingFunction::sameness: return os << "sameness";
+      #endif
       case RatingFunction::UNDEFINED: return os << "UNDEFINED";
         // omit default case to trigger compiler warning for missing cases
     }
@@ -214,9 +220,11 @@ namespace mt_kahypar {
   std::ostream & operator<< (std::ostream& os, const FMAlgorithm& algo) {
     switch (algo) {
       case FMAlgorithm::fm_gain_cache: return os << "fm_gain_cache";
+      #ifdef KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES
       case FMAlgorithm::fm_gain_cache_on_demand : return os << "fm_gain_cache_on_demand";
       case FMAlgorithm::fm_gain_delta: return os << "fm_gain_delta";
       case FMAlgorithm::fm_recompute_gain: return os << "fm_recompute_gain";
+      #endif
       case FMAlgorithm::do_nothing: return os << "fm_do_nothing";
         // omit default case to trigger compiler warning for missing cases
     }
@@ -312,33 +320,42 @@ namespace mt_kahypar {
   }
 
   HeavyNodePenaltyPolicy heavyNodePenaltyFromString(const std::string& penalty) {
-    if (penalty == "multiplicative") {
-      return HeavyNodePenaltyPolicy::multiplicative_penalty;
-    } else if (penalty == "no_penalty") {
+    if (penalty == "no_penalty") {
       return HeavyNodePenaltyPolicy::no_penalty;
+    }
+    #ifdef KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES
+    else if (penalty == "multiplicative") {
+      return HeavyNodePenaltyPolicy::multiplicative_penalty;
     } else if (penalty == "additive") {
       return HeavyNodePenaltyPolicy::additive;
       // omit default case to trigger compiler warning for missing cases
     }
+    #endif
     ERR("No valid edge penalty policy for rating.");
     return HeavyNodePenaltyPolicy::UNDEFINED;
   }
 
   AcceptancePolicy acceptanceCriterionFromString(const std::string& crit) {
-    if (crit == "best") {
-      return AcceptancePolicy::best;
-    } else if (crit == "best_prefer_unmatched") {
+    if (crit == "best_prefer_unmatched") {
       return AcceptancePolicy::best_prefer_unmatched;
     }
+    #ifdef KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES
+    else if (crit == "best") {
+      return AcceptancePolicy::best;
+    }
+    #endif
     ERR("No valid acceptance criterion for rating.");
   }
 
   RatingFunction ratingFunctionFromString(const std::string& function) {
     if (function == "heavy_edge") {
       return RatingFunction::heavy_edge;
-    } else  if (function == "sameness") {
+    }
+    #ifdef KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES
+    else  if (function == "sameness") {
       return RatingFunction::sameness;
     }
+    #endif
     ERR("No valid rating function for rating.");
     return RatingFunction::UNDEFINED;
   }
@@ -384,13 +401,17 @@ namespace mt_kahypar {
   FMAlgorithm fmAlgorithmFromString(const std::string& type) {
     if (type == "fm_gain_cache") {
       return FMAlgorithm::fm_gain_cache;
-    } else if (type == "fm_gain_cache_on_demand") {
+    }
+    #ifdef KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES
+    else if (type == "fm_gain_cache_on_demand") {
       return FMAlgorithm::fm_gain_cache_on_demand;
     } else if (type == "fm_gain_delta") {
       return FMAlgorithm::fm_gain_delta;
     } else if (type == "fm_recompute_gain") {
       return FMAlgorithm::fm_recompute_gain;
-    } else if (type == "do_nothing") {
+    }
+    #endif
+    else if (type == "do_nothing") {
       return FMAlgorithm::do_nothing;
     }
     ERR("Illegal option: " + type);

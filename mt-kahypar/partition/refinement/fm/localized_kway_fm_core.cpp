@@ -400,20 +400,26 @@ namespace mt_kahypar {
 
 // instantiate templates
 #include "mt-kahypar/partition/refinement/fm/strategies/gain_cache_strategy.h"
+#ifdef KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES
 #include "mt-kahypar/partition/refinement/fm/strategies/gain_delta_strategy.h"
 #include "mt-kahypar/partition/refinement/fm/strategies/recompute_gain_strategy.h"
 #include <mt-kahypar/partition/refinement/fm/strategies/gain_cache_on_demand_strategy.h>
+#endif
 
 namespace mt_kahypar {
   namespace {
   #define LOCALIZED_FM_GAIN_CACHE(X) LocalizedKWayFM<X, GainCacheStrategy>
+  #ifdef KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES
   #define LOCALIZED_FM_GAIN_DELTA(X) LocalizedKWayFM<X, GainDeltaStrategy>
   #define LOCALIZED_FM_GAIN_RECOMPUTE(X) LocalizedKWayFM<X, RecomputeGainStrategy>
   #define LOCALIZED_FM_GAIN_ON_DEMAND(X) LocalizedKWayFM<X, GainCacheOnDemandStrategy>
+  #endif
   }
 
   INSTANTIATE_CLASS_MACRO_WITH_TYPE_TRAITS(LOCALIZED_FM_GAIN_CACHE)
+  #ifdef KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES
   INSTANTIATE_CLASS_MACRO_WITH_TYPE_TRAITS(LOCALIZED_FM_GAIN_DELTA)
   INSTANTIATE_CLASS_MACRO_WITH_TYPE_TRAITS(LOCALIZED_FM_GAIN_RECOMPUTE)
   INSTANTIATE_CLASS_MACRO_WITH_TYPE_TRAITS(LOCALIZED_FM_GAIN_ON_DEMAND)
+  #endif
 }

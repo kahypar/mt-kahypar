@@ -58,6 +58,9 @@ option(KAHYPAR_ENABLE_THREAD_PINNING
 option(KAHYPAR_ENABLE_ARCH_COMPILE_OPTIMIZATIONS
   "Adds the compile flags `-mtune=native -march=native`" ON)
 
+option(KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES
+  "Enables some experimental features. Can be turned off for faster compilation." ON)
+
 if(KAHYPAR_DISABLE_ASSERTIONS)
   add_compile_definitions(KAHYPAR_DISABLE_ASSERTIONS)
 endif(KAHYPAR_DISABLE_ASSERTIONS)
@@ -93,6 +96,10 @@ endif(KAHYPAR_TRAVIS_BUILD)
 if(KAHYPAR_ENABLE_THREAD_PINNING)
   add_compile_definitions(KAHYPAR_ENABLE_THREAD_PINNING)
 endif(KAHYPAR_ENABLE_THREAD_PINNING)
+
+if(KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES)
+  add_compile_definitions(KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES)
+endif(KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES)
 
 include_directories(${PROJECT_SOURCE_DIR})
 find_package(Threads REQUIRED)

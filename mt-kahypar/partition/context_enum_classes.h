@@ -104,19 +104,25 @@ enum class CoarseningAlgorithm : uint8_t {
 
 enum class RatingFunction : uint8_t {
   heavy_edge,
+  #ifdef KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES
   sameness,
+  #endif
   UNDEFINED
 };
 
 enum class HeavyNodePenaltyPolicy : uint8_t {
   no_penalty,
+  #ifdef KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES
   multiplicative_penalty,
   additive,
+  #endif
   UNDEFINED
 };
 
 enum class AcceptancePolicy : uint8_t {
+  #ifdef KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES
   best,
+  #endif
   best_prefer_unmatched,
   UNDEFINED
 };
@@ -143,9 +149,11 @@ enum class LabelPropagationAlgorithm : uint8_t {
 
 enum class FMAlgorithm : uint8_t {
   fm_gain_cache,
+  #ifdef KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES
   fm_gain_cache_on_demand,
   fm_gain_delta,
   fm_recompute_gain,
+  #endif
   do_nothing
 };
 

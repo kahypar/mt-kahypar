@@ -50,7 +50,7 @@
 namespace mt_kahypar {
 template <class TypeTraits = Mandatory,
           class ScorePolicy = HeavyEdgeScore,
-          class HeavyNodePenaltyPolicy = MultiplicativePenalty,
+          class HeavyNodePenaltyPolicy = NoWeightPenalty,
           class AcceptancePolicy = BestRatingPreferringUnmatched>
 class NLevelCoarsener : public ICoarsener,
                         private NLevelCoarsenerBase<TypeTraits> {

@@ -58,18 +58,24 @@ REGISTER_POLICY(mt_kahypar_partition_type_t, N_LEVEL_HYPERGRAPH_PARTITIONING,
 // //////////////////////////////////////////////////////////////////////////////
 REGISTER_POLICY(RatingFunction, RatingFunction::heavy_edge,
                 HeavyEdgeScore);
+#ifdef KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES
 REGISTER_POLICY(RatingFunction, RatingFunction::sameness,
                 SamenessScore);
+#endif
 
 REGISTER_POLICY(HeavyNodePenaltyPolicy, HeavyNodePenaltyPolicy::no_penalty,
                 NoWeightPenalty);
+#ifdef KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES
 REGISTER_POLICY(HeavyNodePenaltyPolicy, HeavyNodePenaltyPolicy::multiplicative_penalty,
                 MultiplicativePenalty);
 REGISTER_POLICY(HeavyNodePenaltyPolicy, HeavyNodePenaltyPolicy::additive,
                 AdditivePenalty);
+#endif
 
-REGISTER_POLICY(AcceptancePolicy, AcceptancePolicy::best,
-                BestRatingWithTieBreaking);
 REGISTER_POLICY(AcceptancePolicy, AcceptancePolicy::best_prefer_unmatched,
                 BestRatingPreferringUnmatched);
+#ifdef KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES
+REGISTER_POLICY(AcceptancePolicy, AcceptancePolicy::best,
+                BestRatingWithTieBreaking);
+#endif
 }  // namespace mt_kahypar

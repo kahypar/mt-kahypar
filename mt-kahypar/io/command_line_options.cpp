@@ -260,8 +260,12 @@ namespace mt_kahypar {
                      [&](const std::string& rating_score) {
                        context.coarsening.rating.rating_function =
                                mt_kahypar::ratingFunctionFromString(rating_score);
-                     })->default_value("heavy_edge"), "Rating function used to calculate scores for vertex pairs:\n"
-                                                      "- heavy_edge")
+                     })->default_value("heavy_edge"),
+             "Rating function used to calculate scores for vertex pairs:\n"
+             #ifdef KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES
+             "- sameness\n"
+             #endif
+             "- heavy_edge")
             ("c-rating-heavy-node-penalty",
              po::value<std::string>()->value_name("<string>")->notifier(
                      [&](const std::string& penalty) {
@@ -269,9 +273,11 @@ namespace mt_kahypar {
                                heavyNodePenaltyFromString(penalty);
                      })->default_value("no_penalty"),
              "Penalty function to discourage heavy vertices:\n"
+             #ifdef KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES
              "- multiplicative\n"
-             "- no_penalty\n"
-             "- edge_frequency_penalty")
+             "- edge_frequency_penalty\n"
+             #endif
+             "- no_penalty")
             ("c-rating-acceptance-criterion",
              po::value<std::string>()->value_name("<string>")->notifier(
                      [&](const std::string& crit) {
@@ -279,7 +285,9 @@ namespace mt_kahypar {
                                acceptanceCriterionFromString(crit);
                      })->default_value("best_prefer_unmatched"),
              "Acceptance/Tiebreaking criterion for contraction partners having the same score:\n"
+             #ifdef KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES
              "- best\n"
+             #endif
              "- best_prefer_unmatched")
             ("c-vertex-degree-sampling-threshold",
              po::value<size_t>(&context.coarsening.vertex_degree_sampling_threshold)->value_name(
@@ -369,9 +377,11 @@ namespace mt_kahypar {
                      })->default_value("fm_gain_cache"),
              "FM Algorithm:\n"
              "- fm_gain_cache\n"
+             #ifdef KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES
              "- fm_gain_cache_on_demand\n"
              "- fm_gain_delta\n"
              "- fm_recompute_gain\n"
+             #endif
              "- do_nothing")
             ((initial_partitioning ? "i-r-fm-multitry-rounds" : "r-fm-multitry-rounds"),
              po::value<size_t>((initial_partitioning ? &context.initial_partitioning.refinement.fm.multitry_rounds :

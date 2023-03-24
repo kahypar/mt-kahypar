@@ -45,9 +45,11 @@
 #include "mt-kahypar/partition/refinement/deterministic/deterministic_label_propagation.h"
 #include "mt-kahypar/partition/refinement/fm/multitry_kway_fm.h"
 #include "mt-kahypar/partition/refinement/fm/strategies/gain_cache_strategy.h"
+#ifdef KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES
 #include "mt-kahypar/partition/refinement/fm/strategies/gain_delta_strategy.h"
 #include "mt-kahypar/partition/refinement/fm/strategies/recompute_gain_strategy.h"
 #include "mt-kahypar/partition/refinement/fm/strategies/gain_cache_on_demand_strategy.h"
+#endif
 #include "mt-kahypar/partition/refinement/flows/scheduler.h"
 #include "mt-kahypar/partition/refinement/flows/flow_refiner.h"
 
@@ -102,6 +104,7 @@ using FMGainCacheDispatcher = kahypar::meta::StaticMultiDispatchFactory<
                                         IRefiner,
                                         kahypar::meta::Typelist<TypeTraitsList>>;
 
+#ifdef KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES
 template<typename TypeTraits>
 using MultiTryKWayFMWithGainGacheOnDemand = MultiTryKWayFM<TypeTraits, GainCacheOnDemandStrategy>;
 using FMGainCacheOnDemandDispatcher = kahypar::meta::StaticMultiDispatchFactory<
@@ -122,6 +125,7 @@ using FMGainRecomputationDispatcher = kahypar::meta::StaticMultiDispatchFactory<
                                         MultiTryKWayFMWithGainRecomputation,
                                         IRefiner,
                                         kahypar::meta::Typelist<TypeTraitsList>>;
+#endif
 
 using FlowSchedulerFactory = kahypar::meta::Factory<FlowAlgorithm,
                               IRefiner* (*)(const HypernodeID, const HyperedgeID, const Context&)>;
