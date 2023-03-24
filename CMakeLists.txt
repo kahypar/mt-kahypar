@@ -383,10 +383,3 @@ add_subdirectory(python)
 
 # This adds the source files. It's important that this happens after the compile targets have been added
 add_subdirectory(mt-kahypar)
-
-# Target for Mt-KaHyPar Test Suite
-add_custom_target(mt_kahypar_tests
-  DEPENDS
-  mt_kahypar_multilevel_tests
-  mt_kahypar_nlevel_tests
-  mt_kahypar_graph_tests)

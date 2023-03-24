@@ -32,9 +32,7 @@ jobs:
       - name: Run Mt-KaHyPar Tests
         run: |
           cd debug
-          ./tests/mt_kahypar_multilevel_tests;
-          ./tests/mt_kahypar_nlevel_tests;
-          ./tests/mt_kahypar_graph_tests;
+          ./tests/mt_kahypar_tests;
 
       - name: Report Code Coverage
         run: |
@@ -155,10 +153,10 @@ jobs:
           cd build
           export CMAKE_GENERATOR="MSYS Makefiles"
           /mingw64/bin/cmake .. -DCMAKE_BUILD_TYPE=RELEASE -DKAHYPAR_DOWNLOAD_BOOST=On -DKAHYPAR_CI_BUILD=ON
-          make -j2 mt_kahypar_multilevel_tests
+          make -j2 mt_kahypar_tests
 
       - name: Run Mt-KaHyPar Tests
         shell: msys2 {0}
         run: |
           cd build
-          ./tests/mt_kahypar_multilevel_tests
+          ./tests/mt_kahypar_tests
