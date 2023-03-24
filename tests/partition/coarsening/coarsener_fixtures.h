@@ -158,55 +158,6 @@ class ACoarsener : public Test {
     ASSERT_THAT(currentNumEdges(coarsener->coarsestHypergraph()), Eq(num_hyperedges));
   }
 
-  /*template <class Coarsener, class Hypergraph>
-  void removesHyperedgesOfSizeOneDuringCoarsening(Coarsener& coarsener,
-                                                  Hypergraph& hypergraph,
-                                                  const std::vector<HyperedgeID>& single_node_hes) {
-    doCoarsening(coarsener);
-    for (const HyperedgeID& he : single_node_hes) {
-      ASSERT_THAT(hypergraph.edgeIsEnabled(he), Eq(false)) << V(he);
-    }
-  }
-
-  template <class Coarsener, class Hypergraph>
-  void removesParallelHyperedgesDuringCoarsening(Coarsener& coarsener,
-                                                Hypergraph& hypergraph,
-                                                const std::vector<HyperedgeID>& parallel_hes) {
-    doCoarsening(coarsener);
-    for (const HyperedgeID& he : parallel_hes) {
-      ASSERT_THAT(hypergraph.edgeIsEnabled(he), Eq(false)) << V(he);
-    }
-  }
-
-  template <class Coarsener, class Hypergraph>
-  void updatesEdgeWeightOfRepresentativeHyperedgeOnParallelHyperedgeRemoval(Coarsener& coarsener,
-                                                                            Hypergraph& hypergraph,
-                                                                            const std::vector<std::pair<HyperedgeID, HyperedgeWeight> >& he_weights) {
-    doCoarsening(coarsener);
-    for (const auto& he_weight : he_weights) {
-      HyperedgeID he = he_weight.first;
-      HyperedgeWeight weight = he_weight.second;
-      ASSERT_THAT(hypergraph.edgeIsEnabled(he), Eq(true)) << V(he);
-      ASSERT_THAT(hypergraph.edgeWeight(he), Eq(weight));
-    }
-  }
-
-  template <class Coarsener, class Hypergraph>
-  void doesNotCoarsenUntilCoarseningLimit(Coarsener& coarsener,
-                                          Hypergraph& hypergraph,
-                                          Context& context,
-                                          const HypernodeID contraction_limit,
-                                          const HypernodeWeight max_allowed_node_weight,
-                                          const size_t expected_num_nodes) {
-    context.coarsening.contraction_limit = contraction_limit;
-    context.coarsening.max_allowed_node_weight = max_allowed_node_weight;
-    doCoarsening(coarsener);
-    for (const HypernodeID& hn : hypergraph.nodes()) {
-      ASSERT_THAT(hypergraph.nodeWeight(hn), Le(context.coarsening.max_allowed_node_weight));
-    }
-    ASSERT_THAT(currentNumNodes(hypergraph), Eq(expected_num_nodes));
-  }*/
-
   Hypergraph hypergraph;
   Context context;
   std::unique_ptr<UncoarseningData<TypeTraits>> uncoarseningData;
