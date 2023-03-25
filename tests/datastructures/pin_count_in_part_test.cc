@@ -742,6 +742,8 @@ TYPED_TEST(APinCountDataStructure, ModifyTwoHyperedgesConcurrently3_k30_Max30) {
   ASSERT_EQ(30, this->pin_count.pinCountInPart(7, 19));
 }
 
+#ifdef KAHYPAR_ENABLE_LARGE_K_PARTITIONING_FEATURES
+
 using SparsePinCountsAsConnectivitySet = APinCountDataStructure<SparsePinCounts>;
 
 void add(const HyperedgeID he, SparsePinCounts& conn_set, const std::set<PartitionID>& ids) {
@@ -1166,6 +1168,7 @@ TEST_F(SparsePinCountsAsConnectivitySet, IteratesThroughPartitionsAndSimultanous
   verify(0, pin_count, 32, { 2, 6, 10, 22, 24 });
 }
 
+#endif
 
 }  // namespace ds
 }  // namespace mt_kahypar
