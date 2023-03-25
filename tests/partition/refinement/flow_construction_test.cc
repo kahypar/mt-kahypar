@@ -26,6 +26,7 @@
 
 #include "gmock/gmock.h"
 
+#include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/io/hypergraph_io.h"
 #include "mt-kahypar/partition/refinement/flows/sequential_construction.h"
@@ -37,6 +38,13 @@ using ::testing::Test;
 #define CAPACITY(X) whfc::Flow(X)
 
 namespace mt_kahypar {
+
+namespace {
+  using TypeTraits = StaticHypergraphTypeTraits;
+  using Hypergraph = typename TypeTraits::Hypergraph;
+  using HypergraphFactory = typename Hypergraph::Factory;
+  using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
+}
 
 template<typename C, typename F, bool is_default>
 struct Config {
@@ -86,7 +94,8 @@ class AFlowHypergraphConstructor : public Test {
     phg.setOnlyNodePart(9, 2);
     phg.initializePartition();
 
-    constructor = std::make_unique<Constructor>(hg, flow_hg, hfc, context);
+    constructor = std::make_unique<Constructor>(
+      hg.initialNumEdges(), flow_hg, hfc, context);
   }
 
   bool is_default_construction() const {
@@ -103,10 +112,10 @@ class AFlowHypergraphConstructor : public Test {
   vec<HypernodeID> whfc_to_node;
 };
 
-typedef ::testing::Types<Config<SequentialConstruction, whfc::SequentialPushRelabel, true>,
-                         Config<SequentialConstruction, whfc::SequentialPushRelabel, false>,
-                         Config<ParallelConstruction, whfc::ParallelPushRelabel, true>,
-                         Config<ParallelConstruction, whfc::ParallelPushRelabel, false> > TestConfigs;
+typedef ::testing::Types<Config<SequentialConstruction<TypeTraits>, whfc::SequentialPushRelabel, true>,
+                         Config<SequentialConstruction<TypeTraits>, whfc::SequentialPushRelabel, false>,
+                         Config<ParallelConstruction<TypeTraits>, whfc::ParallelPushRelabel, true>,
+                         Config<ParallelConstruction<TypeTraits>, whfc::ParallelPushRelabel, false> > TestConfigs;
 
 TYPED_TEST_CASE(AFlowHypergraphConstructor, TestConfigs);
 

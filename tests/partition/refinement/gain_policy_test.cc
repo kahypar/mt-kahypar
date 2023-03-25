@@ -34,9 +34,16 @@ using ::testing::Test;
 
 namespace mt_kahypar {
 
+namespace {
+  using TypeTraits = StaticHypergraphTypeTraits;
+  using Hypergraph = typename TypeTraits::Hypergraph;
+  using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
+}
+
 template <template <typename> class GainPolicy, PartitionID K>
 class AGainPolicy : public Test {
  public:
+  using HypergraphFactory = typename Hypergraph::Factory;
   using GainCalculator = GainPolicy<PartitionedHypergraph>;
 
   AGainPolicy() :

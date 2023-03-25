@@ -26,6 +26,8 @@
 
 #include "gmock/gmock.h"
 
+#include "mt-kahypar/definitions.h"
+#include "mt-kahypar/io/hypergraph_factory.h"
 #include "mt-kahypar/io/hypergraph_io.h"
 #include "mt-kahypar/partition/refinement/policies/gain_policy.h"
 #include "mt-kahypar/partition/refinement/flows/scheduler.h"
@@ -36,6 +38,13 @@ using ::testing::Test;
 #define MOVE(HN, FROM, TO) Move { FROM, TO, HN, 0 }
 
 namespace mt_kahypar {
+
+namespace {
+  using TypeTraits = StaticHypergraphTypeTraits;
+  using Hypergraph = typename TypeTraits::Hypergraph;
+  using HypergraphFactory = typename Hypergraph::Factory;
+  using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
+}
 
 class AFlowRefinementScheduler : public Test {
  public:
@@ -93,12 +102,14 @@ void verifyPartWeights(const vec<HypernodeWeight> actual_weights,
 }
 
 TEST_F(AFlowRefinementScheduler, MovesOneVertex) {
-  FlowRefinementScheduler refiner(hg, context);
-  refiner.initialize(phg);
+  FlowRefinementScheduler<TypeTraits> refiner(
+    hg.initialNumNodes(), hg.initialNumEdges(), context);
+  mt_kahypar_partitioned_hypergraph_t partitioned_hg = utils::partitioned_hg_cast(phg);
+  refiner.initialize(partitioned_hg);
   MoveSequence sequence { { MOVE(3, 0, 1) }, 1 };
 
   const HyperedgeWeight improvement = refiner.applyMoves(
-    QuotientGraph::INVALID_SEARCH_ID, sequence);
+    QuotientGraph<TypeTraits>::INVALID_SEARCH_ID, sequence);
   ASSERT_EQ(sequence.state, MoveSequenceState::SUCCESS);
   ASSERT_EQ(improvement, sequence.expected_improvement);
   ASSERT_EQ(1, phg.partID(3));
@@ -106,12 +117,14 @@ TEST_F(AFlowRefinementScheduler, MovesOneVertex) {
 }
 
 TEST_F(AFlowRefinementScheduler, MovesVerticesWithIntermediateBalanceViolation) {
-  FlowRefinementScheduler refiner(hg, context);
-  refiner.initialize(phg);
+  FlowRefinementScheduler<TypeTraits> refiner(
+    hg.initialNumNodes(), hg.initialNumEdges(), context);
+  mt_kahypar_partitioned_hypergraph_t partitioned_hg = utils::partitioned_hg_cast(phg);
+  refiner.initialize(partitioned_hg);
   MoveSequence sequence { { MOVE(5, 1, 0), MOVE(1, 0, 1), MOVE(3, 0, 1) }, 1 };
 
   const HyperedgeWeight improvement = refiner.applyMoves(
-    QuotientGraph::INVALID_SEARCH_ID, sequence);
+    QuotientGraph<TypeTraits>::INVALID_SEARCH_ID, sequence);
   ASSERT_EQ(sequence.state, MoveSequenceState::SUCCESS);
   ASSERT_EQ(improvement, sequence.expected_improvement);
   ASSERT_EQ(1, phg.partID(1));
@@ -121,12 +134,14 @@ TEST_F(AFlowRefinementScheduler, MovesVerticesWithIntermediateBalanceViolation) 
 }
 
 TEST_F(AFlowRefinementScheduler, MovesAVertexThatWorsenSolutionQuality) {
-  FlowRefinementScheduler refiner(hg, context);
-  refiner.initialize(phg);
+  FlowRefinementScheduler<TypeTraits> refiner(
+    hg.initialNumNodes(), hg.initialNumEdges(), context);
+  mt_kahypar_partitioned_hypergraph_t partitioned_hg = utils::partitioned_hg_cast(phg);
+  refiner.initialize(partitioned_hg);
   MoveSequence sequence { { MOVE(0, 0, 1) }, 1 };
 
   const HyperedgeWeight improvement = refiner.applyMoves(
-    QuotientGraph::INVALID_SEARCH_ID, sequence);
+    QuotientGraph<TypeTraits>::INVALID_SEARCH_ID, sequence);
   ASSERT_EQ(sequence.state, MoveSequenceState::WORSEN_SOLUTION_QUALITY);
   ASSERT_EQ(improvement, 0);
   ASSERT_EQ(0, phg.partID(0));
@@ -134,12 +149,14 @@ TEST_F(AFlowRefinementScheduler, MovesAVertexThatWorsenSolutionQuality) {
 }
 
 TEST_F(AFlowRefinementScheduler, MovesAVertexThatViolatesBalanceConstraint) {
-  FlowRefinementScheduler refiner(hg, context);
-  refiner.initialize(phg);
+  FlowRefinementScheduler<TypeTraits> refiner(
+    hg.initialNumNodes(), hg.initialNumEdges(), context);
+  mt_kahypar_partitioned_hypergraph_t partitioned_hg = utils::partitioned_hg_cast(phg);
+  refiner.initialize(partitioned_hg);
   MoveSequence sequence { { MOVE(4, 1, 0) }, 1 };
 
   const HyperedgeWeight improvement = refiner.applyMoves(
-    QuotientGraph::INVALID_SEARCH_ID, sequence);
+    QuotientGraph<TypeTraits>::INVALID_SEARCH_ID, sequence);
   ASSERT_EQ(sequence.state, MoveSequenceState::VIOLATES_BALANCE_CONSTRAINT);
   ASSERT_EQ(improvement, 0);
   ASSERT_EQ(1, phg.partID(4));
@@ -148,21 +165,23 @@ TEST_F(AFlowRefinementScheduler, MovesAVertexThatViolatesBalanceConstraint) {
 
 TEST_F(AFlowRefinementScheduler, MovesTwoVerticesConcurrently) {
   context.partition.max_part_weights.assign(2, 5);
-  FlowRefinementScheduler refiner(hg, context);
-  refiner.initialize(phg);
+  FlowRefinementScheduler<TypeTraits> refiner(
+    hg.initialNumNodes(), hg.initialNumEdges(), context);
+  mt_kahypar_partitioned_hypergraph_t partitioned_hg = utils::partitioned_hg_cast(phg);
+  refiner.initialize(partitioned_hg);
 
   MoveSequence sequence_1 { { MOVE(3, 0, 1) }, 1 };
   MoveSequence sequence_2 { { MOVE(5, 1, 0) }, 0 };
   HypernodeWeight improvement_1 = 0, improvement_2 = 0;
   executeConcurrent([&] {
     improvement_1 = refiner.applyMoves(
-      QuotientGraph::INVALID_SEARCH_ID, sequence_1);
+      QuotientGraph<TypeTraits>::INVALID_SEARCH_ID, sequence_1);
     ASSERT_EQ(sequence_1.state, MoveSequenceState::SUCCESS);
     ASSERT_EQ(improvement_1, sequence_1.expected_improvement);
     ASSERT_EQ(1, phg.partID(3));
   }, [&] {
     improvement_2 = refiner.applyMoves(
-      QuotientGraph::INVALID_SEARCH_ID, sequence_2);
+      QuotientGraph<TypeTraits>::INVALID_SEARCH_ID, sequence_2);
     ASSERT_EQ(sequence_2.state, MoveSequenceState::SUCCESS);
     ASSERT_EQ(improvement_2, sequence_2.expected_improvement);
     ASSERT_EQ(0, phg.partID(5));
@@ -172,18 +191,20 @@ TEST_F(AFlowRefinementScheduler, MovesTwoVerticesConcurrently) {
 }
 
 TEST_F(AFlowRefinementScheduler, MovesTwoVerticesConcurrentlyWhereOneViolateBalanceConstraint) {
-  FlowRefinementScheduler refiner(hg, context);
-  refiner.initialize(phg);
+  FlowRefinementScheduler<TypeTraits> refiner(
+    hg.initialNumNodes(), hg.initialNumEdges(), context);
+  mt_kahypar_partitioned_hypergraph_t partitioned_hg = utils::partitioned_hg_cast(phg);
+  refiner.initialize(partitioned_hg);
 
   MoveSequence sequence_1 { { MOVE(3, 0, 1) }, 1 };
   MoveSequence sequence_2 { { MOVE(1, 0, 1) }, 0 };
   HypernodeWeight improvement_1 = 0, improvement_2 = 0;
   executeConcurrent([&] {
     improvement_1 = refiner.applyMoves(
-      QuotientGraph::INVALID_SEARCH_ID, sequence_1);
+      QuotientGraph<TypeTraits>::INVALID_SEARCH_ID, sequence_1);
   }, [&] {
     improvement_2 = refiner.applyMoves(
-      QuotientGraph::INVALID_SEARCH_ID, sequence_2);
+      QuotientGraph<TypeTraits>::INVALID_SEARCH_ID, sequence_2);
   });
 
   ASSERT_TRUE(sequence_1.state == MoveSequenceState::VIOLATES_BALANCE_CONSTRAINT ||
@@ -227,7 +248,8 @@ class AFlowRefinementEndToEnd : public Test {
     context.refinement.flows.max_bfs_distance = 2;
 
     // Read hypergraph
-    hg = io::readHypergraphFile(context.partition.graph_filename);
+    hg = io::readInputFile<Hypergraph>(
+      context.partition.graph_filename, FileFormat::hMetis, true);
     phg = PartitionedHypergraph(
       context.partition.k, hg, parallel_tag_t());
     context.setupPartWeights(hg.totalWeight());
@@ -290,7 +312,8 @@ class AFlowRefinementEndToEnd : public Test {
 
 TEST_F(AFlowRefinementEndToEnd, SmokeTestWithTwoBlocksPerRefiner) {
   const bool debug = false;
-  FlowRefinementScheduler scheduler(hg, context);
+  FlowRefinementScheduler<TypeTraits> scheduler(
+    hg.initialNumNodes(), hg.initialNumEdges(), context);
 
   Metrics metrics;
   metrics.cut = metrics::hyperedgeCut(phg);
@@ -301,8 +324,9 @@ TEST_F(AFlowRefinementEndToEnd, SmokeTestWithTwoBlocksPerRefiner) {
     LOG << "Start Solution km1 =" << metrics.km1;
   }
 
-  scheduler.initialize(phg);
-  scheduler.refine(phg, {}, metrics, 0.0);
+  mt_kahypar_partitioned_hypergraph_t partitioned_hg = utils::partitioned_hg_cast(phg);
+  scheduler.initialize(partitioned_hg);
+  scheduler.refine(partitioned_hg, {}, metrics, 0.0);
 
   if ( debug ) {
     LOG << "Final Solution km1 =" << metrics.km1;
@@ -324,7 +348,8 @@ TEST_F(AFlowRefinementEndToEnd, SmokeTestWithTwoBlocksPerRefiner) {
 TEST_F(AFlowRefinementEndToEnd, SmokeTestWithFourBlocksPerRefiner) {
   const bool debug = false;
   FlowRefinerMockControl::instance().max_num_blocks = 4;
-  FlowRefinementScheduler scheduler(hg, context);
+  FlowRefinementScheduler<TypeTraits> scheduler(
+    hg.initialNumNodes(), hg.initialNumEdges(), context);
 
   Metrics metrics;
   metrics.cut = metrics::hyperedgeCut(phg);
@@ -335,8 +360,9 @@ TEST_F(AFlowRefinementEndToEnd, SmokeTestWithFourBlocksPerRefiner) {
     LOG << "Start Solution km1 =" << metrics.km1;
   }
 
-  scheduler.initialize(phg);
-  scheduler.refine(phg, {}, metrics, 0.0);
+  mt_kahypar_partitioned_hypergraph_t partitioned_hg = utils::partitioned_hg_cast(phg);
+  scheduler.initialize(partitioned_hg);
+  scheduler.refine(partitioned_hg, {}, metrics, 0.0);
 
   if ( debug ) {
     LOG << "Final Solution km1 =" << metrics.km1;
@@ -354,6 +380,5 @@ TEST_F(AFlowRefinementEndToEnd, SmokeTestWithFourBlocksPerRefiner) {
     ASSERT_LE(phg.partWeight(i), context.partition.max_part_weights[i]);
   }
 }
-
 
 }

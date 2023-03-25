@@ -26,6 +26,8 @@
 
 #include "gmock/gmock.h"
 
+#include "mt-kahypar/definitions.h"
+#include "mt-kahypar/io/hypergraph_factory.h"
 #include "mt-kahypar/io/hypergraph_io.h"
 #include "mt-kahypar/partition/refinement/flows/problem_construction.h"
 #include "tests/partition/refinement/flow_refiner_mock.h"
@@ -33,6 +35,14 @@
 using ::testing::Test;
 
 namespace mt_kahypar {
+
+namespace {
+  using TypeTraits = StaticHypergraphTypeTraits;
+  using Hypergraph = typename TypeTraits::Hypergraph;
+  using HypergraphFactory = typename Hypergraph::Factory;
+  using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
+}
+
 
 class AProblemConstruction : public Test {
  public:
@@ -52,7 +62,8 @@ class AProblemConstruction : public Test {
     context.refinement.flows.max_bfs_distance = 2;
 
     // Read hypergraph
-    hg = io::readHypergraphFile(context.partition.graph_filename);
+    hg = io::readInputFile<Hypergraph>(
+      context.partition.graph_filename, FileFormat::hMetis, true);
     phg = PartitionedHypergraph(
       context.partition.k, hg, parallel_tag_t());
     context.setupPartWeights(hg.totalWeight());
@@ -70,7 +81,7 @@ class AProblemConstruction : public Test {
 
   void verifyThatPartWeightsAreLessEqualToMaxPartWeight(const Subhypergraph& sub_hg,
                                                         const SearchID search_id,
-                                                        const QuotientGraph& qg) {
+                                                        const QuotientGraph<TypeTraits>& qg) {
     vec<HypernodeWeight> part_weights(context.partition.k, 0);
     for ( const HypernodeID& hn : sub_hg.nodes_of_block_0 ) {
       part_weights[phg.partID(hn)] += phg.nodeWeight(hn);
@@ -130,9 +141,10 @@ void verifyThatVertexSetAreDisjoint(const Subhypergraph& sub_hg_1, const Subhype
 }
 
 TEST_F(AProblemConstruction, GrowAnFlowProblemAroundTwoBlocks1) {
-  ProblemConstruction constructor(hg, context);
-  FlowRefinerAdapter refiner(hg, context);
-  QuotientGraph qg(hg, context);
+  ProblemConstruction<TypeTraits> constructor(
+    hg.initialNumNodes(), hg.initialNumEdges(), context);
+  FlowRefinerAdapter<TypeTraits> refiner(hg.initialNumEdges(), context);
+  QuotientGraph<TypeTraits> qg(hg.initialNumEdges(), context);
   refiner.initialize(context.shared_memory.num_threads);
   qg.initialize(phg);
 
@@ -145,9 +157,10 @@ TEST_F(AProblemConstruction, GrowAnFlowProblemAroundTwoBlocks1) {
 }
 
 TEST_F(AProblemConstruction, GrowAnFlowProblemAroundTwoBlocks2) {
-  ProblemConstruction constructor(hg, context);
-  FlowRefinerAdapter refiner(hg, context);
-  QuotientGraph qg(hg, context);
+  ProblemConstruction<TypeTraits> constructor(
+    hg.initialNumNodes(), hg.initialNumEdges(), context);
+  FlowRefinerAdapter<TypeTraits> refiner(hg.initialNumEdges(), context);
+  QuotientGraph<TypeTraits> qg(hg.initialNumEdges(), context);
   refiner.initialize(context.shared_memory.num_threads);
   qg.initialize(phg);
 
@@ -160,9 +173,10 @@ TEST_F(AProblemConstruction, GrowAnFlowProblemAroundTwoBlocks2) {
 }
 
 TEST_F(AProblemConstruction, GrowTwoFlowProblemAroundTwoBlocksSimultanously) {
-  ProblemConstruction constructor(hg, context);
-  FlowRefinerAdapter refiner(hg, context);
-  QuotientGraph qg(hg, context);
+  ProblemConstruction<TypeTraits> constructor(
+    hg.initialNumNodes(), hg.initialNumEdges(), context);
+  FlowRefinerAdapter<TypeTraits> refiner(hg.initialNumEdges(), context);
+  QuotientGraph<TypeTraits> qg(hg.initialNumEdges(), context);
   refiner.initialize(context.shared_memory.num_threads);
   qg.initialize(phg);
 

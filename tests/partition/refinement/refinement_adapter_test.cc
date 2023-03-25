@@ -26,6 +26,7 @@
 
 #include "gmock/gmock.h"
 
+#include "mt-kahypar/definitions.h"
 #include "tests/partition/refinement/flow_refiner_mock.h"
 #include "mt-kahypar/partition/refinement/flows/refiner_adapter.h"
 
@@ -34,6 +35,13 @@ using ::testing::Test;
 #define MOVE(HN, FROM, TO) Move { FROM, TO, HN, 0 }
 
 namespace mt_kahypar {
+
+namespace {
+  using TypeTraits = StaticHypergraphTypeTraits;
+  using Hypergraph = typename TypeTraits::Hypergraph;
+  using HypergraphFactory = typename Hypergraph::Factory;
+  using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
+}
 
 class AFlowRefinerAdapter : public Test {
  public:
@@ -64,7 +72,7 @@ class AFlowRefinerAdapter : public Test {
   Hypergraph hg;
   PartitionedHypergraph phg;
   Context context;
-  std::unique_ptr<FlowRefinerAdapter> refiner;
+  std::unique_ptr<FlowRefinerAdapter<TypeTraits>> refiner;
 };
 
 template <class F, class K>
@@ -83,7 +91,7 @@ void executeConcurrent(F f1, K f2) {
 }
 
 TEST_F(AFlowRefinerAdapter, FailsToRegisterMoreSearchesIfAllAreUsed) {
-  refiner = std::make_unique<FlowRefinerAdapter>(hg, context);
+  refiner = std::make_unique<FlowRefinerAdapter<TypeTraits>>(hg.initialNumEdges(), context);
   refiner->initialize(2);
 
   ASSERT_TRUE(refiner->registerNewSearch(0, phg));
@@ -92,7 +100,7 @@ TEST_F(AFlowRefinerAdapter, FailsToRegisterMoreSearchesIfAllAreUsed) {
 }
 
 TEST_F(AFlowRefinerAdapter, UseCorrectNumberOfThreadsForSearch1) {
-  refiner = std::make_unique<FlowRefinerAdapter>(hg, context);
+  refiner = std::make_unique<FlowRefinerAdapter<TypeTraits>>(hg.initialNumEdges(), context);
   refiner->initialize(2);
   ASSERT_EQ(2, refiner->numAvailableRefiner());
   ASSERT_EQ(0, refiner->numUsedThreads());
@@ -109,7 +117,7 @@ TEST_F(AFlowRefinerAdapter, UseCorrectNumberOfThreadsForSearch1) {
 }
 
 TEST_F(AFlowRefinerAdapter, UseCorrectNumberOfThreadsForSearch2) {
-  refiner = std::make_unique<FlowRefinerAdapter>(hg, context);
+  refiner = std::make_unique<FlowRefinerAdapter<TypeTraits>>(hg.initialNumEdges(), context);
   refiner->initialize(2);
   ASSERT_EQ(2, refiner->numAvailableRefiner());
   ASSERT_EQ(0, refiner->numUsedThreads());
@@ -143,7 +151,7 @@ TEST_F(AFlowRefinerAdapter, UseCorrectNumberOfThreadsForSearch2) {
 }
 
 TEST_F(AFlowRefinerAdapter, UsesMoreThreadsIfOneRefinerTermiantes) {
-  refiner = std::make_unique<FlowRefinerAdapter>(hg, context);
+  refiner = std::make_unique<FlowRefinerAdapter<TypeTraits>>(hg.initialNumEdges(), context);
   refiner->initialize(2);
   ASSERT_EQ(2, refiner->numAvailableRefiner());
   ASSERT_EQ(0, refiner->numUsedThreads());

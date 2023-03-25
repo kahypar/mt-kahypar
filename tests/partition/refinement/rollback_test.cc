@@ -32,7 +32,8 @@
 #include "mt-kahypar/macros.h"
 
 
-#include "mt-kahypar/io/hypergraph_io.h"
+#include "mt-kahypar/definitions.h"
+#include "mt-kahypar/io/hypergraph_factory.h"
 
 #include "mt-kahypar/partition/refinement/fm/global_rollback.h"
 
@@ -42,11 +43,16 @@ using ::testing::Test;
 
 namespace mt_kahypar {
 
+namespace {
+  using TypeTraits = StaticHypergraphTypeTraits;
+  using Hypergraph = typename TypeTraits::Hypergraph;
+  using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
+}
 
-//#ifndef ENABLE_QUALITY_PRESET
 
 TEST(RollbackTests, GainRecalculationAndRollsbackCorrectly) {
-  Hypergraph hg = io::readHypergraphFile("../tests/instances/twocenters.hgr");
+  Hypergraph hg = io::readInputFile<Hypergraph>(
+    "../tests/instances/twocenters.hgr", FileFormat::hMetis, true);
   PartitionID k = 2;
 
 
@@ -72,7 +78,7 @@ TEST(RollbackTests, GainRecalculationAndRollsbackCorrectly) {
 
   FMSharedData sharedData(hg.initialNumNodes(), context);
 
-  GlobalRollback grb(hg, context);
+  GlobalRollback<TypeTraits, true> grb(hg.initialNumEdges(), context);
   auto performMove = [&](Move m) {
     if (phg.changeNodePartWithGainCacheUpdate(m.node, m.from, m.to)) {
       sharedData.moveTracker.insertMove(m);
@@ -94,7 +100,7 @@ TEST(RollbackTests, GainRecalculationAndRollsbackCorrectly) {
   performMove({0, 1, 5, 0});
 
   vec<HypernodeWeight> dummy_part_weights(k, 0);
-  grb.revertToBestPrefix<true>(phg, sharedData, dummy_part_weights);
+  grb.revertToBestPrefix(phg, sharedData, dummy_part_weights);
   // revert last two moves
   ASSERT_EQ(phg.partID(4), 0);
   ASSERT_EQ(phg.partID(5), 0);
@@ -103,7 +109,8 @@ TEST(RollbackTests, GainRecalculationAndRollsbackCorrectly) {
 
 
 TEST(RollbackTests, GainRecalculation2) {
-  Hypergraph hg = io::readHypergraphFile("../tests/instances/twocenters.hgr");
+  Hypergraph hg = io::readInputFile<Hypergraph>(
+    "../tests/instances/twocenters.hgr", FileFormat::hMetis, true);
   PartitionID k = 2;
   PartitionedHypergraph phg(k, hg);
   phg.setNodePart(0, 1);
@@ -126,7 +133,7 @@ TEST(RollbackTests, GainRecalculation2) {
 
   FMSharedData sharedData(hg.initialNumNodes(), context);
 
-  GlobalRollback grb(hg, context);
+  GlobalRollback<TypeTraits, true> grb(hg.initialNumEdges(), context);
 
   auto performUpdates = [&](Move& m) {
    sharedData.moveTracker.insertMove(m);
@@ -146,9 +153,7 @@ TEST(RollbackTests, GainRecalculation2) {
   performUpdates(move_2);
 
   grb.recalculateGains(phg, sharedData);
-  grb.verifyGains<true>(phg, sharedData);
+  grb.verifyGains(phg, sharedData);
 }
-
-//#endif
 
 }   // namespace mt_kahypar

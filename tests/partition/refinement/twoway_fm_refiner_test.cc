@@ -28,7 +28,7 @@
 
 #include "tests/datastructures/hypergraph_fixtures.h"
 #include "mt-kahypar/definitions.h"
-#include "mt-kahypar/io/hypergraph_io.h"
+#include "mt-kahypar/io/hypergraph_factory.h"
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/initial_partitioning/bfs_initial_partitioner.h"
 #include "mt-kahypar/partition/refinement/fm/sequential_twoway_fm_refiner.h"
@@ -39,6 +39,10 @@ using ::testing::Test;
 namespace mt_kahypar {
 
 class ATwoWayFmRefiner : public Test {
+
+  using TypeTraits = StaticHypergraphTypeTraits;
+  using Hypergraph = typename TypeTraits::Hypergraph;
+  using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
 
  public:
   ATwoWayFmRefiner() :
@@ -61,22 +65,24 @@ class ATwoWayFmRefiner : public Test {
     context.initial_partitioning.runs = 1;
 
     // Read hypergraph
-    hypergraph = io::readHypergraphFile(
-      "../tests/instances/contracted_ibm01.hgr");
+    hypergraph = io::readInputFile<Hypergraph>(
+      "../tests/instances/contracted_ibm01.hgr", FileFormat::hMetis, true);
     partitioned_hypergraph = PartitionedHypergraph(
       context.partition.k, hypergraph, parallel_tag_t());
     context.setupPartWeights(hypergraph.totalWeight());
     initialPartition();
 
-    refiner = std::make_unique<SequentialTwoWayFmRefiner>(partitioned_hypergraph, context);
+    refiner = std::make_unique<SequentialTwoWayFmRefiner<TypeTraits>>(partitioned_hypergraph, context);
     prng = std::make_unique<std::mt19937>(420);
   }
 
   void initialPartition() {
     Context ip_context(context);
     ip_context.refinement.label_propagation.algorithm = LabelPropagationAlgorithm::do_nothing;
-    InitialPartitioningDataContainer ip_data(partitioned_hypergraph, ip_context);
-    BFSInitialPartitioner initial_partitioner(InitialPartitioningAlgorithm::bfs, ip_data, ip_context, 420, 0);
+    InitialPartitioningDataContainer<TypeTraits> ip_data(partitioned_hypergraph, ip_context);
+    ip_data_container_t* ip_data_ptr = ip::to_pointer(ip_data);
+    BFSInitialPartitioner<TypeTraits> initial_partitioner(
+      InitialPartitioningAlgorithm::bfs, ip_data_ptr, ip_context, 420, 0);
     initial_partitioner.partition();
     ip_data.apply();
     metrics.km1 = metrics::km1(partitioned_hypergraph);
@@ -87,7 +93,7 @@ class ATwoWayFmRefiner : public Test {
   Hypergraph hypergraph;
   PartitionedHypergraph partitioned_hypergraph;
   Context context;
-  std::unique_ptr<SequentialTwoWayFmRefiner> refiner;
+  std::unique_ptr<SequentialTwoWayFmRefiner<TypeTraits>> refiner;
   Metrics metrics;
   std::unique_ptr<std::mt19937> prng;
 };

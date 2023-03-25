@@ -28,31 +28,34 @@
 
 #include "tests/datastructures/hypergraph_fixtures.h"
 #include "mt-kahypar/definitions.h"
-#include "mt-kahypar/io/hypergraph_io.h"
+#include "mt-kahypar/io/hypergraph_factory.h"
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/registries/register_refinement_algorithms.cpp"
 #include "mt-kahypar/partition/initial_partitioning/bfs_initial_partitioner.h"
 #include "mt-kahypar/partition/refinement/label_propagation/label_propagation_refiner.h"
 #include "mt-kahypar/partition/refinement/policies/gain_policy.h"
 #include "mt-kahypar/utils/randomize.h"
+#include "mt-kahypar/utils/cast.h"
 
 using ::testing::Test;
 
 namespace mt_kahypar {
-template <PartitionID k, Objective objective>
+template <typename TypeTraitsT, PartitionID k, Objective objective>
 struct TestConfig { };
 
-template <PartitionID k>
-struct TestConfig<k, Objective::km1> {
-  using Refiner = LabelPropagationKm1Refiner;
+template <typename TypeTraitsT, PartitionID k>
+struct TestConfig<TypeTraitsT, k, Objective::km1> {
+  using TypeTraits = TypeTraitsT;
+  using Refiner = LabelPropagationKm1Refiner<TypeTraits>;
   static constexpr PartitionID K = k;
   static constexpr Objective OBJECTIVE = Objective::km1;
   static constexpr LabelPropagationAlgorithm LP_ALGO = LabelPropagationAlgorithm::label_propagation_km1;
 };
 
-template <PartitionID k>
-struct TestConfig<k, Objective::cut> {
-  using Refiner = LabelPropagationCutRefiner;
+template <typename TypeTraitsT, PartitionID k>
+struct TestConfig<TypeTraitsT, k, Objective::cut> {
+  using TypeTraits = TypeTraitsT;
+  using Refiner = LabelPropagationCutRefiner<TypeTraits>;
   static constexpr PartitionID K = k;
   static constexpr Objective OBJECTIVE = Objective::cut;
   static constexpr LabelPropagationAlgorithm LP_ALGO = LabelPropagationAlgorithm::label_propagation_cut;
@@ -60,11 +63,14 @@ struct TestConfig<k, Objective::cut> {
 
 template <typename Config>
 class ALabelPropagationRefiner : public Test {
-  using Refiner = typename Config::Refiner;
-
   static size_t num_threads;
 
  public:
+  using TypeTraits = typename Config::TypeTraits;
+  using Hypergraph = typename TypeTraits::Hypergraph;
+  using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
+  using Refiner = typename Config::Refiner;
+
   ALabelPropagationRefiner() :
     hypergraph(),
     partitioned_hypergraph(),
@@ -77,6 +83,14 @@ class ALabelPropagationRefiner : public Test {
     context.partition.objective = Config::OBJECTIVE;
     context.partition.epsilon = 0.25;
     context.partition.k = Config::K;
+    #ifdef KAHYPAR_ENABLE_N_LEVEL_PARTITIONING_FEATURES
+    context.partition.preset_type = Hypergraph::is_static_hypergraph ?
+     PresetType::default_preset : PresetType::quality_preset;
+    #else
+    context.partition.preset_type = PresetType::default_preset;
+    #endif
+    context.partition.instance_type = InstanceType::hypergraph;
+    context.partition.partition_type = PartitionedHypergraph::TYPE;
     context.partition.verbose_output = false;
 
     // Shared Memory
@@ -91,22 +105,26 @@ class ALabelPropagationRefiner : public Test {
     context.initial_partitioning.refinement.label_propagation.algorithm = Config::LP_ALGO;
 
     // Read hypergraph
-    hypergraph = io::readHypergraphFile(
-      "../tests/instances/contracted_unweighted_ibm01.hgr");
+    hypergraph = io::readInputFile<Hypergraph>(
+      "../tests/instances/contracted_unweighted_ibm01.hgr", FileFormat::hMetis, true);
     partitioned_hypergraph = PartitionedHypergraph(
       context.partition.k, hypergraph, parallel_tag_t());
     context.setupPartWeights(hypergraph.totalWeight());
     initialPartition();
 
-    refiner = std::make_unique<Refiner>(hypergraph, context);
-    refiner->initialize(partitioned_hypergraph);
+    refiner = std::make_unique<Refiner>(
+      hypergraph.initialNumNodes(), hypergraph.initialNumEdges(), context);
+    mt_kahypar_partitioned_hypergraph_t phg = utils::partitioned_hg_cast(partitioned_hypergraph);
+    refiner->initialize(phg);
   }
 
   void initialPartition() {
     Context ip_context(context);
     ip_context.refinement.label_propagation.algorithm = LabelPropagationAlgorithm::do_nothing;
-    InitialPartitioningDataContainer ip_data(partitioned_hypergraph, ip_context);
-    BFSInitialPartitioner initial_partitioner(InitialPartitioningAlgorithm::bfs, ip_data, ip_context, 420, 0);
+    InitialPartitioningDataContainer<TypeTraits> ip_data(partitioned_hypergraph, ip_context);
+    ip_data_container_t* ip_data_ptr = ip::to_pointer(ip_data);
+    BFSInitialPartitioner<TypeTraits> initial_partitioner(
+      InitialPartitioningAlgorithm::bfs, ip_data_ptr, ip_context, 420, 0);
     initial_partitioner.partition();
     ip_data.apply();
     metrics.km1 = metrics::km1(partitioned_hypergraph);
@@ -126,41 +144,53 @@ size_t ALabelPropagationRefiner<Config>::num_threads = HardwareTopology::instanc
 
 static constexpr double EPS = 0.05;
 
-typedef ::testing::Types<TestConfig<2, Objective::cut>,
-                         TestConfig<4, Objective::cut>,
-                         TestConfig<8, Objective::cut>,
-                         TestConfig<2, Objective::km1>,
-                         TestConfig<4, Objective::km1>,
-                         TestConfig<8, Objective::km1> > TestConfigs;
+typedef ::testing::Types<TestConfig<StaticHypergraphTypeTraits, 2, Objective::cut>,
+                         TestConfig<StaticHypergraphTypeTraits, 4, Objective::cut>,
+                         TestConfig<StaticHypergraphTypeTraits, 8, Objective::cut>,
+                         TestConfig<StaticHypergraphTypeTraits, 2, Objective::km1>,
+                         TestConfig<StaticHypergraphTypeTraits, 4, Objective::km1>,
+                         TestConfig<StaticHypergraphTypeTraits, 8, Objective::km1>
+                         ENABLE_N_LEVEL(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA 2 COMMA Objective::cut>)
+                         ENABLE_N_LEVEL(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA 4 COMMA Objective::cut>)
+                         ENABLE_N_LEVEL(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA 8 COMMA Objective::cut>)
+                         ENABLE_N_LEVEL(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA 2 COMMA Objective::km1>)
+                         ENABLE_N_LEVEL(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA 4 COMMA Objective::km1>)
+                         ENABLE_N_LEVEL(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA 8 COMMA Objective::km1>) > TestConfigs;
 
 TYPED_TEST_CASE(ALabelPropagationRefiner, TestConfigs);
 
 TYPED_TEST(ALabelPropagationRefiner, UpdatesImbalanceCorrectly) {
-  this->refiner->refine(this->partitioned_hypergraph, {}, this->metrics, std::numeric_limits<double>::max());
+  mt_kahypar_partitioned_hypergraph_t phg = utils::partitioned_hg_cast(this->partitioned_hypergraph);
+  this->refiner->refine(phg, {}, this->metrics, std::numeric_limits<double>::max());
   ASSERT_DOUBLE_EQ(metrics::imbalance(this->partitioned_hypergraph, this->context), this->metrics.imbalance);
 }
 
 TYPED_TEST(ALabelPropagationRefiner, DoesNotViolateBalanceConstraint) {
-  this->refiner->refine(this->partitioned_hypergraph, {}, this->metrics, std::numeric_limits<double>::max());
+  mt_kahypar_partitioned_hypergraph_t phg = utils::partitioned_hg_cast(this->partitioned_hypergraph);
+  this->refiner->refine(phg, {}, this->metrics, std::numeric_limits<double>::max());
   ASSERT_LE(this->metrics.imbalance, this->context.partition.epsilon + EPS);
 }
 
 TYPED_TEST(ALabelPropagationRefiner, UpdatesMetricsCorrectly) {
-  this->refiner->refine(this->partitioned_hypergraph, {}, this->metrics, std::numeric_limits<double>::max());
+  mt_kahypar_partitioned_hypergraph_t phg = utils::partitioned_hg_cast(this->partitioned_hypergraph);
+  this->refiner->refine(phg, {}, this->metrics, std::numeric_limits<double>::max());
   ASSERT_EQ(metrics::objective(this->partitioned_hypergraph, this->context.partition.objective),
             this->metrics.getMetric(Mode::direct, this->context.partition.objective));
 }
 
 TYPED_TEST(ALabelPropagationRefiner, DoesNotWorsenSolutionQuality) {
   HyperedgeWeight objective_before = metrics::objective(this->partitioned_hypergraph, this->context.partition.objective);
-  this->refiner->refine(this->partitioned_hypergraph, {}, this->metrics, std::numeric_limits<double>::max());
+  mt_kahypar_partitioned_hypergraph_t phg = utils::partitioned_hg_cast(this->partitioned_hypergraph);
+  this->refiner->refine(phg, {}, this->metrics, std::numeric_limits<double>::max());
   ASSERT_LE(this->metrics.getMetric(Mode::direct, this->context.partition.objective), objective_before);
 }
 
 
 TYPED_TEST(ALabelPropagationRefiner, IncreasesTheNumberOfBlocks) {
+  using PartitionedHypergraph = typename TestFixture::PartitionedHypergraph;
   HyperedgeWeight objective_before = metrics::objective(this->partitioned_hypergraph, this->context.partition.objective);
-  this->refiner->refine(this->partitioned_hypergraph, {}, this->metrics, std::numeric_limits<double>::max());
+  mt_kahypar_partitioned_hypergraph_t phg = utils::partitioned_hg_cast(this->partitioned_hypergraph);
+  this->refiner->refine(phg, {}, this->metrics, std::numeric_limits<double>::max());
   ASSERT_LE(this->metrics.getMetric(Mode::direct, this->context.partition.objective), objective_before);
 
   // Initialize partition with larger K
@@ -182,8 +212,9 @@ TYPED_TEST(ALabelPropagationRefiner, IncreasesTheNumberOfBlocks) {
   this->metrics.imbalance = metrics::imbalance(phg_with_larger_k, this->context);
 
   objective_before = metrics::objective(phg_with_larger_k, this->context.partition.objective);
-  this->refiner->initialize(phg_with_larger_k);
-  this->refiner->refine(phg_with_larger_k, {}, this->metrics, std::numeric_limits<double>::max());
+  mt_kahypar_partitioned_hypergraph_t phg_larger_k = utils::partitioned_hg_cast(phg_with_larger_k);
+  this->refiner->initialize(phg_larger_k);
+  this->refiner->refine(phg_larger_k, {}, this->metrics, std::numeric_limits<double>::max());
   ASSERT_LE(this->metrics.getMetric(Mode::direct, this->context.partition.objective), objective_before);
   ASSERT_EQ(metrics::objective(phg_with_larger_k, this->context.partition.objective),
             this->metrics.getMetric(Mode::direct, this->context.partition.objective));

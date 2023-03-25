@@ -210,15 +210,11 @@ struct FMSharedData {
   size_t getNumberOfPQHandles(const FMAlgorithm algorithm,
                               const PartitionID k,
                               const size_t numNodes) {
-    #ifdef KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES
     if (algorithm == FMAlgorithm::fm_gain_delta) {
       return numNodes * k;
+    } else {
+      return numNodes;
     }
-    #else
-    unused(algorithm);
-    unused(k);
-    #endif
-    return numNodes;
   }
 
   void changeNumberOfBlocks(const FMAlgorithm algorithm, const PartitionID new_k) {
