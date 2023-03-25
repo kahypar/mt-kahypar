@@ -104,240 +104,63 @@ struct LargeKHypergraphTypeTraits : public kahypar::meta::PolicyBase {
 };
 #endif
 
-
-#ifdef KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES
-#ifdef KAHYPAR_ENABLE_N_LEVEL_PARTITIONING_FEATURES
 #ifdef KAHYPAR_ENABLE_LARGE_K_PARTITIONING_FEATURES
-using TypeTraitsList = kahypar::meta::Typelist<
-  StaticGraphTypeTraits, DynamicGraphTypeTraits, StaticHypergraphTypeTraits,
-  DynamicHypergraphTypeTraits, LargeKHypergraphTypeTraits>;
+#define ENABLE_LARGE_K(X) X
 #else
-using TypeTraitsList = kahypar::meta::Typelist<
-  StaticGraphTypeTraits, DynamicGraphTypeTraits,
-  StaticHypergraphTypeTraits, DynamicHypergraphTypeTraits>;
-#endif
-#else
-#ifdef KAHYPAR_ENABLE_LARGE_K_PARTITIONING_FEATURES
-using TypeTraitsList = kahypar::meta::Typelist<
-  StaticGraphTypeTraits, StaticHypergraphTypeTraits, LargeKHypergraphTypeTraits>;
-#else
-using TypeTraitsList = kahypar::meta::Typelist<StaticGraphTypeTraits, StaticHypergraphTypeTraits>;
-#endif
-#endif
-#else
-#ifdef KAHYPAR_ENABLE_N_LEVEL_PARTITIONING_FEATURES
-#ifdef KAHYPAR_ENABLE_LARGE_K_PARTITIONING_FEATURES
-using TypeTraitsList = kahypar::meta::Typelist<
-  StaticGraphTypeTraits, StaticHypergraphTypeTraits, LargeKHypergraphTypeTraits>;
-#else
-using TypeTraitsList = kahypar::meta::Typelist<StaticHypergraphTypeTraits, DynamicHypergraphTypeTraits>;
-#endif
-#else
-#ifdef KAHYPAR_ENABLE_LARGE_K_PARTITIONING_FEATURES
-using TypeTraitsList = kahypar::meta::Typelist<StaticHypergraphTypeTraits, LargeKHypergraphTypeTraits>;
-#else
-using TypeTraitsList = kahypar::meta::Typelist<StaticHypergraphTypeTraits>;
-#endif
-#endif
+#define ENABLE_LARGE_K(X)
 #endif
 
-
-
-#ifdef KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES
 #ifdef KAHYPAR_ENABLE_N_LEVEL_PARTITIONING_FEATURES
-#define INSTANTIATE_FUNC_WITH_HYPERGRAPHS(FUNC)     \
-  template FUNC(ds::StaticHypergraph);              \
-  template FUNC(ds::DynamicHypergraph);             \
-  template FUNC(ds::StaticGraph);                   \
-  template FUNC(ds::DynamicGraph);
+#define ENABLE_N_LEVEL(X) X
 #else
-#define INSTANTIATE_FUNC_WITH_HYPERGRAPHS(FUNC)     \
-  template FUNC(ds::StaticHypergraph);              \
-  template FUNC(ds::StaticGraph);
-#endif
-#else
-#ifdef KAHYPAR_ENABLE_N_LEVEL_PARTITIONING_FEATURES
-#define INSTANTIATE_FUNC_WITH_HYPERGRAPHS(FUNC)     \
-  template FUNC(ds::StaticHypergraph);              \
-  template FUNC(ds::DynamicHypergraph);
-#else
-#define INSTANTIATE_FUNC_WITH_HYPERGRAPHS(FUNC)     \
-  template FUNC(ds::StaticHypergraph);
-#endif
+#define ENABLE_N_LEVEL(X)
 #endif
 
 #ifdef KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES
-#ifdef KAHYPAR_ENABLE_N_LEVEL_PARTITIONING_FEATURES
-#ifdef KAHYPAR_ENABLE_LARGE_K_PARTITIONING_FEATURES
-#define INSTANTIATE_FUNC_WITH_PARTITIONED_HG(FUNC)  \
-  template FUNC(StaticPartitionedGraph);            \
-  template FUNC(DynamicPartitionedGraph);           \
-  template FUNC(StaticPartitionedHypergraph);       \
-  template FUNC(StaticSparsePartitionedHypergraph); \
-  template FUNC(DynamicPartitionedHypergraph);
+#define ENABLE_GRAPHS(X) X
 #else
-#define INSTANTIATE_FUNC_WITH_PARTITIONED_HG(FUNC)  \
-  template FUNC(StaticPartitionedGraph);            \
-  template FUNC(DynamicPartitionedGraph);           \
-  template FUNC(StaticPartitionedHypergraph);       \
-  template FUNC(DynamicPartitionedHypergraph);
-#endif
-#else
-#ifdef KAHYPAR_ENABLE_LARGE_K_PARTITIONING_FEATURES
-#define INSTANTIATE_FUNC_WITH_PARTITIONED_HG(FUNC)  \
-  template FUNC(StaticPartitionedGraph);            \
-  template FUNC(StaticPartitionedHypergraph);       \
-  template FUNC(StaticSparsePartitionedHypergraph);
-#else
-#define INSTANTIATE_FUNC_WITH_PARTITIONED_HG(FUNC)  \
-  template FUNC(StaticPartitionedGraph);            \
-  template FUNC(StaticPartitionedHypergraph);
-#endif
-#endif
-#else
-#ifdef KAHYPAR_ENABLE_N_LEVEL_PARTITIONING_FEATURES
-#ifdef KAHYPAR_ENABLE_LARGE_K_PARTITIONING_FEATURES
-#define INSTANTIATE_FUNC_WITH_PARTITIONED_HG(FUNC)  \
-  template FUNC(StaticPartitionedHypergraph);       \
-  template FUNC(StaticSparsePartitionedHypergraph); \
-  template FUNC(DynamicPartitionedHypergraph);
-#else
-#define INSTANTIATE_FUNC_WITH_PARTITIONED_HG(FUNC)  \
-  template FUNC(StaticPartitionedHypergraph);       \
-  template FUNC(DynamicPartitionedHypergraph);
-#endif
-#else
-#define INSTANTIATE_FUNC_WITH_PARTITIONED_HG(FUNC)  \
-  template FUNC(StaticPartitionedHypergraph);
-#endif
+#define ENABLE_GRAPHS(X)
 #endif
 
-#ifdef KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES
-#ifdef KAHYPAR_ENABLE_N_LEVEL_PARTITIONING_FEATURES
-#ifdef KAHYPAR_ENABLE_LARGE_K_PARTITIONING_FEATURES
-#define INSTANTIATE_CLASS_MACRO_WITH_TYPE_TRAITS(C) \
-  template class C(StaticGraphTypeTraits);          \
-  template class C(DynamicGraphTypeTraits);         \
-  template class C(StaticHypergraphTypeTraits);     \
-  template class C(DynamicHypergraphTypeTraits);    \
-  template class C(LargeKHypergraphTypeTraits);
-#else
-#define INSTANTIATE_CLASS_MACRO_WITH_TYPE_TRAITS(C) \
-  template class C(StaticGraphTypeTraits);          \
-  template class C(DynamicGraphTypeTraits);         \
-  template class C(StaticHypergraphTypeTraits);     \
-  template class C(DynamicHypergraphTypeTraits);
-#endif
-#else
-#ifdef KAHYPAR_ENABLE_LARGE_K_PARTITIONING_FEATURES
-#define INSTANTIATE_CLASS_MACRO_WITH_TYPE_TRAITS(C) \
-  template class C(StaticGraphTypeTraits);          \
-  template class C(StaticHypergraphTypeTraits);     \
-  template class C(LargeKHypergraphTypeTraits);
-#else
-#define INSTANTIATE_CLASS_MACRO_WITH_TYPE_TRAITS(C) \
-  template class C(StaticGraphTypeTraits);          \
-  template class C(StaticHypergraphTypeTraits);
-#endif
-#endif
-#else
-#ifdef KAHYPAR_ENABLE_N_LEVEL_PARTITIONING_FEATURES
-#ifdef KAHYPAR_ENABLE_LARGE_K_PARTITIONING_FEATURES
-#define INSTANTIATE_CLASS_MACRO_WITH_TYPE_TRAITS(C) \
-  template class C(StaticHypergraphTypeTraits);     \
-  template class C(DynamicHypergraphTypeTraits);    \
-  template class C(LargeKHypergraphTypeTraits);
-#else
-#define INSTANTIATE_CLASS_MACRO_WITH_TYPE_TRAITS(C) \
-  template class C(StaticHypergraphTypeTraits);     \
-  template class C(DynamicHypergraphTypeTraits);
-#endif
-#else
-#ifdef KAHYPAR_ENABLE_LARGE_K_PARTITIONING_FEATURES
-#define INSTANTIATE_CLASS_MACRO_WITH_TYPE_TRAITS(C) \
-  template class C(StaticHypergraphTypeTraits);     \
-  template class C(LargeKHypergraphTypeTraits);
-#else
-#define INSTANTIATE_CLASS_MACRO_WITH_TYPE_TRAITS(C) \
-  template class C(StaticHypergraphTypeTraits);
-#endif
-#endif
-#endif
+#define COMMA ,
+using TypeTraitsList = kahypar::meta::Typelist<StaticHypergraphTypeTraits
+                                               ENABLE_N_LEVEL(COMMA DynamicHypergraphTypeTraits)
+                                               ENABLE_LARGE_K(COMMA LargeKHypergraphTypeTraits)
+                                               ENABLE_GRAPHS(COMMA StaticGraphTypeTraits)
+                                               ENABLE_GRAPHS(ENABLE_N_LEVEL(COMMA DynamicGraphTypeTraits))>;
 
-#ifdef KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES
-#ifdef KAHYPAR_ENABLE_N_LEVEL_PARTITIONING_FEATURES
-#ifdef KAHYPAR_ENABLE_LARGE_K_PARTITIONING_FEATURES
-#define INSTANTIATE_CLASS_WITH_TYPE_TRAITS(C)       \
-  template class C<StaticGraphTypeTraits>;          \
-  template class C<DynamicGraphTypeTraits>;         \
-  template class C<StaticHypergraphTypeTraits>;     \
-  template class C<DynamicHypergraphTypeTraits>;    \
-  template class C<LargeKHypergraphTypeTraits>;
-#else
-#define INSTANTIATE_CLASS_WITH_TYPE_TRAITS(C)       \
-  template class C<StaticGraphTypeTraits>;          \
-  template class C<DynamicGraphTypeTraits>;         \
-  template class C<StaticHypergraphTypeTraits>;     \
-  template class C<DynamicHypergraphTypeTraits>;
-#endif
-#else
-#ifdef KAHYPAR_ENABLE_LARGE_K_PARTITIONING_FEATURES
-#define INSTANTIATE_CLASS_WITH_TYPE_TRAITS(C)       \
-  template class C<StaticGraphTypeTraits>;          \
-  template class C<StaticHypergraphTypeTraits>;     \
-  template class C<LargeKHypergraphTypeTraits>;
-#else
-#define INSTANTIATE_CLASS_WITH_TYPE_TRAITS(C)       \
-  template class C<StaticGraphTypeTraits>;          \
-  template class C<StaticHypergraphTypeTraits>;
-#endif
-#endif
-#else
-#ifdef KAHYPAR_ENABLE_N_LEVEL_PARTITIONING_FEATURES
-#ifdef KAHYPAR_ENABLE_LARGE_K_PARTITIONING_FEATURES
-#define INSTANTIATE_CLASS_WITH_TYPE_TRAITS(C)       \
-  template class C<StaticHypergraphTypeTraits>;     \
-  template class C<DynamicHypergraphTypeTraits>;    \
-  template class C<LargeKHypergraphTypeTraits>;
-#else
-#define INSTANTIATE_CLASS_WITH_TYPE_TRAITS(C)       \
-  template class C<StaticHypergraphTypeTraits>;     \
-  template class C<DynamicHypergraphTypeTraits>;
-#endif
-#else
-#ifdef KAHYPAR_ENABLE_LARGE_K_PARTITIONING_FEATURES
-#define INSTANTIATE_CLASS_WITH_TYPE_TRAITS(C)       \
-  template class C<StaticHypergraphTypeTraits>;     \
-  template class C<LargeKHypergraphTypeTraits>;
-#else
-#define INSTANTIATE_CLASS_WITH_TYPE_TRAITS(C)       \
-  template class C<StaticHypergraphTypeTraits>;
-#endif
-#endif
-#endif
+#define INSTANTIATE_FUNC_WITH_HYPERGRAPHS(FUNC)                    \
+  template FUNC(ds::StaticHypergraph);                             \
+  ENABLE_N_LEVEL(template FUNC(ds::DynamicHypergraph);)            \
+  ENABLE_GRAPHS(template FUNC(ds::StaticGraph);)                   \
+  ENABLE_GRAPHS(ENABLE_N_LEVEL(template FUNC(ds::DynamicGraph);))
 
-#ifdef KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES
-#ifdef KAHYPAR_ENABLE_N_LEVEL_PARTITIONING_FEATURES
-#define INSTANTIATE_CLASS_WITH_HYPERGRAPHS(C) \
-  template class C<ds::StaticHypergraph>;     \
-  template class C<ds::DynamicHypergraph>;    \
-  template class C<ds::StaticGraph>;          \
-  template class C<ds::DynamicGraph>;
-#else
-#define INSTANTIATE_CLASS_WITH_HYPERGRAPHS(C) \
-  template class C<ds::StaticHypergraph>;     \
-  template class C<ds::StaticGraph>;
-#endif
-#else
-#ifdef KAHYPAR_ENABLE_N_LEVEL_PARTITIONING_FEATURES
-#define INSTANTIATE_CLASS_WITH_HYPERGRAPHS(C) \
-  template class C<ds::StaticHypergraph>;     \
-  template class C<ds::DynamicHypergraph>;
-#else
-#define INSTANTIATE_CLASS_WITH_HYPERGRAPHS(C) \
-  template class C<ds::StaticHypergraph>;
-#endif
-#endif
+#define INSTANTIATE_CLASS_WITH_HYPERGRAPHS(C)                         \
+  template class C<ds::StaticHypergraph>;                             \
+  ENABLE_N_LEVEL(template class C<ds::DynamicHypergraph>;)            \
+  ENABLE_GRAPHS(template class C<ds::StaticGraph>;)                   \
+  ENABLE_GRAPHS(ENABLE_N_LEVEL(template class C<ds::DynamicGraph>;))
+
+#define INSTANTIATE_FUNC_WITH_PARTITIONED_HG(FUNC)                       \
+  template FUNC(StaticPartitionedHypergraph);                            \
+  ENABLE_LARGE_K(template FUNC(StaticSparsePartitionedHypergraph);)      \
+  ENABLE_N_LEVEL(template FUNC(DynamicPartitionedHypergraph);)           \
+  ENABLE_GRAPHS(template FUNC(StaticPartitionedGraph);)                  \
+  ENABLE_GRAPHS(ENABLE_N_LEVEL(template FUNC(DynamicPartitionedGraph);))
+
+#define INSTANTIATE_CLASS_MACRO_WITH_TYPE_TRAITS(C)                          \
+  template class C(StaticHypergraphTypeTraits);                              \
+  ENABLE_N_LEVEL(template class C(DynamicHypergraphTypeTraits);)             \
+  ENABLE_LARGE_K(template class C(LargeKHypergraphTypeTraits);)              \
+  ENABLE_GRAPHS(template class C(StaticGraphTypeTraits);)                    \
+  ENABLE_GRAPHS(ENABLE_N_LEVEL(template class C(DynamicGraphTypeTraits);))
+
+#define INSTANTIATE_CLASS_WITH_TYPE_TRAITS(C)                               \
+  template class C<StaticHypergraphTypeTraits>;                             \
+  ENABLE_N_LEVEL(template class C<DynamicHypergraphTypeTraits>;)            \
+  ENABLE_LARGE_K(template class C<LargeKHypergraphTypeTraits>;)             \
+  ENABLE_GRAPHS(template class C<StaticGraphTypeTraits>;)                   \
+  ENABLE_LARGE_K(ENABLE_N_LEVEL(template class C<DynamicGraphTypeTraits>;))
 
 using HighResClockTimepoint = std::chrono::time_point<std::chrono::high_resolution_clock>;
 
