@@ -36,15 +36,20 @@ using Hypergraph = ds::StaticHypergraph;
 using PartitionedHypergraph = ds::PartitionedHypergraph<Hypergraph, ds::ConnectivityInfo>;
 using HighResClockTimepoint = std::chrono::time_point<std::chrono::high_resolution_clock>;
 
-#ifdef KAHYPAR_ENABLE_N_LEVEL_PARTITIONING_FEATURES
-using HypergraphTestTypes = ::testing::Types<ds::StaticHypergraph, ds::DynamicHypergraph>;
-using GraphTestTypes = ::testing::Types<ds::StaticGraph, ds::DynamicGraph>;
-using GraphAndHypergraphTestTypes = ::testing::Types<
-  ds::StaticHypergraph, ds::DynamicHypergraph, ds::StaticGraph, ds::DynamicGraph>;
-#else
-using HypergraphTestTypes = ::testing::Types<ds::StaticHypergraph>;
-using GraphTestTypes = ::testing::Types<ds::StaticGraph>;
-using GraphAndHypergraphTestTypes = ::testing::Types<ds::StaticHypergraph, ds::StaticGraph>;
-#endif
+using HypergraphTestTypes = ::testing::Types<ds::StaticHypergraph
+                                             ENABLE_N_LEVEL(COMMA ds::DynamicHypergraph)>;
+using GraphTestTypes = ::testing::Types<ENABLE_GRAPHS(ds::StaticGraph)
+                                        ENABLE_GRAPHS(ENABLE_N_LEVEL(COMMA ds::DynamicGraph))>;
+using GraphAndHypergraphTestTypes = ::testing::Types<ds::StaticHypergraph
+                                                     ENABLE_N_LEVEL(COMMA ds::DynamicHypergraph)
+                                                     ENABLE_GRAPHS(COMMA ds::StaticGraph)
+                                                     ENABLE_GRAPHS(ENABLE_N_LEVEL(COMMA ds::DynamicGraph))>;
+
+
+using HypergraphTestTypeTraits = ::testing::Types<StaticHypergraphTypeTraits
+                                                  ENABLE_N_LEVEL(COMMA DynamicHypergraphTypeTraits)
+                                                  ENABLE_LARGE_K(COMMA LargeKHypergraphTypeTraits)>;
+using GraphTestTypeTraits = ::testing::Types<ENABLE_GRAPHS(StaticGraphTypeTraits)
+                                             ENABLE_GRAPHS(ENABLE_N_LEVEL(COMMA DynamicGraphTypeTraits))>;
 
 }  // namespace mt_kahypar::tests

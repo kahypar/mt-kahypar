@@ -31,53 +31,69 @@
 
 #include "mt-kahypar/macros.h"
 
-#include <mt-kahypar/definitions.h>
-#include <mt-kahypar/io/hypergraph_io.h>
+#include "tests/definitions.h"
+#include "mt-kahypar/io/hypergraph_factory.h"
 
 using ::testing::Test;
 
 namespace mt_kahypar {
 namespace ds {
 
-TEST(GainUpdates, Example1) {
-  Hypergraph hg = io::readHypergraphFile("../tests/instances/twocenters.hgr", 0);
-  PartitionID k = 2;
-  mt_kahypar::PartitionedHypergraph phg(k, hg);
+template<typename TypeTraits>
+class AGainUpdate : public Test {
 
-  phg.setNodePart(0, 0);
-  phg.setNodePart(1, 0);
+  using Hypergraph = typename TypeTraits::Hypergraph;
+  using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
+
+ public:
+  AGainUpdate() :
+    hg(io::readInputFile<Hypergraph>(
+      "../tests/instances/twocenters.hgr", FileFormat::hMetis, true)),
+    phg() {
+    phg = PartitionedHypergraph(2, hg);
+  }
+
+  Hypergraph hg;
+  PartitionedHypergraph phg;
+};
+
+TYPED_TEST_CASE(AGainUpdate, tests::HypergraphTestTypeTraits);
+
+TYPED_TEST(AGainUpdate, Example1) {
+  this->phg.setNodePart(0, 0);
+  this->phg.setNodePart(1, 0);
   for (HypernodeID u = 4; u < 12; ++u) {
-    phg.setNodePart(u, 0);
+    this->phg.setNodePart(u, 0);
   }
 
-  phg.setNodePart(2, 1);
-  phg.setNodePart(3, 1);
+  this->phg.setNodePart(2, 1);
+  this->phg.setNodePart(3, 1);
   for (HypernodeID u = 12; u < 20; ++u) {
-    phg.setNodePart(u, 1);
+    this->phg.setNodePart(u, 1);
   }
 
-  ASSERT_EQ(phg.partWeight(0), phg.partWeight(1));
-  ASSERT_EQ(phg.partWeight(0), 10);
+  ASSERT_EQ(this->phg.partWeight(0), this->phg.partWeight(1));
+  ASSERT_EQ(this->phg.partWeight(0), 10);
 
-    phg.initializeGainCache();
-  ASSERT_EQ(phg.km1Gain(0, phg.partID(0), 1), -1);
-  ASSERT_EQ(phg.moveFromPenalty(0), 2);
-  ASSERT_EQ(phg.moveToBenefit(0, 1), 1);
+  this->phg.initializeGainCache();
+  ASSERT_EQ(this->phg.km1Gain(0, this->phg.partID(0), 1), -1);
+  ASSERT_EQ(this->phg.moveFromPenalty(0), 2);
+  ASSERT_EQ(this->phg.moveToBenefit(0, 1), 1);
 
-  ASSERT_EQ(phg.km1Gain(2, phg.partID(2), 0), -1);
+  ASSERT_EQ(this->phg.km1Gain(2, this->phg.partID(2), 0), -1);
 
-  ASSERT_EQ(phg.km1Gain(4, phg.partID(4), 1), -1);
-  ASSERT_EQ(phg.km1Gain(6, phg.partID(6), 1), -2);
+  ASSERT_EQ(this->phg.km1Gain(4, this->phg.partID(4), 1), -1);
+  ASSERT_EQ(this->phg.km1Gain(6, this->phg.partID(6), 1), -2);
 
-  ASSERT_EQ(phg.km1Gain(12, phg.partID(12), 0), -1);
-  ASSERT_EQ(phg.km1Gain(14, phg.partID(14), 0), -2);
+  ASSERT_EQ(this->phg.km1Gain(12, this->phg.partID(12), 0), -1);
+  ASSERT_EQ(this->phg.km1Gain(14, this->phg.partID(14), 0), -2);
 
-    phg.changeNodePartWithGainCacheUpdate(8, 0, 1);
+    this->phg.changeNodePartWithGainCacheUpdate(8, 0, 1);
 
-  phg.recomputeMoveFromPenalty(8);  // nodes are allowed to move once before moveFromPenalty must be recomputed
-  ASSERT_EQ(phg.km1Gain(8, 1, 0), 2);
+  this->phg.recomputeMoveFromPenalty(8);  // nodes are allowed to move once before moveFromPenalty must be recomputed
+  ASSERT_EQ(this->phg.km1Gain(8, 1, 0), 2);
 
-  ASSERT_EQ(phg.km1Gain(6, 0, 1), 0);
+  ASSERT_EQ(this->phg.km1Gain(6, 0, 1), 0);
 }
 
 

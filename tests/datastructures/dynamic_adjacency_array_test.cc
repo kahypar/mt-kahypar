@@ -77,15 +77,6 @@ void verifyEdges(HyperedgeID expected_num_edges, const DynamicAdjacencyArray& ad
   ASSERT_EQ(num_edges, expected_num_edges);
 }
 
-kahypar::ds::FastResetFlagArray<> createFlagArray(const HypernodeID num_nodes,
-                                                  const std::vector<HypernodeID>& contained_nodes) {
-  kahypar::ds::FastResetFlagArray<> flag_array(num_nodes);
-  for ( const HypernodeID& node : contained_nodes ) {
-    flag_array.set(node, true);
-  }
-  return flag_array;
-}
-
 void verifyEdgeWeight(const DynamicAdjacencyArray& adjacency_array, HyperedgeID source,
                       HyperedgeID target, HyperedgeWeight weight) {
   bool found = false;

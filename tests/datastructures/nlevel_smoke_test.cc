@@ -29,39 +29,22 @@
 #include <set>
 
 #include "mt-kahypar/definitions.h"
-#ifdef ENABLE_GRAPH_PARTITIONER
-#include "mt-kahypar/datastructures/dynamic_graph.h"
-#include "mt-kahypar/datastructures/dynamic_graph_factory.h"
-#include "mt-kahypar/datastructures/partitioned_graph.h"
-#else
-#include "mt-kahypar/datastructures/dynamic_hypergraph.h"
-#include "mt-kahypar/datastructures/dynamic_hypergraph_factory.h"
-#include "mt-kahypar/datastructures/partitioned_hypergraph.h"
-#endif
 #include "mt-kahypar/partition/metrics.h"
 #include "mt-kahypar/utils/randomize.h"
 
 namespace mt_kahypar {
 namespace ds {
 
-#ifdef ENABLE_GRAPH_PARTITIONER
-using DynamicHypergraphT = DynamicGraph;
-using DynamicHypergraphFactoryT = DynamicGraphFactory;
-using DynamicPartitionedHypergraphT = PartitionedGraph<DynamicHypergraphT, DynamicHypergraphFactoryT>;
-#else
-using DynamicHypergraphT = DynamicHypergraph;
-using DynamicHypergraphFactoryT = DynamicHypergraphFactory;
-using DynamicPartitionedHypergraphT = PartitionedHypergraph<DynamicHypergraphT, DynamicHypergraphFactoryT>;
-#endif
 
-void verifyEqualityOfHypergraphs(const DynamicHypergraphT& e_hypergraph,
-                                 const DynamicHypergraphT& a_hypergraph) {
-  DynamicHypergraphT expected_hypergraph = e_hypergraph.copy();
-  DynamicHypergraphT actual_hypergraph = a_hypergraph.copy();
-  #ifdef ENABLE_GRAPH_PARTITIONER
-  expected_hypergraph.sortIncidentEdges();
-  actual_hypergraph.sortIncidentEdges();
-  #endif
+template<typename Hypergraph>
+void verifyEqualityOfHypergraphs(const Hypergraph& e_hypergraph,
+                                 const Hypergraph& a_hypergraph) {
+  Hypergraph expected_hypergraph = e_hypergraph.copy();
+  Hypergraph actual_hypergraph = a_hypergraph.copy();
+  if constexpr ( Hypergraph::is_graph ) {
+    expected_hypergraph.sortIncidentEdges();
+    actual_hypergraph.sortIncidentEdges();
+  }
 
   parallel::scalable_vector<HyperedgeID> expected_incident_edges;
   parallel::scalable_vector<HyperedgeID> actual_incident_edges;
@@ -79,54 +62,56 @@ void verifyEqualityOfHypergraphs(const DynamicHypergraphT& e_hypergraph,
     std::sort(actual_incident_edges.begin(), actual_incident_edges.end());
     ASSERT_EQ(expected_incident_edges.size(), actual_incident_edges.size());
 
-    #ifdef ENABLE_GRAPH_PARTITIONER
-    for ( size_t i = 0; i < expected_incident_edges.size(); ++i ) {
-      HyperedgeID exp = expected_incident_edges[i];
-      HyperedgeID act = actual_incident_edges[i];
-      ASSERT_EQ(expected_hypergraph.edgeSource(exp), actual_hypergraph.edgeSource(act));
-      ASSERT_EQ(expected_hypergraph.edgeTarget(exp), actual_hypergraph.edgeTarget(act));
-      ASSERT_EQ(expected_hypergraph.edgeWeight(exp), actual_hypergraph.edgeWeight(act));
+    if constexpr ( Hypergraph::is_graph ) {
+      for ( size_t i = 0; i < expected_incident_edges.size(); ++i ) {
+        HyperedgeID exp = expected_incident_edges[i];
+        HyperedgeID act = actual_incident_edges[i];
+        ASSERT_EQ(expected_hypergraph.edgeSource(exp), actual_hypergraph.edgeSource(act));
+        ASSERT_EQ(expected_hypergraph.edgeTarget(exp), actual_hypergraph.edgeTarget(act));
+        ASSERT_EQ(expected_hypergraph.edgeWeight(exp), actual_hypergraph.edgeWeight(act));
+      }
+    } else {
+      for ( size_t i = 0; i < expected_incident_edges.size(); ++i ) {
+        ASSERT_EQ(expected_incident_edges[i], actual_incident_edges[i]);
+      }
     }
-    #else
-    for ( size_t i = 0; i < expected_incident_edges.size(); ++i ) {
-      ASSERT_EQ(expected_incident_edges[i], actual_incident_edges[i]);
-    }
-    #endif
     expected_incident_edges.clear();
     actual_incident_edges.clear();
   }
 
-  #ifndef ENABLE_GRAPH_PARTITIONER
-  parallel::scalable_vector<HypernodeID> expected_pins;
-  parallel::scalable_vector<HypernodeID> actual_pins;
-  for ( const HyperedgeID& he : expected_hypergraph.edges() ) {
-    for ( const HyperedgeID he : expected_hypergraph.pins(he) ) {
-      expected_pins.push_back(he);
+  if constexpr ( !Hypergraph::is_graph ) {
+    parallel::scalable_vector<HypernodeID> expected_pins;
+    parallel::scalable_vector<HypernodeID> actual_pins;
+    for ( const HyperedgeID& he : expected_hypergraph.edges() ) {
+      for ( const HyperedgeID he : expected_hypergraph.pins(he) ) {
+        expected_pins.push_back(he);
+      }
+      for ( const HyperedgeID he : actual_hypergraph.pins(he) ) {
+        actual_pins.push_back(he);
+      }
+      std::sort(expected_pins.begin(), expected_pins.end());
+      std::sort(actual_pins.begin(), actual_pins.end());
+      ASSERT_EQ(expected_pins.size(), actual_pins.size());
+      for ( size_t i = 0; i < expected_pins.size(); ++i ) {
+        ASSERT_EQ(expected_pins[i], actual_pins[i]);
+      }
+      expected_pins.clear();
+      actual_pins.clear();
     }
-    for ( const HyperedgeID he : actual_hypergraph.pins(he) ) {
-      actual_pins.push_back(he);
-    }
-    std::sort(expected_pins.begin(), expected_pins.end());
-    std::sort(actual_pins.begin(), actual_pins.end());
-    ASSERT_EQ(expected_pins.size(), actual_pins.size());
-    for ( size_t i = 0; i < expected_pins.size(); ++i ) {
-      ASSERT_EQ(expected_pins[i], actual_pins[i]);
-    }
-    expected_pins.clear();
-    actual_pins.clear();
   }
-  #endif
 }
 
-HyperedgeWeight compute_km1(DynamicPartitionedHypergraphT& partitioned_hypergraph) {
+template<typename PartitionedHypergraph>
+HyperedgeWeight compute_km1(PartitionedHypergraph& partitioned_hypergraph) {
   HyperedgeWeight km1 = 0;
   for (const HyperedgeID& he : partitioned_hypergraph.edges()) {
     km1 += std::max(partitioned_hypergraph.connectivity(he) - 1, 0) * partitioned_hypergraph.edgeWeight(he);
   }
-  return DynamicHypergraphT::is_graph ? km1 / 2 : km1;
+  return PartitionedHypergraph::is_graph ? km1 / 2 : km1;
 }
 
-void verifyGainCache(DynamicPartitionedHypergraphT& partitioned_hypergraph) {
+template<typename PartitionedHypergraph>
+void verifyGainCache(PartitionedHypergraph& partitioned_hypergraph) {
   const PartitionID k = partitioned_hypergraph.k();
   utils::Randomize& rand = utils::Randomize::instance();
   HyperedgeWeight km1_before = compute_km1(partitioned_hypergraph);
@@ -142,7 +127,8 @@ void verifyGainCache(DynamicPartitionedHypergraphT& partitioned_hypergraph) {
   ASSERT_EQ(expected_gain, km1_before - km1_after) << V(expected_gain) << V(km1_before) << V(km1_after);
 }
 
-void verifyNumIncidentCutHyperedges(const DynamicPartitionedHypergraphT& partitioned_hypergraph) {
+template<typename PartitionedHypergraph>
+void verifyNumIncidentCutHyperedges(const PartitionedHypergraph& partitioned_hypergraph) {
   partitioned_hypergraph.doParallelForAllNodes([&](const HypernodeID& hn) {
     HypernodeID expected_num_cut_hyperedges = 0;
     for ( const HyperedgeID& he : partitioned_hypergraph.incidentEdges(hn) ) {
@@ -154,41 +140,43 @@ void verifyNumIncidentCutHyperedges(const DynamicPartitionedHypergraphT& partiti
   });
 }
 
-DynamicHypergraphT generateRandomHypergraph(const HypernodeID num_hypernodes,
-                                           const HyperedgeID num_hyperedges,
-                                           const HypernodeID max_edge_size) {
+template<typename Hypergraph>
+Hypergraph generateRandomHypergraph(const HypernodeID num_hypernodes,
+                                            const HyperedgeID num_hyperedges,
+                                            const HypernodeID max_edge_size) {
+  using Factory = typename Hypergraph::Factory;
   parallel::scalable_vector<parallel::scalable_vector<HypernodeID>> hyperedges;
   utils::Randomize& rand = utils::Randomize::instance();
 
-  #ifdef ENABLE_GRAPH_PARTITIONER
   std::set<std::pair<HypernodeID, HypernodeID>> graph_edges;
-  for ( size_t i = 0; i < num_hypernodes; ++i ) {
-    graph_edges.insert({i, i});
+  if constexpr ( Hypergraph::is_graph ) {
+    for ( size_t i = 0; i < num_hypernodes; ++i ) {
+      graph_edges.insert({i, i});
+    }
   }
-  #endif
 
   for ( size_t i = 0; i < num_hyperedges; ++i ) {
     parallel::scalable_vector<HypernodeID> net;
-    #ifdef ENABLE_GRAPH_PARTITIONER
-    unused(max_edge_size);
-    std::pair<HypernodeID, HypernodeID> edge{rand.getRandomInt(0, num_hypernodes - 1, SCHED_GETCPU),
-                                             rand.getRandomInt(0, num_hypernodes - 1, SCHED_GETCPU)};
-    graph_edges.insert({edge});
-    graph_edges.insert({edge.first, edge.second});
-    net.push_back(edge.first);
-    net.push_back(edge.second);
-    #else
-    const size_t edge_size = rand.getRandomInt(2, max_edge_size, SCHED_GETCPU);
-    for ( size_t i = 0; i < edge_size; ++i ) {
-      const HypernodeID pin = rand.getRandomInt(0, num_hypernodes - 1, SCHED_GETCPU);
-      if ( std::find(net.begin(), net.end(), pin) == net.end() ) {
-        net.push_back(pin);
+    if constexpr ( Hypergraph::is_graph ) {
+      unused(max_edge_size);
+      std::pair<HypernodeID, HypernodeID> edge{rand.getRandomInt(0, num_hypernodes - 1, SCHED_GETCPU),
+                                               rand.getRandomInt(0, num_hypernodes - 1, SCHED_GETCPU)};
+      graph_edges.insert({edge});
+      graph_edges.insert({edge.first, edge.second});
+      net.push_back(edge.first);
+      net.push_back(edge.second);
+    } else {
+      const size_t edge_size = rand.getRandomInt(2, max_edge_size, SCHED_GETCPU);
+      for ( size_t i = 0; i < edge_size; ++i ) {
+        const HypernodeID pin = rand.getRandomInt(0, num_hypernodes - 1, SCHED_GETCPU);
+        if ( std::find(net.begin(), net.end(), pin) == net.end() ) {
+          net.push_back(pin);
+        }
       }
     }
-    #endif
     hyperedges.emplace_back(std::move(net));
   }
-  return DynamicHypergraphFactoryT::construct(num_hypernodes, num_hyperedges, hyperedges);
+  return Factory::construct(num_hypernodes, num_hyperedges, hyperedges);
 }
 
 BatchVector generateRandomContractions(const HypernodeID num_hypernodes,
@@ -221,7 +209,8 @@ BatchVector generateRandomContractions(const HypernodeID num_hypernodes,
  return contractions;
 }
 
-void generateRandomPartition(DynamicPartitionedHypergraphT& partitioned_hypergraph) {
+template<typename PartitionedHypergraph>
+void generateRandomPartition(PartitionedHypergraph& partitioned_hypergraph) {
   const PartitionID k = partitioned_hypergraph.k();
   utils::Randomize& rand = utils::Randomize::instance();
   partitioned_hypergraph.doParallelForAllNodes([&](const HypernodeID& hn) {
@@ -229,12 +218,15 @@ void generateRandomPartition(DynamicPartitionedHypergraphT& partitioned_hypergra
   });
 }
 
-DynamicHypergraphT simulateNLevel(DynamicHypergraphT& hypergraph,
-                                 DynamicPartitionedHypergraphT& partitioned_hypergraph,
-                                 const BatchVector& contraction_batches,
-                                 const size_t batch_size,
-                                 const bool parallel,
-                                 utils::Timer& timer) {
+template<typename Hypergraph, typename PartitionedHypergraph>
+Hypergraph simulateNLevel(Hypergraph& hypergraph,
+                          PartitionedHypergraph& partitioned_hypergraph,
+                          const BatchVector& contraction_batches,
+                          const size_t batch_size,
+                          const bool parallel,
+                          utils::Timer& timer) {
+  using ParallelHyperedge = typename Hypergraph::ParallelHyperedge;
+  using Factory = typename Hypergraph::Factory;
 
   auto timer_key = [&](const std::string& key) {
     if ( parallel ) {
@@ -244,7 +236,7 @@ DynamicHypergraphT simulateNLevel(DynamicHypergraphT& hypergraph,
     }
   };
 
-  parallel::scalable_vector<parallel::scalable_vector<DynamicHypergraphT::ParallelHyperedge>> removed_hyperedges;
+  parallel::scalable_vector<parallel::scalable_vector<ParallelHyperedge>> removed_hyperedges;
   for ( size_t i = 0; i < contraction_batches.size(); ++i ) {
     timer.start_timer(timer_key("contractions"), "Contractions");
     const parallel::scalable_vector<Memento>& contractions = contraction_batches[i];
@@ -269,7 +261,7 @@ DynamicHypergraphT simulateNLevel(DynamicHypergraphT& hypergraph,
   }
 
   timer.start_timer(timer_key("copy_coarsest_hypergraph"), "Copy Coarsest Hypergraph");
-  DynamicHypergraphT coarsest_hypergraph;
+  Hypergraph coarsest_hypergraph;
   if ( parallel ) {
     coarsest_hypergraph = hypergraph.copy(parallel_tag_t());
   } else {
@@ -282,10 +274,10 @@ DynamicHypergraphT simulateNLevel(DynamicHypergraphT& hypergraph,
 
   {
     timer.start_timer(timer_key("compactify_hypergraph"), "Compactify Hypergraph");
-    auto res = DynamicHypergraphFactoryT::compactify(hypergraph);
-    DynamicHypergraphT& compactified_hg = res.first;
+    auto res = Factory::compactify(hypergraph);
+    Hypergraph& compactified_hg = res.first;
     auto& hn_mapping = res.second;
-    DynamicPartitionedHypergraphT compactified_phg(
+    PartitionedHypergraph compactified_phg(
       partitioned_hypergraph.k(), compactified_hg, parallel_tag_t());
     timer.stop_timer(timer_key("compactify_hypergraph"));
 
@@ -340,9 +332,12 @@ DynamicHypergraphT simulateNLevel(DynamicHypergraphT& hypergraph,
   return coarsest_hypergraph;
 }
 
-TEST(ANlevel, SimulatesContractionsAndBatchUncontractions) {
+#ifdef KAHYPAR_ENABLE_N_LEVEL_PARTITIONING_FEATURES
+TEST(ANlevelHypergraph, SimulatesContractionsAndBatchUncontractions) {
+  using Hypergraph = typename DynamicHypergraphTypeTraits::Hypergraph;
+  using PartitionedHypergraph = typename DynamicHypergraphTypeTraits::PartitionedHypergraph;
   const HypernodeID num_hypernodes = 10000;
-  const HypernodeID num_hyperedges = DynamicHypergraphT::is_graph ? 40000 : 10000;
+  const HypernodeID num_hyperedges = Hypergraph::is_graph ? 40000 : 10000;
   const HypernodeID max_edge_size = 30;
   const HypernodeID num_contractions = 9950;
   const size_t batch_size = 100;
@@ -352,24 +347,24 @@ TEST(ANlevel, SimulatesContractionsAndBatchUncontractions) {
   timer.showDetailedTimings(true);
 
   if ( debug ) LOG << "Generate Random Hypergraph";
-  DynamicHypergraphT original_hypergraph = generateRandomHypergraph(num_hypernodes, num_hyperedges, max_edge_size);
-  DynamicHypergraphT sequential_hg = original_hypergraph.copy(parallel_tag_t());
-  DynamicPartitionedHypergraphT sequential_phg(4, sequential_hg, parallel_tag_t());
-  DynamicHypergraphT parallel_hg = original_hypergraph.copy(parallel_tag_t());
-  DynamicPartitionedHypergraphT parallel_phg(4, parallel_hg, parallel_tag_t());
+  Hypergraph original_hypergraph = generateRandomHypergraph<Hypergraph>(num_hypernodes, num_hyperedges, max_edge_size);
+  Hypergraph sequential_hg = original_hypergraph.copy(parallel_tag_t());
+  PartitionedHypergraph sequential_phg(4, sequential_hg, parallel_tag_t());
+  Hypergraph parallel_hg = original_hypergraph.copy(parallel_tag_t());
+  PartitionedHypergraph parallel_phg(4, parallel_hg, parallel_tag_t());
 
   if ( debug ) LOG << "Determine random contractions";
   BatchVector contractions = generateRandomContractions(num_hypernodes, num_contractions);
 
   if ( debug ) LOG << "Simulate n-Level sequentially";
   timer.start_timer("sequential_n_level", "Sequential n-Level");
-  DynamicHypergraphT coarsest_sequential_hg = simulateNLevel(
+  Hypergraph coarsest_sequential_hg = simulateNLevel(
     sequential_hg, sequential_phg, contractions, 1, false, timer);
   timer.stop_timer("sequential_n_level");
 
   if ( debug ) LOG << "Simulate n-Level in parallel";
   timer.start_timer("parallel_n_level", "Parallel n-Level");
-  DynamicHypergraphT coarsest_parallel_hg = simulateNLevel(
+  Hypergraph coarsest_parallel_hg = simulateNLevel(
     parallel_hg, parallel_phg, contractions, batch_size, true, timer);
   timer.stop_timer("parallel_n_level");
 
@@ -391,9 +386,10 @@ TEST(ANlevel, SimulatesContractionsAndBatchUncontractions) {
   }
 }
 
-TEST(ANlevel, SimulatesParallelContractionsAndAccessToHypergraph) {
+TEST(ANlevelHypergraph, SimulatesParallelContractionsAndAccessToHypergraph) {
+  using Hypergraph = typename DynamicHypergraphTypeTraits::Hypergraph;
   const HypernodeID num_hypernodes = 10000;
-  const HypernodeID num_hyperedges = DynamicHypergraphT::is_graph ? 40000 : 10000;
+  const HypernodeID num_hyperedges = Hypergraph::is_graph ? 40000 : 10000;
   const HypernodeID max_edge_size = 30;
   const HypernodeID num_contractions = 9950;
   const bool show_timings = false;
@@ -402,8 +398,8 @@ TEST(ANlevel, SimulatesParallelContractionsAndAccessToHypergraph) {
   timer.showDetailedTimings(true);
 
   if ( debug ) LOG << "Generate Random Hypergraph";
-  DynamicHypergraphT hypergraph = generateRandomHypergraph(num_hypernodes, num_hyperedges, max_edge_size);
-  DynamicHypergraphT tmp_hypergraph = hypergraph.copy(parallel_tag_t());
+  Hypergraph hypergraph = generateRandomHypergraph<Hypergraph>(num_hypernodes, num_hyperedges, max_edge_size);
+  Hypergraph tmp_hypergraph = hypergraph.copy(parallel_tag_t());
 
   if ( debug ) LOG << "Determine random contractions";
   BatchVector contractions = generateRandomContractions(num_hypernodes, num_contractions, false);
@@ -452,6 +448,125 @@ TEST(ANlevel, SimulatesParallelContractionsAndAccessToHypergraph) {
     LOG << timer;
   }
 }
+
+#ifdef KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES
+TEST(ANlevelGraph, SimulatesContractionsAndBatchUncontractions) {
+  using Hypergraph = typename DynamicGraphTypeTraits::Hypergraph;
+  using PartitionedHypergraph = typename DynamicGraphTypeTraits::PartitionedHypergraph;
+  const HypernodeID num_hypernodes = 10000;
+  const HypernodeID num_hyperedges = Hypergraph::is_graph ? 40000 : 10000;
+  const HypernodeID max_edge_size = 30;
+  const HypernodeID num_contractions = 9950;
+  const size_t batch_size = 100;
+  const bool show_timings = false;
+  const bool debug = false;
+  utils::Timer timer;
+  timer.showDetailedTimings(true);
+
+  if ( debug ) LOG << "Generate Random Hypergraph";
+  Hypergraph original_hypergraph = generateRandomHypergraph<Hypergraph>(num_hypernodes, num_hyperedges, max_edge_size);
+  Hypergraph sequential_hg = original_hypergraph.copy(parallel_tag_t());
+  PartitionedHypergraph sequential_phg(4, sequential_hg, parallel_tag_t());
+  Hypergraph parallel_hg = original_hypergraph.copy(parallel_tag_t());
+  PartitionedHypergraph parallel_phg(4, parallel_hg, parallel_tag_t());
+
+  if ( debug ) LOG << "Determine random contractions";
+  BatchVector contractions = generateRandomContractions(num_hypernodes, num_contractions);
+
+  if ( debug ) LOG << "Simulate n-Level sequentially";
+  timer.start_timer("sequential_n_level", "Sequential n-Level");
+  Hypergraph coarsest_sequential_hg = simulateNLevel(
+    sequential_hg, sequential_phg, contractions, 1, false, timer);
+  timer.stop_timer("sequential_n_level");
+
+  if ( debug ) LOG << "Simulate n-Level in parallel";
+  timer.start_timer("parallel_n_level", "Parallel n-Level");
+  Hypergraph coarsest_parallel_hg = simulateNLevel(
+    parallel_hg, parallel_phg, contractions, batch_size, true, timer);
+  timer.stop_timer("parallel_n_level");
+
+  if ( debug ) LOG << "Verify equality of hypergraphs";
+  verifyEqualityOfHypergraphs(coarsest_sequential_hg, coarsest_parallel_hg);
+  verifyEqualityOfHypergraphs(original_hypergraph, sequential_hg);
+  verifyEqualityOfHypergraphs(original_hypergraph, parallel_hg);
+
+  if ( debug ) LOG << "Verify gain cache of hypergraphs";
+  verifyGainCache(sequential_phg);
+  verifyGainCache(parallel_phg);
+
+  if ( debug ) LOG << "Verify number of incident cut hyperedges";
+  verifyNumIncidentCutHyperedges(sequential_phg);
+  verifyNumIncidentCutHyperedges(parallel_phg);
+
+  if ( show_timings ) {
+    LOG << timer;
+  }
+}
+
+TEST(ANlevelGraph, SimulatesParallelContractionsAndAccessToHypergraph) {
+  using Hypergraph = typename DynamicGraphTypeTraits::Hypergraph;
+  const HypernodeID num_hypernodes = 10000;
+  const HypernodeID num_hyperedges = Hypergraph::is_graph ? 40000 : 10000;
+  const HypernodeID max_edge_size = 30;
+  const HypernodeID num_contractions = 9950;
+  const bool show_timings = false;
+  const bool debug = false;
+  utils::Timer timer;
+  timer.showDetailedTimings(true);
+
+  if ( debug ) LOG << "Generate Random Hypergraph";
+  Hypergraph hypergraph = generateRandomHypergraph<Hypergraph>(num_hypernodes, num_hyperedges, max_edge_size);
+  Hypergraph tmp_hypergraph = hypergraph.copy(parallel_tag_t());
+
+  if ( debug ) LOG << "Determine random contractions";
+  BatchVector contractions = generateRandomContractions(num_hypernodes, num_contractions, false);
+
+  if ( debug ) LOG << "Perform Parallel Contractions With Parallel Access";
+  bool terminate = false;
+  timer.start_timer("contractions_with_access", "Contractions With Access");
+  tbb::parallel_invoke([&] {
+    while ( !terminate ) {
+      // Iterate over all vertices of the hypergraph in parallel
+      hypergraph.doParallelForAllNodes([&](const HypernodeID hn) {
+        RatingType rating = 0;
+        for ( const HyperedgeID& he : hypergraph.incidentEdges(hn) ) {
+          const HyperedgeWeight edge_weight = hypergraph.edgeWeight(he);
+          for ( const HypernodeID& pin : hypergraph.pins(he) ) {
+            const HyperedgeID node_degree = hypergraph.nodeDegree(pin);
+            const HypernodeWeight node_weight = hypergraph.nodeWeight(pin);
+            if ( hypergraph.communityID(hn) == hypergraph.communityID(pin) ) {
+              rating += static_cast<RatingType>(edge_weight * node_degree) / node_weight;
+            }
+          }
+        }
+      });
+    }
+  }, [&] {
+    // Perform contractions in parallel
+    tbb::parallel_for(UL(0), contractions.back().size(), [&](const size_t i) {
+      const Memento& memento = contractions.back()[i];
+      hypergraph.registerContraction(memento.u, memento.v);
+      hypergraph.contract(memento.v);
+    });
+    terminate = true;
+  });
+  timer.stop_timer("contractions_with_access");
+
+  if ( debug ) LOG << "Perform Parallel Contractions Without Parallel Access";
+  timer.start_timer("contractions_without_access", "Contractions Without Access");
+  tbb::parallel_for(UL(0), contractions.back().size(), [&](const size_t i) {
+    const Memento& memento = contractions.back()[i];
+    tmp_hypergraph.registerContraction(memento.u, memento.v);
+    tmp_hypergraph.contract(memento.v);
+  });
+  timer.stop_timer("contractions_without_access");
+
+  if ( show_timings ) {
+    LOG << timer;
+  }
+}
+#endif
+#endif
 
 } // namespace ds
 } // namespace mt_kahypar

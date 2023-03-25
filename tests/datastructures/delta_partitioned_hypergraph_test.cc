@@ -41,12 +41,15 @@ namespace ds {
 
 class ADeltaPartitionedHypergraph : public Test {
 
- using DeltaPartitionedHyperGraph = DeltaPartitionedHypergraph<mt_kahypar::PartitionedHypergraph>;
+ using Hypergraph = typename StaticHypergraphTypeTraits::Hypergraph;
+ using HypergraphFactory = typename Hypergraph::Factory;
+ using PartitionedHypergraph = typename StaticHypergraphTypeTraits::PartitionedHypergraph;
+ using DeltaPartitionedHypergraph = typename StaticHypergraphTypeTraits::DeltaPartitionedHypergraph;
 
  public:
 
   ADeltaPartitionedHypergraph() :
-    hg(mt_kahypar::HypergraphFactory::construct(
+    hg(HypergraphFactory::construct(
       7 , 4, { {0, 2}, {0, 1, 3, 4}, {3, 4, 6}, {2, 5, 6} })),
     phg(3, hg, parallel_tag_t()),
     delta_phg(),
@@ -62,7 +65,7 @@ class ADeltaPartitionedHypergraph : public Test {
     phg.initializeGainCache();
 
     context.partition.k = 3;
-    delta_phg = DeltaPartitionedHyperGraph(context);
+    delta_phg = DeltaPartitionedHypergraph(context);
     delta_phg.setPartitionedHypergraph(&phg);
   }
 
@@ -83,8 +86,8 @@ class ADeltaPartitionedHypergraph : public Test {
   }
 
   Hypergraph hg;
-  mt_kahypar::PartitionedHypergraph phg;
-  DeltaPartitionedHyperGraph delta_phg;
+  PartitionedHypergraph phg;
+  DeltaPartitionedHypergraph delta_phg;
   Context context;
 };
 

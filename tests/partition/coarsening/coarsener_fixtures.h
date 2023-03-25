@@ -26,6 +26,8 @@
 
 #include "gmock/gmock.h"
 
+#include "kahypar/datastructure/fast_reset_flag_array.h"
+
 #include "tests/datastructures/hypergraph_fixtures.h"
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/utils/cast.h"
@@ -99,7 +101,7 @@ class ACoarsener : public Test {
     context.setupPartWeights(hypergraph.totalWeight());
 
     uncoarseningData = std::make_unique<UncoarseningData<TypeTraits>>(
-      PRESET == PresetType::quality_preset, hypergraph, context);
+      PRESET != PresetType::default_preset, hypergraph, context);
 
     mt_kahypar_hypergraph_t hg = utils::hypergraph_cast(hypergraph);
     uncoarsening_data_t* data_ptr = uncoarsening::to_pointer(*uncoarseningData);

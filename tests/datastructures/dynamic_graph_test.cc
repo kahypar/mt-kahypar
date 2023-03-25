@@ -38,7 +38,7 @@
 namespace mt_kahypar {
 namespace ds {
 
-using ADynamicGraph = HypergraphFixture<DynamicGraph, DynamicGraphFactory, true>;
+using ADynamicGraph = HypergraphFixture<DynamicGraph, true>;
 
 template<typename F, typename K>
 void executeParallel(const F& f1, const K& f2) {
