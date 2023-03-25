@@ -28,6 +28,7 @@
 
 #include "mt-kahypar/io/command_line_options.h"
 #include "mt-kahypar/definitions.h"
+#include "mt-kahypar/io/hypergraph_factory.h"
 #include "mt-kahypar/io/hypergraph_io.h"
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/recursive_bipartitioning.h"
@@ -38,14 +39,19 @@ using ::testing::Test;
 namespace mt_kahypar {
 
 
-template <Mode mode, PartitionID k>
+template <typename TypeTraitsT, Mode mode, PartitionID k>
 struct TestConfig {
+  using TypeTraits = TypeTraitsT;
   static constexpr Mode MODE = mode;
   static constexpr PartitionID K = k;
 };
 
 template <typename Config>
 class AInitialPartitionerTest : public Test {
+
+  using TypeTraits = typename Config::TypeTraits;
+  using Hypergraph = typename TypeTraits::Hypergraph;
+  using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
 
   static size_t num_threads;
 
@@ -54,15 +60,24 @@ class AInitialPartitionerTest : public Test {
     hypergraph(),
     context() {
 
+    context.partition.partition_type = PartitionedHypergraph::TYPE;
     if ( !context.isNLevelPartitioning() ) {
       parseIniToContext(context, "../config/default_preset.ini");
     } else {
       parseIniToContext(context, "../config/quality_preset.ini");
     }
+    context.partition.partition_type = PartitionedHypergraph::TYPE;
 
     context.partition.graph_filename = "../tests/instances/contracted_unweighted_ibm01.hgr";
     context.partition.graph_community_filename = "../tests/instances/contracted_ibm01.hgr.community";
     context.partition.mode = Mode::direct;
+    #ifdef KAHYPAR_ENABLE_N_LEVEL_PARTITIONING_FEATURES
+    context.partition.preset_type = Hypergraph::is_static_hypergraph ?
+     PresetType::default_preset : PresetType::quality_preset;
+    #else
+    context.partition.preset_type = PresetType::default_preset;
+    #endif
+    context.partition.instance_type = InstanceType::hypergraph;
     context.partition.objective = Objective::km1;
     context.partition.epsilon = 0.2;
     context.partition.k = Config::K;
@@ -94,8 +109,8 @@ class AInitialPartitionerTest : public Test {
     context.initial_partitioning.refinement.flows.algorithm = FlowAlgorithm::do_nothing;
 
     // Read hypergraph
-    hypergraph = io::readHypergraphFile(
-      "../tests/instances/contracted_unweighted_ibm01.hgr");
+    hypergraph = io::readInputFile<Hypergraph>(
+      "../tests/instances/contracted_unweighted_ibm01.hgr", FileFormat::hMetis, true);
     partitioned_hypergraph = PartitionedHypergraph(
       context.partition.k, hypergraph, parallel_tag_t());
     context.setupPartWeights(hypergraph.totalWeight());
@@ -115,9 +130,9 @@ class AInitialPartitionerTest : public Test {
   void runInitialPartitioning() {
     switch ( context.initial_partitioning.mode ) {
       case Mode::recursive_bipartitioning:
-        recursive_bipartitioning::partition(partitioned_hypergraph, context); break;
+        RecursiveBipartitioning<TypeTraits>::partition(partitioned_hypergraph, context); break;
       case Mode::deep_multilevel:
-        deep_multilevel::partition(partitioned_hypergraph, context); break;
+        DeepMultilevel<TypeTraits>::partition(partitioned_hypergraph, context); break;
       case Mode::direct:
       case Mode::UNDEFINED:
         ERR("Undefined initial partitioning algorithm.");
@@ -134,12 +149,18 @@ size_t AInitialPartitionerTest<Config>::num_threads = HardwareTopology::instance
 
 static constexpr double EPS = 0.05;
 
-typedef ::testing::Types<TestConfig<Mode::deep_multilevel, 2>,
-                         TestConfig<Mode::deep_multilevel, 3>,
-                         TestConfig<Mode::deep_multilevel, 4>,
-                         TestConfig<Mode::recursive_bipartitioning, 2>,
-                         TestConfig<Mode::recursive_bipartitioning, 3>,
-                         TestConfig<Mode::recursive_bipartitioning, 4> > TestConfigs;
+typedef ::testing::Types<TestConfig<StaticHypergraphTypeTraits, Mode::deep_multilevel, 2>,
+                         TestConfig<StaticHypergraphTypeTraits, Mode::deep_multilevel, 3>,
+                         TestConfig<StaticHypergraphTypeTraits, Mode::deep_multilevel, 4>,
+                         TestConfig<StaticHypergraphTypeTraits, Mode::recursive_bipartitioning, 2>,
+                         TestConfig<StaticHypergraphTypeTraits, Mode::recursive_bipartitioning, 3>,
+                         TestConfig<StaticHypergraphTypeTraits, Mode::recursive_bipartitioning, 4>
+                         ENABLE_N_LEVEL(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA Mode::deep_multilevel COMMA 2>)
+                         ENABLE_N_LEVEL(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA Mode::deep_multilevel COMMA 3>)
+                         ENABLE_N_LEVEL(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA Mode::deep_multilevel COMMA 4>)
+                         ENABLE_N_LEVEL(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA Mode::recursive_bipartitioning COMMA 2>)
+                         ENABLE_N_LEVEL(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA Mode::recursive_bipartitioning COMMA 3>)
+                         ENABLE_N_LEVEL(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA Mode::recursive_bipartitioning COMMA 4>) > TestConfigs;
 
 TYPED_TEST_CASE(AInitialPartitionerTest, TestConfigs);
 
