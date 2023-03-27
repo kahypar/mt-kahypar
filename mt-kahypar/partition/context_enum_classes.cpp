@@ -54,9 +54,7 @@ namespace mt_kahypar {
 
   std::ostream & operator<< (std::ostream& os, const InstanceType& type) {
     switch (type) {
-      #ifdef KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES
-      case InstanceType::graph: return os << "graph";
-      #endif
+      ENABLE_GRAPHS(case InstanceType::graph: return os << "graph";)
       case InstanceType::hypergraph: return os << "hypergraph";
       case InstanceType::UNDEFINED: return os << "UNDEFINED";
         // omit default case to trigger compiler warning for missing cases
@@ -67,15 +65,11 @@ namespace mt_kahypar {
   std::ostream & operator<< (std::ostream& os, const PresetType& type) {
     switch (type) {
       case PresetType::deterministic: return os << "deterministic";
-      #ifdef KAHYPAR_ENABLE_LARGE_K_PARTITIONING_FEATURES
-      case PresetType::large_k: return os << "large_k";
-      #endif
+      ENABLE_LARGE_K(case PresetType::large_k: return os << "large_k";)
       case PresetType::default_preset: return os << "default";
       case PresetType::default_flows: return os << "default_flows";
-      #ifdef KAHYPAR_ENABLE_N_LEVEL_PARTITIONING_FEATURES
-      case PresetType::quality_preset: return os << "quality";
-      case PresetType::quality_flows: return os << "quality_flows";
-      #endif
+      ENABLE_N_LEVEL(case PresetType::quality_preset: return os << "quality";)
+      ENABLE_N_LEVEL(case PresetType::quality_flows: return os << "quality_flows";)
       case PresetType::UNDEFINED: return os << "UNDEFINED";
         // omit default case to trigger compiler warning for missing cases
     }
@@ -84,19 +78,11 @@ namespace mt_kahypar {
 
   std::ostream & operator<< (std::ostream& os, const mt_kahypar_partition_type_t& type) {
     switch (type) {
-      #ifdef KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES
-      case MULTILEVEL_GRAPH_PARTITIONING: return os << "multilevel_graph_partitioning";
-      #ifdef KAHYPAR_ENABLE_N_LEVEL_PARTITIONING_FEATURES
-      case N_LEVEL_GRAPH_PARTITIONING: return os << "n_level_graph_partitioning";
-      #endif
-      #endif
+      ENABLE_GRAPHS(case MULTILEVEL_GRAPH_PARTITIONING: return os << "multilevel_graph_partitioning";)
+      ENABLE_N_LEVEL_GRAPHS(case N_LEVEL_GRAPH_PARTITIONING: return os << "n_level_graph_partitioning";)
       case MULTILEVEL_HYPERGRAPH_PARTITIONING: return os << "multilevel_hypergraph_partitioning";
-      #ifdef KAHYPAR_ENABLE_LARGE_K_PARTITIONING_FEATURES
-      case LARGE_K_PARTITIONING: return os << "large_k_partitioning";
-      #endif
-      #ifdef KAHYPAR_ENABLE_N_LEVEL_PARTITIONING_FEATURES
-      case N_LEVEL_HYPERGRAPH_PARTITIONING: return os << "n_level_hypergraph_partitioning";
-      #endif
+      ENABLE_LARGE_K(case LARGE_K_PARTITIONING: return os << "large_k_partitioning";)
+      ENABLE_N_LEVEL(case N_LEVEL_HYPERGRAPH_PARTITIONING: return os << "n_level_hypergraph_partitioning";)
       case NULLPTR_PARTITION: return os << "UNDEFINED";
         // omit default case to trigger compiler warning for missing cases
     }
@@ -160,9 +146,7 @@ namespace mt_kahypar {
     switch (algo) {
       case CoarseningAlgorithm::multilevel_coarsener: return os << "multilevel_coarsener";
       case CoarseningAlgorithm::deterministic_multilevel_coarsener: return os << "deterministic_multilevel_coarsener";
-      #ifdef KAHYPAR_ENABLE_N_LEVEL_PARTITIONING_FEATURES
-      case CoarseningAlgorithm::nlevel_coarsener: return os << "nlevel_coarsener";
-      #endif
+      ENABLE_N_LEVEL(case CoarseningAlgorithm::nlevel_coarsener: return os << "nlevel_coarsener";)
       case CoarseningAlgorithm::UNDEFINED: return os << "UNDEFINED";
         // omit default case to trigger compiler warning for missing cases
     }
@@ -172,10 +156,8 @@ namespace mt_kahypar {
   std::ostream & operator<< (std::ostream& os, const HeavyNodePenaltyPolicy& heavy_hn_policy) {
     switch (heavy_hn_policy) {
       case HeavyNodePenaltyPolicy::no_penalty: return os << "no_penalty";
-      #ifdef KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES
-      case HeavyNodePenaltyPolicy::additive: return os << "additive";
-      case HeavyNodePenaltyPolicy::multiplicative_penalty: return os << "multiplicative";
-      #endif
+      ENABLE_EXPERIMENTAL_FEATURES(case HeavyNodePenaltyPolicy::additive: return os << "additive";)
+      ENABLE_EXPERIMENTAL_FEATURES(case HeavyNodePenaltyPolicy::multiplicative_penalty: return os << "multiplicative";)
       case HeavyNodePenaltyPolicy::UNDEFINED: return os << "UNDEFINED";
     }
     return os << static_cast<uint8_t>(heavy_hn_policy);
@@ -183,9 +165,7 @@ namespace mt_kahypar {
 
   std::ostream & operator<< (std::ostream& os, const AcceptancePolicy& acceptance_policy) {
     switch (acceptance_policy) {
-      #ifdef KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES
-      case AcceptancePolicy::best: return os << "best";
-      #endif
+      ENABLE_EXPERIMENTAL_FEATURES(case AcceptancePolicy::best: return os << "best";)
       case AcceptancePolicy::best_prefer_unmatched: return os << "best_prefer_unmatched";
       case AcceptancePolicy::UNDEFINED: return os << "UNDEFINED";
         // omit default case to trigger compiler warning for missing cases
@@ -196,9 +176,7 @@ namespace mt_kahypar {
   std::ostream & operator<< (std::ostream& os, const RatingFunction& func) {
     switch (func) {
       case RatingFunction::heavy_edge: return os << "heavy_edge";
-      #ifdef KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES
-      case RatingFunction::sameness: return os << "sameness";
-      #endif
+      ENABLE_EXPERIMENTAL_FEATURES(case RatingFunction::sameness: return os << "sameness";)
       case RatingFunction::UNDEFINED: return os << "UNDEFINED";
         // omit default case to trigger compiler warning for missing cases
     }

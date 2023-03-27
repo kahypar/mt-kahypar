@@ -36,46 +36,29 @@
 namespace mt_kahypar::utils {
 
 void delete_hypergraph(mt_kahypar_hypergraph_t hg) {
-  switch ( hg.type ) {
-    #ifdef KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES
-    case STATIC_GRAPH:
-      delete reinterpret_cast<ds::StaticGraph*>(hg.hypergraph); break;
-    #ifdef KAHYPAR_ENABLE_N_LEVEL_PARTITIONING_FEATURES
-    case DYNAMIC_GRAPH:
-      delete reinterpret_cast<ds::DynamicGraph*>(hg.hypergraph); break;
-    #endif
-    #endif
-    case STATIC_HYPERGRAPH:
-      delete reinterpret_cast<ds::StaticHypergraph*>(hg.hypergraph); break;
-    #ifdef KAHYPAR_ENABLE_N_LEVEL_PARTITIONING_FEATURES
-    case DYNAMIC_HYPERGRAPH:
-      delete reinterpret_cast<ds::DynamicHypergraph*>(hg.hypergraph); break;
-    #endif
-    case NULLPTR_HYPERGRAPH: break;
+  if ( hg.hypergraph ) {
+    switch ( hg.type ) {
+      ENABLE_GRAPHS(case STATIC_GRAPH: delete reinterpret_cast<ds::StaticGraph*>(hg.hypergraph); break;)
+      ENABLE_N_LEVEL_GRAPHS(case DYNAMIC_GRAPH: delete reinterpret_cast<ds::DynamicGraph*>(hg.hypergraph); break;)
+      case STATIC_HYPERGRAPH: delete reinterpret_cast<ds::StaticHypergraph*>(hg.hypergraph); break;
+      ENABLE_N_LEVEL(case DYNAMIC_HYPERGRAPH: delete reinterpret_cast<ds::DynamicHypergraph*>(hg.hypergraph); break;)
+      #endif
+      case NULLPTR_HYPERGRAPH: break;
+    }
   }
 }
 
 void delete_partitioned_hypergraph(mt_kahypar_partitioned_hypergraph_t phg) {
-  switch ( phg.type ) {
-    #ifdef KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES
-    case MULTILEVEL_GRAPH_PARTITIONING:
-      delete reinterpret_cast<StaticPartitionedGraph*>(phg.partitioned_hg); break;
-    #ifdef KAHYPAR_ENABLE_N_LEVEL_PARTITIONING_FEATURES
-    case N_LEVEL_GRAPH_PARTITIONING:
-      delete reinterpret_cast<DynamicPartitionedGraph*>(phg.partitioned_hg); break;
-    #endif
-    #endif
-    case MULTILEVEL_HYPERGRAPH_PARTITIONING:
-      delete reinterpret_cast<StaticPartitionedHypergraph*>(phg.partitioned_hg); break;
-    #ifdef KAHYPAR_ENABLE_LARGE_K_PARTITIONING_FEATURES
-    case LARGE_K_PARTITIONING:
-      delete reinterpret_cast<StaticSparsePartitionedHypergraph*>(phg.partitioned_hg); break;
-    #endif
-    #ifdef KAHYPAR_ENABLE_N_LEVEL_PARTITIONING_FEATURES
-    case N_LEVEL_HYPERGRAPH_PARTITIONING:
-      delete reinterpret_cast<DynamicPartitionedHypergraph*>(phg.partitioned_hg); break;
-    #endif
-    case NULLPTR_PARTITION: break;
+  if ( phg.partitioned_hg ) {
+    switch ( phg.type ) {
+      ENABLE_GRAPHS(case MULTILEVEL_GRAPH_PARTITIONING: delete reinterpret_cast<StaticPartitionedGraph*>(phg.partitioned_hg); break;)
+      ENABLE_N_LEVEL_GRAPHS(case N_LEVEL_GRAPH_PARTITIONING: delete reinterpret_cast<DynamicPartitionedGraph*>(phg.partitioned_hg); break;)
+      case MULTILEVEL_HYPERGRAPH_PARTITIONING: delete reinterpret_cast<StaticPartitionedHypergraph*>(phg.partitioned_hg); break;
+      ENABLE_LARGE_K(case LARGE_K_PARTITIONING: delete reinterpret_cast<StaticSparsePartitionedHypergraph*>(phg.partitioned_hg); break;)
+      #ifdef KAHYPAR_ENABLE_N_LEVEL_PARTITIONING_FEATURES
+      ENABLE_N_LEVEL(case N_LEVEL_HYPERGRAPH_PARTITIONING: delete reinterpret_cast<DynamicPartitionedHypergraph*>(phg.partitioned_hg); break;)
+      case NULLPTR_PARTITION: break;
+    }
   }
 }
 

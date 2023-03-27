@@ -31,6 +31,7 @@
 #include <string>
 
 #include "include/libmtkahypartypes.h"
+#include "mt-kahypar/macros.h"
 
 namespace mt_kahypar {
 
@@ -47,24 +48,18 @@ enum class FileFormat : int8_t {
 };
 
 enum class InstanceType : int8_t {
-  #ifdef KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES
-  graph = 0,
-  #endif
+  ENABLE_GRAPHS(graph = 0 COMMA)
   hypergraph = 1,
   UNDEFINED = 2
 };
 
 enum class PresetType : int8_t {
   deterministic,
-  #ifdef KAHYPAR_ENABLE_LARGE_K_PARTITIONING_FEATURES
-  large_k,
-  #endif
+  ENABLE_LARGE_K(large_k COMMA)
   default_preset,
   default_flows,
-  #ifdef KAHYPAR_ENABLE_N_LEVEL_PARTITIONING_FEATURES
-  quality_preset,
-  quality_flows,
-  #endif
+  ENABLE_N_LEVEL(quality_preset COMMA)
+  ENABLE_N_LEVEL(quality_flows COMMA)
   UNDEFINED
 };
 
@@ -104,33 +99,25 @@ enum class SimiliarNetCombinerStrategy : uint8_t {
 enum class CoarseningAlgorithm : uint8_t {
   multilevel_coarsener,
   deterministic_multilevel_coarsener,
-  #ifdef KAHYPAR_ENABLE_N_LEVEL_PARTITIONING_FEATURES
-  nlevel_coarsener,
-  #endif
+  ENABLE_N_LEVEL(nlevel_coarsener COMMA)
   UNDEFINED
 };
 
 enum class RatingFunction : uint8_t {
   heavy_edge,
-  #ifdef KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES
-  sameness,
-  #endif
+  ENABLE_EXPERIMENTAL_FEATURES(sameness COMMA)
   UNDEFINED
 };
 
 enum class HeavyNodePenaltyPolicy : uint8_t {
   no_penalty,
-  #ifdef KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES
-  multiplicative_penalty,
-  additive,
-  #endif
+  ENABLE_EXPERIMENTAL_FEATURES(multiplicative_penalty COMMA)
+  ENABLE_EXPERIMENTAL_FEATURES(additive COMMA)
   UNDEFINED
 };
 
 enum class AcceptancePolicy : uint8_t {
-  #ifdef KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES
-  best,
-  #endif
+  ENABLE_EXPERIMENTAL_FEATURES(best COMMA)
   best_prefer_unmatched,
   UNDEFINED
 };

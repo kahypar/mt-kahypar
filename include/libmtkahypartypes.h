@@ -57,15 +57,50 @@ typedef struct {
   mt_kahypar_partition_type_t type;
 } mt_kahypar_partitioned_hypergraph_const_t;
 
-
-typedef struct mt_kahypar_graph_s mt_kahypar_graph_t;
-typedef struct mt_kahypar_partitioned_graph_s mt_kahypar_partitioned_graph_t;
-
 typedef unsigned long int mt_kahypar_hypernode_id_t;
 typedef unsigned long int mt_kahypar_hyperedge_id_t;
 typedef int mt_kahypar_hypernode_weight_t;
 typedef int mt_kahypar_hyperedge_weight_t;
 typedef int mt_kahypar_partition_id_t;
+
+/**
+ * Configurable parameters of the partitioning context.
+ */
+typedef enum {
+  // number of blocks of the partition
+  NUM_BLOCKS,
+  // imbalance factor
+  EPSILON,
+  // objective function (either 'cut' or 'km1')
+  OBJECTIVE,
+  // seed for randomization
+  SEED,
+  // number of V-cycles
+  NUM_VCYCLES,
+  // disables or enables logging
+  VERBOSE
+} mt_kahypar_context_parameter_type_t;
+
+/**
+ * Supported objective functions.
+ */
+typedef enum {
+  CUT, // TODO: add cut tests
+  KM1
+} mt_kahypar_objective_t;
+
+/**
+ * Preset types for partitioning context.
+ */
+typedef enum {
+  // deterministic partitioning mode (corresponds to Mt-KaHyPar-SDet)
+  DETERMINISTIC,
+  // computes good partitions very fast (corresponds to Mt-KaHyPar-D)
+  SPEED,
+  // extends speed preset with flow-based refinement
+  // -> computes high-quality partitions (corresponds to Mt-KaHyPar-D-F)
+  HIGH_QUALITY
+} mt_kahypar_preset_type_t;
 
 /**
  * Supported (hyper)graph file formats.
