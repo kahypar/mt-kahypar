@@ -63,18 +63,14 @@ int main(int argc, char* argv[]) {
   mt_kahypar::Context context(false);
   mt_kahypar::processCommandLineInput(context, argc, argv);
 
-  if ( context.partition.preset_file == "" &&
-       context.partition.preset_type == mt_kahypar::PresetType::UNDEFINED ) {
-  } else if ( context.partition.preset_file == "" ) {
+  if ( context.partition.preset_file == "" ) {
     if ( context.partition.preset_type != mt_kahypar::PresetType::UNDEFINED ) {
-
-
+      // Only a preset type specified => load context from corresponding ini file
+      context.partition.preset_file = getPresetFile(context);
+      mt_kahypar::processCommandLineInput(context, argc, argv);
     } else {
       ERR("No preset specified");
     }
-    // Only a preset type specified => load context from corresponding ini file
-    context.partition.preset_file = getPresetFile(context);
-    mt_kahypar::processCommandLineInput(context, argc, argv);
   }
 
   // Determine instance (graph or hypergraph) and partition type

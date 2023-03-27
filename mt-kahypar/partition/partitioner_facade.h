@@ -36,8 +36,12 @@ namespace mt_kahypar {
 class PartitionerFacade {
  public:
   // ! Partition the hypergraph into a predefined number of blocks
-  static mt_kahypar_partitioned_hypergraph_t partition(
-    mt_kahypar_hypergraph_t hypergraph, Context& context);
+  static mt_kahypar_partitioned_hypergraph_t partition(mt_kahypar_hypergraph_t hypergraph,
+                                                       Context& context);
+
+  // ! Improves a given partition
+  static void improve(mt_kahypar_partitioned_hypergraph_t partitioned_hg,
+                      Context& context);
 
   // ! Prints timings and metrics to output
   static void printPartitioningResults(const mt_kahypar_partitioned_hypergraph_t phg,

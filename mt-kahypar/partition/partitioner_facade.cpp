@@ -57,6 +57,16 @@ namespace internal {
         new PartitionedHypergraph(std::move(partitioned_hg))), PartitionedHypergraph::TYPE };
   }
 
+  template<typename TypeTraits>
+  void improve(mt_kahypar_partitioned_hypergraph_t partitioned_hg,
+               Context& context) {
+    using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
+    PartitionedHypergraph& phg = utils::cast<PartitionedHypergraph>(partitioned_hg);
+
+    // Improve partition
+    Partitioner<TypeTraits>::partitionVCycle(phg, context);
+  }
+
 } // namespace internal
 
   mt_kahypar_partitioned_hypergraph_t PartitionerFacade::partition(mt_kahypar_hypergraph_t hypergraph,
@@ -86,6 +96,34 @@ namespace internal {
         return mt_kahypar_partitioned_hypergraph_t { nullptr, NULLPTR_PARTITION };
     }
     return mt_kahypar_partitioned_hypergraph_t { nullptr, NULLPTR_PARTITION };
+  }
+
+
+  void PartitionerFacade::improve(mt_kahypar_partitioned_hypergraph_t partitioned_hg,
+                                  Context& context) {
+    const mt_kahypar_partition_type_t type = to_partition_c_type(
+      context.partition.preset_type, context.partition.instance_type);
+    switch ( type ) {
+      #ifdef KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES
+      case MULTILEVEL_GRAPH_PARTITIONING:
+        internal::improve<StaticGraphTypeTraits>(partitioned_hg, context); break;
+      #ifdef KAHYPAR_ENABLE_N_LEVEL_PARTITIONING_FEATURES
+      case N_LEVEL_GRAPH_PARTITIONING:
+        internal::improve<DynamicGraphTypeTraits>(partitioned_hg, context); break;
+      #endif
+      #endif
+      case MULTILEVEL_HYPERGRAPH_PARTITIONING:
+        internal::improve<StaticHypergraphTypeTraits>(partitioned_hg, context); break;
+      #ifdef KAHYPAR_ENABLE_LARGE_K_PARTITIONING_FEATURES
+      case LARGE_K_PARTITIONING:
+        internal::improve<LargeKHypergraphTypeTraits>(partitioned_hg, context); break;
+      #endif
+      #ifdef KAHYPAR_ENABLE_N_LEVEL_PARTITIONING_FEATURES
+      case N_LEVEL_HYPERGRAPH_PARTITIONING:
+        internal::improve<DynamicHypergraphTypeTraits>(partitioned_hg, context); break;
+      #endif
+      case NULLPTR_PARTITION: break;
+    }
   }
 
   void PartitionerFacade::printPartitioningResults(const mt_kahypar_partitioned_hypergraph_t phg,

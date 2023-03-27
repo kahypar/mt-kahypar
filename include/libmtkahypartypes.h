@@ -95,11 +95,14 @@ typedef enum {
 typedef enum {
   // deterministic partitioning mode (corresponds to Mt-KaHyPar-SDet)
   DETERMINISTIC,
+  LARGE_K,
   // computes good partitions very fast (corresponds to Mt-KaHyPar-D)
-  SPEED,
+  DEFAULT,
   // extends speed preset with flow-based refinement
   // -> computes high-quality partitions (corresponds to Mt-KaHyPar-D-F)
-  HIGH_QUALITY
+  DEFAULT_FLOWS,
+  QUALITY,
+  QUALITY_FLOWS
 } mt_kahypar_preset_type_t;
 
 /**

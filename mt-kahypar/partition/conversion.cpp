@@ -86,7 +86,7 @@ mt_kahypar_partition_type_t to_partition_c_type(const PresetType preset,
     #ifdef KAHYPAR_ENABLE_N_LEVEL_PARTITIONING_FEATURES
     else if ( preset == PresetType::quality_preset ||
                 preset == PresetType::quality_flows ) {
-      return N_LEVEL_HYPERGRAPH_PARTITIONING;
+      return N_LEVEL_GRAPH_PARTITIONING;
     }
     #endif
   } else
