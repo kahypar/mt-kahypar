@@ -42,7 +42,6 @@ void delete_hypergraph(mt_kahypar_hypergraph_t hg) {
       ENABLE_N_LEVEL_GRAPHS(case DYNAMIC_GRAPH: delete reinterpret_cast<ds::DynamicGraph*>(hg.hypergraph); break;)
       case STATIC_HYPERGRAPH: delete reinterpret_cast<ds::StaticHypergraph*>(hg.hypergraph); break;
       ENABLE_N_LEVEL(case DYNAMIC_HYPERGRAPH: delete reinterpret_cast<ds::DynamicHypergraph*>(hg.hypergraph); break;)
-      #endif
       case NULLPTR_HYPERGRAPH: break;
     }
   }
@@ -55,7 +54,6 @@ void delete_partitioned_hypergraph(mt_kahypar_partitioned_hypergraph_t phg) {
       ENABLE_N_LEVEL_GRAPHS(case N_LEVEL_GRAPH_PARTITIONING: delete reinterpret_cast<DynamicPartitionedGraph*>(phg.partitioned_hg); break;)
       case MULTILEVEL_HYPERGRAPH_PARTITIONING: delete reinterpret_cast<StaticPartitionedHypergraph*>(phg.partitioned_hg); break;
       ENABLE_LARGE_K(case LARGE_K_PARTITIONING: delete reinterpret_cast<StaticSparsePartitionedHypergraph*>(phg.partitioned_hg); break;)
-      #ifdef KAHYPAR_ENABLE_N_LEVEL_PARTITIONING_FEATURES
       ENABLE_N_LEVEL(case N_LEVEL_HYPERGRAPH_PARTITIONING: delete reinterpret_cast<DynamicPartitionedHypergraph*>(phg.partitioned_hg); break;)
       case NULLPTR_PARTITION: break;
     }

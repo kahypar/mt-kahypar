@@ -80,6 +80,15 @@ namespace mt_kahypar {
             ("partition-output-folder",
              po::value<std::string>(&context.partition.graph_partition_output_folder)->value_name("<string>"),
              "Output folder for partition file")
+            ("mode,m",
+             po::value<std::string>()->value_name("<string>")->notifier(
+                     [&](const std::string& mode) {
+                       context.partition.mode = modeFromString(mode);
+                     }),
+             "Partitioning mode: \n"
+             " - direct: direct k-way partitioning\n"
+             " - rb: recursive bipartitioning\n"
+             " - deep: deep multilevel partitioning")
             ("input-file-format",
              po::value<std::string>()->value_name("<string>")->notifier([&](const std::string& s) {
                if (s == "hmetis") {
@@ -653,17 +662,7 @@ namespace mt_kahypar {
              }),
              "Objective: \n"
              " - cut : cut-net metric (FM only supports km1 metric) \n"
-             " - km1 : (lambda-1) metric")
-            ("mode,m",
-             po::value<std::string>()->value_name("<string>")->required()->notifier(
-                     [&](const std::string& mode) {
-                       context.partition.mode = modeFromString(mode);
-                     }),
-             "Partitioning mode: \n"
-             " - direct: direct k-way partitioning\n"
-             " - rb: recursive bipartitioning\n"
-             " - deep: deep multilevel partitioning"
-             );
+             " - km1 : (lambda-1) metric");
 
     po::options_description preset_options("Preset Options", num_columns);
     preset_options.add_options()

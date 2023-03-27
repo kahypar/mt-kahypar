@@ -65,15 +65,14 @@ int main(int argc, char* argv[]) {
 
   if ( context.partition.preset_file == "" &&
        context.partition.preset_type == mt_kahypar::PresetType::UNDEFINED ) {
-    ERR("No preset specified");
-  } else if ( context.partition.preset_type == mt_kahypar::PresetType::UNDEFINED ) {
-    // Context was loaded from an ini configuration file
-    // => determine preset type
-    context.partition.preset_type = mt_kahypar::to_preset_type(
-      context.partition.mode, context.partition.k,
-      context.coarsening.algorithm, context.refinement.flows.algorithm);
-  } else {
-    // Only a preset type available => load context from corresponding ini file
+  } else if ( context.partition.preset_file == "" ) {
+    if ( context.partition.preset_type != mt_kahypar::PresetType::UNDEFINED ) {
+
+
+    } else {
+      ERR("No preset specified");
+    }
+    // Only a preset type specified => load context from corresponding ini file
     context.partition.preset_file = getPresetFile(context);
     mt_kahypar::processCommandLineInput(context, argc, argv);
   }
