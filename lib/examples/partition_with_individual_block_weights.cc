@@ -16,7 +16,7 @@ int main(int argc, char* argv[]) {
 
   // Setup partitioning context
   mt_kahypar_context_t* context = mt_kahypar_context_new();
-  mt_kahypar_load_preset(context, SPEED /* corresponds to MT-KaHyPar-D */);
+  mt_kahypar_load_preset(context, DEFAULT /* corresponds to MT-KaHyPar-D */);
   // In the following, we partition a hypergraph into four blocks
   // and optimize the connective metric (KM1)
   mt_kahypar_set_partitioning_parameters(context,
@@ -39,18 +39,19 @@ int main(int argc, char* argv[]) {
   individual_block_weights[3] = 2501;
   mt_kahypar_set_individual_target_block_weights(context, 4, individual_block_weights.get());
 
-  // Load Hypergraph
-  mt_kahypar_hypergraph_t* hypergraph =
-    mt_kahypar_read_hypergraph_from_file("ibm01.hgr", context, HMETIS /* file format */);
+  // Load Hypergraph for DEFAULT preset
+  mt_kahypar_hypergraph_t hypergraph =
+    mt_kahypar_read_hypergraph_from_file("ibm01.hgr",
+      DEFAULT, HMETIS /* file format */);
 
   // Partition Hypergraph
-  mt_kahypar_partitioned_hypergraph_t* partitioned_hg =
-    mt_kahypar_partition_hypergraph(hypergraph, context);
+  mt_kahypar_partitioned_hypergraph_t partitioned_hg =
+    mt_kahypar_partition(hypergraph, context);
 
   // Extract Block Weights
   std::unique_ptr<mt_kahypar_hypernode_weight_t[]> block_weights =
     std::make_unique<mt_kahypar_hypernode_weight_t[]>(2);
-  mt_kahypar_get_hypergraph_block_weights(partitioned_hg, block_weights.get());
+  mt_kahypar_get_block_weights(partitioned_hg, block_weights.get());
 
   // Output Results
   const double km1 = mt_kahypar_km1(partitioned_hg);

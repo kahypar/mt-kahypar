@@ -16,7 +16,7 @@ int main(int argc, char* argv[]) {
 
   // Setup partitioning context
   mt_kahypar_context_t* context = mt_kahypar_context_new();
-  mt_kahypar_load_preset(context, SPEED /* corresponds to MT-KaHyPar-D */);
+  mt_kahypar_load_preset(context, DEFAULT /* corresponds to MT-KaHyPar-D */);
   // In the following, we partition a graph into two blocks
   // with an allowed imbalance of 3% and optimize the edge cut (CUT)
   mt_kahypar_set_partitioning_parameters(context,
@@ -25,27 +25,28 @@ int main(int argc, char* argv[]) {
   // Enable logging
   mt_kahypar_set_context_parameter(context, VERBOSE, "1");
 
-  // Load Hypergraph
-  mt_kahypar_graph_t* graph =
-    mt_kahypar_read_graph_from_file("delaunay_n15.graph", context, METIS /* file format */);
+  // Load Hypergraph for DEFAULT preset
+  mt_kahypar_hypergraph_t graph =
+    mt_kahypar_read_hypergraph_from_file("delaunay_n15.graph",
+    DEFAULT, METIS /* file format */);
 
   // Partition Hypergraph
-  mt_kahypar_partitioned_graph_t* partitioned_graph =
-    mt_kahypar_partition_graph(graph, context);
+  mt_kahypar_partitioned_hypergraph_t partitioned_graph =
+    mt_kahypar_partition(graph, context);
 
   // Extract Partition
   std::unique_ptr<mt_kahypar_partition_id_t[]> partition =
-    std::make_unique<mt_kahypar_partition_id_t[]>(mt_kahypar_num_nodes(graph));
-  mt_kahypar_get_graph_partition(partitioned_graph, partition.get());
+    std::make_unique<mt_kahypar_partition_id_t[]>(mt_kahypar_num_hypernodes(graph));
+  mt_kahypar_get_partition(partitioned_graph, partition.get());
 
   // Extract Block Weights
   std::unique_ptr<mt_kahypar_hypernode_weight_t[]> block_weights =
     std::make_unique<mt_kahypar_hypernode_weight_t[]>(2);
-  mt_kahypar_get_graph_block_weights(partitioned_graph, block_weights.get());
+  mt_kahypar_get_block_weights(partitioned_graph, block_weights.get());
 
   // Compute Metrics
-  const double imbalance = mt_kahypar_graph_imbalance(partitioned_graph, context);
-  const double cut = mt_kahypar_graph_cut(partitioned_graph);
+  const double imbalance = mt_kahypar_imbalance(partitioned_graph, context);
+  const double cut = mt_kahypar_cut(partitioned_graph);
 
   // Output Results
   std::cout << "Partitioning Results:" << std::endl;
@@ -55,6 +56,6 @@ int main(int argc, char* argv[]) {
   std::cout << "Weight of Block 1 = " << block_weights[1] << std::endl;
 
   mt_kahypar_free_context(context);
-  mt_kahypar_free_graph(graph);
-  mt_kahypar_free_partitioned_graph(partitioned_graph);
+  mt_kahypar_free_hypergraph(graph);
+  mt_kahypar_free_partitioned_hypergraph(partitioned_graph);
 }
