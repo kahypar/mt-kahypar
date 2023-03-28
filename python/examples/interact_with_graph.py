@@ -1,10 +1,10 @@
 # Please follow the instructions in the README to install the python library interface
-# and copy mtkahyparhgp.so and mtkahypargp.so to the folder containing the examples.
+# and copy mtkahypar.so to the folder containing the examples.
 
-import mtkahypargp as gp
+import mtkahypar
 
 # Creates a weighted hypergraph
-graph = gp.Graph(
+graph = mtkahypar.Graph(
   5,             # with 5 nodes
   6,             # and 6 undirected edges
   # Define six undirected edges
@@ -17,8 +17,8 @@ graph = gp.Graph(
   [4,2,4,2,1],   # node weights
   [1,2,1,3,3,2]) # hyperedge weights
 
-# Output statistics of hypergraph
-print("Hypergraph Stats:")
+# Output statistics of graph
+print("Graph Stats:")
 print("Number of Nodes            = " + str(graph.numNodes()))
 print("Number of Undirected Edges = " + str(graph.numEdges()))
 print("Number of Directed Edges   = " + str(graph.numDirectedEdges()))
@@ -50,9 +50,9 @@ graph.doForAllEdges(lambda edge : (
 ))
 print()
 
-# Partition Hypergraph
+# Create a partition of the graph
 number_of_blocks = 3
-partitioned_graph = gp.PartitionedGraph(
+partitioned_graph = mtkahypar.PartitionedGraph(
   graph,
   number_of_blocks, # partition hypergraph into three blocks
   [0,0,1,1,2])      # block IDs for each node
