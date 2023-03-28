@@ -329,8 +329,8 @@ void mt_kahypar_free_partitioned_hypergraph(mt_kahypar_partitioned_hypergraph_t 
   utils::delete_partitioned_hypergraph(partitioned_hg);
 }
 
-MT_KAHYPAR_API bool check_compatibility(mt_kahypar_hypergraph_t hypergraph,
-                                        mt_kahypar_preset_type_t preset) {
+MT_KAHYPAR_API bool mt_kahypar_check_compatibility(mt_kahypar_hypergraph_t hypergraph,
+                                                   mt_kahypar_preset_type_t preset) {
   return lib::check_compatibility(hypergraph, preset);
 }
 
@@ -338,7 +338,7 @@ mt_kahypar_partitioned_hypergraph_t mt_kahypar_partition(mt_kahypar_hypergraph_t
                                                          mt_kahypar_context_t* context) {
   Context& c = *reinterpret_cast<Context*>(context);
   if ( lib::check_if_all_relavant_parameters_are_set(c) ) {
-    if ( check_compatibility(hypergraph, lib::get_preset_c_type(c.partition.preset_type)) ) {
+    if ( mt_kahypar_check_compatibility(hypergraph, lib::get_preset_c_type(c.partition.preset_type)) ) {
       c.partition.instance_type = lib::get_instance_type(hypergraph);
       c.partition.partition_type = to_partition_c_type(
         c.partition.preset_type, c.partition.instance_type);
@@ -352,8 +352,8 @@ mt_kahypar_partitioned_hypergraph_t mt_kahypar_partition(mt_kahypar_hypergraph_t
   return mt_kahypar_partitioned_hypergraph_t { nullptr, NULLPTR_PARTITION };
 }
 
-MT_KAHYPAR_API bool check_partition_compatibility(mt_kahypar_partitioned_hypergraph_t partitioned_hg,
-                                                  mt_kahypar_preset_type_t preset) {
+MT_KAHYPAR_API bool mt_kahypar_check_partition_compatibility(mt_kahypar_partitioned_hypergraph_t partitioned_hg,
+                                                             mt_kahypar_preset_type_t preset) {
   return lib::check_compatibility(partitioned_hg, preset);
 }
 
@@ -362,7 +362,7 @@ void mt_kahypar_improve_partition(mt_kahypar_partitioned_hypergraph_t partitione
                                   const size_t num_vcycles) {
   Context& c = *reinterpret_cast<Context*>(context);
   if ( lib::check_if_all_relavant_parameters_are_set(c) ) {
-    if ( check_partition_compatibility(
+    if ( mt_kahypar_check_partition_compatibility(
           partitioned_hg, lib::get_preset_c_type(c.partition.preset_type)) ) {
       c.partition.instance_type = lib::get_instance_type(partitioned_hg);
       c.partition.partition_type = to_partition_c_type(

@@ -244,7 +244,7 @@ make uninstall-mtkahypar
 mt_kahypar_context_t context = mt_kahypar_context_new();
 mt_kahypar_load_preset(context, QUALITY);
 // Check if the hypergraph is compatible with the QUALITY preset
-if ( check_compatibility(hypergraph, QUALITY) ) {
+if ( mt_kahypar_check_compatibility(hypergraph, QUALITY) ) {
   mt_kahypar_partitioned_hypergraph_t partitioned_hg =
     mt_kahypar_partition(hypergraph, context);
 }

@@ -180,8 +180,8 @@ MT_KAHYPAR_API mt_kahypar_hypernode_id_t mt_kahypar_hypergraph_weight(mt_kahypar
 /**
  * Checks whether or not the given hypergraph can be partitioned with the corresponding preset.
  */
-MT_KAHYPAR_API bool check_compatibility(mt_kahypar_hypergraph_t hypergraph,
-                                        mt_kahypar_preset_type_t preset);
+MT_KAHYPAR_API bool mt_kahypar_check_compatibility(mt_kahypar_hypergraph_t hypergraph,
+                                                   mt_kahypar_preset_type_t preset);
 
 /**
  * Partitions a (hyper)graph according to the parameters specified in the partitioning context.
@@ -197,8 +197,8 @@ MT_KAHYPAR_API mt_kahypar_partitioned_hypergraph_t mt_kahypar_partition(mt_kahyp
  * Checks whether or not the given partitioned hypergraph can
  * be improved with the corresponding preset.
  */
-MT_KAHYPAR_API bool check_partition_compatibility(mt_kahypar_partitioned_hypergraph_t partitioned_hg,
-                                                  mt_kahypar_preset_type_t preset);
+MT_KAHYPAR_API bool mt_kahypar_check_partition_compatibility(mt_kahypar_partitioned_hypergraph_t partitioned_hg,
+                                                             mt_kahypar_preset_type_t preset);
 
 /**
  * Improves a given partition (using the V-cycle technique).
