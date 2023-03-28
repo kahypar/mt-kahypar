@@ -213,7 +213,6 @@ private:
   }
 
   void resetData() {
-    _is_gain_cache_initialized = false;
     tbb::parallel_invoke([&] {
     }, [&] {
       _part_ids.assign(_part_ids.size(), kInvalidPartition);
@@ -226,6 +225,7 @@ private:
     }, [&] {
       _edge_sync.assign(_hg->maxUniqueID(), EdgeMove());
     });
+    _is_gain_cache_initialized = false;
   }
 
   // ####################### General Hypergraph Stats ######################
