@@ -101,18 +101,16 @@ jobs:
           cmake .. -DCMAKE_BUILD_TYPE=RELEASE -DKAHYPAR_CI_BUILD=ON
           make -j2 interface_test
 
-      #- name: Build Mt-KaHyPar Python Interface
-      #  run: |
-      #    cd build
-      #    make mtkahypar_python -j2
-#
-      #- name: Run Mt-KaHyPar Python Interface Tests
-      #  run: |
-      #    cd python/tests
-      #    cp ../../build/python/mtkahyparhgp*.so mtkahyparhgp.so
-      #    cp ../../build/python/mtkahypargp*.so mtkahypargp.so
-      #    python3 test_mtkahyparhgp.py -v
-      #    python3 test_mtkahypargp.py -v
+      - name: Build Mt-KaHyPar Python Interface
+        run: |
+          cd build
+          make mtkahypar_python -j2
+
+      - name: Run Mt-KaHyPar Python Interface Tests
+        run: |
+          cd python/tests
+          cp ../../build/python/mtkahypar*.so mtkahypar.so
+          python3 test_mtkahypar.py -v
 
   mt_kahypar_windows_build:
     runs-on: windows-latest
