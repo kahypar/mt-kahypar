@@ -32,6 +32,8 @@
 
 #include "tbb/parallel_for.h"
 
+#include "include/libmtkahypartypes.h"
+
 #include "kahypar/meta/mandatory.h"
 #include "kahypar/datastructure/fast_reset_flag_array.h"
 #include "kahypar/utils/math.h"
@@ -49,7 +51,6 @@ namespace ds {
 // Forward
 class DynamicHypergraphFactory;
 template <typename Hypergraph,
-          typename HypergraphFactory,
           typename ConnectivityInformation>
 class PartitionedHypergraph;
 
@@ -387,7 +388,10 @@ class DynamicHypergraph {
   static constexpr bool is_partitioned = false;
   static constexpr size_t SIZE_OF_HYPERNODE = sizeof(Hypernode);
   static constexpr size_t SIZE_OF_HYPEREDGE = sizeof(Hyperedge);
+  static constexpr mt_kahypar_hypergraph_type_t TYPE = DYNAMIC_HYPERGRAPH;
 
+  // ! Factory
+  using Factory = DynamicHypergraphFactory;
   // ! Iterator to iterate over the hypernodes
   using HypernodeIterator = HypergraphElementIterator<const Hypernode>;
   // ! Iterator to iterate over the hyperedges
@@ -911,7 +915,6 @@ class DynamicHypergraph {
   template<typename Hypergraph>
   friend class CommunitySupport;
   template <typename Hypergraph,
-            typename HypergraphFactory,
             typename ConnectivityInformation>
   friend class PartitionedHypergraph;
 

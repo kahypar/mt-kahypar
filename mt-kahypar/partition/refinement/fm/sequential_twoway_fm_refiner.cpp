@@ -26,12 +26,14 @@
 
 #include "mt-kahypar/partition/refinement/fm/sequential_twoway_fm_refiner.h"
 
+#include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/metrics.h"
 #include "mt-kahypar/partition/refinement/fm/stop_rule.h"
 
 namespace mt_kahypar {
 
-bool SequentialTwoWayFmRefiner::refine(Metrics& best_metrics, std::mt19937& prng) {
+template<typename TypeTraits>
+bool SequentialTwoWayFmRefiner<TypeTraits>::refine(Metrics& best_metrics, std::mt19937& prng) {
 
   // Activate all border nodes
   _pq.clear();
@@ -152,7 +154,8 @@ bool SequentialTwoWayFmRefiner::refine(Metrics& best_metrics, std::mt19937& prng
   return min_cut_idx > 0;
 }
 
-void SequentialTwoWayFmRefiner::activate(const HypernodeID hn) {
+template<typename TypeTraits>
+void SequentialTwoWayFmRefiner<TypeTraits>::activate(const HypernodeID hn) {
   if ( _border_vertices.isBorderNode(hn) ) {
     ASSERT(_vertex_state[hn] == VertexState::INACTIVE);
     const PartitionID from = _phg.partID(hn);
@@ -171,9 +174,10 @@ void SequentialTwoWayFmRefiner::activate(const HypernodeID hn) {
  * Performs delta gain update on all non locked hyperedges and
  * state transition of hyperedges.
  */
-void SequentialTwoWayFmRefiner::updateNeighbors(const HypernodeID hn,
-                                                const PartitionID from,
-                                                const PartitionID to) {
+template<typename TypeTraits>
+void SequentialTwoWayFmRefiner<TypeTraits>::updateNeighbors(const HypernodeID hn,
+                                                            const PartitionID from,
+                                                            const PartitionID to) {
   ASSERT(_phg.partID(hn) == to);
 
   for ( const HyperedgeID& he : _phg.incidentEdges(hn) ) {
@@ -196,9 +200,10 @@ void SequentialTwoWayFmRefiner::updateNeighbors(const HypernodeID hn,
 }
 
 // ! Delta-Gain Update as decribed in [ParMar06].
-void SequentialTwoWayFmRefiner::deltaGainUpdate(const HyperedgeID he,
-                                                const PartitionID from,
-                                                const PartitionID to) {
+template<typename TypeTraits>
+void SequentialTwoWayFmRefiner<TypeTraits>::deltaGainUpdate(const HyperedgeID he,
+                                                            const PartitionID from,
+                                                            const PartitionID to) {
   const HypernodeID pin_count_from_part_after_move = _phg.pinCountInPart(he, from);
   const HypernodeID pin_count_to_part_after_move = _phg.pinCountInPart(he, to);
 
@@ -247,15 +252,17 @@ void SequentialTwoWayFmRefiner::deltaGainUpdate(const HyperedgeID he,
   }
 }
 
-void SequentialTwoWayFmRefiner::updatePin(const HypernodeID pin, const Gain delta) {
+template<typename TypeTraits>
+void SequentialTwoWayFmRefiner<TypeTraits>::updatePin(const HypernodeID pin, const Gain delta) {
   const PartitionID to = 1 - _phg.partID(pin);
   ASSERT(_vertex_state[pin] == VertexState::ACTIVE, V(pin));
   ASSERT(_pq.contains(pin, to), V(pin) << V(to));
   _pq.updateKeyBy(pin, to, delta);
 }
 
-void SequentialTwoWayFmRefiner::updatePQState(const PartitionID from,
-                                              const PartitionID to) {
+template<typename TypeTraits>
+void SequentialTwoWayFmRefiner<TypeTraits>::updatePQState(const PartitionID from,
+                                                          const PartitionID to) {
   if (_phg.partWeight(to) >= _context.partition.max_part_weights[to] ) {
     _pq.disablePart(to);
   }
@@ -264,7 +271,8 @@ void SequentialTwoWayFmRefiner::updatePQState(const PartitionID from,
   }
 }
 
-Gain SequentialTwoWayFmRefiner::computeGain(const HypernodeID hn, const PartitionID from, const PartitionID to) {
+template<typename TypeTraits>
+Gain SequentialTwoWayFmRefiner<TypeTraits>::computeGain(const HypernodeID hn, const PartitionID from, const PartitionID to) {
   ASSERT(_phg.partID(hn) == from);
   ASSERT(1 - from == to);
   Gain gain = 0;
@@ -281,8 +289,9 @@ Gain SequentialTwoWayFmRefiner::computeGain(const HypernodeID hn, const Partitio
   return gain;
 }
 
-void SequentialTwoWayFmRefiner::rollback(const parallel::scalable_vector<HypernodeID>& performed_moves,
-              const size_t min_cut_idx) {
+template<typename TypeTraits>
+void SequentialTwoWayFmRefiner<TypeTraits>::rollback(const parallel::scalable_vector<HypernodeID>& performed_moves,
+                                                     const size_t min_cut_idx) {
   for ( size_t i = min_cut_idx; i < performed_moves.size(); ++i ) {
     const HypernodeID hn = performed_moves[i];
     const PartitionID from = _phg.partID(hn);
@@ -291,7 +300,8 @@ void SequentialTwoWayFmRefiner::rollback(const parallel::scalable_vector<Hyperno
   }
 }
 
-bool SequentialTwoWayFmRefiner::verifyPQState() const {
+template<typename TypeTraits>
+bool SequentialTwoWayFmRefiner<TypeTraits>::verifyPQState() const {
   for ( const HypernodeID& hn : _phg.nodes() ) {
     const PartitionID to = 1 - _phg.partID(hn);
     if ( _border_vertices.isBorderNode(hn) && _vertex_state[hn] != VertexState::MOVED ) {
@@ -316,5 +326,7 @@ bool SequentialTwoWayFmRefiner::verifyPQState() const {
   }
   return true;
 }
+
+INSTANTIATE_CLASS_WITH_TYPE_TRAITS(SequentialTwoWayFmRefiner)
 
 } // namespace mt_kahypar

@@ -32,7 +32,7 @@
 
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/utils/utilities.h"
-#include "mt-kahypar/io/hypergraph_io.h"
+#include "mt-kahypar/io/hypergraph_factory.h"
 #include "mt-kahypar/partition/registries/register_initial_partitioning_algorithms.h"
 #include "mt-kahypar/partition/registries/register_refinement_algorithms.cpp"
 #include "mt-kahypar/partition/initial_partitioning/pool_initial_partitioner.h"
@@ -41,14 +41,20 @@ using ::testing::Test;
 
 namespace mt_kahypar {
 
-template<PartitionID k, size_t runs>
+template<typename TypeTraitsT, PartitionID k, size_t runs>
 struct TestConfig {
+  using TypeTraits = TypeTraitsT;
   static constexpr PartitionID K = k;
   static constexpr size_t RUNS = runs;
 };
 
 template<typename Config>
 class APoolInitialPartitionerTest : public Test {
+
+  using TypeTraits = typename Config::TypeTraits;
+  using Hypergraph = typename TypeTraits::Hypergraph;
+  using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
+
  public:
   APoolInitialPartitionerTest() :
     hypergraph(),
@@ -56,18 +62,30 @@ class APoolInitialPartitionerTest : public Test {
     context() {
     context.partition.k = Config::K;
     context.partition.epsilon = 0.2;
+    #ifdef KAHYPAR_ENABLE_N_LEVEL_PARTITIONING_FEATURES
+    context.partition.preset_type = Hypergraph::is_static_hypergraph ?
+     PresetType::default_preset : PresetType::quality_preset;
+    #else
+    context.partition.preset_type = PresetType::default_preset;
+    #endif
+    context.partition.instance_type = InstanceType::hypergraph;
+    context.partition.partition_type = PartitionedHypergraph::TYPE;
     context.partition.objective = Objective::km1;
     context.initial_partitioning.runs = Config::RUNS;
     context.refinement.label_propagation.algorithm =
       LabelPropagationAlgorithm::label_propagation_km1;
     context.initial_partitioning.refinement.label_propagation.algorithm =
       LabelPropagationAlgorithm::label_propagation_km1;
-    hypergraph = io::readHypergraphFile(
-      "../tests/instances/test_instance.hgr");
+    hypergraph = io::readInputFile<Hypergraph>(
+      "../tests/instances/test_instance.hgr", FileFormat::hMetis, true);
     partitioned_hypergraph = PartitionedHypergraph(
       context.partition.k, hypergraph, parallel_tag_t());
     context.setupPartWeights(hypergraph.totalWeight());
     utils::Utilities::instance().getTimer(context.utility_id).disable();
+  }
+
+  void bipartition() {
+    Pool<TypeTraits>::bipartition(partitioned_hypergraph, context);
   }
 
   static void SetUpTestSuite() {
@@ -79,39 +97,48 @@ class APoolInitialPartitionerTest : public Test {
   Context context;
 };
 
-typedef ::testing::Types<TestConfig<2, 1>,
-                         TestConfig<2, 2>,
-                         TestConfig<2, 5>,
-                         TestConfig<3, 1>,
-                         TestConfig<3, 2>,
-                         TestConfig<3, 5>,
-                         TestConfig<4, 1>,
-                         TestConfig<4, 2>,
-                         TestConfig<4, 5>,
-                         TestConfig<5, 1>,
-                         TestConfig<5, 2>,
-                         TestConfig<5, 5>> TestConfigs;
+typedef ::testing::Types<TestConfig<StaticHypergraphTypeTraits, 2, 1>,
+                         TestConfig<StaticHypergraphTypeTraits, 2, 2>,
+                         TestConfig<StaticHypergraphTypeTraits, 2, 5>,
+                         TestConfig<StaticHypergraphTypeTraits, 3, 1>,
+                         TestConfig<StaticHypergraphTypeTraits, 3, 2>,
+                         TestConfig<StaticHypergraphTypeTraits, 3, 5>,
+                         TestConfig<StaticHypergraphTypeTraits, 4, 1>,
+                         TestConfig<StaticHypergraphTypeTraits, 4, 2>,
+                         TestConfig<StaticHypergraphTypeTraits, 4, 5>,
+                         TestConfig<StaticHypergraphTypeTraits, 5, 1>,
+                         TestConfig<StaticHypergraphTypeTraits, 5, 2>,
+                         TestConfig<StaticHypergraphTypeTraits, 5, 5>
+                         ENABLE_N_LEVEL(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA 2 COMMA 1>)
+                         ENABLE_N_LEVEL(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA 2 COMMA 2>)
+                         ENABLE_N_LEVEL(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA 2 COMMA 5>)
+                         ENABLE_N_LEVEL(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA 3 COMMA 1>)
+                         ENABLE_N_LEVEL(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA 3 COMMA 2>)
+                         ENABLE_N_LEVEL(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA 3 COMMA 5>)
+                         ENABLE_N_LEVEL(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA 4 COMMA 1>)
+                         ENABLE_N_LEVEL(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA 4 COMMA 2>)
+                         ENABLE_N_LEVEL(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA 4 COMMA 5>)
+                         ENABLE_N_LEVEL(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA 5 COMMA 1>)
+                         ENABLE_N_LEVEL(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA 5 COMMA 2>)
+                         ENABLE_N_LEVEL(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA 5 COMMA 5>) > TestConfigs;
 
 TYPED_TEST_CASE(APoolInitialPartitionerTest, TestConfigs);
 
 TYPED_TEST(APoolInitialPartitionerTest, HasValidImbalance) {
-  pool::bipartition(this->partitioned_hypergraph, this->context);
-
+  this->bipartition();
   ASSERT_LE(metrics::imbalance(this->partitioned_hypergraph, this->context),
             this->context.partition.epsilon);
 }
 
 TYPED_TEST(APoolInitialPartitionerTest, AssginsEachHypernode) {
-  pool::bipartition(this->partitioned_hypergraph, this->context);
-
+  this->bipartition();
   for ( const HypernodeID& hn : this->partitioned_hypergraph.nodes() ) {
     ASSERT_NE(this->partitioned_hypergraph.partID(hn), -1);
   }
 }
 
 TYPED_TEST(APoolInitialPartitionerTest, HasNoSignificantLowPartitionWeights) {
-  pool::bipartition(this->partitioned_hypergraph, this->context);
-
+  this->bipartition();
   // Each block should have a weight greater or equal than 20% of the average
   // block weight.
   for ( PartitionID block = 0; block < this->context.partition.k; ++block ) {

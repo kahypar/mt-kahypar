@@ -32,9 +32,9 @@
 #include "tbb/parallel_sort.h"
 #include "tbb/parallel_scan.h"
 
-#include "kahypar/meta/mandatory.h"
+#include "include/libmtkahypartypes.h"
 
-#include "mt-kahypar/definitions.h"
+#include "kahypar/meta/mandatory.h"
 #include "mt-kahypar/partition/coarsening/nlevel_coarsener_base.h"
 #include "mt-kahypar/partition/coarsening/nlevel_vertex_pair_rater.h"
 #include "mt-kahypar/partition/coarsening/i_coarsener.h"
@@ -42,25 +42,29 @@
 #include "mt-kahypar/partition/coarsening/policies/rating_heavy_node_penalty_policy.h"
 #include "mt-kahypar/partition/coarsening/policies/rating_score_policy.h"
 #include "mt-kahypar/parallel/parallel_prefix_sum.h"
+#include "mt-kahypar/utils/cast.h"
 #include "mt-kahypar/utils/progress_bar.h"
 #include "mt-kahypar/utils/randomize.h"
 #include "mt-kahypar/utils/stats.h"
 
 namespace mt_kahypar {
-template <class ScorePolicy = HeavyEdgeScore,
-          class HeavyNodePenaltyPolicy = MultiplicativePenalty,
+template <class TypeTraits = Mandatory,
+          class ScorePolicy = HeavyEdgeScore,
+          class HeavyNodePenaltyPolicy = NoWeightPenalty,
           class AcceptancePolicy = BestRatingPreferringUnmatched>
 class NLevelCoarsener : public ICoarsener,
-                        private NLevelCoarsenerBase {
+                        private NLevelCoarsenerBase<TypeTraits> {
  private:
 
   #define HIGH_DEGREE_VERTEX_THRESHOLD ID(200000)
 
-  using Base = NLevelCoarsenerBase;
+  using Base = NLevelCoarsenerBase<TypeTraits>;
   using Rater = NLevelVertexPairRater<ScorePolicy,
                                       HeavyNodePenaltyPolicy,
                                       AcceptancePolicy>;
   using Rating = typename Rater::Rating;
+  using Hypergraph = typename TypeTraits::Hypergraph;
+  using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
 
   class ContractionLimitTracker {
 
@@ -126,30 +130,33 @@ class NLevelCoarsener : public ICoarsener,
   static constexpr bool enable_heavy_assert = false;
 
  public:
-  NLevelCoarsener(Hypergraph& hypergraph,
+  NLevelCoarsener(mt_kahypar_hypergraph_t hypergraph,
                   const Context& context,
-                  UncoarseningData& uncoarseningData) :
-    Base(hypergraph, context, uncoarseningData),
-    _rater(hypergraph, context),
-    _initial_num_nodes(hypergraph.initialNumNodes() - hypergraph.numRemovedHypernodes()),
+                  uncoarsening_data_t* uncoarseningData) :
+    Base(utils::cast<Hypergraph>(hypergraph),
+         context,
+         uncoarsening::to_reference<TypeTraits>(uncoarseningData)),
+    _rater(utils::cast<Hypergraph>(hypergraph).initialNumNodes(), context),
+    _initial_num_nodes(utils::cast<Hypergraph>(hypergraph).initialNumNodes() -
+                       utils::cast<Hypergraph>(hypergraph).numRemovedHypernodes()),
     _current_vertices(),
     _tmp_current_vertices(),
     _enabled_vertex_flag_array(),
     _cl_tracker(context),
     _pass_nr(0),
-    _progress_bar(hypergraph.initialNumNodes(), 0, false),
+    _progress_bar(utils::cast<Hypergraph>(hypergraph).initialNumNodes(), 0, false),
     _enable_randomization(true) {
-    _progress_bar += hypergraph.numRemovedHypernodes();
+    _progress_bar += _hg.numRemovedHypernodes();
     tbb::parallel_invoke([&] {
-      _current_vertices.resize(hypergraph.initialNumNodes());
-      tbb::parallel_for(ID(0), hypergraph.initialNumNodes(), [&](const HypernodeID hn) {
+      _current_vertices.resize(_hg.initialNumNodes());
+      tbb::parallel_for(ID(0), _hg.initialNumNodes(), [&](const HypernodeID hn) {
         _current_vertices[hn] = hn;
       });
       utils::Randomize::instance().parallelShuffleVector(_current_vertices, UL(0), _current_vertices.size());
     }, [&] {
-      _tmp_current_vertices.resize(hypergraph.initialNumNodes());
+      _tmp_current_vertices.resize(_hg.initialNumNodes());
     }, [&] {
-      _enabled_vertex_flag_array.resize(hypergraph.initialNumNodes());
+      _enabled_vertex_flag_array.resize(_hg.initialNumNodes());
     });
   }
 
@@ -257,12 +264,16 @@ class NLevelCoarsener : public ICoarsener,
     return _cl_tracker.currentNumNodes();
   }
 
-  Hypergraph& coarsestHypergraphImpl() override {
-    return Base::compactifiedHypergraph();
+  mt_kahypar_hypergraph_t coarsestHypergraphImpl() override {
+    return mt_kahypar_hypergraph_t {
+      reinterpret_cast<mt_kahypar_hypergraph_s*>(
+        &Base::compactifiedHypergraph()), Hypergraph::TYPE };
   }
 
-  PartitionedHypergraph& coarsestPartitionedHypergraphImpl() override {
-    return Base::compactifiedPartitionedHypergraph();
+  mt_kahypar_partitioned_hypergraph_t coarsestPartitionedHypergraphImpl() override {
+    return mt_kahypar_partitioned_hypergraph_t {
+      reinterpret_cast<mt_kahypar_partitioned_hypergraph_s*>(
+        &Base::compactifiedPartitionedHypergraph()), PartitionedHypergraph::TYPE };
   }
 
   void compactifyVertices() {
@@ -296,6 +307,9 @@ class NLevelCoarsener : public ICoarsener,
   }
 
   using Base::_hg;
+  using Base::_context;
+  using Base::_timer;
+  using Base::_uncoarseningData;
   Rater _rater;
   const HypernodeID _initial_num_nodes;
   parallel::scalable_vector<HypernodeID> _current_vertices;

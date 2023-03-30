@@ -26,7 +26,6 @@
 
 #pragma once
 
-#include <mt-kahypar/definitions.h>
 #include <mt-kahypar/datastructures/priority_queue.h>
 #include <mt-kahypar/partition/context.h>
 #include <mt-kahypar/parallel/work_stack.h>

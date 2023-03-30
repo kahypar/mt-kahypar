@@ -7,39 +7,30 @@ import sys
 import multiprocessing
 
 mt_kahypar_dir = os.environ.get("PWD") + "/"
-executable_dir = mt_kahypar_dir + "build/mt-kahypar/application/"
+executable = mt_kahypar_dir + "build/mt-kahypar/application/MtKaHyPar"
 verify_partition_exec = mt_kahypar_dir + "build/tools/VerifyPartition"
 config_dir = mt_kahypar_dir + "config/"
 integration_test_json_file = mt_kahypar_dir + "tests/end_to_end/integration_tests.json"
 num_threads = multiprocessing.cpu_count()
 
 
-partitioners = { "Mt-KaHyPar-D":       { "executable": executable_dir + "MtKaHyParDefault",
-                                         "config":  config_dir + "default_preset.ini",
+partitioners = { "Mt-KaHyPar-D":       { "config":  config_dir + "default_preset.ini",
                                          "mode": "direct" },
-                 "Mt-KaHyPar-Q":       { "executable": executable_dir + "MtKaHyParQuality",
-                                         "config":  config_dir + "quality_preset.ini",
+                 "Mt-KaHyPar-Q":       { "config":  config_dir + "quality_preset.ini",
                                          "mode": "direct" },
-                 "Mt-KaHyPar-D-Graph": { "executable": executable_dir + "MtKaHyParGraph",
-                                         "config":  config_dir + "default_preset.ini",
+                 "Mt-KaHyPar-D-Graph": { "config":  config_dir + "default_preset.ini",
                                          "mode": "direct" },
-                 "Mt-KaHyPar-Q-Graph":  { "executable": executable_dir + "MtKaHyParGraphQuality",
-                                         "config":  config_dir + "quality_preset.ini",
+                 "Mt-KaHyPar-Q-Graph":  {"config":  config_dir + "quality_preset.ini",
                                          "mode": "direct" },
-                 "Mt-KaHyPar-SDet":    { "executable": executable_dir + "MtKaHyParDefault",
-                                         "config":  config_dir + "deterministic_preset.ini",
+                 "Mt-KaHyPar-SDet":    { "config":  config_dir + "deterministic_preset.ini",
                                          "mode": "direct" },
-                 "Mt-KaHyPar-D-RB":    { "executable": executable_dir + "MtKaHyParDefault",
-                                         "config":  config_dir + "default_preset.ini",
+                 "Mt-KaHyPar-D-RB":    { "config":  config_dir + "default_preset.ini",
                                          "mode": "rb" },
-                 "Mt-KaHyPar-Q-RB":    { "executable": executable_dir + "MtKaHyParQuality",
-                                         "config":  config_dir + "quality_preset.ini",
+                 "Mt-KaHyPar-Q-RB":    { "config":  config_dir + "quality_preset.ini",
                                          "mode": "rb" },
-                 "Mt-KaHyPar-D-Deep":  { "executable": executable_dir + "MtKaHyParDefault",
-                                         "config":  config_dir + "default_preset.ini",
+                 "Mt-KaHyPar-D-Deep":  { "config":  config_dir + "default_preset.ini",
                                          "mode": "deep" },
-                 "Mt-KaHyPar-Q-Deep":  { "executable": executable_dir + "MtKaHyParQuality",
-                                         "config":  config_dir + "quality_preset.ini",
+                 "Mt-KaHyPar-Q-Deep":  { "config":  config_dir + "quality_preset.ini",
                                          "mode": "deep" } }
 
 def bold(msg):
@@ -58,7 +49,7 @@ def command(test, instance, k, epsilon):
   partitioner = partitioners[test["partitioner"]]
   config = config_dir + test["config"] if "config" in test else partitioner["config"]
   parameters = test["parameters"] if "parameters" in test else []
-  return [ partitioner["executable"],
+  return [ executable,
          "-h" + instance,
          "-p" + config,
          "-k" + str(k),

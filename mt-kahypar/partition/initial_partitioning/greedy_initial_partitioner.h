@@ -26,16 +26,19 @@
 
 #pragma once
 
-#include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/initial_partitioning/i_initial_partitioner.h"
 #include "mt-kahypar/partition/initial_partitioning/initial_partitioning_data_container.h"
 #include "mt-kahypar/partition/initial_partitioning/policies/pseudo_peripheral_start_nodes.h"
 
 namespace mt_kahypar {
-template<typename GainPolicy,
-         typename PQSelectionPolicy>
+template<typename TypeTraits,
+         template<typename> typename GainPolicyT,
+         template<typename> typename PQSelectionPolicyT>
 class GreedyInitialPartitioner : public IInitialPartitioner {
 
+  using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
+  using GainPolicy = GainPolicyT<TypeTraits>;
+  using PQSelectionPolicy = PQSelectionPolicyT<TypeTraits>;
   using DeltaFunction = std::function<void (const HyperedgeID, const HyperedgeWeight, const HypernodeID, const HypernodeID, const HypernodeID)>;
   #define NOOP_FUNC [] (const HyperedgeID, const HyperedgeWeight, const HypernodeID, const HypernodeID, const HypernodeID) { }
 
@@ -44,11 +47,11 @@ class GreedyInitialPartitioner : public IInitialPartitioner {
 
  public:
   GreedyInitialPartitioner(const InitialPartitioningAlgorithm algorithm,
-                            InitialPartitioningDataContainer& ip_data,
-                            const Context& context,
-                            const int seed, const int tag) :
+                           ip_data_container_t* ip_data,
+                           const Context& context,
+                           const int seed, const int tag) :
     _algorithm(algorithm),
-    _ip_data(ip_data),
+    _ip_data(ip::to_reference<TypeTraits>(ip_data)),
     _context(context),
     _default_block(PQSelectionPolicy::getDefaultBlock()),
     _rng(seed),
@@ -63,7 +66,6 @@ class GreedyInitialPartitioner : public IInitialPartitioner {
       KWayPriorityQueue& kway_pq = _ip_data.local_kway_priority_queue();
       kahypar::ds::FastResetFlagArray<>& hyperedges_in_queue =
         _ip_data.local_hyperedge_fast_reset_flag_array();
-
 
       // Experiments have shown that some pq selection policies work better
       // if we preassign all vertices to a block and than execute the greedy
@@ -81,7 +83,7 @@ class GreedyInitialPartitioner : public IInitialPartitioner {
       // Insert start vertices into its corresponding PQs
       _ip_data.reset_unassigned_hypernodes(_rng);
       parallel::scalable_vector<HypernodeID> start_nodes =
-        PseudoPeripheralStartNodes::computeStartNodes(_ip_data, _context, _default_block, _rng);
+        PseudoPeripheralStartNodes<TypeTraits>::computeStartNodes(_ip_data, _context, _default_block, _rng);
       ASSERT(static_cast<size_t>(_context.partition.k) == start_nodes.size());
       kway_pq.clear();
       for ( PartitionID block = 0; block < _context.partition.k; ++block ) {
@@ -242,7 +244,7 @@ class GreedyInitialPartitioner : public IInitialPartitioner {
   }
 
   const InitialPartitioningAlgorithm _algorithm;
-  InitialPartitioningDataContainer& _ip_data;
+  InitialPartitioningDataContainer<TypeTraits>& _ip_data;
   const Context& _context;
   const PartitionID _default_block;
   std::mt19937 _rng;

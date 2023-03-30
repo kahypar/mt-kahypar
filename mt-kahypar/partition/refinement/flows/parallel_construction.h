@@ -45,11 +45,14 @@ namespace mt_kahypar {
 
 struct FlowProblem;
 
+template<typename TypeTraits>
 class ParallelConstruction {
 
   static constexpr bool debug = false;
 
   static constexpr size_t NUM_CSR_BUCKETS = 1024;
+
+  using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
 
   struct TmpPin {
     HyperedgeID e;
@@ -83,13 +86,13 @@ class ParallelConstruction {
     };
 
    public:
-    explicit DynamicIdenticalNetDetection(const Hypergraph& hg,
+    explicit DynamicIdenticalNetDetection(const HyperedgeID num_hyperedges,
                                           FlowHypergraphBuilder& flow_hg,
                                           const Context& context) :
       _flow_hg(flow_hg),
       _hash_buckets(),
       _threshold(2) {
-      _hash_buckets.resize(std::max(UL(1024), hg.initialNumEdges() /
+      _hash_buckets.resize(std::max(UL(1024), num_hyperedges /
         context.refinement.flows.num_parallel_searches));
     }
 
@@ -109,7 +112,7 @@ class ParallelConstruction {
   };
 
  public:
-  explicit ParallelConstruction(const Hypergraph& hg,
+  explicit ParallelConstruction(const HyperedgeID num_hyperedges,
                                 FlowHypergraphBuilder& flow_hg,
                                 whfc::HyperFlowCutter<whfc::ParallelPushRelabel>& hfc,
                                 const Context& context) :
@@ -122,7 +125,7 @@ class ParallelConstruction {
     _cut_hes(),
     _pins(),
     _he_to_whfc(),
-    _identical_nets(hg, flow_hg, context) { }
+    _identical_nets(num_hyperedges, flow_hg, context) { }
 
   ParallelConstruction(const ParallelConstruction&) = delete;
   ParallelConstruction(ParallelConstruction&&) = delete;

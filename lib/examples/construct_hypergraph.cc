@@ -47,9 +47,9 @@ int main(int argc, char* argv[]) {
   hyperedge_weights[0] = 1; hyperedge_weights[1] = 10;
   hyperedge_weights[2] = 1; hyperedge_weights[3] = 10;
 
-  // Construct hypergraph
-  mt_kahypar_hypergraph_t* hypergraph =
-    mt_kahypar_create_hypergraph(num_nodes, num_hyperedges,
+  // Construct hypergraph for DEFAULT preset
+  mt_kahypar_hypergraph_t hypergraph =
+    mt_kahypar_create_hypergraph(DEFAULT, num_nodes, num_hyperedges,
       hyperedge_indices.get(), hyperedges.get(),
       hyperedge_weights.get(), node_weights.get());
 

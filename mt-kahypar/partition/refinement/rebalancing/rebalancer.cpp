@@ -31,16 +31,17 @@
 #include <boost/dynamic_bitset.hpp>
 
 #include <tbb/parallel_for_each.h>
-
 #include "tbb/enumerable_thread_specific.h"
 #include "tbb/parallel_for.h"
+
+#include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/metrics.h"
 #include "mt-kahypar/utils/timer.h"
 
 namespace mt_kahypar {
 
-  template <template <typename> class GainPolicy>
-  void Rebalancer<GainPolicy>::rebalance(Metrics& best_metrics) {
+  template <typename TypeTraits, template <typename> class GainPolicy>
+  void Rebalancer<TypeTraits, GainPolicy>::rebalance(Metrics& best_metrics) {
     // If partition is imbalanced, rebalancer is activated
     if ( !metrics::isBalanced(_hg, _context) ) {
       _gain.reset();
@@ -62,14 +63,17 @@ namespace mt_kahypar {
                                        pin_count_in_to_part_after);
       };
 
-
+      #ifdef KAHYPAR_ENABLE_LARGE_K_PARTITIONING_FEATURES
       if ( _context.partition.preset_type != PresetType::large_k ) {
+      #endif
         // TODO: This code must be optimized to work for large k
         vec<Move> moves_to_empty_blocks = repairEmptyBlocks();
         for (Move& m : moves_to_empty_blocks) {
           moveVertex(m.node, m, objective_delta);
         }
+      #ifdef KAHYPAR_ENABLE_LARGE_K_PARTITIONING_FEATURES
       }
+      #endif
 
       // We first try to perform moves that does not worsen solution quality of the partition
       // Moves that would worsen the solution quality are gathered in a thread local priority queue
@@ -185,8 +189,8 @@ namespace mt_kahypar {
     }
   }
 
-  template <template <typename> class GainPolicy>
-  vec<Move> Rebalancer<GainPolicy>::repairEmptyBlocks() {
+  template <typename TypeTraits, template <typename> class GainPolicy>
+  vec<Move> Rebalancer<TypeTraits, GainPolicy>::repairEmptyBlocks() {
     // First detect if there are any empty blocks.
     const size_t k = size_t(_context.partition.k);
     boost::dynamic_bitset<> is_empty(k);
@@ -288,6 +292,11 @@ namespace mt_kahypar {
   }
 
   // explicitly instantiate so the compiler can generate them when compiling this cpp file
-  template class Rebalancer<Km1Policy>;
-  template class Rebalancer<CutPolicy>;
+  namespace {
+  #define KM1_REBALANCER(X) Rebalancer<X, Km1Policy>
+  #define CUT_REBALANCER(X) Rebalancer<X, CutPolicy>
+  }
+
+  INSTANTIATE_CLASS_MACRO_WITH_TYPE_TRAITS(KM1_REBALANCER)
+  INSTANTIATE_CLASS_MACRO_WITH_TYPE_TRAITS(CUT_REBALANCER)
 }

@@ -30,7 +30,6 @@
 #include "tbb/concurrent_vector.h"
 #include "tbb/enumerable_thread_specific.h"
 
-#include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/refinement/flows/refiner_adapter.h"
 #include "mt-kahypar/parallel/atomic_wrapper.h"
@@ -42,10 +41,13 @@ struct BlockPair {
   PartitionID j = kInvalidPartition;
 };
 
+template<typename TypeTraits>
 class QuotientGraph {
 
   static constexpr bool debug = false;
   static constexpr bool enable_heavy_assert = false;
+
+  using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
 
   // ! Represents an edge of the quotient graph
   struct QuotientGraphEdge {
@@ -288,11 +290,11 @@ class QuotientGraph {
 public:
   static constexpr SearchID INVALID_SEARCH_ID = std::numeric_limits<SearchID>::max();
 
-  explicit QuotientGraph(const Hypergraph& hg,
+  explicit QuotientGraph(const HyperedgeID num_hyperedges,
                          const Context& context) :
     _phg(nullptr),
     _context(context),
-    _initial_num_edges(hg.initialNumEdges()),
+    _initial_num_edges(num_hyperedges),
     _current_num_edges(kInvalidHyperedge),
     _quotient_graph(context.partition.k,
       vec<QuotientGraphEdge>(context.partition.k)),
@@ -321,7 +323,7 @@ public:
    * associated with the search. If there are currently no block pairs
    * available then INVALID_SEARCH_ID is returned.
    */
-  SearchID requestNewSearch(FlowRefinerAdapter& refiner);
+  SearchID requestNewSearch(FlowRefinerAdapter<TypeTraits>& refiner);
 
   // ! Returns the block pair on which the corresponding search operates on
   BlockPair getBlockPair(const SearchID search_id) const {

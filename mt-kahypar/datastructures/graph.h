@@ -31,7 +31,6 @@
 #include <cmath>
 #include <boost/range/irange.hpp>
 
-#include "mt-kahypar/definitions.h"
 #include "mt-kahypar/datastructures/array.h"
 #include "mt-kahypar/datastructures/hypergraph_common.h"
 #include "mt-kahypar/partition/context_enum_classes.h"
@@ -44,6 +43,7 @@ namespace ds {
 /*!
  * CSR Graph Data Structure
  */
+template<typename Hypergraph>
 class Graph {
 
   static constexpr bool debug = false;
@@ -197,6 +197,7 @@ class Graph {
 }  // namespace ds
 
 // expose
-using Graph = ds::Graph;
+template<typename Hypergraph>
+using Graph = ds::Graph<Hypergraph>;
 
 }  // namespace mt_kahypar

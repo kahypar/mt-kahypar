@@ -28,6 +28,7 @@
 #include "kahypar/meta/policy_registry.h"
 #include "kahypar/meta/registrar.h"
 
+#include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/coarsening/policies/rating_acceptance_policy.h"
 #include "mt-kahypar/partition/coarsening/policies/rating_heavy_node_penalty_policy.h"
 #include "mt-kahypar/partition/coarsening/policies/rating_score_policy.h"
@@ -39,22 +40,50 @@
 
 namespace mt_kahypar {
 // //////////////////////////////////////////////////////////////////////////////
+//                            Hypergraph Type Traits
+// //////////////////////////////////////////////////////////////////////////////
+#ifdef KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES
+REGISTER_POLICY(mt_kahypar_partition_type_t, MULTILEVEL_GRAPH_PARTITIONING,
+                StaticGraphTypeTraits);
+#ifdef KAHYPAR_ENABLE_N_LEVEL_PARTITIONING_FEATURES
+REGISTER_POLICY(mt_kahypar_partition_type_t, N_LEVEL_GRAPH_PARTITIONING,
+                DynamicGraphTypeTraits);
+#endif
+#endif
+REGISTER_POLICY(mt_kahypar_partition_type_t, MULTILEVEL_HYPERGRAPH_PARTITIONING,
+                StaticHypergraphTypeTraits);
+#ifdef KAHYPAR_ENABLE_LARGE_K_PARTITIONING_FEATURES
+REGISTER_POLICY(mt_kahypar_partition_type_t, LARGE_K_PARTITIONING,
+                LargeKHypergraphTypeTraits);
+#endif
+#ifdef KAHYPAR_ENABLE_N_LEVEL_PARTITIONING_FEATURES
+REGISTER_POLICY(mt_kahypar_partition_type_t, N_LEVEL_HYPERGRAPH_PARTITIONING,
+                DynamicHypergraphTypeTraits);
+#endif
+
+// //////////////////////////////////////////////////////////////////////////////
 //                       Coarsening / Rating Policies
 // //////////////////////////////////////////////////////////////////////////////
 REGISTER_POLICY(RatingFunction, RatingFunction::heavy_edge,
                 HeavyEdgeScore);
+#ifdef KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES
 REGISTER_POLICY(RatingFunction, RatingFunction::sameness,
                 SamenessScore);
+#endif
 
 REGISTER_POLICY(HeavyNodePenaltyPolicy, HeavyNodePenaltyPolicy::no_penalty,
                 NoWeightPenalty);
+#ifdef KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES
 REGISTER_POLICY(HeavyNodePenaltyPolicy, HeavyNodePenaltyPolicy::multiplicative_penalty,
                 MultiplicativePenalty);
 REGISTER_POLICY(HeavyNodePenaltyPolicy, HeavyNodePenaltyPolicy::additive,
                 AdditivePenalty);
+#endif
 
-REGISTER_POLICY(AcceptancePolicy, AcceptancePolicy::best,
-                BestRatingWithTieBreaking);
 REGISTER_POLICY(AcceptancePolicy, AcceptancePolicy::best_prefer_unmatched,
                 BestRatingPreferringUnmatched);
+#ifdef KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES
+REGISTER_POLICY(AcceptancePolicy, AcceptancePolicy::best,
+                BestRatingWithTieBreaking);
+#endif
 }  // namespace mt_kahypar

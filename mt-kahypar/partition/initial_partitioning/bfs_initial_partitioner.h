@@ -26,24 +26,26 @@
 
 #pragma once
 
-#include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/initial_partitioning/i_initial_partitioner.h"
 #include "mt-kahypar/partition/initial_partitioning/initial_partitioning_data_container.h"
 #include "mt-kahypar/parallel/stl/scalable_queue.h"
 
 namespace mt_kahypar {
 
+template<typename TypeTraits>
 class BFSInitialPartitioner : public IInitialPartitioner {
   using Queue = parallel::scalable_queue<HypernodeID>;
 
   static constexpr bool debug = false;
 
+  using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
+
  public:
   BFSInitialPartitioner(const InitialPartitioningAlgorithm,
-                         InitialPartitioningDataContainer& ip_data,
-                         const Context& context,
-                         const int seed, const int tag) :
-    _ip_data(ip_data),
+                        ip_data_container_t* ip_data,
+                        const Context& context,
+                        const int seed, const int tag) :
+    _ip_data(ip::to_reference<TypeTraits>(ip_data)),
     _context(context),
     _rng(seed),
     _tag(tag) { }
@@ -83,7 +85,7 @@ class BFSInitialPartitioner : public IInitialPartitioner {
     hyperedges_in_queue.set(block * hypergraph.initialNumEdges() + he, true);
   }
 
-  InitialPartitioningDataContainer& _ip_data;
+  InitialPartitioningDataContainer<TypeTraits>& _ip_data;
   const Context& _context;
   std::mt19937 _rng;
   const int _tag;

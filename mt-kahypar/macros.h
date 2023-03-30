@@ -110,13 +110,6 @@
 #define HEAVY_INITIAL_PARTITIONING_ASSERT(...) EXPAND(HEAVY_ASSERT_EVAL(INITIAL_PARTITIONING, EXPAND(NARG(__VA_ARGS__)))(__VA_ARGS__))
 #define HEAVY_REFINEMENT_ASSERT(...) EXPAND(HEAVY_ASSERT_EVAL(REFINEMENT, EXPAND(NARG(__VA_ARGS__)))(__VA_ARGS__))
 
-// An assertion that triggers for the hypergraph partitioners but not for the graph partitioner
-#ifdef ENABLE_GRAPH_PARTITIONER
-  #define ASSERT_FOR_HG_ONLY(cond);
-#else
-  #define ASSERT_FOR_HG_ONLY(cond) ASSERT(cond);
-#endif
-
 // In windows unisgned long != size_t
 #define UL(X) (size_t) X
 
@@ -148,4 +141,38 @@
   }
 #endif
 
+#ifdef KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES
+#define ENABLE_EXPERIMENTAL_FEATURES(X) X
+#else
+#define ENABLE_EXPERIMENTAL_FEATURES(X)
+#endif
 
+#ifdef KAHYPAR_ENABLE_LARGE_K_PARTITIONING_FEATURES
+#define ENABLE_LARGE_K(X) X
+#else
+#define ENABLE_LARGE_K(X)
+#endif
+
+#ifdef KAHYPAR_ENABLE_N_LEVEL_PARTITIONING_FEATURES
+#define ENABLE_N_LEVEL(X) X
+#else
+#define ENABLE_N_LEVEL(X)
+#endif
+
+#ifdef KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES
+#define ENABLE_GRAPHS(X) X
+#else
+#define ENABLE_GRAPHS(X)
+#endif
+
+#ifdef KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES
+#ifdef KAHYPAR_ENABLE_N_LEVEL_PARTITIONING_FEATURES
+#define ENABLE_N_LEVEL_GRAPHS(X) X
+#else
+#define ENABLE_N_LEVEL_GRAPHS(X)
+#endif
+#else
+#define ENABLE_N_LEVEL_GRAPHS(X)
+#endif
+
+#define COMMA ,

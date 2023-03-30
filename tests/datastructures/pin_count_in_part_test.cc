@@ -33,7 +33,9 @@
 #include "tbb/task_group.h"
 
 #include "mt-kahypar/datastructures/pin_count_in_part.h"
+#ifdef KAHYPAR_ENABLE_LARGE_K_PARTITIONING_FEATURES
 #include "mt-kahypar/datastructures/sparse_pin_counts.h"
+#endif
 
 using ::testing::Test;
 
@@ -76,8 +78,13 @@ class APinCountDataStructure : public Test {
   PinCounts pin_count;
 };
 
+#ifdef KAHYPAR_ENABLE_LARGE_K_PARTITIONING_FEATURES
 using PinCountTestTypes =
   ::testing::Types<PinCountInPart, SparsePinCounts>;
+#else
+using PinCountTestTypes =
+  ::testing::Types<PinCountInPart>;
+#endif
 
 TYPED_TEST_CASE(APinCountDataStructure, PinCountTestTypes);
 
@@ -735,6 +742,8 @@ TYPED_TEST(APinCountDataStructure, ModifyTwoHyperedgesConcurrently3_k30_Max30) {
   ASSERT_EQ(30, this->pin_count.pinCountInPart(7, 19));
 }
 
+#ifdef KAHYPAR_ENABLE_LARGE_K_PARTITIONING_FEATURES
+
 using SparsePinCountsAsConnectivitySet = APinCountDataStructure<SparsePinCounts>;
 
 void add(const HyperedgeID he, SparsePinCounts& conn_set, const std::set<PartitionID>& ids) {
@@ -1159,6 +1168,7 @@ TEST_F(SparsePinCountsAsConnectivitySet, IteratesThroughPartitionsAndSimultanous
   verify(0, pin_count, 32, { 2, 6, 10, 22, 24 });
 }
 
+#endif
 
 }  // namespace ds
 }  // namespace mt_kahypar

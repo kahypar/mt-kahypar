@@ -39,7 +39,6 @@
 
 #include "mt-kahypar/datastructures/sparse_map.h"
 
-#include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/context.h"
 
 namespace mt_kahypar {
@@ -91,10 +90,11 @@ class MultilevelVertexPairRater {
  public:
   using Rating = VertexPairRating;
 
-  MultilevelVertexPairRater(Hypergraph& hypergraph,
-                           const Context& context) :
+  MultilevelVertexPairRater(const HypernodeID num_hypernodes,
+                            const HypernodeID max_edge_size,
+                            const Context& context) :
     _context(context),
-    _current_num_nodes(hypergraph.initialNumNodes()),
+    _current_num_nodes(num_hypernodes),
     _vertex_degree_sampling_threshold(context.coarsening.vertex_degree_sampling_threshold),
     _local_cache_efficient_rating_map(0.0),
     _local_vertex_degree_bounded_rating_map(3UL * _vertex_degree_sampling_threshold, 0.0),
@@ -103,9 +103,9 @@ class MultilevelVertexPairRater {
     }),
     // Should give a false positive rate < 1%
     _bloom_filter_mask(align_to_next_power_of_two(
-      std::min(ID(10) * hypergraph.maxEdgeSize(), _current_num_nodes)) - 1),
+      std::min(ID(10) * max_edge_size, _current_num_nodes)) - 1),
     _local_bloom_filter(_bloom_filter_mask + 1),
-    _already_matched(hypergraph.initialNumNodes()) { }
+    _already_matched(num_hypernodes) { }
 
   MultilevelVertexPairRater(const MultilevelVertexPairRater&) = delete;
   MultilevelVertexPairRater & operator= (const MultilevelVertexPairRater &) = delete;
@@ -113,6 +113,7 @@ class MultilevelVertexPairRater {
   MultilevelVertexPairRater(MultilevelVertexPairRater&&) = delete;
   MultilevelVertexPairRater & operator= (MultilevelVertexPairRater &&) = delete;
 
+  template<typename Hypergraph>
   VertexPairRating rate(const Hypergraph& hypergraph,
                         const HypernodeID u,
                         const parallel::scalable_vector<HypernodeID>& cluster_ids,
@@ -151,7 +152,7 @@ class MultilevelVertexPairRater {
   }
 
  private:
-  template<typename RatingMap>
+  template<typename Hypergraph, typename RatingMap>
   VertexPairRating rate(const Hypergraph& hypergraph,
                         const HypernodeID u,
                         RatingMap& tmp_ratings,
@@ -205,7 +206,7 @@ class MultilevelVertexPairRater {
     return ret;
   }
 
-  template<typename RatingMap>
+  template<typename Hypergraph, typename RatingMap>
   void fillRatingMap(const Hypergraph& hypergraph,
                      const HypernodeID u,
                      RatingMap& tmp_ratings,
@@ -233,7 +234,7 @@ class MultilevelVertexPairRater {
     }
   }
 
-  template<typename RatingMap>
+  template<typename Hypergraph, typename RatingMap>
   void fillRatingMapWithSampling(const Hypergraph& hypergraph,
                                  const HypernodeID u,
                                  RatingMap& tmp_ratings,
@@ -267,6 +268,7 @@ class MultilevelVertexPairRater {
     }
   }
 
+  template<typename Hypergraph>
   inline HypernodeID adaptiveEdgeSize(const Hypergraph& hypergraph,
                                       const HyperedgeID he,
                                       kahypar::ds::FastResetFlagArray<>& bloom_filter,
@@ -285,6 +287,7 @@ class MultilevelVertexPairRater {
     return edge_size;
   }
 
+  template<typename Hypergraph>
   inline RatingMapType getRatingMapTypeForRatingOfHypernode(const Hypergraph& hypergraph,
                                                             const HypernodeID u) {
     const bool use_vertex_degree_sampling =

@@ -26,12 +26,14 @@
 
 #include "mt-kahypar/partition/initial_partitioning/bfs_initial_partitioner.h"
 
+#include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/initial_partitioning/policies/pseudo_peripheral_start_nodes.h"
 #include "mt-kahypar/utils/randomize.h"
 
 namespace mt_kahypar {
 
-void BFSInitialPartitioner::partitionImpl() {
+template<typename TypeTraits>
+void BFSInitialPartitioner<TypeTraits>::partitionImpl() {
   if ( _ip_data.should_initial_partitioner_run(InitialPartitioningAlgorithm::bfs) ) {
     HighResClockTimepoint start = std::chrono::high_resolution_clock::now();
     PartitionedHypergraph& hypergraph = _ip_data.local_partitioned_hypergraph();
@@ -42,7 +44,7 @@ void BFSInitialPartitioner::partitionImpl() {
 
     _ip_data.reset_unassigned_hypernodes(_rng);
     parallel::scalable_vector<HypernodeID> start_nodes =
-            PseudoPeripheralStartNodes::computeStartNodes(_ip_data, _context, kInvalidPartition, _rng);
+      PseudoPeripheralStartNodes<TypeTraits>::computeStartNodes(_ip_data, _context, kInvalidPartition, _rng);
 
     // Insert each start node for each block into its corresponding queue
     hypernodes_in_queue.reset();
@@ -110,13 +112,14 @@ void BFSInitialPartitioner::partitionImpl() {
 
 // ! Pushes all adjacent hypernodes (not visited before) of hypernode hn
 // ! into the BFS queue of the corresponding block.
-inline void BFSInitialPartitioner::pushIncidentHypernodesIntoQueue(const PartitionedHypergraph& hypergraph,
-                                                                   const Context& context,
-                                                                   Queue& queue,
-                                                                   kahypar::ds::FastResetFlagArray<>& hypernodes_in_queue,
-                                                                   kahypar::ds::FastResetFlagArray<>& hyperedges_in_queue,
-                                                                   const HypernodeID hn,
-                                                                   const PartitionID block) {
+template<typename TypeTraits>
+inline void BFSInitialPartitioner<TypeTraits>::pushIncidentHypernodesIntoQueue(const PartitionedHypergraph& hypergraph,
+                                                                               const Context& context,
+                                                                               Queue& queue,
+                                                                               kahypar::ds::FastResetFlagArray<>& hypernodes_in_queue,
+                                                                               kahypar::ds::FastResetFlagArray<>& hyperedges_in_queue,
+                                                                               const HypernodeID hn,
+                                                                               const PartitionID block) {
   ASSERT(hn != kInvalidHypernode && block != kInvalidPartition);
   for ( const HyperedgeID& he : hypergraph.incidentEdges(hn) ) {
     if ( !hyperedges_in_queue[block * hypergraph.initialNumEdges() + he] ) {
@@ -133,5 +136,7 @@ inline void BFSInitialPartitioner::pushIncidentHypernodesIntoQueue(const Partiti
     }
   }
 }
+
+INSTANTIATE_CLASS_WITH_TYPE_TRAITS(BFSInitialPartitioner)
 
 } // namespace mt_kahypar

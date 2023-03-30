@@ -32,10 +32,14 @@
 #include <vector>
 
 #include "tbb/parallel_invoke.h"
+
+#include "mt-kahypar/definitions.h"
 #include "mt-kahypar/macros.h"
 #include "mt-kahypar/partition/multilevel.h"
 #include "mt-kahypar/partition/coarsening/multilevel_uncoarsener.h"
+#ifdef KAHYPAR_ENABLE_N_LEVEL_PARTITIONING_FEATURES
 #include "mt-kahypar/partition/coarsening/nlevel_uncoarsener.h"
+#endif
 #include "mt-kahypar/partition/initial_partitioning/pool_initial_partitioner.h"
 #include "mt-kahypar/partition/preprocessing/sparsification/degree_zero_hn_remover.h"
 #include "mt-kahypar/utils/randomize.h"
@@ -46,14 +50,16 @@
 
 namespace mt_kahypar {
 
-namespace deep_multilevel {
-
 namespace {
 
 static constexpr bool enable_heavy_assert = false;
 static constexpr bool debug = false;
 
+template<typename TypeTraits>
 struct DeepPartitioningResult {
+  using Hypergraph = typename TypeTraits::Hypergraph;
+  using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
+
   Hypergraph hypergraph;
   PartitionedHypergraph partitioned_hg;
   PartitionID k;
@@ -273,6 +279,7 @@ void enableTimerAndStats(const Context& context, const bool was_enabled_before) 
   }
 }
 
+template<typename Hypergraph>
 Context setupBipartitioningContext(const Hypergraph& hypergraph,
                                    const Context& context,
                                    const OriginalHypergraphInfo& info,
@@ -370,6 +377,7 @@ Context setupDeepMultilevelRecursionContext(const Context& context,
   return r_context;
 }
 
+template<typename PartitionedHypergraph>
 void printInitialPartitioningResult(const PartitionedHypergraph& partitioned_hg,
                                     const Context& context,
                                     const PartitionID k,
@@ -383,6 +391,7 @@ void printInitialPartitioningResult(const PartitionedHypergraph& partitioned_hg,
   }
 }
 
+template<typename PartitionedHypergraph>
 bool is_balanced(const PartitionedHypergraph& partitioned_hg,
                  const PartitionID k,
                  const RBTree& rb_tree) {
@@ -393,10 +402,12 @@ bool is_balanced(const PartitionedHypergraph& partitioned_hg,
   return isBalanced;
 }
 
-const DeepPartitioningResult& select_best_partition(const vec<DeepPartitioningResult>& partitions,
-                                                    const Context& context,
-                                                    const PartitionID k,
-                                                    const RBTree& rb_tree) {
+template<typename TypeTraits>
+const DeepPartitioningResult<TypeTraits>& select_best_partition(
+  const vec<DeepPartitioningResult<TypeTraits>>& partitions,
+  const Context& context,
+  const PartitionID k,
+  const RBTree& rb_tree) {
   vec<HyperedgeWeight> objectives(partitions.size(), 0);
   vec<bool> isBalanced(partitions.size(), false);
 
@@ -425,12 +436,14 @@ const DeepPartitioningResult& select_best_partition(const vec<DeepPartitioningRe
   return partitions[best_idx];
 }
 
-DeepPartitioningResult bipartition_block(Hypergraph&& hg,
-                                         const Context& context,
-                                         const OriginalHypergraphInfo& info,
-                                         const PartitionID start_k,
-                                         const PartitionID end_k) {
-  DeepPartitioningResult bipartition;
+template<typename TypeTraits>
+DeepPartitioningResult<TypeTraits> bipartition_block(typename TypeTraits::Hypergraph&& hg,
+                                                     const Context& context,
+                                                     const OriginalHypergraphInfo& info,
+                                                     const PartitionID start_k,
+                                                     const PartitionID end_k) {
+  using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
+  DeepPartitioningResult<TypeTraits> bipartition;
   bipartition.hypergraph = std::move(hg);
   bipartition.valid = true;
 
@@ -438,7 +451,7 @@ DeepPartitioningResult bipartition_block(Hypergraph&& hg,
     // Bipartition block
     Context b_context = setupBipartitioningContext(
       bipartition.hypergraph, context, info, start_k, end_k);
-    bipartition.partitioned_hg = multilevel::partition(
+    bipartition.partitioned_hg = Multilevel<TypeTraits>::partition(
       bipartition.hypergraph, b_context);
   } else {
     bipartition.partitioned_hg = PartitionedHypergraph(2, bipartition.hypergraph, parallel_tag_t());
@@ -447,13 +460,15 @@ DeepPartitioningResult bipartition_block(Hypergraph&& hg,
   return bipartition;
 }
 
-void bipartition_each_block(PartitionedHypergraph& partitioned_hg,
+template<typename TypeTraits>
+void bipartition_each_block(typename TypeTraits::PartitionedHypergraph& partitioned_hg,
                             const Context& context,
                             const OriginalHypergraphInfo& info,
                             const RBTree& rb_tree,
                             const PartitionID current_k,
                             const HyperedgeWeight current_objective,
                             const bool progress_bar_enabled) {
+  using Hypergraph = typename TypeTraits::Hypergraph;
   utils::Timer& timer = utils::Utilities::instance().getTimer(context.utility_id);
   // Extract all blocks of hypergraph
   timer.start_timer("extract_blocks", "Extract Blocks");
@@ -467,7 +482,7 @@ void bipartition_each_block(PartitionedHypergraph& partitioned_hg,
   timer.start_timer("bipartition_blocks", "Bipartition Blocks");
   const bool was_enabled_before = disableTimerAndStats(context); // n-level disables timer
   utils::ProgressBar progress(current_k, current_objective, progress_bar_enabled);
-  vec<DeepPartitioningResult> bipartitions(current_k);
+  vec<DeepPartitioningResult<TypeTraits>> bipartitions(current_k);
   vec<PartitionID> block_ranges(1, 0);
   tbb::task_group tg;
   for ( PartitionID block = 0; block < current_k; ++block ) {
@@ -480,7 +495,7 @@ void bipartition_each_block(PartitionedHypergraph& partitioned_hg,
       // Spawn a task that bipartitions the corresponding block
       tg.run([&, block, desired_blocks] {
         const auto target_blocks = rb_tree.targetBlocksInFinalPartition(current_k, block);
-        bipartitions[block] = bipartition_block(std::move(hypergraphs[block]), context,
+        bipartitions[block] = bipartition_block<TypeTraits>(std::move(hypergraphs[block]), context,
           info, target_blocks.first, target_blocks.second);
         bipartitions[block].partitioned_hg.setHypergraph(bipartitions[block].hypergraph);
         progress.addToObjective(progress_bar_enabled ?
@@ -505,7 +520,7 @@ void bipartition_each_block(PartitionedHypergraph& partitioned_hg,
     const PartitionID from = partitioned_hg.partID(hn);
     ASSERT(static_cast<size_t>(from) < bipartitions.size());
     PartitionID to = kInvalidPartition;
-    const DeepPartitioningResult& bipartition = bipartitions[from];
+    const DeepPartitioningResult<TypeTraits>& bipartition = bipartitions[from];
     if ( bipartition.valid ) {
       ASSERT(static_cast<size_t>(hn) < mapping.size());
       const HypernodeID mapped_hn = mapping[hn];
@@ -534,7 +549,7 @@ void bipartition_each_block(PartitionedHypergraph& partitioned_hg,
 
   timer.start_timer("free_hypergraphs", "Free Hypergraphs");
   tbb::parallel_for(UL(0), bipartitions.size(), [&](const size_t i) {
-    DeepPartitioningResult tmp_res;
+    DeepPartitioningResult<TypeTraits> tmp_res;
     tmp_res = std::move(bipartitions[i]);
   });
   timer.stop_timer("free_hypergraphs");
@@ -542,16 +557,20 @@ void bipartition_each_block(PartitionedHypergraph& partitioned_hg,
   HEAVY_REFINEMENT_ASSERT(partitioned_hg.checkTrackedPartitionInformation());
 }
 
-DeepPartitioningResult deep_multilevel_recursion(const Hypergraph& hypergraph,
-                                                 const Context& context,
-                                                 const OriginalHypergraphInfo& info,
-                                                 const RBTree& rb_tree,
-                                                 const size_t num_threads);
+template<typename TypeTraits>
+DeepPartitioningResult<TypeTraits> deep_multilevel_recursion(const typename TypeTraits::Hypergraph& hypergraph,
+                                                             const Context& context,
+                                                             const OriginalHypergraphInfo& info,
+                                                             const RBTree& rb_tree,
+                                                             const size_t num_threads);
 
-PartitionID deep_multilevel_partitioning(PartitionedHypergraph& partitioned_hg,
+template<typename TypeTraits>
+PartitionID deep_multilevel_partitioning(typename TypeTraits::PartitionedHypergraph& partitioned_hg,
                                          const Context& c,
                                          const OriginalHypergraphInfo& info,
                                          const RBTree& rb_tree) {
+  using Hypergraph = typename TypeTraits::Hypergraph;
+  using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
   Hypergraph& hypergraph = partitioned_hg.hypergraph();
   Context context(c);
 
@@ -579,8 +598,8 @@ PartitionID deep_multilevel_partitioning(PartitionedHypergraph& partitioned_hg,
     }
   };
 
-  const bool nlevel = context.coarsening.algorithm == CoarseningAlgorithm::nlevel_coarsener;
-  UncoarseningData uncoarseningData(nlevel, hypergraph, context);
+  const bool nlevel = context.isNLevelPartitioning();
+  UncoarseningData<TypeTraits> uncoarseningData(nlevel, hypergraph, context);
   uncoarseningData.setPartitionedHypergraph(std::move(partitioned_hg));
 
   utils::Timer& timer = utils::Utilities::instance().getTimer(context.utility_id);
@@ -590,7 +609,8 @@ PartitionID deep_multilevel_partitioning(PartitionedHypergraph& partitioned_hg,
   timer.start_timer("coarsening", "Coarsening");
   {
     std::unique_ptr<ICoarsener> coarsener = CoarsenerFactory::getInstance().createObject(
-      context.coarsening.algorithm, hypergraph, context, uncoarseningData);
+      context.coarsening.algorithm, utils::hypergraph_cast(hypergraph),
+      context, uncoarsening::to_pointer(uncoarseningData));
 
     // Perform coarsening
     coarsener->initialize();
@@ -600,8 +620,10 @@ PartitionID deep_multilevel_partitioning(PartitionedHypergraph& partitioned_hg,
     while ( coarsener->shouldNotTerminate() && should_continue ) {
       DBG << "Coarsening Pass" << pass_nr
           << "- Number of Nodes =" << coarsener->currentNumberOfNodes()
-          << "- Number of HEs =" << (nlevel ? 0 : coarsener->coarsestHypergraph().initialNumEdges())
-          << "- Number of Pins =" << (nlevel ? 0 : coarsener->coarsestHypergraph().initialNumPins());
+          << "- Number of HEs =" << (nlevel ? 0 :
+             utils::cast<Hypergraph>(coarsener->coarsestHypergraph()).initialNumEdges())
+          << "- Number of Pins =" << (nlevel ? 0 :
+             utils::cast<Hypergraph>(coarsener->coarsestHypergraph()).initialNumPins());
 
       // In the coarsening phase, we maintain the invariant that t threads process a hypergraph with
       // at least t * C nodes (C = contraction_limit_for_bipartitioning). If this invariant is violated,
@@ -622,8 +644,9 @@ PartitionID deep_multilevel_partitioning(PartitionedHypergraph& partitioned_hg,
 
 
     if (context.partition.verbose_output) {
-      Hypergraph& coarsestHypergraph = coarsener->coarsestHypergraph();
-      mt_kahypar::io::printHypergraphInfo(coarsestHypergraph,
+      mt_kahypar_hypergraph_t coarsestHypergraph = coarsener->coarsestHypergraph();
+      mt_kahypar::io::printHypergraphInfo(
+        utils::cast<Hypergraph>(coarsestHypergraph),
         "Coarsened Hypergraph", context.partition.show_memory_consumption);
     }
   }
@@ -646,7 +669,7 @@ PartitionID deep_multilevel_partitioning(PartitionedHypergraph& partitioned_hg,
     const auto target_blocks = rb_tree.targetBlocksInFinalPartition(1, 0);
     Context b_context = setupBipartitioningContext(
       hypergraph, context, info, target_blocks.first, target_blocks.second);
-    multilevel::partition(coarsest_phg, b_context);
+    Multilevel<TypeTraits>::partition(coarsest_phg, b_context);
     current_k = 2;
 
     DBG << BOLD << "Peform Initial Bipartitioning" << END
@@ -681,12 +704,12 @@ PartitionID deep_multilevel_partitioning(PartitionedHypergraph& partitioned_hg,
 
     // Call deep multilevel scheme recursively
     tbb::task_group tg;
-    vec<DeepPartitioningResult> results(num_parallel_calls);
+    vec<DeepPartitioningResult<TypeTraits>> results(num_parallel_calls);
     for ( size_t i = 0; i < num_parallel_calls; ++i ) {
       tg.run([&, i] {
         const size_t num_threads = std::min(num_threads_per_recursion,
           context.shared_memory.num_threads - i * num_threads_per_recursion);
-        results[i] = deep_multilevel_recursion(coarsest_hg, context, info, rb_tree, num_threads);
+        results[i] = deep_multilevel_recursion<TypeTraits>(coarsest_hg, context, info, rb_tree, num_threads);
         results[i].partitioned_hg.setHypergraph(results[i].hypergraph);
       });
     }
@@ -702,7 +725,7 @@ PartitionID deep_multilevel_partitioning(PartitionedHypergraph& partitioned_hg,
     current_k = results[0].k;
 
     // Apply best bipartition from the recursive calls to the current hypergraph
-    const DeepPartitioningResult& best = select_best_partition(results, context, current_k, rb_tree);
+    const DeepPartitioningResult<TypeTraits>& best = select_best_partition(results, context, current_k, rb_tree);
     const PartitionedHypergraph& best_phg = best.partitioned_hg;
     coarsest_phg.doParallelForAllNodes([&](const HypernodeID& hn) {
       const PartitionID block = best_phg.partID(hn);
@@ -730,12 +753,16 @@ PartitionID deep_multilevel_partitioning(PartitionedHypergraph& partitioned_hg,
   const bool progress_bar_enabled = context.partition.verbose_output &&
     context.partition.enable_progress_bar && !debug;
   context.partition.enable_progress_bar = false;
-  std::unique_ptr<IUncoarsener> uncoarsener(nullptr);
+  std::unique_ptr<IUncoarsener<TypeTraits>> uncoarsener(nullptr);
+  #ifdef KAHYPAR_ENABLE_N_LEVEL_PARTITIONING_FEATURES
   if (uncoarseningData.nlevel) {
-    uncoarsener = std::make_unique<NLevelUncoarsener>(hypergraph, context, uncoarseningData);
+    uncoarsener = std::make_unique<NLevelUncoarsener<TypeTraits>>(hypergraph, context, uncoarseningData);
   } else {
-    uncoarsener = std::make_unique<MultilevelUncoarsener>(hypergraph, context, uncoarseningData);
+    uncoarsener = std::make_unique<MultilevelUncoarsener<TypeTraits>>(hypergraph, context, uncoarseningData);
   }
+  #else
+  uncoarsener = std::make_unique<MultilevelUncoarsener<TypeTraits>>(hypergraph, context, uncoarseningData);
+  #endif
 
   uncoarsener->initialize();
 
@@ -770,7 +797,7 @@ PartitionID deep_multilevel_partitioning(PartitionedHypergraph& partitioned_hg,
             << "( Current Number of Nodes =" << current_phg.initialNumNodes() << ")";
       }
       timer.start_timer("bipartitioning", "Bipartitioning");
-      bipartition_each_block(current_phg, context, info, rb_tree,
+      bipartition_each_block<TypeTraits>(current_phg, context, info, rb_tree,
         current_k, uncoarsener->getObjective(), progress_bar_enabled);
       timer.stop_timer("bipartitioning");
 
@@ -814,7 +841,7 @@ PartitionID deep_multilevel_partitioning(PartitionedHypergraph& partitioned_hg,
           << "( Current Number of Nodes =" << current_phg.initialNumNodes() << ")";
     }
     timer.start_timer("bipartitioning", "Bipartitioning");
-    bipartition_each_block(current_phg, context, info, rb_tree,
+    bipartition_each_block<TypeTraits>(current_phg, context, info, rb_tree,
       current_k, uncoarsener->getObjective(), progress_bar_enabled);
     timer.stop_timer("bipartitioning");
 
@@ -850,12 +877,14 @@ PartitionID deep_multilevel_partitioning(PartitionedHypergraph& partitioned_hg,
   return current_k;
 }
 
-DeepPartitioningResult deep_multilevel_recursion(const Hypergraph& hypergraph,
-                                                 const Context& context,
-                                                 const OriginalHypergraphInfo& info,
-                                                 const RBTree& rb_tree,
-                                                 const size_t num_threads) {
-  DeepPartitioningResult result;
+template<typename TypeTraits>
+DeepPartitioningResult<TypeTraits> deep_multilevel_recursion(const typename TypeTraits::Hypergraph& hypergraph,
+                                                             const Context& context,
+                                                             const OriginalHypergraphInfo& info,
+                                                             const RBTree& rb_tree,
+                                                             const size_t num_threads) {
+  using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
+  DeepPartitioningResult<TypeTraits> result;
   Context r_context = setupDeepMultilevelRecursionContext(context, num_threads);
   r_context.partition.k = rb_tree.get_maximum_number_of_blocks(hypergraph.initialNumNodes());
   r_context.partition.perfect_balance_part_weights = rb_tree.perfectlyBalancedWeightVector(r_context.partition.k);
@@ -867,14 +896,16 @@ DeepPartitioningResult deep_multilevel_recursion(const Hypergraph& hypergraph,
   result.valid = true;
 
   // Recursively call deep multilevel partitioning
-  result.k = deep_multilevel_partitioning(result.partitioned_hg, r_context, info, rb_tree);
+  result.k = deep_multilevel_partitioning<TypeTraits>(result.partitioned_hg, r_context, info, rb_tree);
 
   return result;
 }
 
 }
 
-PartitionedHypergraph partition(Hypergraph& hypergraph, const Context& context) {
+template<typename TypeTraits>
+typename TypeTraits::PartitionedHypergraph DeepMultilevel<TypeTraits>::partition(
+  Hypergraph& hypergraph, const Context& context) {
   // TODO: Memory for partitioned hypergraph is not available at this point
   PartitionedHypergraph partitioned_hypergraph(
     context.partition.k, hypergraph, parallel_tag_t());
@@ -882,12 +913,14 @@ PartitionedHypergraph partition(Hypergraph& hypergraph, const Context& context) 
   return partitioned_hypergraph;
 }
 
-void partition(PartitionedHypergraph& hypergraph, const Context& context) {
+template<typename TypeTraits>
+void DeepMultilevel<TypeTraits>::partition(PartitionedHypergraph& hypergraph, const Context& context) {
   RBTree rb_tree(context);
-  deep_multilevel_partitioning(hypergraph, context,
+  deep_multilevel_partitioning<TypeTraits>(hypergraph, context,
     OriginalHypergraphInfo { hypergraph.totalWeight(),
       context.partition.k, context.partition.epsilon }, rb_tree);
 }
 
-} // namespace deep_multilevel
+INSTANTIATE_CLASS_WITH_TYPE_TRAITS(DeepMultilevel)
+
 } // namepace mt_kahypar

@@ -28,7 +28,6 @@
 #pragma once
 
 #include "mt-kahypar/datastructures/buffered_vector.h"
-#include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/refinement/i_refiner.h"
 
@@ -37,23 +36,28 @@
 
 namespace mt_kahypar {
 
+template<typename TypeTraits>
 class DeterministicLabelPropagationRefiner final : public IRefiner {
+
+  using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
+
 public:
-  explicit DeterministicLabelPropagationRefiner(Hypergraph& hypergraph,
+  explicit DeterministicLabelPropagationRefiner(const HypernodeID num_hypernodes,
+                                                const HyperedgeID num_hyperedges,
                                                 const Context& context) :
       context(context),
       compute_gains(context),
-      moves(hypergraph.initialNumNodes()),
-      sorted_moves(hypergraph.initialNumNodes()),
+      moves(num_hypernodes),
+      sorted_moves(num_hypernodes),
       prng(context.partition.seed),
       active_nodes(0),
       ets_recalc_data( vec<RecalculationData>(context.partition.k) ),
-      max_num_nodes(hypergraph.initialNumNodes()),
-      max_num_edges(hypergraph.initialNumEdges())
+      max_num_nodes(num_hypernodes),
+      max_num_edges(num_hyperedges)
   {
     if (context.refinement.deterministic_refinement.use_active_node_set) {
-      active_nodes.adapt_capacity(hypergraph.initialNumNodes());
-      last_moved_in_round.resize(hypergraph.initialNumNodes() + hypergraph.initialNumEdges(), CAtomic<uint32_t>(0));
+      active_nodes.adapt_capacity(num_hypernodes);
+      last_moved_in_round.resize(num_hypernodes + num_hyperedges, CAtomic<uint32_t>(0));
     }
 
   }
@@ -61,10 +65,11 @@ public:
 private:
   static constexpr bool debug = false;
 
-  bool refineImpl(PartitionedHypergraph& hypergraph, const vec<HypernodeID>& refinement_nodes,
+  bool refineImpl(mt_kahypar_partitioned_hypergraph_t& hypergraph,
+                  const vec<HypernodeID>& refinement_nodes,
                   Metrics& best_metrics, double) final ;
 
-  void initializeImpl(PartitionedHypergraph&) final { /* nothing to do */ }
+  void initializeImpl(mt_kahypar_partitioned_hypergraph_t&) final { /* nothing to do */ }
 
   // functions to apply moves from a sub-round
   Gain applyMovesSortedByGainAndRevertUnbalanced(PartitionedHypergraph& phg);

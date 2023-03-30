@@ -6,20 +6,27 @@ add_subdirectory(registries)
 
 set(PartitionSources
         partitioner.cpp
+        partitioner_facade.cpp
         multilevel.cpp
         context.cpp
         context_enum_classes.cpp
+        conversion.cpp
         metrics.cpp
         recursive_bipartitioning.cpp
         deep_multilevel.cpp
         )
 
-foreach(modtarget IN LISTS TARGETS_WANTING_ALL_SOURCES)
+foreach(modtarget IN LISTS PARTITIONING_SUITE_TARGETS)
     target_sources(${modtarget} PRIVATE ${PartitionSources})
 endforeach()
 
-set(ContextWrapperSources
+set(PartitionToolsSources
         context.cpp
         context_enum_classes.cpp
+        conversion.cpp
+        metrics.cpp
         )
-target_sources(MtKaHyParWrapper PRIVATE ${ContextWrapperSources})
+
+foreach(modtarget IN LISTS TOOLS_TARGETS)
+    target_sources(${modtarget} PRIVATE ${PartitionToolsSources})
+endforeach()

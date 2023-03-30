@@ -28,12 +28,15 @@
 
 #pragma once
 
-#include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/utils/timer.h"
 
 namespace mt_kahypar {
+
+template<typename TypeTraits>
 class Level {
+
+  using Hypergraph = typename TypeTraits::Hypergraph;
 
 public:
   explicit Level(Hypergraph&& contracted_hypergraph,
@@ -81,7 +84,14 @@ private:
   double _coarsening_time;
 };
 
+template<typename TypeTraits>
 class UncoarseningData {
+
+  using Hypergraph = typename TypeTraits::Hypergraph;
+  using HypergraphFactory = typename Hypergraph::Factory;
+  using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
+  using ParallelHyperedge = typename Hypergraph::ParallelHyperedge;
+
 public:
   explicit UncoarseningData(bool n_level, Hypergraph& hg, const Context& context) :
     nlevel(n_level),
@@ -174,7 +184,7 @@ public:
   }
 
   // Multilevel Data
-  vec<Level> hierarchy;
+  vec<Level<TypeTraits>> hierarchy;
 
   // NLevel Data
   // ! Once coarsening terminates we generate a compactified hypergraph
@@ -203,4 +213,19 @@ private:
   Hypergraph& _hg;
   const Context& _context;
 };
+
+typedef struct uncoarsening_data_s uncoarsening_data_t;
+
+namespace uncoarsening {
+  template<typename TypeTraits>
+  uncoarsening_data_t* to_pointer(UncoarseningData<TypeTraits>& ip_data) {
+    return reinterpret_cast<uncoarsening_data_t*>(&ip_data);
+  }
+
+  template<typename TypeTraits>
+  UncoarseningData<TypeTraits>& to_reference(uncoarsening_data_t* ptr) {
+    return *reinterpret_cast<UncoarseningData<TypeTraits>*>(ptr);
+  }
+}
+
 }

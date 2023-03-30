@@ -74,13 +74,14 @@ namespace mt_kahypar::ds {
     ASSERT(edge_vector.size() == num_edges);
 
     EdgeVector edges;
-    edges.reserve(num_edges);
-    for (const auto& e : edge_vector) {
+    edges.resize(num_edges);
+    tbb::parallel_for(UL(0), edge_vector.size(), [&](const size_t i) {
+      const auto& e = edge_vector[i];
       if (e.size() != 2) {
         ERR("Using graph data structure; but the input hypergraph is not a graph.");
       }
-      edges.push_back({e[0], e[1]});
-    }
+      edges[i] = std::make_pair(e[0], e[1]);
+    });
     return construct_from_graph_edges(num_nodes, num_edges, edges,
       edge_weight, node_weight, stable_construction_of_incident_edges);
   }

@@ -27,6 +27,7 @@
 
 #include "context_enum_classes.h"
 
+#include "include/libmtkahypartypes.h"
 #include "mt-kahypar/macros.h"
 
 namespace mt_kahypar {
@@ -53,7 +54,7 @@ namespace mt_kahypar {
 
   std::ostream & operator<< (std::ostream& os, const InstanceType& type) {
     switch (type) {
-      case InstanceType::graph: return os << "graph";
+      ENABLE_GRAPHS(case InstanceType::graph: return os << "graph";)
       case InstanceType::hypergraph: return os << "hypergraph";
       case InstanceType::UNDEFINED: return os << "UNDEFINED";
         // omit default case to trigger compiler warning for missing cases
@@ -64,24 +65,28 @@ namespace mt_kahypar {
   std::ostream & operator<< (std::ostream& os, const PresetType& type) {
     switch (type) {
       case PresetType::deterministic: return os << "deterministic";
-      case PresetType::large_k: return os << "large_k";
+      ENABLE_LARGE_K(case PresetType::large_k: return os << "large_k";)
       case PresetType::default_preset: return os << "default";
       case PresetType::default_flows: return os << "default_flows";
-      case PresetType::quality_preset: return os << "quality";
-      case PresetType::quality_flows: return os << "quality_flows";
+      ENABLE_N_LEVEL(case PresetType::quality_preset: return os << "quality";)
+      ENABLE_N_LEVEL(case PresetType::quality_flows: return os << "quality_flows";)
       case PresetType::UNDEFINED: return os << "UNDEFINED";
         // omit default case to trigger compiler warning for missing cases
     }
     return os << static_cast<uint8_t>(type);
   }
 
-  std::ostream & operator<< (std::ostream& os, const Paradigm& paradigm) {
-    switch (paradigm) {
-      case Paradigm::multilevel: return os << "multilevel";
-      case Paradigm::nlevel: return os << "nlevel";
+  std::ostream & operator<< (std::ostream& os, const mt_kahypar_partition_type_t& type) {
+    switch (type) {
+      ENABLE_GRAPHS(case MULTILEVEL_GRAPH_PARTITIONING: return os << "multilevel_graph_partitioning";)
+      ENABLE_N_LEVEL_GRAPHS(case N_LEVEL_GRAPH_PARTITIONING: return os << "n_level_graph_partitioning";)
+      case MULTILEVEL_HYPERGRAPH_PARTITIONING: return os << "multilevel_hypergraph_partitioning";
+      ENABLE_LARGE_K(case LARGE_K_PARTITIONING: return os << "large_k_partitioning";)
+      ENABLE_N_LEVEL(case N_LEVEL_HYPERGRAPH_PARTITIONING: return os << "n_level_hypergraph_partitioning";)
+      case NULLPTR_PARTITION: return os << "UNDEFINED";
         // omit default case to trigger compiler warning for missing cases
     }
-    return os << static_cast<uint8_t>(paradigm);
+    return os << static_cast<uint8_t>(type);
   }
 
   std::ostream& operator<< (std::ostream& os, const ContextType& type) {
@@ -141,7 +146,7 @@ namespace mt_kahypar {
     switch (algo) {
       case CoarseningAlgorithm::multilevel_coarsener: return os << "multilevel_coarsener";
       case CoarseningAlgorithm::deterministic_multilevel_coarsener: return os << "deterministic_multilevel_coarsener";
-      case CoarseningAlgorithm::nlevel_coarsener: return os << "nlevel_coarsener";
+      ENABLE_N_LEVEL(case CoarseningAlgorithm::nlevel_coarsener: return os << "nlevel_coarsener";)
       case CoarseningAlgorithm::UNDEFINED: return os << "UNDEFINED";
         // omit default case to trigger compiler warning for missing cases
     }
@@ -150,9 +155,9 @@ namespace mt_kahypar {
 
   std::ostream & operator<< (std::ostream& os, const HeavyNodePenaltyPolicy& heavy_hn_policy) {
     switch (heavy_hn_policy) {
-      case HeavyNodePenaltyPolicy::multiplicative_penalty: return os << "multiplicative";
       case HeavyNodePenaltyPolicy::no_penalty: return os << "no_penalty";
-      case HeavyNodePenaltyPolicy::additive: return os << "additive";
+      ENABLE_EXPERIMENTAL_FEATURES(case HeavyNodePenaltyPolicy::additive: return os << "additive";)
+      ENABLE_EXPERIMENTAL_FEATURES(case HeavyNodePenaltyPolicy::multiplicative_penalty: return os << "multiplicative";)
       case HeavyNodePenaltyPolicy::UNDEFINED: return os << "UNDEFINED";
     }
     return os << static_cast<uint8_t>(heavy_hn_policy);
@@ -160,7 +165,7 @@ namespace mt_kahypar {
 
   std::ostream & operator<< (std::ostream& os, const AcceptancePolicy& acceptance_policy) {
     switch (acceptance_policy) {
-      case AcceptancePolicy::best: return os << "best";
+      ENABLE_EXPERIMENTAL_FEATURES(case AcceptancePolicy::best: return os << "best";)
       case AcceptancePolicy::best_prefer_unmatched: return os << "best_prefer_unmatched";
       case AcceptancePolicy::UNDEFINED: return os << "UNDEFINED";
         // omit default case to trigger compiler warning for missing cases
@@ -171,7 +176,7 @@ namespace mt_kahypar {
   std::ostream & operator<< (std::ostream& os, const RatingFunction& func) {
     switch (func) {
       case RatingFunction::heavy_edge: return os << "heavy_edge";
-      case RatingFunction::sameness: return os << "sameness";
+      ENABLE_EXPERIMENTAL_FEATURES(case RatingFunction::sameness: return os << "sameness";)
       case RatingFunction::UNDEFINED: return os << "UNDEFINED";
         // omit default case to trigger compiler warning for missing cases
     }
@@ -241,9 +246,12 @@ namespace mt_kahypar {
   }
 
   InstanceType instanceTypeFromString(const std::string& type) {
+    #ifdef KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES
     if (type == "graph") {
       return InstanceType::graph;
-    } else if (type == "hypergraph") {
+    } else
+    #endif
+    if (type == "hypergraph") {
       return InstanceType::hypergraph;
     }
     ERR("Illegal option: " + type);
@@ -253,17 +261,24 @@ namespace mt_kahypar {
   PresetType presetTypeFromString(const std::string& type) {
     if (type == "deterministic") {
       return PresetType::deterministic;
-    } else if (type == "large_k") {
+    }
+    #ifdef KAHYPAR_ENABLE_LARGE_K_PARTITIONING_FEATURES
+    else if (type == "large_k") {
       return PresetType::large_k;
-    } else if (type == "default") {
+    }
+    #endif
+    else if (type == "default") {
       return PresetType::default_preset;
     } else if (type == "default_flows") {
       return PresetType::default_flows;
-    } else if (type == "quality") {
+    }
+    #ifdef KAHYPAR_ENABLE_N_LEVEL_PARTITIONING_FEATURES
+    else if (type == "quality") {
       return PresetType::quality_preset;
     } else if (type == "quality_flows") {
       return PresetType::quality_flows;
     }
+    #endif
     ERR("Illegal option: " + type);
     return PresetType::UNDEFINED;
   }
@@ -297,9 +312,13 @@ namespace mt_kahypar {
   CoarseningAlgorithm coarseningAlgorithmFromString(const std::string& type) {
     if (type == "multilevel_coarsener") {
       return CoarseningAlgorithm::multilevel_coarsener;
-    } else if (type == "nlevel_coarsener") {
+    }
+    #ifdef KAHYPAR_ENABLE_N_LEVEL_PARTITIONING_FEATURES
+    else if (type == "nlevel_coarsener") {
       return CoarseningAlgorithm::nlevel_coarsener;
-    } else if (type == "deterministic_multilevel_coarsener") {
+    }
+    #endif
+    else if (type == "deterministic_multilevel_coarsener") {
       return CoarseningAlgorithm::deterministic_multilevel_coarsener;
     }
     ERR("Illegal option: " + type);
@@ -307,33 +326,42 @@ namespace mt_kahypar {
   }
 
   HeavyNodePenaltyPolicy heavyNodePenaltyFromString(const std::string& penalty) {
-    if (penalty == "multiplicative") {
-      return HeavyNodePenaltyPolicy::multiplicative_penalty;
-    } else if (penalty == "no_penalty") {
+    if (penalty == "no_penalty") {
       return HeavyNodePenaltyPolicy::no_penalty;
+    }
+    #ifdef KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES
+    else if (penalty == "multiplicative") {
+      return HeavyNodePenaltyPolicy::multiplicative_penalty;
     } else if (penalty == "additive") {
       return HeavyNodePenaltyPolicy::additive;
       // omit default case to trigger compiler warning for missing cases
     }
+    #endif
     ERR("No valid edge penalty policy for rating.");
     return HeavyNodePenaltyPolicy::UNDEFINED;
   }
 
   AcceptancePolicy acceptanceCriterionFromString(const std::string& crit) {
-    if (crit == "best") {
-      return AcceptancePolicy::best;
-    } else if (crit == "best_prefer_unmatched") {
+    if (crit == "best_prefer_unmatched") {
       return AcceptancePolicy::best_prefer_unmatched;
     }
+    #ifdef KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES
+    else if (crit == "best") {
+      return AcceptancePolicy::best;
+    }
+    #endif
     ERR("No valid acceptance criterion for rating.");
   }
 
   RatingFunction ratingFunctionFromString(const std::string& function) {
     if (function == "heavy_edge") {
       return RatingFunction::heavy_edge;
-    } else  if (function == "sameness") {
+    }
+    #ifdef KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES
+    else  if (function == "sameness") {
       return RatingFunction::sameness;
     }
+    #endif
     ERR("No valid rating function for rating.");
     return RatingFunction::UNDEFINED;
   }

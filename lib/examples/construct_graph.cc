@@ -50,13 +50,13 @@ int main(int argc, char* argv[]) {
   edge_weights[3] = 1; edge_weights[4] = 10;
 
   // Construct graph
-  mt_kahypar_graph_t* graph =
-    mt_kahypar_create_graph(num_nodes, num_edges,
+  mt_kahypar_hypergraph_t graph =
+    mt_kahypar_create_graph(DEFAULT, num_nodes, num_edges,
       edges.get(), edge_weights.get(), node_weights.get());
 
-  std::cout << "Number of Nodes       = " << mt_kahypar_num_nodes(graph) << std::endl;
-  std::cout << "Number of Hyperedges  = " << mt_kahypar_num_edges(graph) << std::endl;
-  std::cout << "Total Weight of Graph = " << mt_kahypar_graph_weight(graph) << std::endl;
+  std::cout << "Number of Nodes       = " << mt_kahypar_num_hypernodes(graph) << std::endl;
+  std::cout << "Number of Edges       = " << mt_kahypar_num_hyperedges(graph) << std::endl;
+  std::cout << "Total Weight of Graph = " << mt_kahypar_hypergraph_weight(graph) << std::endl;
 
-  mt_kahypar_free_graph(graph);
+  mt_kahypar_free_hypergraph(graph);
 }

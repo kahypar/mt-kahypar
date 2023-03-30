@@ -26,19 +26,24 @@
 
 #include "deterministic_label_propagation.h"
 
+#include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/metrics.h"
 #include "mt-kahypar/parallel/chunking.h"
 #include "mt-kahypar/parallel/parallel_counting_sort.h"
+#include "mt-kahypar/utils/cast.h"
 
 #include <tbb/parallel_sort.h>
 #include <tbb/parallel_reduce.h>
 
 namespace mt_kahypar {
 
-  bool DeterministicLabelPropagationRefiner::refineImpl(PartitionedHypergraph& phg,
-                                                        const vec<HypernodeID>&,
-                                                        Metrics& best_metrics,
-                                                        const double) {
+  template<typename TypeTraits>
+  bool DeterministicLabelPropagationRefiner<TypeTraits>::refineImpl(
+          mt_kahypar_partitioned_hypergraph_t& hypergraph,
+          const vec<HypernodeID>&,
+          Metrics& best_metrics,
+          const double) {
+    PartitionedHypergraph& phg = utils::cast<PartitionedHypergraph>(hypergraph);
     Gain overall_improvement = 0;
     constexpr size_t num_buckets = utils::ParallelPermutation<HypernodeID>::num_buckets;
     const size_t num_sub_rounds = context.refinement.deterministic_refinement.num_sub_rounds_sync_lp;
@@ -115,7 +120,8 @@ namespace mt_kahypar {
 /*
  * for configs where we don't know exact gains --> have to trace the overall improvement with attributed gains
  */
-  Gain DeterministicLabelPropagationRefiner::performMoveWithAttributedGain(
+  template<typename TypeTraits>
+  Gain DeterministicLabelPropagationRefiner<TypeTraits>::performMoveWithAttributedGain(
           PartitionedHypergraph& phg, const Move& m, bool activate_neighbors) {
     Gain attributed_gain = 0;
     auto objective_delta = [&](HyperedgeID he, HyperedgeWeight edge_weight, HypernodeID edge_size,
@@ -144,8 +150,9 @@ namespace mt_kahypar {
     return attributed_gain;
   }
 
+  template<typename TypeTraits>
   template<typename Predicate>
-  Gain DeterministicLabelPropagationRefiner::applyMovesIf(
+  Gain DeterministicLabelPropagationRefiner<TypeTraits>::applyMovesIf(
           PartitionedHypergraph& phg, const vec<Move>& my_moves, size_t end, Predicate&& predicate) {
     auto range = tbb::blocked_range<size_t>(UL(0), end);
     auto accum = [&](const tbb::blocked_range<size_t>& r, const Gain& init) -> Gain {
@@ -160,6 +167,7 @@ namespace mt_kahypar {
     return tbb::parallel_reduce(range, 0, accum, std::plus<>());
   }
 
+  template<typename PartitionedHypergraph>
   vec<HypernodeWeight> aggregatePartWeightDeltas(PartitionedHypergraph& phg, const vec<Move>& moves, size_t end) {
     // parallel reduce makes way too many vector copies
     tbb::enumerable_thread_specific<vec< HypernodeWeight>>
@@ -182,7 +190,8 @@ namespace mt_kahypar {
     return res;
   }
 
-  Gain DeterministicLabelPropagationRefiner::applyMovesSortedByGainAndRevertUnbalanced(PartitionedHypergraph& phg) {
+  template<typename TypeTraits>
+  Gain DeterministicLabelPropagationRefiner<TypeTraits>::applyMovesSortedByGainAndRevertUnbalanced(PartitionedHypergraph& phg) {
     const size_t num_moves = moves.size();
     tbb::parallel_sort(moves.begin(), moves.begin() + num_moves, [](const Move& m1, const Move& m2) {
       return m1.gain > m2.gain || (m1.gain == m2.gain && m1.node < m2.node);
@@ -273,7 +282,8 @@ namespace mt_kahypar {
     return gain;
   }
 
-  Gain DeterministicLabelPropagationRefiner::applyMovesByMaximalPrefixesInBlockPairs(PartitionedHypergraph& phg) {
+  template<typename TypeTraits>
+  Gain DeterministicLabelPropagationRefiner<TypeTraits>::applyMovesByMaximalPrefixesInBlockPairs(PartitionedHypergraph& phg) {
     PartitionID k = phg.k();
     PartitionID max_key = k * k;
     auto index = [&](PartitionID b1, PartitionID b2) { return b1 * k + b2; };
@@ -416,7 +426,8 @@ namespace mt_kahypar {
     return actual_gain;
   }
 
-  Gain DeterministicLabelPropagationRefiner::applyMovesSortedByGainWithRecalculation(PartitionedHypergraph& phg) {
+  template<typename TypeTraits>
+  Gain DeterministicLabelPropagationRefiner<TypeTraits>::applyMovesSortedByGainWithRecalculation(PartitionedHypergraph& phg) {
     if (last_recalc_round.empty() || ++recalc_round == std::numeric_limits<uint32_t>::max()) {
       last_recalc_round.assign(max_num_edges, CAtomic<uint32_t>(0));
     }
@@ -545,5 +556,7 @@ namespace mt_kahypar {
 
     return best_gain;
   }
+
+  INSTANTIATE_CLASS_WITH_TYPE_TRAITS(DeterministicLabelPropagationRefiner)
 
 } // namespace mt_kahypar

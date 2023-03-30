@@ -27,6 +27,8 @@
 #pragma once
 
 
+#include "include/libmtkahypartypes.h"
+
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/macros.h"
 #include "mt-kahypar/partition/metrics.h"
@@ -45,14 +47,14 @@ class IFlowRefiner {
 
   virtual ~IFlowRefiner() = default;
 
-  void initialize(const PartitionedHypergraph& hypergraph) {
-    initializeImpl(hypergraph);
+  void initialize(mt_kahypar_partitioned_hypergraph_const_t& phg) {
+    initializeImpl(phg);
   }
 
-  MoveSequence refine(const PartitionedHypergraph& hypergraph,
+  MoveSequence refine(mt_kahypar_partitioned_hypergraph_const_t& phg,
                       const Subhypergraph& sub_hg,
                       const HighResClockTimepoint& start) {
-    return refineImpl(hypergraph, sub_hg, start);
+    return refineImpl(phg, sub_hg, start);
   }
 
   // ! Returns the maximum number of blocks that can be refined
@@ -78,9 +80,9 @@ class IFlowRefiner {
   double _time_limit = 0;
 
  private:
-  virtual void initializeImpl(const PartitionedHypergraph& hypergraph) = 0;
+  virtual void initializeImpl(mt_kahypar_partitioned_hypergraph_const_t& phg) = 0;
 
-  virtual MoveSequence refineImpl(const PartitionedHypergraph& hypergraph,
+  virtual MoveSequence refineImpl(mt_kahypar_partitioned_hypergraph_const_t& phg,
                                   const Subhypergraph& sub_hg,
                                   const HighResClockTimepoint& start) = 0;
 

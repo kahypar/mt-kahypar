@@ -29,6 +29,7 @@
 
 #include <sstream>
 
+#include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/metrics.h"
 #include "mt-kahypar/utils/initial_partitioning_stats.h"
 #include "mt-kahypar/utils/stats.h"
@@ -42,7 +43,9 @@ namespace mt_kahypar::io::csv {
            "\n";
   }
 
-  std::string serialize(const PartitionedHypergraph& phg, const Context& context,
+  template<typename PartitionedHypergraph>
+  std::string serialize(const PartitionedHypergraph& phg,
+                        const Context& context,
                         const std::chrono::duration<double>& elapsed_seconds) {
     const char sep = ',';
     std::stringstream s;
@@ -81,4 +84,12 @@ namespace mt_kahypar::io::csv {
 
     return s.str();
   }
+
+  namespace {
+  #define SERIALIZE(X) std::string serialize(const X& phg,                                          \
+                                             const Context& context,                                \
+                                             const std::chrono::duration<double>& elapsed_seconds)
+  }
+
+  INSTANTIATE_FUNC_WITH_PARTITIONED_HG(SERIALIZE)
 }

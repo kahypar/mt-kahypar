@@ -31,6 +31,9 @@
 
 namespace mt_kahypar {
 
+void register_memory_pool(const mt_kahypar_hypergraph_t hypergraph, const Context& context);
+
+template<typename Hypergraph>
 void register_memory_pool(const Hypergraph& hypergraph, const Context& context);
 
 } // namespace mt_kahypar

@@ -27,16 +27,60 @@
 
 #include "register_memory_pool.h"
 
+#include "mt-kahypar/definitions.h"
+#ifdef KAHYPAR_ENABLE_LARGE_K_PARTITIONING_FEATURES
 #include "mt-kahypar/datastructures/sparse_pin_counts.h"
+#endif
 #include "mt-kahypar/datastructures/pin_count_in_part.h"
 #include "mt-kahypar/datastructures/connectivity_set.h"
 #include "mt-kahypar/parallel/memory_pool.h"
 #include "mt-kahypar/parallel/atomic_wrapper.h"
-#include "mt-kahypar/utils/memory_tree.h"
 #include "mt-kahypar/utils/utilities.h"
+#include "mt-kahypar/utils/cast.h"
 
 namespace mt_kahypar {
 
+  namespace {
+    template<typename Hypergraph>
+    size_t size_of_edge_locks() {
+      #ifdef KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES
+      #ifdef KAHYPAR_ENABLE_N_LEVEL_PARTITIONING_FEATURES
+      const bool is_graph = Hypergraph::TYPE == STATIC_GRAPH || Hypergraph::TYPE == DYNAMIC_GRAPH;
+      #else
+      const bool is_graph = Hypergraph::TYPE == STATIC_GRAPH;
+      #endif
+      if ( is_graph) {
+        return StaticPartitionedGraph::SIZE_OF_EDGE_LOCK;
+      }
+      #endif
+      return 0;
+    }
+  }
+
+  void register_memory_pool(const mt_kahypar_hypergraph_t hypergraph,
+                            const Context& context) {
+    #ifdef KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES
+    if ( hypergraph.type == STATIC_GRAPH ) {
+      register_memory_pool(utils::cast_const<ds::StaticGraph>(hypergraph), context);
+    }
+    #ifdef KAHYPAR_ENABLE_N_LEVEL_PARTITIONING_FEATURES
+    else if ( hypergraph.type == DYNAMIC_GRAPH ) {
+      register_memory_pool(utils::cast_const<ds::DynamicGraph>(hypergraph), context);
+    }
+    #endif
+    else
+    #endif
+    if ( hypergraph.type == STATIC_HYPERGRAPH ) {
+      register_memory_pool(utils::cast_const<ds::StaticHypergraph>(hypergraph), context);
+    }
+    #ifdef KAHYPAR_ENABLE_N_LEVEL_PARTITIONING_FEATURES
+    else if ( hypergraph.type == DYNAMIC_HYPERGRAPH ) {
+      register_memory_pool(utils::cast_const<ds::DynamicHypergraph>(hypergraph), context);
+    }
+    #endif
+  }
+
+  template<typename Hypergraph>
   void register_memory_pool(const Hypergraph& hypergraph,
                             const Context& context) {
 
@@ -76,7 +120,7 @@ namespace mt_kahypar {
       // ########## Coarsening Memory ##########
 
       pool.register_memory_group("Coarsening", 2);
-      if ( context.partition.paradigm == Paradigm::multilevel ) {
+      if ( !context.isNLevelPartitioning() ) {
         if (Hypergraph::is_graph) {
           pool.register_memory_chunk("Coarsening", "mapping", num_hypernodes, sizeof(HypernodeID));
           pool.register_memory_chunk("Coarsening", "tmp_nodes", num_hypernodes, Hypergraph::SIZE_OF_HYPERNODE);
@@ -108,9 +152,7 @@ namespace mt_kahypar {
       pool.register_memory_chunk("Refinement", "part_ids", num_hypernodes, sizeof(PartitionID));
 
       if (Hypergraph::is_graph) {
-        #ifdef ENABLE_GRAPH_PARTITIONER // SIZE_OF_EDGE_LOCK is only available in the graph data structure
-          pool.register_memory_chunk("Refinement", "edge_sync", num_hyperedges, PartitionedHypergraph::SIZE_OF_EDGE_LOCK);
-        #endif
+        pool.register_memory_chunk("Refinement", "edge_sync", num_hyperedges, size_of_edge_locks<Hypergraph>());
         if ( context.refinement.fm.algorithm != FMAlgorithm::do_nothing ) {
           pool.register_memory_chunk("Refinement", "incident_weight_in_part",
                                     static_cast<size_t>(num_hypernodes) * ( context.partition.k + 1 ),
@@ -118,10 +160,19 @@ namespace mt_kahypar {
         }
       } else {
         const HypernodeID max_he_size = hypergraph.maxEdgeSize();
-        #ifdef ENABLE_LARGE_K
-        pool.register_memory_chunk("Refinement", "pin_count_in_part",
-                                  ds::SparsePinCounts::num_elements(num_hyperedges, context.partition.k, max_he_size),
-                                  sizeof(ds::SparsePinCounts::Value));
+        #ifdef KAHYPAR_ENABLE_LARGE_K_PARTITIONING_FEATURES
+        if ( context.partition.preset_type == PresetType::large_k ) {
+          pool.register_memory_chunk("Refinement", "pin_count_in_part",
+                                    ds::SparsePinCounts::num_elements(num_hyperedges, context.partition.k, max_he_size),
+                                    sizeof(ds::SparsePinCounts::Value));
+        } else {
+          pool.register_memory_chunk("Refinement", "pin_count_in_part",
+                                    ds::PinCountInPart::num_elements(num_hyperedges, context.partition.k, max_he_size),
+                                    sizeof(ds::PinCountInPart::Value));
+          pool.register_memory_chunk("Refinement", "connectivity_set",
+                                    ds::ConnectivitySets::num_elements(num_hyperedges, context.partition.k),
+                                    sizeof(ds::ConnectivitySets::UnsafeBlock));
+        }
         #else
         pool.register_memory_chunk("Refinement", "pin_count_in_part",
                                   ds::PinCountInPart::num_elements(num_hyperedges, context.partition.k, max_he_size),
@@ -147,5 +198,10 @@ namespace mt_kahypar {
     }
   }
 
+  namespace {
+  #define REGISTER_MEMORY_POOL(X) void register_memory_pool(const X& hypergraph, const Context& context)
+  }
+
+  INSTANTIATE_FUNC_WITH_HYPERGRAPHS(REGISTER_MEMORY_POOL)
 
 } // namespace mt_kahypar

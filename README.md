@@ -112,11 +112,11 @@ If you want to change configuration parameters manually, please run `--help` for
 
 To run Mt-KaHyPar, you can use the following command:
 
-    ./MtKaHyPar -h <path-to-hgr> --preset-type=<large_k/deterministic/default/default_flows/quality/quality_flows> --instance_type=<hypergraph/graph> -t <# threads> -k <# blocks> -e <imbalance (e.g. 0.03)> -o km1 -m direct
+    ./MtKaHyPar -h <path-to-hgr> --preset-type=<large_k/deterministic/default/default_flows/quality/quality_flows> --instance_type=<hypergraph/graph> -t <# threads> -k <# blocks> -e <imbalance (e.g. 0.03)> -o km1
 
 or directly provide a configuration file (see `config` folder):
 
-    ./MtKaHyPar -h <path-to-hgr> -p <path-to-config-file> --instance_type=<hypergraph/graph> -t <# threads> -k <# blocks> -e <imbalance (e.g. 0.03)> -o km1 -m direct
+    ./MtKaHyPar -h <path-to-hgr> -p <path-to-config-file> --instance_type=<hypergraph/graph> -t <# threads> -k <# blocks> -e <imbalance (e.g. 0.03)> -o km1
 
 To enable writing the partition to a file set the flag `--write-partition-file=true`.
 By default the file will be placed in the same folder as the input hypergraph file. Set `--partition-output-folder=path/to/folder` to specify a desired output folder. The partition file name is generated automatically based on parameters such as `k`, `imbalance`, `seed` and the input file name.
@@ -169,7 +169,7 @@ int main(int argc, char* argv[]) {
 
   // Setup partitioning context
   mt_kahypar_context_t* context = mt_kahypar_context_new();
-  mt_kahypar_load_preset(context, SPEED /* corresponds to MT-KaHyPar-D */);
+  mt_kahypar_load_preset(context, DEFAULT /* corresponds to MT-KaHyPar-D */);
   // In the following, we partition a hypergraph into two blocks
   // with an allowed imbalance of 3% and optimize the connective metric (KM1)
   mt_kahypar_set_partitioning_parameters(context,
@@ -178,27 +178,27 @@ int main(int argc, char* argv[]) {
   // Enable logging
   mt_kahypar_set_context_parameter(context, VERBOSE, "1");
 
-  // Load Hypergraph
-  mt_kahypar_hypergraph_t* hypergraph =
+  // Load Hypergraph for DEFAULT preset
+  mt_kahypar_hypergraph_t hypergraph =
     mt_kahypar_read_hypergraph_from_file(
-      "path/to/hypergraph/file", context, HMETIS /* file format */);
+      "path/to/hypergraph/file", DEFAULT, HMETIS /* file format */);
 
   // Partition Hypergraph
-  mt_kahypar_partitioned_hypergraph_t* partitioned_hg =
-    mt_kahypar_partition_hypergraph(hypergraph, context);
+  mt_kahypar_partitioned_hypergraph_t partitioned_hg =
+    mt_kahypar_partition(hypergraph, context);
 
   // Extract Partition
   std::unique_ptr<mt_kahypar_partition_id_t[]> partition =
     std::make_unique<mt_kahypar_partition_id_t[]>(mt_kahypar_num_hypernodes(hypergraph));
-  mt_kahypar_get_hypergraph_partition(partitioned_hg, partition.get());
+  mt_kahypar_get_partition(partitioned_hg, partition.get());
 
   // Extract Block Weights
   std::unique_ptr<mt_kahypar_hypernode_weight_t[]> block_weights =
     std::make_unique<mt_kahypar_hypernode_weight_t[]>(2);
-  mt_kahypar_get_hypergraph_block_weights(partitioned_hg, block_weights.get());
+  mt_kahypar_get_block_weights(partitioned_hg, block_weights.get());
 
   // Compute Metrics
-  const double imbalance = mt_kahypar_hypergraph_imbalance(partitioned_hg, context);
+  const double imbalance = mt_kahypar_imbalance(partitioned_hg, context);
   const double km1 = mt_kahypar_km1(partitioned_hg);
 
   // Output Results
@@ -238,6 +238,18 @@ To remove the library from your system use the provided uninstall target:
 make uninstall-mtkahypar
 ```
 
+**Note** that we internally use different data structures to represent a (hyper)graph based on the corresponding configuration (`mt_kahypar_preset_type_t`). The `mt_kahypar_hypergraph_t` structure stores a pointer to this data structure and also a type description. Therefore, you can not partition a (hyper)graph with all available configurations once it is loaded or constructed. However, you can check the compatibility of a hypergraph with a configuration with the following code:
+
+```cpp
+mt_kahypar_context_t context = mt_kahypar_context_new();
+mt_kahypar_load_preset(context, QUALITY);
+// Check if the hypergraph is compatible with the QUALITY preset
+if ( mt_kahypar_check_compatibility(hypergraph, QUALITY) ) {
+  mt_kahypar_partitioned_hypergraph_t partitioned_hg =
+    mt_kahypar_partition(hypergraph, context);
+}
+```
+
 The Python Library Interface
 -----------
 
@@ -247,40 +259,39 @@ You can install the Python library interface via
 make mtkahypar_python
 ```
 
-This will create two shared libraries in the `build/python` folder: one to partition graphs (`mtkahypargp.so` on Linux and `mtkahypargp.pyd` on Windows) and one to partition hypergraphs (`mtkahyparhgp.so` on Linux and `mtkahyparhgp.pyd` on Windows).
-Copy the libaries to your python project directory to import them as modules.
+This will create a shared library in the `build/python` folder (`mtkahypar.so` on Linux and `mtkahypar.pyd` on Windows).
+Copy the libary to your Python project directory to import Mt-KaHyPar as a Python module.
 
-A documentation of the python modules can be found in `python/module_hgp.cpp` and `python/python_gp.cpp`. We also provide several examples
-in the folder `python/examples` that show how to use the python interface.
+A documentation of the Python module can be found in `python/module.cpp`, or by importing the module (`import mtkahypar`) and calling `help(mtkahypar)` in Python. We also provide several examples that show how to use the Python interface in the folder `python/examples`.
 
 Here is a short example how you can partition a hypergraph using our python interface:
 
 ```py
 import multiprocessing
-import mtkahyparhgp as hgp
+import mtkahypar
 
 # Initialize thread pool
-hgp.initializeThreadPool(multiprocessing.cpu_count()) # use all available cores
+mtkahypar.initializeThreadPool(multiprocessing.cpu_count()) # use all available cores
 
 # Setup partitioning context
-context = hgp.Context()
-context.loadPreset(hgp.PresetType.SPEED) # corresponds to Mt-KaHyPar-D
+context = mtkahypar.Context()
+context.loadPreset(mtkahypar.PresetType.DEFAULT) # corresponds to Mt-KaHyPar-D
 # In the following, we partition a hypergraph into two blocks
 # with an allowed imbalance of 3% and optimize the connectivity metric
 context.setPartitioningParameters(
-  2,                 # number of blocks
-  0.03,              # imbalance parameter
-  hgp.Objective.KM1, # objective function
-  42)                # seed
-context.enableLogging(True)
+  2,                       # number of blocks
+  0.03,                    # imbalance parameter
+  mtkahypar.Objective.KM1, # objective function
+  42)                      # seed
+context.logging = True     # enables partitioning output
 
 # Load hypergraph from file
-hypergraph = hgp.Hypergraph(
+hypergraph = mtkahypar.Hypergraph(
   "path/to/hypergraph/file", # hypergraph file
-  hgp.FileFormat.HMETIS) # hypergraph is stored in hMetis file format
+  mtkahypar.FileFormat.HMETIS) # hypergraph is stored in hMetis file format
 
 # Partition hypergraph
-partitioned_hg = hgp.partition(hypergraph, context)
+partitioned_hg = hypergraph.partition(context)
 
 # Output metrics
 print("Partition Stats:")
@@ -289,6 +300,32 @@ print("km1       = " + str(partitioned_hg.km1()))
 print("Block Weights:")
 print("Weight of Block 0 = " + str(partitioned_hg.blockWeight(0)))
 print("Weight of Block 1 = " + str(partitioned_hg.blockWeight(1)))
+```
+
+We also provide an optimized graph data structure for partitioning plain graphs. The following example loads and partitions a graph:
+
+```py
+# Load graph from file
+graph = mtkahypar.Graph(
+  "path/to/graph/file", # graph file
+  mtkahypar.FileFormat.METIS) # graph is stored in Metis file format
+
+# Partition graph
+partitioned_graph = graph.partition(context)
+```
+**Note** that when you want to partition a hypergraph into large number of blocks (e.g., k > 1024), you can use our `LARGE_K` confguration and the `partitionIntoLargeK(...)` function of the hypergraph object. If you use an other configuration for large k partitioning, you may run into memory and running time issues during partitioning. However, this depends on the size of the hypergraph and the memory capacity of your target machine. For partitioning plain graphs, you can load the `LARGE_K` configuration, but you can still use the `partition(...)` function of the graph object. Here is an example that partitions a hypergraph into 1024 blocks:
+
+```py
+# Setup partitioning context
+context = mtkahypar.Context()
+context.loadPreset(mtkahypar.PresetType.LARGE_K)
+# In the following, we partition a hypergraph into 1024 blocks
+# with an allowed imbalance of 3% and optimize the connectivity metric
+context.setPartitioningParameters(1024, 0.03, mtkahypar.Objective.KM1, 42)
+
+# Load and partition hypergraph
+hypergraph = mtkahypar.Hypergraph("path/to/hypergraph/file", mtkahypar.FileFormat.HMETIS)
+partitioned_hg = hypergraph.partitionIntoLargeK(context)
 ```
 
 Bug Reports

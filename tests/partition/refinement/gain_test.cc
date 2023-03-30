@@ -27,6 +27,7 @@
 #include "gmock/gmock.h"
 
 #include "tests/datastructures/hypergraph_fixtures.h"
+#include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/context.h"
 
 #include "mt-kahypar/partition/refinement/fm/strategies/km1_gains.h"
@@ -35,116 +36,123 @@ using ::testing::Test;
 
 namespace mt_kahypar {
 
+namespace {
+  using Hypergraph = typename StaticHypergraphTypeTraits::Hypergraph;
+  using PartitionedHypergraph = typename StaticHypergraphTypeTraits::PartitionedHypergraph;
+}
 
-  template<PartitionID K>
-  class GainComputerTest : public Test {
-  public:
+template<PartitionID K>
+class GainComputerTest : public Test {
 
-    GainComputerTest() :
-            hg(HypergraphFactory::construct(7, 4,
-                                            {{0, 2},
-                                                   {0, 1, 3, 4},
-                                                   {3, 4, 6},
-                                                   {2, 5, 6}})),
-            context(),
-            gain(nullptr) {
-      context.partition.k = K;
-      context.partition.max_part_weights.assign(K, std::numeric_limits<HypernodeWeight>::max());
-      phg = PartitionedHypergraph(K, hg, parallel_tag_t());
-      gain = std::make_unique<Km1GainComputer>(context);
+  using HypergraphFactory = typename Hypergraph::Factory;
+
+public:
+  GainComputerTest() :
+          hg(HypergraphFactory::construct(7, 4,
+                                          {{0, 2},
+                                                  {0, 1, 3, 4},
+                                                  {3, 4, 6},
+                                                  {2, 5, 6}})),
+          context(),
+          gain(nullptr) {
+    context.partition.k = K;
+    context.partition.max_part_weights.assign(K, std::numeric_limits<HypernodeWeight>::max());
+    phg = PartitionedHypergraph(K, hg, parallel_tag_t());
+    gain = std::make_unique<Km1GainComputer>(context);
+  }
+
+  void assignPartitionIDs(const std::vector<PartitionID>& part_ids) {
+    HypernodeID hn = 0;
+    for (const PartitionID& part : part_ids) {
+      ASSERT(part < K);
+      phg.setNodePart(hn++, part);
     }
-
-    void assignPartitionIDs(const std::vector<PartitionID>& part_ids) {
-      HypernodeID hn = 0;
-      for (const PartitionID& part : part_ids) {
-        ASSERT(part < K);
-        phg.setNodePart(hn++, part);
-      }
-    }
-
-    Hypergraph hg;
-    PartitionedHypergraph phg;
-    Context context;
-    std::unique_ptr<Km1GainComputer> gain;
-  };
-
-  using Km1GainsK2 = GainComputerTest<2>;
-
-  TEST_F(Km1GainsK2, ComputesCorrectMoveGainForVertex1) {
-    assignPartitionIDs({1, 0, 0, 0, 0, 1, 1});
-    auto [to, g] = gain->computeBestTargetBlock(phg, 0, context.partition.max_part_weights);
-    ASSERT_EQ(0, to);
-    ASSERT_EQ(2, g);
   }
 
+  Hypergraph hg;
+  PartitionedHypergraph phg;
+  Context context;
+  std::unique_ptr<Km1GainComputer> gain;
+};
 
-  TEST_F(Km1GainsK2, ComputesCorrectMoveGainForVertex2) {
-    assignPartitionIDs({0, 0, 0, 1, 0, 1, 1});
-    auto [to, g] = gain->computeBestTargetBlock(phg, 3, context.partition.max_part_weights);
-    ASSERT_EQ(0, to);
-    ASSERT_EQ(1, g);
-  }
+using Km1GainsK2 = GainComputerTest<2>;
 
-
-  TEST_F(Km1GainsK2, ComputesCorrectMoveGainForVertex3) {
-    assignPartitionIDs({0, 0, 0, 0, 0, 1, 1});
-    auto [to, g] = gain->computeBestTargetBlock(phg, 4, context.partition.max_part_weights);
-    ASSERT_EQ(1, to);
-    ASSERT_EQ(-1, g);   // computeBestTarget block will select negative gain moves!
-  }
-
+TEST_F(Km1GainsK2, ComputesCorrectMoveGainForVertex1) {
+  assignPartitionIDs({1, 0, 0, 0, 0, 1, 1});
+  auto [to, g] = gain->computeBestTargetBlock(phg, 0, context.partition.max_part_weights);
+  ASSERT_EQ(0, to);
+  ASSERT_EQ(2, g);
+}
 
 
-  using Km1GainsK4 = GainComputerTest<4>;
-
-  TEST_F(Km1GainsK4, ComputesCorrectMoveGainForVertex1) {
-    assignPartitionIDs({0, 1, 2, 3, 3, 1, 2});
-    auto [to, g] = gain->computeBestTargetBlock(phg, 0, context.partition.max_part_weights);
-
-    gain->computeGains(phg, 0);
-    ASSERT_EQ(gain->gains[1], 1);
-    ASSERT_EQ(gain->gains[2], 1);
-    ASSERT_EQ(gain->gains[3], 1);
-
-    ASSERT_EQ(1, to); // all target blocks have equal weight --> take the first
-    ASSERT_EQ(1, g);
-  }
+TEST_F(Km1GainsK2, ComputesCorrectMoveGainForVertex2) {
+  assignPartitionIDs({0, 0, 0, 1, 0, 1, 1});
+  auto [to, g] = gain->computeBestTargetBlock(phg, 3, context.partition.max_part_weights);
+  ASSERT_EQ(0, to);
+  ASSERT_EQ(1, g);
+}
 
 
-  TEST_F(Km1GainsK4, ComputesCorrectMoveGainForVertex2) {
-    assignPartitionIDs({0, 3, 1, 2, 2, 0, 3});
-    auto [to, g] = gain->computeBestTargetBlock(phg, 6, context.partition.max_part_weights);
-
-    gain->computeGains(phg, 6);
-    ASSERT_EQ(gain->gains[0], 1);
-    ASSERT_EQ(gain->gains[1], 1);
-    ASSERT_EQ(gain->gains[2], 1);
-    ASSERT_EQ(1, to); // block 1 is lighter than block 0
-    ASSERT_EQ(1, g);
-
-    gain->clear();
-    std::tie(to, g) = gain->computeBestTargetBlock(phg, 2, context.partition.max_part_weights);
-
-    gain->computeGains(phg, 2);
-    ASSERT_EQ(gain->gains[0], 2);
-    ASSERT_EQ(gain->gains[2], 0);
-    ASSERT_EQ(gain->gains[3], 1);
-
-    ASSERT_EQ(to, 0);
-    ASSERT_EQ(g, 2);
-  }
+TEST_F(Km1GainsK2, ComputesCorrectMoveGainForVertex3) {
+  assignPartitionIDs({0, 0, 0, 0, 0, 1, 1});
+  auto [to, g] = gain->computeBestTargetBlock(phg, 4, context.partition.max_part_weights);
+  ASSERT_EQ(1, to);
+  ASSERT_EQ(-1, g);   // computeBestTarget block will select negative gain moves!
+}
 
 
-  TEST_F(Km1GainsK4, ComputesCorrectMoveGainForVertex3) {
-    assignPartitionIDs({0, 3, 1, 2, 2, 0, 3});
-    auto [to, g] = gain->computeBestTargetBlock(phg, 3, context.partition.max_part_weights);
 
-    gain->computeGains(phg, 3);
-    ASSERT_EQ(gain->gains[0], -1);
-    ASSERT_EQ(gain->gains[1], -2);
-    ASSERT_EQ(gain->gains[3], 0);
+using Km1GainsK4 = GainComputerTest<4>;
 
-    ASSERT_EQ(3, to);
-    ASSERT_EQ(0, g);
-  }
+TEST_F(Km1GainsK4, ComputesCorrectMoveGainForVertex1) {
+  assignPartitionIDs({0, 1, 2, 3, 3, 1, 2});
+  auto [to, g] = gain->computeBestTargetBlock(phg, 0, context.partition.max_part_weights);
+
+  gain->computeGains(phg, 0);
+  ASSERT_EQ(gain->gains[1], 1);
+  ASSERT_EQ(gain->gains[2], 1);
+  ASSERT_EQ(gain->gains[3], 1);
+
+  ASSERT_EQ(1, to); // all target blocks have equal weight --> take the first
+  ASSERT_EQ(1, g);
+}
+
+
+TEST_F(Km1GainsK4, ComputesCorrectMoveGainForVertex2) {
+  assignPartitionIDs({0, 3, 1, 2, 2, 0, 3});
+  auto [to, g] = gain->computeBestTargetBlock(phg, 6, context.partition.max_part_weights);
+
+  gain->computeGains(phg, 6);
+  ASSERT_EQ(gain->gains[0], 1);
+  ASSERT_EQ(gain->gains[1], 1);
+  ASSERT_EQ(gain->gains[2], 1);
+  ASSERT_EQ(1, to); // block 1 is lighter than block 0
+  ASSERT_EQ(1, g);
+
+  gain->clear();
+  std::tie(to, g) = gain->computeBestTargetBlock(phg, 2, context.partition.max_part_weights);
+
+  gain->computeGains(phg, 2);
+  ASSERT_EQ(gain->gains[0], 2);
+  ASSERT_EQ(gain->gains[2], 0);
+  ASSERT_EQ(gain->gains[3], 1);
+
+  ASSERT_EQ(to, 0);
+  ASSERT_EQ(g, 2);
+}
+
+
+TEST_F(Km1GainsK4, ComputesCorrectMoveGainForVertex3) {
+  assignPartitionIDs({0, 3, 1, 2, 2, 0, 3});
+  auto [to, g] = gain->computeBestTargetBlock(phg, 3, context.partition.max_part_weights);
+
+  gain->computeGains(phg, 3);
+  ASSERT_EQ(gain->gains[0], -1);
+  ASSERT_EQ(gain->gains[1], -2);
+  ASSERT_EQ(gain->gains[3], 0);
+
+  ASSERT_EQ(3, to);
+  ASSERT_EQ(0, g);
+}
+
 } // namespace

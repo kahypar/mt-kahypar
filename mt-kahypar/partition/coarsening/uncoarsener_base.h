@@ -28,7 +28,6 @@
 
 #pragma once
 
-#include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/refinement/i_refiner.h"
 #include "mt-kahypar/partition/coarsening/coarsening_commons.h"
@@ -36,18 +35,23 @@
 #include "mt-kahypar/utils/utilities.h"
 #include "mt-kahypar/partition/metrics.h"
 #include "mt-kahypar/partition/factories.h"
+#include "mt-kahypar/utils/cast.h"
 
 namespace mt_kahypar {
 
+template<typename TypeTraits>
 class UncoarsenerBase {
 
  protected:
   static constexpr bool debug = false;
 
+  using Hypergraph = typename TypeTraits::Hypergraph;
+  using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
+
  public:
   UncoarsenerBase(Hypergraph& hypergraph,
                   const Context& context,
-                  UncoarseningData& uncoarseningData) :
+                  UncoarseningData<TypeTraits>& uncoarseningData) :
           _hg(hypergraph),
           _context(context),
           _timer(utils::Utilities::instance().getTimer(context.utility_id)),
@@ -67,7 +71,7 @@ class UncoarsenerBase {
   Hypergraph& _hg;
   const Context& _context;
   utils::Timer& _timer;
-  UncoarseningData& _uncoarseningData;
+  UncoarseningData<TypeTraits>& _uncoarseningData;
   std::unique_ptr<IRefiner> _label_propagation;
   std::unique_ptr<IRefiner> _fm;
   std::unique_ptr<IRefiner> _flows;
@@ -105,12 +109,14 @@ class UncoarsenerBase {
 
   void initializeRefinementAlgorithms() {
     _label_propagation = LabelPropagationFactory::getInstance().createObject(
-      _context.refinement.label_propagation.algorithm, _hg, _context);
+      _context.refinement.label_propagation.algorithm,
+      _hg.initialNumNodes(), _hg.initialNumEdges(), _context);
     _fm = FMFactory::getInstance().createObject(
-      _context.refinement.fm.algorithm, _hg, _context);
-    if ( _context.refinement.flows.algorithm != FlowAlgorithm::do_nothing ) {
-      _flows = std::make_unique<FlowRefinementScheduler>(_hg, _context);
-    }
+      _context.refinement.fm.algorithm,
+      _hg.initialNumNodes(), _hg.initialNumEdges(), _context);
+    _flows = FlowSchedulerFactory::getInstance().createObject(
+      _context.refinement.flows.algorithm,
+      _hg.initialNumNodes(), _hg.initialNumEdges(), _context);
   }
 };
 }

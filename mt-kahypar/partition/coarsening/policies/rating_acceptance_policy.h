@@ -31,11 +31,31 @@
 #include "kahypar/meta/policy_registry.h"
 #include "kahypar/meta/typelist.h"
 
-#include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/coarsening/policies/rating_tie_breaking_policy.h"
+#include "mt-kahypar/datastructures/hypergraph_common.h"
+#include "mt-kahypar/macros.h"
 
 namespace mt_kahypar {
 
+class BestRatingPreferringUnmatched final : public kahypar::meta::PolicyBase {
+ public:
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE static bool acceptRating(const RatingType tmp,
+                                                              const RatingType max_rating,
+                                                              const HypernodeID old_target,
+                                                              const HypernodeID new_target,
+                                                              const int cpu_id,
+                                                              const kahypar::ds::FastResetFlagArray<>& already_matched) {
+    return max_rating < tmp ||
+           ((max_rating == tmp) &&
+            ((already_matched[old_target] && !already_matched[new_target]) ||
+             (already_matched[old_target] && already_matched[new_target] &&
+              RandomRatingWins::acceptEqual(cpu_id)) ||
+             (!already_matched[old_target] && !already_matched[new_target] &&
+              RandomRatingWins::acceptEqual(cpu_id))));
+  }
+};
+
+#ifdef KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES
 class BestRatingWithoutTieBreaking final : public kahypar::meta::PolicyBase {
  public:
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE static bool acceptRating(const RatingType tmp,
@@ -60,23 +80,8 @@ class BestRatingWithTieBreaking final : public kahypar::meta::PolicyBase {
   }
 };
 
-class BestRatingPreferringUnmatched final : public kahypar::meta::PolicyBase {
- public:
-  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE static bool acceptRating(const RatingType tmp,
-                                                              const RatingType max_rating,
-                                                              const HypernodeID old_target,
-                                                              const HypernodeID new_target,
-                                                              const int cpu_id,
-                                                              const kahypar::ds::FastResetFlagArray<>& already_matched) {
-    return max_rating < tmp ||
-           ((max_rating == tmp) &&
-            ((already_matched[old_target] && !already_matched[new_target]) ||
-             (already_matched[old_target] && already_matched[new_target] &&
-              RandomRatingWins::acceptEqual(cpu_id)) ||
-             (!already_matched[old_target] && !already_matched[new_target] &&
-              RandomRatingWins::acceptEqual(cpu_id))));
-  }
-};
-
 using AcceptancePolicies = kahypar::meta::Typelist<BestRatingWithTieBreaking, BestRatingPreferringUnmatched>;
+#else
+using AcceptancePolicies = kahypar::meta::Typelist<BestRatingPreferringUnmatched>;
+#endif
 }  // namespace mt_kahypar

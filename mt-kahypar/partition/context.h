@@ -33,16 +33,12 @@
 
 namespace mt_kahypar {
 struct PartitioningParameters {
-  #ifdef ENABLE_QUALITY_PRESET
-  Paradigm paradigm = Paradigm::nlevel;
-  #else
-  Paradigm paradigm = Paradigm::multilevel;
-  #endif
   Mode mode = Mode::UNDEFINED;
   Objective objective = Objective::UNDEFINED;
   FileFormat file_format = FileFormat::hMetis;
-  InstanceType instance_type = InstanceType::UNDEFINED;
+  InstanceType instance_type = InstanceType::hypergraph;
   PresetType preset_type = PresetType::UNDEFINED;
+  mt_kahypar_partition_type_t partition_type =  NULLPTR_PARTITION;
   double epsilon = std::numeric_limits<double>::max();
   PartitionID k = std::numeric_limits<PartitionID>::max();
   int seed = 0;
@@ -259,6 +255,8 @@ class Context {
     }
   }
 
+  bool isNLevelPartitioning() const;
+
   bool forceGainCacheUpdates() const;
 
   void setupPartWeights(const HypernodeWeight total_hypergraph_weight);
@@ -275,7 +273,13 @@ class Context {
 
   void load_default_flow_preset();
 
+  ENABLE_N_LEVEL(void load_quality_preset();)
+
+  ENABLE_N_LEVEL(void load_quality_flow_preset();)
+
   void load_deterministic_preset();
+
+  ENABLE_LARGE_K(void load_large_k_preset();)
 };
 
 std::ostream & operator<< (std::ostream& str, const Context& context);

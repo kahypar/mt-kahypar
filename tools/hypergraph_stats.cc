@@ -36,16 +36,20 @@
 #include "tbb/parallel_reduce.h"
 
 #include "mt-kahypar/macros.h"
-#include "mt-kahypar/definitions.h"
+#include "mt-kahypar/datastructures/static_hypergraph.h"
 #include "mt-kahypar/partition/context.h"
-#include "mt-kahypar/partition/metrics.h"
+#include "mt-kahypar/io/hypergraph_factory.h"
 #include "mt-kahypar/io/hypergraph_io.h"
+#include "mt-kahypar/utils/cast.h"
+#include "mt-kahypar/utils/delete.h"
 #include "mt-kahypar/utils/hypergraph_statistics.h"
 
 #include "kahypar/utils/math.h"
 
 using namespace mt_kahypar;
 namespace po = boost::program_options;
+
+using Hypergraph = ds::StaticHypergraph;
 
 struct Statistic {
   uint64_t min = 0;
@@ -100,8 +104,11 @@ int main(int argc, char* argv[]) {
   po::notify(cmd_vm);
 
   // Read Hypergraph
-  Hypergraph hg = mt_kahypar::io::readInputFile(
-    context.partition.graph_filename, context.partition.file_format, true, false);
+  mt_kahypar_hypergraph_t hypergraph =
+    mt_kahypar::io::readInputFile(
+      context.partition.graph_filename, PresetType::default_preset,
+      InstanceType::hypergraph, context.partition.file_format, true);
+  Hypergraph& hg = utils::cast<Hypergraph>(hypergraph);
 
   std::vector<HypernodeID> he_sizes;
   std::vector<HyperedgeWeight> he_weights;
@@ -215,6 +222,8 @@ int main(int argc, char* argv[]) {
              << " maxHNweight=" << hn_weight_stats.max
              << " density=" << static_cast<double>(hg.initialNumEdges()) / hg.initialNumNodes()
              << std::endl;
+
+  utils::delete_hypergraph(hypergraph);
 
   return 0;
 }

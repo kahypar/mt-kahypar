@@ -48,8 +48,7 @@
 namespace mt_kahypar {
 namespace ds {
 
-template <typename Hypergraph = Mandatory,
-          typename HypergraphFactory = Mandatory>
+template <typename Hypergraph = Mandatory>
 class PartitionedGraph {
 private:
   static_assert(!Hypergraph::is_partitioned,  "Only unpartitioned hypergraphs are allowed");
@@ -59,6 +58,9 @@ private:
   // ! Can be implemented to obtain correct km1 or cut improvements of the move
   using DeltaFunction = std::function<void (const HyperedgeID, const HyperedgeWeight, const HypernodeID, const HypernodeID, const HypernodeID)>;
   #define NOOP_FUNC [] (const HyperedgeID, const HyperedgeWeight, const HypernodeID, const HypernodeID, const HypernodeID) { }
+
+  // Factory
+  using HypergraphFactory = typename Hypergraph::Factory;
 
   static constexpr bool debug = false;
   static constexpr bool enable_heavy_assert = false;
@@ -141,8 +143,10 @@ private:
 
  public:
   static constexpr bool is_static_hypergraph = Hypergraph::is_static_hypergraph;
+  static constexpr bool is_graph = Hypergraph::is_graph;
   static constexpr bool is_partitioned = true;
   static constexpr bool supports_connectivity_set = true;
+  static constexpr mt_kahypar_partition_type_t TYPE = PartitionedGraphType<Hypergraph>::TYPE;
 
   static constexpr HyperedgeID HIGH_DEGREE_THRESHOLD = ID(100000);
   static constexpr size_t SIZE_OF_EDGE_LOCK = sizeof(EdgeMove);
@@ -167,7 +171,7 @@ private:
     _edge_sync(
       "Refinement", "edge_sync", hypergraph.maxUniqueID(), false, false),
     _edge_markers(Hypergraph::is_static_hypergraph ? 0 : hypergraph.maxUniqueID()) {
-    _part_ids.assign(hypergraph.initialNumNodes(), CAtomic<PartitionID>(kInvalidPartition), false);
+    _part_ids.assign(hypergraph.initialNumNodes(), kInvalidPartition, false);
     _edge_sync.assign(hypergraph.maxUniqueID(), EdgeMove(), false);
   }
 
@@ -186,7 +190,7 @@ private:
     tbb::parallel_invoke([&] {
       _part_ids.resize(
         "Refinement", "part_ids", hypergraph.initialNumNodes());
-      _part_ids.assign(hypergraph.initialNumNodes(), CAtomic<PartitionID>(kInvalidPartition));
+      _part_ids.assign(hypergraph.initialNumNodes(), kInvalidPartition);
     }, [&] {
       _edge_sync.resize(
         "Refinement", "edge_sync", static_cast<size_t>(hypergraph.maxUniqueID()));
@@ -211,7 +215,7 @@ private:
   void resetData() {
     tbb::parallel_invoke([&] {
     }, [&] {
-      _part_ids.assign(_part_ids.size(), CAtomic<PartitionID>(kInvalidPartition));
+      _part_ids.assign(_part_ids.size(), kInvalidPartition);
     }, [&] {
       if ( _is_gain_cache_initialized ) {
         _incident_weight_in_part.assign(_incident_weight_in_part.size(),  CAtomic<HyperedgeWeight>(0));
@@ -447,10 +451,10 @@ private:
   // ! Block that vertex u belongs to
   PartitionID partID(const HypernodeID u) const {
     ASSERT(u < initialNumNodes(), "Hypernode" << u << "does not exist");
-    return _part_ids[u].load(std::memory_order_relaxed);
+    return _part_ids[u];
   }
 
-  void extractPartIDs(Array<CAtomic<PartitionID>>& part_ids) {
+  void extractPartIDs(Array<PartitionID>& part_ids) {
     // If we pass the input hypergraph to initial partitioning, then initial partitioning
     // will pass an part ID vector of size |V'|, where V' are the number of nodes of
     // smallest hypergraph, while the _part_ids vector of the input hypergraph is initialized
@@ -461,7 +465,7 @@ private:
     } else {
       ASSERT(part_ids.size() <= _part_ids.size());
       tbb::parallel_for(UL(0), part_ids.size(), [&](const size_t i) {
-        part_ids[i].store(_part_ids[i], std::memory_order_relaxed);
+        part_ids[i] = _part_ids[i];
       });
     }
   }
@@ -469,12 +473,12 @@ private:
 
   void setOnlyNodePart(const HypernodeID u, PartitionID p) {
     ASSERT(p != kInvalidPartition && p < _k);
-    ASSERT(_part_ids[u].load() == kInvalidPartition);
-    _part_ids[u].store(p, std::memory_order_relaxed);
+    ASSERT(_part_ids[u] == kInvalidPartition);
+    _part_ids[u] = p;
   }
 
   void setNodePart(const HypernodeID u, PartitionID p) {
-    ASSERT(_part_ids[u].load() == kInvalidPartition);
+    ASSERT(_part_ids[u] == kInvalidPartition);
     setOnlyNodePart(u, p);
     _part_weights[p].fetch_add(nodeWeight(u), std::memory_order_relaxed);
   }
@@ -665,7 +669,7 @@ private:
 
   // ! Reset partition (not thread-safe)
   void resetPartition() {
-    _part_ids.assign(_part_ids.size(), CAtomic<PartitionID>(kInvalidPartition), false);
+    _part_ids.assign(_part_ids.size(), kInvalidPartition, false);
     _incident_weight_in_part.assign(_incident_weight_in_part.size(),  CAtomic<HyperedgeWeight>(0), false);
     _edge_sync.assign(_hg->maxUniqueID(), EdgeMove(), false);
     for (auto& weight : _part_weights) {
@@ -705,7 +709,6 @@ private:
 
   // ! Only for testing
   HyperedgeWeight moveToBenefitRecomputed(const HypernodeID u, PartitionID p) const {
-    PartitionID part_id = partID(u);
     HyperedgeWeight w = 0;
     for (HyperedgeID e : incidentEdges(u)) {
       if (!isSinglePin(e) && partID(edgeTarget(e)) == p) {
@@ -715,7 +718,7 @@ private:
     return w;
   }
 
-  void recomputeMoveFromPenalty(const HypernodeID u) {
+  void recomputeMoveFromPenalty(const HypernodeID) {
     // Nothing to do here
   }
 
@@ -828,6 +831,7 @@ private:
           ASSERT(he_mapping[edge] < num_edges);
           edge_weight[he_mapping[edge]] = edgeWeight(edge);
           for (const HypernodeID& pin : pins(edge)) {
+            unused(pin);
             edge_vector[he_mapping[edge]] = {node_mapping[source], node_mapping[target]};
           }
         }
@@ -1024,7 +1028,7 @@ private:
           delta_func(edge, edgeWeight(edge), edgeSize(edge), pin_count_in_from_part_after, pin_count_in_to_part_after);
         }
       }
-      _part_ids[u].store(to, std::memory_order_relaxed);
+      _part_ids[u] = to;
       DBG << "Done changing node part: " << V(u) << " >>>";
       return true;
     } else {
@@ -1089,7 +1093,7 @@ private:
   parallel::scalable_vector< CAtomic<HypernodeWeight> > _part_weights;
 
   // ! Current block IDs of the vertices
-  Array< CAtomic<PartitionID> > _part_ids;
+  Array< PartitionID > _part_ids;
 
   // ! For each node and block, the sum of incident edge weights where the target is in that part
   Array< CAtomic<HyperedgeWeight> > _incident_weight_in_part;

@@ -40,19 +40,22 @@ namespace ds {
 
 static auto identity = [](const HypernodeID& id) { return id; };
 
-template<typename HyperGraph, typename HyperGraphFactory, bool useGraphStructure = false>
+template<typename Hypergraph, bool useGraphStructure = false>
 class HypergraphFixture : public Test {
+
+  using HypergraphFactory = typename Hypergraph::Factory;
+
  public:
   HypergraphFixture() :
     hypergraph(useGraphStructure ?
-      HyperGraphFactory::construct(
+      HypergraphFactory::construct(
         7 , 6, { {1, 2}, {2, 3}, {1, 4}, {4, 5}, {4, 6}, {5, 6} }, nullptr, nullptr, true) :
-      HyperGraphFactory::construct(
+      HypergraphFactory::construct(
         7 , 4, { {0, 2}, {0, 1, 3, 4}, {3, 4, 6}, {2, 5, 6} }, nullptr, nullptr, true)) {
   }
 
   template <typename K = decltype(identity)>
-  void verifyIncidentNets(const HyperGraph& hg,
+  void verifyIncidentNets(const Hypergraph& hg,
                           const HypernodeID hn,
                           const std::set<HypernodeID>& reference,
                           K map_func = identity,
@@ -74,7 +77,7 @@ class HypergraphFixture : public Test {
     verifyIncidentNets(hypergraph, hn, reference, map_func, log);
   }
 
-  void verifyPins(const HyperGraph& hg,
+  void verifyPins(const Hypergraph& hg,
                   const std::vector<HyperedgeID> hyperedges,
                   const std::vector< std::set<HypernodeID> >& references,
                   bool log = false) {
@@ -108,7 +111,7 @@ class HypergraphFixture : public Test {
     hypergraph.setCommunityID(6, 2);
   }
 
-  HyperGraph hypergraph;
+  Hypergraph hypergraph;
 };
 
 }  // namespace ds

@@ -29,8 +29,8 @@
 
 #include "gmock/gmock.h"
 
-#include "tests/datastructures/hypergraph_fixtures.h"
-#include "mt-kahypar/definitions.h"
+
+#include "tests/definitions.h"
 #include "mt-kahypar/datastructures/static_graph.h"
 #include "mt-kahypar/datastructures/static_graph_factory.h"
 #include "mt-kahypar/datastructures/partitioned_graph.h"
@@ -41,23 +41,13 @@ using ::testing::Test;
 namespace mt_kahypar {
 namespace ds {
 
-template< typename PartitionedHG,
-          typename HG,
-          typename HGFactory>
-struct PartitionedGraphTypeTraits {
-  using PartitionedGraph = PartitionedHG;
-  using Hypergraph = HG;
-  using Factory = HGFactory;
-};
-
 template<typename TypeTraits>
 class APartitionedGraph : public Test {
 
- using PartitionedGraph = typename TypeTraits::PartitionedGraph;
- using Factory = typename TypeTraits::Factory;
-
  public:
- using Hypergraph = typename TypeTraits::Hypergraph;
+  using Hypergraph = typename TypeTraits::Hypergraph;
+  using PartitionedGraph = typename TypeTraits::PartitionedHypergraph;
+  using Factory = typename Hypergraph::Factory;
 
   APartitionedGraph() :
     hypergraph(Factory::construct(7 , 6,
@@ -160,15 +150,7 @@ void executeConcurrent(const F1& f1, const F2& f2) {
     f2();
   });
 }
-
-using PartitionedGraphTestTypes =
-  ::testing::Types<
-          PartitionedGraphTypeTraits<
-                          PartitionedGraph<StaticGraph, StaticGraphFactory>,
-                          StaticGraph,
-                          StaticGraphFactory>>;
-
-TYPED_TEST_CASE(APartitionedGraph, PartitionedGraphTestTypes);
+TYPED_TEST_CASE(APartitionedGraph, tests::GraphTestTypeTraits);
 
 TYPED_TEST(APartitionedGraph, HasCorrectPartWeightAndSizes) {
   ASSERT_EQ(3, this->partitioned_hypergraph.partWeight(0));

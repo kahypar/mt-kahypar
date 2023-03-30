@@ -28,18 +28,21 @@
 
 #include "tbb/task_group.h"
 
+#include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/registries/register_initial_partitioning_algorithms.h"
+#include "mt-kahypar/utils/cast.h"
 
 namespace mt_kahypar {
 
-namespace pool {
-
+namespace {
 // IP algorithm and random seed
 using IPTask = std::tuple<InitialPartitioningAlgorithm, int, int>;
+}
 
-void bipartition(PartitionedHypergraph& hypergraph,
-                 const Context& context,
-                 const bool run_parallel) {
+template<typename TypeTraits>
+void Pool<TypeTraits>::bipartition(PartitionedHypergraph& hypergraph,
+                                   const Context& context,
+                                   const bool run_parallel) {
   ASSERT(context.shared_memory.num_threads > 0);
   if ( context.initial_partitioning.enabled_ip_algos.size() <
         static_cast<size_t>(InitialPartitioningAlgorithm::UNDEFINED) ) {
@@ -65,19 +68,20 @@ void bipartition(PartitionedHypergraph& hypergraph,
   std::shuffle(_ip_task_lists.begin(), _ip_task_lists.end(), rng);
 
   tbb::task_group tg;
-  InitialPartitioningDataContainer ip_data(hypergraph, context);
+  InitialPartitioningDataContainer<TypeTraits> ip_data(hypergraph, context);
+  ip_data_container_t* ip_data_ptr = ip::to_pointer(ip_data);
   for ( const auto [algorithm, seed, tag] : _ip_task_lists ) {
     if ( run_parallel ) {
       tg.run([&, algorithm, seed, tag] {
         std::unique_ptr<IInitialPartitioner> initial_partitioner =
           InitialPartitionerFactory::getInstance().createObject(
-            algorithm, algorithm, ip_data, context, seed, tag);
+            algorithm, algorithm, ip_data_ptr, context, seed, tag);
         initial_partitioner->partition();
       });
     } else {
       std::unique_ptr<IInitialPartitioner> initial_partitioner =
         InitialPartitionerFactory::getInstance().createObject(
-          algorithm, algorithm, ip_data, context, seed, tag);
+          algorithm, algorithm, ip_data_ptr, context, seed, tag);
       initial_partitioner->partition();
     }
   }
@@ -85,6 +89,6 @@ void bipartition(PartitionedHypergraph& hypergraph,
   ip_data.apply();
 }
 
-}
+INSTANTIATE_CLASS_WITH_TYPE_TRAITS(Pool)
 
 } // namespace mt_kahypar

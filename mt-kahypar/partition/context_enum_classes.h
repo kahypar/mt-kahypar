@@ -30,6 +30,9 @@
 #include <iostream>
 #include <string>
 
+#include "include/libmtkahypartypes.h"
+#include "mt-kahypar/macros.h"
+
 namespace mt_kahypar {
 
 enum class Type : int8_t {
@@ -45,24 +48,19 @@ enum class FileFormat : int8_t {
 };
 
 enum class InstanceType : int8_t {
-  graph = 0,
+  ENABLE_GRAPHS(graph = 0 COMMA)
   hypergraph = 1,
   UNDEFINED = 2
 };
 
 enum class PresetType : int8_t {
   deterministic,
-  large_k,
+  ENABLE_LARGE_K(large_k COMMA)
   default_preset,
   default_flows,
-  quality_preset,
-  quality_flows,
+  ENABLE_N_LEVEL(quality_preset COMMA)
+  ENABLE_N_LEVEL(quality_flows COMMA)
   UNDEFINED
-};
-
-enum class Paradigm : int8_t {
-  multilevel,
-  nlevel
 };
 
 enum class ContextType : bool {
@@ -101,25 +99,25 @@ enum class SimiliarNetCombinerStrategy : uint8_t {
 enum class CoarseningAlgorithm : uint8_t {
   multilevel_coarsener,
   deterministic_multilevel_coarsener,
-  nlevel_coarsener,
+  ENABLE_N_LEVEL(nlevel_coarsener COMMA)
   UNDEFINED
 };
 
 enum class RatingFunction : uint8_t {
   heavy_edge,
-  sameness,
+  ENABLE_EXPERIMENTAL_FEATURES(sameness COMMA)
   UNDEFINED
 };
 
 enum class HeavyNodePenaltyPolicy : uint8_t {
   no_penalty,
-  multiplicative_penalty,
-  additive,
+  ENABLE_EXPERIMENTAL_FEATURES(multiplicative_penalty COMMA)
+  ENABLE_EXPERIMENTAL_FEATURES(additive COMMA)
   UNDEFINED
 };
 
 enum class AcceptancePolicy : uint8_t {
-  best,
+  ENABLE_EXPERIMENTAL_FEATURES(best COMMA)
   best_prefer_unmatched,
   UNDEFINED
 };
@@ -166,7 +164,7 @@ std::ostream & operator<< (std::ostream& os, const InstanceType& type);
 
 std::ostream & operator<< (std::ostream& os, const PresetType& type);
 
-std::ostream & operator<< (std::ostream& os, const Paradigm& paradigm);
+std::ostream & operator<< (std::ostream& os, const mt_kahypar_partition_type_t& type);
 
 std::ostream & operator<< (std::ostream& os, const ContextType& type);
 

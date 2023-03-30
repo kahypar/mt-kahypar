@@ -80,6 +80,15 @@ namespace mt_kahypar {
             ("partition-output-folder",
              po::value<std::string>(&context.partition.graph_partition_output_folder)->value_name("<string>"),
              "Output folder for partition file")
+            ("mode,m",
+             po::value<std::string>()->value_name("<string>")->notifier(
+                     [&](const std::string& mode) {
+                       context.partition.mode = modeFromString(mode);
+                     }),
+             "Partitioning mode: \n"
+             " - direct: direct k-way partitioning\n"
+             " - rb: recursive bipartitioning\n"
+             " - deep: deep multilevel partitioning")
             ("input-file-format",
              po::value<std::string>()->value_name("<string>")->notifier([&](const std::string& s) {
                if (s == "hmetis") {
@@ -96,7 +105,9 @@ namespace mt_kahypar {
                context.partition.instance_type = instanceTypeFromString(type);
              }),
              "Instance Type: \n"
+             #ifdef KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES
              " - graph\n"
+             #endif
              " - hypergraph")
             ("preset-type",
              po::value<std::string>()->value_name("<string>")->notifier([&](const std::string& type) {
@@ -106,8 +117,14 @@ namespace mt_kahypar {
              " - deterministic (Mt-KaHyPar-Det)\n"
              " - default (Mt-KaHyPar-D)\n"
              " - default_flows (Mt-KaHyPar-D-F)\n"
+             #ifdef KAHYPAR_ENABLE_N_LEVEL_PARTITIONING_FEATURES
              " - quality (Mt-KaHyPar-Q)\n"
-             " - quality_flows (Mt-KaHyPar-Q-F)\n")
+             " - quality_flows (Mt-KaHyPar-Q-F)\n"
+             #endif
+             #ifdef KAHYPAR_ENABLE_LARGE_K_PARTITIONING_FEATURES
+             " - large_k"
+             #endif
+             )
             ("seed",
              po::value<int>(&context.partition.seed)->value_name("<int>")->default_value(0),
              "Seed for random number generator")
@@ -182,11 +199,9 @@ namespace mt_kahypar {
             ("p-enable-community-detection",
              po::value<bool>(&context.preprocessing.use_community_detection)->value_name("<bool>")->default_value(true),
              "If true, community detection is used as preprocessing step to restrict contractions to densely coupled regions in coarsening phase")
-            #ifdef ENABLE_GRAPH_PARTITIONER
             ("p-disable-community-detection-on-mesh-graphs",
              po::value<bool>(&context.preprocessing.disable_community_detection_for_mesh_graphs)->value_name("<bool>")->default_value(true),
              "If true, community detection is dynamically disabled for mesh graphs (as it is not effective for this type of graphs).")
-            #endif
             ("p-louvain-edge-weight-function",
              po::value<std::string>()->value_name("<string>")->notifier(
                      [&](const std::string& type) {
@@ -232,7 +247,9 @@ namespace mt_kahypar {
                      })->default_value("multilevel_coarsener"),
              "Coarsening Algorithm:\n"
              " - multilevel_coarsener"
+             #ifdef KAHYPAR_ENABLE_N_LEVEL_PARTITIONING_FEATURES
              " - nlevel_coarsener"
+             #endif
              " - deterministic_multilevel_coarsener"
              )
             ("c-use-adaptive-edge-size",
@@ -262,8 +279,12 @@ namespace mt_kahypar {
                      [&](const std::string& rating_score) {
                        context.coarsening.rating.rating_function =
                                mt_kahypar::ratingFunctionFromString(rating_score);
-                     })->default_value("heavy_edge"), "Rating function used to calculate scores for vertex pairs:\n"
-                                                      "- heavy_edge")
+                     })->default_value("heavy_edge"),
+             "Rating function used to calculate scores for vertex pairs:\n"
+             #ifdef KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES
+             "- sameness\n"
+             #endif
+             "- heavy_edge")
             ("c-rating-heavy-node-penalty",
              po::value<std::string>()->value_name("<string>")->notifier(
                      [&](const std::string& penalty) {
@@ -271,9 +292,11 @@ namespace mt_kahypar {
                                heavyNodePenaltyFromString(penalty);
                      })->default_value("no_penalty"),
              "Penalty function to discourage heavy vertices:\n"
+             #ifdef KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES
              "- multiplicative\n"
-             "- no_penalty\n"
-             "- edge_frequency_penalty")
+             "- edge_frequency_penalty\n"
+             #endif
+             "- no_penalty")
             ("c-rating-acceptance-criterion",
              po::value<std::string>()->value_name("<string>")->notifier(
                      [&](const std::string& crit) {
@@ -281,7 +304,9 @@ namespace mt_kahypar {
                                acceptanceCriterionFromString(crit);
                      })->default_value("best_prefer_unmatched"),
              "Acceptance/Tiebreaking criterion for contraction partners having the same score:\n"
+             #ifdef KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES
              "- best\n"
+             #endif
              "- best_prefer_unmatched")
             ("c-vertex-degree-sampling-threshold",
              po::value<size_t>(&context.coarsening.vertex_degree_sampling_threshold)->value_name(
@@ -371,9 +396,11 @@ namespace mt_kahypar {
                      })->default_value("fm_gain_cache"),
              "FM Algorithm:\n"
              "- fm_gain_cache\n"
+             #ifdef KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES
              "- fm_gain_cache_on_demand\n"
              "- fm_gain_delta\n"
              "- fm_recompute_gain\n"
+             #endif
              "- do_nothing")
             ((initial_partitioning ? "i-r-fm-multitry-rounds" : "r-fm-multitry-rounds"),
              po::value<size_t>((initial_partitioning ? &context.initial_partitioning.refinement.fm.multitry_rounds :
@@ -428,7 +455,6 @@ namespace mt_kahypar {
              "If the FM time exceeds time_limit := k * factor * coarsening_time, than the FM config is switched into a light version."
              "If the FM refiner exceeds 2 * time_limit, than the current multitry FM run is aborted and the algorithm proceeds to"
              "the next finer level.")
-            #ifdef ENABLE_QUALITY_PRESET
             ((initial_partitioning ? "i-r-use-global-fm" : "r-use-global-fm"),
              po::value<bool>((!initial_partitioning ? &context.refinement.global_fm.use_global_fm :
                               &context.initial_partitioning.refinement.global_fm.use_global_fm))->value_name(
@@ -448,9 +474,7 @@ namespace mt_kahypar {
              po::value<bool>(
                      (initial_partitioning ? &context.initial_partitioning.refinement.global_fm.obey_minimal_parallelism :
                       &context.refinement.global_fm.obey_minimal_parallelism))->value_name("<bool>")->default_value(true),
-             "If true, then the globalized FM local search stops if more than a certain number of threads are finished.")
-            #endif
-            ;
+             "If true, then the globalized FM local search stops if more than a certain number of threads are finished.");
     return options;
   }
 
@@ -638,17 +662,7 @@ namespace mt_kahypar {
              }),
              "Objective: \n"
              " - cut : cut-net metric (FM only supports km1 metric) \n"
-             " - km1 : (lambda-1) metric")
-            ("mode,m",
-             po::value<std::string>()->value_name("<string>")->required()->notifier(
-                     [&](const std::string& mode) {
-                       context.partition.mode = modeFromString(mode);
-                     }),
-             "Partitioning mode: \n"
-             " - direct: direct k-way partitioning\n"
-             " - rb: recursive bipartitioning\n"
-             " - deep: deep multilevel partitioning"
-             );
+             " - km1 : (lambda-1) metric");
 
     po::options_description preset_options("Preset Options", num_columns);
     preset_options.add_options()

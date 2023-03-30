@@ -35,6 +35,7 @@
 #include "tbb/parallel_reduce.h"
 #include "tbb/enumerable_thread_specific.h"
 
+#include "mt-kahypar/definitions.h"
 #include "mt-kahypar/parallel/memory_pool.h"
 #include "mt-kahypar/parallel/atomic_wrapper.h"
 #include "mt-kahypar/partition/metrics.h"
@@ -74,9 +75,9 @@ namespace mt_kahypar::io {
     }
 
     void printHypergraphStats(const Statistic& he_size_stats,
-                                     const Statistic& he_weight_stats,
-                                     const Statistic& hn_deg_stats,
-                                     const Statistic& hn_weight_stats) {
+                              const Statistic& he_weight_stats,
+                              const Statistic& hn_deg_stats,
+                              const Statistic& hn_weight_stats) {
       // default double precision is 7
       const uint8_t double_width = 7;
       const uint8_t he_size_width = std::max(kahypar::math::digits(he_size_stats.max), double_width) + 4;
@@ -120,6 +121,7 @@ namespace mt_kahypar::io {
 
   }  // namespace internal
 
+  template<typename Hypergraph>
   void printHypergraphInfo(const Hypergraph& hypergraph,
                            const std::string& name,
                            const bool show_memory_consumption) {
@@ -199,6 +201,7 @@ namespace mt_kahypar::io {
     }
   }
 
+  template<typename PartitionedHypergraph>
   void printPartWeightsAndSizes(const PartitionedHypergraph& hypergraph, const Context& context) {
     vec<HypernodeID> part_sizes(context.partition.k, 0);
     for (HypernodeID u : hypergraph.nodes()) {
@@ -224,7 +227,11 @@ namespace mt_kahypar::io {
       max_part_size = std::max(max_part_size, part_sizes[i]);
       num_imbalanced_blocks +=
         (hypergraph.partWeight(i) > context.partition.max_part_weights[i] ||
-          ( context.partition.preset_type != PresetType::large_k && hypergraph.partWeight(i) == 0 ));
+          (
+          #ifdef KAHYPAR_ENABLE_LARGE_K_PARTITIONING_FEATURES
+          context.partition.preset_type != PresetType::large_k &&
+          #endif
+          hypergraph.partWeight(i) == 0 ));
     }
     avg_part_weight /= context.partition.k;
 
@@ -234,7 +241,11 @@ namespace mt_kahypar::io {
       for (PartitionID i = 0; i != context.partition.k; ++i) {
         bool is_imbalanced =
                 hypergraph.partWeight(i) > context.partition.max_part_weights[i] ||
-                ( context.partition.preset_type != PresetType::large_k && hypergraph.partWeight(i) == 0 );
+                (
+                #ifdef KAHYPAR_ENABLE_LARGE_K_PARTITIONING_FEATURES
+                context.partition.preset_type != PresetType::large_k &&
+                #endif
+                hypergraph.partWeight(i) == 0 );
         if ( is_imbalanced ) std::cout << RED;
         std::cout << "|block " << std::left  << std::setw(k_digits) << i
                   << std::setw(1) << "| = "  << std::right << std::setw(part_digits) << part_sizes[i]
@@ -258,7 +269,11 @@ namespace mt_kahypar::io {
         for (PartitionID i = 0; i != context.partition.k; ++i) {
           const bool is_imbalanced =
             hypergraph.partWeight(i) > context.partition.max_part_weights[i] ||
-            ( context.partition.preset_type != PresetType::large_k && hypergraph.partWeight(i) == 0 );
+            (
+            #ifdef KAHYPAR_ENABLE_LARGE_K_PARTITIONING_FEATURES
+            context.partition.preset_type != PresetType::large_k &&
+            #endif
+            hypergraph.partWeight(i) == 0 );
           if ( is_imbalanced ) {
             std::cout << RED << "|block " << std::left  << std::setw(k_digits) << i
                       << std::setw(1) << "| = "  << std::right << std::setw(part_digits) << part_sizes[i]
@@ -273,6 +288,7 @@ namespace mt_kahypar::io {
     }
   }
 
+  template<typename PartitionedHypergraph>
   void printPartitioningResults(const PartitionedHypergraph& hypergraph,
                                 const Context& context,
                                 const std::string& description) {
@@ -304,6 +320,7 @@ namespace mt_kahypar::io {
     }
   }
 
+  template<typename Hypergraph>
   void printInputInformation(const Context& context, const Hypergraph& hypergraph) {
     if (context.partition.verbose_output) {
       LOG << "\n********************************************************************************";
@@ -367,10 +384,10 @@ namespace mt_kahypar::io {
     }
   }
 
-
+  template<typename PartitionedHypergraph>
   void printObjectives(const PartitionedHypergraph& hypergraph,
-                              const Context& context,
-                              const std::chrono::duration<double>& elapsed_seconds) {
+                       const Context& context,
+                       const std::chrono::duration<double>& elapsed_seconds) {
     LOG << "Objectives:";
     LOG << " Hyperedge Cut  (minimize) =" << metrics::hyperedgeCut(hypergraph);
     LOG << " SOED           (minimize) =" << metrics::soed(hypergraph);
@@ -379,6 +396,7 @@ namespace mt_kahypar::io {
     LOG << " Partitioning Time         =" << elapsed_seconds.count() << "s";
   }
 
+  template<typename PartitionedHypergraph>
   void printCutMatrix(const PartitionedHypergraph& hypergraph) {
     const PartitionID k = hypergraph.k();
 
@@ -419,12 +437,13 @@ namespace mt_kahypar::io {
       std::cout << std::right << std::setw(column_width) << block_1;
       for ( PartitionID block_2 = 0; block_2 < k; ++block_2 ) {
         std::cout << std::right << std::setw(column_width)
-                  << (Hypergraph::is_graph ? cut_matrix[block_1][block_2].load() / 2 : cut_matrix[block_1][block_2].load());
+                  << (PartitionedHypergraph::is_graph ? cut_matrix[block_1][block_2].load() / 2 : cut_matrix[block_1][block_2].load());
       }
       std::cout << std::endl;
     }
   }
 
+  template<typename PartitionedHypergraph>
   void printPotentialPositiveGainMoveMatrix(const PartitionedHypergraph& hypergraph) {
     const PartitionID k = hypergraph.k();
 
@@ -490,6 +509,7 @@ namespace mt_kahypar::io {
     }
   }
 
+  template<typename PartitionedHypergraph>
   void printConnectedCutHyperedgeAnalysis(const PartitionedHypergraph& hypergraph) {
     std::vector<bool> visited_he(hypergraph.initialNumEdges(), false);
     std::vector<HyperedgeWeight> connected_cut_hyperedges;
@@ -537,6 +557,7 @@ namespace mt_kahypar::io {
     std::cout << "\b)" << std::endl;
   }
 
+  template<typename PartitionedHypergraph>
   void printPartitioningResults(const PartitionedHypergraph& hypergraph,
                                 const Context& context,
                                 const std::chrono::duration<double>& elapsed_seconds) {
@@ -634,8 +655,7 @@ namespace mt_kahypar::io {
     }
   }
 
-
-
+  template<typename Hypergraph>
   void printCommunityInformation(const Hypergraph& hypergraph) {
 
     PartitionID num_communities =
@@ -722,5 +742,27 @@ namespace mt_kahypar::io {
             );
   }
 
+  namespace {
+    #define PRINT_CUT_MATRIX(X) void printCutMatrix(const X& hypergraph)
+    #define PRINT_HYPERGRAPH_INFO(X) void printHypergraphInfo(const X& hypergraph,                 \
+                                                              const std::string& name,             \
+                                                              const bool show_memory_consumption)
+    #define PRINT_PARTITIONING_RESULTS(X) void printPartitioningResults(const X& hypergraph,             \
+                                                                        const Context& context,          \
+                                                                        const std::string& description)
+    #define PRINT_PARTITIONING_RESULTS_2(X) void printPartitioningResults(const X& hypergraph,                                   \
+                                                                          const Context& context,                                \
+                                                                          const std::chrono::duration<double>& elapsed_seconds)
+    #define PRINT_PART_WEIGHT_AND_SIZES(X) void printPartWeightsAndSizes(const X& hypergraph, const Context& context)
+    #define PRINT_INPUT_INFORMATION(X) void printInputInformation(const Context& context, const X& hypergraph)
+    #define PRINT_COMMUNITY_INFORMATION(X) void printCommunityInformation(const X& hypergraph)
+  } // namespace
 
+  INSTANTIATE_FUNC_WITH_HYPERGRAPHS(PRINT_HYPERGRAPH_INFO)
+  INSTANTIATE_FUNC_WITH_HYPERGRAPHS(PRINT_INPUT_INFORMATION)
+  INSTANTIATE_FUNC_WITH_HYPERGRAPHS(PRINT_COMMUNITY_INFORMATION)
+  INSTANTIATE_FUNC_WITH_PARTITIONED_HG(PRINT_CUT_MATRIX)
+  INSTANTIATE_FUNC_WITH_PARTITIONED_HG(PRINT_PARTITIONING_RESULTS)
+  INSTANTIATE_FUNC_WITH_PARTITIONED_HG(PRINT_PARTITIONING_RESULTS_2)
+  INSTANTIATE_FUNC_WITH_PARTITIONED_HG(PRINT_PART_WEIGHT_AND_SIZES)
 } // namespace mt_kahypar::io

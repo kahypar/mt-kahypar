@@ -103,7 +103,8 @@ struct Km1GainComputer {
     return std::make_pair(best_target, best_gain);
   }
 
-  std::pair<PartitionID, HyperedgeWeight> computeBestTargetBlockIgnoringBalance(const PartitionedHypergraph& phg,
+  template<typename PHG>
+  std::pair<PartitionID, HyperedgeWeight> computeBestTargetBlockIgnoringBalance(const PHG& phg,
                                                                                 const HypernodeID u) {
     const PartitionID from = phg.partID(u);
     const Gain internal_weight = computeGainsPlusInternalWeight(phg, u);
@@ -125,7 +126,8 @@ struct Km1GainComputer {
 };
 
 struct TwoWayGainComputer {
-  static Gain gainToOtherBlock(const PartitionedHypergraph& phg, const HypernodeID u) {
+  template<typename PHG>
+  static Gain gainToOtherBlock(const PHG& phg, const HypernodeID u) {
     Gain gain = 0;
     const PartitionID from = phg.partID(u);
     for (HyperedgeID e : phg.incidentEdges(u)) {

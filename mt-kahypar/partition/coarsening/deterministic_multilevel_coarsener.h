@@ -29,18 +29,22 @@
 #include "multilevel_coarsener_base.h"
 #include "i_coarsener.h"
 
+#include "include/libmtkahypartypes.h"
+
 #include "mt-kahypar/utils/reproducible_random.h"
 #include "mt-kahypar/datastructures/sparse_map.h"
 #include "mt-kahypar/datastructures/buffered_vector.h"
 #include "mt-kahypar/utils/utilities.h"
 #include "mt-kahypar/utils/progress_bar.h"
+#include "mt-kahypar/utils/cast.h"
 
 #include <tbb/enumerable_thread_specific.h>
 
 namespace mt_kahypar {
+
+template<typename TypeTraits>
 class DeterministicMultilevelCoarsener :  public ICoarsener,
-                                          private MultilevelCoarsenerBase
-{
+                                          private MultilevelCoarsenerBase<TypeTraits> {
 
   struct DeterministicCoarseningConfig {
     explicit DeterministicCoarseningConfig(const Context& context) :
@@ -57,20 +61,25 @@ class DeterministicMultilevelCoarsener :  public ICoarsener,
     size_t num_buckets_per_sub_round;
   };
 
+  using Hypergraph = typename TypeTraits::Hypergraph;
+  using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
+
 public:
-  DeterministicMultilevelCoarsener(Hypergraph& hypergraph,
+  DeterministicMultilevelCoarsener(mt_kahypar_hypergraph_t hypergraph,
                                    const Context& context,
-                                   UncoarseningData& uncoarseningData) :
-    Base(hypergraph, context, uncoarseningData),
+                                   uncoarsening_data_t* uncoarseningData) :
+    Base(utils::cast<Hypergraph>(hypergraph),
+         context,
+         uncoarsening::to_reference<TypeTraits>(uncoarseningData)),
     config(context),
-    initial_num_nodes(hypergraph.initialNumNodes()),
-    propositions(hypergraph.initialNumNodes()),
-    cluster_weight(hypergraph.initialNumNodes(), 0),
-    opportunistic_cluster_weight(hypergraph.initialNumNodes(), 0),
-    nodes_in_too_heavy_clusters(hypergraph.initialNumNodes()),
-    default_rating_maps(hypergraph.initialNumNodes()),
+    initial_num_nodes(utils::cast<Hypergraph>(hypergraph).initialNumNodes()),
+    propositions(utils::cast<Hypergraph>(hypergraph).initialNumNodes()),
+    cluster_weight(utils::cast<Hypergraph>(hypergraph).initialNumNodes(), 0),
+    opportunistic_cluster_weight(utils::cast<Hypergraph>(hypergraph).initialNumNodes(), 0),
+    nodes_in_too_heavy_clusters(utils::cast<Hypergraph>(hypergraph).initialNumNodes()),
+    default_rating_maps(utils::cast<Hypergraph>(hypergraph).initialNumNodes()),
     pass(0),
-    progress_bar(hypergraph.initialNumNodes(), 0, false)
+    progress_bar(utils::cast<Hypergraph>(hypergraph).initialNumNodes(), 0, false)
   {
   }
 
@@ -95,7 +104,7 @@ private:
   bool coarseningPassImpl() override;
 
   bool shouldNotTerminateImpl() const override {
-    return currentNumNodes() > _context.coarsening.contraction_limit;
+    return Base::currentNumNodes() > _context.coarsening.contraction_limit;
   }
 
   void terminateImpl() override {
@@ -105,7 +114,7 @@ private:
   }
 
   HypernodeID currentLevelContractionLimit() {
-    const auto& hg = currentHypergraph();
+    const auto& hg = Base::currentHypergraph();
     return std::max( _context.coarsening.contraction_limit,
                static_cast<HypernodeID>(
                     (hg.initialNumNodes() - hg.numRemovedHypernodes()) / _context.coarsening.maximum_shrink_factor) );
@@ -119,16 +128,23 @@ private:
     return Base::currentNumNodes();
   }
 
-  Hypergraph& coarsestHypergraphImpl() override {
-    return Base::currentHypergraph();
+  mt_kahypar_hypergraph_t coarsestHypergraphImpl() override {
+    return mt_kahypar_hypergraph_t {
+      reinterpret_cast<mt_kahypar_hypergraph_s*>(
+        &Base::currentHypergraph()), Hypergraph::TYPE };
   }
 
-  PartitionedHypergraph& coarsestPartitionedHypergraphImpl() override {
-    return Base::currentPartitionedHypergraph();
+  mt_kahypar_partitioned_hypergraph_t coarsestPartitionedHypergraphImpl() override {
+    return mt_kahypar_partitioned_hypergraph_t {
+      reinterpret_cast<mt_kahypar_partitioned_hypergraph_s*>(
+        &Base::currentPartitionedHypergraph()), PartitionedHypergraph::TYPE };
   }
 
-  using Base = MultilevelCoarsenerBase;
+  using Base = MultilevelCoarsenerBase<TypeTraits>;
+  using Base::_hg;
   using Base::_context;
+  using Base::_timer;
+  using Base::_uncoarseningData;
 
   DeterministicCoarseningConfig config;
   HypernodeID initial_num_nodes;

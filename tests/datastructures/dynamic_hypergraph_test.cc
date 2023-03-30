@@ -37,7 +37,7 @@
 namespace mt_kahypar {
 namespace ds {
 
-using ADynamicHypergraph = HypergraphFixture<DynamicHypergraph, DynamicHypergraphFactory>;
+using ADynamicHypergraph = HypergraphFixture<DynamicHypergraph>;
 
 template<typename F, typename K>
 void executeParallel(const F& f1, const K& f2) {
@@ -1310,6 +1310,7 @@ TEST_F(ADynamicHypergraph, RemovesSinglePinAndParallelNets1) {
   verifyPins( { 0, 1, 2, 3 },
     { { 0 }, { 0, 3, 4 }, { 3, 4 }, { 0, 3, 4 } } );
 
+  using ParallelHyperedge = typename DynamicHypergraph::ParallelHyperedge;
   auto removed_hyperedges = hypergraph.removeSinglePinAndParallelHyperedges();
   std::sort(removed_hyperedges.begin(), removed_hyperedges.end(),
     [&](const ParallelHyperedge& lhs, const ParallelHyperedge& rhs) {
@@ -1341,6 +1342,7 @@ TEST_F(ADynamicHypergraph, RemovesSinglePinAndParallelNets2) {
   verifyPins( { 0, 1, 2, 3 },
     { { 0 }, { 0, 1, 6 }, { 6 }, { 0, 1, 6 } } );
 
+  using ParallelHyperedge = typename DynamicHypergraph::ParallelHyperedge;
   auto removed_hyperedges = hypergraph.removeSinglePinAndParallelHyperedges();
   std::sort(removed_hyperedges.begin(), removed_hyperedges.end(),
     [&](const ParallelHyperedge& lhs, const ParallelHyperedge& rhs) {

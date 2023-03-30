@@ -29,20 +29,23 @@
 #include "kahypar/meta/policy_registry.h"
 #include "kahypar/meta/typelist.h"
 
-#include "mt-kahypar/definitions.h"
+#include "mt-kahypar/datastructures/hypergraph_common.h"
+#include "mt-kahypar/macros.h"
 
 namespace mt_kahypar {
-class MultiplicativePenalty final : public kahypar::meta::PolicyBase {
- public:
-  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE static HypernodeWeight penalty(const HypernodeWeight weight_u, const HypernodeWeight weight_v) {
-    return weight_u * weight_v;
-  }
-};
 
 class NoWeightPenalty final : public kahypar::meta::PolicyBase {
  public:
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE static HypernodeWeight penalty(const HypernodeWeight, const HypernodeWeight) {
     return 1;
+  }
+};
+
+#ifdef KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES
+class MultiplicativePenalty final : public kahypar::meta::PolicyBase {
+ public:
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE static HypernodeWeight penalty(const HypernodeWeight weight_u, const HypernodeWeight weight_v) {
+    return weight_u * weight_v;
   }
 };
 
@@ -54,5 +57,9 @@ class AdditivePenalty final : public kahypar::meta::PolicyBase {
 };
 
 using HeavyNodePenaltyPolicies = kahypar::meta::Typelist<MultiplicativePenalty,
-                                                         NoWeightPenalty, AdditivePenalty>;
+                                                         NoWeightPenalty,
+                                                         AdditivePenalty>;
+#else
+using HeavyNodePenaltyPolicies = kahypar::meta::Typelist<NoWeightPenalty>;
+#endif
 }  // namespace mt_kahypar

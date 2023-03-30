@@ -31,35 +31,21 @@
 
 #include "gmock/gmock.h"
 
-#ifdef ENABLE_QUALITY_PRESET
-#include "mt-kahypar/datastructures/dynamic_hypergraph_factory.h"
-#else
-#include "mt-kahypar/datastructures/static_hypergraph_factory.h"
-#endif
-#include "mt-kahypar/datastructures/partitioned_hypergraph.h"
+#include "tests/definitions.h"
 
 using ::testing::Test;
 
 namespace mt_kahypar {
 namespace ds {
 
-template< typename PartitionedHG,
-          typename HG,
-          typename HGFactory>
-struct PartitionedHypergraphTypeTraits {
-  using PartitionedHyperGraph = PartitionedHG;
-  using Hypergraph = HG;
-  using Factory = HGFactory;
-};
 
 template<typename TypeTraits>
 class APartitionedHypergraph : public Test {
 
- using PartitionedHyperGraph = typename TypeTraits::PartitionedHyperGraph;
- using Factory = typename TypeTraits::Factory;
-
  public:
  using Hypergraph = typename TypeTraits::Hypergraph;
+ using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
+ using Factory = typename Hypergraph::Factory;
 
   APartitionedHypergraph() :
     hypergraph(Factory::construct(
@@ -140,7 +126,7 @@ class APartitionedHypergraph : public Test {
   }
 
   Hypergraph hypergraph;
-  PartitionedHyperGraph partitioned_hypergraph;
+  PartitionedHypergraph partitioned_hypergraph;
 };
 
 template <class F1, class F2>
@@ -157,25 +143,7 @@ void executeConcurrent(const F1& f1, const F2& f2) {
   });
 }
 
-#ifdef ENABLE_QUALITY_PRESET
-using PartitionedHypergraphTestTypes =
-  ::testing::Types<
-          PartitionedHypergraphTypeTraits<
-                          PartitionedHypergraph<DynamicHypergraph, DynamicHypergraphFactory>,
-                          DynamicHypergraph,
-                          DynamicHypergraphFactory>
-                          >;
-#else
-using PartitionedHypergraphTestTypes =
-  ::testing::Types<
-          PartitionedHypergraphTypeTraits<
-                          PartitionedHypergraph<StaticHypergraph, StaticHypergraphFactory>,
-                          StaticHypergraph,
-                          StaticHypergraphFactory>
-                          >;
-#endif
-
-TYPED_TEST_CASE(APartitionedHypergraph, PartitionedHypergraphTestTypes);
+TYPED_TEST_CASE(APartitionedHypergraph, tests::HypergraphTestTypeTraits);
 
 TYPED_TEST(APartitionedHypergraph, HasCorrectPartWeightAndSizes) {
   ASSERT_EQ(3, this->partitioned_hypergraph.partWeight(0));

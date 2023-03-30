@@ -26,78 +26,126 @@
 
 #include "gmock/gmock.h"
 
+#include "tests/definitions.h"
 #include "tests/partition/coarsening/coarsener_fixtures.h"
+#include "mt-kahypar/partition/coarsening/multilevel_coarsener.h"
 #include "mt-kahypar/partition/coarsening/multilevel_uncoarsener.h"
+#ifdef KAHYPAR_ENABLE_N_LEVEL_PARTITIONING_FEATURES
+#include "mt-kahypar/partition/coarsening/nlevel_coarsener.h"
 #include "mt-kahypar/partition/coarsening/nlevel_uncoarsener.h"
-#include "mt-kahypar/partition/coarsening/coarsening_commons.h"
+#endif
+
 
 using ::testing::Test;
 
 namespace mt_kahypar {
-#ifdef ENABLE_QUALITY_PRESET
-using Coarsener = NLevelCoarsener<HeavyEdgeScore, NoWeightPenalty, BestRatingWithoutTieBreaking>;
-using Uncoarsener = NLevelUncoarsener;
-bool nlevel = true;
-#else
-using Coarsener = MultilevelCoarsener<HeavyEdgeScore, NoWeightPenalty, BestRatingWithoutTieBreaking>;
-using Uncoarsener = MultilevelUncoarsener;
-bool nlevel = false;
-#endif
 
-TEST_F(ACoarsener, DecreasesNumberOfPins) {
+using AMultilevelCoarsener = ACoarsener<StaticHypergraphTypeTraits,
+                                        MultilevelCoarsener,
+                                        MultilevelUncoarsener,
+                                        PresetType::default_preset>;
+
+TEST_F(AMultilevelCoarsener, DecreasesNumberOfPins) {
   context.coarsening.contraction_limit = 4;
-  UncoarseningData uncoarseningData(nlevel, hypergraph, context);
-  Coarsener coarsener(hypergraph, context, uncoarseningData);
-  decreasesNumberOfPins(coarsener, 6);
+  decreasesNumberOfPins(6 /* expected number of pins */ );
 }
 
-TEST_F(ACoarsener, DecreasesNumberOfHyperedges) {
+TEST_F(AMultilevelCoarsener, DecreasesNumberOfHyperedges) {
   context.coarsening.contraction_limit = 4;
-  UncoarseningData uncoarseningData(nlevel, hypergraph, context);
-  Coarsener coarsener(hypergraph, context, uncoarseningData);
-  decreasesNumberOfHyperedges(coarsener, 3);
+  decreasesNumberOfHyperedges(3 /* expected number of hyperedges */ );
 }
 
-TEST_F(ACoarsener, RemovesHyperedgesOfSizeOneDuringCoarsening) {
+TEST_F(AMultilevelCoarsener, RemovesHyperedgesOfSizeOneDuringCoarsening) {
+  using Hypergraph = typename StaticHypergraphTypeTraits::Hypergraph;
   context.coarsening.contraction_limit = 4;
-  UncoarseningData uncoarseningData(nlevel, hypergraph, context);
-  Coarsener coarsener(hypergraph, context, uncoarseningData);
-  doCoarsening(coarsener);
-  auto& hypergraph = coarsener.coarsestHypergraph();
+  doCoarsening();
+  auto& hypergraph = utils::cast<Hypergraph>(coarsener->coarsestHypergraph());
   for ( const HyperedgeID& he : hypergraph.edges() ) {
     ASSERT_GE(hypergraph.edgeSize(he), 2);
   }
 }
 
-TEST_F(ACoarsener, RemovesParallelHyperedgesDuringCoarsening) {
+TEST_F(AMultilevelCoarsener, RemovesParallelHyperedgesDuringCoarsening) {
+  using Hypergraph = typename StaticHypergraphTypeTraits::Hypergraph;
   context.coarsening.contraction_limit = 4;
-  UncoarseningData uncoarseningData(nlevel, hypergraph, context);
-  Coarsener coarsener(hypergraph, context, uncoarseningData);
-  doCoarsening(coarsener);
-  auto& hypergraph = coarsener.coarsestHypergraph();
+  doCoarsening();
+  auto& hypergraph = utils::cast<Hypergraph>(coarsener->coarsestHypergraph());
   for ( const HyperedgeID& he : hypergraph.edges() ) {
     ASSERT_EQ(hypergraph.edgeWeight(he), 2);
   }
 }
 
-TEST_F(ACoarsener, ProjectsPartitionBackToOriginalHypergraph) {
+TEST_F(AMultilevelCoarsener, ProjectsPartitionBackToOriginalHypergraph) {
+  using PartitionedHypergraph = typename StaticHypergraphTypeTraits::PartitionedHypergraph;
   context.coarsening.contraction_limit = 4;
   context.refinement.label_propagation.algorithm = LabelPropagationAlgorithm::do_nothing;
   context.refinement.fm.algorithm = FMAlgorithm::do_nothing;
   context.refinement.flows.algorithm = FlowAlgorithm::do_nothing;
-  UncoarseningData uncoarseningData(nlevel, hypergraph, context);
-  Coarsener coarsener(hypergraph, context, uncoarseningData);
-  Uncoarsener uncoarsener(hypergraph, context, uncoarseningData);
   context.type = ContextType::initial_partitioning;
-  doCoarsening(coarsener);
-  PartitionedHyperGraph& coarsest_partitioned_hypergraph =
-    coarsener.coarsestPartitionedHypergraph();
+  doCoarsening();
+  PartitionedHypergraph& coarsest_partitioned_hypergraph =
+    utils::cast<PartitionedHypergraph>(coarsener->coarsestPartitionedHypergraph());
   assignPartitionIDs(coarsest_partitioned_hypergraph);
-  PartitionedHyperGraph partitioned_hypergraph = uncoarsener.uncoarsen();
+  PartitionedHypergraph partitioned_hypergraph = uncoarsener->uncoarsen();
   for ( const HypernodeID& hn : partitioned_hypergraph.nodes() ) {
     PartitionID part_id = 0;
     ASSERT_EQ(part_id, partitioned_hypergraph.partID(hn));
   }
 }
+
+#ifdef KAHYPAR_ENABLE_N_LEVEL_PARTITIONING_FEATURES
+using ANLevelCoarsener = ACoarsener<DynamicHypergraphTypeTraits,
+                                    NLevelCoarsener,
+                                    NLevelUncoarsener,
+                                    PresetType::quality_preset>;
+
+TEST_F(ANLevelCoarsener, DecreasesNumberOfPins) {
+  context.coarsening.contraction_limit = 4;
+  decreasesNumberOfPins(6 /* expected number of pins */ );
+}
+
+TEST_F(ANLevelCoarsener, DecreasesNumberOfHyperedges) {
+  context.coarsening.contraction_limit = 4;
+  decreasesNumberOfHyperedges(3 /* expected number of hyperedges */ );
+}
+
+TEST_F(ANLevelCoarsener, RemovesHyperedgesOfSizeOneDuringCoarsening) {
+  using Hypergraph = typename DynamicHypergraphTypeTraits::Hypergraph;
+  context.coarsening.contraction_limit = 4;
+  doCoarsening();
+  auto& hypergraph = utils::cast<Hypergraph>(coarsener->coarsestHypergraph());
+  for ( const HyperedgeID& he : hypergraph.edges() ) {
+    ASSERT_GE(hypergraph.edgeSize(he), 2);
+  }
+}
+
+TEST_F(ANLevelCoarsener, RemovesParallelHyperedgesDuringCoarsening) {
+  using Hypergraph = typename DynamicHypergraphTypeTraits::Hypergraph;
+  context.coarsening.contraction_limit = 4;
+  doCoarsening();
+  auto& hypergraph = utils::cast<Hypergraph>(coarsener->coarsestHypergraph());
+  for ( const HyperedgeID& he : hypergraph.edges() ) {
+    ASSERT_EQ(hypergraph.edgeWeight(he), 2);
+  }
+}
+
+TEST_F(ANLevelCoarsener, ProjectsPartitionBackToOriginalHypergraph) {
+  using PartitionedHypergraph = typename DynamicHypergraphTypeTraits::PartitionedHypergraph;
+  context.coarsening.contraction_limit = 4;
+  context.refinement.label_propagation.algorithm = LabelPropagationAlgorithm::do_nothing;
+  context.refinement.fm.algorithm = FMAlgorithm::do_nothing;
+  context.refinement.flows.algorithm = FlowAlgorithm::do_nothing;
+  context.type = ContextType::initial_partitioning;
+  doCoarsening();
+  PartitionedHypergraph& coarsest_partitioned_hypergraph =
+    utils::cast<PartitionedHypergraph>(coarsener->coarsestPartitionedHypergraph());
+  assignPartitionIDs(coarsest_partitioned_hypergraph);
+  PartitionedHypergraph partitioned_hypergraph = uncoarsener->uncoarsen();
+  for ( const HypernodeID& hn : partitioned_hypergraph.nodes() ) {
+    PartitionID part_id = 0;
+    ASSERT_EQ(part_id, partitioned_hypergraph.partID(hn));
+  }
+}
+#endif
 
 }  // namespace mt_kahypar

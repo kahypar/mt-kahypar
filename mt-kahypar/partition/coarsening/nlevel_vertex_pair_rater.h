@@ -38,7 +38,6 @@
 
 #include "mt-kahypar/datastructures/sparse_map.h"
 
-#include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/context.h"
 
 namespace mt_kahypar {
@@ -87,17 +86,17 @@ class NLevelVertexPairRater {
  public:
   using Rating = VertexPairRating;
 
-  NLevelVertexPairRater(Hypergraph& hypergraph,
-                           const Context& context) :
+  NLevelVertexPairRater(const HypernodeID num_hypernodes,
+                        const Context& context) :
     _context(context),
-    _current_num_nodes(hypergraph.initialNumNodes()),
+    _current_num_nodes(num_hypernodes),
     _vertex_degree_sampling_threshold(context.coarsening.vertex_degree_sampling_threshold),
     _local_cache_efficient_rating_map(0.0),
     _local_vertex_degree_bounded_rating_map(3UL * _vertex_degree_sampling_threshold, 0.0),
     _local_large_rating_map([&] {
       return construct_large_tmp_rating_map();
     }),
-    _already_matched(hypergraph.initialNumNodes()) { }
+    _already_matched(num_hypernodes) { }
 
   NLevelVertexPairRater(const NLevelVertexPairRater&) = delete;
   NLevelVertexPairRater & operator= (const NLevelVertexPairRater &) = delete;
@@ -105,6 +104,7 @@ class NLevelVertexPairRater {
   NLevelVertexPairRater(NLevelVertexPairRater&&) = delete;
   NLevelVertexPairRater & operator= (NLevelVertexPairRater &&) = delete;
 
+  template<typename Hypergraph>
   VertexPairRating rate(const Hypergraph& hypergraph,
                         const HypernodeID u,
                         const HypernodeWeight max_allowed_node_weight) {
@@ -138,7 +138,7 @@ class NLevelVertexPairRater {
   }
 
  private:
-  template<typename RatingMap>
+  template<typename Hypergraph, typename RatingMap>
   VertexPairRating rate(const Hypergraph& hypergraph,
                         const HypernodeID u,
                         RatingMap& tmp_ratings,
@@ -187,7 +187,7 @@ class NLevelVertexPairRater {
     return ret;
   }
 
-  template<typename RatingMap>
+  template<typename Hypergraph, typename RatingMap>
   void fillRatingMap(const Hypergraph& hypergraph,
                      const HypernodeID u,
                      RatingMap& tmp_ratings) {
@@ -202,7 +202,7 @@ class NLevelVertexPairRater {
     }
   }
 
-  template<typename RatingMap>
+  template<typename Hypergraph, typename RatingMap>
   void fillRatingMapWithSampling(const Hypergraph& hypergraph,
                                  const HypernodeID u,
                                  RatingMap& tmp_ratings) {
@@ -224,6 +224,7 @@ class NLevelVertexPairRater {
     }
   }
 
+  template<typename Hypergraph>
   inline RatingMapType getRatingMapTypeForRatingOfHypernode(const Hypergraph& hypergraph,
                                                             const HypernodeID u) {
     const bool use_vertex_degree_sampling =

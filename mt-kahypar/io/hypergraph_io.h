@@ -29,49 +29,33 @@
 
 #include <string>
 
-#include "mt-kahypar/definitions.h"
+#include "mt-kahypar/datastructures/hypergraph_common.h"
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
 
 namespace mt_kahypar {
 namespace io {
-
-  using Hyperedge = parallel::scalable_vector<HypernodeID>;
-  using HyperedgeVector = parallel::scalable_vector<Hyperedge>;
-  #ifdef ENABLE_GRAPH_PARTITIONER
-  using EdgeVector = parallel::scalable_vector<std::pair<HypernodeID, HypernodeID>>;
-  #else
-  using EdgeVector = HyperedgeVector;
-  #endif
+  using Hyperedge = vec<HypernodeID>;
+  using HyperedgeVector = vec<Hyperedge>;
 
   void readHypergraphFile(const std::string& filename,
                           HyperedgeID& num_hyperedges,
                           HypernodeID& num_hypernodes,
                           HyperedgeID& num_removed_single_pin_hyperedges,
                           HyperedgeVector& hyperedges,
-                          parallel::scalable_vector<HyperedgeWeight>& hyperedges_weight,
-                          parallel::scalable_vector<HypernodeWeight>& hypernodes_weight,
+                          vec<HyperedgeWeight>& hyperedges_weight,
+                          vec<HypernodeWeight>& hypernodes_weight,
                           const bool remove_single_pin_hes = true);
-
-  Hypergraph readHypergraphFile(const std::string& filename,
-                                const bool stable_construction_of_incident_edges = false,
-                                const bool remove_single_pin_hes = true);
 
   void readGraphFile(const std::string& filename,
                      HyperedgeID& num_hyperedges,
                      HypernodeID& num_hypernodes,
-                     EdgeVector& hyperedges,
-                     parallel::scalable_vector<HyperedgeWeight>& hyperedges_weight,
-                     parallel::scalable_vector<HypernodeWeight>& hypernodes_weight);
-
-  Hypergraph readGraphFile(const std::string& filename,
-                           const bool stable_construction_of_incident_edges = false);
-
-  Hypergraph readInputFile(const std::string& filename,
-                           const FileFormat format,
-                           const bool stable_construction_of_incident_edges = false,
-                           const bool remove_single_pin_hes = true);
+                     HyperedgeVector& hyperedges,
+                     vec<HyperedgeWeight>& hyperedges_weight,
+                     vec<HypernodeWeight>& hypernodes_weight);
 
   void readPartitionFile(const std::string& filename, std::vector<PartitionID>& partition);
+
+  template<typename PartitionedHypergraph>
   void writePartitionFile(const PartitionedHypergraph& phg, const std::string& filename);
 
 }  // namespace io

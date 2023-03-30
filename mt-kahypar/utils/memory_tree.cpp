@@ -26,7 +26,7 @@
 
 #include "mt-kahypar/utils/memory_tree.h"
 
-
+#include "mt-kahypar/macros.h"
 
 #include <functional>
 #include <iomanip>

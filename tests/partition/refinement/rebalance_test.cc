@@ -30,7 +30,8 @@
 
 #include "gmock/gmock.h"
 
-#include "mt-kahypar/io/hypergraph_io.h"
+#include "mt-kahypar/definitions.h"
+#include "mt-kahypar/io/hypergraph_factory.h"
 #include "mt-kahypar/partition/refinement/rebalancing/rebalancer.h"
 
 
@@ -38,6 +39,13 @@
 using ::testing::Test;
 
 namespace mt_kahypar {
+
+namespace {
+  using TypeTraits = StaticHypergraphTypeTraits;
+  using Hypergraph = typename TypeTraits::Hypergraph;
+  using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
+}
+
 
 TEST(RebalanceTests, HeapSortWithMoveGainComparator) {
   vec<Move> moves;
@@ -47,9 +55,9 @@ TEST(RebalanceTests, HeapSortWithMoveGainComparator) {
     moves.push_back(Move{-1, -1 , i, gains[i]});
   }
 
-  std::make_heap(moves.begin(), moves.end(), Km1Rebalancer::MoveGainComparator());
+  std::make_heap(moves.begin(), moves.end(), Km1Rebalancer<TypeTraits>::MoveGainComparator());
   for (size_t i = 0; i < moves.size(); ++i) {
-    std::pop_heap(moves.begin(), moves.end() - i, Km1Rebalancer::MoveGainComparator());
+    std::pop_heap(moves.begin(), moves.end() - i, Km1Rebalancer<TypeTraits>::MoveGainComparator());
   }
 
   // assert that moves is sorted descendingly
@@ -64,7 +72,9 @@ TEST(RebalanceTests, FindsMoves) {
   Context context;
   context.partition.k = k;
   context.partition.epsilon = 0.03;
-  Hypergraph hg = io::readHypergraphFile("../tests/instances/contracted_ibm01.hgr", true /* enable stable construction */);
+  Hypergraph hg = io::readInputFile<Hypergraph>(
+    "../tests/instances/contracted_ibm01.hgr", FileFormat::hMetis,
+    true /* enable stable construction */);
   context.setupPartWeights(hg.totalWeight());
   PartitionedHypergraph phg = PartitionedHypergraph(k, hg);
 
@@ -78,7 +88,7 @@ TEST(RebalanceTests, FindsMoves) {
   phg.initializePartition();
   phg.initializeGainCache();
 
-  Km1Rebalancer rebalancer(phg, context);
+  Km1Rebalancer<TypeTraits> rebalancer(phg, context);
   vec<Move> moves_to_empty_blocks = rebalancer.repairEmptyBlocks();
 
   ASSERT_EQ(moves_to_empty_blocks.size(), 4);

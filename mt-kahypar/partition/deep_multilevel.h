@@ -27,15 +27,19 @@
 
 #pragma once
 
-#include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/context.h"
 
 namespace mt_kahypar {
-namespace deep_multilevel {
 
-PartitionedHypergraph partition(Hypergraph& hypergraph, const Context& context);
+template<typename TypeTraits>
+class DeepMultilevel {
 
-void partition(PartitionedHypergraph& hypergraph, const Context& context);
+  using Hypergraph = typename TypeTraits::Hypergraph;
+  using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
 
-}  // namespace deep_multilevel
+ public:
+  static PartitionedHypergraph partition(Hypergraph& hypergraph, const Context& context);
+  static void partition(PartitionedHypergraph& hypergraph, const Context& context);
+};
+
 }  // namespace mt_kahypar

@@ -28,14 +28,16 @@
 
 #include "tbb/task.h"
 
-#include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/initial_partitioning/initial_partitioning_commons.h"
 
 namespace mt_kahypar {
 
+template<typename TypeTraits>
 class CutGainPolicy {
 
  static constexpr bool enable_heavy_assert = false;
+
+ using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
 
  public:
   static inline Gain calculateGain(const PartitionedHypergraph& hypergraph,
@@ -220,10 +222,12 @@ class CutGainPolicy {
   }
 };
 
-
+template<typename TypeTraits>
 class MaxNetGainPolicy {
 
  static constexpr bool enable_heavy_assert = false;
+
+ using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
 
  public:
   static inline Gain calculateGain(const PartitionedHypergraph& hypergraph,

@@ -48,7 +48,6 @@ namespace mt_kahypar {
 namespace ds {
 
 template <typename Hypergraph = Mandatory,
-          typename HypergraphFactory = Mandatory,
           typename ConnectivityInformation = ConnectivityInfo>
 class PartitionedHypergraph {
 private:
@@ -60,6 +59,9 @@ private:
   using DeltaFunction = std::function<void (const HyperedgeID, const HyperedgeWeight, const HypernodeID, const HypernodeID, const HypernodeID)>;
   #define NOOP_FUNC [] (const HyperedgeID, const HyperedgeWeight, const HypernodeID, const HypernodeID, const HypernodeID) { }
 
+  // Factory
+  using HypergraphFactory = typename Hypergraph::Factory;
+
   // REVIEW NOTE: Can't we use a lambda in changeNodePart. And write a second function that calls the first with a lambda that does nothing.
   // Then we could guarantee inlining
   // This would also reduce the code/documentation copy-pasta for with or without gain updates
@@ -68,8 +70,11 @@ private:
 
  public:
   static constexpr bool is_static_hypergraph = Hypergraph::is_static_hypergraph;
+  static constexpr bool is_graph = Hypergraph::is_graph;
   static constexpr bool is_partitioned = true;
   static constexpr bool supports_connectivity_set = true;
+  static constexpr mt_kahypar_partition_type_t TYPE =
+    PartitionedHypergraphType<Hypergraph, ConnectivityInformation>::TYPE;
 
   static constexpr HyperedgeID HIGH_DEGREE_THRESHOLD = ID(100000);
 

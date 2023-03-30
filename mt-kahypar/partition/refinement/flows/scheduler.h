@@ -26,7 +26,6 @@
 
 #pragma once
 
-#include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/refinement/i_refiner.h"
 #include "mt-kahypar/partition/refinement/flows/quotient_graph.h"
@@ -37,10 +36,30 @@
 
 namespace mt_kahypar {
 
+namespace {
+
+  static constexpr size_t PROGRESS_BAR_SIZE = 50;
+
+  template<typename F>
+  std::string progress_bar(const size_t value, const size_t max, const F& f) {
+    const double percentage = static_cast<double>(value) / std::max(max,UL(1));
+    const size_t ticks = PROGRESS_BAR_SIZE * percentage;
+    std::stringstream pbar_str;
+    pbar_str << "|"
+             << f(percentage) << std::string(ticks, '|') << END
+             << std::string(PROGRESS_BAR_SIZE - ticks, ' ')
+             << "| " << std::setprecision(2) << (100.0 * percentage) << "% (" << value << ")";
+    return pbar_str.str();
+  }
+}
+
+template<typename TypeTraits>
 class FlowRefinementScheduler final : public IRefiner {
 
   static constexpr bool debug = false;
   static constexpr bool enable_heavy_assert = false;
+
+  using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
 
   struct RefinementStats {
     RefinementStats(utils::Stats& stats) :
@@ -87,18 +106,49 @@ class FlowRefinementScheduler final : public IRefiner {
     HypernodeWeight overload_weight = 0;
   };
 
-  friend std::ostream & operator<< (std::ostream& str, const RefinementStats& stats);
+  friend std::ostream & operator<< (std::ostream& str, const RefinementStats& stats) {
+    str << "\n";
+    str << "Total Improvement                   = " << stats.total_improvement << "\n";
+    str << "Number of Flow-Based Refinements    = " << stats.num_refinements << "\n";
+    str << "+ No Improvements                   = "
+        << progress_bar(stats.num_refinements - stats.num_improvements, stats.num_refinements,
+            [&](const double percentage) { return percentage > 0.9 ? RED : percentage > 0.75 ? YELLOW : GREEN; }) << "\n";
+    str << "+ Number of Improvements            = "
+        << progress_bar(stats.num_improvements, stats.num_refinements,
+            [&](const double percentage) { return percentage < 0.05 ? RED : percentage < 0.15 ? YELLOW : GREEN; }) << "\n";
+    str << "  + Correct Expected Improvements   = "
+        << progress_bar(stats.correct_expected_improvement, stats.num_improvements,
+            [&](const double percentage) { return percentage > 0.9 ? GREEN : percentage > 0.75 ? YELLOW : RED; }) << "\n";
+    str << "  + Incorrect Expected Improvements = "
+        << progress_bar(stats.num_improvements - stats.correct_expected_improvement, stats.num_improvements,
+            [&](const double percentage) { return percentage < 0.1 ? GREEN : percentage < 0.25 ? YELLOW : RED; }) << "\n";
+    str << "  + Zero-Gain Improvements          = "
+        << progress_bar(stats.zero_gain_improvement, stats.num_improvements,
+            [&](const double) { return WHITE; }) << "\n";
+    str << "+ Failed due to Balance Constraint  = "
+        << progress_bar(stats.failed_updates_due_to_balance_constraint, stats.num_refinements,
+            [&](const double percentage) { return percentage < 0.01 ? GREEN : percentage < 0.05 ? YELLOW : RED; }) << "\n";
+    str << "+ Failed due to Conflicting Moves   = "
+        << progress_bar(stats.failed_updates_due_to_conflicting_moves, stats.num_refinements,
+            [&](const double percentage) { return percentage < 0.01 ? GREEN : percentage < 0.05 ? YELLOW : RED; }) << "\n";
+    str << "+ Time Limits                       = "
+        << progress_bar(stats.num_time_limits, stats.num_refinements,
+            [&](const double percentage) { return percentage < 0.0025 ? GREEN : percentage < 0.01 ? YELLOW : RED; }) << "\n";
+    str << "---------------------------------------------------------------";
+    return str;
+  }
 
 public:
-  explicit FlowRefinementScheduler(const Hypergraph& hg,
+  explicit FlowRefinementScheduler(const HypernodeID num_hypernodes,
+                                   const HyperedgeID num_hyperedges,
                                    const Context& context) :
     _phg(nullptr),
     _context(context),
     _current_k(context.partition.k),
-    _quotient_graph(hg, context),
-    _refiner(hg, context),
-    _constructor(hg, context),
-    _was_moved(hg.initialNumNodes(), uint8_t(false)),
+    _quotient_graph(num_hyperedges, context),
+    _refiner(num_hyperedges, context),
+    _constructor(num_hypernodes, num_hyperedges, context),
+    _was_moved(num_hypernodes, uint8_t(false)),
     _part_weights_lock(),
     _part_weights(context.partition.k, 0),
     _max_part_weights(context.partition.k, 0),
@@ -135,12 +185,12 @@ public:
   }
 
 private:
-  bool refineImpl(PartitionedHypergraph& phg,
+  bool refineImpl(mt_kahypar_partitioned_hypergraph_t& phg,
                   const vec<HypernodeID>& refinement_nodes,
                   Metrics& metrics,
                   double time_limit) final;
 
-  void initializeImpl(PartitionedHypergraph& phg) final;
+  void initializeImpl(mt_kahypar_partitioned_hypergraph_t& phg) final;
 
   void resizeDataStructuresForCurrentK();
 
@@ -158,13 +208,13 @@ private:
 
   // ! Contains information of all cut hyperedges between the
   // ! blocks of the partition
-  QuotientGraph _quotient_graph;
+  QuotientGraph<TypeTraits> _quotient_graph;
 
   // ! Maintains the flow refiner instances
-  FlowRefinerAdapter _refiner;
+  FlowRefinerAdapter<TypeTraits> _refiner;
 
   // ! Responsible for construction of an flow problems
-  ProblemConstruction _constructor;
+  ProblemConstruction<TypeTraits> _constructor;
 
   // ! For each vertex it store wheather the corresponding vertex
   // ! was moved or not

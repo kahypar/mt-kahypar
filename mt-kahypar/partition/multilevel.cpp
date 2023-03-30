@@ -31,6 +31,9 @@
 
 #include "tbb/task.h"
 
+#include "include/libmtkahypartypes.h"
+
+#include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/factories.h"
 #include "mt-kahypar/partition/preprocessing/sparsification/degree_zero_hn_remover.h"
 #include "mt-kahypar/partition/preprocessing/sparsification/large_he_remover.h"
@@ -40,10 +43,13 @@
 #include "mt-kahypar/parallel/memory_pool.h"
 #include "mt-kahypar/io/partitioning_output.h"
 #include "mt-kahypar/partition/coarsening/multilevel_uncoarsener.h"
+#ifdef KAHYPAR_ENABLE_N_LEVEL_PARTITIONING_FEATURES
 #include "mt-kahypar/partition/coarsening/nlevel_uncoarsener.h"
+#endif
+#include "mt-kahypar/utils/cast.h"
 #include "mt-kahypar/utils/utilities.h"
 
-namespace mt_kahypar::multilevel {
+namespace mt_kahypar {
 
 namespace {
   void disableTimerAndStats(const Context& context) {
@@ -64,27 +70,33 @@ namespace {
     }
   }
 
-  PartitionedHypergraph multilevel_partitioning(Hypergraph& hypergraph,
-                                                const Context& context,
-                                                const bool is_vcycle) {
+  template<typename TypeTraits>
+  typename TypeTraits::PartitionedHypergraph multilevel_partitioning(
+    typename TypeTraits::Hypergraph& hypergraph,
+    const Context& context,
+    const bool is_vcycle) {
+    using Hypergraph = typename TypeTraits::Hypergraph;
+    using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
     PartitionedHypergraph partitioned_hg;
 
     // ################## COARSENING ##################
     mt_kahypar::io::printCoarseningBanner(context);
 
-    const bool nlevel = context.coarsening.algorithm == CoarseningAlgorithm::nlevel_coarsener;
-    UncoarseningData uncoarseningData(nlevel, hypergraph, context);
+    const bool nlevel = context.isNLevelPartitioning();
+    UncoarseningData<TypeTraits> uncoarseningData(nlevel, hypergraph, context);
 
     utils::Timer& timer = utils::Utilities::instance().getTimer(context.utility_id);
     timer.start_timer("coarsening", "Coarsening");
     {
       std::unique_ptr<ICoarsener> coarsener = CoarsenerFactory::getInstance().createObject(
-        context.coarsening.algorithm, hypergraph, context, uncoarseningData);
+        context.coarsening.algorithm, utils::hypergraph_cast(hypergraph),
+        context, uncoarsening::to_pointer(uncoarseningData));
       coarsener->coarsen();
 
       if (context.partition.verbose_output) {
-        Hypergraph& coarsestHypergraph = coarsener->coarsestHypergraph();
-        mt_kahypar::io::printHypergraphInfo(coarsestHypergraph,
+        mt_kahypar_hypergraph_t coarsestHypergraph = coarsener->coarsestHypergraph();
+        mt_kahypar::io::printHypergraphInfo(
+          utils::cast<Hypergraph>(coarsestHypergraph),
           "Coarsened Hypergraph", context.partition.show_memory_consumption);
       }
     }
@@ -96,7 +108,7 @@ namespace {
     PartitionedHypergraph& phg = uncoarseningData.coarsestPartitionedHypergraph();
 
     if ( !is_vcycle ) {
-      DegreeZeroHypernodeRemover degree_zero_hn_remover(context);
+      DegreeZeroHypernodeRemover<TypeTraits> degree_zero_hn_remover(context);
       if ( context.initial_partitioning.remove_degree_zero_hns_before_ip ) {
         degree_zero_hn_remover.removeDegreeZeroHypernodes(phg.hypergraph());
       }
@@ -106,19 +118,17 @@ namespace {
       ip_context.partition.verbose_output = false;
       ip_context.refinement = context.initial_partitioning.refinement;
       disableTimerAndStats(context);
-      switch ( context.initial_partitioning.mode ) {
-        case Mode::direct:
-          // The pool initial partitioner consist of several flat bipartitioning
-          // techniques. This case runs as a base case (k = 2) within recursive bipartitioning
-          // or the deep multilevel scheme.
-          pool::bipartition(phg, ip_context); break;
-        // k-way partitions can be computed either by recursive bipartitioning
-        // or deep multilevel partitioning.
-        case Mode::recursive_bipartitioning:
-          recursive_bipartitioning::partition(phg, ip_context); break;
-        case Mode::deep_multilevel:
-          deep_multilevel::partition(phg, ip_context); break;
-        case Mode::UNDEFINED: ERR("Undefined initial partitioning algorithm");
+      if ( context.initial_partitioning.mode == Mode::direct ) {
+        // The pool initial partitioner consist of several flat bipartitioning
+        // techniques. This case runs as a base case (k = 2) within recursive bipartitioning
+        // or the deep multilevel scheme.
+        Pool<TypeTraits>::bipartition(phg, ip_context);
+      } else if ( context.initial_partitioning.mode == Mode::recursive_bipartitioning ) {
+        RecursiveBipartitioning<TypeTraits>::partition(phg, ip_context);
+      } else if ( context.initial_partitioning.mode == Mode::deep_multilevel ) {
+        DeepMultilevel<TypeTraits>::partition(phg, ip_context);
+      } else {
+        ERR("Undefined initial partitioning algorithm");
       }
       enableTimerAndStats(context);
       degree_zero_hn_remover.restoreDegreeZeroHypernodes(phg);
@@ -145,12 +155,16 @@ namespace {
     // ################## UNCOARSENING ##################
     io::printLocalSearchBanner(context);
     timer.start_timer("refinement", "Refinement");
-    std::unique_ptr<IUncoarsener> uncoarsener(nullptr);
+    std::unique_ptr<IUncoarsener<TypeTraits>> uncoarsener(nullptr);
+    #ifdef KAHYPAR_ENABLE_N_LEVEL_PARTITIONING_FEATURES
     if (uncoarseningData.nlevel) {
-      uncoarsener = std::make_unique<NLevelUncoarsener>(hypergraph, context, uncoarseningData);
+      uncoarsener = std::make_unique<NLevelUncoarsener<TypeTraits>>(hypergraph, context, uncoarseningData);
     } else {
-      uncoarsener = std::make_unique<MultilevelUncoarsener>(hypergraph, context, uncoarseningData);
+      uncoarsener = std::make_unique<MultilevelUncoarsener<TypeTraits>>(hypergraph, context, uncoarseningData);
     }
+    #else
+    uncoarsener = std::make_unique<MultilevelUncoarsener<TypeTraits>>(hypergraph, context, uncoarseningData);
+    #endif
     partitioned_hg = uncoarsener->uncoarsen();
 
     io::printPartitioningResults(partitioned_hg, context, "Local Search Results:");
@@ -160,8 +174,11 @@ namespace {
   }
 }
 
-PartitionedHypergraph partition(Hypergraph& hypergraph, const Context& context) {
-  PartitionedHypergraph partitioned_hg = multilevel_partitioning(hypergraph, context, false);
+template<typename TypeTraits>
+typename Multilevel<TypeTraits>::PartitionedHypergraph Multilevel<TypeTraits>::partition(
+  Hypergraph& hypergraph, const Context& context) {
+  PartitionedHypergraph partitioned_hg =
+    multilevel_partitioning<TypeTraits>(hypergraph, context, false);
 
   // ################## V-CYCLES ##################
   if ( context.partition.num_vcycles > 0 && context.type == ContextType::main ) {
@@ -171,7 +188,8 @@ PartitionedHypergraph partition(Hypergraph& hypergraph, const Context& context) 
   return partitioned_hg;
 }
 
-void partition(PartitionedHypergraph& partitioned_hg, const Context& context) {
+template<typename TypeTraits>
+void Multilevel<TypeTraits>::partition(PartitionedHypergraph& partitioned_hg, const Context& context) {
   PartitionedHypergraph tmp_phg = partition(partitioned_hg.hypergraph(), context);
   tmp_phg.doParallelForAllNodes([&](const HypernodeID& hn) {
     partitioned_hg.setOnlyNodePart(hn, tmp_phg.partID(hn));
@@ -179,9 +197,10 @@ void partition(PartitionedHypergraph& partitioned_hg, const Context& context) {
   partitioned_hg.initializePartition();
 }
 
-void partitionVCycle(Hypergraph& hypergraph,
-                     PartitionedHypergraph& partitioned_hg,
-                     const Context& context) {
+template<typename TypeTraits>
+void Multilevel<TypeTraits>::partitionVCycle(Hypergraph& hypergraph,
+                                             PartitionedHypergraph& partitioned_hg,
+                                             const Context& context) {
   ASSERT(context.partition.num_vcycles > 0);
 
   for ( size_t i = 0; i < context.partition.num_vcycles; ++i ) {
@@ -190,9 +209,9 @@ void partitionVCycle(Hypergraph& hypergraph,
     parallel::MemoryPool::instance().reset();
     parallel::MemoryPool::instance().release_mem_group("Preprocessing");
 
-    if ( context.partition.paradigm == Paradigm::nlevel ) {
+    if ( context.isNLevelPartitioning() ) {
       // Workaround: reset() function of hypergraph reinserts all removed hyperedges again.
-      LargeHyperedgeRemover large_he_remover(context);
+      LargeHyperedgeRemover<TypeTraits> large_he_remover(context);
       large_he_remover.removeLargeHyperedgesInNLevelVCycle(hypergraph);
     }
 
@@ -206,8 +225,11 @@ void partitionVCycle(Hypergraph& hypergraph,
 
     // Perform V-cycle
     io::printVCycleBanner(context, i + 1);
-    partitioned_hg = multilevel_partitioning(hypergraph, context, true /* V-cycle flag */ );
+    partitioned_hg = multilevel_partitioning<TypeTraits>(
+      hypergraph, context, true /* V-cycle flag */ );
   }
 }
+
+INSTANTIATE_CLASS_WITH_TYPE_TRAITS(Multilevel)
 
 }

@@ -32,6 +32,7 @@
 #include <cstring>
 #include <fstream>
 
+#include "tests/definitions.h"
 #include "mt-kahypar/io/sql_plottools_serializer.h"
 #include "mt-kahypar/io/csv_output.h"
 
@@ -179,16 +180,16 @@ bool check_if_member_is_contained_in_result_line(const std::string& context_memb
 }
 
 TEST(ASqlPlotSerializerTest, ChecksIfSomeParametersFromContextAreMissing) {
-  HighResClockTimepoint start = std::chrono::high_resolution_clock::now();
-  Hypergraph dummy_hypergraph;
-  PartitionedHypergraph dummy_partitioned_hypergraph(2, dummy_hypergraph);
+  tests::HighResClockTimepoint start = std::chrono::high_resolution_clock::now();
+  tests::Hypergraph dummy_hypergraph;
+  tests::PartitionedHypergraph dummy_partitioned_hypergraph(2, dummy_hypergraph);
   Context dummy_context;
   dummy_context.partition.graph_filename = "dummy.hgr";
   dummy_context.partition.k = 0;
   dummy_context.partition.sp_process_output = true;
   dummy_context.partition.perfect_balance_part_weights.assign(2, 0);
   dummy_context.partition.max_part_weights.assign(2, 0);
-  HighResClockTimepoint end = std::chrono::high_resolution_clock::now();
+  tests::HighResClockTimepoint end = std::chrono::high_resolution_clock::now();
   std::chrono::duration<double> elapsed_seconds(end - start);
 
   std::string result = serializer::serialize(dummy_partitioned_hypergraph, dummy_context, elapsed_seconds);
@@ -207,15 +208,14 @@ TEST(ASqlPlotSerializerTest, ChecksIfSomeParametersFromContextAreMissing) {
 
 TEST(CSVTest, HeaderAndRowContainSameNumberOfColumns) {
   std::string header = csv::header();
-  Hypergraph dummy_hypergraph;
-  PartitionedHypergraph dummy_partitioned_hypergraph(2, dummy_hypergraph);
+  tests::Hypergraph dummy_hypergraph;
+  tests::PartitionedHypergraph dummy_partitioned_hypergraph(2, dummy_hypergraph);
   Context dummy_context;
   dummy_context.partition.k = 2;
   dummy_context.partition.perfect_balance_part_weights.assign(2, 0);
   dummy_context.partition.max_part_weights.assign(2, 0);
   std::string body = csv::serialize(dummy_partitioned_hypergraph, dummy_context, std::chrono::duration<double>(0.2));
   ASSERT_EQ(std::count(body.begin(), body.end(), ','), std::count(header.begin(), header.end(), ','));
-
 }
 
 }  // namespace io

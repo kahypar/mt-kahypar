@@ -33,30 +33,34 @@
 
 #include "mt-kahypar/partition/initial_partitioning/initial_partitioning_commons.h"
 
-#include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/metrics.h"
 #include "mt-kahypar/partition/factories.h"
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
+#include "mt-kahypar/utils/cast.h"
 #include "mt-kahypar/utils/utilities.h"
 #include "mt-kahypar/partition/refinement/fm/sequential_twoway_fm_refiner.h"
 
 
 namespace mt_kahypar {
 
+template<typename TypeTraits>
 class InitialPartitioningDataContainer {
 
   static constexpr bool debug = false;
   static constexpr bool enable_heavy_assert = false;
+
+  using Hypergraph = typename TypeTraits::Hypergraph;
+  using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
 
   // ! Contains information about the best thread local partition
   struct PartitioningResult {
     PartitioningResult() = default;
 
     PartitioningResult(InitialPartitioningAlgorithm algorithm,
-                                HyperedgeWeight objective_ip,
-                                HyperedgeWeight objective,
-                                double imbalance) :
+                       HyperedgeWeight objective_ip,
+                       HyperedgeWeight objective,
+                       double imbalance) :
       _algorithm(algorithm),
       _objective_ip(objective_ip),
       _objective(objective),
@@ -207,11 +211,12 @@ class InitialPartitioningDataContainer {
 
       if ( _context.partition.k == 2 && !disable_fm ) {
         // In case of a bisection we instantiate the 2-way FM refiner
-        _twoway_fm = std::make_unique<SequentialTwoWayFmRefiner>(_partitioned_hypergraph, _context);
+        _twoway_fm = std::make_unique<SequentialTwoWayFmRefiner<TypeTraits>>(_partitioned_hypergraph, _context);
       } else if ( _context.refinement.label_propagation.algorithm != LabelPropagationAlgorithm::do_nothing ) {
         // In case of a direct-kway initial partition we instantiate the LP refiner
         _label_propagation = LabelPropagationFactory::getInstance().createObject(
-          _context.refinement.label_propagation.algorithm, hypergraph, _context);
+          _context.refinement.label_propagation.algorithm,
+          hypergraph.initialNumNodes(), hypergraph.initialNumEdges(), _context);
       }
     }
 
@@ -312,9 +317,11 @@ class InitialPartitioningDataContainer {
           improvement = _twoway_fm->refine(current_metric, prng);
         }
       } else if ( _label_propagation ) {
-        _label_propagation->initialize(_partitioned_hypergraph);
-        _label_propagation->refine(_partitioned_hypergraph, {},
-          current_metric, std::numeric_limits<double>::max());
+        mt_kahypar_partitioned_hypergraph_t phg =
+          utils::partitioned_hg_cast(_partitioned_hypergraph);
+        _label_propagation->initialize(phg);
+        _label_propagation->refine(phg, {}, current_metric,
+          std::numeric_limits<double>::max());
       }
 
       HEAVY_INITIAL_PARTITIONING_ASSERT(
@@ -343,7 +350,7 @@ class InitialPartitioningDataContainer {
     parallel::scalable_vector<PartitionID> _partition;
     PartitioningResult _result;
     std::unique_ptr<IRefiner> _label_propagation;
-    std::unique_ptr<SequentialTwoWayFmRefiner> _twoway_fm;
+    std::unique_ptr<SequentialTwoWayFmRefiner<TypeTraits>> _twoway_fm;
     parallel::scalable_vector<utils::InitialPartitionerSummary> _stats;
   };
 
@@ -675,5 +682,19 @@ class InitialPartitioningDataContainer {
   SpinLock _pop_lock;
   vec< std::pair<PartitioningResult, vec<PartitionID>>  > _best_partitions;
 };
+
+typedef struct ip_data_container_s ip_data_container_t;
+
+namespace ip {
+  template<typename TypeTraits>
+  ip_data_container_t* to_pointer(InitialPartitioningDataContainer<TypeTraits>& ip_data) {
+    return reinterpret_cast<ip_data_container_t*>(&ip_data);
+  }
+
+  template<typename TypeTraits>
+  InitialPartitioningDataContainer<TypeTraits>& to_reference(ip_data_container_t* ptr) {
+    return *reinterpret_cast<InitialPartitioningDataContainer<TypeTraits>*>(ptr);
+  }
+}
 
 } // namespace mt_kahypar

@@ -38,7 +38,7 @@ using ::testing::Test;
 namespace mt_kahypar {
 namespace ds {
 
-using AStaticGraph = HypergraphFixture<StaticGraph, StaticGraphFactory, true>;
+using AStaticGraph = HypergraphFixture<StaticGraph, true>;
 
 TEST_F(AStaticGraph, HasCorrectStats) {
   ASSERT_EQ(7,  hypergraph.initialNumNodes());

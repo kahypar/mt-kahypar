@@ -1,10 +1,10 @@
 # Please follow the instructions in the README to install the python library interface and
-# and copy mtkahyparhgp.so and mtkahypargp.so to this folder to run the examples.
+# and copy mtkahypar.so to this folder to run the examples.
 
-import mtkahyparhgp as hgp
+import mtkahypar
 
 # Creates a weighted hypergraph
-hypergraph = hgp.Hypergraph(
+hypergraph = mtkahypar.Hypergraph(
   7,               # with seven nodes
   4,               # and four hyperedges
   [[0,2],          # The first hyperedge contains node 0 and 2
@@ -46,9 +46,9 @@ hypergraph.doForAllEdges(lambda edge : (
 ))
 print()
 
-# Partition Hypergraph
+# Create a partition of the hypergraph
 number_of_blocks = 3
-partitioned_hg = hgp.PartitionedHypergraph(
+partitioned_hg = mtkahypar.PartitionedHypergraph(
   hypergraph,
   number_of_blocks, # partition hypergraph into three blocks
   [0,0,0,1,1,2])    # block IDs for each node

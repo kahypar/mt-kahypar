@@ -28,7 +28,6 @@
 
 #include "tbb/enumerable_thread_specific.h"
 
-#include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/datastructures/sparse_map.h"
 #include "mt-kahypar/partition/refinement/flows/refiner_adapter.h"
@@ -39,9 +38,12 @@
 
 namespace mt_kahypar {
 
+template<typename TypeTraits>
 class ProblemConstruction {
 
   static constexpr bool debug = false;
+
+  using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
 
   /**
    * Contains data required to grow two region around
@@ -103,12 +105,13 @@ class ProblemConstruction {
   };
 
  public:
-  explicit ProblemConstruction(const Hypergraph& hg,
+  explicit ProblemConstruction(const HypernodeID num_hypernodes,
+                               const HyperedgeID num_hyperedges,
                                const Context& context) :
     _context(context),
     _scaling(1.0 + _context.refinement.flows.alpha *
       std::min(0.05, _context.partition.epsilon)),
-    _local_bfs(hg.initialNumNodes(), hg.initialNumEdges(), context.partition.k) { }
+    _local_bfs(num_hypernodes, num_hyperedges, context.partition.k) { }
 
   ProblemConstruction(const ProblemConstruction&) = delete;
   ProblemConstruction(ProblemConstruction&&) = delete;
@@ -117,7 +120,7 @@ class ProblemConstruction {
   ProblemConstruction & operator= (ProblemConstruction &&) = delete;
 
   Subhypergraph construct(const SearchID search_id,
-                          QuotientGraph& quotient_graph,
+                          QuotientGraph<TypeTraits>& quotient_graph,
                           const PartitionedHypergraph& phg);
 
   void changeNumberOfBlocks(const PartitionID new_k);

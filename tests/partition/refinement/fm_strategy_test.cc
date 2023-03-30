@@ -27,7 +27,8 @@
 #include <random>
 #include "gmock/gmock.h"
 
-#include "mt-kahypar/io/hypergraph_io.h"
+#include "mt-kahypar/definitions.h"
+#include "mt-kahypar/io/hypergraph_factory.h"
 
 #include "mt-kahypar/partition/refinement/fm/strategies/gain_cache_strategy.h"
 #include "mt-kahypar/partition/refinement/fm/strategies/gain_delta_strategy.h"
@@ -38,6 +39,11 @@
 using ::testing::Test;
 
 namespace mt_kahypar {
+
+namespace {
+  using Hypergraph = typename StaticHypergraphTypeTraits::Hypergraph;
+  using PartitionedHypergraph = typename StaticHypergraphTypeTraits::PartitionedHypergraph;
+}
 
 
 template<typename Strategy>
@@ -60,7 +66,8 @@ TEST(StrategyTests, FindNextMove) {
   Context context;
   context.partition.k = k;
   context.partition.epsilon = 0.03;
-  Hypergraph hg = io::readHypergraphFile("../tests/instances/contracted_ibm01.hgr", true);
+  Hypergraph hg = io::readInputFile<Hypergraph>(
+    "../tests/instances/contracted_ibm01.hgr", FileFormat::hMetis, true);
   context.setupPartWeights(hg.totalWeight());
   PartitionedHypergraph phg = PartitionedHypergraph(k, hg);
   for (PartitionID i = 0; i < k; ++i) {
@@ -108,7 +115,8 @@ TEST(StrategyTests, DeltaUpdatesWork) {
   Context context;
   context.partition.k = k;
   context.partition.epsilon = 0.03;
-  Hypergraph hg = io::readHypergraphFile("../tests/instances/contracted_ibm01.hgr", true);
+  Hypergraph hg = io::readInputFile<Hypergraph>(
+    "../tests/instances/contracted_ibm01.hgr", FileFormat::hMetis, true);
   context.setupPartWeights(hg.totalWeight());
   PartitionedHypergraph phg = PartitionedHypergraph(k, hg);
   for (PartitionID i = 0; i < k; ++i) {

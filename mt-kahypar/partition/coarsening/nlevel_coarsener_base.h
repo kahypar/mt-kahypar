@@ -28,7 +28,6 @@
 
 #include "tbb/task_group.h"
 
-#include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/metrics.h"
 #include "mt-kahypar/partition/refinement/i_refiner.h"
@@ -39,18 +38,22 @@
 
 namespace mt_kahypar {
 
+template<typename TypeTraits>
 class NLevelCoarsenerBase {
  private:
 
   static constexpr bool debug = false;
   static constexpr bool enable_heavy_assert = false;
 
-  using ParallelHyperedgeVector = parallel::scalable_vector<parallel::scalable_vector<ParallelHyperedge>>;
+  using Hypergraph = typename TypeTraits::Hypergraph;
+  using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
+  using ParallelHyperedge = typename Hypergraph::ParallelHyperedge;
+  using ParallelHyperedgeVector = vec<vec<ParallelHyperedge>>;
 
  public:
   NLevelCoarsenerBase(Hypergraph& hypergraph,
                       const Context& context,
-                      UncoarseningData& uncoarseningData) :
+                      UncoarseningData<TypeTraits>& uncoarseningData) :
     _hg(hypergraph),
     _context(context),
     _timer(utils::Utilities::instance().getTimer(context.utility_id)),
@@ -89,6 +92,6 @@ class NLevelCoarsenerBase {
   Hypergraph& _hg;
   const Context& _context;
   utils::Timer& _timer;
-  UncoarseningData& _uncoarseningData;
+  UncoarseningData<TypeTraits>& _uncoarseningData;
 };
 }  // namespace mt_kahypar

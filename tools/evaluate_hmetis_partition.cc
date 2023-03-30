@@ -32,13 +32,21 @@
 #include <string>
 
 #include "mt-kahypar/macros.h"
-#include "mt-kahypar/definitions.h"
+#include "mt-kahypar/datastructures/static_hypergraph.h"
+#include "mt-kahypar/datastructures/partitioned_hypergraph.h"
+#include "mt-kahypar/datastructures/connectivity_info.h"
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/metrics.h"
+#include "mt-kahypar/io/hypergraph_factory.h"
 #include "mt-kahypar/io/hypergraph_io.h"
+#include "mt-kahypar/utils/cast.h"
+#include "mt-kahypar/utils/delete.h"
 
 using namespace mt_kahypar;
 namespace po = boost::program_options;
+
+using Hypergraph = ds::StaticHypergraph;
+using PartitionedHypergraph = ds::PartitionedHypergraph<Hypergraph, ds::ConnectivityInfo>;
 
 void readPartitionFile(const std::string& partition_file, PartitionedHypergraph& hypergraph) {
   ASSERT(!partition_file.empty(), "No filename for partition file specified");
@@ -80,7 +88,11 @@ int main(int argc, char* argv[]) {
   po::notify(cmd_vm);
 
   // Read Hypergraph
-  Hypergraph hg = mt_kahypar::io::readHypergraphFile(context.partition.graph_filename, true);
+  mt_kahypar_hypergraph_t hypergraph =
+    mt_kahypar::io::readInputFile(
+      context.partition.graph_filename, PresetType::default_preset,
+      InstanceType::hypergraph, FileFormat::hMetis, true);
+  Hypergraph& hg = utils::cast<Hypergraph>(hypergraph);
   PartitionedHypergraph phg(context.partition.k, hg, parallel_tag_t());
 
   // Setup Context
@@ -97,5 +109,8 @@ int main(int argc, char* argv[]) {
             << " cut=" << metrics::hyperedgeCut(phg)
             << " km1=" << metrics::km1(phg)
             << " soed=" << metrics::soed(phg) << std::endl;
+
+  utils::delete_hypergraph(hypergraph);
+
   return 0;
 }

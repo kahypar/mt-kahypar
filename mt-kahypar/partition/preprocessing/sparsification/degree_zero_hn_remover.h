@@ -29,13 +29,16 @@
 
 #include "tbb/parallel_sort.h"
 
-#include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/datastructures/streaming_vector.h"
 
 namespace mt_kahypar {
 
+template<typename TypeTraits>
 class DegreeZeroHypernodeRemover {
+
+  using Hypergraph = typename TypeTraits::Hypergraph;
+  using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
 
  public:
   DegreeZeroHypernodeRemover(const Context& context) :

@@ -26,13 +26,16 @@
 
 #pragma once
 
-#include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
 
 namespace mt_kahypar {
 
+template<typename TypeTraits>
 class LargeHyperedgeRemover {
+
+  using Hypergraph = typename TypeTraits::Hypergraph;
+  using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
 
  public:
   LargeHyperedgeRemover(const Context& context) :
@@ -49,18 +52,16 @@ class LargeHyperedgeRemover {
   // ! Returns the number of removed large hyperedges.
   HypernodeID removeLargeHyperedges(Hypergraph& hypergraph) {
     HypernodeID num_removed_large_hyperedges = 0;
-    #ifndef ENABLE_GRAPH_PARTITIONER
-    for ( const HyperedgeID& he : hypergraph.edges() ) {
-      if ( hypergraph.edgeSize(he) > largeHyperedgeThreshold() ) {
-        hypergraph.removeLargeEdge(he);
-        _removed_hes.push_back(he);
-        ++num_removed_large_hyperedges;
+    if constexpr ( !Hypergraph::is_graph ) {
+      for ( const HyperedgeID& he : hypergraph.edges() ) {
+        if ( hypergraph.edgeSize(he) > largeHyperedgeThreshold() ) {
+          hypergraph.removeLargeEdge(he);
+          _removed_hes.push_back(he);
+          ++num_removed_large_hyperedges;
+        }
       }
+      std::reverse(_removed_hes.begin(), _removed_hes.end());
     }
-    std::reverse(_removed_hes.begin(), _removed_hes.end());
-    #else
-    unused(hypergraph);
-    #endif
     return num_removed_large_hyperedges;
   }
 

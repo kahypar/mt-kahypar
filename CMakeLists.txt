@@ -58,6 +58,18 @@ option(KAHYPAR_ENABLE_THREAD_PINNING
 option(KAHYPAR_ENABLE_ARCH_COMPILE_OPTIMIZATIONS
   "Adds the compile flags `-mtune=native -march=native`" ON)
 
+option(KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES
+  "Enables some experimental features. Can be turned off for faster compilation." OFF)
+
+option(KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES
+  "Enables graph partitioning features. Can be turned off for faster compilation." ON)
+
+option(KAHYPAR_ENABLE_N_LEVEL_PARTITIONING_FEATURES
+  "Enables n-level partitioning features. Can be turned off for faster compilation." ON)
+
+option(KAHYPAR_ENABLE_LARGE_K_PARTITIONING_FEATURES
+  "Enables large k partitioning features. Can be turned off for faster compilation." ON)
+
 if(KAHYPAR_DISABLE_ASSERTIONS)
   add_compile_definitions(KAHYPAR_DISABLE_ASSERTIONS)
 endif(KAHYPAR_DISABLE_ASSERTIONS)
@@ -93,6 +105,22 @@ endif(KAHYPAR_TRAVIS_BUILD)
 if(KAHYPAR_ENABLE_THREAD_PINNING)
   add_compile_definitions(KAHYPAR_ENABLE_THREAD_PINNING)
 endif(KAHYPAR_ENABLE_THREAD_PINNING)
+
+if(KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES)
+  add_compile_definitions(KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES)
+endif(KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES)
+
+if(KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES)
+  add_compile_definitions(KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES)
+endif(KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES)
+
+if(KAHYPAR_ENABLE_N_LEVEL_PARTITIONING_FEATURES)
+  add_compile_definitions(KAHYPAR_ENABLE_N_LEVEL_PARTITIONING_FEATURES)
+endif(KAHYPAR_ENABLE_N_LEVEL_PARTITIONING_FEATURES)
+
+if(KAHYPAR_ENABLE_LARGE_K_PARTITIONING_FEATURES)
+  add_compile_definitions(KAHYPAR_ENABLE_LARGE_K_PARTITIONING_FEATURES)
+endif(KAHYPAR_ENABLE_LARGE_K_PARTITIONING_FEATURES)
 
 include_directories(${PROJECT_SOURCE_DIR})
 find_package(Threads REQUIRED)
@@ -283,8 +311,6 @@ if(NOT MSVC)
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-unused-function")
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pthread")
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17")
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -ltbb")
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -ltbbmalloc_proxy")
 
   # lld is way faster than ld. If you have it, use it!
   find_program(LLD_BIN lld)
@@ -355,20 +381,3 @@ add_subdirectory(python)
 
 # This adds the source files. It's important that this happens after the compile targets have been added
 add_subdirectory(mt-kahypar)
-
-# Target for MtKaHyPar standalone application
-add_custom_target(MtKaHyPar
-  DEPENDS
-  MtKaHyParDefault
-  MtKaHyParLargeK
-  MtKaHyParQuality
-  MtKaHyParGraph
-  MtKaHyParGraphQuality
-  MtKaHyParWrapper)
-
-# Target for Mt-KaHyPar Test Suite
-add_custom_target(mt_kahypar_tests
-  DEPENDS
-  mt_kahypar_multilevel_tests
-  mt_kahypar_nlevel_tests
-  mt_kahypar_graph_tests)

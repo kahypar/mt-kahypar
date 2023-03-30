@@ -29,7 +29,8 @@
 #include "kahypar/meta/policy_registry.h"
 #include "kahypar/meta/typelist.h"
 
-#include "mt-kahypar/definitions.h"
+#include "mt-kahypar/datastructures/hypergraph_common.h"
+#include "mt-kahypar/macros.h"
 
 namespace mt_kahypar {
 class HeavyEdgeScore final : public kahypar::meta::PolicyBase {
@@ -40,6 +41,7 @@ class HeavyEdgeScore final : public kahypar::meta::PolicyBase {
   }
 };
 
+#ifdef KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES
 class SamenessScore final : public kahypar::meta::PolicyBase {
  public:
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE static RatingType score(const HyperedgeWeight edge_weight,
@@ -49,4 +51,8 @@ class SamenessScore final : public kahypar::meta::PolicyBase {
 };
 
 using RatingScorePolicies = kahypar::meta::Typelist<HeavyEdgeScore, SamenessScore>;
+#else
+using RatingScorePolicies = kahypar::meta::Typelist<HeavyEdgeScore>;
+#endif
+
 }  // namespace mt_kahypar

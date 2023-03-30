@@ -30,32 +30,21 @@
 
 #include "gmock/gmock.h"
 
-#include "mt-kahypar/datastructures/static_hypergraph_factory.h"
-#include "mt-kahypar/datastructures/dynamic_hypergraph_factory.h"
-#include "mt-kahypar/datastructures/partitioned_hypergraph.h"
+#include "mt-kahypar/definitions.h"
 
 using ::testing::Test;
 
 namespace mt_kahypar {
 namespace ds {
 
-template< typename PartitionedHG,
-          typename HG,
-          typename HGFactory>
-struct PartitionedHypergraphTypeTraits {
-  using PartitionedHyperGraph = PartitionedHG;
-  using Hypergraph = HG;
-  using Factory = HGFactory;
-};
 
 template<typename TypeTraits>
 class APartitionedHypergraph : public Test {
 
- using PartitionedHyperGraph = typename TypeTraits::PartitionedHyperGraph;
- using Factory = typename TypeTraits::Factory;
-
  public:
  using Hypergraph = typename TypeTraits::Hypergraph;
+ using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
+ using Factory = typename Hypergraph::Factory;
 
   APartitionedHypergraph() :
     hypergraph(Factory::construct(
@@ -136,7 +125,7 @@ class APartitionedHypergraph : public Test {
   }
 
   Hypergraph hypergraph;
-  PartitionedHyperGraph partitioned_hypergraph;
+  PartitionedHypergraph partitioned_hypergraph;
 };
 
 template <class F1, class F2>
@@ -154,11 +143,7 @@ void executeConcurrent(const F1& f1, const F2& f2) {
 }
 
 
-using ADynamicPartitionedHypergraph = APartitionedHypergraph<
-                                        PartitionedHypergraphTypeTraits<
-                                          PartitionedHypergraph<DynamicHypergraph, DynamicHypergraphFactory>,
-                                          DynamicHypergraph,
-                                          DynamicHypergraphFactory>>;
+using ADynamicPartitionedHypergraph = APartitionedHypergraph<DynamicHypergraphTypeTraits>;
 
 TEST_F(ADynamicPartitionedHypergraph, InitializesGainCorrectIfAlreadyContracted1) {
   hypergraph.registerContraction(0, 2);
