@@ -8,7 +8,8 @@ jobs:
       matrix:
         compiler: [ { cpp: g++-9, cc: gcc-9 },
                     { cpp: g++-10, cc: gcc-10 },
-                    { cpp: g++-11, cc: gcc-11 } ]
+                    { cpp: g++-11, cc: gcc-11 },
+                    { cpp: g++-12, cc: gcc-12 } ]
 
     runs-on: ubuntu-20.04
     env:
