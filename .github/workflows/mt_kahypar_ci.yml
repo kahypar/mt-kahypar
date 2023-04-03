@@ -8,8 +8,7 @@ jobs:
       matrix:
         compiler: [ { cpp: g++-9, cc: gcc-9 },
                     { cpp: g++-10, cc: gcc-10 },
-                    { cpp: g++-11, cc: gcc-11 },
-                    { cpp: g++-12, cc: gcc-12 } ]
+                    { cpp: g++-11, cc: gcc-11 } ]
 
     runs-on: ubuntu-20.04
     env:
@@ -24,7 +23,7 @@ jobs:
 
       - name: Install Dependencies
         run: |
-          sudo apt-get install libtbb-dev libhwloc-dev libboost-program-options-dev lcov gcovr ${{ matrix.compiler.cc }} ${{ matrix.compiler.cpp }}
+          sudo apt-get install libtbb-dev libhwloc-dev lcov gcovr ${{ matrix.compiler.cc }} ${{ matrix.compiler.cpp }}
 
       - name: Install Mt-KaHyPar Test Suite
         env:
