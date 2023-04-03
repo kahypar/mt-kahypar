@@ -70,7 +70,10 @@ void Pool<TypeTraits>::bipartition(PartitionedHypergraph& hypergraph,
   tbb::task_group tg;
   InitialPartitioningDataContainer<TypeTraits> ip_data(hypergraph, context);
   ip_data_container_t* ip_data_ptr = ip::to_pointer(ip_data);
-  for ( const auto [algorithm, seed, tag] : _ip_task_lists ) {
+  for ( const auto& ip_task : _ip_task_lists ) {
+    const InitialPartitioningAlgorithm algorithm = std::get<0>(ip_task);
+    const int seed = std::get<1>(ip_task);
+    const int tag = std::get<2>(ip_task);
     if ( run_parallel ) {
       tg.run([&, algorithm, seed, tag] {
         std::unique_ptr<IInitialPartitioner> initial_partitioner =

@@ -493,7 +493,7 @@ void bipartition_each_block(typename TypeTraits::PartitionedHypergraph& partitio
     const PartitionID desired_blocks = rb_tree.desiredNumberOfBlocks(current_k, block);
     if ( desired_blocks > 1 ) {
       // Spawn a task that bipartitions the corresponding block
-      tg.run([&, block, desired_blocks] {
+      tg.run([&, block] {
         const auto target_blocks = rb_tree.targetBlocksInFinalPartition(current_k, block);
         bipartitions[block] = bipartition_block<TypeTraits>(std::move(hypergraphs[block]), context,
           info, target_blocks.first, target_blocks.second);

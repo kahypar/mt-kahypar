@@ -108,11 +108,11 @@ class FlowRefiner final : public IFlowRefiner {
   FlowProblem constructFlowHypergraph(const PartitionedHypergraph& phg,
                                       const Subhypergraph& sub_hg);
 
-  PartitionID maxNumberOfBlocksPerSearchImpl() const {
+  PartitionID maxNumberOfBlocksPerSearchImpl() const override {
     return 2;
   }
 
-  void setNumThreadsForSearchImpl(const size_t num_threads) {
+  void setNumThreadsForSearchImpl(const size_t num_threads) override {
     _num_available_threads = num_threads;
   }
 
