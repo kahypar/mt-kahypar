@@ -10,7 +10,8 @@ jobs:
         compiler: [ { os: ubuntu-20.04, cpp: g++-9, cc: gcc-9 },
                     { os: ubuntu-20.04, cpp: g++-10, cc: gcc-10 },
                     { os: ubuntu-20.04, cpp: g++-11, cc: gcc-11 },
-                    { os: ubuntu-22.04, cpp: g++-12, cc: gcc-12 } ]
+                    { os: ubuntu-22.04, cpp: g++-12, cc: gcc-12 },
+                    { os: ubuntu-22.04, cpp: clang++, cc: clang }  ]
 
     runs-on: ${{ matrix.compiler.os }}
     env:
