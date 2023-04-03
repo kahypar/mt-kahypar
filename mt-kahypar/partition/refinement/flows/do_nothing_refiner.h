@@ -52,10 +52,10 @@ class DoNothingFlowRefiner final : public IFlowRefiner {
     return MoveSequence { {}, 0 };
   }
 
-  PartitionID maxNumberOfBlocksPerSearchImpl() const {
+  PartitionID maxNumberOfBlocksPerSearchImpl() const override {
     return 2;
   }
 
-  void setNumThreadsForSearchImpl(const size_t) {}
+  void setNumThreadsForSearchImpl(const size_t) override {}
 };
 }  // namespace kahypar
