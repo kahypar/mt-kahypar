@@ -33,6 +33,7 @@
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/refinement/flows/refiner_adapter.h"
 #include "mt-kahypar/parallel/atomic_wrapper.h"
+#include "mt-kahypar/utils/randomize.h"
 
 namespace mt_kahypar {
 
@@ -340,8 +341,9 @@ public:
   void doForAllCutHyperedgesOfSearch(const SearchID search_id, const F& f) {
     const BlockPair& blocks = _searches[search_id].blocks;
     const size_t num_cut_hes = _quotient_graph[blocks.i][blocks.j].num_cut_hes.load();
-    std::random_shuffle(_quotient_graph[blocks.i][blocks.j].cut_hes.begin(),
-                        _quotient_graph[blocks.i][blocks.j].cut_hes.begin() + num_cut_hes);
+    std::shuffle(_quotient_graph[blocks.i][blocks.j].cut_hes.begin(),
+                 _quotient_graph[blocks.i][blocks.j].cut_hes.begin() + num_cut_hes,
+                 utils::Randomize::instance().getGenerator());
     for ( size_t i = 0; i < num_cut_hes; ++i ) {
       const HyperedgeID he = _quotient_graph[blocks.i][blocks.j].cut_hes[i];
       if ( _phg->pinCountInPart(he, blocks.i) > 0 && _phg->pinCountInPart(he, blocks.j) > 0 ) {
