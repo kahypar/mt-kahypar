@@ -26,10 +26,17 @@ jobs:
 
       - name: Install Dependencies
         run: |
-          sudo apt-get install libtbb-dev libboost-program-options-dev libhwloc-dev lcov gcovr ${{ matrix.compiler.cc }}
-          if [ "${{ matrix.compiler.cc }}" != "clang" ] then
-            sudo apt-get install ${{ matrix.compiler.cpp }}
-          fi
+          sudo apt-get install libtbb-dev libboost-program-options-dev libhwloc-dev lcov gcovr
+
+      - name: Install GCC
+        if: "startsWith('${{ matrix.compiler.cc }}', 'gcc')"
+        run: |
+          sudo apt-get install ${{ matrix.compiler.cc }} ${{ matrix.compiler.cpp }}
+
+      - name: Install Clang
+        if: "startsWith('${{ matrix.compiler.cc }}', 'clang')"
+        run: |
+          sudo apt-get install ${{ matrix.compiler.cc }}
 
       - name: Install Mt-KaHyPar Test Suite
         env:
