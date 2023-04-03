@@ -4,14 +4,15 @@ on: [ push, pull_request ]
 
 jobs:
   mt_kahypar_compiler_version_test:
-    name: Compile with Different GCC Version
+    name: Compiles with Different GCC Versions
     strategy:
       matrix:
-        compiler: [ { cpp: g++-9, cc: gcc-9 },
-                    { cpp: g++-10, cc: gcc-10 },
-                    { cpp: g++-11, cc: gcc-11 } ]
+        compiler: [ { os: ubuntu-20.04, cpp: g++-9, cc: gcc-9 },
+                    { os: ubuntu-20.04, cpp: g++-10, cc: gcc-10 },
+                    { os: ubuntu-20.04, cpp: g++-11, cc: gcc-11 },
+                    { os: ubuntu-22.04, cpp: g++-12, cc: gcc-12 } ]
 
-    runs-on: ubuntu-20.04
+    runs-on: ${{ matrix.compiler.os }}
     env:
       BOOST_ROOT : "/usr/local/share/boost/1.72.0"
       CI_ACTIVE : 1
@@ -159,7 +160,12 @@ jobs:
 
       - name: Build Mt-KaHyPar Python Interface
         run: |
+          git submodule init
+          git submodule update
+          rm -rf build
+          mkdir build
           cd build
+          cmake .. -DCMAKE_BUILD_TYPE=RELEASE -DKAHYPAR_CI_BUILD=ON
           make mtkahypar_python -j2
 
       - name: Run Mt-KaHyPar Python Interface Tests
