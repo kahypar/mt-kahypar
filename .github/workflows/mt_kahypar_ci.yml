@@ -38,7 +38,7 @@ jobs:
           rm -rf build
           mkdir build
           cd build
-          cmake .. -DCMAKE_BUILD_TYPE=RELEASE -DKAHYPAR_CI_BUILD=ON -DKAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES=OFF -DKAHYPAR_ENABLE_N_LEVEL_PARTITIONING_FEATURES=OFF -DKAHYPAR_ENABLE_LARGE_K_PARTITIONING_FEATURES=OFF
+          cmake .. -DCMAKE_BUILD_TYPE=RELEASE -DKAHYPAR_CI_BUILD=ON
           make -j2 MtKaHyPar
 
   mt_kahypar_test_suite:
