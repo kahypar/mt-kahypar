@@ -4,6 +4,7 @@ on: [ push, pull_request ]
 
 jobs:
   mt_kahypar_compiler_version_test:
+    name: Compile with Different GCC Version
     strategy:
       matrix:
         compiler: [ { cpp: g++-9, cc: gcc-9 },
@@ -17,13 +18,13 @@ jobs:
 
     steps:
       - name: Checkout HEAD
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           fetch-depth: 1
 
       - name: Install Dependencies
         run: |
-          sudo apt-get install libtbb-dev libhwloc-dev lcov gcovr ${{ matrix.compiler.cc }} ${{ matrix.compiler.cpp }}
+          sudo apt-get install libtbb-dev libboost-program-options-dev libhwloc-dev lcov gcovr ${{ matrix.compiler.cc }} ${{ matrix.compiler.cpp }}
 
       - name: Install Mt-KaHyPar Test Suite
         env:
@@ -35,10 +36,11 @@ jobs:
           rm -rf build
           mkdir build
           cd build
-          cmake .. -DCMAKE_BUILD_TYPE=RELEASE -DKAHYPAR_DOWNLOAD_BOOST=On -DKAHYPAR_CI_BUILD=ON -DKAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES=OFF -DKAHYPAR_ENABLE_N_LEVEL_PARTITIONING_FEATURES=OFF -DKAHYPAR_ENABLE_LARGE_K_PARTITIONING_FEATURES=OFF
+          cmake .. -DCMAKE_BUILD_TYPE=RELEASE -DKAHYPAR_CI_BUILD=ON -DKAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES=OFF -DKAHYPAR_ENABLE_N_LEVEL_PARTITIONING_FEATURES=OFF -DKAHYPAR_ENABLE_LARGE_K_PARTITIONING_FEATURES=OFF
           make -j2 MtKaHyPar
 
   mt_kahypar_test_suite:
+    name: Test Suite
     runs-on: ubuntu-20.04
     env:
       BOOST_ROOT : "/usr/local/share/boost/1.72.0"
@@ -46,7 +48,7 @@ jobs:
 
     steps:
       - name: Checkout HEAD
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
          fetch-depth: 1
 
@@ -80,6 +82,7 @@ jobs:
           bash <(curl -s https://codecov.io/bash) || echo "Codecov did not collect coverage reports"
 
   mt_kahypar_integration_tests:
+    name: Integration Tests
     runs-on: ubuntu-20.04
     env:
       BOOST_ROOT : "/usr/local/share/boost/1.72.0"
@@ -87,7 +90,7 @@ jobs:
 
     steps:
       - name: Checkout HEAD
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
          fetch-depth: 1
 
@@ -110,7 +113,8 @@ jobs:
         run: |
           ./tests/end_to_end/integration_tests.py
 
-  mt_kahypar_interface_tests:
+  mt_kahypar_c_interface_tests:
+    name: C Interface Tests
     runs-on: ubuntu-20.04
     env:
       BOOST_ROOT : "/usr/local/share/boost/1.72.0"
@@ -118,7 +122,7 @@ jobs:
 
     steps:
       - name: Checkout HEAD
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
          fetch-depth: 1
 
@@ -136,6 +140,23 @@ jobs:
           cmake .. -DCMAKE_BUILD_TYPE=RELEASE -DKAHYPAR_CI_BUILD=ON
           make -j2 interface_test
 
+  mt_kahypar_python_interface_tests:
+    name: Python Interface Tests
+    runs-on: ubuntu-20.04
+    env:
+      BOOST_ROOT : "/usr/local/share/boost/1.72.0"
+      CI_ACTIVE : 1
+
+    steps:
+      - name: Checkout HEAD
+        uses: actions/checkout@v3
+        with:
+         fetch-depth: 1
+
+      - name: Install Dependencies
+        run: |
+          sudo apt-get install libtbb-dev libhwloc-dev libboost-program-options-dev lcov gcovr
+
       - name: Build Mt-KaHyPar Python Interface
         run: |
           cd build
@@ -148,13 +169,14 @@ jobs:
           python3 test_mtkahypar.py -v
 
   mt_kahypar_windows_build:
+    name: Windows Build
     runs-on: windows-latest
     env:
       CI_ACTIVE : 1
 
     steps:
       - name: Checkout HEAD
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
          fetch-depth: 1
 
