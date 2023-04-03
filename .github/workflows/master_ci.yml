@@ -1,4 +1,4 @@
-name: Mt-KaHyPar CI
+name: Mt-KaHyPar Master CI
 
 on:
   push:
