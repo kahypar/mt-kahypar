@@ -1,6 +1,12 @@
 name: Mt-KaHyPar CI
 
-on: [ push, pull_request ]
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    branches:
+      - master
 
 jobs:
   mt_kahypar_compiler_version_test:
