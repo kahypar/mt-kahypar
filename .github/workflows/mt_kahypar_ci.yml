@@ -4,7 +4,7 @@ on: [ push, pull_request ]
 
 jobs:
   mt_kahypar_compiler_version_test:
-    name: Compiles with Different GCC Versions
+    name: Ubuntu Build
     strategy:
       matrix:
         compiler: [ { os: ubuntu-20.04, cpp: g++-9, cc: gcc-9 },
@@ -26,7 +26,7 @@ jobs:
 
       - name: Install Dependencies
         run: |
-          sudo apt-get install libtbb-dev libboost-program-options-dev libhwloc-dev lcov gcovr ${{ matrix.compiler.cc }} ${{ matrix.compiler.cpp }}
+          sudo apt-get install libtbb-dev libboost-program-options-dev libhwloc-dev lcov gcovr ${{ matrix.compiler.cc }}
 
       - name: Install Mt-KaHyPar Test Suite
         env:
