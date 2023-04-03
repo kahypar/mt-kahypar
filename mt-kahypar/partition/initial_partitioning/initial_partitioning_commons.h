@@ -28,7 +28,6 @@
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wdeprecated-declarations"
-#pragma GCC diagnostic ignored "-Wmismatched-tags"
 #include "kahypar/datastructure/kway_priority_queue.h"
 #pragma GCC diagnostic pop
 
