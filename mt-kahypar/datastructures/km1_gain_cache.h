@@ -60,7 +60,8 @@ class Km1GainCache {
     return _is_initialized;
   }
 
-  void reset() {
+  void reset(const bool run_parallel = true) {
+    unused(run_parallel);
     _is_initialized = false;
   }
 
@@ -190,7 +191,8 @@ class Km1GainCache {
   // ! Returns the penalty term of node u.
   // ! More formally, p(u) := (w(I(u)) - w({ e \in I(u) | pin_count(e, partID(u)) = 1 }))
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
-  HyperedgeWeight penaltyTerm(const HypernodeID u) const {
+  HyperedgeWeight penaltyTerm(const HypernodeID u,
+                              const PartitionID /* only relevant for graphs */) const {
     ASSERT(_is_initialized, "Gain cache is not initialized");
     return _gain_cache[penalty_index(u)].load(std::memory_order_relaxed);
   }
@@ -242,9 +244,11 @@ class Km1GainCache {
   }
 
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
-  HyperedgeWeight gain(const HypernodeID u, const PartitionID to) const {
+  HyperedgeWeight gain(const HypernodeID u,
+                       const PartitionID, /* only relevant for graphs */
+                       const PartitionID to ) const {
     ASSERT(_is_initialized, "Gain cache is not initialized");
-    return benefitTerm(u, to) - penaltyTerm(u);
+    return benefitTerm(u, to) - penaltyTerm(u, kInvalidPartition);
   }
 
   // ####################### Delta Gain Update #######################

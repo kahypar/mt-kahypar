@@ -609,7 +609,7 @@ private:
   // ! Returns the penalty term of node u.
   // ! More formally, p(u) := (w(I(u)) - w({ e \in I(u) | pin_count(e, V_i) = 1 }))
   HyperedgeWeight moveFromPenalty(const HypernodeID u) const {
-    return _gain_cache.penaltyTerm(u);
+    return _gain_cache.penaltyTerm(u, kInvalidPartition);
   }
 
   // ! The move to benefit term stores the weight of all incident edges of u
@@ -629,7 +629,7 @@ private:
     //ASSERT(_is_gain_cache_initialized, "Gain cache is not initialized");
     ASSERT(from == partID(u), "While gain computation works for from != partID(u), such a query makes no sense");
     ASSERT(from != to, "The gain computation doesn't work for from = to");
-    return _gain_cache.gain(u, to);
+    return _gain_cache.gain(u, kInvalidPartition, to);
   }
 
   void allocateGainTableIfNecessary() {
