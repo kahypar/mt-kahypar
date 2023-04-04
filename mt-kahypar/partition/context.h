@@ -136,6 +136,7 @@ std::ostream & operator<< (std::ostream& str, const LabelPropagationParameters& 
 
 struct FMParameters {
   FMAlgorithm algorithm = FMAlgorithm::do_nothing;
+  FMGainCacheType gain_cache = FMGainCacheType::none;
 
   size_t multitry_rounds = 1;
   mutable size_t num_seed_nodes = 1;

@@ -147,6 +147,13 @@ enum class FMAlgorithm : uint8_t {
   do_nothing
 };
 
+enum class FMGainCacheType : uint8_t {
+  km1_gain_cache,
+  cut_gain_cache,
+  cut_gain_cache_for_graphs,
+  none
+};
+
 enum class FlowAlgorithm : uint8_t {
   flow_cutter,
   mock,
@@ -186,6 +193,8 @@ std::ostream & operator<< (std::ostream& os, const InitialPartitioningAlgorithm&
 std::ostream & operator<< (std::ostream& os, const LabelPropagationAlgorithm& algo);
 
 std::ostream & operator<< (std::ostream& os, const FMAlgorithm& algo);
+
+std::ostream & operator<< (std::ostream& os, const FMGainCacheType& type);
 
 std::ostream & operator<< (std::ostream& os, const FlowAlgorithm& algo);
 

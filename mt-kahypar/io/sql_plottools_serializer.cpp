@@ -111,6 +111,7 @@ std::string serialize(const PartitionedHypergraph& hypergraph,
         << " sync_lp_use_active_node_set=" << context.refinement.deterministic_refinement.use_active_node_set
         << " sync_lp_recalculate_gains_on_second_apply=" << context.refinement.deterministic_refinement.recalculate_gains_on_second_apply;
     oss << " fm_algorithm=" << context.refinement.fm.algorithm
+        << " fm_gain_cache=" << context.refinement.fm.gain_cache
         << " fm_multitry_rounds=" << context.refinement.fm.multitry_rounds
         << " fm_perform_moves_global=" << std::boolalpha << context.refinement.fm.perform_moves_global
         << " fm_rollback_parallel=" << std::boolalpha << context.refinement.fm.rollback_parallel

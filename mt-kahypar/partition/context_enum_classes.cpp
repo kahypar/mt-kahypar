@@ -220,6 +220,17 @@ namespace mt_kahypar {
     return os << static_cast<uint8_t>(algo);
   }
 
+  std::ostream & operator<< (std::ostream& os, const FMGainCacheType& type) {
+    switch (type) {
+      case FMGainCacheType::km1_gain_cache: return os << "km1_gain_cache";
+      case FMGainCacheType::cut_gain_cache: return os << "cut_gain_cache";
+      case FMGainCacheType::cut_gain_cache_for_graphs: return os << "cut_gain_cache_for_graphs";
+      case FMGainCacheType::none: return os << "none";
+        // omit default case to trigger compiler warning for missing cases
+    }
+    return os << static_cast<uint8_t>(type);
+  }
+
   std::ostream & operator<< (std::ostream& os, const FlowAlgorithm& algo) {
     switch (algo) {
       case FlowAlgorithm::flow_cutter: return os << "flow_cutter";

@@ -26,6 +26,8 @@
 
 #pragma once
 
+#include "kahypar/meta/policy_registry.h"
+
 #include "tbb/parallel_for.h"
 #include "tbb/enumerable_thread_specific.h"
 #include "tbb/concurrent_vector.h"
@@ -38,7 +40,7 @@
 namespace mt_kahypar {
 namespace ds {
 
-class GraphCutGainCache {
+class GraphCutGainCache final : public kahypar::meta::PolicyBase {
 
  public:
   static constexpr HyperedgeID HIGH_DEGREE_THRESHOLD = ID(100000);
