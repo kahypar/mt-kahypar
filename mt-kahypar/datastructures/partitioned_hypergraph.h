@@ -36,12 +36,12 @@
 #include "kahypar/meta/mandatory.h"
 
 #include "mt-kahypar/datastructures/hypergraph_common.h"
-#include "mt-kahypar/datastructures/km1_gain_cache.h"
 #include "mt-kahypar/datastructures/connectivity_info.h"
 #include "mt-kahypar/datastructures/streaming_vector.h"
 #include "mt-kahypar/parallel/atomic_wrapper.h"
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
 #include "mt-kahypar/parallel/stl/thread_locals.h"
+#include "mt-kahypar/partition/refinement/fm/gain_cache/km1_gain_cache.h"
 #include "mt-kahypar/utils/range.h"
 #include "mt-kahypar/utils/timer.h"
 

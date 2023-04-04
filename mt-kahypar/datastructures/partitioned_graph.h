@@ -38,11 +38,11 @@
 
 #include "mt-kahypar/datastructures/hypergraph_common.h"
 #include "mt-kahypar/datastructures/connectivity_set.h"
-#include "mt-kahypar/datastructures/cut_gain_cache_for_graphs.h"
 #include "mt-kahypar/datastructures/thread_safe_fast_reset_flag_array.h"
 #include "mt-kahypar/parallel/atomic_wrapper.h"
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
 #include "mt-kahypar/parallel/stl/thread_locals.h"
+#include "mt-kahypar/partition/refinement/fm/gain_cache/cut_gain_cache_for_graphs.h"
 #include "mt-kahypar/utils/range.h"
 #include "mt-kahypar/utils/timer.h"
 
