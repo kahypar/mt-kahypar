@@ -31,6 +31,7 @@
 #include "mt-kahypar/partition/refinement/flows/quotient_graph.h"
 #include "mt-kahypar/partition/refinement/flows/refiner_adapter.h"
 #include "mt-kahypar/partition/refinement/flows/problem_construction.h"
+#include "mt-kahypar/partition/refinement/fm/gain_cache/gain_cache_types.h"
 #include "mt-kahypar/parallel/atomic_wrapper.h"
 #include "mt-kahypar/utils/utilities.h"
 
@@ -141,9 +142,11 @@ class FlowRefinementScheduler final : public IRefiner {
 public:
   explicit FlowRefinementScheduler(const HypernodeID num_hypernodes,
                                    const HyperedgeID num_hyperedges,
-                                   const Context& context) :
+                                   const Context& context,
+                                   gain_cache_t gain_cache) :
     _phg(nullptr),
     _context(context),
+    _gain_cache(AbstractGainCache::cast<GainCache>(gain_cache)),
     _current_k(context.partition.k),
     _quotient_graph(num_hyperedges, context),
     _refiner(num_hyperedges, context),
@@ -204,6 +207,7 @@ private:
 
   PartitionedHypergraph* _phg;
   const Context& _context;
+  GainCache& _gain_cache;
   PartitionID _current_k;
 
   // ! Contains information of all cut hyperedges between the

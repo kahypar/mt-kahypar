@@ -76,7 +76,7 @@ using NLevelCoarsenerDispatcher = kahypar::meta::StaticMultiDispatchFactory<NLev
 #endif
 
 using LabelPropagationFactory = kahypar::meta::Factory<LabelPropagationAlgorithm,
-                                                       IRefiner* (*)(HypernodeID, HyperedgeID, const Context&)>;
+                                  IRefiner* (*)(HypernodeID, HyperedgeID, const Context&, gain_cache_t)>;
 
 using Km1LabelPropagationDispatcher = kahypar::meta::StaticMultiDispatchFactory<
                                         LabelPropagationKm1Refiner,
@@ -94,7 +94,7 @@ using DeterministicLabelPropagationDispatcher = kahypar::meta::StaticMultiDispat
                                                   kahypar::meta::Typelist<TypeTraitsList>>;
 
 using FMFactory = kahypar::meta::Factory<FMAlgorithm,
-                                         IRefiner* (*)(HypernodeID, HyperedgeID, const Context&)>;
+                    IRefiner* (*)(HypernodeID, HyperedgeID, const Context&, gain_cache_t)>;
 
 using FMDispatcher = kahypar::meta::StaticMultiDispatchFactory<
                       MultiTryKWayFM,
@@ -102,7 +102,8 @@ using FMDispatcher = kahypar::meta::StaticMultiDispatchFactory<
                       kahypar::meta::Typelist<TypeTraitsList, FMGainCacheTypes>>;
 
 using FlowSchedulerFactory = kahypar::meta::Factory<FlowAlgorithm,
-                              IRefiner* (*)(const HypernodeID, const HyperedgeID, const Context&)>;
+                              IRefiner* (*)(const HypernodeID, const HyperedgeID, const Context&, gain_cache_t)>;
+
 using FlowSchedulerDispatcher = kahypar::meta::StaticMultiDispatchFactory<
                                   FlowRefinementScheduler,
                                   IRefiner,
@@ -110,6 +111,7 @@ using FlowSchedulerDispatcher = kahypar::meta::StaticMultiDispatchFactory<
 
 using FlowRefinementFactory = kahypar::meta::Factory<FlowAlgorithm,
                               IFlowRefiner* (*)(const HyperedgeID, const Context&)>;
+
 using FlowRefinementDispatcher = kahypar::meta::StaticMultiDispatchFactory<
                                   FlowRefiner,
                                   IFlowRefiner,

@@ -224,7 +224,7 @@ namespace mt_kahypar {
     switch (type) {
       case FMGainCacheType::km1_gain_cache: return os << "km1_gain_cache";
       case FMGainCacheType::cut_gain_cache: return os << "cut_gain_cache";
-      case FMGainCacheType::cut_gain_cache_for_graphs: return os << "cut_gain_cache_for_graphs";
+      ENABLE_GRAPHS(case FMGainCacheType::cut_gain_cache_for_graphs: return os << "cut_gain_cache_for_graphs";)
       case FMGainCacheType::none: return os << "none";
         // omit default case to trigger compiler warning for missing cases
     }

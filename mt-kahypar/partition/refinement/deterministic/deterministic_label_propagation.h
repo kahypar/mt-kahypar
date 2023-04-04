@@ -32,6 +32,7 @@
 #include "mt-kahypar/partition/refinement/i_refiner.h"
 
 #include "mt-kahypar/partition/refinement/fm/strategies/km1_gains.h"
+#include "mt-kahypar/partition/refinement/fm/gain_cache/gain_cache_types.h"
 #include "mt-kahypar/utils/reproducible_random.h"
 
 namespace mt_kahypar {
@@ -44,7 +45,8 @@ class DeterministicLabelPropagationRefiner final : public IRefiner {
 public:
   explicit DeterministicLabelPropagationRefiner(const HypernodeID num_hypernodes,
                                                 const HyperedgeID num_hyperedges,
-                                                const Context& context) :
+                                                const Context& context,
+                                                gain_cache_t /* only relevant for other refiners */) :
       context(context),
       compute_gains(context),
       moves(num_hypernodes),

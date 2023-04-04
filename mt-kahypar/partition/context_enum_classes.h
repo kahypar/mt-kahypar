@@ -150,7 +150,7 @@ enum class FMAlgorithm : uint8_t {
 enum class FMGainCacheType : uint8_t {
   km1_gain_cache,
   cut_gain_cache,
-  cut_gain_cache_for_graphs,
+  ENABLE_GRAPHS(cut_gain_cache_for_graphs COMMA)
   none
 };
 

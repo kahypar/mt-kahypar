@@ -35,6 +35,7 @@
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/refinement/i_refiner.h"
 #include "mt-kahypar/partition/refinement/policies/gain_policy.h"
+#include "mt-kahypar/partition/refinement/fm/gain_cache/gain_cache_types.h"
 #include "mt-kahypar/utils/cast.h"
 
 
@@ -54,8 +55,10 @@ class LabelPropagationRefiner final : public IRefiner {
  public:
   explicit LabelPropagationRefiner(const HypernodeID num_hypernodes,
                                    const HyperedgeID num_hyperedges,
-                                   const Context& context) :
+                                   const Context& context,
+                                   gain_cache_t gain_cache) :
     _context(context),
+    _gain_cache(AbstractGainCache::cast<GainCache>(gain_cache)),
     _current_k(context.partition.k),
     _current_num_nodes(kInvalidHypernode),
     _current_num_edges(kInvalidHyperedge),
@@ -183,6 +186,7 @@ class LabelPropagationRefiner final : public IRefiner {
   }
 
   const Context& _context;
+  GainCache& _gain_cache;
   PartitionID _current_k;
   HypernodeID _current_num_nodes;
   HyperedgeID _current_num_edges;

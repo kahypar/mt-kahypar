@@ -35,52 +35,58 @@
 #define REGISTER_DISPATCHED_LP_REFINER(id, dispatcher, ...)                                            \
   static kahypar::meta::Registrar<LabelPropagationFactory> register_ ## dispatcher(                    \
     id,                                                                                                \
-    [](const HypernodeID num_hypernodes, const HyperedgeID num_hyperedges, const Context& context) {   \
+    [](const HypernodeID num_hypernodes, const HyperedgeID num_hyperedges,                             \
+       const Context& context, gain_cache_t gain_cache) {                                              \
     return dispatcher::create(                                                                         \
-      std::forward_as_tuple(num_hypernodes, num_hyperedges, context),                                  \
+      std::forward_as_tuple(num_hypernodes, num_hyperedges, context, gain_cache),                      \
       __VA_ARGS__                                                                                      \
       );                                                                                               \
   })
 
-#define REGISTER_LP_REFINER(id, refiner, t)                                                                        \
-  static kahypar::meta::Registrar<LabelPropagationFactory> JOIN(register_ ## refiner, t)(                          \
-    id,                                                                                                            \
-    [](const HypernodeID num_hypernodes, const HyperedgeID num_hyperedges, const Context& context) -> IRefiner* {  \
-    return new refiner(num_hypernodes, num_hyperedges, context);                                                   \
+#define REGISTER_LP_REFINER(id, refiner, t)                                                      \
+  static kahypar::meta::Registrar<LabelPropagationFactory> JOIN(register_ ## refiner, t)(        \
+    id,                                                                                          \
+    [](const HypernodeID num_hypernodes, const HyperedgeID num_hyperedges,                       \
+       const Context& context, gain_cache_t gain_cache) -> IRefiner* {                           \
+    return new refiner(num_hypernodes, num_hyperedges, context, gain_cache);                     \
   })
 
 #define REGISTER_DISPATCHED_FM_REFINER(id, dispatcher, ...)                                            \
   static kahypar::meta::Registrar<FMFactory> register_ ## dispatcher(                                  \
     id,                                                                                                \
-    [](const HypernodeID num_hypernodes, const HyperedgeID num_hyperedges, const Context& context) {   \
+    [](const HypernodeID num_hypernodes, const HyperedgeID num_hyperedges,                             \
+       const Context& context, gain_cache_t gain_cache) {                                              \
     return dispatcher::create(                                                                         \
-      std::forward_as_tuple(num_hypernodes, num_hyperedges, context),                                  \
+      std::forward_as_tuple(num_hypernodes, num_hyperedges, context, gain_cache),                      \
       __VA_ARGS__                                                                                      \
       );                                                                                               \
   })
 
-#define REGISTER_FM_REFINER(id, refiner, t)                                                                        \
-  static kahypar::meta::Registrar<FMFactory> JOIN(register_ ## refiner, t)(                                        \
-    id,                                                                                                            \
-    [](const HypernodeID num_hypernodes, const HyperedgeID num_hyperedges, const Context& context) -> IRefiner* {  \
-    return new refiner(num_hypernodes, num_hyperedges, context);                                                   \
+#define REGISTER_FM_REFINER(id, refiner, t)                                                      \
+  static kahypar::meta::Registrar<FMFactory> JOIN(register_ ## refiner, t)(                      \
+    id,                                                                                          \
+    [](const HypernodeID num_hypernodes, const HyperedgeID num_hyperedges,                       \
+       const Context& context, gain_cache_t gain_cache) -> IRefiner* {                           \
+    return new refiner(num_hypernodes, num_hyperedges, context, gain_cache);                     \
   })
 
 #define REGISTER_DISPATCHED_FLOW_SCHEDULER(id, dispatcher, ...)                                        \
   static kahypar::meta::Registrar<FlowSchedulerFactory> register_ ## dispatcher(                       \
     id,                                                                                                \
-    [](const HypernodeID num_hypernodes, const HyperedgeID num_hyperedges, const Context& context) {   \
+    [](const HypernodeID num_hypernodes, const HyperedgeID num_hyperedges,                             \
+       const Context& context, gain_cache_t gain_cache) {                                              \
     return dispatcher::create(                                                                         \
-      std::forward_as_tuple(num_hypernodes, num_hyperedges, context),                                  \
+      std::forward_as_tuple(num_hypernodes, num_hyperedges, context, gain_cache),                      \
       __VA_ARGS__                                                                                      \
       );                                                                                               \
   })
 
-#define REGISTER_FLOW_SCHEDULER(id, refiner, t)                                                                    \
-  static kahypar::meta::Registrar<FlowSchedulerFactory> JOIN(register_ ## refiner, t)(                             \
-    id,                                                                                                            \
-    [](const HypernodeID num_hypernodes, const HyperedgeID num_hyperedges, const Context& context) -> IRefiner* {  \
-    return new refiner(num_hypernodes, num_hyperedges, context);                                                   \
+#define REGISTER_FLOW_SCHEDULER(id, refiner, t)                                                  \
+  static kahypar::meta::Registrar<FlowSchedulerFactory> JOIN(register_ ## refiner, t)(           \
+    id,                                                                                          \
+    [](const HypernodeID num_hypernodes, const HyperedgeID num_hyperedges,                       \
+       const Context& context, gain_cache_t gain_cache) -> IRefiner* {                           \
+    return new refiner(num_hypernodes, num_hyperedges, context, gain_cache);                     \
   })
 
 #define REGISTER_DISPATCHED_FLOW_REFINER(id, dispatcher, ...)                                          \

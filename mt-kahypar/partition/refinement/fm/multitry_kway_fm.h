@@ -33,8 +33,7 @@
 #include "mt-kahypar/partition/refinement/i_refiner.h"
 #include "mt-kahypar/partition/refinement/fm/localized_kway_fm_core.h"
 #include "mt-kahypar/partition/refinement/fm/global_rollback.h"
-
-
+#include "mt-kahypar/partition/refinement/fm/gain_cache/gain_cache_types.h"
 
 namespace mt_kahypar {
 
@@ -54,14 +53,15 @@ class MultiTryKWayFM final : public IRefiner {
 
   MultiTryKWayFM(const HypernodeID num_hypernodes,
                  const HyperedgeID num_hyperedges,
-                 const Context& c) :
+                 const Context& c,
+                 gain_cache_t g_cache) :
     initial_num_nodes(num_hypernodes),
     context(c),
+    gain_cache(AbstractGainCache::cast<GainCache>(g_cache)),
     current_k(c.partition.k),
     sharedData(num_hypernodes),
     globalRollback(num_hyperedges, context),
-    ets_fm([&] { return constructLocalizedKWayFMSearch(); })
-  {
+    ets_fm([&] { return constructLocalizedKWayFMSearch(); }) {
     if (context.refinement.fm.obey_minimal_parallelism) {
       sharedData.finishedTasksLimit = std::min(UL(8), context.shared_memory.num_threads);
     }
@@ -98,6 +98,7 @@ class MultiTryKWayFM final : public IRefiner {
   bool enable_light_fm = false;
   const HypernodeID initial_num_nodes;
   const Context& context;
+  GainCache& gain_cache;
   PartitionID current_k;
   FMSharedData sharedData;
   Rollback globalRollback;

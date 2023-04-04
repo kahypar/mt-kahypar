@@ -33,7 +33,9 @@
 #include "mt-kahypar/partition/coarsening/policies/rating_heavy_node_penalty_policy.h"
 #include "mt-kahypar/partition/coarsening/policies/rating_score_policy.h"
 #include "mt-kahypar/partition/refinement/fm/gain_cache/km1_gain_cache.h"
+#ifdef KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES
 #include "mt-kahypar/partition/refinement/fm/gain_cache/cut_gain_cache_for_graphs.h"
+#endif
 #include "mt-kahypar/partition/refinement/fm/gain_cache/do_nothing_gain_cache.h"
 #include "mt-kahypar/partition/context_enum_classes.h"
 
