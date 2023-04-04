@@ -53,7 +53,7 @@ namespace {
   }
 }
 
-template<typename TypeTraits>
+template<typename TypeTraits, typename GainCache>
 class FlowRefinementScheduler final : public IRefiner {
 
   static constexpr bool debug = false;

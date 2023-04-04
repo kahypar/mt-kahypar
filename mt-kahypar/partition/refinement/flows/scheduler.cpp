@@ -28,14 +28,15 @@
 
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/metrics.h"
+#include "mt-kahypar/partition/refinement/fm/gain_cache/gain_cache_types.h"
 #include "mt-kahypar/io/partitioning_output.h"
 #include "mt-kahypar/utils/utilities.h"
 #include "mt-kahypar/utils/cast.h"
 
 namespace mt_kahypar {
 
-template<typename TypeTraits>
-void FlowRefinementScheduler<TypeTraits>::RefinementStats::update_global_stats() {
+template<typename TypeTraits, typename GainCache>
+void FlowRefinementScheduler<TypeTraits, GainCache>::RefinementStats::update_global_stats() {
   _stats.update_stat("num_flow_refinements",
     num_refinements.load(std::memory_order_relaxed));
   _stats.update_stat("num_flow_improvement",
@@ -56,8 +57,8 @@ void FlowRefinementScheduler<TypeTraits>::RefinementStats::update_global_stats()
     total_improvement.load(std::memory_order_relaxed));
 }
 
-template<typename TypeTraits>
-bool FlowRefinementScheduler<TypeTraits>::refineImpl(
+template<typename TypeTraits, typename GainCache>
+bool FlowRefinementScheduler<TypeTraits, GainCache>::refineImpl(
                 mt_kahypar_partitioned_hypergraph_t& hypergraph,
                 const parallel::scalable_vector<HypernodeID>&,
                 Metrics& best_metrics,
@@ -155,8 +156,8 @@ bool FlowRefinementScheduler<TypeTraits>::refineImpl(
   return overall_delta.load(std::memory_order_relaxed) < 0;
 }
 
-template<typename TypeTraits>
-void FlowRefinementScheduler<TypeTraits>::initializeImpl(mt_kahypar_partitioned_hypergraph_t& hypergraph)  {
+template<typename TypeTraits, typename GainCache>
+void FlowRefinementScheduler<TypeTraits, GainCache>::initializeImpl(mt_kahypar_partitioned_hypergraph_t& hypergraph)  {
   PartitionedHypergraph& phg = utils::cast<PartitionedHypergraph>(hypergraph);
   _phg = &phg;
   resizeDataStructuresForCurrentK();
@@ -180,8 +181,8 @@ void FlowRefinementScheduler<TypeTraits>::initializeImpl(mt_kahypar_partitioned_
   _refiner.initialize(max_parallism);
 }
 
-template<typename TypeTraits>
-void FlowRefinementScheduler<TypeTraits>::resizeDataStructuresForCurrentK() {
+template<typename TypeTraits, typename GainCache>
+void FlowRefinementScheduler<TypeTraits, GainCache>::resizeDataStructuresForCurrentK() {
   if ( _current_k != _context.partition.k ) {
     _current_k = _context.partition.k;
     // Note that in general changing the number of blocks should not resize
@@ -269,9 +270,9 @@ void addCutHyperedgesToQuotientGraph(QuotientGraph<TypeTraits>& quotient_graph,
 
 } // namespace
 
-template<typename TypeTraits>
-HyperedgeWeight FlowRefinementScheduler<TypeTraits>::applyMoves(const SearchID search_id,
-                                                                MoveSequence& sequence) {
+template<typename TypeTraits, typename GainCache>
+HyperedgeWeight FlowRefinementScheduler<TypeTraits, GainCache>::applyMoves(const SearchID search_id,
+                                                                           MoveSequence& sequence) {
   unused(search_id);
   ASSERT(_phg);
 
@@ -370,9 +371,10 @@ HyperedgeWeight FlowRefinementScheduler<TypeTraits>::applyMoves(const SearchID s
   return improvement;
 }
 
-template<typename TypeTraits>
-typename FlowRefinementScheduler<TypeTraits>::PartWeightUpdateResult FlowRefinementScheduler<TypeTraits>::partWeightUpdate(
-  const vec<HypernodeWeight>& part_weight_deltas, const bool rollback) {
+template<typename TypeTraits, typename GainCache>
+typename FlowRefinementScheduler<TypeTraits, GainCache>::PartWeightUpdateResult
+FlowRefinementScheduler<TypeTraits, GainCache>::partWeightUpdate(const vec<HypernodeWeight>& part_weight_deltas,
+                                                                 const bool rollback) {
   const HypernodeWeight multiplier = rollback ? -1 : 1;
   PartWeightUpdateResult res;
   _part_weights_lock.lock();
@@ -399,6 +401,10 @@ typename FlowRefinementScheduler<TypeTraits>::PartWeightUpdateResult FlowRefinem
   return res;
 }
 
-INSTANTIATE_CLASS_WITH_TYPE_TRAITS(FlowRefinementScheduler)
+namespace {
+#define FLOW_REFINEMENT_SCHEDULER(X, Y) FlowRefinementScheduler<X, Y>
+}
+
+INSTANTIATE_CLASS_WITH_TYPE_TRAITS_AND_GAIN_CACHE(FLOW_REFINEMENT_SCHEDULER)
 
 }

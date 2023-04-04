@@ -39,7 +39,7 @@
 
 
 namespace mt_kahypar {
-template <typename TypeTraits, template <typename> class GainPolicy>
+template <typename TypeTraits, typename GainCache, template <typename> class GainPolicy>
 class LabelPropagationRefiner final : public IRefiner {
  private:
   using Hypergraph = typename TypeTraits::Hypergraph;
@@ -193,8 +193,8 @@ class LabelPropagationRefiner final : public IRefiner {
   kahypar::ds::FastResetFlagArray<> _visited_he;
 };
 
-template<typename TypeTraits>
-using LabelPropagationKm1Refiner = LabelPropagationRefiner<TypeTraits, Km1Policy>;
-template<typename TypeTraits>
-using LabelPropagationCutRefiner = LabelPropagationRefiner<TypeTraits, CutPolicy>;
+template<typename TypeTraits, typename GainCache>
+using LabelPropagationKm1Refiner = LabelPropagationRefiner<TypeTraits, GainCache, Km1Policy>;
+template<typename TypeTraits, typename GainCache>
+using LabelPropagationCutRefiner = LabelPropagationRefiner<TypeTraits, GainCache, CutPolicy>;
 }  // namespace kahypar

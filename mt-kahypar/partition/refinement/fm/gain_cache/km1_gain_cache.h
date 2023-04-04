@@ -39,7 +39,6 @@
 #include "mt-kahypar/macros.h"
 
 namespace mt_kahypar {
-namespace ds {
 
 class Km1GainCache final : public kahypar::meta::PolicyBase {
 
@@ -433,8 +432,7 @@ class Km1GainCache final : public kahypar::meta::PolicyBase {
   // !            = b(u, V_j) - p(u)
   // ! We call b(u, V_j) the benefit term and p(u) the penalty term. Our gain cache stores and maintains these
   // ! entries for each node and block. Thus, the gain cache stores k + 1 entries per node.
-  Array< CAtomic<HyperedgeWeight> > _gain_cache;
+  ds::Array< CAtomic<HyperedgeWeight> > _gain_cache;
 };
 
-}  // namespace ds
 }  // namespace mt_kahypar

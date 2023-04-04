@@ -28,18 +28,11 @@
 
 #include "kahypar/meta/policy_registry.h"
 
-#include "tbb/parallel_for.h"
-#include "tbb/enumerable_thread_specific.h"
-#include "tbb/concurrent_vector.h"
-
 #include "mt-kahypar/partition/context_enum_classes.h"
 #include "mt-kahypar/datastructures/hypergraph_common.h"
-#include "mt-kahypar/datastructures/array.h"
-#include "mt-kahypar/parallel/atomic_wrapper.h"
 #include "mt-kahypar/macros.h"
 
 namespace mt_kahypar {
-namespace ds {
 
 class DoNothingGainCache final : public kahypar::meta::PolicyBase {
 
@@ -147,5 +140,4 @@ class DoNothingGainCache final : public kahypar::meta::PolicyBase {
 
 };
 
-}  // namespace ds
 }  // namespace mt_kahypar

@@ -144,6 +144,14 @@ using TypeTraitsList = kahypar::meta::Typelist<StaticHypergraphTypeTraits
   ENABLE_GRAPHS(template class C<StaticGraphTypeTraits>;)                   \
   ENABLE_N_LEVEL_GRAPHS(template class C<DynamicGraphTypeTraits>;)
 
+#define INSTANTIATE_CLASS_MACRO_WITH_TYPE_TRAITS_AND_OTHER_CLASS(C, Other)     \
+  template class C(StaticHypergraphTypeTraits, Other);                         \
+  ENABLE_N_LEVEL(template class C(DynamicHypergraphTypeTraits, Other);)        \
+  ENABLE_LARGE_K(template class C(LargeKHypergraphTypeTraits, Other);)         \
+  ENABLE_GRAPHS(template class C(StaticGraphTypeTraits, Other);)               \
+  ENABLE_N_LEVEL_GRAPHS(template class C(DynamicGraphTypeTraits, Other);)
+
+
 using HighResClockTimepoint = std::chrono::time_point<std::chrono::high_resolution_clock>;
 
 }  // namespace mt_kahypar

@@ -31,6 +31,7 @@
 
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/metrics.h"
+#include "mt-kahypar/partition/refinement/fm/gain_cache/gain_cache_types.h"
 #include "mt-kahypar/utils/randomize.h"
 #include "mt-kahypar/utils/utilities.h"
 #include "mt-kahypar/utils/timer.h"
@@ -38,8 +39,8 @@
 
 namespace mt_kahypar {
 
-  template <typename TypeTraits, template <typename> class GainPolicy>
-  bool LabelPropagationRefiner<TypeTraits, GainPolicy>::refineImpl(
+  template <typename TypeTraits, typename GainCache, template <typename> class GainPolicy>
+  bool LabelPropagationRefiner<TypeTraits, GainCache, GainPolicy>::refineImpl(
                   mt_kahypar_partitioned_hypergraph_t& phg,
                   const parallel::scalable_vector<HypernodeID>& refinement_nodes,
                   Metrics& best_metrics,
@@ -78,8 +79,8 @@ namespace mt_kahypar {
   }
 
 
-  template <typename TypeTraits, template <typename> class GainPolicy>
-  void LabelPropagationRefiner<TypeTraits, GainPolicy>::labelPropagation(PartitionedHypergraph& hypergraph) {
+  template <typename TypeTraits, typename GainCache, template <typename> class GainPolicy>
+  void LabelPropagationRefiner<TypeTraits, GainCache, GainPolicy>::labelPropagation(PartitionedHypergraph& hypergraph) {
     NextActiveNodes next_active_nodes;
     for (size_t i = 0; i < _context.refinement.label_propagation.maximum_iterations; ++i) {
       DBG << "Starting Label Propagation Round" << i;
@@ -102,8 +103,8 @@ namespace mt_kahypar {
     }
   }
 
-  template <typename TypeTraits, template <typename> class GainPolicy>
-  bool LabelPropagationRefiner<TypeTraits, GainPolicy>::labelPropagationRound(
+  template <typename TypeTraits, typename GainCache, template <typename> class GainPolicy>
+  bool LabelPropagationRefiner<TypeTraits, GainCache, GainPolicy>::labelPropagationRound(
                               PartitionedHypergraph& hypergraph,
                               NextActiveNodes& next_active_nodes) {
     _visited_he.reset();
@@ -168,8 +169,8 @@ namespace mt_kahypar {
     return converged;
   }
 
-  template <typename TypeTraits, template <typename> class GainPolicy>
-  void LabelPropagationRefiner<TypeTraits, GainPolicy>::initializeImpl(mt_kahypar_partitioned_hypergraph_t& phg) {
+  template <typename TypeTraits, typename GainCache, template <typename> class GainPolicy>
+  void LabelPropagationRefiner<TypeTraits, GainCache, GainPolicy>::initializeImpl(mt_kahypar_partitioned_hypergraph_t& phg) {
     PartitionedHypergraph& hypergraph = utils::cast<PartitionedHypergraph>(phg);
     ActiveNodes tmp_active_nodes;
     _active_nodes = std::move(tmp_active_nodes);
@@ -196,8 +197,8 @@ namespace mt_kahypar {
     }
   }
 
-  template <typename TypeTraits, template <typename> class GainPolicy>
-  void LabelPropagationRefiner<TypeTraits, GainPolicy>::initializeActiveNodes(
+  template <typename TypeTraits, typename GainCache, template <typename> class GainPolicy>
+  void LabelPropagationRefiner<TypeTraits, GainCache, GainPolicy>::initializeActiveNodes(
                               PartitionedHypergraph& hypergraph,
                               const parallel::scalable_vector<HypernodeID>& refinement_nodes) {
     ActiveNodes tmp_active_nodes;
@@ -239,11 +240,11 @@ namespace mt_kahypar {
   }
 
   namespace {
-  #define KM1_LABEL_PROPAGATION_REFINER(X) LabelPropagationRefiner<X, Km1Policy>
-  #define CUT_LABEL_PROPAGATION_REFINER(X) LabelPropagationRefiner<X, CutPolicy>
+  #define KM1_LABEL_PROPAGATION_REFINER(X, Y) LabelPropagationRefiner<X, Y, Km1Policy>
+  #define CUT_LABEL_PROPAGATION_REFINER(X, Y) LabelPropagationRefiner<X, Y, CutPolicy>
   }
 
   // explicitly instantiate so the compiler can generate them when compiling this cpp file
-  INSTANTIATE_CLASS_MACRO_WITH_TYPE_TRAITS(KM1_LABEL_PROPAGATION_REFINER)
-  INSTANTIATE_CLASS_MACRO_WITH_TYPE_TRAITS(CUT_LABEL_PROPAGATION_REFINER)
+  INSTANTIATE_CLASS_WITH_TYPE_TRAITS_AND_GAIN_CACHE(KM1_LABEL_PROPAGATION_REFINER)
+  INSTANTIATE_CLASS_WITH_TYPE_TRAITS_AND_GAIN_CACHE(CUT_LABEL_PROPAGATION_REFINER)
 }

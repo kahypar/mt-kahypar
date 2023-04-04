@@ -30,13 +30,14 @@
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/utils/utilities.h"
 #include "mt-kahypar/partition/metrics.h"
+#include "mt-kahypar/partition/refinement/fm/gain_cache/gain_cache_types.h"
 #include "mt-kahypar/utils/memory_tree.h"
 #include "mt-kahypar/utils/cast.h"
 
 namespace mt_kahypar {
 
-  template<typename TypeTraits>
-  bool MultiTryKWayFM<TypeTraits>::refineImpl(
+  template<typename TypeTraits, typename GainCache>
+  bool MultiTryKWayFM<TypeTraits, GainCache>::refineImpl(
               mt_kahypar_partitioned_hypergraph_t& hypergraph,
               const vec<HypernodeID>& refinement_nodes,
               Metrics& metrics,
@@ -156,9 +157,9 @@ namespace mt_kahypar {
     return overall_improvement > 0;
   }
 
-  template<typename TypeTraits>
-  void MultiTryKWayFM<TypeTraits>::roundInitialization(PartitionedHypergraph& phg,
-                                                       const vec<HypernodeID>& refinement_nodes) {
+  template<typename TypeTraits, typename GainCache>
+  void MultiTryKWayFM<TypeTraits, GainCache>::roundInitialization(PartitionedHypergraph& phg,
+                                                                  const vec<HypernodeID>& refinement_nodes) {
     // clear border nodes
     sharedData.refinementNodes.clear();
 
@@ -206,8 +207,8 @@ namespace mt_kahypar {
   }
 
 
-  template<typename TypeTraits>
-  void MultiTryKWayFM<TypeTraits>::initializeImpl(mt_kahypar_partitioned_hypergraph_t& hypergraph) {
+  template<typename TypeTraits, typename GainCache>
+  void MultiTryKWayFM<TypeTraits, GainCache>::initializeImpl(mt_kahypar_partitioned_hypergraph_t& hypergraph) {
     PartitionedHypergraph& phg = utils::cast<PartitionedHypergraph>(hypergraph);
 
     if (!phg.isGainCacheInitialized()) {
@@ -217,8 +218,8 @@ namespace mt_kahypar {
     is_initialized = true;
   }
 
-  template<typename TypeTraits>
-  void MultiTryKWayFM<TypeTraits>::resizeDataStructuresForCurrentK() {
+  template<typename TypeTraits, typename GainCache>
+  void MultiTryKWayFM<TypeTraits, GainCache>::resizeDataStructuresForCurrentK() {
     // If the number of blocks changes, we resize data structures
     // (can happen during deep multilevel partitioning)
     if ( current_k != context.partition.k ) {
@@ -234,8 +235,8 @@ namespace mt_kahypar {
     }
   }
 
-  template<typename TypeTraits>
-  void MultiTryKWayFM<TypeTraits>::printMemoryConsumption() {
+  template<typename TypeTraits, typename GainCache>
+  void MultiTryKWayFM<TypeTraits, GainCache>::printMemoryConsumption() {
     utils::MemoryTreeNode fm_memory("Multitry k-Way FM", utils::OutputType::MEGABYTE);
 
     for (const auto& fm : ets_fm) {
@@ -248,6 +249,10 @@ namespace mt_kahypar {
     LOG << fm_memory;
   }
 
-  INSTANTIATE_CLASS_WITH_TYPE_TRAITS(MultiTryKWayFM)
+  namespace {
+  #define MULTITRY_KWAY_FM(X, Y) MultiTryKWayFM<X, Y>
+  }
+
+  INSTANTIATE_CLASS_WITH_TYPE_TRAITS_AND_FM_GAIN_CACHE(MULTITRY_KWAY_FM)
 
 } // namespace mt_kahypar

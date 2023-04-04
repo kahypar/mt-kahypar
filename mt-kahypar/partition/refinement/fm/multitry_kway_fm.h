@@ -38,11 +38,13 @@
 
 namespace mt_kahypar {
 
-template<typename TypeTraits>
+template<typename TypeTraits, typename GainCache>
 class MultiTryKWayFM final : public IRefiner {
 
   static constexpr bool debug = false;
   static constexpr bool enable_heavy_assert = false;
+
+  static_assert(GainCache::TYPE != FMGainCacheType::none);
 
   using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
   using LocalizedFMSearch = LocalizedKWayFM<TypeTraits>;

@@ -39,7 +39,6 @@
 #include "mt-kahypar/macros.h"
 
 namespace mt_kahypar {
-namespace ds {
 
 class GraphCutGainCache final : public kahypar::meta::PolicyBase {
 
@@ -260,8 +259,7 @@ class GraphCutGainCache final : public kahypar::meta::PolicyBase {
   // ! Here, w(u, V') is the weight of all edges connecting u to block V'.
   // ! We call b(u, V_j) the benefit term and p(u) the penalty term. Our gain cache stores and maintains these
   // ! entries for each node and block. Thus, the gain cache stores k entries per node (since b(u, V_i) = p(u)).
-  Array< CAtomic<HyperedgeWeight> > _gain_cache;
+  ds::Array< CAtomic<HyperedgeWeight> > _gain_cache;
 };
 
-}  // namespace ds
 }  // namespace mt_kahypar
