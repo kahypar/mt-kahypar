@@ -590,10 +590,6 @@ private:
     return _gain_cache.benefitTerm(u, p);
   }
 
-  void initializeGainCacheEntry(const HypernodeID u, parallel::scalable_vector<Gain>& benefit_aggregator) {
-    _gain_cache.initializeGainCacheEntryForNode(*this, u, benefit_aggregator);
-  }
-
   HyperedgeWeight km1Gain(const HypernodeID u, PartitionID from, PartitionID to) const {
     ASSERT(from == partID(u), "While gain computation works for from != partID(u), such a query makes no sense");
     ASSERT(from != to, "The gain computation doesn't work for from = to");
@@ -635,11 +631,6 @@ private:
       _part_weights[ partID(u) ] += nodeWeight(u);
     }
   }
-
-  void allocateGainTableIfNecessary() {
-    _gain_cache.allocateGainTableIfNecessary(_top_level_num_nodes, _k);
-  }
-
 
   // ! Only for testing
   HyperedgeWeight moveFromPenaltyRecomputed(const HypernodeID u) const {

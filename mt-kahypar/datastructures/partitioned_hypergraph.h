@@ -632,11 +632,6 @@ private:
     return _gain_cache.gain(u, kInvalidPartition, to);
   }
 
-  void allocateGainTableIfNecessary() {
-    _gain_cache.allocateGainTableIfNecessary(_top_level_num_nodes, _k);
-  }
-
-
   // ! The move from penalty term stores weight of all incident edges of u for which
   // ! we cannot reduce their connecitivity when u is moved out of its block.
   // ! More formally, p(u) := w({ e \in I(u) | pin_count(e, partID(u)) > 1 })
@@ -668,10 +663,6 @@ private:
 
   bool isGainCacheInitialized() const {
     return _gain_cache.isInitialized();
-  }
-
-  void initializeGainCacheEntry(const HypernodeID u, vec<Gain>& benefit_aggregator) {
-    _gain_cache.initializeGainCacheEntryForNode(*this, u, benefit_aggregator);
   }
 
   // ! Initialize gain cache

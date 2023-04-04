@@ -71,22 +71,13 @@ class GraphCutGainCache {
     return _gain_cache.size();
   }
 
-  // ! Allocates the memory required to store the gain cache
-  void allocateGainTableIfNecessary(const HypernodeID num_nodes,
-                                    const PartitionID k) {
-    if (_gain_cache.size() == 0) {
-      _k = k;
-      _gain_cache.resize("Refinement", "incident_weight_in_part", num_nodes * size_t(_k), true);
-    }
-  }
-
   // ! Initializes all gain cache entries
   template<typename PartitionedGraph>
   void initializeGainCache(const PartitionedGraph& partitioned_graph,
                            const HypernodeID initial_num_nodes) {
     ASSERT(!_is_initialized, "Gain cache is already initialized");
     ASSERT(_k == kInvalidPartition || _k == partitioned_graph.k(), "Gain cache was already initialized for a different k");
-    allocateGainTableIfNecessary(initial_num_nodes, partitioned_graph.k());
+    allocateGainTable(initial_num_nodes, partitioned_graph.k());
 
     // assert that current gain values are zero
     ASSERT(!_is_initialized &&
@@ -106,26 +97,6 @@ class GraphCutGainCache {
     _is_initialized = true;
   }
 
-  // ! Initializes the benefit and penalty terms for a node u
-  template<typename PartitionedGraph>
-  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
-  void initializeGainCacheEntryForNode(const PartitionedGraph& partitioned_graph,
-                                       const HypernodeID u,
-                                       vec<Gain>& benefit_aggregator) {
-    for (HyperedgeID e : partitioned_graph.incidentEdges(u)) {
-      if (!partitioned_graph.isSinglePin(e)) {
-        const PartitionID block_of_target = partitioned_graph.partID(partitioned_graph.edgeTarget(e));
-        benefit_aggregator[block_of_target] += partitioned_graph.edgeWeight(e);
-      }
-    }
-
-    for (PartitionID i = 0; i < _k; ++i) {
-      _gain_cache[incident_weight_index(u, i)].store(
-        benefit_aggregator[i], std::memory_order_relaxed);
-      benefit_aggregator[i] = 0;
-    }
-  }
-
   // ####################### Gain Computation #######################
 
   // ! Returns the penalty term of node u.
@@ -139,24 +110,9 @@ class GraphCutGainCache {
 
   template<typename PartitionedGraph>
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
-  HyperedgeWeight recomputePenaltyTerm(const PartitionedGraph& partitioned_graph,
-                                       const HypernodeID u) const {
-    PartitionID block_of_u = partitioned_graph.partID(u);
-    HyperedgeWeight penalty = 0;
-    for (HyperedgeID e : partitioned_graph.incidentEdges(u)) {
-      if (!partitioned_graph.isSinglePin(e) &&
-          partitioned_graph.partID(partitioned_graph.edgeTarget(e)) == block_of_u) {
-        penalty += partitioned_graph.edgeWeight(e);
-      }
-    }
-    return penalty;
-  }
-
-  template<typename PartitionedGraph>
-  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
   void recomputePenaltyTermEntry(const PartitionedGraph& partitioned_graph,
                                  const HypernodeID u) {
-    // Do nothing term (only relevant for hypergraph gain cache)
+    // Do nothing here (only relevant for hypergraph gain cache)
   }
 
   // ! Returns the benefit term for moving node u to block to.
@@ -165,21 +121,6 @@ class GraphCutGainCache {
   HyperedgeWeight benefitTerm(const HypernodeID u, const PartitionID to) const {
     ASSERT(_is_initialized, "Gain cache is not initialized");
     return _gain_cache[incident_weight_index(u, to)].load(std::memory_order_relaxed);
-  }
-
-  template<typename PartitionedGraph>
-  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
-  HyperedgeWeight recomputeBenefitTerm(const PartitionedGraph& partitioned_graph,
-                                       const HypernodeID u,
-                                       const PartitionID to) const {
-    HyperedgeWeight benefit = 0;
-    for (HyperedgeID e : partitioned_graph.incidentEdges(u)) {
-      if (!partitioned_graph.isSinglePin(e) &&
-          partitioned_graph.partID(partitioned_graph.edgeTarget(e)) == to) {
-        benefit += partitioned_graph.edgeWeight(e);
-      }
-    }
-    return benefit;
   }
 
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
@@ -250,13 +191,43 @@ class GraphCutGainCache {
     }
   }
 
-  // ! This function is called after restoring a single-pin hyperedge. The function assumes that
-  // ! u is the only pin of the corresponding hyperedge, while block_of_u is its corresponding block ID.
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
-  void restoreSinglePinHyperedge(const HypernodeID u,
-                                 const PartitionID block_of_u,
-                                 const HyperedgeWeight weight_of_he) {
+  void restoreSinglePinHyperedge(const HypernodeID,
+                                 const PartitionID,
+                                 const HyperedgeWeight) {
+    // Do nothing here (only relevant for hypergraph gain cache)
+  }
 
+  // ####################### Only for Testing #######################
+
+  template<typename PartitionedGraph>
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
+  HyperedgeWeight recomputePenaltyTerm(const PartitionedGraph& partitioned_graph,
+                                       const HypernodeID u) const {
+    PartitionID block_of_u = partitioned_graph.partID(u);
+    HyperedgeWeight penalty = 0;
+    for (HyperedgeID e : partitioned_graph.incidentEdges(u)) {
+      if (!partitioned_graph.isSinglePin(e) &&
+          partitioned_graph.partID(partitioned_graph.edgeTarget(e)) == block_of_u) {
+        penalty += partitioned_graph.edgeWeight(e);
+      }
+    }
+    return penalty;
+  }
+
+  template<typename PartitionedGraph>
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
+  HyperedgeWeight recomputeBenefitTerm(const PartitionedGraph& partitioned_graph,
+                                       const HypernodeID u,
+                                       const PartitionID to) const {
+    HyperedgeWeight benefit = 0;
+    for (HyperedgeID e : partitioned_graph.incidentEdges(u)) {
+      if (!partitioned_graph.isSinglePin(e) &&
+          partitioned_graph.partID(partitioned_graph.edgeTarget(e)) == to) {
+        benefit += partitioned_graph.edgeWeight(e);
+      }
+    }
+    return benefit;
   }
 
  private:
@@ -265,6 +236,14 @@ class GraphCutGainCache {
     return size_t(u) * _k  + p;
   }
 
+  // ! Allocates the memory required to store the gain cache
+  void allocateGainTable(const HypernodeID num_nodes,
+                         const PartitionID k) {
+    if (_gain_cache.size() == 0) {
+      _k = k;
+      _gain_cache.resize("Refinement", "incident_weight_in_part", num_nodes * size_t(_k), true);
+    }
+  }
 
   // ! Indicate whether or not the gain cache is initialized
   bool _is_initialized;
