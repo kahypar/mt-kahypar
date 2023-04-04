@@ -32,6 +32,7 @@
 #include "tbb/enumerable_thread_specific.h"
 #include "tbb/concurrent_vector.h"
 
+#include "mt-kahypar/partition/context_enum_classes.h"
 #include "mt-kahypar/datastructures/hypergraph_common.h"
 #include "mt-kahypar/datastructures/array.h"
 #include "mt-kahypar/parallel/atomic_wrapper.h"
@@ -42,8 +43,10 @@ namespace ds {
 
 class Km1GainCache final : public kahypar::meta::PolicyBase {
 
- public:
   static constexpr HyperedgeID HIGH_DEGREE_THRESHOLD = ID(100000);
+
+ public:
+  static constexpr FMGainCacheType TYPE = FMGainCacheType::km1_gain_cache;
 
   Km1GainCache() :
     _is_initialized(false),

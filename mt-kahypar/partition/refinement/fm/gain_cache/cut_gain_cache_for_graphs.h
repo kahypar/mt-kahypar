@@ -32,6 +32,7 @@
 #include "tbb/enumerable_thread_specific.h"
 #include "tbb/concurrent_vector.h"
 
+#include "mt-kahypar/partition/context_enum_classes.h"
 #include "mt-kahypar/datastructures/hypergraph_common.h"
 #include "mt-kahypar/datastructures/array.h"
 #include "mt-kahypar/parallel/atomic_wrapper.h"
@@ -43,7 +44,7 @@ namespace ds {
 class GraphCutGainCache final : public kahypar::meta::PolicyBase {
 
  public:
-  static constexpr HyperedgeID HIGH_DEGREE_THRESHOLD = ID(100000);
+  static constexpr FMGainCacheType TYPE = FMGainCacheType::cut_gain_cache_for_graphs;
 
   GraphCutGainCache() :
     _is_initialized(false),
