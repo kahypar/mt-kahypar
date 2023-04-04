@@ -35,8 +35,8 @@
 
 namespace mt_kahypar {
 
-  template<typename TypeTraits, typename FMStrategy>
-  bool MultiTryKWayFM<TypeTraits, FMStrategy>::refineImpl(
+  template<typename TypeTraits>
+  bool MultiTryKWayFM<TypeTraits>::refineImpl(
               mt_kahypar_partitioned_hypergraph_t& hypergraph,
               const vec<HypernodeID>& refinement_nodes,
               Metrics& metrics,
@@ -156,9 +156,9 @@ namespace mt_kahypar {
     return overall_improvement > 0;
   }
 
-  template<typename TypeTraits, typename FMStrategy>
-  void MultiTryKWayFM<TypeTraits, FMStrategy>::roundInitialization(PartitionedHypergraph& phg,
-                                                                   const vec<HypernodeID>& refinement_nodes) {
+  template<typename TypeTraits>
+  void MultiTryKWayFM<TypeTraits>::roundInitialization(PartitionedHypergraph& phg,
+                                                       const vec<HypernodeID>& refinement_nodes) {
     // clear border nodes
     sharedData.refinementNodes.clear();
 
@@ -206,35 +206,27 @@ namespace mt_kahypar {
   }
 
 
-  template<typename TypeTraits, typename FMStrategy>
-  void MultiTryKWayFM<TypeTraits, FMStrategy>::initializeImpl(mt_kahypar_partitioned_hypergraph_t& hypergraph) {
+  template<typename TypeTraits>
+  void MultiTryKWayFM<TypeTraits>::initializeImpl(mt_kahypar_partitioned_hypergraph_t& hypergraph) {
     PartitionedHypergraph& phg = utils::cast<PartitionedHypergraph>(hypergraph);
-    if (FMStrategy::uses_gain_cache) {
-      phg.allocateGainTableIfNecessary();
-    }
 
-    if (!phg.isGainCacheInitialized() && FMStrategy::maintain_gain_cache_between_rounds) {
+    if (!phg.isGainCacheInitialized()) {
       phg.initializeGainCache();
     }
 
     is_initialized = true;
   }
 
-  template<typename TypeTraits, typename FMStrategy>
-  void MultiTryKWayFM<TypeTraits, FMStrategy>::resizeDataStructuresForCurrentK() {
+  template<typename TypeTraits>
+  void MultiTryKWayFM<TypeTraits>::resizeDataStructuresForCurrentK() {
     // If the number of blocks changes, we resize data structures
     // (can happen during deep multilevel partitioning)
     if ( current_k != context.partition.k ) {
       current_k = context.partition.k;
-      // Note that we must change the number of blocks in the shared data before
-      // changing the number of blocks in the localized fm searches as this call
-      // could resize the vertex PQ handles which must be updated then in the
-      // localized FM searches.
-      // Moreover, note that in general changing the number of blocks in the shared
-      // data and global rollback data structure should not resize any data structure
+      // Note that in general changing the number of blocks in the
+      // global rollback data structure should not resize any data structure
       // as we initialize them with the final number of blocks. This is just a fallback
       // if someone changes this in the future.
-      sharedData.changeNumberOfBlocks(context.refinement.fm.algorithm, current_k);
       globalRollback.changeNumberOfBlocks(current_k);
       for ( auto& localized_fm : ets_fm ) {
         localized_fm.changeNumberOfBlocks(current_k);
@@ -242,8 +234,8 @@ namespace mt_kahypar {
     }
   }
 
-  template<typename TypeTraits, typename FMStrategy>
-  void MultiTryKWayFM<TypeTraits, FMStrategy>::printMemoryConsumption() {
+  template<typename TypeTraits>
+  void MultiTryKWayFM<TypeTraits>::printMemoryConsumption() {
     utils::MemoryTreeNode fm_memory("Multitry k-Way FM", utils::OutputType::MEGABYTE);
 
     for (const auto& fm : ets_fm) {
@@ -256,29 +248,6 @@ namespace mt_kahypar {
     LOG << fm_memory;
   }
 
+  INSTANTIATE_CLASS_WITH_TYPE_TRAITS(MultiTryKWayFM)
+
 } // namespace mt_kahypar
-
-#include "mt-kahypar/partition/refinement/fm/strategies/gain_cache_strategy.h"
-#ifdef KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES
-#include "mt-kahypar/partition/refinement/fm/strategies/gain_delta_strategy.h"
-#include "mt-kahypar/partition/refinement/fm/strategies/recompute_gain_strategy.h"
-#include "mt-kahypar/partition/refinement/fm/strategies/gain_cache_on_demand_strategy.h"
-#endif
-
-namespace mt_kahypar {
-  namespace {
-  #define MULTITRY_FM_GAIN_CACHE(X) MultiTryKWayFM<X, GainCacheStrategy>
-  #ifdef KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES
-  #define MULTITRY_FM_GAIN_DELTA(X) MultiTryKWayFM<X, GainDeltaStrategy>
-  #define MULTITRY_FM_GAIN_RECOMPUTE(X) MultiTryKWayFM<X, RecomputeGainStrategy>
-  #define MULTITRY_FM_GAIN_ON_DEMAND(X) MultiTryKWayFM<X, GainCacheOnDemandStrategy>
-  #endif
-  }
-
-  INSTANTIATE_CLASS_MACRO_WITH_TYPE_TRAITS(MULTITRY_FM_GAIN_CACHE)
-  #ifdef KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES
-  INSTANTIATE_CLASS_MACRO_WITH_TYPE_TRAITS(MULTITRY_FM_GAIN_DELTA)
-  INSTANTIATE_CLASS_MACRO_WITH_TYPE_TRAITS(MULTITRY_FM_GAIN_RECOMPUTE)
-  INSTANTIATE_CLASS_MACRO_WITH_TYPE_TRAITS(MULTITRY_FM_GAIN_ON_DEMAND)
-  #endif
-}

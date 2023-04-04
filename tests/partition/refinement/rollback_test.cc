@@ -76,9 +76,9 @@ TEST(RollbackTests, GainRecalculationAndRollsbackCorrectly) {
   context.refinement.fm.rollback_balance_violation_factor = 0.0;
 
 
-  FMSharedData sharedData(hg.initialNumNodes(), context);
+  FMSharedData sharedData(hg.initialNumNodes());
 
-  GlobalRollback<TypeTraits, true> grb(hg.initialNumEdges(), context);
+  GlobalRollback<TypeTraits> grb(hg.initialNumEdges(), context);
   auto performMove = [&](Move m) {
     if (phg.changeNodePartWithGainCacheUpdate(m.node, m.from, m.to)) {
       sharedData.moveTracker.insertMove(m);
@@ -131,9 +131,9 @@ TEST(RollbackTests, GainRecalculation2) {
   context.partition.max_part_weights = { std::numeric_limits<HypernodeWeight>::max(), std::numeric_limits<HypernodeWeight>::max()};
   context.refinement.fm.rollback_balance_violation_factor = 0.0;
 
-  FMSharedData sharedData(hg.initialNumNodes(), context);
+  FMSharedData sharedData(hg.initialNumNodes());
 
-  GlobalRollback<TypeTraits, true> grb(hg.initialNumEdges(), context);
+  GlobalRollback<TypeTraits> grb(hg.initialNumEdges(), context);
 
   auto performUpdates = [&](Move& m) {
    sharedData.moveTracker.insertMove(m);

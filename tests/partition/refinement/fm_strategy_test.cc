@@ -31,9 +31,6 @@
 #include "mt-kahypar/io/hypergraph_factory.h"
 
 #include "mt-kahypar/partition/refinement/fm/strategies/gain_cache_strategy.h"
-#include "mt-kahypar/partition/refinement/fm/strategies/gain_delta_strategy.h"
-#include "mt-kahypar/partition/refinement/fm/strategies/recompute_gain_strategy.h"
-#include "mt-kahypar/partition/refinement/fm/strategies/gain_cache_on_demand_strategy.h"
 
 
 using ::testing::Test;
@@ -83,89 +80,16 @@ TEST(StrategyTests, FindNextMove) {
   phg.initializeGainCache();
 
 
-  context.refinement.fm.algorithm = FMAlgorithm::fm_gain_delta; // use this one because it allocates the most memory in shared data!
+  context.refinement.fm.algorithm = FMAlgorithm::kway_fm;
 
-  FMSharedData sd(hg.initialNumNodes(), context);
+  FMSharedData sd(hg.initialNumNodes());
   FMStats fm_stats;
   fm_stats.moves = 1;
 
   GainCacheStrategy gain_caching(context, sd, fm_stats);
-  GainDeltaStrategy gain_deltas(context, sd, fm_stats);
-  RecomputeGainStrategy recompute_gain(context, sd, fm_stats);
-  GainCacheOnDemandStrategy gain_caching_on_demand(context, sd, fm_stats);
-
-  vec<Gain> gains_from_deltas = insertAndExtractAllMoves(gain_deltas, phg);
-  ASSERT_TRUE(std::is_sorted(gains_from_deltas.begin(), gains_from_deltas.end(), std::greater<Gain>()));
 
   vec<Gain> gains_cached = insertAndExtractAllMoves(gain_caching, phg);
   ASSERT_TRUE(std::is_sorted(gains_cached.begin(), gains_cached.end(), std::greater<Gain>()));
-  ASSERT_EQ(gains_from_deltas, gains_cached);
-
-  vec<Gain> gains_cached_on_demand = insertAndExtractAllMoves(gain_caching_on_demand, phg);
-  ASSERT_TRUE(std::is_sorted(gains_cached_on_demand.begin(), gains_cached_on_demand.end(), std::greater<Gain>()));
-  ASSERT_EQ(gains_cached_on_demand, gains_cached);
-
-  vec<Gain> gains_recomputed = insertAndExtractAllMoves(recompute_gain, phg);
-  ASSERT_TRUE(std::is_sorted(gains_recomputed.begin(), gains_recomputed.end(), std::greater<Gain>()));
-  ASSERT_EQ(gains_recomputed, gains_cached);
 }
-
-TEST(StrategyTests, DeltaUpdatesWork) {
-  PartitionID k = 8;
-  Context context;
-  context.partition.k = k;
-  context.partition.epsilon = 0.03;
-  Hypergraph hg = io::readInputFile<Hypergraph>(
-    "../tests/instances/contracted_ibm01.hgr", FileFormat::hMetis, true);
-  context.setupPartWeights(hg.totalWeight());
-  PartitionedHypergraph phg = PartitionedHypergraph(k, hg);
-  for (PartitionID i = 0; i < k; ++i) {
-    context.partition.max_part_weights[i] = std::numeric_limits<HypernodeWeight>::max();
-  }
-
-  std::mt19937 rng(420);
-  std::uniform_int_distribution<PartitionID> distr(0, k - 1);
-  for (HypernodeID u : hg.nodes()) {
-    phg.setOnlyNodePart(u, distr(rng));
-  }
-  phg.initializePartition();
-  phg.initializeGainCache();
-
-  context.refinement.fm.algorithm = FMAlgorithm::fm_gain_delta; // use this one because it allocates the most memory in shared data!
-
-  FMSharedData sd(hg.initialNumNodes(), context);
-  FMStats fm_stats;
-
-  GainDeltaStrategy strat(context, sd, fm_stats);
-  for (HypernodeID u : hg.nodes())
-    strat.insertIntoPQ(phg, u, 0);
-
-  Move m;
-
-  auto delta_func = [&](HyperedgeID e, HyperedgeWeight edge_weight, HypernodeID, HypernodeID pin_count_in_from_part_after,
-          HypernodeID pin_count_in_to_part_after) {
-    strat.deltaGainUpdates(phg, e, edge_weight, m.from, pin_count_in_from_part_after, m.to, pin_count_in_to_part_after);
-  };
-
-  auto check_gains = [&] {
-    strat.doParallelForAllEntries([&](PartitionID to, HypernodeID u, Gain gain) {
-      Gain re_gain = 0;
-      PartitionID from = phg.partID(u);
-      for (HyperedgeID e : phg.incidentEdges(u)) {
-        if (phg.pinCountInPart(e, from) == 1) re_gain += phg.edgeWeight(e);
-        if (phg.pinCountInPart(e, to) == 0) re_gain -= phg.edgeWeight(e);
-      }
-      ASSERT_EQ(gain, re_gain);
-    });
-  };
-
-  check_gains();
-  while (strat.findNextMove(phg, m)) {
-    phg.changeNodePart(m.node, m.from, m.to, std::numeric_limits<HypernodeWeight>::max(), []{}, delta_func);
-    fm_stats.moves++;
-    check_gains();
-  }
-}
-
 
 }

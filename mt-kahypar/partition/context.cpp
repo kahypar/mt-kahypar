@@ -510,7 +510,7 @@ namespace mt_kahypar {
     initial_partitioning.refinement.label_propagation.hyperedge_size_activation_threshold = 100;
 
     // initial partitioning -> refinement -> fm
-    initial_partitioning.refinement.fm.algorithm = FMAlgorithm::fm_gain_cache;
+    initial_partitioning.refinement.fm.algorithm = FMAlgorithm::kway_fm;
     initial_partitioning.refinement.fm.multitry_rounds = 5;
     initial_partitioning.refinement.fm.perform_moves_global = false;
     initial_partitioning.refinement.fm.rollback_parallel = true;
@@ -534,7 +534,7 @@ namespace mt_kahypar {
     refinement.label_propagation.hyperedge_size_activation_threshold = 100;
 
     // refinement -> fm
-    refinement.fm.algorithm = FMAlgorithm::fm_gain_cache;
+    refinement.fm.algorithm = FMAlgorithm::kway_fm;
     refinement.fm.multitry_rounds = 10;
     refinement.fm.perform_moves_global = false;
     refinement.fm.rollback_parallel = true;
@@ -723,7 +723,7 @@ namespace mt_kahypar {
     initial_partitioning.refinement.label_propagation.hyperedge_size_activation_threshold = 100;
 
     // initial partitioning -> refinement -> fm
-    initial_partitioning.refinement.fm.algorithm = FMAlgorithm::fm_gain_cache;
+    initial_partitioning.refinement.fm.algorithm = FMAlgorithm::kway_fm;
     initial_partitioning.refinement.fm.multitry_rounds = 5;
     initial_partitioning.refinement.fm.perform_moves_global = false;
     initial_partitioning.refinement.fm.rollback_parallel = false;
@@ -752,7 +752,7 @@ namespace mt_kahypar {
     refinement.label_propagation.hyperedge_size_activation_threshold = 100;
 
     // refinement -> fm
-    refinement.fm.algorithm = FMAlgorithm::fm_gain_cache;
+    refinement.fm.algorithm = FMAlgorithm::kway_fm;
     refinement.fm.multitry_rounds = 10;
     refinement.fm.perform_moves_global = false;
     refinement.fm.rollback_parallel = false;

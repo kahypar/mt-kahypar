@@ -38,15 +38,15 @@
 
 namespace mt_kahypar {
 
-template<typename TypeTraits, typename FMStrategy>
+template<typename TypeTraits>
 class MultiTryKWayFM final : public IRefiner {
 
   static constexpr bool debug = false;
   static constexpr bool enable_heavy_assert = false;
 
   using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
-  using LocalizedFMSearch = LocalizedKWayFM<TypeTraits, FMStrategy>;
-  using Rollback = GlobalRollback<TypeTraits, FMStrategy::maintain_gain_cache_between_rounds>;
+  using LocalizedFMSearch = LocalizedKWayFM<TypeTraits>;
+  using Rollback = GlobalRollback<TypeTraits>;
 
  public:
 
@@ -56,7 +56,7 @@ class MultiTryKWayFM final : public IRefiner {
     initial_num_nodes(num_hypernodes),
     context(c),
     current_k(c.partition.k),
-    sharedData(num_hypernodes, context),
+    sharedData(num_hypernodes),
     globalRollback(num_hyperedges, context),
     ets_fm([&] { return constructLocalizedKWayFMSearch(); })
   {

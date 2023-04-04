@@ -34,11 +34,12 @@
 #include "mt-kahypar/datastructures/sparse_map.h"
 #include "mt-kahypar/partition/refinement/fm/fm_commons.h"
 #include "mt-kahypar/partition/refinement/fm/stop_rule.h"
+#include "mt-kahypar/partition/refinement/fm/strategies/gain_cache_strategy.h"
 
 namespace mt_kahypar {
 
 
-template<typename TypeTraits, typename FMStrategy>
+template<typename TypeTraits>
 class LocalizedKWayFM {
 
   using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
@@ -114,7 +115,7 @@ private:
 
   FMStats runStats;
 
-  FMStrategy fm_strategy;
+  GainCacheStrategy fm_strategy;
 
   FMSharedData& sharedData;
 

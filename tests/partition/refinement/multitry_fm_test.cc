@@ -29,10 +29,7 @@
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/io/hypergraph_factory.h"
-
 #include "mt-kahypar/partition/refinement/fm/multitry_kway_fm.h"
-#include "mt-kahypar/partition/refinement/fm/strategies/gain_cache_strategy.h"
-
 #include "mt-kahypar/partition/initial_partitioning/bfs_initial_partitioner.h"
 
 using ::testing::Test;
@@ -52,7 +49,7 @@ class MultiTryFMTest : public Test {
   using TypeTraits = typename Config::TypeTraits;
   using Hypergraph = typename TypeTraits::Hypergraph;
   using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
-  using Refiner = MultiTryKWayFM<TypeTraits, GainCacheStrategy>;
+  using Refiner = MultiTryKWayFM<TypeTraits>;
 
   MultiTryFMTest() :
           hypergraph(),
@@ -77,7 +74,7 @@ class MultiTryFMTest : public Test {
 
     context.partition.k = Config::K;
 
-    context.refinement.fm.algorithm = FMAlgorithm::fm_gain_cache;
+    context.refinement.fm.algorithm = FMAlgorithm::kway_fm;
     context.refinement.fm.multitry_rounds = 10;
     context.refinement.fm.num_seed_nodes = 5;
     context.refinement.fm.rollback_balance_violation_factor = 1.0;

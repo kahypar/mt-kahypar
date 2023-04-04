@@ -33,7 +33,7 @@
 
 namespace mt_kahypar {
 
-template<typename TypeTraits, bool update_gain_cache>
+template<typename TypeTraits>
 class GlobalRollback {
   static constexpr bool enable_heavy_assert = false;
 
@@ -87,11 +87,7 @@ public:
 
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
   void moveVertex(PartitionedHypergraph& phg, HypernodeID u, PartitionID from, PartitionID to) {
-    if constexpr (update_gain_cache) {
-      phg.changeNodePartWithGainCacheUpdate(u, from, to);
-    } else {
-      phg.changeNodePart(u, from, to);
-    }
+    phg.changeNodePartWithGainCacheUpdate(u, from, to);
   }
 
   void changeNumberOfBlocks(const PartitionID new_k) {
