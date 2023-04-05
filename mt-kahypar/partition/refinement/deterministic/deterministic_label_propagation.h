@@ -55,14 +55,18 @@ public:
       active_nodes(0),
       ets_recalc_data( vec<RecalculationData>(context.partition.k) ),
       max_num_nodes(num_hypernodes),
-      max_num_edges(num_hyperedges)
-  {
+      max_num_edges(num_hyperedges) {
     if (context.refinement.deterministic_refinement.use_active_node_set) {
       active_nodes.adapt_capacity(num_hypernodes);
       last_moved_in_round.resize(num_hypernodes + num_hyperedges, CAtomic<uint32_t>(0));
     }
-
   }
+
+  explicit DeterministicLabelPropagationRefiner(const HypernodeID num_hypernodes,
+                                                const HyperedgeID num_hyperedges,
+                                                const Context& context) :
+    DeterministicLabelPropagationRefiner(num_hypernodes, num_hyperedges, context,
+      gain_cache_t { nullptr, FMGainCacheType::none }) { }
 
 private:
   static constexpr bool debug = false;

@@ -46,7 +46,7 @@ struct TestConfig { };
 template <typename TypeTraitsT, PartitionID k>
 struct TestConfig<TypeTraitsT, k, Objective::km1> {
   using TypeTraits = TypeTraitsT;
-  using Refiner = LabelPropagationKm1Refiner<TypeTraits>;
+  using Refiner = LabelPropagationKm1Refiner<TypeTraits, DoNothingGainCache>;
   static constexpr PartitionID K = k;
   static constexpr Objective OBJECTIVE = Objective::km1;
   static constexpr LabelPropagationAlgorithm LP_ALGO = LabelPropagationAlgorithm::label_propagation_km1;
@@ -55,7 +55,7 @@ struct TestConfig<TypeTraitsT, k, Objective::km1> {
 template <typename TypeTraitsT, PartitionID k>
 struct TestConfig<TypeTraitsT, k, Objective::cut> {
   using TypeTraits = TypeTraitsT;
-  using Refiner = LabelPropagationCutRefiner<TypeTraits>;
+  using Refiner = LabelPropagationCutRefiner<TypeTraits, DoNothingGainCache>;
   static constexpr PartitionID K = k;
   static constexpr Objective OBJECTIVE = Objective::cut;
   static constexpr LabelPropagationAlgorithm LP_ALGO = LabelPropagationAlgorithm::label_propagation_cut;
@@ -75,6 +75,7 @@ class ALabelPropagationRefiner : public Test {
     hypergraph(),
     partitioned_hypergraph(),
     context(),
+    dummy_gain_cache(),
     refiner(nullptr),
     metrics() {
     context.partition.graph_filename = "../tests/instances/contracted_ibm01.hgr";
@@ -113,7 +114,8 @@ class ALabelPropagationRefiner : public Test {
     initialPartition();
 
     refiner = std::make_unique<Refiner>(
-      hypergraph.initialNumNodes(), hypergraph.initialNumEdges(), context);
+      hypergraph.initialNumNodes(), hypergraph.initialNumEdges(),
+      context, dummy_gain_cache);
     mt_kahypar_partitioned_hypergraph_t phg = utils::partitioned_hg_cast(partitioned_hypergraph);
     refiner->initialize(phg);
   }
@@ -135,6 +137,7 @@ class ALabelPropagationRefiner : public Test {
   Hypergraph hypergraph;
   PartitionedHypergraph partitioned_hypergraph;
   Context context;
+  DoNothingGainCache dummy_gain_cache;
   std::unique_ptr<Refiner> refiner;
   Metrics metrics;
 };

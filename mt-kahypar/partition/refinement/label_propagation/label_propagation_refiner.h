@@ -56,9 +56,9 @@ class LabelPropagationRefiner final : public IRefiner {
   explicit LabelPropagationRefiner(const HypernodeID num_hypernodes,
                                    const HyperedgeID num_hyperedges,
                                    const Context& context,
-                                   gain_cache_t gain_cache) :
+                                   GainCache& gain_cache) :
     _context(context),
-    _gain_cache(AbstractGainCache::cast<GainCache>(gain_cache)),
+    _gain_cache(gain_cache),
     _current_k(context.partition.k),
     _current_num_nodes(kInvalidHypernode),
     _current_num_edges(kInvalidHyperedge),
@@ -67,6 +67,13 @@ class LabelPropagationRefiner final : public IRefiner {
     _active_node_was_moved(num_hypernodes, uint8_t(false)),
     _next_active(num_hypernodes),
     _visited_he(num_hyperedges) { }
+
+  explicit LabelPropagationRefiner(const HypernodeID num_hypernodes,
+                                   const HyperedgeID num_hyperedges,
+                                   const Context& context,
+                                   gain_cache_t gain_cache) :
+    LabelPropagationRefiner(num_hypernodes, num_hyperedges, context,
+      AbstractGainCache::cast<GainCache>(gain_cache)) { }
 
   LabelPropagationRefiner(const LabelPropagationRefiner&) = delete;
   LabelPropagationRefiner(LabelPropagationRefiner&&) = delete;

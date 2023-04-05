@@ -140,13 +140,13 @@ class FlowRefinementScheduler final : public IRefiner {
   }
 
 public:
-  explicit FlowRefinementScheduler(const HypernodeID num_hypernodes,
-                                   const HyperedgeID num_hyperedges,
-                                   const Context& context,
-                                   gain_cache_t gain_cache) :
+  FlowRefinementScheduler(const HypernodeID num_hypernodes,
+                          const HyperedgeID num_hyperedges,
+                          const Context& context,
+                          GainCache& gain_cache) :
     _phg(nullptr),
     _context(context),
-    _gain_cache(AbstractGainCache::cast<GainCache>(gain_cache)),
+    _gain_cache(gain_cache),
     _current_k(context.partition.k),
     _quotient_graph(num_hyperedges, context),
     _refiner(num_hyperedges, context),
@@ -157,6 +157,13 @@ public:
     _max_part_weights(context.partition.k, 0),
     _stats(utils::Utilities::instance().getStats(context.utility_id)),
     _apply_moves_lock() { }
+
+  FlowRefinementScheduler(const HypernodeID num_hypernodes,
+                          const HyperedgeID num_hyperedges,
+                          const Context& context,
+                          gain_cache_t gain_cache) :
+    FlowRefinementScheduler(num_hypernodes, num_hyperedges, context,
+      AbstractGainCache::cast<GainCache>(gain_cache)) { }
 
   FlowRefinementScheduler(const FlowRefinementScheduler&) = delete;
   FlowRefinementScheduler(FlowRefinementScheduler&&) = delete;

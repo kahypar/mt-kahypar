@@ -54,10 +54,10 @@ class MultiTryKWayFM final : public IRefiner {
   MultiTryKWayFM(const HypernodeID num_hypernodes,
                  const HyperedgeID num_hyperedges,
                  const Context& c,
-                 gain_cache_t g_cache) :
+                 GainCache& g_cache) :
     initial_num_nodes(num_hypernodes),
     context(c),
-    gain_cache(AbstractGainCache::cast<GainCache>(g_cache)),
+    gain_cache(g_cache),
     current_k(c.partition.k),
     sharedData(num_hypernodes),
     globalRollback(num_hyperedges, context),
@@ -66,6 +66,13 @@ class MultiTryKWayFM final : public IRefiner {
       sharedData.finishedTasksLimit = std::min(UL(8), context.shared_memory.num_threads);
     }
   }
+
+  MultiTryKWayFM(const HypernodeID num_hypernodes,
+                 const HyperedgeID num_hyperedges,
+                 const Context& c,
+                 gain_cache_t g_cache) :
+    MultiTryKWayFM(num_hypernodes, num_hyperedges, c,
+      AbstractGainCache::cast<GainCache>(g_cache)) { }
 
   void printMemoryConsumption();
 

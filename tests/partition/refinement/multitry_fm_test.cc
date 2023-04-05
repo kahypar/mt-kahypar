@@ -49,12 +49,13 @@ class MultiTryFMTest : public Test {
   using TypeTraits = typename Config::TypeTraits;
   using Hypergraph = typename TypeTraits::Hypergraph;
   using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
-  using Refiner = MultiTryKWayFM<TypeTraits>;
+  using Refiner = MultiTryKWayFM<TypeTraits, Km1GainCache>;
 
   MultiTryFMTest() :
           hypergraph(),
           partitioned_hypergraph(),
           context(),
+          gain_cache(),
           refiner(nullptr),
           metrics() {
     TBBInitializer::instance(std::thread::hardware_concurrency());
@@ -90,7 +91,8 @@ class MultiTryFMTest : public Test {
     initialPartition();
 
     refiner = std::make_unique<Refiner>(
-      hypergraph.initialNumNodes(), hypergraph.initialNumEdges(), context);
+      hypergraph.initialNumNodes(), hypergraph.initialNumEdges(),
+      context, gain_cache);
     mt_kahypar_partitioned_hypergraph_t phg = utils::partitioned_hg_cast(partitioned_hypergraph);
     refiner->initialize(phg);
   }
@@ -112,6 +114,7 @@ class MultiTryFMTest : public Test {
   Hypergraph hypergraph;
   PartitionedHypergraph partitioned_hypergraph;
   Context context;
+  Km1GainCache gain_cache;
   std::unique_ptr<Refiner> refiner;
   Metrics metrics;
 };
