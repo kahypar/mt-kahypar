@@ -35,10 +35,14 @@
 #include "mt-kahypar/partition/context_enum_classes.h"
 #include "mt-kahypar/datastructures/hypergraph_common.h"
 #include "mt-kahypar/datastructures/array.h"
+#include "mt-kahypar/datastructures/sparse_map.h"
 #include "mt-kahypar/parallel/atomic_wrapper.h"
 #include "mt-kahypar/macros.h"
 
 namespace mt_kahypar {
+
+// Forward
+class DeltaKm1GainCache;
 
 class Km1GainCache final : public kahypar::meta::PolicyBase {
 
@@ -46,6 +50,7 @@ class Km1GainCache final : public kahypar::meta::PolicyBase {
 
  public:
   static constexpr FMGainCacheType TYPE = FMGainCacheType::km1_gain_cache;
+  using DeltaGainCache = DeltaKm1GainCache;
 
   Km1GainCache() :
     _is_initialized(false),
@@ -75,11 +80,10 @@ class Km1GainCache final : public kahypar::meta::PolicyBase {
 
   // ! Initializes all gain cache entries
   template<typename PartitionedHypergraph>
-  void initializeGainCache(const PartitionedHypergraph& partitioned_hg,
-                           const HypernodeID initial_num_nodes) {
+  void initializeGainCache(const PartitionedHypergraph& partitioned_hg) {
     ASSERT(!_is_initialized, "Gain cache is already initialized");
     ASSERT(_k == kInvalidPartition || _k == partitioned_hg.k(), "Gain cache was already initialized for a different k");
-    allocateGainTable(initial_num_nodes, partitioned_hg.k());
+    allocateGainTable(partitioned_hg.topLevelNumNodes(), partitioned_hg.k());
 
 
     // Gain calculation consist of two stages
@@ -355,6 +359,8 @@ class Km1GainCache final : public kahypar::meta::PolicyBase {
   }
 
  private:
+  friend class DeltaKm1GainCache;
+
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
   size_t penalty_index(const HypernodeID u) const {
     return size_t(u) * ( _k + 1 );
@@ -433,6 +439,113 @@ class Km1GainCache final : public kahypar::meta::PolicyBase {
   // ! We call b(u, V_j) the benefit term and p(u) the penalty term. Our gain cache stores and maintains these
   // ! entries for each node and block. Thus, the gain cache stores k + 1 entries per node.
   ds::Array< CAtomic<HyperedgeWeight> > _gain_cache;
+};
+
+class DeltaKm1GainCache {
+
+ public:
+  DeltaKm1GainCache(const Km1GainCache& gain_cache) :
+    _gain_cache(gain_cache),
+    _gain_cache_delta() { }
+
+  // ####################### Initialize & Reset #######################
+
+  void initialize(const size_t size) {
+    _gain_cache_delta.initialize(size);
+  }
+
+  void clear() {
+    _gain_cache_delta.clear();
+  }
+
+  void dropMemory() {
+    _gain_cache_delta.freeInternalData();
+  }
+
+  size_t size_in_bytes() const {
+    return _gain_cache_delta.size_in_bytes();
+  }
+
+  // ####################### Gain Computation #######################
+
+  // ! Returns the penalty term of node u.
+  // ! More formally, p(u) := (w(I(u)) - w({ e \in I(u) | pin_count(e, partID(u)) = 1 }))
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
+  HyperedgeWeight penaltyTerm(const HypernodeID u,
+                              const PartitionID from) const {
+    const HyperedgeWeight* penalty_delta =
+      _gain_cache_delta.get_if_contained(_gain_cache.penalty_index(u));
+    return _gain_cache.penaltyTerm(u, from) + ( penalty_delta ? *penalty_delta : 0 );
+  }
+
+  // ! Returns the benefit term for moving node u to block to.
+  // ! More formally, b(u, V_j) := w({ e \in I(u) | pin_count(e, V_j) >= 1 })
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
+  HyperedgeWeight benefitTerm(const HypernodeID u, const PartitionID to) const {
+    ASSERT(to != kInvalidPartition && to < _gain_cache._k);
+    const HyperedgeWeight* benefit_delta =
+      _gain_cache_delta.get_if_contained(_gain_cache.benefit_index(u, to));
+    return _gain_cache.benefitTerm(u, to) + ( benefit_delta ? *benefit_delta : 0 );
+  }
+
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
+  HyperedgeWeight gain(const HypernodeID u,
+                       const PartitionID from,
+                       const PartitionID to ) const {
+    return benefitTerm(u, to) - penaltyTerm(u, from);
+  }
+
+ // ####################### Delta Gain Update #######################
+
+  template<typename PartitionedHypergraph>
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
+  void deltaGainUpdate(const PartitionedHypergraph& partitioned_hg,
+                       const HyperedgeID he,
+                       const HyperedgeWeight we,
+                       const PartitionID from,
+                       const HypernodeID pin_count_in_from_part_after,
+                       const PartitionID to,
+                       const HypernodeID pin_count_in_to_part_after) {
+    if (pin_count_in_from_part_after == 1) {
+      for (HypernodeID u : partitioned_hg.pins(he)) {
+        if (partitioned_hg.partID(u) == from) {
+          _gain_cache_delta[_gain_cache.penalty_index(u)] -= we;
+        }
+      }
+    } else if (pin_count_in_from_part_after == 0) {
+      for (HypernodeID u : partitioned_hg.pins(he)) {
+        _gain_cache_delta[_gain_cache.benefit_index(u, from)] -= we;
+      }
+    }
+
+    if (pin_count_in_to_part_after == 1) {
+      for (HypernodeID u : partitioned_hg.pins(he)) {
+        _gain_cache_delta[_gain_cache.benefit_index(u, to)] += we;
+      }
+    } else if (pin_count_in_to_part_after == 2) {
+      for (HypernodeID u : partitioned_hg.pins(he)) {
+        if (partitioned_hg.partID(u) == to) {
+          _gain_cache_delta[_gain_cache.penalty_index(u)] += we;
+        }
+      }
+    }
+  }
+
+
+ // ####################### Miscellaneous #######################
+
+  void memoryConsumption(utils::MemoryTreeNode* parent) const {
+    ASSERT(parent);
+    utils::MemoryTreeNode* gain_cache_delta_node = parent->addChild("Delta Gain Cache");
+    gain_cache_delta_node->updateSize(size_in_bytes());
+  }
+
+ private:
+  const Km1GainCache& _gain_cache;
+
+  // ! Stores the delta of each locally touched gain cache entry
+  // ! relative to the gain cache in '_phg'
+  ds::DynamicFlatMap<size_t, HyperedgeWeight> _gain_cache_delta;
 };
 
 }  // namespace mt_kahypar

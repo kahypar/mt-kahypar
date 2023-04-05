@@ -42,8 +42,12 @@ namespace mt_kahypar {
 template<typename TypeTraits, typename GainCache>
 class LocalizedKWayFM {
 
+  static constexpr size_t MAP_SIZE_LARGE = 16384;
+  static constexpr size_t MAP_SIZE_MOVE_DELTA = 8192;
+
   using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
   using DeltaPartitionedHypergraph = typename PartitionedHypergraph::DeltaPartition<GainCache>;
+  using DeltaGainCache = typename GainCache::DeltaGainCache;
 
 public:
   explicit LocalizedKWayFM(const Context& context,
@@ -54,9 +58,13 @@ public:
     thisSearch(0),
     deltaPhg(context, gainCache),
     neighborDeduplicator(numNodes, 0),
-    fm_strategy(context, sharedData, gainCache, runStats),
+    fm_strategy(context, sharedData, runStats),
     gain_cache(gainCache),
-    sharedData(sharedData) { }
+    delta_gain_cache(gainCache),
+    sharedData(sharedData) {
+    const bool top_level = context.type == ContextType::main;
+    delta_gain_cache.initialize(top_level ? MAP_SIZE_LARGE : MAP_SIZE_MOVE_DELTA);
+  }
 
 
   bool findMoves(PartitionedHypergraph& phg, size_t taskID, size_t numSeeds);
@@ -78,9 +86,9 @@ private:
   template<bool use_delta>
   void internalFindMoves(PartitionedHypergraph& phg);
 
-  template<typename PHG>
+  template<typename PHG, typename CACHE>
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
-  void acquireOrUpdateNeighbors(PHG& phg, const Move& move);
+  void acquireOrUpdateNeighbors(PHG& phg, CACHE& gain_cache, const Move& move);
 
 
   // ! Makes moves applied on delta hypergraph visible on the global partitioned hypergraph.
@@ -117,12 +125,13 @@ private:
 
   FMStats runStats;
 
-  GainCacheStrategy<GainCache> fm_strategy;
+  GainCacheStrategy fm_strategy;
 
   GainCache& gain_cache;
 
-  FMSharedData& sharedData;
+  DeltaGainCache delta_gain_cache;
 
+  FMSharedData& sharedData;
 };
 
 }

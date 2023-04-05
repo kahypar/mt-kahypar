@@ -167,7 +167,7 @@ private:
 
   explicit PartitionedGraph(const PartitionID k,
                             Hypergraph& hypergraph) :
-    _top_level_num_nodes(hypergraph.initialNumNodes()),
+    _input_num_nodes(hypergraph.initialNumNodes()),
     _k(k),
     _hg(&hypergraph),
     _part_weights(k, CAtomic<HypernodeWeight>(0)),
@@ -184,7 +184,7 @@ private:
   explicit PartitionedGraph(const PartitionID k,
                             Hypergraph& hypergraph,
                             parallel_tag_t) :
-    _top_level_num_nodes(hypergraph.initialNumNodes()),
+    _input_num_nodes(hypergraph.initialNumNodes()),
     _k(k),
     _hg(&hypergraph),
     _part_weights(k, CAtomic<HypernodeWeight>(0)),
@@ -244,6 +244,11 @@ private:
   // ! Initial number of hypernodes
   HypernodeID initialNumNodes() const {
     return _hg->initialNumNodes();
+  }
+
+  // ! Number of nodes of the input hypergraph
+  HypernodeID topLevelNumNodes() const {
+    return _input_num_nodes;
   }
 
   // ! Number of removed hypernodes
@@ -614,7 +619,7 @@ private:
 
   // ! Initialize gain cache
   void initializeGainCache() {
-    _gain_cache.initializeGainCache(*this, _top_level_num_nodes);
+    _gain_cache.initializeGainCache(*this, _input_num_nodes);
   }
 
   // ! Reset partition (not thread-safe)
@@ -1000,7 +1005,7 @@ private:
     return block_of_v;
   }
 
-  size_t _top_level_num_nodes = 0;
+  HypernodeID _input_num_nodes = 0;
 
   // ! Number of blocks
   PartitionID _k = 0;

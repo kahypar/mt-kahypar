@@ -73,7 +73,8 @@ namespace mt_kahypar {
 
     // Initialize Gain Cache
     if ( _context.refinement.fm.algorithm == FMAlgorithm::kway_fm ) {
-      _uncoarseningData.partitioned_hg->initializeGainCache();
+      GainCacheFactory::initializeGainCache(
+        *_uncoarseningData.partitioned_hg, _gain_cache);
     }
 
     ASSERT(metrics::objective(*_uncoarseningData.compactified_phg, _context.partition.objective) ==
@@ -119,6 +120,68 @@ namespace mt_kahypar {
     return _hierarchy.empty();
   }
 
+  namespace {
+    template<typename PartitionedHypergraph>
+    void uncontract(PartitionedHypergraph& partitioned_hg,
+                    const Batch& batch,
+                    gain_cache_t gain_cache) {
+      switch ( gain_cache.type ) {
+        case FMGainCacheType::km1_gain_cache:
+        case FMGainCacheType::cut_gain_cache:
+          partitioned_hg.uncontract(batch,
+            GainCacheFactory::cast<Km1GainCache>(gain_cache)); break;
+        #ifdef KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES
+        case FMGainCacheType::cut_gain_cache_for_graphs:
+          partitioned_hg.uncontract(batch,
+            GainCacheFactory::cast<GraphCutGainCache>(gain_cache)); break;
+        #endif
+        case FMGainCacheType::none:
+          partitioned_hg.uncontract(batch,
+            GainCacheFactory::cast<DoNothingGainCache>(gain_cache)); break;
+      }
+    }
+
+    template<typename PartitionedHypergraph, typename ParallelHyperedge>
+    void restoreSinglePinAndParallelNets(PartitionedHypergraph& partitioned_hg,
+                                         const vec<ParallelHyperedge>& hes_to_restore,
+                                         gain_cache_t gain_cache) {
+      switch ( gain_cache.type ) {
+        case FMGainCacheType::km1_gain_cache:
+        case FMGainCacheType::cut_gain_cache:
+          partitioned_hg.restoreSinglePinAndParallelNets(hes_to_restore,
+            GainCacheFactory::cast<Km1GainCache>(gain_cache)); break;
+        #ifdef KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES
+        case FMGainCacheType::cut_gain_cache_for_graphs:
+          partitioned_hg.restoreSinglePinAndParallelNets(hes_to_restore,
+            GainCacheFactory::cast<GraphCutGainCache>(gain_cache)); break;
+        #endif
+        case FMGainCacheType::none:
+          partitioned_hg.restoreSinglePinAndParallelNets(hes_to_restore,
+            GainCacheFactory::cast<DoNothingGainCache>(gain_cache)); break;
+      }
+    }
+
+    template<typename PartitionedHypergraph>
+    bool checkTrackedPartitionInformation(PartitionedHypergraph& partitioned_hg,
+                                          gain_cache_t gain_cache) {
+      switch ( gain_cache.type ) {
+        case FMGainCacheType::km1_gain_cache:
+        case FMGainCacheType::cut_gain_cache:
+          return partitioned_hg.checkTrackedPartitionInformation(
+            GainCacheFactory::cast<Km1GainCache>(gain_cache));
+        #ifdef KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES
+        case FMGainCacheType::cut_gain_cache_for_graphs:
+          return partitioned_hg.checkTrackedPartitionInformation(
+            GainCacheFactory::cast<GraphCutGainCache>(gain_cache));
+        #endif
+        case FMGainCacheType::none:
+          return partitioned_hg.checkTrackedPartitionInformation(
+            GainCacheFactory::cast<DoNothingGainCache>(gain_cache));
+      }
+      return false;
+    }
+  }
+
   template<typename TypeTraits>
   void NLevelUncoarsener<TypeTraits>::projectToNextLevelAndRefineImpl() {
     BatchVector& batches = _hierarchy.back();
@@ -137,11 +200,11 @@ namespace mt_kahypar {
 
         // Performs batch uncontraction operation
         _timer.start_timer("batch_uncontractions", "Batch Uncontractions", false, _force_measure_timings);
-        _uncoarseningData.partitioned_hg->uncontract(batch);
+        uncontract(*_uncoarseningData.partitioned_hg, batch, _gain_cache);
         _timer.stop_timer("batch_uncontractions", _force_measure_timings);
 
         HEAVY_REFINEMENT_ASSERT(_hg.verifyIncidenceArrayAndIncidentNets());
-        HEAVY_REFINEMENT_ASSERT(_uncoarseningData.partitioned_hg->checkTrackedPartitionInformation());
+        HEAVY_REFINEMENT_ASSERT(checkTrackedPartitionInformation(*_uncoarseningData.partitioned_hg, _gain_cache));
         HEAVY_REFINEMENT_ASSERT(metrics::objective(*_uncoarseningData.partitioned_hg, _context.partition.objective) ==
                                 _current_metrics.getMetric(Mode::direct, _context.partition.objective),
                                 V(_current_metrics.getMetric(Mode::direct, _context.partition.objective)) <<
@@ -188,12 +251,12 @@ namespace mt_kahypar {
     // Restore single-pin and identical nets
     if ( !_uncoarseningData.removed_hyperedges_batches.empty() ) {
       _timer.start_timer("restore_single_pin_and_parallel_nets", "Restore Single Pin and Parallel Nets", false, _force_measure_timings);
-      _uncoarseningData.partitioned_hg->restoreSinglePinAndParallelNets(
-        _uncoarseningData.removed_hyperedges_batches.back());
+      restoreSinglePinAndParallelNets(*_uncoarseningData.partitioned_hg,
+        _uncoarseningData.removed_hyperedges_batches.back(), _gain_cache);
       _uncoarseningData.removed_hyperedges_batches.pop_back();
       _timer.stop_timer("restore_single_pin_and_parallel_nets", _force_measure_timings);
       HEAVY_REFINEMENT_ASSERT(_hg.verifyIncidenceArrayAndIncidentNets());
-      HEAVY_REFINEMENT_ASSERT(_uncoarseningData.partitioned_hg->checkTrackedPartitionInformation());
+      HEAVY_REFINEMENT_ASSERT(checkTrackedPartitionInformation(*_uncoarseningData.partitioned_hg, _gain_cache));
 
       // After restoring all single-pin and identical-nets, we perform an additional
       // refinement step on all border nodes.

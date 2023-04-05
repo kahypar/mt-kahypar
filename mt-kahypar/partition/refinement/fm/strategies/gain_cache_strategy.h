@@ -45,7 +45,6 @@ namespace mt_kahypar {
    *
    */
 
-template<typename GainCache>
 class GainCacheStrategy {
 public:
 
@@ -57,31 +56,34 @@ public:
 
   GainCacheStrategy(const Context& context,
                     FMSharedData& sharedData,
-                    GainCache& gainCache,
                     FMStats& runStats) :
       context(context),
       runStats(runStats),
       sharedData(sharedData),
-      gainCache(gainCache),
       blockPQ(static_cast<size_t>(context.partition.k)),
       vertexPQs(static_cast<size_t>(context.partition.k),
         VertexPriorityQueue(sharedData.vertexPQHandles.data(), sharedData.numberOfNodes)) { }
 
-  template<typename PHG>
+  template<typename PartitionedHypergraph, typename GainCache>
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
-  void insertIntoPQ(const PHG& phg, const HypernodeID v, const SearchID ) {
+  void insertIntoPQ(const PartitionedHypergraph& phg,
+                    const GainCache& gain_cache,
+                    const HypernodeID v) {
     const PartitionID pv = phg.partID(v);
     ASSERT(pv < context.partition.k);
-    auto [target, gain] = computeBestTargetBlock(phg, v, pv);
+    auto [target, gain] = computeBestTargetBlock(phg, gain_cache, v, pv);
     ASSERT(target < context.partition.k);
     sharedData.targetPart[v] = target;
     vertexPQs[pv].insert(v, gain);  // blockPQ updates are done later, collectively.
     runStats.pushes++;
   }
 
-  template<typename PHG>
+  template<typename PartitionedHypergraph, typename GainCache>
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
-  void updateGain(const PHG& phg, const HypernodeID v, const Move& move) {
+  void updateGain(const PartitionedHypergraph& phg,
+                  const GainCache& gain_cache,
+                  const HypernodeID v,
+                  const Move& move) {
     const PartitionID pv = phg.partID(v);
     ASSERT(vertexPQs[pv].contains(v));
     const PartitionID designatedTargetV = sharedData.targetPart[v];
@@ -89,22 +91,25 @@ public:
     PartitionID newTarget = kInvalidPartition;
 
     if (context.partition.k < 4 || designatedTargetV == move.from || designatedTargetV == move.to) {
-      // moveToBenefit of designatedTargetV is affected.
+      // penalty term of designatedTargetV is affected.
       // and may now be greater than that of other blocks --> recompute full
-      std::tie(newTarget, gain) = computeBestTargetBlock(phg, v, pv);
+      std::tie(newTarget, gain) = computeBestTargetBlock(phg, gain_cache, v, pv);
     } else {
-      // moveToBenefit of designatedTargetV is not affected.
+      // penalty term of designatedTargetV is not affected.
       // only move.from and move.to may be better
-      std::tie(newTarget, gain) = bestOfThree(phg, v, pv, { designatedTargetV, move.from, move.to });
+      std::tie(newTarget, gain) = bestOfThree(phg, gain_cache,
+        v, pv, { designatedTargetV, move.from, move.to });
     }
 
     sharedData.targetPart[v] = newTarget;
     vertexPQs[pv].adjustKey(v, gain);
   }
 
-  template<typename PHG>
+  template<typename PartitionedHypergraph, typename GainCache>
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
-  bool findNextMove(const PHG& phg, Move& m) {
+  bool findNextMove(const PartitionedHypergraph& phg,
+                    const GainCache& gain_cache,
+                    Move& m) {
     updatePQs();
 
     if (blockPQ.empty()) {
@@ -116,7 +121,7 @@ public:
       const HypernodeID u = vertexPQs[from].top();
       const Gain estimated_gain = vertexPQs[from].topKey();
       ASSERT(estimated_gain == blockPQ.topKey());
-      auto [to, gain] = computeBestTargetBlock(phg, u, phg.partID(u));
+      auto [to, gain] = computeBestTargetBlock(phg, gain_cache, u, phg.partID(u));
 
       if (gain >= estimated_gain) { // accept any gain that is at least as good
         m.node = u; m.to = to; m.from = from;
@@ -160,12 +165,18 @@ public:
   // We're letting the FM details implementation decide what happens here, since some may not want to do gain cache updates,
   // but rather update gains in their PQs or something
 
-  template<typename PHG>
+  template<typename PartitionedHypergraph, typename GainCache>
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
-  void deltaGainUpdates(PHG& phg, const HyperedgeID he, const HyperedgeWeight edge_weight,
-                        const PartitionID from, const HypernodeID pin_count_in_from_part_after,
-                        const PartitionID to, const HypernodeID pin_count_in_to_part_after) {
-    phg.gainCacheUpdate(he, edge_weight, from, pin_count_in_from_part_after, to, pin_count_in_to_part_after);
+  void deltaGainUpdates(PartitionedHypergraph& phg,
+                        GainCache& gain_cache,
+                        const HyperedgeID he,
+                        const HyperedgeWeight edge_weight,
+                        const PartitionID from,
+                        const HypernodeID pin_count_in_from_part_after,
+                        const PartitionID to,
+                        const HypernodeID pin_count_in_to_part_after) {
+    gain_cache.deltaGainUpdate(phg, he, edge_weight, from,
+      pin_count_in_from_part_after, to, pin_count_in_to_part_after);
   }
 
   void changeNumberOfBlocks(const PartitionID new_k) {
@@ -200,9 +211,10 @@ private:
     }
   }
 
-  template<typename PHG>
+  template<typename PartitionedHypergraph, typename GainCache>
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
-  std::pair<PartitionID, HyperedgeWeight> computeBestTargetBlock(const PHG& phg,
+  std::pair<PartitionID, HyperedgeWeight> computeBestTargetBlock(const PartitionedHypergraph& phg,
+                                                                 const GainCache& gain_cache,
                                                                  const HypernodeID u,
                                                                  const PartitionID from) {
     const HypernodeWeight wu = phg.nodeWeight(u);
@@ -213,7 +225,7 @@ private:
     for (PartitionID i = 0; i < context.partition.k; ++i) {
       if (i != from) {
         const HypernodeWeight to_weight = phg.partWeight(i);
-        const HyperedgeWeight penalty = phg.moveToBenefit(u, i);
+        const HyperedgeWeight penalty = gain_cache.benefitTerm(u, i);
         if ( ( penalty > to_benefit || ( penalty == to_benefit && to_weight < best_to_weight ) ) &&
              to_weight + wu <= context.partition.max_part_weights[i] ) {
           to_benefit = penalty;
@@ -222,14 +234,17 @@ private:
         }
       }
     }
-    const Gain gain = to != kInvalidPartition ? to_benefit - phg.moveFromPenalty(u)
+    const Gain gain = to != kInvalidPartition ? to_benefit - gain_cache.penaltyTerm(u, phg.partID(u))
                                               : std::numeric_limits<HyperedgeWeight>::min();
     return std::make_pair(to, gain);
   }
 
-  template<typename PHG>
+  template<typename PartitionedHypergraph, typename GainCache>
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
-  std::pair<PartitionID, HyperedgeWeight> bestOfThree(const PHG& phg, HypernodeID u, PartitionID from,
+  std::pair<PartitionID, HyperedgeWeight> bestOfThree(const PartitionedHypergraph& phg,
+                                                      const GainCache& gain_cache,
+                                                      HypernodeID u,
+                                                      PartitionID from,
                                                       std::array<PartitionID, 3> parts) {
 
     const HypernodeWeight wu = phg.nodeWeight(u);
@@ -240,7 +255,7 @@ private:
     for (PartitionID i : parts) {
       if (i != from && i != kInvalidPartition) {
         const HypernodeWeight to_weight = phg.partWeight(i);
-        const HyperedgeWeight penalty = phg.moveToBenefit(u, i);
+        const HyperedgeWeight penalty = gain_cache.benefitTerm(u, i);
         if ( ( penalty > to_benefit || ( penalty == to_benefit && to_weight < best_to_weight ) ) &&
              to_weight + wu <= context.partition.max_part_weights[i] ) {
           to_benefit = penalty;
@@ -249,7 +264,7 @@ private:
         }
       }
     }
-    const Gain gain = to != kInvalidPartition ? to_benefit - phg.moveFromPenalty(u)
+    const Gain gain = to != kInvalidPartition ? to_benefit - gain_cache.penaltyTerm(u, phg.partID(u))
                                               : std::numeric_limits<HyperedgeWeight>::min();
     return std::make_pair(to, gain);
   }
@@ -260,8 +275,6 @@ private:
 
 protected:
   FMSharedData& sharedData;
-
-  GainCache& gainCache;
 
   // ! Priority Queue that contains for each block of the partition
   // ! the vertex with the best gain value

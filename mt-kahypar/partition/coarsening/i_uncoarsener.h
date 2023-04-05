@@ -30,6 +30,7 @@
 
 #include "mt-kahypar/macros.h"
 #include "mt-kahypar/partition/refinement/i_refiner.h"
+#include "mt-kahypar/partition/refinement/fm/gain_cache/gain_cache_types.h"
 
 namespace mt_kahypar {
 
@@ -77,6 +78,10 @@ class IUncoarsener {
       rebalancingImpl();
     }
 
+    gain_cache_t getGainCache() {
+      return getGainCacheImpl();
+    }
+
     HyperedgeWeight getObjective() const {
       return getObjectiveImpl();
     }
@@ -108,6 +113,7 @@ class IUncoarsener {
     virtual void projectToNextLevelAndRefineImpl() = 0;
     virtual void refineImpl() = 0;
     virtual void rebalancingImpl() = 0;
+    virtual gain_cache_t getGainCacheImpl() = 0;
     virtual HyperedgeWeight getObjectiveImpl() const = 0;
     virtual void updateMetricsImpl() = 0;
     virtual PartitionedHypergraph& currentPartitionedHypergraphImpl() = 0;

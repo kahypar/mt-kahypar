@@ -62,19 +62,11 @@ class GainCacheFactory {
     return constructGainCache<DoNothingGainCache>();
   }
 
-  template<typename GainCache>
-  static GainCache& cast(gain_cache_t gain_cache) {
-    if ( gain_cache.type != GainCache::TYPE ) {
-      ERR("Cannot cast" << gain_cache.type << "to" << GainCache::TYPE);
-    }
-    return *reinterpret_cast<GainCache*>(gain_cache.gain_cache);
-  }
-
   static void deleteGainCache(gain_cache_t gain_cache) {
     if ( gain_cache.gain_cache ) {
       switch(gain_cache.type) {
-        case FMGainCacheType::km1_gain_cache:
         case FMGainCacheType::cut_gain_cache:
+        case FMGainCacheType::km1_gain_cache:
           delete reinterpret_cast<Km1GainCache*>(gain_cache.gain_cache); break;
         #ifdef KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES
         case FMGainCacheType::cut_gain_cache_for_graphs:
@@ -84,6 +76,50 @@ class GainCacheFactory {
           delete reinterpret_cast<DoNothingGainCache*>(gain_cache.gain_cache); break;
       }
     }
+  }
+
+  template<typename PartitionedHypergraph>
+  static void initializeGainCache(const PartitionedHypergraph& partitioned_hg,
+                                  gain_cache_t gain_cache) {
+    switch(gain_cache.type) {
+      case FMGainCacheType::cut_gain_cache:
+      case FMGainCacheType::km1_gain_cache:
+        reinterpret_cast<Km1GainCache*>(
+          gain_cache.gain_cache)->initializeGainCache(partitioned_hg); break;
+      #ifdef KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES
+      case FMGainCacheType::cut_gain_cache_for_graphs:
+        reinterpret_cast<GraphCutGainCache*>(
+          gain_cache.gain_cache)->initializeGainCache(partitioned_hg); break;
+      #endif
+      case FMGainCacheType::none:
+        reinterpret_cast<DoNothingGainCache*>(
+          gain_cache.gain_cache)->initializeGainCache(partitioned_hg); break;
+    }
+  }
+
+  static void resetGainCache(gain_cache_t gain_cache) {
+    switch(gain_cache.type) {
+      case FMGainCacheType::cut_gain_cache:
+      case FMGainCacheType::km1_gain_cache:
+        reinterpret_cast<Km1GainCache*>(
+          gain_cache.gain_cache)->reset(); break;
+      #ifdef KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES
+      case FMGainCacheType::cut_gain_cache_for_graphs:
+        reinterpret_cast<GraphCutGainCache*>(
+          gain_cache.gain_cache)->reset(); break;
+      #endif
+      case FMGainCacheType::none:
+        reinterpret_cast<DoNothingGainCache*>(
+          gain_cache.gain_cache)->reset(); break;
+    }
+  }
+
+  template<typename GainCache>
+  static GainCache& cast(gain_cache_t gain_cache) {
+    if ( gain_cache.type != GainCache::TYPE ) {
+      ERR("Cannot cast" << gain_cache.type << "to" << GainCache::TYPE);
+    }
+    return *reinterpret_cast<GainCache*>(gain_cache.gain_cache);
   }
 
  private:

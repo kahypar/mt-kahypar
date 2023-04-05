@@ -42,6 +42,7 @@
 #endif
 #include "mt-kahypar/partition/initial_partitioning/pool_initial_partitioner.h"
 #include "mt-kahypar/partition/preprocessing/sparsification/degree_zero_hn_remover.h"
+#include "mt-kahypar/partition/refinement/fm/gain_cache/gain_cache_types.h"
 #include "mt-kahypar/utils/randomize.h"
 #include "mt-kahypar/utils/utilities.h"
 #include "mt-kahypar/utils/timer.h"
@@ -460,9 +461,10 @@ DeepPartitioningResult<TypeTraits> bipartition_block(typename TypeTraits::Hyperg
   return bipartition;
 }
 
-template<typename TypeTraits>
+template<typename TypeTraits, typename GainCache>
 void bipartition_each_block(typename TypeTraits::PartitionedHypergraph& partitioned_hg,
                             const Context& context,
+                            GainCache& gain_cache,
                             const OriginalHypergraphInfo& info,
                             const RBTree& rb_tree,
                             const PartitionID current_k,
@@ -532,17 +534,17 @@ void bipartition_each_block(typename TypeTraits::PartitionedHypergraph& partitio
 
     ASSERT(to > kInvalidPartition && to < block_ranges.back());
     if ( from != to ) {
-      if ( partitioned_hg.isGainCacheInitialized() ) {
-        partitioned_hg.changeNodePartWithGainCacheUpdate(hn, from, to);
+      if ( gain_cache.isInitialized() ) {
+        partitioned_hg.changeNodePart(gain_cache, hn, from, to);
       } else {
         partitioned_hg.changeNodePart(hn, from, to);
       }
     }
   });
 
-  if ( partitioned_hg.isGainCacheInitialized() ) {
+  if ( gain_cache.isInitialized() ) {
     partitioned_hg.doParallelForAllNodes([&](const HypernodeID& hn) {
-      partitioned_hg.recomputeMoveFromPenalty(hn);
+      gain_cache.recomputePenaltyTermEntry(partitioned_hg, hn);
     });
   }
   timer.stop_timer("apply_bipartitions");
@@ -554,7 +556,35 @@ void bipartition_each_block(typename TypeTraits::PartitionedHypergraph& partitio
   });
   timer.stop_timer("free_hypergraphs");
 
-  HEAVY_REFINEMENT_ASSERT(partitioned_hg.checkTrackedPartitionInformation());
+  HEAVY_REFINEMENT_ASSERT(partitioned_hg.checkTrackedPartitionInformation(gain_cache));
+}
+
+template<typename TypeTraits>
+void bipartition_each_block(typename TypeTraits::PartitionedHypergraph& partitioned_hg,
+                            const Context& context,
+                            gain_cache_t gain_cache,
+                            const OriginalHypergraphInfo& info,
+                            const RBTree& rb_tree,
+                            const PartitionID current_k,
+                            const HyperedgeWeight current_objective,
+                            const bool progress_bar_enabled) {
+  switch(gain_cache.type) {
+    case FMGainCacheType::cut_gain_cache:
+    case FMGainCacheType::km1_gain_cache:
+      bipartition_each_block<TypeTraits>(partitioned_hg, context,
+        GainCacheFactory::cast<Km1GainCache>(gain_cache), info, rb_tree,
+        current_k, current_objective, progress_bar_enabled); break;
+    #ifdef KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES
+    case FMGainCacheType::cut_gain_cache_for_graphs:
+      bipartition_each_block<TypeTraits>(partitioned_hg, context,
+        GainCacheFactory::cast<GraphCutGainCache>(gain_cache), info, rb_tree,
+        current_k, current_objective, progress_bar_enabled); break;
+    #endif
+    case FMGainCacheType::none:
+      bipartition_each_block<TypeTraits>(partitioned_hg, context,
+        GainCacheFactory::cast<DoNothingGainCache>(gain_cache), info, rb_tree,
+        current_k, current_objective, progress_bar_enabled); break;
+  }
 }
 
 template<typename TypeTraits>
@@ -797,8 +827,8 @@ PartitionID deep_multilevel_partitioning(typename TypeTraits::PartitionedHypergr
             << "( Current Number of Nodes =" << current_phg.initialNumNodes() << ")";
       }
       timer.start_timer("bipartitioning", "Bipartitioning");
-      bipartition_each_block<TypeTraits>(current_phg, context, info, rb_tree,
-        current_k, uncoarsener->getObjective(), progress_bar_enabled);
+      bipartition_each_block<TypeTraits>(current_phg, context, uncoarsener->getGainCache(),
+        info, rb_tree, current_k, uncoarsener->getObjective(), progress_bar_enabled);
       timer.stop_timer("bipartitioning");
 
       DBG << "Increase number of blocks from" << current_k << "to" << next_k
@@ -841,8 +871,8 @@ PartitionID deep_multilevel_partitioning(typename TypeTraits::PartitionedHypergr
           << "( Current Number of Nodes =" << current_phg.initialNumNodes() << ")";
     }
     timer.start_timer("bipartitioning", "Bipartitioning");
-    bipartition_each_block<TypeTraits>(current_phg, context, info, rb_tree,
-      current_k, uncoarsener->getObjective(), progress_bar_enabled);
+    bipartition_each_block<TypeTraits>(current_phg, context, uncoarsener->getGainCache(),
+      info, rb_tree, current_k, uncoarsener->getObjective(), progress_bar_enabled);
     timer.stop_timer("bipartitioning");
 
     DBG << "Increase number of blocks from" << current_k << "to" << next_k

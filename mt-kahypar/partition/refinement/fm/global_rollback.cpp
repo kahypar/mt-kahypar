@@ -176,14 +176,14 @@ namespace mt_kahypar {
       }
     });
 
-    // recompute moveFromPenalty values since they are potentially invalid
+    // recompute penalty term values since they are potentially invalid
     tbb::parallel_for(MoveID(0), numMoves, [&](const MoveID i) {
-      phg.recomputeMoveFromPenalty(move_order[i].node);
+      gain_cache.recomputePenaltyTermEntry(phg, move_order[i].node);
     });
 
     sharedData.moveTracker.reset();
 
-    HEAVY_REFINEMENT_ASSERT(phg.checkTrackedPartitionInformation());
+    HEAVY_REFINEMENT_ASSERT(phg.checkTrackedPartitionInformation(gain_cache));
     return b.gain;
   }
 
@@ -349,7 +349,7 @@ namespace mt_kahypar {
     });
 
     tbb::parallel_for(0U, numMoves, [&](const MoveID i) {
-      phg.recomputeMoveFromPenalty(move_order[i].node);
+      gain_cache.recomputePenaltyTermEntry(phg, move_order[i].node);
     });
 
     tracker.reset();
@@ -365,12 +365,12 @@ namespace mt_kahypar {
 
     auto recompute_move_from_benefits = [&] {
       for (MoveID localMoveID = 0; localMoveID < sharedData.moveTracker.numPerformedMoves(); ++localMoveID) {
-        phg.recomputeMoveFromPenalty(move_order[localMoveID].node);
+        gain_cache.recomputePenaltyTermEntry(phg, move_order[localMoveID].node);
       }
     };
 
     recompute_move_from_benefits();
-    phg.checkTrackedPartitionInformation();
+    phg.checkTrackedPartitionInformation(gain_cache);
 
     // revert all moves
     for (MoveID localMoveID = 0; localMoveID < sharedData.moveTracker.numPerformedMoves(); ++localMoveID) {
@@ -394,9 +394,9 @@ namespace mt_kahypar {
         if (phg.pinCountInPart(e, m.to) == 0) gain -= phg.edgeWeight(e);
       }
 
-      ASSERT(phg.moveFromPenalty(m.node) == phg.moveFromPenaltyRecomputed(m.node));
-      ASSERT(phg.moveToBenefit(m.node, m.to) == phg.moveToBenefitRecomputed(m.node, m.to));
-      ASSERT(gain == phg.km1Gain(m.node, m.from, m.to));
+      ASSERT(gain_cache.penaltyTerm(m.node, phg.partID(m.node)) == gain_cache.recomputePenaltyTerm(phg, m.node));
+      ASSERT(gain_cache.benefitTerm(m.node, m.to) == gain_cache.recomputeBenefitTerm(phg, m.node, m.to));
+      ASSERT(gain == gain_cache.gain(m.node, m.from, m.to));
 
       const HyperedgeWeight km1_before_move = metrics::km1(phg, false);
       moveVertex(phg, m.node, m.from, m.to);

@@ -75,11 +75,10 @@ class GraphCutGainCache final : public kahypar::meta::PolicyBase {
 
   // ! Initializes all gain cache entries
   template<typename PartitionedGraph>
-  void initializeGainCache(const PartitionedGraph& partitioned_graph,
-                           const HypernodeID initial_num_nodes) {
+  void initializeGainCache(const PartitionedGraph& partitioned_graph) {
     ASSERT(!_is_initialized, "Gain cache is already initialized");
     ASSERT(_k == kInvalidPartition || _k == partitioned_graph.k(), "Gain cache was already initialized for a different k");
-    allocateGainTable(initial_num_nodes, partitioned_graph.k());
+    allocateGainTable(partitioned_hg.topLevelNumNodes(), partitioned_graph.k());
 
     // assert that current gain values are zero
     ASSERT(!_is_initialized &&

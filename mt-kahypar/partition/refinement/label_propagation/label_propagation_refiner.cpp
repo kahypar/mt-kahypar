@@ -64,7 +64,7 @@ namespace mt_kahypar {
     Gain delta = _gain.delta();
     ASSERT(delta <= 0, "LP refiner worsen solution quality");
 
-    HEAVY_REFINEMENT_ASSERT(hypergraph.checkTrackedPartitionInformation());
+    HEAVY_REFINEMENT_ASSERT(hypergraph.checkTrackedPartitionInformation(_gain_cache));
     HEAVY_REFINEMENT_ASSERT(current_metric + delta ==
                             metrics::objective(hypergraph, _context.partition.objective,
                                                 !_context.refinement.label_propagation.execute_sequential),
@@ -147,10 +147,10 @@ namespace mt_kahypar {
       });
     }
 
-    if ( _context.forceGainCacheUpdates() && hypergraph.isGainCacheInitialized() ) {
+    if ( _context.forceGainCacheUpdates() && _gain_cache.isInitialized() ) {
       auto recompute = [&](size_t j) {
         if ( _active_node_was_moved[j] ) {
-          hypergraph.recomputeMoveFromPenalty(_active_nodes[j]);
+          _gain_cache.recomputePenaltyTermEntry(hypergraph, _active_nodes[j]);
           _active_node_was_moved[j] = uint8_t(false);
         }
       };
@@ -164,7 +164,7 @@ namespace mt_kahypar {
       }
     }
 
-    HEAVY_REFINEMENT_ASSERT(hypergraph.checkTrackedPartitionInformation());
+    HEAVY_REFINEMENT_ASSERT(hypergraph.checkTrackedPartitionInformation(_gain_cache));
     return converged;
   }
 

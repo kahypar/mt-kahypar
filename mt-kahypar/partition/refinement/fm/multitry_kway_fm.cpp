@@ -210,8 +210,8 @@ namespace mt_kahypar {
   void MultiTryKWayFM<TypeTraits, GainCache>::initializeImpl(mt_kahypar_partitioned_hypergraph_t& hypergraph) {
     PartitionedHypergraph& phg = utils::cast<PartitionedHypergraph>(hypergraph);
 
-    if (!phg.isGainCacheInitialized()) {
-      phg.initializeGainCache();
+    if (!gain_cache.isInitialized()) {
+      gain_cache.initializeGainCache(phg);
     }
 
     is_initialized = true;

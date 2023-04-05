@@ -141,16 +141,16 @@ bool FlowRefinementScheduler<TypeTraits, GainCache>::refineImpl(
   _stats.update_global_stats();
 
   // Update Gain Cache
-  if ( _context.forceGainCacheUpdates() && phg.isGainCacheInitialized() ) {
+  if ( _context.forceGainCacheUpdates() && _gain_cache.isInitialized() ) {
     phg.doParallelForAllNodes([&](const HypernodeID& hn) {
       if ( _was_moved[hn] ) {
-        phg.recomputeMoveFromPenalty(hn);
+        _gain_cache.recomputePenaltyTermEntry(phg, hn);
         _was_moved[hn] = uint8_t(false);
       }
     });
   }
 
-  HEAVY_REFINEMENT_ASSERT(phg.checkTrackedPartitionInformation());
+  HEAVY_REFINEMENT_ASSERT(phg.checkTrackedPartitionInformation(_gain_cache));
   _phg = nullptr;
   return overall_delta.load(std::memory_order_relaxed) < 0;
 }
@@ -203,17 +203,18 @@ struct NewCutHyperedge {
   PartitionID block;
 };
 
-template<typename PartitionedHypergraph, typename F>
+template<typename PartitionedHypergraph, typename GainCache, typename F>
 bool changeNodePart(PartitionedHypergraph& phg,
+                    GainCache& gain_cache,
                     const HypernodeID hn,
                     const PartitionID from,
                     const PartitionID to,
                     const F& objective_delta,
                     const bool gain_cache_update) {
   bool success = false;
-  if ( gain_cache_update && phg.isGainCacheInitialized()) {
-    success = phg.changeNodePartWithGainCacheUpdate(hn, from, to,
-      std::numeric_limits<HypernodeWeight>::max(), [] { }, objective_delta);
+  if ( gain_cache_update && gain_cache.isInitialized()) {
+    success = phg.changeNodePart(gain_cache, hn, from, to,
+      std::numeric_limits<HypernodeWeight>::max(), []{}, objective_delta);
   } else {
     success = phg.changeNodePart(hn, from, to,
       std::numeric_limits<HypernodeWeight>::max(), []{}, objective_delta);
@@ -222,8 +223,9 @@ bool changeNodePart(PartitionedHypergraph& phg,
   return success;
 }
 
-template<typename PartitionedHypergraph, typename F>
+template<typename PartitionedHypergraph, typename GainCache, typename F>
 void applyMoveSequence(PartitionedHypergraph& phg,
+                       GainCache& gain_cache,
                        const MoveSequence& sequence,
                        const F& objective_delta,
                        const bool gain_cache_update,
@@ -232,7 +234,8 @@ void applyMoveSequence(PartitionedHypergraph& phg,
   for ( const Move& move : sequence.moves ) {
     ASSERT(move.from == phg.partID(move.node));
     if ( move.from != move.to ) {
-      changeNodePart(phg, move.node, move.from, move.to, objective_delta, gain_cache_update);
+      changeNodePart(phg, gain_cache, move.node, move.from,
+        move.to, objective_delta, gain_cache_update);
       was_moved[move.node] = uint8_t(true);
       // If move increases the pin count of some hyperedges in block 'move.to' to one 1
       // we set the corresponding block here.
@@ -245,15 +248,17 @@ void applyMoveSequence(PartitionedHypergraph& phg,
   }
 }
 
-template<typename PartitionedHypergraph, typename F>
+template<typename PartitionedHypergraph, typename GainCache, typename F>
 void revertMoveSequence(PartitionedHypergraph& phg,
+                        GainCache& gain_cache,
                         const MoveSequence& sequence,
                         const F& objective_delta,
                         const bool gain_cache_update) {
   for ( const Move& move : sequence.moves ) {
     if ( move.from != move.to ) {
       ASSERT(phg.partID(move.node) == move.to);
-      changeNodePart(phg, move.node, move.to, move.from, objective_delta, gain_cache_update);
+      changeNodePart(phg, gain_cache, move.node, move.to,
+        move.from, objective_delta, gain_cache_update);
     }
   }
 }
@@ -316,7 +321,7 @@ HyperedgeWeight FlowRefinementScheduler<TypeTraits, GainCache>::applyMoves(const
   PartWeightUpdateResult update_res = partWeightUpdate(part_weight_deltas, false);
   if ( update_res.is_balanced ) {
     // Apply move sequence to partition
-    applyMoveSequence(*_phg, sequence, delta_func,
+    applyMoveSequence(*_phg, _gain_cache, sequence, delta_func,
       _context.forceGainCacheUpdates(), _was_moved, new_cut_hes);
 
     if ( improvement < 0 ) {
@@ -327,7 +332,7 @@ HyperedgeWeight FlowRefinementScheduler<TypeTraits, GainCache>::applyMoves(const
             << "Expected Improvement =" << sequence.expected_improvement
             << ", Real Improvement =" << improvement
             << ", Search ID =" << search_id << ")" << END;
-        revertMoveSequence(*_phg, sequence, delta_func, _context.forceGainCacheUpdates());
+        revertMoveSequence(*_phg, _gain_cache, sequence, delta_func, _context.forceGainCacheUpdates());
         ++_stats.failed_updates_due_to_conflicting_moves;
         sequence.state = MoveSequenceState::WORSEN_SOLUTION_QUALITY;
       } else {
