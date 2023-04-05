@@ -375,7 +375,7 @@ class Km1GainCache final : public kahypar::meta::PolicyBase {
   void allocateGainTable(const HypernodeID num_nodes,
                          const PartitionID k) {
     if (_gain_cache.size() == 0) {
-      ASSERT(_k == kInvalidHypernode);
+      ASSERT(_k == kInvalidPartition);
       _k = k;
       _gain_cache.resize(
         "Refinement", "gain_cache", num_nodes * size_t(_k + 1), true);

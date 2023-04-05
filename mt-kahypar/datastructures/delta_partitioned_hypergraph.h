@@ -56,8 +56,7 @@ namespace ds {
  * upon that state. This special partitioned hypergraph allows a local search to hide its
  * current search state from other searches in a space efficient manner.
  */
-template <typename PartitionedHypergraph = Mandatory,
-          typename GainCache = Mandatory>
+template <typename PartitionedHypergraph = Mandatory>
 class DeltaPartitionedHypergraph {
  private:
   static constexpr size_t MAP_SIZE_LARGE = 16384;
@@ -68,14 +67,12 @@ class DeltaPartitionedHypergraph {
   using HyperedgeIterator = typename PartitionedHypergraph::HyperedgeIterator;
   using IncidenceIterator = typename PartitionedHypergraph::IncidenceIterator;
   using IncidentNetsIterator = typename PartitionedHypergraph::IncidentNetsIterator;
-  using DeltaGainCache = typename GainCache::DeltaGainCache;
 
  public:
   static constexpr bool supports_connectivity_set = false;
   static constexpr HyperedgeID HIGH_DEGREE_THRESHOLD = PartitionedHypergraph::HIGH_DEGREE_THRESHOLD;
 
-  DeltaPartitionedHypergraph(const Context& context,
-                             GainCache& gain_cache) :
+  DeltaPartitionedHypergraph(const Context& context) :
     _k(context.partition.k),
     _phg(nullptr),
     _part_weights_delta(context.partition.k, 0),
@@ -147,6 +144,18 @@ class DeltaPartitionedHypergraph {
   HyperedgeWeight edgeWeight(const HyperedgeID e) const {
     ASSERT(_phg);
     return _phg->edgeWeight(e);
+  }
+
+  // ! Target of an edge
+  HypernodeID edgeTarget(const HyperedgeID e) const {
+    ASSERT(_phg);
+    return _phg->edgeTarget(e);
+  }
+
+  // ! Source of an edge
+  HypernodeID edgeSource(const HyperedgeID e) const {
+    ASSERT(_phg);
+    return _phg->edgeSource(e);
   }
 
   // ####################### Partition Information #######################

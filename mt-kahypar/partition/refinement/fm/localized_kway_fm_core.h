@@ -46,7 +46,7 @@ class LocalizedKWayFM {
   static constexpr size_t MAP_SIZE_MOVE_DELTA = 8192;
 
   using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
-  using DeltaPartitionedHypergraph = typename PartitionedHypergraph::DeltaPartition<GainCache>;
+  using DeltaPartitionedHypergraph = typename PartitionedHypergraph::DeltaPartition;
   using DeltaGainCache = typename GainCache::DeltaGainCache;
 
 public:
@@ -56,7 +56,7 @@ public:
                            GainCache& gainCache) :
     context(context),
     thisSearch(0),
-    deltaPhg(context, gainCache),
+    deltaPhg(context),
     neighborDeduplicator(numNodes, 0),
     fm_strategy(context, sharedData, runStats),
     gain_cache(gainCache),

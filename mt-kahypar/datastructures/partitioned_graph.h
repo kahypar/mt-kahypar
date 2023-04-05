@@ -42,7 +42,6 @@
 #include "mt-kahypar/parallel/atomic_wrapper.h"
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
 #include "mt-kahypar/parallel/stl/thread_locals.h"
-#include "mt-kahypar/partition/refinement/fm/gain_cache/cut_gain_cache_for_graphs.h"
 #include "mt-kahypar/utils/range.h"
 #include "mt-kahypar/utils/timer.h"
 
@@ -50,7 +49,7 @@ namespace mt_kahypar {
 namespace ds {
 
 // Forward
-template <typename PartitionedGraph, typename GainCache>
+template <typename PartitionedGraph>
 class DeltaPartitionedGraph;
 
 template <typename Hypergraph = Mandatory>
@@ -160,8 +159,7 @@ private:
   using HyperedgeIterator = typename Hypergraph::HyperedgeIterator;
   using IncidenceIterator = typename Hypergraph::IncidenceIterator;
   using IncidentNetsIterator = typename Hypergraph::IncidentNetsIterator;
-  template<typename GainCache>
-  using DeltaPartition = DeltaPartitionedGraph<PartitionedGraph<Hypergraph>, GainCache>;
+  using DeltaPartition = DeltaPartitionedGraph<PartitionedGraph<Hypergraph>>;
 
   PartitionedGraph() = default;
 
@@ -173,7 +171,6 @@ private:
     _part_weights(k, CAtomic<HypernodeWeight>(0)),
     _part_ids(
       "Refinement", "part_ids", hypergraph.initialNumNodes(), false, false),
-    _gain_cache(),
     _edge_sync(
       "Refinement", "edge_sync", hypergraph.maxUniqueID(), false, false),
     _edge_markers(Hypergraph::is_static_hypergraph ? 0 : hypergraph.maxUniqueID()) {
@@ -189,7 +186,6 @@ private:
     _hg(&hypergraph),
     _part_weights(k, CAtomic<HypernodeWeight>(0)),
     _part_ids(),
-    _gain_cache(),
     _edge_sync(),
     _edge_markers() {
     tbb::parallel_invoke([&] {
@@ -221,8 +217,6 @@ private:
     tbb::parallel_invoke([&] {
     }, [&] {
       _part_ids.assign(_part_ids.size(), kInvalidPartition);
-    }, [&] {
-      _gain_cache.reset();
     }, [&] {
       for (auto& x : _part_weights) x.store(0, std::memory_order_relaxed);
     }, [&] {
@@ -311,6 +305,12 @@ private:
   // ! Returns a range to loop over the incident nets of hypernode u.
   IteratorRange<IncidentNetsIterator> incidentEdges(const HypernodeID u) const {
     return _hg->incidentEdges(u);
+  }
+
+  // ! Returns a range to loop over the incident nets of hypernode u.
+  IteratorRange<IncidentNetsIterator> incidentEdges(const HypernodeID u,
+                                                    const size_t pos) const {
+    return _hg->incident_nets_of(u, pos);
   }
 
   // ! Returns a range to loop over the pins of hyperedge e.
@@ -407,7 +407,8 @@ private:
 
   // ####################### Uncontraction #######################
 
-  void uncontract(const Batch& batch) {
+  template<typename GainCache>
+  void uncontract(const Batch& batch, GainCache& gain_cache) {
     // Set block ids of contraction partners
     tbb::parallel_for(UL(0), batch.size(), [&](const size_t i) {
       const Memento& memento = batch[i];
@@ -422,11 +423,11 @@ private:
       [&](const HyperedgeID e) { return !_edge_markers.compare_and_set_to_true(uniqueEdgeID(e)); },
       [&](const HypernodeID u, const HypernodeID v, const HyperedgeID e) {
         // In this case, e was a single pin edge before uncontraction
-        _gain_cache.uncontractUpdateAfterRestore(*this, u, v, e, 0);
+        gain_cache.uncontractUpdateAfterRestore(*this, u, v, e, 0);
       },
       [&](const HypernodeID u, const HypernodeID v, const HyperedgeID e) {
         // In this case, u is replaced by v in e
-        _gain_cache.uncontractUpdateAfterReplacement(*this, u, v, e);
+        gain_cache.uncontractUpdateAfterReplacement(*this, u, v, e);
       });
   }
 
@@ -436,7 +437,9 @@ private:
     _hg->restoreLargeEdge(he);
   }
 
-  void restoreSinglePinAndParallelNets(const parallel::scalable_vector<typename Hypergraph::ParallelHyperedge>& hes_to_restore) {
+  template<typename GainCache>
+  void restoreSinglePinAndParallelNets(const vec<typename Hypergraph::ParallelHyperedge>& hes_to_restore,
+                                       GainCache&) {
     _edge_markers.reset();
     _hg->restoreSinglePinAndParallelNets(hes_to_restore);
   }
@@ -480,52 +483,48 @@ private:
 
   // ! Changes the block id of vertex u from block 'from' to block 'to'
   // ! Returns true, if move of vertex u to corresponding block succeeds.
-  template<typename SuccessFunc, typename DeltaFunc>
+  template<typename SuccessFunc>
   bool changeNodePart(const HypernodeID u,
                       PartitionID from,
                       PartitionID to,
                       HypernodeWeight max_weight_to,
                       SuccessFunc&& report_success,
-                      DeltaFunc&& delta_func) {
+                      const DeltaFunction& delta_func) {
     return changeNodePartImpl(u, from, to, max_weight_to, report_success, delta_func);
   }
 
-  // overload
   bool changeNodePart(const HypernodeID u,
                       PartitionID from,
                       PartitionID to,
-                      const DeltaFunction& delta_func) {
+                      const DeltaFunction& delta_func = NOOP_FUNC) {
     return changeNodePart(u, from, to,
       std::numeric_limits<HypernodeWeight>::max(), []{}, delta_func);
   }
 
-  // overload for case that does not require locking
-  bool changeNodePart(const HypernodeID u,
+  template<typename GainCache, typename SuccessFunc>
+  bool changeNodePart(GainCache& gain_cache,
+                      const HypernodeID u,
                       PartitionID from,
-                      PartitionID to) {
-    return changeNodePartImpl(u, from, to,
-      std::numeric_limits<HypernodeWeight>::max(), []{}, NOOP_FUNC);
-  }
-
-  // Make sure not to call phg.gainCacheUpdate(..) in delta_func for changeNodePartWithGainCacheUpdate
-  template<typename SuccessFunc, typename DeltaFunc>
-  bool changeNodePartWithGainCacheUpdate(const HypernodeID u,
-                                         PartitionID from,
-                                         PartitionID to,
-                                         HypernodeWeight max_weight_to,
-                                         SuccessFunc&& report_success,
-                                         DeltaFunc&& delta_func) {
+                      PartitionID to,
+                      HypernodeWeight max_weight_to,
+                      SuccessFunc&& report_success,
+                      const DeltaFunction& delta_func) {
     auto my_delta_func = [&](const HyperedgeID he, const HyperedgeWeight edge_weight, const HypernodeID edge_size,
-            const HypernodeID pin_count_in_from_part_after, const HypernodeID pin_count_in_to_part_after) {
+      const HypernodeID pin_count_in_from_part_after, const HypernodeID pin_count_in_to_part_after) {
       delta_func(he, edge_weight, edge_size, pin_count_in_from_part_after, pin_count_in_to_part_after);
-      gainCacheUpdate(he, edge_weight, from, pin_count_in_from_part_after, to, pin_count_in_to_part_after);
+      gain_cache.deltaGainUpdate(*this, he, edge_weight, from,
+        pin_count_in_from_part_after, to, pin_count_in_to_part_after);
     };
     return changeNodePart(u, from, to, max_weight_to, report_success, my_delta_func);
   }
 
-  bool changeNodePartWithGainCacheUpdate(const HypernodeID u, PartitionID from, PartitionID to) {
-    return changeNodePartWithGainCacheUpdate(u, from, to,
-      std::numeric_limits<HypernodeWeight>::max(), [] { }, NoOpDeltaFunc());
+  template<typename GainCache>
+  bool changeNodePart(GainCache& gain_cache,
+                      const HypernodeID u,
+                      PartitionID from,
+                      PartitionID to) {
+    return changeNodePart(gain_cache, u, from, to,
+      std::numeric_limits<HypernodeWeight>::max(), []{}, NoOpDeltaFunc());
   }
 
   // ! Weight of a block
@@ -589,43 +588,15 @@ private:
     return count;
   }
 
-  HyperedgeWeight moveFromPenalty(const HypernodeID u) const {
-    return _gain_cache.penaltyTerm(u, partID(u));
-  }
-
-  HyperedgeWeight moveToBenefit(const HypernodeID u, PartitionID p) const {
-    return _gain_cache.benefitTerm(u, p);
-  }
-
-  HyperedgeWeight incidentWeightInPart(const HypernodeID u, PartitionID p) const {
-    return _gain_cache.benefitTerm(u, p);
-  }
-
-  HyperedgeWeight km1Gain(const HypernodeID u, PartitionID from, PartitionID to) const {
-    ASSERT(from == partID(u), "While gain computation works for from != partID(u), such a query makes no sense");
-    ASSERT(from != to, "The gain computation doesn't work for from = to");
-    return _gain_cache.gain(u, from, to);;
-  }
-
   // ! Initializes the partition of the hypergraph, if block ids are assigned with
   // ! setOnlyNodePart(...). In that case, block weights must be initialized explicitly here.
   void initializePartition() {
     initializeBlockWeights();
   }
 
-  bool isGainCacheInitialized() const {
-    return _gain_cache.isInitialized();
-  }
-
-  // ! Initialize gain cache
-  void initializeGainCache() {
-    _gain_cache.initializeGainCache(*this, _input_num_nodes);
-  }
-
   // ! Reset partition (not thread-safe)
   void resetPartition() {
     _part_ids.assign(_part_ids.size(), kInvalidPartition, false);
-    _gain_cache.reset(false);
     _edge_sync.assign(_hg->maxUniqueID(), EdgeMove(), false);
     for (auto& weight : _part_weights) {
       weight.store(0, std::memory_order_relaxed);
@@ -643,22 +614,13 @@ private:
     }
   }
 
-  // ! Only for testing
-  HyperedgeWeight moveFromPenaltyRecomputed(const HypernodeID u) const {
-    return _gain_cache.recomputePenaltyTerm(*this, u);
-  }
-
-  // ! Only for testing
-  HyperedgeWeight moveToBenefitRecomputed(const HypernodeID u, PartitionID p) const {
-    return _gain_cache.recomputeBenefitTerm(*this, u, p);
-  }
-
   void recomputeMoveFromPenalty(const HypernodeID) {
     // Nothing to do here
   }
 
   // ! Only for testing
-  bool checkTrackedPartitionInformation() {
+  template<typename GainCache>
+  bool checkTrackedPartitionInformation(GainCache& gain_cache) {
     bool success = true;
 
     for (HyperedgeID e : edges()) {
@@ -674,21 +636,28 @@ private:
       }
     }
 
-    if ( _gain_cache.isInitialized() ) {
+    if ( gain_cache.isInitialized() ) {
       for (HypernodeID u : nodes()) {
-        if ( moveFromPenalty(u) != moveFromPenaltyRecomputed(u) ) {
+        const PartitionID block_of_u = partID(u);
+        if ( gain_cache.penaltyTerm(u, block_of_u) !=
+             gain_cache.recomputePenaltyTerm(*this, u) ) {
           LOG << "Move from benefit of hypernode" << u << "=>" <<
-              "Expected:" << V(moveFromPenaltyRecomputed(u)) << ", " <<
-              "Actual:" <<  V(moveFromPenalty(u));
+              "Expected:" << V(gain_cache.recomputePenaltyTerm(*this, u)) << ", " <<
+              "Actual:" <<  V(gain_cache.penaltyTerm(u, block_of_u));
+          for ( const HyperedgeID& e : incidentEdges(u) ) {
+            LOG << V(u) << V(partID(u)) << V(e) << V(edgeSize(e))
+                << V(edgeWeight(e)) << V(pinCountInPart(e, partID(u)));
+          }
           success = false;
         }
 
         for (PartitionID i = 0; i < k(); ++i) {
           if (partID(u) != i) {
-            if ( moveToBenefit(u, i) != moveToBenefitRecomputed(u, i) ) {
+            if ( gain_cache.benefitTerm(u, i) !=
+                 gain_cache.recomputeBenefitTerm(*this, u, i) ) {
               LOG << "Move to penalty of hypernode" << u << "in block" << i << "=>" <<
-                  "Expected:" << V(moveToBenefitRecomputed(u, i)) << ", " <<
-                  "Actual:" <<  V(moveToBenefit(u, i));
+                  "Expected:" << V(gain_cache.recomputeBenefitTerm(*this, u, i)) << ", " <<
+                  "Actual:" <<  V(gain_cache.benefitTerm(u, i));
               success = false;
             }
           }
@@ -704,7 +673,6 @@ private:
     ASSERT(parent);
     parent->addChild("Part Weights", sizeof(CAtomic<HypernodeWeight>) * _k);
     parent->addChild("Part IDs", sizeof(PartitionID) * _hg->initialNumNodes());
-    parent->addChild("Incident Block Weights", sizeof(CAtomic<HyperedgeWeight>) * _gain_cache.size());
     parent->addChild("Edge Synchronization", sizeof(CAtomic<PartitionID>) * _edge_sync.size());
     parent->addChild("Edge Markers", sizeof(uint8_t) * _edge_markers.size());
   }
@@ -923,14 +891,6 @@ private:
     _k = 0;
   }
 
-  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
-  void gainCacheUpdate(const HyperedgeID he, const HyperedgeWeight we,
-                       const PartitionID from, const HypernodeID pin_count_in_from_part_after,
-                       const PartitionID to, const HypernodeID pin_count_in_to_part_after) {
-    _gain_cache.deltaGainUpdate(*this, he, we, from,
-      pin_count_in_from_part_after, to, pin_count_in_to_part_after);
-  }
-
  private:
   template<typename SuccessFunc, typename DeltaFunc>
   bool changeNodePartImpl(const HypernodeID u,
@@ -1018,9 +978,6 @@ private:
 
   // ! Current block IDs of the vertices
   Array< PartitionID > _part_ids;
-
-  // ! Gain cache for the cut metric on plain graphs
-  GraphCutGainCache _gain_cache;
 
   // ! For each edge we use an atomic lock to synchronize moves
   Array< EdgeMove > _edge_sync;

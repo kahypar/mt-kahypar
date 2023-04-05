@@ -48,7 +48,7 @@ namespace mt_kahypar {
 namespace ds {
 
 // Forward
-template<typename PartitionedHypergraph, typename GainCache>
+template<typename PartitionedHypergraph>
 class DeltaPartitionedHypergraph;
 
 template <typename Hypergraph = Mandatory,
@@ -87,9 +87,8 @@ private:
   using IncidenceIterator = typename Hypergraph::IncidenceIterator;
   using IncidentNetsIterator = typename Hypergraph::IncidentNetsIterator;
   using ConnectivitySetIterator = typename ConnectivityInformation::Iterator;
-  template<typename GainCache>
   using DeltaPartition = DeltaPartitionedHypergraph<
-    PartitionedHypergraph<Hypergraph, ConnectivityInformation>, GainCache>;
+    PartitionedHypergraph<Hypergraph, ConnectivityInformation>>;
 
   PartitionedHypergraph() = default;
 
@@ -348,6 +347,24 @@ private:
     _hg->disableHyperedge(e);
   }
 
+    // ! Target of an edge
+  HypernodeID edgeTarget(const HyperedgeID) const {
+    ERR("edgeTarget(e) is only supported on graph data structure");
+    return kInvalidHypernode;
+  }
+
+  // ! Source of an edge
+  HypernodeID edgeSource(const HyperedgeID) const {
+    ERR("edgeSource(e) is only supported on graph data structure");
+    return kInvalidHypernode;
+  }
+
+  // ! Whether the edge is a single pin edge
+  bool isSinglePin(const HyperedgeID) const {
+    ERR("isSinglePin(e) is only supported on graph data structure");
+    return false;
+  }
+
   // ####################### Uncontraction #######################
 
   /**
@@ -506,13 +523,13 @@ private:
 
   // ! Changes the block id of vertex u from block 'from' to block 'to'
   // ! Returns true, if move of vertex u to corresponding block succeeds.
-  template<typename SuccessFunc, typename DeltaFunc>
+  template<typename SuccessFunc>
   bool changeNodePart(const HypernodeID u,
                       PartitionID from,
                       PartitionID to,
                       HypernodeWeight max_weight_to,
                       SuccessFunc&& report_success,
-                      DeltaFunc&& delta_func) {
+                      const DeltaFunction& delta_func) {
     ASSERT(partID(u) == from);
     ASSERT(from != to);
     const HypernodeWeight wu = nodeWeight(u);
@@ -547,9 +564,9 @@ private:
                       PartitionID to,
                       HypernodeWeight max_weight_to,
                       SuccessFunc&& report_success,
-                      DeltaFunction&& delta_func) {
+                      const DeltaFunction& delta_func) {
     auto my_delta_func = [&](const HyperedgeID he, const HyperedgeWeight edge_weight, const HypernodeID edge_size,
-            const HypernodeID pin_count_in_from_part_after, const HypernodeID pin_count_in_to_part_after) {
+      const HypernodeID pin_count_in_from_part_after, const HypernodeID pin_count_in_to_part_after) {
       delta_func(he, edge_weight, edge_size, pin_count_in_from_part_after, pin_count_in_to_part_after);
       gain_cache.deltaGainUpdate(*this, he, edge_weight, from,
         pin_count_in_from_part_after, to, pin_count_in_to_part_after);

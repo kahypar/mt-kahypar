@@ -46,8 +46,7 @@ namespace ds {
  * This is a variant of DeltaPartitionedHypergraph specialized for graphs.
  * See delte_partitioned_hypergraph.h for more details.
  */
-template <typename PartitionedGraph = Mandatory,
-          typename GainCache = Mandatory>
+template <typename PartitionedGraph = Mandatory>
 class DeltaPartitionedGraph {
  private:
   static constexpr size_t MAP_SIZE_LARGE = 16384;
@@ -63,17 +62,13 @@ class DeltaPartitionedGraph {
   static constexpr bool supports_connectivity_set = false;
   static constexpr HyperedgeID HIGH_DEGREE_THRESHOLD = PartitionedGraph::HIGH_DEGREE_THRESHOLD;
 
-  DeltaPartitionedGraph(const Context& context,
-                        GainCache& gain_cache) :
+  DeltaPartitionedGraph(const Context& context) :
     _k(context.partition.k),
     _pg(nullptr),
-    _gain_cache(gain_cache),
     _part_weights_delta(context.partition.k, 0),
-    _part_ids_delta(),
-    _incident_weight_in_part_delta() {
+    _part_ids_delta() {
       const bool top_level = context.type == ContextType::main;
       _part_ids_delta.initialize(MAP_SIZE_SMALL);
-      _incident_weight_in_part_delta.initialize(top_level ? MAP_SIZE_LARGE : MAP_SIZE_MOVE_DELTA);
     }
 
   DeltaPartitionedGraph(const DeltaPartitionedGraph&) = delete;
@@ -201,28 +196,6 @@ class DeltaPartitionedGraph {
     }
   }
 
-  bool changeNodePartWithGainCacheUpdate(const HypernodeID u,
-                                         const PartitionID from,
-                                         const PartitionID to,
-                                         const HypernodeWeight max_weight_to) {
-    auto delta_gain_func = [&](HyperedgeID he, HyperedgeWeight edge_weight,
-                               HypernodeID ,HypernodeID pcip_from, HypernodeID pcip_to) {
-      gainCacheUpdate(he, edge_weight, from, pcip_from, to, pcip_to);
-    };
-    return changeNodePart(u, from, to, max_weight_to, delta_gain_func);
-  }
-
-  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
-  void gainCacheUpdate(const HyperedgeID he, const HyperedgeWeight we,
-                       const PartitionID from, const HypernodeID /*pin_count_in_from_part_after*/,
-                       const PartitionID to, const HypernodeID /*pin_count_in_to_part_after*/) {
-    const HypernodeID target = _pg->edgeTarget(he);
-    const size_t index_in_from_part = incident_weight_index(target, from);
-    _incident_weight_in_part_delta[index_in_from_part] -= we;
-    const size_t index_in_to_part = incident_weight_index(target, to);
-    _incident_weight_in_part_delta[index_in_to_part] += we;
-  }
-
   // ! Returns the block of hypernode u
   PartitionID partID(const HypernodeID u) const {
     ASSERT(_pg);
@@ -253,53 +226,23 @@ class DeltaPartitionedGraph {
     return count;
   }
 
-  HyperedgeWeight moveFromPenalty(const HypernodeID u) const {
-    ASSERT(_pg);
-    const PartitionID part_id = partID(u);
-    const HyperedgeWeight* incident_weight_delta_u =
-      _incident_weight_in_part_delta.get_if_contained(incident_weight_index(u, part_id));
-    const HyperedgeWeight incident_weight_u = _pg->incidentWeightInPart(u, part_id) +
-                                              (incident_weight_delta_u ? *incident_weight_delta_u : 0);
-    return incident_weight_u;
-  }
-
-  HyperedgeWeight moveToBenefit(const HypernodeID u, const PartitionID p) const {
-    ASSERT(_pg);
-    ASSERT(p != kInvalidPartition && p < _k);
-    const HyperedgeWeight* incident_weight_delta_p =
-      _incident_weight_in_part_delta.get_if_contained(incident_weight_index(u, p));
-    const HyperedgeWeight incident_weight_p = _pg->incidentWeightInPart(u, p) +
-                                              (incident_weight_delta_p ? *incident_weight_delta_p : 0);
-    return incident_weight_p;
-  }
-
-  Gain km1Gain(const HypernodeID u, const PartitionID from, const PartitionID to) const {
-    unused(from);
-    ASSERT(from == partID(u), "While gain computation works for from != partID(u), such a query makes no sense");
-    ASSERT(from != to, "The gain computation doesn't work for from = to");
-    return moveToBenefit(u, to) - moveFromPenalty(u);
-  }
-
   // ! Clears all deltas applied to the partitioned hypergraph
   void clear() {
     // O(k)
     _part_weights_delta.assign(_k, 0);
     // Constant Time
     _part_ids_delta.clear();
-    _incident_weight_in_part_delta.clear();
   }
 
   void dropMemory() {
     if (!_memory_dropped) {
       _memory_dropped = true;
       _part_ids_delta.freeInternalData();
-      _incident_weight_in_part_delta.freeInternalData();
     }
   }
 
   size_t combinedMemoryConsumption() const {
-    return _part_ids_delta.size_in_bytes()
-           + _incident_weight_in_part_delta.size_in_bytes();
+    return _part_ids_delta.size_in_bytes();
   }
 
   PartitionID k() const {
@@ -321,16 +264,9 @@ class DeltaPartitionedGraph {
     part_weights_node->updateSize(_part_weights_delta.capacity() * sizeof(HypernodeWeight));
     utils::MemoryTreeNode* part_ids_node = delta_pg_node->addChild("Delta Part IDs");
     part_ids_node->updateSize(_part_ids_delta.size_in_bytes());
-    utils::MemoryTreeNode* _incident_weight_in_part_node = delta_pg_node->addChild("Delta Incident Weight In Part");
-    _incident_weight_in_part_node->updateSize(_incident_weight_in_part_delta.size_in_bytes());
   }
 
  private:
-  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
-  size_t incident_weight_index(const HypernodeID u, const PartitionID p) const {
-    return size_t(u) * _k  + p;
-  }
-
   bool _memory_dropped = false;
 
   // ! Number of blocks
@@ -339,18 +275,11 @@ class DeltaPartitionedGraph {
   // ! Partitioned graph where all deltas are stored relative to
   PartitionedGraph* _pg;
 
-  // ! The Gain Cache
-  GainCache& _gain_cache;
-
   // ! Delta for block weights
   vec< HypernodeWeight > _part_weights_delta;
 
   // ! Stores for each locally moved node its new block id
   DynamicFlatMap<HypernodeID, PartitionID> _part_ids_delta;
-
-  // ! Stores the delta of each locally touched incident weight in part entry
-  // ! relative to the _incident_weight_in_part member in '_pg'
-  DynamicFlatMap<size_t, HyperedgeWeight> _incident_weight_in_part_delta;
 };
 
 } // namespace ds
