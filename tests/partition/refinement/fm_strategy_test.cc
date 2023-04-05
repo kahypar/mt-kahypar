@@ -44,14 +44,16 @@ namespace {
 
 
 template<typename Strategy>
-vec<Gain> insertAndExtractAllMoves(Strategy& strat, PartitionedHypergraph& phg) {
+vec<Gain> insertAndExtractAllMoves(Strategy& strat,
+                                   PartitionedHypergraph& phg,
+                                   Km1GainCache& gain_cache) {
   Move m;
   vec<Gain> gains;
   for (HypernodeID u : phg.nodes()) {
-    strat.insertIntoPQ(phg, u, 0);
+    strat.insertIntoPQ(phg, gain_cache, u);
   }
 
-  while (strat.findNextMove(phg, m)) {
+  while (strat.findNextMove(phg, gain_cache, m)) {
     gains.push_back(m.gain);
   }
   strat.clearPQs(0);
@@ -73,12 +75,12 @@ TEST(StrategyTests, FindNextMove) {
 
   std::mt19937 rng(420);
   std::uniform_int_distribution<PartitionID> distr(0, k - 1);
-  Km1GainCache gain_cache;
   for (HypernodeID u : hg.nodes()) {
     phg.setOnlyNodePart(u, distr(rng));
   }
   phg.initializePartition();
-  phg.initializeGainCache();
+  Km1GainCache gain_cache;
+  gain_cache.initializeGainCache(phg);
 
 
   context.refinement.fm.algorithm = FMAlgorithm::kway_fm;
@@ -87,9 +89,8 @@ TEST(StrategyTests, FindNextMove) {
   FMStats fm_stats;
   fm_stats.moves = 1;
 
-  GainCacheStrategy<Km1GainCache> gain_caching(context, sd, gain_cache, fm_stats);
-
-  vec<Gain> gains_cached = insertAndExtractAllMoves(gain_caching, phg);
+  GainCacheStrategy gain_caching(context, sd, fm_stats);
+  vec<Gain> gains_cached = insertAndExtractAllMoves(gain_caching, phg, gain_cache);
   ASSERT_TRUE(std::is_sorted(gains_cached.begin(), gains_cached.end(), std::greater<Gain>()));
 }
 

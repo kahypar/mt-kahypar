@@ -74,7 +74,6 @@ class AConcurrentHypergraph : public Test {
       PartitionID id = utils::Randomize::instance().getRandomInt(0, k - 1, cpu_id);
       hypergraph.setNodePart(hn, id);
     }
-    hypergraph.initializeGainCache();
   }
 
   static void SetUpTestSuite() {

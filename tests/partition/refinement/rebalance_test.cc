@@ -33,6 +33,7 @@
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/io/hypergraph_factory.h"
 #include "mt-kahypar/partition/refinement/rebalancing/rebalancer.h"
+#include "mt-kahypar/partition/refinement/fm/gain_cache/km1_gain_cache.h"
 
 
 
@@ -86,7 +87,8 @@ TEST(RebalanceTests, FindsMoves) {
     }
   }
   phg.initializePartition();
-  phg.initializeGainCache();
+  Km1GainCache gain_cache;
+  gain_cache.initializeGainCache(phg);
 
   Km1Rebalancer<TypeTraits> rebalancer(phg, context);
   vec<Move> moves_to_empty_blocks = rebalancer.repairEmptyBlocks();
@@ -94,8 +96,9 @@ TEST(RebalanceTests, FindsMoves) {
   ASSERT_EQ(moves_to_empty_blocks.size(), 4);
 
   for (Move& m : moves_to_empty_blocks) {
-    ASSERT_EQ(phg.km1Gain(m.node, m.from, m.to), m.gain);
-    Gain recomputed_gain = phg.moveToBenefitRecomputed(m.node, m.to) - phg.moveFromPenaltyRecomputed(m.node);
+    ASSERT_EQ(gain_cache.gain(m.node, m.from, m.to), m.gain);
+    Gain recomputed_gain = gain_cache.recomputeBenefitTerm(phg, m.node, m.to) -
+      gain_cache.recomputePenaltyTerm(phg, m.node);
     if (recomputed_gain == 0) {
       ASSERT_TRUE([&]() {
         for (HyperedgeID e : phg.incidentEdges(m.node)) {
@@ -111,7 +114,7 @@ TEST(RebalanceTests, FindsMoves) {
     ASSERT_EQ(phg.partWeight(m.to), 0);
     ASSERT_GE(m.to, k - 4);
     ASSERT_LT(m.from, k - 4);
-    phg.changeNodePartWithGainCacheUpdate(m.node, m.from, m.to);
+    phg.changeNodePart(gain_cache, m.node, m.from, m.to);
   }
 
   moves_to_empty_blocks = rebalancer.repairEmptyBlocks();

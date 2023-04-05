@@ -66,11 +66,11 @@ namespace mt_kahypar {
 
     HEAVY_REFINEMENT_ASSERT(hypergraph.checkTrackedPartitionInformation(_gain_cache));
     HEAVY_REFINEMENT_ASSERT(current_metric + delta ==
-                            metrics::objective(hypergraph, _context.partition.objective,
-                                                !_context.refinement.label_propagation.execute_sequential),
-                            V(current_metric) << V(delta) <<
-                                              V(metrics::objective(hypergraph, _context.partition.objective,
-                                                                    _context.refinement.label_propagation.execute_sequential)));
+      metrics::objective(hypergraph, _context.partition.objective,
+        !_context.refinement.label_propagation.execute_sequential),
+      V(current_metric) << V(delta) << V((current_metric + delta))
+        << V(metrics::objective(hypergraph, _context.partition.objective,
+          !_context.refinement.label_propagation.execute_sequential)));
 
     best_metrics.updateMetric(current_metric + delta, Mode::direct, _context.partition.objective);
     utils::Utilities::instance().getStats(_context.utility_id).update_stat("lp_improvement", std::abs(delta));

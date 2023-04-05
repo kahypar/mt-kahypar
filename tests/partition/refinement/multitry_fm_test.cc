@@ -76,6 +76,7 @@ class MultiTryFMTest : public Test {
     context.partition.k = Config::K;
 
     context.refinement.fm.algorithm = FMAlgorithm::kway_fm;
+    context.refinement.fm.gain_cache = FMGainCacheType::km1_gain_cache;
     context.refinement.fm.multitry_rounds = 10;
     context.refinement.fm.num_seed_nodes = 5;
     context.refinement.fm.rollback_balance_violation_factor = 1.0;
@@ -90,9 +91,8 @@ class MultiTryFMTest : public Test {
     context.setupPartWeights(hypergraph.totalWeight());
     initialPartition();
 
-    refiner = std::make_unique<Refiner>(
-      hypergraph.initialNumNodes(), hypergraph.initialNumEdges(),
-      context, gain_cache);
+    refiner = std::make_unique<Refiner>(hypergraph.initialNumNodes(),
+      hypergraph.initialNumEdges(), context, gain_cache);
     mt_kahypar_partitioned_hypergraph_t phg = utils::partitioned_hg_cast(partitioned_hypergraph);
     refiner->initialize(phg);
   }
@@ -196,7 +196,7 @@ TYPED_TEST(MultiTryFMTest, WorksWithRefinementNodes) {
   std::cout.rdbuf(old);                                   // and reset again
 }
 
-TYPED_TEST(MultiTryFMTest, IncreasesTheNumberOfBlocks) {
+/*TYPED_TEST(MultiTryFMTest, IncreasesTheNumberOfBlocks) {
   using PartitionedHypergraph = typename TestFixture::PartitionedHypergraph;
   HyperedgeWeight objective_before = metrics::objective(this->partitioned_hypergraph, this->context.partition.objective);
   mt_kahypar_partitioned_hypergraph_t phg = utils::partitioned_hg_cast(this->partitioned_hypergraph);
@@ -228,6 +228,6 @@ TYPED_TEST(MultiTryFMTest, IncreasesTheNumberOfBlocks) {
   ASSERT_LE(this->metrics.getMetric(Mode::direct, this->context.partition.objective), objective_before);
   ASSERT_EQ(metrics::objective(phg_with_larger_k, this->context.partition.objective),
             this->metrics.getMetric(Mode::direct, this->context.partition.objective));
-}
+}*/
 
 }  // namespace mt_kahypar

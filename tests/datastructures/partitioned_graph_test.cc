@@ -34,6 +34,7 @@
 #include "mt-kahypar/datastructures/static_graph.h"
 #include "mt-kahypar/datastructures/static_graph_factory.h"
 #include "mt-kahypar/datastructures/partitioned_graph.h"
+#include "mt-kahypar/partition/refinement/fm/gain_cache/cut_gain_cache_for_graphs.h"
 #include "mt-kahypar/partition/metrics.h"
 
 using ::testing::Test;
@@ -52,7 +53,8 @@ class APartitionedGraph : public Test {
   APartitionedGraph() :
     hypergraph(Factory::construct(7 , 6,
       { {1, 2}, {2, 3}, {1, 4}, {4, 5}, {4, 6}, {5, 6} }, nullptr, nullptr, true)),
-    partitioned_hypergraph(3, hypergraph) {
+    partitioned_hypergraph(3, hypergraph),
+    gain_cache() {
     initializePartition();
   }
 
@@ -86,7 +88,7 @@ class APartitionedGraph : public Test {
     const PartitionID part_id = partitioned_hypergraph.partID(node);
     for (PartitionID block = 0; block < 3; ++block) {
       if (block != part_id) {
-        ASSERT_EQ(expected_gains[block], partitioned_hypergraph.km1Gain(node, part_id, block)) << V(node) << V(block);
+        ASSERT_EQ(expected_gains[block], gain_cache.gain(node, part_id, block)) << V(node) << V(block);
       }
     }
   }
@@ -123,7 +125,7 @@ class APartitionedGraph : public Test {
       for ( PartitionID to = 0; to < partitioned_hypergraph.k(); ++to ) {
         if ( from != to ) {
           const HyperedgeWeight km1_before = compute_km1();
-          const HyperedgeWeight km1_gain = partitioned_hypergraph.km1Gain(hn, from, to);
+          const HyperedgeWeight km1_gain = gain_cache.gain(hn, from, to);
           partitioned_hypergraph.changeNodePart(hn, from, to);
           const HyperedgeWeight km1_after = compute_km1();
           ASSERT_EQ(km1_gain, km1_before - km1_after);
@@ -135,6 +137,7 @@ class APartitionedGraph : public Test {
 
   Hypergraph hypergraph;
   PartitionedGraph partitioned_hypergraph;
+  GraphCutGainCache gain_cache;
 };
 
 template <class F1, class F2>
@@ -375,7 +378,7 @@ TYPED_TEST(APartitionedGraph, ComputesPartInfoCorrectlyIfNodePartsAreSetOnly) {
 }
 
 TYPED_TEST(APartitionedGraph, ComputesGainsCorrectly) {
-  this->partitioned_hypergraph.initializeGainCache();
+  this->gain_cache.initializeGainCache(this->partitioned_hypergraph);
 
   this->verifyGains(0, {0, 0, 0});
   this->verifyGains(1, {0, 0, -1});
@@ -387,7 +390,7 @@ TYPED_TEST(APartitionedGraph, ComputesGainsCorrectly) {
 }
 
 TYPED_TEST(APartitionedGraph, ComputesDeltaAndGainsCorrectlyIfAllNodesMoveConcurrently) {
-  this->partitioned_hypergraph.initializeGainCache();
+  this->gain_cache.initializeGainCache(this->partitioned_hypergraph);
 
   CAtomic<HyperedgeWeight> delta(0);
   auto delta_fun = [&](auto, auto, auto,
@@ -397,17 +400,17 @@ TYPED_TEST(APartitionedGraph, ComputesDeltaAndGainsCorrectlyIfAllNodesMoveConcur
   };
 
   executeConcurrent([&] {
-    ASSERT_TRUE(this->partitioned_hypergraph.changeNodePartWithGainCacheUpdate(4, 1, 2, 5, []{}, delta_fun));
-    ASSERT_TRUE(this->partitioned_hypergraph.changeNodePartWithGainCacheUpdate(2, 0, 2, 5, []{}, delta_fun));
-    ASSERT_TRUE(this->partitioned_hypergraph.changeNodePartWithGainCacheUpdate(3, 1, 2, 5, []{}, delta_fun));
-    ASSERT_TRUE(this->partitioned_hypergraph.changeNodePartWithGainCacheUpdate(4, 2, 0, 5, []{}, delta_fun));
-    ASSERT_TRUE(this->partitioned_hypergraph.changeNodePartWithGainCacheUpdate(2, 2, 1, 5, []{}, delta_fun));
+    ASSERT_TRUE(this->partitioned_hypergraph.changeNodePart(this->gain_cache, 4, 1, 2, 5, []{}, delta_fun));
+    ASSERT_TRUE(this->partitioned_hypergraph.changeNodePart(this->gain_cache, 2, 0, 2, 5, []{}, delta_fun));
+    ASSERT_TRUE(this->partitioned_hypergraph.changeNodePart(this->gain_cache, 3, 1, 2, 5, []{}, delta_fun));
+    ASSERT_TRUE(this->partitioned_hypergraph.changeNodePart(this->gain_cache, 4, 2, 0, 5, []{}, delta_fun));
+    ASSERT_TRUE(this->partitioned_hypergraph.changeNodePart(this->gain_cache, 2, 2, 1, 5, []{}, delta_fun));
   }, [&] {
-    ASSERT_TRUE(this->partitioned_hypergraph.changeNodePartWithGainCacheUpdate(5, 2, 0, 5, []{}, delta_fun));
-    ASSERT_TRUE(this->partitioned_hypergraph.changeNodePartWithGainCacheUpdate(1, 0, 2, 5, []{}, delta_fun));
-    ASSERT_TRUE(this->partitioned_hypergraph.changeNodePartWithGainCacheUpdate(6, 2, 0, 5, []{}, delta_fun));
-    ASSERT_TRUE(this->partitioned_hypergraph.changeNodePartWithGainCacheUpdate(0, 0, 2, 5, []{}, delta_fun));
-    ASSERT_TRUE(this->partitioned_hypergraph.changeNodePartWithGainCacheUpdate(1, 2, 1, 5, []{}, delta_fun));
+    ASSERT_TRUE(this->partitioned_hypergraph.changeNodePart(this->gain_cache, 5, 2, 0, 5, []{}, delta_fun));
+    ASSERT_TRUE(this->partitioned_hypergraph.changeNodePart(this->gain_cache, 1, 0, 2, 5, []{}, delta_fun));
+    ASSERT_TRUE(this->partitioned_hypergraph.changeNodePart(this->gain_cache, 6, 2, 0, 5, []{}, delta_fun));
+    ASSERT_TRUE(this->partitioned_hypergraph.changeNodePart(this->gain_cache, 0, 0, 2, 5, []{}, delta_fun));
+    ASSERT_TRUE(this->partitioned_hypergraph.changeNodePart(this->gain_cache, 1, 2, 1, 5, []{}, delta_fun));
   });
 
   ASSERT_EQ(-2, delta.load());

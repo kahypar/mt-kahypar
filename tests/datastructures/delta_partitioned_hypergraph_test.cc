@@ -45,7 +45,9 @@ class ADeltaPartitionedHypergraph : public Test {
  using Hypergraph = typename StaticHypergraphTypeTraits::Hypergraph;
  using HypergraphFactory = typename Hypergraph::Factory;
  using PartitionedHypergraph = typename StaticHypergraphTypeTraits::PartitionedHypergraph;
- using DeltaPartitionedHypergraph = typename PartitionedHypergraph::DeltaPartition<Km1GainCache>;
+ using DeltaPartitionedHypergraph = typename PartitionedHypergraph::DeltaPartition;
+ using GainCache = Km1GainCache;
+ using DeltaGainCache = typename Km1GainCache::DeltaGainCache;
 
  public:
 
@@ -55,7 +57,8 @@ class ADeltaPartitionedHypergraph : public Test {
     phg(3, hg, parallel_tag_t()),
     context(),
     gain_cache(),
-    delta_phg(nullptr) {
+    delta_phg(nullptr),
+    delta_gain_cache(nullptr) {
     phg.setOnlyNodePart(0, 0);
     phg.setOnlyNodePart(1, 0);
     phg.setOnlyNodePart(2, 0);
@@ -64,10 +67,11 @@ class ADeltaPartitionedHypergraph : public Test {
     phg.setOnlyNodePart(5, 2);
     phg.setOnlyNodePart(6, 2);
     phg.initializePartition();
-    phg.initializeGainCache();
+    gain_cache.initializeGainCache(phg);
 
     context.partition.k = 3;
-    delta_phg = std::make_unique<DeltaPartitionedHypergraph>(context, gain_cache);
+    delta_phg = std::make_unique<DeltaPartitionedHypergraph>(context);
+    delta_gain_cache = std::make_unique<DeltaGainCache>(gain_cache);
     delta_phg->setPartitionedHypergraph(&phg);
   }
 
@@ -79,19 +83,33 @@ class ADeltaPartitionedHypergraph : public Test {
     }
   }
 
-  void verifymoveToBenefit(const HypernodeID hn,
-                           const std::vector<HypernodeID>& expected_penalties) {
+  void verifyBenefitTerm(const HypernodeID hn,
+                         const std::vector<HypernodeID>& expected_penalties) {
     ASSERT(expected_penalties.size() == static_cast<size_t>(phg.k()));
     for (PartitionID block = 0; block < 3; ++block) {
-      ASSERT_EQ(expected_penalties[block], delta_phg->moveToBenefit(hn, block)) << V(hn) << V(block);
+      ASSERT_EQ(expected_penalties[block], delta_gain_cache->benefitTerm(hn, block)) << V(hn) << V(block);
     }
+  }
+
+  void changeNodePartWithGainCacheUpdate(const HypernodeID hn,
+                                         const PartitionID from,
+                                         const PartitionID to) {
+    auto delta_gain_update =
+      [&](const HyperedgeID he, const HyperedgeWeight edge_weight,
+          const HypernodeID, const HypernodeID pin_count_in_from_part_after,
+          const HypernodeID pin_count_in_to_part_after) {
+        delta_gain_cache->deltaGainUpdate(*delta_phg, he, edge_weight, from,
+          pin_count_in_from_part_after, to, pin_count_in_to_part_after);
+      };
+    delta_phg->changeNodePart(hn, from, to, 1000, delta_gain_update);
   }
 
   Hypergraph hg;
   PartitionedHypergraph phg;
   Context context;
-  Km1GainCache gain_cache;
+  GainCache gain_cache;
   std::unique_ptr<DeltaPartitionedHypergraph> delta_phg;
+  std::unique_ptr<DeltaGainCache> delta_gain_cache;
 };
 
 TEST_F(ADeltaPartitionedHypergraph, VerifiesInitialPinCounts) {
@@ -102,26 +120,26 @@ TEST_F(ADeltaPartitionedHypergraph, VerifiesInitialPinCounts) {
 }
 
 TEST_F(ADeltaPartitionedHypergraph, VerifyInitialmoveFromPenaltys) {
-  ASSERT_EQ(2, delta_phg->moveFromPenalty(0));
-  ASSERT_EQ(1, delta_phg->moveFromPenalty(1));
-  ASSERT_EQ(1, delta_phg->moveFromPenalty(2));
-  ASSERT_EQ(2, delta_phg->moveFromPenalty(3));
-  ASSERT_EQ(2, delta_phg->moveFromPenalty(4));
-  ASSERT_EQ(1, delta_phg->moveFromPenalty(5));
-  ASSERT_EQ(1, delta_phg->moveFromPenalty(6));
+  ASSERT_EQ(2, delta_gain_cache->penaltyTerm(0, kInvalidPartition));
+  ASSERT_EQ(1, delta_gain_cache->penaltyTerm(1, kInvalidPartition));
+  ASSERT_EQ(1, delta_gain_cache->penaltyTerm(2, kInvalidPartition));
+  ASSERT_EQ(2, delta_gain_cache->penaltyTerm(3, kInvalidPartition));
+  ASSERT_EQ(2, delta_gain_cache->penaltyTerm(4, kInvalidPartition));
+  ASSERT_EQ(1, delta_gain_cache->penaltyTerm(5, kInvalidPartition));
+  ASSERT_EQ(1, delta_gain_cache->penaltyTerm(6, kInvalidPartition));
 }
 
 TEST_F(ADeltaPartitionedHypergraph, VerifyInitialMoveToPenalties) {
-  verifymoveToBenefit(0, { 2, 1, 0 });
-  verifymoveToBenefit(1, { 1, 1, 0 });
-  verifymoveToBenefit(2, { 2, 0, 1 });
-  verifymoveToBenefit(3, { 1, 2, 1 });
-  verifymoveToBenefit(4, { 1, 2, 1 });
-  verifymoveToBenefit(5, { 1, 0, 1 });
-  verifymoveToBenefit(6, { 1, 1, 2 });
+  verifyBenefitTerm(0, { 2, 1, 0 });
+  verifyBenefitTerm(1, { 1, 1, 0 });
+  verifyBenefitTerm(2, { 2, 0, 1 });
+  verifyBenefitTerm(3, { 1, 2, 1 });
+  verifyBenefitTerm(4, { 1, 2, 1 });
+  verifyBenefitTerm(5, { 1, 0, 1 });
+  verifyBenefitTerm(6, { 1, 1, 2 });
 }
 TEST_F(ADeltaPartitionedHypergraph, MovesAVertex1) {
-  delta_phg->changeNodePartWithGainCacheUpdate(1, 0, 1, 1000);
+  changeNodePartWithGainCacheUpdate(1, 0, 1);
   ASSERT_EQ(0, phg.partID(1));
   ASSERT_EQ(1, delta_phg->partID(1));
 
@@ -129,18 +147,18 @@ TEST_F(ADeltaPartitionedHypergraph, MovesAVertex1) {
   verifyPinCounts(1, { 1, 3, 0 });
 
   // Verify Move From Benefit
-  ASSERT_EQ(1, delta_phg->moveFromPenalty(0));
-  ASSERT_EQ(2, delta_phg->moveFromPenalty(3));
-  ASSERT_EQ(2, delta_phg->moveFromPenalty(4));
+  ASSERT_EQ(1, delta_gain_cache->penaltyTerm(0, kInvalidPartition));
+  ASSERT_EQ(2, delta_gain_cache->penaltyTerm(3, kInvalidPartition));
+  ASSERT_EQ(2, delta_gain_cache->penaltyTerm(4, kInvalidPartition));
 
   // Verify Move To Penalty
-  verifymoveToBenefit(0, { 2, 1, 0 });
-  verifymoveToBenefit(3, { 1, 2, 1 });
-  verifymoveToBenefit(4, { 1, 2, 1 });
+  verifyBenefitTerm(0, { 2, 1, 0 });
+  verifyBenefitTerm(3, { 1, 2, 1 });
+  verifyBenefitTerm(4, { 1, 2, 1 });
 }
 
 TEST_F(ADeltaPartitionedHypergraph, MovesAVertex2) {
-  delta_phg->changeNodePartWithGainCacheUpdate(6, 2, 1, 1000);
+  changeNodePartWithGainCacheUpdate(6, 2, 1);
   ASSERT_EQ(2, phg.partID(6));
   ASSERT_EQ(1, delta_phg->partID(6));
 
@@ -149,22 +167,22 @@ TEST_F(ADeltaPartitionedHypergraph, MovesAVertex2) {
   verifyPinCounts(3, { 1, 1, 1 });
 
   // Verify Move From Benefit
-  ASSERT_EQ(1, delta_phg->moveFromPenalty(2));
-  ASSERT_EQ(2, delta_phg->moveFromPenalty(3));
-  ASSERT_EQ(2, delta_phg->moveFromPenalty(4));
-  ASSERT_EQ(0, delta_phg->moveFromPenalty(5));
+  ASSERT_EQ(1, delta_gain_cache->penaltyTerm(2, kInvalidPartition));
+  ASSERT_EQ(2, delta_gain_cache->penaltyTerm(3, kInvalidPartition));
+  ASSERT_EQ(2, delta_gain_cache->penaltyTerm(4, kInvalidPartition));
+  ASSERT_EQ(0, delta_gain_cache->penaltyTerm(5, kInvalidPartition));
 
   // Verify Move To Penalty
-  verifymoveToBenefit(2, { 2, 1, 1 });
-  verifymoveToBenefit(3, { 1, 2, 0 });
-  verifymoveToBenefit(4, { 1, 2, 0 });
-  verifymoveToBenefit(5, { 1, 1, 1 });
+  verifyBenefitTerm(2, { 2, 1, 1 });
+  verifyBenefitTerm(3, { 1, 2, 0 });
+  verifyBenefitTerm(4, { 1, 2, 0 });
+  verifyBenefitTerm(5, { 1, 1, 1 });
 }
 
 TEST_F(ADeltaPartitionedHypergraph, MovesSeveralVertices) {
-  delta_phg->changeNodePartWithGainCacheUpdate(6, 2, 1, 1000);
-  delta_phg->changeNodePartWithGainCacheUpdate(2, 0, 1, 1000);
-  delta_phg->changeNodePartWithGainCacheUpdate(5, 2, 1, 1000);
+  changeNodePartWithGainCacheUpdate(6, 2, 1);
+  changeNodePartWithGainCacheUpdate(2, 0, 1);
+  changeNodePartWithGainCacheUpdate(5, 2, 1);
   ASSERT_EQ(0, phg.partID(2));
   ASSERT_EQ(2, phg.partID(5));
   ASSERT_EQ(2, phg.partID(6));
@@ -179,19 +197,19 @@ TEST_F(ADeltaPartitionedHypergraph, MovesSeveralVertices) {
   verifyPinCounts(3, { 0, 3, 0 });
 
   // Verify Move From Benefit
-  ASSERT_EQ(1, delta_phg->moveFromPenalty(0));
-  ASSERT_EQ(1, delta_phg->moveFromPenalty(1));
-  ASSERT_EQ(2, delta_phg->moveFromPenalty(3));
-  ASSERT_EQ(2, delta_phg->moveFromPenalty(4));
+  ASSERT_EQ(1, delta_gain_cache->penaltyTerm(0, kInvalidPartition));
+  ASSERT_EQ(1, delta_gain_cache->penaltyTerm(1, kInvalidPartition));
+  ASSERT_EQ(2, delta_gain_cache->penaltyTerm(3, kInvalidPartition));
+  ASSERT_EQ(2, delta_gain_cache->penaltyTerm(4, kInvalidPartition));
 
   // Verify Move To Penalty
-  verifymoveToBenefit(0, { 2, 2, 0 });
-  verifymoveToBenefit(1, { 1, 1, 0 });
-  verifymoveToBenefit(2, { 1, 2, 0 });
-  verifymoveToBenefit(3, { 1, 2, 0 });
-  verifymoveToBenefit(4, { 1, 2, 0 });
-  verifymoveToBenefit(5, { 0, 1, 0 });
-  verifymoveToBenefit(6, { 0, 2, 0 });
+  verifyBenefitTerm(0, { 2, 2, 0 });
+  verifyBenefitTerm(1, { 1, 1, 0 });
+  verifyBenefitTerm(2, { 1, 2, 0 });
+  verifyBenefitTerm(3, { 1, 2, 0 });
+  verifyBenefitTerm(4, { 1, 2, 0 });
+  verifyBenefitTerm(5, { 0, 1, 0 });
+  verifyBenefitTerm(6, { 0, 2, 0 });
 }
 
 } // namespace ds
