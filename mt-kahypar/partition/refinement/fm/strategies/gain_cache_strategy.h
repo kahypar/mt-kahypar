@@ -45,6 +45,7 @@ namespace mt_kahypar {
    *
    */
 
+template<typename GainCache>
 class GainCacheStrategy {
 public:
 
@@ -56,10 +57,12 @@ public:
 
   GainCacheStrategy(const Context& context,
                     FMSharedData& sharedData,
+                    GainCache& gainCache,
                     FMStats& runStats) :
       context(context),
       runStats(runStats),
       sharedData(sharedData),
+      gainCache(gainCache),
       blockPQ(static_cast<size_t>(context.partition.k)),
       vertexPQs(static_cast<size_t>(context.partition.k),
         VertexPriorityQueue(sharedData.vertexPQHandles.data(), sharedData.numberOfNodes)) { }
@@ -257,6 +260,8 @@ private:
 
 protected:
   FMSharedData& sharedData;
+
+  GainCache& gainCache;
 
   // ! Priority Queue that contains for each block of the partition
   // ! the vertex with the best gain value

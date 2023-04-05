@@ -46,21 +46,21 @@ class MultiTryKWayFM final : public IRefiner {
   static_assert(GainCache::TYPE != FMGainCacheType::none);
 
   using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
-  using LocalizedFMSearch = LocalizedKWayFM<TypeTraits>;
-  using Rollback = GlobalRollback<TypeTraits>;
+  using LocalizedFMSearch = LocalizedKWayFM<TypeTraits, GainCache>;
+  using Rollback = GlobalRollback<TypeTraits, GainCache>;
 
  public:
 
   MultiTryKWayFM(const HypernodeID num_hypernodes,
                  const HyperedgeID num_hyperedges,
                  const Context& c,
-                 GainCache& g_cache) :
+                 GainCache& gainCache) :
     initial_num_nodes(num_hypernodes),
     context(c),
-    gain_cache(g_cache),
+    gain_cache(gainCache),
     current_k(c.partition.k),
     sharedData(num_hypernodes),
-    globalRollback(num_hyperedges, context),
+    globalRollback(num_hyperedges, context, gainCache),
     ets_fm([&] { return constructLocalizedKWayFMSearch(); }) {
     if (context.refinement.fm.obey_minimal_parallelism) {
       sharedData.finishedTasksLimit = std::min(UL(8), context.shared_memory.num_threads);
@@ -70,9 +70,9 @@ class MultiTryKWayFM final : public IRefiner {
   MultiTryKWayFM(const HypernodeID num_hypernodes,
                  const HyperedgeID num_hyperedges,
                  const Context& c,
-                 gain_cache_t g_cache) :
+                 gain_cache_t gainCache) :
     MultiTryKWayFM(num_hypernodes, num_hyperedges, c,
-      AbstractGainCache::cast<GainCache>(g_cache)) { }
+      AbstractGainCache::cast<GainCache>(gainCache)) { }
 
   void printMemoryConsumption();
 
@@ -89,7 +89,7 @@ class MultiTryKWayFM final : public IRefiner {
 
 
   LocalizedFMSearch constructLocalizedKWayFMSearch() {
-    return LocalizedFMSearch(context, initial_num_nodes, sharedData);
+    return LocalizedFMSearch(context, initial_num_nodes, sharedData, gain_cache);
   }
 
   static double improvementFraction(Gain gain, HyperedgeWeight old_km1) {

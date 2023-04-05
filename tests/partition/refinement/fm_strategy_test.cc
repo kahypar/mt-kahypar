@@ -31,7 +31,7 @@
 #include "mt-kahypar/io/hypergraph_factory.h"
 
 #include "mt-kahypar/partition/refinement/fm/strategies/gain_cache_strategy.h"
-
+#include "mt-kahypar/partition/refinement/fm/gain_cache/km1_gain_cache.h"
 
 using ::testing::Test;
 
@@ -73,6 +73,7 @@ TEST(StrategyTests, FindNextMove) {
 
   std::mt19937 rng(420);
   std::uniform_int_distribution<PartitionID> distr(0, k - 1);
+  Km1GainCache gain_cache;
   for (HypernodeID u : hg.nodes()) {
     phg.setOnlyNodePart(u, distr(rng));
   }
@@ -86,7 +87,7 @@ TEST(StrategyTests, FindNextMove) {
   FMStats fm_stats;
   fm_stats.moves = 1;
 
-  GainCacheStrategy gain_caching(context, sd, fm_stats);
+  GainCacheStrategy<Km1GainCache> gain_caching(context, sd, gain_cache, fm_stats);
 
   vec<Gain> gains_cached = insertAndExtractAllMoves(gain_caching, phg);
   ASSERT_TRUE(std::is_sorted(gains_cached.begin(), gains_cached.end(), std::greater<Gain>()));

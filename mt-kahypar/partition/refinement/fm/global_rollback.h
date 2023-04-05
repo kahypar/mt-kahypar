@@ -33,15 +33,18 @@
 
 namespace mt_kahypar {
 
-template<typename TypeTraits>
+template<typename TypeTraits, typename GainCache>
 class GlobalRollback {
   static constexpr bool enable_heavy_assert = false;
 
   using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
 
 public:
-  explicit GlobalRollback(const HyperedgeID num_hyperedges, const Context& context) :
+  explicit GlobalRollback(const HyperedgeID num_hyperedges,
+                          const Context& context,
+                          GainCache& gainCache) :
     context(context),
+    gain_cache(gainCache),
     max_part_weight_scaling(context.refinement.fm.rollback_balance_violation_factor),
     ets_recalc_data([&] { return vec<RecalculationData>(context.partition.k); }),
     last_recalc_round(),
@@ -102,6 +105,8 @@ public:
 
 private:
   const Context& context;
+
+  GainCache& gain_cache;
 
   // ! Factor to multiply max part weight with, in order to relax or disable the balance criterion. Set to zero for disabling
   double max_part_weight_scaling;

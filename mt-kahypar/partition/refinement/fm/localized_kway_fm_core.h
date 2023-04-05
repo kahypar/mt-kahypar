@@ -39,7 +39,7 @@
 namespace mt_kahypar {
 
 
-template<typename TypeTraits>
+template<typename TypeTraits, typename GainCache>
 class LocalizedKWayFM {
 
   using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
@@ -48,12 +48,14 @@ class LocalizedKWayFM {
 public:
   explicit LocalizedKWayFM(const Context& context,
                            const HypernodeID numNodes,
-                           FMSharedData& sharedData) :
+                           FMSharedData& sharedData,
+                           GainCache& gainCache) :
     context(context),
     thisSearch(0),
     deltaPhg(context),
     neighborDeduplicator(numNodes, 0),
-    fm_strategy(context, sharedData, runStats),
+    fm_strategy(context, sharedData, gainCache, runStats),
+    gain_cache(gainCache),
     sharedData(sharedData) { }
 
 
@@ -115,7 +117,9 @@ private:
 
   FMStats runStats;
 
-  GainCacheStrategy fm_strategy;
+  GainCacheStrategy<GainCache> fm_strategy;
+
+  GainCache& gain_cache;
 
   FMSharedData& sharedData;
 

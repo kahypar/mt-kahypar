@@ -28,11 +28,14 @@
 #include "mt-kahypar/partition/refinement/fm/localized_kway_fm_core.h"
 
 #include "mt-kahypar/definitions.h"
+#include "mt-kahypar/partition/refinement/fm/gain_cache/gain_cache_types.h"
 
 namespace mt_kahypar {
 
-  template<typename TypeTraits>
-  bool LocalizedKWayFM<TypeTraits>::findMoves(PartitionedHypergraph& phg, size_t taskID, size_t numSeeds) {
+  template<typename TypeTraits, typename GainCache>
+  bool LocalizedKWayFM<TypeTraits, GainCache>::findMoves(PartitionedHypergraph& phg,
+                                                         size_t taskID,
+                                                         size_t numSeeds) {
     localMoves.clear();
     thisSearch = ++sharedData.nodeTracker.highestActiveSearchID;
 
@@ -79,10 +82,10 @@ namespace mt_kahypar {
     return std::make_pair(p, w);
   }
 
-  template<typename TypeTraits>
+  template<typename TypeTraits, typename GainCache>
   template<typename PHG>
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
-  void LocalizedKWayFM<TypeTraits>::acquireOrUpdateNeighbors(PHG& phg, const Move& move) {
+  void LocalizedKWayFM<TypeTraits, GainCache>::acquireOrUpdateNeighbors(PHG& phg, const Move& move) {
     // Note: In theory we should acquire/update all neighbors. It just turned out that this works fine
     // Actually: only vertices incident to edges with gain changes can become new boundary vertices.
     // Vertices that already were boundary vertices, can still be considered later since they are in the task queue
@@ -110,9 +113,9 @@ namespace mt_kahypar {
   }
 
 
-  template<typename TypeTraits>
+  template<typename TypeTraits, typename GainCache>
   template<bool use_delta>
-  void LocalizedKWayFM<TypeTraits>::internalFindMoves(PartitionedHypergraph& phg) {
+  void LocalizedKWayFM<TypeTraits, GainCache>::internalFindMoves(PartitionedHypergraph& phg) {
     StopRule stopRule(phg.initialNumNodes());
     Move move;
 
@@ -251,8 +254,8 @@ namespace mt_kahypar {
   }
 
 
-  template<typename TypeTraits>
-  std::pair<Gain, size_t> LocalizedKWayFM<TypeTraits>::applyBestLocalPrefixToSharedPartition(
+  template<typename TypeTraits, typename GainCache>
+  std::pair<Gain, size_t> LocalizedKWayFM<TypeTraits, GainCache>::applyBestLocalPrefixToSharedPartition(
           PartitionedHypergraph& phg,
           const size_t best_index_locally_observed,
           const Gain best_improvement_locally_observed,
@@ -343,8 +346,9 @@ namespace mt_kahypar {
     }
   }
 
-  template<typename TypeTraits>
-  void LocalizedKWayFM<TypeTraits>::revertToBestLocalPrefix(PartitionedHypergraph& phg, size_t bestGainIndex) {
+  template<typename TypeTraits, typename GainCache>
+  void LocalizedKWayFM<TypeTraits, GainCache>::revertToBestLocalPrefix(PartitionedHypergraph& phg,
+                                                                       size_t bestGainIndex) {
     runStats.local_reverts += localMoves.size() - bestGainIndex;
     while (localMoves.size() > bestGainIndex) {
       Move& m = sharedData.moveTracker.getMove(localMoves.back().second);
@@ -354,14 +358,14 @@ namespace mt_kahypar {
     }
   }
 
-  template<typename TypeTraits>
-  void LocalizedKWayFM<TypeTraits>::changeNumberOfBlocks(const PartitionID new_k) {
+  template<typename TypeTraits, typename GainCache>
+  void LocalizedKWayFM<TypeTraits, GainCache>::changeNumberOfBlocks(const PartitionID new_k) {
     deltaPhg.changeNumberOfBlocks(new_k);
     fm_strategy.changeNumberOfBlocks(new_k);
   }
 
-  template<typename TypeTraits>
-  void LocalizedKWayFM<TypeTraits>::memoryConsumption(utils::MemoryTreeNode *parent) const {
+  template<typename TypeTraits, typename GainCache>
+  void LocalizedKWayFM<TypeTraits, GainCache>::memoryConsumption(utils::MemoryTreeNode *parent) const {
     ASSERT(parent);
 
     utils::MemoryTreeNode *localized_fm_node = parent->addChild("Localized k-Way FM");
@@ -378,6 +382,10 @@ namespace mt_kahypar {
     deltaPhg.memoryConsumption(localized_fm_node);
   }
 
-  INSTANTIATE_CLASS_WITH_TYPE_TRAITS(LocalizedKWayFM)
+  namespace {
+  #define LOCALIZED_KWAY_FM(X, Y) LocalizedKWayFM<X, Y>
+  }
+
+  INSTANTIATE_CLASS_WITH_TYPE_TRAITS_AND_FM_GAIN_CACHE(LOCALIZED_KWAY_FM)
 
 }   // namespace mt_kahypar

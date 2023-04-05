@@ -36,6 +36,7 @@
 #include "mt-kahypar/io/hypergraph_factory.h"
 
 #include "mt-kahypar/partition/refinement/fm/global_rollback.h"
+#include "mt-kahypar/partition/refinement/fm/gain_cache/km1_gain_cache.h"
 
 #include "mt-kahypar/partition/metrics.h"
 
@@ -55,7 +56,7 @@ TEST(RollbackTests, GainRecalculationAndRollsbackCorrectly) {
     "../tests/instances/twocenters.hgr", FileFormat::hMetis, true);
   PartitionID k = 2;
 
-
+  Km1GainCache gain_cache;
   PartitionedHypergraph phg(k, hg);
   phg.setNodePart(0, 1);
   phg.setNodePart(1, 1);
@@ -78,7 +79,8 @@ TEST(RollbackTests, GainRecalculationAndRollsbackCorrectly) {
 
   FMSharedData sharedData(hg.initialNumNodes());
 
-  GlobalRollback<TypeTraits> grb(hg.initialNumEdges(), context);
+  GlobalRollback<TypeTraits, Km1GainCache> grb(
+    hg.initialNumEdges(), context, gain_cache);
   auto performMove = [&](Move m) {
     if (phg.changeNodePartWithGainCacheUpdate(m.node, m.from, m.to)) {
       sharedData.moveTracker.insertMove(m);
@@ -112,6 +114,7 @@ TEST(RollbackTests, GainRecalculation2) {
   Hypergraph hg = io::readInputFile<Hypergraph>(
     "../tests/instances/twocenters.hgr", FileFormat::hMetis, true);
   PartitionID k = 2;
+  Km1GainCache gain_cache;
   PartitionedHypergraph phg(k, hg);
   phg.setNodePart(0, 1);
   phg.setNodePart(1, 1);
@@ -133,7 +136,8 @@ TEST(RollbackTests, GainRecalculation2) {
 
   FMSharedData sharedData(hg.initialNumNodes());
 
-  GlobalRollback<TypeTraits> grb(hg.initialNumEdges(), context);
+  GlobalRollback<TypeTraits, Km1GainCache> grb(
+    hg.initialNumEdges(), context, gain_cache);
 
   auto performUpdates = [&](Move& m) {
    sharedData.moveTracker.insertMove(m);
