@@ -46,7 +46,7 @@ struct TestConfig { };
 template <typename TypeTraitsT, PartitionID k>
 struct TestConfig<TypeTraitsT, k, Objective::km1> {
   using TypeTraits = TypeTraitsT;
-  using Refiner = LabelPropagationKm1Refiner<TypeTraits, DoNothingGainCache>;
+  using Refiner = LabelPropagationKm1Refiner<TypeTraits, Km1GainCache>;
   static constexpr PartitionID K = k;
   static constexpr Objective OBJECTIVE = Objective::km1;
   static constexpr LabelPropagationAlgorithm LP_ALGO = LabelPropagationAlgorithm::label_propagation_km1;
@@ -55,7 +55,7 @@ struct TestConfig<TypeTraitsT, k, Objective::km1> {
 template <typename TypeTraitsT, PartitionID k>
 struct TestConfig<TypeTraitsT, k, Objective::cut> {
   using TypeTraits = TypeTraitsT;
-  using Refiner = LabelPropagationCutRefiner<TypeTraits, DoNothingGainCache>;
+  using Refiner = LabelPropagationCutRefiner<TypeTraits, Km1GainCache>;
   static constexpr PartitionID K = k;
   static constexpr Objective OBJECTIVE = Objective::cut;
   static constexpr LabelPropagationAlgorithm LP_ALGO = LabelPropagationAlgorithm::label_propagation_cut;
@@ -75,13 +75,15 @@ class ALabelPropagationRefiner : public Test {
     hypergraph(),
     partitioned_hypergraph(),
     context(),
-    dummy_gain_cache(),
+    gain_cache(),
     refiner(nullptr),
     metrics() {
     context.partition.graph_filename = "../tests/instances/contracted_ibm01.hgr";
     context.partition.graph_community_filename = "../tests/instances/contracted_ibm01.hgr.community";
     context.partition.mode = Mode::direct;
     context.partition.objective = Config::OBJECTIVE;
+    context.partition.gain_policy = context.partition.objective == Objective::km1 ?
+      GainPolicy::km1 : GainPolicy::km1 /* TODO: change this once cut policy available */;
     context.partition.epsilon = 0.25;
     context.partition.k = Config::K;
     #ifdef KAHYPAR_ENABLE_N_LEVEL_PARTITIONING_FEATURES
@@ -115,7 +117,7 @@ class ALabelPropagationRefiner : public Test {
 
     refiner = std::make_unique<Refiner>(
       hypergraph.initialNumNodes(), hypergraph.initialNumEdges(),
-      context, dummy_gain_cache);
+      context, gain_cache);
     mt_kahypar_partitioned_hypergraph_t phg = utils::partitioned_hg_cast(partitioned_hypergraph);
     refiner->initialize(phg);
   }
@@ -137,7 +139,7 @@ class ALabelPropagationRefiner : public Test {
   Hypergraph hypergraph;
   PartitionedHypergraph partitioned_hypergraph;
   Context context;
-  DoNothingGainCache dummy_gain_cache;
+  Km1GainCache gain_cache;
   std::unique_ptr<Refiner> refiner;
   Metrics metrics;
 };

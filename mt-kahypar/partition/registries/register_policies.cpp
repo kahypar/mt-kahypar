@@ -36,7 +36,6 @@
 #ifdef KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES
 #include "mt-kahypar/partition/refinement/fm/gain_cache/cut_gain_cache_for_graphs.h"
 #endif
-#include "mt-kahypar/partition/refinement/fm/gain_cache/do_nothing_gain_cache.h"
 #include "mt-kahypar/partition/context_enum_classes.h"
 
 #define REGISTER_POLICY(policy, id, policy_class)                                                    \
@@ -95,10 +94,9 @@ REGISTER_POLICY(AcceptancePolicy, AcceptancePolicy::best,
 // //////////////////////////////////////////////////////////////////////////////
 //                            Gain Cache Policies
 // //////////////////////////////////////////////////////////////////////////////
-REGISTER_POLICY(FMGainCacheType, FMGainCacheType::km1_gain_cache, Km1GainCache);
+REGISTER_POLICY(GainPolicy, GainPolicy::km1, Km1GainCache);
 #ifdef KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES
-REGISTER_POLICY(FMGainCacheType, FMGainCacheType::cut_gain_cache_for_graphs, GraphCutGainCache);
+REGISTER_POLICY(GainPolicy, GainPolicy::cut_for_graphs, GraphCutGainCache);
 #endif
-REGISTER_POLICY(FMGainCacheType, FMGainCacheType::none, DoNothingGainCache);
 
 }  // namespace mt_kahypar

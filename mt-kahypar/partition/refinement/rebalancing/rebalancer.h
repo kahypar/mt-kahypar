@@ -35,11 +35,11 @@
 
 namespace mt_kahypar {
 template <typename TypeTraits,
-          template <typename> class GainPolicy>
+          template <typename> class GainComputationPolicy>
 class Rebalancer {
  private:
   using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
-  using GainCalculator = GainPolicy<PartitionedHypergraph>;
+  using GainCalculator = GainComputationPolicy<PartitionedHypergraph>;
   using AtomicWeight = parallel::IntegralAtomicWrapper<HypernodeWeight>;
 
   static constexpr bool debug = false;

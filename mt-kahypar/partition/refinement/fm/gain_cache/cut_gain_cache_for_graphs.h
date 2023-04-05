@@ -47,7 +47,7 @@ class DeltaGraphCutGainCache;
 class GraphCutGainCache final : public kahypar::meta::PolicyBase {
 
  public:
-  static constexpr FMGainCacheType TYPE = FMGainCacheType::cut_gain_cache_for_graphs;
+  static constexpr GainPolicy TYPE = GainPolicy::cut_for_graphs;
   using DeltaGainCache = DeltaGraphCutGainCache;
 
   GraphCutGainCache() :
@@ -157,6 +157,15 @@ class GraphCutGainCache final : public kahypar::meta::PolicyBase {
     _gain_cache[index_in_from_part].fetch_sub(we, std::memory_order_relaxed);
     const size_t index_in_to_part = incident_weight_index(target, to);
     _gain_cache[index_in_to_part].fetch_add(we, std::memory_order_relaxed);
+  }
+
+  static HyperedgeWeight delta(const HyperedgeID,
+                               const HyperedgeWeight edge_weight,
+                               const HypernodeID,
+                               const HypernodeID pin_count_in_from_part_after,
+                               const HypernodeID pin_count_in_to_part_after) {
+    return (pin_count_in_to_part_after == 1 ? edge_weight : 0) +
+           (pin_count_in_from_part_after == 0 ? -edge_weight : 0);
   }
 
   // ####################### Uncontraction #######################

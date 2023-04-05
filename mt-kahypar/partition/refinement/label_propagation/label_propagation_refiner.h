@@ -40,12 +40,12 @@
 
 
 namespace mt_kahypar {
-template <typename TypeTraits, typename GainCache, template <typename> class GainPolicy>
+template <typename TypeTraits, typename GainCache, template <typename> class GainComputationPolicy>
 class LabelPropagationRefiner final : public IRefiner {
  private:
   using Hypergraph = typename TypeTraits::Hypergraph;
   using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
-  using GainCalculator = GainPolicy<PartitionedHypergraph>;
+  using GainCalculator = GainComputationPolicy<PartitionedHypergraph>;
   using ActiveNodes = parallel::scalable_vector<HypernodeID>;
   using NextActiveNodes = ds::StreamingVector<HypernodeID>;
 

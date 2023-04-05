@@ -76,12 +76,12 @@ class MultiTryFMTest : public Test {
     context.partition.k = Config::K;
 
     context.refinement.fm.algorithm = FMAlgorithm::kway_fm;
-    context.refinement.fm.gain_cache = FMGainCacheType::km1_gain_cache;
     context.refinement.fm.multitry_rounds = 10;
     context.refinement.fm.num_seed_nodes = 5;
     context.refinement.fm.rollback_balance_violation_factor = 1.0;
 
     context.partition.objective = Objective::km1;
+    context.partition.gain_policy = GainPolicy::km1;
 
     // Read hypergraph
     hypergraph = io::readInputFile<Hypergraph>(

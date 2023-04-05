@@ -79,6 +79,7 @@ class AInitialPartitionerTest : public Test {
     #endif
     context.partition.instance_type = InstanceType::hypergraph;
     context.partition.objective = Objective::km1;
+    context.partition.gain_policy = GainPolicy::km1;
     context.partition.epsilon = 0.2;
     context.partition.k = Config::K;
     context.partition.verbose_output = false;

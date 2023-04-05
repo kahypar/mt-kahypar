@@ -66,7 +66,7 @@ public:
                                                 const HyperedgeID num_hyperedges,
                                                 const Context& context) :
     DeterministicLabelPropagationRefiner(num_hypernodes, num_hyperedges, context,
-      gain_cache_t { nullptr, FMGainCacheType::none }) { }
+      gain_cache_t { nullptr, GainPolicy::none }) { }
 
 private:
   static constexpr bool debug = false;

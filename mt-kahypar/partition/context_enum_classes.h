@@ -147,10 +147,10 @@ enum class FMAlgorithm : uint8_t {
   do_nothing
 };
 
-enum class FMGainCacheType : uint8_t {
-  km1_gain_cache,
-  cut_gain_cache,
-  ENABLE_GRAPHS(cut_gain_cache_for_graphs COMMA)
+enum class GainPolicy : uint8_t {
+  km1,
+  cut,
+  ENABLE_GRAPHS(cut_for_graphs COMMA)
   none
 };
 
@@ -194,7 +194,7 @@ std::ostream & operator<< (std::ostream& os, const LabelPropagationAlgorithm& al
 
 std::ostream & operator<< (std::ostream& os, const FMAlgorithm& algo);
 
-std::ostream & operator<< (std::ostream& os, const FMGainCacheType& type);
+std::ostream & operator<< (std::ostream& os, const GainPolicy& type);
 
 std::ostream & operator<< (std::ostream& os, const FlowAlgorithm& algo);
 

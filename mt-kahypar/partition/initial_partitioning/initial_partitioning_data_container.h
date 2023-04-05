@@ -202,7 +202,7 @@ class InitialPartitioningDataContainer {
               std::numeric_limits<HypernodeWeight>::max(),
               std::numeric_limits<HypernodeWeight>::max(),
               std::numeric_limits<double>::max()),
-      _gain_cache(),
+      _gain_cache(GainCacheFactory::constructGainCache(context.partition.gain_policy)),
       _label_propagation(nullptr),
       _twoway_fm(nullptr),
       _stats() {
@@ -216,10 +216,9 @@ class InitialPartitioningDataContainer {
         _twoway_fm = std::make_unique<SequentialTwoWayFmRefiner<TypeTraits>>(_partitioned_hypergraph, _context);
       } else if ( _context.refinement.label_propagation.algorithm != LabelPropagationAlgorithm::do_nothing ) {
         // In case of a direct-kway initial partition we instantiate the LP refiner
-        gain_cache_t gain_cache { reinterpret_cast<gain_cache_s*>(&_gain_cache), DoNothingGainCache::TYPE };
         _label_propagation = LabelPropagationFactory::getInstance().createObject(
           _context.refinement.label_propagation.algorithm,
-          hypergraph.initialNumNodes(), hypergraph.initialNumEdges(), _context, gain_cache);
+          hypergraph.initialNumNodes(), hypergraph.initialNumEdges(), _context, _gain_cache);
       }
     }
 
@@ -352,7 +351,7 @@ class InitialPartitioningDataContainer {
     GlobalInitialPartitioningStats& _global_stats;
     parallel::scalable_vector<PartitionID> _partition;
     PartitioningResult _result;
-    DoNothingGainCache _gain_cache;
+    gain_cache_t _gain_cache;
     std::unique_ptr<IRefiner> _label_propagation;
     std::unique_ptr<SequentialTwoWayFmRefiner<TypeTraits>> _twoway_fm;
     parallel::scalable_vector<utils::InitialPartitionerSummary> _stats;
@@ -382,7 +381,6 @@ class InitialPartitioningDataContainer {
     // Setup Label Propagation IRefiner Config for Initial Partitioning
     _context.refinement = _context.initial_partitioning.refinement;
     _context.refinement.label_propagation.execute_sequential = true;
-    _context.refinement.fm.gain_cache = FMGainCacheType::none;
 
     if (_context.partition.deterministic) {
       _best_partitions.resize(_max_pop_size);

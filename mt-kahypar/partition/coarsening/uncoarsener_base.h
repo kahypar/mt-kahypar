@@ -57,7 +57,7 @@ class UncoarsenerBase {
           _context(context),
           _timer(utils::Utilities::instance().getTimer(context.utility_id)),
           _uncoarseningData(uncoarseningData),
-          _gain_cache(gain_cache_t {nullptr, FMGainCacheType::none}),
+          _gain_cache(gain_cache_t {nullptr, GainPolicy::none}),
           _label_propagation(nullptr),
           _fm(nullptr),
           _flows(nullptr) {}
@@ -113,7 +113,7 @@ class UncoarsenerBase {
   }
 
   void initializeRefinementAlgorithms() {
-    _gain_cache = GainCacheFactory::constructGainCache(_context.refinement.fm.gain_cache);
+    _gain_cache = GainCacheFactory::constructGainCache(_context.partition.gain_policy);
     _label_propagation = LabelPropagationFactory::getInstance().createObject(
       _context.refinement.label_propagation.algorithm,
       _hg.initialNumNodes(), _hg.initialNumEdges(), _context, _gain_cache);

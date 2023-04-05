@@ -71,6 +71,7 @@ class APoolInitialPartitionerTest : public Test {
     context.partition.instance_type = InstanceType::hypergraph;
     context.partition.partition_type = PartitionedHypergraph::TYPE;
     context.partition.objective = Objective::km1;
+    context.partition.gain_policy = GainPolicy::km1;
     context.initial_partitioning.runs = Config::RUNS;
     context.refinement.label_propagation.algorithm =
       LabelPropagationAlgorithm::label_propagation_km1;

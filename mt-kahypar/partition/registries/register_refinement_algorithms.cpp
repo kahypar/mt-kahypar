@@ -111,14 +111,14 @@ REGISTER_DISPATCHED_LP_REFINER(LabelPropagationAlgorithm::label_propagation_km1,
                                Km1LabelPropagationDispatcher,
                                kahypar::meta::PolicyRegistry<mt_kahypar_partition_type_t>::getInstance().getPolicy(
                                 context.partition.partition_type),
-                               kahypar::meta::PolicyRegistry<FMGainCacheType>::getInstance().getPolicy(
-                                context.refinement.fm.gain_cache));
+                               kahypar::meta::PolicyRegistry<GainPolicy>::getInstance().getPolicy(
+                                context.partition.gain_policy));
 REGISTER_DISPATCHED_LP_REFINER(LabelPropagationAlgorithm::label_propagation_cut,
                                CutLabelPropagationDispatcher,
                                kahypar::meta::PolicyRegistry<mt_kahypar_partition_type_t>::getInstance().getPolicy(
                                 context.partition.partition_type),
-                               kahypar::meta::PolicyRegistry<FMGainCacheType>::getInstance().getPolicy(
-                                context.refinement.fm.gain_cache));
+                               kahypar::meta::PolicyRegistry<GainPolicy>::getInstance().getPolicy(
+                                context.partition.gain_policy));
 REGISTER_DISPATCHED_LP_REFINER(LabelPropagationAlgorithm::deterministic,
                                DeterministicLabelPropagationDispatcher,
                                kahypar::meta::PolicyRegistry<mt_kahypar_partition_type_t>::getInstance().getPolicy(
@@ -129,16 +129,16 @@ REGISTER_DISPATCHED_FM_REFINER(FMAlgorithm::kway_fm,
                                FMDispatcher,
                                kahypar::meta::PolicyRegistry<mt_kahypar_partition_type_t>::getInstance().getPolicy(
                                 context.partition.partition_type),
-                               kahypar::meta::PolicyRegistry<FMGainCacheType>::getInstance().getPolicy(
-                                context.refinement.fm.gain_cache));
+                               kahypar::meta::PolicyRegistry<GainPolicy>::getInstance().getPolicy(
+                                context.partition.gain_policy));
 REGISTER_FM_REFINER(FMAlgorithm::do_nothing, DoNothingRefiner, 2);
 
 REGISTER_DISPATCHED_FLOW_SCHEDULER(FlowAlgorithm::flow_cutter,
                                    FlowSchedulerDispatcher,
                                    kahypar::meta::PolicyRegistry<mt_kahypar_partition_type_t>::getInstance().getPolicy(
                                     context.partition.partition_type),
-                                   kahypar::meta::PolicyRegistry<FMGainCacheType>::getInstance().getPolicy(
-                                     context.refinement.fm.gain_cache));
+                                   kahypar::meta::PolicyRegistry<GainPolicy>::getInstance().getPolicy(
+                                     context.partition.gain_policy));
 REGISTER_FLOW_SCHEDULER(FlowAlgorithm::do_nothing, DoNothingRefiner, 3);
 
 REGISTER_DISPATCHED_FLOW_REFINER(FlowAlgorithm::flow_cutter,

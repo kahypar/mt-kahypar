@@ -35,7 +35,6 @@
 #ifdef KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES
 #include "mt-kahypar/partition/refinement/fm/gain_cache/cut_gain_cache_for_graphs.h"
 #endif
-#include "mt-kahypar/partition/refinement/fm/gain_cache/do_nothing_gain_cache.h"
 #include "mt-kahypar/macros.h"
 
 namespace mt_kahypar {
@@ -43,37 +42,37 @@ namespace mt_kahypar {
 struct gain_cache_s;
 typedef struct  {
   gain_cache_s* gain_cache;
-  FMGainCacheType type;
+  GainPolicy type;
 } gain_cache_t;
 
 class GainCacheFactory {
 
  public:
-  static gain_cache_t constructGainCache(const FMGainCacheType& type) {
+  static gain_cache_t constructGainCache(const GainPolicy& type) {
     switch(type) {
-      case FMGainCacheType::km1_gain_cache: return constructGainCache<Km1GainCache>();
+      case GainPolicy::km1: return constructGainCache<Km1GainCache>();
       // TODO: replace this with cut gain cache once implementation is available
-      case FMGainCacheType::cut_gain_cache: return constructGainCache<Km1GainCache>();
+      case GainPolicy::cut: return constructGainCache<Km1GainCache>();
       #ifdef KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES
-      case FMGainCacheType::cut_gain_cache_for_graphs: return constructGainCache<GraphCutGainCache>();
+      case GainPolicy::cut_for_graphs: return constructGainCache<GraphCutGainCache>();
       #endif
-      case FMGainCacheType::none: return constructGainCache<DoNothingGainCache>();
+      case GainPolicy::none:
+        ERR("No gain policy set");
     }
-    return constructGainCache<DoNothingGainCache>();
+    return gain_cache_t { nullptr, GainPolicy::none };
   }
 
   static void deleteGainCache(gain_cache_t gain_cache) {
     if ( gain_cache.gain_cache ) {
       switch(gain_cache.type) {
-        case FMGainCacheType::cut_gain_cache:
-        case FMGainCacheType::km1_gain_cache:
+        case GainPolicy::cut:
+        case GainPolicy::km1:
           delete reinterpret_cast<Km1GainCache*>(gain_cache.gain_cache); break;
         #ifdef KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES
-        case FMGainCacheType::cut_gain_cache_for_graphs:
+        case GainPolicy::cut_for_graphs:
           delete reinterpret_cast<GraphCutGainCache*>(gain_cache.gain_cache); break;
         #endif
-        case FMGainCacheType::none:
-          delete reinterpret_cast<DoNothingGainCache*>(gain_cache.gain_cache); break;
+        case GainPolicy::none: break;
       }
     }
   }
@@ -82,35 +81,31 @@ class GainCacheFactory {
   static void initializeGainCache(const PartitionedHypergraph& partitioned_hg,
                                   gain_cache_t gain_cache) {
     switch(gain_cache.type) {
-      case FMGainCacheType::cut_gain_cache:
-      case FMGainCacheType::km1_gain_cache:
+      case GainPolicy::cut:
+      case GainPolicy::km1:
         reinterpret_cast<Km1GainCache*>(
           gain_cache.gain_cache)->initializeGainCache(partitioned_hg); break;
       #ifdef KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES
-      case FMGainCacheType::cut_gain_cache_for_graphs:
+      case GainPolicy::cut_for_graphs:
         reinterpret_cast<GraphCutGainCache*>(
           gain_cache.gain_cache)->initializeGainCache(partitioned_hg); break;
       #endif
-      case FMGainCacheType::none:
-        reinterpret_cast<DoNothingGainCache*>(
-          gain_cache.gain_cache)->initializeGainCache(partitioned_hg); break;
+      case GainPolicy::none: break;
     }
   }
 
   static void resetGainCache(gain_cache_t gain_cache) {
     switch(gain_cache.type) {
-      case FMGainCacheType::cut_gain_cache:
-      case FMGainCacheType::km1_gain_cache:
+      case GainPolicy::cut:
+      case GainPolicy::km1:
         reinterpret_cast<Km1GainCache*>(
           gain_cache.gain_cache)->reset(); break;
       #ifdef KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES
-      case FMGainCacheType::cut_gain_cache_for_graphs:
+      case GainPolicy::cut_for_graphs:
         reinterpret_cast<GraphCutGainCache*>(
           gain_cache.gain_cache)->reset(); break;
       #endif
-      case FMGainCacheType::none:
-        reinterpret_cast<DoNothingGainCache*>(
-          gain_cache.gain_cache)->reset(); break;
+      case GainPolicy::none: break;
     }
   }
 
@@ -130,17 +125,9 @@ class GainCacheFactory {
 };
 
 using GainCacheTypes = kahypar::meta::Typelist<Km1GainCache
-                                               ENABLE_GRAPHS(COMMA GraphCutGainCache),
-                                               DoNothingGainCache>;
-using FMGainCacheTypes = kahypar::meta::Typelist<Km1GainCache
-                                                 ENABLE_GRAPHS(COMMA GraphCutGainCache)>;
+                                               ENABLE_GRAPHS(COMMA GraphCutGainCache)>;
 
 #define INSTANTIATE_CLASS_WITH_TYPE_TRAITS_AND_GAIN_CACHE(C)                                      \
-  INSTANTIATE_CLASS_MACRO_WITH_TYPE_TRAITS_AND_OTHER_CLASS(C, Km1GainCache)                       \
-  ENABLE_GRAPHS(INSTANTIATE_CLASS_MACRO_WITH_TYPE_TRAITS_AND_OTHER_CLASS(C, GraphCutGainCache))   \
-  INSTANTIATE_CLASS_MACRO_WITH_TYPE_TRAITS_AND_OTHER_CLASS(C, DoNothingGainCache)
-
-#define INSTANTIATE_CLASS_WITH_TYPE_TRAITS_AND_FM_GAIN_CACHE(C)                                   \
   INSTANTIATE_CLASS_MACRO_WITH_TYPE_TRAITS_AND_OTHER_CLASS(C, Km1GainCache)                       \
   ENABLE_GRAPHS(INSTANTIATE_CLASS_MACRO_WITH_TYPE_TRAITS_AND_OTHER_CLASS(C, GraphCutGainCache))
 

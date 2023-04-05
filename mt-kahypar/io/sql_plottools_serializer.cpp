@@ -50,6 +50,7 @@ std::string serialize(const PartitionedHypergraph& hypergraph,
         << " numHEs=" << (PartitionedHypergraph::is_graph ? hypergraph.initialNumEdges() / 2 : hypergraph.initialNumEdges())
         << " mode=" << context.partition.mode
         << " objective=" << context.partition.objective
+        << " gain_policy=" << context.partition.gain_policy
         << " file_format=" << context.partition.file_format
         << " partition_type=" << context.partition.partition_type
         << " k=" << context.partition.k
@@ -111,7 +112,6 @@ std::string serialize(const PartitionedHypergraph& hypergraph,
         << " sync_lp_use_active_node_set=" << context.refinement.deterministic_refinement.use_active_node_set
         << " sync_lp_recalculate_gains_on_second_apply=" << context.refinement.deterministic_refinement.recalculate_gains_on_second_apply;
     oss << " fm_algorithm=" << context.refinement.fm.algorithm
-        << " fm_gain_cache=" << context.refinement.fm.gain_cache
         << " fm_multitry_rounds=" << context.refinement.fm.multitry_rounds
         << " fm_perform_moves_global=" << std::boolalpha << context.refinement.fm.perform_moves_global
         << " fm_rollback_parallel=" << std::boolalpha << context.refinement.fm.rollback_parallel

@@ -99,7 +99,7 @@ using FMFactory = kahypar::meta::Factory<FMAlgorithm,
 using FMDispatcher = kahypar::meta::StaticMultiDispatchFactory<
                       MultiTryKWayFM,
                       IRefiner,
-                      kahypar::meta::Typelist<TypeTraitsList, FMGainCacheTypes>>;
+                      kahypar::meta::Typelist<TypeTraitsList, GainCacheTypes>>;
 
 using FlowSchedulerFactory = kahypar::meta::Factory<FlowAlgorithm,
                               IRefiner* (*)(const HypernodeID, const HyperedgeID, const Context&, gain_cache_t)>;

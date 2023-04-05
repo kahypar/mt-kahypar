@@ -40,8 +40,8 @@
 
 namespace mt_kahypar {
 
-  template <typename TypeTraits, template <typename> class GainPolicy>
-  void Rebalancer<TypeTraits, GainPolicy>::rebalance(Metrics& best_metrics) {
+  template <typename TypeTraits, template <typename> class GainComputationPolicy>
+  void Rebalancer<TypeTraits, GainComputationPolicy>::rebalance(Metrics& best_metrics) {
     // If partition is imbalanced, rebalancer is activated
     if ( !metrics::isBalanced(_hg, _context) ) {
       _gain.reset();
@@ -189,8 +189,8 @@ namespace mt_kahypar {
     }
   }
 
-  template <typename TypeTraits, template <typename> class GainPolicy>
-  vec<Move> Rebalancer<TypeTraits, GainPolicy>::repairEmptyBlocks() {
+  template <typename TypeTraits, template <typename> class GainComputationPolicy>
+  vec<Move> Rebalancer<TypeTraits, GainComputationPolicy>::repairEmptyBlocks() {
     // First detect if there are any empty blocks.
     const size_t k = size_t(_context.partition.k);
     boost::dynamic_bitset<> is_empty(k);

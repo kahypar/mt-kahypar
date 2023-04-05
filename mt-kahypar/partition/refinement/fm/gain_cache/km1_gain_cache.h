@@ -49,7 +49,7 @@ class Km1GainCache final : public kahypar::meta::PolicyBase {
   static constexpr HyperedgeID HIGH_DEGREE_THRESHOLD = ID(100000);
 
  public:
-  static constexpr FMGainCacheType TYPE = FMGainCacheType::km1_gain_cache;
+  static constexpr GainPolicy TYPE = GainPolicy::km1;
   using DeltaGainCache = DeltaKm1GainCache;
 
   Km1GainCache() :
@@ -238,6 +238,15 @@ class Km1GainCache final : public kahypar::meta::PolicyBase {
         }
       }
     }
+  }
+
+  static HyperedgeWeight delta(const HyperedgeID,
+                               const HyperedgeWeight edge_weight,
+                               const HypernodeID,
+                               const HypernodeID pin_count_in_from_part_after,
+                               const HypernodeID pin_count_in_to_part_after) {
+    return (pin_count_in_to_part_after == 1 ? edge_weight : 0) +
+           (pin_count_in_from_part_after == 0 ? -edge_weight : 0);
   }
 
   // ####################### Uncontraction #######################
@@ -530,7 +539,6 @@ class DeltaKm1GainCache {
       }
     }
   }
-
 
  // ####################### Miscellaneous #######################
 

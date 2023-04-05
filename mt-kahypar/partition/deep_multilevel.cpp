@@ -569,21 +569,18 @@ void bipartition_each_block(typename TypeTraits::PartitionedHypergraph& partitio
                             const HyperedgeWeight current_objective,
                             const bool progress_bar_enabled) {
   switch(gain_cache.type) {
-    case FMGainCacheType::cut_gain_cache:
-    case FMGainCacheType::km1_gain_cache:
+    case GainPolicy::cut:
+    case GainPolicy::km1:
       bipartition_each_block<TypeTraits>(partitioned_hg, context,
         GainCacheFactory::cast<Km1GainCache>(gain_cache), info, rb_tree,
         current_k, current_objective, progress_bar_enabled); break;
     #ifdef KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES
-    case FMGainCacheType::cut_gain_cache_for_graphs:
+    case GainPolicy::cut_for_graphs:
       bipartition_each_block<TypeTraits>(partitioned_hg, context,
         GainCacheFactory::cast<GraphCutGainCache>(gain_cache), info, rb_tree,
         current_k, current_objective, progress_bar_enabled); break;
     #endif
-    case FMGainCacheType::none:
-      bipartition_each_block<TypeTraits>(partitioned_hg, context,
-        GainCacheFactory::cast<DoNothingGainCache>(gain_cache), info, rb_tree,
-        current_k, current_objective, progress_bar_enabled); break;
+    case GainPolicy::none: break;
   }
 }
 

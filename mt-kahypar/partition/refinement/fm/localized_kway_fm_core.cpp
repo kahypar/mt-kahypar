@@ -272,8 +272,8 @@ namespace mt_kahypar {
                                     const HypernodeID edge_size,
                                     const HypernodeID pin_count_in_from_part_after,
                                     const HypernodeID pin_count_in_to_part_after) {
-      attributed_gain += km1Delta(he, edge_weight, edge_size,
-                                  pin_count_in_from_part_after, pin_count_in_to_part_after);
+      attributed_gain += GainCache::delta(he, edge_weight, edge_size,
+        pin_count_in_from_part_after, pin_count_in_to_part_after);
 
       // Gains of the pins of a hyperedge can only change in the following situations.
       if ( is_last_move &&
@@ -390,6 +390,6 @@ namespace mt_kahypar {
   #define LOCALIZED_KWAY_FM(X, Y) LocalizedKWayFM<X, Y>
   }
 
-  INSTANTIATE_CLASS_WITH_TYPE_TRAITS_AND_FM_GAIN_CACHE(LOCALIZED_KWAY_FM)
+  INSTANTIATE_CLASS_WITH_TYPE_TRAITS_AND_GAIN_CACHE(LOCALIZED_KWAY_FM)
 
 }   // namespace mt_kahypar

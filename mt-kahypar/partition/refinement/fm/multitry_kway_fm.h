@@ -43,7 +43,7 @@ class MultiTryKWayFM final : public IRefiner {
   static constexpr bool debug = false;
   static constexpr bool enable_heavy_assert = false;
 
-  static_assert(GainCache::TYPE != FMGainCacheType::none);
+  static_assert(GainCache::TYPE != GainPolicy::none);
 
   using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
   using LocalizedFMSearch = LocalizedKWayFM<TypeTraits, GainCache>;

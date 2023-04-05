@@ -39,6 +39,7 @@ namespace mt_kahypar {
     }
     str << "  Mode:                               " << params.mode << std::endl;
     str << "  Objective:                          " << params.objective << std::endl;
+    str << "  Gain Policy:                        " << params.gain_policy << std::endl;
     str << "  Input File Format:                  " << params.file_format << std::endl;
     if ( params.instance_type != InstanceType::UNDEFINED ) {
       str << "  Instance Type:                      " << params.instance_type << std::endl;
@@ -127,7 +128,6 @@ namespace mt_kahypar {
     out << "  FM Parameters: \n";
     out << "    Algorithm:                        " << params.algorithm << std::endl;
     if ( params.algorithm != FMAlgorithm::do_nothing ) {
-      out << "    Gain Cache Type:                  " << params.gain_cache << std::endl;
       out << "    Multitry Rounds:                  " << params.multitry_rounds << std::endl;
       out << "    Perform Moves Globally:           " << std::boolalpha << params.perform_moves_global << std::endl;
       out << "    Parallel Global Rollbacks:        " << std::boolalpha << params.rollback_parallel << std::endl;
@@ -435,32 +435,24 @@ namespace mt_kahypar {
       }
     }
 
-    // Set correct gain cache type
-    auto determine_gain_cache_type = [&](FMParameters& params,
-                                         const Objective objective,
-                                         const InstanceType instance) {
-      if ( params.algorithm != FMAlgorithm::do_nothing ) {
-        if ( instance == InstanceType::hypergraph ) {
-          switch ( objective ) {
-            case Objective::km1: params.gain_cache = FMGainCacheType::km1_gain_cache; break;
-            // TODO: change this to cut_gain_cache once implementation available
-            case Objective::cut: params.gain_cache = FMGainCacheType::km1_gain_cache; break;
-            case Objective::UNDEFINED: params.gain_cache = FMGainCacheType::none; break;
-          }
-        }
-        #ifdef KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES
-        else if ( instance == InstanceType::graph ) {
-          switch ( objective ) {
-            case Objective::km1: params.gain_cache = FMGainCacheType::cut_gain_cache_for_graphs; break;
-            case Objective::cut: params.gain_cache = FMGainCacheType::cut_gain_cache_for_graphs; break;
-            case Objective::UNDEFINED: params.gain_cache = FMGainCacheType::none; break;
-          }
-        }
-        #endif
+    // Set correct gain policy type
+    if ( partition.instance_type == InstanceType::hypergraph ) {
+      switch ( partition.objective ) {
+        case Objective::km1: partition.gain_policy = GainPolicy::km1; break;
+        // TODO: change this to cut_gain_cache once implementation available
+        case Objective::cut: partition.gain_policy = GainPolicy::km1; break;
+        case Objective::UNDEFINED: partition.gain_policy = GainPolicy::none; break;
       }
-    };
-    determine_gain_cache_type(refinement.fm, partition.objective, partition.instance_type);
-    determine_gain_cache_type(initial_partitioning.refinement.fm, partition.objective, partition.instance_type);
+    }
+    #ifdef KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES
+    else if ( partition.instance_type == InstanceType::graph ) {
+      switch ( partition.objective ) {
+        case Objective::km1: partition.gain_policy = GainPolicy::cut_for_graphs; break;
+        case Objective::cut: partition.gain_policy = GainPolicy::cut_for_graphs; break;
+        case Objective::UNDEFINED: partition.gain_policy = GainPolicy::none; break;
+      }
+    }
+    #endif
 
     #ifdef KAHYPAR_ENABLE_LARGE_K_PARTITIONING_FEATURES
     if ( partition.preset_type == PresetType::large_k ) {

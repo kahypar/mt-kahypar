@@ -220,12 +220,12 @@ namespace mt_kahypar {
     return os << static_cast<uint8_t>(algo);
   }
 
-  std::ostream & operator<< (std::ostream& os, const FMGainCacheType& type) {
+  std::ostream & operator<< (std::ostream& os, const GainPolicy& type) {
     switch (type) {
-      case FMGainCacheType::km1_gain_cache: return os << "km1_gain_cache";
-      case FMGainCacheType::cut_gain_cache: return os << "cut_gain_cache";
-      ENABLE_GRAPHS(case FMGainCacheType::cut_gain_cache_for_graphs: return os << "cut_gain_cache_for_graphs";)
-      case FMGainCacheType::none: return os << "none";
+      case GainPolicy::km1: return os << "km1";
+      case GainPolicy::cut: return os << "cut";
+      ENABLE_GRAPHS(case GainPolicy::cut_for_graphs: return os << "cut_for_graphs";)
+      case GainPolicy::none: return os << "none";
         // omit default case to trigger compiler warning for missing cases
     }
     return os << static_cast<uint8_t>(type);
