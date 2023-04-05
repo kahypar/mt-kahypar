@@ -56,7 +56,8 @@ namespace ds {
  * upon that state. This special partitioned hypergraph allows a local search to hide its
  * current search state from other searches in a space efficient manner.
  */
-template <typename PartitionedHypergraph = Mandatory>
+template <typename PartitionedHypergraph = Mandatory,
+          typename GainCache = Mandatory>
 class DeltaPartitionedHypergraph {
  private:
   static constexpr size_t MAP_SIZE_LARGE = 16384;
@@ -72,17 +73,11 @@ class DeltaPartitionedHypergraph {
   static constexpr bool supports_connectivity_set = false;
   static constexpr HyperedgeID HIGH_DEGREE_THRESHOLD = PartitionedHypergraph::HIGH_DEGREE_THRESHOLD;
 
-  DeltaPartitionedHypergraph() :
-    _k(kInvalidPartition),
-    _phg(nullptr),
-    _part_weights_delta(0, 0),
-    _part_ids_delta(),
-    _pins_in_part_delta(),
-    _gain_cache_delta() {}
-
-  DeltaPartitionedHypergraph(const Context& context) :
+  DeltaPartitionedHypergraph(const Context& context,
+                             GainCache& gain_cache) :
     _k(context.partition.k),
     _phg(nullptr),
+    _gain_cache(gain_cache),
     _part_weights_delta(context.partition.k, 0),
     _part_ids_delta(),
     _pins_in_part_delta(),
@@ -368,6 +363,9 @@ class DeltaPartitionedHypergraph {
 
   // ! Partitioned hypergraph where all deltas are stored relative to
   PartitionedHypergraph* _phg;
+
+  // ! The Gain Cache
+  GainCache& _gain_cache;
 
   // ! Delta for block weights
   vec< HypernodeWeight > _part_weights_delta;

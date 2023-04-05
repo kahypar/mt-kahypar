@@ -68,7 +68,7 @@ class UncoarsenerBase {
   UncoarsenerBase & operator= (UncoarsenerBase &&) = delete;
 
   virtual ~UncoarsenerBase() {
-    AbstractGainCache::deleteGainCache(_gain_cache);
+    GainCacheFactory::deleteGainCache(_gain_cache);
   };
 
  protected:
@@ -113,7 +113,7 @@ class UncoarsenerBase {
   }
 
   void initializeRefinementAlgorithms() {
-    _gain_cache = AbstractGainCache::constructGainCache(_context.refinement.fm.gain_cache);
+    _gain_cache = GainCacheFactory::constructGainCache(_context.refinement.fm.gain_cache);
     _label_propagation = LabelPropagationFactory::getInstance().createObject(
       _context.refinement.label_propagation.algorithm,
       _hg.initialNumNodes(), _hg.initialNumEdges(), _context, _gain_cache);

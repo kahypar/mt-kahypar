@@ -163,7 +163,7 @@ public:
                           const Context& context,
                           gain_cache_t gain_cache) :
     FlowRefinementScheduler(num_hypernodes, num_hyperedges, context,
-      AbstractGainCache::cast<GainCache>(gain_cache)) { }
+      GainCacheFactory::cast<GainCache>(gain_cache)) { }
 
   FlowRefinementScheduler(const FlowRefinementScheduler&) = delete;
   FlowRefinementScheduler(FlowRefinementScheduler&&) = delete;

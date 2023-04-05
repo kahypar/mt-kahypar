@@ -33,6 +33,7 @@
 #include "mt-kahypar/datastructures/hypergraph_common.h"
 #include "mt-kahypar/datastructures/partitioned_graph.h"
 #include "mt-kahypar/datastructures/delta_partitioned_graph.h"
+#include "mt-kahypar/partition/refinement/fm/gain_cache/cut_gain_cache_for_graphs.h"
 
 using ::testing::Test;
 
@@ -44,7 +45,7 @@ class ADeltaPartitionedGraph : public Test {
  using Hypergraph = typename StaticGraphTypeTraits::Hypergraph;
  using HypergraphFactory = typename Hypergraph::Factory;
  using PartitionedHypergraph = typename StaticGraphTypeTraits::PartitionedHypergraph;
- using DeltaPartitionedGraph = typename PartitionedHypergraph::DeltaPartition;
+ using DeltaPartitionedGraph = typename PartitionedHypergraph::DeltaPartition<GraphCutGainCache>;
 
  public:
 
@@ -52,8 +53,9 @@ class ADeltaPartitionedGraph : public Test {
     hg(HypergraphFactory::construct(7 , 6,
       { {1, 2}, {2, 3}, {1, 4}, {4, 5}, {4, 6}, {5, 6} }, nullptr, nullptr, true)),
     phg(3, hg, parallel_tag_t()),
-    delta_phg(),
-    context() {
+    context(),
+    gain_cache(),
+    delta_phg(nullptr) {
     phg.setOnlyNodePart(0, 0);
     phg.setOnlyNodePart(1, 0);
     phg.setOnlyNodePart(2, 0);
@@ -65,15 +67,15 @@ class ADeltaPartitionedGraph : public Test {
     phg.initializeGainCache();
 
     context.partition.k = 3;
-    delta_phg = DeltaPartitionedGraph(context);
-    delta_phg.setPartitionedHypergraph(&phg);
+    delta_phg = std::make_unique<DeltaPartitionedGraph>(context, gain_cache);
+    delta_phg->setPartitionedHypergraph(&phg);
   }
 
   void verifyPinCounts(const HyperedgeID he,
                        const std::vector<HypernodeID>& expected_pin_counts) {
     ASSERT(expected_pin_counts.size() == static_cast<size_t>(phg.k()));
     for (PartitionID block = 0; block < 3; ++block) {
-      ASSERT_EQ(expected_pin_counts[block], delta_phg.pinCountInPart(he, block)) << V(he) << V(block);
+      ASSERT_EQ(expected_pin_counts[block], delta_phg->pinCountInPart(he, block)) << V(he) << V(block);
     }
   }
 
@@ -81,18 +83,19 @@ class ADeltaPartitionedGraph : public Test {
                            const std::vector<HyperedgeWeight>& expected_penalties) {
     ASSERT(expected_penalties.size() == static_cast<size_t>(phg.k()));
     for (PartitionID block = 0; block < 3; ++block) {
-      if (block != delta_phg.partID(hn)) {
-        ASSERT_EQ(expected_penalties[block], delta_phg.km1Gain(hn, delta_phg.partID(hn), block)) << V(hn) << "; " << V(block);
+      if (block != delta_phg->partID(hn)) {
+        ASSERT_EQ(expected_penalties[block], delta_phg->km1Gain(hn, delta_phg->partID(hn), block)) << V(hn) << "; " << V(block);
       } else {
-        ASSERT_EQ(delta_phg.moveToBenefit(hn, block), delta_phg.moveFromPenalty(hn)) << V(hn) << "; " << V(block);
+        ASSERT_EQ(delta_phg->moveToBenefit(hn, block), delta_phg->moveFromPenalty(hn)) << V(hn) << "; " << V(block);
       }
     }
   }
 
   Hypergraph hg;
   PartitionedHypergraph phg;
-  DeltaPartitionedGraph delta_phg;
   Context context;
+  GraphCutGainCache gain_cache;
+  std::unique_ptr<DeltaPartitionedGraph> delta_phg;
 };
 
 TEST_F(ADeltaPartitionedGraph, VerifiesInitialPinCounts) {
@@ -127,9 +130,9 @@ TEST_F(ADeltaPartitionedGraph, VerifyInitialKm1Gain) {
 }
 
 TEST_F(ADeltaPartitionedGraph, MovesVertices) {
-  delta_phg.changeNodePartWithGainCacheUpdate(1, 0, 1, 1000);
+  delta_phg->changeNodePartWithGainCacheUpdate(1, 0, 1, 1000);
   ASSERT_EQ(0, phg.partID(1));
-  ASSERT_EQ(1, delta_phg.partID(1));
+  ASSERT_EQ(1, delta_phg->partID(1));
 
   // Verify Pin Counts
   verifyPinCounts(0, { 1, 1, 0 });
@@ -142,9 +145,9 @@ TEST_F(ADeltaPartitionedGraph, MovesVertices) {
   verifyKm1Gain(2, { 0, 2, 0 });
   verifyKm1Gain(4, { -1, 0, 1 });
 
-  delta_phg.changeNodePartWithGainCacheUpdate(4, 1, 2, 1000);
+  delta_phg->changeNodePartWithGainCacheUpdate(4, 1, 2, 1000);
   ASSERT_EQ(1, phg.partID(4));
-  ASSERT_EQ(2, delta_phg.partID(4));
+  ASSERT_EQ(2, delta_phg->partID(4));
 
   // Verify Pin Counts
   verifyPinCounts(1, { 0, 1, 1 });

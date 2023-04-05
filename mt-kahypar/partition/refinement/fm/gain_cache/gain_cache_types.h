@@ -46,7 +46,7 @@ typedef struct  {
   FMGainCacheType type;
 } gain_cache_t;
 
-class AbstractGainCache {
+class GainCacheFactory {
 
  public:
   static gain_cache_t constructGainCache(const FMGainCacheType& type) {

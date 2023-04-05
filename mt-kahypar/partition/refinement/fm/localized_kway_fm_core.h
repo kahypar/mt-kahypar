@@ -43,7 +43,7 @@ template<typename TypeTraits, typename GainCache>
 class LocalizedKWayFM {
 
   using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
-  using DeltaPartitionedHypergraph = typename PartitionedHypergraph::DeltaPartition;
+  using DeltaPartitionedHypergraph = typename PartitionedHypergraph::DeltaPartition<GainCache>;
 
 public:
   explicit LocalizedKWayFM(const Context& context,
@@ -52,7 +52,7 @@ public:
                            GainCache& gainCache) :
     context(context),
     thisSearch(0),
-    deltaPhg(context),
+    deltaPhg(context, gainCache),
     neighborDeduplicator(numNodes, 0),
     fm_strategy(context, sharedData, gainCache, runStats),
     gain_cache(gainCache),

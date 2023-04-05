@@ -73,7 +73,7 @@ class LabelPropagationRefiner final : public IRefiner {
                                    const Context& context,
                                    gain_cache_t gain_cache) :
     LabelPropagationRefiner(num_hypernodes, num_hyperedges, context,
-      AbstractGainCache::cast<GainCache>(gain_cache)) { }
+      GainCacheFactory::cast<GainCache>(gain_cache)) { }
 
   LabelPropagationRefiner(const LabelPropagationRefiner&) = delete;
   LabelPropagationRefiner(LabelPropagationRefiner&&) = delete;

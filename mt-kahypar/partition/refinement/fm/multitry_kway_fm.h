@@ -72,7 +72,7 @@ class MultiTryKWayFM final : public IRefiner {
                  const Context& c,
                  gain_cache_t gainCache) :
     MultiTryKWayFM(num_hypernodes, num_hyperedges, c,
-      AbstractGainCache::cast<GainCache>(gainCache)) { }
+      GainCacheFactory::cast<GainCache>(gainCache)) { }
 
   void printMemoryConsumption();
 

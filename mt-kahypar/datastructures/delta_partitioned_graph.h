@@ -46,7 +46,8 @@ namespace ds {
  * This is a variant of DeltaPartitionedHypergraph specialized for graphs.
  * See delte_partitioned_hypergraph.h for more details.
  */
-template <typename PartitionedGraph = Mandatory>
+template <typename PartitionedGraph = Mandatory,
+          typename GainCache = Mandatory>
 class DeltaPartitionedGraph {
  private:
   static constexpr size_t MAP_SIZE_LARGE = 16384;
@@ -62,16 +63,11 @@ class DeltaPartitionedGraph {
   static constexpr bool supports_connectivity_set = false;
   static constexpr HyperedgeID HIGH_DEGREE_THRESHOLD = PartitionedGraph::HIGH_DEGREE_THRESHOLD;
 
-  DeltaPartitionedGraph() :
-    _k(kInvalidPartition),
-    _pg(nullptr),
-    _part_weights_delta(0, 0),
-    _part_ids_delta(),
-    _incident_weight_in_part_delta() {}
-
-  DeltaPartitionedGraph(const Context& context) :
+  DeltaPartitionedGraph(const Context& context,
+                        GainCache& gain_cache) :
     _k(context.partition.k),
     _pg(nullptr),
+    _gain_cache(gain_cache),
     _part_weights_delta(context.partition.k, 0),
     _part_ids_delta(),
     _incident_weight_in_part_delta() {
@@ -342,6 +338,9 @@ class DeltaPartitionedGraph {
 
   // ! Partitioned graph where all deltas are stored relative to
   PartitionedGraph* _pg;
+
+  // ! The Gain Cache
+  GainCache& _gain_cache;
 
   // ! Delta for block weights
   vec< HypernodeWeight > _part_weights_delta;
