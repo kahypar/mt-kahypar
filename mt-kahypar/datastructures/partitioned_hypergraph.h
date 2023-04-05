@@ -48,6 +48,10 @@
 namespace mt_kahypar {
 namespace ds {
 
+// Forward
+template<typename PartitionedHypergraph>
+class DeltaPartitionedHypergraph;
+
 template <typename Hypergraph = Mandatory,
           typename ConnectivityInformation = ConnectivityInfo>
 class PartitionedHypergraph {
@@ -84,6 +88,8 @@ private:
   using IncidenceIterator = typename Hypergraph::IncidenceIterator;
   using IncidentNetsIterator = typename Hypergraph::IncidentNetsIterator;
   using ConnectivitySetIterator = typename ConnectivityInformation::Iterator;
+  using DeltaPartition = DeltaPartitionedHypergraph<
+    PartitionedHypergraph<Hypergraph, ConnectivityInformation>>;
 
   PartitionedHypergraph() = default;
 

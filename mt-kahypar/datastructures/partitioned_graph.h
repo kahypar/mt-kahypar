@@ -49,6 +49,10 @@
 namespace mt_kahypar {
 namespace ds {
 
+// Forward
+template <typename PartitionedGraph>
+class DeltaPartitionedGraph;
+
 template <typename Hypergraph = Mandatory>
 class PartitionedGraph {
 private:
@@ -156,6 +160,7 @@ private:
   using HyperedgeIterator = typename Hypergraph::HyperedgeIterator;
   using IncidenceIterator = typename Hypergraph::IncidenceIterator;
   using IncidentNetsIterator = typename Hypergraph::IncidentNetsIterator;
+  using DeltaPartition = DeltaPartitionedGraph<PartitionedGraph<Hypergraph>>;
 
   PartitionedGraph() = default;
 

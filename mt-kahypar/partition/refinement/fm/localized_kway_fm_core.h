@@ -43,7 +43,7 @@ template<typename TypeTraits>
 class LocalizedKWayFM {
 
   using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
-  using DeltaPartitionedHypergraph = typename TypeTraits::DeltaPartitionedHypergraph;
+  using DeltaPartitionedHypergraph = typename PartitionedHypergraph::DeltaPartition;
 
 public:
   explicit LocalizedKWayFM(const Context& context,

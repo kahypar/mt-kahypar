@@ -44,7 +44,7 @@ class ADeltaPartitionedHypergraph : public Test {
  using Hypergraph = typename StaticHypergraphTypeTraits::Hypergraph;
  using HypergraphFactory = typename Hypergraph::Factory;
  using PartitionedHypergraph = typename StaticHypergraphTypeTraits::PartitionedHypergraph;
- using DeltaPartitionedHypergraph = typename StaticHypergraphTypeTraits::DeltaPartitionedHypergraph;
+ using DeltaPartitionedHypergraph = typename PartitionedHypergraph::DeltaPartition;
 
  public:
 
