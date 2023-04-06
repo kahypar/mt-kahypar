@@ -38,6 +38,8 @@ class GlobalRollback {
   static constexpr bool enable_heavy_assert = false;
 
   using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
+  using Rollback = typename GainCache::Rollback;
+  using RecalculationData = typename Rollback::RecalculationData;
 
 public:
   explicit GlobalRollback(const HyperedgeID num_hyperedges,
@@ -110,16 +112,6 @@ private:
 
   // ! Factor to multiply max part weight with, in order to relax or disable the balance criterion. Set to zero for disabling
   double max_part_weight_scaling;
-
-  struct RecalculationData {
-    MoveID first_in, last_out;
-    HypernodeID remaining_pins;
-    RecalculationData() :
-      first_in(std::numeric_limits<MoveID>::max()),
-      last_out(std::numeric_limits<MoveID>::min()),
-      remaining_pins(0)
-      { }
-  };
 
   tbb::enumerable_thread_specific< vec<RecalculationData> > ets_recalc_data;
   vec<CAtomic<uint32_t>> last_recalc_round;

@@ -26,6 +26,8 @@
 
 #pragma once
 
+#include <algorithm>
+
 #include "kahypar/meta/policy_registry.h"
 
 #include "mt-kahypar/partition/context_enum_classes.h"
@@ -39,6 +41,7 @@ namespace mt_kahypar {
 
 // Forward
 class DeltaKm1GainCache;
+class Km1Rollback;
 
 class Km1GainCache final : public kahypar::meta::PolicyBase {
 
@@ -47,6 +50,7 @@ class Km1GainCache final : public kahypar::meta::PolicyBase {
  public:
   static constexpr GainPolicy TYPE = GainPolicy::km1;
   using DeltaGainCache = DeltaKm1GainCache;
+  using Rollback = Km1Rollback;
 
   Km1GainCache() :
     _is_initialized(false),
@@ -364,6 +368,56 @@ class DeltaKm1GainCache {
   // ! Stores the delta of each locally touched gain cache entry
   // ! relative to the gain cache in '_phg'
   ds::DynamicFlatMap<size_t, HyperedgeWeight> _gain_cache_delta;
+};
+
+class Km1Rollback {
+
+ public:
+  struct RecalculationData {
+    MoveID first_in, last_out;
+    HypernodeID remaining_pins;
+    RecalculationData() :
+      first_in(std::numeric_limits<MoveID>::max()),
+      last_out(std::numeric_limits<MoveID>::min()),
+      remaining_pins(0)
+      { }
+
+    void reset() {
+      first_in = std::numeric_limits<MoveID>::max();
+      last_out = std::numeric_limits<MoveID>::min();
+      remaining_pins = 0;
+    }
+  };
+
+  static void updateMove(const MoveID m_id,
+                         const Move& m,
+                         vec<RecalculationData>& r) {
+    r[m.to].first_in = std::min(r[m.to].first_in, m_id);
+    r[m.from].last_out = std::max(r[m.from].last_out, m_id);
+  }
+
+  static void updateNonMovedPinInBlock(const PartitionID block,
+                                       vec<RecalculationData>& r) {
+    r[block].remaining_pins++;
+  }
+
+  template<typename PartitionedHypergraph>
+  static bool hasBenefit(const PartitionedHypergraph&,
+                         const HyperedgeID,
+                         const MoveID m_id,
+                         const Move& m,
+                         vec<RecalculationData>& r) {
+    return r[m.from].last_out == m_id && r[m.from].first_in > m_id && r[m.from].remaining_pins == 0;
+  }
+
+  template<typename PartitionedHypergraph>
+  static bool hasPenalty(const PartitionedHypergraph&,
+                         const HyperedgeID,
+                         const MoveID m_id,
+                         const Move& m,
+                         vec<RecalculationData>& r) {
+    return r[m.to].first_in == m_id && r[m.to].last_out < m_id && r[m.to].remaining_pins == 0;
+  }
 };
 
 }  // namespace mt_kahypar

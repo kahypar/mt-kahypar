@@ -570,6 +570,9 @@ void bipartition_each_block(typename TypeTraits::PartitionedHypergraph& partitio
                             const bool progress_bar_enabled) {
   switch(gain_cache.type) {
     case GainPolicy::cut:
+      bipartition_each_block<TypeTraits>(partitioned_hg, context,
+        GainCacheFactory::cast<CutGainCache>(gain_cache), info, rb_tree,
+        current_k, current_objective, progress_bar_enabled); break;
     case GainPolicy::km1:
       bipartition_each_block<TypeTraits>(partitioned_hg, context,
         GainCacheFactory::cast<Km1GainCache>(gain_cache), info, rb_tree,

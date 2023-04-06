@@ -332,72 +332,22 @@ namespace mt_kahypar {
     }
     #endif
 
-    if (partition.objective == Objective::cut) {
-      if ( refinement.label_propagation.algorithm == LabelPropagationAlgorithm::label_propagation_km1 ) {
-        ALGO_SWITCH("Refinement algorithm" << refinement.label_propagation.algorithm << "only works for km1 metric."
-                                           << "Do you want to use the cut version of the label propagation refiner (Y/N)?",
-                    "Partitioning with" << refinement.label_propagation.algorithm
-                                        << "refiner in combination with cut metric is not supported!",
-                    refinement.label_propagation.algorithm,
-                    LabelPropagationAlgorithm::label_propagation_cut);
-      }
-
-      #ifndef MT_KAHYPAR_LIBRARY_MODE
-      if ( refinement.fm.algorithm != FMAlgorithm::do_nothing ) {
-        ALGO_SWITCH("Refinement algorithm" << refinement.fm.algorithm << "only works for km1 metric."
-                                           << "Do you want to disable FM refinement (Y/N)?",
-                    "Partitioning with" << refinement.fm.algorithm
-                                        << "refiner in combination with cut metric is not supported!",
-                    refinement.fm.algorithm,
-                    FMAlgorithm::do_nothing);
-      }
-      #endif
+    if ( partition.objective == Objective::cut &&
+         refinement.label_propagation.algorithm == LabelPropagationAlgorithm::label_propagation_km1 ) {
+      refinement.label_propagation.algorithm = LabelPropagationAlgorithm::label_propagation_cut;
     } else if (partition.objective == Objective::km1 &&
                refinement.label_propagation.algorithm == LabelPropagationAlgorithm::label_propagation_cut) {
-      ALGO_SWITCH("Refinement algorithm" << refinement.label_propagation.algorithm << "only works for cut metric."
-                                         << "Do you want to use the km1 version of the label propagation refiner (Y/N)?",
-                  "Partitioning with" << refinement.label_propagation.algorithm
-                                      << "refiner in combination with km1 metric is not supported!",
-                  refinement.label_propagation.algorithm,
-                  LabelPropagationAlgorithm::label_propagation_km1);
+      refinement.label_propagation.algorithm = LabelPropagationAlgorithm::label_propagation_km1;
     }
 
-    if (partition.objective == Objective::cut) {
-      if ( initial_partitioning.refinement.label_propagation.algorithm ==
-           LabelPropagationAlgorithm::label_propagation_km1 ) {
-        ALGO_SWITCH("Initial Partitioning Refinement algorithm"
-                            << initial_partitioning.refinement.label_propagation.algorithm
-                            << "only works for km1 metric."
-                            << "Do you want to use the cut version of the label propagation refiner (Y/N)?",
-                    "Partitioning with" << initial_partitioning.refinement.label_propagation.algorithm
-                                        << "refiner in combination with cut metric is not supported!",
-                    initial_partitioning.refinement.label_propagation.algorithm,
-                    LabelPropagationAlgorithm::label_propagation_cut);
-      }
-
-      #ifndef MT_KAHYPAR_LIBRARY_MODE
-      if ( initial_partitioning.refinement.fm.algorithm != FMAlgorithm::do_nothing ) {
-        ALGO_SWITCH("Initial Partitioning Refinement algorithm"
-                            << initial_partitioning.refinement.fm.algorithm
-                            << "only works for km1 metric."
-                            << "Do you want to disable FM refinement (Y/N)?",
-                    "Partitioning with" << initial_partitioning.refinement.fm.algorithm
-                                        << "refiner in combination with cut metric is not supported!",
-                    initial_partitioning.refinement.fm.algorithm,
-                    FMAlgorithm::do_nothing);
-      }
-      #endif
+    if ( partition.objective == Objective::cut &&
+          initial_partitioning.refinement.label_propagation.algorithm ==
+          LabelPropagationAlgorithm::label_propagation_km1 ) {
+      initial_partitioning.refinement.label_propagation.algorithm = LabelPropagationAlgorithm::label_propagation_cut;
     } else if (partition.objective == Objective::km1 &&
                initial_partitioning.refinement.label_propagation.algorithm ==
                LabelPropagationAlgorithm::label_propagation_cut) {
-      ALGO_SWITCH("Initial Partitioning Refinement algorithm"
-                          << initial_partitioning.refinement.label_propagation.algorithm
-                          << "only works for cut metric."
-                          << "Do you want to use the km1 version of the label propagation refiner (Y/N)?",
-                  "Partitioning with" << initial_partitioning.refinement.label_propagation.algorithm
-                                      << "refiner in combination with km1 metric is not supported!",
-                  initial_partitioning.refinement.label_propagation.algorithm,
-                  LabelPropagationAlgorithm::label_propagation_km1);
+      initial_partitioning.refinement.label_propagation.algorithm = LabelPropagationAlgorithm::label_propagation_km1;
     }
 
     ASSERT(partition.use_individual_part_weights != partition.max_part_weights.empty());
@@ -439,8 +389,7 @@ namespace mt_kahypar {
     if ( partition.instance_type == InstanceType::hypergraph ) {
       switch ( partition.objective ) {
         case Objective::km1: partition.gain_policy = GainPolicy::km1; break;
-        // TODO: change this to cut_gain_cache once implementation available
-        case Objective::cut: partition.gain_policy = GainPolicy::km1; break;
+        case Objective::cut: partition.gain_policy = GainPolicy::cut; break;
         case Objective::UNDEFINED: partition.gain_policy = GainPolicy::none; break;
       }
     }

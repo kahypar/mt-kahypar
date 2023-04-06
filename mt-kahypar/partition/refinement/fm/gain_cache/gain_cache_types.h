@@ -52,8 +52,7 @@ class GainCacheFactory {
   static gain_cache_t constructGainCache(const GainPolicy& type) {
     switch(type) {
       case GainPolicy::km1: return constructGainCache<Km1GainCache>();
-      // TODO: replace this with cut gain cache once implementation is available
-      case GainPolicy::cut: return constructGainCache<Km1GainCache>();
+      case GainPolicy::cut: return constructGainCache<CutGainCache>();
       #ifdef KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES
       case GainPolicy::cut_for_graphs: return constructGainCache<GraphCutGainCache>();
       #endif
@@ -67,6 +66,7 @@ class GainCacheFactory {
     if ( gain_cache.gain_cache ) {
       switch(gain_cache.type) {
         case GainPolicy::cut:
+          delete reinterpret_cast<CutGainCache*>(gain_cache.gain_cache); break;
         case GainPolicy::km1:
           delete reinterpret_cast<Km1GainCache*>(gain_cache.gain_cache); break;
         #ifdef KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES
@@ -83,6 +83,8 @@ class GainCacheFactory {
                                   gain_cache_t gain_cache) {
     switch(gain_cache.type) {
       case GainPolicy::cut:
+        reinterpret_cast<CutGainCache*>(
+          gain_cache.gain_cache)->initializeGainCache(partitioned_hg); break;
       case GainPolicy::km1:
         reinterpret_cast<Km1GainCache*>(
           gain_cache.gain_cache)->initializeGainCache(partitioned_hg); break;
@@ -98,6 +100,8 @@ class GainCacheFactory {
   static void resetGainCache(gain_cache_t gain_cache) {
     switch(gain_cache.type) {
       case GainPolicy::cut:
+        reinterpret_cast<CutGainCache*>(
+          gain_cache.gain_cache)->reset(); break;
       case GainPolicy::km1:
         reinterpret_cast<Km1GainCache*>(
           gain_cache.gain_cache)->reset(); break;
@@ -125,11 +129,13 @@ class GainCacheFactory {
   }
 };
 
-using GainCacheTypes = kahypar::meta::Typelist<Km1GainCache
+using GainCacheTypes = kahypar::meta::Typelist<Km1GainCache,
+                                               CutGainCache
                                                ENABLE_GRAPHS(COMMA GraphCutGainCache)>;
 
 #define INSTANTIATE_CLASS_WITH_TYPE_TRAITS_AND_GAIN_CACHE(C)                                      \
   INSTANTIATE_CLASS_MACRO_WITH_TYPE_TRAITS_AND_OTHER_CLASS(C, Km1GainCache)                       \
+  INSTANTIATE_CLASS_MACRO_WITH_TYPE_TRAITS_AND_OTHER_CLASS(C, CutGainCache)                       \
   ENABLE_GRAPHS(INSTANTIATE_CLASS_MACRO_WITH_TYPE_TRAITS_AND_OTHER_CLASS(C, GraphCutGainCache))
 
 }  // namespace mt_kahypar

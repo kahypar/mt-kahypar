@@ -39,12 +39,14 @@ namespace mt_kahypar {
 
 // Forward
 class DeltaGraphCutGainCache;
+class Km1Rollback;
 
 class GraphCutGainCache final : public kahypar::meta::PolicyBase {
 
  public:
   static constexpr GainPolicy TYPE = GainPolicy::cut_for_graphs;
   using DeltaGainCache = DeltaGraphCutGainCache;
+  using Rollback = Km1Rollback;
 
   GraphCutGainCache() :
     _is_initialized(false),

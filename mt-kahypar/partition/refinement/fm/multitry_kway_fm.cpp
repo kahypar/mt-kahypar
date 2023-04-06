@@ -100,7 +100,8 @@ namespace mt_kahypar {
         phg, sharedData, initialPartWeights);
       timer.stop_timer("rollback");
 
-      const double roundImprovementFraction = improvementFraction(improvement, metrics.km1 - overall_improvement);
+      const double roundImprovementFraction = improvementFraction(improvement,
+        metrics.getMetric(Mode::direct, context.partition.objective) - overall_improvement);
       overall_improvement += improvement;
       if (roundImprovementFraction < context.refinement.fm.min_improvement) {
         consecutive_rounds_with_too_little_improvement++;
@@ -115,9 +116,9 @@ namespace mt_kahypar {
         for (auto& fm : ets_fm) {
           fm.stats.merge(stats);
         }
-        LOG << V(round) << V(improvement) << V(metrics::km1(phg)) << V(metrics::imbalance(phg, context))
-            << V(num_border_nodes) << V(roundImprovementFraction) << V(elapsed_time) << V(current_time_limit)
-            << stats.serialize();
+        LOG << V(round) << V(improvement) << V(metrics::objective(phg, context.partition.objective))
+            << V(metrics::imbalance(phg, context)) << V(num_border_nodes) << V(roundImprovementFraction)
+            << V(elapsed_time) << V(current_time_limit) << stats.serialize();
       }
 
       // Enforce a time limit (based on k and coarsening time).
@@ -150,9 +151,13 @@ namespace mt_kahypar {
       is_initialized = false;
     }
 
-    metrics.km1 -= overall_improvement;
+    metrics.updateMetric(metrics.getMetric(Mode::direct, context.partition.objective) -
+      overall_improvement, Mode::direct, context.partition.objective);
     metrics.imbalance = metrics::imbalance(phg, context);
-    ASSERT(metrics.km1 == metrics::km1(phg), V(metrics.km1) << V(metrics::km1(phg)));
+    ASSERT(metrics.getMetric(Mode::direct, context.partition.objective) ==
+      metrics::objective(phg, context.partition.objective),
+      V(metrics.getMetric(Mode::direct, context.partition.objective)) <<
+      V(metrics::objective(phg, context.partition.objective)));
     return overall_improvement > 0;
   }
 
