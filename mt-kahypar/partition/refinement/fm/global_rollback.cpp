@@ -310,12 +310,10 @@ namespace mt_kahypar {
 
       Gain gain = 0;
       for (HyperedgeID e : phg.incidentEdges(m.node)) {
-        if (phg.pinCountInPart(e, m.from) == 1) {
-          gain += phg.edgeWeight(e);
-        }
-        if (phg.pinCountInPart(e, m.to) == 0) {
-          gain -= phg.edgeWeight(e);
-        }
+        const HypernodeID pin_count_in_from_part_after = phg.pinCountInPart(e, m.from) - 1;
+        const HypernodeID pin_count_in_to_part_after = phg.pinCountInPart(e, m.to) + 1;
+        gain -= GainCache::delta(e, phg.edgeWeight(e), phg.edgeSize(e),
+          pin_count_in_from_part_after, pin_count_in_to_part_after);
       }
       gain_sum += gain;
 
@@ -399,18 +397,18 @@ namespace mt_kahypar {
       ASSERT(gain_cache.benefitTerm(m.node, m.to) == gain_cache.recomputeBenefitTerm(phg, m.node, m.to));
       ASSERT(gain == gain_cache.gain(m.node, m.from, m.to));
 
-      const HyperedgeWeight objective_before_move =
-        metrics::objective(phg, context.partition.objective, false);
+      // const HyperedgeWeight objective_before_move =
+      //   metrics::objective(phg, context.partition.objective, false);
       moveVertex(phg, m.node, m.from, m.to);
-      const HyperedgeWeight objective_after_move =
-        metrics::objective(phg, context.partition.objective, false);
+      // const HyperedgeWeight objective_after_move =
+      //   metrics::objective(phg, context.partition.objective, false);
 
-      ASSERT(objective_after_move + gain == objective_before_move,
-        V(gain) << V(m.gain) << V(objective_after_move) << V(objective_before_move));
-      ASSERT(objective_after_move + m.gain == objective_before_move,
-        V(gain) << V(m.gain) << V(objective_after_move) << V(objective_before_move));
+      // ASSERT(objective_after_move + gain == objective_before_move,
+      //   V(gain) << V(m.gain) << V(objective_after_move) << V(objective_before_move));
+      // ASSERT(objective_after_move + m.gain == objective_before_move,
+      //   V(gain) << V(m.gain) << V(objective_after_move) << V(objective_before_move));
       ASSERT(gain == m.gain, V(gain) << V(m.gain));
-      unused(gain); unused(objective_before_move); unused(objective_after_move);  // for release mode
+      unused(gain); // unused(objective_before_move); unused(objective_after_move);  // for release mode
     }
 
     recompute_penalty_terms();

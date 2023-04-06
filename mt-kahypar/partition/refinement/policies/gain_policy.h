@@ -251,8 +251,7 @@ class CutPolicy : public GainComputationPolicy<CutPolicy<HyperGraph>, HyperGraph
       PartitionID connectivity = hypergraph.connectivity(he);
       HypernodeID pin_count_in_from_part = hypergraph.pinCountInPart(he, from);
       HyperedgeWeight weight = hypergraph.edgeWeight(he);
-      if (connectivity == 1) {
-        ASSERT(hypergraph.edgeSize(he) > 1);
+      if (connectivity == 1 && hypergraph.edgeSize(he) > 1) {
         // In case, the hyperedge is a non-cut hyperedge, we would increase
         // the cut, if we move vertex hn to an other block.
         internal_weight += weight;

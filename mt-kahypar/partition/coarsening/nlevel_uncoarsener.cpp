@@ -380,8 +380,9 @@ namespace mt_kahypar {
 
     if ( debug && _context.type == ContextType::main ) {
       io::printHypergraphInfo(partitioned_hypergraph.hypergraph(), "Refinement Hypergraph", false);
-      DBG << "Start Refinement - km1 = " << _current_metrics.km1
-      << ", imbalance = " << _current_metrics.imbalance;
+      DBG << "Start Refinement - objective = "
+          << _current_metrics.getMetric(Mode::direct, _context.partition.objective)
+          << ", imbalance = " << _current_metrics.imbalance;
     }
 
     bool improvement_found = true;
@@ -404,9 +405,11 @@ namespace mt_kahypar {
       }
 
       if ( _context.type == ContextType::main ) {
-        ASSERT(_current_metrics.km1 == metrics::km1(partitioned_hypergraph),
-               "Actual metric" << V(metrics::km1(partitioned_hypergraph))
-               << "does not match the metric updated by the refiners" << V(_current_metrics.km1));
+        ASSERT(_current_metrics.getMetric(Mode::direct, _context.partition.objective) ==
+          metrics::objective(partitioned_hypergraph, _context.partition.objective),
+            "Actual metric" << V(metrics::objective(partitioned_hypergraph, _context.partition.objective))
+            << "does not match the metric updated by the refiners"
+            << V(_current_metrics.getMetric(Mode::direct, _context.partition.objective)));
       }
 
       if ( !_context.refinement.refine_until_no_improvement ) {
@@ -435,8 +438,9 @@ namespace mt_kahypar {
     if ( _context.refinement.global_fm.use_global_fm ) {
       if ( debug && _context.type == ContextType::main ) {
         io::printHypergraphInfo(partitioned_hypergraph.hypergraph(), "Refinement Hypergraph", false);
-        DBG << "Start Refinement - km1 = " << _current_metrics.km1
-        << ", imbalance = " << _current_metrics.imbalance;
+        DBG << "Start Refinement - objective = "
+            << _current_metrics.getMetric(Mode::direct, _context.partition.objective)
+            << ", imbalance = " << _current_metrics.imbalance;
       }
 
       // Enable Timings
@@ -475,9 +479,11 @@ namespace mt_kahypar {
         }
 
         if ( _context.type == ContextType::main ) {
-          ASSERT(_current_metrics.km1 == metrics::km1(partitioned_hypergraph),
-                 "Actual metric" << V(metrics::km1(partitioned_hypergraph))
-                 << "does not match the metric updated by the refiners" << V(_current_metrics.km1));
+          ASSERT(_current_metrics.getMetric(Mode::direct, _context.partition.objective) ==
+            metrics::objective(partitioned_hypergraph, _context.partition.objective),
+              "Actual metric" << V(metrics::objective(partitioned_hypergraph, _context.partition.objective))
+              << "does not match the metric updated by the refiners"
+              << V(_current_metrics.getMetric(Mode::direct, _context.partition.objective)));
         }
 
         const HyperedgeWeight metric_after = _current_metrics.getMetric(

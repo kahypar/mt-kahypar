@@ -154,6 +154,7 @@ namespace mt_kahypar {
     metrics.updateMetric(metrics.getMetric(Mode::direct, context.partition.objective) -
       overall_improvement, Mode::direct, context.partition.objective);
     metrics.imbalance = metrics::imbalance(phg, context);
+    HEAVY_REFINEMENT_ASSERT(phg.checkTrackedPartitionInformation(gain_cache));
     ASSERT(metrics.getMetric(Mode::direct, context.partition.objective) ==
       metrics::objective(phg, context.partition.objective),
       V(metrics.getMetric(Mode::direct, context.partition.objective)) <<
