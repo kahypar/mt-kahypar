@@ -1015,9 +1015,11 @@ class DynamicHypergraph {
                                                             kahypar::ds::FastResetFlagArray<>& shared_incident_nets_u_and_v);
 
   // ! Restore the size of the hyperedge to the size before the batch with
-  // ! index batch_index was contracted.
+  // ! index batch_index was contracted. After each size increment, we call case_one_func
+  // ! that triggers updates in the partitioned hypergraph and gain cache
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE void restoreHyperedgeSizeForBatch(const HyperedgeID he,
-                                                                       const HypernodeID batch_index);
+                                                                       const HypernodeID batch_index,
+                                                                       const UncontractionFunction& case_one_func);
 
   // ! Search for the position of pin u in hyperedge he in the incidence array
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE size_t findPositionOfPinInIncidenceArray(const HypernodeID u,

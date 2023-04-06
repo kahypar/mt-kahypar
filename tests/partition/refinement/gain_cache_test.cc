@@ -63,7 +63,7 @@ class AGainCache : public Test {
     hypergraph(),
     partitioned_hg(),
     gain_cache(),
-    already_moved_nodes() {
+    was_moved() {
 
     if constexpr ( Hypergraph::is_graph ) {
       hypergraph = io::readInputFile<Hypergraph>(
@@ -73,7 +73,7 @@ class AGainCache : public Test {
         "../tests/instances/contracted_unweighted_ibm01.hgr", FileFormat::hMetis, true);
     }
     partitioned_hg = PartitionedHypergraph(k, hypergraph, parallel_tag_t { });
-    already_moved_nodes.setSize(hypergraph.initialNumNodes());
+    was_moved.setSize(hypergraph.initialNumNodes());
   }
 
   void initializePartition() {
@@ -86,27 +86,34 @@ class AGainCache : public Test {
 
   void moveAllNodesAtRandom() {
     utils::Randomize& rand = utils::Randomize::instance();
+    was_moved.reset();
     partitioned_hg.doParallelForAllNodes([&](const HypernodeID& hn) {
-      const PartitionID from = partitioned_hg.partID(hn);
-      const PartitionID to = rand.getRandomInt(0, k - 1, SCHED_GETCPU);
-      if ( from != to ) {
-        partitioned_hg.changeNodePart(gain_cache, hn, from, to);
+      if ( rand.flipCoin(SCHED_GETCPU) ) {
+        const PartitionID from = partitioned_hg.partID(hn);
+        const PartitionID to = rand.getRandomInt(0, k - 1, SCHED_GETCPU);
+        if ( from != to && was_moved.compare_and_set_to_true(hn) ) {
+          partitioned_hg.changeNodePart(gain_cache, hn, from, to);
+        }
       }
     });
 
     partitioned_hg.doParallelForAllNodes([&](const HypernodeID& hn) {
-      gain_cache.recomputePenaltyTermEntry(partitioned_hg, hn);
+      if ( was_moved[hn] ) {
+        gain_cache.recomputePenaltyTermEntry(partitioned_hg, hn);
+      }
     });
   }
 
   void moveAllNodesOfBatchAtRandom(const Batch& batch) {
     utils::Randomize& rand = utils::Randomize::instance();
-    already_moved_nodes.reset();
+    was_moved.reset();
     auto move_node = [&](const HypernodeID hn) {
-      const PartitionID from = partitioned_hg.partID(hn);
-      const PartitionID to = rand.getRandomInt(0, k - 1, SCHED_GETCPU);
-      if ( from != to && already_moved_nodes.compare_and_set_to_true(hn) ) {
-        partitioned_hg.changeNodePart(gain_cache, hn, from, to);
+      if ( rand.flipCoin(SCHED_GETCPU) )  {
+        const PartitionID from = partitioned_hg.partID(hn);
+        const PartitionID to = rand.getRandomInt(0, k - 1, SCHED_GETCPU);
+        if ( from != to && was_moved.compare_and_set_to_true(hn) ) {
+          partitioned_hg.changeNodePart(gain_cache, hn, from, to);
+        }
       }
     };
 
@@ -118,8 +125,8 @@ class AGainCache : public Test {
 
     tbb::parallel_for(UL(0), batch.size(),
       [&](const size_t i) {
-        gain_cache.recomputePenaltyTermEntry(partitioned_hg, batch[i].u);
-        gain_cache.recomputePenaltyTermEntry(partitioned_hg, batch[i].v);
+        if ( was_moved[batch[i].u] ) gain_cache.recomputePenaltyTermEntry(partitioned_hg, batch[i].u);
+        if ( was_moved[batch[i].v] ) gain_cache.recomputePenaltyTermEntry(partitioned_hg, batch[i].v);
       });
   }
 
@@ -206,15 +213,27 @@ class AGainCache : public Test {
     });
   }
 
+  Gain attributedGain(const HyperedgeID he,
+                      const HyperedgeWeight edge_weight,
+                      const HypernodeID edge_size,
+                      const HypernodeID pin_count_in_from_part_after,
+                      const HypernodeID pin_count_in_to_part_after) {
+    return -GainCache::delta(he, edge_weight, edge_size,
+      pin_count_in_from_part_after, pin_count_in_to_part_after);
+  }
+
   Hypergraph hypergraph;
   PartitionedHypergraph partitioned_hg;
   GainCache gain_cache;
-  ds::ThreadSafeFastResetFlagArray<> already_moved_nodes;
+  ds::ThreadSafeFastResetFlagArray<> was_moved;
 };
 
-typedef ::testing::Types<TestConfig<StaticHypergraphTypeTraits, Km1GainCache>
+typedef ::testing::Types<TestConfig<StaticHypergraphTypeTraits, Km1GainCache>,
+                         TestConfig<StaticHypergraphTypeTraits, CutGainCache>
                          ENABLE_N_LEVEL(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA Km1GainCache>)
+                         ENABLE_N_LEVEL(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA CutGainCache>)
                          ENABLE_LARGE_K(COMMA TestConfig<LargeKHypergraphTypeTraits COMMA Km1GainCache>)
+                         ENABLE_LARGE_K(COMMA TestConfig<LargeKHypergraphTypeTraits COMMA CutGainCache>)
                          ENABLE_GRAPHS(COMMA TestConfig<StaticGraphTypeTraits COMMA GraphCutGainCache>)
                          ENABLE_N_LEVEL_GRAPHS(COMMA TestConfig<DynamicGraphTypeTraits COMMA GraphCutGainCache>)> TestConfigs;
 
@@ -231,6 +250,33 @@ TYPED_TEST(AGainCache, HasCorrectGainsAfterMovingAllNodesAtRandom) {
   this->gain_cache.initializeGainCache(this->partitioned_hg);
   this->moveAllNodesAtRandom();
   this->verifyGainCacheEntries();
+}
+
+TYPED_TEST(AGainCache, ComparesGainsWithAttributedGains) {
+  this->initializePartition();
+  this->gain_cache.initializeGainCache(this->partitioned_hg);
+
+  utils::Randomize& rand = utils::Randomize::instance();
+  Gain attributed_gain = 0;
+  auto delta = [&](const HyperedgeID he,
+                   const HyperedgeWeight edge_weight,
+                   const HypernodeID edge_size,
+                   const HypernodeID pin_count_in_from_part_after,
+                   const HypernodeID pin_count_in_to_part_after) {
+    attributed_gain += this->attributedGain(he, edge_weight, edge_size,
+      pin_count_in_from_part_after, pin_count_in_to_part_after);
+  };
+  for ( const HypernodeID& hn : this->partitioned_hg.nodes() ) {
+    const PartitionID from = this->partitioned_hg.partID(hn);
+    const PartitionID to = rand.getRandomInt(0, this->k - 1, SCHED_GETCPU);
+    if ( from != to ) {
+      const Gain expected_gain = this->gain_cache.gain(hn, from, to);
+      this->partitioned_hg.changeNodePart(this->gain_cache, hn, from, to,
+        std::numeric_limits<HyperedgeWeight>::max(), []{}, delta);
+      ASSERT_EQ(expected_gain, attributed_gain);
+    }
+    attributed_gain = 0;
+  }
 }
 
 TYPED_TEST(AGainCache, HasCorrectGainsAfterNLevelUncontraction) {

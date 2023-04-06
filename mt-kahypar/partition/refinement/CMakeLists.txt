@@ -2,6 +2,9 @@ set(RefinementSources
         fm/multitry_kway_fm.cpp
         fm/localized_kway_fm_core.cpp
         fm/global_rollback.cpp
+        fm/gain_cache/km1_gain_cache.cpp
+        fm/gain_cache/cut_gain_cache.cpp
+        fm/gain_cache/cut_gain_cache_for_graphs.cpp
         fm/sequential_twoway_fm_refiner.cpp
         label_propagation/label_propagation_refiner.cpp
         rebalancing/rebalancer.cpp

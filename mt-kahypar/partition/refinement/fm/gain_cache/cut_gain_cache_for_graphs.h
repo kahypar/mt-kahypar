@@ -28,10 +28,6 @@
 
 #include "kahypar/meta/policy_registry.h"
 
-#include "tbb/parallel_for.h"
-#include "tbb/enumerable_thread_specific.h"
-#include "tbb/concurrent_vector.h"
-
 #include "mt-kahypar/partition/context_enum_classes.h"
 #include "mt-kahypar/datastructures/hypergraph_common.h"
 #include "mt-kahypar/datastructures/array.h"
@@ -80,28 +76,7 @@ class GraphCutGainCache final : public kahypar::meta::PolicyBase {
 
   // ! Initializes all gain cache entries
   template<typename PartitionedGraph>
-  void initializeGainCache(const PartitionedGraph& partitioned_graph) {
-    ASSERT(!_is_initialized, "Gain cache is already initialized");
-    ASSERT(_k == kInvalidPartition || _k == partitioned_graph.k(), "Gain cache was already initialized for a different k");
-    allocateGainTable(partitioned_graph.topLevelNumNodes(), partitioned_graph.k());
-
-    // assert that current gain values are zero
-    ASSERT(!_is_initialized &&
-           std::none_of(_gain_cache.begin(), _gain_cache.end(),
-             [&](const auto& weight) { return weight.load() != 0; }));
-
-    // Initialize gain cache
-    partitioned_graph.doParallelForAllEdges([&](const HyperedgeID e) {
-      const HypernodeID u = partitioned_graph.edgeSource(e);
-      if (partitioned_graph.nodeIsEnabled(u) && !partitioned_graph.isSinglePin(e)) {
-        size_t index = incident_weight_index(u,
-          partitioned_graph.partID(partitioned_graph.edgeTarget(e)));
-        _gain_cache[index].fetch_add(partitioned_graph.edgeWeight(e), std::memory_order_relaxed);
-      }
-    });
-
-    _is_initialized = true;
-  }
+  void initializeGainCache(const PartitionedGraph& partitioned_graph);
 
   // ####################### Gain Computation #######################
 
@@ -143,21 +118,13 @@ class GraphCutGainCache final : public kahypar::meta::PolicyBase {
   // ! we call this function to update the gain cache to changes associated with
   // ! corresponding edge.
   template<typename PartitionedGraph>
-  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
   void deltaGainUpdate(const PartitionedGraph& partitioned_graph,
                        const HyperedgeID he,
                        const HyperedgeWeight we,
                        const PartitionID from,
-                       const HypernodeID /* only relevant for hypergraphs */,
+                       const HypernodeID pin_count_in_from_part_after,
                        const PartitionID to,
-                       const HypernodeID /* only relevant for hypergraphs */) {
-    ASSERT(_is_initialized, "Gain cache is not initialized");
-    const HypernodeID target = partitioned_graph.edgeTarget(he);
-    const size_t index_in_from_part = incident_weight_index(target, from);
-    _gain_cache[index_in_from_part].fetch_sub(we, std::memory_order_relaxed);
-    const size_t index_in_to_part = incident_weight_index(target, to);
-    _gain_cache[index_in_to_part].fetch_add(we, std::memory_order_relaxed);
-  }
+                       const HypernodeID pin_count_in_to_part_after);
 
   static HyperedgeWeight delta(const HyperedgeID,
                                const HyperedgeWeight edge_weight,
@@ -173,40 +140,20 @@ class GraphCutGainCache final : public kahypar::meta::PolicyBase {
   // ! This function implements the gain cache update after an uncontraction that restores node v in
   // ! an edge he. After the uncontraction the corresponding edge turns from a selfloop to a regular edge.
   template<typename PartitionedGraph>
-  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
   void uncontractUpdateAfterRestore(const PartitionedGraph& partitioned_graph,
                                     const HypernodeID u,
                                     const HypernodeID v,
                                     const HyperedgeID he,
-                                    const HypernodeID) {
-    if ( _is_initialized ) {
-      // the edge weight is added to u and v
-      const PartitionID block = partitioned_graph.partID(u);
-      const HyperedgeWeight we = partitioned_graph.edgeWeight(he);
-      _gain_cache[incident_weight_index(u, block)].fetch_add(we, std::memory_order_relaxed);
-      _gain_cache[incident_weight_index(v, block)].fetch_add(we, std::memory_order_relaxed);
-    }
-  }
+                                    const HypernodeID pin_count_in_part_after);
 
   // ! This function implements the gain cache update after an uncontraction that replaces u with v in
   // ! an edge he. After the uncontraction only node v is part of edge he.
   template<typename PartitionedGraph>
-  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
   void uncontractUpdateAfterReplacement(const PartitionedGraph& partitioned_graph,
                                         const HypernodeID u,
                                         const HypernodeID v,
-                                        const HyperedgeID he) {
-    if ( _is_initialized ) {
-      // the edge weight shifts from u to v
-      const HypernodeID w = partitioned_graph.edgeTarget(he);
-      const PartitionID block_of_w = partitioned_graph.partID(w);
-      const HyperedgeWeight we = partitioned_graph.edgeWeight(he);
-      _gain_cache[incident_weight_index(u, block_of_w)].fetch_sub(we, std::memory_order_relaxed);
-      _gain_cache[incident_weight_index(v, block_of_w)].fetch_add(we, std::memory_order_relaxed);
-    }
-  }
+                                        const HyperedgeID he);
 
-  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
   void restoreSinglePinHyperedge(const HypernodeID,
                                  const PartitionID,
                                  const HyperedgeWeight) {

@@ -32,6 +32,7 @@
 #include "mt-kahypar/partition/context_enum_classes.h"
 #include "mt-kahypar/datastructures/hypergraph_common.h"
 #include "mt-kahypar/partition/refinement/fm/gain_cache/km1_gain_cache.h"
+#include "mt-kahypar/partition/refinement/fm/gain_cache/cut_gain_cache.h"
 #ifdef KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES
 #include "mt-kahypar/partition/refinement/fm/gain_cache/cut_gain_cache_for_graphs.h"
 #endif
