@@ -41,6 +41,19 @@ namespace mt_kahypar {
 // Forward
 class DeltaGraphCutGainCache;
 
+/**
+ * The gain cache stores the gain values for all possible node moves for the cut metric on plain graphs.
+ *
+ * For a weighted graph G = (V,E,c,w), the cut metric is defined as follows
+ * connectivity(H) := \sum_{e \in cut(E)} w(e).
+ *
+ * The gain of moving a node u from its current block V_i to a target block V_j can be expressed as follows
+ * g(u, V_j) := w(u, V_j) - w(u, V_i) = b(u, V_j) - p(u)
+ * where w(u, V') are the weight of all edges that connects node u to block V'.
+ * We call b(u, V_j) the benefit term and p(u) the penalty term. Our gain cache stores and maintains these
+ * entries for each node and block. Note that p(u) = b(u, V_i).
+ * Thus, the gain cache stores k entries per node.
+*/
 class GraphCutGainCache final : public kahypar::meta::PolicyBase {
 
  public:
@@ -106,6 +119,8 @@ class GraphCutGainCache final : public kahypar::meta::PolicyBase {
     return _gain_cache[incident_weight_index(u, to)].load(std::memory_order_relaxed);
   }
 
+  // ! Returns the gain of moving node u from its current block to a target block V_j.
+  // ! More formally, g(u, V_j) := b(u, V_j) - p(u).
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
   HyperedgeWeight gain(const HypernodeID u, const PartitionID from, const PartitionID to) const {
     ASSERT(_is_initialized, "Gain cache is not initialized");
@@ -217,15 +232,19 @@ class GraphCutGainCache final : public kahypar::meta::PolicyBase {
   // ! Number of blocks
   PartitionID _k;
 
-  // ! The gain for moving a node u to from its current block V_i to a target block V_j
-  // ! can be expressed as follows for the cut metric of plain graphs
-  // ! g(u, V_j) := w(u, V_j) - w(u, V_i) = b(u, V_j) - p(u)
-  // ! Here, w(u, V') is the weight of all edges connecting u to block V'.
-  // ! We call b(u, V_j) the benefit term and p(u) the penalty term. Our gain cache stores and maintains these
-  // ! entries for each node and block. Thus, the gain cache stores k entries per node (since b(u, V_i) = p(u)).
+  // ! Array of size |V| * k, which stores the benefit and penalty terms of each node.
   ds::Array< CAtomic<HyperedgeWeight> > _gain_cache;
 };
 
+/**
+ * In our FM algorithm, the different local searches perform nodes moves locally not visible for other
+ * threads. The delta gain cache stores these local changes relative to the shared
+ * gain cache. For example, the penalty term can be computed as follows
+ * p'(u) := p(u) + Δp(u)
+ * where p(u) is the penalty term stored in the shared gain cache and Δp(u) is the penalty term stored in
+ * the delta gain cache after performing some moves locally. To maintain Δp(u) and Δb(u,V_j), we use a hash
+ * table that only stores entries affected by a gain cache update.
+*/
 class DeltaGraphCutGainCache {
 
  public:
@@ -254,6 +273,7 @@ class DeltaGraphCutGainCache {
   // ####################### Gain Computation #######################
 
   // ! Returns the penalty term of node u.
+  // ! More formally, p(u) := w(u, partID(u))
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
   HyperedgeWeight penaltyTerm(const HypernodeID u,
                               const PartitionID from) const {
@@ -264,6 +284,7 @@ class DeltaGraphCutGainCache {
   }
 
   // ! Returns the benefit term for moving node u to block to.
+  // ! More formally, b(u, V_j) := w(u, V_j)
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
   HyperedgeWeight benefitTerm(const HypernodeID u, const PartitionID to) const {
     const HyperedgeWeight* benefit_delta =
@@ -272,6 +293,8 @@ class DeltaGraphCutGainCache {
     return _gain_cache.benefitTerm(u, to) + (benefit_delta ? *benefit_delta : 0);
   }
 
+  // ! Returns the gain of moving node u from its current block to a target block V_j.
+  // ! More formally, g(u, V_j) := b(u, V_j) - p(u).
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
   HyperedgeWeight gain(const HypernodeID u,
                        const PartitionID from,

@@ -43,6 +43,27 @@ namespace mt_kahypar {
 // Forward
 class DeltaKm1GainCache;
 
+/**
+ * The gain cache stores the gain values for all possible node moves for the connectivity metric.
+ *
+ * For a weighted hypergraph H = (V,E,c,w), the connectivity metric is defined as follows
+ * connectivity(H) := \sum_{e \in cut(E)} ( lambda(e) - 1 ) * w(e)
+ * where lambda(e) are the number of blocks contained in hyperedge e.
+ *
+ * The gain of moving a node u from its current block V_i to a target block V_j can be expressed as follows
+ * g(u, V_j) := w({ e \in I(u) | pin_count(e, V_i) = 1 }) - w({ e \in I(u) | pin_count(e, V_j) = 0 }).
+ * Moving node u from V_i to V_j, removes block V_i from all nets e \in I(u) where pin_cout(e, V_i) = 1,
+ * but adds block V_j in all nets where pin_count(e, V_j) = 0.
+ *
+ * The gain can be reformulated as follows
+ * g(u, V_j) := w({ e \in I(u) | pin_count(e, V_i) = 1 }) - w({ e \in I(u) | pin_count(e, V_j) = 0 })
+ *            = w({ e \in I(u) | pin_count(e, V_i) = 1 }) - w(I(u)) + w({ e \in I(u) | pin_count(e, V_j) >= 1 }) (=: b(u, V_j))
+ *            = b(u, V_j) - (w(I(u)) - w({ e \in I(u) | pin_count(e, V_i) = 1 }))
+ *            = b(u, V_j) - w({ e \in I(u) | pin_count(e, V_i) > 1 })
+ *            = b(u, V_j) - p(u)
+ * We call b(u, V_j) the benefit term and p(u) the penalty term. Our gain cache stores and maintains these
+ * entries for each node and block. Thus, the gain cache stores k + 1 entries per node.
+*/
 class Km1GainCache final : public kahypar::meta::PolicyBase {
 
   static constexpr HyperedgeID HIGH_DEGREE_THRESHOLD = ID(100000);
@@ -85,7 +106,7 @@ class Km1GainCache final : public kahypar::meta::PolicyBase {
   // ####################### Gain Computation #######################
 
   // ! Returns the penalty term of node u.
-  // ! More formally, p(u) := (w(I(u)) - w({ e \in I(u) | pin_count(e, partID(u)) = 1 }))
+  // ! More formally, p(u) := w({ e \in I(u) | pin_count(e, V_i) > 1 })
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
   HyperedgeWeight penaltyTerm(const HypernodeID u,
                               const PartitionID /* only relevant for graphs */) const {
@@ -93,6 +114,7 @@ class Km1GainCache final : public kahypar::meta::PolicyBase {
     return _gain_cache[penalty_index(u)].load(std::memory_order_relaxed);
   }
 
+  // ! Recomputes the penalty term entry in the gain cache
   template<typename PartitionedHypergraph>
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
   void recomputePenaltyTermEntry(const PartitionedHypergraph& partitioned_hg,
@@ -110,6 +132,8 @@ class Km1GainCache final : public kahypar::meta::PolicyBase {
     return _gain_cache[benefit_index(u, to)].load(std::memory_order_relaxed);
   }
 
+  // ! Returns the gain of moving node u from its current block to a target block V_j.
+  // ! More formally, g(u, V_j) := b(u, V_j) - p(u).
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
   HyperedgeWeight gain(const HypernodeID u,
                        const PartitionID, /* only relevant for graphs */
@@ -134,6 +158,7 @@ class Km1GainCache final : public kahypar::meta::PolicyBase {
                        const PartitionID to,
                        const HypernodeID pin_count_in_to_part_after);
 
+  // ! Computes the improvement for connectivity metric associated with a hyperedge.
   static HyperedgeWeight delta(const HyperedgeID,
                                const HyperedgeWeight edge_weight,
                                const HypernodeID,
@@ -146,7 +171,7 @@ class Km1GainCache final : public kahypar::meta::PolicyBase {
   // ####################### Uncontraction #######################
 
   // ! This function implements the gain cache update after an uncontraction that restores node v in
-  // ! hyperedge he. After the uncontraction node u and v are contained in hyperedge he.
+  // ! hyperedge he. After the uncontraction operation, node u and v are contained in hyperedge he.
   template<typename PartitionedHypergraph>
   void uncontractUpdateAfterRestore(const PartitionedHypergraph& partitioned_hg,
                                     const HypernodeID u,
@@ -252,18 +277,19 @@ class Km1GainCache final : public kahypar::meta::PolicyBase {
   // ! Number of blocks
   PartitionID _k;
 
-  // ! The gain for moving a node u to from its current block V_i to a target block V_j
-  // ! can be expressed as follows for the connectivity metric
-  // ! g(u, V_j) := w({ e \in I(u) | pin_count(e, V_i) = 1 }) - w({ e \in I(u) | pin_count(e, V_j) = 0 })
-  // !            = w({ e \in I(u) | pin_count(e, V_i) = 1 }) - w(I(u)) + w({ e \in I(u) | pin_count(e, V_j) >= 1 }) (=: b(u, V_j))
-  // !            = b(u, V_j) - (w(I(u)) - w({ e \in I(u) | pin_count(e, V_i) = 1 }))
-  // !            = b(u, V_j) - w({ e \in I(u) | pin_count(e, V_i) > 1 })
-  // !            = b(u, V_j) - p(u)
-  // ! We call b(u, V_j) the benefit term and p(u) the penalty term. Our gain cache stores and maintains these
-  // ! entries for each node and block. Thus, the gain cache stores k + 1 entries per node.
+  // ! Array of size |V| * (k + 1), which stores the benefit and penalty terms of each node.
   ds::Array< CAtomic<HyperedgeWeight> > _gain_cache;
 };
 
+/**
+ * In our FM algorithm, the different local searches perform nodes moves locally not visible for other
+ * threads. The delta gain cache stores these local changes relative to the shared
+ * gain cache. For example, the penalty term can be computed as follows
+ * p'(u) := p(u) + Δp(u)
+ * where p(u) is the penalty term stored in the shared gain cache and Δp(u) is the penalty term stored in
+ * the delta gain cache after performing some moves locally. To maintain Δp(u) and Δb(u,V_j), we use a hash
+ * table that only stores entries affected by a gain cache update.
+*/
 class DeltaKm1GainCache {
 
  public:
@@ -292,7 +318,7 @@ class DeltaKm1GainCache {
   // ####################### Gain Computation #######################
 
   // ! Returns the penalty term of node u.
-  // ! More formally, p(u) := (w(I(u)) - w({ e \in I(u) | pin_count(e, partID(u)) = 1 }))
+  // ! More formally, p(u) := w({ e \in I(u) | pin_count(e, V_i) > 1 })
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
   HyperedgeWeight penaltyTerm(const HypernodeID u,
                               const PartitionID from) const {
@@ -311,6 +337,8 @@ class DeltaKm1GainCache {
     return _gain_cache.benefitTerm(u, to) + ( benefit_delta ? *benefit_delta : 0 );
   }
 
+  // ! Returns the gain of moving node u from its current block to a target block V_j.
+  // ! More formally, g(u, V_j) := b(u, V_j) - p(u).
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
   HyperedgeWeight gain(const HypernodeID u,
                        const PartitionID from,
