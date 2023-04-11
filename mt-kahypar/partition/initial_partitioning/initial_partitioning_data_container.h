@@ -40,7 +40,7 @@
 #include "mt-kahypar/utils/cast.h"
 #include "mt-kahypar/utils/utilities.h"
 #include "mt-kahypar/partition/refinement/fm/sequential_twoway_fm_refiner.h"
-#include "mt-kahypar/partition/refinement/fm/gain_cache/gain_cache_types.h"
+#include "mt-kahypar/partition/refinement/gains/gain_cache_ptr.h"
 
 
 namespace mt_kahypar {
@@ -202,7 +202,7 @@ class InitialPartitioningDataContainer {
               std::numeric_limits<HypernodeWeight>::max(),
               std::numeric_limits<HypernodeWeight>::max(),
               std::numeric_limits<double>::max()),
-      _gain_cache(GainCacheFactory::constructGainCache(context.partition.gain_policy)),
+      _gain_cache(GainCachePtr::constructGainCache(context.partition.gain_policy)),
       _label_propagation(nullptr),
       _twoway_fm(nullptr),
       _stats() {

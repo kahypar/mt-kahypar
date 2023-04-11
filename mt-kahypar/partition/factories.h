@@ -46,7 +46,7 @@
 #include "mt-kahypar/partition/refinement/label_propagation/label_propagation_refiner.h"
 #include "mt-kahypar/partition/refinement/deterministic/deterministic_label_propagation.h"
 #include "mt-kahypar/partition/refinement/fm/multitry_kway_fm.h"
-#include "mt-kahypar/partition/refinement/fm/gain_cache/gain_cache_types.h"
+#include "mt-kahypar/partition/refinement/gains/gain_cache_ptr.h"
 #include "mt-kahypar/partition/refinement/flows/scheduler.h"
 #include "mt-kahypar/partition/refinement/flows/flow_refiner.h"
 

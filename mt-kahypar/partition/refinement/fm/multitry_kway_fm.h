@@ -33,7 +33,7 @@
 #include "mt-kahypar/partition/refinement/i_refiner.h"
 #include "mt-kahypar/partition/refinement/fm/localized_kway_fm_core.h"
 #include "mt-kahypar/partition/refinement/fm/global_rollback.h"
-#include "mt-kahypar/partition/refinement/fm/gain_cache/gain_cache_types.h"
+#include "mt-kahypar/partition/refinement/gains/gain_cache_ptr.h"
 
 namespace mt_kahypar {
 
@@ -72,7 +72,7 @@ class MultiTryKWayFM final : public IRefiner {
                  const Context& c,
                  gain_cache_t gainCache) :
     MultiTryKWayFM(num_hypernodes, num_hyperedges, c,
-      GainCacheFactory::cast<GainCache>(gainCache)) { }
+      GainCachePtr::cast<GainCache>(gainCache)) { }
 
   void printMemoryConsumption();
 

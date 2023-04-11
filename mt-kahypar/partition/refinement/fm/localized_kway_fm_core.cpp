@@ -28,7 +28,7 @@
 #include "mt-kahypar/partition/refinement/fm/localized_kway_fm_core.h"
 
 #include "mt-kahypar/definitions.h"
-#include "mt-kahypar/partition/refinement/fm/gain_cache/gain_cache_types.h"
+#include "mt-kahypar/partition/refinement/gains/gain_cache_ptr.h"
 
 namespace mt_kahypar {
 

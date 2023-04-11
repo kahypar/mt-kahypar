@@ -33,7 +33,7 @@
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/datastructures/hypergraph_common.h"
 #include "mt-kahypar/datastructures/delta_partitioned_hypergraph.h"
-#include "mt-kahypar/partition/refinement/fm/gain_cache/km1_gain_cache.h"
+#include "mt-kahypar/partition/refinement/gains/km1/km1_gain_cache.h"
 
 using ::testing::Test;
 

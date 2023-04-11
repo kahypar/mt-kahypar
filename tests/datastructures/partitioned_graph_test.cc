@@ -34,7 +34,7 @@
 #include "mt-kahypar/datastructures/static_graph.h"
 #include "mt-kahypar/datastructures/static_graph_factory.h"
 #include "mt-kahypar/datastructures/partitioned_graph.h"
-#include "mt-kahypar/partition/refinement/fm/gain_cache/cut_gain_cache_for_graphs.h"
+#include "mt-kahypar/partition/refinement/gains/cut_for_graphs/cut_gain_cache_for_graphs.h"
 #include "mt-kahypar/partition/metrics.h"
 
 using ::testing::Test;

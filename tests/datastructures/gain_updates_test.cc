@@ -33,7 +33,7 @@
 
 #include "tests/definitions.h"
 #include "mt-kahypar/io/hypergraph_factory.h"
-#include "mt-kahypar/partition/refinement/fm/gain_cache/km1_gain_cache.h"
+#include "mt-kahypar/partition/refinement/gains/km1/km1_gain_cache.h"
 
 using ::testing::Test;
 

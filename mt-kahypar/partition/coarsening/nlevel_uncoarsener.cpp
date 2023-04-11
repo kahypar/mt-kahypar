@@ -73,7 +73,7 @@ namespace mt_kahypar {
 
     // Initialize Gain Cache
     if ( _context.refinement.fm.algorithm == FMAlgorithm::kway_fm ) {
-      GainCacheFactory::initializeGainCache(
+      GainCachePtr::initializeGainCache(
         *_uncoarseningData.partitioned_hg, _gain_cache);
     }
 
@@ -128,14 +128,14 @@ namespace mt_kahypar {
       switch ( gain_cache.type ) {
         case GainPolicy::km1:
           partitioned_hg.uncontract(batch,
-            GainCacheFactory::cast<Km1GainCache>(gain_cache)); break;
+            GainCachePtr::cast<Km1GainCache>(gain_cache)); break;
         case GainPolicy::cut:
           partitioned_hg.uncontract(batch,
-            GainCacheFactory::cast<CutGainCache>(gain_cache)); break;
+            GainCachePtr::cast<CutGainCache>(gain_cache)); break;
         #ifdef KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES
         case GainPolicy::cut_for_graphs:
           partitioned_hg.uncontract(batch,
-            GainCacheFactory::cast<GraphCutGainCache>(gain_cache)); break;
+            GainCachePtr::cast<GraphCutGainCache>(gain_cache)); break;
         #endif
         case GainPolicy::none: break;
       }
@@ -148,14 +148,14 @@ namespace mt_kahypar {
       switch ( gain_cache.type ) {
         case GainPolicy::km1:
           partitioned_hg.restoreSinglePinAndParallelNets(hes_to_restore,
-            GainCacheFactory::cast<Km1GainCache>(gain_cache)); break;
+            GainCachePtr::cast<Km1GainCache>(gain_cache)); break;
         case GainPolicy::cut:
           partitioned_hg.restoreSinglePinAndParallelNets(hes_to_restore,
-            GainCacheFactory::cast<CutGainCache>(gain_cache)); break;
+            GainCachePtr::cast<CutGainCache>(gain_cache)); break;
         #ifdef KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES
         case GainPolicy::cut_for_graphs:
           partitioned_hg.restoreSinglePinAndParallelNets(hes_to_restore,
-            GainCacheFactory::cast<GraphCutGainCache>(gain_cache)); break;
+            GainCachePtr::cast<GraphCutGainCache>(gain_cache)); break;
         #endif
         case GainPolicy::none: break;
       }
@@ -167,14 +167,14 @@ namespace mt_kahypar {
       switch ( gain_cache.type ) {
         case GainPolicy::km1:
           return partitioned_hg.checkTrackedPartitionInformation(
-            GainCacheFactory::cast<Km1GainCache>(gain_cache));
+            GainCachePtr::cast<Km1GainCache>(gain_cache));
         case GainPolicy::cut:
           return partitioned_hg.checkTrackedPartitionInformation(
-            GainCacheFactory::cast<CutGainCache>(gain_cache));
+            GainCachePtr::cast<CutGainCache>(gain_cache));
         #ifdef KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES
         case GainPolicy::cut_for_graphs:
           return partitioned_hg.checkTrackedPartitionInformation(
-            GainCacheFactory::cast<GraphCutGainCache>(gain_cache));
+            GainCachePtr::cast<GraphCutGainCache>(gain_cache));
         #endif
         case GainPolicy::none: return false;
       }

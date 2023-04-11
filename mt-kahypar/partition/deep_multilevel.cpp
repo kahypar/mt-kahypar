@@ -42,7 +42,7 @@
 #endif
 #include "mt-kahypar/partition/initial_partitioning/pool_initial_partitioner.h"
 #include "mt-kahypar/partition/preprocessing/sparsification/degree_zero_hn_remover.h"
-#include "mt-kahypar/partition/refinement/fm/gain_cache/gain_cache_types.h"
+#include "mt-kahypar/partition/refinement/gains/gain_cache_ptr.h"
 #include "mt-kahypar/utils/randomize.h"
 #include "mt-kahypar/utils/utilities.h"
 #include "mt-kahypar/utils/timer.h"
@@ -571,16 +571,16 @@ void bipartition_each_block(typename TypeTraits::PartitionedHypergraph& partitio
   switch(gain_cache.type) {
     case GainPolicy::cut:
       bipartition_each_block<TypeTraits>(partitioned_hg, context,
-        GainCacheFactory::cast<CutGainCache>(gain_cache), info, rb_tree,
+        GainCachePtr::cast<CutGainCache>(gain_cache), info, rb_tree,
         current_k, current_objective, progress_bar_enabled); break;
     case GainPolicy::km1:
       bipartition_each_block<TypeTraits>(partitioned_hg, context,
-        GainCacheFactory::cast<Km1GainCache>(gain_cache), info, rb_tree,
+        GainCachePtr::cast<Km1GainCache>(gain_cache), info, rb_tree,
         current_k, current_objective, progress_bar_enabled); break;
     #ifdef KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES
     case GainPolicy::cut_for_graphs:
       bipartition_each_block<TypeTraits>(partitioned_hg, context,
-        GainCacheFactory::cast<GraphCutGainCache>(gain_cache), info, rb_tree,
+        GainCachePtr::cast<GraphCutGainCache>(gain_cache), info, rb_tree,
         current_k, current_objective, progress_bar_enabled); break;
     #endif
     case GainPolicy::none: break;

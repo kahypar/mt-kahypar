@@ -32,7 +32,7 @@
 #include "mt-kahypar/partition/refinement/i_refiner.h"
 #include "mt-kahypar/partition/coarsening/coarsening_commons.h"
 #include "mt-kahypar/partition/refinement/flows/scheduler.h"
-#include "mt-kahypar/partition/refinement/fm/gain_cache/gain_cache_types.h"
+#include "mt-kahypar/partition/refinement/gains/gain_cache_ptr.h"
 #include "mt-kahypar/utils/utilities.h"
 #include "mt-kahypar/partition/metrics.h"
 #include "mt-kahypar/partition/factories.h"
@@ -68,7 +68,7 @@ class UncoarsenerBase {
   UncoarsenerBase & operator= (UncoarsenerBase &&) = delete;
 
   virtual ~UncoarsenerBase() {
-    GainCacheFactory::deleteGainCache(_gain_cache);
+    GainCachePtr::deleteGainCache(_gain_cache);
   };
 
  protected:
@@ -113,7 +113,7 @@ class UncoarsenerBase {
   }
 
   void initializeRefinementAlgorithms() {
-    _gain_cache = GainCacheFactory::constructGainCache(_context.partition.gain_policy);
+    _gain_cache = GainCachePtr::constructGainCache(_context.partition.gain_policy);
     _label_propagation = LabelPropagationFactory::getInstance().createObject(
       _context.refinement.label_propagation.algorithm,
       _hg.initialNumNodes(), _hg.initialNumEdges(), _context, _gain_cache);

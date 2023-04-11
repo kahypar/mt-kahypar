@@ -29,7 +29,7 @@
 #include <set>
 
 #include "mt-kahypar/definitions.h"
-#include "mt-kahypar/partition/refinement/fm/gain_cache/gain_cache_types.h"
+#include "mt-kahypar/partition/refinement/gains/gain_cache_ptr.h"
 #include "mt-kahypar/partition/metrics.h"
 #include "mt-kahypar/utils/randomize.h"
 

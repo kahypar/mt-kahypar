@@ -33,7 +33,7 @@
 #include "mt-kahypar/datastructures/hypergraph_common.h"
 #include "mt-kahypar/datastructures/partitioned_graph.h"
 #include "mt-kahypar/datastructures/delta_partitioned_graph.h"
-#include "mt-kahypar/partition/refinement/fm/gain_cache/cut_gain_cache_for_graphs.h"
+#include "mt-kahypar/partition/refinement/gains/cut_for_graphs/cut_gain_cache_for_graphs.h"
 
 using ::testing::Test;
 

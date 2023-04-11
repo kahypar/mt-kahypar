@@ -24,7 +24,7 @@
  * SOFTWARE.
  ******************************************************************************/
 
-#include "mt-kahypar/partition/refinement/fm/gain_cache/cut_gain_cache.h"
+#include "mt-kahypar/partition/refinement/gains/cut/cut_gain_cache.h"
 
 #include "tbb/parallel_for.h"
 #include "tbb/enumerable_thread_specific.h"
