@@ -83,15 +83,12 @@ class GainCachePtr {
                                   gain_cache_t gain_cache) {
     switch(gain_cache.type) {
       case GainPolicy::cut:
-        reinterpret_cast<CutGainCache*>(
-          gain_cache.gain_cache)->initializeGainCache(partitioned_hg); break;
+        cast<CutGainCache>(gain_cache).initializeGainCache(partitioned_hg); break;
       case GainPolicy::km1:
-        reinterpret_cast<Km1GainCache*>(
-          gain_cache.gain_cache)->initializeGainCache(partitioned_hg); break;
+        cast<Km1GainCache>(gain_cache).initializeGainCache(partitioned_hg); break;
       #ifdef KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES
       case GainPolicy::cut_for_graphs:
-        reinterpret_cast<GraphCutGainCache*>(
-          gain_cache.gain_cache)->initializeGainCache(partitioned_hg); break;
+        cast<GraphCutGainCache>(gain_cache).initializeGainCache(partitioned_hg); break;
       #endif
       case GainPolicy::none: break;
     }
@@ -100,18 +97,72 @@ class GainCachePtr {
   static void resetGainCache(gain_cache_t gain_cache) {
     switch(gain_cache.type) {
       case GainPolicy::cut:
-        reinterpret_cast<CutGainCache*>(
-          gain_cache.gain_cache)->reset(); break;
+        cast<CutGainCache>(gain_cache).reset(); break;
       case GainPolicy::km1:
-        reinterpret_cast<Km1GainCache*>(
-          gain_cache.gain_cache)->reset(); break;
+        cast<Km1GainCache>(gain_cache).reset(); break;
       #ifdef KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES
       case GainPolicy::cut_for_graphs:
-        reinterpret_cast<GraphCutGainCache*>(
-          gain_cache.gain_cache)->reset(); break;
+        cast<GraphCutGainCache>(gain_cache).reset(); break;
       #endif
       case GainPolicy::none: break;
     }
+  }
+
+  template<typename PartitionedHypergraph>
+  static void uncontract(PartitionedHypergraph& partitioned_hg,
+                         const Batch& batch,
+                         gain_cache_t gain_cache) {
+    switch(gain_cache.type) {
+      case GainPolicy::cut:
+        partitioned_hg.uncontract(batch, cast<CutGainCache>(gain_cache)); break;
+      case GainPolicy::km1:
+        partitioned_hg.uncontract(batch, cast<Km1GainCache>(gain_cache)); break;
+      #ifdef KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES
+      case GainPolicy::cut_for_graphs:
+        partitioned_hg.uncontract(batch, cast<GraphCutGainCache>(gain_cache)); break;
+      #endif
+      case GainPolicy::none: break;
+    }
+  }
+
+  template<typename PartitionedHypergraph, typename ParallelHyperedge>
+  static void restoreSinglePinAndParallelNets(PartitionedHypergraph& partitioned_hg,
+                                              const vec<ParallelHyperedge>& hes_to_restore,
+                                              gain_cache_t gain_cache) {
+    switch ( gain_cache.type ) {
+      case GainPolicy::cut:
+        partitioned_hg.restoreSinglePinAndParallelNets(hes_to_restore,
+          cast<CutGainCache>(gain_cache)); break;
+      case GainPolicy::km1:
+        partitioned_hg.restoreSinglePinAndParallelNets(hes_to_restore,
+          cast<Km1GainCache>(gain_cache)); break;
+      #ifdef KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES
+      case GainPolicy::cut_for_graphs:
+        partitioned_hg.restoreSinglePinAndParallelNets(hes_to_restore,
+          cast<GraphCutGainCache>(gain_cache)); break;
+      #endif
+      case GainPolicy::none: break;
+    }
+  }
+
+  template<typename PartitionedHypergraph>
+  static bool checkTrackedPartitionInformation(PartitionedHypergraph& partitioned_hg,
+                                               gain_cache_t gain_cache) {
+    switch ( gain_cache.type ) {
+      case GainPolicy::cut:
+        return partitioned_hg.checkTrackedPartitionInformation(
+          cast<CutGainCache>(gain_cache));
+      case GainPolicy::km1:
+        return partitioned_hg.checkTrackedPartitionInformation(
+          cast<Km1GainCache>(gain_cache));
+      #ifdef KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES
+      case GainPolicy::cut_for_graphs:
+        return partitioned_hg.checkTrackedPartitionInformation(
+          cast<GraphCutGainCache>(gain_cache));
+      #endif
+      case GainPolicy::none: return false;
+    }
+    return false;
   }
 
   template<typename GainCache>
