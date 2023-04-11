@@ -213,14 +213,22 @@ namespace mt_kahypar {
 
   std::ostream & operator<< (std::ostream& os, const FMAlgorithm& algo) {
     switch (algo) {
-      case FMAlgorithm::fm_gain_cache: return os << "fm_gain_cache";
-      case FMAlgorithm::fm_gain_cache_on_demand : return os << "fm_gain_cache_on_demand";
-      case FMAlgorithm::fm_gain_delta: return os << "fm_gain_delta";
-      case FMAlgorithm::fm_recompute_gain: return os << "fm_recompute_gain";
+      case FMAlgorithm::kway_fm: return os << "kway_fm";
       case FMAlgorithm::do_nothing: return os << "fm_do_nothing";
         // omit default case to trigger compiler warning for missing cases
     }
     return os << static_cast<uint8_t>(algo);
+  }
+
+  std::ostream & operator<< (std::ostream& os, const GainPolicy& type) {
+    switch (type) {
+      case GainPolicy::km1: return os << "km1";
+      case GainPolicy::cut: return os << "cut";
+      ENABLE_GRAPHS(case GainPolicy::cut_for_graphs: return os << "cut_for_graphs";)
+      case GainPolicy::none: return os << "none";
+        // omit default case to trigger compiler warning for missing cases
+    }
+    return os << static_cast<uint8_t>(type);
   }
 
   std::ostream & operator<< (std::ostream& os, const FlowAlgorithm& algo) {
@@ -405,14 +413,8 @@ namespace mt_kahypar {
   }
 
   FMAlgorithm fmAlgorithmFromString(const std::string& type) {
-    if (type == "fm_gain_cache") {
-      return FMAlgorithm::fm_gain_cache;
-    } else if (type == "fm_gain_cache_on_demand") {
-      return FMAlgorithm::fm_gain_cache_on_demand;
-    } else if (type == "fm_gain_delta") {
-      return FMAlgorithm::fm_gain_delta;
-    } else if (type == "fm_recompute_gain") {
-      return FMAlgorithm::fm_recompute_gain;
+    if (type == "kway_fm") {
+      return FMAlgorithm::kway_fm;
     } else if (type == "do_nothing") {
       return FMAlgorithm::do_nothing;
     }

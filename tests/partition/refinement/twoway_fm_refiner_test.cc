@@ -53,6 +53,7 @@ class ATwoWayFmRefiner : public Test {
     metrics() {
     context.partition.mode = Mode::direct;
     context.partition.objective = Objective::cut;
+    context.partition.gain_policy = GainPolicy::km1; /* change this once cut policy available */
     context.partition.epsilon = 0.25;
     context.partition.k = 2;
     context.partition.verbose_output = false;

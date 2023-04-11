@@ -28,31 +28,35 @@
 #include "mt-kahypar/partition/refinement/fm/localized_kway_fm_core.h"
 
 #include "mt-kahypar/definitions.h"
+#include "mt-kahypar/partition/refinement/gains/gain_cache_ptr.h"
 
 namespace mt_kahypar {
 
-  template<typename TypeTraits, typename FMStrategy>
-  bool LocalizedKWayFM<TypeTraits, FMStrategy>::findMoves(PartitionedHypergraph& phg, size_t taskID, size_t numSeeds) {
+  template<typename TypeTraits, typename GainCache>
+  bool LocalizedKWayFM<TypeTraits, GainCache>::findMoves(PartitionedHypergraph& phg,
+                                                         size_t taskID,
+                                                         size_t numSeeds) {
     localMoves.clear();
     thisSearch = ++sharedData.nodeTracker.highestActiveSearchID;
 
     HypernodeID seedNode;
     while (runStats.pushes < numSeeds && sharedData.refinementNodes.try_pop(seedNode, taskID)) {
-      SearchID previousSearchOfSeedNode = sharedData.nodeTracker.searchOfNode[seedNode].load(std::memory_order_relaxed);
       if (sharedData.nodeTracker.tryAcquireNode(seedNode, thisSearch)) {
-        fm_strategy.insertIntoPQ(phg, seedNode, previousSearchOfSeedNode);
+        fm_strategy.insertIntoPQ(phg, gain_cache, seedNode);
       }
     }
 
     if (runStats.pushes > 0) {
       if (sharedData.deltaExceededMemoryConstraints) {
         deltaPhg.dropMemory();
+        delta_gain_cache.dropMemory();
       }
 
       if (context.refinement.fm.perform_moves_global || sharedData.deltaExceededMemoryConstraints) {
         internalFindMoves<false>(phg);
       } else {
         deltaPhg.clear();
+        delta_gain_cache.clear();
         deltaPhg.setPartitionedHypergraph(&phg);
         internalFindMoves<true>(phg);
         if (deltaPhg.combinedMemoryConsumption() > sharedData.deltaMemoryLimitPerThread) {
@@ -79,10 +83,10 @@ namespace mt_kahypar {
     return std::make_pair(p, w);
   }
 
-  template<typename TypeTraits, typename FMStrategy>
-  template<typename PHG>
+  template<typename TypeTraits, typename GainCache>
+  template<typename PHG, typename CACHE>
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
-  void LocalizedKWayFM<TypeTraits, FMStrategy>::acquireOrUpdateNeighbors(PHG& phg, const Move& move) {
+  void LocalizedKWayFM<TypeTraits, GainCache>::acquireOrUpdateNeighbors(PHG& phg, CACHE& gain_cache, const Move& move) {
     // Note: In theory we should acquire/update all neighbors. It just turned out that this works fine
     // Actually: only vertices incident to edges with gain changes can become new boundary vertices.
     // Vertices that already were boundary vertices, can still be considered later since they are in the task queue
@@ -93,9 +97,9 @@ namespace mt_kahypar {
           if (neighborDeduplicator[v] != deduplicationTime) {
             SearchID searchOfV = sharedData.nodeTracker.searchOfNode[v].load(std::memory_order_relaxed);
             if (searchOfV == thisSearch) {
-              fm_strategy.updateGain(phg, v, move);
+              fm_strategy.updateGain(phg, gain_cache, v, move);
             } else if (sharedData.nodeTracker.tryAcquireNode(v, thisSearch)) {
-              fm_strategy.insertIntoPQ(phg, v, searchOfV);
+              fm_strategy.insertIntoPQ(phg, gain_cache, v);
             }
             neighborDeduplicator[v] = deduplicationTime;
           }
@@ -110,9 +114,9 @@ namespace mt_kahypar {
   }
 
 
-  template<typename TypeTraits, typename FMStrategy>
+  template<typename TypeTraits, typename GainCache>
   template<bool use_delta>
-  void LocalizedKWayFM<TypeTraits, FMStrategy>::internalFindMoves(PartitionedHypergraph& phg) {
+  void LocalizedKWayFM<TypeTraits, GainCache>::internalFindMoves(PartitionedHypergraph& phg) {
     StopRule stopRule(phg.initialNumNodes());
     Move move;
 
@@ -128,11 +132,11 @@ namespace mt_kahypar {
       }
 
       if constexpr (use_delta) {
-        fm_strategy.deltaGainUpdates(deltaPhg, he, edge_weight, move.from, pin_count_in_from_part_after,
-                                     move.to, pin_count_in_to_part_after);
+        fm_strategy.deltaGainUpdates(deltaPhg, delta_gain_cache, he, edge_weight, move.from,
+          pin_count_in_from_part_after, move.to, pin_count_in_to_part_after);
       } else {
-        fm_strategy.deltaGainUpdates(phg, he, edge_weight, move.from, pin_count_in_from_part_after,
-                                     move.to, pin_count_in_to_part_after);
+        fm_strategy.deltaGainUpdates(phg, gain_cache, he, edge_weight, move.from,
+          pin_count_in_from_part_after, move.to, pin_count_in_to_part_after);
       }
 
     };
@@ -152,9 +156,9 @@ namespace mt_kahypar {
            && sharedData.finishedTasks.load(std::memory_order_relaxed) < sharedData.finishedTasksLimit) {
 
       if constexpr (use_delta) {
-        if (!fm_strategy.findNextMove(deltaPhg, move)) break;
+        if (!fm_strategy.findNextMove(deltaPhg, delta_gain_cache, move)) break;
       } else {
-        if (!fm_strategy.findNextMove(phg, move)) break;
+        if (!fm_strategy.findNextMove(phg, gain_cache, move)) break;
       }
       sharedData.nodeTracker.deactivateNode(move.node, thisSearch);
 
@@ -220,6 +224,7 @@ namespace mt_kahypar {
             bestImprovementIndex = 0;
             localMoves.clear();
             deltaPhg.clear();   // clear hashtables, save memory :)
+            delta_gain_cache.clear();
           }
         }
 
@@ -230,9 +235,9 @@ namespace mt_kahypar {
         }
 
         if constexpr (use_delta) {
-          acquireOrUpdateNeighbors(deltaPhg, move);
+          acquireOrUpdateNeighbors(deltaPhg, delta_gain_cache, move);
         } else {
-          acquireOrUpdateNeighbors(phg, move);
+          acquireOrUpdateNeighbors(phg, gain_cache, move);
         }
       }
 
@@ -240,7 +245,7 @@ namespace mt_kahypar {
 
     if constexpr (use_delta) {
       std::tie(bestImprovement, bestImprovementIndex) =
-              applyBestLocalPrefixToSharedPartition(phg, bestImprovementIndex, bestImprovement, false);
+        applyBestLocalPrefixToSharedPartition(phg, bestImprovementIndex, bestImprovement, false);
     } else {
       revertToBestLocalPrefix(phg, bestImprovementIndex);
     }
@@ -251,8 +256,8 @@ namespace mt_kahypar {
   }
 
 
-  template<typename TypeTraits, typename FMStrategy>
-  std::pair<Gain, size_t> LocalizedKWayFM<TypeTraits, FMStrategy>::applyBestLocalPrefixToSharedPartition(
+  template<typename TypeTraits, typename GainCache>
+  std::pair<Gain, size_t> LocalizedKWayFM<TypeTraits, GainCache>::applyBestLocalPrefixToSharedPartition(
           PartitionedHypergraph& phg,
           const size_t best_index_locally_observed,
           const Gain best_improvement_locally_observed,
@@ -267,8 +272,8 @@ namespace mt_kahypar {
                                     const HypernodeID edge_size,
                                     const HypernodeID pin_count_in_from_part_after,
                                     const HypernodeID pin_count_in_to_part_after) {
-      attributed_gain += km1Delta(he, edge_weight, edge_size,
-                                  pin_count_in_from_part_after, pin_count_in_to_part_after);
+      attributed_gain += GainCache::delta(he, edge_weight, edge_size,
+        pin_count_in_from_part_after, pin_count_in_to_part_after);
 
       // Gains of the pins of a hyperedge can only change in the following situations.
       if ( is_last_move &&
@@ -309,17 +314,11 @@ namespace mt_kahypar {
       // these nets here.
       is_last_move = apply_delta_improvement && i == best_index_locally_observed - 1;
 
-      if constexpr (FMStrategy::uses_gain_cache) {
-        phg.changeNodePartWithGainCacheUpdate(local_move.node, local_move.from, local_move.to,
-                                              std::numeric_limits<HypernodeWeight>::max(),
-                                              [&] { move_id = sharedData.moveTracker.insertMove(local_move); },
-                                              delta_gain_func);
-      } else {
-        phg.changeNodePart(local_move.node, local_move.from, local_move.to,
-                           std::numeric_limits<HypernodeWeight>::max(),
-                           [&] { move_id = sharedData.moveTracker.insertMove(local_move); },
-                           delta_gain_func);
-      }
+      phg.changeNodePart(
+        gain_cache, local_move.node, local_move.from, local_move.to,
+        std::numeric_limits<HypernodeWeight>::max(),
+        [&] { move_id = sharedData.moveTracker.insertMove(local_move); },
+        delta_gain_func);
 
       attributed_gain = -attributed_gain; // delta func yields negative sum of improvements, i.e. negative values mean improvements
       improvement_from_attributed_gains += attributed_gain;
@@ -341,13 +340,7 @@ namespace mt_kahypar {
       runStats.local_reverts += best_index_locally_observed - best_index_from_attributed_gains + 1;
       for (size_t i = best_index_from_attributed_gains + 1; i < best_index_locally_observed; ++i) {
         Move& m = sharedData.moveTracker.getMove(localMoves[i].second);
-
-        if constexpr (FMStrategy::uses_gain_cache) {
-          phg.changeNodePartWithGainCacheUpdate(m.node, m.to, m.from);
-        } else {
-          phg.changeNodePart(m.node, m.to, m.from);
-        }
-
+        phg.changeNodePart(gain_cache, m.node, m.to, m.from);
         m.invalidate();
       }
       return std::make_pair(best_improvement_from_attributed_gains, best_index_from_attributed_gains);
@@ -356,29 +349,26 @@ namespace mt_kahypar {
     }
   }
 
-  template<typename TypeTraits, typename FMStrategy>
-  void LocalizedKWayFM<TypeTraits, FMStrategy>::revertToBestLocalPrefix(PartitionedHypergraph& phg, size_t bestGainIndex) {
+  template<typename TypeTraits, typename GainCache>
+  void LocalizedKWayFM<TypeTraits, GainCache>::revertToBestLocalPrefix(PartitionedHypergraph& phg,
+                                                                       size_t bestGainIndex) {
     runStats.local_reverts += localMoves.size() - bestGainIndex;
     while (localMoves.size() > bestGainIndex) {
       Move& m = sharedData.moveTracker.getMove(localMoves.back().second);
-      if constexpr (FMStrategy::uses_gain_cache) {
-        phg.changeNodePartWithGainCacheUpdate(m.node, m.to, m.from);
-      } else {
-        phg.changeNodePart(m.node, m.to, m.from);
-      }
+      phg.changeNodePart(gain_cache, m.node, m.to, m.from);
       m.invalidate();
       localMoves.pop_back();
     }
   }
 
-  template<typename TypeTraits, typename FMStrategy>
-  void LocalizedKWayFM<TypeTraits, FMStrategy>::changeNumberOfBlocks(const PartitionID new_k) {
+  template<typename TypeTraits, typename GainCache>
+  void LocalizedKWayFM<TypeTraits, GainCache>::changeNumberOfBlocks(const PartitionID new_k) {
     deltaPhg.changeNumberOfBlocks(new_k);
     fm_strategy.changeNumberOfBlocks(new_k);
   }
 
-  template<typename TypeTraits,typename FMStrategy>
-  void LocalizedKWayFM<TypeTraits, FMStrategy>::memoryConsumption(utils::MemoryTreeNode *parent) const {
+  template<typename TypeTraits, typename GainCache>
+  void LocalizedKWayFM<TypeTraits, GainCache>::memoryConsumption(utils::MemoryTreeNode *parent) const {
     ASSERT(parent);
 
     utils::MemoryTreeNode *localized_fm_node = parent->addChild("Localized k-Way FM");
@@ -393,33 +383,13 @@ namespace mt_kahypar {
 
     fm_strategy.memoryConsumption(localized_fm_node);
     deltaPhg.memoryConsumption(localized_fm_node);
+    delta_gain_cache.memoryConsumption(localized_fm_node);
   }
+
+  namespace {
+  #define LOCALIZED_KWAY_FM(X, Y) LocalizedKWayFM<X, Y>
+  }
+
+  INSTANTIATE_CLASS_WITH_TYPE_TRAITS_AND_GAIN_CACHE(LOCALIZED_KWAY_FM)
 
 }   // namespace mt_kahypar
-
-
-// instantiate templates
-#include "mt-kahypar/partition/refinement/fm/strategies/gain_cache_strategy.h"
-#ifdef KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES
-#include "mt-kahypar/partition/refinement/fm/strategies/gain_delta_strategy.h"
-#include "mt-kahypar/partition/refinement/fm/strategies/recompute_gain_strategy.h"
-#include <mt-kahypar/partition/refinement/fm/strategies/gain_cache_on_demand_strategy.h>
-#endif
-
-namespace mt_kahypar {
-  namespace {
-  #define LOCALIZED_FM_GAIN_CACHE(X) LocalizedKWayFM<X, GainCacheStrategy>
-  #ifdef KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES
-  #define LOCALIZED_FM_GAIN_DELTA(X) LocalizedKWayFM<X, GainDeltaStrategy>
-  #define LOCALIZED_FM_GAIN_RECOMPUTE(X) LocalizedKWayFM<X, RecomputeGainStrategy>
-  #define LOCALIZED_FM_GAIN_ON_DEMAND(X) LocalizedKWayFM<X, GainCacheOnDemandStrategy>
-  #endif
-  }
-
-  INSTANTIATE_CLASS_MACRO_WITH_TYPE_TRAITS(LOCALIZED_FM_GAIN_CACHE)
-  #ifdef KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES
-  INSTANTIATE_CLASS_MACRO_WITH_TYPE_TRAITS(LOCALIZED_FM_GAIN_DELTA)
-  INSTANTIATE_CLASS_MACRO_WITH_TYPE_TRAITS(LOCALIZED_FM_GAIN_RECOMPUTE)
-  INSTANTIATE_CLASS_MACRO_WITH_TYPE_TRAITS(LOCALIZED_FM_GAIN_ON_DEMAND)
-  #endif
-}

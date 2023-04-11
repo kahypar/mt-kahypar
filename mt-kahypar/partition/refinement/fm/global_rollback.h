@@ -33,15 +33,20 @@
 
 namespace mt_kahypar {
 
-template<typename TypeTraits, bool update_gain_cache>
+template<typename TypeTraits, typename GainCache>
 class GlobalRollback {
   static constexpr bool enable_heavy_assert = false;
 
   using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
+  using Rollback = typename GainCache::Rollback;
+  using RecalculationData = typename Rollback::RecalculationData;
 
 public:
-  explicit GlobalRollback(const HyperedgeID num_hyperedges, const Context& context) :
+  explicit GlobalRollback(const HyperedgeID num_hyperedges,
+                          const Context& context,
+                          GainCache& gainCache) :
     context(context),
+    gain_cache(gainCache),
     max_part_weight_scaling(context.refinement.fm.rollback_balance_violation_factor),
     ets_recalc_data([&] { return vec<RecalculationData>(context.partition.k); }),
     last_recalc_round(),
@@ -87,11 +92,7 @@ public:
 
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
   void moveVertex(PartitionedHypergraph& phg, HypernodeID u, PartitionID from, PartitionID to) {
-    if constexpr (update_gain_cache) {
-      phg.changeNodePartWithGainCacheUpdate(u, from, to);
-    } else {
-      phg.changeNodePart(u, from, to);
-    }
+    phg.changeNodePart(gain_cache, u, from, to);
   }
 
   void changeNumberOfBlocks(const PartitionID new_k) {
@@ -107,18 +108,10 @@ public:
 private:
   const Context& context;
 
+  GainCache& gain_cache;
+
   // ! Factor to multiply max part weight with, in order to relax or disable the balance criterion. Set to zero for disabling
   double max_part_weight_scaling;
-
-  struct RecalculationData {
-    MoveID first_in, last_out;
-    HypernodeID remaining_pins;
-    RecalculationData() :
-      first_in(std::numeric_limits<MoveID>::max()),
-      last_out(std::numeric_limits<MoveID>::min()),
-      remaining_pins(0)
-      { }
-  };
 
   tbb::enumerable_thread_specific< vec<RecalculationData> > ets_recalc_data;
   vec<CAtomic<uint32_t>> last_recalc_round;

@@ -40,6 +40,7 @@
 #include "mt-kahypar/utils/cast.h"
 #include "mt-kahypar/utils/utilities.h"
 #include "mt-kahypar/partition/refinement/fm/sequential_twoway_fm_refiner.h"
+#include "mt-kahypar/partition/refinement/gains/gain_cache_ptr.h"
 
 
 namespace mt_kahypar {
@@ -201,6 +202,7 @@ class InitialPartitioningDataContainer {
               std::numeric_limits<HypernodeWeight>::max(),
               std::numeric_limits<HypernodeWeight>::max(),
               std::numeric_limits<double>::max()),
+      _gain_cache(GainCachePtr::constructGainCache(context.partition.gain_policy)),
       _label_propagation(nullptr),
       _twoway_fm(nullptr),
       _stats() {
@@ -216,7 +218,7 @@ class InitialPartitioningDataContainer {
         // In case of a direct-kway initial partition we instantiate the LP refiner
         _label_propagation = LabelPropagationFactory::getInstance().createObject(
           _context.refinement.label_propagation.algorithm,
-          hypergraph.initialNumNodes(), hypergraph.initialNumEdges(), _context);
+          hypergraph.initialNumNodes(), hypergraph.initialNumEdges(), _context, _gain_cache);
       }
     }
 
@@ -349,6 +351,7 @@ class InitialPartitioningDataContainer {
     GlobalInitialPartitioningStats& _global_stats;
     parallel::scalable_vector<PartitionID> _partition;
     PartitioningResult _result;
+    gain_cache_t _gain_cache;
     std::unique_ptr<IRefiner> _label_propagation;
     std::unique_ptr<SequentialTwoWayFmRefiner<TypeTraits>> _twoway_fm;
     parallel::scalable_vector<utils::InitialPartitionerSummary> _stats;

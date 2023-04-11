@@ -71,14 +71,12 @@ using StaticSparsePartitionedHypergraph = ds::PartitionedHypergraph<ds::StaticHy
 struct StaticGraphTypeTraits : public kahypar::meta::PolicyBase {
   using Hypergraph = ds::StaticGraph;
   using PartitionedHypergraph = StaticPartitionedGraph;
-  using DeltaPartitionedHypergraph = ds::DeltaPartitionedGraph<PartitionedHypergraph>;
 };
 
 #ifdef KAHYPAR_ENABLE_N_LEVEL_PARTITIONING_FEATURES
 struct DynamicGraphTypeTraits : public kahypar::meta::PolicyBase {
   using Hypergraph = ds::DynamicGraph;
   using PartitionedHypergraph = DynamicPartitionedGraph;
-  using DeltaPartitionedHypergraph = ds::DeltaPartitionedGraph<PartitionedHypergraph>;
 };
 #endif
 #endif
@@ -86,14 +84,12 @@ struct DynamicGraphTypeTraits : public kahypar::meta::PolicyBase {
 struct StaticHypergraphTypeTraits : public kahypar::meta::PolicyBase {
   using Hypergraph = ds::StaticHypergraph;
   using PartitionedHypergraph = StaticPartitionedHypergraph;
-  using DeltaPartitionedHypergraph = ds::DeltaPartitionedHypergraph<PartitionedHypergraph>;
 };
 
 #ifdef KAHYPAR_ENABLE_N_LEVEL_PARTITIONING_FEATURES
 struct DynamicHypergraphTypeTraits : public kahypar::meta::PolicyBase {
   using Hypergraph = ds::DynamicHypergraph;
   using PartitionedHypergraph = DynamicPartitionedHypergraph;
-  using DeltaPartitionedHypergraph = ds::DeltaPartitionedHypergraph<PartitionedHypergraph>;
 };
 #endif
 
@@ -101,7 +97,6 @@ struct DynamicHypergraphTypeTraits : public kahypar::meta::PolicyBase {
 struct LargeKHypergraphTypeTraits : public kahypar::meta::PolicyBase {
   using Hypergraph = ds::StaticHypergraph;
   using PartitionedHypergraph = StaticSparsePartitionedHypergraph;
-  using DeltaPartitionedHypergraph = ds::DeltaPartitionedHypergraph<PartitionedHypergraph>;
 };
 #endif
 
@@ -143,6 +138,14 @@ using TypeTraitsList = kahypar::meta::Typelist<StaticHypergraphTypeTraits
   ENABLE_LARGE_K(template class C<LargeKHypergraphTypeTraits>;)             \
   ENABLE_GRAPHS(template class C<StaticGraphTypeTraits>;)                   \
   ENABLE_N_LEVEL_GRAPHS(template class C<DynamicGraphTypeTraits>;)
+
+#define INSTANTIATE_CLASS_MACRO_WITH_TYPE_TRAITS_AND_OTHER_CLASS(C, Other)     \
+  template class C(StaticHypergraphTypeTraits, Other);                         \
+  ENABLE_N_LEVEL(template class C(DynamicHypergraphTypeTraits, Other);)        \
+  ENABLE_LARGE_K(template class C(LargeKHypergraphTypeTraits, Other);)         \
+  ENABLE_GRAPHS(template class C(StaticGraphTypeTraits, Other);)               \
+  ENABLE_N_LEVEL_GRAPHS(template class C(DynamicGraphTypeTraits, Other);)
+
 
 using HighResClockTimepoint = std::chrono::time_point<std::chrono::high_resolution_clock>;
 

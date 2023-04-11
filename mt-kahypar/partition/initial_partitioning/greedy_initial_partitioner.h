@@ -37,7 +37,7 @@ template<typename TypeTraits,
 class GreedyInitialPartitioner : public IInitialPartitioner {
 
   using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
-  using GainPolicy = GainPolicyT<TypeTraits>;
+  using GainComputationPolicy = GainPolicyT<TypeTraits>;
   using PQSelectionPolicy = PQSelectionPolicyT<TypeTraits>;
   using DeltaFunction = std::function<void (const HyperedgeID, const HyperedgeWeight, const HypernodeID, const HypernodeID, const HypernodeID)>;
   #define NOOP_FUNC [] (const HyperedgeID, const HyperedgeWeight, const HypernodeID, const HypernodeID, const HypernodeID) { }
@@ -172,7 +172,7 @@ class GreedyInitialPartitioner : public IInitialPartitioner {
     ASSERT(hypergraph.partID(hn) == _default_block, V(hypergraph.partID(hn)) << V(_default_block));
     ASSERT(!pq.contains(hn, to));
 
-    const Gain gain = GainPolicy::calculateGain(hypergraph, hn, to);
+    const Gain gain = GainComputationPolicy::calculateGain(hypergraph, hn, to);
     pq.insert(hn, to, gain);
     if ( !pq.isEnabled(to) ) {
       pq.enablePart(to);
@@ -202,7 +202,7 @@ class GreedyInitialPartitioner : public IInitialPartitioner {
     ASSERT(hypergraph.partID(hn) == to);
 
     // Perform delta gain updates
-    GainPolicy::deltaGainUpdate(hypergraph, pq, hn, from, to);
+    GainComputationPolicy::deltaGainUpdate(hypergraph, pq, hn, from, to);
 
     // Remove moved hypernode hn from all PQs
     for ( PartitionID block = 0; block < hypergraph.k(); ++block ) {

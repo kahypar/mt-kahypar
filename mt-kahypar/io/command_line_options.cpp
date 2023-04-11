@@ -393,14 +393,9 @@ namespace mt_kahypar {
                        } else {
                          context.refinement.fm.algorithm = fmAlgorithmFromString(type);
                        }
-                     })->default_value("fm_gain_cache"),
+                     })->default_value("kway_fm"),
              "FM Algorithm:\n"
-             "- fm_gain_cache\n"
-             #ifdef KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES
-             "- fm_gain_cache_on_demand\n"
-             "- fm_gain_delta\n"
-             "- fm_recompute_gain\n"
-             #endif
+             "- kway_fm\n"
              "- do_nothing")
             ((initial_partitioning ? "i-r-fm-multitry-rounds" : "r-fm-multitry-rounds"),
              po::value<size_t>((initial_partitioning ? &context.initial_partitioning.refinement.fm.multitry_rounds :

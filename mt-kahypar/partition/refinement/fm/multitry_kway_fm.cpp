@@ -35,8 +35,8 @@
 
 namespace mt_kahypar {
 
-  template<typename TypeTraits, typename FMStrategy>
-  bool MultiTryKWayFM<TypeTraits, FMStrategy>::refineImpl(
+  template<typename TypeTraits, typename GainCache>
+  bool MultiTryKWayFM<TypeTraits, GainCache>::refineImpl(
               mt_kahypar_partitioned_hypergraph_t& hypergraph,
               const vec<HypernodeID>& refinement_nodes,
               Metrics& metrics,
@@ -100,7 +100,8 @@ namespace mt_kahypar {
         phg, sharedData, initialPartWeights);
       timer.stop_timer("rollback");
 
-      const double roundImprovementFraction = improvementFraction(improvement, metrics.km1 - overall_improvement);
+      const double roundImprovementFraction = improvementFraction(improvement,
+        metrics.getMetric(Mode::direct, context.partition.objective) - overall_improvement);
       overall_improvement += improvement;
       if (roundImprovementFraction < context.refinement.fm.min_improvement) {
         consecutive_rounds_with_too_little_improvement++;
@@ -115,9 +116,9 @@ namespace mt_kahypar {
         for (auto& fm : ets_fm) {
           fm.stats.merge(stats);
         }
-        LOG << V(round) << V(improvement) << V(metrics::km1(phg)) << V(metrics::imbalance(phg, context))
-            << V(num_border_nodes) << V(roundImprovementFraction) << V(elapsed_time) << V(current_time_limit)
-            << stats.serialize();
+        LOG << V(round) << V(improvement) << V(metrics::objective(phg, context.partition.objective))
+            << V(metrics::imbalance(phg, context)) << V(num_border_nodes) << V(roundImprovementFraction)
+            << V(elapsed_time) << V(current_time_limit) << stats.serialize();
       }
 
       // Enforce a time limit (based on k and coarsening time).
@@ -150,15 +151,20 @@ namespace mt_kahypar {
       is_initialized = false;
     }
 
-    metrics.km1 -= overall_improvement;
+    metrics.updateMetric(metrics.getMetric(Mode::direct, context.partition.objective) -
+      overall_improvement, Mode::direct, context.partition.objective);
     metrics.imbalance = metrics::imbalance(phg, context);
-    ASSERT(metrics.km1 == metrics::km1(phg), V(metrics.km1) << V(metrics::km1(phg)));
+    HEAVY_REFINEMENT_ASSERT(phg.checkTrackedPartitionInformation(gain_cache));
+    ASSERT(metrics.getMetric(Mode::direct, context.partition.objective) ==
+      metrics::objective(phg, context.partition.objective),
+      V(metrics.getMetric(Mode::direct, context.partition.objective)) <<
+      V(metrics::objective(phg, context.partition.objective)));
     return overall_improvement > 0;
   }
 
-  template<typename TypeTraits, typename FMStrategy>
-  void MultiTryKWayFM<TypeTraits, FMStrategy>::roundInitialization(PartitionedHypergraph& phg,
-                                                                   const vec<HypernodeID>& refinement_nodes) {
+  template<typename TypeTraits, typename GainCache>
+  void MultiTryKWayFM<TypeTraits, GainCache>::roundInitialization(PartitionedHypergraph& phg,
+                                                                  const vec<HypernodeID>& refinement_nodes) {
     // clear border nodes
     sharedData.refinementNodes.clear();
 
@@ -206,35 +212,27 @@ namespace mt_kahypar {
   }
 
 
-  template<typename TypeTraits, typename FMStrategy>
-  void MultiTryKWayFM<TypeTraits, FMStrategy>::initializeImpl(mt_kahypar_partitioned_hypergraph_t& hypergraph) {
+  template<typename TypeTraits, typename GainCache>
+  void MultiTryKWayFM<TypeTraits, GainCache>::initializeImpl(mt_kahypar_partitioned_hypergraph_t& hypergraph) {
     PartitionedHypergraph& phg = utils::cast<PartitionedHypergraph>(hypergraph);
-    if (FMStrategy::uses_gain_cache) {
-      phg.allocateGainTableIfNecessary();
-    }
 
-    if (!phg.isGainCacheInitialized() && FMStrategy::maintain_gain_cache_between_rounds) {
-      phg.initializeGainCache();
+    if (!gain_cache.isInitialized()) {
+      gain_cache.initializeGainCache(phg);
     }
 
     is_initialized = true;
   }
 
-  template<typename TypeTraits, typename FMStrategy>
-  void MultiTryKWayFM<TypeTraits, FMStrategy>::resizeDataStructuresForCurrentK() {
+  template<typename TypeTraits, typename GainCache>
+  void MultiTryKWayFM<TypeTraits, GainCache>::resizeDataStructuresForCurrentK() {
     // If the number of blocks changes, we resize data structures
     // (can happen during deep multilevel partitioning)
     if ( current_k != context.partition.k ) {
       current_k = context.partition.k;
-      // Note that we must change the number of blocks in the shared data before
-      // changing the number of blocks in the localized fm searches as this call
-      // could resize the vertex PQ handles which must be updated then in the
-      // localized FM searches.
-      // Moreover, note that in general changing the number of blocks in the shared
-      // data and global rollback data structure should not resize any data structure
+      // Note that in general changing the number of blocks in the
+      // global rollback data structure should not resize any data structure
       // as we initialize them with the final number of blocks. This is just a fallback
       // if someone changes this in the future.
-      sharedData.changeNumberOfBlocks(context.refinement.fm.algorithm, current_k);
       globalRollback.changeNumberOfBlocks(current_k);
       for ( auto& localized_fm : ets_fm ) {
         localized_fm.changeNumberOfBlocks(current_k);
@@ -242,8 +240,8 @@ namespace mt_kahypar {
     }
   }
 
-  template<typename TypeTraits, typename FMStrategy>
-  void MultiTryKWayFM<TypeTraits, FMStrategy>::printMemoryConsumption() {
+  template<typename TypeTraits, typename GainCache>
+  void MultiTryKWayFM<TypeTraits, GainCache>::printMemoryConsumption() {
     utils::MemoryTreeNode fm_memory("Multitry k-Way FM", utils::OutputType::MEGABYTE);
 
     for (const auto& fm : ets_fm) {
@@ -256,29 +254,10 @@ namespace mt_kahypar {
     LOG << fm_memory;
   }
 
-} // namespace mt_kahypar
-
-#include "mt-kahypar/partition/refinement/fm/strategies/gain_cache_strategy.h"
-#ifdef KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES
-#include "mt-kahypar/partition/refinement/fm/strategies/gain_delta_strategy.h"
-#include "mt-kahypar/partition/refinement/fm/strategies/recompute_gain_strategy.h"
-#include "mt-kahypar/partition/refinement/fm/strategies/gain_cache_on_demand_strategy.h"
-#endif
-
-namespace mt_kahypar {
   namespace {
-  #define MULTITRY_FM_GAIN_CACHE(X) MultiTryKWayFM<X, GainCacheStrategy>
-  #ifdef KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES
-  #define MULTITRY_FM_GAIN_DELTA(X) MultiTryKWayFM<X, GainDeltaStrategy>
-  #define MULTITRY_FM_GAIN_RECOMPUTE(X) MultiTryKWayFM<X, RecomputeGainStrategy>
-  #define MULTITRY_FM_GAIN_ON_DEMAND(X) MultiTryKWayFM<X, GainCacheOnDemandStrategy>
-  #endif
+  #define MULTITRY_KWAY_FM(X, Y) MultiTryKWayFM<X, Y>
   }
 
-  INSTANTIATE_CLASS_MACRO_WITH_TYPE_TRAITS(MULTITRY_FM_GAIN_CACHE)
-  #ifdef KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES
-  INSTANTIATE_CLASS_MACRO_WITH_TYPE_TRAITS(MULTITRY_FM_GAIN_DELTA)
-  INSTANTIATE_CLASS_MACRO_WITH_TYPE_TRAITS(MULTITRY_FM_GAIN_RECOMPUTE)
-  INSTANTIATE_CLASS_MACRO_WITH_TYPE_TRAITS(MULTITRY_FM_GAIN_ON_DEMAND)
-  #endif
-}
+  INSTANTIATE_CLASS_WITH_TYPE_TRAITS_AND_GAIN_CACHE(MULTITRY_KWAY_FM)
+
+} // namespace mt_kahypar

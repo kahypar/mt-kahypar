@@ -35,16 +35,17 @@
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/refinement/i_refiner.h"
 #include "mt-kahypar/partition/refinement/policies/gain_policy.h"
+#include "mt-kahypar/partition/refinement/gains/gain_cache_ptr.h"
 #include "mt-kahypar/utils/cast.h"
 
 
 namespace mt_kahypar {
-template <typename TypeTraits, template <typename> class GainPolicy>
+template <typename TypeTraits, typename GainCache, template <typename> class GainComputationPolicy>
 class LabelPropagationRefiner final : public IRefiner {
  private:
   using Hypergraph = typename TypeTraits::Hypergraph;
   using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
-  using GainCalculator = GainPolicy<PartitionedHypergraph>;
+  using GainCalculator = GainComputationPolicy<PartitionedHypergraph>;
   using ActiveNodes = parallel::scalable_vector<HypernodeID>;
   using NextActiveNodes = ds::StreamingVector<HypernodeID>;
 
@@ -54,8 +55,10 @@ class LabelPropagationRefiner final : public IRefiner {
  public:
   explicit LabelPropagationRefiner(const HypernodeID num_hypernodes,
                                    const HyperedgeID num_hyperedges,
-                                   const Context& context) :
+                                   const Context& context,
+                                   GainCache& gain_cache) :
     _context(context),
+    _gain_cache(gain_cache),
     _current_k(context.partition.k),
     _current_num_nodes(kInvalidHypernode),
     _current_num_edges(kInvalidHyperedge),
@@ -64,6 +67,13 @@ class LabelPropagationRefiner final : public IRefiner {
     _active_node_was_moved(num_hypernodes, uint8_t(false)),
     _next_active(num_hypernodes),
     _visited_he(num_hyperedges) { }
+
+  explicit LabelPropagationRefiner(const HypernodeID num_hypernodes,
+                                   const HyperedgeID num_hyperedges,
+                                   const Context& context,
+                                   gain_cache_t gain_cache) :
+    LabelPropagationRefiner(num_hypernodes, num_hyperedges, context,
+      GainCachePtr::cast<GainCache>(gain_cache)) { }
 
   LabelPropagationRefiner(const LabelPropagationRefiner&) = delete;
   LabelPropagationRefiner(LabelPropagationRefiner&&) = delete;
@@ -163,8 +173,8 @@ class LabelPropagationRefiner final : public IRefiner {
                       const PartitionID to,
                       const F& objective_delta) {
     bool success = false;
-    if ( _context.forceGainCacheUpdates() && phg.isGainCacheInitialized() ) {
-      success = phg.changeNodePartWithGainCacheUpdate(hn, from, to,
+    if ( _context.forceGainCacheUpdates() && _gain_cache.isInitialized() ) {
+      success = phg.changeNodePart(_gain_cache, hn, from, to,
         _context.partition.max_part_weights[to], [] { }, objective_delta);
     } else {
       success = phg.changeNodePart(hn, from, to,
@@ -183,6 +193,7 @@ class LabelPropagationRefiner final : public IRefiner {
   }
 
   const Context& _context;
+  GainCache& _gain_cache;
   PartitionID _current_k;
   HypernodeID _current_num_nodes;
   HyperedgeID _current_num_edges;
@@ -193,8 +204,8 @@ class LabelPropagationRefiner final : public IRefiner {
   kahypar::ds::FastResetFlagArray<> _visited_he;
 };
 
-template<typename TypeTraits>
-using LabelPropagationKm1Refiner = LabelPropagationRefiner<TypeTraits, Km1Policy>;
-template<typename TypeTraits>
-using LabelPropagationCutRefiner = LabelPropagationRefiner<TypeTraits, CutPolicy>;
+template<typename TypeTraits, typename GainCache>
+using LabelPropagationKm1Refiner = LabelPropagationRefiner<TypeTraits, GainCache, Km1Policy>;
+template<typename TypeTraits, typename GainCache>
+using LabelPropagationCutRefiner = LabelPropagationRefiner<TypeTraits, GainCache, CutPolicy>;
 }  // namespace kahypar

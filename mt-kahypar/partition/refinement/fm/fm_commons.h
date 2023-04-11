@@ -172,7 +172,7 @@ struct FMSharedData {
   bool release_nodes = true;
   bool perform_moves_global = true;
 
-  FMSharedData(size_t numNodes = 0, size_t numThreads = 0, size_t numPQHandles = 0) :
+  FMSharedData(size_t numNodes, size_t numThreads) :
     numberOfNodes(numNodes),
     refinementNodes(), //numNodes, numThreads),
     vertexPQHandles(), //numPQHandles, invalid_position),
@@ -191,7 +191,7 @@ struct FMSharedData {
     }, [&] {
       nodeTracker.searchOfNode.resize(numNodes, CAtomic<SearchID>(0));
     }, [&] {
-      vertexPQHandles.resize(numPQHandles, invalid_position);
+      vertexPQHandles.resize(numNodes, invalid_position);
     }, [&] {
       refinementNodes.tls_queues.resize(numThreads);
     }, [&] {
@@ -199,33 +199,13 @@ struct FMSharedData {
     });
   }
 
-  FMSharedData(size_t numNodes, const Context& context) :
+  FMSharedData(size_t numNodes) :
     FMSharedData(
       numNodes,
-      TBBInitializer::instance().total_number_of_threads(),
-      getNumberOfPQHandles(context.refinement.fm.algorithm,
-        context.partition.k, numNodes))  { }
+      TBBInitializer::instance().total_number_of_threads())  { }
 
-
-  size_t getNumberOfPQHandles(const FMAlgorithm algorithm,
-                              const PartitionID k,
-                              const size_t numNodes) {
-    if (algorithm == FMAlgorithm::fm_gain_delta) {
-      return numNodes * k;
-    } else {
-      return numNodes;
-    }
-  }
-
-  void changeNumberOfBlocks(const FMAlgorithm algorithm, const PartitionID new_k) {
-    const size_t num_pq_handles = getNumberOfPQHandles(algorithm, new_k, numberOfNodes);
-    if ( num_pq_handles > vertexPQHandles.size() ) {
-      // Note that in general this should never be called as we initialize
-      // the shared data with the final number of blocks. However, this is just
-      // a fallback if someone changes this in the future.
-      vertexPQHandles.assign(num_pq_handles, invalid_position);
-    }
-  }
+  FMSharedData() :
+    FMSharedData(0, 0) { }
 
   void memoryConsumption(utils::MemoryTreeNode* parent) const {
     ASSERT(parent);

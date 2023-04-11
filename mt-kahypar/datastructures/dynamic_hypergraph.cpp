@@ -155,12 +155,8 @@ void DynamicHypergraph::uncontract(const Batch& batch,
           // This part is only triggered once for each hyperedge per batch uncontraction.
           // It restores all pins that are part of the current batch as contraction partners
           // in hyperedge e
-          restoreHyperedgeSizeForBatch(e, batch_index);
+          restoreHyperedgeSizeForBatch(e, batch_index, case_one_func);
         }
-
-        acquireHyperedge(e);
-        case_one_func(memento.u, memento.v, e);
-        releaseHyperedge(e);
       }, [&](const HyperedgeID e) {
         // In that case only v was part of hyperedge e before and
         // u must be replaced by v in hyperedge e
@@ -667,23 +663,26 @@ void DynamicHypergraph::contractHyperedge(const HypernodeID u,
 }
 
 // ! Restore the size of the hyperedge to the size before the batch with
-// ! index batch_index was contracted.
+// ! index batch_index was contracted. After each size increment, we call case_one_func
+// ! that triggers updates in the partitioned hypergraph and gain cache
 void DynamicHypergraph::restoreHyperedgeSizeForBatch(const HyperedgeID he,
-                                                     const HypernodeID batch_index) {
+                                                     const HypernodeID batch_index,
+                                                     const UncontractionFunction& case_one_func) {
   const size_t first_invalid_entry = hyperedge(he).firstInvalidEntry();
   const size_t last_invalid_entry = hyperedge(he + 1).firstEntry();
-  const size_t edge_size = edgeSize(he);
   ASSERT(hypernode(_incidence_array[first_invalid_entry]).batchIndex() == batch_index);
-  size_t pos = first_invalid_entry + 1;
-  for ( ; pos < last_invalid_entry; ++pos ) {
+  for ( size_t pos = first_invalid_entry; pos < last_invalid_entry; ++pos ) {
     const HypernodeID pin = _incidence_array[pos];
     ASSERT(hypernode(pin).batchIndex() <= batch_index, V(he));
     if ( hypernode(pin).batchIndex() != batch_index ) {
       break;
     }
+    const HypernodeID rep = _contraction_tree.parent(pin);
+    acquireHyperedge(he);
+    hyperedge(he).incrementSize();
+    case_one_func(rep, pin, he);
+    releaseHyperedge(he);
   }
-  const size_t size_delta = pos - first_invalid_entry;
-  hyperedge(he).setSize(edge_size + size_delta);
 }
 
 // ! Search for the position of pin u in hyperedge he in the incidence array

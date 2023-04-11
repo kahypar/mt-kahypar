@@ -29,12 +29,12 @@
 #include <set>
 
 #include "mt-kahypar/definitions.h"
+#include "mt-kahypar/partition/refinement/gains/gain_cache_ptr.h"
 #include "mt-kahypar/partition/metrics.h"
 #include "mt-kahypar/utils/randomize.h"
 
 namespace mt_kahypar {
 namespace ds {
-
 
 template<typename Hypergraph>
 void verifyEqualityOfHypergraphs(const Hypergraph& e_hypergraph,
@@ -110,8 +110,9 @@ HyperedgeWeight compute_km1(PartitionedHypergraph& partitioned_hypergraph) {
   return PartitionedHypergraph::is_graph ? km1 / 2 : km1;
 }
 
-template<typename PartitionedHypergraph>
-void verifyGainCache(PartitionedHypergraph& partitioned_hypergraph) {
+template<typename PartitionedHypergraph, typename GainCache>
+void verifyGainCache(PartitionedHypergraph& partitioned_hypergraph,
+                     GainCache& gain_cache) {
   const PartitionID k = partitioned_hypergraph.k();
   utils::Randomize& rand = utils::Randomize::instance();
   HyperedgeWeight km1_before = compute_km1(partitioned_hypergraph);
@@ -120,8 +121,8 @@ void verifyGainCache(PartitionedHypergraph& partitioned_hypergraph) {
     const PartitionID from = partitioned_hypergraph.partID(hn);
     PartitionID to = rand.getRandomInt(0, k - 1, SCHED_GETCPU);
     if ( from == to ) to = (to + 1) % k;
-    expected_gain += partitioned_hypergraph.km1Gain(hn, from, to);
-    partitioned_hypergraph.changeNodePartWithGainCacheUpdate(hn, from, to);
+    expected_gain += gain_cache.gain(hn, from, to);
+    partitioned_hypergraph.changeNodePart(gain_cache, hn, from, to);
   }
   HyperedgeWeight km1_after = compute_km1(partitioned_hypergraph);
   ASSERT_EQ(expected_gain, km1_before - km1_after) << V(expected_gain) << V(km1_before) << V(km1_after);
@@ -218,9 +219,10 @@ void generateRandomPartition(PartitionedHypergraph& partitioned_hypergraph) {
   });
 }
 
-template<typename Hypergraph, typename PartitionedHypergraph>
+template<typename Hypergraph, typename PartitionedHypergraph, typename GainCache>
 Hypergraph simulateNLevel(Hypergraph& hypergraph,
                           PartitionedHypergraph& partitioned_hypergraph,
+                          GainCache& gain_cache,
                           const BatchVector& contraction_batches,
                           const size_t batch_size,
                           const bool parallel,
@@ -297,7 +299,7 @@ Hypergraph simulateNLevel(Hypergraph& hypergraph,
   timer.stop_timer(timer_key("initialize_partition"));
 
   timer.start_timer(timer_key("initialize_gain_cache"), "Initialize Initialize Gain Cache");
-  partitioned_hypergraph.initializeGainCache();
+  gain_cache.initializeGainCache(partitioned_hypergraph);
   timer.stop_timer(timer_key("initialize_gain_cache"));
 
   timer.stop_timer(timer_key("initial_partition"));
@@ -313,7 +315,7 @@ Hypergraph simulateNLevel(Hypergraph& hypergraph,
     while ( !batches.empty() ) {
       const Batch& batch = batches.back();
       if ( !batch.empty() ) {
-        partitioned_hypergraph.uncontract(batch);
+        partitioned_hypergraph.uncontract(batch, gain_cache);
       }
       batches.pop_back();
     }
@@ -321,7 +323,7 @@ Hypergraph simulateNLevel(Hypergraph& hypergraph,
 
     if ( !removed_hyperedges.empty() ) {
       timer.start_timer(timer_key("restore_parallel_nets"), "Restore Parallel Nets");
-      partitioned_hypergraph.restoreSinglePinAndParallelNets(removed_hyperedges.back());
+      partitioned_hypergraph.restoreSinglePinAndParallelNets(removed_hyperedges.back(), gain_cache);
       removed_hyperedges.pop_back();
       timer.stop_timer(timer_key("restore_parallel_nets"));
     }
@@ -358,14 +360,16 @@ TEST(ANlevelHypergraph, SimulatesContractionsAndBatchUncontractions) {
 
   if ( debug ) LOG << "Simulate n-Level sequentially";
   timer.start_timer("sequential_n_level", "Sequential n-Level");
+  Km1GainCache gain_cache_seq;
   Hypergraph coarsest_sequential_hg = simulateNLevel(
-    sequential_hg, sequential_phg, contractions, 1, false, timer);
+    sequential_hg, sequential_phg, gain_cache_seq, contractions, 1, false, timer);
   timer.stop_timer("sequential_n_level");
 
   if ( debug ) LOG << "Simulate n-Level in parallel";
   timer.start_timer("parallel_n_level", "Parallel n-Level");
+  Km1GainCache gain_cache_par;
   Hypergraph coarsest_parallel_hg = simulateNLevel(
-    parallel_hg, parallel_phg, contractions, batch_size, true, timer);
+    parallel_hg, parallel_phg, gain_cache_par, contractions, batch_size, true, timer);
   timer.stop_timer("parallel_n_level");
 
   if ( debug ) LOG << "Verify equality of hypergraphs";
@@ -374,8 +378,8 @@ TEST(ANlevelHypergraph, SimulatesContractionsAndBatchUncontractions) {
   verifyEqualityOfHypergraphs(original_hypergraph, parallel_hg);
 
   if ( debug ) LOG << "Verify gain cache of hypergraphs";
-  verifyGainCache(sequential_phg);
-  verifyGainCache(parallel_phg);
+  verifyGainCache(sequential_phg, gain_cache_seq);
+  verifyGainCache(parallel_phg, gain_cache_par);
 
   if ( debug ) LOG << "Verify number of incident cut hyperedges";
   verifyNumIncidentCutHyperedges(sequential_phg);
@@ -475,14 +479,16 @@ TEST(ANlevelGraph, SimulatesContractionsAndBatchUncontractions) {
 
   if ( debug ) LOG << "Simulate n-Level sequentially";
   timer.start_timer("sequential_n_level", "Sequential n-Level");
+  GraphCutGainCache gain_cache_seq;
   Hypergraph coarsest_sequential_hg = simulateNLevel(
-    sequential_hg, sequential_phg, contractions, 1, false, timer);
+    sequential_hg, sequential_phg, gain_cache_seq, contractions, 1, false, timer);
   timer.stop_timer("sequential_n_level");
 
   if ( debug ) LOG << "Simulate n-Level in parallel";
   timer.start_timer("parallel_n_level", "Parallel n-Level");
+  GraphCutGainCache gain_cache_par;
   Hypergraph coarsest_parallel_hg = simulateNLevel(
-    parallel_hg, parallel_phg, contractions, batch_size, true, timer);
+    parallel_hg, parallel_phg, gain_cache_par, contractions, batch_size, true, timer);
   timer.stop_timer("parallel_n_level");
 
   if ( debug ) LOG << "Verify equality of hypergraphs";
@@ -491,8 +497,8 @@ TEST(ANlevelGraph, SimulatesContractionsAndBatchUncontractions) {
   verifyEqualityOfHypergraphs(original_hypergraph, parallel_hg);
 
   if ( debug ) LOG << "Verify gain cache of hypergraphs";
-  verifyGainCache(sequential_phg);
-  verifyGainCache(parallel_phg);
+  verifyGainCache(sequential_phg, gain_cache_seq);
+  verifyGainCache(parallel_phg, gain_cache_par);
 
   if ( debug ) LOG << "Verify number of incident cut hyperedges";
   verifyNumIncidentCutHyperedges(sequential_phg);

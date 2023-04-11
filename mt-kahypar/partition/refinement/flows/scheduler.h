@@ -31,6 +31,7 @@
 #include "mt-kahypar/partition/refinement/flows/quotient_graph.h"
 #include "mt-kahypar/partition/refinement/flows/refiner_adapter.h"
 #include "mt-kahypar/partition/refinement/flows/problem_construction.h"
+#include "mt-kahypar/partition/refinement/gains/gain_cache_ptr.h"
 #include "mt-kahypar/parallel/atomic_wrapper.h"
 #include "mt-kahypar/utils/utilities.h"
 
@@ -53,7 +54,7 @@ namespace {
   }
 }
 
-template<typename TypeTraits>
+template<typename TypeTraits, typename GainCache>
 class FlowRefinementScheduler final : public IRefiner {
 
   static constexpr bool debug = false;
@@ -139,11 +140,13 @@ class FlowRefinementScheduler final : public IRefiner {
   }
 
 public:
-  explicit FlowRefinementScheduler(const HypernodeID num_hypernodes,
-                                   const HyperedgeID num_hyperedges,
-                                   const Context& context) :
+  FlowRefinementScheduler(const HypernodeID num_hypernodes,
+                          const HyperedgeID num_hyperedges,
+                          const Context& context,
+                          GainCache& gain_cache) :
     _phg(nullptr),
     _context(context),
+    _gain_cache(gain_cache),
     _current_k(context.partition.k),
     _quotient_graph(num_hyperedges, context),
     _refiner(num_hyperedges, context),
@@ -154,6 +157,13 @@ public:
     _max_part_weights(context.partition.k, 0),
     _stats(utils::Utilities::instance().getStats(context.utility_id)),
     _apply_moves_lock() { }
+
+  FlowRefinementScheduler(const HypernodeID num_hypernodes,
+                          const HyperedgeID num_hyperedges,
+                          const Context& context,
+                          gain_cache_t gain_cache) :
+    FlowRefinementScheduler(num_hypernodes, num_hyperedges, context,
+      GainCachePtr::cast<GainCache>(gain_cache)) { }
 
   FlowRefinementScheduler(const FlowRefinementScheduler&) = delete;
   FlowRefinementScheduler(FlowRefinementScheduler&&) = delete;
@@ -204,6 +214,7 @@ private:
 
   PartitionedHypergraph* _phg;
   const Context& _context;
+  GainCache& _gain_cache;
   PartitionID _current_k;
 
   // ! Contains information of all cut hyperedges between the

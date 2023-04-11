@@ -35,6 +35,7 @@ namespace mt_kahypar {
 struct PartitioningParameters {
   Mode mode = Mode::UNDEFINED;
   Objective objective = Objective::UNDEFINED;
+  GainPolicy gain_policy = GainPolicy::none;
   FileFormat file_format = FileFormat::hMetis;
   InstanceType instance_type = InstanceType::hypergraph;
   PresetType preset_type = PresetType::UNDEFINED;

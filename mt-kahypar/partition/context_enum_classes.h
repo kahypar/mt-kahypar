@@ -143,11 +143,15 @@ enum class LabelPropagationAlgorithm : uint8_t {
 };
 
 enum class FMAlgorithm : uint8_t {
-  fm_gain_cache,
-  fm_gain_cache_on_demand,
-  fm_gain_delta,
-  fm_recompute_gain,
+  kway_fm,
   do_nothing
+};
+
+enum class GainPolicy : uint8_t {
+  km1,
+  cut,
+  ENABLE_GRAPHS(cut_for_graphs COMMA)
+  none
 };
 
 enum class FlowAlgorithm : uint8_t {
@@ -189,6 +193,8 @@ std::ostream & operator<< (std::ostream& os, const InitialPartitioningAlgorithm&
 std::ostream & operator<< (std::ostream& os, const LabelPropagationAlgorithm& algo);
 
 std::ostream & operator<< (std::ostream& os, const FMAlgorithm& algo);
+
+std::ostream & operator<< (std::ostream& os, const GainPolicy& type);
 
 std::ostream & operator<< (std::ostream& os, const FlowAlgorithm& algo);
 

@@ -33,6 +33,7 @@
 
 #include "tests/definitions.h"
 #include "mt-kahypar/io/hypergraph_factory.h"
+#include "mt-kahypar/partition/refinement/gains/km1/km1_gain_cache.h"
 
 using ::testing::Test;
 
@@ -49,12 +50,14 @@ class AGainUpdate : public Test {
   AGainUpdate() :
     hg(io::readInputFile<Hypergraph>(
       "../tests/instances/twocenters.hgr", FileFormat::hMetis, true)),
-    phg() {
+    phg(),
+    gain_cache() {
     phg = PartitionedHypergraph(2, hg);
   }
 
   Hypergraph hg;
   PartitionedHypergraph phg;
+  Km1GainCache gain_cache;
 };
 
 TYPED_TEST_CASE(AGainUpdate, tests::HypergraphTestTypeTraits);
@@ -75,25 +78,25 @@ TYPED_TEST(AGainUpdate, Example1) {
   ASSERT_EQ(this->phg.partWeight(0), this->phg.partWeight(1));
   ASSERT_EQ(this->phg.partWeight(0), 10);
 
-  this->phg.initializeGainCache();
-  ASSERT_EQ(this->phg.km1Gain(0, this->phg.partID(0), 1), -1);
-  ASSERT_EQ(this->phg.moveFromPenalty(0), 2);
-  ASSERT_EQ(this->phg.moveToBenefit(0, 1), 1);
+  this->gain_cache.initializeGainCache(this->phg);
+  ASSERT_EQ(this->gain_cache.gain(0, this->phg.partID(0), 1), -1);
+  ASSERT_EQ(this->gain_cache.penaltyTerm(0, kInvalidPartition), 2);
+  ASSERT_EQ(this->gain_cache.benefitTerm(0, 1), 1);
 
-  ASSERT_EQ(this->phg.km1Gain(2, this->phg.partID(2), 0), -1);
+  ASSERT_EQ(this->gain_cache.gain(2, this->phg.partID(2), 0), -1);
 
-  ASSERT_EQ(this->phg.km1Gain(4, this->phg.partID(4), 1), -1);
-  ASSERT_EQ(this->phg.km1Gain(6, this->phg.partID(6), 1), -2);
+  ASSERT_EQ(this->gain_cache.gain(4, this->phg.partID(4), 1), -1);
+  ASSERT_EQ(this->gain_cache.gain(6, this->phg.partID(6), 1), -2);
 
-  ASSERT_EQ(this->phg.km1Gain(12, this->phg.partID(12), 0), -1);
-  ASSERT_EQ(this->phg.km1Gain(14, this->phg.partID(14), 0), -2);
+  ASSERT_EQ(this->gain_cache.gain(12, this->phg.partID(12), 0), -1);
+  ASSERT_EQ(this->gain_cache.gain(14, this->phg.partID(14), 0), -2);
 
-    this->phg.changeNodePartWithGainCacheUpdate(8, 0, 1);
+  this->phg.changeNodePart(this->gain_cache, 8, 0, 1);
 
-  this->phg.recomputeMoveFromPenalty(8);  // nodes are allowed to move once before moveFromPenalty must be recomputed
-  ASSERT_EQ(this->phg.km1Gain(8, 1, 0), 2);
+  this->gain_cache.recomputePenaltyTermEntry(this->phg, 8);  // nodes are allowed to move once before moveFromPenalty must be recomputed
+  ASSERT_EQ(this->gain_cache.gain(8, 1, 0), 2);
 
-  ASSERT_EQ(this->phg.km1Gain(6, 0, 1), 0);
+  ASSERT_EQ(this->gain_cache.gain(6, 0, 1), 0);
 }
 
 

@@ -33,37 +33,46 @@
 #include "mt-kahypar/partition/refinement/i_refiner.h"
 #include "mt-kahypar/partition/refinement/fm/localized_kway_fm_core.h"
 #include "mt-kahypar/partition/refinement/fm/global_rollback.h"
-
-
+#include "mt-kahypar/partition/refinement/gains/gain_cache_ptr.h"
 
 namespace mt_kahypar {
 
-template<typename TypeTraits, typename FMStrategy>
+template<typename TypeTraits, typename GainCache>
 class MultiTryKWayFM final : public IRefiner {
 
   static constexpr bool debug = false;
   static constexpr bool enable_heavy_assert = false;
 
+  static_assert(GainCache::TYPE != GainPolicy::none);
+
   using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
-  using LocalizedFMSearch = LocalizedKWayFM<TypeTraits, FMStrategy>;
-  using Rollback = GlobalRollback<TypeTraits, FMStrategy::maintain_gain_cache_between_rounds>;
+  using LocalizedFMSearch = LocalizedKWayFM<TypeTraits, GainCache>;
+  using Rollback = GlobalRollback<TypeTraits, GainCache>;
 
  public:
 
   MultiTryKWayFM(const HypernodeID num_hypernodes,
                  const HyperedgeID num_hyperedges,
-                 const Context& c) :
+                 const Context& c,
+                 GainCache& gainCache) :
     initial_num_nodes(num_hypernodes),
     context(c),
+    gain_cache(gainCache),
     current_k(c.partition.k),
-    sharedData(num_hypernodes, context),
-    globalRollback(num_hyperedges, context),
-    ets_fm([&] { return constructLocalizedKWayFMSearch(); })
-  {
+    sharedData(num_hypernodes),
+    globalRollback(num_hyperedges, context, gainCache),
+    ets_fm([&] { return constructLocalizedKWayFMSearch(); }) {
     if (context.refinement.fm.obey_minimal_parallelism) {
       sharedData.finishedTasksLimit = std::min(UL(8), context.shared_memory.num_threads);
     }
   }
+
+  MultiTryKWayFM(const HypernodeID num_hypernodes,
+                 const HyperedgeID num_hyperedges,
+                 const Context& c,
+                 gain_cache_t gainCache) :
+    MultiTryKWayFM(num_hypernodes, num_hyperedges, c,
+      GainCachePtr::cast<GainCache>(gainCache)) { }
 
   void printMemoryConsumption();
 
@@ -80,7 +89,7 @@ class MultiTryKWayFM final : public IRefiner {
 
 
   LocalizedFMSearch constructLocalizedKWayFMSearch() {
-    return LocalizedFMSearch(context, initial_num_nodes, sharedData);
+    return LocalizedFMSearch(context, initial_num_nodes, sharedData, gain_cache);
   }
 
   static double improvementFraction(Gain gain, HyperedgeWeight old_km1) {
@@ -96,6 +105,7 @@ class MultiTryKWayFM final : public IRefiner {
   bool enable_light_fm = false;
   const HypernodeID initial_num_nodes;
   const Context& context;
+  GainCache& gain_cache;
   PartitionID current_k;
   FMSharedData sharedData;
   Rollback globalRollback;

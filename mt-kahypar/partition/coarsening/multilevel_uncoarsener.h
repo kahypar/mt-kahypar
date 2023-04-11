@@ -74,6 +74,10 @@ class MultilevelUncoarsener : public IUncoarsener<TypeTraits>,
 
   void rebalancingImpl() override;
 
+  gain_cache_t getGainCacheImpl() override {
+    return _gain_cache;
+  }
+
   HyperedgeWeight getObjectiveImpl() const override;
 
   void updateMetricsImpl() override;
@@ -87,6 +91,7 @@ class MultilevelUncoarsener : public IUncoarsener<TypeTraits>,
   using Base::_hg;
   using Base::_context;
   using Base::_uncoarseningData;
+  using Base::_gain_cache;
   using Base::_label_propagation;
   using Base::_fm;
   using Base::_flows;

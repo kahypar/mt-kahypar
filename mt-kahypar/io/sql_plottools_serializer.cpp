@@ -50,6 +50,7 @@ std::string serialize(const PartitionedHypergraph& hypergraph,
         << " numHEs=" << (PartitionedHypergraph::is_graph ? hypergraph.initialNumEdges() / 2 : hypergraph.initialNumEdges())
         << " mode=" << context.partition.mode
         << " objective=" << context.partition.objective
+        << " gain_policy=" << context.partition.gain_policy
         << " file_format=" << context.partition.file_format
         << " partition_type=" << context.partition.partition_type
         << " k=" << context.partition.k

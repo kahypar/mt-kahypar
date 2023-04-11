@@ -92,6 +92,7 @@ public:
     context.refinement.deterministic_refinement.recalculate_gains_on_second_apply = false;
 
     context.partition.objective = Objective::km1;
+    context.partition.gain_policy = GainPolicy::km1;
 
     // Read hypergraph
     hypergraph = io::readInputFile<Hypergraph>(

@@ -72,15 +72,9 @@ namespace mt_kahypar {
     _uncoarseningData.partitioned_hg->initializePartition();
 
     // Initialize Gain Cache
-    if ( _context.refinement.fm.algorithm == FMAlgorithm::fm_gain_cache
-        #ifdef KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES
-        || _context.refinement.fm.algorithm == FMAlgorithm::fm_gain_cache_on_demand
-        #endif
-        ) {
-      _uncoarseningData.partitioned_hg->allocateGainTableIfNecessary();
-      if ( _context.refinement.fm.algorithm == FMAlgorithm::fm_gain_cache ) {
-        _uncoarseningData.partitioned_hg->initializeGainCache();
-      }
+    if ( _context.refinement.fm.algorithm == FMAlgorithm::kway_fm ) {
+      GainCachePtr::initializeGainCache(
+        *_uncoarseningData.partitioned_hg, _gain_cache);
     }
 
     ASSERT(metrics::objective(*_uncoarseningData.compactified_phg, _context.partition.objective) ==
@@ -144,11 +138,11 @@ namespace mt_kahypar {
 
         // Performs batch uncontraction operation
         _timer.start_timer("batch_uncontractions", "Batch Uncontractions", false, _force_measure_timings);
-        _uncoarseningData.partitioned_hg->uncontract(batch);
+        GainCachePtr::uncontract(*_uncoarseningData.partitioned_hg, batch, _gain_cache);
         _timer.stop_timer("batch_uncontractions", _force_measure_timings);
 
         HEAVY_REFINEMENT_ASSERT(_hg.verifyIncidenceArrayAndIncidentNets());
-        HEAVY_REFINEMENT_ASSERT(_uncoarseningData.partitioned_hg->checkTrackedPartitionInformation());
+        HEAVY_REFINEMENT_ASSERT(GainCachePtr::checkTrackedPartitionInformation(*_uncoarseningData.partitioned_hg, _gain_cache));
         HEAVY_REFINEMENT_ASSERT(metrics::objective(*_uncoarseningData.partitioned_hg, _context.partition.objective) ==
                                 _current_metrics.getMetric(Mode::direct, _context.partition.objective),
                                 V(_current_metrics.getMetric(Mode::direct, _context.partition.objective)) <<
@@ -195,12 +189,12 @@ namespace mt_kahypar {
     // Restore single-pin and identical nets
     if ( !_uncoarseningData.removed_hyperedges_batches.empty() ) {
       _timer.start_timer("restore_single_pin_and_parallel_nets", "Restore Single Pin and Parallel Nets", false, _force_measure_timings);
-      _uncoarseningData.partitioned_hg->restoreSinglePinAndParallelNets(
-        _uncoarseningData.removed_hyperedges_batches.back());
+      GainCachePtr::restoreSinglePinAndParallelNets(*_uncoarseningData.partitioned_hg,
+        _uncoarseningData.removed_hyperedges_batches.back(), _gain_cache);
       _uncoarseningData.removed_hyperedges_batches.pop_back();
       _timer.stop_timer("restore_single_pin_and_parallel_nets", _force_measure_timings);
       HEAVY_REFINEMENT_ASSERT(_hg.verifyIncidenceArrayAndIncidentNets());
-      HEAVY_REFINEMENT_ASSERT(_uncoarseningData.partitioned_hg->checkTrackedPartitionInformation());
+      HEAVY_REFINEMENT_ASSERT(GainCachePtr::checkTrackedPartitionInformation(*_uncoarseningData.partitioned_hg, _gain_cache));
 
       // After restoring all single-pin and identical-nets, we perform an additional
       // refinement step on all border nodes.
@@ -324,8 +318,9 @@ namespace mt_kahypar {
 
     if ( debug && _context.type == ContextType::main ) {
       io::printHypergraphInfo(partitioned_hypergraph.hypergraph(), "Refinement Hypergraph", false);
-      DBG << "Start Refinement - km1 = " << _current_metrics.km1
-      << ", imbalance = " << _current_metrics.imbalance;
+      DBG << "Start Refinement - objective = "
+          << _current_metrics.getMetric(Mode::direct, _context.partition.objective)
+          << ", imbalance = " << _current_metrics.imbalance;
     }
 
     bool improvement_found = true;
@@ -348,9 +343,11 @@ namespace mt_kahypar {
       }
 
       if ( _context.type == ContextType::main ) {
-        ASSERT(_current_metrics.km1 == metrics::km1(partitioned_hypergraph),
-               "Actual metric" << V(metrics::km1(partitioned_hypergraph))
-               << "does not match the metric updated by the refiners" << V(_current_metrics.km1));
+        ASSERT(_current_metrics.getMetric(Mode::direct, _context.partition.objective) ==
+          metrics::objective(partitioned_hypergraph, _context.partition.objective),
+            "Actual metric" << V(metrics::objective(partitioned_hypergraph, _context.partition.objective))
+            << "does not match the metric updated by the refiners"
+            << V(_current_metrics.getMetric(Mode::direct, _context.partition.objective)));
       }
 
       if ( !_context.refinement.refine_until_no_improvement ) {
@@ -379,8 +376,9 @@ namespace mt_kahypar {
     if ( _context.refinement.global_fm.use_global_fm ) {
       if ( debug && _context.type == ContextType::main ) {
         io::printHypergraphInfo(partitioned_hypergraph.hypergraph(), "Refinement Hypergraph", false);
-        DBG << "Start Refinement - km1 = " << _current_metrics.km1
-        << ", imbalance = " << _current_metrics.imbalance;
+        DBG << "Start Refinement - objective = "
+            << _current_metrics.getMetric(Mode::direct, _context.partition.objective)
+            << ", imbalance = " << _current_metrics.imbalance;
       }
 
       // Enable Timings
@@ -419,9 +417,11 @@ namespace mt_kahypar {
         }
 
         if ( _context.type == ContextType::main ) {
-          ASSERT(_current_metrics.km1 == metrics::km1(partitioned_hypergraph),
-                 "Actual metric" << V(metrics::km1(partitioned_hypergraph))
-                 << "does not match the metric updated by the refiners" << V(_current_metrics.km1));
+          ASSERT(_current_metrics.getMetric(Mode::direct, _context.partition.objective) ==
+            metrics::objective(partitioned_hypergraph, _context.partition.objective),
+              "Actual metric" << V(metrics::objective(partitioned_hypergraph, _context.partition.objective))
+              << "does not match the metric updated by the refiners"
+              << V(_current_metrics.getMetric(Mode::direct, _context.partition.objective)));
         }
 
         const HyperedgeWeight metric_after = _current_metrics.getMetric(

@@ -40,11 +40,11 @@ namespace {
   using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
 }
 
-template <template <typename> class GainPolicy, PartitionID K>
+template <template <typename> class GainComputationPolicy, PartitionID K>
 class AGainPolicy : public Test {
  public:
   using HypergraphFactory = typename Hypergraph::Factory;
-  using GainCalculator = GainPolicy<PartitionedHypergraph>;
+  using GainCalculator = GainComputationPolicy<PartitionedHypergraph>;
 
   AGainPolicy() :
     hg(HypergraphFactory::construct(7 , 4, { {0, 2}, {0, 1, 3, 4}, {3, 4, 6}, {2, 5, 6} })),

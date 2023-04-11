@@ -810,6 +810,15 @@ class DynamicGraph {
     _acquired_nodes[u] = false;
   }
 
+  // ####################### Iterators #######################
+
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
+  IteratorRange<IncidentNetsIterator> incident_nets_of(const HypernodeID u,
+                                                       const size_t pos = 0) const {
+    ASSERT(u < numNodes(), "Hypernode" << u << "does not exist");
+    return _adjacency_array.incidentEdges(u, pos);
+  }
+
   // ####################### Hypernode Information #######################
 
   // ! Accessor for hypernode-related information

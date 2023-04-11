@@ -36,6 +36,7 @@
 #include "mt-kahypar/io/hypergraph_factory.h"
 
 #include "mt-kahypar/partition/refinement/fm/global_rollback.h"
+#include "mt-kahypar/partition/refinement/gains/km1/km1_gain_cache.h"
 
 #include "mt-kahypar/partition/metrics.h"
 
@@ -55,7 +56,6 @@ TEST(RollbackTests, GainRecalculationAndRollsbackCorrectly) {
     "../tests/instances/twocenters.hgr", FileFormat::hMetis, true);
   PartitionID k = 2;
 
-
   PartitionedHypergraph phg(k, hg);
   phg.setNodePart(0, 1);
   phg.setNodePart(1, 1);
@@ -67,7 +67,8 @@ TEST(RollbackTests, GainRecalculationAndRollsbackCorrectly) {
   for (HypernodeID u = 12; u < 20; ++u) {
     phg.setNodePart(u, 1);
   }
-  phg.initializeGainCache();
+  Km1GainCache gain_cache;
+  gain_cache.initializeGainCache(phg);
 
   Context context;
   context.partition.k = k;
@@ -76,27 +77,28 @@ TEST(RollbackTests, GainRecalculationAndRollsbackCorrectly) {
   context.refinement.fm.rollback_balance_violation_factor = 0.0;
 
 
-  FMSharedData sharedData(hg.initialNumNodes(), context);
+  FMSharedData sharedData(hg.initialNumNodes());
 
-  GlobalRollback<TypeTraits, true> grb(hg.initialNumEdges(), context);
+  GlobalRollback<TypeTraits, Km1GainCache> grb(
+    hg.initialNumEdges(), context, gain_cache);
   auto performMove = [&](Move m) {
-    if (phg.changeNodePartWithGainCacheUpdate(m.node, m.from, m.to)) {
+    if (phg.changeNodePart(gain_cache, m.node, m.from, m.to)) {
       sharedData.moveTracker.insertMove(m);
     }
   };
 
-  ASSERT_EQ(3, phg.km1Gain(0, 1, 0));
+  ASSERT_EQ(3, gain_cache.gain(0, 1, 0));
   performMove({1, 0,  0,  3});
-  ASSERT_EQ(3, phg.km1Gain(1, 1, 0));
+  ASSERT_EQ(3, gain_cache.gain(1, 1, 0));
   performMove({1, 0,  1,  3});
-  ASSERT_EQ(1, phg.km1Gain(2, 0, 1));
+  ASSERT_EQ(1, gain_cache.gain(2, 0, 1));
   performMove({0, 1,  2,  1});
-  ASSERT_EQ(1, phg.km1Gain(3, 0, 1));
+  ASSERT_EQ(1, gain_cache.gain(3, 0, 1));
   performMove({0, 1,  3,  1});
 
-  ASSERT_EQ(phg.km1Gain(4, 0, 1), -1);
+  ASSERT_EQ(gain_cache.gain(4, 0, 1), -1);
   performMove({0, 1, 4, -1});
-  ASSERT_EQ(phg.km1Gain(5, 0, 1), 0);
+  ASSERT_EQ(gain_cache.gain(5, 0, 1), 0);
   performMove({0, 1, 5, 0});
 
   vec<HypernodeWeight> dummy_part_weights(k, 0);
@@ -123,7 +125,8 @@ TEST(RollbackTests, GainRecalculation2) {
   for (HypernodeID u = 12; u < 20; ++u) {
     phg.setNodePart(u, 1);
   }
-  phg.initializeGainCache();
+  Km1GainCache gain_cache;
+  gain_cache.initializeGainCache(phg);
 
   Context context;
   context.partition.k = k;
@@ -131,9 +134,10 @@ TEST(RollbackTests, GainRecalculation2) {
   context.partition.max_part_weights = { std::numeric_limits<HypernodeWeight>::max(), std::numeric_limits<HypernodeWeight>::max()};
   context.refinement.fm.rollback_balance_violation_factor = 0.0;
 
-  FMSharedData sharedData(hg.initialNumNodes(), context);
+  FMSharedData sharedData(hg.initialNumNodes());
 
-  GlobalRollback<TypeTraits, true> grb(hg.initialNumEdges(), context);
+  GlobalRollback<TypeTraits, Km1GainCache> grb(
+    hg.initialNumEdges(), context, gain_cache);
 
   auto performUpdates = [&](Move& m) {
    sharedData.moveTracker.insertMove(m);
@@ -141,13 +145,13 @@ TEST(RollbackTests, GainRecalculation2) {
 
   vec<Gain> expected_gains = { 3, 1 };
 
-  ASSERT_EQ(phg.km1Gain(2, 0, 1), 3);
+  ASSERT_EQ(gain_cache.gain(2, 0, 1), 3);
   Move move_2 = { 0, 1, 2, 3 };
-  phg.changeNodePartWithGainCacheUpdate(move_2.node, move_2.from, move_2.to);
+  phg.changeNodePart(gain_cache, move_2.node, move_2.from, move_2.to);
 
-  ASSERT_EQ(phg.km1Gain(0, 1, 0), 1);
+  ASSERT_EQ(gain_cache.gain(0, 1, 0), 1);
   Move move_0 = { 1, 0, 0, 1 };
-  phg.changeNodePartWithGainCacheUpdate(move_0.node, move_0.from, move_0.to);
+  phg.changeNodePart(gain_cache, move_0.node, move_0.from, move_0.to);
 
   performUpdates(move_0);
   performUpdates(move_2);

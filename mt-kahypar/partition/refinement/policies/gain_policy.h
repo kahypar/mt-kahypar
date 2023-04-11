@@ -43,14 +43,14 @@ namespace mt_kahypar {
 
 template <class Derived = Mandatory,
           class HyperGraph = Mandatory>
-class GainPolicy : public kahypar::meta::PolicyBase {
+class GainComputationPolicy : public kahypar::meta::PolicyBase {
   using DeltaGain = tbb::enumerable_thread_specific<Gain>;
 
  public:
   using RatingMap = ds::SparseMap<PartitionID, Gain>;
   using TmpScores = tbb::enumerable_thread_specific<RatingMap>;
 
-  GainPolicy(const Context& context) :
+  GainComputationPolicy(const Context& context) :
     _context(context),
     _deltas(0),
     _tmp_scores(context.partition.k) { }
@@ -111,8 +111,8 @@ class GainPolicy : public kahypar::meta::PolicyBase {
 };
 
 template <class HyperGraph = Mandatory>
-class Km1Policy : public GainPolicy<Km1Policy<HyperGraph>, HyperGraph> {
-  using Base = GainPolicy<Km1Policy<HyperGraph>, HyperGraph>;
+class Km1Policy : public GainComputationPolicy<Km1Policy<HyperGraph>, HyperGraph> {
+  using Base = GainComputationPolicy<Km1Policy<HyperGraph>, HyperGraph>;
   using RatingMap = typename Base::RatingMap;
 
   static constexpr bool enable_heavy_assert = false;
@@ -216,8 +216,7 @@ class Km1Policy : public GainPolicy<Km1Policy<HyperGraph>, HyperGraph> {
                                            const HypernodeID pin_count_in_from_part_after,
                                            const HypernodeID pin_count_in_to_part_after) {
     _deltas.local() += km1Delta(he, edge_weight, edge_size,
-                                            pin_count_in_from_part_after,
-                                            pin_count_in_to_part_after);
+      pin_count_in_from_part_after, pin_count_in_to_part_after);
   }
 
   using Base::_context;
@@ -227,8 +226,8 @@ class Km1Policy : public GainPolicy<Km1Policy<HyperGraph>, HyperGraph> {
 };
 
 template <class HyperGraph = Mandatory>
-class CutPolicy : public GainPolicy<CutPolicy<HyperGraph>, HyperGraph> {
-  using Base = GainPolicy<CutPolicy<HyperGraph>, HyperGraph>;
+class CutPolicy : public GainComputationPolicy<CutPolicy<HyperGraph>, HyperGraph> {
+  using Base = GainComputationPolicy<CutPolicy<HyperGraph>, HyperGraph>;
   using RatingMap = typename Base::RatingMap;
 
   static constexpr bool enable_heavy_assert = false;
@@ -252,8 +251,7 @@ class CutPolicy : public GainPolicy<CutPolicy<HyperGraph>, HyperGraph> {
       PartitionID connectivity = hypergraph.connectivity(he);
       HypernodeID pin_count_in_from_part = hypergraph.pinCountInPart(he, from);
       HyperedgeWeight weight = hypergraph.edgeWeight(he);
-      if (connectivity == 1) {
-        ASSERT(hypergraph.edgeSize(he) > 1);
+      if (connectivity == 1 && hypergraph.edgeSize(he) > 1) {
         // In case, the hyperedge is a non-cut hyperedge, we would increase
         // the cut, if we move vertex hn to an other block.
         internal_weight += weight;
@@ -330,8 +328,7 @@ class CutPolicy : public GainPolicy<CutPolicy<HyperGraph>, HyperGraph> {
                                            const HypernodeID pin_count_in_from_part_after,
                                            const HypernodeID pin_count_in_to_part_after) {
     _deltas.local() += cutDelta(he, edge_weight, edge_size,
-                                            pin_count_in_from_part_after,
-                                            pin_count_in_to_part_after);
+      pin_count_in_from_part_after, pin_count_in_to_part_after);
   }
 
   using Base::_context;

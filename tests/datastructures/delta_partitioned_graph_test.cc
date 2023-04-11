@@ -33,6 +33,7 @@
 #include "mt-kahypar/datastructures/hypergraph_common.h"
 #include "mt-kahypar/datastructures/partitioned_graph.h"
 #include "mt-kahypar/datastructures/delta_partitioned_graph.h"
+#include "mt-kahypar/partition/refinement/gains/cut_for_graphs/cut_gain_cache_for_graphs.h"
 
 using ::testing::Test;
 
@@ -44,8 +45,9 @@ class ADeltaPartitionedGraph : public Test {
  using Hypergraph = typename StaticGraphTypeTraits::Hypergraph;
  using HypergraphFactory = typename Hypergraph::Factory;
  using PartitionedHypergraph = typename StaticGraphTypeTraits::PartitionedHypergraph;
- using DeltaPartitionedGraph = typename StaticGraphTypeTraits::DeltaPartitionedHypergraph;
-
+ using DeltaPartitionedGraph = typename PartitionedHypergraph::DeltaPartition;
+ using GainCache = GraphCutGainCache;
+ using DeltaGainCache = typename GraphCutGainCache::DeltaGainCache;
 
  public:
 
@@ -53,8 +55,10 @@ class ADeltaPartitionedGraph : public Test {
     hg(HypergraphFactory::construct(7 , 6,
       { {1, 2}, {2, 3}, {1, 4}, {4, 5}, {4, 6}, {5, 6} }, nullptr, nullptr, true)),
     phg(3, hg, parallel_tag_t()),
-    delta_phg(),
-    context() {
+    context(),
+    gain_cache(),
+    delta_phg(nullptr),
+    delta_gain_cache(nullptr) {
     phg.setOnlyNodePart(0, 0);
     phg.setOnlyNodePart(1, 0);
     phg.setOnlyNodePart(2, 0);
@@ -63,37 +67,57 @@ class ADeltaPartitionedGraph : public Test {
     phg.setOnlyNodePart(5, 2);
     phg.setOnlyNodePart(6, 2);
     phg.initializePartition();
-    phg.initializeGainCache();
+    gain_cache.initializeGainCache(phg);
 
     context.partition.k = 3;
-    delta_phg = DeltaPartitionedGraph(context);
-    delta_phg.setPartitionedHypergraph(&phg);
+    delta_phg = std::make_unique<DeltaPartitionedGraph>(context);
+    delta_gain_cache = std::make_unique<DeltaGainCache>(gain_cache);
+    delta_phg->setPartitionedHypergraph(&phg);
   }
 
   void verifyPinCounts(const HyperedgeID he,
                        const std::vector<HypernodeID>& expected_pin_counts) {
     ASSERT(expected_pin_counts.size() == static_cast<size_t>(phg.k()));
     for (PartitionID block = 0; block < 3; ++block) {
-      ASSERT_EQ(expected_pin_counts[block], delta_phg.pinCountInPart(he, block)) << V(he) << V(block);
+      ASSERT_EQ(expected_pin_counts[block], delta_phg->pinCountInPart(he, block)) << V(he) << V(block);
     }
   }
 
-  void verifyKm1Gain(const HypernodeID hn,
-                           const std::vector<HyperedgeWeight>& expected_penalties) {
+  void verifyGain(const HypernodeID hn,
+                  const std::vector<HyperedgeWeight>& expected_penalties) {
     ASSERT(expected_penalties.size() == static_cast<size_t>(phg.k()));
     for (PartitionID block = 0; block < 3; ++block) {
-      if (block != delta_phg.partID(hn)) {
-        ASSERT_EQ(expected_penalties[block], delta_phg.km1Gain(hn, delta_phg.partID(hn), block)) << V(hn) << "; " << V(block);
+      if (block != delta_phg->partID(hn)) {
+        ASSERT_EQ(expected_penalties[block],
+          delta_gain_cache->gain(hn, delta_phg->partID(hn), block))
+          << V(hn) << "; " << V(block);
       } else {
-        ASSERT_EQ(delta_phg.moveToBenefit(hn, block), delta_phg.moveFromPenalty(hn)) << V(hn) << "; " << V(block);
+        ASSERT_EQ(delta_gain_cache->benefitTerm(hn, block),
+          delta_gain_cache->penaltyTerm(hn, delta_phg->partID(hn)))
+          << V(hn) << "; " << V(block);
       }
     }
   }
 
+  void changeNodePartWithGainCacheUpdate(const HypernodeID hn,
+                                         const PartitionID from,
+                                         const PartitionID to) {
+    auto delta_gain_update =
+      [&](const HyperedgeID he, const HyperedgeWeight edge_weight,
+          const HypernodeID, const HypernodeID pin_count_in_from_part_after,
+          const HypernodeID pin_count_in_to_part_after) {
+        delta_gain_cache->deltaGainUpdate(*delta_phg, he, edge_weight, from,
+          pin_count_in_from_part_after, to, pin_count_in_to_part_after);
+      };
+    delta_phg->changeNodePart(hn, from, to, 1000, delta_gain_update);
+  }
+
   Hypergraph hg;
   PartitionedHypergraph phg;
-  DeltaPartitionedGraph delta_phg;
   Context context;
+  GainCache gain_cache;
+  std::unique_ptr<DeltaPartitionedGraph> delta_phg;
+  std::unique_ptr<DeltaGainCache> delta_gain_cache;
 };
 
 TEST_F(ADeltaPartitionedGraph, VerifiesInitialPinCounts) {
@@ -118,19 +142,19 @@ TEST_F(ADeltaPartitionedGraph, VerifiesInitialPinCounts) {
 }
 
 TEST_F(ADeltaPartitionedGraph, VerifyInitialKm1Gain) {
-  verifyKm1Gain(0, { 0, 0, 0 });
-  verifyKm1Gain(1, { 0, 0, -1 });
-  verifyKm1Gain(2, { 0, 0, -1 });
-  verifyKm1Gain(3, { 1, 0, 0 });
-  verifyKm1Gain(4, { 1, 0, 2 });
-  verifyKm1Gain(5, { -1, 0, 0 });
-  verifyKm1Gain(6, { -1, 0, 0 });
+  verifyGain(0, { 0, 0, 0 });
+  verifyGain(1, { 0, 0, -1 });
+  verifyGain(2, { 0, 0, -1 });
+  verifyGain(3, { 1, 0, 0 });
+  verifyGain(4, { 1, 0, 2 });
+  verifyGain(5, { -1, 0, 0 });
+  verifyGain(6, { -1, 0, 0 });
 }
 
 TEST_F(ADeltaPartitionedGraph, MovesVertices) {
-  delta_phg.changeNodePartWithGainCacheUpdate(1, 0, 1, 1000);
+  changeNodePartWithGainCacheUpdate(1, 0, 1);
   ASSERT_EQ(0, phg.partID(1));
-  ASSERT_EQ(1, delta_phg.partID(1));
+  ASSERT_EQ(1, delta_phg->partID(1));
 
   // Verify Pin Counts
   verifyPinCounts(0, { 1, 1, 0 });
@@ -139,13 +163,13 @@ TEST_F(ADeltaPartitionedGraph, MovesVertices) {
   verifyPinCounts(5, { 0, 2, 0 });
 
   // Verify Move To Penalty
-  verifyKm1Gain(1, { 0, 0, -1 });
-  verifyKm1Gain(2, { 0, 2, 0 });
-  verifyKm1Gain(4, { -1, 0, 1 });
+  verifyGain(1, { 0, 0, -1 });
+  verifyGain(2, { 0, 2, 0 });
+  verifyGain(4, { -1, 0, 1 });
 
-  delta_phg.changeNodePartWithGainCacheUpdate(4, 1, 2, 1000);
+  changeNodePartWithGainCacheUpdate(4, 1, 2);
   ASSERT_EQ(1, phg.partID(4));
-  ASSERT_EQ(2, delta_phg.partID(4));
+  ASSERT_EQ(2, delta_phg->partID(4));
 
   // Verify Pin Counts
   verifyPinCounts(1, { 0, 1, 1 });
@@ -156,10 +180,10 @@ TEST_F(ADeltaPartitionedGraph, MovesVertices) {
   verifyPinCounts(10, { 0, 0, 2 });
 
   // Verify Move To Penalty
-  verifyKm1Gain(4, { -2, -1, 0 });
-  verifyKm1Gain(1, { 1, 0, 1 });
-  verifyKm1Gain(5, { -2, -2, 0 });
-  verifyKm1Gain(6, { -2, -2, 0 });
+  verifyGain(4, { -2, -1, 0 });
+  verifyGain(1, { 1, 0, 1 });
+  verifyGain(5, { -2, -2, 0 });
+  verifyGain(6, { -2, -2, 0 });
 }
 
 } // namespace ds
