@@ -32,6 +32,7 @@
 #include "mt-kahypar/datastructures/hypergraph_common.h"
 #include "mt-kahypar/datastructures/array.h"
 #include "mt-kahypar/datastructures/sparse_map.h"
+#include "mt-kahypar/partition/refinement/gains/cut/cut_rollback.h"
 #include "mt-kahypar/parallel/atomic_wrapper.h"
 #include "mt-kahypar/macros.h"
 
@@ -39,7 +40,6 @@ namespace mt_kahypar {
 
 // Forward
 class DeltaCutGainCache;
-class CutRollback;
 
 class CutGainCache final : public kahypar::meta::PolicyBase {
 
@@ -368,63 +368,6 @@ class DeltaCutGainCache {
   // ! Stores the delta of each locally touched gain cache entry
   // ! relative to the gain cache in '_phg'
   ds::DynamicFlatMap<size_t, HyperedgeWeight> _gain_cache_delta;
-};
-
-class CutRollback {
-
- public:
-  struct RecalculationData {
-    MoveID first_out, last_in;
-    HypernodeID moved_out;
-    RecalculationData() :
-      first_out(std::numeric_limits<MoveID>::max()),
-      last_in(std::numeric_limits<MoveID>::min()),
-      moved_out(0)
-      { }
-
-    void reset() {
-      first_out = std::numeric_limits<MoveID>::max();
-      last_in = std::numeric_limits<MoveID>::min();
-      moved_out = 0;
-    }
-  };
-
-  static void updateMove(const MoveID m_id,
-                         const Move& m,
-                         vec<RecalculationData>& r) {
-    r[m.from].first_out = std::min(r[m.from].first_out, m_id);
-    r[m.to].last_in = std::max(r[m.to].last_in, m_id);
-    ++r[m.from].moved_out;
-  }
-
-  static void updateNonMovedPinInBlock(const PartitionID,
-                                       vec<RecalculationData>&) {
-    // Do nothing here
-  }
-
-  template<typename PartitionedHypergraph>
-  static bool hasBenefit(const PartitionedHypergraph& phg,
-                         const HyperedgeID e,
-                         const MoveID m_id,
-                         const Move& m,
-                         vec<RecalculationData>& r) {
-    const HypernodeID edge_size = phg.edgeSize(e);
-    const bool was_potentially_non_cut_edge_at_some_point =
-      phg.pinCountInPart(e, m.to) + r[m.to].moved_out == edge_size;
-    return was_potentially_non_cut_edge_at_some_point && r[m.to].last_in == m_id && m_id < r[m.to].first_out;
-  }
-
-  template<typename PartitionedHypergraph>
-  static bool hasPenalty(const PartitionedHypergraph& phg,
-                         const HyperedgeID e,
-                         const MoveID m_id,
-                         const Move& m,
-                         vec<RecalculationData>& r) {
-    const HypernodeID edge_size = phg.edgeSize(e);
-    const bool was_potentially_non_cut_edge_at_some_point =
-      phg.pinCountInPart(e, m.from) + r[m.from].moved_out == edge_size;
-    return was_potentially_non_cut_edge_at_some_point && r[m.from].first_out == m_id && m_id > r[m.from].last_in;
-  }
 };
 
 }  // namespace mt_kahypar

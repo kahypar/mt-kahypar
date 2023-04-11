@@ -32,6 +32,7 @@
 #include "mt-kahypar/datastructures/hypergraph_common.h"
 #include "mt-kahypar/datastructures/array.h"
 #include "mt-kahypar/datastructures/sparse_map.h"
+#include "mt-kahypar/partition/refinement/gains/km1/km1_gain_cache.h"
 #include "mt-kahypar/parallel/atomic_wrapper.h"
 #include "mt-kahypar/macros.h"
 
@@ -39,7 +40,6 @@ namespace mt_kahypar {
 
 // Forward
 class DeltaGraphCutGainCache;
-class Km1Rollback;
 
 class GraphCutGainCache final : public kahypar::meta::PolicyBase {
 
