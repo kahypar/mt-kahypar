@@ -10,3 +10,6 @@
 [submodule "python/pybind11"]
 	path = python/pybind11
 	url = https://github.com/pybind/pybind11.git
+[submodule "external_tools/KaMinPar"]
+	path = external_tools/KaMinPar
+	url = git@github.com:DanielSeemaier/KaMinPar.git

@@ -222,6 +222,16 @@ ELSE ()
     HwLoc library not found. Install HwLoc on your system.")
 ENDIF ()
 
+# Add KaMinPar library 
+set(KAMINPAR_BUILD_TESTS OFF)
+set(KAMINPAR_BUILD_DISTRIBUTED OFF)
+set(KAMINPAR_BUILD_APPS OFF)
+set(KAMINPAR_BUILD_BENCHMARKS OFF)
+set(KAMINPAR_BUILD_WITH_MTKAHYPAR OFF)
+
+add_subdirectory(external_tools/KaMinPar)
+link_libraries(KaMinPar::KaMinPar)
+
 # Add targets for code coverage analysis
 if(KAHYPAR_USE_GCOV)
 
