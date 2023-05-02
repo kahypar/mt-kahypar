@@ -632,6 +632,7 @@ class StaticGraph {
   // ! Restores a degree zero hypernode
   void restoreDegreeZeroHypernode(const HypernodeID u) {
     node(u).enable();
+    --_num_removed_nodes;
     ASSERT(nodeDegree(u) == 0);
   }
 
