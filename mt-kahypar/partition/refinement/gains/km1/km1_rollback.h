@@ -44,7 +44,11 @@ namespace mt_kahypar {
  * We then iterate over the pins of e and compute some auxilliary data based on
  * which we then decide if we attribute an increase or reduction by w(e) to a moved pin.
  * This class implements the functions required by the rollback algorithm to recompute all gain values
+<<<<<<< Updated upstream
  * for the connectivity data.
+=======
+ * for the connectivity metric.
+>>>>>>> Stashed changes
 */
 class Km1Rollback {
 
