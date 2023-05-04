@@ -32,7 +32,6 @@
 #include "mt-kahypar/datastructures/hypergraph_common.h"
 #include "mt-kahypar/datastructures/array.h"
 #include "mt-kahypar/datastructures/sparse_map.h"
-#include "mt-kahypar/partition/refinement/gains/km1/km1_gain_cache.h"
 #include "mt-kahypar/parallel/atomic_wrapper.h"
 #include "mt-kahypar/macros.h"
 
@@ -54,12 +53,10 @@ class DeltaGraphCutGainCache;
  * entries for each node and block. Note that p(u) = b(u, V_i).
  * Thus, the gain cache stores k entries per node.
 */
-class GraphCutGainCache final : public kahypar::meta::PolicyBase {
+class GraphCutGainCache {
 
  public:
   static constexpr GainPolicy TYPE = GainPolicy::cut_for_graphs;
-  using DeltaGainCache = DeltaGraphCutGainCache;
-  using Rollback = Km1Rollback;
 
   GraphCutGainCache() :
     _is_initialized(false),

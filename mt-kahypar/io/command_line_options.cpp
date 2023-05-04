@@ -352,10 +352,9 @@ namespace mt_kahypar {
                          context.refinement.label_propagation.algorithm =
                                  labelPropagationAlgorithmFromString(type);
                        }
-                     })->default_value("label_propagation_km1"),
+                     })->default_value("label_propagation"),
              "Label Propagation Algorithm:\n"
-             "- label_propagation_km1\n"
-             "- label_propagation_cut\n"
+             "- label_propagation\n"
              "- deterministic\n"
              "- do_nothing")
             ((initial_partitioning ? "i-r-lp-maximum-iterations" : "r-lp-maximum-iterations"),

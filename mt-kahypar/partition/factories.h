@@ -46,7 +46,7 @@
 #include "mt-kahypar/partition/refinement/label_propagation/label_propagation_refiner.h"
 #include "mt-kahypar/partition/refinement/deterministic/deterministic_label_propagation.h"
 #include "mt-kahypar/partition/refinement/fm/multitry_kway_fm.h"
-#include "mt-kahypar/partition/refinement/gains/gain_cache_ptr.h"
+#include "mt-kahypar/partition/refinement/gains/gain_definitions.h"
 #include "mt-kahypar/partition/refinement/flows/scheduler.h"
 #include "mt-kahypar/partition/refinement/flows/flow_refiner.h"
 
@@ -78,15 +78,10 @@ using NLevelCoarsenerDispatcher = kahypar::meta::StaticMultiDispatchFactory<NLev
 using LabelPropagationFactory = kahypar::meta::Factory<LabelPropagationAlgorithm,
                                   IRefiner* (*)(HypernodeID, HyperedgeID, const Context&, gain_cache_t)>;
 
-using Km1LabelPropagationDispatcher = kahypar::meta::StaticMultiDispatchFactory<
-                                        LabelPropagationKm1Refiner,
+using LabelPropagationDispatcher = kahypar::meta::StaticMultiDispatchFactory<
+                                        LabelPropagationRefiner,
                                         IRefiner,
-                                        kahypar::meta::Typelist<TypeTraitsList, GainCacheTypes>>;
-
-using CutLabelPropagationDispatcher = kahypar::meta::StaticMultiDispatchFactory<
-                                        LabelPropagationCutRefiner,
-                                        IRefiner,
-                                        kahypar::meta::Typelist<TypeTraitsList, GainCacheTypes>>;
+                                        kahypar::meta::Typelist<TypeTraitsList, GainTypes>>;
 
 using DeterministicLabelPropagationDispatcher = kahypar::meta::StaticMultiDispatchFactory<
                                                   DeterministicLabelPropagationRefiner,
@@ -99,7 +94,7 @@ using FMFactory = kahypar::meta::Factory<FMAlgorithm,
 using FMDispatcher = kahypar::meta::StaticMultiDispatchFactory<
                       MultiTryKWayFM,
                       IRefiner,
-                      kahypar::meta::Typelist<TypeTraitsList, GainCacheTypes>>;
+                      kahypar::meta::Typelist<TypeTraitsList, GainTypes>>;
 
 using FlowSchedulerFactory = kahypar::meta::Factory<FlowAlgorithm,
                               IRefiner* (*)(const HypernodeID, const HyperedgeID, const Context&, gain_cache_t)>;
@@ -107,7 +102,7 @@ using FlowSchedulerFactory = kahypar::meta::Factory<FlowAlgorithm,
 using FlowSchedulerDispatcher = kahypar::meta::StaticMultiDispatchFactory<
                                   FlowRefinementScheduler,
                                   IRefiner,
-                                  kahypar::meta::Typelist<TypeTraitsList, GainCacheTypes>>;
+                                  kahypar::meta::Typelist<TypeTraitsList, GainTypes>>;
 
 using FlowRefinementFactory = kahypar::meta::Factory<FlowAlgorithm,
                               IFlowRefiner* (*)(const HyperedgeID, const Context&)>;

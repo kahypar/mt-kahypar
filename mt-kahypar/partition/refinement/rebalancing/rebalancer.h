@@ -31,15 +31,14 @@
 
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/metrics.h"
-#include "mt-kahypar/partition/refinement/policies/gain_policy.h"
+#include "mt-kahypar/partition/refinement/gains/km1/km1_gain_computation.h"
+#include "mt-kahypar/partition/refinement/gains/cut/cut_gain_computation.h"
 
 namespace mt_kahypar {
-template <typename TypeTraits,
-          template <typename> class GainComputationPolicy>
+template <typename TypeTraits, typename GainCalculator>
 class Rebalancer {
  private:
   using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
-  using GainCalculator = GainComputationPolicy<PartitionedHypergraph>;
   using AtomicWeight = parallel::IntegralAtomicWrapper<HypernodeWeight>;
 
   static constexpr bool debug = false;
@@ -115,7 +114,7 @@ private:
 };
 
 template<typename TypeTraits>
-using Km1Rebalancer = Rebalancer<TypeTraits, Km1Policy>;
+using Km1Rebalancer = Rebalancer<TypeTraits, Km1GainComputation>;
 template<typename TypeTraits>
-using CutRebalancer = Rebalancer<TypeTraits, CutPolicy>;
+using CutRebalancer = Rebalancer<TypeTraits, CutGainComputation>;
 }  // namespace kahypar

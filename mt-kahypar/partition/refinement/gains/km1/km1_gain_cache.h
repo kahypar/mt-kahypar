@@ -34,14 +34,10 @@
 #include "mt-kahypar/datastructures/hypergraph_common.h"
 #include "mt-kahypar/datastructures/array.h"
 #include "mt-kahypar/datastructures/sparse_map.h"
-#include "mt-kahypar/partition/refinement/gains/km1/km1_rollback.h"
 #include "mt-kahypar/parallel/atomic_wrapper.h"
 #include "mt-kahypar/macros.h"
 
 namespace mt_kahypar {
-
-// Forward
-class DeltaKm1GainCache;
 
 /**
  * The gain cache stores the gain values for all possible node moves for the connectivity metric.
@@ -64,15 +60,12 @@ class DeltaKm1GainCache;
  * We call b(u, V_j) the benefit term and p(u) the penalty term. Our gain cache stores and maintains these
  * entries for each node and block. Thus, the gain cache stores k + 1 entries per node.
 */
-class Km1GainCache final : public kahypar::meta::PolicyBase {
+class Km1GainCache {
 
   static constexpr HyperedgeID HIGH_DEGREE_THRESHOLD = ID(100000);
 
  public:
   static constexpr GainPolicy TYPE = GainPolicy::km1;
-  using DeltaGainCache = DeltaKm1GainCache;
-  using Rollback = Km1Rollback;
-
   Km1GainCache() :
     _is_initialized(false),
     _k(kInvalidPartition),

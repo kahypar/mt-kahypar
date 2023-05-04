@@ -33,12 +33,13 @@
 
 namespace mt_kahypar {
 
-template<typename TypeTraits, typename GainCache>
+template<typename TypeTraits, typename GainTypes>
 class GlobalRollback {
   static constexpr bool enable_heavy_assert = false;
 
   using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
-  using Rollback = typename GainCache::Rollback;
+  using GainCache = typename GainTypes::GainCache;
+  using Rollback = typename GainTypes::Rollback;
   using RecalculationData = typename Rollback::RecalculationData;
 
 public:

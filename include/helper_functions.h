@@ -103,34 +103,6 @@ void prepare_context(Context& context) {
   if ( !context.partition.use_individual_part_weights ) {
     context.partition.max_part_weights.clear();
   }
-
-  if ( context.partition.objective == mt_kahypar::Objective::cut &&
-        context.refinement.label_propagation.algorithm ==
-        mt_kahypar::LabelPropagationAlgorithm::label_propagation_km1 ) {
-    context.refinement.label_propagation.algorithm =
-      mt_kahypar::LabelPropagationAlgorithm::label_propagation_cut;
-  }
-
-  if ( context.partition.objective == mt_kahypar::Objective::cut &&
-        context.initial_partitioning.refinement.label_propagation.algorithm ==
-        mt_kahypar::LabelPropagationAlgorithm::label_propagation_km1 ) {
-    context.initial_partitioning.refinement.label_propagation.algorithm =
-      mt_kahypar::LabelPropagationAlgorithm::label_propagation_cut;
-  }
-
-  if ( context.partition.objective == mt_kahypar::Objective::km1 &&
-        context.refinement.label_propagation.algorithm ==
-        mt_kahypar::LabelPropagationAlgorithm::label_propagation_cut ) {
-    context.refinement.label_propagation.algorithm =
-      mt_kahypar::LabelPropagationAlgorithm::label_propagation_km1;
-  }
-
-  if ( context.partition.objective == mt_kahypar::Objective::km1 &&
-        context.initial_partitioning.refinement.label_propagation.algorithm ==
-        mt_kahypar::LabelPropagationAlgorithm::label_propagation_cut ) {
-    context.initial_partitioning.refinement.label_propagation.algorithm =
-      mt_kahypar::LabelPropagationAlgorithm::label_propagation_km1;
-  }
 }
 
 InstanceType get_instance_type(mt_kahypar_hypergraph_t hypergraph) {

@@ -28,7 +28,8 @@
 
 #include "tests/datastructures/hypergraph_fixtures.h"
 #include "mt-kahypar/partition/context.h"
-#include "mt-kahypar/partition/refinement/policies/gain_policy.h"
+#include "mt-kahypar/partition/refinement/gains/km1/km1_gain_computation.h"
+#include "mt-kahypar/partition/refinement/gains/cut/cut_gain_computation.h"
 
 using ::testing::Test;
 
@@ -40,11 +41,10 @@ namespace {
   using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
 }
 
-template <template <typename> class GainComputationPolicy, PartitionID K>
+template <typename GainCalculator, PartitionID K>
 class AGainPolicy : public Test {
  public:
   using HypergraphFactory = typename Hypergraph::Factory;
-  using GainCalculator = GainComputationPolicy<PartitionedHypergraph>;
 
   AGainPolicy() :
     hg(HypergraphFactory::construct(7 , 4, { {0, 2}, {0, 1, 3, 4}, {3, 4, 6}, {2, 5, 6} })),
@@ -70,7 +70,7 @@ class AGainPolicy : public Test {
   std::unique_ptr<GainCalculator> gain;
 };
 
-using AKm1PolicyK2 = AGainPolicy<Km1Policy, 2>;
+using AKm1PolicyK2 = AGainPolicy<Km1GainComputation, 2>;
 
 TEST_F(AKm1PolicyK2, ComputesCorrectMoveGainForVertex1) {
   assignPartitionIDs({ 1, 0, 0, 0, 0, 1, 1 });
@@ -124,7 +124,7 @@ TEST_F(AKm1PolicyK2, ComputesCorrectMoveGainForVertex3) {
   ASSERT_EQ(0, move.gain);
 }
 
-using ACutPolicyK2 = AGainPolicy<CutPolicy, 2>;
+using ACutPolicyK2 = AGainPolicy<CutGainComputation, 2>;
 
 TEST_F(ACutPolicyK2, ComputesCorrectMoveGainForVertex1) {
   assignPartitionIDs({ 1, 0, 0, 0, 0, 1, 1 });
@@ -178,7 +178,7 @@ TEST_F(ACutPolicyK2, ComputesCorrectMoveGainForVertex3) {
   ASSERT_EQ(0, move.gain);
 }
 
-using AKm1PolicyK4 = AGainPolicy<Km1Policy, 4>;
+using AKm1PolicyK4 = AGainPolicy<Km1GainComputation, 4>;
 
 TEST_F(AKm1PolicyK4, ComputesCorrectMoveGainForVertex1) {
   assignPartitionIDs({ 0, 1, 2, 3, 3, 1, 2 });
@@ -232,7 +232,7 @@ TEST_F(AKm1PolicyK4, ComputesCorrectMoveGainForVertex3) {
   ASSERT_EQ(0, move.gain);
 }
 
-using ACutPolicyK4 = AGainPolicy<CutPolicy, 4>;
+using ACutPolicyK4 = AGainPolicy<CutGainComputation, 4>;
 
 TEST_F(ACutPolicyK4, ComputesCorrectMoveGainForVertex1) {
   assignPartitionIDs({ 0, 1, 2, 3, 3, 1, 2 });

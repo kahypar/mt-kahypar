@@ -33,7 +33,7 @@
 #include "mt-kahypar/partition/registries/register_refinement_algorithms.cpp"
 #include "mt-kahypar/partition/initial_partitioning/bfs_initial_partitioner.h"
 #include "mt-kahypar/partition/refinement/label_propagation/label_propagation_refiner.h"
-#include "mt-kahypar/partition/refinement/policies/gain_policy.h"
+#include "mt-kahypar/partition/refinement/gains/gain_definitions.h"
 #include "mt-kahypar/utils/randomize.h"
 #include "mt-kahypar/utils/cast.h"
 
@@ -46,19 +46,21 @@ struct TestConfig { };
 template <typename TypeTraitsT, PartitionID k>
 struct TestConfig<TypeTraitsT, k, Objective::km1> {
   using TypeTraits = TypeTraitsT;
-  using Refiner = LabelPropagationKm1Refiner<TypeTraits, Km1GainCache>;
+  using GainTypes = Km1GainTypes;
+  using Refiner = LabelPropagationRefiner<TypeTraits, GainTypes>;
   static constexpr PartitionID K = k;
   static constexpr Objective OBJECTIVE = Objective::km1;
-  static constexpr LabelPropagationAlgorithm LP_ALGO = LabelPropagationAlgorithm::label_propagation_km1;
+  static constexpr LabelPropagationAlgorithm LP_ALGO = LabelPropagationAlgorithm::label_propagation;
 };
 
 template <typename TypeTraitsT, PartitionID k>
 struct TestConfig<TypeTraitsT, k, Objective::cut> {
   using TypeTraits = TypeTraitsT;
-  using Refiner = LabelPropagationCutRefiner<TypeTraits, Km1GainCache>;
+  using GainTypes = CutGainTypes;
+  using Refiner = LabelPropagationRefiner<TypeTraits, GainTypes>;
   static constexpr PartitionID K = k;
   static constexpr Objective OBJECTIVE = Objective::cut;
-  static constexpr LabelPropagationAlgorithm LP_ALGO = LabelPropagationAlgorithm::label_propagation_cut;
+  static constexpr LabelPropagationAlgorithm LP_ALGO = LabelPropagationAlgorithm::label_propagation;
 };
 
 template <typename Config>
@@ -67,8 +69,10 @@ class ALabelPropagationRefiner : public Test {
 
  public:
   using TypeTraits = typename Config::TypeTraits;
+  using GainTypes = typename Config::GainTypes;
   using Hypergraph = typename TypeTraits::Hypergraph;
   using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
+  using GainCache = typename GainTypes::GainCache;
   using Refiner = typename Config::Refiner;
 
   ALabelPropagationRefiner() :
@@ -82,8 +86,8 @@ class ALabelPropagationRefiner : public Test {
     context.partition.graph_community_filename = "../tests/instances/contracted_ibm01.hgr.community";
     context.partition.mode = Mode::direct;
     context.partition.objective = Config::OBJECTIVE;
-    context.partition.gain_policy = context.partition.objective == Objective::km1 ?
-      GainPolicy::km1 : GainPolicy::km1 /* TODO: change this once cut policy available */;
+    context.partition.gain_policy = context.partition.objective ==
+      Objective::km1 ? GainPolicy::km1 : GainPolicy::cut;
     context.partition.epsilon = 0.25;
     context.partition.k = Config::K;
     #ifdef KAHYPAR_ENABLE_N_LEVEL_PARTITIONING_FEATURES
@@ -139,7 +143,7 @@ class ALabelPropagationRefiner : public Test {
   Hypergraph hypergraph;
   PartitionedHypergraph partitioned_hypergraph;
   Context context;
-  Km1GainCache gain_cache;
+  GainCache gain_cache;
   std::unique_ptr<Refiner> refiner;
   Metrics metrics;
 };

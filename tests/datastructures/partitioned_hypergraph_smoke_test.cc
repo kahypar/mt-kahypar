@@ -27,7 +27,6 @@
 #include "tests/datastructures/hypergraph_fixtures.h"
 
 #include <boost/range/irange.hpp>
-#include <mt-kahypar/partition/refinement/policies/gain_policy.h>
 #include "gmock/gmock.h"
 
 #include "tbb/blocked_range.h"

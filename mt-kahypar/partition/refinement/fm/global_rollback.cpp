@@ -30,6 +30,7 @@
 
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/metrics.h"
+#include "mt-kahypar/partition/refinement/gains/gain_definitions.h"
 #include "mt-kahypar/utils/timer.h"
 #include "mt-kahypar/partition/refinement/gains/gain_cache_ptr.h"
 
@@ -152,8 +153,8 @@ namespace mt_kahypar {
     }
   };
 
-  template<typename TypeTraits, typename GainCache>
-  HyperedgeWeight GlobalRollback<TypeTraits, GainCache>::revertToBestPrefixParallel(
+  template<typename TypeTraits, typename GainTypes>
+  HyperedgeWeight GlobalRollback<TypeTraits, GainTypes>::revertToBestPrefixParallel(
           PartitionedHypergraph& phg, FMSharedData& sharedData,
           const vec<HypernodeWeight>& partWeights, const std::vector<HypernodeWeight>& maxPartWeights) {
     const MoveID numMoves = sharedData.moveTracker.numPerformedMoves();
@@ -187,8 +188,8 @@ namespace mt_kahypar {
     return b.gain;
   }
 
-  template<typename TypeTraits, typename GainCache>
-  void GlobalRollback<TypeTraits, GainCache>::recalculateGains(PartitionedHypergraph& phg,
+  template<typename TypeTraits, typename GainTypes>
+  void GlobalRollback<TypeTraits, GainTypes>::recalculateGains(PartitionedHypergraph& phg,
                                                                FMSharedData& sharedData) {
     GlobalMoveTracker& tracker = sharedData.moveTracker;
 
@@ -272,8 +273,8 @@ namespace mt_kahypar {
     }
   }
 
-  template<typename TypeTraits, typename GainCache>
-  HyperedgeWeight GlobalRollback<TypeTraits, GainCache>::revertToBestPrefixSequential(
+  template<typename TypeTraits, typename GainTypes>
+  HyperedgeWeight GlobalRollback<TypeTraits, GainTypes>::revertToBestPrefixSequential(
     PartitionedHypergraph& phg,
     FMSharedData& sharedData,
     const vec<HypernodeWeight>&,
@@ -355,8 +356,8 @@ namespace mt_kahypar {
   }
 
 
-  template<typename TypeTraits, typename GainCache>
-  bool GlobalRollback<TypeTraits, GainCache>::verifyGains(PartitionedHypergraph& phg,
+  template<typename TypeTraits, typename GainTypes>
+  bool GlobalRollback<TypeTraits, GainTypes>::verifyGains(PartitionedHypergraph& phg,
                                                           FMSharedData& sharedData) {
     vec<Move>& move_order = sharedData.moveTracker.moveOrder;
 
@@ -419,5 +420,5 @@ namespace mt_kahypar {
   #define GLOBAL_ROLLBACK(X, Y) GlobalRollback<X, Y>
   }
 
-  INSTANTIATE_CLASS_WITH_TYPE_TRAITS_AND_GAIN_CACHE(GLOBAL_ROLLBACK)
+  INSTANTIATE_CLASS_WITH_TYPE_TRAITS_AND_GAIN_TYPES(GLOBAL_ROLLBACK)
 }

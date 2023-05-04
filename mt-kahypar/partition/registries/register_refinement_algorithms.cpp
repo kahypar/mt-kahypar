@@ -107,14 +107,8 @@
   })
 
 namespace mt_kahypar {
-REGISTER_DISPATCHED_LP_REFINER(LabelPropagationAlgorithm::label_propagation_km1,
-                               Km1LabelPropagationDispatcher,
-                               kahypar::meta::PolicyRegistry<mt_kahypar_partition_type_t>::getInstance().getPolicy(
-                                context.partition.partition_type),
-                               kahypar::meta::PolicyRegistry<GainPolicy>::getInstance().getPolicy(
-                                context.partition.gain_policy));
-REGISTER_DISPATCHED_LP_REFINER(LabelPropagationAlgorithm::label_propagation_cut,
-                               CutLabelPropagationDispatcher,
+REGISTER_DISPATCHED_LP_REFINER(LabelPropagationAlgorithm::label_propagation,
+                               LabelPropagationDispatcher,
                                kahypar::meta::PolicyRegistry<mt_kahypar_partition_type_t>::getInstance().getPolicy(
                                 context.partition.partition_type),
                                kahypar::meta::PolicyRegistry<GainPolicy>::getInstance().getPolicy(

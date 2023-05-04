@@ -74,9 +74,9 @@ class APoolInitialPartitionerTest : public Test {
     context.partition.gain_policy = GainPolicy::km1;
     context.initial_partitioning.runs = Config::RUNS;
     context.refinement.label_propagation.algorithm =
-      LabelPropagationAlgorithm::label_propagation_km1;
+      LabelPropagationAlgorithm::label_propagation;
     context.initial_partitioning.refinement.label_propagation.algorithm =
-      LabelPropagationAlgorithm::label_propagation_km1;
+      LabelPropagationAlgorithm::label_propagation;
     hypergraph = io::readInputFile<Hypergraph>(
       "../tests/instances/test_instance.hgr", FileFormat::hMetis, true);
     partitioned_hypergraph = PartitionedHypergraph(

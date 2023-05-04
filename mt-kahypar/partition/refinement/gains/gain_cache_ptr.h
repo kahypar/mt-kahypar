@@ -180,13 +180,4 @@ class GainCachePtr {
   }
 };
 
-using GainCacheTypes = kahypar::meta::Typelist<Km1GainCache,
-                                               CutGainCache
-                                               ENABLE_GRAPHS(COMMA GraphCutGainCache)>;
-
-#define INSTANTIATE_CLASS_WITH_TYPE_TRAITS_AND_GAIN_CACHE(C)                                      \
-  INSTANTIATE_CLASS_MACRO_WITH_TYPE_TRAITS_AND_OTHER_CLASS(C, Km1GainCache)                       \
-  INSTANTIATE_CLASS_MACRO_WITH_TYPE_TRAITS_AND_OTHER_CLASS(C, CutGainCache)                       \
-  ENABLE_GRAPHS(INSTANTIATE_CLASS_MACRO_WITH_TYPE_TRAITS_AND_OTHER_CLASS(C, GraphCutGainCache))
-
 }  // namespace mt_kahypar

@@ -40,8 +40,8 @@
 
 namespace mt_kahypar {
 
-  template <typename TypeTraits, template <typename> class GainComputationPolicy>
-  void Rebalancer<TypeTraits, GainComputationPolicy>::rebalance(Metrics& best_metrics) {
+  template <typename TypeTraits, typename GainCalculator>
+  void Rebalancer<TypeTraits, GainCalculator>::rebalance(Metrics& best_metrics) {
     // If partition is imbalanced, rebalancer is activated
     if ( !metrics::isBalanced(_hg, _context) ) {
       _gain.reset();
@@ -189,8 +189,8 @@ namespace mt_kahypar {
     }
   }
 
-  template <typename TypeTraits, template <typename> class GainComputationPolicy>
-  vec<Move> Rebalancer<TypeTraits, GainComputationPolicy>::repairEmptyBlocks() {
+  template <typename TypeTraits, typename GainCalculator>
+  vec<Move> Rebalancer<TypeTraits, GainCalculator>::repairEmptyBlocks() {
     // First detect if there are any empty blocks.
     const size_t k = size_t(_context.partition.k);
     boost::dynamic_bitset<> is_empty(k);
@@ -293,8 +293,8 @@ namespace mt_kahypar {
 
   // explicitly instantiate so the compiler can generate them when compiling this cpp file
   namespace {
-  #define KM1_REBALANCER(X) Rebalancer<X, Km1Policy>
-  #define CUT_REBALANCER(X) Rebalancer<X, CutPolicy>
+  #define KM1_REBALANCER(X) Rebalancer<X, Km1GainComputation>
+  #define CUT_REBALANCER(X) Rebalancer<X, CutGainComputation>
   }
 
   INSTANTIATE_CLASS_MACRO_WITH_TYPE_TRAITS(KM1_REBALANCER)

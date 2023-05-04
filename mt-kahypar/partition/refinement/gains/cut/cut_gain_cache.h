@@ -32,14 +32,10 @@
 #include "mt-kahypar/datastructures/hypergraph_common.h"
 #include "mt-kahypar/datastructures/array.h"
 #include "mt-kahypar/datastructures/sparse_map.h"
-#include "mt-kahypar/partition/refinement/gains/cut/cut_rollback.h"
 #include "mt-kahypar/parallel/atomic_wrapper.h"
 #include "mt-kahypar/macros.h"
 
 namespace mt_kahypar {
-
-// Forward
-class DeltaCutGainCache;
 
 /**
  * The gain cache stores the gain values for all possible node moves for the cut metric.
@@ -56,14 +52,12 @@ class DeltaCutGainCache;
  * Our gain cache stores and maintains these entries for each node and block.
  * Thus, the gain cache stores k + 1 entries per node.
 */
-class CutGainCache final : public kahypar::meta::PolicyBase {
+class CutGainCache {
 
   static constexpr HyperedgeID HIGH_DEGREE_THRESHOLD = ID(100000);
 
  public:
   static constexpr GainPolicy TYPE = GainPolicy::cut;
-  using DeltaGainCache = DeltaCutGainCache;
-  using Rollback = CutRollback;
 
   CutGainCache() :
     _is_initialized(false),

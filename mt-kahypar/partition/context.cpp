@@ -332,24 +332,6 @@ namespace mt_kahypar {
     }
     #endif
 
-    if ( partition.objective == Objective::cut &&
-         refinement.label_propagation.algorithm == LabelPropagationAlgorithm::label_propagation_km1 ) {
-      refinement.label_propagation.algorithm = LabelPropagationAlgorithm::label_propagation_cut;
-    } else if (partition.objective == Objective::km1 &&
-               refinement.label_propagation.algorithm == LabelPropagationAlgorithm::label_propagation_cut) {
-      refinement.label_propagation.algorithm = LabelPropagationAlgorithm::label_propagation_km1;
-    }
-
-    if ( partition.objective == Objective::cut &&
-          initial_partitioning.refinement.label_propagation.algorithm ==
-          LabelPropagationAlgorithm::label_propagation_km1 ) {
-      initial_partitioning.refinement.label_propagation.algorithm = LabelPropagationAlgorithm::label_propagation_cut;
-    } else if (partition.objective == Objective::km1 &&
-               initial_partitioning.refinement.label_propagation.algorithm ==
-               LabelPropagationAlgorithm::label_propagation_cut) {
-      initial_partitioning.refinement.label_propagation.algorithm = LabelPropagationAlgorithm::label_propagation_km1;
-    }
-
     ASSERT(partition.use_individual_part_weights != partition.max_part_weights.empty());
     if (partition.use_individual_part_weights && static_cast<size_t>(partition.k) != partition.max_part_weights.size()) {
       ALGO_SWITCH("Individual part weights specified, but number of parts doesn't match k."
@@ -473,7 +455,7 @@ namespace mt_kahypar {
     initial_partitioning.refinement.refine_until_no_improvement = false;
 
     // initial partitioning -> refinement -> label propagation
-    initial_partitioning.refinement.label_propagation.algorithm = LabelPropagationAlgorithm::label_propagation_km1;
+    initial_partitioning.refinement.label_propagation.algorithm = LabelPropagationAlgorithm::label_propagation;
     initial_partitioning.refinement.label_propagation.maximum_iterations = 5;
     initial_partitioning.refinement.label_propagation.rebalancing = true;
     initial_partitioning.refinement.label_propagation.hyperedge_size_activation_threshold = 100;
@@ -497,7 +479,7 @@ namespace mt_kahypar {
     refinement.refine_until_no_improvement = false;
 
     // refinement -> label propagation
-    refinement.label_propagation.algorithm = LabelPropagationAlgorithm::label_propagation_km1;
+    refinement.label_propagation.algorithm = LabelPropagationAlgorithm::label_propagation;
     refinement.label_propagation.maximum_iterations = 5;
     refinement.label_propagation.rebalancing = true;
     refinement.label_propagation.hyperedge_size_activation_threshold = 100;
@@ -686,7 +668,7 @@ namespace mt_kahypar {
     initial_partitioning.refinement.min_border_vertices_per_thread = 0;
 
     // initial partitioning -> refinement -> label propagation
-    initial_partitioning.refinement.label_propagation.algorithm = LabelPropagationAlgorithm::label_propagation_km1;
+    initial_partitioning.refinement.label_propagation.algorithm = LabelPropagationAlgorithm::label_propagation;
     initial_partitioning.refinement.label_propagation.maximum_iterations = 5;
     initial_partitioning.refinement.label_propagation.rebalancing = true;
     initial_partitioning.refinement.label_propagation.hyperedge_size_activation_threshold = 100;
@@ -715,7 +697,7 @@ namespace mt_kahypar {
     refinement.min_border_vertices_per_thread = 50;
 
     // refinement -> label propagation
-    refinement.label_propagation.algorithm = LabelPropagationAlgorithm::label_propagation_km1;
+    refinement.label_propagation.algorithm = LabelPropagationAlgorithm::label_propagation;
     refinement.label_propagation.maximum_iterations = 5;
     refinement.label_propagation.rebalancing = true;
     refinement.label_propagation.hyperedge_size_activation_threshold = 100;
@@ -829,7 +811,7 @@ namespace mt_kahypar {
     initial_partitioning.refinement.refine_until_no_improvement = false;
 
     // initial partitioning -> refinement -> label propagation
-    initial_partitioning.refinement.label_propagation.algorithm = LabelPropagationAlgorithm::label_propagation_km1;
+    initial_partitioning.refinement.label_propagation.algorithm = LabelPropagationAlgorithm::label_propagation;
     initial_partitioning.refinement.label_propagation.maximum_iterations = 5;
     initial_partitioning.refinement.label_propagation.rebalancing = true;
     initial_partitioning.refinement.label_propagation.hyperedge_size_activation_threshold = 100;
@@ -844,7 +826,7 @@ namespace mt_kahypar {
     refinement.refine_until_no_improvement = false;
 
     // refinement -> label propagation
-    refinement.label_propagation.algorithm = LabelPropagationAlgorithm::label_propagation_km1;
+    refinement.label_propagation.algorithm = LabelPropagationAlgorithm::label_propagation;
     refinement.label_propagation.maximum_iterations = 5;
     refinement.label_propagation.rebalancing = true;
     refinement.label_propagation.hyperedge_size_activation_threshold = 100;
