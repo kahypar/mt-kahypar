@@ -137,6 +137,12 @@ class Km1GainCache {
 
   // ####################### Delta Gain Update #######################
 
+  // ! This function returns true if the corresponding pin count values triggers
+  // ! a gain cache update.
+  static bool triggersDeltaGainUpdate(const HypernodeID edge_size,
+                                      const HypernodeID pin_count_in_from_part_after,
+                                      const HypernodeID pin_count_in_to_part_after);
+
   // ! This functions implements the delta gain updates for the connecitivity metric.
   // ! When moving a node from its current block from to a target block to, we iterate
   // ! over its incident hyperedges and update their pin count values. After each pin count

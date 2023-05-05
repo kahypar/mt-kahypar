@@ -122,12 +122,12 @@ namespace mt_kahypar {
 
     auto delta_func = [&](const HyperedgeID he,
                           const HyperedgeWeight edge_weight,
-                          const HypernodeID,
+                          const HypernodeID edge_size,
                           const HypernodeID pin_count_in_from_part_after,
                           const HypernodeID pin_count_in_to_part_after) {
       // Gains of the pins of a hyperedge can only change in the following situations.
-      if (pin_count_in_from_part_after == 0 || pin_count_in_from_part_after == 1 ||
-          pin_count_in_to_part_after == 1 || pin_count_in_to_part_after == 2) {
+      if ( GainCache::triggersDeltaGainUpdate(edge_size,
+            pin_count_in_from_part_after, pin_count_in_to_part_after) ) {
         edgesWithGainChanges.push_back(he);
       }
 
@@ -138,7 +138,6 @@ namespace mt_kahypar {
         fm_strategy.deltaGainUpdates(phg, gain_cache, he, edge_weight, move.from,
           pin_count_in_from_part_after, move.to, pin_count_in_to_part_after);
       }
-
     };
 
     // we can almost make this function take a generic partitioned hypergraph
@@ -268,17 +267,16 @@ namespace mt_kahypar {
     bool is_last_move = false;
 
     auto delta_gain_func = [&](const HyperedgeID he,
-                                    const HyperedgeWeight edge_weight,
-                                    const HypernodeID edge_size,
-                                    const HypernodeID pin_count_in_from_part_after,
-                                    const HypernodeID pin_count_in_to_part_after) {
+                               const HyperedgeWeight edge_weight,
+                               const HypernodeID edge_size,
+                               const HypernodeID pin_count_in_from_part_after,
+                               const HypernodeID pin_count_in_to_part_after) {
       attributed_gain += AttributedGains::gain(he, edge_weight, edge_size,
         pin_count_in_from_part_after, pin_count_in_to_part_after);
 
       // Gains of the pins of a hyperedge can only change in the following situations.
-      if ( is_last_move &&
-           ( pin_count_in_from_part_after == 0 || pin_count_in_from_part_after == 1 ||
-             pin_count_in_to_part_after == 1 || pin_count_in_to_part_after == 2 ) ) {
+      if ( is_last_move && GainCache::triggersDeltaGainUpdate(edge_size,
+            pin_count_in_from_part_after, pin_count_in_to_part_after) ) {
         // This vector is used by the acquireOrUpdateNeighbor function to expand to neighbors
         // or update the gain values of neighbors of the moved node and is cleared afterwards.
         // BEWARE. Adding the nets at this stage works, because the vector is cleared before the move,

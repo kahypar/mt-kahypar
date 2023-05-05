@@ -126,6 +126,12 @@ class GraphCutGainCache {
 
   // ####################### Delta Gain Update #######################
 
+  // ! This function returns true if the corresponding pin count values triggers
+  // ! a gain cache update.
+  static bool triggersDeltaGainUpdate(const HypernodeID edge_size,
+                                      const HypernodeID pin_count_in_from_part_after,
+                                      const HypernodeID pin_count_in_to_part_after);
+
   // ! This functions implements the delta gain updates for the cut metric on plain graphs.
   // ! When moving a node from its current block from to a target block to, we iterate
   // ! over its incident edges and syncronize the move on each edge. After syncronization,

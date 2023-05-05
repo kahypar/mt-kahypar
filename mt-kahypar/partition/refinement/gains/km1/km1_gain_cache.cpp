@@ -113,6 +113,13 @@ void Km1GainCache::initializeGainCache(const PartitionedHypergraph& partitioned_
   _is_initialized = true;
 }
 
+bool Km1GainCache::triggersDeltaGainUpdate(const HypernodeID,
+                                           const HypernodeID pin_count_in_from_part_after,
+                                           const HypernodeID pin_count_in_to_part_after) {
+  return pin_count_in_from_part_after == 0 || pin_count_in_from_part_after == 1 ||
+    pin_count_in_to_part_after == 1 || pin_count_in_to_part_after == 2;
+}
+
 template<typename PartitionedHypergraph>
 void Km1GainCache::deltaGainUpdate(const PartitionedHypergraph& partitioned_hg,
                                    const HyperedgeID he,
