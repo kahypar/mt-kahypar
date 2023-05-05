@@ -184,6 +184,7 @@ namespace mt_kahypar {
 
   std::ostream & operator<< (std::ostream& str, const RefinementParameters& params) {
     str << "Refinement Parameters:" << std::endl;
+    str << "  Rebalancing Algorithm:              " << params.rebalancer << std::endl;
     str << "  Refine Until No Improvement:        " << std::boolalpha << params.refine_until_no_improvement << std::endl;
     str << "  Relative Improvement Threshold:     " << params.relative_improvement_threshold << std::endl;
     str << "  Maximum Batch Size:                 " << params.max_batch_size << std::endl;
@@ -476,6 +477,7 @@ namespace mt_kahypar {
     initial_partitioning.refinement.flows.algorithm = FlowAlgorithm::do_nothing;
 
     // refinement
+    refinement.rebalancer = RebalancingAlgorithm::simple_rebalancer;
     refinement.refine_until_no_improvement = false;
 
     // refinement -> label propagation
@@ -596,6 +598,7 @@ namespace mt_kahypar {
     initial_partitioning.refinement.flows.algorithm = FlowAlgorithm::do_nothing;
 
     // refinement
+    refinement.rebalancer = RebalancingAlgorithm::simple_rebalancer;
     refinement.refine_until_no_improvement = false;
 
     // refinement -> label propagation
@@ -692,6 +695,7 @@ namespace mt_kahypar {
     initial_partitioning.refinement.global_fm.use_global_fm = false;
 
     // refinement
+    refinement.rebalancer = RebalancingAlgorithm::simple_rebalancer;
     refinement.refine_until_no_improvement = true;
     refinement.max_batch_size = 1000;
     refinement.min_border_vertices_per_thread = 50;
@@ -823,6 +827,7 @@ namespace mt_kahypar {
     initial_partitioning.refinement.flows.algorithm = FlowAlgorithm::do_nothing;
 
     // refinement
+    refinement.rebalancer = RebalancingAlgorithm::simple_rebalancer;
     refinement.refine_until_no_improvement = false;
 
     // refinement -> label propagation

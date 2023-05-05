@@ -36,18 +36,25 @@
 
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/metrics.h"
+#include "mt-kahypar/partition/refinement/gains/gain_definitions.h"
 #include "mt-kahypar/utils/timer.h"
+#include "mt-kahypar/utils/cast.h"
 
 namespace mt_kahypar {
 
-  template <typename TypeTraits, typename GainCalculator>
-  void Rebalancer<TypeTraits, GainCalculator>::rebalance(Metrics& best_metrics) {
+  template <typename TypeTraits, typename GainTypes>
+  bool Rebalancer<TypeTraits, GainTypes>::refineImpl(mt_kahypar_partitioned_hypergraph_t& hypergraph,
+                                                     const vec<HypernodeID>&,
+                                                     Metrics& best_metrics,
+                                                     double) {
+    PartitionedHypergraph& phg = utils::cast<PartitionedHypergraph>(hypergraph);
     // If partition is imbalanced, rebalancer is activated
-    if ( !metrics::isBalanced(_hg, _context) ) {
+    bool improvement = false;
+    if ( !metrics::isBalanced(phg, _context) ) {
       _gain.reset();
 
       for ( PartitionID block = 0; block < _context.partition.k; ++block ) {
-        _part_weights[block] = _hg.partWeight(block);
+        _part_weights[block] = phg.partWeight(block);
       }
 
       // This function is passed as lambda to the changeNodePart function and used
@@ -67,9 +74,9 @@ namespace mt_kahypar {
       if ( _context.partition.preset_type != PresetType::large_k ) {
       #endif
         // TODO: This code must be optimized to work for large k
-        vec<Move> moves_to_empty_blocks = repairEmptyBlocks();
+        vec<Move> moves_to_empty_blocks = repairEmptyBlocks(phg);
         for (Move& m : moves_to_empty_blocks) {
-          moveVertex(m.node, m, objective_delta);
+          moveVertex(phg, m.node, m, objective_delta);
         }
       #ifdef KAHYPAR_ENABLE_LARGE_K_PARTITIONING_FEATURES
       }
@@ -82,17 +89,17 @@ namespace mt_kahypar {
       tbb::enumerable_thread_specific<IndexedMovePQ> move_pqs([&] {
         return IndexedMovePQ(idx++);
       });
-      _hg.doParallelForAllNodes([&](const HypernodeID& hn) {
-        const PartitionID from = _hg.partID(hn);
-        if ( _hg.isBorderNode(hn) && _hg.partWeight(from) > _context.partition.max_part_weights[from] ) {
-          Move rebalance_move = _gain.computeMaxGainMove(_hg, hn, true /* rebalance move */);
+      phg.doParallelForAllNodes([&](const HypernodeID& hn) {
+        const PartitionID from = phg.partID(hn);
+        if ( phg.isBorderNode(hn) && phg.partWeight(from) > _context.partition.max_part_weights[from] ) {
+          Move rebalance_move = _gain.computeMaxGainMove(phg, hn, true /* rebalance move */);
           if ( rebalance_move.gain <= 0 ) {
-            moveVertex(hn, rebalance_move, objective_delta);
+            moveVertex(phg, hn, rebalance_move, objective_delta);
           } else if ( rebalance_move.gain != std::numeric_limits<Gain>::max() ) {
             move_pqs.local().pq.emplace(std::move(rebalance_move));
           } else {
             // Try to find a move to an non-adjacent block
-            rebalance_move = _gain.computeMaxGainMove(_hg, hn,
+            rebalance_move = _gain.computeMaxGainMove(phg, hn,
               true /* rebalance move */, true /* non-adjacent block */ );
             if ( rebalance_move.gain != std::numeric_limits<Gain>::max() ) {
               move_pqs.local().pq.emplace(std::move(rebalance_move));
@@ -103,7 +110,7 @@ namespace mt_kahypar {
 
       ASSERT([&] {
         for ( PartitionID block = 0; block < _context.partition.k; ++block ) {
-          if ( _part_weights[block] != _hg.partWeight(block) ) {
+          if ( _part_weights[block] != phg.partWeight(block) ) {
             return false;
           }
         }
@@ -112,7 +119,7 @@ namespace mt_kahypar {
 
       // If partition is still imbalanced, we try execute moves stored into
       // the thread local priority queue which could possibly worsen solution quality
-      if ( !metrics::isBalanced(_hg, _context) ) {
+      if ( !metrics::isBalanced(phg, _context) ) {
 
         // Initialize minimum gain value of each priority queue
         parallel::scalable_vector<uint8_t> active_pqs(idx.load(), false);
@@ -158,15 +165,15 @@ namespace mt_kahypar {
             }
 
             const PartitionID from = move.from;
-            if ( _hg.partWeight(from) > _context.partition.max_part_weights[from] ) {
-              Move real_move = _gain.computeMaxGainMove(_hg, move.node, true /* rebalance move */);
+            if ( phg.partWeight(from) > _context.partition.max_part_weights[from] ) {
+              Move real_move = _gain.computeMaxGainMove(phg, move.node, true /* rebalance move */);
               if ( real_move.gain == std::numeric_limits<Gain>::max() ) {
                 // Compute move to non-adjacent block
-                real_move = _gain.computeMaxGainMove(_hg, move.node,
+                real_move = _gain.computeMaxGainMove(phg, move.node,
                   true /* rebalance move */, true /* non-adjacent block */);
               }
               if ( real_move.gain <= move.gain ) {
-                moveVertex(real_move.node, real_move, objective_delta);
+                moveVertex(phg, real_move.node, real_move, objective_delta);
               } else if ( real_move.gain != std::numeric_limits<Gain>::max() ) {
                 pq.emplace(std::move(real_move));
               }
@@ -179,20 +186,22 @@ namespace mt_kahypar {
 
       // Update metrics statistics
       Gain delta = _gain.delta();
-      HEAVY_REFINEMENT_ASSERT(best_metrics.quality + delta == metrics::quality(_hg, _context),
-        V(best_metrics.quality) << V(delta) << V(metrics::quality(_hg, _context)));
+      HEAVY_REFINEMENT_ASSERT(best_metrics.quality + delta == metrics::quality(phg, _context),
+        V(best_metrics.quality) << V(delta) << V(metrics::quality(phg, _context)));
       best_metrics.quality += delta;
+      improvement = delta < 0;
     }
+    return improvement;
   }
 
-  template <typename TypeTraits, typename GainCalculator>
-  vec<Move> Rebalancer<TypeTraits, GainCalculator>::repairEmptyBlocks() {
+  template <typename TypeTraits, typename GainTypes>
+  vec<Move> Rebalancer<TypeTraits, GainTypes>::repairEmptyBlocks(PartitionedHypergraph& phg) {
     // First detect if there are any empty blocks.
     const size_t k = size_t(_context.partition.k);
     boost::dynamic_bitset<> is_empty(k);
     vec<PartitionID> empty_blocks;
     for (size_t i = 0; i < k; ++i) {
-      if (_hg.partWeight(PartitionID(i)) == 0) {
+      if (phg.partWeight(PartitionID(i)) == 0) {
         is_empty.set(i, true);
         empty_blocks.push_back(PartitionID(i));
       }
@@ -209,18 +218,18 @@ namespace mt_kahypar {
       // --> stores worst gains at the top where we can eject them
       tbb::enumerable_thread_specific< vec< vec<Move> > > ets_best_move(k);
 
-      _hg.doParallelForAllNodes([&](const HypernodeID u) {
+      phg.doParallelForAllNodes([&](const HypernodeID u) {
         vec<Gain>& scores = ets_scores.local();
         vec< vec<Move> >& move_proposals = ets_best_move.local();
 
-        const PartitionID from = _hg.partID(u);
+        const PartitionID from = phg.partID(u);
         Gain unremovable = 0;
-        for (HyperedgeID e : _hg.incidentEdges(u)) {
-          const HyperedgeWeight edge_weight = _hg.edgeWeight(e);
-          if (_hg.pinCountInPart(e, from) > 1) {
+        for (HyperedgeID e : phg.incidentEdges(u)) {
+          const HyperedgeWeight edge_weight = phg.edgeWeight(e);
+          if (phg.pinCountInPart(e, from) > 1) {
             unremovable += edge_weight;
           }
-          for (PartitionID i : _hg.connectivitySet(e)) {
+          for (PartitionID i : phg.connectivitySet(e)) {
             scores[i] += edge_weight;
           }
         }
@@ -228,8 +237,8 @@ namespace mt_kahypar {
         // maintain thread local priority queues of up to k best gains
         for (const PartitionID to : empty_blocks) {
           ASSERT(is_empty[to]);
-          if (to != from && _hg.partWeight(from) > _hg.nodeWeight(u)
-              && _hg.nodeWeight(u) <= _context.partition.max_part_weights[to]) {
+          if (to != from && phg.partWeight(from) > phg.nodeWeight(u)
+              && phg.nodeWeight(u) <= _context.partition.max_part_weights[to]) {
             const Gain gain = scores[to] - unremovable;
             vec<Move>& c = move_proposals[to];
             if (c.size() < k) {
@@ -256,8 +265,8 @@ namespace mt_kahypar {
       }
 
       auto prefer_highest_gain = [&](const Move& lhs, const Move& rhs) {
-        const HypernodeWeight pwl = _hg.partWeight(_hg.partID(lhs.node));
-        const HypernodeWeight pwr = _hg.partWeight(_hg.partID(rhs.node));
+        const HypernodeWeight pwl = phg.partWeight(phg.partID(lhs.node));
+        const HypernodeWeight pwr = phg.partWeight(phg.partID(rhs.node));
         return std::tie(lhs.gain, pwl, lhs.node) > std::tie(rhs.gain, pwr, rhs.node);
       };
 
@@ -289,10 +298,9 @@ namespace mt_kahypar {
 
   // explicitly instantiate so the compiler can generate them when compiling this cpp file
   namespace {
-  #define KM1_REBALANCER(X) Rebalancer<X, Km1GainComputation>
-  #define CUT_REBALANCER(X) Rebalancer<X, CutGainComputation>
+  #define REBALANCER(X, Y) Rebalancer<X, Y>
   }
 
-  INSTANTIATE_CLASS_MACRO_WITH_TYPE_TRAITS(KM1_REBALANCER)
-  INSTANTIATE_CLASS_MACRO_WITH_TYPE_TRAITS(CUT_REBALANCER)
+  // explicitly instantiate so the compiler can generate them when compiling this cpp file
+  INSTANTIATE_CLASS_WITH_TYPE_TRAITS_AND_GAIN_TYPES(REBALANCER)
 }

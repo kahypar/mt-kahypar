@@ -95,6 +95,7 @@ class MultilevelUncoarsener : public IUncoarsener<TypeTraits>,
   using Base::_label_propagation;
   using Base::_fm;
   using Base::_flows;
+  using Base::_rebalancer;
   using Base::_timer;
 
   int _current_level;

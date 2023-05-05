@@ -242,13 +242,9 @@ namespace mt_kahypar {
 
         // Preform rebalancing
       _timer.start_timer("rebalance", "Rebalance");
-      if ( _context.partition.objective == Objective::km1 ) {
-        Km1Rebalancer<TypeTraits> rebalancer(*_uncoarseningData.partitioned_hg, _context);
-        rebalancer.rebalance(_current_metrics);
-      } else if ( _context.partition.objective == Objective::cut ) {
-        CutRebalancer<TypeTraits> rebalancer(*_uncoarseningData.partitioned_hg, _context);
-        rebalancer.rebalance(_current_metrics);
-      }
+       mt_kahypar_partitioned_hypergraph_t phg =
+        utils::partitioned_hg_cast(*_uncoarseningData.partitioned_hg);
+      _rebalancer->refine(phg, {}, _current_metrics, 0.0);
       _timer.stop_timer("rebalance");
 
       const HyperedgeWeight quality_after = _current_metrics.quality;

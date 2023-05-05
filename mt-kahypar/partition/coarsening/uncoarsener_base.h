@@ -60,7 +60,8 @@ class UncoarsenerBase {
           _gain_cache(gain_cache_t {nullptr, GainPolicy::none}),
           _label_propagation(nullptr),
           _fm(nullptr),
-          _flows(nullptr) {}
+          _flows(nullptr),
+          _rebalancer(nullptr) {}
 
   UncoarsenerBase(const UncoarsenerBase&) = delete;
   UncoarsenerBase(UncoarsenerBase&&) = delete;
@@ -80,6 +81,7 @@ class UncoarsenerBase {
   std::unique_ptr<IRefiner> _label_propagation;
   std::unique_ptr<IRefiner> _fm;
   std::unique_ptr<IRefiner> _flows;
+  std::unique_ptr<IRefiner> _rebalancer;
 
  protected:
 
@@ -117,6 +119,8 @@ class UncoarsenerBase {
     _flows = FlowSchedulerFactory::getInstance().createObject(
       _context.refinement.flows.algorithm,
       _hg.initialNumNodes(), _hg.initialNumEdges(), _context, _gain_cache);
+    _rebalancer = RebalancerFactory::getInstance().createObject(
+      _context.refinement.rebalancer, _context);
   }
 };
 }

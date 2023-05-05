@@ -31,14 +31,16 @@
 
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/metrics.h"
+#include "mt-kahypar/partition/refinement/i_refiner.h"
 #include "mt-kahypar/partition/refinement/gains/km1/km1_gain_computation.h"
 #include "mt-kahypar/partition/refinement/gains/cut/cut_gain_computation.h"
 
 namespace mt_kahypar {
-template <typename TypeTraits, typename GainCalculator>
-class Rebalancer {
+template <typename TypeTraits, typename GainTypes>
+class Rebalancer final : public IRefiner {
  private:
   using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
+  using GainCalculator = typename GainTypes::GainComputation;
   using AtomicWeight = parallel::IntegralAtomicWrapper<HypernodeWeight>;
 
   static constexpr bool debug = false;
@@ -65,8 +67,7 @@ public:
     MovePQ pq;
   };
 
-  explicit Rebalancer(PartitionedHypergraph& hypergraph, const Context& context) :
-    _hg(hypergraph),
+  explicit Rebalancer(const Context& context) :
     _context(context),
     _gain(context),
     _part_weights(_context.partition.k) { }
@@ -77,25 +78,32 @@ public:
   Rebalancer & operator= (const Rebalancer &) = delete;
   Rebalancer & operator= (Rebalancer &&) = delete;
 
-  void rebalance(Metrics& best_metrics);
+  bool refineImpl(mt_kahypar_partitioned_hypergraph_t& hypergraph,
+                  const vec<HypernodeID>&,
+                  Metrics& best_metrics,
+                  double) final ;
 
+  void initializeImpl(mt_kahypar_partitioned_hypergraph_t&) final { }
 
-  vec<Move> repairEmptyBlocks();
+  vec<Move> repairEmptyBlocks(PartitionedHypergraph& phg);
 
 private:
 
   template<typename F>
-  bool moveVertex(const HypernodeID hn, const Move& move, const F& objective_delta) {
-    ASSERT(_hg.partID(hn) == move.from);
+  bool moveVertex(PartitionedHypergraph& phg,
+                  const HypernodeID hn,
+                  const Move& move,
+                  const F& objective_delta) {
+    ASSERT(phg.partID(hn) == move.from);
     const PartitionID from = move.from;
     const PartitionID to = move.to;
-    const HypernodeWeight node_weight = _hg.nodeWeight(hn);
+    const HypernodeWeight node_weight = phg.nodeWeight(hn);
     if ( from != to ) {
       // Before moving, we ensure that the block we move the vertex to does
       // not become overloaded
       _part_weights[to] += node_weight;
       if ( _part_weights[to] <= _context.partition.max_part_weights[to] ) {
-        if ( _hg.changeNodePart(hn, from, to, objective_delta) ) {
+        if ( phg.changeNodePart(hn, from, to, objective_delta) ) {
           DBG << "Moved vertex" << hn << "from block" << from << "to block" << to
               << "with gain" << move.gain;
           _part_weights[from] -= node_weight;
@@ -107,14 +115,9 @@ private:
     return false;
   }
 
-  PartitionedHypergraph& _hg;
   const Context& _context;
   GainCalculator _gain;
   parallel::scalable_vector<AtomicWeight> _part_weights;
 };
 
-template<typename TypeTraits>
-using Km1Rebalancer = Rebalancer<TypeTraits, Km1GainComputation>;
-template<typename TypeTraits>
-using CutRebalancer = Rebalancer<TypeTraits, CutGainComputation>;
 }  // namespace kahypar

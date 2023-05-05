@@ -196,6 +196,7 @@ struct RefinementParameters {
   DeterministicRefinementParameters deterministic_refinement;
   NLevelGlobalFMParameters global_fm;
   FlowParameters flows;
+  RebalancingAlgorithm rebalancer = RebalancingAlgorithm::do_nothing;
   bool refine_until_no_improvement = false;
   double relative_improvement_threshold = 0.0;
   size_t max_batch_size = std::numeric_limits<size_t>::max();

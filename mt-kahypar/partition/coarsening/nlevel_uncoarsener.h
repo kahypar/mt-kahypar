@@ -135,6 +135,7 @@ class NLevelUncoarsener : public IUncoarsener<TypeTraits>,
   using Base::_label_propagation;
   using Base::_fm;
   using Base::_flows;
+  using Base::_rebalancer;
   using Base::_timer;
 
   // ! Represents the n-level hierarchy

@@ -49,6 +49,7 @@
 #include "mt-kahypar/partition/refinement/gains/gain_definitions.h"
 #include "mt-kahypar/partition/refinement/flows/scheduler.h"
 #include "mt-kahypar/partition/refinement/flows/flow_refiner.h"
+#include "mt-kahypar/partition/refinement/rebalancing/rebalancer.h"
 
 namespace mt_kahypar {
 
@@ -103,6 +104,13 @@ using FlowSchedulerDispatcher = kahypar::meta::StaticMultiDispatchFactory<
                                   FlowRefinementScheduler,
                                   IRefiner,
                                   kahypar::meta::Typelist<TypeTraitsList, GainTypes>>;
+
+using RebalancerFactory = kahypar::meta::Factory<RebalancingAlgorithm, IRefiner* (*)(const Context&)>;
+
+using RebalancerDispatcher = kahypar::meta::StaticMultiDispatchFactory<
+                              Rebalancer,
+                              IRefiner,
+                              kahypar::meta::Typelist<TypeTraitsList, GainTypes>>;
 
 using FlowRefinementFactory = kahypar::meta::Factory<FlowAlgorithm,
                               IFlowRefiner* (*)(const HyperedgeID, const Context&)>;

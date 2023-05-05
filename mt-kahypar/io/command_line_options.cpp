@@ -468,7 +468,19 @@ namespace mt_kahypar {
              po::value<bool>(
                      (initial_partitioning ? &context.initial_partitioning.refinement.global_fm.obey_minimal_parallelism :
                       &context.refinement.global_fm.obey_minimal_parallelism))->value_name("<bool>")->default_value(true),
-             "If true, then the globalized FM local search stops if more than a certain number of threads are finished.");
+             "If true, then the globalized FM local search stops if more than a certain number of threads are finished.")
+            ((initial_partitioning ? "i-r-rebalancer-type" : "r-rebalancer-type"),
+             po::value<std::string>()->value_name("<string>")->notifier(
+                     [&, initial_partitioning](const std::string& type) {
+                       if (initial_partitioning) {
+                         context.initial_partitioning.refinement.rebalancer = rebalancingAlgorithmFromString(type);
+                       } else {
+                         context.refinement.rebalancer = rebalancingAlgorithmFromString(type);
+                       }
+                     })->default_value("do_nothing"),
+             "Rebalancer Algorithm:\n"
+             "- simple_rebalancer\n"
+             "- do_nothing");
     return options;
   }
 
