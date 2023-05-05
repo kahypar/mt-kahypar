@@ -531,7 +531,7 @@ Construct a partitioned graph.
         return imbalance(partitioned_graph);
       }, "Computes the imbalance of the partition")
     .def("cut", [](PartitionedGraph& partitioned_graph) {
-        return metrics::hyperedgeCut(partitioned_graph);
+        return metrics::quality(partitioned_graph, Objective::cut);
       },
       "Computes the edge-cut metric of the partition")
     .def("writePartitionToFile", [](PartitionedGraph& partitioned_graph,
@@ -620,17 +620,13 @@ Construct a partitioned hypergraph.
         return imbalance(partitioned_hg);
       }, "Computes the imbalance of the partition")
     .def("cut", [](PartitionedHypergraph& partitioned_hg) {
-        return metrics::hyperedgeCut(partitioned_hg);
+        return metrics::quality(partitioned_hg, Objective::cut);
       },
       "Computes the cut-net metric of the partition")
     .def("km1", [](PartitionedHypergraph& partitioned_hg) {
-        return metrics::km1(partitioned_hg);
+        return metrics::quality(partitioned_hg, Objective::km1);
       },
       "Computes the connectivity metric of the partition")
-    .def("soed", [](PartitionedHypergraph& partitioned_hg) {
-        return metrics::soed(partitioned_hg);
-      },
-      "Computes the sum-of-external-degree metric of the partition")
     .def("writePartitionToFile", [](PartitionedHypergraph& partitioned_hg,
                                     const std::string& partition_file) {
         io::writePartitionFile(partitioned_hg, partition_file);
@@ -717,17 +713,13 @@ Construct a partitioned hypergraph.
         return imbalance(partitioned_hg);
       }, "Computes the imbalance of the partition")
     .def("cut", [](SparsePartitionedHypergraph& partitioned_hg) {
-        return metrics::hyperedgeCut(partitioned_hg);
+        return metrics::quality(partitioned_hg, Objective::cut);
       },
       "Computes the cut-net metric of the partition")
     .def("km1", [](SparsePartitionedHypergraph& partitioned_hg) {
-        return metrics::km1(partitioned_hg);
+        return metrics::quality(partitioned_hg, Objective::km1);
       },
       "Computes the connectivity metric of the partition")
-    .def("soed", [](SparsePartitionedHypergraph& partitioned_hg) {
-        return metrics::soed(partitioned_hg);
-      },
-      "Computes the sum-of-external-degree metric of the partition")
     .def("writePartitionToFile", [](SparsePartitionedHypergraph& partitioned_hg,
                                     const std::string& partition_file) {
         io::writePartitionFile(partitioned_hg, partition_file);

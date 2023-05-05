@@ -152,7 +152,7 @@ void moveAllNodesOfHypergraphRandom(HyperGraph& hypergraph,
                            }
                          };
 
-  HyperedgeWeight metric_before = metrics::objective(hypergraph, objective);
+  HyperedgeWeight metric_before = metrics::quality(hypergraph, objective);
   HighResClockTimepoint start = std::chrono::high_resolution_clock::now();
   tbb::parallel_for(ID(0), hypergraph.initialNumNodes(), [&](const HypernodeID& hn) {
     int cpu_id = SCHED_GETCPU;
@@ -175,7 +175,7 @@ void moveAllNodesOfHypergraphRandom(HyperGraph& hypergraph,
     delta += local_delta;
   }
 
-  HyperedgeWeight metric_after = metrics::objective(hypergraph, objective);
+  HyperedgeWeight metric_after = metrics::quality(hypergraph, objective);
   ASSERT_EQ(metric_after, metric_before + delta) << V(metric_before) << V(delta);
   if (show_timings) {
     LOG << V(k) << V(objective) << V(metric_before) << V(delta) << V(metric_after) << V(timing);

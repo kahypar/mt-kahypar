@@ -93,21 +93,15 @@ class UncoarsenerBase {
   }
 
   Metrics initializeMetrics(PartitionedHypergraph& phg) {
-    Metrics m = { 0, 0, 0.0 };
-    tbb::parallel_invoke([&] {
-      m.cut = metrics::hyperedgeCut(phg);
-    }, [&] {
-      m.km1 = metrics::km1(phg);
-    });
-    m.imbalance = metrics::imbalance(phg, _context);
+    Metrics m = { metrics::quality(phg, _context),  metrics::imbalance(phg, _context) };
 
     int64_t num_nodes = phg.initialNumNodes();
     int64_t num_edges = Hypergraph::is_graph ? phg.initialNumEdges() / 2 : phg.initialNumEdges();
     utils::Stats& stats = utils::Utilities::instance().getStats(_context.utility_id);
     stats.add_stat("initial_num_nodes", num_nodes);
     stats.add_stat("initial_num_edges", num_edges);
-    stats.add_stat("initial_cut", m.cut);
-    stats.add_stat("initial_km1", m.km1);
+    stats.add_stat("initial_cut", metrics::quality(phg, Objective::cut));
+    stats.add_stat("initial_km1", metrics::quality(phg, Objective::km1));
     stats.add_stat("initial_imbalance", m.imbalance);
     return m;
   }

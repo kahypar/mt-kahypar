@@ -178,14 +178,10 @@ namespace mt_kahypar {
       }
 
       // Update metrics statistics
-      HyperedgeWeight current_metric = best_metrics.getMetric(
-              Mode::direct, _context.partition.objective);
       Gain delta = _gain.delta();
-      HEAVY_REFINEMENT_ASSERT(current_metric + delta ==
-                              metrics::objective(_hg, _context.partition.objective),
-                              V(current_metric) << V(delta) <<
-                                                V(metrics::objective(_hg, _context.partition.objective)));
-      best_metrics.updateMetric(current_metric + delta, Mode::direct, _context.partition.objective);
+      HEAVY_REFINEMENT_ASSERT(best_metrics.quality + delta == metrics::quality(_hg, _context),
+        V(best_metrics.quality) << V(delta) << V(metrics::quality(_hg, _context)));
+      best_metrics.quality += delta;
     }
   }
 

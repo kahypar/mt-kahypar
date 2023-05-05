@@ -102,7 +102,7 @@ namespace mt_kahypar {
       timer.stop_timer("rollback");
 
       const double roundImprovementFraction = improvementFraction(improvement,
-        metrics.getMetric(Mode::direct, context.partition.objective) - overall_improvement);
+        metrics.quality - overall_improvement);
       overall_improvement += improvement;
       if (roundImprovementFraction < context.refinement.fm.min_improvement) {
         consecutive_rounds_with_too_little_improvement++;
@@ -117,7 +117,7 @@ namespace mt_kahypar {
         for (auto& fm : ets_fm) {
           fm.stats.merge(stats);
         }
-        LOG << V(round) << V(improvement) << V(metrics::objective(phg, context.partition.objective))
+        LOG << V(round) << V(improvement) << V(metrics::quality(phg, context))
             << V(metrics::imbalance(phg, context)) << V(num_border_nodes) << V(roundImprovementFraction)
             << V(elapsed_time) << V(current_time_limit) << stats.serialize();
       }
@@ -152,14 +152,11 @@ namespace mt_kahypar {
       is_initialized = false;
     }
 
-    metrics.updateMetric(metrics.getMetric(Mode::direct, context.partition.objective) -
-      overall_improvement, Mode::direct, context.partition.objective);
+    metrics.quality -= overall_improvement;
     metrics.imbalance = metrics::imbalance(phg, context);
     HEAVY_REFINEMENT_ASSERT(phg.checkTrackedPartitionInformation(gain_cache));
-    ASSERT(metrics.getMetric(Mode::direct, context.partition.objective) ==
-      metrics::objective(phg, context.partition.objective),
-      V(metrics.getMetric(Mode::direct, context.partition.objective)) <<
-      V(metrics::objective(phg, context.partition.objective)));
+    ASSERT(metrics.quality == metrics::quality(phg, context),
+      V(metrics.quality) << V(metrics::quality(phg, context)));
     return overall_improvement > 0;
   }
 

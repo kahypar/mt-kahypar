@@ -200,7 +200,7 @@ TEST_F(AInitialPartitioningDataContainer, AppliesPartitionToHypergraph) {
 
   ip_data.apply();
 
-  ASSERT_EQ(2, metrics::objective(partitioned_hypergraph, context.partition.objective));
+  ASSERT_EQ(2, metrics::quality(partitioned_hypergraph, context.partition.objective));
   ASSERT_EQ(0, partitioned_hypergraph.partID(0));
   ASSERT_EQ(0, partitioned_hypergraph.partID(1));
   ASSERT_EQ(0, partitioned_hypergraph.partID(2));
@@ -240,7 +240,7 @@ TEST_F(AInitialPartitioningDataContainer, AppliesBestPartitionToHypergraph) {
 
   ip_data.apply();
 
-  ASSERT_EQ(2, metrics::objective(partitioned_hypergraph, context.partition.objective));
+  ASSERT_EQ(2, metrics::quality(partitioned_hypergraph, context.partition.objective));
   ASSERT_EQ(0, partitioned_hypergraph.partID(0));
   ASSERT_EQ(0, partitioned_hypergraph.partID(1));
   ASSERT_EQ(0, partitioned_hypergraph.partID(2));
@@ -279,7 +279,7 @@ TEST_F(AInitialPartitioningDataContainer, AppliesBestPartitionWithImbalancedPart
 
   ip_data.apply();
 
-  ASSERT_EQ(2, metrics::objective(partitioned_hypergraph, context.partition.objective));
+  ASSERT_EQ(2, metrics::quality(partitioned_hypergraph, context.partition.objective));
   ASSERT_EQ(0, partitioned_hypergraph.partID(0));
   ASSERT_EQ(0, partitioned_hypergraph.partID(1));
   ASSERT_EQ(0, partitioned_hypergraph.partID(2));
@@ -318,7 +318,7 @@ TEST_F(AInitialPartitioningDataContainer, AppliesBestPartitionWithImbalancedPart
 
   ip_data.apply();
 
-  ASSERT_EQ(2, metrics::objective(partitioned_hypergraph, context.partition.objective));
+  ASSERT_EQ(2, metrics::quality(partitioned_hypergraph, context.partition.objective));
   ASSERT_EQ(0, partitioned_hypergraph.partID(0));
   ASSERT_EQ(0, partitioned_hypergraph.partID(1));
   ASSERT_EQ(1, partitioned_hypergraph.partID(2));
@@ -357,7 +357,7 @@ TEST_F(AInitialPartitioningDataContainer, AppliesBestPartitionWithImbalancedPart
 
   ip_data.apply();
 
-  ASSERT_EQ(1, metrics::objective(partitioned_hypergraph, context.partition.objective));
+  ASSERT_EQ(1, metrics::quality(partitioned_hypergraph, context.partition.objective));
   ASSERT_EQ(1, partitioned_hypergraph.partID(0));
   ASSERT_EQ(0, partitioned_hypergraph.partID(1));
   ASSERT_EQ(1, partitioned_hypergraph.partID(2));
@@ -404,7 +404,7 @@ TEST_F(AInitialPartitioningDataContainer, AppliesBestPartitionToHypergraphInPara
 
   ip_data.apply();
 
-  ASSERT_EQ(2, metrics::objective(partitioned_hypergraph, context.partition.objective));
+  ASSERT_EQ(2, metrics::quality(partitioned_hypergraph, context.partition.objective));
   ASSERT_EQ(0, partitioned_hypergraph.partID(0));
   ASSERT_EQ(0, partitioned_hypergraph.partID(1));
   ASSERT_EQ(0, partitioned_hypergraph.partID(2));
@@ -451,7 +451,7 @@ TEST_F(AInitialPartitioningDataContainer, AppliesBestPartitionToHypergraphInPara
 
   ip_data.apply();
 
-  ASSERT_EQ(2, metrics::objective(partitioned_hypergraph, context.partition.objective));
+  ASSERT_EQ(2, metrics::quality(partitioned_hypergraph, context.partition.objective));
   ASSERT_EQ(0, partitioned_hypergraph.partID(0));
   ASSERT_EQ(0, partitioned_hypergraph.partID(1));
   ASSERT_EQ(0, partitioned_hypergraph.partID(2));
@@ -498,7 +498,7 @@ TEST_F(AInitialPartitioningDataContainer, AppliesBestPartitionToHypergraphInPara
 
   ip_data.apply();
 
-  ASSERT_EQ(2, metrics::objective(partitioned_hypergraph, context.partition.objective));
+  ASSERT_EQ(2, metrics::quality(partitioned_hypergraph, context.partition.objective));
   ASSERT_EQ(0, partitioned_hypergraph.partID(0));
   ASSERT_EQ(0, partitioned_hypergraph.partID(1));
   ASSERT_EQ(1, partitioned_hypergraph.partID(2));

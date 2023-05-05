@@ -106,7 +106,7 @@ TEST(RollbackTests, GainRecalculationAndRollsbackCorrectly) {
   // revert last two moves
   ASSERT_EQ(phg.partID(4), 0);
   ASSERT_EQ(phg.partID(5), 0);
-  ASSERT_EQ(metrics::km1(phg, false), 2);
+  ASSERT_EQ(metrics::quality(phg, Objective::km1, false), 2);
 }
 
 

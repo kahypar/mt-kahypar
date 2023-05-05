@@ -34,6 +34,8 @@
 
 namespace mt_kahypar::metrics {
 
+namespace {
+
 template<typename PartitionedHypergraph>
 HyperedgeWeight hyperedgeCut(const PartitionedHypergraph& hypergraph, const bool parallel) {
   if ( parallel ) {
@@ -95,6 +97,27 @@ HyperedgeWeight soed(const PartitionedHypergraph& hypergraph, const bool paralle
   }
 }
 
+}
+
+template<typename PartitionedHypergraph>
+HyperedgeWeight quality(const PartitionedHypergraph& hg,
+                        const Context& context,
+                        const bool parallel) {
+  return quality(hg, context.partition.objective, parallel);
+}
+
+template<typename PartitionedHypergraph>
+HyperedgeWeight quality(const PartitionedHypergraph& hg,
+                        const Objective objective,
+                        const bool parallel) {
+  switch (objective) {
+    case Objective::cut: return hyperedgeCut(hg, parallel);
+    case Objective::km1: return km1(hg, parallel);
+    default: ERR("Unknown Objective");
+  }
+  return 0;
+}
+
 template<typename PartitionedHypergraph>
 bool isBalanced(const PartitionedHypergraph& phg, const Context& context) {
   size_t num_empty_parts = 0;
@@ -111,18 +134,6 @@ bool isBalanced(const PartitionedHypergraph& phg, const Context& context) {
     context.partition.preset_type == PresetType::large_k ||
     #endif
     num_empty_parts <= phg.numRemovedHypernodes();
-}
-
-template<typename PartitionedHypergraph>
-HyperedgeWeight objective(const PartitionedHypergraph& hg,
-                          const Objective& objective,
-                          const bool parallel) {
-  switch (objective) {
-    case Objective::cut: return hyperedgeCut(hg, parallel);
-    case Objective::km1: return km1(hg, parallel);
-    default:
-    ERR("Unknown Objective");
-  }
 }
 
 template<typename PartitionedHypergraph>
@@ -143,18 +154,14 @@ double imbalance(const PartitionedHypergraph& hypergraph, const Context& context
 }
 
 namespace {
-#define HYPEREDGE_CUT(X) HyperedgeWeight hyperedgeCut(const X& hypergraph, bool parallel)
-#define KM1(X) HyperedgeWeight km1(const X& hypergraph, bool parallel)
-#define SOED(X) HyperedgeWeight soed(const X& hypergraph, bool parallel)
-#define OBJECTIVE(X) HyperedgeWeight objective(const X& hg, const Objective& objective, bool parallel)
+#define OBJECTIVE_1(X) HyperedgeWeight quality(const X& hg, const Context& context, const bool parallel)
+#define OBJECTIVE_2(X) HyperedgeWeight quality(const X& hg, const Objective objective, const bool parallel)
 #define IS_BALANCED(X) bool isBalanced(const X& phg, const Context& context)
 #define IMBALANCE(X) double imbalance(const X& hypergraph, const Context& context)
 }
 
-INSTANTIATE_FUNC_WITH_PARTITIONED_HG(HYPEREDGE_CUT)
-INSTANTIATE_FUNC_WITH_PARTITIONED_HG(KM1)
-INSTANTIATE_FUNC_WITH_PARTITIONED_HG(SOED)
-INSTANTIATE_FUNC_WITH_PARTITIONED_HG(OBJECTIVE)
+INSTANTIATE_FUNC_WITH_PARTITIONED_HG(OBJECTIVE_1)
+INSTANTIATE_FUNC_WITH_PARTITIONED_HG(OBJECTIVE_2)
 INSTANTIATE_FUNC_WITH_PARTITIONED_HG(IS_BALANCED)
 INSTANTIATE_FUNC_WITH_PARTITIONED_HG(IMBALANCE)
 

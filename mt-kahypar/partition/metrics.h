@@ -32,49 +32,24 @@
 namespace mt_kahypar {
 
 struct Metrics {
-  HyperedgeWeight km1;
-  HyperedgeWeight cut;
+  HyperedgeWeight quality;
   double imbalance;
-
-  void updateMetric(const HyperedgeWeight value, const Mode mode, const Objective objective) {
-    if (mode == Mode::recursive_bipartitioning || objective == Objective::cut) {
-      // in recursive bisection, km1 is also optimized via the cut net metric
-      cut = value;
-    } else {
-      ASSERT(objective == Objective::km1);
-      km1 = value;
-    }
-  }
-
-  HyperedgeWeight getMetric(const Mode mode, const Objective objective) const {
-    if (mode == Mode::recursive_bipartitioning || objective == Objective::cut) {
-      // in recursive bisection, km1 is also optimized via the cut net metric
-      return cut;
-    } else {
-      ASSERT(objective == Objective::km1);
-      return km1;
-    }
-  }
 };
 
 namespace metrics {
 
 template<typename PartitionedHypergraph>
-HyperedgeWeight hyperedgeCut(const PartitionedHypergraph& hypergraph, bool parallel = true);
+HyperedgeWeight quality(const PartitionedHypergraph& hg,
+                        const Context& context,
+                        const bool parallel = true);
 
 template<typename PartitionedHypergraph>
-HyperedgeWeight km1(const PartitionedHypergraph& hypergraph, bool parallel = true);
-
-template<typename PartitionedHypergraph>
-HyperedgeWeight soed(const PartitionedHypergraph& hypergraph, bool parallel = true);
+HyperedgeWeight quality(const PartitionedHypergraph& hg,
+                        const Objective objective,
+                        const bool parallel = true);
 
 template<typename PartitionedHypergraph>
 bool isBalanced(const PartitionedHypergraph& phg, const Context& context);
-
-template<typename PartitionedHypergraph>
-HyperedgeWeight objective(const PartitionedHypergraph& hg,
-                          const Objective& objective,
-                          bool parallel = true);
 
 template<typename PartitionedHypergraph>
 double imbalance(const PartitionedHypergraph& hypergraph, const Context& context);

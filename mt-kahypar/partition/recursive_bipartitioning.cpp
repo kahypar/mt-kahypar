@@ -195,7 +195,7 @@ namespace tmp {
     DBG << "Multilevel Bipartitioning - Range = (" << k0 << "," << k1 << "), Epsilon =" << b_context.partition.epsilon;
     PartitionedHypergraph bipartitioned_hg = Multilevel<TypeTraits>::partition(hg, b_context);
     DBG << "Bipartitioning Result -"
-        << "Objective =" << metrics::objective(bipartitioned_hg, context.partition.objective)
+        << "Objective =" << metrics::quality(bipartitioned_hg, context)
         << "Imbalance =" << metrics::imbalance(bipartitioned_hg, b_context)
         << "(Target Imbalance =" << b_context.partition.epsilon << ")";
 
@@ -215,8 +215,8 @@ namespace tmp {
     });
     phg.initializePartition();
 
-    ASSERT(metrics::objective(bipartitioned_hg, context.partition.objective) ==
-           metrics::objective(phg, context.partition.objective));
+    ASSERT(metrics::quality(bipartitioned_hg, context) ==
+           metrics::quality(phg, context));
 
     ASSERT(context.partition.k >= 2);
     PartitionID rb_k0 = context.partition.k / 2 + context.partition.k % 2;
@@ -275,7 +275,7 @@ void tmp::recursively_bipartition_block(typename TypeTraits::PartitionedHypergra
     });
     DBG << "Recursive Bipartitioning Result -"
         << "k =" << (k1 - k0)
-        << "Objective =" << metrics::objective(phg, context.partition.objective)
+        << "Objective =" << metrics::quality(phg, context)
         << "Imbalance =" << metrics::imbalance(phg, rb_context)
         << "(Target Imbalance =" << rb_context.partition.epsilon << ")";
 

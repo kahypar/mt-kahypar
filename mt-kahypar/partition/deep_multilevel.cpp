@@ -416,8 +416,8 @@ const DeepPartitioningResult<TypeTraits>& select_best_partition(
   tbb::task_group tg;
   for ( size_t i = 0; i < partitions.size(); ++i ) {
     tg.run([&, i] {
-      objectives[i] = metrics::objective(
-        partitions[i].partitioned_hg, context.partition.objective);
+      objectives[i] = metrics::quality(
+        partitions[i].partitioned_hg, context);
       isBalanced[i] = is_balanced(partitions[i].partitioned_hg, k, rb_tree);
     });
   }
@@ -501,7 +501,7 @@ void bipartition_each_block(typename TypeTraits::PartitionedHypergraph& partitio
           info, target_blocks.first, target_blocks.second);
         bipartitions[block].partitioned_hg.setHypergraph(bipartitions[block].hypergraph);
         progress.addToObjective(progress_bar_enabled ?
-          metrics::objective(bipartitions[block].partitioned_hg, context.partition.objective) : 0 );
+          metrics::quality(bipartitions[block].partitioned_hg, context) : 0 );
         progress += 1;
       });
       block_ranges.push_back(block_ranges.back() + 2);
@@ -703,7 +703,7 @@ PartitionID deep_multilevel_partitioning(typename TypeTraits::PartitionedHypergr
     current_k = 2;
 
     DBG << BOLD << "Peform Initial Bipartitioning" << END
-        << "- Objective =" << metrics::objective(coarsest_phg, b_context.partition.objective)
+        << "- Objective =" << metrics::quality(coarsest_phg, b_context)
         << "- Imbalance =" << metrics::imbalance(coarsest_phg, b_context)
         << "- Epsilon =" << b_context.partition.epsilon;
   } else {
@@ -764,7 +764,7 @@ PartitionID deep_multilevel_partitioning(typename TypeTraits::PartitionedHypergr
     coarsest_phg.initializePartition();
 
     DBG << BOLD << "Best Partition from Recursive Calls" << END
-        << "- Objective =" << metrics::objective(coarsest_phg, context.partition.objective)
+        << "- Objective =" << metrics::quality(coarsest_phg, context)
         << "- isBalanced =" << std::boolalpha << is_balanced(coarsest_phg, current_k, rb_tree);
   }
   ASSERT(current_k != kInvalidPartition);
@@ -833,7 +833,7 @@ PartitionID deep_multilevel_partitioning(typename TypeTraits::PartitionedHypergr
 
       DBG << "Increase number of blocks from" << current_k << "to" << next_k
           << "( Number of Nodes =" << current_phg.initialNumNodes()
-          << "- Objective =" << metrics::objective(current_phg, context.partition.objective)
+          << "- Objective =" << metrics::quality(current_phg, context)
           << "- isBalanced =" << std::boolalpha << is_balanced(current_phg, next_k, rb_tree);
 
       adapt_contraction_limit_for_recursive_bipartitioning(next_k);
@@ -842,7 +842,7 @@ PartitionID deep_multilevel_partitioning(typename TypeTraits::PartitionedHypergr
       uncoarsener->refine();
       const HyperedgeWeight obj_after = uncoarsener->getObjective();
       if ( context.partition.verbose_output && context.type == ContextType::main ) {
-        LOG << "Refinement improved" << context.partition.objective
+        LOG << "Refinement improved" << context
             << "from" << obj_before << "to" << obj_after
             << "( Improvement =" << ((double(obj_before) / obj_after - 1.0) * 100.0) << "% )\n";
       }
@@ -877,7 +877,7 @@ PartitionID deep_multilevel_partitioning(typename TypeTraits::PartitionedHypergr
 
     DBG << "Increase number of blocks from" << current_k << "to" << next_k
         << "( Num Nodes =" << current_phg.initialNumNodes()
-        << "- Objective =" << metrics::objective(current_phg, context.partition.objective)
+        << "- Objective =" << metrics::quality(current_phg, context)
         << "- isBalanced =" << std::boolalpha << is_balanced(current_phg, next_k, rb_tree);
 
     adapt_contraction_limit_for_recursive_bipartitioning(next_k);

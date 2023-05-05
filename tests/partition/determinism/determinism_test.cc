@@ -111,8 +111,7 @@ public:
       InitialPartitioningAlgorithm::bfs, ip_data_ptr, ip_context, 420, 0);
     initial_partitioner.partition();
     ip_data.apply();
-    metrics.km1 = metrics::km1(partitioned_hypergraph);
-    metrics.cut = metrics::hyperedgeCut(partitioned_hypergraph);
+    metrics.quality = metrics::quality(partitioned_hypergraph, ip_context);
     metrics.imbalance = metrics::imbalance(partitioned_hypergraph, context);
   }
 

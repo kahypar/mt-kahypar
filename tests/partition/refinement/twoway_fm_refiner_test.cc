@@ -86,8 +86,7 @@ class ATwoWayFmRefiner : public Test {
       InitialPartitioningAlgorithm::bfs, ip_data_ptr, ip_context, 420, 0);
     initial_partitioner.partition();
     ip_data.apply();
-    metrics.km1 = metrics::km1(partitioned_hypergraph);
-    metrics.cut = metrics::hyperedgeCut(partitioned_hypergraph);
+    metrics.quality = metrics::quality(partitioned_hypergraph, ip_context);
     metrics.imbalance = metrics::imbalance(partitioned_hypergraph, context);
   }
 
@@ -113,25 +112,22 @@ TEST_F(ATwoWayFmRefiner, DoesNotViolateBalanceConstraint) {
 
 TEST_F(ATwoWayFmRefiner, UpdatesMetricsCorrectly) {
   refiner->refine(metrics, *prng);
-  ASSERT_EQ(metrics::objective(partitioned_hypergraph, context.partition.objective),
-            metrics.getMetric(Mode::direct, context.partition.objective));
+  ASSERT_EQ(metrics::quality(partitioned_hypergraph, context), metrics.quality);
 }
 
 TEST_F(ATwoWayFmRefiner, DoesNotWorsenSolutionQuality) {
-  HyperedgeWeight objective_before = metrics::objective(partitioned_hypergraph, context.partition.objective);
+  HyperedgeWeight objective_before = metrics::quality(partitioned_hypergraph, context);
     refiner->refine(metrics, *prng);
-  ASSERT_LE(metrics.getMetric(Mode::direct, context.partition.objective), objective_before);
+  ASSERT_LE(metrics.quality, objective_before);
 }
 
 TEST_F(ATwoWayFmRefiner, DoesProduceCorrectMetricIfExecutedSeveralTimes) {
   refiner->refine(metrics, *prng);
-  ASSERT_EQ(metrics::objective(partitioned_hypergraph, context.partition.objective),
-            metrics.getMetric(Mode::direct, context.partition.objective));
+  ASSERT_EQ(metrics::quality(partitioned_hypergraph, context), metrics.quality);
 
   partitioned_hypergraph.resetPartition();
   initialPartition();
   refiner->refine(metrics, *prng);
-  ASSERT_EQ(metrics::objective(partitioned_hypergraph, context.partition.objective),
-            metrics.getMetric(Mode::direct, context.partition.objective));
+  ASSERT_EQ(metrics::quality(partitioned_hypergraph, context), metrics.quality);
 }
 }  // namespace mt_kahypar

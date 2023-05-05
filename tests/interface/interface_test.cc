@@ -502,8 +502,7 @@ namespace mt_kahypar {
       if ( debug ) {
         LOG << " imbalance =" << imbalance << "\n"
             << "cut =" << mt_kahypar_cut(p_hg) << "\n"
-            << "km1 =" << km1 << "\n"
-            << "soed =" << mt_kahypar_soed(p_hg);
+            << "km1 =" << km1;
       }
       ASSERT_LE(imbalance, epsilon);
 

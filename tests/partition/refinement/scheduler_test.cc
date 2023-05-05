@@ -324,12 +324,11 @@ TEST_F(AFlowRefinementEndToEnd, SmokeTestWithTwoBlocksPerRefiner) {
     hg.initialNumNodes(), hg.initialNumEdges(), context, gain_cache);
 
   Metrics metrics;
-  metrics.cut = metrics::hyperedgeCut(phg);
-  metrics.km1 = metrics::km1(phg);
+  metrics.quality = metrics::quality(phg, context);
   metrics.imbalance = metrics::imbalance(phg, context);
 
   if ( debug ) {
-    LOG << "Start Solution km1 =" << metrics.km1;
+    LOG << "Start Solution km1 =" << metrics.quality;
   }
 
   mt_kahypar_partitioned_hypergraph_t partitioned_hg = utils::partitioned_hg_cast(phg);
@@ -337,7 +336,7 @@ TEST_F(AFlowRefinementEndToEnd, SmokeTestWithTwoBlocksPerRefiner) {
   scheduler.refine(partitioned_hg, {}, metrics, 0.0);
 
   if ( debug ) {
-    LOG << "Final Solution km1 =" << metrics.km1;
+    LOG << "Final Solution km1 =" << metrics.quality;
   }
 
   if ( debug ) {
@@ -346,7 +345,7 @@ TEST_F(AFlowRefinementEndToEnd, SmokeTestWithTwoBlocksPerRefiner) {
     LOG << utils::Utilities::instance().getStats(context.utility_id);
   }
 
-  ASSERT_EQ(metrics::km1(phg), metrics.km1);
+  ASSERT_EQ(metrics::quality(phg, Objective::km1), metrics.quality);
   ASSERT_EQ(metrics::imbalance(phg, context), metrics.imbalance);
   for ( PartitionID i = 0; i < context.partition.k; ++i ) {
     ASSERT_LE(phg.partWeight(i), context.partition.max_part_weights[i]);
@@ -361,12 +360,11 @@ TEST_F(AFlowRefinementEndToEnd, SmokeTestWithFourBlocksPerRefiner) {
     hg.initialNumNodes(), hg.initialNumEdges(), context, gain_cache);
 
   Metrics metrics;
-  metrics.cut = metrics::hyperedgeCut(phg);
-  metrics.km1 = metrics::km1(phg);
+  metrics.quality = metrics::quality(phg, context);
   metrics.imbalance = metrics::imbalance(phg, context);
 
   if ( debug ) {
-    LOG << "Start Solution km1 =" << metrics.km1;
+    LOG << "Start Solution km1 =" << metrics.quality;
   }
 
   mt_kahypar_partitioned_hypergraph_t partitioned_hg = utils::partitioned_hg_cast(phg);
@@ -374,7 +372,7 @@ TEST_F(AFlowRefinementEndToEnd, SmokeTestWithFourBlocksPerRefiner) {
   scheduler.refine(partitioned_hg, {}, metrics, 0.0);
 
   if ( debug ) {
-    LOG << "Final Solution km1 =" << metrics.km1;
+    LOG << "Final Solution km1 =" << metrics.quality;
   }
 
   if ( debug ) {
@@ -383,7 +381,7 @@ TEST_F(AFlowRefinementEndToEnd, SmokeTestWithFourBlocksPerRefiner) {
     LOG << utils::Utilities::instance().getStats(context.utility_id);
   }
 
-  ASSERT_EQ(metrics::km1(phg), metrics.km1);
+  ASSERT_EQ(metrics::quality(phg, Objective::km1), metrics.quality);
   ASSERT_EQ(metrics::imbalance(phg, context), metrics.imbalance);
   for ( PartitionID i = 0; i < context.partition.k; ++i ) {
     ASSERT_LE(phg.partWeight(i), context.partition.max_part_weights[i]);

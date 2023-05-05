@@ -113,9 +113,8 @@ int main(int argc, char* argv[]) {
             << " graph=" << context.partition.graph_filename
             << " k=" << context.partition.k
             << " imbalance=" << metrics::imbalance(phg, context)
-            << " cut=" << metrics::hyperedgeCut(phg)
-            << " km1=" << metrics::km1(phg)
-            << " soed=" << metrics::soed(phg) << std::endl;
+            << " cut=" << metrics::quality(phg, Objective::cut)
+            << " km1=" << metrics::quality(phg, Objective::km1) << std::endl;
 
   utils::delete_hypergraph(hypergraph);
 

@@ -399,10 +399,10 @@ namespace mt_kahypar {
       ASSERT(gain == gain_cache.gain(m.node, m.from, m.to));
 
       // const HyperedgeWeight objective_before_move =
-      //   metrics::objective(phg, context.partition.objective, false);
+      //   metrics::quality(phg, context, false);
       moveVertex(phg, m.node, m.from, m.to);
       // const HyperedgeWeight objective_after_move =
-      //   metrics::objective(phg, context.partition.objective, false);
+      //   metrics::quality(phg, context, false);
 
       // ASSERT(objective_after_move + gain == objective_before_move,
       //   V(gain) << V(m.gain) << V(objective_after_move) << V(objective_before_move));

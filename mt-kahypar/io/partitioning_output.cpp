@@ -295,7 +295,7 @@ namespace mt_kahypar::io {
     if (context.partition.verbose_output) {
       LOG << description;
       LOG << context.partition.objective << "      ="
-          << metrics::objective(hypergraph, context.partition.objective);
+          << metrics::quality(hypergraph, context);
       LOG << "imbalance =" << metrics::imbalance(hypergraph, context);
       LOG << "Part sizes and weights:";
       io::printPartWeightsAndSizes(hypergraph, context);
@@ -389,9 +389,8 @@ namespace mt_kahypar::io {
                        const Context& context,
                        const std::chrono::duration<double>& elapsed_seconds) {
     LOG << "Objectives:";
-    LOG << " Hyperedge Cut  (minimize) =" << metrics::hyperedgeCut(hypergraph);
-    LOG << " SOED           (minimize) =" << metrics::soed(hypergraph);
-    LOG << " (k-1)          (minimize) =" << metrics::km1(hypergraph);
+    LOG << " Hyperedge Cut  (minimize) =" << metrics::quality(hypergraph, Objective::cut);
+    LOG << " (k-1)          (minimize) =" << metrics::quality(hypergraph, Objective::km1);
     LOG << " Imbalance                 =" << metrics::imbalance(hypergraph, context);
     LOG << " Partitioning Time         =" << elapsed_seconds.count() << "s";
   }

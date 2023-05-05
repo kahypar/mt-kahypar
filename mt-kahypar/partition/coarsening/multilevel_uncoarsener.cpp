@@ -46,14 +46,13 @@ namespace mt_kahypar {
     Base::initializeRefinementAlgorithms();
 
     if (_context.type == ContextType::main) {
-      _context.initial_km1 = _current_metrics.km1;
+      _context.initial_km1 = _current_metrics.quality;
     }
 
     // Enable progress bar if verbose output is enabled
     if ( _context.partition.verbose_output && _context.partition.enable_progress_bar && !debug ) {
       _progress.enable();
-      _progress.setObjective(_context.partition.objective == Objective::km1
-        ? _current_metrics.km1 : _current_metrics.cut);
+      _progress.setObjective(_current_metrics.quality);
     }
 
     _current_level = _uncoarseningData.hierarchy.size();
@@ -73,8 +72,7 @@ namespace mt_kahypar {
       // The next calls to this function will then project the partition to the next level
       // and perform refinement until we reach the input hypergraph.
       IUncoarsener<TypeTraits>::refine();
-      _progress.setObjective(
-        _current_metrics.getMetric(Mode::direct, _context.partition.objective));
+      _progress.setObjective(_current_metrics.quality);
       _progress += partitioned_hg.initialNumNodes();
     } else {
       ASSERT(_current_level >= 0);
@@ -107,15 +105,12 @@ namespace mt_kahypar {
       IUncoarsener<TypeTraits>::refine();
 
       // Update Progress Bar
-      _progress.setObjective(
-        _current_metrics.getMetric(Mode::direct, _context.partition.objective));
+      _progress.setObjective(_current_metrics.quality);
       _progress += partitioned_hg.initialNumNodes() - num_nodes_on_previous_level;
     }
 
-    ASSERT(metrics::objective(*_uncoarseningData.partitioned_hg, _context.partition.objective) ==
-            _current_metrics.getMetric(Mode::direct, _context.partition.objective),
-            V(_current_metrics.getMetric(Mode::direct, _context.partition.objective))
-            << V(metrics::objective(*_uncoarseningData.partitioned_hg, _context.partition.objective)));
+    ASSERT(metrics::quality(*_uncoarseningData.partitioned_hg, _context) == _current_metrics.quality,
+      V(_current_metrics.quality) << V(metrics::quality(*_uncoarseningData.partitioned_hg, _context)));
 
     --_current_level;
   }
@@ -125,8 +120,7 @@ namespace mt_kahypar {
     // If we reach the top-level hypergraph and the partition is still imbalanced,
     // we use a rebalancing algorithm to restore balance.
     if (_context.type == ContextType::main && !metrics::isBalanced(*_uncoarseningData.partitioned_hg, _context)) {
-      const HyperedgeWeight quality_before = _current_metrics.getMetric(
-        Mode::direct, _context.partition.objective);
+      const HyperedgeWeight quality_before = _current_metrics.quality;
       if (_context.partition.verbose_output) {
         LOG << RED << "Partition is imbalanced (Current Imbalance:"
         << metrics::imbalance(*_uncoarseningData.partitioned_hg, _context) << ")" << END;
@@ -151,8 +145,7 @@ namespace mt_kahypar {
         }
         _timer.stop_timer("rebalance");
 
-        const HyperedgeWeight quality_after = _current_metrics.getMetric(
-          Mode::direct, _context.partition.objective);
+        const HyperedgeWeight quality_after = _current_metrics.quality;
         if (_context.partition.verbose_output) {
           const HyperedgeWeight quality_delta = quality_after - quality_before;
           if (quality_delta > 0) {
@@ -170,23 +163,20 @@ namespace mt_kahypar {
       }
 
 
-      ASSERT(metrics::objective(*_uncoarseningData.partitioned_hg, _context.partition.objective) ==
-              _current_metrics.getMetric(Mode::direct, _context.partition.objective),
-              V(_current_metrics.getMetric(Mode::direct, _context.partition.objective))
-              << V(metrics::objective(*_uncoarseningData.partitioned_hg, _context.partition.objective)));
+      ASSERT(metrics::quality(*_uncoarseningData.partitioned_hg, _context) == _current_metrics.quality,
+        V(_current_metrics.quality) << V(metrics::quality(*_uncoarseningData.partitioned_hg, _context)));
     }
   }
 
   template<typename TypeTraits>
   HyperedgeWeight MultilevelUncoarsener<TypeTraits>::getObjectiveImpl() const {
-    return _current_metrics.getMetric(
-      _context.partition.mode, _context.partition.objective);
+    return _current_metrics.quality;
   }
 
   template<typename TypeTraits>
   void MultilevelUncoarsener<TypeTraits>::updateMetricsImpl() {
     _current_metrics = Base::initializeMetrics(*_uncoarseningData.partitioned_hg);
-    _progress.setObjective(_current_metrics.getMetric(Mode::direct, _context.partition.objective));
+    _progress.setObjective(_current_metrics.quality);
   }
 
   template<typename TypeTraits>
@@ -212,7 +202,7 @@ namespace mt_kahypar {
 
     if ( debug && _context.type == ContextType::main ) {
       io::printHypergraphInfo(partitioned_hypergraph.hypergraph(), "Refinement Hypergraph", false);
-      DBG << "Start Refinement - km1 = " << _current_metrics.km1
+      DBG << "Start Refinement -" << _context.partition.objective << "=" << _current_metrics.quality
       << ", imbalance = " << _current_metrics.imbalance;
     }
 
@@ -221,8 +211,7 @@ namespace mt_kahypar {
     mt_kahypar_partitioned_hypergraph_t phg = utils::partitioned_hg_cast(partitioned_hypergraph);
     while( improvement_found ) {
       improvement_found = false;
-      const HyperedgeWeight metric_before = _current_metrics.getMetric(
-        Mode::direct, _context.partition.objective);
+      const HyperedgeWeight metric_before = _current_metrics.quality;
 
       if ( _label_propagation && _context.refinement.label_propagation.algorithm != LabelPropagationAlgorithm::do_nothing ) {
         _timer.start_timer("initialize_lp_refiner", "Initialize LP Refiner");
@@ -255,14 +244,12 @@ namespace mt_kahypar {
       }
 
       if ( _context.type == ContextType::main ) {
-        ASSERT(_current_metrics.getMetric(Mode::direct, _context.partition.objective)
-               == metrics::objective(partitioned_hypergraph, _context.partition.objective),
-               "Actual metric" << V(metrics::km1(partitioned_hypergraph))
-               << "does not match the metric updated by the refiners" << V(_current_metrics.km1));
+        ASSERT(_current_metrics.quality == metrics::quality(partitioned_hypergraph, _context),
+          "Actual metric" << V(metrics::quality(partitioned_hypergraph, _context)) <<
+          "does not match the metric updated by the refiners" << V(_current_metrics.quality));
       }
 
-      const HyperedgeWeight metric_after = _current_metrics.getMetric(
-        Mode::direct, _context.partition.objective);
+      const HyperedgeWeight metric_after = _current_metrics.quality;
       const double relative_improvement = 1.0 -
         static_cast<double>(metric_after) / metric_before;
       if ( !_context.refinement.refine_until_no_improvement ||

@@ -66,7 +66,7 @@ bool SequentialTwoWayFmRefiner<TypeTraits>::refine(Metrics& best_metrics, std::m
                           };
 
   parallel::scalable_vector<HypernodeID> performed_moves;
-  HyperedgeWeight current_cut = best_metrics.cut;
+  HyperedgeWeight current_cut = best_metrics.quality;
   double current_imbalance = best_metrics.imbalance;
   size_t min_cut_idx = 0;
   StopRule stopping_rule(_phg.initialNumNodes());
@@ -120,22 +120,21 @@ bool SequentialTwoWayFmRefiner<TypeTraits>::refine(Metrics& best_metrics, std::m
       current_imbalance = metrics::imbalance(_phg, _context);
       stopping_rule.update(gain);
 
-      const bool improved_cut_within_balance = (current_cut < best_metrics.cut) &&
+      const bool improved_cut_within_balance = (current_cut < best_metrics.quality) &&
                                                 ( _phg.partWeight(0)
                                                   <= _context.partition.max_part_weights[0]) &&
                                                 ( _phg.partWeight(1)
                                                   <= _context.partition.max_part_weights[1]);
       const bool improved_balance_less_equal_cut = (current_imbalance < best_metrics.imbalance) &&
-                                                  (current_cut <= best_metrics.cut);
+                                                  (current_cut <= best_metrics.quality);
       const bool move_is_feasible = ( _phg.partWeight(from) > 0) &&
                                     ( improved_cut_within_balance ||
                                       improved_balance_less_equal_cut );
       if ( move_is_feasible ) {
-        DBG << GREEN << "2Way FM improved cut from" << best_metrics.cut << "to" << current_cut
+        DBG << GREEN << "2Way FM improved cut from" << best_metrics.quality << "to" << current_cut
             << "(Imbalance:" << current_imbalance << ")" << END;
         stopping_rule.reset();
-        best_metrics.cut = current_cut;
-        best_metrics.km1 = current_cut;
+        best_metrics.quality = current_cut;
         best_metrics.imbalance = current_imbalance;
         min_cut_idx = performed_moves.size();
       } else {
@@ -148,7 +147,7 @@ bool SequentialTwoWayFmRefiner<TypeTraits>::refine(Metrics& best_metrics, std::m
   // Perform rollback to best partition found during local search
   rollback(performed_moves, min_cut_idx);
 
-  HEAVY_REFINEMENT_ASSERT(best_metrics.cut == metrics::hyperedgeCut(_phg, false));
+  HEAVY_REFINEMENT_ASSERT(best_metrics.quality == metrics::quality(_phg, Objective::cut, false));
   HEAVY_REFINEMENT_ASSERT(best_metrics.imbalance == metrics::imbalance(_phg, _context),
           V(best_metrics.imbalance) << V(metrics::imbalance(_phg, _context)));
   return min_cut_idx > 0;

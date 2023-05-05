@@ -148,9 +148,8 @@ std::string serialize(const PartitionedHypergraph& hypergraph,
 
     // Metrics
     if ( hypergraph.initialNumEdges() > 0 ) {
-      oss << " cut=" << metrics::hyperedgeCut(hypergraph)
-          << " soed=" << metrics::soed(hypergraph)
-          << " km1=" << metrics::km1(hypergraph)
+      oss << " cut=" << metrics::quality(hypergraph, Objective::cut)
+          << " km1=" << metrics::quality(hypergraph, Objective::km1)
           << " imbalance=" << metrics::imbalance(hypergraph, context);
     }
     oss << " totalPartitionTime=" << elapsed_seconds.count();

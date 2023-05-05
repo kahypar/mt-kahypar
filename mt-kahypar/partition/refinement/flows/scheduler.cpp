@@ -65,8 +65,7 @@ bool FlowRefinementScheduler<TypeTraits, GainTypes>::refineImpl(
                 const double)  {
   PartitionedHypergraph& phg = utils::cast<PartitionedHypergraph>(hypergraph);
   ASSERT(_phg == &phg);
-  _quotient_graph.setObjective(best_metrics.getMetric(
-    Mode::direct, _context.partition.objective));
+  _quotient_graph.setObjective(best_metrics.quality);
 
   std::atomic<HyperedgeWeight> overall_delta(0);
   utils::Timer& timer = utils::Utilities::instance().getTimer(_context.utility_id);
@@ -130,14 +129,9 @@ bool FlowRefinementScheduler<TypeTraits, GainTypes>::refineImpl(
   }(), "Concurrent part weight updates failed!");
 
   // Update metrics statistics
-  HyperedgeWeight current_metric = best_metrics.getMetric(
-    Mode::direct, _context.partition.objective);
-  HEAVY_REFINEMENT_ASSERT(current_metric + overall_delta ==
-                          metrics::objective(phg, _context.partition.objective),
-                          V(current_metric) << V(overall_delta) <<
-                          V(metrics::objective(phg, _context.partition.objective)));
-  best_metrics.updateMetric(current_metric + overall_delta,
-    Mode::direct, _context.partition.objective);
+  HEAVY_REFINEMENT_ASSERT(best_metrics.quality + overall_delta == metrics::quality(phg, _context),
+    V(best_metrics.quality) << V(overall_delta) << V(metrics::quality(phg, _context)));
+  best_metrics.quality += overall_delta;
   best_metrics.imbalance = metrics::imbalance(phg, _context);
   _stats.update_global_stats();
 
