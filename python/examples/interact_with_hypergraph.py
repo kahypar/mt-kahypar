@@ -58,7 +58,6 @@ print("Partition Stats:")
 print("Imbalance = " + str(partitioned_hg.imbalance())) # deviation from average block weight in percentage
 print("cut       = " + str(partitioned_hg.cut())) # cut-net metric
 print("km1       = " + str(partitioned_hg.km1())) # connectivity metric
-print("soed      = " + str(partitioned_hg.soed())) # sum-of-external-degree metric
 print("Block Weights:")
 print("Weight of Block 0 = " + str(partitioned_hg.blockWeight(0)))
 print("Weight of Block 1 = " + str(partitioned_hg.blockWeight(1)))

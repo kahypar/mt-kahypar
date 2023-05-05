@@ -336,7 +336,6 @@ class MainTest(unittest.TestCase):
 
     self.assertEqual(partitioned_hg.cut(), 3)
     self.assertEqual(partitioned_hg.km1(), 4)
-    self.assertEqual(partitioned_hg.soed(), 7)
 
   def test_for_hypergraph_if_all_nodes_contains_correct_number_of_incident_cut_hyperedges(self):
     hypergraph = mtkahypar.Hypergraph(7, 4, [[0,2],[0,1,3,4],[3,4,6],[2,5,6]])
@@ -437,7 +436,6 @@ class MainTest(unittest.TestCase):
 
     self.assertEqual(partitioned_hg.cut(), 3)
     self.assertEqual(partitioned_hg.km1(), 4)
-    self.assertEqual(partitioned_hg.soed(), 7)
 
   def test_for_sparse_hypergraph_if_all_nodes_contains_correct_number_of_incident_cut_hyperedges(self):
     hypergraph = mtkahypar.Hypergraph(7, 4, [[0,2],[0,1,3,4],[3,4,6],[2,5,6]])
