@@ -144,16 +144,6 @@ class CutGainCache {
                        const PartitionID to,
                        const HypernodeID pin_count_in_to_part_after);
 
-  // ! Computes the improvement for cut metric associated with a hyperedge.
-  static HyperedgeWeight delta(const HyperedgeID,
-                               const HyperedgeWeight edge_weight,
-                               const HypernodeID edge_size,
-                               const HypernodeID pin_count_in_from_part_after,
-                               const HypernodeID pin_count_in_to_part_after) {
-    return edge_size > 1 ? (pin_count_in_from_part_after == edge_size - 1) * edge_weight -
-      ( pin_count_in_to_part_after == edge_size ) * edge_weight : 0;
-  }
-
   // ####################### Uncontraction #######################
 
   // ! This function implements the gain cache update after an uncontraction that restores node v in

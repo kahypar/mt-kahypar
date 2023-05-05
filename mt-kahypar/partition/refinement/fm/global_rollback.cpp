@@ -313,7 +313,7 @@ namespace mt_kahypar {
       for (HyperedgeID e : phg.incidentEdges(m.node)) {
         const HypernodeID pin_count_in_from_part_after = phg.pinCountInPart(e, m.from) - 1;
         const HypernodeID pin_count_in_to_part_after = phg.pinCountInPart(e, m.to) + 1;
-        gain -= GainCache::delta(e, phg.edgeWeight(e), phg.edgeSize(e),
+        gain -= AttributedGains::gain(e, phg.edgeWeight(e), phg.edgeSize(e),
           pin_count_in_from_part_after, pin_count_in_to_part_after);
       }
       gain_sum += gain;
@@ -390,7 +390,7 @@ namespace mt_kahypar {
       for (HyperedgeID e: phg.incidentEdges(m.node)) {
         const HypernodeID pin_count_in_from_part_after = phg.pinCountInPart(e, m.from) - 1;
         const HypernodeID pin_count_in_to_part_after = phg.pinCountInPart(e, m.to) + 1;
-        gain -= GainCache::delta(e, phg.edgeWeight(e), phg.edgeSize(e),
+        gain -= AttributedGains::gain(e, phg.edgeWeight(e), phg.edgeSize(e),
           pin_count_in_from_part_after, pin_count_in_to_part_after);
       }
 

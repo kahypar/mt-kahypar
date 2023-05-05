@@ -28,6 +28,7 @@
 
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/metrics.h"
+#include "mt-kahypar/partition/refinement/gains/km1/km1_attributed_gains.h"
 #include "mt-kahypar/parallel/chunking.h"
 #include "mt-kahypar/parallel/parallel_counting_sort.h"
 #include "mt-kahypar/utils/cast.h"
@@ -126,7 +127,7 @@ namespace mt_kahypar {
     Gain attributed_gain = 0;
     auto objective_delta = [&](HyperedgeID he, HyperedgeWeight edge_weight, HypernodeID edge_size,
                                HypernodeID pin_count_in_from_part_after, HypernodeID pin_count_in_to_part_after) {
-      attributed_gain -= km1Delta(he, edge_weight, edge_size, pin_count_in_from_part_after, pin_count_in_to_part_after);
+      attributed_gain -= Km1AttributedGains::gain(he, edge_weight, edge_size, pin_count_in_from_part_after, pin_count_in_to_part_after);
     };
     const bool was_moved = phg.changeNodePart(m.node, m.from, m.to, objective_delta);
     if (context.refinement.deterministic_refinement.use_active_node_set && activate_neighbors && was_moved) {

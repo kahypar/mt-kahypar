@@ -49,6 +49,7 @@ class LocalizedKWayFM {
   using DeltaPartitionedHypergraph = typename PartitionedHypergraph::DeltaPartition;
   using GainCache = typename GainTypes::GainCache;
   using DeltaGainCache = typename GainTypes::DeltaGainCache;
+  using AttributedGains = typename GainTypes::AttributedGains;
 
 public:
   explicit LocalizedKWayFM(const Context& context,

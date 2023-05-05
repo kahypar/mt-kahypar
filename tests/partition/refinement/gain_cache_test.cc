@@ -34,16 +34,17 @@
 #include "mt-kahypar/datastructures/thread_safe_fast_reset_flag_array.h"
 #include "mt-kahypar/io/hypergraph_factory.h"
 #include "mt-kahypar/partition/refinement/gains/gain_cache_ptr.h"
+#include "mt-kahypar/partition/refinement/gains/gain_definitions.h"
 #include "mt-kahypar/utils/randomize.h"
 
 using ::testing::Test;
 
 namespace mt_kahypar {
 
-template<typename TypeTraitsT, typename GainCacheT>
+template<typename TypeTraitsT, typename GainTypesT>
 struct TestConfig {
   using TypeTraits = TypeTraitsT;
-  using GainCache = GainCacheT;
+  using GainTypes = GainTypesT;
 };
 
 template<typename Config>
@@ -52,7 +53,9 @@ class AGainCache : public Test {
   using Hypergraph = typename TypeTraits::Hypergraph;
   using ParallelHyperedge = typename Hypergraph::ParallelHyperedge;
   using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
-  using GainCache = typename Config::GainCache;
+  using GainTypes = typename Config::GainTypes;
+  using GainCache = typename GainTypes::GainCache;
+  using AttributedGains = typename GainTypes::AttributedGains;
 
  public:
   static constexpr PartitionID k = 8;
@@ -218,7 +221,7 @@ class AGainCache : public Test {
                       const HypernodeID edge_size,
                       const HypernodeID pin_count_in_from_part_after,
                       const HypernodeID pin_count_in_to_part_after) {
-    return -GainCache::delta(he, edge_weight, edge_size,
+    return -AttributedGains::gain(he, edge_weight, edge_size,
       pin_count_in_from_part_after, pin_count_in_to_part_after);
   }
 
@@ -228,14 +231,14 @@ class AGainCache : public Test {
   ds::ThreadSafeFastResetFlagArray<> was_moved;
 };
 
-typedef ::testing::Types<TestConfig<StaticHypergraphTypeTraits, Km1GainCache>,
-                         TestConfig<StaticHypergraphTypeTraits, CutGainCache>
-                         ENABLE_N_LEVEL(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA Km1GainCache>)
-                         ENABLE_N_LEVEL(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA CutGainCache>)
-                         ENABLE_LARGE_K(COMMA TestConfig<LargeKHypergraphTypeTraits COMMA Km1GainCache>)
-                         ENABLE_LARGE_K(COMMA TestConfig<LargeKHypergraphTypeTraits COMMA CutGainCache>)
-                         ENABLE_GRAPHS(COMMA TestConfig<StaticGraphTypeTraits COMMA GraphCutGainCache>)
-                         ENABLE_N_LEVEL_GRAPHS(COMMA TestConfig<DynamicGraphTypeTraits COMMA GraphCutGainCache>)> TestConfigs;
+typedef ::testing::Types<TestConfig<StaticHypergraphTypeTraits, Km1GainTypes>,
+                         TestConfig<StaticHypergraphTypeTraits, CutGainTypes>
+                         ENABLE_N_LEVEL(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA Km1GainTypes>)
+                         ENABLE_N_LEVEL(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA CutGainTypes>)
+                         ENABLE_LARGE_K(COMMA TestConfig<LargeKHypergraphTypeTraits COMMA Km1GainTypes>)
+                         ENABLE_LARGE_K(COMMA TestConfig<LargeKHypergraphTypeTraits COMMA CutGainTypes>)
+                         ENABLE_GRAPHS(COMMA TestConfig<StaticGraphTypeTraits COMMA CutGainForGraphsTypes>)
+                         ENABLE_N_LEVEL_GRAPHS(COMMA TestConfig<DynamicGraphTypeTraits COMMA CutGainForGraphsTypes>)> TestConfigs;
 
 TYPED_TEST_CASE(AGainCache, TestConfigs);
 

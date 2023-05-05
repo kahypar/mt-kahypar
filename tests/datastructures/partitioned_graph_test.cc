@@ -35,6 +35,7 @@
 #include "mt-kahypar/datastructures/static_graph_factory.h"
 #include "mt-kahypar/datastructures/partitioned_graph.h"
 #include "mt-kahypar/partition/refinement/gains/cut_for_graphs/cut_gain_cache_for_graphs.h"
+#include "mt-kahypar/partition/refinement/gains/cut/cut_attributed_gains.h"
 #include "mt-kahypar/partition/metrics.h"
 
 using ::testing::Test;
@@ -396,7 +397,8 @@ TYPED_TEST(APartitionedGraph, ComputesDeltaAndGainsCorrectlyIfAllNodesMoveConcur
   auto delta_fun = [&](auto, auto, auto,
                        const HypernodeID pin_count_in_from_part_after,
                        const HypernodeID pin_count_in_to_part_after) {
-      delta.fetch_add(cutDelta(0, 1, 2, pin_count_in_from_part_after, pin_count_in_to_part_after));
+      delta.fetch_add(CutAttributedGains::gain(0, 1, 2,
+        pin_count_in_from_part_after, pin_count_in_to_part_after));
   };
 
   executeConcurrent([&] {

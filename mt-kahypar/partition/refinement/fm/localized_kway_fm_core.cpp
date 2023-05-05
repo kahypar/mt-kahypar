@@ -272,7 +272,7 @@ namespace mt_kahypar {
                                     const HypernodeID edge_size,
                                     const HypernodeID pin_count_in_from_part_after,
                                     const HypernodeID pin_count_in_to_part_after) {
-      attributed_gain += GainCache::delta(he, edge_weight, edge_size,
+      attributed_gain += AttributedGains::gain(he, edge_weight, edge_size,
         pin_count_in_from_part_after, pin_count_in_to_part_after);
 
       // Gains of the pins of a hyperedge can only change in the following situations.

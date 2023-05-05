@@ -29,6 +29,7 @@
 #include <vector>
 
 #include "mt-kahypar/partition/refinement/gains/gain_computation_base.h"
+#include "mt-kahypar/partition/refinement/gains/km1/km1_attributed_gains.h"
 #include "mt-kahypar/datastructures/sparse_map.h"
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
 
@@ -139,7 +140,7 @@ class Km1GainComputation : public GainComputationBase<Km1GainComputation> {
                                            const HypernodeID edge_size,
                                            const HypernodeID pin_count_in_from_part_after,
                                            const HypernodeID pin_count_in_to_part_after) {
-    _deltas.local() += km1Delta(he, edge_weight, edge_size,
+    _deltas.local() += Km1AttributedGains::gain(he, edge_weight, edge_size,
       pin_count_in_from_part_after, pin_count_in_to_part_after);
   }
 

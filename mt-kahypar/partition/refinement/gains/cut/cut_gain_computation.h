@@ -31,6 +31,7 @@
 #include "tbb/enumerable_thread_specific.h"
 
 #include "mt-kahypar/partition/refinement/gains/gain_computation_base.h"
+#include "mt-kahypar/partition/refinement/gains/cut/cut_attributed_gains.h"
 #include "mt-kahypar/datastructures/sparse_map.h"
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
 
@@ -138,7 +139,7 @@ class CutGainComputation : public GainComputationBase<CutGainComputation> {
                                            const HypernodeID edge_size,
                                            const HypernodeID pin_count_in_from_part_after,
                                            const HypernodeID pin_count_in_to_part_after) {
-    _deltas.local() += cutDelta(he, edge_weight, edge_size,
+    _deltas.local() += CutAttributedGains::gain(he, edge_weight, edge_size,
       pin_count_in_from_part_after, pin_count_in_to_part_after);
   }
 

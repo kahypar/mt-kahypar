@@ -151,16 +151,6 @@ class Km1GainCache {
                        const PartitionID to,
                        const HypernodeID pin_count_in_to_part_after);
 
-  // ! Computes the improvement for connectivity metric associated with a hyperedge.
-  static HyperedgeWeight delta(const HyperedgeID,
-                               const HyperedgeWeight edge_weight,
-                               const HypernodeID,
-                               const HypernodeID pin_count_in_from_part_after,
-                               const HypernodeID pin_count_in_to_part_after) {
-    return (pin_count_in_to_part_after == 1 ? edge_weight : 0) +
-           (pin_count_in_from_part_after == 0 ? -edge_weight : 0);
-  }
-
   // ####################### Uncontraction #######################
 
   // ! This function implements the gain cache update after an uncontraction that restores node v in

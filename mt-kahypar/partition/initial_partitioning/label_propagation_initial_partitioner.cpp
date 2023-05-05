@@ -27,6 +27,7 @@
 #include "mt-kahypar/partition/initial_partitioning/label_propagation_initial_partitioner.h"
 
 #include "mt-kahypar/definitions.h"
+#include "mt-kahypar/partition/refinement/gains/cut/cut_attributed_gains.h"
 #include "mt-kahypar/partition/initial_partitioning/policies/pseudo_peripheral_start_nodes.h"
 #include "mt-kahypar/partition/initial_partitioning/policies/gain_computation_policy.h"
 #include "mt-kahypar/utils/randomize.h"
@@ -106,7 +107,8 @@ void LabelPropagationInitialPartitioner<TypeTraits>::partitionImpl() {
                     ++adjusted_edge_size;
                   }
                 }
-                expected_gain -= cutDelta(he, edge_weight, adjusted_edge_size,
+                expected_gain -= CutAttributedGains::gain(
+                  he, edge_weight, adjusted_edge_size,
                   pin_count_in_from_part_after, pin_count_in_to_part_after);
               };
               hg.changeNodePart(hn, from, to, cut_delta);

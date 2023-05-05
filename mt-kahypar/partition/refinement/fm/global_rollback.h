@@ -39,6 +39,7 @@ class GlobalRollback {
 
   using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
   using GainCache = typename GainTypes::GainCache;
+  using AttributedGains = typename GainTypes::AttributedGains;
   using Rollback = typename GainTypes::Rollback;
   using RecalculationData = typename Rollback::RecalculationData;
 

@@ -62,6 +62,7 @@ class FlowRefinementScheduler final : public IRefiner {
 
   using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
   using GainCache = typename GainTypes::GainCache;
+  using AttributedGains = typename GainTypes::AttributedGains;
 
   struct RefinementStats {
     RefinementStats(utils::Stats& stats) :

@@ -64,7 +64,7 @@ namespace mt_kahypar {
     ASSERT(delta <= 0, "LP refiner worsen solution quality");
 
     HEAVY_REFINEMENT_ASSERT(hypergraph.checkTrackedPartitionInformation(_gain_cache));
-    HEAVY_REFINEMENT_ASSERT(current_metric + delta ==
+    HEAVY_REFINEMENT_ASSERT(best_metrics.quality + delta ==
       metrics::quality(hypergraph, best_metrics.quality,
         !_context.refinement.label_propagation.execute_sequential),
       V(best_metrics.quality) << V(delta) << V((best_metrics.quality + delta))

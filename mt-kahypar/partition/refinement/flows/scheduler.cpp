@@ -297,7 +297,7 @@ HyperedgeWeight FlowRefinementScheduler<TypeTraits, GainTypes>::applyMoves(const
                         const HypernodeID edge_size,
                         const HypernodeID pin_count_in_from_part_after,
                         const HypernodeID pin_count_in_to_part_after) {
-    improvement -= GainCache::delta(he, edge_weight, edge_size,
+    improvement -= AttributedGains::gain(he, edge_weight, edge_size,
       pin_count_in_from_part_after, pin_count_in_to_part_after);
 
     // Collect hyperedges with new blocks in its connectivity set

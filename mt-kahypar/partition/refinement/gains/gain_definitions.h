@@ -35,11 +35,14 @@
 #include "mt-kahypar/partition/refinement/gains/km1/km1_gain_cache.h"
 #include "mt-kahypar/partition/refinement/gains/km1/km1_rollback.h"
 #include "mt-kahypar/partition/refinement/gains/km1/km1_gain_computation.h"
+#include "mt-kahypar/partition/refinement/gains/km1/km1_attributed_gains.h"
 #include "mt-kahypar/partition/refinement/gains/cut/cut_gain_cache.h"
 #include "mt-kahypar/partition/refinement/gains/cut/cut_rollback.h"
 #include "mt-kahypar/partition/refinement/gains/cut/cut_gain_computation.h"
+#include "mt-kahypar/partition/refinement/gains/cut/cut_attributed_gains.h"
 #ifdef KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES
 #include "mt-kahypar/partition/refinement/gains/cut_for_graphs/cut_gain_cache_for_graphs.h"
+#include "mt-kahypar/partition/refinement/gains/cut_for_graphs/cut_attributed_gains_for_graphs.h"
 #endif
 #include "mt-kahypar/macros.h"
 
@@ -47,6 +50,7 @@ namespace mt_kahypar {
 
 struct Km1GainTypes : public kahypar::meta::PolicyBase {
   using GainComputation = Km1GainComputation;
+  using AttributedGains = Km1AttributedGains;
   using GainCache = Km1GainCache;
   using DeltaGainCache = DeltaKm1GainCache;
   using Rollback = Km1Rollback;
@@ -54,6 +58,7 @@ struct Km1GainTypes : public kahypar::meta::PolicyBase {
 
 struct CutGainTypes : public kahypar::meta::PolicyBase {
   using GainComputation = CutGainComputation;
+  using AttributedGains = CutAttributedGains;
   using GainCache = CutGainCache;
   using DeltaGainCache = DeltaCutGainCache;
   using Rollback = CutRollback;
@@ -62,6 +67,7 @@ struct CutGainTypes : public kahypar::meta::PolicyBase {
 #ifdef KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES
 struct CutGainForGraphsTypes : public kahypar::meta::PolicyBase {
   using GainComputation = CutGainComputation;
+  using AttributedGains = GraphCutAttributedGains;
   using GainCache = GraphCutGainCache;
   using DeltaGainCache = DeltaGraphCutGainCache;
   using Rollback = Km1Rollback;
