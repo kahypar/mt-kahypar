@@ -110,5 +110,5 @@ using FlowRefinementFactory = kahypar::meta::Factory<FlowAlgorithm,
 using FlowRefinementDispatcher = kahypar::meta::StaticMultiDispatchFactory<
                                   FlowRefiner,
                                   IFlowRefiner,
-                                  kahypar::meta::Typelist<TypeTraitsList>>;
+                                  kahypar::meta::Typelist<TypeTraitsList, GainTypes>>;
 }  // namespace mt_kahypar

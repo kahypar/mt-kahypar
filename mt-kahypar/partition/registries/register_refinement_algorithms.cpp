@@ -138,6 +138,8 @@ REGISTER_FLOW_SCHEDULER(FlowAlgorithm::do_nothing, DoNothingRefiner, 3);
 REGISTER_DISPATCHED_FLOW_REFINER(FlowAlgorithm::flow_cutter,
                                   FlowRefinementDispatcher,
                                   kahypar::meta::PolicyRegistry<mt_kahypar_partition_type_t>::getInstance().getPolicy(
-                                   context.partition.partition_type));
+                                   context.partition.partition_type),
+                                  kahypar::meta::PolicyRegistry<GainPolicy>::getInstance().getPolicy(
+                                    context.partition.gain_policy));
 REGISTER_FLOW_REFINER(FlowAlgorithm::do_nothing, DoNothingFlowRefiner, 4);
 }  // namespace mt_kahypar

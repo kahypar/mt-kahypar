@@ -36,10 +36,12 @@
 #include "mt-kahypar/partition/refinement/gains/km1/km1_rollback.h"
 #include "mt-kahypar/partition/refinement/gains/km1/km1_gain_computation.h"
 #include "mt-kahypar/partition/refinement/gains/km1/km1_attributed_gains.h"
+#include "mt-kahypar/partition/refinement/gains/km1/km1_flow_network_construction.h"
 #include "mt-kahypar/partition/refinement/gains/cut/cut_gain_cache.h"
 #include "mt-kahypar/partition/refinement/gains/cut/cut_rollback.h"
 #include "mt-kahypar/partition/refinement/gains/cut/cut_gain_computation.h"
 #include "mt-kahypar/partition/refinement/gains/cut/cut_attributed_gains.h"
+#include "mt-kahypar/partition/refinement/gains/cut/cut_flow_network_construction.h"
 #ifdef KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES
 #include "mt-kahypar/partition/refinement/gains/cut_for_graphs/cut_gain_cache_for_graphs.h"
 #include "mt-kahypar/partition/refinement/gains/cut_for_graphs/cut_attributed_gains_for_graphs.h"
@@ -54,6 +56,7 @@ struct Km1GainTypes : public kahypar::meta::PolicyBase {
   using GainCache = Km1GainCache;
   using DeltaGainCache = DeltaKm1GainCache;
   using Rollback = Km1Rollback;
+  using FlowNetworkConstruction = Km1FlowNetworkConstruction;
 };
 
 struct CutGainTypes : public kahypar::meta::PolicyBase {
@@ -62,6 +65,7 @@ struct CutGainTypes : public kahypar::meta::PolicyBase {
   using GainCache = CutGainCache;
   using DeltaGainCache = DeltaCutGainCache;
   using Rollback = CutRollback;
+  using FlowNetworkConstruction = CutFlowNetworkConstruction;
 };
 
 #ifdef KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES
@@ -71,6 +75,7 @@ struct CutGainForGraphsTypes : public kahypar::meta::PolicyBase {
   using GainCache = GraphCutGainCache;
   using DeltaGainCache = DeltaGraphCutGainCache;
   using Rollback = Km1Rollback;
+  using FlowNetworkConstruction = CutFlowNetworkConstruction;
 };
 #endif
 

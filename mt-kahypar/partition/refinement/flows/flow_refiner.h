@@ -45,7 +45,7 @@
 
 namespace mt_kahypar {
 
-template<typename TypeTraits>
+template<typename TypeTraits, typename GainTypes>
 class FlowRefiner final : public IFlowRefiner {
 
   static constexpr bool debug = false;
@@ -134,7 +134,7 @@ class FlowRefiner final : public IFlowRefiner {
   whfc::HyperFlowCutter<whfc::ParallelPushRelabel> _parallel_hfc;
 
   vec<HypernodeID> _whfc_to_node;
-  SequentialConstruction<TypeTraits> _sequential_construction;
-  ParallelConstruction<TypeTraits> _parallel_construction;
+  SequentialConstruction<TypeTraits, GainTypes> _sequential_construction;
+  ParallelConstruction<TypeTraits, GainTypes> _parallel_construction;
 };
 }  // namespace mt_kahypar
