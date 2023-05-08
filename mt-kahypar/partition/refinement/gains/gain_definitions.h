@@ -51,6 +51,7 @@
 namespace mt_kahypar {
 
 struct Km1GainTypes : public kahypar::meta::PolicyBase {
+  static constexpr bool use_cut_net_splitting = true;
   using GainComputation = Km1GainComputation;
   using AttributedGains = Km1AttributedGains;
   using GainCache = Km1GainCache;
@@ -60,6 +61,7 @@ struct Km1GainTypes : public kahypar::meta::PolicyBase {
 };
 
 struct CutGainTypes : public kahypar::meta::PolicyBase {
+  static constexpr bool use_cut_net_splitting = false;
   using GainComputation = CutGainComputation;
   using AttributedGains = CutAttributedGains;
   using GainCache = CutGainCache;
@@ -69,6 +71,7 @@ struct CutGainTypes : public kahypar::meta::PolicyBase {
 };
 
 struct SoedGainTypes : public kahypar::meta::PolicyBase {
+  static constexpr bool use_cut_net_splitting = true;
   using GainComputation = Km1GainComputation;
   using AttributedGains = Km1AttributedGains;
   using GainCache = Km1GainCache;
@@ -79,6 +82,7 @@ struct SoedGainTypes : public kahypar::meta::PolicyBase {
 
 #ifdef KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES
 struct CutGainForGraphsTypes : public kahypar::meta::PolicyBase {
+  static constexpr bool use_cut_net_splitting = false;
   using GainComputation = CutGainComputation;
   using AttributedGains = GraphCutAttributedGains;
   using GainCache = GraphCutGainCache;
@@ -87,6 +91,20 @@ struct CutGainForGraphsTypes : public kahypar::meta::PolicyBase {
   using FlowNetworkConstruction = CutFlowNetworkConstruction;
 };
 #endif
+
+struct SubhypergraphExtraction {
+  static bool useCutNetSplitting(const GainPolicy policy) {
+    switch(policy) {
+      case GainPolicy::cut: return CutGainTypes::use_cut_net_splitting;
+      case GainPolicy::km1: return Km1GainTypes::use_cut_net_splitting;
+      case GainPolicy::soed: return SoedGainTypes::use_cut_net_splitting;
+      ENABLE_GRAPHS(case GainPolicy::cut_for_graphs: return CutGainForGraphsTypes::use_cut_net_splitting;)
+      case GainPolicy::none: ERR("Gain policy is unknown" << policy);
+    }
+    ERR("Gain policy is unknown" << policy);
+    return false;
+  }
+};
 
 using GainTypes = kahypar::meta::Typelist<Km1GainTypes,
                                           CutGainTypes,

@@ -35,6 +35,7 @@
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/macros.h"
 #include "mt-kahypar/partition/multilevel.h"
+#include "mt-kahypar/partition/refinement/gains/gain_definitions.h"
 
 #include "mt-kahypar/parallel/memory_pool.h"
 #include "mt-kahypar/utils/randomize.h"
@@ -250,7 +251,8 @@ void tmp::recursively_bipartition_block(typename TypeTraits::PartitionedHypergra
   using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
   Context rb_context = setupRecursiveBipartitioningContext(context, k0, k1, degree_of_parallism);
   // Extracts the block of the hypergraph which we recursively want to partition
-  bool cut_net_splitting = context.partition.objective == Objective::km1;
+  const bool cut_net_splitting =
+    SubhypergraphExtraction::useCutNetSplitting(context.partition.gain_policy);
   auto copy_hypergraph = phg.extract(block, cut_net_splitting,
     context.preprocessing.stable_construction_of_incident_edges);
   Hypergraph& rb_hg = copy_hypergraph.first;

@@ -43,6 +43,7 @@
 #include "mt-kahypar/partition/initial_partitioning/pool_initial_partitioner.h"
 #include "mt-kahypar/partition/preprocessing/sparsification/degree_zero_hn_remover.h"
 #include "mt-kahypar/partition/refinement/gains/gain_cache_ptr.h"
+#include "mt-kahypar/partition/refinement/gains/gain_definitions.h"
 #include "mt-kahypar/utils/randomize.h"
 #include "mt-kahypar/utils/utilities.h"
 #include "mt-kahypar/utils/timer.h"
@@ -474,7 +475,8 @@ void bipartition_each_block(typename TypeTraits::PartitionedHypergraph& partitio
   utils::Timer& timer = utils::Utilities::instance().getTimer(context.utility_id);
   // Extract all blocks of hypergraph
   timer.start_timer("extract_blocks", "Extract Blocks");
-  const bool cut_net_splitting = context.partition.objective == Objective::km1;
+  const bool cut_net_splitting =
+    SubhypergraphExtraction::useCutNetSplitting(context.partition.gain_policy);
   auto extracted_blocks = partitioned_hg.extractAllBlocks(current_k,
     cut_net_splitting, context.preprocessing.stable_construction_of_incident_edges);
   vec<Hypergraph>& hypergraphs = extracted_blocks.first;
