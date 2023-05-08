@@ -28,6 +28,8 @@
 
 #pragma once
 
+#include <sstream>
+
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/refinement/i_refiner.h"
 #include "mt-kahypar/partition/coarsening/coarsening_commons.h"
@@ -102,8 +104,15 @@ class UncoarsenerBase {
     utils::Stats& stats = utils::Utilities::instance().getStats(_context.utility_id);
     stats.add_stat("initial_num_nodes", num_nodes);
     stats.add_stat("initial_num_edges", num_edges);
-    stats.add_stat("initial_cut", metrics::quality(phg, Objective::cut));
-    stats.add_stat("initial_km1", metrics::quality(phg, Objective::km1));
+    std::stringstream ss;
+    ss << "initial_" << _context.partition.objective;
+    stats.add_stat(ss.str(), metrics::quality(phg, _context));
+    if ( _context.partition.objective != Objective::cut ) {
+      stats.add_stat("initial_cut", metrics::quality(phg, Objective::cut));
+    }
+    if ( _context.partition.objective != Objective::km1 ) {
+      stats.add_stat("initial_km1", metrics::quality(phg, Objective::km1));
+    }
     stats.add_stat("initial_imbalance", m.imbalance);
     return m;
   }

@@ -116,12 +116,6 @@ class FlowRefiner final : public IFlowRefiner {
     _num_available_threads = num_threads;
   }
 
-  bool canHyperedgeBeDropped(const PartitionedHypergraph& phg,
-                             const HyperedgeID he) {
-    return _context.partition.objective == Objective::cut &&
-      phg.pinCountInPart(he, _block_0) + phg.pinCountInPart(he, _block_1) < phg.edgeSize(he);
-  }
-
   const PartitionedHypergraph* _phg;
   const Context& _context;
   using IFlowRefiner::_time_limit;

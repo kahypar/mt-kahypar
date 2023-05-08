@@ -38,15 +38,21 @@ struct Metrics {
 
 namespace metrics {
 
+// ! Computes for the given partitioned hypergraph the corresponding objective function
 template<typename PartitionedHypergraph>
 HyperedgeWeight quality(const PartitionedHypergraph& hg,
                         const Context& context,
                         const bool parallel = true);
-
 template<typename PartitionedHypergraph>
 HyperedgeWeight quality(const PartitionedHypergraph& hg,
                         const Objective objective,
                         const bool parallel = true);
+
+// ! Computes for a hyperedge the contribution to the corresponding objective function
+template<typename PartitionedHypergraph>
+HyperedgeWeight contribution(const PartitionedHypergraph& hg,
+                             const HyperedgeID he,
+                             const Objective objective);
 
 template<typename PartitionedHypergraph>
 bool isBalanced(const PartitionedHypergraph& phg, const Context& context);
