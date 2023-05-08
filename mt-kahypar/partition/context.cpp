@@ -373,6 +373,7 @@ namespace mt_kahypar {
       switch ( partition.objective ) {
         case Objective::km1: partition.gain_policy = GainPolicy::km1; break;
         case Objective::cut: partition.gain_policy = GainPolicy::cut; break;
+        case Objective::soed: partition.gain_policy = GainPolicy::soed; break;
         case Objective::UNDEFINED: partition.gain_policy = GainPolicy::none; break;
       }
     }
@@ -381,6 +382,7 @@ namespace mt_kahypar {
       switch ( partition.objective ) {
         case Objective::km1: partition.gain_policy = GainPolicy::cut_for_graphs; break;
         case Objective::cut: partition.gain_policy = GainPolicy::cut_for_graphs; break;
+        case Objective::soed: partition.gain_policy = GainPolicy::cut_for_graphs; break;
         case Objective::UNDEFINED: partition.gain_policy = GainPolicy::none; break;
       }
     }

@@ -384,15 +384,29 @@ namespace mt_kahypar::io {
     }
   }
 
+  namespace {
+
+  template<typename T, typename V>
+  void printKeyValue(const T& key, const V& value, const std::string& details = "") {
+    LOG << " " << std::left << std::setw(20) << key << "=" << value << details;
+  }
+  }
+
   template<typename PartitionedHypergraph>
   void printObjectives(const PartitionedHypergraph& hypergraph,
                        const Context& context,
                        const std::chrono::duration<double>& elapsed_seconds) {
     LOG << "Objectives:";
-    LOG << " Hyperedge Cut  (minimize) =" << metrics::quality(hypergraph, Objective::cut);
-    LOG << " (k-1)          (minimize) =" << metrics::quality(hypergraph, Objective::km1);
-    LOG << " Imbalance                 =" << metrics::imbalance(hypergraph, context);
-    LOG << " Partitioning Time         =" << elapsed_seconds.count() << "s";
+    printKeyValue(context.partition.objective, metrics::quality(hypergraph,
+      context), "(primary objective function)");
+    if ( context.partition.objective != Objective::cut ) {
+      printKeyValue(Objective::cut, metrics::quality(hypergraph, Objective::cut));
+    }
+    if ( context.partition.objective != Objective::km1 ) {
+      printKeyValue(Objective::km1, metrics::quality(hypergraph, Objective::km1));
+    }
+    printKeyValue("Imbalance", metrics::imbalance(hypergraph, context));
+    printKeyValue("Partitioning Time", std::to_string(elapsed_seconds.count()) + " s");
   }
 
   template<typename PartitionedHypergraph>

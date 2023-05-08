@@ -68,6 +68,15 @@ struct CutGainTypes : public kahypar::meta::PolicyBase {
   using FlowNetworkConstruction = CutFlowNetworkConstruction;
 };
 
+struct SoedGainTypes : public kahypar::meta::PolicyBase {
+  using GainComputation = Km1GainComputation;
+  using AttributedGains = Km1AttributedGains;
+  using GainCache = Km1GainCache;
+  using DeltaGainCache = DeltaKm1GainCache;
+  using Rollback = Km1Rollback;
+  using FlowNetworkConstruction = Km1FlowNetworkConstruction;
+};
+
 #ifdef KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES
 struct CutGainForGraphsTypes : public kahypar::meta::PolicyBase {
   using GainComputation = CutGainComputation;
@@ -80,12 +89,14 @@ struct CutGainForGraphsTypes : public kahypar::meta::PolicyBase {
 #endif
 
 using GainTypes = kahypar::meta::Typelist<Km1GainTypes,
-                                          CutGainTypes
+                                          CutGainTypes,
+                                          SoedGainTypes
                                           ENABLE_GRAPHS(COMMA CutGainForGraphsTypes)>;
 
 #define INSTANTIATE_CLASS_WITH_TYPE_TRAITS_AND_GAIN_TYPES(C)                                      \
   INSTANTIATE_CLASS_MACRO_WITH_TYPE_TRAITS_AND_OTHER_CLASS(C, Km1GainTypes)                       \
   INSTANTIATE_CLASS_MACRO_WITH_TYPE_TRAITS_AND_OTHER_CLASS(C, CutGainTypes)                       \
+  INSTANTIATE_CLASS_MACRO_WITH_TYPE_TRAITS_AND_OTHER_CLASS(C, SoedGainTypes)                      \
   ENABLE_GRAPHS(INSTANTIATE_CLASS_MACRO_WITH_TYPE_TRAITS_AND_OTHER_CLASS(C, CutGainForGraphsTypes))
 
 }  // namespace mt_kahypar

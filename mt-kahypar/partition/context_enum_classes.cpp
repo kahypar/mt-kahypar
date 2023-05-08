@@ -113,10 +113,23 @@ namespace mt_kahypar {
     switch (objective) {
       case Objective::cut: return os << "cut";
       case Objective::km1: return os << "km1";
+      case Objective::soed: return os << "soed";
       case Objective::UNDEFINED: return os << "UNDEFINED";
         // omit default case to trigger compiler warning for missing cases
     }
     return os << static_cast<uint8_t>(objective);
+  }
+
+  std::ostream & operator<< (std::ostream& os, const GainPolicy& type) {
+    switch (type) {
+      case GainPolicy::km1: return os << "km1";
+      case GainPolicy::cut: return os << "cut";
+      case GainPolicy::soed: return os << "soed";
+      ENABLE_GRAPHS(case GainPolicy::cut_for_graphs: return os << "cut_for_graphs";)
+      case GainPolicy::none: return os << "none";
+        // omit default case to trigger compiler warning for missing cases
+    }
+    return os << static_cast<uint8_t>(type);
   }
 
   std::ostream & operator<< (std::ostream& os, const LouvainEdgeWeight& type) {
@@ -219,17 +232,6 @@ namespace mt_kahypar {
     return os << static_cast<uint8_t>(algo);
   }
 
-  std::ostream & operator<< (std::ostream& os, const GainPolicy& type) {
-    switch (type) {
-      case GainPolicy::km1: return os << "km1";
-      case GainPolicy::cut: return os << "cut";
-      ENABLE_GRAPHS(case GainPolicy::cut_for_graphs: return os << "cut_for_graphs";)
-      case GainPolicy::none: return os << "none";
-        // omit default case to trigger compiler warning for missing cases
-    }
-    return os << static_cast<uint8_t>(type);
-  }
-
   std::ostream & operator<< (std::ostream& os, const FlowAlgorithm& algo) {
     switch (algo) {
       case FlowAlgorithm::flow_cutter: return os << "flow_cutter";
@@ -298,6 +300,19 @@ std::ostream & operator<< (std::ostream& os, const RebalancingAlgorithm& algo) {
     #endif
     ERR("Illegal option: " + type);
     return PresetType::UNDEFINED;
+  }
+
+
+  Objective objectiveFromString(const std::string& obj) {
+    if (obj == "cut") {
+      return Objective::cut;
+    } else if (obj == "km1") {
+      return Objective::km1;
+    } else if (obj == "soed") {
+      return Objective::soed;
+    }
+    ERR("No valid louvain edge weight.");
+    return Objective::UNDEFINED;
   }
 
   LouvainEdgeWeight louvainEdgeWeightFromString(const std::string& type) {

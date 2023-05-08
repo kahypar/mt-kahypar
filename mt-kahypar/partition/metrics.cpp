@@ -113,6 +113,7 @@ HyperedgeWeight quality(const PartitionedHypergraph& hg,
   switch (objective) {
     case Objective::cut: return hyperedgeCut(hg, parallel);
     case Objective::km1: return km1(hg, parallel);
+    case Objective::soed: return soed(hg, parallel);
     default: ERR("Unknown Objective");
   }
   return 0;

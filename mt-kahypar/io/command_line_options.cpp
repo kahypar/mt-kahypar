@@ -660,15 +660,12 @@ namespace mt_kahypar {
              "Imbalance parameter epsilon")
             ("objective,o",
              po::value<std::string>()->value_name("<string>")->required()->notifier([&](const std::string& s) {
-               if (s == "cut") {
-                 context.partition.objective = Objective::cut;
-               } else if (s == "km1") {
-                 context.partition.objective = Objective::km1;
-               }
+               context.partition.objective = objectiveFromString(s);
              }),
              "Objective: \n"
              " - cut : cut-net metric (FM only supports km1 metric) \n"
-             " - km1 : (lambda-1) metric");
+             " - km1 : (lambda-1) metric\n"
+             " - soed: sum-of-external-degree metric");
 
     po::options_description preset_options("Preset Options", num_columns);
     preset_options.add_options()

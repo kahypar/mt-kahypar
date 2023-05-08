@@ -149,9 +149,14 @@ std::string serialize(const PartitionedHypergraph& hypergraph,
 
     // Metrics
     if ( hypergraph.initialNumEdges() > 0 ) {
-      oss << " cut=" << metrics::quality(hypergraph, Objective::cut)
-          << " km1=" << metrics::quality(hypergraph, Objective::km1)
-          << " imbalance=" << metrics::imbalance(hypergraph, context);
+      oss << " " << context.partition.objective << "=" << metrics::quality(hypergraph, context);
+      if ( context.partition.objective != Objective::cut ) {
+        oss << " cut=" << metrics::quality(hypergraph, Objective::cut);
+      }
+      if ( context.partition.objective != Objective::km1 ) {
+        oss << " km1=" << metrics::quality(hypergraph, Objective::km1);
+      }
+      oss << " imbalance=" << metrics::imbalance(hypergraph, context);
     }
     oss << " totalPartitionTime=" << elapsed_seconds.count();
 
