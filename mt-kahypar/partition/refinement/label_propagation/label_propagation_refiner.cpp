@@ -65,7 +65,7 @@ namespace mt_kahypar {
 
     HEAVY_REFINEMENT_ASSERT(hypergraph.checkTrackedPartitionInformation(_gain_cache));
     HEAVY_REFINEMENT_ASSERT(best_metrics.quality + delta ==
-      metrics::quality(hypergraph, best_metrics.quality,
+      metrics::quality(hypergraph, _context,
         !_context.refinement.label_propagation.execute_sequential),
       V(best_metrics.quality) << V(delta) << V((best_metrics.quality + delta))
         << V(metrics::quality(hypergraph, _context,

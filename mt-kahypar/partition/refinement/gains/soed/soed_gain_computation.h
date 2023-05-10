@@ -28,24 +28,22 @@
 
 #include <vector>
 
-#include "tbb/enumerable_thread_specific.h"
-
 #include "mt-kahypar/partition/refinement/gains/gain_computation_base.h"
-#include "mt-kahypar/partition/refinement/gains/cut/cut_attributed_gains.h"
+#include "mt-kahypar/partition/refinement/gains/soed/soed_attributed_gains.h"
 #include "mt-kahypar/datastructures/sparse_map.h"
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
 
 namespace mt_kahypar {
 
-class CutGainComputation : public GainComputationBase<CutGainComputation, CutAttributedGains> {
-  using Base = GainComputationBase<CutGainComputation, CutAttributedGains>;
+class SoedGainComputation : public GainComputationBase<SoedGainComputation, SoedAttributedGains> {
+  using Base = GainComputationBase<SoedGainComputation, SoedAttributedGains>;
   using RatingMap = typename Base::RatingMap;
 
   static constexpr bool enable_heavy_assert = false;
 
  public:
-  CutGainComputation(const Context& context,
-                     bool disable_randomization = false) :
+  SoedGainComputation(const Context& context,
+                      bool disable_randomization = false) :
     Base(context, disable_randomization) { }
 
   // ! Precomputes the gain to all adjacent blocks.
@@ -61,21 +59,32 @@ class CutGainComputation : public GainComputationBase<CutGainComputation, CutAtt
     ASSERT(tmp_scores.size() == 0, "Rating map not empty");
     PartitionID from = phg.partID(hn);
     for (const HyperedgeID& he : phg.incidentEdges(hn)) {
-      PartitionID connectivity = phg.connectivity(he);
-      HypernodeID pin_count_in_from_part = phg.pinCountInPart(he, from);
-      HyperedgeWeight weight = phg.edgeWeight(he);
-      if (connectivity == 1 && phg.edgeSize(he) > 1) {
-        // In case, the hyperedge is a non-cut hyperedge, we would increase
-        // the cut, if we move vertex hn to an other block.
-        isolated_block_gain += weight;
-      } else if (connectivity == 2 && pin_count_in_from_part == 1) {
+      const HypernodeID edge_size = phg.edgeSize(he);
+
+      if ( edge_size > 1 ) {
+        HypernodeID pin_count_in_from_part = phg.pinCountInPart(he, from);
+        HyperedgeWeight he_weight = phg.edgeWeight(he);
+
+        // In case, there is more one than one pin left in from part, we would
+        // increase the connectivity, if we would move the pin to one block
+        // not contained in the connectivity set. In such cases, we can only
+        // increase the connectivity of a hyperedge and therefore gather
+        // the edge weight of all those edges and add it later to move gain
+        // to all other blocks. There is one percularity. If the hyperedge is not
+        // a cut edge, we would increase the soed metric by 2 * w(e) where w(e)
+        // is the weight of the hyperedge.
+        if ( pin_count_in_from_part > 1 ) {
+          isolated_block_gain += (pin_count_in_from_part == edge_size ? 2 : 1) * he_weight;
+        }
+
+        // Substract edge weight from all incident blocks.
+        // If the we would make the hyperedge a non-cut edge, we would improve
+        // the objective function by 2 * w(e) where w(e) is the weight of the hyperedge.
+        // Note, in case the pin count in from part is greater than one
+        // we will later add that edge weight to the gain (see internal_weight).
         for (const PartitionID& to : phg.connectivitySet(he)) {
-          // In case there are only two blocks contained in the current
-          // hyperedge and only one pin left in the from part of the hyperedge,
-          // we would make the current hyperedge a non-cut hyperedge when moving
-          // vertex hn to the other block.
           if (from != to) {
-            tmp_scores[to] += weight;
+            tmp_scores[to] += (phg.pinCountInPart(he, to) == edge_size - 1 ? 2 : 1) * he_weight;
           }
         }
       }
@@ -86,6 +95,6 @@ class CutGainComputation : public GainComputationBase<CutGainComputation, CutAtt
                        const Gain isolated_block_gain) {
     return isolated_block_gain - to_score;
   }
-
 };
+
 }  // namespace mt_kahypar

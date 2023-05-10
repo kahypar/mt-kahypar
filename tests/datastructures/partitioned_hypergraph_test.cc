@@ -448,9 +448,9 @@ TYPED_TEST(APartitionedHypergraph, HasCorrectBorderNodesIfNodesAreMovingConcurre
 
 
 TYPED_TEST(APartitionedHypergraph, ExtractBlockZeroWithCutNetSplitting) {
-  auto extracted_hg = this->partitioned_hypergraph.extract(0, true, true);
-  auto& hg = extracted_hg.first;
-  auto& hn_mapping = extracted_hg.second;
+  auto extracted_hg = this->partitioned_hypergraph.extract(0, nullptr, true, true);
+  auto& hg = extracted_hg.hg;
+  auto& hn_mapping = extracted_hg.hn_mapping;
 
   ASSERT_EQ(3, hg.initialNumNodes());
   ASSERT_EQ(2, hg.initialNumEdges());
@@ -472,9 +472,9 @@ TYPED_TEST(APartitionedHypergraph, ExtractBlockZeroWithCutNetSplitting) {
 
 
 TYPED_TEST(APartitionedHypergraph, ExtractBlockOneWithCutNetSplitting) {
-  auto extracted_hg = this->partitioned_hypergraph.extract(1, true, true);
-  auto& hg = extracted_hg.first;
-  auto& hn_mapping = extracted_hg.second;
+  auto extracted_hg = this->partitioned_hypergraph.extract(1, nullptr, true, true);
+  auto& hg = extracted_hg.hg;
+  auto& hn_mapping = extracted_hg.hn_mapping;
 
   ASSERT_EQ(2, hg.initialNumNodes());
   ASSERT_EQ(2, hg.initialNumEdges());
@@ -494,9 +494,9 @@ TYPED_TEST(APartitionedHypergraph, ExtractBlockOneWithCutNetSplitting) {
 }
 
 TYPED_TEST(APartitionedHypergraph, ExtractBlockTwoWithCutNetSplitting) {
-  auto extracted_hg = this->partitioned_hypergraph.extract(2, true, true);
-  auto& hg = extracted_hg.first;
-  auto& hn_mapping = extracted_hg.second;
+  auto extracted_hg = this->partitioned_hypergraph.extract(2, nullptr, true, true);
+  auto& hg = extracted_hg.hg;
+  auto& hn_mapping = extracted_hg.hn_mapping;
 
   ASSERT_EQ(2, hg.initialNumNodes());
   ASSERT_EQ(1, hg.initialNumEdges());
@@ -518,9 +518,9 @@ TYPED_TEST(APartitionedHypergraph, ExtractBlockTwoWithCutNetSplitting) {
 
 
 TYPED_TEST(APartitionedHypergraph, ExtractBlockZeroWithCutNetRemoval) {
-  auto extracted_hg = this->partitioned_hypergraph.extract(0, false, true);
-  auto& hg = extracted_hg.first;
-  auto& hn_mapping = extracted_hg.second;
+  auto extracted_hg = this->partitioned_hypergraph.extract(0, nullptr, false, true);
+  auto& hg = extracted_hg.hg;
+  auto& hn_mapping = extracted_hg.hn_mapping;
 
   ASSERT_EQ(3, hg.initialNumNodes());
   ASSERT_EQ(1, hg.initialNumEdges());
@@ -543,9 +543,9 @@ TYPED_TEST(APartitionedHypergraph, ExtractBlockZeroWithCutNetRemoval) {
 
 TYPED_TEST(APartitionedHypergraph, ExtractBlockOneWithCutNetRemoval) {
   this->partitioned_hypergraph.changeNodePart(6, 2, 1);
-  auto extracted_hg = this->partitioned_hypergraph.extract(1, false, true);
-  auto& hg = extracted_hg.first;
-  auto& hn_mapping = extracted_hg.second;
+  auto extracted_hg = this->partitioned_hypergraph.extract(1, nullptr, false, true);
+  auto& hg = extracted_hg.hg;
+  auto& hn_mapping = extracted_hg.hn_mapping;
 
   ASSERT_EQ(3, hg.initialNumNodes());
   ASSERT_EQ(1, hg.initialNumEdges());
@@ -567,9 +567,9 @@ TYPED_TEST(APartitionedHypergraph, ExtractBlockOneWithCutNetRemoval) {
 
 TYPED_TEST(APartitionedHypergraph, ExtractBlockTwoWithCutNetRemoval) {
   this->partitioned_hypergraph.changeNodePart(2, 0, 2);
-  auto extracted_hg = this->partitioned_hypergraph.extract(2, false, true);
-  auto& hg = extracted_hg.first;
-  auto& hn_mapping = extracted_hg.second;
+  auto extracted_hg = this->partitioned_hypergraph.extract(2, nullptr, false, true);
+  auto& hg = extracted_hg.hg;
+  auto& hn_mapping = extracted_hg.hn_mapping;
 
   ASSERT_EQ(3, hg.initialNumNodes());
   ASSERT_EQ(1, hg.initialNumEdges());
@@ -590,70 +590,70 @@ TYPED_TEST(APartitionedHypergraph, ExtractBlockTwoWithCutNetRemoval) {
 }
 
 TYPED_TEST(APartitionedHypergraph, ExtractAllBlockBlocksWithCutNetSplitting) {
-  auto extracted_hg = this->partitioned_hypergraph.extractAllBlocks(3, true, true);
+  auto extracted_hg = this->partitioned_hypergraph.extractAllBlocks(3, nullptr, true, true);
   auto& hypergraphs = extracted_hg.first;
   vec<HypernodeID>& hn_mapping = extracted_hg.second;
 
-  ASSERT_EQ(3, hypergraphs[0].initialNumNodes());
-  ASSERT_EQ(2, hypergraphs[0].initialNumEdges());
-  ASSERT_EQ(4, hypergraphs[0].initialNumPins());
-  ASSERT_EQ(2, hypergraphs[0].maxEdgeSize());
+  ASSERT_EQ(3, hypergraphs[0].hg.initialNumNodes());
+  ASSERT_EQ(2, hypergraphs[0].hg.initialNumEdges());
+  ASSERT_EQ(4, hypergraphs[0].hg.initialNumPins());
+  ASSERT_EQ(2, hypergraphs[0].hg.maxEdgeSize());
 
   parallel::scalable_vector<HypernodeID> node_id = {
     hn_mapping[0], hn_mapping[1], hn_mapping[2] };
-  this->verifyPins(hypergraphs[0], {0, 1},
+  this->verifyPins(hypergraphs[0].hg, {0, 1},
     { { node_id[0], node_id[2] }, { node_id[0], node_id[1] } });
 
-  ASSERT_EQ(2, hypergraphs[1].initialNumNodes());
-  ASSERT_EQ(2, hypergraphs[1].initialNumEdges());
-  ASSERT_EQ(4, hypergraphs[1].initialNumPins());
-  ASSERT_EQ(2, hypergraphs[1].maxEdgeSize());
+  ASSERT_EQ(2, hypergraphs[1].hg.initialNumNodes());
+  ASSERT_EQ(2, hypergraphs[1].hg.initialNumEdges());
+  ASSERT_EQ(4, hypergraphs[1].hg.initialNumPins());
+  ASSERT_EQ(2, hypergraphs[1].hg.maxEdgeSize());
 
   node_id = { hn_mapping[3], hn_mapping[4] };
-  this->verifyPins(hypergraphs[1], {0, 1},
+  this->verifyPins(hypergraphs[1].hg, {0, 1},
     { { node_id[0], node_id[1] }, { node_id[0], node_id[1] } });
 
-  ASSERT_EQ(2, hypergraphs[2].initialNumNodes());
-  ASSERT_EQ(1, hypergraphs[2].initialNumEdges());
-  ASSERT_EQ(2, hypergraphs[2].initialNumPins());
-  ASSERT_EQ(2, hypergraphs[2].maxEdgeSize());
+  ASSERT_EQ(2, hypergraphs[2].hg.initialNumNodes());
+  ASSERT_EQ(1, hypergraphs[2].hg.initialNumEdges());
+  ASSERT_EQ(2, hypergraphs[2].hg.initialNumPins());
+  ASSERT_EQ(2, hypergraphs[2].hg.maxEdgeSize());
 
   node_id = { hn_mapping[5], hn_mapping[6] };
-  this->verifyPins(hypergraphs[2], { 0 },
+  this->verifyPins(hypergraphs[2].hg, { 0 },
     { { node_id[0], node_id[1] } });
 }
 
 TYPED_TEST(APartitionedHypergraph, ExtractAllBlockBlocksWithCutNetRemoval) {
   this->partitioned_hypergraph.changeNodePart(6, 2, 1);
-  auto extracted_hg = this->partitioned_hypergraph.extractAllBlocks(3, false, true);
+  auto extracted_hg = this->partitioned_hypergraph.extractAllBlocks(3, nullptr, false, true);
   auto& hypergraphs = extracted_hg.first;
   vec<HypernodeID>& hn_mapping = extracted_hg.second;
 
-  ASSERT_EQ(3, hypergraphs[0].initialNumNodes());
-  ASSERT_EQ(1, hypergraphs[0].initialNumEdges());
-  ASSERT_EQ(2, hypergraphs[0].initialNumPins());
-  ASSERT_EQ(2, hypergraphs[0].maxEdgeSize());
+  ASSERT_EQ(3, hypergraphs[0].hg.initialNumNodes());
+  ASSERT_EQ(1, hypergraphs[0].hg.initialNumEdges());
+  ASSERT_EQ(2, hypergraphs[0].hg.initialNumPins());
+  ASSERT_EQ(2, hypergraphs[0].hg.maxEdgeSize());
 
   parallel::scalable_vector<HypernodeID> node_id = {
     hn_mapping[0], hn_mapping[1], hn_mapping[2] };
-  this->verifyPins(hypergraphs[0], {0},
+  this->verifyPins(hypergraphs[0].hg, {0},
     { { node_id[0], node_id[2] } });
 
-  ASSERT_EQ(3, hypergraphs[1].initialNumNodes());
-  ASSERT_EQ(1, hypergraphs[1].initialNumEdges());
-  ASSERT_EQ(3, hypergraphs[1].initialNumPins());
-  ASSERT_EQ(3, hypergraphs[1].maxEdgeSize());
+  ASSERT_EQ(3, hypergraphs[1].hg.initialNumNodes());
+  ASSERT_EQ(1, hypergraphs[1].hg.initialNumEdges());
+  ASSERT_EQ(3, hypergraphs[1].hg.initialNumPins());
+  ASSERT_EQ(3, hypergraphs[1].hg.maxEdgeSize());
 
   node_id = { hn_mapping[3], hn_mapping[4], hn_mapping[6] };
-  this->verifyPins(hypergraphs[1], {0},
+  this->verifyPins(hypergraphs[1].hg, {0},
     { { node_id[0], node_id[1], node_id[2] } });
 
-  ASSERT_EQ(1, hypergraphs[2].initialNumNodes());
-  ASSERT_EQ(0, hypergraphs[2].initialNumEdges());
-  ASSERT_EQ(0, hypergraphs[2].initialNumPins());
-  ASSERT_EQ(0, hypergraphs[2].maxEdgeSize());
+  ASSERT_EQ(1, hypergraphs[2].hg.initialNumNodes());
+  ASSERT_EQ(0, hypergraphs[2].hg.initialNumEdges());
+  ASSERT_EQ(0, hypergraphs[2].hg.initialNumPins());
+  ASSERT_EQ(0, hypergraphs[2].hg.maxEdgeSize());
 
-  this->verifyPins(hypergraphs[2], { }, { });
+  this->verifyPins(hypergraphs[2].hg, { }, { });
 }
 
 TYPED_TEST(APartitionedHypergraph, ExtractBlockZeroWithCommunityInformation) {
@@ -665,9 +665,9 @@ TYPED_TEST(APartitionedHypergraph, ExtractBlockZeroWithCommunityInformation) {
   this->hypergraph.setCommunityID(5, 4);
   this->hypergraph.setCommunityID(6, 5);
 
-  auto extracted_hg = this->partitioned_hypergraph.extract(0, true, true);
-  auto& hg = extracted_hg.first;
-  auto& hn_mapping = extracted_hg.second;
+  auto extracted_hg = this->partitioned_hypergraph.extract(0, nullptr, true, true);
+  auto& hg = extracted_hg.hg;
+  auto& hn_mapping = extracted_hg.hn_mapping;
 
   auto map_from_original_to_extracted_hg = [&](const HypernodeID hn) {
     return hn_mapping[hn];
@@ -687,9 +687,9 @@ TYPED_TEST(APartitionedHypergraph, ExtractBlockOneWithCommunityInformation) {
   this->hypergraph.setCommunityID(5, 4);
   this->hypergraph.setCommunityID(6, 5);
 
-  auto extracted_hg = this->partitioned_hypergraph.extract(1, true, true);
-  auto& hg = extracted_hg.first;
-  auto& hn_mapping = extracted_hg.second;
+  auto extracted_hg = this->partitioned_hypergraph.extract(1, nullptr, true, true);
+  auto& hg = extracted_hg.hg;
+  auto& hn_mapping = extracted_hg.hn_mapping;
 
   auto map_from_original_to_extracted_hg = [&](const HypernodeID hn) {
     return hn_mapping[hn];
@@ -708,9 +708,9 @@ TYPED_TEST(APartitionedHypergraph, ExtractBlockTwoWithCommunityInformation) {
   this->hypergraph.setCommunityID(5, 4);
   this->hypergraph.setCommunityID(6, 5);
 
-  auto extracted_hg = this->partitioned_hypergraph.extract(2, true, true);
-  auto& hg = extracted_hg.first;
-  auto& hn_mapping = extracted_hg.second;
+  auto extracted_hg = this->partitioned_hypergraph.extract(2, nullptr, true, true);
+  auto& hg = extracted_hg.hg;
+  auto& hn_mapping = extracted_hg.hn_mapping;
 
   auto map_from_original_to_extracted_hg = [&](const HypernodeID hn) {
     return hn_mapping[hn];

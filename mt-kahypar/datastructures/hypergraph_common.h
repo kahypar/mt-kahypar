@@ -110,6 +110,13 @@ struct Memento {
   HypernodeID v; // contraction partner
 };
 
+template<typename Hypergraph>
+struct ExtractedHypergraph {
+  Hypergraph hg;
+  vec<HypernodeID> hn_mapping;
+  vec<uint8_t> already_cut;
+};
+
 using Batch = parallel::scalable_vector<Memento>;
 using BatchVector = parallel::scalable_vector<Batch>;
 using VersionedBatchVector = parallel::scalable_vector<BatchVector>;

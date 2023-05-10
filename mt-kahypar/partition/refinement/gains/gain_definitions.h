@@ -42,6 +42,8 @@
 #include "mt-kahypar/partition/refinement/gains/cut/cut_gain_computation.h"
 #include "mt-kahypar/partition/refinement/gains/cut/cut_attributed_gains.h"
 #include "mt-kahypar/partition/refinement/gains/cut/cut_flow_network_construction.h"
+#include "mt-kahypar/partition/refinement/gains/soed/soed_attributed_gains.h"
+#include "mt-kahypar/partition/refinement/gains/soed/soed_gain_computation.h"
 #ifdef KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES
 #include "mt-kahypar/partition/refinement/gains/cut_for_graphs/cut_gain_cache_for_graphs.h"
 #include "mt-kahypar/partition/refinement/gains/cut_for_graphs/cut_attributed_gains_for_graphs.h"
@@ -51,7 +53,6 @@
 namespace mt_kahypar {
 
 struct Km1GainTypes : public kahypar::meta::PolicyBase {
-  static constexpr bool use_cut_net_splitting = true;
   using GainComputation = Km1GainComputation;
   using AttributedGains = Km1AttributedGains;
   using GainCache = Km1GainCache;
@@ -61,7 +62,6 @@ struct Km1GainTypes : public kahypar::meta::PolicyBase {
 };
 
 struct CutGainTypes : public kahypar::meta::PolicyBase {
-  static constexpr bool use_cut_net_splitting = false;
   using GainComputation = CutGainComputation;
   using AttributedGains = CutAttributedGains;
   using GainCache = CutGainCache;
@@ -71,9 +71,8 @@ struct CutGainTypes : public kahypar::meta::PolicyBase {
 };
 
 struct SoedGainTypes : public kahypar::meta::PolicyBase {
-  static constexpr bool use_cut_net_splitting = true;
-  using GainComputation = Km1GainComputation;
-  using AttributedGains = Km1AttributedGains;
+  using GainComputation = SoedGainComputation;
+  using AttributedGains = SoedAttributedGains;
   using GainCache = Km1GainCache;
   using DeltaGainCache = DeltaKm1GainCache;
   using Rollback = Km1Rollback;
@@ -82,7 +81,6 @@ struct SoedGainTypes : public kahypar::meta::PolicyBase {
 
 #ifdef KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES
 struct CutGainForGraphsTypes : public kahypar::meta::PolicyBase {
-  static constexpr bool use_cut_net_splitting = false;
   using GainComputation = CutGainComputation;
   using AttributedGains = GraphCutAttributedGains;
   using GainCache = GraphCutGainCache;
@@ -92,19 +90,6 @@ struct CutGainForGraphsTypes : public kahypar::meta::PolicyBase {
 };
 #endif
 
-struct SubhypergraphExtraction {
-  static bool useCutNetSplitting(const GainPolicy policy) {
-    switch(policy) {
-      case GainPolicy::cut: return CutGainTypes::use_cut_net_splitting;
-      case GainPolicy::km1: return Km1GainTypes::use_cut_net_splitting;
-      case GainPolicy::soed: return SoedGainTypes::use_cut_net_splitting;
-      ENABLE_GRAPHS(case GainPolicy::cut_for_graphs: return CutGainForGraphsTypes::use_cut_net_splitting;)
-      case GainPolicy::none: ERR("Gain policy is unknown" << policy);
-    }
-    ERR("Gain policy is unknown" << policy);
-    return false;
-  }
-};
 
 using GainTypes = kahypar::meta::Typelist<Km1GainTypes,
                                           CutGainTypes,

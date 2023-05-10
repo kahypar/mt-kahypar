@@ -147,7 +147,8 @@ bool SequentialTwoWayFmRefiner<TypeTraits>::refine(Metrics& best_metrics, std::m
   // Perform rollback to best partition found during local search
   rollback(performed_moves, min_cut_idx);
 
-  HEAVY_REFINEMENT_ASSERT(best_metrics.quality == metrics::quality(_phg, Objective::cut, false));
+  HEAVY_REFINEMENT_ASSERT(best_metrics.quality == metrics::quality(_phg, Objective::cut, false),
+    V(best_metrics.quality) << V(metrics::quality(_phg, Objective::cut, false)));
   HEAVY_REFINEMENT_ASSERT(best_metrics.imbalance == metrics::imbalance(_phg, _context),
           V(best_metrics.imbalance) << V(metrics::imbalance(_phg, _context)));
   return min_cut_idx > 0;

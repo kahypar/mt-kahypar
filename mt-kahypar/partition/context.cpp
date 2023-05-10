@@ -379,12 +379,11 @@ namespace mt_kahypar {
     }
     #ifdef KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES
     else if ( partition.instance_type == InstanceType::graph ) {
-      switch ( partition.objective ) {
-        case Objective::km1: partition.gain_policy = GainPolicy::cut_for_graphs; break;
-        case Objective::cut: partition.gain_policy = GainPolicy::cut_for_graphs; break;
-        case Objective::soed: partition.gain_policy = GainPolicy::cut_for_graphs; break;
-        case Objective::UNDEFINED: partition.gain_policy = GainPolicy::none; break;
+      if ( partition.objective != Objective::cut ) {
+        partition.objective = Objective::cut;
+        INFO("All supported objective functions are equivalent for graphs. Objective function is set to edge cut metric.");
       }
+      partition.gain_policy = GainPolicy::cut_for_graphs;
     }
     #endif
 

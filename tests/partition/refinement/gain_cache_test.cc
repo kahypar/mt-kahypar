@@ -3,7 +3,7 @@
  *
  * This file is part of Mt-KaHyPar.
  *
- * Copyright (C) 2020 Lars Gottesbüren <lars.gottesbueren@kit.edu>
+ * Copyright (C) 2021 Tobias Heuer <tobias.heuer@kit.edu>
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
