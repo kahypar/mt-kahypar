@@ -402,8 +402,8 @@ namespace mt_kahypar::io {
     if ( context.partition.objective != Objective::cut ) {
       printKeyValue(Objective::cut, metrics::quality(hypergraph, Objective::cut));
     }
-    if ( context.partition.objective != Objective::km1 &&
-         context.partition.instance_type != InstanceType::graph ) {
+    if ( context.partition.objective != Objective::km1
+         ENABLE_GRAPHS( && context.partition.instance_type != InstanceType::graph ) ) {
       printKeyValue(Objective::km1, metrics::quality(hypergraph, Objective::km1));
     }
     printKeyValue("Imbalance", metrics::imbalance(hypergraph, context));
