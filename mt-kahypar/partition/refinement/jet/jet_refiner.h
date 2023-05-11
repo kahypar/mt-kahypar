@@ -112,13 +112,7 @@ class JetRefiner final : public IRefiner {
         // the solution quality.
         Gain move_delta = _gain.localDelta() - delta_before;
         bool accept_move = (move_delta == best_move.gain || move_delta <= 0);
-        if (accept_move) {
-          // DBG << "Move hypernode" << hn << "from block" << from << "to block" << to
-          //     << "with gain" << best_move.gain << "( Real Gain: " << move_delta << ")";
-
-        } else {
-          // DBG << "Revert move of hypernode" << hn << "from block" << from << "to block" << to
-          //     << "( Expected Gain:" << best_move.gain << ", Real Gain:" << move_delta << ")";
+        if (!accept_move) {
           ASSERT(hypergraph.partID(hn) == to);
           changeNodePart(hypergraph, hn, to, from, objective_delta);
         }

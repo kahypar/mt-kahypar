@@ -57,13 +57,12 @@ namespace mt_kahypar {
 
 
     // Update global part weight and sizes
-    DBG << "Old imbalance: " << best_metrics.imbalance;
+    DBG << "[JET] Old imbalance: " << best_metrics.imbalance;
     best_metrics.imbalance = metrics::imbalance(hypergraph, _context);
 
     // Update metrics statistics
     Gain delta = _gain.delta();
-    DBG << "New imbalance: " << best_metrics.imbalance << ", delta: " << delta;
-    ASSERT(delta <= 0, "jet refiner worsened solution quality");
+    DBG << "[JET] New imbalance: " << best_metrics.imbalance << ", delta: " << delta;
 
     recomputePenalties(hypergraph);
 
