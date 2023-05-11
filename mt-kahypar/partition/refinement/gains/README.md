@@ -1,6 +1,6 @@
-# Guide for Implementing a New Objective Function
+# Guide for Implementing a Custom Objective Function
 
-*TODO*: currently only minimization possible, only objective function defined on hyperedges possible
+We have defined a common interface for our gain computation techniques that we use in our refinement algorithms. This enables us to extend Mt-KaHyPar with new objective functions without touching the internal implementation of the refinement algorithms. This guide explains step-by-step how you can add your new custom objective function to Mt-KaHyPar. The only limitation of the current implementation is that you only can define minimization problems and the objective function must be defined on the hyperedges.
 
 ## Setup
 
@@ -14,7 +14,7 @@
 - ```partition/refinement/gains/bipartitioning_policy.h```: Add the ```GainPolicy``` type of your new objective function to the switch statements in ```useCutNetSplitting(...)``` and ```nonCutEdgeMultiplier(...)```. You can copy one of the existing parameters of an other objective function for now. An explanation how to configure these functions properly follows later.
 - Create a folder for your objective function in ```partition/refinement/gains```. We will later add here all relevant gain computation techniques.
 
-*TODO*: describe how the user can see that the initial setup works and describe what still fails. Moreover, describe how the new objective function can be selected from the command line interface.
+At this point, you can run Mt-KaHyPar with your new objective function by adding the command line parameter ```-o <string description of your objective function>```. At the end of the partitioning process, you should see the value of your new objective function (directly under the *Partitioning Result* section). However, running Mt-KaHyPar debug mode will fail due to failing assertions.
 
 ## Initial Partitioning
 
