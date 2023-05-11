@@ -402,9 +402,11 @@ namespace mt_kahypar::io {
     if ( context.partition.objective != Objective::cut ) {
       printKeyValue(Objective::cut, metrics::quality(hypergraph, Objective::cut));
     }
-    if ( context.partition.objective != Objective::km1
-         ENABLE_GRAPHS( && context.partition.instance_type != InstanceType::graph ) ) {
+    if ( context.partition.objective != Objective::km1 && !PartitionedHypergraph::is_graph ) {
       printKeyValue(Objective::km1, metrics::quality(hypergraph, Objective::km1));
+    }
+    if ( context.partition.objective != Objective::soed && !PartitionedHypergraph::is_graph ) {
+      printKeyValue(Objective::soed, metrics::quality(hypergraph, Objective::soed));
     }
     printKeyValue("Imbalance", metrics::imbalance(hypergraph, context));
     printKeyValue("Partitioning Time", std::to_string(elapsed_seconds.count()) + " s");

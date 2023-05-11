@@ -40,42 +40,44 @@
 namespace mt_kahypar {
 
 /**
- * The gain cache stores the gain values for all possible node moves for the connectivity metric.
+ * The gain cache stores the gain values for all possible node moves for the soed metric.
  *
- * For a weighted hypergraph H = (V,E,c,w), the connectivity metric is defined as follows
- * km1(H) := \sum_{e \in cut(E)} ( lambda(e) - 1 ) * w(e)
- * where lambda(e) are the number of blocks contained in hyperedge e.
+ * For a weighted hypergraph H = (V,E,c,w), the soed metric is defined as follows
+ * soed(H) := \sum_{e \in cut(E)} lambda(e) * w(e) = km1(H) + cut(H)
+ * where lambda(e) is the number of blocks contained in hyperedge e.
  *
- * The gain of moving a node u from its current block V_i to a target block V_j can be expressed as follows
- * g(u, V_j) := w({ e \in I(u) | pin_count(e, V_i) = 1 }) - w({ e \in I(u) | pin_count(e, V_j) = 0 }).
- * Moving node u from V_i to V_j, removes block V_i from all nets e \in I(u) where pin_cout(e, V_i) = 1,
- * but adds block V_j in all nets where pin_count(e, V_j) = 0.
- *
- * The gain can be reformulated as follows
- * g(u, V_j) := w({ e \in I(u) | pin_count(e, V_i) = 1 }) - w({ e \in I(u) | pin_count(e, V_j) = 0 })
- *            = w({ e \in I(u) | pin_count(e, V_i) = 1 }) - w(I(u)) + w({ e \in I(u) | pin_count(e, V_j) >= 1 }) (=: b(u, V_j))
- *            = b(u, V_j) - (w(I(u)) - w({ e \in I(u) | pin_count(e, V_i) = 1 }))
- *            = b(u, V_j) - w({ e \in I(u) | pin_count(e, V_i) > 1 })
+ * The soed metric is equivalent to the connectivity plus cut-net metric. Thus, we can express
+ * the gain of a node u that moves from its current block V_i to a target block as a combination
+ * of the gains of both metrics:
+ * g(u, V_j) := g_km1(u, V_j) + g_cut(u, V_j)
+ *            = b_km1(u, V_j) + b_cut(u, V_j) - ( p_km1(u) + p_cut(u) )
  *            = b(u, V_j) - p(u)
- * We call b(u, V_j) the benefit term and p(u) the penalty term. Our gain cache stores and maintains these
- * entries for each node and block. Thus, the gain cache stores k + 1 entries per node.
-*/
-class Km1GainCache {
+ *
+ * We call b(u, V_j) the benefit term and p(u) the penalty term, which are defined as follows:
+ * b(u, V_j) := b_km1(u, V_j) + b_cut(u, V_j)
+ *            = w({ e \in I(u) | pin_count(e, V_j) >= 1 }) + w({ e \in I(u) | pin_count(e, V_j) = |e| - 1 })
+ *      p(u) := p_km1(u) + p_cut(u)
+ *            = w({ e \in I(u) | pin_count(e, V_i) > 1 }) + w({ e \in I(u) | pin_count(e, V_i) = |e| })
+ * Our gain cache stores and maintains these entries for each node and block.
+ * Thus, the gain cache stores k + 1 entries per node.
+ */
+class SoedGainCache {
 
   static constexpr HyperedgeID HIGH_DEGREE_THRESHOLD = ID(100000);
 
  public:
-  static constexpr GainPolicy TYPE = GainPolicy::km1;
-  Km1GainCache() :
+  static constexpr GainPolicy TYPE = GainPolicy::soed;
+
+  SoedGainCache() :
     _is_initialized(false),
     _k(kInvalidPartition),
     _gain_cache() { }
 
-  Km1GainCache(const Km1GainCache&) = delete;
-  Km1GainCache & operator= (const Km1GainCache &) = delete;
+  SoedGainCache(const SoedGainCache&) = delete;
+  SoedGainCache & operator= (const SoedGainCache &) = delete;
 
-  Km1GainCache(Km1GainCache&& other) = default;
-  Km1GainCache & operator= (Km1GainCache&& other) = default;
+  SoedGainCache(SoedGainCache&& other) = default;
+  SoedGainCache & operator= (SoedGainCache&& other) = default;
 
   // ####################### Initialization #######################
 
@@ -99,7 +101,7 @@ class Km1GainCache {
   // ####################### Gain Computation #######################
 
   // ! Returns the penalty term of node u.
-  // ! More formally, p(u) := w({ e \in I(u) | pin_count(e, V_i) > 1 })
+  // ! More formally, p(u) := w({ e \in I(u) | pin_count(e, V_i) > 1 }) + w({ e \in I(u) | pin_count(e, V_i) = |e| })
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
   HyperedgeWeight penaltyTerm(const HypernodeID u,
                               const PartitionID /* only relevant for graphs */) const {
@@ -118,7 +120,8 @@ class Km1GainCache {
   }
 
   // ! Returns the benefit term for moving node u to block to.
-  // ! More formally, b(u, V_j) := w({ e \in I(u) | pin_count(e, V_j) >= 1 })
+  // ! More formally,
+  // ! b(u, V_j) := w({ e \in I(u) | pin_count(e, V_j) >= 1 }) + w({ e \in I(u) | pin_count(e, V_j) = |e| - 1 })
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
   HyperedgeWeight benefitTerm(const HypernodeID u, const PartitionID to) const {
     ASSERT(_is_initialized, "Gain cache is not initialized");
@@ -192,9 +195,11 @@ class Km1GainCache {
     const PartitionID block_of_u = partitioned_hg.partID(u);
     HyperedgeWeight penalty = 0;
     for (HyperedgeID e : partitioned_hg.incidentEdges(u)) {
-      if ( partitioned_hg.pinCountInPart(e, block_of_u) > 1 ) {
-        penalty += partitioned_hg.edgeWeight(e);
-      }
+      const HypernodeID edge_size = partitioned_hg.edgeSize(e);
+      const HypernodeID pin_count = partitioned_hg.pinCountInPart(e, block_of_u);
+      const HyperedgeWeight multiplier = ( edge_size > 1 ) *
+        ( ( pin_count > 1 ) + ( pin_count == edge_size ) );
+      penalty += multiplier * partitioned_hg.edgeWeight(e);
     }
     return penalty;
   }
@@ -206,15 +211,17 @@ class Km1GainCache {
                                        const PartitionID to) const {
     HyperedgeWeight benefit = 0;
     for (HyperedgeID e : partitioned_hg.incidentEdges(u)) {
-      if (partitioned_hg.pinCountInPart(e, to) >= 1) {
-        benefit += partitioned_hg.edgeWeight(e);
-      }
+      const HypernodeID edge_size = partitioned_hg.edgeSize(e);
+      const HypernodeID pin_count = partitioned_hg.pinCountInPart(e, to);
+      const HyperedgeWeight multiplier = ( edge_size > 1 ) *
+        ( ( pin_count >= 1 ) + ( pin_count == edge_size - 1 ) );
+      benefit += multiplier * partitioned_hg.edgeWeight(e);
     }
     return benefit;
   }
 
  private:
-  friend class DeltaKm1GainCache;
+  friend class DeltaSoedGainCache;
 
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
   size_t penalty_index(const HypernodeID u) const {
@@ -279,10 +286,10 @@ class Km1GainCache {
  * the delta gain cache after performing some moves locally. To maintain Δp(u) and Δb(u,V_j), we use a hash
  * table that only stores entries affected by a gain cache update.
 */
-class DeltaKm1GainCache {
+class DeltaSoedGainCache {
 
  public:
-  DeltaKm1GainCache(const Km1GainCache& gain_cache) :
+  DeltaSoedGainCache(const SoedGainCache& gain_cache) :
     _gain_cache(gain_cache),
     _gain_cache_delta() { }
 
@@ -346,26 +353,53 @@ class DeltaKm1GainCache {
                        const HypernodeID pin_count_in_from_part_after,
                        const PartitionID to,
                        const HypernodeID pin_count_in_to_part_after) {
-    if (pin_count_in_from_part_after == 1) {
-      for (HypernodeID u : partitioned_hg.pins(he)) {
-        if (partitioned_hg.partID(u) == from) {
-          _gain_cache_delta[_gain_cache.penalty_index(u)] -= we;
+    const HypernodeID edge_size = partitioned_hg.edgeSize(he);
+    if ( edge_size > 1 ) {
+      // Delta gain updates for connectivity metric (see km1_gain_cache.h)
+      if (pin_count_in_from_part_after == 1) {
+        for (HypernodeID u : partitioned_hg.pins(he)) {
+          if (partitioned_hg.partID(u) == from) {
+            _gain_cache_delta[_gain_cache.penalty_index(u)] -= we;
+          }
+        }
+      } else if (pin_count_in_from_part_after == 0) {
+        for (HypernodeID u : partitioned_hg.pins(he)) {
+          _gain_cache_delta[_gain_cache.benefit_index(u, from)] -= we;
         }
       }
-    } else if (pin_count_in_from_part_after == 0) {
-      for (HypernodeID u : partitioned_hg.pins(he)) {
-        _gain_cache_delta[_gain_cache.benefit_index(u, from)] -= we;
-      }
-    }
 
-    if (pin_count_in_to_part_after == 1) {
-      for (HypernodeID u : partitioned_hg.pins(he)) {
-        _gain_cache_delta[_gain_cache.benefit_index(u, to)] += we;
+      if (pin_count_in_to_part_after == 1) {
+        for (HypernodeID u : partitioned_hg.pins(he)) {
+          _gain_cache_delta[_gain_cache.benefit_index(u, to)] += we;
+        }
+      } else if (pin_count_in_to_part_after == 2) {
+        for (HypernodeID u : partitioned_hg.pins(he)) {
+          if (partitioned_hg.partID(u) == to) {
+            _gain_cache_delta[_gain_cache.penalty_index(u)] += we;
+          }
+        }
       }
-    } else if (pin_count_in_to_part_after == 2) {
-      for (HypernodeID u : partitioned_hg.pins(he)) {
-        if (partitioned_hg.partID(u) == to) {
+
+      // Delta gain updates for cut metric (see cut_gain_cache.h)
+      if ( pin_count_in_from_part_after == edge_size - 1 ) {
+        for ( const HypernodeID& u : partitioned_hg.pins(he) ) {
+          _gain_cache_delta[_gain_cache.penalty_index(u)] -= we;
+          _gain_cache_delta[_gain_cache.benefit_index(u, from)] += we;
+        }
+      } else if ( pin_count_in_from_part_after == edge_size - 2 ) {
+        for ( const HypernodeID& u : partitioned_hg.pins(he) ) {
+          _gain_cache_delta[_gain_cache.benefit_index(u, from)] -= we;
+        }
+      }
+
+      if ( pin_count_in_to_part_after == edge_size ) {
+        for ( const HypernodeID& u : partitioned_hg.pins(he) ) {
           _gain_cache_delta[_gain_cache.penalty_index(u)] += we;
+          _gain_cache_delta[_gain_cache.benefit_index(u, to)] -= we;
+        }
+      } else if ( pin_count_in_to_part_after == edge_size - 1 ) {
+        for ( const HypernodeID& u : partitioned_hg.pins(he) ) {
+          _gain_cache_delta[_gain_cache.benefit_index(u, to)] += we;
         }
       }
     }
@@ -380,7 +414,7 @@ class DeltaKm1GainCache {
   }
 
  private:
-  const Km1GainCache& _gain_cache;
+  const SoedGainCache& _gain_cache;
 
   // ! Stores the delta of each locally touched gain cache entry
   // ! relative to the gain cache in '_phg'

@@ -156,6 +156,9 @@ std::string serialize(const PartitionedHypergraph& hypergraph,
       if ( context.partition.objective != Objective::km1 ) {
         oss << " km1=" << metrics::quality(hypergraph, Objective::km1);
       }
+      if ( context.partition.objective != Objective::soed ) {
+        oss << " soed=" << metrics::quality(hypergraph, Objective::soed);
+      }
       oss << " imbalance=" << metrics::imbalance(hypergraph, context);
     }
     oss << " totalPartitionTime=" << elapsed_seconds.count();
