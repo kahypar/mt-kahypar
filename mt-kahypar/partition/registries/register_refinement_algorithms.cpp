@@ -54,10 +54,10 @@
 #define REGISTER_DISPATCHED_JET_REFINER(id, dispatcher, ...)                                           \
   static kahypar::meta::Registrar<JetFactory> register_ ## dispatcher(                                 \
     id,                                                                                                \
-    [](const HypernodeID num_hypernodes,                                                               \
+    [](const HypernodeID num_hypernodes, const HyperedgeID num_hyperedges,                             \
        const Context& context, gain_cache_t gain_cache) {                                              \
     return dispatcher::create(                                                                         \
-      std::forward_as_tuple(num_hypernodes, context, gain_cache),                                      \
+      std::forward_as_tuple(num_hypernodes, num_hyperedges, context, gain_cache),                      \
       __VA_ARGS__                                                                                      \
       );                                                                                               \
   })
@@ -65,9 +65,9 @@
 #define REGISTER_JET_REFINER(id, refiner, t)                                                     \
   static kahypar::meta::Registrar<JetFactory> JOIN(register_ ## refiner, t)(                     \
     id,                                                                                          \
-    [](const HypernodeID num_hypernodes,                                                         \
+    [](const HypernodeID num_hypernodes, const HyperedgeID num_hyperedges,                       \
        const Context& context, gain_cache_t gain_cache) -> IRefiner* {                           \
-    return new refiner(num_hypernodes, context, gain_cache);                                     \
+    return new refiner(num_hypernodes, num_hyperedges, context, gain_cache);                     \
   })
 
 #define REGISTER_DISPATCHED_FM_REFINER(id, dispatcher, ...)                                            \

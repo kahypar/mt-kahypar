@@ -202,6 +202,7 @@ namespace mt_kahypar {
   void JetRefiner<TypeTraits, GainTypes, precomputed>::initializeActiveNodes(
                               PartitionedHypergraph& hypergraph,
                               const parallel::scalable_vector<HypernodeID>& refinement_nodes) {
+    ASSERT(_active_node_was_moved.size() == hypergraph.initialNumNodes());
     _active_nodes.clear();
     _gains_and_target.clear();
 
@@ -217,7 +218,9 @@ namespace mt_kahypar {
           Move best_move = _gain.computeMaxGainMoveForScores(hypergraph, tmp_scores, isolated_block_gain,
                                                              hn, false, false, true);
           tmp_scores.clear();
-          bool accept_node = best_move.gain < _context.refinement.jet.negative_gain_factor_coarse * isolated_block_gain;
+          // TODO: fine factor?
+          bool accept_node = best_move.gain <  std::floor(
+                _context.refinement.jet.negative_gain_factor_coarse * isolated_block_gain);
           if (accept_node) {
             add_node_fn(hn);
             _gains_and_target[hn] = {best_move.gain, best_move.to};
