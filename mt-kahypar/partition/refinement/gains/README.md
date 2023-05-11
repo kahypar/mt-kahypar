@@ -110,11 +110,33 @@ There is a unit test that verifies your gain cache implementation, which you can
 
 ### Thread-Local Gain Cache
 
-The localized FM searches apply node moves to a thread-local partition which are not visible for other threads. Only improvements are applied to the global partition. The thread-local partition maintains a delta gain cache that stores gain updates relative to the global gain cache. For example, the penalty term of the thread-local gain cache is given by p'(u) := p(u) + Δp(u) where p(u) is the penalty term stored in the global gain cache and Δp(u) is the penalty term stored in the delta gain cache after performing some moves locally. The internal implementation of a thread-local gain cache uses a hash table to store Δp(u) and Δb(u, V_j). To update both terms, you can copy the delta gain cache implementation of your global gain cache and store the changes in the hash table.
+The localized FM searches apply node moves to a thread-local partition which are not visible for other threads. Only improvements are applied to the global partition. The thread-local partition maintains a delta gain cache that stores gain updates relative to the global gain cache. For example, the penalty term of the thread-local gain cache is given by p'(u) := p(u) + Δp(u) where p(u) is the penalty term stored in the global gain cache and Δp(u) is the penalty term stored in the delta gain cache after performing some moves locally. The internal implementation of a thread-local gain cache uses a hash table to store Δp(u) and Δb(u, V_j). To update both terms, you can copy the implementation of your delta gain update function of the global gain cache and apply changes to the hash table instead of the global gain cache.
 
 ### Rollback
 
-After all localized FM searches terminate, we concatenate the move sequences of all searches to global move sequence and recompute the gain values in parallel assuming that the moves are executed exactly in this order. After recomputing all gain values, the prefix with the highest accumulated gain is applied to the global partition. The gain recomputation algorithm iterates over all hyperedges in parallel. For each hyperedge, we iterate two times over all pins. The first loop precomputes some auxiliary data, which we then use in the second loop to decide which moved node contained in the hyperedge increases or decreases the objective function. The implementations for all functions required to implement the parallel gain recomputation algorithm are highly individual for each objective function. We recommend to read our paper for a detailed explanation. If you do not want to use the parallel gain recalculation algorithm, you can disable the feature by adding ```--i-r-fm-rollback-parallel=false``` and ```r-fm-rollback-parallel=false``` to the command line parameters. Then, gains are recomputed sequentially using attributed gains.
+After all localized FM searches terminate, we concatenate the move sequences of all searches to a global move sequence and recompute the gain values in parallel assuming that the moves are executed exactly in this order. After recomputing all gain values, the prefix with the highest accumulated gain is applied to the global partition. The gain recomputation algorithm iterates over all hyperedges in parallel. For each hyperedge, we iterate two times over all pins. The first loop precomputes some auxiliary data, which we then use in the second loop to decide which moved node contained in the hyperedge increases or decreases the objective function. The implementations for all functions required to implement the parallel gain recomputation algorithm are highly individual for each objective function. We recommend to read one of our papers for a detailed explanation of this technique. Furthermore, you can find the implementation of the gain recomputation algorithm in ```partition/refinement/fm/global_rollback.cpp```. If you do not want to use the parallel gain recalculation algorithm, you can disable the feature by adding ```--i-r-fm-rollback-parallel=false``` and ```r-fm-rollback-parallel=false``` to the command line parameters. Then, gains are recomputed sequentially using attributed gains.
+
+## Flow-Based Refinement
+
+We use flow-based refinement to improve bipartitions. The bipartitioning algorithm can be scheduled on pairs of blocks to improve k-way partitions. To improve a bipartition, we grow a size-constrained region around the cut hyperedges and then construct a flow network on which we then run a maximum flow algorithm to compute a minimum cut that separates a source and a sink node. We recommend to read our paper on flow-based refinement to get a better understanding of the overall algorithm.
+
+To adapt the flow-based refinement algorithm to your new objective function, you have to implement a ```FlowNetworkConstruction``` policy. The interface implements two functions:
+```cpp
+template<typename PartitionedHypergraph>
+static HyperedgeWeight capacity(const PartitionedHypergraph& phg,
+                                const HyperedgeID he,
+                                const PartitionID block_0,
+                                const PartitionID block_1);
+
+template<typename PartitionedHypergraph>
+static bool dropHyperedge(const PartitionedHypergraph& phg,
+                          const HyperedgeID he,
+                          const PartitionID block_0,
+                          const PartitionID block_1);
+```
+The ```capacity(...)``` function gives a hyperedge in the flow network a capacity. The flow network contains nodes of block ```block_0``` and ```block_1```. The capacity should be chosen such that the initial objective value of the bipartition induced by the region minus the maximum flow value equals the reduction in the objective function when we apply the minimum cut to the k-way partition. The ```dropHyperedge(...)``` function removes hyperedges from the flow network that are not relevant for the objective function. For example for the cut metric, we can remove all hyperedges that contains nodes of a block different from ```block_0``` and ```block_1```. The flow algorithm can not remove such nets from cut.
+
+To test your implementation, you can enable logging in our flow-based refinement algorithm by setting the ```debug``` flag to ```true``` in the class ```FlowRefinementScheduler``` (see ```partition/refinement/flows/scheduler.h```). Then, run Mt-KaHyPar with one thread using the following command line parameters: ```-t 1 --preset-type=default_flows```. If our flow-based refinement algorithm finds an improvement, it outputs the expected gain (initial objective value - maximum flow value) and the real gain (computed via attributed gains). If your implementation is correct, then the expected should always match the real gain.
 
 ## TODOs
 
