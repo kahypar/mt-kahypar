@@ -51,6 +51,25 @@
     return new refiner(num_hypernodes, num_hyperedges, context, gain_cache);                     \
   })
 
+#define REGISTER_DISPATCHED_JET_REFINER(id, dispatcher, ...)                                           \
+  static kahypar::meta::Registrar<JetFactory> register_ ## dispatcher(                                 \
+    id,                                                                                                \
+    [](const HypernodeID num_hypernodes,                                                               \
+       const Context& context, gain_cache_t gain_cache) {                                              \
+    return dispatcher::create(                                                                         \
+      std::forward_as_tuple(num_hypernodes, context, gain_cache),                                      \
+      __VA_ARGS__                                                                                      \
+      );                                                                                               \
+  })
+
+#define REGISTER_JET_REFINER(id, refiner, t)                                                     \
+  static kahypar::meta::Registrar<JetFactory> JOIN(register_ ## refiner, t)(                     \
+    id,                                                                                          \
+    [](const HypernodeID num_hypernodes,                                                         \
+       const Context& context, gain_cache_t gain_cache) -> IRefiner* {                           \
+    return new refiner(num_hypernodes, context, gain_cache);                                     \
+  })
+
 #define REGISTER_DISPATCHED_FM_REFINER(id, dispatcher, ...)                                            \
   static kahypar::meta::Registrar<FMFactory> register_ ## dispatcher(                                  \
     id,                                                                                                \
@@ -136,13 +155,21 @@ REGISTER_DISPATCHED_LP_REFINER(LabelPropagationAlgorithm::deterministic,
                                 context.partition.partition_type));
 REGISTER_LP_REFINER(LabelPropagationAlgorithm::do_nothing, DoNothingRefiner, 1);
 
+REGISTER_DISPATCHED_JET_REFINER(JetAlgorithm::greedy_unordered,
+                                GreedyJetDispatcher,
+                                kahypar::meta::PolicyRegistry<mt_kahypar_partition_type_t>::getInstance().getPolicy(
+                                 context.partition.partition_type),
+                                kahypar::meta::PolicyRegistry<GainPolicy>::getInstance().getPolicy(
+                                 context.partition.gain_policy));
+REGISTER_JET_REFINER(JetAlgorithm::do_nothing, DoNothingRefiner, 2);
+
 REGISTER_DISPATCHED_FM_REFINER(FMAlgorithm::kway_fm,
                                FMDispatcher,
                                kahypar::meta::PolicyRegistry<mt_kahypar_partition_type_t>::getInstance().getPolicy(
                                 context.partition.partition_type),
                                kahypar::meta::PolicyRegistry<GainPolicy>::getInstance().getPolicy(
                                 context.partition.gain_policy));
-REGISTER_FM_REFINER(FMAlgorithm::do_nothing, DoNothingRefiner, 2);
+REGISTER_FM_REFINER(FMAlgorithm::do_nothing, DoNothingRefiner, 3);
 
 REGISTER_DISPATCHED_FLOW_SCHEDULER(FlowAlgorithm::flow_cutter,
                                    FlowSchedulerDispatcher,
@@ -150,7 +177,7 @@ REGISTER_DISPATCHED_FLOW_SCHEDULER(FlowAlgorithm::flow_cutter,
                                     context.partition.partition_type),
                                    kahypar::meta::PolicyRegistry<GainPolicy>::getInstance().getPolicy(
                                      context.partition.gain_policy));
-REGISTER_FLOW_SCHEDULER(FlowAlgorithm::do_nothing, DoNothingRefiner, 3);
+REGISTER_FLOW_SCHEDULER(FlowAlgorithm::do_nothing, DoNothingRefiner, 4);
 
 REGISTER_DISPATCHED_REBALANCER(RebalancingAlgorithm::simple_rebalancer,
                                RebalancerDispatcher,
@@ -158,7 +185,7 @@ REGISTER_DISPATCHED_REBALANCER(RebalancingAlgorithm::simple_rebalancer,
                                 context.partition.partition_type),
                                kahypar::meta::PolicyRegistry<GainPolicy>::getInstance().getPolicy(
                                 context.partition.gain_policy));
-REGISTER_REBALANCER(RebalancingAlgorithm::do_nothing, DoNothingRefiner, 4);
+REGISTER_REBALANCER(RebalancingAlgorithm::do_nothing, DoNothingRefiner, 5);
 
 REGISTER_DISPATCHED_FLOW_REFINER(FlowAlgorithm::flow_cutter,
                                   FlowRefinementDispatcher,
@@ -166,5 +193,5 @@ REGISTER_DISPATCHED_FLOW_REFINER(FlowAlgorithm::flow_cutter,
                                    context.partition.partition_type),
                                   kahypar::meta::PolicyRegistry<GainPolicy>::getInstance().getPolicy(
                                     context.partition.gain_policy));
-REGISTER_FLOW_REFINER(FlowAlgorithm::do_nothing, DoNothingFlowRefiner, 5);
+REGISTER_FLOW_REFINER(FlowAlgorithm::do_nothing, DoNothingFlowRefiner, 6);
 }  // namespace mt_kahypar
