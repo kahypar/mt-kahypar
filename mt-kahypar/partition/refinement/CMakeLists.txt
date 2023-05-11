@@ -8,6 +8,7 @@ set(RefinementSources
         gains/cut_for_graphs/cut_gain_cache_for_graphs.cpp
         fm/sequential_twoway_fm_refiner.cpp
         label_propagation/label_propagation_refiner.cpp
+        jet/jet_refiner.cpp
         rebalancing/rebalancer.cpp
         deterministic/deterministic_label_propagation.cpp
         flows/refiner_adapter.cpp

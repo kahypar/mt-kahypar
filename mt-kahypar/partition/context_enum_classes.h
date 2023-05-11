@@ -150,6 +150,12 @@ enum class LabelPropagationAlgorithm : uint8_t {
   do_nothing
 };
 
+enum class JetAlgorithm : uint8_t {
+  precomputed_ordered,
+  greedy_unordered,
+  do_nothing
+};
+
 enum class FMAlgorithm : uint8_t {
   kway_fm,
   do_nothing
@@ -200,6 +206,8 @@ std::ostream & operator<< (std::ostream& os, const InitialPartitioningAlgorithm&
 
 std::ostream & operator<< (std::ostream& os, const LabelPropagationAlgorithm& algo);
 
+std::ostream & operator<< (std::ostream& os, const JetAlgorithm& algo);
+
 std::ostream & operator<< (std::ostream& os, const FMAlgorithm& algo);
 
 std::ostream & operator<< (std::ostream& os, const FlowAlgorithm& algo);
@@ -229,6 +237,8 @@ RatingFunction ratingFunctionFromString(const std::string& function);
 InitialPartitioningAlgorithm initialPartitioningAlgorithmFromString(const std::string& algo);
 
 LabelPropagationAlgorithm labelPropagationAlgorithmFromString(const std::string& type);
+
+JetAlgorithm jetAlgorithmFromString(const std::string& type);
 
 FMAlgorithm fmAlgorithmFromString(const std::string& type);
 

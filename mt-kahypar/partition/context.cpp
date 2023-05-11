@@ -124,6 +124,18 @@ namespace mt_kahypar {
     return str;
   }
 
+  std::ostream & operator<< (std::ostream& str, const JetParameters& params) {
+    str << "  Jet Parameters:" << std::endl;
+    str << "    Algorithm:                        " << params.algorithm << std::endl;
+    if ( params.algorithm != JetAlgorithm::do_nothing ) {
+      // str << "    Maximum Iterations:               " << params.maximum_iterations << std::endl;
+      str << "    Restrict to Border Nodes:         " << std::boolalpha << params.restrict_to_border_nodes << std::endl;
+      str << "    Negative Gain Factor (Coarse):    " << params.negative_gain_factor_coarse << std::endl;
+      str << "    Negative Gain Factor (Fine):      " << params.negative_gain_factor_fine << std::endl;
+    }
+    return str;
+  }
+
   std::ostream& operator<<(std::ostream& out, const FMParameters& params) {
     out << "  FM Parameters: \n";
     out << "    Algorithm:                        " << params.algorithm << std::endl;
@@ -190,6 +202,7 @@ namespace mt_kahypar {
     str << "  Maximum Batch Size:                 " << params.max_batch_size << std::endl;
     str << "  Min Border Vertices Per Thread:     " << params.min_border_vertices_per_thread << std::endl;
     str << "\n" << params.label_propagation;
+    str << "\n" << params.jet;
     str << "\n" << params.fm;
     if ( params.global_fm.use_global_fm ) {
       str << "\n" << params.global_fm;
@@ -461,6 +474,8 @@ namespace mt_kahypar {
     initial_partitioning.refinement.label_propagation.maximum_iterations = 5;
     initial_partitioning.refinement.label_propagation.rebalancing = true;
     initial_partitioning.refinement.label_propagation.hyperedge_size_activation_threshold = 100;
+
+    // TODO(maas): jet??
 
     // initial partitioning -> refinement -> fm
     initial_partitioning.refinement.fm.algorithm = FMAlgorithm::kway_fm;
