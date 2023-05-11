@@ -18,7 +18,7 @@
 
 ## Initial Partitioning
 
-We perform recursive bipartitioning to compute an initial k-way partition. The scheme recursively bipartitions the hypergraph until we reach the desired number of blocks. Each bipartitioning call optimizes the cut metric (weight of all cut nets). However, other objective functions can be optimized implicitly by implementing the two functions defined in ```partition/refinement/gains/bipartitioning_policy.h```. The main invariant of our recursive bipartitioning algorithm is that the cut of all bipartitions sum up to the objective value of the initial k-way partition. There are unit tests that asserts this invariant in ```tests/partition/refinement/bipartitioning_gain_policy_test.cc``` (build via ```make mt_kahypar_tests```).
+We perform recursive bipartitioning to compute an initial k-way partition. The scheme recursively bipartitions the hypergraph until we reach the desired number of blocks. Each bipartitioning call optimizes the cut metric (weight of all cut nets). However, other objective functions can be optimized implicitly by implementing the two functions defined in ```partition/refinement/gains/bipartitioning_policy.h```. The main invariant of our recursive bipartitioning algorithm is that the cut of all bipartitions sum up to the objective value of the initial k-way partition. There are unit tests that asserts this invariant in ```tests/partition/refinement/bipartitioning_gain_policy_test.cc``` (build test suite via ```make mt_kahypar_tests``` and then run ```./tests/mt_kahypar_tests --gtest_filter=*ABipartitioningPolicy*```).
 
 ### Cut Net Splitting and Removal
 
@@ -62,6 +62,59 @@ HyperedgeWeight gain(const Gain to_score, // tmp_scores[to]
 The implementation of this function is most likely ```isolated_block_gain - to_score```. However, we plan to integrate objective functions in the future where this is not the case.
 
 At this point, you should be able to run the ```default``` configuration of Mt-KaHyPar in debug mode without failing assertions if you disable the FM algorithm. To test this, add the following command line parameters to the Mt-KaHyPar call: ```--i-r-fm-type=do_nothing``` and ```--r-fm-type=do_nothing```. If you discover failing assertions, please check the implementations of the techniques described in the initial partitioning and label propagation section for bugs.
+
+## FM Refinement
+
+Our FM algorithm starts several localized FM searches in parallel. Each search polls several seed nodes from a shared task queue and then gradually expands around them by claiming neighbors of moved nodes. In each step, the algorithm performs the node move with the highest gain (stored in a priority queue). A search terminates when the PQ becomes empty or when it becomes unlikely to find further improvements. We repeatedly start localized FM searches until the task queue is empty. At the end, the move sequences found by the individual searches are concatenated to a global move sequence for which gains are recomputed in parallel. The algorithm then applies the best prefix of this move sequence to the partition.
+
+The FM algorithm requires three additional gain computation techniques: (i) a *gain cache* that stores and maintains the gain values for all possible nodes moves, (ii) a *thread-local gain cache* or also called *delta gain cache* that stores changes on the gain cache without making them visible to other threads, and (iii) a *rollback* implementation that recomputes the gain values for the global move sequence. Create for all techniques a separate header file in the folder of your objective function. You can copy the existing implementations from another objective function (rename the classes appropriately). Afterwards, include the files in ```partition/refinement/gains/gain_definitions.h``` and replace the ```GainCache```,  ```DeltaGainCache``` and ```Rollback``` member of your gain type struct with the concrete implementations. Moreover, add your gain cache implementation to all switch statements in ```partition/deep_multilevel.cpp``` and ```partition/refinement/gains/gain_cache_ptr.h```.
+
+### Gain Cache
+
+The gain cache stores and maintains the gain values for all possible node moves. We split a gain value into an benefit and penalty term b(u, V_j) and p(u) that stores the benefit of moving a node to block V_j and the penalty of moving the node out of its current block. The gain of moving the node to block V_j is then given by b(u, V_j) - p(u) (> 0 means improvement). For example for the cut metric, the benefit term is b(u, V_j) := w({ e \in I(u) | pin_count(e, V_j) = |e| - 1 }) (nets that would become non-cut if we move u to V_j) and the penalty term is p(u) := w({e \in I(u) | pin_count(e, V_i) = |e|}) (nets that would become cut if we move u out of its current block V_i). Thus, the gain cache for the cut metric stores k + 1 entries for each node.
+
+The interface of the gain cache class contains functions to initialize the gain cache, accessing gain values, and updating the gain cache after a node move. Implementing these functions is highly individual for each objective function and we recommend to look at some existing implementation to understand the semantics.
+Most notable is the delta gain update function, which has the following interface:
+```cpp
+template<typename PartitionedHypergraph>
+void deltaGainUpdate(const PartitionedHypergraph& partitioned_hg,
+                      const HyperedgeID he,
+                      const HyperedgeWeight we,
+                      const PartitionID from,
+                      const HypernodeID pin_count_in_from_part_after,
+                      const PartitionID to,
+                      const HypernodeID pin_count_in_to_part_after);
+```
+If we move a node u to another block, we call this function for each incident hyperedge of u. The function should be used to implement gain cache updates induced by the node move.
+
+Mt-KaHyPar also implements the n-level partitioning scheme. In this scheme, we contract only a single node on each level. Consequently, we also uncontract only a single node in the uncoarsening phase followed by a highly localized search for improvements around the uncontracted node. An uncontraction can also affect the gain cache. For a contraction that contracts a node v onto a node u, we provide two functions to update the gain cache after the uncontraction operation:
+```cpp
+template<typename PartitionedHypergraph>
+void uncontractUpdateAfterRestore(
+  const PartitionedHypergraph& partitioned_hg,
+  const HypernodeID u,
+  const HypernodeID v,
+  const HyperedgeID he,
+  const HypernodeID pin_count_in_part_after);
+
+template<typename PartitionedHypergraph>
+void uncontractUpdateAfterReplacement(
+  const PartitionedHypergraph& partitioned_hg,
+  const HypernodeID u,
+  const HypernodeID v,
+  const HyperedgeID he);
+```
+The first function is called if ```u``` and ```v``` are both contained in hyperedge ```he``` after the uncontraction. The second function is called if ```v``` replaces ```u``` in hyperedge ```he```. If it is not possible to update the gain cache after the uncontraction operation, you can throw an error/exception in both functions or optimize out the n-level code by adding ```-DKAHYPAR_ENABLE_N_LEVEL_PARTITIONING_FEATURES=OFF``` to the cmake build command. However, if you do not implement these functions, it is not possible to use our ```quality``` and ```quality_flows``` configuration.
+
+There is a unit test that verifies your gain cache implementation, which you can find in ```tests/partition/refinement/gain_cache_test.cc``` (build test suite via ```make mt_kahypar_tests``` and then run ```./tests/mt_kahypar_tests --gtest_filter=*AGainCache*```). To test your gain cache implementation, you can add your gain type struct to the ```TestConfigs```.
+
+### Thread-Local Gain Cache
+
+The localized FM searches apply node moves to a thread-local partition which are not visible for other threads. Only improvements are applied to the global partition. The thread-local partition maintains a delta gain cache that stores gain updates relative to the global gain cache. For example, the penalty term of the thread-local gain cache is given by p'(u) := p(u) + Δp(u) where p(u) is the penalty term stored in the global gain cache and Δp(u) is the penalty term stored in the delta gain cache after performing some moves locally. The internal implementation of a thread-local gain cache uses a hash table to store Δp(u) and Δb(u, V_j). To update both terms, you can copy the delta gain cache implementation of your global gain cache and store the changes in the hash table.
+
+### Rollback
+
+After all localized FM searches terminate, we concatenate the move sequences of all searches to global move sequence and recompute the gain values in parallel assuming that the moves are executed exactly in this order. After recomputing all gain values, the prefix with the highest accumulated gain is applied to the global partition. The gain recomputation algorithm iterates over all hyperedges in parallel. For each hyperedge, we iterate two times over all pins. The first loop precomputes some auxiliary data, which we then use in the second loop to decide which moved node contained in the hyperedge increases or decreases the objective function. The implementations for all functions required to implement the parallel gain recomputation algorithm are highly individual for each objective function. We recommend to read our paper for a detailed explanation. If you do not want to use the parallel gain recalculation algorithm, you can disable the feature by adding ```--i-r-fm-rollback-parallel=false``` and ```r-fm-rollback-parallel=false``` to the command line parameters. Then, gains are recomputed sequentially using attributed gains.
 
 ## TODOs
 
