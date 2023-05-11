@@ -84,33 +84,37 @@ class CutRollback {
   }
 
   template<typename PartitionedHypergraph>
-  static bool hasBenefit(const PartitionedHypergraph& phg,
-                         const HyperedgeID e,
-                         const MoveID m_id,
-                         const Move& m,
-                         vec<RecalculationData>& r) {
+  static HyperedgeWeight benefit(const PartitionedHypergraph& phg,
+                                 const HyperedgeID e,
+                                 const MoveID m_id,
+                                 const Move& m,
+                                 vec<RecalculationData>& r) {
     const HypernodeID edge_size = phg.edgeSize(e);
     // If the hyperedge was potentially a non-cut edge at some point and m is the last node
     // that moves into the corresponding block, while the first node that moves out of the corresponding
     // block is performed strictly after m, then m removes e from the cut.
     const bool was_potentially_non_cut_edge_at_some_point =
       phg.pinCountInPart(e, m.to) + r[m.to].moved_out == edge_size;
-    return was_potentially_non_cut_edge_at_some_point && r[m.to].last_in == m_id && m_id < r[m.to].first_out;
+    const bool has_benefit = was_potentially_non_cut_edge_at_some_point &&
+      r[m.to].last_in == m_id && m_id < r[m.to].first_out;
+    return has_benefit * phg.edgeWeight(e);
   }
 
   template<typename PartitionedHypergraph>
-  static bool hasPenalty(const PartitionedHypergraph& phg,
-                         const HyperedgeID e,
-                         const MoveID m_id,
-                         const Move& m,
-                         vec<RecalculationData>& r) {
+  static HyperedgeWeight penalty(const PartitionedHypergraph& phg,
+                                 const HyperedgeID e,
+                                 const MoveID m_id,
+                                 const Move& m,
+                                 vec<RecalculationData>& r) {
     const HypernodeID edge_size = phg.edgeSize(e);
     // If the hyperedge was potentially a non-cut edge at some point and m is the first node
     // that moves out of the corresponding block, while the last node that moves into the corresponding
     // block is performed strictly before m, then m makes e a cut edge.
     const bool was_potentially_non_cut_edge_at_some_point =
       phg.pinCountInPart(e, m.from) + r[m.from].moved_out == edge_size;
-    return was_potentially_non_cut_edge_at_some_point && r[m.from].first_out == m_id && m_id > r[m.from].last_in;
+    const bool has_penalty = was_potentially_non_cut_edge_at_some_point &&
+      r[m.from].first_out == m_id && m_id > r[m.from].last_in;
+    return has_penalty * phg.edgeWeight(e);
   }
 };
 

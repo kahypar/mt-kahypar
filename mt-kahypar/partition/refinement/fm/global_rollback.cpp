@@ -210,23 +210,22 @@ namespace mt_kahypar {
       }
 
       // distribute gains to pins
-      const HyperedgeWeight we = phg.edgeWeight(e);
       for (HypernodeID v : phg.pins(e)) {
         if (tracker.wasNodeMovedInThisRound(v)) {
           const MoveID m_id = tracker.moveOfNode[v];
           Move& m = tracker.getMove(m_id);
 
-          const bool benefit = Rollback::hasBenefit(phg, e, m_id, m, r);;
-          const bool penalty = Rollback::hasPenalty(phg, e, m_id, m, r);
+          const HyperedgeWeight benefit = Rollback::benefit(phg, e, m_id, m, r);;
+          const HyperedgeWeight penalty = Rollback::penalty(phg, e, m_id, m, r);
 
-          if (benefit && !penalty) {    // only apply update if they're mutually exclusive
-            // increase gain of v by w(e)
-            __atomic_fetch_add(&m.gain, we, __ATOMIC_RELAXED);
+          if ( benefit > 0 ) {
+            // increase gain of v by benefit
+            __atomic_fetch_add(&m.gain, benefit, __ATOMIC_RELAXED);
           }
 
-          if (!benefit && penalty) {
-            // decrease gain of v by w(e)
-            __atomic_fetch_sub(&m.gain, we, __ATOMIC_RELAXED);
+          if ( penalty > 0 ) {
+            // decrease gain of v by penalty
+            __atomic_fetch_sub(&m.gain, penalty, __ATOMIC_RELAXED);
           }
         }
       }
