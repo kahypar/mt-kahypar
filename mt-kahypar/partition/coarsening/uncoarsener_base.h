@@ -61,6 +61,7 @@ class UncoarsenerBase {
           _uncoarseningData(uncoarseningData),
           _gain_cache(gain_cache_t {nullptr, GainPolicy::none}),
           _label_propagation(nullptr),
+          _jet(nullptr),
           _fm(nullptr),
           _flows(nullptr),
           _rebalancer(nullptr) {}
@@ -81,6 +82,7 @@ class UncoarsenerBase {
   UncoarseningData<TypeTraits>& _uncoarseningData;
   gain_cache_t _gain_cache;
   std::unique_ptr<IRefiner> _label_propagation;
+  std::unique_ptr<IRefiner> _jet;
   std::unique_ptr<IRefiner> _fm;
   std::unique_ptr<IRefiner> _flows;
   std::unique_ptr<IRefiner> _rebalancer;
@@ -121,6 +123,9 @@ class UncoarsenerBase {
     _gain_cache = GainCachePtr::constructGainCache(_context.partition.gain_policy);
     _label_propagation = LabelPropagationFactory::getInstance().createObject(
       _context.refinement.label_propagation.algorithm,
+      _hg.initialNumNodes(), _hg.initialNumEdges(), _context, _gain_cache);
+    _jet = JetFactory::getInstance().createObject(
+      _context.refinement.jet.algorithm,
       _hg.initialNumNodes(), _hg.initialNumEdges(), _context, _gain_cache);
     _fm = FMFactory::getInstance().createObject(
       _context.refinement.fm.algorithm,
