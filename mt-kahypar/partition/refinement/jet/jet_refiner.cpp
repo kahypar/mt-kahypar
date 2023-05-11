@@ -139,8 +139,6 @@ namespace mt_kahypar {
     } else {
       tbb::parallel_for(UL(0), _active_nodes.size(), move_node);
     }
-
-    HEAVY_REFINEMENT_ASSERT(hypergraph.checkTrackedPartitionInformation(_gain_cache));
   }
 
   template <typename TypeTraits, typename GainTypes, bool precomputed>
@@ -184,6 +182,9 @@ namespace mt_kahypar {
           if (!_context.refinement.jet.vertex_locking) {
             _active_node_was_moved[hn] = uint8_t(false);
           }
+        } else {
+          ASSERT(_gain_cache.penaltyTerm(hn, hypergraph.partID(hn))
+                 == _gain_cache.recomputePenaltyTerm(hypergraph, hn));
         }
       };
 
@@ -201,7 +202,8 @@ namespace mt_kahypar {
   void JetRefiner<TypeTraits, GainTypes, precomputed>::initializeActiveNodes(
                               PartitionedHypergraph& hypergraph,
                               const parallel::scalable_vector<HypernodeID>& refinement_nodes) {
-    ASSERT(_active_node_was_moved.size() == hypergraph.initialNumNodes());
+    ASSERT(_active_node_was_moved.size() >= hypergraph.initialNumNodes());
+    // TODO: Fast reset array for _active_node_was_moved
     _active_nodes.clear();
     _gains_and_target.clear();
 

@@ -407,6 +407,11 @@ namespace mt_kahypar {
                               &context.initial_partitioning.refinement.jet.restrict_to_border_nodes))->value_name(
                      "<bool>")->default_value(true),
              "If true, then only border nodes are considered for JET.")
+            ((initial_partitioning ? "i-r-jet-vertex-locking" : "r-jet-vertex-locking"),
+             po::value<bool>((!initial_partitioning ? &context.refinement.jet.vertex_locking :
+                              &context.initial_partitioning.refinement.jet.vertex_locking))->value_name(
+                     "<bool>")->default_value(true),
+             "If true, enables JET vertex locking.")
             ((initial_partitioning ? "i-r-jet-negative-gain-factor-coarse" : "r-jet-negative-gain-factor-coarse"),
              po::value<double>(
                      (!initial_partitioning ? &context.refinement.jet.negative_gain_factor_coarse :

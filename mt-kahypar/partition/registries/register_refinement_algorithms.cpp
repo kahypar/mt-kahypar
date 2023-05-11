@@ -161,6 +161,12 @@ REGISTER_DISPATCHED_JET_REFINER(JetAlgorithm::greedy_unordered,
                                  context.partition.partition_type),
                                 kahypar::meta::PolicyRegistry<GainPolicy>::getInstance().getPolicy(
                                  context.partition.gain_policy));
+REGISTER_DISPATCHED_JET_REFINER(JetAlgorithm::precomputed_ordered,
+                                PrecomputedJetDispatcher,
+                                kahypar::meta::PolicyRegistry<mt_kahypar_partition_type_t>::getInstance().getPolicy(
+                                 context.partition.partition_type),
+                                kahypar::meta::PolicyRegistry<GainPolicy>::getInstance().getPolicy(
+                                 context.partition.gain_policy));
 REGISTER_JET_REFINER(JetAlgorithm::do_nothing, DoNothingRefiner, 2);
 
 REGISTER_DISPATCHED_FM_REFINER(FMAlgorithm::kway_fm,
