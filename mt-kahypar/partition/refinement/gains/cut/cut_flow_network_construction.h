@@ -39,7 +39,9 @@ struct CutFlowNetworkConstruction {
   // ! Capacity of the hyperedge
   template<typename PartitionedHypergraph>
   static HyperedgeWeight capacity(const PartitionedHypergraph& phg,
-                                  const HyperedgeID he) {
+                                  const HyperedgeID he,
+                                  const PartitionID,
+                                  const PartitionID) {
     return phg.edgeWeight(he);
   }
 
