@@ -82,7 +82,7 @@ class JetRefiner final : public IRefiner {
   bool refineImpl(mt_kahypar_partitioned_hypergraph_t& hypergraph,
                   const parallel::scalable_vector<HypernodeID>& refinement_nodes,
                   Metrics& best_metrics,
-                  double) final;
+                  double time_limit) final;
 
   void labelPropagationRound(PartitionedHypergraph& hypergraph);
 
@@ -127,7 +127,9 @@ class JetRefiner final : public IRefiner {
 
   void initializeImpl(mt_kahypar_partitioned_hypergraph_t&) final;
 
-  void recomputePenalties(const PartitionedHypergraph& hypergraph); // TODO: after rebalancing, after rollback???
+  void recomputePenalties(const PartitionedHypergraph& hypergraph, bool did_rebalance);
+
+  void rebalance(PartitionedHypergraph& hypergraph, Metrics& current_metrics, double time_limit);
 
   template<typename F>
   void changeNodePart(PartitionedHypergraph& phg,

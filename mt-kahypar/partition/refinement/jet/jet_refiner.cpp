@@ -31,6 +31,7 @@
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/metrics.h"
 #include "mt-kahypar/partition/refinement/gains/gain_definitions.h"
+#include "mt-kahypar/partition/refinement/rebalancing/rebalancer.h"
 #include "mt-kahypar/utils/randomize.h"
 #include "mt-kahypar/utils/utilities.h"
 #include "mt-kahypar/utils/timer.h"
@@ -44,10 +45,11 @@ namespace mt_kahypar {
                   mt_kahypar_partitioned_hypergraph_t& phg,
                   const parallel::scalable_vector<HypernodeID>& refinement_nodes,
                   Metrics& best_metrics,
-                  const double)  {
+                  const double time_limit)  {
     PartitionedHypergraph& hypergraph = utils::cast<PartitionedHypergraph>(phg);
     resizeDataStructuresForCurrentK();
     _gain.reset();
+    _gain_cache.reset(); // current rebalancer is not capable of using the gain cache
 
     // Initialize set of active vertices
     initializeActiveNodes(hypergraph, refinement_nodes);
@@ -56,25 +58,44 @@ namespace mt_kahypar {
     labelPropagationRound(hypergraph);
 
 
-    // Update global part weight and sizes
-    DBG << "[JET] Old imbalance: " << best_metrics.imbalance;
-    best_metrics.imbalance = metrics::imbalance(hypergraph, _context);
-
     // Update metrics statistics
+    const HyperedgeWeight old_quality = best_metrics.quality;
+    DBG << "[JET] Old imbalance: " << best_metrics.imbalance << ", objective: " << old_quality;
+    best_metrics.imbalance = metrics::imbalance(hypergraph, _context);
     Gain delta = _gain.delta();
-    DBG << "[JET] New imbalance: " << best_metrics.imbalance << ", delta: " << delta;
+    DBG << "[JET] New imbalance: " << best_metrics.imbalance << ", tmp delta: " << delta;
+    best_metrics.quality += delta;
 
-    recomputePenalties(hypergraph);
+    // recomputePenalties(hypergraph, false);
+    // HEAVY_REFINEMENT_ASSERT(hypergraph.checkTrackedPartitionInformation(_gain_cache));
+
+    bool did_rebalance = false;
+    if (!metrics::isBalanced(hypergraph, _context)) {
+      rebalance(hypergraph, best_metrics, time_limit);
+
+      best_metrics.imbalance = metrics::imbalance(hypergraph, _context);
+      delta = best_metrics.quality - old_quality;
+      DBG << "[JET] Imbalance after rebalancing: " << best_metrics.imbalance << ", total delta: " << delta;
+      did_rebalance = true;
+    }
+
+    if (delta > 0) {
+      DBG << "[JET] Rollback... ";
+      rollback(hypergraph);
+      best_metrics.quality = old_quality;
+      best_metrics.imbalance = metrics::imbalance(hypergraph, _context);
+      delta = 0;
+    }
+
+    recomputePenalties(hypergraph, did_rebalance);
 
     HEAVY_REFINEMENT_ASSERT(hypergraph.checkTrackedPartitionInformation(_gain_cache));
-    HEAVY_REFINEMENT_ASSERT(best_metrics.quality + delta ==
+    HEAVY_REFINEMENT_ASSERT(best_metrics.quality ==
       metrics::quality(hypergraph, _context,
         !_context.refinement.label_propagation.execute_sequential),
-      V(best_metrics.quality) << V(delta) << V((best_metrics.quality + delta))
-        << V(metrics::quality(hypergraph, _context,
+      V(best_metrics.quality) << V(delta) << V(metrics::quality(hypergraph, _context,
           !_context.refinement.label_propagation.execute_sequential)));
 
-    best_metrics.quality += delta;
     utils::Utilities::instance().getStats(_context.utility_id).update_stat("jet_improvement", std::abs(delta));
     return delta < 0;
   }
@@ -157,14 +178,14 @@ namespace mt_kahypar {
       }
     };
 
+    // we need to reset all nodes since rebalancing might touch non-active nodes
     if ( _context.refinement.jet.execute_sequential ) {
-      for ( size_t j = 0; j < _active_nodes.size(); ++j ) {
-        reset_node(j);
+      for ( const HypernodeID hn : hypergraph.nodes() ) {
+        reset_node(hn);
       }
     } else {
-      tbb::parallel_for(UL(0), _active_nodes.size(), reset_node);
+      hypergraph.doParallelForAllNodes(reset_node);
     }
-    // TODO: update gain cache?!
   }
 
   template <typename TypeTraits, typename GainTypes, bool precomputed>
@@ -173,27 +194,40 @@ namespace mt_kahypar {
   }
 
   template <typename TypeTraits, typename GainTypes, bool precomputed>
-  void JetRefiner<TypeTraits, GainTypes, precomputed>::recomputePenalties(const PartitionedHypergraph& hypergraph) {
+  void JetRefiner<TypeTraits, GainTypes, precomputed>::recomputePenalties(const PartitionedHypergraph& hypergraph, 
+                                                                          bool did_rebalance) {
     if ( _context.forceGainCacheUpdates() && _gain_cache.isInitialized() ) {
-      auto recompute = [&](size_t j) {
-        const HypernodeID hn = _active_nodes[j];
-        if ( _active_node_was_moved[hn] ) {
-          _gain_cache.recomputePenaltyTermEntry(hypergraph, hn);
-          if (!_context.refinement.jet.vertex_locking) {
-            _active_node_was_moved[hn] = uint8_t(false);
+      if (did_rebalance) {
+        if ( _context.refinement.jet.execute_sequential ) {
+          for ( const HypernodeID hn : hypergraph.nodes() ) {
+            _gain_cache.recomputePenaltyTermEntry(hypergraph, hn);
           }
         } else {
-          ASSERT(_gain_cache.penaltyTerm(hn, hypergraph.partID(hn))
-                 == _gain_cache.recomputePenaltyTerm(hypergraph, hn));
-        }
-      };
-
-      if ( _context.refinement.jet.execute_sequential ) {
-        for (size_t j = 0; j < _active_nodes.size(); ++j) {
-          recompute(j);
+          hypergraph.doParallelForAllNodes([&](const HypernodeID& hn) {
+            _gain_cache.recomputePenaltyTermEntry(hypergraph, hn);
+          });
         }
       } else {
-        tbb::parallel_for(UL(0), _active_nodes.size(), recompute);
+        auto recompute = [&](size_t j) {
+          const HypernodeID hn = _active_nodes[j];
+          if ( _active_node_was_moved[hn] ) {
+            _gain_cache.recomputePenaltyTermEntry(hypergraph, hn);
+            if (!_context.refinement.jet.vertex_locking) {
+              _active_node_was_moved[hn] = uint8_t(false);
+            }
+          } else {
+            ASSERT(_gain_cache.penaltyTerm(hn, hypergraph.partID(hn))
+                  == _gain_cache.recomputePenaltyTerm(hypergraph, hn));
+          }
+        };
+
+        if ( _context.refinement.jet.execute_sequential ) {
+          for (size_t j = 0; j < _active_nodes.size(); ++j) {
+            recompute(j);
+          }
+        } else {
+          tbb::parallel_for(UL(0), _active_nodes.size(), recompute);
+        }
       }
     }
   }
@@ -208,10 +242,10 @@ namespace mt_kahypar {
     _gains_and_target.clear();
 
     auto process_node = [&](const HypernodeID hn, auto add_node_fn) {
+      const PartitionID from = hypergraph.partID(hn);
       bool accept_border = !_context.refinement.jet.restrict_to_border_nodes || hypergraph.isBorderNode(hn);
       bool accept_locked = !_context.refinement.jet.vertex_locking || !_active_node_was_moved[hn];
       if ( accept_border && accept_locked ) {
-        const PartitionID from = hypergraph.partID(hn);
         if constexpr (precomputed) {
           RatingMap& tmp_scores = _gain.localScores();
           Gain isolated_block_gain = 0;
@@ -229,11 +263,11 @@ namespace mt_kahypar {
         } else {
           add_node_fn(hn);
         }
-        _old_parts[hn] = from;
       } else if (!accept_locked) {
         ASSERT(_context.refinement.jet.vertex_locking);
         _active_node_was_moved[hn] = false;
       }
+      _old_parts[hn] = from; // TODO: with better rebalancer -> only consider active nodes
     };
 
     if ( refinement_nodes.empty() ) {
@@ -271,6 +305,15 @@ namespace mt_kahypar {
       utils::Randomize::instance().parallelShuffleVector(
               _active_nodes, UL(0), _active_nodes.size());
     }
+  }
+
+  template <typename TypeTraits, typename GainTypes, bool precomputed>
+  void JetRefiner<TypeTraits, GainTypes, precomputed>::rebalance(PartitionedHypergraph& hypergraph,
+                                                                 Metrics& current_metrics, double time_limit) {
+    ASSERT(!_context.partition.deterministic);
+    Rebalancer<TypeTraits, GainTypes> rebalancer(_context);
+    mt_kahypar_partitioned_hypergraph_t phg = utils::partitioned_hg_cast(hypergraph);
+    rebalancer.refine(phg, {}, current_metrics, time_limit);
   }
 
   namespace {
