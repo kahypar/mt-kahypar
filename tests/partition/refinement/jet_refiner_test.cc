@@ -108,6 +108,7 @@ class AJetRefiner : public Test {
     // Jet
     context.refinement.jet.algorithm = Config::JET_ALGO;
     context.initial_partitioning.refinement.jet.algorithm = Config::JET_ALGO;
+    context.initial_partitioning.refinement.jet.vertex_locking = false;
 
     // Read hypergraph
     hypergraph = io::readInputFile<Hypergraph>(

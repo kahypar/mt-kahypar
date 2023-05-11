@@ -60,7 +60,7 @@ class JetRefiner final : public IRefiner {
     _current_k(context.partition.k),
     _gain(context),
     _active_nodes(),
-    _active_node_was_moved(),
+    _active_node_was_moved(num_hypernodes, uint8_t(false)),
     _old_parts(num_hypernodes),
     _gains_and_target(precomputed ? num_hypernodes : 0) { }
 

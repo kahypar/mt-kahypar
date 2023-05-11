@@ -124,11 +124,11 @@ namespace mt_kahypar {
 
         if (gain < 0) {
           changeNodePart(hypergraph, hn, from, to, objective_delta);
-          _active_node_was_moved[j] = uint8_t(true);
+          _active_node_was_moved[hn] = uint8_t(true);
         }
       } else {
         if ( moveVertexGreedily(hypergraph, hn, objective_delta) ) {
-          _active_node_was_moved[j] = uint8_t(true);
+          _active_node_was_moved[hn] = uint8_t(true);
         }
       }
     };
@@ -179,9 +179,12 @@ namespace mt_kahypar {
   void JetRefiner<TypeTraits, GainTypes, precomputed>::recomputePenalties(const PartitionedHypergraph& hypergraph) {
     if ( _context.forceGainCacheUpdates() && _gain_cache.isInitialized() ) {
       auto recompute = [&](size_t j) {
-        if ( _active_node_was_moved[j] ) {
-          _gain_cache.recomputePenaltyTermEntry(hypergraph, _active_nodes[j]);
-          _active_node_was_moved[j] = uint8_t(false);
+        const HypernodeID hn = _active_nodes[j];
+        if ( _active_node_was_moved[hn] ) {
+          _gain_cache.recomputePenaltyTermEntry(hypergraph, hn);
+          if (!_context.refinement.jet.vertex_locking) {
+            _active_node_was_moved[hn] = uint8_t(false);
+          }
         }
       };
 
@@ -203,7 +206,9 @@ namespace mt_kahypar {
     _gains_and_target.clear();
 
     auto process_node = [&](const HypernodeID hn, auto add_node_fn) {
-      if ( !_context.refinement.jet.restrict_to_border_nodes || hypergraph.isBorderNode(hn) ) {
+      bool accept_border = !_context.refinement.jet.restrict_to_border_nodes || hypergraph.isBorderNode(hn);
+      bool accept_locked = !_context.refinement.jet.vertex_locking || !_active_node_was_moved[hn];
+      if ( accept_border && accept_locked ) {
         const PartitionID from = hypergraph.partID(hn);
         if constexpr (precomputed) {
           RatingMap& tmp_scores = _gain.localScores();
@@ -221,6 +226,9 @@ namespace mt_kahypar {
           add_node_fn(hn);
         }
         _old_parts[hn] = from;
+      } else if (!accept_locked) {
+        ASSERT(_context.refinement.jet.vertex_locking);
+        _active_node_was_moved[hn] = false;
       }
     };
 
@@ -251,7 +259,6 @@ namespace mt_kahypar {
         _active_nodes = refinement_nodes;
       }
     }
-    _active_node_was_moved.resize(_active_nodes.size(), uint8_t(false));
 
     if ( _context.refinement.jet.execute_sequential ) {
       utils::Randomize::instance().shuffleVector(
