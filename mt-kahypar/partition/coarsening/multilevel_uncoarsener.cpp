@@ -198,6 +198,10 @@ namespace mt_kahypar {
   void MultilevelUncoarsener<TypeTraits>::refineImpl() {
     PartitionedHypergraph& partitioned_hypergraph = *_uncoarseningData.partitioned_hg;
     const double time_limit = Base::refinementTimeLimit(_context, (_uncoarseningData.hierarchy)[_current_level].coarseningTime());
+    _best_metrics = _current_metrics;
+    if (_context.refinement.rounds_with_rollback > 0) {
+      writeCurrentPartition();
+    }
 
     if ( debug && _context.type == ContextType::main ) {
       io::printHypergraphInfo(partitioned_hypergraph.hypergraph(),
@@ -208,10 +212,11 @@ namespace mt_kahypar {
 
     parallel::scalable_vector<HypernodeID> dummy;
     bool improvement_found = true;
+    size_t rounds = 0;
     mt_kahypar_partitioned_hypergraph_t phg = utils::partitioned_hg_cast(partitioned_hypergraph);
-    while( improvement_found ) {
+    while( true ) {
       improvement_found = false;
-      const HyperedgeWeight metric_before = _current_metrics.quality;
+      const HyperedgeWeight metric_before = _best_metrics.quality;
 
       if ( _label_propagation && _context.refinement.label_propagation.algorithm != LabelPropagationAlgorithm::do_nothing ) {
         _timer.start_timer("initialize_lp_refiner", "Initialize LP Refiner");
@@ -219,7 +224,9 @@ namespace mt_kahypar {
         _timer.stop_timer("initialize_lp_refiner");
 
         _timer.start_timer("label_propagation", "Label Propagation");
-        improvement_found |= _label_propagation->refine(phg, dummy, _current_metrics, time_limit);
+        if ( _label_propagation->refine(phg, dummy, _current_metrics, time_limit) ) {
+          improvement_found |= checkForImprovement();
+        }
         _timer.stop_timer("label_propagation");
       }
 
@@ -229,7 +236,9 @@ namespace mt_kahypar {
         _timer.stop_timer("initialize_jet_refiner");
 
         _timer.start_timer("jet", "JET");
-        improvement_found |= _jet->refine(phg, dummy, _current_metrics, time_limit);
+        if ( _jet->refine(phg, dummy, _current_metrics, time_limit) ) {
+          improvement_found |= checkForImprovement();
+        }
         _timer.stop_timer("jet");
       }
 
@@ -239,7 +248,9 @@ namespace mt_kahypar {
         _timer.stop_timer("initialize_fm_refiner");
 
         _timer.start_timer("fm", "FM");
-        improvement_found |= _fm->refine(phg, dummy, _current_metrics, time_limit);
+        if ( _fm->refine(phg, dummy, _current_metrics, time_limit) ) {
+          improvement_found |= checkForImprovement();
+        }
         _timer.stop_timer("fm");
       }
 
@@ -249,7 +260,9 @@ namespace mt_kahypar {
         _timer.stop_timer("initialize_flow_scheduler");
 
         _timer.start_timer("flow_refinement_scheduler", "Flow Refinement Scheduler");
-        improvement_found |= _flows->refine(phg, dummy, _current_metrics, time_limit);
+        if ( _flows->refine(phg, dummy, _current_metrics, time_limit) ) {
+          improvement_found |= checkForImprovement();
+        }
         _timer.stop_timer("flow_refinement_scheduler");
       }
 
@@ -262,14 +275,80 @@ namespace mt_kahypar {
       const HyperedgeWeight metric_after = _current_metrics.quality;
       const double relative_improvement = 1.0 -
         static_cast<double>(metric_after) / metric_before;
-      if ( !_context.refinement.refine_until_no_improvement ||
-           relative_improvement <= _context.refinement.relative_improvement_threshold ) {
+
+      if (_context.refinement.rounds_with_rollback > 0) {
+        // necessary for JET, since JET might worsen the partition
+        if (improvement_found && relative_improvement > _context.refinement.relative_improvement_threshold) {
+          rounds = 0;
+        } else {
+          rounds++;
+          if (rounds >= _context.refinement.rounds_with_rollback) {
+            break;
+          }
+        }
+      } else if ( !improvement_found || !_context.refinement.refine_until_no_improvement ||
+                  relative_improvement <= _context.refinement.relative_improvement_threshold ) {
         break;
       }
     }
 
+    const HyperedgeWeight best = _best_metrics.quality;
+    if (_context.refinement.rounds_with_rollback > 0 && best < _current_metrics.quality) {
+      // revert to best partition
+      DBG << "Rollback to best partition with value: " << best;
+      auto reset_node = [&](const HypernodeID hn) {
+        const PartitionID part_id = partitioned_hypergraph.partID(hn);
+        if (part_id != _block_ids[hn]) {
+          bool success = partitioned_hypergraph.changeNodePart(hn, part_id, _block_ids[hn]);
+          ASSERT(success);
+          unused(success);
+        }
+      };
+
+      if ( _context.type == ContextType::main ) {
+        partitioned_hypergraph.doParallelForAllNodes(reset_node);
+      } else {
+        for (const HypernodeID hn : partitioned_hypergraph.nodes()) {
+          reset_node(hn);
+        }
+      }
+      _current_metrics = _best_metrics;
+    }
+
     if ( _context.type == ContextType::main) {
       DBG << "--------------------------------------------------\n";
+    }
+  }
+
+  template<typename TypeTraits>
+  bool MultilevelUncoarsener<TypeTraits>::checkForImprovement() {
+    // check for improved partition with precondition that the refiner found an improvement
+    if (_context.refinement.rounds_with_rollback == 0) {
+      _best_metrics = _current_metrics;
+      return true;
+    }
+
+    if (_current_metrics.quality < _best_metrics.quality) {
+      _best_metrics = _current_metrics;
+      writeCurrentPartition();
+      return true;
+    }
+    return false;
+  }
+
+  template<typename TypeTraits>
+  void MultilevelUncoarsener<TypeTraits>::writeCurrentPartition() {
+    PartitionedHypergraph& partitioned_hypergraph = *_uncoarseningData.partitioned_hg;
+
+    // write current partition to _block_ids
+    if ( _context.type == ContextType::main ) {
+      partitioned_hypergraph.doParallelForAllNodes([&](const HypernodeID hn) {
+        _block_ids[hn] = partitioned_hypergraph.partID(hn);
+      });
+    } else {
+      for (const HypernodeID hn : partitioned_hypergraph.nodes()) {
+        _block_ids[hn] = partitioned_hypergraph.partID(hn);
+      }
     }
   }
 

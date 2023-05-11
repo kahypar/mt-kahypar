@@ -375,6 +375,7 @@ class InitialPartitioningDataContainer {
     // Setup Label Propagation IRefiner Config for Initial Partitioning
     _context.refinement = _context.initial_partitioning.refinement;
     _context.refinement.label_propagation.execute_sequential = true;
+    _context.refinement.jet.execute_sequential = true;
 
     if (_context.partition.deterministic) {
       _best_partitions.resize(_max_pop_size);
