@@ -297,6 +297,7 @@ namespace mt_kahypar {
         if (part_id != _block_ids[hn]) {
           bool success = partitioned_hypergraph.changeNodePart(hn, part_id, _block_ids[hn]);
           ASSERT(success);
+          unused(success);
         }
       };
 

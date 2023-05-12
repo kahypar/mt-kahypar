@@ -144,6 +144,7 @@ class JetRefiner final : public IRefiner {
       success = phg.changeNodePart(hn, from, to, inf_weight, []{}, objective_delta);
     }
     ASSERT(success);
+    unused(success);
   }
 
   void resizeDataStructuresForCurrentK() {
