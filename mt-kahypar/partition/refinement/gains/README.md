@@ -8,13 +8,13 @@ We have defined a common interface for our gain computation techniques that we u
 - ```partition/context_enum_classes.cpp```: Create a mapping between a string description and your new enum type in ```operator<< (std::ostream& os, const Objective& objective)```, ```operator<< (std::ostream& os, const GainPolicy& type)``` and ```objectiveFromString(const std::string& obj)```
 - ```partition/metrics.cpp```: Create a template specialization of the ```ObjectiveFunction``` struct for your ```Objective``` enum type and override ```operator()(const PartitionedHypergraph& phg, const HyperedgeID he)```. The function takes a partitioned hypergraph and a hyperedge ID and computes the contribution of the hyperedge to the objective function. Moreover, add your new objective function to the switch statements in ```quality(...)``` and ```contribution(...)```.
 - ```partition/refinement/gains/gain_definitions.h```: Create a gain type struct for your new objective function. You can copy one of the existing structures. This struct contains all relevant implementations for the gain computation in our refinement algorithms. We will later replace them with custom implementations for the new objective function. You also have to add this struct to the type list ```GainTypes``` and to the macro ```INSTANTIATE_CLASS_WITH_TYPE_TRAITS_AND_GAIN_TYPES```.
-- ```partition/refinement/gains/gain_cache_ptr.h```: Add the ```GainPolicy``` type of your new objective function to all switch statements in the ```GainCachePtr``` class. Use the gain cache implementation set in your new gain type struct defined in ```gain_definitions.h```. We will later replace it by the concrete gain cache implementation for your new objective function. Moreover, add the ```GainPolicy``` type of your new objective function to the switch statement of the ```bipartition_each_block(...)``` function in ```partition/deep_multilevel.cpp```
+- ```partition/refinement/gains/gain_cache_ptr.h```: Add the ```GainPolicy``` type of your new objective function to all switch statements in the ```GainCachePtr``` class. Use the gain cache implementation of your gain type struct defined in ```gain_definitions.h```. We will later replace it by the concrete gain cache implementation for your new objective function. Moreover, add the ```GainPolicy``` type of your new objective function to the switch statement of the ```bipartition_each_block(...)``` function in ```partition/deep_multilevel.cpp```
 - ```partition/context.cpp```: Create a mapping between the enum type ```Objective``` and ```GainPolicy``` in the ```sanityCheck(...)``` function.
 - ```partition/registries/register_policies.cpp```: Create a mapping between the enum class ```GainPolicy``` and your gain type struct.
 - ```partition/refinement/gains/bipartitioning_policy.h```: Add the ```GainPolicy``` type of your new objective function to the switch statements in ```useCutNetSplitting(...)``` and ```nonCutEdgeMultiplier(...)```. You can copy one of the existing parameters of an other objective function for now. An explanation how to configure these functions properly follows later.
 - Create a folder for your objective function in ```partition/refinement/gains```. We will later add here all relevant gain computation techniques.
 
-At this point, you can run Mt-KaHyPar with your new objective function by adding the command line parameter ```-o <string description of your objective function>```. At the end of the partitioning process, you should see the value of your new objective function (directly under the *Partitioning Result* section). However, running Mt-KaHyPar debug mode will fail due to failing assertions.
+At this point, you can run Mt-KaHyPar with your new objective function by adding the command line parameter ```-o <string description of your objective function>```. At the end of the partitioning process, you should see the value of your new objective function (directly under the *Partitioning Result* section). However, running Mt-KaHyPar in debug mode will fail due to failing assertions.
 
 ## Initial Partitioning
 
@@ -140,4 +140,14 @@ To test your implementation, you can enable logging in our flow-based refinement
 
 ## TODOs
 
-- make C and Python library extensible with new objective functions
+### C Interface
+
+- Add new enum type to ```mt_kahypar_objective_t```
+- Add metric to ```mt_kahypar_set_context_parameter```
+- Add to switch statement in ```mt_kahypar_set_partitioning_parameters```
+- Add function that computes the objective function
+
+### Python Interface
+
+- Add mapping between python Objective type and C objective type
+- Add a function that computes your objective function to ```PartitionedHypergraph``` and ```SparsePartitionedHypergraph```

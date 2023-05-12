@@ -150,7 +150,8 @@ PYBIND11_MODULE(mtkahypar, m) {
   using mt_kahypar::Objective;
   py::enum_<Objective>(m, "Objective", py::module_local())
     .value("CUT", Objective::cut)
-    .value("KM1", Objective::km1);
+    .value("KM1", Objective::km1)
+    .value("SOED", Objective::soed);
 
   // ####################### Initialize Thread Pool #######################
 
@@ -215,7 +216,7 @@ PYBIND11_MODULE(mtkahypar, m) {
         return context.partition.objective;
       }, [](Context& context, const Objective objective) {
         context.partition.objective = objective;
-      }, "Sets the objective function for partitioning (either CUT or KM1)")
+      }, "Sets the objective function for partitioning (CUT, KM1 or SOED)")
     .def_property("seed",
       [](const Context& context) {
         return context.partition.seed;
@@ -627,6 +628,10 @@ Construct a partitioned hypergraph.
         return metrics::quality(partitioned_hg, Objective::km1);
       },
       "Computes the connectivity metric of the partition")
+    .def("soed", [](PartitionedHypergraph& partitioned_hg) {
+        return metrics::quality(partitioned_hg, Objective::soed);
+      },
+      "Computes the sum-of-external-degree metric of the partition")
     .def("writePartitionToFile", [](PartitionedHypergraph& partitioned_hg,
                                     const std::string& partition_file) {
         io::writePartitionFile(partitioned_hg, partition_file);
@@ -720,6 +725,10 @@ Construct a partitioned hypergraph.
         return metrics::quality(partitioned_hg, Objective::km1);
       },
       "Computes the connectivity metric of the partition")
+    .def("soed", [](SparsePartitionedHypergraph& partitioned_hg) {
+        return metrics::quality(partitioned_hg, Objective::soed);
+      },
+      "Computes the sum-of-external-degree metric of the partition")
     .def("writePartitionToFile", [](SparsePartitionedHypergraph& partitioned_hg,
                                     const std::string& partition_file) {
         io::writePartitionFile(partitioned_hg, partition_file);
