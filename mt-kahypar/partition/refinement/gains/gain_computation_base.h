@@ -62,11 +62,29 @@ class GainComputationBase {
   Move computeMaxGainMove(const PartitionedHypergraph& phg,
                           const HypernodeID hn,
                           const bool rebalance = false,
-                          const bool consider_non_adjacent_blocks = false) {
+                          const bool consider_non_adjacent_blocks = false,
+                          const bool allow_imbalance = false) {
     Derived* derived = static_cast<Derived*>(this);
     RatingMap& tmp_scores = _tmp_scores.local();
     Gain& isolated_block_gain = _isolated_block_gain.local();
     derived->precomputeGains(phg, hn, tmp_scores, isolated_block_gain, consider_non_adjacent_blocks);
+    Move best_move = computeMaxGainMoveForScores(phg, tmp_scores, isolated_block_gain, hn,
+                        rebalance, consider_non_adjacent_blocks, allow_imbalance);
+
+    isolated_block_gain = 0;
+    tmp_scores.clear();
+    return best_move;
+  }
+
+  template<typename PartitionedHypergraph>
+  Move computeMaxGainMoveForScores(const PartitionedHypergraph& phg,
+                                   const RatingMap& tmp_scores,
+                                   const Gain isolated_block_gain,
+                                   const HypernodeID hn,
+                                   const bool rebalance = false,
+                                   const bool consider_non_adjacent_blocks = false,
+                                   const bool allow_imbalance = false) {
+    Derived* derived = static_cast<Derived*>(this);
 
     PartitionID from = phg.partID(hn);
     Move best_move { from, from, hn, rebalance ? std::numeric_limits<Gain>::max() : 0 };
@@ -80,8 +98,8 @@ class GainComputationBase {
                             (score == best_move.gain &&
                             !_disable_randomization &&
                             (no_tie_breaking || rand.flipCoin(cpu_id)));
-      if (new_best_gain && phg.partWeight(to) + hn_weight <=
-          _context.partition.max_part_weights[to]) {
+      if (new_best_gain && (allow_imbalance || phg.partWeight(to) + hn_weight <=
+          _context.partition.max_part_weights[to])) {
         best_move.to = to;
         best_move.gain = score;
         return true;
@@ -119,13 +137,16 @@ class GainComputationBase {
       }
     }
 
-    isolated_block_gain = 0;
-    tmp_scores.clear();
     return best_move;
   }
 
   inline void computeDeltaForHyperedge(const SyncronizedEdgeUpdate& sync_update) {
     _deltas.local() += AttributedGains::gain(sync_update);
+  }
+
+  // ! Returns the local rating map for block scores
+  RatingMap& localScores() {
+    return _tmp_scores.local();
   }
 
   // ! Returns the delta in the objective function for all moves

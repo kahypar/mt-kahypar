@@ -41,12 +41,13 @@ namespace mt_kahypar {
 
 class GraphSteinerTreeGainComputation : public GainComputationBase<GraphSteinerTreeGainComputation, GraphSteinerTreeAttributedGains> {
   using Base = GainComputationBase<GraphSteinerTreeGainComputation, GraphSteinerTreeAttributedGains>;
-  using RatingMap = typename Base::RatingMap;
 
   static constexpr bool enable_heavy_assert = false;
   static constexpr size_t BITS_PER_BLOCK = ds::StaticBitset::BITS_PER_BLOCK;
 
  public:
+  using RatingMap = typename Base::RatingMap;
+
   GraphSteinerTreeGainComputation(const Context& context,
                                      bool disable_randomization = false) :
     Base(context, disable_randomization),
