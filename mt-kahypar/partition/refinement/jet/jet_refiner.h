@@ -59,10 +59,11 @@ class JetRefiner final : public IRefiner {
     _context(context),
     _gain_cache(gain_cache),
     _current_k(context.partition.k),
+    _top_level_num_nodes(num_hypernodes),
+    _current_num_nodes(num_hypernodes),
     _gain(context),
     _active_nodes(),
-    _active_node_was_moved(num_hypernodes, uint8_t(false)),
-    _old_parts(num_hypernodes),
+    _active_node_was_moved(num_hypernodes),
     _gains_and_target(precomputed ? num_hypernodes : 0) { }
 
   explicit JetRefiner(const HypernodeID num_hypernodes,
@@ -85,8 +86,6 @@ class JetRefiner final : public IRefiner {
                   double time_limit) final;
 
   void labelPropagationRound(PartitionedHypergraph& hypergraph);
-
-  void rollback(PartitionedHypergraph& hypergraph);
 
   template<typename F>
   bool moveVertexGreedily(PartitionedHypergraph& hypergraph,
@@ -159,10 +158,11 @@ class JetRefiner final : public IRefiner {
   const Context& _context;
   GainCache& _gain_cache;
   PartitionID _current_k;
+  HypernodeID _top_level_num_nodes;
+  HypernodeID _current_num_nodes;
   GainCalculator _gain;
   ActiveNodes _active_nodes;
-  parallel::scalable_vector<uint8_t> _active_node_was_moved;
-  parallel::scalable_vector<PartitionID> _old_parts;
+  kahypar::ds::FastResetFlagArray<> _active_node_was_moved;
   parallel::scalable_vector<std::pair<Gain, PartitionID>> _gains_and_target;
 };
 

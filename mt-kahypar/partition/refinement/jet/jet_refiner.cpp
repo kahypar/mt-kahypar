@@ -79,14 +79,6 @@ namespace mt_kahypar {
       did_rebalance = true;
     }
 
-    if (delta > 0) {
-      DBG << "[JET] Rollback... ";
-      rollback(hypergraph);
-      best_metrics.quality = old_quality;
-      best_metrics.imbalance = metrics::imbalance(hypergraph, _context);
-      delta = 0;
-    }
-
     recomputePenalties(hypergraph, did_rebalance);
 
     HEAVY_REFINEMENT_ASSERT(hypergraph.checkTrackedPartitionInformation(_gain_cache));
@@ -144,11 +136,11 @@ namespace mt_kahypar {
 
         if (gain < 0) {
           changeNodePart(hypergraph, hn, from, to, objective_delta);
-          _active_node_was_moved[hn] = uint8_t(true);
+          _active_node_was_moved.set(hn);
         }
       } else {
         if ( moveVertexGreedily(hypergraph, hn, objective_delta) ) {
-          _active_node_was_moved[hn] = uint8_t(true);
+          _active_node_was_moved.set(hn);
         }
       }
     };
@@ -159,32 +151,6 @@ namespace mt_kahypar {
       }
     } else {
       tbb::parallel_for(UL(0), _active_nodes.size(), move_node);
-    }
-  }
-
-  template <typename TypeTraits, typename GainTypes, bool precomputed>
-  void JetRefiner<TypeTraits, GainTypes, precomputed>::rollback(
-                  PartitionedHypergraph& hypergraph) {
-    auto reset_node = [&](const HypernodeID hn) {
-      const PartitionID part_id = hypergraph.partID(hn);
-      if (part_id != _old_parts[hn]) {
-        bool success = false;
-        if ( _context.forceGainCacheUpdates() && _gain_cache.isInitialized() ) {
-          success = hypergraph.changeNodePart(_gain_cache, hn, part_id, _old_parts[hn]);
-        } else {
-          success = hypergraph.changeNodePart(hn, part_id, _old_parts[hn]);
-        }
-        ASSERT(success);
-      }
-    };
-
-    // we need to reset all nodes since rebalancing might touch non-active nodes
-    if ( _context.refinement.jet.execute_sequential ) {
-      for ( const HypernodeID hn : hypergraph.nodes() ) {
-        reset_node(hn);
-      }
-    } else {
-      hypergraph.doParallelForAllNodes(reset_node);
     }
   }
 
@@ -212,9 +178,6 @@ namespace mt_kahypar {
           const HypernodeID hn = _active_nodes[j];
           if ( _active_node_was_moved[hn] ) {
             _gain_cache.recomputePenaltyTermEntry(hypergraph, hn);
-            if (!_context.refinement.jet.vertex_locking) {
-              _active_node_was_moved[hn] = uint8_t(false);
-            }
           } else {
             ASSERT(_gain_cache.penaltyTerm(hn, hypergraph.partID(hn))
                   == _gain_cache.recomputePenaltyTerm(hypergraph, hn));
@@ -236,13 +199,17 @@ namespace mt_kahypar {
   void JetRefiner<TypeTraits, GainTypes, precomputed>::initializeActiveNodes(
                               PartitionedHypergraph& hypergraph,
                               const parallel::scalable_vector<HypernodeID>& refinement_nodes) {
-    ASSERT(_active_node_was_moved.size() >= hypergraph.initialNumNodes());
-    // TODO: Fast reset array for _active_node_was_moved
     _active_nodes.clear();
     _gains_and_target.clear();
+    if (!_context.refinement.jet.vertex_locking || hypergraph.initialNumNodes() != _current_num_nodes) {
+      _active_node_was_moved.reset();
+      _current_num_nodes = hypergraph.initialNumNodes();
+    }
+    const double gain_factor = (_current_num_nodes == _top_level_num_nodes) ?
+                                _context.refinement.jet.negative_gain_factor_fine :
+                                _context.refinement.jet.negative_gain_factor_coarse;
 
     auto process_node = [&](const HypernodeID hn, auto add_node_fn) {
-      const PartitionID from = hypergraph.partID(hn);
       bool accept_border = !_context.refinement.jet.restrict_to_border_nodes || hypergraph.isBorderNode(hn);
       bool accept_locked = !_context.refinement.jet.vertex_locking || !_active_node_was_moved[hn];
       if ( accept_border && accept_locked ) {
@@ -253,9 +220,7 @@ namespace mt_kahypar {
           Move best_move = _gain.computeMaxGainMoveForScores(hypergraph, tmp_scores, isolated_block_gain,
                                                              hn, false, false, true);
           tmp_scores.clear();
-          // TODO: fine factor?
-          bool accept_node = best_move.gain <  std::floor(
-                _context.refinement.jet.negative_gain_factor_coarse * isolated_block_gain);
+          bool accept_node = best_move.gain < std::floor(gain_factor * isolated_block_gain);
           if (accept_node) {
             add_node_fn(hn);
             _gains_and_target[hn] = {best_move.gain, best_move.to};
@@ -265,9 +230,8 @@ namespace mt_kahypar {
         }
       } else if (!accept_locked) {
         ASSERT(_context.refinement.jet.vertex_locking);
-        _active_node_was_moved[hn] = false;
+        _active_node_was_moved.set(hn, false);
       }
-      _old_parts[hn] = from; // TODO: with better rebalancer -> only consider active nodes
     };
 
     if ( refinement_nodes.empty() ) {
