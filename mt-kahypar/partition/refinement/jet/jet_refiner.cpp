@@ -196,17 +196,21 @@ namespace mt_kahypar {
                               const parallel::scalable_vector<HypernodeID>& refinement_nodes) {
     _active_nodes.clear();
     _gains_and_target.clear();
-    if (!_context.refinement.jet.vertex_locking || hypergraph.initialNumNodes() != _current_num_nodes) {
+    if ((_context.refinement.jet.vertex_locking == 0.0) || hypergraph.initialNumNodes() != _current_num_nodes) {
       _active_node_was_moved.reset();
       _current_num_nodes = hypergraph.initialNumNodes();
     }
     const double gain_factor = (_current_num_nodes == _top_level_num_nodes) ?
                                 _context.refinement.jet.negative_gain_factor_fine :
                                 _context.refinement.jet.negative_gain_factor_coarse;
+    mt_kahypar::utils::Randomize& randomize = mt_kahypar::utils::Randomize::instance();
 
     auto process_node = [&](const HypernodeID hn, auto add_node_fn) {
       bool accept_border = !_context.refinement.jet.restrict_to_border_nodes || hypergraph.isBorderNode(hn);
-      bool accept_locked = !_context.refinement.jet.vertex_locking || !_active_node_was_moved[hn];
+      bool accept_locked = (_context.refinement.jet.vertex_locking == 0.0) || !_active_node_was_moved[hn];
+      if (!accept_locked && _context.refinement.jet.vertex_locking < 1.0) {
+        accept_locked = randomize.getRandomFloat(0.0, 1.0, SCHED_GETCPU) > _context.refinement.jet.vertex_locking;
+      }
       if ( accept_border && accept_locked ) {
         if constexpr (precomputed) {
           RatingMap& tmp_scores = _gain.localScores();
@@ -223,8 +227,9 @@ namespace mt_kahypar {
         } else {
           add_node_fn(hn);
         }
-      } else if (!accept_locked) {
-        ASSERT(_context.refinement.jet.vertex_locking);
+      }
+      if (!accept_locked) {
+        ASSERT(_context.refinement.jet.vertex_locking > 0);
         _active_node_was_moved.set(hn, false);
       }
     };
