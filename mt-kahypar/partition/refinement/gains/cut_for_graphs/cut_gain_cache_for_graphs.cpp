@@ -60,6 +60,12 @@ void GraphCutGainCache::initializeGainCache(const PartitionedGraph& partitioned_
   _is_initialized = true;
 }
 
+bool GraphCutGainCache::triggersDeltaGainUpdate(const HypernodeID,
+                                                const HypernodeID /* only relevant for hypergraphs */,
+                                                const HypernodeID /* only relevant for hypergraphs */) {
+  return true;
+}
+
 template<typename PartitionedGraph>
 void GraphCutGainCache::deltaGainUpdate(const PartitionedGraph& partitioned_graph,
                                         const HyperedgeID he,

@@ -47,7 +47,7 @@ class ADeltaPartitionedHypergraph : public Test {
  using PartitionedHypergraph = typename StaticHypergraphTypeTraits::PartitionedHypergraph;
  using DeltaPartitionedHypergraph = typename PartitionedHypergraph::DeltaPartition;
  using GainCache = Km1GainCache;
- using DeltaGainCache = typename Km1GainCache::DeltaGainCache;
+ using DeltaGainCache = DeltaKm1GainCache;
 
  public:
 

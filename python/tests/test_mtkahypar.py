@@ -336,7 +336,6 @@ class MainTest(unittest.TestCase):
 
     self.assertEqual(partitioned_hg.cut(), 3)
     self.assertEqual(partitioned_hg.km1(), 4)
-    self.assertEqual(partitioned_hg.soed(), 7)
 
   def test_for_hypergraph_if_all_nodes_contains_correct_number_of_incident_cut_hyperedges(self):
     hypergraph = mtkahypar.Hypergraph(7, 4, [[0,2],[0,1,3,4],[3,4,6],[2,5,6]])
@@ -437,7 +436,6 @@ class MainTest(unittest.TestCase):
 
     self.assertEqual(partitioned_hg.cut(), 3)
     self.assertEqual(partitioned_hg.km1(), 4)
-    self.assertEqual(partitioned_hg.soed(), 7)
 
   def test_for_sparse_hypergraph_if_all_nodes_contains_correct_number_of_incident_cut_hyperedges(self):
     hypergraph = mtkahypar.Hypergraph(7, 4, [[0,2],[0,1,3,4],[3,4,6],[2,5,6]])
@@ -561,35 +559,35 @@ class MainTest(unittest.TestCase):
       ))
 
   def test_partitions_a_graph_with_default_preset_into_two_blocks(self):
-    partitioner = self.GraphPartitioner(mtkahypar.PresetType.DEFAULT, 2, 0.03, mtkahypar.Objective.KM1, False)
+    partitioner = self.GraphPartitioner(mtkahypar.PresetType.DEFAULT, 2, 0.03, mtkahypar.Objective.CUT, False)
     partitioner.partition()
 
   def test_partitions_a_graph_with_default_preset_into_four_blocks(self):
-    partitioner = self.GraphPartitioner(mtkahypar.PresetType.DEFAULT, 4, 0.03, mtkahypar.Objective.KM1, False)
+    partitioner = self.GraphPartitioner(mtkahypar.PresetType.DEFAULT, 4, 0.03, mtkahypar.Objective.CUT, False)
     partitioner.partition()
 
   def test_partitions_a_graph_with_default_flows_preset_into_two_blocks(self):
-    partitioner = self.GraphPartitioner(mtkahypar.PresetType.DEFAULT_FLOWS, 2, 0.03, mtkahypar.Objective.KM1, False)
+    partitioner = self.GraphPartitioner(mtkahypar.PresetType.DEFAULT_FLOWS, 2, 0.03, mtkahypar.Objective.CUT, False)
     partitioner.partition()
 
   def test_partitions_a_graph_with_default_flows_preset_into_four_blocks(self):
-    partitioner = self.GraphPartitioner(mtkahypar.PresetType.DEFAULT_FLOWS, 4, 0.03, mtkahypar.Objective.KM1, False)
+    partitioner = self.GraphPartitioner(mtkahypar.PresetType.DEFAULT_FLOWS, 4, 0.03, mtkahypar.Objective.CUT, False)
     partitioner.partition()
 
   def test_partitions_a_graph_with_deterministic_preset_into_two_blocks(self):
-    partitioner = self.GraphPartitioner(mtkahypar.PresetType.DETERMINISTIC, 2, 0.03, mtkahypar.Objective.KM1, False)
+    partitioner = self.GraphPartitioner(mtkahypar.PresetType.DETERMINISTIC, 2, 0.03, mtkahypar.Objective.CUT, False)
     partitioner.partition()
 
   def test_partitions_a_graph_with_deterministic_preset_into_four_blocks(self):
-    partitioner = self.GraphPartitioner(mtkahypar.PresetType.DETERMINISTIC, 4, 0.03, mtkahypar.Objective.KM1, False)
+    partitioner = self.GraphPartitioner(mtkahypar.PresetType.DETERMINISTIC, 4, 0.03, mtkahypar.Objective.CUT, False)
     partitioner.partition()
 
   def test_partitions_a_graph_into_a_large_number_of_blocks(self):
-    partitioner = self.GraphPartitioner(mtkahypar.PresetType.LARGE_K, 1024, 0.03, mtkahypar.Objective.KM1, False)
+    partitioner = self.GraphPartitioner(mtkahypar.PresetType.LARGE_K, 1024, 0.03, mtkahypar.Objective.CUT, False)
     partitioner.partition()
 
   def test_checks_if_deterministic_preset_produces_same_result_for_graph(self):
-    partitioner = self.GraphPartitioner(mtkahypar.PresetType.DETERMINISTIC, 8, 0.03, mtkahypar.Objective.KM1, False)
+    partitioner = self.GraphPartitioner(mtkahypar.PresetType.DETERMINISTIC, 8, 0.03, mtkahypar.Objective.CUT, False)
     partitioner.partition()
     objective_1 = partitioner.partitioned_graph.cut()
     partitioner.partition()
@@ -600,28 +598,28 @@ class MainTest(unittest.TestCase):
     self.assertEqual(objective_1, objective_3)
 
   def test_improves_a_graph_partition_with_one_vcycle(self):
-    partitioner = self.GraphPartitioner(mtkahypar.PresetType.DEFAULT, 4, 0.03, mtkahypar.Objective.KM1, False)
+    partitioner = self.GraphPartitioner(mtkahypar.PresetType.DEFAULT, 4, 0.03, mtkahypar.Objective.CUT, False)
     partitioner.partition()
     partitioner.improvePartition(1)
 
   def test_improves_a_graph_partition_with_one_vcycle_and_different_preset_type(self):
-    partitioner = self.GraphPartitioner(mtkahypar.PresetType.DEFAULT, 4, 0.03, mtkahypar.Objective.KM1, False)
+    partitioner = self.GraphPartitioner(mtkahypar.PresetType.DEFAULT, 4, 0.03, mtkahypar.Objective.CUT, False)
     partitioner.partition()
     partitioner.context.loadPreset(mtkahypar.PresetType.DEFAULT_FLOWS)
     partitioner.improvePartition(1)
 
   def test_improves_a_graph_partition_with_three_vcycle(self):
-    partitioner = self.GraphPartitioner(mtkahypar.PresetType.DEFAULT, 4, 0.03, mtkahypar.Objective.KM1, False)
+    partitioner = self.GraphPartitioner(mtkahypar.PresetType.DEFAULT, 4, 0.03, mtkahypar.Objective.CUT, False)
     partitioner.partition()
     partitioner.improvePartition(3)
 
   def test_partitions_a_graph_with_individual_block_weights(self):
-    partitioner = self.GraphPartitioner(mtkahypar.PresetType.DEFAULT, 4, 0.03, mtkahypar.Objective.KM1, False)
+    partitioner = self.GraphPartitioner(mtkahypar.PresetType.DEFAULT, 4, 0.03, mtkahypar.Objective.CUT, False)
     partitioner.setIndividualBlockWeights([11201,4384,14174,3989])
     partitioner.partition()
 
   def test_partitions_a_graph_with_individual_block_weights_and_one_vcycle(self):
-    partitioner = self.GraphPartitioner(mtkahypar.PresetType.DEFAULT, 4, 0.03, mtkahypar.Objective.KM1, False)
+    partitioner = self.GraphPartitioner(mtkahypar.PresetType.DEFAULT, 4, 0.03, mtkahypar.Objective.CUT, False)
     partitioner.setIndividualBlockWeights([11201,4384,14174,3989])
     partitioner.partition()
     partitioner.improvePartition(1)
@@ -682,8 +680,12 @@ class MainTest(unittest.TestCase):
     partitioner = self.HypergraphPartitioner(mtkahypar.PresetType.DEFAULT, 2, 0.03, mtkahypar.Objective.KM1, False)
     partitioner.partition()
 
-  def test_partitions_a_hypergraph_with_default_preset_into_four_blocks(self):
+  def test_partitions_a_hypergraph_with_default_preset_into_four_blocks_km1(self):
     partitioner = self.HypergraphPartitioner(mtkahypar.PresetType.DEFAULT, 4, 0.03, mtkahypar.Objective.KM1, False)
+    partitioner.partition()
+
+  def test_partitions_a_hypergraph_with_default_preset_into_four_blocks_soed(self):
+    partitioner = self.HypergraphPartitioner(mtkahypar.PresetType.DEFAULT, 4, 0.03, mtkahypar.Objective.SOED, False)
     partitioner.partition()
 
   def test_partitions_a_hypergraph_with_default_flows_preset_into_two_blocks(self):

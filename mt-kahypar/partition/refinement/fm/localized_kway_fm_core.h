@@ -39,7 +39,7 @@
 namespace mt_kahypar {
 
 
-template<typename TypeTraits, typename GainCache>
+template<typename TypeTraits, typename GainTypes>
 class LocalizedKWayFM {
 
   static constexpr size_t MAP_SIZE_LARGE = 16384;
@@ -47,7 +47,9 @@ class LocalizedKWayFM {
 
   using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
   using DeltaPartitionedHypergraph = typename PartitionedHypergraph::DeltaPartition;
-  using DeltaGainCache = typename GainCache::DeltaGainCache;
+  using GainCache = typename GainTypes::GainCache;
+  using DeltaGainCache = typename GainTypes::DeltaGainCache;
+  using AttributedGains = typename GainTypes::AttributedGains;
 
 public:
   explicit LocalizedKWayFM(const Context& context,

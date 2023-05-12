@@ -36,7 +36,7 @@
 #include "mt-kahypar/io/hypergraph_factory.h"
 
 #include "mt-kahypar/partition/refinement/fm/global_rollback.h"
-#include "mt-kahypar/partition/refinement/gains/km1/km1_gain_cache.h"
+#include "mt-kahypar/partition/refinement/gains/gain_definitions.h"
 
 #include "mt-kahypar/partition/metrics.h"
 
@@ -79,7 +79,7 @@ TEST(RollbackTests, GainRecalculationAndRollsbackCorrectly) {
 
   FMSharedData sharedData(hg.initialNumNodes());
 
-  GlobalRollback<TypeTraits, Km1GainCache> grb(
+  GlobalRollback<TypeTraits, Km1GainTypes> grb(
     hg.initialNumEdges(), context, gain_cache);
   auto performMove = [&](Move m) {
     if (phg.changeNodePart(gain_cache, m.node, m.from, m.to)) {
@@ -106,7 +106,7 @@ TEST(RollbackTests, GainRecalculationAndRollsbackCorrectly) {
   // revert last two moves
   ASSERT_EQ(phg.partID(4), 0);
   ASSERT_EQ(phg.partID(5), 0);
-  ASSERT_EQ(metrics::km1(phg, false), 2);
+  ASSERT_EQ(metrics::quality(phg, Objective::km1, false), 2);
 }
 
 
@@ -136,7 +136,7 @@ TEST(RollbackTests, GainRecalculation2) {
 
   FMSharedData sharedData(hg.initialNumNodes());
 
-  GlobalRollback<TypeTraits, Km1GainCache> grb(
+  GlobalRollback<TypeTraits, Km1GainTypes> grb(
     hg.initialNumEdges(), context, gain_cache);
 
   auto performUpdates = [&](Move& m) {

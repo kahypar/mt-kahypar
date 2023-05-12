@@ -27,6 +27,7 @@
 #pragma once
 
 #include "mt-kahypar/partition/context.h"
+#include "mt-kahypar/partition/metrics.h"
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
 
 namespace mt_kahypar {
@@ -81,11 +82,7 @@ class LargeHyperedgeRemover {
     HyperedgeWeight delta = 0;
     for ( const HyperedgeID& he : _removed_hes ) {
       hypergraph.restoreLargeEdge(he);
-      if ( _context.partition.objective == Objective::cut ) {
-         delta += (hypergraph.connectivity(he) > 1 ? hypergraph.edgeWeight(he) : 0);
-       } else {
-         delta += (hypergraph.connectivity(he) - 1) * hypergraph.edgeWeight(he);
-       }
+      delta += metrics::contribution(hypergraph, he, _context.partition.objective);
     }
 
     if ( _context.partition.verbose_output && delta > 0 ) {

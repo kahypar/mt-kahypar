@@ -34,65 +34,98 @@
 
 namespace mt_kahypar::metrics {
 
+namespace {
+
+template<typename PartitionedHypergraph, Objective objective>
+struct ObjectiveFunction { };
+
 template<typename PartitionedHypergraph>
-HyperedgeWeight hyperedgeCut(const PartitionedHypergraph& hypergraph, const bool parallel) {
-  if ( parallel ) {
-    tbb::enumerable_thread_specific<HyperedgeWeight> cut(0);
-    hypergraph.doParallelForAllEdges([&](const HyperedgeID he) {
-      if (hypergraph.connectivity(he) > 1) {
-        cut.local() += hypergraph.edgeWeight(he);
-      }
-    });
-    return cut.combine(std::plus<>()) / (PartitionedHypergraph::is_graph ? 2 : 1);
-  } else {
-    HyperedgeWeight cut = 0;
-    for (const HyperedgeID& he : hypergraph.edges()) {
-      if (hypergraph.connectivity(he) > 1) {
-        cut += hypergraph.edgeWeight(he);
-      }
-    }
-    return cut / (PartitionedHypergraph::is_graph ? 2 : 1);
+struct ObjectiveFunction<PartitionedHypergraph, Objective::cut> {
+  HyperedgeWeight operator()(const PartitionedHypergraph& phg, const HyperedgeID& he) const {
+    return phg.connectivity(he) > 1 ? phg.edgeWeight(he) : 0;
   }
+};
+
+template<typename PartitionedHypergraph>
+struct ObjectiveFunction<PartitionedHypergraph, Objective::km1> {
+  HyperedgeWeight operator()(const PartitionedHypergraph& phg, const HyperedgeID& he) const {
+    return std::max(phg.connectivity(he) - 1, 0) * phg.edgeWeight(he);
+  }
+};
+
+template<typename PartitionedHypergraph>
+struct ObjectiveFunction<PartitionedHypergraph, Objective::soed> {
+  HyperedgeWeight operator()(const PartitionedHypergraph& phg, const HyperedgeID& he) const {
+    const PartitionID connectivity = phg.connectivity(he);
+    return connectivity > 1 ? connectivity * phg.edgeWeight(he) : 0;
+  }
+};
+
+template<Objective objective, typename PartitionedHypergraph>
+HyperedgeWeight compute_objective_parallel(const PartitionedHypergraph& phg) {
+  ObjectiveFunction<PartitionedHypergraph, objective> func;
+  tbb::enumerable_thread_specific<HyperedgeWeight> obj(0);
+  phg.doParallelForAllEdges([&](const HyperedgeID he) {
+    obj.local() += func(phg, he);
+  });
+  return obj.combine(std::plus<>()) / (PartitionedHypergraph::is_graph ? 2 : 1);
+}
+
+template<Objective objective, typename PartitionedHypergraph>
+HyperedgeWeight compute_objective_sequentially(const PartitionedHypergraph& phg) {
+  ObjectiveFunction<PartitionedHypergraph, objective> func;
+  HyperedgeWeight obj = 0;
+  for (const HyperedgeID& he : phg.edges()) {
+    obj += func(phg, he);
+  }
+  return obj / (PartitionedHypergraph::is_graph ? 2 : 1);
+}
+
+template<Objective objective, typename PartitionedHypergraph>
+HyperedgeWeight contribution(const PartitionedHypergraph& phg, const HyperedgeID he) {
+  ObjectiveFunction<PartitionedHypergraph, objective> func;
+  return func(phg, he);
+}
+
 }
 
 template<typename PartitionedHypergraph>
-HyperedgeWeight km1(const PartitionedHypergraph& hypergraph, const bool parallel) {
-  if ( parallel ) {
-    tbb::enumerable_thread_specific<HyperedgeWeight> km1(0);
-    hypergraph.doParallelForAllEdges([&](const HyperedgeID he) {
-      km1.local() += std::max(hypergraph.connectivity(he) - 1, 0) * hypergraph.edgeWeight(he);
-    });
-    return km1.combine(std::plus<>()) / (PartitionedHypergraph::is_graph ? 2 : 1);
-  } else {
-    HyperedgeWeight km1 = 0;
-    for (const HyperedgeID& he : hypergraph.edges()) {
-      km1 += std::max(hypergraph.connectivity(he) - 1, 0) * hypergraph.edgeWeight(he);
-    }
-    return km1 / (PartitionedHypergraph::is_graph ? 2 : 1);
-  }
+HyperedgeWeight quality(const PartitionedHypergraph& hg,
+                        const Context& context,
+                        const bool parallel) {
+  return quality(hg, context.partition.objective, parallel);
 }
 
 template<typename PartitionedHypergraph>
-HyperedgeWeight soed(const PartitionedHypergraph& hypergraph, const bool parallel) {
-  if ( parallel ) {
-    tbb::enumerable_thread_specific<HyperedgeWeight> soed(0);
-    hypergraph.doParallelForAllEdges([&](const HyperedgeID he) {
-      PartitionID connectivity = hypergraph.connectivity(he);
-      if (connectivity > 1) {
-        soed.local() += connectivity * hypergraph.edgeWeight(he);
-      }
-    });
-    return soed.combine(std::plus<>()) / (PartitionedHypergraph::is_graph ? 2 : 1);
-  } else {
-    HyperedgeWeight soed = 0;
-    for (const HyperedgeID& he : hypergraph.edges()) {
-      PartitionID connectivity = hypergraph.connectivity(he);
-      if (connectivity > 1) {
-        soed += connectivity * hypergraph.edgeWeight(he);
-      }
-    }
-    return soed / (PartitionedHypergraph::is_graph ? 2 : 1);
+HyperedgeWeight quality(const PartitionedHypergraph& hg,
+                        const Objective objective,
+                        const bool parallel) {
+  switch (objective) {
+    case Objective::cut:
+      return parallel ? compute_objective_parallel<Objective::cut>(hg) :
+        compute_objective_sequentially<Objective::cut>(hg);
+    case Objective::km1:
+      return parallel ? compute_objective_parallel<Objective::km1>(hg) :
+        compute_objective_sequentially<Objective::km1>(hg);
+    case Objective::soed:
+      return parallel ? compute_objective_parallel<Objective::soed>(hg) :
+        compute_objective_sequentially<Objective::soed>(hg);
+    default: ERR("Unknown Objective");
   }
+  return 0;
+}
+
+template<typename PartitionedHypergraph>
+HyperedgeWeight contribution(const PartitionedHypergraph& hg,
+                             const HyperedgeID he,
+                             const Objective objective) {
+  switch (objective) {
+    case Objective::cut: return contribution<Objective::soed>(hg, he);
+    case Objective::km1: return contribution<Objective::km1>(hg, he);
+    case Objective::soed: return contribution<Objective::soed>(hg, he);
+    default: ERR("Unknown Objective");
+  }
+  return 0;
 }
 
 template<typename PartitionedHypergraph>
@@ -114,18 +147,6 @@ bool isBalanced(const PartitionedHypergraph& phg, const Context& context) {
 }
 
 template<typename PartitionedHypergraph>
-HyperedgeWeight objective(const PartitionedHypergraph& hg,
-                          const Objective& objective,
-                          const bool parallel) {
-  switch (objective) {
-    case Objective::cut: return hyperedgeCut(hg, parallel);
-    case Objective::km1: return km1(hg, parallel);
-    default:
-    ERR("Unknown Objective");
-  }
-}
-
-template<typename PartitionedHypergraph>
 double imbalance(const PartitionedHypergraph& hypergraph, const Context& context) {
   ASSERT(context.partition.perfect_balance_part_weights.size() == (size_t)context.partition.k);
 
@@ -143,18 +164,16 @@ double imbalance(const PartitionedHypergraph& hypergraph, const Context& context
 }
 
 namespace {
-#define HYPEREDGE_CUT(X) HyperedgeWeight hyperedgeCut(const X& hypergraph, bool parallel)
-#define KM1(X) HyperedgeWeight km1(const X& hypergraph, bool parallel)
-#define SOED(X) HyperedgeWeight soed(const X& hypergraph, bool parallel)
-#define OBJECTIVE(X) HyperedgeWeight objective(const X& hg, const Objective& objective, bool parallel)
+#define OBJECTIVE_1(X) HyperedgeWeight quality(const X& hg, const Context& context, const bool parallel)
+#define OBJECTIVE_2(X) HyperedgeWeight quality(const X& hg, const Objective objective, const bool parallel)
+#define CONTRIBUTION(X) HyperedgeWeight contribution(const X& hg, const HyperedgeID he, const Objective objective)
 #define IS_BALANCED(X) bool isBalanced(const X& phg, const Context& context)
 #define IMBALANCE(X) double imbalance(const X& hypergraph, const Context& context)
 }
 
-INSTANTIATE_FUNC_WITH_PARTITIONED_HG(HYPEREDGE_CUT)
-INSTANTIATE_FUNC_WITH_PARTITIONED_HG(KM1)
-INSTANTIATE_FUNC_WITH_PARTITIONED_HG(SOED)
-INSTANTIATE_FUNC_WITH_PARTITIONED_HG(OBJECTIVE)
+INSTANTIATE_FUNC_WITH_PARTITIONED_HG(OBJECTIVE_1)
+INSTANTIATE_FUNC_WITH_PARTITIONED_HG(OBJECTIVE_2)
+INSTANTIATE_FUNC_WITH_PARTITIONED_HG(CONTRIBUTION)
 INSTANTIATE_FUNC_WITH_PARTITIONED_HG(IS_BALANCED)
 INSTANTIATE_FUNC_WITH_PARTITIONED_HG(IMBALANCE)
 

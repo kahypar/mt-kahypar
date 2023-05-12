@@ -34,18 +34,18 @@
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/refinement/i_refiner.h"
-#include "mt-kahypar/partition/refinement/policies/gain_policy.h"
 #include "mt-kahypar/partition/refinement/gains/gain_cache_ptr.h"
 #include "mt-kahypar/utils/cast.h"
 
 
 namespace mt_kahypar {
-template <typename TypeTraits, typename GainCache, template <typename> class GainComputationPolicy>
+template <typename TypeTraits, typename GainTypes>
 class LabelPropagationRefiner final : public IRefiner {
  private:
   using Hypergraph = typename TypeTraits::Hypergraph;
   using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
-  using GainCalculator = GainComputationPolicy<PartitionedHypergraph>;
+  using GainCache = typename GainTypes::GainCache;
+  using GainCalculator = typename GainTypes::GainComputation;
   using ActiveNodes = parallel::scalable_vector<HypernodeID>;
   using NextActiveNodes = ds::StreamingVector<HypernodeID>;
 
@@ -204,8 +204,4 @@ class LabelPropagationRefiner final : public IRefiner {
   kahypar::ds::FastResetFlagArray<> _visited_he;
 };
 
-template<typename TypeTraits, typename GainCache>
-using LabelPropagationKm1Refiner = LabelPropagationRefiner<TypeTraits, GainCache, Km1Policy>;
-template<typename TypeTraits, typename GainCache>
-using LabelPropagationCutRefiner = LabelPropagationRefiner<TypeTraits, GainCache, CutPolicy>;
 }  // namespace kahypar

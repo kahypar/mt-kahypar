@@ -32,11 +32,7 @@
 #include "mt-kahypar/partition/coarsening/policies/rating_acceptance_policy.h"
 #include "mt-kahypar/partition/coarsening/policies/rating_heavy_node_penalty_policy.h"
 #include "mt-kahypar/partition/coarsening/policies/rating_score_policy.h"
-#include "mt-kahypar/partition/refinement/gains/km1/km1_gain_cache.h"
-#include "mt-kahypar/partition/refinement/gains/cut/cut_gain_cache.h"
-#ifdef KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES
-#include "mt-kahypar/partition/refinement/gains/cut_for_graphs/cut_gain_cache_for_graphs.h"
-#endif
+#include "mt-kahypar/partition/refinement/gains/gain_definitions.h"
 #include "mt-kahypar/partition/context_enum_classes.h"
 
 #define REGISTER_POLICY(policy, id, policy_class)                                                    \
@@ -93,12 +89,11 @@ REGISTER_POLICY(AcceptancePolicy, AcceptancePolicy::best,
 #endif
 
 // //////////////////////////////////////////////////////////////////////////////
-//                            Gain Cache Policies
+//                            Gain Type Policies
 // //////////////////////////////////////////////////////////////////////////////
-REGISTER_POLICY(GainPolicy, GainPolicy::km1, Km1GainCache);
-REGISTER_POLICY(GainPolicy, GainPolicy::cut, CutGainCache);
-#ifdef KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES
-REGISTER_POLICY(GainPolicy, GainPolicy::cut_for_graphs, GraphCutGainCache);
-#endif
+REGISTER_POLICY(GainPolicy, GainPolicy::km1, Km1GainTypes);
+REGISTER_POLICY(GainPolicy, GainPolicy::cut, CutGainTypes);
+REGISTER_POLICY(GainPolicy, GainPolicy::soed, SoedGainTypes);
+ENABLE_GRAPHS(REGISTER_POLICY(GainPolicy, GainPolicy::cut_for_graphs, CutGainForGraphsTypes);)
 
 }  // namespace mt_kahypar

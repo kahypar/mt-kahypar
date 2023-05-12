@@ -352,10 +352,9 @@ namespace mt_kahypar {
                          context.refinement.label_propagation.algorithm =
                                  labelPropagationAlgorithmFromString(type);
                        }
-                     })->default_value("label_propagation_km1"),
+                     })->default_value("label_propagation"),
              "Label Propagation Algorithm:\n"
-             "- label_propagation_km1\n"
-             "- label_propagation_cut\n"
+             "- label_propagation\n"
              "- deterministic\n"
              "- do_nothing")
             ((initial_partitioning ? "i-r-lp-maximum-iterations" : "r-lp-maximum-iterations"),
@@ -469,7 +468,19 @@ namespace mt_kahypar {
              po::value<bool>(
                      (initial_partitioning ? &context.initial_partitioning.refinement.global_fm.obey_minimal_parallelism :
                       &context.refinement.global_fm.obey_minimal_parallelism))->value_name("<bool>")->default_value(true),
-             "If true, then the globalized FM local search stops if more than a certain number of threads are finished.");
+             "If true, then the globalized FM local search stops if more than a certain number of threads are finished.")
+            ((initial_partitioning ? "i-r-rebalancer-type" : "r-rebalancer-type"),
+             po::value<std::string>()->value_name("<string>")->notifier(
+                     [&, initial_partitioning](const std::string& type) {
+                       if (initial_partitioning) {
+                         context.initial_partitioning.refinement.rebalancer = rebalancingAlgorithmFromString(type);
+                       } else {
+                         context.refinement.rebalancer = rebalancingAlgorithmFromString(type);
+                       }
+                     })->default_value("do_nothing"),
+             "Rebalancer Algorithm:\n"
+             "- simple_rebalancer\n"
+             "- do_nothing");
     return options;
   }
 
@@ -649,15 +660,12 @@ namespace mt_kahypar {
              "Imbalance parameter epsilon")
             ("objective,o",
              po::value<std::string>()->value_name("<string>")->required()->notifier([&](const std::string& s) {
-               if (s == "cut") {
-                 context.partition.objective = Objective::cut;
-               } else if (s == "km1") {
-                 context.partition.objective = Objective::km1;
-               }
+               context.partition.objective = objectiveFromString(s);
              }),
              "Objective: \n"
              " - cut : cut-net metric (FM only supports km1 metric) \n"
-             " - km1 : (lambda-1) metric");
+             " - km1 : (lambda-1) metric\n"
+             " - soed: sum-of-external-degree metric");
 
     po::options_description preset_options("Preset Options", num_columns);
     preset_options.add_options()

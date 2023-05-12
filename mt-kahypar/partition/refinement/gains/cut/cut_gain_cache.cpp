@@ -117,6 +117,14 @@ void CutGainCache::initializeGainCache(const PartitionedHypergraph& partitioned_
   _is_initialized = true;
 }
 
+bool CutGainCache::triggersDeltaGainUpdate(const HypernodeID edge_size,
+                                           const HypernodeID pin_count_in_from_part_after,
+                                           const HypernodeID pin_count_in_to_part_after) {
+  return pin_count_in_from_part_after == edge_size - 1 || pin_count_in_from_part_after == edge_size - 2 ||
+    pin_count_in_to_part_after == edge_size || pin_count_in_to_part_after == edge_size - 1;
+}
+
+
 template<typename PartitionedHypergraph>
 void CutGainCache::deltaGainUpdate(const PartitionedHypergraph& partitioned_hg,
                                    const HyperedgeID he,

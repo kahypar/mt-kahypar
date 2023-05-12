@@ -113,10 +113,23 @@ namespace mt_kahypar {
     switch (objective) {
       case Objective::cut: return os << "cut";
       case Objective::km1: return os << "km1";
+      case Objective::soed: return os << "soed";
       case Objective::UNDEFINED: return os << "UNDEFINED";
         // omit default case to trigger compiler warning for missing cases
     }
     return os << static_cast<uint8_t>(objective);
+  }
+
+  std::ostream & operator<< (std::ostream& os, const GainPolicy& type) {
+    switch (type) {
+      case GainPolicy::km1: return os << "km1";
+      case GainPolicy::cut: return os << "cut";
+      case GainPolicy::soed: return os << "soed";
+      ENABLE_GRAPHS(case GainPolicy::cut_for_graphs: return os << "cut_for_graphs";)
+      case GainPolicy::none: return os << "none";
+        // omit default case to trigger compiler warning for missing cases
+    }
+    return os << static_cast<uint8_t>(type);
   }
 
   std::ostream & operator<< (std::ostream& os, const LouvainEdgeWeight& type) {
@@ -202,8 +215,7 @@ namespace mt_kahypar {
 
   std::ostream & operator<< (std::ostream& os, const LabelPropagationAlgorithm& algo) {
     switch (algo) {
-      case LabelPropagationAlgorithm::label_propagation_km1: return os << "label_propagation_km1";
-      case LabelPropagationAlgorithm::label_propagation_cut: return os << "label_propagation_cut";
+      case LabelPropagationAlgorithm::label_propagation: return os << "label_propagation";
       case LabelPropagationAlgorithm::deterministic: return os << "deterministic";
       case LabelPropagationAlgorithm::do_nothing: return os << "lp_do_nothing";
         // omit default case to trigger compiler warning for missing cases
@@ -220,17 +232,6 @@ namespace mt_kahypar {
     return os << static_cast<uint8_t>(algo);
   }
 
-  std::ostream & operator<< (std::ostream& os, const GainPolicy& type) {
-    switch (type) {
-      case GainPolicy::km1: return os << "km1";
-      case GainPolicy::cut: return os << "cut";
-      ENABLE_GRAPHS(case GainPolicy::cut_for_graphs: return os << "cut_for_graphs";)
-      case GainPolicy::none: return os << "none";
-        // omit default case to trigger compiler warning for missing cases
-    }
-    return os << static_cast<uint8_t>(type);
-  }
-
   std::ostream & operator<< (std::ostream& os, const FlowAlgorithm& algo) {
     switch (algo) {
       case FlowAlgorithm::flow_cutter: return os << "flow_cutter";
@@ -240,6 +241,16 @@ namespace mt_kahypar {
     }
     return os << static_cast<uint8_t>(algo);
   }
+
+
+std::ostream & operator<< (std::ostream& os, const RebalancingAlgorithm& algo) {
+    switch (algo) {
+      case RebalancingAlgorithm::simple_rebalancer: return os << "simple_rebalancer";
+      case RebalancingAlgorithm::do_nothing: return os << "do_nothing";
+        // omit default case to trigger compiler warning for missing cases
+    }
+    return os << static_cast<uint8_t>(algo);
+}
 
   Mode modeFromString(const std::string& mode) {
     if (mode == "rb") {
@@ -289,6 +300,19 @@ namespace mt_kahypar {
     #endif
     ERR("Illegal option: " + type);
     return PresetType::UNDEFINED;
+  }
+
+
+  Objective objectiveFromString(const std::string& obj) {
+    if (obj == "cut") {
+      return Objective::cut;
+    } else if (obj == "km1") {
+      return Objective::km1;
+    } else if (obj == "soed") {
+      return Objective::soed;
+    }
+    ERR("No valid louvain edge weight.");
+    return Objective::UNDEFINED;
   }
 
   LouvainEdgeWeight louvainEdgeWeightFromString(const std::string& type) {
@@ -399,10 +423,8 @@ namespace mt_kahypar {
   }
 
   LabelPropagationAlgorithm labelPropagationAlgorithmFromString(const std::string& type) {
-    if (type == "label_propagation_km1") {
-      return LabelPropagationAlgorithm::label_propagation_km1;
-    } else if (type == "label_propagation_cut") {
-      return LabelPropagationAlgorithm::label_propagation_cut;
+    if (type == "label_propagation") {
+      return LabelPropagationAlgorithm::label_propagation;
     } else if (type == "deterministic") {
       return LabelPropagationAlgorithm::deterministic;
     } else if (type == "do_nothing") {
@@ -430,5 +452,15 @@ namespace mt_kahypar {
     }
     ERR("Illegal option: " + type);
     return FlowAlgorithm::do_nothing;
+  }
+
+  RebalancingAlgorithm rebalancingAlgorithmFromString(const std::string& type) {
+    if (type == "simple_rebalancer") {
+      return RebalancingAlgorithm::simple_rebalancer;
+    } else if (type == "do_nothing") {
+      return RebalancingAlgorithm::do_nothing;
+    }
+    ERR("Illegal option: " + type);
+    return RebalancingAlgorithm::do_nothing;
   }
 }

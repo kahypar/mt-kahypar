@@ -45,7 +45,7 @@
 
 namespace mt_kahypar {
 
-template<typename TypeTraits>
+template<typename TypeTraits, typename GainTypes>
 class FlowRefiner final : public IFlowRefiner {
 
   static constexpr bool debug = false;
@@ -116,12 +116,6 @@ class FlowRefiner final : public IFlowRefiner {
     _num_available_threads = num_threads;
   }
 
-  bool canHyperedgeBeDropped(const PartitionedHypergraph& phg,
-                             const HyperedgeID he) {
-    return _context.partition.objective == Objective::cut &&
-      phg.pinCountInPart(he, _block_0) + phg.pinCountInPart(he, _block_1) < phg.edgeSize(he);
-  }
-
   const PartitionedHypergraph* _phg;
   const Context& _context;
   using IFlowRefiner::_time_limit;
@@ -134,7 +128,7 @@ class FlowRefiner final : public IFlowRefiner {
   whfc::HyperFlowCutter<whfc::ParallelPushRelabel> _parallel_hfc;
 
   vec<HypernodeID> _whfc_to_node;
-  SequentialConstruction<TypeTraits> _sequential_construction;
-  ParallelConstruction<TypeTraits> _parallel_construction;
+  SequentialConstruction<TypeTraits, GainTypes> _sequential_construction;
+  ParallelConstruction<TypeTraits, GainTypes> _parallel_construction;
 };
 }  // namespace mt_kahypar

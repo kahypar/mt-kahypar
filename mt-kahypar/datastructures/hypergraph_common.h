@@ -110,6 +110,13 @@ struct Memento {
   HypernodeID v; // contraction partner
 };
 
+template<typename Hypergraph>
+struct ExtractedHypergraph {
+  Hypergraph hg;
+  vec<HypernodeID> hn_mapping;
+  vec<uint8_t> already_cut;
+};
+
 using Batch = parallel::scalable_vector<Memento>;
 using BatchVector = parallel::scalable_vector<Batch>;
 using VersionedBatchVector = parallel::scalable_vector<BatchVector>;
@@ -120,33 +127,6 @@ using SearchID = uint32_t;
 struct NoOpDeltaFunc {
   void operator() (const HyperedgeID, const HyperedgeWeight, const HypernodeID, const HypernodeID, const HypernodeID) { }
 };
-
-// ! Helper function to compute delta for cut-metric after changeNodePart
-static HyperedgeWeight cutDelta(const HyperedgeID,
-                                const HyperedgeWeight edge_weight,
-                                const HypernodeID edge_size,
-                                const HypernodeID pin_count_in_from_part_after,
-                                const HypernodeID pin_count_in_to_part_after) {
-  if ( edge_size > 1 ) {
-    if (pin_count_in_to_part_after == edge_size) {
-      return -edge_weight;
-    } else if (pin_count_in_from_part_after == edge_size - 1 &&
-               pin_count_in_to_part_after == 1) {
-      return edge_weight;
-    }
-  }
-  return 0;
-}
-
-// ! Helper function to compute delta for km1-metric after changeNodePart
-static HyperedgeWeight km1Delta(const HyperedgeID,
-                                const HyperedgeWeight edge_weight,
-                                const HypernodeID,
-                                const HypernodeID pin_count_in_from_part_after,
-                                const HypernodeID pin_count_in_to_part_after) {
-  return (pin_count_in_to_part_after == 1 ? edge_weight : 0) +
-         (pin_count_in_from_part_after == 0 ? -edge_weight : 0);
-}
 
 namespace ds {
 // Forward Declaration

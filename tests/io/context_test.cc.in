@@ -150,6 +150,7 @@ TEST(AContext, LoadsDefaultPresetCorrectly) {
             expected.initial_partitioning.refinement.flows.algorithm);
 
   // refinement
+  ASSERT_EQ(actual.refinement.rebalancer, expected.refinement.rebalancer);
   ASSERT_EQ(actual.refinement.refine_until_no_improvement,
             expected.refinement.refine_until_no_improvement);
 
@@ -305,6 +306,7 @@ TEST(AContext, LoadsDefaultFlowPresetCorrectly) {
             expected.initial_partitioning.refinement.flows.algorithm);
 
   // refinement
+  ASSERT_EQ(actual.refinement.rebalancer, expected.refinement.rebalancer);
   ASSERT_EQ(actual.refinement.refine_until_no_improvement,
             expected.refinement.refine_until_no_improvement);
   ASSERT_EQ(actual.refinement.relative_improvement_threshold,
@@ -477,6 +479,7 @@ TEST(AContext, LoadsDeterministicPresetCorrectly) {
             expected.initial_partitioning.refinement.flows.algorithm);
 
   // refinement
+  ASSERT_EQ(actual.refinement.rebalancer, expected.refinement.rebalancer);
   ASSERT_EQ(actual.refinement.refine_until_no_improvement,
             expected.refinement.refine_until_no_improvement);
   ASSERT_EQ(actual.refinement.relative_improvement_threshold,
@@ -631,6 +634,7 @@ TEST(AContext, LoadsQualityPresetCorrectly) {
             expected.initial_partitioning.refinement.global_fm.use_global_fm);
 
   // refinement
+  ASSERT_EQ(actual.refinement.rebalancer, expected.refinement.rebalancer);
   ASSERT_EQ(actual.refinement.refine_until_no_improvement,
             expected.refinement.refine_until_no_improvement);
   ASSERT_EQ(actual.refinement.relative_improvement_threshold,
@@ -812,6 +816,7 @@ TEST(AContext, LoadsQualityFlowPresetCorrectly) {
             expected.initial_partitioning.refinement.global_fm.use_global_fm);
 
   // refinement
+  ASSERT_EQ(actual.refinement.rebalancer, expected.refinement.rebalancer);
   ASSERT_EQ(actual.refinement.refine_until_no_improvement,
             expected.refinement.refine_until_no_improvement);
   ASSERT_EQ(actual.refinement.relative_improvement_threshold,
@@ -990,6 +995,7 @@ TEST(AContext, LoadsLargeKPresetCorrectly) {
             expected.initial_partitioning.refinement.flows.algorithm);
 
   // refinement
+  ASSERT_EQ(actual.refinement.rebalancer, expected.refinement.rebalancer);
   ASSERT_EQ(actual.refinement.refine_until_no_improvement,
             expected.refinement.refine_until_no_improvement);
 

@@ -30,6 +30,7 @@
 
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/metrics.h"
+#include "mt-kahypar/partition/refinement/gains/gain_definitions.h"
 #include "mt-kahypar/utils/timer.h"
 #include "mt-kahypar/partition/refinement/gains/gain_cache_ptr.h"
 
@@ -152,8 +153,8 @@ namespace mt_kahypar {
     }
   };
 
-  template<typename TypeTraits, typename GainCache>
-  HyperedgeWeight GlobalRollback<TypeTraits, GainCache>::revertToBestPrefixParallel(
+  template<typename TypeTraits, typename GainTypes>
+  HyperedgeWeight GlobalRollback<TypeTraits, GainTypes>::revertToBestPrefixParallel(
           PartitionedHypergraph& phg, FMSharedData& sharedData,
           const vec<HypernodeWeight>& partWeights, const std::vector<HypernodeWeight>& maxPartWeights) {
     const MoveID numMoves = sharedData.moveTracker.numPerformedMoves();
@@ -187,8 +188,8 @@ namespace mt_kahypar {
     return b.gain;
   }
 
-  template<typename TypeTraits, typename GainCache>
-  void GlobalRollback<TypeTraits, GainCache>::recalculateGains(PartitionedHypergraph& phg,
+  template<typename TypeTraits, typename GainTypes>
+  void GlobalRollback<TypeTraits, GainTypes>::recalculateGains(PartitionedHypergraph& phg,
                                                                FMSharedData& sharedData) {
     GlobalMoveTracker& tracker = sharedData.moveTracker;
 
@@ -209,23 +210,22 @@ namespace mt_kahypar {
       }
 
       // distribute gains to pins
-      const HyperedgeWeight we = phg.edgeWeight(e);
       for (HypernodeID v : phg.pins(e)) {
         if (tracker.wasNodeMovedInThisRound(v)) {
           const MoveID m_id = tracker.moveOfNode[v];
           Move& m = tracker.getMove(m_id);
 
-          const bool benefit = Rollback::hasBenefit(phg, e, m_id, m, r);;
-          const bool penalty = Rollback::hasPenalty(phg, e, m_id, m, r);
+          const HyperedgeWeight benefit = Rollback::benefit(phg, e, m_id, m, r);;
+          const HyperedgeWeight penalty = Rollback::penalty(phg, e, m_id, m, r);
 
-          if (benefit && !penalty) {    // only apply update if they're mutually exclusive
-            // increase gain of v by w(e)
-            __atomic_fetch_add(&m.gain, we, __ATOMIC_RELAXED);
+          if ( benefit > 0 ) {
+            // increase gain of v by benefit
+            __atomic_fetch_add(&m.gain, benefit, __ATOMIC_RELAXED);
           }
 
-          if (!benefit && penalty) {
-            // decrease gain of v by w(e)
-            __atomic_fetch_sub(&m.gain, we, __ATOMIC_RELAXED);
+          if ( penalty > 0 ) {
+            // decrease gain of v by penalty
+            __atomic_fetch_sub(&m.gain, penalty, __ATOMIC_RELAXED);
           }
         }
       }
@@ -272,8 +272,8 @@ namespace mt_kahypar {
     }
   }
 
-  template<typename TypeTraits, typename GainCache>
-  HyperedgeWeight GlobalRollback<TypeTraits, GainCache>::revertToBestPrefixSequential(
+  template<typename TypeTraits, typename GainTypes>
+  HyperedgeWeight GlobalRollback<TypeTraits, GainTypes>::revertToBestPrefixSequential(
     PartitionedHypergraph& phg,
     FMSharedData& sharedData,
     const vec<HypernodeWeight>&,
@@ -312,7 +312,7 @@ namespace mt_kahypar {
       for (HyperedgeID e : phg.incidentEdges(m.node)) {
         const HypernodeID pin_count_in_from_part_after = phg.pinCountInPart(e, m.from) - 1;
         const HypernodeID pin_count_in_to_part_after = phg.pinCountInPart(e, m.to) + 1;
-        gain -= GainCache::delta(e, phg.edgeWeight(e), phg.edgeSize(e),
+        gain -= AttributedGains::gain(e, phg.edgeWeight(e), phg.edgeSize(e),
           pin_count_in_from_part_after, pin_count_in_to_part_after);
       }
       gain_sum += gain;
@@ -355,8 +355,8 @@ namespace mt_kahypar {
   }
 
 
-  template<typename TypeTraits, typename GainCache>
-  bool GlobalRollback<TypeTraits, GainCache>::verifyGains(PartitionedHypergraph& phg,
+  template<typename TypeTraits, typename GainTypes>
+  bool GlobalRollback<TypeTraits, GainTypes>::verifyGains(PartitionedHypergraph& phg,
                                                           FMSharedData& sharedData) {
     vec<Move>& move_order = sharedData.moveTracker.moveOrder;
 
@@ -389,7 +389,7 @@ namespace mt_kahypar {
       for (HyperedgeID e: phg.incidentEdges(m.node)) {
         const HypernodeID pin_count_in_from_part_after = phg.pinCountInPart(e, m.from) - 1;
         const HypernodeID pin_count_in_to_part_after = phg.pinCountInPart(e, m.to) + 1;
-        gain -= GainCache::delta(e, phg.edgeWeight(e), phg.edgeSize(e),
+        gain -= AttributedGains::gain(e, phg.edgeWeight(e), phg.edgeSize(e),
           pin_count_in_from_part_after, pin_count_in_to_part_after);
       }
 
@@ -398,10 +398,10 @@ namespace mt_kahypar {
       ASSERT(gain == gain_cache.gain(m.node, m.from, m.to));
 
       // const HyperedgeWeight objective_before_move =
-      //   metrics::objective(phg, context.partition.objective, false);
+      //   metrics::quality(phg, context, false);
       moveVertex(phg, m.node, m.from, m.to);
       // const HyperedgeWeight objective_after_move =
-      //   metrics::objective(phg, context.partition.objective, false);
+      //   metrics::quality(phg, context, false);
 
       // ASSERT(objective_after_move + gain == objective_before_move,
       //   V(gain) << V(m.gain) << V(objective_after_move) << V(objective_before_move));
@@ -419,5 +419,5 @@ namespace mt_kahypar {
   #define GLOBAL_ROLLBACK(X, Y) GlobalRollback<X, Y>
   }
 
-  INSTANTIATE_CLASS_WITH_TYPE_TRAITS_AND_GAIN_CACHE(GLOBAL_ROLLBACK)
+  INSTANTIATE_CLASS_WITH_TYPE_TRAITS_AND_GAIN_TYPES(GLOBAL_ROLLBACK)
 }

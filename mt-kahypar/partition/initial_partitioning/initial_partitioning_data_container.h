@@ -234,18 +234,15 @@ class InitialPartitioningDataContainer {
         } (), "There are unassigned hypernodes!");
 
       Metrics current_metric;
-      current_metric.cut = metrics::hyperedgeCut(_partitioned_hypergraph, false);
-      current_metric.km1 = metrics::km1(_partitioned_hypergraph, false);
+      current_metric.quality = metrics::quality(_partitioned_hypergraph, _context, false);
       current_metric.imbalance = metrics::imbalance(_partitioned_hypergraph, _context);
 
-      const HyperedgeWeight quality_before_refinement =
-        current_metric.getMetric(Mode::direct, _context.partition.objective);
+      const HyperedgeWeight quality_before_refinement = current_metric.quality;
 
       refineCurrentPartition(current_metric, prng);
 
       PartitioningResult result(algorithm, quality_before_refinement,
-        current_metric.getMetric(Mode::direct, _context.partition.objective),
-        current_metric.imbalance);
+        current_metric.quality, current_metric.imbalance);
 
       // Aggregate Stats
       auto algorithm_index = static_cast<uint8_t>(algorithm);
@@ -253,18 +250,15 @@ class InitialPartitioningDataContainer {
       _stats[algorithm_index].total_time += time;
       ++_stats[algorithm_index].total_calls;
 
-      _global_stats.add_run(algorithm, current_metric.getMetric(Mode::direct,
-        _context.partition.objective), current_metric.imbalance <= _context.partition.epsilon);
+      _global_stats.add_run(algorithm, current_metric.quality,
+        current_metric.imbalance <= _context.partition.epsilon);
 
       return result;
     }
 
     PartitioningResult performRefinementOnPartition(vec<PartitionID>& partition,
                                                     PartitioningResult& input, std::mt19937& prng) {
-      Metrics current_metric = {
-        input._objective,
-        input._objective,
-        input._imbalance };
+      Metrics current_metric = { input._objective, input._imbalance };
 
       _partitioned_hypergraph.resetPartition();
 
@@ -276,14 +270,12 @@ class InitialPartitioningDataContainer {
       }
 
       HEAVY_INITIAL_PARTITIONING_ASSERT(
-        current_metric.getMetric(Mode::direct, _context.partition.objective) ==
-        metrics::objective(_partitioned_hypergraph, _context.partition.objective, false));
+        current_metric.quality == metrics::quality(_partitioned_hypergraph, _context, false));
 
       refineCurrentPartition(current_metric, prng);
 
       PartitioningResult result(_result._algorithm,
-        current_metric.getMetric(Mode::direct, _context.partition.objective),
-        current_metric.getMetric(Mode::direct, _context.partition.objective),
+        current_metric.quality, current_metric.quality,
         current_metric.imbalance);
 
       return result;
@@ -327,8 +319,7 @@ class InitialPartitioningDataContainer {
       }
 
       HEAVY_INITIAL_PARTITIONING_ASSERT(
-        current_metric.getMetric(Mode::direct, _context.partition.objective) ==
-        metrics::objective(_partitioned_hypergraph, _context.partition.objective, false));
+        current_metric.quality == metrics::quality(_partitioned_hypergraph, _context, false));
     }
 
     void aggregate_stats(parallel::scalable_vector<utils::InitialPartitionerSummary>& main_stats) const {
@@ -654,8 +645,8 @@ class InitialPartitioningDataContainer {
     }
 
     _partitioned_hg.initializePartition();
-    ASSERT(best_feasible_objective == metrics::objective(_partitioned_hg, _context.partition.objective, false),
-           V(best_feasible_objective) << V(metrics::objective(_partitioned_hg, _context.partition.objective, false)));
+    ASSERT(best_feasible_objective == metrics::quality(_partitioned_hg, _context, false),
+           V(best_feasible_objective) << V(metrics::quality(_partitioned_hg, _context, false)));
     utils::Utilities::instance().getInitialPartitioningStats(
       _context.utility_id).add_initial_partitioning_result(best_flat_algo, number_of_threads, stats);
   }

@@ -85,8 +85,9 @@ typedef enum {
  * Supported objective functions.
  */
 typedef enum {
-  CUT, // TODO: add cut tests
-  KM1
+  CUT,
+  KM1,
+  SOED
 } mt_kahypar_objective_t;
 
 /**

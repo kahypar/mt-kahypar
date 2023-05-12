@@ -136,6 +136,8 @@ int mt_kahypar_set_context_parameter(mt_kahypar_context_t* context,
         } else if ( objective == "cut" ) {
           c.partition.objective = Objective::cut;
           return 0;
+        } else if ( objective == "soed" ) {
+          c.partition.objective = Objective::soed;
         }
         return 3;
       }
@@ -160,9 +162,15 @@ void mt_kahypar_set_partitioning_parameters(mt_kahypar_context_t* context,
   Context& c = *reinterpret_cast<Context*>(context);
   c.partition.k = num_blocks;
   c.partition.epsilon = epsilon;
-  c.partition.objective = objective == KM1 ?
-    Objective::km1 : Objective::cut;
   c.partition.seed = seed;
+  switch ( objective ) {
+    case CUT:
+      c.partition.objective = Objective::cut; break;
+    case KM1:
+      c.partition.objective = Objective::km1; break;
+    case SOED:
+      c.partition.objective = Objective::soed; break;
+  }
 }
 
 void mt_kahypar_set_individual_target_block_weights(mt_kahypar_context_t* context,
@@ -499,15 +507,15 @@ double mt_kahypar_imbalance(const mt_kahypar_partitioned_hypergraph_t partitione
 mt_kahypar_hyperedge_weight_t mt_kahypar_cut(const mt_kahypar_partitioned_hypergraph_t partitioned_hg) {
   switch ( partitioned_hg.type ) {
     case MULTILEVEL_GRAPH_PARTITIONING:
-      return metrics::hyperedgeCut(utils::cast<StaticPartitionedGraph>(partitioned_hg));
+      return metrics::quality(utils::cast<StaticPartitionedGraph>(partitioned_hg), Objective::cut);
     case N_LEVEL_GRAPH_PARTITIONING:
-      return metrics::hyperedgeCut(utils::cast<DynamicPartitionedGraph>(partitioned_hg));
+      return metrics::quality(utils::cast<DynamicPartitionedGraph>(partitioned_hg), Objective::cut);
     case MULTILEVEL_HYPERGRAPH_PARTITIONING:
-      return metrics::hyperedgeCut(utils::cast<StaticPartitionedHypergraph>(partitioned_hg));
+      return metrics::quality(utils::cast<StaticPartitionedHypergraph>(partitioned_hg), Objective::cut);
     case N_LEVEL_HYPERGRAPH_PARTITIONING:
-      return metrics::hyperedgeCut(utils::cast<DynamicPartitionedHypergraph>(partitioned_hg));
+      return metrics::quality(utils::cast<DynamicPartitionedHypergraph>(partitioned_hg), Objective::cut);
     case LARGE_K_PARTITIONING:
-      return metrics::hyperedgeCut(utils::cast<SparsePartitionedHypergraph>(partitioned_hg));
+      return metrics::quality(utils::cast<SparsePartitionedHypergraph>(partitioned_hg), Objective::cut);
     case NULLPTR_PARTITION: return 0;
   }
   return 0;
@@ -516,15 +524,15 @@ mt_kahypar_hyperedge_weight_t mt_kahypar_cut(const mt_kahypar_partitioned_hyperg
 mt_kahypar_hyperedge_weight_t mt_kahypar_km1(const mt_kahypar_partitioned_hypergraph_t partitioned_hg) {
   switch ( partitioned_hg.type ) {
     case MULTILEVEL_GRAPH_PARTITIONING:
-      return metrics::km1(utils::cast<StaticPartitionedGraph>(partitioned_hg));
+      return metrics::quality(utils::cast<StaticPartitionedGraph>(partitioned_hg), Objective::km1);
     case N_LEVEL_GRAPH_PARTITIONING:
-      return metrics::km1(utils::cast<DynamicPartitionedGraph>(partitioned_hg));
+      return metrics::quality(utils::cast<DynamicPartitionedGraph>(partitioned_hg), Objective::km1);
     case MULTILEVEL_HYPERGRAPH_PARTITIONING:
-      return metrics::km1(utils::cast<StaticPartitionedHypergraph>(partitioned_hg));
+      return metrics::quality(utils::cast<StaticPartitionedHypergraph>(partitioned_hg), Objective::km1);
     case N_LEVEL_HYPERGRAPH_PARTITIONING:
-      return metrics::km1(utils::cast<DynamicPartitionedHypergraph>(partitioned_hg));
+      return metrics::quality(utils::cast<DynamicPartitionedHypergraph>(partitioned_hg), Objective::km1);
     case LARGE_K_PARTITIONING:
-      return metrics::km1(utils::cast<SparsePartitionedHypergraph>(partitioned_hg));
+      return metrics::quality(utils::cast<SparsePartitionedHypergraph>(partitioned_hg), Objective::km1);
     case NULLPTR_PARTITION: return 0;
   }
   return 0;
@@ -533,15 +541,15 @@ mt_kahypar_hyperedge_weight_t mt_kahypar_km1(const mt_kahypar_partitioned_hyperg
 mt_kahypar_hyperedge_weight_t mt_kahypar_soed(const mt_kahypar_partitioned_hypergraph_t partitioned_hg) {
   switch ( partitioned_hg.type ) {
     case MULTILEVEL_GRAPH_PARTITIONING:
-      return metrics::soed(utils::cast<StaticPartitionedGraph>(partitioned_hg));
+      return metrics::quality(utils::cast<StaticPartitionedGraph>(partitioned_hg), Objective::soed);
     case N_LEVEL_GRAPH_PARTITIONING:
-      return metrics::soed(utils::cast<DynamicPartitionedGraph>(partitioned_hg));
+      return metrics::quality(utils::cast<DynamicPartitionedGraph>(partitioned_hg), Objective::soed);
     case MULTILEVEL_HYPERGRAPH_PARTITIONING:
-      return metrics::soed(utils::cast<StaticPartitionedHypergraph>(partitioned_hg));
+      return metrics::quality(utils::cast<StaticPartitionedHypergraph>(partitioned_hg), Objective::soed);
     case N_LEVEL_HYPERGRAPH_PARTITIONING:
-      return metrics::soed(utils::cast<DynamicPartitionedHypergraph>(partitioned_hg));
+      return metrics::quality(utils::cast<DynamicPartitionedHypergraph>(partitioned_hg), Objective::soed);
     case LARGE_K_PARTITIONING:
-      return metrics::soed(utils::cast<SparsePartitionedHypergraph>(partitioned_hg));
+      return metrics::quality(utils::cast<SparsePartitionedHypergraph>(partitioned_hg), Objective::soed);
     case NULLPTR_PARTITION: return 0;
   }
   return 0;

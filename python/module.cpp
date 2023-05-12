@@ -150,7 +150,8 @@ PYBIND11_MODULE(mtkahypar, m) {
   using mt_kahypar::Objective;
   py::enum_<Objective>(m, "Objective", py::module_local())
     .value("CUT", Objective::cut)
-    .value("KM1", Objective::km1);
+    .value("KM1", Objective::km1)
+    .value("SOED", Objective::soed);
 
   // ####################### Initialize Thread Pool #######################
 
@@ -215,7 +216,7 @@ PYBIND11_MODULE(mtkahypar, m) {
         return context.partition.objective;
       }, [](Context& context, const Objective objective) {
         context.partition.objective = objective;
-      }, "Sets the objective function for partitioning (either CUT or KM1)")
+      }, "Sets the objective function for partitioning (CUT, KM1 or SOED)")
     .def_property("seed",
       [](const Context& context) {
         return context.partition.seed;
@@ -531,7 +532,7 @@ Construct a partitioned graph.
         return imbalance(partitioned_graph);
       }, "Computes the imbalance of the partition")
     .def("cut", [](PartitionedGraph& partitioned_graph) {
-        return metrics::hyperedgeCut(partitioned_graph);
+        return metrics::quality(partitioned_graph, Objective::cut);
       },
       "Computes the edge-cut metric of the partition")
     .def("writePartitionToFile", [](PartitionedGraph& partitioned_graph,
@@ -620,15 +621,15 @@ Construct a partitioned hypergraph.
         return imbalance(partitioned_hg);
       }, "Computes the imbalance of the partition")
     .def("cut", [](PartitionedHypergraph& partitioned_hg) {
-        return metrics::hyperedgeCut(partitioned_hg);
+        return metrics::quality(partitioned_hg, Objective::cut);
       },
       "Computes the cut-net metric of the partition")
     .def("km1", [](PartitionedHypergraph& partitioned_hg) {
-        return metrics::km1(partitioned_hg);
+        return metrics::quality(partitioned_hg, Objective::km1);
       },
       "Computes the connectivity metric of the partition")
     .def("soed", [](PartitionedHypergraph& partitioned_hg) {
-        return metrics::soed(partitioned_hg);
+        return metrics::quality(partitioned_hg, Objective::soed);
       },
       "Computes the sum-of-external-degree metric of the partition")
     .def("writePartitionToFile", [](PartitionedHypergraph& partitioned_hg,
@@ -717,15 +718,15 @@ Construct a partitioned hypergraph.
         return imbalance(partitioned_hg);
       }, "Computes the imbalance of the partition")
     .def("cut", [](SparsePartitionedHypergraph& partitioned_hg) {
-        return metrics::hyperedgeCut(partitioned_hg);
+        return metrics::quality(partitioned_hg, Objective::cut);
       },
       "Computes the cut-net metric of the partition")
     .def("km1", [](SparsePartitionedHypergraph& partitioned_hg) {
-        return metrics::km1(partitioned_hg);
+        return metrics::quality(partitioned_hg, Objective::km1);
       },
       "Computes the connectivity metric of the partition")
     .def("soed", [](SparsePartitionedHypergraph& partitioned_hg) {
-        return metrics::soed(partitioned_hg);
+        return metrics::quality(partitioned_hg, Objective::soed);
       },
       "Computes the sum-of-external-degree metric of the partition")
     .def("writePartitionToFile", [](SparsePartitionedHypergraph& partitioned_hg,

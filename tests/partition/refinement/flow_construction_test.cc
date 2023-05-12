@@ -31,6 +31,7 @@
 #include "mt-kahypar/io/hypergraph_io.h"
 #include "mt-kahypar/partition/refinement/flows/sequential_construction.h"
 #include "mt-kahypar/partition/refinement/flows/parallel_construction.h"
+#include "mt-kahypar/partition/refinement/gains/gain_definitions.h"
 
 using ::testing::Test;
 
@@ -112,10 +113,10 @@ class AFlowHypergraphConstructor : public Test {
   vec<HypernodeID> whfc_to_node;
 };
 
-typedef ::testing::Types<Config<SequentialConstruction<TypeTraits>, whfc::SequentialPushRelabel, true>,
-                         Config<SequentialConstruction<TypeTraits>, whfc::SequentialPushRelabel, false>,
-                         Config<ParallelConstruction<TypeTraits>, whfc::ParallelPushRelabel, true>,
-                         Config<ParallelConstruction<TypeTraits>, whfc::ParallelPushRelabel, false> > TestConfigs;
+typedef ::testing::Types<Config<SequentialConstruction<TypeTraits, Km1GainTypes>, whfc::SequentialPushRelabel, true>,
+                         Config<SequentialConstruction<TypeTraits, Km1GainTypes>, whfc::SequentialPushRelabel, false>,
+                         Config<ParallelConstruction<TypeTraits, Km1GainTypes>, whfc::ParallelPushRelabel, true>,
+                         Config<ParallelConstruction<TypeTraits, Km1GainTypes>, whfc::ParallelPushRelabel, false> > TestConfigs;
 
 TYPED_TEST_CASE(AFlowHypergraphConstructor, TestConfigs);
 

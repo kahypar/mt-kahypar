@@ -27,7 +27,6 @@
 #include "tests/datastructures/hypergraph_fixtures.h"
 
 #include <boost/range/irange.hpp>
-#include <mt-kahypar/partition/refinement/policies/gain_policy.h>
 #include "gmock/gmock.h"
 
 #include "tbb/blocked_range.h"
@@ -37,6 +36,8 @@
 
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/io/hypergraph_factory.h"
+#include "mt-kahypar/partition/refinement/gains/km1/km1_attributed_gains.h"
+#include "mt-kahypar/partition/refinement/gains/cut/cut_attributed_gains.h"
 #include "mt-kahypar/partition/metrics.h"
 #include "mt-kahypar/utils/randomize.h"
 
@@ -145,15 +146,15 @@ void moveAllNodesOfHypergraphRandom(HyperGraph& hypergraph,
                              const HypernodeID pin_count_in_from_part_after,
                              const HypernodeID pin_count_in_to_part_after) {
                            if (objective == Objective::km1) {
-                             deltas.local() += km1Delta(
+                             deltas.local() += Km1AttributedGains::gain(
                                he, edge_weight, edge_size, pin_count_in_from_part_after, pin_count_in_to_part_after);
                            } else if (objective == Objective::cut) {
-                             deltas.local() += cutDelta(
+                             deltas.local() += CutAttributedGains::gain(
                                he, edge_weight, edge_size, pin_count_in_from_part_after, pin_count_in_to_part_after);
                            }
                          };
 
-  HyperedgeWeight metric_before = metrics::objective(hypergraph, objective);
+  HyperedgeWeight metric_before = metrics::quality(hypergraph, objective);
   HighResClockTimepoint start = std::chrono::high_resolution_clock::now();
   tbb::parallel_for(ID(0), hypergraph.initialNumNodes(), [&](const HypernodeID& hn) {
     int cpu_id = SCHED_GETCPU;
@@ -176,7 +177,7 @@ void moveAllNodesOfHypergraphRandom(HyperGraph& hypergraph,
     delta += local_delta;
   }
 
-  HyperedgeWeight metric_after = metrics::objective(hypergraph, objective);
+  HyperedgeWeight metric_after = metrics::quality(hypergraph, objective);
   ASSERT_EQ(metric_after, metric_before + delta) << V(metric_before) << V(delta);
   if (show_timings) {
     LOG << V(k) << V(objective) << V(metric_before) << V(delta) << V(metric_after) << V(timing);

@@ -78,7 +78,16 @@ enum class Mode : uint8_t {
 enum class Objective : uint8_t {
   cut,
   km1,
+  soed,
   UNDEFINED
+};
+
+enum class GainPolicy : uint8_t {
+  km1,
+  cut,
+  soed,
+  ENABLE_GRAPHS(cut_for_graphs COMMA)
+  none
 };
 
 enum class LouvainEdgeWeight : uint8_t {
@@ -136,8 +145,7 @@ enum class InitialPartitioningAlgorithm : uint8_t {
 };
 
 enum class LabelPropagationAlgorithm : uint8_t {
-  label_propagation_km1,
-  label_propagation_cut,
+  label_propagation,
   deterministic,
   do_nothing
 };
@@ -147,16 +155,14 @@ enum class FMAlgorithm : uint8_t {
   do_nothing
 };
 
-enum class GainPolicy : uint8_t {
-  km1,
-  cut,
-  ENABLE_GRAPHS(cut_for_graphs COMMA)
-  none
-};
-
 enum class FlowAlgorithm : uint8_t {
   flow_cutter,
   mock,
+  do_nothing
+};
+
+enum class RebalancingAlgorithm : uint8_t {
+  simple_rebalancer,
   do_nothing
 };
 
@@ -176,6 +182,8 @@ std::ostream & operator<< (std::ostream& os, const Mode& mode);
 
 std::ostream & operator<< (std::ostream& os, const Objective& objective);
 
+std::ostream & operator<< (std::ostream& os, const GainPolicy& type);
+
 std::ostream & operator<< (std::ostream& os, const LouvainEdgeWeight& type);
 
 std::ostream & operator<< (std::ostream& os, const SimiliarNetCombinerStrategy& strategy);
@@ -194,15 +202,17 @@ std::ostream & operator<< (std::ostream& os, const LabelPropagationAlgorithm& al
 
 std::ostream & operator<< (std::ostream& os, const FMAlgorithm& algo);
 
-std::ostream & operator<< (std::ostream& os, const GainPolicy& type);
-
 std::ostream & operator<< (std::ostream& os, const FlowAlgorithm& algo);
+
+std::ostream & operator<< (std::ostream& os, const RebalancingAlgorithm& algo);
 
 Mode modeFromString(const std::string& mode);
 
 InstanceType instanceTypeFromString(const std::string& type);
 
 PresetType presetTypeFromString(const std::string& type);
+
+Objective objectiveFromString(const std::string& obj);
 
 LouvainEdgeWeight louvainEdgeWeightFromString(const std::string& type);
 
@@ -223,5 +233,7 @@ LabelPropagationAlgorithm labelPropagationAlgorithmFromString(const std::string&
 FMAlgorithm fmAlgorithmFromString(const std::string& type);
 
 FlowAlgorithm flowAlgorithmFromString(const std::string& type);
+
+RebalancingAlgorithm rebalancingAlgorithmFromString(const std::string& type);
 
 }  // namesapce mt_kahypar

@@ -28,6 +28,8 @@
 
 #pragma once
 
+#include <sstream>
+
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/refinement/i_refiner.h"
 #include "mt-kahypar/partition/coarsening/coarsening_commons.h"
@@ -60,7 +62,8 @@ class UncoarsenerBase {
           _gain_cache(gain_cache_t {nullptr, GainPolicy::none}),
           _label_propagation(nullptr),
           _fm(nullptr),
-          _flows(nullptr) {}
+          _flows(nullptr),
+          _rebalancer(nullptr) {}
 
   UncoarsenerBase(const UncoarsenerBase&) = delete;
   UncoarsenerBase(UncoarsenerBase&&) = delete;
@@ -80,6 +83,7 @@ class UncoarsenerBase {
   std::unique_ptr<IRefiner> _label_propagation;
   std::unique_ptr<IRefiner> _fm;
   std::unique_ptr<IRefiner> _flows;
+  std::unique_ptr<IRefiner> _rebalancer;
 
  protected:
 
@@ -93,21 +97,22 @@ class UncoarsenerBase {
   }
 
   Metrics initializeMetrics(PartitionedHypergraph& phg) {
-    Metrics m = { 0, 0, 0.0 };
-    tbb::parallel_invoke([&] {
-      m.cut = metrics::hyperedgeCut(phg);
-    }, [&] {
-      m.km1 = metrics::km1(phg);
-    });
-    m.imbalance = metrics::imbalance(phg, _context);
+    Metrics m = { metrics::quality(phg, _context),  metrics::imbalance(phg, _context) };
 
     int64_t num_nodes = phg.initialNumNodes();
     int64_t num_edges = Hypergraph::is_graph ? phg.initialNumEdges() / 2 : phg.initialNumEdges();
     utils::Stats& stats = utils::Utilities::instance().getStats(_context.utility_id);
     stats.add_stat("initial_num_nodes", num_nodes);
     stats.add_stat("initial_num_edges", num_edges);
-    stats.add_stat("initial_cut", m.cut);
-    stats.add_stat("initial_km1", m.km1);
+    std::stringstream ss;
+    ss << "initial_" << _context.partition.objective;
+    stats.add_stat(ss.str(), metrics::quality(phg, _context));
+    if ( _context.partition.objective != Objective::cut ) {
+      stats.add_stat("initial_cut", metrics::quality(phg, Objective::cut));
+    }
+    if ( _context.partition.objective != Objective::km1 ) {
+      stats.add_stat("initial_km1", metrics::quality(phg, Objective::km1));
+    }
     stats.add_stat("initial_imbalance", m.imbalance);
     return m;
   }
@@ -123,6 +128,8 @@ class UncoarsenerBase {
     _flows = FlowSchedulerFactory::getInstance().createObject(
       _context.refinement.flows.algorithm,
       _hg.initialNumNodes(), _hg.initialNumEdges(), _context, _gain_cache);
+    _rebalancer = RebalancerFactory::getInstance().createObject(
+      _context.refinement.rebalancer, _context);
   }
 };
 }

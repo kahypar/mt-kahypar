@@ -33,9 +33,7 @@
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/io/hypergraph_factory.h"
 #include "mt-kahypar/partition/refinement/rebalancing/rebalancer.h"
-#include "mt-kahypar/partition/refinement/gains/km1/km1_gain_cache.h"
-
-
+#include "mt-kahypar/partition/refinement/gains/gain_definitions.h"
 
 using ::testing::Test;
 
@@ -45,6 +43,7 @@ namespace {
   using TypeTraits = StaticHypergraphTypeTraits;
   using Hypergraph = typename TypeTraits::Hypergraph;
   using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
+  using Km1Rebalancer = Rebalancer<TypeTraits, Km1GainTypes>;
 }
 
 
@@ -56,9 +55,9 @@ TEST(RebalanceTests, HeapSortWithMoveGainComparator) {
     moves.push_back(Move{-1, -1 , i, gains[i]});
   }
 
-  std::make_heap(moves.begin(), moves.end(), Km1Rebalancer<TypeTraits>::MoveGainComparator());
+  std::make_heap(moves.begin(), moves.end(), Km1Rebalancer::MoveGainComparator());
   for (size_t i = 0; i < moves.size(); ++i) {
-    std::pop_heap(moves.begin(), moves.end() - i, Km1Rebalancer<TypeTraits>::MoveGainComparator());
+    std::pop_heap(moves.begin(), moves.end() - i, Km1Rebalancer::MoveGainComparator());
   }
 
   // assert that moves is sorted descendingly
@@ -90,8 +89,8 @@ TEST(RebalanceTests, FindsMoves) {
   Km1GainCache gain_cache;
   gain_cache.initializeGainCache(phg);
 
-  Km1Rebalancer<TypeTraits> rebalancer(phg, context);
-  vec<Move> moves_to_empty_blocks = rebalancer.repairEmptyBlocks();
+  Km1Rebalancer rebalancer(context);
+  vec<Move> moves_to_empty_blocks = rebalancer.repairEmptyBlocks(phg);
 
   ASSERT_EQ(moves_to_empty_blocks.size(), 4);
 
@@ -117,7 +116,7 @@ TEST(RebalanceTests, FindsMoves) {
     phg.changeNodePart(gain_cache, m.node, m.from, m.to);
   }
 
-  moves_to_empty_blocks = rebalancer.repairEmptyBlocks();
+  moves_to_empty_blocks = rebalancer.repairEmptyBlocks(phg);
   ASSERT_EQ(moves_to_empty_blocks.size(), 0);
 }
 

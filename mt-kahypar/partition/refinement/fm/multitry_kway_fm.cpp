@@ -30,13 +30,14 @@
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/utils/utilities.h"
 #include "mt-kahypar/partition/metrics.h"
+#include "mt-kahypar/partition/refinement/gains/gain_definitions.h"
 #include "mt-kahypar/utils/memory_tree.h"
 #include "mt-kahypar/utils/cast.h"
 
 namespace mt_kahypar {
 
-  template<typename TypeTraits, typename GainCache>
-  bool MultiTryKWayFM<TypeTraits, GainCache>::refineImpl(
+  template<typename TypeTraits, typename GainTypes>
+  bool MultiTryKWayFM<TypeTraits, GainTypes>::refineImpl(
               mt_kahypar_partitioned_hypergraph_t& hypergraph,
               const vec<HypernodeID>& refinement_nodes,
               Metrics& metrics,
@@ -101,7 +102,7 @@ namespace mt_kahypar {
       timer.stop_timer("rollback");
 
       const double roundImprovementFraction = improvementFraction(improvement,
-        metrics.getMetric(Mode::direct, context.partition.objective) - overall_improvement);
+        metrics.quality - overall_improvement);
       overall_improvement += improvement;
       if (roundImprovementFraction < context.refinement.fm.min_improvement) {
         consecutive_rounds_with_too_little_improvement++;
@@ -116,7 +117,7 @@ namespace mt_kahypar {
         for (auto& fm : ets_fm) {
           fm.stats.merge(stats);
         }
-        LOG << V(round) << V(improvement) << V(metrics::objective(phg, context.partition.objective))
+        LOG << V(round) << V(improvement) << V(metrics::quality(phg, context))
             << V(metrics::imbalance(phg, context)) << V(num_border_nodes) << V(roundImprovementFraction)
             << V(elapsed_time) << V(current_time_limit) << stats.serialize();
       }
@@ -151,19 +152,16 @@ namespace mt_kahypar {
       is_initialized = false;
     }
 
-    metrics.updateMetric(metrics.getMetric(Mode::direct, context.partition.objective) -
-      overall_improvement, Mode::direct, context.partition.objective);
+    metrics.quality -= overall_improvement;
     metrics.imbalance = metrics::imbalance(phg, context);
     HEAVY_REFINEMENT_ASSERT(phg.checkTrackedPartitionInformation(gain_cache));
-    ASSERT(metrics.getMetric(Mode::direct, context.partition.objective) ==
-      metrics::objective(phg, context.partition.objective),
-      V(metrics.getMetric(Mode::direct, context.partition.objective)) <<
-      V(metrics::objective(phg, context.partition.objective)));
+    ASSERT(metrics.quality == metrics::quality(phg, context),
+      V(metrics.quality) << V(metrics::quality(phg, context)));
     return overall_improvement > 0;
   }
 
-  template<typename TypeTraits, typename GainCache>
-  void MultiTryKWayFM<TypeTraits, GainCache>::roundInitialization(PartitionedHypergraph& phg,
+  template<typename TypeTraits, typename GainTypes>
+  void MultiTryKWayFM<TypeTraits, GainTypes>::roundInitialization(PartitionedHypergraph& phg,
                                                                   const vec<HypernodeID>& refinement_nodes) {
     // clear border nodes
     sharedData.refinementNodes.clear();
@@ -212,8 +210,8 @@ namespace mt_kahypar {
   }
 
 
-  template<typename TypeTraits, typename GainCache>
-  void MultiTryKWayFM<TypeTraits, GainCache>::initializeImpl(mt_kahypar_partitioned_hypergraph_t& hypergraph) {
+  template<typename TypeTraits, typename GainTypes>
+  void MultiTryKWayFM<TypeTraits, GainTypes>::initializeImpl(mt_kahypar_partitioned_hypergraph_t& hypergraph) {
     PartitionedHypergraph& phg = utils::cast<PartitionedHypergraph>(hypergraph);
 
     if (!gain_cache.isInitialized()) {
@@ -223,8 +221,8 @@ namespace mt_kahypar {
     is_initialized = true;
   }
 
-  template<typename TypeTraits, typename GainCache>
-  void MultiTryKWayFM<TypeTraits, GainCache>::resizeDataStructuresForCurrentK() {
+  template<typename TypeTraits, typename GainTypes>
+  void MultiTryKWayFM<TypeTraits, GainTypes>::resizeDataStructuresForCurrentK() {
     // If the number of blocks changes, we resize data structures
     // (can happen during deep multilevel partitioning)
     if ( current_k != context.partition.k ) {
@@ -240,8 +238,8 @@ namespace mt_kahypar {
     }
   }
 
-  template<typename TypeTraits, typename GainCache>
-  void MultiTryKWayFM<TypeTraits, GainCache>::printMemoryConsumption() {
+  template<typename TypeTraits, typename GainTypes>
+  void MultiTryKWayFM<TypeTraits, GainTypes>::printMemoryConsumption() {
     utils::MemoryTreeNode fm_memory("Multitry k-Way FM", utils::OutputType::MEGABYTE);
 
     for (const auto& fm : ets_fm) {
@@ -258,6 +256,6 @@ namespace mt_kahypar {
   #define MULTITRY_KWAY_FM(X, Y) MultiTryKWayFM<X, Y>
   }
 
-  INSTANTIATE_CLASS_WITH_TYPE_TRAITS_AND_GAIN_CACHE(MULTITRY_KWAY_FM)
+  INSTANTIATE_CLASS_WITH_TYPE_TRAITS_AND_GAIN_TYPES(MULTITRY_KWAY_FM)
 
 } // namespace mt_kahypar

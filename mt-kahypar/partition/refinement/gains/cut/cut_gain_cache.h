@@ -32,14 +32,10 @@
 #include "mt-kahypar/datastructures/hypergraph_common.h"
 #include "mt-kahypar/datastructures/array.h"
 #include "mt-kahypar/datastructures/sparse_map.h"
-#include "mt-kahypar/partition/refinement/gains/cut/cut_rollback.h"
 #include "mt-kahypar/parallel/atomic_wrapper.h"
 #include "mt-kahypar/macros.h"
 
 namespace mt_kahypar {
-
-// Forward
-class DeltaCutGainCache;
 
 /**
  * The gain cache stores the gain values for all possible node moves for the cut metric.
@@ -56,14 +52,12 @@ class DeltaCutGainCache;
  * Our gain cache stores and maintains these entries for each node and block.
  * Thus, the gain cache stores k + 1 entries per node.
 */
-class CutGainCache final : public kahypar::meta::PolicyBase {
+class CutGainCache {
 
   static constexpr HyperedgeID HIGH_DEGREE_THRESHOLD = ID(100000);
 
  public:
   static constexpr GainPolicy TYPE = GainPolicy::cut;
-  using DeltaGainCache = DeltaCutGainCache;
-  using Rollback = CutRollback;
 
   CutGainCache() :
     _is_initialized(false),
@@ -136,6 +130,12 @@ class CutGainCache final : public kahypar::meta::PolicyBase {
 
   // ####################### Delta Gain Update #######################
 
+  // ! This function returns true if the corresponding pin count values triggers
+  // ! a gain cache update.
+  static bool triggersDeltaGainUpdate(const HypernodeID edge_size,
+                                      const HypernodeID pin_count_in_from_part_after,
+                                      const HypernodeID pin_count_in_to_part_after);
+
   // ! This functions implements the delta gain updates for the cut metric.
   // ! When moving a node from its current block from to a target block to, we iterate
   // ! over its incident hyperedges and update their pin count values. After each pin count
@@ -149,16 +149,6 @@ class CutGainCache final : public kahypar::meta::PolicyBase {
                        const HypernodeID pin_count_in_from_part_after,
                        const PartitionID to,
                        const HypernodeID pin_count_in_to_part_after);
-
-  // ! Computes the improvement for cut metric associated with a hyperedge.
-  static HyperedgeWeight delta(const HyperedgeID,
-                               const HyperedgeWeight edge_weight,
-                               const HypernodeID edge_size,
-                               const HypernodeID pin_count_in_from_part_after,
-                               const HypernodeID pin_count_in_to_part_after) {
-    return edge_size > 1 ? (pin_count_in_from_part_after == edge_size - 1) * edge_weight -
-      ( pin_count_in_to_part_after == edge_size ) * edge_weight : 0;
-  }
 
   // ####################### Uncontraction #######################
 

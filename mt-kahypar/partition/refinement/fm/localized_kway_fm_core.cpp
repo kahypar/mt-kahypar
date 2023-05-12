@@ -28,12 +28,12 @@
 #include "mt-kahypar/partition/refinement/fm/localized_kway_fm_core.h"
 
 #include "mt-kahypar/definitions.h"
-#include "mt-kahypar/partition/refinement/gains/gain_cache_ptr.h"
+#include "mt-kahypar/partition/refinement/gains/gain_definitions.h"
 
 namespace mt_kahypar {
 
-  template<typename TypeTraits, typename GainCache>
-  bool LocalizedKWayFM<TypeTraits, GainCache>::findMoves(PartitionedHypergraph& phg,
+  template<typename TypeTraits, typename GainTypes>
+  bool LocalizedKWayFM<TypeTraits, GainTypes>::findMoves(PartitionedHypergraph& phg,
                                                          size_t taskID,
                                                          size_t numSeeds) {
     localMoves.clear();
@@ -83,10 +83,10 @@ namespace mt_kahypar {
     return std::make_pair(p, w);
   }
 
-  template<typename TypeTraits, typename GainCache>
+  template<typename TypeTraits, typename GainTypes>
   template<typename PHG, typename CACHE>
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
-  void LocalizedKWayFM<TypeTraits, GainCache>::acquireOrUpdateNeighbors(PHG& phg, CACHE& gain_cache, const Move& move) {
+  void LocalizedKWayFM<TypeTraits, GainTypes>::acquireOrUpdateNeighbors(PHG& phg, CACHE& gain_cache, const Move& move) {
     // Note: In theory we should acquire/update all neighbors. It just turned out that this works fine
     // Actually: only vertices incident to edges with gain changes can become new boundary vertices.
     // Vertices that already were boundary vertices, can still be considered later since they are in the task queue
@@ -114,20 +114,20 @@ namespace mt_kahypar {
   }
 
 
-  template<typename TypeTraits, typename GainCache>
+  template<typename TypeTraits, typename GainTypes>
   template<bool use_delta>
-  void LocalizedKWayFM<TypeTraits, GainCache>::internalFindMoves(PartitionedHypergraph& phg) {
+  void LocalizedKWayFM<TypeTraits, GainTypes>::internalFindMoves(PartitionedHypergraph& phg) {
     StopRule stopRule(phg.initialNumNodes());
     Move move;
 
     auto delta_func = [&](const HyperedgeID he,
                           const HyperedgeWeight edge_weight,
-                          const HypernodeID,
+                          const HypernodeID edge_size,
                           const HypernodeID pin_count_in_from_part_after,
                           const HypernodeID pin_count_in_to_part_after) {
       // Gains of the pins of a hyperedge can only change in the following situations.
-      if (pin_count_in_from_part_after == 0 || pin_count_in_from_part_after == 1 ||
-          pin_count_in_to_part_after == 1 || pin_count_in_to_part_after == 2) {
+      if ( GainCache::triggersDeltaGainUpdate(edge_size,
+            pin_count_in_from_part_after, pin_count_in_to_part_after) ) {
         edgesWithGainChanges.push_back(he);
       }
 
@@ -138,7 +138,6 @@ namespace mt_kahypar {
         fm_strategy.deltaGainUpdates(phg, gain_cache, he, edge_weight, move.from,
           pin_count_in_from_part_after, move.to, pin_count_in_to_part_after);
       }
-
     };
 
     // we can almost make this function take a generic partitioned hypergraph
@@ -256,8 +255,8 @@ namespace mt_kahypar {
   }
 
 
-  template<typename TypeTraits, typename GainCache>
-  std::pair<Gain, size_t> LocalizedKWayFM<TypeTraits, GainCache>::applyBestLocalPrefixToSharedPartition(
+  template<typename TypeTraits, typename GainTypes>
+  std::pair<Gain, size_t> LocalizedKWayFM<TypeTraits, GainTypes>::applyBestLocalPrefixToSharedPartition(
           PartitionedHypergraph& phg,
           const size_t best_index_locally_observed,
           const Gain best_improvement_locally_observed,
@@ -268,17 +267,16 @@ namespace mt_kahypar {
     bool is_last_move = false;
 
     auto delta_gain_func = [&](const HyperedgeID he,
-                                    const HyperedgeWeight edge_weight,
-                                    const HypernodeID edge_size,
-                                    const HypernodeID pin_count_in_from_part_after,
-                                    const HypernodeID pin_count_in_to_part_after) {
-      attributed_gain += GainCache::delta(he, edge_weight, edge_size,
+                               const HyperedgeWeight edge_weight,
+                               const HypernodeID edge_size,
+                               const HypernodeID pin_count_in_from_part_after,
+                               const HypernodeID pin_count_in_to_part_after) {
+      attributed_gain += AttributedGains::gain(he, edge_weight, edge_size,
         pin_count_in_from_part_after, pin_count_in_to_part_after);
 
       // Gains of the pins of a hyperedge can only change in the following situations.
-      if ( is_last_move &&
-           ( pin_count_in_from_part_after == 0 || pin_count_in_from_part_after == 1 ||
-             pin_count_in_to_part_after == 1 || pin_count_in_to_part_after == 2 ) ) {
+      if ( is_last_move && GainCache::triggersDeltaGainUpdate(edge_size,
+            pin_count_in_from_part_after, pin_count_in_to_part_after) ) {
         // This vector is used by the acquireOrUpdateNeighbor function to expand to neighbors
         // or update the gain values of neighbors of the moved node and is cleared afterwards.
         // BEWARE. Adding the nets at this stage works, because the vector is cleared before the move,
@@ -349,8 +347,8 @@ namespace mt_kahypar {
     }
   }
 
-  template<typename TypeTraits, typename GainCache>
-  void LocalizedKWayFM<TypeTraits, GainCache>::revertToBestLocalPrefix(PartitionedHypergraph& phg,
+  template<typename TypeTraits, typename GainTypes>
+  void LocalizedKWayFM<TypeTraits, GainTypes>::revertToBestLocalPrefix(PartitionedHypergraph& phg,
                                                                        size_t bestGainIndex) {
     runStats.local_reverts += localMoves.size() - bestGainIndex;
     while (localMoves.size() > bestGainIndex) {
@@ -361,14 +359,14 @@ namespace mt_kahypar {
     }
   }
 
-  template<typename TypeTraits, typename GainCache>
-  void LocalizedKWayFM<TypeTraits, GainCache>::changeNumberOfBlocks(const PartitionID new_k) {
+  template<typename TypeTraits, typename GainTypes>
+  void LocalizedKWayFM<TypeTraits, GainTypes>::changeNumberOfBlocks(const PartitionID new_k) {
     deltaPhg.changeNumberOfBlocks(new_k);
     fm_strategy.changeNumberOfBlocks(new_k);
   }
 
-  template<typename TypeTraits, typename GainCache>
-  void LocalizedKWayFM<TypeTraits, GainCache>::memoryConsumption(utils::MemoryTreeNode *parent) const {
+  template<typename TypeTraits, typename GainTypes>
+  void LocalizedKWayFM<TypeTraits, GainTypes>::memoryConsumption(utils::MemoryTreeNode *parent) const {
     ASSERT(parent);
 
     utils::MemoryTreeNode *localized_fm_node = parent->addChild("Localized k-Way FM");
@@ -390,6 +388,6 @@ namespace mt_kahypar {
   #define LOCALIZED_KWAY_FM(X, Y) LocalizedKWayFM<X, Y>
   }
 
-  INSTANTIATE_CLASS_WITH_TYPE_TRAITS_AND_GAIN_CACHE(LOCALIZED_KWAY_FM)
+  INSTANTIATE_CLASS_WITH_TYPE_TRAITS_AND_GAIN_TYPES(LOCALIZED_KWAY_FM)
 
 }   // namespace mt_kahypar

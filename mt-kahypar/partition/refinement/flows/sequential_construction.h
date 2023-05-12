@@ -41,12 +41,13 @@ namespace mt_kahypar {
 
 struct FlowProblem;
 
-template<typename TypeTraits>
+template<typename TypeTraits, typename GainTypes>
 class SequentialConstruction {
 
   static constexpr bool debug = false;
 
   using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
+  using FlowNetworkConstruction = typename GainTypes::FlowNetworkConstruction;
 
   struct TmpPin {
     HyperedgeID e;
@@ -158,14 +159,6 @@ class SequentialConstruction {
                                 const PartitionID block_0,
                                 const PartitionID block_1,
                                 const vec<HypernodeID>& whfc_to_node);
-
-  bool canHyperedgeBeDropped(const PartitionedHypergraph& phg,
-                             const HyperedgeID he,
-                             const PartitionID block_0,
-                             const PartitionID block_1) {
-    return _context.partition.objective == Objective::cut &&
-      phg.pinCountInPart(he, block_0) + phg.pinCountInPart(he, block_1) < phg.edgeSize(he);
-  }
 
   const Context& _context;
 

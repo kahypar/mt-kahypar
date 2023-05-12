@@ -35,6 +35,7 @@
 #include "mt-kahypar/datastructures/static_graph_factory.h"
 #include "mt-kahypar/datastructures/partitioned_graph.h"
 #include "mt-kahypar/partition/refinement/gains/cut_for_graphs/cut_gain_cache_for_graphs.h"
+#include "mt-kahypar/partition/refinement/gains/cut/cut_attributed_gains.h"
 #include "mt-kahypar/partition/metrics.h"
 
 using ::testing::Test;
@@ -277,9 +278,9 @@ TYPED_TEST(APartitionedGraph, HasCorrectInitialBorderNodes) {
 
 
 TYPED_TEST(APartitionedGraph, ExtractBlockZero) {
-  auto extracted_hg = this->partitioned_hypergraph.extract(0, true, true);
-  auto& hg = extracted_hg.first;
-  auto& mapping = extracted_hg.second;
+  auto extracted_hg = this->partitioned_hypergraph.extract(0, nullptr, true, true);
+  auto& hg = extracted_hg.hg;
+  auto& mapping = extracted_hg.hn_mapping;
 
   ASSERT_EQ(3, hg.initialNumNodes());
   ASSERT_EQ(2, hg.initialNumEdges());
@@ -292,8 +293,8 @@ TYPED_TEST(APartitionedGraph, ExtractBlockZero) {
 
 
 TYPED_TEST(APartitionedGraph, ExtractBlockOne) {
-  auto extracted_hg = this->partitioned_hypergraph.extract(1, true, true);
-  auto& hg = extracted_hg.first;
+  auto extracted_hg = this->partitioned_hypergraph.extract(1, nullptr, true, true);
+  auto& hg = extracted_hg.hg;
 
   ASSERT_EQ(2, hg.initialNumNodes());
   ASSERT_EQ(0, hg.initialNumEdges());
@@ -301,9 +302,9 @@ TYPED_TEST(APartitionedGraph, ExtractBlockOne) {
 }
 
 TYPED_TEST(APartitionedGraph, ExtractBlockTwo) {
-  auto extracted_hg = this->partitioned_hypergraph.extract(2, true, true);
-  auto& hg = extracted_hg.first;
-  auto& mapping = extracted_hg.second;
+  auto extracted_hg = this->partitioned_hypergraph.extract(2, nullptr, true, true);
+  auto& hg = extracted_hg.hg;
+  auto& mapping = extracted_hg.hn_mapping;
 
   ASSERT_EQ(2, hg.initialNumNodes());
   ASSERT_EQ(2, hg.initialNumEdges());
@@ -315,31 +316,31 @@ TYPED_TEST(APartitionedGraph, ExtractBlockTwo) {
 }
 
 TYPED_TEST(APartitionedGraph, ExtractsAllBlocks) {
-  auto extracted_hg = this->partitioned_hypergraph.extractAllBlocks(3, true, true);
+  auto extracted_hg = this->partitioned_hypergraph.extractAllBlocks(3, nullptr, true, true);
   auto& graphs = extracted_hg.first;
   auto& mapping = extracted_hg.second;
 
-  ASSERT_EQ(3, graphs[0].initialNumNodes());
-  ASSERT_EQ(2, graphs[0].initialNumEdges());
-  ASSERT_EQ(2, graphs[0].initialNumPins());
-  ASSERT_EQ(2, graphs[0].maxEdgeSize());
+  ASSERT_EQ(3, graphs[0].hg.initialNumNodes());
+  ASSERT_EQ(2, graphs[0].hg.initialNumEdges());
+  ASSERT_EQ(2, graphs[0].hg.initialNumPins());
+  ASSERT_EQ(2, graphs[0].hg.maxEdgeSize());
 
-  this->verifyPins(graphs[0], {0, 1},
+  this->verifyPins(graphs[0].hg, {0, 1},
     { {mapping[1], mapping[2]}, {mapping[1], mapping[2]} });
 
-  ASSERT_EQ(2, graphs[1].initialNumNodes());
-  ASSERT_EQ(0, graphs[1].initialNumEdges());
-  ASSERT_EQ(0, graphs[1].initialNumPins());
-  ASSERT_EQ(2, graphs[1].maxEdgeSize());
+  ASSERT_EQ(2, graphs[1].hg.initialNumNodes());
+  ASSERT_EQ(0, graphs[1].hg.initialNumEdges());
+  ASSERT_EQ(0, graphs[1].hg.initialNumPins());
+  ASSERT_EQ(2, graphs[1].hg.maxEdgeSize());
 
-  this->verifyPins(graphs[1], {}, { });
+  this->verifyPins(graphs[1].hg, {}, { });
 
-  ASSERT_EQ(2, graphs[2].initialNumNodes());
-  ASSERT_EQ(2, graphs[2].initialNumEdges());
-  ASSERT_EQ(2, graphs[2].initialNumPins());
-  ASSERT_EQ(2, graphs[2].maxEdgeSize());
+  ASSERT_EQ(2, graphs[2].hg.initialNumNodes());
+  ASSERT_EQ(2, graphs[2].hg.initialNumEdges());
+  ASSERT_EQ(2, graphs[2].hg.initialNumPins());
+  ASSERT_EQ(2, graphs[2].hg.maxEdgeSize());
 
-  this->verifyPins(graphs[2], {0, 1},
+  this->verifyPins(graphs[2].hg, {0, 1},
     { {mapping[5], mapping[6]}, {mapping[5], mapping[6]} });
 }
 
@@ -352,9 +353,9 @@ TYPED_TEST(APartitionedGraph, ExtractBlockZeroWithCommunityInformation) {
   this->hypergraph.setCommunityID(5, 4);
   this->hypergraph.setCommunityID(6, 5);
 
-  auto extracted_hg = this->partitioned_hypergraph.extract(0, true, true);
-  auto& hg = extracted_hg.first;
-  auto& mapping = extracted_hg.second;
+  auto extracted_hg = this->partitioned_hypergraph.extract(0, nullptr, true, true);
+  auto& hg = extracted_hg.hg;
+  auto& mapping = extracted_hg.hn_mapping;
 
   ASSERT_EQ(0, hg.communityID(mapping[0]));
   ASSERT_EQ(1, hg.communityID(mapping[1]));
@@ -396,7 +397,8 @@ TYPED_TEST(APartitionedGraph, ComputesDeltaAndGainsCorrectlyIfAllNodesMoveConcur
   auto delta_fun = [&](auto, auto, auto,
                        const HypernodeID pin_count_in_from_part_after,
                        const HypernodeID pin_count_in_to_part_after) {
-      delta.fetch_add(cutDelta(0, 1, 2, pin_count_in_from_part_after, pin_count_in_to_part_after));
+      delta.fetch_add(CutAttributedGains::gain(0, 1, 2,
+        pin_count_in_from_part_after, pin_count_in_to_part_after));
   };
 
   executeConcurrent([&] {

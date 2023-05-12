@@ -34,20 +34,16 @@
 #include "mt-kahypar/datastructures/hypergraph_common.h"
 #include "mt-kahypar/datastructures/array.h"
 #include "mt-kahypar/datastructures/sparse_map.h"
-#include "mt-kahypar/partition/refinement/gains/km1/km1_rollback.h"
 #include "mt-kahypar/parallel/atomic_wrapper.h"
 #include "mt-kahypar/macros.h"
 
 namespace mt_kahypar {
 
-// Forward
-class DeltaKm1GainCache;
-
 /**
  * The gain cache stores the gain values for all possible node moves for the connectivity metric.
  *
  * For a weighted hypergraph H = (V,E,c,w), the connectivity metric is defined as follows
- * connectivity(H) := \sum_{e \in cut(E)} ( lambda(e) - 1 ) * w(e)
+ * km1(H) := \sum_{e \in cut(E)} ( lambda(e) - 1 ) * w(e)
  * where lambda(e) are the number of blocks contained in hyperedge e.
  *
  * The gain of moving a node u from its current block V_i to a target block V_j can be expressed as follows
@@ -64,15 +60,12 @@ class DeltaKm1GainCache;
  * We call b(u, V_j) the benefit term and p(u) the penalty term. Our gain cache stores and maintains these
  * entries for each node and block. Thus, the gain cache stores k + 1 entries per node.
 */
-class Km1GainCache final : public kahypar::meta::PolicyBase {
+class Km1GainCache {
 
   static constexpr HyperedgeID HIGH_DEGREE_THRESHOLD = ID(100000);
 
  public:
   static constexpr GainPolicy TYPE = GainPolicy::km1;
-  using DeltaGainCache = DeltaKm1GainCache;
-  using Rollback = Km1Rollback;
-
   Km1GainCache() :
     _is_initialized(false),
     _k(kInvalidPartition),
@@ -144,6 +137,12 @@ class Km1GainCache final : public kahypar::meta::PolicyBase {
 
   // ####################### Delta Gain Update #######################
 
+  // ! This function returns true if the corresponding pin count values triggers
+  // ! a gain cache update.
+  static bool triggersDeltaGainUpdate(const HypernodeID edge_size,
+                                      const HypernodeID pin_count_in_from_part_after,
+                                      const HypernodeID pin_count_in_to_part_after);
+
   // ! This functions implements the delta gain updates for the connecitivity metric.
   // ! When moving a node from its current block from to a target block to, we iterate
   // ! over its incident hyperedges and update their pin count values. After each pin count
@@ -157,16 +156,6 @@ class Km1GainCache final : public kahypar::meta::PolicyBase {
                        const HypernodeID pin_count_in_from_part_after,
                        const PartitionID to,
                        const HypernodeID pin_count_in_to_part_after);
-
-  // ! Computes the improvement for connectivity metric associated with a hyperedge.
-  static HyperedgeWeight delta(const HyperedgeID,
-                               const HyperedgeWeight edge_weight,
-                               const HypernodeID,
-                               const HypernodeID pin_count_in_from_part_after,
-                               const HypernodeID pin_count_in_to_part_after) {
-    return (pin_count_in_to_part_after == 1 ? edge_weight : 0) +
-           (pin_count_in_from_part_after == 0 ? -edge_weight : 0);
-  }
 
   // ####################### Uncontraction #######################
 

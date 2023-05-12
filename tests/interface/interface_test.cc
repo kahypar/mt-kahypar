@@ -504,6 +504,7 @@ namespace mt_kahypar {
             << "cut =" << mt_kahypar_cut(p_hg) << "\n"
             << "km1 =" << km1 << "\n"
             << "soed =" << mt_kahypar_soed(p_hg);
+
       }
       ASSERT_LE(imbalance, epsilon);
 
@@ -534,16 +535,24 @@ namespace mt_kahypar {
     }
   };
 
-  TEST_F(APartitioner, PartitionsAHypergraphInTwoBlocksWithDefaultPreset) {
+  TEST_F(APartitioner, PartitionsAHypergraphInTwoBlocksWithDefaultPresetKm1) {
     Partition(HYPERGRAPH_FILE, HMETIS, DEFAULT, 2, 0.03, KM1, false);
+  }
+
+  TEST_F(APartitioner, PartitionsAHypergraphInTwoBlocksWithDefaultPresetSoed) {
+    Partition(HYPERGRAPH_FILE, HMETIS, DEFAULT, 2, 0.03, SOED, false);
   }
 
   TEST_F(APartitioner, PartitionsAGraphInTwoBlocksWithDefaultPreset) {
     Partition(GRAPH_FILE, METIS, DEFAULT, 2, 0.03, CUT, false);
   }
 
-  TEST_F(APartitioner, PartitionsAHypergraphInFourBlocksWithDefaultPreset) {
+  TEST_F(APartitioner, PartitionsAHypergraphInFourBlocksWithDefaultPresetKm1) {
     Partition(HYPERGRAPH_FILE, HMETIS, DEFAULT, 4, 0.03, KM1, false);
+  }
+
+  TEST_F(APartitioner, PartitionsAHypergraphInFourBlocksWithDefaultPresetSoed) {
+    Partition(HYPERGRAPH_FILE, HMETIS, DEFAULT, 4, 0.03, SOED, false);
   }
 
   TEST_F(APartitioner, PartitionsAGraphInFourBlocksWithDefaultPreset) {
@@ -634,7 +643,7 @@ namespace mt_kahypar {
     tbb::parallel_invoke([&]() {
       PartitionAnotherHypergraph(HYPERGRAPH_FILE, HMETIS, DETERMINISTIC, 4, 0.03, KM1, false);
     }, [&] {
-      PartitionAnotherHypergraph(GRAPH_FILE, METIS, DEFAULT, 8, 0.03, KM1, false);
+      PartitionAnotherHypergraph(GRAPH_FILE, METIS, DEFAULT, 8, 0.03, CUT, false);
     });
   }
 
@@ -650,11 +659,11 @@ namespace mt_kahypar {
   }
 
   TEST_F(APartitioner, ChecksIfDeterministicPresetProducesSameResultsForGraphs) {
-    Partition(GRAPH_FILE, METIS, DETERMINISTIC, 8, 0.03, KM1, false);
+    Partition(GRAPH_FILE, METIS, DETERMINISTIC, 8, 0.03, CUT, false);
     const double objective_1 = mt_kahypar_cut(partitioned_hg);
-    Partition(GRAPH_FILE, METIS, DETERMINISTIC, 8, 0.03, KM1, false);
+    Partition(GRAPH_FILE, METIS, DETERMINISTIC, 8, 0.03, CUT, false);
     const double objective_2 = mt_kahypar_cut(partitioned_hg);
-    Partition(GRAPH_FILE, METIS, DETERMINISTIC, 8, 0.03, KM1, false);
+    Partition(GRAPH_FILE, METIS, DETERMINISTIC, 8, 0.03, CUT, false);
     const double objective_3 = mt_kahypar_cut(partitioned_hg);
     ASSERT_EQ(objective_1, objective_2);
     ASSERT_EQ(objective_1, objective_3);
@@ -717,7 +726,7 @@ namespace mt_kahypar {
     block_weights[2] = 14174; block_weights[3] = 3989;
     mt_kahypar_set_individual_target_block_weights(context, 4, block_weights.get());
 
-    Partition(GRAPH_FILE, METIS, DEFAULT, 4, 0.03, KM1, false);
+    Partition(GRAPH_FILE, METIS, DEFAULT, 4, 0.03, CUT, false);
 
     // Verify Block Weights
     std::unique_ptr<mt_kahypar_hypernode_weight_t[]> actual_block_weights =

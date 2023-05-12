@@ -1,4 +1,5 @@
 target_sources(mt_kahypar_tests PRIVATE
+         bipartitioning_gain_policy_test.cc
          refinement_adapter_test.cc
          problem_construction_test.cc
          scheduler_test.cc

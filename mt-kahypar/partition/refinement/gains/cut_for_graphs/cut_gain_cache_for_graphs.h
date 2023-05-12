@@ -32,7 +32,6 @@
 #include "mt-kahypar/datastructures/hypergraph_common.h"
 #include "mt-kahypar/datastructures/array.h"
 #include "mt-kahypar/datastructures/sparse_map.h"
-#include "mt-kahypar/partition/refinement/gains/km1/km1_gain_cache.h"
 #include "mt-kahypar/parallel/atomic_wrapper.h"
 #include "mt-kahypar/macros.h"
 
@@ -54,12 +53,10 @@ class DeltaGraphCutGainCache;
  * entries for each node and block. Note that p(u) = b(u, V_i).
  * Thus, the gain cache stores k entries per node.
 */
-class GraphCutGainCache final : public kahypar::meta::PolicyBase {
+class GraphCutGainCache {
 
  public:
   static constexpr GainPolicy TYPE = GainPolicy::cut_for_graphs;
-  using DeltaGainCache = DeltaGraphCutGainCache;
-  using Rollback = Km1Rollback;
 
   GraphCutGainCache() :
     _is_initialized(false),
@@ -129,6 +126,12 @@ class GraphCutGainCache final : public kahypar::meta::PolicyBase {
 
   // ####################### Delta Gain Update #######################
 
+  // ! This function returns true if the corresponding pin count values triggers
+  // ! a gain cache update.
+  static bool triggersDeltaGainUpdate(const HypernodeID edge_size,
+                                      const HypernodeID pin_count_in_from_part_after,
+                                      const HypernodeID pin_count_in_to_part_after);
+
   // ! This functions implements the delta gain updates for the cut metric on plain graphs.
   // ! When moving a node from its current block from to a target block to, we iterate
   // ! over its incident edges and syncronize the move on each edge. After syncronization,
@@ -142,15 +145,6 @@ class GraphCutGainCache final : public kahypar::meta::PolicyBase {
                        const HypernodeID pin_count_in_from_part_after,
                        const PartitionID to,
                        const HypernodeID pin_count_in_to_part_after);
-
-  static HyperedgeWeight delta(const HyperedgeID,
-                               const HyperedgeWeight edge_weight,
-                               const HypernodeID,
-                               const HypernodeID pin_count_in_from_part_after,
-                               const HypernodeID pin_count_in_to_part_after) {
-    return (pin_count_in_to_part_after == 1 ? edge_weight : 0) +
-           (pin_count_in_from_part_after == 0 ? -edge_weight : 0);
-  }
 
   // ####################### Uncontraction #######################
 
