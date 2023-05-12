@@ -502,7 +502,9 @@ namespace mt_kahypar {
       if ( debug ) {
         LOG << " imbalance =" << imbalance << "\n"
             << "cut =" << mt_kahypar_cut(p_hg) << "\n"
-            << "km1 =" << km1;
+            << "km1 =" << km1 << "\n"
+            << "soed =" << mt_kahypar_soed(p_hg);
+
       }
       ASSERT_LE(imbalance, epsilon);
 
@@ -533,8 +535,12 @@ namespace mt_kahypar {
     }
   };
 
-  TEST_F(APartitioner, PartitionsAHypergraphInTwoBlocksWithDefaultPreset) {
+  TEST_F(APartitioner, PartitionsAHypergraphInTwoBlocksWithDefaultPresetKm1) {
     Partition(HYPERGRAPH_FILE, HMETIS, DEFAULT, 2, 0.03, KM1, false);
+  }
+
+  TEST_F(APartitioner, PartitionsAHypergraphInTwoBlocksWithDefaultPresetSoed) {
+    Partition(HYPERGRAPH_FILE, HMETIS, DEFAULT, 2, 0.03, SOED, false);
   }
 
   TEST_F(APartitioner, PartitionsAGraphInTwoBlocksWithDefaultPreset) {
