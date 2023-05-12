@@ -37,11 +37,12 @@ namespace mt_kahypar {
 
 class SoedGainComputation : public GainComputationBase<SoedGainComputation, SoedAttributedGains> {
   using Base = GainComputationBase<SoedGainComputation, SoedAttributedGains>;
-  using RatingMap = typename Base::RatingMap;
 
   static constexpr bool enable_heavy_assert = false;
 
  public:
+  using RatingMap = typename Base::RatingMap;
+
   SoedGainComputation(const Context& context,
                       bool disable_randomization = false) :
     Base(context, disable_randomization) { }

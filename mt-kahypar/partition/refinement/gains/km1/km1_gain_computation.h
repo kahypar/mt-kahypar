@@ -37,11 +37,12 @@ namespace mt_kahypar {
 
 class Km1GainComputation : public GainComputationBase<Km1GainComputation, Km1AttributedGains> {
   using Base = GainComputationBase<Km1GainComputation, Km1AttributedGains>;
-  using RatingMap = typename Base::RatingMap;
 
   static constexpr bool enable_heavy_assert = false;
 
  public:
+  using RatingMap = typename Base::RatingMap;
+
   Km1GainComputation(const Context& context,
                      bool disable_randomization = false) :
     Base(context, disable_randomization) { }
