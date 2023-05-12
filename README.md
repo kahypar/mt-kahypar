@@ -1,4 +1,4 @@
-<h1 align="center">Mt-KaHyPar - Multi-Threaded Karlsruhe Hypergraph Partitioner</h1>
+<h1 align="center">Mt-KaHyPar - Multi-Threaded Karlsruhe Graph and Hypergraph Partitioner</h1>
 
 License|Linux & Windows Build|Code Coverage|Zenodo
 :--:|:--:|:--:|:--:
@@ -14,6 +14,7 @@ Table of Contents
    * [Performance](#performance)
    * [The C Library Interface](#the-c-library-interface)
    * [The Python Library Interface](#the-python-library-interface)
+   * [Custom Objective Functions](#custom-objective-functions)
    * [Licensing](#licensing)
 
 About Mt-KaHyPar
@@ -27,7 +28,7 @@ hyperedge with the number of blocks connected by that hyperedge (sum over the te
 
 When we started to work on this topic, we realized there was a large gap between the solution quality of the partitions produced by sequential and parallel partitioning algorithms. We then started to parallelize all techniques used in the best sequential partitioning algorithms without compromises in solution quality. The main outcome of our work is a parallel partitioning algorithm that can partition extremely large graphs and hypergraphs (with billion of edges) with comparable solution quality to the best sequential graph partitioner [KaFFPa](https://github.com/KaHIP/KaHIP) and hypergraph partitioner [KaHyPar](https://kahypar.org/) while being (more) than an order of magnitude faster with only ten threads.
 
-Initially, we focused on hypergraph partitioning but recently implemented optimized data structures for graph partitioning (which led to a speedup by a factor of two for graphs). Besides our high-quality configuration, we provide several other faster configurations that are already
+Initially, we focused on hypergraph partitioning but recently implemented optimized data structures for graph partitioning (which led to a speedup by a factor of two for plain graphs). Mt-KaHyPar can optimize the cut-net, connectivity and sum-of-external-degree metric. Besides our high-quality configuration, we provide several other faster configurations that are already
 able to outperform most of the existing partitioning algorithms with regard to solution quality and running time. Moreover, we also provide a deterministic version of our partitioning algorithm. We refer the reader to our [publications](#licensing) for more information.
 
 <img src="https://cloud.githubusercontent.com/assets/484403/25314222/3a3bdbda-2840-11e7-9961-3bbc59b59177.png" alt="alt text" width="50%" height="50%"><img src="https://cloud.githubusercontent.com/assets/484403/25314225/3e061e42-2840-11e7-860c-028a345d1641.png" alt="alt text" width="50%" height="50%">
@@ -35,7 +36,7 @@ able to outperform most of the existing partitioning algorithms with regard to s
 Requirements
 -----------
 
-The Multi-Threaded Karlsruhe Hypergraph Partitioning Framework requires:
+The Multi-Threaded Karlsruhe Graph and Hypergraph Partitioning Framework requires:
 
   - A 64-bit Linux or Windows operating system.
   - A modern, ![C++17](https://img.shields.io/badge/C++-17-blue.svg?style=flat)-ready compiler such as `g++` version 7 or higher, `clang` version 11.0.3 or higher, or `MinGW` compiler on Windows (tested with version 12.1).
@@ -110,14 +111,15 @@ Initially, we started with the `default` and `quality` configuration and then ex
 
 If you want to change configuration parameters manually, please run `--help` for a detailed description of the different program options. We use the [hMetis format](http://glaros.dtc.umn.edu/gkhome/fetch/sw/hmetis/manual.pdf) for hypergraph files as well as the partition output file and the [Metis format](http://glaros.dtc.umn.edu/gkhome/fetch/sw/metis/manual.pdf) for graph files. Per default, we expect the input to be in hMetis format, but you can read graphs in Metis format via command line parameter `--input-file-format=metis`. If your input file is a graph, you can switch to our optimized graph data structures via command line parameter `--instance-type=graph`.
 
-To run Mt-KaHyPar, you can use the following command:
+To partition a **hypergraph** with Mt-KaHyPar, you can use the following command:
 
-    ./MtKaHyPar -h <path-to-hgr> --preset-type=<large_k/deterministic/default/default_flows/quality/quality_flows> --instance_type=<hypergraph/graph> -t <# threads> -k <# blocks> -e <imbalance (e.g. 0.03)> -o km1
+    ./mt-kahypar/application/MtKaHyPar -h <path-to-hgr> --preset-type=<large_k/deterministic/default/default_flows/quality/quality_flows> -t <# threads> -k <# blocks> -e <imbalance (e.g. 0.03)> -o <cut/km1/soed>
 
-or directly provide a configuration file (see `config` folder):
+To partition a **graph** with Mt-KaHyPar, you can use the following command:
 
-    ./MtKaHyPar -h <path-to-hgr> -p <path-to-config-file> --instance_type=<hypergraph/graph> -t <# threads> -k <# blocks> -e <imbalance (e.g. 0.03)> -o km1
+    ./mt-kahypar/application/MtKaHyPar -h <path-to-graph> --preset-type=<large_k/deterministic/default/default_flows/quality/quality_flows> --input-file-format=<hmetis/metis> --instance-type=graph -t <# threads> -k <# blocks> -e <imbalance (e.g. 0.03)> -o cut
 
+You can also directly provide a configuration file (see `config` folder) by adding `-p <path-to-config-file>` to the command line parameters instead of `--preset-type`.
 To enable writing the partition to a file set the flag `--write-partition-file=true`.
 By default the file will be placed in the same folder as the input hypergraph file. Set `--partition-output-folder=path/to/folder` to specify a desired output folder. The partition file name is generated automatically based on parameters such as `k`, `imbalance`, `seed` and the input file name.
 
@@ -126,12 +128,10 @@ Further, there are several useful options that can provide you with additional i
 - `--show-detailed-timings=true`: Shows detailed subtimings of each phase of the algorithm at the end of partitioning
 - `--enable-progress-bar=true`: Shows a progess bar during the coarsening and refinement phase
 
-Mt-KaHyPar uses 32-bit node and hyperedge IDs. If you want to partition hypergraphs with more than 4.294.967.295 nodes or hyperedges, add option `-DKAHYPAR_USE_64_BIT_IDS=ON` to the `cmake` build command.
-
 Performance
 -----------
 
-We have summarized our experimental results on an [external webpage][ExperimentalResults]. The resource provides a detailed
+We have summarized our experimental results on an [external webpage][ExperimentalResults] (currently not up-to-date). The resource provides a detailed
 overview of Mt-KaHyPar's performance compared to other prominent state-of-the-art systems in terms of running time
 and quality.
 
@@ -328,6 +328,11 @@ hypergraph = mtkahypar.Hypergraph("path/to/hypergraph/file", mtkahypar.FileForma
 partitioned_hg = hypergraph.partitionIntoLargeK(context)
 ```
 
+Custom Objective Functions
+-----------
+
+We have defined a common interface for the gain computation techniques that we use in our refinement algorithms. This enables us to extend Mt-KaHyPar with new objective functions without having to modify the internal implementation of the refinement algorithms. A step-by-step guide how you can implement your own objective function can be found [here][CustomObjectiveFunction].
+
 Bug Reports
 -----------
 
@@ -383,14 +388,50 @@ If you use Mt-KaHyPar in an academic setting please cite the appropriate papers.
       doi         =	{10.4230/LIPIcs.SEA.2022.5}
     }
 
-    // Deterministic Partitioning (Technical Report)
-    @techreport{MT-KAHYPAR-SDET,
-      title       = {Deterministic Parallel Hypergraph Partitioning},
-      author      = {Lars Gottesbüren and
-                     Michael Hamann},
+    // Deterministic Partitioning
+    @inproceedings{MT-KAHYPAR-SDET,
+      author    = {Lars Gottesb{\"{u}}ren and
+                   Michael Hamann},
+      title     = {{Deterministic Parallel Hypergraph Partitioning}},
+      booktitle = {European Conference on Parallel Processing (Euro-Par)},
+      volume    = {13440},
+      pages     = {301--316},
+      publisher = {Springer},
+      year      = {2022},
+      doi       = {10.1007/978-3-031-12597-3\_19},
+    }
+
+    // Dissertation of Lars Gottesbüren
+    @phdthesis{MT-KAHYPAR-DIS-GOTTESBUEREN,
+      author         = {Lars Gottesb\"{u}ren},
+      year           = {2023},
+      title          = {Parallel and Flow-Based High-Quality Hypergraph Partitioning},
+      doi            = {10.5445/IR/1000157894},
+      pagetotal      = {256},
+      school         = {Karlsruhe Institute of Technology}
+    }
+
+    // Dissertation of Tobias Heuer
+    @phdthesis{MT-KAHYPAR-DIS-HEUER,
+        author       = {Heuer, Tobias},
+        year         = {2022},
+        title        = {Scalable High-Quality Graph and Hypergraph Partitioning},
+        doi          = {10.5445/IR/1000152872},
+        pagetotal    = {242},
+        school       = {Karlsruhe Institute of Technology}
+    }
+
+    // Mt-KaHyPar Journal Paper (Under Review)
+    @article{MT-KAHYPAR-JOURNAL,
+      title       = {Scalable High-Quality Hypergraph Partitioning},
+      author      = {Lars Gottesb{\"u}ren and
+                     Tobias Heuer and
+                     Nikolai Mass and
+                     Peter Sanders and
+                     Sebastian Schlag},
       institution = {Karlsruhe Institute of Technology},
-      year        = {2021},
-      url         = {https://arxiv.org/pdf/2112.12704.pdf}
+      year        = {2023}
+      url         = {https://arxiv.org/abs/2303.17679}
     }
 
 Contributing
@@ -408,3 +449,4 @@ feel free to contact us or create an issue on the
 [SetB]: http://algo2.iti.kit.edu/heuer/alenex21/instances.html?benchmark=set_b
 [ExperimentalResults]: https://algo2.iti.kit.edu/heuer/mt_kahypar/
 [MSYS2]: https://www.msys2.org/
+[CustomObjectiveFunction]: https://github.com/kahypar/mt-kahypar/tree/master/mt-kahypar/partition/refinement/gains

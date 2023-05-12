@@ -1,6 +1,6 @@
 # Guide for Implementing a Custom Objective Function
 
-We have defined a common interface for our gain computation techniques that we use in our refinement algorithms. This enables us to extend Mt-KaHyPar with new objective functions without touching the internal implementation of the refinement algorithms. This guide explains step-by-step how you can add your new custom objective function to Mt-KaHyPar. The only limitation of the current implementation is that you only can define minimization problems and the objective function must be defined on the hyperedges.
+We have defined a common interface for the gain computation techniques that we use in our refinement algorithms. This enables us to extend Mt-KaHyPar with new objective functions without having to modify the internal implementation of the refinement algorithms. This guide explains step-by-step how you can add your new custom objective function to Mt-KaHyPar. The only limitation of the current implementation is that it only allows you to define minimization problems, and the objective function must be defined on the hyperedges.
 
 ## Setup
 
