@@ -138,16 +138,15 @@ The ```capacity(...)``` function gives a hyperedge in the flow network a capacit
 
 To test your implementation, you can enable logging in our flow-based refinement algorithm by setting the ```debug``` flag to ```true``` in the class ```FlowRefinementScheduler``` (see ```partition/refinement/flows/scheduler.h```). Then, run Mt-KaHyPar with one thread using the following command line parameters: ```-t 1 --preset-type=default_flows```. If our flow-based refinement algorithm finds an improvement, it outputs the expected gain (initial objective value - maximum flow value) and the real gain (computed via attributed gains). If your implementation is correct, then the expected should always match the real gain.
 
-## TODOs
+## Extending the Library Interface with a Custom Objective Function
 
 ### C Interface
 
-- Add new enum type to ```mt_kahypar_objective_t```
-- Add metric to ```mt_kahypar_set_context_parameter```
-- Add to switch statement in ```mt_kahypar_set_partitioning_parameters```
-- Add function that computes the objective function
+- ```include/libmtkahypartypes.h```: Add a enum type to ```mt_kahypar_objective_t``` representing your new objective function
+- ```lib/libmtkahypar.cpp```: Create a mapping between the enum types ```mt_kahypar_objective_t``` and ```Objective``` in ```mt_kahypar_set_context_parameter(...)``` and ```mt_kahypar_set_partitioning_parameters(...)```
+- ```include/libmtkahypar.h```: Add a function that takes a ```mt_kahypar_partitioned_hypergraph_t``` and computes your objective function (similar to ```mt_kahypar_cut(...)``` and ```mt_kahypar_km1```).
 
 ### Python Interface
 
-- Add mapping between python Objective type and C objective type
-- Add a function that computes your objective function to ```PartitionedHypergraph``` and ```SparsePartitionedHypergraph```
+The Python interface is defined in ```python/module.cpp```. You only have to add a mapping between a string representation of your new objective function and our ```Objective``` enum type in the enum type section of the file. Afterwards, add function to the ```PartitionedGraph```, ```PartitionedHypergraph``` and ```SparsePartitionedHypergraph``` class that computes the value of your objective function.
+
