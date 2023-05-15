@@ -389,6 +389,7 @@ namespace mt_kahypar {
         _gains_and_target[hn] = {best_move.gain, best_move.to};
       }
     } else {
+      unused(hn);
       add_node_fn();
     }
   }
