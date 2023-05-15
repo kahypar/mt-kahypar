@@ -46,50 +46,106 @@ namespace mt_kahypar {
                   const parallel::scalable_vector<HypernodeID>& refinement_nodes,
                   Metrics& best_metrics,
                   const double time_limit)  {
+    const HyperedgeWeight input_quality = best_metrics.quality;
     PartitionedHypergraph& hypergraph = utils::cast<PartitionedHypergraph>(phg);
+    Metrics current_metrics = best_metrics;
+    utils::Timer& timer = utils::Utilities::instance().getTimer(_context.utility_id);
     resizeDataStructuresForCurrentK();
-    _gain.reset();
     _gain_cache.reset(); // current rebalancer is not capable of using the gain cache
 
     // Initialize set of active vertices
-    initializeActiveNodes(hypergraph, refinement_nodes);
+    timer.start_timer("compute_active_nodes", "Compute Active Nodes");
+    if (refinement_nodes.empty()) {
+      computeActiveNodesFromGraph(hypergraph);
+    } else {
+      computeActiveNodesFromVector(hypergraph, refinement_nodes);
+    }
+    timer.stop_timer("compute_active_nodes");
+    DBG << "[JET] initialization done, num_nodes=" << hypergraph.initialNumNodes();
 
-    // Perform Label Propagation
-    labelPropagationRound(hypergraph);
+    _current_partition_is_best = true;
+    size_t num_rounds = 0;
+    while (true) {
+      // We need to store the best partition for rollback and the current partition to determine
+      // which nodes have been moved. However, we don't need to write both if the best partition
+      // is equal to the current partition.
+      if (_current_partition_is_best) {
+        storeCurrentPartition(hypergraph, _best_partition);
+      } else {
+        storeCurrentPartition(hypergraph, _current_partition);
+      }
+      _gain.reset();
 
+      // Perform Label Propagation
+      timer.start_timer("label_propagation", "Label Propagation");
+      labelPropagationRound(hypergraph);
+      timer.stop_timer("label_propagation");
 
-    // Update metrics statistics
-    const HyperedgeWeight old_quality = best_metrics.quality;
-    DBG << "[JET] Old imbalance: " << best_metrics.imbalance << ", objective: " << old_quality;
-    best_metrics.imbalance = metrics::imbalance(hypergraph, _context);
-    Gain delta = _gain.delta();
-    DBG << "[JET] New imbalance: " << best_metrics.imbalance << ", tmp delta: " << delta;
-    best_metrics.quality += delta;
+      // Update metrics statistics
+      const HyperedgeWeight old_quality = current_metrics.quality;
+      DBG << "[JET] Old imbalance: " << current_metrics.imbalance << ", objective: " << old_quality;
+      current_metrics.imbalance = metrics::imbalance(hypergraph, _context);
+      Gain delta = _gain.delta();
+      DBG << "[JET] New imbalance: " << current_metrics.imbalance << ", tmp delta: " << delta;
+      current_metrics.quality += delta;
 
-    // recomputePenalties(hypergraph, false);
-    // HEAVY_REFINEMENT_ASSERT(hypergraph.checkTrackedPartitionInformation(_gain_cache));
+      // recomputePenalties(hypergraph, false);
 
-    bool did_rebalance = false;
-    if (!metrics::isBalanced(hypergraph, _context)) {
-      rebalance(hypergraph, best_metrics, time_limit);
+      bool did_rebalance = false;
+      if (!metrics::isBalanced(hypergraph, _context)) {
+        timer.start_timer("rebalance", "Rebalance");
+        rebalance(hypergraph, current_metrics, time_limit);
+        timer.stop_timer("rebalance");
 
-      best_metrics.imbalance = metrics::imbalance(hypergraph, _context);
-      delta = best_metrics.quality - old_quality;
-      DBG << "[JET] Imbalance after rebalancing: " << best_metrics.imbalance << ", total delta: " << delta;
-      did_rebalance = true;
+        current_metrics.imbalance = metrics::imbalance(hypergraph, _context);
+        delta = current_metrics.quality - old_quality;
+        DBG << "[JET] Imbalance after rebalancing: " << current_metrics.imbalance << ", total delta: " << delta;
+        did_rebalance = true;
+      }
+      recomputePenalties(hypergraph, did_rebalance);
+
+      HEAVY_REFINEMENT_ASSERT(hypergraph.checkTrackedPartitionInformation(_gain_cache));
+      HEAVY_REFINEMENT_ASSERT(current_metrics.quality ==
+        metrics::quality(hypergraph, _context, !_context.refinement.jet.execute_sequential),
+        V(current_metrics.quality) << V(metrics::quality(hypergraph, _context,
+            !_context.refinement.jet.execute_sequential)));
+
+      ++num_rounds;
+      if (metrics::isBalanced(hypergraph, _context) && current_metrics.quality <= best_metrics.quality) {
+        if (best_metrics.quality - current_metrics.quality >
+                _context.refinement.jet.relative_improvement_threshold * best_metrics.quality) {
+          num_rounds = 0;
+        }
+        best_metrics = current_metrics;
+        _current_partition_is_best = true;
+      } else {
+        _current_partition_is_best = false;
+      }
+      if (num_rounds >= _context.refinement.jet.num_iterations) {
+        break;
+      } else {
+        // initialize active vertices for next round
+        timer.start_timer("compute_active_nodes", "Compute Active Nodes");
+        computeActiveNodesFromPreviousRound(hypergraph);
+        timer.stop_timer("compute_active_nodes");
+      }
     }
 
-    recomputePenalties(hypergraph, did_rebalance);
+    if (!_current_partition_is_best) {
+      DBG << "[JET] Rollback to best partition with value " << best_metrics.quality;
+      rollbackToBestPartition(hypergraph);
+      recomputePenalties(hypergraph, true);
+    }
 
     HEAVY_REFINEMENT_ASSERT(hypergraph.checkTrackedPartitionInformation(_gain_cache));
     HEAVY_REFINEMENT_ASSERT(best_metrics.quality ==
-      metrics::quality(hypergraph, _context,
-        !_context.refinement.label_propagation.execute_sequential),
-      V(best_metrics.quality) << V(delta) << V(metrics::quality(hypergraph, _context,
-          !_context.refinement.label_propagation.execute_sequential)));
+      metrics::quality(hypergraph, _context, !_context.refinement.jet.execute_sequential),
+      V(best_metrics.quality) << V(metrics::quality(hypergraph, _context,
+          !_context.refinement.jet.execute_sequential)));
 
-    utils::Utilities::instance().getStats(_context.utility_id).update_stat("jet_improvement", std::abs(delta));
-    return delta < 0;
+    utils::Utilities::instance().getStats(_context.utility_id).update_stat(
+      "jet_improvement", input_quality - best_metrics.quality);
+    return best_metrics.quality < input_quality;
   }
 
   template <typename TypeTraits, typename GainTypes, bool precomputed>
@@ -131,20 +187,21 @@ namespace mt_kahypar {
 
         if (gain < 0) {
           changeNodePart(hypergraph, hn, from, to, objective_delta);
-          _active_node_was_moved.set(hn);
         }
       } else {
-        if ( moveVertexGreedily(hypergraph, hn, objective_delta) ) {
-          _active_node_was_moved.set(hn);
-        }
+        moveVertexGreedily(hypergraph, hn, objective_delta);
       }
     };
 
     if ( _context.refinement.jet.execute_sequential ) {
+      utils::Randomize::instance().shuffleVector(
+              _active_nodes, UL(0), _active_nodes.size(), SCHED_GETCPU);
       for ( size_t j = 0; j < _active_nodes.size(); ++j ) {
         move_node(j);
       }
     } else {
+      utils::Randomize::instance().parallelShuffleVector(
+              _active_nodes, UL(0), _active_nodes.size());
       tbb::parallel_for(UL(0), _active_nodes.size(), move_node);
     }
   }
@@ -157,118 +214,229 @@ namespace mt_kahypar {
   template <typename TypeTraits, typename GainTypes, bool precomputed>
   void JetRefiner<TypeTraits, GainTypes, precomputed>::recomputePenalties(const PartitionedHypergraph& hypergraph, 
                                                                           bool did_rebalance) {
+    parallel::scalable_vector<PartitionID>& current_parts = _current_partition_is_best ? _best_partition : _current_partition;
+    auto recompute = [&](const HypernodeID hn) {
+      const bool node_was_moved = (hypergraph.partID(hn) != current_parts[hn]);
+      if (node_was_moved) {
+        _gain_cache.recomputePenaltyTermEntry(hypergraph, hn);
+      } else {
+        ASSERT(_gain_cache.penaltyTerm(hn, hypergraph.partID(hn))
+              == _gain_cache.recomputePenaltyTerm(hypergraph, hn));
+      }
+    };
+
     if ( _context.forceGainCacheUpdates() && _gain_cache.isInitialized() ) {
       if (did_rebalance) {
         if ( _context.refinement.jet.execute_sequential ) {
           for ( const HypernodeID hn : hypergraph.nodes() ) {
-            _gain_cache.recomputePenaltyTermEntry(hypergraph, hn);
+            recompute(hn);
           }
         } else {
-          hypergraph.doParallelForAllNodes([&](const HypernodeID& hn) {
-            _gain_cache.recomputePenaltyTermEntry(hypergraph, hn);
-          });
+          hypergraph.doParallelForAllNodes(recompute);
         }
       } else {
-        auto recompute = [&](size_t j) {
-          const HypernodeID hn = _active_nodes[j];
-          if ( _active_node_was_moved[hn] ) {
-            _gain_cache.recomputePenaltyTermEntry(hypergraph, hn);
-          } else {
-            ASSERT(_gain_cache.penaltyTerm(hn, hypergraph.partID(hn))
-                  == _gain_cache.recomputePenaltyTerm(hypergraph, hn));
-          }
-        };
-
         if ( _context.refinement.jet.execute_sequential ) {
           for (size_t j = 0; j < _active_nodes.size(); ++j) {
-            recompute(j);
+            recompute(_active_nodes[j]);
           }
         } else {
-          tbb::parallel_for(UL(0), _active_nodes.size(), recompute);
+          tbb::parallel_for(UL(0), _active_nodes.size(), [&](const size_t j) {
+            recompute(_active_nodes[j]);
+          });
         }
       }
     }
   }
 
   template <typename TypeTraits, typename GainTypes, bool precomputed>
-  void JetRefiner<TypeTraits, GainTypes, precomputed>::initializeActiveNodes(
-                              PartitionedHypergraph& hypergraph,
-                              const parallel::scalable_vector<HypernodeID>& refinement_nodes) {
+  void JetRefiner<TypeTraits, GainTypes, precomputed>::computeActiveNodesFromGraph(const PartitionedHypergraph& hypergraph) {
+    const bool top_level = (hypergraph.initialNumNodes() == _top_level_num_nodes);
     _active_nodes.clear();
-    _gains_and_target.clear();
-    if ((_context.refinement.jet.vertex_locking == 0.0) || hypergraph.initialNumNodes() != _current_num_nodes) {
-      _active_node_was_moved.reset();
-      _current_num_nodes = hypergraph.initialNumNodes();
-    }
-    const double gain_factor = (_current_num_nodes == _top_level_num_nodes) ?
-                                _context.refinement.jet.negative_gain_factor_fine :
-                                _context.refinement.jet.negative_gain_factor_coarse;
-    mt_kahypar::utils::Randomize& randomize = mt_kahypar::utils::Randomize::instance();
 
     auto process_node = [&](const HypernodeID hn, auto add_node_fn) {
       bool accept_border = !_context.refinement.jet.restrict_to_border_nodes || hypergraph.isBorderNode(hn);
-      bool accept_locked = (_context.refinement.jet.vertex_locking == 0.0) || !_active_node_was_moved[hn];
-      if (!accept_locked && _context.refinement.jet.vertex_locking < 1.0) {
-        accept_locked = randomize.getRandomFloat(0.0, 1.0, SCHED_GETCPU) > _context.refinement.jet.vertex_locking;
-      }
-      if ( accept_border && accept_locked ) {
-        if constexpr (precomputed) {
-          RatingMap& tmp_scores = _gain.localScores();
-          Gain isolated_block_gain = 0;
-          _gain.precomputeGains(hypergraph, hn, tmp_scores, isolated_block_gain);
-          Move best_move = _gain.computeMaxGainMoveForScores(hypergraph, tmp_scores, isolated_block_gain,
-                                                             hn, false, false, true);
-          tmp_scores.clear();
-          bool accept_node = best_move.gain < std::floor(gain_factor * isolated_block_gain);
-          if (accept_node) {
-            add_node_fn(hn);
-            _gains_and_target[hn] = {best_move.gain, best_move.to};
-          }
-        } else {
-          add_node_fn(hn);
-        }
-      }
-      if (!accept_locked) {
-        ASSERT(_context.refinement.jet.vertex_locking > 0);
-        _active_node_was_moved.set(hn, false);
+      if (accept_border) {
+        processNode(hypergraph, hn, add_node_fn, top_level);
       }
     };
 
-    if ( refinement_nodes.empty() ) {
-        // setup active nodes sequentially
+    if ( _context.refinement.jet.execute_sequential ) {
+      // setup active nodes sequentially
+      for ( const HypernodeID hn : hypergraph.nodes() ) {
+        process_node(hn, [&] {
+          _active_nodes.push_back(hn);
+        });
+      }
+    } else {
+      // setup active nodes in parallel
+      ds::StreamingVector<HypernodeID> tmp_active_nodes;
+      hypergraph.doParallelForAllNodes([&](const HypernodeID& hn) {
+        process_node(hn, [&] {
+          tmp_active_nodes.stream(hn);
+        });
+      });
+      _active_nodes = tmp_active_nodes.copy_parallel();
+    }
+  }
+
+  template <typename TypeTraits, typename GainTypes, bool precomputed>
+  void JetRefiner<TypeTraits, GainTypes, precomputed>::computeActiveNodesFromVector(const PartitionedHypergraph& hypergraph,
+                                                                                    const parallel::scalable_vector<HypernodeID>& refinement_nodes) {
+    _active_nodes.clear();
+
+    if constexpr (precomputed) {
+      const bool top_level = (hypergraph.initialNumNodes() == _top_level_num_nodes);
       if ( _context.refinement.jet.execute_sequential ) {
-        for ( const HypernodeID hn : hypergraph.nodes() ) {
-          process_node(hn, [&](const HypernodeID hn) {
+        // setup active nodes sequentially
+        for ( const HypernodeID hn : refinement_nodes ) {
+          processNode(hypergraph, hn, [&] {
             _active_nodes.push_back(hn);
-          });
+          }, top_level);
         }
       } else {
         // setup active nodes in parallel
         ds::StreamingVector<HypernodeID> tmp_active_nodes;
-        hypergraph.doParallelForAllNodes([&](const HypernodeID& hn) {
-          process_node(hn, [&](const HypernodeID hn) {
+        tbb::parallel_for(UL(0), refinement_nodes.size(), [&](const size_t j) {
+          const HypernodeID hn = refinement_nodes[j];
+          processNode(hypergraph, hn, [&] {
             tmp_active_nodes.stream(hn);
-          });
+          }, top_level);
         });
-
         _active_nodes = tmp_active_nodes.copy_parallel();
       }
     } else {
-      ALWAYS_ASSERT(false); // TODO: rollback
-      if constexpr (precomputed) {
-        ALWAYS_ASSERT(false); // TODO
-      } else {
-        _active_nodes = refinement_nodes;
-      }
+      _active_nodes = refinement_nodes;
     }
+  }
+
+  template <typename TypeTraits, typename GainTypes, bool precomputed>
+  void JetRefiner<TypeTraits, GainTypes, precomputed>::computeActiveNodesFromPreviousRound(const PartitionedHypergraph& hypergraph) {
+    const bool top_level = (hypergraph.initialNumNodes() == _top_level_num_nodes);
+    mt_kahypar::utils::Randomize& randomize = mt_kahypar::utils::Randomize::instance();
+    parallel::scalable_vector<PartitionID>& current_parts = _current_partition_is_best ? _best_partition : _current_partition;
+    _active_nodes.clear();
+    _visited_he.reset();
+    _next_active.reset();
+
+    auto activate_neighbors_if_moved = [&](const HypernodeID hn, auto add_node_fn) {
+      if (hypergraph.partID(hn) == current_parts[hn]) {
+        return; // vertex was not moved
+      }
+
+      // Set all neighbors of the vertex to active
+      for (const HyperedgeID& he : hypergraph.incidentEdges(hn)) {
+        if ( hypergraph.edgeSize(he) <= ID(_context.refinement.jet.hyperedge_size_activation_threshold) ) {
+          if ( !_visited_he[he] ) {
+            for (const HypernodeID& pin : hypergraph.pins(he)) {
+              if ( pin != hn && _next_active.compare_and_set_to_true(pin) ) {
+                // check whether vertex locking forbids activating this vertex
+                bool accept_locked = (_context.refinement.jet.vertex_locking == 0.0) || hypergraph.partID(pin) == current_parts[pin];
+                if (!accept_locked && _context.refinement.jet.vertex_locking < 1.0) {
+                  accept_locked = randomize.getRandomFloat(0.0, 1.0, SCHED_GETCPU) > _context.refinement.jet.vertex_locking;
+                }
+                if (accept_locked) {
+                  add_node_fn(pin);
+                }
+              }
+            }
+            _visited_he.set(he, true);
+          }
+        }
+      }
+    };
 
     if ( _context.refinement.jet.execute_sequential ) {
-      utils::Randomize::instance().shuffleVector(
-              _active_nodes, UL(0), _active_nodes.size(), SCHED_GETCPU);
+      // setup active nodes sequentially
+      for ( const HypernodeID hn : hypergraph.nodes() ) {
+        activate_neighbors_if_moved(hn, [&](const HypernodeID neighbor) {
+          processNode(hypergraph, neighbor, [&] {
+            _active_nodes.push_back(neighbor);
+          }, top_level);
+        });
+      }
     } else {
-      utils::Randomize::instance().parallelShuffleVector(
-              _active_nodes, UL(0), _active_nodes.size());
+      // setup active nodes in parallel (use two phases for better load balancing)
+      ds::StreamingVector<HypernodeID> tmp_active_nodes;
+      hypergraph.doParallelForAllNodes([&](const HypernodeID& hn) {
+        activate_neighbors_if_moved(hn, [&](const HypernodeID neighbor) {
+          tmp_active_nodes.stream(neighbor);
+        });
+      });
+      _active_nodes = tmp_active_nodes.copy_parallel();
+      tmp_active_nodes.clear_sequential();
+      tbb::parallel_for(UL(0), _active_nodes.size(), [&](const size_t j) {
+        processNode(hypergraph, _active_nodes[j], [&] {
+          tmp_active_nodes.stream(_active_nodes[j]);
+        }, top_level);
+      });
+      _active_nodes = tmp_active_nodes.copy_parallel();
+      tmp_active_nodes.clear_parallel();
     }
+  }
+
+  template <typename TypeTraits, typename GainTypes, bool precomputed>
+  template<typename F>
+  void JetRefiner<TypeTraits, GainTypes, precomputed>::processNode(const PartitionedHypergraph& hypergraph,
+                                                                   const HypernodeID hn, F add_node_fn,
+                                                                   const bool top_level) {
+    const double gain_factor = top_level ? _context.refinement.jet.negative_gain_factor_fine :
+                                           _context.refinement.jet.negative_gain_factor_coarse;
+    if constexpr (precomputed) {
+      RatingMap& tmp_scores = _gain.localScores();
+      Gain isolated_block_gain = 0;
+      _gain.precomputeGains(hypergraph, hn, tmp_scores, isolated_block_gain);
+      Move best_move = _gain.computeMaxGainMoveForScores(hypergraph, tmp_scores, isolated_block_gain,
+                                                          hn, false, false, true);
+      tmp_scores.clear();
+      bool accept_node = best_move.gain < std::floor(gain_factor * isolated_block_gain);
+      if (accept_node) {
+        add_node_fn();
+        _gains_and_target[hn] = {best_move.gain, best_move.to};
+      }
+    } else {
+      unused(hn);
+      add_node_fn();
+    }
+  }
+
+  template <typename TypeTraits, typename GainTypes, bool precomputed>
+  void JetRefiner<TypeTraits, GainTypes, precomputed>::storeCurrentPartition(const PartitionedHypergraph& hypergraph,
+                                                                             parallel::scalable_vector<PartitionID>& parts) {
+    if ( _context.refinement.jet.execute_sequential ) {
+      for (const HypernodeID hn : hypergraph.nodes()) {
+        parts[hn] = hypergraph.partID(hn);
+      }
+    } else {
+      hypergraph.doParallelForAllNodes([&](const HypernodeID hn) {
+        parts[hn] = hypergraph.partID(hn);
+      });
+    }
+  }
+
+  template <typename TypeTraits, typename GainTypes, bool precomputed>
+  void JetRefiner<TypeTraits, GainTypes, precomputed>::rollbackToBestPartition(PartitionedHypergraph& hypergraph) {
+    // This function is passed as lambda to the changeNodePart function and used
+    // to calculate the "real" delta of a move (in terms of the used objective function).
+    auto objective_delta = [&](const SyncronizedEdgeUpdate& sync_update) {
+      _gain.computeDeltaForHyperedge(sync_update);
+    };
+
+    auto reset_node = [&](const HypernodeID hn) {
+      const PartitionID part_id = hypergraph.partID(hn);
+      if (part_id != _best_partition[hn]) {
+        ASSERT(_best_partition[hn] != kInvalidPartition);
+        changeNodePart(hypergraph, hn, part_id, _best_partition[hn], objective_delta);
+      }
+    };
+
+    if ( _context.refinement.jet.execute_sequential ) {
+      for (const HypernodeID hn : hypergraph.nodes()) {
+        reset_node(hn);
+      }
+    } else {
+      hypergraph.doParallelForAllNodes(reset_node);
+    }
+    _current_partition_is_best = true;
   }
 
   template <typename TypeTraits, typename GainTypes, bool precomputed>

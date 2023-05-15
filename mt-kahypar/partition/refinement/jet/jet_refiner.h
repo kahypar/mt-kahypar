@@ -53,18 +53,21 @@ class JetRefiner final : public IRefiner {
 
  public:
   explicit JetRefiner(const HypernodeID num_hypernodes,
-                      const HyperedgeID,
+                      const HyperedgeID num_hyperedges,
                       const Context& context,
                       GainCache& gain_cache) :
     _context(context),
     _gain_cache(gain_cache),
     _current_k(context.partition.k),
     _top_level_num_nodes(num_hypernodes),
-    _current_num_nodes(num_hypernodes),
+    _current_partition_is_best(true),
+    _best_partition(num_hypernodes, kInvalidPartition),
+    _current_partition(num_hypernodes, kInvalidPartition),
     _gain(context),
     _active_nodes(),
-    _active_node_was_moved(num_hypernodes),
-    _gains_and_target(precomputed ? num_hypernodes : 0) { }
+    _gains_and_target(precomputed ? num_hypernodes : 0),
+    _next_active(num_hypernodes),
+    _visited_he(num_hyperedges) { }
 
   explicit JetRefiner(const HypernodeID num_hypernodes,
                       const HyperedgeID num_hyperedges,
@@ -126,7 +129,22 @@ class JetRefiner final : public IRefiner {
 
   void initializeImpl(mt_kahypar_partitioned_hypergraph_t&) final;
 
+  void computeActiveNodesFromGraph(const PartitionedHypergraph& hypergraph);
+
+  void computeActiveNodesFromVector(const PartitionedHypergraph& hypergraph,
+                                    const parallel::scalable_vector<HypernodeID>& refinement_nodes);
+
+  void computeActiveNodesFromPreviousRound(const PartitionedHypergraph& hypergraph);
+
+  // ! Applied during computation of active nodes. If precomputed, applies the first JET filter
+  template<typename F>
+  void processNode(const PartitionedHypergraph& hypergraph, const HypernodeID hn, F add_node_fn, const bool top_level);
+
   void recomputePenalties(const PartitionedHypergraph& hypergraph, bool did_rebalance);
+
+  void storeCurrentPartition(const PartitionedHypergraph& hypergraph, parallel::scalable_vector<PartitionID>& parts);
+
+  void rollbackToBestPartition(PartitionedHypergraph& hypergraph);
 
   void rebalance(PartitionedHypergraph& hypergraph, Metrics& current_metrics, double time_limit);
 
@@ -160,11 +178,14 @@ class JetRefiner final : public IRefiner {
   GainCache& _gain_cache;
   PartitionID _current_k;
   HypernodeID _top_level_num_nodes;
-  HypernodeID _current_num_nodes;
+  bool _current_partition_is_best;
+  parallel::scalable_vector<PartitionID> _best_partition;
+  parallel::scalable_vector<PartitionID> _current_partition;
   GainCalculator _gain;
   ActiveNodes _active_nodes;
-  kahypar::ds::FastResetFlagArray<> _active_node_was_moved;
   parallel::scalable_vector<std::pair<Gain, PartitionID>> _gains_and_target;
+  ds::ThreadSafeFastResetFlagArray<> _next_active;
+  kahypar::ds::FastResetFlagArray<> _visited_he;
 };
 
 template<typename TypeTraits, typename GainCache>

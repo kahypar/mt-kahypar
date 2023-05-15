@@ -398,11 +398,16 @@ namespace mt_kahypar {
              "- precomputed_ordered\n"
              "- greedy_unordered\n"
              "- do_nothing")
-        //     ((initial_partitioning ? "i-r-jet-maximum-iterations" : "r-jet-maximum-iterations"),
-        //      po::value<size_t>((!initial_partitioning ? &context.refinement.jet.maximum_iterations :
-        //                         &context.initial_partitioning.refinement.jet.maximum_iterations))->value_name(
-        //              "<size_t>")->default_value(5),
-        //      "Maximum number of jet rounds")
+            ((initial_partitioning ? "i-r-jet-maximum-iterations" : "r-jet-maximum-iterations"),
+             po::value<size_t>((!initial_partitioning ? &context.refinement.jet.num_iterations :
+                                &context.initial_partitioning.refinement.jet.num_iterations))->value_name(
+                     "<size_t>")->default_value(12),
+             "Maximum number of jet iterations after no improvement is found.")
+            ((initial_partitioning ? "i-r-jet-relative-improvement-threshold" : "r-jet-relative-improvement-threshold"),
+             po::value<double>((!initial_partitioning ? &context.refinement.jet.relative_improvement_threshold :
+                                &context.initial_partitioning.refinement.jet.relative_improvement_threshold))->value_name(
+                     "<double>")->default_value(0.001),
+             "Maximum number of jet iterations after no improvement is found.")
             ((initial_partitioning ? "i-r-jet-restrict-to-border-nodes" : "r-jet-restrict-to-border-nodes"),
              po::value<bool>((!initial_partitioning ? &context.refinement.jet.restrict_to_border_nodes :
                               &context.initial_partitioning.refinement.jet.restrict_to_border_nodes))->value_name(
@@ -425,6 +430,13 @@ namespace mt_kahypar {
                       &context.initial_partitioning.refinement.jet.negative_gain_factor_fine))->value_name(
                      "<double>")->default_value(0.75),
              "Factor used by JET for filtering negative gain moves (only applicable to precomputed_ordered).")
+            ((initial_partitioning ? "i-r-jet-he-size-activation-threshold" : "r-jet-he-size-activation-threshold"),
+             po::value<size_t>(
+                     (!initial_partitioning ? &context.refinement.jet.hyperedge_size_activation_threshold
+                                            :
+                      &context.initial_partitioning.refinement.jet.hyperedge_size_activation_threshold))->value_name(
+                     "<size_t>")->default_value(100),
+             "JET refiner activates only neighbors of moved vertices that are part of hyperedges with a size less than this threshold")
             ((initial_partitioning ? "i-r-fm-type" : "r-fm-type"),
              po::value<std::string>()->value_name("<string>")->notifier(
                      [&, initial_partitioning](const std::string& type) {

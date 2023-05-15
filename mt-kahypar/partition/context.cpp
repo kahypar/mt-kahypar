@@ -133,7 +133,8 @@ namespace mt_kahypar {
     str << "  Jet Parameters:" << std::endl;
     str << "    Algorithm:                        " << params.algorithm << std::endl;
     if ( params.algorithm != JetAlgorithm::do_nothing ) {
-      // str << "    Maximum Iterations:               " << params.maximum_iterations << std::endl;
+      str << "    Num Iterations:                   " << params.num_iterations << std::endl;
+      str << "    Relative Improvement Threshold:   " << params.relative_improvement_threshold << std::endl;
       str << "    Restrict to Border Nodes:         " << std::boolalpha << params.restrict_to_border_nodes << std::endl;
       str << "    Vertex Locking:                   " << std::boolalpha << params.vertex_locking << std::endl;
       str << "    Negative Gain Factor (Coarse):    " << params.negative_gain_factor_coarse << std::endl;

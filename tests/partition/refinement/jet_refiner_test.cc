@@ -39,27 +39,29 @@
 using ::testing::Test;
 
 namespace mt_kahypar {
-template <typename TypeTraitsT, PartitionID k, Objective objective, bool precomputed>
+template <typename TypeTraitsT, PartitionID k, Objective objective, bool precomputed, bool sequential = false>
 struct TestConfig { };
 
-template <typename TypeTraitsT, PartitionID k, bool precomputed>
-struct TestConfig<TypeTraitsT, k, Objective::km1, precomputed> {
+template <typename TypeTraitsT, PartitionID k, bool precomputed, bool sequential>
+struct TestConfig<TypeTraitsT, k, Objective::km1, precomputed, sequential> {
   using TypeTraits = TypeTraitsT;
   using GainTypes = Km1GainTypes;
   using Refiner = JetRefiner<TypeTraits, Km1GainTypes, precomputed>;
   static constexpr PartitionID K = k;
   static constexpr Objective OBJECTIVE = Objective::km1;
   static constexpr JetAlgorithm JET_ALGO = JetAlgorithm::greedy_unordered;
+  static constexpr bool execute_sequential = sequential;
 };
 
-template <typename TypeTraitsT, PartitionID k, bool precomputed>
-struct TestConfig<TypeTraitsT, k, Objective::cut, precomputed> {
+template <typename TypeTraitsT, PartitionID k, bool precomputed, bool sequential>
+struct TestConfig<TypeTraitsT, k, Objective::cut, precomputed, sequential> {
   using TypeTraits = TypeTraitsT;
   using GainTypes = CutGainTypes;
   using Refiner = JetRefiner<TypeTraits, CutGainTypes, precomputed>;
   static constexpr PartitionID K = k;
   static constexpr Objective OBJECTIVE = Objective::cut;
   static constexpr JetAlgorithm JET_ALGO = JetAlgorithm::greedy_unordered;
+  static constexpr bool execute_sequential = sequential;
 };
 
 template <typename Config>
@@ -109,6 +111,7 @@ class AJetRefiner : public Test {
     context.refinement.jet.algorithm = Config::JET_ALGO;
     context.initial_partitioning.refinement.jet.algorithm = Config::JET_ALGO;
     context.initial_partitioning.refinement.jet.vertex_locking = false;
+    context.initial_partitioning.refinement.jet.execute_sequential = Config::execute_sequential;
 
     // Read hypergraph
     hypergraph = io::readInputFile<Hypergraph>(
@@ -150,18 +153,23 @@ size_t AJetRefiner<Config>::num_threads = HardwareTopology::instance().num_cpus(
 static constexpr double EPS = 0.05;
 
 typedef ::testing::Types<TestConfig<StaticHypergraphTypeTraits, 2, Objective::cut, false>,
+                         TestConfig<StaticHypergraphTypeTraits, 2, Objective::cut, false, true>,
                          TestConfig<StaticHypergraphTypeTraits, 4, Objective::cut, false>,
                          TestConfig<StaticHypergraphTypeTraits, 8, Objective::cut, false>,
                          TestConfig<StaticHypergraphTypeTraits, 2, Objective::km1, false>,
+                         TestConfig<StaticHypergraphTypeTraits, 2, Objective::km1, false, true>,
                          TestConfig<StaticHypergraphTypeTraits, 4, Objective::km1, false>,
                          TestConfig<StaticHypergraphTypeTraits, 8, Objective::km1, false>,
                          TestConfig<StaticHypergraphTypeTraits, 2, Objective::cut, true>,
+                         TestConfig<StaticHypergraphTypeTraits, 2, Objective::cut, true, true>,
                          TestConfig<StaticHypergraphTypeTraits, 4, Objective::cut, true>,
                          TestConfig<StaticHypergraphTypeTraits, 8, Objective::cut, true>,
                          TestConfig<StaticHypergraphTypeTraits, 2, Objective::km1, true>,
+                         TestConfig<StaticHypergraphTypeTraits, 2, Objective::km1, true, true>,
                          TestConfig<StaticHypergraphTypeTraits, 4, Objective::km1, true>,
                          TestConfig<StaticHypergraphTypeTraits, 8, Objective::km1, true>
                          ENABLE_N_LEVEL(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA 2 COMMA Objective::cut COMMA false>)
+                         ENABLE_N_LEVEL(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA 2 COMMA Objective::cut COMMA false COMMA true>)
                          ENABLE_N_LEVEL(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA 4 COMMA Objective::cut COMMA false>)
                          ENABLE_N_LEVEL(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA 8 COMMA Objective::cut COMMA false>)
                          ENABLE_N_LEVEL(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA 2 COMMA Objective::km1 COMMA false>)
