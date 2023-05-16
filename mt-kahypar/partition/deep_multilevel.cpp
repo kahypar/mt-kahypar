@@ -37,9 +37,7 @@
 #include "mt-kahypar/macros.h"
 #include "mt-kahypar/partition/multilevel.h"
 #include "mt-kahypar/partition/coarsening/multilevel_uncoarsener.h"
-#ifdef KAHYPAR_ENABLE_N_LEVEL_PARTITIONING_FEATURES
 #include "mt-kahypar/partition/coarsening/nlevel_uncoarsener.h"
-#endif
 #include "mt-kahypar/partition/initial_partitioning/pool_initial_partitioner.h"
 #include "mt-kahypar/partition/preprocessing/sparsification/degree_zero_hn_remover.h"
 #include "mt-kahypar/partition/refinement/gains/gain_cache_ptr.h"
@@ -292,12 +290,8 @@ Context setupBipartitioningContext(const Hypergraph& hypergraph,
 
   b_context.partition.k = 2;
   b_context.partition.objective = Objective::cut;
-  #ifdef KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES
   b_context.partition.gain_policy = Hypergraph::is_graph ?
     GainPolicy::cut_for_graphs : GainPolicy::cut;
-  #else
-  b_context.partition.gain_policy = GainPolicy::cut;
-  #endif
   b_context.partition.verbose_output = false;
   b_context.initial_partitioning.mode = Mode::direct;
   b_context.type = ContextType::initial_partitioning;
@@ -638,12 +632,10 @@ void bipartition_each_block(typename TypeTraits::PartitionedHypergraph& partitio
       bipartition_each_block<TypeTraits>(partitioned_hg, context,
         GainCachePtr::cast<SoedGainCache>(gain_cache), info, rb_tree,
         already_cut, current_k, current_objective, progress_bar_enabled); break;
-    #ifdef KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES
     case GainPolicy::cut_for_graphs:
       bipartition_each_block<TypeTraits>(partitioned_hg, context,
         GainCachePtr::cast<GraphCutGainCache>(gain_cache), info, rb_tree,
         already_cut, current_k, current_objective, progress_bar_enabled); break;
-    #endif
     case GainPolicy::none: break;
   }
 }
@@ -845,16 +837,11 @@ PartitionID deep_multilevel_partitioning(typename TypeTraits::PartitionedHypergr
     context.partition.enable_progress_bar && !debug;
   context.partition.enable_progress_bar = false;
   std::unique_ptr<IUncoarsener<TypeTraits>> uncoarsener(nullptr);
-  #ifdef KAHYPAR_ENABLE_N_LEVEL_PARTITIONING_FEATURES
   if (uncoarseningData.nlevel) {
     uncoarsener = std::make_unique<NLevelUncoarsener<TypeTraits>>(hypergraph, context, uncoarseningData);
   } else {
     uncoarsener = std::make_unique<MultilevelUncoarsener<TypeTraits>>(hypergraph, context, uncoarseningData);
   }
-  #else
-  uncoarsener = std::make_unique<MultilevelUncoarsener<TypeTraits>>(hypergraph, context, uncoarseningData);
-  #endif
-
   uncoarsener->initialize();
 
   // Determine the current number of blocks (k), the number of blocks in which the

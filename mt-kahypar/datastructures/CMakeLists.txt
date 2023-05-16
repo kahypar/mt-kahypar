@@ -22,27 +22,13 @@ set(NLevelGraphDatastructureSources
       graph.cpp
       dynamic_adjacency_array.cpp)
 
-if(KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES)
-  foreach(modtarget IN LISTS PARTITIONING_SUITE_TARGETS)
-    target_sources(${modtarget} PRIVATE ${MultilevelGraphDatastructureSources})
-  endforeach()
-
-  if ( KAHYPAR_ENABLE_N_LEVEL_PARTITIONING_FEATURES )
-    foreach(modtarget IN LISTS PARTITIONING_SUITE_TARGETS)
-      target_sources(${modtarget} PRIVATE ${NLevelGraphDatastructureSources})
-    endforeach()
-  endif()
-endif()
 
 foreach(modtarget IN LISTS PARTITIONING_SUITE_TARGETS)
+  target_sources(${modtarget} PRIVATE ${MultilevelGraphDatastructureSources})
+  target_sources(${modtarget} PRIVATE ${NLevelGraphDatastructureSources})
   target_sources(${modtarget} PRIVATE ${MultilevelDatastructureSources})
+  target_sources(${modtarget} PRIVATE ${NLevelDatastructureSources})
 endforeach()
-
-if ( KAHYPAR_ENABLE_N_LEVEL_PARTITIONING_FEATURES )
-  foreach(modtarget IN LISTS PARTITIONING_SUITE_TARGETS)
-    target_sources(${modtarget} PRIVATE ${NLevelDatastructureSources})
-  endforeach()
-endif()
 
 set(ToolsDatastructureSources
       static_hypergraph_factory.cpp

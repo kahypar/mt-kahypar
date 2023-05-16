@@ -36,35 +36,25 @@ mt_kahypar_hypergraph_type_t to_hypergraph_c_type(const PresetType preset,
   if ( instance == InstanceType::hypergraph ) {
     switch ( preset ) {
       case PresetType::deterministic:
-      #ifdef KAHYPAR_ENABLE_LARGE_K_PARTITIONING_FEATURES
       case PresetType::large_k:
-      #endif
       case PresetType::default_preset:
       case PresetType::default_flows: return STATIC_HYPERGRAPH;
-      #ifdef KAHYPAR_ENABLE_N_LEVEL_PARTITIONING_FEATURES
       case PresetType::quality_preset:
       case PresetType::quality_flows: return DYNAMIC_HYPERGRAPH;
-      #endif
       case PresetType::UNDEFINED: ERR("Unknown preset type!");
     }
   }
-  #ifdef KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES
   else if ( instance == InstanceType::graph ) {
     switch ( preset ) {
       case PresetType::deterministic:
-      #ifdef KAHYPAR_ENABLE_LARGE_K_PARTITIONING_FEATURES
       case PresetType::large_k:
-      #endif
       case PresetType::default_preset:
       case PresetType::default_flows: return STATIC_GRAPH;
-      #ifdef KAHYPAR_ENABLE_N_LEVEL_PARTITIONING_FEATURES
       case PresetType::quality_preset:
       case PresetType::quality_flows: return DYNAMIC_GRAPH;
-      #endif
       case PresetType::UNDEFINED: ERR("Unknown preset type!");
     }
   }
-  #endif
   else {
     ERR("Unknown instance type. Should be either graph or hypergraph");
   }
@@ -73,41 +63,27 @@ mt_kahypar_hypergraph_type_t to_hypergraph_c_type(const PresetType preset,
 
 mt_kahypar_partition_type_t to_partition_c_type(const PresetType preset,
                                                 const InstanceType instance) {
-  #ifdef KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES
   if ( instance == InstanceType::graph ) {
     if ( preset == PresetType::default_preset ||
          preset == PresetType::default_flows ||
-         #ifdef KAHYPAR_ENABLE_LARGE_K_PARTITIONING_FEATURES
          preset == PresetType::large_k ||
-         #endif
          preset == PresetType::deterministic ) {
       return MULTILEVEL_GRAPH_PARTITIONING;
-    }
-    #ifdef KAHYPAR_ENABLE_N_LEVEL_PARTITIONING_FEATURES
-    else if ( preset == PresetType::quality_preset ||
+    } else if ( preset == PresetType::quality_preset ||
                 preset == PresetType::quality_flows ) {
       return N_LEVEL_GRAPH_PARTITIONING;
     }
-    #endif
-  } else
-  #endif
-  if ( instance == InstanceType::hypergraph ) {
+  } else if ( instance == InstanceType::hypergraph ) {
     if ( preset == PresetType::default_preset ||
          preset == PresetType::default_flows ||
          preset == PresetType::deterministic ) {
       return MULTILEVEL_HYPERGRAPH_PARTITIONING;
-    }
-    #ifdef KAHYPAR_ENABLE_N_LEVEL_PARTITIONING_FEATURES
-    else if ( preset == PresetType::quality_preset ||
+    } else if ( preset == PresetType::quality_preset ||
                 preset == PresetType::quality_flows ) {
       return N_LEVEL_HYPERGRAPH_PARTITIONING;
-    }
-    #endif
-    #ifdef KAHYPAR_ENABLE_LARGE_K_PARTITIONING_FEATURES
-    else if ( preset == PresetType::large_k ) {
+    } else if ( preset == PresetType::large_k ) {
       return LARGE_K_PARTITIONING;
     }
-    #endif
   }
   return NULLPTR_PARTITION;
 }
@@ -116,44 +92,29 @@ PresetType to_preset_type(const Mode mode,
                           const PartitionID k,
                           const CoarseningAlgorithm coarsening_algo,
                           const FlowAlgorithm flow_algo) {
-  #ifndef KAHYPAR_ENABLE_LARGE_K_PARTITIONING_FEATURES
-  unused(mode);
-  unused(k);
-  #endif
   if ( coarsening_algo == CoarseningAlgorithm::deterministic_multilevel_coarsener ) {
     return PresetType::deterministic;
-  }
-  #ifdef KAHYPAR_ENABLE_LARGE_K_PARTITIONING_FEATURES
-  else if ( mode == Mode::deep_multilevel && k >= 1024 ) {
+  } else if ( mode == Mode::deep_multilevel && k >= 1024 ) {
     return PresetType::large_k;
-  }
-  #endif
-  else if ( coarsening_algo == CoarseningAlgorithm::multilevel_coarsener ) {
+  } else if ( coarsening_algo == CoarseningAlgorithm::multilevel_coarsener ) {
     if ( flow_algo == FlowAlgorithm::flow_cutter ) {
       return PresetType::default_flows;
     } else {
       return PresetType::default_preset;
     }
-  }
-  #ifdef KAHYPAR_ENABLE_N_LEVEL_PARTITIONING_FEATURES
-  else if ( coarsening_algo == CoarseningAlgorithm::nlevel_coarsener ) {
+  } else if ( coarsening_algo == CoarseningAlgorithm::nlevel_coarsener ) {
     if ( flow_algo == FlowAlgorithm::flow_cutter ) {
       return PresetType::quality_flows;
     } else {
       return PresetType::quality_preset;
     }
   }
-  #endif
   return PresetType::UNDEFINED;
 }
 
 InstanceType to_instance_type(const FileFormat format) {
   if ( format == FileFormat::Metis ) {
-    #ifdef KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES
     return InstanceType::graph;
-    #else
-    return InstanceType::hypergraph;
-    #endif
   } else if ( format == FileFormat::hMetis ) {
     return InstanceType::hypergraph;
   }

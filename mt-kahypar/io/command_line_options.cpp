@@ -105,9 +105,7 @@ namespace mt_kahypar {
                context.partition.instance_type = instanceTypeFromString(type);
              }),
              "Instance Type: \n"
-             #ifdef KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES
              " - graph\n"
-             #endif
              " - hypergraph")
             ("preset-type",
              po::value<std::string>()->value_name("<string>")->notifier([&](const std::string& type) {
@@ -117,13 +115,9 @@ namespace mt_kahypar {
              " - deterministic (Mt-KaHyPar-Det)\n"
              " - default (Mt-KaHyPar-D)\n"
              " - default_flows (Mt-KaHyPar-D-F)\n"
-             #ifdef KAHYPAR_ENABLE_N_LEVEL_PARTITIONING_FEATURES
              " - quality (Mt-KaHyPar-Q)\n"
              " - quality_flows (Mt-KaHyPar-Q-F)\n"
-             #endif
-             #ifdef KAHYPAR_ENABLE_LARGE_K_PARTITIONING_FEATURES
              " - large_k"
-             #endif
              )
             ("seed",
              po::value<int>(&context.partition.seed)->value_name("<int>")->default_value(0),
@@ -247,9 +241,7 @@ namespace mt_kahypar {
                      })->default_value("multilevel_coarsener"),
              "Coarsening Algorithm:\n"
              " - multilevel_coarsener"
-             #ifdef KAHYPAR_ENABLE_N_LEVEL_PARTITIONING_FEATURES
              " - nlevel_coarsener"
-             #endif
              " - deterministic_multilevel_coarsener"
              )
             ("c-use-adaptive-edge-size",

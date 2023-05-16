@@ -227,11 +227,7 @@ namespace mt_kahypar::io {
       max_part_size = std::max(max_part_size, part_sizes[i]);
       num_imbalanced_blocks +=
         (hypergraph.partWeight(i) > context.partition.max_part_weights[i] ||
-          (
-          #ifdef KAHYPAR_ENABLE_LARGE_K_PARTITIONING_FEATURES
-          context.partition.preset_type != PresetType::large_k &&
-          #endif
-          hypergraph.partWeight(i) == 0 ));
+          ( context.partition.preset_type != PresetType::large_k && hypergraph.partWeight(i) == 0 ));
     }
     avg_part_weight /= context.partition.k;
 
@@ -241,11 +237,7 @@ namespace mt_kahypar::io {
       for (PartitionID i = 0; i != context.partition.k; ++i) {
         bool is_imbalanced =
                 hypergraph.partWeight(i) > context.partition.max_part_weights[i] ||
-                (
-                #ifdef KAHYPAR_ENABLE_LARGE_K_PARTITIONING_FEATURES
-                context.partition.preset_type != PresetType::large_k &&
-                #endif
-                hypergraph.partWeight(i) == 0 );
+                ( context.partition.preset_type != PresetType::large_k && hypergraph.partWeight(i) == 0 );
         if ( is_imbalanced ) std::cout << RED;
         std::cout << "|block " << std::left  << std::setw(k_digits) << i
                   << std::setw(1) << "| = "  << std::right << std::setw(part_digits) << part_sizes[i]
@@ -269,11 +261,7 @@ namespace mt_kahypar::io {
         for (PartitionID i = 0; i != context.partition.k; ++i) {
           const bool is_imbalanced =
             hypergraph.partWeight(i) > context.partition.max_part_weights[i] ||
-            (
-            #ifdef KAHYPAR_ENABLE_LARGE_K_PARTITIONING_FEATURES
-            context.partition.preset_type != PresetType::large_k &&
-            #endif
-            hypergraph.partWeight(i) == 0 );
+            ( context.partition.preset_type != PresetType::large_k && hypergraph.partWeight(i) == 0 );
           if ( is_imbalanced ) {
             std::cout << RED << "|block " << std::left  << std::setw(k_digits) << i
                       << std::setw(1) << "| = "  << std::right << std::setw(part_digits) << part_sizes[i]

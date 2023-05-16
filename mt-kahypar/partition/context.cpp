@@ -226,15 +226,8 @@ namespace mt_kahypar {
   }
 
   bool Context::isNLevelPartitioning() const {
-    #ifdef KAHYPAR_ENABLE_N_LEVEL_PARTITIONING_FEATURES
-    return
-      #ifdef KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES
-      partition.partition_type == N_LEVEL_GRAPH_PARTITIONING ||
-      #endif
+    return partition.partition_type == N_LEVEL_GRAPH_PARTITIONING ||
       partition.partition_type == N_LEVEL_HYPERGRAPH_PARTITIONING;
-    #else
-    return false;
-    #endif
   }
 
   bool Context::forceGainCacheUpdates() const {
@@ -315,7 +308,6 @@ namespace mt_kahypar {
   }
 
   void Context::sanityCheck() {
-    #ifdef KAHYPAR_ENABLE_N_LEVEL_PARTITIONING_FEATURES
     if ( isNLevelPartitioning() && coarsening.algorithm == CoarseningAlgorithm::multilevel_coarsener ) {
         ALGO_SWITCH("Coarsening algorithm" << coarsening.algorithm << "is only supported in multilevel mode."
                                            << "Do you want to use the n-level version instead (Y/N)?",
@@ -331,7 +323,6 @@ namespace mt_kahypar {
                     coarsening.algorithm,
                     CoarseningAlgorithm::multilevel_coarsener);
     }
-    #endif
 
     ASSERT(partition.use_individual_part_weights != partition.max_part_weights.empty());
     if (partition.use_individual_part_weights && static_cast<size_t>(partition.k) != partition.max_part_weights.size()) {
@@ -376,23 +367,18 @@ namespace mt_kahypar {
         case Objective::soed: partition.gain_policy = GainPolicy::soed; break;
         case Objective::UNDEFINED: partition.gain_policy = GainPolicy::none; break;
       }
-    }
-    #ifdef KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES
-    else if ( partition.instance_type == InstanceType::graph ) {
+    } else if ( partition.instance_type == InstanceType::graph ) {
       if ( partition.objective != Objective::cut ) {
         partition.objective = Objective::cut;
         INFO("All supported objective functions are equivalent for graphs. Objective function is set to edge cut metric.");
       }
       partition.gain_policy = GainPolicy::cut_for_graphs;
     }
-    #endif
 
-    #ifdef KAHYPAR_ENABLE_LARGE_K_PARTITIONING_FEATURES
     if ( partition.preset_type == PresetType::large_k ) {
       // Silently switch to deep multilevel scheme for large k partitioning
       partition.mode = Mode::deep_multilevel;
     }
-    #endif
   }
 
   void Context::setupThreadsPerFlowSearch() {
@@ -618,8 +604,6 @@ namespace mt_kahypar {
     refinement.flows.algorithm = FlowAlgorithm::do_nothing;
   }
 
-  #ifdef KAHYPAR_ENABLE_N_LEVEL_PARTITIONING_FEATURES
-
   void Context::load_quality_preset() {
     // General
     partition.preset_type = PresetType::quality_preset;
@@ -760,10 +744,6 @@ namespace mt_kahypar {
     refinement.global_fm.refine_until_no_improvement = true;
   }
 
-  #endif
-
-  #ifdef KAHYPAR_ENABLE_LARGE_K_PARTITIONING_FEATURES
-
   void Context::load_large_k_preset() {
     // General
     partition.preset_type = PresetType::large_k;
@@ -843,8 +823,6 @@ namespace mt_kahypar {
     // refinement -> flows
     refinement.flows.algorithm = FlowAlgorithm::do_nothing;
   }
-
-  #endif
 
   std::ostream & operator<< (std::ostream& str, const Context& context) {
     str << "*******************************************************************************\n"

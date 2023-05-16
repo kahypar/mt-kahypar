@@ -48,18 +48,18 @@ enum class FileFormat : int8_t {
 };
 
 enum class InstanceType : int8_t {
-  ENABLE_GRAPHS(graph = 0 COMMA)
+  graph = 0,
   hypergraph = 1,
   UNDEFINED = 2
 };
 
 enum class PresetType : int8_t {
   deterministic,
-  ENABLE_LARGE_K(large_k COMMA)
+  large_k,
   default_preset,
   default_flows,
-  ENABLE_N_LEVEL(quality_preset COMMA)
-  ENABLE_N_LEVEL(quality_flows COMMA)
+  quality_preset,
+  quality_flows,
   UNDEFINED
 };
 
@@ -86,7 +86,7 @@ enum class GainPolicy : uint8_t {
   km1,
   cut,
   soed,
-  ENABLE_GRAPHS(cut_for_graphs COMMA)
+  cut_for_graphs,
   none
 };
 
@@ -108,7 +108,7 @@ enum class SimiliarNetCombinerStrategy : uint8_t {
 enum class CoarseningAlgorithm : uint8_t {
   multilevel_coarsener,
   deterministic_multilevel_coarsener,
-  ENABLE_N_LEVEL(nlevel_coarsener COMMA)
+  nlevel_coarsener,
   UNDEFINED
 };
 

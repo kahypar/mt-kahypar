@@ -85,12 +85,8 @@ namespace rb {
 
     b_context.partition.k = 2;
     b_context.partition.objective = Objective::cut;
-    #ifdef KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES
     b_context.partition.gain_policy = Hypergraph::is_graph ?
       GainPolicy::cut_for_graphs : GainPolicy::cut;
-    #else
-    b_context.partition.gain_policy = GainPolicy::cut;
-    #endif
     b_context.partition.verbose_output = false;
     b_context.initial_partitioning.mode = Mode::direct;
     if (context.partition.mode == Mode::direct) {
