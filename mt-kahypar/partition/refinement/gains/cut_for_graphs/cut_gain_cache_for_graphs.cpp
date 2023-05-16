@@ -24,8 +24,6 @@
  * SOFTWARE.
  ******************************************************************************/
 
-#ifdef KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES
-
 #include "mt-kahypar/partition/refinement/gains/cut_for_graphs/cut_gain_cache_for_graphs.h"
 
 #include "tbb/parallel_for.h"
@@ -139,5 +137,3 @@ INSTANTIATE_FUNC_WITH_PARTITIONED_HG(GRAPH_CUT_RESTORE_UPDATE)
 INSTANTIATE_FUNC_WITH_PARTITIONED_HG(GRAPH_CUT_REPLACEMENT_UPDATE)
 
 }  // namespace mt_kahypar
-
-#endif

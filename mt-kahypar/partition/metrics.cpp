@@ -139,10 +139,7 @@ bool isBalanced(const PartitionedHypergraph& phg, const Context& context) {
       num_empty_parts++;
     }
   }
-  return
-    #ifdef KAHYPAR_ENABLE_LARGE_K_PARTITIONING_FEATURES
-    context.partition.preset_type == PresetType::large_k ||
-    #endif
+  return context.partition.preset_type == PresetType::large_k ||
     num_empty_parts <= phg.numRemovedHypernodes();
 }
 

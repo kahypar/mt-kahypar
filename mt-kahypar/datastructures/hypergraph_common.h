@@ -148,38 +148,30 @@ struct PartitionedHypergraphType<ds::StaticHypergraph, ds::ConnectivityInfo> {
   static constexpr mt_kahypar_partition_type_t TYPE = MULTILEVEL_HYPERGRAPH_PARTITIONING;
 };
 
-#ifdef KAHYPAR_ENABLE_LARGE_K_PARTITIONING_FEATURES
 template<>
 struct PartitionedHypergraphType<ds::StaticHypergraph, ds::SparseConnectivityInfo> {
   static constexpr mt_kahypar_partition_type_t TYPE = LARGE_K_PARTITIONING;
 };
-#endif
 
-#ifdef KAHYPAR_ENABLE_N_LEVEL_PARTITIONING_FEATURES
 template<>
 struct PartitionedHypergraphType<ds::DynamicHypergraph, ds::ConnectivityInfo> {
   static constexpr mt_kahypar_partition_type_t TYPE = N_LEVEL_HYPERGRAPH_PARTITIONING;
 };
-#endif
 
 template<typename Graph>
 struct PartitionedGraphType {
   static constexpr mt_kahypar_partition_type_t TYPE = NULLPTR_PARTITION;
 };
 
-#ifdef KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES
 template<>
 struct PartitionedGraphType<ds::StaticGraph> {
   static constexpr mt_kahypar_partition_type_t TYPE = MULTILEVEL_GRAPH_PARTITIONING;
 };
 
-#ifdef KAHYPAR_ENABLE_N_LEVEL_PARTITIONING_FEATURES
 template<>
 struct PartitionedGraphType<ds::DynamicGraph> {
   static constexpr mt_kahypar_partition_type_t TYPE = N_LEVEL_GRAPH_PARTITIONING;
 };
-#endif
-#endif
 
 
 } // namespace mt_kahypar

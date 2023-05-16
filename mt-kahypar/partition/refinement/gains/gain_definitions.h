@@ -47,10 +47,8 @@
 #include "mt-kahypar/partition/refinement/gains/soed/soed_gain_cache.h"
 #include "mt-kahypar/partition/refinement/gains/soed/soed_rollback.h"
 #include "mt-kahypar/partition/refinement/gains/soed/soed_flow_network_construction.h"
-#ifdef KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES
 #include "mt-kahypar/partition/refinement/gains/cut_for_graphs/cut_gain_cache_for_graphs.h"
 #include "mt-kahypar/partition/refinement/gains/cut_for_graphs/cut_attributed_gains_for_graphs.h"
-#endif
 #include "mt-kahypar/macros.h"
 
 namespace mt_kahypar {
@@ -82,7 +80,6 @@ struct SoedGainTypes : public kahypar::meta::PolicyBase {
   using FlowNetworkConstruction = SoedFlowNetworkConstruction;
 };
 
-#ifdef KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES
 struct CutGainForGraphsTypes : public kahypar::meta::PolicyBase {
   using GainComputation = CutGainComputation;
   using AttributedGains = GraphCutAttributedGains;
@@ -91,7 +88,6 @@ struct CutGainForGraphsTypes : public kahypar::meta::PolicyBase {
   using Rollback = Km1Rollback;
   using FlowNetworkConstruction = CutFlowNetworkConstruction;
 };
-#endif
 
 
 using GainTypes = kahypar::meta::Typelist<Km1GainTypes,

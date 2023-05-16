@@ -67,12 +67,35 @@ namespace internal {
     Partitioner<TypeTraits>::partitionVCycle(phg, context);
   }
 
+  void check_if_feature_is_enabled(const mt_kahypar_partition_type_t type) {
+    unused(type);
+    #ifndef KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES
+    if ( type == MULTILEVEL_GRAPH_PARTITIONING || type == N_LEVEL_GRAPH_PARTITIONING ) {
+      ERR("Graph partitioning features are deactivated. Add -DKAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES=ON"
+        << "to the cmake command and rebuild Mt-KaHyPar.");
+    }
+    #endif
+    #ifndef KAHYPAR_ENABLE_N_LEVEL_PARTITIONING_FEATURES
+    if ( type == N_LEVEL_HYPERGRAPH_PARTITIONING || type == N_LEVEL_GRAPH_PARTITIONING ) {
+      ERR("n-level partitioning features are deactivated. Add -DKAHYPAR_ENABLE_N_LEVEL_PARTITIONING_FEATURES=ON"
+        << "to the cmake command and rebuild Mt-KaHyPar.");
+    }
+    #endif
+    #ifndef KAHYPAR_ENABLE_LARGE_K_PARTITIONING_FEATURES
+    if ( type == LARGE_K_PARTITIONING ) {
+      ERR("Large-k partitioning features are deactivated. Add -DKAHYPAR_ENABLE_LARGE_K_PARTITIONING_FEATURES=ON"
+        << "to the cmake command and rebuild Mt-KaHyPar.");
+    }
+    #endif
+  }
+
 } // namespace internal
 
   mt_kahypar_partitioned_hypergraph_t PartitionerFacade::partition(mt_kahypar_hypergraph_t hypergraph,
                                                                    Context& context) {
     const mt_kahypar_partition_type_t type = to_partition_c_type(
       context.partition.preset_type, context.partition.instance_type);
+    internal::check_if_feature_is_enabled(type);
     switch ( type ) {
       #ifdef KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES
       case MULTILEVEL_GRAPH_PARTITIONING:
@@ -92,7 +115,7 @@ namespace internal {
       case N_LEVEL_HYPERGRAPH_PARTITIONING:
         return internal::partition<DynamicHypergraphTypeTraits>(hypergraph, context);
       #endif
-      case NULLPTR_PARTITION:
+      default:
         return mt_kahypar_partitioned_hypergraph_t { nullptr, NULLPTR_PARTITION };
     }
     return mt_kahypar_partitioned_hypergraph_t { nullptr, NULLPTR_PARTITION };
@@ -103,6 +126,7 @@ namespace internal {
                                   Context& context) {
     const mt_kahypar_partition_type_t type = to_partition_c_type(
       context.partition.preset_type, context.partition.instance_type);
+    internal::check_if_feature_is_enabled(type);
     switch ( type ) {
       #ifdef KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES
       case MULTILEVEL_GRAPH_PARTITIONING:
@@ -122,7 +146,7 @@ namespace internal {
       case N_LEVEL_HYPERGRAPH_PARTITIONING:
         internal::improve<DynamicHypergraphTypeTraits>(partitioned_hg, context); break;
       #endif
-      case NULLPTR_PARTITION: break;
+      default: break;
     }
   }
 
@@ -154,7 +178,7 @@ namespace internal {
         io::printPartitioningResults(utils::cast_const<DynamicPartitionedHypergraph>(phg), context, elapsed_seconds);
         break;
       #endif
-      case NULLPTR_PARTITION: break;
+      default: break;
     }
   }
 
@@ -182,7 +206,7 @@ namespace internal {
       case N_LEVEL_HYPERGRAPH_PARTITIONING:
         return io::csv::serialize(utils::cast_const<DynamicPartitionedHypergraph>(phg), context, elapsed_seconds);
       #endif
-      case NULLPTR_PARTITION: return "";
+      default: return "";
     }
     return "";
   }
@@ -210,7 +234,7 @@ namespace internal {
       case N_LEVEL_HYPERGRAPH_PARTITIONING:
         return io::serializer::serialize(utils::cast_const<DynamicPartitionedHypergraph>(phg), context, elapsed_seconds);
       #endif
-      case NULLPTR_PARTITION: return "";
+      default: return "";
     }
     return "";
   }
@@ -242,7 +266,7 @@ namespace internal {
         io::writePartitionFile(utils::cast_const<DynamicPartitionedHypergraph>(phg), filename);
         break;
       #endif
-      case NULLPTR_PARTITION: break;
+      default: break;
     }
   }
 

@@ -70,17 +70,13 @@ namespace mt_kahypar {
                                        pin_count_in_to_part_after);
       };
 
-      #ifdef KAHYPAR_ENABLE_LARGE_K_PARTITIONING_FEATURES
       if ( _context.partition.preset_type != PresetType::large_k ) {
-      #endif
         // TODO: This code must be optimized to work for large k
         vec<Move> moves_to_empty_blocks = repairEmptyBlocks(phg);
         for (Move& m : moves_to_empty_blocks) {
           moveVertex(phg, m.node, m, objective_delta);
         }
-      #ifdef KAHYPAR_ENABLE_LARGE_K_PARTITIONING_FEATURES
       }
-      #endif
 
       // We first try to perform moves that does not worsen solution quality of the partition
       // Moves that would worsen the solution quality are gathered in a thread local priority queue
