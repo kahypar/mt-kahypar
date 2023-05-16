@@ -468,10 +468,6 @@ namespace mt_kahypar {
                                                                  Metrics& current_metrics, double time_limit) {
     ASSERT(!_context.partition.deterministic);
     mt_kahypar_partitioned_hypergraph_t phg = utils::partitioned_hg_cast(hypergraph);
-    // TODO(maas): necessary at the moment, since something with updating _current_k in the rebalancer
-    // is wrong (and causes a segfault)
-    _rebalancer = RebalancerFactory::getInstance().createObject(
-      _context.refinement.rebalancer, _context);
     _rebalancer->refine(phg, {}, current_metrics, time_limit);
   }
 
