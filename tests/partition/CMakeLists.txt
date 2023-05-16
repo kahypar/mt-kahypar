@@ -1,4 +1,5 @@
 add_subdirectory(preprocessing)
+add_subdirectory(process_mapping)
 add_subdirectory(coarsening)
 add_subdirectory(initial_partitioning)
 add_subdirectory(refinement)
