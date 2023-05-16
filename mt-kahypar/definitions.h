@@ -32,20 +32,14 @@
 #include "include/libmtkahypartypes.h"
 #include "mt-kahypar/macros.h"
 
-#ifdef KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES
-#ifdef KAHYPAR_ENABLE_N_LEVEL_PARTITIONING_FEATURES
 #include "mt-kahypar/datastructures/dynamic_graph.h"
 #include "mt-kahypar/datastructures/dynamic_graph_factory.h"
-#endif
 #include "mt-kahypar/datastructures/static_graph.h"
 #include "mt-kahypar/datastructures/static_graph_factory.h"
 #include "mt-kahypar/datastructures/partitioned_graph.h"
 #include "mt-kahypar/datastructures/delta_partitioned_graph.h"
-#endif
-#ifdef KAHYPAR_ENABLE_N_LEVEL_PARTITIONING_FEATURES
 #include "mt-kahypar/datastructures/dynamic_hypergraph.h"
 #include "mt-kahypar/datastructures/dynamic_hypergraph_factory.h"
-#endif
 #include "mt-kahypar/datastructures/static_hypergraph.h"
 #include "mt-kahypar/datastructures/static_hypergraph_factory.h"
 #include "mt-kahypar/datastructures/partitioned_hypergraph.h"
@@ -53,52 +47,36 @@
 
 namespace mt_kahypar {
 
-#ifdef KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES
 using StaticPartitionedGraph = ds::PartitionedGraph<ds::StaticGraph>;
-#ifdef KAHYPAR_ENABLE_N_LEVEL_PARTITIONING_FEATURES
 using DynamicPartitionedGraph = ds::PartitionedGraph<ds::DynamicGraph>;
-#endif
-#endif
 using StaticPartitionedHypergraph = ds::PartitionedHypergraph<ds::StaticHypergraph, ds::ConnectivityInfo>;
-#ifdef KAHYPAR_ENABLE_N_LEVEL_PARTITIONING_FEATURES
 using DynamicPartitionedHypergraph = ds::PartitionedHypergraph<ds::DynamicHypergraph, ds::ConnectivityInfo>;
-#endif
-#ifdef KAHYPAR_ENABLE_LARGE_K_PARTITIONING_FEATURES
 using StaticSparsePartitionedHypergraph = ds::PartitionedHypergraph<ds::StaticHypergraph, ds::SparseConnectivityInfo>;
-#endif
 
-#ifdef KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES
 struct StaticGraphTypeTraits : public kahypar::meta::PolicyBase {
   using Hypergraph = ds::StaticGraph;
   using PartitionedHypergraph = StaticPartitionedGraph;
 };
 
-#ifdef KAHYPAR_ENABLE_N_LEVEL_PARTITIONING_FEATURES
 struct DynamicGraphTypeTraits : public kahypar::meta::PolicyBase {
   using Hypergraph = ds::DynamicGraph;
   using PartitionedHypergraph = DynamicPartitionedGraph;
 };
-#endif
-#endif
 
 struct StaticHypergraphTypeTraits : public kahypar::meta::PolicyBase {
   using Hypergraph = ds::StaticHypergraph;
   using PartitionedHypergraph = StaticPartitionedHypergraph;
 };
 
-#ifdef KAHYPAR_ENABLE_N_LEVEL_PARTITIONING_FEATURES
 struct DynamicHypergraphTypeTraits : public kahypar::meta::PolicyBase {
   using Hypergraph = ds::DynamicHypergraph;
   using PartitionedHypergraph = DynamicPartitionedHypergraph;
 };
-#endif
 
-#ifdef KAHYPAR_ENABLE_LARGE_K_PARTITIONING_FEATURES
 struct LargeKHypergraphTypeTraits : public kahypar::meta::PolicyBase {
   using Hypergraph = ds::StaticHypergraph;
   using PartitionedHypergraph = StaticSparsePartitionedHypergraph;
 };
-#endif
 
 using TypeTraitsList = kahypar::meta::Typelist<StaticHypergraphTypeTraits
                                                ENABLE_N_LEVEL(COMMA DynamicHypergraphTypeTraits)

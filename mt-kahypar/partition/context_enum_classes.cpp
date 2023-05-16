@@ -54,7 +54,7 @@ namespace mt_kahypar {
 
   std::ostream & operator<< (std::ostream& os, const InstanceType& type) {
     switch (type) {
-      ENABLE_GRAPHS(case InstanceType::graph: return os << "graph";)
+      case InstanceType::graph: return os << "graph";
       case InstanceType::hypergraph: return os << "hypergraph";
       case InstanceType::UNDEFINED: return os << "UNDEFINED";
         // omit default case to trigger compiler warning for missing cases
@@ -65,11 +65,11 @@ namespace mt_kahypar {
   std::ostream & operator<< (std::ostream& os, const PresetType& type) {
     switch (type) {
       case PresetType::deterministic: return os << "deterministic";
-      ENABLE_LARGE_K(case PresetType::large_k: return os << "large_k";)
+      case PresetType::large_k: return os << "large_k";
       case PresetType::default_preset: return os << "default";
       case PresetType::default_flows: return os << "default_flows";
-      ENABLE_N_LEVEL(case PresetType::quality_preset: return os << "quality";)
-      ENABLE_N_LEVEL(case PresetType::quality_flows: return os << "quality_flows";)
+      case PresetType::quality_preset: return os << "quality";
+      case PresetType::quality_flows: return os << "quality_flows";
       case PresetType::UNDEFINED: return os << "UNDEFINED";
         // omit default case to trigger compiler warning for missing cases
     }
@@ -78,11 +78,11 @@ namespace mt_kahypar {
 
   std::ostream & operator<< (std::ostream& os, const mt_kahypar_partition_type_t& type) {
     switch (type) {
-      ENABLE_GRAPHS(case MULTILEVEL_GRAPH_PARTITIONING: return os << "multilevel_graph_partitioning";)
-      ENABLE_N_LEVEL_GRAPHS(case N_LEVEL_GRAPH_PARTITIONING: return os << "n_level_graph_partitioning";)
+      case MULTILEVEL_GRAPH_PARTITIONING: return os << "multilevel_graph_partitioning";
+      case N_LEVEL_GRAPH_PARTITIONING: return os << "n_level_graph_partitioning";
       case MULTILEVEL_HYPERGRAPH_PARTITIONING: return os << "multilevel_hypergraph_partitioning";
-      ENABLE_LARGE_K(case LARGE_K_PARTITIONING: return os << "large_k_partitioning";)
-      ENABLE_N_LEVEL(case N_LEVEL_HYPERGRAPH_PARTITIONING: return os << "n_level_hypergraph_partitioning";)
+      case LARGE_K_PARTITIONING: return os << "large_k_partitioning";
+      case N_LEVEL_HYPERGRAPH_PARTITIONING: return os << "n_level_hypergraph_partitioning";
       case NULLPTR_PARTITION: return os << "UNDEFINED";
         // omit default case to trigger compiler warning for missing cases
     }
@@ -125,7 +125,7 @@ namespace mt_kahypar {
       case GainPolicy::km1: return os << "km1";
       case GainPolicy::cut: return os << "cut";
       case GainPolicy::soed: return os << "soed";
-      ENABLE_GRAPHS(case GainPolicy::cut_for_graphs: return os << "cut_for_graphs";)
+      case GainPolicy::cut_for_graphs: return os << "cut_for_graphs";
       case GainPolicy::none: return os << "none";
         // omit default case to trigger compiler warning for missing cases
     }
@@ -159,7 +159,7 @@ namespace mt_kahypar {
     switch (algo) {
       case CoarseningAlgorithm::multilevel_coarsener: return os << "multilevel_coarsener";
       case CoarseningAlgorithm::deterministic_multilevel_coarsener: return os << "deterministic_multilevel_coarsener";
-      ENABLE_N_LEVEL(case CoarseningAlgorithm::nlevel_coarsener: return os << "nlevel_coarsener";)
+      case CoarseningAlgorithm::nlevel_coarsener: return os << "nlevel_coarsener";
       case CoarseningAlgorithm::UNDEFINED: return os << "UNDEFINED";
         // omit default case to trigger compiler warning for missing cases
     }
@@ -275,12 +275,9 @@ std::ostream & operator<< (std::ostream& os, const RebalancingAlgorithm& algo) {
   }
 
   InstanceType instanceTypeFromString(const std::string& type) {
-    #ifdef KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES
     if (type == "graph") {
       return InstanceType::graph;
-    } else
-    #endif
-    if (type == "hypergraph") {
+    } else if (type == "hypergraph") {
       return InstanceType::hypergraph;
     }
     ERR("Illegal option: " + type);
@@ -291,23 +288,17 @@ std::ostream & operator<< (std::ostream& os, const RebalancingAlgorithm& algo) {
     if (type == "deterministic") {
       return PresetType::deterministic;
     }
-    #ifdef KAHYPAR_ENABLE_LARGE_K_PARTITIONING_FEATURES
     else if (type == "large_k") {
       return PresetType::large_k;
-    }
-    #endif
-    else if (type == "default") {
+    } else if (type == "default") {
       return PresetType::default_preset;
     } else if (type == "default_flows") {
       return PresetType::default_flows;
-    }
-    #ifdef KAHYPAR_ENABLE_N_LEVEL_PARTITIONING_FEATURES
-    else if (type == "quality") {
+    } else if (type == "quality") {
       return PresetType::quality_preset;
     } else if (type == "quality_flows") {
       return PresetType::quality_flows;
     }
-    #endif
     ERR("Illegal option: " + type);
     return PresetType::UNDEFINED;
   }
@@ -354,13 +345,9 @@ std::ostream & operator<< (std::ostream& os, const RebalancingAlgorithm& algo) {
   CoarseningAlgorithm coarseningAlgorithmFromString(const std::string& type) {
     if (type == "multilevel_coarsener") {
       return CoarseningAlgorithm::multilevel_coarsener;
-    }
-    #ifdef KAHYPAR_ENABLE_N_LEVEL_PARTITIONING_FEATURES
-    else if (type == "nlevel_coarsener") {
+    } else if (type == "nlevel_coarsener") {
       return CoarseningAlgorithm::nlevel_coarsener;
-    }
-    #endif
-    else if (type == "deterministic_multilevel_coarsener") {
+    } else if (type == "deterministic_multilevel_coarsener") {
       return CoarseningAlgorithm::deterministic_multilevel_coarsener;
     }
     ERR("Illegal option: " + type);

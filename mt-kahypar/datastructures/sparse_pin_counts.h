@@ -41,7 +41,6 @@
 namespace mt_kahypar {
 namespace ds {
 
-#ifdef KAHYPAR_ENABLE_LARGE_K_PARTITIONING_FEATURES
 /**
  * This is a sparse implementation of the pin count data structure.
  * Our original data structure for the pin count values takes O(k*|E|) space which would
@@ -517,7 +516,5 @@ class SparsePinCounts {
   // ! read while modyfing the entries.
   vec<tbb::concurrent_vector<PinCountEntry>> _ext_pin_count_list;
 };
-#endif
-
 }  // namespace ds
 }  // namespace mt_kahypar

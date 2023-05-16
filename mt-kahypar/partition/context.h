@@ -291,13 +291,13 @@ class Context {
 
   void load_default_flow_preset();
 
-  ENABLE_N_LEVEL(void load_quality_preset();)
+  void load_quality_preset();
 
-  ENABLE_N_LEVEL(void load_quality_flow_preset();)
+  void load_quality_flow_preset();
 
   void load_deterministic_preset();
 
-  ENABLE_LARGE_K(void load_large_k_preset();)
+  void load_large_k_preset();
 };
 
 std::ostream & operator<< (std::ostream& str, const Context& context);
