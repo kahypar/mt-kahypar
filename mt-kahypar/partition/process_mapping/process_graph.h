@@ -28,6 +28,7 @@
 
 #include "mt-kahypar/macros.h"
 #include "mt-kahypar/datastructures/static_graph.h"
+#include "mt-kahypar/datastructures/static_bitset.h"
 
 namespace mt_kahypar {
 
@@ -40,6 +41,7 @@ class ProcessGraph {
     _is_initialized(true),
     _k(kInvalidPartition),
     _graph(std::move(graph)),
+    _max_precomputed_connectitivty(0),
     _distances() {
     _k = _graph.initialNumNodes();
   }
@@ -56,6 +58,8 @@ class ProcessGraph {
 
   void precomputeDistances(const size_t max_conectivity);
 
+  HyperedgeWeight distance(const ds::StaticBitset& connectivity_set);
+
   HyperedgeWeight distance(const PartitionID i, const PartitionID j) {
     ASSERT(_is_initialized);
     return _distances[index(i, j)];
@@ -68,9 +72,20 @@ class ProcessGraph {
     return i + j * _k;
   }
 
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE size_t index(const ds::StaticBitset& connectivity_set) {
+    size_t index = 0;
+    PartitionID multiplier = 1;
+    for ( const PartitionID block : connectivity_set ) {
+      index += multiplier * block;
+      multiplier *= _k;
+    }
+    return index;
+  }
+
   bool _is_initialized;
   PartitionID _k;
   ds::StaticGraph _graph;
+  PartitionID _max_precomputed_connectitivty;
   vec<HyperedgeWeight> _distances;
 };
 

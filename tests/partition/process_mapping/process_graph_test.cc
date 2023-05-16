@@ -34,6 +34,9 @@ using ::testing::Test;
 namespace mt_kahypar {
 
 class AProcessGraph : public Test {
+
+  using UnsafeBlock = ds::StaticBitset::Block;
+
  public:
   AProcessGraph() :
     graph(nullptr) {
@@ -76,7 +79,21 @@ class AProcessGraph : public Test {
 
   }
 
+  HyperedgeWeight distance(const vec<PartitionID> connectivity_set) {
+    UnsafeBlock bits = 0;
+    for ( const PartitionID block : connectivity_set ) {
+      setBit(bits, block);
+    }
+    ds::StaticBitset con_set(1, &bits);
+    return graph->distance(con_set);
+  }
+
   std::unique_ptr<ProcessGraph> graph;
+
+ private:
+  void setBit(UnsafeBlock& bits, size_t pos) {
+    bits |= (UL(1) << pos);
+  }
 };
 
 TEST_F(AProcessGraph, HasCorrectNumberOfBlocks) {
@@ -96,6 +113,21 @@ TEST_F(AProcessGraph, ComputesAllShortestPaths) {
   ASSERT_EQ(5, graph->distance(6, 15));
   ASSERT_EQ(2, graph->distance(3, 6));
   ASSERT_EQ(7, graph->distance(4, 3));
+}
+
+TEST_F(AProcessGraph, ComputesAllShortestPathsWithConnectivitySet) {
+  graph->precomputeDistances(2);
+  ASSERT_EQ(1, distance({ 0, 1 }));
+  ASSERT_EQ(3, distance({ 0, 2 }));
+  ASSERT_EQ(6, distance({ 0, 3 }));
+  ASSERT_EQ(6, distance({ 3, 0 }));
+  ASSERT_EQ(6, distance({ 1, 10 }));
+  ASSERT_EQ(7, distance({ 8, 11 }));
+  ASSERT_EQ(7, distance({ 12, 7 }));
+  ASSERT_EQ(3, distance({ 9, 14 }));
+  ASSERT_EQ(5, distance({ 6, 15 }));
+  ASSERT_EQ(2, distance({ 3, 6 }));
+  ASSERT_EQ(7, distance({ 4, 3 }));
 }
 
 

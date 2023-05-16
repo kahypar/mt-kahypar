@@ -42,7 +42,20 @@ void ProcessGraph::precomputeDistances(const size_t max_connectivity) {
   _distances.assign(num_entries, std::numeric_limits<HyperedgeWeight>::max() / 3);
   AllPairShortestPath::compute(_graph, _distances);
 
+  _max_precomputed_connectitivty = max_connectivity;
   _is_initialized = true;
+}
+
+HyperedgeWeight ProcessGraph::distance(const ds::StaticBitset& connectivity_set) {
+  const PartitionID connectivity = connectivity_set.popcount();
+  if ( connectivity <= _max_precomputed_connectitivty ) {
+    const size_t idx = index(connectivity_set);
+    ASSERT(idx < _distances.size());
+    return _distances[idx];
+  } else {
+    // Do some alternative distance computation since we have not precomputed it.
+    return std::numeric_limits<HyperedgeWeight>::max();
+  }
 }
 
 }  // namespace kahypar
