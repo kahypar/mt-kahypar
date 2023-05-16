@@ -111,7 +111,15 @@ class ProblemConstruction {
     _context(context),
     _scaling(1.0 + _context.refinement.flows.alpha *
       std::min(0.05, _context.partition.epsilon)),
-    _local_bfs(num_hypernodes, num_hyperedges, context.partition.k) { }
+    _num_hypernodes(num_hypernodes),
+    _num_hyperedges(num_hyperedges),
+    _local_bfs([&] {
+        // If the number of blocks changes, BFSData needs to be initialized
+        // differently. Thus we use a lambda that reads the current number of
+        // blocks from the context
+        return constructBFSData();
+      }
+    ) { }
 
   ProblemConstruction(const ProblemConstruction&) = delete;
   ProblemConstruction(ProblemConstruction&&) = delete;
@@ -126,6 +134,9 @@ class ProblemConstruction {
   void changeNumberOfBlocks(const PartitionID new_k);
 
  private:
+  BFSData constructBFSData() const {
+    return BFSData(_num_hypernodes, _num_hyperedges, _context.partition.k);
+  }
 
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE bool isMaximumProblemSizeReached(
     const Subhypergraph& sub_hg,
@@ -135,6 +146,8 @@ class ProblemConstruction {
 
   const Context& _context;
   double _scaling;
+  HypernodeID _num_hypernodes;
+  HyperedgeID _num_hyperedges;
 
   // ! Contains data required for BFS construction algorithm
   tbb::enumerable_thread_specific<BFSData> _local_bfs;
