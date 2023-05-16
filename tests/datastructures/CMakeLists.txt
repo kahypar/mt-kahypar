@@ -9,7 +9,8 @@ target_sources(mt_kahypar_tests PRIVATE
         priority_queue_test.cc
         array_test.cc
         sparse_map_test.cc
-        pin_count_in_part_test.cc)
+        pin_count_in_part_test.cc
+        static_bitset_test.cc)
 
 if ( KAHYPAR_ENABLE_N_LEVEL_PARTITIONING_FEATURES )
   target_sources(mt_kahypar_tests PRIVATE
