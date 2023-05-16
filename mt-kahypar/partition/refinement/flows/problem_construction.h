@@ -111,7 +111,14 @@ class ProblemConstruction {
     _context(context),
     _scaling(1.0 + _context.refinement.flows.alpha *
       std::min(0.05, _context.partition.epsilon)),
-    _local_bfs(num_hypernodes, num_hyperedges, context.partition.k) { }
+    _local_bfs(
+      // If the number of blocks changes, BFSData needs to be initialized
+      // differently. Thus we use a lambda that reads the current number of
+      // blocks from the context.
+      [num_hypernodes, num_hyperedges, &context] {
+        return BFSData(num_hypernodes, num_hyperedges, context.partition.k);
+      }
+    ) { }
 
   ProblemConstruction(const ProblemConstruction&) = delete;
   ProblemConstruction(ProblemConstruction&&) = delete;
