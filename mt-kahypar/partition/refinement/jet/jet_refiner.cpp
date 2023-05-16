@@ -60,6 +60,7 @@ namespace mt_kahypar {
     }
     DBG << "[JET] initialization done, num_nodes=" << hypergraph.initialNumNodes();
 
+    _current_partition_is_best = true;
     size_t num_rounds = 0;
     while (true) {
       // We need to store the best partition for rollback and the current partition to determine
@@ -424,6 +425,7 @@ namespace mt_kahypar {
     auto reset_node = [&](const HypernodeID hn) {
       const PartitionID part_id = hypergraph.partID(hn);
       if (part_id != _best_partition[hn]) {
+        ASSERT(_best_partition[hn] != kInvalidPartition);
         changeNodePart(hypergraph, hn, part_id, _best_partition[hn], objective_delta);
       }
     };
@@ -435,6 +437,7 @@ namespace mt_kahypar {
     } else {
       hypergraph.doParallelForAllNodes(reset_node);
     }
+    _current_partition_is_best = true;
   }
 
   template <typename TypeTraits, typename GainTypes, bool precomputed>
