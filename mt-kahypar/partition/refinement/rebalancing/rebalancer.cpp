@@ -48,6 +48,7 @@ namespace mt_kahypar {
                                                      Metrics& best_metrics,
                                                      double) {
     PartitionedHypergraph& phg = utils::cast<PartitionedHypergraph>(hypergraph);
+    resizeDataStructuresForCurrentK();
     // If partition is imbalanced, rebalancer is activated
     bool improvement = false;
     if ( !metrics::isBalanced(phg, _context) ) {
