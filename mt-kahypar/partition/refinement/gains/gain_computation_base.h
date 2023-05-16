@@ -176,11 +176,8 @@ class GainComputationBase {
   }
 
   void changeNumberOfBlocks(const PartitionID new_k) {
-    for ( auto& tmp_score : _tmp_scores ) {
-      if ( static_cast<size_t>(new_k) > tmp_score.size() ) {
-        tmp_score = RatingMap(new_k);
-      }
-    }
+    TmpScores new_tmp_scores(new_k);
+    _tmp_scores = std::move(new_tmp_scores);
   }
 
  protected:
