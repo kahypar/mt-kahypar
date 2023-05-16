@@ -69,6 +69,7 @@ public:
 
   explicit Rebalancer(const Context& context) :
     _context(context),
+    _current_k(context.partition.k),
     _gain(context),
     _part_weights(_context.partition.k) { }
 
@@ -115,7 +116,19 @@ private:
     return false;
   }
 
+
+  void resizeDataStructuresForCurrentK() {
+    // If the number of blocks changes, we resize data structures
+    // (can happen during deep multilevel partitioning)
+    if ( _current_k != _context.partition.k ) {
+      _current_k = _context.partition.k;
+      _gain.changeNumberOfBlocks(_current_k);
+      _part_weights = parallel::scalable_vector<AtomicWeight>(_context.partition.k);
+    }
+  }
+
   const Context& _context;
+  PartitionID _current_k;
   GainCalculator _gain;
   parallel::scalable_vector<AtomicWeight> _part_weights;
 };

@@ -109,6 +109,7 @@ class AJetRefiner : public Test {
 
     // Jet
     context.refinement.jet.algorithm = Config::JET_ALGO;
+    context.refinement.rebalancer = RebalancingAlgorithm::simple_rebalancer;
     context.initial_partitioning.refinement.jet.algorithm = Config::JET_ALGO;
     context.initial_partitioning.refinement.jet.vertex_locking = false;
     context.initial_partitioning.refinement.jet.execute_sequential = Config::execute_sequential;
@@ -129,6 +130,7 @@ class AJetRefiner : public Test {
   void initialPartition() {
     Context ip_context(context);
     ip_context.refinement.label_propagation.algorithm = LabelPropagationAlgorithm::do_nothing;
+    ip_context.refinement.jet.algorithm = JetAlgorithm::do_nothing;
     InitialPartitioningDataContainer<TypeTraits> ip_data(partitioned_hypergraph, ip_context);
     ip_data_container_t* ip_data_ptr = ip::to_pointer(ip_data);
     BFSInitialPartitioner<TypeTraits> initial_partitioner(
