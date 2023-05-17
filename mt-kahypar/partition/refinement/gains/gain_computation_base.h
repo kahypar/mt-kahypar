@@ -53,7 +53,9 @@ class GainComputationBase {
     _context(context),
     _disable_randomization(disable_randomization),
     _deltas(0),
-    _tmp_scores(context.partition.k),
+    _tmp_scores([&] {
+      return constructLocalTmpScores();
+    }),
     _isolated_block_gain(0) { }
 
   template<typename PartitionedHypergraph>
@@ -176,8 +178,17 @@ class GainComputationBase {
   }
 
   void changeNumberOfBlocks(const PartitionID new_k) {
-    TmpScores new_tmp_scores(new_k);
-    _tmp_scores = std::move(new_tmp_scores);
+    ASSERT(new_k == _context.partition.k);
+    for ( auto& tmp_score : _tmp_scores ) {
+      if ( static_cast<size_t>(new_k) > tmp_score.size() ) {
+        tmp_score = RatingMap(new_k);
+      }
+    }
+  }
+
+private:
+  RatingMap constructLocalTmpScores() const {
+    return RatingMap(_context.partition.k);
   }
 
  protected:
