@@ -147,7 +147,15 @@ class StaticBitset {
     return cnt;
   }
 
-  Bitset operator^(const StaticBitset& other) {
+  Bitset copy() const {
+    Bitset res(_num_blocks * BITS_PER_BLOCK);
+    for ( size_t i = 0; i < _num_blocks; ++i ) {
+      res._bitset[i] = *( _bitset + i );
+    }
+    return res;
+  }
+
+  Bitset operator^(const StaticBitset& other) const {
     ASSERT(_num_blocks == other._num_blocks);
     Bitset res(_num_blocks * BITS_PER_BLOCK);
     for ( size_t i = 0; i < _num_blocks; ++i ) {

@@ -134,5 +134,32 @@ TEST_F(AProcessGraph, ComputesAllShortestPathsWithConnectivitySet) {
   ASSERT_EQ(7, distance({ 4, 3 }));
 }
 
+TEST_F(AProcessGraph, ComputesAllSteinerTreesUpToSizeThree) {
+  graph->precomputeDistances(3);
+  ASSERT_EQ(8, distance({ 0, 3, 9 }));
+  ASSERT_EQ(8, distance({ 1, 3, 10 }));
+  ASSERT_EQ(8, distance({ 2, 8, 13 }));
+  ASSERT_EQ(8, distance({ 2, 8, 13 }));
+  ASSERT_EQ(7, distance({ 8, 11, 13 }));
+  ASSERT_EQ(10, distance({ 0, 3, 15 }));
+  ASSERT_EQ(3, distance({ 0, 1, 2 }));
+  ASSERT_EQ(7, distance({ 6, 11, 14 }));
+  ASSERT_EQ(4, distance({ 12, 14, 15 }));
+  ASSERT_EQ(3, distance({ 8, 13, 14 }));
+  ASSERT_EQ(5, distance({ 9, 10, 14 }));
+}
+
+TEST_F(AProcessGraph, ComputesAllSteinerTreesUpToSizeFour) {
+  graph->precomputeDistances(4);
+  ASSERT_EQ(10, distance({ 0, 3, 9, 11 }));
+  ASSERT_EQ(8, distance({ 5, 8, 10, 13 }));
+  ASSERT_EQ(11, distance({ 1, 3, 10, 15 }));
+  ASSERT_EQ(9, distance({ 3, 9, 11, 15 }));
+  ASSERT_EQ(10, distance({ 2, 4, 10 ,12 }));
+  ASSERT_EQ(6, distance({ 0, 1, 2, 3 }));
+  ASSERT_EQ(14, distance({ 0, 3, 12, 15 }));
+  ASSERT_EQ(11, distance({ 0, 3, 9, 14 }));
+}
+
 
 }  // namespace mt_kahypar

@@ -72,6 +72,15 @@ TEST(ASetEnumerator, IteratesOverAllSetsOfSizeFour) {
 
 TEST(ASubsetEnumerator, IteratesOverAllSubsets1) {
   ds::Bitset bits(8);
+  bits.set(0);
+  bits.set(1);
+  ds::StaticBitset bitset(bits.numBlocks(), bits.data());
+  SubsetEnumerator subsets(8, bitset);
+  verifyIterator(subsets, { { 0 }, { 1 } });
+}
+
+TEST(ASubsetEnumerator, IteratesOverAllSubsets2) {
+  ds::Bitset bits(8);
   bits.set(1);
   bits.set(3);
   bits.set(5);
@@ -81,7 +90,7 @@ TEST(ASubsetEnumerator, IteratesOverAllSubsets1) {
                             { 1, 5 }, { 3, 5 } });
 }
 
-TEST(ASubsetEnumerator, IteratesOverAllSubsets2) {
+TEST(ASubsetEnumerator, IteratesOverAllSubsets3) {
   ds::Bitset bits(8);
   bits.set(1);
   bits.set(3);

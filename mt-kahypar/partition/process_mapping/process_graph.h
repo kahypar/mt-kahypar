@@ -75,11 +75,13 @@ class ProcessGraph {
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE size_t index(const ds::StaticBitset& connectivity_set) {
     size_t index = 0;
     PartitionID multiplier = 1;
+    PartitionID last_block = kInvalidPartition;
     for ( const PartitionID block : connectivity_set ) {
       index += multiplier * block;
       multiplier *= _k;
+      last_block = block;
     }
-    return index;
+    return index + (multiplier == _k ? last_block * _k : 0);
   }
 
   bool _is_initialized;

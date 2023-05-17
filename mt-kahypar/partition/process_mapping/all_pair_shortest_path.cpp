@@ -44,7 +44,6 @@ void AllPairShortestPath::compute(const ds::StaticGraph& graph,
   // Initialize Distance Matrix
   for ( const HypernodeID& u : graph.nodes() ) {
     distances[index(u, u, n)] = 0;
-    distances[u] = 0;
   }
   for ( const HyperedgeID& e : graph.edges() ) {
     const HypernodeID u = graph.edgeSource(e);
