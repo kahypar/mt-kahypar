@@ -56,12 +56,12 @@ class JetRefiner final : public IRefiner {
  public:
   explicit JetRefiner(const HypernodeID num_hypernodes,
                       const HyperedgeID num_hyperedges,
-                      const Context &context,
-                      GainCache &gain_cache);
+                      const Context& context,
+                      GainCache& gain_cache);
 
   explicit JetRefiner(const HypernodeID num_hypernodes,
                       const HyperedgeID num_hyperedges,
-                      const Context &context,
+                      const Context& context,
                       gain_cache_t gain_cache) :
     JetRefiner(num_hypernodes, num_hyperedges, context,
                GainCachePtr::cast<GainCache>(gain_cache)) {}

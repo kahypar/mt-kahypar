@@ -72,15 +72,18 @@ namespace mt_kahypar {
     const HyperedgeWeight input_quality = best_metrics.quality;
     PartitionedHypergraph& hypergraph = utils::cast<PartitionedHypergraph>(phg);
     Metrics current_metrics = best_metrics;
+    utils::Timer& timer = utils::Utilities::instance().getTimer(_context.utility_id);
     resizeDataStructuresForCurrentK();
     _gain_cache.reset(); // current rebalancer is not capable of using the gain cache
 
     // Initialize set of active vertices
+    timer.start_timer("compute_active_nodes", "Compute Active Nodes");
     if (refinement_nodes.empty()) {
       computeActiveNodesFromGraph(hypergraph);
     } else {
       computeActiveNodesFromVector(hypergraph, refinement_nodes);
     }
+    timer.stop_timer("compute_active_nodes");
     DBG << "[JET] initialization done, num_nodes=" << hypergraph.initialNumNodes();
 
     _current_partition_is_best = true;
@@ -97,7 +100,9 @@ namespace mt_kahypar {
       _gain.reset();
 
       // Perform Label Propagation
+      timer.start_timer("label_propagation", "Label Propagation");
       labelPropagationRound(hypergraph);
+      timer.stop_timer("label_propagation");
 
       // Update metrics statistics
       const HyperedgeWeight old_quality = current_metrics.quality;
@@ -111,7 +116,9 @@ namespace mt_kahypar {
 
       bool did_rebalance = false;
       if (!metrics::isBalanced(hypergraph, _context)) {
+        timer.start_timer("rebalance", "Rebalance");
         rebalance(hypergraph, current_metrics, time_limit);
+        timer.stop_timer("rebalance");
 
         current_metrics.imbalance = metrics::imbalance(hypergraph, _context);
         delta = current_metrics.quality - old_quality;
@@ -141,7 +148,9 @@ namespace mt_kahypar {
         break;
       } else {
         // initialize active vertices for next round
+        timer.start_timer("compute_active_nodes", "Compute Active Nodes");
         computeActiveNodesFromPreviousRound(hypergraph);
+        timer.stop_timer("compute_active_nodes");
       }
     }
 
@@ -382,7 +391,7 @@ namespace mt_kahypar {
         });
       });
       _active_nodes = tmp_active_nodes.copy_parallel();
-      tmp_active_nodes.clear_parallel();
+      tmp_active_nodes.clear_sequential();
       tbb::parallel_for(UL(0), _active_nodes.size(), [&](const size_t j) {
         processNode(hypergraph, _active_nodes[j], [&] {
           tmp_active_nodes.stream(_active_nodes[j]);
