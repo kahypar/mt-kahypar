@@ -24,21 +24,33 @@
  * SOFTWARE.
  ******************************************************************************/
 
-#pragma once
-
-#include "mt-kahypar/macros.h"
-#include "mt-kahypar/datastructures/static_graph.h"
+#include "mt-kahypar/partition/process_mapping/steiner_tree.h"
+#include "mt-kahypar/partition/process_mapping/all_pair_shortest_path.h"
 
 namespace mt_kahypar {
 
-class AllPairShortestPath {
+void SteinerTree::compute(const ds::StaticGraph& graph,
+                          const size_t max_set_size,
+                          vec<HyperedgeWeight>& distances) {
+  unused(max_set_size);
+  AllPairShortestPath::compute(graph, distances);
 
- public:
-  static void compute(const ds::StaticGraph& graph,
-                      vec<HyperedgeWeight>& distances);
-
- private:
-  AllPairShortestPath() { }
-};
+  /**
+   * Algorithm idea:
+   *
+   * S = distances
+   * for m = 2 to max_set_size - 1 do
+   *   for all subsets D of V with |D| = m do
+   *     for each u in V do
+   *       min_dist = inf
+   *       for each subset proper subset E of D do
+   *         F = D \ E
+   *         min_dist = min( min_dist, S[ E u { u } ] + S[ F u { u } ] )
+   *       for each v in V do
+   *         S[ D u { v } ] = min( S[ D u { v } ], S[ {u, v} ] + min_dist )
+   *
+   *
+   */
+}
 
 }  // namespace kahypar

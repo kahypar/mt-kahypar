@@ -29,7 +29,7 @@
 #include <cmath>
 #include <limits>
 
-#include "mt-kahypar/partition/process_mapping/all_pair_shortest_path.h"
+#include "mt-kahypar/partition/process_mapping/steiner_tree.h"
 
 namespace mt_kahypar {
 
@@ -37,10 +37,10 @@ void ProcessGraph::precomputeDistances(const size_t max_connectivity) {
   const size_t num_entries = std::pow(_k, max_connectivity);
   if ( num_entries > MEMORY_LIMIT ) {
     ERR("Too much memory requested for precomputing distances"
-      << "of connectivity set in process graph.");
+      << "of connectivity sets in process graph.");
   }
   _distances.assign(num_entries, std::numeric_limits<HyperedgeWeight>::max() / 3);
-  AllPairShortestPath::compute(_graph, _distances);
+  SteinerTree::compute(_graph, max_connectivity, _distances);
 
   _max_precomputed_connectitivty = max_connectivity;
   _is_initialized = true;

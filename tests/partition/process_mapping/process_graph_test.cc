@@ -102,6 +102,8 @@ TEST_F(AProcessGraph, HasCorrectNumberOfBlocks) {
 
 TEST_F(AProcessGraph, ComputesAllShortestPaths) {
   graph->precomputeDistances(2);
+  ASSERT_EQ(0, graph->distance(0, 0));
+  ASSERT_EQ(0, graph->distance(1, 1));
   ASSERT_EQ(1, graph->distance(0, 1));
   ASSERT_EQ(3, graph->distance(0, 2));
   ASSERT_EQ(6, graph->distance(0, 3));
@@ -117,6 +119,8 @@ TEST_F(AProcessGraph, ComputesAllShortestPaths) {
 
 TEST_F(AProcessGraph, ComputesAllShortestPathsWithConnectivitySet) {
   graph->precomputeDistances(2);
+  ASSERT_EQ(0, distance({ 0 }));
+  ASSERT_EQ(0, distance({ 1 }));
   ASSERT_EQ(1, distance({ 0, 1 }));
   ASSERT_EQ(3, distance({ 0, 2 }));
   ASSERT_EQ(6, distance({ 0, 3 }));

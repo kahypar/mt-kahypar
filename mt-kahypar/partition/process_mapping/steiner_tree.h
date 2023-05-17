@@ -31,14 +31,15 @@
 
 namespace mt_kahypar {
 
-class AllPairShortestPath {
+class SteinerTree {
 
  public:
   static void compute(const ds::StaticGraph& graph,
+                      const size_t max_set_size,
                       vec<HyperedgeWeight>& distances);
 
  private:
-  AllPairShortestPath() { }
+  SteinerTree() { }
 };
 
 }  // namespace kahypar

@@ -39,11 +39,10 @@ namespace ds {
 
 using Block = StaticBitset::Block;
 
-void set_one_bits(Block& block,
-                  const vec<size_t>& one_bits) {
+void set_one_bits(Bitset& bitset,
+                  const vec<PartitionID>& one_bits) {
   for ( const size_t pos : one_bits ) {
-    ASSERT(pos < 64);
-    block |= ( UL(1) << pos );
+    bitset.set(pos);
   }
 }
 
@@ -58,66 +57,89 @@ void verify_iterator(const StaticBitset& bitset,
 }
 
 TEST(AStaticBitset, CountNumberOfOneBits1) {
-  Block block = 0;
-  set_one_bits(block, { 0, 1, 5, 7 });
-  StaticBitset bitset(1, &block);
+  Bitset bits(64);
+  set_one_bits(bits, { 0, 1, 5, 7 });
+  StaticBitset bitset(bits.numBlocks(), bits.data());
   ASSERT_EQ(4, bitset.popcount());
 }
 
 TEST(AStaticBitset, CountNumberOfOneBits2) {
-  Block block = 0;
-  set_one_bits(block, { 0, 1, 5, 7, 16, 24, 30, 31, 46, 63 });
-  StaticBitset bitset(1, &block);
+  Bitset bits(64);
+  set_one_bits(bits, { 0, 1, 5, 7, 16, 24, 30, 31, 46, 63 });
+  StaticBitset bitset(bits.numBlocks(), bits.data());
   ASSERT_EQ(10, bitset.popcount());
 }
 
 TEST(AStaticBitset, CountNumberOfOneBits3) {
-  vec<Block> blocks(2, 0);
-  set_one_bits(blocks[0], { 0, 1, 5, 7 });
-  set_one_bits(blocks[1], { 0, 1, 5, 7, 16, 24, 30, 31, 46, 63 });
-  StaticBitset bitset(2, blocks.data());
+  Bitset bits(128);
+  set_one_bits(bits, {0, 1, 5, 7, 64, 65, 69, 71, 80, 88, 94, 95, 110, 127});
+  StaticBitset bitset(bits.numBlocks(), bits.data());
   ASSERT_EQ(14, bitset.popcount());
 }
 
 TEST(AStaticBitset, CountNumberOfOneBits4) {
-  vec<Block> blocks(3, 0);
-  set_one_bits(blocks[0], { 0, 1, 5, 7 });
-  set_one_bits(blocks[1], { 0, 1, 5, 7, 16, 24, 30, 31, 46, 63 });
-  set_one_bits(blocks[2], { 23, 24, 25, 26, 27, 55 });
-  StaticBitset bitset(3, blocks.data());
+  Bitset bits(192);
+  set_one_bits(bits, {0, 1, 5, 7, 64, 65, 69, 71, 80, 88,
+                      94, 95, 110, 127, 151, 152, 153, 154, 155,  183});
+  StaticBitset bitset(bits.numBlocks(), bits.data());
   ASSERT_EQ(20, bitset.popcount());
 }
 
 TEST(AStaticBitset, VerifyIterator1) {
-  Block block = 0;
-  set_one_bits(block, { 0, 1, 5, 7 });
-  StaticBitset bitset(1, &block);
-  verify_iterator(bitset, {0, 1, 5, 7});
+  vec<PartitionID> expected = { 0, 1, 5, 7 };
+  Bitset bits(64);
+  set_one_bits(bits, expected);
+  StaticBitset bitset(bits.numBlocks(), bits.data());
+  verify_iterator(bitset, expected);
 }
 
 TEST(AStaticBitset, VerifyIterator2) {
-  Block block = 0;
-  set_one_bits(block, { 0, 1, 5, 7, 16, 24, 30, 31, 46, 63 });
-  StaticBitset bitset(1, &block);
-  verify_iterator(bitset, { 0, 1, 5, 7, 16, 24, 30, 31, 46, 63 });
+  vec<PartitionID> expected = { 0, 1, 5, 7, 16, 24, 30, 31, 46, 63 };
+  Bitset bits(64);
+  set_one_bits(bits, expected);
+  StaticBitset bitset(bits.numBlocks(), bits.data());
+  verify_iterator(bitset, expected);
 }
 
 TEST(AStaticBitset, VerifyIterator3) {
-  vec<Block> blocks(2, 0);
-  set_one_bits(blocks[0], { 0, 1, 5, 7 });
-  set_one_bits(blocks[1], { 0, 1, 5, 7, 16, 24, 30, 31, 46, 63 });
-  StaticBitset bitset(2, blocks.data());
-  verify_iterator(bitset, {0, 1, 5, 7, 64, 65, 69, 71, 80, 88, 94, 95, 110, 127});
+  vec<PartitionID> expected = { 0, 1, 5, 7, 64, 65, 69, 71, 80, 88, 94, 95, 110, 127 };
+  Bitset bits(128);
+  set_one_bits(bits, expected);
+  StaticBitset bitset(bits.numBlocks(), bits.data());
+  verify_iterator(bitset, expected);
 }
 
 TEST(AStaticBitset, VerifyIterator4) {
-  vec<Block> blocks(3, 0);
-  set_one_bits(blocks[0], { 0, 1, 5, 7 });
-  set_one_bits(blocks[1], { 0, 1, 5, 7, 16, 24, 30, 31, 46, 63 });
-  set_one_bits(blocks[2], { 23, 24, 25, 26, 27, 55 });
-  StaticBitset bitset(3, blocks.data());
-  verify_iterator(bitset, {0, 1, 5, 7, 64, 65, 69, 71, 80, 88,
-                           94, 95, 110, 127, 151, 152, 153, 154, 155,  183});
+  vec<PartitionID> expected = { 0, 1, 5, 7, 64, 65, 69, 71, 80, 88,
+                                94, 95, 110, 127, 151, 152, 153, 154, 155,  183 };
+  Bitset bits(192);
+  set_one_bits(bits, expected);
+  StaticBitset bitset(bits.numBlocks(), bits.data());
+  verify_iterator(bitset, expected);
+}
+
+TEST(AStaticBitset, PerformsXOROperation1) {
+  Bitset bits_1(64);
+  set_one_bits(bits_1, { 0, 3, 6, 25 });
+  Bitset bits_2(64);
+  set_one_bits(bits_2, { 3, 6 });
+  StaticBitset bitset_1(bits_1.numBlocks(), bits_1.data());
+  StaticBitset bitset_2(bits_2.numBlocks(), bits_2.data());
+  Bitset res = bitset_1 ^ bitset_2;
+  StaticBitset res_bitset(res.numBlocks(), res.data());
+  verify_iterator(res_bitset, { 0, 25 });
+}
+
+TEST(AStaticBitset, PerformsXOROperation2) {
+  Bitset bits_1(128);
+  set_one_bits(bits_1, { 0, 3, 6, 25, 65, 85, 121 });
+  Bitset bits_2(128);
+  set_one_bits(bits_2, { 3, 6, 65, 121 });
+  StaticBitset bitset_1(bits_1.numBlocks(), bits_1.data());
+  StaticBitset bitset_2(bits_2.numBlocks(), bits_2.data());
+  Bitset res = bitset_1 ^ bitset_2;
+  StaticBitset res_bitset(res.numBlocks(), res.data());
+  verify_iterator(res_bitset, { 0, 25, 85 });
 }
 
 }  // namespace ds

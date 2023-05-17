@@ -31,6 +31,7 @@
 #include "mt-kahypar/macros.h"
 #include "mt-kahypar/utils/bit_ops.h"
 #include "mt-kahypar/datastructures/hypergraph_common.h"
+#include "mt-kahypar/datastructures/bitset.h"
 
 namespace mt_kahypar {
 namespace ds {
@@ -146,9 +147,16 @@ class StaticBitset {
     return cnt;
   }
 
- private:
-  friend class OneBitIterator;
+  Bitset operator^(const StaticBitset& other) {
+    ASSERT(_num_blocks == other._num_blocks);
+    Bitset res(_num_blocks * BITS_PER_BLOCK);
+    for ( size_t i = 0; i < _num_blocks; ++i ) {
+      res._bitset[i] = *( _bitset + i ) ^ *( other._bitset + i );
+    }
+    return res;
+  }
 
+ private:
   const size_t _num_blocks;
   const Block* _bitset;
 };
