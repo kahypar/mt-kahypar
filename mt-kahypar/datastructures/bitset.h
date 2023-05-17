@@ -65,6 +65,12 @@ class Bitset {
     return _bitset.data();
   }
 
+  void reset() {
+    for ( size_t i = 0; i < _bitset.size(); ++i ) {
+      _bitset[i] = 0;
+    }
+  }
+
   bool isSet(const size_t pos) {
     ASSERT(pos < _size);
     const size_t block_idx = pos >> _div; // pos / BITS_PER_BLOCK;

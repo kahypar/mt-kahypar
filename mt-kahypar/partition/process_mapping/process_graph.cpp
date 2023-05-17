@@ -54,8 +54,69 @@ HyperedgeWeight ProcessGraph::distance(const ds::StaticBitset& connectivity_set)
     return _distances[idx];
   } else {
     // Do some alternative distance computation since we have not precomputed it.
-    return std::numeric_limits<HyperedgeWeight>::max();
+    return computeWeightOfMSTOnMetricCompletion(connectivity_set);
   }
+}
+
+/**
+ * This function computes an MST of the metric completion of the process graph restricted to
+ * the blocks in the connectivity set. To compute the MST, we use Jarnik-Prim algorithm which
+ * has time complexity of |E| + |V| * log(|V|) = |V|^2 + |V| * log(|V|) (since we work on a
+ * complete graph). However, we restrict the computation only to nodes and edges contained in
+ * the connectivity set.
+ */
+HyperedgeWeight ProcessGraph::computeWeightOfMSTOnMetricCompletion(const ds::StaticBitset& connectivity_set) {
+  ASSERT(_is_initialized);
+  ASSERT(connectivity_set.popcount() > 0);
+  MSTData& mst_data = _local_mst_data.local();
+  ds::Bitset& remaining_nodes = mst_data.bitset;
+  ds::StaticBitset cur_blocks(
+    remaining_nodes.numBlocks(), remaining_nodes.data());
+  vec<HyperedgeWeight>& lightest_edge = mst_data.lightest_edge;
+  PQ& pq = mst_data.pq;
+  ASSERT(pq.empty());
+
+  auto push = [&](const PartitionID u) {
+    for ( const PartitionID& v : cur_blocks ) {
+      ASSERT(u != v);
+      const HyperedgeWeight dist = _distances[index(u,v)];
+      // If there is a lighter edge connecting v to the MST,
+      // we push v with the new weight into the PQ.
+      if ( dist < lightest_edge[v] ) {
+        pq.push(std::make_pair(dist, v));
+        lightest_edge[v] = dist;
+      }
+    }
+  };
+
+  // Initialize data structure and PQ
+  PartitionID root = kInvalidPartition;
+  for ( const PartitionID& block : connectivity_set ) {
+    remaining_nodes.set(block);
+    lightest_edge[block] = std::numeric_limits<HyperedgeWeight>::max();
+    root = block;
+  }
+  remaining_nodes.unset(root);
+  push(root);
+
+  HyperedgeWeight res = 0;
+  while ( !pq.empty() ) {
+    PQElement best = pq.top(); pq.pop();
+    const PartitionID u = best.second;
+    if ( !remaining_nodes.isSet(u) ) {
+      // u is already contained in the MST -> skip
+      continue;
+    }
+    // Add u to the MST and update PQ
+    res += best.first;
+    remaining_nodes.unset(u);
+    push(u);
+  }
+
+  // Reset data structures
+  remaining_nodes.reset();
+  ASSERT(pq.empty());
+  return res;
 }
 
 }  // namespace kahypar

@@ -26,6 +26,8 @@
 
 #include "gmock/gmock.h"
 
+#include "tbb/task_group.h"
+
 #include "mt-kahypar/datastructures/static_graph_factory.h"
 #include "mt-kahypar/partition/process_mapping/process_graph.h"
 
@@ -96,6 +98,26 @@ class AProcessGraph : public Test {
   }
 };
 
+template <class F, class K>
+void executeConcurrent(F f1, K f2) {
+  std::atomic<int> cnt(0);
+  tbb::task_group group;
+
+  group.run([&] {
+        cnt++;
+        while (cnt < 2) { }
+        f1();
+      });
+
+  group.run([&] {
+        cnt++;
+        while (cnt < 2) { }
+        f2();
+      });
+
+  group.wait();
+}
+
 TEST_F(AProcessGraph, HasCorrectNumberOfBlocks) {
   ASSERT_EQ(16, graph->numBlocks());
 }
@@ -159,6 +181,45 @@ TEST_F(AProcessGraph, ComputesAllSteinerTreesUpToSizeFour) {
   ASSERT_EQ(6, distance({ 0, 1, 2, 3 }));
   ASSERT_EQ(14, distance({ 0, 3, 12, 15 }));
   ASSERT_EQ(11, distance({ 0, 3, 9, 14 }));
+}
+
+/**
+ * Process Graph:
+ *        1           2           4
+ * 0  -------- 1  -------- 2  -------- 3
+ * |           |           |           |
+ * | 3         | 2         | 1         | 1
+ * |      3    |      2    |      1    |
+ * 4  -------- 5  -------- 6  -------- 7
+ * |           |           |           |
+ * | 1         | 1         | 3         | 2
+ * |      2    |      4    |      2    |
+ * 8  -------- 9  -------- 10 -------- 11
+ * |           |           |           |
+ * | 1         | 2         | 2         | 2
+ * |      1    |      1    |      2    |
+ * 12 -------- 13 -------- 14 -------- 15
+*/
+
+TEST_F(AProcessGraph, ComputeDistanceBetweenNonPrecomputedSets) {
+  graph->precomputeDistances(3);
+  ASSERT_EQ(8, distance({ 0, 5, 9, 10 }));
+  ASSERT_EQ(13, distance({ 0, 3, 10, 14 }));
+  ASSERT_EQ(13, distance({ 0, 4, 6, 13, 15 }));
+  ASSERT_EQ(10, distance({ 1, 5, 8, 10, 12 }));
+  ASSERT_EQ(15, distance({ 2, 3, 4, 8, 10, 14, 15 }));
+}
+
+TEST_F(AProcessGraph, ComputeDistanceBetweenNonPrecomputedSetsConcurrently) {
+  graph->precomputeDistances(3);
+  executeConcurrent([&] {
+    ASSERT_EQ(8, distance({ 0, 5, 9, 10 }));
+    ASSERT_EQ(13, distance({ 0, 3, 10, 14 }));
+  }, [&] {
+    ASSERT_EQ(13, distance({ 0, 4, 6, 13, 15 }));
+    ASSERT_EQ(10, distance({ 1, 5, 8, 10, 12 }));
+    ASSERT_EQ(15, distance({ 2, 3, 4, 8, 10, 14, 15 }));
+  });
 }
 
 
