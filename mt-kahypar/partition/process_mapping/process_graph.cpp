@@ -36,8 +36,8 @@ namespace mt_kahypar {
 void ProcessGraph::precomputeDistances(const size_t max_connectivity) {
   const size_t num_entries = std::pow(_k, max_connectivity);
   if ( num_entries > MEMORY_LIMIT ) {
-    ERR("Too much memory requested for precomputing distances"
-      << "of connectivity sets in process graph.");
+    ERR("Too much memory requested for precomputing steiner trees"
+      << "of connectivity sets in the process graph.");
   }
   _distances.assign(num_entries, std::numeric_limits<HyperedgeWeight>::max() / 3);
   SteinerTree::compute(_graph, max_connectivity, _distances);
@@ -48,13 +48,33 @@ void ProcessGraph::precomputeDistances(const size_t max_connectivity) {
 
 HyperedgeWeight ProcessGraph::distance(const ds::StaticBitset& connectivity_set) {
   const PartitionID connectivity = connectivity_set.popcount();
-  if ( connectivity <= _max_precomputed_connectitivty ) {
-    const size_t idx = index(connectivity_set);
+  const size_t idx = index(connectivity_set);
+  if ( likely(connectivity <= _max_precomputed_connectitivty) ) {
     ASSERT(idx < _distances.size());
     return _distances[idx];
   } else {
-    // Do some alternative distance computation since we have not precomputed it.
-    return computeWeightOfMSTOnMetricCompletion(connectivity_set);
+    // We have not precomputed the optimal steiner tree for the connectivity set.
+    if ( _cache.count(idx) == 0 ) {
+      // Entry is not cached => Compute 2-approximation of optimal steiner tree
+      const HyperedgeWeight mst_weight =
+        computeWeightOfMSTOnMetricCompletion(connectivity_set);
+      CachedElement elem(mst_weight);
+      _cache[idx] = std::move(elem);
+      _cache[idx].valid = true;
+      return mst_weight;
+    } else {
+      CachedElement& elem = _cache.at(idx);
+      if ( elem.valid ) {
+        // In this case, the cache contains a valid element and we can
+        // return its weight.
+        return elem.weight;
+      } else {
+        // In this case, there is an element in the cache but it is not valid.
+        // This can happen if another thread currently inserts its result,
+        // but the object is currently under construction.
+        return computeWeightOfMSTOnMetricCompletion(connectivity_set);
+      }
+    }
   }
 }
 

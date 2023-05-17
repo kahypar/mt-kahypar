@@ -183,26 +183,8 @@ TEST_F(AProcessGraph, ComputesAllSteinerTreesUpToSizeFour) {
   ASSERT_EQ(11, distance({ 0, 3, 9, 14 }));
 }
 
-/**
- * Process Graph:
- *        1           2           4
- * 0  -------- 1  -------- 2  -------- 3
- * |           |           |           |
- * | 3         | 2         | 1         | 1
- * |      3    |      2    |      1    |
- * 4  -------- 5  -------- 6  -------- 7
- * |           |           |           |
- * | 1         | 1         | 3         | 2
- * |      2    |      4    |      2    |
- * 8  -------- 9  -------- 10 -------- 11
- * |           |           |           |
- * | 1         | 2         | 2         | 2
- * |      1    |      1    |      2    |
- * 12 -------- 13 -------- 14 -------- 15
-*/
-
 TEST_F(AProcessGraph, ComputeDistanceBetweenNonPrecomputedSets) {
-  graph->precomputeDistances(3);
+  graph->precomputeDistances(2);
   ASSERT_EQ(8, distance({ 0, 5, 9, 10 }));
   ASSERT_EQ(13, distance({ 0, 3, 10, 14 }));
   ASSERT_EQ(13, distance({ 0, 4, 6, 13, 15 }));
@@ -211,7 +193,7 @@ TEST_F(AProcessGraph, ComputeDistanceBetweenNonPrecomputedSets) {
 }
 
 TEST_F(AProcessGraph, ComputeDistanceBetweenNonPrecomputedSetsConcurrently) {
-  graph->precomputeDistances(3);
+  graph->precomputeDistances(2);
   executeConcurrent([&] {
     ASSERT_EQ(8, distance({ 0, 5, 9, 10 }));
     ASSERT_EQ(13, distance({ 0, 3, 10, 14 }));
@@ -220,6 +202,25 @@ TEST_F(AProcessGraph, ComputeDistanceBetweenNonPrecomputedSetsConcurrently) {
     ASSERT_EQ(10, distance({ 1, 5, 8, 10, 12 }));
     ASSERT_EQ(15, distance({ 2, 3, 4, 8, 10, 14, 15 }));
   });
+}
+
+TEST_F(AProcessGraph, UsesACachedDistanceForNonPrecomputedSets) {
+  graph->precomputeDistances(2);
+  ASSERT_EQ(8, distance({ 0, 5, 9, 10 }));
+  ASSERT_EQ(8, distance({ 0, 5, 9, 10 }));
+}
+
+TEST_F(AProcessGraph, InsertsIntoCacheConcurrentlyForNonPrecomputedSets) {
+  graph->precomputeDistances(2);
+  executeConcurrent([&] {
+    ASSERT_EQ(8, distance({ 0, 5, 9, 10 }));
+    ASSERT_EQ(8, distance({ 0, 5, 9, 10 }));
+  }, [&] {
+    ASSERT_EQ(13, distance({ 0, 4, 6, 13, 15 }));
+    ASSERT_EQ(13, distance({ 0, 4, 6, 13, 15 }));
+  });
+  ASSERT_EQ(8, distance({ 0, 5, 9, 10 }));
+  ASSERT_EQ(13, distance({ 0, 4, 6, 13, 15 }));
 }
 
 
