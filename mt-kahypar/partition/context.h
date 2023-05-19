@@ -226,6 +226,13 @@ struct InitialPartitioningParameters {
 
 std::ostream & operator<< (std::ostream& str, const InitialPartitioningParameters& params);
 
+struct ProcessMappingParameters {
+  std::string process_graph_file = "";
+  size_t max_steiner_tree_size = 0;
+};
+
+std::ostream & operator<< (std::ostream& str, const ProcessMappingParameters& params);
+
 struct SharedMemoryParameters {
   size_t original_num_threads = 1;
   size_t num_threads = 1;
@@ -244,6 +251,7 @@ class Context {
   CoarseningParameters coarsening { };
   InitialPartitioningParameters initial_partitioning { };
   RefinementParameters refinement { };
+  ProcessMappingParameters process_mapping { };
   SharedMemoryParameters shared_memory { };
   ContextType type = ContextType::main;
 

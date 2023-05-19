@@ -37,6 +37,9 @@
 
 namespace mt_kahypar {
 
+// Forward Declaration
+class ProcessGraph;
+
 template<typename TypeTraits>
 class NLevelUncoarsener : public IUncoarsener<TypeTraits>,
                           private UncoarsenerBase<TypeTraits> {
@@ -82,8 +85,10 @@ class NLevelUncoarsener : public IUncoarsener<TypeTraits>,
  public:
   NLevelUncoarsener(Hypergraph& hypergraph,
                     const Context& context,
-                    UncoarseningData<TypeTraits>& uncoarseningData) :
+                    UncoarseningData<TypeTraits>& uncoarseningData,
+                    const ProcessGraph* process_graph) :
     Base(hypergraph, context, uncoarseningData),
+    _process_graph(process_graph),
     _hierarchy(),
     _tmp_refinement_nodes(),
     _border_vertices_of_batch(hypergraph.initialNumNodes()),
@@ -137,6 +142,8 @@ class NLevelUncoarsener : public IUncoarsener<TypeTraits>,
   using Base::_flows;
   using Base::_rebalancer;
   using Base::_timer;
+
+  const ProcessGraph* _process_graph;
 
   // ! Represents the n-level hierarchy
   // ! A batch is vector of uncontractions/mementos that can be uncontracted in parallel

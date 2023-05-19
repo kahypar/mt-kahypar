@@ -43,14 +43,15 @@ namespace internal {
 
   template<typename TypeTraits>
   mt_kahypar_partitioned_hypergraph_t partition(mt_kahypar_hypergraph_t hypergraph,
-                                                Context& context) {
+                                                Context& context,
+                                                ProcessGraph* process_graph) {
     using Hypergraph = typename TypeTraits::Hypergraph;
     using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
     Hypergraph& hg = utils::cast<Hypergraph>(hypergraph);
 
     // Partition Hypergraph
     PartitionedHypergraph partitioned_hg =
-      Partitioner<TypeTraits>::partition(hg, context);
+      Partitioner<TypeTraits>::partition(hg, context, process_graph);
 
     return mt_kahypar_partitioned_hypergraph_t {
       reinterpret_cast<mt_kahypar_partitioned_hypergraph_s*>(
@@ -59,12 +60,13 @@ namespace internal {
 
   template<typename TypeTraits>
   void improve(mt_kahypar_partitioned_hypergraph_t partitioned_hg,
-               Context& context) {
+               Context& context,
+               ProcessGraph* process_graph) {
     using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
     PartitionedHypergraph& phg = utils::cast<PartitionedHypergraph>(partitioned_hg);
 
     // Improve partition
-    Partitioner<TypeTraits>::partitionVCycle(phg, context);
+    Partitioner<TypeTraits>::partitionVCycle(phg, context, process_graph);
   }
 
   void check_if_feature_is_enabled(const mt_kahypar_partition_type_t type) {
@@ -92,28 +94,29 @@ namespace internal {
 } // namespace internal
 
   mt_kahypar_partitioned_hypergraph_t PartitionerFacade::partition(mt_kahypar_hypergraph_t hypergraph,
-                                                                   Context& context) {
+                                                                   Context& context,
+                                                                   ProcessGraph* process_graph) {
     const mt_kahypar_partition_type_t type = to_partition_c_type(
       context.partition.preset_type, context.partition.instance_type);
     internal::check_if_feature_is_enabled(type);
     switch ( type ) {
       #ifdef KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES
       case MULTILEVEL_GRAPH_PARTITIONING:
-        return internal::partition<StaticGraphTypeTraits>(hypergraph, context);
+        return internal::partition<StaticGraphTypeTraits>(hypergraph, context, process_graph);
       #ifdef KAHYPAR_ENABLE_N_LEVEL_PARTITIONING_FEATURES
       case N_LEVEL_GRAPH_PARTITIONING:
-        return internal::partition<DynamicGraphTypeTraits>(hypergraph, context);
+        return internal::partition<DynamicGraphTypeTraits>(hypergraph, context, process_graph);
       #endif
       #endif
       case MULTILEVEL_HYPERGRAPH_PARTITIONING:
-        return internal::partition<StaticHypergraphTypeTraits>(hypergraph, context);
+        return internal::partition<StaticHypergraphTypeTraits>(hypergraph, context, process_graph);
       #ifdef KAHYPAR_ENABLE_LARGE_K_PARTITIONING_FEATURES
       case LARGE_K_PARTITIONING:
-        return internal::partition<LargeKHypergraphTypeTraits>(hypergraph, context);
+        return internal::partition<LargeKHypergraphTypeTraits>(hypergraph, context, process_graph);
       #endif
       #ifdef KAHYPAR_ENABLE_N_LEVEL_PARTITIONING_FEATURES
       case N_LEVEL_HYPERGRAPH_PARTITIONING:
-        return internal::partition<DynamicHypergraphTypeTraits>(hypergraph, context);
+        return internal::partition<DynamicHypergraphTypeTraits>(hypergraph, context, process_graph);
       #endif
       default:
         return mt_kahypar_partitioned_hypergraph_t { nullptr, NULLPTR_PARTITION };
@@ -123,28 +126,29 @@ namespace internal {
 
 
   void PartitionerFacade::improve(mt_kahypar_partitioned_hypergraph_t partitioned_hg,
-                                  Context& context) {
+                                  Context& context,
+                                  ProcessGraph* process_graph) {
     const mt_kahypar_partition_type_t type = to_partition_c_type(
       context.partition.preset_type, context.partition.instance_type);
     internal::check_if_feature_is_enabled(type);
     switch ( type ) {
       #ifdef KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES
       case MULTILEVEL_GRAPH_PARTITIONING:
-        internal::improve<StaticGraphTypeTraits>(partitioned_hg, context); break;
+        internal::improve<StaticGraphTypeTraits>(partitioned_hg, context, process_graph); break;
       #ifdef KAHYPAR_ENABLE_N_LEVEL_PARTITIONING_FEATURES
       case N_LEVEL_GRAPH_PARTITIONING:
-        internal::improve<DynamicGraphTypeTraits>(partitioned_hg, context); break;
+        internal::improve<DynamicGraphTypeTraits>(partitioned_hg, context, process_graph); break;
       #endif
       #endif
       case MULTILEVEL_HYPERGRAPH_PARTITIONING:
-        internal::improve<StaticHypergraphTypeTraits>(partitioned_hg, context); break;
+        internal::improve<StaticHypergraphTypeTraits>(partitioned_hg, context, process_graph); break;
       #ifdef KAHYPAR_ENABLE_LARGE_K_PARTITIONING_FEATURES
       case LARGE_K_PARTITIONING:
-        internal::improve<LargeKHypergraphTypeTraits>(partitioned_hg, context); break;
+        internal::improve<LargeKHypergraphTypeTraits>(partitioned_hg, context, process_graph); break;
       #endif
       #ifdef KAHYPAR_ENABLE_N_LEVEL_PARTITIONING_FEATURES
       case N_LEVEL_HYPERGRAPH_PARTITIONING:
-        internal::improve<DynamicHypergraphTypeTraits>(partitioned_hg, context); break;
+        internal::improve<DynamicHypergraphTypeTraits>(partitioned_hg, context, process_graph); break;
       #endif
       default: break;
     }

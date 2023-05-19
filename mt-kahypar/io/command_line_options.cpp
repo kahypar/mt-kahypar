@@ -605,6 +605,20 @@ namespace mt_kahypar {
     return options;
   }
 
+  po::options_description createProcessMappingOptionsDescription(Context& context,
+                                                                 const int num_columns) {
+    po::options_description process_mapping_options("Process Mapping Options", num_columns);
+    process_mapping_options.add_options()
+            ("process-graph-file,g",
+             po::value<std::string>(&context.process_mapping.process_graph_file)->value_name("<string>"),
+             "Path to a process graph in Metis file format.")
+            ("max-steiner-tree-size",
+             po::value<size_t>(&context.process_mapping.max_steiner_tree_size)->value_name("<size_t>"),
+             "We precompute all optimal steiner trees up to this size in the process graph.");
+
+    return process_mapping_options;
+  }
+
   po::options_description createSharedMemoryOptionsDescription(Context& context,
                                                                const int num_columns) {
     po::options_description shared_memory_options("Shared Memory Options", num_columns);
@@ -677,6 +691,8 @@ namespace mt_kahypar {
             createRefinementOptionsDescription(context, num_columns, false);
     po::options_description flow_options =
             createFlowRefinementOptionsDescription(context, num_columns, false);
+    po::options_description process_mapping_options =
+            createProcessMappingOptionsDescription(context, num_columns);
     po::options_description shared_memory_options =
             createSharedMemoryOptionsDescription(context, num_columns);
 
@@ -690,6 +706,7 @@ namespace mt_kahypar {
             .add(initial_paritioning_options)
             .add(refinement_options)
             .add(flow_options)
+            .add(process_mapping_options)
             .add(shared_memory_options);
 
     po::variables_map cmd_vm;
@@ -717,6 +734,7 @@ namespace mt_kahypar {
               .add(initial_paritioning_options)
               .add(refinement_options)
               .add(flow_options)
+              .add(process_mapping_options)
               .add(shared_memory_options);
 
       po::store(po::parse_config_file(file, ini_line_options, true), cmd_vm);
@@ -772,6 +790,8 @@ namespace mt_kahypar {
             createRefinementOptionsDescription(context, num_columns, false);
     po::options_description flow_options =
             createFlowRefinementOptionsDescription(context, num_columns, false);
+    po::options_description process_mapping_options =
+            createProcessMappingOptionsDescription(context, num_columns);
     po::options_description shared_memory_options =
             createSharedMemoryOptionsDescription(context, num_columns);
 
@@ -783,6 +803,7 @@ namespace mt_kahypar {
             .add(initial_paritioning_options)
             .add(refinement_options)
             .add(flow_options)
+            .add(process_mapping_options)
             .add(shared_memory_options);
 
     po::store(po::parse_config_file(file, ini_line_options, true), cmd_vm);

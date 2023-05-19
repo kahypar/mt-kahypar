@@ -112,6 +112,9 @@ namespace mt_kahypar {
       _timer.disable();
       _is_timer_disabled = true;
     }
+
+    // Pass process graph to partitioned hypergraph
+    _uncoarseningData.partitioned_hg->setProcessGraph(_process_graph);
   }
 
   template<typename TypeTraits>

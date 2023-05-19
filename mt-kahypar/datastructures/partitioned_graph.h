@@ -46,6 +46,10 @@
 #include "mt-kahypar/utils/timer.h"
 
 namespace mt_kahypar {
+
+// Forward
+class ProcessGraph;
+
 namespace ds {
 
 // Forward
@@ -169,6 +173,7 @@ private:
     _input_num_nodes(hypergraph.initialNumNodes()),
     _k(k),
     _hg(&hypergraph),
+    _process_graph(nullptr),
     _part_weights(k, CAtomic<HypernodeWeight>(0)),
     _part_ids(
       "Refinement", "part_ids", hypergraph.initialNumNodes(), false, false),
@@ -185,6 +190,7 @@ private:
     _input_num_nodes(hypergraph.initialNumNodes()),
     _k(k),
     _hg(&hypergraph),
+    _process_graph(nullptr),
     _part_weights(k, CAtomic<HypernodeWeight>(0)),
     _part_ids(),
     _edge_sync(),
@@ -276,6 +282,19 @@ private:
     return _k;
   }
 
+  // ####################### Process Mapping ######################
+
+  void setProcessGraph(const ProcessGraph* process_graph) {
+    _process_graph = process_graph;
+  }
+
+  bool hasProcessGraph() const {
+    return _process_graph != nullptr;
+  }
+
+  const ProcessGraph* processGraph() const {
+    return _process_graph;
+  }
 
   // ####################### Iterators #######################
 
@@ -983,8 +1002,11 @@ private:
   // ! Number of blocks
   PartitionID _k = 0;
 
-  // ! Hypergraph object around which this partitioned hypergraph is wrapped
+  // ! Underlying graph
   Hypergraph* _hg = nullptr;
+
+  // ! Process graph on which this graph is mapped
+  const ProcessGraph* _process_graph;
 
   // ! Weight and information for all blocks.
   parallel::scalable_vector< CAtomic<HypernodeWeight> > _part_weights;

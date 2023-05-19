@@ -216,6 +216,13 @@ namespace mt_kahypar {
     return str;
   }
 
+  std::ostream & operator<< (std::ostream& str, const ProcessMappingParameters& params) {
+    str << "Process Mapping Parameters:           " << std::endl;
+    str << "  Process Graph File:                 " << params.process_graph_file << std::endl;
+    str << "  Max Precomputed Steiner Tree Size:  " << params.max_steiner_tree_size << std::endl;
+    return str;
+  }
+
   std::ostream & operator<< (std::ostream& str, const SharedMemoryParameters& params) {
     str << "Shared Memory Parameters:             " << std::endl;
     str << "  Number of Threads:                  " << params.num_threads << std::endl;
@@ -405,6 +412,9 @@ namespace mt_kahypar {
     // shared_memory
     shared_memory.use_localized_random_shuffle = false;
     shared_memory.static_balancing_work_packages = 128;
+
+    // process_mapping
+    process_mapping.max_steiner_tree_size = 4;
 
     // preprocessing
     preprocessing.use_community_detection = true;
@@ -616,6 +626,9 @@ namespace mt_kahypar {
     // shared_memory
     shared_memory.use_localized_random_shuffle = false;
     shared_memory.static_balancing_work_packages = 128;
+
+    // process_mapping
+    process_mapping.max_steiner_tree_size = 4;
 
     // preprocessing
     preprocessing.use_community_detection = true;
@@ -837,8 +850,12 @@ namespace mt_kahypar {
         << context.initial_partitioning
         << "-------------------------------------------------------------------------------\n"
         << context.refinement
-        << "-------------------------------------------------------------------------------\n"
-        << context.shared_memory
+        << "-------------------------------------------------------------------------------\n";
+    if ( context.process_mapping.process_graph_file != "" ) {
+      str << context.process_mapping
+          << "-------------------------------------------------------------------------------\n";
+    }
+    str << context.shared_memory
         << "-------------------------------------------------------------------------------";
     return str;
   }

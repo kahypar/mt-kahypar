@@ -195,6 +195,10 @@ TEST(AContext, LoadsDefaultPresetCorrectly) {
   // refinement -> flows
   ASSERT_EQ(actual.refinement.flows.algorithm,
             expected.refinement.flows.algorithm);
+
+  // process mapping
+  ASSERT_EQ(actual.process_mapping.max_steiner_tree_size,
+            expected.process_mapping.max_steiner_tree_size);
 }
 
 TEST(AContext, LoadsDefaultFlowPresetCorrectly) {
@@ -377,6 +381,10 @@ TEST(AContext, LoadsDefaultFlowPresetCorrectly) {
             expected.refinement.flows.skip_unpromising_blocks);
   ASSERT_EQ(actual.refinement.flows.pierce_in_bulk,
             expected.refinement.flows.pierce_in_bulk);
+
+  // process mapping
+  ASSERT_EQ(actual.process_mapping.max_steiner_tree_size,
+            expected.process_mapping.max_steiner_tree_size);
 }
 
 TEST(AContext, LoadsDeterministicPresetCorrectly) {
@@ -511,6 +519,10 @@ TEST(AContext, LoadsDeterministicPresetCorrectly) {
             expected.refinement.deterministic_refinement.use_active_node_set);
   ASSERT_EQ(actual.refinement.deterministic_refinement.recalculate_gains_on_second_apply,
             expected.refinement.deterministic_refinement.recalculate_gains_on_second_apply);
+
+  // process mapping
+  ASSERT_EQ(actual.process_mapping.max_steiner_tree_size,
+            expected.process_mapping.max_steiner_tree_size);
 }
 
 #ifdef KAHYPAR_ENABLE_N_LEVEL_PARTITIONING_FEATURES
@@ -695,6 +707,10 @@ TEST(AContext, LoadsQualityPresetCorrectly) {
             expected.refinement.global_fm.num_seed_nodes);
   ASSERT_EQ(actual.refinement.global_fm.obey_minimal_parallelism,
             expected.refinement.global_fm.obey_minimal_parallelism);
+
+  // process mapping
+  ASSERT_EQ(actual.process_mapping.max_steiner_tree_size,
+            expected.process_mapping.max_steiner_tree_size);
 }
 
 TEST(AContext, LoadsQualityFlowPresetCorrectly) {
@@ -901,6 +917,10 @@ TEST(AContext, LoadsQualityFlowPresetCorrectly) {
             expected.refinement.global_fm.num_seed_nodes);
   ASSERT_EQ(actual.refinement.global_fm.obey_minimal_parallelism,
             expected.refinement.global_fm.obey_minimal_parallelism);
+
+  // process mapping
+  ASSERT_EQ(actual.process_mapping.max_steiner_tree_size,
+            expected.process_mapping.max_steiner_tree_size);
 }
 #endif
 
@@ -1018,6 +1038,10 @@ TEST(AContext, LoadsLargeKPresetCorrectly) {
   // refinement -> flows
   ASSERT_EQ(actual.refinement.flows.algorithm,
             expected.refinement.flows.algorithm);
+
+  // process mapping
+  ASSERT_EQ(actual.process_mapping.max_steiner_tree_size,
+            expected.process_mapping.max_steiner_tree_size);
 }
 
 #endif

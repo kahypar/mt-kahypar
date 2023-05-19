@@ -31,6 +31,9 @@
 
 namespace mt_kahypar {
 
+// Forward Declaration
+class ProcessGraph;
+
 template<typename TypeTraits>
 class Multilevel {
 
@@ -39,16 +42,21 @@ class Multilevel {
 
  public:
   // ! Partitions a hypergraph using the multilevel paradigm.
-  static PartitionedHypergraph partition(Hypergraph& hypergraph, const Context& context);
+  static PartitionedHypergraph partition(Hypergraph& hypergraph,
+                                         const Context& context,
+                                         const ProcessGraph* process_graph = nullptr);
 
   // ! Partitions a hypergraph using the multilevel paradigm.
-  static void partition(PartitionedHypergraph& partitioned_hg, const Context& context);
+  static void partition(PartitionedHypergraph& partitioned_hg,
+                        const Context& context,
+                        const ProcessGraph* process_graph = nullptr);
 
   // ! Improves an existing partition using the iterated multilevel cycle technique
   // ! (also called V-cycle).
   static void partitionVCycle(Hypergraph& hypergraph,
                               PartitionedHypergraph& partitioned_hg,
-                              const Context& context);
+                              const Context& context,
+                              const ProcessGraph* process_graph = nullptr);
 };
 
 }  // namespace mt_kahypar

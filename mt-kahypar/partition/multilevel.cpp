@@ -72,6 +72,7 @@ namespace {
   typename TypeTraits::PartitionedHypergraph multilevel_partitioning(
     typename TypeTraits::Hypergraph& hypergraph,
     const Context& context,
+    const ProcessGraph* process_graph,
     const bool is_vcycle) {
     using Hypergraph = typename TypeTraits::Hypergraph;
     using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
@@ -155,9 +156,11 @@ namespace {
     timer.start_timer("refinement", "Refinement");
     std::unique_ptr<IUncoarsener<TypeTraits>> uncoarsener(nullptr);
     if (uncoarseningData.nlevel) {
-      uncoarsener = std::make_unique<NLevelUncoarsener<TypeTraits>>(hypergraph, context, uncoarseningData);
+      uncoarsener = std::make_unique<NLevelUncoarsener<TypeTraits>>(
+        hypergraph, context, uncoarseningData, process_graph);
     } else {
-      uncoarsener = std::make_unique<MultilevelUncoarsener<TypeTraits>>(hypergraph, context, uncoarseningData);
+      uncoarsener = std::make_unique<MultilevelUncoarsener<TypeTraits>>(
+        hypergraph, context, uncoarseningData, process_graph);
     }
     partitioned_hg = uncoarsener->uncoarsen();
 
@@ -170,21 +173,24 @@ namespace {
 
 template<typename TypeTraits>
 typename Multilevel<TypeTraits>::PartitionedHypergraph Multilevel<TypeTraits>::partition(
-  Hypergraph& hypergraph, const Context& context) {
+  Hypergraph& hypergraph, const Context& context, const ProcessGraph* process_graph) {
   PartitionedHypergraph partitioned_hg =
-    multilevel_partitioning<TypeTraits>(hypergraph, context, false);
+    multilevel_partitioning<TypeTraits>(hypergraph, context, process_graph, false);
 
   // ################## V-CYCLES ##################
   if ( context.partition.num_vcycles > 0 && context.type == ContextType::main ) {
-    partitionVCycle(hypergraph, partitioned_hg, context);
+    partitionVCycle(hypergraph, partitioned_hg, context, process_graph);
   }
 
   return partitioned_hg;
 }
 
 template<typename TypeTraits>
-void Multilevel<TypeTraits>::partition(PartitionedHypergraph& partitioned_hg, const Context& context) {
-  PartitionedHypergraph tmp_phg = partition(partitioned_hg.hypergraph(), context);
+void Multilevel<TypeTraits>::partition(PartitionedHypergraph& partitioned_hg,
+                                       const Context& context,
+                                       const ProcessGraph* process_graph) {
+  PartitionedHypergraph tmp_phg = partition(
+    partitioned_hg.hypergraph(), context, process_graph);
   tmp_phg.doParallelForAllNodes([&](const HypernodeID& hn) {
     partitioned_hg.setOnlyNodePart(hn, tmp_phg.partID(hn));
   });
@@ -194,7 +200,8 @@ void Multilevel<TypeTraits>::partition(PartitionedHypergraph& partitioned_hg, co
 template<typename TypeTraits>
 void Multilevel<TypeTraits>::partitionVCycle(Hypergraph& hypergraph,
                                              PartitionedHypergraph& partitioned_hg,
-                                             const Context& context) {
+                                             const Context& context,
+                                             const ProcessGraph* process_graph) {
   ASSERT(context.partition.num_vcycles > 0);
 
   for ( size_t i = 0; i < context.partition.num_vcycles; ++i ) {
@@ -220,7 +227,7 @@ void Multilevel<TypeTraits>::partitionVCycle(Hypergraph& hypergraph,
     // Perform V-cycle
     io::printVCycleBanner(context, i + 1);
     partitioned_hg = multilevel_partitioning<TypeTraits>(
-      hypergraph, context, true /* V-cycle flag */ );
+      hypergraph, context, process_graph, true /* V-cycle flag */ );
   }
 }
 

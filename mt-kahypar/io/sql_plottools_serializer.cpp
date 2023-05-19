@@ -147,6 +147,11 @@ std::string serialize(const PartitionedHypergraph& hypergraph,
         << " shuffle_block_size=" << context.shared_memory.shuffle_block_size
         << " static_balancing_work_packages=" << context.shared_memory.static_balancing_work_packages;
 
+    if ( context.process_mapping.process_graph_file != "" ) {
+      oss << " process_mapping_file=" << context.process_mapping.process_graph_file
+          << " process_mapping_max_steiner_tree_size=" << context.process_mapping.max_steiner_tree_size;
+    }
+
     // Metrics
     if ( hypergraph.initialNumEdges() > 0 ) {
       oss << " " << context.partition.objective << "=" << metrics::quality(hypergraph, context);

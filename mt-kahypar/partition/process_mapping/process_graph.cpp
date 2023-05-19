@@ -46,7 +46,7 @@ void ProcessGraph::precomputeDistances(const size_t max_connectivity) {
   _is_initialized = true;
 }
 
-HyperedgeWeight ProcessGraph::distance(const ds::StaticBitset& connectivity_set) {
+HyperedgeWeight ProcessGraph::distance(const ds::StaticBitset& connectivity_set) const {
   const PartitionID connectivity = connectivity_set.popcount();
   const size_t idx = index(connectivity_set);
   if ( likely(connectivity <= _max_precomputed_connectitivty) ) {
@@ -85,7 +85,7 @@ HyperedgeWeight ProcessGraph::distance(const ds::StaticBitset& connectivity_set)
  * complete graph). However, we restrict the computation only to nodes and edges contained in
  * the connectivity set.
  */
-HyperedgeWeight ProcessGraph::computeWeightOfMSTOnMetricCompletion(const ds::StaticBitset& connectivity_set) {
+HyperedgeWeight ProcessGraph::computeWeightOfMSTOnMetricCompletion(const ds::StaticBitset& connectivity_set) const {
   ASSERT(_is_initialized);
   ASSERT(connectivity_set.popcount() > 0);
   MSTData& mst_data = _local_mst_data.local();

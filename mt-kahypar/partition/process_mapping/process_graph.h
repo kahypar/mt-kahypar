@@ -70,7 +70,7 @@ class ProcessGraph {
 
  public:
   explicit ProcessGraph(ds::StaticGraph&& graph) :
-    _is_initialized(true),
+    _is_initialized(false),
     _k(graph.initialNumNodes()),
     _graph(std::move(graph)),
     _max_precomputed_connectitivty(0),
@@ -88,6 +88,10 @@ class ProcessGraph {
     return _k;
   }
 
+  bool isInitialized() const {
+    return _is_initialized;
+  }
+
   // ! This function computes the weight of all steiner trees for all
   // ! connectivity sets with connectivity at most m (:= max_connectivity),
   void precomputeDistances(const size_t max_conectivity);
@@ -96,22 +100,22 @@ class ProcessGraph {
   // ! in the connectivity set if precomputed. Otherwise, we compute
   // ! a 2-approximation of the optimal steiner tree
   // ! (see computeWeightOfMSTOnMetricCompletion(...))
-  HyperedgeWeight distance(const ds::StaticBitset& connectivity_set);
+  HyperedgeWeight distance(const ds::StaticBitset& connectivity_set) const;
 
   // ! Returns the shortest path between two blocks in the process graph
-  HyperedgeWeight distance(const PartitionID i, const PartitionID j) {
+  HyperedgeWeight distance(const PartitionID i, const PartitionID j) const {
     ASSERT(_is_initialized);
     return _distances[index(i, j)];
   }
 
  private:
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE size_t index(const PartitionID i,
-                                                  const PartitionID j) {
+                                                  const PartitionID j) const {
     ASSERT(i < _k && j < _k);
     return i + j * _k;
   }
 
-  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE size_t index(const ds::StaticBitset& connectivity_set) {
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE size_t index(const ds::StaticBitset& connectivity_set) const {
     size_t index = 0;
     PartitionID multiplier = 1;
     PartitionID last_block = kInvalidPartition;
@@ -127,7 +131,7 @@ class ProcessGraph {
   // ! restricted to the blocks in the connectivity set. The metric completion is
   // ! complete graph where each edge {u,v} has a weight equals the shortest path
   // ! connecting u and v. This gives a 2-approximation for steiner tree problem.
-  HyperedgeWeight computeWeightOfMSTOnMetricCompletion(const ds::StaticBitset& connectivity_set);
+  HyperedgeWeight computeWeightOfMSTOnMetricCompletion(const ds::StaticBitset& connectivity_set) const;
 
   bool _is_initialized;
 
@@ -145,10 +149,10 @@ class ProcessGraph {
   vec<HyperedgeWeight> _distances;
 
   // ! Data structures to compute MST for non-precomputed connectivity sets
-  tbb::enumerable_thread_specific<MSTData> _local_mst_data;
+  mutable tbb::enumerable_thread_specific<MSTData> _local_mst_data;
 
   // ! Cache stores the weight of MST's computations
-  tbb::concurrent_unordered_map<size_t, CachedElement> _cache;
+  mutable tbb::concurrent_unordered_map<size_t, CachedElement> _cache;
 };
 
 }  // namespace kahypar
