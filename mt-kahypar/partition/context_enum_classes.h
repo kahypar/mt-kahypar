@@ -79,6 +79,7 @@ enum class Objective : uint8_t {
   cut,
   km1,
   soed,
+  process_mapping,
   UNDEFINED
 };
 
@@ -86,6 +87,7 @@ enum class GainPolicy : uint8_t {
   km1,
   cut,
   soed,
+  process_mapping,
   cut_for_graphs,
   none
 };

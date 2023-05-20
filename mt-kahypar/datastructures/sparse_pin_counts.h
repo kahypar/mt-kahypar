@@ -173,7 +173,9 @@ class SparsePinCounts {
     _size_of_pin_counts_per_he(0),
     _pin_count_in_part(),
     _pin_count_ptr(nullptr),
-    _ext_pin_count_list() { }
+    _ext_pin_count_list(),
+    _deep_copy_bitset(),
+    _shallow_copy_bitset() { }
 
   SparsePinCounts(const HyperedgeID num_hyperedges,
                   const PartitionID k,
@@ -185,7 +187,9 @@ class SparsePinCounts {
     _size_of_pin_counts_per_he(0),
     _pin_count_in_part(),
     _pin_count_ptr(nullptr),
-    _ext_pin_count_list() {
+    _ext_pin_count_list(),
+    _deep_copy_bitset(),
+    _shallow_copy_bitset() {
     initialize(num_hyperedges, k, max_value, assign_parallel);
   }
 
@@ -199,7 +203,9 @@ class SparsePinCounts {
     _size_of_pin_counts_per_he(other._size_of_pin_counts_per_he),
     _pin_count_in_part(std::move(other._pin_count_in_part)),
     _pin_count_ptr(std::move(other._pin_count_ptr)),
-    _ext_pin_count_list(std::move(other._ext_pin_count_list)) { }
+    _ext_pin_count_list(std::move(other._ext_pin_count_list)),
+    _deep_copy_bitset(std::move(other._deep_copy_bitset)),
+    _shallow_copy_bitset(std::move(other._shallow_copy_bitset)) { }
 
   SparsePinCounts & operator= (SparsePinCounts&& other) {
     _num_hyperedges = other._num_hyperedges;
@@ -209,6 +215,8 @@ class SparsePinCounts {
     _pin_count_in_part = std::move(other._pin_count_in_part);
     _pin_count_ptr = std::move(other._pin_count_ptr);
     _ext_pin_count_list = std::move(other._ext_pin_count_list);
+    _deep_copy_bitset = std::move(other._deep_copy_bitset);
+    _shallow_copy_bitset = std::move(other._shallow_copy_bitset);
     return *this;
   }
 
@@ -244,6 +252,23 @@ class SparsePinCounts {
         Iterator(UL(0), con, _k, &_ext_pin_count_list[he]),
         Iterator(con, con, _k, &_ext_pin_count_list[he]));
     }
+  }
+
+  StaticBitset& shallowCopy(const HyperedgeID he) const {
+    // Shallow copy not possible for sparse pin count data structure
+    Bitset& deep_copy = deepCopy(he);
+    StaticBitset& shallow_copy = _shallow_copy_bitset.local();
+    shallow_copy.set(deep_copy.numBlocks(), deep_copy.data());
+  }
+
+  // Creates a deep copy of the connectivity set of hyperedge he
+  Bitset& deepCopy(const HyperedgeID he) const {
+    Bitset& deep_copy = _deep_copy_bitset.local();
+    deep_copy.resize(_k);
+    for ( const PartitionID& block : connectivitySet(he) ) {
+      deep_copy.set(block);
+    }
+    return deep_copy;
   }
 
   // ################## Pin Count In Part ##################
@@ -515,6 +540,10 @@ class SparsePinCounts {
   // ! Note that we have to use concurrent_vector since we allow concurrent
   // ! read while modyfing the entries.
   vec<tbb::concurrent_vector<PinCountEntry>> _ext_pin_count_list;
+
+  // Bitsets to create shallow and deep copies of the connectivity set
+  mutable tbb::enumerable_thread_specific<Bitset> _deep_copy_bitset;
+  mutable tbb::enumerable_thread_specific<StaticBitset> _shallow_copy_bitset;
 };
 }  // namespace ds
 }  // namespace mt_kahypar

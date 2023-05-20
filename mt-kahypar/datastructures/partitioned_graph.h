@@ -608,6 +608,24 @@ private:
     return count;
   }
 
+  // ! Creates a shallow copy of the connectivity set of hyperedge he
+  StaticBitset& shallowCopyOfConnectivitySet(const HyperedgeID he) const {
+    // Shallow copy not possible for graph data structure
+    Bitset& deep_copy = deepCopyOfConnectivitySet(he);
+    StaticBitset& shallow_copy = _shallow_copy_bitset.local();
+    shallow_copy.set(deep_copy.numBlocks(), deep_copy.data());
+    return shallow_copy;
+  }
+
+  // ! Creates a deep copy of the connectivity set of hyperedge he
+  Bitset& deepCopyOfConnectivitySet(const HyperedgeID he) const {
+    Bitset& deep_copy = _deep_copy_bitset.local();
+    deep_copy.resize(_k);
+    deep_copy.set(partID(edgeSource(he)));
+    deep_copy.set(partID(edgeTarget(he)));
+    return deep_copy;
+  }
+
   // ! Initializes the partition of the hypergraph, if block ids are assigned with
   // ! setOnlyNodePart(...). In that case, block weights must be initialized explicitly here.
   void initializePartition() {
@@ -1019,6 +1037,12 @@ private:
 
   // ! We need to synchronize uncontractions via atomic markers
   ThreadSafeFastResetFlagArray<uint8_t> _edge_markers;
+
+  // ! Bitsets to create shallow and deep copies of the connectivity set
+  // ! They are only required to implement the same interface of our hypergraph
+  // ! data structure but should not be required in practice.
+  mutable tbb::enumerable_thread_specific<Bitset> _deep_copy_bitset;
+  mutable tbb::enumerable_thread_specific<StaticBitset> _shallow_copy_bitset;
 };
 
 } // namespace ds

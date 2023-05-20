@@ -32,6 +32,8 @@
 #include <limits>
 #include <cassert>
 
+#include "tbb/enumerable_thread_specific.h"
+
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
 #include "mt-kahypar/datastructures/array.h"
 #include "mt-kahypar/datastructures/static_bitset.h"
@@ -71,7 +73,9 @@ public:
     _k(0),
     _num_hyperedges(0),
     _num_blocks_per_hyperedge(0),
-    _bits() { }
+    _bits(),
+    _deep_copy_bitset(),
+    _shallow_copy_bitset() { }
 
   ConnectivitySets(const HyperedgeID num_hyperedges,
                    const PartitionID k,
@@ -79,7 +83,9 @@ public:
     _k(k),
     _num_hyperedges(num_hyperedges),
     _num_blocks_per_hyperedge(k / BITS_PER_BLOCK + (k % BITS_PER_BLOCK != 0)),
-    _bits() {
+    _bits(),
+    _deep_copy_bitset(),
+    _shallow_copy_bitset() {
       if ( num_hyperedges > 0 ) {
         _bits.resize("Refinement", "connectivity_set",
           static_cast<size_t>(num_hyperedges) * _num_blocks_per_hyperedge, true, assign_parallel);
@@ -139,6 +145,22 @@ public:
     return conn;
   }
 
+  // Creates a shallow copy of the connectivity set of hyperedge he
+  StaticBitset& shallowCopy(const HyperedgeID he) const {
+    StaticBitset& shallow_copy = _shallow_copy_bitset.local();
+    shallow_copy.set(_num_blocks_per_hyperedge,
+      &_bits[UL(he) * _num_blocks_per_hyperedge]);
+    return shallow_copy;
+  }
+
+  // Creates a deep copy of the connectivity set of hyperedge he
+  Bitset& deepCopy(const HyperedgeID he) const {
+    Bitset& deep_copy = _deep_copy_bitset.local();
+    deep_copy.copy(_num_blocks_per_hyperedge,
+      &_bits[UL(he) * _num_blocks_per_hyperedge]);
+    return deep_copy;
+  }
+
   void freeInternalData() {
     parallel::free(_bits);
   }
@@ -167,6 +189,10 @@ private:
 	HyperedgeID _num_hyperedges;
 	PartitionID _num_blocks_per_hyperedge;
 	Array<UnsafeBlock> _bits;
+
+  // Bitsets to create shallow and deep copies of the connectivity set
+  mutable tbb::enumerable_thread_specific<Bitset> _deep_copy_bitset;
+  mutable tbb::enumerable_thread_specific<StaticBitset> _shallow_copy_bitset;
 };
 
 

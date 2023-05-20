@@ -59,7 +59,9 @@ class StaticBitset {
       _bitset(bitset),
       _max_block_id(num_blocks * BITS_PER_BLOCK),
       _current_block_id(start_block) {
-      nextBlockID();
+      if ( _current_block_id < _max_block_id ) {
+        nextBlockID();
+      }
     }
 
     PartitionID operator*() const {
@@ -116,10 +118,19 @@ class StaticBitset {
   using iterator = OneBitIterator;
   using const_iterator = const OneBitIterator;
 
+  StaticBitset() :
+    _num_blocks(0),
+    _bitset(nullptr) { }
+
   StaticBitset(const size_t num_blocks,
                const Block* bitset) :
     _num_blocks(num_blocks),
     _bitset(bitset) { }
+
+  void set(const size_t size, const Block* block) {
+    _num_blocks = size;
+    _bitset = block;
+  }
 
   iterator begin() const {
     return iterator(_num_blocks, _bitset, -1);
@@ -165,7 +176,7 @@ class StaticBitset {
   }
 
  private:
-  const size_t _num_blocks;
+  size_t _num_blocks;
   const Block* _bitset;
 };
 

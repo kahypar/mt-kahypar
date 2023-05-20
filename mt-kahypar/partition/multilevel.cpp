@@ -125,6 +125,7 @@ namespace {
       } else if ( context.initial_partitioning.mode == Mode::recursive_bipartitioning ) {
         RecursiveBipartitioning<TypeTraits>::partition(phg, ip_context);
       } else if ( context.initial_partitioning.mode == Mode::deep_multilevel ) {
+        ASSERT(ip_context.partition.objective != Objective::process_mapping);
         DeepMultilevel<TypeTraits>::partition(phg, ip_context);
       } else {
         ERR("Undefined initial partitioning algorithm");
@@ -144,6 +145,9 @@ namespace {
       phg.initializePartition();
     }
 
+    if ( context.partition.objective == Objective::process_mapping ) {
+      phg.setProcessGraph(process_graph);
+    }
     io::printPartitioningResults(phg, context, "Initial Partitioning Results:");
     if ( context.partition.verbose_output && !is_vcycle ) {
       utils::Utilities::instance().getInitialPartitioningStats(

@@ -671,7 +671,8 @@ namespace mt_kahypar {
              "Objective: \n"
              " - cut : cut-net metric (FM only supports km1 metric) \n"
              " - km1 : (lambda-1) metric\n"
-             " - soed: sum-of-external-degree metric");
+             " - soed: sum-of-external-degree metric\n"
+             " - process_mapping: mapping of a (hyper)graph onto a process graph");
 
     po::options_description preset_options("Preset Options", num_columns);
     preset_options.add_options()

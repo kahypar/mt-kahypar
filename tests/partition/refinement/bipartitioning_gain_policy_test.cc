@@ -71,7 +71,7 @@ class ABipartitioningPolicy : public Test {
     context.initial_partitioning.runs = 1;
 
     context.load_default_preset();
-    context.sanityCheck();
+    context.sanityCheck(nullptr);
     context.setupPartWeights(hypergraph.totalWeight());
   }
 

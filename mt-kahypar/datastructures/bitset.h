@@ -44,6 +44,12 @@ class Bitset {
   static constexpr int BITS_PER_BLOCK = std::numeric_limits<Block>::digits;
 
  public:
+  explicit Bitset() :
+    _size(0),
+    _div(std::log2(BITS_PER_BLOCK)),
+    _mod(BITS_PER_BLOCK - 1),
+    _bitset() { }
+
   explicit Bitset(const size_t size) :
     _size(size),
     _div(std::log2(BITS_PER_BLOCK)),
@@ -71,6 +77,19 @@ class Bitset {
     }
   }
 
+  void resize(const size_t size) {
+    _size = size;
+    _bitset.assign(( size >> _div ) + ( ( size & _mod ) != 0 ), 0);
+  }
+
+  void copy(const size_t num_blocks, const Block* blocks) {
+    _size = num_blocks * BITS_PER_BLOCK;
+    _bitset.resize(num_blocks);
+    for ( size_t i = 0; i < num_blocks; ++i ) {
+      _bitset[i] = *(blocks + 1);
+    }
+  }
+
   bool isSet(const size_t pos) {
     ASSERT(pos < _size);
     const size_t block_idx = pos >> _div; // pos / BITS_PER_BLOCK;
@@ -95,7 +114,7 @@ class Bitset {
  private:
   friend class StaticBitset;
 
-  const size_t _size;
+  size_t _size;
   const size_t _div;
   const size_t _mod;
   vec<Block> _bitset;

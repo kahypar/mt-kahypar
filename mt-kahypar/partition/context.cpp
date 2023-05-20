@@ -314,7 +314,7 @@ namespace mt_kahypar {
             std::min(coarsening.max_allowed_node_weight, min_block_weight);
   }
 
-  void Context::sanityCheck() {
+  void Context::sanityCheck(const ProcessGraph* process_graph) {
     if ( isNLevelPartitioning() && coarsening.algorithm == CoarseningAlgorithm::multilevel_coarsener ) {
         ALGO_SWITCH("Coarsening algorithm" << coarsening.algorithm << "is only supported in multilevel mode."
                                            << "Do you want to use the n-level version instead (Y/N)?",
@@ -338,6 +338,28 @@ namespace mt_kahypar {
                   "Number of parts is not equal to k!",
                   partition.k,
                   partition.max_part_weights.size());
+    }
+
+    if ( partition.objective == Objective::process_mapping ) {
+      if ( !process_graph ) {
+        partition.objective = Objective::km1;
+        INFO("No process graph provided for process mapping objective function. Switching to km1 metric.");
+      } else {
+        if ( partition.mode == Mode::deep_multilevel ) {
+          ALGO_SWITCH("Partitioning mode" << partition.mode << "is not supported for process mapping objective function."
+                                          << "Do you want to use the multilevel mode instead (Y/N)?",
+                      "Partitioning mode" << partition.mode
+                                          << "is not supported for process mapping!",
+                      partition.mode, Mode::direct);
+        }
+        if ( initial_partitioning.mode == Mode::deep_multilevel ) {
+          ALGO_SWITCH("Initial partitioning mode" << partition.mode << "is not supported for process mapping."
+                                            << "Do you want to use the multilevel mode instead (Y/N)?",
+                      "Initial partitioning mode" << partition.mode
+                                            << "is not supported for process mapping!",
+                      partition.mode, Mode::direct);
+        }
+      }
     }
 
 
@@ -372,14 +394,19 @@ namespace mt_kahypar {
         case Objective::km1: partition.gain_policy = GainPolicy::km1; break;
         case Objective::cut: partition.gain_policy = GainPolicy::cut; break;
         case Objective::soed: partition.gain_policy = GainPolicy::soed; break;
+        case Objective::process_mapping: partition.gain_policy = GainPolicy::process_mapping; break;
         case Objective::UNDEFINED: partition.gain_policy = GainPolicy::none; break;
       }
     } else if ( partition.instance_type == InstanceType::graph ) {
-      if ( partition.objective != Objective::cut ) {
+      if ( partition.objective != Objective::cut && partition.objective != Objective::process_mapping ) {
         partition.objective = Objective::cut;
-        INFO("All supported objective functions are equivalent for graphs. Objective function is set to edge cut metric.");
+        INFO("Current objective function is equivalent to the edge cut metric for graphs. Objective function is set to edge cut metric.");
       }
-      partition.gain_policy = GainPolicy::cut_for_graphs;
+      if ( partition.objective == Objective::cut ) {
+        partition.gain_policy = GainPolicy::cut_for_graphs;
+      } else {
+        partition.gain_policy = GainPolicy::process_mapping;
+      }
     }
 
     if ( partition.preset_type == PresetType::large_k ) {

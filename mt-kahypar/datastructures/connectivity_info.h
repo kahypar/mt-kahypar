@@ -102,6 +102,14 @@ class ConnectivityInfo {
     return _con_set.connectivitySet(he);
   }
 
+  inline StaticBitset& shallowCopy(const HyperedgeID he) const {
+    return _con_set.shallowCopy(he);
+  }
+
+  inline Bitset& deepCopy(const HyperedgeID he) const {
+    return _con_set.deepCopy(he);
+  }
+
   // ################## Pin Count In Part ##################
 
   // ! Returns the pin count of the hyperedge in the corresponding block

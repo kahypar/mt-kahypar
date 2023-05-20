@@ -31,6 +31,7 @@
 #include <algorithm>
 
 #include "mt-kahypar/definitions.h"
+#include "mt-kahypar/partition/process_mapping/process_graph.h"
 
 namespace mt_kahypar::metrics {
 
@@ -58,6 +59,15 @@ struct ObjectiveFunction<PartitionedHypergraph, Objective::soed> {
   HyperedgeWeight operator()(const PartitionedHypergraph& phg, const HyperedgeID& he) const {
     const PartitionID connectivity = phg.connectivity(he);
     return connectivity > 1 ? connectivity * phg.edgeWeight(he) : 0;
+  }
+};
+
+template<typename PartitionedHypergraph>
+struct ObjectiveFunction<PartitionedHypergraph, Objective::process_mapping> {
+  HyperedgeWeight operator()(const PartitionedHypergraph& phg, const HyperedgeID& he) const {
+    ASSERT(phg.hasProcessGraph());
+    const ProcessGraph* process_graph = phg.processGraph();
+    return process_graph->distance(phg.shallowCopyOfConnectivitySet(he)) * phg.edgeWeight(he);
   }
 };
 
@@ -110,6 +120,9 @@ HyperedgeWeight quality(const PartitionedHypergraph& hg,
     case Objective::soed:
       return parallel ? compute_objective_parallel<Objective::soed>(hg) :
         compute_objective_sequentially<Objective::soed>(hg);
+    case Objective::process_mapping:
+      return parallel ? compute_objective_parallel<Objective::process_mapping>(hg) :
+        compute_objective_sequentially<Objective::process_mapping>(hg);
     default: ERR("Unknown Objective");
   }
   return 0;
@@ -123,6 +136,7 @@ HyperedgeWeight contribution(const PartitionedHypergraph& hg,
     case Objective::cut: return contribution<Objective::soed>(hg, he);
     case Objective::km1: return contribution<Objective::km1>(hg, he);
     case Objective::soed: return contribution<Objective::soed>(hg, he);
+    case Objective::process_mapping: return contribution<Objective::process_mapping>(hg, he);
     default: ERR("Unknown Objective");
   }
   return 0;

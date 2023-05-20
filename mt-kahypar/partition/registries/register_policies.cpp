@@ -94,6 +94,7 @@ REGISTER_POLICY(AcceptancePolicy, AcceptancePolicy::best,
 REGISTER_POLICY(GainPolicy, GainPolicy::km1, Km1GainTypes);
 REGISTER_POLICY(GainPolicy, GainPolicy::cut, CutGainTypes);
 REGISTER_POLICY(GainPolicy, GainPolicy::soed, SoedGainTypes);
+REGISTER_POLICY(GainPolicy, GainPolicy::process_mapping, ProcessMappingGainTypes);
 ENABLE_GRAPHS(REGISTER_POLICY(GainPolicy, GainPolicy::cut_for_graphs, CutGainForGraphsTypes);)
 
 }  // namespace mt_kahypar

@@ -342,11 +342,20 @@ void RecursiveBipartitioning<TypeTraits>::partition(PartitionedHypergraph& hyper
     utils.getStats(context.utility_id).disable();
   }
 
+  Context rb_context(context);
+  if ( rb_context.partition.objective == Objective::process_mapping ) {
+    // In RB mode, we optimize the km1 metric for process mapping and
+    // apply the permutation computed in process graph to the partition.
+    rb_context.partition.objective = Objective::km1;
+  }
+
   vec<uint8_t> already_cut(rb::usesAdaptiveWeightOfNonCutEdges(context) ?
     hypergraph.initialNumEdges() : 0, 0);
-  rb::recursive_bipartitioning<TypeTraits>(hypergraph, context, 0, context.partition.k,
-    OriginalHypergraphInfo { hypergraph.totalWeight(), context.partition.k,
-    context.partition.epsilon }, already_cut);
+  rb::recursive_bipartitioning<TypeTraits>(hypergraph, rb_context, 0, rb_context.partition.k,
+    OriginalHypergraphInfo { hypergraph.totalWeight(), rb_context.partition.k,
+      rb_context.partition.epsilon }, already_cut);
+
+  // TODO: apply permutation to partition if objective function is process mapping
 
   if (context.type == ContextType::main) {
     parallel::MemoryPool::instance().activate_unused_memory_allocations();

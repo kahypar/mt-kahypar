@@ -653,6 +653,16 @@ private:
     return _con_info.pinCountInPart(e, p);
   }
 
+  // ! Creates a shallow copy of the connectivity set of hyperedge he
+  StaticBitset& shallowCopyOfConnectivitySet(const HyperedgeID he) const {
+    return _con_info.shallowCopy(he);
+  }
+
+  // ! Creates a deep copy of the connectivity set of hyperedge he
+  Bitset& deepCopyOfConnectivitySet(const HyperedgeID he) const {
+    return _con_info.deepCopy(he);
+  }
+
   // ! Initializes the partition of the hypergraph, if block ids are assigned with
   // ! setOnlyNodePart(...). In that case, block weights and pin counts in part for
   // ! each hyperedge must be initialized explicitly here.

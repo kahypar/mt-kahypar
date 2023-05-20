@@ -32,6 +32,10 @@
 #include "mt-kahypar/utils/utilities.h"
 
 namespace mt_kahypar {
+
+// Forward Declartion
+class ProcessGraph;
+
 struct PartitioningParameters {
   Mode mode = Mode::UNDEFINED;
   Objective objective = Objective::UNDEFINED;
@@ -277,7 +281,7 @@ class Context {
 
   void setupThreadsPerFlowSearch();
 
-  void sanityCheck();
+  void sanityCheck(const ProcessGraph* process_graph);
 
   void load_default_preset();
 
