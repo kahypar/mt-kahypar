@@ -213,6 +213,7 @@ Subhypergraph ProblemConstruction<TypeTraits>::construct(const SearchID search_i
 
 template<typename TypeTraits>
 void ProblemConstruction<TypeTraits>::changeNumberOfBlocks(const PartitionID new_k) {
+  ASSERT(new_k == _context.partition.k);
   for ( BFSData& data : _local_bfs ) {
     if ( static_cast<size_t>(new_k) > data.locked_blocks.size() ) {
       data.locked_blocks.assign(new_k, false);
