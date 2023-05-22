@@ -881,7 +881,8 @@ namespace mt_kahypar {
         << "-------------------------------------------------------------------------------\n"
         << context.refinement
         << "-------------------------------------------------------------------------------\n";
-    if ( context.process_mapping.process_graph_file != "" ) {
+    if ( context.process_mapping.process_graph_file != "" &&
+         context.partition.objective == Objective::process_mapping ) {
       str << context.process_mapping
           << "-------------------------------------------------------------------------------\n";
     }
