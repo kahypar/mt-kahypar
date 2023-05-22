@@ -88,7 +88,7 @@ class CutGainComputation : public GainComputationBase<CutGainComputation, CutAtt
     return isolated_block_gain - to_score;
   }
 
-  void changeNumberOfBlocks(const PartitionID) {
+  void changeNumberOfBlocksImpl(const PartitionID) {
     // Do nothing
   }
 };

@@ -90,7 +90,7 @@ class StaticBitset {
    private:
     MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE void nextBlockID() {
       ++_current_block_id;
-      Block b = loadCurrentBlock();
+      Block b = _current_block_id < _max_block_id ? loadCurrentBlock() : 0;
       while ( b >> ( _current_block_id % BITS_PER_BLOCK ) == 0 && _current_block_id < _max_block_id ) {
         // no more one bits in current block -> load next block
         _current_block_id += (BITS_PER_BLOCK - (_current_block_id % BITS_PER_BLOCK));

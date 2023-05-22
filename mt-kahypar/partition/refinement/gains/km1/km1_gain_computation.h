@@ -89,7 +89,7 @@ class Km1GainComputation : public GainComputationBase<Km1GainComputation, Km1Att
     return isolated_block_gain - to_score;
   }
 
-  void changeNumberOfBlocks(const PartitionID) {
+  void changeNumberOfBlocksImpl(const PartitionID) {
     // Do nothing
   }
 

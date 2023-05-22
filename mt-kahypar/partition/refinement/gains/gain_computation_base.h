@@ -158,7 +158,7 @@ class GainComputationBase {
         tmp_score = RatingMap(new_k);
       }
     }
-    static_cast<Derived*>(this)->changeNumberOfBlocks(new_k);
+    static_cast<Derived*>(this)->changeNumberOfBlocksImpl(new_k);
   }
 
 private:

@@ -97,7 +97,7 @@ class SoedGainComputation : public GainComputationBase<SoedGainComputation, Soed
     return isolated_block_gain - to_score;
   }
 
-  void changeNumberOfBlocks(const PartitionID) {
+  void changeNumberOfBlocksImpl(const PartitionID) {
     // Do nothing
   }
 };

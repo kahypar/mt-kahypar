@@ -123,7 +123,7 @@ class ProcessMappingGainComputation : public GainComputationBase<ProcessMappingG
     return to_score;
   }
 
-  void changeNumberOfBlocks(const PartitionID new_k) {
+  void changeNumberOfBlocksImpl(const PartitionID new_k) {
     ASSERT(new_k == _context.partition.k);
     for ( auto& adjacent_blocks : _local_adjacent_blocks ) {
       adjacent_blocks.resize(new_k);
