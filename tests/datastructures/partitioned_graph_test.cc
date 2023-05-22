@@ -394,11 +394,8 @@ TYPED_TEST(APartitionedGraph, ComputesDeltaAndGainsCorrectlyIfAllNodesMoveConcur
   this->gain_cache.initializeGainCache(this->partitioned_hypergraph);
 
   CAtomic<HyperedgeWeight> delta(0);
-  auto delta_fun = [&](auto, auto, auto,
-                       const HypernodeID pin_count_in_from_part_after,
-                       const HypernodeID pin_count_in_to_part_after) {
-      delta.fetch_add(CutAttributedGains::gain(0, 1, 2,
-        pin_count_in_from_part_after, pin_count_in_to_part_after));
+  auto delta_fun = [&](const SyncronizedEdgeUpdate& sync_update) {
+      delta.fetch_add(CutAttributedGains::gain(sync_update));
   };
 
   executeConcurrent([&] {

@@ -94,13 +94,9 @@ class ADeltaPartitionedHypergraph : public Test {
   void changeNodePartWithGainCacheUpdate(const HypernodeID hn,
                                          const PartitionID from,
                                          const PartitionID to) {
-    auto delta_gain_update =
-      [&](const HyperedgeID he, const HyperedgeWeight edge_weight,
-          const HypernodeID, const HypernodeID pin_count_in_from_part_after,
-          const HypernodeID pin_count_in_to_part_after) {
-        delta_gain_cache->deltaGainUpdate(*delta_phg, he, edge_weight, from,
-          pin_count_in_from_part_after, to, pin_count_in_to_part_after);
-      };
+    auto delta_gain_update = [&](const SyncronizedEdgeUpdate& sync_update) {
+      delta_gain_cache->deltaGainUpdate(*delta_phg, sync_update);
+    };
     delta_phg->changeNodePart(hn, from, to, 1000, delta_gain_update);
   }
 

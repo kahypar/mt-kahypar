@@ -109,13 +109,8 @@ namespace mt_kahypar {
     _next_active.reset();
     // This function is passed as lambda to the changeNodePart function and used
     // to calculate the "real" delta of a move (in terms of the used objective function).
-    auto objective_delta = [&](const HyperedgeID he,
-                               const HyperedgeWeight edge_weight,
-                               const HypernodeID edge_size,
-                               const HypernodeID pin_count_in_from_part_after,
-                               const HypernodeID pin_count_in_to_part_after) {
-      _gain.computeDeltaForHyperedge(he, edge_weight, edge_size,
-                                     pin_count_in_from_part_after, pin_count_in_to_part_after);
+    auto objective_delta = [&](const SyncronizedEdgeUpdate& sync_update) {
+      _gain.computeDeltaForHyperedge(sync_update);
     };
 
     // Shuffle Vector

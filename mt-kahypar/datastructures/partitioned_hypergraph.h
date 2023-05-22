@@ -64,8 +64,8 @@ private:
   // ! Function that will be called for each incident hyperedge of a moved vertex with the following arguments
   // !  1) hyperedge ID, 2) weight, 3) size, 4) pin count in from-block after move, 5) pin count in to-block after move
   // ! Can be implemented to obtain correct km1 or cut improvements of the move
-  using DeltaFunction = std::function<void (const HyperedgeID, const HyperedgeWeight, const HypernodeID, const HypernodeID, const HypernodeID)>;
-  #define NOOP_FUNC [] (const HyperedgeID, const HyperedgeWeight, const HypernodeID, const HypernodeID, const HypernodeID) { }
+  using DeltaFunction = std::function<void (const SyncronizedEdgeUpdate&)>;
+  #define NOOP_FUNC [] (const SyncronizedEdgeUpdate&) { }
 
   // Factory
   using HypergraphFactory = typename Hypergraph::Factory;
@@ -559,8 +559,12 @@ private:
       _part_ids[u] = to;
       _part_weights[from].fetch_sub(wu, std::memory_order_relaxed);
       report_success();
+      SyncronizedEdgeUpdate sync_update;
+      sync_update.from = from;
+      sync_update.to = to;
+      sync_update.process_graph = _process_graph;
       for ( const HyperedgeID he : incidentEdges(u) ) {
-        updatePinCountOfHyperedge(he, from, to, delta_func);
+        updatePinCountOfHyperedge(he, from, to, sync_update, delta_func);
       }
       return true;
     } else {
@@ -586,11 +590,9 @@ private:
                       HypernodeWeight max_weight_to,
                       SuccessFunc&& report_success,
                       const DeltaFunction& delta_func) {
-    auto my_delta_func = [&](const HyperedgeID he, const HyperedgeWeight edge_weight, const HypernodeID edge_size,
-      const HypernodeID pin_count_in_from_part_after, const HypernodeID pin_count_in_to_part_after) {
-      delta_func(he, edge_weight, edge_size, pin_count_in_from_part_after, pin_count_in_to_part_after);
-      gain_cache.deltaGainUpdate(*this, he, edge_weight, from,
-        pin_count_in_from_part_after, to, pin_count_in_to_part_after);
+    auto my_delta_func = [&](const SyncronizedEdgeUpdate& sync_update) {
+      delta_func(sync_update);
+      gain_cache.deltaGainUpdate(*this, sync_update);
     };
     return changeNodePart(u, from, to, max_weight_to, report_success, my_delta_func);
   }
@@ -1077,13 +1079,18 @@ private:
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE void updatePinCountOfHyperedge(const HyperedgeID he,
                                                                     const PartitionID from,
                                                                     const PartitionID to,
+                                                                    SyncronizedEdgeUpdate& sync_update,
                                                                     const DeltaFunction& delta_func) {
     ASSERT(he < _pin_count_update_ownership.size());
+    sync_update.he = he;
+    sync_update.edge_weight = edgeWeight(he);
+    sync_update.edge_size = edgeSize(he);
     _pin_count_update_ownership[he].lock();
-    const HypernodeID pin_count_in_from_part_after = decrementPinCountOfBlock(he, from);
-    const HypernodeID pin_count_in_to_part_after = incrementPinCountOfBlock(he, to);
+    sync_update.pin_count_in_from_part_after = decrementPinCountOfBlock(he, from);
+    sync_update.pin_count_in_to_part_after = incrementPinCountOfBlock(he, to);
+    sync_update.connectivity_set_after = hasProcessGraph() ? &deepCopyOfConnectivitySet(he) : nullptr;
     _pin_count_update_ownership[he].unlock();
-    delta_func(he, edgeWeight(he), edgeSize(he), pin_count_in_from_part_after, pin_count_in_to_part_after);
+    delta_func(sync_update);
   }
 
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE

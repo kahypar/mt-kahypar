@@ -124,12 +124,10 @@ using VersionedBatchVector = parallel::scalable_vector<BatchVector>;
 using MoveID = uint32_t;
 using SearchID = uint32_t;
 
-struct NoOpDeltaFunc {
-  void operator() (const HyperedgeID, const HyperedgeWeight, const HypernodeID, const HypernodeID, const HypernodeID) { }
-};
-
-namespace ds {
 // Forward Declaration
+class ProcessGraph;
+namespace ds {
+class Bitset;
 class StaticGraph;
 class StaticHypergraph;
 class DynamicGraph;
@@ -137,6 +135,33 @@ class DynamicHypergraph;
 class ConnectivityInfo;
 class SparseConnectivityInfo;
 }
+
+struct SyncronizedEdgeUpdate {
+  SyncronizedEdgeUpdate() :
+    he(kInvalidHyperedge),
+    from(kInvalidPartition),
+    to(kInvalidPartition),
+    edge_weight(0),
+    edge_size(0),
+    pin_count_in_from_part_after(kInvalidHypernode),
+    pin_count_in_to_part_after(kInvalidHypernode),
+    connectivity_set_after(nullptr),
+    process_graph(nullptr) { }
+
+  HyperedgeID he;
+  PartitionID from;
+  PartitionID to;
+  HyperedgeID edge_weight;
+  HypernodeID edge_size;
+  HypernodeID pin_count_in_from_part_after;
+  HypernodeID pin_count_in_to_part_after;
+  mutable ds::Bitset* connectivity_set_after;
+  const ProcessGraph* process_graph;
+};
+
+struct NoOpDeltaFunc {
+  void operator() (const SyncronizedEdgeUpdate&) { }
+};
 
 template<typename Hypergraph, typename ConInfo>
 struct PartitionedHypergraphType {

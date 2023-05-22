@@ -216,13 +216,8 @@ class AGainCache : public Test {
     });
   }
 
-  Gain attributedGain(const HyperedgeID he,
-                      const HyperedgeWeight edge_weight,
-                      const HypernodeID edge_size,
-                      const HypernodeID pin_count_in_from_part_after,
-                      const HypernodeID pin_count_in_to_part_after) {
-    return -AttributedGains::gain(he, edge_weight, edge_size,
-      pin_count_in_from_part_after, pin_count_in_to_part_after);
+  Gain attributedGain(const SyncronizedEdgeUpdate& sync_update) {
+    return -AttributedGains::gain(sync_update);
   }
 
   Hypergraph hypergraph;
@@ -264,13 +259,8 @@ TYPED_TEST(AGainCache, ComparesGainsWithAttributedGains) {
 
   utils::Randomize& rand = utils::Randomize::instance();
   Gain attributed_gain = 0;
-  auto delta = [&](const HyperedgeID he,
-                   const HyperedgeWeight edge_weight,
-                   const HypernodeID edge_size,
-                   const HypernodeID pin_count_in_from_part_after,
-                   const HypernodeID pin_count_in_to_part_after) {
-    attributed_gain += this->attributedGain(he, edge_weight, edge_size,
-      pin_count_in_from_part_after, pin_count_in_to_part_after);
+  auto delta = [&](const SyncronizedEdgeUpdate& sync_update) {
+    attributed_gain += this->attributedGain(sync_update);
   };
   for ( const HypernodeID& hn : this->partitioned_hg.nodes() ) {
     const PartitionID from = this->partitioned_hg.partID(hn);

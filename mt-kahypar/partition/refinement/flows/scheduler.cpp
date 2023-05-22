@@ -292,18 +292,13 @@ HyperedgeWeight FlowRefinementScheduler<TypeTraits, GainTypes>::applyMoves(const
 
   HyperedgeWeight improvement = 0;
   vec<NewCutHyperedge> new_cut_hes;
-  auto delta_func = [&](const HyperedgeID he,
-                        const HyperedgeWeight edge_weight,
-                        const HypernodeID edge_size,
-                        const HypernodeID pin_count_in_from_part_after,
-                        const HypernodeID pin_count_in_to_part_after) {
-    improvement -= AttributedGains::gain(he, edge_weight, edge_size,
-      pin_count_in_from_part_after, pin_count_in_to_part_after);
+  auto delta_func = [&](const SyncronizedEdgeUpdate& sync_update) {
+    improvement -= AttributedGains::gain(sync_update);
 
     // Collect hyperedges with new blocks in its connectivity set
-    if ( pin_count_in_to_part_after == 1 ) {
+    if ( sync_update.pin_count_in_to_part_after == 1 ) {
       // the corresponding block will be set in applyMoveSequence(...) function
-      new_cut_hes.emplace_back(NewCutHyperedge { he, kInvalidPartition });
+      new_cut_hes.emplace_back(NewCutHyperedge { sync_update.he, kInvalidPartition });
     }
   };
 

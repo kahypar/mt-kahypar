@@ -165,11 +165,19 @@ class DeltaPartitionedGraph {
       _part_weights_delta[to] += weight;
       _part_weights_delta[from] -= weight;
 
+      SyncronizedEdgeUpdate sync_update;
+      sync_update.from = from;
+      sync_update.to = to;
+      sync_update.process_graph = _pg->processGraph();
       for (const HyperedgeID edge : _pg->incidentEdges(u)) {
         const PartitionID target_part = partID(_pg->edgeTarget(edge));
-        const HypernodeID pin_count_in_from_part_after = target_part == from ? 1 : 0;
-        const HypernodeID pin_count_in_to_part_after = target_part == to ? 2 : 1;
-        delta_func(edge, _pg->edgeWeight(edge), _pg->edgeSize(edge), pin_count_in_from_part_after, pin_count_in_to_part_after);
+        sync_update.he = edge;
+        sync_update.edge_weight = _pg->edgeWeight(edge);
+        sync_update.edge_size = _pg->edgeSize(edge);
+        sync_update.pin_count_in_from_part_after = target_part == from ? 1 : 0;
+        sync_update.pin_count_in_to_part_after = target_part == to ? 2 : 1;
+        // TODO: deep copy of connectivity set required here
+        delta_func(sync_update);
       }
       return true;
     } else {

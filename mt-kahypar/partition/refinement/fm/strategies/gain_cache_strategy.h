@@ -169,14 +169,8 @@ public:
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
   void deltaGainUpdates(PartitionedHypergraph& phg,
                         GainCache& gain_cache,
-                        const HyperedgeID he,
-                        const HyperedgeWeight edge_weight,
-                        const PartitionID from,
-                        const HypernodeID pin_count_in_from_part_after,
-                        const PartitionID to,
-                        const HypernodeID pin_count_in_to_part_after) {
-    gain_cache.deltaGainUpdate(phg, he, edge_weight, from,
-      pin_count_in_from_part_after, to, pin_count_in_to_part_after);
+                        const SyncronizedEdgeUpdate& sync_update) {
+    gain_cache.deltaGainUpdate(phg, sync_update);
   }
 
   void changeNumberOfBlocks(const PartitionID new_k) {

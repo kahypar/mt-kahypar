@@ -122,13 +122,8 @@ class GainComputationBase {
     return best_move;
   }
 
-  inline void computeDeltaForHyperedge(const HyperedgeID he,
-                                       const HyperedgeWeight edge_weight,
-                                       const HypernodeID edge_size,
-                                       const HypernodeID pin_count_in_from_part_after,
-                                       const HypernodeID pin_count_in_to_part_after) {
-    _deltas.local() += AttributedGains::gain(he, edge_weight, edge_size,
-      pin_count_in_from_part_after, pin_count_in_to_part_after);
+  inline void computeDeltaForHyperedge(const SyncronizedEdgeUpdate& sync_update) {
+    _deltas.local() += AttributedGains::gain(sync_update);
   }
 
   // ! Returns the delta in the objective function for all moves

@@ -128,9 +128,7 @@ class GraphCutGainCache {
 
   // ! This function returns true if the corresponding pin count values triggers
   // ! a gain cache update.
-  static bool triggersDeltaGainUpdate(const HypernodeID edge_size,
-                                      const HypernodeID pin_count_in_from_part_after,
-                                      const HypernodeID pin_count_in_to_part_after);
+  static bool triggersDeltaGainUpdate(const SyncronizedEdgeUpdate& sync_update);
 
   // ! This functions implements the delta gain updates for the cut metric on plain graphs.
   // ! When moving a node from its current block from to a target block to, we iterate
@@ -139,12 +137,7 @@ class GraphCutGainCache {
   // ! corresponding edge.
   template<typename PartitionedGraph>
   void deltaGainUpdate(const PartitionedGraph& partitioned_graph,
-                       const HyperedgeID he,
-                       const HyperedgeWeight we,
-                       const PartitionID from,
-                       const HypernodeID pin_count_in_from_part_after,
-                       const PartitionID to,
-                       const HypernodeID pin_count_in_to_part_after);
+                       const SyncronizedEdgeUpdate& sync_update);
 
   // ####################### Uncontraction #######################
 
@@ -301,17 +294,12 @@ class DeltaGraphCutGainCache {
   template<typename PartitionedGraph>
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
   void deltaGainUpdate(const PartitionedGraph& partitioned_graph,
-                       const HyperedgeID he,
-                       const HyperedgeWeight we,
-                       const PartitionID from,
-                       const HypernodeID,
-                       const PartitionID to,
-                       const HypernodeID) {
-    const HypernodeID target = partitioned_graph.edgeTarget(he);
-    const size_t index_in_from_part = _gain_cache.incident_weight_index(target, from);
-    _incident_weight_in_part_delta[index_in_from_part] -= we;
-    const size_t index_in_to_part = _gain_cache.incident_weight_index(target, to);
-    _incident_weight_in_part_delta[index_in_to_part] += we;
+                       const SyncronizedEdgeUpdate& sync_update) {
+    const HypernodeID target = partitioned_graph.edgeTarget(sync_update.he);
+    const size_t index_in_from_part = _gain_cache.incident_weight_index(target, sync_update.from);
+    _incident_weight_in_part_delta[index_in_from_part] -= sync_update.edge_weight;
+    const size_t index_in_to_part = _gain_cache.incident_weight_index(target, sync_update.to);
+    _incident_weight_in_part_delta[index_in_to_part] += sync_update.edge_weight;
   }
 
 

@@ -304,22 +304,17 @@ namespace mt_kahypar {
     // roll forward sequentially
     Gain best_gain = 0, gain_sum = 0;
     MoveID best_index = 0;
+    auto delta_gain_update = [&](const SyncronizedEdgeUpdate& sync_update) {
+      gain_sum -= AttributedGains::gain(sync_update);
+      gain_cache.deltaGainUpdate(phg, sync_update);
+    };
     for (MoveID localMoveID = 0; localMoveID < numMoves; ++localMoveID) {
       const Move& m = move_order[localMoveID];
       if (!m.isValid()) continue;
 
-      Gain gain = 0;
-      for (HyperedgeID e : phg.incidentEdges(m.node)) {
-        const HypernodeID pin_count_in_from_part_after = phg.pinCountInPart(e, m.from) - 1;
-        const HypernodeID pin_count_in_to_part_after = phg.pinCountInPart(e, m.to) + 1;
-        gain -= AttributedGains::gain(e, phg.edgeWeight(e), phg.edgeSize(e),
-          pin_count_in_from_part_after, pin_count_in_to_part_after);
-      }
-      gain_sum += gain;
-
       const bool from_overloaded = phg.partWeight(m.from) > maxPartWeights[m.from];
       const bool to_overloaded = phg.partWeight(m.to) > maxPartWeights[m.to];
-      moveVertex(phg, m.node, m.from, m.to);
+      phg.changeNodePart(m.node, m.from, m.to, delta_gain_update);
       if (from_overloaded && phg.partWeight(m.from) <= maxPartWeights[m.from]) {
         overloaded--;
       }
@@ -386,20 +381,19 @@ namespace mt_kahypar {
         continue;
 
       Gain gain = 0;
-      for (HyperedgeID e: phg.incidentEdges(m.node)) {
-        const HypernodeID pin_count_in_from_part_after = phg.pinCountInPart(e, m.from) - 1;
-        const HypernodeID pin_count_in_to_part_after = phg.pinCountInPart(e, m.to) + 1;
-        gain -= AttributedGains::gain(e, phg.edgeWeight(e), phg.edgeSize(e),
-          pin_count_in_from_part_after, pin_count_in_to_part_after);
-      }
+      auto delta_gain_update = [&](const SyncronizedEdgeUpdate& sync_update) {
+        gain -= AttributedGains::gain(sync_update);
+        gain_cache.deltaGainUpdate(phg, sync_update);
+      };
 
       ASSERT(gain_cache.penaltyTerm(m.node, phg.partID(m.node)) == gain_cache.recomputePenaltyTerm(phg, m.node));
       ASSERT(gain_cache.benefitTerm(m.node, m.to) == gain_cache.recomputeBenefitTerm(phg, m.node, m.to));
-      ASSERT(gain == gain_cache.gain(m.node, m.from, m.to));
+      const Gain gain_in_cache = gain_cache.gain(m.node, m.from, m.to);
+      unused(gain_in_cache);
 
       // const HyperedgeWeight objective_before_move =
       //   metrics::quality(phg, context, false);
-      moveVertex(phg, m.node, m.from, m.to);
+      phg.changeNodePart(m.node, m.from, m.to, delta_gain_update);
       // const HyperedgeWeight objective_after_move =
       //   metrics::quality(phg, context, false);
 
@@ -407,6 +401,7 @@ namespace mt_kahypar {
       //   V(gain) << V(m.gain) << V(objective_after_move) << V(objective_before_move));
       // ASSERT(objective_after_move + m.gain == objective_before_move,
       //   V(gain) << V(m.gain) << V(objective_after_move) << V(objective_before_move));
+      ASSERT(gain == gain_in_cache);
       ASSERT(gain == m.gain, V(gain) << V(m.gain));
       unused(gain); // unused(objective_before_move); unused(objective_after_move);  // for release mode
     }

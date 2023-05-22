@@ -235,6 +235,14 @@ class SparseConnectivityInfo {
     return _pin_counts.connectivitySet(he);
   }
 
+  inline StaticBitset& shallowCopy(const HyperedgeID he) const {
+    return _pin_counts.shallowCopy(he);
+  }
+
+  inline Bitset& deepCopy(const HyperedgeID he) const {
+    return _pin_counts.deepCopy(he);
+  }
+
   // ################## Pin Count In Part ##################
 
   // ! Returns the pin count of the hyperedge in the corresponding block

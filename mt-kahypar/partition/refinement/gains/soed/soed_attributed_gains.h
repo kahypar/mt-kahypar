@@ -36,16 +36,16 @@ namespace mt_kahypar {
  * attributed gain value.
  */
 struct SoedAttributedGains {
-  static HyperedgeWeight gain(const HyperedgeID,
-                              const HyperedgeWeight edge_weight,
-                              const HypernodeID edge_size,
-                              const HypernodeID pin_count_in_from_part_after,
-                              const HypernodeID pin_count_in_to_part_after) {
+  static HyperedgeWeight gain(const SyncronizedEdgeUpdate& sync_update) {
+    const HypernodeID edge_size = sync_update.edge_size;
+    const HyperedgeWeight edge_weight = sync_update.edge_weight;
+    const HypernodeID pin_count_in_from_part_after = sync_update.pin_count_in_from_part_after;
+    const HypernodeID pin_count_in_to_part_after = sync_update.pin_count_in_to_part_after;
     const bool move_removes_he_from_cut = pin_count_in_to_part_after == edge_size;
     const bool move_makes_he_cut = pin_count_in_from_part_after == edge_size - 1;
     const bool increased_connectivity = pin_count_in_to_part_after == 1;
     const bool decreased_connectivity = pin_count_in_from_part_after == 0;
-    return ( edge_size > 1 ) *
+    return ( sync_update.edge_size > 1 ) *
       ( -2 * move_removes_he_from_cut * edge_weight +
          2 * move_makes_he_cut * edge_weight +
         -1 * ( 1 - move_removes_he_from_cut ) * decreased_connectivity * edge_weight +

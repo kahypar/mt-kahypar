@@ -177,11 +177,19 @@ class DeltaPartitionedHypergraph {
       _part_ids_delta[u] = to;
       _part_weights_delta[to] += wu;
       _part_weights_delta[from] -= wu;
+
+      SyncronizedEdgeUpdate sync_update;
+      sync_update.from = from;
+      sync_update.to = to;
+      sync_update.process_graph = _phg->processGraph();
       for ( const HyperedgeID& he : _phg->incidentEdges(u) ) {
-        const HypernodeID pin_count_in_from_part_after = decrementPinCountOfBlock(he, from);
-        const HypernodeID pin_count_in_to_part_after = incrementPinCountOfBlock(he, to);
-        delta_func(he, _phg->edgeWeight(he), _phg->edgeSize(he),
-          pin_count_in_from_part_after, pin_count_in_to_part_after);
+        sync_update.he = he;
+        sync_update.edge_weight = edgeWeight(he);
+        sync_update.edge_size = edgeSize(he);
+        sync_update.pin_count_in_from_part_after = decrementPinCountOfBlock(he, from);
+        sync_update.pin_count_in_to_part_after = incrementPinCountOfBlock(he, to);
+        // TODO: deep copy of connectivity set required here
+        delta_func(sync_update);
       }
       return true;
     } else {

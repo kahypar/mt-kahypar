@@ -139,9 +139,7 @@ class Km1GainCache {
 
   // ! This function returns true if the corresponding pin count values triggers
   // ! a gain cache update.
-  static bool triggersDeltaGainUpdate(const HypernodeID edge_size,
-                                      const HypernodeID pin_count_in_from_part_after,
-                                      const HypernodeID pin_count_in_to_part_after);
+  static bool triggersDeltaGainUpdate(const SyncronizedEdgeUpdate& sync_update);
 
   // ! This functions implements the delta gain updates for the connecitivity metric.
   // ! When moving a node from its current block from to a target block to, we iterate
@@ -150,12 +148,7 @@ class Km1GainCache {
   // ! corresponding hyperedge.
   template<typename PartitionedHypergraph>
   void deltaGainUpdate(const PartitionedHypergraph& partitioned_hg,
-                       const HyperedgeID he,
-                       const HyperedgeWeight we,
-                       const PartitionID from,
-                       const HypernodeID pin_count_in_from_part_after,
-                       const PartitionID to,
-                       const HypernodeID pin_count_in_to_part_after);
+                       const SyncronizedEdgeUpdate& sync_update);
 
   // ####################### Uncontraction #######################
 
@@ -340,32 +333,33 @@ class DeltaKm1GainCache {
   template<typename PartitionedHypergraph>
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
   void deltaGainUpdate(const PartitionedHypergraph& partitioned_hg,
-                       const HyperedgeID he,
-                       const HyperedgeWeight we,
-                       const PartitionID from,
-                       const HypernodeID pin_count_in_from_part_after,
-                       const PartitionID to,
-                       const HypernodeID pin_count_in_to_part_after) {
+                       const SyncronizedEdgeUpdate& sync_update) {
+    const HyperedgeID he = sync_update.he;
+    const PartitionID from = sync_update.from;
+    const PartitionID to = sync_update.to;
+    const HyperedgeWeight edge_weight = sync_update.edge_weight;
+    const HypernodeID pin_count_in_from_part_after = sync_update.pin_count_in_from_part_after;
+    const HypernodeID pin_count_in_to_part_after = sync_update.pin_count_in_to_part_after;
     if (pin_count_in_from_part_after == 1) {
       for (HypernodeID u : partitioned_hg.pins(he)) {
         if (partitioned_hg.partID(u) == from) {
-          _gain_cache_delta[_gain_cache.penalty_index(u)] -= we;
+          _gain_cache_delta[_gain_cache.penalty_index(u)] -= edge_weight;
         }
       }
     } else if (pin_count_in_from_part_after == 0) {
       for (HypernodeID u : partitioned_hg.pins(he)) {
-        _gain_cache_delta[_gain_cache.benefit_index(u, from)] -= we;
+        _gain_cache_delta[_gain_cache.benefit_index(u, from)] -= edge_weight;
       }
     }
 
     if (pin_count_in_to_part_after == 1) {
       for (HypernodeID u : partitioned_hg.pins(he)) {
-        _gain_cache_delta[_gain_cache.benefit_index(u, to)] += we;
+        _gain_cache_delta[_gain_cache.benefit_index(u, to)] += edge_weight;
       }
     } else if (pin_count_in_to_part_after == 2) {
       for (HypernodeID u : partitioned_hg.pins(he)) {
         if (partitioned_hg.partID(u) == to) {
-          _gain_cache_delta[_gain_cache.penalty_index(u)] += we;
+          _gain_cache_delta[_gain_cache.penalty_index(u)] += edge_weight;
         }
       }
     }

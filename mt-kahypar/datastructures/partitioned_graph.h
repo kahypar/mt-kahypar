@@ -64,8 +64,8 @@ private:
   // ! Function that will be called for each incident hyperedge of a moved vertex with the following arguments
   // !  1) hyperedge ID, 2) weight, 3) size, 4) pin count in from-block after move, 5) pin count in to-block after move
   // ! Can be implemented to obtain correct km1 or cut improvements of the move
-  using DeltaFunction = std::function<void (const HyperedgeID, const HyperedgeWeight, const HypernodeID, const HypernodeID, const HypernodeID)>;
-  #define NOOP_FUNC [] (const HyperedgeID, const HyperedgeWeight, const HypernodeID, const HypernodeID, const HypernodeID) { }
+  using DeltaFunction = std::function<void (const SyncronizedEdgeUpdate&)>;
+  #define NOOP_FUNC [] (const SyncronizedEdgeUpdate&) { }
 
   // Factory
   using HypergraphFactory = typename Hypergraph::Factory;
@@ -529,11 +529,9 @@ private:
                       HypernodeWeight max_weight_to,
                       SuccessFunc&& report_success,
                       const DeltaFunction& delta_func) {
-    auto my_delta_func = [&](const HyperedgeID he, const HyperedgeWeight edge_weight, const HypernodeID edge_size,
-      const HypernodeID pin_count_in_from_part_after, const HypernodeID pin_count_in_to_part_after) {
-      delta_func(he, edge_weight, edge_size, pin_count_in_from_part_after, pin_count_in_to_part_after);
-      gain_cache.deltaGainUpdate(*this, he, edge_weight, from,
-        pin_count_in_from_part_after, to, pin_count_in_to_part_after);
+    auto my_delta_func = [&](const SyncronizedEdgeUpdate& sync_update) {
+      delta_func(sync_update);
+      gain_cache.deltaGainUpdate(*this, sync_update);
     };
     return changeNodePart(u, from, to, max_weight_to, report_success, my_delta_func);
   }
@@ -619,11 +617,7 @@ private:
 
   // ! Creates a deep copy of the connectivity set of hyperedge he
   Bitset& deepCopyOfConnectivitySet(const HyperedgeID he) const {
-    Bitset& deep_copy = _deep_copy_bitset.local();
-    deep_copy.resize(_k);
-    deep_copy.set(partID(edgeSource(he)));
-    deep_copy.set(partID(edgeTarget(he)));
-    return deep_copy;
+    return connectivitySetAfterMove(partID(edgeSource(he)), partID(edgeTarget(he)));
   }
 
   // ! Initializes the partition of the hypergraph, if block ids are assigned with
@@ -957,12 +951,23 @@ private:
       _part_weights[from].fetch_sub(weight, std::memory_order_relaxed);
       report_success();
       DBG << "<<< Start changing node part: " << V(u) << " - " << V(from) << " - " << V(to);
+      SyncronizedEdgeUpdate sync_update;
+      sync_update.from = from;
+      sync_update.to = to;
+      sync_update.process_graph = _process_graph;
       for (const HyperedgeID edge : incidentEdges(u)) {
         if (!isSinglePin(edge)) {
+          sync_update.he = edge;
+          sync_update.edge_weight = edgeWeight(edge);
+          sync_update.edge_size = edgeSize(edge);
           const PartitionID block_of_target_node = synchronizeMoveOnEdge(edge, u, to);
-          const HypernodeID pin_count_in_from_part_after = block_of_target_node == from ? 1 : 0;
-          const HypernodeID pin_count_in_to_part_after = block_of_target_node == to ? 2 : 1;
-          delta_func(edge, edgeWeight(edge), edgeSize(edge), pin_count_in_from_part_after, pin_count_in_to_part_after);
+          sync_update.pin_count_in_from_part_after = block_of_target_node == from ? 1 : 0;
+          sync_update.pin_count_in_to_part_after = block_of_target_node == to ? 2 : 1;
+          // TODO: this will be replaced later once we have an optimized process mapping
+          // gain computation for graphs
+          sync_update.connectivity_set_after = hasProcessGraph() ?
+            &connectivitySetAfterMove(to, block_of_target_node) : nullptr;
+          delta_func(sync_update);
         }
       }
       _part_ids[u] = to;
@@ -972,6 +977,14 @@ private:
       _part_weights[to].fetch_sub(weight, std::memory_order_relaxed);
       return false;
     }
+  }
+
+  Bitset& connectivitySetAfterMove(const PartitionID sourceNodeBlock, const PartitionID targetNodeBlock) const {
+    Bitset& deep_copy = _deep_copy_bitset.local();
+    deep_copy.resize(_k);
+    deep_copy.set(sourceNodeBlock);
+    deep_copy.set(targetNodeBlock);
+    return deep_copy;
   }
 
   void initializeBlockWeights() {
