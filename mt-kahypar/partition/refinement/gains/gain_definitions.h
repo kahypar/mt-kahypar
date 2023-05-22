@@ -104,14 +104,14 @@ struct CutGainForGraphsTypes : public kahypar::meta::PolicyBase {
 using GainTypes = kahypar::meta::Typelist<Km1GainTypes,
                                           CutGainTypes,
                                           SoedGainTypes,
-                                          ProcessMappingGainTypes
-                                          ENABLE_GRAPHS(COMMA CutGainForGraphsTypes)>;
+                                          ProcessMappingGainTypes,
+                                          CutGainForGraphsTypes>;
 
 #define INSTANTIATE_CLASS_WITH_TYPE_TRAITS_AND_GAIN_TYPES(C)                                      \
   INSTANTIATE_CLASS_MACRO_WITH_TYPE_TRAITS_AND_OTHER_CLASS(C, Km1GainTypes)                       \
   INSTANTIATE_CLASS_MACRO_WITH_TYPE_TRAITS_AND_OTHER_CLASS(C, CutGainTypes)                       \
   INSTANTIATE_CLASS_MACRO_WITH_TYPE_TRAITS_AND_OTHER_CLASS(C, SoedGainTypes)                      \
   INSTANTIATE_CLASS_MACRO_WITH_TYPE_TRAITS_AND_OTHER_CLASS(C, ProcessMappingGainTypes)            \
-  ENABLE_GRAPHS(INSTANTIATE_CLASS_MACRO_WITH_TYPE_TRAITS_AND_OTHER_CLASS(C, CutGainForGraphsTypes))
+  INSTANTIATE_CLASS_MACRO_WITH_TYPE_TRAITS_AND_OTHER_CLASS(C, CutGainForGraphsTypes)
 
 }  // namespace mt_kahypar

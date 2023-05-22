@@ -13,7 +13,6 @@ target_link_libraries(mtkahypar_python PRIVATE ${Boost_LIBRARIES} TBB::tbb TBB::
 SET_TARGET_PROPERTIES(mtkahypar_python PROPERTIES COMPILE_FLAGS "-fvisibility=hidden")
 target_compile_definitions(mtkahypar_python PUBLIC MT_KAHYPAR_LIBRARY_MODE)
 target_compile_definitions(mtkahypar PUBLIC KAHYPAR_ENABLE_LARGE_K_PARTITIONING_FEATURES)
-target_compile_definitions(mtkahypar PUBLIC KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES)
 
 set(PARTITIONING_SUITE_TARGETS ${PARTITIONING_SUITE_TARGETS} mtkahypar_python PARENT_SCOPE)
 

@@ -228,15 +228,15 @@ class AGainCache : public Test {
 
 typedef ::testing::Types<TestConfig<StaticHypergraphTypeTraits, Km1GainTypes>,
                          TestConfig<StaticHypergraphTypeTraits, CutGainTypes>,
-                         TestConfig<StaticHypergraphTypeTraits, SoedGainTypes>
+                         TestConfig<StaticHypergraphTypeTraits, SoedGainTypes>,
+                         TestConfig<StaticGraphTypeTraits, CutGainForGraphsTypes>
                          ENABLE_N_LEVEL(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA Km1GainTypes>)
                          ENABLE_N_LEVEL(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA CutGainTypes>)
                          ENABLE_N_LEVEL(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA SoedGainTypes>)
+                         ENABLE_N_LEVEL(COMMA TestConfig<DynamicGraphTypeTraits COMMA CutGainForGraphsTypes>)
                          ENABLE_LARGE_K(COMMA TestConfig<LargeKHypergraphTypeTraits COMMA Km1GainTypes>)
                          ENABLE_LARGE_K(COMMA TestConfig<LargeKHypergraphTypeTraits COMMA CutGainTypes>)
-                         ENABLE_LARGE_K(COMMA TestConfig<LargeKHypergraphTypeTraits COMMA SoedGainTypes>)
-                         ENABLE_GRAPHS(COMMA TestConfig<StaticGraphTypeTraits COMMA CutGainForGraphsTypes>)
-                         ENABLE_N_LEVEL_GRAPHS(COMMA TestConfig<DynamicGraphTypeTraits COMMA CutGainForGraphsTypes>)> TestConfigs;
+                         ENABLE_LARGE_K(COMMA TestConfig<LargeKHypergraphTypeTraits COMMA SoedGainTypes>)> TestConfigs;
 
 TYPED_TEST_CASE(AGainCache, TestConfigs);
 

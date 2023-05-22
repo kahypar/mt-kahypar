@@ -115,8 +115,8 @@ class Bitset {
   friend class StaticBitset;
 
   size_t _size;
-  const size_t _div;
-  const size_t _mod;
+  size_t _div;
+  size_t _mod;
   vec<Block> _bitset;
 };
 

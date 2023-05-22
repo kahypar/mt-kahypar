@@ -36,6 +36,7 @@
 #include "mt-kahypar/macros.h"
 #include "mt-kahypar/partition/multilevel.h"
 #include "mt-kahypar/partition/refinement/gains/bipartitioning_policy.h"
+#include "mt-kahypar/partition/process_mapping/process_graph.h"
 
 #include "mt-kahypar/parallel/memory_pool.h"
 #include "mt-kahypar/utils/randomize.h"
@@ -323,14 +324,18 @@ void rb::recursively_bipartition_block(typename TypeTraits::PartitionedHypergrap
 
 template<typename TypeTraits>
 typename RecursiveBipartitioning<TypeTraits>::PartitionedHypergraph
-RecursiveBipartitioning<TypeTraits>::partition(Hypergraph& hypergraph, const Context& context) {
+RecursiveBipartitioning<TypeTraits>::partition(Hypergraph& hypergraph,
+                                               const Context& context,
+                                               const ProcessGraph* process_graph) {
   PartitionedHypergraph partitioned_hypergraph(context.partition.k, hypergraph, parallel_tag_t());
-  partition(partitioned_hypergraph, context);
+  partition(partitioned_hypergraph, context, process_graph);
   return partitioned_hypergraph;
 }
 
 template<typename TypeTraits>
-void RecursiveBipartitioning<TypeTraits>::partition(PartitionedHypergraph& hypergraph, const Context& context) {
+void RecursiveBipartitioning<TypeTraits>::partition(PartitionedHypergraph& hypergraph,
+                                                    const Context& context,
+                                                    const ProcessGraph* process_graph) {
   utils::Utilities& utils = utils::Utilities::instance();
   if (context.partition.mode == Mode::recursive_bipartitioning) {
     utils.getTimer(context.utility_id).start_timer("rb", "Recursive Bipartitioning");
@@ -346,7 +351,13 @@ void RecursiveBipartitioning<TypeTraits>::partition(PartitionedHypergraph& hyper
   if ( rb_context.partition.objective == Objective::process_mapping ) {
     // In RB mode, we optimize the km1 metric for process mapping and
     // apply the permutation computed in process graph to the partition.
-    rb_context.partition.objective = Objective::km1;
+    rb_context.partition.objective = PartitionedHypergraph::is_graph ?
+      Objective::cut : Objective::km1;
+    rb_context.partition.gain_policy = PartitionedHypergraph::is_graph ?
+      GainPolicy::cut_for_graphs : GainPolicy::km1;
+  }
+  if ( context.type == ContextType::initial_partitioning ) {
+    rb_context.partition.verbose_output = false;
   }
 
   vec<uint8_t> already_cut(rb::usesAdaptiveWeightOfNonCutEdges(context) ?
@@ -355,7 +366,50 @@ void RecursiveBipartitioning<TypeTraits>::partition(PartitionedHypergraph& hyper
     OriginalHypergraphInfo { hypergraph.totalWeight(), rb_context.partition.k,
       rb_context.partition.epsilon }, already_cut);
 
-  // TODO: apply permutation to partition if objective function is process mapping
+  if ( context.partition.objective == Objective::process_mapping ) {
+    ASSERT(process_graph);
+    // We also recursively bipartition the process graph when optimizing for
+    // process mapping. We then map the partitioned hypergraph to the process graph
+    // by using the block ID of the process graph.
+    hypergraph.setProcessGraph(process_graph);
+    const HyperedgeWeight objective_before = metrics::quality(hypergraph, Objective::process_mapping);
+    hypergraph.doParallelForAllNodes([&](const HypernodeID& hn) {
+      const PartitionID from = hypergraph.partID(hn);
+      const PartitionID to = process_graph->partID(from);
+      if ( from != to ) {
+        hypergraph.changeNodePart(hn, from, to);
+      }
+    });
+    const HyperedgeWeight objective_after = metrics::quality(hypergraph, Objective::process_mapping);
+    if ( objective_before < objective_after ) {
+      if ( context.partition.verbose_output ) {
+        LOG << RED << "Applying process graph partition has worsen objective by"
+            << (objective_after - objective_before)
+            << "( Before =" << objective_before << ", After =" << objective_after << ")"
+            << "... Start Rollback!"<< END;
+      }
+
+      // Revert
+      vec<PartitionID> inverse_block_ids(context.partition.k);
+      for ( PartitionID block = 0; block < context.partition.k; ++block ) {
+        inverse_block_ids[process_graph->partID(block)] = block;
+      }
+      hypergraph.doParallelForAllNodes([&](const HypernodeID& hn) {
+        const PartitionID from = hypergraph.partID(hn);
+        const PartitionID to = inverse_block_ids[from];
+        if ( from != to ) {
+          hypergraph.changeNodePart(hn, from, to);
+        }
+      });
+      ASSERT(objective_before == metrics::quality(hypergraph, Objective::process_mapping));
+    } else {
+      if ( context.partition.verbose_output ) {
+        LOG << GREEN << "Applying process graph partition has improved objective by"
+            << (objective_before - objective_after)
+            << "( Before =" << objective_before << ", After =" << objective_after << ")" << END;
+      }
+    }
+  }
 
   if (context.type == ContextType::main) {
     parallel::MemoryPool::instance().activate_unused_memory_allocations();

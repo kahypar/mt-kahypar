@@ -220,6 +220,7 @@ namespace mt_kahypar {
     str << "Process Mapping Parameters:           " << std::endl;
     str << "  Process Graph File:                 " << params.process_graph_file << std::endl;
     str << "  Max Precomputed Steiner Tree Size:  " << params.max_steiner_tree_size << std::endl;
+    str << "  Bisection Brute Force Threshold:    " << params.bisection_brute_fore_threshold << std::endl;
     return str;
   }
 
@@ -442,6 +443,7 @@ namespace mt_kahypar {
 
     // process_mapping
     process_mapping.max_steiner_tree_size = 4;
+    process_mapping.bisection_brute_fore_threshold = 16;
 
     // preprocessing
     preprocessing.use_community_detection = true;
@@ -656,6 +658,7 @@ namespace mt_kahypar {
 
     // process_mapping
     process_mapping.max_steiner_tree_size = 4;
+    process_mapping.bisection_brute_fore_threshold = 16;
 
     // preprocessing
     preprocessing.use_community_detection = true;

@@ -233,6 +233,7 @@ std::ostream & operator<< (std::ostream& str, const InitialPartitioningParameter
 struct ProcessMappingParameters {
   std::string process_graph_file = "";
   size_t max_steiner_tree_size = 0;
+  size_t bisection_brute_fore_threshold = 0;
 };
 
 std::ostream & operator<< (std::ostream& str, const ProcessMappingParameters& params);

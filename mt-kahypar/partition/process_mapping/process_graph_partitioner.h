@@ -3,8 +3,7 @@
  *
  * This file is part of Mt-KaHyPar.
  *
- * Copyright (C) 2021 Nikolai Maas <nikolai.maas@student.kit.edu>
- * Copyright (C) 2019 Tobias Heuer <tobias.heuer@kit.edu>
+ * Copyright (C) 2023 Tobias Heuer <tobias.heuer@kit.edu>
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -27,28 +26,40 @@
 
 #pragma once
 
+#include "mt-kahypar/macros.h"
+#include "mt-kahypar/datastructures/partitioned_graph.h"
+#include "mt-kahypar/partition/process_mapping/process_graph.h"
 #include "mt-kahypar/partition/context.h"
 
 namespace mt_kahypar {
 
-// Forward Declaration
-class ProcessGraph;
+class ProcessGraphPartitioner {
 
-template<typename TypeTraits>
-class RecursiveBipartitioning {
+  static constexpr bool debug = false;
 
-  using Hypergraph = typename TypeTraits::Hypergraph;
-  using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
+  using PartitionedGraph = ds::PartitionedGraph<ds::StaticGraph>;
 
  public:
-  // ! Partitions a hypergraph using multilevel recursive bipartitioning.
-  static PartitionedHypergraph partition(Hypergraph& hypergraph,
-                                         const Context& context,
-                                         const ProcessGraph* process_graph = nullptr);
-  static void partition(PartitionedHypergraph& hypergraph,
-                        const Context& context,
-                        const ProcessGraph* process_graph = nullptr);
+  static void partition(ProcessGraph& process_graph,
+                        const Context& context);
 
+ private:
+  ProcessGraphPartitioner() { }
+
+  static void recursive_bisection(PartitionedGraph& graph,
+                                  const Context& context,
+                                  const PartitionID k0,
+                                  const PartitionID k1);
+
+  static void recursively_bisect_block(PartitionedGraph& graph,
+                                       const Context& context,
+                                       const PartitionID block,
+                                       const PartitionID k0,
+                                       const PartitionID k1);
+
+  static void brute_force_best_bisection(PartitionedGraph& graph,
+                                         const HypernodeWeight weight_block_0,
+                                         const HypernodeWeight weight_block_1);
 };
 
-}  // namespace mt_kahypar
+}  // namespace kahypar

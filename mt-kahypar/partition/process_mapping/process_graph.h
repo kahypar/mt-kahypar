@@ -27,6 +27,7 @@
 #pragma once
 
 #include <queue>
+#include <numeric>
 
 #include "tbb/enumerable_thread_specific.h"
 #include "tbb/concurrent_unordered_map.h"
@@ -75,8 +76,11 @@ class ProcessGraph {
     _graph(std::move(graph)),
     _max_precomputed_connectitivty(0),
     _distances(),
+    _permutation(graph.initialNumNodes()),
     _local_mst_data(graph.initialNumNodes()),
-    _cache() { }
+    _cache(graph.initialNumNodes()) {
+    std::iota(_permutation.begin(), _permutation.end(), 0);
+  }
 
   ProcessGraph(const ProcessGraph&) = delete;
   ProcessGraph & operator= (const ProcessGraph &) = delete;
@@ -90,6 +94,10 @@ class ProcessGraph {
 
   bool isInitialized() const {
     return _is_initialized;
+  }
+
+  ds::StaticGraph& graph() {
+    return _graph;
   }
 
   // ! This function computes the weight of all steiner trees for all
@@ -106,6 +114,16 @@ class ProcessGraph {
   HyperedgeWeight distance(const PartitionID i, const PartitionID j) const {
     ASSERT(_is_initialized);
     return _distances[index(i, j)];
+  }
+
+  void setPartID(const PartitionID block, const PartitionID new_block) {
+    ASSERT(block < _k && new_block < _k);
+    _permutation[block] = new_block;
+  }
+
+  PartitionID partID(const PartitionID block) const {
+    ASSERT(block < _k);
+    return _permutation[block];
   }
 
  private:
@@ -147,6 +165,9 @@ class ProcessGraph {
 
   // ! Stores the weight of all precomputed steiner trees
   vec<HyperedgeWeight> _distances;
+
+  // ! Permutation applied to block IDs after initial partitioning
+  vec<PartitionID> _permutation;
 
   // ! Data structures to compute MST for non-precomputed connectivity sets
   mutable tbb::enumerable_thread_specific<MSTData> _local_mst_data;

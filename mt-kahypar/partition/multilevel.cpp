@@ -114,18 +114,19 @@ namespace {
 
       Context ip_context(context);
       ip_context.type = ContextType::initial_partitioning;
-      ip_context.partition.verbose_output = false;
       ip_context.refinement = context.initial_partitioning.refinement;
       disableTimerAndStats(context);
       if ( context.initial_partitioning.mode == Mode::direct ) {
         // The pool initial partitioner consist of several flat bipartitioning
         // techniques. This case runs as a base case (k = 2) within recursive bipartitioning
         // or the deep multilevel scheme.
+        ip_context.partition.verbose_output = false;
         Pool<TypeTraits>::bipartition(phg, ip_context);
       } else if ( context.initial_partitioning.mode == Mode::recursive_bipartitioning ) {
-        RecursiveBipartitioning<TypeTraits>::partition(phg, ip_context);
+        RecursiveBipartitioning<TypeTraits>::partition(phg, ip_context, process_graph);
       } else if ( context.initial_partitioning.mode == Mode::deep_multilevel ) {
         ASSERT(ip_context.partition.objective != Objective::process_mapping);
+        ip_context.partition.verbose_output = false;
         DeepMultilevel<TypeTraits>::partition(phg, ip_context);
       } else {
         ERR("Undefined initial partitioning algorithm");

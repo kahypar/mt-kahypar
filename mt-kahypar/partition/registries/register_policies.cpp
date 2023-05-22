@@ -43,14 +43,8 @@ namespace mt_kahypar {
 // //////////////////////////////////////////////////////////////////////////////
 //                            Hypergraph Type Traits
 // //////////////////////////////////////////////////////////////////////////////
-#ifdef KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES
 REGISTER_POLICY(mt_kahypar_partition_type_t, MULTILEVEL_GRAPH_PARTITIONING,
                 StaticGraphTypeTraits);
-#ifdef KAHYPAR_ENABLE_N_LEVEL_PARTITIONING_FEATURES
-REGISTER_POLICY(mt_kahypar_partition_type_t, N_LEVEL_GRAPH_PARTITIONING,
-                DynamicGraphTypeTraits);
-#endif
-#endif
 REGISTER_POLICY(mt_kahypar_partition_type_t, MULTILEVEL_HYPERGRAPH_PARTITIONING,
                 StaticHypergraphTypeTraits);
 #ifdef KAHYPAR_ENABLE_LARGE_K_PARTITIONING_FEATURES
@@ -58,6 +52,8 @@ REGISTER_POLICY(mt_kahypar_partition_type_t, LARGE_K_PARTITIONING,
                 LargeKHypergraphTypeTraits);
 #endif
 #ifdef KAHYPAR_ENABLE_N_LEVEL_PARTITIONING_FEATURES
+REGISTER_POLICY(mt_kahypar_partition_type_t, N_LEVEL_GRAPH_PARTITIONING,
+                DynamicGraphTypeTraits);
 REGISTER_POLICY(mt_kahypar_partition_type_t, N_LEVEL_HYPERGRAPH_PARTITIONING,
                 DynamicHypergraphTypeTraits);
 #endif
@@ -95,6 +91,6 @@ REGISTER_POLICY(GainPolicy, GainPolicy::km1, Km1GainTypes);
 REGISTER_POLICY(GainPolicy, GainPolicy::cut, CutGainTypes);
 REGISTER_POLICY(GainPolicy, GainPolicy::soed, SoedGainTypes);
 REGISTER_POLICY(GainPolicy, GainPolicy::process_mapping, ProcessMappingGainTypes);
-ENABLE_GRAPHS(REGISTER_POLICY(GainPolicy, GainPolicy::cut_for_graphs, CutGainForGraphsTypes);)
+REGISTER_POLICY(GainPolicy, GainPolicy::cut_for_graphs, CutGainForGraphsTypes);
 
 }  // namespace mt_kahypar

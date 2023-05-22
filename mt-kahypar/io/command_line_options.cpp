@@ -614,7 +614,10 @@ namespace mt_kahypar {
              "Path to a process graph in Metis file format.")
             ("max-steiner-tree-size",
              po::value<size_t>(&context.process_mapping.max_steiner_tree_size)->value_name("<size_t>"),
-             "We precompute all optimal steiner trees up to this size in the process graph.");
+             "We precompute all optimal steiner trees up to this size in the process graph.")
+            ("bisection-brute-force-threshold",
+             po::value<size_t>(&context.process_mapping.bisection_brute_fore_threshold)->value_name("<size_t>"),
+             "Threshold for the number of nodes when we brute force the optimal bisection of the process graph.");
 
     return process_mapping_options;
   }

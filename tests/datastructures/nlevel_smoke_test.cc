@@ -453,7 +453,6 @@ TEST(ANlevelHypergraph, SimulatesParallelContractionsAndAccessToHypergraph) {
   }
 }
 
-#ifdef KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES
 TEST(ANlevelGraph, SimulatesContractionsAndBatchUncontractions) {
   using Hypergraph = typename DynamicGraphTypeTraits::Hypergraph;
   using PartitionedHypergraph = typename DynamicGraphTypeTraits::PartitionedHypergraph;
@@ -571,7 +570,6 @@ TEST(ANlevelGraph, SimulatesParallelContractionsAndAccessToHypergraph) {
     LOG << timer;
   }
 }
-#endif
 #endif
 
 } // namespace ds
