@@ -94,7 +94,7 @@ class StaticBitset {
       while ( b >> ( _current_block_id % BITS_PER_BLOCK ) == 0 && _current_block_id < _max_block_id ) {
         // no more one bits in current block -> load next block
         _current_block_id += (BITS_PER_BLOCK - (_current_block_id % BITS_PER_BLOCK));
-        b = loadCurrentBlock();
+        b = _current_block_id < _max_block_id ? loadCurrentBlock() : 0;
       }
       if ( _current_block_id < _max_block_id ) {
         _current_block_id += utils::lowest_set_bit_64(b >> ( _current_block_id % BITS_PER_BLOCK ));

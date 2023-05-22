@@ -86,7 +86,7 @@ class Bitset {
     _size = num_blocks * BITS_PER_BLOCK;
     _bitset.resize(num_blocks);
     for ( size_t i = 0; i < num_blocks; ++i ) {
-      _bitset[i] = *(blocks + 1);
+      _bitset[i] = *(blocks + i);
     }
   }
 

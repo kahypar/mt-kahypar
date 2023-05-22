@@ -47,6 +47,8 @@
 #include "mt-kahypar/partition/refinement/gains/soed/soed_gain_cache.h"
 #include "mt-kahypar/partition/refinement/gains/soed/soed_rollback.h"
 #include "mt-kahypar/partition/refinement/gains/soed/soed_flow_network_construction.h"
+#include "mt-kahypar/partition/refinement/gains/process_mapping/process_mapping_attributed_gains.h"
+#include "mt-kahypar/partition/refinement/gains/process_mapping/process_mapping_gain_computation.h"
 #include "mt-kahypar/partition/refinement/gains/cut_for_graphs/cut_gain_cache_for_graphs.h"
 #include "mt-kahypar/partition/refinement/gains/cut_for_graphs/cut_attributed_gains_for_graphs.h"
 #include "mt-kahypar/macros.h"
@@ -81,8 +83,8 @@ struct SoedGainTypes : public kahypar::meta::PolicyBase {
 };
 
 struct ProcessMappingGainTypes : public kahypar::meta::PolicyBase {
-  using GainComputation = Km1GainComputation;
-  using AttributedGains = Km1AttributedGains;
+  using GainComputation = ProcessMappingGainComputation;
+  using AttributedGains = ProcessMappingAttributedGains;
   using GainCache = Km1GainCache;
   using DeltaGainCache = DeltaKm1GainCache;
   using Rollback = Km1Rollback;
