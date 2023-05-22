@@ -29,6 +29,7 @@
 #include <cmath>
 #include <limits>
 
+#include "mt-kahypar/datastructures/static_graph.h"
 #include "mt-kahypar/partition/process_mapping/steiner_tree.h"
 
 namespace mt_kahypar {
