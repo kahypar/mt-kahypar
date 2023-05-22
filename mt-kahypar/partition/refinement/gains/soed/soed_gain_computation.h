@@ -55,7 +55,8 @@ class SoedGainComputation : public GainComputationBase<SoedGainComputation, Soed
   void precomputeGains(const PartitionedHypergraph& phg,
                        const HypernodeID hn,
                        RatingMap& tmp_scores,
-                       Gain& isolated_block_gain) {
+                       Gain& isolated_block_gain,
+                       const bool) {
     ASSERT(tmp_scores.size() == 0, "Rating map not empty");
     PartitionID from = phg.partID(hn);
     for (const HyperedgeID& he : phg.incidentEdges(hn)) {
@@ -94,6 +95,10 @@ class SoedGainComputation : public GainComputationBase<SoedGainComputation, Soed
   HyperedgeWeight gain(const Gain to_score,
                        const Gain isolated_block_gain) {
     return isolated_block_gain - to_score;
+  }
+
+  void changeNumberOfBlocks(const PartitionID) {
+    // Do nothing
   }
 };
 

@@ -66,7 +66,7 @@ class GainComputationBase {
     Derived* derived = static_cast<Derived*>(this);
     RatingMap& tmp_scores = _tmp_scores.local();
     Gain& isolated_block_gain = _isolated_block_gain.local();
-    derived->precomputeGains(phg, hn, tmp_scores, isolated_block_gain);
+    derived->precomputeGains(phg, hn, tmp_scores, isolated_block_gain, consider_non_adjacent_blocks);
 
     PartitionID from = phg.partID(hn);
     Move best_move { from, from, hn, rebalance ? std::numeric_limits<Gain>::max() : 0 };
@@ -158,6 +158,7 @@ class GainComputationBase {
         tmp_score = RatingMap(new_k);
       }
     }
+    static_cast<Derived*>(this)->changeNumberOfBlocks(new_k);
   }
 
 private:

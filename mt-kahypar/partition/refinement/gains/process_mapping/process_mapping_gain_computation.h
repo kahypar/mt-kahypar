@@ -28,24 +28,34 @@
 
 #include <vector>
 
+#include "tbb/enumerable_thread_specific.h"
+
 #include "mt-kahypar/partition/refinement/gains/gain_computation_base.h"
 #include "mt-kahypar/partition/refinement/gains/process_mapping/process_mapping_attributed_gains.h"
+#include "mt-kahypar/partition/process_mapping/process_graph.h"
+#include "mt-kahypar/datastructures/static_bitset.h"
 #include "mt-kahypar/datastructures/sparse_map.h"
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
 
 namespace mt_kahypar {
 
-class ProcessMappingGainComputation :
-  public GainComputationBase<ProcessMappingGainComputation, ProcessMappingAttributedGains> {
+class ProcessMappingGainComputation : public GainComputationBase<ProcessMappingGainComputation, ProcessMappingAttributedGains> {
   using Base = GainComputationBase<ProcessMappingGainComputation, ProcessMappingAttributedGains>;
   using RatingMap = typename Base::RatingMap;
 
   static constexpr bool enable_heavy_assert = false;
+  static constexpr size_t BITS_PER_BLOCK = ds::StaticBitset::BITS_PER_BLOCK;
 
  public:
   ProcessMappingGainComputation(const Context& context,
                                 bool disable_randomization = false) :
-    Base(context, disable_randomization) { }
+    Base(context, disable_randomization),
+    _local_adjacent_blocks([&] { return constructBitset(); }),
+    _all_blocks(context.partition.k) {
+    for ( PartitionID to = 0; to < context.partition.k; ++to )  {
+      _all_blocks.set(to);
+    }
+  }
 
   // ! Precomputes the gain to all adjacent blocks.
   // ! Conceptually, we compute the gain of moving the node to an non-adjacent block
@@ -56,38 +66,85 @@ class ProcessMappingGainComputation :
   void precomputeGains(const PartitionedHypergraph& phg,
                        const HypernodeID hn,
                        RatingMap& tmp_scores,
-                       Gain& isolated_block_gain) {
+                       Gain&,
+                       const bool consider_non_adjacent_blocks) {
     ASSERT(tmp_scores.size() == 0, "Rating map not empty");
+
+    // Compute all adjacent blocks of node
+    ds::Bitset& adjacent_blocks = consider_non_adjacent_blocks ?
+      _all_blocks : _local_adjacent_blocks.local();
+    ds::StaticBitset adjacent_blocks_view(
+      adjacent_blocks.numBlocks(), adjacent_blocks.data());
+    if ( !consider_non_adjacent_blocks ) {
+      adjacent_blocks.reset();
+      for (const HyperedgeID& he : phg.incidentEdges(hn)) {
+        for ( const PartitionID& block : phg.connectivitySet(he) ) {
+          adjacent_blocks.set(block);
+        }
+      }
+    }
+
+    // Gain computation
+    ASSERT(phg.hasProcessGraph());
+    const ProcessGraph* process_graph = phg.processGraph();
     PartitionID from = phg.partID(hn);
     for (const HyperedgeID& he : phg.incidentEdges(hn)) {
       HypernodeID pin_count_in_from_part = phg.pinCountInPart(he, from);
       HyperedgeWeight he_weight = phg.edgeWeight(he);
+      ds::Bitset& connectivity_set = phg.deepCopyOfConnectivitySet(he);
+      ds::StaticBitset con_set_view(connectivity_set.numBlocks(), connectivity_set.data());
+      const HyperedgeWeight distance_before = process_graph->distance(con_set_view);
 
-      // In case, there is more one than one pin left in from part, we would
-      // increase the connectivity, if we would move the pin to one block
-      // no contained in the connectivity set. In such cases, we can only
-      // increase the connectivity of a hyperedge and therefore gather
-      // the edge weight of all those edges and add it later to move gain
-      // to all other blocks.
-      if ( pin_count_in_from_part > 1 ) {
-        isolated_block_gain += he_weight;
+      if ( pin_count_in_from_part == 1 ) {
+        // Moving the node out of its current block removes
+        // its block from the connectivity set
+        connectivity_set.unset(from);
       }
-
-      // Substract edge weight of all incident blocks.
-      // Note, in case the pin count in from part is greater than one
-      // we will later add that edge weight to the gain (see internal_weight).
-      for (const PartitionID& to : phg.connectivitySet(he)) {
-        if (from != to) {
-          tmp_scores[to] += he_weight;
+      // Other gain computation techniques only iterate over the connectivity set
+      // of a hyperedge to compute the gain. They assume that the gain is the same
+      // for all non-adjacent blocks. However, this is not the case for process mapping.
+      // The gain to non-adjacent blocks could be different because they induce different
+      // distances in the process graph. We therefore have to consider all adjacent blocks
+      // of the node to compute the correct gain.
+      for ( const PartitionID to : adjacent_blocks_view ) {
+        const bool was_set = connectivity_set.isSet(to);
+        connectivity_set.set(to);
+        const HyperedgeWeight distance_after = process_graph->distance(con_set_view);
+        tmp_scores[to] += (distance_after - distance_before) * he_weight;
+        if ( !was_set ) {
+          connectivity_set.unset(to);
         }
       }
     }
   }
 
   HyperedgeWeight gain(const Gain to_score,
-                       const Gain isolated_block_gain) {
-    return isolated_block_gain - to_score;
+                       const Gain) {
+    return to_score;
   }
+
+  void changeNumberOfBlocks(const PartitionID new_k) {
+    ASSERT(new_k == _context.partition.k);
+    for ( auto& adjacent_blocks : _local_adjacent_blocks ) {
+      adjacent_blocks.resize(new_k);
+    }
+    _all_blocks.resize(new_k);
+    for ( PartitionID to = 0; to < new_k; ++to )  {
+      _all_blocks.set(to);
+    }
+  }
+
+ private:
+  ds::Bitset constructBitset() const {
+    return ds::Bitset(_context.partition.k);
+  }
+
+  using Base::_context;
+
+  // ! Before gain computation, we construct a bitset that contains all
+  // ! adjacent nodes of a block
+  tbb::enumerable_thread_specific<ds::Bitset> _local_adjacent_blocks;
+  ds::Bitset _all_blocks;
 };
 
 }  // namespace mt_kahypar

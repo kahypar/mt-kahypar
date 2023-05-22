@@ -148,6 +148,13 @@ class StaticBitset {
     return const_iterator(_num_blocks, _bitset, _num_blocks * BITS_PER_BLOCK);
   }
 
+  bool isSet(const size_t pos) const {
+    ASSERT(pos < _num_blocks * BITS_PER_BLOCK);
+    const size_t block_idx = pos / BITS_PER_BLOCK;
+    const size_t idx = pos % BITS_PER_BLOCK;
+    return ( *(_bitset + block_idx) >> idx ) & UL(1);
+  }
+
   // ! Returns the number of one bits in the bitset
   int popcount() const {
     int cnt = 0;
