@@ -24,8 +24,9 @@
  * SOFTWARE.
  ******************************************************************************/
 
-#include "mt-kahypar/partition/process_mapping/process_graph_partitioner.h"
+#include "mt-kahypar/partition/process_mapping/dual_bipartitioning.h"
 
+#include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/metrics.h"
 #include "mt-kahypar/partition/initial_partitioning/pool_initial_partitioner.h"
 #include "mt-kahypar/partition/process_mapping/set_enumerator.h"
@@ -60,23 +61,30 @@ Context setBisectionContext(const Context& context,
 }
 }
 
-void ProcessGraphPartitioner::partition(ProcessGraph& process_graph,
-                                        const Context& context) {
-  // Recursively partition process graph
+template<typename CommunicationHypergraph>
+void DualBipartitioning<CommunicationHypergraph>::mapToProcessGraph(CommunicationHypergraph& communication_hg,
+                                                                    const ProcessGraph& process_graph,
+                                                                    const Context& context) {
+  ASSERT(communication_hg.initialNumNodes() == process_graph.graph().initialNumNodes());
+  // Recursively bipartition the process graph
   const PartitionID k = process_graph.numBlocks();
-  PartitionedGraph graph(k, process_graph.graph());
-  recursive_bisection(graph, context, 0, k);
+  ds::StaticGraph underlying_process_graph = process_graph.graph().copy();
+  PartitionedGraph partitioned_process_graph(k, underlying_process_graph);
+  recursive_bisection(partitioned_process_graph, context, 0, k);
 
-  // Apply partition on process graph
-  for ( const HypernodeID& hn : graph.nodes() ) {
-    process_graph.setPartID(hn, graph.partID(hn));
+  // Apply partition of process graph to communication hypergraph
+  communication_hg.resetPartition();
+  for ( const HypernodeID& hn : communication_hg.nodes() ) {
+    communication_hg.setOnlyNodePart(hn, partitioned_process_graph.partID(hn));
   }
+  communication_hg.initializePartition();
 }
 
-void ProcessGraphPartitioner::recursive_bisection(PartitionedGraph& graph,
-                                                  const Context& context,
-                                                  const PartitionID k0,
-                                                  const PartitionID k1) {
+template<typename CommunicationHypergraph>
+void DualBipartitioning<CommunicationHypergraph>::recursive_bisection(PartitionedGraph& graph,
+                                                                      const Context& context,
+                                                                      const PartitionID k0,
+                                                                      const PartitionID k1) {
   ASSERT(k1 - k0 >= 2);
   ASSERT(k1 - k0 == graph.initialNumNodes());
   const PartitionID k = k1 - k0;
@@ -87,7 +95,7 @@ void ProcessGraphPartitioner::recursive_bisection(PartitionedGraph& graph,
   if ( UL(k) > context.process_mapping.bisection_brute_fore_threshold ) {
     Pool<StaticGraphTypeTraits>::bipartition(bisection, b_context, false);
   } else {
-    brute_force_best_bisection(bisection,
+    brute_force_optimal_bisection(bisection,
       b_context.partition.max_part_weights[0],
       b_context.partition.max_part_weights[1]);
   }
@@ -119,11 +127,12 @@ void ProcessGraphPartitioner::recursive_bisection(PartitionedGraph& graph,
   }
 }
 
-void ProcessGraphPartitioner::recursively_bisect_block(PartitionedGraph& graph,
-                                                       const Context& context,
-                                                       const PartitionID block,
-                                                       const PartitionID k0,
-                                                       const PartitionID k1) {
+template<typename CommunicationHypergraph>
+void DualBipartitioning<CommunicationHypergraph>::recursively_bisect_block(PartitionedGraph& graph,
+                                                                           const Context& context,
+                                                                           const PartitionID block,
+                                                                           const PartitionID k0,
+                                                                           const PartitionID k1) {
   // Extract block of partition
   auto extracted_block = graph.extract(block, nullptr, false, true);
   ds::StaticGraph& extracted_graph = extracted_block.hg;
@@ -149,9 +158,10 @@ void ProcessGraphPartitioner::recursively_bisect_block(PartitionedGraph& graph,
   }
 }
 
-void ProcessGraphPartitioner::brute_force_best_bisection(PartitionedGraph& graph,
-                                                         const HypernodeWeight weight_block_0,
-                                                         const HypernodeWeight weight_block_1) {
+template<typename CommunicationHypergraph>
+void DualBipartitioning<CommunicationHypergraph>::brute_force_optimal_bisection(PartitionedGraph& graph,
+                                                                                const HypernodeWeight weight_block_0,
+                                                                                const HypernodeWeight weight_block_1) {
   unused(weight_block_1);
   ASSERT(weight_block_0 + weight_block_1 == graph.initialNumNodes());
   // Enumerate all bisections
@@ -179,5 +189,7 @@ void ProcessGraphPartitioner::brute_force_best_bisection(PartitionedGraph& graph
   ASSERT(graph.partWeight(0) == weight_block_0);
   ASSERT(graph.partWeight(1) == weight_block_1);
 }
+
+INSTANTIATE_CLASS_WITH_PARTITIONED_HG(DualBipartitioning)
 
 }  // namespace kahypar

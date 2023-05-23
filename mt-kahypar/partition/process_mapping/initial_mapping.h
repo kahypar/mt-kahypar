@@ -27,39 +27,33 @@
 #pragma once
 
 #include "mt-kahypar/macros.h"
-#include "mt-kahypar/datastructures/partitioned_graph.h"
-#include "mt-kahypar/partition/process_mapping/process_graph.h"
 #include "mt-kahypar/partition/context.h"
 
 namespace mt_kahypar {
 
-class ProcessGraphPartitioner {
+// Forward Declaration
+class ProcessGraph;
 
-  static constexpr bool debug = false;
+template<typename TypeTraits>
+class InitialMapping {
 
-  using PartitionedGraph = ds::PartitionedGraph<ds::StaticGraph>;
+  using Hypergraph = typename TypeTraits::Hypergraph;
+  using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
 
  public:
-  static void partition(ProcessGraph& process_graph,
-                        const Context& context);
+  // ! This function takes an already partitioned communication hypergraph and
+  // ! maps the block of partition to the process graph such that the process
+  // ! mapping objective function is minimized. The internal implementation
+  // ! collapses each block of the communication hypergraph into a single node and
+  // ! then solves a one-to-one mapping problem. The function is called after initial
+  // ! partitioning via recursive bipartitioning (RB) since RB can not optimize
+  // ! the process mapping objective function.
+  static void mapToProcessGraph(PartitionedHypergraph& communication_hg,
+                                const ProcessGraph& process_graph,
+                                const Context& context);
 
  private:
-  ProcessGraphPartitioner() { }
-
-  static void recursive_bisection(PartitionedGraph& graph,
-                                  const Context& context,
-                                  const PartitionID k0,
-                                  const PartitionID k1);
-
-  static void recursively_bisect_block(PartitionedGraph& graph,
-                                       const Context& context,
-                                       const PartitionID block,
-                                       const PartitionID k0,
-                                       const PartitionID k1);
-
-  static void brute_force_best_bisection(PartitionedGraph& graph,
-                                         const HypernodeWeight weight_block_0,
-                                         const HypernodeWeight weight_block_1);
+  InitialMapping() { }
 };
 
 }  // namespace kahypar

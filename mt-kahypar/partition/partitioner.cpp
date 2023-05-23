@@ -36,7 +36,6 @@
 #include "mt-kahypar/partition/recursive_bipartitioning.h"
 #include "mt-kahypar/partition/deep_multilevel.h"
 #include "mt-kahypar/partition/process_mapping/process_graph.h"
-#include "mt-kahypar/partition/process_mapping/process_graph_partitioner.h"
 #include "mt-kahypar/utils/hypergraph_statistics.h"
 #include "mt-kahypar/utils/stats.h"
 #include "mt-kahypar/utils/timer.h"
@@ -209,18 +208,12 @@ namespace mt_kahypar {
     }
 
     if ( process_graph && !process_graph->isInitialized() ) {
-      timer.start_timer("process_graph_preprocessing", "Process Graph Preprocessing");
       timer.start_timer("precompute_steiner_trees", "Precompute Steiner Trees");
       const size_t max_steiner_tree_size = std::min(
         context.process_mapping.max_steiner_tree_size,
         static_cast<size_t>(hypergraph.maxEdgeSize()));
       process_graph->precomputeDistances(max_steiner_tree_size);
       timer.stop_timer("precompute_steiner_trees");
-
-      timer.start_timer("partition_process_graph", "Partition Process Graph");
-      ProcessGraphPartitioner::partition(*process_graph, context);
-      timer.stop_timer("partition_process_graph");
-      timer.stop_timer("process_graph_preprocessing");
     }
     parallel::MemoryPool::instance().release_mem_group("Preprocessing");
   }

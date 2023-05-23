@@ -159,6 +159,7 @@ private:
   static constexpr HyperedgeID HIGH_DEGREE_THRESHOLD = ID(100000);
   static constexpr size_t SIZE_OF_EDGE_LOCK = sizeof(EdgeMove);
 
+  using UnderlyingHypergraph = Hypergraph;
   using HypernodeIterator = typename Hypergraph::HypernodeIterator;
   using HyperedgeIterator = typename Hypergraph::HyperedgeIterator;
   using IncidenceIterator = typename Hypergraph::IncidenceIterator;

@@ -103,6 +103,13 @@ using TypeTraitsList = kahypar::meta::Typelist<StaticHypergraphTypeTraits,
   ENABLE_N_LEVEL(template FUNC(DynamicPartitionedHypergraph);)           \
   ENABLE_N_LEVEL(template FUNC(DynamicPartitionedGraph);)
 
+#define INSTANTIATE_CLASS_WITH_PARTITIONED_HG(C)                       \
+  template class C<StaticPartitionedHypergraph>;                       \
+  template class C<StaticPartitionedGraph>;                            \
+  ENABLE_LARGE_K(template class C<StaticSparsePartitionedHypergraph>;) \
+  ENABLE_N_LEVEL(template class C<DynamicPartitionedHypergraph>;)      \
+  ENABLE_N_LEVEL(template class C<DynamicPartitionedGraph>;)
+
 #define INSTANTIATE_CLASS_MACRO_WITH_TYPE_TRAITS(C)                          \
   template class C(StaticHypergraphTypeTraits);                              \
   template class C(StaticGraphTypeTraits);                                   \
