@@ -40,6 +40,7 @@ template <typename TypeTraits, typename GainTypes>
 class Rebalancer final : public IRefiner {
  private:
   using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
+  using GainCache = typename GainTypes::GainCache;
   using GainCalculator = typename GainTypes::GainComputation;
   using AtomicWeight = parallel::IntegralAtomicWrapper<HypernodeWeight>;
 
@@ -72,6 +73,9 @@ public:
     _current_k(context.partition.k),
     _gain(context),
     _part_weights(_context.partition.k) { }
+
+  explicit Rebalancer(const Context& context, GainCache&) :
+    Rebalancer(context) { }
 
   Rebalancer(const Rebalancer&) = delete;
   Rebalancer(Rebalancer&&) = delete;
