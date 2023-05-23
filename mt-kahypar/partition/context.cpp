@@ -221,6 +221,7 @@ namespace mt_kahypar {
     str << "  Process Graph File:                 " << params.process_graph_file << std::endl;
     str << "  Process Mapping Strategy:           " << params.strategy << std::endl;
     str << "  Use Local Search:                   " << std::boolalpha << params.use_local_search << std::endl;
+    str << "  Optimize Km1 Metric:                " << std::boolalpha << params.optimize_km1_metric << std::endl;
     str << "  Max Precomputed Steiner Tree Size:  " << params.max_steiner_tree_size << std::endl;
     str << "  Bisection Brute Force Threshold:    " << params.bisection_brute_fore_threshold << std::endl;
     return str;
@@ -392,25 +393,7 @@ namespace mt_kahypar {
     }
 
     // Set correct gain policy type
-    if ( partition.instance_type == InstanceType::hypergraph ) {
-      switch ( partition.objective ) {
-        case Objective::km1: partition.gain_policy = GainPolicy::km1; break;
-        case Objective::cut: partition.gain_policy = GainPolicy::cut; break;
-        case Objective::soed: partition.gain_policy = GainPolicy::soed; break;
-        case Objective::process_mapping: partition.gain_policy = GainPolicy::process_mapping; break;
-        case Objective::UNDEFINED: partition.gain_policy = GainPolicy::none; break;
-      }
-    } else if ( partition.instance_type == InstanceType::graph ) {
-      if ( partition.objective != Objective::cut && partition.objective != Objective::process_mapping ) {
-        partition.objective = Objective::cut;
-        INFO("Current objective function is equivalent to the edge cut metric for graphs. Objective function is set to edge cut metric.");
-      }
-      if ( partition.objective == Objective::cut ) {
-        partition.gain_policy = GainPolicy::cut_for_graphs;
-      } else {
-        partition.gain_policy = GainPolicy::process_mapping;
-      }
-    }
+    setupGainPolicy();
 
     if ( partition.preset_type == PresetType::large_k ) {
       // Silently switch to deep multilevel scheme for large k partitioning
@@ -430,6 +413,28 @@ namespace mt_kahypar {
     }
   }
 
+  void Context::setupGainPolicy() {
+    if ( partition.instance_type == InstanceType::hypergraph ) {
+      switch ( partition.objective ) {
+        case Objective::km1: partition.gain_policy = GainPolicy::km1; break;
+        case Objective::cut: partition.gain_policy = GainPolicy::cut; break;
+        case Objective::soed: partition.gain_policy = GainPolicy::soed; break;
+        case Objective::process_mapping: partition.gain_policy = GainPolicy::process_mapping; break;
+        case Objective::UNDEFINED: partition.gain_policy = GainPolicy::none; break;
+      }
+    } else if ( partition.instance_type == InstanceType::graph ) {
+      if ( partition.objective != Objective::cut && partition.objective != Objective::process_mapping ) {
+        partition.objective = Objective::cut;
+        INFO("Current objective function is equivalent to the edge cut metric for graphs. Objective function is set to edge cut metric.");
+      }
+      if ( partition.objective == Objective::cut ) {
+        partition.gain_policy = GainPolicy::cut_for_graphs;
+      } else {
+        partition.gain_policy = GainPolicy::process_mapping;
+      }
+    }
+  }
+
   void Context::load_default_preset() {
     // General
     partition.preset_type = PresetType::default_preset;
@@ -446,6 +451,7 @@ namespace mt_kahypar {
     // process_mapping
     process_mapping.strategy = ProcessMappingStrategy::greedy_mapping;
     process_mapping.use_local_search = true;
+    process_mapping.optimize_km1_metric = false;
     process_mapping.max_steiner_tree_size = 4;
     process_mapping.bisection_brute_fore_threshold = 16;
 
@@ -663,6 +669,7 @@ namespace mt_kahypar {
     // process_mapping
     process_mapping.strategy = ProcessMappingStrategy::greedy_mapping;
     process_mapping.use_local_search = true;
+    process_mapping.optimize_km1_metric = false;
     process_mapping.max_steiner_tree_size = 4;
     process_mapping.bisection_brute_fore_threshold = 16;
 

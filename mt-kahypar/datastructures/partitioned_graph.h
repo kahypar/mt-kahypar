@@ -652,6 +652,26 @@ private:
   }
 
   // ! Only for testing
+  bool checkTrackedPartitionInformation() {
+    bool success = true;
+
+    for (HyperedgeID e : edges()) {
+      PartitionID expected_connectivity = 0;
+      for (PartitionID i = 0; i < k(); ++i) {
+        expected_connectivity += (pinCountInPart(e, i) > 0);
+      }
+      if ( expected_connectivity != connectivity(e) ) {
+        LOG << "Connectivity of hyperedge" << e << "=>" <<
+            "Expected:" << V(expected_connectivity)  << "," <<
+            "Actual:" << V(connectivity(e));
+        success = false;
+      }
+    }
+
+    return success;
+  }
+
+  // ! Only for testing
   template<typename GainCache>
   bool checkTrackedPartitionInformation(GainCache& gain_cache) {
     bool success = true;

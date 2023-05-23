@@ -31,9 +31,11 @@
 
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/metrics.h"
+#include "mt-kahypar/partition/process_mapping/kerninghan_lin.h"
 #include "mt-kahypar/datastructures/static_graph.h"
 #include "mt-kahypar/datastructures/static_bitset.h"
 #include "mt-kahypar/utils/randomize.h"
+#include "mt-kahypar/utils/utilities.h"
 
 namespace mt_kahypar {
 
@@ -193,7 +195,7 @@ void compute_greedy_mapping(CommunicationHypergraph& communication_hg,
   ASSERT(actual_objective == metrics::quality(communication_hg, Objective::process_mapping));
   ASSERT([&] {
     for ( const HypernodeID hn : communication_hg.nodes() ) {
-      if ( communication_hg.partID(hn) == kInvalidHypernode ) {
+      if ( communication_hg.partID(hn) == kInvalidPartition ) {
         return false;
       }
     }
@@ -211,12 +213,21 @@ void GreedyMapping<CommunicationHypergraph>::mapToProcessGraph(CommunicationHype
                                                                const Context& context) {
   ASSERT(communication_hg.initialNumNodes() == process_graph.graph().initialNumNodes());
 
+  utils::Timer& timer = utils::Utilities::instance().getTimer(context.utility_id);
   HyperedgeWeight best_objective = metrics::quality(communication_hg, Objective::process_mapping);
   vec<PartitionID> best_mapping(communication_hg.initialNumNodes(), 0);
   std::iota(best_mapping.begin(), best_mapping.end(), 0);
   for ( const HypernodeID& hn : communication_hg.nodes() ) {
     // Compute greedy mapping with the current node as seed node
+    timer.start_timer("initial_mapping", "Initial Mapping");
     compute_greedy_mapping(communication_hg, process_graph, context, hn);
+    timer.stop_timer("initial_mapping");
+
+    if ( context.process_mapping.use_local_search ) {
+      timer.start_timer("local_search", "Local Search");
+      KerninghanLin<CommunicationHypergraph>::improve(communication_hg, process_graph);
+      timer.stop_timer("local_search");
+    }
 
     // Check if new mapping is better than the currently best mapping
     const HyperedgeWeight objective = metrics::quality(communication_hg, Objective::process_mapping);

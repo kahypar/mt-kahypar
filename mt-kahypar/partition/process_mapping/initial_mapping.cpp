@@ -34,6 +34,8 @@
 #include "mt-kahypar/partition/process_mapping/greedy_mapping.h"
 #include "mt-kahypar/partition/metrics.h"
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
+#include "mt-kahypar/utils/utilities.h"
+#include "mt-kahypar/parallel/memory_pool.h"
 
 namespace mt_kahypar {
 
@@ -106,7 +108,12 @@ void map_to_process_graph(PartitionedHypergraph& communication_hg,
                           const ProcessGraph& process_graph,
                           const Context& context) {
   using Hypergraph = typename PartitionedHypergraph::UnderlyingHypergraph;
+  utils::Timer& timer = utils::Utilities::instance().getTimer(context.utility_id);
+  const bool was_unused_memory_allocations_enabled =
+    parallel::MemoryPoolT::instance().is_unused_memory_allocations_activated();
+  parallel::MemoryPoolT::instance().deactivate_unused_memory_allocations();
   // We contract all blocks of the partition to create an one-to-one mapping problem
+  timer.start_timer("contract_partition", "Contract Partition");
   vec<HypernodeID> mapping(communication_hg.initialNumNodes(), kInvalidHypernode);
   communication_hg.setProcessGraph(&process_graph);
   communication_hg.doParallelForAllNodes([&](const HypernodeID hn) {
@@ -117,13 +124,14 @@ void map_to_process_graph(PartitionedHypergraph& communication_hg,
   // contracted hypergraph node i corresponds to block i of the input
   // communication hypergraph.
   Hypergraph contracted_hg = communication_hg.hypergraph().contract(mapping);
-  ASSERT(contracted_hg.initialNumNodes() == communication_hg.k());
+  ASSERT(contracted_hg.initialNumNodes() == static_cast<HypernodeID>(communication_hg.k()));
   PartitionedHypergraph contracted_phg(communication_hg.k(), contracted_hg);
   for ( const HypernodeID& hn : contracted_phg.nodes() ) {
     contracted_phg.setOnlyNodePart(hn, hn);
   }
   contracted_phg.initializePartition();
   contracted_phg.setProcessGraph(&process_graph);
+  timer.stop_timer("contract_partition");
 
   const HyperedgeWeight objective_before = metrics::quality(contracted_phg, Objective::process_mapping);
   ASSERT(metrics::quality(communication_hg, Objective::process_mapping) == objective_before);
@@ -151,7 +159,6 @@ void map_to_process_graph(PartitionedHypergraph& communication_hg,
         communication_hg.changeNodePart(hn, from, to);
       }
     });
-    ASSERT(metrics::quality(communication_hg, Objective::process_mapping) == objective_after);
   } else if ( context.partition.verbose_output && objective_before < objective_after ) {
     // Initial mapping algorithm has worsen solution quality
     // => use input partition of communication hypergraph
@@ -159,6 +166,10 @@ void map_to_process_graph(PartitionedHypergraph& communication_hg,
       << (objective_after - objective_before)
       << "( Before =" << objective_before << ", After =" << objective_after << ")."
       << "Use mapping from initial partitiong!"<< END;
+  }
+
+  if ( was_unused_memory_allocations_enabled ) {
+    parallel::MemoryPoolT::instance().activate_unused_memory_allocations();
   }
 }
 

@@ -67,7 +67,8 @@ struct ObjectiveFunction<PartitionedHypergraph, Objective::process_mapping> {
   HyperedgeWeight operator()(const PartitionedHypergraph& phg, const HyperedgeID& he) const {
     ASSERT(phg.hasProcessGraph());
     const ProcessGraph* process_graph = phg.processGraph();
-    return process_graph->distance(phg.shallowCopyOfConnectivitySet(he)) * phg.edgeWeight(he);
+    const HyperedgeWeight distance = process_graph->distance(phg.shallowCopyOfConnectivitySet(he));
+    return distance * phg.edgeWeight(he);
   }
 };
 

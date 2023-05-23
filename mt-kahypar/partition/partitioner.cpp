@@ -36,6 +36,7 @@
 #include "mt-kahypar/partition/recursive_bipartitioning.h"
 #include "mt-kahypar/partition/deep_multilevel.h"
 #include "mt-kahypar/partition/process_mapping/process_graph.h"
+#include "mt-kahypar/partition/process_mapping/initial_mapping.h"
 #include "mt-kahypar/utils/hypergraph_statistics.h"
 #include "mt-kahypar/utils/stats.h"
 #include "mt-kahypar/utils/timer.h"
@@ -228,6 +229,14 @@ namespace mt_kahypar {
     io::printMemoryPoolConsumption(context);
     io::printInputInformation(context, hypergraph);
 
+    bool map_partition_to_process_graph_at_the_end = false;
+    if ( context.partition.objective == Objective::process_mapping &&
+         context.process_mapping.optimize_km1_metric ) {
+      map_partition_to_process_graph_at_the_end = true;
+      context.partition.objective = Objective::km1;
+      context.setupGainPolicy();
+    }
+
     // ################## PREPROCESSING ##################
     utils::Timer& timer = utils::Utilities::instance().getTimer(context.utility_id);
     timer.start_timer("preprocessing", "Preprocessing");
@@ -255,6 +264,15 @@ namespace mt_kahypar {
     large_he_remover.restoreLargeHyperedges(partitioned_hypergraph);
     degree_zero_hn_remover.restoreDegreeZeroHypernodes(partitioned_hypergraph);
     timer.stop_timer("postprocessing");
+
+    if ( map_partition_to_process_graph_at_the_end ) {
+      ASSERT(process_graph);
+      context.partition.objective = Objective::process_mapping;
+      timer.start_timer("one_to_one_process_mapping", "One-To-One Process Mapping");
+      InitialMapping<TypeTraits>::mapToProcessGraph(
+        partitioned_hypergraph, *process_graph, context);
+      timer.stop_timer("one_to_one_process_mapping");
+    }
 
     if (context.partition.verbose_output) {
       io::printHypergraphInfo(partitioned_hypergraph.hypergraph(), "Uncoarsened Hypergraph",

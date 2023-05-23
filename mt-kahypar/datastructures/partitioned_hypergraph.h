@@ -697,6 +697,32 @@ private:
   }
 
   // ! Only for testing
+  bool checkTrackedPartitionInformation() {
+    bool success = true;
+
+    for (HyperedgeID e : edges()) {
+      PartitionID expected_connectivity = 0;
+      for (PartitionID i = 0; i < k(); ++i) {
+        const HypernodeID actual_pin_count_in_part = pinCountInPart(e, i);
+        if ( actual_pin_count_in_part != pinCountInPartRecomputed(e, i) ) {
+          LOG << "Pin count of hyperedge" << e << "in block" << i << "=>" <<
+              "Expected:" << V(pinCountInPartRecomputed(e, i)) << "," <<
+              "Actual:" <<  V(pinCountInPart(e, i));
+          success = false;
+        }
+        expected_connectivity += (actual_pin_count_in_part > 0);
+      }
+      if ( expected_connectivity != connectivity(e) ) {
+        LOG << "Connectivity of hyperedge" << e << "=>" <<
+            "Expected:" << V(expected_connectivity)  << "," <<
+            "Actual:" << V(connectivity(e));
+        success = false;
+      }
+    }
+    return success;
+  }
+
+  // ! Only for testing
   template<typename GainCache>
   bool checkTrackedPartitionInformation(GainCache& gain_cache) {
     bool success = true;

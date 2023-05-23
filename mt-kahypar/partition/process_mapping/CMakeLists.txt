@@ -5,6 +5,7 @@ set(ProcessMappingSources
         dual_bipartitioning.cpp
         greedy_mapping.cpp
         initial_mapping.cpp
+        kerninghan_lin.cpp
         )
 
 foreach(modtarget IN LISTS PARTITIONING_SUITE_TARGETS)

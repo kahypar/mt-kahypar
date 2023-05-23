@@ -28,8 +28,10 @@
 
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/metrics.h"
+#include "mt-kahypar/partition/process_mapping/kerninghan_lin.h"
 #include "mt-kahypar/partition/initial_partitioning/pool_initial_partitioner.h"
 #include "mt-kahypar/partition/process_mapping/set_enumerator.h"
+#include "mt-kahypar/utils/utilities.h"
 
 namespace mt_kahypar {
 
@@ -67,6 +69,8 @@ void DualBipartitioning<CommunicationHypergraph>::mapToProcessGraph(Communicatio
                                                                     const Context& context) {
   ASSERT(communication_hg.initialNumNodes() == process_graph.graph().initialNumNodes());
   // Recursively bipartition the process graph
+  utils::Timer& timer = utils::Utilities::instance().getTimer(context.utility_id);
+  timer.start_timer("initial_mapping", "Initial Mapping");
   const PartitionID k = process_graph.numBlocks();
   ds::StaticGraph underlying_process_graph = process_graph.graph().copy();
   PartitionedGraph partitioned_process_graph(k, underlying_process_graph);
@@ -78,6 +82,13 @@ void DualBipartitioning<CommunicationHypergraph>::mapToProcessGraph(Communicatio
     communication_hg.setOnlyNodePart(hn, partitioned_process_graph.partID(hn));
   }
   communication_hg.initializePartition();
+  timer.stop_timer("initial_mapping");
+
+  if ( context.process_mapping.use_local_search ) {
+    timer.start_timer("local_search", "Local Search");
+    KerninghanLin<CommunicationHypergraph>::improve(communication_hg, process_graph);
+    timer.stop_timer("local_search");
+  }
 }
 
 template<typename CommunicationHypergraph>
@@ -86,7 +97,7 @@ void DualBipartitioning<CommunicationHypergraph>::recursive_bisection(Partitione
                                                                       const PartitionID k0,
                                                                       const PartitionID k1) {
   ASSERT(k1 - k0 >= 2);
-  ASSERT(k1 - k0 == graph.initialNumNodes());
+  ASSERT(k1 - k0 == static_cast<PartitionID>(graph.initialNumNodes()));
   const PartitionID k = k1 - k0;
 
   // Compute bisection of graph
@@ -163,7 +174,7 @@ void DualBipartitioning<CommunicationHypergraph>::brute_force_optimal_bisection(
                                                                                 const HypernodeWeight weight_block_0,
                                                                                 const HypernodeWeight weight_block_1) {
   unused(weight_block_1);
-  ASSERT(weight_block_0 + weight_block_1 == graph.initialNumNodes());
+  ASSERT(weight_block_0 + weight_block_1 == graph.totalWeight());
   // Enumerate all bisections
   SetEnumerator bisection_enumerator(graph.initialNumNodes(), weight_block_0);
   ds::Bitset best_bisection(graph.initialNumNodes());

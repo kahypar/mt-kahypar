@@ -625,7 +625,11 @@ namespace mt_kahypar {
              " - identity")
             ("process-mapping-use-local-search",
              po::value<bool>(&context.process_mapping.use_local_search)->value_name("<bool>"),
-             "Uses local search to improve the initial one-to-one process mapping.")
+             "If true, uses local search to improve the initial one-to-one process mapping.")
+            ("process-mapping-optimize-km1-metric",
+             po::value<bool>(&context.process_mapping.optimize_km1_metric)->value_name("<bool>"),
+             "If true, we optimize km1 metric for process mapping and map the partition\n"
+             "to the process graph at the end of partitioning.")
             ("max-steiner-tree-size",
              po::value<size_t>(&context.process_mapping.max_steiner_tree_size)->value_name("<size_t>"),
              "We precompute all optimal steiner trees up to this size in the process graph.")
