@@ -31,6 +31,7 @@
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/process_mapping/process_graph.h"
 #include "mt-kahypar/partition/process_mapping/dual_bipartitioning.h"
+#include "mt-kahypar/partition/process_mapping/greedy_mapping.h"
 #include "mt-kahypar/partition/metrics.h"
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
 
@@ -128,12 +129,16 @@ void map_to_process_graph(PartitionedHypergraph& communication_hg,
   ASSERT(metrics::quality(communication_hg, Objective::process_mapping) == objective_before);
 
   // Solve one-to-one process mapping problem
-  DualBipartitioning<PartitionedHypergraph>::mapToProcessGraph(contracted_phg, process_graph, context);
+  if ( context.process_mapping.strategy == ProcessMappingStrategy::dual_bipartitioning ) {
+    DualBipartitioning<PartitionedHypergraph>::mapToProcessGraph(contracted_phg, process_graph, context);
+  } else if ( context.process_mapping.strategy == ProcessMappingStrategy::greedy_mapping ) {
+    GreedyMapping<PartitionedHypergraph>::mapToProcessGraph(contracted_phg, process_graph, context);
+  }
 
   const HyperedgeWeight objective_after = metrics::quality(contracted_phg, Objective::process_mapping);
   if ( objective_after < objective_before ) {
     if ( context.partition.verbose_output ) {
-      LOG << GREEN << "Initial mapping algorithm has improved objective by"
+      LOG << GREEN << "Initial process mapping algorithm has improved objective by"
           << (objective_before - objective_after)
           << "( Before =" << objective_before << ", After =" << objective_after << ")" << END;
     }
@@ -150,7 +155,7 @@ void map_to_process_graph(PartitionedHypergraph& communication_hg,
   } else if ( context.partition.verbose_output && objective_before < objective_after ) {
     // Initial mapping algorithm has worsen solution quality
     // => use input partition of communication hypergraph
-    LOG << RED << "Initial mapping algorithm has worsen objective by"
+    LOG << RED << "Initial process mapping algorithm has worsen objective by"
       << (objective_after - objective_before)
       << "( Before =" << objective_before << ", After =" << objective_after << ")."
       << "Use mapping from initial partitiong!"<< END;

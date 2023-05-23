@@ -612,12 +612,26 @@ namespace mt_kahypar {
             ("process-graph-file,g",
              po::value<std::string>(&context.process_mapping.process_graph_file)->value_name("<string>"),
              "Path to a process graph in Metis file format.")
+            ("process-mapping-strategy",
+             po::value<std::string>()->value_name("<string>")->notifier(
+                     [&](const std::string& strategy) {
+                       context.process_mapping.strategy =
+                               processMappingStrategyFromString(strategy);
+                     }),
+             "Strategy for solving the one-to-one process mapping problem after initial partitioning.\n"
+             "Available strategies:\n"
+             " - dual_bipartitioning\n"
+             " - greedy_mapping\n"
+             " - identity")
+            ("process-mapping-use-local-search",
+             po::value<bool>(&context.process_mapping.use_local_search)->value_name("<bool>"),
+             "Uses local search to improve the initial one-to-one process mapping.")
             ("max-steiner-tree-size",
              po::value<size_t>(&context.process_mapping.max_steiner_tree_size)->value_name("<size_t>"),
              "We precompute all optimal steiner trees up to this size in the process graph.")
             ("bisection-brute-force-threshold",
              po::value<size_t>(&context.process_mapping.bisection_brute_fore_threshold)->value_name("<size_t>"),
-             "Threshold for the number of nodes when we brute force the optimal bisection of the process graph.");
+             "Threshold for the number of nodes when we brute force the optimal bisection in the dual bipartitioning strategy.");
 
     return process_mapping_options;
   }

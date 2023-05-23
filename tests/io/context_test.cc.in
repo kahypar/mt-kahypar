@@ -197,6 +197,10 @@ TEST(AContext, LoadsDefaultPresetCorrectly) {
             expected.refinement.flows.algorithm);
 
   // process mapping
+  ASSERT_EQ(actual.process_mapping.strategy,
+            expected.process_mapping.strategy);
+  ASSERT_EQ(actual.process_mapping.use_local_search,
+            expected.process_mapping.use_local_search);
   ASSERT_EQ(actual.process_mapping.max_steiner_tree_size,
             expected.process_mapping.max_steiner_tree_size);
   ASSERT_EQ(actual.process_mapping.bisection_brute_fore_threshold,
@@ -385,6 +389,10 @@ TEST(AContext, LoadsDefaultFlowPresetCorrectly) {
             expected.refinement.flows.pierce_in_bulk);
 
   // process mapping
+  ASSERT_EQ(actual.process_mapping.strategy,
+            expected.process_mapping.strategy);
+  ASSERT_EQ(actual.process_mapping.use_local_search,
+            expected.process_mapping.use_local_search);
   ASSERT_EQ(actual.process_mapping.max_steiner_tree_size,
             expected.process_mapping.max_steiner_tree_size);
   ASSERT_EQ(actual.process_mapping.bisection_brute_fore_threshold,
@@ -525,6 +533,10 @@ TEST(AContext, LoadsDeterministicPresetCorrectly) {
             expected.refinement.deterministic_refinement.recalculate_gains_on_second_apply);
 
   // process mapping
+  ASSERT_EQ(actual.process_mapping.strategy,
+            expected.process_mapping.strategy);
+  ASSERT_EQ(actual.process_mapping.use_local_search,
+            expected.process_mapping.use_local_search);
   ASSERT_EQ(actual.process_mapping.max_steiner_tree_size,
             expected.process_mapping.max_steiner_tree_size);
   ASSERT_EQ(actual.process_mapping.bisection_brute_fore_threshold,
@@ -715,6 +727,10 @@ TEST(AContext, LoadsQualityPresetCorrectly) {
             expected.refinement.global_fm.obey_minimal_parallelism);
 
   // process mapping
+  ASSERT_EQ(actual.process_mapping.strategy,
+            expected.process_mapping.strategy);
+  ASSERT_EQ(actual.process_mapping.use_local_search,
+            expected.process_mapping.use_local_search);
   ASSERT_EQ(actual.process_mapping.max_steiner_tree_size,
             expected.process_mapping.max_steiner_tree_size);
   ASSERT_EQ(actual.process_mapping.bisection_brute_fore_threshold,
@@ -927,6 +943,10 @@ TEST(AContext, LoadsQualityFlowPresetCorrectly) {
             expected.refinement.global_fm.obey_minimal_parallelism);
 
   // process mapping
+  ASSERT_EQ(actual.process_mapping.strategy,
+            expected.process_mapping.strategy);
+  ASSERT_EQ(actual.process_mapping.use_local_search,
+            expected.process_mapping.use_local_search);
   ASSERT_EQ(actual.process_mapping.max_steiner_tree_size,
             expected.process_mapping.max_steiner_tree_size);
   ASSERT_EQ(actual.process_mapping.bisection_brute_fore_threshold,
@@ -1050,6 +1070,10 @@ TEST(AContext, LoadsLargeKPresetCorrectly) {
             expected.refinement.flows.algorithm);
 
   // process mapping
+  ASSERT_EQ(actual.process_mapping.strategy,
+            expected.process_mapping.strategy);
+  ASSERT_EQ(actual.process_mapping.use_local_search,
+            expected.process_mapping.use_local_search);
   ASSERT_EQ(actual.process_mapping.max_steiner_tree_size,
             expected.process_mapping.max_steiner_tree_size);
   ASSERT_EQ(actual.process_mapping.bisection_brute_fore_threshold,

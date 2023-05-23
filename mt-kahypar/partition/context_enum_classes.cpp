@@ -245,14 +245,24 @@ namespace mt_kahypar {
   }
 
 
-std::ostream & operator<< (std::ostream& os, const RebalancingAlgorithm& algo) {
-    switch (algo) {
-      case RebalancingAlgorithm::simple_rebalancer: return os << "simple_rebalancer";
-      case RebalancingAlgorithm::do_nothing: return os << "do_nothing";
-        // omit default case to trigger compiler warning for missing cases
-    }
-    return os << static_cast<uint8_t>(algo);
-}
+  std::ostream & operator<< (std::ostream& os, const RebalancingAlgorithm& algo) {
+      switch (algo) {
+        case RebalancingAlgorithm::simple_rebalancer: return os << "simple_rebalancer";
+        case RebalancingAlgorithm::do_nothing: return os << "do_nothing";
+          // omit default case to trigger compiler warning for missing cases
+      }
+      return os << static_cast<uint8_t>(algo);
+  }
+
+  std::ostream & operator<< (std::ostream& os, const ProcessMappingStrategy& algo) {
+      switch (algo) {
+        case ProcessMappingStrategy::dual_bipartitioning: return os << "dual_bipartitioning";
+        case ProcessMappingStrategy::greedy_mapping: return os << "greedy_mapping";
+        case ProcessMappingStrategy::identity: return os << "identity";
+          // omit default case to trigger compiler warning for missing cases
+      }
+      return os << static_cast<uint8_t>(algo);
+  }
 
   Mode modeFromString(const std::string& mode) {
     if (mode == "rb") {
@@ -453,5 +463,17 @@ std::ostream & operator<< (std::ostream& os, const RebalancingAlgorithm& algo) {
     }
     ERR("Illegal option: " + type);
     return RebalancingAlgorithm::do_nothing;
+  }
+
+  ProcessMappingStrategy processMappingStrategyFromString(const std::string& type) {
+    if (type == "dual_bipartitioning") {
+      return ProcessMappingStrategy::dual_bipartitioning;
+    } else if (type == "greedy_mapping") {
+      return ProcessMappingStrategy::greedy_mapping;
+    } else if (type == "identity") {
+      return ProcessMappingStrategy::identity;
+    }
+    ERR("Illegal option: " + type);
+    return ProcessMappingStrategy::identity;
   }
 }

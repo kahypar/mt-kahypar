@@ -150,6 +150,8 @@ std::string serialize(const PartitionedHypergraph& hypergraph,
     if ( context.process_mapping.process_graph_file != "" &&
          context.partition.objective == Objective::process_mapping ) {
       oss << " process_mapping_file=" << context.process_mapping.process_graph_file
+          << " process_mapping_strategy=" << context.process_mapping.strategy
+          << " process_mapping_use_local_search=" << std::boolalpha << context.process_mapping.use_local_search
           << " process_mapping_max_steiner_tree_size=" << context.process_mapping.max_steiner_tree_size
           << " process_mapping_bisection_brute_fore_threshold=" << context.process_mapping.bisection_brute_fore_threshold;
     }

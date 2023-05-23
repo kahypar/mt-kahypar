@@ -3,6 +3,7 @@ set(ProcessMappingSources
         all_pair_shortest_path.cpp
         steiner_tree.cpp
         dual_bipartitioning.cpp
+        greedy_mapping.cpp
         initial_mapping.cpp
         )
 

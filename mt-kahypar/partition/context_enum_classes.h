@@ -168,6 +168,12 @@ enum class RebalancingAlgorithm : uint8_t {
   do_nothing
 };
 
+enum class ProcessMappingStrategy : uint8_t {
+  dual_bipartitioning,
+  greedy_mapping,
+  identity
+};
+
 std::ostream & operator<< (std::ostream& os, const Type& type);
 
 std::ostream & operator<< (std::ostream& os, const FileFormat& type);
@@ -208,6 +214,8 @@ std::ostream & operator<< (std::ostream& os, const FlowAlgorithm& algo);
 
 std::ostream & operator<< (std::ostream& os, const RebalancingAlgorithm& algo);
 
+std::ostream & operator<< (std::ostream& os, const ProcessMappingStrategy& algo);
+
 Mode modeFromString(const std::string& mode);
 
 InstanceType instanceTypeFromString(const std::string& type);
@@ -237,5 +245,7 @@ FMAlgorithm fmAlgorithmFromString(const std::string& type);
 FlowAlgorithm flowAlgorithmFromString(const std::string& type);
 
 RebalancingAlgorithm rebalancingAlgorithmFromString(const std::string& type);
+
+ProcessMappingStrategy processMappingStrategyFromString(const std::string& type);
 
 }  // namesapce mt_kahypar

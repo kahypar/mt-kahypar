@@ -366,17 +366,27 @@ void RecursiveBipartitioning<TypeTraits>::partition(PartitionedHypergraph& hyper
     OriginalHypergraphInfo { hypergraph.totalWeight(), rb_context.partition.k,
       rb_context.partition.epsilon }, already_cut);
 
-  if ( context.partition.objective == Objective::process_mapping ) {
-    ASSERT(process_graph);
-    InitialMapping<TypeTraits>::mapToProcessGraph(
-      hypergraph, *process_graph, context);
-  }
-
   if (context.type == ContextType::main) {
     parallel::MemoryPool::instance().activate_unused_memory_allocations();
     utils.getTimer(context.utility_id).enable();
     utils.getStats(context.utility_id).enable();
   }
+
+  if ( context.partition.objective == Objective::process_mapping ) {
+    ASSERT(process_graph);
+    utils::Timer& timer = utils.getTimer(context.utility_id);
+    const bool was_enabled = timer.isEnabled();
+    timer.enable();
+    timer.start_timer("one_to_one_process_mapping", "One-To-One Process Mapping");
+    // Map partition onto process graph
+    InitialMapping<TypeTraits>::mapToProcessGraph(
+      hypergraph, *process_graph, context);
+    timer.stop_timer("one_to_one_process_mapping");
+    if ( !was_enabled ) {
+      timer.disable();
+    }
+  }
+
   if (context.partition.mode == Mode::recursive_bipartitioning) {
     utils.getTimer(context.utility_id).stop_timer("rb");
   }
