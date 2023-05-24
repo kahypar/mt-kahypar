@@ -26,9 +26,13 @@
 
 #include "mt-kahypar/partition/refinement/rebalancing/jet_rebalancer.h"
 
+#include <algorithm>
+
 #include "tbb/parallel_for.h"
 
+#include "mt-kahypar/datastructures/streaming_vector.h"
 #include "mt-kahypar/definitions.h"
+#include "mt-kahypar/parallel/parallel_prefix_sum.h"
 #include "mt-kahypar/partition/metrics.h"
 #include "mt-kahypar/partition/refinement/gains/gain_definitions.h"
 #include "mt-kahypar/utils/timer.h"
@@ -36,7 +40,6 @@
 #include "mt-kahypar/utils/randomize.h"
 
 namespace mt_kahypar {
-
   template <typename TypeTraits, typename GainTypes>
   bool JetRebalancer<TypeTraits, GainTypes>::refineImpl(mt_kahypar_partitioned_hypergraph_t& hypergraph,
                                                         const vec<HypernodeID>&,
@@ -50,7 +53,17 @@ namespace mt_kahypar {
       _gain.reset();
       initializeDataStructures(phg);
 
-      rebalancingRound<true>(phg);
+      for (size_t i = 0; _num_imbalanced_blocks > 0 && i < _context.refinement.jet_rebalancing.num_weak_iterations; ++i) {
+        weakRebalancingRound<false>(phg);
+      }
+
+      for (size_t i = 0; _num_imbalanced_blocks > 0 && i < _context.refinement.jet_rebalancing.num_strong_iterations; ++i) {
+        if (_context.refinement.jet_rebalancing.use_greedy_balanced_instead_of_strong_iteration) {
+          weakRebalancingRound<true>(phg);
+        } else {
+          strongRebalancingRound(phg);
+        }
+      }
 
       // Update metrics statistics
       Gain delta = _gain.delta();
@@ -67,21 +80,94 @@ namespace mt_kahypar {
 
   template <typename TypeTraits, typename GainTypes>
   template<bool ensure_balanced_moves>
-  void JetRebalancer<TypeTraits, GainTypes>::rebalancingRound(PartitionedHypergraph& phg) {
-    DBG << "[REBALANCE] Weights before rebalancing:";
+  void JetRebalancer<TypeTraits, GainTypes>::weakRebalancingRound(PartitionedHypergraph& phg) {
+    DBG << "[REBALANCE] Weights before rebalancing round:";
     for (PartitionID k = 0; k < _context.partition.k; ++k) {
       DBG << V(k) << "  weight=" << phg.partWeight(k) << "  max=" << _context.partition.max_part_weights[k];
     }
+    bool use_deadzone = !ensure_balanced_moves || _context.refinement.jet_rebalancing.greedy_balanced_use_deadzone;
     insertNodesIntoBuckets(phg, [&](const HypernodeID hn) {
-      return computeGainAndTargetPart(phg, hn, false).first;
+      return computeGainAndTargetPart(phg, hn, false, false, use_deadzone).first;
     });
 
+    // move nodes greedily to best part
     processBuckets(phg, [&](const HypernodeID hn, const PartitionID from, bool is_retry) {
-      auto [_, to] = computeGainAndTargetPart(phg, hn, true, is_retry);
+      auto [_, to] = computeGainAndTargetPart(phg, hn, true, is_retry, use_deadzone);
       return changeNodePart(phg, hn, from, to, ensure_balanced_moves);
     }, ensure_balanced_moves, false);
 
-    DBG << "[REBALANCE] Weights after rebalancing:";
+    DBG << "[REBALANCE] Weights after rebalancing round:";
+    for (PartitionID k = 0; k < _context.partition.k; ++k) {
+      DBG << V(k) << "  weight=" << phg.partWeight(k) << "  max=" << _context.partition.max_part_weights[k];
+    }
+  }
+
+  template <typename TypeTraits, typename GainTypes>
+  void JetRebalancer<TypeTraits, GainTypes>::strongRebalancingRound(PartitionedHypergraph& phg) {
+    insertNodesIntoBuckets(phg, [&](const HypernodeID hn) {
+      return computeAverageGain(phg, hn);
+    });
+
+    // collect nodes into unordered list
+    ds::StreamingVector<HypernodeID> tmp_moved_nodes;
+    processBuckets(phg, [&](const HypernodeID hn, const PartitionID, bool) {
+      tmp_moved_nodes.stream(hn);
+      return true;
+    }, false, true);
+    vec<HypernodeID> moved_nodes = tmp_moved_nodes.copy_parallel();
+
+    // compute prefix sum over the weights to quickly find appropriate range for each block
+    vec<HypernodeWeight> node_weights(moved_nodes.size());
+    tbb::parallel_for(0UL, moved_nodes.size(), [&](const size_t i) {
+      node_weights[i] = phg.nodeWeight(moved_nodes[i]);
+    });
+    parallel::TBBPrefixSum<HypernodeWeight, vec> node_weight_prefix_sum(node_weights);
+    tbb::parallel_scan(tbb::blocked_range<size_t>(ID(0), node_weights.size()), node_weight_prefix_sum);
+
+    // compute assignment of nodes to blocks
+    vec<size_t> block_ranges(_context.partition.k + 1);
+    double total_free_capacity = 0;
+    for (PartitionID block = 0; block < _context.partition.k; ++block) {
+      total_free_capacity += std::max(deadzoneForPart(block) - phg.partWeight(block), 0);
+    }
+    for (PartitionID block = 0; block < _context.partition.k; ++block) {
+      const HypernodeWeight capacity = std::max(deadzoneForPart(block) - phg.partWeight(block), 0);
+      if (capacity > 0) {
+        const double fraction_of_nodes = static_cast<double>(capacity) / total_free_capacity;
+        const HypernodeWeight added_weight = fraction_of_nodes * node_weight_prefix_sum.total_sum();
+        const HypernodeWeight start_weight = node_weight_prefix_sum[block_ranges[block]];
+        // find correct index via binary search
+        auto end_it = std::lower_bound(node_weights.cbegin() + block_ranges[block],
+                                       node_weights.cend(), start_weight + added_weight);
+        size_t end_of_range = std::min(static_cast<size_t>(end_it - node_weights.cbegin()) + 1, node_weights.size());
+
+        ASSERT(node_weight_prefix_sum[end_of_range - 1] <= start_weight + added_weight &&
+               (end_of_range == node_weights.size() || node_weight_prefix_sum[end_of_range] >= start_weight + added_weight));
+        ASSERT(end_of_range >= block_ranges[block]);
+        block_ranges[block + 1] = end_of_range;
+      } else {
+        block_ranges[block + 1] = block_ranges[block];
+      }
+    }
+    ASSERT(block_ranges.back() == moved_nodes.size());
+
+    // move the nodes according to the assignment
+    tbb::parallel_for(static_cast<PartitionID>(0), _context.partition.k, [&](const PartitionID block) {
+      const size_t start = block_ranges[block];
+      const size_t end = block_ranges[block + 1];
+      if (end > start) {
+        tbb::parallel_for(start, end, [&](const size_t i) {
+          const HypernodeID hn = moved_nodes[i];
+          if (phg.partID(hn) == block) {
+            LOG << V(block) << V(phg.partWeight(block)) << V(_part_weights[block]);
+          }
+          changeNodePart(phg, hn, phg.partID(hn), block, false);
+        });
+      }
+    });
+    updateImbalance(phg);
+
+    DBG << "[REBALANCE] Weights after STRONG rebalancing round:";
     for (PartitionID k = 0; k < _context.partition.k; ++k) {
       DBG << V(k) << "  weight=" << phg.partWeight(k) << "  max=" << _context.partition.max_part_weights[k];
     }
@@ -94,12 +180,13 @@ namespace mt_kahypar {
 
     phg.doParallelForAllNodes([&](const HypernodeID hn) {
       const PartitionID from = phg.partID(hn);
-      if (imbalance(from) > 0) {
+      const HypernodeWeight weight = phg.nodeWeight(hn);
+      if (imbalance(from) > 0 && mayMoveNode(from, weight)) {
         auto& local_weights = _local_bucket_weights.local();
         const size_t bucket = getBucketID(compute_gain_fn(hn));
         bucket_counts[bucket].fetch_add(1); // TODO: remove
         _buckets[bucket].insert(hn, HypernodeID(hn));
-        local_weights[from * NUM_BUCKETS + bucket] += phg.nodeWeight(hn);
+        local_weights[from * NUM_BUCKETS + bucket] += weight;
       }
     });
 
@@ -192,13 +279,18 @@ namespace mt_kahypar {
         break;
       }
     }
+
+    for (size_t bucket = 0; bucket < _buckets.size(); ++bucket) {
+      _buckets[bucket].clearParallel();
+    }
   }
 
   template <typename TypeTraits, typename GainTypes>
   std::pair<Gain, PartitionID> JetRebalancer<TypeTraits, GainTypes>::computeGainAndTargetPart(const PartitionedHypergraph& hypergraph,
                                                                                               const HypernodeID hn,
                                                                                               bool non_adjacent_blocks,
-                                                                                              bool use_precise_part_weights) {
+                                                                                              bool use_precise_part_weights,
+                                                                                              bool use_deadzone) {
     const HypernodeWeight hn_weight = hypergraph.nodeWeight(hn);
     RatingMap& tmp_scores = _gain.localScores();
     Gain isolated_block_gain = 0;
@@ -209,7 +301,8 @@ namespace mt_kahypar {
     for (const auto& entry : tmp_scores) {
       const PartitionID to = entry.key;
       const Gain gain = _gain.gain(entry.value, isolated_block_gain);
-      if (isValidTarget(hypergraph, to, hn_weight, use_precise_part_weights) && gain <= best_gain) {
+      if (isValidTarget(hypergraph, to, hn_weight, use_precise_part_weights, use_deadzone)
+          && gain <= best_gain) {
         best_gain = gain;
         best_target = to;
       }
@@ -224,7 +317,8 @@ namespace mt_kahypar {
       const PartitionID start = rand.getRandomInt(0, static_cast<int>(_context.partition.k - 1), SCHED_GETCPU);
       PartitionID to = start;
       do {
-        if (!tmp_scores.contains(to) && isValidTarget(hypergraph, to, hn_weight, use_precise_part_weights)) {
+        if (isValidTarget(hypergraph, to, hn_weight, use_precise_part_weights, use_deadzone)
+            && !tmp_scores.contains(to)) {
           best_target = to;
           break;
         }

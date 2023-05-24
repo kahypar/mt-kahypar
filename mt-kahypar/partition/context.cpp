@@ -188,6 +188,16 @@ namespace mt_kahypar {
     return out;
   }
 
+  std::ostream& operator<<(std::ostream& out, const JetRebalancingParameters& params) {
+    out << "  Jet Rebalancing Parameters: \n";
+    out << "    Weak Iterations:                  " << params.num_weak_iterations << std::endl;
+    out << "    Strong Iterations:                " << params.num_strong_iterations << std::endl;
+    out << "    Heavy Vertex Exclusion Factor:    " << params.heavy_vertex_exclusion_factor << std::endl;
+    out << "    Relative Deadzone Size:           " << params.relative_deadzone_size << std::endl;
+    out << "    Use Greedy Balanced:              " << std::boolalpha << params.use_greedy_balanced_instead_of_strong_iteration << std::endl;
+    return out;
+  }
+
   std::ostream& operator<<(std::ostream& out, const DeterministicRefinementParameters& params) {
     out << "    Number of sub-rounds for Sync LP:  " << params.num_sub_rounds_sync_lp << std::endl;
     out << "    Use active node set:               " << std::boolalpha << params.use_active_node_set << std::endl;
@@ -203,6 +213,9 @@ namespace mt_kahypar {
     str << "  Relative Improvement Threshold:     " << params.relative_improvement_threshold << std::endl;
     str << "  Maximum Batch Size:                 " << params.max_batch_size << std::endl;
     str << "  Min Border Vertices Per Thread:     " << params.min_border_vertices_per_thread << std::endl;
+    if (params.rebalancer == RebalancingAlgorithm::jet_rebalancer) {
+      str << "\n" << params.jet_rebalancing;
+    }
     str << "\n" << params.label_propagation;
     str << "\n" << params.jet;
     str << "\n" << params.fm;
