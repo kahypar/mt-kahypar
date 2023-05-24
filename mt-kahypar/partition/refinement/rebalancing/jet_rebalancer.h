@@ -61,6 +61,8 @@ public:
     _gain_cache(gain_cache),
     _current_k(_context.partition.k),
     _gain(context),
+    _num_imbalanced_blocks(0),
+    _num_valid_targets(0),
     _part_weights(_context.partition.k),
     _buckets(),
     _bucket_weights(_context.partition.k * NUM_BUCKETS, 0),
@@ -89,12 +91,21 @@ private:
   template<bool ensure_balanced_moves>
   void rebalancingRound(PartitionedHypergraph& phg);
 
+  template<typename F>
+  void insertNodesIntoBuckets(PartitionedHypergraph& phg, F compute_gain_fn);
+
+  template<typename F>
+  void processBuckets(PartitionedHypergraph& phg, F move_node_fn, bool retry_invalid_moves, bool update_local_part_weights);
+
   std::pair<Gain, PartitionID> computeGainAndTargetPart(const PartitionedHypergraph& hypergraph,
                                                         const HypernodeID hn,
                                                         bool non_adjacent_blocks,
                                                         bool use_precise_part_weights = false);
 
-  PartitionID updateImbalance(const PartitionedHypergraph& hypergraph);
+  // used for Jetrs (strong rebalancing), rounded down
+  Gain computeAverageGain(const PartitionedHypergraph& hypergraph, const HypernodeID hn);
+
+  void updateImbalance(const PartitionedHypergraph& hypergraph, bool read_weights_from_graph = true);
 
   void initializeDataStructures(const PartitionedHypergraph& hypergraph);
 
@@ -103,14 +114,18 @@ private:
            - _context.partition.max_part_weights[block];
   }
 
-  bool isAcceptableTarget(const PartitionedHypergraph& hypergraph,
-                          PartitionID block,
-                          HypernodeWeight hn_weight,
-                          bool use_precise_part_weights) const {
+  HypernodeWeight deadzoneForPart(PartitionID block) const {
+    // TODO: use variable deadzone?
+    return _context.partition.perfect_balance_part_weights[block];
+  }
+
+  bool isValidTarget(const PartitionedHypergraph& hypergraph,
+                     PartitionID block,
+                     HypernodeWeight hn_weight,
+                     bool use_precise_part_weights) const {
     const HypernodeWeight block_weight = use_precise_part_weights ?
         hypergraph.partWeight(block) : _part_weights[block].load(std::memory_order_relaxed);
-    // TODO: use variable deadzone?
-    return block_weight < _context.partition.perfect_balance_part_weights[block] &&
+    return block_weight < deadzoneForPart(block) &&
            block_weight + hn_weight <= _context.partition.max_part_weights[block];
   }
 
@@ -134,7 +149,6 @@ private:
                                      pin_count_in_from_part_after, pin_count_in_to_part_after);
     };
 
-    // TODO: parameter for unconstrained move
     HypernodeWeight max_weight = ensure_balanced ? _context.partition.max_part_weights[to]
                                   : std::numeric_limits<HypernodeWeight>::max();
     bool success = false;
@@ -182,6 +196,8 @@ private:
   GainCache& _gain_cache;
   PartitionID _current_k;
   GainCalculator _gain;
+  PartitionID _num_imbalanced_blocks;
+  PartitionID _num_valid_targets;
   parallel::scalable_vector<AtomicWeight> _part_weights;
   parallel::scalable_vector<BucketMap> _buckets;
   parallel::scalable_vector<HypernodeWeight> _bucket_weights;
