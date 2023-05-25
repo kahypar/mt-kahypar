@@ -62,7 +62,8 @@ target_link_libraries(BenchShuffle TBB::tbb TBB::tbbmalloc_proxy)
 set_property(TARGET BenchShuffle PROPERTY CXX_STANDARD 17)
 set_property(TARGET BenchShuffle PROPERTY CXX_STANDARD_REQUIRED ON)
 
-set(TOOLS_TARGETS ${TOOLS_TARGETS} EvaluateBipart
+set(TOOLS_TARGETS ${TOOLS_TARGETS} GraphToHgr
+                                   EvaluateBipart
                                    VerifyPartition
                                    EvaluatePartition
                                    HgrToParkway
