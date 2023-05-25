@@ -75,12 +75,11 @@ int main(int argc, char* argv[]) {
 
   // Write header
   out_stream << num_edges << " " << num_nodes << " ";
-
   if (hyperedges_weight.empty() && hypernodes_weight.empty()) {
     out_stream << "0"  /* Unweighted */ << std::endl;
   } else {
-    out_stream << ( hypernodes_weight.empty() ? "0" : "1");
-    out_stream << ( hyperedges_weight.empty() ? "0" : "1") << std::endl;
+    out_stream << (hypernodes_weight.empty() ? "0" : "1");
+    out_stream << (hyperedges_weight.empty() ? "0" : "1") << std::endl;
   }
 
   // Write hyperedges
@@ -95,6 +94,8 @@ int main(int argc, char* argv[]) {
     out_stream << u << " " << v;
     out_stream << std::endl;
   }
+
+  // Write node weights
   for (HypernodeWeight weight: hypernodes_weight) {
     out_stream << weight << std::endl;
   }
