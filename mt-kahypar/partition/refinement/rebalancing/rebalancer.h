@@ -34,6 +34,8 @@
 #include "mt-kahypar/partition/refinement/i_refiner.h"
 #include "mt-kahypar/partition/refinement/gains/km1/km1_gain_computation.h"
 #include "mt-kahypar/partition/refinement/gains/cut/cut_gain_computation.h"
+#include "mt-kahypar/partition/refinement/gains/gain_cache_ptr.h"
+#include "mt-kahypar/utils/cast.h"
 
 namespace mt_kahypar {
 template <typename TypeTraits, typename GainTypes>
@@ -76,6 +78,9 @@ public:
 
   explicit Rebalancer(const Context& context, GainCache&) :
     Rebalancer(context) { }
+
+  explicit Rebalancer(const Context& context, gain_cache_t gain_cache) :
+    Rebalancer(context, GainCachePtr::cast<GainCache>(gain_cache)) {}
 
   Rebalancer(const Rebalancer&) = delete;
   Rebalancer(Rebalancer&&) = delete;

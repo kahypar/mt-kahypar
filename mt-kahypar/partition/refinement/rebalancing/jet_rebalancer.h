@@ -34,6 +34,8 @@
 #include "mt-kahypar/partition/refinement/i_refiner.h"
 #include "mt-kahypar/partition/refinement/gains/km1/km1_gain_computation.h"
 #include "mt-kahypar/partition/refinement/gains/cut/cut_gain_computation.h"
+#include "mt-kahypar/partition/refinement/gains/gain_cache_ptr.h"
+#include "mt-kahypar/utils/cast.h"
 
 namespace mt_kahypar {
 template <typename TypeTraits, typename GainTypes>
@@ -73,6 +75,10 @@ public:
         _buckets.emplace_back(BUCKET_FACTOR);
       }
     }
+
+  explicit JetRebalancer(const Context& context,
+                         gain_cache_t gain_cache) :
+    JetRebalancer(context, GainCachePtr::cast<GainCache>(gain_cache)) {}
 
   JetRebalancer(const JetRebalancer&) = delete;
   JetRebalancer(JetRebalancer&&) = delete;
@@ -146,7 +152,8 @@ private:
                       const PartitionID from,
                       const PartitionID to,
                       bool ensure_balanced) {
-    if (to == kInvalidPartition) {
+    // it happens spuriously that from == to, not entirely sure why (possibly due to moving heavy nodes)
+    if (from == to || to == kInvalidPartition) {
       return false;
     }
 
