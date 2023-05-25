@@ -47,6 +47,7 @@ struct TestConfig<TypeTraitsT, k, Objective::km1, precomputed, sequential> {
   using TypeTraits = TypeTraitsT;
   using GainTypes = Km1GainTypes;
   using Refiner = JetRefiner<TypeTraits, Km1GainTypes, precomputed>;
+  using RebalancerT = Rebalancer<TypeTraits, Km1GainTypes>;
   static constexpr PartitionID K = k;
   static constexpr Objective OBJECTIVE = Objective::km1;
   static constexpr JetAlgorithm JET_ALGO = JetAlgorithm::greedy_unordered;
@@ -58,6 +59,7 @@ struct TestConfig<TypeTraitsT, k, Objective::cut, precomputed, sequential> {
   using TypeTraits = TypeTraitsT;
   using GainTypes = CutGainTypes;
   using Refiner = JetRefiner<TypeTraits, CutGainTypes, precomputed>;
+  using RebalancerT = Rebalancer<TypeTraits, CutGainTypes>;
   static constexpr PartitionID K = k;
   static constexpr Objective OBJECTIVE = Objective::cut;
   static constexpr JetAlgorithm JET_ALGO = JetAlgorithm::greedy_unordered;
@@ -82,6 +84,7 @@ class AJetRefiner : public Test {
     context(),
     gain_cache(),
     refiner(nullptr),
+    rebalancer(nullptr),
     metrics() {
     context.partition.graph_filename = "../tests/instances/contracted_ibm01.hgr";
     context.partition.graph_community_filename = "../tests/instances/contracted_ibm01.hgr.community";
@@ -122,7 +125,9 @@ class AJetRefiner : public Test {
     context.setupPartWeights(hypergraph.totalWeight());
     initialPartition();
 
-    refiner = std::make_unique<Refiner>(hypergraph.initialNumNodes(), hypergraph.initialNumEdges(), context, gain_cache);
+    rebalancer = std::make_unique<typename Config::RebalancerT>(context, gain_cache);
+    refiner = std::make_unique<Refiner>(hypergraph.initialNumNodes(), hypergraph.initialNumEdges(),
+                                        context, gain_cache, *rebalancer);
     mt_kahypar_partitioned_hypergraph_t phg = utils::partitioned_hg_cast(partitioned_hypergraph);
     refiner->initialize(phg);
   }
@@ -146,6 +151,7 @@ class AJetRefiner : public Test {
   Context context;
   GainCache gain_cache;
   std::unique_ptr<Refiner> refiner;
+  std::unique_ptr<IRefiner> rebalancer;
   Metrics metrics;
 };
 

@@ -31,8 +31,6 @@
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/metrics.h"
 #include "mt-kahypar/partition/refinement/gains/gain_definitions.h"
-#include "mt-kahypar/partition/refinement/rebalancing/rebalancer.h"
-#include "mt-kahypar/partition/factories.h"
 #include "mt-kahypar/utils/randomize.h"
 #include "mt-kahypar/utils/utilities.h"
 #include "mt-kahypar/utils/timer.h"
@@ -45,7 +43,8 @@ namespace mt_kahypar {
   JetRefiner<TypeTraits, GainTypes, precomputed>::JetRefiner(const HypernodeID num_hypernodes,
                                                              const HyperedgeID num_hyperedges,
                                                              const Context& context,
-                                                             GainCache& gain_cache) :
+                                                             GainCache& gain_cache,
+                                                             IRefiner& rebalancer) :
     _context(context),
     _gain_cache(gain_cache),
     _current_k(context.partition.k),
@@ -58,10 +57,7 @@ namespace mt_kahypar {
     _gains_and_target(precomputed ? num_hypernodes : 0),
     _next_active(num_hypernodes),
     _visited_he(num_hyperedges),
-    _rebalancer(nullptr) {
-      _rebalancer = RebalancerFactory::getInstance().createObject(
-        _context.refinement.rebalancer, _context);
-    }
+    _rebalancer(rebalancer) { }
 
   template <typename TypeTraits, typename GainTypes, bool precomputed>
   bool JetRefiner<TypeTraits, GainTypes, precomputed>::refineImpl(
@@ -232,7 +228,7 @@ namespace mt_kahypar {
 
   template <typename TypeTraits, typename GainTypes, bool precomputed>
   void JetRefiner<TypeTraits, GainTypes, precomputed>::initializeImpl(mt_kahypar_partitioned_hypergraph_t& phg) {
-    _rebalancer->initialize(phg);
+    _rebalancer.initialize(phg);
   }
 
   template <typename TypeTraits, typename GainTypes, bool precomputed>
@@ -468,7 +464,7 @@ namespace mt_kahypar {
                                                                  Metrics& current_metrics, double time_limit) {
     ASSERT(!_context.partition.deterministic);
     mt_kahypar_partitioned_hypergraph_t phg = utils::partitioned_hg_cast(hypergraph);
-    _rebalancer->refine(phg, {}, current_metrics, time_limit);
+    _rebalancer.refine(phg, {}, current_metrics, time_limit);
   }
 
   namespace {

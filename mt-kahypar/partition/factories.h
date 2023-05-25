@@ -50,6 +50,7 @@
 #include "mt-kahypar/partition/refinement/gains/gain_definitions.h"
 #include "mt-kahypar/partition/refinement/flows/scheduler.h"
 #include "mt-kahypar/partition/refinement/flows/flow_refiner.h"
+#include "mt-kahypar/partition/refinement/rebalancing/jet_rebalancer.h"
 #include "mt-kahypar/partition/refinement/rebalancing/rebalancer.h"
 
 namespace mt_kahypar {
@@ -91,7 +92,7 @@ using DeterministicLabelPropagationDispatcher = kahypar::meta::StaticMultiDispat
                                                   kahypar::meta::Typelist<TypeTraitsList>>;
 
 using JetFactory = kahypar::meta::Factory<JetAlgorithm,
-                    IRefiner* (*)(HypernodeID, const Context&, gain_cache_t)>;
+                    IRefiner* (*)(HypernodeID, HyperedgeID, const Context&, gain_cache_t, IRefiner&)>;
 
 using PrecomputedJetDispatcher = kahypar::meta::StaticMultiDispatchFactory<
                                    PrecomputedJetRefiner,
@@ -119,12 +120,17 @@ using FlowSchedulerDispatcher = kahypar::meta::StaticMultiDispatchFactory<
                                   IRefiner,
                                   kahypar::meta::Typelist<TypeTraitsList, GainTypes>>;
 
-using RebalancerFactory = kahypar::meta::Factory<RebalancingAlgorithm, IRefiner* (*)(const Context&)>;
+using RebalancerFactory = kahypar::meta::Factory<RebalancingAlgorithm, IRefiner* (*)(const Context&, gain_cache_t)>;
 
 using RebalancerDispatcher = kahypar::meta::StaticMultiDispatchFactory<
                               Rebalancer,
                               IRefiner,
                               kahypar::meta::Typelist<TypeTraitsList, GainTypes>>;
+
+using JetRebalancerDispatcher = kahypar::meta::StaticMultiDispatchFactory<
+                                    JetRebalancer,
+                                    IRefiner,
+                                    kahypar::meta::Typelist<TypeTraitsList, GainTypes>>;
 
 using FlowRefinementFactory = kahypar::meta::Factory<FlowAlgorithm,
                               IFlowRefiner* (*)(const HyperedgeID, const Context&)>;

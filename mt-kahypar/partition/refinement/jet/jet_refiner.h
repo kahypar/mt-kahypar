@@ -26,8 +26,6 @@
 
 #pragma once
 
-#include <memory>
-
 #include "kahypar/datastructure/fast_reset_flag_array.h"
 
 #include "mt-kahypar/datastructures/thread_safe_fast_reset_flag_array.h"
@@ -56,15 +54,17 @@ class JetRefiner final : public IRefiner {
  public:
   explicit JetRefiner(const HypernodeID num_hypernodes,
                       const HyperedgeID num_hyperedges,
-                      const Context &context,
-                      GainCache &gain_cache);
+                      const Context& context,
+                      GainCache& gain_cache,
+                      IRefiner& rebalancer);
 
   explicit JetRefiner(const HypernodeID num_hypernodes,
                       const HyperedgeID num_hyperedges,
-                      const Context &context,
-                      gain_cache_t gain_cache) :
+                      const Context& context,
+                      gain_cache_t gain_cache,
+                      IRefiner& rebalancer) :
     JetRefiner(num_hypernodes, num_hyperedges, context,
-               GainCachePtr::cast<GainCache>(gain_cache)) {}
+               GainCachePtr::cast<GainCache>(gain_cache), rebalancer) {}
 
   JetRefiner(const JetRefiner&) = delete;
   JetRefiner(JetRefiner&&) = delete;
@@ -176,7 +176,7 @@ class JetRefiner final : public IRefiner {
   parallel::scalable_vector<std::pair<Gain, PartitionID>> _gains_and_target;
   ds::ThreadSafeFastResetFlagArray<> _next_active;
   kahypar::ds::FastResetFlagArray<> _visited_he;
-  std::unique_ptr<IRefiner> _rebalancer;
+  IRefiner& _rebalancer;
 };
 
 template<typename TypeTraits, typename GainCache>

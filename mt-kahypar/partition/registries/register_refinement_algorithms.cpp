@@ -54,10 +54,10 @@
 #define REGISTER_DISPATCHED_JET_REFINER(id, dispatcher, ...)                                           \
   static kahypar::meta::Registrar<JetFactory> register_ ## dispatcher(                                 \
     id,                                                                                                \
-    [](const HypernodeID num_hypernodes,                                                               \
-       const Context& context, gain_cache_t gain_cache) {                                              \
+    [](const HypernodeID num_hypernodes, const HyperedgeID num_hyperedges,                             \
+       const Context& context, gain_cache_t gain_cache, IRefiner& rebalancer) {                        \
     return dispatcher::create(                                                                         \
-      std::forward_as_tuple(num_hypernodes, context, gain_cache),                                      \
+      std::forward_as_tuple(num_hypernodes, num_hyperedges, context, gain_cache, rebalancer),          \
       __VA_ARGS__                                                                                      \
       );                                                                                               \
   })
@@ -65,9 +65,9 @@
 #define REGISTER_JET_REFINER(id, refiner, t)                                                     \
   static kahypar::meta::Registrar<JetFactory> JOIN(register_ ## refiner, t)(                     \
     id,                                                                                          \
-    [](const HypernodeID num_hypernodes,                                                         \
-       const Context& context, gain_cache_t gain_cache) -> IRefiner* {                           \
-    return new refiner(num_hypernodes, context, gain_cache);                                     \
+    [](const HypernodeID num_hypernodes, const HyperedgeID num_hyperedges,                       \
+       const Context& context, gain_cache_t gain_cache, IRefiner& rebalancer) -> IRefiner* {     \
+    return new refiner(num_hypernodes, num_hyperedges, context, gain_cache, rebalancer);         \
   })
 
 #define REGISTER_DISPATCHED_FM_REFINER(id, dispatcher, ...)                                            \
@@ -111,9 +111,9 @@
 #define REGISTER_DISPATCHED_REBALANCER(id, dispatcher, ...)                                            \
   static kahypar::meta::Registrar<RebalancerFactory> register_ ## dispatcher(                          \
     id,                                                                                                \
-    [](const Context& context) {                                                                       \
+    [](const Context& context, gain_cache_t gain_cache) {                                              \
     return dispatcher::create(                                                                         \
-      std::forward_as_tuple(context),                                                                  \
+      std::forward_as_tuple(context, gain_cache),                                                      \
       __VA_ARGS__                                                                                      \
       );                                                                                               \
   })
@@ -121,8 +121,8 @@
 #define REGISTER_REBALANCER(id, refiner, t)                                                      \
   static kahypar::meta::Registrar<RebalancerFactory> JOIN(register_ ## refiner, t)(              \
     id,                                                                                          \
-    [](const Context& context) -> IRefiner* {                                                    \
-    return new refiner(context);                                                                 \
+    [](const Context& context, gain_cache_t gain_cache) -> IRefiner* {                           \
+    return new refiner(context, gain_cache);                                                     \
   })
 
 #define REGISTER_DISPATCHED_FLOW_REFINER(id, dispatcher, ...)                                          \
@@ -181,6 +181,12 @@ REGISTER_FLOW_SCHEDULER(FlowAlgorithm::do_nothing, DoNothingRefiner, 4);
 
 REGISTER_DISPATCHED_REBALANCER(RebalancingAlgorithm::simple_rebalancer,
                                RebalancerDispatcher,
+                               kahypar::meta::PolicyRegistry<mt_kahypar_partition_type_t>::getInstance().getPolicy(
+                                context.partition.partition_type),
+                               kahypar::meta::PolicyRegistry<GainPolicy>::getInstance().getPolicy(
+                                context.partition.gain_policy));
+REGISTER_DISPATCHED_REBALANCER(RebalancingAlgorithm::jet_rebalancer,
+                               JetRebalancerDispatcher,
                                kahypar::meta::PolicyRegistry<mt_kahypar_partition_type_t>::getInstance().getPolicy(
                                 context.partition.partition_type),
                                kahypar::meta::PolicyRegistry<GainPolicy>::getInstance().getPolicy(
