@@ -214,7 +214,7 @@ class AGainCache : public Test {
       while ( !hierarchy.empty() ) {
         BatchVector& batches = hierarchy.back();
         while ( !batches.empty() ) {
-          const Batch& batch = batches.back();
+          Batch& batch = batches.back();
           if ( batch.size() > 0 ) {
             // Uncontract batch with gain cache update
             partitioned_hg.uncontract(batch, gain_cache);
@@ -241,11 +241,15 @@ class AGainCache : public Test {
 
   void verifyGainCacheEntries() {
     partitioned_hg.doParallelForAllNodes([&](const HypernodeID& hn) {
+      const PartitionID from = partitioned_hg.partID(hn);
       ASSERT_EQ(gain_cache.penaltyTerm(hn, partitioned_hg.partID(hn)),
         gain_cache.recomputePenaltyTerm(partitioned_hg, hn));
       for ( const PartitionID to : gain_cache.adjacentBlocks(hn) ) {
-        EXPECT_EQ(gain_cache.benefitTerm(hn, to),
-          gain_cache.recomputeBenefitTerm(partitioned_hg, hn, to)) << V(hn) << V(to);
+        if ( from != to ) {
+          EXPECT_EQ(gain_cache.benefitTerm(hn, to),
+            gain_cache.recomputeBenefitTerm(partitioned_hg, hn, to))
+              << V(hn) << " " << V(from) << " " << V(to);
+        }
       }
     });
   }

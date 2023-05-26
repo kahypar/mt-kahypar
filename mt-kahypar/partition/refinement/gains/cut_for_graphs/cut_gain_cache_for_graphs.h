@@ -60,6 +60,7 @@ class GraphCutGainCache {
 
   static constexpr GainPolicy TYPE = GainPolicy::cut_for_graphs;
   static constexpr bool requires_notification_before_update = false;
+  static constexpr bool initializes_gain_cache_entry_after_batch_uncontractions = false;
 
   using AdjacentBlocksIterator = IntegerRangeIterator<PartitionID>::const_iterator;
 
@@ -95,6 +96,13 @@ class GraphCutGainCache {
   // ! Initializes all gain cache entries
   template<typename PartitionedGraph>
   void initializeGainCache(const PartitionedGraph& partitioned_graph);
+
+  template<typename PartitionedGraph>
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
+  void initializeGainCacheEntryForNode(const PartitionedGraph&,
+                                       const HypernodeID&) {
+    // Do nothing
+  }
 
   IteratorRange<AdjacentBlocksIterator> adjacentBlocks(const HypernodeID) {
     // We do not maintain the adjacent blocks of a node in this gain cache.
@@ -182,6 +190,13 @@ class GraphCutGainCache {
                                  const PartitionID,
                                  const HyperedgeWeight) {
     // Do nothing here (only relevant for hypergraph gain cache)
+  }
+
+  // ! This function is called after restoring a net that became identical to another due to a contraction.
+  template<typename PartitionedHypergraph>
+  void restoreIdenticalHyperedge(const PartitionedHypergraph&,
+                                 const HyperedgeID) {
+    // Do nothing
   }
 
   // ####################### Only for Testing #######################

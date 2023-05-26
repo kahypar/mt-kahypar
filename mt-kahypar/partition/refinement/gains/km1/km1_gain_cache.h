@@ -71,6 +71,7 @@ class Km1GainCache {
 
   static constexpr GainPolicy TYPE = GainPolicy::km1;
   static constexpr bool requires_notification_before_update = false;
+  static constexpr bool initializes_gain_cache_entry_after_batch_uncontractions = false;
 
   Km1GainCache() :
     _is_initialized(false),
@@ -102,6 +103,12 @@ class Km1GainCache {
   // ! Initializes all gain cache entries
   template<typename PartitionedHypergraph>
   void initializeGainCache(const PartitionedHypergraph& partitioned_hg);
+
+  template<typename PartitionedHypergraph>
+  void initializeGainCacheEntryForNode(const PartitionedHypergraph&,
+                                       const HypernodeID&) {
+    // Do nothing
+  }
 
   IteratorRange<AdjacentBlocksIterator> adjacentBlocks(const HypernodeID) {
     // We do not maintain the adjacent blocks of a node in this gain cache.
@@ -195,6 +202,13 @@ class Km1GainCache {
   void restoreSinglePinHyperedge(const HypernodeID u,
                                  const PartitionID block_of_u,
                                  const HyperedgeWeight weight_of_he);
+
+  // ! This function is called after restoring a net that became identical to another due to a contraction.
+  template<typename PartitionedHypergraph>
+  void restoreIdenticalHyperedge(const PartitionedHypergraph&,
+                                 const HyperedgeID) {
+    // Do nothing
+  }
 
   // ####################### Only for Testing #######################
 

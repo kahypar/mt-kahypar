@@ -422,6 +422,13 @@ private:
       [&](const HypernodeID u, const HypernodeID v, const HyperedgeID he) {
         gain_cache.uncontractUpdateAfterReplacement(*this, u, v, he);
       });
+
+    if constexpr ( GainCache::initializes_gain_cache_entry_after_batch_uncontractions ) {
+      tbb::parallel_for(UL(0), batch.size(), [&](const size_t i) {
+        const Memento& memento = batch[i];
+        gain_cache.initializeGainCacheEntryForNode(*this, memento.v);
+      });
+    }
   }
 
   // ####################### Restore Hyperedges #######################
@@ -495,6 +502,7 @@ private:
           _con_info.addBlock(he, block);
           _con_info.setPinCountInPart(he, block, pinCountInPart(representative, block));
         }
+        gain_cache.restoreIdenticalHyperedge(*this, he);
 
         HEAVY_REFINEMENT_ASSERT([&] {
           for ( PartitionID block = 0; block < _k; ++block ) {

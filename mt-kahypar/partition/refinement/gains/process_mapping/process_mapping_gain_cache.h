@@ -66,6 +66,7 @@ class ProcessMappingGainCache {
 
   static constexpr GainPolicy TYPE = GainPolicy::process_mapping;
   static constexpr bool requires_notification_before_update = true;
+  static constexpr bool initializes_gain_cache_entry_after_batch_uncontractions = true;
 
   ProcessMappingGainCache() :
     _is_initialized(false),
@@ -101,6 +102,10 @@ class ProcessMappingGainCache {
   // ! Initializes all gain cache entries
   template<typename PartitionedHypergraph>
   void initializeGainCache(const PartitionedHypergraph& partitioned_hg);
+
+  template<typename PartitionedHypergraph>
+  void initializeGainCacheEntryForNode(const PartitionedHypergraph& partitioned_hg,
+                                       const HypernodeID hn);
 
   AdjacentBlocksIterator adjacentBlocks(const HypernodeID hn) {
     return _adjacent_blocks.connectivitySet(hn);
@@ -189,6 +194,11 @@ class ProcessMappingGainCache {
                                  const PartitionID block_of_u,
                                  const HyperedgeWeight weight_of_he);
 
+  // ! This function is called after restoring a net that became identical to another due to a contraction.
+  template<typename PartitionedHypergraph>
+  void restoreIdenticalHyperedge(const PartitionedHypergraph&,
+                                 const HyperedgeID);
+
   // ####################### Only for Testing #######################
 
   template<typename PartitionedHypergraph>
@@ -253,7 +263,12 @@ class ProcessMappingGainCache {
 
   // ! Initializes the adjacent blocks of all nodes
   template<typename PartitionedHypergraph>
-  void initializeAdjacentBlocksOfEachNode(const PartitionedHypergraph& partitioned_hg);
+  void initializeAdjacentBlocks(const PartitionedHypergraph& partitioned_hg);
+
+    // ! Initializes the adjacent blocks of for a node
+  template<typename PartitionedHypergraph>
+  void initializeAdjacentBlocksOfNode(const PartitionedHypergraph& partitioned_hg,
+                                      const HypernodeID hn);
 
   // ! Updates the adjacent blocks of a node based on a synronized hyperedge update
   template<typename PartitionedHypergraph>

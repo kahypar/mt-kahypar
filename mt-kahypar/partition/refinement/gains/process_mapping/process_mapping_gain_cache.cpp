@@ -39,7 +39,7 @@ void ProcessMappingGainCache::initializeGainCache(const PartitionedHypergraph& p
   ASSERT(!_is_initialized, "Gain cache is already initialized");
   ASSERT(_k == kInvalidPartition || _k == partitioned_hg.k(), "Gain cache was already initialized for a different k");
   allocateGainTable(partitioned_hg.topLevelNumNodes(), partitioned_hg.topLevelNumEdges(), partitioned_hg.k());
-  initializeAdjacentBlocksOfEachNode(partitioned_hg);
+  initializeAdjacentBlocks(partitioned_hg);
 
   // Compute gain of all nodes
   tbb::parallel_for(tbb::blocked_range<HypernodeID>(HypernodeID(0), partitioned_hg.initialNumNodes()),
@@ -53,6 +53,14 @@ void ProcessMappingGainCache::initializeGainCache(const PartitionedHypergraph& p
     });
 
   _is_initialized = true;
+}
+
+template<typename PartitionedHypergraph>
+void ProcessMappingGainCache::initializeGainCacheEntryForNode(const PartitionedHypergraph& partitioned_hg,
+                                                              const HypernodeID hn) {
+  vec<HyperedgeWeight>& benefit_aggregator = _ets_benefit_aggregator.local();
+  initializeAdjacentBlocksOfNode(partitioned_hg, hn);
+  initializeGainCacheEntryForNode(partitioned_hg, hn, benefit_aggregator);
 }
 
 bool ProcessMappingGainCache::triggersDeltaGainUpdate(const SyncronizedEdgeUpdate& sync_update) {
@@ -138,9 +146,11 @@ void ProcessMappingGainCache::deltaGainUpdate(const PartitionedHypergraph& parti
       for ( const HypernodeID& pin : partitioned_hg.pins(he) ) {
         const PartitionID source = partitioned_hg.partID(pin);
         for ( const PartitionID& target : _adjacent_blocks.connectivitySet(pin) ) {
-          const HyperedgeWeight gain_after = gainOfHyperedge(
-            source, target, edge_weight, process_graph, pin_counts, connectivity_set);
-          _gain_cache[benefit_index(pin, target)].add_fetch(gain_after, std::memory_order_relaxed);
+          if ( source != target ) {
+            const HyperedgeWeight gain_after = gainOfHyperedge(
+              source, target, edge_weight, process_graph, pin_counts, connectivity_set);
+            _gain_cache[benefit_index(pin, target)].add_fetch(gain_after, std::memory_order_relaxed);
+          }
         }
       }
 
@@ -151,9 +161,11 @@ void ProcessMappingGainCache::deltaGainUpdate(const PartitionedHypergraph& parti
       for ( const HypernodeID& pin : partitioned_hg.pins(he) ) {
         const PartitionID source = partitioned_hg.partID(pin);
         for ( const PartitionID& target : _adjacent_blocks.connectivitySet(pin) ) {
-          const HyperedgeWeight gain_before = gainOfHyperedge(
-            source, target, edge_weight, process_graph, pin_counts, connectivity_set);
-          _gain_cache[benefit_index(pin, target)].sub_fetch(gain_before, std::memory_order_relaxed);
+            if ( source != target ) {
+            const HyperedgeWeight gain_before = gainOfHyperedge(
+              source, target, edge_weight, process_graph, pin_counts, connectivity_set);
+            _gain_cache[benefit_index(pin, target)].sub_fetch(gain_before, std::memory_order_relaxed);
+          }
         }
       }
     } else {
@@ -251,50 +263,146 @@ void ProcessMappingGainCache::deltaGainUpdate(const PartitionedHypergraph& parti
 }
 
 template<typename PartitionedHypergraph>
-void ProcessMappingGainCache::uncontractUpdateAfterRestore(const PartitionedHypergraph&,
-                                                           const HypernodeID,
-                                                           const HypernodeID,
-                                                           const HyperedgeID,
-                                                           const HypernodeID) {
+void ProcessMappingGainCache::uncontractUpdateAfterRestore(const PartitionedHypergraph& partitioned_hg,
+                                                           const HypernodeID u,
+                                                           const HypernodeID v,
+                                                           const HyperedgeID he,
+                                                           const HypernodeID pin_count_in_part_after) {
+  // In this case, u and v are both contained in the hyperedge after the uncontraction operation
+  // => Pin count of the block of node u increases by one, but connectivity set does not change.
   if ( _is_initialized ) {
-
-  }
-}
-
-template<typename PartitionedHypergraph>
-void ProcessMappingGainCache::uncontractUpdateAfterReplacement(const PartitionedHypergraph&,
-                                                               const HypernodeID,
-                                                               const HypernodeID,
-                                                               const HyperedgeID) {
-  // In this case, u is replaced by v in hyperedge he
-  // => Pin counts of hyperedge he does not change
-  if ( _is_initialized ) {
-
-  }
-}
-
-void ProcessMappingGainCache::restoreSinglePinHyperedge(const HypernodeID,
-                                                        const PartitionID,
-                                                        const HyperedgeWeight) {
-  if ( _is_initialized ) {
-
-  }
-}
-
-template<typename PartitionedHypergraph>
-void ProcessMappingGainCache::initializeAdjacentBlocksOfEachNode(const PartitionedHypergraph& partitioned_hg) {
-  // Initialize adjacent blocks of each node
-  partitioned_hg.doParallelForAllNodes([&](const HypernodeID& hn) {
-    _adjacent_blocks.clear(hn);
-    for ( PartitionID to = 0; to < _k; ++to ) {
-      _num_incident_edges_of_block[benefit_index(hn, to)].store(0, std::memory_order_relaxed);
-    }
-    for ( const HyperedgeID& he : partitioned_hg.incidentEdges(hn) ) {
-      for ( const PartitionID& block : partitioned_hg.connectivitySet(he) ) {
-        incrementIncidentEdges(hn, block);
+    ASSERT(partitioned_hg.hasProcessGraph());
+    const ProcessGraph& process_graph = *partitioned_hg.processGraph();
+    const PartitionID block = partitioned_hg.partID(u);
+    const HyperedgeWeight edge_weight = partitioned_hg.edgeWeight(he);
+    if ( pin_count_in_part_after == 2 ) {
+      // In this case, u was the only pin of its block contained in the hyperedge.
+      // Aftwards, u and v are contained in the hyperedge both in the same block.
+      // This changes the gain of u to all its adjacent blocks
+      for ( const HypernodeID& pin : partitioned_hg.pins(he) ) {
+        // u might be replaced by an other node in the batch
+        // => search for other pin of the corresponding block and update gain.
+        if ( pin != v && partitioned_hg.partID(pin) == block ) {
+          ds::Bitset& connectivity_set = partitioned_hg.deepCopyOfConnectivitySet(he);
+          const HyperedgeWeight current_distance = process_graph.distance(connectivity_set);
+          for ( const PartitionID to : _adjacent_blocks.connectivitySet(pin) ) {
+            if ( block != to ) {
+              // u does no longer decrease the connectivity of the hyperedge. We therefore
+              // subtract the previous contribution of the hyperedge to gain values of u
+              HyperedgeWeight old_distance_after_move = 0;
+              HyperedgeWeight new_distance_after_move = current_distance;
+              if ( partitioned_hg.pinCountInPart(he, to) == 0 ) {
+                old_distance_after_move = process_graph.distanceAfterExchangingBlocks(connectivity_set, block, to);
+                new_distance_after_move = process_graph.distanceWithBlock(connectivity_set, to);
+              } else {
+                old_distance_after_move = process_graph.distanceWithoutBlock(connectivity_set, block);
+              }
+              const HyperedgeWeight old_gain = (current_distance - old_distance_after_move) * edge_weight;
+              const HyperedgeWeight new_gain = (current_distance - new_distance_after_move) * edge_weight;
+              _gain_cache[benefit_index(pin, to)].add_fetch(new_gain - old_gain, std::memory_order_relaxed);
+            }
+          }
+          break;
+        }
       }
     }
+
+    // Other gain cache implementations initialize here the gain of node v.
+    // However, this not possible since there are still pending uncontractions and
+    // we do not know all adjacent blocks of node v at this point. We therefore initialize
+    // them after all uncontractions are finished.
+  }
+}
+
+template<typename PartitionedHypergraph>
+void ProcessMappingGainCache::uncontractUpdateAfterReplacement(const PartitionedHypergraph& partitioned_hg,
+                                                               const HypernodeID u,
+                                                               const HypernodeID,
+                                                               const HyperedgeID he) {
+  // In this case, u is replaced by v in hyperedge he
+  // => Pin counts and connectivity set of hyperedge he does not change
+  if ( _is_initialized ) {
+    ASSERT(partitioned_hg.hasProcessGraph());
+    const ProcessGraph& process_graph = *partitioned_hg.processGraph();
+    const PartitionID block = partitioned_hg.partID(u);
+    const HyperedgeWeight edge_weight = partitioned_hg.edgeWeight(he);
+    ds::Bitset& connectivity_set = partitioned_hg.deepCopyOfConnectivitySet(he);
+    const HyperedgeWeight current_distance = process_graph.distance(connectivity_set);
+    // Since u is no longer part of the hyperedge, we have to subtract the previous
+    // contribution of the hyperedge for moving u out of its block from all its gain values
+    // and add its new contribution.
+    if ( partitioned_hg.pinCountInPart(he, block) == 1  ) {
+      for ( const PartitionID to : _adjacent_blocks.connectivitySet(u) ) {
+        if ( block != to ) {
+          HyperedgeWeight distance_used_for_gain = 0;
+          if ( partitioned_hg.pinCountInPart(he, to) == 0 ) {
+            distance_used_for_gain = process_graph.distanceAfterExchangingBlocks(connectivity_set, block, to);
+          } else {
+            distance_used_for_gain = process_graph.distanceWithoutBlock(connectivity_set, block);
+          }
+          const HyperedgeWeight old_gain = (current_distance - distance_used_for_gain) * edge_weight;
+          _gain_cache[benefit_index(u, to)].sub_fetch(old_gain, std::memory_order_relaxed);
+        }
+      }
+    } else {
+      for ( const PartitionID to : _adjacent_blocks.connectivitySet(u) ) {
+        if ( block != to && partitioned_hg.pinCountInPart(he, to) == 0 ) {
+          const HyperedgeWeight distance_with_to = process_graph.distanceWithBlock(connectivity_set, to);
+          const HyperedgeWeight old_gain = (current_distance - distance_with_to) * edge_weight;
+          _gain_cache[benefit_index(u, to)].sub_fetch(old_gain, std::memory_order_relaxed);
+        }
+      }
+    }
+
+    // Decrement number of incident edges of each block in the connectivity set
+    // of the hyperedge since u is no longer part of the hyperedge.
+    for ( const PartitionID& to : partitioned_hg.connectivitySet(he) ) {
+      decrementIncidentEdges(u, to);
+    }
+
+    // Other gain cache implementations initialize here the gain of node v.
+    // However, this not possible since there are still pending uncontractions and
+    // we do not know all adjacent blocks of node v at this point. We therefore initialize
+    // them after all uncontractions are finished.
+  }
+}
+
+void ProcessMappingGainCache::restoreSinglePinHyperedge(const HypernodeID u,
+                                                        const PartitionID block_of_u,
+                                                        const HyperedgeWeight) {
+  incrementIncidentEdges(u, block_of_u);
+}
+
+template<typename PartitionedHypergraph>
+void ProcessMappingGainCache::restoreIdenticalHyperedge(const PartitionedHypergraph& partitioned_hg,
+                                                        const HyperedgeID he) {
+  for ( const HypernodeID& pin : partitioned_hg.pins(he) ) {
+    for ( const PartitionID& block : partitioned_hg.connectivitySet(he) ) {
+      incrementIncidentEdges(pin, block);
+    }
+  }
+}
+
+template<typename PartitionedHypergraph>
+void ProcessMappingGainCache::initializeAdjacentBlocks(const PartitionedHypergraph& partitioned_hg) {
+  // Initialize adjacent blocks of each node
+  partitioned_hg.doParallelForAllNodes([&](const HypernodeID& hn) {
+    initializeAdjacentBlocksOfNode(partitioned_hg, hn);
   });
+}
+
+template<typename PartitionedHypergraph>
+void ProcessMappingGainCache::initializeAdjacentBlocksOfNode(const PartitionedHypergraph& partitioned_hg,
+                                                             const HypernodeID hn) {
+  _adjacent_blocks.clear(hn);
+  for ( PartitionID to = 0; to < _k; ++to ) {
+    _num_incident_edges_of_block[benefit_index(hn, to)].store(0, std::memory_order_relaxed);
+  }
+  for ( const HyperedgeID& he : partitioned_hg.incidentEdges(hn) ) {
+    for ( const PartitionID& block : partitioned_hg.connectivitySet(he) ) {
+      incrementIncidentEdges(hn, block);
+    }
+  }
 }
 
 template<typename PartitionedHypergraph>
@@ -340,6 +448,7 @@ HyperedgeID ProcessMappingGainCache::incrementIncidentEdges(const HypernodeID u,
 }
 
 HyperedgeID ProcessMappingGainCache::decrementIncidentEdges(const HypernodeID u, const PartitionID to) {
+  ASSERT(_num_incident_edges_of_block[benefit_index(u, to)].load() > 0);
   const HyperedgeID incident_count_after =
     _num_incident_edges_of_block[benefit_index(u, to)].sub_fetch(1, std::memory_order_relaxed);
   if ( incident_count_after == 0 ) {
@@ -455,6 +564,8 @@ void ProcessMappingGainCache::initializeGainCacheEntry(const PartitionedHypergra
 
 namespace {
 #define PROCESS_MAPPING_INITIALIZE_GAIN_CACHE(X) void ProcessMappingGainCache::initializeGainCache(const X&)
+#define PROCESS_MAPPING_INITIALIZE_GAIN_CACHE_FOR_NODE(X) void ProcessMappingGainCache::initializeGainCacheEntryForNode(const X&,          \
+                                                                                                                        const HypernodeID)
 #define PROCESS_MAPPING_DELTA_GAIN_UPDATE(X) void ProcessMappingGainCache::deltaGainUpdate(const X&,                     \
                                                                                            const SyncronizedEdgeUpdate&)
 #define PROCESS_MAPPING_RESTORE_UPDATE(X) void ProcessMappingGainCache::uncontractUpdateAfterRestore(const X&,          \
@@ -466,7 +577,11 @@ namespace {
                                                                                                              const HypernodeID,   \
                                                                                                              const HypernodeID,   \
                                                                                                              const HyperedgeID)
-#define PROCESS_MAPPING_INIT_ADJACENT_BLOCKS(X) void ProcessMappingGainCache::initializeAdjacentBlocksOfEachNode(const X&)
+#define PROCESS_MAPPING_RESTORE_IDENTICAL_HYPEREDGE(X) void ProcessMappingGainCache::restoreIdenticalHyperedge(const X&,            \
+                                                                                                               const HyperedgeID)
+#define PROCESS_MAPPING_INIT_ADJACENT_BLOCKS(X) void ProcessMappingGainCache::initializeAdjacentBlocks(const X&)
+#define PROCESS_MAPPING_INIT_ADJACENT_BLOCKS_OF_NODE(X) void ProcessMappingGainCache::initializeAdjacentBlocksOfNode(const X&,          \
+                                                                                                                     const HypernodeID)
 #define PROCESS_MAPPING_UPDATE_ADJACENT_BLOCKS(X) void ProcessMappingGainCache::updateAdjacentBlocks(const X&,                     \
                                                                                                      const SyncronizedEdgeUpdate&)
 #define PROCESS_MAPPING_INIT_GAIN_CACHE_ENTRY(X) void ProcessMappingGainCache::initializeGainCacheEntryForNode(const X&,           \
@@ -479,10 +594,13 @@ namespace {
 }
 
 INSTANTIATE_FUNC_WITH_PARTITIONED_HG(PROCESS_MAPPING_INITIALIZE_GAIN_CACHE)
+INSTANTIATE_FUNC_WITH_PARTITIONED_HG(PROCESS_MAPPING_INITIALIZE_GAIN_CACHE_FOR_NODE)
 INSTANTIATE_FUNC_WITH_PARTITIONED_HG(PROCESS_MAPPING_DELTA_GAIN_UPDATE)
 INSTANTIATE_FUNC_WITH_PARTITIONED_HG(PROCESS_MAPPING_RESTORE_UPDATE)
 INSTANTIATE_FUNC_WITH_PARTITIONED_HG(PROCESS_MAPPING_REPLACEMENT_UPDATE)
+INSTANTIATE_FUNC_WITH_PARTITIONED_HG(PROCESS_MAPPING_RESTORE_IDENTICAL_HYPEREDGE)
 INSTANTIATE_FUNC_WITH_PARTITIONED_HG(PROCESS_MAPPING_INIT_ADJACENT_BLOCKS)
+INSTANTIATE_FUNC_WITH_PARTITIONED_HG(PROCESS_MAPPING_INIT_ADJACENT_BLOCKS_OF_NODE)
 INSTANTIATE_FUNC_WITH_PARTITIONED_HG(PROCESS_MAPPING_UPDATE_ADJACENT_BLOCKS)
 INSTANTIATE_FUNC_WITH_PARTITIONED_HG(PROCESS_MAPPING_INIT_GAIN_CACHE_ENTRY)
 INSTANTIATE_FUNC_WITH_PARTITIONED_HG(PROCESS_MAPPING_INIT_LAZY_GAIN_CACHE_ENTRY)

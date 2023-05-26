@@ -454,6 +454,13 @@ private:
         // In this case, u is replaced by v in e
         gain_cache.uncontractUpdateAfterReplacement(*this, u, v, e);
       });
+
+    if constexpr ( GainCache::initializes_gain_cache_entry_after_batch_uncontractions ) {
+      tbb::parallel_for(UL(0), batch.size(), [&](const size_t i) {
+        const Memento& memento = batch[i];
+        gain_cache.initializeGainCacheEntryForNode(*this, memento.v);
+      });
+    }
   }
 
   // ####################### Restore Hyperedges #######################
@@ -464,9 +471,25 @@ private:
 
   template<typename GainCache>
   void restoreSinglePinAndParallelNets(const vec<typename Hypergraph::ParallelHyperedge>& hes_to_restore,
-                                       GainCache&) {
+                                       GainCache& gain_cache) {
     _edge_markers.reset();
     _hg->restoreSinglePinAndParallelNets(hes_to_restore);
+
+    tbb::parallel_for(UL(0), hes_to_restore.size(), [&](const size_t i) {
+      const HyperedgeID he = hes_to_restore[i].old_id;
+      ASSERT(edgeIsEnabled(he));
+      const bool is_single_pin_he = edgeSize(he) == 1;
+      if ( is_single_pin_he ) {
+        // Restore single-pin net
+        HypernodeID single_vertex_of_he = edgeSource(he);
+        const PartitionID block_of_single_pin = partID(single_vertex_of_he);
+        gain_cache.restoreSinglePinHyperedge(
+          single_vertex_of_he, block_of_single_pin, edgeWeight(he));
+      } else {
+        // Restore parallel net
+        gain_cache.restoreIdenticalHyperedge(*this, he);
+      }
+    });
   }
 
   // ####################### Partition Information #######################
