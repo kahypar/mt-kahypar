@@ -47,6 +47,24 @@ namespace mt_kahypar {
 
 /**
  * The gain cache stores the gain values for all possible node moves for the process mapping metric.
+ *
+ * The process mapping problem asks for a mapping Π: V -> V_p of the node set V of a weighted hypergraph H = (V,E,c,w)
+ * onto a process graph P = (V_P, E_P) such that the following objective function is minimized:
+ * process_mapping(H, P, Π) := sum_{e \in E} dist_P(Λ(e)) * w(e)
+ * Here, dist_P(Λ(e)) is shortest connections between all blocks Λ(e) contained in a hyperedge e using only edges
+ * of the process graph. Computing dist_P(Λ(e)) reduces to the steiner tree problem which is an NP-hard problem.
+ * However, we precompute all steiner trees up to a certain size and for larger connectivity sets Λ(e), we compute
+ * a 2-approximation.
+ *
+ * The gain of moving a node u from its current block V_i to a target block V_j can be expressed as follows:
+ * g(u,V_j) := sum_{e \in I(u): Φ(e,V_i) = 1 and Φ(e, V_j) > 0} Δdist_P(e, Λ(e)\{V_i}) * w(e) +
+ *             sum_{e \in I(u): Φ(e,V_i) = 1 and Φ(e, V_j) = 0} Δdist_P(e, Λ(e)\{V_i} u {V_j}) * w(e) +
+ *             sum_{e \in I(u): Φ(e,V_i) > 1 and Φ(e, V_j) = 0} Δdist_P(e, Λ(e) u {V_j}) * w(e)
+ * For a set of blocks A, we define Δdist_P(e, A) := (dist_P(Λ(e)) - dist_P(A)). Moreover, Φ(e,V') is the number
+ * of pins contained in hyperedge e which are also part of block V'. More formally, Φ(e,V') := |e n V'|.
+ *
+ * This gain cache implementation maintains the gain values g(u,V_j) for all nodes and their adjacent blocks.
+ * Thus, the gain cache stores and maintains at most k entries per node where k := |V_P|.
 */
 class ProcessMappingGainCache {
 
@@ -103,10 +121,12 @@ class ProcessMappingGainCache {
   template<typename PartitionedHypergraph>
   void initializeGainCache(const PartitionedHypergraph& partitioned_hg);
 
+  // ! Initializes the gain cache entry for a node
   template<typename PartitionedHypergraph>
   void initializeGainCacheEntryForNode(const PartitionedHypergraph& partitioned_hg,
                                        const HypernodeID hn);
 
+  // ! Returns an iterator over the adjacent blocks of a node
   AdjacentBlocksIterator adjacentBlocks(const HypernodeID hn) {
     return _adjacent_blocks.connectivitySet(hn);
   }
@@ -114,7 +134,8 @@ class ProcessMappingGainCache {
   // ####################### Gain Computation #######################
 
   // ! Returns the penalty term of node u.
-  // ! More formally, p(u) := w({ e \in I(u) | pin_count(e, V_i) > 1 })
+  // ! Note that the process mapping gain cache does not maintain a
+  // ! penalty term and returns zero in this case.
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
   HyperedgeWeight penaltyTerm(const HypernodeID,
                               const PartitionID) const {
@@ -122,7 +143,7 @@ class ProcessMappingGainCache {
     return 0;
   }
 
-  // ! Recomputes the penalty term entry in the gain cache
+  // ! Recomputes all gain cache entries for node u
   template<typename PartitionedHypergraph>
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
   void recomputeInvalidTerms(const PartitionedHypergraph& partitioned_hg,
@@ -131,22 +152,21 @@ class ProcessMappingGainCache {
     initializeGainCacheEntryForNode(partitioned_hg, u, benefit_aggregator);
   }
 
-  // ! Returns the benefit term for moving node u to block to.
-  // ! More formally, b(u, V_j) := w({ e \in I(u) | pin_count(e, V_j) >= 1 })
+  // ! Returns the gain value for moving node u to block to.
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
   HyperedgeWeight benefitTerm(const HypernodeID u, const PartitionID to) const {
     ASSERT(_is_initialized, "Gain cache is not initialized");
     return _gain_cache[benefit_index(u, to)].load(std::memory_order_relaxed);
   }
 
-  // ! Returns the gain of moving node u from its current block to a target block V_j.
-  // ! More formally, g(u, V_j) := b(u, V_j) - p(u).
+  // ! Returns the gain value for moving node u to block to.
+  // ! (same as benefitTerm(...))
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
   HyperedgeWeight gain(const HypernodeID u,
                        const PartitionID, /* only relevant for graphs */
                        const PartitionID to ) const {
     ASSERT(_is_initialized, "Gain cache is not initialized");
-    return benefitTerm(u, to) - penaltyTerm(u, kInvalidPartition);
+    return benefitTerm(u, to);
   }
 
   // ####################### Delta Gain Update #######################
