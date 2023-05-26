@@ -92,8 +92,7 @@ class ProcessMappingGainComputation : public GainComputationBase<ProcessMappingG
       HypernodeID pin_count_in_from_part = phg.pinCountInPart(he, from);
       HyperedgeWeight he_weight = phg.edgeWeight(he);
       ds::Bitset& connectivity_set = phg.deepCopyOfConnectivitySet(he);
-      ds::StaticBitset con_set_view(connectivity_set.numBlocks(), connectivity_set.data());
-      const HyperedgeWeight distance_before = process_graph->distance(con_set_view);
+      const HyperedgeWeight distance_before = process_graph->distance(connectivity_set);
 
       if ( pin_count_in_from_part == 1 ) {
         // Moving the node out of its current block removes
@@ -107,13 +106,9 @@ class ProcessMappingGainComputation : public GainComputationBase<ProcessMappingG
       // distances in the process graph. We therefore have to consider all adjacent blocks
       // of the node to compute the correct gain.
       for ( const PartitionID to : adjacent_blocks_view ) {
-        const bool was_set = connectivity_set.isSet(to);
-        connectivity_set.set(to);
-        const HyperedgeWeight distance_after = process_graph->distance(con_set_view);
+        const HyperedgeWeight distance_after =
+          process_graph->distanceWithBlock(connectivity_set, to);
         tmp_scores[to] += (distance_after - distance_before) * he_weight;
-        if ( !was_set ) {
-          connectivity_set.unset(to);
-        }
       }
     }
   }

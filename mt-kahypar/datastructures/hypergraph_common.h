@@ -35,6 +35,8 @@
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
 #include "mt-kahypar/parallel/hardware_topology.h"
 #include "mt-kahypar/parallel/tbb_initializer.h"
+#include "mt-kahypar/parallel/atomic_wrapper.h"
+#include "mt-kahypar/datastructures/array.h"
 
 namespace mt_kahypar {
 
@@ -129,6 +131,7 @@ class ProcessGraph;
 namespace ds {
 class Bitset;
 class StaticGraph;
+class PinCountSnapshot;
 class StaticHypergraph;
 class DynamicGraph;
 class DynamicHypergraph;
@@ -146,7 +149,9 @@ struct SyncronizedEdgeUpdate {
     pin_count_in_from_part_after(kInvalidHypernode),
     pin_count_in_to_part_after(kInvalidHypernode),
     connectivity_set_after(nullptr),
-    process_graph(nullptr) { }
+    pin_counts_after(nullptr),
+    process_graph(nullptr),
+    edge_locks(nullptr) { }
 
   HyperedgeID he;
   PartitionID from;
@@ -156,7 +161,9 @@ struct SyncronizedEdgeUpdate {
   HypernodeID pin_count_in_from_part_after;
   HypernodeID pin_count_in_to_part_after;
   mutable ds::Bitset* connectivity_set_after;
+  mutable ds::PinCountSnapshot* pin_counts_after;
   const ProcessGraph* process_graph;
+  ds::Array<SpinLock>* edge_locks;
 };
 
 struct NoOpDeltaFunc {

@@ -34,6 +34,7 @@
 #include "mt-kahypar/datastructures/sparse_map.h"
 #include "mt-kahypar/parallel/atomic_wrapper.h"
 #include "mt-kahypar/macros.h"
+#include "mt-kahypar/utils/range.h"
 
 namespace mt_kahypar {
 
@@ -56,12 +57,17 @@ class DeltaGraphCutGainCache;
 class GraphCutGainCache {
 
  public:
+
   static constexpr GainPolicy TYPE = GainPolicy::cut_for_graphs;
+  static constexpr bool requires_notification_before_update = false;
+
+  using AdjacentBlocksIterator = IntegerRangeIterator<PartitionID>::const_iterator;
 
   GraphCutGainCache() :
     _is_initialized(false),
     _k(kInvalidPartition),
-    _gain_cache() { }
+    _gain_cache(),
+    _dummy_adjacent_blocks() { }
 
   GraphCutGainCache(const GraphCutGainCache&) = delete;
   GraphCutGainCache & operator= (const GraphCutGainCache &) = delete;
@@ -90,6 +96,13 @@ class GraphCutGainCache {
   template<typename PartitionedGraph>
   void initializeGainCache(const PartitionedGraph& partitioned_graph);
 
+  IteratorRange<AdjacentBlocksIterator> adjacentBlocks(const HypernodeID) {
+    // We do not maintain the adjacent blocks of a node in this gain cache.
+    // We therefore return an iterator over all blocks here
+    return IteratorRange<AdjacentBlocksIterator>(
+      _dummy_adjacent_blocks.cbegin(), _dummy_adjacent_blocks.cend());
+  }
+
   // ####################### Gain Computation #######################
 
   // ! Returns the penalty term of node u.
@@ -103,8 +116,8 @@ class GraphCutGainCache {
 
   template<typename PartitionedGraph>
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
-  void recomputePenaltyTermEntry(const PartitionedGraph&,
-                                 const HypernodeID) {
+  void recomputeInvalidTerms(const PartitionedGraph&,
+                             const HypernodeID) {
     // Do nothing here (only relevant for hypergraph gain cache)
   }
 
@@ -129,6 +142,13 @@ class GraphCutGainCache {
   // ! This function returns true if the corresponding pin count values triggers
   // ! a gain cache update.
   static bool triggersDeltaGainUpdate(const SyncronizedEdgeUpdate& sync_update);
+
+  // ! The partitioned (hyper)graph call this function when updating the pin count values
+  // ! and connectivity set. Updating these data structures and calling this function are done
+  // ! within one transaction (protected via a spin-lock).
+  void updateVersionOfHyperedge(const SyncronizedEdgeUpdate&) {
+    // Do nothing
+  }
 
   // ! This functions implements the delta gain updates for the cut metric on plain graphs.
   // ! When moving a node from its current block from to a target block to, we iterate
@@ -209,6 +229,7 @@ class GraphCutGainCache {
                          const PartitionID k) {
     if (_gain_cache.size() == 0) {
       _k = k;
+      _dummy_adjacent_blocks = IntegerRangeIterator<PartitionID>(k);
       _gain_cache.resize("Refinement", "incident_weight_in_part", num_nodes * size_t(_k), true);
     }
   }
@@ -221,6 +242,9 @@ class GraphCutGainCache {
 
   // ! Array of size |V| * k, which stores the benefit and penalty terms of each node.
   ds::Array< CAtomic<HyperedgeWeight> > _gain_cache;
+
+  // ! Provides an iterator from 0 to k (:= number of blocks)
+  IntegerRangeIterator<PartitionID> _dummy_adjacent_blocks;
 };
 
 /**

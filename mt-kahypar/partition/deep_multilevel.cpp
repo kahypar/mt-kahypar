@@ -594,7 +594,7 @@ void bipartition_each_block(typename TypeTraits::PartitionedHypergraph& partitio
 
   if ( gain_cache.isInitialized() ) {
     partitioned_hg.doParallelForAllNodes([&](const HypernodeID& hn) {
-      gain_cache.recomputePenaltyTermEntry(partitioned_hg, hn);
+      gain_cache.recomputeInvalidTerms(partitioned_hg, hn);
     });
   }
   timer.stop_timer("apply_bipartitions");

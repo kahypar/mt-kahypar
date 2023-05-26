@@ -139,7 +139,7 @@ bool FlowRefinementScheduler<TypeTraits, GainTypes>::refineImpl(
   if ( _context.forceGainCacheUpdates() && _gain_cache.isInitialized() ) {
     phg.doParallelForAllNodes([&](const HypernodeID& hn) {
       if ( _was_moved[hn] ) {
-        _gain_cache.recomputePenaltyTermEntry(phg, hn);
+        _gain_cache.recomputeInvalidTerms(phg, hn);
         _was_moved[hn] = uint8_t(false);
       }
     });

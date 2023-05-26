@@ -179,7 +179,7 @@ namespace mt_kahypar {
 
     // recompute penalty term values since they are potentially invalid
     tbb::parallel_for(MoveID(0), numMoves, [&](const MoveID i) {
-      gain_cache.recomputePenaltyTermEntry(phg, move_order[i].node);
+      gain_cache.recomputeInvalidTerms(phg, move_order[i].node);
     });
 
     sharedData.moveTracker.reset();
@@ -341,7 +341,7 @@ namespace mt_kahypar {
     });
 
     tbb::parallel_for(0U, numMoves, [&](const MoveID i) {
-      gain_cache.recomputePenaltyTermEntry(phg, move_order[i].node);
+      gain_cache.recomputeInvalidTerms(phg, move_order[i].node);
     });
 
     tracker.reset();
@@ -357,7 +357,7 @@ namespace mt_kahypar {
 
     auto recompute_penalty_terms = [&] {
       for (MoveID localMoveID = 0; localMoveID < sharedData.moveTracker.numPerformedMoves(); ++localMoveID) {
-        gain_cache.recomputePenaltyTermEntry(phg, move_order[localMoveID].node);
+        gain_cache.recomputeInvalidTerms(phg, move_order[localMoveID].node);
       }
     };
 

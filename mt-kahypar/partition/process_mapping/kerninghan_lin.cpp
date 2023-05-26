@@ -51,16 +51,13 @@ MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE HyperedgeWeight swap_gain(const ProcessGraph&
                                                              const HyperedgeWeight edge_weight,
                                                              const PartitionID removed_block,
                                                              const PartitionID new_block) {
-  ds::StaticBitset connectivity_set_view(
-    connectivity_set.numBlocks(), connectivity_set.data());
-  // Current distance between all nodes in the connectivity set
-  const HyperedgeWeight distance_before = process_graph.distance(connectivity_set_view);
   ASSERT(connectivity_set.isSet(removed_block));
   ASSERT(!connectivity_set.isSet(new_block));
-  connectivity_set.set(new_block);
-  connectivity_set.unset(removed_block);
+  // Current distance between all nodes in the connectivity set
+  const HyperedgeWeight distance_before = process_graph.distance(connectivity_set);
   // Distance between all nodes in the connectivity set after the swap operation
-  const HyperedgeWeight distance_after = process_graph.distance(connectivity_set_view);
+  const HyperedgeWeight distance_after =
+    process_graph.distanceAfterExchangingBlocks(connectivity_set, removed_block, new_block);
   return (distance_before - distance_after) * edge_weight;
 }
 

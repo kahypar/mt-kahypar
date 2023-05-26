@@ -81,18 +81,43 @@ class AProcessGraph : public Test {
 
   }
 
-  HyperedgeWeight distance(const vec<PartitionID> connectivity_set) {
-    UnsafeBlock bits = 0;
-    for ( const PartitionID block : connectivity_set ) {
-      setBit(bits, block);
-    }
-    ds::StaticBitset con_set(1, &bits);
+
+  HyperedgeWeight distance(const vec<PartitionID>& connectivity_set) {
+    ds::Bitset bitset = getBitset(connectivity_set);;
+    ds::StaticBitset con_set(bitset.numBlocks(), bitset.data());
     return graph->distance(con_set);
+  }
+
+  HyperedgeWeight distanceWithBlock(const vec<PartitionID>& connectivity_set,
+                                    const PartitionID block) {
+    ds::Bitset con_set = getBitset(connectivity_set);
+    return graph->distanceWithBlock(con_set, block);
+  }
+
+  HyperedgeWeight distanceWithoutBlock(const vec<PartitionID>& connectivity_set,
+                                       const PartitionID block) {
+    ds::Bitset con_set = getBitset(connectivity_set);
+    return graph->distanceWithoutBlock(con_set, block);
+  }
+
+  HyperedgeWeight distanceAfterExchangingBlocks(const vec<PartitionID>& connectivity_set,
+                                                const PartitionID removed_block,
+                                                const PartitionID added_block) {
+    ds::Bitset con_set = getBitset(connectivity_set);
+    return graph->distanceAfterExchangingBlocks(con_set, removed_block, added_block);
   }
 
   std::unique_ptr<ProcessGraph> graph;
 
  private:
+  ds::Bitset getBitset(const vec<PartitionID>& connectivity_set) {
+    ds::Bitset bitset(graph->numBlocks());
+    for ( const PartitionID block : connectivity_set ) {
+      bitset.set(block);
+    }
+    return bitset;
+  }
+
   void setBit(UnsafeBlock& bits, size_t pos) {
     bits |= (UL(1) << pos);
   }
@@ -161,7 +186,6 @@ TEST_F(AProcessGraph, ComputesAllSteinerTreesUpToSizeThree) {
   ASSERT_EQ(8, distance({ 0, 3, 9 }));
   ASSERT_EQ(8, distance({ 1, 3, 10 }));
   ASSERT_EQ(8, distance({ 2, 8, 13 }));
-  ASSERT_EQ(8, distance({ 2, 8, 13 }));
   ASSERT_EQ(7, distance({ 8, 11, 13 }));
   ASSERT_EQ(10, distance({ 0, 3, 15 }));
   ASSERT_EQ(3, distance({ 0, 1, 2 }));
@@ -169,6 +193,48 @@ TEST_F(AProcessGraph, ComputesAllSteinerTreesUpToSizeThree) {
   ASSERT_EQ(4, distance({ 12, 14, 15 }));
   ASSERT_EQ(3, distance({ 8, 13, 14 }));
   ASSERT_EQ(5, distance({ 9, 10, 14 }));
+}
+
+TEST_F(AProcessGraph, ComputeDistancesWithAnAdditionalBlock) {
+  graph->precomputeDistances(3);
+  ASSERT_EQ(8, distanceWithBlock({ 0, 3 }, 9));
+  ASSERT_EQ(8, distanceWithBlock({ 1, 3 }, 10));
+  ASSERT_EQ(8, distanceWithBlock({ 2, 8 }, 13));
+  ASSERT_EQ(7, distanceWithBlock({ 8, 11 }, 13));
+  ASSERT_EQ(10, distanceWithBlock({ 0, 3 }, 15));
+  ASSERT_EQ(3, distanceWithBlock({ 0, 1 }, 2));
+  ASSERT_EQ(7, distanceWithBlock({ 6, 11 }, 14));
+  ASSERT_EQ(4, distanceWithBlock({ 14, 15 }, 12));
+  ASSERT_EQ(3, distanceWithBlock({ 8, 14 }, 13));
+  ASSERT_EQ(5, distanceWithBlock({ 10, 14 }, 9));
+}
+
+TEST_F(AProcessGraph, ComputeDistancesWithoutAnBlock) {
+  graph->precomputeDistances(3);
+  ASSERT_EQ(8, distanceWithoutBlock({ 0, 2, 3, 9 }, 2));
+  ASSERT_EQ(8, distanceWithoutBlock({ 1, 3, 7, 10 }, 7));
+  ASSERT_EQ(8, distanceWithoutBlock({ 2, 8, 12, 13 }, 12));
+  ASSERT_EQ(7, distanceWithoutBlock({ 8, 11, 13, 15 }, 15));
+  ASSERT_EQ(10, distanceWithoutBlock({ 0, 3, 4, 15 }, 4));
+  ASSERT_EQ(3, distanceWithoutBlock({ 0, 1, 2, 3 }, 3));
+  ASSERT_EQ(7, distanceWithoutBlock({ 0, 6, 11, 14 }, 0));
+  ASSERT_EQ(4, distanceWithoutBlock({ 10, 12, 14, 15 }, 10));
+  ASSERT_EQ(3, distanceWithoutBlock({ 4, 8, 13, 14 }, 4));
+  ASSERT_EQ(5, distanceWithoutBlock({ 9, 10, 13, 14 }, 13));
+}
+
+TEST_F(AProcessGraph, ComputeDistancesAfterExchangingBlocks) {
+  graph->precomputeDistances(3);
+  ASSERT_EQ(8, distanceAfterExchangingBlocks({ 0, 4, 9 }, 4, 3));
+  ASSERT_EQ(8, distanceAfterExchangingBlocks({ 1, 3, 12 }, 12, 10));
+  ASSERT_EQ(8, distanceAfterExchangingBlocks({ 1, 8, 13 }, 1, 2));
+  ASSERT_EQ(7, distanceAfterExchangingBlocks({ 8, 9, 13 }, 9, 11));
+  ASSERT_EQ(10, distanceAfterExchangingBlocks({ 2, 3, 15 }, 2, 0));
+  ASSERT_EQ(3, distanceAfterExchangingBlocks({ 0, 1, 12 }, 12, 2));
+  ASSERT_EQ(7, distanceAfterExchangingBlocks({ 4, 11, 14 }, 4, 6));
+  ASSERT_EQ(4, distanceAfterExchangingBlocks({ 5, 14, 15 }, 5, 12));
+  ASSERT_EQ(3, distanceAfterExchangingBlocks({ 1, 13, 14 }, 1, 8));
+  ASSERT_EQ(5, distanceAfterExchangingBlocks({ 9, 10, 12 }, 12, 14));
 }
 
 TEST_F(AProcessGraph, ComputesAllSteinerTreesUpToSizeFour) {

@@ -28,6 +28,7 @@
 #pragma once
 
 #include <vector>
+#include <numeric>
 
 template<typename IteratorT>
 class IteratorRange {
@@ -51,7 +52,6 @@ public:
 private:
   IteratorT __begin, __end;
 };
-
 
 
 template<typename RangeT>
@@ -124,4 +124,29 @@ public:
 
 private:
   std::vector<RangeT> ranges;
+};
+
+
+template<typename T>
+class IntegerRangeIterator {
+  public:
+    using const_iterator = typename std::vector<T>::const_iterator;
+
+    IntegerRangeIterator() : _range() { }
+
+    IntegerRangeIterator(const T n) :
+      _range(n) {
+      std::iota(_range.begin(), _range.end(), 0);
+    }
+
+    const_iterator cbegin() {
+      return _range.cbegin();
+    }
+
+    const_iterator cend() {
+      return _range.cend();
+    }
+
+  private:
+    std::vector<T> _range;
 };

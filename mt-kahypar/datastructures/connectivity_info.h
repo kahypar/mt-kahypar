@@ -137,6 +137,11 @@ class ConnectivityInfo {
     return _pin_counts.decrementPinCountInPart(he, id);
   }
 
+  // ! Returns a snapshot of the pin counts of the hyperedge
+  inline PinCountSnapshot& pinCountSnapshot(const HyperedgeID he) {
+    return _pin_counts.snapshot(he);
+  }
+
   // ################## Miscellaneous ##################
 
   // ! Returns the size in bytes of this data structure
@@ -268,6 +273,11 @@ class SparseConnectivityInfo {
   inline HypernodeID decrementPinCountInPart(const HyperedgeID he,
                                              const PartitionID id) {
     return _pin_counts.decrementPinCountInPart(he, id);
+  }
+
+  // ! Returns a snapshot of the pin counts of the hyperedge
+  inline PinCountSnapshot& pinCountSnapshot(const HyperedgeID he) {
+    return _pin_counts.snapshot(he);
   }
 
   // ################## Miscellaneous ##################

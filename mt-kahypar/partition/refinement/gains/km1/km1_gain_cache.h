@@ -36,6 +36,7 @@
 #include "mt-kahypar/datastructures/sparse_map.h"
 #include "mt-kahypar/parallel/atomic_wrapper.h"
 #include "mt-kahypar/macros.h"
+#include "mt-kahypar/utils/range.h"
 
 namespace mt_kahypar {
 
@@ -64,12 +65,18 @@ class Km1GainCache {
 
   static constexpr HyperedgeID HIGH_DEGREE_THRESHOLD = ID(100000);
 
+  using AdjacentBlocksIterator = IntegerRangeIterator<PartitionID>::const_iterator;
+
  public:
+
   static constexpr GainPolicy TYPE = GainPolicy::km1;
+  static constexpr bool requires_notification_before_update = false;
+
   Km1GainCache() :
     _is_initialized(false),
     _k(kInvalidPartition),
-    _gain_cache() { }
+    _gain_cache(),
+    _dummy_adjacent_blocks() { }
 
   Km1GainCache(const Km1GainCache&) = delete;
   Km1GainCache & operator= (const Km1GainCache &) = delete;
@@ -96,6 +103,13 @@ class Km1GainCache {
   template<typename PartitionedHypergraph>
   void initializeGainCache(const PartitionedHypergraph& partitioned_hg);
 
+  IteratorRange<AdjacentBlocksIterator> adjacentBlocks(const HypernodeID) {
+    // We do not maintain the adjacent blocks of a node in this gain cache.
+    // We therefore return an iterator over all blocks here
+    return IteratorRange<AdjacentBlocksIterator>(
+      _dummy_adjacent_blocks.cbegin(), _dummy_adjacent_blocks.cend());
+  }
+
   // ####################### Gain Computation #######################
 
   // ! Returns the penalty term of node u.
@@ -110,8 +124,8 @@ class Km1GainCache {
   // ! Recomputes the penalty term entry in the gain cache
   template<typename PartitionedHypergraph>
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
-  void recomputePenaltyTermEntry(const PartitionedHypergraph& partitioned_hg,
-                                 const HypernodeID u) {
+  void recomputeInvalidTerms(const PartitionedHypergraph& partitioned_hg,
+                             const HypernodeID u) {
     ASSERT(_is_initialized, "Gain cache is not initialized");
     _gain_cache[penalty_index(u)].store(recomputePenaltyTerm(
       partitioned_hg, u), std::memory_order_relaxed);
@@ -140,6 +154,13 @@ class Km1GainCache {
   // ! This function returns true if the corresponding pin count values triggers
   // ! a gain cache update.
   static bool triggersDeltaGainUpdate(const SyncronizedEdgeUpdate& sync_update);
+
+  // ! The partitioned (hyper)graph call this function when updating the pin count values
+  // ! and connectivity set. Updating these data structures and calling this function are done
+  // ! within one transaction (protected via a spin-lock).
+  void updateVersionOfHyperedge(const SyncronizedEdgeUpdate&) {
+    // Do nothing
+  }
 
   // ! This functions implements the delta gain updates for the connecitivity metric.
   // ! When moving a node from its current block from to a target block to, we iterate
@@ -225,6 +246,7 @@ class Km1GainCache {
     if (_gain_cache.size() == 0) {
       ASSERT(_k == kInvalidPartition);
       _k = k;
+      _dummy_adjacent_blocks = IntegerRangeIterator<PartitionID>(k);
       _gain_cache.resize(
         "Refinement", "gain_cache", num_nodes * size_t(_k + 1), true);
     }
@@ -261,6 +283,9 @@ class Km1GainCache {
 
   // ! Array of size |V| * (k + 1), which stores the benefit and penalty terms of each node.
   ds::Array< CAtomic<HyperedgeWeight> > _gain_cache;
+
+  // ! Provides an iterator from 0 to k (:= number of blocks)
+  IntegerRangeIterator<PartitionID> _dummy_adjacent_blocks;
 };
 
 /**

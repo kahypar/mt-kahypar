@@ -61,10 +61,9 @@ class PartitionedHypergraph {
 private:
   static_assert(!Hypergraph::is_partitioned,  "Only unpartitioned hypergraphs are allowed");
 
-  // ! Function that will be called for each incident hyperedge of a moved vertex with the following arguments
-  // !  1) hyperedge ID, 2) weight, 3) size, 4) pin count in from-block after move, 5) pin count in to-block after move
-  // ! Can be implemented to obtain correct km1 or cut improvements of the move
+  using NotificationFunc = std::function<void (SyncronizedEdgeUpdate&)>;
   using DeltaFunction = std::function<void (const SyncronizedEdgeUpdate&)>;
+  #define NOOP_NOTIFY_FUNC [] (const SyncronizedEdgeUpdate&) { }
   #define NOOP_FUNC [] (const SyncronizedEdgeUpdate&) { }
 
   // Factory
@@ -101,6 +100,7 @@ private:
   explicit PartitionedHypergraph(const PartitionID k,
                                  Hypergraph& hypergraph) :
     _input_num_nodes(hypergraph.initialNumNodes()),
+    _input_num_edges(hypergraph.initialNumEdges()),
     _k(k),
     _hg(&hypergraph),
     _process_graph(nullptr),
@@ -117,6 +117,7 @@ private:
                                  Hypergraph& hypergraph,
                                  parallel_tag_t) :
     _input_num_nodes(hypergraph.initialNumNodes()),
+    _input_num_edges(hypergraph.initialNumEdges()),
     _k(k),
     _hg(&hypergraph),
     _process_graph(nullptr),
@@ -188,6 +189,11 @@ private:
   // ! Initial number of hyperedges
   HyperedgeID initialNumEdges() const {
     return _hg->initialNumEdges();
+  }
+
+  // ! Number of nodes of the input hypergraph
+  HyperedgeID topLevelNumEdges() const {
+    return _input_num_edges;
   }
 
   // ! Initial number of pins
@@ -551,7 +557,8 @@ private:
                       PartitionID to,
                       HypernodeWeight max_weight_to,
                       SuccessFunc&& report_success,
-                      const DeltaFunction& delta_func) {
+                      const DeltaFunction& delta_func,
+                      const NotificationFunc& notify_func = NOOP_NOTIFY_FUNC) {
     ASSERT(partID(u) == from);
     ASSERT(from != to);
     const HypernodeWeight wu = nodeWeight(u);
@@ -564,8 +571,9 @@ private:
       sync_update.from = from;
       sync_update.to = to;
       sync_update.process_graph = _process_graph;
+      sync_update.edge_locks = &_pin_count_update_ownership;
       for ( const HyperedgeID he : incidentEdges(u) ) {
-        updatePinCountOfHyperedge(he, from, to, sync_update, delta_func);
+        updatePinCountOfHyperedge(he, from, to, sync_update, delta_func, notify_func);
       }
       return true;
     } else {
@@ -595,7 +603,16 @@ private:
       delta_func(sync_update);
       gain_cache.deltaGainUpdate(*this, sync_update);
     };
-    return changeNodePart(u, from, to, max_weight_to, report_success, my_delta_func);
+    if constexpr ( !GainCache::requires_notification_before_update ) {
+      return changeNodePart(u, from, to, max_weight_to, report_success, my_delta_func);
+    } else {
+      return changeNodePart(u, from, to, max_weight_to, report_success, my_delta_func,
+        [&](SyncronizedEdgeUpdate& sync_update) {
+          sync_update.pin_count_in_from_part_after = pinCountInPart(sync_update.he, from) - 1;
+          sync_update.pin_count_in_to_part_after = pinCountInPart(sync_update.he, to) + 1;
+          gain_cache.updateVersionOfHyperedge(sync_update);
+        });
+    }
   }
 
   template<typename GainCache>
@@ -1107,15 +1124,18 @@ private:
                                                                     const PartitionID from,
                                                                     const PartitionID to,
                                                                     SyncronizedEdgeUpdate& sync_update,
-                                                                    const DeltaFunction& delta_func) {
+                                                                    const DeltaFunction& delta_func,
+                                                                    const NotificationFunc& notify_func) {
     ASSERT(he < _pin_count_update_ownership.size());
     sync_update.he = he;
     sync_update.edge_weight = edgeWeight(he);
     sync_update.edge_size = edgeSize(he);
     _pin_count_update_ownership[he].lock();
+    notify_func(sync_update);
     sync_update.pin_count_in_from_part_after = decrementPinCountOfBlock(he, from);
     sync_update.pin_count_in_to_part_after = incrementPinCountOfBlock(he, to);
     sync_update.connectivity_set_after = hasProcessGraph() ? &deepCopyOfConnectivitySet(he) : nullptr;
+    sync_update.pin_counts_after = hasProcessGraph() ? &_con_info.pinCountSnapshot(he) : nullptr;
     _pin_count_update_ownership[he].unlock();
     delta_func(sync_update);
   }
@@ -1147,6 +1167,9 @@ private:
 
   // ! Number of nodes of the top level hypergraph
   HypernodeID _input_num_nodes = 0;
+
+  // ! Number of hyperedges of the top level hypergraph
+  HyperedgeID _input_num_edges = 0;
 
   // ! Number of blocks
   PartitionID _k = 0;

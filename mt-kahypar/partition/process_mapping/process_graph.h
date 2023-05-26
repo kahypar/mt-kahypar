@@ -110,6 +110,53 @@ class ProcessGraph {
   // ! (see computeWeightOfMSTOnMetricCompletion(...))
   HyperedgeWeight distance(const ds::StaticBitset& connectivity_set) const;
 
+  HyperedgeWeight distance(const ds::Bitset& connectivity_set) const {
+    ds::StaticBitset view(connectivity_set.numBlocks(), connectivity_set.data());
+    return distance(view);
+  }
+
+  // ! Computes the optimal steiner tree between the blocks in the connectivity
+  // ! set if we would add an additional block.
+  HyperedgeWeight distanceWithBlock(ds::Bitset& connectivity_set, const PartitionID block) const {
+    ASSERT(block < _k);
+    const bool was_set = connectivity_set.isSet(block);
+    connectivity_set.set(block);
+    ds::StaticBitset view(connectivity_set.numBlocks(), connectivity_set.data());
+    const HyperedgeWeight dist = distance(view);
+    if ( !was_set ) connectivity_set.unset(block);
+    return dist;
+  }
+
+  // ! Computes the optimal steiner tree between the blocks in the connectivity
+  // ! set if we would remove an block.
+  HyperedgeWeight distanceWithoutBlock(ds::Bitset& connectivity_set, const PartitionID block) const {
+    ASSERT(block < _k);
+    const bool was_set = connectivity_set.isSet(block);
+    connectivity_set.unset(block);
+    ds::StaticBitset view(connectivity_set.numBlocks(), connectivity_set.data());
+    const HyperedgeWeight dist = distance(view);
+    if ( was_set ) connectivity_set.set(block);
+    return dist;
+  }
+
+  // ! Computes the optimal steiner tree between the blocks in the connectivity
+  // ! set if we would remove block `removed_block` and block `added_block` to
+  // ! the connectivity set.
+  HyperedgeWeight distanceAfterExchangingBlocks(ds::Bitset& connectivity_set,
+                                                const PartitionID removed_block,
+                                                const PartitionID added_block) const {
+    ASSERT(removed_block < _k && added_block < _k);
+    const bool was_removed_set = connectivity_set.isSet(removed_block);
+    const bool was_added_set = connectivity_set.isSet(added_block);
+    connectivity_set.unset(removed_block);
+    connectivity_set.set(added_block);
+    ds::StaticBitset view(connectivity_set.numBlocks(), connectivity_set.data());
+    const HyperedgeWeight dist = distance(view);
+    if ( was_removed_set ) connectivity_set.set(removed_block);
+    if ( !was_added_set ) connectivity_set.unset(added_block);
+    return dist;
+  }
+
   // ! Returns the shortest path between two blocks in the process graph
   HyperedgeWeight distance(const PartitionID i, const PartitionID j) const {
     ASSERT(_is_initialized);
@@ -128,10 +175,12 @@ class ProcessGraph {
     PartitionID multiplier = 1;
     PartitionID last_block = kInvalidPartition;
     for ( const PartitionID block : connectivity_set ) {
+      ASSERT(block != kInvalidPartition && block < _k);
       index += multiplier * block;
       multiplier *= _k;
       last_block = block;
     }
+    ASSERT(last_block != kInvalidPartition);
     return index + (multiplier == _k ? last_block * _k : 0);
   }
 

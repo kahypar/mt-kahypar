@@ -155,18 +155,12 @@ void compute_greedy_mapping(CommunicationHypergraph& communication_hg,
     // to the process that minimizes the process mapping objective function.
     for ( const HyperedgeID& he : communication_hg.incidentEdges(u) ) {
       ds::Bitset& connectivity_set = communication_hg.deepCopyOfConnectivitySet(he);
-      ds::StaticBitset connectivity_set_view(
-        connectivity_set.numBlocks(), connectivity_set.data());
       const HyperedgeWeight edge_weight = communication_hg.edgeWeight(he);
-      const HyperedgeWeight distance_before = process_graph.distance(connectivity_set_view);
+      const HyperedgeWeight distance_before = process_graph.distance(connectivity_set);
       for ( const PartitionID process : unassigned_processors_view ) {
-        const bool was_already_set = connectivity_set.isSet(process);
-        connectivity_set.set(process);
-        const HyperedgeWeight distance_after = process_graph.distance(connectivity_set_view);
+        const HyperedgeWeight distance_after =
+          process_graph.distanceWithBlock(connectivity_set, process);
         tmp_ratings[process] += (distance_after - distance_before) * edge_weight;
-        if ( !was_already_set ) {
-          connectivity_set.unset(process);
-        }
       }
     }
 

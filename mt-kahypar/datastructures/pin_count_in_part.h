@@ -30,10 +30,12 @@
 
 #include <cmath>
 
+#include "tbb/enumerable_thread_specific.h"
 
 #include "mt-kahypar/macros.h"
 #include "mt-kahypar/datastructures/hypergraph_common.h"
 #include "mt-kahypar/datastructures/array.h"
+#include "mt-kahypar/datastructures/pin_count_snapshot.h"
 
 
 namespace mt_kahypar {
@@ -66,7 +68,8 @@ class PinCountInPart {
     _entries_per_value(0),
     _values_per_hyperedge(0),
     _extraction_mask(0),
-    _pin_count_in_part() { }
+    _pin_count_in_part(),
+    _ets_pin_counts([&] { return initPinCountSnapshot(); }) { }
 
   PinCountInPart(const HyperedgeID num_hyperedges,
                  const PartitionID k,
@@ -79,7 +82,8 @@ class PinCountInPart {
     _entries_per_value(0),
     _values_per_hyperedge(0),
     _extraction_mask(0),
-    _pin_count_in_part() {
+    _pin_count_in_part(),
+    _ets_pin_counts([&] { return initPinCountSnapshot(); }) {
     initialize(num_hyperedges, k, max_value, assign_parallel);
   }
 
@@ -94,7 +98,8 @@ class PinCountInPart {
     _entries_per_value(other._entries_per_value),
     _values_per_hyperedge(other._values_per_hyperedge),
     _extraction_mask(other._extraction_mask),
-    _pin_count_in_part(std::move(other._pin_count_in_part)) { }
+    _pin_count_in_part(std::move(other._pin_count_in_part)),
+    _ets_pin_counts([&] { return initPinCountSnapshot(); }) { }
 
   PinCountInPart & operator= (PinCountInPart&& other) {
     _num_hyperedges = other._num_hyperedges;
@@ -105,6 +110,7 @@ class PinCountInPart {
     _values_per_hyperedge = other._values_per_hyperedge;
     _extraction_mask = other._extraction_mask;
     _pin_count_in_part = std::move(other._pin_count_in_part);
+    _ets_pin_counts = tbb::enumerable_thread_specific<PinCountSnapshot>([&] { return initPinCountSnapshot(); });
     return *this;
   }
 
@@ -129,6 +135,13 @@ class PinCountInPart {
 
   void reset(const bool assign_parallel = true) {
     _pin_count_in_part.assign(_pin_count_in_part.size(), 0, assign_parallel);
+  }
+
+  // ! Returns a snapshot of the connectivity set of hyperedge he
+  inline PinCountSnapshot& snapshot(const HyperedgeID he) {
+    PinCountSnapshot& cpy = _ets_pin_counts.local();
+    cpy.snapshot(_pin_count_in_part.data() + he * _values_per_hyperedge);
+    return cpy;
   }
 
   // ! Returns the pin count of the hyperedge in the corresponding block
@@ -213,6 +226,10 @@ class PinCountInPart {
     value = (value & zero_mask) | value_mask;
   }
 
+  PinCountSnapshot initPinCountSnapshot() const {
+    return PinCountSnapshot(_k, _max_value);
+  }
+
   static size_t num_values_per_hyperedge(const PartitionID k,
                                          const HypernodeID max_value) {
     const size_t entries_per_value = num_entries_per_value(k, max_value);
@@ -240,6 +257,8 @@ class PinCountInPart {
   size_t _values_per_hyperedge;
   Value _extraction_mask;
   Array<Value> _pin_count_in_part;
+  tbb::enumerable_thread_specific<PinCountSnapshot> _ets_pin_counts;
+
 };
 }  // namespace ds
 }  // namespace mt_kahypar

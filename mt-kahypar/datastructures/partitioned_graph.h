@@ -61,9 +61,6 @@ class PartitionedGraph {
 private:
   static_assert(!Hypergraph::is_partitioned,  "Only unpartitioned hypergraphs are allowed");
 
-  // ! Function that will be called for each incident hyperedge of a moved vertex with the following arguments
-  // !  1) hyperedge ID, 2) weight, 3) size, 4) pin count in from-block after move, 5) pin count in to-block after move
-  // ! Can be implemented to obtain correct km1 or cut improvements of the move
   using DeltaFunction = std::function<void (const SyncronizedEdgeUpdate&)>;
   #define NOOP_FUNC [] (const SyncronizedEdgeUpdate&) { }
 
@@ -172,6 +169,7 @@ private:
   explicit PartitionedGraph(const PartitionID k,
                             Hypergraph& hypergraph) :
     _input_num_nodes(hypergraph.initialNumNodes()),
+    _input_num_edges(hypergraph.initialNumEdges()),
     _k(k),
     _hg(&hypergraph),
     _process_graph(nullptr),
@@ -189,6 +187,7 @@ private:
                             Hypergraph& hypergraph,
                             parallel_tag_t) :
     _input_num_nodes(hypergraph.initialNumNodes()),
+    _input_num_edges(hypergraph.initialNumEdges()),
     _k(k),
     _hg(&hypergraph),
     _process_graph(nullptr),
@@ -261,6 +260,11 @@ private:
   // ! Initial number of hyperedges
   HyperedgeID initialNumEdges() const {
     return _hg->initialNumEdges();
+  }
+
+  // ! Number of nodes of the input hypergraph
+  HyperedgeID topLevelNumEdges() const {
+    return _input_num_edges;
   }
 
   // ! Initial number of pins
@@ -984,10 +988,6 @@ private:
           const PartitionID block_of_target_node = synchronizeMoveOnEdge(edge, u, to);
           sync_update.pin_count_in_from_part_after = block_of_target_node == from ? 1 : 0;
           sync_update.pin_count_in_to_part_after = block_of_target_node == to ? 2 : 1;
-          // TODO: this will be replaced later once we have an optimized process mapping
-          // gain computation for graphs
-          sync_update.connectivity_set_after = hasProcessGraph() ?
-            &connectivitySetAfterMove(to, block_of_target_node) : nullptr;
           delta_func(sync_update);
         }
       }
@@ -1050,6 +1050,8 @@ private:
   }
 
   HypernodeID _input_num_nodes = 0;
+
+  HyperedgeID _input_num_edges = 0;
 
   // ! Number of blocks
   PartitionID _k = 0;

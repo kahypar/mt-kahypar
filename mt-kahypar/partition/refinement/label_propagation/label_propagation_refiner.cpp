@@ -144,7 +144,7 @@ namespace mt_kahypar {
     if ( _context.forceGainCacheUpdates() && _gain_cache.isInitialized() ) {
       auto recompute = [&](size_t j) {
         if ( _active_node_was_moved[j] ) {
-          _gain_cache.recomputePenaltyTermEntry(hypergraph, _active_nodes[j]);
+          _gain_cache.recomputeInvalidTerms(hypergraph, _active_nodes[j]);
           _active_node_was_moved[j] = uint8_t(false);
         }
       };

@@ -155,9 +155,18 @@ namespace mt_kahypar {
                                     sizeof(ds::ConnectivitySets::UnsafeBlock));
         }
         if ( context.refinement.fm.algorithm != FMAlgorithm::do_nothing ) {
-          pool.register_memory_chunk("Refinement", "gain_cache",
-                                    static_cast<size_t>(num_hypernodes) * ( context.partition.k + 1 ),
-                                    sizeof(CAtomic<HyperedgeWeight>));
+          if ( context.partition.objective == Objective::process_mapping && !context.process_mapping.optimize_km1_metric ) {
+            pool.register_memory_chunk("Refinement", "gain_cache",
+                          static_cast<size_t>(num_hypernodes) * ( context.partition.k ),
+                          sizeof(CAtomic<HyperedgeWeight>));
+            pool.register_memory_chunk("Refinement", "num_incident_edges_of_block",
+                                      static_cast<size_t>(num_hypernodes) * context.partition.k,
+                                      sizeof(CAtomic<HyperedgeID>));
+          } else {
+            pool.register_memory_chunk("Refinement", "gain_cache",
+                                      static_cast<size_t>(num_hypernodes) * ( context.partition.k + 1 ),
+                                      sizeof(CAtomic<HyperedgeWeight>));
+          }
         }
         pool.register_memory_chunk("Refinement", "pin_count_update_ownership",
                                    num_hyperedges, sizeof(SpinLock));
