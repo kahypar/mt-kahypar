@@ -60,7 +60,7 @@ class AGainCache : public Test {
   using GainCache = typename GainTypes::GainCache;
   using DeltaGainCache = typename GainTypes::DeltaGainCache;
   using DeltaPartitionedHypergraph =
-    typename PartitionedHypergraph::DeltaPartition<DeltaGainCache::requires_connectivity_set>;
+    typename PartitionedHypergraph::template DeltaPartition<DeltaGainCache::requires_connectivity_set>;
   using AttributedGains = typename GainTypes::AttributedGains;
 
  public:

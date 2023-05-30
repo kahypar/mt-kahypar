@@ -48,7 +48,7 @@ class LocalizedKWayFM {
   using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
   using GainCache = typename GainTypes::GainCache;
   using DeltaGainCache = typename GainTypes::DeltaGainCache;
-  using DeltaPartitionedHypergraph = typename PartitionedHypergraph::DeltaPartition<DeltaGainCache::requires_connectivity_set>;
+  using DeltaPartitionedHypergraph = typename PartitionedHypergraph::template DeltaPartition<DeltaGainCache::requires_connectivity_set>;
   using AttributedGains = typename GainTypes::AttributedGains;
 
 public:
