@@ -49,7 +49,7 @@ namespace ds {
  * See delte_partitioned_hypergraph.h for more details.
  */
 template <typename PartitionedGraph = Mandatory,
-          bool maintain_connectivity_set>
+          bool maintain_connectivity_set = false>
 class DeltaPartitionedGraph {
  private:
   static constexpr size_t MAP_SIZE_LARGE = 16384;

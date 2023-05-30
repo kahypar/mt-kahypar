@@ -58,7 +58,7 @@ namespace ds {
  * current search state from other searches in a space efficient manner.
  */
 template <typename PartitionedHypergraph = Mandatory,
-          bool maintain_connectivity_set>
+          bool maintain_connectivity_set = false>
 class DeltaPartitionedHypergraph {
  private:
   static constexpr size_t MAP_SIZE_LARGE = 16384;
