@@ -54,6 +54,8 @@ class SoedRollback {
   using Km1RecalculationData = typename Km1Rollback::RecalculationData;
 
  public:
+  static constexpr bool supports_parallel_rollback = true;
+
   /**
    * This class stores for a hyperedge and block the correponding data required to
    * recompute the gain values. Since the soed metric can be expressed as connectivity

@@ -73,7 +73,7 @@ public:
       }
     }
 
-    if (context.refinement.fm.rollback_parallel) {
+    if (context.refinement.fm.rollback_parallel && Rollback::supports_parallel_rollback) {
       return revertToBestPrefixParallel(phg, sharedData, partWeights, maxPartWeights);
     } else {
       return revertToBestPrefixSequential(phg, sharedData, partWeights, maxPartWeights);

@@ -49,6 +49,8 @@ namespace mt_kahypar {
 class Km1Rollback {
 
  public:
+  static constexpr bool supports_parallel_rollback = true;
+
   /**
    * This class stores for a hyperedge and block the correponding data required to
    * recompute the gain values. It stores the move index of the pin that first moved into

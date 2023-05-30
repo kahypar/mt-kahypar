@@ -304,9 +304,8 @@ namespace mt_kahypar {
     // roll forward sequentially
     Gain best_gain = 0, gain_sum = 0;
     MoveID best_index = 0;
-    auto delta_gain_update = [&](const SyncronizedEdgeUpdate& sync_update) {
+    auto attributed_gains = [&](const SyncronizedEdgeUpdate& sync_update) {
       gain_sum -= AttributedGains::gain(sync_update);
-      gain_cache.deltaGainUpdate(phg, sync_update);
     };
     for (MoveID localMoveID = 0; localMoveID < numMoves; ++localMoveID) {
       const Move& m = move_order[localMoveID];
@@ -314,7 +313,8 @@ namespace mt_kahypar {
 
       const bool from_overloaded = phg.partWeight(m.from) > maxPartWeights[m.from];
       const bool to_overloaded = phg.partWeight(m.to) > maxPartWeights[m.to];
-      phg.changeNodePart(m.node, m.from, m.to, delta_gain_update);
+      phg.changeNodePart(gain_cache, m.node, m.from, m.to,
+        std::numeric_limits<HypernodeWeight>::max(), []{ }, attributed_gains);
       if (from_overloaded && phg.partWeight(m.from) <= maxPartWeights[m.from]) {
         overloaded--;
       }
@@ -381,9 +381,8 @@ namespace mt_kahypar {
         continue;
 
       Gain gain = 0;
-      auto delta_gain_update = [&](const SyncronizedEdgeUpdate& sync_update) {
+      auto attributed_gains = [&](const SyncronizedEdgeUpdate& sync_update) {
         gain -= AttributedGains::gain(sync_update);
-        gain_cache.deltaGainUpdate(phg, sync_update);
       };
 
       ASSERT(gain_cache.penaltyTerm(m.node, phg.partID(m.node)) == gain_cache.recomputePenaltyTerm(phg, m.node));
@@ -393,7 +392,8 @@ namespace mt_kahypar {
 
       // const HyperedgeWeight objective_before_move =
       //   metrics::quality(phg, context, false);
-      phg.changeNodePart(m.node, m.from, m.to, delta_gain_update);
+      phg.changeNodePart(gain_cache, m.node, m.from, m.to,
+        std::numeric_limits<HypernodeWeight>::max(), []{ }, attributed_gains);
       // const HyperedgeWeight objective_after_move =
       //   metrics::quality(phg, context, false);
 

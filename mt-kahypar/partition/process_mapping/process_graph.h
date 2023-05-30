@@ -180,8 +180,8 @@ class ProcessGraph {
       multiplier *= _k;
       last_block = block;
     }
-    ASSERT(last_block != kInvalidPartition);
-    return index + (multiplier == _k ? last_block * _k : 0);
+    return last_block != kInvalidPartition ? index +
+      (multiplier == _k ? last_block * _k : 0) : 0;
   }
 
   // ! This function computes an MST on the metric completion of the process graph

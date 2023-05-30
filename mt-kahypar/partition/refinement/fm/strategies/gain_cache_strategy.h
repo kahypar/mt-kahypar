@@ -216,7 +216,7 @@ private:
     PartitionID to = kInvalidPartition;
     HyperedgeWeight to_benefit = std::numeric_limits<HyperedgeWeight>::min();
     HypernodeWeight best_to_weight = from_weight - wu;
-    for (PartitionID i = 0; i < context.partition.k; ++i) {
+    for ( const PartitionID& i : gain_cache.adjacentBlocks(u) ) {
       if (i != from) {
         const HypernodeWeight to_weight = phg.partWeight(i);
         const HyperedgeWeight penalty = gain_cache.benefitTerm(u, i);

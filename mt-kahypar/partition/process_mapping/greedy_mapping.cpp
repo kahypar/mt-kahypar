@@ -156,7 +156,8 @@ void compute_greedy_mapping(CommunicationHypergraph& communication_hg,
     for ( const HyperedgeID& he : communication_hg.incidentEdges(u) ) {
       ds::Bitset& connectivity_set = communication_hg.deepCopyOfConnectivitySet(he);
       const HyperedgeWeight edge_weight = communication_hg.edgeWeight(he);
-      const HyperedgeWeight distance_before = process_graph.distance(connectivity_set);
+      const HyperedgeWeight distance_before = communication_hg.connectivity(he) > 0 ?
+        process_graph.distance(connectivity_set) : 0;
       for ( const PartitionID process : unassigned_processors_view ) {
         const HyperedgeWeight distance_after =
           process_graph.distanceWithBlock(connectivity_set, process);

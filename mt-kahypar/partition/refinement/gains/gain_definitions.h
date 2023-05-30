@@ -50,6 +50,7 @@
 #include "mt-kahypar/partition/refinement/gains/process_mapping/process_mapping_attributed_gains.h"
 #include "mt-kahypar/partition/refinement/gains/process_mapping/process_mapping_gain_computation.h"
 #include "mt-kahypar/partition/refinement/gains/process_mapping/process_mapping_gain_cache.h"
+#include "mt-kahypar/partition/refinement/gains/process_mapping/process_mapping_rollback.h"
 #include "mt-kahypar/partition/refinement/gains/cut_for_graphs/cut_gain_cache_for_graphs.h"
 #include "mt-kahypar/partition/refinement/gains/cut_for_graphs/cut_attributed_gains_for_graphs.h"
 #include "mt-kahypar/macros.h"
@@ -88,7 +89,7 @@ struct ProcessMappingGainTypes : public kahypar::meta::PolicyBase {
   using AttributedGains = ProcessMappingAttributedGains;
   using GainCache = ProcessMappingGainCache;
   using DeltaGainCache = DeltaProcessMappingGainCache;
-  using Rollback = Km1Rollback;
+  using Rollback = ProcessMappingRollback;
   using FlowNetworkConstruction = Km1FlowNetworkConstruction;
 };
 

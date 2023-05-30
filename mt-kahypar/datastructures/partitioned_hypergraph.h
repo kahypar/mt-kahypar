@@ -793,7 +793,7 @@ private:
           success = false;
         }
 
-        for (PartitionID i = 0; i < k(); ++i) {
+        for (const PartitionID& i : gain_cache.adjacentBlocks(u)) {
           if (partID(u) != i) {
             if ( gain_cache.benefitTerm(u, i) !=
                  gain_cache.recomputeBenefitTerm(*this, u, i) ) {
