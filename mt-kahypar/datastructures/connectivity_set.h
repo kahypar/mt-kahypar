@@ -48,7 +48,6 @@
 namespace mt_kahypar {
 namespace ds {
 
-
 /**
  *      The connectivity set of a hyperedge is the set of parts of the partition, that it has pins in.
  *      For each hyperedge we maintain its connectivity set in a packed format (std::vector<uint64_t>)

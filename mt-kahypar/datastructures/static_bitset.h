@@ -148,6 +148,10 @@ class StaticBitset {
     return const_iterator(_num_blocks, _bitset, _num_blocks * BITS_PER_BLOCK);
   }
 
+  const Block* data() const {
+    return _bitset;
+  }
+
   bool isSet(const size_t pos) const {
     ASSERT(pos < _num_blocks * BITS_PER_BLOCK);
     const size_t block_idx = pos / BITS_PER_BLOCK;

@@ -72,9 +72,7 @@ class Bitset {
   }
 
   void reset() {
-    for ( size_t i = 0; i < _bitset.size(); ++i ) {
-      _bitset[i] = 0;
-    }
+    memset(_bitset.data(), 0, sizeof(Block) * _bitset.size());
   }
 
   void resize(const size_t size) {
@@ -85,9 +83,7 @@ class Bitset {
   void copy(const size_t num_blocks, const Block* blocks) {
     _size = num_blocks * BITS_PER_BLOCK;
     _bitset.resize(num_blocks);
-    for ( size_t i = 0; i < num_blocks; ++i ) {
-      _bitset[i] = *(blocks + i);
-    }
+    std::memcpy(_bitset.data(), blocks, sizeof(Block) * num_blocks);
   }
 
   bool isSet(const size_t pos) {
