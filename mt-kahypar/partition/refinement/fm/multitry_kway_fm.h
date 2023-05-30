@@ -33,11 +33,13 @@
 #include "mt-kahypar/partition/refinement/i_refiner.h"
 #include "mt-kahypar/partition/refinement/fm/localized_kway_fm_core.h"
 #include "mt-kahypar/partition/refinement/fm/global_rollback.h"
+#include "mt-kahypar/partition/refinement/fm/strategies/gain_cache_strategy.h"
+#include "mt-kahypar/partition/refinement/fm/strategies/unconstrained_strategy.h"
 #include "mt-kahypar/partition/refinement/gains/gain_cache_ptr.h"
 
 namespace mt_kahypar {
 
-template<typename TypeTraits, typename GainTypes>
+template<typename TypeTraits, typename GainTypes, typename FMStrategy>
 class MultiTryKWayFM final : public IRefiner {
 
   static constexpr bool debug = false;
@@ -45,7 +47,7 @@ class MultiTryKWayFM final : public IRefiner {
 
   using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
   using GainCache = typename GainTypes::GainCache;
-  using LocalizedFMSearch = LocalizedKWayFM<TypeTraits, GainTypes>;
+  using LocalizedFMSearch = LocalizedKWayFM<TypeTraits, GainTypes, FMStrategy>;
   using Rollback = GlobalRollback<TypeTraits, GainTypes>;
 
   static_assert(GainCache::TYPE != GainPolicy::none);
@@ -112,5 +114,10 @@ class MultiTryKWayFM final : public IRefiner {
   Rollback globalRollback;
   tbb::enumerable_thread_specific<LocalizedFMSearch> ets_fm;
 };
+
+template<typename TypeTraits, typename GainCache>
+using MultiTryKWayFMDefault = MultiTryKWayFM<TypeTraits, GainCache, GainCacheStrategy>;
+template<typename TypeTraits, typename GainCache>
+using MultiTryKWayFMUnconstrained = MultiTryKWayFM<TypeTraits, GainCache, UnconstrainedStrategy>;
 
 } // namespace mt_kahypar

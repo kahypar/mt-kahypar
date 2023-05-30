@@ -1,4 +1,5 @@
 set(RefinementSources
+        fm/fm_commons.cpp
         fm/multitry_kway_fm.cpp
         fm/localized_kway_fm_core.cpp
         fm/global_rollback.cpp

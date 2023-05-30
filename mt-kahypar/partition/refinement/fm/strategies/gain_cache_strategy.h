@@ -53,6 +53,7 @@ public:
 
   static constexpr bool uses_gain_cache = true;
   static constexpr bool maintain_gain_cache_between_rounds = true;
+  static constexpr bool uses_unconstrained_data = false;
 
   GainCacheStrategy(const Context& context,
                     FMSharedData& sharedData,

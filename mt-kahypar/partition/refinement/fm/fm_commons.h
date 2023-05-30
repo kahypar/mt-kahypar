@@ -26,12 +26,16 @@
 
 #pragma once
 
+#include <limits>
+
+#include <mt-kahypar/datastructures/concurrent_bucket_map.h>
 #include <mt-kahypar/datastructures/priority_queue.h>
 #include <mt-kahypar/partition/context.h>
 #include <mt-kahypar/parallel/work_stack.h>
 
 #include "external_tools/kahypar/kahypar/datastructure/fast_reset_flag_array.h"
 
+#include <tbb/enumerable_thread_specific.h>
 #include <tbb/parallel_for.h>
 
 namespace mt_kahypar {
@@ -142,6 +146,85 @@ struct NodeTracker {
 };
 
 
+// Contains data required for unconstrained FM: We group non-border nodes in buckets based on their
+// incident weight to node weight ratio. This allows to give a (pessimistic) estimate of the effective
+// gain for moves that violate the balance constraint
+struct UnconstrainedFMData {
+  using BucketMap = ds::ConcurrentBucketMap<HypernodeID>;
+  using AtomicWeight = parallel::IntegralAtomicWrapper<HypernodeWeight>;
+
+  // TODO(maas): in weighted graphs the constant number of buckets might be problematic
+  static constexpr size_t NUM_BUCKETS = 16;
+  static constexpr size_t BUCKET_FACTOR = 32;
+
+  bool initialized = false;
+  parallel::scalable_vector<BucketMap> buckets;
+  parallel::scalable_vector<HypernodeWeight> bucket_weights;
+  parallel::scalable_vector<AtomicWeight> consumed_bucket_weights;
+  tbb::enumerable_thread_specific<parallel::scalable_vector<HypernodeWeight>> local_bucket_weights;
+  kahypar::ds::FastResetFlagArray<> rebalancing_nodes;
+
+  explicit UnconstrainedFMData(size_t numNodes):
+    initialized(false),
+    buckets(),
+    bucket_weights(),
+    consumed_bucket_weights(),
+    local_bucket_weights(),
+    rebalancing_nodes(numNodes) { }
+
+  explicit UnconstrainedFMData():
+    UnconstrainedFMData(0) { }
+
+  template<typename PartitionedHypergraphT>
+  void initialize(const Context& context, const PartitionedHypergraphT& phg);
+
+  Gain estimatedPenaltyForImbalancedMove(PartitionID to, HypernodeWeight weight) const;
+
+  Gain applyEstimatedPenaltyForImbalancedMove(PartitionID to, HypernodeWeight weight);
+
+  void revertImbalancedMove(PartitionID to, HypernodeWeight weight);
+
+  bool isRebalancingNode(HypernodeID hn) const {
+    ASSERT(bucket_weights.size() > 0);
+    return rebalancing_nodes[hn];
+  }
+
+  void changeNumberOfBlocks(PartitionID /*current_k*/) {
+    initialized = false;
+  }
+
+ private:
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE size_t indexForBucket(PartitionID block, size_t bucketId) const {
+    ASSERT(bucketId < NUM_BUCKETS && block * NUM_BUCKETS + bucketId < bucket_weights.size());
+    return block * NUM_BUCKETS + bucketId;
+  }
+
+  // upper bound of gain values in bucket
+  double gainPerWeightForBucket(size_t bucketId) const {
+    ASSERT(bucketId < NUM_BUCKETS);
+    if (bucketId > 1) {
+      return std::pow(1.5, bucketId - 2);
+    } else if (bucketId == 1) {
+      return 0.5;
+    } else {
+      return 0;
+    }
+  }
+
+  size_t bucketForGainPerWeight(double gainPerWeight) const {
+    if (gainPerWeight >= 1) {
+      return 2 + std::ceil(std::log(gainPerWeight) / std::log(1.5));
+    } else if (gainPerWeight > 0.5) {
+      return 2;
+    } else if (gainPerWeight > 0) {
+      return 1;
+    } else {
+      return 0;
+    }
+  }
+};
+
+
 struct FMSharedData {
   // ! Number of Nodes
   size_t numberOfNodes;
@@ -161,6 +244,9 @@ struct FMSharedData {
   // ! Stores the designated target part of a vertex, i.e. the part with the highest gain to which moving is feasible
   vec<PartitionID> targetPart;
 
+  // ! Additional data for unconstrained FM algorithm
+  UnconstrainedFMData unconstrained;
+
   // ! Stop parallel refinement if finishedTasks > finishedTasksLimit to avoid long-running single searches
   CAtomic<size_t> finishedTasks;
   size_t finishedTasksLimit = std::numeric_limits<size_t>::max();
@@ -178,7 +264,8 @@ struct FMSharedData {
     vertexPQHandles(), //numPQHandles, invalid_position),
     moveTracker(), //numNodes),
     nodeTracker(), //numNodes),
-    targetPart() {
+    targetPart(),
+    unconstrained() {
     finishedTasks.store(0, std::memory_order_relaxed);
 
     // 128 * 3/2 GB --> roughly 1.5 GB per thread on our biggest machine
@@ -196,6 +283,8 @@ struct FMSharedData {
       refinementNodes.tls_queues.resize(numThreads);
     }, [&] {
       targetPart.resize(numNodes, kInvalidPartition);
+    }, [&] {
+      unconstrained.rebalancing_nodes.setSize(numNodes);
     });
   }
 
@@ -220,6 +309,7 @@ struct FMSharedData {
     utils::MemoryTreeNode* node_tracker_node = shared_fm_data_node->addChild("Node Tracker");
     node_tracker_node->updateSize(nodeTracker.searchOfNode.capacity() * sizeof(SearchID));
     refinementNodes.memoryConsumption(shared_fm_data_node);
+    // TODO(maas): unconstrained FM data
   }
 };
 

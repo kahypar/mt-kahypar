@@ -236,6 +236,7 @@ namespace mt_kahypar {
   std::ostream & operator<< (std::ostream& os, const FMAlgorithm& algo) {
     switch (algo) {
       case FMAlgorithm::kway_fm: return os << "kway_fm";
+      case FMAlgorithm::unconstrained: return os << "unconstrained";
       case FMAlgorithm::do_nothing: return os << "fm_do_nothing";
         // omit default case to trigger compiler warning for missing cases
     }
@@ -447,6 +448,8 @@ std::ostream & operator<< (std::ostream& os, const RebalancingAlgorithm& algo) {
   FMAlgorithm fmAlgorithmFromString(const std::string& type) {
     if (type == "kway_fm") {
       return FMAlgorithm::kway_fm;
+    } else if (type == "unconstrained") {
+      return FMAlgorithm::unconstrained;
     } else if (type == "do_nothing") {
       return FMAlgorithm::do_nothing;
     }

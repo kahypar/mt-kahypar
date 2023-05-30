@@ -39,7 +39,7 @@
 namespace mt_kahypar {
 
 
-template<typename TypeTraits, typename GainTypes>
+template<typename TypeTraits, typename GainTypes, typename FMStrategy>
 class LocalizedKWayFM {
 
   static constexpr size_t MAP_SIZE_LARGE = 16384;
@@ -127,7 +127,7 @@ private:
 
   FMStats runStats;
 
-  GainCacheStrategy fm_strategy;
+  FMStrategy fm_strategy;
 
   GainCache& gain_cache;
 

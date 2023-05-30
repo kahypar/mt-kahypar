@@ -29,11 +29,13 @@
 
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/refinement/gains/gain_definitions.h"
+#include "mt-kahypar/partition/refinement/fm/strategies/gain_cache_strategy.h"
+#include "mt-kahypar/partition/refinement/fm/strategies/unconstrained_strategy.h"
 
 namespace mt_kahypar {
 
-  template<typename TypeTraits, typename GainTypes>
-  bool LocalizedKWayFM<TypeTraits, GainTypes>::findMoves(PartitionedHypergraph& phg,
+  template<typename TypeTraits, typename GainTypes, typename FMStrategy>
+  bool LocalizedKWayFM<TypeTraits, GainTypes, FMStrategy>::findMoves(PartitionedHypergraph& phg,
                                                          size_t taskID,
                                                          size_t numSeeds) {
     localMoves.clear();
@@ -83,10 +85,10 @@ namespace mt_kahypar {
     return std::make_pair(p, w);
   }
 
-  template<typename TypeTraits, typename GainTypes>
+  template<typename TypeTraits, typename GainTypes, typename FMStrategy>
   template<typename PHG, typename CACHE>
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
-  void LocalizedKWayFM<TypeTraits, GainTypes>::acquireOrUpdateNeighbors(PHG& phg, CACHE& gain_cache, const Move& move) {
+  void LocalizedKWayFM<TypeTraits, GainTypes, FMStrategy>::acquireOrUpdateNeighbors(PHG& phg, CACHE& gain_cache, const Move& move) {
     // Note: In theory we should acquire/update all neighbors. It just turned out that this works fine
     // Actually: only vertices incident to edges with gain changes can become new boundary vertices.
     // Vertices that already were boundary vertices, can still be considered later since they are in the task queue
@@ -114,9 +116,9 @@ namespace mt_kahypar {
   }
 
 
-  template<typename TypeTraits, typename GainTypes>
+  template<typename TypeTraits, typename GainTypes, typename FMStrategy>
   template<bool use_delta>
-  void LocalizedKWayFM<TypeTraits, GainTypes>::internalFindMoves(PartitionedHypergraph& phg) {
+  void LocalizedKWayFM<TypeTraits, GainTypes, FMStrategy>::internalFindMoves(PartitionedHypergraph& phg) {
     StopRule stopRule(phg.initialNumNodes());
     Move move;
 
@@ -255,8 +257,8 @@ namespace mt_kahypar {
   }
 
 
-  template<typename TypeTraits, typename GainTypes>
-  std::pair<Gain, size_t> LocalizedKWayFM<TypeTraits, GainTypes>::applyBestLocalPrefixToSharedPartition(
+  template<typename TypeTraits, typename GainTypes, typename FMStrategy>
+  std::pair<Gain, size_t> LocalizedKWayFM<TypeTraits, GainTypes, FMStrategy>::applyBestLocalPrefixToSharedPartition(
           PartitionedHypergraph& phg,
           const size_t best_index_locally_observed,
           const Gain best_improvement_locally_observed,
@@ -347,8 +349,8 @@ namespace mt_kahypar {
     }
   }
 
-  template<typename TypeTraits, typename GainTypes>
-  void LocalizedKWayFM<TypeTraits, GainTypes>::revertToBestLocalPrefix(PartitionedHypergraph& phg,
+  template<typename TypeTraits, typename GainTypes, typename FMStrategy>
+  void LocalizedKWayFM<TypeTraits, GainTypes, FMStrategy>::revertToBestLocalPrefix(PartitionedHypergraph& phg,
                                                                        size_t bestGainIndex) {
     runStats.local_reverts += localMoves.size() - bestGainIndex;
     while (localMoves.size() > bestGainIndex) {
@@ -359,14 +361,14 @@ namespace mt_kahypar {
     }
   }
 
-  template<typename TypeTraits, typename GainTypes>
-  void LocalizedKWayFM<TypeTraits, GainTypes>::changeNumberOfBlocks(const PartitionID new_k) {
+  template<typename TypeTraits, typename GainTypes, typename FMStrategy>
+  void LocalizedKWayFM<TypeTraits, GainTypes, FMStrategy>::changeNumberOfBlocks(const PartitionID new_k) {
     deltaPhg.changeNumberOfBlocks(new_k);
     fm_strategy.changeNumberOfBlocks(new_k);
   }
 
-  template<typename TypeTraits, typename GainTypes>
-  void LocalizedKWayFM<TypeTraits, GainTypes>::memoryConsumption(utils::MemoryTreeNode *parent) const {
+  template<typename TypeTraits, typename GainTypes, typename FMStrategy>
+  void LocalizedKWayFM<TypeTraits, GainTypes, FMStrategy>::memoryConsumption(utils::MemoryTreeNode *parent) const {
     ASSERT(parent);
 
     utils::MemoryTreeNode *localized_fm_node = parent->addChild("Localized k-Way FM");
@@ -385,9 +387,11 @@ namespace mt_kahypar {
   }
 
   namespace {
-  #define LOCALIZED_KWAY_FM(X, Y) LocalizedKWayFM<X, Y>
+  #define LOCALIZED_KWAY_FM_DEFAULT_STRATEGY(X, Y) LocalizedKWayFM<X, Y, GainCacheStrategy>
+  #define LOCALIZED_KWAY_FM_UNCONSTRAINED_STRATEGY(X, Y) LocalizedKWayFM<X, Y, UnconstrainedStrategy>
   }
 
-  INSTANTIATE_CLASS_WITH_TYPE_TRAITS_AND_GAIN_TYPES(LOCALIZED_KWAY_FM)
+  INSTANTIATE_CLASS_WITH_TYPE_TRAITS_AND_GAIN_TYPES(LOCALIZED_KWAY_FM_DEFAULT_STRATEGY)
+  INSTANTIATE_CLASS_WITH_TYPE_TRAITS_AND_GAIN_TYPES(LOCALIZED_KWAY_FM_UNCONSTRAINED_STRATEGY)
 
 }   // namespace mt_kahypar
