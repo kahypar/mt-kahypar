@@ -53,7 +53,8 @@ class ProcessGraph;
 namespace ds {
 
 // Forward
-template <typename PartitionedGraph>
+template <typename PartitionedGraph,
+          bool maintain_connectivity_set>
 class DeltaPartitionedGraph;
 
 template <typename Hypergraph = Mandatory>
@@ -161,7 +162,8 @@ private:
   using HyperedgeIterator = typename Hypergraph::HyperedgeIterator;
   using IncidenceIterator = typename Hypergraph::IncidenceIterator;
   using IncidentNetsIterator = typename Hypergraph::IncidentNetsIterator;
-  using DeltaPartition = DeltaPartitionedGraph<PartitionedGraph<Hypergraph>>;
+  template<bool maintain_connectivity_set>
+  using DeltaPartition = DeltaPartitionedGraph<PartitionedGraph<Hypergraph>, maintain_connectivity_set>;
   using ExtractedBlock = ExtractedHypergraph<Hypergraph>;
 
   PartitionedGraph() = default;

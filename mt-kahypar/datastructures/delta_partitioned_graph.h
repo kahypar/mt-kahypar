@@ -35,6 +35,8 @@
 
 #include "mt-kahypar/datastructures/hypergraph_common.h"
 #include "mt-kahypar/datastructures/sparse_map.h"
+#include "mt-kahypar/datastructures/delta_connectivity_set.h"
+#include "mt-kahypar/datastructures/connectivity_set.h"
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
 #include "mt-kahypar/partition/context.h"
 
@@ -46,7 +48,8 @@ namespace ds {
  * This is a variant of DeltaPartitionedHypergraph specialized for graphs.
  * See delte_partitioned_hypergraph.h for more details.
  */
-template <typename PartitionedGraph = Mandatory>
+template <typename PartitionedGraph = Mandatory,
+          bool maintain_connectivity_set>
 class DeltaPartitionedGraph {
  private:
   static constexpr size_t MAP_SIZE_LARGE = 16384;
@@ -57,6 +60,8 @@ class DeltaPartitionedGraph {
   using HyperedgeIterator = typename PartitionedGraph::HyperedgeIterator;
   using IncidenceIterator = typename PartitionedGraph::IncidenceIterator;
   using IncidentNetsIterator = typename PartitionedGraph::IncidentNetsIterator;
+  using DummyConnectivitySet = DeltaConnectivitySet<ConnectivitySets>;
+  using ConnectivitySetIterator = typename DummyConnectivitySet::Iterator;
 
  public:
   static constexpr bool supports_connectivity_set = false;
@@ -66,7 +71,8 @@ class DeltaPartitionedGraph {
     _k(context.partition.k),
     _pg(nullptr),
     _part_weights_delta(context.partition.k, 0),
-    _part_ids_delta() {
+    _part_ids_delta(),
+    _dummy_connectivity_set() {
       const bool top_level = context.type == ContextType::main;
       _part_ids_delta.initialize(MAP_SIZE_SMALL);
     }
@@ -81,6 +87,18 @@ class DeltaPartitionedGraph {
 
   void setPartitionedHypergraph(PartitionedGraph* pg) {
     _pg = pg;
+  }
+
+  // ####################### Process Mapping ######################
+
+  bool hasProcessGraph() const {
+    ASSERT(_pg);
+    return _pg->hasProcessGraph();
+  }
+
+  const ProcessGraph* processGraph() const {
+    ASSERT(_pg);
+    return _pg->processGraph();
   }
 
   // ####################### Iterators #######################
@@ -131,6 +149,12 @@ class DeltaPartitionedGraph {
   // ! Source of an edge
   HypernodeID edgeSource(const HyperedgeID e) const {
     return _pg->edgeSource(e);
+  }
+
+  // ! Whether the edge is a single pin edge
+  bool isSinglePin(const HyperedgeID e) const {
+    ASSERT(_pg);
+    return _pg->isSinglePin(e);
   }
 
   // ! Number of pins of an edge
@@ -234,6 +258,24 @@ class DeltaPartitionedGraph {
     return count;
   }
 
+  // ! Returns an iterator over the connectivity set of hyperedge he (not supported)
+  IteratorRange<ConnectivitySetIterator> connectivitySet(const HyperedgeID e) const {
+    ERR("Not supported for graphs");
+    return _dummy_connectivity_set.connectivitySet(e);
+  }
+
+  // ! Returns the number of blocks contained in hyperedge he (not supported)
+  PartitionID connectivity(const HyperedgeID e) const {
+    ERR("Not supported for graphs");
+    return _dummy_connectivity_set.connectivity(e);
+  }
+
+  // ! Creates a deep copy of the connectivity set of hyperedge he (not supported)
+  Bitset& deepCopyOfConnectivitySet(const HyperedgeID he) const {
+    ERR("Not supported for graphs");
+    return _dummy_connectivity_set.deepCopy(he);
+  }
+
   // ! Clears all deltas applied to the partitioned hypergraph
   void clear() {
     // O(k)
@@ -288,6 +330,11 @@ class DeltaPartitionedGraph {
 
   // ! Stores for each locally moved node its new block id
   DynamicFlatMap<HypernodeID, PartitionID> _part_ids_delta;
+
+  // ! Maintain the connectivity set is not supported in the delta partitioned graph.
+  // ! We therefore add here a dummy delta connectivity set to implement the same interface
+  // ! as the delta partitioned hypergraph
+  DummyConnectivitySet _dummy_connectivity_set;
 };
 
 } // namespace ds

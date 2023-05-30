@@ -52,7 +52,7 @@ class ProcessGraph;
 namespace ds {
 
 // Forward
-template<typename PartitionedHypergraph>
+template<typename PartitionedHypergraph, bool maintain_connectivity_set>
 class DeltaPartitionedHypergraph;
 
 template <typename Hypergraph = Mandatory,
@@ -85,14 +85,16 @@ private:
 
   static constexpr HyperedgeID HIGH_DEGREE_THRESHOLD = ID(100000);
 
+  using Self = PartitionedHypergraph<Hypergraph, ConnectivityInformation>;
   using UnderlyingHypergraph = Hypergraph;
   using HypernodeIterator = typename Hypergraph::HypernodeIterator;
   using HyperedgeIterator = typename Hypergraph::HyperedgeIterator;
   using IncidenceIterator = typename Hypergraph::IncidenceIterator;
   using IncidentNetsIterator = typename Hypergraph::IncidentNetsIterator;
+  using ConInfo = ConnectivityInformation;
   using ConnectivitySetIterator = typename ConnectivityInformation::Iterator;
-  using DeltaPartition = DeltaPartitionedHypergraph<
-    PartitionedHypergraph<Hypergraph, ConnectivityInformation>>;
+  template<bool maintain_connectivity_set>
+  using DeltaPartition = DeltaPartitionedHypergraph<Self, maintain_connectivity_set>;
   using ExtractedBlock = ExtractedHypergraph<Hypergraph>;
 
   PartitionedHypergraph() = default;
@@ -691,6 +693,10 @@ private:
     return _con_info.deepCopy(he);
   }
 
+  const ConInfo& getConnectivityInformation() const {
+    return _con_info;
+  }
+
   // ! Initializes the partition of the hypergraph, if block ids are assigned with
   // ! setOnlyNodePart(...). In that case, block weights and pin counts in part for
   // ! each hyperedge must be initialized explicitly here.
@@ -1065,7 +1071,6 @@ private:
   }
 
  private:
-
   void applyPartWeightUpdates(vec<HypernodeWeight>& part_weight_deltas) {
     for (PartitionID p = 0; p < _k; ++p) {
       _part_weights[p].fetch_add(part_weight_deltas[p], std::memory_order_relaxed);

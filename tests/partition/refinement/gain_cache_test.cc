@@ -58,6 +58,9 @@ class AGainCache : public Test {
   using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
   using GainTypes = typename Config::GainTypes;
   using GainCache = typename GainTypes::GainCache;
+  using DeltaGainCache = typename GainTypes::DeltaGainCache;
+  using DeltaPartitionedHypergraph =
+    typename PartitionedHypergraph::DeltaPartition<DeltaGainCache::requires_connectivity_set>;
   using AttributedGains = typename GainTypes::AttributedGains;
 
  public:
@@ -66,11 +69,17 @@ class AGainCache : public Test {
   static constexpr size_t max_batch_size = 25;
 
   AGainCache() :
+    context(),
     hypergraph(),
     partitioned_hg(),
+    delta_phg(nullptr),
     process_graph(nullptr),
     gain_cache(),
+    delta_gain_cache(nullptr),
     was_moved() {
+
+    context.partition.k = k;
+    context.type = ContextType::main;
 
     if constexpr ( Hypergraph::is_graph ) {
       hypergraph = io::readInputFile<Hypergraph>(
@@ -80,6 +89,9 @@ class AGainCache : public Test {
         "../tests/instances/contracted_unweighted_ibm01.hgr", FileFormat::hMetis, true);
     }
     partitioned_hg = PartitionedHypergraph(k, hypergraph, parallel_tag_t { });
+    delta_phg = std::make_unique<DeltaPartitionedHypergraph>(context);
+    delta_phg->setPartitionedHypergraph(&partitioned_hg);
+    delta_gain_cache = std::make_unique<DeltaGainCache>(gain_cache);
 
     if ( GainCache::TYPE == GainPolicy::process_mapping ) {
       /**
@@ -139,6 +151,25 @@ class AGainCache : public Test {
         gain_cache.recomputeInvalidTerms(partitioned_hg, hn);
       }
     });
+  }
+
+  void moveAllNodesAtRandomOnDeltaPartition() {
+    auto update_delta_gain_cache = [&](const SyncronizedEdgeUpdate& sync_update) {
+      delta_gain_cache->deltaGainUpdate(*delta_phg, sync_update);
+    };
+
+    utils::Randomize& rand = utils::Randomize::instance();
+    was_moved.reset();
+    for ( const HypernodeID hn : delta_phg->nodes() ) {
+      if ( rand.flipCoin(SCHED_GETCPU) ) {
+        const PartitionID from = delta_phg->partID(hn);
+        const PartitionID to = rand.getRandomInt(0, k - 1, SCHED_GETCPU);
+        if ( from != to && was_moved.compare_and_set_to_true(hn) ) {
+          delta_phg->changeNodePart(hn, from, to,
+            std::numeric_limits<HyperedgeWeight>::max(), update_delta_gain_cache);
+        }
+      }
+    }
   }
 
   void moveAllNodesOfBatchAtRandom(const Batch& batch) {
@@ -254,14 +285,34 @@ class AGainCache : public Test {
     });
   }
 
+ void verifyGainCacheEntriesOnDeltaPartition() {
+    for ( const HypernodeID& hn : delta_phg->nodes() ) {
+      if ( !was_moved[hn] ) {
+        const PartitionID from = delta_phg->partID(hn);
+        ASSERT_EQ(delta_gain_cache->penaltyTerm(hn, delta_phg->partID(hn)),
+          gain_cache.recomputePenaltyTerm(*delta_phg, hn));
+        for ( const PartitionID to : delta_gain_cache->adjacentBlocks(hn) ) {
+          if ( from != to ) {
+            EXPECT_EQ(delta_gain_cache->benefitTerm(hn, to),
+              gain_cache.recomputeBenefitTerm(*delta_phg, hn, to))
+                << V(hn) << " " << V(from) << " " << V(to);
+          }
+        }
+      }
+    }
+  }
+
   Gain attributedGain(const SyncronizedEdgeUpdate& sync_update) {
     return -AttributedGains::gain(sync_update);
   }
 
+  Context context;
   Hypergraph hypergraph;
   PartitionedHypergraph partitioned_hg;
+  std::unique_ptr<DeltaPartitionedHypergraph> delta_phg;
   std::unique_ptr<ProcessGraph> process_graph;
   GainCache gain_cache;
+  std::unique_ptr<DeltaGainCache> delta_gain_cache;
   ds::ThreadSafeFastResetFlagArray<> was_moved;
 };
 
@@ -293,6 +344,14 @@ TYPED_TEST(AGainCache, HasCorrectGainsAfterMovingAllNodesAtRandom) {
   this->gain_cache.initializeGainCache(this->partitioned_hg);
   this->moveAllNodesAtRandom();
   this->verifyGainCacheEntries();
+}
+
+TYPED_TEST(AGainCache, HasCorrectGainsAfterMovingAllNodesOnDeltaPartitionAtRandom) {
+  this->initializePartition();
+  this->gain_cache.initializeGainCache(this->partitioned_hg);
+  this->delta_gain_cache->initialize(8192);
+  this->moveAllNodesAtRandomOnDeltaPartition();
+  this->verifyGainCacheEntriesOnDeltaPartition();
 }
 
 TYPED_TEST(AGainCache, ComparesGainsWithAttributedGains) {

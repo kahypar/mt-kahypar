@@ -34,6 +34,7 @@
 
 #include "mt-kahypar/datastructures/hypergraph_common.h"
 #include "mt-kahypar/datastructures/sparse_map.h"
+#include "mt-kahypar/datastructures/delta_connectivity_set.h"
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
 #include "mt-kahypar/partition/context.h"
 
@@ -56,7 +57,8 @@ namespace ds {
  * upon that state. This special partitioned hypergraph allows a local search to hide its
  * current search state from other searches in a space efficient manner.
  */
-template <typename PartitionedHypergraph = Mandatory>
+template <typename PartitionedHypergraph = Mandatory,
+          bool maintain_connectivity_set>
 class DeltaPartitionedHypergraph {
  private:
   static constexpr size_t MAP_SIZE_LARGE = 16384;
@@ -67,6 +69,8 @@ class DeltaPartitionedHypergraph {
   using HyperedgeIterator = typename PartitionedHypergraph::HyperedgeIterator;
   using IncidenceIterator = typename PartitionedHypergraph::IncidenceIterator;
   using IncidentNetsIterator = typename PartitionedHypergraph::IncidentNetsIterator;
+  using DeltaConSet = DeltaConnectivitySet<typename PartitionedHypergraph::ConInfo>;
+  using ConnectivitySetIterator = typename DeltaConSet::Iterator;
 
  public:
   static constexpr bool supports_connectivity_set = false;
@@ -77,7 +81,8 @@ class DeltaPartitionedHypergraph {
     _phg(nullptr),
     _part_weights_delta(context.partition.k, 0),
     _part_ids_delta(),
-    _pins_in_part_delta() {
+    _pins_in_part_delta(),
+    _connectivity_set_delta(context.partition.k) {
       const bool top_level = context.type == ContextType::main;
       _part_ids_delta.initialize(MAP_SIZE_SMALL);
       _pins_in_part_delta.initialize(MAP_SIZE_LARGE);
@@ -93,6 +98,19 @@ class DeltaPartitionedHypergraph {
 
   void setPartitionedHypergraph(PartitionedHypergraph* phg) {
     _phg = phg;
+    _connectivity_set_delta.setConnectivitySet(&phg->getConnectivityInformation());
+  }
+
+  // ####################### Process Mapping ######################
+
+  bool hasProcessGraph() const {
+    ASSERT(_phg);
+    return _phg->hasProcessGraph();
+  }
+
+  const ProcessGraph* processGraph() const {
+    ASSERT(_phg);
+    return _phg->processGraph();
   }
 
   // ####################### Iterators #######################
@@ -188,7 +206,10 @@ class DeltaPartitionedHypergraph {
         sync_update.edge_size = edgeSize(he);
         sync_update.pin_count_in_from_part_after = decrementPinCountOfBlock(he, from);
         sync_update.pin_count_in_to_part_after = incrementPinCountOfBlock(he, to);
-        // TODO: deep copy of connectivity set required here
+        if constexpr ( maintain_connectivity_set ) {
+          updateConnectivitySet(he, sync_update);
+          sync_update.connectivity_set_after = &deepCopyOfConnectivitySet(he);
+        }
         delta_func(sync_update);
       }
       return true;
@@ -228,6 +249,21 @@ class DeltaPartitionedHypergraph {
       ( pin_count_delta ? *pin_count_delta : 0 ), 0);
   }
 
+  // ! Returns an iterator over the connectivity set of hyperedge he
+  IteratorRange<ConnectivitySetIterator> connectivitySet(const HyperedgeID e) const {
+    return _connectivity_set_delta.connectivitySet(e);
+  }
+
+  // ! Returns the number of blocks contained in hyperedge he
+  PartitionID connectivity(const HyperedgeID e) const {
+    return _connectivity_set_delta.connectivity(e);
+  }
+
+  // ! Creates a deep copy of the connectivity set of hyperedge he
+  Bitset& deepCopyOfConnectivitySet(const HyperedgeID he) const {
+    return _connectivity_set_delta.deepCopy(he);
+  }
+
   // ! Clears all deltas applied to the partitioned hypergraph
   void clear() {
     // O(k)
@@ -235,6 +271,7 @@ class DeltaPartitionedHypergraph {
     // Constant Time
     _part_ids_delta.clear();
     _pins_in_part_delta.clear();
+    _connectivity_set_delta.reset();
   }
 
   void dropMemory() {
@@ -242,12 +279,14 @@ class DeltaPartitionedHypergraph {
       _memory_dropped = true;
       _part_ids_delta.freeInternalData();
       _pins_in_part_delta.freeInternalData();
+      _connectivity_set_delta.freeInternalData();
     }
   }
 
   size_t combinedMemoryConsumption() const {
     return _pins_in_part_delta.size_in_bytes()
-           + _part_ids_delta.size_in_bytes();
+           + _part_ids_delta.size_in_bytes()
+           + _connectivity_set_delta.size_in_bytes();
   }
 
   PartitionID k() const {
@@ -258,6 +297,7 @@ class DeltaPartitionedHypergraph {
     if ( new_k > _k ) {
       _part_weights_delta.assign(new_k, 0);
     }
+    _connectivity_set_delta.setNumberOfBlocks(new_k);
     _k = new_k;
   }
 
@@ -286,6 +326,17 @@ class DeltaPartitionedHypergraph {
       _phg->pinCountInPart(e, p)) + ++_pins_in_part_delta[e * _k + p], static_cast<int32_t>(0));
   }
 
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
+  void updateConnectivitySet(const HyperedgeID e,
+                             const SyncronizedEdgeUpdate& sync_update) {
+    if ( sync_update.pin_count_in_from_part_after == 0 ) {
+      _connectivity_set_delta.remove(sync_update.he, sync_update.from);
+    }
+    if ( sync_update.pin_count_in_to_part_after == 1 ) {
+      _connectivity_set_delta.add(sync_update.he, sync_update.to);
+    }
+  }
+
   bool _memory_dropped = false;
 
   // ! Number of blocks
@@ -303,6 +354,10 @@ class DeltaPartitionedHypergraph {
   // ! Stores the delta of each locally touched pin count entry
   // ! relative to the _pins_in_part member in '_phg'
   DynamicFlatMap<size_t, int32_t> _pins_in_part_delta;
+
+  // ! Stores the connectivity set relative to the connectivity set
+  // ! in the shared partition
+  DeltaConSet _connectivity_set_delta;
 };
 
 } // namespace ds

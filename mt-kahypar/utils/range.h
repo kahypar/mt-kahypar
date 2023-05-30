@@ -139,11 +139,11 @@ class IntegerRangeIterator {
       std::iota(_range.begin(), _range.end(), 0);
     }
 
-    const_iterator cbegin() {
+    const_iterator cbegin() const {
       return _range.cbegin();
     }
 
-    const_iterator cend() {
+    const_iterator cend() const {
       return _range.cend();
     }
 

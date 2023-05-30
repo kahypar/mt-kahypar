@@ -103,7 +103,7 @@ class CutGainCache {
     // Do nothing
   }
 
-  IteratorRange<AdjacentBlocksIterator> adjacentBlocks(const HypernodeID) {
+  IteratorRange<AdjacentBlocksIterator> adjacentBlocks(const HypernodeID) const {
     // We do not maintain the adjacent blocks of a node in this gain cache.
     // We therefore return an iterator over all blocks here
     return IteratorRange<AdjacentBlocksIterator>(
@@ -309,7 +309,11 @@ class CutGainCache {
 */
 class DeltaCutGainCache {
 
+  using AdjacentBlocksIterator = typename CutGainCache::AdjacentBlocksIterator;
+
  public:
+  static constexpr bool requires_connectivity_set = false;
+
   DeltaCutGainCache(const CutGainCache& gain_cache) :
     _gain_cache(gain_cache),
     _gain_cache_delta() { }
@@ -333,6 +337,11 @@ class DeltaCutGainCache {
   }
 
   // ####################### Gain Computation #######################
+
+  // ! Returns an iterator over the adjacent blocks of a node
+  IteratorRange<AdjacentBlocksIterator> adjacentBlocks(const HypernodeID hn) const {
+    return _gain_cache.adjacentBlocks(hn);
+  }
 
   // ! Returns the penalty term of node u.
   // ! More formally, p(u) := (w(I(u)) - w({ e \in I(u) | pin_count(e, V_i) = |e| })

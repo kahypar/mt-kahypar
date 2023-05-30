@@ -39,6 +39,7 @@
 #include "mt-kahypar/datastructures/sparse_map.h"
 #include "mt-kahypar/datastructures/static_bitset.h"
 #include "mt-kahypar/datastructures/connectivity_set.h"
+#include "mt-kahypar/datastructures/delta_connectivity_set.h"
 #include "mt-kahypar/parallel/atomic_wrapper.h"
 #include "mt-kahypar/macros.h"
 #include "mt-kahypar/utils/range.h"
@@ -127,7 +128,7 @@ class ProcessMappingGainCache {
                                        const HypernodeID hn);
 
   // ! Returns an iterator over the adjacent blocks of a node
-  AdjacentBlocksIterator adjacentBlocks(const HypernodeID hn) {
+  AdjacentBlocksIterator adjacentBlocks(const HypernodeID hn) const {
     return _adjacent_blocks.connectivitySet(hn);
   }
 
@@ -180,7 +181,7 @@ class ProcessMappingGainCache {
   // ! within one transaction (protected via a spin-lock).
   void updateVersionOfHyperedge(const SyncronizedEdgeUpdate& sync_update);
 
-  // ! This functions implements the delta gain updates for the connecitivity metric.
+  // ! This functions implements the delta gain updates for the process mapping metric.
   // ! When moving a node from its current block from to a target block to, we iterate
   // ! over its incident hyperedges and update their pin count values. After each pin count
   // ! update, we call this function to update the gain cache to changes associated with
@@ -370,59 +371,91 @@ class ProcessMappingGainCache {
 /**
  * In our FM algorithm, the different local searches perform nodes moves locally not visible for other
  * threads. The delta gain cache stores these local changes relative to the shared
- * gain cache. For example, the penalty term can be computed as follows
- * p'(u) := p(u) + Δp(u)
- * where p(u) is the penalty term stored in the shared gain cache and Δp(u) is the penalty term stored in
- * the delta gain cache after performing some moves locally. To maintain Δp(u) and Δb(u,V_j), we use a hash
+ * gain cache. For example, the gain can be computed as follows
+ * g'(u,V') := g(u,V') + Δg(u,V')
+ * where g(u,V') is the gain stored in the shared gain cache and Δg(u,V') is the gain stored in
+ * the delta gain cache after performing some moves locally. To maintain Δg(u,V'), we use a hash
  * table that only stores entries affected by a gain cache update.
 */
 class DeltaProcessMappingGainCache {
 
+  using DeltaAdjacentBlocks = ds::DeltaConnectivitySet<ds::ConnectivitySets>;
+  using AdjacentBlocksIterator = typename DeltaAdjacentBlocks::Iterator;
+
  public:
+  static constexpr bool requires_connectivity_set = true;
+
   DeltaProcessMappingGainCache(const ProcessMappingGainCache& gain_cache) :
     _gain_cache(gain_cache),
-    _gain_cache_delta() { }
+    _gain_cache_delta(),
+    _invalid_gain_cache_entry(),
+    _num_incident_edges_delta(),
+    _adjacent_blocks_delta(gain_cache._k) {
+    _adjacent_blocks_delta.setConnectivitySet(&_gain_cache._adjacent_blocks);
+  }
 
   // ####################### Initialize & Reset #######################
 
   void initialize(const size_t size) {
+    _adjacent_blocks_delta.setNumberOfBlocks(_gain_cache._k);
     _gain_cache_delta.initialize(size);
+    _invalid_gain_cache_entry.initialize(size);
+    _num_incident_edges_delta.initialize(size);
   }
 
   void clear() {
     _gain_cache_delta.clear();
+    _invalid_gain_cache_entry.clear();
+    _num_incident_edges_delta.clear();
+    _adjacent_blocks_delta.reset();
   }
 
   void dropMemory() {
     _gain_cache_delta.freeInternalData();
+    _invalid_gain_cache_entry.freeInternalData();
+    _num_incident_edges_delta.freeInternalData();
+    _adjacent_blocks_delta.freeInternalData();
   }
 
   size_t size_in_bytes() const {
-    return _gain_cache_delta.size_in_bytes();
+    return _gain_cache_delta.size_in_bytes() +
+     _invalid_gain_cache_entry.size_in_bytes() +
+     _num_incident_edges_delta.size_in_bytes() +
+     _adjacent_blocks_delta.size_in_bytes();
   }
 
   // ####################### Gain Computation #######################
 
+  // ! Returns an iterator over the adjacent blocks of a node
+  IteratorRange<AdjacentBlocksIterator> adjacentBlocks(const HypernodeID hn) const {
+    return _adjacent_blocks_delta.connectivitySet(hn);
+  }
+
   // ! Returns the penalty term of node u.
-  // ! More formally, p(u) := w({ e \in I(u) | pin_count(e, V_i) > 1 })
+  // ! Note that the process mapping gain cache does not maintain a
+  // ! penalty term and returns zero in this case.
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
   HyperedgeWeight penaltyTerm(const HypernodeID,
                               const PartitionID) const {
     return 0;
   }
 
-  // ! Returns the benefit term for moving node u to block to.
-  // ! More formally, b(u, V_j) := w({ e \in I(u) | pin_count(e, V_j) >= 1 })
+  // ! Returns the gain value for moving node u to block to.
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
   HyperedgeWeight benefitTerm(const HypernodeID u, const PartitionID to) const {
     ASSERT(to != kInvalidPartition && to < _gain_cache._k);
+    const bool use_benefit_term_from_shared_gain_cache =
+      !_invalid_gain_cache_entry.contains(_gain_cache.benefit_index(u, to)) &&
+      _gain_cache._adjacent_blocks.contains(u, to);
+    const HyperedgeWeight benefit_term =
+      use_benefit_term_from_shared_gain_cache * _gain_cache.benefitTerm(u, to);
     const HyperedgeWeight* benefit_delta =
       _gain_cache_delta.get_if_contained(_gain_cache.benefit_index(u, to));
-    return _gain_cache.benefitTerm(u, to) + ( benefit_delta ? *benefit_delta : 0 );
+    return benefit_term + ( benefit_delta ? *benefit_delta : 0 );
   }
 
-  // ! Returns the gain of moving node u from its current block to a target block V_j.
-  // ! More formally, g(u, V_j) := b(u, V_j) - p(u).
+  // ! Returns the gain value for moving node u to block to.
+  // ! (same as benefitTerm(...))
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
   HyperedgeWeight gain(const HypernodeID u,
                        const PartitionID from,
@@ -434,9 +467,142 @@ class DeltaProcessMappingGainCache {
 
   template<typename PartitionedHypergraph>
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
-  void deltaGainUpdate(const PartitionedHypergraph&,
-                       const SyncronizedEdgeUpdate&) {
+  void deltaGainUpdate(const PartitionedHypergraph& partitioned_hg,
+                       const SyncronizedEdgeUpdate& sync_update) {
+    ASSERT(sync_update.connectivity_set_after);
+    ASSERT(sync_update.process_graph);
+    const HyperedgeID he = sync_update.he;
+    const PartitionID from = sync_update.from;
+    const PartitionID to = sync_update.to;
+    const HyperedgeWeight edge_weight = sync_update.edge_weight;
+    const HypernodeID pin_count_in_from_part_after = sync_update.pin_count_in_from_part_after;
+    const HypernodeID pin_count_in_to_part_after = sync_update.pin_count_in_to_part_after;
+    const ProcessGraph& process_graph = *sync_update.process_graph;
+    ds::Bitset& connectivity_set = *sync_update.connectivity_set_after;
 
+    if ( pin_count_in_from_part_after == 0 || pin_count_in_to_part_after == 1 ) {
+      // Connectivity set has changed
+      // => Recompute gain of hyperedge for all pins and their adjacent blocks
+
+      // Compute new gain of hyperedge for all pins and their adjacent blocks and
+      // add it to the gain cache entries
+      for ( const HypernodeID& pin : partitioned_hg.pins(he) ) {
+        const PartitionID source = partitioned_hg.partID(pin);
+        const HypernodeID pin_count_in_source_block_after =
+          partitioned_hg.pinCountInPart(he, source);
+        for ( const PartitionID& target : adjacentBlocks(pin) ) {
+          if ( source != target ) {
+            const HyperedgeWeight gain_after = gainOfHyperedge(
+              source, target, pin_count_in_source_block_after,
+              edge_weight, process_graph, connectivity_set);
+            _gain_cache_delta[_gain_cache.benefit_index(pin, target)] += gain_after;
+          }
+        }
+      }
+
+      // Reconstruct connectivity set and pin counts before the node move
+      reconstructConnectivitySetBeforeMove(sync_update, connectivity_set);
+      // Compute old gain of hyperedge for all pins and their adjacent blocks and
+      // subtract it from the gain cache entries
+      for ( const HypernodeID& pin : partitioned_hg.pins(he) ) {
+        const PartitionID source = partitioned_hg.partID(pin);
+        const PartitionID pin_count_in_source_part_before = source == from ?
+          sync_update.pin_count_in_from_part_after + 1 : (source == to ?
+          sync_update.pin_count_in_to_part_after - 1 : partitioned_hg.pinCountInPart(he, source));
+        for ( const PartitionID& target : adjacentBlocks(pin) ) {
+            if ( source != target ) {
+            const HyperedgeWeight gain_before = gainOfHyperedge(
+              source, target, pin_count_in_source_part_before,
+              edge_weight, process_graph, connectivity_set);
+            _gain_cache_delta[_gain_cache.benefit_index(pin, target)] -= gain_before;
+          }
+        }
+      }
+    } else {
+     if ( pin_count_in_from_part_after == 1 ) {
+        // In this case, there is only one pin left in block `from` and moving it to another block
+        // would remove the block from the connectivity set. Thus, we search for the last remaining pin
+        // in that block and update its gains for moving it to all its adjacent blocks.
+        for ( const HypernodeID& u : partitioned_hg.pins(he) ) {
+          if ( partitioned_hg.partID(u) == from ) {
+            for ( const PartitionID& target : adjacentBlocks(u) ) {
+              if ( from != target ) {
+                // Compute new gain of hyperedge for moving u to the target block
+                const HyperedgeWeight gain = gainOfHyperedge(
+                  from, target, pin_count_in_from_part_after,
+                  edge_weight, process_graph, connectivity_set);
+                _gain_cache_delta[_gain_cache.benefit_index(u, target)] += gain;
+
+                // Before the node move, we would have increase the connectivity of the hyperedge
+                // if we would have moved u to a block not in the connectivity set of the hyperedge.
+                // Thus, we subtract the old gain from gain cache entry.
+                const HypernodeID pin_count_target_part_before = target == to ?
+                  pin_count_in_to_part_after - 1 : partitioned_hg.pinCountInPart(he, target);
+                if ( pin_count_target_part_before == 0 ) {
+                  // The target part was not part of the connectivity set of the hyperedge before the move.
+                  // Thus, moving u to that block would have increased the connectivity of the hyperedge.
+                  // However, this is no longer the case since moving u out of its block would remove the
+                  // block from the connectivity set.
+                  const bool was_set = connectivity_set.isSet(target);
+                  connectivity_set.unset(target);
+                  const HyperedgeWeight distance_before = process_graph.distance(connectivity_set);
+                  const HyperedgeWeight distance_after = process_graph.distanceWithBlock(connectivity_set, target);
+                  const HyperedgeWeight gain_before = (distance_before - distance_after) * edge_weight;
+                  _gain_cache_delta[_gain_cache.benefit_index(u, target)] -= gain_before;
+                  if ( was_set ) connectivity_set.set(target);
+                }
+              }
+            }
+          }
+        }
+      }
+
+      if (pin_count_in_to_part_after == 2) {
+        // In this case, there are now two pins in block `to`. However, moving out the previously last pin
+        // of block `to` would have decreased the connectivity of the hyperedge. This is no longer the case
+        // since there are two pins in the block. Thus, we search for this pin and update its gain.
+        for ( const HypernodeID& u : partitioned_hg.pins(he) ) {
+          if ( partitioned_hg.partID(u) == to ) {
+            for ( const PartitionID& target : adjacentBlocks(u) ) {
+              if ( target != to ) {
+                // Compute new gain of hyperedge for moving u to the target block
+                const HyperedgeWeight gain = gainOfHyperedge(
+                  to, target, pin_count_in_to_part_after,
+                  edge_weight, process_graph, connectivity_set);
+                _gain_cache_delta[_gain_cache.benefit_index(u, target)] += gain;
+
+                // Before the node move, we would have decreased the connectivity of the hyperedge
+                // if we would have moved u to a block in the connecivity set or replaced its block
+                // with another if we would have moved it to block not in the connectivity set.
+                // Thus, we subtract the old gain from gain cache entry.
+                const HypernodeID pin_count_target_part_before = target == from ?
+                  pin_count_in_from_part_after + 1 : partitioned_hg.pinCountInPart(he, target);
+                const bool was_set = connectivity_set.isSet(target);
+                if ( pin_count_target_part_before == 0 ) connectivity_set.unset(target);
+                const HyperedgeWeight distance_before = process_graph.distance(connectivity_set);
+                HyperedgeWeight distance_after = 0;
+                if ( pin_count_target_part_before > 0 ) {
+                  // The target block was part of the connectivity set before the node move.
+                  // Thus, moving u out of its block would have decreased the connectivity of
+                  // the hyperedge.
+                  distance_after = process_graph.distanceWithoutBlock(connectivity_set, to);
+                } else {
+                  // The target block was not part of the connectivity set before the node move.
+                  // Thus, moving u out of its block would have replaced block `to` with the target block
+                  // in the connectivity set.
+                  distance_after = process_graph.distanceAfterExchangingBlocks(connectivity_set, to, target);
+                }
+                const HyperedgeWeight gain_before = (distance_before - distance_after) * edge_weight;
+                _gain_cache_delta[_gain_cache.benefit_index(u, target)] -= gain_before;
+                if ( was_set ) connectivity_set.set(target);
+              }
+            }
+          }
+        }
+      }
+    }
+
+    updateAdjacentBlocks(partitioned_hg, sync_update);
   }
 
  // ####################### Miscellaneous #######################
@@ -448,11 +614,121 @@ class DeltaProcessMappingGainCache {
   }
 
  private:
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
+  HyperedgeWeight gainOfHyperedge(const PartitionID from,
+                                  const PartitionID to,
+                                  const HypernodeID pin_count_in_from_part,
+                                  const HyperedgeWeight edge_weight,
+                                  const ProcessGraph& process_graph,
+                                  ds::Bitset& connectivity_set) {
+    const HyperedgeWeight current_distance = process_graph.distance(connectivity_set);
+    if ( pin_count_in_from_part == 1 ) {
+      connectivity_set.unset(from);
+    }
+    const HyperedgeWeight distance_with_to = process_graph.distanceWithBlock(connectivity_set, to);
+    if ( pin_count_in_from_part == 1 ) {
+      connectivity_set.set(from);
+    }
+    return (current_distance - distance_with_to) * edge_weight;
+  }
+
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
+  void reconstructConnectivitySetBeforeMove(const SyncronizedEdgeUpdate& sync_update,
+                                            ds::Bitset& connectivity_set) {
+    if ( sync_update.pin_count_in_from_part_after == 0 ) {
+      connectivity_set.set(sync_update.from);
+    }
+    if ( sync_update.pin_count_in_to_part_after == 1 ) {
+      connectivity_set.unset(sync_update.to);
+    }
+  }
+
+  // ! Updates the adjacent blocks of a node based on a synronized hyperedge update
+  template<typename PartitionedHypergraph>
+  void updateAdjacentBlocks(const PartitionedHypergraph& partitioned_hg,
+                            const SyncronizedEdgeUpdate& sync_update) {
+    if ( sync_update.pin_count_in_from_part_after == 0 ) {
+      for ( const HypernodeID& pin : partitioned_hg.pins(sync_update.he) ) {
+        decrementIncidentEdges(pin, sync_update.from);
+      }
+    }
+    if ( sync_update.pin_count_in_to_part_after == 1 ) {
+      for ( const HypernodeID& pin : partitioned_hg.pins(sync_update.he) ) {
+        const HyperedgeID incident_edges_after = incrementIncidentEdges(pin, sync_update.to);
+        if ( incident_edges_after == 1 ) {
+          _invalid_gain_cache_entry[_gain_cache.benefit_index(pin, sync_update.to)] = true;
+          initializeGainCacheEntry(partitioned_hg, pin, sync_update.to);
+        }
+      }
+    }
+  }
+
+  // ! Decrements the number of incident edges of node u that contains pins of block to
+  // ! If the value decreases to zero, we remove the block from the connectivity set of the node
+  HypernodeID decrementIncidentEdges(const HypernodeID hn, const PartitionID to) {
+    const HypernodeID shared_incident_count =
+      _gain_cache._num_incident_edges_of_block[_gain_cache.benefit_index(hn, to)];
+    const HypernodeID thread_local_incident_count_after =
+      --_num_incident_edges_delta[_gain_cache.benefit_index(hn, to)];
+    if ( shared_incident_count + thread_local_incident_count_after == 0 ) {
+      _adjacent_blocks_delta.remove(hn, to);
+    }
+    return shared_incident_count + thread_local_incident_count_after;
+  }
+
+  // ! Increments the number of incident edges of node u that contains pins of block to.
+  // ! If the value increases to one, we add the block to the connectivity set of the node
+  // ! u and initialize the gain cache entry for moving u to that block.
+  HypernodeID incrementIncidentEdges(const HypernodeID hn, const PartitionID to) {
+    const HypernodeID shared_incident_count =
+      _gain_cache._num_incident_edges_of_block[_gain_cache.benefit_index(hn, to)];
+    const HypernodeID thread_local_incident_count_after =
+      ++_num_incident_edges_delta[_gain_cache.benefit_index(hn, to)];
+    if ( shared_incident_count + thread_local_incident_count_after == 1 ) {
+      _adjacent_blocks_delta.add(hn, to);
+    }
+    return shared_incident_count + thread_local_incident_count_after;
+  }
+
+  // ! Initializes a gain cache entry
+  template<typename PartitionedHypergraph>
+  void initializeGainCacheEntry(const PartitionedHypergraph& partitioned_hg,
+                                const HypernodeID hn,
+                                const PartitionID to) {
+    ASSERT(partitioned_hg.hasProcessGraph());
+    const ProcessGraph& process_graph = *partitioned_hg.processGraph();
+    const HypernodeID from = partitioned_hg.partID(hn);
+    HyperedgeWeight gain = 0;
+    for ( const HyperedgeID& he : partitioned_hg.incidentEdges(hn) ) {
+      ds::Bitset& connectivity_set = partitioned_hg.deepCopyOfConnectivitySet(he);
+      const HyperedgeWeight current_distance = process_graph.distance(connectivity_set);
+      if ( partitioned_hg.pinCountInPart(he, from) == 1 ) {
+        connectivity_set.unset(from);
+      }
+      const HyperedgeWeight distance_with_to =
+        process_graph.distanceWithBlock(connectivity_set, to);
+      gain += (current_distance - distance_with_to) * partitioned_hg.edgeWeight(he);
+    }
+    _gain_cache_delta[_gain_cache.benefit_index(hn, to)] = gain;
+  }
+
   const ProcessMappingGainCache& _gain_cache;
 
   // ! Stores the delta of each locally touched gain cache entry
-  // ! relative to the gain cache in '_phg'
+  // ! relative to the shared gain cache
   ds::DynamicFlatMap<size_t, HyperedgeWeight> _gain_cache_delta;
+
+  // ! If we initialize a gain cache entry locally, we mark that entry
+  // ! as invalid such that we do not access the shared gain cache when
+  // ! we request the gain cache entry
+  ds::DynamicFlatMap<size_t, bool> _invalid_gain_cache_entry;
+
+  // ! Stores the delta of the number of incident edges for each block and node
+  ds::DynamicFlatMap<size_t, int32_t> _num_incident_edges_delta;
+
+  // ! Stores the adjacent blocks of each node relative to the
+  // ! adjacent blocks in the shared gain cache
+  DeltaAdjacentBlocks _adjacent_blocks_delta;
 };
 
 }  // namespace mt_kahypar

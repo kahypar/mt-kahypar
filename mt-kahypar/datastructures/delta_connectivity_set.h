@@ -149,7 +149,8 @@ public:
     _num_blocks_per_hyperedge(0),
     _touched_hes(),
     _delta_connectivity_set(),
-    _empty_connectivity_set() { }
+    _empty_connectivity_set(),
+    _deep_copy_bitset() { }
 
   DeltaConnectivitySet(const PartitionID k) :
     _connectivity_set(nullptr),
@@ -157,7 +158,8 @@ public:
     _num_blocks_per_hyperedge(k / BITS_PER_BLOCK + (k % BITS_PER_BLOCK != 0)),
     _touched_hes(),
     _delta_connectivity_set(),
-    _empty_connectivity_set() {
+    _empty_connectivity_set(),
+    _deep_copy_bitset() {
     _empty_connectivity_set.assign(_num_blocks_per_hyperedge, 0);
   }
 
@@ -166,9 +168,16 @@ public:
     _connectivity_set = connectivity_set;
   }
 
+  void setNumberOfBlocks(const PartitionID k) {
+    _k = k;
+    _num_blocks_per_hyperedge = k / BITS_PER_BLOCK + (k % BITS_PER_BLOCK != 0);
+    _empty_connectivity_set.clear();
+    _empty_connectivity_set.assign(_num_blocks_per_hyperedge, 0);
+  }
+
   // ! Returns an iterator over the connectivity set of the corresponding hyperedge
   IteratorRange<Iterator> connectivitySet(const HyperedgeID he) const {
-    ASSERT(connectivity_set);
+    ASSERT(_connectivity_set);
     const size_t* entry = _touched_hes.get_if_contained(he);
     const UnsafeBlock* shared_connectivity_set = _connectivity_set->shallowCopy(he).data();
     const UnsafeBlock* thread_local_connectivity_set = entry ?
@@ -222,6 +231,27 @@ public:
     }
   }
 
+  Bitset& deepCopy(const HyperedgeID he) const {
+    ASSERT(_connectivity_set);
+    StaticBitset& shared_con_set = _connectivity_set->shallowCopy(he);
+    const size_t* entry = _touched_hes.get_if_contained(he);
+    const UnsafeBlock* data = entry ?
+      &_delta_connectivity_set[*entry] : _empty_connectivity_set.data();
+    StaticBitset thread_local_con_set(_num_blocks_per_hyperedge, data);
+    _deep_copy_bitset = shared_con_set ^ thread_local_con_set;
+    return _deep_copy_bitset;
+  }
+
+  size_t size_in_bytes() const {
+    return _touched_hes.size_in_bytes() + _delta_connectivity_set.capacity() * sizeof(UnsafeBlock);
+  }
+
+  void freeInternalData() {
+    _touched_hes.freeInternalData();
+    _delta_connectivity_set.clear();
+    _delta_connectivity_set.shrink_to_fit();
+  }
+
 private:
 	void toggle(const HyperedgeID he, const PartitionID p) {
     const size_t* entry = _touched_hes.get_if_contained(he);
@@ -254,6 +284,9 @@ private:
   DynamicFlatMap<size_t, size_t> _touched_hes;
   vec<UnsafeBlock> _delta_connectivity_set;
   vec<UnsafeBlock> _empty_connectivity_set;
+
+  // ! Deep copy of connectivity set
+  mutable Bitset _deep_copy_bitset;
 };
 
 

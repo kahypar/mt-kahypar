@@ -45,7 +45,7 @@ class ADeltaPartitionedHypergraph : public Test {
  using Hypergraph = typename StaticHypergraphTypeTraits::Hypergraph;
  using HypergraphFactory = typename Hypergraph::Factory;
  using PartitionedHypergraph = typename StaticHypergraphTypeTraits::PartitionedHypergraph;
- using DeltaPartitionedHypergraph = typename PartitionedHypergraph::DeltaPartition;
+ using DeltaPartitionedHypergraph = typename PartitionedHypergraph::DeltaPartition<true>;
  using GainCache = Km1GainCache;
  using DeltaGainCache = DeltaKm1GainCache;
 
@@ -82,6 +82,15 @@ class ADeltaPartitionedHypergraph : public Test {
       ASSERT_EQ(expected_pin_counts[block], delta_phg->pinCountInPart(he, block)) << V(he) << V(block);
     }
   }
+  void verifyConnectivitySet(const HyperedgeID he,
+                             const std::vector<PartitionID>& expected_connectivity_set) {
+    ASSERT_EQ(delta_phg->connectivity(he), static_cast<PartitionID>(expected_connectivity_set.size()));
+    size_t idx = 0;
+    for ( const PartitionID block : delta_phg->connectivitySet(he) ) {
+      ASSERT_EQ(block, expected_connectivity_set[idx++]);
+    }
+    ASSERT_EQ(idx, expected_connectivity_set.size());
+  }
 
   void verifyBenefitTerm(const HypernodeID hn,
                          const std::vector<HypernodeID>& expected_penalties) {
@@ -115,7 +124,14 @@ TEST_F(ADeltaPartitionedHypergraph, VerifiesInitialPinCounts) {
   verifyPinCounts(3, { 1, 0, 2 });
 }
 
-TEST_F(ADeltaPartitionedHypergraph, VerifyInitialmoveFromPenaltys) {
+TEST_F(ADeltaPartitionedHypergraph, VerifiesInitialConnectivitySets) {
+  verifyConnectivitySet(0, { 0 });
+  verifyConnectivitySet(1, { 0, 1 });
+  verifyConnectivitySet(2, { 1, 2 });
+  verifyConnectivitySet(3, { 0, 2 });
+}
+
+TEST_F(ADeltaPartitionedHypergraph, VerifiesInitialPenaltyTerms) {
   ASSERT_EQ(2, delta_gain_cache->penaltyTerm(0, kInvalidPartition));
   ASSERT_EQ(1, delta_gain_cache->penaltyTerm(1, kInvalidPartition));
   ASSERT_EQ(1, delta_gain_cache->penaltyTerm(2, kInvalidPartition));
@@ -125,7 +141,7 @@ TEST_F(ADeltaPartitionedHypergraph, VerifyInitialmoveFromPenaltys) {
   ASSERT_EQ(1, delta_gain_cache->penaltyTerm(6, kInvalidPartition));
 }
 
-TEST_F(ADeltaPartitionedHypergraph, VerifyInitialMoveToPenalties) {
+TEST_F(ADeltaPartitionedHypergraph, VerifiesInitialBenefitTerms) {
   verifyBenefitTerm(0, { 2, 1, 0 });
   verifyBenefitTerm(1, { 1, 1, 0 });
   verifyBenefitTerm(2, { 2, 0, 1 });
@@ -139,8 +155,9 @@ TEST_F(ADeltaPartitionedHypergraph, MovesAVertex1) {
   ASSERT_EQ(0, phg.partID(1));
   ASSERT_EQ(1, delta_phg->partID(1));
 
-  // Verify Pin Counts
+  // Verify Pin Counts and Connectivity Set
   verifyPinCounts(1, { 1, 3, 0 });
+  verifyConnectivitySet(1, { 0, 1 });
 
   // Verify Move From Benefit
   ASSERT_EQ(1, delta_gain_cache->penaltyTerm(0, kInvalidPartition));
@@ -158,9 +175,11 @@ TEST_F(ADeltaPartitionedHypergraph, MovesAVertex2) {
   ASSERT_EQ(2, phg.partID(6));
   ASSERT_EQ(1, delta_phg->partID(6));
 
-  // Verify Pin Counts
+  // Verify Pin Counts and Connectivity Set
   verifyPinCounts(2, { 0, 3, 0 });
   verifyPinCounts(3, { 1, 1, 1 });
+  verifyConnectivitySet(2, { 1 });
+  verifyConnectivitySet(3, { 0, 1, 2 });
 
   // Verify Move From Benefit
   ASSERT_EQ(1, delta_gain_cache->penaltyTerm(2, kInvalidPartition));
@@ -186,11 +205,15 @@ TEST_F(ADeltaPartitionedHypergraph, MovesSeveralVertices) {
   ASSERT_EQ(1, delta_phg->partID(5));
   ASSERT_EQ(1, delta_phg->partID(6));
 
-  // Verify Pin Counts
+  // Verify Pin Counts and Connectivity Set
   verifyPinCounts(0, { 1, 1, 0 });
   verifyPinCounts(1, { 2, 2, 0 });
   verifyPinCounts(2, { 0, 3, 0 });
   verifyPinCounts(3, { 0, 3, 0 });
+  verifyConnectivitySet(0, { 0, 1 });
+  verifyConnectivitySet(1, { 0, 1 });
+  verifyConnectivitySet(2, { 1 });
+  verifyConnectivitySet(3, { 1 });
 
   // Verify Move From Benefit
   ASSERT_EQ(1, delta_gain_cache->penaltyTerm(0, kInvalidPartition));
