@@ -122,8 +122,10 @@ namespace mt_kahypar {
         // TODO: use similar part weight scaling to global rollback?
         DBG << "[unconstrained FM] Starting Rebalancing";
         Metrics updated_metrics;
+        timer.start_timer("recompute_metric", "Recompute Metric");
         updated_metrics.quality = metrics::quality(phg, context);
         updated_metrics.imbalance = metrics::imbalance(phg, context);
+        timer.stop_timer("recompute_metric");
         timer.start_timer("rebalance", "Rebalance");
         rebalancer.refine(hypergraph, {}, updated_metrics, current_time_limit);
         timer.stop_timer("rebalance");
