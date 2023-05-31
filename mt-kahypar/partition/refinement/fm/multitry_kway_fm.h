@@ -62,7 +62,7 @@ class MultiTryKWayFM final : public IRefiner {
     context(c),
     gain_cache(gainCache),
     current_k(c.partition.k),
-    sharedData(num_hypernodes),
+    sharedData(num_hypernodes, FMStrategy::is_unconstrained),
     globalRollback(num_hyperedges, context, gainCache),
     ets_fm([&] { return constructLocalizedKWayFMSearch(); }) {
     if (context.refinement.fm.obey_minimal_parallelism) {

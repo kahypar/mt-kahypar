@@ -31,6 +31,7 @@
 #include "mt-kahypar/io/hypergraph_factory.h"
 #include "mt-kahypar/partition/refinement/fm/multitry_kway_fm.h"
 #include "mt-kahypar/partition/refinement/gains/gain_definitions.h"
+#include "mt-kahypar/partition/refinement/fm/strategies/gain_cache_strategy.h"
 #include "mt-kahypar/partition/initial_partitioning/bfs_initial_partitioner.h"
 
 using ::testing::Test;
@@ -50,7 +51,7 @@ class MultiTryFMTest : public Test {
   using TypeTraits = typename Config::TypeTraits;
   using Hypergraph = typename TypeTraits::Hypergraph;
   using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
-  using Refiner = MultiTryKWayFM<TypeTraits, Km1GainTypes>;
+  using Refiner = MultiTryKWayFM<TypeTraits, Km1GainTypes, GainCacheStrategy>;  // TODO
 
   MultiTryFMTest() :
           hypergraph(),

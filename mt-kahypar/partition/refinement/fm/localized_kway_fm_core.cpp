@@ -173,7 +173,13 @@ namespace mt_kahypar {
 
       // skip if high degree (unless it nets actual improvement; but don't apply on deltaPhg then)
       if (!expect_improvement && high_deg) {
-        continue;
+        if constexpr (use_delta) {
+          fm_strategy.skipMove(deltaPhg, delta_gain_cache, move);
+          continue;
+        } else {
+          fm_strategy.skipMove(phg, gain_cache, move);
+          continue;
+        }
       }
       // less restrictive option: skip if negative gain (or < -5000 or smth).
       // downside: have to flush before improvement or run it through deltaPhg
@@ -183,6 +189,8 @@ namespace mt_kahypar {
       edgesWithGainChanges.clear(); // clear before move. delta_func feeds nets of moved vertex.
       MoveID move_id = std::numeric_limits<MoveID>::max();
       bool moved = false;
+      const HypernodeWeight allowed_weight = FMStrategy::is_unconstrained ? std::numeric_limits<HypernodeWeight>::max()
+                                                : context.partition.max_part_weights[move.to];
       if constexpr (use_delta) {
         heaviestPartWeight = heaviestPartAndWeight(deltaPhg, context.partition.k).second;
         fromWeight = deltaPhg.partWeight(move.from);
@@ -192,21 +200,23 @@ namespace mt_kahypar {
           // this is intended to allow moving high deg nodes (blow up hash tables) if they give an improvement.
           // The nets affected by a gain cache update are collected when we apply this improvement on the
           // global partition (used to expand the localized search and update the gain values).
-          moved = toWeight + phg.nodeWeight(move.node) <= context.partition.max_part_weights[move.to];
+          moved = toWeight + phg.nodeWeight(move.node) <= allowed_weight;
         } else {
-          moved = deltaPhg.changeNodePart(move.node, move.from, move.to,
-                                          context.partition.max_part_weights[move.to], delta_func);
+          moved = deltaPhg.changeNodePart(move.node, move.from, move.to, allowed_weight, delta_func);
         }
       } else {
         heaviestPartWeight = heaviestPartAndWeight(phg, context.partition.k).second;
         fromWeight = phg.partWeight(move.from);
         toWeight = phg.partWeight(move.to);
-        moved = phg.changeNodePart(move.node, move.from, move.to,
-                                   context.partition.max_part_weights[move.to],
+        moved = phg.changeNodePart(move.node, move.from, move.to, allowed_weight,
                                    [&] { move_id = sharedData.moveTracker.insertMove(move); }, delta_func);
       }
+      ASSERT(!FMStrategy::is_unconstrained || moved);
 
       if (moved) {
+        if (FMStrategy::is_unconstrained && sharedData.unconstrained.isRebalancingNode(move.node)) {
+          runStats.rebalancing_node_moves++;
+        }
         runStats.moves++;
         estimatedImprovement += move.gain;
         localMoves.emplace_back(move, move_id);

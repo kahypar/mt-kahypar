@@ -3,7 +3,7 @@
  *
  * This file is part of Mt-KaHyPar.
  *
- * Copyright (C) 2020 Lars Gottesbüren <lars.gottesbueren@kit.edu>
+ * Copyright (C) 2023 Nikolai Maas <nikolai.maas@kit.edu>
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -29,6 +29,10 @@
 #include "mt-kahypar/partition/refinement/fm/fm_commons.h"
 
 
+// TODO: HIGH_DEGREE_THRESHOLD in PartitionedHypergraph/PartitionedGraph might be problematic
+// for unconstrained refinement
+
+
 namespace mt_kahypar {
 
   /*
@@ -50,7 +54,7 @@ namespace mt_kahypar {
    *
    */
 
-class GainCacheStrategy {
+class UnconstrainedStrategy {
 public:
 
   using BlockPriorityQueue = ds::ExclusiveHandleHeap< ds::MaxHeap<Gain, PartitionID> >;
@@ -58,9 +62,9 @@ public:
 
   static constexpr bool uses_gain_cache = true;
   static constexpr bool maintain_gain_cache_between_rounds = true;
-  static constexpr bool is_unconstrained = false;
+  static constexpr bool is_unconstrained = true;
 
-  GainCacheStrategy(const Context& context,
+  UnconstrainedStrategy(const Context& context,
                     FMSharedData& sharedData,
                     FMStats& runStats) :
       context(context),
@@ -149,7 +153,7 @@ public:
   template<typename PartitionedHypergraph, typename GainCache>
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
   void skipMove(const PartitionedHypergraph&, const GainCache&, Move) {
-    // nothing to do here
+    // TODO
   }
 
   void clearPQs(const size_t /* bestImprovementIndex */ ) {

@@ -130,8 +130,11 @@ namespace mt_kahypar {
           incident_weight += phg.edgeWeight(he);
         }
         const size_t bucketId = bucketForGainPerWeight(static_cast<double>(incident_weight) / hn_weight);
-        buckets[bucketId].insert(hn, HypernodeID(hn));
-        local_weights[indexForBucket(from, bucketId)] += hn_weight;
+        if (bucketId < NUM_BUCKETS) {
+          buckets[bucketId].insert(hn, HypernodeID(hn));
+          local_weights[indexForBucket(from, bucketId)] += hn_weight;
+          rebalancing_nodes.set(hn, true);
+        }
       }
     });
 

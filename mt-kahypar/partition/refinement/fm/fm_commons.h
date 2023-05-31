@@ -164,16 +164,13 @@ struct UnconstrainedFMData {
   tbb::enumerable_thread_specific<parallel::scalable_vector<HypernodeWeight>> local_bucket_weights;
   kahypar::ds::FastResetFlagArray<> rebalancing_nodes;
 
-  explicit UnconstrainedFMData(size_t numNodes):
+  explicit UnconstrainedFMData():
     initialized(false),
     buckets(),
     bucket_weights(),
     consumed_bucket_weights(),
     local_bucket_weights(),
-    rebalancing_nodes(numNodes) { }
-
-  explicit UnconstrainedFMData():
-    UnconstrainedFMData(0) { }
+    rebalancing_nodes() { }
 
   template<typename PartitionedHypergraphT>
   void initialize(const Context& context, const PartitionedHypergraphT& phg);
@@ -258,7 +255,7 @@ struct FMSharedData {
   bool release_nodes = true;
   bool perform_moves_global = true;
 
-  FMSharedData(size_t numNodes, size_t numThreads) :
+  FMSharedData(size_t numNodes, size_t numThreads, bool initialize_unconstrained) :
     numberOfNodes(numNodes),
     refinementNodes(), //numNodes, numThreads),
     vertexPQHandles(), //numPQHandles, invalid_position),
@@ -284,17 +281,20 @@ struct FMSharedData {
     }, [&] {
       targetPart.resize(numNodes, kInvalidPartition);
     }, [&] {
-      unconstrained.rebalancing_nodes.setSize(numNodes);
+      if (initialize_unconstrained) {
+        unconstrained.rebalancing_nodes.setSize(numNodes);
+      }
     });
   }
 
-  FMSharedData(size_t numNodes) :
+  FMSharedData(size_t numNodes, bool initialize_unconstrained) :
     FMSharedData(
       numNodes,
-      TBBInitializer::instance().total_number_of_threads())  { }
+      TBBInitializer::instance().total_number_of_threads(),
+      initialize_unconstrained)  { }
 
   FMSharedData() :
-    FMSharedData(0, 0) { }
+    FMSharedData(0, 0, false) { }
 
   void memoryConsumption(utils::MemoryTreeNode* parent) const {
     ASSERT(parent);
@@ -321,6 +321,7 @@ struct FMStats {
   size_t local_reverts = 0;
   size_t task_queue_reinsertions = 0;
   size_t best_prefix_mismatch = 0;
+  size_t rebalancing_node_moves = 0;
   Gain estimated_improvement = 0;
 
 
@@ -332,6 +333,7 @@ struct FMStats {
     local_reverts = 0;
     task_queue_reinsertions = 0;
     best_prefix_mismatch = 0;
+    rebalancing_node_moves = 0;
     estimated_improvement = 0;
   }
 
@@ -343,6 +345,7 @@ struct FMStats {
     other.local_reverts += local_reverts;
     other.task_queue_reinsertions += task_queue_reinsertions;
     other.best_prefix_mismatch += best_prefix_mismatch;
+    other.rebalancing_node_moves += rebalancing_node_moves;
     other.estimated_improvement += estimated_improvement;
     clear();
   }
@@ -351,7 +354,7 @@ struct FMStats {
     std::stringstream os;
     os  << V(retries) << " " << V(extractions) << " " << V(pushes) << " "
         << V(moves) << " " << V(local_reverts) << " " << V(estimated_improvement) << " "
-        << V(best_prefix_mismatch);
+        << V(best_prefix_mismatch) << V(rebalancing_node_moves);
     return os.str();
   }
 };

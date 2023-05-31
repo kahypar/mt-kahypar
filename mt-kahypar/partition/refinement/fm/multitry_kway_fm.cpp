@@ -65,7 +65,7 @@ namespace mt_kahypar {
         initialPartWeights[i] = phg.partWeight(i);
       }
 
-      if constexpr (FMStrategy::uses_unconstrained_data) {
+      if constexpr (FMStrategy::is_unconstrained) {
         timer.start_timer("initialize_data_unconstrained", "Initialize Data for Unconstrained FM");
         sharedData.unconstrained.initialize(context, phg);
         timer.stop_timer("initialize_data_unconstrained");
