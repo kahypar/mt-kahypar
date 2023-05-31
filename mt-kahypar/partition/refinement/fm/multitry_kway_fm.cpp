@@ -33,6 +33,7 @@
 #include "mt-kahypar/partition/refinement/gains/gain_definitions.h"
 #include "mt-kahypar/partition/refinement/fm/strategies/gain_cache_strategy.h"
 #include "mt-kahypar/partition/refinement/fm/strategies/unconstrained_strategy.h"
+#include "mt-kahypar/partition/refinement/fm/strategies/combined_strategy.h"
 #include "mt-kahypar/utils/memory_tree.h"
 #include "mt-kahypar/utils/cast.h"
 
@@ -94,7 +95,7 @@ namespace mt_kahypar {
       auto task = [&](const size_t task_id) {
         auto& fm = ets_fm.local();
         while(sharedData.finishedTasks.load(std::memory_order_relaxed) < sharedData.finishedTasksLimit
-              && fm.findMoves(phg, task_id, num_seeds)) { /* keep running*/ }
+              && fm.findMoves(phg, task_id, num_seeds, round)) { /* keep running*/ }
         sharedData.finishedTasks.fetch_add(1, std::memory_order_relaxed);
       };
       size_t num_tasks = std::min(num_border_nodes, size_t(TBBInitializer::instance().total_number_of_threads()));
@@ -105,6 +106,7 @@ namespace mt_kahypar {
       timer.stop_timer("find_moves");
 
       timer.start_timer("rollback", "Rollback to Best Solution");
+      // TODO(maas): disable if necessary
       HyperedgeWeight improvement = globalRollback.revertToBestPrefix(
         phg, sharedData, initialPartWeights);
       timer.stop_timer("rollback");
@@ -264,9 +266,11 @@ namespace mt_kahypar {
   namespace {
   #define MULTITRY_KWAY_FM_DEFAULT_STRATEGY(X, Y) MultiTryKWayFM<X, Y, GainCacheStrategy>
   #define MULTITRY_KWAY_FM_UNCONSTRAINED_STRATEGY(X, Y) MultiTryKWayFM<X, Y, UnconstrainedStrategy>
+  #define MULTITRY_KWAY_FM_COMBINED_STRATEGY(X, Y) MultiTryKWayFM<X, Y, CombinedStrategy>
   }
 
   INSTANTIATE_CLASS_WITH_TYPE_TRAITS_AND_GAIN_TYPES(MULTITRY_KWAY_FM_DEFAULT_STRATEGY)
   INSTANTIATE_CLASS_WITH_TYPE_TRAITS_AND_GAIN_TYPES(MULTITRY_KWAY_FM_UNCONSTRAINED_STRATEGY)
+  INSTANTIATE_CLASS_WITH_TYPE_TRAITS_AND_GAIN_TYPES(MULTITRY_KWAY_FM_COMBINED_STRATEGY)
 
 } // namespace mt_kahypar

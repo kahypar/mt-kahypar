@@ -159,6 +159,7 @@ enum class JetAlgorithm : uint8_t {
 enum class FMAlgorithm : uint8_t {
   kway_fm,
   unconstrained,
+  combined,
   do_nothing
 };
 

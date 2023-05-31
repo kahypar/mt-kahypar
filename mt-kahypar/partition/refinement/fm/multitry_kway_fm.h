@@ -35,6 +35,7 @@
 #include "mt-kahypar/partition/refinement/fm/global_rollback.h"
 #include "mt-kahypar/partition/refinement/fm/strategies/gain_cache_strategy.h"
 #include "mt-kahypar/partition/refinement/fm/strategies/unconstrained_strategy.h"
+#include "mt-kahypar/partition/refinement/fm/strategies/combined_strategy.h"
 #include "mt-kahypar/partition/refinement/gains/gain_cache_ptr.h"
 
 namespace mt_kahypar {
@@ -119,5 +120,7 @@ template<typename TypeTraits, typename GainCache>
 using MultiTryKWayFMDefault = MultiTryKWayFM<TypeTraits, GainCache, GainCacheStrategy>;
 template<typename TypeTraits, typename GainCache>
 using MultiTryKWayFMUnconstrained = MultiTryKWayFM<TypeTraits, GainCache, UnconstrainedStrategy>;
+template<typename TypeTraits, typename GainCache>
+using MultiTryKWayFMCombined = MultiTryKWayFM<TypeTraits, GainCache, CombinedStrategy>;
 
 } // namespace mt_kahypar

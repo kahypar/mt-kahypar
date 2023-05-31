@@ -42,6 +42,7 @@ namespace mt_kahypar {
    * static constexpr bool is_unconstrained
    *
    * Constructor(context, sharedData, runStats)
+   * applyWithDispatchedStrategy(applicator_fn)
    * insertIntoPQ(phg, gain_cache, node)
    * updateGain(phg, gain_cache, node, move)
    * findNextMove(phg, gain_cache, move)
@@ -73,6 +74,12 @@ public:
       blockPQ(static_cast<size_t>(context.partition.k)),
       vertexPQs(static_cast<size_t>(context.partition.k),
         VertexPriorityQueue(sharedData.vertexPQHandles.data(), sharedData.numberOfNodes)) { }
+
+  template<typename DispatchedStrategyApplicatorFn>
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
+  void applyWithDispatchedStrategy(size_t /*taskID*/, size_t /*round*/, DispatchedStrategyApplicatorFn applicator_fn) {
+    applicator_fn(static_cast<UnconstrainedStrategy&>(*this));
+  }
 
   template<typename PartitionedHypergraph, typename GainCache>
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
