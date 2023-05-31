@@ -142,7 +142,7 @@ class UnconstrainedStrategy {
       auto [to, gain] = computeBestTargetBlock(phg, gain_cache, u, phg.partID(u));
 
       bool apply_move = (gain >= estimated_gain); // accept any gain that is at least as good
-      if (apply_move) {
+      if (apply_move && to != kInvalidPartition) {
         const HypernodeWeight wu = phg.nodeWeight(u);
         const HypernodeWeight to_weight = phg.partWeight(to);
         if (to_weight + wu > context.partition.max_part_weights[to]) {

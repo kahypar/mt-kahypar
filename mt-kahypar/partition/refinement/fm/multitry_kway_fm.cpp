@@ -119,14 +119,18 @@ namespace mt_kahypar {
         HEAVY_REFINEMENT_ASSERT(phg.checkTrackedPartitionInformation(gain_cache)); // TODO: remove
 
         // rebalancing is necessary
+        // TODO: use similar part weight scaling to global rollback?
         DBG << "[unconstrained FM] Starting Rebalancing";
-        Metrics updated_metrics = metrics;
+        Metrics updated_metrics;
         updated_metrics.quality = metrics::quality(phg, context);
+        updated_metrics.imbalance = metrics::imbalance(phg, context);
         timer.start_timer("rebalance", "Rebalance");
         rebalancer.refine(hypergraph, {}, updated_metrics, current_time_limit);
         timer.stop_timer("rebalance");
         improvement = (metrics.quality - overall_improvement) - updated_metrics.quality;
         DBG << "[unconstrained FM] " << V(improvement);
+
+        sharedData.moveTracker.reset();
       }
 
       const double roundImprovementFraction = improvementFraction(improvement,
