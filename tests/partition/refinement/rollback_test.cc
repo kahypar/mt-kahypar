@@ -77,7 +77,7 @@ TEST(RollbackTests, GainRecalculationAndRollsbackCorrectly) {
   context.refinement.fm.rollback_balance_violation_factor = 0.0;
 
 
-  FMSharedData sharedData(hg.initialNumNodes());
+  FMSharedData sharedData(hg.initialNumNodes(), false);
 
   GlobalRollback<TypeTraits, Km1GainTypes> grb(
     hg.initialNumEdges(), context, gain_cache);
@@ -134,7 +134,7 @@ TEST(RollbackTests, GainRecalculation2) {
   context.partition.max_part_weights = { std::numeric_limits<HypernodeWeight>::max(), std::numeric_limits<HypernodeWeight>::max()};
   context.refinement.fm.rollback_balance_violation_factor = 0.0;
 
-  FMSharedData sharedData(hg.initialNumNodes());
+  FMSharedData sharedData(hg.initialNumNodes(), false);
 
   GlobalRollback<TypeTraits, Km1GainTypes> grb(
     hg.initialNumEdges(), context, gain_cache);

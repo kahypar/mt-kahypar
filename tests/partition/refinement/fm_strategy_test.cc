@@ -31,6 +31,7 @@
 #include "mt-kahypar/io/hypergraph_factory.h"
 
 #include "mt-kahypar/partition/refinement/fm/strategies/gain_cache_strategy.h"
+#include "mt-kahypar/partition/refinement/fm/strategies/unconstrained_strategy.h"
 #include "mt-kahypar/partition/refinement/gains/km1/km1_gain_cache.h"
 
 using ::testing::Test;
@@ -91,6 +92,42 @@ TEST(StrategyTests, FindNextMove) {
 
   GainCacheStrategy gain_caching(context, sd, fm_stats);
   vec<Gain> gains_cached = insertAndExtractAllMoves(gain_caching, phg, gain_cache);
+  ASSERT_TRUE(std::is_sorted(gains_cached.begin(), gains_cached.end(), std::greater<Gain>()));
+}
+
+TEST(StrategyTests, UnconstrainedFindNextMove) {
+  PartitionID k = 8;
+  Context context;
+  context.partition.k = k;
+  context.partition.epsilon = 0.03;
+  Hypergraph hg = io::readInputFile<Hypergraph>(
+    "../tests/instances/contracted_ibm01.hgr", FileFormat::hMetis, true);
+  context.setupPartWeights(hg.totalWeight());
+  PartitionedHypergraph phg = PartitionedHypergraph(k, hg);
+  for (PartitionID i = 0; i < k; ++i) {
+    context.partition.max_part_weights[i] = phg.totalWeight() / k + 1;
+  }
+
+  std::mt19937 rng(420);
+  std::uniform_int_distribution<PartitionID> distr(0, k - 1);
+  for (HypernodeID u : hg.nodes()) {
+    phg.setOnlyNodePart(u, distr(rng));
+  }
+  phg.initializePartition();
+  Km1GainCache gain_cache;
+  gain_cache.initializeGainCache(phg);
+
+
+  context.refinement.fm.algorithm = FMAlgorithm::unconstrained;
+
+  FMSharedData sd(hg.initialNumNodes(), true);
+  sd.unconstrained.initialize(context, phg);
+  FMStats fm_stats;
+  fm_stats.moves = 1;
+
+  UnconstrainedStrategy fm_strategy(context, sd, fm_stats);
+  vec<Gain> gains_cached = insertAndExtractAllMoves(fm_strategy, phg, gain_cache);
+  LOG << fm_stats.serialize();
   ASSERT_TRUE(std::is_sorted(gains_cached.begin(), gains_cached.end(), std::greater<Gain>()));
 }
 
