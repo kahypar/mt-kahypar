@@ -73,7 +73,7 @@ public:
       }
     }
 
-    if (context.refinement.fm.rollback_parallel && Rollback::supports_parallel_rollback) {
+    if (context.refinement.fm.rollback_parallel) {
       return revertToBestPrefixParallel(phg, sharedData, partWeights, maxPartWeights);
     } else {
       return revertToBestPrefixSequential(phg, sharedData, partWeights, maxPartWeights);
@@ -85,6 +85,12 @@ public:
                                              const vec<HypernodeWeight>& partWeights,
                                              const std::vector<HypernodeWeight>& maxPartWeights);
 
+  void recalculateGainForHyperedge(PartitionedHypergraph& phg,
+                                   FMSharedData& sharedData,
+                                   const HyperedgeID& he);
+  void recalculateGainForHyperedgeViaAttributedGains(PartitionedHypergraph& phg,
+                                                     FMSharedData& sharedData,
+                                                     const HyperedgeID& he);
   void recalculateGains(PartitionedHypergraph& phg, FMSharedData& sharedData);
 
   HyperedgeWeight revertToBestPrefixSequential(PartitionedHypergraph& phg,
