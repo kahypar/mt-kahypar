@@ -58,14 +58,16 @@ class MultiTryKWayFM final : public IRefiner {
   MultiTryKWayFM(const HypernodeID num_hypernodes,
                  const HyperedgeID num_hyperedges,
                  const Context& c,
-                 GainCache& gainCache) :
+                 GainCache& gainCache,
+                 IRefiner& rb) :
     initial_num_nodes(num_hypernodes),
     context(c),
     gain_cache(gainCache),
     current_k(c.partition.k),
     sharedData(num_hypernodes, FMStrategy::is_unconstrained),
     globalRollback(num_hyperedges, context, gainCache),
-    ets_fm([&] { return constructLocalizedKWayFMSearch(); }) {
+    ets_fm([&] { return constructLocalizedKWayFMSearch(); }),
+    rebalancer(rb) {
     if (context.refinement.fm.obey_minimal_parallelism) {
       sharedData.finishedTasksLimit = std::min(UL(8), context.shared_memory.num_threads);
     }
@@ -74,9 +76,10 @@ class MultiTryKWayFM final : public IRefiner {
   MultiTryKWayFM(const HypernodeID num_hypernodes,
                  const HyperedgeID num_hyperedges,
                  const Context& c,
-                 gain_cache_t gainCache) :
+                 gain_cache_t gainCache,
+                 IRefiner& rb) :
     MultiTryKWayFM(num_hypernodes, num_hyperedges, c,
-      GainCachePtr::cast<GainCache>(gainCache)) { }
+      GainCachePtr::cast<GainCache>(gainCache), rb) { }
 
   void printMemoryConsumption();
 
@@ -114,6 +117,7 @@ class MultiTryKWayFM final : public IRefiner {
   FMSharedData sharedData;
   Rollback globalRollback;
   tbb::enumerable_thread_specific<LocalizedFMSearch> ets_fm;
+  IRefiner& rebalancer;
 };
 
 template<typename TypeTraits, typename GainCache>

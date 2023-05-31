@@ -105,7 +105,7 @@ using GreedyJetDispatcher = kahypar::meta::StaticMultiDispatchFactory<
                               kahypar::meta::Typelist<TypeTraitsList, GainTypes>>;
 
 using FMFactory = kahypar::meta::Factory<FMAlgorithm,
-                    IRefiner* (*)(HypernodeID, HyperedgeID, const Context&, gain_cache_t)>;
+                    IRefiner* (*)(HypernodeID, HyperedgeID, const Context&, gain_cache_t, IRefiner&)>;
 
 using DefaultFMDispatcher = kahypar::meta::StaticMultiDispatchFactory<
                             MultiTryKWayFMDefault,

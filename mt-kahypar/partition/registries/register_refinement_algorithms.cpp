@@ -74,9 +74,9 @@
   static kahypar::meta::Registrar<FMFactory> register_ ## dispatcher(                                  \
     id,                                                                                                \
     [](const HypernodeID num_hypernodes, const HyperedgeID num_hyperedges,                             \
-       const Context& context, gain_cache_t gain_cache) {                                              \
+       const Context& context, gain_cache_t gain_cache, IRefiner& rebalancer) {                        \
     return dispatcher::create(                                                                         \
-      std::forward_as_tuple(num_hypernodes, num_hyperedges, context, gain_cache),                      \
+      std::forward_as_tuple(num_hypernodes, num_hyperedges, context, gain_cache, rebalancer),          \
       __VA_ARGS__                                                                                      \
       );                                                                                               \
   })
@@ -85,8 +85,8 @@
   static kahypar::meta::Registrar<FMFactory> JOIN(register_ ## refiner, t)(                      \
     id,                                                                                          \
     [](const HypernodeID num_hypernodes, const HyperedgeID num_hyperedges,                       \
-       const Context& context, gain_cache_t gain_cache) -> IRefiner* {                           \
-    return new refiner(num_hypernodes, num_hyperedges, context, gain_cache);                     \
+       const Context& context, gain_cache_t gain_cache, IRefiner& rebalancer) -> IRefiner* {     \
+    return new refiner(num_hypernodes, num_hyperedges, context, gain_cache, rebalancer);         \
   })
 
 #define REGISTER_DISPATCHED_FLOW_SCHEDULER(id, dispatcher, ...)                                        \

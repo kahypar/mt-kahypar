@@ -105,11 +105,35 @@ namespace mt_kahypar {
       tg.wait();
       timer.stop_timer("find_moves");
 
-      timer.start_timer("rollback", "Rollback to Best Solution");
-      // TODO(maas): disable if necessary
-      HyperedgeWeight improvement = globalRollback.revertToBestPrefix(
-        phg, sharedData, initialPartWeights);
-      timer.stop_timer("rollback");
+      HyperedgeWeight improvement = 0;
+      if (FMStrategy::alwaysUseGlobalRollback(round) || metrics::isBalanced(phg, context)) {
+        timer.start_timer("rollback", "Rollback to Best Solution");
+        improvement = globalRollback.revertToBestPrefix(phg, sharedData, initialPartWeights);
+        timer.stop_timer("rollback");
+      } else {
+        // recompute penalty term values since they are potentially invalid
+        timer.start_timer("recompute_gain_cache", "Recompute Gain Cache");
+        const vec<Move>& move_order = sharedData.moveTracker.moveOrder;
+        tbb::parallel_for(MoveID(0), sharedData.moveTracker.numPerformedMoves(), [&](const MoveID i) {
+          gain_cache.recomputePenaltyTermEntry(phg, move_order[i].node);
+        });
+        sharedData.moveTracker.reset();
+        timer.stop_timer("recompute_gain_cache");
+
+        // rebalancing is necessary
+        // TODO: use similar part weight scaling to global rollback?
+        DBG << "[unconstrained FM] Starting Rebalancing";
+        Metrics updated_metrics;
+        timer.start_timer("recompute_metric", "Recompute Metric");
+        updated_metrics.quality = metrics::quality(phg, context);
+        updated_metrics.imbalance = metrics::imbalance(phg, context);
+        timer.stop_timer("recompute_metric");
+        timer.start_timer("rebalance", "Rebalance");
+        rebalancer.refine(hypergraph, {}, updated_metrics, current_time_limit);
+        timer.stop_timer("rebalance");
+        improvement = (metrics.quality - overall_improvement) - updated_metrics.quality;
+        DBG << "[unconstrained FM] " << V(improvement);
+      }
 
       const double roundImprovementFraction = improvementFraction(improvement,
         metrics.quality - overall_improvement);
@@ -227,6 +251,7 @@ namespace mt_kahypar {
     if (!gain_cache.isInitialized()) {
       gain_cache.initializeGainCache(phg);
     }
+    rebalancer.initialize(hypergraph);
 
     is_initialized = true;
   }

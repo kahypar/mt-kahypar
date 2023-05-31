@@ -45,6 +45,7 @@ namespace mt_kahypar {
    * skipMove(phg, gain_cache, move)
    * clearPQs()
    * deltaGainUpdates(phg, gain_cache, sync_update)
+   * alwaysUseGlobalRollback(taskID, round)
    * changeNumberOfBlocks(new_k)
    * memoryConsumption(utils::MemoryTreeNode* parent) const
    *
@@ -207,6 +208,10 @@ public:
             [](size_t init, const VertexPriorityQueue& pq) { return init + pq.size_in_bytes(); }
     );
     parent->addChild("PQs", blockPQ.size_in_bytes() + vertex_pq_sizes);
+  }
+
+  static bool alwaysUseGlobalRollback(size_t) {
+    return true;
   }
 
 private:

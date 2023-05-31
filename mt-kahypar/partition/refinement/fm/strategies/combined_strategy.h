@@ -64,6 +64,10 @@ public:
     // TODO
   }
 
+  static bool alwaysUseGlobalRollback(size_t round) {
+    return (round % 2) == 1;
+  }
+
  private:
   GainCacheStrategy default_strategy;
   UnconstrainedStrategy unconstrained_strategy;
