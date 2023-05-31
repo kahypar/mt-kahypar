@@ -6,6 +6,7 @@ set(RefinementSources
         gains/cut/cut_gain_cache.cpp
         gains/soed/soed_gain_cache.cpp
         gains/process_mapping/process_mapping_gain_cache.cpp
+        gains/process_mapping/process_mapping_flow_network_construction.cpp
         gains/cut_for_graphs/cut_gain_cache_for_graphs.cpp
         fm/sequential_twoway_fm_refiner.cpp
         label_propagation/label_propagation_refiner.cpp

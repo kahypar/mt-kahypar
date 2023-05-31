@@ -36,20 +36,14 @@ namespace mt_kahypar {
  * to determine the capacity of a hyperedge and whether or not the hyperedge
  * is relevant for optimizing the objective function.
  */
-struct SoedFlowNetworkConstruction {
+struct ProcessMappingFlowNetworkConstruction {
   // ! Capacity of the hyperedge
   template<typename PartitionedHypergraph>
   static HyperedgeWeight capacity(const PartitionedHypergraph& phg,
-                                  const Context&,
+                                  const Context& context,
                                   const HyperedgeID he,
                                   const PartitionID block_0,
-                                  const PartitionID block_1) {
-    const PartitionID connectivity = phg.connectivity(he);
-    const HypernodeID pin_count_block_0 = phg.pinCountInPart(he, block_0);
-    const HypernodeID pin_count_block_1 = phg.pinCountInPart(he, block_1);
-    return ( connectivity == 1 || ( connectivity == 2 && pin_count_block_0 > 0 &&
-      pin_count_block_1 > 0 ) ?  2 : 1 ) * phg.edgeWeight(he);
-  }
+                                  const PartitionID block_1);
 
   // ! If true, then hyperedge is not relevant and can be dropped.
   template<typename PartitionedHypergraph>

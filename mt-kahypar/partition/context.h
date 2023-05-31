@@ -182,6 +182,7 @@ struct FlowParameters {
   bool skip_small_cuts = false;
   bool skip_unpromising_blocks = false;
   bool pierce_in_bulk = false;
+  ProcessMappingCapacityAggregator capacity_aggregator = ProcessMappingCapacityAggregator::UNDEFINED;
 };
 
 std::ostream& operator<<(std::ostream& out, const FlowParameters& params);

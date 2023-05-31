@@ -537,7 +537,25 @@ namespace mt_kahypar {
             ((initial_partitioning ? "i-r-flow-determine-distance-from-cut" : "r-flow-determine-distance-from-cut"),
              po::value<bool>((initial_partitioning ? &context.initial_partitioning.refinement.flows.determine_distance_from_cut :
                       &context.refinement.flows.determine_distance_from_cut))->value_name("<bool>"),
-             "If true, than flow refiner determines distance of each node from cut which improves the piercing heuristic used in WHFC.");
+             "If true, than flow refiner determines distance of each node from cut which improves the piercing heuristic used in WHFC.")
+            ((initial_partitioning ? "i-r-flow-capacity-aggregator" : "r-flow-capacity-aggregator"),
+             po::value<std::string>()->value_name("<string>")->notifier(
+                     [&, initial_partitioning](const std::string& aggregator) {
+                       if ( initial_partitioning ) {
+                        context.initial_partitioning.refinement.flows.capacity_aggregator =
+                          processMappingCapacityAggregatorFromString(aggregator);
+                       } else {
+                        context.refinement.flows.capacity_aggregator =
+                          processMappingCapacityAggregatorFromString(aggregator);
+                       }
+                     }),
+             "This option is only important for process mapping. For an cut edge in the flow problem, the gain for removing that edge\n"
+             "from the cut is different depending on which block we remove from the cut. Let g_0 and g_1 be these gains. Then, we use an\n"
+             "aggregation function agg(g_0,g_1) to determine the capacity of the edge in the flow network.\n"
+             "The following aggregation functions are supported:\n"
+             "- maximum\n"
+             "- minimum\n"
+             "- average");
     return options;
   }
 

@@ -27,6 +27,7 @@
 #pragma once
 
 #include "mt-kahypar/datastructures/hypergraph_common.h"
+#include "mt-kahypar/partition/context.h"
 
 namespace mt_kahypar {
 
@@ -39,6 +40,7 @@ struct CutFlowNetworkConstruction {
   // ! Capacity of the hyperedge
   template<typename PartitionedHypergraph>
   static HyperedgeWeight capacity(const PartitionedHypergraph& phg,
+                                  const Context&,
                                   const HyperedgeID he,
                                   const PartitionID,
                                   const PartitionID) {

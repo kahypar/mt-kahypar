@@ -141,7 +141,8 @@ std::string serialize(const PartitionedHypergraph& hypergraph,
         << " flow_alpha=" << context.refinement.flows.alpha
         << " flow_max_num_pins=" << context.refinement.flows.max_num_pins
         << " flow_find_most_balanced_cut=" << std::boolalpha << context.refinement.flows.find_most_balanced_cut
-        << " flow_determine_distance_from_cut=" << std::boolalpha << context.refinement.flows.determine_distance_from_cut;
+        << " flow_determine_distance_from_cut=" << std::boolalpha << context.refinement.flows.determine_distance_from_cut
+        << " flow_capacity_aggregator=" << context.refinement.flows.capacity_aggregator;
     oss << " num_threads=" << context.shared_memory.num_threads
         << " use_localized_random_shuffle=" << std::boolalpha << context.shared_memory.use_localized_random_shuffle
         << " shuffle_block_size=" << context.shared_memory.shuffle_block_size

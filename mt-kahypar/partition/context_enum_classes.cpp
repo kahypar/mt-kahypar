@@ -264,6 +264,17 @@ namespace mt_kahypar {
       return os << static_cast<uint8_t>(algo);
   }
 
+  std::ostream & operator<< (std::ostream& os, const ProcessMappingCapacityAggregator& aggregator) {
+      switch (aggregator) {
+        case ProcessMappingCapacityAggregator::maximum: return os << "maximum";
+        case ProcessMappingCapacityAggregator::minimum: return os << "minimum";
+        case ProcessMappingCapacityAggregator::average: return os << "average";
+        case ProcessMappingCapacityAggregator::UNDEFINED: return os << "UNDEFINED";
+          // omit default case to trigger compiler warning for missing cases
+      }
+      return os << static_cast<uint8_t>(aggregator);
+  }
+
   Mode modeFromString(const std::string& mode) {
     if (mode == "rb") {
       return Mode::recursive_bipartitioning;
@@ -475,5 +486,17 @@ namespace mt_kahypar {
     }
     ERR("Illegal option: " + type);
     return ProcessMappingStrategy::identity;
+  }
+
+  ProcessMappingCapacityAggregator processMappingCapacityAggregatorFromString(const std::string& aggregator) {
+    if (aggregator == "maximum") {
+      return ProcessMappingCapacityAggregator::maximum;
+    } else if (aggregator == "minimum") {
+      return ProcessMappingCapacityAggregator::minimum;
+    } else if (aggregator == "average") {
+      return ProcessMappingCapacityAggregator::average;
+    }
+    ERR("Illegal option: " + aggregator);
+    return ProcessMappingCapacityAggregator::UNDEFINED;
   }
 }

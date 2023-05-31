@@ -169,6 +169,7 @@ namespace mt_kahypar {
       out << "    Skip Small Cuts:                  " << std::boolalpha << params.skip_small_cuts << std::endl;
       out << "    Skip Unpromising Blocks:          " << std::boolalpha << params.skip_unpromising_blocks << std::endl;
       out << "    Pierce in Bulk:                   " << std::boolalpha << params.pierce_in_bulk << std::endl;
+      out << "    Capacity Aggregator:              " << params.capacity_aggregator << std::endl;
       out << std::flush;
     }
     return out;
@@ -223,7 +224,9 @@ namespace mt_kahypar {
     str << "  Use Local Search:                   " << std::boolalpha << params.use_local_search << std::endl;
     str << "  Optimize Km1 Metric:                " << std::boolalpha << params.optimize_km1_metric << std::endl;
     str << "  Max Precomputed Steiner Tree Size:  " << params.max_steiner_tree_size << std::endl;
-    str << "  Bisection Brute Force Threshold:    " << params.bisection_brute_fore_threshold << std::endl;
+    if ( params.strategy == ProcessMappingStrategy::dual_bipartitioning ) {
+      str << "  Bisection Brute Force Threshold:    " << params.bisection_brute_fore_threshold << std::endl;
+    }
     return str;
   }
 
@@ -562,6 +565,7 @@ namespace mt_kahypar {
     refinement.flows.skip_unpromising_blocks = true;
     refinement.flows.pierce_in_bulk = true;
     refinement.flows.min_relative_improvement_per_round = 0.001;
+    refinement.flows.capacity_aggregator = ProcessMappingCapacityAggregator::minimum;
   }
 
   void Context::load_deterministic_preset() {
@@ -795,6 +799,7 @@ namespace mt_kahypar {
     refinement.flows.skip_unpromising_blocks = true;
     refinement.flows.pierce_in_bulk = true;
     refinement.flows.min_relative_improvement_per_round = 0.001;
+    refinement.flows.capacity_aggregator = ProcessMappingCapacityAggregator::minimum;
 
     // refinement -> global fm
     refinement.global_fm.refine_until_no_improvement = true;
