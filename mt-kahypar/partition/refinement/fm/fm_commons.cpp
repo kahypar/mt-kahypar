@@ -31,18 +31,23 @@
 namespace mt_kahypar {
 
   Gain UnconstrainedFMData::estimatedPenaltyForImbalancedMove(PartitionID to, HypernodeWeight weight) const {
+    ASSERT(initialized);
     size_t bucketId = 0;
-    while (consumed_bucket_weights[indexForBucket(to, bucketId)].load(std::memory_order_relaxed)
-            >= bucket_weights[indexForBucket(to, bucketId)]) {
+    HyperedgeWeight free_capacity = 0;
+    while (free_capacity <= 0 && bucketId < NUM_BUCKETS) {
       ++bucketId;
-      if (bucketId == NUM_BUCKETS) {
-        return std::numeric_limits<Gain>::max(); // rebalancing not possible with considered nodes
-      }
+      free_capacity = (bucketId == NUM_BUCKETS) ? 0 : bucket_weights[indexForBucket(to, bucketId)] -
+                      consumed_bucket_weights[indexForBucket(to, bucketId)].load(std::memory_order_relaxed);
     }
-    return std::ceil(weight * gainPerWeightForBucket(bucketId));
+    if (free_capacity < weight) {
+      ++bucketId;
+    }
+    return (bucketId >= NUM_BUCKETS) ? std::numeric_limits<Gain>::max()
+              : std::ceil(weight * gainPerWeightForBucket(bucketId));
   }
 
   Gain UnconstrainedFMData::applyEstimatedPenaltyForImbalancedMove(PartitionID to, HypernodeWeight weight) {
+    ASSERT(initialized);
     HypernodeWeight remaining = weight;
     double penalty = 0;
     while (remaining > 0) {
@@ -75,6 +80,7 @@ namespace mt_kahypar {
   }
 
   void UnconstrainedFMData::revertImbalancedMove(PartitionID to, HypernodeWeight weight) {
+    ASSERT(initialized);
     HypernodeWeight remaining = weight;
     while (remaining > 0) {
       size_t bucketId = 0;
@@ -122,7 +128,8 @@ namespace mt_kahypar {
     // collect nodes and fill buckets
     phg.doParallelForAllNodes([&](const HypernodeID hn) {
       const HypernodeWeight hn_weight = phg.nodeWeight(hn);
-      if (hn_weight > 0 && phg.isBorderNode(hn)) {
+      if (hn_weight > 0 && !phg.isBorderNode(hn)) {
+        // TODO(maas): only non border nodes does not seem like a good strategy for hypergraphs
         const PartitionID from = phg.partID(hn);
         auto& local_weights = local_bucket_weights.local();
         HyperedgeWeight incident_weight = 0;
@@ -155,6 +162,7 @@ namespace mt_kahypar {
         add_range_fn(k * NUM_BUCKETS, (k + 1) * NUM_BUCKETS);
       });
     }
+    initialized = true;
   }
 
   namespace {

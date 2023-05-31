@@ -182,7 +182,7 @@ struct UnconstrainedFMData {
   void revertImbalancedMove(PartitionID to, HypernodeWeight weight);
 
   bool isRebalancingNode(HypernodeID hn) const {
-    ASSERT(bucket_weights.size() > 0);
+    ASSERT(initialized);
     return rebalancing_nodes[hn];
   }
 
@@ -354,7 +354,7 @@ struct FMStats {
     std::stringstream os;
     os  << V(retries) << " " << V(extractions) << " " << V(pushes) << " "
         << V(moves) << " " << V(local_reverts) << " " << V(estimated_improvement) << " "
-        << V(best_prefix_mismatch) << V(rebalancing_node_moves);
+        << V(best_prefix_mismatch) <<  " " << V(rebalancing_node_moves);
     return os.str();
   }
 };
