@@ -70,7 +70,8 @@ public:
     _bucket_weights(_context.partition.k * NUM_BUCKETS, 0),
     _local_bucket_weights([&] {
       return constructBucketWeightVector();
-    }) {
+    }),
+    _node_was_moved() {
       for (size_t i = 0; i < NUM_BUCKETS; ++i) {
         _buckets.emplace_back(BUCKET_FACTOR);
       }
@@ -91,7 +92,10 @@ public:
                   Metrics& best_metrics,
                   double);
 
-  void initializeImpl(mt_kahypar_partitioned_hypergraph_t&) final { }
+  void initializeImpl(mt_kahypar_partitioned_hypergraph_t& hypergraph) final {
+    PartitionedHypergraph& phg = utils::cast<PartitionedHypergraph>(hypergraph);
+    _node_was_moved.resize(phg.initialNumNodes(), uint8_t(false));
+  }
 
 private:
   template<bool ensure_balanced_moves>
@@ -171,12 +175,15 @@ private:
     HypernodeWeight max_weight = ensure_balanced ? _context.partition.max_part_weights[to]
                                   : std::numeric_limits<HypernodeWeight>::max();
     bool success = false;
-    if ( _context.forceGainCacheUpdates() && _gain_cache.isInitialized() ) {
+    if ( _gain_cache.isInitialized() ) {
       success = phg.changeNodePart(_gain_cache, hn, from, to, max_weight, []{}, objective_delta);
     } else {
       success = phg.changeNodePart(hn, from, to, max_weight, []{}, objective_delta);
     }
     ASSERT(success || ensure_balanced);
+    if (success) {
+      _node_was_moved[hn] = uint8_t(true);
+    }
     return success;
   }
 
@@ -221,6 +228,7 @@ private:
   parallel::scalable_vector<BucketMap> _buckets;
   parallel::scalable_vector<HypernodeWeight> _bucket_weights;
   tbb::enumerable_thread_specific<parallel::scalable_vector<HypernodeWeight>> _local_bucket_weights;
+  parallel::scalable_vector<uint8_t> _node_was_moved;
 };
 
 }  // namespace kahypar

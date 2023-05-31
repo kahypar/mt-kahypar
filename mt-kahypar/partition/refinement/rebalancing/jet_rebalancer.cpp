@@ -65,9 +65,18 @@ namespace mt_kahypar {
         }
       }
 
+      if (_gain_cache.isInitialized()) {
+        phg.doParallelForAllNodes([&](const HypernodeID hn) {
+          if (_node_was_moved[hn]) {
+            _gain_cache.recomputePenaltyTermEntry(phg, hn);
+            _node_was_moved[hn] = uint8_t(false);
+          }
+        });
+      }
+
       // Update metrics statistics
       Gain delta = _gain.delta();
-      // HEAVY_REFINEMENT_ASSERT(phg.checkTrackedPartitionInformation(_gain_cache));
+      HEAVY_REFINEMENT_ASSERT(phg.checkTrackedPartitionInformation(_gain_cache));
       HEAVY_REFINEMENT_ASSERT(best_metrics.quality + delta == metrics::quality(phg, _context),
         V(best_metrics.quality) << V(delta) << V(metrics::quality(phg, _context)));
       best_metrics.quality += delta;
@@ -81,10 +90,6 @@ namespace mt_kahypar {
   template <typename TypeTraits, typename GainTypes>
   template<bool ensure_balanced_moves>
   void JetRebalancer<TypeTraits, GainTypes>::weakRebalancingRound(PartitionedHypergraph& phg) {
-    DBG << "[REBALANCE] Weights before rebalancing round:";
-    for (PartitionID k = 0; k < _context.partition.k; ++k) {
-      DBG << V(k) << "  weight=" << phg.partWeight(k) << "  max=" << _context.partition.max_part_weights[k];
-    }
     bool use_deadzone = !ensure_balanced_moves || _context.refinement.jet_rebalancing.greedy_balanced_use_deadzone;
     insertNodesIntoBuckets(phg, [&](const HypernodeID hn) {
       return computeGainAndTargetPart(phg, hn, false, false, use_deadzone).first;
@@ -95,11 +100,6 @@ namespace mt_kahypar {
       auto [_, to] = computeGainAndTargetPart(phg, hn, true, is_retry, use_deadzone);
       return changeNodePart(phg, hn, from, to, ensure_balanced_moves);
     }, ensure_balanced_moves, false);
-
-    DBG << "[REBALANCE] Weights after rebalancing round:";
-    for (PartitionID k = 0; k < _context.partition.k; ++k) {
-      DBG << V(k) << "  weight=" << phg.partWeight(k) << "  max=" << _context.partition.max_part_weights[k];
-    }
   }
 
   template <typename TypeTraits, typename GainTypes>
@@ -158,19 +158,11 @@ namespace mt_kahypar {
       if (end > start) {
         tbb::parallel_for(start, end, [&](const size_t i) {
           const HypernodeID hn = moved_nodes[i];
-          if (phg.partID(hn) == block) {
-            LOG << V(block) << V(phg.partWeight(block)) << V(_part_weights[block]);
-          }
           changeNodePart(phg, hn, phg.partID(hn), block, false);
         });
       }
     });
     updateImbalance(phg);
-
-    DBG << "[REBALANCE] Weights after STRONG rebalancing round:";
-    for (PartitionID k = 0; k < _context.partition.k; ++k) {
-      DBG << V(k) << "  weight=" << phg.partWeight(k) << "  max=" << _context.partition.max_part_weights[k];
-    }
   }
 
   template <typename TypeTraits, typename GainTypes>
@@ -206,9 +198,6 @@ namespace mt_kahypar {
       tbb::parallel_for(static_cast<PartitionID>(0), _context.partition.k, [&](const PartitionID k) {
         add_range_fn(k * NUM_BUCKETS, (k + 1) * NUM_BUCKETS);
       });
-    }
-    for (size_t i = 0; i < bucket_counts.size(); ++i) {
-      DBG << V(i) << "  num nodes in bucket: " << bucket_counts[i].load();
     }
   }
 
