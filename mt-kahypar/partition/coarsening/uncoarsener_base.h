@@ -124,15 +124,15 @@ class UncoarsenerBase {
     _label_propagation = LabelPropagationFactory::getInstance().createObject(
       _context.refinement.label_propagation.algorithm,
       _hg.initialNumNodes(), _hg.initialNumEdges(), _context, _gain_cache);
-    _fm = FMFactory::getInstance().createObject(
-      _context.refinement.fm.algorithm,
-      _hg.initialNumNodes(), _hg.initialNumEdges(), _context, _gain_cache);
     _flows = FlowSchedulerFactory::getInstance().createObject(
       _context.refinement.flows.algorithm,
       _hg.initialNumNodes(), _hg.initialNumEdges(), _context, _gain_cache);
     _rebalancer = RebalancerFactory::getInstance().createObject(
       _context.refinement.rebalancer, _context, _gain_cache);
-    // JET requires acces to the rebalancer
+    // JET and FMrequires acces to the rebalancer
+    _fm = FMFactory::getInstance().createObject(
+      _context.refinement.fm.algorithm,
+      _hg.initialNumNodes(), _hg.initialNumEdges(), _context, _gain_cache, *_rebalancer);
     _jet = JetFactory::getInstance().createObject(
       _context.refinement.jet.algorithm,
       _hg.initialNumNodes(), _hg.initialNumEdges(), _context, _gain_cache, *_rebalancer);
