@@ -148,6 +148,7 @@ struct SyncronizedEdgeUpdate {
     edge_size(0),
     pin_count_in_from_part_after(kInvalidHypernode),
     pin_count_in_to_part_after(kInvalidHypernode),
+    block_of_other_node(kInvalidPartition),
     connectivity_set_after(nullptr),
     pin_counts_after(nullptr),
     process_graph(nullptr),
@@ -160,6 +161,7 @@ struct SyncronizedEdgeUpdate {
   HypernodeID edge_size;
   HypernodeID pin_count_in_from_part_after;
   HypernodeID pin_count_in_to_part_after;
+  PartitionID block_of_other_node;
   mutable ds::Bitset* connectivity_set_after;
   mutable ds::PinCountSnapshot* pin_counts_after;
   const ProcessGraph* process_graph;

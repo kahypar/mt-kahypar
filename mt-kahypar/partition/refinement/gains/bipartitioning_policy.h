@@ -42,6 +42,7 @@ struct BipartitioningPolicy {
       case GainPolicy::soed: return true;
       case GainPolicy::process_mapping: return true;
       case GainPolicy::cut_for_graphs: return false;
+      case GainPolicy::process_mapping_for_graphs: return false;
       case GainPolicy::none: ERR("Gain policy is unknown" << policy);
     }
     ERR("Gain policy is unknown" << policy);
@@ -55,6 +56,7 @@ struct BipartitioningPolicy {
       case GainPolicy::soed: return 2;
       case GainPolicy::process_mapping: return 1;
       case GainPolicy::cut_for_graphs: return 1;
+      case GainPolicy::process_mapping_for_graphs: return 1;
       case GainPolicy::none: ERR("Gain policy is unknown" << policy);
     }
     ERR("Gain policy is unknown" << policy);

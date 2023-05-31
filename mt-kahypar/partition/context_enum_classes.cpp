@@ -128,6 +128,7 @@ namespace mt_kahypar {
       case GainPolicy::soed: return os << "soed";
       case GainPolicy::process_mapping: return os << "process_mapping";
       case GainPolicy::cut_for_graphs: return os << "cut_for_graphs";
+      case GainPolicy::process_mapping_for_graphs: return os << "process_mapping_for_graphs";
       case GainPolicy::none: return os << "none";
         // omit default case to trigger compiler warning for missing cases
     }

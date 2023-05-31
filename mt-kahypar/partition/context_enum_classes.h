@@ -89,6 +89,7 @@ enum class GainPolicy : uint8_t {
   soed,
   process_mapping,
   cut_for_graphs,
+  process_mapping_for_graphs,
   none
 };
 

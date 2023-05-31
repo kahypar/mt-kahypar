@@ -93,7 +93,8 @@ class AGainCache : public Test {
     delta_phg->setPartitionedHypergraph(&partitioned_hg);
     delta_gain_cache = std::make_unique<DeltaGainCache>(gain_cache);
 
-    if ( GainCache::TYPE == GainPolicy::process_mapping ) {
+    if ( GainCache::TYPE == GainPolicy::process_mapping ||
+         GainCache::TYPE == GainPolicy::process_mapping_for_graphs ) {
       /**
        * Process Graph:
        *        1           2           4

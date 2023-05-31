@@ -433,7 +433,7 @@ namespace mt_kahypar {
       if ( partition.objective == Objective::cut ) {
         partition.gain_policy = GainPolicy::cut_for_graphs;
       } else {
-        partition.gain_policy = GainPolicy::process_mapping;
+        partition.gain_policy = GainPolicy::process_mapping_for_graphs;
       }
     }
   }

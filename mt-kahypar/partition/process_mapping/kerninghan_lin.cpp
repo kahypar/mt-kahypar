@@ -78,28 +78,30 @@ MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE HyperedgeWeight swap_gain(CommunicationHyperg
   // We therefore mark all incident hyperedges of u and only compute the
   // gain for hyperedges that are not in the intersection of u and v.
   for ( const HyperedgeID& he : communication_hg.incidentEdges(u) ) {
-    marked_hes[he] = true;
+    marked_hes[communication_hg.uniqueEdgeID(he)] = true;
   }
 
   for ( const HyperedgeID& he : communication_hg.incidentEdges(v) ) {
-    if ( !marked_hes[he] ) {
+    const HyperedgeID unique_id = communication_hg.uniqueEdgeID(he);
+    if ( !marked_hes[unique_id] ) {
       // Hyperedge only contains v => compute swap gain
       ds::Bitset& connectivity_set = communication_hg.deepCopyOfConnectivitySet(he);
       gain += swap_gain(process_graph, connectivity_set,
         communication_hg.edgeWeight(he), block_of_v, block_of_u);
     } else {
       // Hyperedge contains u and v => unmark hyperedge
-      marked_hes[he] = false;
+      marked_hes[unique_id] = false;
     }
   }
 
   for ( const HyperedgeID& he : communication_hg.incidentEdges(u) ) {
-    if ( marked_hes[he] ) {
+    const HyperedgeID unique_id = communication_hg.uniqueEdgeID(he);
+    if ( marked_hes[unique_id] ) {
       // Hyperedge only contains u => compute swap gain
       ds::Bitset& connectivity_set = communication_hg.deepCopyOfConnectivitySet(he);
       gain += swap_gain(process_graph, connectivity_set,
         communication_hg.edgeWeight(he), block_of_u, block_of_v);
-      marked_hes[he] = false;
+      marked_hes[unique_id] = false;
     }
   }
 

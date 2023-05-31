@@ -647,7 +647,13 @@ private:
 
   // ! Creates a deep copy of the connectivity set of hyperedge he
   Bitset& deepCopyOfConnectivitySet(const HyperedgeID he) const {
-    return connectivitySetAfterMove(partID(edgeSource(he)), partID(edgeTarget(he)));
+    Bitset& deep_copy = _deep_copy_bitset.local();
+    deep_copy.resize(_k);
+    const PartitionID source_block = partID(edgeSource(he));
+    const PartitionID target_block = partID(edgeTarget(he));
+    if ( source_block != kInvalidPartition ) deep_copy.set(source_block);
+    if ( target_block != kInvalidPartition ) deep_copy.set(target_block);
+    return deep_copy;
   }
 
   // ! Initializes the partition of the hypergraph, if block ids are assigned with
@@ -1010,9 +1016,9 @@ private:
           sync_update.he = edge;
           sync_update.edge_weight = edgeWeight(edge);
           sync_update.edge_size = edgeSize(edge);
-          const PartitionID block_of_target_node = synchronizeMoveOnEdge(edge, u, to);
-          sync_update.pin_count_in_from_part_after = block_of_target_node == from ? 1 : 0;
-          sync_update.pin_count_in_to_part_after = block_of_target_node == to ? 2 : 1;
+          sync_update.block_of_other_node = synchronizeMoveOnEdge(edge, u, to);
+          sync_update.pin_count_in_from_part_after = sync_update.block_of_other_node == from ? 1 : 0;
+          sync_update.pin_count_in_to_part_after = sync_update.block_of_other_node == to ? 2 : 1;
           delta_func(sync_update);
         }
       }
@@ -1023,14 +1029,6 @@ private:
       _part_weights[to].fetch_sub(weight, std::memory_order_relaxed);
       return false;
     }
-  }
-
-  Bitset& connectivitySetAfterMove(const PartitionID sourceNodeBlock, const PartitionID targetNodeBlock) const {
-    Bitset& deep_copy = _deep_copy_bitset.local();
-    deep_copy.resize(_k);
-    deep_copy.set(sourceNodeBlock);
-    deep_copy.set(targetNodeBlock);
-    return deep_copy;
   }
 
   void initializeBlockWeights() {

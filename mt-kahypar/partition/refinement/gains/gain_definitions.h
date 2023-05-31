@@ -52,6 +52,8 @@
 #include "mt-kahypar/partition/refinement/gains/process_mapping/process_mapping_gain_cache.h"
 #include "mt-kahypar/partition/refinement/gains/process_mapping/process_mapping_rollback.h"
 #include "mt-kahypar/partition/refinement/gains/process_mapping/process_mapping_flow_network_construction.h"
+#include "mt-kahypar/partition/refinement/gains/process_mapping_for_graphs/process_mapping_attributed_gains_for_graphs.h"
+#include "mt-kahypar/partition/refinement/gains/process_mapping_for_graphs/process_mapping_gain_computation_for_graphs.h"
 #include "mt-kahypar/partition/refinement/gains/cut_for_graphs/cut_gain_cache_for_graphs.h"
 #include "mt-kahypar/partition/refinement/gains/cut_for_graphs/cut_attributed_gains_for_graphs.h"
 #include "mt-kahypar/macros.h"
@@ -103,18 +105,29 @@ struct CutGainForGraphsTypes : public kahypar::meta::PolicyBase {
   using FlowNetworkConstruction = CutFlowNetworkConstruction;
 };
 
+struct ProcessMappingForGraphsTypes : public kahypar::meta::PolicyBase {
+  using GainComputation = GraphProcessMappingGainComputation;
+  using AttributedGains = GraphProcessMappingAttributedGains;
+  using GainCache = ProcessMappingGainCache;
+  using DeltaGainCache = DeltaProcessMappingGainCache;
+  using Rollback = ProcessMappingRollback;
+  using FlowNetworkConstruction = ProcessMappingFlowNetworkConstruction;
+};
+
 
 using GainTypes = kahypar::meta::Typelist<Km1GainTypes,
                                           CutGainTypes,
                                           SoedGainTypes,
                                           ProcessMappingGainTypes,
-                                          CutGainForGraphsTypes>;
+                                          CutGainForGraphsTypes,
+                                          ProcessMappingForGraphsTypes>;
 
 #define INSTANTIATE_CLASS_WITH_TYPE_TRAITS_AND_GAIN_TYPES(C)                                      \
   INSTANTIATE_CLASS_MACRO_WITH_TYPE_TRAITS_AND_OTHER_CLASS(C, Km1GainTypes)                       \
   INSTANTIATE_CLASS_MACRO_WITH_TYPE_TRAITS_AND_OTHER_CLASS(C, CutGainTypes)                       \
   INSTANTIATE_CLASS_MACRO_WITH_TYPE_TRAITS_AND_OTHER_CLASS(C, SoedGainTypes)                      \
   INSTANTIATE_CLASS_MACRO_WITH_TYPE_TRAITS_AND_OTHER_CLASS(C, ProcessMappingGainTypes)            \
-  INSTANTIATE_CLASS_MACRO_WITH_TYPE_TRAITS_AND_OTHER_CLASS(C, CutGainForGraphsTypes)
+  INSTANTIATE_CLASS_MACRO_WITH_TYPE_TRAITS_AND_OTHER_CLASS(C, CutGainForGraphsTypes)              \
+  INSTANTIATE_CLASS_MACRO_WITH_TYPE_TRAITS_AND_OTHER_CLASS(C, ProcessMappingForGraphsTypes)
 
 }  // namespace mt_kahypar
