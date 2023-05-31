@@ -97,6 +97,21 @@ void compute_greedy_mapping(CommunicationHypergraph& communication_hg,
   ds::StaticBitset unassigned_processors_view(
     unassigned_processors.numBlocks(), unassigned_processors.data());
   PQ pq;
+
+  auto check_if_all_nodes_are_assigned = [&]() {
+    if ( pq.empty() ) {
+      // Check if there are still unassigned nodes.
+      // This can happen if the communication hypergraph is not connected
+      for ( const HypernodeID& hn : communication_hg.nodes() ) {
+        if ( communication_hg.partID(hn) == kInvalidPartition ) {
+          ASSERT(up_to_date_ratings[hn]);
+          pq.push( PQElement { rating[hn], hn } );
+          break;
+        }
+      }
+    }
+  };
+
   auto assign = [&](const HypernodeID u,
                     const PartitionID process) {
     ASSERT(process != kInvalidPartition && process < communication_hg.k());
@@ -128,6 +143,7 @@ void compute_greedy_mapping(CommunicationHypergraph& communication_hg,
       pq.push(PQElement { rating[hn], hn });
       up_to_date_ratings[hn] = true;
     }
+    check_if_all_nodes_are_assigned();
   };
 
   communication_hg.resetPartition();
@@ -147,6 +163,7 @@ void compute_greedy_mapping(CommunicationHypergraph& communication_hg,
     pq.pop();
 
     if ( !up_to_date_ratings[u] ) {
+      check_if_all_nodes_are_assigned();
       continue;
     }
 
