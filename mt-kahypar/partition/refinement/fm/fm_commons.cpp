@@ -106,24 +106,8 @@ namespace mt_kahypar {
 
   template<typename PartitionedHypergraphT>
   void UnconstrainedFMData::initialize(const Context& context, const PartitionedHypergraphT& phg) {
-    if (!initialized) {
-      local_bucket_weights = tbb::enumerable_thread_specific<vec<HypernodeWeight>>(context.partition.k * NUM_BUCKETS);
-    }
-    if (buckets.empty()) {
-      for (size_t i = 0; i < NUM_BUCKETS; ++i) {
-        buckets.emplace_back(BUCKET_FACTOR);
-      }
-    } else {
-      ASSERT(buckets.size() == NUM_BUCKETS);
-      for (size_t i = 0; i < NUM_BUCKETS; ++i) {
-        buckets[i].clearParallel();
-      }
-    }
-    bucket_weights.assign(context.partition.k * NUM_BUCKETS, 0);
-    consumed_bucket_weights.assign(context.partition.k * NUM_BUCKETS, AtomicWeight(0));
-    for (auto& local_weights: local_bucket_weights) {
-      local_weights.assign(context.partition.k * NUM_BUCKETS, 0);
-    }
+    ASSERT(!initialized);
+    changeNumberOfBlocks(context.partition.k);
 
     // collect nodes and fill buckets
     phg.doParallelForAllNodes([&](const HypernodeID hn) {
@@ -139,7 +123,6 @@ namespace mt_kahypar {
         }
         const size_t bucketId = bucketForGainPerWeight(static_cast<double>(incident_weight) / hn_weight);
         if (bucketId < NUM_BUCKETS) {
-          buckets[bucketId].insert(hn, HypernodeID(hn));
           local_weights[indexForBucket(from, bucketId)] += hn_weight;
           rebalancing_nodes.set(hn, true);
         }
