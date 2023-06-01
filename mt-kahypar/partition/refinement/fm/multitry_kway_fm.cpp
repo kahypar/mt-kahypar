@@ -134,6 +134,7 @@ namespace mt_kahypar {
         improvement = (metrics.quality - overall_improvement) - updated_metrics.quality;
         DBG << "[unconstrained FM] " << V(improvement);
       }
+      sharedData.unconstrained.reset();
 
       const double roundImprovementFraction = improvementFraction(improvement,
         metrics.quality - overall_improvement);

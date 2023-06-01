@@ -158,6 +158,7 @@ struct UnconstrainedFMData {
   static constexpr size_t BUCKET_FACTOR = 32;
 
   bool initialized = false;
+  PartitionID current_k;
   parallel::scalable_vector<BucketMap> buckets;
   parallel::scalable_vector<HypernodeWeight> bucket_weights;
   parallel::scalable_vector<AtomicWeight> consumed_bucket_weights;
@@ -166,6 +167,7 @@ struct UnconstrainedFMData {
 
   explicit UnconstrainedFMData():
     initialized(false),
+    current_k(0),
     buckets(),
     bucket_weights(),
     consumed_bucket_weights(),
@@ -186,8 +188,31 @@ struct UnconstrainedFMData {
     return rebalancing_nodes[hn];
   }
 
-  void changeNumberOfBlocks(PartitionID /*current_k*/) {
-    initialized = false;
+  void changeNumberOfBlocks(PartitionID new_k) {
+    if (new_k != current_k) {
+      current_k = new_k;
+      local_bucket_weights = tbb::enumerable_thread_specific<vec<HypernodeWeight>>(new_k * NUM_BUCKETS);
+      bucket_weights.assign(current_k * NUM_BUCKETS, 0);
+      consumed_bucket_weights.assign(current_k * NUM_BUCKETS, AtomicWeight(0));
+      for (auto& local_weights: local_bucket_weights) {
+        local_weights.assign(current_k * NUM_BUCKETS, 0);
+      }
+      initialized = false;
+    }
+  }
+
+  void reset() {
+    if (initialized) {
+      for (size_t i = 0; i < NUM_BUCKETS; ++i) {
+        buckets[i].clearParallel();
+      }
+      bucket_weights.assign(current_k * NUM_BUCKETS, 0);
+      consumed_bucket_weights.assign(current_k * NUM_BUCKETS, AtomicWeight(0));
+      for (auto& local_weights: local_bucket_weights) {
+        local_weights.assign(current_k * NUM_BUCKETS, 0);
+      }
+      initialized = false;
+    }
   }
 
  private:
