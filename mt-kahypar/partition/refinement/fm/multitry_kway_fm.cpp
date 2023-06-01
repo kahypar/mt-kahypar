@@ -112,11 +112,13 @@ namespace mt_kahypar {
         timer.stop_timer("rollback");
       } else {
         // recompute penalty term values since they are potentially invalid
+        timer.start_timer("recompute_gain_cache", "Recompute Gain Cache");
         const vec<Move>& move_order = sharedData.moveTracker.moveOrder;
         tbb::parallel_for(MoveID(0), sharedData.moveTracker.numPerformedMoves(), [&](const MoveID i) {
           gain_cache.recomputePenaltyTermEntry(phg, move_order[i].node);
         });
-        HEAVY_REFINEMENT_ASSERT(phg.checkTrackedPartitionInformation(gain_cache)); // TODO: remove
+        sharedData.moveTracker.reset();
+        timer.stop_timer("recompute_gain_cache");
 
         // rebalancing is necessary
         // TODO: use similar part weight scaling to global rollback?
@@ -131,8 +133,6 @@ namespace mt_kahypar {
         timer.stop_timer("rebalance");
         improvement = (metrics.quality - overall_improvement) - updated_metrics.quality;
         DBG << "[unconstrained FM] " << V(improvement);
-
-        sharedData.moveTracker.reset();
       }
 
       const double roundImprovementFraction = improvementFraction(improvement,
