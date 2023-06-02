@@ -265,15 +265,14 @@ namespace mt_kahypar {
       return os << static_cast<uint8_t>(algo);
   }
 
-  std::ostream & operator<< (std::ostream& os, const ProcessMappingCapacityAggregator& aggregator) {
-      switch (aggregator) {
-        case ProcessMappingCapacityAggregator::maximum: return os << "maximum";
-        case ProcessMappingCapacityAggregator::minimum: return os << "minimum";
-        case ProcessMappingCapacityAggregator::average: return os << "average";
-        case ProcessMappingCapacityAggregator::UNDEFINED: return os << "UNDEFINED";
+  std::ostream & operator<< (std::ostream& os, const ProcessMappingFlowValuePolicy& policy) {
+      switch (policy) {
+        case ProcessMappingFlowValuePolicy::lower_bound: return os << "lower_bound";
+        case ProcessMappingFlowValuePolicy::upper_bound: return os << "upper_bound";
+        case ProcessMappingFlowValuePolicy::UNDEFINED: return os << "UNDEFINED";
           // omit default case to trigger compiler warning for missing cases
       }
-      return os << static_cast<uint8_t>(aggregator);
+      return os << static_cast<uint8_t>(policy);
   }
 
   Mode modeFromString(const std::string& mode) {
@@ -489,15 +488,13 @@ namespace mt_kahypar {
     return ProcessMappingStrategy::identity;
   }
 
-  ProcessMappingCapacityAggregator processMappingCapacityAggregatorFromString(const std::string& aggregator) {
-    if (aggregator == "maximum") {
-      return ProcessMappingCapacityAggregator::maximum;
-    } else if (aggregator == "minimum") {
-      return ProcessMappingCapacityAggregator::minimum;
-    } else if (aggregator == "average") {
-      return ProcessMappingCapacityAggregator::average;
+  ProcessMappingFlowValuePolicy processMappingFlowValuePolicyFromString(const std::string& policy) {
+    if (policy == "lower_bound") {
+      return ProcessMappingFlowValuePolicy::lower_bound;
+    } else if (policy == "upper_bound") {
+      return ProcessMappingFlowValuePolicy::upper_bound;
     }
-    ERR("Illegal option: " + aggregator);
-    return ProcessMappingCapacityAggregator::UNDEFINED;
+    ERR("Illegal option: " + policy);
+    return ProcessMappingFlowValuePolicy::UNDEFINED;
   }
 }

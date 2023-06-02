@@ -57,7 +57,7 @@ namespace {
 template<typename TypeTraits, typename GainTypes>
 class FlowRefinementScheduler final : public IRefiner {
 
-  static constexpr bool debug = true;
+  static constexpr bool debug = false;
   static constexpr bool enable_heavy_assert = false;
 
   using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;

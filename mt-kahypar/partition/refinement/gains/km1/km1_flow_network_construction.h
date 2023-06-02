@@ -77,10 +77,10 @@ struct Km1FlowNetworkConstruction {
   // ! If true, then hyperedge is considered as cut edge and its
   // ! weight is added to the total cut
   template<typename PartitionedHypergraph>
-  static bool addWeightToTotalCut(const PartitionedHypergraph&,
-                                  const HyperedgeID,
-                                  const PartitionID,
-                                  const PartitionID) {
+  static bool isCut(const PartitionedHypergraph&,
+                    const HyperedgeID,
+                    const PartitionID,
+                    const PartitionID) {
     return false;
   }
 };

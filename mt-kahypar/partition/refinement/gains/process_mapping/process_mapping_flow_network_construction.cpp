@@ -32,19 +32,14 @@
 namespace mt_kahypar {
 
 namespace {
-HyperedgeWeight cap(const ProcessMappingCapacityAggregator aggregator,
-                    const HyperedgeWeight edge_weight,
-                    const HyperedgeWeight current_distance,
-                    const HyperedgeWeight distance_without_block_0,
-                    const HyperedgeWeight distance_without_block_1) {
-  const HyperedgeWeight gain_0 = (current_distance - distance_without_block_0) * edge_weight;
-  const HyperedgeWeight gain_1 = (current_distance - distance_without_block_1) * edge_weight;
-  switch ( aggregator ) {
-    case ProcessMappingCapacityAggregator::maximum: return std::max(gain_0, gain_1);
-    case ProcessMappingCapacityAggregator::minimum: return std::min(gain_0, gain_1);
-    case ProcessMappingCapacityAggregator::average: return (gain_0 + gain_1) / 2;
-    case ProcessMappingCapacityAggregator::UNDEFINED:
-      ERR("No valid capacity aggregator provided" << V(aggregator));
+HyperedgeWeight capacity_for_cut_edge(const ProcessMappingFlowValuePolicy policy,
+                                      const HyperedgeWeight gain_0,
+                                      const HyperedgeWeight gain_1) {
+  switch ( policy ) {
+    case ProcessMappingFlowValuePolicy::lower_bound: return std::min(gain_0, gain_1);
+    case ProcessMappingFlowValuePolicy::upper_bound: return std::max(gain_0, gain_1);
+    case ProcessMappingFlowValuePolicy::UNDEFINED:
+      ERR("Process mapping flow value policy is undefined" << V(policy));
       return 0;
   }
   return 0;
@@ -63,39 +58,100 @@ HyperedgeWeight ProcessMappingFlowNetworkConstruction::capacity(const Partitione
   const HypernodeID pin_count_block_0 = phg.pinCountInPart(he, block_0);
   const HypernodeID pin_count_block_1 = phg.pinCountInPart(he, block_1);
   ds::Bitset& connectivity_set = phg.deepCopyOfConnectivitySet(he);
+  const HyperedgeWeight current_distance = process_graph.distance(connectivity_set);
   if ( pin_count_block_0 > 0 && pin_count_block_1 == 0 ) {
-    // Hyperedge is non-cut in the flow network.
-    // Thus, we set its capacity to gain if we would make it a cut edge (adding block 1)
-    connectivity_set.set(block_0);
-    return (process_graph.distanceWithBlock(connectivity_set, block_1) -
-      process_graph.distance(connectivity_set)) * edge_weight;
+    // Hyperedge is non-cut
+    // => we use gain for making the hyperedge cut as capacity to get a lower bound for the
+    // actual improvement
+    const HyperedgeWeight distance_with_block_1 =
+      process_graph.distanceWithBlock(connectivity_set, block_1);
+    return std::abs(current_distance - distance_with_block_1) * edge_weight;
   } else if ( pin_count_block_0 == 0 && pin_count_block_1 > 0 ) {
-    // Hyperedge is non-cut in the flow network.
-    // Thus, we set its capacity to gain if we would make it a cut edge (adding block 0)
-    connectivity_set.set(block_1);
-    return (process_graph.distanceWithBlock(connectivity_set, block_0) -
-      process_graph.distance(connectivity_set)) * edge_weight;
+    // Hyperedge is non-cut
+    // => we use gain for making the hyperedge cut as capacity to get a lower bound for the
+    // actual improvement
+    const HyperedgeWeight distance_with_block_0 =
+      process_graph.distanceWithBlock(connectivity_set, block_0);
+    return std::abs(current_distance - distance_with_block_0) * edge_weight;
   } else {
-    // Hyperedge is cut in the flow network.
-    // The gain for making the hyperedge non-cut depends on whether we
-    // remove block 0 or 1 from the connectivity set. Thus, we compute both gains
-    // and set the capacity of the edge to the result of an aggregation operation
-    // over both gains (minimum, maximum or average)
-    connectivity_set.set(block_0);
-    connectivity_set.set(block_1);
-    const HyperedgeWeight current_distance = process_graph.distance(connectivity_set);
+    // Hyperedge is cut
+    // => does we either use min(gain_0, gain_1) to compute a lower bound for the actual improvement or
+    // max(gain_0,gain_1) to compute an uppter bound for the actual improvement.
     const HyperedgeWeight distance_without_block_0 = process_graph.distanceWithoutBlock(connectivity_set, block_0);
     const HyperedgeWeight distance_without_block_1 = process_graph.distanceWithoutBlock(connectivity_set, block_1);
-    return cap(context.refinement.flows.capacity_aggregator, edge_weight,
-      current_distance, distance_without_block_0, distance_without_block_1);
+    const HyperedgeWeight gain_0 = (current_distance - distance_without_block_0) * edge_weight;
+    const HyperedgeWeight gain_1 = (current_distance - distance_without_block_1) * edge_weight;
+    return capacity_for_cut_edge(context.refinement.flows.process_mapping_policy, gain_0, gain_1);
   }
+}
+
+template<typename PartitionedHypergraph>
+bool ProcessMappingFlowNetworkConstruction::connectToSource(const PartitionedHypergraph& partitioned_hg,
+                                                            const HyperedgeID he,
+                                                            const PartitionID block_0,
+                                                            const PartitionID block_1) {
+  ASSERT(partitioned_hg.hasProcessGraph());
+  const ProcessGraph& process_graph = *partitioned_hg.processGraph();
+  if ( partitioned_hg.pinCountInPart(he, block_0) > 0 && partitioned_hg.pinCountInPart(he, block_1) == 0 ) {
+    ds::Bitset& connectivity_set = partitioned_hg.deepCopyOfConnectivitySet(he);
+    const HyperedgeWeight current_distance = process_graph.distance(connectivity_set);
+    const HyperedgeWeight distance_after_exchange =
+      process_graph.distanceAfterExchangingBlocks(connectivity_set, block_0, block_1);
+    if ( current_distance < distance_after_exchange ) {
+      // If all nodes from block_0 would move to block_1, we would worsen the process mapping objective
+      // function, even though the connectivity of the hyperedge does not change. To model this percurlarity in the flow network,
+      // we add the corresponding hyperedge to the source.
+      return true;
+    }
+  }
+  return false;
+}
+
+
+template<typename PartitionedHypergraph>
+bool ProcessMappingFlowNetworkConstruction::connectToSink(const PartitionedHypergraph& partitioned_hg,
+                                                          const HyperedgeID he,
+                                                          const PartitionID block_0,
+                                                          const PartitionID block_1) {
+  ASSERT(partitioned_hg.hasProcessGraph());
+  const ProcessGraph& process_graph = *partitioned_hg.processGraph();
+  if ( partitioned_hg.pinCountInPart(he, block_0) == 0 && partitioned_hg.pinCountInPart(he, block_1) > 0 ) {
+    ds::Bitset& connectivity_set = partitioned_hg.deepCopyOfConnectivitySet(he);
+    const HyperedgeWeight current_distance = process_graph.distance(connectivity_set);
+    const HyperedgeWeight distance_after_exchange =
+      process_graph.distanceAfterExchangingBlocks(connectivity_set, block_1, block_0);
+    if ( current_distance < distance_after_exchange ) {
+      // If all nodes from block_1 would move to block_0, we would worsen the process mapping objective
+      // function, even though the connectivity of the hyperedge does not change. To model this percurlarity in the flow network,
+      // we add the corresponding hyperedge to the sink.
+      return true;
+    }
+  }
+  return false;
+}
+
+template<typename PartitionedHypergraph>
+bool ProcessMappingFlowNetworkConstruction::isCut(const PartitionedHypergraph&,
+                                                  const HyperedgeID,
+                                                  const PartitionID,
+                                                  const PartitionID) {
+  return false;
 }
 
 namespace {
 #define PROCESS_MAPPING_CAPACITY(X) HyperedgeWeight ProcessMappingFlowNetworkConstruction::capacity(  \
   const X&, const Context&, const HyperedgeID, const PartitionID, const PartitionID)
+#define PROCESS_MAPPING_CONNECT_TO_SOURCE(X) bool ProcessMappingFlowNetworkConstruction::connectToSource(  \
+  const X&, const HyperedgeID, const PartitionID, const PartitionID)
+#define PROCESS_MAPPING_CONNECT_TO_SINK(X) bool ProcessMappingFlowNetworkConstruction::connectToSink(  \
+  const X&, const HyperedgeID, const PartitionID, const PartitionID)
+#define PROCESS_MAPPING_IS_CUT(X) bool ProcessMappingFlowNetworkConstruction::isCut(  \
+  const X&, const HyperedgeID, const PartitionID, const PartitionID)
 }
 
 INSTANTIATE_FUNC_WITH_PARTITIONED_HG(PROCESS_MAPPING_CAPACITY)
+INSTANTIATE_FUNC_WITH_PARTITIONED_HG(PROCESS_MAPPING_CONNECT_TO_SOURCE)
+INSTANTIATE_FUNC_WITH_PARTITIONED_HG(PROCESS_MAPPING_CONNECT_TO_SINK)
+INSTANTIATE_FUNC_WITH_PARTITIONED_HG(PROCESS_MAPPING_IS_CUT)
 
 }  // namespace mt_kahypar

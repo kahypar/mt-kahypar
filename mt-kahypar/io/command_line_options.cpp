@@ -538,24 +538,23 @@ namespace mt_kahypar {
              po::value<bool>((initial_partitioning ? &context.initial_partitioning.refinement.flows.determine_distance_from_cut :
                       &context.refinement.flows.determine_distance_from_cut))->value_name("<bool>"),
              "If true, than flow refiner determines distance of each node from cut which improves the piercing heuristic used in WHFC.")
-            ((initial_partitioning ? "i-r-flow-capacity-aggregator" : "r-flow-capacity-aggregator"),
+            ((initial_partitioning ? "i-r-flow-process-mapping-policy" : "r-flow-process-mapping-policy"),
              po::value<std::string>()->value_name("<string>")->notifier(
-                     [&, initial_partitioning](const std::string& aggregator) {
+                     [&, initial_partitioning](const std::string& policy) {
                        if ( initial_partitioning ) {
-                        context.initial_partitioning.refinement.flows.capacity_aggregator =
-                          processMappingCapacityAggregatorFromString(aggregator);
+                        context.initial_partitioning.refinement.flows.process_mapping_policy =
+                          processMappingFlowValuePolicyFromString(policy);
                        } else {
-                        context.refinement.flows.capacity_aggregator =
-                          processMappingCapacityAggregatorFromString(aggregator);
+                        context.refinement.flows.process_mapping_policy =
+                          processMappingFlowValuePolicyFromString(policy);
                        }
                      }),
-             "This option is only important for process mapping. For an cut edge in the flow problem, the gain for removing that edge\n"
-             "from the cut is different depending on which block we remove from the cut. Let g_0 and g_1 be these gains. Then, we use an\n"
-             "aggregation function agg(g_0,g_1) to determine the capacity of the edge in the flow network.\n"
-             "The following aggregation functions are supported:\n"
-             "- maximum\n"
-             "- minimum\n"
-             "- average");
+             "This option is only important for process mapping. For flow-based refinement on hypergraphs, we cannot.\n"
+             "guarantee that the improvement found by solving the flow problem matches the exact improvement when we\n"
+             "apply on the hypergraph. However, we can either guarantee that improvement is an lower or upper bound for\n"
+             "the actual improvement. Therefore, the supported options are:\n"
+             "- lower_bound\n"
+             "- upper_bound");
     return options;
   }
 

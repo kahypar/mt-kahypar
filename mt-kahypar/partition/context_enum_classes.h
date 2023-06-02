@@ -175,10 +175,9 @@ enum class ProcessMappingStrategy : uint8_t {
   identity
 };
 
-enum class ProcessMappingCapacityAggregator : uint8_t {
-  maximum,
-  minimum,
-  average,
+enum class ProcessMappingFlowValuePolicy : uint8_t {
+  lower_bound,
+  upper_bound,
   UNDEFINED
 };
 
@@ -224,7 +223,7 @@ std::ostream & operator<< (std::ostream& os, const RebalancingAlgorithm& algo);
 
 std::ostream & operator<< (std::ostream& os, const ProcessMappingStrategy& algo);
 
-std::ostream & operator<< (std::ostream& os, const ProcessMappingCapacityAggregator& aggregator);
+std::ostream & operator<< (std::ostream& os, const ProcessMappingFlowValuePolicy& policy);
 
 Mode modeFromString(const std::string& mode);
 
@@ -258,6 +257,6 @@ RebalancingAlgorithm rebalancingAlgorithmFromString(const std::string& type);
 
 ProcessMappingStrategy processMappingStrategyFromString(const std::string& type);
 
-ProcessMappingCapacityAggregator processMappingCapacityAggregatorFromString(const std::string& aggregator);
+ProcessMappingFlowValuePolicy processMappingFlowValuePolicyFromString(const std::string& policy);
 
 }  // namesapce mt_kahypar

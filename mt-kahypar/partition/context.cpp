@@ -169,7 +169,7 @@ namespace mt_kahypar {
       out << "    Skip Small Cuts:                  " << std::boolalpha << params.skip_small_cuts << std::endl;
       out << "    Skip Unpromising Blocks:          " << std::boolalpha << params.skip_unpromising_blocks << std::endl;
       out << "    Pierce in Bulk:                   " << std::boolalpha << params.pierce_in_bulk << std::endl;
-      out << "    Capacity Aggregator:              " << params.capacity_aggregator << std::endl;
+      out << "    Process Mapping Policy:           " << params.process_mapping_policy << std::endl;
       out << std::flush;
     }
     return out;
@@ -565,7 +565,7 @@ namespace mt_kahypar {
     refinement.flows.skip_unpromising_blocks = true;
     refinement.flows.pierce_in_bulk = true;
     refinement.flows.min_relative_improvement_per_round = 0.001;
-    refinement.flows.capacity_aggregator = ProcessMappingCapacityAggregator::minimum;
+    refinement.flows.process_mapping_policy = ProcessMappingFlowValuePolicy::lower_bound;
   }
 
   void Context::load_deterministic_preset() {
@@ -799,7 +799,7 @@ namespace mt_kahypar {
     refinement.flows.skip_unpromising_blocks = true;
     refinement.flows.pierce_in_bulk = true;
     refinement.flows.min_relative_improvement_per_round = 0.001;
-    refinement.flows.capacity_aggregator = ProcessMappingCapacityAggregator::minimum;
+    refinement.flows.process_mapping_policy = ProcessMappingFlowValuePolicy::lower_bound;
 
     // refinement -> global fm
     refinement.global_fm.refine_until_no_improvement = true;

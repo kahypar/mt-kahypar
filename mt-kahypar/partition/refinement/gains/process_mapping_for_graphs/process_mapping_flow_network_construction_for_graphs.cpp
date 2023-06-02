@@ -147,10 +147,10 @@ bool GraphProcessMappingFlowNetworkConstruction::connectToSink(const Partitioned
 }
 
 template<typename PartitionedHypergraph>
-bool GraphProcessMappingFlowNetworkConstruction::addWeightToTotalCut(const PartitionedHypergraph& partitioned_hg,
-                                                                     const HyperedgeID he,
-                                                                     const PartitionID block_0,
-                                                                     const PartitionID block_1) {
+bool GraphProcessMappingFlowNetworkConstruction::isCut(const PartitionedHypergraph& partitioned_hg,
+                                                       const HyperedgeID he,
+                                                       const PartitionID block_0,
+                                                       const PartitionID block_1) {
   ASSERT(partitioned_hg.hasProcessGraph());
   const ProcessGraph& process_graph = *partitioned_hg.processGraph();
   const HypernodeID u = partitioned_hg.edgeSource(he);
@@ -187,13 +187,13 @@ namespace {
   const X&, const HyperedgeID, const PartitionID, const PartitionID)
 #define PROCESS_MAPPING_CONNECT_TO_SINK(X) bool GraphProcessMappingFlowNetworkConstruction::connectToSink(  \
   const X&, const HyperedgeID, const PartitionID, const PartitionID)
-#define PROCESS_MAPPING_ADD_WEIGHT_TO_CUT(X) bool GraphProcessMappingFlowNetworkConstruction::addWeightToTotalCut(  \
+#define PROCESS_MAPPING_IS_CUT(X) bool GraphProcessMappingFlowNetworkConstruction::isCut(  \
   const X&, const HyperedgeID, const PartitionID, const PartitionID)
 }
 
 INSTANTIATE_FUNC_WITH_PARTITIONED_HG(PROCESS_MAPPING_CAPACITY)
 INSTANTIATE_FUNC_WITH_PARTITIONED_HG(PROCESS_MAPPING_CONNECT_TO_SOURCE)
 INSTANTIATE_FUNC_WITH_PARTITIONED_HG(PROCESS_MAPPING_CONNECT_TO_SINK)
-INSTANTIATE_FUNC_WITH_PARTITIONED_HG(PROCESS_MAPPING_ADD_WEIGHT_TO_CUT)
+INSTANTIATE_FUNC_WITH_PARTITIONED_HG(PROCESS_MAPPING_IS_CUT)
 
 }  // namespace mt_kahypar

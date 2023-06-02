@@ -269,7 +269,7 @@ FlowProblem ParallelConstruction<TypeTraits, GainTypes>::constructDefault(const 
         bool connectToSink = FlowNetworkConstruction::connectToSink(phg, he, block_0, block_1);
         const HyperedgeWeight he_weight = FlowNetworkConstruction::capacity(phg, _context, he, block_0, block_1);
         if ( ( phg.pinCountInPart(he, block_0) > 0 && phg.pinCountInPart(he, block_1) > 0 ) ||
-               FlowNetworkConstruction::addWeightToTotalCut(phg, he, block_0, block_1) ) {
+               FlowNetworkConstruction::isCut(phg, he, block_0, block_1) ) {
           __atomic_fetch_add(&flow_problem.total_cut, he_weight, __ATOMIC_RELAXED);
         }
         for ( const HypernodeID& pin : phg.pins(he) ) {
@@ -452,7 +452,7 @@ FlowProblem ParallelConstruction<TypeTraits, GainTypes>::constructOptimizedForLa
           connect_to_source |= pin_count_in_block_0 < actual_pin_count_block_0;
           connect_to_sink |= pin_count_in_block_1 < actual_pin_count_block_1;
           if ( ( actual_pin_count_block_0 > 0 && actual_pin_count_block_1 > 0 ) ||
-                 FlowNetworkConstruction::addWeightToTotalCut(phg, he, block_0, block_1) ) {
+                 FlowNetworkConstruction::isCut(phg, he, block_0, block_1) ) {
             __atomic_fetch_add(&flow_problem.total_cut, he_weight, __ATOMIC_RELAXED);
           }
 

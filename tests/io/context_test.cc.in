@@ -387,8 +387,8 @@ TEST(AContext, LoadsDefaultFlowPresetCorrectly) {
             expected.refinement.flows.skip_unpromising_blocks);
   ASSERT_EQ(actual.refinement.flows.pierce_in_bulk,
             expected.refinement.flows.pierce_in_bulk);
-  ASSERT_EQ(actual.refinement.flows.capacity_aggregator,
-            expected.refinement.flows.capacity_aggregator);
+  ASSERT_EQ(actual.refinement.flows.process_mapping_policy,
+            expected.refinement.flows.process_mapping_policy);
 
   // process mapping
   ASSERT_EQ(actual.process_mapping.strategy,
@@ -933,8 +933,8 @@ TEST(AContext, LoadsQualityFlowPresetCorrectly) {
             expected.refinement.flows.skip_unpromising_blocks);
   ASSERT_EQ(actual.refinement.flows.pierce_in_bulk,
             expected.refinement.flows.pierce_in_bulk);
-  ASSERT_EQ(actual.refinement.flows.capacity_aggregator,
-            expected.refinement.flows.capacity_aggregator);
+  ASSERT_EQ(actual.refinement.flows.process_mapping_policy,
+            expected.refinement.flows.process_mapping_policy);
 
   // refinement -> global fm
   ASSERT_EQ(actual.refinement.global_fm.use_global_fm,

@@ -71,10 +71,10 @@ struct GraphProcessMappingFlowNetworkConstruction {
   // ! If true, then hyperedge is considered as cut edge and its
   // ! weight is added to the total cut
   template<typename PartitionedHypergraph>
-  static bool addWeightToTotalCut(const PartitionedHypergraph& partitioned_hg,
-                                  const HyperedgeID he,
-                                  const PartitionID block_0,
-                                  const PartitionID block_1);
+  static bool isCut(const PartitionedHypergraph& partitioned_hg,
+                    const HyperedgeID he,
+                    const PartitionID block_0,
+                    const PartitionID block_1);
 };
 
 }  // namespace mt_kahypar
