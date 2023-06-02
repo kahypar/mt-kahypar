@@ -58,7 +58,7 @@ class DeltaPartitionedHypergraph;
 template <typename Hypergraph = Mandatory,
           typename ConnectivityInformation = ConnectivityInfo>
 class PartitionedHypergraph {
-private:
+ private:
   static_assert(!Hypergraph::is_partitioned,  "Only unpartitioned hypergraphs are allowed");
 
   using NotificationFunc = std::function<void (SyncronizedEdgeUpdate&)>;
@@ -195,6 +195,11 @@ private:
 
   // ! Number of nodes of the input hypergraph
   HyperedgeID topLevelNumEdges() const {
+    return _input_num_edges;
+  }
+
+  // ! Number of unique edge ids of the input hypergraph
+  HyperedgeID topLevelNumUniqueIds() const {
     return _input_num_edges;
   }
 
@@ -431,6 +436,7 @@ private:
         gain_cache.initializeGainCacheEntryForNode(*this, memento.v);
       });
     }
+    gain_cache.batchUncontractionsCompleted();
   }
 
   // ####################### Restore Hyperedges #######################
@@ -620,7 +626,7 @@ private:
         [&](SyncronizedEdgeUpdate& sync_update) {
           sync_update.pin_count_in_from_part_after = pinCountInPart(sync_update.he, from) - 1;
           sync_update.pin_count_in_to_part_after = pinCountInPart(sync_update.he, to) + 1;
-          gain_cache.updateVersionOfHyperedge(sync_update);
+          gain_cache.notifyBeforeDeltaGainUpdate(*this, sync_update);
         });
     }
   }
@@ -783,7 +789,7 @@ private:
         const PartitionID block_of_u = partID(u);
         if ( gain_cache.penaltyTerm(u, block_of_u) !=
              gain_cache.recomputePenaltyTerm(*this, u) ) {
-          LOG << "Move from benefit of hypernode" << u << "=>" <<
+          LOG << "Penalty term of hypernode" << u << "=>" <<
               "Expected:" << V(gain_cache.recomputePenaltyTerm(*this, u)) << ", " <<
               "Actual:" <<  V(gain_cache.penaltyTerm(u, block_of_u));
           for ( const HyperedgeID& e : incidentEdges(u) ) {
@@ -797,13 +803,16 @@ private:
           if (partID(u) != i) {
             if ( gain_cache.benefitTerm(u, i) !=
                  gain_cache.recomputeBenefitTerm(*this, u, i) ) {
-              LOG << "Move to penalty of hypernode" << u << "in block" << i << "=>" <<
+              LOG << "Benefit term of hypernode" << u << "in block" << i << "=>" <<
                   "Expected:" << V(gain_cache.recomputeBenefitTerm(*this, u, i)) << ", " <<
                   "Actual:" <<  V(gain_cache.benefitTerm(u, i));
               success = false;
             }
           }
         }
+      }
+      if ( !gain_cache.verifyTrackedAdjacentBlocksOfNodes(*this) ) {
+        success = false;
       }
     }
     return success;

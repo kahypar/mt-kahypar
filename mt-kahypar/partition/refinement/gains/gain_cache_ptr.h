@@ -36,6 +36,7 @@
 #include "mt-kahypar/partition/refinement/gains/soed/soed_gain_cache.h"
 #include "mt-kahypar/partition/refinement/gains/process_mapping/process_mapping_gain_cache.h"
 #include "mt-kahypar/partition/refinement/gains/cut_for_graphs/cut_gain_cache_for_graphs.h"
+#include "mt-kahypar/partition/refinement/gains/process_mapping_for_graphs/process_mapping_gain_cache_for_graphs.h"
 #include "mt-kahypar/macros.h"
 
 namespace mt_kahypar {
@@ -56,7 +57,7 @@ class GainCachePtr {
       case GainPolicy::soed: return constructGainCache<SoedGainCache>();
       case GainPolicy::process_mapping: return constructGainCache<ProcessMappingGainCache>();
       case GainPolicy::cut_for_graphs: return constructGainCache<GraphCutGainCache>();
-      case GainPolicy::process_mapping_for_graphs: return constructGainCache<ProcessMappingGainCache>();
+      case GainPolicy::process_mapping_for_graphs: return constructGainCache<GraphProcessMappingGainCache>();
       case GainPolicy::none:
         ERR("No gain policy set");
     }
@@ -77,7 +78,7 @@ class GainCachePtr {
         case GainPolicy::cut_for_graphs:
           delete reinterpret_cast<GraphCutGainCache*>(gain_cache.gain_cache); break;
         case GainPolicy::process_mapping_for_graphs:
-          delete reinterpret_cast<ProcessMappingGainCache*>(gain_cache.gain_cache); break;
+          delete reinterpret_cast<GraphProcessMappingGainCache*>(gain_cache.gain_cache); break;
         case GainPolicy::none: break;
       }
     }
@@ -98,7 +99,7 @@ class GainCachePtr {
       case GainPolicy::cut_for_graphs:
         cast<GraphCutGainCache>(gain_cache).initializeGainCache(partitioned_hg); break;
       case GainPolicy::process_mapping_for_graphs:
-        cast<ProcessMappingGainCache>(gain_cache).initializeGainCache(partitioned_hg); break;
+        cast<GraphProcessMappingGainCache>(gain_cache).initializeGainCache(partitioned_hg); break;
       case GainPolicy::none: break;
     }
   }
@@ -116,7 +117,7 @@ class GainCachePtr {
       case GainPolicy::cut_for_graphs:
         cast<GraphCutGainCache>(gain_cache).reset(); break;
       case GainPolicy::process_mapping_for_graphs:
-        cast<ProcessMappingGainCache>(gain_cache).reset(); break;
+        cast<GraphProcessMappingGainCache>(gain_cache).reset(); break;
       case GainPolicy::none: break;
     }
   }
@@ -137,7 +138,7 @@ class GainCachePtr {
       case GainPolicy::cut_for_graphs:
         partitioned_hg.uncontract(batch, cast<GraphCutGainCache>(gain_cache)); break;
       case GainPolicy::process_mapping_for_graphs:
-        partitioned_hg.uncontract(batch, cast<ProcessMappingGainCache>(gain_cache)); break;
+        partitioned_hg.uncontract(batch, cast<GraphProcessMappingGainCache>(gain_cache)); break;
       case GainPolicy::none: break;
     }
   }
@@ -164,7 +165,7 @@ class GainCachePtr {
           cast<GraphCutGainCache>(gain_cache)); break;
       case GainPolicy::process_mapping_for_graphs:
         partitioned_hg.restoreSinglePinAndParallelNets(hes_to_restore,
-          cast<ProcessMappingGainCache>(gain_cache)); break;
+          cast<GraphProcessMappingGainCache>(gain_cache)); break;
       case GainPolicy::none: break;
     }
   }
@@ -190,7 +191,7 @@ class GainCachePtr {
           cast<GraphCutGainCache>(gain_cache));
       case GainPolicy::process_mapping_for_graphs:
         return partitioned_hg.checkTrackedPartitionInformation(
-          cast<ProcessMappingGainCache>(gain_cache));
+          cast<GraphProcessMappingGainCache>(gain_cache));
       case GainPolicy::none: return false;
     }
     return false;

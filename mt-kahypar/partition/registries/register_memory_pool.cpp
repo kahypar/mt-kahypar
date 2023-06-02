@@ -40,7 +40,7 @@ namespace mt_kahypar {
 
   namespace {
     template<typename Hypergraph>
-    size_t size_of_edge_locks() {
+    size_t size_of_edge_sync() {
       const bool is_graph = Hypergraph::TYPE == STATIC_GRAPH || Hypergraph::TYPE == DYNAMIC_GRAPH;
       if ( is_graph) {
         return StaticPartitionedGraph::SIZE_OF_EDGE_LOCK;
@@ -134,7 +134,8 @@ namespace mt_kahypar {
       pool.register_memory_chunk("Refinement", "part_ids", num_hypernodes, sizeof(PartitionID));
 
       if (Hypergraph::is_graph) {
-        pool.register_memory_chunk("Refinement", "edge_sync", num_hyperedges, size_of_edge_locks<Hypergraph>());
+        pool.register_memory_chunk("Refinement", "edge_sync", num_hyperedges, size_of_edge_sync<Hypergraph>());
+        pool.register_memory_chunk("Refinement", "edge_locks", num_hyperedges, sizeof(SpinLock));
         if ( context.refinement.fm.algorithm != FMAlgorithm::do_nothing ) {
           pool.register_memory_chunk("Refinement", "incident_weight_in_part",
                                     static_cast<size_t>(num_hypernodes) * ( context.partition.k + 1 ),

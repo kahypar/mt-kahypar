@@ -62,7 +62,10 @@ class PartitionedGraph {
 private:
   static_assert(!Hypergraph::is_partitioned,  "Only unpartitioned hypergraphs are allowed");
 
+  using Self = PartitionedGraph<Hypergraph>;
+  using NotificationFunc = std::function<void (SyncronizedEdgeUpdate&)>;
   using DeltaFunction = std::function<void (const SyncronizedEdgeUpdate&)>;
+  #define NOOP_NOTIFY_FUNC [] (const SyncronizedEdgeUpdate&) { }
   #define NOOP_FUNC [] (const SyncronizedEdgeUpdate&) { }
 
   // Factory
@@ -138,13 +141,13 @@ private:
 
   struct EdgeMove {
     EdgeMove() :
-      lock(),
       u(kInvalidHypernode),
-      to(kInvalidPartition) { }
+      to(kInvalidPartition),
+      version(0) { }
 
-    SpinLock lock;
     HypernodeID u;
     PartitionID to;
+    uint32_t version;
   };
 
  public:
@@ -172,14 +175,18 @@ private:
                             Hypergraph& hypergraph) :
     _input_num_nodes(hypergraph.initialNumNodes()),
     _input_num_edges(hypergraph.initialNumEdges()),
+    _input_unique_ids(hypergraph.maxUniqueID()),
     _k(k),
     _hg(&hypergraph),
     _process_graph(nullptr),
     _part_weights(k, CAtomic<HypernodeWeight>(0)),
     _part_ids(
       "Refinement", "part_ids", hypergraph.initialNumNodes(), false, false),
+    _edge_sync_version(0),
     _edge_sync(
       "Refinement", "edge_sync", hypergraph.maxUniqueID(), false, false),
+    _edge_locks(
+      "Refinement", "edge_locks", hypergraph.maxUniqueID(), false, false),
     _edge_markers(Hypergraph::is_static_hypergraph ? 0 : hypergraph.maxUniqueID()) {
     _part_ids.assign(hypergraph.initialNumNodes(), kInvalidPartition, false);
     _edge_sync.assign(hypergraph.maxUniqueID(), EdgeMove(), false);
@@ -190,12 +197,15 @@ private:
                             parallel_tag_t) :
     _input_num_nodes(hypergraph.initialNumNodes()),
     _input_num_edges(hypergraph.initialNumEdges()),
+    _input_unique_ids(hypergraph.maxUniqueID()),
     _k(k),
     _hg(&hypergraph),
     _process_graph(nullptr),
     _part_weights(k, CAtomic<HypernodeWeight>(0)),
     _part_ids(),
+    _edge_sync_version(0),
     _edge_sync(),
+    _edge_locks(),
     _edge_markers() {
     tbb::parallel_invoke([&] {
       _part_ids.resize(
@@ -205,6 +215,9 @@ private:
       _edge_sync.resize(
         "Refinement", "edge_sync", static_cast<size_t>(hypergraph.maxUniqueID()));
       _edge_sync.assign(hypergraph.maxUniqueID(), EdgeMove());
+    }, [&] {
+      _edge_locks.resize(
+        "Refinement", "edge_locks", static_cast<size_t>(hypergraph.maxUniqueID()));
     }, [&] {
       if (!Hypergraph::is_static_hypergraph) {
         _edge_markers.setSize(hypergraph.maxUniqueID());
@@ -264,9 +277,14 @@ private:
     return _hg->initialNumEdges();
   }
 
-  // ! Number of nodes of the input hypergraph
+  // ! Number of edges of the input hypergraph
   HyperedgeID topLevelNumEdges() const {
     return _input_num_edges;
+  }
+
+  // ! Number of unique edge ids of the input hypergraph
+  HyperedgeID topLevelNumUniqueIds() const {
+    return _input_unique_ids;
   }
 
   // ! Initial number of pins
@@ -463,6 +481,8 @@ private:
         gain_cache.initializeGainCacheEntryForNode(*this, memento.v);
       });
     }
+    gain_cache.batchUncontractionsCompleted();
+    ++_edge_sync_version;
   }
 
   // ####################### Restore Hyperedges #######################
@@ -487,7 +507,7 @@ private:
         const PartitionID block_of_single_pin = partID(single_vertex_of_he);
         gain_cache.restoreSinglePinHyperedge(
           single_vertex_of_he, block_of_single_pin, edgeWeight(he));
-      } else {
+      } else if ( nodeIsEnabled(edgeSource(he)) ) {
         // Restore parallel net
         gain_cache.restoreIdenticalHyperedge(*this, he);
       }
@@ -540,15 +560,16 @@ private:
                       HypernodeWeight max_weight_to,
                       SuccessFunc&& report_success,
                       const DeltaFunction& delta_func) {
-    return changeNodePartImpl(u, from, to, max_weight_to, report_success, delta_func);
+    return changeNodePartImpl<false>(u, from, to,
+      max_weight_to, report_success, delta_func, NOOP_NOTIFY_FUNC);
   }
 
   bool changeNodePart(const HypernodeID u,
                       PartitionID from,
                       PartitionID to,
                       const DeltaFunction& delta_func = NOOP_FUNC) {
-    return changeNodePart(u, from, to,
-      std::numeric_limits<HypernodeWeight>::max(), []{}, delta_func);
+    return changeNodePartImpl<false>(u, from, to,
+      std::numeric_limits<HypernodeWeight>::max(), []{}, delta_func, NOOP_NOTIFY_FUNC);
   }
 
   template<typename GainCache, typename SuccessFunc>
@@ -563,7 +584,15 @@ private:
       delta_func(sync_update);
       gain_cache.deltaGainUpdate(*this, sync_update);
     };
-    return changeNodePart(u, from, to, max_weight_to, report_success, my_delta_func);
+    if constexpr ( !GainCache::requires_notification_before_update ) {
+      return changeNodePartImpl<false>(u, from, to, max_weight_to,
+        report_success, my_delta_func, NOOP_NOTIFY_FUNC);
+    } else {
+      return changeNodePartImpl<true>(u, from, to, max_weight_to,
+        report_success, my_delta_func, [&](SyncronizedEdgeUpdate& sync_update) {
+          gain_cache.notifyBeforeDeltaGainUpdate(*this, sync_update);
+        });
+    }
   }
 
   template<typename GainCache>
@@ -729,7 +758,7 @@ private:
         const PartitionID block_of_u = partID(u);
         if ( gain_cache.penaltyTerm(u, block_of_u) !=
              gain_cache.recomputePenaltyTerm(*this, u) ) {
-          LOG << "Move from benefit of hypernode" << u << "=>" <<
+          LOG << "Penalty term of hypernode" << u << "=>" <<
               "Expected:" << V(gain_cache.recomputePenaltyTerm(*this, u)) << ", " <<
               "Actual:" <<  V(gain_cache.penaltyTerm(u, block_of_u));
           for ( const HyperedgeID& e : incidentEdges(u) ) {
@@ -739,17 +768,20 @@ private:
           success = false;
         }
 
-        for (PartitionID i = 0; i < k(); ++i) {
+        for ( const PartitionID& i : gain_cache.adjacentBlocks(u) ) {
           if (partID(u) != i) {
             if ( gain_cache.benefitTerm(u, i) !=
                  gain_cache.recomputeBenefitTerm(*this, u, i) ) {
-              LOG << "Move to penalty of hypernode" << u << "in block" << i << "=>" <<
+              LOG << "Benefit term of hypernode" << u << "in block" << i << "=>" <<
                   "Expected:" << V(gain_cache.recomputeBenefitTerm(*this, u, i)) << ", " <<
                   "Actual:" <<  V(gain_cache.benefitTerm(u, i));
               success = false;
             }
           }
         }
+      }
+      if ( !gain_cache.verifyTrackedAdjacentBlocksOfNodes(*this) ) {
+        success = false;
       }
     }
     return success;
@@ -761,7 +793,8 @@ private:
     ASSERT(parent);
     parent->addChild("Part Weights", sizeof(CAtomic<HypernodeWeight>) * _k);
     parent->addChild("Part IDs", sizeof(PartitionID) * _hg->initialNumNodes());
-    parent->addChild("Edge Synchronization", sizeof(CAtomic<PartitionID>) * _edge_sync.size());
+    parent->addChild("Edge Synchronization", sizeof(EdgeMove) * _edge_sync.size());
+    parent->addChild("Edge Locks", sizeof(SpinLock) * _edge_locks.size());
     parent->addChild("Edge Markers", sizeof(uint8_t) * _edge_markers.size());
   }
 
@@ -986,19 +1019,20 @@ private:
 
   void freeInternalData() {
     if ( _k > 0 ) {
-      parallel::parallel_free(_part_ids, _edge_sync);
+      parallel::parallel_free(_part_ids, _edge_sync, _edge_locks);
     }
     _k = 0;
   }
 
  private:
-  template<typename SuccessFunc, typename DeltaFunc>
+  template<bool notify, typename SuccessFunc>
   bool changeNodePartImpl(const HypernodeID u,
                           PartitionID from,
                           PartitionID to,
                           HypernodeWeight max_weight_to,
                           SuccessFunc&& report_success,
-                          DeltaFunc&& delta_func) {
+                          const DeltaFunction& delta_func,
+                          const NotificationFunc& notify_func) {
     ASSERT(partID(u) == from);
     ASSERT(from != to);
     const HypernodeWeight weight = nodeWeight(u);
@@ -1011,12 +1045,13 @@ private:
       sync_update.from = from;
       sync_update.to = to;
       sync_update.process_graph = _process_graph;
+      sync_update.edge_locks = &_edge_locks;
       for (const HyperedgeID edge : incidentEdges(u)) {
         if (!isSinglePin(edge)) {
           sync_update.he = edge;
           sync_update.edge_weight = edgeWeight(edge);
           sync_update.edge_size = edgeSize(edge);
-          sync_update.block_of_other_node = synchronizeMoveOnEdge(edge, u, to);
+          synchronizeMoveOnEdge<notify>(sync_update, edge, u, to, notify_func);
           sync_update.pin_count_in_from_part_after = sync_update.block_of_other_node == from ? 1 : 0;
           sync_update.pin_count_in_to_part_after = sync_update.block_of_other_node == to ? 2 : 1;
           delta_func(sync_update);
@@ -1054,27 +1089,38 @@ private:
   // This function synchronizes a move on an edge and returns the block ID
   // of the target node of the corresponding edge. The function assumes that
   // node u is moved to the block 'to'.
+  template<bool notify>
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
-  PartitionID synchronizeMoveOnEdge(const HyperedgeID edge,
+  PartitionID synchronizeMoveOnEdge(SyncronizedEdgeUpdate& sync_update,
+                                    const HyperedgeID edge,
                                     const HypernodeID u,
-                                    const PartitionID to) {
+                                    const PartitionID to,
+                                    const NotificationFunc& notify_func) {
+    const HyperedgeID unique_id = uniqueEdgeID(edge);
     const HypernodeID v = edgeTarget(edge);
     PartitionID block_of_v = partID(v);
-    EdgeMove& edge_move = _edge_sync[uniqueEdgeID(edge)];
-    edge_move.lock.lock();
-    if ( edge_move.u == v ) {
+    EdgeMove& edge_move = _edge_sync[unique_id];
+    _edge_locks[unique_id].lock();
+    if ( edge_move.u == v && edge_move.version == _edge_sync_version ) {
       ASSERT(edge_move.to < _k && edge_move.to != kInvalidPartition);
       block_of_v = edge_move.to;
     }
     edge_move.u = u;
     edge_move.to = to;
-    edge_move.lock.unlock();
+    edge_move.version = _edge_sync_version;
+    sync_update.block_of_other_node = block_of_v;
+    if constexpr ( notify ) {
+      notify_func(sync_update);
+    }
+    _edge_locks[unique_id].unlock();
     return block_of_v;
   }
 
   HypernodeID _input_num_nodes = 0;
 
   HyperedgeID _input_num_edges = 0;
+
+  HyperedgeID _input_unique_ids = 0;
 
   // ! Number of blocks
   PartitionID _k = 0;
@@ -1091,8 +1137,15 @@ private:
   // ! Current block IDs of the vertices
   Array< PartitionID > _part_ids;
 
-  // ! For each edge we use an atomic lock to synchronize moves
+  // ! Incrementing this counter invalidates all EdgeMove objects (see _edge_sync)
+  // ! with a version < _edge_sync_version
+  uint32_t _edge_sync_version;
+
+  // ! Used to syncronize moves on edges
   Array< EdgeMove > _edge_sync;
+
+  // ! Lock to syncronize moves on edges
+  Array< SpinLock > _edge_locks;
 
   // ! We need to synchronize uncontractions via atomic markers
   ThreadSafeFastResetFlagArray<uint8_t> _edge_markers;

@@ -164,6 +164,12 @@ class DeltaPartitionedHypergraph {
     return _phg->edgeWeight(e);
   }
 
+  // ! Returns true, if the hyperedge contains only a single pin
+  bool isSinglePin(const HyperedgeID e) const {
+    ASSERT(_phg);
+    return _phg->isSinglePin(e);
+  }
+
   // ! Target of an edge
   HypernodeID edgeTarget(const HyperedgeID e) const {
     ASSERT(_phg);

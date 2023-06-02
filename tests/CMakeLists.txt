@@ -1,4 +1,3 @@
-# Contains tests specific to our fast partitioner
 add_executable(mt_kahypar_tests run_tests.cpp)
 target_link_libraries(mt_kahypar_tests gtest gtest_main ${CMAKE_THREAD_LIBS_INIT})
 set_property(TARGET mt_kahypar_tests PROPERTY CXX_STANDARD 17)

@@ -70,7 +70,9 @@ bool ProcessMappingGainCache::triggersDeltaGainUpdate(const SyncronizedEdgeUpdat
          sync_update.pin_count_in_to_part_after == 2;
 }
 
-void ProcessMappingGainCache::updateVersionOfHyperedge(const SyncronizedEdgeUpdate& sync_update) {
+template<typename PartitionedHypergraph>
+void ProcessMappingGainCache::notifyBeforeDeltaGainUpdate(const PartitionedHypergraph&,
+                                                       const SyncronizedEdgeUpdate& sync_update) {
   if ( triggersDeltaGainUpdate(sync_update) ) {
     ASSERT(UL(sync_update.he) < _version.size());
     // The move will induce a gain cache update. In this case, we increment the version ID
@@ -519,11 +521,11 @@ void ProcessMappingGainCache::initializeGainCacheEntry(const PartitionedHypergra
       // retrieve here the actual state of the connectivity set of the hyperedge
       // with its version ID. If this version ID changes after the gain computation,
       // we know that we computed the gain on outdated information and retry.
+      const uint32_t update_version = _version[he].update_version.load(std::memory_order_relaxed);
       const uint32_t he_version = _version[he].version.load(std::memory_order_relaxed);
       ds::Bitset& connectivity_set = partitioned_hg.deepCopyOfConnectivitySet(he);
       edge_locks[partitioned_hg.uniqueEdgeID(he)].unlock();
 
-      const uint32_t update_version = _version[he].update_version.load(std::memory_order_relaxed);
       ASSERT(update_version <= he_version);
       if ( update_version < he_version ) {
         // There are still pending gain cache updates that must be finished
@@ -562,10 +564,52 @@ void ProcessMappingGainCache::initializeGainCacheEntry(const PartitionedHypergra
   }
 }
 
+template<typename PartitionedHypergraph>
+bool ProcessMappingGainCache::verifyTrackedAdjacentBlocksOfNodes(const PartitionedHypergraph& partitioned_hg) const {
+  bool success = true;
+  vec<HyperedgeID> num_incident_edges(_k, 0);
+  for ( const HypernodeID& hn : partitioned_hg.nodes() ) {
+    num_incident_edges.assign(_k, 0);
+    for ( const HyperedgeID& he : partitioned_hg.incidentEdges(hn) ) {
+      for ( const PartitionID& block : partitioned_hg.connectivitySet(he) ) {
+        ++num_incident_edges[block];
+      }
+    }
+
+    for ( PartitionID block = 0; block < _k; ++block ) {
+      if ( _num_incident_edges_of_block[benefit_index(hn, block)] != num_incident_edges[block] )  {
+        LOG << "Number of incident edges of node" << hn << "to block" << block << "=>"
+            << "Expected:" << num_incident_edges[block] << ","
+            << "Actual:" << _num_incident_edges_of_block[benefit_index(hn, block)];
+        success = false;
+      }
+    }
+
+    for ( const PartitionID block : _adjacent_blocks.connectivitySet(hn) ) {
+      if ( num_incident_edges[block] == 0 ) {
+        LOG << "Node" << hn << "is not adjacent to block" << block
+            << ", but it is in its connectivity set";
+        success = false;
+      }
+    }
+
+    for ( PartitionID block = 0; block < _k; ++block ) {
+      if ( num_incident_edges[block] > 0 && !_adjacent_blocks.contains(hn, block) ) {
+        LOG << "Node" << hn << "should be adjacent to block" << block
+            << ", but it is not in its connectivity set";
+        success = false;
+      }
+    }
+  }
+  return success;
+}
+
 namespace {
 #define PROCESS_MAPPING_INITIALIZE_GAIN_CACHE(X) void ProcessMappingGainCache::initializeGainCache(const X&)
 #define PROCESS_MAPPING_INITIALIZE_GAIN_CACHE_FOR_NODE(X) void ProcessMappingGainCache::initializeGainCacheEntryForNode(const X&,          \
                                                                                                                         const HypernodeID)
+#define PROCESS_MAPPING_NOTIFY(X) void ProcessMappingGainCache::notifyBeforeDeltaGainUpdate(const X&,                     \
+                                                                                            const SyncronizedEdgeUpdate&)
 #define PROCESS_MAPPING_DELTA_GAIN_UPDATE(X) void ProcessMappingGainCache::deltaGainUpdate(const X&,                     \
                                                                                            const SyncronizedEdgeUpdate&)
 #define PROCESS_MAPPING_RESTORE_UPDATE(X) void ProcessMappingGainCache::uncontractUpdateAfterRestore(const X&,          \
@@ -591,10 +635,12 @@ namespace {
                                                                                                              const HypernodeID,    \
                                                                                                              const PartitionID,    \
                                                                                                              ds::Array<SpinLock>&)
+#define PROCESS_MAPPING_VERIFY_ADJACENT_BLOCKS(X) bool ProcessMappingGainCache::verifyTrackedAdjacentBlocksOfNodes(const X&) const
 }
 
 INSTANTIATE_FUNC_WITH_PARTITIONED_HG(PROCESS_MAPPING_INITIALIZE_GAIN_CACHE)
 INSTANTIATE_FUNC_WITH_PARTITIONED_HG(PROCESS_MAPPING_INITIALIZE_GAIN_CACHE_FOR_NODE)
+INSTANTIATE_FUNC_WITH_PARTITIONED_HG(PROCESS_MAPPING_NOTIFY)
 INSTANTIATE_FUNC_WITH_PARTITIONED_HG(PROCESS_MAPPING_DELTA_GAIN_UPDATE)
 INSTANTIATE_FUNC_WITH_PARTITIONED_HG(PROCESS_MAPPING_RESTORE_UPDATE)
 INSTANTIATE_FUNC_WITH_PARTITIONED_HG(PROCESS_MAPPING_REPLACEMENT_UPDATE)
@@ -604,5 +650,6 @@ INSTANTIATE_FUNC_WITH_PARTITIONED_HG(PROCESS_MAPPING_INIT_ADJACENT_BLOCKS_OF_NOD
 INSTANTIATE_FUNC_WITH_PARTITIONED_HG(PROCESS_MAPPING_UPDATE_ADJACENT_BLOCKS)
 INSTANTIATE_FUNC_WITH_PARTITIONED_HG(PROCESS_MAPPING_INIT_GAIN_CACHE_ENTRY)
 INSTANTIATE_FUNC_WITH_PARTITIONED_HG(PROCESS_MAPPING_INIT_LAZY_GAIN_CACHE_ENTRY)
+INSTANTIATE_FUNC_WITH_PARTITIONED_HG(PROCESS_MAPPING_VERIFY_ADJACENT_BLOCKS)
 
 }  // namespace mt_kahypar

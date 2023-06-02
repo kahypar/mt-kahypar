@@ -147,14 +147,16 @@ class GraphCutGainCache {
 
   // ####################### Delta Gain Update #######################
 
-  // ! This function returns true if the corresponding pin count values triggers
+  // ! This function returns true if the corresponding syncronized edge update triggers
   // ! a gain cache update.
   static bool triggersDeltaGainUpdate(const SyncronizedEdgeUpdate& sync_update);
 
-  // ! The partitioned (hyper)graph call this function when updating the pin count values
-  // ! and connectivity set. Updating these data structures and calling this function are done
-  // ! within one transaction (protected via a spin-lock).
-  void updateVersionOfHyperedge(const SyncronizedEdgeUpdate&) {
+  // ! The partitioned (hyper)graph call this function when its updates its internal
+  // ! data structures before calling the delta gain update function. The partitioned
+  // ! (hyper)graph holds a lock for the corresponding (hyper)edge when calling this
+  // ! function. Thus, it is guaranteed that no other thread will modify the hyperedge.
+  template<typename PartitionedHypergraph>
+  void notifyBeforeDeltaGainUpdate(const PartitionedHypergraph&, const SyncronizedEdgeUpdate&) {
     // Do nothing
   }
 
@@ -199,6 +201,11 @@ class GraphCutGainCache {
     // Do nothing
   }
 
+  // ! Notifies the gain cache that all uncontractions of the current batch are completed.
+  void batchUncontractionsCompleted() {
+    // Do nothing
+  }
+
   // ####################### Only for Testing #######################
 
   template<typename PartitionedGraph>
@@ -229,6 +236,12 @@ class GraphCutGainCache {
       }
     }
     return benefit;
+  }
+
+  template<typename PartitionedHypergraph>
+  bool verifyTrackedAdjacentBlocksOfNodes(const PartitionedHypergraph&) const {
+    // Gain cache does not track adjacent blocks of nodes
+    return true;
   }
 
  private:

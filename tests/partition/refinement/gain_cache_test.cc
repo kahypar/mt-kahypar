@@ -64,6 +64,8 @@ class AGainCache : public Test {
   using AttributedGains = typename GainTypes::AttributedGains;
 
  public:
+  static constexpr bool debug = false;
+  static constexpr bool perform_moves_sequentially = false;
   static constexpr PartitionID k = 8;
   static constexpr HypernodeID contraction_limit = 160;
   static constexpr size_t max_batch_size = 25;
@@ -90,7 +92,8 @@ class AGainCache : public Test {
     }
     partitioned_hg = PartitionedHypergraph(k, hypergraph, parallel_tag_t { });
     delta_phg = std::make_unique<DeltaPartitionedHypergraph>(context);
-    delta_phg->setPartitionedHypergraph(&partitioned_hg);
+    delta_phg->setPartitionedHypergraph(&partitioned_hg
+    );
     delta_gain_cache = std::make_unique<DeltaGainCache>(gain_cache);
 
     if ( GainCache::TYPE == GainPolicy::process_mapping ||
@@ -121,31 +124,48 @@ class AGainCache : public Test {
     was_moved.setSize(hypergraph.initialNumNodes());
   }
 
-  void initializePartition() {
-    std::vector<PartitionID> partition;
-    if constexpr ( Hypergraph::is_graph ) {
-      io::readPartitionFile("../tests/instances/delaunay_n10.graph.part8", partition);
+  void initializePartition(const bool is_nlevel = false) {
+    if ( !is_nlevel ) {
+      std::vector<PartitionID> partition;
+      if constexpr ( Hypergraph::is_graph ) {
+        io::readPartitionFile("../tests/instances/delaunay_n10.graph.part8", partition);
+      } else {
+        io::readPartitionFile("../tests/instances/contracted_unweighted_ibm01.hgr.part8", partition);
+      }
+      partitioned_hg.doParallelForAllNodes([&](const HypernodeID& hn) {
+        partitioned_hg.setOnlyNodePart(hn, partition[hn]);
+      });
     } else {
-      io::readPartitionFile("../tests/instances/contracted_unweighted_ibm01.hgr.part8", partition);
+      utils::Randomize& rand = utils::Randomize::instance();
+      partitioned_hg.doParallelForAllNodes([&](const HypernodeID& hn) {
+        partitioned_hg.setOnlyNodePart(hn, rand.getRandomInt(0, k - 1, SCHED_GETCPU));
+      });
     }
-    partitioned_hg.doParallelForAllNodes([&](const HypernodeID& hn) {
-      partitioned_hg.setOnlyNodePart(hn, partition[hn]);
-    });
     partitioned_hg.initializePartition();
   }
 
   void moveAllNodesAtRandom() {
     utils::Randomize& rand = utils::Randomize::instance();
     was_moved.reset();
-    partitioned_hg.doParallelForAllNodes([&](const HypernodeID& hn) {
+
+    auto move_node = [&](const HypernodeID hn) {
       if ( rand.flipCoin(SCHED_GETCPU) ) {
         const PartitionID from = partitioned_hg.partID(hn);
         const PartitionID to = rand.getRandomInt(0, k - 1, SCHED_GETCPU);
         if ( from != to && was_moved.compare_and_set_to_true(hn) ) {
           partitioned_hg.changeNodePart(gain_cache, hn, from, to);
+          DBG << "Move node" << hn << "from block" << from << "to" << to;
         }
       }
-    });
+    };
+
+    if ( !perform_moves_sequentially ) {
+      partitioned_hg.doParallelForAllNodes(move_node);
+    } else {
+      for ( const HypernodeID& hn : partitioned_hg.nodes() ) {
+        move_node(hn);
+      }
+    }
 
     partitioned_hg.doParallelForAllNodes([&](const HypernodeID& hn) {
       if ( was_moved[hn] ) {
@@ -182,15 +202,23 @@ class AGainCache : public Test {
         const PartitionID to = rand.getRandomInt(0, k - 1, SCHED_GETCPU);
         if ( from != to && was_moved.compare_and_set_to_true(hn) ) {
           partitioned_hg.changeNodePart(gain_cache, hn, from, to);
+          DBG << "Move node" << hn << "from block" << from << "to" << to;
         }
       }
     };
 
-    tbb::parallel_for(UL(0), batch.size(),
-      [&](const size_t i) {
-        move_node(batch[i].u);
-        move_node(batch[i].v);
-      });
+    if ( !perform_moves_sequentially ) {
+      tbb::parallel_for(UL(0), batch.size(),
+        [&](const size_t i) {
+          move_node(batch[i].u);
+          move_node(batch[i].v);
+        });
+    } else {
+      for ( const Memento& m : batch ) {
+        move_node(m.u);
+        move_node(m.v);
+      }
+    }
 
     tbb::parallel_for(UL(0), batch.size(),
       [&](const size_t i) {
@@ -237,7 +265,7 @@ class AGainCache : public Test {
       }
 
       // Initial Partitioning
-      initializePartition();
+      initializePartition(true);
       gain_cache.initializeGainCache(partitioned_hg);
 
       // Uncoarsening
@@ -250,8 +278,28 @@ class AGainCache : public Test {
           if ( batch.size() > 0 ) {
             // Uncontract batch with gain cache update
             partitioned_hg.uncontract(batch, gain_cache);
+            if ( debug ) {
+              std::sort(batch.begin(), batch.end(),
+                [&](const Memento& lhs, const Memento& rhs) {
+                  return lhs.u < rhs.u && (lhs.u == rhs.u && lhs.v < rhs.v);
+                });
+              LOG << "Uncontracted Batch:";
+              for ( const Memento& m : batch ) {
+                std::cout << "(" << m.u << "," << m.v << ") ";
+              }
+              std::cout << std::endl;
+            }
+            if ( debug && !partitioned_hg.checkTrackedPartitionInformation(gain_cache) ) {
+              LOG << "FAILED AFTER UNCONTRACTION";
+              return;
+            }
+
             if ( simulate_localized_refinement ) {
               moveAllNodesOfBatchAtRandom(batch);
+            }
+            if ( debug && !partitioned_hg.checkTrackedPartitionInformation(gain_cache) ) {
+              LOG << "FAILED AFTER LOCALIZED MOVING";
+              return;
             }
           }
           batches.pop_back();
@@ -262,6 +310,11 @@ class AGainCache : public Test {
           partitioned_hg.restoreSinglePinAndParallelNets(
             parallel_hes.back(), gain_cache);
           parallel_hes.pop_back();
+
+          if ( debug && !partitioned_hg.checkTrackedPartitionInformation(gain_cache) ) {
+            LOG << "FAILED AFTER RESTORE SINGLE-PIN AND PARALLEL NETS";
+            return;
+          }
         }
         hierarchy.pop_back();
       }
@@ -275,7 +328,7 @@ class AGainCache : public Test {
     partitioned_hg.doParallelForAllNodes([&](const HypernodeID& hn) {
       const PartitionID from = partitioned_hg.partID(hn);
       ASSERT_EQ(gain_cache.penaltyTerm(hn, partitioned_hg.partID(hn)),
-        gain_cache.recomputePenaltyTerm(partitioned_hg, hn));
+        gain_cache.recomputePenaltyTerm(partitioned_hg, hn)) << V(hn);
       for ( const PartitionID to : gain_cache.adjacentBlocks(hn) ) {
         if ( from != to ) {
           EXPECT_EQ(gain_cache.benefitTerm(hn, to),
@@ -284,14 +337,15 @@ class AGainCache : public Test {
         }
       }
     });
+    verifyAdjacentBlocks();
   }
 
  void verifyGainCacheEntriesOnDeltaPartition() {
     for ( const HypernodeID& hn : delta_phg->nodes() ) {
       if ( !was_moved[hn] ) {
         const PartitionID from = delta_phg->partID(hn);
-        ASSERT_EQ(delta_gain_cache->penaltyTerm(hn, delta_phg->partID(hn)),
-          gain_cache.recomputePenaltyTerm(*delta_phg, hn));
+        EXPECT_EQ(delta_gain_cache->penaltyTerm(hn, delta_phg->partID(hn)),
+          gain_cache.recomputePenaltyTerm(*delta_phg, hn)) << V(hn);
         for ( const PartitionID to : delta_gain_cache->adjacentBlocks(hn) ) {
           if ( from != to ) {
             EXPECT_EQ(delta_gain_cache->benefitTerm(hn, to),
@@ -301,10 +355,69 @@ class AGainCache : public Test {
         }
       }
     }
+    verifyAdjacentBlocksOfDeltaGainCache();
   }
 
   Gain attributedGain(const SyncronizedEdgeUpdate& sync_update) {
     return -AttributedGains::gain(sync_update);
+  }
+
+  bool supportsAdjacentBlocks() const {
+    return GainCache::TYPE == GainPolicy::process_mapping ||
+      GainCache::TYPE == GainPolicy::process_mapping_for_graphs;
+  }
+
+  void verifyAdjacentBlocks() {
+    if ( supportsAdjacentBlocks() ) {
+      partitioned_hg.doParallelForAllNodes([&](const HypernodeID& hn) {
+        ds::Bitset adjacent_blocks(partitioned_hg.k());
+        ds::StaticBitset adjacent_blocks_view(
+          adjacent_blocks.numBlocks(), adjacent_blocks.data());
+        for ( const HyperedgeID& he : partitioned_hg.incidentEdges(hn) ) {
+          for ( const PartitionID& block : partitioned_hg.connectivitySet(he) ) {
+            adjacent_blocks.set(block);
+          }
+        }
+
+        size_t cnt = 0;
+        for ( const PartitionID& block : gain_cache.adjacentBlocks(hn) ) {
+          EXPECT_TRUE(adjacent_blocks.isSet(block))
+            << V(hn) << " " << V(block) << " " << V(partitioned_hg.partID(hn));
+          ++cnt;
+        }
+        EXPECT_EQ(cnt, UL(adjacent_blocks_view.popcount())) << V(hn);
+      });
+    }
+  }
+
+  void verifyAdjacentBlocksOfDeltaGainCache() {
+    if ( supportsAdjacentBlocks() ) {
+      for ( const HypernodeID& hn : delta_phg->nodes() ) {
+        ds::Bitset adjacent_blocks(delta_phg->k());
+        ds::StaticBitset adjacent_blocks_view(
+          adjacent_blocks.numBlocks(), adjacent_blocks.data());
+        for ( const HyperedgeID& he : delta_phg->incidentEdges(hn) ) {
+          if constexpr ( PartitionedHypergraph::is_graph ) {
+            if ( !delta_phg->isSinglePin(he) ) {
+              adjacent_blocks.set(delta_phg->partID(delta_phg->edgeSource(he)));
+              adjacent_blocks.set(delta_phg->partID(delta_phg->edgeTarget(he)));
+            }
+          } else {
+            for ( const PartitionID& block : delta_phg->connectivitySet(he) ) {
+              adjacent_blocks.set(block);
+            }
+          }
+        }
+
+        size_t cnt = 0;
+        for ( const PartitionID& block : delta_gain_cache->adjacentBlocks(hn) ) {
+          EXPECT_TRUE(adjacent_blocks.isSet(block))
+            << V(hn) << " " << V(block) << " " << V(delta_phg->partID(hn));
+          ++cnt;
+        }
+        EXPECT_EQ(cnt, UL(adjacent_blocks_view.popcount())) << V(hn);
+      }
+    }
   }
 
   Context context;
@@ -321,12 +434,14 @@ typedef ::testing::Types<TestConfig<StaticHypergraphTypeTraits, Km1GainTypes>,
                          TestConfig<StaticHypergraphTypeTraits, CutGainTypes>,
                          TestConfig<StaticHypergraphTypeTraits, SoedGainTypes>,
                          TestConfig<StaticHypergraphTypeTraits, ProcessMappingGainTypes>,
-                         TestConfig<StaticGraphTypeTraits, CutGainForGraphsTypes>
+                         TestConfig<StaticGraphTypeTraits, CutGainForGraphsTypes>,
+                         TestConfig<StaticGraphTypeTraits, ProcessMappingForGraphsTypes>
                          ENABLE_N_LEVEL(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA Km1GainTypes>)
                          ENABLE_N_LEVEL(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA CutGainTypes>)
                          ENABLE_N_LEVEL(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA SoedGainTypes>)
                          ENABLE_N_LEVEL(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA ProcessMappingGainTypes>)
                          ENABLE_N_LEVEL(COMMA TestConfig<DynamicGraphTypeTraits COMMA CutGainForGraphsTypes>)
+                         ENABLE_N_LEVEL(COMMA TestConfig<DynamicGraphTypeTraits COMMA ProcessMappingForGraphsTypes>)
                          ENABLE_LARGE_K(COMMA TestConfig<LargeKHypergraphTypeTraits COMMA Km1GainTypes>)
                          ENABLE_LARGE_K(COMMA TestConfig<LargeKHypergraphTypeTraits COMMA CutGainTypes>)
                          ENABLE_LARGE_K(COMMA TestConfig<LargeKHypergraphTypeTraits COMMA SoedGainTypes>)

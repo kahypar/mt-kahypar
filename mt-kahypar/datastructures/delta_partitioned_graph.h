@@ -151,7 +151,7 @@ class DeltaPartitionedGraph {
     return _pg->edgeSource(e);
   }
 
-  // ! Whether the edge is a single pin edge
+  // ! Returns true, if the edge is selfloop
   bool isSinglePin(const HyperedgeID e) const {
     ASSERT(_pg);
     return _pg->isSinglePin(e);
