@@ -43,14 +43,14 @@ namespace {
 
 using HyperedgeVector = vec<vec<HypernodeID>>;
 
-template<typename TargetType, typename PartitionedHypergraph>
-typename TargetType::PartitionedHypergraph convert(const PartitionedHypergraph& phg) {
-  using Hypergraph = typename TargetType::Hypergraph;
-  using TargetPartitionedHypergraph = typename TargetType::PartitionedHypergraph;
+template<typename PartitionedHypergraph>
+std::pair<ds::StaticHypergraph, StaticPartitionedHypergraph> convert_to_static_hypergraph(const PartitionedHypergraph& phg) {
+  using Hypergraph = ds::StaticHypergraph;
+  using TargetPartitionedHypergraph = StaticPartitionedHypergraph;
   using Factory = typename Hypergraph::Factory;
 
   const HypernodeID num_hypernodes = phg.initialNumNodes();
-  const HyperedgeID num_hyperedges = phg.initialNumEdges();
+  const HyperedgeID num_hyperedges = phg.initialNumEdges() / (PartitionedHypergraph::is_graph ? 2 : 1);
   HyperedgeVector edge_vector;
   vec<HyperedgeWeight> hyperedge_weight;
   vec<HypernodeWeight> hypernode_weight;
@@ -66,12 +66,27 @@ typename TargetType::PartitionedHypergraph convert(const PartitionedHypergraph& 
 
   // Write hypergraph into temporary data structure
   tbb::parallel_invoke([&] {
-    phg.doParallelForAllEdges([&](const HyperedgeID& he) {
-      hyperedge_weight[he] = phg.edgeWeight(he);
-      for ( const HypernodeID& pin : phg.pins(he) ) {
-        edge_vector[he].push_back(pin);
-      }
-    });
+    if constexpr ( PartitionedHypergraph::is_graph ) {
+      CAtomic<size_t> cnt(0);
+      phg.doParallelForAllEdges([&](const HyperedgeID& he) {
+        const HypernodeID u = phg.edgeSource(he);
+        const HypernodeID v = phg.edgeTarget(he);
+        if ( u < v ) {
+          // insert each edge only once
+          const size_t id = cnt.fetch_add(1, std::memory_order_relaxed);
+          hyperedge_weight[id] = phg.edgeWeight(he);
+          edge_vector[id].push_back(u);
+          edge_vector[id].push_back(v);
+        }
+      });
+    } else {
+      phg.doParallelForAllEdges([&](const HyperedgeID& he) {
+        hyperedge_weight[he] = phg.edgeWeight(he);
+        for ( const HypernodeID& pin : phg.pins(he) ) {
+          edge_vector[he].push_back(pin);
+        }
+      });
+    }
   }, [&] {
     phg.doParallelForAllNodes([&](const HypernodeID& hn) {
       hypernode_weight[hn] = phg.nodeWeight(hn);
@@ -88,7 +103,8 @@ typename TargetType::PartitionedHypergraph convert(const PartitionedHypergraph& 
   converted_phg.initializePartition();
 
   ASSERT(metrics::quality(phg, Objective::cut) == metrics::quality(converted_phg, Objective::cut));
-  return converted_phg;
+  return std::make_pair<Hypergraph, TargetPartitionedHypergraph>(
+    std::move(converted_hg), std::move(converted_phg));
 }
 
 template<typename PartitionedHypergraph, typename TargetPartitionedHypergraph>
@@ -226,17 +242,11 @@ void InitialMapping<TypeTraits>::mapToProcessGraph(PartitionedHypergraph& commun
     // which is only implemented for static graphs and hypergraphs (implemented for multilevel partitioing,
     // but not for n-level). In case the communication hypergraph uses an dynamic graph or hypergraph
     // data structure, we convert it to static data structure and then compute the initial mapping.
-    if constexpr ( PartitionedHypergraph::is_graph ) {
-      using TargetPartitionedGraph = typename StaticGraphTypeTraits::PartitionedHypergraph;
-      TargetPartitionedGraph tmp_communication_hg = convert<StaticGraphTypeTraits>(communication_hg);
-      map_to_process_graph(tmp_communication_hg, process_graph, context);
-      applyPartition(tmp_communication_hg, communication_hg);
-    } else {
-      using TargetPartitionedHypergraph = typename StaticHypergraphTypeTraits::PartitionedHypergraph;
-      TargetPartitionedHypergraph tmp_communication_hg = convert<StaticHypergraphTypeTraits>(communication_hg);
-      map_to_process_graph(tmp_communication_hg, process_graph, context);
-      applyPartition(tmp_communication_hg, communication_hg);
-    }
+    auto static_hypergraph = convert_to_static_hypergraph(communication_hg);
+    StaticPartitionedHypergraph& tmp_communication_hg = static_hypergraph.second;
+    tmp_communication_hg.setHypergraph(static_hypergraph.first);
+    map_to_process_graph(tmp_communication_hg, process_graph, context);
+    applyPartition(tmp_communication_hg, communication_hg);
   } else {
     map_to_process_graph(communication_hg, process_graph, context);
   }
