@@ -164,7 +164,7 @@ Subhypergraph ProblemConstruction<TypeTraits>::construct(const SearchID search_i
 
   DBG << "Search ID:" << search_id << "-" << sub_hg;
 
-  if ( _context.partition.objective == Objective::process_mapping ) {
+  if ( _context.partition.gain_policy == GainPolicy::process_mapping ) {
     // For all objective functions it holds that increasing the connectivity of a
     // hyperedge worsens the objective function and decreasing the connectivity
     // improves the objective function. Moreover, if the connectivity does not change,

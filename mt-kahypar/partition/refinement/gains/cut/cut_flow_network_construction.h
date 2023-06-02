@@ -55,6 +55,34 @@ struct CutFlowNetworkConstruction {
                             const PartitionID block_1) {
     return phg.pinCountInPart(he, block_0) + phg.pinCountInPart(he, block_1) < phg.edgeSize(he);
   }
+
+  // ! If true, then hyperedge is connected to source.
+  template<typename PartitionedHypergraph>
+  static bool connectToSource(const PartitionedHypergraph&,
+                              const HyperedgeID,
+                              const PartitionID,
+                              const PartitionID) {
+    return false;
+  }
+
+  // ! If true, then hyperedge is connected to sink.
+  template<typename PartitionedHypergraph>
+  static bool connectToSink(const PartitionedHypergraph&,
+                            const HyperedgeID,
+                            const PartitionID,
+                            const PartitionID) {
+    return false;
+  }
+
+  // ! If true, then hyperedge is considered as cut edge and its
+  // ! weight is added to the total cut
+  template<typename PartitionedHypergraph>
+  static bool addWeightToTotalCut(const PartitionedHypergraph&,
+                                  const HyperedgeID,
+                                  const PartitionID,
+                                  const PartitionID) {
+    return false;
+  }
 };
 
 }  // namespace mt_kahypar
