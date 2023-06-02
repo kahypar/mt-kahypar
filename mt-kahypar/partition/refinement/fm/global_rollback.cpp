@@ -306,6 +306,70 @@ namespace mt_kahypar {
   }
 
   template<typename TypeTraits, typename GainTypes>
+  void GlobalRollback<TypeTraits, GainTypes>::recalculateGainForGraphEdgeViaAttributedGains(PartitionedHypergraph& phg,
+                                                                                            FMSharedData& sharedData,
+                                                                                            const HyperedgeID& e) {
+    if ( !phg.isSinglePin(e) ) {
+      GlobalMoveTracker& tracker = sharedData.moveTracker;
+      SyncronizedEdgeUpdate sync_update;
+      sync_update.he = e;
+      sync_update.edge_weight = phg.edgeWeight(e);
+      sync_update.edge_size = phg.edgeSize(e);
+      sync_update.process_graph = phg.processGraph();
+
+      HypernodeID first_move = phg.edgeSource(e);
+      HypernodeID second_move = phg.edgeTarget(e);
+      if ( !tracker.wasNodeMovedInThisRound(first_move) &&
+           !tracker.wasNodeMovedInThisRound(second_move) ) {
+        // Both nodes were not moved in this round => nothing to do
+        return;
+      } else if ( tracker.wasNodeMovedInThisRound(first_move) &&
+                  tracker.wasNodeMovedInThisRound(second_move) ) {
+        if ( tracker.moveOfNode[first_move] > tracker.moveOfNode[second_move] ) {
+          std::swap(first_move, second_move);
+        }
+      } else if ( !tracker.wasNodeMovedInThisRound(first_move) &&
+                   tracker.wasNodeMovedInThisRound(second_move) ) {
+        std::swap(first_move, second_move);
+      }
+
+      ASSERT(tracker.wasNodeMovedInThisRound(first_move));
+      ASSERT(!tracker.wasNodeMovedInThisRound(second_move) ||
+        (tracker.moveOfNode[first_move] < tracker.moveOfNode[second_move]));
+      Move& first_m = tracker.getMove(tracker.moveOfNode[first_move]);
+      // sentinel in case second node was not moved
+      Move tmp_second_m = Move { phg.partID(second_move),
+        phg.partID(second_move), second_move, 0 };
+      Move& second_m = tracker.wasNodeMovedInThisRound(second_move) ?
+        tracker.getMove(tracker.moveOfNode[second_move]) : tmp_second_m;
+
+      // Compute gain of first move
+      sync_update.from = first_m.from;
+      sync_update.to = first_m.to;
+      sync_update.pin_count_in_from_part_after =
+        first_m.from == second_m.from ? 1 : 0;
+      sync_update.pin_count_in_to_part_after =
+        first_m.to == second_m.from ? 2 : 1;
+      sync_update.block_of_other_node = second_m.from;
+      const HyperedgeWeight attributed_gain = AttributedGains::gain(sync_update);
+      __atomic_fetch_add(&first_m.gain, -attributed_gain, __ATOMIC_RELAXED);
+
+      if ( tracker.wasNodeMovedInThisRound(second_move) )  {
+        // Compute gain of second move
+        sync_update.from = second_m.from;
+        sync_update.to = second_m.to;
+        sync_update.pin_count_in_from_part_after =
+          first_m.to == second_m.from ? 1 : 0;
+        sync_update.pin_count_in_to_part_after =
+          first_m.to == second_m.to ? 2 : 1;
+        sync_update.block_of_other_node = first_m.to;
+        const HyperedgeWeight attributed_gain = AttributedGains::gain(sync_update);
+        __atomic_fetch_add(&second_m.gain, -attributed_gain, __ATOMIC_RELAXED);
+      }
+    }
+  }
+
+  template<typename TypeTraits, typename GainTypes>
   void GlobalRollback<TypeTraits, GainTypes>::recalculateGains(PartitionedHypergraph& phg,
                                                                FMSharedData& sharedData) {
     GlobalMoveTracker& tracker = sharedData.moveTracker;
@@ -314,7 +378,11 @@ namespace mt_kahypar {
       if constexpr ( Rollback::supports_parallel_rollback ) {
         recalculateGainForHyperedge(phg, sharedData, e);
       } else {
-        recalculateGainForHyperedgeViaAttributedGains(phg, sharedData, e);
+        if constexpr ( PartitionedHypergraph::is_graph ) {
+          recalculateGainForGraphEdgeViaAttributedGains(phg, sharedData, e);
+        } else {
+          recalculateGainForHyperedgeViaAttributedGains(phg, sharedData, e);
+        }
       }
     };
 

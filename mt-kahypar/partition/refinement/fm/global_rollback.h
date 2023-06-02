@@ -91,6 +91,9 @@ public:
   void recalculateGainForHyperedgeViaAttributedGains(PartitionedHypergraph& phg,
                                                      FMSharedData& sharedData,
                                                      const HyperedgeID& he);
+  void recalculateGainForGraphEdgeViaAttributedGains(PartitionedHypergraph& phg,
+                                                     FMSharedData& sharedData,
+                                                     const HyperedgeID& he);
   void recalculateGains(PartitionedHypergraph& phg, FMSharedData& sharedData);
 
   HyperedgeWeight revertToBestPrefixSequential(PartitionedHypergraph& phg,
