@@ -163,6 +163,16 @@ class UnconstrainedStrategy {
         m.gain = gain;
         runStats.extractions++;
         vertexPQs[from].deleteTop();  // blockPQ updates are done later, collectively.
+
+        if (sharedData.unconstrained.isRebalancingNode(m.node)) {
+          // edge case: moving a rebalancing node can throw the estimation off if we don't apply a correction
+          const HypernodeWeight from_weight = phg.partWeight(m.from);
+          const HypernodeWeight wu = phg.nodeWeight(u);
+          if (from_weight - wu < context.partition.max_part_weights[from]) {
+            const HypernodeWeight reduction = std::min(wu, context.partition.max_part_weights[from] - from_weight + wu);
+            sharedData.unconstrained.applyEstimatedPenaltyForImbalancedMove(from, reduction);
+          }
+        }
         return true;
       } else {
         runStats.retries++;
