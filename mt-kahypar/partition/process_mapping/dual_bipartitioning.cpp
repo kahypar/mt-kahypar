@@ -82,13 +82,11 @@ void DualBipartitioning<CommunicationHypergraph>::mapToProcessGraph(Communicatio
     communication_hg.setOnlyNodePart(hn, partitioned_process_graph.partID(hn));
   }
   communication_hg.initializePartition();
-  timer.stop_timer("initial_mapping");
 
   if ( context.process_mapping.use_local_search ) {
-    timer.start_timer("local_search", "Local Search");
     KerninghanLin<CommunicationHypergraph>::improve(communication_hg, process_graph);
-    timer.stop_timer("local_search");
   }
+  timer.stop_timer("initial_mapping");
 }
 
 template<typename CommunicationHypergraph>

@@ -34,6 +34,7 @@
 #include "mt-kahypar/partition/process_mapping/kerninghan_lin.h"
 #include "mt-kahypar/datastructures/static_graph.h"
 #include "mt-kahypar/datastructures/static_bitset.h"
+#include "mt-kahypar/parallel/atomic_wrapper.h"
 #include "mt-kahypar/utils/randomize.h"
 #include "mt-kahypar/utils/utilities.h"
 
@@ -226,30 +227,34 @@ void GreedyMapping<CommunicationHypergraph>::mapToProcessGraph(CommunicationHype
   ASSERT(communication_hg.initialNumNodes() == process_graph.graph().initialNumNodes());
 
   utils::Timer& timer = utils::Utilities::instance().getTimer(context.utility_id);
+  SpinLock best_lock;
   HyperedgeWeight best_objective = metrics::quality(communication_hg, Objective::process_mapping);
   vec<PartitionID> best_mapping(communication_hg.initialNumNodes(), 0);
   std::iota(best_mapping.begin(), best_mapping.end(), 0);
-  for ( const HypernodeID& hn : communication_hg.nodes() ) {
+  timer.start_timer("initial_mapping", "Initial Mapping");
+  communication_hg.doParallelForAllNodes([&](const HypernodeID& hn) {
     // Compute greedy mapping with the current node as seed node
-    timer.start_timer("initial_mapping", "Initial Mapping");
-    compute_greedy_mapping(communication_hg, process_graph, context, hn);
-    timer.stop_timer("initial_mapping");
+    CommunicationHypergraph tmp_communication_phg(
+      process_graph.numBlocks(), communication_hg.hypergraph());
+    tmp_communication_phg.setProcessGraph(&process_graph);
+    compute_greedy_mapping(tmp_communication_phg, process_graph, context, hn);
 
     if ( context.process_mapping.use_local_search ) {
-      timer.start_timer("local_search", "Local Search");
-      KerninghanLin<CommunicationHypergraph>::improve(communication_hg, process_graph);
-      timer.stop_timer("local_search");
+      KerninghanLin<CommunicationHypergraph>::improve(tmp_communication_phg, process_graph);
     }
 
     // Check if new mapping is better than the currently best mapping
-    const HyperedgeWeight objective = metrics::quality(communication_hg, Objective::process_mapping);
+    const HyperedgeWeight objective = metrics::quality(tmp_communication_phg, Objective::process_mapping);
+    best_lock.lock();
     if ( objective < best_objective ) {
       best_objective = objective;
-      for ( const HypernodeID& u : communication_hg.nodes() ) {
-        best_mapping[u] = communication_hg.partID(u);
+      for ( const HypernodeID& u : tmp_communication_phg.nodes() ) {
+        best_mapping[u] = tmp_communication_phg.partID(u);
       }
     }
-  }
+    best_lock.unlock();
+  });
+  timer.stop_timer("initial_mapping");
 
   // Apply best mapping
   communication_hg.resetPartition();
