@@ -28,12 +28,14 @@
 
 #include <queue>
 #include <numeric>
+#include <iostream>
 
 #include "tbb/enumerable_thread_specific.h"
 #include "tbb/concurrent_unordered_map.h"
 
 #include "mt-kahypar/macros.h"
 #include "mt-kahypar/datastructures/static_bitset.h"
+#include "mt-kahypar/parallel/atomic_wrapper.h"
 
 namespace mt_kahypar {
 namespace ds {
@@ -72,7 +74,20 @@ class ProcessGraph {
     PQ pq;
   };
 
+  struct Stats {
+    Stats() :
+      precomputed(0),
+      cache_misses(0),
+      cache_hits(0) { }
+
+    CAtomic<size_t> precomputed;
+    CAtomic<size_t> cache_misses;
+    CAtomic<size_t> cache_hits;
+  };
+
  public:
+  static constexpr bool TRACK_STATS = false;
+
   explicit ProcessGraph(ds::StaticGraph&& graph) :
     _is_initialized(false),
     _k(graph.initialNumNodes()),
@@ -80,7 +95,8 @@ class ProcessGraph {
     _max_precomputed_connectitivty(0),
     _distances(),
     _local_mst_data(graph.initialNumNodes()),
-    _cache(graph.initialNumNodes()) { }
+    _cache(graph.initialNumNodes()),
+    _stats() { }
 
   ProcessGraph(const ProcessGraph&) = delete;
   ProcessGraph & operator= (const ProcessGraph &) = delete;
@@ -163,6 +179,27 @@ class ProcessGraph {
     return _distances[index(i, j)];
   }
 
+  // ! Print statistics
+  void printStats() const {
+    const size_t total_requests = _stats.precomputed + _stats.cache_hits + _stats.cache_misses;
+    LOG << "\nProcess Graph Distance Computation Stats:";
+    std::cout << "Accessed Precomputed Distance = " << std::setprecision(2)
+              << (static_cast<double>(_stats.precomputed) / total_requests) * 100 << "% ("
+              << _stats.precomputed << ")" << std::endl;
+    std::cout << "                 Computed MST = " << std::setprecision(2)
+              << (static_cast<double>(_stats.cache_misses) / total_requests) * 100 << "% ("
+              << _stats.cache_misses << ")" << std::endl;
+    std::cout << "              Used Cached MST = " << std::setprecision(2)
+              << (static_cast<double>(_stats.cache_hits) / total_requests) * 100 << "% ("
+              << _stats.cache_hits << ")" << std::endl;
+  }
+
+  void printStats(std::stringstream& oss) const {
+    oss << " used_precomputed_distance=" << _stats.precomputed
+        << " used_mst=" << _stats.cache_misses
+        << " used_cached_mst=" << _stats.cache_hits;
+  }
+
  private:
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE size_t index(const PartitionID i,
                                                   const PartitionID j) const {
@@ -210,6 +247,9 @@ class ProcessGraph {
 
   // ! Cache stores the weight of MST's computations
   mutable tbb::concurrent_unordered_map<size_t, CachedElement> _cache;
+
+  // ! Stats
+  mutable Stats _stats;
 };
 
 }  // namespace kahypar

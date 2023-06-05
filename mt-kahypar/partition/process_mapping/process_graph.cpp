@@ -52,10 +52,12 @@ HyperedgeWeight ProcessGraph::distance(const ds::StaticBitset& connectivity_set)
   const size_t idx = index(connectivity_set);
   if ( likely(connectivity <= _max_precomputed_connectitivty) ) {
     ASSERT(idx < _distances.size());
+    if constexpr ( TRACK_STATS ) ++_stats.precomputed;
     return _distances[idx];
   } else {
     // We have not precomputed the optimal steiner tree for the connectivity set.
     if ( _cache.count(idx) == 0 ) {
+      if constexpr ( TRACK_STATS ) ++_stats.cache_misses;
       // Entry is not cached => Compute 2-approximation of optimal steiner tree
       const HyperedgeWeight mst_weight =
         computeWeightOfMSTOnMetricCompletion(connectivity_set);
@@ -64,6 +66,7 @@ HyperedgeWeight ProcessGraph::distance(const ds::StaticBitset& connectivity_set)
       _cache[idx].valid = true;
       return mst_weight;
     } else {
+      if constexpr ( TRACK_STATS ) ++_stats.cache_hits;
       CachedElement& elem = _cache.at(idx);
       if ( elem.valid ) {
         // In this case, the cache contains a valid element and we can

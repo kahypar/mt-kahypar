@@ -31,6 +31,7 @@
 
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/metrics.h"
+#include "mt-kahypar/partition/process_mapping/process_graph.h"
 #include "mt-kahypar/utils/utilities.h"
 #include "mt-kahypar/utils/timer.h"
 
@@ -150,12 +151,16 @@ std::string serialize(const PartitionedHypergraph& hypergraph,
 
     if ( context.process_mapping.process_graph_file != "" &&
          context.partition.objective == Objective::process_mapping ) {
-      oss << " process_mapping_file=" << context.process_mapping.process_graph_file
+      oss << " process_mapping_file=" << context.process_mapping.process_graph_file.substr(
+            context.process_mapping.process_graph_file.find_last_of('/') + 1)
           << " process_mapping_strategy=" << context.process_mapping.strategy
           << " process_mapping_use_local_search=" << std::boolalpha << context.process_mapping.use_local_search
           << " process_mapping_optimize_km1_metric=" << std::boolalpha << context.process_mapping.optimize_km1_metric
           << " process_mapping_max_steiner_tree_size=" << context.process_mapping.max_steiner_tree_size
           << " process_mapping_bisection_brute_fore_threshold=" << context.process_mapping.bisection_brute_fore_threshold;
+      if ( ProcessGraph::TRACK_STATS ) {
+        hypergraph.processGraph()->printStats(oss);
+      }
     }
 
     // Metrics
