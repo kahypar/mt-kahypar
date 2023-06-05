@@ -159,7 +159,6 @@ struct UnconstrainedFMData {
 
   bool initialized = false;
   PartitionID current_k;
-  parallel::scalable_vector<BucketMap> buckets;
   parallel::scalable_vector<HypernodeWeight> bucket_weights;
   parallel::scalable_vector<AtomicWeight> consumed_bucket_weights;
   tbb::enumerable_thread_specific<parallel::scalable_vector<HypernodeWeight>> local_bucket_weights;
@@ -168,7 +167,6 @@ struct UnconstrainedFMData {
   explicit UnconstrainedFMData():
     initialized(false),
     current_k(0),
-    buckets(),
     bucket_weights(),
     consumed_bucket_weights(),
     local_bucket_weights(),
@@ -203,9 +201,6 @@ struct UnconstrainedFMData {
 
   void reset() {
     if (initialized) {
-      for (size_t i = 0; i < NUM_BUCKETS; ++i) {
-        buckets[i].clearParallel();
-      }
       bucket_weights.assign(current_k * NUM_BUCKETS, 0);
       consumed_bucket_weights.assign(current_k * NUM_BUCKETS, AtomicWeight(0));
       for (auto& local_weights: local_bucket_weights) {
