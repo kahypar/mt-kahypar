@@ -123,6 +123,7 @@ namespace mt_kahypar {
         auto& local_weights = local_bucket_weights.local();
         HyperedgeWeight incident_weight = 0;
         for (HyperedgeID he: phg.incidentEdges(hn)) {
+          // TODO: try using gain cache here instead
           incident_weight += phg.edgeWeight(he);
         }
         const size_t bucketId = bucketForGainPerWeight(static_cast<double>(incident_weight) / hn_weight);

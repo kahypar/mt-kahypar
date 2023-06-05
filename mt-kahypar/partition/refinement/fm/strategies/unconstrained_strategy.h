@@ -146,7 +146,7 @@ class UnconstrainedStrategy {
         const HypernodeWeight wu = phg.nodeWeight(u);
         const HypernodeWeight to_weight = phg.partWeight(to);
         if (to_weight + wu > context.partition.max_part_weights[to]) {
-          const HyperedgeWeight imbalance = std::min(wu, to_weight + wu - context.partition.max_part_weights[to]);
+          const HypernodeWeight imbalance = std::min(wu, to_weight + wu - context.partition.max_part_weights[to]);
           // The following will update the imbalance globally, which also affects the imbalance penalty for other threads.
           // If the move is not applied, we need to undo this in skipMove
           const Gain imbalance_penalty = sharedData.unconstrained.applyEstimatedPenaltyForImbalancedMove(to, imbalance);
@@ -193,7 +193,7 @@ class UnconstrainedStrategy {
     if (to_weight > context.partition.max_part_weights[m.to]) {
       // we need to undo the imbalance which was added to the shared data
       const HypernodeWeight hn_weight = phg.nodeWeight(m.node);
-      const HyperedgeWeight imbalance = std::min(hn_weight, to_weight - context.partition.max_part_weights[m.to]);
+      const HypernodeWeight imbalance = std::min(hn_weight, to_weight - context.partition.max_part_weights[m.to]);
       sharedData.unconstrained.revertImbalancedMove(m.to, imbalance);
     }
   }
@@ -293,7 +293,7 @@ private:
           // don't take imbalanced move without improved gain
           continue;
         } else if (to_weight + wu > max_weight) {
-          const HyperedgeWeight imbalance = std::min(wu, to_weight + wu - max_weight);
+          const HypernodeWeight imbalance = std::min(wu, to_weight + wu - max_weight);
           const Gain imbalance_penalty = sharedData.unconstrained.estimatedPenaltyForImbalancedMove(i, imbalance);
           if (imbalance_penalty == std::numeric_limits<Gain>::max()) {
             continue;
@@ -331,7 +331,7 @@ private:
         const HypernodeWeight to_weight = phg.partWeight(i);
         HyperedgeWeight benefit = gain_cache.benefitTerm(u, i);
         if (to_weight + wu > context.partition.max_part_weights[i]) {
-          const HyperedgeWeight imbalance = std::min(wu, to_weight + wu - context.partition.max_part_weights[i]);
+          const HypernodeWeight imbalance = std::min(wu, to_weight + wu - context.partition.max_part_weights[i]);
           const Gain imbalance_penalty = sharedData.unconstrained.estimatedPenaltyForImbalancedMove(i, imbalance);
           if (imbalance_penalty == std::numeric_limits<Gain>::max()) {
             continue;
