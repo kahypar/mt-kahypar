@@ -172,16 +172,16 @@ class ProcessGraph {
 
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE size_t index(const ds::StaticBitset& connectivity_set) const {
     size_t index = 0;
-    PartitionID multiplier = 1;
+    size_t multiplier = 1;
     PartitionID last_block = kInvalidPartition;
     for ( const PartitionID block : connectivity_set ) {
       ASSERT(block != kInvalidPartition && block < _k);
-      index += multiplier * block;
-      multiplier *= _k;
+      index += multiplier * UL(block);
+      multiplier *= UL(_k);
       last_block = block;
     }
     return last_block != kInvalidPartition ? index +
-      (multiplier == _k ? last_block * _k : 0) : 0;
+      (multiplier == UL(_k) ? last_block * _k : 0) : 0;
   }
 
   // ! This function computes an MST on the metric completion of the process graph
