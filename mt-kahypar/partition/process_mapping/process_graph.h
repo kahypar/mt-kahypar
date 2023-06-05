@@ -34,14 +34,11 @@
 #include "tbb/concurrent_unordered_map.h"
 
 #include "mt-kahypar/macros.h"
+#include "mt-kahypar/datastructures/static_graph.h"
 #include "mt-kahypar/datastructures/static_bitset.h"
 #include "mt-kahypar/parallel/atomic_wrapper.h"
 
 namespace mt_kahypar {
-namespace ds {
-// Forward declaration
-class StaticGraph;
-} // namespace ds
 
 class ProcessGraph {
 

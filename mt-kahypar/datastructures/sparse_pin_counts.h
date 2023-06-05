@@ -270,6 +270,7 @@ class SparsePinCounts {
     Bitset& deep_copy = deepCopy(he);
     StaticBitset& shallow_copy = _shallow_copy_bitset.local();
     shallow_copy.set(deep_copy.numBlocks(), deep_copy.data());
+    return shallow_copy;
   }
 
   // Creates a deep copy of the connectivity set of hyperedge he

@@ -34,6 +34,12 @@ target_link_libraries(MetisToScotch TBB::tbb TBB::tbbmalloc_proxy)
 set_property(TARGET MetisToScotch PROPERTY CXX_STANDARD 17)
 set_property(TARGET MetisToScotch PROPERTY CXX_STANDARD_REQUIRED ON)
 
+add_executable(ProcessGraphGenerator process_graph_generator.cc)
+target_link_libraries(ProcessGraphGenerator ${Boost_LIBRARIES})
+target_link_libraries(ProcessGraphGenerator TBB::tbb TBB::tbbmalloc_proxy)
+set_property(TARGET ProcessGraphGenerator PROPERTY CXX_STANDARD 17)
+set_property(TARGET ProcessGraphGenerator PROPERTY CXX_STANDARD_REQUIRED ON)
+
 add_executable(SnapToMetis snap_to_metis_converter.cc)
 target_link_libraries(SnapToMetis ${Boost_LIBRARIES})
 target_link_libraries(SnapToMetis TBB::tbb TBB::tbbmalloc_proxy)
@@ -69,4 +75,5 @@ set(TOOLS_TARGETS ${TOOLS_TARGETS} EvaluateBipart
                                    HgrToZoltan
                                    HypergraphStats
                                    MetisToScotch
+                                   ProcessGraphGenerator
                                    PARENT_SCOPE)
