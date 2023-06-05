@@ -29,6 +29,42 @@
 
 
 namespace mt_kahypar {
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
+  double UnconstrainedFMData::estimatedPenaltyFromIndex(PartitionID to, size_t bucketId,
+                                                        HypernodeWeight remaining) const {
+    double penalty = 0;
+    while (bucketId < NUM_BUCKETS && remaining > 0 && bucket_weights[indexForBucket(to, bucketId)] <= remaining) {
+      const HypernodeWeight bucket_weight = bucket_weights[indexForBucket(to, bucketId)];
+      penalty += gainPerWeightForBucket(bucketId) * bucket_weight;
+      remaining -= bucket_weight;
+      ++bucketId;
+    }
+    if (bucketId == NUM_BUCKETS && remaining > 0) {
+      return static_cast<double>(std::numeric_limits<Gain>::max()); // rebalancing not possible with considered nodes
+    }
+    if (remaining > 0) {
+      penalty += gainPerWeightForBucket(bucketId) * remaining;
+    }
+    return penalty;
+  }
+
+  Gain UnconstrainedFMData::estimatedPenaltyForImbalance(PartitionID to, HypernodeWeight total_imbalance) const {
+    return std::ceil(estimatedPenaltyFromIndex(to, 0, total_imbalance));
+  }
+
+  Gain UnconstrainedFMData::estimatedPenaltyForDelta(PartitionID to, HypernodeWeight old_weight,
+                                                     HypernodeWeight new_weight) const {
+    ASSERT(old_weight <= new_weight);
+    size_t bucketId = 0;
+    HypernodeWeight common = 0;
+    while (bucketId < NUM_BUCKETS && common + bucket_weights[indexForBucket(to, bucketId)] <= old_weight) {
+      common += bucket_weights[indexForBucket(to, bucketId)];
+      ++bucketId;
+    }
+    const double penalty_new = estimatedPenaltyFromIndex(to, bucketId, new_weight - common);
+    const double penalty_old = estimatedPenaltyFromIndex(to, bucketId, old_weight - common);
+    return std::ceil(penalty_new - penalty_old);
+  }
 
   Gain UnconstrainedFMData::estimatedPenaltyForImbalancedMove(PartitionID to, HypernodeWeight weight) const {
     ASSERT(initialized);
@@ -145,6 +181,14 @@ namespace mt_kahypar {
       tbb::parallel_for(static_cast<PartitionID>(0), context.partition.k, [&](const PartitionID k) {
         add_range_fn(k * NUM_BUCKETS, (k + 1) * NUM_BUCKETS);
       });
+    }
+    ASSERT(upper_weight_limits.size() == static_cast<size_t>(context.partition.k));
+    for (PartitionID block = 0; block < context.partition.k; ++block) {
+      HypernodeWeight sum = 0;
+      for (size_t bucketId = 0; bucketId < NUM_BUCKETS; ++ bucketId) {
+        sum += bucket_weights[indexForBucket(block, bucketId)];
+      }
+      upper_weight_limits[block] = sum;
     }
     initialized = true;
   }
