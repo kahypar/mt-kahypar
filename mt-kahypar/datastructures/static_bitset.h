@@ -40,7 +40,10 @@ class StaticBitset {
 
  public:
   using Block = uint64_t;
-  static constexpr int BITS_PER_BLOCK = std::numeric_limits<Block>::digits;
+  static constexpr Block BITS_PER_BLOCK = std::numeric_limits<Block>::digits;
+  static_assert(__builtin_popcountll(BITS_PER_BLOCK) == 1);
+  static constexpr Block MOD_MASK = BITS_PER_BLOCK - 1;
+  static constexpr Block DIV_SHIFT = utils::log2(BITS_PER_BLOCK);
 
  private:
   // ! Iterator enumerates the position of all one bits in the bitset
@@ -90,22 +93,22 @@ class StaticBitset {
    private:
     MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE void nextBlockID() {
       ++_current_block_id;
-      Block b = _current_block_id < _max_block_id ? loadCurrentBlock() : 0;
-      while ( b >> ( _current_block_id % BITS_PER_BLOCK ) == 0 && _current_block_id < _max_block_id ) {
+      Block b = loadCurrentBlock();
+      while ( b >> ( _current_block_id & MOD_MASK ) == 0 && _current_block_id < _max_block_id ) {
         // no more one bits in current block -> load next block
-        _current_block_id += (BITS_PER_BLOCK - (_current_block_id % BITS_PER_BLOCK));
-        b = _current_block_id < _max_block_id ? loadCurrentBlock() : 0;
+        _current_block_id += (BITS_PER_BLOCK - (_current_block_id & MOD_MASK));
+        b = ( _current_block_id < _max_block_id ) * loadCurrentBlock();
       }
-      if ( _current_block_id < _max_block_id ) {
-        _current_block_id += utils::lowest_set_bit_64(b >> ( _current_block_id % BITS_PER_BLOCK ));
-      } else {
-        _current_block_id = _max_block_id;
-      }
+      const bool reached_max_id = _current_block_id == _max_block_id;
+      // Avoid if statement here
+      _current_block_id = (1 - reached_max_id) * ( _current_block_id +
+         utils::lowest_set_bit_64(std::max(b >> ( _current_block_id & MOD_MASK ), UL(1)))) +
+         reached_max_id * _max_block_id;
     }
 
     MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE Block loadCurrentBlock() {
-      ASSERT(static_cast<size_t>(_current_block_id / BITS_PER_BLOCK) < _num_blocks);
-      return __atomic_load_n(_bitset + _current_block_id / BITS_PER_BLOCK, __ATOMIC_RELAXED);
+      ASSERT(static_cast<size_t>(_current_block_id >> DIV_SHIFT) <= _num_blocks);
+      return __atomic_load_n(_bitset + ( _current_block_id >> DIV_SHIFT ), __ATOMIC_RELAXED);
     }
 
     const size_t _num_blocks;
@@ -154,8 +157,8 @@ class StaticBitset {
 
   bool isSet(const size_t pos) const {
     ASSERT(pos < _num_blocks * BITS_PER_BLOCK);
-    const size_t block_idx = pos / BITS_PER_BLOCK;
-    const size_t idx = pos % BITS_PER_BLOCK;
+    const size_t block_idx = pos >> DIV_SHIFT;
+    const size_t idx = pos & MOD_MASK;
     return ( *(_bitset + block_idx) >> idx ) & UL(1);
   }
 

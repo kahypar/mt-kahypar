@@ -42,20 +42,19 @@ class Bitset {
 
   using Block = uint64_t;
   static constexpr int BITS_PER_BLOCK = std::numeric_limits<Block>::digits;
+  static_assert(__builtin_popcountll(BITS_PER_BLOCK) == 1);
+  static constexpr Block MOD_MASK = BITS_PER_BLOCK - 1;
+  static constexpr Block DIV_SHIFT = utils::log2(BITS_PER_BLOCK);
 
  public:
   explicit Bitset() :
     _size(0),
-    _div(std::log2(BITS_PER_BLOCK)),
-    _mod(BITS_PER_BLOCK - 1),
     _bitset() { }
 
   explicit Bitset(const size_t size) :
     _size(size),
-    _div(std::log2(BITS_PER_BLOCK)),
-    _mod(BITS_PER_BLOCK - 1),
     _bitset() {
-    _bitset.assign(( size >> _div ) + ( ( size & _mod ) != 0 ), 0);
+    _bitset.assign(( size >> DIV_SHIFT ) + ( ( size & MOD_MASK ) != 0 ), 0);
   }
 
   Bitset(const Bitset&) = delete;
@@ -77,7 +76,7 @@ class Bitset {
 
   void resize(const size_t size) {
     _size = size;
-    _bitset.assign(( size >> _div ) + ( ( size & _mod ) != 0 ), 0);
+    _bitset.assign(( size >> DIV_SHIFT ) + ( ( size & MOD_MASK ) != 0 ), 0);
   }
 
   void copy(const size_t num_blocks, const Block* blocks) {
@@ -88,22 +87,22 @@ class Bitset {
 
   bool isSet(const size_t pos) {
     ASSERT(pos < _size);
-    const size_t block_idx = pos >> _div; // pos / BITS_PER_BLOCK;
-    const size_t idx = pos & _mod; // pos % BITS_PER_BLOCK;
+    const size_t block_idx = pos >> DIV_SHIFT; // pos / BITS_PER_BLOCK;
+    const size_t idx = pos & MOD_MASK; // pos % BITS_PER_BLOCK;
     return ( _bitset[block_idx] >> idx ) & UL(1);
   }
 
   void set(const size_t pos) {
     ASSERT(pos < _size);
-    const size_t block_idx = pos >> _div; // pos / BITS_PER_BLOCK;
-    const size_t idx = pos & _mod; // pos % BITS_PER_BLOCK;
+    const size_t block_idx = pos >> DIV_SHIFT; // pos / BITS_PER_BLOCK;
+    const size_t idx = pos & MOD_MASK; // pos % BITS_PER_BLOCK;
     _bitset[block_idx] |= (static_cast<Block>(1) << idx);
   }
 
   void unset(const size_t pos) {
     ASSERT(pos < _size);
-    const size_t block_idx = pos >> _div; // pos / BITS_PER_BLOCK;
-    const size_t idx = pos & _mod; // pos % BITS_PER_BLOCK;
+    const size_t block_idx = pos >> DIV_SHIFT; // pos / BITS_PER_BLOCK;
+    const size_t idx = pos & MOD_MASK; // pos % BITS_PER_BLOCK;
     _bitset[block_idx] &= ~(static_cast<Block>(1) << idx);
   }
 
@@ -111,8 +110,6 @@ class Bitset {
   friend class StaticBitset;
 
   size_t _size;
-  size_t _div;
-  size_t _mod;
   vec<Block> _bitset;
 };
 
