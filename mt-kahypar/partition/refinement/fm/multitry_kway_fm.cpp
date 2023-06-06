@@ -38,6 +38,24 @@
 #include "mt-kahypar/utils/cast.h"
 
 namespace mt_kahypar {
+  // helper function for rebalancing
+  std::vector<HypernodeWeight> setupMaxPartWeights(const Context& context) {
+    double max_part_weight_scaling = context.refinement.fm.rollback_balance_violation_factor;
+    std::vector<HypernodeWeight> max_part_weights = context.partition.perfect_balance_part_weights;
+    if (!context.refinement.fm.rebalancing_use_violation_factor) {
+      max_part_weight_scaling = 1.0;
+    }
+    if (max_part_weight_scaling == 0.0) {
+      for (PartitionID i = 0; i < context.partition.k; ++i) {
+        max_part_weights[i] = std::numeric_limits<HypernodeWeight>::max();
+      }
+    } else {
+      for (PartitionID i = 0; i < context.partition.k; ++i) {
+        max_part_weights[i] *= ( 1.0 + context.partition.epsilon * max_part_weight_scaling );
+      }
+    }
+    return max_part_weights;
+  }
 
   template<typename TypeTraits, typename GainTypes, typename FMStrategy>
   bool MultiTryKWayFM<TypeTraits, GainTypes, FMStrategy>::refineImpl(
@@ -58,12 +76,14 @@ namespace mt_kahypar {
     double current_time_limit = time_limit;
     tbb::task_group tg;
     vec<HypernodeWeight> initialPartWeights(size_t(context.partition.k));
+    std::vector<HypernodeWeight> max_part_weights;
     HighResClockTimepoint fm_start = std::chrono::high_resolution_clock::now();
     utils::Timer& timer = utils::Utilities::instance().getTimer(context.utility_id);
 
     if (FMStrategy::is_unconstrained) {
       timer.start_timer("precompute_unconstrained", "Precompute Level for Unc. FM");
       sharedData.unconstrained.precomputeForLevel(phg);
+      max_part_weights = setupMaxPartWeights(context);
       timer.stop_timer("precompute_unconstrained");
     }
 
@@ -123,6 +143,7 @@ namespace mt_kahypar {
         Metrics tmp_metrics;
         tmp_metrics.quality = metrics.quality - overall_improvement - improvement;
         tmp_metrics.imbalance = metrics::imbalance(phg, context);
+        rebalancer.setMaxPartWeightsForRound(max_part_weights);
         rebalancer.refine(hypergraph, {}, tmp_metrics, current_time_limit);
         timer.stop_timer("rebalance");
 

@@ -170,6 +170,8 @@ struct FMParameters {
   bool shuffle = true;
   mutable bool obey_minimal_parallelism = false;
   bool release_nodes = true;
+
+  bool rebalancing_use_violation_factor = true;
 };
 
 std::ostream& operator<<(std::ostream& out, const FMParameters& params);
