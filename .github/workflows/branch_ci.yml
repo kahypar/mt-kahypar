@@ -33,8 +33,7 @@ jobs:
           CC: ${{ matrix.compiler.cc }}
           CXX: ${{ matrix.compiler.cpp }}
         run: |
-          git submodule init
-          git submodule update
+          git submodule update --init --recursive
           rm -rf build
           mkdir build
           cd build
@@ -60,8 +59,7 @@ jobs:
 
       - name: Install Mt-KaHyPar Test Suite
         run: |
-          git submodule init
-          git submodule update
+          git submodule update --init --recursive
           rm -rf build
           mkdir build
           cd build
@@ -92,8 +90,7 @@ jobs:
 
       - name: Run Mt-KaHyPar C Library Interface Tests
         run: |
-          git submodule init
-          git submodule update
+          git submodule update --init --recursive
           rm -rf build
           mkdir build
           cd build
@@ -119,8 +116,7 @@ jobs:
 
       - name: Build Mt-KaHyPar Python Interface
         run: |
-          git submodule init
-          git submodule update
+          git submodule update --init --recursive
           rm -rf build
           mkdir build
           cd build
