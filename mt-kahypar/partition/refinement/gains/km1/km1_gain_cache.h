@@ -73,9 +73,9 @@ class Km1GainCache {
   static constexpr bool requires_notification_before_update = false;
   static constexpr bool initializes_gain_cache_entry_after_batch_uncontractions = false;
 
-  Km1GainCache() :
+  Km1GainCache(const Context& context) :
     _is_initialized(false),
-    _k(kInvalidPartition),
+    _k(context.partition.k),
     _gain_cache(),
     _dummy_adjacent_blocks() { }
 

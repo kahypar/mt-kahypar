@@ -205,6 +205,8 @@ TEST(AContext, LoadsDefaultPresetCorrectly) {
             expected.process_mapping.max_steiner_tree_size);
   ASSERT_EQ(actual.process_mapping.bisection_brute_fore_threshold,
             expected.process_mapping.bisection_brute_fore_threshold);
+  ASSERT_EQ(actual.process_mapping.large_he_threshold,
+            expected.process_mapping.large_he_threshold);
 }
 
 TEST(AContext, LoadsDefaultFlowPresetCorrectly) {
@@ -399,6 +401,8 @@ TEST(AContext, LoadsDefaultFlowPresetCorrectly) {
             expected.process_mapping.max_steiner_tree_size);
   ASSERT_EQ(actual.process_mapping.bisection_brute_fore_threshold,
             expected.process_mapping.bisection_brute_fore_threshold);
+  ASSERT_EQ(actual.process_mapping.large_he_threshold,
+            expected.process_mapping.large_he_threshold);
 }
 
 TEST(AContext, LoadsDeterministicPresetCorrectly) {
@@ -543,6 +547,8 @@ TEST(AContext, LoadsDeterministicPresetCorrectly) {
             expected.process_mapping.max_steiner_tree_size);
   ASSERT_EQ(actual.process_mapping.bisection_brute_fore_threshold,
             expected.process_mapping.bisection_brute_fore_threshold);
+  ASSERT_EQ(actual.process_mapping.large_he_threshold,
+            expected.process_mapping.large_he_threshold);
 }
 
 #ifdef KAHYPAR_ENABLE_N_LEVEL_PARTITIONING_FEATURES
@@ -737,6 +743,8 @@ TEST(AContext, LoadsQualityPresetCorrectly) {
             expected.process_mapping.max_steiner_tree_size);
   ASSERT_EQ(actual.process_mapping.bisection_brute_fore_threshold,
             expected.process_mapping.bisection_brute_fore_threshold);
+  ASSERT_EQ(actual.process_mapping.large_he_threshold,
+            expected.process_mapping.large_he_threshold);
 }
 
 TEST(AContext, LoadsQualityFlowPresetCorrectly) {
@@ -955,6 +963,8 @@ TEST(AContext, LoadsQualityFlowPresetCorrectly) {
             expected.process_mapping.max_steiner_tree_size);
   ASSERT_EQ(actual.process_mapping.bisection_brute_fore_threshold,
             expected.process_mapping.bisection_brute_fore_threshold);
+  ASSERT_EQ(actual.process_mapping.large_he_threshold,
+            expected.process_mapping.large_he_threshold);
 }
 #endif
 
@@ -1082,6 +1092,8 @@ TEST(AContext, LoadsLargeKPresetCorrectly) {
             expected.process_mapping.max_steiner_tree_size);
   ASSERT_EQ(actual.process_mapping.bisection_brute_fore_threshold,
             expected.process_mapping.bisection_brute_fore_threshold);
+  ASSERT_EQ(actual.process_mapping.large_he_threshold,
+            expected.process_mapping.large_he_threshold);
 }
 
 #endif

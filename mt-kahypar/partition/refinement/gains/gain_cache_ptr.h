@@ -50,14 +50,14 @@ typedef struct  {
 class GainCachePtr {
 
  public:
-  static gain_cache_t constructGainCache(const GainPolicy& type) {
-    switch(type) {
-      case GainPolicy::cut: return constructGainCache<CutGainCache>();
-      case GainPolicy::km1: return constructGainCache<Km1GainCache>();
-      case GainPolicy::soed: return constructGainCache<SoedGainCache>();
-      case GainPolicy::process_mapping: return constructGainCache<ProcessMappingGainCache>();
-      case GainPolicy::cut_for_graphs: return constructGainCache<GraphCutGainCache>();
-      case GainPolicy::process_mapping_for_graphs: return constructGainCache<GraphProcessMappingGainCache>();
+  static gain_cache_t constructGainCache(const Context& context) {
+    switch(context.partition.gain_policy) {
+      case GainPolicy::cut: return constructGainCache<CutGainCache>(context);
+      case GainPolicy::km1: return constructGainCache<Km1GainCache>(context);
+      case GainPolicy::soed: return constructGainCache<SoedGainCache>(context);
+      case GainPolicy::process_mapping: return constructGainCache<ProcessMappingGainCache>(context);
+      case GainPolicy::cut_for_graphs: return constructGainCache<GraphCutGainCache>(context);
+      case GainPolicy::process_mapping_for_graphs: return constructGainCache<GraphProcessMappingGainCache>(context);
       case GainPolicy::none:
         ERR("No gain policy set");
     }
@@ -207,8 +207,8 @@ class GainCachePtr {
 
  private:
   template<typename GainCache>
-  static gain_cache_t constructGainCache() {
-    return gain_cache_t { reinterpret_cast<gain_cache_s*>(new GainCache()), GainCache::TYPE };
+  static gain_cache_t constructGainCache(const Context& context) {
+    return gain_cache_t { reinterpret_cast<gain_cache_s*>(new GainCache(context)), GainCache::TYPE };
   }
 };
 

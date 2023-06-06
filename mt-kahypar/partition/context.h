@@ -238,6 +238,7 @@ struct ProcessMappingParameters {
   bool optimize_km1_metric = false;
   size_t max_steiner_tree_size = 0;
   size_t bisection_brute_fore_threshold = 0;
+  HypernodeID large_he_threshold = std::numeric_limits<HypernodeID>::max();
 };
 
 std::ostream & operator<< (std::ostream& str, const ProcessMappingParameters& params);

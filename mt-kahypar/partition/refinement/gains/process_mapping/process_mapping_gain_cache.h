@@ -32,7 +32,7 @@
 
 #include "tbb/parallel_invoke.h"
 
-#include "mt-kahypar/partition/context_enum_classes.h"
+#include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/process_mapping/process_graph.h"
 #include "mt-kahypar/datastructures/hypergraph_common.h"
 #include "mt-kahypar/datastructures/array.h"
@@ -87,9 +87,10 @@ class ProcessMappingGainCache {
   static constexpr bool requires_notification_before_update = true;
   static constexpr bool initializes_gain_cache_entry_after_batch_uncontractions = true;
 
-  ProcessMappingGainCache() :
+  ProcessMappingGainCache(const Context& context) :
+    _context(context),
     _is_initialized(false),
-    _k(kInvalidPartition),
+    _k(context.partition.k),
     _gain_cache(),
     _ets_benefit_aggregator([&] { return initializeBenefitAggregator(); }),
     _num_incident_edges_of_block(),
@@ -350,6 +351,8 @@ class ProcessMappingGainCache {
     return vec<Gain>(_k, std::numeric_limits<Gain>::min());
   }
 
+  const Context& _context;
+
   // ! Indicate whether or not the gain cache is initialized
   bool _is_initialized;
 
@@ -398,6 +401,7 @@ class DeltaProcessMappingGainCache {
 
   DeltaProcessMappingGainCache(const ProcessMappingGainCache& gain_cache) :
     _gain_cache(gain_cache),
+    _context(gain_cache._context),
     _gain_cache_delta(),
     _invalid_gain_cache_entry(),
     _num_incident_edges_delta(),
@@ -658,17 +662,19 @@ class DeltaProcessMappingGainCache {
   template<typename PartitionedHypergraph>
   void updateAdjacentBlocks(const PartitionedHypergraph& partitioned_hg,
                             const SyncronizedEdgeUpdate& sync_update) {
-    if ( sync_update.pin_count_in_from_part_after == 0 ) {
-      for ( const HypernodeID& pin : partitioned_hg.pins(sync_update.he) ) {
-        decrementIncidentEdges(pin, sync_update.from);
+    if ( partitioned_hg.edgeSize(sync_update.he) <= _context.process_mapping.large_he_threshold ) {
+      if ( sync_update.pin_count_in_from_part_after == 0 ) {
+        for ( const HypernodeID& pin : partitioned_hg.pins(sync_update.he) ) {
+          decrementIncidentEdges(pin, sync_update.from);
+        }
       }
-    }
-    if ( sync_update.pin_count_in_to_part_after == 1 ) {
-      for ( const HypernodeID& pin : partitioned_hg.pins(sync_update.he) ) {
-        const HyperedgeID incident_edges_after = incrementIncidentEdges(pin, sync_update.to);
-        if ( incident_edges_after == 1 ) {
-          _invalid_gain_cache_entry[_gain_cache.benefit_index(pin, sync_update.to)] = true;
-          initializeGainCacheEntry(partitioned_hg, pin, sync_update.to);
+      if ( sync_update.pin_count_in_to_part_after == 1 ) {
+        for ( const HypernodeID& pin : partitioned_hg.pins(sync_update.he) ) {
+          const HyperedgeID incident_edges_after = incrementIncidentEdges(pin, sync_update.to);
+          if ( incident_edges_after == 1 ) {
+            _invalid_gain_cache_entry[_gain_cache.benefit_index(pin, sync_update.to)] = true;
+            initializeGainCacheEntry(partitioned_hg, pin, sync_update.to);
+          }
         }
       }
     }
@@ -724,6 +730,8 @@ class DeltaProcessMappingGainCache {
   }
 
   const ProcessMappingGainCache& _gain_cache;
+
+  const Context& _context;
 
   // ! Stores the delta of each locally touched gain cache entry
   // ! relative to the shared gain cache

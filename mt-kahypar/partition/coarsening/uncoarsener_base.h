@@ -118,7 +118,7 @@ class UncoarsenerBase {
   }
 
   void initializeRefinementAlgorithms() {
-    _gain_cache = GainCachePtr::constructGainCache(_context.partition.gain_policy);
+    _gain_cache = GainCachePtr::constructGainCache(_context);
     _label_propagation = LabelPropagationFactory::getInstance().createObject(
       _context.refinement.label_propagation.algorithm,
       _hg.initialNumNodes(), _hg.initialNumEdges(), _context, _gain_cache);

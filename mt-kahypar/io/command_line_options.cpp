@@ -652,7 +652,11 @@ namespace mt_kahypar {
              "We precompute all optimal steiner trees up to this size in the process graph.")
             ("bisection-brute-force-threshold",
              po::value<size_t>(&context.process_mapping.bisection_brute_fore_threshold)->value_name("<size_t>"),
-             "Threshold for the number of nodes when we brute force the optimal bisection in the dual bipartitioning strategy.");
+             "Threshold for the number of nodes when we brute force the optimal bisection in the dual bipartitioning strategy.")
+            ("process-mapping-large-he-size-threshold",
+             po::value<HypernodeID>(&context.process_mapping.large_he_threshold)->value_name("<uint32_t>"),
+             "In the process mapping gain cache, we do not count hyperedges larger than this threshold as an incident\n"
+             "edge of a node. This can reduce the number of adjacent blocks of a node and speedup gain computations and updates.");
 
     return process_mapping_options;
   }

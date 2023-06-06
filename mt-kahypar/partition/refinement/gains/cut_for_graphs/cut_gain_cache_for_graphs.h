@@ -64,9 +64,9 @@ class GraphCutGainCache {
 
   using AdjacentBlocksIterator = IntegerRangeIterator<PartitionID>::const_iterator;
 
-  GraphCutGainCache() :
+  GraphCutGainCache(const Context& context) :
     _is_initialized(false),
-    _k(kInvalidPartition),
+    _k(context.partition.k),
     _gain_cache(),
     _dummy_adjacent_blocks() { }
 
