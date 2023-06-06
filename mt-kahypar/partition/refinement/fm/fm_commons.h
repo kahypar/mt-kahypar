@@ -205,6 +205,7 @@ struct UnconstrainedFMData {
   }
 
   void reset() {
+    rebalancing_nodes.reset();
     bucket_weights.assign(current_k * NUM_BUCKETS, 0);
     upper_weight_limits.assign(current_k, 0);
     consumed_bucket_weights.assign(current_k * NUM_BUCKETS, AtomicWeight(0));
