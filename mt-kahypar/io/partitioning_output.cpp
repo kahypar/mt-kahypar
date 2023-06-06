@@ -388,6 +388,10 @@ namespace mt_kahypar::io {
     LOG << "Objectives:";
     printKeyValue(context.partition.objective, metrics::quality(hypergraph,
       context), "(primary objective function)");
+    if ( context.partition.objective == Objective::process_mapping ) {
+      printKeyValue("Approximation Factor",
+        metrics::approximationFactorForProcessMapping(hypergraph, context));
+    }
     if ( context.partition.objective != Objective::cut ) {
       printKeyValue(Objective::cut, metrics::quality(hypergraph, Objective::cut));
     }

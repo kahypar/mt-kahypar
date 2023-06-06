@@ -166,6 +166,9 @@ std::string serialize(const PartitionedHypergraph& hypergraph,
     // Metrics
     if ( hypergraph.initialNumEdges() > 0 ) {
       oss << " " << context.partition.objective << "=" << metrics::quality(hypergraph, context);
+      if ( context.partition.objective == Objective::process_mapping ) {
+        oss << " approximation_factor=" << metrics::approximationFactorForProcessMapping(hypergraph, context);
+      }
       if ( context.partition.objective != Objective::cut ) {
         oss << " cut=" << metrics::quality(hypergraph, Objective::cut);
       }

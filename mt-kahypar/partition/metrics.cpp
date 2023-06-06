@@ -175,12 +175,27 @@ double imbalance(const PartitionedHypergraph& hypergraph, const Context& context
   return max_balance - 1.0;
 }
 
+template<typename PartitionedHypergraph>
+double approximationFactorForProcessMapping(const PartitionedHypergraph& hypergraph, const Context& context) {
+  if ( !PartitionedHypergraph::is_graph ) {
+    tbb::enumerable_thread_specific<HyperedgeWeight> approx_factor(0);
+    hypergraph.doParallelForAllEdges([&](const HyperedgeID& he) {
+      const size_t connectivity = hypergraph.connectivity(he);
+      approx_factor.local() += connectivity <= context.process_mapping.max_steiner_tree_size ? 1 : 2;
+    });
+    return static_cast<double>(approx_factor.combine(std::plus<>())) / hypergraph.initialNumEdges();
+  } else {
+    return 1.0;
+  }
+}
+
 namespace {
 #define OBJECTIVE_1(X) HyperedgeWeight quality(const X& hg, const Context& context, const bool parallel)
 #define OBJECTIVE_2(X) HyperedgeWeight quality(const X& hg, const Objective objective, const bool parallel)
 #define CONTRIBUTION(X) HyperedgeWeight contribution(const X& hg, const HyperedgeID he, const Objective objective)
 #define IS_BALANCED(X) bool isBalanced(const X& phg, const Context& context)
 #define IMBALANCE(X) double imbalance(const X& hypergraph, const Context& context)
+#define APPROX_FACTOR(X) double approximationFactorForProcessMapping(const X& hypergraph, const Context& context)
 }
 
 INSTANTIATE_FUNC_WITH_PARTITIONED_HG(OBJECTIVE_1)
@@ -188,5 +203,6 @@ INSTANTIATE_FUNC_WITH_PARTITIONED_HG(OBJECTIVE_2)
 INSTANTIATE_FUNC_WITH_PARTITIONED_HG(CONTRIBUTION)
 INSTANTIATE_FUNC_WITH_PARTITIONED_HG(IS_BALANCED)
 INSTANTIATE_FUNC_WITH_PARTITIONED_HG(IMBALANCE)
+INSTANTIATE_FUNC_WITH_PARTITIONED_HG(APPROX_FACTOR)
 
 } // namespace mt_kahypar::metrics
