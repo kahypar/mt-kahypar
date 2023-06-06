@@ -200,27 +200,19 @@ struct UnconstrainedFMData {
     if (new_k != current_k) {
       current_k = new_k;
       local_bucket_weights = tbb::enumerable_thread_specific<vec<HypernodeWeight>>(new_k * NUM_BUCKETS);
-      bucket_weights.assign(current_k * NUM_BUCKETS, 0);
-      upper_weight_limits.assign(current_k, 0);
-      consumed_bucket_weights.assign(current_k * NUM_BUCKETS, AtomicWeight(0));
-      for (auto& local_weights: local_bucket_weights) {
-        local_weights.assign(current_k * NUM_BUCKETS, 0);
-      }
-      initialized = false;
+      reset();
     }
   }
 
   void reset() {
     rebalancing_nodes.reset();
-    if (initialized) {
-      bucket_weights.assign(current_k * NUM_BUCKETS, 0);
-      upper_weight_limits.assign(current_k, 0);
-      consumed_bucket_weights.assign(current_k * NUM_BUCKETS, AtomicWeight(0));
-      for (auto& local_weights: local_bucket_weights) {
-        local_weights.assign(current_k * NUM_BUCKETS, 0);
-      }
-      initialized = false;
+    bucket_weights.assign(current_k * NUM_BUCKETS, 0);
+    upper_weight_limits.assign(current_k, 0);
+    consumed_bucket_weights.assign(current_k * NUM_BUCKETS, AtomicWeight(0));
+    for (auto& local_weights: local_bucket_weights) {
+      local_weights.assign(current_k * NUM_BUCKETS, 0);
     }
+    initialized = false;
   }
 
  private:
