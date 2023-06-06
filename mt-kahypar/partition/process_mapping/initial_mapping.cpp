@@ -96,6 +96,13 @@ std::pair<ds::StaticHypergraph, StaticPartitionedHypergraph> convert_to_static_h
   // Construct new hypergraph and apply partition
   Hypergraph converted_hg = Factory::construct(num_hypernodes, num_hyperedges,
     edge_vector, hyperedge_weight.data(), hypernode_weight.data());
+  converted_hg.doParallelForAllNodes([&](const HypernodeID& hn) {
+    if ( !phg.nodeIsEnabled(hn) ) {
+      ASSERT(converted_hg.nodeDegree(hn) == 0);
+      converted_hg.disableHypernode(hn);
+    }
+  });
+
   TargetPartitionedHypergraph converted_phg(phg.k(), converted_hg, parallel_tag_t { });
   phg.doParallelForAllNodes([&](const HypernodeID& hn) {
     converted_phg.setOnlyNodePart(hn, phg.partID(hn));
