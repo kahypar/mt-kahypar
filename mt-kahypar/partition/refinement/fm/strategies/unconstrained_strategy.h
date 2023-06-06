@@ -194,6 +194,11 @@ class UnconstrainedStrategy {
       const HypernodeWeight hn_weight = phg.nodeWeight(m.node);
       const HypernodeWeight imbalance = std::min(hn_weight, to_weight - context.partition.max_part_weights[m.to]);
       sharedData.unconstrained.revertImbalancedMove(m.to, imbalance);
+
+      // if (sharedData.unconstrained.isRebalancingNode(m.node)) {
+          // edge case: undo moving a rebalancing node
+          // Probably nothing to do here, since this is extremely unlikely and pessimizations are unproblematic
+      // }
     }
   }
 

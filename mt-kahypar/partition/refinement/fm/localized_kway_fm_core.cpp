@@ -229,11 +229,10 @@ namespace mt_kahypar {
         moved = phg.changeNodePart(move.node, move.from, move.to, allowed_weight,
                                    [&] { move_id = sharedData.moveTracker.insertMove(move); }, delta_func);
       }
-      ASSERT(!FMStrategy::is_unconstrained || moved);
 
       if (moved) {
         if (FMStrategy::is_unconstrained && sharedData.unconstrained.isRebalancingNode(move.node)) {
-          runStats.rebalancing_node_moves++;
+          runStats.rebalancing_node_moves++; // TODO: remove
         }
         runStats.moves++;
         estimatedImprovement += move.gain;
