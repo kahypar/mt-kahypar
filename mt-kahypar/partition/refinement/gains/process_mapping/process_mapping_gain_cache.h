@@ -87,8 +87,18 @@ class ProcessMappingGainCache {
   static constexpr bool requires_notification_before_update = true;
   static constexpr bool initializes_gain_cache_entry_after_batch_uncontractions = true;
 
+  ProcessMappingGainCache() :
+    _is_initialized(false),
+    _k(kInvalidPartition),
+    _gain_cache(),
+    _ets_benefit_aggregator([&] { return initializeBenefitAggregator(); }),
+    _num_incident_edges_of_block(),
+    _adjacent_blocks(),
+    _version(),
+    _ets_version(),
+    _large_he_threshold(std::numeric_limits<HypernodeID>::max()) { }
+
   ProcessMappingGainCache(const Context& context) :
-    _context(context),
     _is_initialized(false),
     _k(context.partition.k),
     _gain_cache(),
@@ -96,7 +106,8 @@ class ProcessMappingGainCache {
     _num_incident_edges_of_block(),
     _adjacent_blocks(),
     _version(),
-    _ets_version() { }
+    _ets_version(),
+    _large_he_threshold(context.process_mapping.large_he_threshold) { }
 
   ProcessMappingGainCache(const ProcessMappingGainCache&) = delete;
   ProcessMappingGainCache & operator= (const ProcessMappingGainCache &) = delete;
@@ -351,8 +362,6 @@ class ProcessMappingGainCache {
     return vec<Gain>(_k, std::numeric_limits<Gain>::min());
   }
 
-  const Context& _context;
-
   // ! Indicate whether or not the gain cache is initialized
   bool _is_initialized;
 
@@ -380,6 +389,9 @@ class ProcessMappingGainCache {
 
   // ! Array to store version IDs when we lazily initialize a gain cache entry
   tbb::enumerable_thread_specific<vec<uint32_t>> _ets_version;
+
+  // ! Threshold for the size of a hyperedge that we do not count when tracking adjacent blocks
+  HypernodeID _large_he_threshold;
 };
 
 /**
@@ -401,11 +413,11 @@ class DeltaProcessMappingGainCache {
 
   DeltaProcessMappingGainCache(const ProcessMappingGainCache& gain_cache) :
     _gain_cache(gain_cache),
-    _context(gain_cache._context),
     _gain_cache_delta(),
     _invalid_gain_cache_entry(),
     _num_incident_edges_delta(),
-    _adjacent_blocks_delta(gain_cache._k) {
+    _adjacent_blocks_delta(gain_cache._k),
+    _large_he_threshold(gain_cache._large_he_threshold) {
     _adjacent_blocks_delta.setConnectivitySet(&_gain_cache._adjacent_blocks);
   }
 
@@ -662,7 +674,7 @@ class DeltaProcessMappingGainCache {
   template<typename PartitionedHypergraph>
   void updateAdjacentBlocks(const PartitionedHypergraph& partitioned_hg,
                             const SyncronizedEdgeUpdate& sync_update) {
-    if ( partitioned_hg.edgeSize(sync_update.he) <= _context.process_mapping.large_he_threshold ) {
+    if ( partitioned_hg.edgeSize(sync_update.he) <= _large_he_threshold ) {
       if ( sync_update.pin_count_in_from_part_after == 0 ) {
         for ( const HypernodeID& pin : partitioned_hg.pins(sync_update.he) ) {
           decrementIncidentEdges(pin, sync_update.from);
@@ -731,8 +743,6 @@ class DeltaProcessMappingGainCache {
 
   const ProcessMappingGainCache& _gain_cache;
 
-  const Context& _context;
-
   // ! Stores the delta of each locally touched gain cache entry
   // ! relative to the shared gain cache
   ds::DynamicFlatMap<size_t, HyperedgeWeight> _gain_cache_delta;
@@ -748,6 +758,9 @@ class DeltaProcessMappingGainCache {
   // ! Stores the adjacent blocks of each node relative to the
   // ! adjacent blocks in the shared gain cache
   DeltaAdjacentBlocks _adjacent_blocks_delta;
+
+  // ! Threshold for the size of a hyperedge that we do not count when tracking adjacent blocks
+  HypernodeID _large_he_threshold;
 };
 
 }  // namespace mt_kahypar

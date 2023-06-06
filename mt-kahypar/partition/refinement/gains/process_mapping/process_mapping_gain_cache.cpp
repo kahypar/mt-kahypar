@@ -309,7 +309,7 @@ void ProcessMappingGainCache::uncontractUpdateAfterRestore(const PartitionedHype
       }
     }
 
-    if ( partitioned_hg.edgeSize(he) > _context.process_mapping.large_he_threshold ) {
+    if ( partitioned_hg.edgeSize(he) > _large_he_threshold ) {
       for ( const HypernodeID& pin : partitioned_hg.pins(he) ) {
         for ( const PartitionID& block : partitioned_hg.connectivitySet(he) ) {
           decrementIncidentEdges(pin, block);
@@ -366,7 +366,7 @@ void ProcessMappingGainCache::uncontractUpdateAfterReplacement(const Partitioned
 
     // Decrement number of incident edges of each block in the connectivity set
     // of the hyperedge since u is no longer part of the hyperedge.
-    if ( partitioned_hg.edgeSize(he) <= _context.process_mapping.large_he_threshold ) {
+    if ( partitioned_hg.edgeSize(he) <= _large_he_threshold ) {
       for ( const PartitionID& to : partitioned_hg.connectivitySet(he) ) {
         decrementIncidentEdges(u, to);
       }
@@ -388,7 +388,7 @@ void ProcessMappingGainCache::restoreSinglePinHyperedge(const HypernodeID u,
 template<typename PartitionedHypergraph>
 void ProcessMappingGainCache::restoreIdenticalHyperedge(const PartitionedHypergraph& partitioned_hg,
                                                         const HyperedgeID he) {
-  if ( partitioned_hg.edgeSize(he) <= _context.process_mapping.large_he_threshold ) {
+  if ( partitioned_hg.edgeSize(he) <= _large_he_threshold ) {
     for ( const HypernodeID& pin : partitioned_hg.pins(he) ) {
       for ( const PartitionID& block : partitioned_hg.connectivitySet(he) ) {
         incrementIncidentEdges(pin, block);
@@ -413,7 +413,7 @@ void ProcessMappingGainCache::initializeAdjacentBlocksOfNode(const PartitionedHy
     _num_incident_edges_of_block[benefit_index(hn, to)].store(0, std::memory_order_relaxed);
   }
   for ( const HyperedgeID& he : partitioned_hg.incidentEdges(hn) ) {
-    if ( partitioned_hg.edgeSize(he) <= _context.process_mapping.large_he_threshold ) {
+    if ( partitioned_hg.edgeSize(he) <= _large_he_threshold ) {
       for ( const PartitionID& block : partitioned_hg.connectivitySet(he) ) {
         incrementIncidentEdges(hn, block);
       }
@@ -424,7 +424,7 @@ void ProcessMappingGainCache::initializeAdjacentBlocksOfNode(const PartitionedHy
 template<typename PartitionedHypergraph>
 void ProcessMappingGainCache::updateAdjacentBlocks(const PartitionedHypergraph& partitioned_hg,
                                                    const SyncronizedEdgeUpdate& sync_update) {
-  if ( partitioned_hg.edgeSize(sync_update.he) <= _context.process_mapping.large_he_threshold ) {
+  if ( partitioned_hg.edgeSize(sync_update.he) <= _large_he_threshold ) {
     if ( sync_update.pin_count_in_from_part_after == 0 ) {
       // The node move has removed the source block of the move from the
       // connectivity set of the hyperedge. We therefore decrement the number of
@@ -587,7 +587,7 @@ bool ProcessMappingGainCache::verifyTrackedAdjacentBlocksOfNodes(const Partition
   for ( const HypernodeID& hn : partitioned_hg.nodes() ) {
     num_incident_edges.assign(_k, 0);
     for ( const HyperedgeID& he : partitioned_hg.incidentEdges(hn) ) {
-      if ( partitioned_hg.edgeSize(he) <= _context.process_mapping.large_he_threshold ) {
+      if ( partitioned_hg.edgeSize(he) <= _large_he_threshold ) {
         for ( const PartitionID& block : partitioned_hg.connectivitySet(he) ) {
           ++num_incident_edges[block];
         }

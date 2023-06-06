@@ -65,6 +65,12 @@ class CutGainCache {
   static constexpr bool requires_notification_before_update = false;
   static constexpr bool initializes_gain_cache_entry_after_batch_uncontractions = false;
 
+  CutGainCache() :
+    _is_initialized(false),
+    _k(kInvalidPartition),
+    _gain_cache(),
+    _dummy_adjacent_blocks() { }
+
   CutGainCache(const Context& context) :
     _is_initialized(false),
     _k(context.partition.k),

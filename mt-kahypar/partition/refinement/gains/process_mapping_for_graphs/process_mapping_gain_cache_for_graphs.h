@@ -103,6 +103,17 @@ class GraphProcessMappingGainCache {
   static constexpr bool requires_notification_before_update = true;
   static constexpr bool initializes_gain_cache_entry_after_batch_uncontractions = true;
 
+  GraphProcessMappingGainCache() :
+    _is_initialized(false),
+    _k(kInvalidPartition),
+    _gain_cache(),
+    _ets_benefit_aggregator([&] { return initializeBenefitAggregator(); }),
+    _num_incident_edges_of_block(),
+    _adjacent_blocks(),
+    _edge_state(),
+    _uncontraction_version(0),
+    _ets_version() { }
+
   GraphProcessMappingGainCache(const Context& context) :
     _is_initialized(false),
     _k(context.partition.k),
