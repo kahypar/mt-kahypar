@@ -57,6 +57,7 @@ class ProcessGraph {
   using allocator_type = growt::AlignedAllocator<>;
   using ConcurrentHashTable = typename growt::table_config<
     size_t, size_t, hasher_type, allocator_type, hmod::growable, hmod::sync>::table_type;
+  using HashTableHandle = typename ConcurrentHashTable::handle_type;
 
   struct MSTData {
     MSTData(const size_t n) :
@@ -91,6 +92,7 @@ class ProcessGraph {
     _distances(),
     _local_mst_data(graph.initialNumNodes()),
     _cache(INITIAL_HASH_TABLE_CAPACITY),
+    _handles([&]() { return getHandle(); }),
     _stats() { }
 
   ProcessGraph(const ProcessGraph&) = delete;
@@ -222,6 +224,10 @@ class ProcessGraph {
   // ! connecting u and v. This gives a 2-approximation for steiner tree problem.
   HyperedgeWeight computeWeightOfMSTOnMetricCompletion(const ds::StaticBitset& connectivity_set) const;
 
+  HashTableHandle getHandle() const {
+    return _cache.get_handle();
+  }
+
   bool _is_initialized;
 
   // ! Number of blocks
@@ -240,8 +246,11 @@ class ProcessGraph {
   // ! Data structures to compute MST for non-precomputed connectivity sets
   mutable tbb::enumerable_thread_specific<MSTData> _local_mst_data;
 
-  // ! Cache stores the weight of MST's computations
+  // ! Cache stores the weight of MST computations
   mutable ConcurrentHashTable _cache;
+
+  // ! Handle to access concurrent hash table
+  mutable tbb::enumerable_thread_specific<HashTableHandle> _handles;
 
   // ! Stats
   mutable Stats _stats;

@@ -56,7 +56,7 @@ HyperedgeWeight ProcessGraph::distance(const ds::StaticBitset& connectivity_set)
     return _distances[idx];
   } else {
     // We have not precomputed the optimal steiner tree for the connectivity set.
-    auto handle = _cache.get_handle();
+    HashTableHandle& handle = _handles.local();
     auto res = handle.find(idx);
     if ( likely( res != handle.end() ) ) {
       if constexpr ( TRACK_STATS ) ++_stats.cache_hits;
