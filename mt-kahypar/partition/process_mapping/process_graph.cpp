@@ -56,28 +56,18 @@ HyperedgeWeight ProcessGraph::distance(const ds::StaticBitset& connectivity_set)
     return _distances[idx];
   } else {
     // We have not precomputed the optimal steiner tree for the connectivity set.
-    if ( _cache.count(idx) == 0 ) {
+    auto handle = _cache.get_handle();
+    auto res = handle.find(idx);
+    if ( likely( res != handle.end() ) ) {
+      if constexpr ( TRACK_STATS ) ++_stats.cache_hits;
+      return (*res).second;
+    } else {
       if constexpr ( TRACK_STATS ) ++_stats.cache_misses;
       // Entry is not cached => Compute 2-approximation of optimal steiner tree
       const HyperedgeWeight mst_weight =
         computeWeightOfMSTOnMetricCompletion(connectivity_set);
-      CachedElement elem(mst_weight);
-      _cache[idx] = std::move(elem);
-      _cache[idx].valid = true;
+      handle.insert(idx, mst_weight);
       return mst_weight;
-    } else {
-      if constexpr ( TRACK_STATS ) ++_stats.cache_hits;
-      CachedElement& elem = _cache.at(idx);
-      if ( elem.valid ) {
-        // In this case, the cache contains a valid element and we can
-        // return its weight.
-        return elem.weight;
-      } else {
-        // In this case, there is an element in the cache but it is not valid.
-        // This can happen if another thread currently inserts its result,
-        // but the object is currently under construction.
-        return computeWeightOfMSTOnMetricCompletion(connectivity_set);
-      }
     }
   }
 }

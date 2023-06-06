@@ -31,7 +31,13 @@
 #include <iostream>
 
 #include "tbb/enumerable_thread_specific.h"
-#include "tbb/concurrent_unordered_map.h"
+
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wpedantic"
+#include "allocator/alignedallocator.hpp"
+#include "data-structures/hash_table_mods.hpp"
+#include "data-structures/table_config.hpp"
+#pragma GCC diagnostic pop
 
 #include "mt-kahypar/macros.h"
 #include "mt-kahypar/datastructures/static_graph.h"
@@ -42,23 +48,15 @@ namespace mt_kahypar {
 
 class ProcessGraph {
 
+  static constexpr size_t INITIAL_HASH_TABLE_CAPACITY = 100000;
   static constexpr size_t MEMORY_LIMIT = 100000000;
 
   using PQElement = std::pair<HyperedgeWeight, PartitionID>;
   using PQ = std::priority_queue<PQElement, vec<PQElement>, std::greater<PQElement>>;
-
-  struct CachedElement {
-    CachedElement() :
-      weight(std::numeric_limits<HyperedgeWeight>::max()),
-      valid(false) { }
-
-    CachedElement(const HyperedgeWeight w) :
-      weight(w),
-      valid(false) { }
-
-    HyperedgeWeight weight;
-    bool valid;
-  };
+  using hasher_type    = utils_tm::hash_tm::murmur2_hash;
+  using allocator_type = growt::AlignedAllocator<>;
+  using ConcurrentHashTable = typename growt::table_config<
+    size_t, size_t, hasher_type, allocator_type, hmod::growable, hmod::sync>::table_type;
 
   struct MSTData {
     MSTData(const size_t n) :
@@ -92,7 +90,7 @@ class ProcessGraph {
     _max_precomputed_connectitivty(0),
     _distances(),
     _local_mst_data(graph.initialNumNodes()),
-    _cache(graph.initialNumNodes()),
+    _cache(INITIAL_HASH_TABLE_CAPACITY),
     _stats() { }
 
   ProcessGraph(const ProcessGraph&) = delete;
@@ -243,7 +241,7 @@ class ProcessGraph {
   mutable tbb::enumerable_thread_specific<MSTData> _local_mst_data;
 
   // ! Cache stores the weight of MST's computations
-  mutable tbb::concurrent_unordered_map<size_t, CachedElement> _cache;
+  mutable ConcurrentHashTable _cache;
 
   // ! Stats
   mutable Stats _stats;
