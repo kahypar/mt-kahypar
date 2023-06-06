@@ -47,9 +47,13 @@ namespace mt_kahypar {
                                                         double) {
     PartitionedHypergraph& phg = utils::cast<PartitionedHypergraph>(hypergraph);
     resizeDataStructuresForCurrentK();
+    if (_max_part_weights == nullptr) {
+      _max_part_weights = &_context.partition.max_part_weights[0];
+    }
+
     // If partition is imbalanced, rebalancer is activated
     bool improvement = false;
-    if ( !metrics::isBalanced(phg, _context) ) {
+    if ( !isBalanced(phg) ) {
       _gain.reset();
       initializeDataStructures(phg);
 
@@ -84,6 +88,7 @@ namespace mt_kahypar {
       DBG << "[REBALANCE] " << V(delta) << "  imbalance=" << best_metrics.imbalance;
       improvement = delta < 0;
     }
+    _max_part_weights = nullptr;
     return improvement;
   }
 
@@ -225,7 +230,7 @@ namespace mt_kahypar {
           const HypernodeWeight hn_weight = phg.nodeWeight(hn);
           const HypernodeWeight old_block_weight = _part_weights[from].fetch_sub(hn_weight, std::memory_order_relaxed);
           bool moved = false;
-          if (old_block_weight > _context.partition.max_part_weights[from]) {
+          if (old_block_weight > _max_part_weights[from]) {
             // block is still imbalanced, try to move the node
             moved = move_node_fn(hn, from, is_retry);
             success = moved;

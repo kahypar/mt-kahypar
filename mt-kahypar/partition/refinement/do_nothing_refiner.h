@@ -34,7 +34,7 @@
 #include "mt-kahypar/partition/refinement/i_refiner.h"
 
 namespace mt_kahypar {
-class DoNothingRefiner final : public IRefiner {
+class DoNothingRefiner final : public IRebalancer {
  public:
   template <typename ... Args>
   explicit DoNothingRefiner(Args&& ...) noexcept { }
@@ -52,5 +52,7 @@ class DoNothingRefiner final : public IRefiner {
                   const double) override final {
     return false;
   }
+
+  void setMaxPartWeightsForRoundImpl(const std::vector<HypernodeWeight>&) override final { }
 };
 }  // namespace kahypar

@@ -105,7 +105,7 @@ using GreedyJetDispatcher = kahypar::meta::StaticMultiDispatchFactory<
                               kahypar::meta::Typelist<TypeTraitsList, GainTypes>>;
 
 using FMFactory = kahypar::meta::Factory<FMAlgorithm,
-                    IRefiner* (*)(HypernodeID, HyperedgeID, const Context&, gain_cache_t, IRefiner&)>;
+                    IRefiner* (*)(HypernodeID, HyperedgeID, const Context&, gain_cache_t, IRebalancer&)>;
 
 using DefaultFMDispatcher = kahypar::meta::StaticMultiDispatchFactory<
                             MultiTryKWayFMDefault,
@@ -130,16 +130,16 @@ using FlowSchedulerDispatcher = kahypar::meta::StaticMultiDispatchFactory<
                                   IRefiner,
                                   kahypar::meta::Typelist<TypeTraitsList, GainTypes>>;
 
-using RebalancerFactory = kahypar::meta::Factory<RebalancingAlgorithm, IRefiner* (*)(const Context&, gain_cache_t)>;
+using RebalancerFactory = kahypar::meta::Factory<RebalancingAlgorithm, IRebalancer* (*)(const Context&, gain_cache_t)>;
 
 using RebalancerDispatcher = kahypar::meta::StaticMultiDispatchFactory<
                               Rebalancer,
-                              IRefiner,
+                              IRebalancer,
                               kahypar::meta::Typelist<TypeTraitsList, GainTypes>>;
 
 using JetRebalancerDispatcher = kahypar::meta::StaticMultiDispatchFactory<
                                     JetRebalancer,
-                                    IRefiner,
+                                    IRebalancer,
                                     kahypar::meta::Typelist<TypeTraitsList, GainTypes>>;
 
 using FlowRefinementFactory = kahypar::meta::Factory<FlowAlgorithm,

@@ -85,7 +85,7 @@ class UncoarsenerBase {
   std::unique_ptr<IRefiner> _jet;
   std::unique_ptr<IRefiner> _fm;
   std::unique_ptr<IRefiner> _flows;
-  std::unique_ptr<IRefiner> _rebalancer;
+  std::unique_ptr<IRebalancer> _rebalancer;
 
  protected:
 

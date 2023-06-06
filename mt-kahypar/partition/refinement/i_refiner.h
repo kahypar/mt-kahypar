@@ -72,4 +72,21 @@ class IRefiner {
                           const double time_limit) = 0;
 };
 
+class IRebalancer: public IRefiner {
+
+ public:
+  virtual ~IRebalancer() = default;
+
+  // setup allowed part weights for next call to refine (otherwise, part weights from context are used)
+  void setMaxPartWeightsForRound(const std::vector<HypernodeWeight>& max_part_weights) {
+    setMaxPartWeightsForRoundImpl(max_part_weights);
+  }
+
+ protected:
+  IRebalancer() = default;
+
+ private:
+  virtual void setMaxPartWeightsForRoundImpl(const std::vector<HypernodeWeight>& max_part_weights) = 0;
+};
+
 }  // namespace mt_kahypar
