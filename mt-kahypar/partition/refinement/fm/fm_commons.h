@@ -164,6 +164,7 @@ struct UnconstrainedFMData {
   parallel::scalable_vector<AtomicWeight> consumed_bucket_weights;
   tbb::enumerable_thread_specific<parallel::scalable_vector<HypernodeWeight>> local_bucket_weights;
   kahypar::ds::FastResetFlagArray<> rebalancing_nodes;
+  parallel::scalable_vector<HyperedgeWeight> incident_weight_of_node;
 
   explicit UnconstrainedFMData():
     initialized(false),
@@ -172,6 +173,9 @@ struct UnconstrainedFMData {
     consumed_bucket_weights(),
     local_bucket_weights(),
     rebalancing_nodes() { }
+
+  template<typename PartitionedHypergraphT>
+  void precomputeForLevel(const PartitionedHypergraphT& phg);
 
   template<typename PartitionedHypergraphT>
   void initialize(const Context& context, const PartitionedHypergraphT& phg);
@@ -311,6 +315,7 @@ struct FMSharedData {
     }, [&] {
       if (initialize_unconstrained) {
         unconstrained.rebalancing_nodes.setSize(numNodes);
+        unconstrained.incident_weight_of_node.resize(numNodes);
       }
     });
   }

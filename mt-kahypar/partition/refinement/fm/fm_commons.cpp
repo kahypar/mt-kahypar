@@ -141,6 +141,17 @@ namespace mt_kahypar {
   }
 
   template<typename PartitionedHypergraphT>
+  void UnconstrainedFMData::precomputeForLevel(const PartitionedHypergraphT& phg) {
+    phg.doParallelForAllNodes([&](const HypernodeID hn) {
+      HyperedgeWeight incident_weight = 0;
+      for (HyperedgeID he: phg.incidentEdges(hn)) {
+        incident_weight += phg.edgeWeight(he);
+      }
+      incident_weight_of_node[hn] = incident_weight;
+    });
+  }
+
+  template<typename PartitionedHypergraphT>
   void UnconstrainedFMData::initialize(const Context& context, const PartitionedHypergraphT& phg) {
     ASSERT(!initialized);
     changeNumberOfBlocks(context.partition.k);
@@ -150,16 +161,10 @@ namespace mt_kahypar {
       const HypernodeWeight hn_weight = phg.nodeWeight(hn);
       if (hn_weight > 0 && !phg.isBorderNode(hn)) {
         // TODO(maas): only non border nodes does not seem like a good strategy for hypergraphs
-        const PartitionID from = phg.partID(hn);
-        auto& local_weights = local_bucket_weights.local();
-        HyperedgeWeight incident_weight = 0;
-        for (HyperedgeID he: phg.incidentEdges(hn)) {
-          // TODO: try using gain cache here instead
-          incident_weight += phg.edgeWeight(he);
-        }
-        const size_t bucketId = bucketForGainPerWeight(static_cast<double>(incident_weight) / hn_weight);
+        const size_t bucketId = bucketForGainPerWeight(static_cast<double>(incident_weight_of_node[hn]) / hn_weight);
         if (bucketId < NUM_BUCKETS) {
-          local_weights[indexForBucket(from, bucketId)] += hn_weight;
+          auto& local_weights = local_bucket_weights.local();
+          local_weights[indexForBucket(phg.partID(hn), bucketId)] += hn_weight;
           rebalancing_nodes.set(hn, true);
         }
       }
@@ -194,9 +199,11 @@ namespace mt_kahypar {
   }
 
   namespace {
+  #define UNCONSTRAINED_FM_PRECOMPUTE(X) void UnconstrainedFMData::precomputeForLevel(const X& phg)
   #define UNCONSTRAINED_FM_INITIALIZE(X) void UnconstrainedFMData::initialize(const Context& context, const X& phg)
   }
 
+  INSTANTIATE_FUNC_WITH_PARTITIONED_HG(UNCONSTRAINED_FM_PRECOMPUTE)
   INSTANTIATE_FUNC_WITH_PARTITIONED_HG(UNCONSTRAINED_FM_INITIALIZE)
 
 }
