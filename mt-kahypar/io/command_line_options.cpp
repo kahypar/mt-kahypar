@@ -489,6 +489,10 @@ namespace mt_kahypar {
              po::value<bool>((initial_partitioning ? &context.initial_partitioning.refinement.fm.release_nodes :
                               &context.refinement.fm.release_nodes))->value_name("<bool>")->default_value(true),
              "FM releases nodes that weren't moved, so they might be found by another search.")
+            ((initial_partitioning ? "i-r-fm-rebalancing-use-violation-factor" : "r-fm-rebalancing-use-violation-factor"),
+             po::value<bool>((initial_partitioning ? &context.initial_partitioning.refinement.fm.rebalancing_use_violation_factor :
+                              &context.refinement.fm.rebalancing_use_violation_factor))->value_name("<bool>")->default_value(true),
+             "Whether the rollback balance violation factor is also applied to rebalancing (for unconstrained FM).")
             ((initial_partitioning ? "i-r-fm-obey-minimal-parallelism" : "r-fm-obey-minimal-parallelism"),
              po::value<bool>(
                      (initial_partitioning ? &context.initial_partitioning.refinement.fm.obey_minimal_parallelism :
