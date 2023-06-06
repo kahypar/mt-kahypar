@@ -59,7 +59,7 @@ class MultiTryKWayFM final : public IRefiner {
                  const HyperedgeID num_hyperedges,
                  const Context& c,
                  GainCache& gainCache,
-                 IRefiner& rb) :
+                 IRebalancer& rb) :
     initial_num_nodes(num_hypernodes),
     context(c),
     gain_cache(gainCache),
@@ -77,7 +77,7 @@ class MultiTryKWayFM final : public IRefiner {
                  const HyperedgeID num_hyperedges,
                  const Context& c,
                  gain_cache_t gainCache,
-                 IRefiner& rb) :
+                 IRebalancer& rb) :
     MultiTryKWayFM(num_hypernodes, num_hyperedges, c,
       GainCachePtr::cast<GainCache>(gainCache), rb) { }
 
@@ -117,7 +117,7 @@ class MultiTryKWayFM final : public IRefiner {
   FMSharedData sharedData;
   Rollback globalRollback;
   tbb::enumerable_thread_specific<LocalizedFMSearch> ets_fm;
-  IRefiner& rebalancer;
+  IRebalancer& rebalancer;
 };
 
 template<typename TypeTraits, typename GainCache>

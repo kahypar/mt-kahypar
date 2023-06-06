@@ -39,7 +39,7 @@
 
 namespace mt_kahypar {
 template <typename TypeTraits, typename GainTypes>
-class JetRebalancer final : public IRefiner {
+class JetRebalancer final : public IRebalancer {
  private:
   using BucketMap = ds::ConcurrentBucketMap<HypernodeID>;
   using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
@@ -60,6 +60,7 @@ public:
   explicit JetRebalancer(const Context& context,
                          GainCache& gain_cache) :
     _context(context),
+    _max_part_weights(nullptr),
     _gain_cache(gain_cache),
     _current_k(_context.partition.k),
     _gain(context),
@@ -94,7 +95,11 @@ public:
 
   void initializeImpl(mt_kahypar_partitioned_hypergraph_t& hypergraph) final {
     PartitionedHypergraph& phg = utils::cast<PartitionedHypergraph>(hypergraph);
-    _node_was_moved.resize(phg.initialNumNodes(), uint8_t(false));
+    _node_was_moved.resize(phg.initialNumNodes(), uint8_t(false));  // TODO
+  }
+
+  void setMaxPartWeightsForRoundImpl(const std::vector<HypernodeWeight>& max_part_weights) final {
+    _max_part_weights = &max_part_weights[0];
   }
 
 private:
@@ -122,6 +127,16 @@ private:
 
   void initializeDataStructures(const PartitionedHypergraph& hypergraph);
 
+  bool isBalanced(const PartitionedHypergraph& phg) {
+    ASSERT(_max_part_weights != nullptr);
+    for (PartitionID i = 0; i < _context.partition.k; ++i) {
+      if (phg.partWeight(i) > _max_part_weights[i]) {
+        return false;
+      }
+    }
+    return true;
+  }
+
   bool mayMoveNode(PartitionID block, HypernodeWeight hn_weight) const {
     double allowed_weight = _part_weights[block].load(std::memory_order_relaxed)
                             - _context.partition.perfect_balance_part_weights[block];
@@ -130,13 +145,12 @@ private:
   }
 
   HypernodeWeight imbalance(PartitionID block) const {
-    return _part_weights[block].load(std::memory_order_relaxed)
-           - _context.partition.max_part_weights[block];
+    return _part_weights[block].load(std::memory_order_relaxed) - _max_part_weights[block];
   }
 
   HypernodeWeight deadzoneForPart(PartitionID block) const {
     const HypernodeWeight balanced = _context.partition.perfect_balance_part_weights[block];
-    const HypernodeWeight max = _context.partition.max_part_weights[block];
+    const HypernodeWeight max = _max_part_weights[block];
     return max - _context.refinement.jet_rebalancing.relative_deadzone_size * (max - balanced);
   }
 
@@ -148,7 +162,7 @@ private:
     const HypernodeWeight block_weight = use_precise_part_weights ?
         hypergraph.partWeight(block) : _part_weights[block].load(std::memory_order_relaxed);
     return (!use_deadzone || block_weight < deadzoneForPart(block)) &&
-           block_weight + hn_weight <= _context.partition.max_part_weights[block];
+           block_weight + hn_weight <= _max_part_weights[block];
   }
 
   bool changeNodePart(PartitionedHypergraph& phg,
@@ -167,8 +181,7 @@ private:
       _gain.computeDeltaForHyperedge(sync_update);
     };
 
-    HypernodeWeight max_weight = ensure_balanced ? _context.partition.max_part_weights[to]
-                                  : std::numeric_limits<HypernodeWeight>::max();
+    HypernodeWeight max_weight = ensure_balanced ? _max_part_weights[to] : std::numeric_limits<HypernodeWeight>::max();
     bool success = false;
     if ( _gain_cache.isInitialized() ) {
       success = phg.changeNodePart(_gain_cache, hn, from, to, max_weight, []{}, objective_delta);
@@ -214,6 +227,7 @@ private:
   }
 
   const Context& _context;
+  const HypernodeWeight* _max_part_weights;
   GainCache& _gain_cache;
   PartitionID _current_k;
   GainCalculator _gain;

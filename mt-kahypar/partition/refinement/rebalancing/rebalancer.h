@@ -39,7 +39,7 @@
 
 namespace mt_kahypar {
 template <typename TypeTraits, typename GainTypes>
-class Rebalancer final : public IRefiner {
+class Rebalancer final : public IRebalancer {
  private:
   using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
   using GainCache = typename GainTypes::GainCache;
@@ -94,6 +94,10 @@ public:
                   double) final ;
 
   void initializeImpl(mt_kahypar_partitioned_hypergraph_t&) final { }
+
+  void setMaxPartWeightsForRoundImpl(const std::vector<HypernodeWeight>&) {
+    ALWAYS_ASSERT(false);
+  }
 
   vec<Move> repairEmptyBlocks(PartitionedHypergraph& phg);
 
