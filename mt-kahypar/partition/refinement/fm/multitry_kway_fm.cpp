@@ -66,7 +66,7 @@ namespace mt_kahypar {
         initialPartWeights[i] = phg.partWeight(i);
       }
 
-      if constexpr (FMStrategy::is_unconstrained) {
+      if (FMStrategy::isUnconstrainedRound(round)) {
         timer.start_timer("initialize_data_unconstrained", "Initialize Data for Unconstrained FM");
         sharedData.unconstrained.initialize(context, phg);
         timer.stop_timer("initialize_data_unconstrained");
@@ -105,36 +105,27 @@ namespace mt_kahypar {
       tg.wait();
       timer.stop_timer("find_moves");
 
-      HyperedgeWeight improvement = 0;
-      if (FMStrategy::alwaysUseGlobalRollback(round) || metrics::isBalanced(phg, context)) {
-        timer.start_timer("rollback", "Rollback to Best Solution");
-        improvement = globalRollback.revertToBestPrefix(phg, sharedData, initialPartWeights);
-        timer.stop_timer("rollback");
-      } else {
-        // recompute penalty term values since they are potentially invalid
-        timer.start_timer("recompute_gain_cache", "Recompute Gain Cache");
-        const vec<Move>& move_order = sharedData.moveTracker.moveOrder;
-        tbb::parallel_for(MoveID(0), sharedData.moveTracker.numPerformedMoves(), [&](const MoveID i) {
-          gain_cache.recomputePenaltyTermEntry(phg, move_order[i].node);
-        });
-        sharedData.moveTracker.reset();
-        timer.stop_timer("recompute_gain_cache");
-
-        // rebalancing is necessary
-        // TODO: use similar part weight scaling to global rollback?
+      timer.start_timer("rollback", "Rollback to Best Solution");
+      HyperedgeWeight improvement = globalRollback.revertToBestPrefix(phg, sharedData, initialPartWeights,
+                                                                      FMStrategy::isUnconstrainedRound(round));
+      timer.stop_timer("rollback");
+      ASSERT(metrics.quality - overall_improvement - improvement == metrics::quality(phg, context),
+        V(metrics.quality - overall_improvement - improvement) << V(metrics::quality(phg, context)));
+      if (FMStrategy::isUnconstrainedRound(round) && !metrics::isBalanced(phg, context)) {
         DBG << "[unconstrained FM] Starting Rebalancing";
-        Metrics updated_metrics;
-        timer.start_timer("recompute_metric", "Recompute Metric");
-        updated_metrics.quality = metrics::quality(phg, context);
-        updated_metrics.imbalance = metrics::imbalance(phg, context);
-        timer.stop_timer("recompute_metric");
         timer.start_timer("rebalance", "Rebalance");
-        rebalancer.refine(hypergraph, {}, updated_metrics, current_time_limit);
+        Metrics tmp_metrics;
+        tmp_metrics.quality = metrics.quality - overall_improvement - improvement;
+        tmp_metrics.imbalance = metrics::imbalance(phg, context);
+        rebalancer.refine(hypergraph, {}, tmp_metrics, current_time_limit);
         timer.stop_timer("rebalance");
-        improvement = (metrics.quality - overall_improvement) - updated_metrics.quality;
+
+        improvement = (metrics.quality - overall_improvement) - tmp_metrics.quality;
         DBG << "[unconstrained FM] " << V(improvement);
       }
-      sharedData.unconstrained.reset();
+      if (FMStrategy::isUnconstrainedRound(round)) {
+        sharedData.unconstrained.reset();
+      }
 
       const double roundImprovementFraction = improvementFraction(improvement,
         metrics.quality - overall_improvement);

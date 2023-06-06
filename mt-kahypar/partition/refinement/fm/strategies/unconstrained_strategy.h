@@ -50,7 +50,7 @@ namespace mt_kahypar {
    * clearPQs()
    * deltaGainUpdates(phg, gain_cache, he, edge_weight, from,
    *                  pin_count_in_from_part_after, to,  pin_count_in_to_part_after)
-   * alwaysUseGlobalRollback(taskID, round)
+   * isUnconstrainedRound(taskID, round)
    * changeNumberOfBlocks(new_k)
    * memoryConsumption(utils::MemoryTreeNode* parent) const
    *
@@ -255,8 +255,8 @@ class UnconstrainedStrategy {
     parent->addChild("PQs", blockPQ.size_in_bytes() + vertex_pq_sizes);
   }
 
-  static bool alwaysUseGlobalRollback(size_t) {
-    return false;
+  static bool isUnconstrainedRound(size_t) {
+    return true;
   }
 
 private:

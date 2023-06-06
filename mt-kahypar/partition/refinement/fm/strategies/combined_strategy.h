@@ -64,8 +64,8 @@ public:
     // TODO
   }
 
-  static bool alwaysUseGlobalRollback(size_t round) {
-    return (round % 2) == 1;
+  static bool isUnconstrainedRound(size_t round) {
+    return (round % 2) == 0;
   }
 
  private:
