@@ -71,9 +71,9 @@ class CutGainCache {
     _gain_cache(),
     _dummy_adjacent_blocks() { }
 
-  CutGainCache(const Context& context) :
+  CutGainCache(const Context&) :
     _is_initialized(false),
-    _k(context.partition.k),
+    _k(kInvalidPartition),
     _gain_cache(),
     _dummy_adjacent_blocks() { }
 

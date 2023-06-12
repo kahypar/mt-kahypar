@@ -653,10 +653,16 @@ namespace mt_kahypar {
             ("bisection-brute-force-threshold",
              po::value<size_t>(&context.process_mapping.bisection_brute_fore_threshold)->value_name("<size_t>"),
              "Threshold for the number of nodes when we brute force the optimal bisection in the dual bipartitioning strategy.")
-            ("process-mapping-large-he-size-threshold",
-             po::value<HypernodeID>(&context.process_mapping.large_he_threshold)->value_name("<uint32_t>"),
-             "In the process mapping gain cache, we do not count hyperedges larger than this threshold as an incident\n"
-             "edge of a node. This can reduce the number of adjacent blocks of a node and speedup gain computations and updates.");
+            ("process-mapping-largest-he-fraction",
+             po::value<double>(&context.process_mapping.largest_he_fraction)->value_name("<double>"),
+             "If x% (x = process-mapping-largest-he-fraction) of the largest hyperedges covers more than y% of the pins\n"
+             "(y = process-mapping-min-pin-coverage), then we ignore hyperedges larger than the x%-percentile in\n"
+             "when counting adjacent blocks of a node.")
+            ("process-mapping-min-pin-coverage",
+             po::value<double>(&context.process_mapping.min_pin_coverage_of_largest_hes)->value_name("<double>"),
+             "If x% (x = process-mapping-largest-he-fraction) of the largest hyperedges covers more than y% of the pins\n"
+             "(y = process-mapping-min-pin-coverage), then we ignore hyperedges larger than the x%-percentile in\n"
+             "when counting adjacent blocks of a node.");
 
     return process_mapping_options;
   }

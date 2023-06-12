@@ -79,9 +79,9 @@ class Km1GainCache {
     _gain_cache(),
     _dummy_adjacent_blocks() { }
 
-  Km1GainCache(const Context& context) :
+  Km1GainCache(const Context&) :
     _is_initialized(false),
-    _k(context.partition.k),
+    _k(),
     _gain_cache(),
     _dummy_adjacent_blocks() { }
 

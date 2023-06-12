@@ -205,8 +205,10 @@ TEST(AContext, LoadsDefaultPresetCorrectly) {
             expected.process_mapping.max_steiner_tree_size);
   ASSERT_EQ(actual.process_mapping.bisection_brute_fore_threshold,
             expected.process_mapping.bisection_brute_fore_threshold);
-  ASSERT_EQ(actual.process_mapping.large_he_threshold,
-            expected.process_mapping.large_he_threshold);
+  ASSERT_EQ(actual.process_mapping.largest_he_fraction,
+            expected.process_mapping.largest_he_fraction);
+  ASSERT_EQ(actual.process_mapping.min_pin_coverage_of_largest_hes,
+            expected.process_mapping.min_pin_coverage_of_largest_hes);
 }
 
 TEST(AContext, LoadsDefaultFlowPresetCorrectly) {
@@ -401,8 +403,10 @@ TEST(AContext, LoadsDefaultFlowPresetCorrectly) {
             expected.process_mapping.max_steiner_tree_size);
   ASSERT_EQ(actual.process_mapping.bisection_brute_fore_threshold,
             expected.process_mapping.bisection_brute_fore_threshold);
-  ASSERT_EQ(actual.process_mapping.large_he_threshold,
-            expected.process_mapping.large_he_threshold);
+  ASSERT_EQ(actual.process_mapping.largest_he_fraction,
+            expected.process_mapping.largest_he_fraction);
+  ASSERT_EQ(actual.process_mapping.min_pin_coverage_of_largest_hes,
+            expected.process_mapping.min_pin_coverage_of_largest_hes);
 }
 
 TEST(AContext, LoadsDeterministicPresetCorrectly) {
@@ -547,8 +551,10 @@ TEST(AContext, LoadsDeterministicPresetCorrectly) {
             expected.process_mapping.max_steiner_tree_size);
   ASSERT_EQ(actual.process_mapping.bisection_brute_fore_threshold,
             expected.process_mapping.bisection_brute_fore_threshold);
-  ASSERT_EQ(actual.process_mapping.large_he_threshold,
-            expected.process_mapping.large_he_threshold);
+  ASSERT_EQ(actual.process_mapping.largest_he_fraction,
+            expected.process_mapping.largest_he_fraction);
+  ASSERT_EQ(actual.process_mapping.min_pin_coverage_of_largest_hes,
+            expected.process_mapping.min_pin_coverage_of_largest_hes);
 }
 
 #ifdef KAHYPAR_ENABLE_N_LEVEL_PARTITIONING_FEATURES
@@ -743,8 +749,10 @@ TEST(AContext, LoadsQualityPresetCorrectly) {
             expected.process_mapping.max_steiner_tree_size);
   ASSERT_EQ(actual.process_mapping.bisection_brute_fore_threshold,
             expected.process_mapping.bisection_brute_fore_threshold);
-  ASSERT_EQ(actual.process_mapping.large_he_threshold,
-            expected.process_mapping.large_he_threshold);
+  ASSERT_EQ(actual.process_mapping.largest_he_fraction,
+            expected.process_mapping.largest_he_fraction);
+  ASSERT_EQ(actual.process_mapping.min_pin_coverage_of_largest_hes,
+            expected.process_mapping.min_pin_coverage_of_largest_hes);
 }
 
 TEST(AContext, LoadsQualityFlowPresetCorrectly) {
@@ -963,8 +971,10 @@ TEST(AContext, LoadsQualityFlowPresetCorrectly) {
             expected.process_mapping.max_steiner_tree_size);
   ASSERT_EQ(actual.process_mapping.bisection_brute_fore_threshold,
             expected.process_mapping.bisection_brute_fore_threshold);
-  ASSERT_EQ(actual.process_mapping.large_he_threshold,
-            expected.process_mapping.large_he_threshold);
+  ASSERT_EQ(actual.process_mapping.largest_he_fraction,
+            expected.process_mapping.largest_he_fraction);
+  ASSERT_EQ(actual.process_mapping.min_pin_coverage_of_largest_hes,
+            expected.process_mapping.min_pin_coverage_of_largest_hes);
 }
 #endif
 
@@ -1092,8 +1102,10 @@ TEST(AContext, LoadsLargeKPresetCorrectly) {
             expected.process_mapping.max_steiner_tree_size);
   ASSERT_EQ(actual.process_mapping.bisection_brute_fore_threshold,
             expected.process_mapping.bisection_brute_fore_threshold);
-  ASSERT_EQ(actual.process_mapping.large_he_threshold,
-            expected.process_mapping.large_he_threshold);
+  ASSERT_EQ(actual.process_mapping.largest_he_fraction,
+            expected.process_mapping.largest_he_fraction);
+  ASSERT_EQ(actual.process_mapping.min_pin_coverage_of_largest_hes,
+            expected.process_mapping.min_pin_coverage_of_largest_hes);
 }
 
 #endif

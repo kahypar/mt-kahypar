@@ -114,9 +114,9 @@ class GraphProcessMappingGainCache {
     _uncontraction_version(0),
     _ets_version() { }
 
-  GraphProcessMappingGainCache(const Context& context) :
+  GraphProcessMappingGainCache(const Context&) :
     _is_initialized(false),
-    _k(context.partition.k),
+    _k(kInvalidPartition),
     _gain_cache(),
     _ets_benefit_aggregator([&] { return initializeBenefitAggregator(); }),
     _num_incident_edges_of_block(),

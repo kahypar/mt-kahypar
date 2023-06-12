@@ -458,7 +458,8 @@ namespace mt_kahypar {
     process_mapping.optimize_km1_metric = false;
     process_mapping.max_steiner_tree_size = 4;
     process_mapping.bisection_brute_fore_threshold = 16;
-    process_mapping.large_he_threshold = 4294967295;
+    process_mapping.largest_he_fraction = 0.0025;
+    process_mapping.min_pin_coverage_of_largest_hes = 0.05;
 
     // preprocessing
     preprocessing.use_community_detection = true;
@@ -678,7 +679,8 @@ namespace mt_kahypar {
     process_mapping.optimize_km1_metric = false;
     process_mapping.max_steiner_tree_size = 4;
     process_mapping.bisection_brute_fore_threshold = 16;
-    process_mapping.large_he_threshold = 4294967295;
+    process_mapping.largest_he_fraction = 0.0025;
+    process_mapping.min_pin_coverage_of_largest_hes = 0.05;
 
     // preprocessing
     preprocessing.use_community_detection = true;

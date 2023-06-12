@@ -80,9 +80,9 @@ class SoedGainCache {
     _gain_cache(),
     _dummy_adjacent_blocks() { }
 
-  SoedGainCache(const Context& context) :
+  SoedGainCache(const Context&) :
     _is_initialized(false),
-    _k(context.partition.k),
+    _k(kInvalidPartition),
     _gain_cache(),
     _dummy_adjacent_blocks() { }
 

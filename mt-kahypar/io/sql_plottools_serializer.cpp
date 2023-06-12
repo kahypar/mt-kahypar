@@ -158,6 +158,8 @@ std::string serialize(const PartitionedHypergraph& hypergraph,
           << " process_mapping_optimize_km1_metric=" << std::boolalpha << context.process_mapping.optimize_km1_metric
           << " process_mapping_max_steiner_tree_size=" << context.process_mapping.max_steiner_tree_size
           << " process_mapping_bisection_brute_fore_threshold=" << context.process_mapping.bisection_brute_fore_threshold
+          << " process_mapping_largest_he_fraction=" << context.process_mapping.largest_he_fraction
+          << " process_mapping_min_pin_coverage_of_largest_hes=" << context.process_mapping.min_pin_coverage_of_largest_hes
           << " process_mapping_large_he_threshold=" << context.process_mapping.large_he_threshold;
       if ( ProcessGraph::TRACK_STATS ) {
         hypergraph.processGraph()->printStats(oss);

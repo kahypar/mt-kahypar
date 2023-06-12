@@ -100,7 +100,7 @@ class ProcessMappingGainCache {
 
   ProcessMappingGainCache(const Context& context) :
     _is_initialized(false),
-    _k(context.partition.k),
+    _k(kInvalidPartition),
     _gain_cache(),
     _ets_benefit_aggregator([&] { return initializeBenefitAggregator(); }),
     _num_incident_edges_of_block(),
