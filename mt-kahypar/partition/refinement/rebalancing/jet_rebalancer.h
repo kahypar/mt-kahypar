@@ -29,6 +29,7 @@
 #include "tbb/enumerable_thread_specific.h"
 
 #include "mt-kahypar/datastructures/concurrent_bucket_map.h"
+#include "mt-kahypar/parallel/atomic_wrapper.h"
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/metrics.h"
 #include "mt-kahypar/partition/refinement/i_refiner.h"
@@ -72,7 +73,9 @@ public:
     _local_bucket_weights([&] {
       return constructBucketWeightVector();
     }),
-    _node_was_moved() {
+    _node_was_moved(),
+    _moves_by_part(nullptr),
+    _locks(_context.partition.k) {
       for (size_t i = 0; i < NUM_BUCKETS; ++i) {
         _buckets.emplace_back(BUCKET_FACTOR);
       }
@@ -213,9 +216,20 @@ private:
     }
     ASSERT(success || ensure_balanced);
     if (success) {
+      registerMove(hn, from, to, kInvalidGain);
       _node_was_moved[hn] = uint8_t(true);
     }
     return success;
+  }
+
+  void registerMove(const HypernodeID node, const PartitionID from, const PartitionID to, const Gain gain) {
+    if (_moves_by_part != nullptr && !_node_was_moved[node]) {
+      // Synchronization on executed moves only should be acceptable performance-wise.
+      // Still, this is a rather hacky solution and only meant for experimentation
+      _locks[from].lock();
+      (*_moves_by_part)[from].push_back(Move{from, to, node, gain});
+      _locks[from].unlock();
+    }
   }
 
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE size_t log2(Gain gain) const {
@@ -242,6 +256,7 @@ private:
       _current_k = _context.partition.k;
       _gain.changeNumberOfBlocks(_current_k);
       _part_weights = parallel::scalable_vector<AtomicWeight>(_current_k);
+      _locks.resize(_current_k);
     }
   }
 
@@ -261,6 +276,8 @@ private:
   parallel::scalable_vector<HypernodeWeight> _bucket_weights;
   tbb::enumerable_thread_specific<parallel::scalable_vector<HypernodeWeight>> _local_bucket_weights;
   parallel::scalable_vector<uint8_t> _node_was_moved;
+  vec<vec<Move>>* _moves_by_part;
+  vec<SpinLock> _locks;
 };
 
 }  // namespace kahypar

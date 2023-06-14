@@ -44,9 +44,9 @@ namespace mt_kahypar {
   bool JetRebalancer<TypeTraits, GainTypes>::refineInternal(mt_kahypar_partitioned_hypergraph_t& hypergraph,
                                                             vec<vec<Move>>* moves_by_part,
                                                             Metrics& best_metrics) {
-    unused(moves_by_part);
     PartitionedHypergraph& phg = utils::cast<PartitionedHypergraph>(hypergraph);
     resizeDataStructuresForCurrentK();
+    _moves_by_part = moves_by_part;
     if (_max_part_weights == nullptr) {
       _max_part_weights = &_context.partition.max_part_weights[0];
     }
@@ -69,13 +69,24 @@ namespace mt_kahypar {
         }
       }
 
-      if (_gain_cache.isInitialized()) {
-        phg.doParallelForAllNodes([&](const HypernodeID hn) {
-          if (_node_was_moved[hn]) {
+      // recompute gain cache entries
+      phg.doParallelForAllNodes([&](const HypernodeID hn) {
+        if (_node_was_moved[hn]) {
+          if (_gain_cache.isInitialized()) {
             _gain_cache.recomputePenaltyTermEntry(phg, hn);
-            _node_was_moved[hn] = uint8_t(false);
           }
-        });
+          _node_was_moved[hn] = uint8_t(false);
+        }
+      });
+
+      // set correct targets for moves (might be incorrect due to multiple rounds)
+      if (_moves_by_part != nullptr) {
+        for (PartitionID block = 0; block < _context.partition.k; ++block) {
+          vec<Move>& moves = (*_moves_by_part)[block];
+          tbb::parallel_for(0UL, moves.size(), [&](const size_t i) {
+            moves[i].to = phg.partID(moves[i].node);
+          }, tbb::static_partitioner());
+        }
       }
 
       // Update metrics statistics
@@ -384,6 +395,17 @@ namespace mt_kahypar {
     for (size_t i = 2; i < _buckets.size(); ++i) {
       estimated_insertions /= 2;
       _buckets[i].reserve_for_estimated_number_of_insertions(estimated_insertions);
+    }
+
+    if (_moves_by_part != nullptr) {
+      _moves_by_part->clear();
+      _moves_by_part->resize(_current_k);
+      for (PartitionID part = 0; part < _current_k; ++part) {
+        if (hypergraph.partWeight(part) > _max_part_weights[part]) {
+          const HypernodeWeight weight_estimation = hypergraph.partWeight(part) - _max_part_weights[part] / 2;
+          (*_moves_by_part)[part].reserve(hypergraph.initialNumNodes() * weight_estimation / hypergraph.totalWeight());
+        }
+      }
     }
   }
 
