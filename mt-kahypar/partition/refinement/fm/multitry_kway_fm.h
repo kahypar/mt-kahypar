@@ -67,6 +67,7 @@ class MultiTryKWayFM final : public IRefiner {
     sharedData(num_hypernodes, FMStrategy::is_unconstrained),
     globalRollback(num_hyperedges, context, gainCache),
     ets_fm([&] { return constructLocalizedKWayFMSearch(); }),
+    tmp_move_order(num_hypernodes),
     rebalancer(rb) {
     if (context.refinement.fm.obey_minimal_parallelism) {
       sharedData.finishedTasksLimit = std::min(UL(8), context.shared_memory.num_threads);
@@ -94,6 +95,27 @@ class MultiTryKWayFM final : public IRefiner {
   void roundInitialization(PartitionedHypergraph& phg,
                            const vec<HypernodeID>& refinement_nodes);
 
+  void interleaveMoveSequenceWithRebalancingMoves(const PartitionedHypergraph& phg,
+                                                  const vec<HypernodeWeight>& initialPartWeights,
+                                                  const std::vector<HypernodeWeight>& max_part_weights,
+                                                  vec<vec<Move>>& rebalancing_moves_by_part);
+
+  void insertMovesToBalancePart(const PartitionedHypergraph& phg,
+                                const PartitionID part,
+                                const std::vector<HypernodeWeight>& max_part_weights,
+                                const vec<vec<Move>>& rebalancing_moves_by_part,
+                                MoveID& next_move_index,
+                                vec<HypernodeWeight>& current_part_weights,
+                                vec<MoveID>& current_rebalancing_move_index);
+
+  bool isBalanced(const PartitionedHypergraph& phg, const std::vector<HypernodeWeight>& max_part_weights) {
+    for (PartitionID i = 0; i < context.partition.k; ++i) {
+      if (phg.partWeight(i) > max_part_weights[i]) {
+        return false;
+      }
+    }
+    return true;
+  }
 
   LocalizedFMSearch constructLocalizedKWayFMSearch() {
     return LocalizedFMSearch(context, initial_num_nodes, sharedData, gain_cache);
@@ -117,6 +139,7 @@ class MultiTryKWayFM final : public IRefiner {
   FMSharedData sharedData;
   Rollback globalRollback;
   tbb::enumerable_thread_specific<LocalizedFMSearch> ets_fm;
+  vec<Move> tmp_move_order;
   IRebalancer& rebalancer;
 };
 

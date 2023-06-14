@@ -25,6 +25,8 @@
  * SOFTWARE.
  ******************************************************************************/
 
+#include <set>
+
 #include "mt-kahypar/partition/refinement/fm/multitry_kway_fm.h"
 
 #include "mt-kahypar/definitions.h"
@@ -260,6 +262,144 @@ namespace mt_kahypar {
     // requesting new searches activates all nodes by raising the deactivated node marker
     // also clears the array tracking search IDs in case of overflow
     sharedData.nodeTracker.requestNewSearches(static_cast<SearchID>(sharedData.refinementNodes.unsafe_size()));
+  }
+
+  template<typename TypeTraits, typename GainTypes, typename FMStrategy>
+  void MultiTryKWayFM<TypeTraits, GainTypes, FMStrategy>::interleaveMoveSequenceWithRebalancingMoves(
+                                                            const PartitionedHypergraph& phg,
+                                                            const vec<HypernodeWeight>& initialPartWeights,
+                                                            const std::vector<HypernodeWeight>& max_part_weights,
+                                                            vec<vec<Move>>& rebalancing_moves_by_part) {
+    ASSERT(rebalancing_moves_by_part.size() == static_cast<size_t>(context.partition.k));
+    HEAVY_REFINEMENT_ASSERT([&] {
+      std::set<HypernodeID> moved_nodes;
+      for (PartitionID part = 0; part < context.partition.k; ++part) {
+        for (const Move& m: rebalancing_moves_by_part[part]) {
+          if (m.from != part || m.to != phg.partID(m.node) || moved_nodes.count(m.node) != 0) {
+            return false;
+          }
+          moved_nodes.insert(m.node);
+        }
+      }
+      return true;
+    }());
+
+    GlobalMoveTracker& move_tracker =  sharedData.moveTracker;
+    const bool may_move_twice = context.refinement.fm.rebalancing_use_moved_nodes;
+    const bool merge_at_rebalancing_pos = context.refinement.fm.insert_merged_move_at_rebalancing_position;
+    if (may_move_twice) {
+      // check the rebalancing moves for nodes that are moved twice
+      for (PartitionID part = 0; part < context.partition.k; ++part) {
+        vec<Move>& moves = rebalancing_moves_by_part[part];
+        tbb::parallel_for(0UL, moves.size(), [&](const size_t i) {
+          Move& r_move = moves[i];
+          r_move.gain = 0;
+          if (r_move.isValid() && move_tracker.wasNodeMovedInThisRound(r_move.node)) {
+            Move& first_move = move_tracker.getMove(move_tracker.moveOfNode[r_move.node]);
+            ASSERT(r_move.node == first_move.node && r_move.from == first_move.to);
+            if (first_move.from == r_move.to) {
+              // node not moved anymore (important for gain recalculation!)
+              move_tracker.moveOfNode[r_move.node] = 0;
+              first_move.invalidate();
+              r_move.invalidate();
+            } else if (merge_at_rebalancing_pos) {
+              r_move.from = first_move.from;
+              first_move.invalidate();
+            } else {
+              first_move.to = r_move.to;
+              r_move.invalidate();
+            }
+          }
+        }, tbb::static_partitioner());
+      }
+    }
+
+    // For now we use a sequential implementation, which is probably fast enough (since this is a single scan trough
+    // the move sequence). We might replace it with a parallel implementation later.
+    vec<HypernodeWeight> current_part_weights = initialPartWeights;
+    vec<MoveID> current_rebalancing_move_index(context.partition.k, 0);
+    MoveID next_move_index = 0;
+
+    auto insert_moves_to_balance_part = [&](const PartitionID part) {
+      if (current_part_weights[part] > max_part_weights[part]) {
+        insertMovesToBalancePart(phg, part, max_part_weights, rebalancing_moves_by_part,
+                                next_move_index, current_part_weights, current_rebalancing_move_index);
+      }
+    };
+
+    // it might be possible that the initial weights are already imbalanced
+    for (PartitionID part = 0; part < context.partition.k; ++part) {
+      insert_moves_to_balance_part(part);
+    }
+
+    const vec<Move>& move_order = move_tracker.moveOrder;
+    const MoveID num_moves = move_tracker.numPerformedMoves();
+    for (MoveID move_id = 0; move_id < num_moves; ++move_id) {
+      const Move& m = move_order[move_id];
+      if (m.isValid()) {
+        const HypernodeWeight hn_weight = phg.nodeWeight(m.node);
+        current_part_weights[m.from] -= hn_weight;
+        current_part_weights[m.to] += hn_weight;
+        tmp_move_order[next_move_index] = m;
+        ++next_move_index;
+        // insert rebalancing moves if necessary
+        insert_moves_to_balance_part(m.to);
+      }
+    }
+
+    // append any remaining rebalancing moves (rollback will decide whether to keep them)
+    for (PartitionID part = 0; part < context.partition.k; ++part) {
+      while (current_rebalancing_move_index[part] < rebalancing_moves_by_part[part].size()) {
+        const MoveID move_index_for_part = current_rebalancing_move_index[part];
+        const Move& m = rebalancing_moves_by_part[part][move_index_for_part];
+        ++current_rebalancing_move_index[part];
+        if (m.isValid()) {
+          tmp_move_order[next_move_index] = m;
+          ++next_move_index;
+        }
+      }
+    }
+
+    // update sharedData
+    const MoveID first_move_id = move_tracker.firstMoveID;
+    ASSERT(tmp_move_order.size() == move_tracker.moveOrder.size());
+
+    std::swap(move_tracker.moveOrder, tmp_move_order);
+    move_tracker.runningMoveID.store(first_move_id + next_move_index);
+    tbb::parallel_for(ID(0), next_move_index, [&](const MoveID move_id) {
+      const Move& m = move_tracker.moveOrder[move_id];
+      move_tracker.moveOfNode[m.node] = first_move_id + move_id;
+    }, tbb::static_partitioner());
+
+  }
+
+  template<typename TypeTraits, typename GainTypes, typename FMStrategy>
+  void MultiTryKWayFM<TypeTraits, GainTypes, FMStrategy>::insertMovesToBalancePart(const PartitionedHypergraph& phg,
+                                                                                   const PartitionID part,
+                                                                                   const std::vector<HypernodeWeight>& max_part_weights,
+                                                                                   const vec<vec<Move>>& rebalancing_moves_by_part,
+                                                                                   MoveID& next_move_index,
+                                                                                   vec<HypernodeWeight>& current_part_weights,
+                                                                                   vec<MoveID>& current_rebalancing_move_index) {
+    while (current_part_weights[part] > max_part_weights[part]
+            && current_rebalancing_move_index[part] < rebalancing_moves_by_part[part].size()) {
+      const MoveID move_index_for_part = current_rebalancing_move_index[part];
+      const Move& m = rebalancing_moves_by_part[part][move_index_for_part];
+      ++current_rebalancing_move_index[part];
+      if (m.isValid()) {
+        const HypernodeWeight hn_weight = phg.nodeWeight(m.node);
+        current_part_weights[m.from] -= hn_weight;
+        current_part_weights[m.to] += hn_weight;
+        tmp_move_order[next_move_index] = m;
+        ++next_move_index;
+
+        if (current_part_weights[m.to] > max_part_weights[m.to]) {
+          // edge case: it is possible that the rebalancing move itself causes new imbalance -> call recursively
+          insertMovesToBalancePart(phg, m.to, max_part_weights, rebalancing_moves_by_part,
+                                   next_move_index, current_part_weights, current_rebalancing_move_index);
+        }
+      }
+    }
   }
 
 
