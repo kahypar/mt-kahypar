@@ -296,7 +296,7 @@ namespace mt_kahypar {
                                                             const vec<HypernodeWeight>& initialPartWeights,
                                                             const std::vector<HypernodeWeight>& max_part_weights,
                                                             const vec<vec<Move>>& rebalancing_moves_by_part) {
-    ASSERT(rebalancing_moves_by_part.size() == context.partition.k);
+    ASSERT(rebalancing_moves_by_part.size() == static_cast<size_t>(context.partition.k));
     ASSERT([&] {
       for (PartitionID part = 0; part < context.partition.k; ++part) {
         for (const Move& m: rebalancing_moves_by_part[part]) {
@@ -315,19 +315,9 @@ namespace mt_kahypar {
     MoveID next_move_index = 0;
 
     auto insert_moves_to_balance_part = [&](const PartitionID part) {
-      while (current_part_weights[part] > max_part_weights[part]
-             && current_rebalancing_move_index[part] < rebalancing_moves_by_part[part].size()) {
-        const MoveID move_index_for_part = current_rebalancing_move_index[part];
-        const Move& m = rebalancing_moves_by_part[part][move_index_for_part];
-        ++current_rebalancing_move_index[part];
-        if (m.isValid()) {
-          ASSERT(m.from == part);
-          const HypernodeWeight hn_weight = phg.nodeWeight(m.node);
-          current_part_weights[m.from] -= hn_weight;
-          current_part_weights[m.to] += hn_weight;
-          tmp_move_order[next_move_index] = m;
-          ++next_move_index;
-        }
+      if (current_part_weights[part] > max_part_weights[part]) {
+        insertMovesToBalancePart(phg, part, max_part_weights, rebalancing_moves_by_part,
+                                next_move_index, current_part_weights, current_rebalancing_move_index);
       }
     };
 
@@ -378,6 +368,36 @@ namespace mt_kahypar {
       const Move& m = shared_move_order[move_id];
       move_of_node[m.node] = first_move_id + move_id;
     }, tbb::static_partitioner());
+  }
+
+  template<typename TypeTraits, typename GainTypes, typename FMStrategy>
+  void MultiTryKWayFM<TypeTraits, GainTypes, FMStrategy>::insertMovesToBalancePart(const PartitionedHypergraph& phg,
+                                                                                   const PartitionID part,
+                                                                                   const std::vector<HypernodeWeight>& max_part_weights,
+                                                                                   const vec<vec<Move>>& rebalancing_moves_by_part,
+                                                                                   MoveID& next_move_index,
+                                                                                   vec<HypernodeWeight>& current_part_weights,
+                                                                                   vec<MoveID> current_rebalancing_move_index) {
+    while (current_part_weights[part] > max_part_weights[part]
+            && current_rebalancing_move_index[part] < rebalancing_moves_by_part[part].size()) {
+      const MoveID move_index_for_part = current_rebalancing_move_index[part];
+      const Move& m = rebalancing_moves_by_part[part][move_index_for_part];
+      ++current_rebalancing_move_index[part];
+      if (m.isValid()) {
+        ASSERT(m.from == part);
+        const HypernodeWeight hn_weight = phg.nodeWeight(m.node);
+        current_part_weights[m.from] -= hn_weight;
+        current_part_weights[m.to] += hn_weight;
+        tmp_move_order[next_move_index] = m;
+        ++next_move_index;
+
+        if (current_part_weights[m.to] > max_part_weights[m.to]) {
+          // edge case: it is possible that the rebalancing move itself causes new imbalance -> call recursively
+          insertMovesToBalancePart(phg, m.to, max_part_weights, rebalancing_moves_by_part,
+                                   next_move_index, current_part_weights, current_rebalancing_move_index);
+        }
+      }
+    }
   }
 
 
