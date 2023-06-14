@@ -262,6 +262,96 @@ namespace mt_kahypar {
     sharedData.nodeTracker.requestNewSearches(static_cast<SearchID>(sharedData.refinementNodes.unsafe_size()));
   }
 
+  template<typename TypeTraits, typename GainTypes, typename FMStrategy>
+  void MultiTryKWayFM<TypeTraits, GainTypes, FMStrategy>::interleaveMoveSequenceWithRebalancingMoves(
+                                                            const PartitionedHypergraph& phg,
+                                                            const vec<HypernodeWeight>& initialPartWeights,
+                                                            const std::vector<HypernodeWeight>& max_part_weights,
+                                                            const vec<vec<Move>>& rebalancing_moves_by_part) {
+    ASSERT(rebalancing_moves_by_part.size() == context.partition.k);
+    ASSERT([&] {
+      for (PartitionID part = 0; part < context.partition.k; ++part) {
+        for (const Move& m: rebalancing_moves_by_part[part]) {
+          if (m.from != part) {
+            return false;
+          }
+        }
+      }
+      return true;
+    }());
+
+    // For now we use a sequential implementation, which is probably fast enough (since this is a single scan trough
+    // the move sequence). We might replace it with a parallel implementation later.
+    vec<HypernodeWeight> current_part_weights = initialPartWeights;
+    vec<MoveID> current_rebalancing_move_index(context.partition.k, 0);
+    MoveID next_move_index = 0;
+
+    auto insert_moves_to_balance_part = [&](const PartitionID part) {
+      while (current_part_weights[part] > max_part_weights[part]
+             && current_rebalancing_move_index[part] < rebalancing_moves_by_part[part].size()) {
+        const MoveID move_index_for_part = current_rebalancing_move_index[part];
+        const Move& m = rebalancing_moves_by_part[part][move_index_for_part];
+        ++current_rebalancing_move_index[part];
+        if (m.isValid()) {
+          ASSERT(m.from == part);
+          const HypernodeWeight hn_weight = phg.nodeWeight(m.node);
+          current_part_weights[m.from] -= hn_weight;
+          current_part_weights[m.to] += hn_weight;
+          tmp_move_order[next_move_index] = m;
+          ++next_move_index;
+        }
+      }
+    };
+
+    // it might be possible that the initial weights are already imbalanced
+    for (PartitionID part = 0; part < context.partition.k; ++part) {
+      insert_moves_to_balance_part(part);
+    }
+
+    const vec<Move>& move_order = sharedData.moveTracker.moveOrder;
+    const MoveID num_moves = sharedData.moveTracker.numPerformedMoves();
+    for (MoveID move_id = 0; move_id < num_moves; ++move_id) {
+      const Move& m = move_order[move_id];
+      if (m.isValid()) {
+        const HypernodeWeight hn_weight = phg.nodeWeight(m.node);
+        current_part_weights[m.from] -= hn_weight;
+        current_part_weights[m.to] += hn_weight;
+        tmp_move_order[next_move_index] = m;
+        ++next_move_index;
+        // insert rebalancing moves if necessary
+        insert_moves_to_balance_part(m.to);
+      }
+      // no need to keep invalid moves
+    }
+
+    // append any remaining rebalancing moves (rollback will decide whether to keep them)
+    for (PartitionID part = 0; part < context.partition.k; ++part) {
+      while (current_rebalancing_move_index[part] < rebalancing_moves_by_part[part].size()) {
+        const MoveID move_index_for_part = current_rebalancing_move_index[part];
+        const Move& m = rebalancing_moves_by_part[part][move_index_for_part];
+        ++current_rebalancing_move_index[part];
+        if (m.isValid()) {
+          ASSERT(m.from == part);
+          tmp_move_order[next_move_index] = m;
+          ++next_move_index;
+        }
+      }
+    }
+
+    // update sharedData
+    const MoveID first_move_id = sharedData.moveTracker.firstMoveID;
+    vec<Move>& shared_move_order = sharedData.moveTracker.moveOrder;
+    vec<MoveID>& move_of_node = sharedData.moveTracker.moveOfNode;
+    ASSERT(tmp_move_order.size() == shared_move_order.size());
+
+    std::swap(shared_move_order, tmp_move_order);
+    sharedData.moveTracker.runningMoveID.store(first_move_id + next_move_index);
+    tbb::parallel_for(ID(0), next_move_index, [&](const MoveID move_id) {
+      const Move& m = shared_move_order[move_id];
+      move_of_node[m.node] = first_move_id + move_id;
+    }, tbb::static_partitioner());
+  }
+
 
   template<typename TypeTraits, typename GainTypes, typename FMStrategy>
   void MultiTryKWayFM<TypeTraits, GainTypes, FMStrategy>::initializeImpl(mt_kahypar_partitioned_hypergraph_t& hypergraph) {
