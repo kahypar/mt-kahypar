@@ -41,10 +41,10 @@
 
 namespace mt_kahypar {
   template <typename TypeTraits, typename GainTypes>
-  bool JetRebalancer<TypeTraits, GainTypes>::refineImpl(mt_kahypar_partitioned_hypergraph_t& hypergraph,
-                                                        const vec<HypernodeID>&,
-                                                        Metrics& best_metrics,
-                                                        double) {
+  bool JetRebalancer<TypeTraits, GainTypes>::refineInternal(mt_kahypar_partitioned_hypergraph_t& hypergraph,
+                                                            vec<vec<Move>>* moves_by_part,
+                                                            Metrics& best_metrics) {
+    unused(moves_by_part);
     PartitionedHypergraph& phg = utils::cast<PartitionedHypergraph>(hypergraph);
     resizeDataStructuresForCurrentK();
     if (_max_part_weights == nullptr) {

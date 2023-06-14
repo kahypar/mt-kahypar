@@ -451,6 +451,18 @@ namespace mt_kahypar {
              "- unconstrained\n"
              "- unconstrained\n"
              "- do_nothing")
+            ((initial_partitioning ? "i-r-fm-rollback-strategy" : "r-fm-rollback-strategy"),
+             po::value<std::string>()->value_name("<string>")->notifier(
+                     [&, initial_partitioning](const std::string& type) {
+                       if (initial_partitioning) {
+                         context.initial_partitioning.refinement.fm.rollback_strategy = rollbackStrategyFromString(type);
+                       } else {
+                         context.refinement.fm.rollback_strategy = rollbackStrategyFromString(type);
+                       }
+                     })->default_value("interleave_rebalancing_moves"),
+             "Strategy for integrating rebalancing into the rollback during FM (only relevant for unconstrained FM):\n"
+             "- interleave_rebalancing_moves\n"
+             "- approximate")
             ((initial_partitioning ? "i-r-fm-multitry-rounds" : "r-fm-multitry-rounds"),
              po::value<size_t>((initial_partitioning ? &context.initial_partitioning.refinement.fm.multitry_rounds :
                                 &context.refinement.fm.multitry_rounds))->value_name("<size_t>")->default_value(10),

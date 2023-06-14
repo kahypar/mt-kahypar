@@ -89,9 +89,13 @@ public:
   JetRebalancer & operator= (JetRebalancer &&) = delete;
 
   bool refineImpl(mt_kahypar_partitioned_hypergraph_t& hypergraph,
-                  const vec<HypernodeID>&,
+                  const vec<HypernodeID>& refinement_nodes,
                   Metrics& best_metrics,
-                  double);
+                  double) {
+    ASSERT(refinement_nodes.empty());
+    unused(refinement_nodes);
+    return refineInternal(hypergraph, nullptr, best_metrics);
+  }
 
   void initializeImpl(mt_kahypar_partitioned_hypergraph_t& hypergraph) final {
     PartitionedHypergraph& phg = utils::cast<PartitionedHypergraph>(hypergraph);
@@ -102,7 +106,21 @@ public:
     _max_part_weights = &max_part_weights[0];
   }
 
+  bool refineAndOutputMovesImpl(mt_kahypar_partitioned_hypergraph_t& hypergraph,
+                                const vec<HypernodeID>& refinement_nodes,
+                                vec<vec<Move>>& moves_by_part,
+                                Metrics& best_metrics,
+                                const double) {
+    ASSERT(refinement_nodes.empty());
+    unused(refinement_nodes);
+    return refineInternal(hypergraph, &moves_by_part, best_metrics);
+  }
+
 private:
+  bool refineInternal(mt_kahypar_partitioned_hypergraph_t& hypergraph,
+                      vec<vec<Move>>* moves_by_part,
+                      Metrics& best_metric);
+
   template<bool ensure_balanced_moves>
   void weakRebalancingRound(PartitionedHypergraph& phg);
 
