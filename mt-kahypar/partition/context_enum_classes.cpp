@@ -244,6 +244,15 @@ namespace mt_kahypar {
     return os << static_cast<uint8_t>(algo);
   }
 
+  std::ostream & operator<< (std::ostream& os, const RollbackStrategy& strategy) {
+    switch (strategy) {
+      case RollbackStrategy::interleave_rebalancing_moves: return os << "interleave_rebalancing_moves";
+      case RollbackStrategy::approximate: return os << "approximate";
+        // omit default case to trigger compiler warning for missing cases
+    }
+    return os << static_cast<uint8_t>(strategy);
+  }
+
   std::ostream & operator<< (std::ostream& os, const FlowAlgorithm& algo) {
     switch (algo) {
       case FlowAlgorithm::flow_cutter: return os << "flow_cutter";
@@ -458,6 +467,16 @@ std::ostream & operator<< (std::ostream& os, const RebalancingAlgorithm& algo) {
     }
     ERR("Illegal option: " + type);
     return FMAlgorithm::do_nothing;
+  }
+
+  RollbackStrategy rollbackStrategyFromString(const std::string& type) {
+    if (type == "interleave_rebalancing_moves") {
+      return RollbackStrategy::interleave_rebalancing_moves;
+    } else if (type == "approximate") {
+      return RollbackStrategy::approximate;
+    }
+    ERR("Illegal option: " + type);
+    return RollbackStrategy::interleave_rebalancing_moves;
   }
 
   FlowAlgorithm flowAlgorithmFromString(const std::string& type) {

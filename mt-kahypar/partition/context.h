@@ -151,6 +151,7 @@ std::ostream & operator<< (std::ostream& str, const JetParameters& params);
 
 struct FMParameters {
   FMAlgorithm algorithm = FMAlgorithm::do_nothing;
+  RollbackStrategy rollback_strategy = RollbackStrategy::interleave_rebalancing_moves;
 
   size_t multitry_rounds = 1;
   mutable size_t num_seed_nodes = 1;

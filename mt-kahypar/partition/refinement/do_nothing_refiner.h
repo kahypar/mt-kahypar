@@ -54,5 +54,13 @@ class DoNothingRefiner final : public IRebalancer {
   }
 
   void setMaxPartWeightsForRoundImpl(const std::vector<HypernodeWeight>&) override final { }
+
+  virtual bool refineAndOutputMovesImpl(mt_kahypar_partitioned_hypergraph_t&,
+                                        const parallel::scalable_vector<HypernodeID>&,
+                                        parallel::scalable_vector<parallel::scalable_vector<Move>>&,
+                                        Metrics&,
+                                        const double) override final {
+    return false;
+  }
 };
 }  // namespace kahypar

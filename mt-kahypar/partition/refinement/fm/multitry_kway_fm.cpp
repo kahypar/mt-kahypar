@@ -131,25 +131,53 @@ namespace mt_kahypar {
       tg.wait();
       timer.stop_timer("find_moves");
 
-      timer.start_timer("rollback", "Rollback to Best Solution");
-      HyperedgeWeight improvement = globalRollback.revertToBestPrefix(phg, sharedData, initialPartWeights,
-                                                                      FMStrategy::isUnconstrainedRound(round));
-      timer.stop_timer("rollback");
-      ASSERT(metrics.quality - overall_improvement - improvement == metrics::quality(phg, context),
-        V(metrics.quality - overall_improvement - improvement) << V(metrics::quality(phg, context)));
-      if (FMStrategy::isUnconstrainedRound(round) && !metrics::isBalanced(phg, context)) {
-        DBG << "[unconstrained FM] Starting Rebalancing";
-        timer.start_timer("rebalance", "Rebalance");
-        Metrics tmp_metrics;
-        tmp_metrics.quality = metrics.quality - overall_improvement - improvement;
-        tmp_metrics.imbalance = metrics::imbalance(phg, context);
-        rebalancer.setMaxPartWeightsForRound(max_part_weights);
-        rebalancer.refine(hypergraph, {}, tmp_metrics, current_time_limit);
-        timer.stop_timer("rebalance");
+      HyperedgeWeight improvement;
+      if (context.refinement.fm.rollback_strategy == RollbackStrategy::approximate) {
+        // TODO: it seems likely we can remove this strategy
+        timer.start_timer("rollback", "Rollback to Best Solution");
+        improvement = globalRollback.revertToBestPrefix(phg, sharedData, initialPartWeights,
+                                                        FMStrategy::isUnconstrainedRound(round));
+        timer.stop_timer("rollback");
 
-        improvement = (metrics.quality - overall_improvement) - tmp_metrics.quality;
-        DBG << "[unconstrained FM] " << V(improvement);
+        if (FMStrategy::isUnconstrainedRound(round) && !metrics::isBalanced(phg, context)) {
+          DBG << "[unconstrained FM] Starting Rebalancing";
+          timer.start_timer("rebalance", "Rebalance");
+          Metrics tmp_metrics;
+          tmp_metrics.quality = metrics.quality - overall_improvement - improvement;
+          tmp_metrics.imbalance = metrics::imbalance(phg, context);
+          rebalancer.setMaxPartWeightsForRound(max_part_weights);
+          rebalancer.refine(hypergraph, {}, tmp_metrics, current_time_limit);
+          timer.stop_timer("rebalance");
+
+          improvement = (metrics.quality - overall_improvement) - tmp_metrics.quality;
+          DBG << "[unconstrained FM] " << V(improvement);
+        }
+      } else {
+        ASSERT(context.refinement.fm.rollback_strategy == RollbackStrategy::interleave_rebalancing_moves);
+        if (FMStrategy::isUnconstrainedRound(round) && !metrics::isBalanced(phg, context)) {
+          DBG << "[unconstrained FM] Starting Rebalancing";
+          vec<vec<Move>> moves_by_part;
+
+          // compute rebalancing moves
+          timer.start_timer("rebalance", "Rebalance");
+          Metrics tmp_metrics;
+          tmp_metrics.quality = metrics.quality - overall_improvement - improvement;
+          tmp_metrics.imbalance = metrics::imbalance(phg, context);
+          rebalancer.setMaxPartWeightsForRound(max_part_weights);
+          rebalancer.refineAndOutputMoves(hypergraph, {}, moves_by_part, tmp_metrics, current_time_limit);
+          timer.stop_timer("rebalance");
+
+          // compute new move sequence where each imbalanced move is immediately rebalanced
+          timer.start_timer("interleave", "Interleave Rebalancing Moves");
+          interleaveMoveSequenceWithRebalancingMoves(phg, initialPartWeights, max_part_weights, moves_by_part);
+          timer.stop_timer("interleave");
+        }
+
+        timer.start_timer("rollback", "Rollback to Best Solution");
+        improvement = globalRollback.revertToBestPrefix(phg, sharedData, initialPartWeights, false);
+        timer.stop_timer("rollback");
       }
+
       if (FMStrategy::isUnconstrainedRound(round)) {
         sharedData.unconstrained.reset();
       }
