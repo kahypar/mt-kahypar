@@ -196,8 +196,7 @@ struct UnconstrainedFMData {
   void revertImbalancedMove(PartitionID to, HypernodeWeight weight);
 
   bool isRebalancingNode(HypernodeID hn) const {
-    ASSERT(initialized);
-    return rebalancing_nodes[hn];
+    return initialized && rebalancing_nodes[hn];
   }
 
   void changeNumberOfBlocks(PartitionID new_k) {
