@@ -67,13 +67,15 @@ class UnconstrainedStrategy {
 
   UnconstrainedStrategy(const Context& context,
                     FMSharedData& sharedData,
-                    FMStats& runStats) :
+                    FMStats& runStats,
+                    double penaltyFactor = 1.0) :
       context(context),
       runStats(runStats),
       sharedData(sharedData),
       blockPQ(static_cast<size_t>(context.partition.k)),
       vertexPQs(static_cast<size_t>(context.partition.k),
-        VertexPriorityQueue(sharedData.vertexPQHandles.data(), sharedData.numberOfNodes)) { }
+        VertexPriorityQueue(sharedData.vertexPQHandles.data(), sharedData.numberOfNodes)),
+      penaltyFactor(penaltyFactor) { }
 
   template<typename DispatchedStrategyApplicatorFn>
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
@@ -150,7 +152,7 @@ class UnconstrainedStrategy {
           // If the move is not applied, we need to undo this in skipMove
           const Gain imbalance_penalty = sharedData.unconstrained.applyEstimatedPenaltyForImbalancedMove(to, imbalance);
           if (imbalance_penalty != std::numeric_limits<Gain>::max()) {
-            Gain new_gain = gain_cache.gain(u, from, to) - imbalance_penalty;
+            Gain new_gain = gain_cache.gain(u, from, to) - std::ceil(penaltyFactor * imbalance_penalty);
             gain = new_gain;
           } else {
             apply_move = false;
@@ -253,8 +255,13 @@ class UnconstrainedStrategy {
     parent->addChild("PQs", blockPQ.size_in_bytes() + vertex_pq_sizes);
   }
 
-  static bool isUnconstrainedRound(size_t) {
+  static bool isUnconstrainedRound(size_t, const Context&) {
     return true;
+  }
+
+  void setPenaltyFactor(double penalty) {
+    ASSERT(penalty >= 0 && penalty <= 1);
+    penaltyFactor = penalty;
   }
 
 private:
@@ -275,6 +282,7 @@ private:
                                                                  const GainCache& gain_cache,
                                                                  const HypernodeID u,
                                                                  const PartitionID from) const {
+    // TODO(maas): bonus for balancing moves?!
     const HypernodeWeight wu = phg.nodeWeight(u);
     const HypernodeWeight from_weight = phg.partWeight(from);
     PartitionID to = kInvalidPartition;
@@ -294,7 +302,7 @@ private:
           if (imbalance_penalty == std::numeric_limits<Gain>::max()) {
             continue;
           }
-          benefit -= imbalance_penalty;
+          benefit -= std::ceil(penaltyFactor * imbalance_penalty);
         }
         if ( benefit > to_benefit || ( benefit == to_benefit && to_weight < best_to_weight ) ) {
           to_benefit = benefit;
@@ -332,7 +340,7 @@ private:
           if (imbalance_penalty == std::numeric_limits<Gain>::max()) {
             continue;
           }
-          benefit -= imbalance_penalty;
+          benefit -= std::ceil(penaltyFactor * imbalance_penalty);
         }
         if ( benefit > to_benefit || ( benefit == to_benefit && to_weight < best_to_weight ) ) {
           to_benefit = benefit;
@@ -362,6 +370,8 @@ protected:
   // ! in that block) touched by the current local search associated
   // ! with their gain values
   vec<VertexPriorityQueue> vertexPQs;
+
+  double penaltyFactor;
 };
 
 }

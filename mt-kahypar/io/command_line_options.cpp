@@ -518,6 +518,18 @@ namespace mt_kahypar {
                               &context.refinement.fm.insert_merged_move_at_rebalancing_position))->value_name("<bool>")->default_value(true),
              "If rebalancing may move nodes a second time and two moves are merged, determines if the merged move is inserted at the position "
              "of the according rebalancing move or the original move.")
+            ((initial_partitioning ? "i-r-fm-unconstrained-rounds" : "r-fm-unconstrained-rounds"),
+             po::value<size_t>((initial_partitioning ? &context.initial_partitioning.refinement.fm.unconstrained_rounds :
+                              &context.refinement.fm.unconstrained_rounds))->value_name("<size_t>")->default_value(1),
+             "Cooling FM algorithm: Number of rounds that are unconstrained.")
+            ((initial_partitioning ? "i-r-fm-imbalance-penalty-min" : "r-fm-imbalance-penalty-min"),
+             po::value<double>((initial_partitioning ? &context.initial_partitioning.refinement.fm.imbalance_penalty_min :
+                              &context.refinement.fm.imbalance_penalty_min))->value_name("<double>")->default_value(0.2),
+             "Cooling FM algorithm: Minimum (starting) penalty factor.")
+            ((initial_partitioning ? "i-r-fm-imbalance-penalty-max" : "r-fm-imbalance-penalty-max"),
+             po::value<double>((initial_partitioning ? &context.initial_partitioning.refinement.fm.imbalance_penalty_max :
+                              &context.refinement.fm.imbalance_penalty_max))->value_name("<double>")->default_value(1.0),
+             "Cooling FM algorithm: Maximum (final) penalty factor.")
             ((initial_partitioning ? "i-r-fm-obey-minimal-parallelism" : "r-fm-obey-minimal-parallelism"),
              po::value<bool>(
                      (initial_partitioning ? &context.initial_partitioning.refinement.fm.obey_minimal_parallelism :

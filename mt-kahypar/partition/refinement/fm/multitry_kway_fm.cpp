@@ -94,7 +94,7 @@ namespace mt_kahypar {
         initialPartWeights[i] = phg.partWeight(i);
       }
 
-      if (FMStrategy::isUnconstrainedRound(round)) {
+      if (FMStrategy::isUnconstrainedRound(round, context)) {
         timer.start_timer("initialize_data_unconstrained", "Initialize Data for Unc. FM");
         sharedData.unconstrained.initialize(context, phg);
         timer.stop_timer("initialize_data_unconstrained");
@@ -138,10 +138,10 @@ namespace mt_kahypar {
         // TODO: it seems likely we can remove this strategy
         timer.start_timer("rollback", "Rollback to Best Solution");
         improvement = globalRollback.revertToBestPrefix(phg, sharedData, initialPartWeights,
-                                                        FMStrategy::isUnconstrainedRound(round));
+                                                        FMStrategy::isUnconstrainedRound(round, context));
         timer.stop_timer("rollback");
 
-        if (FMStrategy::isUnconstrainedRound(round) && !metrics::isBalanced(phg, context)) {
+        if (FMStrategy::isUnconstrainedRound(round, context) && !metrics::isBalanced(phg, context)) {
           DBG << "[unconstrained FM] Starting Rebalancing";
           timer.start_timer("rebalance", "Rebalance");
           Metrics tmp_metrics;
@@ -156,7 +156,7 @@ namespace mt_kahypar {
         }
       } else {
         ASSERT(context.refinement.fm.rollback_strategy == RollbackStrategy::interleave_rebalancing_moves);
-        if (FMStrategy::isUnconstrainedRound(round) && !metrics::isBalanced(phg, context)) {
+        if (FMStrategy::isUnconstrainedRound(round, context) && !isBalanced(phg, max_part_weights)) {
           DBG << "[unconstrained FM] Starting Rebalancing";
           vec<vec<Move>> moves_by_part;
 
@@ -180,7 +180,7 @@ namespace mt_kahypar {
         timer.stop_timer("rollback");
       }
 
-      if (FMStrategy::isUnconstrainedRound(round)) {
+      if (FMStrategy::isUnconstrainedRound(round, context)) {
         sharedData.unconstrained.reset();
       }
 
@@ -480,10 +480,12 @@ namespace mt_kahypar {
   #define MULTITRY_KWAY_FM_DEFAULT_STRATEGY(X, Y) MultiTryKWayFM<X, Y, GainCacheStrategy>
   #define MULTITRY_KWAY_FM_UNCONSTRAINED_STRATEGY(X, Y) MultiTryKWayFM<X, Y, UnconstrainedStrategy>
   #define MULTITRY_KWAY_FM_COMBINED_STRATEGY(X, Y) MultiTryKWayFM<X, Y, CombinedStrategy>
+  #define MULTITRY_KWAY_FM_COOLING_STRATEGY(X, Y) MultiTryKWayFM<X, Y, CoolingStrategy>
   }
 
   INSTANTIATE_CLASS_WITH_TYPE_TRAITS_AND_GAIN_TYPES(MULTITRY_KWAY_FM_DEFAULT_STRATEGY)
   INSTANTIATE_CLASS_WITH_TYPE_TRAITS_AND_GAIN_TYPES(MULTITRY_KWAY_FM_UNCONSTRAINED_STRATEGY)
   INSTANTIATE_CLASS_WITH_TYPE_TRAITS_AND_GAIN_TYPES(MULTITRY_KWAY_FM_COMBINED_STRATEGY)
+  INSTANTIATE_CLASS_WITH_TYPE_TRAITS_AND_GAIN_TYPES(MULTITRY_KWAY_FM_COOLING_STRATEGY)
 
 } // namespace mt_kahypar

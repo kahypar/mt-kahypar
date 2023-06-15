@@ -122,6 +122,11 @@ using CombinedFMDispatcher = kahypar::meta::StaticMultiDispatchFactory<
                              IRefiner,
                              kahypar::meta::Typelist<TypeTraitsList, GainTypes>>;
 
+using CoolingFMDispatcher = kahypar::meta::StaticMultiDispatchFactory<
+                            MultiTryKWayFMCooling,
+                            IRefiner,
+                            kahypar::meta::Typelist<TypeTraitsList, GainTypes>>;
+
 using FlowSchedulerFactory = kahypar::meta::Factory<FlowAlgorithm,
                               IRefiner* (*)(const HypernodeID, const HyperedgeID, const Context&, gain_cache_t)>;
 

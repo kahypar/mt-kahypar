@@ -175,6 +175,11 @@ struct FMParameters {
   bool rebalancing_use_violation_factor = true;
   bool rebalancing_use_moved_nodes = true;
   bool insert_merged_move_at_rebalancing_position = true;
+
+  // unconstrained: cooling strategy
+  size_t unconstrained_rounds = 1;
+  double imbalance_penalty_min = 0.2;
+  double imbalance_penalty_max = 1.0;
 };
 
 std::ostream& operator<<(std::ostream& out, const FMParameters& params);
