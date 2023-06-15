@@ -176,6 +176,9 @@ struct FMParameters {
   bool rebalancing_use_moved_nodes = true;
   bool insert_merged_move_at_rebalancing_position = true;
 
+  bool penalty_for_moved_rebalancing_nodes = true;
+  double treshold_border_node_inclusion = 0.75;
+
   // unconstrained: cooling strategy
   size_t unconstrained_rounds = 1;
   double imbalance_penalty_min = 0.2;

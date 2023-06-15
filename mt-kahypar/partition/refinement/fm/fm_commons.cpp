@@ -156,16 +156,33 @@ namespace mt_kahypar {
     ASSERT(!initialized);
     changeNumberOfBlocks(context.partition.k);
 
+    double bn_treshold = context.refinement.fm.treshold_border_node_inclusion;
     // collect nodes and fill buckets
     phg.doParallelForAllNodes([&](const HypernodeID hn) {
       const HypernodeWeight hn_weight = phg.nodeWeight(hn);
-      if (hn_weight > 0 && !phg.isBorderNode(hn)) {
-        // TODO(maas): only non border nodes does not seem like a good strategy for hypergraphs
-        const size_t bucketId = bucketForGainPerWeight(static_cast<double>(incident_weight_of_node[hn]) / hn_weight);
+      if (hn_weight == 0) return;
+
+      auto include_node = [&](const HyperedgeWeight used_weight) {
+        const size_t bucketId = bucketForGainPerWeight(static_cast<double>(used_weight) / hn_weight);
         if (bucketId < NUM_BUCKETS) {
           auto& local_weights = local_bucket_weights.local();
           local_weights[indexForBucket(phg.partID(hn), bucketId)] += hn_weight;
           rebalancing_nodes.set(hn, true);
+        }
+      };
+
+      if (bn_treshold == 1.0 && !phg.isBorderNode(hn)) {
+        // TODO(maas): only non border nodes does not seem like a good strategy for hypergraphs
+        include_node(incident_weight_of_node[hn]);
+      } else if (bn_treshold < 1.0) {
+        HyperedgeWeight internal_weight = 0;
+        for (const HyperedgeID& he : phg.incidentEdges(hn)) {
+          if (phg.connectivity(he) == 1) {
+            internal_weight += phg.edgeWeight(he);
+          }
+        }
+        if (static_cast<double>(internal_weight) >= bn_treshold * incident_weight_of_node[hn]) {
+          include_node(internal_weight);
         }
       }
     });
