@@ -505,6 +505,15 @@ namespace mt_kahypar {
              po::value<bool>((initial_partitioning ? &context.initial_partitioning.refinement.fm.rebalancing_use_violation_factor :
                               &context.refinement.fm.rebalancing_use_violation_factor))->value_name("<bool>")->default_value(true),
              "Whether the rollback balance violation factor is also applied to rebalancing (for unconstrained FM).")
+            ((initial_partitioning ? "i-r-fm-rebalancing-use-moved-nodes" : "r-fm-rebalancing-use-moved-nodes"),
+             po::value<bool>((initial_partitioning ? &context.initial_partitioning.refinement.fm.rebalancing_use_moved_nodes :
+                              &context.refinement.fm.rebalancing_use_moved_nodes))->value_name("<bool>")->default_value(true),
+             "Whether rebalancing may use nodes that have already been moved by FM.")
+            ((initial_partitioning ? "i-r-fm-insert-merged-move-at-rebalancing-position" : "r-fm-insert-merged-move-at-rebalancing-position"),
+             po::value<bool>((initial_partitioning ? &context.initial_partitioning.refinement.fm.insert_merged_move_at_rebalancing_position :
+                              &context.refinement.fm.insert_merged_move_at_rebalancing_position))->value_name("<bool>")->default_value(true),
+             "If rebalancing may move nodes a second time and two moves are merged, determines if the merged move is inserted at the position "
+             "of the according rebalancing move or the original move.")
             ((initial_partitioning ? "i-r-fm-obey-minimal-parallelism" : "r-fm-obey-minimal-parallelism"),
              po::value<bool>(
                      (initial_partitioning ? &context.initial_partitioning.refinement.fm.obey_minimal_parallelism :

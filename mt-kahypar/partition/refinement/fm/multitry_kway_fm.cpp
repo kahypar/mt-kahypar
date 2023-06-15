@@ -25,6 +25,8 @@
  * SOFTWARE.
  ******************************************************************************/
 
+#include <set>
+
 #include "mt-kahypar/partition/refinement/fm/multitry_kway_fm.h"
 
 #include "mt-kahypar/definitions.h"
@@ -154,23 +156,28 @@ namespace mt_kahypar {
         }
       } else {
         ASSERT(context.refinement.fm.rollback_strategy == RollbackStrategy::interleave_rebalancing_moves);
-        if (FMStrategy::isUnconstrainedRound(round) && !metrics::isBalanced(phg, context)) {
+        if (FMStrategy::isUnconstrainedRound(round) && !isBalanced(phg, max_part_weights)) {
           DBG << "[unconstrained FM] Starting Rebalancing";
           vec<vec<Move>> moves_by_part;
 
           // compute rebalancing moves
           timer.start_timer("rebalance", "Rebalance");
           Metrics tmp_metrics;
-          tmp_metrics.quality = metrics.quality - overall_improvement - improvement;
+          ASSERT([&]{ // correct quality only required for assertions
+            tmp_metrics.quality = metrics::quality(phg, context);
+            return true;
+          }());
           tmp_metrics.imbalance = metrics::imbalance(phg, context);
           rebalancer.setMaxPartWeightsForRound(max_part_weights);
           rebalancer.refineAndOutputMoves(hypergraph, {}, moves_by_part, tmp_metrics, current_time_limit);
           timer.stop_timer("rebalance");
 
-          // compute new move sequence where each imbalanced move is immediately rebalanced
-          timer.start_timer("interleave", "Interleave Rebalancing Moves");
-          interleaveMoveSequenceWithRebalancingMoves(phg, initialPartWeights, max_part_weights, moves_by_part);
-          timer.stop_timer("interleave");
+          if (!moves_by_part.empty()) {
+            // compute new move sequence where each imbalanced move is immediately rebalanced
+            timer.start_timer("interleave", "Interleave Rebalancing Moves");
+            interleaveMoveSequenceWithRebalancingMoves(phg, initialPartWeights, max_part_weights, moves_by_part);
+            timer.stop_timer("interleave");
+          }
         }
 
         timer.start_timer("rollback", "Rollback to Best Solution");
@@ -295,18 +302,50 @@ namespace mt_kahypar {
                                                             const PartitionedHypergraph& phg,
                                                             const vec<HypernodeWeight>& initialPartWeights,
                                                             const std::vector<HypernodeWeight>& max_part_weights,
-                                                            const vec<vec<Move>>& rebalancing_moves_by_part) {
+                                                            vec<vec<Move>>& rebalancing_moves_by_part) {
     ASSERT(rebalancing_moves_by_part.size() == static_cast<size_t>(context.partition.k));
-    ASSERT([&] {
+    HEAVY_REFINEMENT_ASSERT([&] {
+      std::set<HypernodeID> moved_nodes;
       for (PartitionID part = 0; part < context.partition.k; ++part) {
         for (const Move& m: rebalancing_moves_by_part[part]) {
-          if (m.from != part) {
+          if (m.from != part || m.to != phg.partID(m.node) || moved_nodes.count(m.node) != 0) {
             return false;
           }
+          moved_nodes.insert(m.node);
         }
       }
       return true;
     }());
+
+    GlobalMoveTracker& move_tracker =  sharedData.moveTracker;
+    const bool may_move_twice = context.refinement.fm.rebalancing_use_moved_nodes;
+    const bool merge_at_rebalancing_pos = context.refinement.fm.insert_merged_move_at_rebalancing_position;
+    if (may_move_twice) {
+      // check the rebalancing moves for nodes that are moved twice
+      for (PartitionID part = 0; part < context.partition.k; ++part) {
+        vec<Move>& moves = rebalancing_moves_by_part[part];
+        tbb::parallel_for(0UL, moves.size(), [&](const size_t i) {
+          Move& r_move = moves[i];
+          r_move.gain = 0;
+          if (r_move.isValid() && move_tracker.wasNodeMovedInThisRound(r_move.node)) {
+            Move& first_move = move_tracker.getMove(move_tracker.moveOfNode[r_move.node]);
+            ASSERT(r_move.node == first_move.node && r_move.from == first_move.to);
+            if (first_move.from == r_move.to) {
+              // node not moved anymore (important for gain recalculation!)
+              move_tracker.moveOfNode[r_move.node] = 0;
+              first_move.invalidate();
+              r_move.invalidate();
+            } else if (merge_at_rebalancing_pos) {
+              r_move.from = first_move.from;
+              first_move.invalidate();
+            } else {
+              first_move.to = r_move.to;
+              r_move.invalidate();
+            }
+          }
+        }, tbb::static_partitioner());
+      }
+    }
 
     // For now we use a sequential implementation, which is probably fast enough (since this is a single scan trough
     // the move sequence). We might replace it with a parallel implementation later.
@@ -326,8 +365,8 @@ namespace mt_kahypar {
       insert_moves_to_balance_part(part);
     }
 
-    const vec<Move>& move_order = sharedData.moveTracker.moveOrder;
-    const MoveID num_moves = sharedData.moveTracker.numPerformedMoves();
+    const vec<Move>& move_order = move_tracker.moveOrder;
+    const MoveID num_moves = move_tracker.numPerformedMoves();
     for (MoveID move_id = 0; move_id < num_moves; ++move_id) {
       const Move& m = move_order[move_id];
       if (m.isValid()) {
@@ -339,7 +378,6 @@ namespace mt_kahypar {
         // insert rebalancing moves if necessary
         insert_moves_to_balance_part(m.to);
       }
-      // no need to keep invalid moves
     }
 
     // append any remaining rebalancing moves (rollback will decide whether to keep them)
@@ -349,7 +387,6 @@ namespace mt_kahypar {
         const Move& m = rebalancing_moves_by_part[part][move_index_for_part];
         ++current_rebalancing_move_index[part];
         if (m.isValid()) {
-          ASSERT(m.from == part);
           tmp_move_order[next_move_index] = m;
           ++next_move_index;
         }
@@ -357,17 +394,16 @@ namespace mt_kahypar {
     }
 
     // update sharedData
-    const MoveID first_move_id = sharedData.moveTracker.firstMoveID;
-    vec<Move>& shared_move_order = sharedData.moveTracker.moveOrder;
-    vec<MoveID>& move_of_node = sharedData.moveTracker.moveOfNode;
-    ASSERT(tmp_move_order.size() == shared_move_order.size());
+    const MoveID first_move_id = move_tracker.firstMoveID;
+    ASSERT(tmp_move_order.size() == move_tracker.moveOrder.size());
 
-    std::swap(shared_move_order, tmp_move_order);
-    sharedData.moveTracker.runningMoveID.store(first_move_id + next_move_index);
+    std::swap(move_tracker.moveOrder, tmp_move_order);
+    move_tracker.runningMoveID.store(first_move_id + next_move_index);
     tbb::parallel_for(ID(0), next_move_index, [&](const MoveID move_id) {
-      const Move& m = shared_move_order[move_id];
-      move_of_node[m.node] = first_move_id + move_id;
+      const Move& m = move_tracker.moveOrder[move_id];
+      move_tracker.moveOfNode[m.node] = first_move_id + move_id;
     }, tbb::static_partitioner());
+
   }
 
   template<typename TypeTraits, typename GainTypes, typename FMStrategy>
@@ -377,14 +413,13 @@ namespace mt_kahypar {
                                                                                    const vec<vec<Move>>& rebalancing_moves_by_part,
                                                                                    MoveID& next_move_index,
                                                                                    vec<HypernodeWeight>& current_part_weights,
-                                                                                   vec<MoveID> current_rebalancing_move_index) {
+                                                                                   vec<MoveID>& current_rebalancing_move_index) {
     while (current_part_weights[part] > max_part_weights[part]
             && current_rebalancing_move_index[part] < rebalancing_moves_by_part[part].size()) {
       const MoveID move_index_for_part = current_rebalancing_move_index[part];
       const Move& m = rebalancing_moves_by_part[part][move_index_for_part];
       ++current_rebalancing_move_index[part];
       if (m.isValid()) {
-        ASSERT(m.from == part);
         const HypernodeWeight hn_weight = phg.nodeWeight(m.node);
         current_part_weights[m.from] -= hn_weight;
         current_part_weights[m.to] += hn_weight;

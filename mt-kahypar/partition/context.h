@@ -168,6 +168,8 @@ struct FMParameters {
   bool release_nodes = true;
 
   bool rebalancing_use_violation_factor = true;
+  bool rebalancing_use_moved_nodes = true;
+  bool insert_merged_move_at_rebalancing_position = true;
 };
 
 std::ostream& operator<<(std::ostream& out, const FMParameters& params);
