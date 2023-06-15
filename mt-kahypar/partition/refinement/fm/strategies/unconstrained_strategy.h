@@ -265,8 +265,6 @@ class UnconstrainedStrategy {
   }
 
 private:
-
-
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
   void updatePQs() {
     for (PartitionID i = 0; i < context.partition.k; ++i) {
