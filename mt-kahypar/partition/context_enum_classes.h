@@ -160,6 +160,7 @@ enum class FMAlgorithm : uint8_t {
   kway_fm,
   unconstrained,
   combined,
+  cooling,
   do_nothing
 };
 

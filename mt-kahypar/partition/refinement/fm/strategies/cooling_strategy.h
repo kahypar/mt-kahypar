@@ -32,25 +32,36 @@
 
 namespace mt_kahypar {
 
-class CombinedStrategy {
+class CoolingStrategy {
 public:
   static constexpr bool uses_gain_cache = true;
   static constexpr bool maintain_gain_cache_between_rounds = true;
   static constexpr bool is_unconstrained = true;
 
-  CombinedStrategy(const Context& context,
+  CoolingStrategy(const Context& context,
                    FMSharedData& sharedData,
                    FMStats& runStats) :
+      context(context),
       default_strategy(context, sharedData, runStats),
-      unconstrained_strategy(context, sharedData, runStats) { }
+      unconstrained_strategy(context, sharedData, runStats, context.refinement.fm.imbalance_penalty_min) { }
 
   template<typename DispatchedStrategyApplicatorFn>
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
   void applyWithDispatchedStrategy(size_t /*taskID*/, size_t round, DispatchedStrategyApplicatorFn applicator_fn) {
-    if ((round % 2) == 1) {
-      applicator_fn(static_cast<GainCacheStrategy&>(default_strategy));
-    } else {
+    size_t n_rounds = context.refinement.fm.unconstrained_rounds;
+    if (round < n_rounds) {
+      double penalty;
+      if (round == 0) {
+        penalty = context.refinement.fm.imbalance_penalty_min;
+      } else {
+        penalty = (n_rounds - round - 1) * context.refinement.fm.imbalance_penalty_min
+                  + round * context.refinement.fm.imbalance_penalty_max;
+        penalty /= static_cast<double>(n_rounds - 1);
+      }
+      unconstrained_strategy.setPenaltyFactor(penalty);
       applicator_fn(static_cast<UnconstrainedStrategy&>(unconstrained_strategy));
+    } else {
+      applicator_fn(static_cast<GainCacheStrategy&>(default_strategy));
     }
   }
 
@@ -64,11 +75,12 @@ public:
     // TODO
   }
 
-  static bool isUnconstrainedRound(size_t round, const Context&) {
-    return (round % 2) == 0;
+  static bool isUnconstrainedRound(size_t round, const Context& context) {
+    return round < context.refinement.fm.unconstrained_rounds;
   }
 
  private:
+  const Context& context;
   GainCacheStrategy default_strategy;
   UnconstrainedStrategy unconstrained_strategy;
 };

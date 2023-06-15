@@ -217,7 +217,7 @@ public:
     parent->addChild("PQs", blockPQ.size_in_bytes() + vertex_pq_sizes);
   }
 
-  static bool isUnconstrainedRound(size_t) {
+  static bool isUnconstrainedRound(size_t, const Context&) {
     return false;
   }
 

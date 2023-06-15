@@ -32,6 +32,7 @@
 #include "mt-kahypar/partition/refinement/fm/strategies/gain_cache_strategy.h"
 #include "mt-kahypar/partition/refinement/fm/strategies/unconstrained_strategy.h"
 #include "mt-kahypar/partition/refinement/fm/strategies/combined_strategy.h"
+#include "mt-kahypar/partition/refinement/fm/strategies/cooling_strategy.h"
 
 namespace mt_kahypar {
 
@@ -409,10 +410,12 @@ namespace mt_kahypar {
   #define LOCALIZED_KWAY_FM_DEFAULT_STRATEGY(X, Y) LocalizedKWayFM<X, Y, GainCacheStrategy>
   #define LOCALIZED_KWAY_FM_UNCONSTRAINED_STRATEGY(X, Y) LocalizedKWayFM<X, Y, UnconstrainedStrategy>
   #define LOCALIZED_KWAY_FM_COMBINED_STRATEGY(X, Y) LocalizedKWayFM<X, Y, CombinedStrategy>
+  #define LOCALIZED_KWAY_FM_COOLING_STRATEGY(X, Y) LocalizedKWayFM<X, Y, CoolingStrategy>
   }
 
   INSTANTIATE_CLASS_WITH_TYPE_TRAITS_AND_GAIN_TYPES(LOCALIZED_KWAY_FM_DEFAULT_STRATEGY)
   INSTANTIATE_CLASS_WITH_TYPE_TRAITS_AND_GAIN_TYPES(LOCALIZED_KWAY_FM_UNCONSTRAINED_STRATEGY)
   INSTANTIATE_CLASS_WITH_TYPE_TRAITS_AND_GAIN_TYPES(LOCALIZED_KWAY_FM_COMBINED_STRATEGY)
+  INSTANTIATE_CLASS_WITH_TYPE_TRAITS_AND_GAIN_TYPES(LOCALIZED_KWAY_FM_COOLING_STRATEGY)
 
 }   // namespace mt_kahypar
