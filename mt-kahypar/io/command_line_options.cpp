@@ -501,6 +501,14 @@ namespace mt_kahypar {
              po::value<bool>((initial_partitioning ? &context.initial_partitioning.refinement.fm.release_nodes :
                               &context.refinement.fm.release_nodes))->value_name("<bool>")->default_value(true),
              "FM releases nodes that weren't moved, so they might be found by another search.")
+            ((initial_partitioning ? "i-r-fm-penalty-for-moved-rebalancing-nodes" : "r-fm-penalty-for-moved-rebalancing-nodes"),
+             po::value<bool>((initial_partitioning ? &context.initial_partitioning.refinement.fm.penalty_for_moved_rebalancing_nodes :
+                              &context.refinement.fm.penalty_for_moved_rebalancing_nodes))->value_name("<bool>")->default_value(true),
+             "Whether a pessimistic penalty is used for moves of rebalancing nodes when estimating the imbalance penalty.")
+            ((initial_partitioning ? "i-r-fm-threshold-border-node-inclusion" : "r-fm-threshold-border-node-inclusion"),
+             po::value<double>((initial_partitioning ? &context.initial_partitioning.refinement.fm.treshold_border_node_inclusion :
+                              &context.refinement.fm.treshold_border_node_inclusion))->value_name("<double>")->default_value(0.75),
+             "Threshold for block-internal incident weight when deciding whether to include border nodes for rebalancing estimation.")
             ((initial_partitioning ? "i-r-fm-rebalancing-use-violation-factor" : "r-fm-rebalancing-use-violation-factor"),
              po::value<bool>((initial_partitioning ? &context.initial_partitioning.refinement.fm.rebalancing_use_violation_factor :
                               &context.refinement.fm.rebalancing_use_violation_factor))->value_name("<bool>")->default_value(true),

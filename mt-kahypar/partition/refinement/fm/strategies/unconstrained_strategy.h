@@ -167,7 +167,7 @@ class UnconstrainedStrategy {
         runStats.extractions++;
         vertexPQs[from].deleteTop();  // blockPQ updates are done later, collectively.
 
-        if (sharedData.unconstrained.isRebalancingNode(m.node)) {
+        if (context.refinement.fm.penalty_for_moved_rebalancing_nodes && sharedData.unconstrained.isRebalancingNode(m.node)) {
           // edge case: moving a rebalancing node can throw the estimation off if we don't apply a correction
           const HypernodeWeight from_weight = phg.partWeight(m.from);
           const HypernodeWeight wu = phg.nodeWeight(u);
