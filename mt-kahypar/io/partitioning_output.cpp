@@ -172,6 +172,7 @@ namespace mt_kahypar::io {
 
     LOG << "Hypergraph Information";
     LOG << "Name :" << name;
+    LOG << "Total Weight: " << hypergraph.totalActiveWeight();
     LOG << "# HNs :" << num_hypernodes
         << "# HEs :" << (Hypergraph::is_graph ? num_hyperedges / 2 : num_hyperedges)
         << "# pins:" << num_pins

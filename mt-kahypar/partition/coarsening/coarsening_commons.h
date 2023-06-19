@@ -155,6 +155,7 @@ public:
       }
 
       // Construct partitioned hypergraph for initial partitioning
+      // TODO(maas): num nodes when exchanging in refinement?
       *partitioned_hg = PartitionedHypergraph(_context.partition.k, _hg.initialNumNodes() + _hg.numSeparatedNodes(),
                                               _hg.initialNumEdges() + 2 * _hg.numSeparatedEdges(), parallel_tag_t());
       partitioned_hg->setHypergraph(hierarchy.empty() ? _hg : hierarchy.back().contractedHypergraph());
@@ -185,6 +186,7 @@ public:
       hierarchy.pop_back();
     }
 
+    LOG << V(partitioned_hg->initialNumNodes()) << V(partitioned_hg->numSeparatedNodes());
     ASSERT([&] {
       for (HypernodeID node: partitioned_hg->nodes()) {
         if (partitioned_hg->partID(node) == kInvalidPartition) {

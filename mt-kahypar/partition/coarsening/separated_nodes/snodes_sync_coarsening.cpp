@@ -48,6 +48,10 @@ void coarsenSynchronized(SepNodesStack& stack, const Hypergraph& original_hg, co
   utils::Timer::instance().start_timer("star_partitioning", "Star Partitioning");
   utils::Timer::instance().start_timer("coarsen_synchronized", "Synchronized Coarsening");
 
+  // TODO: how to return the result? --> stack is ouput parameter
+  LOG << "";
+  LOG << "--------- coarsenSynchronized -----------";
+  LOG << V(start_num_nodes) << V(target_num_nodes) << V(levels.size());
   ASSERT(part_ids == nullptr || part_ids->size() == start_num_nodes);
 
   stack.onliest().setSavepoint();
@@ -80,6 +84,7 @@ void coarsenSynchronized(SepNodesStack& stack, const Hypergraph& original_hg, co
         tmp_factor = std::max(0.65, std::sqrt(tmp_factor));
       }
       const HypernodeID tmp_target = tmp_factor * stack.coarsest().numVisibleNodes();
+      // LOG << "--" << V(tmp_target) << V(stack.coarsest().numVisibleNodes()) << V(current_step_start_nodes);
       if ((j == levels.size() && stage == SNodesCoarseningStage::ON_LARGE_GRAPH)
           || (context.coarsening.sep_nodes_coarsening_levelwise && j == stack.numLevels())) {
         stage = SNodesCoarseningStage::D1_TWINS;
@@ -95,6 +100,8 @@ void coarsenSynchronized(SepNodesStack& stack, const Hypergraph& original_hg, co
       current_num_nodes -= n_contracted;
       stage = c_pass.stage();
       stage = previous(stage);
+      std::cout << current_num_nodes << "/" << target_num_nodes << " -- Stage "
+                << static_cast<uint16_t>(stage) << "  [" << V(reduction_factor) << ", " << V(tmp_factor) << "]" << std::endl;
       stack.coarsen(std::move(communities));
 
       if (part_ids != nullptr) {
@@ -116,6 +123,7 @@ void coarsenSynchronized(SepNodesStack& stack, const Hypergraph& original_hg, co
              && stack.coarsest().numVisibleNodes() > target_num_nodes && any_contracted);
 
     stack.contractToNLevels(i + 2);
+    LOG << V(i) << V(j) << V(stack.coarsest().numVisibleNodes()) << V(stack.numLevels());
   }
 
   replayToSynchronizeLevels(stack, original_hg, levels);
@@ -130,6 +138,7 @@ void coarsenSynchronized(SepNodesStack& stack, const Hypergraph& original_hg, co
     }
     return true;
   }(), "Constructed separated nodes stack does not match graph levels!");
+  LOG << "---- coarsenSynchronized done -----";
 
   utils::Timer::instance().stop_timer("coarsen_synchronized");
   utils::Timer::instance().stop_timer("star_partitioning");

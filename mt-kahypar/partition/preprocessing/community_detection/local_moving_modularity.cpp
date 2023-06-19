@@ -202,6 +202,7 @@ bool ParallelLocalMovingModularity::localMoving(Graph& graph, ds::Clustering& co
       double min_gain = 1 / (avg_inv_weigh_gain + stdev_factor * stdev_inv_weigh_gain);
       const double min_gain_limit = 1 / (avg_inv_weigh_gain + stdev_factor_min * stdev_inv_weigh_gain);
       if (top_level && _context.preprocessing.community_detection.adjust_sd_factor) {
+        LOG << "ADJUST SD FACTOR - " << V(min_gain);
         tbb::parallel_sort(inv_gains.begin(), inv_gains.end(), [](auto l, auto r) { return l.first > r.first; });
         HypernodeWeight sum = 0;
         for (auto pair: inv_gains) {
@@ -210,6 +211,7 @@ bool ParallelLocalMovingModularity::localMoving(Graph& graph, ds::Clustering& co
             const double max_inv_gain = pair.first;
             min_gain = std::max(min_gain, 1 / max_inv_gain);
             min_gain = std::min(min_gain, min_gain_limit);
+            LOG << V(min_gain) << V(1 / max_inv_gain) << V(min_gain_limit);
             break;
           }
         }
@@ -283,6 +285,7 @@ bool ParallelLocalMovingModularity::localMoving(Graph& graph, ds::Clustering& co
             double gain_to_iso = computeGainComparedToIsolated(graph, communities, node);
             inv_gains[i - start_pos] = 1 / std::max(gain_to_iso, 1.0);
           });
+          // LOG << V(inv_gains.size()) << V(inv_gains[0]) << V(_cluster_volumes[c]) << V(graph.nodeVolume(nodes_per_community[start_pos]));
 
           const double avg_inv_weigh_gain = utils::parallel_weighted_avg(inv_gains, _cluster_volumes[c],
             [&](size_t i) {
@@ -300,6 +303,7 @@ bool ParallelLocalMovingModularity::localMoving(Graph& graph, ds::Clustering& co
               isolateNode(node);
             }
           });
+          // LOG << V(community) << V(avg_inv_weigh_gain) << V(stdev_inv_weigh_gain);
         }
       }
     }
@@ -316,6 +320,7 @@ bool ParallelLocalMovingModularity::localMoving(Graph& graph, ds::Clustering& co
       });
     }
     utils::Stats::instance().add_stat("num_separated_in_community_detection", num_separated_local.combine(std::plus<>()));
+    LOG << V(num_separated_local.combine(std::plus<>()));
 
 
     if (top_level && _context.preprocessing.community_detection.collect_component_stats) {
@@ -368,6 +373,7 @@ bool ParallelLocalMovingModularity::localMoving(Graph& graph, ds::Clustering& co
           number_of_nodes_moved >= _context.preprocessing.community_detection.min_vertex_move_fraction * graph.numNodes()
           && round < _context.preprocessing.community_detection.max_pass_iterations; round++) {
         number_of_nodes_moved = parallelNonDeterministicRound(graph, communities, true);
+        LOG << V(round) << V(number_of_nodes_moved);
       }
     }
   }

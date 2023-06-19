@@ -117,15 +117,22 @@ namespace mt_kahypar::multilevel {
         phg.initializePartition();
       }
 
+      LOG << "";
+      LOG << "### Initial Cut: " << metrics::hyperedgeCut(phg);
+      LOG << "### Initial Imbalance: " << metrics::imbalance(phg, context);
+      LOG << "";
+
       ASSERT([&] {
         for (size_t i = 0; i < levels.size(); ++i) {
           const Hypergraph& old_hg = (i == 0) ? hg : levels[i - 1].contractedHypergraph();
           if (old_hg.initialNumNodes() != levels[i].communities().size()) {
+            LOG << V(i) << V(old_hg.initialNumNodes()) << V(levels[i].communities().size());
             return false;
           }
           for (HypernodeID j = 0; j < levels[i].communities().size(); ++j) {
             const HypernodeID node = levels[i].communities()[j];
             if (old_hg.nodeIsEnabled(j) && node >= levels[i].contractedHypergraph().initialNumNodes()) {
+              LOG << V(i) << V(node) << V(levels[i].contractedHypergraph().initialNumNodes());
               return false;
             }
           }
@@ -140,6 +147,7 @@ namespace mt_kahypar::multilevel {
         }
         return true;
       }());
+      LOG << "reconstructHierarchyWithSeparatedNodes DONE";
 
       utils::Timer::instance().stop_timer("reconstruct_hierarchy");
       utils::Timer::instance().stop_timer("star_partitioning");
@@ -196,12 +204,12 @@ namespace mt_kahypar::multilevel {
 
       io::printPartitioningResults(_uncoarseningData->coarsestPartitionedHypergraph(),
                                    _context, "Initial Partitioning Results:");
-      if (_context.graphviz_file != "" && _context.type == kahypar::ContextType::main) {
-        #ifdef USE_GRAPH_PARTITIONER
-        utils::outputGraphvizFile(_uncoarseningData->coarsestPartitionedHypergraph(), _context.graphviz_file, false, ".result_plain");
-        utils::outputGraphvizFile(_uncoarseningData->coarsestPartitionedHypergraph(), _context.graphviz_file, true, ".result_incl");
-        #endif
-      }
+      // if (_context.graphviz_file != "" && _context.type == kahypar::ContextType::main) {
+      //   #ifdef USE_GRAPH_PARTITIONER
+      //   utils::outputGraphvizFile(_uncoarseningData->coarsestPartitionedHypergraph(), _context.graphviz_file, false, ".result_plain");
+      //   utils::outputGraphvizFile(_uncoarseningData->coarsestPartitionedHypergraph(), _context.graphviz_file, true, ".result_incl");
+      //   #endif
+      // }
       if ( _context.partition.verbose_output ) {
         utils::InitialPartitioningStats::instance().printInitialPartitioningStats();
       }
@@ -220,6 +228,12 @@ namespace mt_kahypar::multilevel {
             part_ids[node] = _uncoarseningData->partitioned_hg->separatedPartID(node);
           });
           part_id_ptr = &part_ids;
+
+          LOG << "";
+          LOG << "#####################";
+          LOG << "### Initial Cut: " << (metrics::hyperedgeCut(*_uncoarseningData->partitioned_hg) + added_cut);
+          LOG << "### Initial Imbalance: " << metrics::imbalance(*_uncoarseningData->partitioned_hg, _context);
+          LOG << "";
         }
         SepNodesStack stack(_hg.separatedNodes().finest().createCopyFromSavepoint());
         const HypernodeID start_num_nodes = _hg.numSeparatedNodes();
@@ -229,6 +243,7 @@ namespace mt_kahypar::multilevel {
                                                start_num_nodes, target_num_nodes, part_id_ptr);
         _uncoarseningData->partitioned_hg->setSeparatedNodes(&stack);
         if (_context.refinement.separated_partition_aware_coarsening) {
+          LOG << "XXXXXXXXXXXXXX";
           vec<CAtomic<PartitionID>>& graph_part_ids = _uncoarseningData->partitioned_hg->separatedPartIDs();
           ASSERT(graph_part_ids.size() >= part_ids.size());
           tbb::parallel_for(0UL, graph_part_ids.size(), [&] (const size_t& pos) {
@@ -240,10 +255,18 @@ namespace mt_kahypar::multilevel {
           });
         } else {
           // TODO!!
+          LOG << V(_uncoarseningData->partitioned_hg->initialNumNodes()) << V(stack.coarsest().numNodes());
           _uncoarseningData->partitioned_hg->resetSeparatedParts();
           const HyperedgeWeight added_cut = star_partitioning::partition(*_uncoarseningData->partitioned_hg,
                                                                          stack.coarsest(), _context, true);
+
+          LOG << "";
+          LOG << "#####################";
+          LOG << "### Initial Cut: " << (metrics::hyperedgeCut(*_uncoarseningData->partitioned_hg) + added_cut);
+          LOG << "### Initial Imbalance: " << metrics::imbalance(*_uncoarseningData->partitioned_hg, _context);
+          LOG << "";
         }
+        // _uncoarseningData->partitioned_hg->updateBlockWeights();
 
         reconstructHierarchyWithSeparatedNodes(_hg, _context, stack, *_uncoarseningData);
       }
@@ -320,6 +343,14 @@ namespace mt_kahypar::multilevel {
         _hg.separatedNodes().finest().setSavepoint();
       }
 
+      if (_context.graphviz_file != "") {
+        #ifdef USE_GRAPH_PARTITIONER
+        std::string kind = (_context.type == kahypar::ContextType::main) ? ".input" : ".coarse";
+        utils::outputGraphvizFile(_hg, _context.graphviz_file, false, kind + "_plain");
+        utils::outputGraphvizFile(_hg, _context.graphviz_file, true, kind + "_incl");
+        #endif
+      }
+
       // ################## COARSENING ##################
       mt_kahypar::io::printCoarseningBanner(_context);
 
@@ -339,12 +370,12 @@ namespace mt_kahypar::multilevel {
       if (_context.coarsened_stats_file != "") {
         utils::printDistributionStatsToCSV(coarsestHypergraph, _context.coarsened_stats_file);
       }
-      if (_context.graphviz_file != "") {
-        #ifdef USE_GRAPH_PARTITIONER
-        utils::outputGraphvizFile(coarsestHypergraph, _context.graphviz_file, false, ".coarse_plain");
-        utils::outputGraphvizFile(coarsestHypergraph, _context.graphviz_file, true, ".coarse_incl");
-        #endif
-      }
+      // if (_context.graphviz_file != "") {
+      //   #ifdef USE_GRAPH_PARTITIONER
+      //   utils::outputGraphvizFile(coarsestHypergraph, _context.graphviz_file, false, ".coarse_plain");
+      //   utils::outputGraphvizFile(coarsestHypergraph, _context.graphviz_file, true, ".coarse_incl");
+      //   #endif
+      // }
 
       // ################## SEPARATED NODES COARSENING ##################
       if (_context.coarsening.sep_nodes_sync_coarsening && !_vcycle) {
@@ -369,6 +400,7 @@ namespace mt_kahypar::multilevel {
       }
 
       if ( _sparsifier.isSparsified() ) {
+        // TODO(maas): not compatible with separated nodes
         if (_context.partition.verbose_output) {
           mt_kahypar::io::printHypergraphInfo(
                   _sparsifier.sparsifiedHypergraph(), "Sparsified Hypergraph",

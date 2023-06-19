@@ -67,5 +67,10 @@ namespace mt_kahypar {
       const HyperedgeWeight added_cut = star_partitioning::partition(_hg, _hg.separatedNodes().finest(), _context, true);
     }
     _hg.updateBlockWeights();
+
+    // LOG << "";
+    // LOG << "### Initial Cut: " << (metrics::hyperedgeCut(_hg) + added_cut);
+    // LOG << "### Initial Imbalance: " << metrics::imbalance(_hg, _context);
+    // LOG << "";
   }
 } // namepace mt_kahypar

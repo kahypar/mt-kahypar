@@ -290,6 +290,8 @@ class Array {
               const value_type init_value = value_type(),
               const bool assign_parallel = true) {
     if ( _data || _underlying_data ) {
+      LOG << V(_group) << V(_key);
+      ALWAYS_ASSERT(false, "Memory of vector already allocated");
       ERROR("Memory of vector already allocated");
     }
     allocate_data(size);

@@ -37,6 +37,7 @@ void coarsen(SepNodesStack& stack, const Hypergraph& coarsened_hg,
   HypernodeID previous_num_nodes = stack.coarsest().numNodes();
   SNodesCoarseningStage stage = SNodesCoarseningStage::D1_TWINS;
   while (stack.coarsest().numNodes() > target_num_nodes) {
+    std::cout << previous_num_nodes << "/" << target_num_nodes << " -- Stage " << static_cast<int>(stage) << std::endl;
     stack.coarsest().initializeOutwardEdges();
     const HypernodeID tmp_target = std::max(static_cast<HypernodeID>(0.65 * stack.coarsest().numNodes()), target_num_nodes);
     SNodesCoarseningPass c_pass(coarsened_hg, context, tmp_target, stage);
@@ -52,6 +53,7 @@ void coarsen(SepNodesStack& stack, const Hypergraph& coarsened_hg,
       break;
     }
   }
+  std::cout << stack.coarsest().numNodes() << "/" << target_num_nodes << " -- Stage " << static_cast<int>(stage) << std::endl;
 
   utils::Timer::instance().stop_timer("coarsen");
   utils::Timer::instance().stop_timer("star_partitioning");

@@ -160,6 +160,9 @@ namespace mt_kahypar {
             ("coarsened-stats-file",
              po::value<std::string>(&context.coarsened_stats_file)->value_name("<std::string>")->default_value(""),
              "File to print distribution stats about coarsened graph (csv format).")
+            ("community-stats-file",
+             po::value<std::string>(&context.community_stats_file)->value_name("<std::string>")->default_value(""),
+             "File to print distribution of louvain gains (list of numbers).")
             ("graphviz-file",
              po::value<std::string>(&context.graphviz_file)->value_name("<std::string>")->default_value(""),
              "File to print visualization data of coarsened graph (dot format for graphviz).");
@@ -224,7 +227,7 @@ namespace mt_kahypar {
              "Louvain pass terminates if less than that fraction of nodes moves during a pass")
             ("p-vertex-degree-sampling-threshold",
              po::value<size_t>(&context.preprocessing.community_detection.vertex_degree_sampling_threshold)->value_name(
-                     "<size_t>")->default_value(std::numeric_limits<size_t>::max()),
+                     "<size_t>")->default_value(200000),
              "If set, then neighbors of a vertex are sampled during rating if its degree is greater than this threshold.")
             ("p-num-sub-rounds",
              po::value<size_t>(&context.preprocessing.community_detection.num_sub_rounds_deterministic)->value_name(
@@ -386,7 +389,7 @@ namespace mt_kahypar {
              "Consider incident weight / node weight ratio relative to target in rating.")
             ("c-vertex-degree-sampling-threshold",
              po::value<size_t>(&context.coarsening.vertex_degree_sampling_threshold)->value_name(
-                     "<size_t>")->default_value(std::numeric_limits<size_t>::max()),
+                     "<size_t>")->default_value(200000),
              "If set, then neighbors of a vertex are sampled during rating if its degree is greater than this threshold.")
             ("c-num-sub-rounds",
              po::value<size_t>(&context.coarsening.num_sub_rounds_deterministic)->value_name(
@@ -512,7 +515,7 @@ namespace mt_kahypar {
              po::value<bool>((initial_partitioning ?
                               &context.initial_partitioning.refinement.fm.iter_moves_on_recalc :
                               &context.refinement.fm.iter_moves_on_recalc))
-                     ->value_name("<bool>")->default_value(false),
+                     ->value_name("<bool>")->default_value(true),
              "Touch only incident hyperedges of moved vertices for parallel gain recalculation.")
             ((initial_partitioning ? "i-r-fm-rollback-balance-violation-factor"
                                    : "r-fm-rollback-balance-violation-factor"),
