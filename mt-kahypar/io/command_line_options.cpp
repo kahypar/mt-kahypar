@@ -603,6 +603,7 @@ namespace mt_kahypar {
              "Rebalancer Algorithm:\n"
              "- simple_rebalancer\n"
              "- jet_rebalancer\n"
+             "- kaminpar_rebalancer\n"
              "- do_nothing")
             ((initial_partitioning ? "i-r-jetr-num-weak-iterations" : "r-jetr-num-weak-iterations"),
              po::value<size_t>((initial_partitioning ? &context.initial_partitioning.refinement.jet_rebalancing.num_weak_iterations :

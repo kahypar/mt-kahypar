@@ -269,6 +269,7 @@ std::ostream & operator<< (std::ostream& os, const RebalancingAlgorithm& algo) {
     switch (algo) {
       case RebalancingAlgorithm::simple_rebalancer: return os << "simple_rebalancer";
       case RebalancingAlgorithm::jet_rebalancer: return os << "jet_rebalancer";
+      case RebalancingAlgorithm::kaminpar_rebalancer: return os << "kaminpar_rebalancer";
       case RebalancingAlgorithm::do_nothing: return os << "do_nothing";
         // omit default case to trigger compiler warning for missing cases
     }
@@ -497,6 +498,8 @@ std::ostream & operator<< (std::ostream& os, const RebalancingAlgorithm& algo) {
       return RebalancingAlgorithm::simple_rebalancer;
     } else if (type == "jet_rebalancer") {
       return RebalancingAlgorithm::jet_rebalancer;
+    } else if (type == "kaminpar_rebalancer") {
+      return RebalancingAlgorithm::kaminpar_rebalancer;
     } else if (type == "do_nothing") {
       return RebalancingAlgorithm::do_nothing;
     }

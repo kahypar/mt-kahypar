@@ -51,6 +51,7 @@
 #include "mt-kahypar/partition/refinement/flows/scheduler.h"
 #include "mt-kahypar/partition/refinement/flows/flow_refiner.h"
 #include "mt-kahypar/partition/refinement/rebalancing/jet_rebalancer.h"
+#include "mt-kahypar/partition/refinement/rebalancing/kaminpar_rebalancer.h"
 #include "mt-kahypar/partition/refinement/rebalancing/rebalancer.h"
 
 namespace mt_kahypar {
@@ -146,6 +147,11 @@ using JetRebalancerDispatcher = kahypar::meta::StaticMultiDispatchFactory<
                                     JetRebalancer,
                                     IRebalancer,
                                     kahypar::meta::Typelist<TypeTraitsList, GainTypes>>;
+
+using KaminparRebalancerDispatcher = kahypar::meta::StaticMultiDispatchFactory<
+                                     KaminparRebalancer,
+                                     IRebalancer,
+                                     kahypar::meta::Typelist<TypeTraitsList, GainTypes>>;
 
 using FlowRefinementFactory = kahypar::meta::Factory<FlowAlgorithm,
                               IFlowRefiner* (*)(const HyperedgeID, const Context&)>;
