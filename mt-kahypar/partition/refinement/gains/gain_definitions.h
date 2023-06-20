@@ -37,6 +37,9 @@
 #include "mt-kahypar/partition/refinement/gains/km1/km1_gain_computation.h"
 #include "mt-kahypar/partition/refinement/gains/km1/km1_attributed_gains.h"
 #include "mt-kahypar/partition/refinement/gains/km1/km1_flow_network_construction.h"
+
+#ifdef MORE_GAIN_TYPES
+
 #include "mt-kahypar/partition/refinement/gains/cut/cut_gain_cache.h"
 #include "mt-kahypar/partition/refinement/gains/cut/cut_rollback.h"
 #include "mt-kahypar/partition/refinement/gains/cut/cut_gain_computation.h"
@@ -47,6 +50,10 @@
 #include "mt-kahypar/partition/refinement/gains/soed/soed_gain_cache.h"
 #include "mt-kahypar/partition/refinement/gains/soed/soed_rollback.h"
 #include "mt-kahypar/partition/refinement/gains/soed/soed_flow_network_construction.h"
+
+
+#endif
+
 #include "mt-kahypar/partition/refinement/gains/cut_for_graphs/cut_gain_cache_for_graphs.h"
 #include "mt-kahypar/partition/refinement/gains/cut_for_graphs/cut_attributed_gains_for_graphs.h"
 #include "mt-kahypar/macros.h"
@@ -61,6 +68,8 @@ struct Km1GainTypes : public kahypar::meta::PolicyBase {
   using Rollback = Km1Rollback;
   using FlowNetworkConstruction = Km1FlowNetworkConstruction;
 };
+
+#ifdef MORE_GAIN_TYPES
 
 struct CutGainTypes : public kahypar::meta::PolicyBase {
   using GainComputation = CutGainComputation;
@@ -80,25 +89,27 @@ struct SoedGainTypes : public kahypar::meta::PolicyBase {
   using FlowNetworkConstruction = SoedFlowNetworkConstruction;
 };
 
+#endif
+
 struct CutGainForGraphsTypes : public kahypar::meta::PolicyBase {
-  using GainComputation = CutGainComputation;
+  using GainComputation = Km1GainComputation;
   using AttributedGains = GraphCutAttributedGains;
   using GainCache = GraphCutGainCache;
   using DeltaGainCache = DeltaGraphCutGainCache;
   using Rollback = Km1Rollback;
-  using FlowNetworkConstruction = CutFlowNetworkConstruction;
+  using FlowNetworkConstruction = Km1FlowNetworkConstruction;
 };
 
 
-using GainTypes = kahypar::meta::Typelist<Km1GainTypes,
-                                          CutGainTypes,
-                                          SoedGainTypes
+using GainTypes = kahypar::meta::Typelist<Km1GainTypes
+                                          ENABLE_OTHER_GAINS(COMMA CutGainTypes)
+                                          ENABLE_OTHER_GAINS(COMMA SoedGainTypes)
                                           ENABLE_GRAPHS(COMMA CutGainForGraphsTypes)>;
 
 #define INSTANTIATE_CLASS_WITH_TYPE_TRAITS_AND_GAIN_TYPES(C)                                      \
   INSTANTIATE_CLASS_MACRO_WITH_TYPE_TRAITS_AND_OTHER_CLASS(C, Km1GainTypes)                       \
-  INSTANTIATE_CLASS_MACRO_WITH_TYPE_TRAITS_AND_OTHER_CLASS(C, CutGainTypes)                       \
-  INSTANTIATE_CLASS_MACRO_WITH_TYPE_TRAITS_AND_OTHER_CLASS(C, SoedGainTypes)                      \
+  ENABLE_OTHER_GAINS(INSTANTIATE_CLASS_MACRO_WITH_TYPE_TRAITS_AND_OTHER_CLASS(C, CutGainTypes))   \
+  ENABLE_OTHER_GAINS(INSTANTIATE_CLASS_MACRO_WITH_TYPE_TRAITS_AND_OTHER_CLASS(C, SoedGainTypes))  \
   ENABLE_GRAPHS(INSTANTIATE_CLASS_MACRO_WITH_TYPE_TRAITS_AND_OTHER_CLASS(C, CutGainForGraphsTypes))
 
 }  // namespace mt_kahypar

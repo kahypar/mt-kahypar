@@ -221,7 +221,9 @@ namespace mt_kahypar {
           enable_light_fm = true;
         } else {
           DBG << RED << "Light version of Multitry FM reached time limit => ABORT" << END;
-          break;
+          LOG << "reached usual time limit. but we keep going";
+          // TODO bring the time limit back. let's ignore the time limit for now, as long as the code isn't properly optimized
+          // break;
         }
       }
 
@@ -486,6 +488,11 @@ namespace mt_kahypar {
   #define MULTITRY_KWAY_FM_COMBINED_STRATEGY(X, Y) MultiTryKWayFM<X, Y, CombinedStrategy>
   #define MULTITRY_KWAY_FM_COOLING_STRATEGY(X, Y) MultiTryKWayFM<X, Y, CoolingStrategy>
   }
+
+
+  // TODO implement combined and cooling strategy inside MultiTryKWayFM to halve compilation time.
+  // Just keeping two tbb::enumerable_thread_specific<FMStrategy> objects and dispatching at runtime should reduce it further
+  // --> then LocalizedFM doesn't hold a strategy object
 
   INSTANTIATE_CLASS_WITH_TYPE_TRAITS_AND_GAIN_TYPES(MULTITRY_KWAY_FM_DEFAULT_STRATEGY)
   INSTANTIATE_CLASS_WITH_TYPE_TRAITS_AND_GAIN_TYPES(MULTITRY_KWAY_FM_UNCONSTRAINED_STRATEGY)
