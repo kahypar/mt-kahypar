@@ -143,7 +143,7 @@ class UnconstrainedStrategy {
       auto [to, gain] = computeBestTargetBlock(phg, gain_cache, u, phg.partID(u));
 
       bool apply_move = (gain >= estimated_gain); // accept any gain that is at least as good
-      if (apply_move && to != kInvalidPartition) {
+      if (apply_move && to != kInvalidPartition && penaltyFactor > 0) {
         const HypernodeWeight wu = phg.nodeWeight(u);
         const HypernodeWeight to_weight = phg.partWeight(to);
         if (to_weight + wu > context.partition.max_part_weights[to]) {
@@ -296,7 +296,7 @@ private:
         if (to_weight + wu > max_weight && benefit <= to_benefit) {
           // don't take imbalanced move without improved gain
           continue;
-        } else if (to_weight + wu > max_weight) {
+        } else if (to_weight + wu > max_weight && penaltyFactor > 0) {
           const HypernodeWeight imbalance = std::min(wu, to_weight + wu - max_weight);
           const Gain imbalance_penalty = sharedData.unconstrained.estimatedPenaltyForImbalancedMove(i, imbalance);
           if (imbalance_penalty == std::numeric_limits<Gain>::max()) {
@@ -334,7 +334,7 @@ private:
       if (i != from && i != kInvalidPartition) {
         const HypernodeWeight to_weight = phg.partWeight(i);
         HyperedgeWeight benefit = gain_cache.benefitTerm(u, i);
-        if (to_weight + wu > context.partition.max_part_weights[i]) {
+        if (to_weight + wu > context.partition.max_part_weights[i] && penaltyFactor > 0) {
           const HypernodeWeight imbalance = std::min(wu, to_weight + wu - context.partition.max_part_weights[i]);
           const Gain imbalance_penalty = sharedData.unconstrained.estimatedPenaltyForImbalancedMove(i, imbalance);
           if (imbalance_penalty == std::numeric_limits<Gain>::max()) {
