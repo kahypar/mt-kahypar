@@ -83,8 +83,9 @@ namespace mt_kahypar {
     DBG << "[JET] initialization done, num_nodes=" << hypergraph.initialNumNodes();
 
     _current_partition_is_best = true;
-    size_t num_rounds = 0;
-    while (true) {
+    size_t rounds_without_improvement = 0;
+    const size_t max_rounds = _context.refinement.jet.fixed_n_iterations;
+    for (size_t i = 0; max_rounds == 0 || i < max_rounds; ++i) {
       // We need to store the best partition for rollback and the current partition to determine
       // which nodes have been moved. However, we don't need to write both if the best partition
       // is equal to the current partition.
@@ -129,18 +130,18 @@ namespace mt_kahypar {
         V(current_metrics.quality) << V(metrics::quality(hypergraph, _context,
             !_context.refinement.jet.execute_sequential)));
 
-      ++num_rounds;
+      ++rounds_without_improvement;
       if (metrics::isBalanced(hypergraph, _context) && current_metrics.quality <= best_metrics.quality) {
         if (best_metrics.quality - current_metrics.quality >
                 _context.refinement.jet.relative_improvement_threshold * best_metrics.quality) {
-          num_rounds = 0;
+          rounds_without_improvement = 0;
         }
         best_metrics = current_metrics;
         _current_partition_is_best = true;
       } else {
         _current_partition_is_best = false;
       }
-      if (num_rounds >= _context.refinement.jet.num_iterations) {
+      if (rounds_without_improvement >= _context.refinement.jet.num_iterations) {
         break;
       } else {
         // initialize active vertices for next round

@@ -138,6 +138,7 @@ std::ostream & operator<< (std::ostream& str, const LabelPropagationParameters& 
 struct JetParameters {
   JetAlgorithm algorithm = JetAlgorithm::do_nothing;
   size_t num_iterations = 12;
+  size_t fixed_n_iterations = 0;
   double relative_improvement_threshold = 0.001;
   bool execute_sequential = false;
   bool restrict_to_border_nodes = true;

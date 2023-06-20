@@ -399,6 +399,11 @@ namespace mt_kahypar {
                                 &context.initial_partitioning.refinement.jet.num_iterations))->value_name(
                      "<size_t>")->default_value(12),
              "Maximum number of jet iterations after no improvement is found.")
+            ((initial_partitioning ? "i-r-jet-fixed-iterations" : "r-jet-fixed-iterations"),
+             po::value<size_t>((!initial_partitioning ? &context.refinement.jet.fixed_n_iterations :
+                                &context.initial_partitioning.refinement.jet.fixed_n_iterations))->value_name(
+                     "<size_t>")->default_value(0),
+             "Use a fixed number of jet iterations.")
             ((initial_partitioning ? "i-r-jet-relative-improvement-threshold" : "r-jet-relative-improvement-threshold"),
              po::value<double>((!initial_partitioning ? &context.refinement.jet.relative_improvement_threshold :
                                 &context.initial_partitioning.refinement.jet.relative_improvement_threshold))->value_name(
