@@ -71,6 +71,7 @@ public:
   SpinLock(const SpinLock&) { }
   SpinLock& operator=(const SpinLock&) { spinner.clear(std::memory_order_relaxed); return *this; }
 
+  // TODO optimize
   bool tryLock() {
     return !spinner.test_and_set(std::memory_order_acquire);
   }
@@ -90,6 +91,19 @@ private:
   std::atomic_flag spinner = ATOMIC_FLAG_INIT;
 };
 
+class SpinLock2 {
+private:
+  std::atomic<bool> lock_ = false;
+public:
+  bool tryLock() { return !lock_.load(std::memory_order_relaxed) && !lock_.exchange(true, std::memory_order_acquire); }
+  void unlock() { lock_.store(false, std::memory_order_release); }
+  void lock() {
+    while (true) {
+      if (!lock_.exchange(true, std::memory_order_acquire)) return;
+      while (lock_.load(std::memory_order_relaxed)) { }
+    }
+  }
+};
 
 namespace mt_kahypar {
 namespace parallel {

@@ -29,6 +29,7 @@
 
 #include <iostream>
 #include <string>
+#include <cstdint>
 
 #include "include/libmtkahypartypes.h"
 #include "mt-kahypar/macros.h"
@@ -173,6 +174,7 @@ enum class FlowAlgorithm : uint8_t {
 enum class RebalancingAlgorithm : uint8_t {
   simple_rebalancer,
   jet_rebalancer,
+  rebalancer,
   do_nothing
 };
 

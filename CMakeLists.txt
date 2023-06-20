@@ -64,11 +64,14 @@ option(KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES
 option(KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES
   "Enables graph partitioning features. Can be turned off for faster compilation." ON)
 
+option(MORE_GAIN_TYPES
+  "Compile additional objective functions (cut, soed). Can be turned off for faster compilation." OFF)
+
 option(KAHYPAR_ENABLE_N_LEVEL_PARTITIONING_FEATURES
-  "Enables n-level partitioning features. Can be turned off for faster compilation." ON)
+  "Enables n-level partitioning features. Can be turned off for faster compilation." OFF)
 
 option(KAHYPAR_ENABLE_LARGE_K_PARTITIONING_FEATURES
-  "Enables large k partitioning features. Can be turned off for faster compilation." ON)
+  "Enables large k partitioning features. Can be turned off for faster compilation." OFF)
 
 if(KAHYPAR_DISABLE_ASSERTIONS)
   add_compile_definitions(KAHYPAR_DISABLE_ASSERTIONS)
@@ -132,6 +135,7 @@ include_directories(SYSTEM ${gtest_SOURCE_DIR}/include ${gtest_SOURCE_DIR})
 include_directories(SYSTEM ${gtest_SOURCE_DIR}/../googlemock/include ${gtest_SOURCE_DIR}/../googlemock/)
 include_directories(external_tools/kahypar)
 include_directories(external_tools/WHFC)
+include_directories(external_tools/pcg)
 
 if(KAHYPAR_DOWNLOAD_BOOST)
   # Download Boost

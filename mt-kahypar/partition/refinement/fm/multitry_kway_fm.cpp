@@ -351,6 +351,8 @@ namespace mt_kahypar {
     vec<MoveID> current_rebalancing_move_index(context.partition.k, 0);
     MoveID next_move_index = 0;
 
+    // TODO inspect quality of balancing moves now
+
     auto insert_moves_to_balance_part = [&](const PartitionID part) {
       if (current_part_weights[part] > max_part_weights[part]) {
         insertMovesToBalancePart(phg, part, max_part_weights, rebalancing_moves_by_part,
@@ -428,6 +430,9 @@ namespace mt_kahypar {
         tmp_move_order[next_move_index] = m;
         ++next_move_index;
 
+        // TODO what is better?
+        // a) finish fixing the current block first or the target block first? two overloaded blocks can just alternate moving weight between each other. in this case, the current implementation has linear recursion depth
+        // b) what if m.to is already overloaded? should the move be skipped or not?
         if (current_part_weights[m.to] > max_part_weights[m.to]) {
           // edge case: it is possible that the rebalancing move itself causes new imbalance -> call recursively
           insertMovesToBalancePart(phg, m.to, max_part_weights, rebalancing_moves_by_part,

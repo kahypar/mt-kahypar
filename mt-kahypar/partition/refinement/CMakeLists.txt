@@ -12,6 +12,7 @@ set(RefinementSources
         jet/jet_refiner.cpp
         rebalancing/rebalancer.cpp
         rebalancing/jet_rebalancer.cpp
+        rebalancing/rebalancer_v2.cpp
         deterministic/deterministic_label_propagation.cpp
         flows/refiner_adapter.cpp
         flows/problem_construction.cpp
