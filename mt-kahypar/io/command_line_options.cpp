@@ -403,6 +403,11 @@ namespace mt_kahypar {
                                 &context.initial_partitioning.refinement.jet.num_iterations))->value_name(
                      "<size_t>")->default_value(12),
              "Maximum number of jet iterations after no improvement is found.")
+            ((initial_partitioning ? "i-r-jet-fixed-iterations" : "r-jet-fixed-iterations"),
+             po::value<size_t>((!initial_partitioning ? &context.refinement.jet.fixed_n_iterations :
+                                &context.initial_partitioning.refinement.jet.fixed_n_iterations))->value_name(
+                     "<size_t>")->default_value(0),
+             "Use a fixed number of jet iterations.")
             ((initial_partitioning ? "i-r-jet-relative-improvement-threshold" : "r-jet-relative-improvement-threshold"),
              po::value<double>((!initial_partitioning ? &context.refinement.jet.relative_improvement_threshold :
                                 &context.initial_partitioning.refinement.jet.relative_improvement_threshold))->value_name(
@@ -413,6 +418,11 @@ namespace mt_kahypar {
                               &context.initial_partitioning.refinement.jet.restrict_to_border_nodes))->value_name(
                      "<bool>")->default_value(true),
              "If true, then only border nodes are considered for JET.")
+            ((initial_partitioning ? "i-r-jet-rollback-after-each-iteration" : "r-jet-rollback-after-each-iteration"),
+             po::value<bool>((!initial_partitioning ? &context.refinement.jet.rollback_after_each_iteration :
+                              &context.initial_partitioning.refinement.jet.rollback_after_each_iteration))->value_name(
+                     "<bool>")->default_value(false),
+             "If true, rollback to best partition in each iteration without improvement.")
             ((initial_partitioning ? "i-r-jet-vertex-locking" : "r-jet-vertex-locking"),
              po::value<double>((!initial_partitioning ? &context.refinement.jet.vertex_locking :
                               &context.initial_partitioning.refinement.jet.vertex_locking))->value_name(
