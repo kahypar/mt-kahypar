@@ -132,7 +132,8 @@ namespace mt_kahypar {
       str << "    Fixed Iterations:                 " << params.fixed_n_iterations << std::endl;
       str << "    Relative Improvement Threshold:   " << params.relative_improvement_threshold << std::endl;
       str << "    Restrict to Border Nodes:         " << std::boolalpha << params.restrict_to_border_nodes << std::endl;
-      str << "    Vertex Locking:                   " << std::boolalpha << params.vertex_locking << std::endl;
+      str << "    Rollback after each Iteration:    " << std::boolalpha << params.rollback_after_each_iteration << std::endl;
+      str << "    Vertex Locking:                   " << params.vertex_locking << std::endl;
       str << "    Negative Gain Factor (Coarse):    " << params.negative_gain_factor_coarse << std::endl;
       str << "    Negative Gain Factor (Fine):      " << params.negative_gain_factor_fine << std::endl;
     }

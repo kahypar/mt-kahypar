@@ -138,6 +138,9 @@ namespace mt_kahypar {
         }
         best_metrics = current_metrics;
         _current_partition_is_best = true;
+      } else if (_context.refinement.jet.rollback_after_each_iteration) {
+        rollbackToBestPartition(hypergraph);
+        recomputePenalties(hypergraph, true);
       } else {
         _current_partition_is_best = false;
       }

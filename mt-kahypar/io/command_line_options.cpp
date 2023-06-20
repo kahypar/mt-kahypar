@@ -414,6 +414,11 @@ namespace mt_kahypar {
                               &context.initial_partitioning.refinement.jet.restrict_to_border_nodes))->value_name(
                      "<bool>")->default_value(true),
              "If true, then only border nodes are considered for JET.")
+            ((initial_partitioning ? "i-r-jet-rollback-after-each-iteration" : "r-jet-rollback-after-each-iteration"),
+             po::value<bool>((!initial_partitioning ? &context.refinement.jet.rollback_after_each_iteration :
+                              &context.initial_partitioning.refinement.jet.rollback_after_each_iteration))->value_name(
+                     "<bool>")->default_value(false),
+             "If true, rollback to best partition in each iteration without improvement.")
             ((initial_partitioning ? "i-r-jet-vertex-locking" : "r-jet-vertex-locking"),
              po::value<double>((!initial_partitioning ? &context.refinement.jet.vertex_locking :
                               &context.initial_partitioning.refinement.jet.vertex_locking))->value_name(
