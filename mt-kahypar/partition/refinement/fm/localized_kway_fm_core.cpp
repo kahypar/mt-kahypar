@@ -157,7 +157,7 @@ namespace mt_kahypar {
     // we would have to add the success func to the interface of DeltaPhg (and then ignore it there...)
     // and do the local rollback outside this function
 
-    size_t bestImprovementIndex = 0;
+    bestImprovementIndex = 0;
     Gain estimatedImprovement = 0;
     Gain bestImprovement = 0;
 
@@ -373,11 +373,12 @@ namespace mt_kahypar {
   void LocalizedKWayFM<TypeTraits, GainTypes, FMStrategy>::revertToBestLocalPrefix(PartitionedHypergraph& phg,
                                                                        size_t bestGainIndex) {
     runStats.local_reverts += localMoves.size() - bestGainIndex;
-    while (localMoves.size() > bestGainIndex) {
-      Move& m = sharedData.moveTracker.getMove(localMoves.back().second);
+    size_t i = localMoves.size();
+    while (i > bestGainIndex) {
+      i--;
+      Move& m = localMoves[i].first;
       phg.changeNodePart(gain_cache, m.node, m.to, m.from);
       m.invalidate();
-      localMoves.pop_back();
     }
   }
 

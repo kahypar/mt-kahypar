@@ -138,9 +138,11 @@ std::ostream & operator<< (std::ostream& str, const LabelPropagationParameters& 
 struct JetParameters {
   JetAlgorithm algorithm = JetAlgorithm::do_nothing;
   size_t num_iterations = 12;
+  size_t fixed_n_iterations = 0;
   double relative_improvement_threshold = 0.001;
   bool execute_sequential = false;
   bool restrict_to_border_nodes = true;
+  bool rollback_after_each_iteration = false;
   double vertex_locking = 1.0;
   double negative_gain_factor_coarse = 0.25;
   double negative_gain_factor_fine = 0.75;
@@ -173,6 +175,11 @@ struct FMParameters {
 
   bool penalty_for_moved_rebalancing_nodes = true;
   double treshold_border_node_inclusion = 0.75;
+
+  // locking
+  double vertex_locking = 0.0;
+  bool lock_moved_nodes = false;
+  bool lock_locally_reverted = false;
 
   // unconstrained: cooling strategy
   size_t unconstrained_rounds = 1;

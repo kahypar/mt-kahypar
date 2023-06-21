@@ -128,10 +128,12 @@ namespace mt_kahypar {
     str << "  Jet Parameters:" << std::endl;
     str << "    Algorithm:                        " << params.algorithm << std::endl;
     if ( params.algorithm != JetAlgorithm::do_nothing ) {
-      str << "    Num Iterations:                   " << params.num_iterations << std::endl;
+      str << "    Iterations without Improvement:   " << params.num_iterations << std::endl;
+      str << "    Fixed Iterations:                 " << params.fixed_n_iterations << std::endl;
       str << "    Relative Improvement Threshold:   " << params.relative_improvement_threshold << std::endl;
       str << "    Restrict to Border Nodes:         " << std::boolalpha << params.restrict_to_border_nodes << std::endl;
-      str << "    Vertex Locking:                   " << std::boolalpha << params.vertex_locking << std::endl;
+      str << "    Rollback after each Iteration:    " << std::boolalpha << params.rollback_after_each_iteration << std::endl;
+      str << "    Vertex Locking:                   " << params.vertex_locking << std::endl;
       str << "    Negative Gain Factor (Coarse):    " << params.negative_gain_factor_coarse << std::endl;
       str << "    Negative Gain Factor (Fine):      " << params.negative_gain_factor_fine << std::endl;
     }
@@ -154,6 +156,9 @@ namespace mt_kahypar {
       out << "    Obey Minimal Parallelism:         " << std::boolalpha << params.obey_minimal_parallelism << std::endl;
       out << "    Minimum Improvement Factor:       " << params.min_improvement << std::endl;
       out << "    Release Nodes:                    " << std::boolalpha << params.release_nodes << std::endl;
+      out << "    Vertex Locking:                   " << params.vertex_locking << std::endl;
+      out << "    Lock Moved Nodes:                 " << std::boolalpha << params.lock_moved_nodes << std::endl;
+      out << "    Lock Locally Reverted:            " << std::boolalpha << params.lock_moved_nodes << std::endl;
       out << "    Time Limit Factor:                " << params.time_limit_factor << std::endl;
     }
     if ( params.algorithm != FMAlgorithm::do_nothing && params.algorithm != FMAlgorithm::kway_fm ) {

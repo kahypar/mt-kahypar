@@ -157,6 +157,15 @@ class StreamingVector {
     _prefix_sum.assign(_cpu_buffer.size(), 0);
   }
 
+  template<typename F>
+  void do_parallel_for_each(F f) {
+    tbb::parallel_for(0, static_cast<int>(_cpu_buffer.size()), [&](const int cpu_id) {
+      for (const Value& val: _cpu_buffer[cpu_id]) {
+        f(val);
+      }
+    });
+  }
+
  private:
   size_t init_prefix_sum() {
     size_t total_size = 0;

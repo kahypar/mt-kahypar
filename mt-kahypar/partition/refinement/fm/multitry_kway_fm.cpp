@@ -29,6 +29,7 @@
 
 #include "mt-kahypar/partition/refinement/fm/multitry_kway_fm.h"
 
+#include "mt-kahypar/datastructures/streaming_vector.h"
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/utils/utilities.h"
 #include "mt-kahypar/partition/metrics.h"
@@ -40,6 +41,8 @@
 #include "mt-kahypar/utils/cast.h"
 
 namespace mt_kahypar {
+  using ds::StreamingVector;
+
   // helper function for rebalancing
   std::vector<HypernodeWeight> setupMaxPartWeights(const Context& context) {
     double max_part_weight_scaling = context.refinement.fm.rollback_balance_violation_factor;
@@ -75,10 +78,13 @@ namespace mt_kahypar {
     enable_light_fm = false;
     sharedData.release_nodes = context.refinement.fm.release_nodes;
     sharedData.perform_moves_global = context.refinement.fm.perform_moves_global;
+    sharedData.nodeTracker.vertex_locking = context.refinement.fm.vertex_locking;
+    sharedData.nodeTracker.lockedVertices.reset();
     double current_time_limit = time_limit;
     tbb::task_group tg;
     vec<HypernodeWeight> initialPartWeights(size_t(context.partition.k));
     std::vector<HypernodeWeight> max_part_weights;
+    StreamingVector<HypernodeID> locally_locked_vertices;
     HighResClockTimepoint fm_start = std::chrono::high_resolution_clock::now();
     utils::Timer& timer = utils::Utilities::instance().getTimer(context.utility_id);
 
@@ -123,7 +129,13 @@ namespace mt_kahypar {
       auto task = [&](const size_t task_id) {
         auto& fm = ets_fm.local();
         while(sharedData.finishedTasks.load(std::memory_order_relaxed) < sharedData.finishedTasksLimit
-              && fm.findMoves(phg, task_id, num_seeds, round)) { /* keep running*/ }
+              && fm.findMoves(phg, task_id, num_seeds, round)) {
+          if (context.refinement.fm.vertex_locking > 0 && context.refinement.fm.lock_locally_reverted) {
+            fm.doForEachRevertedMove([&] (const Move& m) {
+              locally_locked_vertices.stream(m.node);
+            });
+          }
+        }
         sharedData.finishedTasks.fetch_add(1, std::memory_order_relaxed);
       };
       size_t num_tasks = std::min(num_border_nodes, size_t(TBBInitializer::instance().total_number_of_threads()));
@@ -132,6 +144,14 @@ namespace mt_kahypar {
       }
       tg.wait();
       timer.stop_timer("find_moves");
+
+      // reset locked vertices, so we can start setting the locks for the next round
+      sharedData.nodeTracker.lockedVertices.reset();
+      if (context.refinement.fm.vertex_locking > 0 && context.refinement.fm.lock_locally_reverted) {
+        locally_locked_vertices.do_parallel_for_each([&] (const HypernodeID hn) {
+          sharedData.lockVertexForNextRound(hn, context);
+        });
+      }
 
       HyperedgeWeight improvement;
       if (context.refinement.fm.rollback_strategy == RollbackStrategy::approximate) {
@@ -230,6 +250,7 @@ namespace mt_kahypar {
       if (improvement <= 0 || consecutive_rounds_with_too_little_improvement >= 2) {
         break;
       }
+      locally_locked_vertices.clear_sequential();
     }
 
     if (context.partition.show_memory_consumption && context.partition.verbose_output
@@ -270,7 +291,7 @@ namespace mt_kahypar {
           // the segmentation fault.
           if ( task_id >= 0 && task_id < TBBInitializer::instance().total_number_of_threads() ) {
             for (HypernodeID u = r.begin(); u < r.end(); ++u) {
-              if (phg.nodeIsEnabled(u) && phg.isBorderNode(u)) {
+              if (phg.nodeIsEnabled(u) && phg.isBorderNode(u) && !sharedData.nodeTracker.vertexIsLocked(u)) {
                 sharedData.refinementNodes.safe_push(u, task_id);
               }
             }
@@ -282,7 +303,7 @@ namespace mt_kahypar {
         const HypernodeID u = refinement_nodes[i];
         const int task_id = tbb::this_task_arena::current_thread_index();
         if ( task_id >= 0 && task_id < TBBInitializer::instance().total_number_of_threads() ) {
-          if (phg.nodeIsEnabled(u) && phg.isBorderNode(u)) {
+          if (phg.nodeIsEnabled(u) && phg.isBorderNode(u) && !sharedData.nodeTracker.vertexIsLocked(u)) {
             sharedData.refinementNodes.safe_push(u, task_id);
           }
         }
@@ -320,6 +341,7 @@ namespace mt_kahypar {
     }());
 
     GlobalMoveTracker& move_tracker =  sharedData.moveTracker;
+    ASSERT(move_tracker.rebalancingMoves.empty());
     const bool may_move_twice = context.refinement.fm.rebalancing_use_moved_nodes;
     const bool merge_at_rebalancing_pos = context.refinement.fm.insert_merged_move_at_rebalancing_position;
     if (may_move_twice) {
@@ -337,6 +359,7 @@ namespace mt_kahypar {
               move_tracker.moveOfNode[r_move.node] = 0;
               first_move.invalidate();
               r_move.invalidate();
+              sharedData.lockVertexForNextRound(r_move.node, context);
             } else if (merge_at_rebalancing_pos) {
               r_move.from = first_move.from;
               first_move.invalidate();
@@ -358,7 +381,7 @@ namespace mt_kahypar {
     auto insert_moves_to_balance_part = [&](const PartitionID part) {
       if (current_part_weights[part] > max_part_weights[part]) {
         insertMovesToBalancePart(phg, part, max_part_weights, rebalancing_moves_by_part,
-                                next_move_index, current_part_weights, current_rebalancing_move_index);
+                                 next_move_index, current_part_weights, current_rebalancing_move_index);
       }
     };
 
@@ -377,6 +400,7 @@ namespace mt_kahypar {
         current_part_weights[m.to] += hn_weight;
         tmp_move_order[next_move_index] = m;
         ++next_move_index;
+        move_tracker.rebalancingMoves.push_back(static_cast<uint8_t>(false));
         // insert rebalancing moves if necessary
         insert_moves_to_balance_part(m.to);
       }
@@ -391,6 +415,7 @@ namespace mt_kahypar {
         if (m.isValid()) {
           tmp_move_order[next_move_index] = m;
           ++next_move_index;
+          move_tracker.rebalancingMoves.push_back(static_cast<uint8_t>(true));
         }
       }
     }
@@ -398,6 +423,7 @@ namespace mt_kahypar {
     // update sharedData
     const MoveID first_move_id = move_tracker.firstMoveID;
     ASSERT(tmp_move_order.size() == move_tracker.moveOrder.size());
+    ASSERT(move_tracker.rebalancingMoves.size() == static_cast<size_t>(next_move_index));
 
     std::swap(move_tracker.moveOrder, tmp_move_order);
     move_tracker.runningMoveID.store(first_move_id + next_move_index);
@@ -427,6 +453,7 @@ namespace mt_kahypar {
         current_part_weights[m.to] += hn_weight;
         tmp_move_order[next_move_index] = m;
         ++next_move_index;
+        sharedData.moveTracker.rebalancingMoves.push_back(static_cast<uint8_t>(true));
 
         if (current_part_weights[m.to] > max_part_weights[m.to]) {
           // edge case: it is possible that the rebalancing move itself causes new imbalance -> call recursively

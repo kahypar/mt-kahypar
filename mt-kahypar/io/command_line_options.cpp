@@ -399,6 +399,11 @@ namespace mt_kahypar {
                                 &context.initial_partitioning.refinement.jet.num_iterations))->value_name(
                      "<size_t>")->default_value(12),
              "Maximum number of jet iterations after no improvement is found.")
+            ((initial_partitioning ? "i-r-jet-fixed-iterations" : "r-jet-fixed-iterations"),
+             po::value<size_t>((!initial_partitioning ? &context.refinement.jet.fixed_n_iterations :
+                                &context.initial_partitioning.refinement.jet.fixed_n_iterations))->value_name(
+                     "<size_t>")->default_value(0),
+             "Use a fixed number of jet iterations.")
             ((initial_partitioning ? "i-r-jet-relative-improvement-threshold" : "r-jet-relative-improvement-threshold"),
              po::value<double>((!initial_partitioning ? &context.refinement.jet.relative_improvement_threshold :
                                 &context.initial_partitioning.refinement.jet.relative_improvement_threshold))->value_name(
@@ -409,6 +414,11 @@ namespace mt_kahypar {
                               &context.initial_partitioning.refinement.jet.restrict_to_border_nodes))->value_name(
                      "<bool>")->default_value(true),
              "If true, then only border nodes are considered for JET.")
+            ((initial_partitioning ? "i-r-jet-rollback-after-each-iteration" : "r-jet-rollback-after-each-iteration"),
+             po::value<bool>((!initial_partitioning ? &context.refinement.jet.rollback_after_each_iteration :
+                              &context.initial_partitioning.refinement.jet.rollback_after_each_iteration))->value_name(
+                     "<bool>")->default_value(false),
+             "If true, rollback to best partition in each iteration without improvement.")
             ((initial_partitioning ? "i-r-jet-vertex-locking" : "r-jet-vertex-locking"),
              po::value<double>((!initial_partitioning ? &context.refinement.jet.vertex_locking :
                               &context.initial_partitioning.refinement.jet.vertex_locking))->value_name(
@@ -509,6 +519,18 @@ namespace mt_kahypar {
              po::value<double>((initial_partitioning ? &context.initial_partitioning.refinement.fm.treshold_border_node_inclusion :
                               &context.refinement.fm.treshold_border_node_inclusion))->value_name("<double>")->default_value(0.75),
              "Threshold for block-internal incident weight when deciding whether to include border nodes for rebalancing estimation.")
+            ((initial_partitioning ? "i-r-fm-vertex-locking" : "r-fm-vertex-locking"),
+             po::value<double>((initial_partitioning ? &context.initial_partitioning.refinement.fm.vertex_locking :
+                              &context.refinement.fm.vertex_locking))->value_name("<double>")->default_value(0.0),
+             "Whether vertex locking (tabu search) is used for FM. Values between 0 and 1 mean randomized locking.")
+            ((initial_partitioning ? "i-r-fm-lock-moved-nodes" : "r-fm-lock-moved-nodes"),
+             po::value<bool>((initial_partitioning ? &context.initial_partitioning.refinement.fm.lock_moved_nodes :
+                              &context.refinement.fm.lock_moved_nodes))->value_name("<bool>")->default_value(false),
+             "Whether FM vertex locking includes moved nodes (or only nodes where the move was rolled back).")
+            ((initial_partitioning ? "i-r-fm-lock-locally-reverted" : "r-fm-lock-locally-reverted"),
+             po::value<bool>((initial_partitioning ? &context.initial_partitioning.refinement.fm.lock_locally_reverted :
+                              &context.refinement.fm.lock_locally_reverted))->value_name("<bool>")->default_value(false),
+             "Whether FM vertex locking includes nodes of locally reverted moves (careful: can have a huge impact).")
             ((initial_partitioning ? "i-r-fm-rebalancing-use-violation-factor" : "r-fm-rebalancing-use-violation-factor"),
              po::value<bool>((initial_partitioning ? &context.initial_partitioning.refinement.fm.rebalancing_use_violation_factor :
                               &context.refinement.fm.rebalancing_use_violation_factor))->value_name("<bool>")->default_value(true),
