@@ -161,6 +161,11 @@ struct NodeTracker {
   bool vertexIsLocked(const HypernodeID node) const {
     return vertex_locking && lockedVertices[node];
   }
+
+  bool vertexIsSoftLocked(const HypernodeID node) const {
+    // TODO: this is quite hacky...
+    return lockedVertices[node];
+  }
 };
 
 

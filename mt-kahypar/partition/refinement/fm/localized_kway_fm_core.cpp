@@ -163,6 +163,7 @@ namespace mt_kahypar {
 
     HypernodeWeight heaviestPartWeight = 0;
     HypernodeWeight fromWeight = 0, toWeight = 0;
+    const bool use_soft_locking = (context.refinement.fm.vertex_locking > 0) && context.refinement.fm.soft_locking;
 
     while (!stopRule.searchShouldStop()
            && sharedData.finishedTasks.load(std::memory_order_relaxed) < sharedData.finishedTasksLimit) {
@@ -181,9 +182,10 @@ namespace mt_kahypar {
 
       bool expect_improvement = estimatedImprovement + move.gain > bestImprovement;
       bool high_deg = phg.nodeDegree(move.node) >= PartitionedHypergraph::HIGH_DEGREE_THRESHOLD;
+      bool soft_locked = use_soft_locking && sharedData.nodeTracker.vertexIsSoftLocked(move.node);
 
       // skip if high degree (unless it nets actual improvement; but don't apply on deltaPhg then)
-      if (!expect_improvement && high_deg) {
+      if (!expect_improvement && (high_deg || soft_locked)) {
         if constexpr (use_delta) {
           fm_strategy.skipMove(deltaPhg, delta_gain_cache, move);
           continue;
