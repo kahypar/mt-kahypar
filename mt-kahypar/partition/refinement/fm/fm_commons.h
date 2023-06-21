@@ -27,6 +27,7 @@
 #pragma once
 
 #include <limits>
+#include <cstdint>
 
 #include <mt-kahypar/datastructures/concurrent_bucket_map.h>
 #include <mt-kahypar/datastructures/priority_queue.h>
@@ -44,16 +45,19 @@ namespace mt_kahypar {
 struct GlobalMoveTracker {
   vec<Move> moveOrder;
   vec<MoveID> moveOfNode;
+  vec<uint8_t> rebalancingMoves;
   CAtomic<MoveID> runningMoveID;
   MoveID firstMoveID = 1;
 
   explicit GlobalMoveTracker(size_t numNodes = 0) :
           moveOrder(numNodes),
           moveOfNode(numNodes, 0),
+          rebalancingMoves(),
           runningMoveID(1) { }
 
   // Returns true if stored move IDs should be reset
   bool reset() {
+    rebalancingMoves.clear();
     if (runningMoveID.load() >= std::numeric_limits<MoveID>::max() - moveOrder.size() - 20) {
       tbb::parallel_for(UL(0), moveOfNode.size(), [&](size_t i) { moveOfNode[i] = 0; }, tbb::static_partitioner());
       firstMoveID = 1;
@@ -93,16 +97,26 @@ struct GlobalMoveTracker {
   bool isMoveStale(const MoveID move_id) const {
     return move_id < firstMoveID;
   }
+
+  bool isRebalancingMove(const MoveID move_id) const {
+    return !rebalancingMoves.empty() && static_cast<bool>(rebalancingMoves[move_id - firstMoveID]);
+  }
 };
 
 struct NodeTracker {
   vec<CAtomic<SearchID>> searchOfNode;
+  kahypar::ds::FastResetFlagArray<> lockedVertices;
 
   SearchID releasedMarker = 1;
   SearchID deactivatedNodeMarker = 2;
   CAtomic<SearchID> highestActiveSearchID { 2 };
+  bool vertex_locking = false;
 
-  explicit NodeTracker(size_t numNodes = 0) : searchOfNode(numNodes, CAtomic<SearchID>(0)) { }
+  explicit NodeTracker(size_t numNodes = 0) : searchOfNode(numNodes, CAtomic<SearchID>(0)), lockedVertices() {
+    if (numNodes > 0) {
+      lockedVertices.setSize(numNodes);
+    }
+  }
 
   // only the search that owns u is allowed to call this
   void deactivateNode(HypernodeID u, SearchID search_id) {
@@ -129,7 +143,7 @@ struct NodeTracker {
 
   bool tryAcquireNode(HypernodeID u, SearchID new_search) {
     SearchID current_search = searchOfNode[u].load(std::memory_order_relaxed);
-    return isSearchInactive(current_search)
+    return isSearchInactive(current_search) && !vertexIsLocked(u)
             && searchOfNode[u].compare_exchange_strong(current_search, new_search, std::memory_order_acq_rel);
   }
 
@@ -142,6 +156,15 @@ struct NodeTracker {
     }
     deactivatedNodeMarker = ++highestActiveSearchID;
     releasedMarker = deactivatedNodeMarker - 1;
+  }
+
+  bool vertexIsLocked(const HypernodeID node) const {
+    return vertex_locking && lockedVertices[node];
+  }
+
+  bool vertexIsSoftLocked(const HypernodeID node) const {
+    // TODO: this is quite hacky...
+    return lockedVertices[node];
   }
 };
 
@@ -306,6 +329,8 @@ struct FMSharedData {
     }, [&] {
       nodeTracker.searchOfNode.resize(numNodes, CAtomic<SearchID>(0));
     }, [&] {
+      nodeTracker.lockedVertices.setSize(numNodes);
+    }, [&] {
       vertexPQHandles.resize(numNodes, invalid_position);
     }, [&] {
       refinementNodes.tls_queues.resize(numThreads);
@@ -327,6 +352,19 @@ struct FMSharedData {
 
   FMSharedData() :
     FMSharedData(0, 0, false) { }
+
+  bool lockVertexForNextRound(const HypernodeID node, const Context& context) {
+    ASSERT(!moveTracker.isRebalancingMove(moveTracker.moveOfNode[node]));
+    if (context.refinement.fm.vertex_locking > 0) {
+      mt_kahypar::utils::Randomize& randomize = mt_kahypar::utils::Randomize::instance();
+      if (context.refinement.fm.vertex_locking == 1 ||
+          randomize.getRandomFloat(0.0, 1.0, THREAD_ID) < context.refinement.fm.vertex_locking) {
+        nodeTracker.lockedVertices.set(node);
+        return true;
+      }
+    }
+    return false;
+  }
 
   void memoryConsumption(utils::MemoryTreeNode* parent) const {
     ASSERT(parent);

@@ -341,6 +341,16 @@ namespace mt_kahypar {
       gain_cache.recomputeInvalidTerms(phg, move_order[i].node);
     });
 
+    // apply vertex locking
+    if (context.refinement.fm.vertex_locking > 0) {
+      const MoveID start = context.refinement.fm.lock_moved_nodes ? 0 : b.best_index;
+      tbb::parallel_for(start, numMoves, [&](const MoveID i) {
+        if (!sharedData.moveTracker.isRebalancingMove(i + sharedData.moveTracker.firstMoveID)) {
+          sharedData.lockVertexForNextRound(move_order[i].node, context);
+        }
+      });
+    }
+
     sharedData.moveTracker.reset();
 
     HEAVY_REFINEMENT_ASSERT(phg.checkTrackedPartitionInformation(gain_cache));

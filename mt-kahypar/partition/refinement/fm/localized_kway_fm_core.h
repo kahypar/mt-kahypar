@@ -71,6 +71,15 @@ public:
 
   bool findMoves(PartitionedHypergraph& phg, size_t taskID, size_t numSeeds, size_t round);
 
+  template<typename F>
+  void doForEachRevertedMove(F f) const {
+    ASSERT(context.refinement.fm.vertex_locking > 0 && context.refinement.fm.lock_locally_reverted);
+    for (size_t i = bestImprovementIndex; i < localMoves.size(); ++i) {
+      const Move& local_move = localMoves[i].first;
+      f(local_move);
+    }
+  }
+
   void memoryConsumption(utils::MemoryTreeNode* parent) const;
 
   void changeNumberOfBlocks(const PartitionID new_k);
@@ -121,6 +130,8 @@ private:
   // ! Used after a move. Stores whether a neighbor of the just moved vertex has already been updated.
   vec<HypernodeID> neighborDeduplicator;
   HypernodeID deduplicationTime = 0;
+
+  size_t bestImprovementIndex = 0;
 
   // ! Stores hyperedges whose pins's gains may have changed after vertex move
   vec<HyperedgeID> edgesWithGainChanges;

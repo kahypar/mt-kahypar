@@ -190,17 +190,19 @@ class UnconstrainedStrategy {
   template<typename PartitionedHypergraph, typename GainCache>
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
   void skipMove(const PartitionedHypergraph& phg, const GainCache&, Move m) {
-    const HypernodeWeight to_weight = phg.partWeight(m.to);
-    if (to_weight > context.partition.max_part_weights[m.to]) {
-      // we need to undo the imbalance which was added to the shared data
-      const HypernodeWeight hn_weight = phg.nodeWeight(m.node);
-      const HypernodeWeight imbalance = std::min(hn_weight, to_weight - context.partition.max_part_weights[m.to]);
-      sharedData.unconstrained.revertImbalancedMove(m.to, imbalance);
+    if (penaltyFactor > 0) {
+      const HypernodeWeight to_weight = phg.partWeight(m.to);
+      if (to_weight > context.partition.max_part_weights[m.to]) {
+        // we need to undo the imbalance which was added to the shared data
+        const HypernodeWeight hn_weight = phg.nodeWeight(m.node);
+        const HypernodeWeight imbalance = std::min(hn_weight, to_weight - context.partition.max_part_weights[m.to]);
+        sharedData.unconstrained.revertImbalancedMove(m.to, imbalance);
 
-      // if (sharedData.unconstrained.isRebalancingNode(m.node)) {
-          // edge case: undo moving a rebalancing node
-          // Probably nothing to do here, since this is extremely unlikely and pessimizations are unproblematic
-      // }
+        // if (sharedData.unconstrained.isRebalancingNode(m.node)) {
+            // edge case: undo moving a rebalancing node
+            // Probably nothing to do here, since this is extremely unlikely and pessimizations are unproblematic
+        // }
+      }
     }
   }
 

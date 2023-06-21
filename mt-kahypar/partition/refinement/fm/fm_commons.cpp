@@ -128,13 +128,16 @@ namespace mt_kahypar {
       const HypernodeWeight old = consumed_bucket_weights[indexForBucket(to, bucketId)].fetch_sub(
                                       remaining, std::memory_order_relaxed);
       // might have been updated concurrently by another thread
-      if (old - remaining >= 0) {
+      if (old >= remaining) {
         remaining = 0;
       } else if (old > 0) {
         // set consumed weight equal to zero (but use fetch_add to accomodate concurrent updates)
         consumed_bucket_weights[indexForBucket(to, bucketId)].fetch_add(
             remaining - old, std::memory_order_relaxed);
         remaining -= old;
+      } else if (bucketId == 0) {
+        // nothing to revert here
+        return;
       }
       // else: try again
     }

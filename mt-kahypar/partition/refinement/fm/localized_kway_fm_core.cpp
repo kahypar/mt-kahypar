@@ -165,12 +165,13 @@ namespace mt_kahypar {
     // we would have to add the success func to the interface of DeltaPhg (and then ignore it there...)
     // and do the local rollback outside this function
 
-    size_t bestImprovementIndex = 0;
+    bestImprovementIndex = 0;
     Gain estimatedImprovement = 0;
     Gain bestImprovement = 0;
 
     HypernodeWeight heaviestPartWeight = 0;
     HypernodeWeight fromWeight = 0, toWeight = 0;
+    const bool use_soft_locking = (context.refinement.fm.vertex_locking > 0) && context.refinement.fm.soft_locking;
 
     while (!stopRule.searchShouldStop()
            && sharedData.finishedTasks.load(std::memory_order_relaxed) < sharedData.finishedTasksLimit) {
@@ -189,9 +190,10 @@ namespace mt_kahypar {
 
       bool expect_improvement = estimatedImprovement + move.gain > bestImprovement;
       bool high_deg = phg.nodeDegree(move.node) >= PartitionedHypergraph::HIGH_DEGREE_THRESHOLD;
+      bool soft_locked = use_soft_locking && sharedData.nodeTracker.vertexIsSoftLocked(move.node);
 
       // skip if high degree (unless it nets actual improvement; but don't apply on deltaPhg then)
-      if (!expect_improvement && high_deg) {
+      if (!expect_improvement && (high_deg || soft_locked)) {
         if constexpr (use_delta) {
           fm_strategy.skipMove(deltaPhg, delta_gain_cache, move);
           continue;
@@ -375,11 +377,12 @@ namespace mt_kahypar {
   void LocalizedKWayFM<TypeTraits, GainTypes, FMStrategy>::revertToBestLocalPrefix(PartitionedHypergraph& phg,
                                                                        size_t bestGainIndex) {
     runStats.local_reverts += localMoves.size() - bestGainIndex;
-    while (localMoves.size() > bestGainIndex) {
-      Move& m = sharedData.moveTracker.getMove(localMoves.back().second);
+    size_t i = localMoves.size();
+    while (i > bestGainIndex) {
+      i--;
+      Move& m = localMoves[i].first;
       phg.changeNodePart(gain_cache, m.node, m.to, m.from);
       m.invalidate();
-      localMoves.pop_back();
     }
   }
 
