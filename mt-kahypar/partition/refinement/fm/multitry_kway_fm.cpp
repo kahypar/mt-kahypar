@@ -342,7 +342,6 @@ namespace mt_kahypar {
         vec<Move>& moves = rebalancing_moves_by_part[part];
         tbb::parallel_for(0UL, moves.size(), [&](const size_t i) {
           Move& r_move = moves[i];
-          r_move.gain = 0;
           if (r_move.isValid() && move_tracker.wasNodeMovedInThisRound(r_move.node)) {
             Move& first_move = move_tracker.getMove(move_tracker.moveOfNode[r_move.node]);
             ASSERT(r_move.node == first_move.node && r_move.from == first_move.to);

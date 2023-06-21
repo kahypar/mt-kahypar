@@ -396,6 +396,10 @@ namespace mt_kahypar {
       }
     };
 
+    tbb::parallel_for(MoveID(0), tracker.numPerformedMoves(), [&](MoveID m_id) {
+      tracker.moveOrder[m_id].gain = 0;
+    });
+
     if (context.refinement.fm.iter_moves_on_recalc) {
       tbb::parallel_for(0U, sharedData.moveTracker.numPerformedMoves(), [&](const MoveID local_move_id) {
         const HypernodeID u = sharedData.moveTracker.moveOrder[local_move_id].node;
