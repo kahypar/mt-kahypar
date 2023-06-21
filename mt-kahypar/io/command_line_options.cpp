@@ -519,6 +519,18 @@ namespace mt_kahypar {
              po::value<double>((initial_partitioning ? &context.initial_partitioning.refinement.fm.treshold_border_node_inclusion :
                               &context.refinement.fm.treshold_border_node_inclusion))->value_name("<double>")->default_value(0.75),
              "Threshold for block-internal incident weight when deciding whether to include border nodes for rebalancing estimation.")
+            ((initial_partitioning ? "i-r-fm-vertex-locking" : "r-fm-vertex-locking"),
+             po::value<double>((initial_partitioning ? &context.initial_partitioning.refinement.fm.vertex_locking :
+                              &context.refinement.fm.vertex_locking))->value_name("<double>")->default_value(0.0),
+             "Whether vertex locking (tabu search) is used for FM. Values between 0 and 1 mean randomized locking.")
+            ((initial_partitioning ? "i-r-fm-lock-moved-nodes" : "r-fm-lock-moved-nodes"),
+             po::value<bool>((initial_partitioning ? &context.initial_partitioning.refinement.fm.lock_moved_nodes :
+                              &context.refinement.fm.lock_moved_nodes))->value_name("<bool>")->default_value(false),
+             "Whether FM vertex locking includes moved nodes (or only nodes where the move was rolled back).")
+            ((initial_partitioning ? "i-r-fm-lock-locally-reverted" : "r-fm-lock-locally-reverted"),
+             po::value<bool>((initial_partitioning ? &context.initial_partitioning.refinement.fm.lock_locally_reverted :
+                              &context.refinement.fm.lock_locally_reverted))->value_name("<bool>")->default_value(false),
+             "Whether FM vertex locking includes nodes of locally reverted moves (careful: can have a huge impact).")
             ((initial_partitioning ? "i-r-fm-rebalancing-use-violation-factor" : "r-fm-rebalancing-use-violation-factor"),
              po::value<bool>((initial_partitioning ? &context.initial_partitioning.refinement.fm.rebalancing_use_violation_factor :
                               &context.refinement.fm.rebalancing_use_violation_factor))->value_name("<bool>")->default_value(true),

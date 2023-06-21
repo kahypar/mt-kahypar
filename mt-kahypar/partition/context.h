@@ -176,6 +176,11 @@ struct FMParameters {
   bool penalty_for_moved_rebalancing_nodes = true;
   double treshold_border_node_inclusion = 0.75;
 
+  // locking
+  double vertex_locking = 0.0;
+  bool lock_moved_nodes = false;
+  bool lock_locally_reverted = false;
+
   // unconstrained: cooling strategy
   size_t unconstrained_rounds = 1;
   double imbalance_penalty_min = 0.2;
