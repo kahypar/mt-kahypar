@@ -180,6 +180,7 @@ struct FMParameters {
   double vertex_locking = 0.0;
   bool lock_moved_nodes = false;
   bool lock_locally_reverted = false;
+  bool soft_locking = false;
 
   // unconstrained: cooling strategy
   size_t unconstrained_rounds = 1;

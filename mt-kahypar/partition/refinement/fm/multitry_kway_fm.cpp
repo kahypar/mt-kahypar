@@ -78,7 +78,8 @@ namespace mt_kahypar {
     enable_light_fm = false;
     sharedData.release_nodes = context.refinement.fm.release_nodes;
     sharedData.perform_moves_global = context.refinement.fm.perform_moves_global;
-    sharedData.nodeTracker.vertex_locking = context.refinement.fm.vertex_locking;
+    sharedData.nodeTracker.vertex_locking = (context.refinement.fm.vertex_locking > 0)
+                                            && !context.refinement.fm.soft_locking;
     sharedData.nodeTracker.lockedVertices.reset();
     double current_time_limit = time_limit;
     tbb::task_group tg;

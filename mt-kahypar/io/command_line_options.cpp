@@ -531,6 +531,10 @@ namespace mt_kahypar {
              po::value<bool>((initial_partitioning ? &context.initial_partitioning.refinement.fm.lock_locally_reverted :
                               &context.refinement.fm.lock_locally_reverted))->value_name("<bool>")->default_value(false),
              "Whether FM vertex locking includes nodes of locally reverted moves (careful: can have a huge impact).")
+            ((initial_partitioning ? "i-r-fm-soft-locking" : "r-fm-soft-locking"),
+             po::value<bool>((initial_partitioning ? &context.initial_partitioning.refinement.fm.soft_locking :
+                              &context.refinement.fm.soft_locking))->value_name("<bool>")->default_value(false),
+             "If true, locked vertices can still be used if the move has positive gain.")
             ((initial_partitioning ? "i-r-fm-rebalancing-use-violation-factor" : "r-fm-rebalancing-use-violation-factor"),
              po::value<bool>((initial_partitioning ? &context.initial_partitioning.refinement.fm.rebalancing_use_violation_factor :
                               &context.refinement.fm.rebalancing_use_violation_factor))->value_name("<bool>")->default_value(true),

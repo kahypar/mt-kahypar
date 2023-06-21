@@ -157,8 +157,11 @@ namespace mt_kahypar {
       out << "    Minimum Improvement Factor:       " << params.min_improvement << std::endl;
       out << "    Release Nodes:                    " << std::boolalpha << params.release_nodes << std::endl;
       out << "    Vertex Locking:                   " << params.vertex_locking << std::endl;
-      out << "    Lock Moved Nodes:                 " << std::boolalpha << params.lock_moved_nodes << std::endl;
-      out << "    Lock Locally Reverted:            " << std::boolalpha << params.lock_moved_nodes << std::endl;
+      if ( params.vertex_locking > 0 ) {
+        out << "    Lock Moved Nodes:                 " << std::boolalpha << params.lock_moved_nodes << std::endl;
+        out << "    Lock Locally Reverted:            " << std::boolalpha << params.lock_locally_reverted << std::endl;
+        out << "    Soft Locking:                     " << std::boolalpha << params.soft_locking << std::endl;
+      }
       out << "    Time Limit Factor:                " << params.time_limit_factor << std::endl;
     }
     if ( params.algorithm != FMAlgorithm::do_nothing && params.algorithm != FMAlgorithm::kway_fm ) {
