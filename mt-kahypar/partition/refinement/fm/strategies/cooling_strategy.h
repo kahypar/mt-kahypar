@@ -48,17 +48,24 @@ public:
   template<typename DispatchedStrategyApplicatorFn>
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
   void applyWithDispatchedStrategy(size_t /*taskID*/, size_t round, DispatchedStrategyApplicatorFn applicator_fn) {
-    size_t n_rounds = context.refinement.fm.unconstrained_rounds;
-    if (round < n_rounds) {
-      double penalty;
+    const size_t n_rounds = context.refinement.fm.unconstrained_rounds;
+    auto interpolate = [&](double start, double end) {
       if (round == 0) {
-        penalty = context.refinement.fm.imbalance_penalty_min;
-      } else {
-        penalty = (n_rounds - round - 1) * context.refinement.fm.imbalance_penalty_min
-                  + round * context.refinement.fm.imbalance_penalty_max;
-        penalty /= static_cast<double>(n_rounds - 1);
+        return start;
       }
+      double summed = (n_rounds - round - 1) * start + round * end;
+      return summed / static_cast<double>(n_rounds - 1);
+    };
+
+    if (round < n_rounds) {
+      double penalty = interpolate(context.refinement.fm.imbalance_penalty_min,
+                                   context.refinement.fm.imbalance_penalty_max);
       unconstrained_strategy.setPenaltyFactor(penalty);
+      if (context.refinement.fm.unconstrained_upper_bound >= 1 && context.refinement.fm.unconstrained_upper_bound_min >= 1) {
+        double upper_bound = interpolate(context.refinement.fm.unconstrained_upper_bound,
+                                         context.refinement.fm.unconstrained_upper_bound_min);
+        unconstrained_strategy.setUpperBound(upper_bound);
+      }
       applicator_fn(static_cast<UnconstrainedStrategy&>(unconstrained_strategy));
     } else {
       applicator_fn(static_cast<GainCacheStrategy&>(default_strategy));

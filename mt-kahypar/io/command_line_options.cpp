@@ -519,6 +519,10 @@ namespace mt_kahypar {
              po::value<double>((initial_partitioning ? &context.initial_partitioning.refinement.fm.treshold_border_node_inclusion :
                               &context.refinement.fm.treshold_border_node_inclusion))->value_name("<double>")->default_value(0.75),
              "Threshold for block-internal incident weight when deciding whether to include border nodes for rebalancing estimation.")
+            ((initial_partitioning ? "i-r-fm-unconstrained-upper-bound" : "r-fm-unconstrained-upper-bound"),
+             po::value<double>((initial_partitioning ? &context.initial_partitioning.refinement.fm.unconstrained_upper_bound :
+                              &context.refinement.fm.unconstrained_upper_bound))->value_name("<double>")->default_value(0.0),
+             "Still use upper limit for imbalance with unconstrained FM, expressed as a factor of the max part weight (default = 0 = no limit).")
             ((initial_partitioning ? "i-r-fm-vertex-locking" : "r-fm-vertex-locking"),
              po::value<double>((initial_partitioning ? &context.initial_partitioning.refinement.fm.vertex_locking :
                               &context.refinement.fm.vertex_locking))->value_name("<double>")->default_value(0.0),
@@ -560,6 +564,10 @@ namespace mt_kahypar {
              po::value<double>((initial_partitioning ? &context.initial_partitioning.refinement.fm.imbalance_penalty_max :
                               &context.refinement.fm.imbalance_penalty_max))->value_name("<double>")->default_value(1.0),
              "Cooling FM algorithm: Maximum (final) penalty factor.")
+            ((initial_partitioning ? "i-r-fm-unconstrained-upper-bound-min" : "r-fm-unconstrained-upper-bound-min"),
+             po::value<double>((initial_partitioning ? &context.initial_partitioning.refinement.fm.unconstrained_upper_bound_min :
+                              &context.refinement.fm.unconstrained_upper_bound_min))->value_name("<double>")->default_value(0.0),
+             "Cooling FM algorithm: Minimum (final) upper bound (default = 0 = equal to start).")
             ((initial_partitioning ? "i-r-fm-obey-minimal-parallelism" : "r-fm-obey-minimal-parallelism"),
              po::value<bool>(
                      (initial_partitioning ? &context.initial_partitioning.refinement.fm.obey_minimal_parallelism :
