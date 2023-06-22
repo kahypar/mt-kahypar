@@ -75,7 +75,8 @@ class UnconstrainedStrategy {
       blockPQ(static_cast<size_t>(context.partition.k)),
       vertexPQs(static_cast<size_t>(context.partition.k),
         VertexPriorityQueue(sharedData.vertexPQHandles.data(), sharedData.numberOfNodes)),
-      penaltyFactor(penaltyFactor) { }
+      penaltyFactor(penaltyFactor),
+      upperBound(context.refinement.fm.unconstrained_upper_bound) { }
 
   template<typename DispatchedStrategyApplicatorFn>
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
@@ -146,7 +147,9 @@ class UnconstrainedStrategy {
       if (apply_move && to != kInvalidPartition && penaltyFactor > 0) {
         const HypernodeWeight wu = phg.nodeWeight(u);
         const HypernodeWeight to_weight = phg.partWeight(to);
-        if (to_weight + wu > context.partition.max_part_weights[to]) {
+        if (upperBound >= 1 && to_weight + wu > upperBound * context.partition.max_part_weights[to]) {
+          apply_move = false;
+        } else if (to_weight + wu > context.partition.max_part_weights[to]) {
           const HypernodeWeight imbalance = std::min(wu, to_weight + wu - context.partition.max_part_weights[to]);
           // The following will update the imbalance globally, which also affects the imbalance penalty for other threads.
           // If the move is not applied, we need to undo this in skipMove
@@ -266,6 +269,10 @@ class UnconstrainedStrategy {
     penaltyFactor = penalty;
   }
 
+  void setUpperBound(double upper_bound) {
+    upperBound = upper_bound;
+  }
+
 private:
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
   void updatePQs() {
@@ -295,7 +302,9 @@ private:
         const HypernodeWeight to_weight = phg.partWeight(i);
         const HypernodeWeight max_weight = context.partition.max_part_weights[i];
         HyperedgeWeight benefit = gain_cache.benefitTerm(u, i);
-        if (to_weight + wu > max_weight && benefit <= to_benefit) {
+        if (upperBound >= 1 && to_weight + wu > upperBound * max_weight) {
+          continue;
+        } else if (to_weight + wu > max_weight && benefit <= to_benefit) {
           // don't take imbalanced move without improved gain
           continue;
         } else if (to_weight + wu > max_weight && penaltyFactor > 0) {
@@ -336,7 +345,9 @@ private:
       if (i != from && i != kInvalidPartition) {
         const HypernodeWeight to_weight = phg.partWeight(i);
         HyperedgeWeight benefit = gain_cache.benefitTerm(u, i);
-        if (to_weight + wu > context.partition.max_part_weights[i] && penaltyFactor > 0) {
+        if (upperBound >= 1 && to_weight + wu > upperBound * context.partition.max_part_weights[i]) {
+          continue;
+        } else if (to_weight + wu > context.partition.max_part_weights[i] && penaltyFactor > 0) {
           const HypernodeWeight imbalance = std::min(wu, to_weight + wu - context.partition.max_part_weights[i]);
           const Gain imbalance_penalty = sharedData.unconstrained.estimatedPenaltyForImbalancedMove(i, imbalance);
           if (imbalance_penalty == std::numeric_limits<Gain>::max()) {
@@ -374,6 +385,7 @@ protected:
   vec<VertexPriorityQueue> vertexPQs;
 
   double penaltyFactor;
+  double upperBound;
 };
 
 }

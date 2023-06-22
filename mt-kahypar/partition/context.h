@@ -180,6 +180,7 @@ struct FMParameters {
 
   bool penalty_for_moved_rebalancing_nodes = true;
   double treshold_border_node_inclusion = 0.75;
+  double unconstrained_upper_bound = 0.0;
 
   // locking
   double vertex_locking = 0.0;
@@ -191,6 +192,7 @@ struct FMParameters {
   size_t unconstrained_rounds = 1;
   double imbalance_penalty_min = 0.2;
   double imbalance_penalty_max = 1.0;
+  double unconstrained_upper_bound_min = 0.0;
 };
 
 std::ostream& operator<<(std::ostream& out, const FMParameters& params);
