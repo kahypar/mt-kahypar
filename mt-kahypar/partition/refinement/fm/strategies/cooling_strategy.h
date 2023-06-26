@@ -42,28 +42,56 @@ public:
                    FMSharedData& sharedData,
                    FMStats& runStats) :
       context(context),
+      shared_data(sharedData),
       default_strategy(context, sharedData, runStats),
-      unconstrained_strategy(context, sharedData, runStats, context.refinement.fm.imbalance_penalty_min) { }
+      unconstrained_strategy(context, sharedData, runStats, context.refinement.fm.imbalance_penalty_min),
+      improvement_first_round(0),
+      disable_unconstrained(false) { }
 
   template<typename DispatchedStrategyApplicatorFn>
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
-  void applyWithDispatchedStrategy(size_t /*taskID*/, size_t round, DispatchedStrategyApplicatorFn applicator_fn) {
-    const size_t n_rounds = context.refinement.fm.unconstrained_rounds;
+  void applyWithDispatchedStrategy(size_t /*taskID*/, const size_t round, DispatchedStrategyApplicatorFn applicator_fn) {
+    size_t n_rounds = context.refinement.fm.unconstrained_rounds;
+    size_t u_round = round;
+    if (context.refinement.fm.activate_unconstrained_dynamically) {
+      if (round == 1) {
+        // first round: measure improvement of constrained FM
+        applicator_fn(static_cast<GainCacheStrategy&>(default_strategy));
+        return;
+      } else if (round == 2) {
+        // second round: measure improvement of unconstrained FM
+        ASSERT(!shared_data.unconstrained.disabled);
+        improvement_first_round = shared_data.previous_improvement_absolute;
+        unconstrained_strategy.setPenaltyFactor(context.refinement.fm.penalty_for_activation_test);
+        unconstrained_strategy.setUpperBound(context.refinement.fm.unconstrained_upper_bound);
+        applicator_fn(static_cast<UnconstrainedStrategy&>(unconstrained_strategy));
+        return;
+      } else if (round == 3) {
+        // third round: decide whether to use unconstrained FM
+        if (shared_data.previous_improvement_absolute < improvement_first_round) {
+          shared_data.unconstrained.disabled.store(true, std::memory_order_relaxed);
+        }
+      }
+      u_round -= 2;
+      n_rounds = std::min(n_rounds, context.refinement.fm.multitry_rounds - 2);
+    }
+
     auto interpolate = [&](double start, double end) {
-      if (round == 0) {
+      if (u_round == 0) {
         return start;
       }
-      double summed = (n_rounds - round - 1) * start + round * end;
+      double summed = (n_rounds - u_round - 1) * start + u_round * end;
       return summed / static_cast<double>(n_rounds - 1);
     };
 
-    if (round < n_rounds) {
+    if (u_round < n_rounds && !shared_data.unconstrained.disabled) {
+      ASSERT(isUnconstrainedRound(round, context));
       double penalty = interpolate(context.refinement.fm.imbalance_penalty_min,
-                                   context.refinement.fm.imbalance_penalty_max);
+                                  context.refinement.fm.imbalance_penalty_max);
       unconstrained_strategy.setPenaltyFactor(penalty);
       if (context.refinement.fm.unconstrained_upper_bound >= 1 && context.refinement.fm.unconstrained_upper_bound_min >= 1) {
         double upper_bound = interpolate(context.refinement.fm.unconstrained_upper_bound,
-                                         context.refinement.fm.unconstrained_upper_bound_min);
+                                        context.refinement.fm.unconstrained_upper_bound_min);
         unconstrained_strategy.setUpperBound(upper_bound);
       }
       applicator_fn(static_cast<UnconstrainedStrategy&>(unconstrained_strategy));
@@ -83,13 +111,20 @@ public:
   }
 
   static bool isUnconstrainedRound(size_t round, const Context& context) {
-    return round < context.refinement.fm.unconstrained_rounds;
+    if (context.refinement.fm.activate_unconstrained_dynamically) {
+      return round == 2 || (round > 2 && round - 2 < context.refinement.fm.unconstrained_rounds);
+    } else {
+      return round < context.refinement.fm.unconstrained_rounds;
+    }
   }
 
  private:
   const Context& context;
+  FMSharedData& shared_data;
   GainCacheStrategy default_strategy;
   UnconstrainedStrategy unconstrained_strategy;
+  Gain improvement_first_round;
+  bool disable_unconstrained;
 };
 
 }

@@ -91,6 +91,7 @@ namespace mt_kahypar {
 
     if (FMStrategy::is_unconstrained) {
       timer.start_timer("precompute_unconstrained", "Precompute Level for Unc. FM");
+      sharedData.unconstrained.disabled = false;
       sharedData.unconstrained.precomputeForLevel(phg);
       max_part_weights = setupMaxPartWeights(context);
       timer.stop_timer("precompute_unconstrained");
@@ -101,7 +102,7 @@ namespace mt_kahypar {
         initialPartWeights[i] = phg.partWeight(i);
       }
 
-      if (FMStrategy::isUnconstrainedRound(round, context)) {
+      if (FMStrategy::isUnconstrainedRound(round, context) && !sharedData.unconstrained.disabled) {
         timer.start_timer("initialize_data_unconstrained", "Initialize Data for Unc. FM");
         sharedData.unconstrained.initialize(context, phg);
         timer.stop_timer("initialize_data_unconstrained");
@@ -213,6 +214,14 @@ namespace mt_kahypar {
       } else {
         consecutive_rounds_with_too_little_improvement = 0;
       }
+      if (roundImprovementFraction < context.refinement.fm.unconstrained_min_improvement
+          && !sharedData.unconstrained.disabled
+          && (!context.refinement.fm.activate_unconstrained_dynamically || round > 2)) {
+        DBG << "Disabling unconstrained FM due to too little improvement:" << V(roundImprovementFraction);
+        sharedData.unconstrained.disabled = true;
+      }
+      sharedData.previous_improvement_absolute = improvement;
+      sharedData.previous_improvement_relative = roundImprovementFraction;
 
       HighResClockTimepoint fm_timestamp = std::chrono::high_resolution_clock::now();
       const double elapsed_time = std::chrono::duration<double>(fm_timestamp - fm_start).count();
@@ -241,7 +250,8 @@ namespace mt_kahypar {
         }
       }
 
-      if (improvement <= 0 || consecutive_rounds_with_too_little_improvement >= 2) {
+      if ( (improvement <= 0 && (!context.refinement.fm.activate_unconstrained_dynamically || round > 2))
+            || consecutive_rounds_with_too_little_improvement >= 2 ) {
         break;
       }
       locally_locked_vertices.clear_sequential();
