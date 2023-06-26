@@ -218,18 +218,6 @@ namespace mt_kahypar {
       improvement_found = false;
       const HyperedgeWeight metric_before = _best_metrics.quality;
 
-      if ( _label_propagation && _context.refinement.label_propagation.algorithm != LabelPropagationAlgorithm::do_nothing ) {
-        _timer.start_timer("initialize_lp_refiner", "Initialize LP Refiner");
-        _label_propagation->initialize(phg);
-        _timer.stop_timer("initialize_lp_refiner");
-
-        _timer.start_timer("label_propagation", "Label Propagation");
-        if ( _label_propagation->refine(phg, dummy, _current_metrics, time_limit) ) {
-          improvement_found |= checkForImprovement();
-        }
-        _timer.stop_timer("label_propagation");
-      }
-
       if ( _jet && _context.refinement.jet.algorithm != JetAlgorithm::do_nothing ) {
         _timer.start_timer("initialize_jet_refiner", "Initialize JET Refiner");
         _jet->initialize(phg);
@@ -240,6 +228,18 @@ namespace mt_kahypar {
           improvement_found |= checkForImprovement();
         }
         _timer.stop_timer("jet");
+      }
+
+      if ( _label_propagation && _context.refinement.label_propagation.algorithm != LabelPropagationAlgorithm::do_nothing ) {
+        _timer.start_timer("initialize_lp_refiner", "Initialize LP Refiner");
+        _label_propagation->initialize(phg);
+        _timer.stop_timer("initialize_lp_refiner");
+
+        _timer.start_timer("label_propagation", "Label Propagation");
+        if ( _label_propagation->refine(phg, dummy, _current_metrics, time_limit) ) {
+          improvement_found |= checkForImprovement();
+        }
+        _timer.stop_timer("label_propagation");
       }
 
       if ( _fm && _context.refinement.fm.algorithm != FMAlgorithm::do_nothing ) {
