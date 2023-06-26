@@ -572,6 +572,18 @@ namespace mt_kahypar {
              po::value<double>((initial_partitioning ? &context.initial_partitioning.refinement.fm.unconstrained_upper_bound_min :
                               &context.refinement.fm.unconstrained_upper_bound_min))->value_name("<double>")->default_value(0.0),
              "Cooling FM algorithm: Minimum (final) upper bound (default = 0 = equal to start).")
+            ((initial_partitioning ? "i-r-fm-activate-unconstrained-dynamically" : "r-fm-activate-unconstrained-dynamically"),
+             po::value<bool>((initial_partitioning ? &context.initial_partitioning.refinement.fm.activate_unconstrained_dynamically :
+                              &context.refinement.fm.activate_unconstrained_dynamically))->value_name("<bool>")->default_value(false),
+             "Decide dynamically (based on first two rounds) whether to use unconstrained FM (only cooling strategy).")
+            ((initial_partitioning ? "i-r-fm-penalty-for-activation-test" : "r-fm-penalty-for-activation-test"),
+             po::value<double>((initial_partitioning ? &context.initial_partitioning.refinement.fm.penalty_for_activation_test :
+                              &context.refinement.fm.penalty_for_activation_test))->value_name("<double>")->default_value(0.5),
+             "If unconstrained FM is activated dynamically, determines the penalty factor used for the test round.")
+            ((initial_partitioning ? "i-r-fm-unconstrained-min-improvement" : "r-fm-unconstrained-min-improvement"),
+             po::value<double>((initial_partitioning ? &context.initial_partitioning.refinement.fm.unconstrained_min_improvement :
+                              &context.refinement.fm.unconstrained_min_improvement))->value_name("<double>")->default_value(-1.0),
+             "Switch to constrained FM if relative improvement of unconstrained FM is below this treshold.")
             ((initial_partitioning ? "i-r-fm-obey-minimal-parallelism" : "r-fm-obey-minimal-parallelism"),
              po::value<bool>(
                      (initial_partitioning ? &context.initial_partitioning.refinement.fm.obey_minimal_parallelism :

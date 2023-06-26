@@ -189,6 +189,11 @@ struct FMParameters {
   double imbalance_penalty_min = 0.2;
   double imbalance_penalty_max = 1.0;
   double unconstrained_upper_bound_min = 0.0;
+
+  // unconstrained: dynamic enabling/disableing
+  bool activate_unconstrained_dynamically = false;
+  double penalty_for_activation_test = 0.5;
+  double unconstrained_min_improvement = -1.0;
 };
 
 std::ostream& operator<<(std::ostream& out, const FMParameters& params);
