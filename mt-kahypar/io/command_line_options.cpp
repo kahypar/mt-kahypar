@@ -469,6 +469,10 @@ namespace mt_kahypar {
              "Strategy for integrating rebalancing into the rollback during FM (only relevant for unconstrained FM):\n"
              "- interleave_rebalancing_moves\n"
              "- approximate")
+            ((initial_partitioning ? "i-r-fm-only-append-rebalancing-moves" : "r-fm-only-append-rebalancing-moves"),
+             po::value<bool>((initial_partitioning ? &context.initial_partitioning.refinement.fm.only_append_rebalancing_moves :
+                              &context.refinement.fm.only_append_rebalancing_moves))->value_name("<bool>")->default_value(false),
+             "If true, rebalancing moves are not actually interleaved but appended to the move sequence.")
             ((initial_partitioning ? "i-r-fm-multitry-rounds" : "r-fm-multitry-rounds"),
              po::value<size_t>((initial_partitioning ? &context.initial_partitioning.refinement.fm.multitry_rounds :
                                 &context.refinement.fm.multitry_rounds))->value_name("<size_t>")->default_value(10),

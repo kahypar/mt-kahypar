@@ -196,7 +196,8 @@ namespace mt_kahypar {
           if (!moves_by_part.empty()) {
             // compute new move sequence where each imbalanced move is immediately rebalanced
             timer.start_timer("interleave", "Interleave Rebalancing Moves");
-            interleaveMoveSequenceWithRebalancingMoves(phg, initialPartWeights, max_part_weights, moves_by_part);
+            interleaveMoveSequenceWithRebalancingMoves(phg, initialPartWeights, max_part_weights, moves_by_part,
+                                                       context.refinement.fm.only_append_rebalancing_moves);
             timer.stop_timer("interleave");
           }
         }
@@ -324,7 +325,8 @@ namespace mt_kahypar {
                                                             const PartitionedHypergraph& phg,
                                                             const vec<HypernodeWeight>& initialPartWeights,
                                                             const std::vector<HypernodeWeight>& max_part_weights,
-                                                            vec<vec<Move>>& rebalancing_moves_by_part) {
+                                                            vec<vec<Move>>& rebalancing_moves_by_part,
+                                                            bool only_append_moves) {
     ASSERT(rebalancing_moves_by_part.size() == static_cast<size_t>(context.partition.k));
     HEAVY_REFINEMENT_ASSERT([&] {
       std::set<HypernodeID> moved_nodes;
@@ -384,8 +386,10 @@ namespace mt_kahypar {
     };
 
     // it might be possible that the initial weights are already imbalanced
-    for (PartitionID part = 0; part < context.partition.k; ++part) {
-      insert_moves_to_balance_part(part);
+    if (!only_append_moves) {
+      for (PartitionID part = 0; part < context.partition.k; ++part) {
+        insert_moves_to_balance_part(part);
+      }
     }
 
     const vec<Move>& move_order = move_tracker.moveOrder;
@@ -400,7 +404,9 @@ namespace mt_kahypar {
         ++next_move_index;
         move_tracker.rebalancingMoves.push_back(static_cast<uint8_t>(false));
         // insert rebalancing moves if necessary
-        insert_moves_to_balance_part(m.to);
+        if (!only_append_moves) {
+          insert_moves_to_balance_part(m.to);
+        }
       }
     }
 
