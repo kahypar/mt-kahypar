@@ -138,9 +138,6 @@ namespace mt_kahypar {
         }
         best_metrics = current_metrics;
         _current_partition_is_best = true;
-      } else if (_context.refinement.jet.rollback_after_each_iteration) {
-        rollbackToBestPartition(hypergraph);
-        recomputePenalties(hypergraph, true);
       } else {
         _current_partition_is_best = false;
       }
@@ -151,6 +148,10 @@ namespace mt_kahypar {
         timer.start_timer("compute_active_nodes", "Compute Active Nodes");
         computeActiveNodesFromPreviousRound(hypergraph);
         timer.stop_timer("compute_active_nodes");
+      }
+      if (_context.refinement.jet.rollback_after_each_iteration && !_current_partition_is_best) {
+        rollbackToBestPartition(hypergraph);
+        recomputePenalties(hypergraph, true);
       }
     }
 
