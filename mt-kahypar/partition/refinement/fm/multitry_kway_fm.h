@@ -99,7 +99,8 @@ class MultiTryKWayFM final : public IRefiner {
   void interleaveMoveSequenceWithRebalancingMoves(const PartitionedHypergraph& phg,
                                                   const vec<HypernodeWeight>& initialPartWeights,
                                                   const std::vector<HypernodeWeight>& max_part_weights,
-                                                  vec<vec<Move>>& rebalancing_moves_by_part);
+                                                  vec<vec<Move>>& rebalancing_moves_by_part,
+                                                  bool only_append_moves);
 
   void insertMovesToBalancePart(const PartitionedHypergraph& phg,
                                 const PartitionID part,
