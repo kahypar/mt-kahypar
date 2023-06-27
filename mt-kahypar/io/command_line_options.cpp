@@ -647,11 +647,11 @@ namespace mt_kahypar {
             ((initial_partitioning ? "i-r-jetr-use-greedy-balanced-instead-of-strong-iteration" : "r-jetr-use-greedy-balanced-instead-of-strong-iteration"),
              po::value<bool>((initial_partitioning ? &context.initial_partitioning.refinement.jet_rebalancing.use_greedy_balanced_instead_of_strong_iteration :
                                 &context.refinement.jet_rebalancing.use_greedy_balanced_instead_of_strong_iteration))->value_name("<bool>")->default_value(false),
-             "Size of deadzone relative to allowed imbalance.")
+             "Replace the strong JET iteration with a greedy implementation that updates the block weights immediately.")
             ((initial_partitioning ? "i-r-jetr-greedy-balanced-use-deadzone" : "r-jetr-greedy-balanced-use-deadzone"),
              po::value<bool>((initial_partitioning ? &context.initial_partitioning.refinement.jet_rebalancing.greedy_balanced_use_deadzone :
                                 &context.refinement.jet_rebalancing.greedy_balanced_use_deadzone))->value_name("<bool>")->default_value(true),
-             "Size of deadzone relative to allowed imbalance.");
+             "If strong JET is replaced with greedy, determines whether the deadzone should be used.");
     return options;
   }
 
