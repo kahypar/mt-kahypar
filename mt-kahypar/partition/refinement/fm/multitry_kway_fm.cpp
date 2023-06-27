@@ -96,6 +96,10 @@ namespace mt_kahypar {
       timer.stop_timer("precompute_unconstrained");
     }
 
+    const bool log = false && context.type == ContextType::main && phg.initialNumNodes() > 5000;
+
+    if (log) LOG << "\n  ---- Start FM refinement ---- " << V(phg.initialNumNodes());
+
     for (size_t round = 0; round < context.refinement.fm.multitry_rounds; ++round) { // global multi try rounds
       for (PartitionID i = 0; i < context.partition.k; ++i) {
         initialPartWeights[i] = phg.partWeight(i);
@@ -154,10 +158,80 @@ namespace mt_kahypar {
         });
       }
 
+
+
+      auto info = [&] (bool require_balance) {
+        size_t num_moves = 0;
+        Gain expected_gain = 0;
+        size_t num_invalidated = 0;
+        for (size_t i = 0; i < sharedData.moveTracker.numPerformedMoves(); ++i) {
+          if (sharedData.moveTracker.moveOrder[i].isValid()) {
+            num_moves++;
+            expected_gain += sharedData.moveTracker.moveOrder[i].gain;
+          } else {
+            num_invalidated++;
+          }
+        }
+        globalRollback.recalculateGains(phg, sharedData);
+        Gain cumulative_gain = 0;
+        Gain max_gain = 0;
+        size_t max_gain_pos = 0;
+        int64_t imbalance_at_max_gain = 0;
+        vec <HypernodeWeight> part_weights = initialPartWeights;
+        vec <HypernodeWeight> part_weights_at_max_gain = initialPartWeights;
+        size_t overloaded = 0;
+        for (PartitionID k = 0; k < phg.k(); ++k) {
+          if (part_weights[k] > context.partition.max_part_weights[k]) { overloaded++; }
+        }
+
+        for (size_t i = 0; i < sharedData.moveTracker.numPerformedMoves(); ++i) {
+          if (sharedData.moveTracker.moveOrder[i].isValid()) {
+            const Move& m = sharedData.moveTracker.moveOrder[i];
+            cumulative_gain += m.gain;
+            if (part_weights[m.from] > context.partition.max_part_weights[m.from] && part_weights[m.from] - phg.nodeWeight(m.node) <= context.partition.max_part_weights[m.from]) overloaded--;
+            if (part_weights[m.to] <= context.partition.max_part_weights[m.to] && part_weights[m.to] + phg.nodeWeight(m.node) > context.partition.max_part_weights[m.to]) overloaded++;
+            part_weights[m.from] -= phg.nodeWeight(m.node);
+            part_weights[m.to] += phg.nodeWeight(m.node);
+            if (cumulative_gain > max_gain && (!require_balance || overloaded == 0)) {
+              max_gain = cumulative_gain;
+              max_gain_pos = i + 1;
+              imbalance_at_max_gain = 0;
+              for (PartitionID j = 0; j < phg.k(); ++j) {
+                if (part_weights[j] > context.partition.max_part_weights[j] &&
+                    part_weights[j] - context.partition.max_part_weights[j] > imbalance_at_max_gain) {
+                  imbalance_at_max_gain = part_weights[j] - context.partition.max_part_weights[j];
+                  part_weights_at_max_gain = part_weights;
+                }
+              }
+            }
+          }
+        }
+        size_t num_overloaded = 0;
+        std::stringstream str;
+        for (PartitionID k = 0; k < phg.k(); ++k) {
+          if (part_weights_at_max_gain[k] > context.partition.max_part_weights[k]) {
+            num_overloaded++;
+            str << k << " " << part_weights_at_max_gain[k] << " | ";
+          }
+        }
+        str << "  ||  max part weight = " << context.partition.max_part_weights[0];
+        if (log) {
+          LOG << V(round) << V(num_moves) << V(max_gain_pos) << V(num_invalidated) << V(expected_gain)
+              << V(cumulative_gain) << V(max_gain) << V(imbalance_at_max_gain) << V(num_overloaded);
+          LOG << str.str();
+        }
+      };
+      if (log) {
+        LOG << "\nbefore rebalance";
+        info(false);
+      }
+
+
       HyperedgeWeight improvement;
       if (context.refinement.fm.rollback_strategy == RollbackStrategy::approximate) {
         // TODO: it seems likely we can remove this strategy
         timer.start_timer("rollback", "Rollback to Best Solution");
+
         improvement = globalRollback.revertToBestPrefix(phg, sharedData, initialPartWeights,
                                                         FMStrategy::isUnconstrainedRound(round, context));
         timer.stop_timer("rollback");
@@ -197,6 +271,11 @@ namespace mt_kahypar {
             // compute new move sequence where each imbalanced move is immediately rebalanced
             timer.start_timer("interleave", "Interleave Rebalancing Moves");
             interleaveMoveSequenceWithRebalancingMoves(phg, initialPartWeights, max_part_weights, moves_by_part);
+            if (log) LOG << "Interleaved move sequence size = " << sharedData.moveTracker.numPerformedMoves();
+            if (log) {
+              LOG << "after rebalance";
+              info(true);
+            }
             timer.stop_timer("interleave");
           }
         }
@@ -218,6 +297,7 @@ namespace mt_kahypar {
       } else {
         consecutive_rounds_with_too_little_improvement = 0;
       }
+      if (log) LOG << V(improvement) << V(metrics::quality(phg, context)) << V(metrics::imbalance(phg, context));
 
       HighResClockTimepoint fm_timestamp = std::chrono::high_resolution_clock::now();
       const double elapsed_time = std::chrono::duration<double>(fm_timestamp - fm_start).count();
@@ -378,6 +458,8 @@ namespace mt_kahypar {
     vec<MoveID> current_rebalancing_move_index(context.partition.k, 0);
     MoveID next_move_index = 0;
 
+    // TODO inspect quality of balancing moves now
+
     auto insert_moves_to_balance_part = [&](const PartitionID part) {
       if (current_part_weights[part] > max_part_weights[part]) {
         insertMovesToBalancePart(phg, part, max_part_weights, rebalancing_moves_by_part,
@@ -402,7 +484,7 @@ namespace mt_kahypar {
         ++next_move_index;
         move_tracker.rebalancingMoves.push_back(static_cast<uint8_t>(false));
         // insert rebalancing moves if necessary
-        insert_moves_to_balance_part(m.to);
+        insert_moves_to_balance_part(m.to);   // TODO no chance to take back? --> send the old move sequence through the recalculation as well
       }
     }
 
@@ -455,6 +537,9 @@ namespace mt_kahypar {
         ++next_move_index;
         sharedData.moveTracker.rebalancingMoves.push_back(static_cast<uint8_t>(true));
 
+        // TODO what is better?
+        // a) finish fixing the current block first or the target block first? two overloaded blocks can just alternate moving weight between each other. in this case, the current implementation has linear recursion depth
+        // b) what if m.to is already overloaded? should the move be skipped or not?
         if (current_part_weights[m.to] > max_part_weights[m.to]) {
           // edge case: it is possible that the rebalancing move itself causes new imbalance -> call recursively
           insertMovesToBalancePart(phg, m.to, max_part_weights, rebalancing_moves_by_part,
