@@ -91,6 +91,7 @@ namespace mt_kahypar {
 
     if (FMStrategy::is_unconstrained) {
       timer.start_timer("precompute_unconstrained", "Precompute Level for Unc. FM");
+      sharedData.unconstrained.disabled = false;
       sharedData.unconstrained.precomputeForLevel(phg);
       max_part_weights = setupMaxPartWeights(context);
       timer.stop_timer("precompute_unconstrained");
@@ -220,7 +221,8 @@ namespace mt_kahypar {
         consecutive_rounds_with_too_little_improvement = 0;
       }
       if (roundImprovementFraction < context.refinement.fm.unconstrained_min_improvement
-          && !sharedData.unconstrained.disabled) {
+          && !sharedData.unconstrained.disabled
+          && (!context.refinement.fm.activate_unconstrained_dynamically || round > 2)) {
         DBG << "Disabling unconstrained FM due to too little improvement:" << V(roundImprovementFraction);
         sharedData.unconstrained.disabled = true;
       }

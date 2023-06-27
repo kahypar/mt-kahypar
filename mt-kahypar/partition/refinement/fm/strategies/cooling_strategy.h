@@ -60,6 +60,7 @@ public:
         return;
       } else if (round == 2) {
         // second round: measure improvement of unconstrained FM
+        ASSERT(!shared_data.unconstrained.disabled);
         improvement_first_round = shared_data.previous_improvement_absolute;
         unconstrained_strategy.setPenaltyFactor(context.refinement.fm.penalty_for_activation_test);
         unconstrained_strategy.setUpperBound(context.refinement.fm.unconstrained_upper_bound);
