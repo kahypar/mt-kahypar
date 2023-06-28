@@ -37,7 +37,7 @@
 
 
 namespace mt_kahypar {
-template <typename TypeTraits, typename GainTypes, bool precomputed>
+template <typename TypeTraits, typename GainTypes>
 class JetRefiner final : public IRefiner {
  private:
   using Hypergraph = typename TypeTraits::Hypergraph;
@@ -119,15 +119,17 @@ class JetRefiner final : public IRefiner {
 
   void initializeImpl(mt_kahypar_partitioned_hypergraph_t& phg) final;
 
+  template<bool precomputed>
   void computeActiveNodesFromGraph(const PartitionedHypergraph& hypergraph);
 
   void computeActiveNodesFromVector(const PartitionedHypergraph& hypergraph,
                                     const parallel::scalable_vector<HypernodeID>& refinement_nodes);
 
+  template <bool precomputed>
   void computeActiveNodesFromPreviousRound(const PartitionedHypergraph& hypergraph);
 
   // ! Applied during computation of active nodes. If precomputed, applies the first JET filter
-  template<typename F>
+  template<bool precomputed, typename F>
   void processNode(const PartitionedHypergraph& hypergraph, const HypernodeID hn, F add_node_fn, const bool top_level);
 
   void recomputePenalties(const PartitionedHypergraph& hypergraph, bool did_rebalance);
@@ -166,6 +168,7 @@ class JetRefiner final : public IRefiner {
 
   const Context& _context;
   GainCache& _gain_cache;
+  bool _precomputed;
   PartitionID _current_k;
   HypernodeID _top_level_num_nodes;
   bool _current_partition_is_best;
@@ -179,8 +182,4 @@ class JetRefiner final : public IRefiner {
   IRefiner& _rebalancer;
 };
 
-template<typename TypeTraits, typename GainCache>
-using PrecomputedJetRefiner = JetRefiner<TypeTraits, GainCache, true>;
-template<typename TypeTraits, typename GainCache>
-using GreedyJetRefiner = JetRefiner<TypeTraits, GainCache, false>;
 }  // namespace kahypar

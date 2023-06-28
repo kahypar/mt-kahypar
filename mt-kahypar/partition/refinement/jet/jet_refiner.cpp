@@ -39,14 +39,15 @@
 
 namespace mt_kahypar {
 
-  template <typename TypeTraits, typename GainTypes, bool precomputed>
-  JetRefiner<TypeTraits, GainTypes, precomputed>::JetRefiner(const HypernodeID num_hypernodes,
-                                                             const HyperedgeID num_hyperedges,
-                                                             const Context& context,
-                                                             GainCache& gain_cache,
-                                                             IRefiner& rebalancer) :
+  template <typename TypeTraits, typename GainTypes>
+  JetRefiner<TypeTraits, GainTypes>::JetRefiner(const HypernodeID num_hypernodes,
+                                                const HyperedgeID num_hyperedges,
+                                                const Context& context,
+                                                GainCache& gain_cache,
+                                                IRefiner& rebalancer) :
     _context(context),
     _gain_cache(gain_cache),
+    _precomputed(context.refinement.jet.algorithm == JetAlgorithm::precomputed_ordered),
     _current_k(context.partition.k),
     _top_level_num_nodes(num_hypernodes),
     _current_partition_is_best(true),
@@ -54,13 +55,13 @@ namespace mt_kahypar {
     _current_partition(num_hypernodes, kInvalidPartition),
     _gain(context),
     _active_nodes(),
-    _gains_and_target(precomputed ? num_hypernodes : 0),
+    _gains_and_target(_precomputed ? num_hypernodes : 0),
     _next_active(num_hypernodes),
     _visited_he(num_hyperedges),
     _rebalancer(rebalancer) { }
 
-  template <typename TypeTraits, typename GainTypes, bool precomputed>
-  bool JetRefiner<TypeTraits, GainTypes, precomputed>::refineImpl(
+  template <typename TypeTraits, typename GainTypes>
+  bool JetRefiner<TypeTraits, GainTypes>::refineImpl(
                   mt_kahypar_partitioned_hypergraph_t& phg,
                   const parallel::scalable_vector<HypernodeID>& refinement_nodes,
                   Metrics& best_metrics,
@@ -75,7 +76,11 @@ namespace mt_kahypar {
     // Initialize set of active vertices
     timer.start_timer("compute_active_nodes", "Compute Active Nodes");
     if (refinement_nodes.empty()) {
-      computeActiveNodesFromGraph(hypergraph);
+      if (_precomputed) {
+        computeActiveNodesFromGraph<true>(hypergraph);
+      } else {
+        computeActiveNodesFromGraph<false>(hypergraph);
+      }
     } else {
       computeActiveNodesFromVector(hypergraph, refinement_nodes);
     }
@@ -146,7 +151,11 @@ namespace mt_kahypar {
       } else {
         // initialize active vertices for next round
         timer.start_timer("compute_active_nodes", "Compute Active Nodes");
-        computeActiveNodesFromPreviousRound(hypergraph);
+        if (_precomputed) {
+          computeActiveNodesFromPreviousRound<true>(hypergraph);
+        } else {
+          computeActiveNodesFromPreviousRound<false>(hypergraph);
+        }
         timer.stop_timer("compute_active_nodes");
       }
       if (_context.refinement.jet.rollback_after_each_iteration && !_current_partition_is_best) {
@@ -172,8 +181,8 @@ namespace mt_kahypar {
     return best_metrics.quality < input_quality;
   }
 
-  template <typename TypeTraits, typename GainTypes, bool precomputed>
-  void JetRefiner<TypeTraits, GainTypes, precomputed>::labelPropagationRound(
+  template <typename TypeTraits, typename GainTypes>
+  void JetRefiner<TypeTraits, GainTypes>::labelPropagationRound(
                   PartitionedHypergraph& hypergraph) {
     // This function is passed as lambda to the changeNodePart function and used
     // to calculate the "real" delta of a move (in terms of the used objective function).
@@ -186,9 +195,9 @@ namespace mt_kahypar {
                                      pin_count_in_from_part_after, pin_count_in_to_part_after);
     };
 
-    auto move_node = [&](const size_t j) {
+    auto move_node = [&](const size_t j, const bool precomputed) {
       const HypernodeID hn = _active_nodes[j];
-      if constexpr (precomputed) {
+      if (precomputed) {
         const PartitionID from = hypergraph.partID(hn);
         const auto [gain, to] = _gains_and_target[hn];
         Gain total_gain = 0;
@@ -225,23 +234,35 @@ namespace mt_kahypar {
     if ( _context.refinement.jet.execute_sequential ) {
       utils::Randomize::instance().shuffleVector(
               _active_nodes, UL(0), _active_nodes.size(), SCHED_GETCPU);
-      for ( size_t j = 0; j < _active_nodes.size(); ++j ) {
-        move_node(j);
+      // explicit case distinction to enable constant propagation (should be equivalent to template)
+      if (_precomputed) {
+        for ( size_t j = 0; j < _active_nodes.size(); ++j ) {
+          move_node(j, true);
+        }
+      } else {
+        for ( size_t j = 0; j < _active_nodes.size(); ++j ) {
+          move_node(j, false);
+        }
       }
     } else {
       utils::Randomize::instance().parallelShuffleVector(
               _active_nodes, UL(0), _active_nodes.size());
-      tbb::parallel_for(UL(0), _active_nodes.size(), move_node);
+      // explicit case distinction to enable constant propagation (should be equivalent to template)
+      if (_precomputed) {
+        tbb::parallel_for(UL(0), _active_nodes.size(), [&](size_t j) { move_node(j, true); });
+      } else {
+        tbb::parallel_for(UL(0), _active_nodes.size(), [&](size_t j) { move_node(j, false); });
+      }
     }
   }
 
-  template <typename TypeTraits, typename GainTypes, bool precomputed>
-  void JetRefiner<TypeTraits, GainTypes, precomputed>::initializeImpl(mt_kahypar_partitioned_hypergraph_t& phg) {
+  template <typename TypeTraits, typename GainTypes>
+  void JetRefiner<TypeTraits, GainTypes>::initializeImpl(mt_kahypar_partitioned_hypergraph_t& phg) {
     _rebalancer.initialize(phg);
   }
 
-  template <typename TypeTraits, typename GainTypes, bool precomputed>
-  void JetRefiner<TypeTraits, GainTypes, precomputed>::recomputePenalties(const PartitionedHypergraph& hypergraph, 
+  template <typename TypeTraits, typename GainTypes>
+  void JetRefiner<TypeTraits, GainTypes>::recomputePenalties(const PartitionedHypergraph& hypergraph, 
                                                                           bool did_rebalance) {
     parallel::scalable_vector<PartitionID>& current_parts = _current_partition_is_best ? _best_partition : _current_partition;
     auto recompute = [&](const HypernodeID hn) {
@@ -277,15 +298,16 @@ namespace mt_kahypar {
     }
   }
 
-  template <typename TypeTraits, typename GainTypes, bool precomputed>
-  void JetRefiner<TypeTraits, GainTypes, precomputed>::computeActiveNodesFromGraph(const PartitionedHypergraph& hypergraph) {
+  template <typename TypeTraits, typename GainTypes>
+  template <bool precomputed>
+  void JetRefiner<TypeTraits, GainTypes>::computeActiveNodesFromGraph(const PartitionedHypergraph& hypergraph) {
     const bool top_level = (hypergraph.initialNumNodes() == _top_level_num_nodes);
     _active_nodes.clear();
 
     auto process_node = [&](const HypernodeID hn, auto add_node_fn) {
       bool accept_border = !_context.refinement.jet.restrict_to_border_nodes || hypergraph.isBorderNode(hn);
       if (accept_border) {
-        processNode(hypergraph, hn, add_node_fn, top_level);
+        processNode<precomputed>(hypergraph, hn, add_node_fn, top_level);
       }
     };
 
@@ -308,17 +330,17 @@ namespace mt_kahypar {
     }
   }
 
-  template <typename TypeTraits, typename GainTypes, bool precomputed>
-  void JetRefiner<TypeTraits, GainTypes, precomputed>::computeActiveNodesFromVector(const PartitionedHypergraph& hypergraph,
+  template <typename TypeTraits, typename GainTypes>
+  void JetRefiner<TypeTraits, GainTypes>::computeActiveNodesFromVector(const PartitionedHypergraph& hypergraph,
                                                                                     const parallel::scalable_vector<HypernodeID>& refinement_nodes) {
     _active_nodes.clear();
 
-    if constexpr (precomputed) {
+    if (_precomputed) {
       const bool top_level = (hypergraph.initialNumNodes() == _top_level_num_nodes);
       if ( _context.refinement.jet.execute_sequential ) {
         // setup active nodes sequentially
         for ( const HypernodeID hn : refinement_nodes ) {
-          processNode(hypergraph, hn, [&] {
+          processNode<true>(hypergraph, hn, [&]{
             _active_nodes.push_back(hn);
           }, top_level);
         }
@@ -327,7 +349,7 @@ namespace mt_kahypar {
         ds::StreamingVector<HypernodeID> tmp_active_nodes;
         tbb::parallel_for(UL(0), refinement_nodes.size(), [&](const size_t j) {
           const HypernodeID hn = refinement_nodes[j];
-          processNode(hypergraph, hn, [&] {
+          processNode<true>(hypergraph, hn, [&]{
             tmp_active_nodes.stream(hn);
           }, top_level);
         });
@@ -338,8 +360,9 @@ namespace mt_kahypar {
     }
   }
 
-  template <typename TypeTraits, typename GainTypes, bool precomputed>
-  void JetRefiner<TypeTraits, GainTypes, precomputed>::computeActiveNodesFromPreviousRound(const PartitionedHypergraph& hypergraph) {
+  template <typename TypeTraits, typename GainTypes>
+  template <bool precomputed>
+  void JetRefiner<TypeTraits, GainTypes>::computeActiveNodesFromPreviousRound(const PartitionedHypergraph& hypergraph) {
     const bool top_level = (hypergraph.initialNumNodes() == _top_level_num_nodes);
     mt_kahypar::utils::Randomize& randomize = mt_kahypar::utils::Randomize::instance();
     parallel::scalable_vector<PartitionID>& current_parts = _current_partition_is_best ? _best_partition : _current_partition;
@@ -378,7 +401,7 @@ namespace mt_kahypar {
       // setup active nodes sequentially
       for ( const HypernodeID hn : hypergraph.nodes() ) {
         activate_neighbors_if_moved(hn, [&](const HypernodeID neighbor) {
-          processNode(hypergraph, neighbor, [&] {
+          processNode<precomputed>(hypergraph, neighbor, [&] {
             _active_nodes.push_back(neighbor);
           }, top_level);
         });
@@ -394,7 +417,7 @@ namespace mt_kahypar {
       _active_nodes = tmp_active_nodes.copy_parallel();
       tmp_active_nodes.clear_sequential();
       tbb::parallel_for(UL(0), _active_nodes.size(), [&](const size_t j) {
-        processNode(hypergraph, _active_nodes[j], [&] {
+        processNode<precomputed>(hypergraph, _active_nodes[j], [&] {
           tmp_active_nodes.stream(_active_nodes[j]);
         }, top_level);
       });
@@ -403,9 +426,9 @@ namespace mt_kahypar {
     }
   }
 
-  template <typename TypeTraits, typename GainTypes, bool precomputed>
-  template<typename F>
-  void JetRefiner<TypeTraits, GainTypes, precomputed>::processNode(const PartitionedHypergraph& hypergraph,
+  template <typename TypeTraits, typename GainTypes>
+  template <bool precomputed, typename F>
+  void JetRefiner<TypeTraits, GainTypes>::processNode(const PartitionedHypergraph& hypergraph,
                                                                    const HypernodeID hn, F add_node_fn,
                                                                    const bool top_level) {
     const double gain_factor = top_level ? _context.refinement.jet.negative_gain_factor_fine :
@@ -428,8 +451,8 @@ namespace mt_kahypar {
     }
   }
 
-  template <typename TypeTraits, typename GainTypes, bool precomputed>
-  void JetRefiner<TypeTraits, GainTypes, precomputed>::storeCurrentPartition(const PartitionedHypergraph& hypergraph,
+  template <typename TypeTraits, typename GainTypes>
+  void JetRefiner<TypeTraits, GainTypes>::storeCurrentPartition(const PartitionedHypergraph& hypergraph,
                                                                              parallel::scalable_vector<PartitionID>& parts) {
     if ( _context.refinement.jet.execute_sequential ) {
       for (const HypernodeID hn : hypergraph.nodes()) {
@@ -442,8 +465,8 @@ namespace mt_kahypar {
     }
   }
 
-  template <typename TypeTraits, typename GainTypes, bool precomputed>
-  void JetRefiner<TypeTraits, GainTypes, precomputed>::rollbackToBestPartition(PartitionedHypergraph& hypergraph) {
+  template <typename TypeTraits, typename GainTypes>
+  void JetRefiner<TypeTraits, GainTypes>::rollbackToBestPartition(PartitionedHypergraph& hypergraph) {
     // This function is passed as lambda to the changeNodePart function and used
     // to calculate the "real" delta of a move (in terms of the used objective function).
     auto objective_delta = [&](const HyperedgeID he,
@@ -473,8 +496,8 @@ namespace mt_kahypar {
     _current_partition_is_best = true;
   }
 
-  template <typename TypeTraits, typename GainTypes, bool precomputed>
-  void JetRefiner<TypeTraits, GainTypes, precomputed>::rebalance(PartitionedHypergraph& hypergraph,
+  template <typename TypeTraits, typename GainTypes>
+  void JetRefiner<TypeTraits, GainTypes>::rebalance(PartitionedHypergraph& hypergraph,
                                                                  Metrics& current_metrics, double time_limit) {
     ASSERT(!_context.partition.deterministic);
     mt_kahypar_partitioned_hypergraph_t phg = utils::partitioned_hg_cast(hypergraph);
@@ -482,11 +505,9 @@ namespace mt_kahypar {
   }
 
   namespace {
-  #define JET_REFINER_GREEDY(X, Y) JetRefiner<X, Y, false>
-  #define JET_REFINER_PRE(X, Y) JetRefiner<X, Y, true>
+  #define JET_REFINER(X, Y) JetRefiner<X, Y>
   }
 
   // explicitly instantiate so the compiler can generate them when compiling this cpp file
-  INSTANTIATE_CLASS_WITH_TYPE_TRAITS_AND_GAIN_TYPES(JET_REFINER_GREEDY)
-  INSTANTIATE_CLASS_WITH_TYPE_TRAITS_AND_GAIN_TYPES(JET_REFINER_PRE)
+  INSTANTIATE_CLASS_WITH_TYPE_TRAITS_AND_GAIN_TYPES(JET_REFINER)
 }
