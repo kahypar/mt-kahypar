@@ -153,7 +153,6 @@ std::ostream & operator<< (std::ostream& str, const JetParameters& params);
 
 struct FMParameters {
   FMAlgorithm algorithm = FMAlgorithm::do_nothing;
-  RollbackStrategy rollback_strategy = RollbackStrategy::interleave_rebalancing_moves;
   bool only_append_rebalancing_moves = false;
 
   size_t multitry_rounds = 1;

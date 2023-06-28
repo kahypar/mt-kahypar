@@ -143,9 +143,6 @@ namespace mt_kahypar {
   std::ostream& operator<<(std::ostream& out, const FMParameters& params) {
     out << "  FM Parameters: \n";
     out << "    Algorithm:                        " << params.algorithm << std::endl;
-    if ( params.algorithm != FMAlgorithm::do_nothing && params.algorithm != FMAlgorithm::kway_fm ) {
-      out << "    Rollback Strategy:                " << params.rollback_strategy << std::endl;
-    }
     if ( params.algorithm != FMAlgorithm::do_nothing ) {
       out << "    Multitry Rounds:                  " << params.multitry_rounds << std::endl;
       out << "    Perform Moves Globally:           " << std::boolalpha << params.perform_moves_global << std::endl;
