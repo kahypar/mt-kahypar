@@ -27,50 +27,49 @@
 #pragma once
 
 #include "mt-kahypar/partition/refinement/fm/fm_commons.h"
+#include "mt-kahypar/partition/refinement/fm/localized_kway_fm_core.h"
+#include "mt-kahypar/partition/refinement/fm/strategies/i_fm_strategy.h"
 #include "mt-kahypar/partition/refinement/fm/strategies/gain_cache_strategy.h"
 #include "mt-kahypar/partition/refinement/fm/strategies/unconstrained_strategy.h"
 
 namespace mt_kahypar {
 
-class CombinedStrategy {
-public:
-  static constexpr bool uses_gain_cache = true;
-  static constexpr bool maintain_gain_cache_between_rounds = true;
-  static constexpr bool is_unconstrained = true;
+template<typename TypeTraits, typename GainTypes>
+class CombinedStrategy: public IFMStrategy {
+  using Base = IFMStrategy;
 
-  CombinedStrategy(const Context& context,
-                   FMSharedData& sharedData,
-                   FMStats& runStats) :
-      default_strategy(context, sharedData, runStats),
-      unconstrained_strategy(context, sharedData, runStats) { }
+ public:
+  using LocalFM = LocalizedKWayFM<TypeTraits, GainTypes>;
+  using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
 
-  template<typename DispatchedStrategyApplicatorFn>
-  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
-  void applyWithDispatchedStrategy(size_t /*taskID*/, size_t round, DispatchedStrategyApplicatorFn applicator_fn) {
-    if ((round % 2) == 1) {
-      applicator_fn(static_cast<GainCacheStrategy&>(default_strategy));
+  CombinedStrategy(const Context& context, FMSharedData& sharedData):
+      Base(context, sharedData) { }
+
+  bool dispatchedFindMoves(LocalFM& local_fm, PartitionedHypergraph& phg, size_t task_id, size_t num_seeds, size_t round) {
+    if (isUnconstrainedRound(round)) {
+      LocalUnconstrainedStrategy local_strategy = local_fm.template initializeDispatchedStrategy<LocalUnconstrainedStrategy>();
+      return local_fm.findMoves(local_strategy, phg, task_id, num_seeds);
     } else {
-      applicator_fn(static_cast<UnconstrainedStrategy&>(unconstrained_strategy));
+      LocalGainCacheStrategy local_strategy = local_fm.template initializeDispatchedStrategy<LocalGainCacheStrategy>();
+      return local_fm.findMoves(local_strategy, phg, task_id, num_seeds);
     }
   }
 
-  void changeNumberOfBlocks(const PartitionID new_k) {
-    default_strategy.changeNumberOfBlocks(new_k);
-    unconstrained_strategy.changeNumberOfBlocks(new_k);
+ private:
+  virtual void findMovesImpl(localized_k_way_fm_t local_fm, mt_kahypar_partitioned_hypergraph_t& phg,
+                             size_t num_tasks, size_t num_seeds, size_t round,
+                             ds::StreamingVector<HypernodeID>& locally_locked_vertices) final {
+    Base::findMovesWithConcreteStrategy<CombinedStrategy>(
+              local_fm, phg, num_tasks, num_seeds, round, locally_locked_vertices);
   }
 
-  void memoryConsumption(utils::MemoryTreeNode *parent) const {
-    default_strategy.memoryConsumption(parent);
-    // TODO
-  }
-
-  static bool isUnconstrainedRound(size_t round, const Context&) {
+  virtual bool isUnconstrainedRoundImpl(size_t round) const final {
     return (round % 2) == 0;
   }
 
- private:
-  GainCacheStrategy default_strategy;
-  UnconstrainedStrategy unconstrained_strategy;
+  virtual bool includesUnconstrainedImpl() const final {
+    return true;
+  }
 };
 
 }

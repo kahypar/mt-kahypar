@@ -145,7 +145,6 @@ namespace mt_kahypar {
 
   template<typename PartitionedHypergraphT>
   void UnconstrainedFMData::precomputeForLevel(const PartitionedHypergraphT& phg) {
-    disabled = false;
     phg.doParallelForAllNodes([&](const HypernodeID hn) {
       HyperedgeWeight incident_weight = 0;
       for (HyperedgeID he: phg.incidentEdges(hn)) {
