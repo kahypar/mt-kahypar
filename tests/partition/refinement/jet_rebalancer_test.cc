@@ -106,6 +106,7 @@ TYPED_TEST(ARebalancerTest, BalancesBlockWithCompleteGraph) {
     auto& rebalancer = this->getRebalancer(context, gain_cache);
 
     mt_kahypar_partitioned_hypergraph_t tmp_phg = utils::partitioned_hg_cast(phg);
+    rebalancer.initialize(tmp_phg);
     rebalancer.refine(tmp_phg, {}, current_metrics, 0.0);
     ASSERT_LE(metrics::imbalance(phg, context), context.partition.epsilon);
   }
@@ -137,6 +138,7 @@ TYPED_TEST(ARebalancerTest, BalancesRandomAssignment) {
     auto& rebalancer = this->getRebalancer(context, gain_cache);
 
     mt_kahypar_partitioned_hypergraph_t tmp_phg = utils::partitioned_hg_cast(phg);
+    rebalancer.initialize(tmp_phg);
     rebalancer.refine(tmp_phg, {}, current_metrics, 0.0);
     ASSERT_LE(metrics::imbalance(phg, context), context.partition.epsilon);
   }
