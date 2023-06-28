@@ -27,6 +27,8 @@
 #pragma once
 
 #include "mt-kahypar/partition/refinement/fm/fm_commons.h"
+#include "mt-kahypar/partition/refinement/fm/localized_kway_fm_core.h"
+#include "mt-kahypar/partition/refinement/fm/strategies/i_fm_strategy.h"
 
 
 // TODO: HIGH_DEGREE_THRESHOLD in PartitionedHypergraph/PartitionedGraph might be problematic
@@ -36,13 +38,12 @@
 namespace mt_kahypar {
 
   /*
-   * FMStrategy interface
+   * LocalFMStrategy interface
    * static constexpr bool uses_gain_cache
    * static constexpr bool maintain_gain_cache_between_rounds
    * static constexpr bool is_unconstrained
    *
-   * Constructor(context, sharedData, runStats)
-   * applyWithDispatchedStrategy(applicator_fn)
+   * Constructor(context, sharedData, blockPQ, vertexPQs, runStats)
    * insertIntoPQ(phg, gain_cache, node)
    * updateGain(phg, gain_cache, node, move)
    * findNextMove(phg, gain_cache, move)
@@ -50,13 +51,10 @@ namespace mt_kahypar {
    * clearPQs()
    * deltaGainUpdates(phg, gain_cache, he, edge_weight, from,
    *                  pin_count_in_from_part_after, to,  pin_count_in_to_part_after)
-   * isUnconstrainedRound(taskID, round)
-   * changeNumberOfBlocks(new_k)
-   * memoryConsumption(utils::MemoryTreeNode* parent) const
    *
    */
 
-class UnconstrainedStrategy {
+class LocalUnconstrainedStrategy {
 
  public:
   using BlockPriorityQueue = ds::ExclusiveHandleHeap< ds::MaxHeap<Gain, PartitionID> >;
@@ -66,24 +64,18 @@ class UnconstrainedStrategy {
   static constexpr bool maintain_gain_cache_between_rounds = true;
   static constexpr bool is_unconstrained = true;
 
-  UnconstrainedStrategy(const Context& context,
-                    FMSharedData& sharedData,
-                    FMStats& runStats,
-                    double penaltyFactor = 1.0) :
+  LocalUnconstrainedStrategy(const Context& context,
+                             FMSharedData& sharedData,
+                             BlockPriorityQueue& blockPQ,
+                             vec<VertexPriorityQueue>& vertexPQs,
+                             FMStats& runStats) :
       context(context),
       runStats(runStats),
       sharedData(sharedData),
-      blockPQ(static_cast<size_t>(context.partition.k)),
-      vertexPQs(static_cast<size_t>(context.partition.k),
-        VertexPriorityQueue(sharedData.vertexPQHandles.data(), sharedData.numberOfNodes)),
-      penaltyFactor(penaltyFactor),
+      blockPQ(blockPQ),
+      vertexPQs(vertexPQs),
+      penaltyFactor(context.refinement.fm.imbalance_penalty_max),
       upperBound(context.refinement.fm.unconstrained_upper_bound) { }
-
-  template<typename DispatchedStrategyApplicatorFn>
-  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
-  void applyWithDispatchedStrategy(size_t /*taskID*/, size_t /*round*/, DispatchedStrategyApplicatorFn applicator_fn) {
-    applicator_fn(static_cast<UnconstrainedStrategy&>(*this));
-  }
 
   template<typename PartitionedHypergraph, typename GainCache>
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
@@ -249,28 +241,6 @@ class UnconstrainedStrategy {
       pin_count_in_from_part_after, to, pin_count_in_to_part_after);
   }
 
-  void changeNumberOfBlocks(const PartitionID new_k) {
-    blockPQ.resize(new_k);
-    for ( VertexPriorityQueue& pq : vertexPQs ) {
-      pq.setHandle(sharedData.vertexPQHandles.data(), sharedData.numberOfNodes);
-    }
-    while ( static_cast<size_t>(new_k) > vertexPQs.size() ) {
-      vertexPQs.emplace_back(sharedData.vertexPQHandles.data(), sharedData.numberOfNodes);
-    }
-  }
-
-  void memoryConsumption(utils::MemoryTreeNode *parent) const {
-    size_t vertex_pq_sizes = std::accumulate(
-            vertexPQs.begin(), vertexPQs.end(), 0,
-            [](size_t init, const VertexPriorityQueue& pq) { return init + pq.size_in_bytes(); }
-    );
-    parent->addChild("PQs", blockPQ.size_in_bytes() + vertex_pq_sizes);
-  }
-
-  static bool isUnconstrainedRound(size_t, const Context&) {
-    return true;
-  }
-
   void setPenaltyFactor(double penalty) {
     ASSERT(penalty >= 0 && penalty <= 1);
     penaltyFactor = penalty;
@@ -379,20 +349,46 @@ private:
 
   FMStats& runStats;
 
-protected:
   FMSharedData& sharedData;
 
   // ! Priority Queue that contains for each block of the partition
   // ! the vertex with the best gain value
-  BlockPriorityQueue blockPQ;
+  BlockPriorityQueue& blockPQ;
 
   // ! From PQs -> For each block it contains the vertices (contained
   // ! in that block) touched by the current local search associated
   // ! with their gain values
-  vec<VertexPriorityQueue> vertexPQs;
+  vec<VertexPriorityQueue>& vertexPQs;
 
   double penaltyFactor;
   double upperBound;
+};
+
+
+template<typename TypeTraits, typename GainTypes>
+class UnconstrainedStrategy: public IFMStrategy {
+  using LocalFM = LocalizedKWayFM<TypeTraits, GainTypes>;
+  using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
+
+ public:
+  UnconstrainedStrategy(const Context&, const FMSharedData&) { }
+
+ private:
+  virtual bool dispatchedFindMovesImpl(localized_k_way_fm_t local_fm, mt_kahypar_partitioned_hypergraph_t& hypergraph,
+                                       size_t task_id, size_t num_seeds, size_t) final {
+    LocalFM& my_fm = utils::cast<LocalFM>(local_fm);
+    PartitionedHypergraph& phg = utils::cast<PartitionedHypergraph>(hypergraph);
+    LocalUnconstrainedStrategy local_strategy = my_fm.template initializeDispatchedStrategy<LocalUnconstrainedStrategy>();
+    return my_fm.findMoves(local_strategy, phg, task_id, num_seeds);
+  }
+
+  virtual bool isUnconstrainedRoundImpl(size_t) const final {
+    return true;
+  }
+
+  virtual bool includesUnconstrainedImpl() const final {
+    return true;
+  }
 };
 
 }

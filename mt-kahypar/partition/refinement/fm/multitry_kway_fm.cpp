@@ -32,16 +32,38 @@
 #include "mt-kahypar/datastructures/streaming_vector.h"
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/utils/utilities.h"
+#include "mt-kahypar/partition/factories.h"
 #include "mt-kahypar/partition/metrics.h"
 #include "mt-kahypar/partition/refinement/gains/gain_definitions.h"
-#include "mt-kahypar/partition/refinement/fm/strategies/gain_cache_strategy.h"
-#include "mt-kahypar/partition/refinement/fm/strategies/unconstrained_strategy.h"
-#include "mt-kahypar/partition/refinement/fm/strategies/combined_strategy.h"
 #include "mt-kahypar/utils/memory_tree.h"
 #include "mt-kahypar/utils/cast.h"
 
 namespace mt_kahypar {
   using ds::StreamingVector;
+
+  template<typename TypeTraits, typename GainTypes>
+  MultiTryKWayFM<TypeTraits, GainTypes>::MultiTryKWayFM(const HypernodeID num_hypernodes,
+                                                        const HyperedgeID num_hyperedges,
+                                                        const Context& c,
+                                                        GainCache& gainCache,
+                                                        IRebalancer& rb) :
+    initial_num_nodes(num_hypernodes),
+    context(c),
+    gain_cache(gainCache),
+    current_k(c.partition.k),
+    sharedData(num_hypernodes),
+    fm_strategy(FMStrategyFactory::getInstance().createObject(context.refinement.fm.algorithm, context, sharedData)),
+    globalRollback(num_hyperedges, context, gainCache),
+    ets_fm([&] { return constructLocalizedKWayFMSearch(); }),
+    tmp_move_order(num_hypernodes),
+    rebalancer(rb) {
+    if (context.refinement.fm.obey_minimal_parallelism) {
+      sharedData.finishedTasksLimit = std::min(UL(8), context.shared_memory.num_threads);
+    }
+    if (fm_strategy->includesUnconstrained()) {
+      sharedData.initializeUnconstrainedData(num_hypernodes);
+    }
+  }
 
   // helper function for rebalancing
   std::vector<HypernodeWeight> setupMaxPartWeights(const Context& context) {
@@ -62,8 +84,8 @@ namespace mt_kahypar {
     return max_part_weights;
   }
 
-  template<typename TypeTraits, typename GainTypes, typename FMStrategy>
-  bool MultiTryKWayFM<TypeTraits, GainTypes, FMStrategy>::refineImpl(
+  template<typename TypeTraits, typename GainTypes>
+  bool MultiTryKWayFM<TypeTraits, GainTypes>::refineImpl(
               mt_kahypar_partitioned_hypergraph_t& hypergraph,
               const vec<HypernodeID>& refinement_nodes,
               Metrics& metrics,
@@ -89,7 +111,7 @@ namespace mt_kahypar {
     HighResClockTimepoint fm_start = std::chrono::high_resolution_clock::now();
     utils::Timer& timer = utils::Utilities::instance().getTimer(context.utility_id);
 
-    if (FMStrategy::is_unconstrained) {
+    if (fm_strategy->includesUnconstrained()) {
       timer.start_timer("precompute_unconstrained", "Precompute Level for Unc. FM");
       sharedData.unconstrained.disabled = false;
       sharedData.unconstrained.precomputeForLevel(phg);
@@ -102,8 +124,7 @@ namespace mt_kahypar {
         initialPartWeights[i] = phg.partWeight(i);
       }
 
-      const bool is_unconstrained = FMStrategy::is_unconstrained && FMStrategy::isUnconstrainedRound(round, context)
-                                    && !sharedData.unconstrained.disabled;
+      const bool is_unconstrained = fm_strategy->isUnconstrainedRound(round);
       if (is_unconstrained) {
         timer.start_timer("initialize_data_unconstrained", "Initialize Data for Unc. FM");
         sharedData.unconstrained.initialize(context, phg);
@@ -133,7 +154,7 @@ namespace mt_kahypar {
       auto task = [&](const size_t task_id) {
         auto& fm = ets_fm.local();
         while(sharedData.finishedTasks.load(std::memory_order_relaxed) < sharedData.finishedTasksLimit
-              && fm.findMoves(phg, task_id, num_seeds, round)) {
+              && fm_strategy->dispatchedFindMoves(utils::localized_fm_cast(fm), hypergraph, task_id, num_seeds, round)) {
           if (context.refinement.fm.vertex_locking > 0 && context.refinement.fm.lock_locally_reverted) {
             fm.doForEachRevertedMove([&] (const Move& m) {
               locally_locked_vertices.stream(m.node);
@@ -232,7 +253,7 @@ namespace mt_kahypar {
         }
       }
 
-      if ( (improvement <= 0 && (!context.refinement.fm.activate_unconstrained_dynamically || round > 2))
+      if ( (improvement <= 0 && (!context.refinement.fm.activate_unconstrained_dynamically || round > 1))
             || consecutive_rounds_with_too_little_improvement >= 2 ) {
         break;
       }
@@ -257,8 +278,8 @@ namespace mt_kahypar {
     return overall_improvement > 0;
   }
 
-  template<typename TypeTraits, typename GainTypes, typename FMStrategy>
-  void MultiTryKWayFM<TypeTraits, GainTypes, FMStrategy>::roundInitialization(PartitionedHypergraph& phg,
+  template<typename TypeTraits, typename GainTypes>
+  void MultiTryKWayFM<TypeTraits, GainTypes>::roundInitialization(PartitionedHypergraph& phg,
                                                                   const vec<HypernodeID>& refinement_nodes) {
     // clear border nodes
     sharedData.refinementNodes.clear();
@@ -306,8 +327,8 @@ namespace mt_kahypar {
     sharedData.nodeTracker.requestNewSearches(static_cast<SearchID>(sharedData.refinementNodes.unsafe_size()));
   }
 
-  template<typename TypeTraits, typename GainTypes, typename FMStrategy>
-  void MultiTryKWayFM<TypeTraits, GainTypes, FMStrategy>::interleaveMoveSequenceWithRebalancingMoves(
+  template<typename TypeTraits, typename GainTypes>
+  void MultiTryKWayFM<TypeTraits, GainTypes>::interleaveMoveSequenceWithRebalancingMoves(
                                                             const PartitionedHypergraph& phg,
                                                             const vec<HypernodeWeight>& initialPartWeights,
                                                             const std::vector<HypernodeWeight>& max_part_weights,
@@ -424,8 +445,8 @@ namespace mt_kahypar {
 
   }
 
-  template<typename TypeTraits, typename GainTypes, typename FMStrategy>
-  void MultiTryKWayFM<TypeTraits, GainTypes, FMStrategy>::insertMovesToBalancePart(const PartitionedHypergraph& phg,
+  template<typename TypeTraits, typename GainTypes>
+  void MultiTryKWayFM<TypeTraits, GainTypes>::insertMovesToBalancePart(const PartitionedHypergraph& phg,
                                                                                    const PartitionID part,
                                                                                    const std::vector<HypernodeWeight>& max_part_weights,
                                                                                    const vec<vec<Move>>& rebalancing_moves_by_part,
@@ -455,8 +476,8 @@ namespace mt_kahypar {
   }
 
 
-  template<typename TypeTraits, typename GainTypes, typename FMStrategy>
-  void MultiTryKWayFM<TypeTraits, GainTypes, FMStrategy>::initializeImpl(mt_kahypar_partitioned_hypergraph_t& hypergraph) {
+  template<typename TypeTraits, typename GainTypes>
+  void MultiTryKWayFM<TypeTraits, GainTypes>::initializeImpl(mt_kahypar_partitioned_hypergraph_t& hypergraph) {
     PartitionedHypergraph& phg = utils::cast<PartitionedHypergraph>(hypergraph);
 
     if (!gain_cache.isInitialized()) {
@@ -467,8 +488,8 @@ namespace mt_kahypar {
     is_initialized = true;
   }
 
-  template<typename TypeTraits, typename GainTypes, typename FMStrategy>
-  void MultiTryKWayFM<TypeTraits, GainTypes, FMStrategy>::resizeDataStructuresForCurrentK() {
+  template<typename TypeTraits, typename GainTypes>
+  void MultiTryKWayFM<TypeTraits, GainTypes>::resizeDataStructuresForCurrentK() {
     // If the number of blocks changes, we resize data structures
     // (can happen during deep multilevel partitioning)
     if ( current_k != context.partition.k ) {
@@ -485,8 +506,8 @@ namespace mt_kahypar {
     }
   }
 
-  template<typename TypeTraits, typename GainTypes, typename FMStrategy>
-  void MultiTryKWayFM<TypeTraits, GainTypes, FMStrategy>::printMemoryConsumption() {
+  template<typename TypeTraits, typename GainTypes>
+  void MultiTryKWayFM<TypeTraits, GainTypes>::printMemoryConsumption() {
     utils::MemoryTreeNode fm_memory("Multitry k-Way FM", utils::OutputType::MEGABYTE);
 
     for (const auto& fm : ets_fm) {
@@ -500,15 +521,8 @@ namespace mt_kahypar {
   }
 
   namespace {
-  #define MULTITRY_KWAY_FM_DEFAULT_STRATEGY(X, Y) MultiTryKWayFM<X, Y, GainCacheStrategy>
-  #define MULTITRY_KWAY_FM_UNCONSTRAINED_STRATEGY(X, Y) MultiTryKWayFM<X, Y, UnconstrainedStrategy>
-  #define MULTITRY_KWAY_FM_COMBINED_STRATEGY(X, Y) MultiTryKWayFM<X, Y, CombinedStrategy>
-  #define MULTITRY_KWAY_FM_COOLING_STRATEGY(X, Y) MultiTryKWayFM<X, Y, CoolingStrategy>
+  #define MULTITRY_KWAY_FM(X, Y) MultiTryKWayFM<X, Y>
   }
 
-  INSTANTIATE_CLASS_WITH_TYPE_TRAITS_AND_GAIN_TYPES(MULTITRY_KWAY_FM_DEFAULT_STRATEGY)
-  INSTANTIATE_CLASS_WITH_TYPE_TRAITS_AND_GAIN_TYPES(MULTITRY_KWAY_FM_UNCONSTRAINED_STRATEGY)
-  INSTANTIATE_CLASS_WITH_TYPE_TRAITS_AND_GAIN_TYPES(MULTITRY_KWAY_FM_COMBINED_STRATEGY)
-  INSTANTIATE_CLASS_WITH_TYPE_TRAITS_AND_GAIN_TYPES(MULTITRY_KWAY_FM_COOLING_STRATEGY)
-
+  INSTANTIATE_CLASS_WITH_TYPE_TRAITS_AND_GAIN_TYPES(MULTITRY_KWAY_FM)
 } // namespace mt_kahypar
