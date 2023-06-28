@@ -95,14 +95,10 @@ using JetFactory = kahypar::meta::Factory<JetAlgorithm,
                     IRefiner* (*)(HypernodeID, HyperedgeID, const Context&, gain_cache_t, IRefiner&)>;
 
 using PrecomputedJetDispatcher = kahypar::meta::StaticMultiDispatchFactory<
-                                   PrecomputedJetRefiner,
+                                   JetRefiner,
                                    IRefiner,
                                    kahypar::meta::Typelist<TypeTraitsList, GainTypes>>;
-
-using GreedyJetDispatcher = kahypar::meta::StaticMultiDispatchFactory<
-                              GreedyJetRefiner,
-                              IRefiner,
-                              kahypar::meta::Typelist<TypeTraitsList, GainTypes>>;
+using GreedyJetDispatcher = PrecomputedJetDispatcher;
 
 using FMFactory = kahypar::meta::Factory<FMAlgorithm,
                     IRefiner* (*)(HypernodeID, HyperedgeID, const Context&, gain_cache_t, IRebalancer&)>;
