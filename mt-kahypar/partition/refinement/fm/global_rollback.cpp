@@ -37,23 +37,23 @@
 #include "mt-kahypar/datastructures/pin_count_snapshot.h"
 
 namespace mt_kahypar {
-  struct Prefix {
-    Gain gain = 0;                           /** gain when using valid moves up to best_index */
-    Gain penalty = 0;                        /** penalty for imbalanced moved in unconstrained case */
-    MoveID best_index = 0;                   /** local ID of first move to revert */
-    HypernodeWeight heaviest_weight =
-            std::numeric_limits<HypernodeWeight>::max();   /** weight of the heaviest part */
 
-    bool operator<(const Prefix& o) const {
-      return gain - penalty > o.gain - o.penalty ||
-              (gain - penalty == o.gain - o.penalty && std::tie(heaviest_weight, best_index) < std::tie(o.heaviest_weight, o.best_index));
-    }
-  };
-
-  template<typename PartitionedHypergraph, typename Derived>
-  struct BalanceAndBestIndexScanBase {
+  template<typename PartitionedHypergraph>
+  struct BalanceAndBestIndexScan {
     const PartitionedHypergraph& phg;
     const vec<Move>& moves;
+
+    struct Prefix {
+      Gain gain = 0;                           /** gain when using valid moves up to best_index */
+      MoveID best_index = 0;                   /** local ID of first move to revert */
+      HypernodeWeight heaviest_weight =
+              std::numeric_limits<HypernodeWeight>::max();   /** weight of the heaviest part */
+
+      bool operator<(const Prefix& o) const {
+        return gain > o.gain ||
+               (gain == o.gain && std::tie(heaviest_weight, best_index) < std::tie(o.heaviest_weight, o.best_index));
+      }
+    };
     std::shared_ptr< tbb::enumerable_thread_specific<Prefix> > local_best;
 
     Gain gain_sum = 0;
@@ -61,7 +61,7 @@ namespace mt_kahypar {
     vec<HypernodeWeight> part_weights;
     const std::vector<HypernodeWeight>& max_part_weights;
 
-    BalanceAndBestIndexScanBase(Derived& b, tbb::split) :
+    BalanceAndBestIndexScan(BalanceAndBestIndexScan& b, tbb::split) :
             phg(b.phg),
             moves(b.moves),
             local_best(b.local_best),
@@ -70,46 +70,18 @@ namespace mt_kahypar {
             max_part_weights(b.max_part_weights) { }
 
 
-    BalanceAndBestIndexScanBase(const PartitionedHypergraph& phg,
-                                const vec<Move>& moves,
-                                const vec<HypernodeWeight>& part_weights,
-                                const std::vector<HypernodeWeight>& max_part_weights) :
+    BalanceAndBestIndexScan(const PartitionedHypergraph& phg,
+                            const vec<Move>& moves,
+                            const vec<HypernodeWeight>& part_weights,
+                            const std::vector<HypernodeWeight>& max_part_weights) :
             phg(phg),
             moves(moves),
             local_best(std::make_shared< tbb::enumerable_thread_specific<Prefix> >()),
-            gain_sum(0),
             part_weights(part_weights),
             max_part_weights(max_part_weights)
     {
     }
 
-    // subranges a | b | c | d . assuming this ran pre_scan on c,
-    // then lhs ran pre_scan on b and final_scan of this will be on d
-    void reverse_join(Derived& lhs) {
-      for (size_t i = 0; i < part_weights.size(); ++i) {
-        part_weights[i] += lhs.part_weights[i];
-      }
-      gain_sum += lhs.gain_sum;
-    }
-
-    void assign(Derived& b) {
-      gain_sum = b.gain_sum;
-    }
-  };
-
-  template<typename PartitionedHypergraph>
-  struct BalanceAndBestIndexScan: public BalanceAndBestIndexScanBase<PartitionedHypergraph, BalanceAndBestIndexScan<PartitionedHypergraph>>  {
-    using Base = BalanceAndBestIndexScanBase<PartitionedHypergraph, BalanceAndBestIndexScan<PartitionedHypergraph>>;
-    using Base::phg, Base::moves, Base::local_best, Base::gain_sum, Base::part_weights, Base::max_part_weights;
-
-    BalanceAndBestIndexScan(BalanceAndBestIndexScan& b, tbb::split) :
-            Base(b, tbb::split()) { }
-
-    BalanceAndBestIndexScan(const PartitionedHypergraph& phg,
-                            const vec<Move>& moves,
-                            const vec<HypernodeWeight>& part_weights,
-                            const std::vector<HypernodeWeight>& max_part_weights) :
-            Base(phg, moves, part_weights, max_part_weights) { }
 
     void operator()(const tbb::blocked_range<MoveID>& r, tbb::pre_scan_tag ) {
       for (MoveID i = r.begin(); i < r.end(); ++i) {
@@ -120,6 +92,15 @@ namespace mt_kahypar {
           part_weights[m.to] += phg.nodeWeight(m.node);
         }
       }
+    }
+
+    // subranges a | b | c | d . assuming this ran pre_scan on c,
+    // then lhs ran pre_scan on b and final_scan of this will be on d
+    void reverse_join(BalanceAndBestIndexScan& lhs) {
+      for (size_t i = 0; i < part_weights.size(); ++i) {
+        part_weights[i] += lhs.part_weights[i];
+      }
+      gain_sum += lhs.gain_sum;
     }
 
     void operator()(const tbb::blocked_range<MoveID>& r, tbb::final_scan_tag ) {
@@ -149,7 +130,7 @@ namespace mt_kahypar {
           }
 
           if (overloaded == 0 && gain_sum >= current.gain) {
-            Prefix new_prefix = { gain_sum, 0, i + 1, *std::max_element(part_weights.begin(), part_weights.end()) };
+            Prefix new_prefix = { gain_sum, i + 1, *std::max_element(part_weights.begin(), part_weights.end()) };
             current = std::min(current, new_prefix);
           }
         }
@@ -161,142 +142,12 @@ namespace mt_kahypar {
       }
     }
 
-    Prefix finalize(const vec<HypernodeWeight>& initial_part_weights) {
-      Prefix res { 0, 0, 0, *std::max_element(initial_part_weights.begin(), initial_part_weights.end()) };
-      for (const Prefix& x : *local_best) {
-        res = std::min(res, x);
-      }
-      return res;
-    }
-  };
-
-
-  template<typename PartitionedHypergraph>
-  struct UnconstrainedBalanceAndBestIndexScan: public BalanceAndBestIndexScanBase<PartitionedHypergraph,
-                                                          UnconstrainedBalanceAndBestIndexScan<PartitionedHypergraph>>  {
-    using Base = BalanceAndBestIndexScanBase<PartitionedHypergraph, UnconstrainedBalanceAndBestIndexScan<PartitionedHypergraph>>;
-    using Base::phg, Base::moves, Base::local_best, Base::gain_sum, Base::part_weights, Base::max_part_weights;
-
-    const UnconstrainedFMData& unconstrainedData;
-
-    UnconstrainedBalanceAndBestIndexScan(UnconstrainedBalanceAndBestIndexScan& b, tbb::split) :
-            Base(b, tbb::split()), unconstrainedData(b.unconstrainedData) { }
-
-    UnconstrainedBalanceAndBestIndexScan(const PartitionedHypergraph& phg,
-                                         const vec<Move>& moves,
-                                         const vec<HypernodeWeight>& part_weights,
-                                         const std::vector<HypernodeWeight>& max_part_weights,
-                                         const UnconstrainedFMData& unconstrainedData) :
-            Base(phg, moves, part_weights, max_part_weights), unconstrainedData(unconstrainedData) { }
-
-    MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
-    bool isRebalancingNode(const Move& m) const {
-      return unconstrainedData.isRebalancingNode(m.node); // TODO: use threshold here!!!
-    }
-
-    void operator()(const tbb::blocked_range<MoveID>& r, tbb::pre_scan_tag ) {
-      for (MoveID i = r.begin(); i < r.end(); ++i) {
-        const Move& m = moves[i];
-        if (m.isValid()) {  // skip locally reverted moves
-          gain_sum += m.gain;
-          // we need to be careful with nodes that are already "reserved" for rebalancing, otherwise
-          // the penalty estimation for imbalanced blocks might be wrong
-          // => pessimistic estimation: don't reduce part weight if rebalancing node is moved
-          if (!isRebalancingNode(m)) {
-            part_weights[m.from] -= phg.nodeWeight(m.node);
-          }
-          part_weights[m.to] += phg.nodeWeight(m.node);
-        }
-      }
-    }
-
-    MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
-    HypernodeWeight weightLimitForPart(PartitionID block) const {
-      return max_part_weights[block] + unconstrainedData.maximumImbalance(block);
-    }
-
-    Gain determinePenalty(const vec<HypernodeWeight>& input_part_weights) {
-      Gain penalty = 0;
-      for (size_t i = 0; i < input_part_weights.size(); ++i) {
-        HypernodeWeight imbalance = input_part_weights[i] - max_part_weights[i];
-        if (imbalance > 0) {
-          penalty += unconstrainedData.estimatedPenaltyForImbalance(i, imbalance);
-        }
-      }
-      return penalty;
-    }
-
-    void operator()(const tbb::blocked_range<MoveID>& r, tbb::final_scan_tag ) {
-      Gain penalty = 0;
-      size_t overloaded = 0;
-      for (size_t i = 0; i < part_weights.size(); ++i) {
-        if (part_weights[i] > weightLimitForPart(i)) {
-          overloaded++;
-        }
-      }
-      if (overloaded == 0) {
-        penalty = determinePenalty(part_weights);
-      }
-
-      Prefix current;
-      for (MoveID i = r.begin(); i < r.end(); ++i) {
-        const Move& m = moves[i];
-
-        if (m.isValid()) {  // skip locally reverted moves
-          const HypernodeWeight node_weight = phg.nodeWeight(m.node);
-          gain_sum += m.gain;
-
-          const HypernodeWeight to_imbalance = part_weights[m.to] - max_part_weights[m.to];
-          part_weights[m.to] += node_weight;
-          if (to_imbalance + node_weight > 0) {
-            const bool to_overloaded = to_imbalance > unconstrainedData.maximumImbalance(m.to);
-            if (!to_overloaded && part_weights[m.to] > weightLimitForPart(m.to)) {
-              overloaded++;
-            } else if (overloaded == 0) {
-              // this is the expected case: we update the penalty with the delta for the current block
-              penalty += unconstrainedData.estimatedPenaltyForDelta(m.to,
-                            std::max(to_imbalance, 0), to_imbalance + node_weight);
-            }
-          }
-
-          // we need to be careful with nodes that are already "reserved" for rebalancing, otherwise
-          // the penalty estimation for imbalanced blocks might be wrong
-          // => pessimistic estimation: don't reduce part weight if rebalancing node is moved
-          if (!isRebalancingNode(m)) {
-            const HypernodeWeight from_imbalance = part_weights[m.from] - max_part_weights[m.from];
-            part_weights[m.from] -= node_weight;
-            if (from_imbalance > 0) {
-              const bool from_overloaded = from_imbalance > unconstrainedData.maximumImbalance(m.from);
-              if (from_overloaded && part_weights[m.from] <= weightLimitForPart(m.from)) {
-                overloaded--;
-              }
-              if (!from_overloaded && overloaded == 0) {
-                // this is the expected case: we update the penalty with the delta for the current block
-                penalty -= unconstrainedData.estimatedPenaltyForDelta(m.from,
-                              std::max(from_imbalance - node_weight, 0), from_imbalance);
-              } else if (overloaded == 0) {
-                // we need to determine the penalty anew
-                penalty = determinePenalty(part_weights);
-              }
-            }
-          }
-
-          if (overloaded == 0 && gain_sum - penalty >= current.gain - current.penalty) {
-            Prefix new_prefix = { gain_sum, penalty, i + 1, *std::max_element(part_weights.begin(), part_weights.end()) };
-            current = std::min(current, new_prefix);
-          }
-        }
-      }
-
-      if (current.best_index != 0) {
-        Prefix& lb = local_best->local();
-        lb = std::min(lb, current);
-      }
+    void assign(BalanceAndBestIndexScan& b) {
+      gain_sum = b.gain_sum;
     }
 
     Prefix finalize(const vec<HypernodeWeight>& initial_part_weights) {
-      Prefix res { 0, 0, 0, *std::max_element(initial_part_weights.begin(), initial_part_weights.end()) };
-      res.penalty = determinePenalty(initial_part_weights);
+      Prefix res { 0, 0, *std::max_element(initial_part_weights.begin(), initial_part_weights.end()) };
       for (const Prefix& x : *local_best) {
         res = std::min(res, x);
       }
@@ -306,8 +157,8 @@ namespace mt_kahypar {
 
   template<typename TypeTraits, typename GainTypes>
   HyperedgeWeight GlobalRollback<TypeTraits, GainTypes>::revertToBestPrefixParallel(
-          PartitionedHypergraph& phg, FMSharedData& sharedData, const vec<HypernodeWeight>& partWeights,
-          const std::vector<HypernodeWeight>& maxPartWeights, bool unconstrained) {
+          PartitionedHypergraph& phg, FMSharedData& sharedData,
+          const vec<HypernodeWeight>& partWeights, const std::vector<HypernodeWeight>& maxPartWeights) {
     const MoveID numMoves = sharedData.moveTracker.numPerformedMoves();
     if (numMoves == 0) return 0;
 
@@ -316,18 +167,10 @@ namespace mt_kahypar {
     recalculateGains(phg, sharedData);
     HEAVY_REFINEMENT_ASSERT(verifyGains(phg, sharedData));
 
+    BalanceAndBestIndexScan<PartitionedHypergraph> s(phg, move_order, partWeights, maxPartWeights);
     // TODO set grain size in blocked_range? to avoid too many copies of part weights array. experiment with different values
-    Prefix b;
-    if (unconstrained) {
-      UnconstrainedBalanceAndBestIndexScan<PartitionedHypergraph> s(phg, move_order,
-          partWeights, maxPartWeights, sharedData.unconstrained);
-      tbb::parallel_scan(tbb::blocked_range<MoveID>(0, numMoves), s);
-      b = s.finalize(partWeights);
-    } else {
-      BalanceAndBestIndexScan<PartitionedHypergraph> s(phg, move_order, partWeights, maxPartWeights);
-      tbb::parallel_scan(tbb::blocked_range<MoveID>(0, numMoves), s);
-      b = s.finalize(partWeights);
-    }
+    tbb::parallel_scan(tbb::blocked_range<MoveID>(0, numMoves), s);
+    typename BalanceAndBestIndexScan<PartitionedHypergraph>::Prefix b = s.finalize(partWeights);
 
     tbb::parallel_for(b.best_index, numMoves, [&](const MoveID moveID) {
       const Move& m = move_order[moveID];

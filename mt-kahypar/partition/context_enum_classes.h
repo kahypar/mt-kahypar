@@ -166,11 +166,6 @@ enum class FMAlgorithm : uint8_t {
   do_nothing
 };
 
-enum class RollbackStrategy : uint8_t {
-  interleave_rebalancing_moves,
-  approximate
-};
-
 enum class FlowAlgorithm : uint8_t {
   flow_cutter,
   mock,
@@ -232,8 +227,6 @@ std::ostream & operator<< (std::ostream& os, const JetAlgorithm& algo);
 
 std::ostream & operator<< (std::ostream& os, const FMAlgorithm& algo);
 
-std::ostream & operator<< (std::ostream& os, const RollbackStrategy& strategy);
-
 std::ostream & operator<< (std::ostream& os, const FlowAlgorithm& algo);
 
 std::ostream & operator<< (std::ostream& os, const RebalancingAlgorithm& algo);
@@ -269,8 +262,6 @@ LabelPropagationAlgorithm labelPropagationAlgorithmFromString(const std::string&
 JetAlgorithm jetAlgorithmFromString(const std::string& type);
 
 FMAlgorithm fmAlgorithmFromString(const std::string& type);
-
-RollbackStrategy rollbackStrategyFromString(const std::string& type);
 
 FlowAlgorithm flowAlgorithmFromString(const std::string& type);
 

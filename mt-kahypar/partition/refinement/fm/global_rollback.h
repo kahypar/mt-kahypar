@@ -61,8 +61,7 @@ public:
 
   HyperedgeWeight revertToBestPrefix(PartitionedHypergraph& phg,
                                      FMSharedData& sharedData,
-                                     const vec<HypernodeWeight>& partWeights,
-                                     bool unconstrained = false) {
+                                     const vec<HypernodeWeight>& partWeights) {
     std::vector<HypernodeWeight> maxPartWeights = context.partition.perfect_balance_part_weights;
     if (max_part_weight_scaling == 0.0) {
       for (PartitionID i = 0; i < context.partition.k; ++i) {
@@ -75,9 +74,8 @@ public:
     }
 
     if (context.refinement.fm.rollback_parallel) {
-      return revertToBestPrefixParallel(phg, sharedData, partWeights, maxPartWeights, unconstrained);
+      return revertToBestPrefixParallel(phg, sharedData, partWeights, maxPartWeights);
     } else {
-      ALWAYS_ASSERT(!unconstrained, "unconstrained FM currently does not support sequential rollback");
       return revertToBestPrefixSequential(phg, sharedData, partWeights, maxPartWeights);
     }
   }
@@ -85,8 +83,7 @@ public:
   HyperedgeWeight revertToBestPrefixParallel(PartitionedHypergraph& phg,
                                              FMSharedData& sharedData,
                                              const vec<HypernodeWeight>& partWeights,
-                                             const std::vector<HypernodeWeight>& maxPartWeights,
-                                             bool unconstrained);
+                                             const std::vector<HypernodeWeight>& maxPartWeights);
 
   void recalculateGainForHyperedge(PartitionedHypergraph& phg,
                                    FMSharedData& sharedData,
