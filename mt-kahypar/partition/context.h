@@ -146,6 +146,7 @@ struct JetParameters {
   double vertex_locking = 1.0;
   double negative_gain_factor_coarse = 0.25;
   double negative_gain_factor_fine = 0.75;
+  double unconstrained_upper_bound = 0.0;
   size_t hyperedge_size_activation_threshold = std::numeric_limits<size_t>::max();
 };
 

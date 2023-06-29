@@ -437,8 +437,15 @@ namespace mt_kahypar {
       RatingMap& tmp_scores = _gain.localScores();
       Gain isolated_block_gain = 0;
       _gain.precomputeGains(hypergraph, hn, tmp_scores, isolated_block_gain);
-      Move best_move = _gain.computeMaxGainMoveForScores(hypergraph, tmp_scores, isolated_block_gain,
-                                                          hn, false, false, true);
+      Move best_move;
+      if (_context.refinement.jet.unconstrained_upper_bound >= 1.0) {
+        best_move = _gain.computeMaxGainMoveForScores(hypergraph, tmp_scores, isolated_block_gain,
+                                                      hn, false, false, false,
+                                                      _context.refinement.jet.unconstrained_upper_bound);
+      } else {
+        best_move = _gain.computeMaxGainMoveForScores(hypergraph, tmp_scores, isolated_block_gain,
+                                                      hn, false, false, true);
+      }
       tmp_scores.clear();
       bool accept_node = best_move.gain < std::floor(gain_factor * isolated_block_gain);
       if (accept_node) {
@@ -482,7 +489,9 @@ namespace mt_kahypar {
       const PartitionID part_id = hypergraph.partID(hn);
       if (part_id != _best_partition[hn]) {
         ASSERT(_best_partition[hn] != kInvalidPartition);
-        changeNodePart(hypergraph, hn, part_id, _best_partition[hn], objective_delta);
+        bool success = changeNodePart(hypergraph, hn, part_id, _best_partition[hn], objective_delta, true);
+        ASSERT(success);
+        unused(success);
       }
     };
 
