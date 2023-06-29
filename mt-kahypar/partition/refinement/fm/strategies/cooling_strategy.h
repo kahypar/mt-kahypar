@@ -34,43 +34,45 @@ namespace mt_kahypar {
 
 template<typename TypeTraits, typename GainTypes>
 class CoolingStrategy: public IFMStrategy {
+  using Base = IFMStrategy;
+  static constexpr bool debug = false;
+
+ public:
   using LocalFM = LocalizedKWayFM<TypeTraits, GainTypes>;
   using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
 
- public:
-  CoolingStrategy(const Context& context, const FMSharedData&):
-      context(context),
-      current_round(0),
+  CoolingStrategy(const Context& context, FMSharedData& sharedData):
+      Base(context, sharedData),
       current_penalty(context.refinement.fm.imbalance_penalty_min),
       current_upper_bound(context.refinement.fm.unconstrained_upper_bound),
       absolute_improvement_first_round(kInvalidGain),
-      unconstrained_is_enabled(true) { }
+      unconstrained_is_enabled(true) {
+        ASSERT(!context.refinement.fm.activate_unconstrained_dynamically
+               || context.refinement.fm.multitry_rounds > 2);
+      }
 
- private:
-  virtual bool dispatchedFindMovesImpl(localized_k_way_fm_t local_fm, mt_kahypar_partitioned_hypergraph_t& hypergraph,
-                                       size_t task_id, size_t num_seeds, size_t round) final {
-    LocalFM& my_fm = utils::cast<LocalFM>(local_fm);
-    PartitionedHypergraph& phg = utils::cast<PartitionedHypergraph>(hypergraph);
-
-    if (round == 0) {
-      unconstrained_is_enabled = true;
-    }
-    if (current_round != round && isUnconstrainedRound(round)
-        && current_round.compare_exchange_strong(current_round, round)) {
-      updateValues(round);
-    }
-
+  bool dispatchedFindMoves(LocalFM& local_fm, PartitionedHypergraph& phg, size_t task_id, size_t num_seeds, size_t round) {
     if (isUnconstrainedRound(round)) {
-      LocalUnconstrainedStrategy local_strategy = my_fm.template initializeDispatchedStrategy<LocalUnconstrainedStrategy>();
-      return my_fm.findMoves(local_strategy, phg, task_id, num_seeds);
+      LocalUnconstrainedStrategy local_strategy = local_fm.template initializeDispatchedStrategy<LocalUnconstrainedStrategy>();
+      local_strategy.setPenaltyFactor(current_penalty);
+      local_strategy.setUpperBound(current_upper_bound);
+      return local_fm.findMoves(local_strategy, phg, task_id, num_seeds);
     } else {
-      LocalGainCacheStrategy local_strategy = my_fm.template initializeDispatchedStrategy<LocalGainCacheStrategy>();
-      return my_fm.findMoves(local_strategy, phg, task_id, num_seeds);
+      LocalGainCacheStrategy local_strategy = local_fm.template initializeDispatchedStrategy<LocalGainCacheStrategy>();
+      return local_fm.findMoves(local_strategy, phg, task_id, num_seeds);
     }
   }
 
+ private:
+  virtual void findMovesImpl(localized_k_way_fm_t local_fm, mt_kahypar_partitioned_hypergraph_t& phg,
+                             size_t num_tasks, size_t num_seeds, size_t round,
+                             ds::StreamingVector<HypernodeID>& locally_locked_vertices) final {
+    Base::findMovesWithConcreteStrategy<CoolingStrategy>(
+              local_fm, phg, num_tasks, num_seeds, round, locally_locked_vertices);
+  }
+
   virtual bool isUnconstrainedRoundImpl(size_t round) const final {
-    if (!unconstrained_is_enabled) {
+    if (round > 0 && !unconstrained_is_enabled) {
       return false;
     }
     if (context.refinement.fm.activate_unconstrained_dynamically) {
@@ -92,13 +94,17 @@ class CoolingStrategy: public IFMStrategy {
                && absolute_improvement < absolute_improvement_first_round) {
         // this is the decision point whether unconstrained or constrained FM is used
         unconstrained_is_enabled = false;
+        DBG << "Disabling unconstrained FM after test round: " << V(absolute_improvement) << V(absolute_improvement_first_round);
     } else if (relative_improvement < context.refinement.fm.unconstrained_min_improvement) {
       unconstrained_is_enabled = false;
+      DBG << "Disabling unconstrained FM due to too little improvement:" << V(relative_improvement);
     }
   }
 
-  void updateValues(size_t round) {
-    ASSERT(unconstrained_is_enabled && isUnconstrainedRound(round));
+  void initRound(size_t /*num_tasks*/, size_t /*num_seeds*/, size_t round) final {
+    if (round == 0) {
+      unconstrained_is_enabled = true;
+    }
     if (context.refinement.fm.activate_unconstrained_dynamically) {
       if (round == 1) {
         current_penalty = context.refinement.fm.penalty_for_activation_test;
@@ -110,6 +116,7 @@ class CoolingStrategy: public IFMStrategy {
     } else if (isUnconstrainedRound(round)) {
       calculateInterpolation(round, context.refinement.fm.unconstrained_rounds);
     }
+    DBG << V(round) << V(isUnconstrainedRound(round)) << V(current_penalty) << V(current_upper_bound);
   }
 
   void calculateInterpolation(size_t round, size_t n_rounds) {
@@ -137,8 +144,6 @@ class CoolingStrategy: public IFMStrategy {
     }
   }
 
-  const Context& context;
-  parallel::IntegralAtomicWrapper<size_t> current_round;
   double current_penalty;
   double current_upper_bound;
   Gain absolute_improvement_first_round;

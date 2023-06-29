@@ -26,6 +26,9 @@
 
 #pragma once
 
+#include <tbb/enumerable_thread_specific.h>
+
+#include "mt-kahypar/datastructures/streaming_vector.h"
 #include "mt-kahypar/macros.h"
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/utils/cast.h"
@@ -43,18 +46,18 @@ struct localized_k_way_fm_t {
 namespace utils {
 // compare cast.h
 template<typename LocalFM>
-localized_k_way_fm_t localized_fm_cast(LocalFM& local_fm) {
+localized_k_way_fm_t localized_fm_cast(tbb::enumerable_thread_specific<LocalFM>& local_fm) {
   return localized_k_way_fm_t {
     reinterpret_cast<localized_k_way_fm_s*>(&local_fm), LocalFM::PartitionedHypergraph::TYPE };
 }
 
 template<typename LocalFM>
-LocalFM& cast(localized_k_way_fm_t fm) {
+tbb::enumerable_thread_specific<LocalFM>& cast(localized_k_way_fm_t fm) {
   if ( LocalFM::PartitionedHypergraph::TYPE != fm.type ) {
     ERR("Cannot cast local FM [" << typeToString(fm.type) << "to"
         << typeToString(LocalFM::PartitionedHypergraph::TYPE) << "]");
   }
-  return *reinterpret_cast<LocalFM*>(fm.local_fm);
+  return *reinterpret_cast<tbb::enumerable_thread_specific<LocalFM>*>(fm.local_fm);
 }
 
 } // namespace utils
@@ -62,6 +65,10 @@ LocalFM& cast(localized_k_way_fm_t fm) {
 
 class IFMStrategy {
  public:
+  // !!! The following declarations should be present in subclasses:
+  // using LocalFM = ...;
+  // using PartitionedHypergraph = ...;
+
   IFMStrategy(const IFMStrategy&) = delete;
   IFMStrategy(IFMStrategy&&) = delete;
   IFMStrategy & operator= (const IFMStrategy &) = delete;
@@ -69,9 +76,10 @@ class IFMStrategy {
 
   virtual ~IFMStrategy() = default;
 
-  bool dispatchedFindMoves(localized_k_way_fm_t local_fm, mt_kahypar_partitioned_hypergraph_t& phg,
-                           size_t task_id, size_t num_seeds, size_t round) {
-    return dispatchedFindMovesImpl(local_fm, phg, task_id, num_seeds, round);
+  void findMoves(localized_k_way_fm_t local_fm, mt_kahypar_partitioned_hypergraph_t& phg,
+                 size_t num_tasks, size_t num_seeds, size_t round,
+                 ds::StreamingVector<HypernodeID>& locally_locked_vertices) {
+    findMovesImpl(local_fm, phg, num_tasks, num_seeds, round, locally_locked_vertices);
   }
 
   bool isUnconstrainedRound(size_t round) const {
@@ -86,18 +94,64 @@ class IFMStrategy {
     reportImprovementImpl(round, absolute_improvement, relative_improvement);
   }
 
+  // !!! The following method should be present in subclasses:
+  // bool dispatchedFindMoves(LocalFM& local_fm, PartitionedHypergraph& phg,
+  //                          size_t task_id, size_t num_seeds, size_t round);
+
  protected:
-  IFMStrategy() = default;
+  IFMStrategy(const Context& context, FMSharedData& sharedData):
+      context(context), sharedData(sharedData) { }
+
+  template<typename Derived>
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
+  void findMovesWithConcreteStrategy(localized_k_way_fm_t local_fm, mt_kahypar_partitioned_hypergraph_t& hypergraph,
+                                     size_t num_tasks, size_t num_seeds, size_t round,
+                                     ds::StreamingVector<HypernodeID>& locally_locked_vertices) {
+    using LocalFM = typename Derived::LocalFM;
+    using PartitionedHypergraph = typename Derived::PartitionedHypergraph;
+
+    Derived& concrete_strategy = *static_cast<Derived*>(this);
+    tbb::enumerable_thread_specific<LocalFM>& ets_fm = utils::cast<LocalFM>(local_fm);
+    PartitionedHypergraph& phg = utils::cast<PartitionedHypergraph>(hypergraph);
+    tbb::task_group tg;
+
+    initRound(num_tasks, num_seeds, round);
+
+    auto task = [&](const size_t task_id) {
+      LocalFM& fm = ets_fm.local();
+      while(sharedData.finishedTasks.load(std::memory_order_relaxed) < sharedData.finishedTasksLimit
+            && concrete_strategy.dispatchedFindMoves(fm, phg, task_id, num_seeds, round)) {
+        if (context.refinement.fm.vertex_locking > 0 && context.refinement.fm.lock_locally_reverted) {
+          fm.doForEachRevertedMove([&] (const Move& m) {
+            locally_locked_vertices.stream(m.node);
+          });
+        }
+      }
+      sharedData.finishedTasks.fetch_add(1, std::memory_order_relaxed);
+    };
+    for (size_t i = 0; i < num_tasks; ++i) {
+      tg.run(std::bind(task, i));
+    }
+    tg.wait();
+  }
+
+  const Context& context;
+  FMSharedData& sharedData;
 
  private:
-  virtual bool dispatchedFindMovesImpl(localized_k_way_fm_t local_fm, mt_kahypar_partitioned_hypergraph_t& phg,
-                                       size_t task_id, size_t num_seeds, size_t round) = 0;
+  virtual void findMovesImpl(localized_k_way_fm_t local_fm, mt_kahypar_partitioned_hypergraph_t& phg,
+                             size_t num_tasks, size_t num_seeds, size_t round,
+                             ds::StreamingVector<HypernodeID>& locally_locked_vertices) = 0;
 
   virtual bool isUnconstrainedRoundImpl(size_t round) const = 0;
 
   virtual bool includesUnconstrainedImpl() const = 0;
 
   virtual void reportImprovementImpl(size_t, Gain, double) {
+    // most strategies don't use this
+  }
+
+  virtual void initRound(size_t /*num_tasks*/, size_t /*num_seeds*/, size_t /*round*/) {
     // most strategies don't use this
   }
 };

@@ -92,7 +92,7 @@
 #define REGISTER_DISPATCHED_FM_STRATEGY(id, dispatcher, ...)                                           \
   static kahypar::meta::Registrar<FMStrategyFactory> register_ ## dispatcher(                          \
     id,                                                                                                \
-    [](const Context& context, const FMSharedData& shared_data) {                                      \
+    [](const Context& context, FMSharedData& shared_data) {                                            \
     return dispatcher::create(                                                                         \
       std::forward_as_tuple(context, shared_data),                                                     \
       __VA_ARGS__                                                                                      \

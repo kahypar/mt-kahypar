@@ -188,7 +188,6 @@ struct UnconstrainedFMData {
   tbb::enumerable_thread_specific<parallel::scalable_vector<HypernodeWeight>> local_bucket_weights;
   kahypar::ds::FastResetFlagArray<> rebalancing_nodes;
   parallel::scalable_vector<HyperedgeWeight> incident_weight_of_node;
-  parallel::IntegralAtomicWrapper<bool> disabled;
 
   explicit UnconstrainedFMData():
     initialized(false),
@@ -197,8 +196,7 @@ struct UnconstrainedFMData {
     consumed_bucket_weights(),
     local_bucket_weights(),
     rebalancing_nodes(),
-    incident_weight_of_node(),
-    disabled(false) { }
+    incident_weight_of_node() { }
 
   template<typename PartitionedHypergraphT>
   void precomputeForLevel(const PartitionedHypergraphT& phg);
@@ -308,9 +306,6 @@ struct FMSharedData {
   // ! Switch to applying moves directly if the use of local delta partitions exceeded a memory limit
   bool deltaExceededMemoryConstraints = false;
   size_t deltaMemoryLimitPerThread = 0;
-
-  Gain previous_improvement_absolute = 0;
-  double previous_improvement_relative = 0.0;
 
   bool release_nodes = true;
   bool perform_moves_global = true;

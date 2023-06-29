@@ -27,6 +27,7 @@
 
 #pragma once
 
+#include <tbb/enumerable_thread_specific.h>
 
 #include "mt-kahypar/partition/context.h"
 

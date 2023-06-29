@@ -367,19 +367,26 @@ private:
 
 template<typename TypeTraits, typename GainTypes>
 class UnconstrainedStrategy: public IFMStrategy {
+  using Base = IFMStrategy;
+
+ public:
   using LocalFM = LocalizedKWayFM<TypeTraits, GainTypes>;
   using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
 
- public:
-  UnconstrainedStrategy(const Context&, const FMSharedData&) { }
+  UnconstrainedStrategy(const Context& context, FMSharedData& sharedData):
+      Base(context, sharedData) { }
+
+  bool dispatchedFindMoves(LocalFM& local_fm, PartitionedHypergraph& phg, size_t task_id, size_t num_seeds, size_t) {
+    LocalUnconstrainedStrategy local_strategy = local_fm.template initializeDispatchedStrategy<LocalUnconstrainedStrategy>();
+    return local_fm.findMoves(local_strategy, phg, task_id, num_seeds);
+  }
 
  private:
-  virtual bool dispatchedFindMovesImpl(localized_k_way_fm_t local_fm, mt_kahypar_partitioned_hypergraph_t& hypergraph,
-                                       size_t task_id, size_t num_seeds, size_t) final {
-    LocalFM& my_fm = utils::cast<LocalFM>(local_fm);
-    PartitionedHypergraph& phg = utils::cast<PartitionedHypergraph>(hypergraph);
-    LocalUnconstrainedStrategy local_strategy = my_fm.template initializeDispatchedStrategy<LocalUnconstrainedStrategy>();
-    return my_fm.findMoves(local_strategy, phg, task_id, num_seeds);
+  virtual void findMovesImpl(localized_k_way_fm_t local_fm, mt_kahypar_partitioned_hypergraph_t& phg,
+                             size_t num_tasks, size_t num_seeds, size_t round,
+                             ds::StreamingVector<HypernodeID>& locally_locked_vertices) final {
+    Base::findMovesWithConcreteStrategy<UnconstrainedStrategy>(
+              local_fm, phg, num_tasks, num_seeds, round, locally_locked_vertices);
   }
 
   virtual bool isUnconstrainedRoundImpl(size_t) const final {

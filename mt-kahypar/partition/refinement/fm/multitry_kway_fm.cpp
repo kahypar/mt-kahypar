@@ -113,7 +113,6 @@ namespace mt_kahypar {
 
     if (fm_strategy->includesUnconstrained()) {
       timer.start_timer("precompute_unconstrained", "Precompute Level for Unc. FM");
-      sharedData.unconstrained.disabled = false;
       sharedData.unconstrained.precomputeForLevel(phg);
       max_part_weights = setupMaxPartWeights(context);
       timer.stop_timer("precompute_unconstrained");
@@ -149,25 +148,10 @@ namespace mt_kahypar {
       }
 
       timer.start_timer("find_moves", "Find Moves");
-      sharedData.finishedTasks.store(0, std::memory_order_relaxed);
-
-      auto task = [&](const size_t task_id) {
-        auto& fm = ets_fm.local();
-        while(sharedData.finishedTasks.load(std::memory_order_relaxed) < sharedData.finishedTasksLimit
-              && fm_strategy->dispatchedFindMoves(utils::localized_fm_cast(fm), hypergraph, task_id, num_seeds, round)) {
-          if (context.refinement.fm.vertex_locking > 0 && context.refinement.fm.lock_locally_reverted) {
-            fm.doForEachRevertedMove([&] (const Move& m) {
-              locally_locked_vertices.stream(m.node);
-            });
-          }
-        }
-        sharedData.finishedTasks.fetch_add(1, std::memory_order_relaxed);
-      };
       size_t num_tasks = std::min(num_border_nodes, size_t(TBBInitializer::instance().total_number_of_threads()));
-      for (size_t i = 0; i < num_tasks; ++i) {
-        tg.run(std::bind(task, i));
-      }
-      tg.wait();
+      sharedData.finishedTasks.store(0, std::memory_order_relaxed);
+      fm_strategy->findMoves(utils::localized_fm_cast(ets_fm), hypergraph,
+                             num_tasks, num_seeds, round, locally_locked_vertices);
       timer.stop_timer("find_moves");
 
       // reset locked vertices, so we can start setting the locks for the next round
@@ -217,14 +201,7 @@ namespace mt_kahypar {
       } else {
         consecutive_rounds_with_too_little_improvement = 0;
       }
-      if (roundImprovementFraction < context.refinement.fm.unconstrained_min_improvement
-          && is_unconstrained
-          && (!context.refinement.fm.activate_unconstrained_dynamically || round > 2)) {
-        DBG << "Disabling unconstrained FM due to too little improvement:" << V(roundImprovementFraction);
-        sharedData.unconstrained.disabled = true;
-      }
-      sharedData.previous_improvement_absolute = improvement;
-      sharedData.previous_improvement_relative = roundImprovementFraction;
+      fm_strategy->reportImprovement(round, improvement, roundImprovementFraction);
 
       HighResClockTimepoint fm_timestamp = std::chrono::high_resolution_clock::now();
       const double elapsed_time = std::chrono::duration<double>(fm_timestamp - fm_start).count();
