@@ -96,7 +96,7 @@ namespace mt_kahypar {
       timer.stop_timer("precompute_unconstrained");
     }
 
-    const bool log = false && context.type == ContextType::main && phg.initialNumNodes() > 5000;
+    const bool log = context.type == ContextType::main && phg.initialNumNodes() > 5000;
 
     if (log) LOG << "\n  ---- Start FM refinement ---- " << V(phg.initialNumNodes());
 

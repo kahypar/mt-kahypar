@@ -73,6 +73,10 @@ private:
                       vec<vec<Move>>* moves_by_part,
                       Metrics& best_metric);
 
+  bool refineInternalParallel(mt_kahypar_partitioned_hypergraph_t& hypergraph,
+                              vec<vec<Move>>* moves_by_part,
+                              Metrics& best_metric);
+
 
   const Context& _context;
   const HypernodeWeight* _max_part_weights;

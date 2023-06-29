@@ -251,8 +251,8 @@ bool RebalancerV2<TypeTraits, GainTypes>::refineInternal(mt_kahypar_partitioned_
 
   bool select_block_by_gain = true;
 
-  // work on lighter blocks first (placed at the end)
   if (!select_block_by_gain) {
+    // work on lighter blocks first (placed at the end)
     std::sort(pq_layout.overloaded_blocks.begin(), pq_layout.overloaded_blocks.end(), [&](PartitionID l, PartitionID r) {
       return phg.partWeight(l) > phg.partWeight(r);
     });
@@ -346,6 +346,13 @@ bool RebalancerV2<TypeTraits, GainTypes>::refineInternal(mt_kahypar_partitioned_
   best_metric.imbalance = metrics::imbalance(phg, _context);
 
   return pq_layout.overloaded_blocks.empty();
+}
+
+template <typename TypeTraits, typename GainTypes>
+bool RebalancerV2<TypeTraits, GainTypes>::refineInternalParallel(mt_kahypar_partitioned_hypergraph_t& hypergraph,
+                                                         vec<vec<Move>>* moves_by_part,
+                                                         Metrics& best_metric) {
+  return true;
 }
 
 
