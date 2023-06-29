@@ -27,21 +27,19 @@
 
 #pragma once
 
+#include <tbb/enumerable_thread_specific.h>
 
 #include "mt-kahypar/partition/context.h"
 
 #include "mt-kahypar/partition/refinement/i_refiner.h"
 #include "mt-kahypar/partition/refinement/fm/localized_kway_fm_core.h"
 #include "mt-kahypar/partition/refinement/fm/global_rollback.h"
-#include "mt-kahypar/partition/refinement/fm/strategies/gain_cache_strategy.h"
-#include "mt-kahypar/partition/refinement/fm/strategies/unconstrained_strategy.h"
-#include "mt-kahypar/partition/refinement/fm/strategies/combined_strategy.h"
-#include "mt-kahypar/partition/refinement/fm/strategies/cooling_strategy.h"
+#include "mt-kahypar/partition/refinement/fm/strategies/i_fm_strategy.h"
 #include "mt-kahypar/partition/refinement/gains/gain_cache_ptr.h"
 
 namespace mt_kahypar {
 
-template<typename TypeTraits, typename GainTypes, typename FMStrategy>
+template<typename TypeTraits, typename GainTypes>
 class MultiTryKWayFM final : public IRefiner {
 
   static constexpr bool debug = false;
@@ -49,7 +47,7 @@ class MultiTryKWayFM final : public IRefiner {
 
   using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
   using GainCache = typename GainTypes::GainCache;
-  using LocalizedFMSearch = LocalizedKWayFM<TypeTraits, GainTypes, FMStrategy>;
+  using LocalizedFMSearch = LocalizedKWayFM<TypeTraits, GainTypes>;
   using Rollback = GlobalRollback<TypeTraits, GainTypes>;
 
   static_assert(GainCache::TYPE != GainPolicy::none);
@@ -60,20 +58,7 @@ class MultiTryKWayFM final : public IRefiner {
                  const HyperedgeID num_hyperedges,
                  const Context& c,
                  GainCache& gainCache,
-                 IRebalancer& rb) :
-    initial_num_nodes(num_hypernodes),
-    context(c),
-    gain_cache(gainCache),
-    current_k(c.partition.k),
-    sharedData(num_hypernodes, FMStrategy::is_unconstrained),
-    globalRollback(num_hyperedges, context, gainCache),
-    ets_fm([&] { return constructLocalizedKWayFMSearch(); }),
-    tmp_move_order(num_hypernodes),
-    rebalancer(rb) {
-    if (context.refinement.fm.obey_minimal_parallelism) {
-      sharedData.finishedTasksLimit = std::min(UL(8), context.shared_memory.num_threads);
-    }
-  }
+                 IRebalancer& rb);
 
   MultiTryKWayFM(const HypernodeID num_hypernodes,
                  const HyperedgeID num_hyperedges,
@@ -99,7 +84,8 @@ class MultiTryKWayFM final : public IRefiner {
   void interleaveMoveSequenceWithRebalancingMoves(const PartitionedHypergraph& phg,
                                                   const vec<HypernodeWeight>& initialPartWeights,
                                                   const std::vector<HypernodeWeight>& max_part_weights,
-                                                  vec<vec<Move>>& rebalancing_moves_by_part);
+                                                  vec<vec<Move>>& rebalancing_moves_by_part,
+                                                  bool only_append_moves);
 
   void insertMovesToBalancePart(const PartitionedHypergraph& phg,
                                 const PartitionID part,
@@ -138,19 +124,11 @@ class MultiTryKWayFM final : public IRefiner {
   GainCache& gain_cache;
   PartitionID current_k;
   FMSharedData sharedData;
+  std::unique_ptr<IFMStrategy> fm_strategy;
   Rollback globalRollback;
   tbb::enumerable_thread_specific<LocalizedFMSearch> ets_fm;
   vec<Move> tmp_move_order;
   IRebalancer& rebalancer;
 };
-
-template<typename TypeTraits, typename GainCache>
-using MultiTryKWayFMDefault = MultiTryKWayFM<TypeTraits, GainCache, GainCacheStrategy>;
-template<typename TypeTraits, typename GainCache>
-using MultiTryKWayFMUnconstrained = MultiTryKWayFM<TypeTraits, GainCache, UnconstrainedStrategy>;
-template<typename TypeTraits, typename GainCache>
-using MultiTryKWayFMCombined = MultiTryKWayFM<TypeTraits, GainCache, CombinedStrategy>;
-template<typename TypeTraits, typename GainCache>
-using MultiTryKWayFMCooling = MultiTryKWayFM<TypeTraits, GainCache, CoolingStrategy>;
 
 } // namespace mt_kahypar

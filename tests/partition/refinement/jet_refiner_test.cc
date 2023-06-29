@@ -46,11 +46,11 @@ template <typename TypeTraitsT, PartitionID k, bool precomputed, bool sequential
 struct TestConfig<TypeTraitsT, k, Objective::km1, precomputed, sequential> {
   using TypeTraits = TypeTraitsT;
   using GainTypes = Km1GainTypes;
-  using Refiner = JetRefiner<TypeTraits, Km1GainTypes, precomputed>;
+  using Refiner = JetRefiner<TypeTraits, Km1GainTypes>;
   using RebalancerT = Rebalancer<TypeTraits, Km1GainTypes>;
   static constexpr PartitionID K = k;
   static constexpr Objective OBJECTIVE = Objective::km1;
-  static constexpr JetAlgorithm JET_ALGO = JetAlgorithm::greedy_unordered;
+  static constexpr JetAlgorithm JET_ALGO = precomputed ? JetAlgorithm::precomputed_ordered : JetAlgorithm::greedy_unordered;
   static constexpr bool execute_sequential = sequential;
 };
 
@@ -58,11 +58,11 @@ template <typename TypeTraitsT, PartitionID k, bool precomputed, bool sequential
 struct TestConfig<TypeTraitsT, k, Objective::cut, precomputed, sequential> {
   using TypeTraits = TypeTraitsT;
   using GainTypes = CutGainTypes;
-  using Refiner = JetRefiner<TypeTraits, CutGainTypes, precomputed>;
+  using Refiner = JetRefiner<TypeTraits, CutGainTypes>;
   using RebalancerT = Rebalancer<TypeTraits, CutGainTypes>;
   static constexpr PartitionID K = k;
   static constexpr Objective OBJECTIVE = Objective::cut;
-  static constexpr JetAlgorithm JET_ALGO = JetAlgorithm::greedy_unordered;
+  static constexpr JetAlgorithm JET_ALGO = precomputed ? JetAlgorithm::precomputed_ordered : JetAlgorithm::greedy_unordered;
   static constexpr bool execute_sequential = sequential;
 };
 

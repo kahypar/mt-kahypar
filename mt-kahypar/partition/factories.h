@@ -46,7 +46,13 @@
 #include "mt-kahypar/partition/refinement/label_propagation/label_propagation_refiner.h"
 #include "mt-kahypar/partition/refinement/jet/jet_refiner.h"
 #include "mt-kahypar/partition/refinement/deterministic/deterministic_label_propagation.h"
+#include "mt-kahypar/partition/refinement/fm/fm_commons.h"
 #include "mt-kahypar/partition/refinement/fm/multitry_kway_fm.h"
+#include "mt-kahypar/partition/refinement/fm/strategies/i_fm_strategy.h"
+#include "mt-kahypar/partition/refinement/fm/strategies/combined_strategy.h"
+#include "mt-kahypar/partition/refinement/fm/strategies/gain_cache_strategy.h"
+#include "mt-kahypar/partition/refinement/fm/strategies/unconstrained_strategy.h"
+#include "mt-kahypar/partition/refinement/fm/strategies/cooling_strategy.h"
 #include "mt-kahypar/partition/refinement/gains/gain_definitions.h"
 #include "mt-kahypar/partition/refinement/flows/scheduler.h"
 #include "mt-kahypar/partition/refinement/flows/flow_refiner.h"
@@ -96,37 +102,44 @@ using JetFactory = kahypar::meta::Factory<JetAlgorithm,
                     IRefiner* (*)(HypernodeID, HyperedgeID, const Context&, gain_cache_t, IRefiner&)>;
 
 using PrecomputedJetDispatcher = kahypar::meta::StaticMultiDispatchFactory<
-                                   PrecomputedJetRefiner,
+                                   JetRefiner,
                                    IRefiner,
                                    kahypar::meta::Typelist<TypeTraitsList, GainTypes>>;
-
-using GreedyJetDispatcher = kahypar::meta::StaticMultiDispatchFactory<
-                              GreedyJetRefiner,
-                              IRefiner,
-                              kahypar::meta::Typelist<TypeTraitsList, GainTypes>>;
+using GreedyJetDispatcher = PrecomputedJetDispatcher;
 
 using FMFactory = kahypar::meta::Factory<FMAlgorithm,
                     IRefiner* (*)(HypernodeID, HyperedgeID, const Context&, gain_cache_t, IRebalancer&)>;
 
 using DefaultFMDispatcher = kahypar::meta::StaticMultiDispatchFactory<
-                            MultiTryKWayFMDefault,
+                            MultiTryKWayFM,
                             IRefiner,
                             kahypar::meta::Typelist<TypeTraitsList, GainTypes>>;
 
-using UnconstrainedFMDispatcher = kahypar::meta::StaticMultiDispatchFactory<
-                                  MultiTryKWayFMUnconstrained,
-                                  IRefiner,
-                                  kahypar::meta::Typelist<TypeTraitsList, GainTypes>>;
+using UnconstrainedFMDispatcher = DefaultFMDispatcher;
+using CombinedFMDispatcher = DefaultFMDispatcher;
+using CoolingFMDispatcher = DefaultFMDispatcher;
 
-using CombinedFMDispatcher = kahypar::meta::StaticMultiDispatchFactory<
-                             MultiTryKWayFMCombined,
-                             IRefiner,
-                             kahypar::meta::Typelist<TypeTraitsList, GainTypes>>;
+using FMStrategyFactory = kahypar::meta::Factory<FMAlgorithm, IFMStrategy* (*)(const Context&, FMSharedData&)>;
 
-using CoolingFMDispatcher = kahypar::meta::StaticMultiDispatchFactory<
-                            MultiTryKWayFMCooling,
-                            IRefiner,
-                            kahypar::meta::Typelist<TypeTraitsList, GainTypes>>;
+using GainCacheFMStrategyDispatcher = kahypar::meta::StaticMultiDispatchFactory<
+                                      GainCacheStrategy,
+                                      IFMStrategy,
+                                      kahypar::meta::Typelist<TypeTraitsList, GainTypes>>;
+
+using UnconstrainedFMStrategyDispatcher = kahypar::meta::StaticMultiDispatchFactory<
+                                          UnconstrainedStrategy,
+                                          IFMStrategy,
+                                          kahypar::meta::Typelist<TypeTraitsList, GainTypes>>;
+
+using CombinedFMStrategyDispatcher = kahypar::meta::StaticMultiDispatchFactory<
+                                     CombinedStrategy,
+                                     IFMStrategy,
+                                     kahypar::meta::Typelist<TypeTraitsList, GainTypes>>;
+
+using CoolingFMStrategyDispatcher = kahypar::meta::StaticMultiDispatchFactory<
+                                    CoolingStrategy,
+                                    IFMStrategy,
+                                    kahypar::meta::Typelist<TypeTraitsList, GainTypes>>;
 
 using FlowSchedulerFactory = kahypar::meta::Factory<FlowAlgorithm,
                               IRefiner* (*)(const HypernodeID, const HyperedgeID, const Context&, gain_cache_t)>;

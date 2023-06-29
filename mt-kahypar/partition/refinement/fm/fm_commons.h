@@ -194,7 +194,8 @@ struct UnconstrainedFMData {
     bucket_weights(),
     consumed_bucket_weights(),
     local_bucket_weights(),
-    rebalancing_nodes() { }
+    rebalancing_nodes(),
+    incident_weight_of_node() { }
 
   template<typename PartitionedHypergraphT>
   void precomputeForLevel(const PartitionedHypergraphT& phg);
@@ -308,7 +309,7 @@ struct FMSharedData {
   bool release_nodes = true;
   bool perform_moves_global = true;
 
-  FMSharedData(size_t numNodes, size_t numThreads, bool initialize_unconstrained) :
+  FMSharedData(size_t numNodes, size_t numThreads) :
     numberOfNodes(numNodes),
     refinementNodes(), //numNodes, numThreads),
     vertexPQHandles(), //numPQHandles, invalid_position),
@@ -335,22 +336,24 @@ struct FMSharedData {
       refinementNodes.tls_queues.resize(numThreads);
     }, [&] {
       targetPart.resize(numNodes, kInvalidPartition);
-    }, [&] {
-      if (initialize_unconstrained) {
-        unconstrained.rebalancing_nodes.setSize(numNodes);
-        unconstrained.incident_weight_of_node.resize(numNodes);
-      }
     });
   }
 
-  FMSharedData(size_t numNodes, bool initialize_unconstrained) :
+  FMSharedData(size_t numNodes) :
     FMSharedData(
       numNodes,
-      TBBInitializer::instance().total_number_of_threads(),
-      initialize_unconstrained)  { }
+      TBBInitializer::instance().total_number_of_threads())  { }
 
   FMSharedData() :
-    FMSharedData(0, 0, false) { }
+    FMSharedData(0, 0) { }
+
+  void initializeUnconstrainedData(size_t numNodes) {
+    tbb::parallel_invoke([&] {
+      unconstrained.rebalancing_nodes.setSize(numNodes);
+    }, [&] {
+      unconstrained.incident_weight_of_node.resize(numNodes);
+    });
+  }
 
   bool lockVertexForNextRound(const HypernodeID node, const Context& context) {
     ASSERT(!moveTracker.isRebalancingMove(moveTracker.moveOfNode[node]));

@@ -153,7 +153,7 @@ std::ostream & operator<< (std::ostream& str, const JetParameters& params);
 
 struct FMParameters {
   FMAlgorithm algorithm = FMAlgorithm::do_nothing;
-  RollbackStrategy rollback_strategy = RollbackStrategy::interleave_rebalancing_moves;
+  bool only_append_rebalancing_moves = false;
 
   size_t multitry_rounds = 1;
   mutable size_t num_seed_nodes = 1;
@@ -188,6 +188,11 @@ struct FMParameters {
   double imbalance_penalty_min = 0.2;
   double imbalance_penalty_max = 1.0;
   double unconstrained_upper_bound_min = 0.0;
+
+  // unconstrained: dynamic enabling/disableing
+  bool activate_unconstrained_dynamically = false;
+  double penalty_for_activation_test = 0.5;
+  double unconstrained_min_improvement = -1.0;
 };
 
 std::ostream& operator<<(std::ostream& out, const FMParameters& params);

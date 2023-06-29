@@ -89,6 +89,16 @@
     return new refiner(num_hypernodes, num_hyperedges, context, gain_cache, rebalancer);         \
   })
 
+#define REGISTER_DISPATCHED_FM_STRATEGY(id, dispatcher, ...)                                           \
+  static kahypar::meta::Registrar<FMStrategyFactory> register_ ## dispatcher(                          \
+    id,                                                                                                \
+    [](const Context& context, FMSharedData& shared_data) {                                            \
+    return dispatcher::create(                                                                         \
+      std::forward_as_tuple(context, shared_data),                                                     \
+      __VA_ARGS__                                                                                      \
+      );                                                                                               \
+  })
+
 #define REGISTER_DISPATCHED_FLOW_SCHEDULER(id, dispatcher, ...)                                        \
   static kahypar::meta::Registrar<FlowSchedulerFactory> register_ ## dispatcher(                       \
     id,                                                                                                \
@@ -194,6 +204,31 @@ REGISTER_DISPATCHED_FM_REFINER(FMAlgorithm::cooling,
                                kahypar::meta::PolicyRegistry<GainPolicy>::getInstance().getPolicy(
                                 context.partition.gain_policy));
 REGISTER_FM_REFINER(FMAlgorithm::do_nothing, DoNothingRefiner, 3);
+
+REGISTER_DISPATCHED_FM_STRATEGY(FMAlgorithm::kway_fm,
+                                GainCacheFMStrategyDispatcher,
+                                kahypar::meta::PolicyRegistry<mt_kahypar_partition_type_t>::getInstance().getPolicy(
+                                 context.partition.partition_type),
+                                kahypar::meta::PolicyRegistry<GainPolicy>::getInstance().getPolicy(
+                                 context.partition.gain_policy));
+REGISTER_DISPATCHED_FM_STRATEGY(FMAlgorithm::unconstrained,
+                                UnconstrainedFMStrategyDispatcher,
+                                kahypar::meta::PolicyRegistry<mt_kahypar_partition_type_t>::getInstance().getPolicy(
+                                 context.partition.partition_type),
+                                kahypar::meta::PolicyRegistry<GainPolicy>::getInstance().getPolicy(
+                                 context.partition.gain_policy));
+REGISTER_DISPATCHED_FM_STRATEGY(FMAlgorithm::combined,
+                                CombinedFMStrategyDispatcher,
+                                kahypar::meta::PolicyRegistry<mt_kahypar_partition_type_t>::getInstance().getPolicy(
+                                 context.partition.partition_type),
+                                kahypar::meta::PolicyRegistry<GainPolicy>::getInstance().getPolicy(
+                                 context.partition.gain_policy));
+REGISTER_DISPATCHED_FM_STRATEGY(FMAlgorithm::cooling,
+                                CoolingFMStrategyDispatcher,
+                                kahypar::meta::PolicyRegistry<mt_kahypar_partition_type_t>::getInstance().getPolicy(
+                                 context.partition.partition_type),
+                                kahypar::meta::PolicyRegistry<GainPolicy>::getInstance().getPolicy(
+                                 context.partition.gain_policy));
 
 REGISTER_DISPATCHED_FLOW_SCHEDULER(FlowAlgorithm::flow_cutter,
                                    FlowSchedulerDispatcher,

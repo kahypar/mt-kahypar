@@ -32,64 +32,122 @@
 
 namespace mt_kahypar {
 
-class CoolingStrategy {
-public:
-  static constexpr bool uses_gain_cache = true;
-  static constexpr bool maintain_gain_cache_between_rounds = true;
-  static constexpr bool is_unconstrained = true;
+  template<typename TypeTraits, typename GainTypes>
+  class CoolingStrategy: public IFMStrategy {
+    using Base = IFMStrategy;
+    static constexpr bool debug = false;
 
-  CoolingStrategy(const Context& context,
-                   FMSharedData& sharedData,
-                   FMStats& runStats) :
-      context(context),
-      default_strategy(context, sharedData, runStats),
-      unconstrained_strategy(context, sharedData, runStats, context.refinement.fm.imbalance_penalty_min) { }
+  public:
+    using LocalFM = LocalizedKWayFM<TypeTraits, GainTypes>;
+    using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
 
-  template<typename DispatchedStrategyApplicatorFn>
-  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
-  void applyWithDispatchedStrategy(size_t /*taskID*/, size_t round, DispatchedStrategyApplicatorFn applicator_fn) {
-    const size_t n_rounds = context.refinement.fm.unconstrained_rounds;
-    auto interpolate = [&](double start, double end) {
-      if (round == 0) {
-        return start;
-      }
-      double summed = (n_rounds - round - 1) * start + round * end;
-      return summed / static_cast<double>(n_rounds - 1);
-    };
-
-    if (round < n_rounds) {
-      double penalty = interpolate(context.refinement.fm.imbalance_penalty_min,
-                                   context.refinement.fm.imbalance_penalty_max);
-      unconstrained_strategy.setPenaltyFactor(penalty);
-      if (context.refinement.fm.unconstrained_upper_bound >= 1 && context.refinement.fm.unconstrained_upper_bound_min >= 1) {
-        double upper_bound = interpolate(context.refinement.fm.unconstrained_upper_bound,
-                                         context.refinement.fm.unconstrained_upper_bound_min);
-        unconstrained_strategy.setUpperBound(upper_bound);
-      }
-      applicator_fn(static_cast<UnconstrainedStrategy&>(unconstrained_strategy));
-    } else {
-      applicator_fn(static_cast<GainCacheStrategy&>(default_strategy));
+    CoolingStrategy(const Context& context, FMSharedData& sharedData):
+            Base(context, sharedData),
+            current_penalty(context.refinement.fm.imbalance_penalty_min),
+            current_upper_bound(context.refinement.fm.unconstrained_upper_bound),
+            absolute_improvement_first_round(kInvalidGain),
+            unconstrained_is_enabled(true) {
+      ASSERT(!context.refinement.fm.activate_unconstrained_dynamically
+             || context.refinement.fm.multitry_rounds > 2);
     }
-  }
 
-  void changeNumberOfBlocks(const PartitionID new_k) {
-    default_strategy.changeNumberOfBlocks(new_k);
-    unconstrained_strategy.changeNumberOfBlocks(new_k);
-  }
+    bool dispatchedFindMoves(LocalFM& local_fm, PartitionedHypergraph& phg, size_t task_id, size_t num_seeds, size_t round) {
+      if (isUnconstrainedRound(round)) {
+        LocalUnconstrainedStrategy local_strategy = local_fm.template initializeDispatchedStrategy<LocalUnconstrainedStrategy>();
+        local_strategy.setPenaltyFactor(current_penalty);
+        local_strategy.setUpperBound(current_upper_bound);
+        return local_fm.findMoves(local_strategy, phg, task_id, num_seeds);
+      } else {
+        LocalGainCacheStrategy local_strategy = local_fm.template initializeDispatchedStrategy<LocalGainCacheStrategy>();
+        return local_fm.findMoves(local_strategy, phg, task_id, num_seeds);
+      }
+    }
 
-  void memoryConsumption(utils::MemoryTreeNode *parent) const {
-    default_strategy.memoryConsumption(parent);
-    // TODO
-  }
+  private:
+    virtual void findMovesImpl(localized_k_way_fm_t local_fm, mt_kahypar_partitioned_hypergraph_t& phg,
+                               size_t num_tasks, size_t num_seeds, size_t round,
+                               ds::StreamingVector<HypernodeID>& locally_locked_vertices) final {
+      Base::findMovesWithConcreteStrategy<CoolingStrategy>(
+              local_fm, phg, num_tasks, num_seeds, round, locally_locked_vertices);
+    }
 
-  static bool isUnconstrainedRound(size_t round, const Context& context) {
-    return round < context.refinement.fm.unconstrained_rounds;
-  }
+    virtual bool isUnconstrainedRoundImpl(size_t round) const final {
+      if (round > 0 && !unconstrained_is_enabled) {
+        return false;
+      }
+      if (context.refinement.fm.activate_unconstrained_dynamically) {
+        return round == 1 || (round > 1 && round - 2 < context.refinement.fm.unconstrained_rounds);
+      } else {
+        return round < context.refinement.fm.unconstrained_rounds;
+      }
+    }
 
- private:
-  const Context& context;
-  GainCacheStrategy default_strategy;
-  UnconstrainedStrategy unconstrained_strategy;
-};
+    virtual bool includesUnconstrainedImpl() const final {
+      return true;
+    }
+
+    virtual void reportImprovementImpl(size_t round, Gain absolute_improvement, double relative_improvement) final {
+      if (round == 0) {
+        absolute_improvement_first_round = absolute_improvement;
+      } else if (round == 1
+                 && context.refinement.fm.activate_unconstrained_dynamically
+                 && absolute_improvement < absolute_improvement_first_round) {
+        // this is the decision point whether unconstrained or constrained FM is used
+        unconstrained_is_enabled = false;
+        DBG << "Disabling unconstrained FM after test round: " << V(absolute_improvement) << V(absolute_improvement_first_round);
+      } else if (relative_improvement < context.refinement.fm.unconstrained_min_improvement) {
+        unconstrained_is_enabled = false;
+        DBG << "Disabling unconstrained FM due to too little improvement:" << V(relative_improvement);
+      }
+    }
+
+    void initRound(size_t /*num_tasks*/, size_t /*num_seeds*/, size_t round) final {
+      if (round == 0) {
+        unconstrained_is_enabled = true;
+      }
+      if (context.refinement.fm.activate_unconstrained_dynamically) {
+        if (round == 1) {
+          current_penalty = context.refinement.fm.penalty_for_activation_test;
+          current_upper_bound = context.refinement.fm.unconstrained_upper_bound;
+        } else if (round > 1 && isUnconstrainedRound(round)) {
+          size_t n_rounds = std::min(context.refinement.fm.unconstrained_rounds, context.refinement.fm.multitry_rounds - 2);
+          calculateInterpolation(round - 2, n_rounds);
+        }
+      } else if (isUnconstrainedRound(round)) {
+        calculateInterpolation(round, context.refinement.fm.unconstrained_rounds);
+      }
+      DBG << V(round) << V(isUnconstrainedRound(round)) << V(current_penalty) << V(current_upper_bound);
+    }
+
+    void calculateInterpolation(size_t round, size_t n_rounds) {
+      ASSERT(unconstrained_is_enabled && round < context.refinement.fm.multitry_rounds);
+      auto interpolate = [&](double start, double end) {
+        if (round == 0) {
+          return start;
+        }
+        double summed = (n_rounds - round - 1) * start + round * end;
+        return summed / static_cast<double>(n_rounds - 1);
+      };
+
+      if (round < n_rounds) {
+        // interpolate values for current penalty and upper bound
+        current_penalty = interpolate(context.refinement.fm.imbalance_penalty_min,
+                                      context.refinement.fm.imbalance_penalty_max);
+        if (context.refinement.fm.unconstrained_upper_bound >= 1) {
+          if (context.refinement.fm.unconstrained_upper_bound_min >= 1) {
+            current_upper_bound = interpolate(context.refinement.fm.unconstrained_upper_bound,
+                                              context.refinement.fm.unconstrained_upper_bound_min);
+          } else {
+            current_upper_bound = context.refinement.fm.unconstrained_upper_bound;
+          }
+        }
+      }
+    }
+
+    double current_penalty;
+    double current_upper_bound;
+    Gain absolute_improvement_first_round;
+    bool unconstrained_is_enabled;
+  };
 
 }

@@ -32,16 +32,38 @@
 #include "mt-kahypar/datastructures/streaming_vector.h"
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/utils/utilities.h"
+#include "mt-kahypar/partition/factories.h"
 #include "mt-kahypar/partition/metrics.h"
 #include "mt-kahypar/partition/refinement/gains/gain_definitions.h"
-#include "mt-kahypar/partition/refinement/fm/strategies/gain_cache_strategy.h"
-#include "mt-kahypar/partition/refinement/fm/strategies/unconstrained_strategy.h"
-#include "mt-kahypar/partition/refinement/fm/strategies/combined_strategy.h"
 #include "mt-kahypar/utils/memory_tree.h"
 #include "mt-kahypar/utils/cast.h"
 
 namespace mt_kahypar {
   using ds::StreamingVector;
+
+  template<typename TypeTraits, typename GainTypes>
+  MultiTryKWayFM<TypeTraits, GainTypes>::MultiTryKWayFM(const HypernodeID num_hypernodes,
+                                                        const HyperedgeID num_hyperedges,
+                                                        const Context& c,
+                                                        GainCache& gainCache,
+                                                        IRebalancer& rb) :
+          initial_num_nodes(num_hypernodes),
+          context(c),
+          gain_cache(gainCache),
+          current_k(c.partition.k),
+          sharedData(num_hypernodes),
+          fm_strategy(FMStrategyFactory::getInstance().createObject(context.refinement.fm.algorithm, context, sharedData)),
+          globalRollback(num_hyperedges, context, gainCache),
+          ets_fm([&] { return constructLocalizedKWayFMSearch(); }),
+          tmp_move_order(num_hypernodes),
+          rebalancer(rb) {
+    if (context.refinement.fm.obey_minimal_parallelism) {
+      sharedData.finishedTasksLimit = std::min(UL(8), context.shared_memory.num_threads);
+    }
+    if (fm_strategy->includesUnconstrained()) {
+      sharedData.initializeUnconstrainedData(num_hypernodes);
+    }
+  }
 
   // helper function for rebalancing
   std::vector<HypernodeWeight> setupMaxPartWeights(const Context& context) {
@@ -62,12 +84,12 @@ namespace mt_kahypar {
     return max_part_weights;
   }
 
-  template<typename TypeTraits, typename GainTypes, typename FMStrategy>
-  bool MultiTryKWayFM<TypeTraits, GainTypes, FMStrategy>::refineImpl(
-              mt_kahypar_partitioned_hypergraph_t& hypergraph,
-              const vec<HypernodeID>& refinement_nodes,
-              Metrics& metrics,
-              const double time_limit) {
+  template<typename TypeTraits, typename GainTypes>
+  bool MultiTryKWayFM<TypeTraits, GainTypes>::refineImpl(
+          mt_kahypar_partitioned_hypergraph_t& hypergraph,
+          const vec<HypernodeID>& refinement_nodes,
+          Metrics& metrics,
+          const double time_limit) {
     PartitionedHypergraph& phg = utils::cast<PartitionedHypergraph>(hypergraph);
 
     if (!is_initialized) throw std::runtime_error("Call initialize on fm before calling refine");
@@ -89,23 +111,20 @@ namespace mt_kahypar {
     HighResClockTimepoint fm_start = std::chrono::high_resolution_clock::now();
     utils::Timer& timer = utils::Utilities::instance().getTimer(context.utility_id);
 
-    if (FMStrategy::is_unconstrained) {
+    if (fm_strategy->includesUnconstrained()) {
       timer.start_timer("precompute_unconstrained", "Precompute Level for Unc. FM");
       sharedData.unconstrained.precomputeForLevel(phg);
       max_part_weights = setupMaxPartWeights(context);
       timer.stop_timer("precompute_unconstrained");
     }
 
-    const bool log = context.type == ContextType::main && phg.initialNumNodes() > 5000;
-
-    if (log) LOG << "\n  ---- Start FM refinement ---- " << V(phg.initialNumNodes());
-
     for (size_t round = 0; round < context.refinement.fm.multitry_rounds; ++round) { // global multi try rounds
       for (PartitionID i = 0; i < context.partition.k; ++i) {
         initialPartWeights[i] = phg.partWeight(i);
       }
 
-      if (FMStrategy::isUnconstrainedRound(round, context)) {
+      const bool is_unconstrained = fm_strategy->isUnconstrainedRound(round);
+      if (is_unconstrained) {
         timer.start_timer("initialize_data_unconstrained", "Initialize Data for Unc. FM");
         sharedData.unconstrained.initialize(context, phg);
         timer.stop_timer("initialize_data_unconstrained");
@@ -129,25 +148,10 @@ namespace mt_kahypar {
       }
 
       timer.start_timer("find_moves", "Find Moves");
-      sharedData.finishedTasks.store(0, std::memory_order_relaxed);
-
-      auto task = [&](const size_t task_id) {
-        auto& fm = ets_fm.local();
-        while(sharedData.finishedTasks.load(std::memory_order_relaxed) < sharedData.finishedTasksLimit
-              && fm.findMoves(phg, task_id, num_seeds, round)) {
-          if (context.refinement.fm.vertex_locking > 0 && context.refinement.fm.lock_locally_reverted) {
-            fm.doForEachRevertedMove([&] (const Move& m) {
-              locally_locked_vertices.stream(m.node);
-            });
-          }
-        }
-        sharedData.finishedTasks.fetch_add(1, std::memory_order_relaxed);
-      };
       size_t num_tasks = std::min(num_border_nodes, size_t(TBBInitializer::instance().total_number_of_threads()));
-      for (size_t i = 0; i < num_tasks; ++i) {
-        tg.run(std::bind(task, i));
-      }
-      tg.wait();
+      sharedData.finishedTasks.store(0, std::memory_order_relaxed);
+      fm_strategy->findMoves(utils::localized_fm_cast(ets_fm), hypergraph,
+                             num_tasks, num_seeds, round, locally_locked_vertices);
       timer.stop_timer("find_moves");
 
       // reset locked vertices, so we can start setting the locks for the next round
@@ -158,146 +162,46 @@ namespace mt_kahypar {
         });
       }
 
+      if (is_unconstrained && !isBalanced(phg, max_part_weights)) {
+        DBG << "[unconstrained FM] Starting Rebalancing";
+        vec<vec<Move>> moves_by_part;
 
+        // compute rebalancing moves
+        timer.start_timer("rebalance", "Rebalance");
+        Metrics tmp_metrics;
+        ASSERT([&]{ // correct quality only required for assertions
+          tmp_metrics.quality = metrics::quality(phg, context);
+          return true;
+        }());
+        tmp_metrics.imbalance = metrics::imbalance(phg, context);
+        rebalancer.setMaxPartWeightsForRound(max_part_weights);
+        rebalancer.refineAndOutputMoves(hypergraph, {}, moves_by_part, tmp_metrics, current_time_limit);
+        timer.stop_timer("rebalance");
 
-      auto info = [&] (bool require_balance) {
-        size_t num_moves = 0;
-        Gain expected_gain = 0;
-        size_t num_invalidated = 0;
-        for (size_t i = 0; i < sharedData.moveTracker.numPerformedMoves(); ++i) {
-          if (sharedData.moveTracker.moveOrder[i].isValid()) {
-            num_moves++;
-            expected_gain += sharedData.moveTracker.moveOrder[i].gain;
-          } else {
-            num_invalidated++;
-          }
+        if (!moves_by_part.empty()) {
+          // compute new move sequence where each imbalanced move is immediately rebalanced
+          interleaveMoveSequenceWithRebalancingMoves(phg, initialPartWeights, max_part_weights, moves_by_part,
+                                                     context.refinement.fm.only_append_rebalancing_moves);
         }
-        globalRollback.recalculateGains(phg, sharedData);
-        Gain cumulative_gain = 0;
-        Gain max_gain = 0;
-        size_t max_gain_pos = 0;
-        int64_t imbalance_at_max_gain = 0;
-        vec <HypernodeWeight> part_weights = initialPartWeights;
-        vec <HypernodeWeight> part_weights_at_max_gain = initialPartWeights;
-        size_t overloaded = 0;
-        for (PartitionID k = 0; k < phg.k(); ++k) {
-          if (part_weights[k] > context.partition.max_part_weights[k]) { overloaded++; }
-        }
-
-        for (size_t i = 0; i < sharedData.moveTracker.numPerformedMoves(); ++i) {
-          if (sharedData.moveTracker.moveOrder[i].isValid()) {
-            const Move& m = sharedData.moveTracker.moveOrder[i];
-            cumulative_gain += m.gain;
-            if (part_weights[m.from] > context.partition.max_part_weights[m.from] && part_weights[m.from] - phg.nodeWeight(m.node) <= context.partition.max_part_weights[m.from]) overloaded--;
-            if (part_weights[m.to] <= context.partition.max_part_weights[m.to] && part_weights[m.to] + phg.nodeWeight(m.node) > context.partition.max_part_weights[m.to]) overloaded++;
-            part_weights[m.from] -= phg.nodeWeight(m.node);
-            part_weights[m.to] += phg.nodeWeight(m.node);
-            if (cumulative_gain > max_gain && (!require_balance || overloaded == 0)) {
-              max_gain = cumulative_gain;
-              max_gain_pos = i + 1;
-              imbalance_at_max_gain = 0;
-              for (PartitionID j = 0; j < phg.k(); ++j) {
-                if (part_weights[j] > context.partition.max_part_weights[j] &&
-                    part_weights[j] - context.partition.max_part_weights[j] > imbalance_at_max_gain) {
-                  imbalance_at_max_gain = part_weights[j] - context.partition.max_part_weights[j];
-                  part_weights_at_max_gain = part_weights;
-                }
-              }
-            }
-          }
-        }
-        size_t num_overloaded = 0;
-        std::stringstream str;
-        for (PartitionID k = 0; k < phg.k(); ++k) {
-          if (part_weights_at_max_gain[k] > context.partition.max_part_weights[k]) {
-            num_overloaded++;
-            str << k << " " << part_weights_at_max_gain[k] << " | ";
-          }
-        }
-        str << "  ||  max part weight = " << context.partition.max_part_weights[0];
-        if (log) {
-          LOG << V(round) << V(num_moves) << V(max_gain_pos) << V(num_invalidated) << V(expected_gain)
-              << V(cumulative_gain) << V(max_gain) << V(imbalance_at_max_gain) << V(num_overloaded);
-          LOG << str.str();
-        }
-      };
-      if (log) {
-        LOG << "\nbefore rebalance";
-        info(false);
       }
 
+      timer.start_timer("rollback", "Rollback to Best Solution");
+      HyperedgeWeight improvement = globalRollback.revertToBestPrefix(phg, sharedData, initialPartWeights);
+      timer.stop_timer("rollback");
 
-      HyperedgeWeight improvement;
-      if (context.refinement.fm.rollback_strategy == RollbackStrategy::approximate) {
-        // TODO: it seems likely we can remove this strategy
-        timer.start_timer("rollback", "Rollback to Best Solution");
-
-        improvement = globalRollback.revertToBestPrefix(phg, sharedData, initialPartWeights,
-                                                        FMStrategy::isUnconstrainedRound(round, context));
-        timer.stop_timer("rollback");
-
-        if (FMStrategy::isUnconstrainedRound(round, context) && !metrics::isBalanced(phg, context)) {
-          DBG << "[unconstrained FM] Starting Rebalancing";
-          timer.start_timer("rebalance", "Rebalance");
-          Metrics tmp_metrics;
-          tmp_metrics.quality = metrics.quality - overall_improvement - improvement;
-          tmp_metrics.imbalance = metrics::imbalance(phg, context);
-          rebalancer.setMaxPartWeightsForRound(max_part_weights);
-          rebalancer.refine(hypergraph, {}, tmp_metrics, current_time_limit);
-          timer.stop_timer("rebalance");
-
-          improvement = (metrics.quality - overall_improvement) - tmp_metrics.quality;
-          DBG << "[unconstrained FM] " << V(improvement);
-        }
-      } else {
-        ASSERT(context.refinement.fm.rollback_strategy == RollbackStrategy::interleave_rebalancing_moves);
-        if (FMStrategy::isUnconstrainedRound(round, context) && !isBalanced(phg, max_part_weights)) {
-          DBG << "[unconstrained FM] Starting Rebalancing";
-          vec<vec<Move>> moves_by_part;
-
-          // compute rebalancing moves
-          timer.start_timer("rebalance", "Rebalance");
-          Metrics tmp_metrics;
-          ASSERT([&]{ // correct quality only required for assertions
-            tmp_metrics.quality = metrics::quality(phg, context);
-            return true;
-          }());
-          tmp_metrics.imbalance = metrics::imbalance(phg, context);
-          rebalancer.setMaxPartWeightsForRound(max_part_weights);
-          rebalancer.refineAndOutputMoves(hypergraph, {}, moves_by_part, tmp_metrics, current_time_limit);
-          timer.stop_timer("rebalance");
-
-          if (!moves_by_part.empty()) {
-            // compute new move sequence where each imbalanced move is immediately rebalanced
-            timer.start_timer("interleave", "Interleave Rebalancing Moves");
-            interleaveMoveSequenceWithRebalancingMoves(phg, initialPartWeights, max_part_weights, moves_by_part);
-            if (log) LOG << "Interleaved move sequence size = " << sharedData.moveTracker.numPerformedMoves();
-            if (log) {
-              LOG << "after rebalance";
-              info(true);
-            }
-            timer.stop_timer("interleave");
-          }
-        }
-
-        timer.start_timer("rollback", "Rollback to Best Solution");
-        improvement = globalRollback.revertToBestPrefix(phg, sharedData, initialPartWeights, false);
-        timer.stop_timer("rollback");
-      }
-
-      if (FMStrategy::isUnconstrainedRound(round, context)) {
+      if (is_unconstrained) {
         sharedData.unconstrained.reset();
       }
 
       const double roundImprovementFraction = improvementFraction(improvement,
-        metrics.quality - overall_improvement);
+                                                                  metrics.quality - overall_improvement);
       overall_improvement += improvement;
       if (roundImprovementFraction < context.refinement.fm.min_improvement) {
         consecutive_rounds_with_too_little_improvement++;
       } else {
         consecutive_rounds_with_too_little_improvement = 0;
       }
-      if (log) LOG << V(improvement) << V(metrics::quality(phg, context)) << V(metrics::imbalance(phg, context));
+      fm_strategy->reportImprovement(round, improvement, roundImprovementFraction);
 
       HighResClockTimepoint fm_timestamp = std::chrono::high_resolution_clock::now();
       const double elapsed_time = std::chrono::duration<double>(fm_timestamp - fm_start).count();
@@ -322,13 +226,12 @@ namespace mt_kahypar {
           enable_light_fm = true;
         } else {
           DBG << RED << "Light version of Multitry FM reached time limit => ABORT" << END;
-          LOG << "reached usual time limit. but we keep going";
-          // TODO bring the time limit back. let's ignore the time limit for now, as long as the code isn't properly optimized
-          // break;
+          break;
         }
       }
 
-      if (improvement <= 0 || consecutive_rounds_with_too_little_improvement >= 2) {
+      if ( (improvement <= 0 && (!context.refinement.fm.activate_unconstrained_dynamically || round > 1))
+           || consecutive_rounds_with_too_little_improvement >= 2 ) {
         break;
       }
       locally_locked_vertices.clear_sequential();
@@ -348,12 +251,12 @@ namespace mt_kahypar {
     metrics.imbalance = metrics::imbalance(phg, context);
     HEAVY_REFINEMENT_ASSERT(phg.checkTrackedPartitionInformation(gain_cache));
     ASSERT(metrics.quality == metrics::quality(phg, context),
-      V(metrics.quality) << V(metrics::quality(phg, context)));
+           V(metrics.quality) << V(metrics::quality(phg, context)));
     return overall_improvement > 0;
   }
 
-  template<typename TypeTraits, typename GainTypes, typename FMStrategy>
-  void MultiTryKWayFM<TypeTraits, GainTypes, FMStrategy>::roundInitialization(PartitionedHypergraph& phg,
+  template<typename TypeTraits, typename GainTypes>
+  void MultiTryKWayFM<TypeTraits, GainTypes>::roundInitialization(PartitionedHypergraph& phg,
                                                                   const vec<HypernodeID>& refinement_nodes) {
     // clear border nodes
     sharedData.refinementNodes.clear();
@@ -362,22 +265,22 @@ namespace mt_kahypar {
       // log(n) level case
       // iterate over all nodes and insert border nodes into task queue
       tbb::parallel_for(tbb::blocked_range<HypernodeID>(0, phg.initialNumNodes()),
-        [&](const tbb::blocked_range<HypernodeID>& r) {
-          const int task_id = tbb::this_task_arena::current_thread_index();
-          // In really rare cases, the tbb::this_task_arena::current_thread_index()
-          // function a thread id greater than max_concurrency which causes an
-          // segmentation fault if we do not perform the check here. This is caused by
-          // our working queue for border nodes with which we initialize the localized
-          // FM searches. For now, we do not know why this occurs but this prevents
-          // the segmentation fault.
-          if ( task_id >= 0 && task_id < TBBInitializer::instance().total_number_of_threads() ) {
-            for (HypernodeID u = r.begin(); u < r.end(); ++u) {
-              if (phg.nodeIsEnabled(u) && phg.isBorderNode(u) && !sharedData.nodeTracker.vertexIsLocked(u)) {
-                sharedData.refinementNodes.safe_push(u, task_id);
-              }
-            }
-          }
-        });
+                        [&](const tbb::blocked_range<HypernodeID>& r) {
+                          const int task_id = tbb::this_task_arena::current_thread_index();
+                          // In really rare cases, the tbb::this_task_arena::current_thread_index()
+                          // function a thread id greater than max_concurrency which causes an
+                          // segmentation fault if we do not perform the check here. This is caused by
+                          // our working queue for border nodes with which we initialize the localized
+                          // FM searches. For now, we do not know why this occurs but this prevents
+                          // the segmentation fault.
+                          if ( task_id >= 0 && task_id < TBBInitializer::instance().total_number_of_threads() ) {
+                            for (HypernodeID u = r.begin(); u < r.end(); ++u) {
+                              if (phg.nodeIsEnabled(u) && phg.isBorderNode(u) && !sharedData.nodeTracker.vertexIsLocked(u)) {
+                                sharedData.refinementNodes.safe_push(u, task_id);
+                              }
+                            }
+                          }
+                        });
     } else {
       // n-level case
       tbb::parallel_for(UL(0), refinement_nodes.size(), [&](const size_t i) {
@@ -401,12 +304,13 @@ namespace mt_kahypar {
     sharedData.nodeTracker.requestNewSearches(static_cast<SearchID>(sharedData.refinementNodes.unsafe_size()));
   }
 
-  template<typename TypeTraits, typename GainTypes, typename FMStrategy>
-  void MultiTryKWayFM<TypeTraits, GainTypes, FMStrategy>::interleaveMoveSequenceWithRebalancingMoves(
-                                                            const PartitionedHypergraph& phg,
-                                                            const vec<HypernodeWeight>& initialPartWeights,
-                                                            const std::vector<HypernodeWeight>& max_part_weights,
-                                                            vec<vec<Move>>& rebalancing_moves_by_part) {
+  template<typename TypeTraits, typename GainTypes>
+  void MultiTryKWayFM<TypeTraits, GainTypes>::interleaveMoveSequenceWithRebalancingMoves(
+          const PartitionedHypergraph& phg,
+          const vec<HypernodeWeight>& initialPartWeights,
+          const std::vector<HypernodeWeight>& max_part_weights,
+          vec<vec<Move>>& rebalancing_moves_by_part,
+          bool only_append_moves) {
     ASSERT(rebalancing_moves_by_part.size() == static_cast<size_t>(context.partition.k));
     HEAVY_REFINEMENT_ASSERT([&] {
       std::set<HypernodeID> moved_nodes;
@@ -458,8 +362,6 @@ namespace mt_kahypar {
     vec<MoveID> current_rebalancing_move_index(context.partition.k, 0);
     MoveID next_move_index = 0;
 
-    // TODO inspect quality of balancing moves now
-
     auto insert_moves_to_balance_part = [&](const PartitionID part) {
       if (current_part_weights[part] > max_part_weights[part]) {
         insertMovesToBalancePart(phg, part, max_part_weights, rebalancing_moves_by_part,
@@ -468,8 +370,10 @@ namespace mt_kahypar {
     };
 
     // it might be possible that the initial weights are already imbalanced
-    for (PartitionID part = 0; part < context.partition.k; ++part) {
-      insert_moves_to_balance_part(part);
+    if (!only_append_moves) {
+      for (PartitionID part = 0; part < context.partition.k; ++part) {
+        insert_moves_to_balance_part(part);
+      }
     }
 
     const vec<Move>& move_order = move_tracker.moveOrder;
@@ -484,7 +388,9 @@ namespace mt_kahypar {
         ++next_move_index;
         move_tracker.rebalancingMoves.push_back(static_cast<uint8_t>(false));
         // insert rebalancing moves if necessary
-        insert_moves_to_balance_part(m.to);   // TODO no chance to take back? --> send the old move sequence through the recalculation as well
+        if (!only_append_moves) {
+          insert_moves_to_balance_part(m.to);
+        }
       }
     }
 
@@ -516,16 +422,16 @@ namespace mt_kahypar {
 
   }
 
-  template<typename TypeTraits, typename GainTypes, typename FMStrategy>
-  void MultiTryKWayFM<TypeTraits, GainTypes, FMStrategy>::insertMovesToBalancePart(const PartitionedHypergraph& phg,
-                                                                                   const PartitionID part,
-                                                                                   const std::vector<HypernodeWeight>& max_part_weights,
-                                                                                   const vec<vec<Move>>& rebalancing_moves_by_part,
-                                                                                   MoveID& next_move_index,
-                                                                                   vec<HypernodeWeight>& current_part_weights,
-                                                                                   vec<MoveID>& current_rebalancing_move_index) {
+  template<typename TypeTraits, typename GainTypes>
+  void MultiTryKWayFM<TypeTraits, GainTypes>::insertMovesToBalancePart(const PartitionedHypergraph& phg,
+                                                                       const PartitionID part,
+                                                                       const std::vector<HypernodeWeight>& max_part_weights,
+                                                                       const vec<vec<Move>>& rebalancing_moves_by_part,
+                                                                       MoveID& next_move_index,
+                                                                       vec<HypernodeWeight>& current_part_weights,
+                                                                       vec<MoveID>& current_rebalancing_move_index) {
     while (current_part_weights[part] > max_part_weights[part]
-            && current_rebalancing_move_index[part] < rebalancing_moves_by_part[part].size()) {
+           && current_rebalancing_move_index[part] < rebalancing_moves_by_part[part].size()) {
       const MoveID move_index_for_part = current_rebalancing_move_index[part];
       const Move& m = rebalancing_moves_by_part[part][move_index_for_part];
       ++current_rebalancing_move_index[part];
@@ -537,9 +443,6 @@ namespace mt_kahypar {
         ++next_move_index;
         sharedData.moveTracker.rebalancingMoves.push_back(static_cast<uint8_t>(true));
 
-        // TODO what is better?
-        // a) finish fixing the current block first or the target block first? two overloaded blocks can just alternate moving weight between each other. in this case, the current implementation has linear recursion depth
-        // b) what if m.to is already overloaded? should the move be skipped or not?
         if (current_part_weights[m.to] > max_part_weights[m.to]) {
           // edge case: it is possible that the rebalancing move itself causes new imbalance -> call recursively
           insertMovesToBalancePart(phg, m.to, max_part_weights, rebalancing_moves_by_part,
@@ -550,8 +453,8 @@ namespace mt_kahypar {
   }
 
 
-  template<typename TypeTraits, typename GainTypes, typename FMStrategy>
-  void MultiTryKWayFM<TypeTraits, GainTypes, FMStrategy>::initializeImpl(mt_kahypar_partitioned_hypergraph_t& hypergraph) {
+  template<typename TypeTraits, typename GainTypes>
+  void MultiTryKWayFM<TypeTraits, GainTypes>::initializeImpl(mt_kahypar_partitioned_hypergraph_t& hypergraph) {
     PartitionedHypergraph& phg = utils::cast<PartitionedHypergraph>(hypergraph);
 
     if (!gain_cache.isInitialized()) {
@@ -562,8 +465,8 @@ namespace mt_kahypar {
     is_initialized = true;
   }
 
-  template<typename TypeTraits, typename GainTypes, typename FMStrategy>
-  void MultiTryKWayFM<TypeTraits, GainTypes, FMStrategy>::resizeDataStructuresForCurrentK() {
+  template<typename TypeTraits, typename GainTypes>
+  void MultiTryKWayFM<TypeTraits, GainTypes>::resizeDataStructuresForCurrentK() {
     // If the number of blocks changes, we resize data structures
     // (can happen during deep multilevel partitioning)
     if ( current_k != context.partition.k ) {
@@ -580,8 +483,8 @@ namespace mt_kahypar {
     }
   }
 
-  template<typename TypeTraits, typename GainTypes, typename FMStrategy>
-  void MultiTryKWayFM<TypeTraits, GainTypes, FMStrategy>::printMemoryConsumption() {
+  template<typename TypeTraits, typename GainTypes>
+  void MultiTryKWayFM<TypeTraits, GainTypes>::printMemoryConsumption() {
     utils::MemoryTreeNode fm_memory("Multitry k-Way FM", utils::OutputType::MEGABYTE);
 
     for (const auto& fm : ets_fm) {
@@ -595,20 +498,8 @@ namespace mt_kahypar {
   }
 
   namespace {
-  #define MULTITRY_KWAY_FM_DEFAULT_STRATEGY(X, Y) MultiTryKWayFM<X, Y, GainCacheStrategy>
-  #define MULTITRY_KWAY_FM_UNCONSTRAINED_STRATEGY(X, Y) MultiTryKWayFM<X, Y, UnconstrainedStrategy>
-  #define MULTITRY_KWAY_FM_COMBINED_STRATEGY(X, Y) MultiTryKWayFM<X, Y, CombinedStrategy>
-  #define MULTITRY_KWAY_FM_COOLING_STRATEGY(X, Y) MultiTryKWayFM<X, Y, CoolingStrategy>
+#define MULTITRY_KWAY_FM(X, Y) MultiTryKWayFM<X, Y>
   }
 
-
-  // TODO implement combined and cooling strategy inside MultiTryKWayFM to halve compilation time.
-  // Just keeping two tbb::enumerable_thread_specific<FMStrategy> objects and dispatching at runtime should reduce it further
-  // --> then LocalizedFM doesn't hold a strategy object
-
-  INSTANTIATE_CLASS_WITH_TYPE_TRAITS_AND_GAIN_TYPES(MULTITRY_KWAY_FM_DEFAULT_STRATEGY)
-  INSTANTIATE_CLASS_WITH_TYPE_TRAITS_AND_GAIN_TYPES(MULTITRY_KWAY_FM_UNCONSTRAINED_STRATEGY)
-  INSTANTIATE_CLASS_WITH_TYPE_TRAITS_AND_GAIN_TYPES(MULTITRY_KWAY_FM_COMBINED_STRATEGY)
-  INSTANTIATE_CLASS_WITH_TYPE_TRAITS_AND_GAIN_TYPES(MULTITRY_KWAY_FM_COOLING_STRATEGY)
-
+  INSTANTIATE_CLASS_WITH_TYPE_TRAITS_AND_GAIN_TYPES(MULTITRY_KWAY_FM)
 } // namespace mt_kahypar
