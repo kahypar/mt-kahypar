@@ -89,24 +89,31 @@ class JetRefiner final : public IRefiner {
     if ( hypergraph.isBorderNode(hn) ) {
       ASSERT(hypergraph.nodeIsEnabled(hn));
 
-      Move best_move = _gain.computeMaxGainMove(hypergraph, hn, false, false, true);
+      Move best_move;
+      if (_context.refinement.jet.unconstrained_upper_bound >= 1.0) {
+        best_move = _gain.computeMaxGainMove(hypergraph, hn, false, false, false,
+                                             _context.refinement.jet.unconstrained_upper_bound);
+      } else {
+        best_move = _gain.computeMaxGainMove(hypergraph, hn, false, false, true);
+      }
       const bool positive_gain = best_move.gain < 0;
       if (positive_gain && best_move.from != best_move.to) {
         PartitionID from = best_move.from;
         PartitionID to = best_move.to;
 
         Gain delta_before = _gain.localDelta();
-        changeNodePart(hypergraph, hn, from, to, objective_delta);
-        is_moved = true;
+        if (changeNodePart(hypergraph, hn, from, to, objective_delta)) {
+          is_moved = true;
 
-        // In case the move to block 'to' was successful, we verify that the "real" gain
-        // of the move is either equal to our computed gain or if not, still improves
-        // the solution quality.
-        Gain move_delta = _gain.localDelta() - delta_before;
-        bool accept_move = (move_delta == best_move.gain || move_delta <= 0);
-        if (!accept_move) {
-          ASSERT(hypergraph.partID(hn) == to);
-          changeNodePart(hypergraph, hn, to, from, objective_delta);
+          // In case the move to block 'to' was successful, we verify that the "real" gain
+          // of the move is either equal to our computed gain or if not, still improves
+          // the solution quality.
+          Gain move_delta = _gain.localDelta() - delta_before;
+          bool accept_move = (move_delta == best_move.gain || move_delta <= 0);
+          if (!accept_move) {
+            ASSERT(hypergraph.partID(hn) == to);
+            changeNodePart(hypergraph, hn, to, from, objective_delta);
+          }
         }
       }
     }
@@ -141,20 +148,23 @@ class JetRefiner final : public IRefiner {
   void rebalance(PartitionedHypergraph& hypergraph, Metrics& current_metrics, double time_limit);
 
   template<typename F>
-  void changeNodePart(PartitionedHypergraph& phg,
+  bool changeNodePart(PartitionedHypergraph& phg,
                       const HypernodeID hn,
                       const PartitionID from,
                       const PartitionID to,
-                      const F& objective_delta) {
-    constexpr HypernodeWeight inf_weight = std::numeric_limits<HypernodeWeight>::max();
-    bool success = false;
-    if ( _context.forceGainCacheUpdates() && _gain_cache.isInitialized() ) {
-      success = phg.changeNodePart(_gain_cache, hn, from, to, inf_weight, []{}, objective_delta);
+                      const F& objective_delta,
+                      bool force_move = false) {
+    HypernodeWeight max_weight;
+    if (_context.refinement.jet.unconstrained_upper_bound >= 1.0 && !force_move) {
+      max_weight = _context.refinement.jet.unconstrained_upper_bound * _context.partition.max_part_weights[to];
     } else {
-      success = phg.changeNodePart(hn, from, to, inf_weight, []{}, objective_delta);
+      max_weight = std::numeric_limits<HypernodeWeight>::max();
     }
-    ASSERT(success);
-    unused(success);
+    if ( _context.forceGainCacheUpdates() && _gain_cache.isInitialized() ) {
+      return phg.changeNodePart(_gain_cache, hn, from, to, max_weight, []{}, objective_delta);
+    } else {
+      return phg.changeNodePart(hn, from, to, max_weight, []{}, objective_delta);
+    }
   }
 
   void resizeDataStructuresForCurrentK() {
