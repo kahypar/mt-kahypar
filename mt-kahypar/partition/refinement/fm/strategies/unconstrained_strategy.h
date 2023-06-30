@@ -187,10 +187,10 @@ class LocalUnconstrainedStrategy {
   void skipMove(const PartitionedHypergraph& phg, const GainCache&, Move m) {
     if (penaltyFactor > 0) {
       const HypernodeWeight to_weight = phg.partWeight(m.to);
-      if (to_weight > context.partition.max_part_weights[m.to]) {
+      const HypernodeWeight hn_weight = phg.nodeWeight(m.node);
+      if (to_weight + hn_weight > context.partition.max_part_weights[m.to]) {
         // we need to undo the imbalance which was added to the shared data
-        const HypernodeWeight hn_weight = phg.nodeWeight(m.node);
-        const HypernodeWeight imbalance = std::min(hn_weight, to_weight - context.partition.max_part_weights[m.to]);
+        const HypernodeWeight imbalance = std::min(hn_weight, to_weight + hn_weight - context.partition.max_part_weights[m.to]);
         sharedData.unconstrained.revertImbalancedMove(m.to, imbalance);
 
         // if (sharedData.unconstrained.isRebalancingNode(m.node)) {
