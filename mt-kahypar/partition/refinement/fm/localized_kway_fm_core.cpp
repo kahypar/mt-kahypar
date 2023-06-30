@@ -235,7 +235,7 @@ namespace mt_kahypar {
           bestImprovementIndex = localMoves.size();
 
           if constexpr (use_delta) {
-            applyBestLocalPrefixToSharedPartition(phg, bestImprovementIndex, bestImprovement, true /* apply all moves */);
+            applyBestLocalPrefixToSharedPartition(phg, fm_strategy, bestImprovementIndex, bestImprovement, true /* apply all moves */);
             bestImprovementIndex = 0;
             localMoves.clear();
             deltaPhg.clear();   // clear hashtables, save memory :)
@@ -259,10 +259,21 @@ namespace mt_kahypar {
     }
 
     if constexpr (use_delta) {
+      if (context.refinement.fm.update_penalty_locally_reverted) {
+        // we need to undo the moves on the deltaPhg to correctly update the penalty
+        for (size_t i = localMoves.size(); i > bestImprovementIndex; --i) {
+          const Move& m = localMoves[i - 1].first;
+          if (m.isValid()) {
+            deltaPhg.changeNodePart(m.node, m.to, m.from, std::numeric_limits<HypernodeWeight>::max());
+            fm_strategy.skipMove(deltaPhg, delta_gain_cache, m);
+          }
+        }
+      }
+
       std::tie(bestImprovement, bestImprovementIndex) =
-        applyBestLocalPrefixToSharedPartition(phg, bestImprovementIndex, bestImprovement, false);
+        applyBestLocalPrefixToSharedPartition(phg, fm_strategy, bestImprovementIndex, bestImprovement, false);
     } else {
-      revertToBestLocalPrefix(phg, bestImprovementIndex);
+      revertToBestLocalPrefix(phg, fm_strategy, bestImprovementIndex);
     }
 
     runStats.estimated_improvement = bestImprovement;
@@ -272,12 +283,15 @@ namespace mt_kahypar {
 
 
   template<typename TypeTraits, typename GainTypes>
+  template<typename DispatchedFMStrategy>
   std::pair<Gain, size_t> LocalizedKWayFM<TypeTraits, GainTypes>::applyBestLocalPrefixToSharedPartition(
           PartitionedHypergraph& phg,
+          DispatchedFMStrategy& fm_strategy,
           const size_t best_index_locally_observed,
           const Gain best_improvement_locally_observed,
           const bool apply_delta_improvement) {
 
+    const bool update_penalty = context.refinement.fm.update_penalty_locally_reverted;
     Gain improvement_from_attributed_gains = 0;
     Gain attributed_gain = 0;
     bool is_last_move = false;
@@ -350,22 +364,32 @@ namespace mt_kahypar {
         Move& m = sharedData.moveTracker.getMove(localMoves[i].second);
         phg.changeNodePart(gain_cache, m.node, m.to, m.from);
         m.invalidate();
+        if (update_penalty) {
+          fm_strategy.skipMove(phg, gain_cache, m);
+        }
       }
       return std::make_pair(best_improvement_from_attributed_gains, best_index_from_attributed_gains);
+      // TODO(maas/gottesbueren): seems like this is an off by one and best_index_from_attributed_gains + 1 should be returned?
     } else {
       return std::make_pair(best_improvement_locally_observed, best_index_locally_observed);
     }
   }
 
   template<typename TypeTraits, typename GainTypes>
+  template<typename DispatchedFMStrategy>
   void LocalizedKWayFM<TypeTraits, GainTypes>::revertToBestLocalPrefix(PartitionedHypergraph& phg,
+                                                                       DispatchedFMStrategy& fm_strategy,
                                                                        size_t bestGainIndex) {
+    const bool update_penalty = context.refinement.fm.update_penalty_locally_reverted;
     runStats.local_reverts += localMoves.size() - bestGainIndex;
     size_t i = localMoves.size();
     while (i > bestGainIndex) {
       i--;
       Move& m = localMoves[i].first;
       phg.changeNodePart(gain_cache, m.node, m.to, m.from);
+      if (update_penalty) {
+        fm_strategy.skipMove(phg, gain_cache, m);
+      }
       m.invalidate();
     }
   }

@@ -554,6 +554,10 @@ namespace mt_kahypar {
                               &context.refinement.fm.insert_merged_move_at_rebalancing_position))->value_name("<bool>")->default_value(true),
              "If rebalancing may move nodes a second time and two moves are merged, determines if the merged move is inserted at the position "
              "of the according rebalancing move or the original move.")
+            ((initial_partitioning ? "i-r-fm-update-penalty-locally-reverted" : "r-fm-update-penalty-locally-reverted"),
+             po::value<bool>((initial_partitioning ? &context.initial_partitioning.refinement.fm.update_penalty_locally_reverted :
+                              &context.refinement.fm.update_penalty_locally_reverted))->value_name("<bool>")->default_value(false),
+             "Update penalty when local moves are reverted, so the penalty for following moves is more optimistic.")
             ((initial_partitioning ? "i-r-fm-unconstrained-rounds" : "r-fm-unconstrained-rounds"),
              po::value<size_t>((initial_partitioning ? &context.initial_partitioning.refinement.fm.unconstrained_rounds :
                               &context.refinement.fm.unconstrained_rounds))->value_name("<size_t>")->default_value(1),

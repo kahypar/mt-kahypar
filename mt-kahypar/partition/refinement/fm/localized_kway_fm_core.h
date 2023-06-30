@@ -106,14 +106,17 @@ private:
 
 
   // ! Makes moves applied on delta hypergraph visible on the global partitioned hypergraph.
+  template<typename DispatchedFMStrategy>
   std::pair<Gain, size_t> applyBestLocalPrefixToSharedPartition(PartitionedHypergraph& phg,
+                                                                DispatchedFMStrategy& fm_strategy,
                                                                 const size_t best_index_locally_observed,
                                                                 const Gain best_improvement_locally_observed,
                                                                 const bool apply_delta_improvement);
 
   // ! Rollback to the best improvement found during local search in case we applied moves
   // ! directly on the global partitioned hypergraph.
-  void revertToBestLocalPrefix(PartitionedHypergraph& phg, size_t bestGainIndex);
+  template<typename DispatchedFMStrategy>
+  void revertToBestLocalPrefix(PartitionedHypergraph& phg, DispatchedFMStrategy& fm_strategy, size_t bestGainIndex);
 
  private:
 
