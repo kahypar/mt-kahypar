@@ -121,6 +121,8 @@ namespace mt_kahypar {
     if (context.preprocessing.community_detection.edge_weight_function == LouvainEdgeWeight::hybrid) {
       if (density < 0.75) {
         context.preprocessing.community_detection.edge_weight_function = LouvainEdgeWeight::degree;
+      } else if ( density < 2 && hypergraph.maxEdgeSize() > context.partition.ignore_hyperedge_size_threshold ) {
+        context.preprocessing.community_detection.edge_weight_function = LouvainEdgeWeight::non_uniform;
       } else {
         context.preprocessing.community_detection.edge_weight_function = LouvainEdgeWeight::uniform;
       }
