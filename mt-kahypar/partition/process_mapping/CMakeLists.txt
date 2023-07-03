@@ -21,3 +21,10 @@ set(ToolsProcessMappingSources
 foreach(modtarget IN LISTS TOOLS_TARGETS)
     target_sources(${modtarget} PRIVATE ${ToolsProcessMappingSources})
 endforeach()
+
+set(OneToOneMappingSources
+      greedy_mapping.cpp
+      initial_mapping.cpp
+      kerninghan_lin.cpp
+      )
+target_sources(OneToOneProcessMapping PRIVATE ${OneToOneMappingSources})

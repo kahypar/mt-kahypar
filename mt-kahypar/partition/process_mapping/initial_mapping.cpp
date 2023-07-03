@@ -30,7 +30,9 @@
 
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/process_mapping/process_graph.h"
+#ifndef IGNORE_DUAL_BIPARTITIONING
 #include "mt-kahypar/partition/process_mapping/dual_bipartitioning.h"
+#endif
 #include "mt-kahypar/partition/process_mapping/greedy_mapping.h"
 #include "mt-kahypar/partition/metrics.h"
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
@@ -201,9 +203,12 @@ void map_to_process_graph(PartitionedHypergraph& communication_hg,
   ASSERT(metrics::quality(communication_hg, Objective::process_mapping) == objective_before);
 
   // Solve one-to-one process mapping problem
+  #ifndef IGNORE_DUAL_BIPARTITIONING
   if ( context.process_mapping.strategy == ProcessMappingStrategy::dual_bipartitioning ) {
     DualBipartitioning<PartitionedHypergraph>::mapToProcessGraph(contracted_phg, process_graph, context);
-  } else if ( context.process_mapping.strategy == ProcessMappingStrategy::greedy_mapping ) {
+  } else
+  #endif
+  if ( context.process_mapping.strategy == ProcessMappingStrategy::greedy_mapping ) {
     GreedyMapping<PartitionedHypergraph>::mapToProcessGraph(contracted_phg, process_graph, context);
   }
 
