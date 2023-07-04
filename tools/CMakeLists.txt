@@ -41,6 +41,12 @@ set_property(TARGET OneToOneProcessMapping PROPERTY CXX_STANDARD 17)
 set_property(TARGET OneToOneProcessMapping PROPERTY CXX_STANDARD_REQUIRED ON)
 target_compile_definitions(OneToOneProcessMapping PUBLIC IGNORE_DUAL_BIPARTITIONING)
 
+add_executable(VerifyProcessGraphPartition verify_process_mapping_partition.cc)
+target_link_libraries(VerifyProcessGraphPartition ${Boost_LIBRARIES})
+target_link_libraries(VerifyProcessGraphPartition TBB::tbb TBB::tbbmalloc_proxy)
+set_property(TARGET VerifyProcessGraphPartition PROPERTY CXX_STANDARD 17)
+set_property(TARGET VerifyProcessGraphPartition PROPERTY CXX_STANDARD_REQUIRED ON)
+
 add_executable(GridProcessGraphGenerator grid_process_graph_generator.cc)
 target_link_libraries(GridProcessGraphGenerator ${Boost_LIBRARIES})
 target_link_libraries(GridProcessGraphGenerator TBB::tbb TBB::tbbmalloc_proxy)
@@ -89,6 +95,7 @@ set(TOOLS_TARGETS ${TOOLS_TARGETS} EvaluateBipart
                                    HypergraphStats
                                    MetisToScotch
                                    OneToOneProcessMapping
+                                   VerifyProcessGraphPartition
                                    GridProcessGraphGenerator
                                    HierarchicalProcessGraphGenerator
                                    PARENT_SCOPE)
