@@ -112,7 +112,9 @@ int main(int argc, char* argv[]) {
 
   // Precompute Steiner Trees
   HighResClockTimepoint start = std::chrono::high_resolution_clock::now();
-  process_graph.precomputeDistances(context.process_mapping.max_steiner_tree_size);
+  process_graph.precomputeDistances(
+    std::min(context.process_mapping.max_steiner_tree_size,
+      static_cast<size_t>(hg.maxEdgeSize())));
   HighResClockTimepoint end = std::chrono::high_resolution_clock::now();
 
   if ( context.partition.verbose_output ) {

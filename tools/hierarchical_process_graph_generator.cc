@@ -71,12 +71,15 @@ void construct_hierarchical_process_graph(AdjList& graph,
 
 int main(int argc, char* argv[]) {
   std::string hierarchy_str, costs_str;
-  std::string out_filename;
+  std::string out_folder, prefix;
   po::options_description options("Options");
   options.add_options()
     ("out-folder,o",
-    po::value<std::string>(&out_filename)->value_name("<string>")->required(),
+    po::value<std::string>(&out_folder)->value_name("<string>")->required(),
     "Process Graph Output Folder")
+    ("filename-prefix",
+    po::value<std::string>(&prefix)->value_name("<string>")->default_value(""),
+    "Prefix of output filename")
     ("hierarchy",
     po::value<std::string>(&hierarchy_str)->value_name("<string>")->required(),
     "Data center hierarchy")
@@ -95,7 +98,7 @@ int main(int argc, char* argv[]) {
     costs_str[i] = costs_str[i] == ':' ? ' ' : costs_str[i];
   }
 
-  std::string process_graph_file = out_filename;
+  std::string process_graph_file = out_folder + "/" + prefix;
   HypernodeID cur;
   std::vector<HypernodeID> hierarchy;
   std::stringstream hierarchy_stream(hierarchy_str);
@@ -138,6 +141,8 @@ int main(int argc, char* argv[]) {
     out << std::endl;
   }
   out.close();
+
+  std::cout << "Graph has been written to '" << process_graph_file << "'" << std::endl;
 
   return 0;
 }
