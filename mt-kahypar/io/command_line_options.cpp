@@ -574,6 +574,10 @@ namespace mt_kahypar {
              po::value<double>((initial_partitioning ? &context.initial_partitioning.refinement.fm.unconstrained_upper_bound_min :
                               &context.refinement.fm.unconstrained_upper_bound_min))->value_name("<double>")->default_value(0.0),
              "Cooling FM algorithm: Minimum (final) upper bound (default = 0 = equal to start).")
+            ((initial_partitioning ? "i-r-fm-cooling-geometric-interpolation" : "r-fm-cooling-geometric-interpolation"),
+             po::value<bool>((initial_partitioning ? &context.initial_partitioning.refinement.fm.geometric_interpolation :
+                              &context.refinement.fm.geometric_interpolation))->value_name("<bool>")->default_value(false),
+             "Cooling strategy: Use geometric instead of linear interpolation.")
             ((initial_partitioning ? "i-r-fm-activate-unconstrained-dynamically" : "r-fm-activate-unconstrained-dynamically"),
              po::value<bool>((initial_partitioning ? &context.initial_partitioning.refinement.fm.activate_unconstrained_dynamically :
                               &context.refinement.fm.activate_unconstrained_dynamically))->value_name("<bool>")->default_value(false),
