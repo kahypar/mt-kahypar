@@ -190,6 +190,7 @@ struct FMParameters {
   double imbalance_penalty_min = 0.2;
   double imbalance_penalty_max = 1.0;
   double unconstrained_upper_bound_min = 0.0;
+  bool geometric_interpolation = false;
 
   // unconstrained: dynamic enabling/disableing
   bool activate_unconstrained_dynamically = false;
