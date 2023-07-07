@@ -102,9 +102,9 @@ namespace mt_kahypar {
       _gain.reset();
 
       // Perform Label Propagation
-      timer.start_timer("label_propagation", "Label Propagation");
+      timer.start_timer("label_propagation_jet", "Label Propagation");
       labelPropagationRound(hypergraph);
-      timer.stop_timer("label_propagation");
+      timer.stop_timer("label_propagation_jet");
 
       // Update metrics statistics
       const HyperedgeWeight old_quality = current_metrics.quality;
@@ -118,9 +118,9 @@ namespace mt_kahypar {
 
       bool did_rebalance = false;
       if (!metrics::isBalanced(hypergraph, _context)) {
-        timer.start_timer("rebalance", "Rebalance");
+        timer.start_timer("rebalance_jet", "Rebalance");
         rebalance(hypergraph, current_metrics, time_limit);
-        timer.stop_timer("rebalance");
+        timer.stop_timer("rebalance_jet");
 
         current_metrics.imbalance = metrics::imbalance(hypergraph, _context);
         delta = current_metrics.quality - old_quality;
