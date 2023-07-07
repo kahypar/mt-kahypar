@@ -167,7 +167,7 @@ namespace mt_kahypar {
         vec<vec<Move>> moves_by_part;
 
         // compute rebalancing moves
-        timer.start_timer("rebalance", "Rebalance");
+        timer.start_timer("rebalance_fm", "Rebalance");
         Metrics tmp_metrics;
         ASSERT([&]{ // correct quality only required for assertions
           tmp_metrics.quality = metrics::quality(phg, context);
@@ -176,7 +176,7 @@ namespace mt_kahypar {
         tmp_metrics.imbalance = metrics::imbalance(phg, context);
         rebalancer.setMaxPartWeightsForRound(max_part_weights);
         rebalancer.refineAndOutputMoves(hypergraph, {}, moves_by_part, tmp_metrics, current_time_limit);
-        timer.stop_timer("rebalance");
+        timer.stop_timer("rebalance_fm");
 
         if (!moves_by_part.empty()) {
           // compute new move sequence where each imbalanced move is immediately rebalanced
