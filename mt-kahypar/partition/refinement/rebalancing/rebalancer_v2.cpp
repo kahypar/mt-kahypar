@@ -587,8 +587,6 @@ bool RebalancerV2<TypeTraits, GainTypes>::refineInternalParallel(mt_kahypar_part
   }
 
 
-  LOG << "init done";
-
   size_t global_move_id = 0;
   size_t num_overloaded_blocks = pq_layout.overloaded_blocks.size();
   auto task = [&](size_t task_id) {
@@ -684,8 +682,6 @@ bool RebalancerV2<TypeTraits, GainTypes>::refineInternalParallel(mt_kahypar_part
   tbb::task_group tg;
   for (size_t i = 0; i < _context.shared_memory.num_threads; ++i) { tg.run(std::bind(task, i)); }
   tg.wait();
-
-  LOG << "par seftion";
 
   if (moves_by_part != nullptr) {
     moves.resize(global_move_id);
