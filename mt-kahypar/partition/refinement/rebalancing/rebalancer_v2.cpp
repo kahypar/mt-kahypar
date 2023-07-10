@@ -517,8 +517,6 @@ bool RebalancerV2<TypeTraits, GainTypes>::refineInternalParallel(mt_kahypar_part
                                                          vec<vec<Move>>* moves_by_part,
                                                          Metrics& best_metric) {
   const auto& max_part_weights = _context.partition.max_part_weights;
-  // TODO make sure that all of the data structures are allocated and initialized properly
-  // atm this isn't the case
 
   auto& phg = utils::cast<PartitionedHypergraph>(hypergraph);
   vec<Move> moves(phg.initialNumNodes());
