@@ -135,6 +135,7 @@ include_directories(SYSTEM ${gtest_SOURCE_DIR}/include ${gtest_SOURCE_DIR})
 include_directories(SYSTEM ${gtest_SOURCE_DIR}/../googlemock/include ${gtest_SOURCE_DIR}/../googlemock/)
 include_directories(external_tools/kahypar)
 include_directories(external_tools/WHFC)
+include_directories(external_tools/pcg)
 
 if(KAHYPAR_DOWNLOAD_BOOST)
   # Download Boost
