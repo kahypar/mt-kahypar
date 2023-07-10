@@ -146,6 +146,7 @@ struct JetParameters {
   double vertex_locking = 1.0;
   double negative_gain_factor_coarse = 0.25;
   double negative_gain_factor_fine = 0.75;
+  double unconstrained_upper_bound = 0.0;
   size_t hyperedge_size_activation_threshold = std::numeric_limits<size_t>::max();
 };
 
@@ -172,6 +173,7 @@ struct FMParameters {
   bool rebalancing_use_violation_factor = true;
   bool rebalancing_use_moved_nodes = true;
   bool insert_merged_move_at_rebalancing_position = true;
+  bool update_penalty_locally_reverted = false;
 
   bool penalty_for_moved_rebalancing_nodes = true;
   double treshold_border_node_inclusion = 0.75;
@@ -188,6 +190,7 @@ struct FMParameters {
   double imbalance_penalty_min = 0.2;
   double imbalance_penalty_max = 1.0;
   double unconstrained_upper_bound_min = 0.0;
+  bool geometric_interpolation = false;
 
   // unconstrained: dynamic enabling/disableing
   bool activate_unconstrained_dynamically = false;

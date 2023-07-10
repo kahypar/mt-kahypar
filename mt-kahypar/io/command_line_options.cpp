@@ -436,6 +436,12 @@ namespace mt_kahypar {
                       &context.initial_partitioning.refinement.jet.negative_gain_factor_fine))->value_name(
                      "<double>")->default_value(0.75),
              "Factor used by JET for filtering negative gain moves (only applicable to precomputed_ordered).")
+            ((initial_partitioning ? "i-r-jet-unconstrained-upper-bound" : "r-jet-unconstrained-upper-bound"),
+             po::value<double>(
+                     (!initial_partitioning ? &context.refinement.jet.unconstrained_upper_bound :
+                      &context.initial_partitioning.refinement.jet.unconstrained_upper_bound))->value_name(
+                     "<double>")->default_value(0.0),
+             "If >= 1, limits the imbalance that is accepted to this value times the maximum allowed weight.")
             ((initial_partitioning ? "i-r-jet-he-size-activation-threshold" : "r-jet-he-size-activation-threshold"),
              po::value<size_t>(
                      (!initial_partitioning ? &context.refinement.jet.hyperedge_size_activation_threshold
@@ -544,6 +550,10 @@ namespace mt_kahypar {
                               &context.refinement.fm.insert_merged_move_at_rebalancing_position))->value_name("<bool>")->default_value(true),
              "If rebalancing may move nodes a second time and two moves are merged, determines if the merged move is inserted at the position "
              "of the according rebalancing move or the original move.")
+            ((initial_partitioning ? "i-r-fm-update-penalty-locally-reverted" : "r-fm-update-penalty-locally-reverted"),
+             po::value<bool>((initial_partitioning ? &context.initial_partitioning.refinement.fm.update_penalty_locally_reverted :
+                              &context.refinement.fm.update_penalty_locally_reverted))->value_name("<bool>")->default_value(false),
+             "Update penalty when local moves are reverted, so the penalty for following moves is more optimistic.")
             ((initial_partitioning ? "i-r-fm-unconstrained-rounds" : "r-fm-unconstrained-rounds"),
              po::value<size_t>((initial_partitioning ? &context.initial_partitioning.refinement.fm.unconstrained_rounds :
                               &context.refinement.fm.unconstrained_rounds))->value_name("<size_t>")->default_value(1),
@@ -560,6 +570,10 @@ namespace mt_kahypar {
              po::value<double>((initial_partitioning ? &context.initial_partitioning.refinement.fm.unconstrained_upper_bound_min :
                               &context.refinement.fm.unconstrained_upper_bound_min))->value_name("<double>")->default_value(0.0),
              "Cooling FM algorithm: Minimum (final) upper bound (default = 0 = equal to start).")
+            ((initial_partitioning ? "i-r-fm-cooling-geometric-interpolation" : "r-fm-cooling-geometric-interpolation"),
+             po::value<bool>((initial_partitioning ? &context.initial_partitioning.refinement.fm.geometric_interpolation :
+                              &context.refinement.fm.geometric_interpolation))->value_name("<bool>")->default_value(false),
+             "Cooling strategy: Use geometric instead of linear interpolation.")
             ((initial_partitioning ? "i-r-fm-activate-unconstrained-dynamically" : "r-fm-activate-unconstrained-dynamically"),
              po::value<bool>((initial_partitioning ? &context.initial_partitioning.refinement.fm.activate_unconstrained_dynamically :
                               &context.refinement.fm.activate_unconstrained_dynamically))->value_name("<bool>")->default_value(false),
