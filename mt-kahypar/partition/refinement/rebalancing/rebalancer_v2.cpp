@@ -329,188 +329,202 @@ bool RebalancerV2<TypeTraits, GainTypes>::refineInternal(mt_kahypar_partitioned_
   return pq_layout.overloaded_blocks.empty();
 }
 
+namespace impl {
+
 // TODO can be moved to inner member of ParallelPQ
-struct GuardedPQ {
-  GuardedPQ(PosT* handles, size_t num_nodes) : pq(handles, num_nodes) { }
-  SpinLock lock;
-  ds::MaxHeap<float, HypernodeID> pq;
-  float top_key = std::numeric_limits<float>::min();
-};
+  struct GuardedPQ {
+    GuardedPQ(PosT *handles, size_t num_nodes) : pq(handles, num_nodes) { }
 
-struct AccessToken {
-  AccessToken(int seed, size_t num_pqs) : dist(0, num_pqs - 1) {
-    rng.seed(seed);
-  }
-  size_t getRandomPQ() {
-    return dist(rng);
-  }
-  std::array<size_t, 2> getTwoRandomPQs() {
-    std::array<size_t, 2> result({getRandomPQ(), getRandomPQ()});
-    while (result[0] != result[1]) { result[1] = getRandomPQ(); }
-    return result;
-  }
-  pcg32 rng;
-  std::uniform_int_distribution<size_t> dist;
-};
+    SpinLock lock;
+    ds::MaxHeap<float, HypernodeID> pq;
+    float top_key = std::numeric_limits<float>::min();
+  };
 
-struct NodeState {
-  uint8_t state = 0;
-  bool canMove() const { return state == 1; }
-  bool isLocked() const { return state == 2; }
-  bool wasMoved() const { return state == 3; }
-  // Returns true if the node is marked as movable, is not locked and taking the lock now succeeds
-  bool tryLock() {
-    uint8_t expected = 1;
-    return state == 1 && __atomic_compare_exchange_n(&state, &expected, 2, false, __ATOMIC_ACQUIRE, __ATOMIC_RELAXED);
-  }
-  void unlock() { __atomic_store_n(&state, 1, __ATOMIC_RELEASE); }
-  void markAsMovedAndUnlock() { __atomic_store_n(&state, 3, __ATOMIC_RELEASE); }
-  void markAsMovable() { state = 1; }
-};
-
-struct ParallelPQ {
-  // only alloc PQs if the block is overloaded
-  void initialize(size_t num_pqs, PosT* handles, size_t num_nodes) {
-    pqs.assign(num_pqs, GuardedPQ(handles, num_nodes));
-  }
-
-  size_t push(AccessToken& token, HypernodeID node, float gain) {
-    size_t pq_id = token.getRandomPQ();
-    while (!pqs[pq_id].lock.tryLock()) {
-      pq_id = token.getRandomPQ();
+  struct AccessToken {
+    AccessToken(int seed, size_t num_pqs) : dist(0, num_pqs - 1) {
+      rng.seed(seed);
     }
-    pqs[pq_id].pq.insert(node, gain);
-    pqs[pq_id].top_key = pqs[pq_id].pq.topKey();
-    pqs[pq_id].lock.unlock();
-    return pq_id;
-  }
 
-  template<typename SuccessFunc>
-  bool lockedModifyPQ(size_t best_id, SuccessFunc success_func) {
-    HypernodeID node = pqs[best_id].pq.top();
-    float gain = pqs[best_id].pq.topKey();
-    bool success = success_func(node, gain);
-    if (success) {
-      pqs[best_id].pq.deleteTop();
-      if (!pqs[best_id].pq.empty()) {
-        pqs[best_id].top_key = pqs[best_id].pq.topKey();
-      } else {
-        pqs[best_id].top_key = std::numeric_limits<float>::min();
+    size_t getRandomPQ() {
+      return dist(rng);
+    }
+
+    std::array<size_t, 2> getTwoRandomPQs() {
+      std::array<size_t, 2> result({getRandomPQ(), getRandomPQ()});
+      while (result[0] != result[1]) { result[1] = getRandomPQ(); }
+      return result;
+    }
+
+    pcg32 rng;
+    std::uniform_int_distribution<size_t> dist;
+  };
+
+  struct NodeState {
+    uint8_t state = 0;
+
+    bool canMove() const { return state == 1; }
+
+    bool isLocked() const { return state == 2; }
+
+    bool wasMoved() const { return state == 3; }
+
+    // Returns true if the node is marked as movable, is not locked and taking the lock now succeeds
+    bool tryLock() {
+      uint8_t expected = 1;
+      return state == 1 && __atomic_compare_exchange_n(&state, &expected, 2, false, __ATOMIC_ACQUIRE, __ATOMIC_RELAXED);
+    }
+
+    void unlock() { __atomic_store_n(&state, 1, __ATOMIC_RELEASE); }
+
+    void markAsMovedAndUnlock() { __atomic_store_n(&state, 3, __ATOMIC_RELEASE); }
+
+    void markAsMovable() { state = 1; }
+  };
+
+  struct ParallelPQ {
+    // only alloc PQs if the block is overloaded
+    void initialize(size_t num_pqs, PosT *handles, size_t num_nodes) {
+      pqs.assign(num_pqs, GuardedPQ(handles, num_nodes));
+    }
+
+    size_t push(AccessToken& token, HypernodeID node, float gain) {
+      size_t pq_id = token.getRandomPQ();
+      while (!pqs[pq_id].lock.tryLock()) {
+        pq_id = token.getRandomPQ();
       }
-    } else {
-      // gain was updated by success_func in this case
-      pqs[best_id].pq.adjustKey(node, gain);
-      pqs[best_id].top_key = pqs[best_id].pq.topKey();
-    }
-    pqs[best_id].lock.unlock();
-    return success;
-  }
-
-  template<typename SuccessFunc>
-  bool tryPop(AccessToken& token, SuccessFunc success_func) {
-    static constexpr size_t num_tries = 32;
-    for (size_t i = 0; i < num_tries; ++i) {
-      auto two = token.getTwoRandomPQs();
-      auto& first = pqs[two[0]];
-      auto& second = pqs[two[1]];
-      if (first.pq.empty() && second.pq.empty()) continue;
-      size_t best_id = two[0];
-      if (first.pq.empty() || first.top_key < second.top_key) best_id = two[1];
-      if (!pqs[best_id].lock.tryLock()) continue;
-      // could also check for top key. would want to distinguish tries that failed due to high contention
-      // vs approaching the end
-      if (pqs[best_id].pq.empty()) {
-        pqs[best_id].lock.unlock();
-        continue;
-      }
-      if (lockedModifyPQ(best_id, success_func)) return true;
-      // if you got a PQ but it fails because the node's gain was wrong or the node couldn't be locked
-      // (success_func failed) then we still want to use the standard method
-      i = 0;
+      pqs[pq_id].pq.insert(node, gain);
+      pqs[pq_id].top_key = pqs[pq_id].pq.topKey();
+      pqs[pq_id].lock.unlock();
+      return pq_id;
     }
 
-    while (true) {
-      float best_key = std::numeric_limits<float>::min();
-      int best_id = -1;
-      for (size_t i = 0; i < pqs.size(); ++i) {
-        if (!pqs[i].pq.empty() && pqs[i].top_key > best_key) {
-          best_key = pqs[i].top_key;
-          best_id = i;
+    template<typename SuccessFunc>
+    bool lockedModifyPQ(size_t best_id, SuccessFunc success_func) {
+      HypernodeID node = pqs[best_id].pq.top();
+      float gain = pqs[best_id].pq.topKey();
+      bool success = success_func(node, gain);
+      if (success) {
+        pqs[best_id].pq.deleteTop();
+        if (!pqs[best_id].pq.empty()) {
+          pqs[best_id].top_key = pqs[best_id].pq.topKey();
+        } else {
+          pqs[best_id].top_key = std::numeric_limits<float>::min();
         }
+      } else {
+        // gain was updated by success_func in this case
+        pqs[best_id].pq.adjustKey(node, gain);
+        pqs[best_id].top_key = pqs[best_id].pq.topKey();
       }
-      if (best_id == -1) return false;
-      if (!pqs[best_id].lock.tryLock()) continue;
-      if (lockedModifyPQ(best_id, success_func)) return true;
+      pqs[best_id].lock.unlock();
+      return success;
     }
-  }
 
-  vec<GuardedPQ> pqs;
-};
+    template<typename SuccessFunc>
+    bool tryPop(AccessToken& token, SuccessFunc success_func) {
+      static constexpr size_t num_tries = 32;
+      for (size_t i = 0; i < num_tries; ++i) {
+        auto two = token.getTwoRandomPQs();
+        auto& first = pqs[two[0]];
+        auto& second = pqs[two[1]];
+        if (first.pq.empty() && second.pq.empty()) continue;
+        size_t best_id = two[0];
+        if (first.pq.empty() || first.top_key < second.top_key) best_id = two[1];
+        if (!pqs[best_id].lock.tryLock()) continue;
+        // could also check for top key. would want to distinguish tries that failed due to high contention
+        // vs approaching the end
+        if (pqs[best_id].pq.empty()) {
+          pqs[best_id].lock.unlock();
+          continue;
+        }
+        if (lockedModifyPQ(best_id, success_func)) return true;
+        // if you got a PQ but it fails because the node's gain was wrong or the node couldn't be locked
+        // (success_func failed) then we still want to use the standard method
+        i = 0;
+      }
+
+      while (true) {
+        float best_key = std::numeric_limits<float>::min();
+        int best_id = -1;
+        for (size_t i = 0; i < pqs.size(); ++i) {
+          if (!pqs[i].pq.empty() && pqs[i].top_key > best_key) {
+            best_key = pqs[i].top_key;
+            best_id = i;
+          }
+        }
+        if (best_id == -1) return false;
+        if (!pqs[best_id].lock.tryLock()) continue;
+        if (lockedModifyPQ(best_id, success_func)) return true;
+      }
+    }
+
+    vec <GuardedPQ> pqs;
+  };
 
 
 // TODO move all this to members of the rebalancer
-class ParallelPQLayout {
-public:
-  ParallelPQLayout(const Context& context, size_t num_nodes) :
-          context(context),
-          target_part(num_nodes, kInvalidPartition),
-          pq_handles(num_nodes, invalid_position),
-          pq_id(num_nodes, -1),
-          node_state(num_nodes)
-          { }
+  class ParallelPQLayout {
+  public:
+    ParallelPQLayout(const Context& context, size_t num_nodes) :
+            context(context),
+            target_part(num_nodes, kInvalidPartition),
+            pq_handles(num_nodes, invalid_position),
+            pq_id(num_nodes, -1),
+            node_state(num_nodes) { }
 
-  void initializeRelaxedPQs(size_t num_pqs) {
-    pq.initialize(num_pqs, pq_handles.data(), pq_handles.size());
-  }
-
-  template<typename PartitionedHypergraph, typename GainCache>
-  void recomputeTopGainMove(const PartitionedHypergraph& phg, const GainCache& gain_cache, HypernodeID v, const Move& move) {
-    const PartitionID designatedTargetV = target_part[v];
-    float gain = 0;
-    PartitionID newTarget = kInvalidPartition;
-    if (context.partition.k < 4 || designatedTargetV == move.from || designatedTargetV == move.to) {
-      std::tie(newTarget, gain) = computeBestTargetBlock(phg, context, gain_cache, v, phg.partID(v));
-    } else {
-      std::tie(newTarget, gain) = bestOfThree(phg, context, gain_cache,
-                                              v, phg.partID(v), { designatedTargetV, move.from, move.to });
+    void initializeRelaxedPQs(size_t num_pqs) {
+      pq.initialize(num_pqs, pq_handles.data(), pq_handles.size());
     }
-    target_part[v] = newTarget;
-  }
 
-
-  template<typename PartitionedHypergraph, typename GainCache>
-  bool findNextMove(const PartitionedHypergraph& phg,
-                    const GainCache& gain_cache,
-                    Move& m, AccessToken& token) {
-    return pq.tryPop(token, [&](HypernodeID u, float& gain_in_pq) -> bool {
-      if (!node_state[u].tryLock()) return false;
-      auto [to, true_gain] = computeBestTargetBlock(phg, context, gain_cache, u, phg.partID(u));
-      if (true_gain >= gain_in_pq) {
-        m.node = u;
-        m.to = to;
-        m.from = phg.partID(u);
-        m.gain = true_gain;
-        return true;
+    template<typename PartitionedHypergraph, typename GainCache>
+    void recomputeTopGainMove(const PartitionedHypergraph& phg, const GainCache& gain_cache, HypernodeID v,
+                              const Move& move) {
+      const PartitionID designatedTargetV = target_part[v];
+      float gain = 0;
+      PartitionID newTarget = kInvalidPartition;
+      if (context.partition.k < 4 || designatedTargetV == move.from || designatedTargetV == move.to) {
+        std::tie(newTarget, gain) = computeBestTargetBlock(phg, context, gain_cache, v, phg.partID(v));
       } else {
-        target_part[u] = to;
-        // the tryPop function will use this value to adjust the key.
-        gain_in_pq = true_gain;
-        node_state[u].unlock();
-        return false;
+        std::tie(newTarget, gain) = bestOfThree(phg, context, gain_cache,
+                                                v, phg.partID(v), {designatedTargetV, move.from, move.to});
       }
-    });
-  }
+      target_part[v] = newTarget;
+    }
 
-  const Context& context;
-  vec<PartitionID> overloaded_blocks;
-  vec<uint8_t> is_overloaded;
-  vec<PartitionID> target_part;
-  vec<PosT> pq_handles;
-  vec<int> pq_id;
-  vec<NodeState> node_state;
-  ParallelPQ pq;
-};
 
+    template<typename PartitionedHypergraph, typename GainCache>
+    bool findNextMove(const PartitionedHypergraph& phg,
+                      const GainCache& gain_cache,
+                      Move& m, AccessToken& token) {
+      return pq.tryPop(token, [&](HypernodeID u, float& gain_in_pq) -> bool {
+        if (!node_state[u].tryLock()) return false;
+        auto[to, true_gain] = computeBestTargetBlock(phg, context, gain_cache, u, phg.partID(u));
+        if (true_gain >= gain_in_pq) {
+          m.node = u;
+          m.to = to;
+          m.from = phg.partID(u);
+          m.gain = true_gain;
+          return true;
+        } else {
+          target_part[u] = to;
+          // the tryPop function will use this value to adjust the key.
+          gain_in_pq = true_gain;
+          node_state[u].unlock();
+          return false;
+        }
+      });
+    }
+
+    const Context& context;
+    vec <PartitionID> overloaded_blocks;
+    vec <uint8_t> is_overloaded;
+    vec <PartitionID> target_part;
+    vec <PosT> pq_handles;
+    vec<int> pq_id;
+    vec <NodeState> node_state;
+    ParallelPQ pq;
+  };
+
+}   // namespace impl
 
 template <typename TypeTraits, typename GainTypes>
 bool RebalancerV2<TypeTraits, GainTypes>::refineInternalParallel(mt_kahypar_partitioned_hypergraph_t& hypergraph,
@@ -529,7 +543,7 @@ bool RebalancerV2<TypeTraits, GainTypes>::refineInternalParallel(mt_kahypar_part
   vec<Move> moves(phg.initialNumNodes());
   Gain attributed_gain = 0;
 
-  ParallelPQLayout pq_layout(_context, phg.initialNumNodes());
+  impl::ParallelPQLayout pq_layout(_context, phg.initialNumNodes());
 
   pq_layout.is_overloaded.assign(phg.k(), false);
   for (PartitionID k = 0; k < phg.k(); ++k) {
@@ -543,8 +557,8 @@ bool RebalancerV2<TypeTraits, GainTypes>::refineInternalParallel(mt_kahypar_part
   pq_layout.initializeRelaxedPQs(num_pqs);
 
   std::atomic<int> seed { 555 };
-  tbb::enumerable_thread_specific<AccessToken> ets_tokens([&]() {
-    return AccessToken(seed.fetch_add(1, std::memory_order_relaxed), num_pqs);
+  tbb::enumerable_thread_specific<impl::AccessToken> ets_tokens([&]() {
+    return impl::AccessToken(seed.fetch_add(1, std::memory_order_relaxed), num_pqs);
   });
   static constexpr size_t NUM_GAIN_BUCKETS = 12;
   vec<vec<size_t>> freq(num_pqs, vec<size_t>(NUM_GAIN_BUCKETS, 0));
@@ -567,7 +581,7 @@ bool RebalancerV2<TypeTraits, GainTypes>::refineInternalParallel(mt_kahypar_part
     }
 
 
-    AccessToken& token = ets_tokens.local();
+    auto& token = ets_tokens.local();
     int pq_id = -1;
     while (true) {
       auto two_ids = token.getTwoRandomPQs();
@@ -596,12 +610,12 @@ bool RebalancerV2<TypeTraits, GainTypes>::refineInternalParallel(mt_kahypar_part
 
   size_t global_move_id = 0;
   size_t num_overloaded_blocks = pq_layout.overloaded_blocks.size();
-  auto task = [&](size_t task_id) {
+  auto task = [&](size_t ) {
     vec<HyperedgeID> edges_with_gain_changes;
     Gain local_attributed_gain = 0;
     vec<vec<HypernodeID>> nodes_to_update(num_pqs);
     vec<int> pqs_to_update;
-    AccessToken token(task_id, num_pqs);
+    auto& token = ets_tokens.local();
     Move m;
     while (num_overloaded_blocks > 0 && pq_layout.findNextMove(phg, _gain_cache, m, token)) {
       const PartitionID from = phg.partID(m.node);
