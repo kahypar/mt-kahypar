@@ -173,6 +173,13 @@ namespace mt_kahypar {
           tmp_metrics.quality = metrics::quality(phg, context);
           return true;
         }());
+
+        if (!phg.is_graph) {  // TODO add check for whether the rebalancer uses the gain table.
+          tbb::parallel_for(MoveID(0), sharedData.moveTracker.numPerformedMoves(), [&](const MoveID i) {
+            gain_cache.recomputePenaltyTermEntry(phg, sharedData.moveTracker.moveOrder[i].node);
+          });
+        }
+
         tmp_metrics.imbalance = metrics::imbalance(phg, context);
         rebalancer.setMaxPartWeightsForRound(max_part_weights);
         rebalancer.refineAndOutputMoves(hypergraph, {}, moves_by_part, tmp_metrics, current_time_limit);
