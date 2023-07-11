@@ -160,7 +160,7 @@ class JetRefiner final : public IRefiner {
     } else {
       max_weight = std::numeric_limits<HypernodeWeight>::max();
     }
-    if ( _context.forceGainCacheUpdates() && _gain_cache.isInitialized() ) {
+    if ( _gain_cache.isInitialized() ) {
       return phg.changeNodePart(_gain_cache, hn, from, to, max_weight, []{}, objective_delta);
     } else {
       return phg.changeNodePart(hn, from, to, max_weight, []{}, objective_delta);
