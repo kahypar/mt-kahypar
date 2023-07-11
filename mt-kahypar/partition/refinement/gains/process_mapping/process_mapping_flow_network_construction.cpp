@@ -63,15 +63,23 @@ HyperedgeWeight ProcessMappingFlowNetworkConstruction::capacity(const Partitione
     // Hyperedge is non-cut
     // => we use gain for making the hyperedge cut as capacity to get a lower bound for the
     // actual improvement
-    const HyperedgeWeight distance_with_block_1 =
-      process_graph.distanceWithBlock(connectivity_set, block_1);
+    HyperedgeWeight distance_with_block_1 = 0;
+    if ( pin_count_block_0 == 1 ) {
+      distance_with_block_1 = process_graph.distanceAfterExchangingBlocks(connectivity_set, block_0, block_1);
+    } else {
+      distance_with_block_1 = process_graph.distanceWithBlock(connectivity_set, block_1);
+    }
     return std::abs(current_distance - distance_with_block_1) * edge_weight;
   } else if ( pin_count_block_0 == 0 && pin_count_block_1 > 0 ) {
     // Hyperedge is non-cut
     // => we use gain for making the hyperedge cut as capacity to get a lower bound for the
     // actual improvement
-    const HyperedgeWeight distance_with_block_0 =
-      process_graph.distanceWithBlock(connectivity_set, block_0);
+    HyperedgeWeight distance_with_block_0 = 0;
+    if ( pin_count_block_1 == 1 ) {
+      distance_with_block_0 = process_graph.distanceAfterExchangingBlocks(connectivity_set, block_1, block_0);
+    } else {
+      distance_with_block_0 = process_graph.distanceWithBlock(connectivity_set, block_0);
+    }
     return std::abs(current_distance - distance_with_block_0) * edge_weight;
   } else {
     // Hyperedge is cut
@@ -91,8 +99,10 @@ bool ProcessMappingFlowNetworkConstruction::connectToSource(const PartitionedHyp
                                                             const PartitionID block_0,
                                                             const PartitionID block_1) {
   ASSERT(partitioned_hg.hasProcessGraph());
+  const HypernodeID pin_count_block_0 = partitioned_hg.pinCountInPart(he, block_0);
+  const HypernodeID pin_count_block_1 = partitioned_hg.pinCountInPart(he, block_1);
   const ProcessGraph& process_graph = *partitioned_hg.processGraph();
-  if ( partitioned_hg.pinCountInPart(he, block_0) > 0 && partitioned_hg.pinCountInPart(he, block_1) == 0 ) {
+  if ( pin_count_block_0 > 0 && pin_count_block_1 == 0 ) {
     ds::Bitset& connectivity_set = partitioned_hg.deepCopyOfConnectivitySet(he);
     const HyperedgeWeight current_distance = process_graph.distance(connectivity_set);
     const HyperedgeWeight distance_after_exchange =
@@ -101,6 +111,15 @@ bool ProcessMappingFlowNetworkConstruction::connectToSource(const PartitionedHyp
       // If all nodes from block_0 would move to block_1, we would worsen the process mapping objective
       // function, even though the connectivity of the hyperedge does not change. To model this percurlarity in the flow network,
       // we add the corresponding hyperedge to the source.
+      return true;
+    }
+  }
+  if ( pin_count_block_0 == 0 && pin_count_block_1 == 1 ) {
+    ds::Bitset& connectivity_set = partitioned_hg.deepCopyOfConnectivitySet(he);
+    const HyperedgeWeight current_distance = process_graph.distance(connectivity_set);
+    const HyperedgeWeight distance_after_exchange =
+      process_graph.distanceAfterExchangingBlocks(connectivity_set, block_1, block_0);
+    if ( current_distance > distance_after_exchange ) {
       return true;
     }
   }
@@ -114,6 +133,8 @@ bool ProcessMappingFlowNetworkConstruction::connectToSink(const PartitionedHyper
                                                           const PartitionID block_0,
                                                           const PartitionID block_1) {
   ASSERT(partitioned_hg.hasProcessGraph());
+  const HypernodeID pin_count_block_0 = partitioned_hg.pinCountInPart(he, block_0);
+  const HypernodeID pin_count_block_1 = partitioned_hg.pinCountInPart(he, block_1);
   const ProcessGraph& process_graph = *partitioned_hg.processGraph();
   if ( partitioned_hg.pinCountInPart(he, block_0) == 0 && partitioned_hg.pinCountInPart(he, block_1) > 0 ) {
     ds::Bitset& connectivity_set = partitioned_hg.deepCopyOfConnectivitySet(he);
@@ -127,14 +148,45 @@ bool ProcessMappingFlowNetworkConstruction::connectToSink(const PartitionedHyper
       return true;
     }
   }
+  if ( pin_count_block_0 == 1 && pin_count_block_1 == 0 ) {
+    ds::Bitset& connectivity_set = partitioned_hg.deepCopyOfConnectivitySet(he);
+    const HyperedgeWeight current_distance = process_graph.distance(connectivity_set);
+    const HyperedgeWeight distance_after_exchange =
+      process_graph.distanceAfterExchangingBlocks(connectivity_set, block_0, block_1);
+    if ( current_distance > distance_after_exchange ) {
+      return true;
+    }
+  }
   return false;
 }
 
 template<typename PartitionedHypergraph>
-bool ProcessMappingFlowNetworkConstruction::isCut(const PartitionedHypergraph&,
-                                                  const HyperedgeID,
-                                                  const PartitionID,
-                                                  const PartitionID) {
+bool ProcessMappingFlowNetworkConstruction::isCut(const PartitionedHypergraph& partitioned_hg,
+                                                  const HyperedgeID he,
+                                                  const PartitionID block_0,
+                                                  const PartitionID block_1) {
+  ASSERT(partitioned_hg.hasProcessGraph());
+  const HypernodeID pin_count_block_0 = partitioned_hg.pinCountInPart(he, block_0);
+  const HypernodeID pin_count_block_1 = partitioned_hg.pinCountInPart(he, block_1);
+  const ProcessGraph& process_graph = *partitioned_hg.processGraph();
+  if ( pin_count_block_0 == 0 && pin_count_block_1 == 1 ) {
+    ds::Bitset& connectivity_set = partitioned_hg.deepCopyOfConnectivitySet(he);
+    const HyperedgeWeight current_distance = process_graph.distance(connectivity_set);
+    const HyperedgeWeight distance_after_exchange =
+      process_graph.distanceAfterExchangingBlocks(connectivity_set, block_1, block_0);
+    if ( current_distance > distance_after_exchange ) {
+      return true;
+    }
+  }
+  if ( pin_count_block_0 == 1 && pin_count_block_1 == 0 ) {
+    ds::Bitset& connectivity_set = partitioned_hg.deepCopyOfConnectivitySet(he);
+    const HyperedgeWeight current_distance = process_graph.distance(connectivity_set);
+    const HyperedgeWeight distance_after_exchange =
+      process_graph.distanceAfterExchangingBlocks(connectivity_set, block_0, block_1);
+    if ( current_distance > distance_after_exchange ) {
+      return true;
+    }
+  }
   return false;
 }
 
