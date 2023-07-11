@@ -516,9 +516,16 @@ template <typename TypeTraits, typename GainTypes>
 bool RebalancerV2<TypeTraits, GainTypes>::refineInternalParallel(mt_kahypar_partitioned_hypergraph_t& hypergraph,
                                                          vec<vec<Move>>* moves_by_part,
                                                          Metrics& best_metric) {
-  const auto& max_part_weights = _context.partition.max_part_weights;
-
   auto& phg = utils::cast<PartitionedHypergraph>(hypergraph);
+
+  const auto& max_part_weights = _context.partition.max_part_weights;
+  if (_max_part_weights == nullptr) {
+    _max_part_weights = &_context.partition.max_part_weights[0];
+  }
+  if (!_gain_cache.isInitialized()) {
+    _gain_cache.initializeGainCache(phg);
+  }
+
   vec<Move> moves(phg.initialNumNodes());
   Gain attributed_gain = 0;
 
@@ -694,6 +701,8 @@ bool RebalancerV2<TypeTraits, GainTypes>::refineInternalParallel(mt_kahypar_part
 
   best_metric.quality += attributed_gain;
   best_metric.imbalance = metrics::imbalance(phg, _context);
+
+  _max_part_weights = nullptr;
 
   return num_overloaded_blocks == 0;
 }
