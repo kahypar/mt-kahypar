@@ -10,6 +10,12 @@ target_link_libraries(GraphToHgr TBB::tbb TBB::tbbmalloc_proxy)
 set_property(TARGET GraphToHgr PROPERTY CXX_STANDARD 17)
 set_property(TARGET GraphToHgr PROPERTY CXX_STANDARD_REQUIRED ON)
 
+add_executable(HgrToGraph hgr_to_graph.cc)
+target_link_libraries(HgrToGraph ${Boost_LIBRARIES})
+target_link_libraries(HgrToGraph TBB::tbb TBB::tbbmalloc_proxy)
+set_property(TARGET HgrToGraph PROPERTY CXX_STANDARD 17)
+set_property(TARGET HgrToGraph PROPERTY CXX_STANDARD_REQUIRED ON)
+
 add_executable(HgrToParkway hgr_to_parkway_converter.cc)
 target_link_libraries(HgrToParkway ${Boost_LIBRARIES})
 target_link_libraries(HgrToParkway TBB::tbb TBB::tbbmalloc_proxy)
@@ -93,6 +99,7 @@ set_property(TARGET BenchShuffle PROPERTY CXX_STANDARD 17)
 set_property(TARGET BenchShuffle PROPERTY CXX_STANDARD_REQUIRED ON)
 
 set(TOOLS_TARGETS ${TOOLS_TARGETS} GraphToHgr
+                                   HgrToGraph
                                    EvaluateBipart
                                    VerifyPartition
                                    EvaluatePartition
