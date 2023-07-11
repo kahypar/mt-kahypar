@@ -114,6 +114,7 @@ namespace mt_kahypar {
       DBG << "[JET] New imbalance: " << current_metrics.imbalance << ", tmp delta: " << delta;
       current_metrics.quality += delta;
 
+      // TODO for hypergraphs a recomputePenalties call is needed before rebalancing if rebalancer_v2 is used
       // recomputePenalties(hypergraph, false);
 
       bool did_rebalance = false;
@@ -262,7 +263,7 @@ namespace mt_kahypar {
   }
 
   template <typename TypeTraits, typename GainTypes>
-  void JetRefiner<TypeTraits, GainTypes>::recomputePenalties(const PartitionedHypergraph& hypergraph, 
+  void JetRefiner<TypeTraits, GainTypes>::recomputePenalties(const PartitionedHypergraph& hypergraph,
                                                                           bool did_rebalance) {
     parallel::scalable_vector<PartitionID>& current_parts = _current_partition_is_best ? _best_partition : _current_partition;
     auto recompute = [&](const HypernodeID hn) {
@@ -275,7 +276,8 @@ namespace mt_kahypar {
       }
     };
 
-    if ( _context.forceGainCacheUpdates() && _gain_cache.isInitialized() ) {
+    // TODO this isn't needed for graphs --> skip
+    if ( _gain_cache.isInitialized() ) {
       if (did_rebalance) {
         if ( _context.refinement.jet.execute_sequential ) {
           for ( const HypernodeID hn : hypergraph.nodes() ) {
