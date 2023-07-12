@@ -63,14 +63,13 @@ class GainComputationBase {
                           const HypernodeID hn,
                           const bool rebalance = false,
                           const bool consider_non_adjacent_blocks = false,
-                          const bool allow_imbalance = false,
-                          double max_weight_scaling = 1.0) {
+                          const bool allow_imbalance = false) {
     Derived* derived = static_cast<Derived*>(this);
     RatingMap& tmp_scores = _tmp_scores.local();
     Gain& isolated_block_gain = _isolated_block_gain.local();
     derived->precomputeGains(phg, hn, tmp_scores, isolated_block_gain);
     Move best_move = computeMaxGainMoveForScores(phg, tmp_scores, isolated_block_gain, hn,
-                        rebalance, consider_non_adjacent_blocks, allow_imbalance, max_weight_scaling);
+                        rebalance, consider_non_adjacent_blocks, allow_imbalance);
 
     isolated_block_gain = 0;
     tmp_scores.clear();
@@ -84,8 +83,7 @@ class GainComputationBase {
                                    const HypernodeID hn,
                                    const bool rebalance = false,
                                    const bool consider_non_adjacent_blocks = false,
-                                   const bool allow_imbalance = false,
-                                   double max_weight_scaling = 1.0) {
+                                   const bool allow_imbalance = false) {
     Derived* derived = static_cast<Derived*>(this);
 
     PartitionID from = phg.partID(hn);
@@ -101,7 +99,7 @@ class GainComputationBase {
                             !_disable_randomization &&
                             (no_tie_breaking || rand.flipCoin(cpu_id)));
       if (new_best_gain && (allow_imbalance || phg.partWeight(to) + hn_weight <=
-          max_weight_scaling * _context.partition.max_part_weights[to])) {
+          _context.partition.max_part_weights[to])) {
         best_move.to = to;
         best_move.gain = score;
         return true;

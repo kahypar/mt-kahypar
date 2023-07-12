@@ -136,7 +136,6 @@ namespace mt_kahypar {
       str << "    Vertex Locking:                   " << params.vertex_locking << std::endl;
       str << "    Negative Gain Factor (Coarse):    " << params.negative_gain_factor_coarse << std::endl;
       str << "    Negative Gain Factor (Fine):      " << params.negative_gain_factor_fine << std::endl;
-      str << "    Upper Bound:                      " << params.unconstrained_upper_bound << std::endl;
     }
     return str;
   }

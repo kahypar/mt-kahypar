@@ -436,12 +436,6 @@ namespace mt_kahypar {
                       &context.initial_partitioning.refinement.jet.negative_gain_factor_fine))->value_name(
                      "<double>")->default_value(0.75),
              "Factor used by JET for filtering negative gain moves (only applicable to precomputed_ordered).")
-            ((initial_partitioning ? "i-r-jet-unconstrained-upper-bound" : "r-jet-unconstrained-upper-bound"),
-             po::value<double>(
-                     (!initial_partitioning ? &context.refinement.jet.unconstrained_upper_bound :
-                      &context.initial_partitioning.refinement.jet.unconstrained_upper_bound))->value_name(
-                     "<double>")->default_value(0.0),
-             "If >= 1, limits the imbalance that is accepted to this value times the maximum allowed weight.")
             ((initial_partitioning ? "i-r-jet-he-size-activation-threshold" : "r-jet-he-size-activation-threshold"),
              po::value<size_t>(
                      (!initial_partitioning ? &context.refinement.jet.hyperedge_size_activation_threshold
