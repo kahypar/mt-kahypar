@@ -29,7 +29,6 @@
 
 #include "mt-kahypar/partition/refinement/fm/multitry_kway_fm.h"
 
-#include "mt-kahypar/datastructures/streaming_vector.h"
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/utils/utilities.h"
 #include "mt-kahypar/partition/factories.h"
@@ -100,14 +99,10 @@ namespace mt_kahypar {
     enable_light_fm = false;
     sharedData.release_nodes = context.refinement.fm.release_nodes;
     sharedData.perform_moves_global = context.refinement.fm.perform_moves_global;
-    sharedData.nodeTracker.vertex_locking = (context.refinement.fm.vertex_locking > 0)
-                                            && !context.refinement.fm.soft_locking;
-    sharedData.nodeTracker.lockedVertices.reset();
     double current_time_limit = time_limit;
     tbb::task_group tg;
     vec<HypernodeWeight> initialPartWeights(size_t(context.partition.k));
     std::vector<HypernodeWeight> max_part_weights;
-    StreamingVector<HypernodeID> locally_locked_vertices;
     HighResClockTimepoint fm_start = std::chrono::high_resolution_clock::now();
     utils::Timer& timer = utils::Utilities::instance().getTimer(context.utility_id);
 
@@ -151,16 +146,8 @@ namespace mt_kahypar {
       size_t num_tasks = std::min(num_border_nodes, size_t(TBBInitializer::instance().total_number_of_threads()));
       sharedData.finishedTasks.store(0, std::memory_order_relaxed);
       fm_strategy->findMoves(utils::localized_fm_cast(ets_fm), hypergraph,
-                             num_tasks, num_seeds, round, locally_locked_vertices);
+                             num_tasks, num_seeds, round);
       timer.stop_timer("find_moves");
-
-      // reset locked vertices, so we can start setting the locks for the next round
-      sharedData.nodeTracker.lockedVertices.reset();
-      if (context.refinement.fm.vertex_locking > 0 && context.refinement.fm.lock_locally_reverted) {
-        locally_locked_vertices.do_parallel_for_each([&] (const HypernodeID hn) {
-          sharedData.lockVertexForNextRound(hn, context);
-        });
-      }
 
       if (is_unconstrained && !isBalanced(phg, max_part_weights)) {
         DBG << "[unconstrained FM] Starting Rebalancing";
@@ -241,7 +228,6 @@ namespace mt_kahypar {
             || consecutive_rounds_with_too_little_improvement >= 2 ) {
         break;
       }
-      locally_locked_vertices.clear_sequential();
     }
 
     if (context.partition.show_memory_consumption && context.partition.verbose_output
@@ -282,7 +268,7 @@ namespace mt_kahypar {
           // the segmentation fault.
           if ( task_id >= 0 && task_id < TBBInitializer::instance().total_number_of_threads() ) {
             for (HypernodeID u = r.begin(); u < r.end(); ++u) {
-              if (phg.nodeIsEnabled(u) && phg.isBorderNode(u) && !sharedData.nodeTracker.vertexIsLocked(u)) {
+              if (phg.nodeIsEnabled(u) && phg.isBorderNode(u)) {
                 sharedData.refinementNodes.safe_push(u, task_id);
               }
             }
@@ -294,7 +280,7 @@ namespace mt_kahypar {
         const HypernodeID u = refinement_nodes[i];
         const int task_id = tbb::this_task_arena::current_thread_index();
         if ( task_id >= 0 && task_id < TBBInitializer::instance().total_number_of_threads() ) {
-          if (phg.nodeIsEnabled(u) && phg.isBorderNode(u) && !sharedData.nodeTracker.vertexIsLocked(u)) {
+          if (phg.nodeIsEnabled(u) && phg.isBorderNode(u)) {
             sharedData.refinementNodes.safe_push(u, task_id);
           }
         }
@@ -333,34 +319,30 @@ namespace mt_kahypar {
     }());
 
     GlobalMoveTracker& move_tracker =  sharedData.moveTracker;
-    ASSERT(move_tracker.rebalancingMoves.empty());
-    const bool may_move_twice = context.refinement.fm.rebalancing_use_moved_nodes;
     const bool merge_at_rebalancing_pos = context.refinement.fm.insert_merged_move_at_rebalancing_position;
-    if (may_move_twice) {
-      // check the rebalancing moves for nodes that are moved twice
-      for (PartitionID part = 0; part < context.partition.k; ++part) {
-        vec<Move>& moves = rebalancing_moves_by_part[part];
-        tbb::parallel_for(0UL, moves.size(), [&](const size_t i) {
-          Move& r_move = moves[i];
-          if (r_move.isValid() && move_tracker.wasNodeMovedInThisRound(r_move.node)) {
-            Move& first_move = move_tracker.getMove(move_tracker.moveOfNode[r_move.node]);
-            ASSERT(r_move.node == first_move.node && r_move.from == first_move.to);
-            if (first_move.from == r_move.to) {
-              // node not moved anymore (important for gain recalculation!)
-              move_tracker.moveOfNode[r_move.node] = 0;
-              first_move.invalidate();
-              r_move.invalidate();
-              sharedData.lockVertexForNextRound(r_move.node, context);
-            } else if (merge_at_rebalancing_pos) {
-              r_move.from = first_move.from;
-              first_move.invalidate();
-            } else {
-              first_move.to = r_move.to;
-              r_move.invalidate();
-            }
+
+    // check the rebalancing moves for nodes that are moved twice
+    for (PartitionID part = 0; part < context.partition.k; ++part) {
+      vec<Move>& moves = rebalancing_moves_by_part[part];
+      tbb::parallel_for(0UL, moves.size(), [&](const size_t i) {
+        Move& r_move = moves[i];
+        if (r_move.isValid() && move_tracker.wasNodeMovedInThisRound(r_move.node)) {
+          Move& first_move = move_tracker.getMove(move_tracker.moveOfNode[r_move.node]);
+          ASSERT(r_move.node == first_move.node && r_move.from == first_move.to);
+          if (first_move.from == r_move.to) {
+            // node not moved anymore (important for gain recalculation!)
+            move_tracker.moveOfNode[r_move.node] = 0;
+            first_move.invalidate();
+            r_move.invalidate();
+          } else if (merge_at_rebalancing_pos) {
+            r_move.from = first_move.from;
+            first_move.invalidate();
+          } else {
+            first_move.to = r_move.to;
+            r_move.invalidate();
           }
-        }, tbb::static_partitioner());
-      }
+        }
+      }, tbb::static_partitioner());
     }
 
     // For now we use a sequential implementation, which is probably fast enough (since this is a single scan trough
@@ -372,7 +354,7 @@ namespace mt_kahypar {
     auto insert_moves_to_balance_part = [&](const PartitionID part) {
       if (current_part_weights[part] > max_part_weights[part]) {
         insertMovesToBalancePart(phg, part, max_part_weights, rebalancing_moves_by_part,
-                                 next_move_index, current_part_weights, current_rebalancing_move_index);
+                                next_move_index, current_part_weights, current_rebalancing_move_index);
       }
     };
 
@@ -393,7 +375,6 @@ namespace mt_kahypar {
         current_part_weights[m.to] += hn_weight;
         tmp_move_order[next_move_index] = m;
         ++next_move_index;
-        move_tracker.rebalancingMoves.push_back(static_cast<uint8_t>(false));
         // insert rebalancing moves if necessary
         if (!only_append_moves) {
           insert_moves_to_balance_part(m.to);
@@ -410,7 +391,6 @@ namespace mt_kahypar {
         if (m.isValid()) {
           tmp_move_order[next_move_index] = m;
           ++next_move_index;
-          move_tracker.rebalancingMoves.push_back(static_cast<uint8_t>(true));
         }
       }
     }
@@ -418,7 +398,6 @@ namespace mt_kahypar {
     // update sharedData
     const MoveID first_move_id = move_tracker.firstMoveID;
     ASSERT(tmp_move_order.size() == move_tracker.moveOrder.size());
-    ASSERT(move_tracker.rebalancingMoves.size() == static_cast<size_t>(next_move_index));
 
     std::swap(move_tracker.moveOrder, tmp_move_order);
     move_tracker.runningMoveID.store(first_move_id + next_move_index);
@@ -448,7 +427,6 @@ namespace mt_kahypar {
         current_part_weights[m.to] += hn_weight;
         tmp_move_order[next_move_index] = m;
         ++next_move_index;
-        sharedData.moveTracker.rebalancingMoves.push_back(static_cast<uint8_t>(true));
 
         if (current_part_weights[m.to] > max_part_weights[m.to]) {
           // edge case: it is possible that the rebalancing move itself causes new imbalance -> call recursively

@@ -171,19 +171,12 @@ struct FMParameters {
   bool release_nodes = true;
 
   bool rebalancing_use_violation_factor = true;
-  bool rebalancing_use_moved_nodes = true;
   bool insert_merged_move_at_rebalancing_position = true;
   bool update_penalty_locally_reverted = false;
 
   bool penalty_for_moved_rebalancing_nodes = true;
   double treshold_border_node_inclusion = 0.75;
   double unconstrained_upper_bound = 0.0;
-
-  // locking
-  double vertex_locking = 0.0;
-  bool lock_moved_nodes = false;
-  bool lock_locally_reverted = false;
-  bool soft_locking = false;
 
   // unconstrained: cooling strategy
   size_t unconstrained_rounds = 1;

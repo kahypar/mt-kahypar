@@ -521,30 +521,10 @@ namespace mt_kahypar {
              po::value<double>((initial_partitioning ? &context.initial_partitioning.refinement.fm.unconstrained_upper_bound :
                               &context.refinement.fm.unconstrained_upper_bound))->value_name("<double>")->default_value(0.0),
              "Still use upper limit for imbalance with unconstrained FM, expressed as a factor of the max part weight (default = 0 = no limit).")
-            ((initial_partitioning ? "i-r-fm-vertex-locking" : "r-fm-vertex-locking"),
-             po::value<double>((initial_partitioning ? &context.initial_partitioning.refinement.fm.vertex_locking :
-                              &context.refinement.fm.vertex_locking))->value_name("<double>")->default_value(0.0),
-             "Whether vertex locking (tabu search) is used for FM. Values between 0 and 1 mean randomized locking.")
-            ((initial_partitioning ? "i-r-fm-lock-moved-nodes" : "r-fm-lock-moved-nodes"),
-             po::value<bool>((initial_partitioning ? &context.initial_partitioning.refinement.fm.lock_moved_nodes :
-                              &context.refinement.fm.lock_moved_nodes))->value_name("<bool>")->default_value(false),
-             "Whether FM vertex locking includes moved nodes (or only nodes where the move was rolled back).")
-            ((initial_partitioning ? "i-r-fm-lock-locally-reverted" : "r-fm-lock-locally-reverted"),
-             po::value<bool>((initial_partitioning ? &context.initial_partitioning.refinement.fm.lock_locally_reverted :
-                              &context.refinement.fm.lock_locally_reverted))->value_name("<bool>")->default_value(false),
-             "Whether FM vertex locking includes nodes of locally reverted moves (careful: can have a huge impact).")
-            ((initial_partitioning ? "i-r-fm-soft-locking" : "r-fm-soft-locking"),
-             po::value<bool>((initial_partitioning ? &context.initial_partitioning.refinement.fm.soft_locking :
-                              &context.refinement.fm.soft_locking))->value_name("<bool>")->default_value(false),
-             "If true, locked vertices can still be used if the move has positive gain.")
             ((initial_partitioning ? "i-r-fm-rebalancing-use-violation-factor" : "r-fm-rebalancing-use-violation-factor"),
              po::value<bool>((initial_partitioning ? &context.initial_partitioning.refinement.fm.rebalancing_use_violation_factor :
                               &context.refinement.fm.rebalancing_use_violation_factor))->value_name("<bool>")->default_value(true),
              "Whether the rollback balance violation factor is also applied to rebalancing (for unconstrained FM).")
-            ((initial_partitioning ? "i-r-fm-rebalancing-use-moved-nodes" : "r-fm-rebalancing-use-moved-nodes"),
-             po::value<bool>((initial_partitioning ? &context.initial_partitioning.refinement.fm.rebalancing_use_moved_nodes :
-                              &context.refinement.fm.rebalancing_use_moved_nodes))->value_name("<bool>")->default_value(true),
-             "Whether rebalancing may use nodes that have already been moved by FM.")
             ((initial_partitioning ? "i-r-fm-insert-merged-move-at-rebalancing-position" : "r-fm-insert-merged-move-at-rebalancing-position"),
              po::value<bool>((initial_partitioning ? &context.initial_partitioning.refinement.fm.insert_merged_move_at_rebalancing_position :
                               &context.refinement.fm.insert_merged_move_at_rebalancing_position))->value_name("<bool>")->default_value(true),

@@ -77,9 +77,8 @@ class IFMStrategy {
   virtual ~IFMStrategy() = default;
 
   void findMoves(localized_k_way_fm_t local_fm, mt_kahypar_partitioned_hypergraph_t& phg,
-                 size_t num_tasks, size_t num_seeds, size_t round,
-                 ds::StreamingVector<HypernodeID>& locally_locked_vertices) {
-    findMovesImpl(local_fm, phg, num_tasks, num_seeds, round, locally_locked_vertices);
+                 size_t num_tasks, size_t num_seeds, size_t round) {
+    findMovesImpl(local_fm, phg, num_tasks, num_seeds, round);
   }
 
   bool isUnconstrainedRound(size_t round) const {
@@ -105,11 +104,9 @@ class IFMStrategy {
   template<typename Derived>
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
   void findMovesWithConcreteStrategy(localized_k_way_fm_t local_fm, mt_kahypar_partitioned_hypergraph_t& hypergraph,
-                                     size_t num_tasks, size_t num_seeds, size_t round,
-                                     ds::StreamingVector<HypernodeID>& locally_locked_vertices) {
+                                     size_t num_tasks, size_t num_seeds, size_t round) {
     using LocalFM = typename Derived::LocalFM;
     using PartitionedHypergraph = typename Derived::PartitionedHypergraph;
-
     Derived& concrete_strategy = *static_cast<Derived*>(this);
     tbb::enumerable_thread_specific<LocalFM>& ets_fm = utils::cast<LocalFM>(local_fm);
     PartitionedHypergraph& phg = utils::cast<PartitionedHypergraph>(hypergraph);
@@ -120,13 +117,7 @@ class IFMStrategy {
     auto task = [&](const size_t task_id) {
       LocalFM& fm = ets_fm.local();
       while(sharedData.finishedTasks.load(std::memory_order_relaxed) < sharedData.finishedTasksLimit
-            && concrete_strategy.dispatchedFindMoves(fm, phg, task_id, num_seeds, round)) {
-        if (context.refinement.fm.vertex_locking > 0 && context.refinement.fm.lock_locally_reverted) {
-          fm.doForEachRevertedMove([&] (const Move& m) {
-            locally_locked_vertices.stream(m.node);
-          });
-        }
-      }
+            && concrete_strategy.dispatchedFindMoves(fm, phg, task_id, num_seeds, round)) { /* keep running*/ }
       sharedData.finishedTasks.fetch_add(1, std::memory_order_relaxed);
     };
     for (size_t i = 0; i < num_tasks; ++i) {
@@ -140,8 +131,7 @@ class IFMStrategy {
 
  private:
   virtual void findMovesImpl(localized_k_way_fm_t local_fm, mt_kahypar_partitioned_hypergraph_t& phg,
-                             size_t num_tasks, size_t num_seeds, size_t round,
-                             ds::StreamingVector<HypernodeID>& locally_locked_vertices) = 0;
+                             size_t num_tasks, size_t num_seeds, size_t round) = 0;
 
   virtual bool isUnconstrainedRoundImpl(size_t round) const = 0;
 
