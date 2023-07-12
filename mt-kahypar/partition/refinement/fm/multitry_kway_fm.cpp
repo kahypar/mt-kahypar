@@ -249,7 +249,6 @@ namespace mt_kahypar {
 
         tmp_metrics.imbalance = metrics::imbalance(phg, context);
         rebalancer.setMaxPartWeightsForRound(max_part_weights);
-        LOG << "rebalacne from FM";
         rebalancer.refineAndOutputMoves(hypergraph, {}, moves_by_part, tmp_metrics, current_time_limit);
         timer.stop_timer("rebalance_fm");
 
