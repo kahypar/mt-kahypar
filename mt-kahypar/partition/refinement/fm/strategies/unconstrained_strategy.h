@@ -376,10 +376,9 @@ class UnconstrainedStrategy: public IFMStrategy {
 
  private:
   virtual void findMovesImpl(localized_k_way_fm_t local_fm, mt_kahypar_partitioned_hypergraph_t& phg,
-                             size_t num_tasks, size_t num_seeds, size_t round,
-                             ds::StreamingVector<HypernodeID>& locally_locked_vertices) final {
+                             size_t num_tasks, size_t num_seeds, size_t round) final {
     Base::findMovesWithConcreteStrategy<UnconstrainedStrategy>(
-              local_fm, phg, num_tasks, num_seeds, round, locally_locked_vertices);
+              local_fm, phg, num_tasks, num_seeds, round);
   }
 
   virtual bool isUnconstrainedRoundImpl(size_t) const final {
