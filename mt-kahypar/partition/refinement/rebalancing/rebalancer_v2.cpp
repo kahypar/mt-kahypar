@@ -696,8 +696,8 @@ bool RebalancerV2<TypeTraits, GainTypes>::refineInternalParallel(mt_kahypar_part
         }
       }
 
-      __atomic_fetch_add(&attributed_gain, local_attributed_gain, __ATOMIC_RELAXED);
     }
+    __atomic_fetch_add(&attributed_gain, local_attributed_gain, __ATOMIC_RELAXED);
   };
 
   tbb::task_group tg;
