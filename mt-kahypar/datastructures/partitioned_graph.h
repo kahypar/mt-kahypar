@@ -190,6 +190,7 @@ private:
     _edge_markers(Hypergraph::is_static_hypergraph ? 0 : hypergraph.maxUniqueID()) {
     _part_ids.assign(hypergraph.initialNumNodes(), kInvalidPartition, false);
     _edge_sync.assign(hypergraph.maxUniqueID(), EdgeMove(), false);
+    _edge_locks.assign(hypergraph.maxUniqueID(), SpinLock(), false);
   }
 
   explicit PartitionedGraph(const PartitionID k,
@@ -218,6 +219,7 @@ private:
     }, [&] {
       _edge_locks.resize(
         "Refinement", "edge_locks", static_cast<size_t>(hypergraph.maxUniqueID()));
+      _edge_locks.assign(hypergraph.maxUniqueID(), SpinLock());
     }, [&] {
       if (!Hypergraph::is_static_hypergraph) {
         _edge_markers.setSize(hypergraph.maxUniqueID());
