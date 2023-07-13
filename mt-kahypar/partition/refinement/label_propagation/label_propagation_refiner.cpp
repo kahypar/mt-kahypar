@@ -193,7 +193,7 @@ namespace mt_kahypar {
 
     HEAVY_REFINEMENT_ASSERT(hypergraph.checkTrackedPartitionInformation(_gain_cache));
     return converged || old_quality - current_metrics.quality <
-                        _context.refinement.jet.relative_improvement_threshold * old_quality;
+                        _context.refinement.label_propagation.relative_improvement_threshold * old_quality;
   }
 
   template <typename TypeTraits, typename GainTypes>
