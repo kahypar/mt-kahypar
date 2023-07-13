@@ -46,7 +46,13 @@ public:
   explicit DeterministicLabelPropagationRefiner(const HypernodeID num_hypernodes,
                                                 const HyperedgeID num_hyperedges,
                                                 const Context& context,
-                                                gain_cache_t /* only relevant for other refiners */) :
+                                                gain_cache_t /* only relevant for other refiners */,
+                                                IRebalancer& /* only relevant for other refiners */) :
+    DeterministicLabelPropagationRefiner(num_hypernodes, num_hyperedges, context) { }
+
+  explicit DeterministicLabelPropagationRefiner(const HypernodeID num_hypernodes,
+                                                const HyperedgeID num_hyperedges,
+                                                const Context& context) :
       context(context),
       compute_gains(context),
       moves(num_hypernodes),
@@ -61,12 +67,6 @@ public:
       last_moved_in_round.resize(num_hypernodes + num_hyperedges, CAtomic<uint32_t>(0));
     }
   }
-
-  explicit DeterministicLabelPropagationRefiner(const HypernodeID num_hypernodes,
-                                                const HyperedgeID num_hyperedges,
-                                                const Context& context) :
-    DeterministicLabelPropagationRefiner(num_hypernodes, num_hyperedges, context,
-      gain_cache_t { nullptr, GainPolicy::none }) { }
 
 private:
   static constexpr bool debug = false;

@@ -121,21 +121,18 @@ class UncoarsenerBase {
 
   void initializeRefinementAlgorithms() {
     _gain_cache = GainCachePtr::constructGainCache(_context);
-    _label_propagation = LabelPropagationFactory::getInstance().createObject(
-      _context.refinement.label_propagation.algorithm,
-      _hg.initialNumNodes(), _hg.initialNumEdges(), _context, _gain_cache);
-    _flows = FlowSchedulerFactory::getInstance().createObject(
-      _context.refinement.flows.algorithm,
-      _hg.initialNumNodes(), _hg.initialNumEdges(), _context, _gain_cache);
+    // refinement algorithms require access to the rebalancer
     _rebalancer = RebalancerFactory::getInstance().createObject(
       _context.refinement.rebalancer, _hg.initialNumNodes(), _context, _gain_cache);
-    // JET and FMrequires acces to the rebalancer
+    _label_propagation = LabelPropagationFactory::getInstance().createObject(
+      _context.refinement.label_propagation.algorithm,
+      _hg.initialNumNodes(), _hg.initialNumEdges(), _context, _gain_cache, *_rebalancer);
     _fm = FMFactory::getInstance().createObject(
       _context.refinement.fm.algorithm,
       _hg.initialNumNodes(), _hg.initialNumEdges(), _context, _gain_cache, *_rebalancer);
-    _jet = JetFactory::getInstance().createObject(
-      _context.refinement.jet.algorithm,
-      _hg.initialNumNodes(), _hg.initialNumEdges(), _context, _gain_cache, *_rebalancer);
+    _flows = FlowSchedulerFactory::getInstance().createObject(
+      _context.refinement.flows.algorithm,
+      _hg.initialNumNodes(), _hg.initialNumEdges(), _context, _gain_cache);
   }
 };
 }

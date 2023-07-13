@@ -86,7 +86,7 @@ using NLevelCoarsenerDispatcher = kahypar::meta::StaticMultiDispatchFactory<NLev
 #endif
 
 using LabelPropagationFactory = kahypar::meta::Factory<LabelPropagationAlgorithm,
-                                  IRefiner* (*)(HypernodeID, HyperedgeID, const Context&, gain_cache_t)>;
+                                  IRefiner* (*)(HypernodeID, HyperedgeID, const Context&, gain_cache_t, IRebalancer&)>;
 
 using LabelPropagationDispatcher = kahypar::meta::StaticMultiDispatchFactory<
                                         LabelPropagationRefiner,
