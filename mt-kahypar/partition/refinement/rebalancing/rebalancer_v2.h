@@ -69,10 +69,6 @@ private:
                                 Metrics& best_metrics,
                                 const double);
 
-  bool refineInternal(mt_kahypar_partitioned_hypergraph_t& hypergraph,
-                      vec<vec<Move>>* moves_by_part,
-                      Metrics& best_metric);
-
   bool refineInternalParallel(mt_kahypar_partitioned_hypergraph_t& hypergraph,
                               vec<vec<Move>>* moves_by_part,
                               Metrics& best_metric);
