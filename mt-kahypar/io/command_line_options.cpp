@@ -374,6 +374,11 @@ namespace mt_kahypar {
                               &context.initial_partitioning.refinement.label_propagation.rebalancing))->value_name(
                      "<bool>")->default_value(true),
              "If true, then zero gain moves are only performed if they improve the balance of the solution (only in label propagation)")
+            ((initial_partitioning ? "i-r-lp-unconstrained" : "r-lp-unconstrained"),
+             po::value<bool>((!initial_partitioning ? &context.refinement.label_propagation.unconstrained :
+                              &context.initial_partitioning.refinement.label_propagation.unconstrained))->value_name(
+                     "<bool>")->default_value(false),
+             "If true, then unconstrained label propagation (including rebalancing) is used.")
             ((initial_partitioning ? "i-r-lp-he-size-activation-threshold" : "r-lp-he-size-activation-threshold"),
              po::value<size_t>(
                      (!initial_partitioning ? &context.refinement.label_propagation.hyperedge_size_activation_threshold
@@ -381,6 +386,11 @@ namespace mt_kahypar {
                       &context.initial_partitioning.refinement.label_propagation.hyperedge_size_activation_threshold))->value_name(
                      "<size_t>")->default_value(100),
              "LP refiner activates only neighbors of moved vertices that are part of hyperedges with a size less than this threshold")
+            ((initial_partitioning ? "i-r-lp-relative-improvement-threshold" : "r-lp-relative-improvement-threshold"),
+             po::value<double>((!initial_partitioning ? &context.refinement.label_propagation.relative_improvement_threshold :
+                                &context.initial_partitioning.refinement.label_propagation.relative_improvement_threshold))->value_name(
+                     "<double>")->default_value(-1.0),
+             "Relative improvement threshold for JET.")
             ((initial_partitioning ? "i-r-jet-type" : "r-jet-type"),
              po::value<std::string>()->value_name("<string>")->notifier(
                      [&, initial_partitioning](const std::string& type) {

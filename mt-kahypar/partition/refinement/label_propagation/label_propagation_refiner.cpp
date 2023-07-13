@@ -49,42 +49,46 @@ namespace mt_kahypar {
     resizeDataStructuresForCurrentK();
     _gain.reset();
     _next_active.reset();
+    Gain old_quality = best_metrics.quality;
 
     // Initialize set of active vertices
     initializeActiveNodes(hypergraph, refinement_nodes);
 
     // Perform Label Propagation
-    labelPropagation(hypergraph);
-
-    // Update global part weight and sizes
-    best_metrics.imbalance = metrics::imbalance(hypergraph, _context);
-
-    // Update metrics statistics
-    Gain delta = _gain.delta();
-    ASSERT(delta <= 0, "LP refiner worsen solution quality");
+    labelPropagation(hypergraph, best_metrics);
 
     HEAVY_REFINEMENT_ASSERT(hypergraph.checkTrackedPartitionInformation(_gain_cache));
-    HEAVY_REFINEMENT_ASSERT(best_metrics.quality + delta ==
+    HEAVY_REFINEMENT_ASSERT(best_metrics.quality ==
       metrics::quality(hypergraph, _context,
         !_context.refinement.label_propagation.execute_sequential),
-      V(best_metrics.quality) << V(delta) << V((best_metrics.quality + delta))
-        << V(metrics::quality(hypergraph, _context,
+      V(best_metrics.quality) << V(metrics::quality(hypergraph, _context,
           !_context.refinement.label_propagation.execute_sequential)));
 
-    best_metrics.quality += delta;
-    utils::Utilities::instance().getStats(_context.utility_id).update_stat("lp_improvement", std::abs(delta));
-    return delta < 0;
+    // Update metrics statistics
+    Gain delta = old_quality - best_metrics.quality;
+    ASSERT(delta >= 0, "LP refiner worsen solution quality");
+    utils::Utilities::instance().getStats(_context.utility_id).update_stat("lp_improvement", delta);
+    return delta > 0;
   }
 
 
   template <typename TypeTraits, typename GainTypes>
-  void LabelPropagationRefiner<TypeTraits, GainTypes>::labelPropagation(PartitionedHypergraph& hypergraph) {
+  void LabelPropagationRefiner<TypeTraits, GainTypes>::labelPropagation(PartitionedHypergraph& hypergraph,
+                                                                        Metrics& best_metrics) {
     NextActiveNodes next_active_nodes;
+    vec<vec<Move>> rebalance_moves_by_part;
     for (size_t i = 0; i < _context.refinement.label_propagation.maximum_iterations; ++i) {
       DBG << "Starting Label Propagation Round" << i;
 
+      bool stop = false;
       if ( _active_nodes.size() > 0 ) {
-        labelPropagationRound(hypergraph, next_active_nodes);
+        if (_context.refinement.label_propagation.unconstrained) {
+          stop = labelPropagationRound<true>(hypergraph, next_active_nodes,
+                                             best_metrics, rebalance_moves_by_part);
+        } else {
+          stop = labelPropagationRound<false>(hypergraph, next_active_nodes,
+                                              best_metrics, rebalance_moves_by_part);
+        }
       }
 
       if ( _context.refinement.label_propagation.execute_sequential ) {
@@ -95,18 +99,23 @@ namespace mt_kahypar {
         next_active_nodes.clear_parallel();
       }
 
-      if ( _active_nodes.size() == 0 ) {
+      if ( stop || _active_nodes.size() == 0 ) {
         break;
       }
     }
   }
 
   template <typename TypeTraits, typename GainTypes>
+  template<bool unconstrained>
   bool LabelPropagationRefiner<TypeTraits, GainTypes>::labelPropagationRound(
                               PartitionedHypergraph& hypergraph,
-                              NextActiveNodes& next_active_nodes) {
+                              NextActiveNodes& next_active_nodes,
+                              Metrics& best_metrics,
+                              vec<vec<Move>>& rebalance_moves_by_part) {
+    Metrics current_metrics = best_metrics;
     _visited_he.reset();
     _next_active.reset();
+    _gain.reset();
     // This function is passed as lambda to the changeNodePart function and used
     // to calculate the "real" delta of a move (in terms of the used objective function).
     auto objective_delta = [&](const HyperedgeID he,
@@ -126,7 +135,10 @@ namespace mt_kahypar {
 
       for ( size_t j = 0; j < _active_nodes.size(); ++j ) {
         const HypernodeID hn = _active_nodes[j];
-        if ( moveVertex(hypergraph, hn, next_active_nodes, objective_delta) ) {
+        if constexpr (unconstrained) {
+          _active_node_old_part[j] = hypergraph.partID(hn);
+        }
+        if ( moveVertex<unconstrained>(hypergraph, hn, next_active_nodes, objective_delta) ) {
           _active_node_was_moved[j] = uint8_t(true);
         } else {
           converged = false;
@@ -138,7 +150,10 @@ namespace mt_kahypar {
 
       tbb::parallel_for(UL(0), _active_nodes.size(), [&](const size_t& j) {
         const HypernodeID hn = _active_nodes[j];
-        if ( moveVertex(hypergraph, hn, next_active_nodes, objective_delta) ) {
+        if constexpr (unconstrained) {
+          _active_node_old_part[j] = hypergraph.partID(hn);
+        }
+        if ( moveVertex<unconstrained>(hypergraph, hn, next_active_nodes, objective_delta) ) {
           _active_node_was_moved[j] = uint8_t(true);
         } else {
           converged = false;
@@ -146,7 +161,10 @@ namespace mt_kahypar {
       });
     }
 
-    if ( _context.forceGainCacheUpdates() && _gain_cache.isInitialized() ) {
+    current_metrics.imbalance = metrics::imbalance(hypergraph, _context);
+    current_metrics.quality += _gain.delta();
+
+    if ( _gain_cache.isInitialized() ) {
       auto recompute = [&](size_t j) {
         if ( _active_node_was_moved[j] ) {
           _gain_cache.recomputePenaltyTermEntry(hypergraph, _active_nodes[j]);
@@ -163,8 +181,82 @@ namespace mt_kahypar {
       }
     }
 
+    if (unconstrained && !metrics::isBalanced(hypergraph, _context)) {
+      bool should_stop = applyRebalancing(hypergraph, next_active_nodes, best_metrics,
+                                          current_metrics, rebalance_moves_by_part);
+      converged |= should_stop;
+    }
+
+    ASSERT(current_metrics.quality <= best_metrics.quality);
+    const Gain old_quality = best_metrics.quality;
+    best_metrics = current_metrics;
+
     HEAVY_REFINEMENT_ASSERT(hypergraph.checkTrackedPartitionInformation(_gain_cache));
-    return converged;
+    return converged || old_quality - current_metrics.quality <
+                        _context.refinement.jet.relative_improvement_threshold * old_quality;
+  }
+
+  template <typename TypeTraits, typename GainTypes>
+  bool LabelPropagationRefiner<TypeTraits, GainTypes>::applyRebalancing(
+                              PartitionedHypergraph& hypergraph,
+                              NextActiveNodes& next_active_nodes,
+                              Metrics& best_metrics,
+                              Metrics& current_metrics,
+                              vec<vec<Move>>& rebalance_moves_by_part) {
+    utils::Timer& timer = utils::Utilities::instance().getTimer(_context.utility_id);
+    timer.start_timer("rebalance_lp", "Rebalance");
+    mt_kahypar_partitioned_hypergraph_t phg = utils::partitioned_hg_cast(hypergraph);
+    _rebalancer.refineAndOutputMoves(phg, {}, rebalance_moves_by_part, current_metrics, 0.0);
+    timer.stop_timer("rebalance_lp");
+    DBG << "[LP] Imbalance after rebalancing: " << current_metrics.imbalance << ", quality: " << current_metrics.quality;
+
+    if (current_metrics.quality > best_metrics.quality) { // rollback and stop LP
+      auto noop_obj_fn = [](HyperedgeID, HyperedgeWeight, HypernodeID, HypernodeID, HypernodeID) { };
+      current_metrics = best_metrics;
+
+      // undo rebalancing moves
+      for (const auto& moves: rebalance_moves_by_part) {
+        if ( _context.refinement.label_propagation.execute_sequential ) {
+          for (const Move& m: moves) {
+            ASSERT(m.isValid());
+            changeNodePart<true>(hypergraph, m.node, m.to, m.from, noop_obj_fn);
+          }
+        } else {
+          tbb::parallel_for(UL(0), moves.size(), [&](const size_t j) {
+            ASSERT(moves[j].isValid());
+            changeNodePart<true>(hypergraph, moves[j].node, moves[j].to, moves[j].from, noop_obj_fn);
+          });
+        }
+      }
+      // undo label propagation moves
+      auto undo_move = [&](const size_t j) {
+        const PartitionID part = hypergraph.partID(_active_nodes[j]);
+        if (part != _active_node_old_part[j]) {
+          changeNodePart<true>(hypergraph, _active_nodes[j], part, _active_node_old_part[j], noop_obj_fn);
+        }
+      };
+      if ( _context.refinement.label_propagation.execute_sequential ) {
+        for (size_t j = 0; j < _active_nodes.size(); ++j) { undo_move(j); }
+      } else {
+        tbb::parallel_for(UL(0), _active_nodes.size(), undo_move);
+      }
+      return true;
+    }
+
+    // collect nodes activated by rebalancing and recompute penalties
+    auto update_node = [&](const Move& m) {
+      ASSERT(m.isValid());
+      activateNodeAndNeighbors(hypergraph, next_active_nodes, m.node);
+      _gain_cache.recomputePenaltyTermEntry(hypergraph, m.node);
+    };
+    for (const auto& moves: rebalance_moves_by_part) {
+      if ( _context.refinement.label_propagation.execute_sequential ) {
+        for (const Move& m: moves) { update_node(m); }
+      } else {
+        tbb::parallel_for(UL(0), moves.size(), [&](const size_t j) { update_node(moves[j]); });
+      }
+    }
+    return false;
   }
 
   template <typename TypeTraits, typename GainTypes>
@@ -193,6 +285,7 @@ namespace mt_kahypar {
 
       _active_nodes = tmp_active_nodes.copy_parallel();
     }
+    _rebalancer.initialize(phg);
   }
 
   template <typename TypeTraits, typename GainTypes>

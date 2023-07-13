@@ -36,9 +36,9 @@
   static kahypar::meta::Registrar<LabelPropagationFactory> register_ ## dispatcher(                    \
     id,                                                                                                \
     [](const HypernodeID num_hypernodes, const HyperedgeID num_hyperedges,                             \
-       const Context& context, gain_cache_t gain_cache) {                                              \
+       const Context& context, gain_cache_t gain_cache, IRebalancer& rebalancer) {                     \
     return dispatcher::create(                                                                         \
-      std::forward_as_tuple(num_hypernodes, num_hyperedges, context, gain_cache),                      \
+      std::forward_as_tuple(num_hypernodes, num_hyperedges, context, gain_cache, rebalancer),          \
       __VA_ARGS__                                                                                      \
       );                                                                                               \
   })
@@ -47,8 +47,8 @@
   static kahypar::meta::Registrar<LabelPropagationFactory> JOIN(register_ ## refiner, t)(        \
     id,                                                                                          \
     [](const HypernodeID num_hypernodes, const HyperedgeID num_hyperedges,                       \
-       const Context& context, gain_cache_t gain_cache) -> IRefiner* {                           \
-    return new refiner(num_hypernodes, num_hyperedges, context, gain_cache);                     \
+       const Context& context, gain_cache_t gain_cache, IRebalancer& rebalancer) -> IRefiner* {  \
+    return new refiner(num_hypernodes, num_hyperedges, context, gain_cache, rebalancer);         \
   })
 
 #define REGISTER_DISPATCHED_JET_REFINER(id, dispatcher, ...)                                           \
