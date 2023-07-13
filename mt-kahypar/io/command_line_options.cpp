@@ -412,7 +412,7 @@ namespace mt_kahypar {
              po::value<double>((!initial_partitioning ? &context.refinement.jet.relative_improvement_threshold :
                                 &context.initial_partitioning.refinement.jet.relative_improvement_threshold))->value_name(
                      "<double>")->default_value(0.001),
-             "Maximum number of jet iterations after no improvement is found.")
+             "Relative improvement threshold for JET.")
             ((initial_partitioning ? "i-r-jet-restrict-to-border-nodes" : "r-jet-restrict-to-border-nodes"),
              po::value<bool>((!initial_partitioning ? &context.refinement.jet.restrict_to_border_nodes :
                               &context.initial_partitioning.refinement.jet.restrict_to_border_nodes))->value_name(
