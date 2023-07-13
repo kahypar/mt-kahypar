@@ -118,9 +118,6 @@ namespace mt_kahypar {
       timer.stop_timer("precompute_unconstrained");
     }
 
-    const bool log = false && (context.type == ContextType::main) && (phg.initialNumNodes() > 2000);
-    if (log) { LOG << "\n" << "Start FM Refinement" << V(phg.initialNumNodes()); }
-
     for (size_t round = 0; round < context.refinement.fm.multitry_rounds; ++round) { // global multi try rounds
       for (PartitionID i = 0; i < context.partition.k; ++i) {
         initialPartWeights[i] = phg.partWeight(i);
@@ -150,76 +147,12 @@ namespace mt_kahypar {
         num_seeds = std::max(num_seeds, UL(1));
       }
 
-      auto info = [&] (bool require_balance) {
-        size_t num_moves = 0;
-        Gain expected_gain = 0;
-        size_t num_invalidated = 0;
-        for (size_t i = 0; i < sharedData.moveTracker.numPerformedMoves(); ++i) {
-          if (sharedData.moveTracker.moveOrder[i].isValid()) {
-            num_moves++;
-            expected_gain += sharedData.moveTracker.moveOrder[i].gain;
-          } else {
-            num_invalidated++;
-          }
-        }
-        globalRollback.recalculateGains(phg, sharedData);
-        Gain cumulative_gain = 0;
-        Gain max_gain = 0;
-        size_t max_gain_pos = 0;
-        int64_t imbalance_at_max_gain = 0;
-        vec <HypernodeWeight> part_weights = initialPartWeights;
-        vec <HypernodeWeight> part_weights_at_max_gain = initialPartWeights;
-        size_t overloaded = 0;
-        for (PartitionID k = 0; k < phg.k(); ++k) {
-          if (part_weights[k] > context.partition.max_part_weights[k]) { overloaded++; }
-        }
-
-        for (size_t i = 0; i < sharedData.moveTracker.numPerformedMoves(); ++i) {
-          if (sharedData.moveTracker.moveOrder[i].isValid()) {
-            const Move& m = sharedData.moveTracker.moveOrder[i];
-            cumulative_gain += m.gain;
-            if (part_weights[m.from] > context.partition.max_part_weights[m.from] && part_weights[m.from] - phg.nodeWeight(m.node) <= context.partition.max_part_weights[m.from]) overloaded--;
-            if (part_weights[m.to] <= context.partition.max_part_weights[m.to] && part_weights[m.to] + phg.nodeWeight(m.node) > context.partition.max_part_weights[m.to]) overloaded++;
-            part_weights[m.from] -= phg.nodeWeight(m.node);
-            part_weights[m.to] += phg.nodeWeight(m.node);
-            if (cumulative_gain > max_gain && (!require_balance || overloaded == 0)) {
-              max_gain = cumulative_gain;
-              max_gain_pos = i + 1;
-              imbalance_at_max_gain = 0;
-              for (PartitionID j = 0; j < phg.k(); ++j) {
-                if (part_weights[j] > context.partition.max_part_weights[j] &&
-                    part_weights[j] - context.partition.max_part_weights[j] > imbalance_at_max_gain) {
-                  imbalance_at_max_gain = part_weights[j] - context.partition.max_part_weights[j];
-                  part_weights_at_max_gain = part_weights;
-                }
-              }
-            }
-          }
-        }
-        size_t num_overloaded = 0;
-        std::stringstream str;
-        for (PartitionID k = 0; k < phg.k(); ++k) {
-          if (part_weights_at_max_gain[k] > context.partition.max_part_weights[k]) {
-            num_overloaded++;
-            str << k << " " << part_weights_at_max_gain[k] << " | ";
-          }
-        }
-        str << "  ||  max part weight = " << context.partition.max_part_weights[0];
-        if (log) {
-          LOG << V(round) << V(num_moves) << V(max_gain_pos) << V(num_invalidated) << V(expected_gain)
-              << V(cumulative_gain) << V(max_gain) << V(imbalance_at_max_gain) << V(num_overloaded);
-          LOG << str.str();
-        }
-      };
-
       timer.start_timer("find_moves", "Find Moves");
       size_t num_tasks = std::min(num_border_nodes, size_t(TBBInitializer::instance().total_number_of_threads()));
       sharedData.finishedTasks.store(0, std::memory_order_relaxed);
       fm_strategy->findMoves(utils::localized_fm_cast(ets_fm), hypergraph,
                              num_tasks, num_seeds, round, locally_locked_vertices);
       timer.stop_timer("find_moves");
-
-      info(false);
 
       // reset locked vertices, so we can start setting the locks for the next round
       sharedData.nodeTracker.lockedVertices.reset();
@@ -257,17 +190,11 @@ namespace mt_kahypar {
           interleaveMoveSequenceWithRebalancingMoves(phg, initialPartWeights, max_part_weights, moves_by_part,
                                                      context.refinement.fm.only_append_rebalancing_moves);
         }
-        info(true);
       }
 
       timer.start_timer("rollback", "Rollback to Best Solution");
       HyperedgeWeight improvement = globalRollback.revertToBestPrefix(phg, sharedData, initialPartWeights);
       timer.stop_timer("rollback");
-
-      if (log) {
-        LOG << V(round) << V(improvement) << V(metrics::quality(phg, context))
-            << V(metrics::imbalance(phg, context));
-      }
 
       if (is_unconstrained) {
         sharedData.unconstrained.reset();
@@ -334,14 +261,6 @@ namespace mt_kahypar {
     ASSERT(metrics.quality == metrics::quality(phg, context),
            V(metrics.quality) << V(metrics::quality(phg, context)));
 
-    if (log) LOG << "finished FM" << V(overall_improvement);
-    for (HypernodeID u : phg.nodes()) {
-      PartitionID b = phg.partID(u);
-      if (b < 0 || b > phg.k()) {
-        LOG << V(u) << V(b) << "bad partition ID";
-        std::abort();
-      }
-    }
     return overall_improvement > 0;
   }
 
