@@ -76,11 +76,11 @@ public:
     _gain(context),
     _part_weights(_context.partition.k) { }
 
-  explicit Rebalancer(const Context& context, GainCache&) :
+  explicit Rebalancer(HypernodeID , const Context& context, GainCache&) :
     Rebalancer(context) { }
 
-  explicit Rebalancer(const Context& context, gain_cache_t gain_cache) :
-    Rebalancer(context, GainCachePtr::cast<GainCache>(gain_cache)) {}
+  explicit Rebalancer(HypernodeID num_nodes, const Context& context, gain_cache_t gain_cache) :
+    Rebalancer(num_nodes, context, GainCachePtr::cast<GainCache>(gain_cache)) {}
 
   Rebalancer(const Rebalancer&) = delete;
   Rebalancer(Rebalancer&&) = delete;

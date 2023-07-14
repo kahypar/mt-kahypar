@@ -128,7 +128,7 @@ class UncoarsenerBase {
       _context.refinement.flows.algorithm,
       _hg.initialNumNodes(), _hg.initialNumEdges(), _context, _gain_cache);
     _rebalancer = RebalancerFactory::getInstance().createObject(
-      _context.refinement.rebalancer, _context, _gain_cache);
+      _context.refinement.rebalancer, _hg.initialNumNodes(), _context, _gain_cache);
     // JET and FMrequires acces to the rebalancer
     _fm = FMFactory::getInstance().createObject(
       _context.refinement.fm.algorithm,
