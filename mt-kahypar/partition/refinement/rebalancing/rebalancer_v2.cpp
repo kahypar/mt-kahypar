@@ -241,6 +241,9 @@ namespace impl {
     if (_pqs.size() != num_pqs) {
       _pqs.assign(num_pqs, rebalancer::GuardedPQ(_pq_handles.data(), _node_state.size()));
     }
+    for (auto& gpq : _pqs) {
+      gpq.reset();
+    }
 
     // data structures to draw random PQs
     std::atomic<int> seed { 555 };
