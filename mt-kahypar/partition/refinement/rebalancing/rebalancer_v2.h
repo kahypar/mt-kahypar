@@ -124,14 +124,14 @@ private:
   void insertNodesInOverloadedBlocks(mt_kahypar_partitioned_hypergraph_t& hypergraph);
   std::pair<int64_t, size_t> findMoves(mt_kahypar_partitioned_hypergraph_t& hypergraph);
 
-  vec<Move> _moves;
+  ds::Array<Move> _moves;
   vec<rebalancer::GuardedPQ> _pqs;
   vec<PartitionID> _overloaded_blocks;
   vec<uint8_t> _is_overloaded;
-  vec<PartitionID> _target_part;
-  vec<PosT> _pq_handles;
-  vec<int> _pq_id;
-  vec<rebalancer::NodeState> _node_state;
+  ds::Array<PartitionID> _target_part;
+  ds::Array<PosT> _pq_handles;
+  ds::Array<int> _pq_id;
+  ds::Array<rebalancer::NodeState> _node_state;
 };
 
 }  // namespace mt_kahypar
