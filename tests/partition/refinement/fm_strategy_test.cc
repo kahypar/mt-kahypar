@@ -90,8 +90,14 @@ TEST(StrategyTests, FindNextMove) {
   FMStats fm_stats;
   fm_stats.moves = 1;
 
-  GainCacheStrategy gain_caching(context, sd, fm_stats);
-  vec<Gain> gains_cached = insertAndExtractAllMoves(gain_caching, phg, gain_cache);
+  using BlockPriorityQueue = ds::ExclusiveHandleHeap< ds::MaxHeap<Gain, PartitionID> >;
+  using VertexPriorityQueue = ds::MaxHeap<Gain, HypernodeID>;    // these need external handles
+  BlockPriorityQueue blockPQ(k);
+  vec<VertexPriorityQueue> vertexPQs(k, VertexPriorityQueue(sd.vertexPQHandles.data(), sd.numberOfNodes));
+
+
+  LocalGainCacheStrategy local_gain_caching(context, sd, blockPQ, vertexPQs, fm_stats);
+  vec<Gain> gains_cached = insertAndExtractAllMoves(local_gain_caching, phg, gain_cache);
   ASSERT_TRUE(std::is_sorted(gains_cached.begin(), gains_cached.end(), std::greater<Gain>()));
 }
 
@@ -125,7 +131,12 @@ TEST(StrategyTests, UnconstrainedFindNextMove) {
   FMStats fm_stats;
   fm_stats.moves = 1;
 
-  UnconstrainedStrategy fm_strategy(context, sd, fm_stats);
+  using BlockPriorityQueue = ds::ExclusiveHandleHeap< ds::MaxHeap<Gain, PartitionID> >;
+  using VertexPriorityQueue = ds::MaxHeap<Gain, HypernodeID>;    // these need external handles
+  BlockPriorityQueue blockPQ(k);
+  vec<VertexPriorityQueue> vertexPQs(k, VertexPriorityQueue(sd.vertexPQHandles.data(), sd.numberOfNodes));
+
+  LocalUnconstrainedStrategy fm_strategy(context, sd, blockPQ, vertexPQs, fm_stats);
   vec<Gain> gains_cached = insertAndExtractAllMoves(fm_strategy, phg, gain_cache);
   LOG << fm_stats.serialize();
   ASSERT_TRUE(std::is_sorted(gains_cached.begin(), gains_cached.end(), std::greater<Gain>()));
