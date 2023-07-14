@@ -125,7 +125,7 @@ class AJetRefiner : public Test {
     context.setupPartWeights(hypergraph.totalWeight());
     initialPartition();
 
-    rebalancer = std::make_unique<typename Config::RebalancerT>(context, gain_cache);
+    rebalancer = std::make_unique<typename Config::RebalancerT>(hypergraph.initialNumNodes(), context, gain_cache);
     refiner = std::make_unique<Refiner>(hypergraph.initialNumNodes(), hypergraph.initialNumEdges(),
                                         context, gain_cache, *rebalancer);
     mt_kahypar_partitioned_hypergraph_t phg = utils::partitioned_hg_cast(partitioned_hypergraph);
