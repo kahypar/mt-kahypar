@@ -345,8 +345,6 @@ namespace impl {
         if (!moved) continue;
 
 
-        // TODO write specialized loop for graphs that doesn't need edges_with_gain_changes
-
         auto update_neighbor = [&](HypernodeID v) {
           if (v != m.node && _node_state[v].tryLock()) {
             int my_pq_id = _pq_id[v];
@@ -458,6 +456,14 @@ namespace impl {
     }
 
     _max_part_weights = nullptr;
+
+    phg.doParallelForAllNodes([&](HypernodeID u) {
+      _node_state[u].reset();
+    });
+
+    for (auto& gpq : _pqs) {
+      gpq.pq.clear();
+    }
 
     return num_overloaded_blocks == 0;
   }

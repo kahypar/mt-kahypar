@@ -62,6 +62,8 @@ namespace rebalancer {
     void markAsMovedAndUnlock() { __atomic_store_n(&state, 3, __ATOMIC_RELEASE); }
 
     void markAsMovable() { state = 1; }
+
+    void reset() { state = 0; }
   };
 
 } // namespace rebalancer
