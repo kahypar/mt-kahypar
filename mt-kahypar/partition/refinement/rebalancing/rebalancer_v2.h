@@ -83,11 +83,13 @@ private:
 
 public:
 
-  explicit RebalancerV2(const Context& context,
-                         GainCache& gain_cache);
+  explicit RebalancerV2(HypernodeID num_nodes,
+                        const Context& context,
+                        GainCache& gain_cache);
 
-  explicit RebalancerV2(const Context& context,
-                         gain_cache_t gain_cache);
+  explicit RebalancerV2(HypernodeID num_nodes,
+                        const Context& context,
+                        gain_cache_t gain_cache);
 
 private:
   bool refineImpl(mt_kahypar_partitioned_hypergraph_t& hypergraph,

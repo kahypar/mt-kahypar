@@ -32,7 +32,7 @@
 #include "mt-kahypar/datastructures/streaming_vector.h"
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/utils/utilities.h"
-#include "mt-kahypar/partition/factories.h"
+#include "mt-kahypar/partition/factories.h"   // TODO removing this could make compilation a lot faster
 #include "mt-kahypar/partition/metrics.h"
 #include "mt-kahypar/partition/refinement/gains/gain_definitions.h"
 #include "mt-kahypar/utils/memory_tree.h"

@@ -149,7 +149,7 @@ using FlowSchedulerDispatcher = kahypar::meta::StaticMultiDispatchFactory<
                                   IRefiner,
                                   kahypar::meta::Typelist<TypeTraitsList, GainTypes>>;
 
-using RebalancerFactory = kahypar::meta::Factory<RebalancingAlgorithm, IRebalancer* (*)(const Context&, gain_cache_t)>;
+using RebalancerFactory = kahypar::meta::Factory<RebalancingAlgorithm, IRebalancer* (*)(HypernodeID, const Context&, gain_cache_t)>;
 
 using RebalancerDispatcher = kahypar::meta::StaticMultiDispatchFactory<
                               Rebalancer,

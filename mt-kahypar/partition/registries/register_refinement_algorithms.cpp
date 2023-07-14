@@ -121,9 +121,9 @@
 #define REGISTER_DISPATCHED_REBALANCER(id, dispatcher, ...)                                            \
   static kahypar::meta::Registrar<RebalancerFactory> register_ ## dispatcher(                          \
     id,                                                                                                \
-    [](const Context& context, gain_cache_t gain_cache) {                                              \
+    [](HypernodeID num_hypernodes, const Context& context, gain_cache_t gain_cache) {                                              \
     return dispatcher::create(                                                                         \
-      std::forward_as_tuple(context, gain_cache),                                                      \
+      std::forward_as_tuple(num_hypernodes, context, gain_cache),                                                      \
       __VA_ARGS__                                                                                      \
       );                                                                                               \
   })
@@ -131,8 +131,8 @@
 #define REGISTER_REBALANCER(id, refiner, t)                                                      \
   static kahypar::meta::Registrar<RebalancerFactory> JOIN(register_ ## refiner, t)(              \
     id,                                                                                          \
-    [](const Context& context, gain_cache_t gain_cache) -> IRebalancer* {                           \
-    return new refiner(context, gain_cache);                                                     \
+    [](HypernodeID num_hypernodes, const Context& context, gain_cache_t gain_cache) -> IRebalancer* {                           \
+    return new refiner(num_hypernodes, context, gain_cache);                                                     \
   })
 
 #define REGISTER_DISPATCHED_FLOW_REFINER(id, dispatcher, ...)                                          \

@@ -464,27 +464,24 @@ namespace impl {
   }
 
 
-
-
 template <typename TypeTraits, typename GainTypes>
-RebalancerV2<TypeTraits, GainTypes>::RebalancerV2(const Context& context,
-                      GainCache& gain_cache) :
+RebalancerV2<TypeTraits, GainTypes>::RebalancerV2(
+        HypernodeID num_nodes, const Context& context, GainCache& gain_cache) :
         _context(context),
         _max_part_weights(nullptr),
         _gain_cache(gain_cache),
         _current_k(_context.partition.k),
-        _gain(context)
-  // TODO add these
-  //target_part(num_nodes, kInvalidPartition),
-  //pq_handles(num_nodes, invalid_position),
-  //pq_id(num_nodes, -1),
-  //node_state(num_nodes) { }
-{ }
+        _gain(context),
+        _moves(num_nodes),
+        _target_part(num_nodes, kInvalidPartition),
+        _pq_handles(num_nodes, invalid_position),
+        _pq_id(num_nodes, -1),
+        _node_state(num_nodes) { }
 
 template <typename TypeTraits, typename GainTypes>
-RebalancerV2<TypeTraits, GainTypes>::RebalancerV2(const Context& context,
-                      gain_cache_t gain_cache) :
-        RebalancerV2(context, GainCachePtr::cast<GainCache>(gain_cache)) { }
+RebalancerV2<TypeTraits, GainTypes>::RebalancerV2(
+        HypernodeID num_nodes, const Context& context, gain_cache_t gain_cache) :
+        RebalancerV2(num_nodes, context, GainCachePtr::cast<GainCache>(gain_cache)) { }
 
 
 template <typename TypeTraits, typename GainTypes>

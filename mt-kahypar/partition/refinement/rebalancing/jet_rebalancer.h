@@ -58,8 +58,7 @@ class JetRebalancer final : public IRebalancer {
 public:
   // TODO: add repairEmptyBlocks functionality?
 
-  explicit JetRebalancer(const Context& context,
-                         GainCache& gain_cache) :
+  explicit JetRebalancer(HypernodeID , const Context& context, GainCache& gain_cache) :
     _context(context),
     _max_part_weights(nullptr),
     _gain_cache(gain_cache),
@@ -81,9 +80,8 @@ public:
       }
     }
 
-  explicit JetRebalancer(const Context& context,
-                         gain_cache_t gain_cache) :
-    JetRebalancer(context, GainCachePtr::cast<GainCache>(gain_cache)) {}
+  explicit JetRebalancer(HypernodeID num_nodes, const Context& context, gain_cache_t gain_cache) :
+    JetRebalancer(num_nodes, context, GainCachePtr::cast<GainCache>(gain_cache)) {}
 
   JetRebalancer(const JetRebalancer&) = delete;
   JetRebalancer(JetRebalancer&&) = delete;
