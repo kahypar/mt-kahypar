@@ -97,9 +97,20 @@ namespace impl {
 
   template<typename PartitionedHypergraph, typename GainCache>
   struct NextMoveFinder {
+    Move next_move;
+
+    PartitionedHypergraph& _phg;
+    GainCache& _gain_cache;
+    const Context& _context;
+
+    vec<rebalancer::GuardedPQ>& _pqs;
+    ds::Array<PartitionID>& _target_part;
+    ds::Array<rebalancer::NodeState>& _node_state;
+    AccessToken _token;
 
     NextMoveFinder(int seed, const Context& context, PartitionedHypergraph& phg, GainCache& gain_cache,
-                   vec<rebalancer::GuardedPQ>& pqs, vec<PartitionID>& target_part, vec<rebalancer::NodeState>& node_state) :
+                   vec<rebalancer::GuardedPQ>& pqs,
+                   ds::Array<PartitionID>& target_part, ds::Array<rebalancer::NodeState>& node_state) :
                    _phg(phg), _gain_cache(gain_cache), _context(context),
                    _pqs(pqs), _target_part(target_part), _node_state(node_state), _token(seed, pqs.size()) { }
 
@@ -194,17 +205,6 @@ namespace impl {
     bool findNextMove() {
       return tryPop();
     }
-
-    Move next_move;
-
-    PartitionedHypergraph& _phg;
-    GainCache& _gain_cache;
-    const Context& _context;
-
-    vec<rebalancer::GuardedPQ>& _pqs;
-    vec<PartitionID>& _target_part;
-    vec<rebalancer::NodeState>& _node_state;
-    AccessToken _token;
   };
 
   void deactivateOverloadedBlock(uint8_t* is_overloaded, size_t* num_overloaded_blocks) {
@@ -217,8 +217,6 @@ namespace impl {
   }
 
 } // namespace impl
-
-
 
 
 /*
@@ -346,7 +344,6 @@ namespace impl {
 
 
         if (!moved) continue;
-
 
         auto update_neighbor = [&](HypernodeID v) {
           if (v != m.node && _node_state[v].tryLock()) {
