@@ -90,7 +90,7 @@ struct CutGainForGraphsTypes : public kahypar::meta::PolicyBase {
 };
 
 
-using GainTypes = kahypar::meta::Typelist<Km1GainTypes, CutGainTypes, SoedGainTypes)
+using GainTypes = kahypar::meta::Typelist<Km1GainTypes, CutGainTypes, SoedGainTypes
                                           ENABLE_GRAPHS(COMMA CutGainForGraphsTypes)>;
 
 #define INSTANTIATE_CLASS_WITH_TYPE_TRAITS_AND_GAIN_TYPES(C)                                      \
