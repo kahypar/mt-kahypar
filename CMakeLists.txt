@@ -65,7 +65,7 @@ option(KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES
   "Enables graph partitioning features. Can be turned off for faster compilation." ON)
 
 option(MORE_GAIN_TYPES
-  "Compile additional objective functions (cut, soed). Can be turned off for faster compilation." OFF)
+  "Compile additional objective functions (cut, soed). Can be turned off for faster compilation." ON)
 
 option(KAHYPAR_ENABLE_N_LEVEL_PARTITIONING_FEATURES
   "Enables n-level partitioning features. Can be turned off for faster compilation." OFF)
