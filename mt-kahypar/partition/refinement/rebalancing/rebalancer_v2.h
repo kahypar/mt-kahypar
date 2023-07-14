@@ -36,10 +36,13 @@ namespace mt_kahypar {
 namespace rebalancer {
   struct GuardedPQ {
     GuardedPQ(PosT *handles, size_t num_nodes) : pq(handles, num_nodes) { }
-
     SpinLock lock;
     ds::MaxHeap<float, HypernodeID> pq;
     float top_key = std::numeric_limits<float>::min();
+    void reset() {
+      pq.clear();
+      top_key = std::numeric_limits<float>::min();
+    }
   };
 
   struct NodeState {
