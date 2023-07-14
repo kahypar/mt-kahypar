@@ -66,7 +66,7 @@ class LabelPropagationRefiner final : public IRefiner {
     _gain(context),
     _active_nodes(),
     _active_node_was_moved(num_hypernodes, uint8_t(false)),
-    _active_node_old_part(_context.refinement.label_propagation.unconstrained ? num_hypernodes : 0, kInvalidPartition),
+    _old_part(_context.refinement.label_propagation.unconstrained ? num_hypernodes : 0, kInvalidPartition),
     _next_active(num_hypernodes),
     _visited_he(Hypergraph::is_graph ? 0 : num_hyperedges),
     _rebalancer(rb) { }
@@ -104,6 +104,10 @@ class LabelPropagationRefiner final : public IRefiner {
                         Metrics& best_metrics,
                         Metrics& current_metrics,
                         vec<vec<Move>>& rebalance_moves_by_part);
+
+  void updateNodeData(PartitionedHypergraph& hypergraph,
+                      NextActiveNodes& next_active_nodes,
+                      vec<vec<Move>>* rebalance_moves_by_part = nullptr);
 
   template<bool unconstrained, typename F>
   bool moveVertex(PartitionedHypergraph& hypergraph,
@@ -143,7 +147,11 @@ class LabelPropagationRefiner final : public IRefiner {
           if (accept_move) {
             DBG << "Move hypernode" << hn << "from block" << from << "to block" << to
                 << "with gain" << best_move.gain << "( Real Gain: " << move_delta << ")";
-            activateNodeAndNeighbors(hypergraph, next_active_nodes, hn);
+            if constexpr (!unconstrained) {
+              // in unconstrained case, we don't want to activate neighbors if the move is undone
+              // by the rebalancing
+              activateNodeAndNeighbors(hypergraph, next_active_nodes, hn);
+            }
           } else {
             DBG << "Revert move of hypernode" << hn << "from block" << from << "to block" << to
                 << "( Expected Gain:" << best_move.gain << ", Real Gain:" << move_delta << ")";
@@ -229,7 +237,7 @@ class LabelPropagationRefiner final : public IRefiner {
   GainCalculator _gain;
   ActiveNodes _active_nodes;
   parallel::scalable_vector<uint8_t> _active_node_was_moved;
-  parallel::scalable_vector<PartitionID> _active_node_old_part;
+  parallel::scalable_vector<PartitionID> _old_part;
   ds::ThreadSafeFastResetFlagArray<> _next_active;
   kahypar::ds::FastResetFlagArray<> _visited_he;
   IRebalancer& _rebalancer;

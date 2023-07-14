@@ -135,9 +135,6 @@ namespace mt_kahypar {
 
       for ( size_t j = 0; j < _active_nodes.size(); ++j ) {
         const HypernodeID hn = _active_nodes[j];
-        if constexpr (unconstrained) {
-          _active_node_old_part[j] = hypergraph.partID(hn);
-        }
         if ( moveVertex<unconstrained>(hypergraph, hn, next_active_nodes, objective_delta) ) {
           _active_node_was_moved[j] = uint8_t(true);
         } else {
@@ -150,9 +147,6 @@ namespace mt_kahypar {
 
       tbb::parallel_for(UL(0), _active_nodes.size(), [&](const size_t& j) {
         const HypernodeID hn = _active_nodes[j];
-        if constexpr (unconstrained) {
-          _active_node_old_part[j] = hypergraph.partID(hn);
-        }
         if ( moveVertex<unconstrained>(hypergraph, hn, next_active_nodes, objective_delta) ) {
           _active_node_was_moved[j] = uint8_t(true);
         } else {
@@ -185,6 +179,8 @@ namespace mt_kahypar {
       bool should_stop = applyRebalancing(hypergraph, next_active_nodes, best_metrics,
                                           current_metrics, rebalance_moves_by_part);
       converged |= should_stop;
+    } else if (unconstrained) {
+      updateNodeData(hypergraph, next_active_nodes);
     }
 
     ASSERT(current_metrics.quality <= best_metrics.quality);
@@ -197,12 +193,11 @@ namespace mt_kahypar {
   }
 
   template <typename TypeTraits, typename GainTypes>
-  bool LabelPropagationRefiner<TypeTraits, GainTypes>::applyRebalancing(
-                              PartitionedHypergraph& hypergraph,
-                              NextActiveNodes& next_active_nodes,
-                              Metrics& best_metrics,
-                              Metrics& current_metrics,
-                              vec<vec<Move>>& rebalance_moves_by_part) {
+  bool LabelPropagationRefiner<TypeTraits, GainTypes>::applyRebalancing(PartitionedHypergraph& hypergraph,
+                                                                        NextActiveNodes& next_active_nodes,
+                                                                        Metrics& best_metrics,
+                                                                        Metrics& current_metrics,
+                                                                        vec<vec<Move>>& rebalance_moves_by_part) {
     utils::Timer& timer = utils::Utilities::instance().getTimer(_context.utility_id);
     timer.start_timer("rebalance_lp", "Rebalance");
     mt_kahypar_partitioned_hypergraph_t phg = utils::partitioned_hg_cast(hypergraph);
@@ -214,49 +209,64 @@ namespace mt_kahypar {
       auto noop_obj_fn = [](HyperedgeID, HyperedgeWeight, HypernodeID, HypernodeID, HypernodeID) { };
       current_metrics = best_metrics;
 
-      // undo rebalancing moves
-      for (const auto& moves: rebalance_moves_by_part) {
-        if ( _context.refinement.label_propagation.execute_sequential ) {
-          for (const Move& m: moves) {
-            ASSERT(m.isValid());
-            changeNodePart<true>(hypergraph, m.node, m.to, m.from, noop_obj_fn);
-          }
-        } else {
-          tbb::parallel_for(UL(0), moves.size(), [&](const size_t j) {
-            ASSERT(moves[j].isValid());
-            changeNodePart<true>(hypergraph, moves[j].node, moves[j].to, moves[j].from, noop_obj_fn);
-          });
-        }
-      }
-      // undo label propagation moves
-      auto undo_move = [&](const size_t j) {
-        const PartitionID part = hypergraph.partID(_active_nodes[j]);
-        if (part != _active_node_old_part[j]) {
-          changeNodePart<true>(hypergraph, _active_nodes[j], part, _active_node_old_part[j], noop_obj_fn);
-        }
-      };
       if ( _context.refinement.label_propagation.execute_sequential ) {
-        for (size_t j = 0; j < _active_nodes.size(); ++j) { undo_move(j); }
+        for (const HypernodeID hn : hypergraph.nodes()) {
+          if (hypergraph.partID(hn) != _old_part[hn]) {
+            changeNodePart<true>(hypergraph, hn, hypergraph.partID(hn), _old_part[hn], noop_obj_fn);
+          }
+        }
       } else {
-        tbb::parallel_for(UL(0), _active_nodes.size(), undo_move);
+        hypergraph.doParallelForAllNodes([&](const HypernodeID hn) {
+          if (hypergraph.partID(hn) != _old_part[hn]) {
+            changeNodePart<true>(hypergraph, hn, hypergraph.partID(hn), _old_part[hn], noop_obj_fn);
+          }
+        });
       }
       return true;
     }
 
-    // collect nodes activated by rebalancing and recompute penalties
-    auto update_node = [&](const Move& m) {
-      ASSERT(m.isValid());
-      activateNodeAndNeighbors(hypergraph, next_active_nodes, m.node);
-      _gain_cache.recomputePenaltyTermEntry(hypergraph, m.node);
+    // collect activated nodes and recompute penalties
+    updateNodeData(hypergraph, next_active_nodes, &rebalance_moves_by_part);
+    return false;
+  }
+
+  template <typename TypeTraits, typename GainTypes>
+  void LabelPropagationRefiner<TypeTraits, GainTypes>::updateNodeData(PartitionedHypergraph& hypergraph,
+                                                                      NextActiveNodes& next_active_nodes,
+                                                                      vec<vec<Move>>* rebalance_moves_by_part) {
+    auto update_node = [&](const HypernodeID hn) {
+      const PartitionID current_part = hypergraph.partID(hn);
+      if (current_part != _old_part[hn]) {
+        _old_part[hn] = current_part;
+        activateNodeAndNeighbors(hypergraph, next_active_nodes, hn);
+        if ( _gain_cache.isInitialized() ) {
+          _gain_cache.recomputePenaltyTermEntry(hypergraph, hn);
+        }
+      }
     };
-    for (const auto& moves: rebalance_moves_by_part) {
-      if ( _context.refinement.label_propagation.execute_sequential ) {
-        for (const Move& m: moves) { update_node(m); }
-      } else {
-        tbb::parallel_for(UL(0), moves.size(), [&](const size_t j) { update_node(moves[j]); });
+    if ( _context.refinement.label_propagation.execute_sequential ) {
+      for (const HypernodeID hn: _active_nodes) {
+        update_node(hn);
+      }
+    } else {
+      tbb::parallel_for(UL(0), _active_nodes.size(), [&](const size_t j) {
+        update_node(_active_nodes[j]);
+      });
+    }
+
+    if (rebalance_moves_by_part != nullptr) {
+      for (const auto& moves: *rebalance_moves_by_part) {
+        if ( _context.refinement.label_propagation.execute_sequential ) {
+          for (const Move& m: moves) {
+            update_node(m.node);
+          }
+        } else {
+          tbb::parallel_for(UL(0), moves.size(), [&](const size_t j) {
+            update_node(moves[j].node);
+          });
+        }
       }
     }
-    return false;
   }
 
   template <typename TypeTraits, typename GainTypes>
@@ -271,6 +281,9 @@ namespace mt_kahypar {
         if ( _context.refinement.label_propagation.rebalancing || hypergraph.isBorderNode(hn) ) {
           _active_nodes.push_back(hn);
         }
+        if ( _context.refinement.label_propagation.unconstrained ) {
+          _old_part[hn] = hypergraph.partID(hn);
+        }
       }
     } else {
       // Setup active nodes in parallel
@@ -280,6 +293,9 @@ namespace mt_kahypar {
       hypergraph.doParallelForAllNodes([&](const HypernodeID& hn) {
         if ( _context.refinement.label_propagation.rebalancing || hypergraph.isBorderNode(hn) ) {
           tmp_active_nodes.stream(hn);
+        }
+        if ( _context.refinement.label_propagation.unconstrained ) {
+          _old_part[hn] = hypergraph.partID(hn);
         }
       });
 
