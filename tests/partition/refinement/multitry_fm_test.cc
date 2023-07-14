@@ -52,7 +52,7 @@ class MultiTryFMTest : public Test {
   using TypeTraits = typename Config::TypeTraits;
   using Hypergraph = typename TypeTraits::Hypergraph;
   using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
-  using Refiner = MultiTryKWayFM<TypeTraits, Km1GainTypes, GainCacheStrategy>;  // TODO
+  using Refiner = MultiTryKWayFM<TypeTraits, Km1GainTypes>;
 
   MultiTryFMTest() :
           hypergraph(),
@@ -94,7 +94,7 @@ class MultiTryFMTest : public Test {
     context.setupPartWeights(hypergraph.totalWeight());
     initialPartition();
 
-    rebalancer = std::make_unique<Rebalancer<TypeTraits, Km1GainTypes>>(context, gain_cache);
+    rebalancer = std::make_unique<Rebalancer<TypeTraits, Km1GainTypes>>(hypergraph.initialNumNodes(), context, gain_cache);
     refiner = std::make_unique<Refiner>(hypergraph.initialNumNodes(),
       hypergraph.initialNumEdges(), context, gain_cache, *rebalancer);
     mt_kahypar_partitioned_hypergraph_t phg = utils::partitioned_hg_cast(partitioned_hypergraph);
@@ -119,7 +119,7 @@ class MultiTryFMTest : public Test {
   Context context;
   Km1GainCache gain_cache;
   std::unique_ptr<Refiner> refiner;
-  std::unique_ptr<IRefiner> rebalancer;
+  std::unique_ptr<IRebalancer> rebalancer;
   Metrics metrics;
 };
 
