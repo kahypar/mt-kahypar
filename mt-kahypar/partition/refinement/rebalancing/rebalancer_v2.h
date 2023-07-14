@@ -33,6 +33,40 @@
 
 namespace mt_kahypar {
 
+namespace rebalancer {
+  struct GuardedPQ {
+    GuardedPQ(PosT *handles, size_t num_nodes) : pq(handles, num_nodes) { }
+
+    SpinLock lock;
+    ds::MaxHeap<float, HypernodeID> pq;
+    float top_key = std::numeric_limits<float>::min();
+  };
+
+  struct NodeState {
+    uint8_t state = 0;
+
+    bool canMove() const { return state == 1; }
+
+    bool isLocked() const { return state == 2; }
+
+    bool wasMoved() const { return state == 3; }
+
+    // Returns true if the node is marked as movable, is not locked and taking the lock now succeeds
+    bool tryLock() {
+      uint8_t expected = 1;
+      return state == 1 && __atomic_compare_exchange_n(&state, &expected, 2, false, __ATOMIC_ACQUIRE, __ATOMIC_RELAXED);
+    }
+
+    void unlock() { __atomic_store_n(&state, 1, __ATOMIC_RELEASE); }
+
+    void markAsMovedAndUnlock() { __atomic_store_n(&state, 3, __ATOMIC_RELEASE); }
+
+    void markAsMovable() { state = 1; }
+  };
+
+} // namespace rebalancer
+
+
 template <typename TypeTraits, typename GainTypes>
 class RebalancerV2 final : public IRebalancer {
 private:
@@ -73,12 +107,24 @@ private:
                               vec<vec<Move>>* moves_by_part,
                               Metrics& best_metric);
 
-
   const Context& _context;
   const HypernodeWeight* _max_part_weights;
   GainCache& _gain_cache;
   PartitionID _current_k;
   GainCalculator _gain;
+
+
+  void insertNodesInOverloadedBlocks(mt_kahypar_partitioned_hypergraph_t& hypergraph);
+  std::pair<int64_t, size_t> findMoves(mt_kahypar_partitioned_hypergraph_t& hypergraph);
+
+  vec<Move> _moves;
+  vec<rebalancer::GuardedPQ> _pqs;
+  vec<PartitionID> _overloaded_blocks;
+  vec<uint8_t> _is_overloaded;
+  vec<PartitionID> _target_part;
+  vec<PosT> _pq_handles;
+  vec<int> _pq_id;
+  vec<rebalancer::NodeState> _node_state;
 };
 
 }  // namespace mt_kahypar
