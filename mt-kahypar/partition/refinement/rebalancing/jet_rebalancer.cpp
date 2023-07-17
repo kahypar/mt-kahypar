@@ -43,7 +43,8 @@ namespace mt_kahypar {
   template <typename TypeTraits, typename GainTypes>
   bool JetRebalancer<TypeTraits, GainTypes>::refineInternal(mt_kahypar_partitioned_hypergraph_t& hypergraph,
                                                             vec<vec<Move>>* moves_by_part,
-                                                            Metrics& best_metrics) {
+                                                            Metrics& best_metrics,
+                                                            size_t& rounds_without_improvement) {
     PartitionedHypergraph& phg = utils::cast<PartitionedHypergraph>(hypergraph);
     resizeDataStructuresForCurrentK();
     _moves_by_part = moves_by_part;
@@ -57,15 +58,20 @@ namespace mt_kahypar {
       _gain.reset();
       initializeDataStructures(phg);
 
-      for (size_t i = 0; _num_imbalanced_blocks > 0 && i < _context.refinement.jet_rebalancing.num_weak_iterations; ++i) {
-        weakRebalancingRound<false>(phg);
-      }
-
-      for (size_t i = 0; _num_imbalanced_blocks > 0 && i < _context.refinement.jet_rebalancing.num_strong_iterations; ++i) {
-        if (_context.refinement.jet_rebalancing.use_greedy_balanced_instead_of_strong_iteration) {
+      size_t total_iterations = _context.refinement.jet_rebalancing.num_weak_iterations + _context.refinement.jet_rebalancing.num_strong_iterations;
+      for (size_t i = 0; _num_imbalanced_blocks > 0 && i < total_iterations; ++i) {
+        if (i < _context.refinement.jet_rebalancing.num_weak_iterations) {
+          weakRebalancingRound<false>(phg);
+        } else if (_context.refinement.jet_rebalancing.use_greedy_balanced_instead_of_strong_iteration) {
           weakRebalancingRound<true>(phg);
         } else {
           strongRebalancingRound(phg);
+        }
+        if (_context.refinement.jet.exactly_as_in_jet_paper) {
+          ++rounds_without_improvement;
+          if (_num_imbalanced_blocks > 0 && rounds_without_improvement >= _context.refinement.jet.num_iterations) {
+            break;
+          }
         }
       }
 

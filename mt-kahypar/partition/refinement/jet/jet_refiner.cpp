@@ -44,7 +44,7 @@ namespace mt_kahypar {
                                                 const HyperedgeID num_hyperedges,
                                                 const Context& context,
                                                 GainCache& gain_cache,
-                                                IRefiner& rebalancer) :
+                                                IRebalancer& rebalancer) :
     _context(context),
     _gain_cache(gain_cache),
     _precomputed(context.refinement.jet.algorithm == JetAlgorithm::precomputed_ordered),
@@ -56,8 +56,9 @@ namespace mt_kahypar {
     _gain(context),
     _active_nodes(),
     _gains_and_target(_precomputed ? num_hypernodes : 0),
-    _next_active(num_hypernodes),
-    _visited_he(num_hyperedges),
+    _next_active(_context.refinement.jet.exactly_as_in_jet_paper ? 0 : num_hypernodes),
+    _visited_he(_context.refinement.jet.exactly_as_in_jet_paper ? 0 : num_hyperedges),
+    _locks(_context.refinement.jet.exactly_as_in_jet_paper ? num_hypernodes : 0),
     _rebalancer(rebalancer) { }
 
   template <typename TypeTraits, typename GainTypes>
@@ -77,9 +78,9 @@ namespace mt_kahypar {
     timer.start_timer("compute_active_nodes", "Compute Active Nodes");
     if (refinement_nodes.empty()) {
       if (_precomputed) {
-        computeActiveNodesFromGraph<true>(hypergraph);
+        computeActiveNodesFromGraph<true>(hypergraph, true);
       } else {
-        computeActiveNodesFromGraph<false>(hypergraph);
+        computeActiveNodesFromGraph<false>(hypergraph, true);
       }
     } else {
       computeActiveNodesFromVector(hypergraph, refinement_nodes);
@@ -120,7 +121,7 @@ namespace mt_kahypar {
       bool did_rebalance = false;
       if (!metrics::isBalanced(hypergraph, _context)) {
         timer.start_timer("rebalance_jet", "Rebalance");
-        rebalance(hypergraph, current_metrics, time_limit);
+        rebalance(hypergraph, current_metrics, time_limit, rounds_without_improvement);
         timer.stop_timer("rebalance_jet");
 
         current_metrics.imbalance = metrics::imbalance(hypergraph, _context);
@@ -137,7 +138,8 @@ namespace mt_kahypar {
             !_context.refinement.jet.execute_sequential)));
 
       ++rounds_without_improvement;
-      if (metrics::isBalanced(hypergraph, _context) && current_metrics.quality <= best_metrics.quality) {
+      if (metrics::isBalanced(hypergraph, _context) && (current_metrics.quality < best_metrics.quality
+          || (current_metrics.quality == best_metrics.quality && current_metrics.imbalance <= best_metrics.imbalance))) {
         if (best_metrics.quality - current_metrics.quality >
                 _context.refinement.jet.relative_improvement_threshold * best_metrics.quality) {
           rounds_without_improvement = 0;
@@ -152,7 +154,11 @@ namespace mt_kahypar {
       } else {
         // initialize active vertices for next round
         timer.start_timer("compute_active_nodes", "Compute Active Nodes");
-        if (_precomputed) {
+        if (_context.refinement.jet.exactly_as_in_jet_paper && _precomputed) {
+          computeActiveNodesFromGraph<true>(hypergraph, false);
+        } else if (_context.refinement.jet.exactly_as_in_jet_paper) {
+          computeActiveNodesFromGraph<false>(hypergraph, false);
+        } else if (_precomputed) {
           computeActiveNodesFromPreviousRound<true>(hypergraph);
         } else {
           computeActiveNodesFromPreviousRound<false>(hypergraph);
@@ -185,6 +191,7 @@ namespace mt_kahypar {
   template <typename TypeTraits, typename GainTypes>
   void JetRefiner<TypeTraits, GainTypes>::labelPropagationRound(
                   PartitionedHypergraph& hypergraph) {
+    _locks.reset();
     // This function is passed as lambda to the changeNodePart function and used
     // to calculate the "real" delta of a move (in terms of the used objective function).
     auto objective_delta = [&](const HyperedgeID he,
@@ -226,9 +233,15 @@ namespace mt_kahypar {
 
         if (gain < 0) {
           changeNodePart(hypergraph, hn, from, to, objective_delta);
+          if (_context.refinement.jet.exactly_as_in_jet_paper) {
+            _locks.set(hn);
+          }
         }
       } else {
-        moveVertexGreedily(hypergraph, hn, objective_delta);
+        bool success = moveVertexGreedily(hypergraph, hn, objective_delta);
+        if (success && _context.refinement.jet.exactly_as_in_jet_paper) {
+          _locks.set(hn);
+        }
       }
     };
 
@@ -302,13 +315,18 @@ namespace mt_kahypar {
 
   template <typename TypeTraits, typename GainTypes>
   template <bool precomputed>
-  void JetRefiner<TypeTraits, GainTypes>::computeActiveNodesFromGraph(const PartitionedHypergraph& hypergraph) {
+  void JetRefiner<TypeTraits, GainTypes>::computeActiveNodesFromGraph(const PartitionedHypergraph& hypergraph, bool first_round) {
     const bool top_level = (hypergraph.initialNumNodes() == _top_level_num_nodes);
+    mt_kahypar::utils::Randomize& randomize = mt_kahypar::utils::Randomize::instance();
     _active_nodes.clear();
 
     auto process_node = [&](const HypernodeID hn, auto add_node_fn) {
       bool accept_border = !_context.refinement.jet.restrict_to_border_nodes || hypergraph.isBorderNode(hn);
-      if (accept_border) {
+      bool accept_locked = first_round || _context.refinement.jet.vertex_locking == 0.0 || !_locks[hn];
+      if (!accept_locked && _context.refinement.jet.vertex_locking < 1.0) {
+        accept_locked = randomize.getRandomFloat(0.0, 1.0, SCHED_GETCPU) > _context.refinement.jet.vertex_locking;
+      }
+      if (accept_border && accept_locked) {
         processNode<precomputed>(hypergraph, hn, add_node_fn, top_level);
       }
     };
@@ -500,10 +518,13 @@ namespace mt_kahypar {
 
   template <typename TypeTraits, typename GainTypes>
   void JetRefiner<TypeTraits, GainTypes>::rebalance(PartitionedHypergraph& hypergraph,
-                                                                 Metrics& current_metrics, double time_limit) {
+                                                    Metrics& current_metrics,
+                                                    double time_limit,
+                                                    size_t& rounds_without_improvement) {
     ASSERT(!_context.partition.deterministic);
+    unused(time_limit);
     mt_kahypar_partitioned_hypergraph_t phg = utils::partitioned_hg_cast(hypergraph);
-    _rebalancer.refine(phg, {}, current_metrics, time_limit);
+    _rebalancer.jetRebalance(phg, current_metrics, rounds_without_improvement);
   }
 
   namespace {

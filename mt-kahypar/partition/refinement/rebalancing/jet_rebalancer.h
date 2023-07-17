@@ -95,7 +95,8 @@ public:
                   double) {
     ASSERT(refinement_nodes.empty());
     unused(refinement_nodes);
-    return refineInternal(hypergraph, nullptr, best_metrics);
+    size_t rounds_without_improvement = 0;
+    return refineInternal(hypergraph, nullptr, best_metrics, rounds_without_improvement);
   }
 
   void initializeImpl(mt_kahypar_partitioned_hypergraph_t& hypergraph) final {
@@ -114,13 +115,21 @@ public:
                                 const double) {
     ASSERT(refinement_nodes.empty());
     unused(refinement_nodes);
-    return refineInternal(hypergraph, &moves_by_part, best_metrics);
+    size_t rounds_without_improvement = 0;
+    return refineInternal(hypergraph, &moves_by_part, best_metrics, rounds_without_improvement);
+  }
+
+  virtual bool jetRebalanceImpl(mt_kahypar_partitioned_hypergraph_t& hypergraph,
+                                Metrics& best_metrics,
+                                size_t& rounds_without_improvement) {
+    return refineInternal(hypergraph, nullptr, best_metrics, rounds_without_improvement);
   }
 
 private:
   bool refineInternal(mt_kahypar_partitioned_hypergraph_t& hypergraph,
                       vec<vec<Move>>* moves_by_part,
-                      Metrics& best_metric);
+                      Metrics& best_metric,
+                      size_t& rounds_without_improvement);
 
   template<bool ensure_balanced_moves>
   void weakRebalancingRound(PartitionedHypergraph& phg);

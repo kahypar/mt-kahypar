@@ -56,13 +56,13 @@ class JetRefiner final : public IRefiner {
                       const HyperedgeID num_hyperedges,
                       const Context& context,
                       GainCache& gain_cache,
-                      IRefiner& rebalancer);
+                      IRebalancer& rebalancer);
 
   explicit JetRefiner(const HypernodeID num_hypernodes,
                       const HyperedgeID num_hyperedges,
                       const Context& context,
                       gain_cache_t gain_cache,
-                      IRefiner& rebalancer) :
+                      IRebalancer& rebalancer) :
     JetRefiner(num_hypernodes, num_hyperedges, context,
                GainCachePtr::cast<GainCache>(gain_cache), rebalancer) {}
 
@@ -120,7 +120,7 @@ class JetRefiner final : public IRefiner {
   void initializeImpl(mt_kahypar_partitioned_hypergraph_t& phg) final;
 
   template<bool precomputed>
-  void computeActiveNodesFromGraph(const PartitionedHypergraph& hypergraph);
+  void computeActiveNodesFromGraph(const PartitionedHypergraph& hypergraph, bool first_round);
 
   void computeActiveNodesFromVector(const PartitionedHypergraph& hypergraph,
                                     const parallel::scalable_vector<HypernodeID>& refinement_nodes);
@@ -138,7 +138,7 @@ class JetRefiner final : public IRefiner {
 
   void rollbackToBestPartition(PartitionedHypergraph& hypergraph);
 
-  void rebalance(PartitionedHypergraph& hypergraph, Metrics& current_metrics, double time_limit);
+  void rebalance(PartitionedHypergraph& hypergraph, Metrics& current_metrics, double time_limit, size_t& rounds_without_improvement);
 
   template<typename F>
   void changeNodePart(PartitionedHypergraph& phg,
@@ -179,7 +179,8 @@ class JetRefiner final : public IRefiner {
   parallel::scalable_vector<std::pair<Gain, PartitionID>> _gains_and_target;
   ds::ThreadSafeFastResetFlagArray<> _next_active;
   kahypar::ds::FastResetFlagArray<> _visited_he;
-  IRefiner& _rebalancer;
+  kahypar::ds::FastResetFlagArray<> _locks;
+  IRebalancer& _rebalancer;
 };
 
 }  // namespace kahypar

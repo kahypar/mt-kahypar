@@ -146,6 +146,7 @@ struct JetParameters {
   bool execute_sequential = false;
   bool restrict_to_border_nodes = true;
   bool rollback_after_each_iteration = false;
+  bool exactly_as_in_jet_paper = false;
   double vertex_locking = 1.0;
   double negative_gain_factor_coarse = 0.25;
   double negative_gain_factor_fine = 0.75;

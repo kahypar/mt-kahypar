@@ -55,7 +55,7 @@
   static kahypar::meta::Registrar<JetFactory> register_ ## dispatcher(                                 \
     id,                                                                                                \
     [](const HypernodeID num_hypernodes, const HyperedgeID num_hyperedges,                             \
-       const Context& context, gain_cache_t gain_cache, IRefiner& rebalancer) {                        \
+       const Context& context, gain_cache_t gain_cache, IRebalancer& rebalancer) {                     \
     return dispatcher::create(                                                                         \
       std::forward_as_tuple(num_hypernodes, num_hyperedges, context, gain_cache, rebalancer),          \
       __VA_ARGS__                                                                                      \
@@ -66,7 +66,7 @@
   static kahypar::meta::Registrar<JetFactory> JOIN(register_ ## refiner, t)(                     \
     id,                                                                                          \
     [](const HypernodeID num_hypernodes, const HyperedgeID num_hyperedges,                       \
-       const Context& context, gain_cache_t gain_cache, IRefiner& rebalancer) -> IRefiner* {     \
+       const Context& context, gain_cache_t gain_cache, IRebalancer& rebalancer) -> IRefiner* {  \
     return new refiner(num_hypernodes, num_hyperedges, context, gain_cache, rebalancer);         \
   })
 

@@ -99,7 +99,7 @@ using DeterministicLabelPropagationDispatcher = kahypar::meta::StaticMultiDispat
                                                   kahypar::meta::Typelist<TypeTraitsList>>;
 
 using JetFactory = kahypar::meta::Factory<JetAlgorithm,
-                    IRefiner* (*)(HypernodeID, HyperedgeID, const Context&, gain_cache_t, IRefiner&)>;
+                    IRefiner* (*)(HypernodeID, HyperedgeID, const Context&, gain_cache_t, IRebalancer&)>;
 
 using PrecomputedJetDispatcher = kahypar::meta::StaticMultiDispatchFactory<
                                    JetRefiner,
