@@ -180,7 +180,8 @@ namespace mt_kahypar {
                                           current_metrics, rebalance_moves_by_part);
       converged |= should_stop;
     } else if (unconstrained) {
-      updateNodeData(hypergraph, next_active_nodes);
+      updateNodeData(hypergraph, next_active_nodes,
+                     !_context.refinement.label_propagation.unconstrained_lock_moved);
     }
 
     ASSERT(current_metrics.quality <= best_metrics.quality);
@@ -226,19 +227,22 @@ namespace mt_kahypar {
     }
 
     // collect activated nodes and recompute penalties
-    updateNodeData(hypergraph, next_active_nodes, &rebalance_moves_by_part);
+    updateNodeData(hypergraph, next_active_nodes,
+                   !_context.refinement.label_propagation.unconstrained_lock_moved,
+                   &rebalance_moves_by_part);
     return false;
   }
 
   template <typename TypeTraits, typename GainTypes>
   void LabelPropagationRefiner<TypeTraits, GainTypes>::updateNodeData(PartitionedHypergraph& hypergraph,
                                                                       NextActiveNodes& next_active_nodes,
+                                                                      bool activate_self_nodes,
                                                                       vec<vec<Move>>* rebalance_moves_by_part) {
     auto update_node = [&](const HypernodeID hn) {
       const PartitionID current_part = hypergraph.partID(hn);
       if (current_part != _old_part[hn]) {
         _old_part[hn] = current_part;
-        activateNodeAndNeighbors(hypergraph, next_active_nodes, hn);
+        activateNodeAndNeighbors(hypergraph, next_active_nodes, hn, activate_self_nodes);
         if ( _gain_cache.isInitialized() ) {
           _gain_cache.recomputePenaltyTermEntry(hypergraph, hn);
         }

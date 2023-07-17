@@ -131,6 +131,7 @@ struct LabelPropagationParameters {
   bool rebalancing = true;
   bool execute_sequential = false;
   bool unconstrained = false;
+  bool unconstrained_lock_moved = true;
   size_t hyperedge_size_activation_threshold = std::numeric_limits<size_t>::max();
   double relative_improvement_threshold = -1.0;
 };

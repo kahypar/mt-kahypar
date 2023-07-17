@@ -107,6 +107,7 @@ class LabelPropagationRefiner final : public IRefiner {
 
   void updateNodeData(PartitionedHypergraph& hypergraph,
                       NextActiveNodes& next_active_nodes,
+                      bool activate_self_nodes,
                       vec<vec<Move>>* rebalance_moves_by_part = nullptr);
 
   template<bool unconstrained, typename F>
@@ -150,7 +151,7 @@ class LabelPropagationRefiner final : public IRefiner {
             if constexpr (!unconstrained) {
               // in unconstrained case, we don't want to activate neighbors if the move is undone
               // by the rebalancing
-              activateNodeAndNeighbors(hypergraph, next_active_nodes, hn);
+              activateNodeAndNeighbors(hypergraph, next_active_nodes, hn, true);
             }
           } else {
             DBG << "Revert move of hypernode" << hn << "from block" << from << "to block" << to
@@ -190,7 +191,8 @@ class LabelPropagationRefiner final : public IRefiner {
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
   void activateNodeAndNeighbors(PartitionedHypergraph& hypergraph,
                                 NextActiveNodes& next_active_nodes,
-                                const HypernodeID hn) {
+                                const HypernodeID hn,
+                                bool activate_self) {
     // Set all neighbors of the vertex to active
     if constexpr (Hypergraph::is_graph) {
       for (const HyperedgeID& he : hypergraph.incidentEdges(hn)) {
@@ -215,7 +217,7 @@ class LabelPropagationRefiner final : public IRefiner {
       }
     }
 
-    if ( _next_active.compare_and_set_to_true(hn) ) {
+    if ( activate_self && _next_active.compare_and_set_to_true(hn) ) {
       next_active_nodes.stream(hn);
     }
   }

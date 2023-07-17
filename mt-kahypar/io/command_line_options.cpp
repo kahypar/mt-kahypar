@@ -379,6 +379,11 @@ namespace mt_kahypar {
                               &context.initial_partitioning.refinement.label_propagation.unconstrained))->value_name(
                      "<bool>")->default_value(false),
              "If true, then unconstrained label propagation (including rebalancing) is used.")
+            ((initial_partitioning ? "i-r-lp-unconstrained-lock-moved" : "r-lp-unconstrained-lock-moved"),
+             po::value<bool>((!initial_partitioning ? &context.refinement.label_propagation.unconstrained_lock_moved :
+                              &context.initial_partitioning.refinement.label_propagation.unconstrained_lock_moved))->value_name(
+                     "<bool>")->default_value(true),
+             "If true, then unconstrained label propagation does not activate moved vertices in order to converge faster.")
             ((initial_partitioning ? "i-r-lp-he-size-activation-threshold" : "r-lp-he-size-activation-threshold"),
              po::value<size_t>(
                      (!initial_partitioning ? &context.refinement.label_propagation.hyperedge_size_activation_threshold
