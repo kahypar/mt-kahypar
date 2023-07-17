@@ -69,13 +69,13 @@ class LocalUnconstrainedStrategy {
                              BlockPriorityQueue& blockPQ,
                              vec<VertexPriorityQueue>& vertexPQs,
                              FMStats& runStats) :
-      context(context),
-      runStats(runStats),
-      sharedData(sharedData),
-      blockPQ(blockPQ),
-      vertexPQs(vertexPQs),
-      penaltyFactor(context.refinement.fm.imbalance_penalty_max),
-      upperBound(context.refinement.fm.unconstrained_upper_bound) { }
+          context(context),
+          runStats(runStats),
+          sharedData(sharedData),
+          blockPQ(blockPQ),
+          vertexPQs(vertexPQs),
+          penaltyFactor(context.refinement.fm.imbalance_penalty_max),
+          upperBound(context.refinement.fm.unconstrained_upper_bound) { }
 
   template<typename PartitionedHypergraph, typename GainCache>
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
@@ -110,8 +110,8 @@ class LocalUnconstrainedStrategy {
     } else {
       // penalty term of designatedTargetV is not affected.
       // only move.from and move.to may be better
-      std::tie(newTarget, gain) = bestOfThree(phg, gain_cache,
-        v, pv, { designatedTargetV, move.from, move.to });
+      std::tie(newTarget, gain) = bestOfThree(phg, gain_cache, v, pv,
+                                              { designatedTargetV, move.from, move.to });
     }
 
     sharedData.targetPart[v] = newTarget;
@@ -195,8 +195,8 @@ class LocalUnconstrainedStrategy {
         sharedData.unconstrained.revertImbalancedMove(m.to, imbalance);
 
         // if (sharedData.unconstrained.isRebalancingNode(m.node)) {
-            // edge case: undo moving a rebalancing node
-            // Probably nothing to do here, since this is extremely unlikely and pessimizations are unproblematic
+        // edge case: undo moving a rebalancing node
+        // Probably nothing to do here, since this is extremely unlikely and pessimizations are unproblematic
         // }
       }
     }
@@ -238,7 +238,7 @@ class LocalUnconstrainedStrategy {
                         const PartitionID to,
                         const HypernodeID pin_count_in_to_part_after) {
     gain_cache.deltaGainUpdate(phg, he, edge_weight, from,
-      pin_count_in_from_part_after, to, pin_count_in_to_part_after);
+                               pin_count_in_from_part_after, to, pin_count_in_to_part_after);
   }
 
   void setPenaltyFactor(double penalty) {
@@ -374,7 +374,7 @@ class UnconstrainedStrategy: public IFMStrategy {
   using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
 
   UnconstrainedStrategy(const Context& context, FMSharedData& sharedData):
-      Base(context, sharedData) { }
+          Base(context, sharedData) { }
 
   bool dispatchedFindMoves(LocalFM& local_fm, PartitionedHypergraph& phg, size_t task_id, size_t num_seeds, size_t) {
     LocalUnconstrainedStrategy local_strategy = local_fm.template initializeDispatchedStrategy<LocalUnconstrainedStrategy>();

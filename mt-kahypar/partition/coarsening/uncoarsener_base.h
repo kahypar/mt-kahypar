@@ -123,7 +123,7 @@ class UncoarsenerBase {
     _gain_cache = GainCachePtr::constructGainCache(_context.partition.gain_policy);
     // refinement algorithms require access to the rebalancer
     _rebalancer = RebalancerFactory::getInstance().createObject(
-      _context.refinement.rebalancer, _context, _gain_cache);
+      _context.refinement.rebalancer, _hg.initialNumNodes(), _context, _gain_cache);
     _jet = JetFactory::getInstance().createObject(
       _context.refinement.jet.algorithm,
       _hg.initialNumNodes(), _hg.initialNumEdges(), _context, _gain_cache, *_rebalancer);

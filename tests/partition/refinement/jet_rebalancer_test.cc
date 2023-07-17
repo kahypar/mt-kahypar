@@ -64,8 +64,8 @@ struct ARebalancerTest : public Test {
     context.refinement.jet_rebalancing.greedy_balanced_use_deadzone = Config::use_deadzone;
   }
 
-  Rebalancer& getRebalancer(const Context& context, GainCache& gain_cache) {
-    rebalancer = std::make_unique<Rebalancer>(context, gain_cache);
+  Rebalancer& getRebalancer(HypernodeID num_nodes, const Context& context, GainCache& gain_cache) {
+    rebalancer = std::make_unique<Rebalancer>(num_nodes, context, gain_cache);
     return *rebalancer;
   }
 
@@ -103,7 +103,7 @@ TYPED_TEST(ARebalancerTest, BalancesBlockWithCompleteGraph) {
     gain_cache.initializeGainCache(phg);
 
     Metrics current_metrics {metrics::quality(phg, context), metrics::imbalance(phg, context)};
-    auto& rebalancer = this->getRebalancer(context, gain_cache);
+    auto& rebalancer = this->getRebalancer(hg.initialNumNodes(), context, gain_cache);
 
     mt_kahypar_partitioned_hypergraph_t tmp_phg = utils::partitioned_hg_cast(phg);
     rebalancer.initialize(tmp_phg);
@@ -135,7 +135,7 @@ TYPED_TEST(ARebalancerTest, BalancesRandomAssignment) {
     gain_cache.initializeGainCache(phg);
 
     Metrics current_metrics {metrics::quality(phg, context), metrics::imbalance(phg, context)};
-    auto& rebalancer = this->getRebalancer(context, gain_cache);
+    auto& rebalancer = this->getRebalancer(hg.initialNumNodes(), context, gain_cache);
 
     mt_kahypar_partitioned_hypergraph_t tmp_phg = utils::partitioned_hg_cast(phg);
     rebalancer.initialize(tmp_phg);

@@ -31,7 +31,7 @@
 
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/utils/utilities.h"
-#include "mt-kahypar/partition/factories.h"
+#include "mt-kahypar/partition/factories.h"   // TODO removing this could make compilation a lot faster
 #include "mt-kahypar/partition/metrics.h"
 #include "mt-kahypar/partition/refinement/gains/gain_definitions.h"
 #include "mt-kahypar/utils/memory_tree.h"
@@ -46,16 +46,16 @@ namespace mt_kahypar {
                                                         const Context& c,
                                                         GainCache& gainCache,
                                                         IRebalancer& rb) :
-    initial_num_nodes(num_hypernodes),
-    context(c),
-    gain_cache(gainCache),
-    current_k(c.partition.k),
-    sharedData(num_hypernodes),
-    fm_strategy(FMStrategyFactory::getInstance().createObject(context.refinement.fm.algorithm, context, sharedData)),
-    globalRollback(num_hyperedges, context, gainCache),
-    ets_fm([&] { return constructLocalizedKWayFMSearch(); }),
-    tmp_move_order(num_hypernodes),
-    rebalancer(rb) {
+          initial_num_nodes(num_hypernodes),
+          context(c),
+          gain_cache(gainCache),
+          current_k(c.partition.k),
+          sharedData(num_hypernodes),
+          fm_strategy(FMStrategyFactory::getInstance().createObject(context.refinement.fm.algorithm, context, sharedData)),
+          globalRollback(num_hyperedges, context, gainCache),
+          ets_fm([&] { return constructLocalizedKWayFMSearch(); }),
+          tmp_move_order(num_hypernodes),
+          rebalancer(rb) {
     if (context.refinement.fm.obey_minimal_parallelism) {
       sharedData.finishedTasksLimit = std::min(UL(8), context.shared_memory.num_threads);
     }
@@ -85,10 +85,10 @@ namespace mt_kahypar {
 
   template<typename TypeTraits, typename GainTypes>
   bool MultiTryKWayFM<TypeTraits, GainTypes>::refineImpl(
-              mt_kahypar_partitioned_hypergraph_t& hypergraph,
-              const vec<HypernodeID>& refinement_nodes,
-              Metrics& metrics,
-              const double time_limit) {
+          mt_kahypar_partitioned_hypergraph_t& hypergraph,
+          const vec<HypernodeID>& refinement_nodes,
+          Metrics& metrics,
+          const double time_limit) {
     PartitionedHypergraph& phg = utils::cast<PartitionedHypergraph>(hypergraph);
 
     if (!is_initialized) throw std::runtime_error("Call initialize on fm before calling refine");
@@ -175,7 +175,7 @@ namespace mt_kahypar {
         if (!moves_by_part.empty()) {
           // compute new move sequence where each imbalanced move is immediately rebalanced
           interleaveMoveSequenceWithRebalancingMoves(phg, initialPartWeights, max_part_weights, moves_by_part,
-                                                      context.refinement.fm.only_append_rebalancing_moves);
+                                                     context.refinement.fm.only_append_rebalancing_moves);
         }
       }
 
@@ -188,7 +188,7 @@ namespace mt_kahypar {
       }
 
       const double roundImprovementFraction = improvementFraction(improvement,
-        metrics.quality - overall_improvement);
+                                                                  metrics.quality - overall_improvement);
       overall_improvement += improvement;
       if (roundImprovementFraction < context.refinement.fm.min_improvement) {
         consecutive_rounds_with_too_little_improvement++;
@@ -225,7 +225,7 @@ namespace mt_kahypar {
       }
 
       if ( (improvement <= 0 && (!context.refinement.fm.activate_unconstrained_dynamically || round > 1))
-            || consecutive_rounds_with_too_little_improvement >= 2 ) {
+           || consecutive_rounds_with_too_little_improvement >= 2 ) {
         break;
       }
     }
@@ -244,7 +244,8 @@ namespace mt_kahypar {
     metrics.imbalance = metrics::imbalance(phg, context);
     HEAVY_REFINEMENT_ASSERT(phg.checkTrackedPartitionInformation(gain_cache));
     ASSERT(metrics.quality == metrics::quality(phg, context),
-      V(metrics.quality) << V(metrics::quality(phg, context)));
+           V(metrics.quality) << V(metrics::quality(phg, context)));
+
     return overall_improvement > 0;
   }
 
@@ -299,11 +300,11 @@ namespace mt_kahypar {
 
   template<typename TypeTraits, typename GainTypes>
   void MultiTryKWayFM<TypeTraits, GainTypes>::interleaveMoveSequenceWithRebalancingMoves(
-                                                            const PartitionedHypergraph& phg,
-                                                            const vec<HypernodeWeight>& initialPartWeights,
-                                                            const std::vector<HypernodeWeight>& max_part_weights,
-                                                            vec<vec<Move>>& rebalancing_moves_by_part,
-                                                            bool only_append_moves) {
+          const PartitionedHypergraph& phg,
+          const vec<HypernodeWeight>& initialPartWeights,
+          const std::vector<HypernodeWeight>& max_part_weights,
+          vec<vec<Move>>& rebalancing_moves_by_part,
+          bool only_append_moves) {
     ASSERT(rebalancing_moves_by_part.size() == static_cast<size_t>(context.partition.k));
     HEAVY_REFINEMENT_ASSERT([&] {
       std::set<HypernodeID> moved_nodes;
@@ -412,14 +413,14 @@ namespace mt_kahypar {
 
   template<typename TypeTraits, typename GainTypes>
   void MultiTryKWayFM<TypeTraits, GainTypes>::insertMovesToBalancePart(const PartitionedHypergraph& phg,
-                                                                                   const PartitionID part,
-                                                                                   const std::vector<HypernodeWeight>& max_part_weights,
-                                                                                   const vec<vec<Move>>& rebalancing_moves_by_part,
-                                                                                   MoveID& next_move_index,
-                                                                                   vec<HypernodeWeight>& current_part_weights,
-                                                                                   vec<MoveID>& current_rebalancing_move_index) {
+                                                                       const PartitionID part,
+                                                                       const std::vector<HypernodeWeight>& max_part_weights,
+                                                                       const vec<vec<Move>>& rebalancing_moves_by_part,
+                                                                       MoveID& next_move_index,
+                                                                       vec<HypernodeWeight>& current_part_weights,
+                                                                       vec<MoveID>& current_rebalancing_move_index) {
     while (current_part_weights[part] > max_part_weights[part]
-            && current_rebalancing_move_index[part] < rebalancing_moves_by_part[part].size()) {
+           && current_rebalancing_move_index[part] < rebalancing_moves_by_part[part].size()) {
       const MoveID move_index_for_part = current_rebalancing_move_index[part];
       const Move& m = rebalancing_moves_by_part[part][move_index_for_part];
       ++current_rebalancing_move_index[part];
@@ -488,7 +489,7 @@ namespace mt_kahypar {
   }
 
   namespace {
-  #define MULTITRY_KWAY_FM(X, Y) MultiTryKWayFM<X, Y>
+#define MULTITRY_KWAY_FM(X, Y) MultiTryKWayFM<X, Y>
   }
 
   INSTANTIATE_CLASS_WITH_TYPE_TRAITS_AND_GAIN_TYPES(MULTITRY_KWAY_FM)

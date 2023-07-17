@@ -42,14 +42,14 @@ class CoolingStrategy: public IFMStrategy {
   using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
 
   CoolingStrategy(const Context& context, FMSharedData& sharedData):
-      Base(context, sharedData),
-      current_penalty(context.refinement.fm.imbalance_penalty_min),
-      current_upper_bound(context.refinement.fm.unconstrained_upper_bound),
-      absolute_improvement_first_round(kInvalidGain),
-      unconstrained_is_enabled(true) {
-        ASSERT(!context.refinement.fm.activate_unconstrained_dynamically
-               || context.refinement.fm.multitry_rounds > 2);
-      }
+          Base(context, sharedData),
+          current_penalty(context.refinement.fm.imbalance_penalty_min),
+          current_upper_bound(context.refinement.fm.unconstrained_upper_bound),
+          absolute_improvement_first_round(kInvalidGain),
+          unconstrained_is_enabled(true) {
+    ASSERT(!context.refinement.fm.activate_unconstrained_dynamically
+            || context.refinement.fm.multitry_rounds > 2);
+  }
 
   bool dispatchedFindMoves(LocalFM& local_fm, PartitionedHypergraph& phg, size_t task_id, size_t num_seeds, size_t round) {
     if (isUnconstrainedRound(round)) {
@@ -91,9 +91,9 @@ class CoolingStrategy: public IFMStrategy {
     } else if (round == 1
                && context.refinement.fm.activate_unconstrained_dynamically
                && absolute_improvement < absolute_improvement_first_round) {
-        // this is the decision point whether unconstrained or constrained FM is used
-        unconstrained_is_enabled = false;
-        DBG << "Disabling unconstrained FM after test round: " << V(absolute_improvement) << V(absolute_improvement_first_round);
+      // this is the decision point whether unconstrained or constrained FM is used
+      unconstrained_is_enabled = false;
+      DBG << "Disabling unconstrained FM after test round: " << V(absolute_improvement) << V(absolute_improvement_first_round);
     } else if (relative_improvement < context.refinement.fm.unconstrained_min_improvement) {
       unconstrained_is_enabled = false;
       DBG << "Disabling unconstrained FM due to too little improvement:" << V(relative_improvement);

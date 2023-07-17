@@ -69,7 +69,6 @@ struct GlobalMoveTracker {
     const MoveID move_id = runningMoveID.fetch_add(1, std::memory_order_relaxed);
     assert(move_id - firstMoveID < moveOrder.size());
     moveOrder[move_id - firstMoveID] = m;
-    moveOrder[move_id - firstMoveID].gain = 0;      // set to zero so the recalculation can safely distribute
     moveOfNode[m.node] = move_id;
     return move_id;
   }
