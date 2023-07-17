@@ -438,6 +438,11 @@ namespace mt_kahypar {
                               &context.initial_partitioning.refinement.jet.rollback_after_each_iteration))->value_name(
                      "<bool>")->default_value(false),
              "If true, rollback to best partition in each iteration without improvement.")
+            ((initial_partitioning ? "i-r-jet-exactly-as-in-paper" : "r-jet-exactly-as-in-paper"),
+             po::value<bool>((!initial_partitioning ? &context.refinement.jet.exactly_as_in_jet_paper :
+                              &context.initial_partitioning.refinement.jet.exactly_as_in_jet_paper))->value_name(
+                     "<bool>")->default_value(false),
+             "Use same way of counting iterations as in jet paper and always initialize active nodes from complete graph.")
             ((initial_partitioning ? "i-r-jet-vertex-locking" : "r-jet-vertex-locking"),
              po::value<double>((!initial_partitioning ? &context.refinement.jet.vertex_locking :
                               &context.initial_partitioning.refinement.jet.vertex_locking))->value_name(
