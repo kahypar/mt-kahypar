@@ -241,36 +241,44 @@ namespace mt_kahypar {
     auto update_node = [&](const HypernodeID hn) {
       const PartitionID current_part = hypergraph.partID(hn);
       if (current_part != _old_part[hn]) {
-        _old_part[hn] = current_part;
         activateNodeAndNeighbors(hypergraph, next_active_nodes, hn, activate_self_nodes);
         if ( _gain_cache.isInitialized() ) {
           _gain_cache.recomputePenaltyTermEntry(hypergraph, hn);
         }
       }
     };
-    if ( _context.refinement.label_propagation.execute_sequential ) {
-      for (const HypernodeID hn: _active_nodes) {
-        update_node(hn);
-      }
-    } else {
-      tbb::parallel_for(UL(0), _active_nodes.size(), [&](const size_t j) {
-        update_node(_active_nodes[j]);
-      });
-    }
+    auto reset_node = [&](const HypernodeID hn) {
+      _old_part[hn] = hypergraph.partID(hn);
+    };
 
-    if (rebalance_moves_by_part != nullptr) {
-      for (const auto& moves: *rebalance_moves_by_part) {
-        if ( _context.refinement.label_propagation.execute_sequential ) {
-          for (const Move& m: moves) {
-            update_node(m.node);
+    auto for_each_moved_node = [&](auto apply) {
+      if ( _context.refinement.label_propagation.execute_sequential ) {
+        for (const HypernodeID hn: _active_nodes) {
+          apply(hn);
+        }
+      } else {
+        tbb::parallel_for(UL(0), _active_nodes.size(), [&](const size_t j) {
+          apply(_active_nodes[j]);
+        });
+      }
+
+      if (rebalance_moves_by_part != nullptr) {
+        for (const auto& moves: *rebalance_moves_by_part) {
+          if ( _context.refinement.label_propagation.execute_sequential ) {
+            for (const Move& m: moves) {
+              apply(m.node);
+            }
+          } else {
+            tbb::parallel_for(UL(0), moves.size(), [&](const size_t j) {
+              apply(moves[j].node);
+            });
           }
-        } else {
-          tbb::parallel_for(UL(0), moves.size(), [&](const size_t j) {
-            update_node(moves[j].node);
-          });
         }
       }
-    }
+    };
+
+    for_each_moved_node(update_node);
+    for_each_moved_node(reset_node);
   }
 
   template <typename TypeTraits, typename GainTypes>

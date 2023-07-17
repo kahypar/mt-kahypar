@@ -192,14 +192,19 @@ class LabelPropagationRefiner final : public IRefiner {
   void activateNodeAndNeighbors(PartitionedHypergraph& hypergraph,
                                 NextActiveNodes& next_active_nodes,
                                 const HypernodeID hn,
-                                bool activate_self) {
+                                bool activate_moved) {
+    auto activate = [&](const HypernodeID hn) {
+      if (activate_moved || hypergraph.partID(hn) == _old_part[hn]) {
+        if ( _next_active.compare_and_set_to_true(hn) ) {
+          next_active_nodes.stream(hn);
+        }
+      }
+    };
+
     // Set all neighbors of the vertex to active
     if constexpr (Hypergraph::is_graph) {
       for (const HyperedgeID& he : hypergraph.incidentEdges(hn)) {
-        const HypernodeID target = hypergraph.edgeTarget(he);
-        if ( _next_active.compare_and_set_to_true(target) ) {
-          next_active_nodes.stream(target);
-        }
+        activate(hypergraph.edgeTarget(he));
       }
     } else {
       for (const HyperedgeID& he : hypergraph.incidentEdges(hn)) {
@@ -207,9 +212,7 @@ class LabelPropagationRefiner final : public IRefiner {
               ID(_context.refinement.label_propagation.hyperedge_size_activation_threshold) ) {
           if ( !_visited_he[he] ) {
             for (const HypernodeID& pin : hypergraph.pins(he)) {
-              if ( _next_active.compare_and_set_to_true(pin) ) {
-                next_active_nodes.stream(pin);
-              }
+              activate(pin);
             }
             _visited_he.set(he, true);
           }
@@ -217,7 +220,7 @@ class LabelPropagationRefiner final : public IRefiner {
       }
     }
 
-    if ( activate_self && _next_active.compare_and_set_to_true(hn) ) {
+    if ( activate_moved && _next_active.compare_and_set_to_true(hn) ) {
       next_active_nodes.stream(hn);
     }
   }
