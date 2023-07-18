@@ -87,7 +87,6 @@ int main(int argc, const char* argv[]) {
     if (row >= num_nodes || col >= num_nodes) {
       std::cerr << "Row or col index higher than number of nodes " << row << " " << col << " " << num_nodes << std::endl;
       std::cerr << line << std::endl;
-      std::cerr << pos << " " << l << std::endl;
       std::abort();
     }
     adj_list[row].push_back(col);
@@ -98,7 +97,38 @@ int main(int argc, const char* argv[]) {
 
   std::cout << (t3-t1).count() << " reading time. " << std::endl;
 
-  std::cout << "finished reading. start writing" << std::endl;
+  bool deg_zero = false;
+  for (const auto& n : adj_list) {
+    if (n.empty()) {
+      deg_zero = true;
+      break;
+    }
+  }
+  if (deg_zero) {
+    std::cerr << "Has zero degree nodes" << std::endl;
+
+#ifdef false
+    std::cerr << "Remap node IDs." << std::endl;
+    std::vector<int64_t> remapped_node_ids(num_nodes, -1);
+    uint64_t new_node_id = 0;
+    for (uint64_t u = 0; u < num_nodes; ++u) {
+      if (!adj_list[u].empty()) {
+        adj_list[new_node_id] = std::move(adj_list[u]);
+        remapped_node_ids[u] = new_node_id;
+        new_node_id++;
+      }
+    }
+
+    adj_list.resize(new_node_id);
+    num_nodes = new_node_id;
+
+    for (auto& n : adj_list) {
+      for (auto& v : n) {
+        v = remapped_node_ids[v];
+      }
+    }
+#endif
+  }
 
 #ifdef false
   for (auto neigh : adj_list) {
