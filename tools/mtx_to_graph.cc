@@ -25,6 +25,7 @@ int main(int argc, const char* argv[]) {
   uint64_t nrows = 0, ncols = 0, nnz = 0;
   std::string dummy, line, symmetry_str;
   bool symmetric = false;
+  bool binary = false;
 
   { // header
     std::getline(in, line);
@@ -44,6 +45,9 @@ int main(int argc, const char* argv[]) {
         std::abort();
       }
       std::cerr << "Warning. The matrix isn't symmetric. This will result in a directed graph" << std::endl;
+    }
+    if (data_format == "pattern") {
+      binary = true;
     }
   }
 
@@ -80,7 +84,7 @@ int main(int argc, const char* argv[]) {
     ++pos;
     l = pos;
     while (pos < line.size() && line[pos] != ' ') { ++pos; }
-    if (pos == line.size()) {  throw std::runtime_error("Line too short"); }
+    if (pos == line.size() && !binary) {  throw std::runtime_error("Line too short"); }
     std::from_chars(line.data() + l, line.data() + pos, col);
 
     if (row == col) continue;
