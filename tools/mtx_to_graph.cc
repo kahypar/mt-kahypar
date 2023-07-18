@@ -21,7 +21,7 @@ int main(int argc, const char* argv[]) {
     std::abort();
   }
 
-  uint64_t num_nodes = 0;
+  uint64_t num_nodes = 0, num_edges = 0;
   uint64_t nrows = 0, ncols = 0, nnz = 0;
   std::string dummy, line, symmetry_str;
   bool symmetric = false;
@@ -84,7 +84,7 @@ int main(int argc, const char* argv[]) {
     std::from_chars(line.data() + l, line.data() + pos, col);
 
     if (row == col) continue;
-    
+
     --row; --col;
     if (row >= num_nodes || col >= num_nodes) {
       std::cerr << "Row or col index higher than number of nodes " << row << " " << col << " " << num_nodes << std::endl;
@@ -97,18 +97,62 @@ int main(int argc, const char* argv[]) {
 
   auto t3 = std::chrono::high_resolution_clock::now();
 
-  std::cout << (t3-t1).count() << " reading time. " << std::endl;
+  std::cout << (t3-t1).count() / 1e6 << " ms reading time. " << std::endl;
 
-  bool deg_zero = false;
+  if (!symmetric) {
+    std::cout << "Not symmetric --> Symmetrize" << std::endl;
+    num_edges = 0; for (const auto& n : adj_list) num_edges += n.size();
+    std::cout << "num directed edges before " << num_edges << std::endl;
+
+    std::vector<bool> is_adj(num_nodes, false);
+    std::vector<uint64_t> old_degrees(num_nodes, 0);
+    for (uint64_t u = 0; u < num_nodes; ++u) {
+      old_degrees[u] = adj_list[u].size();
+    }
+
+    // symmetrize
+    for (uint64_t u = 0; u < num_nodes; ++u) {
+      for (int v : adj_list[u]) {
+        adj_list[v].push_back(u);
+      }
+    }
+
+    // remove duplicates
+    for (uint64_t u = 0; u < num_nodes; ++u) {
+      auto& n = adj_list[u];
+      for (uint64_t j = 0; j < old_degrees[u]; ++j) { is_adj[n[j]] = true; }
+      uint64_t l = old_degrees[u];
+      for (uint64_t j = old_degrees[u]; j < n.size(); ++j) {
+        if (!is_adj[n[j]]) {  // keep_if
+          n[l++] = n[j];
+        }
+      }
+      n.resize(l);
+#ifdef false
+      if (l != old_degrees[u]) {
+        std::cout << "Node " << u << " got " << (l - old_degrees[u]) << " new edges. old deg = " << old_degrees[u] << std::endl;
+        std::cout << "New neighbors:";
+        for (uint64_t j = old_degrees[u]; j < n.size(); ++j) {
+          std::cout << " " << n[j];
+        }
+        std::cout << std::endl;
+      }
+#endif
+      for (uint64_t j = 0; j < old_degrees[u]; ++j) { is_adj[n[j]] = false; }
+    }
+
+    num_edges = 0; for (const auto& n : adj_list) num_edges += n.size();
+    std::cout << "num directed edges after " << num_edges << std::endl;
+  }
+
+  size_t deg_zero = 0;
   for (const auto& n : adj_list) {
     if (n.empty()) {
-      deg_zero = true;
-      break;
+      deg_zero++;
     }
   }
   if (deg_zero) {
-    std::cerr << "Has zero degree nodes" << std::endl;
-
+    std::cerr << "Has " << deg_zero << " zero degree nodes" << std::endl;
 #ifdef false
     std::cerr << "Remap node IDs." << std::endl;
     std::vector<int64_t> remapped_node_ids(num_nodes, -1);
@@ -141,7 +185,7 @@ int main(int argc, const char* argv[]) {
   }
 #endif
 
-  uint64_t num_edges = 0;
+  num_edges = 0;
   for (const auto& n : adj_list) num_edges += n.size();
   if (num_edges % 2 != 0) {
     std::cerr << "Num edges not even " << num_edges << std::endl;
