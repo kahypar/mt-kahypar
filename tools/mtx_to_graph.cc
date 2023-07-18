@@ -83,6 +83,8 @@ int main(int argc, const char* argv[]) {
     if (pos == line.size()) {  throw std::runtime_error("Line too short"); }
     std::from_chars(line.data() + l, line.data() + pos, col);
 
+    if (row == col) continue;
+    
     --row; --col;
     if (row >= num_nodes || col >= num_nodes) {
       std::cerr << "Row or col index higher than number of nodes " << row << " " << col << " " << num_nodes << std::endl;
