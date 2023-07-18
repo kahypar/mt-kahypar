@@ -524,7 +524,11 @@ namespace mt_kahypar {
     ASSERT(!_context.partition.deterministic);
     unused(time_limit);
     mt_kahypar_partitioned_hypergraph_t phg = utils::partitioned_hg_cast(hypergraph);
-    _rebalancer.jetRebalance(phg, current_metrics, rounds_without_improvement);
+    if (_context.refinement.jet.exactly_as_in_jet_paper) {
+      _rebalancer.jetRebalance(phg, current_metrics, rounds_without_improvement);
+    } else {
+      _rebalancer.refine(phg, {}, current_metrics, time_limit);
+    }
   }
 
   namespace {
