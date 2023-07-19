@@ -12,7 +12,8 @@ namespace mt_kahypar {
 
 namespace impl {
 
-  float transformGain(Gain gain, HypernodeWeight wu) {
+  float transformGain(Gain gain_, HypernodeWeight wu) {
+    float gain = gain_;
     if (gain > 0) {
       gain *= wu;
     } else if (gain < 0) {
