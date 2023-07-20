@@ -5,6 +5,7 @@ target_link_libraries(mtkahypar ${Boost_LIBRARIES} TBB::tbb TBB::tbbmalloc_proxy
 target_compile_definitions(mtkahypar PUBLIC MT_KAHYPAR_LIBRARY_MODE)
 target_compile_definitions(mtkahypar PUBLIC KAHYPAR_ENABLE_LARGE_K_PARTITIONING_FEATURES)
 target_compile_definitions(mtkahypar PUBLIC KAHYPAR_ENABLE_QUALITY_PRESET_FEATURES)
+target_compile_definitions(mtkahypar PUBLIC KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES)
 
 set(PARTITIONING_SUITE_TARGETS ${PARTITIONING_SUITE_TARGETS} mtkahypar PARENT_SCOPE)
 
