@@ -71,9 +71,15 @@ namespace internal {
 
   void check_if_feature_is_enabled(const mt_kahypar_partition_type_t type) {
     unused(type);
+    #ifndef KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES
+    if ( type == MULTILEVEL_GRAPH_PARTITIONING || type == N_LEVEL_GRAPH_PARTITIONING ) {
+      ERR("Graph partitioning features are deactivated. Add -DKAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES=ON"
+        << "to the cmake command and rebuild Mt-KaHyPar.");
+    }
+    #endif
     #ifndef KAHYPAR_ENABLE_QUALITY_PRESET_FEATURES
     if ( type == N_LEVEL_HYPERGRAPH_PARTITIONING || type == N_LEVEL_GRAPH_PARTITIONING ) {
-      ERR("n-level partitioning features are deactivated. Add -DKAHYPAR_ENABLE_QUALITY_PRESET_FEATURES=ON"
+      ERR("Quality preset features are deactivated. Add -KAHYPAR_ENABLE_QUALITY_PRESET_FEATURES=ON"
         << "to the cmake command and rebuild Mt-KaHyPar.");
     }
     #endif
@@ -94,8 +100,10 @@ namespace internal {
       context.partition.preset_type, context.partition.instance_type);
     internal::check_if_feature_is_enabled(type);
     switch ( type ) {
+      #ifdef KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES
       case MULTILEVEL_GRAPH_PARTITIONING:
         return internal::partition<StaticGraphTypeTraits>(hypergraph, context, target_graph);
+      #endif
       case MULTILEVEL_HYPERGRAPH_PARTITIONING:
         return internal::partition<StaticHypergraphTypeTraits>(hypergraph, context, target_graph);
       #ifdef KAHYPAR_ENABLE_LARGE_K_PARTITIONING_FEATURES
@@ -103,8 +111,10 @@ namespace internal {
         return internal::partition<LargeKHypergraphTypeTraits>(hypergraph, context, target_graph);
       #endif
       #ifdef KAHYPAR_ENABLE_QUALITY_PRESET_FEATURES
+      #ifdef KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES
       case N_LEVEL_GRAPH_PARTITIONING:
         return internal::partition<DynamicGraphTypeTraits>(hypergraph, context, target_graph);
+      #endif
       case N_LEVEL_HYPERGRAPH_PARTITIONING:
         return internal::partition<DynamicHypergraphTypeTraits>(hypergraph, context, target_graph);
       #endif
@@ -122,8 +132,10 @@ namespace internal {
       context.partition.preset_type, context.partition.instance_type);
     internal::check_if_feature_is_enabled(type);
     switch ( type ) {
+      #ifdef KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES
       case MULTILEVEL_GRAPH_PARTITIONING:
         internal::improve<StaticGraphTypeTraits>(partitioned_hg, context, target_graph); break;
+      #endif
       case MULTILEVEL_HYPERGRAPH_PARTITIONING:
         internal::improve<StaticHypergraphTypeTraits>(partitioned_hg, context, target_graph); break;
       #ifdef KAHYPAR_ENABLE_LARGE_K_PARTITIONING_FEATURES
@@ -131,8 +143,10 @@ namespace internal {
         internal::improve<LargeKHypergraphTypeTraits>(partitioned_hg, context, target_graph); break;
       #endif
       #ifdef KAHYPAR_ENABLE_QUALITY_PRESET_FEATURES
+      #ifdef KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES
       case N_LEVEL_GRAPH_PARTITIONING:
         internal::improve<DynamicGraphTypeTraits>(partitioned_hg, context, target_graph); break;
+      #endif
       case N_LEVEL_HYPERGRAPH_PARTITIONING:
         internal::improve<DynamicHypergraphTypeTraits>(partitioned_hg, context, target_graph); break;
       #endif
@@ -145,9 +159,11 @@ namespace internal {
                                                    const std::chrono::duration<double>& elapsed_seconds) {
     const mt_kahypar_partition_type_t type = phg.type;
     switch ( type ) {
+      #ifdef KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES
       case MULTILEVEL_GRAPH_PARTITIONING:
         io::printPartitioningResults(utils::cast_const<StaticPartitionedGraph>(phg), context, elapsed_seconds);
         break;
+      #endif
       case MULTILEVEL_HYPERGRAPH_PARTITIONING:
         io::printPartitioningResults(utils::cast_const<StaticPartitionedHypergraph>(phg), context, elapsed_seconds);
         break;
@@ -157,9 +173,11 @@ namespace internal {
         break;
       #endif
       #ifdef KAHYPAR_ENABLE_QUALITY_PRESET_FEATURES
+      #ifdef KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES
       case N_LEVEL_GRAPH_PARTITIONING:
         io::printPartitioningResults(utils::cast_const<DynamicPartitionedGraph>(phg), context, elapsed_seconds);
         break;
+      #endif
       case N_LEVEL_HYPERGRAPH_PARTITIONING:
         io::printPartitioningResults(utils::cast_const<DynamicPartitionedHypergraph>(phg), context, elapsed_seconds);
         break;
@@ -173,9 +191,11 @@ namespace internal {
                                               const std::chrono::duration<double>& elapsed_seconds) {
     const mt_kahypar_partition_type_t type = phg.type;
     switch ( type ) {
+      #ifdef KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES
       case MULTILEVEL_GRAPH_PARTITIONING:
         return io::csv::serialize(utils::cast_const<StaticPartitionedGraph>(phg), context, elapsed_seconds);
         break;
+      #endif
       case MULTILEVEL_HYPERGRAPH_PARTITIONING:
         return io::csv::serialize(utils::cast_const<StaticPartitionedHypergraph>(phg), context, elapsed_seconds);
       #ifdef KAHYPAR_ENABLE_LARGE_K_PARTITIONING_FEATURES
@@ -183,9 +203,10 @@ namespace internal {
         return io::csv::serialize(utils::cast_const<StaticSparsePartitionedHypergraph>(phg), context, elapsed_seconds);
       #endif
       #ifdef KAHYPAR_ENABLE_QUALITY_PRESET_FEATURES
-
+      #ifdef KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES
       case N_LEVEL_GRAPH_PARTITIONING:
         return io::csv::serialize(utils::cast_const<DynamicPartitionedGraph>(phg), context, elapsed_seconds);
+      #endif
       case N_LEVEL_HYPERGRAPH_PARTITIONING:
         return io::csv::serialize(utils::cast_const<DynamicPartitionedHypergraph>(phg), context, elapsed_seconds);
       #endif
@@ -199,8 +220,10 @@ namespace internal {
                                                      const std::chrono::duration<double>& elapsed_seconds) {
     const mt_kahypar_partition_type_t type = phg.type;
     switch ( type ) {
+      #ifdef KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES
       case MULTILEVEL_GRAPH_PARTITIONING:
         return io::serializer::serialize(utils::cast_const<StaticPartitionedGraph>(phg), context, elapsed_seconds);
+      #endif
       case MULTILEVEL_HYPERGRAPH_PARTITIONING:
         return io::serializer::serialize(utils::cast_const<StaticPartitionedHypergraph>(phg), context, elapsed_seconds);
       #ifdef KAHYPAR_ENABLE_LARGE_K_PARTITIONING_FEATURES
@@ -208,8 +231,10 @@ namespace internal {
         return io::serializer::serialize(utils::cast_const<StaticSparsePartitionedHypergraph>(phg), context, elapsed_seconds);
       #endif
       #ifdef KAHYPAR_ENABLE_QUALITY_PRESET_FEATURES
+      #ifdef KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES
       case N_LEVEL_GRAPH_PARTITIONING:
         return io::serializer::serialize(utils::cast_const<DynamicPartitionedGraph>(phg), context, elapsed_seconds);
+      #endif
       case N_LEVEL_HYPERGRAPH_PARTITIONING:
         return io::serializer::serialize(utils::cast_const<DynamicPartitionedHypergraph>(phg), context, elapsed_seconds);
       #endif
@@ -222,9 +247,11 @@ namespace internal {
                                              const std::string& filename) {
     const mt_kahypar_partition_type_t type = phg.type;
     switch ( type ) {
+      #ifdef KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES
       case MULTILEVEL_GRAPH_PARTITIONING:
         io::writePartitionFile(utils::cast_const<StaticPartitionedGraph>(phg), filename);
         break;
+      #endif
       case MULTILEVEL_HYPERGRAPH_PARTITIONING:
         io::writePartitionFile(utils::cast_const<StaticPartitionedHypergraph>(phg), filename);
         break;
@@ -234,9 +261,11 @@ namespace internal {
         break;
       #endif
       #ifdef KAHYPAR_ENABLE_QUALITY_PRESET_FEATURES
+      #ifdef KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES
       case N_LEVEL_GRAPH_PARTITIONING:
         io::writePartitionFile(utils::cast_const<DynamicPartitionedGraph>(phg), filename);
         break;
+      #endif
       case N_LEVEL_HYPERGRAPH_PARTITIONING:
         io::writePartitionFile(utils::cast_const<DynamicPartitionedHypergraph>(phg), filename);
         break;

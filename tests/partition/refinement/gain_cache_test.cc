@@ -433,15 +433,15 @@ class AGainCache : public Test {
 typedef ::testing::Types<TestConfig<StaticHypergraphTypeTraits, Km1GainTypes>,
                          TestConfig<StaticHypergraphTypeTraits, CutGainTypes>,
                          TestConfig<StaticHypergraphTypeTraits, SoedGainTypes>,
-                         TestConfig<StaticHypergraphTypeTraits, ProcessMappingGainTypes>,
-                         TestConfig<StaticGraphTypeTraits, CutGainForGraphsTypes>,
-                         TestConfig<StaticGraphTypeTraits, ProcessMappingForGraphsTypes>
-                         ENABLE_N_LEVEL(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA Km1GainTypes>)
-                         ENABLE_N_LEVEL(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA CutGainTypes>)
-                         ENABLE_N_LEVEL(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA SoedGainTypes>)
-                         ENABLE_N_LEVEL(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA ProcessMappingGainTypes>)
-                         ENABLE_N_LEVEL(COMMA TestConfig<DynamicGraphTypeTraits COMMA CutGainForGraphsTypes>)
-                         ENABLE_N_LEVEL(COMMA TestConfig<DynamicGraphTypeTraits COMMA ProcessMappingForGraphsTypes>)
+                         TestConfig<StaticHypergraphTypeTraits, ProcessMappingGainTypes>
+                         ENABLE_GRAPHS(COMMA TestConfig<StaticGraphTypeTraits, CutGainForGraphsTypes>)
+                         ENABLE_GRAPHS(COMMA TestConfig<StaticGraphTypeTraits, ProcessMappingForGraphsTypes>)
+                         ENABLE_QUALITY_PRESET(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA Km1GainTypes>)
+                         ENABLE_QUALITY_PRESET(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA CutGainTypes>)
+                         ENABLE_QUALITY_PRESET(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA SoedGainTypes>)
+                         ENABLE_QUALITY_PRESET(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA ProcessMappingGainTypes>)
+                         ENABLE_QUALITY_PRESET_FOR_GRAPHS(COMMA TestConfig<DynamicGraphTypeTraits COMMA CutGainForGraphsTypes>)
+                         ENABLE_QUALITY_PRESET_FOR_GRAPHS(COMMA TestConfig<DynamicGraphTypeTraits COMMA ProcessMappingForGraphsTypes>)
                          ENABLE_LARGE_K(COMMA TestConfig<LargeKHypergraphTypeTraits COMMA Km1GainTypes>)
                          ENABLE_LARGE_K(COMMA TestConfig<LargeKHypergraphTypeTraits COMMA CutGainTypes>)
                          ENABLE_LARGE_K(COMMA TestConfig<LargeKHypergraphTypeTraits COMMA SoedGainTypes>)

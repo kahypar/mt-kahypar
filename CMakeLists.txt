@@ -61,6 +61,9 @@ option(KAHYPAR_ENABLE_ARCH_COMPILE_OPTIMIZATIONS
 option(KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES
   "Enables some experimental features. Can be turned off for faster compilation." OFF)
 
+option(KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES
+  "Enables graph partitioning features. Can be turned off for faster compilation." ON)
+
 option(KAHYPAR_ENABLE_QUALITY_PRESET_FEATURES
   "Enables quality preset features (quality and quality_flows). Can be turned off for faster compilation." ON)
 
@@ -106,6 +109,10 @@ endif(KAHYPAR_ENABLE_THREAD_PINNING)
 if(KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES)
   add_compile_definitions(KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES)
 endif(KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES)
+
+if(KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES)
+  add_compile_definitions(KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES)
+endif(KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES)
 
 if(KAHYPAR_ENABLE_QUALITY_PRESET_FEATURES)
   add_compile_definitions(KAHYPAR_ENABLE_QUALITY_PRESET_FEATURES)

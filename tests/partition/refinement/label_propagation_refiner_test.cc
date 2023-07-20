@@ -158,12 +158,12 @@ typedef ::testing::Types<TestConfig<StaticHypergraphTypeTraits, 2, Objective::cu
                          TestConfig<StaticHypergraphTypeTraits, 2, Objective::km1>,
                          TestConfig<StaticHypergraphTypeTraits, 4, Objective::km1>,
                          TestConfig<StaticHypergraphTypeTraits, 8, Objective::km1>
-                         ENABLE_N_LEVEL(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA 2 COMMA Objective::cut>)
-                         ENABLE_N_LEVEL(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA 4 COMMA Objective::cut>)
-                         ENABLE_N_LEVEL(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA 8 COMMA Objective::cut>)
-                         ENABLE_N_LEVEL(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA 2 COMMA Objective::km1>)
-                         ENABLE_N_LEVEL(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA 4 COMMA Objective::km1>)
-                         ENABLE_N_LEVEL(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA 8 COMMA Objective::km1>) > TestConfigs;
+                         ENABLE_QUALITY_PRESET(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA 2 COMMA Objective::cut>)
+                         ENABLE_QUALITY_PRESET(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA 4 COMMA Objective::cut>)
+                         ENABLE_QUALITY_PRESET(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA 8 COMMA Objective::cut>)
+                         ENABLE_QUALITY_PRESET(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA 2 COMMA Objective::km1>)
+                         ENABLE_QUALITY_PRESET(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA 4 COMMA Objective::km1>)
+                         ENABLE_QUALITY_PRESET(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA 8 COMMA Objective::km1>) > TestConfigs;
 
 TYPED_TEST_CASE(ALabelPropagationRefiner, TestConfigs);
 
