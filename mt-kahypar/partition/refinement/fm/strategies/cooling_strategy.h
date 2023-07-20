@@ -29,6 +29,7 @@
 #include "mt-kahypar/partition/refinement/fm/fm_commons.h"
 #include "mt-kahypar/partition/refinement/fm/strategies/gain_cache_strategy.h"
 #include "mt-kahypar/partition/refinement/fm/strategies/unconstrained_strategy.h"
+#include "mt-kahypar/utils/utilities.h"
 
 namespace mt_kahypar {
 
@@ -46,10 +47,11 @@ class CoolingStrategy: public IFMStrategy {
       current_penalty(context.refinement.fm.imbalance_penalty_min),
       current_upper_bound(context.refinement.fm.unconstrained_upper_bound),
       absolute_improvement_first_round(kInvalidGain),
-      unconstrained_is_enabled(true) {
+      unconstrained_is_enabled(true),
+      stats(utils::Utilities::instance().getStats(context.utility_id)) {
         ASSERT(!context.refinement.fm.activate_unconstrained_dynamically
-               || context.refinement.fm.multitry_rounds > 2);
-      }
+                || context.refinement.fm.multitry_rounds > 2);
+  }
 
   bool dispatchedFindMoves(LocalFM& local_fm, PartitionedHypergraph& phg, size_t task_id, size_t num_seeds, size_t round) {
     if (isUnconstrainedRound(round)) {
@@ -97,6 +99,14 @@ class CoolingStrategy: public IFMStrategy {
     } else if (relative_improvement < context.refinement.fm.unconstrained_min_improvement) {
       unconstrained_is_enabled = false;
       DBG << "Disabling unconstrained FM due to too little improvement:" << V(relative_improvement);
+    }
+    if (round == 1) {
+      stats.update_stat("top-level-ufm-active", unconstrained_is_enabled);
+      if (unconstrained_is_enabled) {
+        stats.update_stat("ufm-active-levels", 1);
+      } else {
+        stats.update_stat("ufm-inactive-levels", 1);
+      }
     }
   }
 
@@ -152,6 +162,7 @@ class CoolingStrategy: public IFMStrategy {
   double current_upper_bound;
   Gain absolute_improvement_first_round;
   bool unconstrained_is_enabled;
+  utils::Stats& stats;
 };
 
 }
