@@ -71,7 +71,7 @@ class AInitialPartitionerTest : public Test {
     context.partition.graph_filename = "../tests/instances/contracted_unweighted_ibm01.hgr";
     context.partition.graph_community_filename = "../tests/instances/contracted_ibm01.hgr.community";
     context.partition.mode = Mode::direct;
-    #ifdef KAHYPAR_ENABLE_N_LEVEL_PARTITIONING_FEATURES
+    #ifdef KAHYPAR_ENABLE_QUALITY_PRESET_FEATURES
     context.partition.preset_type = Hypergraph::is_static_hypergraph ?
      PresetType::default_preset : PresetType::quality_preset;
     #else

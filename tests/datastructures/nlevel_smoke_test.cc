@@ -334,7 +334,7 @@ Hypergraph simulateNLevel(Hypergraph& hypergraph,
   return coarsest_hypergraph;
 }
 
-#ifdef KAHYPAR_ENABLE_N_LEVEL_PARTITIONING_FEATURES
+#ifdef KAHYPAR_ENABLE_QUALITY_PRESET_FEATURES
 TEST(ANlevelHypergraph, SimulatesContractionsAndBatchUncontractions) {
   using Hypergraph = typename DynamicHypergraphTypeTraits::Hypergraph;
   using PartitionedHypergraph = typename DynamicHypergraphTypeTraits::PartitionedHypergraph;

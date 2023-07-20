@@ -32,7 +32,7 @@
 #include "kahypar/meta/typelist.h"
 
 #include "mt-kahypar/definitions.h"
-#ifdef KAHYPAR_ENABLE_N_LEVEL_PARTITIONING_FEATURES
+#ifdef KAHYPAR_ENABLE_QUALITY_PRESET_FEATURES
 #include "mt-kahypar/partition/coarsening/nlevel_coarsener.h"
 #endif
 #include "mt-kahypar/partition/coarsening/multilevel_coarsener.h"
@@ -67,7 +67,7 @@ using DeterministicCoarsenerDispatcher = kahypar::meta::StaticMultiDispatchFacto
                                                                                    ICoarsener,
                                                                                    kahypar::meta::Typelist<TypeTraitsList>>;
 
-#ifdef KAHYPAR_ENABLE_N_LEVEL_PARTITIONING_FEATURES
+#ifdef KAHYPAR_ENABLE_QUALITY_PRESET_FEATURES
 using NLevelCoarsenerDispatcher = kahypar::meta::StaticMultiDispatchFactory<NLevelCoarsener,
                                                                             ICoarsener,
                                                                             kahypar::meta::Typelist<TypeTraitsList,

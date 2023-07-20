@@ -498,7 +498,7 @@ TYPED_TEST(AGainCache, ComparesGainsWithAttributedGains) {
   }
 }
 
-#ifdef KAHYPAR_ENABLE_N_LEVEL_PARTITIONING_FEATURES
+#ifdef KAHYPAR_ENABLE_QUALITY_PRESET_FEATURES
 
 TYPED_TEST(AGainCache, HasCorrectGainsAfterNLevelUncontraction) {
   this->simulateNLevelWithGainCacheUpdates(false);
