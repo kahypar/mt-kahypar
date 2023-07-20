@@ -237,7 +237,6 @@ struct MappingParameters {
   bool use_local_search = false;
   bool use_two_phase_approach = false;
   size_t max_steiner_tree_size = 0;
-  size_t bisection_brute_fore_threshold = 0;
   double largest_he_fraction = 0.0;
   double min_pin_coverage_of_largest_hes = 1.0;
   HypernodeID large_he_threshold = std::numeric_limits<HypernodeID>::max();

@@ -39,7 +39,6 @@ target_link_libraries(OneToOneMapping ${Boost_LIBRARIES})
 target_link_libraries(OneToOneMapping TBB::tbb TBB::tbbmalloc_proxy)
 set_property(TARGET OneToOneMapping PROPERTY CXX_STANDARD 17)
 set_property(TARGET OneToOneMapping PROPERTY CXX_STANDARD_REQUIRED ON)
-target_compile_definitions(OneToOneMapping PUBLIC IGNORE_DUAL_BIPARTITIONING)
 
 add_executable(VerifyTargetGraphPartition verify_process_mapping_partition.cc)
 target_link_libraries(VerifyTargetGraphPartition ${Boost_LIBRARIES})

@@ -157,7 +157,6 @@ std::string serialize(const PartitionedHypergraph& hypergraph,
           << " mapping_use_local_search=" << std::boolalpha << context.mapping.use_local_search
           << " mapping_use_two_phase_approach=" << std::boolalpha << context.mapping.use_two_phase_approach
           << " mapping_max_steiner_tree_size=" << context.mapping.max_steiner_tree_size
-          << " mapping_bisection_brute_fore_threshold=" << context.mapping.bisection_brute_fore_threshold
           << " mapping_largest_he_fraction=" << context.mapping.largest_he_fraction
           << " mapping_min_pin_coverage_of_largest_hes=" << context.mapping.min_pin_coverage_of_largest_hes
           << " mapping_large_he_threshold=" << context.mapping.large_he_threshold;

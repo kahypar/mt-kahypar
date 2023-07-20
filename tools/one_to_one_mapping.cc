@@ -86,7 +86,6 @@ int main(int argc, char* argv[]) {
   context.mapping.use_local_search = true;
   context.mapping.use_two_phase_approach = false;
   context.mapping.max_steiner_tree_size = 4;
-  context.mapping.bisection_brute_fore_threshold = 16;
   context.mapping.large_he_threshold = 0.0;
 
   utils::Randomize::instance().setSeed(context.partition.seed);

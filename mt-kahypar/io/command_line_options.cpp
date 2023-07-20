@@ -636,7 +636,6 @@ namespace mt_kahypar {
                      }),
              "Strategy for solving the one-to-one mapping problem after initial partitioning.\n"
              "Available strategies:\n"
-             " - dual_bipartitioning\n"
              " - greedy_mapping\n"
              " - identity")
             ("mapping-use-local-search",
@@ -649,9 +648,6 @@ namespace mt_kahypar {
             ("max-steiner-tree-size",
              po::value<size_t>(&context.mapping.max_steiner_tree_size)->value_name("<size_t>"),
              "We precompute all optimal steiner trees up to this size in the target graph.")
-            ("bisection-brute-force-threshold",
-             po::value<size_t>(&context.mapping.bisection_brute_fore_threshold)->value_name("<size_t>"),
-             "Threshold for the number of nodes when we brute force the optimal bisection in the dual bipartitioning strategy.")
             ("mapping-largest-he-fraction",
              po::value<double>(&context.mapping.largest_he_fraction)->value_name("<double>"),
              "If x% (x = process-mapping-largest-he-fraction) of the largest hyperedges covers more than y% of the pins\n"

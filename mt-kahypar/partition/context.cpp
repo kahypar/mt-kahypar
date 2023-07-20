@@ -224,9 +224,6 @@ namespace mt_kahypar {
     str << "  Use Local Search:                   " << std::boolalpha << params.use_local_search << std::endl;
     str << "  Use Two-Phase Approach:             " << std::boolalpha << params.use_two_phase_approach << std::endl;
     str << "  Max Precomputed Steiner Tree Size:  " << params.max_steiner_tree_size << std::endl;
-    if ( params.strategy == OneToOneMappingStrategy::dual_bipartitioning ) {
-      str << "  Bisection Brute Force Threshold:    " << params.bisection_brute_fore_threshold << std::endl;
-    }
     str << "  Large HE Size Threshold:            " << params.large_he_threshold << std::endl;
     return str;
   }
@@ -457,7 +454,6 @@ namespace mt_kahypar {
     mapping.use_local_search = true;
     mapping.use_two_phase_approach = false;
     mapping.max_steiner_tree_size = 4;
-    mapping.bisection_brute_fore_threshold = 16;
     mapping.largest_he_fraction = 0.0;
     mapping.min_pin_coverage_of_largest_hes = 0.05;
 
@@ -678,7 +674,6 @@ namespace mt_kahypar {
     mapping.use_local_search = true;
     mapping.use_two_phase_approach = false;
     mapping.max_steiner_tree_size = 4;
-    mapping.bisection_brute_fore_threshold = 16;
     mapping.largest_he_fraction = 0.0;
     mapping.min_pin_coverage_of_largest_hes = 0.05;
 

@@ -203,8 +203,6 @@ TEST(AContext, LoadsDefaultPresetCorrectly) {
             expected.mapping.use_local_search);
   ASSERT_EQ(actual.mapping.max_steiner_tree_size,
             expected.mapping.max_steiner_tree_size);
-  ASSERT_EQ(actual.mapping.bisection_brute_fore_threshold,
-            expected.mapping.bisection_brute_fore_threshold);
   ASSERT_EQ(actual.mapping.largest_he_fraction,
             expected.mapping.largest_he_fraction);
   ASSERT_EQ(actual.mapping.min_pin_coverage_of_largest_hes,
@@ -401,8 +399,6 @@ TEST(AContext, LoadsDefaultFlowPresetCorrectly) {
             expected.mapping.use_local_search);
   ASSERT_EQ(actual.mapping.max_steiner_tree_size,
             expected.mapping.max_steiner_tree_size);
-  ASSERT_EQ(actual.mapping.bisection_brute_fore_threshold,
-            expected.mapping.bisection_brute_fore_threshold);
   ASSERT_EQ(actual.mapping.largest_he_fraction,
             expected.mapping.largest_he_fraction);
   ASSERT_EQ(actual.mapping.min_pin_coverage_of_largest_hes,
@@ -549,8 +545,6 @@ TEST(AContext, LoadsDeterministicPresetCorrectly) {
             expected.mapping.use_local_search);
   ASSERT_EQ(actual.mapping.max_steiner_tree_size,
             expected.mapping.max_steiner_tree_size);
-  ASSERT_EQ(actual.mapping.bisection_brute_fore_threshold,
-            expected.mapping.bisection_brute_fore_threshold);
   ASSERT_EQ(actual.mapping.largest_he_fraction,
             expected.mapping.largest_he_fraction);
   ASSERT_EQ(actual.mapping.min_pin_coverage_of_largest_hes,
@@ -747,8 +741,6 @@ TEST(AContext, LoadsQualityPresetCorrectly) {
             expected.mapping.use_local_search);
   ASSERT_EQ(actual.mapping.max_steiner_tree_size,
             expected.mapping.max_steiner_tree_size);
-  ASSERT_EQ(actual.mapping.bisection_brute_fore_threshold,
-            expected.mapping.bisection_brute_fore_threshold);
   ASSERT_EQ(actual.mapping.largest_he_fraction,
             expected.mapping.largest_he_fraction);
   ASSERT_EQ(actual.mapping.min_pin_coverage_of_largest_hes,
@@ -969,8 +961,6 @@ TEST(AContext, LoadsQualityFlowPresetCorrectly) {
             expected.mapping.use_local_search);
   ASSERT_EQ(actual.mapping.max_steiner_tree_size,
             expected.mapping.max_steiner_tree_size);
-  ASSERT_EQ(actual.mapping.bisection_brute_fore_threshold,
-            expected.mapping.bisection_brute_fore_threshold);
   ASSERT_EQ(actual.mapping.largest_he_fraction,
             expected.mapping.largest_he_fraction);
   ASSERT_EQ(actual.mapping.min_pin_coverage_of_largest_hes,
@@ -1100,8 +1090,6 @@ TEST(AContext, LoadsLargeKPresetCorrectly) {
             expected.mapping.use_local_search);
   ASSERT_EQ(actual.mapping.max_steiner_tree_size,
             expected.mapping.max_steiner_tree_size);
-  ASSERT_EQ(actual.mapping.bisection_brute_fore_threshold,
-            expected.mapping.bisection_brute_fore_threshold);
   ASSERT_EQ(actual.mapping.largest_he_fraction,
             expected.mapping.largest_he_fraction);
   ASSERT_EQ(actual.mapping.min_pin_coverage_of_largest_hes,

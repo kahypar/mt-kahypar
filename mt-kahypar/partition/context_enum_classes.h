@@ -170,7 +170,6 @@ enum class RebalancingAlgorithm : uint8_t {
 };
 
 enum class OneToOneMappingStrategy : uint8_t {
-  dual_bipartitioning,
   greedy_mapping,
   identity
 };

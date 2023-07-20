@@ -2,7 +2,6 @@ set(MappingSources
         target_graph.cpp
         all_pair_shortest_path.cpp
         steiner_tree.cpp
-        dual_bipartitioning.cpp
         greedy_mapping.cpp
         initial_mapping.cpp
         kerninghan_lin.cpp

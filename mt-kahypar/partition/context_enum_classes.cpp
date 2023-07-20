@@ -257,7 +257,6 @@ namespace mt_kahypar {
 
   std::ostream & operator<< (std::ostream& os, const OneToOneMappingStrategy& algo) {
       switch (algo) {
-        case OneToOneMappingStrategy::dual_bipartitioning: return os << "dual_bipartitioning";
         case OneToOneMappingStrategy::greedy_mapping: return os << "greedy_mapping";
         case OneToOneMappingStrategy::identity: return os << "identity";
           // omit default case to trigger compiler warning for missing cases
@@ -477,9 +476,7 @@ namespace mt_kahypar {
   }
 
   OneToOneMappingStrategy oneToOneMappingStrategyFromString(const std::string& type) {
-    if (type == "dual_bipartitioning") {
-      return OneToOneMappingStrategy::dual_bipartitioning;
-    } else if (type == "greedy_mapping") {
+    if (type == "greedy_mapping") {
       return OneToOneMappingStrategy::greedy_mapping;
     } else if (type == "identity") {
       return OneToOneMappingStrategy::identity;

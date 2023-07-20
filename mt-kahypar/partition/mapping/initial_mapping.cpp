@@ -30,9 +30,6 @@
 
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/mapping/target_graph.h"
-#ifndef IGNORE_DUAL_BIPARTITIONING
-#include "mt-kahypar/partition/mapping/dual_bipartitioning.h"
-#endif
 #include "mt-kahypar/partition/mapping/greedy_mapping.h"
 #include "mt-kahypar/partition/metrics.h"
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
@@ -203,11 +200,6 @@ void map_to_target_graph(PartitionedHypergraph& communication_hg,
   ASSERT(metrics::quality(communication_hg, Objective::steiner_tree) == objective_before);
 
   // Solve one-to-one mapping problem
-  #ifndef IGNORE_DUAL_BIPARTITIONING
-  if ( context.mapping.strategy == OneToOneMappingStrategy::dual_bipartitioning ) {
-    DualBipartitioning<PartitionedHypergraph>::mapToTargetGraph(contracted_phg, target_graph, context);
-  } else
-  #endif
   if ( context.mapping.strategy == OneToOneMappingStrategy::greedy_mapping ) {
     GreedyMapping<PartitionedHypergraph>::mapToTargetGraph(contracted_phg, target_graph, context);
   }
