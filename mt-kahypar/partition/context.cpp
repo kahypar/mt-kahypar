@@ -169,7 +169,7 @@ namespace mt_kahypar {
       out << "    Skip Small Cuts:                  " << std::boolalpha << params.skip_small_cuts << std::endl;
       out << "    Skip Unpromising Blocks:          " << std::boolalpha << params.skip_unpromising_blocks << std::endl;
       out << "    Pierce in Bulk:                   " << std::boolalpha << params.pierce_in_bulk << std::endl;
-      out << "    Process Mapping Policy:           " << params.process_mapping_policy << std::endl;
+      out << "    Steiner Tree Policy:              " << params.steiner_tree_policy << std::endl;
       out << std::flush;
     }
     return out;
@@ -217,14 +217,14 @@ namespace mt_kahypar {
     return str;
   }
 
-  std::ostream & operator<< (std::ostream& str, const ProcessMappingParameters& params) {
-    str << "Process Mapping Parameters:           " << std::endl;
-    str << "  Process Graph File:                 " << params.process_graph_file << std::endl;
-    str << "  Process Mapping Strategy:           " << params.strategy << std::endl;
+  std::ostream & operator<< (std::ostream& str, const MappingParameters& params) {
+    str << "Mapping Parameters:                   " << std::endl;
+    str << "  Target Graph File:                  " << params.target_graph_file << std::endl;
+    str << "  One-To-One Mapping Strategy:        " << params.strategy << std::endl;
     str << "  Use Local Search:                   " << std::boolalpha << params.use_local_search << std::endl;
-    str << "  Optimize Km1 Metric:                " << std::boolalpha << params.optimize_km1_metric << std::endl;
+    str << "  Use Two-Phase Approach:             " << std::boolalpha << params.use_two_phase_approach << std::endl;
     str << "  Max Precomputed Steiner Tree Size:  " << params.max_steiner_tree_size << std::endl;
-    if ( params.strategy == ProcessMappingStrategy::dual_bipartitioning ) {
+    if ( params.strategy == OneToOneMappingStrategy::dual_bipartitioning ) {
       str << "  Bisection Brute Force Threshold:    " << params.bisection_brute_fore_threshold << std::endl;
     }
     str << "  Large HE Size Threshold:            " << params.large_he_threshold << std::endl;
@@ -351,20 +351,20 @@ namespace mt_kahypar {
     if ( partition.objective == Objective::steiner_tree ) {
       if ( !process_graph ) {
         partition.objective = Objective::km1;
-        INFO("No process graph provided for process mapping objective function. Switching to km1 metric.");
+        INFO("No target graph provided for steiner tree metric. Switching to km1 metric.");
       } else {
         if ( partition.mode == Mode::deep_multilevel ) {
-          ALGO_SWITCH("Partitioning mode" << partition.mode << "is not supported for process mapping objective function."
+          ALGO_SWITCH("Partitioning mode" << partition.mode << "is not supported for steiner tree metric."
                                           << "Do you want to use the multilevel mode instead (Y/N)?",
                       "Partitioning mode" << partition.mode
-                                          << "is not supported for process mapping!",
+                                          << "is not supported for steiner tree metric!",
                       partition.mode, Mode::direct);
         }
         if ( initial_partitioning.mode == Mode::deep_multilevel ) {
-          ALGO_SWITCH("Initial partitioning mode" << partition.mode << "is not supported for process mapping."
+          ALGO_SWITCH("Initial partitioning mode" << partition.mode << "is not supported for steiner tree metric."
                                             << "Do you want to use the multilevel mode instead (Y/N)?",
                       "Initial partitioning mode" << partition.mode
-                                            << "is not supported for process mapping!",
+                                            << "is not supported for steiner tree metric!",
                       partition.mode, Mode::direct);
         }
       }
@@ -453,13 +453,13 @@ namespace mt_kahypar {
     shared_memory.static_balancing_work_packages = 128;
 
     // process_mapping
-    process_mapping.strategy = ProcessMappingStrategy::greedy_mapping;
-    process_mapping.use_local_search = true;
-    process_mapping.optimize_km1_metric = false;
-    process_mapping.max_steiner_tree_size = 4;
-    process_mapping.bisection_brute_fore_threshold = 16;
-    process_mapping.largest_he_fraction = 0.0;
-    process_mapping.min_pin_coverage_of_largest_hes = 0.05;
+    mapping.strategy = OneToOneMappingStrategy::greedy_mapping;
+    mapping.use_local_search = true;
+    mapping.use_two_phase_approach = false;
+    mapping.max_steiner_tree_size = 4;
+    mapping.bisection_brute_fore_threshold = 16;
+    mapping.largest_he_fraction = 0.0;
+    mapping.min_pin_coverage_of_largest_hes = 0.05;
 
     // preprocessing
     preprocessing.use_community_detection = true;
@@ -568,7 +568,7 @@ namespace mt_kahypar {
     refinement.flows.skip_unpromising_blocks = true;
     refinement.flows.pierce_in_bulk = true;
     refinement.flows.min_relative_improvement_per_round = 0.001;
-    refinement.flows.process_mapping_policy = ProcessMappingFlowValuePolicy::lower_bound;
+    refinement.flows.steiner_tree_policy = SteinerTreeFlowValuePolicy::lower_bound;
   }
 
   void Context::load_deterministic_preset() {
@@ -674,13 +674,13 @@ namespace mt_kahypar {
     shared_memory.static_balancing_work_packages = 128;
 
     // process_mapping
-    process_mapping.strategy = ProcessMappingStrategy::greedy_mapping;
-    process_mapping.use_local_search = true;
-    process_mapping.optimize_km1_metric = false;
-    process_mapping.max_steiner_tree_size = 4;
-    process_mapping.bisection_brute_fore_threshold = 16;
-    process_mapping.largest_he_fraction = 0.0;
-    process_mapping.min_pin_coverage_of_largest_hes = 0.05;
+    mapping.strategy = OneToOneMappingStrategy::greedy_mapping;
+    mapping.use_local_search = true;
+    mapping.use_two_phase_approach = false;
+    mapping.max_steiner_tree_size = 4;
+    mapping.bisection_brute_fore_threshold = 16;
+    mapping.largest_he_fraction = 0.0;
+    mapping.min_pin_coverage_of_largest_hes = 0.05;
 
     // preprocessing
     preprocessing.use_community_detection = true;
@@ -804,7 +804,7 @@ namespace mt_kahypar {
     refinement.flows.skip_unpromising_blocks = true;
     refinement.flows.pierce_in_bulk = true;
     refinement.flows.min_relative_improvement_per_round = 0.001;
-    refinement.flows.process_mapping_policy = ProcessMappingFlowValuePolicy::lower_bound;
+    refinement.flows.steiner_tree_policy = SteinerTreeFlowValuePolicy::lower_bound;
 
     // refinement -> global fm
     refinement.global_fm.refine_until_no_improvement = true;
@@ -904,9 +904,9 @@ namespace mt_kahypar {
         << "-------------------------------------------------------------------------------\n"
         << context.refinement
         << "-------------------------------------------------------------------------------\n";
-    if ( context.process_mapping.process_graph_file != "" &&
+    if ( context.mapping.target_graph_file != "" &&
          context.partition.objective == Objective::steiner_tree ) {
-      str << context.process_mapping
+      str << context.mapping
           << "-------------------------------------------------------------------------------\n";
     }
     str << context.shared_memory

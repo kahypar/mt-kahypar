@@ -239,7 +239,7 @@ void GreedyMapping<CommunicationHypergraph>::mapToProcessGraph(CommunicationHype
     tmp_communication_phg.setProcessGraph(&process_graph);
     compute_greedy_mapping(tmp_communication_phg, process_graph, context, hn);
 
-    if ( context.process_mapping.use_local_search ) {
+    if ( context.mapping.use_local_search ) {
       KerninghanLin<CommunicationHypergraph>::improve(tmp_communication_phg, process_graph);
     }
 

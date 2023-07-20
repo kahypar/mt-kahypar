@@ -156,7 +156,7 @@ namespace mt_kahypar {
                                     sizeof(ds::ConnectivitySets::UnsafeBlock));
         }
         if ( context.refinement.fm.algorithm != FMAlgorithm::do_nothing ) {
-          if ( context.partition.objective == Objective::steiner_tree && !context.process_mapping.optimize_km1_metric ) {
+          if ( context.partition.objective == Objective::steiner_tree && !context.mapping.use_two_phase_approach ) {
             pool.register_memory_chunk("Refinement", "gain_cache",
                           static_cast<size_t>(num_hypernodes) * ( context.partition.k ),
                           sizeof(CAtomic<HyperedgeWeight>));

@@ -255,21 +255,21 @@ namespace mt_kahypar {
       return os << static_cast<uint8_t>(algo);
   }
 
-  std::ostream & operator<< (std::ostream& os, const ProcessMappingStrategy& algo) {
+  std::ostream & operator<< (std::ostream& os, const OneToOneMappingStrategy& algo) {
       switch (algo) {
-        case ProcessMappingStrategy::dual_bipartitioning: return os << "dual_bipartitioning";
-        case ProcessMappingStrategy::greedy_mapping: return os << "greedy_mapping";
-        case ProcessMappingStrategy::identity: return os << "identity";
+        case OneToOneMappingStrategy::dual_bipartitioning: return os << "dual_bipartitioning";
+        case OneToOneMappingStrategy::greedy_mapping: return os << "greedy_mapping";
+        case OneToOneMappingStrategy::identity: return os << "identity";
           // omit default case to trigger compiler warning for missing cases
       }
       return os << static_cast<uint8_t>(algo);
   }
 
-  std::ostream & operator<< (std::ostream& os, const ProcessMappingFlowValuePolicy& policy) {
+  std::ostream & operator<< (std::ostream& os, const SteinerTreeFlowValuePolicy& policy) {
       switch (policy) {
-        case ProcessMappingFlowValuePolicy::lower_bound: return os << "lower_bound";
-        case ProcessMappingFlowValuePolicy::upper_bound: return os << "upper_bound";
-        case ProcessMappingFlowValuePolicy::UNDEFINED: return os << "UNDEFINED";
+        case SteinerTreeFlowValuePolicy::lower_bound: return os << "lower_bound";
+        case SteinerTreeFlowValuePolicy::upper_bound: return os << "upper_bound";
+        case SteinerTreeFlowValuePolicy::UNDEFINED: return os << "UNDEFINED";
           // omit default case to trigger compiler warning for missing cases
       }
       return os << static_cast<uint8_t>(policy);
@@ -476,25 +476,25 @@ namespace mt_kahypar {
     return RebalancingAlgorithm::do_nothing;
   }
 
-  ProcessMappingStrategy processMappingStrategyFromString(const std::string& type) {
+  OneToOneMappingStrategy oneToOneMappingStrategyFromString(const std::string& type) {
     if (type == "dual_bipartitioning") {
-      return ProcessMappingStrategy::dual_bipartitioning;
+      return OneToOneMappingStrategy::dual_bipartitioning;
     } else if (type == "greedy_mapping") {
-      return ProcessMappingStrategy::greedy_mapping;
+      return OneToOneMappingStrategy::greedy_mapping;
     } else if (type == "identity") {
-      return ProcessMappingStrategy::identity;
+      return OneToOneMappingStrategy::identity;
     }
     ERR("Illegal option: " + type);
-    return ProcessMappingStrategy::identity;
+    return OneToOneMappingStrategy::identity;
   }
 
-  ProcessMappingFlowValuePolicy processMappingFlowValuePolicyFromString(const std::string& policy) {
+  SteinerTreeFlowValuePolicy steinerTreeFlowValuePolicyFromString(const std::string& policy) {
     if (policy == "lower_bound") {
-      return ProcessMappingFlowValuePolicy::lower_bound;
+      return SteinerTreeFlowValuePolicy::lower_bound;
     } else if (policy == "upper_bound") {
-      return ProcessMappingFlowValuePolicy::upper_bound;
+      return SteinerTreeFlowValuePolicy::upper_bound;
     }
     ERR("Illegal option: " + policy);
-    return ProcessMappingFlowValuePolicy::UNDEFINED;
+    return SteinerTreeFlowValuePolicy::UNDEFINED;
   }
 }

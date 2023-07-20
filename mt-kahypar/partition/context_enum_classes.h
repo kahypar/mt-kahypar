@@ -169,13 +169,13 @@ enum class RebalancingAlgorithm : uint8_t {
   do_nothing
 };
 
-enum class ProcessMappingStrategy : uint8_t {
+enum class OneToOneMappingStrategy : uint8_t {
   dual_bipartitioning,
   greedy_mapping,
   identity
 };
 
-enum class ProcessMappingFlowValuePolicy : uint8_t {
+enum class SteinerTreeFlowValuePolicy : uint8_t {
   lower_bound,
   upper_bound,
   UNDEFINED
@@ -221,9 +221,9 @@ std::ostream & operator<< (std::ostream& os, const FlowAlgorithm& algo);
 
 std::ostream & operator<< (std::ostream& os, const RebalancingAlgorithm& algo);
 
-std::ostream & operator<< (std::ostream& os, const ProcessMappingStrategy& algo);
+std::ostream & operator<< (std::ostream& os, const OneToOneMappingStrategy& algo);
 
-std::ostream & operator<< (std::ostream& os, const ProcessMappingFlowValuePolicy& policy);
+std::ostream & operator<< (std::ostream& os, const SteinerTreeFlowValuePolicy& policy);
 
 Mode modeFromString(const std::string& mode);
 
@@ -255,8 +255,8 @@ FlowAlgorithm flowAlgorithmFromString(const std::string& type);
 
 RebalancingAlgorithm rebalancingAlgorithmFromString(const std::string& type);
 
-ProcessMappingStrategy processMappingStrategyFromString(const std::string& type);
+OneToOneMappingStrategy oneToOneMappingStrategyFromString(const std::string& type);
 
-ProcessMappingFlowValuePolicy processMappingFlowValuePolicyFromString(const std::string& policy);
+SteinerTreeFlowValuePolicy steinerTreeFlowValuePolicyFromString(const std::string& policy);
 
 }  // namesapce mt_kahypar

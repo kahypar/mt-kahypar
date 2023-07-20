@@ -143,24 +143,24 @@ std::string serialize(const PartitionedHypergraph& hypergraph,
         << " flow_max_num_pins=" << context.refinement.flows.max_num_pins
         << " flow_find_most_balanced_cut=" << std::boolalpha << context.refinement.flows.find_most_balanced_cut
         << " flow_determine_distance_from_cut=" << std::boolalpha << context.refinement.flows.determine_distance_from_cut
-        << " flow_process_mapping_policy=" << context.refinement.flows.process_mapping_policy;
+        << " flow_steiner_tree_policy=" << context.refinement.flows.steiner_tree_policy;
     oss << " num_threads=" << context.shared_memory.num_threads
         << " use_localized_random_shuffle=" << std::boolalpha << context.shared_memory.use_localized_random_shuffle
         << " shuffle_block_size=" << context.shared_memory.shuffle_block_size
         << " static_balancing_work_packages=" << context.shared_memory.static_balancing_work_packages;
 
-    if ( context.process_mapping.process_graph_file != "" &&
+    if ( context.mapping.target_graph_file != "" &&
          context.partition.objective == Objective::steiner_tree ) {
-      oss << " process_mapping_file=" << context.process_mapping.process_graph_file.substr(
-            context.process_mapping.process_graph_file.find_last_of('/') + 1)
-          << " process_mapping_strategy=" << context.process_mapping.strategy
-          << " process_mapping_use_local_search=" << std::boolalpha << context.process_mapping.use_local_search
-          << " process_mapping_optimize_km1_metric=" << std::boolalpha << context.process_mapping.optimize_km1_metric
-          << " process_mapping_max_steiner_tree_size=" << context.process_mapping.max_steiner_tree_size
-          << " process_mapping_bisection_brute_fore_threshold=" << context.process_mapping.bisection_brute_fore_threshold
-          << " process_mapping_largest_he_fraction=" << context.process_mapping.largest_he_fraction
-          << " process_mapping_min_pin_coverage_of_largest_hes=" << context.process_mapping.min_pin_coverage_of_largest_hes
-          << " process_mapping_large_he_threshold=" << context.process_mapping.large_he_threshold;
+      oss << " target_graph_file=" << context.mapping.target_graph_file.substr(
+            context.mapping.target_graph_file.find_last_of('/') + 1)
+          << " mapping_strategy=" << context.mapping.strategy
+          << " mapping_use_local_search=" << std::boolalpha << context.mapping.use_local_search
+          << " mapping_use_two_phase_approach=" << std::boolalpha << context.mapping.use_two_phase_approach
+          << " mapping_max_steiner_tree_size=" << context.mapping.max_steiner_tree_size
+          << " mapping_bisection_brute_fore_threshold=" << context.mapping.bisection_brute_fore_threshold
+          << " mapping_largest_he_fraction=" << context.mapping.largest_he_fraction
+          << " mapping_min_pin_coverage_of_largest_hes=" << context.mapping.min_pin_coverage_of_largest_hes
+          << " mapping_large_he_threshold=" << context.mapping.large_he_threshold;
       if ( ProcessGraph::TRACK_STATS ) {
         hypergraph.processGraph()->printStats(oss);
       }

@@ -61,9 +61,9 @@ namespace mt_kahypar {
     context.setupThreadsPerFlowSearch();
 
     if ( context.partition.gain_policy == GainPolicy::steiner_tree &&
-         context.process_mapping.largest_he_fraction > 0.0 ) {
+         context.mapping.largest_he_fraction > 0.0 ) {
       // Determine a threshold of what we consider a large hyperedge in
-      // the process mapping gain cache
+      // the steiner tree gain cache
       vec<HypernodeID> he_sizes(hypergraph.initialNumEdges(), 0);
       hypergraph.doParallelForAllEdges([&](const HyperedgeID& he) {
         he_sizes[he] = hypergraph.edgeSize(he);
@@ -73,7 +73,7 @@ namespace mt_kahypar {
         [&](const HypernodeID& lhs, const HypernodeID& rhs) {
           return lhs > rhs;
         });
-      const size_t percentile = context.process_mapping.largest_he_fraction * hypergraph.initialNumEdges();
+      const size_t percentile = context.mapping.largest_he_fraction * hypergraph.initialNumEdges();
       // Compute the percentage of pins covered by the largest hyperedges
       const double covered_pins_percentage =
         static_cast<double>(tbb::parallel_reduce(
@@ -86,12 +86,12 @@ namespace mt_kahypar {
               }, [&](const int lhs, const int rhs) {
                 return lhs + rhs;
               })) / hypergraph.initialNumPins();
-      if ( covered_pins_percentage >= context.process_mapping.min_pin_coverage_of_largest_hes ) {
+      if ( covered_pins_percentage >= context.mapping.min_pin_coverage_of_largest_hes ) {
         // If the largest hyperedge covers a large portion of the hypergraph, we assume that
         // the hyperedge sizes follow a power law distribution and ignore hyperedges larger than
         // the following threshold when calculating and maintaining the adjacent blocks of node
-        // in the process mapping gain cache.
-        context.process_mapping.large_he_threshold = he_sizes[percentile];
+        // in the steiner tree gain cache.
+        context.mapping.large_he_threshold = he_sizes[percentile];
       }
     }
 
@@ -251,7 +251,7 @@ namespace mt_kahypar {
     if ( process_graph && !process_graph->isInitialized() ) {
       timer.start_timer("precompute_steiner_trees", "Precompute Steiner Trees");
       const size_t max_steiner_tree_size = std::min(
-        context.process_mapping.max_steiner_tree_size,
+        context.mapping.max_steiner_tree_size,
         static_cast<size_t>(hypergraph.maxEdgeSize()));
       process_graph->precomputeDistances(max_steiner_tree_size);
       timer.stop_timer("precompute_steiner_trees");
@@ -271,7 +271,7 @@ namespace mt_kahypar {
 
     bool map_partition_to_process_graph_at_the_end = false;
     if ( context.partition.objective == Objective::steiner_tree &&
-         context.process_mapping.optimize_km1_metric ) {
+         context.mapping.use_two_phase_approach ) {
       map_partition_to_process_graph_at_the_end = true;
       context.partition.objective = Objective::km1;
       context.setupGainPolicy();
@@ -308,10 +308,10 @@ namespace mt_kahypar {
     if ( map_partition_to_process_graph_at_the_end ) {
       ASSERT(process_graph);
       context.partition.objective = Objective::steiner_tree;
-      timer.start_timer("one_to_one_process_mapping", "One-To-One Process Mapping");
+      timer.start_timer("one_to_one_mapping", "One-To-One Mapping");
       InitialMapping<TypeTraits>::mapToProcessGraph(
         partitioned_hypergraph, *process_graph, context);
-      timer.stop_timer("one_to_one_process_mapping");
+      timer.stop_timer("one_to_one_mapping");
     }
 
     if (context.partition.verbose_output) {

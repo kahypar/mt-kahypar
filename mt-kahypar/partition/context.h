@@ -182,7 +182,7 @@ struct FlowParameters {
   bool skip_small_cuts = false;
   bool skip_unpromising_blocks = false;
   bool pierce_in_bulk = false;
-  ProcessMappingFlowValuePolicy process_mapping_policy = ProcessMappingFlowValuePolicy::UNDEFINED;
+  SteinerTreeFlowValuePolicy steiner_tree_policy = SteinerTreeFlowValuePolicy::UNDEFINED;
 };
 
 std::ostream& operator<<(std::ostream& out, const FlowParameters& params);
@@ -231,11 +231,11 @@ struct InitialPartitioningParameters {
 
 std::ostream & operator<< (std::ostream& str, const InitialPartitioningParameters& params);
 
-struct ProcessMappingParameters {
-  std::string process_graph_file = "";
-  ProcessMappingStrategy strategy = ProcessMappingStrategy::identity;
+struct MappingParameters {
+  std::string target_graph_file = "";
+  OneToOneMappingStrategy strategy = OneToOneMappingStrategy::identity;
   bool use_local_search = false;
-  bool optimize_km1_metric = false;
+  bool use_two_phase_approach = false;
   size_t max_steiner_tree_size = 0;
   size_t bisection_brute_fore_threshold = 0;
   double largest_he_fraction = 0.0;
@@ -243,7 +243,7 @@ struct ProcessMappingParameters {
   HypernodeID large_he_threshold = std::numeric_limits<HypernodeID>::max();
 };
 
-std::ostream & operator<< (std::ostream& str, const ProcessMappingParameters& params);
+std::ostream & operator<< (std::ostream& str, const MappingParameters& params);
 
 struct SharedMemoryParameters {
   size_t original_num_threads = 1;
@@ -263,7 +263,7 @@ class Context {
   CoarseningParameters coarsening { };
   InitialPartitioningParameters initial_partitioning { };
   RefinementParameters refinement { };
-  ProcessMappingParameters process_mapping { };
+  MappingParameters mapping { };
   SharedMemoryParameters shared_memory { };
   ContextType type = ContextType::main;
 

@@ -32,13 +32,13 @@
 namespace mt_kahypar {
 
 namespace {
-HyperedgeWeight capacity_for_cut_edge(const ProcessMappingFlowValuePolicy policy,
+HyperedgeWeight capacity_for_cut_edge(const SteinerTreeFlowValuePolicy policy,
                                       const HyperedgeWeight gain_0,
                                       const HyperedgeWeight gain_1) {
   switch ( policy ) {
-    case ProcessMappingFlowValuePolicy::lower_bound: return std::min(gain_0, gain_1);
-    case ProcessMappingFlowValuePolicy::upper_bound: return std::max(gain_0, gain_1);
-    case ProcessMappingFlowValuePolicy::UNDEFINED:
+    case SteinerTreeFlowValuePolicy::lower_bound: return std::min(gain_0, gain_1);
+    case SteinerTreeFlowValuePolicy::upper_bound: return std::max(gain_0, gain_1);
+    case SteinerTreeFlowValuePolicy::UNDEFINED:
       ERR("Process mapping flow value policy is undefined" << V(policy));
       return 0;
   }
@@ -89,7 +89,7 @@ HyperedgeWeight ProcessMappingFlowNetworkConstruction::capacity(const Partitione
     const HyperedgeWeight distance_without_block_1 = process_graph.distanceWithoutBlock(connectivity_set, block_1);
     const HyperedgeWeight gain_0 = (current_distance - distance_without_block_0) * edge_weight;
     const HyperedgeWeight gain_1 = (current_distance - distance_without_block_1) * edge_weight;
-    return capacity_for_cut_edge(context.refinement.flows.process_mapping_policy, gain_0, gain_1);
+    return capacity_for_cut_edge(context.refinement.flows.steiner_tree_policy, gain_0, gain_1);
   }
 }
 

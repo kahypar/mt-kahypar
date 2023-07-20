@@ -62,7 +62,7 @@ int main(int argc, char* argv[]) {
      po::value<std::string>(&context.partition.graph_partition_filename)->value_name("<string>")->required(),
      "Partition Filename")
     ("process-graph-file,p",
-     po::value<std::string>(&context.process_mapping.process_graph_file)->value_name("<string>"),
+     po::value<std::string>(&context.mapping.target_graph_file)->value_name("<string>"),
      "Process Graph Filename")
     ("blocks,k",
      po::value<PartitionID>(&context.partition.k)->value_name("<int>")->required(),
@@ -82,12 +82,12 @@ int main(int argc, char* argv[]) {
   context.partition.objective = Objective::steiner_tree;
   context.partition.epsilon = 0.03;
   context.shared_memory.num_threads = std::thread::hardware_concurrency();
-  context.process_mapping.strategy = ProcessMappingStrategy::greedy_mapping;
-  context.process_mapping.use_local_search = true;
-  context.process_mapping.optimize_km1_metric = false;
-  context.process_mapping.max_steiner_tree_size = 4;
-  context.process_mapping.bisection_brute_fore_threshold = 16;
-  context.process_mapping.large_he_threshold = 0.0;
+  context.mapping.strategy = OneToOneMappingStrategy::greedy_mapping;
+  context.mapping.use_local_search = true;
+  context.mapping.use_two_phase_approach = false;
+  context.mapping.max_steiner_tree_size = 4;
+  context.mapping.bisection_brute_fore_threshold = 16;
+  context.mapping.large_he_threshold = 0.0;
 
   utils::Randomize::instance().setSeed(context.partition.seed);
   TBBInitializer::instance(context.shared_memory.num_threads);
@@ -107,12 +107,12 @@ int main(int argc, char* argv[]) {
   partitioned_hg.initializePartition();
 
   // Read Process Graph
-  if ( context.process_mapping.process_graph_file == "" ) {
-    context.process_mapping.process_graph_file =
+  if ( context.mapping.target_graph_file == "" ) {
+    context.mapping.target_graph_file =
       context.partition.graph_filename + ".k" + std::to_string(context.partition.k);
   }
   ProcessGraph process_graph(io::readInputFile<Graph>(
-    context.process_mapping.process_graph_file, FileFormat::Metis, true, true));
+    context.mapping.target_graph_file, FileFormat::Metis, true, true));
   partitioned_hg.setProcessGraph(&process_graph);
 
   // Precompute Steiner Trees
@@ -120,7 +120,7 @@ int main(int argc, char* argv[]) {
     utils::Utilities::instance().getTimer(context.utility_id);
   HighResClockTimepoint start_1 = std::chrono::high_resolution_clock::now();
   timer.start_timer("precompute_steiner_trees", "Precompute Steiner Trees");
-  process_graph.precomputeDistances(context.process_mapping.max_steiner_tree_size);
+  process_graph.precomputeDistances(context.mapping.max_steiner_tree_size);
   timer.stop_timer("precompute_steiner_trees");
   HighResClockTimepoint end_1 = std::chrono::high_resolution_clock::now();
 
@@ -145,8 +145,8 @@ int main(int argc, char* argv[]) {
                 context.partition.graph_filename.find_last_of('/') + 1)
             << " partition_file=" << context.partition.graph_partition_filename.substr(
                 context.partition.graph_partition_filename.find_last_of('/') + 1)
-            << " process_mapping_file=" << context.process_mapping.process_graph_file.substr(
-               context.process_mapping.process_graph_file.find_last_of('/') + 1)
+            << " process_mapping_file=" << context.mapping.target_graph_file.substr(
+               context.mapping.target_graph_file.find_last_of('/') + 1)
             << " objective=" << context.partition.objective
             << " k=" << context.partition.k
             << " epsilon=" << context.partition.epsilon

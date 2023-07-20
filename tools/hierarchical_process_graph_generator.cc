@@ -98,17 +98,17 @@ int main(int argc, char* argv[]) {
     costs_str[i] = costs_str[i] == ':' ? ' ' : costs_str[i];
   }
 
-  std::string process_graph_file = out_folder + "/" + prefix;
+  std::string target_graph_file = out_folder + "/" + prefix;
   HypernodeID cur;
   std::vector<HypernodeID> hierarchy;
   std::stringstream hierarchy_stream(hierarchy_str);
   while ( hierarchy_stream >> cur ) {
     hierarchy.push_back(cur);
-    process_graph_file += std::to_string(cur) + "x";
+    target_graph_file += std::to_string(cur) + "x";
   }
   std::reverse(hierarchy.begin(), hierarchy.end());
-  process_graph_file[process_graph_file.size() - 1] = '.';
-  process_graph_file += "graph";
+  target_graph_file[target_graph_file.size() - 1] = '.';
+  target_graph_file += "graph";
 
   std::vector<HyperedgeWeight> costs;
   std::stringstream costs_stream(costs_str);
@@ -132,7 +132,7 @@ int main(int argc, char* argv[]) {
   }
   num_edges /= 2;
 
-  std::ofstream out(process_graph_file.c_str());
+  std::ofstream out(target_graph_file.c_str());
   out << num_nodes << " " << num_edges << " 1" << std::endl;
   for ( HypernodeID u = 0; u < num_nodes; ++u ) {
     for ( const auto& edge : graph[u] ) {
@@ -142,7 +142,7 @@ int main(int argc, char* argv[]) {
   }
   out.close();
 
-  std::cout << "Graph has been written to '" << process_graph_file << "'" << std::endl;
+  std::cout << "Graph has been written to '" << target_graph_file << "'" << std::endl;
 
   return 0;
 }

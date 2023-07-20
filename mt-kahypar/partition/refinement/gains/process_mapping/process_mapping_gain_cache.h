@@ -107,7 +107,7 @@ class ProcessMappingGainCache {
     _adjacent_blocks(),
     _version(),
     _ets_version(),
-    _large_he_threshold(context.process_mapping.large_he_threshold) { }
+    _large_he_threshold(context.mapping.large_he_threshold) { }
 
   ProcessMappingGainCache(const ProcessMappingGainCache&) = delete;
   ProcessMappingGainCache & operator= (const ProcessMappingGainCache &) = delete;

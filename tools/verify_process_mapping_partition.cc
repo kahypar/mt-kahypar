@@ -62,7 +62,7 @@ int main(int argc, char* argv[]) {
      po::value<std::string>(&context.partition.graph_partition_filename)->value_name("<string>")->required(),
      "Partition Filename")
     ("process-graph-file,p",
-     po::value<std::string>(&context.process_mapping.process_graph_file)->value_name("<string>")->required(),
+     po::value<std::string>(&context.mapping.target_graph_file)->value_name("<string>")->required(),
      "Process Graph Filename")
     ("input-file-format",
       po::value<std::string>()->value_name("<string>")->notifier([&](const std::string& s) {
@@ -87,7 +87,7 @@ int main(int argc, char* argv[]) {
   context.partition.objective = Objective::steiner_tree;
   context.partition.epsilon = 0.03;
   context.shared_memory.num_threads = std::thread::hardware_concurrency();
-  context.process_mapping.max_steiner_tree_size = 4;
+  context.mapping.max_steiner_tree_size = 4;
   TBBInitializer::instance(context.shared_memory.num_threads);
 
   // Read Hypergraph
@@ -96,7 +96,7 @@ int main(int argc, char* argv[]) {
 
   // Read Process Graph
   ProcessGraph process_graph(io::readInputFile<Graph>(
-    context.process_mapping.process_graph_file, FileFormat::Metis, true, true));
+    context.mapping.target_graph_file, FileFormat::Metis, true, true));
   context.partition.k = process_graph.numBlocks();
   context.setupPartWeights(hg.totalWeight());
 
@@ -113,7 +113,7 @@ int main(int argc, char* argv[]) {
   // Precompute Steiner Trees
   HighResClockTimepoint start = std::chrono::high_resolution_clock::now();
   process_graph.precomputeDistances(
-    std::min(context.process_mapping.max_steiner_tree_size,
+    std::min(context.mapping.max_steiner_tree_size,
       static_cast<size_t>(hg.maxEdgeSize())));
   HighResClockTimepoint end = std::chrono::high_resolution_clock::now();
 
@@ -127,8 +127,8 @@ int main(int argc, char* argv[]) {
                 context.partition.graph_filename.find_last_of('/') + 1)
             << " partition_file=" << context.partition.graph_partition_filename.substr(
                 context.partition.graph_partition_filename.find_last_of('/') + 1)
-            << " process_mapping_file=" << context.process_mapping.process_graph_file.substr(
-               context.process_mapping.process_graph_file.find_last_of('/') + 1)
+            << " process_mapping_file=" << context.mapping.target_graph_file.substr(
+               context.mapping.target_graph_file.find_last_of('/') + 1)
             << " objective=" << context.partition.objective
             << " k=" << context.partition.k
             << " epsilon=" << context.partition.epsilon

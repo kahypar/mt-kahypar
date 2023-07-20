@@ -83,7 +83,7 @@ void DualBipartitioning<CommunicationHypergraph>::mapToProcessGraph(Communicatio
   }
   communication_hg.initializePartition();
 
-  if ( context.process_mapping.use_local_search ) {
+  if ( context.mapping.use_local_search ) {
     KerninghanLin<CommunicationHypergraph>::improve(communication_hg, process_graph);
   }
   timer.stop_timer("initial_mapping");
@@ -101,7 +101,7 @@ void DualBipartitioning<CommunicationHypergraph>::recursive_bisection(Partitione
   // Compute bisection of graph
   PartitionedGraph bisection(2, graph.hypergraph());
   Context b_context = setBisectionContext(context, k);
-  if ( UL(k) > context.process_mapping.bisection_brute_fore_threshold ) {
+  if ( UL(k) > context.mapping.bisection_brute_fore_threshold ) {
     Pool<StaticGraphTypeTraits>::bipartition(bisection, b_context, false);
   } else {
     brute_force_optimal_bisection(bisection,

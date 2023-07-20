@@ -181,7 +181,7 @@ double approximationFactorForProcessMapping(const PartitionedHypergraph& hypergr
     tbb::enumerable_thread_specific<HyperedgeWeight> approx_factor(0);
     hypergraph.doParallelForAllEdges([&](const HyperedgeID& he) {
       const size_t connectivity = hypergraph.connectivity(he);
-      approx_factor.local() += connectivity <= context.process_mapping.max_steiner_tree_size ? 1 : 2;
+      approx_factor.local() += connectivity <= context.mapping.max_steiner_tree_size ? 1 : 2;
     });
     return static_cast<double>(approx_factor.combine(std::plus<>())) / hypergraph.initialNumEdges();
   } else {

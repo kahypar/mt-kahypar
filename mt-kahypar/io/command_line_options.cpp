@@ -542,16 +542,16 @@ namespace mt_kahypar {
              po::value<std::string>()->value_name("<string>")->notifier(
                      [&, initial_partitioning](const std::string& policy) {
                        if ( initial_partitioning ) {
-                        context.initial_partitioning.refinement.flows.process_mapping_policy =
-                          processMappingFlowValuePolicyFromString(policy);
+                        context.initial_partitioning.refinement.flows.steiner_tree_policy =
+                          steinerTreeFlowValuePolicyFromString(policy);
                        } else {
-                        context.refinement.flows.process_mapping_policy =
-                          processMappingFlowValuePolicyFromString(policy);
+                        context.refinement.flows.steiner_tree_policy =
+                          steinerTreeFlowValuePolicyFromString(policy);
                        }
                      }),
-             "This option is only important for process mapping. For flow-based refinement on hypergraphs, we cannot.\n"
+             "This option is only important for the Steiner tree metric. For flow-based refinement on hypergraphs, we cannot.\n"
              "guarantee that the improvement found by solving the flow problem matches the exact improvement when we\n"
-             "apply on the hypergraph. However, we can either guarantee that improvement is an lower or upper bound for\n"
+             "applied on the hypergraph. However, we can either guarantee that improvement is an lower or upper bound for\n"
              "the actual improvement. Therefore, the supported options are:\n"
              "- lower_bound\n"
              "- upper_bound");
@@ -622,49 +622,47 @@ namespace mt_kahypar {
     return options;
   }
 
-  po::options_description createProcessMappingOptionsDescription(Context& context,
-                                                                 const int num_columns) {
-    po::options_description process_mapping_options("Process Mapping Options", num_columns);
-    process_mapping_options.add_options()
-            ("process-graph-file,g",
-             po::value<std::string>(&context.process_mapping.process_graph_file)->value_name("<string>"),
-             "Path to a process graph in Metis file format.")
-            ("process-mapping-strategy",
+  po::options_description createMappingOptionsDescription(Context& context,
+                                                          const int num_columns) {
+    po::options_description mapping_options("Mapping Options", num_columns);
+    mapping_options.add_options()
+            ("target-graph-file,g",
+             po::value<std::string>(&context.mapping.target_graph_file)->value_name("<string>"),
+             "Path to a target architecture graph in Metis file format.")
+            ("one-to-one-mapping-strategy",
              po::value<std::string>()->value_name("<string>")->notifier(
                      [&](const std::string& strategy) {
-                       context.process_mapping.strategy =
-                               processMappingStrategyFromString(strategy);
+                       context.mapping.strategy = oneToOneMappingStrategyFromString(strategy);
                      }),
-             "Strategy for solving the one-to-one process mapping problem after initial partitioning.\n"
+             "Strategy for solving the one-to-one mapping problem after initial partitioning.\n"
              "Available strategies:\n"
              " - dual_bipartitioning\n"
              " - greedy_mapping\n"
              " - identity")
-            ("process-mapping-use-local-search",
-             po::value<bool>(&context.process_mapping.use_local_search)->value_name("<bool>"),
-             "If true, uses local search to improve the initial one-to-one process mapping.")
-            ("process-mapping-optimize-km1-metric",
-             po::value<bool>(&context.process_mapping.optimize_km1_metric)->value_name("<bool>"),
-             "If true, we optimize km1 metric for process mapping and map the partition\n"
-             "to the process graph at the end of partitioning.")
+            ("mapping-use-local-search",
+             po::value<bool>(&context.mapping.use_local_search)->value_name("<bool>"),
+             "If true, uses local search to improve the initial mapping.")
+            ("use-two-phase-approach",
+             po::value<bool>(&context.mapping.use_two_phase_approach)->value_name("<bool>"),
+             "If true, then we first compute a k-way partition via optimizing the connectivity metric.\n"
+             "Afterwards, each block of the partition is mapped onto a block of the target architecture graph.")
             ("max-steiner-tree-size",
-             po::value<size_t>(&context.process_mapping.max_steiner_tree_size)->value_name("<size_t>"),
+             po::value<size_t>(&context.mapping.max_steiner_tree_size)->value_name("<size_t>"),
              "We precompute all optimal steiner trees up to this size in the process graph.")
             ("bisection-brute-force-threshold",
-             po::value<size_t>(&context.process_mapping.bisection_brute_fore_threshold)->value_name("<size_t>"),
+             po::value<size_t>(&context.mapping.bisection_brute_fore_threshold)->value_name("<size_t>"),
              "Threshold for the number of nodes when we brute force the optimal bisection in the dual bipartitioning strategy.")
-            ("process-mapping-largest-he-fraction",
-             po::value<double>(&context.process_mapping.largest_he_fraction)->value_name("<double>"),
+            ("mapping-largest-he-fraction",
+             po::value<double>(&context.mapping.largest_he_fraction)->value_name("<double>"),
              "If x% (x = process-mapping-largest-he-fraction) of the largest hyperedges covers more than y% of the pins\n"
              "(y = process-mapping-min-pin-coverage), then we ignore hyperedges larger than the x%-percentile in\n"
              "when counting adjacent blocks of a node.")
-            ("process-mapping-min-pin-coverage",
-             po::value<double>(&context.process_mapping.min_pin_coverage_of_largest_hes)->value_name("<double>"),
+            ("mapping-min-pin-coverage",
+             po::value<double>(&context.mapping.min_pin_coverage_of_largest_hes)->value_name("<double>"),
              "If x% (x = process-mapping-largest-he-fraction) of the largest hyperedges covers more than y% of the pins\n"
              "(y = process-mapping-min-pin-coverage), then we ignore hyperedges larger than the x%-percentile in\n"
              "when counting adjacent blocks of a node.");
-
-    return process_mapping_options;
+    return mapping_options;
   }
 
   po::options_description createSharedMemoryOptionsDescription(Context& context,
@@ -740,8 +738,8 @@ namespace mt_kahypar {
             createRefinementOptionsDescription(context, num_columns, false);
     po::options_description flow_options =
             createFlowRefinementOptionsDescription(context, num_columns, false);
-    po::options_description process_mapping_options =
-            createProcessMappingOptionsDescription(context, num_columns);
+    po::options_description mapping_options =
+            createMappingOptionsDescription(context, num_columns);
     po::options_description shared_memory_options =
             createSharedMemoryOptionsDescription(context, num_columns);
 
@@ -755,7 +753,7 @@ namespace mt_kahypar {
             .add(initial_paritioning_options)
             .add(refinement_options)
             .add(flow_options)
-            .add(process_mapping_options)
+            .add(mapping_options)
             .add(shared_memory_options);
 
     po::variables_map cmd_vm;
@@ -783,7 +781,7 @@ namespace mt_kahypar {
               .add(initial_paritioning_options)
               .add(refinement_options)
               .add(flow_options)
-              .add(process_mapping_options)
+              .add(mapping_options)
               .add(shared_memory_options);
 
       po::store(po::parse_config_file(file, ini_line_options, true), cmd_vm);
@@ -839,8 +837,8 @@ namespace mt_kahypar {
             createRefinementOptionsDescription(context, num_columns, false);
     po::options_description flow_options =
             createFlowRefinementOptionsDescription(context, num_columns, false);
-    po::options_description process_mapping_options =
-            createProcessMappingOptionsDescription(context, num_columns);
+    po::options_description mapping_options =
+            createMappingOptionsDescription(context, num_columns);
     po::options_description shared_memory_options =
             createSharedMemoryOptionsDescription(context, num_columns);
 
@@ -852,7 +850,7 @@ namespace mt_kahypar {
             .add(initial_paritioning_options)
             .add(refinement_options)
             .add(flow_options)
-            .add(process_mapping_options)
+            .add(mapping_options)
             .add(shared_memory_options);
 
     po::store(po::parse_config_file(file, ini_line_options, true), cmd_vm);

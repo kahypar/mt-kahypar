@@ -197,18 +197,18 @@ TEST(AContext, LoadsDefaultPresetCorrectly) {
             expected.refinement.flows.algorithm);
 
   // process mapping
-  ASSERT_EQ(actual.process_mapping.strategy,
-            expected.process_mapping.strategy);
-  ASSERT_EQ(actual.process_mapping.use_local_search,
-            expected.process_mapping.use_local_search);
-  ASSERT_EQ(actual.process_mapping.max_steiner_tree_size,
-            expected.process_mapping.max_steiner_tree_size);
-  ASSERT_EQ(actual.process_mapping.bisection_brute_fore_threshold,
-            expected.process_mapping.bisection_brute_fore_threshold);
-  ASSERT_EQ(actual.process_mapping.largest_he_fraction,
-            expected.process_mapping.largest_he_fraction);
-  ASSERT_EQ(actual.process_mapping.min_pin_coverage_of_largest_hes,
-            expected.process_mapping.min_pin_coverage_of_largest_hes);
+  ASSERT_EQ(actual.mapping.strategy,
+            expected.mapping.strategy);
+  ASSERT_EQ(actual.mapping.use_local_search,
+            expected.mapping.use_local_search);
+  ASSERT_EQ(actual.mapping.max_steiner_tree_size,
+            expected.mapping.max_steiner_tree_size);
+  ASSERT_EQ(actual.mapping.bisection_brute_fore_threshold,
+            expected.mapping.bisection_brute_fore_threshold);
+  ASSERT_EQ(actual.mapping.largest_he_fraction,
+            expected.mapping.largest_he_fraction);
+  ASSERT_EQ(actual.mapping.min_pin_coverage_of_largest_hes,
+            expected.mapping.min_pin_coverage_of_largest_hes);
 }
 
 TEST(AContext, LoadsDefaultFlowPresetCorrectly) {
@@ -391,22 +391,22 @@ TEST(AContext, LoadsDefaultFlowPresetCorrectly) {
             expected.refinement.flows.skip_unpromising_blocks);
   ASSERT_EQ(actual.refinement.flows.pierce_in_bulk,
             expected.refinement.flows.pierce_in_bulk);
-  ASSERT_EQ(actual.refinement.flows.process_mapping_policy,
-            expected.refinement.flows.process_mapping_policy);
+  ASSERT_EQ(actual.refinement.flows.steiner_tree_policy,
+            expected.refinement.flows.steiner_tree_policy);
 
   // process mapping
-  ASSERT_EQ(actual.process_mapping.strategy,
-            expected.process_mapping.strategy);
-  ASSERT_EQ(actual.process_mapping.use_local_search,
-            expected.process_mapping.use_local_search);
-  ASSERT_EQ(actual.process_mapping.max_steiner_tree_size,
-            expected.process_mapping.max_steiner_tree_size);
-  ASSERT_EQ(actual.process_mapping.bisection_brute_fore_threshold,
-            expected.process_mapping.bisection_brute_fore_threshold);
-  ASSERT_EQ(actual.process_mapping.largest_he_fraction,
-            expected.process_mapping.largest_he_fraction);
-  ASSERT_EQ(actual.process_mapping.min_pin_coverage_of_largest_hes,
-            expected.process_mapping.min_pin_coverage_of_largest_hes);
+  ASSERT_EQ(actual.mapping.strategy,
+            expected.mapping.strategy);
+  ASSERT_EQ(actual.mapping.use_local_search,
+            expected.mapping.use_local_search);
+  ASSERT_EQ(actual.mapping.max_steiner_tree_size,
+            expected.mapping.max_steiner_tree_size);
+  ASSERT_EQ(actual.mapping.bisection_brute_fore_threshold,
+            expected.mapping.bisection_brute_fore_threshold);
+  ASSERT_EQ(actual.mapping.largest_he_fraction,
+            expected.mapping.largest_he_fraction);
+  ASSERT_EQ(actual.mapping.min_pin_coverage_of_largest_hes,
+            expected.mapping.min_pin_coverage_of_largest_hes);
 }
 
 TEST(AContext, LoadsDeterministicPresetCorrectly) {
@@ -543,18 +543,18 @@ TEST(AContext, LoadsDeterministicPresetCorrectly) {
             expected.refinement.deterministic_refinement.recalculate_gains_on_second_apply);
 
   // process mapping
-  ASSERT_EQ(actual.process_mapping.strategy,
-            expected.process_mapping.strategy);
-  ASSERT_EQ(actual.process_mapping.use_local_search,
-            expected.process_mapping.use_local_search);
-  ASSERT_EQ(actual.process_mapping.max_steiner_tree_size,
-            expected.process_mapping.max_steiner_tree_size);
-  ASSERT_EQ(actual.process_mapping.bisection_brute_fore_threshold,
-            expected.process_mapping.bisection_brute_fore_threshold);
-  ASSERT_EQ(actual.process_mapping.largest_he_fraction,
-            expected.process_mapping.largest_he_fraction);
-  ASSERT_EQ(actual.process_mapping.min_pin_coverage_of_largest_hes,
-            expected.process_mapping.min_pin_coverage_of_largest_hes);
+  ASSERT_EQ(actual.mapping.strategy,
+            expected.mapping.strategy);
+  ASSERT_EQ(actual.mapping.use_local_search,
+            expected.mapping.use_local_search);
+  ASSERT_EQ(actual.mapping.max_steiner_tree_size,
+            expected.mapping.max_steiner_tree_size);
+  ASSERT_EQ(actual.mapping.bisection_brute_fore_threshold,
+            expected.mapping.bisection_brute_fore_threshold);
+  ASSERT_EQ(actual.mapping.largest_he_fraction,
+            expected.mapping.largest_he_fraction);
+  ASSERT_EQ(actual.mapping.min_pin_coverage_of_largest_hes,
+            expected.mapping.min_pin_coverage_of_largest_hes);
 }
 
 #ifdef KAHYPAR_ENABLE_N_LEVEL_PARTITIONING_FEATURES
@@ -741,18 +741,18 @@ TEST(AContext, LoadsQualityPresetCorrectly) {
             expected.refinement.global_fm.obey_minimal_parallelism);
 
   // process mapping
-  ASSERT_EQ(actual.process_mapping.strategy,
-            expected.process_mapping.strategy);
-  ASSERT_EQ(actual.process_mapping.use_local_search,
-            expected.process_mapping.use_local_search);
-  ASSERT_EQ(actual.process_mapping.max_steiner_tree_size,
-            expected.process_mapping.max_steiner_tree_size);
-  ASSERT_EQ(actual.process_mapping.bisection_brute_fore_threshold,
-            expected.process_mapping.bisection_brute_fore_threshold);
-  ASSERT_EQ(actual.process_mapping.largest_he_fraction,
-            expected.process_mapping.largest_he_fraction);
-  ASSERT_EQ(actual.process_mapping.min_pin_coverage_of_largest_hes,
-            expected.process_mapping.min_pin_coverage_of_largest_hes);
+  ASSERT_EQ(actual.mapping.strategy,
+            expected.mapping.strategy);
+  ASSERT_EQ(actual.mapping.use_local_search,
+            expected.mapping.use_local_search);
+  ASSERT_EQ(actual.mapping.max_steiner_tree_size,
+            expected.mapping.max_steiner_tree_size);
+  ASSERT_EQ(actual.mapping.bisection_brute_fore_threshold,
+            expected.mapping.bisection_brute_fore_threshold);
+  ASSERT_EQ(actual.mapping.largest_he_fraction,
+            expected.mapping.largest_he_fraction);
+  ASSERT_EQ(actual.mapping.min_pin_coverage_of_largest_hes,
+            expected.mapping.min_pin_coverage_of_largest_hes);
 }
 
 TEST(AContext, LoadsQualityFlowPresetCorrectly) {
@@ -949,8 +949,8 @@ TEST(AContext, LoadsQualityFlowPresetCorrectly) {
             expected.refinement.flows.skip_unpromising_blocks);
   ASSERT_EQ(actual.refinement.flows.pierce_in_bulk,
             expected.refinement.flows.pierce_in_bulk);
-  ASSERT_EQ(actual.refinement.flows.process_mapping_policy,
-            expected.refinement.flows.process_mapping_policy);
+  ASSERT_EQ(actual.refinement.flows.steiner_tree_policy,
+            expected.refinement.flows.steiner_tree_policy);
 
   // refinement -> global fm
   ASSERT_EQ(actual.refinement.global_fm.use_global_fm,
@@ -963,18 +963,18 @@ TEST(AContext, LoadsQualityFlowPresetCorrectly) {
             expected.refinement.global_fm.obey_minimal_parallelism);
 
   // process mapping
-  ASSERT_EQ(actual.process_mapping.strategy,
-            expected.process_mapping.strategy);
-  ASSERT_EQ(actual.process_mapping.use_local_search,
-            expected.process_mapping.use_local_search);
-  ASSERT_EQ(actual.process_mapping.max_steiner_tree_size,
-            expected.process_mapping.max_steiner_tree_size);
-  ASSERT_EQ(actual.process_mapping.bisection_brute_fore_threshold,
-            expected.process_mapping.bisection_brute_fore_threshold);
-  ASSERT_EQ(actual.process_mapping.largest_he_fraction,
-            expected.process_mapping.largest_he_fraction);
-  ASSERT_EQ(actual.process_mapping.min_pin_coverage_of_largest_hes,
-            expected.process_mapping.min_pin_coverage_of_largest_hes);
+  ASSERT_EQ(actual.mapping.strategy,
+            expected.mapping.strategy);
+  ASSERT_EQ(actual.mapping.use_local_search,
+            expected.mapping.use_local_search);
+  ASSERT_EQ(actual.mapping.max_steiner_tree_size,
+            expected.mapping.max_steiner_tree_size);
+  ASSERT_EQ(actual.mapping.bisection_brute_fore_threshold,
+            expected.mapping.bisection_brute_fore_threshold);
+  ASSERT_EQ(actual.mapping.largest_he_fraction,
+            expected.mapping.largest_he_fraction);
+  ASSERT_EQ(actual.mapping.min_pin_coverage_of_largest_hes,
+            expected.mapping.min_pin_coverage_of_largest_hes);
 }
 #endif
 
@@ -1094,18 +1094,18 @@ TEST(AContext, LoadsLargeKPresetCorrectly) {
             expected.refinement.flows.algorithm);
 
   // process mapping
-  ASSERT_EQ(actual.process_mapping.strategy,
-            expected.process_mapping.strategy);
-  ASSERT_EQ(actual.process_mapping.use_local_search,
-            expected.process_mapping.use_local_search);
-  ASSERT_EQ(actual.process_mapping.max_steiner_tree_size,
-            expected.process_mapping.max_steiner_tree_size);
-  ASSERT_EQ(actual.process_mapping.bisection_brute_fore_threshold,
-            expected.process_mapping.bisection_brute_fore_threshold);
-  ASSERT_EQ(actual.process_mapping.largest_he_fraction,
-            expected.process_mapping.largest_he_fraction);
-  ASSERT_EQ(actual.process_mapping.min_pin_coverage_of_largest_hes,
-            expected.process_mapping.min_pin_coverage_of_largest_hes);
+  ASSERT_EQ(actual.mapping.strategy,
+            expected.mapping.strategy);
+  ASSERT_EQ(actual.mapping.use_local_search,
+            expected.mapping.use_local_search);
+  ASSERT_EQ(actual.mapping.max_steiner_tree_size,
+            expected.mapping.max_steiner_tree_size);
+  ASSERT_EQ(actual.mapping.bisection_brute_fore_threshold,
+            expected.mapping.bisection_brute_fore_threshold);
+  ASSERT_EQ(actual.mapping.largest_he_fraction,
+            expected.mapping.largest_he_fraction);
+  ASSERT_EQ(actual.mapping.min_pin_coverage_of_largest_hes,
+            expected.mapping.min_pin_coverage_of_largest_hes);
 }
 
 #endif
