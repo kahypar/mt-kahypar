@@ -51,7 +51,7 @@ namespace mt_kahypar {
  *
  * The mapping problem asks for a mapping Π: V -> V_p of the node set V of a weighted hypergraph H = (V,E,c,w)
  * onto a target graph P = (V_P, E_P) such that the following objective function is minimized:
- * process_mapping(H, P, Π) := sum_{e \in E} dist_P(Λ(e)) * w(e)
+ * steiner_tree(H, P, Π) := sum_{e \in E} dist_P(Λ(e)) * w(e)
  * Here, dist_P(Λ(e)) is shortest connections between all blocks Λ(e) contained in a hyperedge e using only edges
  * of the target graph. Computing dist_P(Λ(e)) reverts to the steiner tree problem which is an NP-hard problem.
  * However, we precompute all steiner trees up to a certain size and for larger connectivity sets Λ(e), we compute

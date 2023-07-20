@@ -52,7 +52,7 @@ namespace mt_kahypar {
  *
  * The mapping problem asks for a mapping Π: V -> V_p of the node set V of a weighted graph G = (V,E,c,w)
  * onto a target graph P = (V_P, E_P) such that the following objective function is minimized:
- * process_mapping(G, P, Π) := sum_{{u,v} \in E} dist_P(Π[u],Π[v]) * w(u,v)
+ * steiner_tree(G, P, Π) := sum_{{u,v} \in E} dist_P(Π[u],Π[v]) * w(u,v)
  * Here, dist_P(Π[u],Π[v]) is shortest path connecting block Π[u] and Π[v] in the target graph.
  *
  * The gain of moving a node u from its current block V_i to a target block V_j can be expressed as follows:
