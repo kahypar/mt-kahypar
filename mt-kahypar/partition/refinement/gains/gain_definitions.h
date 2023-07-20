@@ -37,11 +37,13 @@
 #include "mt-kahypar/partition/refinement/gains/km1/km1_gain_computation.h"
 #include "mt-kahypar/partition/refinement/gains/km1/km1_attributed_gains.h"
 #include "mt-kahypar/partition/refinement/gains/km1/km1_flow_network_construction.h"
+#ifdef KAHYPAR_ENABLE_CUT_METRIC
 #include "mt-kahypar/partition/refinement/gains/cut/cut_gain_cache.h"
 #include "mt-kahypar/partition/refinement/gains/cut/cut_rollback.h"
 #include "mt-kahypar/partition/refinement/gains/cut/cut_gain_computation.h"
 #include "mt-kahypar/partition/refinement/gains/cut/cut_attributed_gains.h"
 #include "mt-kahypar/partition/refinement/gains/cut/cut_flow_network_construction.h"
+#endif
 #ifdef KAHYPAR_ENABLE_SOED_METRIC
 #include "mt-kahypar/partition/refinement/gains/soed/soed_attributed_gains.h"
 #include "mt-kahypar/partition/refinement/gains/soed/soed_gain_computation.h"
@@ -79,6 +81,7 @@ struct Km1GainTypes : public kahypar::meta::PolicyBase {
   using FlowNetworkConstruction = Km1FlowNetworkConstruction;
 };
 
+#ifdef KAHYPAR_ENABLE_CUT_METRIC
 struct CutGainTypes : public kahypar::meta::PolicyBase {
   using GainComputation = CutGainComputation;
   using AttributedGains = CutAttributedGains;
@@ -87,6 +90,7 @@ struct CutGainTypes : public kahypar::meta::PolicyBase {
   using Rollback = CutRollback;
   using FlowNetworkConstruction = CutFlowNetworkConstruction;
 };
+#endif
 
 #ifdef KAHYPAR_ENABLE_SOED_METRIC
 struct SoedGainTypes : public kahypar::meta::PolicyBase {
@@ -133,8 +137,8 @@ struct SteinerTreeForGraphsTypes : public kahypar::meta::PolicyBase {
 #endif
 
 
-using GainTypes = kahypar::meta::Typelist<Km1GainTypes,
-                                          CutGainTypes
+using GainTypes = kahypar::meta::Typelist<Km1GainTypes
+                                          ENABLE_CUT(COMMA CutGainTypes)
                                           ENABLE_SOED(COMMA SoedGainTypes)
                                           ENABLE_STEINER_TREE(COMMA SteinerTreeGainTypes)
                                           ENABLE_GRAPHS(COMMA CutGainForGraphsTypes)
@@ -142,7 +146,7 @@ using GainTypes = kahypar::meta::Typelist<Km1GainTypes,
 
 #define INSTANTIATE_CLASS_WITH_TYPE_TRAITS_AND_GAIN_TYPES(C)                                                                 \
   INSTANTIATE_CLASS_MACRO_WITH_TYPE_TRAITS_AND_OTHER_CLASS(C, Km1GainTypes)                                                  \
-  INSTANTIATE_CLASS_MACRO_WITH_TYPE_TRAITS_AND_OTHER_CLASS(C, CutGainTypes)                                                  \
+  ENABLE_CUT(INSTANTIATE_CLASS_MACRO_WITH_TYPE_TRAITS_AND_OTHER_CLASS(C, CutGainTypes))                                      \
   ENABLE_SOED(INSTANTIATE_CLASS_MACRO_WITH_TYPE_TRAITS_AND_OTHER_CLASS(C, SoedGainTypes))                                    \
   ENABLE_STEINER_TREE(INSTANTIATE_CLASS_MACRO_WITH_TYPE_TRAITS_AND_OTHER_CLASS(C, SteinerTreeGainTypes))                     \
   ENABLE_GRAPHS(INSTANTIATE_CLASS_MACRO_WITH_TYPE_TRAITS_AND_OTHER_CLASS(C, CutGainForGraphsTypes))                          \

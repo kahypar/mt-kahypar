@@ -175,6 +175,12 @@
 #define ENABLE_QUALITY_PRESET_FOR_GRAPHS(X)
 #endif
 
+#ifdef KAHYPAR_ENABLE_CUT_METRIC
+#define ENABLE_CUT(X) X
+#else
+#define ENABLE_CUT(X)
+#endif
+
 #ifdef KAHYPAR_ENABLE_SOED_METRIC
 #define ENABLE_SOED(X) X
 #else

@@ -415,6 +415,13 @@ namespace mt_kahypar {
   }
 
   void Context::setupGainPolicy() {
+    #ifndef KAHYPAR_ENABLE_CUT_METRIC
+    if ( partition.objective == Objective::cut ) {
+      ERR("Cut metric is deactivated. Add -DKAHYPAR_ENABLE_CUT_METRIC=ON"
+        << "to the cmake command and rebuild Mt-KaHyPar.");
+    }
+    #endif
+
     #ifndef KAHYPAR_ENABLE_SOED_METRIC
     if ( partition.objective == Objective::soed ) {
       ERR("SOED metric is deactivated. Add -DKAHYPAR_ENABLE_SOED_METRIC=ON"

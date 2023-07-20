@@ -620,10 +620,12 @@ void bipartition_each_block(typename TypeTraits::PartitionedHypergraph& partitio
                             const HyperedgeWeight current_objective,
                             const bool progress_bar_enabled) {
   switch(gain_cache.type) {
+    #ifdef KAHYPAR_ENABLE_CUT_METRIC
     case GainPolicy::cut:
       bipartition_each_block<TypeTraits>(partitioned_hg, context,
         GainCachePtr::cast<CutGainCache>(gain_cache), info, rb_tree,
         already_cut, current_k, current_objective, progress_bar_enabled); break;
+    #endif
     case GainPolicy::km1:
       bipartition_each_block<TypeTraits>(partitioned_hg, context,
         GainCachePtr::cast<Km1GainCache>(gain_cache), info, rb_tree,
