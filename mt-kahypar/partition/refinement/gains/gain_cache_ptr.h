@@ -32,12 +32,8 @@
 #include "mt-kahypar/partition/context_enum_classes.h"
 #include "mt-kahypar/datastructures/hypergraph_common.h"
 #include "mt-kahypar/partition/refinement/gains/km1/km1_gain_cache.h"
-#ifdef KAHYPAR_ENABLE_CUT_METRIC
 #include "mt-kahypar/partition/refinement/gains/cut/cut_gain_cache.h"
-#endif
-#ifdef KAHYPAR_ENABLE_SOED_METRIC
 #include "mt-kahypar/partition/refinement/gains/soed/soed_gain_cache.h"
-#endif
 #ifdef KAHYPAR_ENABLE_STEINER_TREE_METRIC
 #include "mt-kahypar/partition/refinement/gains/steiner_tree/steiner_tree_gain_cache.h"
 #endif
@@ -62,9 +58,7 @@ class GainCachePtr {
  public:
   static gain_cache_t constructGainCache(const Context& context) {
     switch(context.partition.gain_policy) {
-      #ifdef KAHYPAR_ENABLE_CUT_METRIC
       case GainPolicy::cut: return constructGainCache<CutGainCache>(context);
-      #endif
       case GainPolicy::km1: return constructGainCache<Km1GainCache>(context);
       #ifdef KAHYPAR_ENABLE_SOED_METRIC
       case GainPolicy::soed: return constructGainCache<SoedGainCache>(context);
@@ -86,10 +80,8 @@ class GainCachePtr {
   static void deleteGainCache(gain_cache_t gain_cache) {
     if ( gain_cache.gain_cache ) {
       switch(gain_cache.type) {
-        #ifdef KAHYPAR_ENABLE_CUT_METRIC
         case GainPolicy::cut:
           delete reinterpret_cast<CutGainCache*>(gain_cache.gain_cache); break;
-        #endif
         case GainPolicy::km1:
           delete reinterpret_cast<Km1GainCache*>(gain_cache.gain_cache); break;
         #ifdef KAHYPAR_ENABLE_SOED_METRIC
@@ -118,9 +110,7 @@ class GainCachePtr {
   static void initializeGainCache(const PartitionedHypergraph& partitioned_hg,
                                   gain_cache_t gain_cache) {
     switch(gain_cache.type) {
-      #ifdef KAHYPAR_ENABLE_CUT_METRIC
       case GainPolicy::cut: cast<CutGainCache>(gain_cache).initializeGainCache(partitioned_hg); break;
-      #endif
       case GainPolicy::km1: cast<Km1GainCache>(gain_cache).initializeGainCache(partitioned_hg); break;
       #ifdef KAHYPAR_ENABLE_SOED_METRIC
       case GainPolicy::soed: cast<SoedGainCache>(gain_cache).initializeGainCache(partitioned_hg); break;
@@ -140,9 +130,7 @@ class GainCachePtr {
 
   static void resetGainCache(gain_cache_t gain_cache) {
     switch(gain_cache.type) {
-      #ifdef KAHYPAR_ENABLE_CUT_METRIC
       case GainPolicy::cut: cast<CutGainCache>(gain_cache).reset(); break;
-      #endif
       case GainPolicy::km1: cast<Km1GainCache>(gain_cache).reset(); break;
       #ifdef KAHYPAR_ENABLE_SOED_METRIC
       case GainPolicy::soed: cast<SoedGainCache>(gain_cache).reset(); break;
@@ -166,9 +154,7 @@ class GainCachePtr {
                          const Batch& batch,
                          gain_cache_t gain_cache) {
     switch(gain_cache.type) {
-      #ifdef KAHYPAR_ENABLE_CUT_METRIC
       case GainPolicy::cut: partitioned_hg.uncontract(batch, cast<CutGainCache>(gain_cache)); break;
-      #endif
       case GainPolicy::km1: partitioned_hg.uncontract(batch, cast<Km1GainCache>(gain_cache)); break;
       #ifdef KAHYPAR_ENABLE_SOED_METRIC
       case GainPolicy::soed: partitioned_hg.uncontract(batch, cast<SoedGainCache>(gain_cache)); break;
@@ -190,11 +176,9 @@ class GainCachePtr {
                                               const vec<ParallelHyperedge>& hes_to_restore,
                                               gain_cache_t gain_cache) {
     switch ( gain_cache.type ) {
-      #ifdef KAHYPAR_ENABLE_CUT_METRIC
       case GainPolicy::cut:
         partitioned_hg.restoreSinglePinAndParallelNets(hes_to_restore,
           cast<CutGainCache>(gain_cache)); break;
-      #endif
       case GainPolicy::km1:
         partitioned_hg.restoreSinglePinAndParallelNets(hes_to_restore,
           cast<Km1GainCache>(gain_cache)); break;
@@ -227,11 +211,9 @@ class GainCachePtr {
   static bool checkTrackedPartitionInformation(PartitionedHypergraph& partitioned_hg,
                                                gain_cache_t gain_cache) {
     switch ( gain_cache.type ) {
-      #ifdef KAHYPAR_ENABLE_CUT_METRIC
       case GainPolicy::cut:
         return partitioned_hg.checkTrackedPartitionInformation(
           cast<CutGainCache>(gain_cache));
-      #endif
       case GainPolicy::km1:
         return partitioned_hg.checkTrackedPartitionInformation(
           cast<Km1GainCache>(gain_cache));

@@ -39,10 +39,7 @@ set(SteinerTreeGraphSources
 foreach(modtarget IN LISTS PARTITIONING_SUITE_TARGETS)
     target_sources(${modtarget} PRIVATE ${RefinementSources})
     target_sources(${modtarget} PRIVATE ${Km1Sources})
-
-    if ( KAHYPAR_ENABLE_CUT_METRIC )
-      target_sources(${modtarget} PRIVATE ${CutSources})
-    endif()
+    target_sources(${modtarget} PRIVATE ${CutSources})
 
     if ( KAHYPAR_ENABLE_SOED_METRIC )
       target_sources(${modtarget} PRIVATE ${SoedSources})
