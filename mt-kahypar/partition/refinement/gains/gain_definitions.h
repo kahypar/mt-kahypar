@@ -42,11 +42,13 @@
 #include "mt-kahypar/partition/refinement/gains/cut/cut_gain_computation.h"
 #include "mt-kahypar/partition/refinement/gains/cut/cut_attributed_gains.h"
 #include "mt-kahypar/partition/refinement/gains/cut/cut_flow_network_construction.h"
+#ifdef KAHYPAR_ENABLE_SOED_METRIC
 #include "mt-kahypar/partition/refinement/gains/soed/soed_attributed_gains.h"
 #include "mt-kahypar/partition/refinement/gains/soed/soed_gain_computation.h"
 #include "mt-kahypar/partition/refinement/gains/soed/soed_gain_cache.h"
 #include "mt-kahypar/partition/refinement/gains/soed/soed_rollback.h"
 #include "mt-kahypar/partition/refinement/gains/soed/soed_flow_network_construction.h"
+#endif
 #ifdef KAHYPAR_ENABLE_STEINER_TREE_METRIC
 #include "mt-kahypar/partition/refinement/gains/steiner_tree/steiner_tree_attributed_gains.h"
 #include "mt-kahypar/partition/refinement/gains/steiner_tree/steiner_tree_gain_computation.h"
@@ -86,6 +88,7 @@ struct CutGainTypes : public kahypar::meta::PolicyBase {
   using FlowNetworkConstruction = CutFlowNetworkConstruction;
 };
 
+#ifdef KAHYPAR_ENABLE_SOED_METRIC
 struct SoedGainTypes : public kahypar::meta::PolicyBase {
   using GainComputation = SoedGainComputation;
   using AttributedGains = SoedAttributedGains;
@@ -94,6 +97,7 @@ struct SoedGainTypes : public kahypar::meta::PolicyBase {
   using Rollback = SoedRollback;
   using FlowNetworkConstruction = SoedFlowNetworkConstruction;
 };
+#endif
 
 #ifdef KAHYPAR_ENABLE_STEINER_TREE_METRIC
 struct SteinerTreeGainTypes : public kahypar::meta::PolicyBase {
@@ -130,8 +134,8 @@ struct SteinerTreeForGraphsTypes : public kahypar::meta::PolicyBase {
 
 
 using GainTypes = kahypar::meta::Typelist<Km1GainTypes,
-                                          CutGainTypes,
-                                          SoedGainTypes
+                                          CutGainTypes
+                                          ENABLE_SOED(COMMA SoedGainTypes)
                                           ENABLE_STEINER_TREE(COMMA SteinerTreeGainTypes)
                                           ENABLE_GRAPHS(COMMA CutGainForGraphsTypes)
                                           ENABLE_GRAPHS(ENABLE_STEINER_TREE(COMMA SteinerTreeForGraphsTypes))>;
@@ -139,7 +143,7 @@ using GainTypes = kahypar::meta::Typelist<Km1GainTypes,
 #define INSTANTIATE_CLASS_WITH_TYPE_TRAITS_AND_GAIN_TYPES(C)                                                                 \
   INSTANTIATE_CLASS_MACRO_WITH_TYPE_TRAITS_AND_OTHER_CLASS(C, Km1GainTypes)                                                  \
   INSTANTIATE_CLASS_MACRO_WITH_TYPE_TRAITS_AND_OTHER_CLASS(C, CutGainTypes)                                                  \
-  INSTANTIATE_CLASS_MACRO_WITH_TYPE_TRAITS_AND_OTHER_CLASS(C, SoedGainTypes)                                                 \
+  ENABLE_SOED(INSTANTIATE_CLASS_MACRO_WITH_TYPE_TRAITS_AND_OTHER_CLASS(C, SoedGainTypes))                                    \
   ENABLE_STEINER_TREE(INSTANTIATE_CLASS_MACRO_WITH_TYPE_TRAITS_AND_OTHER_CLASS(C, SteinerTreeGainTypes))                     \
   ENABLE_GRAPHS(INSTANTIATE_CLASS_MACRO_WITH_TYPE_TRAITS_AND_OTHER_CLASS(C, CutGainForGraphsTypes))                          \
   ENABLE_GRAPHS(ENABLE_STEINER_TREE(INSTANTIATE_CLASS_MACRO_WITH_TYPE_TRAITS_AND_OTHER_CLASS(C, SteinerTreeForGraphsTypes)))

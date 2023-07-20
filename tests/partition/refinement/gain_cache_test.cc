@@ -431,20 +431,20 @@ class AGainCache : public Test {
 };
 
 typedef ::testing::Types<TestConfig<StaticHypergraphTypeTraits, Km1GainTypes>,
-                         TestConfig<StaticHypergraphTypeTraits, CutGainTypes>,
-                         TestConfig<StaticHypergraphTypeTraits, SoedGainTypes>
+                         TestConfig<StaticHypergraphTypeTraits, CutGainTypes>
+                         ENABLE_SOED(TestConfig<COMMA StaticHypergraphTypeTraits COMMA SoedGainTypes>)
                          ENABLE_STEINER_TREE(COMMA TestConfig<StaticHypergraphTypeTraits COMMA SteinerTreeGainTypes>)
                          ENABLE_GRAPHS(COMMA TestConfig<StaticGraphTypeTraits COMMA CutGainForGraphsTypes>)
                          ENABLE_GRAPHS(ENABLE_STEINER_TREE(COMMA TestConfig<StaticGraphTypeTraits COMMA SteinerTreeForGraphsTypes>))
                          ENABLE_QUALITY_PRESET(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA Km1GainTypes>)
                          ENABLE_QUALITY_PRESET(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA CutGainTypes>)
-                         ENABLE_QUALITY_PRESET(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA SoedGainTypes>)
+                         ENABLE_QUALITY_PRESET(ENABLE_SOED(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA SoedGainTypes>))
                          ENABLE_QUALITY_PRESET(ENABLE_STEINER_TREE(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA SteinerTreeGainTypes>))
                          ENABLE_QUALITY_PRESET_FOR_GRAPHS(COMMA TestConfig<DynamicGraphTypeTraits COMMA CutGainForGraphsTypes>)
                          ENABLE_QUALITY_PRESET_FOR_GRAPHS(ENABLE_STEINER_TREE(COMMA TestConfig<DynamicGraphTypeTraits COMMA SteinerTreeForGraphsTypes>))
                          ENABLE_LARGE_K(COMMA TestConfig<LargeKHypergraphTypeTraits COMMA Km1GainTypes>)
                          ENABLE_LARGE_K(COMMA TestConfig<LargeKHypergraphTypeTraits COMMA CutGainTypes>)
-                         ENABLE_LARGE_K(COMMA TestConfig<LargeKHypergraphTypeTraits COMMA SoedGainTypes>)
+                         ENABLE_LARGE_K(ENABLE_SOED(COMMA TestConfig<LargeKHypergraphTypeTraits COMMA SoedGainTypes>))
                          ENABLE_LARGE_K(ENABLE_STEINER_TREE(COMMA TestConfig<LargeKHypergraphTypeTraits COMMA SteinerTreeGainTypes>))> TestConfigs;
 
 TYPED_TEST_CASE(AGainCache, TestConfigs);

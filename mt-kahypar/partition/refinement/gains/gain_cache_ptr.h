@@ -60,7 +60,9 @@ class GainCachePtr {
     switch(context.partition.gain_policy) {
       case GainPolicy::cut: return constructGainCache<CutGainCache>(context);
       case GainPolicy::km1: return constructGainCache<Km1GainCache>(context);
+      #ifdef KAHYPAR_ENABLE_SOED_METRIC
       case GainPolicy::soed: return constructGainCache<SoedGainCache>(context);
+      #endif
       #ifdef KAHYPAR_ENABLE_STEINER_TREE_METRIC
       case GainPolicy::steiner_tree: return constructGainCache<SteinerTreeGainCache>(context);
       #endif
@@ -82,8 +84,10 @@ class GainCachePtr {
           delete reinterpret_cast<CutGainCache*>(gain_cache.gain_cache); break;
         case GainPolicy::km1:
           delete reinterpret_cast<Km1GainCache*>(gain_cache.gain_cache); break;
+        #ifdef KAHYPAR_ENABLE_SOED_METRIC
         case GainPolicy::soed:
           delete reinterpret_cast<SoedGainCache*>(gain_cache.gain_cache); break;
+        #endif
         #ifdef KAHYPAR_ENABLE_STEINER_TREE_METRIC
         case GainPolicy::steiner_tree:
           delete reinterpret_cast<SteinerTreeGainCache*>(gain_cache.gain_cache); break;
@@ -108,7 +112,9 @@ class GainCachePtr {
     switch(gain_cache.type) {
       case GainPolicy::cut: cast<CutGainCache>(gain_cache).initializeGainCache(partitioned_hg); break;
       case GainPolicy::km1: cast<Km1GainCache>(gain_cache).initializeGainCache(partitioned_hg); break;
+      #ifdef KAHYPAR_ENABLE_SOED_METRIC
       case GainPolicy::soed: cast<SoedGainCache>(gain_cache).initializeGainCache(partitioned_hg); break;
+      #endif
       #ifdef KAHYPAR_ENABLE_STEINER_TREE_METRIC
       case GainPolicy::steiner_tree: cast<SteinerTreeGainCache>(gain_cache).initializeGainCache(partitioned_hg); break;
       #endif
@@ -126,7 +132,9 @@ class GainCachePtr {
     switch(gain_cache.type) {
       case GainPolicy::cut: cast<CutGainCache>(gain_cache).reset(); break;
       case GainPolicy::km1: cast<Km1GainCache>(gain_cache).reset(); break;
+      #ifdef KAHYPAR_ENABLE_SOED_METRIC
       case GainPolicy::soed: cast<SoedGainCache>(gain_cache).reset(); break;
+      #endif
       #ifdef KAHYPAR_ENABLE_STEINER_TREE_METRIC
       case GainPolicy::steiner_tree: cast<SteinerTreeGainCache>(gain_cache).reset(); break;
       #endif
@@ -148,7 +156,9 @@ class GainCachePtr {
     switch(gain_cache.type) {
       case GainPolicy::cut: partitioned_hg.uncontract(batch, cast<CutGainCache>(gain_cache)); break;
       case GainPolicy::km1: partitioned_hg.uncontract(batch, cast<Km1GainCache>(gain_cache)); break;
+      #ifdef KAHYPAR_ENABLE_SOED_METRIC
       case GainPolicy::soed: partitioned_hg.uncontract(batch, cast<SoedGainCache>(gain_cache)); break;
+      #endif
       #ifdef KAHYPAR_ENABLE_STEINER_TREE_METRIC
       case GainPolicy::steiner_tree: partitioned_hg.uncontract(batch, cast<SteinerTreeGainCache>(gain_cache)); break;
       #endif
@@ -172,9 +182,11 @@ class GainCachePtr {
       case GainPolicy::km1:
         partitioned_hg.restoreSinglePinAndParallelNets(hes_to_restore,
           cast<Km1GainCache>(gain_cache)); break;
+      #ifdef KAHYPAR_ENABLE_SOED_METRIC
       case GainPolicy::soed:
         partitioned_hg.restoreSinglePinAndParallelNets(hes_to_restore,
           cast<SoedGainCache>(gain_cache)); break;
+      #endif
       #ifdef KAHYPAR_ENABLE_STEINER_TREE_METRIC
       case GainPolicy::steiner_tree:
         partitioned_hg.restoreSinglePinAndParallelNets(hes_to_restore,
@@ -205,9 +217,11 @@ class GainCachePtr {
       case GainPolicy::km1:
         return partitioned_hg.checkTrackedPartitionInformation(
           cast<Km1GainCache>(gain_cache));
+      #ifdef KAHYPAR_ENABLE_SOED_METRIC
       case GainPolicy::soed:
         return partitioned_hg.checkTrackedPartitionInformation(
           cast<SoedGainCache>(gain_cache));
+      #endif
       #ifdef KAHYPAR_ENABLE_STEINER_TREE_METRIC
       case GainPolicy::steiner_tree:
         return partitioned_hg.checkTrackedPartitionInformation(

@@ -70,6 +70,9 @@ option(KAHYPAR_ENABLE_QUALITY_PRESET_FEATURES
 option(KAHYPAR_ENABLE_LARGE_K_PARTITIONING_FEATURES
   "Enables large k partitioning features. Can be turned off for faster compilation." ON)
 
+option(KAHYPAR_ENABLE_SOED_METRIC
+  "Enables the sum-of-external-degree metric. Can be turned off for faster compilation." ON)
+
 option(KAHYPAR_ENABLE_STEINER_TREE_METRIC
   "Enables the Steiner tree metric. Can be turned off for faster compilation." ON)
 
@@ -124,6 +127,10 @@ endif(KAHYPAR_ENABLE_QUALITY_PRESET_FEATURES)
 if(KAHYPAR_ENABLE_LARGE_K_PARTITIONING_FEATURES)
   add_compile_definitions(KAHYPAR_ENABLE_LARGE_K_PARTITIONING_FEATURES)
 endif(KAHYPAR_ENABLE_LARGE_K_PARTITIONING_FEATURES)
+
+if(KAHYPAR_ENABLE_SOED_METRIC)
+  add_compile_definitions(KAHYPAR_ENABLE_SOED_METRIC)
+endif(KAHYPAR_ENABLE_SOED_METRIC)
 
 if(KAHYPAR_ENABLE_STEINER_TREE_METRIC)
   add_compile_definitions(KAHYPAR_ENABLE_STEINER_TREE_METRIC)

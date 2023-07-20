@@ -93,7 +93,9 @@ REGISTER_POLICY(AcceptancePolicy, AcceptancePolicy::best,
 // //////////////////////////////////////////////////////////////////////////////
 REGISTER_POLICY(GainPolicy, GainPolicy::km1, Km1GainTypes);
 REGISTER_POLICY(GainPolicy, GainPolicy::cut, CutGainTypes);
+#ifdef KAHYPAR_ENABLE_SOED_METRIC
 REGISTER_POLICY(GainPolicy, GainPolicy::soed, SoedGainTypes);
+#endif
 #ifdef KAHYPAR_ENABLE_STEINER_TREE_METRIC
 REGISTER_POLICY(GainPolicy, GainPolicy::steiner_tree, SteinerTreeGainTypes);
 #endif

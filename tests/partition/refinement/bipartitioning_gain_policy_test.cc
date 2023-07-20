@@ -93,8 +93,8 @@ class ABipartitioningPolicy : public Test {
 };
 
 typedef ::testing::Types<ObjectiveF<Objective::cut>,
-                         ObjectiveF<Objective::km1>,
-                         ObjectiveF<Objective::soed>> TestConfigs;
+                         ObjectiveF<Objective::km1>
+                         ENABLE_SOED(COMMA ObjectiveF<Objective::soed>)> TestConfigs;
 
 TYPED_TEST_CASE(ABipartitioningPolicy, TestConfigs);
 
