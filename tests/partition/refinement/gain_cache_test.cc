@@ -434,8 +434,8 @@ typedef ::testing::Types<TestConfig<StaticHypergraphTypeTraits, Km1GainTypes>,
                          TestConfig<StaticHypergraphTypeTraits, CutGainTypes>,
                          TestConfig<StaticHypergraphTypeTraits, SoedGainTypes>,
                          TestConfig<StaticHypergraphTypeTraits, ProcessMappingGainTypes>
-                         ENABLE_GRAPHS(COMMA TestConfig<StaticGraphTypeTraits, CutGainForGraphsTypes>)
-                         ENABLE_GRAPHS(COMMA TestConfig<StaticGraphTypeTraits, ProcessMappingForGraphsTypes>)
+                         ENABLE_GRAPHS(COMMA TestConfig<StaticGraphTypeTraits COMMA CutGainForGraphsTypes>)
+                         ENABLE_GRAPHS(COMMA TestConfig<StaticGraphTypeTraits COMMA ProcessMappingForGraphsTypes>)
                          ENABLE_QUALITY_PRESET(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA Km1GainTypes>)
                          ENABLE_QUALITY_PRESET(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA CutGainTypes>)
                          ENABLE_QUALITY_PRESET(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA SoedGainTypes>)
