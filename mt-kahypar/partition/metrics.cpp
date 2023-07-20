@@ -63,7 +63,7 @@ struct ObjectiveFunction<PartitionedHypergraph, Objective::soed> {
 };
 
 template<typename PartitionedHypergraph>
-struct ObjectiveFunction<PartitionedHypergraph, Objective::process_mapping> {
+struct ObjectiveFunction<PartitionedHypergraph, Objective::steiner_tree> {
   HyperedgeWeight operator()(const PartitionedHypergraph& phg, const HyperedgeID& he) const {
     ASSERT(phg.hasProcessGraph());
     const ProcessGraph* process_graph = phg.processGraph();
@@ -121,9 +121,9 @@ HyperedgeWeight quality(const PartitionedHypergraph& hg,
     case Objective::soed:
       return parallel ? compute_objective_parallel<Objective::soed>(hg) :
         compute_objective_sequentially<Objective::soed>(hg);
-    case Objective::process_mapping:
-      return parallel ? compute_objective_parallel<Objective::process_mapping>(hg) :
-        compute_objective_sequentially<Objective::process_mapping>(hg);
+    case Objective::steiner_tree:
+      return parallel ? compute_objective_parallel<Objective::steiner_tree>(hg) :
+        compute_objective_sequentially<Objective::steiner_tree>(hg);
     default: ERR("Unknown Objective");
   }
   return 0;
@@ -137,7 +137,7 @@ HyperedgeWeight contribution(const PartitionedHypergraph& hg,
     case Objective::cut: return contribution<Objective::soed>(hg, he);
     case Objective::km1: return contribution<Objective::km1>(hg, he);
     case Objective::soed: return contribution<Objective::soed>(hg, he);
-    case Objective::process_mapping: return contribution<Objective::process_mapping>(hg, he);
+    case Objective::steiner_tree: return contribution<Objective::steiner_tree>(hg, he);
     default: ERR("Unknown Objective");
   }
   return 0;

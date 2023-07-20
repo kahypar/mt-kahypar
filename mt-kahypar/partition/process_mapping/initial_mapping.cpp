@@ -199,8 +199,8 @@ void map_to_process_graph(PartitionedHypergraph& communication_hg,
   contracted_phg.setProcessGraph(&process_graph);
   timer.stop_timer("contract_partition");
 
-  const HyperedgeWeight objective_before = metrics::quality(contracted_phg, Objective::process_mapping);
-  ASSERT(metrics::quality(communication_hg, Objective::process_mapping) == objective_before);
+  const HyperedgeWeight objective_before = metrics::quality(contracted_phg, Objective::steiner_tree);
+  ASSERT(metrics::quality(communication_hg, Objective::steiner_tree) == objective_before);
 
   // Solve one-to-one process mapping problem
   #ifndef IGNORE_DUAL_BIPARTITIONING
@@ -212,7 +212,7 @@ void map_to_process_graph(PartitionedHypergraph& communication_hg,
     GreedyMapping<PartitionedHypergraph>::mapToProcessGraph(contracted_phg, process_graph, context);
   }
 
-  const HyperedgeWeight objective_after = metrics::quality(contracted_phg, Objective::process_mapping);
+  const HyperedgeWeight objective_after = metrics::quality(contracted_phg, Objective::steiner_tree);
   if ( objective_after < objective_before ) {
     if ( context.partition.verbose_output ) {
       LOG << GREEN << "Initial process mapping algorithm has improved objective by"

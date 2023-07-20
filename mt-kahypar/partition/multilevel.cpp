@@ -125,7 +125,7 @@ namespace {
       } else if ( context.initial_partitioning.mode == Mode::recursive_bipartitioning ) {
         RecursiveBipartitioning<TypeTraits>::partition(phg, ip_context, process_graph);
       } else if ( context.initial_partitioning.mode == Mode::deep_multilevel ) {
-        ASSERT(ip_context.partition.objective != Objective::process_mapping);
+        ASSERT(ip_context.partition.objective != Objective::steiner_tree);
         ip_context.partition.verbose_output = false;
         DeepMultilevel<TypeTraits>::partition(phg, ip_context);
       } else {
@@ -146,7 +146,7 @@ namespace {
       phg.initializePartition();
     }
 
-    if ( context.partition.objective == Objective::process_mapping ) {
+    if ( context.partition.objective == Objective::steiner_tree ) {
       phg.setProcessGraph(process_graph);
     }
     io::printPartitioningResults(phg, context, "Initial Partitioning Results:");

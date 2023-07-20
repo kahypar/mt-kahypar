@@ -348,7 +348,7 @@ void RecursiveBipartitioning<TypeTraits>::partition(PartitionedHypergraph& hyper
   }
 
   Context rb_context(context);
-  if ( rb_context.partition.objective == Objective::process_mapping ) {
+  if ( rb_context.partition.objective == Objective::steiner_tree ) {
     // In RB mode, we optimize the km1 metric for process mapping and
     // apply the permutation computed in process graph to the partition.
     rb_context.partition.objective = PartitionedHypergraph::is_graph ?
@@ -372,7 +372,7 @@ void RecursiveBipartitioning<TypeTraits>::partition(PartitionedHypergraph& hyper
     utils.getStats(context.utility_id).enable();
   }
 
-  if ( context.partition.objective == Objective::process_mapping ) {
+  if ( context.partition.objective == Objective::steiner_tree ) {
     ASSERT(process_graph);
     utils::Timer& timer = utils.getTimer(context.utility_id);
     const bool was_enabled = timer.isEnabled();

@@ -348,7 +348,7 @@ namespace mt_kahypar {
                   partition.max_part_weights.size());
     }
 
-    if ( partition.objective == Objective::process_mapping ) {
+    if ( partition.objective == Objective::steiner_tree ) {
       if ( !process_graph ) {
         partition.objective = Objective::km1;
         INFO("No process graph provided for process mapping objective function. Switching to km1 metric.");
@@ -423,18 +423,18 @@ namespace mt_kahypar {
         case Objective::km1: partition.gain_policy = GainPolicy::km1; break;
         case Objective::cut: partition.gain_policy = GainPolicy::cut; break;
         case Objective::soed: partition.gain_policy = GainPolicy::soed; break;
-        case Objective::process_mapping: partition.gain_policy = GainPolicy::process_mapping; break;
+        case Objective::steiner_tree: partition.gain_policy = GainPolicy::steiner_tree; break;
         case Objective::UNDEFINED: partition.gain_policy = GainPolicy::none; break;
       }
     } else if ( partition.instance_type == InstanceType::graph ) {
-      if ( partition.objective != Objective::cut && partition.objective != Objective::process_mapping ) {
+      if ( partition.objective != Objective::cut && partition.objective != Objective::steiner_tree ) {
         partition.objective = Objective::cut;
         INFO("Current objective function is equivalent to the edge cut metric for graphs. Objective function is set to edge cut metric.");
       }
       if ( partition.objective == Objective::cut ) {
         partition.gain_policy = GainPolicy::cut_for_graphs;
       } else {
-        partition.gain_policy = GainPolicy::process_mapping_for_graphs;
+        partition.gain_policy = GainPolicy::steiner_tree_for_graphs;
       }
     }
   }
@@ -905,7 +905,7 @@ namespace mt_kahypar {
         << context.refinement
         << "-------------------------------------------------------------------------------\n";
     if ( context.process_mapping.process_graph_file != "" &&
-         context.partition.objective == Objective::process_mapping ) {
+         context.partition.objective == Objective::steiner_tree ) {
       str << context.process_mapping
           << "-------------------------------------------------------------------------------\n";
     }

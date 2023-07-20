@@ -114,7 +114,7 @@ namespace mt_kahypar {
       case Objective::cut: return os << "cut";
       case Objective::km1: return os << "km1";
       case Objective::soed: return os << "soed";
-      case Objective::process_mapping: return os << "process_mapping";
+      case Objective::steiner_tree: return os << "steiner_tree";
       case Objective::UNDEFINED: return os << "UNDEFINED";
         // omit default case to trigger compiler warning for missing cases
     }
@@ -126,9 +126,9 @@ namespace mt_kahypar {
       case GainPolicy::km1: return os << "km1";
       case GainPolicy::cut: return os << "cut";
       case GainPolicy::soed: return os << "soed";
-      case GainPolicy::process_mapping: return os << "process_mapping";
+      case GainPolicy::steiner_tree: return os << "steiner_tree";
       case GainPolicy::cut_for_graphs: return os << "cut_for_graphs";
-      case GainPolicy::process_mapping_for_graphs: return os << "process_mapping_for_graphs";
+      case GainPolicy::steiner_tree_for_graphs: return os << "steiner_tree_for_graphs";
       case GainPolicy::none: return os << "none";
         // omit default case to trigger compiler warning for missing cases
     }
@@ -324,8 +324,8 @@ namespace mt_kahypar {
       return Objective::km1;
     } else if (obj == "soed") {
       return Objective::soed;
-    } else if (obj == "process_mapping") {
-      return Objective::process_mapping;
+    } else if (obj == "steiner_tree") {
+      return Objective::steiner_tree;
     }
     ERR("No valid objective function.");
     return Objective::UNDEFINED;

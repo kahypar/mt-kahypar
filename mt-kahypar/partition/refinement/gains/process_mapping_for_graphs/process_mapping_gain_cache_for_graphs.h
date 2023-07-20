@@ -99,7 +99,7 @@ class GraphProcessMappingGainCache {
     uint64_t blocks_of_nodes;
   };
 
-  static constexpr GainPolicy TYPE = GainPolicy::process_mapping_for_graphs;
+  static constexpr GainPolicy TYPE = GainPolicy::steiner_tree_for_graphs;
   static constexpr bool requires_notification_before_update = true;
   static constexpr bool initializes_gain_cache_entry_after_batch_uncontractions = true;
 

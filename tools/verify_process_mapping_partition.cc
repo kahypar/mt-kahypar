@@ -84,7 +84,7 @@ int main(int argc, char* argv[]) {
   po::notify(cmd_vm);
 
   // Setup context
-  context.partition.objective = Objective::process_mapping;
+  context.partition.objective = Objective::steiner_tree;
   context.partition.epsilon = 0.03;
   context.shared_memory.num_threads = std::thread::hardware_concurrency();
   context.process_mapping.max_steiner_tree_size = 4;
@@ -133,7 +133,7 @@ int main(int argc, char* argv[]) {
             << " k=" << context.partition.k
             << " epsilon=" << context.partition.epsilon
             << " imbalance=" << metrics::imbalance(partitioned_hg, context)
-            << " process_mapping=" << metrics::quality(partitioned_hg, Objective::process_mapping)
+            << " process_mapping=" << metrics::quality(partitioned_hg, Objective::steiner_tree)
             << " approximation_factor=" << metrics::approximationFactorForProcessMapping(partitioned_hg, context)
             << " cut=" << metrics::quality(partitioned_hg, Objective::cut)
             << " km1=" << metrics::quality(partitioned_hg, Objective::km1)

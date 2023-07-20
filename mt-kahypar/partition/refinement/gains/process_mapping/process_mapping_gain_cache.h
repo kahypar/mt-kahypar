@@ -83,7 +83,7 @@ class ProcessMappingGainCache {
     CAtomic<uint32_t> update_version;
   };
 
-  static constexpr GainPolicy TYPE = GainPolicy::process_mapping;
+  static constexpr GainPolicy TYPE = GainPolicy::steiner_tree;
   static constexpr bool requires_notification_before_update = true;
   static constexpr bool initializes_gain_cache_entry_after_batch_uncontractions = true;
 

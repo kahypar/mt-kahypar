@@ -90,8 +90,8 @@ REGISTER_POLICY(AcceptancePolicy, AcceptancePolicy::best,
 REGISTER_POLICY(GainPolicy, GainPolicy::km1, Km1GainTypes);
 REGISTER_POLICY(GainPolicy, GainPolicy::cut, CutGainTypes);
 REGISTER_POLICY(GainPolicy, GainPolicy::soed, SoedGainTypes);
-REGISTER_POLICY(GainPolicy, GainPolicy::process_mapping, ProcessMappingGainTypes);
+REGISTER_POLICY(GainPolicy, GainPolicy::steiner_tree, ProcessMappingGainTypes);
 REGISTER_POLICY(GainPolicy, GainPolicy::cut_for_graphs, CutGainForGraphsTypes);
-REGISTER_POLICY(GainPolicy, GainPolicy::process_mapping_for_graphs, ProcessMappingForGraphsTypes);
+REGISTER_POLICY(GainPolicy, GainPolicy::steiner_tree_for_graphs, ProcessMappingForGraphsTypes);
 
 }  // namespace mt_kahypar

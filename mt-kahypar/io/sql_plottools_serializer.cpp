@@ -150,7 +150,7 @@ std::string serialize(const PartitionedHypergraph& hypergraph,
         << " static_balancing_work_packages=" << context.shared_memory.static_balancing_work_packages;
 
     if ( context.process_mapping.process_graph_file != "" &&
-         context.partition.objective == Objective::process_mapping ) {
+         context.partition.objective == Objective::steiner_tree ) {
       oss << " process_mapping_file=" << context.process_mapping.process_graph_file.substr(
             context.process_mapping.process_graph_file.find_last_of('/') + 1)
           << " process_mapping_strategy=" << context.process_mapping.strategy
@@ -169,7 +169,7 @@ std::string serialize(const PartitionedHypergraph& hypergraph,
     // Metrics
     if ( hypergraph.initialNumEdges() > 0 ) {
       oss << " " << context.partition.objective << "=" << metrics::quality(hypergraph, context);
-      if ( context.partition.objective == Objective::process_mapping ) {
+      if ( context.partition.objective == Objective::steiner_tree ) {
         oss << " approximation_factor=" << metrics::approximationFactorForProcessMapping(hypergraph, context);
       }
       if ( context.partition.objective != Objective::cut ) {

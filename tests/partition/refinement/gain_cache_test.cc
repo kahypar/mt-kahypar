@@ -96,8 +96,8 @@ class AGainCache : public Test {
     );
     delta_gain_cache = std::make_unique<DeltaGainCache>(gain_cache);
 
-    if ( GainCache::TYPE == GainPolicy::process_mapping ||
-         GainCache::TYPE == GainPolicy::process_mapping_for_graphs ) {
+    if ( GainCache::TYPE == GainPolicy::steiner_tree ||
+         GainCache::TYPE == GainPolicy::steiner_tree_for_graphs ) {
       /**
        * Process Graph:
        *        1           2           4
@@ -363,8 +363,8 @@ class AGainCache : public Test {
   }
 
   bool supportsAdjacentBlocks() const {
-    return GainCache::TYPE == GainPolicy::process_mapping ||
-      GainCache::TYPE == GainPolicy::process_mapping_for_graphs;
+    return GainCache::TYPE == GainPolicy::steiner_tree ||
+      GainCache::TYPE == GainPolicy::steiner_tree_for_graphs;
   }
 
   void verifyAdjacentBlocks() {

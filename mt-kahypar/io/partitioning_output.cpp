@@ -388,7 +388,7 @@ namespace mt_kahypar::io {
     LOG << "Objectives:";
     printKeyValue(context.partition.objective, metrics::quality(hypergraph,
       context), "(primary objective function)");
-    if ( context.partition.objective == Objective::process_mapping ) {
+    if ( context.partition.objective == Objective::steiner_tree ) {
       printKeyValue("Approximation Factor",
         metrics::approximationFactorForProcessMapping(hypergraph, context));
     }

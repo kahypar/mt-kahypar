@@ -132,7 +132,7 @@ void KerninghanLin<CommunicationHypergraph>::improve(CommunicationHypergraph& co
                                                      const ProcessGraph& process_graph) {
   ASSERT(communication_hg.initialNumNodes() == process_graph.graph().initialNumNodes());
 
-  HyperedgeWeight current_objective = metrics::quality(communication_hg, Objective::process_mapping);
+  HyperedgeWeight current_objective = metrics::quality(communication_hg, Objective::steiner_tree);
   vec<bool> marked_hes(communication_hg.initialNumEdges(), false);
   bool found_improvement = true;
   size_t fruitless_rounds = 0;
@@ -193,7 +193,7 @@ void KerninghanLin<CommunicationHypergraph>::improve(CommunicationHypergraph& co
         best_idx = performed_swaps.size();
         best_objective = current_objective;
       }
-      ASSERT(current_objective == metrics::quality(communication_hg, Objective::process_mapping));
+      ASSERT(current_objective == metrics::quality(communication_hg, Objective::steiner_tree));
     }
 
     // Rollback to best seen solution
@@ -202,7 +202,7 @@ void KerninghanLin<CommunicationHypergraph>::improve(CommunicationHypergraph& co
       swap(communication_hg, elem.swap.first, elem.swap.second);
       current_objective += elem.gain;
     }
-    ASSERT(current_objective == metrics::quality(communication_hg, Objective::process_mapping));
+    ASSERT(current_objective == metrics::quality(communication_hg, Objective::steiner_tree));
     ASSERT(current_objective == best_objective);
 
     if ( current_objective == objective_before ) {

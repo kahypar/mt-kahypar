@@ -205,7 +205,7 @@ void compute_greedy_mapping(CommunicationHypergraph& communication_hg,
     actual_objective += best_rating;
     assign(u, best_process);
   }
-  ASSERT(actual_objective == metrics::quality(communication_hg, Objective::process_mapping));
+  ASSERT(actual_objective == metrics::quality(communication_hg, Objective::steiner_tree));
   ASSERT([&] {
     for ( const HypernodeID hn : communication_hg.nodes() ) {
       if ( communication_hg.partID(hn) == kInvalidPartition ) {
@@ -228,7 +228,7 @@ void GreedyMapping<CommunicationHypergraph>::mapToProcessGraph(CommunicationHype
 
   utils::Timer& timer = utils::Utilities::instance().getTimer(context.utility_id);
   SpinLock best_lock;
-  HyperedgeWeight best_objective = metrics::quality(communication_hg, Objective::process_mapping);
+  HyperedgeWeight best_objective = metrics::quality(communication_hg, Objective::steiner_tree);
   vec<PartitionID> best_mapping(communication_hg.initialNumNodes(), 0);
   std::iota(best_mapping.begin(), best_mapping.end(), 0);
   timer.start_timer("initial_mapping", "Initial Mapping");
@@ -244,7 +244,7 @@ void GreedyMapping<CommunicationHypergraph>::mapToProcessGraph(CommunicationHype
     }
 
     // Check if new mapping is better than the currently best mapping
-    const HyperedgeWeight objective = metrics::quality(tmp_communication_phg, Objective::process_mapping);
+    const HyperedgeWeight objective = metrics::quality(tmp_communication_phg, Objective::steiner_tree);
     best_lock.lock();
     if ( objective < best_objective ) {
       best_objective = objective;

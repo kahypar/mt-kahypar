@@ -720,7 +720,7 @@ namespace mt_kahypar {
              " - cut : cut-net metric (FM only supports km1 metric) \n"
              " - km1 : (lambda-1) metric\n"
              " - soed: sum-of-external-degree metric\n"
-             " - process_mapping: mapping of a (hyper)graph onto a process graph");
+             " - steiner_tree: maps a (hyper)graph onto a graph and optimizes the Steiner tree metric");
 
     po::options_description preset_options("Preset Options", num_columns);
     preset_options.add_options()

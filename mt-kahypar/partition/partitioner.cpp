@@ -60,7 +60,7 @@ namespace mt_kahypar {
     context.setupContractionLimit(hypergraph.totalWeight());
     context.setupThreadsPerFlowSearch();
 
-    if ( context.partition.gain_policy == GainPolicy::process_mapping &&
+    if ( context.partition.gain_policy == GainPolicy::steiner_tree &&
          context.process_mapping.largest_he_fraction > 0.0 ) {
       // Determine a threshold of what we consider a large hyperedge in
       // the process mapping gain cache
@@ -270,7 +270,7 @@ namespace mt_kahypar {
     io::printInputInformation(context, hypergraph);
 
     bool map_partition_to_process_graph_at_the_end = false;
-    if ( context.partition.objective == Objective::process_mapping &&
+    if ( context.partition.objective == Objective::steiner_tree &&
          context.process_mapping.optimize_km1_metric ) {
       map_partition_to_process_graph_at_the_end = true;
       context.partition.objective = Objective::km1;
@@ -293,7 +293,7 @@ namespace mt_kahypar {
     } else if (context.partition.mode == Mode::recursive_bipartitioning) {
       partitioned_hypergraph = RecursiveBipartitioning<TypeTraits>::partition(hypergraph, context, process_graph);
     } else if (context.partition.mode == Mode::deep_multilevel) {
-      ASSERT(context.partition.objective != Objective::process_mapping);
+      ASSERT(context.partition.objective != Objective::steiner_tree);
       partitioned_hypergraph = DeepMultilevel<TypeTraits>::partition(hypergraph, context);
     } else {
       ERR("Invalid mode: " << context.partition.mode);
@@ -307,7 +307,7 @@ namespace mt_kahypar {
 
     if ( map_partition_to_process_graph_at_the_end ) {
       ASSERT(process_graph);
-      context.partition.objective = Objective::process_mapping;
+      context.partition.objective = Objective::steiner_tree;
       timer.start_timer("one_to_one_process_mapping", "One-To-One Process Mapping");
       InitialMapping<TypeTraits>::mapToProcessGraph(
         partitioned_hypergraph, *process_graph, context);

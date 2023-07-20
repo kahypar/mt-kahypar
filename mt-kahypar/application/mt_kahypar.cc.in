@@ -120,7 +120,7 @@ int main(int argc, char* argv[]) {
 
   // Read Process Graph
   std::unique_ptr<ProcessGraph> process_graph;
-  if ( context.partition.objective == Objective::process_mapping &&
+  if ( context.partition.objective == Objective::steiner_tree &&
        context.process_mapping.process_graph_file == "" ) {
     context.process_mapping.process_graph_file =
       context.partition.graph_filename + ".k" +
