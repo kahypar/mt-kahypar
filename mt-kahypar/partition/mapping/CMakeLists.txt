@@ -8,7 +8,9 @@ set(MappingSources
         )
 
 foreach(modtarget IN LISTS PARTITIONING_SUITE_TARGETS)
+  if ( KAHYPAR_ENABLE_STEINER_TREE_METRIC )
     target_sources(${modtarget} PRIVATE ${MappingSources})
+  endif()
 endforeach()
 
 set(ToolsMappingSources

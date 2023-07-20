@@ -46,6 +46,7 @@
 
 namespace mt_kahypar {
 
+#ifdef KAHYPAR_ENABLE_STEINER_TREE_METRIC
 class TargetGraph {
 
   static constexpr size_t INITIAL_HASH_TABLE_CAPACITY = 100000;
@@ -255,5 +256,38 @@ class TargetGraph {
   // ! Stats
   mutable Stats _stats;
 };
+
+#else
+class TargetGraph {
+ public:
+  static constexpr bool TRACK_STATS = false;
+
+  explicit TargetGraph(ds::StaticGraph&&) { }
+
+  TargetGraph(const TargetGraph&) = delete;
+  TargetGraph & operator= (const TargetGraph &) = delete;
+
+  TargetGraph(TargetGraph&&) = default;
+  TargetGraph & operator= (TargetGraph &&) = default;
+
+  PartitionID numBlocks() const {
+    return 0;
+  }
+
+  bool isInitialized() const {
+    return false;
+  }
+
+  void precomputeDistances(const size_t) { }
+
+  HyperedgeWeight distance(const ds::StaticBitset&) const {
+    return 0;
+  }
+
+  void printStats() const {  }
+
+  void printStats(std::stringstream&) const {  }
+};
+#endif
 
 }  // namespace kahypar

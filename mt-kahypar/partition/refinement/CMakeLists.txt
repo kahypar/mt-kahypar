@@ -2,14 +2,6 @@ set(RefinementSources
         fm/multitry_kway_fm.cpp
         fm/localized_kway_fm_core.cpp
         fm/global_rollback.cpp
-        gains/km1/km1_gain_cache.cpp
-        gains/cut/cut_gain_cache.cpp
-        gains/soed/soed_gain_cache.cpp
-        gains/steiner_tree/steiner_tree_gain_cache.cpp
-        gains/steiner_tree/steiner_tree_flow_network_construction.cpp
-        gains/steiner_tree_for_graphs/steiner_tree_gain_cache_for_graphs.cpp
-        gains/steiner_tree_for_graphs/steiner_tree_flow_network_construction_for_graphs.cpp
-        gains/cut_for_graphs/cut_gain_cache_for_graphs.cpp
         fm/sequential_twoway_fm_refiner.cpp
         label_propagation/label_propagation_refiner.cpp
         rebalancing/rebalancer.cpp
@@ -24,6 +16,40 @@ set(RefinementSources
         flows/flow_hypergraph_builder.cpp
         )
 
+set(Km1Sources
+        gains/km1/km1_gain_cache.cpp)
+
+set(SoedSources
+        gains/soed/soed_gain_cache.cpp)
+
+set(CutSources
+        gains/cut/cut_gain_cache.cpp)
+
+set(CutGraphSources
+        gains/cut_for_graphs/cut_gain_cache_for_graphs.cpp)
+
+set(SteinerTreeSources
+        gains/steiner_tree/steiner_tree_gain_cache.cpp
+        gains/steiner_tree/steiner_tree_flow_network_construction.cpp)
+
+set(SteinerTreeGraphSources
+        gains/steiner_tree_for_graphs/steiner_tree_gain_cache_for_graphs.cpp
+        gains/steiner_tree_for_graphs/steiner_tree_flow_network_construction_for_graphs.cpp)
+
 foreach(modtarget IN LISTS PARTITIONING_SUITE_TARGETS)
     target_sources(${modtarget} PRIVATE ${RefinementSources})
+    target_sources(${modtarget} PRIVATE ${Km1Sources})
+    target_sources(${modtarget} PRIVATE ${SoedSources})
+    target_sources(${modtarget} PRIVATE ${CutSources})
+
+    if ( KAHYPAR_ENABLE_STEINER_TREE_METRIC )
+      target_sources(${modtarget} PRIVATE ${SteinerTreeSources})
+    endif()
+
+    if ( KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES )
+      target_sources(${modtarget} PRIVATE ${CutGraphSources})
+      if ( KAHYPAR_ENABLE_STEINER_TREE_METRIC )
+        target_sources(${modtarget} PRIVATE ${SteinerTreeGraphSources})
+      endif()
+    endif()
 endforeach()

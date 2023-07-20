@@ -632,19 +632,26 @@ void bipartition_each_block(typename TypeTraits::PartitionedHypergraph& partitio
       bipartition_each_block<TypeTraits>(partitioned_hg, context,
         GainCachePtr::cast<SoedGainCache>(gain_cache), info, rb_tree,
         already_cut, current_k, current_objective, progress_bar_enabled); break;
+    #ifdef KAHYPAR_ENABLE_STEINER_TREE_METRIC
     case GainPolicy::steiner_tree:
       bipartition_each_block<TypeTraits>(partitioned_hg, context,
         GainCachePtr::cast<SteinerTreeGainCache>(gain_cache), info, rb_tree,
         already_cut, current_k, current_objective, progress_bar_enabled); break;
+    #endif
+    #ifdef KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES
     case GainPolicy::cut_for_graphs:
       bipartition_each_block<TypeTraits>(partitioned_hg, context,
         GainCachePtr::cast<GraphCutGainCache>(gain_cache), info, rb_tree,
         already_cut, current_k, current_objective, progress_bar_enabled); break;
+    #ifdef KAHYPAR_ENABLE_STEINER_TREE_METRIC
     case GainPolicy::steiner_tree_for_graphs:
       bipartition_each_block<TypeTraits>(partitioned_hg, context,
         GainCachePtr::cast<GraphSteinerTreeGainCache>(gain_cache), info, rb_tree,
         already_cut, current_k, current_objective, progress_bar_enabled); break;
+    #endif
+    #endif
     case GainPolicy::none: break;
+    default: break;
   }
 }
 

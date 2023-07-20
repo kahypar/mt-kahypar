@@ -36,7 +36,9 @@
 #include "mt-kahypar/macros.h"
 #include "mt-kahypar/partition/multilevel.h"
 #include "mt-kahypar/partition/refinement/gains/bipartitioning_policy.h"
+#ifdef KAHYPAR_ENABLE_STEINER_TREE_METRIC
 #include "mt-kahypar/partition/mapping/initial_mapping.h"
+#endif
 
 #include "mt-kahypar/parallel/memory_pool.h"
 #include "mt-kahypar/utils/randomize.h"
@@ -336,6 +338,7 @@ template<typename TypeTraits>
 void RecursiveBipartitioning<TypeTraits>::partition(PartitionedHypergraph& hypergraph,
                                                     const Context& context,
                                                     const TargetGraph* target_graph) {
+  unused(target_graph);
   utils::Utilities& utils = utils::Utilities::instance();
   if (context.partition.mode == Mode::recursive_bipartitioning) {
     utils.getTimer(context.utility_id).start_timer("rb", "Recursive Bipartitioning");
@@ -372,6 +375,7 @@ void RecursiveBipartitioning<TypeTraits>::partition(PartitionedHypergraph& hyper
     utils.getStats(context.utility_id).enable();
   }
 
+  #ifdef KAHYPAR_ENABLE_STEINER_TREE_METRIC
   if ( context.partition.objective == Objective::steiner_tree ) {
     ASSERT(target_graph);
     utils::Timer& timer = utils.getTimer(context.utility_id);
@@ -386,6 +390,7 @@ void RecursiveBipartitioning<TypeTraits>::partition(PartitionedHypergraph& hyper
       timer.disable();
     }
   }
+  #endif
 
   if (context.partition.mode == Mode::recursive_bipartitioning) {
     utils.getTimer(context.utility_id).stop_timer("rb");

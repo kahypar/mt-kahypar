@@ -94,8 +94,14 @@ REGISTER_POLICY(AcceptancePolicy, AcceptancePolicy::best,
 REGISTER_POLICY(GainPolicy, GainPolicy::km1, Km1GainTypes);
 REGISTER_POLICY(GainPolicy, GainPolicy::cut, CutGainTypes);
 REGISTER_POLICY(GainPolicy, GainPolicy::soed, SoedGainTypes);
-REGISTER_POLICY(GainPolicy, GainPolicy::steiner_tree, ProcessMappingGainTypes);
+#ifdef KAHYPAR_ENABLE_STEINER_TREE_METRIC
+REGISTER_POLICY(GainPolicy, GainPolicy::steiner_tree, SteinerTreeGainTypes);
+#endif
+#ifdef KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES
 REGISTER_POLICY(GainPolicy, GainPolicy::cut_for_graphs, CutGainForGraphsTypes);
-REGISTER_POLICY(GainPolicy, GainPolicy::steiner_tree_for_graphs, ProcessMappingForGraphsTypes);
+#ifdef KAHYPAR_ENABLE_STEINER_TREE_METRIC
+REGISTER_POLICY(GainPolicy, GainPolicy::steiner_tree_for_graphs, SteinerTreeForGraphsTypes);
+#endif
+#endif
 
 }  // namespace mt_kahypar

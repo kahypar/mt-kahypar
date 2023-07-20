@@ -47,17 +47,23 @@
 #include "mt-kahypar/partition/refinement/gains/soed/soed_gain_cache.h"
 #include "mt-kahypar/partition/refinement/gains/soed/soed_rollback.h"
 #include "mt-kahypar/partition/refinement/gains/soed/soed_flow_network_construction.h"
+#ifdef KAHYPAR_ENABLE_STEINER_TREE_METRIC
 #include "mt-kahypar/partition/refinement/gains/steiner_tree/steiner_tree_attributed_gains.h"
 #include "mt-kahypar/partition/refinement/gains/steiner_tree/steiner_tree_gain_computation.h"
 #include "mt-kahypar/partition/refinement/gains/steiner_tree/steiner_tree_gain_cache.h"
 #include "mt-kahypar/partition/refinement/gains/steiner_tree/steiner_tree_rollback.h"
 #include "mt-kahypar/partition/refinement/gains/steiner_tree/steiner_tree_flow_network_construction.h"
+#endif
+#ifdef KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES
+#ifdef KAHYPAR_ENABLE_STEINER_TREE_METRIC
 #include "mt-kahypar/partition/refinement/gains/steiner_tree_for_graphs/steiner_tree_attributed_gains_for_graphs.h"
 #include "mt-kahypar/partition/refinement/gains/steiner_tree_for_graphs/steiner_tree_gain_computation_for_graphs.h"
 #include "mt-kahypar/partition/refinement/gains/steiner_tree_for_graphs/steiner_tree_gain_cache_for_graphs.h"
 #include "mt-kahypar/partition/refinement/gains/steiner_tree_for_graphs/steiner_tree_flow_network_construction_for_graphs.h"
+#endif
 #include "mt-kahypar/partition/refinement/gains/cut_for_graphs/cut_gain_cache_for_graphs.h"
 #include "mt-kahypar/partition/refinement/gains/cut_for_graphs/cut_attributed_gains_for_graphs.h"
+#endif
 #include "mt-kahypar/macros.h"
 
 namespace mt_kahypar {
@@ -89,7 +95,8 @@ struct SoedGainTypes : public kahypar::meta::PolicyBase {
   using FlowNetworkConstruction = SoedFlowNetworkConstruction;
 };
 
-struct ProcessMappingGainTypes : public kahypar::meta::PolicyBase {
+#ifdef KAHYPAR_ENABLE_STEINER_TREE_METRIC
+struct SteinerTreeGainTypes : public kahypar::meta::PolicyBase {
   using GainComputation = SteinerTreeGainComputation;
   using AttributedGains = SteinerTreeAttributedGains;
   using GainCache = SteinerTreeGainCache;
@@ -97,7 +104,9 @@ struct ProcessMappingGainTypes : public kahypar::meta::PolicyBase {
   using Rollback = SteinerTreeRollback;
   using FlowNetworkConstruction = SteinerTreeFlowNetworkConstruction;
 };
+#endif
 
+#ifdef KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES
 struct CutGainForGraphsTypes : public kahypar::meta::PolicyBase {
   using GainComputation = CutGainComputation;
   using AttributedGains = GraphCutAttributedGains;
@@ -107,7 +116,8 @@ struct CutGainForGraphsTypes : public kahypar::meta::PolicyBase {
   using FlowNetworkConstruction = CutFlowNetworkConstruction;
 };
 
-struct ProcessMappingForGraphsTypes : public kahypar::meta::PolicyBase {
+#ifdef KAHYPAR_ENABLE_STEINER_TREE_METRIC
+struct SteinerTreeForGraphsTypes : public kahypar::meta::PolicyBase {
   using GainComputation = GraphSteinerTreeGainComputation;
   using AttributedGains = GraphSteinerTreeAttributedGains;
   using GainCache = GraphSteinerTreeGainCache;
@@ -115,21 +125,23 @@ struct ProcessMappingForGraphsTypes : public kahypar::meta::PolicyBase {
   using Rollback = SteinerTreeRollback;
   using FlowNetworkConstruction = GraphSteinerTreeFlowNetworkConstruction;
 };
+#endif
+#endif
 
 
 using GainTypes = kahypar::meta::Typelist<Km1GainTypes,
                                           CutGainTypes,
-                                          SoedGainTypes,
-                                          ProcessMappingGainTypes,
-                                          CutGainForGraphsTypes,
-                                          ProcessMappingForGraphsTypes>;
+                                          SoedGainTypes
+                                          ENABLE_STEINER_TREE(COMMA SteinerTreeGainTypes)
+                                          ENABLE_GRAPHS(COMMA CutGainForGraphsTypes)
+                                          ENABLE_GRAPHS(ENABLE_STEINER_TREE(COMMA SteinerTreeForGraphsTypes))>;
 
-#define INSTANTIATE_CLASS_WITH_TYPE_TRAITS_AND_GAIN_TYPES(C)                                      \
-  INSTANTIATE_CLASS_MACRO_WITH_TYPE_TRAITS_AND_OTHER_CLASS(C, Km1GainTypes)                       \
-  INSTANTIATE_CLASS_MACRO_WITH_TYPE_TRAITS_AND_OTHER_CLASS(C, CutGainTypes)                       \
-  INSTANTIATE_CLASS_MACRO_WITH_TYPE_TRAITS_AND_OTHER_CLASS(C, SoedGainTypes)                      \
-  INSTANTIATE_CLASS_MACRO_WITH_TYPE_TRAITS_AND_OTHER_CLASS(C, ProcessMappingGainTypes)            \
-  INSTANTIATE_CLASS_MACRO_WITH_TYPE_TRAITS_AND_OTHER_CLASS(C, CutGainForGraphsTypes)              \
-  INSTANTIATE_CLASS_MACRO_WITH_TYPE_TRAITS_AND_OTHER_CLASS(C, ProcessMappingForGraphsTypes)
+#define INSTANTIATE_CLASS_WITH_TYPE_TRAITS_AND_GAIN_TYPES(C)                                                                 \
+  INSTANTIATE_CLASS_MACRO_WITH_TYPE_TRAITS_AND_OTHER_CLASS(C, Km1GainTypes)                                                  \
+  INSTANTIATE_CLASS_MACRO_WITH_TYPE_TRAITS_AND_OTHER_CLASS(C, CutGainTypes)                                                  \
+  INSTANTIATE_CLASS_MACRO_WITH_TYPE_TRAITS_AND_OTHER_CLASS(C, SoedGainTypes)                                                 \
+  ENABLE_STEINER_TREE(INSTANTIATE_CLASS_MACRO_WITH_TYPE_TRAITS_AND_OTHER_CLASS(C, SteinerTreeGainTypes))                     \
+  ENABLE_GRAPHS(INSTANTIATE_CLASS_MACRO_WITH_TYPE_TRAITS_AND_OTHER_CLASS(C, CutGainForGraphsTypes))                          \
+  ENABLE_GRAPHS(ENABLE_STEINER_TREE(INSTANTIATE_CLASS_MACRO_WITH_TYPE_TRAITS_AND_OTHER_CLASS(C, SteinerTreeForGraphsTypes)))
 
 }  // namespace mt_kahypar

@@ -415,6 +415,13 @@ namespace mt_kahypar {
   }
 
   void Context::setupGainPolicy() {
+    #ifndef KAHYPAR_ENABLE_STEINER_TREE_METRIC
+    if ( partition.objective == Objective::steiner_tree ) {
+      ERR("Steiner tree metric is deactivated. Add -DKAHYPAR_ENABLE_STEINER_TREE_METRIC=ON"
+        << "to the cmake command and rebuild Mt-KaHyPar.");
+    }
+    #endif
+
     if ( partition.instance_type == InstanceType::hypergraph ) {
       switch ( partition.objective ) {
         case Objective::km1: partition.gain_policy = GainPolicy::km1; break;

@@ -39,7 +39,9 @@
 #include "mt-kahypar/partition/recursive_bipartitioning.h"
 #include "mt-kahypar/partition/deep_multilevel.h"
 #include "mt-kahypar/partition/mapping/target_graph.h"
+#ifdef KAHYPAR_ENABLE_STEINER_TREE_METRIC
 #include "mt-kahypar/partition/mapping/initial_mapping.h"
+#endif
 #include "mt-kahypar/utils/hypergraph_statistics.h"
 #include "mt-kahypar/utils/stats.h"
 #include "mt-kahypar/utils/timer.h"
@@ -269,6 +271,7 @@ namespace mt_kahypar {
     io::printMemoryPoolConsumption(context);
     io::printInputInformation(context, hypergraph);
 
+    #ifdef KAHYPAR_ENABLE_STEINER_TREE_METRIC
     bool map_partition_to_target_graph_at_the_end = false;
     if ( context.partition.objective == Objective::steiner_tree &&
          context.mapping.use_two_phase_approach ) {
@@ -276,6 +279,7 @@ namespace mt_kahypar {
       context.partition.objective = Objective::km1;
       context.setupGainPolicy();
     }
+    #endif
 
     // ################## PREPROCESSING ##################
     utils::Timer& timer = utils::Utilities::instance().getTimer(context.utility_id);
@@ -305,6 +309,7 @@ namespace mt_kahypar {
     degree_zero_hn_remover.restoreDegreeZeroHypernodes(partitioned_hypergraph);
     timer.stop_timer("postprocessing");
 
+    #ifdef KAHYPAR_ENABLE_STEINER_TREE_METRIC
     if ( map_partition_to_target_graph_at_the_end ) {
       ASSERT(target_graph);
       context.partition.objective = Objective::steiner_tree;
@@ -313,6 +318,7 @@ namespace mt_kahypar {
         partitioned_hypergraph, *target_graph, context);
       timer.stop_timer("one_to_one_mapping");
     }
+    #endif
 
     if (context.partition.verbose_output) {
       io::printHypergraphInfo(partitioned_hypergraph.hypergraph(), "Uncoarsened Hypergraph",
