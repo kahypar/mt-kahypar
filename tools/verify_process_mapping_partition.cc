@@ -40,8 +40,8 @@
 #include "mt-kahypar/io/hypergraph_io.h"
 #include "mt-kahypar/io/hypergraph_factory.h"
 #include "mt-kahypar/io/partitioning_output.h"
-#include "mt-kahypar/partition/process_mapping/target_graph.h"
-#include "mt-kahypar/partition/process_mapping/initial_mapping.h"
+#include "mt-kahypar/partition/mapping/target_graph.h"
+#include "mt-kahypar/partition/mapping/initial_mapping.h"
 #include "mt-kahypar/utils/timer.h"
 #include "mt-kahypar/utils/randomize.h"
 
@@ -127,7 +127,7 @@ int main(int argc, char* argv[]) {
                 context.partition.graph_filename.find_last_of('/') + 1)
             << " partition_file=" << context.partition.graph_partition_filename.substr(
                 context.partition.graph_partition_filename.find_last_of('/') + 1)
-            << " process_mapping_file=" << context.mapping.target_graph_file.substr(
+            << " target_graph_file=" << context.mapping.target_graph_file.substr(
                context.mapping.target_graph_file.find_last_of('/') + 1)
             << " objective=" << context.partition.objective
             << " k=" << context.partition.k

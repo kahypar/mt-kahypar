@@ -31,7 +31,7 @@
 #include <algorithm>
 
 #include "mt-kahypar/definitions.h"
-#include "mt-kahypar/partition/process_mapping/target_graph.h"
+#include "mt-kahypar/partition/mapping/target_graph.h"
 
 namespace mt_kahypar::metrics {
 

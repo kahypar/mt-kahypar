@@ -24,16 +24,16 @@
  * SOFTWARE.
  ******************************************************************************/
 
-#include "mt-kahypar/partition/process_mapping/initial_mapping.h"
+#include "mt-kahypar/partition/mapping/initial_mapping.h"
 
 #include "tbb/parallel_invoke.h"
 
 #include "mt-kahypar/definitions.h"
-#include "mt-kahypar/partition/process_mapping/target_graph.h"
+#include "mt-kahypar/partition/mapping/target_graph.h"
 #ifndef IGNORE_DUAL_BIPARTITIONING
-#include "mt-kahypar/partition/process_mapping/dual_bipartitioning.h"
+#include "mt-kahypar/partition/mapping/dual_bipartitioning.h"
 #endif
-#include "mt-kahypar/partition/process_mapping/greedy_mapping.h"
+#include "mt-kahypar/partition/mapping/greedy_mapping.h"
 #include "mt-kahypar/partition/metrics.h"
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
 #include "mt-kahypar/utils/utilities.h"

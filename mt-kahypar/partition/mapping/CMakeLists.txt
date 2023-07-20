@@ -1,4 +1,4 @@
-set(ProcessMappingSources
+set(MappingSources
         target_graph.cpp
         all_pair_shortest_path.cpp
         steiner_tree.cpp
@@ -9,17 +9,17 @@ set(ProcessMappingSources
         )
 
 foreach(modtarget IN LISTS PARTITIONING_SUITE_TARGETS)
-    target_sources(${modtarget} PRIVATE ${ProcessMappingSources})
+    target_sources(${modtarget} PRIVATE ${MappingSources})
 endforeach()
 
-set(ToolsProcessMappingSources
+set(ToolsMappingSources
         target_graph.cpp
         all_pair_shortest_path.cpp
         steiner_tree.cpp
         )
 
 foreach(modtarget IN LISTS TOOLS_TARGETS)
-    target_sources(${modtarget} PRIVATE ${ToolsProcessMappingSources})
+    target_sources(${modtarget} PRIVATE ${ToolsMappingSources})
 endforeach()
 
 set(OneToOneMappingSources
@@ -27,4 +27,4 @@ set(OneToOneMappingSources
       initial_mapping.cpp
       kerninghan_lin.cpp
       )
-target_sources(OneToOneProcessMapping PRIVATE ${OneToOneMappingSources})
+target_sources(OneToOneMapping PRIVATE ${OneToOneMappingSources})

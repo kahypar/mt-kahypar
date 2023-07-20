@@ -25,9 +25,9 @@
  ******************************************************************************/
 
 #include "mt-kahypar/datastructures/static_bitset.h"
-#include "mt-kahypar/partition/process_mapping/steiner_tree.h"
-#include "mt-kahypar/partition/process_mapping/all_pair_shortest_path.h"
-#include "mt-kahypar/partition/process_mapping/set_enumerator.h"
+#include "mt-kahypar/partition/mapping/steiner_tree.h"
+#include "mt-kahypar/partition/mapping/all_pair_shortest_path.h"
+#include "mt-kahypar/partition/mapping/set_enumerator.h"
 
 namespace mt_kahypar {
 

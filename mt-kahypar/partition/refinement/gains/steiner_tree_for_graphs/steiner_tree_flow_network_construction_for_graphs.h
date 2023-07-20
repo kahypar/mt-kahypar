@@ -36,7 +36,7 @@ namespace mt_kahypar {
  * to determine the capacity of a hyperedge and whether or not the hyperedge
  * is relevant for optimizing the objective function.
  */
-struct ProcessMappingFlowNetworkConstruction {
+struct GraphSteinerTreeFlowNetworkConstruction {
   // ! Capacity of the hyperedge
   template<typename PartitionedHypergraph>
   static HyperedgeWeight capacity(const PartitionedHypergraph& phg,

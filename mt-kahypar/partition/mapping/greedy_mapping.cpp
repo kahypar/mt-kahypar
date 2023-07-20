@@ -24,14 +24,14 @@
  * SOFTWARE.
  ******************************************************************************/
 
-#include "mt-kahypar/partition/process_mapping/greedy_mapping.h"
+#include "mt-kahypar/partition/mapping/greedy_mapping.h"
 
 #include <numeric>
 #include <queue>
 
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/metrics.h"
-#include "mt-kahypar/partition/process_mapping/kerninghan_lin.h"
+#include "mt-kahypar/partition/mapping/kerninghan_lin.h"
 #include "mt-kahypar/datastructures/static_graph.h"
 #include "mt-kahypar/datastructures/static_bitset.h"
 #include "mt-kahypar/parallel/atomic_wrapper.h"

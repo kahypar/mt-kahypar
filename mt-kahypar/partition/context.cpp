@@ -452,7 +452,7 @@ namespace mt_kahypar {
     shared_memory.use_localized_random_shuffle = false;
     shared_memory.static_balancing_work_packages = 128;
 
-    // process_mapping
+    // mapping
     mapping.strategy = OneToOneMappingStrategy::greedy_mapping;
     mapping.use_local_search = true;
     mapping.use_two_phase_approach = false;
@@ -673,7 +673,7 @@ namespace mt_kahypar {
     shared_memory.use_localized_random_shuffle = false;
     shared_memory.static_balancing_work_packages = 128;
 
-    // process_mapping
+    // mapping
     mapping.strategy = OneToOneMappingStrategy::greedy_mapping;
     mapping.use_local_search = true;
     mapping.use_two_phase_approach = false;

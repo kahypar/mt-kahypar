@@ -34,12 +34,12 @@ target_link_libraries(MetisToScotch TBB::tbb TBB::tbbmalloc_proxy)
 set_property(TARGET MetisToScotch PROPERTY CXX_STANDARD 17)
 set_property(TARGET MetisToScotch PROPERTY CXX_STANDARD_REQUIRED ON)
 
-add_executable(OneToOneProcessMapping one_to_one_process_mapping.cc)
-target_link_libraries(OneToOneProcessMapping ${Boost_LIBRARIES})
-target_link_libraries(OneToOneProcessMapping TBB::tbb TBB::tbbmalloc_proxy)
-set_property(TARGET OneToOneProcessMapping PROPERTY CXX_STANDARD 17)
-set_property(TARGET OneToOneProcessMapping PROPERTY CXX_STANDARD_REQUIRED ON)
-target_compile_definitions(OneToOneProcessMapping PUBLIC IGNORE_DUAL_BIPARTITIONING)
+add_executable(OneToOneMapping one_to_one_mapping.cc)
+target_link_libraries(OneToOneMapping ${Boost_LIBRARIES})
+target_link_libraries(OneToOneMapping TBB::tbb TBB::tbbmalloc_proxy)
+set_property(TARGET OneToOneMapping PROPERTY CXX_STANDARD 17)
+set_property(TARGET OneToOneMapping PROPERTY CXX_STANDARD_REQUIRED ON)
+target_compile_definitions(OneToOneMapping PUBLIC IGNORE_DUAL_BIPARTITIONING)
 
 add_executable(VerifyTargetGraphPartition verify_process_mapping_partition.cc)
 target_link_libraries(VerifyTargetGraphPartition ${Boost_LIBRARIES})
@@ -94,7 +94,7 @@ set(TOOLS_TARGETS ${TOOLS_TARGETS} EvaluateBipart
                                    HgrToZoltan
                                    HypergraphStats
                                    MetisToScotch
-                                   OneToOneProcessMapping
+                                   OneToOneMapping
                                    VerifyTargetGraphPartition
                                    GridGraphGenerator
                                    HierarchicalTargetGraphGenerator

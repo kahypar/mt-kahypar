@@ -24,13 +24,13 @@
  * SOFTWARE.
  ******************************************************************************/
 
-#include "mt-kahypar/partition/process_mapping/dual_bipartitioning.h"
+#include "mt-kahypar/partition/mapping/dual_bipartitioning.h"
 
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/metrics.h"
-#include "mt-kahypar/partition/process_mapping/kerninghan_lin.h"
+#include "mt-kahypar/partition/mapping/kerninghan_lin.h"
 #include "mt-kahypar/partition/initial_partitioning/pool_initial_partitioner.h"
-#include "mt-kahypar/partition/process_mapping/set_enumerator.h"
+#include "mt-kahypar/partition/mapping/set_enumerator.h"
 #include "mt-kahypar/utils/utilities.h"
 
 namespace mt_kahypar {

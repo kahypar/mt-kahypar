@@ -24,7 +24,7 @@
  * SOFTWARE.
  ******************************************************************************/
 
-#include "mt-kahypar/partition/refinement/gains/process_mapping/process_mapping_gain_cache.h"
+#include "mt-kahypar/partition/refinement/gains/steiner_tree/steiner_tree_gain_cache.h"
 
 #include "tbb/parallel_for.h"
 #include "tbb/enumerable_thread_specific.h"
@@ -35,7 +35,7 @@
 namespace mt_kahypar {
 
 template<typename PartitionedHypergraph>
-void ProcessMappingGainCache::initializeGainCache(const PartitionedHypergraph& partitioned_hg) {
+void SteinerTreeGainCache::initializeGainCache(const PartitionedHypergraph& partitioned_hg) {
   ASSERT(!_is_initialized, "Gain cache is already initialized");
   ASSERT(_k == kInvalidPartition || _k == partitioned_hg.k(), "Gain cache was already initialized for a different k");
   allocateGainTable(partitioned_hg.topLevelNumNodes(), partitioned_hg.topLevelNumEdges(), partitioned_hg.k());
@@ -56,14 +56,14 @@ void ProcessMappingGainCache::initializeGainCache(const PartitionedHypergraph& p
 }
 
 template<typename PartitionedHypergraph>
-void ProcessMappingGainCache::initializeGainCacheEntryForNode(const PartitionedHypergraph& partitioned_hg,
-                                                              const HypernodeID hn) {
+void SteinerTreeGainCache::initializeGainCacheEntryForNode(const PartitionedHypergraph& partitioned_hg,
+                                                           const HypernodeID hn) {
   vec<HyperedgeWeight>& benefit_aggregator = _ets_benefit_aggregator.local();
   initializeAdjacentBlocksOfNode(partitioned_hg, hn);
   initializeGainCacheEntryForNode(partitioned_hg, hn, benefit_aggregator);
 }
 
-bool ProcessMappingGainCache::triggersDeltaGainUpdate(const SyncronizedEdgeUpdate& sync_update) {
+bool SteinerTreeGainCache::triggersDeltaGainUpdate(const SyncronizedEdgeUpdate& sync_update) {
   return sync_update.pin_count_in_from_part_after == 0 ||
          sync_update.pin_count_in_from_part_after == 1 ||
          sync_update.pin_count_in_to_part_after == 1 ||
@@ -71,7 +71,7 @@ bool ProcessMappingGainCache::triggersDeltaGainUpdate(const SyncronizedEdgeUpdat
 }
 
 template<typename PartitionedHypergraph>
-void ProcessMappingGainCache::notifyBeforeDeltaGainUpdate(const PartitionedHypergraph&,
+void SteinerTreeGainCache::notifyBeforeDeltaGainUpdate(const PartitionedHypergraph&,
                                                        const SyncronizedEdgeUpdate& sync_update) {
   if ( triggersDeltaGainUpdate(sync_update) ) {
     ASSERT(UL(sync_update.he) < _version.size());
@@ -121,8 +121,8 @@ void reconstructConnectivitySetAndPinCountsBeforeMove(const SyncronizedEdgeUpdat
 }
 
 template<typename PartitionedHypergraph>
-void ProcessMappingGainCache::deltaGainUpdate(const PartitionedHypergraph& partitioned_hg,
-                                              const SyncronizedEdgeUpdate& sync_update) {
+void SteinerTreeGainCache::deltaGainUpdate(const PartitionedHypergraph& partitioned_hg,
+                                           const SyncronizedEdgeUpdate& sync_update) {
   ASSERT(_is_initialized, "Gain cache is not initialized");
   ASSERT(sync_update.connectivity_set_after);
   ASSERT(sync_update.pin_counts_after);
@@ -265,11 +265,11 @@ void ProcessMappingGainCache::deltaGainUpdate(const PartitionedHypergraph& parti
 }
 
 template<typename PartitionedHypergraph>
-void ProcessMappingGainCache::uncontractUpdateAfterRestore(const PartitionedHypergraph& partitioned_hg,
-                                                           const HypernodeID u,
-                                                           const HypernodeID v,
-                                                           const HyperedgeID he,
-                                                           const HypernodeID pin_count_in_part_after) {
+void SteinerTreeGainCache::uncontractUpdateAfterRestore(const PartitionedHypergraph& partitioned_hg,
+                                                        const HypernodeID u,
+                                                        const HypernodeID v,
+                                                        const HyperedgeID he,
+                                                        const HypernodeID pin_count_in_part_after) {
   // In this case, u and v are both contained in the hyperedge after the uncontraction operation
   // => Pin count of the block of node u increases by one, but connectivity set does not change.
   if ( _is_initialized ) {
@@ -325,10 +325,10 @@ void ProcessMappingGainCache::uncontractUpdateAfterRestore(const PartitionedHype
 }
 
 template<typename PartitionedHypergraph>
-void ProcessMappingGainCache::uncontractUpdateAfterReplacement(const PartitionedHypergraph& partitioned_hg,
-                                                               const HypernodeID u,
-                                                               const HypernodeID,
-                                                               const HyperedgeID he) {
+void SteinerTreeGainCache::uncontractUpdateAfterReplacement(const PartitionedHypergraph& partitioned_hg,
+                                                            const HypernodeID u,
+                                                            const HypernodeID,
+                                                            const HyperedgeID he) {
   // In this case, u is replaced by v in hyperedge he
   // => Pin counts and connectivity set of hyperedge he does not change
   if ( _is_initialized ) {
@@ -379,15 +379,15 @@ void ProcessMappingGainCache::uncontractUpdateAfterReplacement(const Partitioned
   }
 }
 
-void ProcessMappingGainCache::restoreSinglePinHyperedge(const HypernodeID u,
-                                                        const PartitionID block_of_u,
-                                                        const HyperedgeWeight) {
+void SteinerTreeGainCache::restoreSinglePinHyperedge(const HypernodeID u,
+                                                     const PartitionID block_of_u,
+                                                     const HyperedgeWeight) {
   incrementIncidentEdges(u, block_of_u);
 }
 
 template<typename PartitionedHypergraph>
-void ProcessMappingGainCache::restoreIdenticalHyperedge(const PartitionedHypergraph& partitioned_hg,
-                                                        const HyperedgeID he) {
+void SteinerTreeGainCache::restoreIdenticalHyperedge(const PartitionedHypergraph& partitioned_hg,
+                                                     const HyperedgeID he) {
   if ( partitioned_hg.edgeSize(he) <= _large_he_threshold ) {
     for ( const HypernodeID& pin : partitioned_hg.pins(he) ) {
       for ( const PartitionID& block : partitioned_hg.connectivitySet(he) ) {
@@ -398,7 +398,7 @@ void ProcessMappingGainCache::restoreIdenticalHyperedge(const PartitionedHypergr
 }
 
 template<typename PartitionedHypergraph>
-void ProcessMappingGainCache::initializeAdjacentBlocks(const PartitionedHypergraph& partitioned_hg) {
+void SteinerTreeGainCache::initializeAdjacentBlocks(const PartitionedHypergraph& partitioned_hg) {
   // Initialize adjacent blocks of each node
   partitioned_hg.doParallelForAllNodes([&](const HypernodeID& hn) {
     initializeAdjacentBlocksOfNode(partitioned_hg, hn);
@@ -406,8 +406,8 @@ void ProcessMappingGainCache::initializeAdjacentBlocks(const PartitionedHypergra
 }
 
 template<typename PartitionedHypergraph>
-void ProcessMappingGainCache::initializeAdjacentBlocksOfNode(const PartitionedHypergraph& partitioned_hg,
-                                                             const HypernodeID hn) {
+void SteinerTreeGainCache::initializeAdjacentBlocksOfNode(const PartitionedHypergraph& partitioned_hg,
+                                                          const HypernodeID hn) {
   _adjacent_blocks.clear(hn);
   for ( PartitionID to = 0; to < _k; ++to ) {
     _num_incident_edges_of_block[benefit_index(hn, to)].store(0, std::memory_order_relaxed);
@@ -422,8 +422,8 @@ void ProcessMappingGainCache::initializeAdjacentBlocksOfNode(const PartitionedHy
 }
 
 template<typename PartitionedHypergraph>
-void ProcessMappingGainCache::updateAdjacentBlocks(const PartitionedHypergraph& partitioned_hg,
-                                                   const SyncronizedEdgeUpdate& sync_update) {
+void SteinerTreeGainCache::updateAdjacentBlocks(const PartitionedHypergraph& partitioned_hg,
+                                                const SyncronizedEdgeUpdate& sync_update) {
   if ( partitioned_hg.edgeSize(sync_update.he) <= _large_he_threshold ) {
     if ( sync_update.pin_count_in_from_part_after == 0 ) {
       // The node move has removed the source block of the move from the
@@ -454,7 +454,7 @@ void ProcessMappingGainCache::updateAdjacentBlocks(const PartitionedHypergraph& 
   }
 }
 
-HyperedgeID ProcessMappingGainCache::incrementIncidentEdges(const HypernodeID u, const PartitionID to) {
+HyperedgeID SteinerTreeGainCache::incrementIncidentEdges(const HypernodeID u, const PartitionID to) {
   const HyperedgeID incident_count_after =
     _num_incident_edges_of_block[benefit_index(u, to)].add_fetch(1, std::memory_order_relaxed);
   if ( incident_count_after == 1 ) {
@@ -465,7 +465,7 @@ HyperedgeID ProcessMappingGainCache::incrementIncidentEdges(const HypernodeID u,
   return incident_count_after;
 }
 
-HyperedgeID ProcessMappingGainCache::decrementIncidentEdges(const HypernodeID u, const PartitionID to) {
+HyperedgeID SteinerTreeGainCache::decrementIncidentEdges(const HypernodeID u, const PartitionID to) {
   ASSERT(_num_incident_edges_of_block[benefit_index(u, to)].load() > 0);
   const HyperedgeID incident_count_after =
     _num_incident_edges_of_block[benefit_index(u, to)].sub_fetch(1, std::memory_order_relaxed);
@@ -477,9 +477,9 @@ HyperedgeID ProcessMappingGainCache::decrementIncidentEdges(const HypernodeID u,
 }
 
 template<typename PartitionedHypergraph>
-void ProcessMappingGainCache::initializeGainCacheEntryForNode(const PartitionedHypergraph& partitioned_hg,
-                                                              const HypernodeID u,
-                                                              vec<Gain>& benefit_aggregator) {
+void SteinerTreeGainCache::initializeGainCacheEntryForNode(const PartitionedHypergraph& partitioned_hg,
+                                                           const HypernodeID u,
+                                                           vec<Gain>& benefit_aggregator) {
   ASSERT(partitioned_hg.hasTargetGraph());
   const TargetGraph& target_graph = *partitioned_hg.targetGraph();
   const PartitionID from = partitioned_hg.partID(u);
@@ -517,10 +517,10 @@ void ProcessMappingGainCache::initializeGainCacheEntryForNode(const PartitionedH
 
 
 template<typename PartitionedHypergraph>
-void ProcessMappingGainCache::initializeGainCacheEntry(const PartitionedHypergraph& partitioned_hg,
-                                                       const HypernodeID hn,
-                                                       const PartitionID to,
-                                                       ds::Array<SpinLock>& edge_locks) {
+void SteinerTreeGainCache::initializeGainCacheEntry(const PartitionedHypergraph& partitioned_hg,
+                                                    const HypernodeID hn,
+                                                    const PartitionID to,
+                                                    ds::Array<SpinLock>& edge_locks) {
   ASSERT(partitioned_hg.hasTargetGraph());
   const TargetGraph& target_graph = *partitioned_hg.targetGraph();
   const HypernodeID from = partitioned_hg.partID(hn);
@@ -581,7 +581,7 @@ void ProcessMappingGainCache::initializeGainCacheEntry(const PartitionedHypergra
 }
 
 template<typename PartitionedHypergraph>
-bool ProcessMappingGainCache::verifyTrackedAdjacentBlocksOfNodes(const PartitionedHypergraph& partitioned_hg) const {
+bool SteinerTreeGainCache::verifyTrackedAdjacentBlocksOfNodes(const PartitionedHypergraph& partitioned_hg) const {
   bool success = true;
   vec<HyperedgeID> num_incident_edges(_k, 0);
   for ( const HypernodeID& hn : partitioned_hg.nodes() ) {
@@ -623,51 +623,51 @@ bool ProcessMappingGainCache::verifyTrackedAdjacentBlocksOfNodes(const Partition
 }
 
 namespace {
-#define PROCESS_MAPPING_INITIALIZE_GAIN_CACHE(X) void ProcessMappingGainCache::initializeGainCache(const X&)
-#define PROCESS_MAPPING_INITIALIZE_GAIN_CACHE_FOR_NODE(X) void ProcessMappingGainCache::initializeGainCacheEntryForNode(const X&,          \
-                                                                                                                        const HypernodeID)
-#define PROCESS_MAPPING_NOTIFY(X) void ProcessMappingGainCache::notifyBeforeDeltaGainUpdate(const X&,                     \
-                                                                                            const SyncronizedEdgeUpdate&)
-#define PROCESS_MAPPING_DELTA_GAIN_UPDATE(X) void ProcessMappingGainCache::deltaGainUpdate(const X&,                     \
-                                                                                           const SyncronizedEdgeUpdate&)
-#define PROCESS_MAPPING_RESTORE_UPDATE(X) void ProcessMappingGainCache::uncontractUpdateAfterRestore(const X&,          \
-                                                                                                     const HypernodeID, \
-                                                                                                     const HypernodeID, \
-                                                                                                     const HyperedgeID, \
-                                                                                                     const HypernodeID)
-#define PROCESS_MAPPING_REPLACEMENT_UPDATE(X) void ProcessMappingGainCache::uncontractUpdateAfterReplacement(const X&,            \
-                                                                                                             const HypernodeID,   \
-                                                                                                             const HypernodeID,   \
-                                                                                                             const HyperedgeID)
-#define PROCESS_MAPPING_RESTORE_IDENTICAL_HYPEREDGE(X) void ProcessMappingGainCache::restoreIdenticalHyperedge(const X&,            \
-                                                                                                               const HyperedgeID)
-#define PROCESS_MAPPING_INIT_ADJACENT_BLOCKS(X) void ProcessMappingGainCache::initializeAdjacentBlocks(const X&)
-#define PROCESS_MAPPING_INIT_ADJACENT_BLOCKS_OF_NODE(X) void ProcessMappingGainCache::initializeAdjacentBlocksOfNode(const X&,          \
-                                                                                                                     const HypernodeID)
-#define PROCESS_MAPPING_UPDATE_ADJACENT_BLOCKS(X) void ProcessMappingGainCache::updateAdjacentBlocks(const X&,                     \
-                                                                                                     const SyncronizedEdgeUpdate&)
-#define PROCESS_MAPPING_INIT_GAIN_CACHE_ENTRY(X) void ProcessMappingGainCache::initializeGainCacheEntryForNode(const X&,           \
-                                                                                                               const HypernodeID,  \
-                                                                                                               vec<Gain>&)
-#define PROCESS_MAPPING_INIT_LAZY_GAIN_CACHE_ENTRY(X) void ProcessMappingGainCache::initializeGainCacheEntry(const X&,             \
-                                                                                                             const HypernodeID,    \
-                                                                                                             const PartitionID,    \
-                                                                                                             ds::Array<SpinLock>&)
-#define PROCESS_MAPPING_VERIFY_ADJACENT_BLOCKS(X) bool ProcessMappingGainCache::verifyTrackedAdjacentBlocksOfNodes(const X&) const
+#define STEINER_TREE_INITIALIZE_GAIN_CACHE(X) void SteinerTreeGainCache::initializeGainCache(const X&)
+#define STEINER_TREE_INITIALIZE_GAIN_CACHE_FOR_NODE(X) void SteinerTreeGainCache::initializeGainCacheEntryForNode(const X&,          \
+                                                                                                                  const HypernodeID)
+#define STEINER_TREE_NOTIFY(X) void SteinerTreeGainCache::notifyBeforeDeltaGainUpdate(const X&,                     \
+                                                                                      const SyncronizedEdgeUpdate&)
+#define STEINER_TREE_DELTA_GAIN_UPDATE(X) void SteinerTreeGainCache::deltaGainUpdate(const X&,                     \
+                                                                                     const SyncronizedEdgeUpdate&)
+#define STEINER_TREE_RESTORE_UPDATE(X) void SteinerTreeGainCache::uncontractUpdateAfterRestore(const X&,          \
+                                                                                               const HypernodeID, \
+                                                                                               const HypernodeID, \
+                                                                                               const HyperedgeID, \
+                                                                                               const HypernodeID)
+#define STEINER_TREE_REPLACEMENT_UPDATE(X) void SteinerTreeGainCache::uncontractUpdateAfterReplacement(const X&,            \
+                                                                                                       const HypernodeID,   \
+                                                                                                       const HypernodeID,   \
+                                                                                                       const HyperedgeID)
+#define STEINER_TREE_RESTORE_IDENTICAL_HYPEREDGE(X) void SteinerTreeGainCache::restoreIdenticalHyperedge(const X&,            \
+                                                                                                         const HyperedgeID)
+#define STEINER_TREE_INIT_ADJACENT_BLOCKS(X) void SteinerTreeGainCache::initializeAdjacentBlocks(const X&)
+#define STEINER_TREE_INIT_ADJACENT_BLOCKS_OF_NODE(X) void SteinerTreeGainCache::initializeAdjacentBlocksOfNode(const X&,          \
+                                                                                                               const HypernodeID)
+#define STEINER_TREE_UPDATE_ADJACENT_BLOCKS(X) void SteinerTreeGainCache::updateAdjacentBlocks(const X&,                     \
+                                                                                               const SyncronizedEdgeUpdate&)
+#define STEINER_TREE_INIT_GAIN_CACHE_ENTRY(X) void SteinerTreeGainCache::initializeGainCacheEntryForNode(const X&,           \
+                                                                                                         const HypernodeID,  \
+                                                                                                         vec<Gain>&)
+#define STEINER_TREE_INIT_LAZY_GAIN_CACHE_ENTRY(X) void SteinerTreeGainCache::initializeGainCacheEntry(const X&,             \
+                                                                                                       const HypernodeID,    \
+                                                                                                       const PartitionID,    \
+                                                                                                       ds::Array<SpinLock>&)
+#define STEINER_TREE_VERIFY_ADJACENT_BLOCKS(X) bool SteinerTreeGainCache::verifyTrackedAdjacentBlocksOfNodes(const X&) const
 }
 
-INSTANTIATE_FUNC_WITH_PARTITIONED_HG(PROCESS_MAPPING_INITIALIZE_GAIN_CACHE)
-INSTANTIATE_FUNC_WITH_PARTITIONED_HG(PROCESS_MAPPING_INITIALIZE_GAIN_CACHE_FOR_NODE)
-INSTANTIATE_FUNC_WITH_PARTITIONED_HG(PROCESS_MAPPING_NOTIFY)
-INSTANTIATE_FUNC_WITH_PARTITIONED_HG(PROCESS_MAPPING_DELTA_GAIN_UPDATE)
-INSTANTIATE_FUNC_WITH_PARTITIONED_HG(PROCESS_MAPPING_RESTORE_UPDATE)
-INSTANTIATE_FUNC_WITH_PARTITIONED_HG(PROCESS_MAPPING_REPLACEMENT_UPDATE)
-INSTANTIATE_FUNC_WITH_PARTITIONED_HG(PROCESS_MAPPING_RESTORE_IDENTICAL_HYPEREDGE)
-INSTANTIATE_FUNC_WITH_PARTITIONED_HG(PROCESS_MAPPING_INIT_ADJACENT_BLOCKS)
-INSTANTIATE_FUNC_WITH_PARTITIONED_HG(PROCESS_MAPPING_INIT_ADJACENT_BLOCKS_OF_NODE)
-INSTANTIATE_FUNC_WITH_PARTITIONED_HG(PROCESS_MAPPING_UPDATE_ADJACENT_BLOCKS)
-INSTANTIATE_FUNC_WITH_PARTITIONED_HG(PROCESS_MAPPING_INIT_GAIN_CACHE_ENTRY)
-INSTANTIATE_FUNC_WITH_PARTITIONED_HG(PROCESS_MAPPING_INIT_LAZY_GAIN_CACHE_ENTRY)
-INSTANTIATE_FUNC_WITH_PARTITIONED_HG(PROCESS_MAPPING_VERIFY_ADJACENT_BLOCKS)
+INSTANTIATE_FUNC_WITH_PARTITIONED_HG(STEINER_TREE_INITIALIZE_GAIN_CACHE)
+INSTANTIATE_FUNC_WITH_PARTITIONED_HG(STEINER_TREE_INITIALIZE_GAIN_CACHE_FOR_NODE)
+INSTANTIATE_FUNC_WITH_PARTITIONED_HG(STEINER_TREE_NOTIFY)
+INSTANTIATE_FUNC_WITH_PARTITIONED_HG(STEINER_TREE_DELTA_GAIN_UPDATE)
+INSTANTIATE_FUNC_WITH_PARTITIONED_HG(STEINER_TREE_RESTORE_UPDATE)
+INSTANTIATE_FUNC_WITH_PARTITIONED_HG(STEINER_TREE_REPLACEMENT_UPDATE)
+INSTANTIATE_FUNC_WITH_PARTITIONED_HG(STEINER_TREE_RESTORE_IDENTICAL_HYPEREDGE)
+INSTANTIATE_FUNC_WITH_PARTITIONED_HG(STEINER_TREE_INIT_ADJACENT_BLOCKS)
+INSTANTIATE_FUNC_WITH_PARTITIONED_HG(STEINER_TREE_INIT_ADJACENT_BLOCKS_OF_NODE)
+INSTANTIATE_FUNC_WITH_PARTITIONED_HG(STEINER_TREE_UPDATE_ADJACENT_BLOCKS)
+INSTANTIATE_FUNC_WITH_PARTITIONED_HG(STEINER_TREE_INIT_GAIN_CACHE_ENTRY)
+INSTANTIATE_FUNC_WITH_PARTITIONED_HG(STEINER_TREE_INIT_LAZY_GAIN_CACHE_ENTRY)
+INSTANTIATE_FUNC_WITH_PARTITIONED_HG(STEINER_TREE_VERIFY_ADJACENT_BLOCKS)
 
 }  // namespace mt_kahypar

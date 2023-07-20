@@ -26,7 +26,7 @@
 
 #include "gmock/gmock.h"
 
-#include "mt-kahypar/partition/process_mapping/set_enumerator.h"
+#include "mt-kahypar/partition/mapping/set_enumerator.h"
 
 using ::testing::Test;
 

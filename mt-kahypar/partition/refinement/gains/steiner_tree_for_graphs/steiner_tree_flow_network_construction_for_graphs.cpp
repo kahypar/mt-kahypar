@@ -24,19 +24,19 @@
  * SOFTWARE.
  ******************************************************************************/
 
-#include "mt-kahypar/partition/refinement/gains/process_mapping_for_graphs/process_mapping_flow_network_construction_for_graphs.h"
+#include "mt-kahypar/partition/refinement/gains/steiner_tree_for_graphs/steiner_tree_flow_network_construction_for_graphs.h"
 
 #include "mt-kahypar/definitions.h"
-#include "mt-kahypar/partition/process_mapping/target_graph.h"
+#include "mt-kahypar/partition/mapping/target_graph.h"
 
 namespace mt_kahypar {
 
 template<typename PartitionedHypergraph>
-HyperedgeWeight GraphProcessMappingFlowNetworkConstruction::capacity(const PartitionedHypergraph& phg,
-                                                                     const Context&,
-                                                                     const HyperedgeID he,
-                                                                     const PartitionID block_0,
-                                                                     const PartitionID block_1)  {
+HyperedgeWeight GraphSteinerTreeFlowNetworkConstruction::capacity(const PartitionedHypergraph& phg,
+                                                                  const Context&,
+                                                                  const HyperedgeID he,
+                                                                  const PartitionID block_0,
+                                                                  const PartitionID block_1)  {
   ASSERT(phg.hasTargetGraph());
   const TargetGraph& target_graph = *phg.targetGraph();
   const HyperedgeWeight edge_weight = phg.edgeWeight(he);
@@ -74,10 +74,10 @@ HyperedgeWeight GraphProcessMappingFlowNetworkConstruction::capacity(const Parti
 }
 
 template<typename PartitionedHypergraph>
-bool GraphProcessMappingFlowNetworkConstruction::connectToSource(const PartitionedHypergraph& partitioned_hg,
-                                                                 const HyperedgeID he,
-                                                                 const PartitionID block_0,
-                                                                 const PartitionID block_1) {
+bool GraphSteinerTreeFlowNetworkConstruction::connectToSource(const PartitionedHypergraph& partitioned_hg,
+                                                              const HyperedgeID he,
+                                                              const PartitionID block_0,
+                                                              const PartitionID block_1) {
   ASSERT(partitioned_hg.hasTargetGraph());
   const TargetGraph& target_graph = *partitioned_hg.targetGraph();
   const HypernodeID u = partitioned_hg.edgeSource(he);
@@ -111,10 +111,10 @@ bool GraphProcessMappingFlowNetworkConstruction::connectToSource(const Partition
 
 
 template<typename PartitionedHypergraph>
-bool GraphProcessMappingFlowNetworkConstruction::connectToSink(const PartitionedHypergraph& partitioned_hg,
-                                                               const HyperedgeID he,
-                                                               const PartitionID block_0,
-                                                               const PartitionID block_1) {
+bool GraphSteinerTreeFlowNetworkConstruction::connectToSink(const PartitionedHypergraph& partitioned_hg,
+                                                            const HyperedgeID he,
+                                                            const PartitionID block_0,
+                                                            const PartitionID block_1) {
   ASSERT(partitioned_hg.hasTargetGraph());
   const TargetGraph& target_graph = *partitioned_hg.targetGraph();
   const HypernodeID u = partitioned_hg.edgeSource(he);
@@ -147,10 +147,10 @@ bool GraphProcessMappingFlowNetworkConstruction::connectToSink(const Partitioned
 }
 
 template<typename PartitionedHypergraph>
-bool GraphProcessMappingFlowNetworkConstruction::isCut(const PartitionedHypergraph& partitioned_hg,
-                                                       const HyperedgeID he,
-                                                       const PartitionID block_0,
-                                                       const PartitionID block_1) {
+bool GraphSteinerTreeFlowNetworkConstruction::isCut(const PartitionedHypergraph& partitioned_hg,
+                                                    const HyperedgeID he,
+                                                    const PartitionID block_0,
+                                                    const PartitionID block_1) {
   ASSERT(partitioned_hg.hasTargetGraph());
   const TargetGraph& target_graph = *partitioned_hg.targetGraph();
   const HypernodeID u = partitioned_hg.edgeSource(he);
@@ -181,19 +181,19 @@ bool GraphProcessMappingFlowNetworkConstruction::isCut(const PartitionedHypergra
 }
 
 namespace {
-#define PROCESS_MAPPING_CAPACITY(X) HyperedgeWeight GraphProcessMappingFlowNetworkConstruction::capacity(  \
+#define STEINER_TREE_CAPACITY(X) HyperedgeWeight GraphSteinerTreeFlowNetworkConstruction::capacity(  \
   const X&, const Context&, const HyperedgeID, const PartitionID, const PartitionID)
-#define PROCESS_MAPPING_CONNECT_TO_SOURCE(X) bool GraphProcessMappingFlowNetworkConstruction::connectToSource(  \
+#define STEINER_TREE_CONNECT_TO_SOURCE(X) bool GraphSteinerTreeFlowNetworkConstruction::connectToSource(  \
   const X&, const HyperedgeID, const PartitionID, const PartitionID)
-#define PROCESS_MAPPING_CONNECT_TO_SINK(X) bool GraphProcessMappingFlowNetworkConstruction::connectToSink(  \
+#define STEINER_TREE_CONNECT_TO_SINK(X) bool GraphSteinerTreeFlowNetworkConstruction::connectToSink(  \
   const X&, const HyperedgeID, const PartitionID, const PartitionID)
-#define PROCESS_MAPPING_IS_CUT(X) bool GraphProcessMappingFlowNetworkConstruction::isCut(  \
+#define STEINER_TREE_IS_CUT(X) bool GraphSteinerTreeFlowNetworkConstruction::isCut(  \
   const X&, const HyperedgeID, const PartitionID, const PartitionID)
 }
 
-INSTANTIATE_FUNC_WITH_PARTITIONED_HG(PROCESS_MAPPING_CAPACITY)
-INSTANTIATE_FUNC_WITH_PARTITIONED_HG(PROCESS_MAPPING_CONNECT_TO_SOURCE)
-INSTANTIATE_FUNC_WITH_PARTITIONED_HG(PROCESS_MAPPING_CONNECT_TO_SINK)
-INSTANTIATE_FUNC_WITH_PARTITIONED_HG(PROCESS_MAPPING_IS_CUT)
+INSTANTIATE_FUNC_WITH_PARTITIONED_HG(STEINER_TREE_CAPACITY)
+INSTANTIATE_FUNC_WITH_PARTITIONED_HG(STEINER_TREE_CONNECT_TO_SOURCE)
+INSTANTIATE_FUNC_WITH_PARTITIONED_HG(STEINER_TREE_CONNECT_TO_SINK)
+INSTANTIATE_FUNC_WITH_PARTITIONED_HG(STEINER_TREE_IS_CUT)
 
 }  // namespace mt_kahypar

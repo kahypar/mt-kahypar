@@ -2,7 +2,7 @@ add_subdirectory(preprocessing/)
 add_subdirectory(coarsening)
 add_subdirectory(refinement)
 add_subdirectory(initial_partitioning)
-add_subdirectory(process_mapping)
+add_subdirectory(mapping)
 add_subdirectory(registries)
 
 set(PartitionSources

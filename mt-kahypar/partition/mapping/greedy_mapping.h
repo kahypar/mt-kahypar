@@ -28,7 +28,7 @@
 
 #include "mt-kahypar/macros.h"
 #include "mt-kahypar/datastructures/partitioned_graph.h"
-#include "mt-kahypar/partition/process_mapping/target_graph.h"
+#include "mt-kahypar/partition/mapping/target_graph.h"
 #include "mt-kahypar/partition/context.h"
 
 namespace mt_kahypar {

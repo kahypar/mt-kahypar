@@ -34,9 +34,9 @@
 #include "mt-kahypar/partition/refinement/gains/km1/km1_gain_cache.h"
 #include "mt-kahypar/partition/refinement/gains/cut/cut_gain_cache.h"
 #include "mt-kahypar/partition/refinement/gains/soed/soed_gain_cache.h"
-#include "mt-kahypar/partition/refinement/gains/process_mapping/process_mapping_gain_cache.h"
+#include "mt-kahypar/partition/refinement/gains/steiner_tree/steiner_tree_gain_cache.h"
 #include "mt-kahypar/partition/refinement/gains/cut_for_graphs/cut_gain_cache_for_graphs.h"
-#include "mt-kahypar/partition/refinement/gains/process_mapping_for_graphs/process_mapping_gain_cache_for_graphs.h"
+#include "mt-kahypar/partition/refinement/gains/steiner_tree_for_graphs/steiner_tree_gain_cache_for_graphs.h"
 #include "mt-kahypar/macros.h"
 
 namespace mt_kahypar {
@@ -55,9 +55,9 @@ class GainCachePtr {
       case GainPolicy::cut: return constructGainCache<CutGainCache>(context);
       case GainPolicy::km1: return constructGainCache<Km1GainCache>(context);
       case GainPolicy::soed: return constructGainCache<SoedGainCache>(context);
-      case GainPolicy::steiner_tree: return constructGainCache<ProcessMappingGainCache>(context);
+      case GainPolicy::steiner_tree: return constructGainCache<SteinerTreeGainCache>(context);
       case GainPolicy::cut_for_graphs: return constructGainCache<GraphCutGainCache>(context);
-      case GainPolicy::steiner_tree_for_graphs: return constructGainCache<GraphProcessMappingGainCache>(context);
+      case GainPolicy::steiner_tree_for_graphs: return constructGainCache<GraphSteinerTreeGainCache>(context);
       case GainPolicy::none:
         ERR("No gain policy set");
     }
@@ -74,11 +74,11 @@ class GainCachePtr {
         case GainPolicy::soed:
           delete reinterpret_cast<SoedGainCache*>(gain_cache.gain_cache); break;
         case GainPolicy::steiner_tree:
-          delete reinterpret_cast<ProcessMappingGainCache*>(gain_cache.gain_cache); break;
+          delete reinterpret_cast<SteinerTreeGainCache*>(gain_cache.gain_cache); break;
         case GainPolicy::cut_for_graphs:
           delete reinterpret_cast<GraphCutGainCache*>(gain_cache.gain_cache); break;
         case GainPolicy::steiner_tree_for_graphs:
-          delete reinterpret_cast<GraphProcessMappingGainCache*>(gain_cache.gain_cache); break;
+          delete reinterpret_cast<GraphSteinerTreeGainCache*>(gain_cache.gain_cache); break;
         case GainPolicy::none: break;
       }
     }
@@ -95,11 +95,11 @@ class GainCachePtr {
       case GainPolicy::soed:
         cast<SoedGainCache>(gain_cache).initializeGainCache(partitioned_hg); break;
       case GainPolicy::steiner_tree:
-        cast<ProcessMappingGainCache>(gain_cache).initializeGainCache(partitioned_hg); break;
+        cast<SteinerTreeGainCache>(gain_cache).initializeGainCache(partitioned_hg); break;
       case GainPolicy::cut_for_graphs:
         cast<GraphCutGainCache>(gain_cache).initializeGainCache(partitioned_hg); break;
       case GainPolicy::steiner_tree_for_graphs:
-        cast<GraphProcessMappingGainCache>(gain_cache).initializeGainCache(partitioned_hg); break;
+        cast<GraphSteinerTreeGainCache>(gain_cache).initializeGainCache(partitioned_hg); break;
       case GainPolicy::none: break;
     }
   }
@@ -113,11 +113,11 @@ class GainCachePtr {
       case GainPolicy::soed:
         cast<SoedGainCache>(gain_cache).reset(); break;
       case GainPolicy::steiner_tree:
-        cast<ProcessMappingGainCache>(gain_cache).reset(); break;
+        cast<SteinerTreeGainCache>(gain_cache).reset(); break;
       case GainPolicy::cut_for_graphs:
         cast<GraphCutGainCache>(gain_cache).reset(); break;
       case GainPolicy::steiner_tree_for_graphs:
-        cast<GraphProcessMappingGainCache>(gain_cache).reset(); break;
+        cast<GraphSteinerTreeGainCache>(gain_cache).reset(); break;
       case GainPolicy::none: break;
     }
   }
@@ -134,11 +134,11 @@ class GainCachePtr {
       case GainPolicy::soed:
         partitioned_hg.uncontract(batch, cast<SoedGainCache>(gain_cache)); break;
       case GainPolicy::steiner_tree:
-        partitioned_hg.uncontract(batch, cast<ProcessMappingGainCache>(gain_cache)); break;
+        partitioned_hg.uncontract(batch, cast<SteinerTreeGainCache>(gain_cache)); break;
       case GainPolicy::cut_for_graphs:
         partitioned_hg.uncontract(batch, cast<GraphCutGainCache>(gain_cache)); break;
       case GainPolicy::steiner_tree_for_graphs:
-        partitioned_hg.uncontract(batch, cast<GraphProcessMappingGainCache>(gain_cache)); break;
+        partitioned_hg.uncontract(batch, cast<GraphSteinerTreeGainCache>(gain_cache)); break;
       case GainPolicy::none: break;
     }
   }
@@ -159,13 +159,13 @@ class GainCachePtr {
           cast<SoedGainCache>(gain_cache)); break;
       case GainPolicy::steiner_tree:
         partitioned_hg.restoreSinglePinAndParallelNets(hes_to_restore,
-          cast<ProcessMappingGainCache>(gain_cache)); break;
+          cast<SteinerTreeGainCache>(gain_cache)); break;
       case GainPolicy::cut_for_graphs:
         partitioned_hg.restoreSinglePinAndParallelNets(hes_to_restore,
           cast<GraphCutGainCache>(gain_cache)); break;
       case GainPolicy::steiner_tree_for_graphs:
         partitioned_hg.restoreSinglePinAndParallelNets(hes_to_restore,
-          cast<GraphProcessMappingGainCache>(gain_cache)); break;
+          cast<GraphSteinerTreeGainCache>(gain_cache)); break;
       case GainPolicy::none: break;
     }
   }
@@ -185,13 +185,13 @@ class GainCachePtr {
           cast<SoedGainCache>(gain_cache));
       case GainPolicy::steiner_tree:
         return partitioned_hg.checkTrackedPartitionInformation(
-          cast<ProcessMappingGainCache>(gain_cache));
+          cast<SteinerTreeGainCache>(gain_cache));
       case GainPolicy::cut_for_graphs:
         return partitioned_hg.checkTrackedPartitionInformation(
           cast<GraphCutGainCache>(gain_cache));
       case GainPolicy::steiner_tree_for_graphs:
         return partitioned_hg.checkTrackedPartitionInformation(
-          cast<GraphProcessMappingGainCache>(gain_cache));
+          cast<GraphSteinerTreeGainCache>(gain_cache));
       case GainPolicy::none: return false;
     }
     return false;

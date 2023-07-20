@@ -29,7 +29,7 @@
 #include "tbb/task_group.h"
 
 #include "mt-kahypar/datastructures/static_graph_factory.h"
-#include "mt-kahypar/partition/process_mapping/target_graph.h"
+#include "mt-kahypar/partition/mapping/target_graph.h"
 
 using ::testing::Test;
 

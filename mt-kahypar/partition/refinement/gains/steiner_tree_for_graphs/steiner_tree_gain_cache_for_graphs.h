@@ -34,7 +34,7 @@
 #include "tbb/concurrent_vector.h"
 
 #include "mt-kahypar/partition/context_enum_classes.h"
-#include "mt-kahypar/partition/process_mapping/target_graph.h"
+#include "mt-kahypar/partition/mapping/target_graph.h"
 #include "mt-kahypar/datastructures/hypergraph_common.h"
 #include "mt-kahypar/datastructures/array.h"
 #include "mt-kahypar/datastructures/sparse_map.h"
@@ -60,7 +60,7 @@ namespace mt_kahypar {
  * This gain cache implementation maintains the Ψ(u,V') terms for all nodes and their adjacent blocks.
  * Thus, the gain cache stores and maintains at most k entries per node where k := |V_P|.
 */
-class GraphProcessMappingGainCache {
+class GraphSteinerTreeGainCache {
 
   static constexpr HyperedgeID HIGH_DEGREE_THRESHOLD = ID(100000);
 
@@ -103,7 +103,7 @@ class GraphProcessMappingGainCache {
   static constexpr bool requires_notification_before_update = true;
   static constexpr bool initializes_gain_cache_entry_after_batch_uncontractions = true;
 
-  GraphProcessMappingGainCache() :
+  GraphSteinerTreeGainCache() :
     _is_initialized(false),
     _k(kInvalidPartition),
     _gain_cache(),
@@ -114,7 +114,7 @@ class GraphProcessMappingGainCache {
     _uncontraction_version(0),
     _ets_version() { }
 
-  GraphProcessMappingGainCache(const Context&) :
+  GraphSteinerTreeGainCache(const Context&) :
     _is_initialized(false),
     _k(kInvalidPartition),
     _gain_cache(),
@@ -125,11 +125,11 @@ class GraphProcessMappingGainCache {
     _uncontraction_version(0),
     _ets_version() { }
 
-  GraphProcessMappingGainCache(const GraphProcessMappingGainCache&) = delete;
-  GraphProcessMappingGainCache & operator= (const GraphProcessMappingGainCache &) = delete;
+  GraphSteinerTreeGainCache(const GraphSteinerTreeGainCache&) = delete;
+  GraphSteinerTreeGainCache & operator= (const GraphSteinerTreeGainCache &) = delete;
 
-  GraphProcessMappingGainCache(GraphProcessMappingGainCache&& other) = default;
-  GraphProcessMappingGainCache & operator= (GraphProcessMappingGainCache&& other) = default;
+  GraphSteinerTreeGainCache(GraphSteinerTreeGainCache&& other) = default;
+  GraphSteinerTreeGainCache & operator= (GraphSteinerTreeGainCache&& other) = default;
 
   // ####################### Initialization #######################
 
@@ -292,7 +292,7 @@ class GraphProcessMappingGainCache {
   bool verifyTrackedAdjacentBlocksOfNodes(const PartitionedHypergraph& partitioned_hg) const;
 
  private:
-  friend class GraphDeltaProcessMappingGainCache;
+  friend class GraphDeltaSteinerTreeGainCache;
 
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
   size_t gain_entry_index(const HypernodeID u, const PartitionID p) const {
@@ -404,7 +404,7 @@ class GraphProcessMappingGainCache {
  * the delta gain cache after performing some moves locally. To maintain Δg(u,V'), we use a hash
  * table that only stores entries affected by a gain cache update.
 */
-class GraphDeltaProcessMappingGainCache {
+class GraphDeltaSteinerTreeGainCache {
 
   using DeltaAdjacentBlocks = ds::DeltaConnectivitySet<ds::ConnectivitySets>;
   using AdjacentBlocksIterator = typename DeltaAdjacentBlocks::Iterator;
@@ -412,7 +412,7 @@ class GraphDeltaProcessMappingGainCache {
  public:
   static constexpr bool requires_connectivity_set = true;
 
-  GraphDeltaProcessMappingGainCache(const GraphProcessMappingGainCache& gain_cache) :
+  GraphDeltaSteinerTreeGainCache(const GraphSteinerTreeGainCache& gain_cache) :
     _gain_cache(gain_cache),
     _gain_cache_delta(),
     _invalid_gain_cache_entry(),
@@ -590,7 +590,7 @@ class GraphDeltaProcessMappingGainCache {
     _gain_cache_delta[_gain_cache.gain_entry_index(u, to)] = gain;
   }
 
-  const GraphProcessMappingGainCache& _gain_cache;
+  const GraphSteinerTreeGainCache& _gain_cache;
 
   // ! Stores the delta of each locally touched gain cache entry
   // ! relative to the shared gain cache

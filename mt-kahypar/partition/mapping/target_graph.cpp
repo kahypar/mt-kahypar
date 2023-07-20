@@ -24,13 +24,13 @@
  * SOFTWARE.
  ******************************************************************************/
 
-#include "mt-kahypar/partition/process_mapping/target_graph.h"
+#include "mt-kahypar/partition/mapping/target_graph.h"
 
 #include <cmath>
 #include <limits>
 
 #include "mt-kahypar/datastructures/static_graph.h"
-#include "mt-kahypar/partition/process_mapping/steiner_tree.h"
+#include "mt-kahypar/partition/mapping/steiner_tree.h"
 
 namespace mt_kahypar {
 

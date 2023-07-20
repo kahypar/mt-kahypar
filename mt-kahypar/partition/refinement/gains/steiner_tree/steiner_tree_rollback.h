@@ -46,7 +46,7 @@ namespace mt_kahypar {
  * This class implements the functions required by the rollback algorithm to recompute all gain values
  * for the connectivity metric.
 */
-class ProcessMappingRollback {
+class SteinerTreeRollback {
 
  public:
   static constexpr bool supports_parallel_rollback = false;

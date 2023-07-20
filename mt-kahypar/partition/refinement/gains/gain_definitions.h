@@ -47,15 +47,15 @@
 #include "mt-kahypar/partition/refinement/gains/soed/soed_gain_cache.h"
 #include "mt-kahypar/partition/refinement/gains/soed/soed_rollback.h"
 #include "mt-kahypar/partition/refinement/gains/soed/soed_flow_network_construction.h"
-#include "mt-kahypar/partition/refinement/gains/process_mapping/process_mapping_attributed_gains.h"
-#include "mt-kahypar/partition/refinement/gains/process_mapping/process_mapping_gain_computation.h"
-#include "mt-kahypar/partition/refinement/gains/process_mapping/process_mapping_gain_cache.h"
-#include "mt-kahypar/partition/refinement/gains/process_mapping/process_mapping_rollback.h"
-#include "mt-kahypar/partition/refinement/gains/process_mapping/process_mapping_flow_network_construction.h"
-#include "mt-kahypar/partition/refinement/gains/process_mapping_for_graphs/process_mapping_attributed_gains_for_graphs.h"
-#include "mt-kahypar/partition/refinement/gains/process_mapping_for_graphs/process_mapping_gain_computation_for_graphs.h"
-#include "mt-kahypar/partition/refinement/gains/process_mapping_for_graphs/process_mapping_gain_cache_for_graphs.h"
-#include "mt-kahypar/partition/refinement/gains/process_mapping_for_graphs/process_mapping_flow_network_construction_for_graphs.h"
+#include "mt-kahypar/partition/refinement/gains/steiner_tree/steiner_tree_attributed_gains.h"
+#include "mt-kahypar/partition/refinement/gains/steiner_tree/steiner_tree_gain_computation.h"
+#include "mt-kahypar/partition/refinement/gains/steiner_tree/steiner_tree_gain_cache.h"
+#include "mt-kahypar/partition/refinement/gains/steiner_tree/steiner_tree_rollback.h"
+#include "mt-kahypar/partition/refinement/gains/steiner_tree/steiner_tree_flow_network_construction.h"
+#include "mt-kahypar/partition/refinement/gains/steiner_tree_for_graphs/steiner_tree_attributed_gains_for_graphs.h"
+#include "mt-kahypar/partition/refinement/gains/steiner_tree_for_graphs/steiner_tree_gain_computation_for_graphs.h"
+#include "mt-kahypar/partition/refinement/gains/steiner_tree_for_graphs/steiner_tree_gain_cache_for_graphs.h"
+#include "mt-kahypar/partition/refinement/gains/steiner_tree_for_graphs/steiner_tree_flow_network_construction_for_graphs.h"
 #include "mt-kahypar/partition/refinement/gains/cut_for_graphs/cut_gain_cache_for_graphs.h"
 #include "mt-kahypar/partition/refinement/gains/cut_for_graphs/cut_attributed_gains_for_graphs.h"
 #include "mt-kahypar/macros.h"
@@ -90,12 +90,12 @@ struct SoedGainTypes : public kahypar::meta::PolicyBase {
 };
 
 struct ProcessMappingGainTypes : public kahypar::meta::PolicyBase {
-  using GainComputation = ProcessMappingGainComputation;
-  using AttributedGains = ProcessMappingAttributedGains;
-  using GainCache = ProcessMappingGainCache;
-  using DeltaGainCache = DeltaProcessMappingGainCache;
-  using Rollback = ProcessMappingRollback;
-  using FlowNetworkConstruction = ProcessMappingFlowNetworkConstruction;
+  using GainComputation = SteinerTreeGainComputation;
+  using AttributedGains = SteinerTreeAttributedGains;
+  using GainCache = SteinerTreeGainCache;
+  using DeltaGainCache = DeltaSteinerTreeGainCache;
+  using Rollback = SteinerTreeRollback;
+  using FlowNetworkConstruction = SteinerTreeFlowNetworkConstruction;
 };
 
 struct CutGainForGraphsTypes : public kahypar::meta::PolicyBase {
@@ -108,12 +108,12 @@ struct CutGainForGraphsTypes : public kahypar::meta::PolicyBase {
 };
 
 struct ProcessMappingForGraphsTypes : public kahypar::meta::PolicyBase {
-  using GainComputation = GraphProcessMappingGainComputation;
-  using AttributedGains = GraphProcessMappingAttributedGains;
-  using GainCache = GraphProcessMappingGainCache;
-  using DeltaGainCache = GraphDeltaProcessMappingGainCache;
-  using Rollback = ProcessMappingRollback;
-  using FlowNetworkConstruction = GraphProcessMappingFlowNetworkConstruction;
+  using GainComputation = GraphSteinerTreeGainComputation;
+  using AttributedGains = GraphSteinerTreeAttributedGains;
+  using GainCache = GraphSteinerTreeGainCache;
+  using DeltaGainCache = GraphDeltaSteinerTreeGainCache;
+  using Rollback = SteinerTreeRollback;
+  using FlowNetworkConstruction = GraphSteinerTreeFlowNetworkConstruction;
 };
 
 

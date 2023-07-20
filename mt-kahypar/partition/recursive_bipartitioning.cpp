@@ -36,7 +36,7 @@
 #include "mt-kahypar/macros.h"
 #include "mt-kahypar/partition/multilevel.h"
 #include "mt-kahypar/partition/refinement/gains/bipartitioning_policy.h"
-#include "mt-kahypar/partition/process_mapping/initial_mapping.h"
+#include "mt-kahypar/partition/mapping/initial_mapping.h"
 
 #include "mt-kahypar/parallel/memory_pool.h"
 #include "mt-kahypar/utils/randomize.h"
