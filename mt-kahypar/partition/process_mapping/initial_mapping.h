@@ -47,7 +47,7 @@ class InitialMapping {
   // ! collapses each block of the communication hypergraph into a single node and
   // ! then solves a one-to-one mapping problem. The function is called after initial
   // ! partitioning via recursive bipartitioning (RB) since RB can not optimize
-  // ! the process mapping objective function.
+  // ! the steiner tree metric.
   static void mapToProcessGraph(PartitionedHypergraph& communication_hg,
                                 const ProcessGraph& process_graph,
                                 const Context& context);

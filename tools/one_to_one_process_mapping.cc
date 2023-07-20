@@ -129,7 +129,7 @@ int main(int argc, char* argv[]) {
     io::printPartitioningResults(partitioned_hg, context, "Input Partition");
   }
 
-  // Solve One-To-One Process Mapping
+  // Solve One-To-One Mapping Problem
   HighResClockTimepoint start_2 = std::chrono::high_resolution_clock::now();
   InitialMapping<StaticHypergraphTypeTraits>::mapToProcessGraph(
     partitioned_hg, process_graph, context);

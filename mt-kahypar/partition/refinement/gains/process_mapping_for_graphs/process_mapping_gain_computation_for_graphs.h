@@ -72,7 +72,7 @@ class GraphProcessMappingGainComputation : public GainComputationBase<GraphProce
     ASSERT(tmp_scores.size() == 0, "Rating map not empty");
 
     // The gain of moving a node u from its current block Π[u] to target block V_j can
-    // be expressed as follows for the process mapping objective function:
+    // be expressed as follows for the steiner tree objective function:
     // g(u, V_j) := \sum_{ {u,v} \in I(u) } ( dist(V_j, Π[v]) - dist(Π[u],Π[v]) ) * w(u,v)
     // Here, dist(V',V'') is the shortest path between block V' and V'' in the process graph.
     // Computing the gain to all adjacent blocks of the nodes has a time complexity of

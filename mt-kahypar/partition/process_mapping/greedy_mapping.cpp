@@ -170,7 +170,7 @@ void compute_greedy_mapping(CommunicationHypergraph& communication_hg,
 
     ASSERT(communication_hg.partID(u) == kInvalidPartition);
     // Assign node with the strongest connection to the partial assignment
-    // to the process that minimizes the process mapping objective function.
+    // to the process that minimizes the steiner tree metric.
     for ( const HyperedgeID& he : communication_hg.incidentEdges(u) ) {
       ds::Bitset& connectivity_set = communication_hg.deepCopyOfConnectivitySet(he);
       const HyperedgeWeight edge_weight = communication_hg.edgeWeight(he);
@@ -184,7 +184,7 @@ void compute_greedy_mapping(CommunicationHypergraph& communication_hg,
     }
 
     // Determine processor that would result in the least increase of the
-    // process mapping objective function.
+    // steiner tree metric.
     HyperedgeWeight best_rating = std::numeric_limits<HyperedgeWeight>::max();
     for ( const PartitionID process : unassigned_processors_view ) {
       if ( tmp_ratings[process] < best_rating ) {

@@ -54,7 +54,7 @@ HyperedgeWeight GraphProcessMappingFlowNetworkConstruction::capacity(const Parti
   } else {
     // In this case, only one node is contained in the flow problem and the other
     // node is part of another block different from block_0 and block_1.
-    // Here, we set the capacity to difference in the process mapping objective function
+    // Here, we set the capacity to difference in the steiner tree metric
     // if we would replace block_0 with block_1.
     PartitionID other_block = kInvalidPartition;
     if ( block_of_u == block_0 || block_of_v == block_0 ) {
@@ -89,7 +89,7 @@ bool GraphProcessMappingFlowNetworkConstruction::connectToSource(const Partition
     const HyperedgeWeight current_distance = process_graph.distance(block_0, other_block);
     const HyperedgeWeight distance_block_1 = process_graph.distance(block_1, other_block);
     if ( other_block != block_0 && other_block != block_1 && current_distance < distance_block_1 ) {
-      // Moving the node from block_0 to block_1 would worsen the process mapping objective,
+      // Moving the node from block_0 to block_1 would worsen the steiner tree metric,
       // even though the edge is still cut afterwards. To model this percurlarity in the flow network,
       // we add the corresponding edge to the source.
       return true;
@@ -100,7 +100,7 @@ bool GraphProcessMappingFlowNetworkConstruction::connectToSource(const Partition
     const HyperedgeWeight current_distance = process_graph.distance(block_1, other_block);
     const HyperedgeWeight distance_block_0 = process_graph.distance(block_0, other_block);
     if ( other_block != block_0 && other_block != block_1 && current_distance > distance_block_0 ) {
-      // Moving the node from block_1 to block_0 would improve the process mapping objective function,
+      // Moving the node from block_1 to block_0 would improve the steiner tree metric,
       // even though the edge is still cut afterwards. To model this percurlarity in the flow network,
       // we add the corresponding edge to the source.
       return true;
@@ -126,7 +126,7 @@ bool GraphProcessMappingFlowNetworkConstruction::connectToSink(const Partitioned
     const HyperedgeWeight current_distance = process_graph.distance(block_1, other_block);
     const HyperedgeWeight distance_block_1 = process_graph.distance(block_0, other_block);
     if ( other_block != block_0 && other_block != block_1 && current_distance < distance_block_1 ) {
-      // Moving the node from block_1 to block_0 would worsen the process mapping objective,
+      // Moving the node from block_1 to block_0 would worsen the steiner tree metric,
       // even though the edge is still cut afterwards. To model this percurlarity in the flow network,
       // we add the corresponding edge to the sink.
       return true;
@@ -137,7 +137,7 @@ bool GraphProcessMappingFlowNetworkConstruction::connectToSink(const Partitioned
     const HyperedgeWeight current_distance = process_graph.distance(block_0, other_block);
     const HyperedgeWeight distance_block_1 = process_graph.distance(block_1, other_block);
     if ( other_block != block_0 && other_block != block_1 && current_distance > distance_block_1 ) {
-      // Moving the node from block_0 to block_1 would improve the process mapping objective function,
+      // Moving the node from block_0 to block_1 would improve the steiner tree metric,
       // even though the edge is still cut afterwards. To model this percurlarity in the flow network,
       // we add the corresponding edge to the sink.
       return true;
@@ -163,7 +163,7 @@ bool GraphProcessMappingFlowNetworkConstruction::isCut(const PartitionedHypergra
     const HyperedgeWeight distance_block_0 = process_graph.distance(block_0, other_block);
     if ( other_block != block_0 && other_block != block_1 && current_distance > distance_block_0 ) {
       // Moving the node contained in the flow problem to the other block would improve the
-      // process mapping objective function, even though the edge would be still cut.
+      // steiner tree metric, even though the edge would be still cut.
       // Thus, we consider it as a cut edge.
       return true;
     }

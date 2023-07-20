@@ -47,7 +47,7 @@ class GreedyMapping {
     * The algorithm chooses a seed node and assigns it to processor with the lowest communication
     * volume. In each step, the algorithm assigns the node of the communication hypergraph with
     * the strongest connection to the partial assignment to the processor that results in the
-    * least increasing of the process mapping objective function.
+    * least increasing of the steiner tree metric.
     */
   static void mapToProcessGraph(CommunicationHypergraph& communication_hg,
                                 const ProcessGraph& process_graph,

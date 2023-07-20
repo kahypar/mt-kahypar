@@ -196,7 +196,7 @@ TEST(AContext, LoadsDefaultPresetCorrectly) {
   ASSERT_EQ(actual.refinement.flows.algorithm,
             expected.refinement.flows.algorithm);
 
-  // process mapping
+  // mapping
   ASSERT_EQ(actual.mapping.strategy,
             expected.mapping.strategy);
   ASSERT_EQ(actual.mapping.use_local_search,
@@ -394,7 +394,7 @@ TEST(AContext, LoadsDefaultFlowPresetCorrectly) {
   ASSERT_EQ(actual.refinement.flows.steiner_tree_policy,
             expected.refinement.flows.steiner_tree_policy);
 
-  // process mapping
+  // mapping
   ASSERT_EQ(actual.mapping.strategy,
             expected.mapping.strategy);
   ASSERT_EQ(actual.mapping.use_local_search,
@@ -542,7 +542,7 @@ TEST(AContext, LoadsDeterministicPresetCorrectly) {
   ASSERT_EQ(actual.refinement.deterministic_refinement.recalculate_gains_on_second_apply,
             expected.refinement.deterministic_refinement.recalculate_gains_on_second_apply);
 
-  // process mapping
+  // mapping
   ASSERT_EQ(actual.mapping.strategy,
             expected.mapping.strategy);
   ASSERT_EQ(actual.mapping.use_local_search,
@@ -740,7 +740,7 @@ TEST(AContext, LoadsQualityPresetCorrectly) {
   ASSERT_EQ(actual.refinement.global_fm.obey_minimal_parallelism,
             expected.refinement.global_fm.obey_minimal_parallelism);
 
-  // process mapping
+  // mapping
   ASSERT_EQ(actual.mapping.strategy,
             expected.mapping.strategy);
   ASSERT_EQ(actual.mapping.use_local_search,
@@ -962,7 +962,7 @@ TEST(AContext, LoadsQualityFlowPresetCorrectly) {
   ASSERT_EQ(actual.refinement.global_fm.obey_minimal_parallelism,
             expected.refinement.global_fm.obey_minimal_parallelism);
 
-  // process mapping
+  // mapping
   ASSERT_EQ(actual.mapping.strategy,
             expected.mapping.strategy);
   ASSERT_EQ(actual.mapping.use_local_search,
@@ -1093,7 +1093,7 @@ TEST(AContext, LoadsLargeKPresetCorrectly) {
   ASSERT_EQ(actual.refinement.flows.algorithm,
             expected.refinement.flows.algorithm);
 
-  // process mapping
+  // mapping
   ASSERT_EQ(actual.mapping.strategy,
             expected.mapping.strategy);
   ASSERT_EQ(actual.mapping.use_local_search,

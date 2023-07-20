@@ -62,7 +62,7 @@ MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE HyperedgeWeight swap_gain(const ProcessGraph&
 }
 
 // This function computes the gain of swapping the blocks of node u and v
-// in the communication hypergraph for the process mapping objective function.
+// in the communication hypergraph for the steiner tree metric.
 template<typename CommunicationHypergraph>
 MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE HyperedgeWeight swap_gain(CommunicationHypergraph& communication_hg,
                                                              const ProcessGraph& process_graph,

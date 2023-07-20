@@ -39,7 +39,7 @@ HyperedgeWeight capacity_for_cut_edge(const SteinerTreeFlowValuePolicy policy,
     case SteinerTreeFlowValuePolicy::lower_bound: return std::min(gain_0, gain_1);
     case SteinerTreeFlowValuePolicy::upper_bound: return std::max(gain_0, gain_1);
     case SteinerTreeFlowValuePolicy::UNDEFINED:
-      ERR("Process mapping flow value policy is undefined" << V(policy));
+      ERR("Steiner tree flow value policy is undefined" << V(policy));
       return 0;
   }
   return 0;
@@ -108,8 +108,8 @@ bool ProcessMappingFlowNetworkConstruction::connectToSource(const PartitionedHyp
     const HyperedgeWeight distance_after_exchange =
       process_graph.distanceAfterExchangingBlocks(connectivity_set, block_0, block_1);
     if ( current_distance < distance_after_exchange ) {
-      // If all nodes from block_0 would move to block_1, we would worsen the process mapping objective
-      // function, even though the connectivity of the hyperedge does not change. To model this percurlarity in the flow network,
+      // If all nodes from block_0 would move to block_1, we would worsen the steiner tree metric,
+      // even though the connectivity of the hyperedge does not change. To model this percurlarity in the flow network,
       // we add the corresponding hyperedge to the source.
       return true;
     }
@@ -142,8 +142,8 @@ bool ProcessMappingFlowNetworkConstruction::connectToSink(const PartitionedHyper
     const HyperedgeWeight distance_after_exchange =
       process_graph.distanceAfterExchangingBlocks(connectivity_set, block_1, block_0);
     if ( current_distance < distance_after_exchange ) {
-      // If all nodes from block_1 would move to block_0, we would worsen the process mapping objective
-      // function, even though the connectivity of the hyperedge does not change. To model this percurlarity in the flow network,
+      // If all nodes from block_1 would move to block_0, we would worsen the steiner tree metric,
+      // even though the connectivity of the hyperedge does not change. To model this percurlarity in the flow network,
       // we add the corresponding hyperedge to the sink.
       return true;
     }

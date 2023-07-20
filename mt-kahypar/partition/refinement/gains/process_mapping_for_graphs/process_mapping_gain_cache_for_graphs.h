@@ -48,9 +48,9 @@
 namespace mt_kahypar {
 
 /**
- * The gain cache stores the gain values for all possible node moves for the process mapping metric on graphs.
+ * The gain cache stores the gain values for all possible node moves for the steiner tree metric metric on graphs.
  *
- * The process mapping problem asks for a mapping Π: V -> V_p of the node set V of a weighted graph G = (V,E,c,w)
+ * The mapping problem asks for a mapping Π: V -> V_p of the node set V of a weighted graph G = (V,E,c,w)
  * onto a process graph P = (V_P, E_P) such that the following objective function is minimized:
  * process_mapping(G, P, Π) := sum_{{u,v} \in E} dist_P(Π[u],Π[v]) * w(u,v)
  * Here, dist_P(Π[u],Π[v]) is shortest path connecting block Π[u] and Π[v] in the process graph.
@@ -208,7 +208,7 @@ class GraphProcessMappingGainCache {
                                    const SyncronizedEdgeUpdate& sync_update);
 
 
-  // ! This functions implements the delta gain updates for the process mapping metric.
+  // ! This functions implements the delta gain updates for the steiner tree metric.
   // ! When moving a node from its current block to a target block, we iterate
   // ! over its incident hyperedges and update their pin count values. After each pin count
   // ! update, we call this function to update the gain cache to changes associated with

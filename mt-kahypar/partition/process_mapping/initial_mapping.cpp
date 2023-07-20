@@ -202,7 +202,7 @@ void map_to_process_graph(PartitionedHypergraph& communication_hg,
   const HyperedgeWeight objective_before = metrics::quality(contracted_phg, Objective::steiner_tree);
   ASSERT(metrics::quality(communication_hg, Objective::steiner_tree) == objective_before);
 
-  // Solve one-to-one process mapping problem
+  // Solve one-to-one mapping problem
   #ifndef IGNORE_DUAL_BIPARTITIONING
   if ( context.mapping.strategy == OneToOneMappingStrategy::dual_bipartitioning ) {
     DualBipartitioning<PartitionedHypergraph>::mapToProcessGraph(contracted_phg, process_graph, context);
@@ -215,7 +215,7 @@ void map_to_process_graph(PartitionedHypergraph& communication_hg,
   const HyperedgeWeight objective_after = metrics::quality(contracted_phg, Objective::steiner_tree);
   if ( objective_after < objective_before ) {
     if ( context.partition.verbose_output ) {
-      LOG << GREEN << "Initial process mapping algorithm has improved objective by"
+      LOG << GREEN << "Initial one-to-one mapping algorithm has improved objective by"
           << (objective_before - objective_after)
           << "( Before =" << objective_before << ", After =" << objective_after << ")" << END;
     }
@@ -231,7 +231,7 @@ void map_to_process_graph(PartitionedHypergraph& communication_hg,
   } else if ( context.partition.verbose_output && objective_before < objective_after ) {
     // Initial mapping algorithm has worsen solution quality
     // => use input partition of communication hypergraph
-    LOG << RED << "Initial process mapping algorithm has worsen objective by"
+    LOG << RED << "Initial one-to-one mapping algorithm has worsen objective by"
       << (objective_after - objective_before)
       << "( Before =" << objective_before << ", After =" << objective_after << ")."
       << "Use mapping from initial partitiong!"<< END;

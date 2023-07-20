@@ -101,7 +101,7 @@ class ProcessMappingGainComputation : public GainComputationBase<ProcessMappingG
       }
       // Other gain computation techniques only iterate over the connectivity set
       // of a hyperedge to compute the gain. They assume that the gain is the same
-      // for all non-adjacent blocks. However, this is not the case for process mapping.
+      // for all non-adjacent blocks. However, this is not the case for steiner tree metric.
       // The gain to non-adjacent blocks could be different because they induce different
       // distances in the process graph. We therefore have to consider all adjacent blocks
       // of the node to compute the correct gain.
