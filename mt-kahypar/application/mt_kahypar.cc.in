@@ -34,7 +34,7 @@
 #include "mt-kahypar/partition/partitioner_facade.h"
 #include "mt-kahypar/partition/registries/register_memory_pool.h"
 #include "mt-kahypar/partition/conversion.h"
-#include "mt-kahypar/partition/process_mapping/process_graph.h"
+#include "mt-kahypar/partition/process_mapping/target_graph.h"
 #include "mt-kahypar/utils/cast.h"
 #include "mt-kahypar/utils/delete.h"
 #include "mt-kahypar/utils/randomize.h"
@@ -118,8 +118,8 @@ int main(int argc, char* argv[]) {
       context.preprocessing.stable_construction_of_incident_edges);
   timer.stop_timer("io_hypergraph");
 
-  // Read Process Graph
-  std::unique_ptr<ProcessGraph> process_graph;
+  // Read Target Graph
+  std::unique_ptr<TargetGraph> target_graph;
   if ( context.partition.objective == Objective::steiner_tree &&
        context.mapping.target_graph_file == "" ) {
     context.mapping.target_graph_file =
@@ -127,7 +127,7 @@ int main(int argc, char* argv[]) {
         std::to_string(context.partition.k);
   }
   if ( context.mapping.target_graph_file != "" ) {
-    process_graph = std::make_unique<ProcessGraph>(
+    target_graph = std::make_unique<TargetGraph>(
       io::readInputFile<ds::StaticGraph>(
         context.mapping.target_graph_file, FileFormat::Metis, true));
   }
@@ -138,7 +138,7 @@ int main(int argc, char* argv[]) {
   // Partition Hypergraph
   HighResClockTimepoint start = std::chrono::high_resolution_clock::now();
   mt_kahypar_partitioned_hypergraph_t partitioned_hypergraph =
-    PartitionerFacade::partition(hypergraph, context, process_graph.get());
+    PartitionerFacade::partition(hypergraph, context, target_graph.get());
   HighResClockTimepoint end = std::chrono::high_resolution_clock::now();
 
   // Print Stats

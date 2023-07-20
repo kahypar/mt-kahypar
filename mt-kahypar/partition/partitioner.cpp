@@ -38,7 +38,7 @@
 #include "mt-kahypar/partition/preprocessing/community_detection/parallel_louvain.h"
 #include "mt-kahypar/partition/recursive_bipartitioning.h"
 #include "mt-kahypar/partition/deep_multilevel.h"
-#include "mt-kahypar/partition/process_mapping/process_graph.h"
+#include "mt-kahypar/partition/process_mapping/target_graph.h"
 #include "mt-kahypar/partition/process_mapping/initial_mapping.h"
 #include "mt-kahypar/utils/hypergraph_statistics.h"
 #include "mt-kahypar/utils/stats.h"
@@ -48,14 +48,14 @@
 namespace mt_kahypar {
 
   template<typename Hypergraph>
-  void setupContext(Hypergraph& hypergraph, Context& context, ProcessGraph* process_graph) {
-    if ( process_graph ) {
-      context.partition.k = process_graph->numBlocks();
+  void setupContext(Hypergraph& hypergraph, Context& context, TargetGraph* target_graph) {
+    if ( target_graph ) {
+      context.partition.k = target_graph->numBlocks();
     }
 
     context.partition.large_hyperedge_size_threshold = std::max(hypergraph.initialNumNodes() *
                                                                 context.partition.large_hyperedge_size_threshold_factor, 100.0);
-    context.sanityCheck(process_graph);
+    context.sanityCheck(target_graph);
     context.setupPartWeights(hypergraph.totalWeight());
     context.setupContractionLimit(hypergraph.totalWeight());
     context.setupThreadsPerFlowSearch();
@@ -211,7 +211,7 @@ namespace mt_kahypar {
   }
 
   template<typename Hypergraph>
-  void preprocess(Hypergraph& hypergraph, Context& context, ProcessGraph* process_graph, const bool is_vcycle) {
+  void preprocess(Hypergraph& hypergraph, Context& context, TargetGraph* target_graph, const bool is_vcycle) {
     bool use_community_detection = context.preprocessing.use_community_detection;
     bool is_graph = false;
 
@@ -248,12 +248,12 @@ namespace mt_kahypar {
       }
     }
 
-    if ( process_graph && !process_graph->isInitialized() ) {
+    if ( target_graph && !target_graph->isInitialized() ) {
       timer.start_timer("precompute_steiner_trees", "Precompute Steiner Trees");
       const size_t max_steiner_tree_size = std::min(
         context.mapping.max_steiner_tree_size,
         static_cast<size_t>(hypergraph.maxEdgeSize()));
-      process_graph->precomputeDistances(max_steiner_tree_size);
+      target_graph->precomputeDistances(max_steiner_tree_size);
       timer.stop_timer("precompute_steiner_trees");
     }
     parallel::MemoryPool::instance().release_mem_group("Preprocessing");
@@ -261,18 +261,18 @@ namespace mt_kahypar {
 
   template<typename TypeTraits>
   typename Partitioner<TypeTraits>::PartitionedHypergraph Partitioner<TypeTraits>::partition(
-    Hypergraph& hypergraph, Context& context, ProcessGraph* process_graph) {
+    Hypergraph& hypergraph, Context& context, TargetGraph* target_graph) {
     configurePreprocessing(hypergraph, context);
-    setupContext(hypergraph, context, process_graph);
+    setupContext(hypergraph, context, target_graph);
 
     io::printContext(context);
     io::printMemoryPoolConsumption(context);
     io::printInputInformation(context, hypergraph);
 
-    bool map_partition_to_process_graph_at_the_end = false;
+    bool map_partition_to_target_graph_at_the_end = false;
     if ( context.partition.objective == Objective::steiner_tree &&
          context.mapping.use_two_phase_approach ) {
-      map_partition_to_process_graph_at_the_end = true;
+      map_partition_to_target_graph_at_the_end = true;
       context.partition.objective = Objective::km1;
       context.setupGainPolicy();
     }
@@ -282,16 +282,16 @@ namespace mt_kahypar {
     timer.start_timer("preprocessing", "Preprocessing");
     DegreeZeroHypernodeRemover<TypeTraits> degree_zero_hn_remover(context);
     LargeHyperedgeRemover<TypeTraits> large_he_remover(context);
-    preprocess(hypergraph, context, process_graph, false);
+    preprocess(hypergraph, context, target_graph, false);
     sanitize(hypergraph, context, degree_zero_hn_remover, large_he_remover);
     timer.stop_timer("preprocessing");
 
     // ################## MULTILEVEL & VCYCLE ##################
     PartitionedHypergraph partitioned_hypergraph;
     if (context.partition.mode == Mode::direct) {
-      partitioned_hypergraph = Multilevel<TypeTraits>::partition(hypergraph, context, process_graph);
+      partitioned_hypergraph = Multilevel<TypeTraits>::partition(hypergraph, context, target_graph);
     } else if (context.partition.mode == Mode::recursive_bipartitioning) {
-      partitioned_hypergraph = RecursiveBipartitioning<TypeTraits>::partition(hypergraph, context, process_graph);
+      partitioned_hypergraph = RecursiveBipartitioning<TypeTraits>::partition(hypergraph, context, target_graph);
     } else if (context.partition.mode == Mode::deep_multilevel) {
       ASSERT(context.partition.objective != Objective::steiner_tree);
       partitioned_hypergraph = DeepMultilevel<TypeTraits>::partition(hypergraph, context);
@@ -305,12 +305,12 @@ namespace mt_kahypar {
     degree_zero_hn_remover.restoreDegreeZeroHypernodes(partitioned_hypergraph);
     timer.stop_timer("postprocessing");
 
-    if ( map_partition_to_process_graph_at_the_end ) {
-      ASSERT(process_graph);
+    if ( map_partition_to_target_graph_at_the_end ) {
+      ASSERT(target_graph);
       context.partition.objective = Objective::steiner_tree;
       timer.start_timer("one_to_one_mapping", "One-To-One Mapping");
-      InitialMapping<TypeTraits>::mapToProcessGraph(
-        partitioned_hypergraph, *process_graph, context);
+      InitialMapping<TypeTraits>::mapToTargetGraph(
+        partitioned_hypergraph, *target_graph, context);
       timer.stop_timer("one_to_one_mapping");
     }
 
@@ -327,10 +327,10 @@ namespace mt_kahypar {
   template<typename TypeTraits>
   void Partitioner<TypeTraits>::partitionVCycle(PartitionedHypergraph& partitioned_hg,
                                                 Context& context,
-                                                ProcessGraph* process_graph) {
+                                                TargetGraph* target_graph) {
     Hypergraph& hypergraph = partitioned_hg.hypergraph();
     configurePreprocessing(hypergraph, context);
-    setupContext(hypergraph, context, process_graph);
+    setupContext(hypergraph, context, target_graph);
 
     io::printContext(context);
     io::printMemoryPoolConsumption(context);
@@ -342,7 +342,7 @@ namespace mt_kahypar {
     timer.start_timer("preprocessing", "Preprocessing");
     DegreeZeroHypernodeRemover<TypeTraits> degree_zero_hn_remover(context);
     LargeHyperedgeRemover<TypeTraits> large_he_remover(context);
-    preprocess(hypergraph, context, process_graph, true);
+    preprocess(hypergraph, context, target_graph, true);
     sanitize(hypergraph, context, degree_zero_hn_remover, large_he_remover);
     timer.stop_timer("preprocessing");
 

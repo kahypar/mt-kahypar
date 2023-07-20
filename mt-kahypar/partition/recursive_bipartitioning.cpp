@@ -326,16 +326,16 @@ template<typename TypeTraits>
 typename RecursiveBipartitioning<TypeTraits>::PartitionedHypergraph
 RecursiveBipartitioning<TypeTraits>::partition(Hypergraph& hypergraph,
                                                const Context& context,
-                                               const ProcessGraph* process_graph) {
+                                               const TargetGraph* target_graph) {
   PartitionedHypergraph partitioned_hypergraph(context.partition.k, hypergraph, parallel_tag_t());
-  partition(partitioned_hypergraph, context, process_graph);
+  partition(partitioned_hypergraph, context, target_graph);
   return partitioned_hypergraph;
 }
 
 template<typename TypeTraits>
 void RecursiveBipartitioning<TypeTraits>::partition(PartitionedHypergraph& hypergraph,
                                                     const Context& context,
-                                                    const ProcessGraph* process_graph) {
+                                                    const TargetGraph* target_graph) {
   utils::Utilities& utils = utils::Utilities::instance();
   if (context.partition.mode == Mode::recursive_bipartitioning) {
     utils.getTimer(context.utility_id).start_timer("rb", "Recursive Bipartitioning");
@@ -373,14 +373,14 @@ void RecursiveBipartitioning<TypeTraits>::partition(PartitionedHypergraph& hyper
   }
 
   if ( context.partition.objective == Objective::steiner_tree ) {
-    ASSERT(process_graph);
+    ASSERT(target_graph);
     utils::Timer& timer = utils.getTimer(context.utility_id);
     const bool was_enabled = timer.isEnabled();
     timer.enable();
     timer.start_timer("one_to_one_mapping", "One-To-One Mapping");
     // Map partition onto target graph
-    InitialMapping<TypeTraits>::mapToProcessGraph(
-      hypergraph, *process_graph, context);
+    InitialMapping<TypeTraits>::mapToTargetGraph(
+      hypergraph, *target_graph, context);
     timer.stop_timer("one_to_one_mapping");
     if ( !was_enabled ) {
       timer.disable();

@@ -32,7 +32,7 @@
 namespace mt_kahypar {
 
 // Forward Declaration
-class ProcessGraph;
+class TargetGraph;
 
 template<typename TypeTraits>
 class Partitioner {
@@ -43,11 +43,11 @@ class Partitioner {
  public:
   static PartitionedHypergraph partition(Hypergraph& hypergraph,
                                          Context& context,
-                                         ProcessGraph* process_graph = nullptr);
+                                         TargetGraph* target_graph = nullptr);
 
   static void partitionVCycle(PartitionedHypergraph& partitioned_hg,
                               Context& context,
-                              ProcessGraph* process_graph = nullptr);
+                              TargetGraph* target_graph = nullptr);
 };
 
 }  // namespace mt_kahypar

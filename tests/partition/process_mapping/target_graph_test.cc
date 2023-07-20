@@ -29,22 +29,22 @@
 #include "tbb/task_group.h"
 
 #include "mt-kahypar/datastructures/static_graph_factory.h"
-#include "mt-kahypar/partition/process_mapping/process_graph.h"
+#include "mt-kahypar/partition/process_mapping/target_graph.h"
 
 using ::testing::Test;
 
 namespace mt_kahypar {
 
-class AProcessGraph : public Test {
+class ATargetGraph : public Test {
 
   using UnsafeBlock = ds::StaticBitset::Block;
 
  public:
-  AProcessGraph() :
+  ATargetGraph() :
     graph(nullptr) {
 
     /**
-     * Process Graph:
+     * Target Graph:
      *        1           2           4
      * 0  -------- 1  -------- 2  -------- 3
      * |           |           |           |
@@ -68,7 +68,7 @@ class AProcessGraph : public Test {
         2, 4, 2,
         1, 2, 2, 2,
         1, 1, 2 };
-    graph = std::make_unique<ProcessGraph>(
+    graph = std::make_unique<TargetGraph>(
       ds::StaticGraphFactory::construct(16, 24,
         { { 0, 1 }, { 1, 2 }, { 2, 3 },
           { 0, 4 }, { 1, 5 }, { 2, 6 }, { 3, 7 },
@@ -107,7 +107,7 @@ class AProcessGraph : public Test {
     return graph->distanceAfterExchangingBlocks(con_set, removed_block, added_block);
   }
 
-  std::unique_ptr<ProcessGraph> graph;
+  std::unique_ptr<TargetGraph> graph;
 
  private:
   ds::Bitset getBitset(const vec<PartitionID>& connectivity_set) {
@@ -143,11 +143,11 @@ void executeConcurrent(F f1, K f2) {
   group.wait();
 }
 
-TEST_F(AProcessGraph, HasCorrectNumberOfBlocks) {
+TEST_F(ATargetGraph, HasCorrectNumberOfBlocks) {
   ASSERT_EQ(16, graph->numBlocks());
 }
 
-TEST_F(AProcessGraph, ComputesAllShortestPaths) {
+TEST_F(ATargetGraph, ComputesAllShortestPaths) {
   graph->precomputeDistances(2);
   ASSERT_EQ(0, graph->distance(0, 0));
   ASSERT_EQ(0, graph->distance(1, 1));
@@ -164,7 +164,7 @@ TEST_F(AProcessGraph, ComputesAllShortestPaths) {
   ASSERT_EQ(7, graph->distance(4, 3));
 }
 
-TEST_F(AProcessGraph, ComputesAllShortestPathsWithConnectivitySet) {
+TEST_F(ATargetGraph, ComputesAllShortestPathsWithConnectivitySet) {
   graph->precomputeDistances(2);
   ASSERT_EQ(0, distance({ 0 }));
   ASSERT_EQ(0, distance({ 1 }));
@@ -181,7 +181,7 @@ TEST_F(AProcessGraph, ComputesAllShortestPathsWithConnectivitySet) {
   ASSERT_EQ(7, distance({ 4, 3 }));
 }
 
-TEST_F(AProcessGraph, ComputesAllSteinerTreesUpToSizeThree) {
+TEST_F(ATargetGraph, ComputesAllSteinerTreesUpToSizeThree) {
   graph->precomputeDistances(3);
   ASSERT_EQ(8, distance({ 0, 3, 9 }));
   ASSERT_EQ(8, distance({ 1, 3, 10 }));
@@ -195,7 +195,7 @@ TEST_F(AProcessGraph, ComputesAllSteinerTreesUpToSizeThree) {
   ASSERT_EQ(5, distance({ 9, 10, 14 }));
 }
 
-TEST_F(AProcessGraph, ComputeDistancesWithAnAdditionalBlock) {
+TEST_F(ATargetGraph, ComputeDistancesWithAnAdditionalBlock) {
   graph->precomputeDistances(3);
   ASSERT_EQ(8, distanceWithBlock({ 0, 3 }, 9));
   ASSERT_EQ(8, distanceWithBlock({ 1, 3 }, 10));
@@ -209,7 +209,7 @@ TEST_F(AProcessGraph, ComputeDistancesWithAnAdditionalBlock) {
   ASSERT_EQ(5, distanceWithBlock({ 10, 14 }, 9));
 }
 
-TEST_F(AProcessGraph, ComputeDistancesWithoutAnBlock) {
+TEST_F(ATargetGraph, ComputeDistancesWithoutAnBlock) {
   graph->precomputeDistances(3);
   ASSERT_EQ(8, distanceWithoutBlock({ 0, 2, 3, 9 }, 2));
   ASSERT_EQ(8, distanceWithoutBlock({ 1, 3, 7, 10 }, 7));
@@ -223,7 +223,7 @@ TEST_F(AProcessGraph, ComputeDistancesWithoutAnBlock) {
   ASSERT_EQ(5, distanceWithoutBlock({ 9, 10, 13, 14 }, 13));
 }
 
-TEST_F(AProcessGraph, ComputeDistancesAfterExchangingBlocks) {
+TEST_F(ATargetGraph, ComputeDistancesAfterExchangingBlocks) {
   graph->precomputeDistances(3);
   ASSERT_EQ(8, distanceAfterExchangingBlocks({ 0, 4, 9 }, 4, 3));
   ASSERT_EQ(8, distanceAfterExchangingBlocks({ 1, 3, 12 }, 12, 10));
@@ -237,7 +237,7 @@ TEST_F(AProcessGraph, ComputeDistancesAfterExchangingBlocks) {
   ASSERT_EQ(5, distanceAfterExchangingBlocks({ 9, 10, 12 }, 12, 14));
 }
 
-TEST_F(AProcessGraph, ComputesAllSteinerTreesUpToSizeFour) {
+TEST_F(ATargetGraph, ComputesAllSteinerTreesUpToSizeFour) {
   graph->precomputeDistances(4);
   ASSERT_EQ(10, distance({ 0, 3, 9, 11 }));
   ASSERT_EQ(8, distance({ 5, 8, 10, 13 }));
@@ -249,7 +249,7 @@ TEST_F(AProcessGraph, ComputesAllSteinerTreesUpToSizeFour) {
   ASSERT_EQ(11, distance({ 0, 3, 9, 14 }));
 }
 
-TEST_F(AProcessGraph, ComputeDistanceBetweenNonPrecomputedSets) {
+TEST_F(ATargetGraph, ComputeDistanceBetweenNonPrecomputedSets) {
   graph->precomputeDistances(2);
   ASSERT_EQ(8, distance({ 0, 5, 9, 10 }));
   ASSERT_EQ(13, distance({ 0, 3, 10, 14 }));
@@ -258,7 +258,7 @@ TEST_F(AProcessGraph, ComputeDistanceBetweenNonPrecomputedSets) {
   ASSERT_EQ(15, distance({ 2, 3, 4, 8, 10, 14, 15 }));
 }
 
-TEST_F(AProcessGraph, ComputeDistanceBetweenNonPrecomputedSetsConcurrently) {
+TEST_F(ATargetGraph, ComputeDistanceBetweenNonPrecomputedSetsConcurrently) {
   graph->precomputeDistances(2);
   executeConcurrent([&] {
     ASSERT_EQ(8, distance({ 0, 5, 9, 10 }));
@@ -270,13 +270,13 @@ TEST_F(AProcessGraph, ComputeDistanceBetweenNonPrecomputedSetsConcurrently) {
   });
 }
 
-TEST_F(AProcessGraph, UsesACachedDistanceForNonPrecomputedSets) {
+TEST_F(ATargetGraph, UsesACachedDistanceForNonPrecomputedSets) {
   graph->precomputeDistances(2);
   ASSERT_EQ(8, distance({ 0, 5, 9, 10 }));
   ASSERT_EQ(8, distance({ 0, 5, 9, 10 }));
 }
 
-TEST_F(AProcessGraph, InsertsIntoCacheConcurrentlyForNonPrecomputedSets) {
+TEST_F(ATargetGraph, InsertsIntoCacheConcurrentlyForNonPrecomputedSets) {
   graph->precomputeDistances(2);
   executeConcurrent([&] {
     ASSERT_EQ(8, distance({ 0, 5, 9, 10 }));

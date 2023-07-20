@@ -31,7 +31,7 @@
 
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/metrics.h"
-#include "mt-kahypar/partition/process_mapping/process_graph.h"
+#include "mt-kahypar/partition/process_mapping/target_graph.h"
 #include "mt-kahypar/utils/utilities.h"
 #include "mt-kahypar/utils/timer.h"
 
@@ -161,8 +161,8 @@ std::string serialize(const PartitionedHypergraph& hypergraph,
           << " mapping_largest_he_fraction=" << context.mapping.largest_he_fraction
           << " mapping_min_pin_coverage_of_largest_hes=" << context.mapping.min_pin_coverage_of_largest_hes
           << " mapping_large_he_threshold=" << context.mapping.large_he_threshold;
-      if ( ProcessGraph::TRACK_STATS ) {
-        hypergraph.processGraph()->printStats(oss);
+      if ( TargetGraph::TRACK_STATS ) {
+        hypergraph.targetGraph()->printStats(oss);
       }
     }
 

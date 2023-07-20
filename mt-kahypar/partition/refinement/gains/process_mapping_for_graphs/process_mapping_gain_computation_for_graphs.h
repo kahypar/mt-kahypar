@@ -32,7 +32,7 @@
 
 #include "mt-kahypar/partition/refinement/gains/gain_computation_base.h"
 #include "mt-kahypar/partition/refinement/gains/process_mapping_for_graphs/process_mapping_attributed_gains_for_graphs.h"
-#include "mt-kahypar/partition/process_mapping/process_graph.h"
+#include "mt-kahypar/partition/process_mapping/target_graph.h"
 #include "mt-kahypar/datastructures/static_bitset.h"
 #include "mt-kahypar/datastructures/sparse_map.h"
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
@@ -74,7 +74,7 @@ class GraphProcessMappingGainComputation : public GainComputationBase<GraphProce
     // The gain of moving a node u from its current block Π[u] to target block V_j can
     // be expressed as follows for the steiner tree objective function:
     // g(u, V_j) := \sum_{ {u,v} \in I(u) } ( dist(V_j, Π[v]) - dist(Π[u],Π[v]) ) * w(u,v)
-    // Here, dist(V',V'') is the shortest path between block V' and V'' in the process graph.
+    // Here, dist(V',V'') is the shortest path between block V' and V'' in the target graph.
     // Computing the gain to all adjacent blocks of the nodes has a time complexity of
     // O(|I(u)|*|R(u)|) where R(u) is the set of all adjacent blocks of node u and I(u) is
     // the set of all incident edges of node u.
@@ -101,12 +101,12 @@ class GraphProcessMappingGainComputation : public GainComputationBase<GraphProce
 
     // Gain computation
     // gain(u, V_j) := \sum_{V_k \in R(u)} (dist(V_j, V_k) - dist(Π[u], V_k)) * w(u, V_k)
-    ASSERT(phg.hasProcessGraph());
-    const ProcessGraph& process_graph = *phg.processGraph();
+    ASSERT(phg.hasTargetGraph());
+    const TargetGraph& target_graph = *phg.targetGraph();
     for ( const PartitionID& j : adjacent_blocks_view ) {
       for ( const PartitionID k : adjacent_blocks_view ) {
-        tmp_scores[j] -= ( process_graph.distance(from, k) -
-          process_graph.distance(j, k) ) * incident_edge_weights[k];
+        tmp_scores[j] -= ( target_graph.distance(from, k) -
+          target_graph.distance(j, k) ) * incident_edge_weights[k];
       }
     }
 

@@ -34,7 +34,7 @@
 #include "tbb/concurrent_vector.h"
 
 #include "mt-kahypar/partition/context_enum_classes.h"
-#include "mt-kahypar/partition/process_mapping/process_graph.h"
+#include "mt-kahypar/partition/process_mapping/target_graph.h"
 #include "mt-kahypar/datastructures/hypergraph_common.h"
 #include "mt-kahypar/datastructures/array.h"
 #include "mt-kahypar/datastructures/sparse_map.h"
@@ -51,9 +51,9 @@ namespace mt_kahypar {
  * The gain cache stores the gain values for all possible node moves for the steiner tree metric metric on graphs.
  *
  * The mapping problem asks for a mapping Π: V -> V_p of the node set V of a weighted graph G = (V,E,c,w)
- * onto a process graph P = (V_P, E_P) such that the following objective function is minimized:
+ * onto a target graph P = (V_P, E_P) such that the following objective function is minimized:
  * process_mapping(G, P, Π) := sum_{{u,v} \in E} dist_P(Π[u],Π[v]) * w(u,v)
- * Here, dist_P(Π[u],Π[v]) is shortest path connecting block Π[u] and Π[v] in the process graph.
+ * Here, dist_P(Π[u],Π[v]) is shortest path connecting block Π[u] and Π[v] in the target graph.
  *
  * The gain of moving a node u from its current block V_i to a target block V_j can be expressed as follows:
  * g(u,V_j) := Ψ(u,Π[u]) - Ψ(u,V_j) with Ψ(u,V') := \sum_{{u,v} \in E} dist_P(V',Π[v]) * w(u,v)
@@ -258,14 +258,14 @@ class GraphProcessMappingGainCache {
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
   HyperedgeWeight recomputePenaltyTerm(const PartitionedHypergraph& partitioned_hg,
                                        const HypernodeID u) const {
-    ASSERT(partitioned_hg.hasProcessGraph());
+    ASSERT(partitioned_hg.hasTargetGraph());
     HyperedgeWeight gain = 0;
-    const ProcessGraph& process_graph = *partitioned_hg.processGraph();
+    const TargetGraph& target_graph = *partitioned_hg.targetGraph();
     const PartitionID from = partitioned_hg.partID(u);
     for ( const HyperedgeID& e : partitioned_hg.incidentEdges(u) ) {
       if ( !partitioned_hg.isSinglePin(e) ) {
         const PartitionID block_of_target = partitioned_hg.partID(partitioned_hg.edgeTarget(e));
-        gain -= process_graph.distance(from, block_of_target) * partitioned_hg.edgeWeight(e);
+        gain -= target_graph.distance(from, block_of_target) * partitioned_hg.edgeWeight(e);
       }
     }
     return gain;
@@ -276,13 +276,13 @@ class GraphProcessMappingGainCache {
   HyperedgeWeight recomputeBenefitTerm(const PartitionedHypergraph& partitioned_hg,
                                        const HypernodeID u,
                                        const PartitionID to) const {
-    ASSERT(partitioned_hg.hasProcessGraph());
+    ASSERT(partitioned_hg.hasTargetGraph());
     HyperedgeWeight gain = 0;
-    const ProcessGraph& process_graph = *partitioned_hg.processGraph();
+    const TargetGraph& target_graph = *partitioned_hg.targetGraph();
     for ( const HyperedgeID& e : partitioned_hg.incidentEdges(u) ) {
       if ( !partitioned_hg.isSinglePin(e) ) {
         const PartitionID block_of_target = partitioned_hg.partID(partitioned_hg.edgeTarget(e));
-        gain -= process_graph.distance(to, block_of_target) * partitioned_hg.edgeWeight(e);
+        gain -= target_graph.distance(to, block_of_target) * partitioned_hg.edgeWeight(e);
       }
     }
     return gain;
@@ -494,19 +494,19 @@ class GraphDeltaProcessMappingGainCache {
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
   void deltaGainUpdate(const PartitionedHypergraph& partitioned_hg,
                        const SyncronizedEdgeUpdate& sync_update) {
-    ASSERT(sync_update.process_graph);
+    ASSERT(sync_update.target_graph);
 
     const HyperedgeID he = sync_update.he;
     if ( !partitioned_hg.isSinglePin(he) ) {
       const PartitionID from = sync_update.from;
       const PartitionID to = sync_update.to;
       const HyperedgeWeight edge_weight = sync_update.edge_weight;
-      const ProcessGraph& process_graph = *sync_update.process_graph;
+      const TargetGraph& target_graph = *sync_update.target_graph;
 
       const HypernodeID v = partitioned_hg.edgeTarget(he);
       for ( const PartitionID& target : adjacentBlocks(v) ) {
-        const HyperedgeWeight delta = ( process_graph.distance(from, target) -
-          process_graph.distance(to, target) ) * edge_weight ;
+        const HyperedgeWeight delta = ( target_graph.distance(from, target) -
+          target_graph.distance(to, target) ) * edge_weight ;
         _gain_cache_delta[_gain_cache.gain_entry_index(v, target)] += delta;
       }
 
@@ -578,14 +578,14 @@ class GraphDeltaProcessMappingGainCache {
   void initializeGainCacheEntry(const PartitionedHypergraph& partitioned_hg,
                                 const HypernodeID u,
                                 const PartitionID to) {
-    ASSERT(partitioned_hg.hasProcessGraph());
-    const ProcessGraph& process_graph = *partitioned_hg.processGraph();
+    ASSERT(partitioned_hg.hasTargetGraph());
+    const TargetGraph& target_graph = *partitioned_hg.targetGraph();
     HyperedgeWeight gain = 0;
     for ( const HyperedgeID& he : partitioned_hg.incidentEdges(u) ) {
       ASSERT(partitioned_hg.edgeSource(he) == u);
       const HypernodeID v = partitioned_hg.edgeTarget(he);
       const PartitionID block_of_v = partitioned_hg.partID(v);
-      gain -= process_graph.distance(to, block_of_v) * partitioned_hg.edgeWeight(he);
+      gain -= target_graph.distance(to, block_of_v) * partitioned_hg.edgeWeight(he);
     }
     _gain_cache_delta[_gain_cache.gain_entry_index(u, to)] = gain;
   }

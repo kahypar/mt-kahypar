@@ -648,7 +648,7 @@ namespace mt_kahypar {
              "Afterwards, each block of the partition is mapped onto a block of the target architecture graph.")
             ("max-steiner-tree-size",
              po::value<size_t>(&context.mapping.max_steiner_tree_size)->value_name("<size_t>"),
-             "We precompute all optimal steiner trees up to this size in the process graph.")
+             "We precompute all optimal steiner trees up to this size in the target graph.")
             ("bisection-brute-force-threshold",
              po::value<size_t>(&context.mapping.bisection_brute_fore_threshold)->value_name("<size_t>"),
              "Threshold for the number of nodes when we brute force the optimal bisection in the dual bipartitioning strategy.")

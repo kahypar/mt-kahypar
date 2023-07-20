@@ -47,7 +47,7 @@
 namespace mt_kahypar {
 
 // Forward
-class ProcessGraph;
+class TargetGraph;
 
 namespace ds {
 
@@ -105,7 +105,7 @@ class PartitionedHypergraph {
     _input_num_edges(hypergraph.initialNumEdges()),
     _k(k),
     _hg(&hypergraph),
-    _process_graph(nullptr),
+    _target_graph(nullptr),
     _part_weights(k, CAtomic<HypernodeWeight>(0)),
     _part_ids(
         "Refinement", "part_ids", hypergraph.initialNumNodes(), false, false),
@@ -122,7 +122,7 @@ class PartitionedHypergraph {
     _input_num_edges(hypergraph.initialNumEdges()),
     _k(k),
     _hg(&hypergraph),
-    _process_graph(nullptr),
+    _target_graph(nullptr),
     _part_weights(k, CAtomic<HypernodeWeight>(0)),
     _part_ids(),
     _con_info(),
@@ -224,18 +224,18 @@ class PartitionedHypergraph {
   }
 
 
-  // ####################### Process Mapping ######################
+  // ####################### Mapping ######################
 
-  void setProcessGraph(const ProcessGraph* process_graph) {
-    _process_graph = process_graph;
+  void setTargetGraph(const TargetGraph* target_graph) {
+    _target_graph = target_graph;
   }
 
-  bool hasProcessGraph() const {
-    return _process_graph != nullptr;
+  bool hasTargetGraph() const {
+    return _target_graph != nullptr;
   }
 
-  const ProcessGraph* processGraph() const {
-    return _process_graph;
+  const TargetGraph* targetGraph() const {
+    return _target_graph;
   }
 
   // ####################### Iterators #######################
@@ -586,7 +586,7 @@ class PartitionedHypergraph {
       SyncronizedEdgeUpdate sync_update;
       sync_update.from = from;
       sync_update.to = to;
-      sync_update.process_graph = _process_graph;
+      sync_update.target_graph = _target_graph;
       sync_update.edge_locks = &_pin_count_update_ownership;
       for ( const HyperedgeID he : incidentEdges(u) ) {
         updatePinCountOfHyperedge(he, from, to, sync_update, delta_func, notify_func);
@@ -1156,8 +1156,8 @@ class PartitionedHypergraph {
     notify_func(sync_update);
     sync_update.pin_count_in_from_part_after = decrementPinCountOfBlock(he, from);
     sync_update.pin_count_in_to_part_after = incrementPinCountOfBlock(he, to);
-    sync_update.connectivity_set_after = hasProcessGraph() ? &deepCopyOfConnectivitySet(he) : nullptr;
-    sync_update.pin_counts_after = hasProcessGraph() ? &_con_info.pinCountSnapshot(he) : nullptr;
+    sync_update.connectivity_set_after = hasTargetGraph() ? &deepCopyOfConnectivitySet(he) : nullptr;
+    sync_update.pin_counts_after = hasTargetGraph() ? &_con_info.pinCountSnapshot(he) : nullptr;
     _pin_count_update_ownership[he].unlock();
     delta_func(sync_update);
   }
@@ -1199,8 +1199,8 @@ class PartitionedHypergraph {
   // ! Underlying hypergraph
   Hypergraph* _hg = nullptr;
 
-  // ! Process graph on which this hypergraph is mapped
-  const ProcessGraph* _process_graph;
+  // ! Target graph on which this hypergraph is mapped
+  const TargetGraph* _target_graph;
 
   // ! Weight and information for all blocks.
   vec< CAtomic<HypernodeWeight> > _part_weights;

@@ -46,7 +46,7 @@
 
 namespace mt_kahypar {
 
-class ProcessGraph {
+class TargetGraph {
 
   static constexpr size_t INITIAL_HASH_TABLE_CAPACITY = 100000;
   static constexpr size_t MEMORY_LIMIT = 100000000;
@@ -84,7 +84,7 @@ class ProcessGraph {
  public:
   static constexpr bool TRACK_STATS = false;
 
-  explicit ProcessGraph(ds::StaticGraph&& graph) :
+  explicit TargetGraph(ds::StaticGraph&& graph) :
     _is_initialized(false),
     _k(graph.initialNumNodes()),
     _graph(std::move(graph)),
@@ -95,11 +95,11 @@ class ProcessGraph {
     _handles([&]() { return getHandle(); }),
     _stats() { }
 
-  ProcessGraph(const ProcessGraph&) = delete;
-  ProcessGraph & operator= (const ProcessGraph &) = delete;
+  TargetGraph(const TargetGraph&) = delete;
+  TargetGraph & operator= (const TargetGraph &) = delete;
 
-  ProcessGraph(ProcessGraph&&) = default;
-  ProcessGraph & operator= (ProcessGraph &&) = default;
+  TargetGraph(TargetGraph&&) = default;
+  TargetGraph & operator= (TargetGraph &&) = default;
 
   PartitionID numBlocks() const {
     return _k;
@@ -170,7 +170,7 @@ class ProcessGraph {
     return dist;
   }
 
-  // ! Returns the shortest path between two blocks in the process graph
+  // ! Returns the shortest path between two blocks in the target graph
   HyperedgeWeight distance(const PartitionID i, const PartitionID j) const {
     ASSERT(_is_initialized);
     return _distances[index(i, j)];
@@ -179,7 +179,7 @@ class ProcessGraph {
   // ! Print statistics
   void printStats() const {
     const size_t total_requests = _stats.precomputed + _stats.cache_hits + _stats.cache_misses;
-    LOG << "\nProcess Graph Distance Computation Stats:";
+    LOG << "\nTarget Graph Distance Computation Stats:";
     std::cout << "Accessed Precomputed Distance = " << std::setprecision(2)
               << (static_cast<double>(_stats.precomputed) / total_requests) * 100 << "% ("
               << _stats.precomputed << ")" << std::endl;
@@ -218,7 +218,7 @@ class ProcessGraph {
       (multiplier == UL(_k) ? last_block * _k : 0) : 0;
   }
 
-  // ! This function computes an MST on the metric completion of the process graph
+  // ! This function computes an MST on the metric completion of the target graph
   // ! restricted to the blocks in the connectivity set. The metric completion is
   // ! complete graph where each edge {u,v} has a weight equals the shortest path
   // ! connecting u and v. This gives a 2-approximation for steiner tree problem.
@@ -233,7 +233,7 @@ class ProcessGraph {
   // ! Number of blocks
   PartitionID _k;
 
-  // ! Graph data structure representing the process graph
+  // ! Graph data structure representing the target graph
   ds::StaticGraph _graph;
 
   // ! Maximum size of the connectivity set for which we have

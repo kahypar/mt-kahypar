@@ -49,7 +49,7 @@ namespace mt_kahypar {
     _timer.stop_timer("create_batch_uncontraction_hierarchy");
 
     ASSERT(_uncoarseningData.is_finalized);
-    _uncoarseningData.compactified_phg->setProcessGraph(_process_graph);
+    _uncoarseningData.compactified_phg->setTargetGraph(_target_graph);
     _current_metrics = Base::initializeMetrics(*_uncoarseningData.compactified_phg);
     _stats.current_number_of_nodes = _uncoarseningData.compactified_hg->initialNumNodes();
     Base::initializeRefinementAlgorithms();
@@ -71,7 +71,7 @@ namespace mt_kahypar {
       _uncoarseningData.partitioned_hg->setOnlyNodePart(hn, block_id);
     });
     _uncoarseningData.partitioned_hg->initializePartition();
-    _uncoarseningData.partitioned_hg->setProcessGraph(_process_graph);
+    _uncoarseningData.partitioned_hg->setTargetGraph(_target_graph);
 
     // Initialize Gain Cache
     if ( _context.refinement.fm.algorithm == FMAlgorithm::kway_fm ) {

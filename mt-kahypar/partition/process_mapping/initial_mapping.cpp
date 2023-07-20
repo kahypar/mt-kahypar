@@ -29,7 +29,7 @@
 #include "tbb/parallel_invoke.h"
 
 #include "mt-kahypar/definitions.h"
-#include "mt-kahypar/partition/process_mapping/process_graph.h"
+#include "mt-kahypar/partition/process_mapping/target_graph.h"
 #ifndef IGNORE_DUAL_BIPARTITIONING
 #include "mt-kahypar/partition/process_mapping/dual_bipartitioning.h"
 #endif
@@ -166,9 +166,9 @@ Hypergraph repairEmptyBlocks(const Hypergraph& contracted_hg,
 }
 
 template<typename PartitionedHypergraph>
-void map_to_process_graph(PartitionedHypergraph& communication_hg,
-                          const ProcessGraph& process_graph,
-                          const Context& context) {
+void map_to_target_graph(PartitionedHypergraph& communication_hg,
+                         const TargetGraph& target_graph,
+                         const Context& context) {
   using Hypergraph = typename PartitionedHypergraph::UnderlyingHypergraph;
   utils::Timer& timer = utils::Utilities::instance().getTimer(context.utility_id);
   const bool was_unused_memory_allocations_enabled =
@@ -177,7 +177,7 @@ void map_to_process_graph(PartitionedHypergraph& communication_hg,
   // We contract all blocks of the partition to create an one-to-one mapping problem
   timer.start_timer("contract_partition", "Contract Partition");
   vec<HypernodeID> mapping(communication_hg.initialNumNodes(), kInvalidHypernode);
-  communication_hg.setProcessGraph(&process_graph);
+  communication_hg.setTargetGraph(&target_graph);
   communication_hg.doParallelForAllNodes([&](const HypernodeID hn) {
     mapping[hn] = communication_hg.partID(hn);
   });
@@ -196,7 +196,7 @@ void map_to_process_graph(PartitionedHypergraph& communication_hg,
     contracted_phg.setOnlyNodePart(hn, hn);
   }
   contracted_phg.initializePartition();
-  contracted_phg.setProcessGraph(&process_graph);
+  contracted_phg.setTargetGraph(&target_graph);
   timer.stop_timer("contract_partition");
 
   const HyperedgeWeight objective_before = metrics::quality(contracted_phg, Objective::steiner_tree);
@@ -205,11 +205,11 @@ void map_to_process_graph(PartitionedHypergraph& communication_hg,
   // Solve one-to-one mapping problem
   #ifndef IGNORE_DUAL_BIPARTITIONING
   if ( context.mapping.strategy == OneToOneMappingStrategy::dual_bipartitioning ) {
-    DualBipartitioning<PartitionedHypergraph>::mapToProcessGraph(contracted_phg, process_graph, context);
+    DualBipartitioning<PartitionedHypergraph>::mapToTargetGraph(contracted_phg, target_graph, context);
   } else
   #endif
   if ( context.mapping.strategy == OneToOneMappingStrategy::greedy_mapping ) {
-    GreedyMapping<PartitionedHypergraph>::mapToProcessGraph(contracted_phg, process_graph, context);
+    GreedyMapping<PartitionedHypergraph>::mapToTargetGraph(contracted_phg, target_graph, context);
   }
 
   const HyperedgeWeight objective_after = metrics::quality(contracted_phg, Objective::steiner_tree);
@@ -245,8 +245,8 @@ void map_to_process_graph(PartitionedHypergraph& communication_hg,
 }
 
 template<typename TypeTraits>
-void InitialMapping<TypeTraits>::mapToProcessGraph(PartitionedHypergraph& communication_hg,
-                                                   const ProcessGraph& process_graph,
+void InitialMapping<TypeTraits>::mapToTargetGraph(PartitionedHypergraph& communication_hg,
+                                                   const TargetGraph& target_graph,
                                                    const Context& context) {
   if constexpr ( !PartitionedHypergraph::is_static_hypergraph ) {
     // The mapping algorithm collapses each block of the communication hypergraph partition into
@@ -257,10 +257,10 @@ void InitialMapping<TypeTraits>::mapToProcessGraph(PartitionedHypergraph& commun
     auto static_hypergraph = convert_to_static_hypergraph(communication_hg);
     StaticPartitionedHypergraph& tmp_communication_hg = static_hypergraph.second;
     tmp_communication_hg.setHypergraph(static_hypergraph.first);
-    map_to_process_graph(tmp_communication_hg, process_graph, context);
+    map_to_target_graph(tmp_communication_hg, target_graph, context);
     applyPartition(tmp_communication_hg, communication_hg);
   } else {
-    map_to_process_graph(communication_hg, process_graph, context);
+    map_to_target_graph(communication_hg, target_graph, context);
   }
 }
 

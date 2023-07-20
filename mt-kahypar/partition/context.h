@@ -34,7 +34,7 @@
 namespace mt_kahypar {
 
 // Forward Declartion
-class ProcessGraph;
+class TargetGraph;
 
 struct PartitioningParameters {
   Mode mode = Mode::UNDEFINED;
@@ -291,7 +291,7 @@ class Context {
 
   void setupGainPolicy();
 
-  void sanityCheck(const ProcessGraph* process_graph);
+  void sanityCheck(const TargetGraph* target_graph);
 
   void load_default_preset();
 

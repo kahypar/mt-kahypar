@@ -35,7 +35,7 @@
 #include "mt-kahypar/datastructures/thread_safe_fast_reset_flag_array.h"
 #include "mt-kahypar/io/hypergraph_factory.h"
 #include "mt-kahypar/io/hypergraph_io.h"
-#include "mt-kahypar/partition/process_mapping/process_graph.h"
+#include "mt-kahypar/partition/process_mapping/target_graph.h"
 #include "mt-kahypar/partition/refinement/gains/gain_cache_ptr.h"
 #include "mt-kahypar/partition/refinement/gains/gain_definitions.h"
 #include "mt-kahypar/utils/randomize.h"
@@ -75,7 +75,7 @@ class AGainCache : public Test {
     hypergraph(),
     partitioned_hg(),
     delta_phg(nullptr),
-    process_graph(nullptr),
+    target_graph(nullptr),
     gain_cache(),
     delta_gain_cache(nullptr),
     was_moved() {
@@ -99,7 +99,7 @@ class AGainCache : public Test {
     if ( GainCache::TYPE == GainPolicy::steiner_tree ||
          GainCache::TYPE == GainPolicy::steiner_tree_for_graphs ) {
       /**
-       * Process Graph:
+       * Target Graph:
        *        1           2           4
        * 0  -------- 1  -------- 2  -------- 3
        * |           |           |           |
@@ -111,14 +111,14 @@ class AGainCache : public Test {
         { 1, 2, 4,
           3, 2, 1, 1,
           3, 2, 1 };
-      process_graph = std::make_unique<ProcessGraph>(
+      target_graph = std::make_unique<TargetGraph>(
         ds::StaticGraphFactory::construct(8, 10,
           { { 0, 1 }, { 1, 2 }, { 2, 3 },
             { 0, 4 }, { 1, 5 }, { 2, 6 }, { 3, 7 },
             { 4, 5 }, { 5, 6 }, { 6, 7 } },
             edge_weights.data()));
-      process_graph->precomputeDistances(3);
-      partitioned_hg.setProcessGraph(process_graph.get());
+      target_graph->precomputeDistances(3);
+      partitioned_hg.setTargetGraph(target_graph.get());
     }
 
     was_moved.setSize(hypergraph.initialNumNodes());
@@ -424,7 +424,7 @@ class AGainCache : public Test {
   Hypergraph hypergraph;
   PartitionedHypergraph partitioned_hg;
   std::unique_ptr<DeltaPartitionedHypergraph> delta_phg;
-  std::unique_ptr<ProcessGraph> process_graph;
+  std::unique_ptr<TargetGraph> target_graph;
   GainCache gain_cache;
   std::unique_ptr<DeltaGainCache> delta_gain_cache;
   ds::ThreadSafeFastResetFlagArray<> was_moved;

@@ -28,7 +28,7 @@
 
 #include "mt-kahypar/macros.h"
 #include "mt-kahypar/datastructures/partitioned_graph.h"
-#include "mt-kahypar/partition/process_mapping/process_graph.h"
+#include "mt-kahypar/partition/process_mapping/target_graph.h"
 #include "mt-kahypar/partition/context.h"
 
 namespace mt_kahypar {
@@ -43,34 +43,34 @@ class DualBipartitioning {
  public:
   // ! This function assumes that the communication hypergraph is already
   // ! partitioned into k blocks via recursive bipartitioning. It then also
-  // ! recursively bipartitions the process graph into k blocks and then
-  // ! applies the partition of the process graph to the communication hypergraph.
-  static void mapToProcessGraph(CommunicationHypergraph& communication_hg,
-                                const ProcessGraph& process_graph,
+  // ! recursively bipartitions the target graph into k blocks and then
+  // ! applies the partition of the target graph to the communication hypergraph.
+  static void mapToTargetGraph(CommunicationHypergraph& communication_hg,
+                                const TargetGraph& target_graph,
                                 const Context& context);
 
  private:
   DualBipartitioning() { }
 
-  // ! Recursively bisection the process graph into (k1 - k0) blocks.
+  // ! Recursively bisection the target graph into (k1 - k0) blocks.
   // ! The final partition corresponds to block [k0, ..., k1) of the
-  // ! input process graph.
-  static void recursive_bisection(PartitionedGraph& process_graph,
+  // ! input target graph.
+  static void recursive_bisection(PartitionedGraph& target_graph,
                                   const Context& context,
                                   const PartitionID k0,
                                   const PartitionID k1);
 
-  // ! Recursively bisects block `block` of the process graph into (k1 - k0) blocks.
-  static void recursively_bisect_block(PartitionedGraph& process_graph,
+  // ! Recursively bisects block `block` of the target graph into (k1 - k0) blocks.
+  static void recursively_bisect_block(PartitionedGraph& target_graph,
                                        const Context& context,
                                        const PartitionID block,
                                        const PartitionID k0,
                                        const PartitionID k1);
 
-  // ! Brutes forces the optimal bisection of the process graph where
+  // ! Brutes forces the optimal bisection of the target graph where
   // ! block 0 has weight equals `weight_block_0` and block 1 has weight
   // ! equals `weight_block_1`.
-  static void brute_force_optimal_bisection(PartitionedGraph& process_graph,
+  static void brute_force_optimal_bisection(PartitionedGraph& target_graph,
                                             const HypernodeWeight weight_block_0,
                                             const HypernodeWeight weight_block_1);
 };

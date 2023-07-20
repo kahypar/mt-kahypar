@@ -28,7 +28,7 @@
 
 #include "mt-kahypar/macros.h"
 #include "mt-kahypar/datastructures/partitioned_graph.h"
-#include "mt-kahypar/partition/process_mapping/process_graph.h"
+#include "mt-kahypar/partition/process_mapping/target_graph.h"
 #include "mt-kahypar/partition/context.h"
 
 namespace mt_kahypar {
@@ -49,8 +49,8 @@ class GreedyMapping {
     * the strongest connection to the partial assignment to the processor that results in the
     * least increasing of the steiner tree metric.
     */
-  static void mapToProcessGraph(CommunicationHypergraph& communication_hg,
-                                const ProcessGraph& process_graph,
+  static void mapToTargetGraph(CommunicationHypergraph& communication_hg,
+                                const TargetGraph& target_graph,
                                 const Context& context);
 
  private:

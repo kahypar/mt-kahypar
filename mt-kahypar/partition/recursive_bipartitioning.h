@@ -32,7 +32,7 @@
 namespace mt_kahypar {
 
 // Forward Declaration
-class ProcessGraph;
+class TargetGraph;
 
 template<typename TypeTraits>
 class RecursiveBipartitioning {
@@ -44,10 +44,10 @@ class RecursiveBipartitioning {
   // ! Partitions a hypergraph using multilevel recursive bipartitioning.
   static PartitionedHypergraph partition(Hypergraph& hypergraph,
                                          const Context& context,
-                                         const ProcessGraph* process_graph = nullptr);
+                                         const TargetGraph* target_graph = nullptr);
   static void partition(PartitionedHypergraph& hypergraph,
                         const Context& context,
-                        const ProcessGraph* process_graph = nullptr);
+                        const TargetGraph* target_graph = nullptr);
 
 };
 

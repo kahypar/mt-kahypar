@@ -31,7 +31,7 @@
 #include <algorithm>
 
 #include "mt-kahypar/definitions.h"
-#include "mt-kahypar/partition/process_mapping/process_graph.h"
+#include "mt-kahypar/partition/process_mapping/target_graph.h"
 
 namespace mt_kahypar::metrics {
 
@@ -65,9 +65,9 @@ struct ObjectiveFunction<PartitionedHypergraph, Objective::soed> {
 template<typename PartitionedHypergraph>
 struct ObjectiveFunction<PartitionedHypergraph, Objective::steiner_tree> {
   HyperedgeWeight operator()(const PartitionedHypergraph& phg, const HyperedgeID& he) const {
-    ASSERT(phg.hasProcessGraph());
-    const ProcessGraph* process_graph = phg.processGraph();
-    const HyperedgeWeight distance = process_graph->distance(phg.shallowCopyOfConnectivitySet(he));
+    ASSERT(phg.hasTargetGraph());
+    const TargetGraph* target_graph = phg.targetGraph();
+    const HyperedgeWeight distance = target_graph->distance(phg.shallowCopyOfConnectivitySet(he));
     return distance * phg.edgeWeight(he);
   }
 };

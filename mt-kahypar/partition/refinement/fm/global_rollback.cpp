@@ -262,7 +262,7 @@ namespace mt_kahypar {
     sync_update.he = e;
     sync_update.edge_weight = phg.edgeWeight(e);
     sync_update.edge_size = phg.edgeSize(e);
-    sync_update.process_graph = phg.processGraph();
+    sync_update.target_graph = phg.targetGraph();
     sync_update.connectivity_set_after = &connectivity_set;
     sync_update.pin_counts_after = &pin_counts;
 
@@ -315,7 +315,7 @@ namespace mt_kahypar {
       sync_update.he = e;
       sync_update.edge_weight = phg.edgeWeight(e);
       sync_update.edge_size = phg.edgeSize(e);
-      sync_update.process_graph = phg.processGraph();
+      sync_update.target_graph = phg.targetGraph();
 
       HypernodeID first_move = phg.edgeSource(e);
       HypernodeID second_move = phg.edgeTarget(e);

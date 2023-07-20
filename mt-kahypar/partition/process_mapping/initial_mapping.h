@@ -32,7 +32,7 @@
 namespace mt_kahypar {
 
 // Forward Declaration
-class ProcessGraph;
+class TargetGraph;
 
 template<typename TypeTraits>
 class InitialMapping {
@@ -42,14 +42,14 @@ class InitialMapping {
 
  public:
   // ! This function takes an already partitioned communication hypergraph and
-  // ! maps the block of partition to the process graph such that the process
-  // ! mapping objective function is minimized. The internal implementation
+  // ! maps the block of partition to the target graph such that the steiner
+  // ! tree metric is minimized. The internal implementation
   // ! collapses each block of the communication hypergraph into a single node and
   // ! then solves a one-to-one mapping problem. The function is called after initial
   // ! partitioning via recursive bipartitioning (RB) since RB can not optimize
   // ! the steiner tree metric.
-  static void mapToProcessGraph(PartitionedHypergraph& communication_hg,
-                                const ProcessGraph& process_graph,
+  static void mapToTargetGraph(PartitionedHypergraph& communication_hg,
+                                const TargetGraph& target_graph,
                                 const Context& context);
 
  private:

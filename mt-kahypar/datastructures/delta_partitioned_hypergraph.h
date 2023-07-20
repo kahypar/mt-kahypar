@@ -101,16 +101,16 @@ class DeltaPartitionedHypergraph {
     _connectivity_set_delta.setConnectivitySet(&phg->getConnectivityInformation());
   }
 
-  // ####################### Process Mapping ######################
+  // ####################### Mapping ######################
 
-  bool hasProcessGraph() const {
+  bool hasTargetGraph() const {
     ASSERT(_phg);
-    return _phg->hasProcessGraph();
+    return _phg->hasTargetGraph();
   }
 
-  const ProcessGraph* processGraph() const {
+  const TargetGraph* targetGraph() const {
     ASSERT(_phg);
-    return _phg->processGraph();
+    return _phg->targetGraph();
   }
 
   // ####################### Iterators #######################
@@ -205,7 +205,7 @@ class DeltaPartitionedHypergraph {
       SyncronizedEdgeUpdate sync_update;
       sync_update.from = from;
       sync_update.to = to;
-      sync_update.process_graph = _phg->processGraph();
+      sync_update.target_graph = _phg->targetGraph();
       for ( const HyperedgeID& he : _phg->incidentEdges(u) ) {
         sync_update.he = he;
         sync_update.edge_weight = edgeWeight(he);

@@ -32,7 +32,7 @@
 namespace mt_kahypar {
 
 // Forward Declaration
-class ProcessGraph;
+class TargetGraph;
 
 template<typename CommunicationHypergraph>
 class KerninghanLin {
@@ -45,14 +45,14 @@ class KerninghanLin {
 
  public:
   // ! This function implements the Kerninghan-Lin algorithm to
-  // ! improve a given mapping onto a process graph. The algorithm
+  // ! improve a given mapping onto a target graph. The algorithm
   // ! performs in each step a swap operation of two nodes that results
   // ! in largest reduction of the objective function. After each node
   // ! node is swapped at most once, the algorithm rolls back to the
   // ! best seen solution. This is repeated several times until no
   // ! further improvements are possible.
   static void improve(CommunicationHypergraph& communication_hg,
-                      const ProcessGraph& process_graph);
+                      const TargetGraph& target_graph);
 
  private:
   KerninghanLin() { }

@@ -28,7 +28,7 @@
 
 #include "mt-kahypar/datastructures/hypergraph_common.h"
 #include "mt-kahypar/datastructures/static_bitset.h"
-#include "mt-kahypar/partition/process_mapping/process_graph.h"
+#include "mt-kahypar/partition/process_mapping/target_graph.h"
 
 namespace mt_kahypar {
 
@@ -39,10 +39,10 @@ namespace mt_kahypar {
  */
 struct ProcessMappingAttributedGains {
   static HyperedgeWeight gain(const SyncronizedEdgeUpdate& sync_update) {
-    ASSERT(sync_update.process_graph);
+    ASSERT(sync_update.target_graph);
     ds::Bitset& connectivity_set = *sync_update.connectivity_set_after;
     // Distance between blocks of the hyperedge after the syncronized edge update
-    const HyperedgeWeight distance_after = sync_update.process_graph->distance(connectivity_set);
+    const HyperedgeWeight distance_after = sync_update.target_graph->distance(connectivity_set);
     if ( sync_update.pin_count_in_from_part_after == 0 ) {
       ASSERT(!connectivity_set.isSet(sync_update.from));
       connectivity_set.set(sync_update.from);
@@ -52,7 +52,7 @@ struct ProcessMappingAttributedGains {
       connectivity_set.unset(sync_update.to);
     }
     // Distance between blocks of the hyperedge before the syncronized edge update
-    const HyperedgeWeight distance_before = sync_update.process_graph->distance(connectivity_set);
+    const HyperedgeWeight distance_before = sync_update.target_graph->distance(connectivity_set);
     // Reset connectivity set
     if ( sync_update.pin_count_in_from_part_after == 0 ) {
       ASSERT(connectivity_set.isSet(sync_update.from));

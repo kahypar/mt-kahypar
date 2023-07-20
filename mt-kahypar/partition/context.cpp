@@ -322,7 +322,7 @@ namespace mt_kahypar {
             std::min(coarsening.max_allowed_node_weight, min_block_weight);
   }
 
-  void Context::sanityCheck(const ProcessGraph* process_graph) {
+  void Context::sanityCheck(const TargetGraph* target_graph) {
     if ( isNLevelPartitioning() && coarsening.algorithm == CoarseningAlgorithm::multilevel_coarsener ) {
         ALGO_SWITCH("Coarsening algorithm" << coarsening.algorithm << "is only supported in multilevel mode."
                                            << "Do you want to use the n-level version instead (Y/N)?",
@@ -349,7 +349,7 @@ namespace mt_kahypar {
     }
 
     if ( partition.objective == Objective::steiner_tree ) {
-      if ( !process_graph ) {
+      if ( !target_graph ) {
         partition.objective = Objective::km1;
         INFO("No target graph provided for steiner tree metric. Switching to km1 metric.");
       } else {

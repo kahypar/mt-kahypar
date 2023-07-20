@@ -27,7 +27,7 @@
 #pragma once
 
 #include "mt-kahypar/datastructures/hypergraph_common.h"
-#include "mt-kahypar/partition/process_mapping/process_graph.h"
+#include "mt-kahypar/partition/process_mapping/target_graph.h"
 
 namespace mt_kahypar {
 
@@ -39,11 +39,11 @@ namespace mt_kahypar {
 struct GraphProcessMappingAttributedGains {
   static HyperedgeWeight gain(const SyncronizedEdgeUpdate& sync_update) {
     ASSERT(sync_update.block_of_other_node != kInvalidPartition);
-    ASSERT(sync_update.process_graph);
-    const ProcessGraph& process_graph = *sync_update.process_graph;
-    const HyperedgeWeight distance_before = process_graph.distance(
+    ASSERT(sync_update.target_graph);
+    const TargetGraph& target_graph = *sync_update.target_graph;
+    const HyperedgeWeight distance_before = target_graph.distance(
       sync_update.from, sync_update.block_of_other_node);
-    const HyperedgeWeight distance_after = process_graph.distance(
+    const HyperedgeWeight distance_after = target_graph.distance(
       sync_update.to, sync_update.block_of_other_node);
     return ( distance_after - distance_before ) * sync_update.edge_weight;
   }

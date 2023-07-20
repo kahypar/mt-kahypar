@@ -64,27 +64,27 @@ Context setBisectionContext(const Context& context,
 }
 
 template<typename CommunicationHypergraph>
-void DualBipartitioning<CommunicationHypergraph>::mapToProcessGraph(CommunicationHypergraph& communication_hg,
-                                                                    const ProcessGraph& process_graph,
+void DualBipartitioning<CommunicationHypergraph>::mapToTargetGraph(CommunicationHypergraph& communication_hg,
+                                                                    const TargetGraph& target_graph,
                                                                     const Context& context) {
-  ASSERT(communication_hg.initialNumNodes() == process_graph.graph().initialNumNodes());
-  // Recursively bipartition the process graph
+  ASSERT(communication_hg.initialNumNodes() == target_graph.graph().initialNumNodes());
+  // Recursively bipartition the target graph
   utils::Timer& timer = utils::Utilities::instance().getTimer(context.utility_id);
   timer.start_timer("initial_mapping", "Initial Mapping");
-  const PartitionID k = process_graph.numBlocks();
-  ds::StaticGraph underlying_process_graph = process_graph.graph().copy();
-  PartitionedGraph partitioned_process_graph(k, underlying_process_graph);
-  recursive_bisection(partitioned_process_graph, context, 0, k);
+  const PartitionID k = target_graph.numBlocks();
+  ds::StaticGraph underlying_target_graph = target_graph.graph().copy();
+  PartitionedGraph partitioned_target_graph(k, underlying_target_graph);
+  recursive_bisection(partitioned_target_graph, context, 0, k);
 
-  // Apply partition of process graph to communication hypergraph
+  // Apply partition of target graph to communication hypergraph
   communication_hg.resetPartition();
   for ( const HypernodeID& hn : communication_hg.nodes() ) {
-    communication_hg.setOnlyNodePart(hn, partitioned_process_graph.partID(hn));
+    communication_hg.setOnlyNodePart(hn, partitioned_target_graph.partID(hn));
   }
   communication_hg.initializePartition();
 
   if ( context.mapping.use_local_search ) {
-    KerninghanLin<CommunicationHypergraph>::improve(communication_hg, process_graph);
+    KerninghanLin<CommunicationHypergraph>::improve(communication_hg, target_graph);
   }
   timer.stop_timer("initial_mapping");
 }

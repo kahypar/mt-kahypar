@@ -98,19 +98,19 @@ template<typename PartitionedHypergraph>
 void GraphProcessMappingGainCache::deltaGainUpdate(const PartitionedHypergraph& partitioned_hg,
                                                    const SyncronizedEdgeUpdate& sync_update) {
   ASSERT(_is_initialized, "Gain cache is not initialized");
-  ASSERT(sync_update.process_graph);
+  ASSERT(sync_update.target_graph);
 
   const HyperedgeID he = sync_update.he;
   if ( !partitioned_hg.isSinglePin(he) ) {
     const PartitionID from = sync_update.from;
     const PartitionID to = sync_update.to;
     const HyperedgeWeight edge_weight = sync_update.edge_weight;
-    const ProcessGraph& process_graph = *sync_update.process_graph;
+    const TargetGraph& target_graph = *sync_update.target_graph;
 
     const HypernodeID v = partitioned_hg.edgeTarget(he);
     for ( const PartitionID& target : _adjacent_blocks.connectivitySet(v) ) {
-      const HyperedgeWeight delta = ( process_graph.distance(from, target) -
-        process_graph.distance(to, target) ) * edge_weight ;
+      const HyperedgeWeight delta = ( target_graph.distance(from, target) -
+        target_graph.distance(to, target) ) * edge_weight ;
       _gain_cache[gain_entry_index(v, target)].add_fetch(delta, std::memory_order_relaxed);
     }
 
@@ -137,15 +137,15 @@ void GraphProcessMappingGainCache::uncontractUpdateAfterRestore(const Partitione
   unused(v);
   // In this case, edge he was a selfloop and now it turns to a regular edge
   if ( _is_initialized ) {
-    ASSERT(partitioned_hg.hasProcessGraph());
+    ASSERT(partitioned_hg.hasTargetGraph());
     ASSERT(!partitioned_hg.isSinglePin(he));
     ASSERT(partitioned_hg.edgeSource(he) == v);
-    const ProcessGraph& process_graph = *partitioned_hg.processGraph();
+    const TargetGraph& target_graph = *partitioned_hg.targetGraph();
     const PartitionID from = partitioned_hg.partID(u);
     const HyperedgeWeight edge_weight = partitioned_hg.edgeWeight(he);
     for ( const PartitionID& to : _adjacent_blocks.connectivitySet(u) ) {
       _gain_cache[gain_entry_index(u, to)].fetch_sub(
-        process_graph.distance(from, to) * edge_weight, std::memory_order_relaxed);
+        target_graph.distance(from, to) * edge_weight, std::memory_order_relaxed);
     }
     incrementIncidentEdges(u, from);
     // Gain cache entry for v is initialized after batch uncontractions
@@ -162,15 +162,15 @@ void GraphProcessMappingGainCache::uncontractUpdateAfterReplacement(const Partit
   // => Pin counts and connectivity set of hyperedge he does not change
   if ( _is_initialized && !partitioned_hg.isSinglePin(he) ) {
     const PartitionID block_of_u = partitioned_hg.partID(u);
-    ASSERT(partitioned_hg.hasProcessGraph());
+    ASSERT(partitioned_hg.hasTargetGraph());
     ASSERT(partitioned_hg.edgeSource(he) == v);
-    const ProcessGraph& process_graph = *partitioned_hg.processGraph();
+    const TargetGraph& target_graph = *partitioned_hg.targetGraph();
     const HypernodeID w = partitioned_hg.edgeTarget(he);
     const PartitionID block_of_w = partitioned_hg.partID(w);
     const HyperedgeWeight edge_weight = partitioned_hg.edgeWeight(he);
     for ( const PartitionID& to : _adjacent_blocks.connectivitySet(u) ) {
       _gain_cache[gain_entry_index(u, to)].fetch_add(
-        process_graph.distance(block_of_w, to) * edge_weight, std::memory_order_relaxed);
+        target_graph.distance(block_of_w, to) * edge_weight, std::memory_order_relaxed);
     }
     if ( block_of_u != block_of_w ) {
       decrementIncidentEdges(u, block_of_u);
@@ -289,8 +289,8 @@ template<typename PartitionedHypergraph>
 void GraphProcessMappingGainCache::initializeGainCacheEntryForNode(const PartitionedHypergraph& partitioned_hg,
                                                                    const HypernodeID u,
                                                                    vec<Gain>& gain_aggregator) {
-  ASSERT(partitioned_hg.hasProcessGraph());
-  const ProcessGraph& process_graph = *partitioned_hg.processGraph();
+  ASSERT(partitioned_hg.hasTargetGraph());
+  const TargetGraph& target_graph = *partitioned_hg.targetGraph();
   for ( const HyperedgeID& e : partitioned_hg.incidentEdges(u) ) {
     if ( !partitioned_hg.isSinglePin(e) ) {
       ASSERT(partitioned_hg.edgeSource(e) == u);
@@ -298,7 +298,7 @@ void GraphProcessMappingGainCache::initializeGainCacheEntryForNode(const Partiti
       const HyperedgeWeight edge_weight = partitioned_hg.edgeWeight(e);
       ASSERT(_adjacent_blocks.contains(u, partitioned_hg.partID(u)));
       for ( const PartitionID& to : _adjacent_blocks.connectivitySet(u) ) {
-        gain_aggregator[to] -= process_graph.distance(to, block_of_target) * edge_weight;
+        gain_aggregator[to] -= target_graph.distance(to, block_of_target) * edge_weight;
       }
     }
   }
@@ -314,8 +314,8 @@ void GraphProcessMappingGainCache::initializeGainCacheEntry(const PartitionedHyp
                                                             const HypernodeID u,
                                                             const PartitionID to,
                                                             ds::Array<SpinLock>& edge_locks) {
-  ASSERT(partitioned_hg.hasProcessGraph());
-  const ProcessGraph& process_graph = *partitioned_hg.processGraph();
+  ASSERT(partitioned_hg.hasTargetGraph());
+  const TargetGraph& target_graph = *partitioned_hg.targetGraph();
   vec<uint32_t>& seen_versions = _ets_version.local();
   bool success = false;
   while ( !success ) {
@@ -355,7 +355,7 @@ void GraphProcessMappingGainCache::initializeGainCacheEntry(const PartitionedHyp
         }
         seen_versions.push_back(edge_version);
 
-        gain -= process_graph.distance(to, block_of_v) * partitioned_hg.edgeWeight(he);
+        gain -= target_graph.distance(to, block_of_v) * partitioned_hg.edgeWeight(he);
       }
     }
     _gain_cache[gain_entry_index(u, to)].store(gain, std::memory_order_relaxed);

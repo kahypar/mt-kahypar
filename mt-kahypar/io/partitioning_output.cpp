@@ -39,7 +39,7 @@
 #include "mt-kahypar/parallel/memory_pool.h"
 #include "mt-kahypar/parallel/atomic_wrapper.h"
 #include "mt-kahypar/partition/metrics.h"
-#include "mt-kahypar/partition/process_mapping/process_graph.h"
+#include "mt-kahypar/partition/process_mapping/target_graph.h"
 #include "mt-kahypar/utils/hypergraph_statistics.h"
 #include "mt-kahypar/utils/memory_tree.h"
 #include "mt-kahypar/utils/timer.h"
@@ -601,8 +601,8 @@ namespace mt_kahypar::io {
         LOG << hypergraph_memory_consumption;
       }
 
-      if ( hypergraph.hasProcessGraph() && ProcessGraph::TRACK_STATS ) {
-        hypergraph.processGraph()->printStats();
+      if ( hypergraph.hasTargetGraph() && TargetGraph::TRACK_STATS ) {
+        hypergraph.targetGraph()->printStats();
       }
 
       LOG << "\nTimings:";

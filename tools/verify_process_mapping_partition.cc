@@ -40,7 +40,7 @@
 #include "mt-kahypar/io/hypergraph_io.h"
 #include "mt-kahypar/io/hypergraph_factory.h"
 #include "mt-kahypar/io/partitioning_output.h"
-#include "mt-kahypar/partition/process_mapping/process_graph.h"
+#include "mt-kahypar/partition/process_mapping/target_graph.h"
 #include "mt-kahypar/partition/process_mapping/initial_mapping.h"
 #include "mt-kahypar/utils/timer.h"
 #include "mt-kahypar/utils/randomize.h"
@@ -63,7 +63,7 @@ int main(int argc, char* argv[]) {
      "Partition Filename")
     ("process-graph-file,p",
      po::value<std::string>(&context.mapping.target_graph_file)->value_name("<string>")->required(),
-     "Process Graph Filename")
+     "Target Graph Filename")
     ("input-file-format",
       po::value<std::string>()->value_name("<string>")->notifier([&](const std::string& s) {
         if (s == "hmetis") {
@@ -94,10 +94,10 @@ int main(int argc, char* argv[]) {
   Hypergraph hg = io::readInputFile<Hypergraph>(
     context.partition.graph_filename, context.partition.file_format, true, true);
 
-  // Read Process Graph
-  ProcessGraph process_graph(io::readInputFile<Graph>(
+  // Read Target Graph
+  TargetGraph target_graph(io::readInputFile<Graph>(
     context.mapping.target_graph_file, FileFormat::Metis, true, true));
-  context.partition.k = process_graph.numBlocks();
+  context.partition.k = target_graph.numBlocks();
   context.setupPartWeights(hg.totalWeight());
 
   // Read Partition
@@ -108,11 +108,11 @@ int main(int argc, char* argv[]) {
     partitioned_hg.setOnlyNodePart(hn, partition[hn]);
   });
   partitioned_hg.initializePartition();
-  partitioned_hg.setProcessGraph(&process_graph);
+  partitioned_hg.setTargetGraph(&target_graph);
 
   // Precompute Steiner Trees
   HighResClockTimepoint start = std::chrono::high_resolution_clock::now();
-  process_graph.precomputeDistances(
+  target_graph.precomputeDistances(
     std::min(context.mapping.max_steiner_tree_size,
       static_cast<size_t>(hg.maxEdgeSize())));
   HighResClockTimepoint end = std::chrono::high_resolution_clock::now();

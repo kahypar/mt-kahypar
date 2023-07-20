@@ -40,7 +40,7 @@
 #include "mt-kahypar/io/hypergraph_io.h"
 #include "mt-kahypar/io/hypergraph_factory.h"
 #include "mt-kahypar/io/partitioning_output.h"
-#include "mt-kahypar/partition/process_mapping/process_graph.h"
+#include "mt-kahypar/partition/process_mapping/target_graph.h"
 #include "mt-kahypar/partition/process_mapping/initial_mapping.h"
 #include "mt-kahypar/utils/timer.h"
 #include "mt-kahypar/utils/randomize.h"
@@ -63,7 +63,7 @@ int main(int argc, char* argv[]) {
      "Partition Filename")
     ("process-graph-file,p",
      po::value<std::string>(&context.mapping.target_graph_file)->value_name("<string>"),
-     "Process Graph Filename")
+     "Target Graph Filename")
     ("blocks,k",
      po::value<PartitionID>(&context.partition.k)->value_name("<int>")->required(),
      "Number of Blocks")
@@ -106,21 +106,21 @@ int main(int argc, char* argv[]) {
   });
   partitioned_hg.initializePartition();
 
-  // Read Process Graph
+  // Read Target Graph
   if ( context.mapping.target_graph_file == "" ) {
     context.mapping.target_graph_file =
       context.partition.graph_filename + ".k" + std::to_string(context.partition.k);
   }
-  ProcessGraph process_graph(io::readInputFile<Graph>(
+  TargetGraph target_graph(io::readInputFile<Graph>(
     context.mapping.target_graph_file, FileFormat::Metis, true, true));
-  partitioned_hg.setProcessGraph(&process_graph);
+  partitioned_hg.setTargetGraph(&target_graph);
 
   // Precompute Steiner Trees
   utils::Timer& timer =
     utils::Utilities::instance().getTimer(context.utility_id);
   HighResClockTimepoint start_1 = std::chrono::high_resolution_clock::now();
   timer.start_timer("precompute_steiner_trees", "Precompute Steiner Trees");
-  process_graph.precomputeDistances(context.mapping.max_steiner_tree_size);
+  target_graph.precomputeDistances(context.mapping.max_steiner_tree_size);
   timer.stop_timer("precompute_steiner_trees");
   HighResClockTimepoint end_1 = std::chrono::high_resolution_clock::now();
 
@@ -131,8 +131,8 @@ int main(int argc, char* argv[]) {
 
   // Solve One-To-One Mapping Problem
   HighResClockTimepoint start_2 = std::chrono::high_resolution_clock::now();
-  InitialMapping<StaticHypergraphTypeTraits>::mapToProcessGraph(
-    partitioned_hg, process_graph, context);
+  InitialMapping<StaticHypergraphTypeTraits>::mapToTargetGraph(
+    partitioned_hg, target_graph, context);
   HighResClockTimepoint end_2 = std::chrono::high_resolution_clock::now();
 
   std::chrono::duration<double> elapsed_seconds((end_2 - start_2) + (end_1 - start_1));

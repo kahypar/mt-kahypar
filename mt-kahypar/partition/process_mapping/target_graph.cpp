@@ -24,7 +24,7 @@
  * SOFTWARE.
  ******************************************************************************/
 
-#include "mt-kahypar/partition/process_mapping/process_graph.h"
+#include "mt-kahypar/partition/process_mapping/target_graph.h"
 
 #include <cmath>
 #include <limits>
@@ -34,11 +34,11 @@
 
 namespace mt_kahypar {
 
-void ProcessGraph::precomputeDistances(const size_t max_connectivity) {
+void TargetGraph::precomputeDistances(const size_t max_connectivity) {
   const size_t num_entries = std::pow(_k, max_connectivity);
   if ( num_entries > MEMORY_LIMIT ) {
     ERR("Too much memory requested for precomputing steiner trees"
-      << "of connectivity sets in the process graph.");
+      << "of connectivity sets in the target graph.");
   }
   _distances.assign(num_entries, std::numeric_limits<HyperedgeWeight>::max() / 3);
   SteinerTree::compute(_graph, max_connectivity, _distances);
@@ -47,7 +47,7 @@ void ProcessGraph::precomputeDistances(const size_t max_connectivity) {
   _is_initialized = true;
 }
 
-HyperedgeWeight ProcessGraph::distance(const ds::StaticBitset& connectivity_set) const {
+HyperedgeWeight TargetGraph::distance(const ds::StaticBitset& connectivity_set) const {
   const PartitionID connectivity = connectivity_set.popcount();
   const size_t idx = index(connectivity_set);
   if ( likely(connectivity <= _max_precomputed_connectitivty) ) {
@@ -73,13 +73,13 @@ HyperedgeWeight ProcessGraph::distance(const ds::StaticBitset& connectivity_set)
 }
 
 /**
- * This function computes an MST of the metric completion of the process graph restricted to
+ * This function computes an MST on the metric completion of the target graph restricted to
  * the blocks in the connectivity set. To compute the MST, we use Jarnik-Prim algorithm which
  * has time complexity of |E| + |V| * log(|V|) = |V|^2 + |V| * log(|V|) (since we work on a
  * complete graph). However, we restrict the computation only to nodes and edges contained in
  * the connectivity set.
  */
-HyperedgeWeight ProcessGraph::computeWeightOfMSTOnMetricCompletion(const ds::StaticBitset& connectivity_set) const {
+HyperedgeWeight TargetGraph::computeWeightOfMSTOnMetricCompletion(const ds::StaticBitset& connectivity_set) const {
   ASSERT(_is_initialized);
   ASSERT(connectivity_set.popcount() > 0);
   MSTData& mst_data = _local_mst_data.local();

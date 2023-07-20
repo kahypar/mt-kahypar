@@ -55,8 +55,8 @@ namespace mt_kahypar {
       _progress.setObjective(_current_metrics.quality);
     }
 
-    // Pass process graph to partitioned hypergraph
-    partitioned_hg.setProcessGraph(_process_graph);
+    // Pass target graph to partitioned hypergraph
+    partitioned_hg.setTargetGraph(_target_graph);
 
     _current_level = _uncoarseningData.hierarchy.size();
     _num_levels = _current_level;

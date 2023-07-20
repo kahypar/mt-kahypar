@@ -89,16 +89,16 @@ class DeltaPartitionedGraph {
     _pg = pg;
   }
 
-  // ####################### Process Mapping ######################
+  // ####################### Mapping ######################
 
-  bool hasProcessGraph() const {
+  bool hasTargetGraph() const {
     ASSERT(_pg);
-    return _pg->hasProcessGraph();
+    return _pg->hasTargetGraph();
   }
 
-  const ProcessGraph* processGraph() const {
+  const TargetGraph* targetGraph() const {
     ASSERT(_pg);
-    return _pg->processGraph();
+    return _pg->targetGraph();
   }
 
   // ####################### Iterators #######################
@@ -192,7 +192,7 @@ class DeltaPartitionedGraph {
       SyncronizedEdgeUpdate sync_update;
       sync_update.from = from;
       sync_update.to = to;
-      sync_update.process_graph = _pg->processGraph();
+      sync_update.target_graph = _pg->targetGraph();
       for (const HyperedgeID edge : _pg->incidentEdges(u)) {
         const PartitionID target_part = partID(_pg->edgeTarget(edge));
         sync_update.he = edge;

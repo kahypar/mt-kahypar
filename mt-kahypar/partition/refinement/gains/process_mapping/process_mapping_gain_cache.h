@@ -33,7 +33,7 @@
 #include "tbb/parallel_invoke.h"
 
 #include "mt-kahypar/partition/context.h"
-#include "mt-kahypar/partition/process_mapping/process_graph.h"
+#include "mt-kahypar/partition/process_mapping/target_graph.h"
 #include "mt-kahypar/datastructures/hypergraph_common.h"
 #include "mt-kahypar/datastructures/array.h"
 #include "mt-kahypar/datastructures/sparse_map.h"
@@ -53,7 +53,7 @@ namespace mt_kahypar {
  * onto a target graph P = (V_P, E_P) such that the following objective function is minimized:
  * process_mapping(H, P, Π) := sum_{e \in E} dist_P(Λ(e)) * w(e)
  * Here, dist_P(Λ(e)) is shortest connections between all blocks Λ(e) contained in a hyperedge e using only edges
- * of the process graph. Computing dist_P(Λ(e)) reverts to the steiner tree problem which is an NP-hard problem.
+ * of the target graph. Computing dist_P(Λ(e)) reverts to the steiner tree problem which is an NP-hard problem.
  * However, we precompute all steiner trees up to a certain size and for larger connectivity sets Λ(e), we compute
  * a 2-approximation.
  *
@@ -255,19 +255,19 @@ class ProcessMappingGainCache {
   HyperedgeWeight recomputeBenefitTerm(const PartitionedHypergraph& partitioned_hg,
                                        const HypernodeID u,
                                        const PartitionID to) const {
-    ASSERT(partitioned_hg.hasProcessGraph());
+    ASSERT(partitioned_hg.hasTargetGraph());
     HyperedgeWeight gain = 0;
-    const ProcessGraph& process_graph = *partitioned_hg.processGraph();
+    const TargetGraph& target_graph = *partitioned_hg.targetGraph();
     const PartitionID from = partitioned_hg.partID(u);
     for (const HyperedgeID& e : partitioned_hg.incidentEdges(u)) {
       ds::Bitset& connectivity_set = partitioned_hg.deepCopyOfConnectivitySet(e);
-      const HyperedgeWeight current_distance = process_graph.distance(connectivity_set);
+      const HyperedgeWeight current_distance = target_graph.distance(connectivity_set);
       if ( partitioned_hg.pinCountInPart(e, from) == 1 ) {
         // Moving the node out of its current block removes
         // its block from the connectivity set
         connectivity_set.unset(from);
       }
-      const HyperedgeWeight distance_with_to = process_graph.distanceWithBlock(connectivity_set, to);
+      const HyperedgeWeight distance_with_to = target_graph.distanceWithBlock(connectivity_set, to);
       gain += (current_distance - distance_with_to) * partitioned_hg.edgeWeight(e);
     }
     return gain;
@@ -497,14 +497,14 @@ class DeltaProcessMappingGainCache {
   void deltaGainUpdate(const PartitionedHypergraph& partitioned_hg,
                        const SyncronizedEdgeUpdate& sync_update) {
     ASSERT(sync_update.connectivity_set_after);
-    ASSERT(sync_update.process_graph);
+    ASSERT(sync_update.target_graph);
     const HyperedgeID he = sync_update.he;
     const PartitionID from = sync_update.from;
     const PartitionID to = sync_update.to;
     const HyperedgeWeight edge_weight = sync_update.edge_weight;
     const HypernodeID pin_count_in_from_part_after = sync_update.pin_count_in_from_part_after;
     const HypernodeID pin_count_in_to_part_after = sync_update.pin_count_in_to_part_after;
-    const ProcessGraph& process_graph = *sync_update.process_graph;
+    const TargetGraph& target_graph = *sync_update.target_graph;
     ds::Bitset& connectivity_set = *sync_update.connectivity_set_after;
 
     if ( pin_count_in_from_part_after == 0 || pin_count_in_to_part_after == 1 ) {
@@ -521,7 +521,7 @@ class DeltaProcessMappingGainCache {
           if ( source != target ) {
             const HyperedgeWeight gain_after = gainOfHyperedge(
               source, target, pin_count_in_source_block_after,
-              edge_weight, process_graph, connectivity_set);
+              edge_weight, target_graph, connectivity_set);
             _gain_cache_delta[_gain_cache.benefit_index(pin, target)] += gain_after;
           }
         }
@@ -540,7 +540,7 @@ class DeltaProcessMappingGainCache {
             if ( source != target ) {
             const HyperedgeWeight gain_before = gainOfHyperedge(
               source, target, pin_count_in_source_part_before,
-              edge_weight, process_graph, connectivity_set);
+              edge_weight, target_graph, connectivity_set);
             _gain_cache_delta[_gain_cache.benefit_index(pin, target)] -= gain_before;
           }
         }
@@ -557,7 +557,7 @@ class DeltaProcessMappingGainCache {
                 // Compute new gain of hyperedge for moving u to the target block
                 const HyperedgeWeight gain = gainOfHyperedge(
                   from, target, pin_count_in_from_part_after,
-                  edge_weight, process_graph, connectivity_set);
+                  edge_weight, target_graph, connectivity_set);
                 _gain_cache_delta[_gain_cache.benefit_index(u, target)] += gain;
 
                 // Before the node move, we would have increase the connectivity of the hyperedge
@@ -572,8 +572,8 @@ class DeltaProcessMappingGainCache {
                   // block from the connectivity set.
                   const bool was_set = connectivity_set.isSet(target);
                   connectivity_set.unset(target);
-                  const HyperedgeWeight distance_before = process_graph.distance(connectivity_set);
-                  const HyperedgeWeight distance_after = process_graph.distanceWithBlock(connectivity_set, target);
+                  const HyperedgeWeight distance_before = target_graph.distance(connectivity_set);
+                  const HyperedgeWeight distance_after = target_graph.distanceWithBlock(connectivity_set, target);
                   const HyperedgeWeight gain_before = (distance_before - distance_after) * edge_weight;
                   _gain_cache_delta[_gain_cache.benefit_index(u, target)] -= gain_before;
                   if ( was_set ) connectivity_set.set(target);
@@ -595,7 +595,7 @@ class DeltaProcessMappingGainCache {
                 // Compute new gain of hyperedge for moving u to the target block
                 const HyperedgeWeight gain = gainOfHyperedge(
                   to, target, pin_count_in_to_part_after,
-                  edge_weight, process_graph, connectivity_set);
+                  edge_weight, target_graph, connectivity_set);
                 _gain_cache_delta[_gain_cache.benefit_index(u, target)] += gain;
 
                 // Before the node move, we would have decreased the connectivity of the hyperedge
@@ -606,18 +606,18 @@ class DeltaProcessMappingGainCache {
                   pin_count_in_from_part_after + 1 : partitioned_hg.pinCountInPart(he, target);
                 const bool was_set = connectivity_set.isSet(target);
                 if ( pin_count_target_part_before == 0 ) connectivity_set.unset(target);
-                const HyperedgeWeight distance_before = process_graph.distance(connectivity_set);
+                const HyperedgeWeight distance_before = target_graph.distance(connectivity_set);
                 HyperedgeWeight distance_after = 0;
                 if ( pin_count_target_part_before > 0 ) {
                   // The target block was part of the connectivity set before the node move.
                   // Thus, moving u out of its block would have decreased the connectivity of
                   // the hyperedge.
-                  distance_after = process_graph.distanceWithoutBlock(connectivity_set, to);
+                  distance_after = target_graph.distanceWithoutBlock(connectivity_set, to);
                 } else {
                   // The target block was not part of the connectivity set before the node move.
                   // Thus, moving u out of its block would have replaced block `to` with the target block
                   // in the connectivity set.
-                  distance_after = process_graph.distanceAfterExchangingBlocks(connectivity_set, to, target);
+                  distance_after = target_graph.distanceAfterExchangingBlocks(connectivity_set, to, target);
                 }
                 const HyperedgeWeight gain_before = (distance_before - distance_after) * edge_weight;
                 _gain_cache_delta[_gain_cache.benefit_index(u, target)] -= gain_before;
@@ -646,13 +646,13 @@ class DeltaProcessMappingGainCache {
                                   const PartitionID to,
                                   const HypernodeID pin_count_in_from_part,
                                   const HyperedgeWeight edge_weight,
-                                  const ProcessGraph& process_graph,
+                                  const TargetGraph& target_graph,
                                   ds::Bitset& connectivity_set) {
-    const HyperedgeWeight current_distance = process_graph.distance(connectivity_set);
+    const HyperedgeWeight current_distance = target_graph.distance(connectivity_set);
     if ( pin_count_in_from_part == 1 ) {
       connectivity_set.unset(from);
     }
-    const HyperedgeWeight distance_with_to = process_graph.distanceWithBlock(connectivity_set, to);
+    const HyperedgeWeight distance_with_to = target_graph.distanceWithBlock(connectivity_set, to);
     if ( pin_count_in_from_part == 1 ) {
       connectivity_set.set(from);
     }
@@ -724,18 +724,18 @@ class DeltaProcessMappingGainCache {
   void initializeGainCacheEntry(const PartitionedHypergraph& partitioned_hg,
                                 const HypernodeID hn,
                                 const PartitionID to) {
-    ASSERT(partitioned_hg.hasProcessGraph());
-    const ProcessGraph& process_graph = *partitioned_hg.processGraph();
+    ASSERT(partitioned_hg.hasTargetGraph());
+    const TargetGraph& target_graph = *partitioned_hg.targetGraph();
     const HypernodeID from = partitioned_hg.partID(hn);
     HyperedgeWeight gain = 0;
     for ( const HyperedgeID& he : partitioned_hg.incidentEdges(hn) ) {
       ds::Bitset& connectivity_set = partitioned_hg.deepCopyOfConnectivitySet(he);
-      const HyperedgeWeight current_distance = process_graph.distance(connectivity_set);
+      const HyperedgeWeight current_distance = target_graph.distance(connectivity_set);
       if ( partitioned_hg.pinCountInPart(he, from) == 1 ) {
         connectivity_set.unset(from);
       }
       const HyperedgeWeight distance_with_to =
-        process_graph.distanceWithBlock(connectivity_set, to);
+        target_graph.distanceWithBlock(connectivity_set, to);
       gain += (current_distance - distance_with_to) * partitioned_hg.edgeWeight(he);
     }
     _gain_cache_delta[_gain_cache.benefit_index(hn, to)] = gain;

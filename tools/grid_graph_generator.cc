@@ -44,7 +44,7 @@ int main(int argc, char* argv[]) {
   options.add_options()
     ("out-file,o",
     po::value<std::string>(&out_filename)->value_name("<string>")->required(),
-    "Process Graph Output Filename")
+    "Target Graph Output Filename")
     ("n",
     po::value<int>(&N)->value_name("<int>")->required(),
     "Number of rows")
@@ -53,7 +53,7 @@ int main(int argc, char* argv[]) {
     "Number of columns")
     ("max-weight",
     po::value<int>(&MAX_WEIGHT)->value_name("<int>")->required(),
-    "Maximum weight of an edge in the process graph");
+    "Maximum weight of an edge in the target graph");
 
   po::variables_map cmd_vm;
   po::store(po::parse_command_line(argc, argv, options), cmd_vm);

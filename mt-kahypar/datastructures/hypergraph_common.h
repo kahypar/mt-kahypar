@@ -127,7 +127,7 @@ using MoveID = uint32_t;
 using SearchID = uint32_t;
 
 // Forward Declaration
-class ProcessGraph;
+class TargetGraph;
 namespace ds {
 class Bitset;
 class StaticGraph;
@@ -151,7 +151,7 @@ struct SyncronizedEdgeUpdate {
     block_of_other_node(kInvalidPartition),
     connectivity_set_after(nullptr),
     pin_counts_after(nullptr),
-    process_graph(nullptr),
+    target_graph(nullptr),
     edge_locks(nullptr) { }
 
   HyperedgeID he;
@@ -164,7 +164,7 @@ struct SyncronizedEdgeUpdate {
   PartitionID block_of_other_node;
   mutable ds::Bitset* connectivity_set_after;
   mutable ds::PinCountSnapshot* pin_counts_after;
-  const ProcessGraph* process_graph;
+  const TargetGraph* target_graph;
   ds::Array<SpinLock>* edge_locks;
 };
 

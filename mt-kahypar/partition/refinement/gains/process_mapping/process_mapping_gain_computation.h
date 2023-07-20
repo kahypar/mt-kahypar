@@ -32,7 +32,7 @@
 
 #include "mt-kahypar/partition/refinement/gains/gain_computation_base.h"
 #include "mt-kahypar/partition/refinement/gains/process_mapping/process_mapping_attributed_gains.h"
-#include "mt-kahypar/partition/process_mapping/process_graph.h"
+#include "mt-kahypar/partition/process_mapping/target_graph.h"
 #include "mt-kahypar/datastructures/static_bitset.h"
 #include "mt-kahypar/datastructures/sparse_map.h"
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
@@ -85,14 +85,14 @@ class ProcessMappingGainComputation : public GainComputationBase<ProcessMappingG
     }
 
     // Gain computation
-    ASSERT(phg.hasProcessGraph());
-    const ProcessGraph* process_graph = phg.processGraph();
+    ASSERT(phg.hasTargetGraph());
+    const TargetGraph* target_graph = phg.targetGraph();
     PartitionID from = phg.partID(hn);
     for (const HyperedgeID& he : phg.incidentEdges(hn)) {
       HypernodeID pin_count_in_from_part = phg.pinCountInPart(he, from);
       HyperedgeWeight he_weight = phg.edgeWeight(he);
       ds::Bitset& connectivity_set = phg.deepCopyOfConnectivitySet(he);
-      const HyperedgeWeight distance_before = process_graph->distance(connectivity_set);
+      const HyperedgeWeight distance_before = target_graph->distance(connectivity_set);
 
       if ( pin_count_in_from_part == 1 ) {
         // Moving the node out of its current block removes
@@ -103,11 +103,11 @@ class ProcessMappingGainComputation : public GainComputationBase<ProcessMappingG
       // of a hyperedge to compute the gain. They assume that the gain is the same
       // for all non-adjacent blocks. However, this is not the case for steiner tree metric.
       // The gain to non-adjacent blocks could be different because they induce different
-      // distances in the process graph. We therefore have to consider all adjacent blocks
+      // distances in the target graph. We therefore have to consider all adjacent blocks
       // of the node to compute the correct gain.
       for ( const PartitionID to : adjacent_blocks_view ) {
         const HyperedgeWeight distance_after =
-          process_graph->distanceWithBlock(connectivity_set, to);
+          target_graph->distanceWithBlock(connectivity_set, to);
         tmp_scores[to] += (distance_after - distance_before) * he_weight;
       }
     }

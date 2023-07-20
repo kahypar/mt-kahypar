@@ -48,7 +48,7 @@
 namespace mt_kahypar {
 
 // Forward
-class ProcessGraph;
+class TargetGraph;
 
 namespace ds {
 
@@ -178,7 +178,7 @@ private:
     _input_unique_ids(hypergraph.maxUniqueID()),
     _k(k),
     _hg(&hypergraph),
-    _process_graph(nullptr),
+    _target_graph(nullptr),
     _part_weights(k, CAtomic<HypernodeWeight>(0)),
     _part_ids(
       "Refinement", "part_ids", hypergraph.initialNumNodes(), false, false),
@@ -201,7 +201,7 @@ private:
     _input_unique_ids(hypergraph.maxUniqueID()),
     _k(k),
     _hg(&hypergraph),
-    _process_graph(nullptr),
+    _target_graph(nullptr),
     _part_weights(k, CAtomic<HypernodeWeight>(0)),
     _part_ids(),
     _edge_sync_version(0),
@@ -309,18 +309,18 @@ private:
     return _k;
   }
 
-  // ####################### Process Mapping ######################
+  // ####################### Mapping ######################
 
-  void setProcessGraph(const ProcessGraph* process_graph) {
-    _process_graph = process_graph;
+  void setTargetGraph(const TargetGraph* target_graph) {
+    _target_graph = target_graph;
   }
 
-  bool hasProcessGraph() const {
-    return _process_graph != nullptr;
+  bool hasTargetGraph() const {
+    return _target_graph != nullptr;
   }
 
-  const ProcessGraph* processGraph() const {
-    return _process_graph;
+  const TargetGraph* targetGraph() const {
+    return _target_graph;
   }
 
   // ####################### Iterators #######################
@@ -1046,7 +1046,7 @@ private:
       SyncronizedEdgeUpdate sync_update;
       sync_update.from = from;
       sync_update.to = to;
-      sync_update.process_graph = _process_graph;
+      sync_update.target_graph = _target_graph;
       sync_update.edge_locks = &_edge_locks;
       for (const HyperedgeID edge : incidentEdges(u)) {
         if (!isSinglePin(edge)) {
@@ -1130,8 +1130,8 @@ private:
   // ! Underlying graph
   Hypergraph* _hg = nullptr;
 
-  // ! Process graph on which this graph is mapped
-  const ProcessGraph* _process_graph;
+  // ! Target graph on which this graph is mapped
+  const TargetGraph* _target_graph;
 
   // ! Weight and information for all blocks.
   parallel::scalable_vector< CAtomic<HypernodeWeight> > _part_weights;

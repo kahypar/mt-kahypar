@@ -84,7 +84,7 @@ HypernodeID get_node_with_minimum_weighted_degree(const ds::StaticGraph& graph) 
 
 template<typename CommunicationHypergraph>
 void compute_greedy_mapping(CommunicationHypergraph& communication_hg,
-                            const ProcessGraph& process_graph,
+                            const TargetGraph& target_graph,
                             const Context&,
                             const HypernodeID seed_node) {
   // For each node u, the ratings store weight of all incident hyperedges
@@ -94,7 +94,7 @@ void compute_greedy_mapping(CommunicationHypergraph& communication_hg,
   vec<bool> up_to_date_ratings(communication_hg.initialNumNodes(), true);
   vec<HypernodeID> nodes_to_update;
   // Marks unassigned processors
-  ds::Bitset unassigned_processors(process_graph.numBlocks());
+  ds::Bitset unassigned_processors(target_graph.numBlocks());
   ds::StaticBitset unassigned_processors_view(
     unassigned_processors.numBlocks(), unassigned_processors.data());
   PQ pq;
@@ -149,11 +149,11 @@ void compute_greedy_mapping(CommunicationHypergraph& communication_hg,
 
   communication_hg.resetPartition();
   // Initialize unassigned processors
-  for ( PartitionID block = 0; block < process_graph.numBlocks(); ++block ) {
+  for ( PartitionID block = 0; block < target_graph.numBlocks(); ++block ) {
     unassigned_processors.set(block);
   }
   // Assign seed node to process with minimum weighted degree
-  assign(seed_node, get_node_with_minimum_weighted_degree(process_graph.graph()));
+  assign(seed_node, get_node_with_minimum_weighted_degree(target_graph.graph()));
 
   HyperedgeWeight actual_objective = 0;
   vec<PartitionID> tie_breaking;
@@ -175,10 +175,10 @@ void compute_greedy_mapping(CommunicationHypergraph& communication_hg,
       ds::Bitset& connectivity_set = communication_hg.deepCopyOfConnectivitySet(he);
       const HyperedgeWeight edge_weight = communication_hg.edgeWeight(he);
       const HyperedgeWeight distance_before = communication_hg.connectivity(he) > 0 ?
-        process_graph.distance(connectivity_set) : 0;
+        target_graph.distance(connectivity_set) : 0;
       for ( const PartitionID process : unassigned_processors_view ) {
         const HyperedgeWeight distance_after =
-          process_graph.distanceWithBlock(connectivity_set, process);
+          target_graph.distanceWithBlock(connectivity_set, process);
         tmp_ratings[process] += (distance_after - distance_before) * edge_weight;
       }
     }
@@ -221,10 +221,10 @@ void compute_greedy_mapping(CommunicationHypergraph& communication_hg,
 } // namespace
 
 template<typename CommunicationHypergraph>
-void GreedyMapping<CommunicationHypergraph>::mapToProcessGraph(CommunicationHypergraph& communication_hg,
-                                                               const ProcessGraph& process_graph,
+void GreedyMapping<CommunicationHypergraph>::mapToTargetGraph(CommunicationHypergraph& communication_hg,
+                                                               const TargetGraph& target_graph,
                                                                const Context& context) {
-  ASSERT(communication_hg.initialNumNodes() == process_graph.graph().initialNumNodes());
+  ASSERT(communication_hg.initialNumNodes() == target_graph.graph().initialNumNodes());
 
   utils::Timer& timer = utils::Utilities::instance().getTimer(context.utility_id);
   SpinLock best_lock;
@@ -235,12 +235,12 @@ void GreedyMapping<CommunicationHypergraph>::mapToProcessGraph(CommunicationHype
   communication_hg.doParallelForAllNodes([&](const HypernodeID& hn) {
     // Compute greedy mapping with the current node as seed node
     CommunicationHypergraph tmp_communication_phg(
-      process_graph.numBlocks(), communication_hg.hypergraph());
-    tmp_communication_phg.setProcessGraph(&process_graph);
-    compute_greedy_mapping(tmp_communication_phg, process_graph, context, hn);
+      target_graph.numBlocks(), communication_hg.hypergraph());
+    tmp_communication_phg.setTargetGraph(&target_graph);
+    compute_greedy_mapping(tmp_communication_phg, target_graph, context, hn);
 
     if ( context.mapping.use_local_search ) {
-      KerninghanLin<CommunicationHypergraph>::improve(tmp_communication_phg, process_graph);
+      KerninghanLin<CommunicationHypergraph>::improve(tmp_communication_phg, target_graph);
     }
 
     // Check if new mapping is better than the currently best mapping
