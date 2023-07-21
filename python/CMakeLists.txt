@@ -12,8 +12,10 @@ pybind11_add_module(mtkahypar_python module.cpp)
 target_link_libraries(mtkahypar_python PRIVATE ${Boost_LIBRARIES} TBB::tbb TBB::tbbmalloc_proxy)
 SET_TARGET_PROPERTIES(mtkahypar_python PROPERTIES COMPILE_FLAGS "-fvisibility=hidden")
 target_compile_definitions(mtkahypar_python PUBLIC MT_KAHYPAR_LIBRARY_MODE)
-target_compile_definitions(mtkahypar PUBLIC KAHYPAR_ENABLE_LARGE_K_PARTITIONING_FEATURES)
-target_compile_definitions(mtkahypar PUBLIC KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES)
+target_compile_definitions(mtkahypar_python PUBLIC KAHYPAR_ENABLE_LARGE_K_PARTITIONING_FEATURES)
+target_compile_definitions(mtkahypar_python PUBLIC KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES)
+target_compile_definitions(mtkahypar_python PUBLIC KAHYPAR_ENABLE_SOED_METRIC)
+target_compile_definitions(mtkahypar_python PUBLIC KAHYPAR_ENABLE_STEINER_TREE_METRIC)
 
 set(PARTITIONING_SUITE_TARGETS ${PARTITIONING_SUITE_TARGETS} mtkahypar_python PARENT_SCOPE)
 
