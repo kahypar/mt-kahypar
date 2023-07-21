@@ -258,6 +258,7 @@ namespace mt_kahypar {
       target_graph->precomputeDistances(max_steiner_tree_size);
       timer.stop_timer("precompute_steiner_trees");
     }
+
     parallel::MemoryPool::instance().release_mem_group("Preprocessing");
   }
 
@@ -354,7 +355,8 @@ namespace mt_kahypar {
 
     // ################## MULTILEVEL & VCYCLE ##################
     if (context.partition.mode == Mode::direct) {
-      Multilevel<TypeTraits>::partitionVCycle(hypergraph, partitioned_hg, context);
+      Multilevel<TypeTraits>::partitionVCycle(
+        hypergraph, partitioned_hg, context, target_graph);
     } else {
       ERR("Invalid V-cycle mode: " << context.partition.mode);
     }

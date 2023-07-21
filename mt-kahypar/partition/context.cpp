@@ -913,8 +913,7 @@ namespace mt_kahypar {
         << "-------------------------------------------------------------------------------\n"
         << context.refinement
         << "-------------------------------------------------------------------------------\n";
-    if ( context.mapping.target_graph_file != "" &&
-         context.partition.objective == Objective::steiner_tree ) {
+    if ( context.partition.objective == Objective::steiner_tree ) {
       str << context.mapping
           << "-------------------------------------------------------------------------------\n";
     }

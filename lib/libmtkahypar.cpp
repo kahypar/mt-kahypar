@@ -36,6 +36,7 @@
 #include "mt-kahypar/partition/partitioner_facade.h"
 #include "mt-kahypar/partition/metrics.h"
 #include "mt-kahypar/partition/conversion.h"
+#include "mt-kahypar/partition/mapping/target_graph.h"
 #include "mt-kahypar/parallel/tbb_initializer.h"
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
 #include "mt-kahypar/io/hypergraph_factory.h"
@@ -218,6 +219,13 @@ mt_kahypar_hypergraph_t mt_kahypar_read_hypergraph_from_file(const char* file_na
   return io::readInputFile(file_name, config, instance, format, stable_construction);
 }
 
+mt_kahypar_target_graph_t* mt_kahypar_read_target_graph_from_file(const char* file_name) {
+  ds::StaticGraph graph = io::readInputFile<ds::StaticGraph>(file_name, FileFormat::Metis, true);
+  TargetGraph* target_graph = new TargetGraph(std::move(graph));
+  return reinterpret_cast<mt_kahypar_target_graph_t*>(target_graph);
+}
+
+
 mt_kahypar_hypergraph_t mt_kahypar_create_hypergraph(const mt_kahypar_preset_type_t preset,
                                                      const mt_kahypar_hypernode_id_t num_vertices,
                                                      const mt_kahypar_hyperedge_id_t num_hyperedges,
@@ -285,8 +293,31 @@ mt_kahypar_hypergraph_t mt_kahypar_create_graph(const mt_kahypar_preset_type_t p
   return mt_kahypar_hypergraph_t { nullptr, NULLPTR_HYPERGRAPH };
 }
 
+mt_kahypar_target_graph_t* mt_kahypar_create_target_graph(const mt_kahypar_hypernode_id_t num_vertices,
+                                                          const mt_kahypar_hyperedge_id_t num_edges,
+                                                          const mt_kahypar_hypernode_id_t* edges,
+                                                          const mt_kahypar_hyperedge_weight_t* edge_weights) {
+  // Transform adjacence array into adjacence list
+  vec<std::pair<mt_kahypar::HypernodeID, mt_kahypar::HypernodeID>> edge_vector(num_edges);
+  tbb::parallel_for<mt_kahypar::HyperedgeID>(0, num_edges, [&](const mt_kahypar::HyperedgeID& he) {
+    edge_vector[he] = std::make_pair(edges[2*he], edges[2*he + 1]);
+  });
+
+  ds::StaticGraph graph = StaticGraphFactory::construct_from_graph_edges(
+    num_vertices, num_edges, edge_vector, edge_weights, nullptr);
+  TargetGraph* target_graph = new TargetGraph(std::move(graph));
+  return reinterpret_cast<mt_kahypar_target_graph_t*>(target_graph);
+}
+
+
 void mt_kahypar_free_hypergraph(mt_kahypar_hypergraph_t hypergraph) {
   utils::delete_hypergraph(hypergraph);
+}
+
+void mt_kahypar_free_target_graph(mt_kahypar_target_graph_t* target_graph) {
+  if ( target_graph ) {
+    delete reinterpret_cast<TargetGraph*>(target_graph);
+  }
 }
 
 mt_kahypar_hypernode_id_t mt_kahypar_num_hypernodes(mt_kahypar_hypergraph_t hypergraph) {
@@ -360,6 +391,27 @@ mt_kahypar_partitioned_hypergraph_t mt_kahypar_partition(mt_kahypar_hypergraph_t
   return mt_kahypar_partitioned_hypergraph_t { nullptr, NULLPTR_PARTITION };
 }
 
+mt_kahypar_partitioned_hypergraph_t mt_kahypar_map(mt_kahypar_hypergraph_t hypergraph,
+                                                   mt_kahypar_target_graph_t* target_graph,
+                                                   mt_kahypar_context_t* context) {
+  Context& c = *reinterpret_cast<Context*>(context);
+  if ( lib::check_if_all_relavant_parameters_are_set(c) ) {
+    if ( mt_kahypar_check_compatibility(hypergraph, lib::get_preset_c_type(c.partition.preset_type)) ) {
+      c.partition.instance_type = lib::get_instance_type(hypergraph);
+      c.partition.partition_type = to_partition_c_type(
+        c.partition.preset_type, c.partition.instance_type);
+      lib::prepare_context(c);
+      c.partition.num_vcycles = 0;
+      c.partition.objective = Objective::steiner_tree;
+      TargetGraph* target = reinterpret_cast<TargetGraph*>(target_graph);
+      return PartitionerFacade::partition(hypergraph, c, target);
+    } else {
+      WARNING(lib::incompatibility_description(hypergraph));
+    }
+  }
+  return mt_kahypar_partitioned_hypergraph_t { nullptr, NULLPTR_PARTITION };
+}
+
 MT_KAHYPAR_API bool mt_kahypar_check_partition_compatibility(mt_kahypar_partitioned_hypergraph_t partitioned_hg,
                                                              mt_kahypar_preset_type_t preset) {
   return lib::check_compatibility(partitioned_hg, preset);
@@ -378,6 +430,28 @@ void mt_kahypar_improve_partition(mt_kahypar_partitioned_hypergraph_t partitione
       lib::prepare_context(c);
       c.partition.num_vcycles = num_vcycles;
       PartitionerFacade::improve(partitioned_hg, c);
+    } else {
+      WARNING(lib::incompatibility_description(partitioned_hg));
+    }
+  }
+}
+
+void mt_kahypar_improve_mapping(mt_kahypar_partitioned_hypergraph_t partitioned_hg,
+                                               mt_kahypar_target_graph_t* target_graph,
+                                               mt_kahypar_context_t* context,
+                                               const size_t num_vcycles) {
+  Context& c = *reinterpret_cast<Context*>(context);
+  if ( lib::check_if_all_relavant_parameters_are_set(c) ) {
+    if ( mt_kahypar_check_partition_compatibility(
+          partitioned_hg, lib::get_preset_c_type(c.partition.preset_type)) ) {
+      c.partition.instance_type = lib::get_instance_type(partitioned_hg);
+      c.partition.partition_type = to_partition_c_type(
+        c.partition.preset_type, c.partition.instance_type);
+      lib::prepare_context(c);
+      c.partition.num_vcycles = num_vcycles;
+      c.partition.objective = Objective::steiner_tree;
+      TargetGraph* target = reinterpret_cast<TargetGraph*>(target_graph);
+      PartitionerFacade::improve(partitioned_hg, c, target);
     } else {
       WARNING(lib::incompatibility_description(partitioned_hg));
     }
@@ -550,6 +624,49 @@ mt_kahypar_hyperedge_weight_t mt_kahypar_soed(const mt_kahypar_partitioned_hyper
       return metrics::quality(utils::cast<DynamicPartitionedHypergraph>(partitioned_hg), Objective::soed);
     case LARGE_K_PARTITIONING:
       return metrics::quality(utils::cast<SparsePartitionedHypergraph>(partitioned_hg), Objective::soed);
+    case NULLPTR_PARTITION: return 0;
+  }
+  return 0;
+}
+
+mt_kahypar_hyperedge_weight_t mt_kahypar_steiner_tree(const mt_kahypar_partitioned_hypergraph_t partitioned_hg,
+                                                      mt_kahypar_target_graph_t* target_graph) {
+  TargetGraph* target = reinterpret_cast<TargetGraph*>(target_graph);
+  if ( !target->isInitialized() ) {
+    target->precomputeDistances(4);
+  }
+
+  switch ( partitioned_hg.type ) {
+    case MULTILEVEL_GRAPH_PARTITIONING:
+      {
+        StaticPartitionedGraph& phg = utils::cast<StaticPartitionedGraph>(partitioned_hg);
+        phg.setTargetGraph(target);
+        return metrics::quality(phg, Objective::steiner_tree);
+      }
+    case N_LEVEL_GRAPH_PARTITIONING:
+      {
+        DynamicPartitionedGraph& phg = utils::cast<DynamicPartitionedGraph>(partitioned_hg);
+        phg.setTargetGraph(target);
+        return metrics::quality(phg, Objective::steiner_tree);
+      }
+    case MULTILEVEL_HYPERGRAPH_PARTITIONING:
+      {
+        StaticPartitionedHypergraph& phg = utils::cast<StaticPartitionedHypergraph>(partitioned_hg);
+        phg.setTargetGraph(target);
+        return metrics::quality(phg, Objective::steiner_tree);
+      }
+    case N_LEVEL_HYPERGRAPH_PARTITIONING:
+      {
+        DynamicPartitionedHypergraph& phg = utils::cast<DynamicPartitionedHypergraph>(partitioned_hg);
+        phg.setTargetGraph(target);
+        return metrics::quality(phg, Objective::steiner_tree);
+      }
+    case LARGE_K_PARTITIONING:
+      {
+        SparsePartitionedHypergraph& phg = utils::cast<SparsePartitionedHypergraph>(partitioned_hg);
+        phg.setTargetGraph(target);
+        return metrics::quality(phg, Objective::steiner_tree);
+      }
     case NULLPTR_PARTITION: return 0;
   }
   return 0;

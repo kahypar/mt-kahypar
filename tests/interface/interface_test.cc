@@ -406,11 +406,13 @@ namespace mt_kahypar {
     public:
       static constexpr char HYPERGRAPH_FILE[] = "test_instances/ibm01.hgr";
       static constexpr char GRAPH_FILE[] = "test_instances/delaunay_n15.graph";
+      static constexpr char TARGET_GRAPH_FILE[] = "test_instances/target.graph";
 
       APartitioner() :
         context(nullptr),
         hypergraph(mt_kahypar_hypergraph_t { nullptr, NULLPTR_HYPERGRAPH }),
-        partitioned_hg(mt_kahypar_partitioned_hypergraph_t { nullptr, NULLPTR_PARTITION }) { }
+        partitioned_hg(mt_kahypar_partitioned_hypergraph_t { nullptr, NULLPTR_PARTITION }),
+        target_graph(nullptr) { }
 
     void Partition(const char* filename,
                    const mt_kahypar_file_format_type_t format,
@@ -421,7 +423,17 @@ namespace mt_kahypar {
                    const bool verbose = false) {
       SetUpContext(preset, num_blocks, epsilon, objective, verbose);
       Load(filename, preset, format);
-      partition(hypergraph, &partitioned_hg, context, num_blocks, epsilon);
+      partition(hypergraph, &partitioned_hg, context, num_blocks, epsilon, nullptr);
+    }
+
+    void Map(const char* filename,
+            const mt_kahypar_file_format_type_t format,
+            const mt_kahypar_preset_type_t preset,
+            const double epsilon,
+            const bool verbose = false) {
+      SetUpContext(preset, 8, epsilon, KM1, verbose);
+      Load(filename, preset, format);
+      partition(hypergraph, &partitioned_hg, context, 8, epsilon, target_graph);
     }
 
     void PartitionAnotherHypergraph(const char* filename,
@@ -437,7 +449,7 @@ namespace mt_kahypar {
       mt_kahypar_set_context_parameter(c, VERBOSE, ( debug || verbose ) ? "1" : "0");
 
       mt_kahypar_hypergraph_t hg = mt_kahypar_read_hypergraph_from_file(filename, preset, format);
-      partition(hg, nullptr, c, num_blocks, epsilon);
+      partition(hg, nullptr, c, num_blocks, epsilon, nullptr);
 
       mt_kahypar_free_context(c);
       mt_kahypar_free_hypergraph(hg);
@@ -455,20 +467,35 @@ namespace mt_kahypar {
       ASSERT_LE(after, before);
     }
 
+    void ImproveMapping(const mt_kahypar_preset_type_t preset,
+                        const size_t num_vcycles,
+                        const bool verbose = false) {
+      mt_kahypar_load_preset(context, preset);
+      mt_kahypar_set_context_parameter(context, VERBOSE, ( debug || verbose ) ? "1" : "0");
+
+      mt_kahypar_hyperedge_weight_t before = mt_kahypar_steiner_tree(partitioned_hg, target_graph);
+      mt_kahypar_improve_mapping(partitioned_hg, target_graph, context, num_vcycles);
+      mt_kahypar_hyperedge_weight_t after = mt_kahypar_steiner_tree(partitioned_hg, target_graph);
+      ASSERT_LE(after, before);
+    }
+
     void SetUp()  {
       mt_kahypar_initialize_thread_pool(std::thread::hardware_concurrency(), false);
       context = mt_kahypar_context_new();
+      target_graph = mt_kahypar_read_target_graph_from_file(TARGET_GRAPH_FILE);
     }
 
     void TearDown() {
       mt_kahypar_free_context(context);
       mt_kahypar_free_hypergraph(hypergraph);
       mt_kahypar_free_partitioned_hypergraph(partitioned_hg);
+      mt_kahypar_free_target_graph(target_graph);
     }
 
     mt_kahypar_context_t* context;
     mt_kahypar_hypergraph_t hypergraph;
     mt_kahypar_partitioned_hypergraph_t partitioned_hg;
+    mt_kahypar_target_graph_t* target_graph;
 
    private:
     void Load(const char* filename,
@@ -494,8 +521,14 @@ namespace mt_kahypar {
                    mt_kahypar_partitioned_hypergraph_t* phg,
                    mt_kahypar_context_t * c,
                    const mt_kahypar_partition_id_t num_blocks,
-                   const double epsilon) {
-      mt_kahypar_partitioned_hypergraph_t p_hg = mt_kahypar_partition(hg, c);
+                   const double epsilon,
+                   mt_kahypar_target_graph_t* target_graph) {
+      mt_kahypar_partitioned_hypergraph_t p_hg { nullptr, NULLPTR_PARTITION };
+      if ( target_graph ) {
+        p_hg = mt_kahypar_map(hg, target_graph, c);
+      } else {
+        p_hg = mt_kahypar_partition(hg, c);
+      }
 
       double imbalance = mt_kahypar_imbalance(p_hg, c);
       mt_kahypar_hyperedge_weight_t km1 = mt_kahypar_km1(p_hg);
@@ -503,7 +536,8 @@ namespace mt_kahypar {
         LOG << " imbalance =" << imbalance << "\n"
             << "cut =" << mt_kahypar_cut(p_hg) << "\n"
             << "km1 =" << km1 << "\n"
-            << "soed =" << mt_kahypar_soed(p_hg);
+            << "soed =" << mt_kahypar_soed(p_hg) << "\n"
+            << (target_graph ? "steiner_tree = " + std::to_string(mt_kahypar_steiner_tree(p_hg, target_graph)) : "");
 
       }
       ASSERT_LE(imbalance, epsilon);
@@ -798,4 +832,55 @@ namespace mt_kahypar {
     mt_kahypar_free_context(context);
   }
 
+  TEST_F(APartitioner, MapsAHypergraphOntoATargetGraphWithDefaultPreset) {
+    Map(HYPERGRAPH_FILE, HMETIS, DEFAULT, 0.03, false);
+  }
+
+  TEST_F(APartitioner, MapsAHypergraphOntoATargetGraphWithDefaultFlowPreset) {
+    Map(HYPERGRAPH_FILE, HMETIS, DEFAULT_FLOWS, 0.03, false);
+  }
+
+  TEST_F(APartitioner, MapsAHypergraphOntoATargetGraphWithQualityPreset) {
+    Map(HYPERGRAPH_FILE, HMETIS, QUALITY, 0.03, false);
+  }
+
+  TEST_F(APartitioner, MapsAHypergraphOntoATargetGraphWithQualityFlowPreset) {
+    Map(HYPERGRAPH_FILE, HMETIS, QUALITY_FLOWS, 0.03, false);
+  }
+
+  TEST_F(APartitioner, MapsAGraphOntoATargetGraphWithDefaultPreset) {
+    Map(GRAPH_FILE, METIS, DEFAULT, 0.03, false);
+  }
+
+  TEST_F(APartitioner, MapsAGraphOntoATargetGraphWithDefaultFlowPreset) {
+    Map(GRAPH_FILE, METIS, DEFAULT_FLOWS, 0.03, false);
+  }
+
+  TEST_F(APartitioner, MapsAGraphOntoATargetGraphWithQualityPreset) {
+    Map(GRAPH_FILE, METIS, QUALITY, 0.03, false);
+  }
+
+  TEST_F(APartitioner, MapsAGraphOntoATargetGraphWithQualityFlowPreset) {
+    Map(GRAPH_FILE, METIS, QUALITY_FLOWS, 0.03, false);
+  }
+
+  TEST_F(APartitioner, ImprovesHypergraphMappingWithOneVCycles) {
+    Map(HYPERGRAPH_FILE, HMETIS, DEFAULT, 0.03, false);
+    ImproveMapping(DEFAULT, 1, false);
+  }
+
+  TEST_F(APartitioner, ImprovesGraphMappingWithOneVCycles) {
+    Map(GRAPH_FILE, METIS, DEFAULT, 0.03, false);
+    ImproveMapping(DEFAULT, 1, false);
+  }
+
+  TEST_F(APartitioner, ImprovesHypergraphMappingWithOneVCyclesWithDefaultFlowPreset) {
+    Map(HYPERGRAPH_FILE, HMETIS, DEFAULT, 0.03, false);
+    ImproveMapping(DEFAULT_FLOWS, 1, false);
+  }
+
+  TEST_F(APartitioner, ImprovesHypergraphMappingGeneratedByOptimizingKm1Metric) {
+    Partition(HYPERGRAPH_FILE, HMETIS, DEFAULT, 8, 0.03, KM1, false);
+    ImproveMapping(DEFAULT, 1, false);
+  }
 }

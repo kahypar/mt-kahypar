@@ -40,6 +40,9 @@
 #include "mt-kahypar/partition/initial_partitioning/pool_initial_partitioner.h"
 #include "mt-kahypar/partition/recursive_bipartitioning.h"
 #include "mt-kahypar/partition/deep_multilevel.h"
+#ifdef KAHYPAR_ENABLE_STEINER_TREE_METRIC
+#include "mt-kahypar/partition/mapping/initial_mapping.h"
+#endif
 #include "mt-kahypar/parallel/memory_pool.h"
 #include "mt-kahypar/io/partitioning_output.h"
 #include "mt-kahypar/partition/coarsening/multilevel_uncoarsener.h"
@@ -144,6 +147,17 @@ namespace {
         phg.setOnlyNodePart(hn, part_id);
       });
       phg.initializePartition();
+
+      #ifdef KAHYPAR_ENABLE_STEINER_TREE_METRIC
+      if ( context.partition.objective == Objective::steiner_tree ) {
+        phg.setTargetGraph(target_graph);
+        timer.start_timer("one_to_one_mapping", "One-To-One Mapping");
+        // Try to improve current mapping
+        InitialMapping<TypeTraits>::mapToTargetGraph(
+          phg, *target_graph, context);
+        timer.stop_timer("one_to_one_mapping");
+      }
+      #endif
     }
 
     if ( context.partition.objective == Objective::steiner_tree ) {

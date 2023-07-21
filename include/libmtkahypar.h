@@ -114,6 +114,12 @@ MT_KAHYPAR_API mt_kahypar_hypergraph_t mt_kahypar_read_hypergraph_from_file(cons
                                                                             const mt_kahypar_file_format_type_t file_format);
 
 /**
+ * Reads a target graph in Metis file format. The target graph can be used in the
+ * 'mt_kahypar_map' function to map a (hyper)graph onto it.
+ */
+MT_KAHYPAR_API mt_kahypar_target_graph_t* mt_kahypar_read_target_graph_from_file(const char* file_name);
+
+/**
  * Constructs a hypergraph from a given adjacency array that specifies the hyperedges.
  *
  * For example:
@@ -148,12 +154,31 @@ MT_KAHYPAR_API mt_kahypar_hypergraph_t mt_kahypar_create_graph(const mt_kahypar_
                                                                const mt_kahypar_hypernode_id_t* edges,
                                                                const mt_kahypar_hyperedge_weight_t* edge_weights,
                                                                const mt_kahypar_hypernode_weight_t* vertex_weights);
-
+/**
+ * Constructs a target graph from a given edge list vector. The target graph can be used in the
+ * 'mt_kahypar_map' function to map a (hyper)graph onto it.
+ *
+ * Example:
+ * edges:        | 0 2 | 0 1 | 2 3 | 1 3 |
+ * Defines a graph with four edges -> e_0 = {0,2}, e_1 = {0,1}, e_2 = {2,3}, e_3 = {1,3}
+ *
+ * \note For unweighted graphs, you can pass nullptr to either hyperedge_weights.
+ * \note After construction, the arguments of this function are no longer needed and can be deleted.
+ */
+MT_KAHYPAR_API mt_kahypar_target_graph_t* mt_kahypar_create_target_graph(const mt_kahypar_hypernode_id_t num_vertices,
+                                                                         const mt_kahypar_hyperedge_id_t num_edges,
+                                                                         const mt_kahypar_hypernode_id_t* edges,
+                                                                         const mt_kahypar_hyperedge_weight_t* edge_weights);
 
 /**
  * Deletes the (hyper)graph object.
  */
 MT_KAHYPAR_API void mt_kahypar_free_hypergraph(mt_kahypar_hypergraph_t hypergraph);
+
+/**
+ * Deletes a target graph object.
+ */
+MT_KAHYPAR_API void mt_kahypar_free_target_graph(mt_kahypar_target_graph_t* target_graph);
 
 /**
  * Returns the number of nodes of the (hyper)graph.
@@ -184,7 +209,7 @@ MT_KAHYPAR_API bool mt_kahypar_check_compatibility(mt_kahypar_hypergraph_t hyper
                                                    mt_kahypar_preset_type_t preset);
 
 /**
- * Partitions a (hyper)graph according to the parameters specified in the partitioning context.
+ * Partitions a (hyper)graph with the configuration specified in the partitioning context.
  *
  * \note Before partitioning, the number of blocks, imbalance parameter and objective function must be
  *       set in the partitioning context. This can be done either via mt_kahypar_set_context_parameter(...)
@@ -192,6 +217,25 @@ MT_KAHYPAR_API bool mt_kahypar_check_compatibility(mt_kahypar_hypergraph_t hyper
  */
 MT_KAHYPAR_API mt_kahypar_partitioned_hypergraph_t mt_kahypar_partition(mt_kahypar_hypergraph_t hypergraph,
                                                                         mt_kahypar_context_t* context);
+
+/**
+ * Maps a (hyper)graph onto a target graph with the configuration specified in the partitioning context.
+ * The number of blocks of the output mapping/partition is the same as the number of nodes in the target graph
+ * (each node of the target graph represents a block). The objective is to minimize the total weight of
+ * all Steiner trees spanned by the (hyper)edges on the target graph. A Steiner tree is a tree with minimal weight
+ * that spans a subset of the nodes (in our case the hyperedges) on the target graph. This objective function
+ * is able to acurately model wire-lengths in VLSI design or communication costs in a distributed system where some
+ * processors do not communicate directly with each other or different speeds.
+ *
+ * \note Since computing Steiner trees is an NP-hard problem, we currently restrict the size of the target graph
+ * to at most 64 nodes. If you want to map hypergraphs onto larger target graphs, you can use recursive multisectioning.
+ * For example, if the target graph has 4096 nodes, you can first map the hypergraph onto a coarser approximation of the
+ * target graph with 64 nodes, and subsequently map each block of the mapping to the corresponding subgraph of the
+ * target graph each having 64 nodes.
+ */
+MT_KAHYPAR_API mt_kahypar_partitioned_hypergraph_t mt_kahypar_map(mt_kahypar_hypergraph_t hypergraph,
+                                                                  mt_kahypar_target_graph_t* target_graph,
+                                                                  mt_kahypar_context_t* context);
 
 /**
  * Checks whether or not the given partitioned hypergraph can
@@ -210,6 +254,18 @@ MT_KAHYPAR_API bool mt_kahypar_check_partition_compatibility(mt_kahypar_partitio
 MT_KAHYPAR_API void mt_kahypar_improve_partition(mt_kahypar_partitioned_hypergraph_t partitioned_hg,
                                                  mt_kahypar_context_t* context,
                                                  const size_t num_vcycles);
+
+/**
+ * Improves a given mapping (using the V-cycle technique).
+ *
+ * \note The number of nodes of the target graph must be equal to the
+ *       number of blocks of the given partition.
+ * \note There is no guarantee that this call will find an improvement.
+ */
+MT_KAHYPAR_API void mt_kahypar_improve_mapping(mt_kahypar_partitioned_hypergraph_t partitioned_hg,
+                                               mt_kahypar_target_graph_t* target_graph,
+                                               mt_kahypar_context_t* context,
+                                               const size_t num_vcycles);
 
 /**
  * Constructs a partitioned (hyper)graph out of the given partition.
@@ -264,6 +320,12 @@ MT_KAHYPAR_API mt_kahypar_hyperedge_weight_t mt_kahypar_km1(const mt_kahypar_par
  * Computes the sum-of-external-degree metric.
  */
 MT_KAHYPAR_API mt_kahypar_hyperedge_weight_t mt_kahypar_soed(const mt_kahypar_partitioned_hypergraph_t partitioned_hg);
+
+/**
+ * Computes the steiner tree metric.
+ */
+MT_KAHYPAR_API mt_kahypar_hyperedge_weight_t mt_kahypar_steiner_tree(const mt_kahypar_partitioned_hypergraph_t partitioned_hg,
+                                                                     mt_kahypar_target_graph_t* target_graph);
 
 
 /**

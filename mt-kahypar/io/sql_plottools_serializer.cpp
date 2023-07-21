@@ -149,8 +149,7 @@ std::string serialize(const PartitionedHypergraph& hypergraph,
         << " shuffle_block_size=" << context.shared_memory.shuffle_block_size
         << " static_balancing_work_packages=" << context.shared_memory.static_balancing_work_packages;
 
-    if ( context.mapping.target_graph_file != "" &&
-         context.partition.objective == Objective::steiner_tree ) {
+    if ( context.partition.objective == Objective::steiner_tree ) {
       oss << " target_graph_file=" << context.mapping.target_graph_file.substr(
             context.mapping.target_graph_file.find_last_of('/') + 1)
           << " mapping_strategy=" << context.mapping.strategy
