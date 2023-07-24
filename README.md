@@ -39,21 +39,21 @@ Mt-KaHyPar can optimize several objective functions which we explain in the foll
 
 ![cut_net](https://github.com/kahypar/mt-kahypar/assets/9654047/bc7fc7c7-8ac4-4711-8aec-d0526ef2452c)
 
-The cut-net metric is defined as total weight of all nets spanning at least two blocks of the partition Π (also called *cut-nets*).
+The cut-net metric is defined as total weight of all nets spanning more than one block of the partition Π (also called *cut nets*).
 
 
 **Connectivity Metric**
 
 ![connectivity](https://github.com/kahypar/mt-kahypar/assets/9654047/1c586ff4-63c3-4260-9ef5-98a76578be46)
 
-The connectivity metric additionally multiplies the weight of each cut-net with the number of blocks spanned by that net λ(e) minus one. Thus, the connectivity metric tries to minimize the number of blocks connected by each net.
+The connectivity metric additionally multiplies the weight of each cut net with the number of blocks λ(e) spanned by that net minus one. Thus, the connectivity metric tries to minimize the number of blocks connected by each net.
 
 
 **Sum-of-External-Degree Metric**
 
 ![soed](https://github.com/kahypar/mt-kahypar/assets/9654047/4006fb4c-ac85-452e-a0d9-93d4dc7842ad)
 
-The sum-of-external-degree metric is similar to the connectivity metric, but does not subtract one from the number of blocks λ(e). A pecularity of this objective function is that removing a net from the cut reduces the metric by 2ω(e), while reducing the connectivity by one reduces the metric only by ω(e). Thus, the objective function prefers removing nets from the cut, while as secondary criteria it tries to reduce the connectivity of the nets.
+The sum-of-external-degree metric is similar to the connectivity metric, but does not subtract one from the number of blocks λ(e) spanned by a net. A pecularity of this objective function is that removing a net from the cut reduces the metric by 2ω(e), while reducing the connectivity by one reduces the metric only by ω(e). Thus, the objective function prefers removing nets from the cut, while as secondary criteria it tries to reduce the connectivity of the nets.
 
 **Steiner Tree Metric**
 
