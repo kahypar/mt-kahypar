@@ -12,7 +12,6 @@ Table of Contents
    * [Requirements](#requirements)
    * [Building Mt-KaHyPar](#building-mt-kahypar)
    * [Running Mt-KaHyPar](#running-mt-kahypar)
-   * [Performance](#performance)
    * [The C Library Interface](#the-c-library-interface)
    * [The Python Library Interface](#the-python-library-interface)
    * [Custom Objective Functions](#custom-objective-functions)
@@ -22,7 +21,7 @@ About Mt-KaHyPar
 -----------
 Mt-KaHyPar is a shared-memory algorithm for partitioning graphs and hypergraphs. The balanced (hyper)graph partitioning problem
 asks for a partition of the node set of a (hyper)graph into *k* disjoint blocks of roughly the same size (usually a small imbalance
-is allowed by at most 1 + ε times the average block weight), while simultanously minimizing an objective function defined on the (hyper)edges. Mt-KaHyPar can optimize the cut-net, connectivity, sum-of-external-degree, and Steiner tree metric (see [supported objective functions](#supported-objective-functions)).
+is allowed by at most 1 + ε times the average block weight), while simultanously minimizing an objective function defined on the (hyper)edges. Mt-KaHyPar can optimize the cut-net, connectivity, sum-of-external-degree, and Steiner tree metric (see [Supported Objective Functions](#supported-objective-functions)).
 
 <img src="https://cloud.githubusercontent.com/assets/484403/25314222/3a3bdbda-2840-11e7-9961-3bbc59b59177.png" alt="alt text" width="50%" height="50%"><img src="https://cloud.githubusercontent.com/assets/484403/25314225/3e061e42-2840-11e7-860c-028a345d1641.png" alt="alt text" width="50%" height="50%">
 
@@ -47,7 +46,7 @@ The cut-net metric is defined as total weight of all nets spanning at least two 
 
 ![connectivity](https://github.com/kahypar/mt-kahypar/assets/9654047/095ccc64-e200-4291-86ae-9a8fbb979bda)
 
-The connectivity metric additionally multiplies the weight of each cut-net with the number of block spanned by that net λ(e) minus one. Thus, the connectivity metric tries to minimize the number of blocks connected by each net.
+The connectivity metric additionally multiplies the weight of each cut-net with the number of blocks spanned by that net λ(e) minus one. Thus, the connectivity metric tries to minimize the number of blocks connected by each net.
 
 
 ### Sum-of-External-Degree Metric
@@ -151,6 +150,10 @@ To partition a **graph** with Mt-KaHyPar, you can use the following command:
 
     ./mt-kahypar/application/MtKaHyPar -h <path-to-graph> --preset-type=<large_k/deterministic/default/default_flows/quality/quality_flows> --input-file-format=<hmetis/metis> --instance-type=graph -t <# threads> -k <# blocks> -e <imbalance (e.g. 0.03)> -o cut
 
+To map a **hypergraph** onto a **target graph** (expected in Metis file format) with Mt-KaHyPar (optimizes the Steiner tree metric), you can use the following command:
+
+    ./mt-kahypar/application/MtKaHyPar -h <path-to-hgr> -g <path-to-target-graph> --preset-type=<default/default_flows/quality/quality_flows> -t <# threads> -k <# blocks> -e <imbalance (e.g. 0.03)> -o steiner_tree
+
 You can also directly provide a configuration file (see `config` folder) by adding `-p <path-to-config-file>` to the command line parameters instead of `--preset-type`.
 To enable writing the partition to a file set the flag `--write-partition-file=true`.
 By default the file will be placed in the same folder as the input hypergraph file. Set `--partition-output-folder=path/to/folder` to specify a desired output folder. The partition file name is generated automatically based on parameters such as `k`, `imbalance`, `seed` and the input file name.
@@ -159,14 +162,6 @@ Further, there are several useful options that can provide you with additional i
 - `--verbose=true`: Displays detailed information on the partitioning process
 - `--show-detailed-timings=true`: Shows detailed subtimings of each phase of the algorithm at the end of partitioning
 - `--enable-progress-bar=true`: Shows a progess bar during the coarsening and refinement phase
-
-Performance
------------
-
-We have summarized our experimental results on an [external webpage][ExperimentalResults] (currently not up-to-date). The resource provides a detailed
-overview of Mt-KaHyPar's performance compared to other prominent state-of-the-art systems in terms of running time
-and quality.
-
 
 The C Library Interface
 -----------
