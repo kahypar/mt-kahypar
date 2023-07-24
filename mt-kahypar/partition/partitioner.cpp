@@ -62,38 +62,46 @@ namespace mt_kahypar {
     context.setupContractionLimit(hypergraph.totalWeight());
     context.setupThreadsPerFlowSearch();
 
-    if ( context.partition.gain_policy == GainPolicy::steiner_tree &&
-         context.mapping.largest_he_fraction > 0.0 ) {
-      // Determine a threshold of what we consider a large hyperedge in
-      // the steiner tree gain cache
-      vec<HypernodeID> he_sizes(hypergraph.initialNumEdges(), 0);
-      hypergraph.doParallelForAllEdges([&](const HyperedgeID& he) {
-        he_sizes[he] = hypergraph.edgeSize(he);
-      });
-      // Sort hyperedges in decreasing order of their sizes
-      tbb::parallel_sort(he_sizes.begin(), he_sizes.end(),
-        [&](const HypernodeID& lhs, const HypernodeID& rhs) {
-          return lhs > rhs;
+    if ( context.partition.gain_policy == GainPolicy::steiner_tree ) {
+      const PartitionID k = target_graph ? target_graph->numBlocks() : 1;
+      const PartitionID max_k = Hypergraph::is_graph ? 256 : 64;
+      if ( k  > max_k ) {
+        const std::string type = Hypergraph::is_graph ? "graphs" : "hypergraphs";
+        ERR("We currently only support mappings of" << type << "onto target graphs with at most" << max_k << "nodes!");
+      }
+
+      if ( context.mapping.largest_he_fraction > 0.0 ) {
+        // Determine a threshold of what we consider a large hyperedge in
+        // the steiner tree gain cache
+        vec<HypernodeID> he_sizes(hypergraph.initialNumEdges(), 0);
+        hypergraph.doParallelForAllEdges([&](const HyperedgeID& he) {
+          he_sizes[he] = hypergraph.edgeSize(he);
         });
-      const size_t percentile = context.mapping.largest_he_fraction * hypergraph.initialNumEdges();
-      // Compute the percentage of pins covered by the largest hyperedges
-      const double covered_pins_percentage =
-        static_cast<double>(tbb::parallel_reduce(
-          tbb::blocked_range<size_t>(UL(0), percentile),
-          0, [&](const tbb::blocked_range<size_t>& range, int init) {
-                for ( size_t i = range.begin(); i < range.end(); ++i ) {
-                  init += he_sizes[i];
-                }
-                return init;
-              }, [&](const int lhs, const int rhs) {
-                return lhs + rhs;
-              })) / hypergraph.initialNumPins();
-      if ( covered_pins_percentage >= context.mapping.min_pin_coverage_of_largest_hes ) {
-        // If the largest hyperedge covers a large portion of the hypergraph, we assume that
-        // the hyperedge sizes follow a power law distribution and ignore hyperedges larger than
-        // the following threshold when calculating and maintaining the adjacent blocks of node
-        // in the steiner tree gain cache.
-        context.mapping.large_he_threshold = he_sizes[percentile];
+        // Sort hyperedges in decreasing order of their sizes
+        tbb::parallel_sort(he_sizes.begin(), he_sizes.end(),
+          [&](const HypernodeID& lhs, const HypernodeID& rhs) {
+            return lhs > rhs;
+          });
+        const size_t percentile = context.mapping.largest_he_fraction * hypergraph.initialNumEdges();
+        // Compute the percentage of pins covered by the largest hyperedges
+        const double covered_pins_percentage =
+          static_cast<double>(tbb::parallel_reduce(
+            tbb::blocked_range<size_t>(UL(0), percentile),
+            0, [&](const tbb::blocked_range<size_t>& range, int init) {
+                  for ( size_t i = range.begin(); i < range.end(); ++i ) {
+                    init += he_sizes[i];
+                  }
+                  return init;
+                }, [&](const int lhs, const int rhs) {
+                  return lhs + rhs;
+                })) / hypergraph.initialNumPins();
+        if ( covered_pins_percentage >= context.mapping.min_pin_coverage_of_largest_hes ) {
+          // If the largest hyperedge covers a large portion of the hypergraph, we assume that
+          // the hyperedge sizes follow a power law distribution and ignore hyperedges larger than
+          // the following threshold when calculating and maintaining the adjacent blocks of node
+          // in the steiner tree gain cache.
+          context.mapping.large_he_threshold = he_sizes[percentile];
+        }
       }
     }
 
