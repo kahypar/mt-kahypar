@@ -742,6 +742,72 @@ TYPED_TEST(APinCountDataStructure, ModifyTwoHyperedgesConcurrently3_k30_Max30) {
   ASSERT_EQ(30, this->pin_count.pinCountInPart(7, 19));
 }
 
+TYPED_TEST(APinCountDataStructure, MakesASnapshot1) {
+  const HyperedgeID num_hyperedges = 4;
+  const PartitionID k = 8;
+  const HypernodeID max_value = 17;
+  this->initialize(num_hyperedges, k, max_value);
+
+  this->pin_count.setPinCountInPart(2, 0, 2);
+  this->pin_count.setPinCountInPart(2, 2, 4);
+  this->pin_count.setPinCountInPart(2, 5, 3);
+  this->pin_count.setPinCountInPart(2, 7, 1);
+  PinCountSnapshot& snapshot = this->pin_count.snapshot(2);
+  EXPECT_EQ(2, snapshot.pinCountInPart(0));
+  EXPECT_EQ(0, snapshot.pinCountInPart(1));
+  EXPECT_EQ(4, snapshot.pinCountInPart(2));
+  EXPECT_EQ(0, snapshot.pinCountInPart(3));
+  EXPECT_EQ(0, snapshot.pinCountInPart(4));
+  EXPECT_EQ(3, snapshot.pinCountInPart(5));
+  EXPECT_EQ(0, snapshot.pinCountInPart(6));
+  EXPECT_EQ(1, snapshot.pinCountInPart(7));
+  snapshot.decrementPinCountInPart(7);
+  snapshot.setPinCountInPart(4,2);
+  EXPECT_EQ(2, snapshot.pinCountInPart(0));
+  EXPECT_EQ(0, snapshot.pinCountInPart(1));
+  EXPECT_EQ(4, snapshot.pinCountInPart(2));
+  EXPECT_EQ(0, snapshot.pinCountInPart(3));
+  EXPECT_EQ(2, snapshot.pinCountInPart(4));
+  EXPECT_EQ(3, snapshot.pinCountInPart(5));
+  EXPECT_EQ(0, snapshot.pinCountInPart(6));
+  EXPECT_EQ(0, snapshot.pinCountInPart(7));
+}
+
+TYPED_TEST(APinCountDataStructure, MakesASnapshot2) {
+  const HyperedgeID num_hyperedges = 4;
+  const PartitionID k = 8;
+  const HypernodeID max_value = 17;
+  this->initialize(num_hyperedges, k, max_value);
+
+  this->pin_count.setPinCountInPart(2, 0, 2);
+  this->pin_count.setPinCountInPart(2, 2, 4);
+  this->pin_count.setPinCountInPart(2, 5, 3);
+  this->pin_count.setPinCountInPart(2, 7, 1);
+  this->pin_count.setPinCountInPart(3, 1, 3);
+  this->pin_count.setPinCountInPart(3, 3, 1);
+  this->pin_count.setPinCountInPart(3, 4, 2);
+  this->pin_count.setPinCountInPart(3, 6, 4);
+  PinCountSnapshot& snapshot_1 = this->pin_count.snapshot(2);
+  EXPECT_EQ(2, snapshot_1.pinCountInPart(0));
+  EXPECT_EQ(0, snapshot_1.pinCountInPart(1));
+  EXPECT_EQ(4, snapshot_1.pinCountInPart(2));
+  EXPECT_EQ(0, snapshot_1.pinCountInPart(3));
+  EXPECT_EQ(0, snapshot_1.pinCountInPart(4));
+  EXPECT_EQ(3, snapshot_1.pinCountInPart(5));
+  EXPECT_EQ(0, snapshot_1.pinCountInPart(6));
+  EXPECT_EQ(1, snapshot_1.pinCountInPart(7));
+  PinCountSnapshot& snapshot_2 = this->pin_count.snapshot(3);
+  EXPECT_EQ(0, snapshot_2.pinCountInPart(0));
+  EXPECT_EQ(3, snapshot_2.pinCountInPart(1));
+  EXPECT_EQ(0, snapshot_2.pinCountInPart(2));
+  EXPECT_EQ(1, snapshot_2.pinCountInPart(3));
+  EXPECT_EQ(2, snapshot_2.pinCountInPart(4));
+  EXPECT_EQ(0, snapshot_2.pinCountInPart(5));
+  EXPECT_EQ(4, snapshot_2.pinCountInPart(6));
+  EXPECT_EQ(0, snapshot_2.pinCountInPart(7));
+}
+
+
 #ifdef KAHYPAR_ENABLE_LARGE_K_PARTITIONING_FEATURES
 
 using SparsePinCountsAsConnectivitySet = APinCountDataStructure<SparsePinCounts>;

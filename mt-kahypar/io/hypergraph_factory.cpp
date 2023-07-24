@@ -171,5 +171,12 @@ namespace {
 
 INSTANTIATE_FUNC_WITH_HYPERGRAPHS(READ_INPUT_FILE)
 
+#ifndef KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES
+template ds::StaticGraph readInputFile(const std::string& filename,
+                                       const FileFormat& format,
+                                       const bool stable_construction,
+                                       const bool remove_single_pin_hes);
+#endif
+
 }  // namespace io
 }  // namespace mt_kahypar

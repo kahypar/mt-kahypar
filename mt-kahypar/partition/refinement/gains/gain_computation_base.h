@@ -66,7 +66,7 @@ class GainComputationBase {
     Derived* derived = static_cast<Derived*>(this);
     RatingMap& tmp_scores = _tmp_scores.local();
     Gain& isolated_block_gain = _isolated_block_gain.local();
-    derived->precomputeGains(phg, hn, tmp_scores, isolated_block_gain);
+    derived->precomputeGains(phg, hn, tmp_scores, isolated_block_gain, consider_non_adjacent_blocks);
 
     PartitionID from = phg.partID(hn);
     Move best_move { from, from, hn, rebalance ? std::numeric_limits<Gain>::max() : 0 };
@@ -124,13 +124,8 @@ class GainComputationBase {
     return best_move;
   }
 
-  inline void computeDeltaForHyperedge(const HyperedgeID he,
-                                       const HyperedgeWeight edge_weight,
-                                       const HypernodeID edge_size,
-                                       const HypernodeID pin_count_in_from_part_after,
-                                       const HypernodeID pin_count_in_to_part_after) {
-    _deltas.local() += AttributedGains::gain(he, edge_weight, edge_size,
-      pin_count_in_from_part_after, pin_count_in_to_part_after);
+  inline void computeDeltaForHyperedge(const SyncronizedEdgeUpdate& sync_update) {
+    _deltas.local() += AttributedGains::gain(sync_update);
   }
 
   // ! Returns the delta in the objective function for all moves
@@ -163,6 +158,7 @@ class GainComputationBase {
         tmp_score = RatingMap(new_k);
       }
     }
+    static_cast<Derived*>(this)->changeNumberOfBlocksImpl(new_k);
   }
 
 private:

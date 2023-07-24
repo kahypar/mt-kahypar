@@ -36,6 +36,7 @@
 #include "mt-kahypar/datastructures/sparse_map.h"
 #include "mt-kahypar/parallel/atomic_wrapper.h"
 #include "mt-kahypar/macros.h"
+#include "mt-kahypar/utils/range.h"
 
 namespace mt_kahypar {
 
@@ -64,12 +65,25 @@ class Km1GainCache {
 
   static constexpr HyperedgeID HIGH_DEGREE_THRESHOLD = ID(100000);
 
+  using AdjacentBlocksIterator = IntegerRangeIterator<PartitionID>::const_iterator;
+
  public:
+
   static constexpr GainPolicy TYPE = GainPolicy::km1;
+  static constexpr bool requires_notification_before_update = false;
+  static constexpr bool initializes_gain_cache_entry_after_batch_uncontractions = false;
+
   Km1GainCache() :
     _is_initialized(false),
     _k(kInvalidPartition),
-    _gain_cache() { }
+    _gain_cache(),
+    _dummy_adjacent_blocks() { }
+
+  Km1GainCache(const Context&) :
+    _is_initialized(false),
+    _k(),
+    _gain_cache(),
+    _dummy_adjacent_blocks() { }
 
   Km1GainCache(const Km1GainCache&) = delete;
   Km1GainCache & operator= (const Km1GainCache &) = delete;
@@ -96,6 +110,19 @@ class Km1GainCache {
   template<typename PartitionedHypergraph>
   void initializeGainCache(const PartitionedHypergraph& partitioned_hg);
 
+  template<typename PartitionedHypergraph>
+  void initializeGainCacheEntryForNode(const PartitionedHypergraph&,
+                                       const HypernodeID&) {
+    // Do nothing
+  }
+
+  IteratorRange<AdjacentBlocksIterator> adjacentBlocks(const HypernodeID) const {
+    // We do not maintain the adjacent blocks of a node in this gain cache.
+    // We therefore return an iterator over all blocks here
+    return IteratorRange<AdjacentBlocksIterator>(
+      _dummy_adjacent_blocks.cbegin(), _dummy_adjacent_blocks.cend());
+  }
+
   // ####################### Gain Computation #######################
 
   // ! Returns the penalty term of node u.
@@ -110,8 +137,8 @@ class Km1GainCache {
   // ! Recomputes the penalty term entry in the gain cache
   template<typename PartitionedHypergraph>
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
-  void recomputePenaltyTermEntry(const PartitionedHypergraph& partitioned_hg,
-                                 const HypernodeID u) {
+  void recomputeInvalidTerms(const PartitionedHypergraph& partitioned_hg,
+                             const HypernodeID u) {
     ASSERT(_is_initialized, "Gain cache is not initialized");
     _gain_cache[penalty_index(u)].store(recomputePenaltyTerm(
       partitioned_hg, u), std::memory_order_relaxed);
@@ -137,11 +164,18 @@ class Km1GainCache {
 
   // ####################### Delta Gain Update #######################
 
-  // ! This function returns true if the corresponding pin count values triggers
+  // ! This function returns true if the corresponding syncronized edge update triggers
   // ! a gain cache update.
-  static bool triggersDeltaGainUpdate(const HypernodeID edge_size,
-                                      const HypernodeID pin_count_in_from_part_after,
-                                      const HypernodeID pin_count_in_to_part_after);
+  static bool triggersDeltaGainUpdate(const SyncronizedEdgeUpdate& sync_update);
+
+  // ! The partitioned (hyper)graph call this function when its updates its internal
+  // ! data structures before calling the delta gain update function. The partitioned
+  // ! (hyper)graph holds a lock for the corresponding (hyper)edge when calling this
+  // ! function. Thus, it is guaranteed that no other thread will modify the hyperedge.
+  template<typename PartitionedHypergraph>
+  void notifyBeforeDeltaGainUpdate(const PartitionedHypergraph&, const SyncronizedEdgeUpdate&) {
+    // Do nothing
+  }
 
   // ! This functions implements the delta gain updates for the connecitivity metric.
   // ! When moving a node from its current block from to a target block to, we iterate
@@ -150,12 +184,7 @@ class Km1GainCache {
   // ! corresponding hyperedge.
   template<typename PartitionedHypergraph>
   void deltaGainUpdate(const PartitionedHypergraph& partitioned_hg,
-                       const HyperedgeID he,
-                       const HyperedgeWeight we,
-                       const PartitionID from,
-                       const HypernodeID pin_count_in_from_part_after,
-                       const PartitionID to,
-                       const HypernodeID pin_count_in_to_part_after);
+                       const SyncronizedEdgeUpdate& sync_update);
 
   // ####################### Uncontraction #######################
 
@@ -181,6 +210,18 @@ class Km1GainCache {
   void restoreSinglePinHyperedge(const HypernodeID u,
                                  const PartitionID block_of_u,
                                  const HyperedgeWeight weight_of_he);
+
+  // ! This function is called after restoring a net that became identical to another due to a contraction.
+  template<typename PartitionedHypergraph>
+  void restoreIdenticalHyperedge(const PartitionedHypergraph&,
+                                 const HyperedgeID) {
+    // Do nothing
+  }
+
+  // ! Notifies the gain cache that all uncontractions of the current batch are completed.
+  void batchUncontractionsCompleted() {
+    // Do nothing
+  }
 
   // ####################### Only for Testing #######################
 
@@ -213,6 +254,16 @@ class Km1GainCache {
     return benefit;
   }
 
+  void changeNumberOfBlocks(const PartitionID new_k) {
+    _dummy_adjacent_blocks = IntegerRangeIterator<PartitionID>(new_k);
+  }
+
+  template<typename PartitionedHypergraph>
+  bool verifyTrackedAdjacentBlocksOfNodes(const PartitionedHypergraph&) const {
+    // Gain cache does not track adjacent blocks of node
+    return true;
+  }
+
  private:
   friend class DeltaKm1GainCache;
 
@@ -229,9 +280,9 @@ class Km1GainCache {
   // ! Allocates the memory required to store the gain cache
   void allocateGainTable(const HypernodeID num_nodes,
                          const PartitionID k) {
-    if (_gain_cache.size() == 0) {
-      ASSERT(_k == kInvalidPartition);
+    if (_gain_cache.size() == 0 && k != kInvalidPartition) {
       _k = k;
+      _dummy_adjacent_blocks = IntegerRangeIterator<PartitionID>(k);
       _gain_cache.resize(
         "Refinement", "gain_cache", num_nodes * size_t(_k + 1), true);
     }
@@ -268,6 +319,9 @@ class Km1GainCache {
 
   // ! Array of size |V| * (k + 1), which stores the benefit and penalty terms of each node.
   ds::Array< CAtomic<HyperedgeWeight> > _gain_cache;
+
+  // ! Provides an iterator from 0 to k (:= number of blocks)
+  IntegerRangeIterator<PartitionID> _dummy_adjacent_blocks;
 };
 
 /**
@@ -281,7 +335,11 @@ class Km1GainCache {
 */
 class DeltaKm1GainCache {
 
+  using AdjacentBlocksIterator = typename Km1GainCache::AdjacentBlocksIterator;
+
  public:
+  static constexpr bool requires_connectivity_set = false;
+
   DeltaKm1GainCache(const Km1GainCache& gain_cache) :
     _gain_cache(gain_cache),
     _gain_cache_delta() { }
@@ -305,6 +363,11 @@ class DeltaKm1GainCache {
   }
 
   // ####################### Gain Computation #######################
+
+  // ! Returns an iterator over the adjacent blocks of a node
+  IteratorRange<AdjacentBlocksIterator> adjacentBlocks(const HypernodeID hn) const {
+    return _gain_cache.adjacentBlocks(hn);
+  }
 
   // ! Returns the penalty term of node u.
   // ! More formally, p(u) := w({ e \in I(u) | pin_count(e, V_i) > 1 })
@@ -340,32 +403,33 @@ class DeltaKm1GainCache {
   template<typename PartitionedHypergraph>
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
   void deltaGainUpdate(const PartitionedHypergraph& partitioned_hg,
-                       const HyperedgeID he,
-                       const HyperedgeWeight we,
-                       const PartitionID from,
-                       const HypernodeID pin_count_in_from_part_after,
-                       const PartitionID to,
-                       const HypernodeID pin_count_in_to_part_after) {
+                       const SyncronizedEdgeUpdate& sync_update) {
+    const HyperedgeID he = sync_update.he;
+    const PartitionID from = sync_update.from;
+    const PartitionID to = sync_update.to;
+    const HyperedgeWeight edge_weight = sync_update.edge_weight;
+    const HypernodeID pin_count_in_from_part_after = sync_update.pin_count_in_from_part_after;
+    const HypernodeID pin_count_in_to_part_after = sync_update.pin_count_in_to_part_after;
     if (pin_count_in_from_part_after == 1) {
       for (HypernodeID u : partitioned_hg.pins(he)) {
         if (partitioned_hg.partID(u) == from) {
-          _gain_cache_delta[_gain_cache.penalty_index(u)] -= we;
+          _gain_cache_delta[_gain_cache.penalty_index(u)] -= edge_weight;
         }
       }
     } else if (pin_count_in_from_part_after == 0) {
       for (HypernodeID u : partitioned_hg.pins(he)) {
-        _gain_cache_delta[_gain_cache.benefit_index(u, from)] -= we;
+        _gain_cache_delta[_gain_cache.benefit_index(u, from)] -= edge_weight;
       }
     }
 
     if (pin_count_in_to_part_after == 1) {
       for (HypernodeID u : partitioned_hg.pins(he)) {
-        _gain_cache_delta[_gain_cache.benefit_index(u, to)] += we;
+        _gain_cache_delta[_gain_cache.benefit_index(u, to)] += edge_weight;
       }
     } else if (pin_count_in_to_part_after == 2) {
       for (HypernodeID u : partitioned_hg.pins(he)) {
         if (partitioned_hg.partID(u) == to) {
-          _gain_cache_delta[_gain_cache.penalty_index(u)] += we;
+          _gain_cache_delta[_gain_cache.penalty_index(u)] += edge_weight;
         }
       }
     }

@@ -169,6 +169,7 @@ namespace mt_kahypar {
       out << "    Skip Small Cuts:                  " << std::boolalpha << params.skip_small_cuts << std::endl;
       out << "    Skip Unpromising Blocks:          " << std::boolalpha << params.skip_unpromising_blocks << std::endl;
       out << "    Pierce in Bulk:                   " << std::boolalpha << params.pierce_in_bulk << std::endl;
+      out << "    Steiner Tree Policy:              " << params.steiner_tree_policy << std::endl;
       out << std::flush;
     }
     return out;
@@ -213,6 +214,17 @@ namespace mt_kahypar {
     str << "  Initial Block Size of LP IP:        " << params.lp_initial_block_size << std::endl;
     str << "\nInitial Partitioning ";
     str << params.refinement << std::endl;
+    return str;
+  }
+
+  std::ostream & operator<< (std::ostream& str, const MappingParameters& params) {
+    str << "Mapping Parameters:                   " << std::endl;
+    str << "  Target Graph File:                  " << params.target_graph_file << std::endl;
+    str << "  One-To-One Mapping Strategy:        " << params.strategy << std::endl;
+    str << "  Use Local Search:                   " << std::boolalpha << params.use_local_search << std::endl;
+    str << "  Use Two-Phase Approach:             " << std::boolalpha << params.use_two_phase_approach << std::endl;
+    str << "  Max Precomputed Steiner Tree Size:  " << params.max_steiner_tree_size << std::endl;
+    str << "  Large HE Size Threshold:            " << params.large_he_threshold << std::endl;
     return str;
   }
 
@@ -307,7 +319,7 @@ namespace mt_kahypar {
             std::min(coarsening.max_allowed_node_weight, min_block_weight);
   }
 
-  void Context::sanityCheck() {
+  void Context::sanityCheck(const TargetGraph* target_graph) {
     if ( isNLevelPartitioning() && coarsening.algorithm == CoarseningAlgorithm::multilevel_coarsener ) {
         ALGO_SWITCH("Coarsening algorithm" << coarsening.algorithm << "is only supported in multilevel mode."
                                            << "Do you want to use the n-level version instead (Y/N)?",
@@ -331,6 +343,28 @@ namespace mt_kahypar {
                   "Number of parts is not equal to k!",
                   partition.k,
                   partition.max_part_weights.size());
+    }
+
+    if ( partition.objective == Objective::steiner_tree ) {
+      if ( !target_graph ) {
+        partition.objective = Objective::km1;
+        INFO("No target graph provided for steiner tree metric. Switching to km1 metric.");
+      } else {
+        if ( partition.mode == Mode::deep_multilevel ) {
+          ALGO_SWITCH("Partitioning mode" << partition.mode << "is not supported for steiner tree metric."
+                                          << "Do you want to use the multilevel mode instead (Y/N)?",
+                      "Partitioning mode" << partition.mode
+                                          << "is not supported for steiner tree metric!",
+                      partition.mode, Mode::direct);
+        }
+        if ( initial_partitioning.mode == Mode::deep_multilevel ) {
+          ALGO_SWITCH("Initial partitioning mode" << partition.mode << "is not supported for steiner tree metric."
+                                            << "Do you want to use the multilevel mode instead (Y/N)?",
+                      "Initial partitioning mode" << partition.mode
+                                            << "is not supported for steiner tree metric!",
+                      partition.mode, Mode::direct);
+        }
+      }
     }
 
 
@@ -360,20 +394,7 @@ namespace mt_kahypar {
     }
 
     // Set correct gain policy type
-    if ( partition.instance_type == InstanceType::hypergraph ) {
-      switch ( partition.objective ) {
-        case Objective::km1: partition.gain_policy = GainPolicy::km1; break;
-        case Objective::cut: partition.gain_policy = GainPolicy::cut; break;
-        case Objective::soed: partition.gain_policy = GainPolicy::soed; break;
-        case Objective::UNDEFINED: partition.gain_policy = GainPolicy::none; break;
-      }
-    } else if ( partition.instance_type == InstanceType::graph ) {
-      if ( partition.objective != Objective::cut ) {
-        partition.objective = Objective::cut;
-        INFO("All supported objective functions are equivalent for graphs. Objective function is set to edge cut metric.");
-      }
-      partition.gain_policy = GainPolicy::cut_for_graphs;
-    }
+    setupGainPolicy();
 
     if ( partition.preset_type == PresetType::large_k ) {
       // Silently switch to deep multilevel scheme for large k partitioning
@@ -393,6 +414,42 @@ namespace mt_kahypar {
     }
   }
 
+  void Context::setupGainPolicy() {
+    #ifndef KAHYPAR_ENABLE_SOED_METRIC
+    if ( partition.objective == Objective::soed ) {
+      ERR("SOED metric is deactivated. Add -DKAHYPAR_ENABLE_SOED_METRIC=ON"
+        << "to the cmake command and rebuild Mt-KaHyPar.");
+    }
+    #endif
+
+    #ifndef KAHYPAR_ENABLE_STEINER_TREE_METRIC
+    if ( partition.objective == Objective::steiner_tree ) {
+      ERR("Steiner tree metric is deactivated. Add -DKAHYPAR_ENABLE_STEINER_TREE_METRIC=ON"
+        << "to the cmake command and rebuild Mt-KaHyPar.");
+    }
+    #endif
+
+    if ( partition.instance_type == InstanceType::hypergraph ) {
+      switch ( partition.objective ) {
+        case Objective::km1: partition.gain_policy = GainPolicy::km1; break;
+        case Objective::cut: partition.gain_policy = GainPolicy::cut; break;
+        case Objective::soed: partition.gain_policy = GainPolicy::soed; break;
+        case Objective::steiner_tree: partition.gain_policy = GainPolicy::steiner_tree; break;
+        case Objective::UNDEFINED: partition.gain_policy = GainPolicy::none; break;
+      }
+    } else if ( partition.instance_type == InstanceType::graph ) {
+      if ( partition.objective != Objective::cut && partition.objective != Objective::steiner_tree ) {
+        partition.objective = Objective::cut;
+        INFO("Current objective function is equivalent to the edge cut metric for graphs. Objective function is set to edge cut metric.");
+      }
+      if ( partition.objective == Objective::cut ) {
+        partition.gain_policy = GainPolicy::cut_for_graphs;
+      } else {
+        partition.gain_policy = GainPolicy::steiner_tree_for_graphs;
+      }
+    }
+  }
+
   void Context::load_default_preset() {
     // General
     partition.preset_type = PresetType::default_preset;
@@ -405,6 +462,14 @@ namespace mt_kahypar {
     // shared_memory
     shared_memory.use_localized_random_shuffle = false;
     shared_memory.static_balancing_work_packages = 128;
+
+    // mapping
+    mapping.strategy = OneToOneMappingStrategy::greedy_mapping;
+    mapping.use_local_search = true;
+    mapping.use_two_phase_approach = false;
+    mapping.max_steiner_tree_size = 4;
+    mapping.largest_he_fraction = 0.0;
+    mapping.min_pin_coverage_of_largest_hes = 0.05;
 
     // preprocessing
     preprocessing.use_community_detection = true;
@@ -513,6 +578,7 @@ namespace mt_kahypar {
     refinement.flows.skip_unpromising_blocks = true;
     refinement.flows.pierce_in_bulk = true;
     refinement.flows.min_relative_improvement_per_round = 0.001;
+    refinement.flows.steiner_tree_policy = SteinerTreeFlowValuePolicy::lower_bound;
   }
 
   void Context::load_deterministic_preset() {
@@ -616,6 +682,14 @@ namespace mt_kahypar {
     // shared_memory
     shared_memory.use_localized_random_shuffle = false;
     shared_memory.static_balancing_work_packages = 128;
+
+    // mapping
+    mapping.strategy = OneToOneMappingStrategy::greedy_mapping;
+    mapping.use_local_search = true;
+    mapping.use_two_phase_approach = false;
+    mapping.max_steiner_tree_size = 4;
+    mapping.largest_he_fraction = 0.0;
+    mapping.min_pin_coverage_of_largest_hes = 0.05;
 
     // preprocessing
     preprocessing.use_community_detection = true;
@@ -739,6 +813,7 @@ namespace mt_kahypar {
     refinement.flows.skip_unpromising_blocks = true;
     refinement.flows.pierce_in_bulk = true;
     refinement.flows.min_relative_improvement_per_round = 0.001;
+    refinement.flows.steiner_tree_policy = SteinerTreeFlowValuePolicy::lower_bound;
 
     // refinement -> global fm
     refinement.global_fm.refine_until_no_improvement = true;
@@ -837,8 +912,12 @@ namespace mt_kahypar {
         << context.initial_partitioning
         << "-------------------------------------------------------------------------------\n"
         << context.refinement
-        << "-------------------------------------------------------------------------------\n"
-        << context.shared_memory
+        << "-------------------------------------------------------------------------------\n";
+    if ( context.partition.objective == Objective::steiner_tree ) {
+      str << context.mapping
+          << "-------------------------------------------------------------------------------\n";
+    }
+    str << context.shared_memory
         << "-------------------------------------------------------------------------------";
     return str;
   }

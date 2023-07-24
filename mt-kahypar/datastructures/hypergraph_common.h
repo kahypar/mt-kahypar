@@ -35,6 +35,8 @@
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
 #include "mt-kahypar/parallel/hardware_topology.h"
 #include "mt-kahypar/parallel/tbb_initializer.h"
+#include "mt-kahypar/parallel/atomic_wrapper.h"
+#include "mt-kahypar/datastructures/array.h"
 
 namespace mt_kahypar {
 
@@ -124,19 +126,51 @@ using VersionedBatchVector = parallel::scalable_vector<BatchVector>;
 using MoveID = uint32_t;
 using SearchID = uint32_t;
 
-struct NoOpDeltaFunc {
-  void operator() (const HyperedgeID, const HyperedgeWeight, const HypernodeID, const HypernodeID, const HypernodeID) { }
-};
-
-namespace ds {
 // Forward Declaration
+class TargetGraph;
+namespace ds {
+class Bitset;
 class StaticGraph;
+class PinCountSnapshot;
 class StaticHypergraph;
 class DynamicGraph;
 class DynamicHypergraph;
 class ConnectivityInfo;
 class SparseConnectivityInfo;
 }
+
+struct SyncronizedEdgeUpdate {
+  SyncronizedEdgeUpdate() :
+    he(kInvalidHyperedge),
+    from(kInvalidPartition),
+    to(kInvalidPartition),
+    edge_weight(0),
+    edge_size(0),
+    pin_count_in_from_part_after(kInvalidHypernode),
+    pin_count_in_to_part_after(kInvalidHypernode),
+    block_of_other_node(kInvalidPartition),
+    connectivity_set_after(nullptr),
+    pin_counts_after(nullptr),
+    target_graph(nullptr),
+    edge_locks(nullptr) { }
+
+  HyperedgeID he;
+  PartitionID from;
+  PartitionID to;
+  HyperedgeID edge_weight;
+  HypernodeID edge_size;
+  HypernodeID pin_count_in_from_part_after;
+  HypernodeID pin_count_in_to_part_after;
+  PartitionID block_of_other_node;
+  mutable ds::Bitset* connectivity_set_after;
+  mutable ds::PinCountSnapshot* pin_counts_after;
+  const TargetGraph* target_graph;
+  ds::Array<SpinLock>* edge_locks;
+};
+
+struct NoOpDeltaFunc {
+  void operator() (const SyncronizedEdgeUpdate&) { }
+};
 
 template<typename Hypergraph, typename ConInfo>
 struct PartitionedHypergraphType {

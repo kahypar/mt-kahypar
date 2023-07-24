@@ -37,7 +37,8 @@ namespace mt_kahypar {
 template<typename PartitionedHypergraph>
 void CutGainCache::initializeGainCache(const PartitionedHypergraph& partitioned_hg) {
   ASSERT(!_is_initialized, "Gain cache is already initialized");
-  ASSERT(_k == kInvalidPartition || _k == partitioned_hg.k(), "Gain cache was already initialized for a different k");
+  ASSERT(_k <= 0 || _k >= partitioned_hg.k(),
+    "Gain cache was already initialized for a different k" << V(_k) << V(partitioned_hg.k()));
   allocateGainTable(partitioned_hg.topLevelNumNodes(), partitioned_hg.k());
 
   // Gain calculation consist of two stages
@@ -117,48 +118,49 @@ void CutGainCache::initializeGainCache(const PartitionedHypergraph& partitioned_
   _is_initialized = true;
 }
 
-bool CutGainCache::triggersDeltaGainUpdate(const HypernodeID edge_size,
-                                           const HypernodeID pin_count_in_from_part_after,
-                                           const HypernodeID pin_count_in_to_part_after) {
-  return pin_count_in_from_part_after == edge_size - 1 || pin_count_in_from_part_after == edge_size - 2 ||
-    pin_count_in_to_part_after == edge_size || pin_count_in_to_part_after == edge_size - 1;
+bool CutGainCache::triggersDeltaGainUpdate(const SyncronizedEdgeUpdate& sync_update) {
+  return sync_update.pin_count_in_from_part_after == sync_update.edge_size - 1 ||
+         sync_update.pin_count_in_from_part_after == sync_update.edge_size - 2 ||
+         sync_update.pin_count_in_to_part_after == sync_update.edge_size ||
+         sync_update.pin_count_in_to_part_after == sync_update.edge_size - 1;
 }
 
 
 template<typename PartitionedHypergraph>
 void CutGainCache::deltaGainUpdate(const PartitionedHypergraph& partitioned_hg,
-                                   const HyperedgeID he,
-                                   const HyperedgeWeight we,
-                                   const PartitionID from,
-                                   const HypernodeID pin_count_in_from_part_after,
-                                   const PartitionID to,
-                                   const HypernodeID pin_count_in_to_part_after) {
+                                   const SyncronizedEdgeUpdate& sync_update) {
   ASSERT(_is_initialized, "Gain cache is not initialized");
-  const HypernodeID edge_size = partitioned_hg.edgeSize(he);
+  const HypernodeID edge_size = sync_update.edge_size;
   if ( edge_size > 1 ) {
+    const HyperedgeID he = sync_update.he;
+    const PartitionID from = sync_update.from;
+    const PartitionID to = sync_update.to;
+    const HyperedgeWeight edge_weight = sync_update.edge_weight;
+    const HypernodeID pin_count_in_from_part_after = sync_update.pin_count_in_from_part_after;
+    const HypernodeID pin_count_in_to_part_after = sync_update.pin_count_in_to_part_after;
     if ( pin_count_in_from_part_after == edge_size - 1 ) {
       for ( const HypernodeID& u : partitioned_hg.pins(he) ) {
         ASSERT(nodeGainAssertions(u, from));
-        _gain_cache[penalty_index(u)].fetch_sub(we, std::memory_order_relaxed);
-        _gain_cache[benefit_index(u, from)].fetch_add(we, std::memory_order_relaxed);
+        _gain_cache[penalty_index(u)].fetch_sub(edge_weight, std::memory_order_relaxed);
+        _gain_cache[benefit_index(u, from)].fetch_add(edge_weight, std::memory_order_relaxed);
       }
     } else if ( pin_count_in_from_part_after == edge_size - 2 ) {
       for ( const HypernodeID& u : partitioned_hg.pins(he) ) {
         ASSERT(nodeGainAssertions(u, from));
-        _gain_cache[benefit_index(u, from)].fetch_sub(we, std::memory_order_relaxed);
+        _gain_cache[benefit_index(u, from)].fetch_sub(edge_weight, std::memory_order_relaxed);
       }
     }
 
     if ( pin_count_in_to_part_after == edge_size ) {
       for ( const HypernodeID& u : partitioned_hg.pins(he) ) {
         ASSERT(nodeGainAssertions(u, to));
-        _gain_cache[penalty_index(u)].fetch_add(we, std::memory_order_relaxed);
-        _gain_cache[benefit_index(u, to)].fetch_sub(we, std::memory_order_relaxed);
+        _gain_cache[penalty_index(u)].fetch_add(edge_weight, std::memory_order_relaxed);
+        _gain_cache[benefit_index(u, to)].fetch_sub(edge_weight, std::memory_order_relaxed);
       }
     } else if ( pin_count_in_to_part_after == edge_size - 1 ) {
       for ( const HypernodeID& u : partitioned_hg.pins(he) ) {
         ASSERT(nodeGainAssertions(u, to));
-        _gain_cache[benefit_index(u, to)].fetch_add(we, std::memory_order_relaxed);
+        _gain_cache[benefit_index(u, to)].fetch_add(edge_weight, std::memory_order_relaxed);
       }
     }
   }
@@ -279,13 +281,8 @@ void CutGainCache::initializeGainCacheEntryForNode(const PartitionedHypergraph& 
 
 namespace {
 #define CUT_INITIALIZE_GAIN_CACHE(X) void CutGainCache::initializeGainCache(const X&)
-#define CUT_DELTA_GAIN_UPDATE(X) void CutGainCache::deltaGainUpdate(const X&,               \
-                                                                    const HyperedgeID,      \
-                                                                    const HyperedgeWeight,  \
-                                                                    const PartitionID,      \
-                                                                    const HypernodeID,      \
-                                                                    const PartitionID,      \
-                                                                    const HypernodeID)
+#define CUT_DELTA_GAIN_UPDATE(X) void CutGainCache::deltaGainUpdate(const X&,                     \
+                                                                    const SyncronizedEdgeUpdate&)
 #define CUT_RESTORE_UPDATE(X) void CutGainCache::uncontractUpdateAfterRestore(const X&,          \
                                                                               const HypernodeID, \
                                                                               const HypernodeID, \

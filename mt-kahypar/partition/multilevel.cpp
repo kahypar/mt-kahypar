@@ -40,6 +40,9 @@
 #include "mt-kahypar/partition/initial_partitioning/pool_initial_partitioner.h"
 #include "mt-kahypar/partition/recursive_bipartitioning.h"
 #include "mt-kahypar/partition/deep_multilevel.h"
+#ifdef KAHYPAR_ENABLE_STEINER_TREE_METRIC
+#include "mt-kahypar/partition/mapping/initial_mapping.h"
+#endif
 #include "mt-kahypar/parallel/memory_pool.h"
 #include "mt-kahypar/io/partitioning_output.h"
 #include "mt-kahypar/partition/coarsening/multilevel_uncoarsener.h"
@@ -72,6 +75,7 @@ namespace {
   typename TypeTraits::PartitionedHypergraph multilevel_partitioning(
     typename TypeTraits::Hypergraph& hypergraph,
     const Context& context,
+    const TargetGraph* target_graph,
     const bool is_vcycle) {
     using Hypergraph = typename TypeTraits::Hypergraph;
     using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
@@ -113,17 +117,19 @@ namespace {
 
       Context ip_context(context);
       ip_context.type = ContextType::initial_partitioning;
-      ip_context.partition.verbose_output = false;
       ip_context.refinement = context.initial_partitioning.refinement;
       disableTimerAndStats(context);
       if ( context.initial_partitioning.mode == Mode::direct ) {
         // The pool initial partitioner consist of several flat bipartitioning
         // techniques. This case runs as a base case (k = 2) within recursive bipartitioning
         // or the deep multilevel scheme.
+        ip_context.partition.verbose_output = false;
         Pool<TypeTraits>::bipartition(phg, ip_context);
       } else if ( context.initial_partitioning.mode == Mode::recursive_bipartitioning ) {
-        RecursiveBipartitioning<TypeTraits>::partition(phg, ip_context);
+        RecursiveBipartitioning<TypeTraits>::partition(phg, ip_context, target_graph);
       } else if ( context.initial_partitioning.mode == Mode::deep_multilevel ) {
+        ASSERT(ip_context.partition.objective != Objective::steiner_tree);
+        ip_context.partition.verbose_output = false;
         DeepMultilevel<TypeTraits>::partition(phg, ip_context);
       } else {
         ERR("Undefined initial partitioning algorithm");
@@ -141,8 +147,22 @@ namespace {
         phg.setOnlyNodePart(hn, part_id);
       });
       phg.initializePartition();
+
+      #ifdef KAHYPAR_ENABLE_STEINER_TREE_METRIC
+      if ( context.partition.objective == Objective::steiner_tree ) {
+        phg.setTargetGraph(target_graph);
+        timer.start_timer("one_to_one_mapping", "One-To-One Mapping");
+        // Try to improve current mapping
+        InitialMapping<TypeTraits>::mapToTargetGraph(
+          phg, *target_graph, context);
+        timer.stop_timer("one_to_one_mapping");
+      }
+      #endif
     }
 
+    if ( context.partition.objective == Objective::steiner_tree ) {
+      phg.setTargetGraph(target_graph);
+    }
     io::printPartitioningResults(phg, context, "Initial Partitioning Results:");
     if ( context.partition.verbose_output && !is_vcycle ) {
       utils::Utilities::instance().getInitialPartitioningStats(
@@ -155,9 +175,11 @@ namespace {
     timer.start_timer("refinement", "Refinement");
     std::unique_ptr<IUncoarsener<TypeTraits>> uncoarsener(nullptr);
     if (uncoarseningData.nlevel) {
-      uncoarsener = std::make_unique<NLevelUncoarsener<TypeTraits>>(hypergraph, context, uncoarseningData);
+      uncoarsener = std::make_unique<NLevelUncoarsener<TypeTraits>>(
+        hypergraph, context, uncoarseningData, target_graph);
     } else {
-      uncoarsener = std::make_unique<MultilevelUncoarsener<TypeTraits>>(hypergraph, context, uncoarseningData);
+      uncoarsener = std::make_unique<MultilevelUncoarsener<TypeTraits>>(
+        hypergraph, context, uncoarseningData, target_graph);
     }
     partitioned_hg = uncoarsener->uncoarsen();
 
@@ -170,21 +192,24 @@ namespace {
 
 template<typename TypeTraits>
 typename Multilevel<TypeTraits>::PartitionedHypergraph Multilevel<TypeTraits>::partition(
-  Hypergraph& hypergraph, const Context& context) {
+  Hypergraph& hypergraph, const Context& context, const TargetGraph* target_graph) {
   PartitionedHypergraph partitioned_hg =
-    multilevel_partitioning<TypeTraits>(hypergraph, context, false);
+    multilevel_partitioning<TypeTraits>(hypergraph, context, target_graph, false);
 
   // ################## V-CYCLES ##################
   if ( context.partition.num_vcycles > 0 && context.type == ContextType::main ) {
-    partitionVCycle(hypergraph, partitioned_hg, context);
+    partitionVCycle(hypergraph, partitioned_hg, context, target_graph);
   }
 
   return partitioned_hg;
 }
 
 template<typename TypeTraits>
-void Multilevel<TypeTraits>::partition(PartitionedHypergraph& partitioned_hg, const Context& context) {
-  PartitionedHypergraph tmp_phg = partition(partitioned_hg.hypergraph(), context);
+void Multilevel<TypeTraits>::partition(PartitionedHypergraph& partitioned_hg,
+                                       const Context& context,
+                                       const TargetGraph* target_graph) {
+  PartitionedHypergraph tmp_phg = partition(
+    partitioned_hg.hypergraph(), context, target_graph);
   tmp_phg.doParallelForAllNodes([&](const HypernodeID& hn) {
     partitioned_hg.setOnlyNodePart(hn, tmp_phg.partID(hn));
   });
@@ -194,7 +219,8 @@ void Multilevel<TypeTraits>::partition(PartitionedHypergraph& partitioned_hg, co
 template<typename TypeTraits>
 void Multilevel<TypeTraits>::partitionVCycle(Hypergraph& hypergraph,
                                              PartitionedHypergraph& partitioned_hg,
-                                             const Context& context) {
+                                             const Context& context,
+                                             const TargetGraph* target_graph) {
   ASSERT(context.partition.num_vcycles > 0);
 
   for ( size_t i = 0; i < context.partition.num_vcycles; ++i ) {
@@ -220,7 +246,7 @@ void Multilevel<TypeTraits>::partitionVCycle(Hypergraph& hypergraph,
     // Perform V-cycle
     io::printVCycleBanner(context, i + 1);
     partitioned_hg = multilevel_partitioning<TypeTraits>(
-      hypergraph, context, true /* V-cycle flag */ );
+      hypergraph, context, target_graph, true /* V-cycle flag */ );
   }
 }
 

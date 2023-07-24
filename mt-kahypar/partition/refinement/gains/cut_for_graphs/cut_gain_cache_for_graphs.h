@@ -34,6 +34,7 @@
 #include "mt-kahypar/datastructures/sparse_map.h"
 #include "mt-kahypar/parallel/atomic_wrapper.h"
 #include "mt-kahypar/macros.h"
+#include "mt-kahypar/utils/range.h"
 
 namespace mt_kahypar {
 
@@ -56,12 +57,24 @@ class DeltaGraphCutGainCache;
 class GraphCutGainCache {
 
  public:
+
   static constexpr GainPolicy TYPE = GainPolicy::cut_for_graphs;
+  static constexpr bool requires_notification_before_update = false;
+  static constexpr bool initializes_gain_cache_entry_after_batch_uncontractions = false;
+
+  using AdjacentBlocksIterator = IntegerRangeIterator<PartitionID>::const_iterator;
 
   GraphCutGainCache() :
     _is_initialized(false),
     _k(kInvalidPartition),
-    _gain_cache() { }
+    _gain_cache(),
+    _dummy_adjacent_blocks() { }
+
+  GraphCutGainCache(const Context&) :
+    _is_initialized(false),
+    _k(kInvalidPartition),
+    _gain_cache(),
+    _dummy_adjacent_blocks() { }
 
   GraphCutGainCache(const GraphCutGainCache&) = delete;
   GraphCutGainCache & operator= (const GraphCutGainCache &) = delete;
@@ -90,6 +103,20 @@ class GraphCutGainCache {
   template<typename PartitionedGraph>
   void initializeGainCache(const PartitionedGraph& partitioned_graph);
 
+  template<typename PartitionedGraph>
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
+  void initializeGainCacheEntryForNode(const PartitionedGraph&,
+                                       const HypernodeID&) {
+    // Do nothing
+  }
+
+  IteratorRange<AdjacentBlocksIterator> adjacentBlocks(const HypernodeID) const {
+    // We do not maintain the adjacent blocks of a node in this gain cache.
+    // We therefore return an iterator over all blocks here
+    return IteratorRange<AdjacentBlocksIterator>(
+      _dummy_adjacent_blocks.cbegin(), _dummy_adjacent_blocks.cend());
+  }
+
   // ####################### Gain Computation #######################
 
   // ! Returns the penalty term of node u.
@@ -103,8 +130,8 @@ class GraphCutGainCache {
 
   template<typename PartitionedGraph>
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
-  void recomputePenaltyTermEntry(const PartitionedGraph&,
-                                 const HypernodeID) {
+  void recomputeInvalidTerms(const PartitionedGraph&,
+                             const HypernodeID) {
     // Do nothing here (only relevant for hypergraph gain cache)
   }
 
@@ -126,11 +153,18 @@ class GraphCutGainCache {
 
   // ####################### Delta Gain Update #######################
 
-  // ! This function returns true if the corresponding pin count values triggers
+  // ! This function returns true if the corresponding syncronized edge update triggers
   // ! a gain cache update.
-  static bool triggersDeltaGainUpdate(const HypernodeID edge_size,
-                                      const HypernodeID pin_count_in_from_part_after,
-                                      const HypernodeID pin_count_in_to_part_after);
+  static bool triggersDeltaGainUpdate(const SyncronizedEdgeUpdate& sync_update);
+
+  // ! The partitioned (hyper)graph call this function when its updates its internal
+  // ! data structures before calling the delta gain update function. The partitioned
+  // ! (hyper)graph holds a lock for the corresponding (hyper)edge when calling this
+  // ! function. Thus, it is guaranteed that no other thread will modify the hyperedge.
+  template<typename PartitionedHypergraph>
+  void notifyBeforeDeltaGainUpdate(const PartitionedHypergraph&, const SyncronizedEdgeUpdate&) {
+    // Do nothing
+  }
 
   // ! This functions implements the delta gain updates for the cut metric on plain graphs.
   // ! When moving a node from its current block from to a target block to, we iterate
@@ -139,12 +173,7 @@ class GraphCutGainCache {
   // ! corresponding edge.
   template<typename PartitionedGraph>
   void deltaGainUpdate(const PartitionedGraph& partitioned_graph,
-                       const HyperedgeID he,
-                       const HyperedgeWeight we,
-                       const PartitionID from,
-                       const HypernodeID pin_count_in_from_part_after,
-                       const PartitionID to,
-                       const HypernodeID pin_count_in_to_part_after);
+                       const SyncronizedEdgeUpdate& sync_update);
 
   // ####################### Uncontraction #######################
 
@@ -169,6 +198,18 @@ class GraphCutGainCache {
                                  const PartitionID,
                                  const HyperedgeWeight) {
     // Do nothing here (only relevant for hypergraph gain cache)
+  }
+
+  // ! This function is called after restoring a net that became identical to another due to a contraction.
+  template<typename PartitionedHypergraph>
+  void restoreIdenticalHyperedge(const PartitionedHypergraph&,
+                                 const HyperedgeID) {
+    // Do nothing
+  }
+
+  // ! Notifies the gain cache that all uncontractions of the current batch are completed.
+  void batchUncontractionsCompleted() {
+    // Do nothing
   }
 
   // ####################### Only for Testing #######################
@@ -203,6 +244,16 @@ class GraphCutGainCache {
     return benefit;
   }
 
+  void changeNumberOfBlocks(const PartitionID new_k) {
+    _dummy_adjacent_blocks = IntegerRangeIterator<PartitionID>(new_k);
+  }
+
+  template<typename PartitionedHypergraph>
+  bool verifyTrackedAdjacentBlocksOfNodes(const PartitionedHypergraph&) const {
+    // Gain cache does not track adjacent blocks of nodes
+    return true;
+  }
+
  private:
   friend class DeltaGraphCutGainCache;
 
@@ -214,8 +265,9 @@ class GraphCutGainCache {
   // ! Allocates the memory required to store the gain cache
   void allocateGainTable(const HypernodeID num_nodes,
                          const PartitionID k) {
-    if (_gain_cache.size() == 0) {
+    if (_gain_cache.size() == 0 && k != kInvalidPartition) {
       _k = k;
+      _dummy_adjacent_blocks = IntegerRangeIterator<PartitionID>(k);
       _gain_cache.resize("Refinement", "incident_weight_in_part", num_nodes * size_t(_k), true);
     }
   }
@@ -228,6 +280,9 @@ class GraphCutGainCache {
 
   // ! Array of size |V| * k, which stores the benefit and penalty terms of each node.
   ds::Array< CAtomic<HyperedgeWeight> > _gain_cache;
+
+  // ! Provides an iterator from 0 to k (:= number of blocks)
+  IntegerRangeIterator<PartitionID> _dummy_adjacent_blocks;
 };
 
 /**
@@ -241,7 +296,11 @@ class GraphCutGainCache {
 */
 class DeltaGraphCutGainCache {
 
+  using AdjacentBlocksIterator = typename GraphCutGainCache::AdjacentBlocksIterator;
+
  public:
+  static constexpr bool requires_connectivity_set = false;
+
   DeltaGraphCutGainCache(const GraphCutGainCache& gain_cache) :
     _gain_cache(gain_cache),
     _incident_weight_in_part_delta() { }
@@ -265,6 +324,11 @@ class DeltaGraphCutGainCache {
   }
 
   // ####################### Gain Computation #######################
+
+  // ! Returns an iterator over the adjacent blocks of a node
+  IteratorRange<AdjacentBlocksIterator> adjacentBlocks(const HypernodeID hn) const {
+    return _gain_cache.adjacentBlocks(hn);
+  }
 
   // ! Returns the penalty term of node u.
   // ! More formally, p(u) := w(u, partID(u))
@@ -301,17 +365,12 @@ class DeltaGraphCutGainCache {
   template<typename PartitionedGraph>
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
   void deltaGainUpdate(const PartitionedGraph& partitioned_graph,
-                       const HyperedgeID he,
-                       const HyperedgeWeight we,
-                       const PartitionID from,
-                       const HypernodeID,
-                       const PartitionID to,
-                       const HypernodeID) {
-    const HypernodeID target = partitioned_graph.edgeTarget(he);
-    const size_t index_in_from_part = _gain_cache.incident_weight_index(target, from);
-    _incident_weight_in_part_delta[index_in_from_part] -= we;
-    const size_t index_in_to_part = _gain_cache.incident_weight_index(target, to);
-    _incident_weight_in_part_delta[index_in_to_part] += we;
+                       const SyncronizedEdgeUpdate& sync_update) {
+    const HypernodeID target = partitioned_graph.edgeTarget(sync_update.he);
+    const size_t index_in_from_part = _gain_cache.incident_weight_index(target, sync_update.from);
+    _incident_weight_in_part_delta[index_in_from_part] -= sync_update.edge_weight;
+    const size_t index_in_to_part = _gain_cache.incident_weight_index(target, sync_update.to);
+    _incident_weight_in_part_delta[index_in_to_part] += sync_update.edge_weight;
   }
 
 

@@ -46,10 +46,6 @@ namespace mt_kahypar {
 #ifdef KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES
 REGISTER_POLICY(mt_kahypar_partition_type_t, MULTILEVEL_GRAPH_PARTITIONING,
                 StaticGraphTypeTraits);
-#ifdef KAHYPAR_ENABLE_N_LEVEL_PARTITIONING_FEATURES
-REGISTER_POLICY(mt_kahypar_partition_type_t, N_LEVEL_GRAPH_PARTITIONING,
-                DynamicGraphTypeTraits);
-#endif
 #endif
 REGISTER_POLICY(mt_kahypar_partition_type_t, MULTILEVEL_HYPERGRAPH_PARTITIONING,
                 StaticHypergraphTypeTraits);
@@ -57,7 +53,11 @@ REGISTER_POLICY(mt_kahypar_partition_type_t, MULTILEVEL_HYPERGRAPH_PARTITIONING,
 REGISTER_POLICY(mt_kahypar_partition_type_t, LARGE_K_PARTITIONING,
                 LargeKHypergraphTypeTraits);
 #endif
-#ifdef KAHYPAR_ENABLE_N_LEVEL_PARTITIONING_FEATURES
+#ifdef KAHYPAR_ENABLE_QUALITY_PRESET_FEATURES
+#ifdef KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES
+REGISTER_POLICY(mt_kahypar_partition_type_t, N_LEVEL_GRAPH_PARTITIONING,
+                DynamicGraphTypeTraits);
+#endif
 REGISTER_POLICY(mt_kahypar_partition_type_t, N_LEVEL_HYPERGRAPH_PARTITIONING,
                 DynamicHypergraphTypeTraits);
 #endif
@@ -93,7 +93,17 @@ REGISTER_POLICY(AcceptancePolicy, AcceptancePolicy::best,
 // //////////////////////////////////////////////////////////////////////////////
 REGISTER_POLICY(GainPolicy, GainPolicy::km1, Km1GainTypes);
 REGISTER_POLICY(GainPolicy, GainPolicy::cut, CutGainTypes);
+#ifdef KAHYPAR_ENABLE_SOED_METRIC
 REGISTER_POLICY(GainPolicy, GainPolicy::soed, SoedGainTypes);
-ENABLE_GRAPHS(REGISTER_POLICY(GainPolicy, GainPolicy::cut_for_graphs, CutGainForGraphsTypes);)
+#endif
+#ifdef KAHYPAR_ENABLE_STEINER_TREE_METRIC
+REGISTER_POLICY(GainPolicy, GainPolicy::steiner_tree, SteinerTreeGainTypes);
+#endif
+#ifdef KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES
+REGISTER_POLICY(GainPolicy, GainPolicy::cut_for_graphs, CutGainForGraphsTypes);
+#ifdef KAHYPAR_ENABLE_STEINER_TREE_METRIC
+REGISTER_POLICY(GainPolicy, GainPolicy::steiner_tree_for_graphs, SteinerTreeForGraphsTypes);
+#endif
+#endif
 
 }  // namespace mt_kahypar

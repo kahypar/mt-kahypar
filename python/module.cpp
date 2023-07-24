@@ -42,6 +42,7 @@
 #include "mt-kahypar/partition/conversion.h"
 #include "mt-kahypar/partition/metrics.h"
 #include "mt-kahypar/partition/partitioner.h"
+#include "mt-kahypar/partition/mapping/target_graph.h"
 #include "mt-kahypar/io/command_line_options.h"
 #include "mt-kahypar/io/hypergraph_factory.h"
 #include "mt-kahypar/io/hypergraph_io.h"
@@ -111,6 +112,37 @@ namespace {
   }
 
   template<typename TypeTraits>
+  typename TypeTraits::PartitionedHypergraph map(typename TypeTraits::Hypergraph& hypergraph,
+                                                 ds::StaticGraph& graph,
+                                                 Context& context) {
+    using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
+    const bool is_graph = PartitionedHypergraph::TYPE == MULTILEVEL_GRAPH_PARTITIONING ||
+                          PartitionedHypergraph::TYPE == N_LEVEL_GRAPH_PARTITIONING;
+    if ( is_graph || context.partition.preset_type != PresetType::large_k ||
+         PartitionedHypergraph::TYPE == LARGE_K_PARTITIONING ) {
+      if ( lib::check_if_all_relavant_parameters_are_set(context) ) {
+        mt_kahypar_hypergraph_t hg = utils::hypergraph_cast(hypergraph);
+        if ( lib::check_compatibility(hg, lib::get_preset_c_type(context.partition.preset_type)) ) {
+          context.partition.instance_type = lib::get_instance_type(hg);
+          context.partition.partition_type = to_partition_c_type(
+            context.partition.preset_type, context.partition.instance_type);
+          lib::prepare_context(context);
+          context.partition.num_vcycles = 0;
+          context.partition.objective = Objective::steiner_tree;
+          TargetGraph target_graph(graph.copy(parallel_tag_t { }));
+          return Partitioner<TypeTraits>::partition(hypergraph, context, &target_graph);
+        } else {
+          WARNING(lib::incompatibility_description(hg));
+        }
+      }
+    } else {
+      WARNING("You want to partition the hypergraph into a large number of blocks,"
+        << "which is only possible when calling the function partitionIntoLargeK(...).");
+    }
+    return PartitionedHypergraph();
+  }
+
+  template<typename TypeTraits>
   void improve(typename TypeTraits::PartitionedHypergraph& partitioned_hg,
                Context& context,
                const size_t num_vcycles) {
@@ -129,6 +161,28 @@ namespace {
     }
   }
 
+  template<typename TypeTraits>
+  void improveMapping(typename TypeTraits::PartitionedHypergraph& partitioned_hg,
+                      ds::StaticGraph& graph,
+                      Context& context,
+                      const size_t num_vcycles) {
+    if ( lib::check_if_all_relavant_parameters_are_set(context) ) {
+      mt_kahypar_partitioned_hypergraph_t phg = utils::partitioned_hg_cast(partitioned_hg);
+      if ( lib::check_compatibility(phg, lib::get_preset_c_type(context.partition.preset_type)) ) {
+        context.partition.instance_type = lib::get_instance_type(phg);
+        context.partition.partition_type = to_partition_c_type(
+          context.partition.preset_type, context.partition.instance_type);
+        lib::prepare_context(context);
+        context.partition.num_vcycles = num_vcycles;
+        context.partition.objective = Objective::steiner_tree;
+        TargetGraph target_graph(graph.copy(parallel_tag_t { }));
+        partitioned_hg.setTargetGraph(&target_graph);
+        Partitioner<TypeTraits>::partitionVCycle(partitioned_hg, context, &target_graph);
+      } else {
+        WARNING(lib::incompatibility_description(phg));
+      }
+    }
+  }
 }
 
 PYBIND11_MODULE(mtkahypar, m) {
@@ -352,7 +406,17 @@ Construct a weighted graph.
       py::arg("node"), py::arg("lambda"))
     .def("partition", &partition<StaticGraphTypeTraits>,
       "Partitions the graph with the parameters given in the corresponding context",
-      py::arg("context"));
+      py::arg("context"))
+    .def("mapOntoGraph", &map<StaticGraphTypeTraits>,
+      R"pbdoc(
+  Maps a (hyper)graph onto a target graph with the configuration specified in the partitioning context.
+  The number of blocks of the output mapping/partition is the same as the number of nodes in the target graph
+  (each node of the target graph represents a block). The objective is to minimize the total weight of
+  all Steiner trees spanned by the (hyper)edges on the target graph. A Steiner tree is a tree with minimal weight
+  that spans a subset of the nodes (in our case the hyperedges) on the target graph. This objective function
+  is able to acurately model wire-lengths in VLSI design or communication costs in a distributed system where some
+  processors do not communicate directly with each other or different speeds.
+          )pbdoc", py::arg("target_graph"), py::arg("context"));
 
   // ####################### Hypergraph #######################
 
@@ -456,7 +520,17 @@ Construct a weighted hypergraph.
       py::arg("context"))
     .def("partitionIntoLargeK", &partition<LargeKHypergraphTypeTraits>,
       "Partitions the hypergraph into a large number of blocks with the parameters given in the corresponding context",
-      py::arg("context"));
+      py::arg("context"))
+    .def("mapOntoGraph", &map<StaticHypergraphTypeTraits>,
+      R"pbdoc(
+  Maps a (hyper)graph onto a target graph with the configuration specified in the partitioning context.
+  The number of blocks of the output mapping/partition is the same as the number of nodes in the target graph
+  (each node of the target graph represents a block). The objective is to minimize the total weight of
+  all Steiner trees spanned by the (hyper)edges on the target graph. A Steiner tree is a tree with minimal weight
+  that spans a subset of the nodes (in our case the hyperedges) on the target graph. This objective function
+  is able to acurately model wire-lengths in VLSI design or communication costs in a distributed system where some
+  processors do not communicate directly with each other or different speeds.
+          )pbdoc", py::arg("target_graph"), py::arg("context"));
 
   // ####################### Partitioned Graph #######################
 
@@ -535,14 +609,25 @@ Construct a partitioned graph.
         return metrics::quality(partitioned_graph, Objective::cut);
       },
       "Computes the edge-cut metric of the partition")
+    .def("steiner_tree", [](PartitionedGraph& partitioned_graph,
+                            Graph& graph) {
+        TargetGraph target_graph(graph.copy(parallel_tag_t { }));
+        target_graph.precomputeDistances(4);
+        partitioned_graph.setTargetGraph(&target_graph);
+        return metrics::quality(partitioned_graph, Objective::steiner_tree);
+      }, "Computes the steiner tree metric of the mapping",
+      py::arg("target_graph"))
     .def("writePartitionToFile", [](PartitionedGraph& partitioned_graph,
                                     const std::string& partition_file) {
         io::writePartitionFile(partitioned_graph, partition_file);
       }, "Writes the partition to a file",
       py::arg("partition_file"))
-    .def("improve", &improve<StaticGraphTypeTraits>,
+    .def("improvePartition", &improve<StaticGraphTypeTraits>,
       "Improves the partition using the iterated multilevel cycle technique (V-cycles)",
-      py::arg("context"), py::arg("num_vcycles"));
+      py::arg("context"), py::arg("num_vcycles"))
+    .def("improveMapping", &improveMapping<StaticGraphTypeTraits>,
+      "Improves a mapping onto a graph using the iterated multilevel cycle technique (V-cycles)",
+      py::arg("target_graph"), py::arg("context"), py::arg("num_vcycles"));
 
   // ####################### Partitioned Hypergraph #######################
 
@@ -632,14 +717,25 @@ Construct a partitioned hypergraph.
         return metrics::quality(partitioned_hg, Objective::soed);
       },
       "Computes the sum-of-external-degree metric of the partition")
+    .def("steiner_tree", [](PartitionedHypergraph& partitioned_hg,
+                            Graph& graph) {
+        TargetGraph target_graph(graph.copy(parallel_tag_t { }));
+        target_graph.precomputeDistances(4);
+        partitioned_hg.setTargetGraph(&target_graph);
+        return metrics::quality(partitioned_hg, Objective::steiner_tree);
+      }, "Computes the steiner tree metric of the mapping",
+      py::arg("target_graph"))
     .def("writePartitionToFile", [](PartitionedHypergraph& partitioned_hg,
                                     const std::string& partition_file) {
         io::writePartitionFile(partitioned_hg, partition_file);
       }, "Writes the partition to a file",
       py::arg("partition_file"))
-    .def("improve", &improve<StaticHypergraphTypeTraits>,
+    .def("improvePartition", &improve<StaticHypergraphTypeTraits>,
       "Improves the partition using the iterated multilevel cycle technique (V-cycles)",
-      py::arg("context"), py::arg("num_vcycles"));
+      py::arg("context"), py::arg("num_vcycles"))
+    .def("improveMapping", &improveMapping<StaticHypergraphTypeTraits>,
+      "Improves a mapping onto a graph using the iterated multilevel cycle technique (V-cycles)",
+      py::arg("target_graph"), py::arg("context"), py::arg("num_vcycles"));
 
  // ####################### Partitioned Hypergraph #######################
 

@@ -20,6 +20,8 @@ typedef enum {
 
 struct mt_kahypar_context_s;
 typedef struct mt_kahypar_context_s mt_kahypar_context_t;
+struct mt_kahypar_target_graph_s;
+typedef struct mt_kahypar_target_graph_s mt_kahypar_target_graph_t;
 
 struct mt_kahypar_hypergraph_s;
 typedef struct {

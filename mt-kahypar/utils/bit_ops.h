@@ -38,4 +38,8 @@ inline int lowest_set_bit_64(const uint64_t x) {
   return __builtin_ctzll(x);
 }
 
+constexpr int log2(const int x) {
+    return x <= 1 ? 0 : 1 + log2(x >> 1);
+}
+
 }  // namespace

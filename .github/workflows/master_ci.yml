@@ -39,8 +39,7 @@ jobs:
           CC: ${{ matrix.compiler.cc }}
           CXX: ${{ matrix.compiler.cpp }}
         run: |
-          git submodule init
-          git submodule update
+          git submodule update --init --recursive
           rm -rf build
           mkdir build
           cd build
@@ -66,8 +65,7 @@ jobs:
 
       - name: Install Mt-KaHyPar Test Suite
         run: |
-          git submodule init
-          git submodule update
+          git submodule update --init --recursive
           rm -rf debug
           mkdir debug
           cd debug
@@ -108,8 +106,7 @@ jobs:
 
       - name: Install Mt-KaHyPar Integration Tests
         run: |
-          git submodule init
-          git submodule update
+          git submodule update --init --recursive
           rm -rf build
           mkdir build
           cd build
@@ -140,8 +137,7 @@ jobs:
 
       - name: Run Mt-KaHyPar C Library Interface Tests
         run: |
-          git submodule init
-          git submodule update
+          git submodule update --init --recursive
           rm -rf build
           mkdir build
           cd build
@@ -167,8 +163,7 @@ jobs:
 
       - name: Build Mt-KaHyPar Python Interface
         run: |
-          git submodule init
-          git submodule update
+          git submodule update --init --recursive
           rm -rf build
           mkdir build
           cd build
@@ -214,13 +209,12 @@ jobs:
       - name: Install Mt-KaHyPar Multilevel Tests
         shell: msys2 {0}
         run: |
-          git submodule init
-          git submodule update
+          git submodule update --init --recursive
           rm -rf build
           mkdir build
           cd build
           export CMAKE_GENERATOR="MSYS Makefiles"
-          /mingw64/bin/cmake .. -DCMAKE_BUILD_TYPE=RELEASE -DKAHYPAR_DOWNLOAD_BOOST=On -DKAHYPAR_CI_BUILD=ON -DKAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES=OFF -DKAHYPAR_ENABLE_N_LEVEL_PARTITIONING_FEATURES=OFF -DKAHYPAR_ENABLE_LARGE_K_PARTITIONING_FEATURES=OFF
+          /mingw64/bin/cmake .. -DCMAKE_BUILD_TYPE=RELEASE -DKAHYPAR_DOWNLOAD_BOOST=On -DKAHYPAR_CI_BUILD=ON -DKAHYPAR_ENABLE_QUALITY_PRESET_FEATURES=OFF -DKAHYPAR_ENABLE_LARGE_K_PARTITIONING_FEATURES=OFF
           make -j2 mt_kahypar_tests
 
       - name: Run Mt-KaHyPar Tests

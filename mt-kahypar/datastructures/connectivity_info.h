@@ -102,6 +102,14 @@ class ConnectivityInfo {
     return _con_set.connectivitySet(he);
   }
 
+  inline StaticBitset& shallowCopy(const HyperedgeID he) const {
+    return _con_set.shallowCopy(he);
+  }
+
+  inline Bitset& deepCopy(const HyperedgeID he) const {
+    return _con_set.deepCopy(he);
+  }
+
   // ################## Pin Count In Part ##################
 
   // ! Returns the pin count of the hyperedge in the corresponding block
@@ -127,6 +135,11 @@ class ConnectivityInfo {
   inline HypernodeID decrementPinCountInPart(const HyperedgeID he,
                                              const PartitionID id) {
     return _pin_counts.decrementPinCountInPart(he, id);
+  }
+
+  // ! Returns a snapshot of the pin counts of the hyperedge
+  inline PinCountSnapshot& pinCountSnapshot(const HyperedgeID he) {
+    return _pin_counts.snapshot(he);
   }
 
   // ################## Miscellaneous ##################
@@ -227,6 +240,14 @@ class SparseConnectivityInfo {
     return _pin_counts.connectivitySet(he);
   }
 
+  inline StaticBitset& shallowCopy(const HyperedgeID he) const {
+    return _pin_counts.shallowCopy(he);
+  }
+
+  inline Bitset& deepCopy(const HyperedgeID he) const {
+    return _pin_counts.deepCopy(he);
+  }
+
   // ################## Pin Count In Part ##################
 
   // ! Returns the pin count of the hyperedge in the corresponding block
@@ -252,6 +273,11 @@ class SparseConnectivityInfo {
   inline HypernodeID decrementPinCountInPart(const HyperedgeID he,
                                              const PartitionID id) {
     return _pin_counts.decrementPinCountInPart(he, id);
+  }
+
+  // ! Returns a snapshot of the pin counts of the hyperedge
+  inline PinCountSnapshot& pinCountSnapshot(const HyperedgeID he) {
+    return _pin_counts.snapshot(he);
   }
 
   // ################## Miscellaneous ##################

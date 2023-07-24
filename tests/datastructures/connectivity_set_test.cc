@@ -31,6 +31,7 @@
 #include "tbb/task_group.h"
 
 #include "mt-kahypar/datastructures/connectivity_set.h"
+#include "mt-kahypar/datastructures/delta_connectivity_set.h"
 
 using ::testing::Test;
 
@@ -58,19 +59,22 @@ void executeConcurrent(F f1, K f2) {
   group.wait();
 }
 
-void add(ConnectivitySets& conn_set, const std::set<PartitionID>& ids) {
+template<typename ConnectivitySet>
+void add(ConnectivitySet& conn_set, const std::set<PartitionID>& ids) {
   for (const PartitionID& id : ids) {
     conn_set.add(0, id);
   }
 }
 
-void remove(ConnectivitySets& conn_set, const std::set<PartitionID>& ids) {
+template<typename ConnectivitySet>
+void remove(ConnectivitySet& conn_set, const std::set<PartitionID>& ids) {
   for (const PartitionID& id : ids) {
     conn_set.remove(0, id);
   }
 }
 
-void verify(const ConnectivitySets& conn_set,
+template<typename ConnectivitySet>
+void verify(const ConnectivitySet& conn_set,
             const PartitionID k,
             const std::set<PartitionID>& contained) {
   // Verify bitset in connectivity set
@@ -664,8 +668,6 @@ TEST(AConnectivitySet, IteratesThroughPartitionsAndSimultanouslyRemoveElements) 
   }
 }
 
-
-
 TEST(AConnectivitySet, IteratesThroughPartitionsAndSimultanouslyAddAndRemoveElements) {
   ConnectivitySets conn_set(1, 32);
   add(conn_set, { 1, 2, 6, 10, 15, 22, 24, 28, 31 });
@@ -734,6 +736,51 @@ TEST(AConnectivitySet, IteratesThroughPartitionsAndSimultanouslyAddAndRemoveElem
   for (const PartitionID& id : conn_set.connectivitySet(0)) {
     ASSERT_EQ(expected[i++], id);
   }
+}
+
+TEST(ADeltaConnectivitySet, IsEqualToConnectivitySetWhenInitialized) {
+  ConnectivitySets con_set(1, 32);
+  DeltaConnectivitySet<ConnectivitySets> delta_con_set(32);
+  delta_con_set.setConnectivitySet(&con_set);
+  std::set<PartitionID> added = { 9, 10, 11, 12, 13, 14, 15, 16, 17, 18 };
+  add(con_set, added);
+
+  verify(con_set, 32, added);
+  verify(delta_con_set, 32, added);
+}
+
+TEST(ADeltaConnectivitySet, AddsSomeBlocksToConnectivitySet) {
+  ConnectivitySets con_set(1, 32);
+  DeltaConnectivitySet<ConnectivitySets> delta_con_set(32);
+  delta_con_set.setConnectivitySet(&con_set);
+  add(con_set, { 9, 10, 11, 12, 13, 14, 15, 16, 17, 18 });
+  add(delta_con_set, { 29, 30, 31 });
+
+  verify(con_set, 32, { 9, 10, 11, 12, 13, 14, 15, 16, 17, 18 });
+  verify(delta_con_set, 32, { 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 29, 30, 31 });
+}
+
+TEST(ADeltaConnectivitySet, RemovesSomeBlocksFromConnectivitySet) {
+  ConnectivitySets con_set(1, 32);
+  DeltaConnectivitySet<ConnectivitySets> delta_con_set(32);
+  delta_con_set.setConnectivitySet(&con_set);
+  add(con_set, { 9, 10, 11, 12, 13, 14, 15, 16, 17, 18 });
+  remove(delta_con_set, { 11, 12, 13 });
+
+  verify(con_set, 32, { 9, 10, 11, 12, 13, 14, 15, 16, 17, 18 });
+  verify(delta_con_set, 32, { 9, 10, 14, 15, 16, 17, 18 });
+}
+
+TEST(ADeltaConnectivitySet, AddAndRemovesSomeBlocksFromConnectivitySet) {
+  ConnectivitySets con_set(1, 32);
+  DeltaConnectivitySet<ConnectivitySets> delta_con_set(32);
+  delta_con_set.setConnectivitySet(&con_set);
+  add(con_set, { 9, 10, 11, 12, 13, 14, 15, 16, 17, 18 });
+  remove(delta_con_set, { 11, 12, 13 });
+  add(delta_con_set, { 29, 30, 31 });
+
+  verify(con_set, 32, { 9, 10, 11, 12, 13, 14, 15, 16, 17, 18 });
+  verify(delta_con_set, 32, { 9, 10, 14, 15, 16, 17, 18, 29, 30, 31 });
 }
 
 }  // namespace ds

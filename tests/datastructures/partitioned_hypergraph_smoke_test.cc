@@ -88,46 +88,46 @@ class AConcurrentHypergraph : public Test {
 };
 
 typedef ::testing::Types<TestConfig<StaticHypergraphTypeTraits, 2, Objective::cut>
-                         ENABLE_N_LEVEL(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA 2 COMMA Objective::cut>)
+                         ENABLE_QUALITY_PRESET(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA 2 COMMA Objective::cut>)
                          ENABLE_LARGE_K(COMMA TestConfig<LargeKHypergraphTypeTraits COMMA 2 COMMA Objective::cut>)
                          , TestConfig<StaticHypergraphTypeTraits, 4, Objective::cut>
-                         ENABLE_N_LEVEL(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA 4 COMMA Objective::cut>)
+                         ENABLE_QUALITY_PRESET(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA 4 COMMA Objective::cut>)
                          ENABLE_LARGE_K(COMMA TestConfig<LargeKHypergraphTypeTraits COMMA 4 COMMA Objective::cut>)
                          , TestConfig<StaticHypergraphTypeTraits, 8, Objective::cut>
-                         ENABLE_N_LEVEL(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA 8 COMMA Objective::cut>)
+                         ENABLE_QUALITY_PRESET(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA 8 COMMA Objective::cut>)
                          ENABLE_LARGE_K(COMMA TestConfig<LargeKHypergraphTypeTraits COMMA 8 COMMA Objective::cut>)
                          , TestConfig<StaticHypergraphTypeTraits, 16, Objective::cut>
-                         ENABLE_N_LEVEL(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA 16 COMMA Objective::cut>)
+                         ENABLE_QUALITY_PRESET(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA 16 COMMA Objective::cut>)
                          ENABLE_LARGE_K(COMMA TestConfig<LargeKHypergraphTypeTraits COMMA 16 COMMA Objective::cut>)
                          , TestConfig<StaticHypergraphTypeTraits, 32, Objective::cut>
-                         ENABLE_N_LEVEL(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA 32 COMMA Objective::cut>)
+                         ENABLE_QUALITY_PRESET(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA 32 COMMA Objective::cut>)
                          ENABLE_LARGE_K(COMMA TestConfig<LargeKHypergraphTypeTraits COMMA 32 COMMA Objective::cut>)
                          , TestConfig<StaticHypergraphTypeTraits, 64, Objective::cut>
-                         ENABLE_N_LEVEL(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA 64 COMMA Objective::cut>)
+                         ENABLE_QUALITY_PRESET(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA 64 COMMA Objective::cut>)
                          ENABLE_LARGE_K(COMMA TestConfig<LargeKHypergraphTypeTraits COMMA 64 COMMA Objective::cut>)
                          , TestConfig<StaticHypergraphTypeTraits, 128, Objective::cut>
-                         ENABLE_N_LEVEL(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA 128 COMMA Objective::cut>)
+                         ENABLE_QUALITY_PRESET(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA 128 COMMA Objective::cut>)
                          ENABLE_LARGE_K(COMMA TestConfig<LargeKHypergraphTypeTraits COMMA 128 COMMA Objective::cut>)
                          , TestConfig<StaticHypergraphTypeTraits, 2, Objective::km1>
-                         ENABLE_N_LEVEL(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA 2 COMMA Objective::km1>)
+                         ENABLE_QUALITY_PRESET(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA 2 COMMA Objective::km1>)
                          ENABLE_LARGE_K(COMMA TestConfig<LargeKHypergraphTypeTraits COMMA 2 COMMA Objective::km1>)
                          , TestConfig<StaticHypergraphTypeTraits, 4, Objective::km1>
-                         ENABLE_N_LEVEL(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA 4 COMMA Objective::km1>)
+                         ENABLE_QUALITY_PRESET(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA 4 COMMA Objective::km1>)
                          ENABLE_LARGE_K(COMMA TestConfig<LargeKHypergraphTypeTraits COMMA 4 COMMA Objective::km1>)
                          , TestConfig<StaticHypergraphTypeTraits, 8, Objective::km1>
-                         ENABLE_N_LEVEL(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA 8 COMMA Objective::km1>)
+                         ENABLE_QUALITY_PRESET(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA 8 COMMA Objective::km1>)
                          ENABLE_LARGE_K(COMMA TestConfig<LargeKHypergraphTypeTraits COMMA 8 COMMA Objective::km1>)
                          , TestConfig<StaticHypergraphTypeTraits, 16, Objective::km1>
-                         ENABLE_N_LEVEL(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA 16 COMMA Objective::km1>)
+                         ENABLE_QUALITY_PRESET(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA 16 COMMA Objective::km1>)
                          ENABLE_LARGE_K(COMMA TestConfig<LargeKHypergraphTypeTraits COMMA 16 COMMA Objective::km1>)
                          , TestConfig<StaticHypergraphTypeTraits, 32, Objective::km1>
-                         ENABLE_N_LEVEL(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA 32 COMMA Objective::km1>)
+                         ENABLE_QUALITY_PRESET(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA 32 COMMA Objective::km1>)
                          ENABLE_LARGE_K(COMMA TestConfig<LargeKHypergraphTypeTraits COMMA 32 COMMA Objective::km1>)
                          , TestConfig<StaticHypergraphTypeTraits, 64, Objective::km1>
-                         ENABLE_N_LEVEL(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA 64 COMMA Objective::km1>)
+                         ENABLE_QUALITY_PRESET(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA 64 COMMA Objective::km1>)
                          ENABLE_LARGE_K(COMMA TestConfig<LargeKHypergraphTypeTraits COMMA 64 COMMA Objective::km1>)
                          , TestConfig<StaticHypergraphTypeTraits, 128, Objective::km1>
-                         ENABLE_N_LEVEL(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA 128 COMMA Objective::km1>)
+                         ENABLE_QUALITY_PRESET(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA 128 COMMA Objective::km1>)
                          ENABLE_LARGE_K(COMMA TestConfig<LargeKHypergraphTypeTraits COMMA 128 COMMA Objective::km1>)> TestConfigs;
 
 TYPED_TEST_CASE(AConcurrentHypergraph, TestConfigs);
@@ -140,17 +140,11 @@ void moveAllNodesOfHypergraphRandom(HyperGraph& hypergraph,
 
   tbb::enumerable_thread_specific<HyperedgeWeight> deltas(0);
 
-  auto objective_delta = [&](const HyperedgeID he,
-                             const HyperedgeWeight edge_weight,
-                             const HypernodeID edge_size,
-                             const HypernodeID pin_count_in_from_part_after,
-                             const HypernodeID pin_count_in_to_part_after) {
+  auto objective_delta = [&](const SyncronizedEdgeUpdate& sync_update) {
                            if (objective == Objective::km1) {
-                             deltas.local() += Km1AttributedGains::gain(
-                               he, edge_weight, edge_size, pin_count_in_from_part_after, pin_count_in_to_part_after);
+                             deltas.local() += Km1AttributedGains::gain(sync_update);
                            } else if (objective == Objective::cut) {
-                             deltas.local() += CutAttributedGains::gain(
-                               he, edge_weight, edge_size, pin_count_in_from_part_after, pin_count_in_to_part_after);
+                             deltas.local() += CutAttributedGains::gain(sync_update);
                            }
                          };
 

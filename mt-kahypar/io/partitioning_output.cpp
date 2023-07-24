@@ -39,6 +39,7 @@
 #include "mt-kahypar/parallel/memory_pool.h"
 #include "mt-kahypar/parallel/atomic_wrapper.h"
 #include "mt-kahypar/partition/metrics.h"
+#include "mt-kahypar/partition/mapping/target_graph.h"
 #include "mt-kahypar/utils/hypergraph_statistics.h"
 #include "mt-kahypar/utils/memory_tree.h"
 #include "mt-kahypar/utils/timer.h"
@@ -387,6 +388,10 @@ namespace mt_kahypar::io {
     LOG << "Objectives:";
     printKeyValue(context.partition.objective, metrics::quality(hypergraph,
       context), "(primary objective function)");
+    if ( context.partition.objective == Objective::steiner_tree ) {
+      printKeyValue("Approximation Factor",
+        metrics::approximationFactorForProcessMapping(hypergraph, context));
+    }
     if ( context.partition.objective != Objective::cut ) {
       printKeyValue(Objective::cut, metrics::quality(hypergraph, Objective::cut));
     }
@@ -594,6 +599,10 @@ namespace mt_kahypar::io {
         hypergraph_memory_consumption.finalize();
         LOG << "\nPartitioned Hypergraph Memory Consumption";
         LOG << hypergraph_memory_consumption;
+      }
+
+      if ( hypergraph.hasTargetGraph() && TargetGraph::TRACK_STATS ) {
+        hypergraph.targetGraph()->printStats();
       }
 
       LOG << "\nTimings:";

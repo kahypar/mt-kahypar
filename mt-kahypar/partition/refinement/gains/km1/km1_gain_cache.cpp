@@ -37,7 +37,8 @@ namespace mt_kahypar {
 template<typename PartitionedHypergraph>
 void Km1GainCache::initializeGainCache(const PartitionedHypergraph& partitioned_hg) {
   ASSERT(!_is_initialized, "Gain cache is already initialized");
-  ASSERT(_k == kInvalidPartition || _k == partitioned_hg.k(), "Gain cache was already initialized for a different k");
+  ASSERT(_k <= 0 || _k >= partitioned_hg.k(),
+    "Gain cache was already initialized for a different k" << V(_k) << V(partitioned_hg.k()));
   allocateGainTable(partitioned_hg.topLevelNumNodes(), partitioned_hg.k());
 
 
@@ -113,46 +114,47 @@ void Km1GainCache::initializeGainCache(const PartitionedHypergraph& partitioned_
   _is_initialized = true;
 }
 
-bool Km1GainCache::triggersDeltaGainUpdate(const HypernodeID,
-                                           const HypernodeID pin_count_in_from_part_after,
-                                           const HypernodeID pin_count_in_to_part_after) {
-  return pin_count_in_from_part_after == 0 || pin_count_in_from_part_after == 1 ||
-    pin_count_in_to_part_after == 1 || pin_count_in_to_part_after == 2;
+bool Km1GainCache::triggersDeltaGainUpdate(const SyncronizedEdgeUpdate& sync_update) {
+  return sync_update.pin_count_in_from_part_after == 0 ||
+         sync_update.pin_count_in_from_part_after == 1 ||
+         sync_update.pin_count_in_to_part_after == 1 ||
+         sync_update.pin_count_in_to_part_after == 2;
 }
 
 template<typename PartitionedHypergraph>
 void Km1GainCache::deltaGainUpdate(const PartitionedHypergraph& partitioned_hg,
-                                   const HyperedgeID he,
-                                   const HyperedgeWeight we,
-                                   const PartitionID from,
-                                   const HypernodeID pin_count_in_from_part_after,
-                                   const PartitionID to,
-                                   const HypernodeID pin_count_in_to_part_after) {
+                                   const SyncronizedEdgeUpdate& sync_update) {
   ASSERT(_is_initialized, "Gain cache is not initialized");
+  const HyperedgeID he = sync_update.he;
+  const PartitionID from = sync_update.from;
+  const PartitionID to = sync_update.to;
+  const HyperedgeWeight edge_weight = sync_update.edge_weight;
+  const HypernodeID pin_count_in_from_part_after = sync_update.pin_count_in_from_part_after;
+  const HypernodeID pin_count_in_to_part_after = sync_update.pin_count_in_to_part_after;
   if ( pin_count_in_from_part_after == 1 ) {
     for (const HypernodeID& u : partitioned_hg.pins(he)) {
       ASSERT(nodeGainAssertions(u, from));
       if (partitioned_hg.partID(u) == from) {
-        _gain_cache[penalty_index(u)].fetch_sub(we, std::memory_order_relaxed);
+        _gain_cache[penalty_index(u)].fetch_sub(edge_weight, std::memory_order_relaxed);
       }
     }
   } else if (pin_count_in_from_part_after == 0) {
     for (const HypernodeID& u : partitioned_hg.pins(he)) {
       ASSERT(nodeGainAssertions(u, from));
-      _gain_cache[benefit_index(u, from)].fetch_sub(we, std::memory_order_relaxed);
+      _gain_cache[benefit_index(u, from)].fetch_sub(edge_weight, std::memory_order_relaxed);
     }
   }
 
   if (pin_count_in_to_part_after == 1) {
     for (const HypernodeID& u : partitioned_hg.pins(he)) {
       ASSERT(nodeGainAssertions(u, to));
-      _gain_cache[benefit_index(u, to)].fetch_add(we, std::memory_order_relaxed);
+      _gain_cache[benefit_index(u, to)].fetch_add(edge_weight, std::memory_order_relaxed);
     }
   } else if (pin_count_in_to_part_after == 2) {
     for (const HypernodeID& u : partitioned_hg.pins(he)) {
       ASSERT(nodeGainAssertions(u, to));
       if (partitioned_hg.partID(u) == to) {
-        _gain_cache[penalty_index(u)].fetch_add(we, std::memory_order_relaxed);
+        _gain_cache[penalty_index(u)].fetch_add(edge_weight, std::memory_order_relaxed);
       }
     }
   }
@@ -259,13 +261,8 @@ void Km1GainCache::initializeGainCacheEntryForNode(const PartitionedHypergraph& 
 
 namespace {
 #define KM1_INITIALIZE_GAIN_CACHE(X) void Km1GainCache::initializeGainCache(const X&)
-#define KM1_DELTA_GAIN_UPDATE(X) void Km1GainCache::deltaGainUpdate(const X&,               \
-                                                                    const HyperedgeID,      \
-                                                                    const HyperedgeWeight,  \
-                                                                    const PartitionID,      \
-                                                                    const HypernodeID,      \
-                                                                    const PartitionID,      \
-                                                                    const HypernodeID)
+#define KM1_DELTA_GAIN_UPDATE(X) void Km1GainCache::deltaGainUpdate(const X&,                     \
+                                                                    const SyncronizedEdgeUpdate&)
 #define KM1_RESTORE_UPDATE(X) void Km1GainCache::uncontractUpdateAfterRestore(const X&,          \
                                                                               const HypernodeID, \
                                                                               const HypernodeID, \

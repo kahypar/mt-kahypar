@@ -36,6 +36,9 @@
 
 namespace mt_kahypar {
 
+// Forward Declaration
+class TargetGraph;
+
 template<typename TypeTraits>
 class MultilevelUncoarsener : public IUncoarsener<TypeTraits>,
                               private UncoarsenerBase<TypeTraits> {
@@ -50,8 +53,10 @@ class MultilevelUncoarsener : public IUncoarsener<TypeTraits>,
  public:
     MultilevelUncoarsener(Hypergraph& hypergraph,
                           const Context& context,
-                          UncoarseningData<TypeTraits>& uncoarseningData) :
+                          UncoarseningData<TypeTraits>& uncoarseningData,
+                          const TargetGraph* target_graph) :
       Base(hypergraph, context, uncoarseningData),
+      _target_graph(target_graph),
       _current_level(0),
       _num_levels(0),
       _block_ids(hypergraph.initialNumNodes(), kInvalidPartition),
@@ -98,6 +103,7 @@ class MultilevelUncoarsener : public IUncoarsener<TypeTraits>,
   using Base::_rebalancer;
   using Base::_timer;
 
+  const TargetGraph* _target_graph;
   int _current_level;
   int _num_levels;
   ds::Array<PartitionID> _block_ids;

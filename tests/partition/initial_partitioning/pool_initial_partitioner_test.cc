@@ -62,7 +62,7 @@ class APoolInitialPartitionerTest : public Test {
     context() {
     context.partition.k = Config::K;
     context.partition.epsilon = 0.2;
-    #ifdef KAHYPAR_ENABLE_N_LEVEL_PARTITIONING_FEATURES
+    #ifdef KAHYPAR_ENABLE_QUALITY_PRESET_FEATURES
     context.partition.preset_type = Hypergraph::is_static_hypergraph ?
      PresetType::default_preset : PresetType::quality_preset;
     #else
@@ -110,18 +110,18 @@ typedef ::testing::Types<TestConfig<StaticHypergraphTypeTraits, 2, 1>,
                          TestConfig<StaticHypergraphTypeTraits, 5, 1>,
                          TestConfig<StaticHypergraphTypeTraits, 5, 2>,
                          TestConfig<StaticHypergraphTypeTraits, 5, 5>
-                         ENABLE_N_LEVEL(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA 2 COMMA 1>)
-                         ENABLE_N_LEVEL(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA 2 COMMA 2>)
-                         ENABLE_N_LEVEL(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA 2 COMMA 5>)
-                         ENABLE_N_LEVEL(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA 3 COMMA 1>)
-                         ENABLE_N_LEVEL(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA 3 COMMA 2>)
-                         ENABLE_N_LEVEL(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA 3 COMMA 5>)
-                         ENABLE_N_LEVEL(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA 4 COMMA 1>)
-                         ENABLE_N_LEVEL(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA 4 COMMA 2>)
-                         ENABLE_N_LEVEL(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA 4 COMMA 5>)
-                         ENABLE_N_LEVEL(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA 5 COMMA 1>)
-                         ENABLE_N_LEVEL(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA 5 COMMA 2>)
-                         ENABLE_N_LEVEL(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA 5 COMMA 5>) > TestConfigs;
+                         ENABLE_QUALITY_PRESET(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA 2 COMMA 1>)
+                         ENABLE_QUALITY_PRESET(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA 2 COMMA 2>)
+                         ENABLE_QUALITY_PRESET(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA 2 COMMA 5>)
+                         ENABLE_QUALITY_PRESET(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA 3 COMMA 1>)
+                         ENABLE_QUALITY_PRESET(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA 3 COMMA 2>)
+                         ENABLE_QUALITY_PRESET(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA 3 COMMA 5>)
+                         ENABLE_QUALITY_PRESET(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA 4 COMMA 1>)
+                         ENABLE_QUALITY_PRESET(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA 4 COMMA 2>)
+                         ENABLE_QUALITY_PRESET(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA 4 COMMA 5>)
+                         ENABLE_QUALITY_PRESET(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA 5 COMMA 1>)
+                         ENABLE_QUALITY_PRESET(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA 5 COMMA 2>)
+                         ENABLE_QUALITY_PRESET(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA 5 COMMA 5>) > TestConfigs;
 
 TYPED_TEST_CASE(APoolInitialPartitionerTest, TestConfigs);
 

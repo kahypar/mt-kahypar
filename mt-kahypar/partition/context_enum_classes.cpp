@@ -114,6 +114,7 @@ namespace mt_kahypar {
       case Objective::cut: return os << "cut";
       case Objective::km1: return os << "km1";
       case Objective::soed: return os << "soed";
+      case Objective::steiner_tree: return os << "steiner_tree";
       case Objective::UNDEFINED: return os << "UNDEFINED";
         // omit default case to trigger compiler warning for missing cases
     }
@@ -125,7 +126,9 @@ namespace mt_kahypar {
       case GainPolicy::km1: return os << "km1";
       case GainPolicy::cut: return os << "cut";
       case GainPolicy::soed: return os << "soed";
+      case GainPolicy::steiner_tree: return os << "steiner_tree";
       case GainPolicy::cut_for_graphs: return os << "cut_for_graphs";
+      case GainPolicy::steiner_tree_for_graphs: return os << "steiner_tree_for_graphs";
       case GainPolicy::none: return os << "none";
         // omit default case to trigger compiler warning for missing cases
     }
@@ -243,14 +246,33 @@ namespace mt_kahypar {
   }
 
 
-std::ostream & operator<< (std::ostream& os, const RebalancingAlgorithm& algo) {
-    switch (algo) {
-      case RebalancingAlgorithm::simple_rebalancer: return os << "simple_rebalancer";
-      case RebalancingAlgorithm::do_nothing: return os << "do_nothing";
-        // omit default case to trigger compiler warning for missing cases
-    }
-    return os << static_cast<uint8_t>(algo);
-}
+  std::ostream & operator<< (std::ostream& os, const RebalancingAlgorithm& algo) {
+      switch (algo) {
+        case RebalancingAlgorithm::simple_rebalancer: return os << "simple_rebalancer";
+        case RebalancingAlgorithm::do_nothing: return os << "do_nothing";
+          // omit default case to trigger compiler warning for missing cases
+      }
+      return os << static_cast<uint8_t>(algo);
+  }
+
+  std::ostream & operator<< (std::ostream& os, const OneToOneMappingStrategy& algo) {
+      switch (algo) {
+        case OneToOneMappingStrategy::greedy_mapping: return os << "greedy_mapping";
+        case OneToOneMappingStrategy::identity: return os << "identity";
+          // omit default case to trigger compiler warning for missing cases
+      }
+      return os << static_cast<uint8_t>(algo);
+  }
+
+  std::ostream & operator<< (std::ostream& os, const SteinerTreeFlowValuePolicy& policy) {
+      switch (policy) {
+        case SteinerTreeFlowValuePolicy::lower_bound: return os << "lower_bound";
+        case SteinerTreeFlowValuePolicy::upper_bound: return os << "upper_bound";
+        case SteinerTreeFlowValuePolicy::UNDEFINED: return os << "UNDEFINED";
+          // omit default case to trigger compiler warning for missing cases
+      }
+      return os << static_cast<uint8_t>(policy);
+  }
 
   Mode modeFromString(const std::string& mode) {
     if (mode == "rb") {
@@ -301,8 +323,10 @@ std::ostream & operator<< (std::ostream& os, const RebalancingAlgorithm& algo) {
       return Objective::km1;
     } else if (obj == "soed") {
       return Objective::soed;
+    } else if (obj == "steiner_tree") {
+      return Objective::steiner_tree;
     }
-    ERR("No valid louvain edge weight.");
+    ERR("No valid objective function.");
     return Objective::UNDEFINED;
   }
 
@@ -449,5 +473,25 @@ std::ostream & operator<< (std::ostream& os, const RebalancingAlgorithm& algo) {
     }
     ERR("Illegal option: " + type);
     return RebalancingAlgorithm::do_nothing;
+  }
+
+  OneToOneMappingStrategy oneToOneMappingStrategyFromString(const std::string& type) {
+    if (type == "greedy_mapping") {
+      return OneToOneMappingStrategy::greedy_mapping;
+    } else if (type == "identity") {
+      return OneToOneMappingStrategy::identity;
+    }
+    ERR("Illegal option: " + type);
+    return OneToOneMappingStrategy::identity;
+  }
+
+  SteinerTreeFlowValuePolicy steinerTreeFlowValuePolicyFromString(const std::string& policy) {
+    if (policy == "lower_bound") {
+      return SteinerTreeFlowValuePolicy::lower_bound;
+    } else if (policy == "upper_bound") {
+      return SteinerTreeFlowValuePolicy::upper_bound;
+    }
+    ERR("Illegal option: " + policy);
+    return SteinerTreeFlowValuePolicy::UNDEFINED;
   }
 }

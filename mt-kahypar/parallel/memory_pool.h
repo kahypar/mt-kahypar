@@ -483,6 +483,10 @@ class MemoryPoolT {
     _use_minimum_allocation_size = false;
   }
 
+  bool is_unused_memory_allocations_activated() const {
+    return _use_unused_memory_chunks;
+  }
+
   void activate_unused_memory_allocations() {
     _use_unused_memory_chunks = true;
   }

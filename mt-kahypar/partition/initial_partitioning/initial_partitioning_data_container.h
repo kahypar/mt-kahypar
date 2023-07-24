@@ -202,7 +202,7 @@ class InitialPartitioningDataContainer {
               std::numeric_limits<HypernodeWeight>::max(),
               std::numeric_limits<HypernodeWeight>::max(),
               std::numeric_limits<double>::max()),
-      _gain_cache(GainCachePtr::constructGainCache(context.partition.gain_policy)),
+      _gain_cache(GainCachePtr::constructGainCache(context)),
       _label_propagation(nullptr),
       _twoway_fm(nullptr),
       _stats() {

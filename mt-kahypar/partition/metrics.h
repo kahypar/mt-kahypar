@@ -60,5 +60,8 @@ bool isBalanced(const PartitionedHypergraph& phg, const Context& context);
 template<typename PartitionedHypergraph>
 double imbalance(const PartitionedHypergraph& hypergraph, const Context& context);
 
+template<typename PartitionedHypergraph>
+double approximationFactorForProcessMapping(const PartitionedHypergraph& hypergraph, const Context& context);
+
 }  // namespace metrics
 }  // namespace mt_kahypar

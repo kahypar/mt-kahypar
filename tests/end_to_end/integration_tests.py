@@ -9,6 +9,7 @@ import multiprocessing
 mt_kahypar_dir = os.environ.get("PWD") + "/"
 executable = mt_kahypar_dir + "build/mt-kahypar/application/MtKaHyPar"
 verify_partition_exec = mt_kahypar_dir + "build/tools/VerifyPartition"
+generate_grid_graph = mt_kahypar_dir + "build/tools/GridGraphGenerator"
 config_dir = mt_kahypar_dir + "config/"
 integration_test_json_file = mt_kahypar_dir + "tests/end_to_end/integration_tests.json"
 num_threads = multiprocessing.cpu_count()
@@ -45,35 +46,48 @@ def print_success(msg):
 def print_config(instance, k, epsilon):
   print(bold("Instance = " + instance + ", k = " + str(k) + ", Epsilon = " + str(epsilon)))
 
-def command(test, instance, k, epsilon):
+def command(test, instance, k, epsilon, target_graph):
   partitioner = partitioners[test["partitioner"]]
   config = config_dir + test["config"] if "config" in test else partitioner["config"]
   parameters = test["parameters"] if "parameters" in test else []
-  return [ executable,
+  cmd = [ executable,
          "-h" + instance,
          "-p" + config,
          "-k" + str(k),
          "-e" + str(epsilon),
          "-t" + str(num_threads),
-         "-okm1",
          "-m" + partitioner["mode"],
          "--seed=1",
          "--show-detailed-timings=false",
          "--sp-process=true",
          "--write-partition-file=true"] + parameters
+  if target_graph == "":
+    cmd = cmd + ["-okm1"]
+  else:
+    cmd = cmd + ["-osteiner_tree", "-g" + target_graph]
+  return cmd
 
 def grep_result(out):
+  is_mapping = False
   for line in out.split('\n'):
     s = str(line).strip()
     if "RESULT" in s:
       km1 = int(s.split(" km1=")[1].split(" ")[0])
+      soed = int(s.split(" soed=")[1].split(" ")[0])
       cut = int(s.split(" cut=")[1].split(" ")[0])
+      if " steiner_tree=" in s:
+        steiner_tree = int(s.split(" steiner_tree=")[1].split(" ")[0])
+        is_mapping = True
       total_time = float(s.split(" totalPartitionTime=")[1].split(" ")[0])
       imbalance = float(s.split(" imbalance=")[1].split(" ")[0])
-  return "Total Time = " + str(total_time) + \
-         " Imbalance = " + str(imbalance) + \
-         " km1 = " + str(km1) + \
-         " cut = " + str(cut)
+  res = "Total Time = " + str(total_time) + \
+        " Imbalance = " + str(imbalance) + \
+        " km1 = " + str(km1) + \
+        " cut = " + str(cut) + \
+        " soed = " + str(soed)
+  if is_mapping:
+    res = res + " steiner_tree = " + str(steiner_tree)
+  return res
 
 def partition_file_str(instance, k, epsilon):
   return instance + ".part" + str(k) + ".epsilon" + str(epsilon) + ".seed1.KaHyPar"
@@ -96,6 +110,22 @@ def verify_partition(instance, k, epsilon):
     print(out)
     sys.exit(-1)
 
+def generate_target_graph(instance, k):
+  n = int(k / 2)
+  m = 2
+  tmp_k = n * m
+  proc = subprocess.Popen([generate_grid_graph,
+                           "-o" + instance,
+                           "--n=" + str(n),
+                           "--m=" + str(m),
+                           "--max-weight=10"],
+                           stdout=subprocess.PIPE, universal_newlines=True)
+  out, err = proc.communicate()
+
+  if proc.returncode == 0:
+    return instance + ".k" + str(tmp_k)
+  else:
+    return ""
 
 def run_integration_test(cmd, instance, k, epsilon):
   proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, universal_newlines=True)
@@ -119,12 +149,19 @@ with open(integration_test_json_file) as integration_test_file:
     for instance in experiment["instances"]:
       absoulute_instance_path = mt_kahypar_dir + instance
       for k in integration_tests["k"]:
-        print_config(instance, k, epsilon)
         for test in experiment["tests"]:
-          cmd = command(test, absoulute_instance_path, k, epsilon)
+          target_graph = ""
+          if "mapping" in test:
+            if k % 2 != 0:
+              continue
+            target_graph = generate_target_graph(absoulute_instance_path, k)
+          print_config(instance, k, epsilon)
+          cmd = command(test, absoulute_instance_path, k, epsilon, target_graph)
           print(' '.join(cmd))
           run_integration_test(cmd, absoulute_instance_path, k, epsilon)
-        print()
+          if target_graph != "" and os.path.exists(target_graph):
+            os.remove(target_graph)
+          print()
 
 
 

@@ -594,7 +594,7 @@ void bipartition_each_block(typename TypeTraits::PartitionedHypergraph& partitio
 
   if ( gain_cache.isInitialized() ) {
     partitioned_hg.doParallelForAllNodes([&](const HypernodeID& hn) {
-      gain_cache.recomputePenaltyTermEntry(partitioned_hg, hn);
+      gain_cache.recomputeInvalidTerms(partitioned_hg, hn);
     });
   }
   timer.stop_timer("apply_bipartitions");
@@ -628,15 +628,32 @@ void bipartition_each_block(typename TypeTraits::PartitionedHypergraph& partitio
       bipartition_each_block<TypeTraits>(partitioned_hg, context,
         GainCachePtr::cast<Km1GainCache>(gain_cache), info, rb_tree,
         already_cut, current_k, current_objective, progress_bar_enabled); break;
+    #ifdef KAHYPAR_ENABLE_SOED_METRIC
     case GainPolicy::soed:
       bipartition_each_block<TypeTraits>(partitioned_hg, context,
         GainCachePtr::cast<SoedGainCache>(gain_cache), info, rb_tree,
         already_cut, current_k, current_objective, progress_bar_enabled); break;
+    #endif
+    #ifdef KAHYPAR_ENABLE_STEINER_TREE_METRIC
+    case GainPolicy::steiner_tree:
+      bipartition_each_block<TypeTraits>(partitioned_hg, context,
+        GainCachePtr::cast<SteinerTreeGainCache>(gain_cache), info, rb_tree,
+        already_cut, current_k, current_objective, progress_bar_enabled); break;
+    #endif
+    #ifdef KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES
     case GainPolicy::cut_for_graphs:
       bipartition_each_block<TypeTraits>(partitioned_hg, context,
         GainCachePtr::cast<GraphCutGainCache>(gain_cache), info, rb_tree,
         already_cut, current_k, current_objective, progress_bar_enabled); break;
+    #ifdef KAHYPAR_ENABLE_STEINER_TREE_METRIC
+    case GainPolicy::steiner_tree_for_graphs:
+      bipartition_each_block<TypeTraits>(partitioned_hg, context,
+        GainCachePtr::cast<GraphSteinerTreeGainCache>(gain_cache), info, rb_tree,
+        already_cut, current_k, current_objective, progress_bar_enabled); break;
+    #endif
+    #endif
     case GainPolicy::none: break;
+    default: break;
   }
 }
 
@@ -838,9 +855,11 @@ PartitionID deep_multilevel_partitioning(typename TypeTraits::PartitionedHypergr
   context.partition.enable_progress_bar = false;
   std::unique_ptr<IUncoarsener<TypeTraits>> uncoarsener(nullptr);
   if (uncoarseningData.nlevel) {
-    uncoarsener = std::make_unique<NLevelUncoarsener<TypeTraits>>(hypergraph, context, uncoarseningData);
+    uncoarsener = std::make_unique<NLevelUncoarsener<TypeTraits>>(
+      hypergraph, context, uncoarseningData, nullptr);
   } else {
-    uncoarsener = std::make_unique<MultilevelUncoarsener<TypeTraits>>(hypergraph, context, uncoarseningData);
+    uncoarsener = std::make_unique<MultilevelUncoarsener<TypeTraits>>(
+      hypergraph, context, uncoarseningData, nullptr);
   }
   uncoarsener->initialize();
 

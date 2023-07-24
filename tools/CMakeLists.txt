@@ -34,6 +34,30 @@ target_link_libraries(MetisToScotch TBB::tbb TBB::tbbmalloc_proxy)
 set_property(TARGET MetisToScotch PROPERTY CXX_STANDARD 17)
 set_property(TARGET MetisToScotch PROPERTY CXX_STANDARD_REQUIRED ON)
 
+add_executable(OneToOneMapping one_to_one_mapping.cc)
+target_link_libraries(OneToOneMapping ${Boost_LIBRARIES})
+target_link_libraries(OneToOneMapping TBB::tbb TBB::tbbmalloc_proxy)
+set_property(TARGET OneToOneMapping PROPERTY CXX_STANDARD 17)
+set_property(TARGET OneToOneMapping PROPERTY CXX_STANDARD_REQUIRED ON)
+
+add_executable(VerifyTargetGraphPartition verify_process_mapping_partition.cc)
+target_link_libraries(VerifyTargetGraphPartition ${Boost_LIBRARIES})
+target_link_libraries(VerifyTargetGraphPartition TBB::tbb TBB::tbbmalloc_proxy)
+set_property(TARGET VerifyTargetGraphPartition PROPERTY CXX_STANDARD 17)
+set_property(TARGET VerifyTargetGraphPartition PROPERTY CXX_STANDARD_REQUIRED ON)
+
+add_executable(GridGraphGenerator grid_graph_generator.cc)
+target_link_libraries(GridGraphGenerator ${Boost_LIBRARIES})
+target_link_libraries(GridGraphGenerator TBB::tbb TBB::tbbmalloc_proxy)
+set_property(TARGET GridGraphGenerator PROPERTY CXX_STANDARD 17)
+set_property(TARGET GridGraphGenerator PROPERTY CXX_STANDARD_REQUIRED ON)
+
+add_executable(HierarchicalTargetGraphGenerator hierarchical_process_graph_generator.cc)
+target_link_libraries(HierarchicalTargetGraphGenerator ${Boost_LIBRARIES})
+target_link_libraries(HierarchicalTargetGraphGenerator TBB::tbb TBB::tbbmalloc_proxy)
+set_property(TARGET HierarchicalTargetGraphGenerator PROPERTY CXX_STANDARD 17)
+set_property(TARGET HierarchicalTargetGraphGenerator PROPERTY CXX_STANDARD_REQUIRED ON)
+
 add_executable(SnapToMetis snap_to_metis_converter.cc)
 target_link_libraries(SnapToMetis ${Boost_LIBRARIES})
 target_link_libraries(SnapToMetis TBB::tbb TBB::tbbmalloc_proxy)
@@ -69,4 +93,8 @@ set(TOOLS_TARGETS ${TOOLS_TARGETS} EvaluateBipart
                                    HgrToZoltan
                                    HypergraphStats
                                    MetisToScotch
+                                   OneToOneMapping
+                                   VerifyTargetGraphPartition
+                                   GridGraphGenerator
+                                   HierarchicalTargetGraphGenerator
                                    PARENT_SCOPE)

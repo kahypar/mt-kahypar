@@ -32,6 +32,10 @@
 #include "mt-kahypar/utils/utilities.h"
 
 namespace mt_kahypar {
+
+// Forward Declartion
+class TargetGraph;
+
 struct PartitioningParameters {
   Mode mode = Mode::UNDEFINED;
   Objective objective = Objective::UNDEFINED;
@@ -178,6 +182,7 @@ struct FlowParameters {
   bool skip_small_cuts = false;
   bool skip_unpromising_blocks = false;
   bool pierce_in_bulk = false;
+  SteinerTreeFlowValuePolicy steiner_tree_policy = SteinerTreeFlowValuePolicy::UNDEFINED;
 };
 
 std::ostream& operator<<(std::ostream& out, const FlowParameters& params);
@@ -226,6 +231,19 @@ struct InitialPartitioningParameters {
 
 std::ostream & operator<< (std::ostream& str, const InitialPartitioningParameters& params);
 
+struct MappingParameters {
+  std::string target_graph_file = "";
+  OneToOneMappingStrategy strategy = OneToOneMappingStrategy::identity;
+  bool use_local_search = false;
+  bool use_two_phase_approach = false;
+  size_t max_steiner_tree_size = 0;
+  double largest_he_fraction = 0.0;
+  double min_pin_coverage_of_largest_hes = 1.0;
+  HypernodeID large_he_threshold = std::numeric_limits<HypernodeID>::max();
+};
+
+std::ostream & operator<< (std::ostream& str, const MappingParameters& params);
+
 struct SharedMemoryParameters {
   size_t original_num_threads = 1;
   size_t num_threads = 1;
@@ -244,6 +262,7 @@ class Context {
   CoarseningParameters coarsening { };
   InitialPartitioningParameters initial_partitioning { };
   RefinementParameters refinement { };
+  MappingParameters mapping { };
   SharedMemoryParameters shared_memory { };
   ContextType type = ContextType::main;
 
@@ -269,7 +288,9 @@ class Context {
 
   void setupThreadsPerFlowSearch();
 
-  void sanityCheck();
+  void setupGainPolicy();
+
+  void sanityCheck(const TargetGraph* target_graph);
 
   void load_default_preset();
 

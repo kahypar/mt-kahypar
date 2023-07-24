@@ -51,16 +51,12 @@ bool SequentialTwoWayFmRefiner<TypeTraits>::refine(Metrics& best_metrics, std::m
     _he_state[he] = HEState::FREE;
   }
 
-  auto border_vertex_update = [&](const HyperedgeID he,
-                                  const HyperedgeWeight,
-                                  const HypernodeID edge_size,
-                                  const HypernodeID pin_count_in_from_part_after,
-                                  const HypernodeID pin_count_in_to_part_after) {
-                            if ( edge_size > 1 ) {
-                              if ( pin_count_in_from_part_after == 0 ) {
-                                _border_vertices.becameNonCutHyperedge(_phg, he, _vertex_state);
-                              } else if ( pin_count_in_to_part_after == 1 ) {
-                                _border_vertices.becameCutHyperedge(_phg, he, _vertex_state);
+  auto border_vertex_update = [&](const SyncronizedEdgeUpdate& sync_update) {
+                            if ( sync_update.edge_size > 1 ) {
+                              if ( sync_update.pin_count_in_from_part_after == 0 ) {
+                                _border_vertices.becameNonCutHyperedge(_phg, sync_update.he, _vertex_state);
+                              } else if ( sync_update.pin_count_in_to_part_after == 1 ) {
+                                _border_vertices.becameCutHyperedge(_phg, sync_update.he, _vertex_state);
                               }
                             }
                           };

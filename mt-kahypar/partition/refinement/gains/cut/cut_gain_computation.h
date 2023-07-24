@@ -57,7 +57,8 @@ class CutGainComputation : public GainComputationBase<CutGainComputation, CutAtt
   void precomputeGains(const PartitionedHypergraph& phg,
                        const HypernodeID hn,
                        RatingMap& tmp_scores,
-                       Gain& isolated_block_gain) {
+                       Gain& isolated_block_gain,
+                       const bool) {
     ASSERT(tmp_scores.size() == 0, "Rating map not empty");
     PartitionID from = phg.partID(hn);
     for (const HyperedgeID& he : phg.incidentEdges(hn)) {
@@ -87,5 +88,8 @@ class CutGainComputation : public GainComputationBase<CutGainComputation, CutAtt
     return isolated_block_gain - to_score;
   }
 
+  void changeNumberOfBlocksImpl(const PartitionID) {
+    // Do nothing
+  }
 };
 }  // namespace mt_kahypar

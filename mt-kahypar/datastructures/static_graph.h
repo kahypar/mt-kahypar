@@ -452,7 +452,10 @@ class StaticGraph {
   using IncidentNetsIterator = boost::range_detail::integer_iterator<HyperedgeID>;
 
   // ! static graph does not support explicit parallel edge detection
-  struct ParallelHyperedge { };
+  struct ParallelHyperedge {
+    HyperedgeID edge_id;
+    HyperedgeID old_id;
+  };
 
   explicit StaticGraph() :
     _num_nodes(0),

@@ -83,13 +83,8 @@ TEST_F(AKm1PolicyK2, ComputesCorrectMoveGainForVertex1) {
 TEST_F(AKm1PolicyK2, ComputesCorrectObjectiveDelta1) {
   assignPartitionIDs({ 1, 0, 0, 0, 0, 1, 1 });
   ASSERT_TRUE(hypergraph.changeNodePart(0, 1, 0,
-                                        [&](const HyperedgeID he,
-                                            const HyperedgeWeight edge_weight,
-                                            const HypernodeID edge_size,
-                                            const HypernodeID pin_count_in_from_part_after,
-                                            const HypernodeID pin_count_in_to_part_after) {
-      gain->computeDeltaForHyperedge(he, edge_weight, edge_size,
-                                     pin_count_in_from_part_after, pin_count_in_to_part_after);
+    [&](const SyncronizedEdgeUpdate& sync_update) {
+      gain->computeDeltaForHyperedge(sync_update);
     }));
   ASSERT_EQ(-2, gain->delta());
 }
@@ -105,13 +100,8 @@ TEST_F(AKm1PolicyK2, ComputesCorrectMoveGainForVertex2) {
 TEST_F(AKm1PolicyK2, ComputesCorrectObjectiveDelta2) {
   assignPartitionIDs({ 0, 0, 0, 1, 0, 1, 1 });
   ASSERT_TRUE(hypergraph.changeNodePart(3, 1, 0,
-                                        [&](const HyperedgeID he,
-                                            const HyperedgeWeight edge_weight,
-                                            const HypernodeID edge_size,
-                                            const HypernodeID pin_count_in_from_part_after,
-                                            const HypernodeID pin_count_in_to_part_after) {
-      gain->computeDeltaForHyperedge(he, edge_weight, edge_size,
-                                     pin_count_in_from_part_after, pin_count_in_to_part_after);
+    [&](const SyncronizedEdgeUpdate& sync_update) {
+      gain->computeDeltaForHyperedge(sync_update);
     }));
   ASSERT_EQ(-1, gain->delta());
 }
@@ -137,13 +127,8 @@ TEST_F(ACutPolicyK2, ComputesCorrectMoveGainForVertex1) {
 TEST_F(ACutPolicyK2, ComputesCorrectObjectiveDelta1) {
   assignPartitionIDs({ 1, 0, 0, 0, 0, 1, 1 });
   ASSERT_TRUE(hypergraph.changeNodePart(0, 1, 0,
-                                        [&](const HyperedgeID he,
-                                            const HyperedgeWeight edge_weight,
-                                            const HypernodeID edge_size,
-                                            const HypernodeID pin_count_in_from_part_after,
-                                            const HypernodeID pin_count_in_to_part_after) {
-      gain->computeDeltaForHyperedge(he, edge_weight, edge_size,
-                                     pin_count_in_from_part_after, pin_count_in_to_part_after);
+    [&](const SyncronizedEdgeUpdate& sync_update) {
+      gain->computeDeltaForHyperedge(sync_update);
     }));
   ASSERT_EQ(-2, gain->delta());
 }
@@ -159,13 +144,8 @@ TEST_F(ACutPolicyK2, ComputesCorrectMoveGainForVertex2) {
 TEST_F(ACutPolicyK2, ComputesCorrectObjectiveDelta2) {
   assignPartitionIDs({ 0, 0, 0, 1, 0, 1, 1 });
   ASSERT_TRUE(hypergraph.changeNodePart(3, 1, 0,
-                                        [&](const HyperedgeID he,
-                                            const HyperedgeWeight edge_weight,
-                                            const HypernodeID edge_size,
-                                            const HypernodeID pin_count_in_from_part_after,
-                                            const HypernodeID pin_count_in_to_part_after) {
-      gain->computeDeltaForHyperedge(he, edge_weight, edge_size,
-                                     pin_count_in_from_part_after, pin_count_in_to_part_after);
+    [&](const SyncronizedEdgeUpdate& sync_update) {
+      gain->computeDeltaForHyperedge(sync_update);
     }));
   ASSERT_EQ(-1, gain->delta());
 }
@@ -191,13 +171,8 @@ TEST_F(AKm1PolicyK4, ComputesCorrectMoveGainForVertex1) {
 TEST_F(AKm1PolicyK4, ComputesCorrectObjectiveDelta1) {
   assignPartitionIDs({ 0, 1, 2, 3, 3, 1, 2 });
   ASSERT_TRUE(hypergraph.changeNodePart(0, 0, 1,
-                                        [&](const HyperedgeID he,
-                                            const HyperedgeWeight edge_weight,
-                                            const HypernodeID edge_size,
-                                            const HypernodeID pin_count_in_from_part_after,
-                                            const HypernodeID pin_count_in_to_part_after) {
-      gain->computeDeltaForHyperedge(he, edge_weight, edge_size,
-                                     pin_count_in_from_part_after, pin_count_in_to_part_after);
+    [&](const SyncronizedEdgeUpdate& sync_update) {
+      gain->computeDeltaForHyperedge(sync_update);
     }));
   ASSERT_EQ(-1, gain->delta());
 }
@@ -213,13 +188,8 @@ TEST_F(AKm1PolicyK4, ComputesCorrectMoveGainForVertex2) {
 TEST_F(AKm1PolicyK4, ComputesCorrectObjectiveDelta2) {
   assignPartitionIDs({ 0, 3, 1, 2, 2, 0, 3 });
   ASSERT_TRUE(hypergraph.changeNodePart(6, 3, 0,
-                                        [&](const HyperedgeID he,
-                                            const HyperedgeWeight edge_weight,
-                                            const HypernodeID edge_size,
-                                            const HypernodeID pin_count_in_from_part_after,
-                                            const HypernodeID pin_count_in_to_part_after) {
-      gain->computeDeltaForHyperedge(he, edge_weight, edge_size,
-                                     pin_count_in_from_part_after, pin_count_in_to_part_after);
+    [&](const SyncronizedEdgeUpdate& sync_update) {
+      gain->computeDeltaForHyperedge(sync_update);
     }));
   ASSERT_EQ(-1, gain->delta());
 }
@@ -245,13 +215,8 @@ TEST_F(ACutPolicyK4, ComputesCorrectMoveGainForVertex1) {
 TEST_F(ACutPolicyK4, ComputesCorrectObjectiveDelta1) {
   assignPartitionIDs({ 0, 1, 2, 3, 3, 1, 2 });
   ASSERT_TRUE(hypergraph.changeNodePart(0, 0, 2,
-                                        [&](const HyperedgeID he,
-                                            const HyperedgeWeight edge_weight,
-                                            const HypernodeID edge_size,
-                                            const HypernodeID pin_count_in_from_part_after,
-                                            const HypernodeID pin_count_in_to_part_after) {
-      gain->computeDeltaForHyperedge(he, edge_weight, edge_size,
-                                     pin_count_in_from_part_after, pin_count_in_to_part_after);
+    [&](const SyncronizedEdgeUpdate& sync_update) {
+      gain->computeDeltaForHyperedge(sync_update);
     }));
   ASSERT_EQ(-1, gain->delta());
 }
@@ -267,13 +232,8 @@ TEST_F(ACutPolicyK4, ComputesCorrectMoveGainForVertex2) {
 TEST_F(ACutPolicyK4, ComputesCorrectObjectiveDelta2) {
   assignPartitionIDs({ 0, 3, 1, 2, 2, 0, 3 });
   ASSERT_TRUE(hypergraph.changeNodePart(6, 3, 2,
-                                        [&](const HyperedgeID he,
-                                            const HyperedgeWeight edge_weight,
-                                            const HypernodeID edge_size,
-                                            const HypernodeID pin_count_in_from_part_after,
-                                            const HypernodeID pin_count_in_to_part_after) {
-      gain->computeDeltaForHyperedge(he, edge_weight, edge_size,
-                                     pin_count_in_from_part_after, pin_count_in_to_part_after);
+    [&](const SyncronizedEdgeUpdate& sync_update) {
+      gain->computeDeltaForHyperedge(sync_update);
     }));
   ASSERT_EQ(-1, gain->delta());
 }

@@ -40,7 +40,7 @@ namespace mt_kahypar {
 
   namespace {
     template<typename Hypergraph>
-    size_t size_of_edge_locks() {
+    size_t size_of_edge_sync() {
       const bool is_graph = Hypergraph::TYPE == STATIC_GRAPH || Hypergraph::TYPE == DYNAMIC_GRAPH;
       if ( is_graph) {
         return StaticPartitionedGraph::SIZE_OF_EDGE_LOCK;
@@ -134,7 +134,8 @@ namespace mt_kahypar {
       pool.register_memory_chunk("Refinement", "part_ids", num_hypernodes, sizeof(PartitionID));
 
       if (Hypergraph::is_graph) {
-        pool.register_memory_chunk("Refinement", "edge_sync", num_hyperedges, size_of_edge_locks<Hypergraph>());
+        pool.register_memory_chunk("Refinement", "edge_sync", num_hyperedges, size_of_edge_sync<Hypergraph>());
+        pool.register_memory_chunk("Refinement", "edge_locks", num_hyperedges, sizeof(SpinLock));
         if ( context.refinement.fm.algorithm != FMAlgorithm::do_nothing ) {
           pool.register_memory_chunk("Refinement", "incident_weight_in_part",
                                     static_cast<size_t>(num_hypernodes) * ( context.partition.k + 1 ),
@@ -154,16 +155,19 @@ namespace mt_kahypar {
                                     ds::ConnectivitySets::num_elements(num_hyperedges, context.partition.k),
                                     sizeof(ds::ConnectivitySets::UnsafeBlock));
         }
-        pool.register_memory_chunk("Refinement", "pin_count_in_part",
-                                  ds::PinCountInPart::num_elements(num_hyperedges, context.partition.k, max_he_size),
-                                  sizeof(ds::PinCountInPart::Value));
-        pool.register_memory_chunk("Refinement", "connectivity_set",
-                                  ds::ConnectivitySets::num_elements(num_hyperedges, context.partition.k),
-                                  sizeof(ds::ConnectivitySets::UnsafeBlock));
         if ( context.refinement.fm.algorithm != FMAlgorithm::do_nothing ) {
-          pool.register_memory_chunk("Refinement", "gain_cache",
-                                    static_cast<size_t>(num_hypernodes) * ( context.partition.k + 1 ),
-                                    sizeof(CAtomic<HyperedgeWeight>));
+          if ( context.partition.objective == Objective::steiner_tree && !context.mapping.use_two_phase_approach ) {
+            pool.register_memory_chunk("Refinement", "gain_cache",
+                          static_cast<size_t>(num_hypernodes) * ( context.partition.k ),
+                          sizeof(CAtomic<HyperedgeWeight>));
+            pool.register_memory_chunk("Refinement", "num_incident_edges_of_block",
+                                      static_cast<size_t>(num_hypernodes) * context.partition.k,
+                                      sizeof(CAtomic<HyperedgeID>));
+          } else {
+            pool.register_memory_chunk("Refinement", "gain_cache",
+                                      static_cast<size_t>(num_hypernodes) * ( context.partition.k + 1 ),
+                                      sizeof(CAtomic<HyperedgeWeight>));
+          }
         }
         pool.register_memory_chunk("Refinement", "pin_count_update_ownership",
                                    num_hyperedges, sizeof(SpinLock));

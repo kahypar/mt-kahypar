@@ -107,7 +107,7 @@ class ACoarsener : public Test {
     mt_kahypar_hypergraph_t hg = utils::hypergraph_cast(hypergraph);
     uncoarsening_data_t* data_ptr = uncoarsening::to_pointer(*uncoarseningData);
     coarsener = std::make_unique<Coarsener>(hg, context, data_ptr);
-    uncoarsener = std::make_unique<Uncoarsener>(hypergraph, context, *uncoarseningData);
+    uncoarsener = std::make_unique<Uncoarsener>(hypergraph, context, *uncoarseningData, nullptr);
   }
 
   void assignPartitionIDs(PartitionedHypergraph& phg) {

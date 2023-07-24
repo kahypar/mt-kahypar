@@ -79,6 +79,7 @@ enum class Objective : uint8_t {
   cut,
   km1,
   soed,
+  steiner_tree,
   UNDEFINED
 };
 
@@ -86,7 +87,9 @@ enum class GainPolicy : uint8_t {
   km1,
   cut,
   soed,
+  steiner_tree,
   cut_for_graphs,
+  steiner_tree_for_graphs,
   none
 };
 
@@ -166,6 +169,17 @@ enum class RebalancingAlgorithm : uint8_t {
   do_nothing
 };
 
+enum class OneToOneMappingStrategy : uint8_t {
+  greedy_mapping,
+  identity
+};
+
+enum class SteinerTreeFlowValuePolicy : uint8_t {
+  lower_bound,
+  upper_bound,
+  UNDEFINED
+};
+
 std::ostream & operator<< (std::ostream& os, const Type& type);
 
 std::ostream & operator<< (std::ostream& os, const FileFormat& type);
@@ -206,6 +220,10 @@ std::ostream & operator<< (std::ostream& os, const FlowAlgorithm& algo);
 
 std::ostream & operator<< (std::ostream& os, const RebalancingAlgorithm& algo);
 
+std::ostream & operator<< (std::ostream& os, const OneToOneMappingStrategy& algo);
+
+std::ostream & operator<< (std::ostream& os, const SteinerTreeFlowValuePolicy& policy);
+
 Mode modeFromString(const std::string& mode);
 
 InstanceType instanceTypeFromString(const std::string& type);
@@ -235,5 +253,9 @@ FMAlgorithm fmAlgorithmFromString(const std::string& type);
 FlowAlgorithm flowAlgorithmFromString(const std::string& type);
 
 RebalancingAlgorithm rebalancingAlgorithmFromString(const std::string& type);
+
+OneToOneMappingStrategy oneToOneMappingStrategyFromString(const std::string& type);
+
+SteinerTreeFlowValuePolicy steinerTreeFlowValuePolicyFromString(const std::string& policy);
 
 }  // namesapce mt_kahypar

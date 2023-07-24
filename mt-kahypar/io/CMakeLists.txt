@@ -12,7 +12,8 @@ endforeach()
 
 set(ToolsIOSources
         hypergraph_io.cpp
-        hypergraph_factory.cpp)
+        hypergraph_factory.cpp
+        partitioning_output.cpp)
 
 foreach(modtarget IN LISTS TOOLS_TARGETS)
     target_sources(${modtarget} PRIVATE ${ToolsIOSources})

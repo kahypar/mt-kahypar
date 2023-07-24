@@ -53,6 +53,8 @@ class CutRollback {
   * of moved pins that moved out of the block (moved_out).
   */
  public:
+  static constexpr bool supports_parallel_rollback = true;
+
   struct RecalculationData {
     MoveID first_out, last_in;
     HypernodeID moved_out;

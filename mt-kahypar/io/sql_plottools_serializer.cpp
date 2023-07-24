@@ -31,6 +31,7 @@
 
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/metrics.h"
+#include "mt-kahypar/partition/mapping/target_graph.h"
 #include "mt-kahypar/utils/utilities.h"
 #include "mt-kahypar/utils/timer.h"
 
@@ -141,15 +142,34 @@ std::string serialize(const PartitionedHypergraph& hypergraph,
         << " flow_alpha=" << context.refinement.flows.alpha
         << " flow_max_num_pins=" << context.refinement.flows.max_num_pins
         << " flow_find_most_balanced_cut=" << std::boolalpha << context.refinement.flows.find_most_balanced_cut
-        << " flow_determine_distance_from_cut=" << std::boolalpha << context.refinement.flows.determine_distance_from_cut;
+        << " flow_determine_distance_from_cut=" << std::boolalpha << context.refinement.flows.determine_distance_from_cut
+        << " flow_steiner_tree_policy=" << context.refinement.flows.steiner_tree_policy;
     oss << " num_threads=" << context.shared_memory.num_threads
         << " use_localized_random_shuffle=" << std::boolalpha << context.shared_memory.use_localized_random_shuffle
         << " shuffle_block_size=" << context.shared_memory.shuffle_block_size
         << " static_balancing_work_packages=" << context.shared_memory.static_balancing_work_packages;
 
+    if ( context.partition.objective == Objective::steiner_tree ) {
+      oss << " target_graph_file=" << context.mapping.target_graph_file.substr(
+            context.mapping.target_graph_file.find_last_of('/') + 1)
+          << " mapping_strategy=" << context.mapping.strategy
+          << " mapping_use_local_search=" << std::boolalpha << context.mapping.use_local_search
+          << " mapping_use_two_phase_approach=" << std::boolalpha << context.mapping.use_two_phase_approach
+          << " mapping_max_steiner_tree_size=" << context.mapping.max_steiner_tree_size
+          << " mapping_largest_he_fraction=" << context.mapping.largest_he_fraction
+          << " mapping_min_pin_coverage_of_largest_hes=" << context.mapping.min_pin_coverage_of_largest_hes
+          << " mapping_large_he_threshold=" << context.mapping.large_he_threshold;
+      if ( TargetGraph::TRACK_STATS ) {
+        hypergraph.targetGraph()->printStats(oss);
+      }
+    }
+
     // Metrics
     if ( hypergraph.initialNumEdges() > 0 ) {
       oss << " " << context.partition.objective << "=" << metrics::quality(hypergraph, context);
+      if ( context.partition.objective == Objective::steiner_tree ) {
+        oss << " approximation_factor=" << metrics::approximationFactorForProcessMapping(hypergraph, context);
+      }
       if ( context.partition.objective != Objective::cut ) {
         oss << " cut=" << metrics::quality(hypergraph, Objective::cut);
       }

@@ -125,9 +125,8 @@ namespace mt_kahypar {
   Gain DeterministicLabelPropagationRefiner<TypeTraits>::performMoveWithAttributedGain(
           PartitionedHypergraph& phg, const Move& m, bool activate_neighbors) {
     Gain attributed_gain = 0;
-    auto objective_delta = [&](HyperedgeID he, HyperedgeWeight edge_weight, HypernodeID edge_size,
-                               HypernodeID pin_count_in_from_part_after, HypernodeID pin_count_in_to_part_after) {
-      attributed_gain -= Km1AttributedGains::gain(he, edge_weight, edge_size, pin_count_in_from_part_after, pin_count_in_to_part_after);
+    auto objective_delta = [&](const SyncronizedEdgeUpdate& sync_update) {
+      attributed_gain -= Km1AttributedGains::gain(sync_update);
     };
     const bool was_moved = phg.changeNodePart(m.node, m.from, m.to, objective_delta);
     if (context.refinement.deterministic_refinement.use_active_node_set && activate_neighbors && was_moved) {
@@ -507,6 +506,7 @@ namespace mt_kahypar {
     for (size_t pos = 0; pos < num_moves; ++pos) {
       const Move& m = moves[pos];
       Gain move_gain = performMoveWithAttributedGain(phg, m, false);
+      unused(move_gain);
       ASSERT(move_gain == m.gain);
     }
 
@@ -514,6 +514,7 @@ namespace mt_kahypar {
       Move reverse_move = moves[pos];
       std::swap(reverse_move.from, reverse_move.to);
       Gain move_gain = performMoveWithAttributedGain(phg, reverse_move, false);
+      unused(move_gain);
       ASSERT(move_gain == -moves[pos].gain);
     }
 #endif

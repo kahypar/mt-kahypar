@@ -85,6 +85,15 @@ public:
                                              const vec<HypernodeWeight>& partWeights,
                                              const std::vector<HypernodeWeight>& maxPartWeights);
 
+  void recalculateGainForHyperedge(PartitionedHypergraph& phg,
+                                   FMSharedData& sharedData,
+                                   const HyperedgeID& he);
+  void recalculateGainForHyperedgeViaAttributedGains(PartitionedHypergraph& phg,
+                                                     FMSharedData& sharedData,
+                                                     const HyperedgeID& he);
+  void recalculateGainForGraphEdgeViaAttributedGains(PartitionedHypergraph& phg,
+                                                     FMSharedData& sharedData,
+                                                     const HyperedgeID& he);
   void recalculateGains(PartitionedHypergraph& phg, FMSharedData& sharedData);
 
   HyperedgeWeight revertToBestPrefixSequential(PartitionedHypergraph& phg,

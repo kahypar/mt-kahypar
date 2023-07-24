@@ -36,13 +36,9 @@ namespace mt_kahypar {
  * attributed gain value.
  */
 struct Km1AttributedGains {
-  static HyperedgeWeight gain(const HyperedgeID,
-                              const HyperedgeWeight edge_weight,
-                              const HypernodeID,
-                              const HypernodeID pin_count_in_from_part_after,
-                              const HypernodeID pin_count_in_to_part_after) {
-    return (pin_count_in_to_part_after == 1 ? edge_weight : 0) +
-           (pin_count_in_from_part_after == 0 ? -edge_weight : 0);
+  static HyperedgeWeight gain(const SyncronizedEdgeUpdate& sync_update) {
+    return (sync_update.pin_count_in_to_part_after == 1 ? sync_update.edge_weight : 0) +
+           (sync_update.pin_count_in_from_part_after == 0 ? -sync_update.edge_weight : 0);
   }
 };
 

@@ -235,6 +235,7 @@ namespace mt_kahypar {
       for ( auto& localized_fm : ets_fm ) {
         localized_fm.changeNumberOfBlocks(current_k);
       }
+      gain_cache.changeNumberOfBlocks(current_k);
     }
   }
 

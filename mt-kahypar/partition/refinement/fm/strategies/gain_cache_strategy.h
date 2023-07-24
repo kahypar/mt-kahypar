@@ -72,7 +72,7 @@ public:
     const PartitionID pv = phg.partID(v);
     ASSERT(pv < context.partition.k);
     auto [target, gain] = computeBestTargetBlock(phg, gain_cache, v, pv);
-    ASSERT(target < context.partition.k);
+    ASSERT(target < context.partition.k, V(target) << V(context.partition.k));
     sharedData.targetPart[v] = target;
     vertexPQs[pv].insert(v, gain);  // blockPQ updates are done later, collectively.
     runStats.pushes++;
@@ -169,14 +169,8 @@ public:
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
   void deltaGainUpdates(PartitionedHypergraph& phg,
                         GainCache& gain_cache,
-                        const HyperedgeID he,
-                        const HyperedgeWeight edge_weight,
-                        const PartitionID from,
-                        const HypernodeID pin_count_in_from_part_after,
-                        const PartitionID to,
-                        const HypernodeID pin_count_in_to_part_after) {
-    gain_cache.deltaGainUpdate(phg, he, edge_weight, from,
-      pin_count_in_from_part_after, to, pin_count_in_to_part_after);
+                        const SyncronizedEdgeUpdate& sync_update) {
+    gain_cache.deltaGainUpdate(phg, sync_update);
   }
 
   void changeNumberOfBlocks(const PartitionID new_k) {
@@ -222,7 +216,7 @@ private:
     PartitionID to = kInvalidPartition;
     HyperedgeWeight to_benefit = std::numeric_limits<HyperedgeWeight>::min();
     HypernodeWeight best_to_weight = from_weight - wu;
-    for (PartitionID i = 0; i < context.partition.k; ++i) {
+    for ( const PartitionID& i : gain_cache.adjacentBlocks(u) ) {
       if (i != from) {
         const HypernodeWeight to_weight = phg.partWeight(i);
         const HyperedgeWeight penalty = gain_cache.benefitTerm(u, i);

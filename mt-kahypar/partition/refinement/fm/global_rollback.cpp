@@ -33,6 +33,8 @@
 #include "mt-kahypar/partition/refinement/gains/gain_definitions.h"
 #include "mt-kahypar/utils/timer.h"
 #include "mt-kahypar/partition/refinement/gains/gain_cache_ptr.h"
+#include "mt-kahypar/datastructures/bitset.h"
+#include "mt-kahypar/datastructures/pin_count_snapshot.h"
 
 namespace mt_kahypar {
 
@@ -179,7 +181,7 @@ namespace mt_kahypar {
 
     // recompute penalty term values since they are potentially invalid
     tbb::parallel_for(MoveID(0), numMoves, [&](const MoveID i) {
-      gain_cache.recomputePenaltyTermEntry(phg, move_order[i].node);
+      gain_cache.recomputeInvalidTerms(phg, move_order[i].node);
     });
 
     sharedData.moveTracker.reset();
@@ -189,61 +191,197 @@ namespace mt_kahypar {
   }
 
   template<typename TypeTraits, typename GainTypes>
+  void GlobalRollback<TypeTraits, GainTypes>::recalculateGainForHyperedge(PartitionedHypergraph& phg,
+                                                                          FMSharedData& sharedData,
+                                                                          const HyperedgeID& e) {
+    GlobalMoveTracker& tracker = sharedData.moveTracker;
+    auto& r = ets_recalc_data.local();
+
+    // compute auxiliary data
+    for (HypernodeID v : phg.pins(e)) {
+      if (tracker.wasNodeMovedInThisRound(v)) {
+        const MoveID m_id = tracker.moveOfNode[v];
+        const Move& m = tracker.getMove(m_id);
+        Rollback::updateMove(m_id, m, r);
+        // no change for remaining pins!
+      } else {
+        Rollback::updateNonMovedPinInBlock(phg.partID(v), r);
+      }
+    }
+
+    // distribute gains to pins
+    for (HypernodeID v : phg.pins(e)) {
+      if (tracker.wasNodeMovedInThisRound(v)) {
+        const MoveID m_id = tracker.moveOfNode[v];
+        Move& m = tracker.getMove(m_id);
+
+        const HyperedgeWeight benefit = Rollback::benefit(phg, e, m_id, m, r);;
+        const HyperedgeWeight penalty = Rollback::penalty(phg, e, m_id, m, r);
+
+        if ( benefit > 0 ) {
+          // increase gain of v by benefit
+          __atomic_fetch_add(&m.gain, benefit, __ATOMIC_RELAXED);
+        }
+
+        if ( penalty > 0 ) {
+          // decrease gain of v by penalty
+          __atomic_fetch_sub(&m.gain, penalty, __ATOMIC_RELAXED);
+        }
+      }
+    }
+
+    if (context.partition.k <= static_cast<int>(2 * phg.edgeSize(e))) {
+      // this branch is an optimization. in case it is cheaper to iterate over the parts, do that
+      for (PartitionID i = 0; i < context.partition.k; ++i) {
+        r[i].reset();
+      }
+    } else {
+      for (HypernodeID v : phg.pins(e)) {
+        if (tracker.wasNodeMovedInThisRound(v)) {
+          const Move& m = tracker.getMove(tracker.moveOfNode[v]);
+          r[m.from].reset();
+          r[m.to].reset();
+        } else {
+          r[phg.partID(v)].reset();
+        }
+      }
+    }
+  }
+
+  template<typename TypeTraits, typename GainTypes>
+  void GlobalRollback<TypeTraits, GainTypes>::recalculateGainForHyperedgeViaAttributedGains(PartitionedHypergraph& phg,
+                                                                                            FMSharedData& sharedData,
+                                                                                            const HyperedgeID& e) {
+    GlobalMoveTracker& tracker = sharedData.moveTracker;
+    ds::Bitset& connectivity_set = phg.deepCopyOfConnectivitySet(e);
+    ds::PinCountSnapshot pin_counts(phg.k(), phg.hypergraph().maxEdgeSize());
+    for ( const PartitionID& block : phg.connectivitySet(e) ) {
+      pin_counts.setPinCountInPart(block, phg.pinCountInPart(e, block));
+    }
+    SyncronizedEdgeUpdate sync_update;
+    sync_update.he = e;
+    sync_update.edge_weight = phg.edgeWeight(e);
+    sync_update.edge_size = phg.edgeSize(e);
+    sync_update.target_graph = phg.targetGraph();
+    sync_update.connectivity_set_after = &connectivity_set;
+    sync_update.pin_counts_after = &pin_counts;
+
+    // Find all pins of hyperedge that were moved in this round
+    vec<HypernodeID> moved_pins;
+    for ( const HypernodeID& pin : phg.pins(e) ) {
+      if ( tracker.wasNodeMovedInThisRound(pin) ) {
+        moved_pins.push_back(pin);
+      }
+    }
+
+    // Sort moves in decreasing order of execution
+    // => first entry is the node that was moved last in the hyperedge
+    std::sort(moved_pins.begin(), moved_pins.end(),
+      [&](const HypernodeID& lhs, const HypernodeID& rhs) {
+        return tracker.moveOfNode[lhs] > tracker.moveOfNode[rhs];
+      });
+
+    // Revert moves and compute attributed gain
+    for ( const HypernodeID& u : moved_pins ) {
+      const MoveID m_id = tracker.moveOfNode[u];
+      Move& m = tracker.getMove(m_id);
+      sync_update.from = m.to;
+      sync_update.to = m.from;
+      sync_update.pin_count_in_from_part_after = pin_counts.decrementPinCountInPart(sync_update.from);
+      sync_update.pin_count_in_to_part_after = pin_counts.incrementPinCountInPart(sync_update.to);
+      if ( sync_update.pin_count_in_from_part_after == 0 ) {
+        ASSERT(connectivity_set.isSet(sync_update.from));
+        connectivity_set.unset(sync_update.from);
+      }
+      if ( sync_update.pin_count_in_to_part_after == 1 ) {
+        ASSERT(!connectivity_set.isSet(sync_update.to));
+        connectivity_set.set(sync_update.to);
+      }
+      // This is the gain for reverting the move.
+      const HyperedgeWeight attributed_gain = AttributedGains::gain(sync_update);
+      // For recomputed gains, a postive gain means improvement. However, the opposite
+      // is the case for attributed gains.
+      __atomic_fetch_add(&m.gain, attributed_gain, __ATOMIC_RELAXED);
+    }
+  }
+
+  template<typename TypeTraits, typename GainTypes>
+  void GlobalRollback<TypeTraits, GainTypes>::recalculateGainForGraphEdgeViaAttributedGains(PartitionedHypergraph& phg,
+                                                                                            FMSharedData& sharedData,
+                                                                                            const HyperedgeID& e) {
+    if ( !phg.isSinglePin(e) ) {
+      GlobalMoveTracker& tracker = sharedData.moveTracker;
+      SyncronizedEdgeUpdate sync_update;
+      sync_update.he = e;
+      sync_update.edge_weight = phg.edgeWeight(e);
+      sync_update.edge_size = phg.edgeSize(e);
+      sync_update.target_graph = phg.targetGraph();
+
+      HypernodeID first_move = phg.edgeSource(e);
+      HypernodeID second_move = phg.edgeTarget(e);
+      if ( !tracker.wasNodeMovedInThisRound(first_move) &&
+           !tracker.wasNodeMovedInThisRound(second_move) ) {
+        // Both nodes were not moved in this round => nothing to do
+        return;
+      } else if ( tracker.wasNodeMovedInThisRound(first_move) &&
+                  tracker.wasNodeMovedInThisRound(second_move) ) {
+        if ( tracker.moveOfNode[first_move] > tracker.moveOfNode[second_move] ) {
+          std::swap(first_move, second_move);
+        }
+      } else if ( !tracker.wasNodeMovedInThisRound(first_move) &&
+                   tracker.wasNodeMovedInThisRound(second_move) ) {
+        std::swap(first_move, second_move);
+      }
+
+      ASSERT(tracker.wasNodeMovedInThisRound(first_move));
+      ASSERT(!tracker.wasNodeMovedInThisRound(second_move) ||
+        (tracker.moveOfNode[first_move] < tracker.moveOfNode[second_move]));
+      Move& first_m = tracker.getMove(tracker.moveOfNode[first_move]);
+      // sentinel in case second node was not moved
+      Move tmp_second_m = Move { phg.partID(second_move),
+        phg.partID(second_move), second_move, 0 };
+      Move& second_m = tracker.wasNodeMovedInThisRound(second_move) ?
+        tracker.getMove(tracker.moveOfNode[second_move]) : tmp_second_m;
+
+      // Compute gain of first move
+      sync_update.from = first_m.from;
+      sync_update.to = first_m.to;
+      sync_update.pin_count_in_from_part_after =
+        first_m.from == second_m.from ? 1 : 0;
+      sync_update.pin_count_in_to_part_after =
+        first_m.to == second_m.from ? 2 : 1;
+      sync_update.block_of_other_node = second_m.from;
+      const HyperedgeWeight attributed_gain = AttributedGains::gain(sync_update);
+      __atomic_fetch_add(&first_m.gain, -attributed_gain, __ATOMIC_RELAXED);
+
+      if ( tracker.wasNodeMovedInThisRound(second_move) )  {
+        // Compute gain of second move
+        sync_update.from = second_m.from;
+        sync_update.to = second_m.to;
+        sync_update.pin_count_in_from_part_after =
+          first_m.to == second_m.from ? 1 : 0;
+        sync_update.pin_count_in_to_part_after =
+          first_m.to == second_m.to ? 2 : 1;
+        sync_update.block_of_other_node = first_m.to;
+        const HyperedgeWeight attributed_gain = AttributedGains::gain(sync_update);
+        __atomic_fetch_add(&second_m.gain, -attributed_gain, __ATOMIC_RELAXED);
+      }
+    }
+  }
+
+  template<typename TypeTraits, typename GainTypes>
   void GlobalRollback<TypeTraits, GainTypes>::recalculateGains(PartitionedHypergraph& phg,
                                                                FMSharedData& sharedData) {
     GlobalMoveTracker& tracker = sharedData.moveTracker;
 
     auto recalculate_and_distribute_for_hyperedge = [&](const HyperedgeID e) {
-      // TODO reduce .local() calls using the blocked_range interface
-      auto& r = ets_recalc_data.local();
-
-      // compute auxiliary data
-      for (HypernodeID v : phg.pins(e)) {
-        if (tracker.wasNodeMovedInThisRound(v)) {
-          const MoveID m_id = tracker.moveOfNode[v];
-          const Move& m = tracker.getMove(m_id);
-          Rollback::updateMove(m_id, m, r);
-          // no change for remaining pins!
-        } else {
-          Rollback::updateNonMovedPinInBlock(phg.partID(v), r);
-        }
-      }
-
-      // distribute gains to pins
-      for (HypernodeID v : phg.pins(e)) {
-        if (tracker.wasNodeMovedInThisRound(v)) {
-          const MoveID m_id = tracker.moveOfNode[v];
-          Move& m = tracker.getMove(m_id);
-
-          const HyperedgeWeight benefit = Rollback::benefit(phg, e, m_id, m, r);;
-          const HyperedgeWeight penalty = Rollback::penalty(phg, e, m_id, m, r);
-
-          if ( benefit > 0 ) {
-            // increase gain of v by benefit
-            __atomic_fetch_add(&m.gain, benefit, __ATOMIC_RELAXED);
-          }
-
-          if ( penalty > 0 ) {
-            // decrease gain of v by penalty
-            __atomic_fetch_sub(&m.gain, penalty, __ATOMIC_RELAXED);
-          }
-        }
-      }
-
-      if (context.partition.k <= static_cast<int>(2 * phg.edgeSize(e))) {
-        // this branch is an optimization. in case it is cheaper to iterate over the parts, do that
-        for (PartitionID i = 0; i < context.partition.k; ++i) {
-          r[i].reset();
-        }
+      if constexpr ( Rollback::supports_parallel_rollback ) {
+        recalculateGainForHyperedge(phg, sharedData, e);
       } else {
-        for (HypernodeID v : phg.pins(e)) {
-          if (tracker.wasNodeMovedInThisRound(v)) {
-            const Move& m = tracker.getMove(tracker.moveOfNode[v]);
-            r[m.from].reset();
-            r[m.to].reset();
-          } else {
-            r[phg.partID(v)].reset();
-          }
+        if constexpr ( PartitionedHypergraph::is_graph ) {
+          recalculateGainForGraphEdgeViaAttributedGains(phg, sharedData, e);
+        } else {
+          recalculateGainForHyperedgeViaAttributedGains(phg, sharedData, e);
         }
       }
     };
@@ -304,22 +442,17 @@ namespace mt_kahypar {
     // roll forward sequentially
     Gain best_gain = 0, gain_sum = 0;
     MoveID best_index = 0;
+    auto attributed_gains = [&](const SyncronizedEdgeUpdate& sync_update) {
+      gain_sum -= AttributedGains::gain(sync_update);
+    };
     for (MoveID localMoveID = 0; localMoveID < numMoves; ++localMoveID) {
       const Move& m = move_order[localMoveID];
       if (!m.isValid()) continue;
 
-      Gain gain = 0;
-      for (HyperedgeID e : phg.incidentEdges(m.node)) {
-        const HypernodeID pin_count_in_from_part_after = phg.pinCountInPart(e, m.from) - 1;
-        const HypernodeID pin_count_in_to_part_after = phg.pinCountInPart(e, m.to) + 1;
-        gain -= AttributedGains::gain(e, phg.edgeWeight(e), phg.edgeSize(e),
-          pin_count_in_from_part_after, pin_count_in_to_part_after);
-      }
-      gain_sum += gain;
-
       const bool from_overloaded = phg.partWeight(m.from) > maxPartWeights[m.from];
       const bool to_overloaded = phg.partWeight(m.to) > maxPartWeights[m.to];
-      moveVertex(phg, m.node, m.from, m.to);
+      phg.changeNodePart(gain_cache, m.node, m.from, m.to,
+        std::numeric_limits<HypernodeWeight>::max(), []{ }, attributed_gains);
       if (from_overloaded && phg.partWeight(m.from) <= maxPartWeights[m.from]) {
         overloaded--;
       }
@@ -346,7 +479,7 @@ namespace mt_kahypar {
     });
 
     tbb::parallel_for(0U, numMoves, [&](const MoveID i) {
-      gain_cache.recomputePenaltyTermEntry(phg, move_order[i].node);
+      gain_cache.recomputeInvalidTerms(phg, move_order[i].node);
     });
 
     tracker.reset();
@@ -362,7 +495,7 @@ namespace mt_kahypar {
 
     auto recompute_penalty_terms = [&] {
       for (MoveID localMoveID = 0; localMoveID < sharedData.moveTracker.numPerformedMoves(); ++localMoveID) {
-        gain_cache.recomputePenaltyTermEntry(phg, move_order[localMoveID].node);
+        gain_cache.recomputeInvalidTerms(phg, move_order[localMoveID].node);
       }
     };
 
@@ -386,20 +519,19 @@ namespace mt_kahypar {
         continue;
 
       Gain gain = 0;
-      for (HyperedgeID e: phg.incidentEdges(m.node)) {
-        const HypernodeID pin_count_in_from_part_after = phg.pinCountInPart(e, m.from) - 1;
-        const HypernodeID pin_count_in_to_part_after = phg.pinCountInPart(e, m.to) + 1;
-        gain -= AttributedGains::gain(e, phg.edgeWeight(e), phg.edgeSize(e),
-          pin_count_in_from_part_after, pin_count_in_to_part_after);
-      }
+      auto attributed_gains = [&](const SyncronizedEdgeUpdate& sync_update) {
+        gain -= AttributedGains::gain(sync_update);
+      };
 
       ASSERT(gain_cache.penaltyTerm(m.node, phg.partID(m.node)) == gain_cache.recomputePenaltyTerm(phg, m.node));
       ASSERT(gain_cache.benefitTerm(m.node, m.to) == gain_cache.recomputeBenefitTerm(phg, m.node, m.to));
-      ASSERT(gain == gain_cache.gain(m.node, m.from, m.to));
+      const Gain gain_in_cache = gain_cache.gain(m.node, m.from, m.to);
+      unused(gain_in_cache);
 
       // const HyperedgeWeight objective_before_move =
       //   metrics::quality(phg, context, false);
-      moveVertex(phg, m.node, m.from, m.to);
+      phg.changeNodePart(gain_cache, m.node, m.from, m.to,
+        std::numeric_limits<HypernodeWeight>::max(), []{ }, attributed_gains);
       // const HyperedgeWeight objective_after_move =
       //   metrics::quality(phg, context, false);
 
@@ -407,6 +539,7 @@ namespace mt_kahypar {
       //   V(gain) << V(m.gain) << V(objective_after_move) << V(objective_before_move));
       // ASSERT(objective_after_move + m.gain == objective_before_move,
       //   V(gain) << V(m.gain) << V(objective_after_move) << V(objective_before_move));
+      ASSERT(gain == gain_in_cache);
       ASSERT(gain == m.gain, V(gain) << V(m.gain));
       unused(gain); // unused(objective_before_move); unused(objective_after_move);  // for release mode
     }

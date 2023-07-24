@@ -32,6 +32,7 @@
 #include "tbb/parallel_for.h"
 
 #include "mt-kahypar/definitions.h"
+#include "mt-kahypar/partition/mapping/target_graph.h"
 
 namespace mt_kahypar {
 
@@ -160,7 +161,6 @@ Subhypergraph ProblemConstruction<TypeTraits>::construct(const SearchID search_i
       bfs.swap_with_next_queue();
     }
   }
-
   DBG << "Search ID:" << search_id << "-" << sub_hg;
 
   // Check if all touched hyperedges are contained in subhypergraph

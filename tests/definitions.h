@@ -37,19 +37,19 @@ using PartitionedHypergraph = ds::PartitionedHypergraph<Hypergraph, ds::Connecti
 using HighResClockTimepoint = std::chrono::time_point<std::chrono::high_resolution_clock>;
 
 using HypergraphTestTypes = ::testing::Types<ds::StaticHypergraph
-                                             ENABLE_N_LEVEL(COMMA ds::DynamicHypergraph)>;
-using GraphTestTypes = ::testing::Types<ENABLE_GRAPHS(ds::StaticGraph)
-                                        ENABLE_GRAPHS(ENABLE_N_LEVEL(COMMA ds::DynamicGraph))>;
+                                             ENABLE_QUALITY_PRESET(COMMA ds::DynamicHypergraph)>;
+using GraphTestTypes = ::testing::Types<ds::StaticGraph
+                                        ENABLE_QUALITY_PRESET_FOR_GRAPHS(COMMA ds::DynamicGraph)>;
 using GraphAndHypergraphTestTypes = ::testing::Types<ds::StaticHypergraph
-                                                     ENABLE_N_LEVEL(COMMA ds::DynamicHypergraph)
                                                      ENABLE_GRAPHS(COMMA ds::StaticGraph)
-                                                     ENABLE_GRAPHS(ENABLE_N_LEVEL(COMMA ds::DynamicGraph))>;
+                                                     ENABLE_QUALITY_PRESET(COMMA ds::DynamicHypergraph)
+                                                     ENABLE_QUALITY_PRESET_FOR_GRAPHS(COMMA ds::DynamicGraph)>;
 
 
 using HypergraphTestTypeTraits = ::testing::Types<StaticHypergraphTypeTraits
-                                                  ENABLE_N_LEVEL(COMMA DynamicHypergraphTypeTraits)
+                                                  ENABLE_QUALITY_PRESET(COMMA DynamicHypergraphTypeTraits)
                                                   ENABLE_LARGE_K(COMMA LargeKHypergraphTypeTraits)>;
-using GraphTestTypeTraits = ::testing::Types<ENABLE_GRAPHS(StaticGraphTypeTraits)
-                                             ENABLE_GRAPHS(ENABLE_N_LEVEL(COMMA DynamicGraphTypeTraits))>;
+using GraphTestTypeTraits = ::testing::Types<StaticGraphTypeTraits
+                                             ENABLE_QUALITY_PRESET_FOR_GRAPHS(COMMA DynamicGraphTypeTraits)>;
 
 }  // namespace mt_kahypar::tests

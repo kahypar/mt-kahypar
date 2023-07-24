@@ -71,7 +71,7 @@ class ABipartitioningPolicy : public Test {
     context.initial_partitioning.runs = 1;
 
     context.load_default_preset();
-    context.sanityCheck();
+    context.sanityCheck(nullptr);
     context.setupPartWeights(hypergraph.totalWeight());
   }
 
@@ -93,8 +93,8 @@ class ABipartitioningPolicy : public Test {
 };
 
 typedef ::testing::Types<ObjectiveF<Objective::cut>,
-                         ObjectiveF<Objective::km1>,
-                         ObjectiveF<Objective::soed>> TestConfigs;
+                         ObjectiveF<Objective::km1>
+                         ENABLE_SOED(COMMA ObjectiveF<Objective::soed>)> TestConfigs;
 
 TYPED_TEST_CASE(ABipartitioningPolicy, TestConfigs);
 

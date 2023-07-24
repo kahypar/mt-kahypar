@@ -93,7 +93,7 @@ TYPED_TEST(AGainUpdate, Example1) {
 
   this->phg.changeNodePart(this->gain_cache, 8, 0, 1);
 
-  this->gain_cache.recomputePenaltyTermEntry(this->phg, 8);  // nodes are allowed to move once before moveFromPenalty must be recomputed
+  this->gain_cache.recomputeInvalidTerms(this->phg, 8);  // nodes are allowed to move once before moveFromPenalty must be recomputed
   ASSERT_EQ(this->gain_cache.gain(8, 1, 0), 2);
 
   ASSERT_EQ(this->gain_cache.gain(6, 0, 1), 0);

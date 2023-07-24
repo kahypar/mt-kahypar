@@ -37,7 +37,8 @@ namespace mt_kahypar {
 template<typename PartitionedGraph>
 void GraphCutGainCache::initializeGainCache(const PartitionedGraph& partitioned_graph) {
   ASSERT(!_is_initialized, "Gain cache is already initialized");
-  ASSERT(_k == kInvalidPartition || _k == partitioned_graph.k(), "Gain cache was already initialized for a different k");
+  ASSERT(_k <= 0 || _k >= partitioned_graph.k(),
+    "Gain cache was already initialized for a different k" << V(_k) << V(partitioned_graph.k()));
   allocateGainTable(partitioned_graph.topLevelNumNodes(), partitioned_graph.k());
 
   // assert that current gain values are zero
@@ -58,26 +59,19 @@ void GraphCutGainCache::initializeGainCache(const PartitionedGraph& partitioned_
   _is_initialized = true;
 }
 
-bool GraphCutGainCache::triggersDeltaGainUpdate(const HypernodeID,
-                                                const HypernodeID /* only relevant for hypergraphs */,
-                                                const HypernodeID /* only relevant for hypergraphs */) {
+bool GraphCutGainCache::triggersDeltaGainUpdate(const SyncronizedEdgeUpdate& /* only relevant for hypergraphs */) {
   return true;
 }
 
 template<typename PartitionedGraph>
 void GraphCutGainCache::deltaGainUpdate(const PartitionedGraph& partitioned_graph,
-                                        const HyperedgeID he,
-                                        const HyperedgeWeight we,
-                                        const PartitionID from,
-                                        const HypernodeID /* only relevant for hypergraphs */,
-                                        const PartitionID to,
-                                        const HypernodeID /* only relevant for hypergraphs */) {
+                                        const SyncronizedEdgeUpdate& sync_update) {
   ASSERT(_is_initialized, "Gain cache is not initialized");
-  const HypernodeID target = partitioned_graph.edgeTarget(he);
-  const size_t index_in_from_part = incident_weight_index(target, from);
-  _gain_cache[index_in_from_part].fetch_sub(we, std::memory_order_relaxed);
-  const size_t index_in_to_part = incident_weight_index(target, to);
-  _gain_cache[index_in_to_part].fetch_add(we, std::memory_order_relaxed);
+  const HypernodeID target = partitioned_graph.edgeTarget(sync_update.he);
+  const size_t index_in_from_part = incident_weight_index(target, sync_update.from);
+  _gain_cache[index_in_from_part].fetch_sub(sync_update.edge_weight, std::memory_order_relaxed);
+  const size_t index_in_to_part = incident_weight_index(target, sync_update.to);
+  _gain_cache[index_in_to_part].fetch_add(sync_update.edge_weight, std::memory_order_relaxed);
 }
 
 template<typename PartitionedGraph>
@@ -113,13 +107,8 @@ void GraphCutGainCache::uncontractUpdateAfterReplacement(const PartitionedGraph&
 
 namespace {
 #define GRAPH_CUT_INITIALIZE_GAIN_CACHE(X) void GraphCutGainCache::initializeGainCache(const X&)
-#define GRAPH_CUT_DELTA_GAIN_UPDATE(X) void GraphCutGainCache::deltaGainUpdate(const X&,      \
-                                                                    const HyperedgeID,        \
-                                                                    const HyperedgeWeight,    \
-                                                                    const PartitionID,        \
-                                                                    const HypernodeID,        \
-                                                                    const PartitionID,        \
-                                                                    const HypernodeID)
+#define GRAPH_CUT_DELTA_GAIN_UPDATE(X) void GraphCutGainCache::deltaGainUpdate(const X&,                     \
+                                                                               const SyncronizedEdgeUpdate&)
 #define GRAPH_CUT_RESTORE_UPDATE(X) void GraphCutGainCache::uncontractUpdateAfterRestore(const X&,   \
                                                                               const HypernodeID,     \
                                                                               const HypernodeID,     \

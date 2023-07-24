@@ -8,10 +8,10 @@ Table of Contents
 -----------
 
    * [About Mt-KaHyPar](#about-mt-kahypar)
+   * [Supported Objective Functions](#supported-objective-functions)
    * [Requirements](#requirements)
    * [Building Mt-KaHyPar](#building-mt-kahypar)
    * [Running Mt-KaHyPar](#running-mt-kahypar)
-   * [Performance](#performance)
    * [The C Library Interface](#the-c-library-interface)
    * [The Python Library Interface](#the-python-library-interface)
    * [Custom Objective Functions](#custom-objective-functions)
@@ -21,17 +21,48 @@ About Mt-KaHyPar
 -----------
 Mt-KaHyPar is a shared-memory algorithm for partitioning graphs and hypergraphs. The balanced (hyper)graph partitioning problem
 asks for a partition of the node set of a (hyper)graph into *k* disjoint blocks of roughly the same size (usually a small imbalance
-is allowed by at most 1 + ε times the average block weight), while simultanously minimizing an objective function defined on the (hyper)edges.
-The edge-cut metric is the most prominent objective function for graph partitioning, which sums over the weight of all edges that connect
-two blocks. For hypergraph partitioning, research has focused on the connectivity metric that additionally multiplies the weight of each
-hyperedge with the number of blocks connected by that hyperedge (sum over the terms (λ(e) − 1) * ω(e) where λ(e) is the number of blocks connected by hyperedge e and ω(e) is the weight of the hyperedge).
-
-When we started to work on this topic, we realized there was a large gap between the solution quality of the partitions produced by sequential and parallel partitioning algorithms. We then started to parallelize all techniques used in the best sequential partitioning algorithms without compromises in solution quality. The main outcome of our work is a parallel partitioning algorithm that can partition extremely large graphs and hypergraphs (with billion of edges) with comparable solution quality to the best sequential graph partitioner [KaFFPa](https://github.com/KaHIP/KaHIP) and hypergraph partitioner [KaHyPar](https://kahypar.org/) while being (more) than an order of magnitude faster with only ten threads.
-
-Initially, we focused on hypergraph partitioning but recently implemented optimized data structures for graph partitioning (which led to a speedup by a factor of two for plain graphs). Mt-KaHyPar can optimize the cut-net, connectivity and sum-of-external-degree metric. Besides our high-quality configuration, we provide several other faster configurations that are already
-able to outperform most of the existing partitioning algorithms with regard to solution quality and running time. Moreover, we also provide a deterministic version of our partitioning algorithm. We refer the reader to our [publications](#licensing) for more information.
+is allowed by at most 1 + ε times the average block weight), while simultanously minimizing an objective function defined on the (hyper)edges. Mt-KaHyPar can optimize the cut-net, connectivity, sum-of-external-degree, and Steiner tree metric (see [Supported Objective Functions](#supported-objective-functions)).
 
 <img src="https://cloud.githubusercontent.com/assets/484403/25314222/3a3bdbda-2840-11e7-9961-3bbc59b59177.png" alt="alt text" width="50%" height="50%"><img src="https://cloud.githubusercontent.com/assets/484403/25314225/3e061e42-2840-11e7-860c-028a345d1641.png" alt="alt text" width="50%" height="50%">
+
+The highest-quality configuration of Mt-KaHyPar produces comparable partitions to the best sequential partitioning algorithms, while being almost an order of magnitude faster with only *ten* threads (e.g., when compared to [KaFFPa](https://github.com/KaHIP/KaHIP) or [KaHyPar](https://kahypar.org/)). Besides our high-quality configuration, we provide several other faster configurations that are already able to outperform most of the existing partitioning algorithms with regard to solution quality and running time.
+Moreover, we implemented optimized data structures for graph partitioning (which led to a speedup by a factor of two for plain graphs), a deterministic version of our partitioning algorithm, and a configuration for partitioning (hyper)graphs into a large number of blocks (e.g., k > 4096). The figure below summarizes the time-quality trade-off of different hypergraph (left, connectivity metric) and graph partitioning algorithms (right, cut-net metric, points on the lower-left are considered better). The plot is based on an experiment with over 800 graphs and hypergraphs. For more details, we refer the reader to our [publications](#licensing).
+
+![time_quality_trade_off](https://github.com/kahypar/mt-kahypar/assets/9654047/a5cc1c41-5ca5-496a-ba50-91965e73226b)
+
+Supported Objective Functions
+-----------
+
+Mt-KaHyPar can optimize several objective functions which we explain in the following in more detail.
+
+**Cut-Net Metric**
+
+![cut_net](https://github.com/kahypar/mt-kahypar/assets/9654047/bc7fc7c7-8ac4-4711-8aec-d0526ef2452c)
+
+The cut-net metric is defined as total weight of all nets spanning more than one block of the partition Π (also called *cut nets*).
+
+
+**Connectivity Metric**
+
+![connectivity](https://github.com/kahypar/mt-kahypar/assets/9654047/1c586ff4-63c3-4260-9ef5-98a76578be46)
+
+The connectivity metric additionally multiplies the weight of each cut net with the number of blocks λ(e) spanned by that net minus one. Thus, the connectivity metric tries to minimize the number of blocks connected by each net.
+
+
+**Sum-of-External-Degree Metric**
+
+![soed](https://github.com/kahypar/mt-kahypar/assets/9654047/4006fb4c-ac85-452e-a0d9-93d4dc7842ad)
+
+The sum-of-external-degree metric is similar to the connectivity metric, but does not subtract one from the number of blocks λ(e) spanned by a net. A pecularity of this objective function is that removing a net from the cut reduces the metric by 2ω(e), while reducing the connectivity by one reduces the metric only by ω(e). Thus, the objective function prefers removing nets from the cut, while as secondary criteria it tries to reduce the connectivity of the nets.
+
+**Steiner Tree Metric**
+
+![steiner_tree](https://github.com/kahypar/mt-kahypar/assets/9654047/926ef7d7-bb6b-4959-af0c-75ebd6f6299f)
+
+The Steiner tree metric is the most versatile metric that we provide at the moment. A Steiner tree is a tree with minimal weight that spans a subset of the nodes on a graph. When optimizing the Steiner tree metric, we map the node set of a hypergraph H onto the nodes of a target graph G. The objective is to minimize the total weight of all Steiner trees induced by the nets of H on G.
+For a net e, dist(Λ(e)) is the weight of the minimal Steiner tree connecting the blocks Λ(e) spanned by net e on G. The Steiner tree metric can be used to accurately model wire-lengths in VLSI design or communication costs in distributed systems when some processors do not communicate with each other directly or with different speeds.
+
+Note that finding a Steiner tree is an NP-hard problem. We therefore enforce a strict upper bound on the number of nodes of the target graph G which are 64 nodes at the moment. If you want to map a hypergraph onto larger targer graphs, you can use recursive multisectioning. For example, if you want to map a hypergraph onto a graph with 4096 nodes, you can first partition the hypergraph into 64 blocks, and then map each block of the partition onto a subgraph of target graph with 64 nodes. We plan to integrate this technique into Mt-KaHyPar in the future.
 
 Requirements
 -----------
@@ -119,6 +150,10 @@ To partition a **graph** with Mt-KaHyPar, you can use the following command:
 
     ./mt-kahypar/application/MtKaHyPar -h <path-to-graph> --preset-type=<large_k/deterministic/default/default_flows/quality/quality_flows> --input-file-format=<hmetis/metis> --instance-type=graph -t <# threads> -k <# blocks> -e <imbalance (e.g. 0.03)> -o cut
 
+To map a **hypergraph** onto a **target graph** (expected in Metis file format) with Mt-KaHyPar (optimizes the Steiner tree metric), you can use the following command:
+
+    ./mt-kahypar/application/MtKaHyPar -h <path-to-hgr> -g <path-to-target-graph> --preset-type=<default/default_flows/quality/quality_flows> -t <# threads> -k <# blocks> -e <imbalance (e.g. 0.03)> -o steiner_tree
+
 You can also directly provide a configuration file (see `config` folder) by adding `-p <path-to-config-file>` to the command line parameters instead of `--preset-type`.
 To enable writing the partition to a file set the flag `--write-partition-file=true`.
 By default the file will be placed in the same folder as the input hypergraph file. Set `--partition-output-folder=path/to/folder` to specify a desired output folder. The partition file name is generated automatically based on parameters such as `k`, `imbalance`, `seed` and the input file name.
@@ -127,14 +162,6 @@ Further, there are several useful options that can provide you with additional i
 - `--verbose=true`: Displays detailed information on the partitioning process
 - `--show-detailed-timings=true`: Shows detailed subtimings of each phase of the algorithm at the end of partitioning
 - `--enable-progress-bar=true`: Shows a progess bar during the coarsening and refinement phase
-
-Performance
------------
-
-We have summarized our experimental results on an [external webpage][ExperimentalResults] (currently not up-to-date). The resource provides a detailed
-overview of Mt-KaHyPar's performance compared to other prominent state-of-the-art systems in terms of running time
-and quality.
-
 
 The C Library Interface
 -----------

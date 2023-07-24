@@ -334,7 +334,7 @@ Hypergraph simulateNLevel(Hypergraph& hypergraph,
   return coarsest_hypergraph;
 }
 
-#ifdef KAHYPAR_ENABLE_N_LEVEL_PARTITIONING_FEATURES
+#ifdef KAHYPAR_ENABLE_QUALITY_PRESET_FEATURES
 TEST(ANlevelHypergraph, SimulatesContractionsAndBatchUncontractions) {
   using Hypergraph = typename DynamicHypergraphTypeTraits::Hypergraph;
   using PartitionedHypergraph = typename DynamicHypergraphTypeTraits::PartitionedHypergraph;
@@ -453,7 +453,6 @@ TEST(ANlevelHypergraph, SimulatesParallelContractionsAndAccessToHypergraph) {
   }
 }
 
-#ifdef KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES
 TEST(ANlevelGraph, SimulatesContractionsAndBatchUncontractions) {
   using Hypergraph = typename DynamicGraphTypeTraits::Hypergraph;
   using PartitionedHypergraph = typename DynamicGraphTypeTraits::PartitionedHypergraph;
@@ -571,7 +570,6 @@ TEST(ANlevelGraph, SimulatesParallelContractionsAndAccessToHypergraph) {
     LOG << timer;
   }
 }
-#endif
 #endif
 
 } // namespace ds

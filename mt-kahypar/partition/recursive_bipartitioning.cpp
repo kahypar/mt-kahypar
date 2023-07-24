@@ -36,6 +36,9 @@
 #include "mt-kahypar/macros.h"
 #include "mt-kahypar/partition/multilevel.h"
 #include "mt-kahypar/partition/refinement/gains/bipartitioning_policy.h"
+#ifdef KAHYPAR_ENABLE_STEINER_TREE_METRIC
+#include "mt-kahypar/partition/mapping/initial_mapping.h"
+#endif
 
 #include "mt-kahypar/parallel/memory_pool.h"
 #include "mt-kahypar/utils/randomize.h"
@@ -323,14 +326,19 @@ void rb::recursively_bipartition_block(typename TypeTraits::PartitionedHypergrap
 
 template<typename TypeTraits>
 typename RecursiveBipartitioning<TypeTraits>::PartitionedHypergraph
-RecursiveBipartitioning<TypeTraits>::partition(Hypergraph& hypergraph, const Context& context) {
+RecursiveBipartitioning<TypeTraits>::partition(Hypergraph& hypergraph,
+                                               const Context& context,
+                                               const TargetGraph* target_graph) {
   PartitionedHypergraph partitioned_hypergraph(context.partition.k, hypergraph, parallel_tag_t());
-  partition(partitioned_hypergraph, context);
+  partition(partitioned_hypergraph, context, target_graph);
   return partitioned_hypergraph;
 }
 
 template<typename TypeTraits>
-void RecursiveBipartitioning<TypeTraits>::partition(PartitionedHypergraph& hypergraph, const Context& context) {
+void RecursiveBipartitioning<TypeTraits>::partition(PartitionedHypergraph& hypergraph,
+                                                    const Context& context,
+                                                    const TargetGraph* target_graph) {
+  unused(target_graph);
   utils::Utilities& utils = utils::Utilities::instance();
   if (context.partition.mode == Mode::recursive_bipartitioning) {
     utils.getTimer(context.utility_id).start_timer("rb", "Recursive Bipartitioning");
@@ -342,17 +350,48 @@ void RecursiveBipartitioning<TypeTraits>::partition(PartitionedHypergraph& hyper
     utils.getStats(context.utility_id).disable();
   }
 
+  Context rb_context(context);
+  if ( rb_context.partition.objective == Objective::steiner_tree ) {
+    // In RB mode, we optimize the km1 metric for the steiner tree metric and
+    // apply the permutation computed in the target graph to the partition.
+    rb_context.partition.objective = PartitionedHypergraph::is_graph ?
+      Objective::cut : Objective::km1;
+    rb_context.partition.gain_policy = PartitionedHypergraph::is_graph ?
+      GainPolicy::cut_for_graphs : GainPolicy::km1;
+  }
+  if ( context.type == ContextType::initial_partitioning ) {
+    rb_context.partition.verbose_output = false;
+  }
+
   vec<uint8_t> already_cut(rb::usesAdaptiveWeightOfNonCutEdges(context) ?
     hypergraph.initialNumEdges() : 0, 0);
-  rb::recursive_bipartitioning<TypeTraits>(hypergraph, context, 0, context.partition.k,
-    OriginalHypergraphInfo { hypergraph.totalWeight(), context.partition.k,
-    context.partition.epsilon }, already_cut);
+  rb::recursive_bipartitioning<TypeTraits>(hypergraph, rb_context, 0, rb_context.partition.k,
+    OriginalHypergraphInfo { hypergraph.totalWeight(), rb_context.partition.k,
+      rb_context.partition.epsilon }, already_cut);
 
   if (context.type == ContextType::main) {
     parallel::MemoryPool::instance().activate_unused_memory_allocations();
     utils.getTimer(context.utility_id).enable();
     utils.getStats(context.utility_id).enable();
   }
+
+  #ifdef KAHYPAR_ENABLE_STEINER_TREE_METRIC
+  if ( context.partition.objective == Objective::steiner_tree ) {
+    ASSERT(target_graph);
+    utils::Timer& timer = utils.getTimer(context.utility_id);
+    const bool was_enabled = timer.isEnabled();
+    timer.enable();
+    timer.start_timer("one_to_one_mapping", "One-To-One Mapping");
+    // Map partition onto target graph
+    InitialMapping<TypeTraits>::mapToTargetGraph(
+      hypergraph, *target_graph, context);
+    timer.stop_timer("one_to_one_mapping");
+    if ( !was_enabled ) {
+      timer.disable();
+    }
+  }
+  #endif
+
   if (context.partition.mode == Mode::recursive_bipartitioning) {
     utils.getTimer(context.utility_id).stop_timer("rb");
   }

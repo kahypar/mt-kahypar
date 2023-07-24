@@ -64,11 +64,17 @@ option(KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES
 option(KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES
   "Enables graph partitioning features. Can be turned off for faster compilation." ON)
 
-option(KAHYPAR_ENABLE_N_LEVEL_PARTITIONING_FEATURES
-  "Enables n-level partitioning features. Can be turned off for faster compilation." ON)
+option(KAHYPAR_ENABLE_QUALITY_PRESET_FEATURES
+  "Enables quality preset features (quality and quality_flows). Can be turned off for faster compilation." ON)
 
 option(KAHYPAR_ENABLE_LARGE_K_PARTITIONING_FEATURES
   "Enables large k partitioning features. Can be turned off for faster compilation." ON)
+
+option(KAHYPAR_ENABLE_SOED_METRIC
+  "Enables the sum-of-external-degree metric. Can be turned off for faster compilation." ON)
+
+option(KAHYPAR_ENABLE_STEINER_TREE_METRIC
+  "Enables the Steiner tree metric. Can be turned off for faster compilation." ON)
 
 if(KAHYPAR_DISABLE_ASSERTIONS)
   add_compile_definitions(KAHYPAR_DISABLE_ASSERTIONS)
@@ -114,13 +120,21 @@ if(KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES)
   add_compile_definitions(KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES)
 endif(KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES)
 
-if(KAHYPAR_ENABLE_N_LEVEL_PARTITIONING_FEATURES)
-  add_compile_definitions(KAHYPAR_ENABLE_N_LEVEL_PARTITIONING_FEATURES)
-endif(KAHYPAR_ENABLE_N_LEVEL_PARTITIONING_FEATURES)
+if(KAHYPAR_ENABLE_QUALITY_PRESET_FEATURES)
+  add_compile_definitions(KAHYPAR_ENABLE_QUALITY_PRESET_FEATURES)
+endif(KAHYPAR_ENABLE_QUALITY_PRESET_FEATURES)
 
 if(KAHYPAR_ENABLE_LARGE_K_PARTITIONING_FEATURES)
   add_compile_definitions(KAHYPAR_ENABLE_LARGE_K_PARTITIONING_FEATURES)
 endif(KAHYPAR_ENABLE_LARGE_K_PARTITIONING_FEATURES)
+
+if(KAHYPAR_ENABLE_SOED_METRIC)
+  add_compile_definitions(KAHYPAR_ENABLE_SOED_METRIC)
+endif(KAHYPAR_ENABLE_SOED_METRIC)
+
+if(KAHYPAR_ENABLE_STEINER_TREE_METRIC)
+  add_compile_definitions(KAHYPAR_ENABLE_STEINER_TREE_METRIC)
+endif(KAHYPAR_ENABLE_STEINER_TREE_METRIC)
 
 include_directories(${PROJECT_SOURCE_DIR})
 find_package(Threads REQUIRED)
@@ -131,6 +145,7 @@ add_subdirectory(external_tools/googletest EXCLUDE_FROM_ALL)
 include_directories(SYSTEM ${gtest_SOURCE_DIR}/include ${gtest_SOURCE_DIR})
 include_directories(SYSTEM ${gtest_SOURCE_DIR}/../googlemock/include ${gtest_SOURCE_DIR}/../googlemock/)
 include_directories(external_tools/kahypar)
+include_directories(external_tools/growt)
 include_directories(external_tools/WHFC)
 
 if(KAHYPAR_DOWNLOAD_BOOST)
@@ -308,6 +323,7 @@ if(NOT MSVC)
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Winit-self")
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pedantic")
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DPARANOID ")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mcx16")
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-unused-function")
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pthread")
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17")

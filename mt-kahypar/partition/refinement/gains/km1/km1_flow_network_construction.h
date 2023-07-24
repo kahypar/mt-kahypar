@@ -27,6 +27,7 @@
 #pragma once
 
 #include "mt-kahypar/datastructures/hypergraph_common.h"
+#include "mt-kahypar/partition/context.h"
 
 namespace mt_kahypar {
 
@@ -39,6 +40,7 @@ struct Km1FlowNetworkConstruction {
   // ! Capacity of the hyperedge
   template<typename PartitionedHypergraph>
   static HyperedgeWeight capacity(const PartitionedHypergraph& phg,
+                                  const Context&,
                                   const HyperedgeID he,
                                   const PartitionID,
                                   const PartitionID) {
@@ -51,6 +53,34 @@ struct Km1FlowNetworkConstruction {
                             const HyperedgeID,
                             const PartitionID,
                             const PartitionID) {
+    return false;
+  }
+
+  // ! If true, then hyperedge is connected to source.
+  template<typename PartitionedHypergraph>
+  static bool connectToSource(const PartitionedHypergraph&,
+                              const HyperedgeID,
+                              const PartitionID,
+                              const PartitionID) {
+    return false;
+  }
+
+  // ! If true, then hyperedge is connected to sink.
+  template<typename PartitionedHypergraph>
+  static bool connectToSink(const PartitionedHypergraph&,
+                            const HyperedgeID,
+                            const PartitionID,
+                            const PartitionID) {
+    return false;
+  }
+
+  // ! If true, then hyperedge is considered as cut edge and its
+  // ! weight is added to the total cut
+  template<typename PartitionedHypergraph>
+  static bool isCut(const PartitionedHypergraph&,
+                    const HyperedgeID,
+                    const PartitionID,
+                    const PartitionID) {
     return false;
   }
 };
