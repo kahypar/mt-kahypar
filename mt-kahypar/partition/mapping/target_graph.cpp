@@ -56,6 +56,7 @@ HyperedgeWeight TargetGraph::distance(const ds::StaticBitset& connectivity_set) 
     return _distances[idx];
   } else {
     // We have not precomputed the optimal steiner tree for the connectivity set.
+    #ifdef __linux__
     HashTableHandle& handle = _handles.local();
     auto res = handle.find(idx);
     if ( likely( res != handle.end() ) ) {
@@ -69,6 +70,20 @@ HyperedgeWeight TargetGraph::distance(const ds::StaticBitset& connectivity_set) 
       handle.insert(idx, mst_weight);
       return mst_weight;
     }
+    #elif _WIN32
+    auto res = _cache.find(idx);
+    if ( likely ( res != _cache.end() ) ) {
+      if constexpr ( TRACK_STATS ) ++_stats.cache_hits;
+      return res->second;
+    } else {
+      if constexpr ( TRACK_STATS ) ++_stats.cache_misses;
+      // Entry is not cached => Compute 2-approximation of optimal steiner tree
+      const HyperedgeWeight mst_weight =
+        computeWeightOfMSTOnMetricCompletion(connectivity_set);
+      _cache.insert(std::make_pair(idx, mst_weight));
+      return mst_weight;
+    }
+    #endif
   }
 }
 

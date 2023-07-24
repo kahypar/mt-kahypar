@@ -32,12 +32,16 @@
 
 #include "tbb/enumerable_thread_specific.h"
 
+#ifdef __linux__
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wpedantic"
 #include "allocator/alignedallocator.hpp"
 #include "data-structures/hash_table_mods.hpp"
 #include "data-structures/table_config.hpp"
 #pragma GCC diagnostic pop
+#elif _WIN32
+#include "tbb/concurrent_unordered_map.h"
+#endif
 
 #include "mt-kahypar/macros.h"
 #include "mt-kahypar/datastructures/static_graph.h"
@@ -54,11 +58,16 @@ class TargetGraph {
 
   using PQElement = std::pair<HyperedgeWeight, PartitionID>;
   using PQ = std::priority_queue<PQElement, vec<PQElement>, std::greater<PQElement>>;
+
+  #ifdef __linux__
   using hasher_type    = utils_tm::hash_tm::murmur2_hash;
   using allocator_type = growt::AlignedAllocator<>;
   using ConcurrentHashTable = typename growt::table_config<
     size_t, size_t, hasher_type, allocator_type, hmod::growable, hmod::sync>::table_type;
   using HashTableHandle = typename ConcurrentHashTable::handle_type;
+  #elif _WIN32
+  using ConcurrentHashTable = tbb::concurrent_unordered_map<size_t, size_t>;
+  #endif
 
   struct MSTData {
     MSTData(const size_t n) :
@@ -93,7 +102,9 @@ class TargetGraph {
     _distances(),
     _local_mst_data(graph.initialNumNodes()),
     _cache(INITIAL_HASH_TABLE_CAPACITY),
+     #ifdef __linux__
     _handles([&]() { return getHandle(); }),
+     #endif
     _stats() { }
 
   TargetGraph(const TargetGraph&) = delete;
@@ -225,9 +236,11 @@ class TargetGraph {
   // ! connecting u and v. This gives a 2-approximation for steiner tree problem.
   HyperedgeWeight computeWeightOfMSTOnMetricCompletion(const ds::StaticBitset& connectivity_set) const;
 
+  #ifdef __linux__
   HashTableHandle getHandle() const {
     return _cache.get_handle();
   }
+  #endif
 
   bool _is_initialized;
 
@@ -250,8 +263,10 @@ class TargetGraph {
   // ! Cache stores the weight of MST computations
   mutable ConcurrentHashTable _cache;
 
+  #ifdef __linux__
   // ! Handle to access concurrent hash table
   mutable tbb::enumerable_thread_specific<HashTableHandle> _handles;
+  #endif
 
   // ! Stats
   mutable Stats _stats;
