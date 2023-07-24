@@ -35,29 +35,29 @@ Supported Objective Functions
 
 Mt-KaHyPar can optimize several objective functions which we explain in the following in more detail.
 
-### Cut-Net Metric
+**Cut-Net Metric**
 
-![cut_net](https://github.com/kahypar/mt-kahypar/assets/9654047/20df75b1-5d93-4ce6-b734-b87e2ddc6e86)
+![cut_net](https://github.com/kahypar/mt-kahypar/assets/9654047/6d862eff-1ece-4044-9ab6-1f775256da1c)
 
 The cut-net metric is defined as total weight of all nets spanning at least two blocks of the partition Π (also called *cut-nets*).
 
 
-### Connectivity Metric
+**Connectivity Metric**
 
-![connectivity](https://github.com/kahypar/mt-kahypar/assets/9654047/095ccc64-e200-4291-86ae-9a8fbb979bda)
+![connectivity](https://github.com/kahypar/mt-kahypar/assets/9654047/72a38c4f-0c3a-4bfa-b29d-943e45f8fed7)
 
 The connectivity metric additionally multiplies the weight of each cut-net with the number of blocks spanned by that net λ(e) minus one. Thus, the connectivity metric tries to minimize the number of blocks connected by each net.
 
 
-### Sum-of-External-Degree Metric
+**Sum-of-External-Degree Metric**
 
-![soed](https://github.com/kahypar/mt-kahypar/assets/9654047/ec1b1fa9-4f91-4e4b-88e5-689d16898b3f)
+![soed](https://github.com/kahypar/mt-kahypar/assets/9654047/3b1eb0de-1bb5-465a-9605-f6da9fad8299)
 
 The sum-of-external-degree metric is similar to the connectivity metric, but does not subtract one from the number of blocks λ(e). A pecularity of this objective function is that removing a net from the cut reduces the metric by 2ω(e), while reducing the connectivity by one reduces the metric only by ω(e). Thus, the objective function prefers removing nets from the cut, while as secondary criteria it tries to reduce the connectivity of the nets.
 
-### Steiner Tree Metric
+**Steiner Tree Metric**
 
-![steiner_tree](https://github.com/kahypar/mt-kahypar/assets/9654047/56a1445b-b70c-4520-805a-4bf6d6b7af04)
+![steiner_tree](https://github.com/kahypar/mt-kahypar/assets/9654047/6bbafbc1-c33a-4960-b379-493ae84ebb72)
 
 The Steiner tree metric is the most versatile metric that we provide at the moment. A Steiner tree is a tree with minimal weight that spans a subset of the nodes on a graph. When optimizing the Steiner tree metric, we map the node set of a hypergraph H onto the nodes of a target graph G. The objective is to minimize the total weight of all Steiner trees induced by the nets of H on G.
 For a net e, dist(Λ(e)) is the weight of the minimal Steiner tree connecting the blocks Λ(e) of net e on G. The Steiner tree metric can be used to accurately model wire-lengths in VLSI design or communication costs in distributed systems when some processors do not communicate with each other directly or with different speeds.
