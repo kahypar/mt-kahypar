@@ -36,13 +36,27 @@ Our label propagation algorithm iterates over all nodes in parallel and moves ea
 
 The gain of a node move can change between its initial calculation and execution due to concurrent node moves in its neighborhood. We therefore double-check the gain of a node move at the time performed on the partition via synchronized data structure updates. This technique is called *attributed gains*. The label propagation algorithm reverts node moves that worsen the solution quality by checking the attributed gain value. The attributed gain function implements the following interface:
 ```cpp
-static HyperedgeWeight gain(const HyperedgeID he,
-                            const HyperedgeWeight edge_weight,
-                            const HypernodeID edge_size,
-                            const HypernodeID pin_count_in_from_part_after,
-                            const HypernodeID pin_count_in_to_part_after);
+static HyperedgeWeight gain(const SyncronizedEdgeUpdate& sync_update);
 ```
-When we move a node from its *source* to a *target* block, we iterate over all hyperedges, perform syncronized data structure updates and call this function for each incident hyperedge of the moved node. The sum of all calls to this function is the attributed gain of the node move. The most important parameters of this function are ```pin_count_in_from_part_after``` and ```pin_count_in_to_part_after```, which are the number of pins contained in the source and target block of hyperedge ```he``` after the move. For example, the node move removes an hyperedge from the cut if ```pin_count_in_to_part_after == edge_size```. If ```pin_count_in_from_part_after == 0```, then the node move reduces the connectivity of the hyperedge by one. Conversely, if ```pin_count_in_to_part_after == 1```, then the node move increases the connectivity of the hyperedge by one.
+The ```SyncronizedEdgeUpdate``` structs contains the following members:
+```cpp
+struct SyncronizedEdgeUpdate {
+  HyperedgeID he;
+  PartitionID from;
+  PartitionID to;
+  HyperedgeID edge_weight;
+  HypernodeID edge_size;
+  HypernodeID pin_count_in_from_part_after;
+  HypernodeID pin_count_in_to_part_after;
+  PartitionID block_of_other_node; // only set in graph partitioning mode
+  mutable ds::Bitset* connectivity_set_after; // only set when optimizing the Steiner tree metric
+  mutable ds::PinCountSnapshot* pin_counts_after; // only set when optimizing the Steiner tree metric
+  const TargetGraph* target_graph; // only set when optimizing the Steiner tree metric
+  ds::Array<SpinLock>* edge_locks; // only set when optimizing the Steiner tree metric
+};
+```
+
+When we move a node from its *source* (```from```) to a *target* block (```to```), we iterate over all hyperedges, perform syncronized data structure updates and call this function for each incident hyperedge of the moved node. The sum of all calls to this function is the attributed gain of the node move. The most important parameters of the ```SyncronizedEdgeUpdate``` struct are ```pin_count_in_from_part_after``` and ```pin_count_in_to_part_after```, which are the number of pins contained in the source and target block of hyperedge ```he``` after the node move. For example, the node move removes an hyperedge from the cut if ```pin_count_in_to_part_after == edge_size```. If ```pin_count_in_from_part_after == 0```, then the node move reduces the connectivity of the hyperedge by one. Conversely, if ```pin_count_in_to_part_after == 1```, then the node move increases the connectivity of the hyperedge by one.
 
 ### Gain Computation
 
@@ -59,7 +73,7 @@ We split the gain computation in two steps: (i) compute the gain of moving the n
 HyperedgeWeight gain(const Gain to_score, // tmp_scores[to]
                      const Gain isolated_block_gain);
 ```
-The implementation of this function is most likely ```isolated_block_gain - to_score```. However, we plan to integrate objective functions in the future where this is not the case.
+The implementation of this function is most likely ```isolated_block_gain - to_score``` (except for the Steiner tree metric).
 
 At this point, you should be able to run the ```default``` configuration of Mt-KaHyPar in debug mode without failing assertions if you disable the FM algorithm. To test this, add the following command line parameters to the Mt-KaHyPar call: ```--i-r-fm-type=do_nothing``` and ```--r-fm-type=do_nothing```. If you discover failing assertions, please check the implementations of the techniques described in the initial partitioning and label propagation section for bugs.
 
@@ -78,14 +92,9 @@ Most notable is the delta gain update function, which has the following interfac
 ```cpp
 template<typename PartitionedHypergraph>
 void deltaGainUpdate(const PartitionedHypergraph& partitioned_hg,
-                      const HyperedgeID he,
-                      const HyperedgeWeight we,
-                      const PartitionID from,
-                      const HypernodeID pin_count_in_from_part_after,
-                      const PartitionID to,
-                      const HypernodeID pin_count_in_to_part_after);
+                     const SyncronizedEdgeUpdate& sync_update);
 ```
-If we move a node u to another block, we call this function for each incident hyperedge of u. The function should be used to implement gain cache updates induced by the node move.
+If we move a node u to another block, we call this function for each incident hyperedge of u (similar to the attributed gains). The function should be used to update gain cache entries affected by the node move.
 
 Mt-KaHyPar also implements the n-level partitioning scheme. In this scheme, we contract only a single node on each level. Consequently, we also uncontract only a single node in the uncoarsening phase followed by a highly localized search for improvements around the uncontracted node. An uncontraction can also affect the gain cache. For a contraction that contracts a node v onto a node u, we provide two functions to update the gain cache after the uncontraction operation:
 ```cpp
@@ -114,7 +123,7 @@ The localized FM searches apply node moves to a thread-local partition which are
 
 ### Rollback
 
-After all localized FM searches terminate, we concatenate the move sequences of all searches to a global move sequence and recompute the gain values in parallel assuming that the moves are executed exactly in this order. After recomputing all gain values, the prefix with the highest accumulated gain is applied to the global partition. The gain recomputation algorithm iterates over all hyperedges in parallel. For each hyperedge, we iterate two times over all pins. The first loop precomputes some auxiliary data, which we then use in the second loop to decide which moved node contained in the hyperedge increases or decreases the objective function. The implementations for all functions required to implement the parallel gain recomputation algorithm are highly individual for each objective function. We recommend to read one of our papers for a detailed explanation of this technique. Furthermore, you can find the implementation of the gain recomputation algorithm in ```partition/refinement/fm/global_rollback.cpp```. If you do not want to use the parallel gain recalculation algorithm, you can disable the feature by adding ```--i-r-fm-rollback-parallel=false``` and ```r-fm-rollback-parallel=false``` to the command line parameters. Then, gains are recomputed sequentially using attributed gains.
+After all localized FM searches terminate, we concatenate the move sequences of all searches to a global move sequence and recompute the gain values in parallel assuming that the moves are executed exactly in this order. After recomputing all gain values, the prefix with the highest accumulated gain is applied to the global partition. The gain recomputation algorithm iterates over all hyperedges in parallel. For each hyperedge, we iterate two times over all pins. The first loop precomputes some auxiliary data, which we then use in the second loop to decide which moved node contained in the hyperedge increases or decreases the objective function. The implementations for all functions required to implement the parallel gain recomputation algorithm are highly individual for each objective function. We recommend to read one of our papers for a detailed explanation of this technique. Furthermore, you can find the implementation of the gain recomputation algorithm in ```partition/refinement/fm/global_rollback.cpp```. If you do not want to use the parallel gain recalculation algorithm, you can disable the feature by setting ```static constexpr bool supports_parallel_rollback = false;``` in your rollback class. The global rollback algorithm then uses an alternative parallelization which is slightly slower.
 
 ## Flow-Based Refinement
 
