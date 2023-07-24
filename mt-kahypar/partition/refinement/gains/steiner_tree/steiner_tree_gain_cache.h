@@ -273,6 +273,10 @@ class SteinerTreeGainCache {
     return gain;
   }
 
+  void changeNumberOfBlocks(const PartitionID) {
+    // Do nothing
+  }
+
   template<typename PartitionedHypergraph>
   bool verifyTrackedAdjacentBlocksOfNodes(const PartitionedHypergraph& partitioned_hg) const;
 
@@ -288,8 +292,7 @@ class SteinerTreeGainCache {
   void allocateGainTable(const HypernodeID num_nodes,
                          const HyperedgeID num_edges,
                          const PartitionID k) {
-    if (_gain_cache.size() == 0) {
-      ASSERT(_k == kInvalidPartition);
+    if (_gain_cache.size() == 0 && k != kInvalidPartition) {
       _k = k;
       tbb::parallel_invoke([&] {
         _gain_cache.resize(

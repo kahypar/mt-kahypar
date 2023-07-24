@@ -37,7 +37,8 @@ namespace mt_kahypar {
 template<typename PartitionedHypergraph>
 void GraphSteinerTreeGainCache::initializeGainCache(const PartitionedHypergraph& partitioned_hg) {
   ASSERT(!_is_initialized, "Gain cache is already initialized");
-  ASSERT(_k == kInvalidPartition || _k == partitioned_hg.k(), "Gain cache was already initialized for a different k");
+  ASSERT(_k <= 0 || _k >= partitioned_hg.k(),
+    "Gain cache was already initialized for a different k" << V(_k) << V(partitioned_hg.k()));
   allocateGainTable(partitioned_hg.topLevelNumNodes(), partitioned_hg.topLevelNumUniqueIds(), partitioned_hg.k());
   initializeAdjacentBlocks(partitioned_hg);
 

@@ -244,6 +244,10 @@ class GraphCutGainCache {
     return benefit;
   }
 
+  void changeNumberOfBlocks(const PartitionID new_k) {
+    _dummy_adjacent_blocks = IntegerRangeIterator<PartitionID>(new_k);
+  }
+
   template<typename PartitionedHypergraph>
   bool verifyTrackedAdjacentBlocksOfNodes(const PartitionedHypergraph&) const {
     // Gain cache does not track adjacent blocks of nodes
@@ -261,7 +265,7 @@ class GraphCutGainCache {
   // ! Allocates the memory required to store the gain cache
   void allocateGainTable(const HypernodeID num_nodes,
                          const PartitionID k) {
-    if (_gain_cache.size() == 0) {
+    if (_gain_cache.size() == 0 && k != kInvalidPartition) {
       _k = k;
       _dummy_adjacent_blocks = IntegerRangeIterator<PartitionID>(k);
       _gain_cache.resize("Refinement", "incident_weight_in_part", num_nodes * size_t(_k), true);

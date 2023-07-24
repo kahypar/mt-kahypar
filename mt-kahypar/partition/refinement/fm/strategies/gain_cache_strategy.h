@@ -72,7 +72,7 @@ public:
     const PartitionID pv = phg.partID(v);
     ASSERT(pv < context.partition.k);
     auto [target, gain] = computeBestTargetBlock(phg, gain_cache, v, pv);
-    ASSERT(target < context.partition.k);
+    ASSERT(target < context.partition.k, V(target) << V(context.partition.k));
     sharedData.targetPart[v] = target;
     vertexPQs[pv].insert(v, gain);  // blockPQ updates are done later, collectively.
     runStats.pushes++;
