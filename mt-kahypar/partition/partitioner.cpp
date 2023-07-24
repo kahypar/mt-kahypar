@@ -226,7 +226,7 @@ namespace mt_kahypar {
       utils::Timer& timer = utils::Utilities::instance().getTimer(context.utility_id);
       timer.start_timer("precompute_steiner_trees", "Precompute Steiner Trees");
       const size_t max_steiner_tree_size = std::min(
-        context.mapping.max_steiner_tree_size,
+        std::min(context.mapping.max_steiner_tree_size, UL(context.partition.k)),
         static_cast<size_t>(hypergraph.maxEdgeSize()));
       target_graph->precomputeDistances(max_steiner_tree_size);
       timer.stop_timer("precompute_steiner_trees");
