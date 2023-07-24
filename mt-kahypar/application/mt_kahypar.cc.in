@@ -120,16 +120,14 @@ int main(int argc, char* argv[]) {
 
   // Read Target Graph
   std::unique_ptr<TargetGraph> target_graph;
-  if ( context.partition.objective == Objective::steiner_tree &&
-       context.mapping.target_graph_file == "" ) {
-    context.mapping.target_graph_file =
-      context.partition.graph_filename + ".k" +
-        std::to_string(context.partition.k);
-  }
-  if ( context.mapping.target_graph_file != "" ) {
-    target_graph = std::make_unique<TargetGraph>(
-      io::readInputFile<ds::StaticGraph>(
-        context.mapping.target_graph_file, FileFormat::Metis, true));
+  if ( context.partition.objective == Objective::steiner_tree ) {
+    if ( context.mapping.target_graph_file != "" ) {
+      target_graph = std::make_unique<TargetGraph>(
+        io::readInputFile<ds::StaticGraph>(
+          context.mapping.target_graph_file, FileFormat::Metis, true));
+    } else {
+      ERR("No target graph file specified (use -g <file> or --target-graph-file=<file>)!");
+    }
   }
 
   // Initialize Memory Pool
