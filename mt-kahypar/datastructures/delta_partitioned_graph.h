@@ -200,7 +200,6 @@ class DeltaPartitionedGraph {
         sync_update.edge_size = _pg->edgeSize(edge);
         sync_update.pin_count_in_from_part_after = target_part == from ? 1 : 0;
         sync_update.pin_count_in_to_part_after = target_part == to ? 2 : 1;
-        // TODO: deep copy of connectivity set required here
         delta_func(sync_update);
       }
       return true;

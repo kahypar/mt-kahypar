@@ -234,7 +234,7 @@ namespace mt_kahypar {
   }
 
   template<typename Hypergraph>
-  void preprocess(Hypergraph& hypergraph, Context& context, TargetGraph* target_graph, const bool is_vcycle) {
+  void preprocess(Hypergraph& hypergraph, Context& context, TargetGraph* target_graph) {
     bool use_community_detection = context.preprocessing.use_community_detection;
     bool is_graph = false;
 
@@ -248,7 +248,7 @@ namespace mt_kahypar {
       timer.stop_timer("detect_graph_structure");
     }
 
-    if ( use_community_detection && !is_vcycle ) {
+    if ( use_community_detection ) {
       io::printTopLevelPreprocessingBanner(context);
 
       timer.start_timer("community_detection", "Community Detection");
@@ -301,7 +301,7 @@ namespace mt_kahypar {
     timer.start_timer("preprocessing", "Preprocessing");
     DegreeZeroHypernodeRemover<TypeTraits> degree_zero_hn_remover(context);
     LargeHyperedgeRemover<TypeTraits> large_he_remover(context);
-    preprocess(hypergraph, context, target_graph, false);
+    preprocess(hypergraph, context, target_graph);
     sanitize(hypergraph, context, degree_zero_hn_remover, large_he_remover);
     timer.stop_timer("preprocessing");
 
@@ -368,7 +368,6 @@ namespace mt_kahypar {
     timer.start_timer("preprocessing", "Preprocessing");
     DegreeZeroHypernodeRemover<TypeTraits> degree_zero_hn_remover(context);
     LargeHyperedgeRemover<TypeTraits> large_he_remover(context);
-    preprocess(hypergraph, context, target_graph, true);
     sanitize(hypergraph, context, degree_zero_hn_remover, large_he_remover);
     timer.stop_timer("preprocessing");
 
