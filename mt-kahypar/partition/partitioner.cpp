@@ -213,6 +213,19 @@ namespace mt_kahypar {
   }
 
   template<typename Hypergraph>
+  void precomputeSteinerTrees(Hypergraph& hypergraph, TargetGraph* target_graph, Context& context) {
+    if ( target_graph && !target_graph->isInitialized() ) {
+      utils::Timer& timer = utils::Utilities::instance().getTimer(context.utility_id);
+      timer.start_timer("precompute_steiner_trees", "Precompute Steiner Trees");
+      const size_t max_steiner_tree_size = std::min(
+        context.mapping.max_steiner_tree_size,
+        static_cast<size_t>(hypergraph.maxEdgeSize()));
+      target_graph->precomputeDistances(max_steiner_tree_size);
+      timer.stop_timer("precompute_steiner_trees");
+    }
+  }
+
+  template<typename Hypergraph>
   void preprocess(Hypergraph& hypergraph, Context& context, TargetGraph* target_graph, const bool is_vcycle) {
     bool use_community_detection = context.preprocessing.use_community_detection;
     bool is_graph = false;
@@ -250,14 +263,7 @@ namespace mt_kahypar {
       }
     }
 
-    if ( target_graph && !target_graph->isInitialized() ) {
-      timer.start_timer("precompute_steiner_trees", "Precompute Steiner Trees");
-      const size_t max_steiner_tree_size = std::min(
-        context.mapping.max_steiner_tree_size,
-        static_cast<size_t>(hypergraph.maxEdgeSize()));
-      target_graph->precomputeDistances(max_steiner_tree_size);
-      timer.stop_timer("precompute_steiner_trees");
-    }
+    precomputeSteinerTrees(hypergraph, target_graph, context);
 
     parallel::MemoryPool::instance().release_mem_group("Preprocessing");
   }
@@ -339,13 +345,18 @@ namespace mt_kahypar {
     configurePreprocessing(hypergraph, context);
     setupContext(hypergraph, context, target_graph);
 
+    utils::Timer& timer = utils::Utilities::instance().getTimer(context.utility_id);
+    timer.start_timer("preprocessing", "Preprocessing");
+    precomputeSteinerTrees(hypergraph, target_graph, context);
+    partitioned_hg.setTargetGraph(target_graph);
+    timer.stop_timer("preprocessing");
+
     io::printContext(context);
     io::printMemoryPoolConsumption(context);
     io::printInputInformation(context, hypergraph);
     io::printPartitioningResults(partitioned_hg, context, "\nInput Partition:");
 
     // ################## PREPROCESSING ##################
-    utils::Timer& timer = utils::Utilities::instance().getTimer(context.utility_id);
     timer.start_timer("preprocessing", "Preprocessing");
     DegreeZeroHypernodeRemover<TypeTraits> degree_zero_hn_remover(context);
     LargeHyperedgeRemover<TypeTraits> large_he_remover(context);

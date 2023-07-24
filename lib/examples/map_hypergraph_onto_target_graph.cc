@@ -21,7 +21,7 @@ int main(int argc, char* argv[]) {
   // with an allowed imbalance of 3%
   mt_kahypar_set_partitioning_parameters(context,
     8 /* number of blocks */, 0.03 /* imbalance parameter */,
-    KM1 /* objective function - ignored for mappings */, 42 /* seed */);
+    KM1 /* objective function - not relevant for mapping */, 42 /* seed */);
   // Enable logging
   mt_kahypar_set_context_parameter(context, VERBOSE, "1");
 

@@ -517,6 +517,8 @@ class MainTest(unittest.TestCase):
       self.context.loadPreset(preset_type)
       self.context.setPartitioningParameters(num_blocks, epsilon, objective, 42)
       self.context.logging = logging or force_logging
+      self.target_graph = mtkahypar.Graph(
+        mydir + "/test_instances/target.graph",  mtkahypar.FileFormat.METIS)
       self.graph = mtkahypar.Graph(
         mydir + "/test_instances/delaunay_n15.graph", mtkahypar.FileFormat.METIS)
       self.useIndividualBlockWeights = False
@@ -534,10 +536,21 @@ class MainTest(unittest.TestCase):
       self.partitioned_graph = self.graph.partition(self.context)
       self.__verifyPartition()
 
+    def mapOntoGraph(self):
+      self.partitioned_graph = self.graph.mapOntoGraph(self.target_graph, self.context)
+      self.__verifyPartition()
+
     def improvePartition(self, num_vcycles):
       objective_before = self.partitioned_graph.cut()
-      self.partitioned_graph.improve(self.context, num_vcycles)
+      self.partitioned_graph.improvePartition(self.context, num_vcycles)
       objective_after = self.partitioned_graph.cut()
+      self.assertLessEqual(objective_after, objective_before)
+      self.__verifyPartition()
+
+    def improveMapping(self, num_vcycles):
+      objective_before = self.partitioned_graph.steiner_tree(self.target_graph)
+      self.partitioned_graph.improveMapping(self.target_graph, self.context, num_vcycles)
+      objective_after = self.partitioned_graph.steiner_tree(self.target_graph)
       self.assertLessEqual(objective_after, objective_before)
       self.__verifyPartition()
 
@@ -624,6 +637,19 @@ class MainTest(unittest.TestCase):
     partitioner.partition()
     partitioner.improvePartition(1)
 
+  def test_maps_a_graph_with_default_preset_onto_target_graph(self):
+    partitioner = self.GraphPartitioner(mtkahypar.PresetType.DEFAULT, 8, 0.03, mtkahypar.Objective.CUT, False)
+    partitioner.mapOntoGraph()
+
+  def test_maps_a_graph_with_default_flows_preset_onto_target_graph(self):
+    partitioner = self.GraphPartitioner(mtkahypar.PresetType.DEFAULT_FLOWS, 8, 0.03, mtkahypar.Objective.CUT, False)
+    partitioner.mapOntoGraph()
+
+  def test_improves_mapping_of_a_graph_with_default_preset(self):
+    partitioner = self.GraphPartitioner(mtkahypar.PresetType.DEFAULT, 8, 0.03, mtkahypar.Objective.CUT, False)
+    partitioner.mapOntoGraph()
+    partitioner.improveMapping(1)
+
   class HypergraphPartitioner(unittest.TestCase):
 
     def __init__(self, preset_type, num_blocks, epsilon, objective, force_logging):
@@ -631,6 +657,8 @@ class MainTest(unittest.TestCase):
       self.context.loadPreset(preset_type)
       self.context.setPartitioningParameters(num_blocks, epsilon, objective, 42)
       self.context.logging = logging or force_logging
+      self.target_graph = mtkahypar.Graph(
+        mydir + "/test_instances/target.graph",  mtkahypar.FileFormat.METIS)
       self.hypergraph = mtkahypar.Hypergraph(
         mydir + "/test_instances/ibm01.hgr", mtkahypar.FileFormat.HMETIS)
       self.useIndividualBlockWeights = False
@@ -652,10 +680,21 @@ class MainTest(unittest.TestCase):
         self.partitioned_hg = self.hypergraph.partition(self.context)
       self.__verifyPartition()
 
+    def mapOntoGraph(self):
+      self.partitioned_hg = self.hypergraph.mapOntoGraph(self.target_graph, self.context)
+      self.__verifyPartition()
+
     def improvePartition(self, num_vcycles):
       objective_before = self.partitioned_hg.km1()
-      self.partitioned_hg.improve(self.context, num_vcycles)
+      self.partitioned_hg.improvePartition(self.context, num_vcycles)
       objective_after = self.partitioned_hg.km1()
+      self.assertLessEqual(objective_after, objective_before)
+      self.__verifyPartition()
+
+    def improveMapping(self, num_vcycles):
+      objective_before = self.partitioned_hg.steiner_tree(self.target_graph)
+      self.partitioned_hg.improveMapping(self.target_graph, self.context, num_vcycles)
+      objective_after = self.partitioned_hg.steiner_tree(self.target_graph)
       self.assertLessEqual(objective_after, objective_before)
       self.__verifyPartition()
 
@@ -745,6 +784,19 @@ class MainTest(unittest.TestCase):
     partitioner.setIndividualBlockWeights([2131,1213,7287,2501])
     partitioner.partition()
     partitioner.improvePartition(1)
+
+  def test_maps_a_hypergraph_with_default_preset_onto_target_graph(self):
+    partitioner = self.HypergraphPartitioner(mtkahypar.PresetType.DEFAULT, 8, 0.03, mtkahypar.Objective.KM1, False)
+    partitioner.mapOntoGraph()
+
+  def test_maps_a_hypergraph_with_default_flows_preset_onto_target_graph(self):
+    partitioner = self.HypergraphPartitioner(mtkahypar.PresetType.DEFAULT_FLOWS, 8, 0.03, mtkahypar.Objective.KM1, False)
+    partitioner.mapOntoGraph()
+
+  def test_improves_mapping_of_a_hypergraph_with_default_preset(self):
+    partitioner = self.HypergraphPartitioner(mtkahypar.PresetType.DEFAULT, 8, 0.03, mtkahypar.Objective.KM1, False)
+    partitioner.mapOntoGraph()
+    partitioner.improveMapping(1)
 
 if __name__ == '__main__':
   unittest.main()
