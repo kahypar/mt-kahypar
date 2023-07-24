@@ -37,8 +37,8 @@ namespace mt_kahypar {
 template<typename PartitionedGraph>
 void GraphCutGainCache::initializeGainCache(const PartitionedGraph& partitioned_graph) {
   ASSERT(!_is_initialized, "Gain cache is already initialized");
-  ASSERT(_k <= 0 || _k >= partitioned_hg.k(),
-    "Gain cache was already initialized for a different k" << V(_k) << V(partitioned_hg.k()));
+  ASSERT(_k <= 0 || _k >= partitioned_graph.k(),
+    "Gain cache was already initialized for a different k" << V(_k) << V(partitioned_graph.k()));
   allocateGainTable(partitioned_graph.topLevelNumNodes(), partitioned_graph.k());
 
   // assert that current gain values are zero
