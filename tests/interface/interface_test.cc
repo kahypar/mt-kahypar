@@ -107,7 +107,7 @@ namespace mt_kahypar {
     hyperedges[9] = 2; hyperedges[10] = 5; hyperedges[11] = 6;                    // Hyperedge 3
 
     mt_kahypar_hypergraph_t hypergraph = mt_kahypar_create_hypergraph(
-      QUALITY, num_vertices, num_hyperedges, hyperedge_indices.get(),
+      HIGHEST_QUALITY, num_vertices, num_hyperedges, hyperedge_indices.get(),
       hyperedges.get(), nullptr, nullptr);
     ASSERT_EQ(hypergraph.type, DYNAMIC_HYPERGRAPH);
 
@@ -157,7 +157,7 @@ namespace mt_kahypar {
     edges[10] = 3; edges[11] = 4;
 
     mt_kahypar_hypergraph_t graph = mt_kahypar_create_graph(
-      QUALITY, num_vertices, num_hyperedges, edges.get(), nullptr, nullptr);
+      HIGHEST_QUALITY, num_vertices, num_hyperedges, edges.get(), nullptr, nullptr);
     ASSERT_EQ(graph.type, DYNAMIC_GRAPH);
 
     ASSERT_EQ(5, mt_kahypar_num_hypernodes(graph));
@@ -593,20 +593,20 @@ namespace mt_kahypar {
     Partition(GRAPH_FILE, METIS, DEFAULT, 4, 0.03, CUT, false);
   }
 
-  TEST_F(APartitioner, PartitionsAHypergraphInTwoBlocksWithHighDefaultFlowPreset) {
-    Partition(HYPERGRAPH_FILE, HMETIS, DEFAULT_FLOWS, 2, 0.03, KM1, false);
+  TEST_F(APartitioner, PartitionsAHypergraphInTwoBlocksWithQualityPreset) {
+    Partition(HYPERGRAPH_FILE, HMETIS, QUALITY, 2, 0.03, KM1, false);
   }
 
-  TEST_F(APartitioner, PartitionsAGraphInTwoBlocksWithHighDefaultFlowPreset) {
-    Partition(GRAPH_FILE, METIS, DEFAULT_FLOWS, 2, 0.03, CUT, false);
+  TEST_F(APartitioner, PartitionsAGraphInTwoBlocksWithQualityPreset) {
+    Partition(GRAPH_FILE, METIS, QUALITY, 2, 0.03, CUT, false);
   }
 
-  TEST_F(APartitioner, PartitionsAHypergraphInFourBlocksWithHighDefaultFlowPreset) {
-    Partition(HYPERGRAPH_FILE, HMETIS, DEFAULT_FLOWS, 4, 0.03, KM1, false);
+  TEST_F(APartitioner, PartitionsAHypergraphInFourBlocksWithQualityPreset) {
+    Partition(HYPERGRAPH_FILE, HMETIS, QUALITY, 4, 0.03, KM1, false);
   }
 
-  TEST_F(APartitioner, PartitionsAGraphInFourBlocksWithHighDefaultFlowPreset) {
-    Partition(GRAPH_FILE, METIS, DEFAULT_FLOWS, 4, 0.03, CUT, false);
+  TEST_F(APartitioner, PartitionsAGraphInFourBlocksWithQualityPreset) {
+    Partition(GRAPH_FILE, METIS, QUALITY, 4, 0.03, CUT, false);
   }
 
   TEST_F(APartitioner, PartitionsAHypergraphInTwoBlocksWithDeterministicPreset) {
@@ -641,36 +641,20 @@ namespace mt_kahypar {
     Partition(GRAPH_FILE, METIS, LARGE_K, 4, 0.03, CUT, false);
   }
 
-  TEST_F(APartitioner, PartitionsAHypergraphInTwoBlocksWithQualityPreset) {
-    Partition(HYPERGRAPH_FILE, HMETIS, QUALITY, 2, 0.03, KM1, false);
+  TEST_F(APartitioner, PartitionsAHypergraphInTwoBlocksWithHighestQualityPreset) {
+    Partition(HYPERGRAPH_FILE, HMETIS, HIGHEST_QUALITY, 2, 0.03, KM1, false);
   }
 
-  TEST_F(APartitioner, PartitionsAGraphInTwoBlocksWithQualityPreset) {
-    Partition(GRAPH_FILE, METIS, QUALITY, 2, 0.03, CUT, false);
+  TEST_F(APartitioner, PartitionsAGraphInTwoBlocksWithHighestQualityPreset) {
+    Partition(GRAPH_FILE, METIS, HIGHEST_QUALITY, 2, 0.03, CUT, false);
   }
 
-  TEST_F(APartitioner, PartitionsAHypergraphInFourBlocksWithQualityPreset) {
-    Partition(HYPERGRAPH_FILE, HMETIS, QUALITY, 4, 0.03, KM1, false);
+  TEST_F(APartitioner, PartitionsAHypergraphInFourBlocksWithHighestQualityPreset) {
+    Partition(HYPERGRAPH_FILE, HMETIS, HIGHEST_QUALITY, 4, 0.03, KM1, false);
   }
 
-  TEST_F(APartitioner, PartitionsAGraphInFourBlocksWithQualityPreset) {
-    Partition(GRAPH_FILE, METIS, QUALITY, 4, 0.03, CUT, false);
-  }
-
-  TEST_F(APartitioner, PartitionsAHypergraphInTwoBlocksWithQualityFlowPreset) {
-    Partition(HYPERGRAPH_FILE, HMETIS, QUALITY_FLOWS, 2, 0.03, KM1, false);
-  }
-
-  TEST_F(APartitioner, PartitionsAGraphInTwoBlocksWithQualityFlowPreset) {
-    Partition(GRAPH_FILE, METIS, QUALITY_FLOWS, 2, 0.03, CUT, false);
-  }
-
-  TEST_F(APartitioner, PartitionsAHypergraphInFourBlocksWithQualityFlowPreset) {
-    Partition(HYPERGRAPH_FILE, HMETIS, QUALITY_FLOWS, 4, 0.03, KM1, false);
-  }
-
-  TEST_F(APartitioner, PartitionsAGraphInFourBlocksWithQualityFlowPreset) {
-    Partition(GRAPH_FILE, METIS, QUALITY_FLOWS, 4, 0.03, CUT, false);
+  TEST_F(APartitioner, PartitionsAGraphInFourBlocksWithHighestQualityPreset) {
+    Partition(GRAPH_FILE, METIS, HIGHEST_QUALITY, 4, 0.03, CUT, false);
   }
 
   TEST_F(APartitioner, CanPartitionTwoHypergraphsSimultanously) {
@@ -715,12 +699,12 @@ namespace mt_kahypar {
 
   TEST_F(APartitioner, ImprovesHypergraphPartitionWithOneVCycleAndDifferentPresetType) {
     Partition(HYPERGRAPH_FILE, HMETIS, DEFAULT, 4, 0.03, KM1, false);
-    ImprovePartition(DEFAULT_FLOWS, 1, false);
+    ImprovePartition(QUALITY, 1, false);
   }
 
   TEST_F(APartitioner, ImprovesGraphPartitionWithOneVCycleAndDifferentPresetType) {
     Partition(GRAPH_FILE, METIS, DEFAULT, 4, 0.03, CUT, false);
-    ImprovePartition(DEFAULT_FLOWS, 1, false);
+    ImprovePartition(QUALITY, 1, false);
   }
 
   TEST_F(APartitioner, ImprovesHypergraphPartitionWithThreeVCycles) {
@@ -836,32 +820,24 @@ namespace mt_kahypar {
     Map(HYPERGRAPH_FILE, HMETIS, DEFAULT, 0.03, false);
   }
 
-  TEST_F(APartitioner, MapsAHypergraphOntoATargetGraphWithDefaultFlowPreset) {
-    Map(HYPERGRAPH_FILE, HMETIS, DEFAULT_FLOWS, 0.03, false);
-  }
-
   TEST_F(APartitioner, MapsAHypergraphOntoATargetGraphWithQualityPreset) {
     Map(HYPERGRAPH_FILE, HMETIS, QUALITY, 0.03, false);
   }
 
-  TEST_F(APartitioner, MapsAHypergraphOntoATargetGraphWithQualityFlowPreset) {
-    Map(HYPERGRAPH_FILE, HMETIS, QUALITY_FLOWS, 0.03, false);
+  TEST_F(APartitioner, MapsAHypergraphOntoATargetGraphWithHighestQualityPreset) {
+    Map(HYPERGRAPH_FILE, HMETIS, HIGHEST_QUALITY, 0.03, false);
   }
 
   TEST_F(APartitioner, MapsAGraphOntoATargetGraphWithDefaultPreset) {
     Map(GRAPH_FILE, METIS, DEFAULT, 0.03, false);
   }
 
-  TEST_F(APartitioner, MapsAGraphOntoATargetGraphWithDefaultFlowPreset) {
-    Map(GRAPH_FILE, METIS, DEFAULT_FLOWS, 0.03, false);
-  }
-
   TEST_F(APartitioner, MapsAGraphOntoATargetGraphWithQualityPreset) {
     Map(GRAPH_FILE, METIS, QUALITY, 0.03, false);
   }
 
-  TEST_F(APartitioner, MapsAGraphOntoATargetGraphWithQualityFlowPreset) {
-    Map(GRAPH_FILE, METIS, QUALITY_FLOWS, 0.03, false);
+  TEST_F(APartitioner, MapsAGraphOntoATargetGraphWithHighestQualityPreset) {
+    Map(GRAPH_FILE, METIS, HIGHEST_QUALITY, 0.03, false);
   }
 
   TEST_F(APartitioner, ImprovesHypergraphMappingWithOneVCycles) {
@@ -874,9 +850,9 @@ namespace mt_kahypar {
     ImproveMapping(DEFAULT, 1, false);
   }
 
-  TEST_F(APartitioner, ImprovesHypergraphMappingWithOneVCyclesWithDefaultFlowPreset) {
+  TEST_F(APartitioner, ImprovesHypergraphMappingWithOneVCyclesWithQualityPreset) {
     Map(HYPERGRAPH_FILE, HMETIS, DEFAULT, 0.03, false);
-    ImproveMapping(DEFAULT_FLOWS, 1, false);
+    ImproveMapping(QUALITY, 1, false);
   }
 
   TEST_F(APartitioner, ImprovesHypergraphMappingGeneratedByOptimizingKm1Metric) {

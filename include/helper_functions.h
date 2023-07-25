@@ -40,12 +40,11 @@ bool check_compatibility(mt_kahypar_hypergraph_t hypergraph,
                          mt_kahypar_preset_type_t preset) {
   switch ( preset ) {
     case DEFAULT:
-    case DEFAULT_FLOWS:
+    case QUALITY:
     case DETERMINISTIC:
     case LARGE_K:
       return hypergraph.type == STATIC_GRAPH || hypergraph.type == STATIC_HYPERGRAPH;
-    case QUALITY:
-    case QUALITY_FLOWS:
+    case HIGHEST_QUALITY:
       return hypergraph.type == DYNAMIC_GRAPH || hypergraph.type == DYNAMIC_HYPERGRAPH;
   }
   return false;
@@ -55,15 +54,14 @@ bool check_compatibility(mt_kahypar_partitioned_hypergraph_t partitioned_hg,
                          mt_kahypar_preset_type_t preset) {
   switch ( preset ) {
     case DEFAULT:
-    case DEFAULT_FLOWS:
+    case QUALITY:
     case DETERMINISTIC:
       return partitioned_hg.type == MULTILEVEL_GRAPH_PARTITIONING ||
              partitioned_hg.type == MULTILEVEL_HYPERGRAPH_PARTITIONING;
     case LARGE_K:
       return partitioned_hg.type == MULTILEVEL_GRAPH_PARTITIONING ||
              partitioned_hg.type == LARGE_K_PARTITIONING;
-    case QUALITY:
-    case QUALITY_FLOWS:
+    case HIGHEST_QUALITY:
       return partitioned_hg.type == N_LEVEL_GRAPH_PARTITIONING ||
              partitioned_hg.type == N_LEVEL_HYPERGRAPH_PARTITIONING;
   }
@@ -137,11 +135,10 @@ InstanceType get_instance_type(mt_kahypar_partitioned_hypergraph_t partitioned_h
 mt_kahypar_preset_type_t get_preset_c_type(const PresetType preset) {
   switch ( preset ) {
     case PresetType::default_preset: return DEFAULT;
-    case PresetType::default_flows: return DEFAULT_FLOWS;
+    case PresetType::quality: return QUALITY;
+    case PresetType::highest_quality: return HIGHEST_QUALITY;
     case PresetType::deterministic: return DETERMINISTIC;
     case PresetType::large_k: return LARGE_K;
-    case PresetType::quality_preset: return QUALITY;
-    case PresetType::quality_flows: return QUALITY_FLOWS;
     case PresetType::UNDEFINED: return DEFAULT;
   }
   return DEFAULT;
@@ -153,19 +150,19 @@ std::string incompatibility_description(mt_kahypar_hypergraph_t hypergraph) {
     case STATIC_GRAPH:
       ss << "The hypergraph uses the static graph data structure which can be only used "
          << "in combination with the following presets: "
-         << "DEFAULT, DEFAULT_FLOWS, DETERMINISTIC and LARGE_K"; break;
+         << "DEFAULT, QUALITY, DETERMINISTIC and LARGE_K"; break;
     case DYNAMIC_GRAPH:
       ss << "The hypergraph uses the dynamic graph data structure which can be only used "
-         << "in combination with the following presets: "
-         << "QUALITY and QUALITY_FLOWS"; break;
+         << "in combination with the following preset: "
+         << "HIGHEST_QUALITY"; break;
     case STATIC_HYPERGRAPH:
       ss << "The hypergraph uses the static hypergraph data structure which can be only used "
          << "in combination with the following presets: "
-         << "DEFAULT, DEFAULT_FLOWS, DETERMINISTIC and LARGE_K"; break;
+         << "DEFAULT, QUALITY, DETERMINISTIC and LARGE_K"; break;
     case DYNAMIC_HYPERGRAPH:
       ss << "The hypergraph uses the dynamic hypergraph data structure which can be only used "
-         << "in combination with the following presets: "
-         << "QUALITY and QUALITY_FLOWS"; break;
+         << "in combination with the following preset: "
+         << "HIGHEST_QUALITY"; break;
     case NULLPTR_HYPERGRAPH:
       ss << "The hypergraph holds a nullptr. "
          << "Did you forgot to construct or load a hypergraph?"; break;
@@ -179,19 +176,19 @@ std::string incompatibility_description(mt_kahypar_partitioned_hypergraph_t part
     case MULTILEVEL_GRAPH_PARTITIONING:
       ss << "The partitioned hypergraph uses the data structures for multilevel graph partitioning "
          << "which can be only used in combination with the following presets: "
-         << "DEFAULT, DEFAULT_FLOWS, DETERMINISTIC, and LARGE_K"; break;
+         << "DEFAULT, QUALITY, DETERMINISTIC, and LARGE_K"; break;
     case N_LEVEL_GRAPH_PARTITIONING:
       ss << "The partitioned hypergraph uses the data structures for n-level graph partitioning "
-         << "which can be only used in combination with the following presets: "
-         << "QUALITY and QUALITY_FLOWS"; break;
+         << "which can be only used in combination with the following preset: "
+         << "HIGHEST_QUALITY"; break;
     case MULTILEVEL_HYPERGRAPH_PARTITIONING:
       ss << "The partitioned hypergraph uses the data structures for multilevel hypergraph partitioning "
          << "which can be only used in combination with the following presets: "
-         << "DEFAULT, DEFAULT_FLOWS, and DETERMINISTIC"; break;
+         << "DEFAULT, QUALITY, and DETERMINISTIC"; break;
     case N_LEVEL_HYPERGRAPH_PARTITIONING:
       ss << "The partitioned hypergraph uses the data structures for n-level hypergraph partitioning "
-         << "which can be only used in combination with the following presets: "
-         << "QUALITY and QUALITY_FLOWS"; break;
+         << "which can be only used in combination with the following preset: "
+         << "HIGHEST_QUALITY"; break;
     case LARGE_K_PARTITIONING:
       ss << "The partitioned hypergraph uses the data structures for large k hypergraph partitioning "
          << "which can be only used in combination with the following preset: "

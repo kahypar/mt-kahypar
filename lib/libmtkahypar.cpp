@@ -65,9 +65,8 @@ namespace {
       case DETERMINISTIC: return PresetType::deterministic;
       case LARGE_K: return PresetType::large_k;
       case DEFAULT: return PresetType::default_preset;
-      case DEFAULT_FLOWS: return PresetType::default_flows;
-      case QUALITY: return PresetType::quality_preset;
-      case QUALITY_FLOWS: return PresetType::quality_flows;
+      case QUALITY: return PresetType::quality;
+      case HIGHEST_QUALITY: return PresetType::highest_quality;
     }
     return PresetType::UNDEFINED;
   }
@@ -104,14 +103,11 @@ void mt_kahypar_load_preset(mt_kahypar_context_t* context,
     case DEFAULT:
       c.load_default_preset();
       break;
-    case DEFAULT_FLOWS:
-      c.load_default_flow_preset();
-      break;
     case QUALITY:
       c.load_quality_preset();
       break;
-    case QUALITY_FLOWS:
-      c.load_quality_flow_preset();
+    case HIGHEST_QUALITY:
+      c.load_highest_quality_preset();
       break;
   }
 }
@@ -247,13 +243,12 @@ mt_kahypar_hypergraph_t mt_kahypar_create_hypergraph(const mt_kahypar_preset_typ
     case DETERMINISTIC:
     case LARGE_K:
     case DEFAULT:
-    case DEFAULT_FLOWS:
+    case QUALITY:
       return mt_kahypar_hypergraph_t {
         reinterpret_cast<mt_kahypar_hypergraph_s*>(new ds::StaticHypergraph(
           StaticHypergraphFactory::construct(num_vertices, num_hyperedges,
             edge_vector, hyperedge_weights, vertex_weights))), STATIC_HYPERGRAPH };
-    case QUALITY:
-    case QUALITY_FLOWS:
+    case HIGHEST_QUALITY:
       return mt_kahypar_hypergraph_t {
         reinterpret_cast<mt_kahypar_hypergraph_s*>(new ds::DynamicHypergraph(
           DynamicHypergraphFactory::construct(num_vertices, num_hyperedges,
@@ -278,13 +273,12 @@ mt_kahypar_hypergraph_t mt_kahypar_create_graph(const mt_kahypar_preset_type_t p
     case DETERMINISTIC:
     case LARGE_K:
     case DEFAULT:
-    case DEFAULT_FLOWS:
+    case QUALITY:
       return mt_kahypar_hypergraph_t {
         reinterpret_cast<mt_kahypar_hypergraph_s*>(new ds::StaticGraph(
           StaticGraphFactory::construct_from_graph_edges(num_vertices, num_edges,
             edge_vector, edge_weights, vertex_weights))), STATIC_GRAPH };
-    case QUALITY:
-    case QUALITY_FLOWS:
+    case HIGHEST_QUALITY:
       return mt_kahypar_hypergraph_t {
         reinterpret_cast<mt_kahypar_hypergraph_s*>(new ds::DynamicGraph(
           DynamicGraphFactory::construct_from_graph_edges(num_vertices, num_edges,
@@ -467,12 +461,11 @@ mt_kahypar_partitioned_hypergraph_t mt_kahypar_create_partitioned_hypergraph(mt_
       case LARGE_K:
       case DETERMINISTIC:
       case DEFAULT:
-      case DEFAULT_FLOWS:
+      case QUALITY:
         ASSERT(hypergraph.type == STATIC_GRAPH);
         return lib::create_partitoned_hypergraph<StaticPartitionedGraph>(
           utils::cast<ds::StaticGraph>(hypergraph), num_blocks, partition);
-      case QUALITY:
-      case QUALITY_FLOWS:
+      case HIGHEST_QUALITY:
         ASSERT(hypergraph.type == DYNAMIC_GRAPH);
         return lib::create_partitoned_hypergraph<DynamicPartitionedGraph>(
           utils::cast<ds::DynamicGraph>(hypergraph), num_blocks, partition);
@@ -485,12 +478,11 @@ mt_kahypar_partitioned_hypergraph_t mt_kahypar_create_partitioned_hypergraph(mt_
           utils::cast<ds::StaticHypergraph>(hypergraph), num_blocks, partition);
       case DETERMINISTIC:
       case DEFAULT:
-      case DEFAULT_FLOWS:
+      case QUALITY:
         ASSERT(hypergraph.type == STATIC_HYPERGRAPH);
         return lib::create_partitoned_hypergraph<StaticPartitionedHypergraph>(
           utils::cast<ds::StaticHypergraph>(hypergraph), num_blocks, partition);
-      case QUALITY:
-      case QUALITY_FLOWS:
+      case HIGHEST_QUALITY:
         ASSERT(hypergraph.type == DYNAMIC_HYPERGRAPH);
         return lib::create_partitoned_hypergraph<DynamicPartitionedHypergraph>(
           utils::cast<ds::DynamicHypergraph>(hypergraph), num_blocks, partition);

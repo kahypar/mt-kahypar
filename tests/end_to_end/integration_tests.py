@@ -19,9 +19,13 @@ partitioners = { "Mt-KaHyPar-D":       { "config":  config_dir + "default_preset
                                          "mode": "direct" },
                  "Mt-KaHyPar-Q":       { "config":  config_dir + "quality_preset.ini",
                                          "mode": "direct" },
+                 "Mt-KaHyPar-Q-F":     { "config":  config_dir + "highest_quality_preset.ini",
+                                         "mode": "direct" },
                  "Mt-KaHyPar-D-Graph": { "config":  config_dir + "default_preset.ini",
                                          "mode": "direct" },
-                 "Mt-KaHyPar-Q-Graph":  {"config":  config_dir + "quality_preset.ini",
+                 "Mt-KaHyPar-Q-Graph": {"config":  config_dir + "quality_preset.ini",
+                                         "mode": "direct" },
+                 "Mt-KaHyPar-Q-F-Graph": {"config":  config_dir + "highest_quality_preset.ini",
                                          "mode": "direct" },
                  "Mt-KaHyPar-SDet":    { "config":  config_dir + "deterministic_preset.ini",
                                          "mode": "direct" },
@@ -29,10 +33,14 @@ partitioners = { "Mt-KaHyPar-D":       { "config":  config_dir + "default_preset
                                          "mode": "rb" },
                  "Mt-KaHyPar-Q-RB":    { "config":  config_dir + "quality_preset.ini",
                                          "mode": "rb" },
+                 "Mt-KaHyPar-Q-F-RB":  { "config":  config_dir + "highest_quality_preset.ini",
+                                         "mode": "rb" },
                  "Mt-KaHyPar-D-Deep":  { "config":  config_dir + "default_preset.ini",
                                          "mode": "deep" },
                  "Mt-KaHyPar-Q-Deep":  { "config":  config_dir + "quality_preset.ini",
-                                         "mode": "deep" } }
+                                         "mode": "deep" },
+                 "Mt-KaHyPar-Q-F-Deep": { "config":  config_dir + "highest_quality_preset.ini",
+                                          "mode": "deep" } }
 
 def bold(msg):
   return "\033[1m" + msg + "\033[0m"

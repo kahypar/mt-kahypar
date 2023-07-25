@@ -90,12 +90,10 @@ typedef enum {
   DEFAULT,
   // extends default preset with flow-based refinement
   // -> computes high-quality partitions (corresponds to Mt-KaHyPar-D-F)
-  DEFAULT_FLOWS,
-  // computes high-quality partitions (Mt-KaHyPar-Q)
   QUALITY,
-  // extends quality preset with flow-based refinement
+  // n-level code with flow-based refinement
   // => highest quality configuration (corresponds to Mt-KaHyPar-Q-F)
-  QUALITY_FLOWS
+  HIGHEST_QUALITY
 } mt_kahypar_preset_type_t;
 
 /**

@@ -64,16 +64,16 @@ class AInitialPartitionerTest : public Test {
     if ( !context.isNLevelPartitioning() ) {
       parseIniToContext(context, "../config/default_preset.ini");
     } else {
-      parseIniToContext(context, "../config/quality_preset.ini");
+      parseIniToContext(context, "../config/highest_quality_preset.ini");
     }
     context.partition.partition_type = PartitionedHypergraph::TYPE;
 
     context.partition.graph_filename = "../tests/instances/contracted_unweighted_ibm01.hgr";
     context.partition.graph_community_filename = "../tests/instances/contracted_ibm01.hgr.community";
     context.partition.mode = Mode::direct;
-    #ifdef KAHYPAR_ENABLE_QUALITY_PRESET_FEATURES
+    #ifdef KAHYPAR_ENABLE_HIGHEST_QUALITY_FEATURES
     context.partition.preset_type = Hypergraph::is_static_hypergraph ?
-     PresetType::default_preset : PresetType::quality_preset;
+      PresetType::default_preset : PresetType::highest_quality;
     #else
     context.partition.preset_type = PresetType::default_preset;
     #endif
@@ -156,12 +156,12 @@ typedef ::testing::Types<TestConfig<StaticHypergraphTypeTraits, Mode::deep_multi
                          TestConfig<StaticHypergraphTypeTraits, Mode::recursive_bipartitioning, 2>,
                          TestConfig<StaticHypergraphTypeTraits, Mode::recursive_bipartitioning, 3>,
                          TestConfig<StaticHypergraphTypeTraits, Mode::recursive_bipartitioning, 4>
-                         ENABLE_QUALITY_PRESET(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA Mode::deep_multilevel COMMA 2>)
-                         ENABLE_QUALITY_PRESET(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA Mode::deep_multilevel COMMA 3>)
-                         ENABLE_QUALITY_PRESET(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA Mode::deep_multilevel COMMA 4>)
-                         ENABLE_QUALITY_PRESET(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA Mode::recursive_bipartitioning COMMA 2>)
-                         ENABLE_QUALITY_PRESET(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA Mode::recursive_bipartitioning COMMA 3>)
-                         ENABLE_QUALITY_PRESET(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA Mode::recursive_bipartitioning COMMA 4>) > TestConfigs;
+                         ENABLE_HIGHEST_QUALITY(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA Mode::deep_multilevel COMMA 2>)
+                         ENABLE_HIGHEST_QUALITY(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA Mode::deep_multilevel COMMA 3>)
+                         ENABLE_HIGHEST_QUALITY(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA Mode::deep_multilevel COMMA 4>)
+                         ENABLE_HIGHEST_QUALITY(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA Mode::recursive_bipartitioning COMMA 2>)
+                         ENABLE_HIGHEST_QUALITY(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA Mode::recursive_bipartitioning COMMA 3>)
+                         ENABLE_HIGHEST_QUALITY(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA Mode::recursive_bipartitioning COMMA 4>) > TestConfigs;
 
 TYPED_TEST_CASE(AInitialPartitionerTest, TestConfigs);
 

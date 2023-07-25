@@ -19,7 +19,7 @@ if ( KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES )
           delta_partitioned_graph_test.cc)
 endif()
 
-if ( KAHYPAR_ENABLE_QUALITY_PRESET_FEATURES )
+if ( KAHYPAR_ENABLE_HIGHEST_QUALITY_FEATURES )
   target_sources(mt_kahypar_tests PRIVATE
           dynamic_hypergraph_test.cc
           dynamic_partitioned_hypergraph_test.cc

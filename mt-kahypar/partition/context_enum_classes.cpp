@@ -67,9 +67,8 @@ namespace mt_kahypar {
       case PresetType::deterministic: return os << "deterministic";
       case PresetType::large_k: return os << "large_k";
       case PresetType::default_preset: return os << "default";
-      case PresetType::default_flows: return os << "default_flows";
-      case PresetType::quality_preset: return os << "quality";
-      case PresetType::quality_flows: return os << "quality_flows";
+      case PresetType::quality: return os << "quality";
+      case PresetType::highest_quality: return os << "highest_quality";
       case PresetType::UNDEFINED: return os << "UNDEFINED";
         // omit default case to trigger compiler warning for missing cases
     }
@@ -299,17 +298,14 @@ namespace mt_kahypar {
   PresetType presetTypeFromString(const std::string& type) {
     if (type == "deterministic") {
       return PresetType::deterministic;
-    }
-    else if (type == "large_k") {
+    } else if (type == "large_k") {
       return PresetType::large_k;
     } else if (type == "default") {
       return PresetType::default_preset;
-    } else if (type == "default_flows") {
-      return PresetType::default_flows;
     } else if (type == "quality") {
-      return PresetType::quality_preset;
-    } else if (type == "quality_flows") {
-      return PresetType::quality_flows;
+      return PresetType::quality;
+    } else if (type == "highest_quality") {
+      return PresetType::highest_quality;
     }
     ERR("Illegal option: " + type);
     return PresetType::UNDEFINED;

@@ -30,7 +30,7 @@
 #include "tests/partition/coarsening/coarsener_fixtures.h"
 #include "mt-kahypar/partition/coarsening/multilevel_coarsener.h"
 #include "mt-kahypar/partition/coarsening/multilevel_uncoarsener.h"
-#ifdef KAHYPAR_ENABLE_QUALITY_PRESET_FEATURES
+#ifdef KAHYPAR_ENABLE_HIGHEST_QUALITY_FEATURES
 #include "mt-kahypar/partition/coarsening/nlevel_coarsener.h"
 #include "mt-kahypar/partition/coarsening/nlevel_uncoarsener.h"
 #endif
@@ -93,11 +93,11 @@ TEST_F(AMultilevelCoarsener, ProjectsPartitionBackToOriginalHypergraph) {
   }
 }
 
-#ifdef KAHYPAR_ENABLE_QUALITY_PRESET_FEATURES
+#ifdef KAHYPAR_ENABLE_HIGHEST_QUALITY_FEATURES
 using ANLevelCoarsener = ACoarsener<DynamicHypergraphTypeTraits,
                                     NLevelCoarsener,
                                     NLevelUncoarsener,
-                                    PresetType::quality_preset>;
+                                    PresetType::highest_quality>;
 
 TEST_F(ANLevelCoarsener, DecreasesNumberOfPins) {
   context.coarsening.contraction_limit = 4;
