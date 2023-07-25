@@ -49,5 +49,9 @@ Hypergraph readInputFile(const std::string& filename,
                          const bool stable_construction = false,
                          const bool remove_single_pin_hes = true);
 
+void readFixedVertexFile(mt_kahypar_hypergraph_t hypergraph,
+                         const PartitionID k,
+                         const std::string& filename);
+
 }  // namespace io
 }  // namespace mt_kahypar

@@ -74,6 +74,9 @@ namespace mt_kahypar {
              "If set, the specific deterministic subroutines don't need to be set manually.")
             ("verbose,v", po::value<bool>(&context.partition.verbose_output)->value_name("<bool>")->default_value(true),
              "Verbose main partitioning output")
+            ("fixed,f",
+             po::value<std::string>(&context.partition.fixed_vertex_filename)->value_name("<string>"),
+             "Fixed vertex filename")
             ("write-partition-file",
              po::value<bool>(&context.partition.write_partition_file)->value_name("<bool>")->default_value(false),
              "If true, then partition output file is generated")

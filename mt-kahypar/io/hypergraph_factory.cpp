@@ -162,6 +162,29 @@ Hypergraph readInputFile(const std::string& filename,
   return std::move(utils::cast<Hypergraph>(hypergraph));
 }
 
+void readFixedVertexFile(mt_kahypar_hypergraph_t hypergraph,
+                         const PartitionID k,
+                         const std::string& filename) {
+  switch ( hypergraph.type ) {
+    case STATIC_HYPERGRAPH:
+      readFixedVertexFile(utils::cast<ds::StaticHypergraph>(hypergraph), k, filename); break;
+    #ifdef KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES
+    case STATIC_GRAPH:
+      readFixedVertexFile(utils::cast<ds::StaticGraph>(hypergraph), k, filename); break;
+    #ifdef KAHYPAR_ENABLE_HIGHEST_QUALITY_FEATURES
+    case DYNAMIC_GRAPH:
+      readFixedVertexFile(utils::cast<ds::DynamicGraph>(hypergraph), k, filename); break;
+    #endif
+    #endif
+    #ifdef KAHYPAR_ENABLE_HIGHEST_QUALITY_FEATURES
+    case DYNAMIC_HYPERGRAPH:
+      readFixedVertexFile(utils::cast<ds::DynamicHypergraph>(hypergraph), k, filename); break;
+    #endif
+    case NULLPTR_HYPERGRAPH:
+    default: break;
+  }
+}
+
 namespace {
   #define READ_INPUT_FILE(X) X readInputFile(const std::string& filename,       \
                                              const FileFormat& format,          \

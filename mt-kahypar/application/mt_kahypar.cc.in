@@ -129,6 +129,13 @@ int main(int argc, char* argv[]) {
     }
   }
 
+  if ( context.partition.fixed_vertex_filename != "" ) {
+    timer.start_timer("read_fixed_vertices", "Read Fixed Vertex File");
+    io::readFixedVertexFile(hypergraph,
+      context.partition.k, context.partition.fixed_vertex_filename);
+    timer.stop_timer("read_fixed_vertices");
+  }
+
   // Initialize Memory Pool
   register_memory_pool(hypergraph, context);
 

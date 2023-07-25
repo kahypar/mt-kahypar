@@ -58,5 +58,10 @@ namespace io {
   template<typename PartitionedHypergraph>
   void writePartitionFile(const PartitionedHypergraph& phg, const std::string& filename);
 
+  template<typename Hypergraph>
+  void readFixedVertexFile(Hypergraph& hypergraph,
+                           const PartitionID k,
+                           const std::string& filename);
+
 }  // namespace io
 }  // namespace mt_kahypar

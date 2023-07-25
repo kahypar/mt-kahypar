@@ -50,6 +50,7 @@
 
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/context_enum_classes.h"
+#include "mt-kahypar/datastructures/fixed_vertex_support.h"
 #include "mt-kahypar/utils/timer.h"
 
 namespace mt_kahypar::io {
@@ -680,10 +681,40 @@ namespace mt_kahypar::io {
     }
   }
 
+  template<typename Hypergraph>
+  void readFixedVertexFile(Hypergraph& hypergraph, const PartitionID k, const std::string& filename) {
+    ds::FixedVertexSupport<Hypergraph> fixed_vertices(hypergraph.initialNumNodes(), k);
+    fixed_vertices.setHypergraph(&hypergraph);
+    if ( filename.empty() ) {
+      LOG << "No fixed vertex file specified";
+    } else {
+      std::ifstream file(filename);
+      if (file) {
+        PartitionID block;
+        HypernodeID hn = 0;
+        while (file >> block) {
+          if (block != -1) {
+            fixed_vertices.fixToBlock(hn, block);
+          }
+          hn++;
+          if ( hn >= hypergraph.initialNumNodes() ) {
+            ERR("Fixed vertex file has more lines than the number of nodes of the input hypergraph!");
+          }
+        }
+        file.close();
+      } else {
+        ERR("File not found: " << filename);
+      }
+    }
+    hypergraph.addFixedVertexSupport(std::move(fixed_vertices));
+  }
+
   namespace {
   #define WRITE_PARTITION_FILE(X) void writePartitionFile(const X& phg, const std::string& filename)
+  #define READ_FIXED_VERTEX_FILE(X) void readFixedVertexFile(X& hypergraph, const PartitionID k, const std::string& filename)
   }
 
   INSTANTIATE_FUNC_WITH_PARTITIONED_HG(WRITE_PARTITION_FILE)
+  INSTANTIATE_FUNC_WITH_HYPERGRAPHS(READ_FIXED_VERTEX_FILE)
 
 } // namespace
