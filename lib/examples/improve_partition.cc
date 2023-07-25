@@ -30,14 +30,14 @@ int main(int argc, char* argv[]) {
     mt_kahypar_read_hypergraph_from_file("ibm01.hgr",
       DEFAULT, HMETIS /* file format */);
 
-  // Read Partition File, which we will then improve with the DEFAULT_FLOW preset
+  // Read Partition File, which we improve with the QUALITY preset
   mt_kahypar_partitioned_hypergraph_t partitioned_hg =
     mt_kahypar_read_partition_from_file(
-      hypergraph, DEFAULT_FLOWS, 8 /* number of blocks */, "ibm01.hgr.part8");
+      hypergraph, QUALITY, 8 /* number of blocks */, "ibm01.hgr.part8");
   const double km1_before = mt_kahypar_km1(partitioned_hg);
 
   // Improve Partition
-  mt_kahypar_load_preset(context, DEFAULT_FLOWS /* use Mt-KaHyPar-D-F for improvement */);
+  mt_kahypar_load_preset(context, QUALITY /* use quality preset for improvement */);
   mt_kahypar_improve_partition(partitioned_hg, context,
     1 /* perform one multilevel improvement cycle (also called V-cycle) */);
   const double km1_after = mt_kahypar_km1(partitioned_hg);
