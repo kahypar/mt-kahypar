@@ -77,9 +77,9 @@ namespace internal {
         << "to the cmake command and rebuild Mt-KaHyPar.");
     }
     #endif
-    #ifndef KAHYPAR_ENABLE_QUALITY_PRESET_FEATURES
+    #ifndef KAHYPAR_ENABLE_HIGHEST_QUALITY_FEATURES
     if ( type == N_LEVEL_HYPERGRAPH_PARTITIONING || type == N_LEVEL_GRAPH_PARTITIONING ) {
-      ERR("Quality preset features are deactivated. Add -KAHYPAR_ENABLE_QUALITY_PRESET_FEATURES=ON"
+      ERR("Quality preset features are deactivated. Add -KAHYPAR_ENABLE_HIGHEST_QUALITY_FEATURES=ON"
         << "to the cmake command and rebuild Mt-KaHyPar.");
     }
     #endif
@@ -110,7 +110,7 @@ namespace internal {
       case LARGE_K_PARTITIONING:
         return internal::partition<LargeKHypergraphTypeTraits>(hypergraph, context, target_graph);
       #endif
-      #ifdef KAHYPAR_ENABLE_QUALITY_PRESET_FEATURES
+      #ifdef KAHYPAR_ENABLE_HIGHEST_QUALITY_FEATURES
       #ifdef KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES
       case N_LEVEL_GRAPH_PARTITIONING:
         return internal::partition<DynamicGraphTypeTraits>(hypergraph, context, target_graph);
@@ -142,7 +142,7 @@ namespace internal {
       case LARGE_K_PARTITIONING:
         internal::improve<LargeKHypergraphTypeTraits>(partitioned_hg, context, target_graph); break;
       #endif
-      #ifdef KAHYPAR_ENABLE_QUALITY_PRESET_FEATURES
+      #ifdef KAHYPAR_ENABLE_HIGHEST_QUALITY_FEATURES
       #ifdef KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES
       case N_LEVEL_GRAPH_PARTITIONING:
         internal::improve<DynamicGraphTypeTraits>(partitioned_hg, context, target_graph); break;
@@ -172,7 +172,7 @@ namespace internal {
         io::printPartitioningResults(utils::cast_const<StaticSparsePartitionedHypergraph>(phg), context, elapsed_seconds);
         break;
       #endif
-      #ifdef KAHYPAR_ENABLE_QUALITY_PRESET_FEATURES
+      #ifdef KAHYPAR_ENABLE_HIGHEST_QUALITY_FEATURES
       #ifdef KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES
       case N_LEVEL_GRAPH_PARTITIONING:
         io::printPartitioningResults(utils::cast_const<DynamicPartitionedGraph>(phg), context, elapsed_seconds);
@@ -202,7 +202,7 @@ namespace internal {
       case LARGE_K_PARTITIONING:
         return io::csv::serialize(utils::cast_const<StaticSparsePartitionedHypergraph>(phg), context, elapsed_seconds);
       #endif
-      #ifdef KAHYPAR_ENABLE_QUALITY_PRESET_FEATURES
+      #ifdef KAHYPAR_ENABLE_HIGHEST_QUALITY_FEATURES
       #ifdef KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES
       case N_LEVEL_GRAPH_PARTITIONING:
         return io::csv::serialize(utils::cast_const<DynamicPartitionedGraph>(phg), context, elapsed_seconds);
@@ -230,7 +230,7 @@ namespace internal {
       case LARGE_K_PARTITIONING:
         return io::serializer::serialize(utils::cast_const<StaticSparsePartitionedHypergraph>(phg), context, elapsed_seconds);
       #endif
-      #ifdef KAHYPAR_ENABLE_QUALITY_PRESET_FEATURES
+      #ifdef KAHYPAR_ENABLE_HIGHEST_QUALITY_FEATURES
       #ifdef KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES
       case N_LEVEL_GRAPH_PARTITIONING:
         return io::serializer::serialize(utils::cast_const<DynamicPartitionedGraph>(phg), context, elapsed_seconds);
@@ -260,7 +260,7 @@ namespace internal {
         io::writePartitionFile(utils::cast_const<StaticSparsePartitionedHypergraph>(phg), filename);
         break;
       #endif
-      #ifdef KAHYPAR_ENABLE_QUALITY_PRESET_FEATURES
+      #ifdef KAHYPAR_ENABLE_HIGHEST_QUALITY_FEATURES
       #ifdef KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES
       case N_LEVEL_GRAPH_PARTITIONING:
         io::writePartitionFile(utils::cast_const<DynamicPartitionedGraph>(phg), filename);

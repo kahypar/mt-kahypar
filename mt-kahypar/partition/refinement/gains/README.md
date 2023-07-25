@@ -113,7 +113,7 @@ void uncontractUpdateAfterReplacement(
   const HypernodeID v,
   const HyperedgeID he);
 ```
-The first function is called if ```u``` and ```v``` are both contained in hyperedge ```he``` after the uncontraction. The second function is called if ```v``` replaces ```u``` in hyperedge ```he```. If it is not possible to update the gain cache after the uncontraction operation, you can throw an error/exception in both functions or optimize out the n-level code by adding ```-DKAHYPAR_ENABLE_QUALITY_PRESET_FEATURES=OFF``` to the cmake build command. However, if you do not implement these functions, it is not possible to use our ```quality``` and ```quality_flows``` configuration.
+The first function is called if ```u``` and ```v``` are both contained in hyperedge ```he``` after the uncontraction. The second function is called if ```v``` replaces ```u``` in hyperedge ```he```. If it is not possible to update the gain cache after the uncontraction operation, you can throw an error/exception in both functions or optimize out the n-level code by adding ```-DKAHYPAR_ENABLE_HIGHEST_QUALITY_FEATURES=OFF``` to the cmake build command. However, if you do not implement these functions, it is not possible to use our ```quality``` and ```quality_flows``` configuration.
 
 There is a unit test that verifies your gain cache implementation, which you can find in ```tests/partition/refinement/gain_cache_test.cc``` (build test suite via ```make mt_kahypar_tests``` and then run ```./tests/mt_kahypar_tests --gtest_filter=*AGainCache*```). To test your gain cache implementation, you can add your gain type struct to the ```TestConfigs```.
 

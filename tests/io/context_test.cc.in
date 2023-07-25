@@ -551,7 +551,7 @@ TEST(AContext, LoadsDeterministicPresetCorrectly) {
             expected.mapping.min_pin_coverage_of_largest_hes);
 }
 
-#ifdef KAHYPAR_ENABLE_QUALITY_PRESET_FEATURES
+#ifdef KAHYPAR_ENABLE_HIGHEST_QUALITY_FEATURES
 
 TEST(AContext, LoadsQualityPresetCorrectly) {
   Context actual;

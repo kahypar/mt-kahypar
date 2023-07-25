@@ -436,12 +436,12 @@ typedef ::testing::Types<TestConfig<StaticHypergraphTypeTraits, Km1GainTypes>,
                          ENABLE_STEINER_TREE(COMMA TestConfig<StaticHypergraphTypeTraits COMMA SteinerTreeGainTypes>)
                          ENABLE_GRAPHS(COMMA TestConfig<StaticGraphTypeTraits COMMA CutGainForGraphsTypes>)
                          ENABLE_GRAPHS(ENABLE_STEINER_TREE(COMMA TestConfig<StaticGraphTypeTraits COMMA SteinerTreeForGraphsTypes>))
-                         ENABLE_QUALITY_PRESET(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA Km1GainTypes>)
-                         ENABLE_QUALITY_PRESET(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA CutGainTypes>)
-                         ENABLE_QUALITY_PRESET(ENABLE_SOED(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA SoedGainTypes>))
-                         ENABLE_QUALITY_PRESET(ENABLE_STEINER_TREE(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA SteinerTreeGainTypes>))
-                         ENABLE_QUALITY_PRESET_FOR_GRAPHS(COMMA TestConfig<DynamicGraphTypeTraits COMMA CutGainForGraphsTypes>)
-                         ENABLE_QUALITY_PRESET_FOR_GRAPHS(ENABLE_STEINER_TREE(COMMA TestConfig<DynamicGraphTypeTraits COMMA SteinerTreeForGraphsTypes>))
+                         ENABLE_HIGHEST_QUALITY(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA Km1GainTypes>)
+                         ENABLE_HIGHEST_QUALITY(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA CutGainTypes>)
+                         ENABLE_HIGHEST_QUALITY(ENABLE_SOED(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA SoedGainTypes>))
+                         ENABLE_HIGHEST_QUALITY(ENABLE_STEINER_TREE(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA SteinerTreeGainTypes>))
+                         ENABLE_HIGHEST_QUALITY_FOR_GRAPHS(COMMA TestConfig<DynamicGraphTypeTraits COMMA CutGainForGraphsTypes>)
+                         ENABLE_HIGHEST_QUALITY_FOR_GRAPHS(ENABLE_STEINER_TREE(COMMA TestConfig<DynamicGraphTypeTraits COMMA SteinerTreeForGraphsTypes>))
                          ENABLE_LARGE_K(COMMA TestConfig<LargeKHypergraphTypeTraits COMMA Km1GainTypes>)
                          ENABLE_LARGE_K(COMMA TestConfig<LargeKHypergraphTypeTraits COMMA CutGainTypes>)
                          ENABLE_LARGE_K(ENABLE_SOED(COMMA TestConfig<LargeKHypergraphTypeTraits COMMA SoedGainTypes>))
@@ -498,7 +498,7 @@ TYPED_TEST(AGainCache, ComparesGainsWithAttributedGains) {
   }
 }
 
-#ifdef KAHYPAR_ENABLE_QUALITY_PRESET_FEATURES
+#ifdef KAHYPAR_ENABLE_HIGHEST_QUALITY_FEATURES
 
 TYPED_TEST(AGainCache, HasCorrectGainsAfterNLevelUncontraction) {
   this->simulateNLevelWithGainCacheUpdates(false);
