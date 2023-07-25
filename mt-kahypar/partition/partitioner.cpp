@@ -285,6 +285,7 @@ namespace mt_kahypar {
     io::printContext(context);
     io::printMemoryPoolConsumption(context);
     io::printInputInformation(context, hypergraph);
+    io::printFixedVertexPartWeights(hypergraph, context);
 
     #ifdef KAHYPAR_ENABLE_STEINER_TREE_METRIC
     bool map_partition_to_target_graph_at_the_end = false;

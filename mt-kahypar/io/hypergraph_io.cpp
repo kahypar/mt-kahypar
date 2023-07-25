@@ -697,7 +697,7 @@ namespace mt_kahypar::io {
             fixed_vertices.fixToBlock(hn, block);
           }
           hn++;
-          if ( hn >= hypergraph.initialNumNodes() ) {
+          if ( hn > hypergraph.initialNumNodes() ) {
             ERR("Fixed vertex file has more lines than the number of nodes of the input hypergraph!");
           }
         }

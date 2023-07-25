@@ -58,6 +58,8 @@ namespace mt_kahypar::io {
   template<typename PartitionedHypergraph>
   void printPartWeightsAndSizes(const PartitionedHypergraph& hypergraph, const Context& context);
   template<typename Hypergraph>
+  void printFixedVertexPartWeights(const Hypergraph& hypergraph, const Context& context);
+  template<typename Hypergraph>
   void printInputInformation(const Context& context, const Hypergraph& hypergraph);
   template<typename Hypergraph>
   void printCommunityInformation(const Hypergraph& hypergraph);
