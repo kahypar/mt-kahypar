@@ -209,11 +209,11 @@ TEST(AContext, LoadsDefaultPresetCorrectly) {
             expected.mapping.min_pin_coverage_of_largest_hes);
 }
 
-TEST(AContext, LoadsDefaultFlowPresetCorrectly) {
+TEST(AContext, LoadsQualityPresetCorrectly) {
   Context actual;
-  actual.load_default_flow_preset();
+  actual.load_quality_preset();
   Context expected;
-  parseIniToContext(expected, std::string(MT_KAHYPAR_CONFIG_DIR) + "default_flow_preset.ini");
+  parseIniToContext(expected, std::string(MT_KAHYPAR_CONFIG_DIR) + "quality_preset.ini");
 
   // General
   ASSERT_EQ(actual.partition.preset_type, expected.partition.preset_type);
@@ -553,205 +553,11 @@ TEST(AContext, LoadsDeterministicPresetCorrectly) {
 
 #ifdef KAHYPAR_ENABLE_HIGHEST_QUALITY_FEATURES
 
-TEST(AContext, LoadsQualityPresetCorrectly) {
+TEST(AContext, LoadsHighestQualityPresetCorrectly) {
   Context actual;
-  actual.load_quality_preset();
+  actual.load_highest_quality_preset();
   Context expected;
-  parseIniToContext(expected, std::string(MT_KAHYPAR_CONFIG_DIR) + "quality_preset.ini");
-
-  // General
-  ASSERT_EQ(actual.partition.preset_type, expected.partition.preset_type);
-  ASSERT_EQ(actual.partition.mode, expected.partition.mode);
-  ASSERT_EQ(actual.partition.deterministic, expected.partition.deterministic);
-  ASSERT_EQ(actual.partition.num_vcycles, expected.partition.num_vcycles);
-  ASSERT_EQ(actual.partition.large_hyperedge_size_threshold_factor, expected.partition.large_hyperedge_size_threshold_factor);
-  ASSERT_EQ(actual.partition.large_hyperedge_size_threshold, expected.partition.large_hyperedge_size_threshold);
-  ASSERT_EQ(actual.partition.smallest_large_he_size_threshold, expected.partition.smallest_large_he_size_threshold);
-  ASSERT_EQ(actual.partition.ignore_hyperedge_size_threshold, expected.partition.ignore_hyperedge_size_threshold);
-
-  // shared memory
-  ASSERT_EQ(actual.shared_memory.static_balancing_work_packages, expected.shared_memory.static_balancing_work_packages);
-  ASSERT_EQ(actual.shared_memory.use_localized_random_shuffle, expected.shared_memory.use_localized_random_shuffle);
-
-  // preprocessing
-  ASSERT_EQ(actual.preprocessing.use_community_detection,
-            expected.preprocessing.use_community_detection);
-  ASSERT_EQ(actual.preprocessing.disable_community_detection_for_mesh_graphs,
-            expected.preprocessing.disable_community_detection_for_mesh_graphs);
-
-  // community detection
-  ASSERT_EQ(actual.preprocessing.community_detection.edge_weight_function,
-            expected.preprocessing.community_detection.edge_weight_function);
-  ASSERT_EQ(actual.preprocessing.community_detection.max_pass_iterations,
-            expected.preprocessing.community_detection.max_pass_iterations);
-  ASSERT_EQ(actual.preprocessing.community_detection.low_memory_contraction,
-            expected.preprocessing.community_detection.low_memory_contraction);
-  ASSERT_DOUBLE_EQ(actual.preprocessing.community_detection.min_vertex_move_fraction,
-                    expected.preprocessing.community_detection.min_vertex_move_fraction);
-  ASSERT_EQ(actual.preprocessing.community_detection.vertex_degree_sampling_threshold,
-            expected.preprocessing.community_detection.vertex_degree_sampling_threshold);
-
-  // coarsening
-  ASSERT_EQ(actual.coarsening.algorithm, expected.coarsening.algorithm);
-  ASSERT_EQ(actual.coarsening.contraction_limit_multiplier, expected.coarsening.contraction_limit_multiplier);
-  ASSERT_EQ(actual.coarsening.use_adaptive_edge_size, expected.coarsening.use_adaptive_edge_size);
-  ASSERT_EQ(actual.coarsening.max_allowed_weight_multiplier, expected.coarsening.max_allowed_weight_multiplier);
-  ASSERT_EQ(actual.coarsening.minimum_shrink_factor, expected.coarsening.minimum_shrink_factor);
-  ASSERT_EQ(actual.coarsening.maximum_shrink_factor, expected.coarsening.maximum_shrink_factor);
-  ASSERT_EQ(actual.coarsening.vertex_degree_sampling_threshold, expected.coarsening.vertex_degree_sampling_threshold);
-
-  // coarsening -> rating
-  ASSERT_EQ(actual.coarsening.rating.rating_function, expected.coarsening.rating.rating_function);
-  ASSERT_EQ(actual.coarsening.rating.heavy_node_penalty_policy, expected.coarsening.rating.heavy_node_penalty_policy);
-  ASSERT_EQ(actual.coarsening.rating.acceptance_policy, expected.coarsening.rating.acceptance_policy);
-
-  // initial partitioning
-  ASSERT_EQ(actual.initial_partitioning.mode, expected.initial_partitioning.mode);
-  ASSERT_EQ(actual.initial_partitioning.runs, expected.initial_partitioning.runs);
-  ASSERT_EQ(actual.initial_partitioning.use_adaptive_ip_runs, expected.initial_partitioning.use_adaptive_ip_runs);
-  ASSERT_EQ(actual.initial_partitioning.min_adaptive_ip_runs, expected.initial_partitioning.min_adaptive_ip_runs);
-  ASSERT_EQ(actual.initial_partitioning.perform_refinement_on_best_partitions, expected.initial_partitioning.perform_refinement_on_best_partitions);
-  ASSERT_EQ(actual.initial_partitioning.fm_refinment_rounds, expected.initial_partitioning.fm_refinment_rounds);
-  ASSERT_EQ(actual.initial_partitioning.remove_degree_zero_hns_before_ip, expected.initial_partitioning.remove_degree_zero_hns_before_ip);
-  ASSERT_EQ(actual.initial_partitioning.lp_maximum_iterations, expected.initial_partitioning.lp_maximum_iterations);
-  ASSERT_EQ(actual.initial_partitioning.lp_initial_block_size, expected.initial_partitioning.lp_initial_block_size);
-
-  // initial partitioning -> refinement
-  ASSERT_EQ(actual.initial_partitioning.refinement.refine_until_no_improvement,
-            expected.initial_partitioning.refinement.refine_until_no_improvement);
-  ASSERT_EQ(actual.initial_partitioning.refinement.relative_improvement_threshold,
-            expected.initial_partitioning.refinement.relative_improvement_threshold);
-  ASSERT_EQ(actual.initial_partitioning.refinement.max_batch_size,
-            expected.initial_partitioning.refinement.max_batch_size);
-  ASSERT_EQ(actual.initial_partitioning.refinement.min_border_vertices_per_thread,
-            expected.initial_partitioning.refinement.min_border_vertices_per_thread);
-
-  // initial partitioning -> refinement -> label propagation
-  ASSERT_EQ(actual.initial_partitioning.refinement.label_propagation.algorithm,
-            expected.initial_partitioning.refinement.label_propagation.algorithm);
-  ASSERT_EQ(actual.initial_partitioning.refinement.label_propagation.maximum_iterations,
-            expected.initial_partitioning.refinement.label_propagation.maximum_iterations);
-  ASSERT_EQ(actual.initial_partitioning.refinement.label_propagation.rebalancing,
-            expected.initial_partitioning.refinement.label_propagation.rebalancing);
-  ASSERT_EQ(actual.initial_partitioning.refinement.label_propagation.hyperedge_size_activation_threshold,
-            expected.initial_partitioning.refinement.label_propagation.hyperedge_size_activation_threshold);
-
-
-  // initial partitioning -> refinement -> fm
-  ASSERT_EQ(actual.initial_partitioning.refinement.fm.algorithm,
-            expected.initial_partitioning.refinement.fm.algorithm);
-  ASSERT_EQ(actual.initial_partitioning.refinement.fm.multitry_rounds,
-            expected.initial_partitioning.refinement.fm.multitry_rounds);
-  ASSERT_EQ(actual.initial_partitioning.refinement.fm.num_seed_nodes,
-            expected.initial_partitioning.refinement.fm.num_seed_nodes);
-  ASSERT_EQ(actual.initial_partitioning.refinement.fm.rollback_balance_violation_factor,
-            expected.initial_partitioning.refinement.fm.rollback_balance_violation_factor);
-  ASSERT_EQ(actual.initial_partitioning.refinement.fm.min_improvement,
-            expected.initial_partitioning.refinement.fm.min_improvement);
-  ASSERT_EQ(actual.initial_partitioning.refinement.fm.time_limit_factor,
-            expected.initial_partitioning.refinement.fm.time_limit_factor);
-  ASSERT_EQ(actual.initial_partitioning.refinement.fm.perform_moves_global,
-            expected.initial_partitioning.refinement.fm.perform_moves_global);
-  ASSERT_EQ(actual.initial_partitioning.refinement.fm.rollback_parallel,
-            expected.initial_partitioning.refinement.fm.rollback_parallel);
-  ASSERT_EQ(actual.initial_partitioning.refinement.fm.iter_moves_on_recalc,
-            expected.initial_partitioning.refinement.fm.iter_moves_on_recalc);
-  ASSERT_EQ(actual.initial_partitioning.refinement.fm.shuffle,
-            expected.initial_partitioning.refinement.fm.shuffle);
-  ASSERT_EQ(actual.initial_partitioning.refinement.fm.obey_minimal_parallelism,
-            expected.initial_partitioning.refinement.fm.obey_minimal_parallelism);
-  ASSERT_EQ(actual.initial_partitioning.refinement.fm.release_nodes,
-            expected.initial_partitioning.refinement.fm.release_nodes);
-
-  // initial partitioning -> refinement -> flows
-  ASSERT_EQ(actual.initial_partitioning.refinement.flows.algorithm,
-            expected.initial_partitioning.refinement.flows.algorithm);
-
-  // initial partitioning -> refinement -> global fm
-  ASSERT_EQ(actual.initial_partitioning.refinement.global_fm.use_global_fm,
-            expected.initial_partitioning.refinement.global_fm.use_global_fm);
-
-  // refinement
-  ASSERT_EQ(actual.refinement.rebalancer, expected.refinement.rebalancer);
-  ASSERT_EQ(actual.refinement.refine_until_no_improvement,
-            expected.refinement.refine_until_no_improvement);
-  ASSERT_EQ(actual.refinement.relative_improvement_threshold,
-            expected.refinement.relative_improvement_threshold);
-  ASSERT_EQ(actual.refinement.max_batch_size,
-            expected.refinement.max_batch_size);
-  ASSERT_EQ(actual.refinement.min_border_vertices_per_thread,
-            expected.refinement.min_border_vertices_per_thread);
-
-
-  // refinement -> label propagation
-  ASSERT_EQ(actual.refinement.label_propagation.algorithm,
-            expected.refinement.label_propagation.algorithm);
-  ASSERT_EQ(actual.refinement.label_propagation.maximum_iterations,
-            expected.refinement.label_propagation.maximum_iterations);
-  ASSERT_EQ(actual.refinement.label_propagation.rebalancing,
-            expected.refinement.label_propagation.rebalancing);
-  ASSERT_EQ(actual.refinement.label_propagation.hyperedge_size_activation_threshold,
-            expected.refinement.label_propagation.hyperedge_size_activation_threshold);
-
-
-  // refinement -> fm
-  ASSERT_EQ(actual.refinement.fm.algorithm,
-            expected.refinement.fm.algorithm);
-  ASSERT_EQ(actual.refinement.fm.multitry_rounds,
-            expected.refinement.fm.multitry_rounds);
-  ASSERT_EQ(actual.refinement.fm.num_seed_nodes,
-            expected.refinement.fm.num_seed_nodes);
-  ASSERT_EQ(actual.refinement.fm.rollback_balance_violation_factor,
-            expected.refinement.fm.rollback_balance_violation_factor);
-  ASSERT_EQ(actual.refinement.fm.min_improvement,
-            expected.refinement.fm.min_improvement);
-  ASSERT_EQ(actual.refinement.fm.time_limit_factor,
-            expected.refinement.fm.time_limit_factor);
-  ASSERT_EQ(actual.refinement.fm.perform_moves_global,
-            expected.refinement.fm.perform_moves_global);
-  ASSERT_EQ(actual.refinement.fm.rollback_parallel,
-            expected.refinement.fm.rollback_parallel);
-  ASSERT_EQ(actual.refinement.fm.iter_moves_on_recalc,
-            expected.refinement.fm.iter_moves_on_recalc);
-  ASSERT_EQ(actual.refinement.fm.shuffle,
-            expected.refinement.fm.shuffle);
-  ASSERT_EQ(actual.refinement.fm.obey_minimal_parallelism,
-            expected.refinement.fm.obey_minimal_parallelism);
-  ASSERT_EQ(actual.refinement.fm.release_nodes,
-            expected.refinement.fm.release_nodes);
-
-  // refinement -> flows
-  ASSERT_EQ(actual.refinement.flows.algorithm,
-            expected.refinement.flows.algorithm);
-
-  // refinement -> global fm
-  ASSERT_EQ(actual.refinement.global_fm.use_global_fm,
-            expected.refinement.global_fm.use_global_fm);
-  ASSERT_EQ(actual.refinement.global_fm.refine_until_no_improvement,
-            expected.refinement.global_fm.refine_until_no_improvement);
-  ASSERT_EQ(actual.refinement.global_fm.num_seed_nodes,
-            expected.refinement.global_fm.num_seed_nodes);
-  ASSERT_EQ(actual.refinement.global_fm.obey_minimal_parallelism,
-            expected.refinement.global_fm.obey_minimal_parallelism);
-
-  // mapping
-  ASSERT_EQ(actual.mapping.strategy,
-            expected.mapping.strategy);
-  ASSERT_EQ(actual.mapping.use_local_search,
-            expected.mapping.use_local_search);
-  ASSERT_EQ(actual.mapping.max_steiner_tree_size,
-            expected.mapping.max_steiner_tree_size);
-  ASSERT_EQ(actual.mapping.largest_he_fraction,
-            expected.mapping.largest_he_fraction);
-  ASSERT_EQ(actual.mapping.min_pin_coverage_of_largest_hes,
-            expected.mapping.min_pin_coverage_of_largest_hes);
-}
-
-TEST(AContext, LoadsQualityFlowPresetCorrectly) {
-  Context actual;
-  actual.load_quality_flow_preset();
-  Context expected;
-  parseIniToContext(expected, std::string(MT_KAHYPAR_CONFIG_DIR) + "quality_flow_preset.ini");
+  parseIniToContext(expected, std::string(MT_KAHYPAR_CONFIG_DIR) + "highest_quality_preset.ini");
 
   // General
   ASSERT_EQ(actual.partition.preset_type, expected.partition.preset_type);
