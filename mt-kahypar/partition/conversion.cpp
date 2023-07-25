@@ -38,9 +38,8 @@ mt_kahypar_hypergraph_type_t to_hypergraph_c_type(const PresetType preset,
       case PresetType::deterministic:
       case PresetType::large_k:
       case PresetType::default_preset:
-      case PresetType::default_flows: return STATIC_HYPERGRAPH;
-      case PresetType::quality_preset:
-      case PresetType::quality_flows: return DYNAMIC_HYPERGRAPH;
+      case PresetType::quality: return STATIC_HYPERGRAPH;
+      case PresetType::highest_quality: return DYNAMIC_HYPERGRAPH;
       case PresetType::UNDEFINED: ERR("Unknown preset type!");
     }
   }
@@ -49,9 +48,8 @@ mt_kahypar_hypergraph_type_t to_hypergraph_c_type(const PresetType preset,
       case PresetType::deterministic:
       case PresetType::large_k:
       case PresetType::default_preset:
-      case PresetType::default_flows: return STATIC_GRAPH;
-      case PresetType::quality_preset:
-      case PresetType::quality_flows: return DYNAMIC_GRAPH;
+      case PresetType::quality: return STATIC_GRAPH;
+      case PresetType::highest_quality: return DYNAMIC_GRAPH;
       case PresetType::UNDEFINED: ERR("Unknown preset type!");
     }
   }
@@ -65,21 +63,19 @@ mt_kahypar_partition_type_t to_partition_c_type(const PresetType preset,
                                                 const InstanceType instance) {
   if ( instance == InstanceType::graph ) {
     if ( preset == PresetType::default_preset ||
-         preset == PresetType::default_flows ||
+         preset == PresetType::quality ||
          preset == PresetType::large_k ||
          preset == PresetType::deterministic ) {
       return MULTILEVEL_GRAPH_PARTITIONING;
-    } else if ( preset == PresetType::quality_preset ||
-                preset == PresetType::quality_flows ) {
+    } else if ( preset == PresetType::highest_quality ) {
       return N_LEVEL_GRAPH_PARTITIONING;
     }
   } else if ( instance == InstanceType::hypergraph ) {
     if ( preset == PresetType::default_preset ||
-         preset == PresetType::default_flows ||
+         preset == PresetType::quality ||
          preset == PresetType::deterministic ) {
       return MULTILEVEL_HYPERGRAPH_PARTITIONING;
-    } else if ( preset == PresetType::quality_preset ||
-                preset == PresetType::quality_flows ) {
+    } else if ( preset == PresetType::highest_quality ) {
       return N_LEVEL_HYPERGRAPH_PARTITIONING;
     } else if ( preset == PresetType::large_k ) {
       return LARGE_K_PARTITIONING;
@@ -98,16 +94,12 @@ PresetType to_preset_type(const Mode mode,
     return PresetType::large_k;
   } else if ( coarsening_algo == CoarseningAlgorithm::multilevel_coarsener ) {
     if ( flow_algo == FlowAlgorithm::flow_cutter ) {
-      return PresetType::default_flows;
+      return PresetType::quality;
     } else {
       return PresetType::default_preset;
     }
   } else if ( coarsening_algo == CoarseningAlgorithm::nlevel_coarsener ) {
-    if ( flow_algo == FlowAlgorithm::flow_cutter ) {
-      return PresetType::quality_flows;
-    } else {
-      return PresetType::quality_preset;
-    }
+    return PresetType::highest_quality;
   }
   return PresetType::UNDEFINED;
 }

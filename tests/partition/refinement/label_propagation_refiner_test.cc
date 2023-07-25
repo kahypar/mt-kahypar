@@ -92,7 +92,7 @@ class ALabelPropagationRefiner : public Test {
     context.partition.k = Config::K;
     #ifdef KAHYPAR_ENABLE_QUALITY_PRESET_FEATURES
     context.partition.preset_type = Hypergraph::is_static_hypergraph ?
-     PresetType::default_preset : PresetType::quality_preset;
+      PresetType::default_preset : PresetType::highest_quality;
     #else
     context.partition.preset_type = PresetType::default_preset;
     #endif

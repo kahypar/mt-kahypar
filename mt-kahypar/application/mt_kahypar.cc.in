@@ -49,9 +49,8 @@ static std::string getPresetFile(const Context& context) {
     case PresetType::deterministic: return std::string(MT_KAHYPAR_CONFIG_DIR) + "deterministic_preset.ini";
     case PresetType::large_k: return std::string(MT_KAHYPAR_CONFIG_DIR) + "large_k_preset.ini";
     case PresetType::default_preset: return std::string(MT_KAHYPAR_CONFIG_DIR) + "default_preset.ini";
-    case PresetType::default_flows: return std::string(MT_KAHYPAR_CONFIG_DIR) + "default_flow_preset.ini";
-    case PresetType::quality_preset: return std::string(MT_KAHYPAR_CONFIG_DIR) + "quality_preset.ini";
-    case PresetType::quality_flows: return std::string(MT_KAHYPAR_CONFIG_DIR) + "quality_flow_preset.ini";
+    case PresetType::quality: return std::string(MT_KAHYPAR_CONFIG_DIR) + "quality_preset.ini";
+    case PresetType::highest_quality: return std::string(MT_KAHYPAR_CONFIG_DIR) + "highest_quality_preset.ini";
     case PresetType::UNDEFINED: return "";
   }
   return "";

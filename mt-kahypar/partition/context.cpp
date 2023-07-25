@@ -555,11 +555,11 @@ namespace mt_kahypar {
     refinement.flows.algorithm = FlowAlgorithm::do_nothing;
   }
 
-  void Context::load_default_flow_preset() {
+  void Context::load_quality_preset() {
     load_default_preset();
 
     // General
-    partition.preset_type = PresetType::default_flows;
+    partition.preset_type = PresetType::quality;
 
     // refinement
     refinement.refine_until_no_improvement = true;
@@ -670,9 +670,8 @@ namespace mt_kahypar {
     refinement.flows.algorithm = FlowAlgorithm::do_nothing;
   }
 
-  void Context::load_quality_preset() {
+  void Context::load_n_level_preset() {
     // General
-    partition.preset_type = PresetType::quality_preset;
     partition.mode = Mode::direct;
     partition.large_hyperedge_size_threshold_factor = 0.01;
     partition.smallest_large_he_size_threshold = 50000;
@@ -788,11 +787,11 @@ namespace mt_kahypar {
     refinement.global_fm.obey_minimal_parallelism = true;
   }
 
-  void Context::load_quality_flow_preset() {
-    load_quality_preset();
+  void Context::load_highest_quality_preset() {
+    load_n_level_preset();
 
     // General
-    partition.preset_type = PresetType::quality_flows;
+    partition.preset_type = PresetType::highest_quality;
 
     // refinement
     refinement.relative_improvement_threshold = 0.0025;

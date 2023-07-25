@@ -97,7 +97,7 @@ TEST_F(AMultilevelCoarsener, ProjectsPartitionBackToOriginalHypergraph) {
 using ANLevelCoarsener = ACoarsener<DynamicHypergraphTypeTraits,
                                     NLevelCoarsener,
                                     NLevelUncoarsener,
-                                    PresetType::quality_preset>;
+                                    PresetType::highest_quality>;
 
 TEST_F(ANLevelCoarsener, DecreasesNumberOfPins) {
   context.coarsening.contraction_limit = 4;
