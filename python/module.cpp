@@ -199,7 +199,7 @@ PYBIND11_MODULE(mtkahypar, m) {
     .value("DETERMINISTIC", PresetType::deterministic)
     .value("LARGE_K", PresetType::large_k)
     .value("DEFAULT", PresetType::default_preset)
-    .value("DEFAULT_FLOWS", PresetType::default_flows);
+    .value("QUALITY", PresetType::quality);
 
   using mt_kahypar::Objective;
   py::enum_<Objective>(m, "Objective", py::module_local())
@@ -228,14 +228,14 @@ PYBIND11_MODULE(mtkahypar, m) {
           case PresetType::default_preset:
             context.load_default_preset();
             break;
-          case PresetType::default_flows:
-            context.load_default_flow_preset();
+          case PresetType::quality:
+            context.load_quality_preset();
             break;
           default:
             LOG << "Preset type" << preset << "not supported!";
             break;
         }
-      }, "Loads a preset for partitioning (DETERMINISTIC, SPEED or HIGH_QUALITY)",
+      }, "Loads a preset for partitioning (DETERMINISTIC, LARGE_K, DEFAULT or QUALITY)",
       py::arg("preset type"))
     .def("loadConfigurationFile", [](Context& context, const std::string& config_file) {
         mt_kahypar::parseIniToContext(context, config_file);

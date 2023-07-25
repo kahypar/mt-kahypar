@@ -111,13 +111,12 @@ namespace mt_kahypar {
              po::value<std::string>()->value_name("<string>")->notifier([&](const std::string& type) {
                context.partition.preset_type = presetTypeFromString(type);
              }),
-             "Preset Type: \n"
-             " - deterministic (Mt-KaHyPar-Det)\n"
-             " - default (Mt-KaHyPar-D)\n"
-             " - default_flows (Mt-KaHyPar-D-F)\n"
-             " - quality (Mt-KaHyPar-Q)\n"
-             " - quality_flows (Mt-KaHyPar-Q-F)\n"
-             " - large_k"
+             "Preset Types: \n"
+             " - deterministic\n"
+             " - large_k\n"
+             " - default\n"
+             " - quality\n"
+             " - highest_quality"
              )
             ("seed",
              po::value<int>(&context.partition.seed)->value_name("<int>")->default_value(0),
