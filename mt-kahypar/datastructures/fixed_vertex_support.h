@@ -143,6 +143,7 @@ class FixedVertexSupport {
     if ( !is_fixed_u && is_fixed_v ) {
       // u becomes a fixed vertex
       _fixed_vertex_data[u].block = fixedVertexBlock(v);
+      _fixed_vertex_data[u].fixed_vertex_contraction_cnt = 1;
       u_becomes_fixed = true;
     } else if ( is_fixed_u && ! is_fixed_v ) {
       // v is not fixed, but it is contracted onto a fixed vertex

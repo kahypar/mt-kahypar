@@ -27,6 +27,7 @@
 
 
 #include "gmock/gmock.h"
+#include "tbb/task_group.h"
 
 #include "mt-kahypar/datastructures/static_hypergraph.h"
 #include "mt-kahypar/datastructures/static_hypergraph_factory.h"
@@ -55,9 +56,47 @@ class AFixedVertexSupport : public Test {
     fixed_vertices.fixToBlock(6, 2);
   }
 
+  void verifyFixedVertices(const std::string& desc, const vec<PartitionID>& expected) {
+    HypernodeWeight total_weight = 0;
+    vec<HypernodeWeight> block_weight(3, 0);
+    for ( const HypernodeID& hn : hypergraph.nodes() ) {
+      const bool is_fixed = expected[hn] != kInvalidPartition;
+      ASSERT_EQ(is_fixed, fixed_vertices.isFixed(hn)) << V(hn) << " " << V(desc);
+      ASSERT_EQ(expected[hn], fixed_vertices.fixedVertexBlock(hn)) << V(hn) << " " << V(desc);
+      if ( is_fixed ) {
+        total_weight += hypergraph.nodeWeight(hn);
+        block_weight[expected[hn]] += hypergraph.nodeWeight(hn);
+      }
+    }
+    ASSERT_EQ(total_weight, fixed_vertices.totalFixedVertexWeight()) << V(desc);
+    for ( PartitionID i = 0; i < 3; ++i ) {
+      ASSERT_EQ(block_weight[i], fixed_vertices.fixedVertexBlockWeight(i)) << V(i) << " " << V(desc);
+    }
+  }
+
   Hypergraph hypergraph;
   FixedVertexSupport<Hypergraph> fixed_vertices;
 };
+
+template <class F, class K>
+void runParallel(F f1, K f2) {
+  std::atomic<int> cnt(0);
+  tbb::task_group group;
+
+  group.run([&] {
+        cnt++;
+        while (cnt < 2) { }
+        f1();
+      });
+
+  group.run([&] {
+        cnt++;
+        while (cnt < 2) { }
+        f2();
+      });
+
+  group.wait();
+}
 
 TEST_F(AFixedVertexSupport, CheckIfNodesAreFixed) {
   ASSERT_TRUE(fixed_vertices.hasFixedVertices());
@@ -167,6 +206,238 @@ TEST_F(AFixedVertexSupport, UncontractFixedOntoFreeVertex) {
   ASSERT_EQ(4, fixed_vertices.totalFixedVertexWeight());
 }
 
+TEST_F(AFixedVertexSupport, ContractSeveralFixedVertices1) {
+  ASSERT_TRUE(fixed_vertices.contract(1, 4));
+  ASSERT_TRUE(fixed_vertices.contract(2, 3));
+  ASSERT_TRUE(fixed_vertices.contract(5, 6));
+  verifyFixedVertices("After contractions", { 0, 1, 0, 0, 1, 2, 2 });
+}
+
+TEST_F(AFixedVertexSupport, ContractSeveralFixedVertices2) {
+  ASSERT_TRUE(fixed_vertices.contract(3, 5));
+  ASSERT_TRUE(fixed_vertices.contract(2, 0));
+  ASSERT_TRUE(fixed_vertices.contract(1, 2));
+  verifyFixedVertices("After contractions", { 0, 0, 0, kInvalidPartition, 1, kInvalidPartition, 2 });
+}
+
+TEST_F(AFixedVertexSupport, ContractSeveralFixedVertices3) {
+  ASSERT_TRUE(fixed_vertices.contract(2, 0));
+  ASSERT_TRUE(fixed_vertices.contract(1, 2));
+  ASSERT_TRUE(fixed_vertices.contract(3, 1));
+  verifyFixedVertices("After contractions", { 0, 0, 0, 0, 1, kInvalidPartition, 2 });
+}
+
+TEST_F(AFixedVertexSupport, ContractSeveralFixedVertices4) {
+  ASSERT_TRUE(fixed_vertices.contract(2, 3));
+  ASSERT_TRUE(fixed_vertices.contract(2, 1));
+  ASSERT_TRUE(fixed_vertices.contract(0, 2));
+  verifyFixedVertices("After contractions", { 0, 0, 0, 0, 1, kInvalidPartition, 2 });
+}
+
+TEST_F(AFixedVertexSupport, ContractSeveralFixedVertices5) {
+  ASSERT_TRUE(fixed_vertices.contract(2, 0));
+  ASSERT_TRUE(fixed_vertices.contract(2, 1));
+  ASSERT_TRUE(fixed_vertices.contract(3, 2));
+  verifyFixedVertices("After contractions", { 0, 0, 0, 0, 1, kInvalidPartition, 2 });
+}
+
+TEST_F(AFixedVertexSupport, ContractSeveralFixedVertices6) {
+  ASSERT_TRUE(fixed_vertices.contract(1, 2));
+  ASSERT_TRUE(fixed_vertices.contract(1, 0));
+  ASSERT_TRUE(fixed_vertices.contract(3, 1));
+  verifyFixedVertices("After contractions", { 0, 0, 0, 0, 1, kInvalidPartition, 2 });
+}
+
+TEST_F(AFixedVertexSupport, ContractSeveralFixedVertices7) {
+  ASSERT_TRUE(fixed_vertices.contract(1, 2));
+  ASSERT_TRUE(fixed_vertices.contract(3, 1));
+  ASSERT_TRUE(fixed_vertices.contract(0, 3));
+  verifyFixedVertices("After contractions", { 0, 0, 0, 0, 1, kInvalidPartition, 2 });
+}
+
+TEST_F(AFixedVertexSupport, ContractSeveralFixedVertices8) {
+  ASSERT_TRUE(fixed_vertices.contract(1, 2));
+  ASSERT_TRUE(fixed_vertices.contract(0, 1));
+  ASSERT_TRUE(fixed_vertices.contract(3, 0));
+  verifyFixedVertices("After contractions", { 0, 0, 0, 0, 1, kInvalidPartition, 2 });
+}
+
+TEST_F(AFixedVertexSupport, UncontractSeveralFixedVertices1) {
+  ASSERT_TRUE(fixed_vertices.contract(1, 4));
+  ASSERT_TRUE(fixed_vertices.contract(2, 3));
+  ASSERT_TRUE(fixed_vertices.contract(5, 6));
+  verifyFixedVertices("After contractions", { 0, 1, 0, 0, 1, 2, 2 });
+
+  fixed_vertices.uncontract(5, 6);
+  verifyFixedVertices("First uncontraction",
+    { 0, 1, 0, 0, 1, kInvalidPartition, 2 });
+
+  fixed_vertices.uncontract(2, 3);
+  verifyFixedVertices("Second uncontraction",
+    { 0, 1, 0, kInvalidPartition, 1, kInvalidPartition, 2 });
+
+  fixed_vertices.uncontract(1, 4);
+  verifyFixedVertices("Third uncontraction",
+    { 0, kInvalidPartition, 0, kInvalidPartition, 1, kInvalidPartition, 2 });
+}
+
+TEST_F(AFixedVertexSupport, UncontractSeveralFixedVertices2) {
+  ASSERT_TRUE(fixed_vertices.contract(3, 5));
+  ASSERT_TRUE(fixed_vertices.contract(2, 0));
+  ASSERT_TRUE(fixed_vertices.contract(1, 2));
+  verifyFixedVertices("After contractions",
+    { 0, 0, 0, kInvalidPartition, 1, kInvalidPartition, 2 });
+
+  fixed_vertices.uncontract(1, 2);
+  verifyFixedVertices("First uncontraction",
+    { 0, kInvalidPartition, 0, kInvalidPartition, 1, kInvalidPartition, 2 });
+
+  fixed_vertices.uncontract(2, 0);
+  verifyFixedVertices("Second uncontraction",
+    { 0, kInvalidPartition, 0, kInvalidPartition, 1, kInvalidPartition, 2 });
+
+  fixed_vertices.uncontract(3, 5);
+  verifyFixedVertices("Third uncontraction",
+    { 0, kInvalidPartition, 0, kInvalidPartition, 1, kInvalidPartition, 2 });
+}
+
+TEST_F(AFixedVertexSupport, UncontractSeveralFixedVertices3) {
+  ASSERT_TRUE(fixed_vertices.contract(2, 0));
+  ASSERT_TRUE(fixed_vertices.contract(1, 2));
+  ASSERT_TRUE(fixed_vertices.contract(3, 1));
+  verifyFixedVertices("After contractions", { 0, 0, 0, 0, 1, kInvalidPartition, 2 });
+
+  fixed_vertices.uncontract(3, 1);
+  verifyFixedVertices("First uncontraction",
+    { 0, 0, 0, kInvalidPartition, 1, kInvalidPartition, 2 });
+
+  fixed_vertices.uncontract(1, 2);
+  verifyFixedVertices("Second uncontraction",
+    { 0, kInvalidPartition, 0, kInvalidPartition, 1, kInvalidPartition, 2 });
+
+  fixed_vertices.uncontract(2, 0);
+  verifyFixedVertices("Third uncontraction",
+    { 0, kInvalidPartition, 0, kInvalidPartition, 1, kInvalidPartition, 2 });
+}
+
+TEST_F(AFixedVertexSupport, UncontractSeveralFixedVertices4) {
+  ASSERT_TRUE(fixed_vertices.contract(2, 3));
+  ASSERT_TRUE(fixed_vertices.contract(2, 1));
+  ASSERT_TRUE(fixed_vertices.contract(0, 2));
+  verifyFixedVertices("After contractions", { 0, 0, 0, 0, 1, kInvalidPartition, 2 });
+
+  fixed_vertices.uncontract(0, 2);
+  verifyFixedVertices("First uncontraction",
+    { 0, 0, 0, 0, 1, kInvalidPartition, 2 });
+
+  fixed_vertices.uncontract(2, 1);
+  verifyFixedVertices("Second uncontraction",
+    { 0, kInvalidPartition, 0, 0, 1, kInvalidPartition, 2 });
+
+  fixed_vertices.uncontract(2, 3);
+  verifyFixedVertices("Third uncontraction",
+    { 0, kInvalidPartition, 0, kInvalidPartition, 1, kInvalidPartition, 2 });
+}
+
+TEST_F(AFixedVertexSupport, UncontractSeveralFixedVertices5) {
+  ASSERT_TRUE(fixed_vertices.contract(2, 0));
+  ASSERT_TRUE(fixed_vertices.contract(2, 1));
+  ASSERT_TRUE(fixed_vertices.contract(3, 2));
+  verifyFixedVertices("After contractions", { 0, 0, 0, 0, 1, kInvalidPartition, 2 });
+
+  fixed_vertices.uncontract(3, 2);
+  verifyFixedVertices("First uncontraction",
+    { 0, 0, 0, kInvalidPartition, 1, kInvalidPartition, 2 });
+
+  fixed_vertices.uncontract(2, 1);
+  verifyFixedVertices("Second uncontraction",
+    { 0, kInvalidPartition, 0, kInvalidPartition, 1, kInvalidPartition, 2 });
+
+  fixed_vertices.uncontract(2, 0);
+  verifyFixedVertices("Third uncontraction",
+    { 0, kInvalidPartition, 0, kInvalidPartition, 1, kInvalidPartition, 2 });
+}
+
+TEST_F(AFixedVertexSupport, UnontractSeveralFixedVertices6) {
+  ASSERT_TRUE(fixed_vertices.contract(1, 2));
+  ASSERT_TRUE(fixed_vertices.contract(1, 0));
+  ASSERT_TRUE(fixed_vertices.contract(3, 1));
+  verifyFixedVertices("After contractions", { 0, 0, 0, 0, 1, kInvalidPartition, 2 });
+
+  fixed_vertices.uncontract(3, 1);
+  verifyFixedVertices("First uncontraction",
+    { 0, 0, 0, kInvalidPartition, 1, kInvalidPartition, 2 });
+
+  fixed_vertices.uncontract(1, 0);
+  verifyFixedVertices("Second uncontraction",
+    { 0, 0, 0, kInvalidPartition, 1, kInvalidPartition, 2 });
+
+  fixed_vertices.uncontract(1, 2);
+  verifyFixedVertices("Third uncontraction",
+    { 0, kInvalidPartition, 0, kInvalidPartition, 1, kInvalidPartition, 2 });
+}
+
+TEST_F(AFixedVertexSupport, UncontractSeveralFixedVertices7) {
+  ASSERT_TRUE(fixed_vertices.contract(1, 2));
+  ASSERT_TRUE(fixed_vertices.contract(3, 1));
+  ASSERT_TRUE(fixed_vertices.contract(0, 3));
+  verifyFixedVertices("After contractions", { 0, 0, 0, 0, 1, kInvalidPartition, 2 });
+
+  fixed_vertices.uncontract(0, 3);
+  verifyFixedVertices("First uncontraction",
+    { 0, 0, 0, 0, 1, kInvalidPartition, 2 });
+
+  fixed_vertices.uncontract(3, 1);
+  verifyFixedVertices("Second uncontraction",
+    { 0, 0, 0, kInvalidPartition, 1, kInvalidPartition, 2 });
+
+  fixed_vertices.uncontract(1, 2);
+  verifyFixedVertices("Third uncontraction",
+    { 0, kInvalidPartition, 0, kInvalidPartition, 1, kInvalidPartition, 2 });
+}
+
+TEST_F(AFixedVertexSupport, UncontractSeveralFixedVertices8) {
+  ASSERT_TRUE(fixed_vertices.contract(1, 2));
+  ASSERT_TRUE(fixed_vertices.contract(0, 1));
+  ASSERT_TRUE(fixed_vertices.contract(3, 0));
+  verifyFixedVertices("After contractions", { 0, 0, 0, 0, 1, kInvalidPartition, 2 });
+
+  fixed_vertices.uncontract(3, 0);
+  verifyFixedVertices("First uncontraction",
+    { 0, 0, 0, kInvalidPartition, 1, kInvalidPartition, 2 });
+
+  fixed_vertices.uncontract(0, 1);
+  verifyFixedVertices("Second uncontraction",
+    { 0, 0, 0, kInvalidPartition, 1, kInvalidPartition, 2 });
+
+  fixed_vertices.uncontract(1, 2);
+  verifyFixedVertices("Third uncontraction",
+    { 0, kInvalidPartition, 0, kInvalidPartition, 1, kInvalidPartition, 2 });
+}
+
+TEST_F(AFixedVertexSupport, PerformsParallelContractionsAndUncontractions1) {
+  runParallel([&] { fixed_vertices.contract(0, 2); },
+              [&] { fixed_vertices.contract(0, 1); });
+  verifyFixedVertices("After contractions",
+    { 0, 0, 0, kInvalidPartition, 1, kInvalidPartition, 2 });
+
+  runParallel([&] { fixed_vertices.uncontract(0, 2); },
+              [&] { fixed_vertices.uncontract(0, 1); });
+  verifyFixedVertices("After uncontractions",
+    { 0, kInvalidPartition, 0, kInvalidPartition, 1, kInvalidPartition, 2 });
+}
+
+TEST_F(AFixedVertexSupport, PerformsParallelContractionsAndUncontractions2) {
+  runParallel([&] { fixed_vertices.contract(1, 2); },
+              [&] { fixed_vertices.contract(1, 0); });
+  verifyFixedVertices("After contractions",
+    { 0, 0, 0, kInvalidPartition, 1, kInvalidPartition, 2 });
+
+  runParallel([&] { fixed_vertices.uncontract(1, 2); },
+              [&] { fixed_vertices.uncontract(1, 0); });
+  verifyFixedVertices("After uncontractions",
+    { 0, kInvalidPartition, 0, kInvalidPartition, 1, kInvalidPartition, 2 });
+}
 
 }  // namespace ds
 }  // namespace mt_kahypar
