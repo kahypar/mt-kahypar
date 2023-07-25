@@ -35,6 +35,7 @@
 #include "mt-kahypar/macros.h"
 #include "mt-kahypar/datastructures/array.h"
 #include "mt-kahypar/datastructures/hypergraph_common.h"
+#include "mt-kahypar/datastructures/fixed_vertex_support.h"
 #include "mt-kahypar/parallel/atomic_wrapper.h"
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
 #include "mt-kahypar/partition/context_enum_classes.h"
@@ -419,6 +420,7 @@ class StaticHypergraph {
     _hyperedges(),
     _incidence_array(),
     _community_ids(0),
+    _fixed_vertices(),
     _tmp_contraction_buffer(nullptr) { }
 
   StaticHypergraph(const StaticHypergraph&) = delete;
@@ -439,7 +441,9 @@ class StaticHypergraph {
     _hyperedges(std::move(other._hyperedges)),
     _incidence_array(std::move(other._incidence_array)),
     _community_ids(std::move(other._community_ids)),
+    _fixed_vertices(std::move(other._fixed_vertices)),
     _tmp_contraction_buffer(std::move(other._tmp_contraction_buffer)) {
+    _fixed_vertices.setHypergraph(this);
     other._tmp_contraction_buffer = nullptr;
   }
 
@@ -457,7 +461,9 @@ class StaticHypergraph {
     _incident_nets = std::move(other._incident_nets);
     _hyperedges = std::move(other._hyperedges);
     _incidence_array = std::move(other._incidence_array);
-    _community_ids = std::move(other._community_ids),
+    _community_ids = std::move(other._community_ids);
+    _fixed_vertices = std::move(other._fixed_vertices);
+    _fixed_vertices.setHypergraph(this);
     _tmp_contraction_buffer = std::move(other._tmp_contraction_buffer);
     other._tmp_contraction_buffer = nullptr;
     return *this;
@@ -679,6 +685,33 @@ class StaticHypergraph {
   // ! Assign a community to a hypernode
   void setCommunityID(const HypernodeID u, const PartitionID community_id) {
     _community_ids[u] = community_id;
+  }
+
+  // ####################### Fixed Vertex Support #######################
+
+  void addFixedVertexSupport(FixedVertexSupport<StaticHypergraph>&& fixed_vertices) {
+    _fixed_vertices = std::move(fixed_vertices);
+    _fixed_vertices.setHypergraph(this);
+  }
+
+  bool hasFixedVertices() const {
+    return _fixed_vertices.hasFixedVertices();
+  }
+
+  HypernodeWeight totalFixedVertexWeight() const {
+    return _fixed_vertices.totalFixedVertexWeight();
+  }
+
+  HypernodeWeight fixedVertexBlockWeight(const PartitionID block) const {
+    return _fixed_vertices.fixedVertexBlockWeight(block);
+  }
+
+  bool isFixed(const HypernodeID hn) const {
+    return _fixed_vertices.isFixed(hn);
+  }
+
+  PartitionID fixedVertexBlock(const HypernodeID hn) {
+    return _fixed_vertices.fixedVertexBlockWeight(hn);
   }
 
   // ####################### Contract / Uncontract #######################
@@ -950,6 +983,9 @@ class StaticHypergraph {
 
   // ! Communities
   ds::Clustering _community_ids;
+
+  // ! Fixed Vertex Support
+  FixedVertexSupport<StaticHypergraph> _fixed_vertices;
 
   // ! Data that is reused throughout the multilevel hierarchy
   // ! to contract the hypergraph and to prevent expensive allocations

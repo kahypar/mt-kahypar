@@ -40,6 +40,7 @@
 #include "kahypar/utils/math.h"
 
 #include "mt-kahypar/datastructures/hypergraph_common.h"
+#include "mt-kahypar/datastructures/fixed_vertex_support.h"
 #include "mt-kahypar/datastructures/dynamic_adjacency_array.h"
 #include "mt-kahypar/datastructures/contraction_tree.h"
 #include "mt-kahypar/datastructures/thread_safe_fast_reset_flag_array.h"
@@ -345,7 +346,8 @@ class DynamicGraph {
     _nodes(),
     _contraction_tree(),
     _adjacency_array(),
-    _acquired_nodes() { }
+    _acquired_nodes(),
+    _fixed_vertices() { }
 
   DynamicGraph(const DynamicGraph&) = delete;
   DynamicGraph & operator= (const DynamicGraph &) = delete;
@@ -360,7 +362,10 @@ class DynamicGraph {
     _nodes(std::move(other._nodes)),
     _contraction_tree(std::move(other._contraction_tree)),
     _adjacency_array(std::move(other._adjacency_array)),
-    _acquired_nodes(std::move(other._acquired_nodes)) { }
+    _acquired_nodes(std::move(other._acquired_nodes)),
+    _fixed_vertices(std::move(other._fixed_vertices)) {
+    _fixed_vertices.setHypergraph(this);
+  }
 
   DynamicGraph & operator= (DynamicGraph&& other) {
     _num_removed_nodes = other._num_removed_nodes;
@@ -373,6 +378,8 @@ class DynamicGraph {
     _contraction_tree = std::move(other._contraction_tree);
     _adjacency_array = std::move(other._adjacency_array);
     _acquired_nodes = std::move(other._acquired_nodes);
+    _fixed_vertices = std::move(other._fixed_vertices);
+    _fixed_vertices.setHypergraph(this);
     return *this;
   }
 
@@ -629,6 +636,33 @@ class DynamicGraph {
     });
   }
 
+  // ####################### Fixed Vertex Support #######################
+
+  void addFixedVertexSupport(FixedVertexSupport<DynamicGraph>&& fixed_vertices) {
+    _fixed_vertices = std::move(fixed_vertices);
+    _fixed_vertices.setHypergraph(this);
+  }
+
+  bool hasFixedVertices() const {
+    return _fixed_vertices.hasFixedVertices();
+  }
+
+  HypernodeWeight totalFixedVertexWeight() const {
+    return _fixed_vertices.totalFixedVertexWeight();
+  }
+
+  HypernodeWeight fixedVertexBlockWeight(const PartitionID block) const {
+    return _fixed_vertices.fixedVertexBlockWeight(block);
+  }
+
+  bool isFixed(const HypernodeID hn) const {
+    return _fixed_vertices.isFixed(hn);
+  }
+
+  PartitionID fixedVertexBlock(const HypernodeID hn) {
+    return _fixed_vertices.fixedVertexBlockWeight(hn);
+  }
+
   // ####################### Contract / Uncontract #######################
 
   DynamicGraph contract(parallel::scalable_vector<HypernodeID>&) {
@@ -869,6 +903,9 @@ class DynamicGraph {
   DynamicAdjacencyArray _adjacency_array;
   // ! Atomic bool vector used to acquire unique ownership of hypernodes
   OwnershipVector _acquired_nodes;
+
+  // ! Fixed Vertex Support
+  FixedVertexSupport<DynamicGraph> _fixed_vertices;
 };
 
 } // namespace ds

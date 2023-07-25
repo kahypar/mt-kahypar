@@ -37,6 +37,7 @@
 #include "mt-kahypar/macros.h"
 #include "mt-kahypar/datastructures/array.h"
 #include "mt-kahypar/datastructures/hypergraph_common.h"
+#include "mt-kahypar/datastructures/fixed_vertex_support.h"
 #include "mt-kahypar/parallel/atomic_wrapper.h"
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
 #include "mt-kahypar/partition/context_enum_classes.h"
@@ -466,6 +467,7 @@ class StaticGraph {
     _edges(),
     _unique_edge_ids(),
     _community_ids(),
+    _fixed_vertices(),
     _tmp_contraction_buffer(nullptr) { }
 
   StaticGraph(const StaticGraph&) = delete;
@@ -480,7 +482,9 @@ class StaticGraph {
     _edges(std::move(other._edges)),
     _unique_edge_ids(std::move(other._unique_edge_ids)),
     _community_ids(std::move(other._community_ids)),
+    _fixed_vertices(std::move(other._fixed_vertices)),
     _tmp_contraction_buffer(std::move(other._tmp_contraction_buffer)) {
+    _fixed_vertices.setHypergraph(this);
     other._tmp_contraction_buffer = nullptr;
   }
 
@@ -493,6 +497,8 @@ class StaticGraph {
     _edges = std::move(other._edges);
     _unique_edge_ids = std::move(other._unique_edge_ids);
     _community_ids = std::move(other._community_ids),
+    _fixed_vertices = std::move(other._fixed_vertices);
+    _fixed_vertices.setHypergraph(this);
     _tmp_contraction_buffer = std::move(other._tmp_contraction_buffer);
     other._tmp_contraction_buffer = nullptr;
     return *this;
@@ -709,6 +715,33 @@ class StaticGraph {
     _community_ids[u] = community_id;
   }
 
+  // ####################### Fixed Vertex Support #######################
+
+  void addFixedVertexSupport(FixedVertexSupport<StaticGraph>&& fixed_vertices) {
+    _fixed_vertices = std::move(fixed_vertices);
+    _fixed_vertices.setHypergraph(this);
+  }
+
+  bool hasFixedVertices() const {
+    return _fixed_vertices.hasFixedVertices();
+  }
+
+  HypernodeWeight totalFixedVertexWeight() const {
+    return _fixed_vertices.totalFixedVertexWeight();
+  }
+
+  HypernodeWeight fixedVertexBlockWeight(const PartitionID block) const {
+    return _fixed_vertices.fixedVertexBlockWeight(block);
+  }
+
+  bool isFixed(const HypernodeID hn) const {
+    return _fixed_vertices.isFixed(hn);
+  }
+
+  PartitionID fixedVertexBlock(const HypernodeID hn) {
+    return _fixed_vertices.fixedVertexBlockWeight(hn);
+  }
+
   // ####################### Contract / Uncontract #######################
 
   /*!
@@ -894,6 +927,9 @@ class StaticGraph {
 
   // ! Communities
   ds::Clustering _community_ids;
+
+  // ! Fixed Vertex Support
+  FixedVertexSupport<StaticGraph> _fixed_vertices;
 
   // ! Data that is reused throughout the multilevel hierarchy
   // ! to contract the hypergraph and to prevent expensive allocations
