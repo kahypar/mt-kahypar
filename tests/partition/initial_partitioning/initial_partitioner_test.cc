@@ -64,7 +64,7 @@ class AInitialPartitionerTest : public Test {
     if ( !context.isNLevelPartitioning() ) {
       parseIniToContext(context, "../config/default_preset.ini");
     } else {
-      parseIniToContext(context, "../config/quality_preset.ini");
+      parseIniToContext(context, "../config/highest_quality_preset.ini");
     }
     context.partition.partition_type = PartitionedHypergraph::TYPE;
 
