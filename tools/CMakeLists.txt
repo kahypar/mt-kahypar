@@ -81,6 +81,12 @@ target_link_libraries(VerifyPartition TBB::tbb TBB::tbbmalloc_proxy)
 set_property(TARGET VerifyPartition PROPERTY CXX_STANDARD 17)
 set_property(TARGET VerifyPartition PROPERTY CXX_STANDARD_REQUIRED ON)
 
+add_executable(FixedVertexFileGenerator fixed_vertex_file_generator.cc)
+target_link_libraries(FixedVertexFileGenerator ${Boost_LIBRARIES})
+target_link_libraries(FixedVertexFileGenerator TBB::tbb TBB::tbbmalloc_proxy)
+set_property(TARGET FixedVertexFileGenerator PROPERTY CXX_STANDARD 17)
+set_property(TARGET FixedVertexFileGenerator PROPERTY CXX_STANDARD_REQUIRED ON)
+
 add_executable(BenchShuffle bench_deterministic_shuffling.cpp bench_deterministic_shuffling.cpp)
 target_link_libraries(BenchShuffle TBB::tbb TBB::tbbmalloc_proxy)
 set_property(TARGET BenchShuffle PROPERTY CXX_STANDARD 17)
@@ -97,4 +103,5 @@ set(TOOLS_TARGETS ${TOOLS_TARGETS} EvaluateBipart
                                    VerifyTargetGraphPartition
                                    GridGraphGenerator
                                    HierarchicalTargetGraphGenerator
+                                   FixedVertexFileGenerator
                                    PARENT_SCOPE)
