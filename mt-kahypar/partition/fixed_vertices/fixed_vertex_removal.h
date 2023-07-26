@@ -40,6 +40,8 @@ class FixedVertexRemoval {
   using HyperedgeVector = vec<vec<HypernodeID>>;
 
  public:
+  // ! Removes all fixed vertices from the hypergraph and returns the fixed
+  // ! vertex free subhypergraph
   static ExtractedHypergraph<Hypergraph> remove(const Hypergraph& hypergraph);
 
 };

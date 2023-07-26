@@ -818,6 +818,20 @@ class PartitionedHypergraph {
     return success;
   }
 
+  // ####################### Fixed Vertex Support #######################
+
+  bool hasFixedVertices() const {
+    return _hg->hasFixedVertices();
+  }
+
+  bool isFixed(const HypernodeID hn) const {
+    return _hg->isFixed(hn);
+  }
+
+  PartitionID fixedVertexBlock(const HypernodeID hn) const {
+    return _hg->fixedVertexBlock(hn);
+  }
+
   // ####################### Memory Consumption #######################
 
   void memoryConsumption(utils::MemoryTreeNode* parent) const {

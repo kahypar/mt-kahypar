@@ -80,8 +80,10 @@ class FixedVertexSupport {
   }
 
   void setMaxBlockWeight(const std::vector<HypernodeWeight> max_block_weights) {
-    ASSERT(max_block_weights.size() >= static_cast<size_t>(_k));
-    _max_block_weights = max_block_weights;
+    if ( hasFixedVertices() ) {
+      ASSERT(max_block_weights.size() >= static_cast<size_t>(_k));
+      _max_block_weights = max_block_weights;
+    }
   }
 
   PartitionID numBlocks() const {

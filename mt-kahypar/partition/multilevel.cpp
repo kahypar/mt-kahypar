@@ -162,6 +162,20 @@ namespace {
       #endif
     }
 
+    ASSERT([&] {
+      bool success = true;
+      if ( phg.hasFixedVertices() ) {
+        for ( const HypernodeID& hn : phg.nodes() ) {
+          if ( phg.isFixed(hn) && phg.fixedVertexBlock(hn) != phg.partID(hn) ) {
+            LOG << "Node" << hn << "is fixed to block" << phg.fixedVertexBlock(hn)
+                << ", but is assigned to block" << phg.partID(hn);
+            success = false;
+          }
+        }
+      }
+      return success;
+    }(), "Some fixed vertices are not assigned to their corresponding block");
+
     if ( context.partition.objective == Objective::steiner_tree ) {
       phg.setTargetGraph(target_graph);
     }
