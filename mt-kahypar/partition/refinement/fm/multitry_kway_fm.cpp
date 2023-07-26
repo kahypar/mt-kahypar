@@ -107,10 +107,7 @@ namespace mt_kahypar {
     utils::Timer& timer = utils::Utilities::instance().getTimer(context.utility_id);
 
     if (fm_strategy->includesUnconstrained()) {
-      timer.start_timer("precompute_unconstrained", "Precompute Level for Unc. FM");
-      sharedData.unconstrained.precomputeForLevel(phg);
       max_part_weights = setupMaxPartWeights(context);
-      timer.stop_timer("precompute_unconstrained");
     }
 
     for (size_t round = 0; round < context.refinement.fm.multitry_rounds; ++round) { // global multi try rounds

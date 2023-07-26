@@ -149,21 +149,17 @@ struct NodeTracker {
 // incident weight to node weight ratio. This allows to give a (pessimistic) estimate of the effective
 // gain for moves that violate the balance constraint
 struct UnconstrainedFMData {
-  using BucketMap = ds::ConcurrentBucketMap<HypernodeID>;
   using AtomicWeight = parallel::IntegralAtomicWrapper<HypernodeWeight>;
 
   // TODO(maas): in weighted graphs the constant number of buckets might be problematic
   static constexpr size_t NUM_BUCKETS = 16;
-  static constexpr size_t BUCKET_FACTOR = 32;
 
   bool initialized = false;
   PartitionID current_k;
   parallel::scalable_vector<HypernodeWeight> bucket_weights;
-  parallel::scalable_vector<HypernodeWeight> upper_weight_limits;
   parallel::scalable_vector<AtomicWeight> consumed_bucket_weights;
   tbb::enumerable_thread_specific<parallel::scalable_vector<HypernodeWeight>> local_bucket_weights;
   kahypar::ds::FastResetFlagArray<> rebalancing_nodes;
-  parallel::scalable_vector<HyperedgeWeight> incident_weight_of_node;
 
   explicit UnconstrainedFMData():
     initialized(false),
@@ -171,23 +167,10 @@ struct UnconstrainedFMData {
     bucket_weights(),
     consumed_bucket_weights(),
     local_bucket_weights(),
-    rebalancing_nodes(),
-    incident_weight_of_node() { }
-
-  template<typename PartitionedHypergraphT>
-  void precomputeForLevel(const PartitionedHypergraphT& phg);
+    rebalancing_nodes() { }
 
   template<typename PartitionedHypergraphT>
   void initialize(const Context& context, const PartitionedHypergraphT& phg);
-
-  HypernodeWeight maximumImbalance(PartitionID to) const {
-    ASSERT(static_cast<size_t>(to) < upper_weight_limits.size());
-    return upper_weight_limits[to];
-  }
-
-  Gain estimatedPenaltyForImbalance(PartitionID to, HypernodeWeight total_imbalance) const;
-
-  Gain estimatedPenaltyForDelta(PartitionID to, HypernodeWeight old_weight, HypernodeWeight new_weight) const;
 
   Gain estimatedPenaltyForImbalancedMove(PartitionID to, HypernodeWeight weight) const;
 
@@ -210,7 +193,6 @@ struct UnconstrainedFMData {
   void reset() {
     rebalancing_nodes.reset();
     bucket_weights.assign(current_k * NUM_BUCKETS, 0);
-    upper_weight_limits.assign(current_k, 0);
     consumed_bucket_weights.assign(current_k * NUM_BUCKETS, AtomicWeight(0));
     for (auto& local_weights: local_bucket_weights) {
       local_weights.assign(current_k * NUM_BUCKETS, 0);
@@ -219,9 +201,6 @@ struct UnconstrainedFMData {
   }
 
  private:
-  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
-  double estimatedPenaltyFromIndex(PartitionID to, size_t bucketId, HypernodeWeight remaining) const;
-
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE size_t indexForBucket(PartitionID block, size_t bucketId) const {
     ASSERT(bucketId < NUM_BUCKETS && block * NUM_BUCKETS + bucketId < bucket_weights.size());
     return block * NUM_BUCKETS + bucketId;
@@ -323,11 +302,7 @@ struct FMSharedData {
     FMSharedData(0, 0) { }
 
   void initializeUnconstrainedData(size_t numNodes) {
-    tbb::parallel_invoke([&] {
-      unconstrained.rebalancing_nodes.setSize(numNodes);
-    }, [&] {
-      unconstrained.incident_weight_of_node.resize(numNodes);
-    });
+    unconstrained.rebalancing_nodes.setSize(numNodes);
   }
 
   void memoryConsumption(utils::MemoryTreeNode* parent) const {

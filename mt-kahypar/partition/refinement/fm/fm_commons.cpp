@@ -29,43 +29,6 @@
 
 
 namespace mt_kahypar {
-  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
-  double UnconstrainedFMData::estimatedPenaltyFromIndex(PartitionID to, size_t bucketId,
-                                                        HypernodeWeight remaining) const {
-    double penalty = 0;
-    while (bucketId < NUM_BUCKETS && remaining > 0 && bucket_weights[indexForBucket(to, bucketId)] <= remaining) {
-      const HypernodeWeight bucket_weight = bucket_weights[indexForBucket(to, bucketId)];
-      penalty += gainPerWeightForBucket(bucketId) * bucket_weight;
-      remaining -= bucket_weight;
-      ++bucketId;
-    }
-    if (bucketId == NUM_BUCKETS && remaining > 0) {
-      return static_cast<double>(std::numeric_limits<Gain>::max()); // rebalancing not possible with considered nodes
-    }
-    if (remaining > 0) {
-      penalty += gainPerWeightForBucket(bucketId) * remaining;
-    }
-    return penalty;
-  }
-
-  Gain UnconstrainedFMData::estimatedPenaltyForImbalance(PartitionID to, HypernodeWeight total_imbalance) const {
-    return std::ceil(estimatedPenaltyFromIndex(to, 0, total_imbalance));
-  }
-
-  Gain UnconstrainedFMData::estimatedPenaltyForDelta(PartitionID to, HypernodeWeight old_weight,
-                                                     HypernodeWeight new_weight) const {
-    ASSERT(old_weight <= new_weight);
-    size_t bucketId = 0;
-    HypernodeWeight common = 0;
-    while (bucketId < NUM_BUCKETS && common + bucket_weights[indexForBucket(to, bucketId)] <= old_weight) {
-      common += bucket_weights[indexForBucket(to, bucketId)];
-      ++bucketId;
-    }
-    const double penalty_new = estimatedPenaltyFromIndex(to, bucketId, new_weight - common);
-    const double penalty_old = estimatedPenaltyFromIndex(to, bucketId, old_weight - common);
-    return std::ceil(penalty_new - penalty_old);
-  }
-
   Gain UnconstrainedFMData::estimatedPenaltyForImbalancedMove(PartitionID to, HypernodeWeight weight) const {
     ASSERT(initialized);
     size_t bucketId = 0;
@@ -144,17 +107,6 @@ namespace mt_kahypar {
   }
 
   template<typename PartitionedHypergraphT>
-  void UnconstrainedFMData::precomputeForLevel(const PartitionedHypergraphT& phg) {
-    phg.doParallelForAllNodes([&](const HypernodeID hn) {
-      HyperedgeWeight incident_weight = 0;
-      for (HyperedgeID he: phg.incidentEdges(hn)) {
-        incident_weight += phg.edgeWeight(he);
-      }
-      incident_weight_of_node[hn] = incident_weight;
-    });
-  }
-
-  template<typename PartitionedHypergraphT>
   void UnconstrainedFMData::initialize(const Context& context, const PartitionedHypergraphT& phg) {
     ASSERT(!initialized);
     changeNumberOfBlocks(context.partition.k);
@@ -165,27 +117,20 @@ namespace mt_kahypar {
       const HypernodeWeight hn_weight = phg.nodeWeight(hn);
       if (hn_weight == 0) return;
 
-      auto include_node = [&](const HyperedgeWeight used_weight) {
-        const size_t bucketId = bucketForGainPerWeight(static_cast<double>(used_weight) / hn_weight);
+      HyperedgeWeight total_incident_weight = 0;
+      HyperedgeWeight internal_weight = 0;
+      for (const HyperedgeID& he : phg.incidentEdges(hn)) {
+        total_incident_weight += phg.edgeWeight(he);
+        if (phg.connectivity(he) == 1) {
+          internal_weight += phg.edgeWeight(he);
+        }
+      }
+      if (static_cast<double>(internal_weight) >= bn_treshold * total_incident_weight) {
+        const size_t bucketId = bucketForGainPerWeight(static_cast<double>(internal_weight) / hn_weight);
         if (bucketId < NUM_BUCKETS) {
           auto& local_weights = local_bucket_weights.local();
           local_weights[indexForBucket(phg.partID(hn), bucketId)] += hn_weight;
           rebalancing_nodes.set(hn, true);
-        }
-      };
-
-      if (bn_treshold == 1.0 && !phg.isBorderNode(hn)) {
-        // TODO(maas): only non border nodes does not seem like a good strategy for hypergraphs
-        include_node(incident_weight_of_node[hn]);
-      } else if (bn_treshold < 1.0) {
-        HyperedgeWeight internal_weight = 0;
-        for (const HyperedgeID& he : phg.incidentEdges(hn)) {
-          if (phg.connectivity(he) == 1) {
-            internal_weight += phg.edgeWeight(he);
-          }
-        }
-        if (static_cast<double>(internal_weight) >= bn_treshold * incident_weight_of_node[hn]) {
-          include_node(internal_weight);
         }
       }
     });
@@ -207,23 +152,13 @@ namespace mt_kahypar {
         add_range_fn(k * NUM_BUCKETS, (k + 1) * NUM_BUCKETS);
       });
     }
-    ASSERT(upper_weight_limits.size() == static_cast<size_t>(context.partition.k));
-    for (PartitionID block = 0; block < context.partition.k; ++block) {
-      HypernodeWeight sum = 0;
-      for (size_t bucketId = 0; bucketId < NUM_BUCKETS; ++ bucketId) {
-        sum += bucket_weights[indexForBucket(block, bucketId)];
-      }
-      upper_weight_limits[block] = sum;
-    }
     initialized = true;
   }
 
   namespace {
-  #define UNCONSTRAINED_FM_PRECOMPUTE(X) void UnconstrainedFMData::precomputeForLevel(const X& phg)
   #define UNCONSTRAINED_FM_INITIALIZE(X) void UnconstrainedFMData::initialize(const Context& context, const X& phg)
   }
 
-  INSTANTIATE_FUNC_WITH_PARTITIONED_HG(UNCONSTRAINED_FM_PRECOMPUTE)
   INSTANTIATE_FUNC_WITH_PARTITIONED_HG(UNCONSTRAINED_FM_INITIALIZE)
 
 }
