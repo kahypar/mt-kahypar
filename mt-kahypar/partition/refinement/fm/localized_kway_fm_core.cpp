@@ -176,13 +176,7 @@ namespace mt_kahypar {
 
       // skip if high degree (unless it nets actual improvement; but don't apply on deltaPhg then)
       if (!expect_improvement && high_deg) {
-        if constexpr (use_delta) {
-          fm_strategy.skipMove(deltaPhg, delta_gain_cache, move);
-          continue;
-        } else {
-          fm_strategy.skipMove(phg, gain_cache, move);
-          continue;
-        }
+        continue;
       }
       // less restrictive option: skip if negative gain (or < -5000 or smth).
       // downside: have to flush before improvement or run it through deltaPhg
@@ -206,6 +200,7 @@ namespace mt_kahypar {
           moved = toWeight + phg.nodeWeight(move.node) <= allowed_weight;
         } else {
           moved = deltaPhg.changeNodePart(move.node, move.from, move.to, allowed_weight, delta_func);
+          fm_strategy.applyMove(deltaPhg, delta_gain_cache, move, false);
         }
       } else {
         heaviestPartWeight = heaviestPartAndWeight(phg, context.partition.k).second;
@@ -213,6 +208,7 @@ namespace mt_kahypar {
         toWeight = phg.partWeight(move.to);
         moved = phg.changeNodePart(move.node, move.from, move.to, allowed_weight,
                                    [&] { move_id = sharedData.moveTracker.insertMove(move); }, delta_func);
+        fm_strategy.applyMove(phg, gain_cache, move, true);
       }
 
       if (moved) {
@@ -257,25 +253,14 @@ namespace mt_kahypar {
     }
 
     if constexpr (use_delta) {
-      if (context.refinement.fm.update_penalty_locally_reverted) {
-        // we need to undo the moves on the deltaPhg to correctly update the penalty
-        for (size_t i = localMoves.size(); i > bestImprovementIndex; --i) {
-          const Move& m = localMoves[i - 1].first;
-          if (m.isValid()) {
-            deltaPhg.changeNodePart(m.node, m.to, m.from, std::numeric_limits<HypernodeWeight>::max());
-            fm_strategy.skipMove(deltaPhg, delta_gain_cache, m);
-          }
-        }
-      }
-
-      std::tie(bestImprovement, bestImprovementIndex) =
-        applyBestLocalPrefixToSharedPartition(phg, fm_strategy, bestImprovementIndex, bestImprovement, false);
+      // in this case there is no improved local prefix to apply (was already applied in the loop)
+      ASSERT(bestImprovementIndex == 0);
     } else {
       revertToBestLocalPrefix(phg, fm_strategy, bestImprovementIndex);
     }
 
+    fm_strategy.reset();
     runStats.estimated_improvement = bestImprovement;
-    fm_strategy.clearPQs(bestImprovementIndex);
     runStats.merge(stats);
   }
 
@@ -288,8 +273,9 @@ namespace mt_kahypar {
           const size_t best_index_locally_observed,
           const Gain best_improvement_locally_observed,
           const bool apply_delta_improvement) {
+    // Note: if this precondition does not hold, the call to fm_strategy.flushLocalChanges() would be incorrect
+    ASSERT(best_index_locally_observed == localMoves.size());
 
-    const bool update_penalty = context.refinement.fm.update_penalty_locally_reverted;
     Gain improvement_from_attributed_gains = 0;
     Gain attributed_gain = 0;
     bool is_last_move = false;
@@ -348,6 +334,7 @@ namespace mt_kahypar {
         best_index_from_attributed_gains = i;
       }
     }
+    fm_strategy.flushLocalChanges();
 
     runStats.local_reverts += localMoves.size() - best_index_locally_observed;
     if (!apply_delta_improvement && best_index_from_attributed_gains != best_index_locally_observed) {
@@ -361,10 +348,8 @@ namespace mt_kahypar {
       for (size_t i = best_index_from_attributed_gains + 1; i < best_index_locally_observed; ++i) {
         Move& m = sharedData.moveTracker.getMove(localMoves[i].second);
         phg.changeNodePart(gain_cache, m.node, m.to, m.from);
+        fm_strategy.revertMove(phg, gain_cache, m, true);
         m.invalidate();
-        if (update_penalty) {
-          fm_strategy.skipMove(phg, gain_cache, m);
-        }
       }
       return std::make_pair(best_improvement_from_attributed_gains, best_index_from_attributed_gains);
       // TODO(maas/gottesbueren): seems like this is an off by one and best_index_from_attributed_gains + 1 should be returned?
@@ -378,14 +363,11 @@ namespace mt_kahypar {
   void LocalizedKWayFM<TypeTraits, GainTypes>::revertToBestLocalPrefix(PartitionedHypergraph& phg,
                                                                        DispatchedFMStrategy& fm_strategy,
                                                                        size_t bestGainIndex) {
-    const bool update_penalty = context.refinement.fm.update_penalty_locally_reverted;
     runStats.local_reverts += localMoves.size() - bestGainIndex;
     while (localMoves.size() > bestGainIndex) {
       Move& m = sharedData.moveTracker.getMove(localMoves.back().second);
       phg.changeNodePart(gain_cache, m.node, m.to, m.from);
-      if (update_penalty) {
-        fm_strategy.skipMove(phg, gain_cache, m);
-      }
+      fm_strategy.revertMove(phg, gain_cache, m, true);
       m.invalidate();
       localMoves.pop_back();
     }

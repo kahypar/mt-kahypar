@@ -43,8 +43,8 @@ namespace mt_kahypar {
    * insertIntoPQ(phg, gain_cache, node)
    * updateGain(phg, gain_cache, node, move)
    * findNextMove(phg, gain_cache, move)
-   * skipMove(phg, gain_cache, move)
-   * clearPQs()
+   * applyMove(phg, gain_cache, move, global)
+   * reset()
    * deltaGainUpdates(phg, gain_cache, sync_update)
    *
    */
@@ -148,11 +148,22 @@ public:
 
   template<typename PartitionedHypergraph, typename GainCache>
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
-  void skipMove(const PartitionedHypergraph&, const GainCache&, Move) {
+  void applyMove(const PartitionedHypergraph&, const GainCache&, Move, bool) {
     // nothing to do here
   }
 
-  void clearPQs(const size_t /* bestImprovementIndex */ ) {
+  template<typename PartitionedHypergraph, typename GainCache>
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
+  void revertMove(const PartitionedHypergraph&, const GainCache&, Move, bool) {
+    // nothing to do here
+  }
+
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
+  void flushLocalChanges() {
+    // nothing to do here
+  }
+
+  void reset() {
     // release all nodes that were not moved
     const bool release = sharedData.release_nodes
                          && runStats.moves > 0;

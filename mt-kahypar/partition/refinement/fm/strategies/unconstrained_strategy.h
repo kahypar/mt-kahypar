@@ -47,13 +47,14 @@ namespace mt_kahypar {
    * insertIntoPQ(phg, gain_cache, node)
    * updateGain(phg, gain_cache, node, move)
    * findNextMove(phg, gain_cache, move)
-   * skipMove(phg, gain_cache, move)
-   * clearPQs()
+   * applyMove(phg, gain_cache, move, global)
+   * reset()
    * deltaGainUpdates(phg, gain_cache, sync_update)
    *
    */
 
 class LocalUnconstrainedStrategy {
+  using VirtualWeightMap = ds::SparseMap<PartitionID, HypernodeWeight>;
 
  public:
   using BlockPriorityQueue = ds::ExclusiveHandleHeap< ds::MaxHeap<Gain, PartitionID> >;
@@ -73,6 +74,7 @@ class LocalUnconstrainedStrategy {
       sharedData(sharedData),
       blockPQ(blockPQ),
       vertexPQs(vertexPQs),
+      localVirtualWeightDelta(context.partition.k),
       penaltyFactor(context.refinement.fm.imbalance_penalty_max),
       upperBound(context.refinement.fm.unconstrained_upper_bound) { }
 
@@ -142,10 +144,7 @@ class LocalUnconstrainedStrategy {
         if (upperBound >= 1 && to_weight + wu > upperBound * context.partition.max_part_weights[to]) {
           apply_move = false;
         } else if (to_weight + wu > context.partition.max_part_weights[to]) {
-          const HypernodeWeight imbalance = std::min(wu, to_weight + wu - context.partition.max_part_weights[to]);
-          // The following will update the imbalance globally, which also affects the imbalance penalty for other threads.
-          // If the move is not applied, we need to undo this in skipMove
-          const Gain imbalance_penalty = sharedData.unconstrained.applyEstimatedPenaltyForImbalancedMove(to, imbalance);
+          const Gain imbalance_penalty = estimatePenalty(to, to_weight, wu);
           if (imbalance_penalty != std::numeric_limits<Gain>::max()) {
             Gain new_gain = gain_cache.gain(u, from, to) - std::ceil(penaltyFactor * imbalance_penalty);
             gain = new_gain;
@@ -160,16 +159,6 @@ class LocalUnconstrainedStrategy {
         m.gain = gain;
         runStats.extractions++;
         vertexPQs[from].deleteTop();  // blockPQ updates are done later, collectively.
-
-        if (context.refinement.fm.penalty_for_moved_rebalancing_nodes && sharedData.unconstrained.isRebalancingNode(m.node)) {
-          // edge case: moving a rebalancing node can throw the estimation off if we don't apply a correction
-          const HypernodeWeight from_weight = phg.partWeight(m.from);
-          const HypernodeWeight wu = phg.nodeWeight(u);
-          if (from_weight - wu < context.partition.max_part_weights[from]) {
-            const HypernodeWeight reduction = std::min(wu, context.partition.max_part_weights[from] - from_weight + wu);
-            sharedData.unconstrained.applyEstimatedPenaltyForImbalancedMove(from, reduction);
-          }
-        }
         return true;
       } else {
         runStats.retries++;
@@ -184,24 +173,44 @@ class LocalUnconstrainedStrategy {
 
   template<typename PartitionedHypergraph, typename GainCache>
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
-  void skipMove(const PartitionedHypergraph& phg, const GainCache&, Move m) {
-    if (penaltyFactor > 0) {
-      const HypernodeWeight to_weight = phg.partWeight(m.to);
-      const HypernodeWeight hn_weight = phg.nodeWeight(m.node);
-      if (to_weight + hn_weight > context.partition.max_part_weights[m.to]) {
-        // we need to undo the imbalance which was added to the shared data
-        const HypernodeWeight imbalance = std::min(hn_weight, to_weight + hn_weight - context.partition.max_part_weights[m.to]);
-        sharedData.unconstrained.revertImbalancedMove(m.to, imbalance);
-
-        // if (sharedData.unconstrained.isRebalancingNode(m.node)) {
-            // edge case: undo moving a rebalancing node
-            // Probably nothing to do here, since this is extremely unlikely and pessimizations are unproblematic
-        // }
+  void applyMove(const PartitionedHypergraph& phg, const GainCache&, Move m, bool global) {
+    if (sharedData.unconstrained.isRebalancingNode(m.node)) {
+      // If a node is moved which is already in use for penalty estimation, we need to make
+      // an adjustment so future estimations are not overly optimistic (since in reality, the
+      // node is not available anymore). This is achieved by increasing the "virtual" weight of
+      // the origin block, thus pessimizing future estimations
+      if (global) {
+        sharedData.unconstrained.virtual_weight_delta[m.from].fetch_add(
+            phg.nodeWeight(m.node), std::memory_order_relaxed);
+      } else {
+        localVirtualWeightDelta[m.from] += phg.nodeWeight(m.node);
       }
     }
   }
 
-  void clearPQs(const size_t /* bestImprovementIndex */ ) {
+  template<typename PartitionedHypergraph, typename GainCache>
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
+  void revertMove(const PartitionedHypergraph& phg, const GainCache&, Move m, bool global) {
+    if (sharedData.unconstrained.isRebalancingNode(m.node)) {
+      if (global) {
+        sharedData.unconstrained.virtual_weight_delta[m.from].fetch_sub(
+            phg.nodeWeight(m.node), std::memory_order_relaxed);
+      } else {
+        localVirtualWeightDelta[m.from] -= phg.nodeWeight(m.node);
+      }
+    }
+  }
+
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
+  void flushLocalChanges() {
+    for (auto [block, delta]: localVirtualWeightDelta) {
+      ASSERT(delta >= 0);
+      sharedData.unconstrained.virtual_weight_delta[block].fetch_add(delta, std::memory_order_relaxed);
+    }
+    localVirtualWeightDelta.clear();
+  }
+
+  void reset() {
     // release all nodes that were not moved
     const bool release = sharedData.release_nodes
                          && runStats.moves > 0;
@@ -220,6 +229,7 @@ class LocalUnconstrainedStrategy {
       vertexPQs[i].clear();
     }
     blockPQ.clear();
+    localVirtualWeightDelta.clear();
   }
 
 
@@ -278,8 +288,7 @@ private:
           // don't take imbalanced move without improved gain
           continue;
         } else if (to_weight + wu > max_weight && penaltyFactor > 0) {
-          const HypernodeWeight imbalance = std::min(wu, to_weight + wu - max_weight);
-          const Gain imbalance_penalty = sharedData.unconstrained.estimatedPenaltyForImbalancedMove(i, imbalance);
+          const Gain imbalance_penalty = estimatePenalty(i, to_weight, wu);
           if (imbalance_penalty == std::numeric_limits<Gain>::max()) {
             continue;
           }
@@ -318,8 +327,7 @@ private:
         if (upperBound >= 1 && to_weight + wu > upperBound * context.partition.max_part_weights[i]) {
           continue;
         } else if (to_weight + wu > context.partition.max_part_weights[i] && penaltyFactor > 0) {
-          const HypernodeWeight imbalance = std::min(wu, to_weight + wu - context.partition.max_part_weights[i]);
-          const Gain imbalance_penalty = sharedData.unconstrained.estimatedPenaltyForImbalancedMove(i, imbalance);
+          const Gain imbalance_penalty = estimatePenalty(i, to_weight, wu);
           if (imbalance_penalty == std::numeric_limits<Gain>::max()) {
             continue;
           }
@@ -338,6 +346,14 @@ private:
     return std::make_pair(to, gain);
   }
 
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
+  Gain estimatePenalty(PartitionID to, HypernodeWeight to_weight, HypernodeWeight wu) const {
+    HypernodeWeight virtual_delta = sharedData.unconstrained.virtual_weight_delta[to].load(std::memory_order_relaxed)
+                                    + localVirtualWeightDelta[to];
+    HypernodeWeight initial_imbalance = to_weight + virtual_delta - context.partition.max_part_weights[to];
+    return sharedData.unconstrained.estimatePenaltyForImbalancedMove(to, initial_imbalance, wu);
+  }
+
   const Context& context;
 
   FMStats& runStats;
@@ -352,6 +368,10 @@ private:
   // ! in that block) touched by the current local search associated
   // ! with their gain values
   vec<VertexPriorityQueue>& vertexPQs;
+
+  // ! Virtual block weights are saved as delta to the actual block weight. They
+  // ! are necessary to ensure a reasonable penalty estimation in some edge cases.
+  VirtualWeightMap localVirtualWeightDelta;
 
   double penaltyFactor;
   double upperBound;

@@ -157,7 +157,7 @@ struct UnconstrainedFMData {
   bool initialized = false;
   PartitionID current_k;
   parallel::scalable_vector<HypernodeWeight> bucket_weights;
-  parallel::scalable_vector<AtomicWeight> consumed_bucket_weights;
+  parallel::scalable_vector<AtomicWeight> virtual_weight_delta;
   tbb::enumerable_thread_specific<parallel::scalable_vector<HypernodeWeight>> local_bucket_weights;
   kahypar::ds::FastResetFlagArray<> rebalancing_nodes;
 
@@ -165,18 +165,14 @@ struct UnconstrainedFMData {
     initialized(false),
     current_k(0),
     bucket_weights(),
-    consumed_bucket_weights(),
+    virtual_weight_delta(),
     local_bucket_weights(),
     rebalancing_nodes() { }
 
   template<typename PartitionedHypergraphT>
   void initialize(const Context& context, const PartitionedHypergraphT& phg);
 
-  Gain estimatedPenaltyForImbalancedMove(PartitionID to, HypernodeWeight weight) const;
-
-  Gain applyEstimatedPenaltyForImbalancedMove(PartitionID to, HypernodeWeight weight);
-
-  void revertImbalancedMove(PartitionID to, HypernodeWeight weight);
+  Gain estimatePenaltyForImbalancedMove(PartitionID to, HypernodeWeight initial_imbalance, HypernodeWeight moved_weight) const;
 
   bool isRebalancingNode(HypernodeID hn) const {
     return initialized && rebalancing_nodes[hn];
@@ -193,7 +189,7 @@ struct UnconstrainedFMData {
   void reset() {
     rebalancing_nodes.reset();
     bucket_weights.assign(current_k * NUM_BUCKETS, 0);
-    consumed_bucket_weights.assign(current_k * NUM_BUCKETS, AtomicWeight(0));
+    virtual_weight_delta.assign(current_k, AtomicWeight(0));
     for (auto& local_weights: local_bucket_weights) {
       local_weights.assign(current_k * NUM_BUCKETS, 0);
     }

@@ -119,6 +119,14 @@ class SparseMapBase {
     return _dense[index].value;
   }
 
+  Value operator[] (const Key key) const {
+    const size_t index = _sparse[key];
+    if (!contains(key)) {
+      return Value();
+    }
+    return _dense[index].value;
+  }
+
   const Value & get(const Key key) const {
     ASSERT(contains(key), V(key));
     return _dense[_sparse[key]].value;

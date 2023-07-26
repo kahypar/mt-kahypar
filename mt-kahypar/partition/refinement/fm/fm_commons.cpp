@@ -29,81 +29,18 @@
 
 
 namespace mt_kahypar {
-  Gain UnconstrainedFMData::estimatedPenaltyForImbalancedMove(PartitionID to, HypernodeWeight weight) const {
+  Gain UnconstrainedFMData::estimatePenaltyForImbalancedMove(PartitionID to,
+                                                             HypernodeWeight initial_imbalance,
+                                                             HypernodeWeight moved_weight) const {
     ASSERT(initialized);
     size_t bucketId = 0;
-    HyperedgeWeight free_capacity = 0;
-    while (free_capacity <= 0 && bucketId < NUM_BUCKETS) {
+    while (initial_imbalance + moved_weight > bucket_weights[indexForBucket(to, bucketId)]
+           && bucketId < NUM_BUCKETS) {
       ++bucketId;
-      free_capacity = (bucketId == NUM_BUCKETS) ? 0 : bucket_weights[indexForBucket(to, bucketId)] -
-                      consumed_bucket_weights[indexForBucket(to, bucketId)].load(std::memory_order_relaxed);
-    }
-    if (free_capacity < weight) {
-      ++bucketId;
+      initial_imbalance -= bucket_weights[indexForBucket(to, bucketId)];
     }
     return (bucketId >= NUM_BUCKETS) ? std::numeric_limits<Gain>::max()
-              : std::ceil(weight * gainPerWeightForBucket(bucketId));
-  }
-
-  Gain UnconstrainedFMData::applyEstimatedPenaltyForImbalancedMove(PartitionID to, HypernodeWeight weight) {
-    ASSERT(initialized);
-    HypernodeWeight remaining = weight;
-    double penalty = 0;
-    while (remaining > 0) {
-      size_t bucketId = 0;
-      while (consumed_bucket_weights[indexForBucket(to, bucketId)].load(std::memory_order_relaxed)
-              >= bucket_weights[indexForBucket(to, bucketId)]) {
-        ++bucketId;
-        if (bucketId == NUM_BUCKETS) {
-          return std::numeric_limits<Gain>::max(); // rebalancing not possible with considered nodes
-        }
-      }
-
-      const HypernodeWeight old = consumed_bucket_weights[indexForBucket(to, bucketId)].fetch_add(
-                                      remaining, std::memory_order_relaxed);
-      const HypernodeWeight max_weight = bucket_weights[indexForBucket(to, bucketId)];
-      // might have been updated concurrently by another thread
-      if (old + remaining <= max_weight) {
-        penalty += remaining * gainPerWeightForBucket(bucketId);
-        remaining = 0;
-      } else if (old < max_weight) {
-        // set consumed weight equal to max weight (but use fetch_sub to accomodate concurrent updates)
-        consumed_bucket_weights[indexForBucket(to, bucketId)].fetch_sub(
-            old + remaining - max_weight, std::memory_order_relaxed);
-        penalty += (max_weight - old) * gainPerWeightForBucket(bucketId);
-        remaining -= (max_weight - old);
-      }
-      // else: try again
-    }
-    return std::ceil(penalty);
-  }
-
-  void UnconstrainedFMData::revertImbalancedMove(PartitionID to, HypernodeWeight weight) {
-    ASSERT(initialized);
-    HypernodeWeight remaining = weight;
-    while (remaining > 0) {
-      size_t bucketId = 0;
-      while (bucketId + 1 < NUM_BUCKETS && consumed_bucket_weights[
-                indexForBucket(to, bucketId + 1)].load(std::memory_order_relaxed) > 0) {
-        ++bucketId;
-      }
-
-      const HypernodeWeight old = consumed_bucket_weights[indexForBucket(to, bucketId)].fetch_sub(
-                                      remaining, std::memory_order_relaxed);
-      // might have been updated concurrently by another thread
-      if (old >= remaining) {
-        remaining = 0;
-      } else if (old > 0) {
-        // set consumed weight equal to zero (but use fetch_add to accomodate concurrent updates)
-        consumed_bucket_weights[indexForBucket(to, bucketId)].fetch_add(
-            remaining - old, std::memory_order_relaxed);
-        remaining -= old;
-      } else if (bucketId == 0) {
-        // nothing to revert here
-        return;
-      }
-      // else: try again
-    }
+              : std::ceil(moved_weight * gainPerWeightForBucket(bucketId));
   }
 
   template<typename PartitionedHypergraphT>
@@ -160,5 +97,4 @@ namespace mt_kahypar {
   }
 
   INSTANTIATE_FUNC_WITH_PARTITIONED_HG(UNCONSTRAINED_FM_INITIALIZE)
-
 }
