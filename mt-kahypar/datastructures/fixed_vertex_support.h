@@ -80,7 +80,7 @@ class FixedVertexSupport {
   }
 
   void setMaxBlockWeight(const std::vector<HypernodeWeight> max_block_weights) {
-    ASSERT(max_block_weights.size() == static_cast<size_t>(_k));
+    ASSERT(max_block_weights.size() >= static_cast<size_t>(_k));
     _max_block_weights = max_block_weights;
   }
 

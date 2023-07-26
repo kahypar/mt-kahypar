@@ -754,8 +754,12 @@ class DynamicHypergraph {
     return _fixed_vertices.isFixed(hn);
   }
 
-  PartitionID fixedVertexBlock(const HypernodeID hn) {
+  PartitionID fixedVertexBlock(const HypernodeID hn) const {
     return _fixed_vertices.fixedVertexBlock(hn);
+  }
+
+  FixedVertexSupport<DynamicHypergraph> copyOfFixedVertexSupport() const {
+    return _fixed_vertices.copy();
   }
 
   // ####################### Contract / Uncontract #######################

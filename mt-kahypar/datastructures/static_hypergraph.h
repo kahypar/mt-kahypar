@@ -710,8 +710,12 @@ class StaticHypergraph {
     return _fixed_vertices.isFixed(hn);
   }
 
-  PartitionID fixedVertexBlock(const HypernodeID hn) {
+  PartitionID fixedVertexBlock(const HypernodeID hn) const {
     return _fixed_vertices.fixedVertexBlock(hn);
+  }
+
+  FixedVertexSupport<StaticHypergraph> copyOfFixedVertexSupport() const {
+    return _fixed_vertices.copy();
   }
 
   // ####################### Contract / Uncontract #######################

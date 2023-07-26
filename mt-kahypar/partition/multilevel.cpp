@@ -100,6 +100,8 @@ namespace {
         mt_kahypar::io::printHypergraphInfo(
           utils::cast<Hypergraph>(coarsestHypergraph),
           "Coarsened Hypergraph", context.partition.show_memory_consumption);
+        mt_kahypar::io::printFixedVertexPartWeights(
+          utils::cast<Hypergraph>(coarsestHypergraph), context);
       }
     }
     timer.stop_timer("coarsening");
