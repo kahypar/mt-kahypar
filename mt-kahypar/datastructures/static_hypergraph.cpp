@@ -475,7 +475,20 @@ namespace mt_kahypar::ds {
       });
     };
 
-    tbb::parallel_invoke( assign_communities, setup_hyperedges, setup_hypernodes);
+    tbb::parallel_invoke(assign_communities, setup_hyperedges, setup_hypernodes);
+
+    if ( hasFixedVertices() ) {
+      // Map fixed vertices to coarse hypergraph
+      FixedVertexSupport<StaticHypergraph> coarse_fixed_vertices(
+        hypergraph.initialNumNodes(), _fixed_vertices.numBlocks());
+      coarse_fixed_vertices.setHypergraph(&hypergraph);
+      doParallelForAllNodes([&](const HypernodeID hn) {
+        if ( isFixed(hn) ) {
+          coarse_fixed_vertices.fixToBlock(communities[hn], fixedVertexBlock(hn));
+        }
+      });
+      hypergraph.addFixedVertexSupport(std::move(coarse_fixed_vertices));
+    }
 
     hypergraph._total_weight = _total_weight;   // didn't lose any vertices
     hypergraph._tmp_contraction_buffer = _tmp_contraction_buffer;
@@ -515,6 +528,8 @@ namespace mt_kahypar::ds {
              sizeof(HypernodeID) * _incidence_array.size());
     }, [&] {
       hypergraph._community_ids = _community_ids;
+    }, [&] {
+      hypergraph.addFixedVertexSupport(_fixed_vertices.copy());
     });
     return hypergraph;
   }
@@ -547,12 +562,10 @@ namespace mt_kahypar::ds {
            sizeof(HypernodeID) * _incidence_array.size());
 
     hypergraph._community_ids = _community_ids;
+    hypergraph.addFixedVertexSupport(_fixed_vertices.copy());
 
     return hypergraph;
   }
-
-
-
 
   void StaticHypergraph::memoryConsumption(utils::MemoryTreeNode* parent) const {
     ASSERT(parent);
@@ -561,6 +574,9 @@ namespace mt_kahypar::ds {
     parent->addChild("Hyperedges", sizeof(Hyperedge) * _hyperedges.size());
     parent->addChild("Incidence Array", sizeof(HypernodeID) * _incidence_array.size());
     parent->addChild("Communities", sizeof(PartitionID) * _community_ids.capacity());
+    if ( hasFixedVertices() ) {
+      parent->addChild("Fixed Vertex Support", _fixed_vertices.size_in_bytes());
+    }
   }
 
   // ! Computes the total node weight of the hypergraph

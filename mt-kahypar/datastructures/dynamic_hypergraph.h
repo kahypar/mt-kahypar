@@ -755,7 +755,7 @@ class DynamicHypergraph {
   }
 
   PartitionID fixedVertexBlock(const HypernodeID hn) {
-    return _fixed_vertices.fixedVertexBlockWeight(hn);
+    return _fixed_vertices.fixedVertexBlock(hn);
   }
 
   // ####################### Contract / Uncontract #######################

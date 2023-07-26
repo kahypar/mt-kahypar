@@ -377,6 +377,19 @@ namespace mt_kahypar::ds {
       unique_id = edge_id_prefix_sum[unique_id];
     });
 
+    if ( hasFixedVertices() ) {
+      // Map fixed vertices to coarse graph
+      FixedVertexSupport<StaticGraph> coarse_fixed_vertices(
+        hypergraph.initialNumNodes(), _fixed_vertices.numBlocks());
+      coarse_fixed_vertices.setHypergraph(&hypergraph);
+      doParallelForAllNodes([&](const HypernodeID hn) {
+        if ( isFixed(hn) ) {
+          coarse_fixed_vertices.fixToBlock(communities[hn], fixedVertexBlock(hn));
+        }
+      });
+      hypergraph.addFixedVertexSupport(std::move(coarse_fixed_vertices));
+    }
+
     HEAVY_COARSENING_ASSERT(
       [&](){
         parallel::scalable_vector<bool> covered_ids(hypergraph.initialNumEdges() / 2, false);
@@ -437,6 +450,8 @@ namespace mt_kahypar::ds {
              sizeof(HyperedgeID) * _unique_edge_ids.size());
     }, [&] {
       hypergraph._community_ids = _community_ids;
+    }, [&] {
+      hypergraph.addFixedVertexSupport(_fixed_vertices.copy());
     });
     return hypergraph;
   }
@@ -463,18 +478,19 @@ namespace mt_kahypar::ds {
            sizeof(HyperedgeID) * _unique_edge_ids.size());
 
     hypergraph._community_ids = _community_ids;
+    hypergraph.addFixedVertexSupport(_fixed_vertices.copy());
 
     return hypergraph;
   }
-
-
-
 
   void StaticGraph::memoryConsumption(utils::MemoryTreeNode* parent) const {
     ASSERT(parent);
     parent->addChild("Hypernodes", sizeof(Node) * _nodes.size());
     parent->addChild("Hyperedges", 2 * sizeof(Edge) * _edges.size());
     parent->addChild("Communities", sizeof(PartitionID) * _community_ids.capacity());
+    if ( hasFixedVertices() ) {
+      parent->addChild("Fixed Vertex Support", _fixed_vertices.size_in_bytes());
+    }
   }
 
   // ! Computes the total node weight of the hypergraph
