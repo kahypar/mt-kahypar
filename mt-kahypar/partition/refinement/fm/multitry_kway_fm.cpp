@@ -180,7 +180,7 @@ namespace mt_kahypar {
           // the segmentation fault.
           if ( task_id >= 0 && task_id < TBBInitializer::instance().total_number_of_threads() ) {
             for (HypernodeID u = r.begin(); u < r.end(); ++u) {
-              if (phg.nodeIsEnabled(u) && phg.isBorderNode(u)) {
+              if (phg.nodeIsEnabled(u) && phg.isBorderNode(u) && !phg.isFixed(u)) {
                 sharedData.refinementNodes.safe_push(u, task_id);
               }
             }
@@ -192,7 +192,7 @@ namespace mt_kahypar {
         const HypernodeID u = refinement_nodes[i];
         const int task_id = tbb::this_task_arena::current_thread_index();
         if ( task_id >= 0 && task_id < TBBInitializer::instance().total_number_of_threads() ) {
-          if (phg.nodeIsEnabled(u) && phg.isBorderNode(u)) {
+          if (phg.nodeIsEnabled(u) && phg.isBorderNode(u) && !phg.isFixed(u)) {
             sharedData.refinementNodes.safe_push(u, task_id);
           }
         }
@@ -207,6 +207,17 @@ namespace mt_kahypar {
     // requesting new searches activates all nodes by raising the deactivated node marker
     // also clears the array tracking search IDs in case of overflow
     sharedData.nodeTracker.requestNewSearches(static_cast<SearchID>(sharedData.refinementNodes.unsafe_size()));
+
+    if ( phg.hasFixedVertices() ) {
+      const SearchID dummy_search = ++sharedData.nodeTracker.highestActiveSearchID;
+      phg.doParallelForAllNodes([&](const HypernodeID& hn) {
+        if ( phg.isFixed(hn) ) {
+          // This marks a fixed vertex as moved and ensure that no
+          // FM search moves a fixed vertex to another block.
+          sharedData.nodeTracker.tryAcquireNode(hn, dummy_search);
+        }
+      });
+    }
   }
 
 
