@@ -45,6 +45,8 @@ class FixedVertexSupport {
     PartitionID block;
     // ! Number of fixed vertices contracted onto this node
     HypernodeID fixed_vertex_contraction_cnt;
+    // ! Weight at the time it becomes fixed
+    HypernodeWeight fixed_vertex_weight;
     // ! Spin lock to syncronize contractions
     SpinLock sync;
   };
@@ -67,7 +69,7 @@ class FixedVertexSupport {
     _total_fixed_vertex_weight(0),
     _fixed_vertex_block_weights(k, CAtomic<HypernodeWeight>(0) ),
     _max_block_weights(k, std::numeric_limits<HypernodeWeight>::max()),
-    _fixed_vertex_data(num_nodes, FixedVertexData { kInvalidPartition, 0, SpinLock() }) { }
+    _fixed_vertex_data(num_nodes, FixedVertexData { kInvalidPartition, 0, 0, SpinLock() }) { }
 
   FixedVertexSupport(const FixedVertexSupport&) = delete;
   FixedVertexSupport & operator= (const FixedVertexSupport &) = delete;
@@ -117,11 +119,13 @@ class FixedVertexSupport {
     PartitionID desired = block;
     if ( __atomic_compare_exchange_n(&_fixed_vertex_data[hn].block,
            &expected, desired, false, __ATOMIC_ACQ_REL, __ATOMIC_RELAXED) ) {
+      const HypernodeWeight weight_of_hn = _hg->nodeWeight(hn);
       _fixed_vertex_data[hn].fixed_vertex_contraction_cnt = 1;
+      _fixed_vertex_data[hn].fixed_vertex_weight = weight_of_hn;
       _fixed_vertex_block_weights[block].fetch_add(
-        _hg->nodeWeight(hn), std::memory_order_relaxed);
+        weight_of_hn, std::memory_order_relaxed);
       _total_fixed_vertex_weight.fetch_add(
-        _hg->nodeWeight(hn), std::memory_order_relaxed);
+        weight_of_hn, std::memory_order_relaxed);
     } else {
       ASSERT(_fixed_vertex_data[hn].block == block,
         "Try to fix hypernode" << hn << "to block" << block

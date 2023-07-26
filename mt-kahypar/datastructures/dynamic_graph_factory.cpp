@@ -162,10 +162,26 @@ std::pair<DynamicGraph, parallel::scalable_vector<HypernodeID> > DynamicGraphFac
   compactified_graph._removed_degree_zero_hn_weight = graph._removed_degree_zero_hn_weight;
   compactified_graph._total_weight += graph._removed_degree_zero_hn_weight;
 
-  // Set community ids
-  graph.doParallelForAllNodes([&](const HypernodeID& hn) {
-    const HypernodeID mapped_hn = hn_mapping[hn];
-    compactified_graph.setCommunityID(mapped_hn, graph.communityID(hn));
+  tbb::parallel_invoke([&] {
+    // Set community ids
+    graph.doParallelForAllNodes([&](const HypernodeID& hn) {
+      const HypernodeID mapped_hn = hn_mapping[hn];
+      compactified_graph.setCommunityID(mapped_hn, graph.communityID(hn));
+    });
+  }, [&] {
+    if ( graph.hasFixedVertices() ) {
+      // Set fixed vertices
+      ds::FixedVertexSupport<DynamicGraph> fixed_vertices(
+        compactified_graph.initialNumNodes(), graph._fixed_vertices.numBlocks());
+      fixed_vertices.setHypergraph(&compactified_graph);
+      graph.doParallelForAllNodes([&](const HypernodeID& hn) {
+        if ( graph.isFixed(hn) ) {
+          const HypernodeID mapped_hn = hn_mapping[hn];
+          fixed_vertices.fixToBlock(mapped_hn, graph.fixedVertexBlock(hn));
+        }
+      });
+      compactified_graph.addFixedVertexSupport(std::move(fixed_vertices));
+    }
   });
 
   parallel::parallel_free(he_mapping, edge_weights, node_weights, edge_vector);

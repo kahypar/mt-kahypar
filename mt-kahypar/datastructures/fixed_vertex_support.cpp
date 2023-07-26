@@ -51,12 +51,14 @@ bool FixedVertexSupport<Hypergraph>::contract(const HypernodeID u, const Hyperno
     // u becomes a fixed vertex since v is a fixed vertex
     fixed_vertex_block = fixedVertexBlock(v);
     u_becomes_fixed = true;
-  } else if ( is_fixed_u && ! is_fixed_v ) {
+  } else if ( is_fixed_u && !is_fixed_v ) {
     // v becomes a fixed vertex since it is contracted onto a fixed vertex
     fixed_vertex_block = fixedVertexBlock(u);
     v_becomes_fixed = true;
   } else if ( both_fixed ) {
     if ( fixedVertexBlock(u) == fixedVertexBlock(v) ) {
+      ASSERT(_fixed_vertex_data[u].fixed_vertex_contraction_cnt > 0);
+      ASSERT(_fixed_vertex_data[v].fixed_vertex_contraction_cnt > 0);
       ++_fixed_vertex_data[u].fixed_vertex_contraction_cnt;
     } else {
       // Both nodes are fixed vertices, but are assigned to different blocks
@@ -79,9 +81,12 @@ bool FixedVertexSupport<Hypergraph>::contract(const HypernodeID u, const Hyperno
     if ( likely( block_weight_after <= _max_block_weights[fixed_vertex_block] ) ) {
       _total_fixed_vertex_weight.fetch_add(delta_weight, std::memory_order_relaxed);
       if ( u_becomes_fixed ) {
+        ASSERT(isFixed(v));
+        ASSERT(_fixed_vertex_data[u].fixed_vertex_contraction_cnt == 0);
         // Block weight update was successful => set fixed vertex block of u
         _fixed_vertex_data[u].block = fixedVertexBlock(v);
         _fixed_vertex_data[u].fixed_vertex_contraction_cnt = 1;
+        _fixed_vertex_data[u].fixed_vertex_weight = weight_of_u;
       }
     } else {
       // The new fixed vertex block weight is larger than the maximum allowed bock weight
@@ -99,6 +104,7 @@ bool FixedVertexSupport<Hypergraph>::contract(const HypernodeID u, const Hyperno
     // if v is contracted onto another node. We therefore can set the fixed vertex block of
     // v outside the lock
     _fixed_vertex_data[v].block = fixed_vertex_block;
+    _fixed_vertex_data[v].fixed_vertex_weight = weight_of_v;
   }
   return success;
 }
@@ -107,19 +113,18 @@ template<typename Hypergraph>
 void FixedVertexSupport<Hypergraph>::uncontract(const HypernodeID u, const HypernodeID v) {
   ASSERT(_hg);
   ASSERT(u < _num_nodes && v < _num_nodes);
-  if ( isFixed(u) && isFixed(v) ) {
+  if ( isFixed(v) ) {
     if ( _fixed_vertex_data[v].fixed_vertex_contraction_cnt > 0 ) {
       // v was fixed before the contraction
       _fixed_vertex_data[u].sync.lock();
-      HypernodeID& current_contraction_cnt_of_u = _fixed_vertex_data[u].fixed_vertex_contraction_cnt;
-      const bool was_u_fixed_before = current_contraction_cnt_of_u > 0;
-      const HypernodeID contraction_cnt_of_u_after = was_u_fixed_before ?
-        --current_contraction_cnt_of_u : current_contraction_cnt_of_u;
+      ASSERT(_fixed_vertex_data[u].fixed_vertex_contraction_cnt > 0);
+      const HypernodeID contraction_cnt_of_u_after =
+        --_fixed_vertex_data[u].fixed_vertex_contraction_cnt;
       _fixed_vertex_data[u].sync.unlock();
       if ( contraction_cnt_of_u_after == 0 ) {
         // u was not fixed before the contraction
         const PartitionID fixed_vertex_block_of_u = _fixed_vertex_data[u].block;
-        const HypernodeWeight weight_of_u = _hg->nodeWeight(u);
+        const HypernodeWeight weight_of_u = _fixed_vertex_data[u].fixed_vertex_weight;
         _fixed_vertex_block_weights[fixed_vertex_block_of_u].fetch_sub(
           weight_of_u, std::memory_order_relaxed);
         _total_fixed_vertex_weight.fetch_sub(
@@ -130,7 +135,7 @@ void FixedVertexSupport<Hypergraph>::uncontract(const HypernodeID u, const Hyper
     } else {
       // v was not fixed before the contraction
       const PartitionID fixed_vertex_block_of_v = _fixed_vertex_data[v].block;
-      const HypernodeWeight weight_of_v = _hg->nodeWeight(v);
+      const HypernodeWeight weight_of_v = _fixed_vertex_data[v].fixed_vertex_weight;
       _fixed_vertex_block_weights[fixed_vertex_block_of_v].fetch_sub(
         weight_of_v, std::memory_order_relaxed);
       _total_fixed_vertex_weight.fetch_sub(
@@ -148,9 +153,9 @@ class DynamicHypergraph;
 class DynamicGraph;
 
 template class FixedVertexSupport<StaticHypergraph>;
-ENABLE_GRAPHS(template class FixedVertexSupport<StaticGraph>;)
-ENABLE_HIGHEST_QUALITY(template class FixedVertexSupport<DynamicHypergraph>;)
-ENABLE_HIGHEST_QUALITY_FOR_GRAPHS(template class FixedVertexSupport<DynamicGraph>;)
+template class FixedVertexSupport<StaticGraph>;
+template class FixedVertexSupport<DynamicHypergraph>;
+template class FixedVertexSupport<DynamicGraph>;
 
 } // namespace ds
 } // namespace mt_kahypar

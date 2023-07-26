@@ -360,7 +360,8 @@ class DynamicHypergraph {
   enum class ContractionResult : uint8_t {
     CONTRACTED = 0,
     PENDING_CONTRACTIONS = 1,
-    WEIGHT_LIMIT_REACHED = 2
+    WEIGHT_LIMIT_REACHED = 2,
+    INVALID_FIXED_VERTEX_CONTRACTION = 3
   };
 
   using ContractionInterval = typename ContractionTree::Interval;
