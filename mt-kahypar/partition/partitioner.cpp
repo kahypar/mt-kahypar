@@ -342,6 +342,21 @@ namespace mt_kahypar {
       io::printStripe();
     }
 
+    ASSERT([&] {
+      bool success = true;
+      if ( partitioned_hypergraph.hasFixedVertices() ) {
+        for ( const HypernodeID& hn : partitioned_hypergraph.nodes() ) {
+          if ( partitioned_hypergraph.isFixed(hn) &&
+               partitioned_hypergraph.fixedVertexBlock(hn) != partitioned_hypergraph.partID(hn) ) {
+            LOG << "Node" << hn << "is fixed to block" << partitioned_hypergraph.fixedVertexBlock(hn)
+                << ", but is assigned to block" << partitioned_hypergraph.partID(hn);
+            success = false;
+          }
+        }
+      }
+      return success;
+    }(), "Some fixed vertices are not assigned to their corresponding block");
+
     return partitioned_hypergraph;
   }
 
@@ -391,6 +406,21 @@ namespace mt_kahypar {
         "Uncoarsened Hypergraph", context.partition.show_memory_consumption);
       io::printStripe();
     }
+
+    ASSERT([&] {
+      bool success = true;
+      if ( partitioned_hg.hasFixedVertices() ) {
+        for ( const HypernodeID& hn : partitioned_hg.nodes() ) {
+          if ( partitioned_hg.isFixed(hn) &&
+               partitioned_hg.fixedVertexBlock(hn) != partitioned_hg.partID(hn) ) {
+            LOG << "Node" << hn << "is fixed to block" << partitioned_hg.fixedVertexBlock(hn)
+                << ", but is assigned to block" << partitioned_hg.partID(hn);
+            success = false;
+          }
+        }
+      }
+      return success;
+    }(), "Some fixed vertices are not assigned to their corresponding block");
   }
 
   INSTANTIATE_CLASS_WITH_TYPE_TRAITS(Partitioner)

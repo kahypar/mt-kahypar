@@ -1051,6 +1051,7 @@ private:
                           const NotificationFunc& notify_func) {
     ASSERT(partID(u) == from);
     ASSERT(from != to);
+    ASSERT(!isFixed(u));
     const HypernodeWeight weight = nodeWeight(u);
     const HypernodeWeight to_weight_after = _part_weights[to].add_fetch(weight, std::memory_order_relaxed);
     if (to_weight_after <= max_weight_to) {

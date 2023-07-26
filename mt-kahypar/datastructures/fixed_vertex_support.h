@@ -131,8 +131,7 @@ class FixedVertexSupport {
 
   // ! Returns whether or not the node is fixed to a block
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE bool isFixed(const HypernodeID hn) const {
-    ASSERT(hn < _num_nodes);
-    return fixedVertexBlock(hn) != kInvalidPartition;
+    return hn < _num_nodes && fixedVertexBlock(hn) != kInvalidPartition;
   }
 
   // ! Returns the fixed vertex block of the node

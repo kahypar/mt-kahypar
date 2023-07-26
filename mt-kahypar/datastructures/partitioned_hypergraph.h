@@ -577,6 +577,7 @@ class PartitionedHypergraph {
                       const NotificationFunc& notify_func = NOOP_NOTIFY_FUNC) {
     ASSERT(partID(u) == from);
     ASSERT(from != to);
+    ASSERT(!isFixed(u));
     const HypernodeWeight wu = nodeWeight(u);
     const HypernodeWeight to_weight_after = _part_weights[to].add_fetch(wu, std::memory_order_relaxed);
     if (to_weight_after <= max_weight_to) {
