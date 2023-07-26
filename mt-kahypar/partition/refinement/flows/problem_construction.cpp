@@ -136,21 +136,26 @@ Subhypergraph ProblemConstruction<TypeTraits>::construct(const SearchID search_i
     PartitionID block = phg.partID(hn);
     const bool is_block_contained = block == sub_hg.block_0 || block == sub_hg.block_1;
     if ( is_block_contained && !bfs.locked_blocks[block] ) {
-      if ( sub_hg.block_0  == block ) {
-        sub_hg.nodes_of_block_0.push_back(hn);
-        sub_hg.weight_of_block_0 += phg.nodeWeight(hn);
-      } else {
-        ASSERT(sub_hg.block_1 == block);
-        sub_hg.nodes_of_block_1.push_back(hn);
-        sub_hg.weight_of_block_1 += phg.nodeWeight(hn);
+      const bool is_fixed = phg.isFixed(hn);
+      // We do not add fixed vertices to the flow problem, but still
+      // expand the BFS to its neighbors
+      if ( !is_fixed ) {
+        if ( sub_hg.block_0  == block ) {
+          sub_hg.nodes_of_block_0.push_back(hn);
+          sub_hg.weight_of_block_0 += phg.nodeWeight(hn);
+        } else {
+          ASSERT(sub_hg.block_1 == block);
+          sub_hg.nodes_of_block_1.push_back(hn);
+          sub_hg.weight_of_block_1 += phg.nodeWeight(hn);
+        }
+        sub_hg.num_pins += phg.nodeDegree(hn);
       }
-      sub_hg.num_pins += phg.nodeDegree(hn);
 
       // Push all neighbors of the added vertex into the queue
       for ( const HyperedgeID& he : phg.incidentEdges(hn) ) {
         bfs.add_pins_of_hyperedge_to_queue(he, phg, max_bfs_distance,
           max_weight_block_0, max_weight_block_1);
-        if ( !bfs.contained_hes[phg.uniqueEdgeID(he)] ) {
+        if ( !is_fixed && !bfs.contained_hes[phg.uniqueEdgeID(he)] ) {
           sub_hg.hes.push_back(he);
           bfs.contained_hes[phg.uniqueEdgeID(he)] = true;
         }
