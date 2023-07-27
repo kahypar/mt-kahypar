@@ -162,7 +162,7 @@ namespace mt_kahypar {
       if constexpr (precomputed) {
         const PartitionID from = hypergraph.partID(hn);
         const auto [gain, to] = _gains_and_target[hn];
-        Gain total_gain = 0;
+        /* Gain total_gain = 0;
         for (const HyperedgeID& he : hypergraph.incidentEdges(hn)) {
           HypernodeID pin_count_in_from_part_after = 0;
           HypernodeID pin_count_in_to_part_after = 1;
@@ -181,9 +181,10 @@ namespace mt_kahypar {
               }
             }
           }
-          total_gain += AttributedGains::gain(he, hypergraph.edgeWeight(he), hypergraph.edgeSize(he),
-                                              pin_count_in_from_part_after, pin_count_in_to_part_after);
-        }
+          // TODO: does not compile with new sync update
+          // total_gain += AttributedGains::gain(he, hypergraph.edgeWeight(he), hypergraph.edgeSize(he),
+          //                                     pin_count_in_from_part_after, pin_count_in_to_part_after);
+        } */
 
         if (gain < 0) {
           changeNodePart(hypergraph, hn, from, to, objective_delta);
@@ -218,7 +219,7 @@ namespace mt_kahypar {
     auto recompute = [&](const HypernodeID hn) {
       const bool node_was_moved = (hypergraph.partID(hn) != current_parts[hn]);
       if (node_was_moved) {
-        _gain_cache.recomputePenaltyTermEntry(hypergraph, hn);
+        _gain_cache.recomputePenaltyTerm(hypergraph, hn);
       } else {
         ASSERT(_gain_cache.penaltyTerm(hn, hypergraph.partID(hn))
               == _gain_cache.recomputePenaltyTerm(hypergraph, hn));
@@ -384,7 +385,7 @@ namespace mt_kahypar {
     if constexpr (precomputed) {
       RatingMap& tmp_scores = _gain.localScores();
       Gain isolated_block_gain = 0;
-      _gain.precomputeGains(hypergraph, hn, tmp_scores, isolated_block_gain);
+      _gain.precomputeGains(hypergraph, hn, tmp_scores, isolated_block_gain, false);
       Move best_move = _gain.computeMaxGainMoveForScores(hypergraph, tmp_scores, isolated_block_gain,
                                                           hn, false, false, true);
       tmp_scores.clear();
