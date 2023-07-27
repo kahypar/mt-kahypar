@@ -664,6 +664,14 @@ class DynamicGraph {
     return _fixed_vertices.fixedVertexBlock(hn);
   }
 
+  void setMaxFixedVertexBlockWeight(const std::vector<HypernodeWeight> max_block_weights) {
+    _fixed_vertices.setMaxBlockWeight(max_block_weights);
+  }
+
+  const FixedVertexSupport<DynamicGraph>& fixedVertexSupport() const {
+    return _fixed_vertices;
+  }
+
   FixedVertexSupport<DynamicGraph> copyOfFixedVertexSupport() const {
     return _fixed_vertices.copy();
   }
