@@ -80,7 +80,8 @@ namespace mt_kahypar {
       });
       phg.doParallelForAllNodes([&](const HypernodeID& hn) {
         const PartitionID from = phg.partID(hn);
-        if ( phg.isBorderNode(hn) && phg.partWeight(from) > _context.partition.max_part_weights[from] ) {
+        if ( phg.isBorderNode(hn) && !phg.isFixed(hn) &&
+          phg.partWeight(from) > _context.partition.max_part_weights[from] ) {
           Move rebalance_move = _gain.computeMaxGainMove(phg, hn, true /* rebalance move */);
           if ( rebalance_move.gain <= 0 ) {
             moveVertex(phg, hn, rebalance_move, objective_delta);
@@ -208,38 +209,40 @@ namespace mt_kahypar {
       tbb::enumerable_thread_specific< vec< vec<Move> > > ets_best_move(k);
 
       phg.doParallelForAllNodes([&](const HypernodeID u) {
-        vec<Gain>& scores = ets_scores.local();
-        vec< vec<Move> >& move_proposals = ets_best_move.local();
+        if ( !phg.isFixed(u) ) {
+          vec<Gain>& scores = ets_scores.local();
+          vec< vec<Move> >& move_proposals = ets_best_move.local();
 
-        const PartitionID from = phg.partID(u);
-        Gain unremovable = 0;
-        for (HyperedgeID e : phg.incidentEdges(u)) {
-          const HyperedgeWeight edge_weight = phg.edgeWeight(e);
-          if (phg.pinCountInPart(e, from) > 1) {
-            unremovable += edge_weight;
-          }
-          for (PartitionID i : phg.connectivitySet(e)) {
-            scores[i] += edge_weight;
-          }
-        }
-
-        // maintain thread local priority queues of up to k best gains
-        for (const PartitionID to : empty_blocks) {
-          ASSERT(is_empty[to]);
-          if (to != from && phg.partWeight(from) > phg.nodeWeight(u)
-              && phg.nodeWeight(u) <= _context.partition.max_part_weights[to]) {
-            const Gain gain = scores[to] - unremovable;
-            vec<Move>& c = move_proposals[to];
-            if (c.size() < k) {
-              c.push_back(Move { from, to, u, gain });
-              std::push_heap(c.begin(), c.end(), MoveGainComparator());
-            } else if (c.front().gain < gain) {
-              std::pop_heap(c.begin(), c.end(), MoveGainComparator());
-              c.back() = { from, to, u, gain };
-              std::push_heap(c.begin(), c.end(), MoveGainComparator());
+          const PartitionID from = phg.partID(u);
+          Gain unremovable = 0;
+          for (HyperedgeID e : phg.incidentEdges(u)) {
+            const HyperedgeWeight edge_weight = phg.edgeWeight(e);
+            if (phg.pinCountInPart(e, from) > 1) {
+              unremovable += edge_weight;
+            }
+            for (PartitionID i : phg.connectivitySet(e)) {
+              scores[i] += edge_weight;
             }
           }
-          scores[to] = 0;
+
+          // maintain thread local priority queues of up to k best gains
+          for (const PartitionID to : empty_blocks) {
+            ASSERT(is_empty[to]);
+            if (to != from && phg.partWeight(from) > phg.nodeWeight(u)
+                && phg.nodeWeight(u) <= _context.partition.max_part_weights[to]) {
+              const Gain gain = scores[to] - unremovable;
+              vec<Move>& c = move_proposals[to];
+              if (c.size() < k) {
+                c.push_back(Move { from, to, u, gain });
+                std::push_heap(c.begin(), c.end(), MoveGainComparator());
+              } else if (c.front().gain < gain) {
+                std::pop_heap(c.begin(), c.end(), MoveGainComparator());
+                c.back() = { from, to, u, gain };
+                std::push_heap(c.begin(), c.end(), MoveGainComparator());
+              }
+            }
+            scores[to] = 0;
+          }
         }
       });
 
