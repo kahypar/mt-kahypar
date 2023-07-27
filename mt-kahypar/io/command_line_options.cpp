@@ -527,10 +527,6 @@ namespace mt_kahypar {
              po::value<bool>((initial_partitioning ? &context.initial_partitioning.refinement.fm.release_nodes :
                               &context.refinement.fm.release_nodes))->value_name("<bool>")->default_value(true),
              "FM releases nodes that weren't moved, so they might be found by another search.")
-            ((initial_partitioning ? "i-r-fm-penalty-for-moved-rebalancing-nodes" : "r-fm-penalty-for-moved-rebalancing-nodes"),
-             po::value<bool>((initial_partitioning ? &context.initial_partitioning.refinement.fm.penalty_for_moved_rebalancing_nodes :
-                              &context.refinement.fm.penalty_for_moved_rebalancing_nodes))->value_name("<bool>")->default_value(true),
-             "Whether a pessimistic penalty is used for moves of rebalancing nodes when estimating the imbalance penalty.")
             ((initial_partitioning ? "i-r-fm-threshold-border-node-inclusion" : "r-fm-threshold-border-node-inclusion"),
              po::value<double>((initial_partitioning ? &context.initial_partitioning.refinement.fm.treshold_border_node_inclusion :
                               &context.refinement.fm.treshold_border_node_inclusion))->value_name("<double>")->default_value(0.75),
@@ -543,15 +539,6 @@ namespace mt_kahypar {
              po::value<bool>((initial_partitioning ? &context.initial_partitioning.refinement.fm.rebalancing_use_violation_factor :
                               &context.refinement.fm.rebalancing_use_violation_factor))->value_name("<bool>")->default_value(true),
              "Whether the rollback balance violation factor is also applied to rebalancing (for unconstrained FM).")
-            ((initial_partitioning ? "i-r-fm-insert-merged-move-at-rebalancing-position" : "r-fm-insert-merged-move-at-rebalancing-position"),
-             po::value<bool>((initial_partitioning ? &context.initial_partitioning.refinement.fm.insert_merged_move_at_rebalancing_position :
-                              &context.refinement.fm.insert_merged_move_at_rebalancing_position))->value_name("<bool>")->default_value(true),
-             "If rebalancing may move nodes a second time and two moves are merged, determines if the merged move is inserted at the position "
-             "of the according rebalancing move or the original move.")
-            ((initial_partitioning ? "i-r-fm-update-penalty-locally-reverted" : "r-fm-update-penalty-locally-reverted"),
-             po::value<bool>((initial_partitioning ? &context.initial_partitioning.refinement.fm.update_penalty_locally_reverted :
-                              &context.refinement.fm.update_penalty_locally_reverted))->value_name("<bool>")->default_value(false),
-             "Update penalty when local moves are reverted, so the penalty for following moves is more optimistic.")
             ((initial_partitioning ? "i-r-fm-unconstrained-rounds" : "r-fm-unconstrained-rounds"),
              po::value<size_t>((initial_partitioning ? &context.initial_partitioning.refinement.fm.unconstrained_rounds :
                               &context.refinement.fm.unconstrained_rounds))->value_name("<size_t>")->default_value(1),

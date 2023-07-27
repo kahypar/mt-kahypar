@@ -160,11 +160,6 @@ namespace mt_kahypar {
       out << "    Release Nodes:                    " << std::boolalpha << params.release_nodes << std::endl;
       out << "    Time Limit Factor:                " << params.time_limit_factor << std::endl;
     }
-    if ( params.algorithm != FMAlgorithm::do_nothing && params.algorithm != FMAlgorithm::kway_fm ) {
-      out << "    Penalize Moved Rebalancing Nodes: " << std::boolalpha << params.penalty_for_moved_rebalancing_nodes << std::endl;
-      out << "    Bal. Viol. Factor Rebalancing:    " << std::boolalpha << params.rebalancing_use_violation_factor << std::endl;
-      out << "    Merge Move at Rebalancing Pos.:   " << std::boolalpha << params.insert_merged_move_at_rebalancing_position << std::endl;
-    }
     out << std::flush;
     return out;
   }

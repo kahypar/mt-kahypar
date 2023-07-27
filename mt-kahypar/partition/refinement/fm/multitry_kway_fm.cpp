@@ -317,8 +317,6 @@ namespace mt_kahypar {
     }());
 
     GlobalMoveTracker& move_tracker =  sharedData.moveTracker;
-    const bool merge_at_rebalancing_pos = context.refinement.fm.insert_merged_move_at_rebalancing_position;
-
     // check the rebalancing moves for nodes that are moved twice
     for (PartitionID part = 0; part < context.partition.k; ++part) {
       vec<Move>& moves = rebalancing_moves_by_part[part];
@@ -332,12 +330,9 @@ namespace mt_kahypar {
             move_tracker.moveOfNode[r_move.node] = 0;
             first_move.invalidate();
             r_move.invalidate();
-          } else if (merge_at_rebalancing_pos) {
+          } else {
             r_move.from = first_move.from;
             first_move.invalidate();
-          } else {
-            first_move.to = r_move.to;
-            r_move.invalidate();
           }
         }
       }, tbb::static_partitioner());
