@@ -122,6 +122,17 @@ namespace mt_kahypar {
         ERR("At least one initial partitioning algorithm must be enabled!");
       }
     }
+
+    // Check fixed vertex support compatibility
+    if ( hypergraph.hasFixedVertices() ) {
+      if ( context.partition.preset_type == PresetType::deterministic ) {
+        ERR("Deterministic partitioning mode does not support fixed vertices!");
+      }
+      if ( context.partition.mode == Mode::deep_multilevel ||
+           context.initial_partitioning.mode == Mode::deep_multilevel ) {
+        ERR("Deep multilevel partitioning scheme does not support fixed vertices!");
+      }
+    }
   }
 
   template<typename Hypergraph>

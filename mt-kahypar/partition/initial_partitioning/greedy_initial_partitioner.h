@@ -72,23 +72,28 @@ class GreedyInitialPartitioner : public IInitialPartitioner {
       // initial partitioner. E.g. the round-robin variant leaves the hypernode
       // unassigned, but the global and sequential strategy both preassign
       // all vertices to block 1 before initial partitioning.
+      _ip_data.preassignFixedVertices(hg);
       if ( _default_block != kInvalidPartition ) {
         ASSERT(_default_block < _context.partition.k);
         kway_pq.disablePart(_default_block);
         for ( const HypernodeID& hn : hg.nodes() ) {
-          hg.setNodePart(hn, _default_block);
+          if ( !hg.isFixed(hn) ) {
+            hg.setNodePart(hn, _default_block);
+          }
         }
       }
 
       // Insert start vertices into its corresponding PQs
       _ip_data.reset_unassigned_hypernodes(_rng);
-      parallel::scalable_vector<HypernodeID> start_nodes =
+      vec<vec<HypernodeID>> start_nodes =
         PseudoPeripheralStartNodes<TypeTraits>::computeStartNodes(_ip_data, _context, _default_block, _rng);
       ASSERT(static_cast<size_t>(_context.partition.k) == start_nodes.size());
       kway_pq.clear();
       for ( PartitionID block = 0; block < _context.partition.k; ++block ) {
         if ( block != _default_block ) {
-          insertVertexIntoPQ(hg, kway_pq, start_nodes[block], block);
+          for ( const HypernodeID& hn : start_nodes[block] ) {
+            insertVertexIntoPQ(hg, kway_pq, hn, block);
+          }
         }
       }
 
@@ -221,7 +226,8 @@ class GreedyInitialPartitioner : public IInitialPartitioner {
     for ( const HyperedgeID& he : hypergraph.incidentEdges(hn)) {
       if ( !hyperedges_in_queue[to * hypergraph.initialNumEdges() + he] ) {
         for ( const HypernodeID& pin : hypergraph.pins(he) ) {
-          if ( hypergraph.partID(pin) == _default_block && !pq.contains(pin, to) ) {
+          if ( hypergraph.partID(pin) == _default_block &&
+               !pq.contains(pin, to) && !hypergraph.isFixed(pin) ) {
             insertVertexIntoPQ(hypergraph, pq, pin, to);
           }
         }

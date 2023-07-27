@@ -85,6 +85,25 @@ class APoolInitialPartitionerTest : public Test {
     utils::Utilities::instance().getTimer(context.utility_id).disable();
   }
 
+  void addFixedVertices(const double percentage,
+                        const PartitionID default_block = kInvalidPartition) {
+    ds::FixedVertexSupport<Hypergraph> fixed_vertices(
+      hypergraph.initialNumNodes(), context.partition.k);
+    fixed_vertices.setHypergraph(&hypergraph);
+
+    const int threshold = percentage * 1000;
+    utils::Randomize& rand = utils::Randomize::instance();
+    for ( const HypernodeID& hn : hypergraph.nodes() ) {
+      int rnd = rand.getRandomInt(0, 1000, SCHED_GETCPU);
+      if ( rnd <= threshold ) {
+        const PartitionID block = default_block == kInvalidPartition ?
+          rand.getRandomInt(0, context.partition.k - 1, SCHED_GETCPU) : default_block;
+        fixed_vertices.fixToBlock(hn, block);
+      }
+    }
+    hypergraph.addFixedVertexSupport(std::move(fixed_vertices));
+  }
+
   void bipartition() {
     Pool<TypeTraits>::bipartition(partitioned_hypergraph, context);
   }
@@ -146,6 +165,36 @@ TYPED_TEST(APoolInitialPartitionerTest, HasNoSignificantLowPartitionWeights) {
     ASSERT_GE(this->partitioned_hypergraph.partWeight(block),
               this->context.partition.perfect_balance_part_weights[block] / 5);
   }
+}
+
+TYPED_TEST(APoolInitialPartitionerTest, CanHandleFixedVertices) {
+  this->addFixedVertices(0.25);
+  this->bipartition();
+
+  for ( const HypernodeID& hn : this->hypergraph.nodes() ) {
+    if ( this->hypergraph.isFixed(hn) ) {
+      ASSERT_EQ(this->hypergraph.fixedVertexBlock(hn),
+        this->partitioned_hypergraph.partID(hn));
+    }
+  }
+
+  ASSERT_LE(metrics::imbalance(this->partitioned_hypergraph, this->context),
+            this->context.partition.epsilon);
+}
+
+TYPED_TEST(APoolInitialPartitionerTest, CanHandleFixedVerticesInOnlyOneBlock) {
+  this->addFixedVertices(0.05, 0);
+  this->bipartition();
+
+  for ( const HypernodeID& hn : this->hypergraph.nodes() ) {
+    if ( this->hypergraph.isFixed(hn) ) {
+      ASSERT_EQ(this->hypergraph.fixedVertexBlock(hn),
+        this->partitioned_hypergraph.partID(hn));
+    }
+  }
+
+  ASSERT_LE(metrics::imbalance(this->partitioned_hypergraph, this->context),
+            this->context.partition.epsilon);
 }
 
 

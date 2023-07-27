@@ -40,20 +40,46 @@ void LabelPropagationInitialPartitioner<TypeTraits>::partitionImpl() {
     HighResClockTimepoint start = std::chrono::high_resolution_clock::now();
     PartitionedHypergraph& hg = _ip_data.local_partitioned_hypergraph();
 
-    _ip_data.reset_unassigned_hypernodes(_rng);
 
-    parallel::scalable_vector<HypernodeID> start_nodes =
+    _ip_data.reset_unassigned_hypernodes(_rng);
+    _ip_data.preassignFixedVertices(hg);
+    vec<vec<HypernodeID>> start_nodes =
       PseudoPeripheralStartNodes<TypeTraits>::computeStartNodes(_ip_data, _context, kInvalidPartition, _rng);
     for ( PartitionID block = 0; block < _context.partition.k; ++block ) {
-      if ( hg.partID(start_nodes[block]) == kInvalidPartition ) {
-        hg.setNodePart(start_nodes[block], block);
+      size_t i = 0;
+      for ( ; i < std::min(start_nodes[block].size(),
+        _context.initial_partitioning.lp_initial_block_size); ++i ) {
+        const HypernodeID hn = start_nodes[block][i];
+        if ( hg.partID(hn) == kInvalidPartition && fitsIntoBlock(hg, hn, block) ) {
+          hg.setNodePart(hn, block);
+        } else {
+          std::swap(start_nodes[block][i--], start_nodes[block][start_nodes[block].size() - 1]);
+          start_nodes[block].pop_back();
+        }
+      }
+
+      // Remove remaining unassigned seed nodes
+      for ( ; i < start_nodes[block].size(); ++i ) {
+        start_nodes[block].pop_back();
+      }
+
+      if ( start_nodes[block].size() == 0 ) {
+        // There has been no seed node assigned to the block
+        // => find an unassigned node and assign it to the block
+        const HypernodeID hn = _ip_data.get_unassigned_hypernode();
+        if ( hn != kInvalidHypernode ) {
+          hg.setNodePart(hn, block);
+          start_nodes[block].push_back(hn);
+        }
       }
     }
+
     // Each block is extended with 5 additional vertices which are adjacent
     // to their corresponding seed vertices. This should prevent that block
     // becomes empty after several label propagation rounds.
     for ( PartitionID block = 0; block < _context.partition.k; ++block ) {
-      if ( hg.partID(start_nodes[block]) == block ) {
+      if ( !start_nodes[block].empty() && start_nodes[block].size() <
+            _context.initial_partitioning.lp_initial_block_size ) {
         extendBlockToInitialBlockSize(hg, start_nodes[block], block);
       }
     }
@@ -63,8 +89,7 @@ void LabelPropagationInitialPartitioner<TypeTraits>::partitionImpl() {
       converged = true;
 
       for ( const HypernodeID& hn : hg.nodes() ) {
-
-        if (hg.nodeDegree(hn) > 0) {
+        if (hg.nodeDegree(hn) > 0 && !hg.isFixed(hn)) {
           // Assign vertex to the block where FM gain is maximized
           MaxGainMove max_gain_move = computeMaxGainMove(hg, hn);
 
@@ -238,42 +263,39 @@ MaxGainMove LabelPropagationInitialPartitioner<TypeTraits>::findMaxGainMove(Part
 
 template<typename TypeTraits>
 void LabelPropagationInitialPartitioner<TypeTraits>::extendBlockToInitialBlockSize(PartitionedHypergraph& hypergraph,
-                                                                                   HypernodeID seed_vertex,
+                                                                                   const vec<HypernodeID>& seed_vertices,
                                                                                    const PartitionID block) {
-  ASSERT(hypergraph.partID(seed_vertex) == block);
-  size_t block_size = 1;
+  ASSERT(seed_vertices.size() > 0);
+  size_t block_size = seed_vertices.size();
 
-  while (block_size < _context.initial_partitioning.lp_initial_block_size) {
-
-    // We search for _context.initial_partitioning.lp_initial_block_size vertices
-    // around the seed vertex to extend the corresponding block
+  // We search for _context.initial_partitioning.lp_initial_block_size vertices
+  // around the seed vertex to extend the corresponding block
+  for ( const HypernodeID& seed_vertex : seed_vertices ) {
     for ( const HyperedgeID& he : hypergraph.incidentEdges(seed_vertex) ) {
       for ( const HypernodeID& pin : hypergraph.pins(he) ) {
-        if ( hypergraph.partID(pin) == kInvalidPartition ) {
+        if ( hypergraph.partID(pin) == kInvalidPartition &&
+             fitsIntoBlock(hypergraph, pin, block) ) {
           hypergraph.setNodePart(pin, block);
           block_size++;
-          if ( block_size >= _context.initial_partitioning.lp_initial_block_size ) {
-            break;
-          }
+          if ( block_size >= _context.initial_partitioning.lp_initial_block_size ) break;
         }
       }
-      if ( block_size >= _context.initial_partitioning.lp_initial_block_size ) {
-        break;
-      }
+      if ( block_size >= _context.initial_partitioning.lp_initial_block_size ) break;
     }
+    if ( block_size >= _context.initial_partitioning.lp_initial_block_size ) break;
+  }
 
 
-    // If there are less than _context.initial_partitioning.lp_initial_block_size
-    // adjacent vertices to the seed vertex, we find a new seed vertex and call
-    // this function recursive
-    if ( block_size < _context.initial_partitioning.lp_initial_block_size ) {
-      seed_vertex = _ip_data.get_unassigned_hypernode();
-      if ( seed_vertex != kInvalidHypernode  ) {
-        hypergraph.setNodePart(seed_vertex, block);
-        block_size++;
-      } else {
-        break;
-      }
+  // If there are less than _context.initial_partitioning.lp_initial_block_size
+  // adjacent vertices to the seed vertex, we find a new seed vertex and call
+  // this function recursive
+  while ( block_size < _context.initial_partitioning.lp_initial_block_size ) {
+    const HypernodeID seed_vertex = _ip_data.get_unassigned_hypernode();
+    if ( seed_vertex != kInvalidHypernode && fitsIntoBlock(hypergraph, seed_vertex, block)  ) {
+      hypergraph.setNodePart(seed_vertex, block);
+      block_size++;
+    } else {
+      break;
     }
   }
 }

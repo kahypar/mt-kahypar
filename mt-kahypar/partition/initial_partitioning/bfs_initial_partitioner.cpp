@@ -43,7 +43,8 @@ void BFSInitialPartitioner<TypeTraits>::partitionImpl() {
             _ip_data.local_hyperedge_fast_reset_flag_array();
 
     _ip_data.reset_unassigned_hypernodes(_rng);
-    parallel::scalable_vector<HypernodeID> start_nodes =
+    _ip_data.preassignFixedVertices(hypergraph);
+    vec<vec<HypernodeID>> start_nodes =
       PseudoPeripheralStartNodes<TypeTraits>::computeStartNodes(_ip_data, _context, kInvalidPartition, _rng);
 
     // Insert each start node for each block into its corresponding queue
@@ -52,23 +53,27 @@ void BFSInitialPartitioner<TypeTraits>::partitionImpl() {
     parallel::scalable_vector<Queue> queues(_context.partition.k);
 
     for (PartitionID block = 0; block < _context.partition.k; ++block) {
-      queues[block].push(start_nodes[block]);
-      markHypernodeAsInQueue(hypergraph, hypernodes_in_queue, start_nodes[block], block);
+      for ( const HypernodeID& hn : start_nodes[block] ) {
+        queues[block].push(hn);
+        markHypernodeAsInQueue(hypergraph, hypernodes_in_queue, hn, block);
+      }
     }
 
-    HypernodeID num_assigned_hypernodes = 0;
     // We grow the k blocks of the partition starting from each start node in
     // a BFS-fashion. The BFS queues for each block are visited in round-robin-fashion.
     // Once a block is on turn, it pops it first hypernode and pushes
     // all adjacent vertices into its queue.
+    HypernodeID num_assigned_hypernodes = _ip_data.numFixedVertices();
     const HypernodeID current_num_nodes =
             hypergraph.initialNumNodes() - hypergraph.numRemovedHypernodes();
     while (num_assigned_hypernodes < current_num_nodes) {
       for (PartitionID block = 0; block < _context.partition.k; ++block) {
         HypernodeID hn = kInvalidHypernode;
 
+        bool fits_into_block = false;
         while (!queues[block].empty()) {
           const HypernodeID next_hn = queues[block].front();
+          ASSERT(!hypergraph.isFixed(next_hn));
           queues[block].pop();
 
           if (hypergraph.partID(next_hn) == kInvalidPartition) {
@@ -80,6 +85,7 @@ void BFSInitialPartitioner<TypeTraits>::partitionImpl() {
             // Note, in that case the balanced constraint will be violated.
             hn = next_hn;
             if (fitsIntoBlock(hypergraph, hn, block)) {
+              fits_into_block = true;
               break;
             }
           }
@@ -90,6 +96,22 @@ void BFSInitialPartitioner<TypeTraits>::partitionImpl() {
           // assigned to an other block or the hypergraph is unconnected, we
           // choose an new unassigned hypernode (if one exists)
           hn = _ip_data.get_unassigned_hypernode();
+          if ( hn != kInvalidHypernode && fitsIntoBlock(hypergraph, hn, block) ) {
+            fits_into_block = true;
+          }
+        }
+
+        if ( hn != kInvalidHypernode && !fits_into_block ) {
+          // The node does not fit into the block. Thus, we quickly
+          // check if there is another block to which we can assign the node
+          for ( PartitionID other_block = 0; other_block < _context.partition.k; ++other_block ) {
+            if ( other_block != block && fitsIntoBlock(hypergraph, hn, other_block) ) {
+              // There is another block to which we can assign the node
+              // => ignore the node for now
+              hn = kInvalidHypernode;
+              break;
+            }
+          }
         }
 
         if (hn != kInvalidHypernode) {
