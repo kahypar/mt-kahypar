@@ -327,15 +327,10 @@ namespace impl {
                       _gain_cache, m.node, m.from, m.to,
                       _max_part_weights[m.to],
                       [&] { move_id = __atomic_fetch_add(&global_move_id, 1, __ATOMIC_RELAXED); },
-                      [&](HyperedgeID he, HyperedgeWeight edge_weight, HypernodeID edge_size,
-                          HypernodeID pin_count_in_from_part_after, HypernodeID pin_count_in_to_part_after) {
-                        local_attributed_gain +=
-                                AttributedGains::gain(he, edge_weight, edge_size, pin_count_in_from_part_after,
-                                                      pin_count_in_to_part_after);
-                        if (!phg.is_graph &&
-                              GainCache::triggersDeltaGainUpdate(edge_size, pin_count_in_from_part_after,
-                                                                 pin_count_in_to_part_after)) {
-                          edges_with_gain_changes.push_back(he);
+                      [&](const SyncronizedEdgeUpdate& sync_update) {
+                        local_attributed_gain += AttributedGains::gain(sync_update);
+                        if (!phg.is_graph && GainCache::triggersDeltaGainUpdate(sync_update)) {
+                          edges_with_gain_changes.push_back(sync_update.he);
                         }
                       }
                     );
