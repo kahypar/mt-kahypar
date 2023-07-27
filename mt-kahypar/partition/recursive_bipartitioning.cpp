@@ -314,7 +314,7 @@ namespace rb {
 
     if ( context.partition.verbose_output ) {
       io::printHypergraphInfo(fixed_vertex_free_hg.hg,
-        "Fixed Vertex Free Subhypergraph", false);
+        context, "Fixed Vertex Free Subhypergraph", false);
       LOG << "\n";
     }
 

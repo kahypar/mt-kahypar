@@ -124,6 +124,7 @@ namespace mt_kahypar::io {
 
   template<typename Hypergraph>
   void printHypergraphInfo(const Hypergraph& hypergraph,
+                           const Context& context,
                            const std::string& name,
                            const bool show_memory_consumption) {
     std::vector<HypernodeID> he_sizes;
@@ -191,6 +192,10 @@ namespace mt_kahypar::io {
             internal::createStats(he_weights, avg_he_weight, stdev_he_weight),
             internal::createStats(hn_degrees, avg_hn_degree, stdev_hn_degree),
             internal::createStats(hn_weights, avg_hn_weight, stdev_hn_weight));
+
+    if ( hypergraph.hasFixedVertices() ) {
+      printFixedVertexPartWeights(hypergraph, context);
+    }
 
     if ( show_memory_consumption ) {
       // Print Memory Consumption
@@ -343,7 +348,7 @@ namespace mt_kahypar::io {
       LOG << "\n********************************************************************************";
       LOG << "*                                    Input                                     *";
       LOG << "********************************************************************************";
-      io::printHypergraphInfo(hypergraph, context.partition.graph_filename.substr(
+      io::printHypergraphInfo(hypergraph, context, context.partition.graph_filename.substr(
               context.partition.graph_filename.find_last_of('/') + 1),
                               context.partition.show_memory_consumption);
     }
@@ -786,6 +791,7 @@ namespace mt_kahypar::io {
   namespace {
     #define PRINT_CUT_MATRIX(X) void printCutMatrix(const X& hypergraph)
     #define PRINT_HYPERGRAPH_INFO(X) void printHypergraphInfo(const X& hypergraph,                 \
+                                                              const Context& context,              \
                                                               const std::string& name,             \
                                                               const bool show_memory_consumption)
     #define PRINT_PARTITIONING_RESULTS(X) void printPartitioningResults(const X& hypergraph,             \

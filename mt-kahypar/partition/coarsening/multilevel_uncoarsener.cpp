@@ -200,7 +200,8 @@ namespace mt_kahypar {
     const double time_limit = Base::refinementTimeLimit(_context, (_uncoarseningData.hierarchy)[_current_level].coarseningTime());
 
     if ( debug && _context.type == ContextType::main ) {
-      io::printHypergraphInfo(partitioned_hypergraph.hypergraph(), "Refinement Hypergraph", false);
+      io::printHypergraphInfo(partitioned_hypergraph.hypergraph(),
+        _context, "Refinement Hypergraph", false);
       DBG << "Start Refinement -" << _context.partition.objective << "=" << _current_metrics.quality
       << ", imbalance = " << _current_metrics.imbalance;
     }

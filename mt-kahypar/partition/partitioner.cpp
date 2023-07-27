@@ -285,7 +285,6 @@ namespace mt_kahypar {
     io::printContext(context);
     io::printMemoryPoolConsumption(context);
     io::printInputInformation(context, hypergraph);
-    io::printFixedVertexPartWeights(hypergraph, context);
 
     #ifdef KAHYPAR_ENABLE_STEINER_TREE_METRIC
     bool map_partition_to_target_graph_at_the_end = false;
@@ -337,8 +336,8 @@ namespace mt_kahypar {
     #endif
 
     if (context.partition.verbose_output) {
-      io::printHypergraphInfo(partitioned_hypergraph.hypergraph(), "Uncoarsened Hypergraph",
-                              context.partition.show_memory_consumption);
+      io::printHypergraphInfo(partitioned_hypergraph.hypergraph(), context,
+        "Uncoarsened Hypergraph", context.partition.show_memory_consumption);
       io::printStripe();
     }
 
@@ -402,7 +401,7 @@ namespace mt_kahypar {
     timer.stop_timer("postprocessing");
 
     if (context.partition.verbose_output) {
-      io::printHypergraphInfo(partitioned_hg.hypergraph(),
+      io::printHypergraphInfo(partitioned_hg.hypergraph(), context,
         "Uncoarsened Hypergraph", context.partition.show_memory_consumption);
       io::printStripe();
     }

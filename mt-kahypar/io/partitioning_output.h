@@ -45,6 +45,7 @@ namespace mt_kahypar::io {
   void printCutMatrix(const PartitionedHypergraph& hypergraph);
   template<typename Hypergraph>
   void printHypergraphInfo(const Hypergraph& hypergraph,
+                           const Context& context,
                            const std::string& name,
                            const bool show_memory_consumption);
   template<typename PartitionedHypergraph>

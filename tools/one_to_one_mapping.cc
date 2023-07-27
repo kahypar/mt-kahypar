@@ -124,7 +124,7 @@ int main(int argc, char* argv[]) {
   HighResClockTimepoint end_1 = std::chrono::high_resolution_clock::now();
 
   if ( context.partition.verbose_output ) {
-    io::printHypergraphInfo(hg, "Input Hypergraph", false);
+    io::printHypergraphInfo(hg, context, "Input Hypergraph", false);
     io::printPartitioningResults(partitioned_hg, context, "Input Partition");
   }
 

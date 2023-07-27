@@ -207,17 +207,6 @@ namespace mt_kahypar {
     // requesting new searches activates all nodes by raising the deactivated node marker
     // also clears the array tracking search IDs in case of overflow
     sharedData.nodeTracker.requestNewSearches(static_cast<SearchID>(sharedData.refinementNodes.unsafe_size()));
-
-    if ( phg.hasFixedVertices() ) {
-      const SearchID dummy_search = ++sharedData.nodeTracker.highestActiveSearchID;
-      phg.doParallelForAllNodes([&](const HypernodeID& hn) {
-        if ( phg.isFixed(hn) ) {
-          // This marks a fixed vertex as moved and ensure that no
-          // FM search moves a fixed vertex to another block.
-          sharedData.nodeTracker.tryAcquireNode(hn, dummy_search);
-        }
-      });
-    }
   }
 
 
