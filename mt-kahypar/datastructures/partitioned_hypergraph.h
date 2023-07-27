@@ -574,10 +574,12 @@ class PartitionedHypergraph {
                       HypernodeWeight max_weight_to,
                       SuccessFunc&& report_success,
                       const DeltaFunction& delta_func,
-                      const NotificationFunc& notify_func = NOOP_NOTIFY_FUNC) {
+                      const NotificationFunc& notify_func = NOOP_NOTIFY_FUNC,
+                      const bool force_moving_fixed_vertices = false) {
+    unused(force_moving_fixed_vertices);
     ASSERT(partID(u) == from);
     ASSERT(from != to);
-    ASSERT(!isFixed(u));
+    ASSERT(force_moving_fixed_vertices || !isFixed(u));
     const HypernodeWeight wu = nodeWeight(u);
     const HypernodeWeight to_weight_after = _part_weights[to].add_fetch(wu, std::memory_order_relaxed);
     if (to_weight_after <= max_weight_to) {
@@ -603,9 +605,11 @@ class PartitionedHypergraph {
   bool changeNodePart(const HypernodeID u,
                       PartitionID from,
                       PartitionID to,
-                      const DeltaFunction& delta_func = NOOP_FUNC) {
+                      const DeltaFunction& delta_func = NOOP_FUNC,
+                      const bool force_moving_fixed_vertex = false) {
     return changeNodePart(u, from, to,
-      std::numeric_limits<HypernodeWeight>::max(), []{}, delta_func);
+      std::numeric_limits<HypernodeWeight>::max(), []{},
+        delta_func, NOOP_NOTIFY_FUNC, force_moving_fixed_vertex);
   }
 
   template<typename GainCache, typename SuccessFunc>
