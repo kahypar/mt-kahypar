@@ -532,6 +532,9 @@ class MainTest(unittest.TestCase):
       self.individualBlockWeights = individualBlockWeights
       self.context.max_block_weights = individualBlockWeights
 
+    def addFixedVertices(self):
+      self.graph.addFixedVerticesFromFile(mydir + "/test_instances/delaunay_n15.k4.p1.fix", self.k)
+
     def partition(self):
       self.partitioned_graph = self.graph.partition(self.context)
       self.__verifyPartition()
@@ -570,6 +573,13 @@ class MainTest(unittest.TestCase):
         self.assertGreaterEqual(self.partitioned_graph.blockID(hn), 0),
         self.assertLess(self.partitioned_graph.blockID(hn), self.k)
       ))
+
+      # Verify block IDs of fixed vertices
+      for hn in range(0, self.graph.numNodes()):
+        if self.partitioned_graph.isFixed(hn):
+          if self.partitioned_graph.blockID(hn) != self.partitioned_graph.fixedVertexBlock(hn):
+            print("Wrong fixed vertex assignment")
+            self.assertTrue(False)
 
   def test_partitions_a_graph_with_default_preset_into_two_blocks(self):
     partitioner = self.GraphPartitioner(mtkahypar.PresetType.DEFAULT, 2, 0.03, mtkahypar.Objective.CUT, False)
@@ -650,6 +660,22 @@ class MainTest(unittest.TestCase):
     partitioner.mapOntoGraph()
     partitioner.improveMapping(1)
 
+  def test_partitions_a_graph_with_fixed_vertices_and_default_preset(self):
+    partitioner = self.GraphPartitioner(mtkahypar.PresetType.DEFAULT, 4, 0.03, mtkahypar.Objective.CUT, False)
+    partitioner.addFixedVertices()
+    partitioner.partition()
+
+  def test_partitions_a_graph_with_fixed_vertices_and_quality_preset(self):
+    partitioner = self.GraphPartitioner(mtkahypar.PresetType.QUALITY, 4, 0.03, mtkahypar.Objective.CUT, False)
+    partitioner.addFixedVertices()
+    partitioner.partition()
+
+  def test_improve_graph_partition_with_fixed_vertices(self):
+    partitioner = self.GraphPartitioner(mtkahypar.PresetType.DEFAULT, 4, 0.03, mtkahypar.Objective.CUT, False)
+    partitioner.addFixedVertices()
+    partitioner.partition()
+    partitioner.improvePartition(1)
+
   class HypergraphPartitioner(unittest.TestCase):
 
     def __init__(self, preset_type, num_blocks, epsilon, objective, force_logging):
@@ -672,6 +698,9 @@ class MainTest(unittest.TestCase):
       self.useIndividualBlockWeights = True
       self.individualBlockWeights = individualBlockWeights
       self.context.max_block_weights = individualBlockWeights
+
+    def addFixedVertices(self):
+      self.hypergraph.addFixedVerticesFromFile(mydir + "/test_instances/ibm01.k4.p1.fix", self.k)
 
     def partition(self):
       if self.preset_type == mtkahypar.PresetType.LARGE_K:
@@ -714,6 +743,13 @@ class MainTest(unittest.TestCase):
         self.assertGreaterEqual(self.partitioned_hg.blockID(hn), 0),
         self.assertLess(self.partitioned_hg.blockID(hn), self.k)
       ))
+
+      # Verify block IDs of fixed vertices
+      for hn in range(0, self.hypergraph.numNodes()):
+        if self.partitioned_hg.isFixed(hn):
+          if self.partitioned_hg.blockID(hn) != self.partitioned_hg.fixedVertexBlock(hn):
+            print("Wrong fixed vertex assignment")
+            self.assertTrue(False)
 
   def test_partitions_a_hypergraph_with_default_preset_into_two_blocks(self):
     partitioner = self.HypergraphPartitioner(mtkahypar.PresetType.DEFAULT, 2, 0.03, mtkahypar.Objective.KM1, False)
@@ -797,6 +833,22 @@ class MainTest(unittest.TestCase):
     partitioner = self.HypergraphPartitioner(mtkahypar.PresetType.DEFAULT, 8, 0.03, mtkahypar.Objective.KM1, False)
     partitioner.mapOntoGraph()
     partitioner.improveMapping(1)
+
+  def test_partitions_a_hypergraph_with_fixed_vertices_and_default_preset(self):
+    partitioner = self.HypergraphPartitioner(mtkahypar.PresetType.DEFAULT, 4, 0.03, mtkahypar.Objective.KM1, False)
+    partitioner.addFixedVertices()
+    partitioner.partition()
+
+  def test_partitions_a_hypergraph_with_fixed_vertices_and_quality_preset(self):
+    partitioner = self.HypergraphPartitioner(mtkahypar.PresetType.QUALITY, 4, 0.03, mtkahypar.Objective.KM1, False)
+    partitioner.addFixedVertices()
+    partitioner.partition()
+
+  def test_improve_hypergraph_partition_with_fixed_vertices(self):
+    partitioner = self.HypergraphPartitioner(mtkahypar.PresetType.DEFAULT, 4, 0.03, mtkahypar.Objective.KM1, False)
+    partitioner.addFixedVertices()
+    partitioner.partition()
+    partitioner.improvePartition(1)
 
 if __name__ == '__main__':
   unittest.main()

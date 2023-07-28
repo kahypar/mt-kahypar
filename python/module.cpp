@@ -362,6 +362,37 @@ Construct a weighted graph.
       "Degree of node", py::arg("node"))
     .def("nodeWeight", &Graph::nodeWeight,
       "Weight of node", py::arg("node"))
+    .def("isFixed", &Graph::isFixed,
+      "Returns whether or not the corresponding node is a fixed vertex",
+      py::arg("node"))
+    .def("fixedVertexBlock", [&](const Graph& graph,
+                                 const HypernodeID hn) {
+        return graph.isFixed(hn) ? graph.fixedVertexBlock(hn) : kInvalidPartition;
+      }, "Block to which the node is fixed (-1 if not fixed)", py::arg("node"))
+    .def("addFixedVertices", [&](Graph& graph,
+                                 const vec<PartitionID>& fixed_vertices,
+                                 const PartitionID num_blocks) {
+        mt_kahypar_hypergraph_t gr = utils::hypergraph_cast(graph);
+        io::addFixedVertices(gr, fixed_vertices.data(), num_blocks);
+      }, R"pbdoc(
+Adds the fixed vertices specified in the array to the graph. The array must contain
+n entries (n = number of nodes). Each entry contains either the fixed vertex block of the
+corresponding node or -1 if the node is not fixed.
+          )pbdoc", py::arg("fixed_vertices"), py::arg("num_blocks"))
+    .def("addFixedVerticesFromFile", [&](Graph& graph,
+                                         const std::string& fixed_vertex_file,
+                                         const PartitionID num_blocks) {
+        mt_kahypar_hypergraph_t gr = utils::hypergraph_cast(graph);
+        io::addFixedVerticesFromFile(gr, fixed_vertex_file, num_blocks);
+      }, R"pbdoc(
+Adds the fixed vertices specified in the fixed vertex file to the graph. The file must contain
+n lines (n = number of nodes). Each line contains either the fixed vertex block of the
+corresponding node or -1 if the node is not fixed.
+          )pbdoc", py::arg("fixed_vertex_file"), py::arg("num_blocks"))
+    .def("removeFixedVertices", [&](Graph& graph) {
+        mt_kahypar_hypergraph_t gr = utils::hypergraph_cast(graph);
+        io::removeFixedVertices(gr);
+    }, "Removes all fixed vertices from the hypergraph")
     .def("edgeWeight", &Graph::edgeWeight,
       "Weight of edge", py::arg("edge"))
     .def("source", &Graph::edgeSource,
@@ -477,6 +508,37 @@ Construct a weighted hypergraph.
       "Degree of node", py::arg("node"))
     .def("nodeWeight", &Hypergraph::nodeWeight,
       "Weight of node", py::arg("node"))
+    .def("isFixed", &Hypergraph::isFixed,
+      "Returns whether or not the corresponding node is a fixed vertex",
+      py::arg("node"))
+    .def("fixedVertexBlock", [&](const Hypergraph& hypergraph,
+                                 const HypernodeID hn) {
+        return hypergraph.isFixed(hn) ? hypergraph.fixedVertexBlock(hn) : kInvalidPartition;
+      }, "Block to which the node is fixed (-1 if not fixed)", py::arg("node"))
+    .def("addFixedVertices", [&](Hypergraph& hypergraph,
+                                 const vec<PartitionID>& fixed_vertices,
+                                 const PartitionID num_blocks) {
+        mt_kahypar_hypergraph_t hg = utils::hypergraph_cast(hypergraph);
+        io::addFixedVertices(hg, fixed_vertices.data(), num_blocks);
+      }, R"pbdoc(
+Adds the fixed vertices specified in the array to the hypergraph. The array must contain
+n entries (n = number of nodes). Each entry contains either the fixed vertex block of the
+corresponding node or -1 if the node is not fixed.
+          )pbdoc", py::arg("fixed_vertices"), py::arg("num_blocks"))
+    .def("addFixedVerticesFromFile", [&](Hypergraph& hypergraph,
+                                         const std::string& fixed_vertex_file,
+                                         const PartitionID num_blocks) {
+        mt_kahypar_hypergraph_t hg = utils::hypergraph_cast(hypergraph);
+        io::addFixedVerticesFromFile(hg, fixed_vertex_file, num_blocks);
+      }, R"pbdoc(
+Adds the fixed vertices specified in the fixed vertex file to the hypergraph. The file must contain
+n lines (n = number of nodes). Each line contains either the fixed vertex block of the
+corresponding node or -1 if the node is not fixed.
+          )pbdoc", py::arg("fixed_vertex_file"), py::arg("num_blocks"))
+    .def("removeFixedVertices", [&](Hypergraph& hypergraph) {
+        mt_kahypar_hypergraph_t hg = utils::hypergraph_cast(hypergraph);
+        io::removeFixedVertices(hg);
+    }, "Removes all fixed vertices from the hypergraph")
     .def("edgeSize", &Hypergraph::edgeSize,
       "Size of hyperedge", py::arg("hyperedge"))
     .def("edgeWeight", &Hypergraph::edgeWeight,
@@ -584,6 +646,13 @@ Construct a partitioned graph.
       "Weight of the corresponding block", py::arg("block"))
     .def("blockID", &PartitionedGraph::partID,
       "Block to which the corresponding node is assigned", py::arg("node"))
+    .def("isFixed", &PartitionedGraph::isFixed,
+      "Returns whether or not the corresponding node is a fixed vertex",
+      py::arg("node"))
+    .def("fixedVertexBlock", [&](const PartitionedGraph& graph,
+                                 const HypernodeID hn) {
+        return graph.isFixed(hn) ? graph.fixedVertexBlock(hn) : kInvalidPartition;
+      }, "Block to which the node is fixed (-1 if not fixed)", py::arg("node"))
     .def("isIncidentToCutEdge", &PartitionedGraph::isBorderNode,
       "Returns true, if the corresponding node is incident to at least one cut edge",
       py::arg("node"))
@@ -681,6 +750,13 @@ Construct a partitioned hypergraph.
       "Weight of the corresponding block", py::arg("block"))
     .def("blockID", &PartitionedHypergraph::partID,
       "Block to which the corresponding node is assigned", py::arg("node"))
+    .def("isFixed", &PartitionedHypergraph::isFixed,
+      "Returns whether or not the corresponding node is a fixed vertex",
+      py::arg("node"))
+    .def("fixedVertexBlock", [&](const PartitionedHypergraph& hypergraph,
+                                 const HypernodeID hn) {
+        return hypergraph.isFixed(hn) ? hypergraph.fixedVertexBlock(hn) : kInvalidPartition;
+      }, "Block to which the node is fixed (-1 if not fixed)", py::arg("node"))
     .def("isIncidentToCutEdge", &PartitionedHypergraph::isBorderNode,
       "Returns true, if the corresponding node is incident to at least one cut hyperedge",
       py::arg("node"))
@@ -789,6 +865,13 @@ Construct a partitioned hypergraph.
       "Weight of the corresponding block", py::arg("block"))
     .def("blockID", &SparsePartitionedHypergraph::partID,
       "Block to which the corresponding node is assigned", py::arg("node"))
+    .def("isFixed", &SparsePartitionedHypergraph::isFixed,
+      "Returns whether or not the corresponding node is a fixed vertex",
+      py::arg("node"))
+    .def("fixedVertexBlock", [&](const SparsePartitionedHypergraph& hypergraph,
+                                 const HypernodeID hn) {
+        return hypergraph.isFixed(hn) ? hypergraph.fixedVertexBlock(hn) : kInvalidPartition;
+      }, "Block to which the node is fixed (-1 if not fixed)", py::arg("node"))
     .def("isIncidentToCutEdge", &SparsePartitionedHypergraph::isBorderNode,
       "Returns true, if the corresponding node is incident to at least one cut hyperedge",
       py::arg("node"))
