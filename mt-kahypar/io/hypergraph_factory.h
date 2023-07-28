@@ -50,9 +50,15 @@ Hypergraph readInputFile(const std::string& filename,
                          const bool stable_construction = false,
                          const bool remove_single_pin_hes = true);
 
-void readFixedVertexFile(mt_kahypar_hypergraph_t hypergraph,
-                         const PartitionID k,
-                         const std::string& filename);
+void addFixedVertices(mt_kahypar_hypergraph_t hypergraph,
+                      const mt_kahypar_partition_id_t* fixed_vertices,
+                      const PartitionID k);
+
+void addFixedVerticesFromFile(mt_kahypar_hypergraph_t hypergraph,
+                              const std::string& filename,
+                              const PartitionID k);
+
+void removeFixedVertices(mt_kahypar_hypergraph_t hypergraph);
 
 }  // namespace io
 }  // namespace mt_kahypar

@@ -146,16 +146,15 @@ void FixedVertexSupport<Hypergraph>::uncontract(const HypernodeID u, const Hyper
   }
 }
 
-// Forward Declaration
-class StaticHypergraph;
-class StaticGraph;
-class DynamicHypergraph;
-class DynamicGraph;
-
-template class FixedVertexSupport<StaticHypergraph>;
-template class FixedVertexSupport<StaticGraph>;
-template class FixedVertexSupport<DynamicHypergraph>;
-template class FixedVertexSupport<DynamicGraph>;
-
 } // namespace ds
 } // namespace mt_kahypar
+
+#include "mt-kahypar/datastructures/static_graph.h"
+#include "mt-kahypar/datastructures/static_hypergraph.h"
+#include "mt-kahypar/datastructures/dynamic_graph.h"
+#include "mt-kahypar/datastructures/dynamic_hypergraph.h"
+
+template class mt_kahypar::ds::FixedVertexSupport<mt_kahypar::ds::StaticHypergraph>;
+template class mt_kahypar::ds::FixedVertexSupport<mt_kahypar::ds::StaticGraph>;
+template class mt_kahypar::ds::FixedVertexSupport<mt_kahypar::ds::DynamicHypergraph>;
+template class mt_kahypar::ds::FixedVertexSupport<mt_kahypar::ds::DynamicGraph>;
