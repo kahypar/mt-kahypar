@@ -202,6 +202,7 @@ namespace mt_kahypar {
       _gain.computeDeltaForHyperedge(he, edge_weight, edge_size,
                                      pin_count_in_from_part_after, pin_count_in_to_part_after);
     };
+    parallel::scalable_vector<PartitionID>& current_parts = _current_partition_is_best ? _best_partition : _current_partition;
 
     auto move_node = [&](const size_t j, const bool precomputed) {
       const HypernodeID hn = _active_nodes[j];
@@ -219,7 +220,7 @@ namespace mt_kahypar {
               // (or the gain is equal and the id is smaller), we assume the node is already
               // moved to its target part.
               auto [gain_p, to_p] = _gains_and_target[pin];
-              PartitionID part = (gain_p < gain || (gain_p == gain && pin < hn)) ? to_p : hypergraph.partID(pin);
+              PartitionID part = (gain_p < gain || (gain_p == gain && pin < hn)) ? to_p : current_parts[pin];
               if (part == from) {
                 pin_count_in_from_part_after++;
               } else if (part == to) {
@@ -231,7 +232,7 @@ namespace mt_kahypar {
                                               pin_count_in_from_part_after, pin_count_in_to_part_after);
         }
 
-        if (gain < 0) {
+        if (total_gain < 0) {
           changeNodePart(hypergraph, hn, from, to, objective_delta);
           if (_context.refinement.jet.exactly_as_in_jet_paper) {
             _locks.set(hn);
