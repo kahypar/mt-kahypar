@@ -87,7 +87,7 @@ namespace impl {
 
     std::array<size_t, 2> getTwoRandomPQs() {
       std::array<size_t, 2> result({getRandomPQ(), getRandomPQ()});
-      while (result[0] != result[1]) { result[1] = getRandomPQ(); }
+      while (result[0] == result[1]) { result[1] = getRandomPQ(); }
       return result;
     }
 
