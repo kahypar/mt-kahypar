@@ -114,6 +114,7 @@ jobs:
           make -j2 MtKaHyPar
           make -j2 VerifyPartition
           make -j2 GridGraphGenerator
+          make -j2 FixedVertexFileGenerator
 
       - name: Run Mt-KaHyPar Integration Tests
         run: |
