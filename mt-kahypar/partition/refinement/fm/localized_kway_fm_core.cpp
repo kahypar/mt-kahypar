@@ -53,20 +53,12 @@ namespace mt_kahypar {
       }
 
       if (context.refinement.fm.perform_moves_global || sharedData.deltaExceededMemoryConstraints) {
-        if ( phg.hasFixedVertices() ) {
-          internalFindMoves<false, true>(phg);
-        } else {
-          internalFindMoves<false, false>(phg);
-        }
+        internalFindMoves<false>(phg);
       } else {
         deltaPhg.clear();
         delta_gain_cache.clear();
         deltaPhg.setPartitionedHypergraph(&phg);
-        if ( phg.hasFixedVertices() ) {
-          internalFindMoves<true, true>(phg);
-        } else {
-          internalFindMoves<true, false>(phg);
-        }
+        internalFindMoves<true>(phg);
         if (deltaPhg.combinedMemoryConsumption() > sharedData.deltaMemoryLimitPerThread) {
           sharedData.deltaExceededMemoryConstraints = true;
         }
@@ -92,7 +84,7 @@ namespace mt_kahypar {
   }
 
   template<typename TypeTraits, typename GainTypes>
-  template<bool has_fixed_vertices, typename PHG, typename CACHE>
+  template<typename PHG, typename CACHE>
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
   void LocalizedKWayFM<TypeTraits, GainTypes>::acquireOrUpdateNeighbors(PHG& phg, CACHE& gain_cache, const Move& move) {
     // Note: In theory we should acquire/update all neighbors. It just turned out that this works fine
@@ -102,9 +94,6 @@ namespace mt_kahypar {
     for (HyperedgeID e : edgesWithGainChanges) {
       if (phg.edgeSize(e) < context.partition.ignore_hyperedge_size_threshold) {
         for (HypernodeID v : phg.pins(e)) {
-          if constexpr ( has_fixed_vertices ) {
-            if ( phg.isFixed(v) ) continue;
-          }
           if (neighborDeduplicator[v] != deduplicationTime) {
             SearchID searchOfV = sharedData.nodeTracker.searchOfNode[v].load(std::memory_order_relaxed);
             if (searchOfV == thisSearch) {
@@ -126,7 +115,7 @@ namespace mt_kahypar {
 
 
   template<typename TypeTraits, typename GainTypes>
-  template<bool use_delta, bool has_fixed_vertices>
+  template<bool use_delta>
   void LocalizedKWayFM<TypeTraits, GainTypes>::internalFindMoves(PartitionedHypergraph& phg) {
     StopRule stopRule(phg.initialNumNodes());
     Move move;
@@ -238,9 +227,9 @@ namespace mt_kahypar {
         }
 
         if constexpr (use_delta) {
-          acquireOrUpdateNeighbors<has_fixed_vertices>(deltaPhg, delta_gain_cache, move);
+          acquireOrUpdateNeighbors(deltaPhg, delta_gain_cache, move);
         } else {
-          acquireOrUpdateNeighbors<has_fixed_vertices>(phg, gain_cache, move);
+          acquireOrUpdateNeighbors(phg, gain_cache, move);
         }
       }
 

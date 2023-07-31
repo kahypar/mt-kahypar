@@ -218,6 +218,19 @@ namespace mt_kahypar {
       gain_cache.initializeGainCache(phg);
     }
 
+    if ( phg.hasFixedVertices() ) {
+      sharedData.nodeTracker.requestNewSearches(
+        static_cast<SearchID>(sharedData.refinementNodes.unsafe_size()));
+      phg.doParallelForAllNodes([&](const HypernodeID& hn) {
+        if ( phg.isFixed(hn) ) {
+          // Mark fixed vertices as acquired such that no localized FM search can move
+          // a fixed vertex to a different block.
+          sharedData.nodeTracker.tryAcquireNode(hn,
+            std::numeric_limits<SearchID>::max());
+        }
+      });
+    }
+
     is_initialized = true;
   }
 
