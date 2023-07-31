@@ -85,10 +85,10 @@ private:
   //void internalFindMovesOnDeltaHypergraph(PartitionedHypergraph& phg, FMSharedData& sharedData);
 
 
-  template<bool use_delta>
+  template<bool use_delta, bool has_fixed_vertices>
   void internalFindMoves(PartitionedHypergraph& phg);
 
-  template<typename PHG, typename CACHE>
+  template<bool has_fixed_vertices, typename PHG, typename CACHE>
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
   void acquireOrUpdateNeighbors(PHG& phg, CACHE& gain_cache, const Move& move);
 
