@@ -8,6 +8,7 @@ Table of Contents
 -----------
 
    * [About Mt-KaHyPar](#about-mt-kahypar)
+   * [Features](#features)
    * [Requirements](#requirements)
    * [Building Mt-KaHyPar](#building-mt-kahypar)
    * [Running Mt-KaHyPar](#running-mt-kahypar)
@@ -36,12 +37,12 @@ Features
 
 Besides its fast and high-quality partitioning algorithm, Mt-KaHyPar provides many other useful features:
 
-- **Scalability**: Mt-KaHyPar offers excellent scaling behavior (up to 25 with 64 threads), while increasing the number of threads does not adversely affect the solution quality.
+- **Scalability**: Mt-KaHyPar has excellent scaling behavior (up to 25 with 64 threads), while increasing the number of threads does not adversely affect the solution quality.
 - **Deterministic Partitioning**: Mt-KaHyPar offers a deterministic partitioning algorithm, ensuring consistent solutions for the same input and random seed.
 - **Large K Partitioning**: We provide a partitioning configuration for partitioning (hyper)graphs into a large number of blocks (e.g., k > 1024).
 - **Graph Partitioning**: Mt-KaHyPar includes optimized data structures for graph partitioning, achieving a speedup by a factor of two for plain graphs.
 - **Objective Functions**: Mt-KaHyPar can optimize the cut-net, connectivity, and sum-of-external-degree metric (for more details, see [Supported Objective Functions](#supported-objective-functions))
-- **Mapping (Hyper)Graphs Onto Graphs**: In many applications of (hyper)graph partitioning, the blocks of a partition need to be assigned to architectures that can be represented as graphs. For instance, in parallel computations, the blocks may be assigned to processors on a computing cluster interconnected via communication links. It becomes advantageous to position nodes close to each other on the target graph if they are adjacent in the original (hyper)graph. However, conventional objective functions do not consider the topology of the target graph during partitioning. We therefore provide a mode that maps the nodes of a (hyper)graph onto the nodes of a target graph. During this process, the partitioning algorithm optimizes the Steiner tree metric. The objective here is to minimize the total weight of all minimal Steiner trees formed by the (hyper)edges of the hypergraph within the target graph. For more information about this metric, we refer the reader to the [Supported Objective Functions](#supported-objective-functions) section.
+- **Mapping (Hyper)Graphs Onto Graphs**: In many applications of (hyper)graph partitioning, the blocks of a partition need to be assigned to architectures that can be represented as graphs. For instance, in parallel computations, the blocks may be assigned to processors on a computing cluster interconnected via communication links. It becomes advantageous to position nodes close to each other on the target graph if they are adjacent in the original (hyper)graph. However, conventional objective functions do not consider the topology of the target graph during partitioning. We therefore provide a mode that maps the nodes of a (hyper)graph onto the nodes of a target graph. During this process, the partitioning algorithm optimizes the Steiner tree metric. The objective here is to minimize the total weight of all minimal Steiner trees induced by the (hyper)edges of the hypergraph on the target graph. For more information about this metric, we refer the reader to the [Supported Objective Functions](#supported-objective-functions) section.
 - **Fixed Vertices**: Fixed vertices are nodes that are preassigned to a particular block and are not allowed to change their block during partitioning.
 
 Requirements
@@ -118,10 +119,10 @@ Mt-KaHyPar provides several partitioning configurations with different time-qual
     --preset-type=<large_k/deterministic/default/quality/highest_quality>
 
 - `large_k`: configuration for partitioning (hyper)graphs into a large number of blocks (e.g. >= 1024 blocks, `config/large_k_preset.ini`)
-- `deterministic`: configuration for deterministic partitioning (`config/deterministic_preset.ini`, corresponds to Mt-KaHyPar-SDet in our
+- `deterministic`: configuration for deterministic partitioning (`config/deterministic_preset.ini`, corresponds to Mt-KaHyPar-SDet in our publications)
 - `default`: computes good partitions very fast (`config/default_preset.ini`, corresponds to Mt-KaHyPar-D in our publications)
 - `quality`: computes high-quality partitions (`config/quality_preset.ini`, corresponds to Mt-KaHyPar-D-F in our publications)
-- `highest_quality`: highest-quality configuration (`config/quality_flow_preset.ini`, corresponds to Mt-KaHyPar-Q-F in our publications)publications)
+- `highest_quality`: highest-quality configuration (`config/quality_flow_preset.ini`, corresponds to Mt-KaHyPar-Q-F in our publications)
 
 The presets can be ranked from lowest to the highest-quality as follows: `large_k`, `deterministic`,
 `default`, `quality`, and `highest_quality`.
@@ -151,7 +152,7 @@ Mt-KaHyPar then uses optimized data structures for graph partitioning, which spe
 
 ### Fixed Vertices
 
-Fixed vertices are nodes that are preassigned to particular block and are not allowed to change their block during partitioning. Mt-KaHyPar reads fixed vertices from a file expected in [hMetis fix file format](http://glaros.dtc.umn.edu/gkhome/fetch/sw/hmetis/manual.pdf), which can be provided via the following command line parameter:
+Fixed vertices are nodes that are preassigned to particular block and are not allowed to change their block during partitioning. Mt-KaHyPar reads fixed vertices from a file in the [hMetis fix file format](http://glaros.dtc.umn.edu/gkhome/fetch/sw/hmetis/manual.pdf), which can be provided via the following command line parameter:
 
     -f <path-to-fixed-vertex-file>
 
