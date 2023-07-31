@@ -662,6 +662,21 @@ namespace mt_kahypar::io {
     }
   }
 
+  void readPartitionFile(const std::string& filename, PartitionID* partition) {
+    ASSERT(!filename.empty(), "No filename for partition file specified");
+    std::ifstream file(filename);
+    if (file) {
+      int part;
+      HypernodeID hn = 0;
+      while (file >> part) {
+        partition[hn++] = part;
+      }
+      file.close();
+    } else {
+      std::cerr << "Error: File not found: " << std::endl;
+    }
+  }
+
   template<typename PartitionedHypergraph>
   void writePartitionFile(const PartitionedHypergraph& phg, const std::string& filename) {
     if (filename.empty()) {

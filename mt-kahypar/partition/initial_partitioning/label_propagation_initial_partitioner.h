@@ -92,7 +92,7 @@ class LabelPropagationInitialPartitioner : public IInitialPartitioner {
                               const HypernodeWeight internal_weight);
 
   void extendBlockToInitialBlockSize(PartitionedHypergraph& hypergraph,
-                                     HypernodeID seed_vertex,
+                                     const vec<HypernodeID>& seed_vertices,
                                      const PartitionID block);
 
   void assignVertexToBlockWithMinimumWeight(PartitionedHypergraph& hypergraph,

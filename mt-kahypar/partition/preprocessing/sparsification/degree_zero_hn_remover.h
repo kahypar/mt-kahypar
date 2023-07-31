@@ -60,7 +60,7 @@ class DegreeZeroHypernodeRemover {
       if ( current_num_nodes - num_removed_degree_zero_hypernodes <= _context.coarsening.contraction_limit) {
         break;
       }
-      if ( hypergraph.nodeDegree(hn) == 0 ) {
+      if ( hypergraph.nodeDegree(hn) == 0 && !hypergraph.isFixed(hn) ) {
         hypergraph.removeDegreeZeroHypernode(hn);
         _removed_hns.push_back(hn);
         ++num_removed_degree_zero_hypernodes;

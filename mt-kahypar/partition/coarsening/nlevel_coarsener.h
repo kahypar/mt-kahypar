@@ -194,13 +194,12 @@ class NLevelCoarsener : public ICoarsener,
 
     HighResClockTimepoint round_start = std::chrono::high_resolution_clock::now();
     _timer.start_timer("clustering", "Clustering");
-    tbb::parallel_for(UL(0), _current_vertices.size(), [&](const size_t i) {
-      if ( _cl_tracker.currentNumNodes() > contraction_limit ) {
-        const HypernodeID& hn = _current_vertices[i];
-        const HypernodeID num_contractions = contract(hn);
-        _cl_tracker.update(num_contractions, contraction_limit);
-      }
-    });
+    if ( _hg.hasFixedVertices() ) {
+      _hg.setMaxFixedVertexBlockWeight(_context.partition.max_part_weights);
+      performClustering<true>(contraction_limit);
+    } else {
+      performClustering<false>(contraction_limit);
+    }
     _timer.stop_timer("clustering");
 
     // Remove single-pin and parallel nets
@@ -226,6 +225,17 @@ class NLevelCoarsener : public ICoarsener,
     return true;
   }
 
+  template<bool has_fixed_vertices>
+  void performClustering(const HypernodeID contraction_limit) {
+    tbb::parallel_for(UL(0), _current_vertices.size(), [&](const size_t i) {
+      if ( _cl_tracker.currentNumNodes() > contraction_limit ) {
+        const HypernodeID& hn = _current_vertices[i];
+        const HypernodeID num_contractions = contract<has_fixed_vertices>(hn);
+        _cl_tracker.update(num_contractions, contraction_limit);
+      }
+    });
+  }
+
   bool shouldNotTerminateImpl() const override {
     return _cl_tracker.currentNumNodes() > _context.coarsening.contraction_limit;
   }
@@ -236,10 +246,12 @@ class NLevelCoarsener : public ICoarsener,
     _uncoarseningData.finalizeCoarsening();
   }
 
+  template<bool has_fixed_vertices>
   HypernodeID contract(const HypernodeID hn) {
     HypernodeID num_contractions = 0;
     if ( _hg.nodeIsEnabled(hn) ) {
-      const Rating rating = _rater.rate(_hg, hn, _context.coarsening.max_allowed_node_weight);
+      const Rating rating = _rater.template rate<has_fixed_vertices>(
+        _hg, hn, _context.coarsening.max_allowed_node_weight);
       if ( rating.target != kInvalidHypernode ) {
         HypernodeID u = hn;
         HypernodeID v = rating.target;

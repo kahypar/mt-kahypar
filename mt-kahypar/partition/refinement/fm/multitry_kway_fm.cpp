@@ -180,7 +180,7 @@ namespace mt_kahypar {
           // the segmentation fault.
           if ( task_id >= 0 && task_id < TBBInitializer::instance().total_number_of_threads() ) {
             for (HypernodeID u = r.begin(); u < r.end(); ++u) {
-              if (phg.nodeIsEnabled(u) && phg.isBorderNode(u)) {
+              if (phg.nodeIsEnabled(u) && phg.isBorderNode(u) && !phg.isFixed(u)) {
                 sharedData.refinementNodes.safe_push(u, task_id);
               }
             }
@@ -192,7 +192,7 @@ namespace mt_kahypar {
         const HypernodeID u = refinement_nodes[i];
         const int task_id = tbb::this_task_arena::current_thread_index();
         if ( task_id >= 0 && task_id < TBBInitializer::instance().total_number_of_threads() ) {
-          if (phg.nodeIsEnabled(u) && phg.isBorderNode(u)) {
+          if (phg.nodeIsEnabled(u) && phg.isBorderNode(u) && !phg.isFixed(u)) {
             sharedData.refinementNodes.safe_push(u, task_id);
           }
         }

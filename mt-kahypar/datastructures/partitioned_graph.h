@@ -569,9 +569,11 @@ private:
   bool changeNodePart(const HypernodeID u,
                       PartitionID from,
                       PartitionID to,
-                      const DeltaFunction& delta_func = NOOP_FUNC) {
+                      const DeltaFunction& delta_func = NOOP_FUNC,
+                      const bool force_moving_fixed_vertices = false) {
     return changeNodePartImpl<false>(u, from, to,
-      std::numeric_limits<HypernodeWeight>::max(), []{}, delta_func, NOOP_NOTIFY_FUNC);
+      std::numeric_limits<HypernodeWeight>::max(), []{},
+      delta_func, NOOP_NOTIFY_FUNC, force_moving_fixed_vertices);
   }
 
   template<typename GainCache, typename SuccessFunc>
@@ -787,6 +789,20 @@ private:
       }
     }
     return success;
+  }
+
+  // ####################### Fixed Vertex Support #######################
+
+  bool hasFixedVertices() const {
+    return _hg->hasFixedVertices();
+  }
+
+  bool isFixed(const HypernodeID hn) const {
+    return _hg->isFixed(hn);
+  }
+
+  PartitionID fixedVertexBlock(const HypernodeID hn) const {
+    return _hg->fixedVertexBlock(hn);
   }
 
   // ####################### Memory Consumption #######################
@@ -1034,9 +1050,12 @@ private:
                           HypernodeWeight max_weight_to,
                           SuccessFunc&& report_success,
                           const DeltaFunction& delta_func,
-                          const NotificationFunc& notify_func) {
+                          const NotificationFunc& notify_func,
+                          const bool force_moving_fixed_vertices = false) {
+    unused(force_moving_fixed_vertices);
     ASSERT(partID(u) == from);
     ASSERT(from != to);
+    ASSERT(force_moving_fixed_vertices || !isFixed(u));
     const HypernodeWeight weight = nodeWeight(u);
     const HypernodeWeight to_weight_after = _part_weights[to].add_fetch(weight, std::memory_order_relaxed);
     if (to_weight_after <= max_weight_to) {

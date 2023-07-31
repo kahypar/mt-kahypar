@@ -34,6 +34,7 @@
 
 namespace mt_kahypar {
 
+#ifdef KAHYPAR_ENABLE_STEINER_TREE_METRIC
 void TargetGraph::precomputeDistances(const size_t max_connectivity) {
   const size_t num_entries = std::pow(_k, max_connectivity);
   if ( num_entries > MEMORY_LIMIT ) {
@@ -147,5 +148,6 @@ HyperedgeWeight TargetGraph::computeWeightOfMSTOnMetricCompletion(const ds::Stat
   ASSERT(pq.empty());
   return res;
 }
+#endif
 
 }  // namespace kahypar

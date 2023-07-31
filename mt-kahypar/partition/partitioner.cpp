@@ -122,6 +122,17 @@ namespace mt_kahypar {
         ERR("At least one initial partitioning algorithm must be enabled!");
       }
     }
+
+    // Check fixed vertex support compatibility
+    if ( hypergraph.hasFixedVertices() ) {
+      if ( context.partition.preset_type == PresetType::deterministic ) {
+        ERR("Deterministic partitioning mode does not support fixed vertices!");
+      }
+      if ( context.partition.mode == Mode::deep_multilevel ||
+           context.initial_partitioning.mode == Mode::deep_multilevel ) {
+        ERR("Deep multilevel partitioning scheme does not support fixed vertices!");
+      }
+    }
   }
 
   template<typename Hypergraph>
@@ -276,6 +287,32 @@ namespace mt_kahypar {
     parallel::MemoryPool::instance().release_mem_group("Preprocessing");
   }
 
+  template<typename PartitionedHypergraph>
+  void forceFixedVertexAssignment(PartitionedHypergraph& partitioned_hg,
+                                  const Context& context) {
+    if ( partitioned_hg.hasFixedVertices() ) {
+      // This is a sanity check verifying that all fixed vertices are assigned
+      // to their corresponding blocks. If one fixed vertex is assigned to a different
+      // block, we move it to its fixed vertex block. Note that a wrong fixed vertex
+      // block assignment will fail in debug mode. Thus, this loop should not move any node, but
+      // we keep it in case anything goes wrong during partitioning.
+      partitioned_hg.doParallelForAllNodes([&](const HypernodeID& hn) {
+        if ( partitioned_hg.isFixed(hn) ) {
+          const PartitionID from = partitioned_hg.partID(hn);
+          const PartitionID to = partitioned_hg.fixedVertexBlock(hn);
+          if ( from != to ) {
+            if ( context.partition.verbose_output ) {
+              LOG << RED << "Node" << hn << "is fixed to block" << to
+                  << ", but it is assigned to block" << from << "!"
+                  << "It is now moved to its fixed vertex block." << END;
+            }
+            partitioned_hg.changeNodePart(hn, from, to, NOOP_FUNC, true);
+          }
+        }
+      });
+    }
+  }
+
   template<typename TypeTraits>
   typename Partitioner<TypeTraits>::PartitionedHypergraph Partitioner<TypeTraits>::partition(
     Hypergraph& hypergraph, Context& context, TargetGraph* target_graph) {
@@ -318,10 +355,26 @@ namespace mt_kahypar {
       ERR("Invalid mode: " << context.partition.mode);
     }
 
+    ASSERT([&] {
+      bool success = true;
+      if ( partitioned_hypergraph.hasFixedVertices() ) {
+        for ( const HypernodeID& hn : partitioned_hypergraph.nodes() ) {
+          if ( partitioned_hypergraph.isFixed(hn) &&
+               partitioned_hypergraph.fixedVertexBlock(hn) != partitioned_hypergraph.partID(hn) ) {
+            LOG << "Node" << hn << "is fixed to block" << partitioned_hypergraph.fixedVertexBlock(hn)
+                << ", but is assigned to block" << partitioned_hypergraph.partID(hn);
+            success = false;
+          }
+        }
+      }
+      return success;
+    }(), "Some fixed vertices are not assigned to their corresponding block");
+
     // ################## POSTPROCESSING ##################
     timer.start_timer("postprocessing", "Postprocessing");
     large_he_remover.restoreLargeHyperedges(partitioned_hypergraph);
     degree_zero_hn_remover.restoreDegreeZeroHypernodes(partitioned_hypergraph);
+    forceFixedVertexAssignment(partitioned_hypergraph, context);
     timer.stop_timer("postprocessing");
 
     #ifdef KAHYPAR_ENABLE_STEINER_TREE_METRIC
@@ -336,8 +389,8 @@ namespace mt_kahypar {
     #endif
 
     if (context.partition.verbose_output) {
-      io::printHypergraphInfo(partitioned_hypergraph.hypergraph(), "Uncoarsened Hypergraph",
-                              context.partition.show_memory_consumption);
+      io::printHypergraphInfo(partitioned_hypergraph.hypergraph(), context,
+        "Uncoarsened Hypergraph", context.partition.show_memory_consumption);
       io::printStripe();
     }
 
@@ -383,13 +436,29 @@ namespace mt_kahypar {
     timer.start_timer("postprocessing", "Postprocessing");
     large_he_remover.restoreLargeHyperedges(partitioned_hg);
     degree_zero_hn_remover.restoreDegreeZeroHypernodes(partitioned_hg);
+    forceFixedVertexAssignment(partitioned_hg, context);
     timer.stop_timer("postprocessing");
 
     if (context.partition.verbose_output) {
-      io::printHypergraphInfo(partitioned_hg.hypergraph(),
+      io::printHypergraphInfo(partitioned_hg.hypergraph(), context,
         "Uncoarsened Hypergraph", context.partition.show_memory_consumption);
       io::printStripe();
     }
+
+    ASSERT([&] {
+      bool success = true;
+      if ( partitioned_hg.hasFixedVertices() ) {
+        for ( const HypernodeID& hn : partitioned_hg.nodes() ) {
+          if ( partitioned_hg.isFixed(hn) &&
+               partitioned_hg.fixedVertexBlock(hn) != partitioned_hg.partID(hn) ) {
+            LOG << "Node" << hn << "is fixed to block" << partitioned_hg.fixedVertexBlock(hn)
+                << ", but is assigned to block" << partitioned_hg.partID(hn);
+            success = false;
+          }
+        }
+      }
+      return success;
+    }(), "Some fixed vertices are not assigned to their corresponding block");
   }
 
   INSTANTIATE_CLASS_WITH_TYPE_TRAITS(Partitioner)

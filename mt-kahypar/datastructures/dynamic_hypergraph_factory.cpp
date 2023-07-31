@@ -208,10 +208,26 @@ DynamicHypergraphFactory::compactify(const DynamicHypergraph& hypergraph) {
   compactified_hypergraph._removed_degree_zero_hn_weight = hypergraph._removed_degree_zero_hn_weight;
   compactified_hypergraph._total_weight += hypergraph._removed_degree_zero_hn_weight;
 
-  // Set community ids
-  hypergraph.doParallelForAllNodes([&](const HypernodeID& hn) {
-    const HypernodeID mapped_hn = hn_mapping[hn];
-    compactified_hypergraph.setCommunityID(mapped_hn, hypergraph.communityID(hn));
+  tbb::parallel_invoke([&] {
+    // Set community ids
+    hypergraph.doParallelForAllNodes([&](const HypernodeID& hn) {
+      const HypernodeID mapped_hn = hn_mapping[hn];
+      compactified_hypergraph.setCommunityID(mapped_hn, hypergraph.communityID(hn));
+    });
+  }, [&] {
+    if ( hypergraph.hasFixedVertices() ) {
+      // Set fixed vertices
+      ds::FixedVertexSupport<DynamicHypergraph> fixed_vertices(
+        compactified_hypergraph.initialNumNodes(), hypergraph._fixed_vertices.numBlocks());
+      fixed_vertices.setHypergraph(&compactified_hypergraph);
+      hypergraph.doParallelForAllNodes([&](const HypernodeID& hn) {
+        if ( hypergraph.isFixed(hn) ) {
+          const HypernodeID mapped_hn = hn_mapping[hn];
+          fixed_vertices.fixToBlock(mapped_hn, hypergraph.fixedVertexBlock(hn));
+        }
+      });
+      compactified_hypergraph.addFixedVertexSupport(std::move(fixed_vertices));
+    }
   });
 
   tbb::parallel_invoke([&] {

@@ -234,6 +234,12 @@ class DeltaPartitionedGraph {
     return part_id ? *part_id : _pg->partID(u);
   }
 
+  // ! Returns if the node is a fixed vertex
+  bool isFixed(const HypernodeID u) const {
+    ASSERT(_pg);
+    return _pg->isFixed(u);
+  }
+
   // ! Returns the total weight of block p
   HypernodeWeight partWeight(const PartitionID p) const {
     ASSERT(_pg);

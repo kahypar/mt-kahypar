@@ -34,6 +34,7 @@
 #include "libmtkahypar.h"
 #include "mt-kahypar/macros.h"
 #include "mt-kahypar/partition/context.h"
+#include "mt-kahypar/io/hypergraph_io.h"
 
 using ::testing::Test;
 
@@ -406,6 +407,8 @@ namespace mt_kahypar {
     public:
       static constexpr char HYPERGRAPH_FILE[] = "test_instances/ibm01.hgr";
       static constexpr char GRAPH_FILE[] = "test_instances/delaunay_n15.graph";
+      static constexpr char HYPERGRAPH_FIX_FILE[] = "test_instances/ibm01.k4.p1.fix";
+      static constexpr char GRAPH_FIX_FILE[] = "test_instances/delaunay_n15.k4.p1.fix";
       static constexpr char TARGET_GRAPH_FILE[] = "test_instances/target.graph";
 
       APartitioner() :
@@ -420,9 +423,11 @@ namespace mt_kahypar {
                    const mt_kahypar_partition_id_t num_blocks,
                    const double epsilon,
                    const mt_kahypar_objective_t objective,
-                   const bool verbose = false) {
+                   const bool verbose = false,
+                   const bool add_fixed_vertices = false) {
       SetUpContext(preset, num_blocks, epsilon, objective, verbose);
       Load(filename, preset, format);
+      if ( add_fixed_vertices ) addFixedVertices(num_blocks);
       partition(hypergraph, &partitioned_hg, context, num_blocks, epsilon, nullptr);
     }
 
@@ -479,6 +484,19 @@ namespace mt_kahypar {
       ASSERT_LE(after, before);
     }
 
+    void verifyFixedVertexAssignment(const char* fixed_vertex_file) {
+      std::vector<PartitionID> fixed_vertices;
+      io::readPartitionFile(fixed_vertex_file, fixed_vertices);
+      vec<PartitionID> partition(mt_kahypar_num_hypernodes(hypergraph), kInvalidPartition);
+      mt_kahypar_get_partition(partitioned_hg, partition.data());
+
+      for ( HypernodeID hn = 0; hn < mt_kahypar_num_hypernodes(hypergraph); ++hn ) {
+        if ( fixed_vertices[hn] != -1 ) {
+          ASSERT_EQ(fixed_vertices[hn], partition[hn]);
+        }
+      }
+    }
+
     void SetUp()  {
       mt_kahypar_initialize_thread_pool(std::thread::hardware_concurrency(), false);
       context = mt_kahypar_context_new();
@@ -505,6 +523,18 @@ namespace mt_kahypar {
         mt_kahypar_free_hypergraph(hypergraph);
       }
       hypergraph = mt_kahypar_read_hypergraph_from_file(filename, preset, format);
+    }
+
+    void addFixedVertices(const mt_kahypar_partition_id_t num_blocks ) {
+      if ( hypergraph.type == STATIC_HYPERGRAPH ||
+            hypergraph.type == DYNAMIC_HYPERGRAPH ) {
+        mt_kahypar_add_fixed_vertices_from_file(hypergraph,
+          HYPERGRAPH_FIX_FILE, num_blocks);
+      } else if ( hypergraph.type == STATIC_GRAPH ||
+                  hypergraph.type == DYNAMIC_GRAPH ) {
+        mt_kahypar_add_fixed_vertices_from_file(hypergraph,
+          GRAPH_FIX_FILE, num_blocks);
+      }
     }
 
     void SetUpContext(const mt_kahypar_preset_type_t preset,
@@ -858,5 +888,41 @@ namespace mt_kahypar {
   TEST_F(APartitioner, ImprovesHypergraphMappingGeneratedByOptimizingKm1Metric) {
     Partition(HYPERGRAPH_FILE, HMETIS, DEFAULT, 8, 0.03, KM1, false);
     ImproveMapping(DEFAULT, 1, false);
+  }
+
+  TEST_F(APartitioner, PartitionsAHypergraphWithFixedVerticesAndDefaultPreset) {
+    Partition(HYPERGRAPH_FILE, HMETIS, DEFAULT, 4, 0.03, KM1, false, true /* add fixed vertices */);
+    verifyFixedVertexAssignment(HYPERGRAPH_FIX_FILE);
+  }
+
+  TEST_F(APartitioner, PartitionsAHypergraphWithFixedVerticesAndQualityPreset) {
+    Partition(HYPERGRAPH_FILE, HMETIS, QUALITY, 4, 0.03, KM1, false, true /* add fixed vertices */);
+    verifyFixedVertexAssignment(HYPERGRAPH_FIX_FILE);
+  }
+
+  TEST_F(APartitioner, PartitionsAHypergraphWithFixedVerticesAndHighestQualityPreset) {
+    Partition(HYPERGRAPH_FILE, HMETIS, HIGHEST_QUALITY, 4, 0.03, KM1, false, true /* add fixed vertices */);
+    verifyFixedVertexAssignment(HYPERGRAPH_FIX_FILE);
+  }
+
+  TEST_F(APartitioner, PartitionsAGraphWithFixedVerticesAndDefaultPreset) {
+    Partition(GRAPH_FILE, METIS, DEFAULT, 4, 0.03, CUT, false, true /* add fixed vertices */);
+    verifyFixedVertexAssignment(GRAPH_FIX_FILE);
+  }
+
+  TEST_F(APartitioner, PartitionsGraphWithFixedVerticesAndQualityPreset) {
+    Partition(GRAPH_FILE, METIS, QUALITY, 4, 0.03, CUT, false, true /* add fixed vertices */);
+    verifyFixedVertexAssignment(GRAPH_FIX_FILE);
+  }
+
+  TEST_F(APartitioner, PartitionsAGraphWithFixedVerticesAndHighestQualityPreset) {
+    Partition(GRAPH_FILE, METIS, HIGHEST_QUALITY, 4, 0.03, CUT, false, true /* add fixed vertices */);
+    verifyFixedVertexAssignment(GRAPH_FIX_FILE);
+  }
+
+  TEST_F(APartitioner, ImprovesPartitionWithFixedVertices) {
+    Partition(HYPERGRAPH_FILE, HMETIS, DEFAULT, 4, 0.03, KM1, false, true /* add fixed vertices */);
+    ImprovePartition(QUALITY, 1, false);
+    verifyFixedVertexAssignment(HYPERGRAPH_FIX_FILE);
   }
 }

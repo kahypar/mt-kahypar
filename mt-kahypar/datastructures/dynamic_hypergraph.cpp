@@ -179,6 +179,11 @@ void DynamicHypergraph::uncontract(const Batch& batch,
     hypernode(memento.v).enable();
     hypernode(memento.u).setWeight(hypernode(memento.u).weight() - hypernode(memento.v).weight());
     releaseHypernode(memento.u);
+
+    // Revert contraction in fixed vertex support
+    if ( hasFixedVertices() ) {
+      _fixed_vertices.uncontract(memento.u, memento.v);
+    }
   });
 }
 
@@ -429,6 +434,9 @@ DynamicHypergraph DynamicHypergraph::copy(parallel_tag_t) const {
   }, [&] {
     hypergraph._removable_single_pin_and_parallel_nets =
       kahypar::ds::FastResetFlagArray<>(_num_hyperedges);
+  }, [&] {
+    hypergraph._fixed_vertices = _fixed_vertices.copy();
+    hypergraph._fixed_vertices.setHypergraph(&hypergraph);
   });
   return hypergraph;
 }
@@ -474,6 +482,9 @@ DynamicHypergraph DynamicHypergraph::copy() const {
   hypergraph._removable_single_pin_and_parallel_nets =
     kahypar::ds::FastResetFlagArray<>(_num_hyperedges);
 
+  hypergraph._fixed_vertices = _fixed_vertices.copy();
+  hypergraph._fixed_vertices.setHypergraph(&hypergraph);
+
   return hypergraph;
 }
 
@@ -491,6 +502,10 @@ void DynamicHypergraph::memoryConsumption(utils::MemoryTreeNode* parent) const {
 
   utils::MemoryTreeNode* contraction_tree_node = parent->addChild("Contraction Tree");
   _contraction_tree.memoryConsumption(contraction_tree_node);
+
+  if ( hasFixedVertices() ) {
+    parent->addChild("Fixed Vertex Support", _fixed_vertices.size_in_bytes());
+  }
 }
 
 // ! Only for testing
@@ -562,7 +577,11 @@ DynamicHypergraph::ContractionResult DynamicHypergraph::contract(const Hypernode
     nodeIsEnabled(v) && _contraction_tree.pendingContractions(v) == 0;
   const bool less_or_equal_than_max_node_weight =
     hypernode(u).weight() + hypernode(v).weight() <= max_node_weight;
-  if ( contraction_partner_valid && less_or_equal_than_max_node_weight ) {
+  const bool valid_contraction =
+    contraction_partner_valid && less_or_equal_than_max_node_weight &&
+    ( !hasFixedVertices() ||
+      /** only run this if all previous checks were successful */ _fixed_vertices.contract(u, v) );
+  if ( valid_contraction ) {
     ASSERT(nodeIsEnabled(u), "Hypernode" << u << "is disabled!");
     hypernode(u).setWeight(nodeWeight(u) + nodeWeight(v));
     hypernode(v).disable();
@@ -608,11 +627,15 @@ DynamicHypergraph::ContractionResult DynamicHypergraph::contract(const Hypernode
     return ContractionResult::CONTRACTED;
   } else {
     ContractionResult res = ContractionResult::PENDING_CONTRACTIONS;
-    if ( !less_or_equal_than_max_node_weight && nodeIsEnabled(v) &&
-         _contraction_tree.parent(v) == u ) {
+    const bool fixed_vertex_contraction_failed =
+      contraction_partner_valid && less_or_equal_than_max_node_weight;
+    if ( ( !less_or_equal_than_max_node_weight || fixed_vertex_contraction_failed ) &&
+         nodeIsEnabled(v) && _contraction_tree.parent(v) == u ) {
       _contraction_tree.unregisterContraction(u, v,
         kInvalidHypernode, kInvalidHypernode, true /* failed */);
-      res = ContractionResult::WEIGHT_LIMIT_REACHED;
+      res = fixed_vertex_contraction_failed ?
+        ContractionResult::INVALID_FIXED_VERTEX_CONTRACTION :
+        ContractionResult::WEIGHT_LIMIT_REACHED;
     }
     releaseHypernode(u);
     releaseHypernode(v);

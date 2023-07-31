@@ -35,11 +35,12 @@
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/macros.h"
 #include "mt-kahypar/partition/multilevel.h"
+#include "mt-kahypar/datastructures/fixed_vertex_support.h"
 #include "mt-kahypar/partition/refinement/gains/bipartitioning_policy.h"
 #ifdef KAHYPAR_ENABLE_STEINER_TREE_METRIC
 #include "mt-kahypar/partition/mapping/initial_mapping.h"
 #endif
-
+#include "mt-kahypar/io/partitioning_output.h"
 #include "mt-kahypar/parallel/memory_pool.h"
 #include "mt-kahypar/utils/randomize.h"
 #include "mt-kahypar/utils/utilities.h"
@@ -179,6 +180,48 @@ namespace rb {
     return rb_context;
   }
 
+  template<typename Hypergraph>
+  void setupFixedVerticesForBipartitioning(Hypergraph& hg,
+                                           const PartitionID k) {
+    if ( hg.hasFixedVertices() ) {
+      const PartitionID m = k / 2 + (k % 2);
+      ds::FixedVertexSupport<Hypergraph> fixed_vertices(hg.initialNumNodes(), 2);
+      fixed_vertices.setHypergraph(&hg);
+      hg.doParallelForAllNodes([&](const HypernodeID& hn) {
+        if ( hg.isFixed(hn) ) {
+          if ( hg.fixedVertexBlock(hn) < m ) {
+            fixed_vertices.fixToBlock(hn, 0);
+          } else {
+            fixed_vertices.fixToBlock(hn, 1);
+          }
+        }
+      });
+      hg.addFixedVertexSupport(std::move(fixed_vertices));
+    }
+  }
+
+  template<typename Hypergraph>
+  void setupFixedVerticesForRecursion(const Hypergraph& input_hg,
+                                      Hypergraph& extracted_hg,
+                                      const vec<HypernodeID>& input2extracted,
+                                      const PartitionID k0,
+                                      const PartitionID k1) {
+    if ( input_hg.hasFixedVertices() ) {
+      ds::FixedVertexSupport<Hypergraph> fixed_vertices(
+        extracted_hg.initialNumNodes(), k1 - k0);
+      fixed_vertices.setHypergraph(&extracted_hg);
+      input_hg.doParallelForAllNodes([&](const HypernodeID& hn) {
+        if ( input_hg.isFixed(hn) ) {
+          const PartitionID block = input_hg.fixedVertexBlock(hn);
+          if ( block >= k0 && block < k1 ) {
+            fixed_vertices.fixToBlock(input2extracted[hn], block - k0);
+          }
+        }
+      });
+      extracted_hg.addFixedVertexSupport(std::move(fixed_vertices));
+    }
+  }
+
   bool usesAdaptiveWeightOfNonCutEdges(const Context& context) {
     return BipartitioningPolicy::nonCutEdgeMultiplier(context.partition.gain_policy) != 1;
   }
@@ -219,62 +262,67 @@ namespace rb {
                                 vec<uint8_t>& already_cut) {
     using Hypergraph = typename TypeTraits::Hypergraph;
     using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
-    // Multilevel Bipartitioning
-    Hypergraph& hg = phg.hypergraph();
-    Context b_context = setupBipartitioningContext(hg, context, info);
-    adaptWeightsOfNonCutEdges(hg, already_cut, context.partition.gain_policy, false);
-    DBG << "Multilevel Bipartitioning - Range = (" << k0 << "," << k1 << "), Epsilon =" << b_context.partition.epsilon;
-    PartitionedHypergraph bipartitioned_hg = Multilevel<TypeTraits>::partition(hg, b_context);
-    DBG << "Bipartitioning Result -"
-        << "Objective =" << metrics::quality(bipartitioned_hg, b_context)
-        << "Imbalance =" << metrics::imbalance(bipartitioned_hg, b_context)
-        << "(Target Imbalance =" << b_context.partition.epsilon << ")";
-    adaptWeightsOfNonCutEdges(hg, already_cut, context.partition.gain_policy, true);
+    if ( phg.initialNumNodes() > 0 ) {
+      // Multilevel Bipartitioning
+      const PartitionID k = (k1 - k0);
+      Hypergraph& hg = phg.hypergraph();
+      ds::FixedVertexSupport<Hypergraph> fixed_vertices = hg.copyOfFixedVertexSupport();
+      Context b_context = setupBipartitioningContext(hg, context, info);
+      setupFixedVerticesForBipartitioning(hg, k);
+      adaptWeightsOfNonCutEdges(hg, already_cut, context.partition.gain_policy, false);
+      DBG << "Multilevel Bipartitioning - Range = (" << k0 << "," << k1 << "), Epsilon =" << b_context.partition.epsilon;
+      PartitionedHypergraph bipartitioned_hg = Multilevel<TypeTraits>::partition(hg, b_context);
+      DBG << "Bipartitioning Result -"
+          << "Objective =" << metrics::quality(bipartitioned_hg, b_context)
+          << "Imbalance =" << metrics::imbalance(bipartitioned_hg, b_context)
+          << "(Target Imbalance =" << b_context.partition.epsilon << ")";
+      adaptWeightsOfNonCutEdges(hg, already_cut, context.partition.gain_policy, true);
+      hg.addFixedVertexSupport(std::move(fixed_vertices));
 
-    // Apply bipartition to the input hypergraph
-    const PartitionID k = (k1 - k0);
-    const PartitionID block_0 = 0;
-    const PartitionID block_1 = k / 2 + (k % 2);
-    phg.doParallelForAllNodes([&](const HypernodeID& hn) {
-      PartitionID part_id = bipartitioned_hg.partID(hn);
-      ASSERT(part_id != kInvalidPartition && part_id < phg.k());
-      ASSERT(phg.partID(hn) == kInvalidPartition);
-      if ( part_id == 0 ) {
-        phg.setOnlyNodePart(hn, block_0);
-      } else {
-        phg.setOnlyNodePart(hn, block_1);
-      }
-    });
-    phg.initializePartition();
-
-    if ( usesAdaptiveWeightOfNonCutEdges(context) ) {
-      // Update cut hyperedges
-      phg.doParallelForAllEdges([&](const HyperedgeID& he) {
-        already_cut[he] |= phg.connectivity(he) > 1;
+      // Apply bipartition to the input hypergraph
+      const PartitionID block_0 = 0;
+      const PartitionID block_1 = k / 2 + (k % 2);
+      phg.doParallelForAllNodes([&](const HypernodeID& hn) {
+        PartitionID part_id = bipartitioned_hg.partID(hn);
+        ASSERT(part_id != kInvalidPartition && part_id < phg.k());
+        ASSERT(phg.partID(hn) == kInvalidPartition);
+        if ( part_id == 0 ) {
+          phg.setOnlyNodePart(hn, block_0);
+        } else {
+          phg.setOnlyNodePart(hn, block_1);
+        }
       });
-    }
+      phg.initializePartition();
 
-    ASSERT(metrics::quality(bipartitioned_hg, context) ==
-           metrics::quality(phg, context));
+      if ( usesAdaptiveWeightOfNonCutEdges(context) ) {
+        // Update cut hyperedges
+        phg.doParallelForAllEdges([&](const HyperedgeID& he) {
+          already_cut[he] |= phg.connectivity(he) > 1;
+        });
+      }
 
-    ASSERT(context.partition.k >= 2);
-    PartitionID rb_k0 = context.partition.k / 2 + context.partition.k % 2;
-    PartitionID rb_k1 = context.partition.k / 2;
-    if ( rb_k0 >= 2 && rb_k1 >= 2 ) {
-      // Both blocks of the bipartition must to be further partitioned into at least two blocks.
-      DBG << "Current k = " << context.partition.k << "\n"
-          << "Block" << block_0 << "is further partitioned into k =" << rb_k0 << "blocks\n"
-          << "Block" << block_1 << "is further partitioned into k =" << rb_k1 << "blocks\n";
-      tbb::task_group tg;
-      tg.run([&] { recursively_bipartition_block<TypeTraits>(phg, context, block_0, 0, rb_k0, info, already_cut, 0.5); });
-      tg.run([&] { recursively_bipartition_block<TypeTraits>(phg, context, block_1, rb_k0, rb_k0 + rb_k1, info, already_cut, 0.5); });
-      tg.wait();
-    } else if ( rb_k0 >= 2 ) {
-      ASSERT(rb_k1 < 2);
-      // Only the first block needs to be further partitioned into at least two blocks.
-      DBG << "Current k = " << context.partition.k << "\n"
-          << "Block" << block_0 << "is further partitioned into k =" << rb_k0 << "blocks\n";
-      recursively_bipartition_block<TypeTraits>(phg, context, block_0, 0, rb_k0, info, already_cut, 1.0);
+      ASSERT(metrics::quality(bipartitioned_hg, context) ==
+            metrics::quality(phg, context));
+
+      ASSERT(context.partition.k >= 2);
+      PartitionID rb_k0 = context.partition.k / 2 + context.partition.k % 2;
+      PartitionID rb_k1 = context.partition.k / 2;
+      if ( rb_k0 >= 2 && rb_k1 >= 2 ) {
+        // Both blocks of the bipartition must to be further partitioned into at least two blocks.
+        DBG << "Current k = " << context.partition.k << "\n"
+            << "Block" << block_0 << "is further partitioned into k =" << rb_k0 << "blocks\n"
+            << "Block" << block_1 << "is further partitioned into k =" << rb_k1 << "blocks\n";
+        tbb::task_group tg;
+        tg.run([&] { recursively_bipartition_block<TypeTraits>(phg, context, block_0, 0, rb_k0, info, already_cut, 0.5); });
+        tg.run([&] { recursively_bipartition_block<TypeTraits>(phg, context, block_1, rb_k0, rb_k0 + rb_k1, info, already_cut, 0.5); });
+        tg.wait();
+      } else if ( rb_k0 >= 2 ) {
+        ASSERT(rb_k1 < 2);
+        // Only the first block needs to be further partitioned into at least two blocks.
+        DBG << "Current k = " << context.partition.k << "\n"
+            << "Block" << block_0 << "is further partitioned into k =" << rb_k0 << "blocks\n";
+        recursively_bipartition_block<TypeTraits>(phg, context, block_0, 0, rb_k0, info, already_cut, 1.0);
+      }
     }
   }
 }
@@ -296,6 +344,7 @@ void rb::recursively_bipartition_block(typename TypeTraits::PartitionedHypergrap
     cut_net_splitting, context.preprocessing.stable_construction_of_incident_edges);
   Hypergraph& rb_hg = extracted_block.hg;
   auto& mapping = extracted_block.hn_mapping;
+  setupFixedVerticesForRecursion(phg.hypergraph(), rb_hg, mapping, k0, k1);
 
   if ( rb_hg.initialNumNodes() > 0 ) {
     // Recursively partition the given block into (k1 - k0) blocks
@@ -311,7 +360,7 @@ void rb::recursively_bipartition_block(typename TypeTraits::PartitionedHypergrap
         PartitionID to = block + rb_phg.partID(mapping[hn]);
         ASSERT(to != kInvalidPartition && to < phg.k());
         if ( block != to ) {
-          phg.changeNodePart(hn, block, to);
+          phg.changeNodePart(hn, block, to, NOOP_FUNC, true);
         }
       }
     });

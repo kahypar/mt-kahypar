@@ -33,12 +33,14 @@
 #include "tests/datastructures/hypergraph_fixtures.h"
 #include "mt-kahypar/utils/utilities.h"
 #include "mt-kahypar/io/hypergraph_factory.h"
+#include "mt-kahypar/datastructures/fixed_vertex_support.h"
 #include "mt-kahypar/partition/initial_partitioning/random_initial_partitioner.h"
 #include "mt-kahypar/partition/initial_partitioning/bfs_initial_partitioner.h"
 #include "mt-kahypar/partition/initial_partitioning/greedy_initial_partitioner.h"
 #include "mt-kahypar/partition/initial_partitioning/label_propagation_initial_partitioner.h"
 #include "mt-kahypar/partition/initial_partitioning/policies/gain_computation_policy.h"
 #include "mt-kahypar/partition/initial_partitioning/policies/pq_selection_policy.h"
+#include "mt-kahypar/utils/randomize.h"
 
 using ::testing::Test;
 
@@ -84,10 +86,10 @@ class AFlatInitialPartitionerTest : public Test {
     context.refinement.label_propagation.algorithm = LabelPropagationAlgorithm::do_nothing;
     context.initial_partitioning.refinement.label_propagation.algorithm = LabelPropagationAlgorithm::do_nothing;
     utils::Utilities::instance().getTimer(context.utility_id).disable();
-    ip_data = std::make_unique<InitialPartitioningDataContainer<TypeTraits>>(partitioned_hypergraph, context);
   }
 
   void execute() {
+    ip_data = std::make_unique<InitialPartitioningDataContainer<TypeTraits>>(partitioned_hypergraph, context);
     tbb::task_group tg;
     const int seed = 420;
     ip_data_container_t* ip_data_ptr = ip::to_pointer(*ip_data);
@@ -99,6 +101,25 @@ class AFlatInitialPartitionerTest : public Test {
     }
     tg.wait();
     ip_data->apply();
+  }
+
+  void addFixedVertices(const double percentage,
+                        const PartitionID default_block = kInvalidPartition) {
+    ds::FixedVertexSupport<Hypergraph> fixed_vertices(
+      hypergraph.initialNumNodes(), context.partition.k);
+    fixed_vertices.setHypergraph(&hypergraph);
+
+    const int threshold = percentage * 1000;
+    utils::Randomize& rand = utils::Randomize::instance();
+    for ( const HypernodeID& hn : hypergraph.nodes() ) {
+      int rnd = rand.getRandomInt(0, 1000, SCHED_GETCPU);
+      if ( rnd <= threshold ) {
+        const PartitionID block = default_block == kInvalidPartition ?
+          rand.getRandomInt(0, context.partition.k - 1, SCHED_GETCPU) : default_block;
+        fixed_vertices.fixToBlock(hn, block);
+      }
+    }
+    hypergraph.addFixedVertexSupport(std::move(fixed_vertices));
   }
 
   Hypergraph hypergraph;
@@ -255,6 +276,36 @@ TYPED_TEST(AFlatInitialPartitionerTest, HasNoSignificantLowPartitionWeights) {
     ASSERT_GE(this->partitioned_hypergraph.partWeight(block),
               this->context.partition.perfect_balance_part_weights[block] / 5);
   }
+}
+
+TYPED_TEST(AFlatInitialPartitionerTest, CanHandleFixedVertices) {
+  this->addFixedVertices(0.25 /* 25% of the nodes are fixed */);
+  this->execute();
+
+  for ( const HypernodeID& hn : this->hypergraph.nodes() ) {
+    if ( this->hypergraph.isFixed(hn) ) {
+      ASSERT_EQ(this->hypergraph.fixedVertexBlock(hn),
+        this->partitioned_hypergraph.partID(hn));
+    }
+  }
+
+  ASSERT_LE(metrics::imbalance(this->partitioned_hypergraph, this->context),
+            this->context.partition.epsilon);
+}
+
+TYPED_TEST(AFlatInitialPartitionerTest, CanHandleFixedVerticesInOnlyOneBlock) {
+  this->addFixedVertices(0.05 /* 5% of the nodes are fixed to block 0 */, 0);
+  this->execute();
+
+  for ( const HypernodeID& hn : this->hypergraph.nodes() ) {
+    if ( this->hypergraph.isFixed(hn) ) {
+      ASSERT_EQ(this->hypergraph.fixedVertexBlock(hn),
+        this->partitioned_hypergraph.partID(hn));
+    }
+  }
+
+  ASSERT_LE(metrics::imbalance(this->partitioned_hypergraph, this->context),
+            this->context.partition.epsilon);
 }
 
 

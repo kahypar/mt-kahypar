@@ -45,6 +45,7 @@ namespace mt_kahypar::io {
   void printCutMatrix(const PartitionedHypergraph& hypergraph);
   template<typename Hypergraph>
   void printHypergraphInfo(const Hypergraph& hypergraph,
+                           const Context& context,
                            const std::string& name,
                            const bool show_memory_consumption);
   template<typename PartitionedHypergraph>
@@ -57,6 +58,8 @@ namespace mt_kahypar::io {
                                 const std::chrono::duration<double>& elapsed_seconds);
   template<typename PartitionedHypergraph>
   void printPartWeightsAndSizes(const PartitionedHypergraph& hypergraph, const Context& context);
+  template<typename Hypergraph>
+  void printFixedVertexPartWeights(const Hypergraph& hypergraph, const Context& context);
   template<typename Hypergraph>
   void printInputInformation(const Context& context, const Hypergraph& hypergraph);
   template<typename Hypergraph>

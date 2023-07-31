@@ -29,6 +29,7 @@
 #include "mt-kahypar/macros.h"
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/io/hypergraph_io.h"
+#include "mt-kahypar/datastructures/fixed_vertex_support.h"
 #include "mt-kahypar/partition/conversion.h"
 
 namespace mt_kahypar {
@@ -160,6 +161,107 @@ Hypergraph readInputFile(const std::string& filename,
       filename, Hypergraph::TYPE, stable_construction);
   }
   return std::move(utils::cast<Hypergraph>(hypergraph));
+}
+
+namespace {
+
+HypernodeID numberOfNodes(mt_kahypar_hypergraph_t hypergraph) {
+  switch ( hypergraph.type ) {
+    case STATIC_HYPERGRAPH: return utils::cast<ds::StaticHypergraph>(hypergraph).initialNumNodes();
+    #ifdef KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES
+    case STATIC_GRAPH: return utils::cast<ds::StaticGraph>(hypergraph).initialNumNodes();
+    #ifdef KAHYPAR_ENABLE_HIGHEST_QUALITY_FEATURES
+    case DYNAMIC_GRAPH: return utils::cast<ds::DynamicGraph>(hypergraph).initialNumNodes();
+    #endif
+    #endif
+    #ifdef KAHYPAR_ENABLE_HIGHEST_QUALITY_FEATURES
+    case DYNAMIC_HYPERGRAPH: return utils::cast<ds::DynamicHypergraph>(hypergraph).initialNumNodes();
+    #endif
+    case NULLPTR_HYPERGRAPH: return 0;
+    default: return 0;
+  }
+}
+
+template<typename Hypergraph>
+void addFixedVertices(Hypergraph& hypergraph,
+                      const mt_kahypar_partition_id_t* fixed_vertices,
+                      const PartitionID k) {
+  ds::FixedVertexSupport<Hypergraph> fixed_vertex_support(
+    hypergraph.initialNumNodes(), k);
+  fixed_vertex_support.setHypergraph(&hypergraph);
+  hypergraph.doParallelForAllNodes([&](const HypernodeID& hn) {
+    if ( fixed_vertices[hn] != -1 ) {
+      if ( fixed_vertices[hn] < 0 || fixed_vertices[hn] >= k ) {
+        ERR("Try to partition hypergraph into" << k << "blocks, but node" << hn
+             << "is fixed to block" << fixed_vertices[hn]);
+      }
+      fixed_vertex_support.fixToBlock(hn, fixed_vertices[hn]);
+    }
+  });
+  hypergraph.addFixedVertexSupport(std::move(fixed_vertex_support));
+}
+
+template<typename Hypergraph>
+void removeFixedVertices(Hypergraph& hypergraph) {
+  ds::FixedVertexSupport<Hypergraph> fixed_vertex_support;
+  hypergraph.addFixedVertexSupport(std::move(fixed_vertex_support));
+}
+
+} // namespace
+
+void addFixedVertices(mt_kahypar_hypergraph_t hypergraph,
+                      const mt_kahypar_partition_id_t* fixed_vertices,
+                      const PartitionID k) {
+  switch ( hypergraph.type ) {
+    case STATIC_HYPERGRAPH:
+      addFixedVertices(utils::cast<ds::StaticHypergraph>(hypergraph), fixed_vertices, k); break;
+    #ifdef KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES
+    case STATIC_GRAPH:
+      addFixedVertices(utils::cast<ds::StaticGraph>(hypergraph), fixed_vertices, k); break;
+    #ifdef KAHYPAR_ENABLE_HIGHEST_QUALITY_FEATURES
+    case DYNAMIC_GRAPH:
+      addFixedVertices(utils::cast<ds::DynamicGraph>(hypergraph), fixed_vertices, k); break;
+    #endif
+    #endif
+    #ifdef KAHYPAR_ENABLE_HIGHEST_QUALITY_FEATURES
+    case DYNAMIC_HYPERGRAPH:
+      addFixedVertices(utils::cast<ds::DynamicHypergraph>(hypergraph), fixed_vertices, k); break;
+    #endif
+    case NULLPTR_HYPERGRAPH:
+    default: break;
+  }
+}
+
+void addFixedVerticesFromFile(mt_kahypar_hypergraph_t hypergraph,
+                              const std::string& filename,
+                              const PartitionID k) {
+  std::vector<PartitionID> fixed_vertices;
+  io::readPartitionFile(filename, fixed_vertices);
+  if ( ID(fixed_vertices.size()) != numberOfNodes(hypergraph) ) {
+    ERR("Fixed vertex file has more lines than the number of nodes!");
+  }
+  addFixedVertices(hypergraph, fixed_vertices.data(), k);
+}
+
+void removeFixedVertices(mt_kahypar_hypergraph_t hypergraph) {
+  switch ( hypergraph.type ) {
+    case STATIC_HYPERGRAPH:
+      removeFixedVertices(utils::cast<ds::StaticHypergraph>(hypergraph)); break;
+    #ifdef KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES
+    case STATIC_GRAPH:
+      removeFixedVertices(utils::cast<ds::StaticGraph>(hypergraph)); break;
+    #ifdef KAHYPAR_ENABLE_HIGHEST_QUALITY_FEATURES
+    case DYNAMIC_GRAPH:
+      removeFixedVertices(utils::cast<ds::DynamicGraph>(hypergraph)); break;
+    #endif
+    #endif
+    #ifdef KAHYPAR_ENABLE_HIGHEST_QUALITY_FEATURES
+    case DYNAMIC_HYPERGRAPH:
+      removeFixedVertices(utils::cast<ds::DynamicHypergraph>(hypergraph)); break;
+    #endif
+    case NULLPTR_HYPERGRAPH:
+    default: break;
+  }
 }
 
 namespace {

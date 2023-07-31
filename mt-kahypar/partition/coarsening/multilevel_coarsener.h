@@ -166,72 +166,14 @@ class MultilevelCoarsener : public ICoarsener,
       utils::Randomize::instance().parallelShuffleVector( _current_vertices, UL(0), _current_vertices.size());
     }
 
-    // We iterate in parallel over all vertices of the hypergraph and compute its contraction partner.
-    // Matched vertices are linked in a concurrent union find data structure, that also aggregates
-    // weights of the resulting clusters and keep track of the number of nodes left, if we would
-    // contract all matched vertices.
-    _timer.start_timer("clustering", "Clustering");
-    if ( _context.partition.show_detailed_clustering_timings ) {
-      _timer.start_timer("clustering_level_" + std::to_string(_pass_nr), "Level " + std::to_string(_pass_nr));
+    const HypernodeID num_hns_before_pass =
+      current_hg.initialNumNodes() - current_hg.numRemovedHypernodes();
+    HypernodeID current_num_nodes = 0;
+    if ( current_hg.hasFixedVertices() ) {
+      current_num_nodes = performClustering<true>(current_hg, cluster_ids);
+    } else {
+      current_num_nodes = performClustering<false>(current_hg, cluster_ids);
     }
-    _rater.resetMatches();
-    _rater.setCurrentNumberOfNodes(current_hg.initialNumNodes());
-    const HypernodeID num_hns_before_pass = current_hg.initialNumNodes() - current_hg.numRemovedHypernodes();
-    const HypernodeID hierarchy_contraction_limit = hierarchyContractionLimit(current_hg);
-    DBG << V(current_hg.initialNumNodes()) << V(hierarchy_contraction_limit);
-    HypernodeID current_num_nodes = num_hns_before_pass;
-    tbb::enumerable_thread_specific<HypernodeID> contracted_nodes(0);
-    tbb::enumerable_thread_specific<HypernodeID> num_nodes_update_threshold(0);
-    tbb::parallel_for(0U, current_hg.initialNumNodes(), [&](const HypernodeID id) {
-      ASSERT(id < _current_vertices.size());
-      const HypernodeID hn = _current_vertices[id];
-      if (current_hg.nodeIsEnabled(hn)) {
-        // We perform rating if ...
-        //  1.) The contraction limit of the current level is not reached
-        //  2.) Vertex hn is not matched before
-        const HypernodeID u = hn;
-        if (_matching_state[u] == STATE(MatchingState::UNMATCHED)) {
-          if (current_num_nodes > hierarchy_contraction_limit) {
-            ASSERT(current_hg.nodeIsEnabled(hn));
-            const Rating rating = _rater.rate(current_hg, hn,
-              cluster_ids, _cluster_weight, _context.coarsening.max_allowed_node_weight);
-            if (rating.target != kInvalidHypernode) {
-              const HypernodeID v = rating.target;
-              HypernodeID& local_contracted_nodes = contracted_nodes.local();
-              matchVertices(current_hg, u, v, cluster_ids, local_contracted_nodes);
-
-              // To maintain the current number of nodes of the hypergraph each PE sums up
-              // its number of contracted nodes locally. To compute the current number of
-              // nodes, we have to sum up the number of contracted nodes of each PE. This
-              // operation becomes more expensive the more PEs are participating in coarsening.
-              // In order to prevent expensive updates of the current number of nodes, we
-              // define a threshold which the local number of contracted nodes have to exceed
-              // before the current PE updates the current number of nodes. This threshold is defined
-              // by the distance to the current contraction limit divided by the number of PEs.
-              // Once one PE exceeds this bound the first time it is not possible that the
-              // contraction limit is reached, because otherwise an other PE would update
-              // the global current number of nodes before. After update the threshold is
-              // increased by the new difference (in number of nodes) to the contraction limit
-              // divided by the number of PEs.
-              if (local_contracted_nodes >= num_nodes_update_threshold.local()) {
-                current_num_nodes = num_hns_before_pass -
-                                    contracted_nodes.combine(std::plus<HypernodeID>());
-                const HypernodeID dist_to_contraction_limit =
-                  current_num_nodes > hierarchy_contraction_limit ?
-                  current_num_nodes - hierarchy_contraction_limit : 0;
-                num_nodes_update_threshold.local() +=
-                  dist_to_contraction_limit / _context.shared_memory.original_num_threads;
-              }
-            }
-          }
-        }
-      }
-    });
-    if ( _context.partition.show_detailed_clustering_timings ) {
-      _timer.stop_timer("clustering_level_" + std::to_string(_pass_nr));
-    }
-    _timer.stop_timer("clustering");
-    current_num_nodes = num_hns_before_pass - contracted_nodes.combine(std::plus<>());
     DBG << V(current_num_nodes);
 
     HEAVY_COARSENING_ASSERT([&] {
@@ -278,12 +220,124 @@ class MultilevelCoarsener : public ICoarsener,
     return true;
   }
 
+  template<bool has_fixed_vertices>
+  HypernodeID performClustering(const Hypergraph& current_hg,
+                                vec<HypernodeID>& cluster_ids) {
+    // We iterate in parallel over all vertices of the hypergraph and compute its contraction partner.
+    // Matched vertices are linked in a concurrent union find data structure, that also aggregates
+    // weights of the resulting clusters and keep track of the number of nodes left, if we would
+    // contract all matched vertices.
+    _timer.start_timer("clustering", "Clustering");
+    if ( _context.partition.show_detailed_clustering_timings ) {
+      _timer.start_timer("clustering_level_" + std::to_string(_pass_nr), "Level " + std::to_string(_pass_nr));
+    }
+    _rater.resetMatches();
+    _rater.setCurrentNumberOfNodes(current_hg.initialNumNodes());
+    const HypernodeID num_hns_before_pass = current_hg.initialNumNodes() - current_hg.numRemovedHypernodes();
+    const HypernodeID hierarchy_contraction_limit = hierarchyContractionLimit(current_hg);
+    DBG << V(current_hg.initialNumNodes()) << V(hierarchy_contraction_limit);
+    HypernodeID current_num_nodes = num_hns_before_pass;
+    tbb::enumerable_thread_specific<HypernodeID> contracted_nodes(0);
+    tbb::enumerable_thread_specific<HypernodeID> num_nodes_update_threshold(0);
+    ds::FixedVertexSupport<Hypergraph> fixed_vertices = current_hg.copyOfFixedVertexSupport();
+    fixed_vertices.setMaxBlockWeight(_context.partition.max_part_weights);
+    tbb::parallel_for(0U, current_hg.initialNumNodes(), [&](const HypernodeID id) {
+      ASSERT(id < _current_vertices.size());
+      const HypernodeID hn = _current_vertices[id];
+      if (current_hg.nodeIsEnabled(hn)) {
+        // We perform rating if ...
+        //  1.) The contraction limit of the current level is not reached
+        //  2.) Vertex hn is not matched before
+        const HypernodeID u = hn;
+        if (_matching_state[u] == STATE(MatchingState::UNMATCHED)) {
+          if (current_num_nodes > hierarchy_contraction_limit) {
+            ASSERT(current_hg.nodeIsEnabled(hn));
+            const Rating rating = _rater.template rate<has_fixed_vertices>(current_hg, hn,
+              cluster_ids, _cluster_weight, fixed_vertices, _context.coarsening.max_allowed_node_weight);
+            if (rating.target != kInvalidHypernode) {
+              const HypernodeID v = rating.target;
+              HypernodeID& local_contracted_nodes = contracted_nodes.local();
+              matchVertices<has_fixed_vertices>(current_hg, u, v,
+                cluster_ids, local_contracted_nodes, fixed_vertices);
+
+              // To maintain the current number of nodes of the hypergraph each PE sums up
+              // its number of contracted nodes locally. To compute the current number of
+              // nodes, we have to sum up the number of contracted nodes of each PE. This
+              // operation becomes more expensive the more PEs are participating in coarsening.
+              // In order to prevent expensive updates of the current number of nodes, we
+              // define a threshold which the local number of contracted nodes have to exceed
+              // before the current PE updates the current number of nodes. This threshold is defined
+              // by the distance to the current contraction limit divided by the number of PEs.
+              // Once one PE exceeds this bound the first time it is not possible that the
+              // contraction limit is reached, because otherwise an other PE would update
+              // the global current number of nodes before. After update the threshold is
+              // increased by the new difference (in number of nodes) to the contraction limit
+              // divided by the number of PEs.
+              if (local_contracted_nodes >= num_nodes_update_threshold.local()) {
+                current_num_nodes = num_hns_before_pass -
+                                    contracted_nodes.combine(std::plus<HypernodeID>());
+                const HypernodeID dist_to_contraction_limit =
+                  current_num_nodes > hierarchy_contraction_limit ?
+                  current_num_nodes - hierarchy_contraction_limit : 0;
+                num_nodes_update_threshold.local() +=
+                  dist_to_contraction_limit / _context.shared_memory.original_num_threads;
+              }
+            }
+          }
+        }
+      }
+    });
+    if ( _context.partition.show_detailed_clustering_timings ) {
+      _timer.stop_timer("clustering_level_" + std::to_string(_pass_nr));
+    }
+    _timer.stop_timer("clustering");
+
+    if constexpr ( has_fixed_vertices ) {
+      // Verify fixed vertices
+      ASSERT([&] {
+        vec<PartitionID> fixed_vertex_blocks(current_hg.initialNumNodes(), kInvalidPartition);
+        for ( const HypernodeID& hn : current_hg.nodes() ) {
+          if ( current_hg.isFixed(hn) ) {
+            if ( fixed_vertex_blocks[cluster_ids[hn]] != kInvalidPartition &&
+                 fixed_vertex_blocks[cluster_ids[hn]] != current_hg.fixedVertexBlock(hn)) {
+              LOG << "There are two nodes assigned to same cluster that belong to different fixed vertex blocks";
+              return false;
+            }
+            fixed_vertex_blocks[cluster_ids[hn]] = current_hg.fixedVertexBlock(hn);
+          }
+        }
+
+        vec<HypernodeWeight> expected_block_weights(_context.partition.k, 0);
+        for ( const HypernodeID& hn : current_hg.nodes() ) {
+          if ( fixed_vertex_blocks[cluster_ids[hn]] != kInvalidPartition ) {
+            if ( !fixed_vertices.isFixed(cluster_ids[hn]) ) {
+              LOG << "Cluster" << cluster_ids[hn] << "should be fixed to block"
+                  << fixed_vertex_blocks[cluster_ids[hn]];
+              return false;
+            }
+            expected_block_weights[fixed_vertex_blocks[cluster_ids[hn]]] += current_hg.nodeWeight(hn);
+          }
+        }
+
+        for ( PartitionID block = 0; block < _context.partition.k; ++block ) {
+          if ( fixed_vertices.fixedVertexBlockWeight(block) != expected_block_weights[block] ) {
+            LOG << "Fixed vertex block" << block << "should have weight" << expected_block_weights[block]
+                << ", but it is" << fixed_vertices.fixedVertexBlockWeight(block);
+            return false;
+          }
+        }
+        return true;
+      }(), "Fixed vertex support is corrupted");
+    }
+
+    return num_hns_before_pass - contracted_nodes.combine(std::plus<>());
+  }
+
   void terminateImpl() override {
     _progress_bar += (_initial_num_nodes - _progress_bar.count());
     _progress_bar.disable();
     _uncoarseningData.finalizeCoarsening();
   }
-
 
   /*!
    * We maintain the invariant during clustering that each cluster has a unique
@@ -301,11 +355,13 @@ class MultilevelCoarsener : public ICoarsener,
    * The following functions guarantees that our invariant is fullfilled, if
    * vertices are matched concurrently.
    */
+  template<bool has_fixed_vertices>
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE bool matchVertices(const Hypergraph& hypergraph,
                                                         const HypernodeID u,
                                                         const HypernodeID v,
                                                         parallel::scalable_vector<HypernodeID>& cluster_ids,
-                                                        HypernodeID& contracted_nodes) {
+                                                        HypernodeID& contracted_nodes,
+                                                        ds::FixedVertexSupport<Hypergraph>& fixed_vertices) {
     ASSERT(u < hypergraph.initialNumNodes());
     ASSERT(v < hypergraph.initialNumNodes());
     uint8_t unmatched = STATE(MatchingState::UNMATCHED);
@@ -327,34 +383,16 @@ class MultilevelCoarsener : public ICoarsener,
         if ( matching_state_v == STATE(MatchingState::MATCHED) ) {
           // Vertex v is already matched and will not change it cluster id any more.
           // In that case, it is safe to set the cluster id of u to the cluster id of v.
-          if ( v == cluster_ids[v] ) {
-            // In case v is also the representative of the cluster,
-            // we change the cluster id of u to v, ...
-            cluster_ids[u] = v;
-            _cluster_weight[v] += weight_u;
-            ++contracted_nodes;
-            success = true;
-          } else {
-            // ... otherwise, we try again to match u with the
-            // representative of the cluster.
-            const HypernodeID cluster_v = cluster_ids[v];
-            weight_v = _cluster_weight[cluster_v];
-            if ( weight_u + weight_v <= _context.coarsening.max_allowed_node_weight ) {
-              ASSERT(_matching_state[cluster_v] == STATE(MatchingState::MATCHED));
-              cluster_ids[u] = cluster_v;
-              _cluster_weight[cluster_v] += weight_u;
-              ++contracted_nodes;
-              success = true;
-            }
-          }
+          const HypernodeID rep = cluster_ids[v];
+          ASSERT(_matching_state[rep] == STATE(MatchingState::MATCHED));
+          success = joinCluster<has_fixed_vertices>(hypergraph,
+            u, rep, cluster_ids, contracted_nodes, fixed_vertices);
         } else if ( _matching_state[v].compare_exchange_strong(unmatched, match_in_progress) ) {
           // Current thread has the "ownership" for u and v and can change the cluster id
           // of both vertices thread-safe.
-          cluster_ids[u] = v;
-          _cluster_weight[v] += weight_u;
-          ++contracted_nodes;
+          success = joinCluster<has_fixed_vertices>(hypergraph,
+            u, v, cluster_ids, contracted_nodes, fixed_vertices);
           _matching_state[v] = STATE(MatchingState::MATCHED);
-          success = true;
         } else {
           // State of v must be either MATCHING_IN_PROGRESS or an other thread changed the state
           // in the meantime to MATCHED. We have to wait until the state of v changed to
@@ -375,12 +413,9 @@ class MultilevelCoarsener : public ICoarsener,
             // Vertex with smallest id starts to resolve conflict
             const bool is_in_cyclic_dependency = _matching_partner[cur_u] == u;
             if ( is_in_cyclic_dependency && u == smallest_node_id_in_cycle) {
-              cluster_ids[u] = v;
-              _cluster_weight[v] += weight_u;
-              ++contracted_nodes;
+              success = joinCluster<has_fixed_vertices>(hypergraph,
+                u, v, cluster_ids, contracted_nodes, fixed_vertices);
               _matching_state[v] = STATE(MatchingState::MATCHED);
-              _matching_state[u] = STATE(MatchingState::MATCHED);
-              success = true;
             }
           }
 
@@ -389,14 +424,9 @@ class MultilevelCoarsener : public ICoarsener,
           // we try to match u with the representative v's cluster.
           if ( _matching_state[u] == STATE(MatchingState::MATCHING_IN_PROGRESS) ) {
             ASSERT( _matching_state[v] == STATE(MatchingState::MATCHED) );
-            const HypernodeID cluster_v = cluster_ids[v];
-            const HypernodeWeight weight_v = _cluster_weight[cluster_v];
-            if ( weight_u + weight_v <= _context.coarsening.max_allowed_node_weight ){
-              cluster_ids[u] = cluster_v;
-              _cluster_weight[cluster_v] += weight_u;
-              ++contracted_nodes;
-              success = true;
-            }
+            const HypernodeID rep = cluster_ids[v];
+            success = joinCluster<has_fixed_vertices>(hypergraph,
+              u, rep, cluster_ids, contracted_nodes, fixed_vertices);
           }
         }
         _rater.markAsMatched(u);
@@ -405,6 +435,35 @@ class MultilevelCoarsener : public ICoarsener,
         _matching_state[u] = STATE(MatchingState::MATCHED);
       }
     }
+    return success;
+  }
+
+  template<bool has_fixed_vertices>
+  bool joinCluster(const Hypergraph& hypergraph,
+                   const HypernodeID u,
+                   const HypernodeID rep,
+                   vec<HypernodeID>& cluster_ids,
+                   HypernodeID& contracted_nodes,
+                   ds::FixedVertexSupport<Hypergraph>& fixed_vertices) {
+    ASSERT(rep == cluster_ids[rep]);
+    bool success = false;
+    const HypernodeWeight weight_of_u = hypergraph.nodeWeight(u);
+    const HypernodeWeight weight_of_rep = _cluster_weight[rep];
+    bool cluster_join_operation_allowed =
+      weight_of_u + weight_of_rep <= _context.coarsening.max_allowed_node_weight;
+    if constexpr ( has_fixed_vertices ) {
+      if ( cluster_join_operation_allowed ) {
+        cluster_join_operation_allowed = fixed_vertices.contract(rep, u);
+      }
+    }
+    if ( cluster_join_operation_allowed ) {
+      cluster_ids[u] = rep;
+      _cluster_weight[rep] += weight_of_u;
+      ++contracted_nodes;
+      success = true;
+    }
+    _matching_partner[u] = u;
+    _matching_state[u] = STATE(MatchingState::MATCHED);
     return success;
   }
 

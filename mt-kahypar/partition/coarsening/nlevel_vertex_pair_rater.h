@@ -37,8 +37,8 @@
 #include "kahypar/meta/mandatory.h"
 
 #include "mt-kahypar/datastructures/sparse_map.h"
-
 #include "mt-kahypar/partition/context.h"
+#include "mt-kahypar/partition/coarsening/policies/rating_fixed_vertex_acceptance_policy.h"
 
 namespace mt_kahypar {
 template <typename ScorePolicy = Mandatory,
@@ -104,20 +104,20 @@ class NLevelVertexPairRater {
   NLevelVertexPairRater(NLevelVertexPairRater&&) = delete;
   NLevelVertexPairRater & operator= (NLevelVertexPairRater &&) = delete;
 
-  template<typename Hypergraph>
+  template<bool has_fixed_vertices, typename Hypergraph>
   VertexPairRating rate(const Hypergraph& hypergraph,
                         const HypernodeID u,
                         const HypernodeWeight max_allowed_node_weight) {
 
     const RatingMapType rating_map_type = getRatingMapTypeForRatingOfHypernode(hypergraph, u);
     if ( rating_map_type == RatingMapType::CACHE_EFFICIENT_RATING_MAP ) {
-      return rate(hypergraph, u, _local_cache_efficient_rating_map.local(), max_allowed_node_weight, false);
+      return rate<has_fixed_vertices>(hypergraph, u, _local_cache_efficient_rating_map.local(), max_allowed_node_weight, false);
     } else if ( rating_map_type == RatingMapType::VERTEX_DEGREE_BOUNDED_RATING_MAP ) {
-      return rate(hypergraph, u, _local_vertex_degree_bounded_rating_map.local(), max_allowed_node_weight, true);
+      return rate<has_fixed_vertices>(hypergraph, u, _local_vertex_degree_bounded_rating_map.local(), max_allowed_node_weight, true);
     } else {
       LargeTmpRatingMap& large_tmp_rating_map = _local_large_rating_map.local();
       large_tmp_rating_map.setMaxSize(_current_num_nodes);
-      return rate(hypergraph, u, large_tmp_rating_map, max_allowed_node_weight, false);
+      return rate<has_fixed_vertices>(hypergraph, u, large_tmp_rating_map, max_allowed_node_weight, false);
     }
   }
 
@@ -138,7 +138,7 @@ class NLevelVertexPairRater {
   }
 
  private:
-  template<typename Hypergraph, typename RatingMap>
+  template<bool has_fixed_vertices, typename Hypergraph, typename RatingMap>
   VertexPairRating rate(const Hypergraph& hypergraph,
                         const HypernodeID u,
                         RatingMap& tmp_ratings,
@@ -165,11 +165,19 @@ class NLevelVertexPairRater {
         penalty = penalty == 0 ? std::max(std::max(weight_u, target_weight), 1) : penalty;
         const RatingType tmp_rating = it->value / static_cast<double>(penalty);
 
+        bool accept_fixed_vertex_contraction = true;
+        if constexpr ( has_fixed_vertices ) {
+          accept_fixed_vertex_contraction =
+            FixedVertexAcceptancePolicy::acceptContraction(
+              hypergraph, hypergraph.fixedVertexSupport(), _context, tmp_target, u);
+        }
+
         DBG << "r(" << u << "," << tmp_target << ")=" << tmp_rating;
-        if ( community_u_id == hypergraph.communityID(tmp_target) &&
-            AcceptancePolicy::acceptRating(tmp_rating, max_rating,
-                                           target, tmp_target,
-                                           cpu_id, _already_matched) ) {
+        if ( accept_fixed_vertex_contraction &&
+             community_u_id == hypergraph.communityID(tmp_target) &&
+             AcceptancePolicy::acceptRating(tmp_rating, max_rating,
+                                            target, tmp_target,
+                                            cpu_id, _already_matched) ) {
           max_rating = tmp_rating;
           target = tmp_target;
         }

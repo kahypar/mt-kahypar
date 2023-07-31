@@ -39,6 +39,7 @@
 #include "kahypar/utils/math.h"
 
 #include "mt-kahypar/datastructures/hypergraph_common.h"
+#include "mt-kahypar/datastructures/fixed_vertex_support.h"
 #include "mt-kahypar/datastructures/incident_net_array.h"
 #include "mt-kahypar/datastructures/contraction_tree.h"
 #include "mt-kahypar/datastructures/thread_safe_fast_reset_flag_array.h"
@@ -359,7 +360,8 @@ class DynamicHypergraph {
   enum class ContractionResult : uint8_t {
     CONTRACTED = 0,
     PENDING_CONTRACTIONS = 1,
-    WEIGHT_LIMIT_REACHED = 2
+    WEIGHT_LIMIT_REACHED = 2,
+    INVALID_FIXED_VERTEX_CONTRACTION = 3
   };
 
   using ContractionInterval = typename ContractionTree::Interval;
@@ -428,7 +430,8 @@ class DynamicHypergraph {
     _hes_to_resize_flag_array(),
     _failed_hyperedge_contractions(),
     _he_bitset(),
-    _removable_single_pin_and_parallel_nets() { }
+    _removable_single_pin_and_parallel_nets(),
+    _fixed_vertices() { }
 
   DynamicHypergraph(const DynamicHypergraph&) = delete;
   DynamicHypergraph & operator= (const DynamicHypergraph &) = delete;
@@ -455,7 +458,10 @@ class DynamicHypergraph {
     _hes_to_resize_flag_array(std::move(other._hes_to_resize_flag_array)),
     _failed_hyperedge_contractions(std::move(other._failed_hyperedge_contractions)),
     _he_bitset(std::move(other._he_bitset)),
-    _removable_single_pin_and_parallel_nets(std::move(other._removable_single_pin_and_parallel_nets)) { }
+    _removable_single_pin_and_parallel_nets(std::move(other._removable_single_pin_and_parallel_nets)),
+    _fixed_vertices(std::move(other._fixed_vertices)) {
+    _fixed_vertices.setHypergraph(this);
+  }
 
   DynamicHypergraph & operator= (DynamicHypergraph&& other) {
     _num_hypernodes = other._num_hypernodes;
@@ -480,6 +486,8 @@ class DynamicHypergraph {
     _failed_hyperedge_contractions = std::move(other._failed_hyperedge_contractions);
     _he_bitset = std::move(other._he_bitset);
     _removable_single_pin_and_parallel_nets = std::move(other._removable_single_pin_and_parallel_nets);
+    _fixed_vertices = std::move(other._fixed_vertices);
+    _fixed_vertices.setHypergraph(this);
     return *this;
   }
 
@@ -722,6 +730,45 @@ class DynamicHypergraph {
   void setCommunityID(const HypernodeID u, const PartitionID community_id) {
     ASSERT(!hypernode(u).isDisabled(), "Hypernode" << u << "is disabled");
     return hypernode(u).setCommunityID(community_id);
+  }
+
+  // ####################### Fixed Vertex Support #######################
+
+  void addFixedVertexSupport(FixedVertexSupport<DynamicHypergraph>&& fixed_vertices) {
+    _fixed_vertices = std::move(fixed_vertices);
+    _fixed_vertices.setHypergraph(this);
+  }
+
+  bool hasFixedVertices() const {
+    return _fixed_vertices.hasFixedVertices();
+  }
+
+  HypernodeWeight totalFixedVertexWeight() const {
+    return _fixed_vertices.totalFixedVertexWeight();
+  }
+
+  HypernodeWeight fixedVertexBlockWeight(const PartitionID block) const {
+    return _fixed_vertices.fixedVertexBlockWeight(block);
+  }
+
+  bool isFixed(const HypernodeID hn) const {
+    return _fixed_vertices.isFixed(hn);
+  }
+
+  PartitionID fixedVertexBlock(const HypernodeID hn) const {
+    return _fixed_vertices.fixedVertexBlock(hn);
+  }
+
+  void setMaxFixedVertexBlockWeight(const std::vector<HypernodeWeight> max_block_weights) {
+    _fixed_vertices.setMaxBlockWeight(max_block_weights);
+  }
+
+  const FixedVertexSupport<DynamicHypergraph>& fixedVertexSupport() const {
+    return _fixed_vertices;
+  }
+
+  FixedVertexSupport<DynamicHypergraph> copyOfFixedVertexSupport() const {
+    return _fixed_vertices.copy();
   }
 
   // ####################### Contract / Uncontract #######################
@@ -1109,6 +1156,8 @@ class DynamicHypergraph {
   // ! Single-pin and parallel nets are marked within that vector during the algorithm
   kahypar::ds::FastResetFlagArray<> _removable_single_pin_and_parallel_nets;
 
+  // ! Fixed Vertex Support
+  FixedVertexSupport<DynamicHypergraph> _fixed_vertices;
 };
 
 } // namespace ds

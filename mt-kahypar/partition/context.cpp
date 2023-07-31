@@ -34,6 +34,9 @@ namespace mt_kahypar {
   std::ostream & operator<< (std::ostream& str, const PartitioningParameters& params) {
     str << "Partitioning Parameters:" << std::endl;
     str << "  Hypergraph:                         " << params.graph_filename << std::endl;
+    if ( params.fixed_vertex_filename != "" ) {
+      str << "  Fixed Vertex File:                  " << params.fixed_vertex_filename << std::endl;
+    }
     if ( params.write_partition_file ) {
       str << "  Partition File:                     " << params.graph_partition_filename << std::endl;
     }

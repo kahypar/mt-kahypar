@@ -200,6 +200,37 @@ MT_KAHYPAR_API mt_kahypar_hypernode_id_t mt_kahypar_num_pins(mt_kahypar_hypergra
  */
 MT_KAHYPAR_API mt_kahypar_hypernode_id_t mt_kahypar_hypergraph_weight(mt_kahypar_hypergraph_t hypergraph);
 
+// ####################### Fixed Vertices #######################
+
+/**
+ * Adds fixed vertices to the (hyper)graph as specified in the array to which 'fixed_vertices' points to.
+ * The array should contain n entries (n = number of nodes). Each entry contains either the fixed vertex
+ * block ID of the corresponding node or -1 if the node is not fixed to a block.
+ */
+MT_KAHYPAR_API void mt_kahypar_add_fixed_vertices(mt_kahypar_hypergraph_t hypergraph,
+                                                  mt_kahypar_partition_id_t* fixed_vertices,
+                                                  mt_kahypar_partition_id_t num_blocks);
+
+/**
+ * Reads fixed vertices from a file and stores them in the array to which 'fixed_vertices' points to.
+ */
+MT_KAHYPAR_API void mt_kahypar_read_fixed_vertices_from_file(const char* file_name,
+                                                             mt_kahypar_partition_id_t* fixed_vertices);
+
+/**
+ * Adds fixed vertices to the (hyper)graph as specified in the fixed vertex file (expected in hMetis fix file format).
+ * The file should contain n lines (n = number of nodes). Each line contains either the fixed vertex
+ * block ID of the corresponding node or -1 if the node is not fixed to a block.
+ */
+MT_KAHYPAR_API void mt_kahypar_add_fixed_vertices_from_file(mt_kahypar_hypergraph_t hypergraph,
+                                                            const char* file_name,
+                                                            mt_kahypar_partition_id_t num_blocks);
+
+/**
+ * Removes all fixed vertices from the hypergraph.
+ */
+MT_KAHYPAR_API void mt_kahypar_remove_fixed_vertices(mt_kahypar_hypergraph_t hypergraph);
+
 // ####################### Partition #######################
 
 /**

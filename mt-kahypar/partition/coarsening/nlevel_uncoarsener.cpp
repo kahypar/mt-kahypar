@@ -301,7 +301,8 @@ namespace mt_kahypar {
     _border_vertices_of_batch.reset();
 
     if ( debug && _context.type == ContextType::main ) {
-      io::printHypergraphInfo(partitioned_hypergraph.hypergraph(), "Refinement Hypergraph", false);
+      io::printHypergraphInfo(partitioned_hypergraph.hypergraph(),
+        _context, "Refinement Hypergraph", false);
       DBG << "Start Refinement - objective = " << _current_metrics.quality
           << ", imbalance = " << _current_metrics.imbalance;
     }
@@ -356,7 +357,8 @@ namespace mt_kahypar {
 
     if ( _context.refinement.global_fm.use_global_fm ) {
       if ( debug && _context.type == ContextType::main ) {
-        io::printHypergraphInfo(partitioned_hypergraph.hypergraph(), "Refinement Hypergraph", false);
+        io::printHypergraphInfo(partitioned_hypergraph.hypergraph(),
+          _context, "Refinement Hypergraph", false);
         DBG << "Start Refinement - objective = " << _current_metrics.quality
             << ", imbalance = " << _current_metrics.imbalance;
       }

@@ -746,7 +746,7 @@ PartitionID deep_multilevel_partitioning(typename TypeTraits::PartitionedHypergr
     if (context.partition.verbose_output) {
       mt_kahypar_hypergraph_t coarsestHypergraph = coarsener->coarsestHypergraph();
       mt_kahypar::io::printHypergraphInfo(
-        utils::cast<Hypergraph>(coarsestHypergraph),
+        utils::cast<Hypergraph>(coarsestHypergraph), context,
         "Coarsened Hypergraph", context.partition.show_memory_consumption);
     }
   }

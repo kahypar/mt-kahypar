@@ -40,7 +40,11 @@ bool SequentialTwoWayFmRefiner<TypeTraits>::refine(Metrics& best_metrics, std::m
   _border_vertices.initialize(_phg);
   _nodes.clear();
   for (HypernodeID hn : _phg.nodes()) {
-    _nodes.push_back(hn);
+    if ( !_phg.isFixed(hn) ) {
+      _nodes.push_back(hn);
+    } else {
+      _vertex_state[hn] = VertexState::MOVED;
+    }
   }
   std::shuffle(_nodes.begin(), _nodes.end(), prng);
   for ( const HypernodeID& hn : _nodes ) {

@@ -39,6 +39,7 @@
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
 #include "mt-kahypar/utils/cast.h"
 #include "mt-kahypar/utils/utilities.h"
+#include "mt-kahypar/utils/range.h"
 #include "mt-kahypar/partition/refinement/fm/sequential_twoway_fm_refiner.h"
 #include "mt-kahypar/partition/refinement/gains/gain_cache_ptr.h"
 
@@ -350,6 +351,7 @@ class InitialPartitioningDataContainer {
 
   using ThreadLocalHypergraph = tbb::enumerable_thread_specific<LocalInitialPartitioningHypergraph>;
   using ThreadLocalUnassignedHypernodes = tbb::enumerable_thread_specific<parallel::scalable_vector<HypernodeID>>;
+  using FixedVertexIterator = typename vec<HypernodeID>::const_iterator;
 
  public:
   InitialPartitioningDataContainer(PartitionedHypergraph& hypergraph,
@@ -368,6 +370,7 @@ class InitialPartitioningDataContainer {
     _local_he_visited(_context.partition.k * hypergraph.initialNumEdges()),
     _local_unassigned_hypernodes(),
     _local_unassigned_hypernode_pointer(std::numeric_limits<size_t>::max()),
+    _fixed_vertices(),
     _max_pop_size(_context.initial_partitioning.population_size)  {
     // Setup Label Propagation IRefiner Config for Initial Partitioning
     _context.refinement = _context.initial_partitioning.refinement;
@@ -377,6 +380,14 @@ class InitialPartitioningDataContainer {
       _best_partitions.resize(_max_pop_size);
       for (size_t i = 0; i < _max_pop_size; ++i) {
         _best_partitions[i].second.resize(hypergraph.initialNumNodes(), kInvalidPartition);
+      }
+    }
+
+    if ( _partitioned_hg.hasFixedVertices() ) {
+      for ( const HypernodeID& hn : _partitioned_hg.nodes() ) {
+        if ( _partitioned_hg.isFixed(hn) ) {
+          _fixed_vertices.push_back(hn);
+        }
       }
     }
   }
@@ -434,7 +445,9 @@ class InitialPartitioningDataContainer {
       // we initialize it here
       const PartitionedHypergraph& hypergraph = local_partitioned_hypergraph();
       for ( const HypernodeID& hn : hypergraph.nodes() ) {
-        unassigned_hypernodes.push_back(hn);
+        if ( !hypergraph.isFixed(hn) ) {
+          unassigned_hypernodes.push_back(hn);
+        }
       }
       std::shuffle(unassigned_hypernodes.begin(), unassigned_hypernodes.end(), prng);
     }
@@ -452,7 +465,8 @@ class InitialPartitioningDataContainer {
     while ( unassigned_hypernode_pointer > 0 ) {
       const HypernodeID current_hn = unassigned_hypernodes[0];
       // In case the current hypernode is unassigned we return it
-      if ( hypergraph.partID(current_hn) == unassigned_block ) {
+      if ( hypergraph.partID(current_hn) == unassigned_block &&
+           !hypergraph.isFixed(current_hn) ) {
         return current_hn;
       }
       // In case the hypernode on the first position is already assigned,
@@ -651,6 +665,24 @@ class InitialPartitioningDataContainer {
       _context.utility_id).add_initial_partitioning_result(best_flat_algo, number_of_threads, stats);
   }
 
+  IteratorRange<FixedVertexIterator> fixedVertices() const {
+    return IteratorRange<FixedVertexIterator>(
+      _fixed_vertices.cbegin(), _fixed_vertices.cend());
+  }
+
+  HypernodeID numFixedVertices() const {
+    return _fixed_vertices.size();
+  }
+
+  void preassignFixedVertices(PartitionedHypergraph& hypergraph) {
+    if ( hypergraph.hasFixedVertices() ) {
+      for ( const HypernodeID& hn : fixedVertices() ) {
+        ASSERT(hypergraph.isFixed(hn));
+        hypergraph.setNodePart(hn, hypergraph.fixedVertexBlock(hn));
+      }
+    }
+  }
+
  private:
   LocalInitialPartitioningHypergraph construct_local_partitioned_hypergraph() {
     return LocalInitialPartitioningHypergraph(
@@ -671,6 +703,7 @@ class InitialPartitioningDataContainer {
   ThreadLocalFastResetFlagArray _local_he_visited;
   ThreadLocalUnassignedHypernodes _local_unassigned_hypernodes;
   tbb::enumerable_thread_specific<size_t> _local_unassigned_hypernode_pointer;
+  vec<HypernodeID> _fixed_vertices;
 
   size_t _max_pop_size;
   SpinLock _pop_lock;

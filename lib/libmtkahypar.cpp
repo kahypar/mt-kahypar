@@ -362,7 +362,29 @@ void mt_kahypar_free_partitioned_hypergraph(mt_kahypar_partitioned_hypergraph_t 
   utils::delete_partitioned_hypergraph(partitioned_hg);
 }
 
-MT_KAHYPAR_API bool mt_kahypar_check_compatibility(mt_kahypar_hypergraph_t hypergraph,
+void mt_kahypar_add_fixed_vertices(mt_kahypar_hypergraph_t hypergraph,
+                                   mt_kahypar_partition_id_t* fixed_vertices,
+                                   mt_kahypar_partition_id_t num_blocks) {
+  io::addFixedVertices(hypergraph, fixed_vertices, num_blocks);
+}
+
+void mt_kahypar_read_fixed_vertices_from_file(const char* file_name,
+                                              mt_kahypar_partition_id_t* fixed_vertices) {
+  io::readPartitionFile(file_name, fixed_vertices);
+}
+
+
+void mt_kahypar_add_fixed_vertices_from_file(mt_kahypar_hypergraph_t hypergraph,
+                                             const char* file_name,
+                                             mt_kahypar_partition_id_t num_blocks) {
+  io::addFixedVerticesFromFile(hypergraph, file_name, num_blocks);
+}
+
+void mt_kahypar_remove_fixed_vertices(mt_kahypar_hypergraph_t hypergraph) {
+  io::removeFixedVertices(hypergraph);
+}
+
+bool mt_kahypar_check_compatibility(mt_kahypar_hypergraph_t hypergraph,
                                                    mt_kahypar_preset_type_t preset) {
   return lib::check_compatibility(hypergraph, preset);
 }

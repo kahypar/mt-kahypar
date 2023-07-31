@@ -29,6 +29,7 @@
 #include <set>
 
 #include "mt-kahypar/definitions.h"
+#include "mt-kahypar/datastructures/fixed_vertex_support.h"
 #include "mt-kahypar/partition/refinement/gains/gain_cache_ptr.h"
 #include "mt-kahypar/partition/metrics.h"
 #include "mt-kahypar/utils/randomize.h"
@@ -142,9 +143,24 @@ void verifyNumIncidentCutHyperedges(const PartitionedHypergraph& partitioned_hyp
 }
 
 template<typename Hypergraph>
+void verifyFixedVertices(const Hypergraph& hypergraph,
+                         const ds::FixedVertexSupport<Hypergraph>& expected_fixed_vertices,
+                         const ds::FixedVertexSupport<Hypergraph>& actual_fixed_vertices) {
+  hypergraph.doParallelForAllNodes([&](const HypernodeID& hn) {
+    ASSERT_EQ(expected_fixed_vertices.fixedVertexBlock(hn),
+              actual_fixed_vertices.fixedVertexBlock(hn));
+  });
+
+  for ( PartitionID block = 0; block < expected_fixed_vertices.numBlocks(); ++block ) {
+    ASSERT_EQ(expected_fixed_vertices.fixedVertexBlockWeight(block),
+              actual_fixed_vertices.fixedVertexBlockWeight(block));
+  }
+}
+
+template<typename Hypergraph>
 Hypergraph generateRandomHypergraph(const HypernodeID num_hypernodes,
-                                            const HyperedgeID num_hyperedges,
-                                            const HypernodeID max_edge_size) {
+                                    const HyperedgeID num_hyperedges,
+                                    const HypernodeID max_edge_size) {
   using Factory = typename Hypergraph::Factory;
   parallel::scalable_vector<parallel::scalable_vector<HypernodeID>> hyperedges;
   utils::Randomize& rand = utils::Randomize::instance();
@@ -178,6 +194,23 @@ Hypergraph generateRandomHypergraph(const HypernodeID num_hypernodes,
     hyperedges.emplace_back(std::move(net));
   }
   return Factory::construct(num_hypernodes, num_hyperedges, hyperedges);
+}
+
+template<typename Hypergraph>
+void addRandomFixedVertices(Hypergraph& hypergraph,
+                            const PartitionID k,
+                            const double percentage_fixed_vertices) {
+  ds::FixedVertexSupport<Hypergraph> fixed_vertices(hypergraph.initialNumNodes(), k);
+  fixed_vertices.setHypergraph(&hypergraph);
+  utils::Randomize& rand = utils::Randomize::instance();
+  const int threshold = percentage_fixed_vertices * 1000;
+  for ( const HypernodeID& hn : hypergraph.nodes() ) {
+    const bool is_fixed = rand.getRandomInt(0, 1000, SCHED_GETCPU) <= threshold;
+    if ( is_fixed ) {
+      fixed_vertices.fixToBlock(hn, rand.getRandomInt(0, k - 1, SCHED_GETCPU));
+    }
+  }
+  hypergraph.addFixedVertexSupport(std::move(fixed_vertices));
 }
 
 BatchVector generateRandomContractions(const HypernodeID num_hypernodes,
@@ -215,7 +248,11 @@ void generateRandomPartition(PartitionedHypergraph& partitioned_hypergraph) {
   const PartitionID k = partitioned_hypergraph.k();
   utils::Randomize& rand = utils::Randomize::instance();
   partitioned_hypergraph.doParallelForAllNodes([&](const HypernodeID& hn) {
-    partitioned_hypergraph.setOnlyNodePart(hn, rand.getRandomInt(0, k - 1, SCHED_GETCPU));
+    if ( partitioned_hypergraph.isFixed(hn) ) {
+      partitioned_hypergraph.setOnlyNodePart(hn, partitioned_hypergraph.fixedVertexBlock(hn));
+    } else {
+      partitioned_hypergraph.setOnlyNodePart(hn, rand.getRandomInt(0, k - 1, SCHED_GETCPU));
+    }
   });
 }
 
@@ -390,6 +427,60 @@ TEST(ANlevelHypergraph, SimulatesContractionsAndBatchUncontractions) {
   }
 }
 
+TEST(ANlevelHypergraph, SimulatesContractionsAndBatchUncontractionsWithFixedVertices) {
+  using Hypergraph = typename DynamicHypergraphTypeTraits::Hypergraph;
+  using PartitionedHypergraph = typename DynamicHypergraphTypeTraits::PartitionedHypergraph;
+  const HypernodeID num_hypernodes = 10000;
+  const HypernodeID num_hyperedges = Hypergraph::is_graph ? 40000 : 10000;
+  const HypernodeID max_edge_size = 30;
+  const HypernodeID num_contractions = 9950;
+  const size_t batch_size = 100;
+  const double fixed_vertex_percentage = 0.02;
+  const bool show_timings = false;
+  const bool debug = false;
+  utils::Timer timer;
+  timer.showDetailedTimings(true);
+
+  if ( debug ) LOG << "Generate Random Hypergraph with Fixed Vertices";
+  Hypergraph original_hypergraph = generateRandomHypergraph<Hypergraph>(num_hypernodes, num_hyperedges, max_edge_size);
+  addRandomFixedVertices(original_hypergraph, 4, fixed_vertex_percentage);
+  ds::FixedVertexSupport<Hypergraph> original_fixed_vertices =
+    original_hypergraph.copyOfFixedVertexSupport();
+  Hypergraph sequential_hg = original_hypergraph.copy(parallel_tag_t());
+  PartitionedHypergraph sequential_phg(4, sequential_hg, parallel_tag_t());
+  Hypergraph parallel_hg = original_hypergraph.copy(parallel_tag_t());
+  PartitionedHypergraph parallel_phg(4, parallel_hg, parallel_tag_t());
+
+  if ( debug ) LOG << "Determine random contractions";
+  BatchVector contractions = generateRandomContractions(num_hypernodes, num_contractions);
+
+  if ( debug ) LOG << "Simulate n-Level sequentially";
+  timer.start_timer("sequential_n_level", "Sequential n-Level");
+  Km1GainCache gain_cache_seq;
+  simulateNLevel(sequential_hg, sequential_phg, gain_cache_seq, contractions, 1, false, timer);
+  timer.stop_timer("sequential_n_level");
+
+  if ( debug ) LOG << "Simulate n-Level in parallel";
+  timer.start_timer("parallel_n_level", "Parallel n-Level");
+  Km1GainCache gain_cache_par;
+  simulateNLevel(parallel_hg, parallel_phg, gain_cache_par, contractions, batch_size, true, timer);
+  timer.stop_timer("parallel_n_level");
+
+  if ( debug ) LOG << "Verify equality of original and sequential fixed vertex support";
+  ds::FixedVertexSupport<Hypergraph> sequential_fixed_vertices =
+    sequential_hg.copyOfFixedVertexSupport();
+  verifyFixedVertices(original_hypergraph, original_fixed_vertices, sequential_fixed_vertices);
+
+  if ( debug ) LOG << "Verify equality of original and parallel fixed vertex support";
+  ds::FixedVertexSupport<Hypergraph> parallel_fixed_vertices =
+    parallel_hg.copyOfFixedVertexSupport();
+  verifyFixedVertices(original_hypergraph, original_fixed_vertices, parallel_fixed_vertices);
+
+  if ( show_timings ) {
+    LOG << timer;
+  }
+}
+
 TEST(ANlevelHypergraph, SimulatesParallelContractionsAndAccessToHypergraph) {
   using Hypergraph = typename DynamicHypergraphTypeTraits::Hypergraph;
   const HypernodeID num_hypernodes = 10000;
@@ -453,6 +544,7 @@ TEST(ANlevelHypergraph, SimulatesParallelContractionsAndAccessToHypergraph) {
   }
 }
 
+#ifdef KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES
 TEST(ANlevelGraph, SimulatesContractionsAndBatchUncontractions) {
   using Hypergraph = typename DynamicGraphTypeTraits::Hypergraph;
   using PartitionedHypergraph = typename DynamicGraphTypeTraits::PartitionedHypergraph;
@@ -502,6 +594,60 @@ TEST(ANlevelGraph, SimulatesContractionsAndBatchUncontractions) {
   if ( debug ) LOG << "Verify number of incident cut hyperedges";
   verifyNumIncidentCutHyperedges(sequential_phg);
   verifyNumIncidentCutHyperedges(parallel_phg);
+
+  if ( show_timings ) {
+    LOG << timer;
+  }
+}
+
+TEST(ANlevelGraph, SimulatesContractionsAndBatchUncontractionsWithFixedVertices) {
+  using Hypergraph = typename DynamicHypergraphTypeTraits::Hypergraph;
+  using PartitionedHypergraph = typename DynamicHypergraphTypeTraits::PartitionedHypergraph;
+  const HypernodeID num_hypernodes = 10000;
+  const HypernodeID num_hyperedges = Hypergraph::is_graph ? 40000 : 10000;
+  const HypernodeID max_edge_size = 30;
+  const HypernodeID num_contractions = 9950;
+  const size_t batch_size = 100;
+  const double fixed_vertex_percentage = 0.02;
+  const bool show_timings = false;
+  const bool debug = false;
+  utils::Timer timer;
+  timer.showDetailedTimings(true);
+
+  if ( debug ) LOG << "Generate Random Hypergraph with Fixed Vertices";
+  Hypergraph original_hypergraph = generateRandomHypergraph<Hypergraph>(num_hypernodes, num_hyperedges, max_edge_size);
+  addRandomFixedVertices(original_hypergraph, 4, fixed_vertex_percentage);
+  ds::FixedVertexSupport<Hypergraph> original_fixed_vertices =
+    original_hypergraph.copyOfFixedVertexSupport();
+  Hypergraph sequential_hg = original_hypergraph.copy(parallel_tag_t());
+  PartitionedHypergraph sequential_phg(4, sequential_hg, parallel_tag_t());
+  Hypergraph parallel_hg = original_hypergraph.copy(parallel_tag_t());
+  PartitionedHypergraph parallel_phg(4, parallel_hg, parallel_tag_t());
+
+  if ( debug ) LOG << "Determine random contractions";
+  BatchVector contractions = generateRandomContractions(num_hypernodes, num_contractions);
+
+  if ( debug ) LOG << "Simulate n-Level sequentially";
+  timer.start_timer("sequential_n_level", "Sequential n-Level");
+  Km1GainCache gain_cache_seq;
+  simulateNLevel(sequential_hg, sequential_phg, gain_cache_seq, contractions, 1, false, timer);
+  timer.stop_timer("sequential_n_level");
+
+  if ( debug ) LOG << "Simulate n-Level in parallel";
+  timer.start_timer("parallel_n_level", "Parallel n-Level");
+  Km1GainCache gain_cache_par;
+  simulateNLevel(parallel_hg, parallel_phg, gain_cache_par, contractions, batch_size, true, timer);
+  timer.stop_timer("parallel_n_level");
+
+  if ( debug ) LOG << "Verify equality of original and sequential fixed vertex support";
+  ds::FixedVertexSupport<Hypergraph> sequential_fixed_vertices =
+    sequential_hg.copyOfFixedVertexSupport();
+  verifyFixedVertices(original_hypergraph, original_fixed_vertices, sequential_fixed_vertices);
+
+  if ( debug ) LOG << "Verify equality of original and parallel fixed vertex support";
+  ds::FixedVertexSupport<Hypergraph> parallel_fixed_vertices =
+    parallel_hg.copyOfFixedVertexSupport();
+  verifyFixedVertices(original_hypergraph, original_fixed_vertices, parallel_fixed_vertices);
 
   if ( show_timings ) {
     LOG << timer;
@@ -570,6 +716,7 @@ TEST(ANlevelGraph, SimulatesParallelContractionsAndAccessToHypergraph) {
     LOG << timer;
   }
 }
+#endif
 #endif
 
 } // namespace ds

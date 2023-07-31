@@ -124,6 +124,7 @@ namespace mt_kahypar::io {
 
   template<typename Hypergraph>
   void printHypergraphInfo(const Hypergraph& hypergraph,
+                           const Context& context,
                            const std::string& name,
                            const bool show_memory_consumption) {
     std::vector<HypernodeID> he_sizes;
@@ -191,6 +192,10 @@ namespace mt_kahypar::io {
             internal::createStats(he_weights, avg_he_weight, stdev_he_weight),
             internal::createStats(hn_degrees, avg_hn_degree, stdev_hn_degree),
             internal::createStats(hn_weights, avg_hn_weight, stdev_hn_weight));
+
+    if ( hypergraph.hasFixedVertices() ) {
+      printFixedVertexPartWeights(hypergraph, context);
+    }
 
     if ( show_memory_consumption ) {
       // Print Memory Consumption
@@ -277,6 +282,34 @@ namespace mt_kahypar::io {
     }
   }
 
+  template<typename Hypergraph>
+  void printFixedVertexPartWeights(const Hypergraph& hypergraph, const Context& context) {
+    if ( context.partition.verbose_output && hypergraph.hasFixedVertices() ) {
+      HypernodeWeight max_part_weight = 0;
+      for (PartitionID i = 0; i < context.partition.k; ++i) {
+        if ( hypergraph.fixedVertexBlockWeight(i) > max_part_weight ) {
+          max_part_weight = hypergraph.fixedVertexBlockWeight(i);
+        }
+        if ( context.partition.max_part_weights[i] > max_part_weight ) {
+          max_part_weight = context.partition.max_part_weights[i];
+        }
+      }
+
+      const uint8_t part_digits = kahypar::math::digits(max_part_weight);
+      const uint8_t k_digits = kahypar::math::digits(context.partition.k);
+      LOG << BOLD << "\nHypergraph contains fixed vertices" << END;
+      for (PartitionID i = 0; i != context.partition.k; ++i) {
+        std::cout << "Fixed vertex weight of block " << std::left  << std::setw(k_digits) << i
+                  << std::setw(1) << ": "
+                  << std::setw(1) << "  w( "  << std::right << std::setw(k_digits) << i
+                  << std::setw(1) << " ) = "  << std::right << std::setw(part_digits) << hypergraph.fixedVertexBlockWeight(i)
+                  << std::setw(1) << "  max( " << std::right << std::setw(k_digits) << i
+                  << std::setw(1) << " ) = "  << std::right << std::setw(part_digits) << context.partition.max_part_weights[i]
+                  << std::endl;
+      }
+    }
+  }
+
   template<typename PartitionedHypergraph>
   void printPartitioningResults(const PartitionedHypergraph& hypergraph,
                                 const Context& context,
@@ -315,7 +348,7 @@ namespace mt_kahypar::io {
       LOG << "\n********************************************************************************";
       LOG << "*                                    Input                                     *";
       LOG << "********************************************************************************";
-      io::printHypergraphInfo(hypergraph, context.partition.graph_filename.substr(
+      io::printHypergraphInfo(hypergraph, context, context.partition.graph_filename.substr(
               context.partition.graph_filename.find_last_of('/') + 1),
                               context.partition.show_memory_consumption);
     }
@@ -758,6 +791,7 @@ namespace mt_kahypar::io {
   namespace {
     #define PRINT_CUT_MATRIX(X) void printCutMatrix(const X& hypergraph)
     #define PRINT_HYPERGRAPH_INFO(X) void printHypergraphInfo(const X& hypergraph,                 \
+                                                              const Context& context,              \
                                                               const std::string& name,             \
                                                               const bool show_memory_consumption)
     #define PRINT_PARTITIONING_RESULTS(X) void printPartitioningResults(const X& hypergraph,             \
@@ -767,6 +801,7 @@ namespace mt_kahypar::io {
                                                                           const Context& context,                                \
                                                                           const std::chrono::duration<double>& elapsed_seconds)
     #define PRINT_PART_WEIGHT_AND_SIZES(X) void printPartWeightsAndSizes(const X& hypergraph, const Context& context)
+    #define PRINT_FIXED_VERTEX_PART_WEIGHTS(X) void printFixedVertexPartWeights(const X& hypergraph, const Context& context)
     #define PRINT_INPUT_INFORMATION(X) void printInputInformation(const Context& context, const X& hypergraph)
     #define PRINT_COMMUNITY_INFORMATION(X) void printCommunityInformation(const X& hypergraph)
   } // namespace
@@ -774,6 +809,7 @@ namespace mt_kahypar::io {
   INSTANTIATE_FUNC_WITH_HYPERGRAPHS(PRINT_HYPERGRAPH_INFO)
   INSTANTIATE_FUNC_WITH_HYPERGRAPHS(PRINT_INPUT_INFORMATION)
   INSTANTIATE_FUNC_WITH_HYPERGRAPHS(PRINT_COMMUNITY_INFORMATION)
+  INSTANTIATE_FUNC_WITH_HYPERGRAPHS(PRINT_FIXED_VERTEX_PART_WEIGHTS)
   INSTANTIATE_FUNC_WITH_PARTITIONED_HG(PRINT_CUT_MATRIX)
   INSTANTIATE_FUNC_WITH_PARTITIONED_HG(PRINT_PARTITIONING_RESULTS)
   INSTANTIATE_FUNC_WITH_PARTITIONED_HG(PRINT_PARTITIONING_RESULTS_2)
