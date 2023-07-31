@@ -83,7 +83,10 @@ int main(int argc, char* argv[]) {
            "Number of Blocks")
            ("epsilon,e",
            po::value<double>(&context.partition.epsilon)->value_name("<double>")->required(),
-           "Imbalance");
+           "Imbalance")
+           ("fixed-vertices,f",
+           po::value<std::string>(&context.partition.fixed_vertex_filename)->value_name("<string>"),
+           "Fixed Vertex File");
 
   po::variables_map cmd_vm;
   po::store(po::parse_command_line(argc, argv, options), cmd_vm);
@@ -97,6 +100,12 @@ int main(int argc, char* argv[]) {
   Hypergraph& hg = utils::cast<Hypergraph>(hypergraph);
   PartitionedHypergraph phg(context.partition.k, hg, parallel_tag_t());
 
+  // Add fixed vertices
+  if ( context.partition.fixed_vertex_filename != "" ) {
+    mt_kahypar::io::addFixedVerticesFromFile(
+      hypergraph, context.partition.fixed_vertex_filename, context.partition.k);
+  }
+
   // Setup Context
   context.setupPartWeights(hg.totalWeight());
 
@@ -105,13 +114,24 @@ int main(int argc, char* argv[]) {
 
   for ( PartitionID i = 0; i < context.partition.k; ++i ) {
     if ( phg.partWeight(i) == 0 ) {
-      LOG << RED << "[ERROR]" << END << "Block" << (i + 1) << "is empty";
+      LOG << RED << "[ERROR]" << END << "Block" << (i + 1) << "is empty" << END;
       success = false;
     } else if ( phg.partWeight(i) > context.partition.max_part_weights[i] ) {
       LOG << RED << "[ERROR]" << END << "Block" << (i + 1) << "has weight"
           << phg.partWeight(i) << ", but maximum allowed block weight is"
-          << context.partition.max_part_weights[i];
+          << context.partition.max_part_weights[i] << END;
       success = false;
+    }
+  }
+
+  // Check fixed vertices
+  if ( phg.hasFixedVertices() ) {
+    for ( const HypernodeID& hn : phg.nodes() ) {
+      if ( phg.isFixed(hn) && phg.fixedVertexBlock(hn) != phg.partID(hn) ) {
+        LOG << RED << "Node" << hn << "is fixed to block" << phg.fixedVertexBlock(hn)
+            << ", but assigned to block" << phg.partID(hn) << END;
+        success = false;
+      }
     }
   }
 
