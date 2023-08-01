@@ -200,10 +200,11 @@ int main(int argc, const char* argv[]) {
   out << num_nodes << " " << num_edges << "\n";
   for (uint64_t u = 0; u < num_nodes; ++u) {
     const auto& n = adj_list[u];
-    if (n.empty()) continue;
-    out << n[0] + 1;
-    for (size_t j = 1; j < n.size(); ++j) {
-      out << " " << n[j] + 1;
+    if (!n.empty()) {
+      out << n[0] + 1;
+      for (size_t j = 1; j < n.size(); ++j) {
+        out << " " << n[j] + 1;
+      }
     }
     out << "\n";
   }
