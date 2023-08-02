@@ -28,7 +28,7 @@
 
 #include "mt-kahypar/partition/coarsening/nlevel_uncoarsener.h"
 
-#include "kahypar/datastructure/fast_reset_flag_array.h"
+#include "kahypar-resources/datastructure/fast_reset_flag_array.h"
 
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/refinement/flows/scheduler.h"

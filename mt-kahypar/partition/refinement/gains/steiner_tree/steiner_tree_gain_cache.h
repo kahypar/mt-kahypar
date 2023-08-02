@@ -28,7 +28,7 @@
 
 #include <algorithm>
 
-#include "kahypar/meta/policy_registry.h"
+#include "kahypar-resources/meta/policy_registry.h"
 
 #include "tbb/parallel_invoke.h"
 

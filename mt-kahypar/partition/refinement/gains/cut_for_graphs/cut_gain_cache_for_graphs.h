@@ -26,7 +26,7 @@
 
 #pragma once
 
-#include "kahypar/meta/policy_registry.h"
+#include "kahypar-resources/meta/policy_registry.h"
 
 #include "mt-kahypar/partition/context_enum_classes.h"
 #include "mt-kahypar/datastructures/hypergraph_common.h"

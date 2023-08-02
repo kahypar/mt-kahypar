@@ -1,9 +1,6 @@
 [submodule "external_tools/googletest"]
 	path = external_tools/googletest
 	url = https://github.com/google/googletest.git
-[submodule "external_tools/kahypar"]
-	path = external_tools/kahypar
-	url = https://github.com/SebastianSchlag/kahypar.git
 [submodule "external_tools/WHFC"]
 	path = external_tools/WHFC
 	url = https://github.com/larsgottesbueren/WHFC.git
@@ -13,3 +10,6 @@
 [submodule "external_tools/growt"]
 	path = external_tools/growt
 	url = https://github.com/TooBiased/growt.git
+[submodule "external_tools/kahypar-shared-resources"]
+	path = external_tools/kahypar-shared-resources
+	url = https://github.com/kahypar/kahypar-shared-resources.git

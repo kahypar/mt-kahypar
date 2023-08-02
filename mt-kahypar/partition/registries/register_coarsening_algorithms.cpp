@@ -25,7 +25,7 @@
  * SOFTWARE.
  ******************************************************************************/
 
-#include "kahypar/meta/registrar.h"
+#include "kahypar-resources/meta/registrar.h"
 
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/factories.h"

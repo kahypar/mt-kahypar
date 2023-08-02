@@ -34,9 +34,9 @@
 
 #include "include/libmtkahypartypes.h"
 
-#include "kahypar/meta/mandatory.h"
-#include "kahypar/datastructure/fast_reset_flag_array.h"
-#include "kahypar/utils/math.h"
+#include "kahypar-resources/meta/mandatory.h"
+#include "kahypar-resources/datastructure/fast_reset_flag_array.h"
+#include "kahypar-resources/utils/math.h"
 
 #include "mt-kahypar/datastructures/hypergraph_common.h"
 #include "mt-kahypar/datastructures/fixed_vertex_support.h"

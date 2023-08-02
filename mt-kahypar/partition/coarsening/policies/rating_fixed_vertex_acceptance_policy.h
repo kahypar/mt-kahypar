@@ -27,8 +27,8 @@
 
 #pragma once
 
-#include "kahypar/meta/policy_registry.h"
-#include "kahypar/meta/typelist.h"
+#include "kahypar-resources/meta/policy_registry.h"
+#include "kahypar-resources/meta/typelist.h"
 
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/datastructures/fixed_vertex_support.h"

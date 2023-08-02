@@ -44,7 +44,7 @@
 #include "mt-kahypar/utils/delete.h"
 #include "mt-kahypar/utils/hypergraph_statistics.h"
 
-#include "kahypar/utils/math.h"
+#include "kahypar-resources/utils/math.h"
 
 using namespace mt_kahypar;
 namespace po = boost::program_options;

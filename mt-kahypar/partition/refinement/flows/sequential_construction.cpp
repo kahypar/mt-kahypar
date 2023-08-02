@@ -26,7 +26,7 @@
 
 #include "mt-kahypar/partition/refinement/flows/sequential_construction.h"
 
-#include "kahypar/utils/math.h"
+#include "kahypar-resources/utils/math.h"
 
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/parallel/stl/scalable_queue.h"

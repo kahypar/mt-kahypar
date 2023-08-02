@@ -28,7 +28,7 @@
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wdeprecated-declarations"
-#include "kahypar/datastructure/kway_priority_queue.h"
+#include "kahypar-resources/datastructure/kway_priority_queue.h"
 #pragma GCC diagnostic pop
 
 #include "mt-kahypar/partition/context.h"
