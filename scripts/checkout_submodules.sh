@@ -7,11 +7,6 @@ ROOT=${PWD}
 git clone https://github.com/google/googletest.git external_tools/googletest &&
 cd external_tools/googletest && git checkout ${GOOGLETEST_HEAD} && cd ${ROOT}
 
-# Initialize KAHYPAR
-[ ! "$(ls -A external_tools/kahypar)" ] &&
-git clone https://github.com/SebastianSchlag/kahypar.git external_tools/kahypar &&
-cd external_tools/kahypar && git checkout ${KAHYPAR_HEAD} && cd ${ROOT}
-
 # Initialize WHFC
 [ ! "$(ls -A external_tools/WHFC)" ] &&
 git clone https://github.com/larsgottesbueren/WHFC.git external_tools/WHFC &&
@@ -26,3 +21,8 @@ cd python/pybind11 && git checkout ${PYBIND11_HEAD} && cd ${ROOT}
 [ ! "$(ls -A external_tools/growt)" ] &&
 git clone https://github.com/TooBiased/growt.git external_tools/growt &&
 cd external_tools/growt && git checkout ${GROWT_HEAD} && cd ${ROOT}
+
+# Initialize KAHYPAR-SHARED-RESOURCES
+[ ! "$(ls -A external_tools/kahypar-shared-resources)" ] &&
+git clone https://github.com/kahypar/kahypar-shared-resources.git external_tools/kahypar-shared-resources &&
+cd external_tools/kahypar-shared-resources && git checkout ${KAHYPAR-SHARED-RESOURCES_HEAD} && cd ${ROOT}
