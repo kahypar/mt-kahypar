@@ -28,7 +28,7 @@
 
 #include <vector>
 
-#include "kahypar/meta/mandatory.h"
+#include "kahypar-resources/meta/mandatory.h"
 
 #include "tbb/enumerable_thread_specific.h"
 

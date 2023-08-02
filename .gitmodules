@@ -13,3 +13,6 @@
 [submodule "external_tools/growt"]
 	path = external_tools/growt
 	url = https://github.com/TooBiased/growt.git
+[submodule "external_tools/kahypar-shared-resources"]
+	path = external_tools/kahypar-shared-resources
+	url = https://github.com/kahypar/kahypar-shared-resources.git

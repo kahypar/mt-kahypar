@@ -34,7 +34,7 @@
 #include "tbb/parallel_for.h"
 #include "tbb/parallel_reduce.h"
 
-#include "kahypar/meta/mandatory.h"
+#include "kahypar-resources/meta/mandatory.h"
 
 #include "include/libmtkahypartypes.h"
 

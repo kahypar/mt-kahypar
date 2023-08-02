@@ -27,9 +27,9 @@
 
 #pragma once
 
-#include "kahypar/meta/abstract_factory.h"
-#include "kahypar/meta/static_multi_dispatch_factory.h"
-#include "kahypar/meta/typelist.h"
+#include "kahypar-resources/meta/abstract_factory.h"
+#include "kahypar-resources/meta/static_multi_dispatch_factory.h"
+#include "kahypar-resources/meta/typelist.h"
 
 #include "mt-kahypar/definitions.h"
 #ifdef KAHYPAR_ENABLE_HIGHEST_QUALITY_FEATURES

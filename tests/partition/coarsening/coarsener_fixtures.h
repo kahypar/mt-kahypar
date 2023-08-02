@@ -26,7 +26,7 @@
 
 #include "gmock/gmock.h"
 
-#include "kahypar/datastructure/fast_reset_flag_array.h"
+#include "kahypar-resources/datastructure/fast_reset_flag_array.h"
 
 #include "tests/datastructures/hypergraph_fixtures.h"
 #include "mt-kahypar/definitions.h"

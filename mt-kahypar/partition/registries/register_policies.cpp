@@ -25,8 +25,8 @@
  * SOFTWARE.
  ******************************************************************************/
 
-#include "kahypar/meta/policy_registry.h"
-#include "kahypar/meta/registrar.h"
+#include "kahypar-resources/meta/policy_registry.h"
+#include "kahypar-resources/meta/registrar.h"
 
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/coarsening/policies/rating_acceptance_policy.h"

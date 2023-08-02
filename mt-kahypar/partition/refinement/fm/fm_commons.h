@@ -30,7 +30,7 @@
 #include <mt-kahypar/partition/context.h>
 #include <mt-kahypar/parallel/work_stack.h>
 
-#include "external_tools/kahypar/kahypar/datastructure/fast_reset_flag_array.h"
+#include "kahypar-resources/datastructure/fast_reset_flag_array.h"
 
 #include <tbb/parallel_for.h>
 

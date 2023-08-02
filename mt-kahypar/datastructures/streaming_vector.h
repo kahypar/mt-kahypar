@@ -34,7 +34,7 @@
 #include "tbb/task_arena.h"
 #include "tbb/task_group.h"
 
-#include "kahypar/meta/mandatory.h"
+#include "kahypar-resources/meta/mandatory.h"
 
 #include "mt-kahypar/macros.h"
 #include "mt-kahypar/parallel/stl/scalable_vector.h"

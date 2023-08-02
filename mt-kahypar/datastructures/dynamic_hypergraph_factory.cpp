@@ -31,7 +31,7 @@
 #include "tbb/parallel_invoke.h"
 #include "tbb/parallel_scan.h"
 
-#include "kahypar/utils/math.h"
+#include "kahypar-resources/utils/math.h"
 
 #include "mt-kahypar/parallel/parallel_prefix_sum.h"
 #include "mt-kahypar/utils/timer.h"

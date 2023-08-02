@@ -33,7 +33,7 @@
 #include "tbb/parallel_invoke.h"
 #include "tbb/parallel_scan.h"
 
-#include "kahypar/datastructure/fast_reset_flag_array.h"
+#include "kahypar-resources/datastructure/fast_reset_flag_array.h"
 
 #include "mt-kahypar/macros.h"
 #include "mt-kahypar/datastructures/hypergraph_common.h"

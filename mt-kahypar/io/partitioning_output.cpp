@@ -44,7 +44,7 @@
 #include "mt-kahypar/utils/memory_tree.h"
 #include "mt-kahypar/utils/timer.h"
 
-#include "kahypar/utils/math.h"
+#include "kahypar-resources/utils/math.h"
 
 
 namespace mt_kahypar::io {

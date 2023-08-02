@@ -39,8 +39,8 @@
 #include <vector>
 #include <cmath>
 
-#include "kahypar/macros.h"
-#include "kahypar/meta/mandatory.h"
+#include "kahypar-resources/macros.h"
+#include "kahypar-resources/meta/mandatory.h"
 
 #include "mt-kahypar/macros.h"
 #include "mt-kahypar/parallel/memory_pool.h"

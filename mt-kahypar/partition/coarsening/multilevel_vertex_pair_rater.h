@@ -34,8 +34,8 @@
 
 #include "tbb/enumerable_thread_specific.h"
 
-#include "kahypar/datastructure/fast_reset_flag_array.h"
-#include "kahypar/meta/mandatory.h"
+#include "kahypar-resources/datastructure/fast_reset_flag_array.h"
+#include "kahypar-resources/meta/mandatory.h"
 
 #include "mt-kahypar/datastructures/sparse_map.h"
 #include "mt-kahypar/partition/context.h"

@@ -26,7 +26,7 @@
 
 #pragma once
 
-#include "kahypar/meta/typelist.h"
+#include "kahypar-resources/meta/typelist.h"
 
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/context_enum_classes.h"

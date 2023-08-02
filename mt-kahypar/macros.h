@@ -36,7 +36,7 @@
 #define SCHED_GETCPU GetCurrentProcessorNumber()
 #endif
 
-#include "kahypar/macros.h"
+#include "kahypar-resources/macros.h"
 
 #define SPECIALIZATION(EXPR, TYPE)          \
   template<bool T = EXPR>                   \

@@ -26,7 +26,7 @@
 
 #include "mt-kahypar/partition/refinement/flows/parallel_construction.h"
 
-#include "kahypar/utils/math.h"
+#include "kahypar-resources/utils/math.h"
 
 #include "tbb/concurrent_queue.h"
 

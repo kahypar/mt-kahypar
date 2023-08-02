@@ -27,7 +27,7 @@
 #pragma once
 
 
-#include "kahypar/meta/registrar.h"
+#include "kahypar-resources/meta/registrar.h"
 
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/factories.h"
