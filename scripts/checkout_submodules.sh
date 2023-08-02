@@ -25,4 +25,4 @@ cd external_tools/growt && git checkout ${GROWT_HEAD} && cd ${ROOT}
 # Initialize KAHYPAR-SHARED-RESOURCES
 [ ! "$(ls -A external_tools/kahypar-shared-resources)" ] &&
 git clone https://github.com/kahypar/kahypar-shared-resources.git external_tools/kahypar-shared-resources &&
-cd external_tools/kahypar-shared-resources && git checkout ${KAHYPAR-SHARED-RESOURCES_HEAD} && cd ${ROOT}
+cd external_tools/kahypar-shared-resources && git checkout ${KAHYPAR_SHARED_RESOURCES_HEAD} && cd ${ROOT}
