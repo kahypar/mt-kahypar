@@ -41,18 +41,16 @@ class MainTest(unittest.TestCase):
 
   def test_set_partitioning_parameters_in_context(self):
     context = mtkahypar.Context()
-    context.setPartitioningParameters(2, 0.03, mtkahypar.Objective.KM1, 42)
+    context.setPartitioningParameters(2, 0.03, mtkahypar.Objective.KM1)
     self.assertEqual(context.k, 2)
     self.assertEqual(context.epsilon, 0.03)
     self.assertEqual(context.objective, mtkahypar.Objective.KM1)
-    self.assertEqual(context.seed, 42)
 
   def test_set_partitioning_parameters_over_properties(self):
     context = mtkahypar.Context()
     context.k = 4
     context.epsilon = 0.05
     context.objective = mtkahypar.Objective.CUT
-    context.seed = 35
     context.num_vcycles = 5
     context.logging = True
     context.max_block_weights = [100, 200, 300, 400]
@@ -60,7 +58,6 @@ class MainTest(unittest.TestCase):
     self.assertEqual(context.k, 4)
     self.assertEqual(context.epsilon, 0.05)
     self.assertEqual(context.objective, mtkahypar.Objective.CUT)
-    self.assertEqual(context.seed, 35)
     self.assertEqual(context.num_vcycles, 5)
     self.assertEqual(context.logging, True)
     self.assertEqual(context.max_block_weights[0], 100)
@@ -515,7 +512,8 @@ class MainTest(unittest.TestCase):
     def __init__(self, preset_type, num_blocks, epsilon, objective, force_logging):
       self.context = mtkahypar.Context()
       self.context.loadPreset(preset_type)
-      self.context.setPartitioningParameters(num_blocks, epsilon, objective, 42)
+      self.context.setPartitioningParameters(num_blocks, epsilon, objective)
+      mtkahypar.setSeed(42)
       self.context.logging = logging or force_logging
       self.target_graph = mtkahypar.Graph(
         mydir + "/test_instances/target.graph",  mtkahypar.FileFormat.METIS)
@@ -681,7 +679,8 @@ class MainTest(unittest.TestCase):
     def __init__(self, preset_type, num_blocks, epsilon, objective, force_logging):
       self.context = mtkahypar.Context()
       self.context.loadPreset(preset_type)
-      self.context.setPartitioningParameters(num_blocks, epsilon, objective, 42)
+      self.context.setPartitioningParameters(num_blocks, epsilon, objective)
+      mtkahypar.setSeed(42)
       self.context.logging = logging or force_logging
       self.target_graph = mtkahypar.Graph(
         mydir + "/test_instances/target.graph",  mtkahypar.FileFormat.METIS)

@@ -18,8 +18,8 @@ context.loadPreset(mtkahypar.PresetType.DEFAULT) # corresponds to Mt-KaHyPar-D
 context.setPartitioningParameters(
   4,                       # number of blocks
   0.03,                    # imbalance parameter
-  mtkahypar.Objective.KM1, # objective function
-  42)                      # seed
+  mtkahypar.Objective.KM1) # objective function
+mtkahypar.setSeed(42)      # seed
 context.logging = True
 
 # Load hypergraph from file

@@ -18,8 +18,8 @@ context.loadPreset(mtkahypar.PresetType.DEFAULT) # corresponds to Mt-KaHyPar-D
 context.setPartitioningParameters(
   4,                 # number of blocks
   0.03,              # imbalance parameter not relevant for partitioning with individual block weights
-  mtkahypar.Objective.KM1, # objective function
-  42)                # seed
+  mtkahypar.Objective.KM1) # objective function
+mtkahypar.setSeed(42)      # seed
 # Set individual target block weights for each block
 context.max_block_weights = [
   2131,  # The weight of the first block must be smaller or equal than 2131

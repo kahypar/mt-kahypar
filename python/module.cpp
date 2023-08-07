@@ -47,6 +47,7 @@
 #include "mt-kahypar/io/hypergraph_factory.h"
 #include "mt-kahypar/io/hypergraph_io.h"
 #include "mt-kahypar/utils/cast.h"
+#include "mt-kahypar/utils/randomize.h"
 
 namespace py = pybind11;
 using namespace mt_kahypar;
@@ -213,6 +214,13 @@ PYBIND11_MODULE(mtkahypar, m) {
     "Initializes the thread pool with the given number of threads",
     py::arg("number of threads"));
 
+  // ####################### Initialize Random Number Generator #######################
+
+  m.def("setSeed", [&](const int seed) {
+      mt_kahypar::utils::Randomize::instance().setSeed(seed);
+    }, "Initializes the random number generator with the given seed",
+    py::arg("seed"));
+
   // ####################### Context #######################
 
   py::class_<Context>(m, "Context", py::module_local())
@@ -245,14 +253,12 @@ PYBIND11_MODULE(mtkahypar, m) {
       [](Context& context,
          const PartitionID k,
          const double epsilon,
-         const Objective objective,
-         const size_t seed) {
+         const Objective objective) {
            context.partition.k = k;
            context.partition.epsilon = epsilon;
            context.partition.objective = objective;
-           context.partition.seed = seed;
          }, "Sets all required parameters for partitioning",
-         py::arg("k"), py::arg("epsilon"), py::arg("objective function"), py::arg("seed"))
+         py::arg("k"), py::arg("epsilon"), py::arg("objective function"))
     .def_property("k",
       [](const Context& context) {
         return context.partition.k;
@@ -271,12 +277,6 @@ PYBIND11_MODULE(mtkahypar, m) {
       }, [](Context& context, const Objective objective) {
         context.partition.objective = objective;
       }, "Sets the objective function for partitioning (CUT, KM1 or SOED)")
-    .def_property("seed",
-      [](const Context& context) {
-        return context.partition.seed;
-      }, [](Context& context, const int seed) {
-        context.partition.seed = seed;
-      }, "Seed for the random number generator")
     .def_property("num_vcycles",
       [](const Context& context) {
         return context.partition.num_vcycles;
