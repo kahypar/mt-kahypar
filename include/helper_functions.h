@@ -95,7 +95,6 @@ void prepare_context(Context& context) {
   context.shared_memory.original_num_threads = mt_kahypar::TBBInitializer::instance().total_number_of_threads();
   context.shared_memory.num_threads = mt_kahypar::TBBInitializer::instance().total_number_of_threads();
   context.utility_id = mt_kahypar::utils::Utilities::instance().registerNewUtilityObjects();
-  mt_kahypar::utils::Randomize::instance().setSeed(context.partition.seed);
 
   context.partition.perfect_balance_part_weights.clear();
   if ( !context.partition.use_individual_part_weights ) {

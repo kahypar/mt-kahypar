@@ -21,7 +21,8 @@ int main(int argc, char* argv[]) {
   // with an allowed imbalance of 3% and optimize the connective metric (KM1)
   mt_kahypar_set_partitioning_parameters(context,
     4 /* number of blocks */, 0.03 /* imbalance parameter */,
-    KM1 /* objective function */, 42 /* seed */);
+    KM1 /* objective function */);
+  mt_kahypar_set_seed(42 /* seed */);
   // Enable logging
   mt_kahypar_set_context_parameter(context, VERBOSE, "1");
 

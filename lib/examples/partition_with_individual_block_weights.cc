@@ -22,7 +22,8 @@ int main(int argc, char* argv[]) {
   mt_kahypar_set_partitioning_parameters(context,
     4 /* number of blocks */,
     0.03 /* imbalance parameter not relevant for partitioning with individual block weights */,
-    KM1 /* objective function */, 42 /* seed */);
+    KM1 /* objective function */);
+  mt_kahypar_set_seed(42 /* seed */);
   // Enable logging
   mt_kahypar_set_context_parameter(context, VERBOSE, "1");
 

@@ -61,8 +61,6 @@ typedef enum {
   EPSILON,
   // objective function (either 'cut' or 'km1')
   OBJECTIVE,
-  // seed for randomization
-  SEED,
   // number of V-cycles
   NUM_VCYCLES,
   // disables or enables logging

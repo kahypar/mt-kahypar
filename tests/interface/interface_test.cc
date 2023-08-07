@@ -415,7 +415,9 @@ namespace mt_kahypar {
         context(nullptr),
         hypergraph(mt_kahypar_hypergraph_t { nullptr, NULLPTR_HYPERGRAPH }),
         partitioned_hg(mt_kahypar_partitioned_hypergraph_t { nullptr, NULLPTR_PARTITION }),
-        target_graph(nullptr) { }
+        target_graph(nullptr) {
+      mt_kahypar_set_seed(42);
+    }
 
     void Partition(const char* filename,
                    const mt_kahypar_file_format_type_t format,
@@ -450,7 +452,7 @@ namespace mt_kahypar {
                                     const bool verbose = false) {
       mt_kahypar_context_t* c = mt_kahypar_context_new();
       mt_kahypar_load_preset(c, preset);
-      mt_kahypar_set_partitioning_parameters(c, num_blocks, epsilon, objective, 0);
+      mt_kahypar_set_partitioning_parameters(c, num_blocks, epsilon, objective);
       mt_kahypar_set_context_parameter(c, VERBOSE, ( debug || verbose ) ? "1" : "0");
 
       mt_kahypar_hypergraph_t hg = mt_kahypar_read_hypergraph_from_file(filename, preset, format);
@@ -543,7 +545,7 @@ namespace mt_kahypar {
                       const mt_kahypar_objective_t objective,
                       const bool verbose = false) {
       mt_kahypar_load_preset(context, preset);
-      mt_kahypar_set_partitioning_parameters(context, num_blocks, epsilon, objective, 0);
+      mt_kahypar_set_partitioning_parameters(context, num_blocks, epsilon, objective);
       mt_kahypar_set_context_parameter(context, VERBOSE, ( debug || verbose ) ? "1" : "0");
     }
 
@@ -695,6 +697,18 @@ namespace mt_kahypar {
     });
   }
 
+  TEST_F(APartitioner, CanPartitionFourHypergraphsSimultanously) {
+    tbb::parallel_invoke([&]() {
+      PartitionAnotherHypergraph(HYPERGRAPH_FILE, HMETIS, DETERMINISTIC, 4, 0.03, KM1, false);
+    }, [&] {
+      PartitionAnotherHypergraph(GRAPH_FILE, METIS, DEFAULT, 8, 0.03, CUT, false);
+    }, [&]() {
+      PartitionAnotherHypergraph(HYPERGRAPH_FILE, HMETIS, DEFAULT, 4, 0.03, KM1, false);
+    }, [&] {
+      PartitionAnotherHypergraph(GRAPH_FILE, METIS, QUALITY, 4, 0.03, CUT, false);
+    });
+  }
+
   TEST_F(APartitioner, ChecksIfDeterministicPresetProducesSameResultsForHypergraphs) {
     Partition(HYPERGRAPH_FILE, HMETIS, DETERMINISTIC, 8, 0.03, KM1, false);
     const double objective_1 = mt_kahypar_km1(partitioned_hg);
@@ -830,7 +844,6 @@ namespace mt_kahypar {
     ASSERT_EQ(0, mt_kahypar_set_context_parameter(context, NUM_BLOCKS, "4"));
     ASSERT_EQ(0, mt_kahypar_set_context_parameter(context, EPSILON, "0.03"));
     ASSERT_EQ(0, mt_kahypar_set_context_parameter(context, OBJECTIVE, "km1"));
-    ASSERT_EQ(0, mt_kahypar_set_context_parameter(context, SEED, "42"));
     ASSERT_EQ(0, mt_kahypar_set_context_parameter(context, NUM_VCYCLES, "3"));
     ASSERT_EQ(0, mt_kahypar_set_context_parameter(context, VERBOSE, "1"));
 
@@ -839,7 +852,6 @@ namespace mt_kahypar {
     ASSERT_EQ(4, c.partition.k);
     ASSERT_EQ(0.03, c.partition.epsilon);
     ASSERT_EQ(Objective::km1, c.partition.objective);
-    ASSERT_EQ(42, c.partition.seed);
     ASSERT_EQ(3, c.partition.num_vcycles);
     ASSERT_TRUE(c.partition.verbose_output);
 

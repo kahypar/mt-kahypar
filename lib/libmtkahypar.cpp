@@ -138,9 +138,6 @@ int mt_kahypar_set_context_parameter(mt_kahypar_context_t* context,
         }
         return 3;
       }
-    case SEED:
-      c.partition.seed = atoi(value);
-      return 0;
     case NUM_VCYCLES:
       c.partition.num_vcycles = atoi(value);
       return 0;
@@ -154,12 +151,10 @@ int mt_kahypar_set_context_parameter(mt_kahypar_context_t* context,
 void mt_kahypar_set_partitioning_parameters(mt_kahypar_context_t* context,
                                             const mt_kahypar_partition_id_t num_blocks,
                                             const double epsilon,
-                                            const mt_kahypar_objective_t objective,
-                                            const size_t seed) {
+                                            const mt_kahypar_objective_t objective) {
   Context& c = *reinterpret_cast<Context*>(context);
   c.partition.k = num_blocks;
   c.partition.epsilon = epsilon;
-  c.partition.seed = seed;
   switch ( objective ) {
     case CUT:
       c.partition.objective = Objective::cut; break;
@@ -168,6 +163,10 @@ void mt_kahypar_set_partitioning_parameters(mt_kahypar_context_t* context,
     case SOED:
       c.partition.objective = Objective::soed; break;
   }
+}
+
+void mt_kahypar_set_seed(const size_t seed) {
+  utils::Randomize::instance().setSeed(seed);
 }
 
 void mt_kahypar_set_individual_target_block_weights(mt_kahypar_context_t* context,
@@ -180,7 +179,6 @@ void mt_kahypar_set_individual_target_block_weights(mt_kahypar_context_t* contex
     c.partition.max_part_weights[i] = block_weights[i];
   }
 }
-
 
 void mt_kahypar_initialize_thread_pool(const size_t num_threads,
                                        const bool interleaved_allocations) {

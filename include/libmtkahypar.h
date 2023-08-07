@@ -82,8 +82,13 @@ MT_KAHYPAR_API int mt_kahypar_set_context_parameter(mt_kahypar_context_t* contex
 MT_KAHYPAR_API void mt_kahypar_set_partitioning_parameters(mt_kahypar_context_t* context,
                                                            const mt_kahypar_partition_id_t num_blocks,
                                                            const double epsilon,
-                                                           const mt_kahypar_objective_t objective,
-                                                           const size_t seed);
+                                                           const mt_kahypar_objective_t objective);
+
+
+/**
+ * Initializes the random number generator with the given seed value (not thread-safe).
+ */
+MT_KAHYPAR_API void mt_kahypar_set_seed(const size_t seed);
 
 /**
  * Sets individual target block weights for each block of the partition.
