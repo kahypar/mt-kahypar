@@ -96,7 +96,7 @@ To build Mt-KaHyPar, you can run the `build.sh` script (creates a `build` folder
 
 1. Clone the repository including submodules:
 
-   ```git clone --depth=1 --recursive git@github.com:kahypar/mt-kahypar.git```
+   ```git clone --depth=2 --recursive https://github.com/kahypar/mt-kahypar.git```
 
 2. Create a build directory: `mkdir build && cd build`
 3. *Only on Windows machines*: `export CMAKE_GENERATOR="MSYS Makefiles"`

@@ -19,7 +19,7 @@ cd python/pybind11 && git checkout ${PYBIND11_HEAD} && cd ${ROOT}
 
 # Initialize GROWT
 [ ! "$(ls -A external_tools/growt)" ] &&
-git clone https://github.com/TooBiased/growt.git external_tools/growt &&
+git clone --depth=1 --recursive https://github.com/TooBiased/growt.git external_tools/growt &&
 cd external_tools/growt && git checkout ${GROWT_HEAD} && cd ${ROOT}
 
 # Initialize KAHYPAR-SHARED-RESOURCES

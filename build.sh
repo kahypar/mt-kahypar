@@ -8,7 +8,7 @@ function get_num_cores {
 ROOT=${PWD}
 if [ -d .git ]; then
   # Mt-KaHyPar is build from a git repository
-  git submodule update --init;
+  git submodule update --init --recursive
 else
   # Mt-KaHyPar is build from a release archive
   # which does not include submodules
