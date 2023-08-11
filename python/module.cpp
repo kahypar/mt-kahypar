@@ -100,7 +100,11 @@ namespace {
             context.partition.preset_type, context.partition.instance_type);
           lib::prepare_context(context);
           context.partition.num_vcycles = 0;
-          return Partitioner<TypeTraits>::partition(hypergraph, context);
+          try {
+            return Partitioner<TypeTraits>::partition(hypergraph, context);
+          } catch ( std::exception& ex ) {
+            LOG << ex.what();
+          }
         } else {
           WARNING(lib::incompatibility_description(hg));
         }
@@ -131,7 +135,11 @@ namespace {
           context.partition.num_vcycles = 0;
           context.partition.objective = Objective::steiner_tree;
           TargetGraph target_graph(graph.copy(parallel_tag_t { }));
-          return Partitioner<TypeTraits>::partition(hypergraph, context, &target_graph);
+          try {
+            return Partitioner<TypeTraits>::partition(hypergraph, context, &target_graph);
+          } catch ( std::exception& ex ) {
+            LOG << ex.what();
+          }
         } else {
           WARNING(lib::incompatibility_description(hg));
         }
@@ -155,7 +163,11 @@ namespace {
           context.partition.preset_type, context.partition.instance_type);
         lib::prepare_context(context);
         context.partition.num_vcycles = num_vcycles;
-        Partitioner<TypeTraits>::partitionVCycle(partitioned_hg, context);
+        try {
+          Partitioner<TypeTraits>::partitionVCycle(partitioned_hg, context);
+        } catch ( std::exception& ex ) {
+          LOG << ex.what();
+        }
       } else {
         WARNING(lib::incompatibility_description(phg));
       }
@@ -178,7 +190,11 @@ namespace {
         context.partition.objective = Objective::steiner_tree;
         TargetGraph target_graph(graph.copy(parallel_tag_t { }));
         partitioned_hg.setTargetGraph(&target_graph);
-        Partitioner<TypeTraits>::partitionVCycle(partitioned_hg, context, &target_graph);
+        try {
+          Partitioner<TypeTraits>::partitionVCycle(partitioned_hg, context, &target_graph);
+        } catch ( std::exception& ex ) {
+          LOG << ex.what();
+        }
       } else {
         WARNING(lib::incompatibility_description(phg));
       }
@@ -311,8 +327,13 @@ PYBIND11_MODULE(mtkahypar, m) {
     .def(py::init<>([](const HypernodeID num_nodes,
                        const HyperedgeID num_edges,
                        const vec<std::pair<HypernodeID,HypernodeID>>& edges) {
-        return GraphFactory::construct_from_graph_edges(
-          num_nodes, num_edges, edges, nullptr, nullptr, true);
+        try {
+          return GraphFactory::construct_from_graph_edges(
+            num_nodes, num_edges, edges, nullptr, nullptr, true);
+        } catch ( std::exception& ex ) {
+          LOG << ex.what();
+        }
+        return Graph();
       }), R"pbdoc(
 Construct an unweighted graph.
 
@@ -328,8 +349,13 @@ Construct an unweighted graph.
                        const vec<std::pair<HypernodeID,HypernodeID>>& edges,
                        const vec<HypernodeWeight>& node_weights,
                        const vec<HyperedgeWeight>& edge_weights) {
-        return GraphFactory::construct_from_graph_edges(
-          num_nodes, num_edges, edges, edge_weights.data(), node_weights.data(), true);
+        try {
+          return GraphFactory::construct_from_graph_edges(
+            num_nodes, num_edges, edges, edge_weights.data(), node_weights.data(), true);
+        } catch ( std::exception& ex ) {
+          LOG << ex.what();
+        }
+        return Graph();
       }), R"pbdoc(
 Construct a weighted graph.
 
@@ -346,7 +372,12 @@ Construct a weighted graph.
       py::arg("edge_weights"))
     .def(py::init<>([](const std::string& file_name,
                       const FileFormat file_format) {
-        return io::readInputFile<Graph>(file_name, file_format, true);
+        try {
+          return io::readInputFile<Graph>(file_name, file_format, true);
+        } catch ( std::exception& ex ) {
+          LOG << ex.what();
+        }
+        return Graph();
       }), "Reads a graph from a file (supported file formats are METIS and HMETIS)",
       py::arg("filename"), py::arg("format"))
     .def("numNodes", &Graph::initialNumNodes,
@@ -373,7 +404,11 @@ Construct a weighted graph.
                                  const vec<PartitionID>& fixed_vertices,
                                  const PartitionID num_blocks) {
         mt_kahypar_hypergraph_t gr = utils::hypergraph_cast(graph);
-        io::addFixedVertices(gr, fixed_vertices.data(), num_blocks);
+        try {
+          io::addFixedVertices(gr, fixed_vertices.data(), num_blocks);
+        } catch ( std::exception& ex ) {
+          LOG << ex.what();
+        }
       }, R"pbdoc(
 Adds the fixed vertices specified in the array to the graph. The array must contain
 n entries (n = number of nodes). Each entry contains either the fixed vertex block of the
@@ -383,7 +418,11 @@ corresponding node or -1 if the node is not fixed.
                                          const std::string& fixed_vertex_file,
                                          const PartitionID num_blocks) {
         mt_kahypar_hypergraph_t gr = utils::hypergraph_cast(graph);
-        io::addFixedVerticesFromFile(gr, fixed_vertex_file, num_blocks);
+        try {
+          io::addFixedVerticesFromFile(gr, fixed_vertex_file, num_blocks);
+        } catch ( std::exception& ex ) {
+          LOG << ex.what();
+        }
       }, R"pbdoc(
 Adds the fixed vertices specified in the fixed vertex file to the graph. The file must contain
 n lines (n = number of nodes). Each line contains either the fixed vertex block of the
@@ -457,8 +496,13 @@ corresponding node or -1 if the node is not fixed.
     .def(py::init<>([](const HypernodeID num_hypernodes,
                        const HyperedgeID num_hyperedges,
                        const vec<vec<HypernodeID>>& hyperedges) {
-        return HypergraphFactory::construct(
-          num_hypernodes, num_hyperedges, hyperedges, nullptr, nullptr, true);
+        try {
+          return HypergraphFactory::construct(
+            num_hypernodes, num_hyperedges, hyperedges, nullptr, nullptr, true);
+        } catch ( std::exception& ex ) {
+          LOG << ex.what();
+        }
+        return Hypergraph();
       }), R"pbdoc(
 Construct an unweighted hypergraph.
 
@@ -474,9 +518,14 @@ Construct an unweighted hypergraph.
                        const vec<vec<HypernodeID>>& hyperedges,
                        const vec<HypernodeWeight>& node_weights,
                        const vec<HyperedgeWeight>& hyperedge_weights) {
-        return HypergraphFactory::construct(
-          num_hypernodes, num_hyperedges, hyperedges,
-          hyperedge_weights.data(), node_weights.data(), true);
+        try {
+          return HypergraphFactory::construct(
+            num_hypernodes, num_hyperedges, hyperedges,
+            hyperedge_weights.data(), node_weights.data(), true);
+        } catch ( std::exception& ex ) {
+          LOG << ex.what();
+        }
+        return Hypergraph();
       }), R"pbdoc(
 Construct a weighted hypergraph.
 
@@ -493,7 +542,12 @@ Construct a weighted hypergraph.
       py::arg("hyperedge_weights"))
     .def(py::init<>([](const std::string& file_name,
                        const FileFormat file_format) {
-        return io::readInputFile<Hypergraph>(file_name, file_format, true);
+        try {
+          return io::readInputFile<Hypergraph>(file_name, file_format, true);
+        } catch ( std::exception& ex ) {
+          LOG << ex.what();
+        }
+        return Hypergraph();
       }), "Reads a hypergraph from a file (supported file formats are METIS and HMETIS)",
       py::arg("filename"), py::arg("format"))
     .def("numNodes", &Hypergraph::initialNumNodes,
@@ -519,7 +573,11 @@ Construct a weighted hypergraph.
                                  const vec<PartitionID>& fixed_vertices,
                                  const PartitionID num_blocks) {
         mt_kahypar_hypergraph_t hg = utils::hypergraph_cast(hypergraph);
-        io::addFixedVertices(hg, fixed_vertices.data(), num_blocks);
+        try {
+          io::addFixedVertices(hg, fixed_vertices.data(), num_blocks);
+        } catch ( std::exception& ex ) {
+          LOG << ex.what();
+        }
       }, R"pbdoc(
 Adds the fixed vertices specified in the array to the hypergraph. The array must contain
 n entries (n = number of nodes). Each entry contains either the fixed vertex block of the
@@ -529,7 +587,11 @@ corresponding node or -1 if the node is not fixed.
                                          const std::string& fixed_vertex_file,
                                          const PartitionID num_blocks) {
         mt_kahypar_hypergraph_t hg = utils::hypergraph_cast(hypergraph);
-        io::addFixedVerticesFromFile(hg, fixed_vertex_file, num_blocks);
+        try {
+          io::addFixedVerticesFromFile(hg, fixed_vertex_file, num_blocks);
+        } catch ( std::exception& ex ) {
+          LOG << ex.what();
+        }
       }, R"pbdoc(
 Adds the fixed vertices specified in the fixed vertex file to the hypergraph. The file must contain
 n lines (n = number of nodes). Each line contains either the fixed vertex block of the
@@ -603,10 +665,12 @@ corresponding node or -1 if the node is not fixed.
                        const vec<PartitionID>& partition) {
         PartitionedGraph partitioned_graph(num_blocks, graph, parallel_tag_t { });
         partitioned_graph.doParallelForAllNodes([&](const HypernodeID& hn) {
-          if ( partition[hn] < 0 || partition[hn] >= num_blocks ) {
-            ERR("Invalid block ID for node" << hn << "( block ID =" << partition[hn] << ")");
+          PartitionID block = partition[hn];
+          if ( block < 0 || block >= num_blocks ) {
+            WARNING("Invalid block ID for node" << hn << "( block ID =" << partition[hn] << ")");
+            block = 0;
           }
-          partitioned_graph.setOnlyNodePart(hn, partition[hn]);
+          partitioned_graph.setOnlyNodePart(hn, block);
         });
         partitioned_graph.initializePartition();
         return partitioned_graph;
@@ -625,10 +689,12 @@ Construct a partitioned graph.
         io::readPartitionFile(partition_file, partition);
         PartitionedGraph partitioned_graph(num_blocks, graph, mt_kahypar::parallel_tag_t { });
         partitioned_graph.doParallelForAllNodes([&](const HypernodeID& hn) {
-          if ( partition[hn] < 0 || partition[hn] >= num_blocks ) {
-            ERR("Invalid block ID for node" << hn << "( block ID =" << partition[hn] << ")");
+          PartitionID block = partition[hn];
+          if ( block < 0 || block >= num_blocks ) {
+            WARNING("Invalid block ID for node" << hn << "( block ID =" << partition[hn] << ")");
+            block = 0;
           }
-          partitioned_graph.setOnlyNodePart(hn, partition[hn]);
+          partitioned_graph.setOnlyNodePart(hn, block);
         });
         partitioned_graph.initializePartition();
         return partitioned_graph;
@@ -707,10 +773,12 @@ Construct a partitioned graph.
                        const vec<PartitionID>& partition) {
         PartitionedHypergraph partitioned_hg(num_blocks, hypergraph, parallel_tag_t { });
         partitioned_hg.doParallelForAllNodes([&](const HypernodeID& hn) {
-          if ( partition[hn] < 0 || partition[hn] >= num_blocks ) {
-            ERR("Invalid block ID for node" << hn << "( block ID =" << partition[hn] << ")");
+          PartitionID block = partition[hn];
+          if ( block < 0 || block >= num_blocks ) {
+            WARNING("Invalid block ID for node" << hn << "( block ID =" << partition[hn] << ")");
+            block = 0;
           }
-          partitioned_hg.setOnlyNodePart(hn, partition[hn]);
+          partitioned_hg.setOnlyNodePart(hn, block);
         });
         partitioned_hg.initializePartition();
         return partitioned_hg;
@@ -729,10 +797,12 @@ Construct a partitioned hypergraph.
         io::readPartitionFile(partition_file, partition);
         PartitionedHypergraph partitioned_hg(num_blocks, hypergraph, parallel_tag_t { });
         partitioned_hg.doParallelForAllNodes([&](const HypernodeID& hn) {
-          if ( partition[hn] < 0 || partition[hn] >= num_blocks ) {
-            ERR("Invalid block ID for node" << hn << "( block ID =" << partition[hn] << ")");
+          PartitionID block = partition[hn];
+          if ( block < 0 || block >= num_blocks ) {
+            WARNING("Invalid block ID for node" << hn << "( block ID =" << partition[hn] << ")");
+            block = 0;
           }
-          partitioned_hg.setOnlyNodePart(hn, partition[hn]);
+          partitioned_hg.setOnlyNodePart(hn, block);
         });
         partitioned_hg.initializePartition();
         return partitioned_hg;
@@ -822,10 +892,12 @@ Construct a partitioned hypergraph.
                        const vec<PartitionID>& partition) {
         SparsePartitionedHypergraph partitioned_hg(num_blocks, hypergraph, parallel_tag_t { });
         partitioned_hg.doParallelForAllNodes([&](const HypernodeID& hn) {
-          if ( partition[hn] < 0 || partition[hn] >= num_blocks ) {
-            ERR("Invalid block ID for node" << hn << "( block ID =" << partition[hn] << ")");
+          PartitionID block = partition[hn];
+          if ( block < 0 || block >= num_blocks ) {
+            WARNING("Invalid block ID for node" << hn << "( block ID =" << partition[hn] << ")");
+            block = 0;
           }
-          partitioned_hg.setOnlyNodePart(hn, partition[hn]);
+          partitioned_hg.setOnlyNodePart(hn, block);
         });
         partitioned_hg.initializePartition();
         return partitioned_hg;
@@ -844,10 +916,12 @@ Construct a partitioned hypergraph.
         io::readPartitionFile(partition_file, partition);
         SparsePartitionedHypergraph partitioned_hg(num_blocks, hypergraph, parallel_tag_t { });
         partitioned_hg.doParallelForAllNodes([&](const HypernodeID& hn) {
-          if ( partition[hn] < 0 || partition[hn] >= num_blocks ) {
-            ERR("Invalid block ID for node" << hn << "( block ID =" << partition[hn] << ")");
+          PartitionID block = partition[hn];
+          if ( block < 0 || block >= num_blocks ) {
+            WARNING("Invalid block ID for node" << hn << "( block ID =" << partition[hn] << ")");
+            block = 0;
           }
-          partitioned_hg.setOnlyNodePart(hn, partition[hn]);
+          partitioned_hg.setOnlyNodePart(hn, block);
         });
         partitioned_hg.initializePartition();
         return partitioned_hg;
