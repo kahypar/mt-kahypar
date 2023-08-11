@@ -28,6 +28,7 @@
 #include "mt-kahypar/partition/conversion.h"
 
 #include "mt-kahypar/macros.h"
+#include "mt-kahypar/utils/exception.h"
 
 namespace mt_kahypar {
 
@@ -40,7 +41,7 @@ mt_kahypar_hypergraph_type_t to_hypergraph_c_type(const PresetType preset,
       case PresetType::default_preset:
       case PresetType::quality: return STATIC_HYPERGRAPH;
       case PresetType::highest_quality: return DYNAMIC_HYPERGRAPH;
-      case PresetType::UNDEFINED: ERR("Unknown preset type!");
+      case PresetType::UNDEFINED: throw InvalidParameterException("Unknown preset type!");
     }
   }
   else if ( instance == InstanceType::graph ) {
@@ -50,11 +51,11 @@ mt_kahypar_hypergraph_type_t to_hypergraph_c_type(const PresetType preset,
       case PresetType::default_preset:
       case PresetType::quality: return STATIC_GRAPH;
       case PresetType::highest_quality: return DYNAMIC_GRAPH;
-      case PresetType::UNDEFINED: ERR("Unknown preset type!");
+      case PresetType::UNDEFINED: throw InvalidParameterException("Unknown preset type!");
     }
   }
   else {
-    ERR("Unknown instance type. Should be either graph or hypergraph");
+    throw InvalidParameterException("Unknown instance type. Should be either graph or hypergraph");
   }
   return NULLPTR_HYPERGRAPH;
 }

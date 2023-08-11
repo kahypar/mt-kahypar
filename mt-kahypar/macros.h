@@ -112,6 +112,8 @@
 
 // In windows unisgned long != size_t
 #define UL(X) (size_t) X
+#define STR(X) std::to_string(X)
+#define STREAM2STR(X) static_cast<std::stringstream>(X).str();
 
 // Info, Warning and Error Output Macros
 #define GREEN "\033[1;92m"

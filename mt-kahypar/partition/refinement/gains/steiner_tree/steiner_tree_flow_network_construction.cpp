@@ -28,6 +28,7 @@
 
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/mapping/target_graph.h"
+#include "mt-kahypar/utils/exception.h"
 
 namespace mt_kahypar {
 
@@ -39,7 +40,8 @@ HyperedgeWeight capacity_for_cut_edge(const SteinerTreeFlowValuePolicy policy,
     case SteinerTreeFlowValuePolicy::lower_bound: return std::min(gain_0, gain_1);
     case SteinerTreeFlowValuePolicy::upper_bound: return std::max(gain_0, gain_1);
     case SteinerTreeFlowValuePolicy::UNDEFINED:
-      ERR("Steiner tree flow value policy is undefined" << V(policy));
+      throw InvalidParameterException(
+        "Steiner tree flow value policy is undefined");
       return 0;
   }
   return 0;

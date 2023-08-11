@@ -37,6 +37,7 @@
 #include "mt-kahypar/macros.h"
 
 #include "mt-kahypar/parallel/hwloc_topology.h"
+#include "mt-kahypar/utils/exception.h"
 
 namespace mt_kahypar {
 namespace parallel {
@@ -228,7 +229,7 @@ class HardwareTopology {
     int cpu_id = _numa_nodes[node].get_backup_cpu(except_cpu);
     if ( cpu_id == -1 ) {
       #ifndef KAHYPAR_TRAVIS_BUILD
-      ERR("Your system has not enough cpus to execute MT-KaHyPar (> 1)");
+      throw SystemException("Your system has not enough cpus to execute MT-KaHyPar (> 1)");
       #else
       // Handling special case:
       // Travis CI has only two cpus, when mocking a numa architecture

@@ -38,6 +38,7 @@
 #include "mt-kahypar/parallel/atomic_wrapper.h"
 #include "mt-kahypar/utils/timer.h"
 #include "mt-kahypar/parallel/parallel_counting_sort.h"
+#include "mt-kahypar/utils/exception.h"
 
 namespace mt_kahypar::ds {
 
@@ -82,7 +83,7 @@ namespace mt_kahypar::ds {
         break;
       case LouvainEdgeWeight::hybrid:
       case LouvainEdgeWeight::UNDEFINED:
-      ERR("No valid louvain edge weight");
+      throw InvalidInputException("No valid louvain edge weight");
     }
   }
 

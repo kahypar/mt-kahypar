@@ -34,6 +34,7 @@
 #include "mt-kahypar/parallel/parallel_prefix_sum.h"
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
 #include "mt-kahypar/utils/timer.h"
+#include "mt-kahypar/utils/exception.h"
 
 namespace mt_kahypar::ds {
 
@@ -51,7 +52,8 @@ DynamicGraph DynamicGraphFactory::construct(
   tbb::parallel_for(UL(0), edge_vector.size(), [&](const size_t i) {
     const auto& e = edge_vector[i];
     if (e.size() != 2) {
-      ERR("Using graph data structure; but the input hypergraph is not a graph.");
+      throw InvalidInputException(
+        "Using graph data structure; but the input hypergraph is not a graph.");
     }
     edges[i] = std::make_pair(e[0], e[1]);
   });

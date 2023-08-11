@@ -31,6 +31,7 @@
 #include "mt-kahypar/io/hypergraph_io.h"
 #include "mt-kahypar/datastructures/fixed_vertex_support.h"
 #include "mt-kahypar/partition/conversion.h"
+#include "mt-kahypar/utils/exception.h"
 
 namespace mt_kahypar {
 namespace io {
@@ -192,8 +193,9 @@ void addFixedVertices(Hypergraph& hypergraph,
   hypergraph.doParallelForAllNodes([&](const HypernodeID& hn) {
     if ( fixed_vertices[hn] != -1 ) {
       if ( fixed_vertices[hn] < 0 || fixed_vertices[hn] >= k ) {
-        ERR("Try to partition hypergraph into" << k << "blocks, but node" << hn
-             << "is fixed to block" << fixed_vertices[hn]);
+        throw InvalidInputException(
+          "Try to partition hypergraph into " + STR(k) + " blocks, but node " +
+           STR(hn) + " is fixed to block " + STR(fixed_vertices[hn]));
       }
       fixed_vertex_support.fixToBlock(hn, fixed_vertices[hn]);
     }
@@ -238,7 +240,8 @@ void addFixedVerticesFromFile(mt_kahypar_hypergraph_t hypergraph,
   std::vector<PartitionID> fixed_vertices;
   io::readPartitionFile(filename, fixed_vertices);
   if ( ID(fixed_vertices.size()) != numberOfNodes(hypergraph) ) {
-    ERR("Fixed vertex file has more lines than the number of nodes!");
+    throw InvalidInputException(
+      "Fixed vertex file has more lines than the number of nodes!");
   }
   addFixedVertices(hypergraph, fixed_vertices.data(), k);
 }

@@ -44,6 +44,7 @@
 #endif
 #endif
 #include "mt-kahypar/macros.h"
+#include "mt-kahypar/utils/exception.h"
 
 namespace mt_kahypar {
 
@@ -71,7 +72,7 @@ class GainCachePtr {
       ENABLE_GRAPHS(case GainPolicy::steiner_tree_for_graphs: return constructGainCache<GraphSteinerTreeGainCache>(context);)
       #endif
       case GainPolicy::none:
-        ERR("No gain policy set");
+        throw InvalidParameterException("No gain policy set");
       default: break;
     }
     return gain_cache_t { nullptr, GainPolicy::none };
@@ -246,7 +247,9 @@ class GainCachePtr {
   template<typename GainCache>
   static GainCache& cast(gain_cache_t gain_cache) {
     if ( gain_cache.type != GainCache::TYPE ) {
-      ERR("Cannot cast" << gain_cache.type << "to" << GainCache::TYPE);
+      std::stringstream ss;
+      ss << "Cannot cast" << gain_cache.type << "to" << GainCache::TYPE;
+      throw InvalidInputException(ss.str());
     }
     return *reinterpret_cast<GainCache*>(gain_cache.gain_cache);
   }

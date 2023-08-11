@@ -39,6 +39,7 @@
 #include "mt-kahypar/datastructures/connectivity_set.h"
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
 #include "mt-kahypar/partition/context.h"
+#include "mt-kahypar/utils/exception.h"
 
 namespace mt_kahypar {
 namespace ds {
@@ -265,19 +266,19 @@ class DeltaPartitionedGraph {
 
   // ! Returns an iterator over the connectivity set of hyperedge he (not supported)
   IteratorRange<ConnectivitySetIterator> connectivitySet(const HyperedgeID e) const {
-    ERR("Not supported for graphs");
+    throw NonSupportedOperationException("Not supported for graphs");
     return _dummy_connectivity_set.connectivitySet(e);
   }
 
   // ! Returns the number of blocks contained in hyperedge he (not supported)
   PartitionID connectivity(const HyperedgeID e) const {
-    ERR("Not supported for graphs");
+    throw NonSupportedOperationException("Not supported for graphs");
     return _dummy_connectivity_set.connectivity(e);
   }
 
   // ! Creates a deep copy of the connectivity set of hyperedge he (not supported)
   Bitset& deepCopyOfConnectivitySet(const HyperedgeID he) const {
-    ERR("Not supported for graphs");
+    throw NonSupportedOperationException("Not supported for graphs");
     return _dummy_connectivity_set.deepCopy(he);
   }
 

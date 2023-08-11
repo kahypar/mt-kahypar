@@ -31,6 +31,7 @@
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/registries/register_initial_partitioning_algorithms.h"
 #include "mt-kahypar/utils/cast.h"
+#include "mt-kahypar/utils/exception.h"
 
 namespace mt_kahypar {
 
@@ -46,7 +47,8 @@ void Pool<TypeTraits>::bipartition(PartitionedHypergraph& hypergraph,
   ASSERT(context.shared_memory.num_threads > 0);
   if ( context.initial_partitioning.enabled_ip_algos.size() <
         static_cast<size_t>(InitialPartitioningAlgorithm::UNDEFINED) ) {
-    ERR("Size of enabled IP algorithms vector is smaller than number of IP algorithms!");
+    throw InvalidParameterException(
+      "Size of enabled IP algorithms vector is smaller than number of IP algorithms!");
   }
 
   int tag = 0;

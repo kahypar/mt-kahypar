@@ -49,6 +49,7 @@
 #include "mt-kahypar/partition/coarsening/nlevel_uncoarsener.h"
 #include "mt-kahypar/utils/cast.h"
 #include "mt-kahypar/utils/utilities.h"
+#include "mt-kahypar/utils/exception.h"
 
 namespace mt_kahypar {
 
@@ -132,7 +133,7 @@ namespace {
         ip_context.partition.verbose_output = false;
         DeepMultilevel<TypeTraits>::partition(phg, ip_context);
       } else {
-        ERR("Undefined initial partitioning algorithm");
+        throw InvalidParameterException("Undefined initial partitioning algorithm");
       }
       enableTimerAndStats(context);
       degree_zero_hn_remover.restoreDegreeZeroHypernodes(phg);

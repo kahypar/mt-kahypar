@@ -30,6 +30,7 @@
 
 #include "mt-kahypar/datastructures/hypergraph_common.h"
 #include "mt-kahypar/macros.h"
+#include "mt-kahypar/utils/exception.h"
 
 namespace mt_kahypar {
 
@@ -57,12 +58,14 @@ class SteinerTreeRollback {
 
   // Updates the auxilliary data for a node move m with index m_id.
   static void updateMove(const MoveID, const Move&, vec<RecalculationData>&) {
-    ERR("Parallel rollback is not supported for steiner tree metric");
+    throw NonSupportedOperationException(
+      "Parallel rollback is not supported for steiner tree metric");
   }
 
   // Updates the number of non-moved in a block.
   static void updateNonMovedPinInBlock(const PartitionID, vec<RecalculationData>&) {
-    ERR("Parallel rollback is not supported for steiner tree metric");
+    throw NonSupportedOperationException(
+      "Parallel rollback is not supported for steiner tree metric");
   }
 
   template<typename PartitionedHypergraph>
@@ -71,7 +74,8 @@ class SteinerTreeRollback {
                                  const MoveID,
                                  const Move&,
                                  vec<RecalculationData>&) {
-    ERR("Parallel rollback is not supported for steiner tree metric");
+    throw NonSupportedOperationException(
+      "Parallel rollback is not supported for steiner tree metric");
     return 0;
   }
 
@@ -81,7 +85,8 @@ class SteinerTreeRollback {
                                  const MoveID,
                                  const Move&,
                                  vec<RecalculationData>&) {
-    ERR("Parallel rollback is not supported for steiner tree metric");
+    throw NonSupportedOperationException(
+      "Parallel rollback is not supported for steiner tree metric");
     return 0;
   }
 };
