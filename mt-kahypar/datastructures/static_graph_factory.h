@@ -32,6 +32,7 @@
 
 #include "mt-kahypar/datastructures/static_graph.h"
 #include "mt-kahypar/parallel/atomic_wrapper.h"
+#include "mt-kahypar/utils/exception.h"
 
 
 namespace mt_kahypar {
@@ -63,7 +64,8 @@ class StaticGraphFactory {
                                                 const bool stable_construction_of_incident_edges = false);
 
   static std::pair<StaticGraph, parallel::scalable_vector<HypernodeID> > compactify(const StaticGraph&) {
-    ERR("Compactify not implemented for static graph.");
+    throw NonSupportedOperationException(
+      "Compactify not implemented for static graph.");
   }
 
  private:

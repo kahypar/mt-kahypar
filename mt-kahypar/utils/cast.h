@@ -31,6 +31,7 @@
 #include "include/libmtkahypartypes.h"
 
 #include "mt-kahypar/macros.h"
+#include "mt-kahypar/utils/exception.h"
 
 namespace mt_kahypar::utils {
 
@@ -59,12 +60,33 @@ std::string typeToString(const mt_kahypar_partition_type_t type) {
   return "UNDEFINED";
 }
 
+template<typename Hypergraph>
+std::string error_msg(mt_kahypar_hypergraph_t hypergraph) {
+  std::stringstream ss;
+  ss << "Cannot cast" << typeToString(hypergraph.type) << "to" << typeToString(Hypergraph::TYPE);
+  return ss.str();
+}
+
+template<typename PartitionedHypergraph>
+std::string error_msg(mt_kahypar_partitioned_hypergraph_t partitioned_hg) {
+  std::stringstream ss;
+  ss << "Cannot cast" << typeToString(partitioned_hg.type) << "to" << typeToString(PartitionedHypergraph::TYPE);
+  return ss.str();
+}
+
+template<typename PartitionedHypergraph>
+std::string error_msg(mt_kahypar_partitioned_hypergraph_const_t partitioned_hg) {
+  std::stringstream ss;
+  ss << "Cannot cast" << typeToString(partitioned_hg.type) << "to" << typeToString(PartitionedHypergraph::TYPE);
+  return ss.str();
+}
+
 } // namespace
 
 template<typename Hypergraph>
 Hypergraph& cast(mt_kahypar_hypergraph_t hypergraph) {
   if ( Hypergraph::TYPE != hypergraph.type ) {
-    ERR("Cannot cast" << typeToString(hypergraph.type) << "to" << typeToString(Hypergraph::TYPE));
+    throw InvalidInputException(error_msg<Hypergraph>(hypergraph));
   }
   return *reinterpret_cast<Hypergraph*>(hypergraph.hypergraph);
 }
@@ -72,7 +94,7 @@ Hypergraph& cast(mt_kahypar_hypergraph_t hypergraph) {
 template<typename Hypergraph>
 const Hypergraph& cast_const(const mt_kahypar_hypergraph_t hypergraph) {
   if ( Hypergraph::TYPE != hypergraph.type ) {
-    ERR("Cannot cast" << typeToString(hypergraph.type) << "to" << typeToString(Hypergraph::TYPE));
+    throw InvalidInputException(error_msg<Hypergraph>(hypergraph));
   }
   return *reinterpret_cast<const Hypergraph*>(hypergraph.hypergraph);
 }
@@ -80,7 +102,7 @@ const Hypergraph& cast_const(const mt_kahypar_hypergraph_t hypergraph) {
 template<typename Hypergraph>
 const Hypergraph& cast_const(mt_kahypar_hypergraph_const_t hypergraph) {
   if ( Hypergraph::TYPE != hypergraph.type ) {
-    ERR("Cannot cast" << typeToString(hypergraph.type) << "to" << typeToString(Hypergraph::TYPE));
+    throw InvalidInputException(error_msg<Hypergraph>(hypergraph));
   }
   return *reinterpret_cast<const Hypergraph*>(hypergraph.hypergraph);
 }
@@ -100,7 +122,7 @@ template<typename Hypergraph>
 template<typename PartitionedHypergraph>
 PartitionedHypergraph& cast(mt_kahypar_partitioned_hypergraph_t phg) {
   if ( PartitionedHypergraph::TYPE != phg.type ) {
-    ERR("Cannot cast" << typeToString(phg.type) << "to" << typeToString(PartitionedHypergraph::TYPE));
+    throw InvalidInputException(error_msg<PartitionedHypergraph>(phg));
   }
   return *reinterpret_cast<PartitionedHypergraph*>(phg.partitioned_hg);
 }
@@ -108,7 +130,7 @@ PartitionedHypergraph& cast(mt_kahypar_partitioned_hypergraph_t phg) {
 template<typename PartitionedHypergraph>
 const PartitionedHypergraph& cast_const(const mt_kahypar_partitioned_hypergraph_t phg) {
   if ( PartitionedHypergraph::TYPE != phg.type ) {
-    ERR("Cannot cast" << typeToString(phg.type) << "to" << typeToString(PartitionedHypergraph::TYPE));
+    throw InvalidInputException(error_msg<PartitionedHypergraph>(phg));
   }
   return *reinterpret_cast<const PartitionedHypergraph*>(phg.partitioned_hg);
 }
@@ -116,7 +138,7 @@ const PartitionedHypergraph& cast_const(const mt_kahypar_partitioned_hypergraph_
 template<typename PartitionedHypergraph>
 const PartitionedHypergraph& cast_const(mt_kahypar_partitioned_hypergraph_const_t phg) {
   if ( PartitionedHypergraph::TYPE != phg.type ) {
-    ERR("Cannot cast" << typeToString(phg.type) << "to" << typeToString(PartitionedHypergraph::TYPE));
+    throw InvalidInputException(error_msg<PartitionedHypergraph>(phg));
   }
   return *reinterpret_cast<const PartitionedHypergraph*>(phg.partitioned_hg);
 }

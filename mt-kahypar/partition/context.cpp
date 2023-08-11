@@ -29,6 +29,8 @@
 
 #include <algorithm>
 
+#include "mt-kahypar/utils/exception.h"
+
 namespace mt_kahypar {
 
   std::ostream & operator<< (std::ostream& str, const PartitioningParameters& params) {
@@ -266,9 +268,11 @@ namespace mt_kahypar {
       }
 
       if (max_part_weights_sum < total_hypergraph_weight) {
-        ERR("Sum of individual part weights is less than the total hypergraph weight. Finding a valid partition is impossible.\n"
-                << "Total hypergraph weight: " << total_hypergraph_weight << "\n"
-                << "Sum of part weights:     " << max_part_weights_sum);
+        throw InvalidInputException(
+          "Sum of individual part weights is less than the total hypergraph weight. "
+          "Finding a valid partition is not possible.\n"
+          "Total hypergraph weight: " + std::to_string(total_hypergraph_weight) + "\n"
+          "Sum of part weights:     " + std::to_string(max_part_weights_sum));
       } else {
         // To avoid rounding issues, epsilon should be calculated using the sum of the perfect part weights instead of
         // the total hypergraph weight. See also recursive_bipartitioning_initial_partitioner
@@ -420,15 +424,17 @@ namespace mt_kahypar {
   void Context::setupGainPolicy() {
     #ifndef KAHYPAR_ENABLE_SOED_METRIC
     if ( partition.objective == Objective::soed ) {
-      ERR("SOED metric is deactivated. Add -DKAHYPAR_ENABLE_SOED_METRIC=ON"
-        << "to the cmake command and rebuild Mt-KaHyPar.");
+      throw InvalidParameterException(
+        "SOED metric is deactivated. Add -DKAHYPAR_ENABLE_SOED_METRIC=ON to the "
+        "cmake command and rebuild Mt-KaHyPar.");
     }
     #endif
 
     #ifndef KAHYPAR_ENABLE_STEINER_TREE_METRIC
     if ( partition.objective == Objective::steiner_tree ) {
-      ERR("Steiner tree metric is deactivated. Add -DKAHYPAR_ENABLE_STEINER_TREE_METRIC=ON"
-        << "to the cmake command and rebuild Mt-KaHyPar.");
+      throw InvalidParameterException(
+        "Steiner tree metric is deactivated. Add -DKAHYPAR_ENABLE_STEINER_TREE_METRIC=ON "
+        "to the cmake command and rebuild Mt-KaHyPar.");
     }
     #endif
 

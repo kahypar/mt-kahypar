@@ -31,6 +31,7 @@
 
 #include "mt-kahypar/datastructures/static_graph.h"
 #include "mt-kahypar/partition/mapping/steiner_tree.h"
+#include "mt-kahypar/utils/exception.h"
 
 namespace mt_kahypar {
 
@@ -38,8 +39,9 @@ namespace mt_kahypar {
 void TargetGraph::precomputeDistances(const size_t max_connectivity) {
   const size_t num_entries = std::pow(_k, max_connectivity);
   if ( num_entries > MEMORY_LIMIT ) {
-    ERR("Too much memory requested for precomputing steiner trees"
-      << "of connectivity sets in the target graph.");
+    throw SystemException(
+      "Too much memory requested for precomputing steiner trees "
+      "of connectivity sets in the target graph.");
   }
   _distances.assign(num_entries, std::numeric_limits<HyperedgeWeight>::max() / 3);
   SteinerTree::compute(_graph, max_connectivity, _distances);

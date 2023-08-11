@@ -38,6 +38,8 @@
 #include <fstream>
 #include <limits>
 
+#include "mt-kahypar/utils/exception.h"
+
 namespace po = boost::program_options;
 
 namespace mt_kahypar {
@@ -769,7 +771,8 @@ namespace mt_kahypar {
     if ( context.partition.preset_file != "" ) {
       std::ifstream file(context.partition.preset_file.c_str());
       if (!file) {
-        ERR("Could not load context file at: " + context.partition.preset_file);
+        throw InvalidInputException(
+          "Could not load context file at: " + context.partition.preset_file);
       }
 
       po::options_description ini_line_options;
@@ -819,7 +822,8 @@ namespace mt_kahypar {
   void parseIniToContext(Context& context, const std::string& ini_filename) {
     std::ifstream file(ini_filename.c_str());
     if (!file) {
-      ERR("Could not load context file at: " << ini_filename);
+      throw InvalidInputException(
+        "Could not load context file at: " + ini_filename);
     }
     const int num_columns = 80;
 

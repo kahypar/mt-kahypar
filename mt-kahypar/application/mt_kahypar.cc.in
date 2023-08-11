@@ -39,6 +39,7 @@
 #include "mt-kahypar/utils/delete.h"
 #include "mt-kahypar/utils/randomize.h"
 #include "mt-kahypar/utils/utilities.h"
+#include "mt-kahypar/utils/exception.h"
 
 using namespace mt_kahypar;
 
@@ -67,7 +68,7 @@ int main(int argc, char* argv[]) {
       context.partition.preset_file = getPresetFile(context);
       processCommandLineInput(context, argc, argv);
     } else {
-      ERR("No preset specified");
+      throw InvalidInputException("No preset specified");
     }
   }
 
@@ -125,7 +126,7 @@ int main(int argc, char* argv[]) {
         io::readInputFile<ds::StaticGraph>(
           context.mapping.target_graph_file, FileFormat::Metis, true));
     } else {
-      ERR("No target graph file specified (use -g <file> or --target-graph-file=<file>)!");
+      throw InvalidInputException("No target graph file specified (use -g <file> or --target-graph-file=<file>)!");
     }
   }
 

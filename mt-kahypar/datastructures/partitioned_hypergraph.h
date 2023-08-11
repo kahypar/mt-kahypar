@@ -43,6 +43,7 @@
 #include "mt-kahypar/parallel/stl/thread_locals.h"
 #include "mt-kahypar/utils/range.h"
 #include "mt-kahypar/utils/timer.h"
+#include "mt-kahypar/utils/exception.h"
 
 namespace mt_kahypar {
 
@@ -384,19 +385,22 @@ class PartitionedHypergraph {
 
     // ! Target of an edge
   HypernodeID edgeTarget(const HyperedgeID) const {
-    ERR("edgeTarget(e) is only supported on graph data structure");
+    throw NonSupportedOperationException(
+      "edgeTarget(e) is only supported on graph data structure");
     return kInvalidHypernode;
   }
 
   // ! Source of an edge
   HypernodeID edgeSource(const HyperedgeID) const {
-    ERR("edgeSource(e) is only supported on graph data structure");
+    throw NonSupportedOperationException(
+      "edgeSource(e) is only supported on graph data structure");
     return kInvalidHypernode;
   }
 
   // ! Whether the edge is a single pin edge
   bool isSinglePin(const HyperedgeID) const {
-    ERR("isSinglePin(e) is only supported on graph data structure");
+    throw NonSupportedOperationException(
+      "isSinglePin(e) is only supported on graph data structure");
     return false;
   }
 

@@ -45,6 +45,7 @@
 
 #include "mt-kahypar/macros.h"
 #include "mt-kahypar/utils/randomize.h"
+#include "mt-kahypar/utils/exception.h"
 
 namespace mt_kahypar {
 namespace parallel {
@@ -127,10 +128,13 @@ class ThreadPinningObserver : public tbb::task_scheduler_observer {
     ASSERT(static_cast<size_t>(slot) < _cpus.size(), V(slot) << V(_cpus.size()));
 
     if ( slot >= static_cast<int>(_cpus.size()) ) {
-      ERR("Thread" << std::this_thread::get_id() << "entered the global task arena"
-        << "in a slot that should not exist (Slot =" << slot << ", Max Slots =" <<_cpus.size()
-        << ", slots are 0-indexed). This bug only occurs in older versions of TBB."
-        << "We recommend upgrading TBB to the newest version.");
+      std::stringstream thread_id;
+      thread_id << std::this_thread::get_id();
+      throw SystemException(
+        "Thread " + thread_id.str() + " entered the global task arena "
+        "in a slot that should not exist (Slot = " + std::to_string(slot) + ", Max Slots = " + std::to_string(_cpus.size()) +
+        ", slots are 0-indexed). This bug only occurs in older versions of TBB. "
+        "We recommend upgrading TBB to the newest version.");
     }
 
     DBG << pin_thread_message(_cpus[slot]);
@@ -181,8 +185,8 @@ class ThreadPinningObserver : public tbb::task_scheduler_observer {
 
     if (err) {
       const int error = errno;
-      ERR("Failed to set thread affinity to cpu" << cpu_id
-        << "." << strerror(error));
+      throw SystemException(
+        "Failed to set thread affinity to cpu" + std::to_string(cpu_id) + "." + strerror(error));
     }
 
     ASSERT(SCHED_GETCPU == cpu_id);

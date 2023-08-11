@@ -36,6 +36,7 @@
 #include "mt-kahypar/utils/cast.h"
 #include "mt-kahypar/utils/randomize.h"
 #include "mt-kahypar/partition/conversion.h"
+#include "mt-kahypar/utils/exception.h"
 
 namespace mt_kahypar {
 
@@ -73,20 +74,23 @@ namespace internal {
     unused(type);
     #ifndef KAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES
     if ( type == MULTILEVEL_GRAPH_PARTITIONING || type == N_LEVEL_GRAPH_PARTITIONING ) {
-      ERR("Graph partitioning features are deactivated. Add -DKAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES=ON"
-        << "to the cmake command and rebuild Mt-KaHyPar.");
+      throw InvalidParameterException(
+        "Graph partitioning features are deactivated. Add -DKAHYPAR_ENABLE_GRAPH_PARTITIONING_FEATURES=ON "
+        "to the cmake command and rebuild Mt-KaHyPar.");
     }
     #endif
     #ifndef KAHYPAR_ENABLE_HIGHEST_QUALITY_FEATURES
     if ( type == N_LEVEL_HYPERGRAPH_PARTITIONING || type == N_LEVEL_GRAPH_PARTITIONING ) {
-      ERR("Quality preset features are deactivated. Add -KAHYPAR_ENABLE_HIGHEST_QUALITY_FEATURES=ON"
-        << "to the cmake command and rebuild Mt-KaHyPar.");
+      throw InvalidParameterException(
+        "Quality preset features are deactivated. Add -KAHYPAR_ENABLE_HIGHEST_QUALITY_FEATURES=ON "
+        "to the cmake command and rebuild Mt-KaHyPar.");
     }
     #endif
     #ifndef KAHYPAR_ENABLE_LARGE_K_PARTITIONING_FEATURES
     if ( type == LARGE_K_PARTITIONING ) {
-      ERR("Large-k partitioning features are deactivated. Add -DKAHYPAR_ENABLE_LARGE_K_PARTITIONING_FEATURES=ON"
-        << "to the cmake command and rebuild Mt-KaHyPar.");
+      throw InvalidParameterException(
+        "Large-k partitioning features are deactivated. Add -DKAHYPAR_ENABLE_LARGE_K_PARTITIONING_FEATURES=ON "
+        "to the cmake command and rebuild Mt-KaHyPar.");
     }
     #endif
   }

@@ -45,6 +45,7 @@
 #include "mt-kahypar/utils/hypergraph_statistics.h"
 #include "mt-kahypar/utils/stats.h"
 #include "mt-kahypar/utils/timer.h"
+#include "mt-kahypar/utils/exception.h"
 
 
 namespace mt_kahypar {
@@ -67,7 +68,9 @@ namespace mt_kahypar {
       const PartitionID max_k = Hypergraph::is_graph ? 256 : 64;
       if ( k  > max_k ) {
         const std::string type = Hypergraph::is_graph ? "graphs" : "hypergraphs";
-        ERR("We currently only support mappings of" << type << "onto target graphs with at most" << max_k << "nodes!");
+        throw InvalidInputException(
+          "We currently only support mappings of " + type + " onto target graphs with at "
+          "most " + STR(max_k) + "nodes!");
       }
 
       if ( context.mapping.largest_he_fraction > 0.0 ) {
@@ -109,7 +112,8 @@ namespace mt_kahypar {
     if ( context.initial_partitioning.enabled_ip_algos.size() > 0 &&
          context.initial_partitioning.enabled_ip_algos.size() <
          static_cast<size_t>(InitialPartitioningAlgorithm::UNDEFINED) ) {
-      ERR("Size of enabled IP algorithms vector is smaller than number of IP algorithms!");
+      throw InvalidParameterException(
+        "Size of enabled IP algorithms vector is smaller than number of IP algorithms!");
     } else if ( context.initial_partitioning.enabled_ip_algos.size() == 0 ) {
       context.initial_partitioning.enabled_ip_algos.assign(
         static_cast<size_t>(InitialPartitioningAlgorithm::UNDEFINED), true);
@@ -119,18 +123,21 @@ namespace mt_kahypar {
         is_one_ip_algo_enabled |= context.initial_partitioning.enabled_ip_algos[i];
       }
       if ( !is_one_ip_algo_enabled ) {
-        ERR("At least one initial partitioning algorithm must be enabled!");
+        throw InvalidParameterException(
+          "At least one initial partitioning algorithm must be enabled!");
       }
     }
 
     // Check fixed vertex support compatibility
     if ( hypergraph.hasFixedVertices() ) {
       if ( context.partition.preset_type == PresetType::deterministic ) {
-        ERR("Deterministic partitioning mode does not support fixed vertices!");
+        throw NonSupportedOperationException(
+          "Deterministic partitioning mode does not support fixed vertices!");
       }
       if ( context.partition.mode == Mode::deep_multilevel ||
            context.initial_partitioning.mode == Mode::deep_multilevel ) {
-        ERR("Deep multilevel partitioning scheme does not support fixed vertices!");
+        throw NonSupportedOperationException(
+          "Deep multilevel partitioning scheme does not support fixed vertices!");
       }
     }
   }
@@ -352,7 +359,7 @@ namespace mt_kahypar {
       ASSERT(context.partition.objective != Objective::steiner_tree);
       partitioned_hypergraph = DeepMultilevel<TypeTraits>::partition(hypergraph, context);
     } else {
-      ERR("Invalid mode: " << context.partition.mode);
+      throw InvalidParameterException("Invalid partitioning mode!");
     }
 
     ASSERT([&] {
@@ -429,7 +436,7 @@ namespace mt_kahypar {
       Multilevel<TypeTraits>::partitionVCycle(
         hypergraph, partitioned_hg, context, target_graph);
     } else {
-      ERR("Invalid V-cycle mode: " << context.partition.mode);
+      throw InvalidParameterException("Invalid V-cycle partitioning mode!");
     }
 
     // ################## POSTPROCESSING ##################

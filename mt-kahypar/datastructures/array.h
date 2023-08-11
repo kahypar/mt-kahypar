@@ -38,6 +38,7 @@
 #include "mt-kahypar/macros.h"
 #include "mt-kahypar/parallel/memory_pool.h"
 #include "mt-kahypar/parallel/stl/scalable_unique_ptr.h"
+#include "mt-kahypar/utils/exception.h"
 
 namespace mt_kahypar {
 namespace ds {
@@ -293,7 +294,7 @@ class Array {
               const value_type init_value = value_type(),
               const bool assign_parallel = true) {
     if ( _data || _underlying_data ) {
-      ERR("Memory of vector already allocated");
+      throw SystemException("Memory of vector already allocated");
     }
     allocate_data(size);
     assign(size, init_value, assign_parallel);

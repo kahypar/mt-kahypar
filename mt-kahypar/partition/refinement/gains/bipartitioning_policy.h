@@ -30,6 +30,7 @@
 #include "mt-kahypar/partition/context_enum_classes.h"
 #include "mt-kahypar/datastructures/hypergraph_common.h"
 #include "mt-kahypar/macros.h"
+#include "mt-kahypar/utils/exception.h"
 
 namespace mt_kahypar {
 
@@ -43,9 +44,9 @@ struct BipartitioningPolicy {
       case GainPolicy::steiner_tree: return true;
       case GainPolicy::cut_for_graphs: return false;
       case GainPolicy::steiner_tree_for_graphs: return false;
-      case GainPolicy::none: ERR("Gain policy is unknown" << policy);
+      case GainPolicy::none: throw InvalidParameterException("Gain policy is unknown");
     }
-    ERR("Gain policy is unknown" << policy);
+    throw InvalidParameterException("Gain policy is unknown");
     return false;
   }
 
@@ -57,9 +58,9 @@ struct BipartitioningPolicy {
       case GainPolicy::steiner_tree: return 1;
       case GainPolicy::cut_for_graphs: return 1;
       case GainPolicy::steiner_tree_for_graphs: return 1;
-      case GainPolicy::none: ERR("Gain policy is unknown" << policy);
+      case GainPolicy::none: throw InvalidParameterException("Gain policy is unknown");
     }
-    ERR("Gain policy is unknown" << policy);
+    throw InvalidParameterException("Gain policy is unknown");
     return 0;
   }
 };

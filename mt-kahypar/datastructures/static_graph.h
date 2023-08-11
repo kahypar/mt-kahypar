@@ -43,6 +43,7 @@
 #include "mt-kahypar/partition/context_enum_classes.h"
 #include "mt-kahypar/utils/memory_tree.h"
 #include "mt-kahypar/utils/range.h"
+#include "mt-kahypar/utils/exception.h"
 
 namespace mt_kahypar {
 namespace ds {
@@ -702,7 +703,8 @@ class StaticGraph {
 
   // ! Enables a hyperedge (must be disabled before)
   void enableHyperedge(const HyperedgeID) {
-    ERR("enableHyperedge() is not supported in static graph");
+    throw NonSupportedOperationException(
+      "enableHyperedge() is not supported in static graph");
   }
 
   // ! Community id which hypernode u is assigned to
@@ -768,14 +770,16 @@ class StaticGraph {
   StaticGraph contract(parallel::scalable_vector<HypernodeID>& communities);
 
   bool registerContraction(const HypernodeID, const HypernodeID) {
-    ERR("registerContraction(u, v) is not supported in static graph");
+    throw NonSupportedOperationException(
+      "registerContraction(u, v) is not supported in static graph");
     return false;
   }
 
   size_t contract(const HypernodeID,
                   const HypernodeWeight max_node_weight = std::numeric_limits<HypernodeWeight>::max()) {
     unused(max_node_weight);
-    ERR("contract(v, max_node_weight) is not supported in static graph");
+    throw NonSupportedOperationException(
+      "contract(v, max_node_weight) is not supported in static graph");
     return 0;
   }
 
@@ -786,11 +790,13 @@ class StaticGraph {
     unused(mark_edge);
     unused(case_one_func);
     unused(case_two_func);
-    ERR("uncontract(batch) is not supported in static graph");
+    throw NonSupportedOperationException(
+      "uncontract(batch) is not supported in static graph");
   }
 
   VersionedBatchVector createBatchUncontractionHierarchy(const size_t) {
-    ERR("createBatchUncontractionHierarchy(batch_size) is not supported in static graph");
+    throw NonSupportedOperationException(
+      "createBatchUncontractionHierarchy(batch_size) is not supported in static graph");
     return { };
   }
 
@@ -805,23 +811,27 @@ class StaticGraph {
   * setting.
   */
   void removeLargeEdge(const HyperedgeID) {
-    ERR("removeLargeEdge() is not supported in static graph");
+    throw NonSupportedOperationException(
+      "removeLargeEdge() is not supported in static graph");
   }
 
   /*!
    * Restores a large hyperedge previously removed from the hypergraph.
    */
   void restoreLargeEdge(const HyperedgeID&) {
-    ERR("restoreLargeEdge() is not supported in static graph");
+    throw NonSupportedOperationException(
+      "restoreLargeEdge() is not supported in static graph");
   }
 
   parallel::scalable_vector<ParallelHyperedge> removeSinglePinAndParallelHyperedges() {
-    ERR("removeSinglePinAndParallelHyperedges() is not supported in static graph");
+    throw NonSupportedOperationException(
+      "removeSinglePinAndParallelHyperedges() is not supported in static graph");
     return { };
   }
 
   void restoreSinglePinAndParallelNets(const parallel::scalable_vector<ParallelHyperedge>&) {
-    ERR("restoreSinglePinAndParallelNets(hes_to_restore) is not supported in static graph");
+    throw NonSupportedOperationException(
+      "restoreSinglePinAndParallelNets(hes_to_restore) is not supported in static graph");
   }
 
   // ####################### Initialization / Reset Functions #######################
@@ -868,7 +878,8 @@ class StaticGraph {
 
     // ! Only for testing
   bool verifyIncidenceArrayAndIncidentNets() {
-    ERR("verifyIncidenceArrayAndIncidentNets() not supported in static graph");
+    throw NonSupportedOperationException(
+      "verifyIncidenceArrayAndIncidentNets() not supported in static graph");
     return false;
   }
 

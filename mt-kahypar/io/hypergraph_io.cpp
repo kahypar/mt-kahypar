@@ -51,6 +51,7 @@
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/context_enum_classes.h"
 #include "mt-kahypar/utils/timer.h"
+#include "mt-kahypar/utils/exception.h"
 
 namespace mt_kahypar::io {
 
@@ -82,7 +83,7 @@ namespace mt_kahypar::io {
     struct stat stat_buf;
     const int res = stat( filename.c_str(), &stat_buf);
     if (res < 0) {
-      ERR("Could not open:" << filename);
+      throw InvalidInputException("Could not open:" + filename);
     }
     return static_cast<size_t>(stat_buf.st_size);
   }
@@ -98,7 +99,7 @@ namespace mt_kahypar::io {
       /* create security descriptor (needed for Windows NT) */
       pSD = (PSECURITY_DESCRIPTOR) malloc( SECURITY_DESCRIPTOR_MIN_LENGTH );
       if( pSD == NULL ) {
-        ERR("Error while creating security descriptor!");
+        throw SystemException("Error while creating security descriptor!");
       }
 
       InitializeSecurityDescriptor(pSD, SECURITY_DESCRIPTOR_REVISION);
@@ -114,30 +115,30 @@ namespace mt_kahypar::io {
 
       if (handle.hFile == INVALID_HANDLE_VALUE) {
         free( pSD);
-        ERR("Invalid file handle when opening:" << filename);
+        throw InvalidInputException("Invalid file handle when opening: " + filename);
       }
 
       // Create file mapping
       handle.hMem = CreateFileMapping( handle.hFile, &sa, PAGE_READONLY, 0, handle.length, NULL);
       free(pSD);
       if (handle.hMem == NULL) {
-        ERR("Invalid file mapping when opening:" << filename);
+        throw InvalidInputException("Invalid file mapping when opening: " + filename);
       }
 
       // map file to memory
       handle.mapped_file = (char*) MapViewOfFile(handle.hMem, FILE_MAP_READ, 0, 0, 0);
       if ( handle.mapped_file == NULL ) {
-        ERR("Failed to map file to main memory:" << filename);
+        throw SystemException("Failed to map file to main memory:" + filename);
       }
     #elif __linux__
       handle.fd = open(filename.c_str(), O_RDONLY);
       if ( handle.fd < -1 ) {
-        ERR("Could not open:" << filename);
+        throw InvalidInputException("Could not open: " + filename);
       }
       handle.mapped_file = (char*) mmap(0, handle.length, PROT_READ, MAP_SHARED, handle.fd, 0);
       if ( handle.mapped_file == MAP_FAILED ) {
         close(handle.fd);
-        ERR("Error while mapping file to memory");
+        throw SystemException("Error while mapping file to memory");
       }
     #endif
 

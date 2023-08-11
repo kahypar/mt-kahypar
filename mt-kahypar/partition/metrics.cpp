@@ -32,6 +32,7 @@
 
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/mapping/target_graph.h"
+#include "mt-kahypar/utils/exception.h"
 
 namespace mt_kahypar::metrics {
 
@@ -124,7 +125,7 @@ HyperedgeWeight quality(const PartitionedHypergraph& hg,
     case Objective::steiner_tree:
       return parallel ? compute_objective_parallel<Objective::steiner_tree>(hg) :
         compute_objective_sequentially<Objective::steiner_tree>(hg);
-    default: ERR("Unknown Objective");
+    default: throw InvalidParameterException("Unknown Objective");
   }
   return 0;
 }
@@ -138,7 +139,7 @@ HyperedgeWeight contribution(const PartitionedHypergraph& hg,
     case Objective::km1: return contribution<Objective::km1>(hg, he);
     case Objective::soed: return contribution<Objective::soed>(hg, he);
     case Objective::steiner_tree: return contribution<Objective::steiner_tree>(hg, he);
-    default: ERR("Unknown Objective");
+    default: throw InvalidParameterException("Unknown Objective");
   }
   return 0;
 }

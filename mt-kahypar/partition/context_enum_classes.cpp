@@ -29,6 +29,7 @@
 
 #include "include/libmtkahypartypes.h"
 #include "mt-kahypar/macros.h"
+#include "mt-kahypar/utils/exception.h"
 
 namespace mt_kahypar {
 
@@ -281,7 +282,7 @@ namespace mt_kahypar {
     } else if (mode == "deep") {
       return Mode::deep_multilevel;
     }
-    ERR("Illegal option: " + mode);
+    throw InvalidParameterException("Illegal option: " + mode);
     return Mode::UNDEFINED;
   }
 
@@ -291,7 +292,7 @@ namespace mt_kahypar {
     } else if (type == "hypergraph") {
       return InstanceType::hypergraph;
     }
-    ERR("Illegal option: " + type);
+    throw InvalidParameterException("Illegal option: " + type);
     return InstanceType::UNDEFINED;
   }
 
@@ -307,7 +308,7 @@ namespace mt_kahypar {
     } else if (type == "highest_quality") {
       return PresetType::highest_quality;
     }
-    ERR("Illegal option: " + type);
+    throw InvalidParameterException("Illegal option: " + type);
     return PresetType::UNDEFINED;
   }
 
@@ -322,7 +323,7 @@ namespace mt_kahypar {
     } else if (obj == "steiner_tree") {
       return Objective::steiner_tree;
     }
-    ERR("No valid objective function.");
+    throw InvalidParameterException("No valid objective function.");
     return Objective::UNDEFINED;
   }
 
@@ -336,7 +337,7 @@ namespace mt_kahypar {
     } else if (type == "degree") {
       return LouvainEdgeWeight::degree;
     }
-    ERR("No valid louvain edge weight.");
+    throw InvalidParameterException("No valid louvain edge weight.");
     return LouvainEdgeWeight::UNDEFINED;
   }
 
@@ -348,7 +349,7 @@ namespace mt_kahypar {
     } else if (type == "importance") {
       return SimiliarNetCombinerStrategy::importance;
     }
-    ERR("No valid similiar net unifier strategy.");
+    throw InvalidParameterException("No valid similiar net unifier strategy.");
     return SimiliarNetCombinerStrategy::UNDEFINED;
   }
 
@@ -360,7 +361,7 @@ namespace mt_kahypar {
     } else if (type == "deterministic_multilevel_coarsener") {
       return CoarseningAlgorithm::deterministic_multilevel_coarsener;
     }
-    ERR("Illegal option: " + type);
+    throw InvalidParameterException("Illegal option: " + type);
     return CoarseningAlgorithm::UNDEFINED;
   }
 
@@ -376,7 +377,7 @@ namespace mt_kahypar {
       // omit default case to trigger compiler warning for missing cases
     }
     #endif
-    ERR("No valid edge penalty policy for rating.");
+    throw InvalidParameterException("No valid edge penalty policy for rating.");
     return HeavyNodePenaltyPolicy::UNDEFINED;
   }
 
@@ -389,7 +390,7 @@ namespace mt_kahypar {
       return AcceptancePolicy::best;
     }
     #endif
-    ERR("No valid acceptance criterion for rating.");
+    throw InvalidParameterException("No valid acceptance criterion for rating.");
   }
 
   RatingFunction ratingFunctionFromString(const std::string& function) {
@@ -401,7 +402,7 @@ namespace mt_kahypar {
       return RatingFunction::sameness;
     }
     #endif
-    ERR("No valid rating function for rating.");
+    throw InvalidParameterException("No valid rating function for rating.");
     return RatingFunction::UNDEFINED;
   }
 
@@ -425,7 +426,7 @@ namespace mt_kahypar {
     } else if (algo == "label_propagation") {
       return InitialPartitioningAlgorithm::label_propagation;
     }
-    ERR("Illegal option: " + algo);
+    throw InvalidParameterException("Illegal option: " + algo);
     return InitialPartitioningAlgorithm::UNDEFINED;
   }
 
@@ -437,7 +438,7 @@ namespace mt_kahypar {
     } else if (type == "do_nothing") {
       return LabelPropagationAlgorithm::do_nothing;
     }
-    ERR("Illegal option: " + type);
+    throw InvalidParameterException("Illegal option: " + type);
     return LabelPropagationAlgorithm::do_nothing;
   }
 
@@ -447,7 +448,7 @@ namespace mt_kahypar {
     } else if (type == "do_nothing") {
       return FMAlgorithm::do_nothing;
     }
-    ERR("Illegal option: " + type);
+    throw InvalidParameterException("Illegal option: " + type);
     return FMAlgorithm::do_nothing;
   }
 
@@ -457,7 +458,7 @@ namespace mt_kahypar {
     } else if (type == "do_nothing") {
       return FlowAlgorithm::do_nothing;
     }
-    ERR("Illegal option: " + type);
+    throw InvalidParameterException("Illegal option: " + type);
     return FlowAlgorithm::do_nothing;
   }
 
@@ -467,7 +468,7 @@ namespace mt_kahypar {
     } else if (type == "do_nothing") {
       return RebalancingAlgorithm::do_nothing;
     }
-    ERR("Illegal option: " + type);
+    throw InvalidParameterException("Illegal option: " + type);
     return RebalancingAlgorithm::do_nothing;
   }
 
@@ -477,7 +478,7 @@ namespace mt_kahypar {
     } else if (type == "identity") {
       return OneToOneMappingStrategy::identity;
     }
-    ERR("Illegal option: " + type);
+    throw InvalidParameterException("Illegal option: " + type);
     return OneToOneMappingStrategy::identity;
   }
 
@@ -487,7 +488,7 @@ namespace mt_kahypar {
     } else if (policy == "upper_bound") {
       return SteinerTreeFlowValuePolicy::upper_bound;
     }
-    ERR("Illegal option: " + policy);
+    throw InvalidParameterException("Illegal option: " + policy);
     return SteinerTreeFlowValuePolicy::UNDEFINED;
   }
 }

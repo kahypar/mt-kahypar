@@ -45,6 +45,7 @@
 #include "mt-kahypar/datastructures/thread_safe_fast_reset_flag_array.h"
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
 #include "mt-kahypar/utils/memory_tree.h"
+#include "mt-kahypar/utils/exception.h"
 
 namespace mt_kahypar {
 namespace ds {
@@ -774,7 +775,8 @@ class DynamicHypergraph {
   // ####################### Contract / Uncontract #######################
 
   DynamicHypergraph contract(parallel::scalable_vector<HypernodeID>&) {
-    ERR("contract(c, id) is not supported in dynamic hypergraph");
+    throw NonSupportedOperationException(
+      "contract(c, id) is not supported in dynamic hypergraph");
     return DynamicHypergraph();
   }
 
@@ -949,7 +951,8 @@ class DynamicHypergraph {
   }
 
   void freeTmpContractionBuffer() {
-    ERR("freeTmpContractionBuffer() is not supported in dynamic hypergraph");
+    throw NonSupportedOperationException(
+      "freeTmpContractionBuffer() is not supported in dynamic hypergraph");
   }
 
   void memoryConsumption(utils::MemoryTreeNode* parent) const;

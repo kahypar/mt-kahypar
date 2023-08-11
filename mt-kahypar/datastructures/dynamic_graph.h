@@ -46,6 +46,7 @@
 #include "mt-kahypar/datastructures/thread_safe_fast_reset_flag_array.h"
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
 #include "mt-kahypar/utils/memory_tree.h"
+#include "mt-kahypar/utils/exception.h"
 
 namespace mt_kahypar {
 namespace ds {
@@ -598,7 +599,8 @@ class DynamicGraph {
 
   // ! Enables a hyperedge (must be disabled before)
   void enableHyperedge(const HyperedgeID) {
-    ERR("enableHyperedge() is not supported in dynamic graph");
+    throw NonSupportedOperationException(
+      "enableHyperedge() is not supported in dynamic graph");
   }
 
   HyperedgeID edgeSource(const HyperedgeID e) const {
@@ -679,7 +681,8 @@ class DynamicGraph {
   // ####################### Contract / Uncontract #######################
 
   DynamicGraph contract(parallel::scalable_vector<HypernodeID>&) {
-    ERR("contract(c, id) is not supported in dynamic graph");
+    throw NonSupportedOperationException(
+      "contract(c, id) is not supported in dynamic graph");
     return DynamicGraph();
   }
 
@@ -764,21 +767,24 @@ class DynamicGraph {
   * (Not supported.)
   */
   void removeEdge(const HyperedgeID) {
-    ERR("removeEdge is not supported in dynamic graph");
+    throw NonSupportedOperationException(
+      "removeEdge is not supported in dynamic graph");
   }
 
   /*!
   * (Not supported.)
   */
   void removeLargeEdge(const HyperedgeID) {
-    ERR("removeLargeEdge is not supported in dynamic graph");
+    throw NonSupportedOperationException(
+      "removeLargeEdge is not supported in dynamic graph");
   }
 
   /*!
    * (Not supported.)
    */
   void restoreLargeEdge(const HyperedgeID&) {
-    ERR("restoreLargeEdge is not supported in dynamic graph");
+    throw NonSupportedOperationException(
+      "restoreLargeEdge is not supported in dynamic graph");
   }
 
   /**
@@ -814,7 +820,8 @@ class DynamicGraph {
   }
 
   void freeTmpContractionBuffer() {
-    ERR("freeTmpContractionBuffer() is not supported in dynamic hypergraph");
+    throw NonSupportedOperationException(
+      "freeTmpContractionBuffer() is not supported in dynamic hypergraph");
   }
 
   void memoryConsumption(utils::MemoryTreeNode* parent) const;
