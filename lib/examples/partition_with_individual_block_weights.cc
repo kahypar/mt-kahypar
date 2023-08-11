@@ -46,8 +46,8 @@ int main(int argc, char* argv[]) {
       DEFAULT, HMETIS /* file format */);
 
   // Partition Hypergraph
-  mt_kahypar_partitioned_hypergraph_t partitioned_hg =
-    mt_kahypar_partition(hypergraph, context);
+  mt_kahypar_partitioned_hypergraph_t partitioned_hg;
+  mt_kahypar_partition(hypergraph, partitioned_hg, context);
 
   // Extract Block Weights
   std::unique_ptr<mt_kahypar_hypernode_weight_t[]> block_weights =

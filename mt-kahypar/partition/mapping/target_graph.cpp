@@ -39,7 +39,7 @@ namespace mt_kahypar {
 void TargetGraph::precomputeDistances(const size_t max_connectivity) {
   const size_t num_entries = std::pow(_k, max_connectivity);
   if ( num_entries > MEMORY_LIMIT ) {
-    throw SystemError(
+    throw SystemException(
       "Too much memory requested for precomputing steiner trees "
       "of connectivity sets in the target graph.");
   }

@@ -36,8 +36,8 @@ int main(int argc, char* argv[]) {
     mt_kahypar_read_target_graph_from_file("target.graph");
 
   // Map hypergraph onto target graph
-  mt_kahypar_partitioned_hypergraph_t partitioned_hg =
-    mt_kahypar_map(hypergraph, target_graph, context);
+  mt_kahypar_partitioned_hypergraph_t partitioned_hg;
+  mt_kahypar_map(hypergraph, target_graph, partitioned_hg, context);
 
   // Extract Mapping
   std::unique_ptr<mt_kahypar_partition_id_t[]> mapping =

@@ -30,14 +30,14 @@ typedef struct {
 } mt_kahypar_hypergraph_t;
 
 typedef struct {
-  const mt_kahypar_hypergraph_s* hypergraph;
-  mt_kahypar_hypergraph_type_t type;
+  const mt_kahypar_hypergraph_s* hypergraph = nullptr;
+  mt_kahypar_hypergraph_type_t type = NULLPTR_HYPERGRAPH;
 } mt_kahypar_hypergraph_const_t;
 
 struct mt_kahypar_partitioned_hypergraph_s;
 typedef struct {
-  mt_kahypar_partitioned_hypergraph_s* partitioned_hg;
-  mt_kahypar_partition_type_t type;
+  mt_kahypar_partitioned_hypergraph_s* partitioned_hg = nullptr;
+  mt_kahypar_partition_type_t type = NULLPTR_PARTITION;
 } mt_kahypar_partitioned_hypergraph_t;
 
 typedef struct {

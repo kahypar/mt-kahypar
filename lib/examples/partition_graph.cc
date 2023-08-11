@@ -31,9 +31,9 @@ int main(int argc, char* argv[]) {
     mt_kahypar_read_hypergraph_from_file("delaunay_n15.graph",
     DEFAULT, METIS /* file format */);
 
-  // Partition Hypergraph
-  mt_kahypar_partitioned_hypergraph_t partitioned_graph =
-    mt_kahypar_partition(graph, context);
+  // Partition Graph
+  mt_kahypar_partitioned_hypergraph_t partitioned_graph;
+  mt_kahypar_partition(graph, partitioned_graph, context);
 
   // Extract Partition
   std::unique_ptr<mt_kahypar_partition_id_t[]> partition =

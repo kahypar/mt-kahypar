@@ -32,8 +32,8 @@ int main(int argc, char* argv[]) {
       DEFAULT, HMETIS /* file format */);
 
   // Partition Hypergraph
-  mt_kahypar_partitioned_hypergraph_t partitioned_hg =
-    mt_kahypar_partition(hypergraph, context);
+  mt_kahypar_partitioned_hypergraph_t partitioned_hg;
+  mt_kahypar_partition(hypergraph, partitioned_hg, context);
 
   // Extract Partition
   std::unique_ptr<mt_kahypar_partition_id_t[]> partition =
@@ -55,8 +55,7 @@ int main(int argc, char* argv[]) {
   std::cout << "Km1               = " << km1 << std::endl;
   std::cout << "Weight of Block 0 = " << block_weights[0] << std::endl;
   std::cout << "Weight of Block 1 = " << block_weights[1] << std::endl;
-
   mt_kahypar_free_context(context);
   mt_kahypar_free_hypergraph(hypergraph);
-  mt_kahypar_free_partitioned_hypergraph(partitioned_hg);
+    mt_kahypar_free_partitioned_hypergraph(partitioned_hg);
 }
