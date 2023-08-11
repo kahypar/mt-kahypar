@@ -387,113 +387,89 @@ bool mt_kahypar_check_compatibility(mt_kahypar_hypergraph_t hypergraph,
   return lib::check_compatibility(hypergraph, preset);
 }
 
-bool mt_kahypar_partition(mt_kahypar_hypergraph_t hypergraph,
-                          mt_kahypar_partitioned_hypergraph_t& partitioned_hg,
-                          mt_kahypar_context_t* context) {
+mt_kahypar_partitioned_hypergraph_t mt_kahypar_partition(mt_kahypar_hypergraph_t hypergraph,
+                                                         mt_kahypar_context_t* context) {
   Context& c = *reinterpret_cast<Context*>(context);
-  bool success = lib::check_if_all_relavant_parameters_are_set(c);
-  if ( success && mt_kahypar_check_compatibility(hypergraph, lib::get_preset_c_type(c.partition.preset_type)) ) {
-    c.partition.instance_type = lib::get_instance_type(hypergraph);
-    c.partition.partition_type = to_partition_c_type(
-      c.partition.preset_type, c.partition.instance_type);
-    lib::prepare_context(c);
-    c.partition.num_vcycles = 0;
-    try {
-      partitioned_hg = PartitionerFacade::partition(hypergraph, c);
-    } catch ( std::exception& ex ) {
-      LOG << ex.what();
-      success = false;
+  if ( lib::check_if_all_relavant_parameters_are_set(c) ) {
+    if ( mt_kahypar_check_compatibility(hypergraph, lib::get_preset_c_type(c.partition.preset_type)) ) {
+      c.partition.instance_type = lib::get_instance_type(hypergraph);
+      c.partition.partition_type = to_partition_c_type(
+        c.partition.preset_type, c.partition.instance_type);
+      lib::prepare_context(c);
+      c.partition.num_vcycles = 0;
+      return PartitionerFacade::partition(hypergraph, c);
+    } else {
+      WARNING(lib::incompatibility_description(hypergraph));
     }
-  } else {
-    WARNING(lib::incompatibility_description(hypergraph));
-    success = false;
   }
-  return success;
+  return mt_kahypar_partitioned_hypergraph_t { nullptr, NULLPTR_PARTITION };
 }
 
-bool mt_kahypar_map(mt_kahypar_hypergraph_t hypergraph,
-                    mt_kahypar_target_graph_t* target_graph,
-                    mt_kahypar_partitioned_hypergraph_t& partitioned_hg,
-                    mt_kahypar_context_t* context) {
+mt_kahypar_partitioned_hypergraph_t mt_kahypar_map(mt_kahypar_hypergraph_t hypergraph,
+                                                   mt_kahypar_target_graph_t* target_graph,
+                                                   mt_kahypar_context_t* context) {
   Context& c = *reinterpret_cast<Context*>(context);
-  bool success = lib::check_if_all_relavant_parameters_are_set(c);
-  if ( success && mt_kahypar_check_compatibility(hypergraph, lib::get_preset_c_type(c.partition.preset_type)) ) {
-    c.partition.instance_type = lib::get_instance_type(hypergraph);
-    c.partition.partition_type = to_partition_c_type(
-      c.partition.preset_type, c.partition.instance_type);
-    lib::prepare_context(c);
-    c.partition.num_vcycles = 0;
-    c.partition.objective = Objective::steiner_tree;
-    TargetGraph* target = reinterpret_cast<TargetGraph*>(target_graph);
-    try {
-      partitioned_hg = PartitionerFacade::partition(hypergraph, c, target);
-    } catch ( std::exception& ex ) {
-      LOG << ex.what();
-      success = false;
+  if ( lib::check_if_all_relavant_parameters_are_set(c) ) {
+    if ( mt_kahypar_check_compatibility(hypergraph, lib::get_preset_c_type(c.partition.preset_type)) ) {
+      c.partition.instance_type = lib::get_instance_type(hypergraph);
+      c.partition.partition_type = to_partition_c_type(
+        c.partition.preset_type, c.partition.instance_type);
+      lib::prepare_context(c);
+      c.partition.num_vcycles = 0;
+      c.partition.objective = Objective::steiner_tree;
+      TargetGraph* target = reinterpret_cast<TargetGraph*>(target_graph);
+      return PartitionerFacade::partition(hypergraph, c, target);
+    } else {
+      WARNING(lib::incompatibility_description(hypergraph));
     }
-  } else {
-    WARNING(lib::incompatibility_description(hypergraph));
-    success = false;
   }
-  return success;
+  return mt_kahypar_partitioned_hypergraph_t { nullptr, NULLPTR_PARTITION };
 }
 
-bool mt_kahypar_check_partition_compatibility(mt_kahypar_partitioned_hypergraph_t partitioned_hg,
-                                              mt_kahypar_preset_type_t preset) {
+MT_KAHYPAR_API bool mt_kahypar_check_partition_compatibility(mt_kahypar_partitioned_hypergraph_t partitioned_hg,
+                                                             mt_kahypar_preset_type_t preset) {
   return lib::check_compatibility(partitioned_hg, preset);
 }
 
-bool mt_kahypar_improve_partition(mt_kahypar_partitioned_hypergraph_t partitioned_hg,
+void mt_kahypar_improve_partition(mt_kahypar_partitioned_hypergraph_t partitioned_hg,
                                   mt_kahypar_context_t* context,
                                   const size_t num_vcycles) {
   Context& c = *reinterpret_cast<Context*>(context);
-  bool success = lib::check_if_all_relavant_parameters_are_set(c);
-  if ( success && mt_kahypar_check_partition_compatibility(
-        partitioned_hg, lib::get_preset_c_type(c.partition.preset_type)) ) {
-    c.partition.instance_type = lib::get_instance_type(partitioned_hg);
-    c.partition.partition_type = to_partition_c_type(
-      c.partition.preset_type, c.partition.instance_type);
-    lib::prepare_context(c);
-    c.partition.num_vcycles = num_vcycles;
-    try {
+  if ( lib::check_if_all_relavant_parameters_are_set(c) ) {
+    if ( mt_kahypar_check_partition_compatibility(
+          partitioned_hg, lib::get_preset_c_type(c.partition.preset_type)) ) {
+      c.partition.instance_type = lib::get_instance_type(partitioned_hg);
+      c.partition.partition_type = to_partition_c_type(
+        c.partition.preset_type, c.partition.instance_type);
+      lib::prepare_context(c);
+      c.partition.num_vcycles = num_vcycles;
       PartitionerFacade::improve(partitioned_hg, c);
-    } catch ( std::exception& ex ) {
-      LOG << ex.what();
-      success = false;
+    } else {
+      WARNING(lib::incompatibility_description(partitioned_hg));
     }
-  } else {
-    WARNING(lib::incompatibility_description(partitioned_hg));
-    success = false;
   }
-  return success;
 }
 
-bool mt_kahypar_improve_mapping(mt_kahypar_partitioned_hypergraph_t partitioned_hg,
-                                mt_kahypar_target_graph_t* target_graph,
-                                mt_kahypar_context_t* context,
-                                const size_t num_vcycles) {
+void mt_kahypar_improve_mapping(mt_kahypar_partitioned_hypergraph_t partitioned_hg,
+                                               mt_kahypar_target_graph_t* target_graph,
+                                               mt_kahypar_context_t* context,
+                                               const size_t num_vcycles) {
   Context& c = *reinterpret_cast<Context*>(context);
-  bool success = lib::check_if_all_relavant_parameters_are_set(c);
-  if ( success && mt_kahypar_check_partition_compatibility(
-        partitioned_hg, lib::get_preset_c_type(c.partition.preset_type)) ) {
-    c.partition.instance_type = lib::get_instance_type(partitioned_hg);
-    c.partition.partition_type = to_partition_c_type(
-      c.partition.preset_type, c.partition.instance_type);
-    lib::prepare_context(c);
-    c.partition.num_vcycles = num_vcycles;
-    c.partition.objective = Objective::steiner_tree;
-    TargetGraph* target = reinterpret_cast<TargetGraph*>(target_graph);
-    try {
+  if ( lib::check_if_all_relavant_parameters_are_set(c) ) {
+    if ( mt_kahypar_check_partition_compatibility(
+          partitioned_hg, lib::get_preset_c_type(c.partition.preset_type)) ) {
+      c.partition.instance_type = lib::get_instance_type(partitioned_hg);
+      c.partition.partition_type = to_partition_c_type(
+        c.partition.preset_type, c.partition.instance_type);
+      lib::prepare_context(c);
+      c.partition.num_vcycles = num_vcycles;
+      c.partition.objective = Objective::steiner_tree;
+      TargetGraph* target = reinterpret_cast<TargetGraph*>(target_graph);
       PartitionerFacade::improve(partitioned_hg, c, target);
-    } catch ( std::exception& ex ) {
-      LOG << ex.what();
-      success = false;
+    } else {
+      WARNING(lib::incompatibility_description(partitioned_hg));
     }
-  } else {
-    WARNING(lib::incompatibility_description(partitioned_hg));
-    success = false;
   }
-  return success;
 }
 
 mt_kahypar_partitioned_hypergraph_t mt_kahypar_create_partitioned_hypergraph(mt_kahypar_hypergraph_t hypergraph,

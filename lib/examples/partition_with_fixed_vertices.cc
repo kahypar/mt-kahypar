@@ -44,8 +44,8 @@ int main(int argc, char* argv[]) {
   //   hypergraph, "ibm01.k4.p1.fix", 4 /* number of blocks */);
 
   // Partition Hypergraph
-  mt_kahypar_partitioned_hypergraph_t partitioned_hg;
-  mt_kahypar_partition(hypergraph, partitioned_hg, context);
+  mt_kahypar_partitioned_hypergraph_t partitioned_hg =
+    mt_kahypar_partition(hypergraph, context);
 
   // Extract Partition
   std::unique_ptr<mt_kahypar_partition_id_t[]> partition =

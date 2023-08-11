@@ -247,14 +247,12 @@ MT_KAHYPAR_API bool mt_kahypar_check_compatibility(mt_kahypar_hypergraph_t hyper
 /**
  * Partitions a (hyper)graph with the configuration specified in the partitioning context.
  *
- * \return True, on success. Otherwise an internal error occurred (details can be fonnd in the log).
  * \note Before partitioning, the number of blocks, imbalance parameter and objective function must be
  *       set in the partitioning context. This can be done either via mt_kahypar_set_context_parameter(...)
  *       or mt_kahypar_set_partitioning_parameters(...).
  */
-MT_KAHYPAR_API bool mt_kahypar_partition(mt_kahypar_hypergraph_t hypergraph,
-                                         mt_kahypar_partitioned_hypergraph_t& partitioned_hg,
-                                         mt_kahypar_context_t* context);
+MT_KAHYPAR_API mt_kahypar_partitioned_hypergraph_t mt_kahypar_partition(mt_kahypar_hypergraph_t hypergraph,
+                                                                        mt_kahypar_context_t* context);
 
 /**
  * Maps a (hyper)graph onto a target graph with the configuration specified in the partitioning context.
@@ -265,17 +263,15 @@ MT_KAHYPAR_API bool mt_kahypar_partition(mt_kahypar_hypergraph_t hypergraph,
  * is able to acurately model wire-lengths in VLSI design or communication costs in a distributed system where some
  * processors do not communicate directly with each other or different speeds.
  *
- * \return True, on success. Otherwise an internal error occurred (details can be fonnd in the log).
  * \note Since computing Steiner trees is an NP-hard problem, we currently restrict the size of the target graph
  * to at most 64 nodes. If you want to map hypergraphs onto larger target graphs, you can use recursive multisectioning.
  * For example, if the target graph has 4096 nodes, you can first map the hypergraph onto a coarser approximation of the
  * target graph with 64 nodes, and subsequently map each block of the mapping to the corresponding subgraph of the
  * target graph each having 64 nodes.
  */
-MT_KAHYPAR_API bool mt_kahypar_map(mt_kahypar_hypergraph_t hypergraph,
-                                   mt_kahypar_target_graph_t* target_graph,
-                                   mt_kahypar_partitioned_hypergraph_t& partitioned_hg,
-                                   mt_kahypar_context_t* context);
+MT_KAHYPAR_API mt_kahypar_partitioned_hypergraph_t mt_kahypar_map(mt_kahypar_hypergraph_t hypergraph,
+                                                                  mt_kahypar_target_graph_t* target_graph,
+                                                                  mt_kahypar_context_t* context);
 
 /**
  * Checks whether or not the given partitioned hypergraph can
@@ -287,24 +283,22 @@ MT_KAHYPAR_API bool mt_kahypar_check_partition_compatibility(mt_kahypar_partitio
 /**
  * Improves a given partition (using the V-cycle technique).
  *
- * \return True, on success. Otherwise an internal error occurred (details can be fonnd in the log).
  * \note The number of blocks specified in the partitioning context must be equal to the
  *       number of blocks of the given partition.
  * \note There is no guarantee that this call will find an improvement.
  */
-MT_KAHYPAR_API bool mt_kahypar_improve_partition(mt_kahypar_partitioned_hypergraph_t partitioned_hg,
+MT_KAHYPAR_API void mt_kahypar_improve_partition(mt_kahypar_partitioned_hypergraph_t partitioned_hg,
                                                  mt_kahypar_context_t* context,
                                                  const size_t num_vcycles);
 
 /**
  * Improves a given mapping (using the V-cycle technique).
  *
- * \return True, on success. Otherwise an internal error occurred (details can be fonnd in the log).
  * \note The number of nodes of the target graph must be equal to the
  *       number of blocks of the given partition.
  * \note There is no guarantee that this call will find an improvement.
  */
-MT_KAHYPAR_API bool mt_kahypar_improve_mapping(mt_kahypar_partitioned_hypergraph_t partitioned_hg,
+MT_KAHYPAR_API void mt_kahypar_improve_mapping(mt_kahypar_partitioned_hypergraph_t partitioned_hg,
                                                mt_kahypar_target_graph_t* target_graph,
                                                mt_kahypar_context_t* context,
                                                const size_t num_vcycles);
