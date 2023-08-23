@@ -28,12 +28,21 @@
 
 #include <type_traits>
 
+#if defined(MT_KAHYPAR_LIBRARY_MODE) || !defined(KAHYPAR_ENABLE_THREAD_PINNING)
+#include "tbb/task_arena.h"
+// If we use the C or Python interface or thread pinning is disabled, the cpu ID to
+// which the current thread is assigned to is not unique. We therefore use the slot index
+// of the current task arena as unique thread ID. Note that the ID can be negative if
+// the task scheduler is not initialized.
+#define THREAD_ID std::max(0, tbb::this_task_arena::current_thread_index())
+#else
 #ifdef __linux__
 #include <sched.h>
-#define SCHED_GETCPU sched_getcpu()
+#define THREAD_ID sched_getcpu()
 #elif _WIN32
 #include <processthreadsapi.h>
-#define SCHED_GETCPU GetCurrentProcessorNumber()
+#define THREAD_ID GetCurrentProcessorNumber()
+#endif
 #endif
 
 #include "kahypar-resources/macros.h"

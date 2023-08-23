@@ -109,7 +109,7 @@ TEST_F(AQuotientGraph, SimulatesBlockScheduling) {
         refiner.finalizeSearch(search_id);
 
         if ( debug ) {
-          LOG << "Thread" << SCHED_GETCPU << "executes search on block pair (" << i << "," << j << ")"
+          LOG << "Thread" << THREAD_ID << "executes search on block pair (" << i << "," << j << ")"
               << "with" << block_pair_cut_hes.cut_hes.size() << "cut hyperedges ( Search ID:" << search_id << ")";
         }
       } else {
@@ -172,7 +172,7 @@ TEST_F(AQuotientGraph, SimulatesBlockSchedulingWithSuccessfulSearches) {
         refiner.finalizeSearch(search_id);
 
         if ( debug ) {
-          LOG << "Thread" << SCHED_GETCPU << "executes search on block pair (" << i << "," << j << ")"
+          LOG << "Thread" << THREAD_ID << "executes search on block pair (" << i << "," << j << ")"
               << "with" << block_pair_cut_hes.cut_hes.size() << "cut hyperedges ( Search ID:" << search_id << ", Success:"
               << std::boolalpha << success << ")";
         }

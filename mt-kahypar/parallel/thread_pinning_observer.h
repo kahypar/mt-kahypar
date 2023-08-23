@@ -140,7 +140,7 @@ class ThreadPinningObserver : public tbb::task_scheduler_observer {
     DBG << pin_thread_message(_cpus[slot]);
     if(!_is_global_thread_pool) {
       std::thread::id thread_id = std::this_thread::get_id();
-      int current_cpu = SCHED_GETCPU;
+      int current_cpu = THREAD_ID;
       std::lock_guard<std::mutex> lock(_mutex);
       _cpu_before[thread_id] = current_cpu;
     }
@@ -189,7 +189,7 @@ class ThreadPinningObserver : public tbb::task_scheduler_observer {
         "Failed to set thread affinity to cpu" + std::to_string(cpu_id) + "." + strerror(error));
     }
 
-    ASSERT(SCHED_GETCPU == cpu_id);
+    ASSERT(THREAD_ID == cpu_id);
     DBG << "Thread with PID" << std::this_thread::get_id()
         << "successfully pinned to CPU" << cpu_id;
   }
@@ -209,7 +209,7 @@ class ThreadPinningObserver : public tbb::task_scheduler_observer {
   std::string unpin_thread_message() {
     std::stringstream ss;
     ss << "Unassign thread with PID " << std::this_thread::get_id()
-       << " on CPU " << SCHED_GETCPU;
+       << " on CPU " << THREAD_ID;
     if ( _numa_node != -1 ) {
       ss << " from NUMA node " << _numa_node;
     } else {

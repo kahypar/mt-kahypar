@@ -71,7 +71,7 @@ class StreamingVector {
 
   template <class ... Args>
   void stream(Args&& ... args) {
-    int cpu_id = SCHED_GETCPU;
+    int cpu_id = THREAD_ID;
     _cpu_buffer[cpu_id].emplace_back(std::forward<Args>(args)...);
   }
 
@@ -171,7 +171,7 @@ class StreamingVector {
                                              const int cpu_id,
                                              const size_t position) {
     DBG << "Copy buffer of cpu" << cpu_id << "of size" << _cpu_buffer[cpu_id].size()
-        << "to position" << position << "in dest ( CPU =" << SCHED_GETCPU << " )";
+        << "to position" << position << "in dest ( CPU =" << THREAD_ID << " )";
     if (_cpu_buffer[cpu_id].empty()) {
       return;
     }

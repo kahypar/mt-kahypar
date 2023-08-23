@@ -69,7 +69,7 @@ int main(int argc, char* argv[]) {
   std::ofstream out_stream(fixed_vertex_file.c_str());
   utils::Randomize rand = utils::Randomize::instance();
   for ( size_t i = 0; i < partition.size(); ++i ) {
-    int num = rand.getRandomInt(0, 1000, SCHED_GETCPU);
+    int num = rand.getRandomInt(0, 1000, THREAD_ID);
     if ( num < threshold ) {
       out_stream << partition[i] << std::endl;
     } else {

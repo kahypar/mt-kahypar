@@ -138,7 +138,7 @@ class AGainCache : public Test {
     } else {
       utils::Randomize& rand = utils::Randomize::instance();
       partitioned_hg.doParallelForAllNodes([&](const HypernodeID& hn) {
-        partitioned_hg.setOnlyNodePart(hn, rand.getRandomInt(0, k - 1, SCHED_GETCPU));
+        partitioned_hg.setOnlyNodePart(hn, rand.getRandomInt(0, k - 1, THREAD_ID));
       });
     }
     partitioned_hg.initializePartition();
@@ -149,9 +149,9 @@ class AGainCache : public Test {
     was_moved.reset();
 
     auto move_node = [&](const HypernodeID hn) {
-      if ( rand.flipCoin(SCHED_GETCPU) ) {
+      if ( rand.flipCoin(THREAD_ID) ) {
         const PartitionID from = partitioned_hg.partID(hn);
-        const PartitionID to = rand.getRandomInt(0, k - 1, SCHED_GETCPU);
+        const PartitionID to = rand.getRandomInt(0, k - 1, THREAD_ID);
         if ( from != to && was_moved.compare_and_set_to_true(hn) ) {
           partitioned_hg.changeNodePart(gain_cache, hn, from, to);
           DBG << "Move node" << hn << "from block" << from << "to" << to;
@@ -182,9 +182,9 @@ class AGainCache : public Test {
     utils::Randomize& rand = utils::Randomize::instance();
     was_moved.reset();
     for ( const HypernodeID hn : delta_phg->nodes() ) {
-      if ( rand.flipCoin(SCHED_GETCPU) ) {
+      if ( rand.flipCoin(THREAD_ID) ) {
         const PartitionID from = delta_phg->partID(hn);
-        const PartitionID to = rand.getRandomInt(0, k - 1, SCHED_GETCPU);
+        const PartitionID to = rand.getRandomInt(0, k - 1, THREAD_ID);
         if ( from != to && was_moved.compare_and_set_to_true(hn) ) {
           delta_phg->changeNodePart(hn, from, to,
             std::numeric_limits<HyperedgeWeight>::max(), update_delta_gain_cache);
@@ -197,9 +197,9 @@ class AGainCache : public Test {
     utils::Randomize& rand = utils::Randomize::instance();
     was_moved.reset();
     auto move_node = [&](const HypernodeID hn) {
-      if ( rand.flipCoin(SCHED_GETCPU) )  {
+      if ( rand.flipCoin(THREAD_ID) )  {
         const PartitionID from = partitioned_hg.partID(hn);
-        const PartitionID to = rand.getRandomInt(0, k - 1, SCHED_GETCPU);
+        const PartitionID to = rand.getRandomInt(0, k - 1, THREAD_ID);
         if ( from != to && was_moved.compare_and_set_to_true(hn) ) {
           partitioned_hg.changeNodePart(gain_cache, hn, from, to);
           DBG << "Move node" << hn << "from block" << from << "to" << to;
@@ -250,7 +250,7 @@ class AGainCache : public Test {
               // Choose contraction partner at random
               if ( representatives.size() > 0 ) {
                 const HypernodeID rep = representatives[rand.getRandomInt(
-                  0, static_cast<int>(representatives.size() - 1), SCHED_GETCPU)];
+                  0, static_cast<int>(representatives.size() - 1), THREAD_ID)];
                 if ( hypergraph.registerContraction(hn, rep) ) {
                   current_num_nodes -= hypergraph.contract(
                     rep, std::numeric_limits<HypernodeWeight>::max());
@@ -487,7 +487,7 @@ TYPED_TEST(AGainCache, ComparesGainsWithAttributedGains) {
     }
     const PartitionID from = this->partitioned_hg.partID(hn);
     const PartitionID to = adjacent_blocks[rand.getRandomInt(0,
-      static_cast<int>(adjacent_blocks.size()) - 1, SCHED_GETCPU)];
+      static_cast<int>(adjacent_blocks.size()) - 1, THREAD_ID)];
     if ( from != to ) {
       const Gain expected_gain = this->gain_cache.gain(hn, from, to);
       this->partitioned_hg.changeNodePart(this->gain_cache, hn, from, to,
