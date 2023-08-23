@@ -112,10 +112,10 @@ class AFlatInitialPartitionerTest : public Test {
     const int threshold = percentage * 1000;
     utils::Randomize& rand = utils::Randomize::instance();
     for ( const HypernodeID& hn : hypergraph.nodes() ) {
-      int rnd = rand.getRandomInt(0, 1000, SCHED_GETCPU);
+      int rnd = rand.getRandomInt(0, 1000, THREAD_ID);
       if ( rnd <= threshold ) {
         const PartitionID block = default_block == kInvalidPartition ?
-          rand.getRandomInt(0, context.partition.k - 1, SCHED_GETCPU) : default_block;
+          rand.getRandomInt(0, context.partition.k - 1, THREAD_ID) : default_block;
         fixed_vertices.fixToBlock(hn, block);
       }
     }

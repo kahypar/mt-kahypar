@@ -120,7 +120,7 @@ void verifyGainCache(PartitionedHypergraph& partitioned_hypergraph,
   HyperedgeWeight expected_gain = 0;
   for ( const HypernodeID& hn : partitioned_hypergraph.nodes() ) {
     const PartitionID from = partitioned_hypergraph.partID(hn);
-    PartitionID to = rand.getRandomInt(0, k - 1, SCHED_GETCPU);
+    PartitionID to = rand.getRandomInt(0, k - 1, THREAD_ID);
     if ( from == to ) to = (to + 1) % k;
     expected_gain += gain_cache.gain(hn, from, to);
     partitioned_hypergraph.changeNodePart(gain_cache, hn, from, to);
@@ -176,16 +176,16 @@ Hypergraph generateRandomHypergraph(const HypernodeID num_hypernodes,
     parallel::scalable_vector<HypernodeID> net;
     if constexpr ( Hypergraph::is_graph ) {
       unused(max_edge_size);
-      std::pair<HypernodeID, HypernodeID> edge{rand.getRandomInt(0, num_hypernodes - 1, SCHED_GETCPU),
-                                               rand.getRandomInt(0, num_hypernodes - 1, SCHED_GETCPU)};
+      std::pair<HypernodeID, HypernodeID> edge{rand.getRandomInt(0, num_hypernodes - 1, THREAD_ID),
+                                               rand.getRandomInt(0, num_hypernodes - 1, THREAD_ID)};
       graph_edges.insert({edge});
       graph_edges.insert({edge.first, edge.second});
       net.push_back(edge.first);
       net.push_back(edge.second);
     } else {
-      const size_t edge_size = rand.getRandomInt(2, max_edge_size, SCHED_GETCPU);
+      const size_t edge_size = rand.getRandomInt(2, max_edge_size, THREAD_ID);
       for ( size_t i = 0; i < edge_size; ++i ) {
-        const HypernodeID pin = rand.getRandomInt(0, num_hypernodes - 1, SCHED_GETCPU);
+        const HypernodeID pin = rand.getRandomInt(0, num_hypernodes - 1, THREAD_ID);
         if ( std::find(net.begin(), net.end(), pin) == net.end() ) {
           net.push_back(pin);
         }
@@ -205,9 +205,9 @@ void addRandomFixedVertices(Hypergraph& hypergraph,
   utils::Randomize& rand = utils::Randomize::instance();
   const int threshold = percentage_fixed_vertices * 1000;
   for ( const HypernodeID& hn : hypergraph.nodes() ) {
-    const bool is_fixed = rand.getRandomInt(0, 1000, SCHED_GETCPU) <= threshold;
+    const bool is_fixed = rand.getRandomInt(0, 1000, THREAD_ID) <= threshold;
     if ( is_fixed ) {
-      fixed_vertices.fixToBlock(hn, rand.getRandomInt(0, k - 1, SCHED_GETCPU));
+      fixed_vertices.fixToBlock(hn, rand.getRandomInt(0, k - 1, THREAD_ID));
     }
   }
   hypergraph.addFixedVertexSupport(std::move(fixed_vertices));
@@ -222,7 +222,7 @@ BatchVector generateRandomContractions(const HypernodeID num_hypernodes,
  parallel::scalable_vector<HypernodeID> active_hns(num_hypernodes);
  std::iota(active_hns.begin(), active_hns.end(), 0);
  utils::Randomize& rand = utils::Randomize::instance();
- const int cpu_id = SCHED_GETCPU;
+ const int cpu_id = THREAD_ID;
  while ( tmp_num_contractions > 0 ) {
    HypernodeID current_num_contractions = tmp_num_contractions;
    if ( multi_versioned && current_num_contractions > 25 ) current_num_contractions /= 2;
@@ -251,7 +251,7 @@ void generateRandomPartition(PartitionedHypergraph& partitioned_hypergraph) {
     if ( partitioned_hypergraph.isFixed(hn) ) {
       partitioned_hypergraph.setOnlyNodePart(hn, partitioned_hypergraph.fixedVertexBlock(hn));
     } else {
-      partitioned_hypergraph.setOnlyNodePart(hn, rand.getRandomInt(0, k - 1, SCHED_GETCPU));
+      partitioned_hypergraph.setOnlyNodePart(hn, rand.getRandomInt(0, k - 1, THREAD_ID));
     }
   });
 }

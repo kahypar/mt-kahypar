@@ -391,7 +391,7 @@ BatchVector ContractionTree::createBatchUncontractionHierarchyForVersion(BatchIn
   parallel::scalable_vector<PQ> local_pqs(num_hardware_threads);
   const parallel::scalable_vector<HypernodeID>& roots = roots_of_version(version);
   tbb::parallel_for(UL(0), roots.size(), [&](const size_t i) {
-    const int cpu_id = SCHED_GETCPU;
+    const int cpu_id = THREAD_ID;
     push_into_pq(local_pqs[cpu_id], roots[i]);
   });
 

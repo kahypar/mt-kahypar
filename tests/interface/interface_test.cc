@@ -937,4 +937,15 @@ namespace mt_kahypar {
     ImprovePartition(QUALITY, 1, false);
     verifyFixedVertexAssignment(HYPERGRAPH_FIX_FILE);
   }
+
+  TEST_F(APartitioner, PartitionsManyHypergraphsInParallel) {
+    std::atomic<size_t> cnt(0);
+    size_t max_runs = 100;
+    tbb::parallel_for(0U, std::thread::hardware_concurrency(), [&](const int id) {
+      while ( cnt.load(std::memory_order_relaxed) < max_runs ) {
+        ++cnt;
+        PartitionAnotherHypergraph("test_instances/test_instance.hgr", HMETIS, DEFAULT, 4, 0.03, KM1, false);
+      }
+    });
+  }
 }

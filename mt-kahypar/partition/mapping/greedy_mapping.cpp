@@ -79,7 +79,7 @@ HypernodeID get_node_with_minimum_weighted_degree(const ds::StaticGraph& graph) 
   ASSERT(min_nodes.size() > 0);
   return min_nodes.size() == 1 ? min_nodes[0] :
     min_nodes[utils::Randomize::instance().getRandomInt(
-      0, static_cast<int>(min_nodes.size() - 1), SCHED_GETCPU)];
+      0, static_cast<int>(min_nodes.size() - 1), THREAD_ID)];
 }
 
 template<typename CommunicationHypergraph>
@@ -201,7 +201,7 @@ void compute_greedy_mapping(CommunicationHypergraph& communication_hg,
     ASSERT(tie_breaking.size() > 0);
     const PartitionID best_process = tie_breaking.size() == 1 ? tie_breaking[0] :
       tie_breaking[utils::Randomize::instance().getRandomInt(
-        0, static_cast<int>(tie_breaking.size() - 1), SCHED_GETCPU)];
+        0, static_cast<int>(tie_breaking.size() - 1), THREAD_ID)];
     actual_objective += best_rating;
     assign(u, best_process);
   }
