@@ -214,14 +214,12 @@ namespace mt_kahypar {
     };
 
     if ( _context.refinement.jet.execute_sequential ) {
-      utils::Randomize::instance().shuffleVector(
-              _active_nodes, UL(0), _active_nodes.size(), SCHED_GETCPU);
+      utils::Randomize::instance().shuffleVector(_active_nodes, UL(0), _active_nodes.size(), THREAD_ID);
       for ( size_t j = 0; j < _active_nodes.size(); ++j ) {
         move_node(j);
       }
     } else {
-      utils::Randomize::instance().parallelShuffleVector(
-              _active_nodes, UL(0), _active_nodes.size());
+      utils::Randomize::instance().parallelShuffleVector(_active_nodes, UL(0), _active_nodes.size());
       tbb::parallel_for(UL(0), _active_nodes.size(), move_node);
     }
   }
@@ -344,6 +342,7 @@ namespace mt_kahypar {
       }
 
       // Set all neighbors of the vertex to active
+      int cpu_id = THREAD_ID;
       for (const HyperedgeID& he : hypergraph.incidentEdges(hn)) {
         if ( hypergraph.edgeSize(he) <= ID(_context.refinement.jet.hyperedge_size_activation_threshold) ) {
           if ( !_visited_he[he] ) {
@@ -352,7 +351,7 @@ namespace mt_kahypar {
                 // check whether vertex locking forbids activating this vertex
                 bool accept_locked = (_context.refinement.jet.vertex_locking == 0.0) || hypergraph.partID(pin) == current_parts[pin];
                 if (!accept_locked && _context.refinement.jet.vertex_locking < 1.0) {
-                  accept_locked = randomize.getRandomFloat(0.0, 1.0, SCHED_GETCPU) > _context.refinement.jet.vertex_locking;
+                  accept_locked = randomize.getRandomFloat(0.0, 1.0, cpu_id) > _context.refinement.jet.vertex_locking;
                 }
                 if (accept_locked) {
                   add_node_fn(pin);

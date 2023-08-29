@@ -303,7 +303,7 @@ namespace mt_kahypar {
       // we start with a block that is chosen by random, to ensure a reasonable distribution of nodes
       // to target blocks (note: this does not always result in a uniform distribution since some blocks
       // are not an acceptable target, but it should be good enough)
-      const PartitionID start = rand.getRandomInt(0, static_cast<int>(_context.partition.k - 1), SCHED_GETCPU);
+      const PartitionID start = rand.getRandomInt(0, static_cast<int>(_context.partition.k - 1), THREAD_ID);
       PartitionID to = start;
       do {
         if (isValidTarget(hypergraph, to, hn_weight, use_precise_part_weights, use_deadzone)
