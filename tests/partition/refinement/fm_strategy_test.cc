@@ -85,7 +85,7 @@ TEST(StrategyTests, FindNextMove) {
 
   context.refinement.fm.algorithm = FMAlgorithm::kway_fm;
 
-  FMSharedData sd(hg.initialNumNodes());
+  FMSharedData sd(hg.initialNumNodes(), false);
   FMStats fm_stats;
   fm_stats.moves = 1;
 

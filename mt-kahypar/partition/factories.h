@@ -107,10 +107,20 @@ using GreedyJetDispatcher = kahypar::meta::StaticMultiDispatchFactory<
 using FMFactory = kahypar::meta::Factory<FMAlgorithm,
                     IRefiner* (*)(HypernodeID, HyperedgeID, const Context&, gain_cache_t)>;
 
-using FMDispatcher = kahypar::meta::StaticMultiDispatchFactory<
-                      MultiTryKWayFM,
-                      IRefiner,
-                      kahypar::meta::Typelist<TypeTraitsList, GainTypes>>;
+using DefaultFMDispatcher = kahypar::meta::StaticMultiDispatchFactory<
+                            MultiTryKWayFMDefault,
+                            IRefiner,
+                            kahypar::meta::Typelist<TypeTraitsList, GainTypes>>;
+
+using UnconstrainedFMDispatcher = kahypar::meta::StaticMultiDispatchFactory<
+                                  MultiTryKWayFMUnconstrained,
+                                  IRefiner,
+                                  kahypar::meta::Typelist<TypeTraitsList, GainTypes>>;
+
+using CombinedFMDispatcher = kahypar::meta::StaticMultiDispatchFactory<
+                             MultiTryKWayFMCombined,
+                             IRefiner,
+                             kahypar::meta::Typelist<TypeTraitsList, GainTypes>>;
 
 using FlowSchedulerFactory = kahypar::meta::Factory<FlowAlgorithm,
                               IRefiner* (*)(const HypernodeID, const HyperedgeID, const Context&, gain_cache_t)>;

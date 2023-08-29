@@ -3,7 +3,7 @@
  *
  * This file is part of Mt-KaHyPar.
  *
- * Copyright (C) 2020 Lars Gottesbüren <lars.gottesbueren@kit.edu>
+ * Copyright (C) 2023 Nikolai Maas <nikolai.maas@kit.edu>
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -29,6 +29,10 @@
 #include "mt-kahypar/partition/refinement/fm/fm_commons.h"
 
 
+// TODO: HIGH_DEGREE_THRESHOLD in PartitionedHypergraph/PartitionedGraph might be problematic
+// for unconstrained refinement
+
+
 namespace mt_kahypar {
 
   /*
@@ -50,7 +54,7 @@ namespace mt_kahypar {
    *
    */
 
-class GainCacheStrategy {
+class UnconstrainedStrategy {
 public:
 
   using BlockPriorityQueue = ds::ExclusiveHandleHeap< ds::MaxHeap<Gain, PartitionID> >;
@@ -58,9 +62,9 @@ public:
 
   static constexpr bool uses_gain_cache = true;
   static constexpr bool maintain_gain_cache_between_rounds = true;
-  static constexpr bool is_unconstrained = false;
+  static constexpr bool is_unconstrained = true;
 
-  GainCacheStrategy(const Context& context,
+  UnconstrainedStrategy(const Context& context,
                     FMSharedData& sharedData,
                     FMStats& runStats) :
       context(context),
@@ -73,7 +77,7 @@ public:
   template<typename DispatchedStrategyApplicatorFn>
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
   void applyWithDispatchedStrategy(size_t /*taskID*/, size_t /*round*/, DispatchedStrategyApplicatorFn applicator_fn) {
-    applicator_fn(static_cast<GainCacheStrategy&>(*this));
+    applicator_fn(static_cast<UnconstrainedStrategy&>(*this));
   }
 
   template<typename PartitionedHypergraph, typename GainCache>
@@ -84,7 +88,7 @@ public:
     const PartitionID pv = phg.partID(v);
     ASSERT(pv < context.partition.k);
     auto [target, gain] = computeBestTargetBlock(phg, gain_cache, v, pv);
-    ASSERT(target < context.partition.k, V(target) << V(context.partition.k));
+    ASSERT(target < context.partition.k);
     sharedData.targetPart[v] = target;
     vertexPQs[pv].insert(v, gain);  // blockPQ updates are done later, collectively.
     runStats.pushes++;
@@ -155,7 +159,7 @@ public:
   template<typename PartitionedHypergraph, typename GainCache>
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
   void skipMove(const PartitionedHypergraph&, const GainCache&, Move) {
-    // nothing to do here
+    // TODO
   }
 
   void clearPQs(const size_t /* bestImprovementIndex */ ) {
@@ -234,7 +238,7 @@ private:
     PartitionID to = kInvalidPartition;
     HyperedgeWeight to_benefit = std::numeric_limits<HyperedgeWeight>::min();
     HypernodeWeight best_to_weight = from_weight - wu;
-    for ( const PartitionID& i : gain_cache.adjacentBlocks(u) ) {
+    for (PartitionID i = 0; i < context.partition.k; ++i) {
       if (i != from) {
         const HypernodeWeight to_weight = phg.partWeight(i);
         const HyperedgeWeight penalty = gain_cache.benefitTerm(u, i);

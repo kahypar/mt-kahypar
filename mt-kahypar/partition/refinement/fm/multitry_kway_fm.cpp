@@ -31,13 +31,16 @@
 #include "mt-kahypar/utils/utilities.h"
 #include "mt-kahypar/partition/metrics.h"
 #include "mt-kahypar/partition/refinement/gains/gain_definitions.h"
+#include "mt-kahypar/partition/refinement/fm/strategies/gain_cache_strategy.h"
+#include "mt-kahypar/partition/refinement/fm/strategies/unconstrained_strategy.h"
+#include "mt-kahypar/partition/refinement/fm/strategies/combined_strategy.h"
 #include "mt-kahypar/utils/memory_tree.h"
 #include "mt-kahypar/utils/cast.h"
 
 namespace mt_kahypar {
 
-  template<typename TypeTraits, typename GainTypes>
-  bool MultiTryKWayFM<TypeTraits, GainTypes>::refineImpl(
+  template<typename TypeTraits, typename GainTypes, typename FMStrategy>
+  bool MultiTryKWayFM<TypeTraits, GainTypes, FMStrategy>::refineImpl(
               mt_kahypar_partitioned_hypergraph_t& hypergraph,
               const vec<HypernodeID>& refinement_nodes,
               Metrics& metrics,
@@ -63,6 +66,12 @@ namespace mt_kahypar {
         initialPartWeights[i] = phg.partWeight(i);
       }
 
+      if constexpr (FMStrategy::is_unconstrained) {
+        timer.start_timer("initialize_data_unconstrained", "Initialize Data for Unconstrained FM");
+        sharedData.unconstrained.initialize(context, phg);
+        timer.stop_timer("initialize_data_unconstrained");
+      }
+
       timer.start_timer("collect_border_nodes", "Collect Border Nodes");
       roundInitialization(phg, refinement_nodes);
       timer.stop_timer("collect_border_nodes");
@@ -86,7 +95,7 @@ namespace mt_kahypar {
       auto task = [&](const size_t task_id) {
         auto& fm = ets_fm.local();
         while(sharedData.finishedTasks.load(std::memory_order_relaxed) < sharedData.finishedTasksLimit
-              && fm.findMoves(phg, task_id, num_seeds)) { /* keep running*/ }
+              && fm.findMoves(phg, task_id, num_seeds, round)) { /* keep running*/ }
         sharedData.finishedTasks.fetch_add(1, std::memory_order_relaxed);
       };
       size_t num_tasks = std::min(num_border_nodes, size_t(TBBInitializer::instance().total_number_of_threads()));
@@ -97,6 +106,7 @@ namespace mt_kahypar {
       timer.stop_timer("find_moves");
 
       timer.start_timer("rollback", "Rollback to Best Solution");
+      // TODO(maas): disable if necessary
       HyperedgeWeight improvement = globalRollback.revertToBestPrefix(
         phg, sharedData, initialPartWeights);
       timer.stop_timer("rollback");
@@ -160,8 +170,8 @@ namespace mt_kahypar {
     return overall_improvement > 0;
   }
 
-  template<typename TypeTraits, typename GainTypes>
-  void MultiTryKWayFM<TypeTraits, GainTypes>::roundInitialization(PartitionedHypergraph& phg,
+  template<typename TypeTraits, typename GainTypes, typename FMStrategy>
+  void MultiTryKWayFM<TypeTraits, GainTypes, FMStrategy>::roundInitialization(PartitionedHypergraph& phg,
                                                                   const vec<HypernodeID>& refinement_nodes) {
     // clear border nodes
     sharedData.refinementNodes.clear();
@@ -210,8 +220,8 @@ namespace mt_kahypar {
   }
 
 
-  template<typename TypeTraits, typename GainTypes>
-  void MultiTryKWayFM<TypeTraits, GainTypes>::initializeImpl(mt_kahypar_partitioned_hypergraph_t& hypergraph) {
+  template<typename TypeTraits, typename GainTypes, typename FMStrategy>
+  void MultiTryKWayFM<TypeTraits, GainTypes, FMStrategy>::initializeImpl(mt_kahypar_partitioned_hypergraph_t& hypergraph) {
     PartitionedHypergraph& phg = utils::cast<PartitionedHypergraph>(hypergraph);
 
     if (!gain_cache.isInitialized()) {
@@ -221,8 +231,8 @@ namespace mt_kahypar {
     is_initialized = true;
   }
 
-  template<typename TypeTraits, typename GainTypes>
-  void MultiTryKWayFM<TypeTraits, GainTypes>::resizeDataStructuresForCurrentK() {
+  template<typename TypeTraits, typename GainTypes, typename FMStrategy>
+  void MultiTryKWayFM<TypeTraits, GainTypes, FMStrategy>::resizeDataStructuresForCurrentK() {
     // If the number of blocks changes, we resize data structures
     // (can happen during deep multilevel partitioning)
     if ( current_k != context.partition.k ) {
@@ -232,6 +242,7 @@ namespace mt_kahypar {
       // as we initialize them with the final number of blocks. This is just a fallback
       // if someone changes this in the future.
       globalRollback.changeNumberOfBlocks(current_k);
+      sharedData.unconstrained.changeNumberOfBlocks(current_k);
       for ( auto& localized_fm : ets_fm ) {
         localized_fm.changeNumberOfBlocks(current_k);
       }
@@ -239,8 +250,8 @@ namespace mt_kahypar {
     }
   }
 
-  template<typename TypeTraits, typename GainTypes>
-  void MultiTryKWayFM<TypeTraits, GainTypes>::printMemoryConsumption() {
+  template<typename TypeTraits, typename GainTypes, typename FMStrategy>
+  void MultiTryKWayFM<TypeTraits, GainTypes, FMStrategy>::printMemoryConsumption() {
     utils::MemoryTreeNode fm_memory("Multitry k-Way FM", utils::OutputType::MEGABYTE);
 
     for (const auto& fm : ets_fm) {
@@ -254,9 +265,13 @@ namespace mt_kahypar {
   }
 
   namespace {
-  #define MULTITRY_KWAY_FM(X, Y) MultiTryKWayFM<X, Y>
+  #define MULTITRY_KWAY_FM_DEFAULT_STRATEGY(X, Y) MultiTryKWayFM<X, Y, GainCacheStrategy>
+  #define MULTITRY_KWAY_FM_UNCONSTRAINED_STRATEGY(X, Y) MultiTryKWayFM<X, Y, UnconstrainedStrategy>
+  #define MULTITRY_KWAY_FM_COMBINED_STRATEGY(X, Y) MultiTryKWayFM<X, Y, CombinedStrategy>
   }
 
-  INSTANTIATE_CLASS_WITH_TYPE_TRAITS_AND_GAIN_TYPES(MULTITRY_KWAY_FM)
+  INSTANTIATE_CLASS_WITH_TYPE_TRAITS_AND_GAIN_TYPES(MULTITRY_KWAY_FM_DEFAULT_STRATEGY)
+  INSTANTIATE_CLASS_WITH_TYPE_TRAITS_AND_GAIN_TYPES(MULTITRY_KWAY_FM_UNCONSTRAINED_STRATEGY)
+  INSTANTIATE_CLASS_WITH_TYPE_TRAITS_AND_GAIN_TYPES(MULTITRY_KWAY_FM_COMBINED_STRATEGY)
 
 } // namespace mt_kahypar

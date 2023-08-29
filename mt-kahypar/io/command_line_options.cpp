@@ -448,6 +448,8 @@ namespace mt_kahypar {
                      })->default_value("kway_fm"),
              "FM Algorithm:\n"
              "- kway_fm\n"
+             "- unconstrained\n"
+             "- combined\n"
              "- do_nothing")
             ((initial_partitioning ? "i-r-fm-multitry-rounds" : "r-fm-multitry-rounds"),
              po::value<size_t>((initial_partitioning ? &context.initial_partitioning.refinement.fm.multitry_rounds :
