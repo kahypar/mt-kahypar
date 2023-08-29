@@ -321,7 +321,7 @@ namespace mt_kahypar {
       bool accept_border = !_context.refinement.jet.restrict_to_border_nodes || hypergraph.isBorderNode(hn);
       bool accept_locked = first_round || _context.refinement.jet.vertex_locking == 0.0 || !_locks[hn];
       if (!accept_locked && _context.refinement.jet.vertex_locking < 1.0) {
-        accept_locked = randomize.getRandomFloat(0.0, 1.0, SCHED_GETCPU) > _context.refinement.jet.vertex_locking;
+        accept_locked = randomize.getRandomFloat(0.0, 1.0, THREAD_ID) > _context.refinement.jet.vertex_locking;
       }
       if (accept_border && accept_locked) {
         processNode<precomputed>(hypergraph, hn, add_node_fn, top_level);
