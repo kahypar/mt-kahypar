@@ -541,33 +541,8 @@ namespace mt_kahypar {
                      })->default_value("do_nothing"),
              "Rebalancer Algorithm:\n"
              "- simple_rebalancer\n"
-             "- jet_rebalancer\n"
              "- rebalancer\n"
-             "- do_nothing")
-            ((initial_partitioning ? "i-r-jetr-num-weak-iterations" : "r-jetr-num-weak-iterations"),
-             po::value<size_t>((initial_partitioning ? &context.initial_partitioning.refinement.jet_rebalancing.num_weak_iterations :
-                                &context.refinement.jet_rebalancing.num_weak_iterations))->value_name("<size_t>")->default_value(2),
-             "Number of weak iterations performed by jet rebalancer.")
-            ((initial_partitioning ? "i-r-jetr-num-strong-iterations" : "r-jetr-num-strong-iterations"),
-             po::value<size_t>((initial_partitioning ? &context.initial_partitioning.refinement.jet_rebalancing.num_strong_iterations :
-                                &context.refinement.jet_rebalancing.num_strong_iterations))->value_name("<size_t>")->default_value(3),
-             "Number of strong iterations performed by jet rebalancer.")
-            ((initial_partitioning ? "i-r-jetr-heavy-vertex-exclusion-factor" : "r-jetr-heavy-vertex-exclusion-factor"),
-             po::value<double>((initial_partitioning ? &context.initial_partitioning.refinement.jet_rebalancing.heavy_vertex_exclusion_factor :
-                                &context.refinement.jet_rebalancing.heavy_vertex_exclusion_factor))->value_name("<double>")->default_value(1.5),
-             "Heavy vertices are not considered by the rebalancer (factor relative to imbalance of block).")
-            ((initial_partitioning ? "i-r-jetr-relative-deadzone-size" : "r-jetr-relative-deadzone-size"),
-             po::value<double>((initial_partitioning ? &context.initial_partitioning.refinement.jet_rebalancing.relative_deadzone_size :
-                                &context.refinement.jet_rebalancing.relative_deadzone_size))->value_name("<double>")->default_value(1.0),
-             "Size of deadzone relative to allowed imbalance.")
-            ((initial_partitioning ? "i-r-jetr-use-greedy-balanced-instead-of-strong-iteration" : "r-jetr-use-greedy-balanced-instead-of-strong-iteration"),
-             po::value<bool>((initial_partitioning ? &context.initial_partitioning.refinement.jet_rebalancing.use_greedy_balanced_instead_of_strong_iteration :
-                                &context.refinement.jet_rebalancing.use_greedy_balanced_instead_of_strong_iteration))->value_name("<bool>")->default_value(false),
-             "Replace the strong JET iteration with a greedy implementation that updates the block weights immediately.")
-            ((initial_partitioning ? "i-r-jetr-greedy-balanced-use-deadzone" : "r-jetr-greedy-balanced-use-deadzone"),
-             po::value<bool>((initial_partitioning ? &context.initial_partitioning.refinement.jet_rebalancing.greedy_balanced_use_deadzone :
-                                &context.refinement.jet_rebalancing.greedy_balanced_use_deadzone))->value_name("<bool>")->default_value(true),
-             "If strong JET is replaced with greedy, determines whether the deadzone should be used.");
+             "- do_nothing");
     return options;
   }
 

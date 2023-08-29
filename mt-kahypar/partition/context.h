@@ -208,17 +208,6 @@ struct FlowParameters {
 
 std::ostream& operator<<(std::ostream& out, const FlowParameters& params);
 
-struct JetRebalancingParameters {
-  size_t num_weak_iterations = 2;
-  size_t num_strong_iterations = 3;
-  double heavy_vertex_exclusion_factor = 1.5;
-  double relative_deadzone_size = 1.0;
-  bool use_greedy_balanced_instead_of_strong_iteration = false;
-  bool greedy_balanced_use_deadzone = true;
-};
-
-std::ostream& operator<<(std::ostream& out, const JetRebalancingParameters& params);
-
 struct DeterministicRefinementParameters {
   size_t num_sub_rounds_sync_lp = 5;
   bool use_active_node_set = false;
@@ -234,7 +223,6 @@ struct RefinementParameters {
   NLevelGlobalFMParameters global_fm;
   FlowParameters flows;
   RebalancingAlgorithm rebalancer = RebalancingAlgorithm::do_nothing;
-  JetRebalancingParameters jet_rebalancing;
   bool refine_until_no_improvement = false;
   double relative_improvement_threshold = 0.0;
   size_t max_batch_size = std::numeric_limits<size_t>::max();
