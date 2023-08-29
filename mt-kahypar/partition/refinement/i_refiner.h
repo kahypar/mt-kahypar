@@ -90,12 +90,6 @@ class IRebalancer: public IRefiner {
     return refineAndOutputMovesImpl(hypergraph, refinement_nodes, moves_by_part, best_metrics, time_limit);
   }
 
-  bool jetRebalance(mt_kahypar_partitioned_hypergraph_t& hypergraph,
-                    Metrics& best_metrics,
-                    size_t& rounds_without_improvement) {
-    return jetRebalanceImpl(hypergraph, best_metrics, rounds_without_improvement);
-  }
-
  protected:
   IRebalancer() = default;
 
@@ -107,12 +101,6 @@ class IRebalancer: public IRefiner {
                                         parallel::scalable_vector<parallel::scalable_vector<Move>>& moves_by_part,
                                         Metrics& best_metrics,
                                         const double time_limit) = 0;
-
-  virtual bool jetRebalanceImpl(mt_kahypar_partitioned_hypergraph_t&,
-                                Metrics&,
-                                size_t&) {
-    ALWAYS_ASSERT(false, "JET-equivalent mode only supported for JET rebalancer.");
-  }
 };
 
 }  // namespace mt_kahypar

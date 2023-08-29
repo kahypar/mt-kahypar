@@ -211,12 +211,6 @@ REGISTER_DISPATCHED_REBALANCER(RebalancingAlgorithm::simple_rebalancer,
                                 context.partition.partition_type),
                                kahypar::meta::PolicyRegistry<GainPolicy>::getInstance().getPolicy(
                                 context.partition.gain_policy));
-REGISTER_DISPATCHED_REBALANCER(RebalancingAlgorithm::jet_rebalancer,
-                               JetRebalancerDispatcher,
-                               kahypar::meta::PolicyRegistry<mt_kahypar_partition_type_t>::getInstance().getPolicy(
-                                context.partition.partition_type),
-                               kahypar::meta::PolicyRegistry<GainPolicy>::getInstance().getPolicy(
-                                context.partition.gain_policy));
 REGISTER_DISPATCHED_REBALANCER(RebalancingAlgorithm::rebalancer,
                                  RebalancerV2Dispatcher,
                                  kahypar::meta::PolicyRegistry<mt_kahypar_partition_type_t>::getInstance().getPolicy(
