@@ -129,22 +129,6 @@ namespace mt_kahypar {
     return str;
   }
 
-  std::ostream & operator<< (std::ostream& str, const JetParameters& params) {
-    str << "  Jet Parameters:" << std::endl;
-    str << "    Algorithm:                        " << params.algorithm << std::endl;
-    if ( params.algorithm != JetAlgorithm::do_nothing ) {
-      str << "    Iterations without Improvement:   " << params.num_iterations << std::endl;
-      str << "    Fixed Iterations:                 " << params.fixed_n_iterations << std::endl;
-      str << "    Relative Improvement Threshold:   " << params.relative_improvement_threshold << std::endl;
-      str << "    Restrict to Border Nodes:         " << std::boolalpha << params.restrict_to_border_nodes << std::endl;
-      str << "    Rollback after each Iteration:    " << std::boolalpha << params.rollback_after_each_iteration << std::endl;
-      str << "    Vertex Locking:                   " << params.vertex_locking << std::endl;
-      str << "    Negative Gain Factor (Coarse):    " << params.negative_gain_factor_coarse << std::endl;
-      str << "    Negative Gain Factor (Fine):      " << params.negative_gain_factor_fine << std::endl;
-    }
-    return str;
-  }
-
   std::ostream& operator<<(std::ostream& out, const FMParameters& params) {
     out << "  FM Parameters: \n";
     out << "    Algorithm:                        " << params.algorithm << std::endl;
@@ -225,7 +209,6 @@ namespace mt_kahypar {
       str << "\n" << params.jet_rebalancing;
     }
     str << "\n" << params.label_propagation;
-    str << "\n" << params.jet;
     str << "\n" << params.fm;
     if ( params.global_fm.use_global_fm ) {
       str << "\n" << params.global_fm;

@@ -394,74 +394,7 @@ namespace mt_kahypar {
              po::value<double>((!initial_partitioning ? &context.refinement.label_propagation.relative_improvement_threshold :
                                 &context.initial_partitioning.refinement.label_propagation.relative_improvement_threshold))->value_name(
                      "<double>")->default_value(-1.0),
-             "Relative improvement threshold for JET.")
-            ((initial_partitioning ? "i-r-jet-type" : "r-jet-type"),
-             po::value<std::string>()->value_name("<string>")->notifier(
-                     [&, initial_partitioning](const std::string& type) {
-                       if (initial_partitioning) {
-                         context.initial_partitioning.refinement.jet.algorithm = jetAlgorithmFromString(type);
-                       } else {
-                         context.refinement.jet.algorithm = jetAlgorithmFromString(type);
-                       }
-                     })->default_value("do_nothing"),
-             "Jet Algorithm:\n"
-             "- precomputed_ordered\n"
-             "- greedy_unordered\n"
-             "- do_nothing")
-            ((initial_partitioning ? "i-r-jet-maximum-iterations" : "r-jet-maximum-iterations"),
-             po::value<size_t>((!initial_partitioning ? &context.refinement.jet.num_iterations :
-                                &context.initial_partitioning.refinement.jet.num_iterations))->value_name(
-                     "<size_t>")->default_value(12),
-             "Maximum number of jet iterations after no improvement is found.")
-            ((initial_partitioning ? "i-r-jet-fixed-iterations" : "r-jet-fixed-iterations"),
-             po::value<size_t>((!initial_partitioning ? &context.refinement.jet.fixed_n_iterations :
-                                &context.initial_partitioning.refinement.jet.fixed_n_iterations))->value_name(
-                     "<size_t>")->default_value(0),
-             "Use a fixed number of jet iterations.")
-            ((initial_partitioning ? "i-r-jet-relative-improvement-threshold" : "r-jet-relative-improvement-threshold"),
-             po::value<double>((!initial_partitioning ? &context.refinement.jet.relative_improvement_threshold :
-                                &context.initial_partitioning.refinement.jet.relative_improvement_threshold))->value_name(
-                     "<double>")->default_value(0.001),
-             "Relative improvement threshold for JET.")
-            ((initial_partitioning ? "i-r-jet-restrict-to-border-nodes" : "r-jet-restrict-to-border-nodes"),
-             po::value<bool>((!initial_partitioning ? &context.refinement.jet.restrict_to_border_nodes :
-                              &context.initial_partitioning.refinement.jet.restrict_to_border_nodes))->value_name(
-                     "<bool>")->default_value(true),
-             "If true, then only border nodes are considered for JET.")
-            ((initial_partitioning ? "i-r-jet-rollback-after-each-iteration" : "r-jet-rollback-after-each-iteration"),
-             po::value<bool>((!initial_partitioning ? &context.refinement.jet.rollback_after_each_iteration :
-                              &context.initial_partitioning.refinement.jet.rollback_after_each_iteration))->value_name(
-                     "<bool>")->default_value(false),
-             "If true, rollback to best partition in each iteration without improvement.")
-            ((initial_partitioning ? "i-r-jet-exactly-as-in-paper" : "r-jet-exactly-as-in-paper"),
-             po::value<bool>((!initial_partitioning ? &context.refinement.jet.exactly_as_in_jet_paper :
-                              &context.initial_partitioning.refinement.jet.exactly_as_in_jet_paper))->value_name(
-                     "<bool>")->default_value(false),
-             "Use same way of counting iterations as in jet paper and always initialize active nodes from complete graph.")
-            ((initial_partitioning ? "i-r-jet-vertex-locking" : "r-jet-vertex-locking"),
-             po::value<double>((!initial_partitioning ? &context.refinement.jet.vertex_locking :
-                              &context.initial_partitioning.refinement.jet.vertex_locking))->value_name(
-                     "<double>")->default_value(1.0),
-             "Fraction of vertices locked by JET (which are not moved in the next iteration).")
-            ((initial_partitioning ? "i-r-jet-negative-gain-factor-coarse" : "r-jet-negative-gain-factor-coarse"),
-             po::value<double>(
-                     (!initial_partitioning ? &context.refinement.jet.negative_gain_factor_coarse :
-                      &context.initial_partitioning.refinement.jet.negative_gain_factor_coarse))->value_name(
-                     "<double>")->default_value(0.25),
-             "Factor used by JET for filtering negative gain moves (only applicable to precomputed_ordered).")
-            ((initial_partitioning ? "i-r-jet-negative-gain-factor-fine" : "r-jet-negative-gain-factor-fine"),
-             po::value<double>(
-                     (!initial_partitioning ? &context.refinement.jet.negative_gain_factor_fine :
-                      &context.initial_partitioning.refinement.jet.negative_gain_factor_fine))->value_name(
-                     "<double>")->default_value(0.75),
-             "Factor used by JET for filtering negative gain moves (only applicable to precomputed_ordered).")
-            ((initial_partitioning ? "i-r-jet-he-size-activation-threshold" : "r-jet-he-size-activation-threshold"),
-             po::value<size_t>(
-                     (!initial_partitioning ? &context.refinement.jet.hyperedge_size_activation_threshold
-                                            :
-                      &context.initial_partitioning.refinement.jet.hyperedge_size_activation_threshold))->value_name(
-                     "<size_t>")->default_value(100),
-             "JET refiner activates only neighbors of moved vertices that are part of hyperedges with a size less than this threshold")
+             "Relative improvement threshold for label propagation.")
             ((initial_partitioning ? "i-r-fm-type" : "r-fm-type"),
              po::value<std::string>()->value_name("<string>")->notifier(
                      [&, initial_partitioning](const std::string& type) {
