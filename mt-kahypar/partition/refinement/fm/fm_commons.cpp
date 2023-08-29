@@ -82,6 +82,8 @@ namespace mt_kahypar {
         }
       }
     };
+
+    // TODO: test this
     if (context.partition.k < 64) {
       add_range_fn(0, bucket_weights.size());
     } else {

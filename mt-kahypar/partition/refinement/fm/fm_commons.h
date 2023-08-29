@@ -204,6 +204,7 @@ struct UnconstrainedFMData {
 
   // upper bound of gain values in bucket
   double gainPerWeightForBucket(size_t bucketId) const {
+    // TODO: test other value than 1.5
     ASSERT(bucketId < NUM_BUCKETS);
     if (bucketId > 1) {
       return std::pow(1.5, bucketId - 2);
