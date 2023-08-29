@@ -381,12 +381,6 @@ namespace mt_kahypar {
         improvement_found = false;
         const HyperedgeWeight metric_before = _current_metrics.quality;
 
-        if ( _jet && _context.refinement.jet.algorithm != JetAlgorithm::do_nothing ) {
-          _timer.start_timer("jet", "JET");
-          improvement_found |= _jet->refine(phg, {}, _current_metrics, time_limit);
-          _timer.stop_timer("jet");
-        }
-
         if ( _fm && _context.refinement.fm.algorithm != FMAlgorithm::do_nothing ) {
           _timer.start_timer("fm", "FM");
           improvement_found |= _fm->refine(phg, {}, _current_metrics, time_limit);

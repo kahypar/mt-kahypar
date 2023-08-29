@@ -51,25 +51,6 @@
     return new refiner(num_hypernodes, num_hyperedges, context, gain_cache, rebalancer);         \
   })
 
-#define REGISTER_DISPATCHED_JET_REFINER(id, dispatcher, ...)                                           \
-  static kahypar::meta::Registrar<JetFactory> register_ ## dispatcher(                                 \
-    id,                                                                                                \
-    [](const HypernodeID num_hypernodes, const HyperedgeID num_hyperedges,                             \
-       const Context& context, gain_cache_t gain_cache, IRebalancer& rebalancer) {                     \
-    return dispatcher::create(                                                                         \
-      std::forward_as_tuple(num_hypernodes, num_hyperedges, context, gain_cache, rebalancer),          \
-      __VA_ARGS__                                                                                      \
-      );                                                                                               \
-  })
-
-#define REGISTER_JET_REFINER(id, refiner, t)                                                     \
-  static kahypar::meta::Registrar<JetFactory> JOIN(register_ ## refiner, t)(                     \
-    id,                                                                                          \
-    [](const HypernodeID num_hypernodes, const HyperedgeID num_hyperedges,                       \
-       const Context& context, gain_cache_t gain_cache, IRebalancer& rebalancer) -> IRefiner* {  \
-    return new refiner(num_hypernodes, num_hyperedges, context, gain_cache, rebalancer);         \
-  })
-
 #define REGISTER_DISPATCHED_FM_REFINER(id, dispatcher, ...)                                            \
   static kahypar::meta::Registrar<FMFactory> register_ ## dispatcher(                                  \
     id,                                                                                                \
@@ -164,14 +145,6 @@ REGISTER_DISPATCHED_LP_REFINER(LabelPropagationAlgorithm::deterministic,
                                kahypar::meta::PolicyRegistry<mt_kahypar_partition_type_t>::getInstance().getPolicy(
                                 context.partition.partition_type));
 REGISTER_LP_REFINER(LabelPropagationAlgorithm::do_nothing, DoNothingRefiner, 1);
-
-REGISTER_DISPATCHED_JET_REFINER(JetAlgorithm::greedy_unordered,
-                                GreedyJetDispatcher,
-                                kahypar::meta::PolicyRegistry<mt_kahypar_partition_type_t>::getInstance().getPolicy(
-                                 context.partition.partition_type),
-                                kahypar::meta::PolicyRegistry<GainPolicy>::getInstance().getPolicy(
-                                 context.partition.gain_policy));
-REGISTER_JET_REFINER(JetAlgorithm::do_nothing, DoNothingRefiner, 2);
 
 REGISTER_DISPATCHED_FM_REFINER(FMAlgorithm::kway_fm,
                                DefaultFMDispatcher,

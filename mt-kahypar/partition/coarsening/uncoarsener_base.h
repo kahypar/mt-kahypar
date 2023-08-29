@@ -61,7 +61,6 @@ class UncoarsenerBase {
           _uncoarseningData(uncoarseningData),
           _gain_cache(gain_cache_t {nullptr, GainPolicy::none}),
           _label_propagation(nullptr),
-          _jet(nullptr),
           _fm(nullptr),
           _flows(nullptr),
           _rebalancer(nullptr) {}
@@ -82,7 +81,6 @@ class UncoarsenerBase {
   UncoarseningData<TypeTraits>& _uncoarseningData;
   gain_cache_t _gain_cache;
   std::unique_ptr<IRefiner> _label_propagation;
-  std::unique_ptr<IRefiner> _jet;
   std::unique_ptr<IRefiner> _fm;
   std::unique_ptr<IRefiner> _flows;
   std::unique_ptr<IRebalancer> _rebalancer;

@@ -44,7 +44,6 @@
 #include "mt-kahypar/partition/refinement/i_refiner.h"
 #include "mt-kahypar/partition/refinement/flows/i_flow_refiner.h"
 #include "mt-kahypar/partition/refinement/label_propagation/label_propagation_refiner.h"
-#include "mt-kahypar/partition/refinement/jet/jet_refiner.h"
 #include "mt-kahypar/partition/refinement/deterministic/deterministic_label_propagation.h"
 #include "mt-kahypar/partition/refinement/fm/fm_commons.h"
 #include "mt-kahypar/partition/refinement/fm/multitry_kway_fm.h"
@@ -97,15 +96,6 @@ using DeterministicLabelPropagationDispatcher = kahypar::meta::StaticMultiDispat
                                                   DeterministicLabelPropagationRefiner,
                                                   IRefiner,
                                                   kahypar::meta::Typelist<TypeTraitsList>>;
-
-using JetFactory = kahypar::meta::Factory<JetAlgorithm,
-                    IRefiner* (*)(HypernodeID, HyperedgeID, const Context&, gain_cache_t, IRebalancer&)>;
-
-using PrecomputedJetDispatcher = kahypar::meta::StaticMultiDispatchFactory<
-                                   JetRefiner,
-                                   IRefiner,
-                                   kahypar::meta::Typelist<TypeTraitsList, GainTypes>>;
-using GreedyJetDispatcher = PrecomputedJetDispatcher;
 
 using FMFactory = kahypar::meta::Factory<FMAlgorithm,
                     IRefiner* (*)(HypernodeID, HyperedgeID, const Context&, gain_cache_t, IRebalancer&)>;

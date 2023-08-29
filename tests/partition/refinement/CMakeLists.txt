@@ -6,7 +6,6 @@ target_sources(mt_kahypar_tests PRIVATE
 #         quotient_graph_test.cc
          gain_policy_test.cc
          label_propagation_refiner_test.cc
-         jet_refiner_test.cc
          rollback_test.cc
          rebalance_test.cc
          twoway_fm_refiner_test.cc

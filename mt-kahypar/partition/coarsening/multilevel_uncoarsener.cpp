@@ -213,16 +213,6 @@ namespace mt_kahypar {
       improvement_found = false;
       const HyperedgeWeight metric_before = _current_metrics.quality;
 
-      if ( _jet && _context.refinement.jet.algorithm != JetAlgorithm::do_nothing ) {
-        _timer.start_timer("initialize_jet_refiner", "Initialize JET Refiner");
-        _jet->initialize(phg);
-        _timer.stop_timer("initialize_jet_refiner");
-
-        _timer.start_timer("jet", "JET");
-        improvement_found |= _jet->refine(phg, dummy, _current_metrics, time_limit);
-        _timer.stop_timer("jet");
-      }
-
       if ( _label_propagation && _context.refinement.label_propagation.algorithm != LabelPropagationAlgorithm::do_nothing ) {
         _timer.start_timer("initialize_lp_refiner", "Initialize LP Refiner");
         _label_propagation->initialize(phg);

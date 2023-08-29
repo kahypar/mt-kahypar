@@ -5,7 +5,6 @@ set(RefinementSources
         fm/global_rollback.cpp
         fm/sequential_twoway_fm_refiner.cpp
         label_propagation/label_propagation_refiner.cpp
-        jet/jet_refiner.cpp
         rebalancing/rebalancer.cpp
         rebalancing/jet_rebalancer.cpp
         rebalancing/rebalancer_v2.cpp
