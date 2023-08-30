@@ -254,7 +254,7 @@ namespace impl {
 
     phg.doParallelForAllNodes([&](HypernodeID u) {
       const PartitionID b = phg.partID(u);
-      if (!_is_overloaded[b]) return;
+      if (!_is_overloaded[b] || phg.isFixed(u)) return;
 
       _node_state[u].markAsMovable();
       auto [target, gain] = impl::computeBestTargetBlock(phg, _context, _gain_cache, u, phg.partID(u));
