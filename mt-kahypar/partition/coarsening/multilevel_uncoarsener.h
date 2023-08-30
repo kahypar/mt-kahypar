@@ -93,10 +93,6 @@ class MultilevelUncoarsener : public IUncoarsener<TypeTraits>,
 
   PartitionedHypergraph&& movePartitionedHypergraphImpl() override;
 
-  bool checkForImprovement();
-
-  void writeCurrentPartition();
-
   using Base::_hg;
   using Base::_context;
   using Base::_uncoarseningData;
@@ -113,7 +109,6 @@ class MultilevelUncoarsener : public IUncoarsener<TypeTraits>,
   int _num_levels;
   ds::Array<PartitionID> _block_ids;
   Metrics _current_metrics;
-  Metrics _best_metrics;
   utils::ProgressBar _progress;
 };
 

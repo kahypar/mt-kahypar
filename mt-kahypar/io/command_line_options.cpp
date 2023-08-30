@@ -325,11 +325,6 @@ namespace mt_kahypar {
                               &context.initial_partitioning.refinement.refine_until_no_improvement))->value_name(
                      "<bool>")->default_value(false),
              "Executes all refinement algorithms as long as they find an improvement on the current partition.")
-            ((initial_partitioning ? "i-r-rounds-with-rollback" : "r-rounds-with-rollback"),
-             po::value<size_t>((!initial_partitioning ? &context.refinement.rounds_with_rollback :
-                              &context.initial_partitioning.refinement.rounds_with_rollback))->value_name(
-                     "<size_t>")->default_value(0),
-             "Tries multiple refinement rounds even if no immediate improvement is found, rolling back to the best partition.")
             ((initial_partitioning ? "i-r-relative-improvement-threshold" : "r-relative-improvement-threshold"),
              po::value<double>((!initial_partitioning ? &context.refinement.relative_improvement_threshold :
                               &context.initial_partitioning.refinement.relative_improvement_threshold))->value_name(
