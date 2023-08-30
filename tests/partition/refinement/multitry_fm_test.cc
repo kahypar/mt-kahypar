@@ -66,6 +66,15 @@ class MultiTryFMTest : public Test {
     context.partition.graph_community_filename = "../tests/instances/contracted_ibm01.hgr.community";
     context.partition.mode = Mode::direct;
     context.partition.epsilon = 0.25;
+    context.partition.k = Config::K;
+    #ifdef KAHYPAR_ENABLE_HIGHEST_QUALITY_FEATURES
+    context.partition.preset_type = Hypergraph::is_static_hypergraph ?
+      PresetType::default_preset : PresetType::highest_quality;
+    #else
+    context.partition.preset_type = PresetType::default_preset;
+    #endif
+    context.partition.instance_type = InstanceType::hypergraph;
+    context.partition.partition_type = PartitionedHypergraph::TYPE;
     context.partition.verbose_output = false;
 
     // Shared Memory
@@ -75,8 +84,6 @@ class MultiTryFMTest : public Test {
     // Initial Partitioning
     context.initial_partitioning.mode = Mode::deep_multilevel;
     context.initial_partitioning.runs = 1;
-
-    context.partition.k = Config::K;
 
     context.refinement.fm.algorithm = FMAlgorithm::kway_fm;
     context.refinement.fm.multitry_rounds = 10;

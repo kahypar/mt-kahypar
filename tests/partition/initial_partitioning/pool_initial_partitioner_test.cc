@@ -34,7 +34,6 @@
 #include "mt-kahypar/utils/utilities.h"
 #include "mt-kahypar/io/hypergraph_factory.h"
 #include "mt-kahypar/partition/registries/register_initial_partitioning_algorithms.h"
-#include "mt-kahypar/partition/registries/register_refinement_algorithms.cpp"
 #include "mt-kahypar/partition/initial_partitioning/pool_initial_partitioner.h"
 
 using ::testing::Test;
