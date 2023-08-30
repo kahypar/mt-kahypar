@@ -158,7 +158,7 @@ namespace mt_kahypar {
           return true;
         }());
 
-        if (!phg.is_graph) {  // TODO add check for whether the rebalancer uses the gain table.
+        if (!PartitionedHypergraph::is_graph) {  // TODO add check for whether the rebalancer uses the gain table.
           tbb::parallel_for(MoveID(0), sharedData.moveTracker.numPerformedMoves(), [&](const MoveID i) {
             gain_cache.recomputePenaltyTerm(phg, sharedData.moveTracker.moveOrder[i].node);
           });

@@ -331,7 +331,7 @@ namespace impl {
                       [&] { move_id = __atomic_fetch_add(&global_move_id, 1, __ATOMIC_RELAXED); },
                       [&](const SyncronizedEdgeUpdate& sync_update) {
                         local_attributed_gain += AttributedGains::gain(sync_update);
-                        if (!phg.is_graph && GainCache::triggersDeltaGainUpdate(sync_update)) {
+                        if (!PartitionedHypergraph::is_graph && GainCache::triggersDeltaGainUpdate(sync_update)) {
                           edges_with_gain_changes.push_back(sync_update.he);
                         }
                       }
@@ -354,7 +354,7 @@ namespace impl {
         };
 
         // update neighbors
-        if constexpr (phg.is_graph) {
+        if constexpr (PartitionedHypergraph::is_graph) {
           for (const auto e : phg.incidentEdges(m.node)) {
             HypernodeID v = phg.edgeTarget(e);
             update_neighbor(v);
