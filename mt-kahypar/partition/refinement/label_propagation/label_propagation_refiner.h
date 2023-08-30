@@ -107,7 +107,6 @@ class LabelPropagationRefiner final : public IRefiner {
 
   void updateNodeData(PartitionedHypergraph& hypergraph,
                       NextActiveNodes& next_active_nodes,
-                      bool activate_self_nodes,
                       vec<vec<Move>>* rebalance_moves_by_part = nullptr);
 
   template<bool unconstrained, typename F>
