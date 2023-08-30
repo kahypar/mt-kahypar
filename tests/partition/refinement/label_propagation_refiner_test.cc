@@ -33,34 +33,36 @@
 #include "mt-kahypar/partition/initial_partitioning/bfs_initial_partitioner.h"
 #include "mt-kahypar/partition/refinement/label_propagation/label_propagation_refiner.h"
 #include "mt-kahypar/partition/refinement/gains/gain_definitions.h"
-#include "mt-kahypar/partition/refinement/rebalancing/rebalancer.h"
+#include "mt-kahypar/partition/refinement/rebalancing/rebalancer_v2.h"
 #include "mt-kahypar/utils/randomize.h"
 #include "mt-kahypar/utils/cast.h"
 
 using ::testing::Test;
 
 namespace mt_kahypar {
-template <typename TypeTraitsT, PartitionID k, Objective objective>
+template <typename TypeTraitsT, PartitionID k, bool unconstrained, Objective objective>
 struct TestConfig { };
 
-template <typename TypeTraitsT, PartitionID k>
-struct TestConfig<TypeTraitsT, k, Objective::km1> {
+template <typename TypeTraitsT, PartitionID k, bool unconstrained>
+struct TestConfig<TypeTraitsT, k, unconstrained, Objective::km1> {
   using TypeTraits = TypeTraitsT;
   using GainTypes = Km1GainTypes;
   using Refiner = LabelPropagationRefiner<TypeTraits, GainTypes>;
   static constexpr PartitionID K = k;
   static constexpr Objective OBJECTIVE = Objective::km1;
   static constexpr LabelPropagationAlgorithm LP_ALGO = LabelPropagationAlgorithm::label_propagation;
+  static constexpr bool is_unconstrained = unconstrained;
 };
 
-template <typename TypeTraitsT, PartitionID k>
-struct TestConfig<TypeTraitsT, k, Objective::cut> {
+template <typename TypeTraitsT, PartitionID k, bool unconstrained>
+struct TestConfig<TypeTraitsT, k, unconstrained, Objective::cut> {
   using TypeTraits = TypeTraitsT;
   using GainTypes = CutGainTypes;
   using Refiner = LabelPropagationRefiner<TypeTraits, GainTypes>;
   static constexpr PartitionID K = k;
   static constexpr Objective OBJECTIVE = Objective::cut;
   static constexpr LabelPropagationAlgorithm LP_ALGO = LabelPropagationAlgorithm::label_propagation;
+  static constexpr bool is_unconstrained = unconstrained;
 };
 
 template <typename Config>
@@ -109,7 +111,9 @@ class ALabelPropagationRefiner : public Test {
 
     // Label Propagation
     context.refinement.label_propagation.algorithm = Config::LP_ALGO;
+    context.refinement.label_propagation.unconstrained = Config::is_unconstrained;
     context.initial_partitioning.refinement.label_propagation.algorithm = Config::LP_ALGO;
+    // Note: unconstrained currently doesn't work for initial partitioning
 
     // Read hypergraph
     hypergraph = io::readInputFile<Hypergraph>(
@@ -119,7 +123,7 @@ class ALabelPropagationRefiner : public Test {
     context.setupPartWeights(hypergraph.totalWeight());
     initialPartition();
 
-    rebalancer = std::make_unique<Rebalancer<TypeTraits, GainTypes>>(hypergraph.initialNumNodes(), context, gain_cache);
+    rebalancer = std::make_unique<RebalancerV2<TypeTraits, GainTypes>>(hypergraph.initialNumNodes(), context, gain_cache);
     refiner = std::make_unique<Refiner>(
       hypergraph.initialNumNodes(), hypergraph.initialNumEdges(), context, gain_cache, *rebalancer);
     mt_kahypar_partitioned_hypergraph_t phg = utils::partitioned_hg_cast(partitioned_hypergraph);
@@ -153,18 +157,31 @@ size_t ALabelPropagationRefiner<Config>::num_threads = HardwareTopology::instanc
 
 static constexpr double EPS = 0.05;
 
-typedef ::testing::Types<TestConfig<StaticHypergraphTypeTraits, 2, Objective::cut>,
-                         TestConfig<StaticHypergraphTypeTraits, 4, Objective::cut>,
-                         TestConfig<StaticHypergraphTypeTraits, 8, Objective::cut>,
-                         TestConfig<StaticHypergraphTypeTraits, 2, Objective::km1>,
-                         TestConfig<StaticHypergraphTypeTraits, 4, Objective::km1>,
-                         TestConfig<StaticHypergraphTypeTraits, 8, Objective::km1>
-                         ENABLE_HIGHEST_QUALITY(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA 2 COMMA Objective::cut>)
-                         ENABLE_HIGHEST_QUALITY(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA 4 COMMA Objective::cut>)
-                         ENABLE_HIGHEST_QUALITY(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA 8 COMMA Objective::cut>)
-                         ENABLE_HIGHEST_QUALITY(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA 2 COMMA Objective::km1>)
-                         ENABLE_HIGHEST_QUALITY(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA 4 COMMA Objective::km1>)
-                         ENABLE_HIGHEST_QUALITY(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA 8 COMMA Objective::km1>) > TestConfigs;
+typedef ::testing::Types<TestConfig<StaticHypergraphTypeTraits, 2, false, Objective::cut>,
+                         TestConfig<StaticHypergraphTypeTraits, 4, false, Objective::cut>,
+                         TestConfig<StaticHypergraphTypeTraits, 8, false, Objective::cut>,
+                         TestConfig<StaticHypergraphTypeTraits, 2, false, Objective::km1>,
+                         TestConfig<StaticHypergraphTypeTraits, 4, false, Objective::km1>,
+                         TestConfig<StaticHypergraphTypeTraits, 8, false, Objective::km1>
+                         ENABLE_HIGHEST_QUALITY(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA 2 COMMA false COMMA Objective::cut>)
+                         ENABLE_HIGHEST_QUALITY(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA 4 COMMA false COMMA Objective::cut>)
+                         ENABLE_HIGHEST_QUALITY(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA 8 COMMA false COMMA Objective::cut>)
+                         ENABLE_HIGHEST_QUALITY(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA 2 COMMA false COMMA Objective::km1>)
+                         ENABLE_HIGHEST_QUALITY(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA 4 COMMA false COMMA Objective::km1>)
+                         ENABLE_HIGHEST_QUALITY(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA 8 COMMA false COMMA Objective::km1>),
+                         // unconstrained
+                         TestConfig<StaticHypergraphTypeTraits, 2, true, Objective::cut>,
+                         TestConfig<StaticHypergraphTypeTraits, 4, true, Objective::cut>,
+                         TestConfig<StaticHypergraphTypeTraits, 8, true, Objective::cut>,
+                         TestConfig<StaticHypergraphTypeTraits, 2, true, Objective::km1>,
+                         TestConfig<StaticHypergraphTypeTraits, 4, true, Objective::km1>,
+                         TestConfig<StaticHypergraphTypeTraits, 8, true, Objective::km1>
+                         ENABLE_HIGHEST_QUALITY(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA 2 COMMA true COMMA Objective::cut>)
+                         ENABLE_HIGHEST_QUALITY(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA 4 COMMA true COMMA Objective::cut>)
+                         ENABLE_HIGHEST_QUALITY(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA 8 COMMA true COMMA Objective::cut>)
+                         ENABLE_HIGHEST_QUALITY(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA 2 COMMA true COMMA Objective::km1>)
+                         ENABLE_HIGHEST_QUALITY(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA 4 COMMA true COMMA Objective::km1>)
+                         ENABLE_HIGHEST_QUALITY(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA 8 COMMA true COMMA Objective::km1>) > TestConfigs;
 
 TYPED_TEST_CASE(ALabelPropagationRefiner, TestConfigs);
 
@@ -222,6 +239,7 @@ TYPED_TEST(ALabelPropagationRefiner, IncreasesTheNumberOfBlocks) {
   objective_before = metrics::quality(phg_with_larger_k, this->context.partition.objective);
   mt_kahypar_partitioned_hypergraph_t phg_larger_k = utils::partitioned_hg_cast(phg_with_larger_k);
   this->refiner->initialize(phg_larger_k);
+  this->rebalancer->initialize(phg_larger_k);
   this->refiner->refine(phg_larger_k, {}, this->metrics, std::numeric_limits<double>::max());
   ASSERT_LE(this->metrics.quality, objective_before);
   ASSERT_EQ(metrics::quality(phg_with_larger_k, this->context.partition.objective),
