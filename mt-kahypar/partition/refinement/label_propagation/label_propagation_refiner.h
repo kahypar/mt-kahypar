@@ -230,6 +230,9 @@ class LabelPropagationRefiner final : public IRefiner {
     if ( _current_k != _context.partition.k ) {
       _current_k = _context.partition.k;
       _gain.changeNumberOfBlocks(_current_k);
+      if ( _gain_cache.isInitialized() ) {
+        _gain_cache.changeNumberOfBlocks(_current_k);
+      }
     }
   }
 

@@ -34,7 +34,6 @@
 #include "mt-kahypar/partition/refinement/label_propagation/label_propagation_refiner.h"
 #include "mt-kahypar/partition/refinement/gains/gain_definitions.h"
 #include "mt-kahypar/partition/refinement/rebalancing/rebalancer_v2.h"
-#include "mt-kahypar/utils/randomize.h"
 #include "mt-kahypar/utils/cast.h"
 
 using ::testing::Test;
@@ -221,15 +220,15 @@ TYPED_TEST(ALabelPropagationRefiner, IncreasesTheNumberOfBlocks) {
 
   // Initialize partition with larger K
   const PartitionID old_k = this->context.partition.k;
-  this->context.partition.k = 2 * old_k;
+  this->context.partition.k = std::max(old_k / 2, 2);
   this->context.setupPartWeights(this->hypergraph.totalWeight());
   PartitionedHypergraph phg_with_larger_k(
     this->context.partition.k, this->hypergraph, mt_kahypar::parallel_tag_t());
-  utils::Randomize& rand = utils::Randomize::instance();
   vec<PartitionID> non_optimized_partition(this->hypergraph.initialNumNodes(), kInvalidPartition);
   this->partitioned_hypergraph.doParallelForAllNodes([&](const HypernodeID hn) {
+    // create a semi-random partition
     const PartitionID block = this->partitioned_hypergraph.partID(hn);
-    phg_with_larger_k.setOnlyNodePart(hn, rand.flipCoin(THREAD_ID) ? 2 * block : 2 * block + 1);
+    phg_with_larger_k.setOnlyNodePart(hn, (block + hn) % this->context.partition.k);
     non_optimized_partition[hn] = phg_with_larger_k.partID(hn);
   });
   phg_with_larger_k.initializePartition();
@@ -245,11 +244,10 @@ TYPED_TEST(ALabelPropagationRefiner, IncreasesTheNumberOfBlocks) {
   ASSERT_EQ(metrics::quality(phg_with_larger_k, this->context.partition.objective),
             this->metrics.quality);
 
-  // Check if refiner has moved some nodes from new blocks
+  // Check if refiner has moved some nodes
   bool has_moved_nodes = false;
   for ( const HypernodeID hn : phg_with_larger_k.nodes() ) {
-    if ( non_optimized_partition[hn] >= old_k &&
-         non_optimized_partition[hn] != phg_with_larger_k.partID(hn) ) {
+    if ( non_optimized_partition[hn] != phg_with_larger_k.partID(hn) ) {
       has_moved_nodes = true;
       break;
     }

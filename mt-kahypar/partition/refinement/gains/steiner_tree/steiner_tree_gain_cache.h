@@ -273,7 +273,9 @@ class SteinerTreeGainCache {
     return gain;
   }
 
-  void changeNumberOfBlocks(const PartitionID) {
+  void changeNumberOfBlocks(const PartitionID new_k) {
+    ASSERT(new_k <= _k);
+    unused(new_k);
     // Do nothing
   }
 

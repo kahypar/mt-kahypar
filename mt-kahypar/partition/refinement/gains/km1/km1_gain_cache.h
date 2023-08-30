@@ -255,6 +255,7 @@ class Km1GainCache {
   }
 
   void changeNumberOfBlocks(const PartitionID new_k) {
+    ASSERT(new_k <= _k);
     _dummy_adjacent_blocks = IntegerRangeIterator<PartitionID>(new_k);
   }
 
