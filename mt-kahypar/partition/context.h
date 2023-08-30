@@ -163,13 +163,12 @@ struct FMParameters {
   double treshold_border_node_inclusion = 0.75;
   double unconstrained_upper_bound = 0.0;
 
-  // unconstrained: cooling strategy
+  // unconstrained
   size_t unconstrained_rounds = 1;
   double imbalance_penalty_min = 0.2;
   double imbalance_penalty_max = 1.0;
   double unconstrained_upper_bound_min = 0.0;
 
-  // unconstrained: dynamic enabling/disableing
   bool activate_unconstrained_dynamically = false;
   double penalty_for_activation_test = 0.5;
   double unconstrained_min_improvement = -1.0;

@@ -402,7 +402,6 @@ namespace mt_kahypar {
              "FM Algorithm:\n"
              "- kway_fm\n"
              "- unconstrained\n"
-             "- unconstrained\n"
              "- do_nothing")
             ((initial_partitioning ? "i-r-fm-multitry-rounds" : "r-fm-multitry-rounds"),
              po::value<size_t>((initial_partitioning ? &context.initial_partitioning.refinement.fm.multitry_rounds :
@@ -461,23 +460,23 @@ namespace mt_kahypar {
             ((initial_partitioning ? "i-r-fm-unconstrained-rounds" : "r-fm-unconstrained-rounds"),
              po::value<size_t>((initial_partitioning ? &context.initial_partitioning.refinement.fm.unconstrained_rounds :
                               &context.refinement.fm.unconstrained_rounds))->value_name("<size_t>")->default_value(1),
-             "Cooling FM algorithm: Number of rounds that are unconstrained.")
+             "Unconstrained FM: Number of rounds that are unconstrained.")
             ((initial_partitioning ? "i-r-fm-imbalance-penalty-min" : "r-fm-imbalance-penalty-min"),
              po::value<double>((initial_partitioning ? &context.initial_partitioning.refinement.fm.imbalance_penalty_min :
                               &context.refinement.fm.imbalance_penalty_min))->value_name("<double>")->default_value(0.2),
-             "Cooling FM algorithm: Minimum (starting) penalty factor.")
+             "Unconstrained FM: Minimum (starting) penalty factor.")
             ((initial_partitioning ? "i-r-fm-imbalance-penalty-max" : "r-fm-imbalance-penalty-max"),
              po::value<double>((initial_partitioning ? &context.initial_partitioning.refinement.fm.imbalance_penalty_max :
                               &context.refinement.fm.imbalance_penalty_max))->value_name("<double>")->default_value(1.0),
-             "Cooling FM algorithm: Maximum (final) penalty factor.")
+             "Unconstrained FM: Maximum (final) penalty factor.")
             ((initial_partitioning ? "i-r-fm-unconstrained-upper-bound-min" : "r-fm-unconstrained-upper-bound-min"),
              po::value<double>((initial_partitioning ? &context.initial_partitioning.refinement.fm.unconstrained_upper_bound_min :
                               &context.refinement.fm.unconstrained_upper_bound_min))->value_name("<double>")->default_value(0.0),
-             "Cooling FM algorithm: Minimum (final) upper bound (default = 0 = equal to start).")
+             "Unconstrained FM: Minimum (final) upper bound (default = 0 = equal to start).")
             ((initial_partitioning ? "i-r-fm-activate-unconstrained-dynamically" : "r-fm-activate-unconstrained-dynamically"),
              po::value<bool>((initial_partitioning ? &context.initial_partitioning.refinement.fm.activate_unconstrained_dynamically :
                               &context.refinement.fm.activate_unconstrained_dynamically))->value_name("<bool>")->default_value(false),
-             "Decide dynamically (based on first two rounds) whether to use unconstrained FM (only cooling strategy).")
+             "Decide dynamically (based on first two rounds) whether to use unconstrained FM.")
             ((initial_partitioning ? "i-r-fm-penalty-for-activation-test" : "r-fm-penalty-for-activation-test"),
              po::value<double>((initial_partitioning ? &context.initial_partitioning.refinement.fm.penalty_for_activation_test :
                               &context.refinement.fm.penalty_for_activation_test))->value_name("<double>")->default_value(0.5),
