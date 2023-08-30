@@ -134,13 +134,8 @@ class CoolingStrategy: public IFMStrategy {
       if (round == 0) {
         return start;
       }
-      if (context.refinement.fm.geometric_interpolation) {
-        double factor = end / start;
-        return start * std::pow(factor, static_cast<double>(round) / static_cast<double>(n_rounds - 1));
-      } else {
-        double summed = (n_rounds - round - 1) * start + round * end;
-        return summed / static_cast<double>(n_rounds - 1);
-      }
+      double summed = (n_rounds - round - 1) * start + round * end;
+      return summed / static_cast<double>(n_rounds - 1);
     };
 
     if (round < n_rounds) {
