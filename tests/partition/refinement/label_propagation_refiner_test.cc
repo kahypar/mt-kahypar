@@ -30,10 +30,10 @@
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/io/hypergraph_factory.h"
 #include "mt-kahypar/partition/context.h"
-#include "mt-kahypar/partition/registries/register_refinement_algorithms.cpp"
 #include "mt-kahypar/partition/initial_partitioning/bfs_initial_partitioner.h"
 #include "mt-kahypar/partition/refinement/label_propagation/label_propagation_refiner.h"
 #include "mt-kahypar/partition/refinement/gains/gain_definitions.h"
+#include "mt-kahypar/partition/refinement/rebalancing/rebalancer.h"
 #include "mt-kahypar/utils/randomize.h"
 #include "mt-kahypar/utils/cast.h"
 
@@ -119,9 +119,9 @@ class ALabelPropagationRefiner : public Test {
     context.setupPartWeights(hypergraph.totalWeight());
     initialPartition();
 
+    rebalancer = std::make_unique<Rebalancer<TypeTraits, GainTypes>>(hypergraph.initialNumNodes(), context, gain_cache);
     refiner = std::make_unique<Refiner>(
-      hypergraph.initialNumNodes(), hypergraph.initialNumEdges(),
-      context, gain_cache);
+      hypergraph.initialNumNodes(), hypergraph.initialNumEdges(), context, gain_cache, *rebalancer);
     mt_kahypar_partitioned_hypergraph_t phg = utils::partitioned_hg_cast(partitioned_hypergraph);
     refiner->initialize(phg);
   }
@@ -144,6 +144,7 @@ class ALabelPropagationRefiner : public Test {
   Context context;
   GainCache gain_cache;
   std::unique_ptr<Refiner> refiner;
+  std::unique_ptr<IRebalancer> rebalancer;
   Metrics metrics;
 };
 
