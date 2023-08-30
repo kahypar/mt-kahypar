@@ -229,7 +229,7 @@ namespace mt_kahypar {
           bestImprovementIndex = localMoves.size();
 
           if constexpr (use_delta) {
-            applyBestLocalPrefixToSharedPartition(phg, fm_strategy, bestImprovementIndex, bestImprovement, true /* apply all moves */);
+            applyBestLocalPrefixToSharedPartition(phg, fm_strategy, bestImprovementIndex);
             bestImprovementIndex = 0;
             localMoves.clear();
             deltaPhg.clear();   // clear hashtables, save memory :)
@@ -267,22 +267,16 @@ namespace mt_kahypar {
 
   template<typename TypeTraits, typename GainTypes>
   template<typename DispatchedFMStrategy>
-  std::pair<Gain, size_t> LocalizedKWayFM<TypeTraits, GainTypes>::applyBestLocalPrefixToSharedPartition(
+  void LocalizedKWayFM<TypeTraits, GainTypes>::applyBestLocalPrefixToSharedPartition(
           PartitionedHypergraph& phg,
           DispatchedFMStrategy& fm_strategy,
-          const size_t best_index_locally_observed,
-          const Gain best_improvement_locally_observed,
-          const bool apply_delta_improvement) {
+          const size_t best_index_locally_observed) {
     // Note: if this precondition does not hold, the call to fm_strategy.flushLocalChanges() would be incorrect
     ASSERT(best_index_locally_observed == localMoves.size());
 
-    Gain improvement_from_attributed_gains = 0;
-    Gain attributed_gain = 0;
     bool is_last_move = false;
 
     auto delta_gain_func = [&](const SyncronizedEdgeUpdate& sync_update) {
-      attributed_gain += AttributedGains::gain(sync_update);
-
       // Gains of the pins of a hyperedge can only change in the following situations.
       if ( is_last_move && GainCache::triggersDeltaGainUpdate(sync_update) ) {
         // This vector is used by the acquireOrUpdateNeighbor function to expand to neighbors
@@ -291,25 +285,13 @@ namespace mt_kahypar {
         // and the expansion happens after applyBestLocalPrefixToSharedPartition.
         edgesWithGainChanges.push_back(sync_update.he);
       }
-
-      // TODO: We have different strategies to maintain the gain values during an FM search.
-      // Some use the gain cache, others compute them each time from scratch or use delta gain updates.
-      // In case the delta gain update strategy is used, we would have to call the deltaGainUpdate function
-      // of the FM strategy here. However, the current strategy in our presets use the gain cache and calling the deltaGainUpdate
-      // function would apply the updates on the thread-local partition, which we do not want here.
-      // Keep in mind that the gain values of the FMGainDeltaStrategy might be incorrect afterwards.
-      // However, this strategy is only experimental We should remove the
-      // different strategies since we do not use them.
     };
 
-    // Apply move sequence to original hypergraph and update gain values
-    Gain best_improvement_from_attributed_gains = 0;
-    size_t best_index_from_attributed_gains = 0;
+    // Apply move sequence to original hypergraph
     for (size_t i = 0; i < best_index_locally_observed; ++i) {
       ASSERT(i < localMoves.size());
       Move& local_move = localMoves[i].first;
       MoveID& move_id = localMoves[i].second;
-      attributed_gain = 0;
       // In a localized FM search, we apply all moves to a thread-local partition (delta_phg)
       // using hash tables. Once we find an improvement, we apply the corresponding move
       // sequence to the global partition. To save memory (in the hash tables), we do not apply
@@ -318,44 +300,16 @@ namespace mt_kahypar {
       // we collect all nets affected by a gain cache update and expand the search to pins
       // contained in these nets. Since, we do not apply last move on the thread-local partition we collect
       // these nets here.
-      is_last_move = apply_delta_improvement && i == best_index_locally_observed - 1;
+      is_last_move = (i == best_index_locally_observed - 1);
 
       phg.changeNodePart(
         gain_cache, local_move.node, local_move.from, local_move.to,
         std::numeric_limits<HypernodeWeight>::max(),
         [&] { move_id = sharedData.moveTracker.insertMove(local_move); },
         delta_gain_func);
-
-      attributed_gain = -attributed_gain; // delta func yields negative sum of improvements, i.e. negative values mean improvements
-      improvement_from_attributed_gains += attributed_gain;
       ASSERT(move_id != std::numeric_limits<MoveID>::max());
-      if (improvement_from_attributed_gains >= best_improvement_from_attributed_gains) {
-        best_improvement_from_attributed_gains = improvement_from_attributed_gains;
-        best_index_from_attributed_gains = i;
-      }
     }
     fm_strategy.flushLocalChanges();
-
-    runStats.local_reverts += localMoves.size() - best_index_locally_observed;
-    if (!apply_delta_improvement && best_index_from_attributed_gains != best_index_locally_observed) {
-      runStats.best_prefix_mismatch++;
-    }
-
-    // kind of double rollback, if attributed gains say we overall made things worse
-    if (!apply_delta_improvement && improvement_from_attributed_gains < 0) {
-      // always using the if-branch gave similar results
-      runStats.local_reverts += best_index_locally_observed - best_index_from_attributed_gains + 1;
-      for (size_t i = best_index_from_attributed_gains + 1; i < best_index_locally_observed; ++i) {
-        Move& m = sharedData.moveTracker.getMove(localMoves[i].second);
-        phg.changeNodePart(gain_cache, m.node, m.to, m.from);
-        fm_strategy.revertMove(phg, gain_cache, m, true);
-        m.invalidate();
-      }
-      return std::make_pair(best_improvement_from_attributed_gains, best_index_from_attributed_gains);
-      // TODO(maas/gottesbueren): seems like this is an off by one and best_index_from_attributed_gains + 1 should be returned?
-    } else {
-      return std::make_pair(best_improvement_locally_observed, best_index_locally_observed);
-    }
   }
 
   template<typename TypeTraits, typename GainTypes>
