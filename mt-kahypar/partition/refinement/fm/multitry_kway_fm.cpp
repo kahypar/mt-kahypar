@@ -171,8 +171,7 @@ namespace mt_kahypar {
 
         if (!moves_by_part.empty()) {
           // compute new move sequence where each imbalanced move is immediately rebalanced
-          interleaveMoveSequenceWithRebalancingMoves(phg, initialPartWeights, max_part_weights, moves_by_part,
-                                                     context.refinement.fm.only_append_rebalancing_moves);
+          interleaveMoveSequenceWithRebalancingMoves(phg, initialPartWeights, max_part_weights, moves_by_part);
         }
       }
 
@@ -300,8 +299,7 @@ namespace mt_kahypar {
                                                             const PartitionedHypergraph& phg,
                                                             const vec<HypernodeWeight>& initialPartWeights,
                                                             const std::vector<HypernodeWeight>& max_part_weights,
-                                                            vec<vec<Move>>& rebalancing_moves_by_part,
-                                                            bool only_append_moves) {
+                                                            vec<vec<Move>>& rebalancing_moves_by_part) {
     ASSERT(rebalancing_moves_by_part.size() == static_cast<size_t>(context.partition.k));
     HEAVY_REFINEMENT_ASSERT([&] {
       std::set<HypernodeID> moved_nodes;
@@ -352,10 +350,8 @@ namespace mt_kahypar {
     };
 
     // it might be possible that the initial weights are already imbalanced
-    if (!only_append_moves) {
-      for (PartitionID part = 0; part < context.partition.k; ++part) {
-        insert_moves_to_balance_part(part);
-      }
+    for (PartitionID part = 0; part < context.partition.k; ++part) {
+      insert_moves_to_balance_part(part);
     }
 
     const vec<Move>& move_order = move_tracker.moveOrder;
@@ -369,9 +365,7 @@ namespace mt_kahypar {
         tmp_move_order[next_move_index] = m;
         ++next_move_index;
         // insert rebalancing moves if necessary
-        if (!only_append_moves) {
-          insert_moves_to_balance_part(m.to);
-        }
+        insert_moves_to_balance_part(m.to);
       }
     }
 
@@ -403,12 +397,12 @@ namespace mt_kahypar {
 
   template<typename TypeTraits, typename GainTypes>
   void MultiTryKWayFM<TypeTraits, GainTypes>::insertMovesToBalancePart(const PartitionedHypergraph& phg,
-                                                                                   const PartitionID part,
-                                                                                   const std::vector<HypernodeWeight>& max_part_weights,
-                                                                                   const vec<vec<Move>>& rebalancing_moves_by_part,
-                                                                                   MoveID& next_move_index,
-                                                                                   vec<HypernodeWeight>& current_part_weights,
-                                                                                   vec<MoveID>& current_rebalancing_move_index) {
+                                                                       const PartitionID part,
+                                                                       const std::vector<HypernodeWeight>& max_part_weights,
+                                                                       const vec<vec<Move>>& rebalancing_moves_by_part,
+                                                                       MoveID& next_move_index,
+                                                                       vec<HypernodeWeight>& current_part_weights,
+                                                                       vec<MoveID>& current_rebalancing_move_index) {
     while (current_part_weights[part] > max_part_weights[part]
             && current_rebalancing_move_index[part] < rebalancing_moves_by_part[part].size()) {
       const MoveID move_index_for_part = current_rebalancing_move_index[part];

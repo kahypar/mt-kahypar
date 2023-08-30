@@ -144,7 +144,6 @@ std::ostream & operator<< (std::ostream& str, const LabelPropagationParameters& 
 
 struct FMParameters {
   FMAlgorithm algorithm = FMAlgorithm::do_nothing;
-  bool only_append_rebalancing_moves = false;
 
   size_t multitry_rounds = 1;
   mutable size_t num_seed_nodes = 1;
