@@ -48,7 +48,6 @@
 #include "mt-kahypar/partition/refinement/fm/fm_commons.h"
 #include "mt-kahypar/partition/refinement/fm/multitry_kway_fm.h"
 #include "mt-kahypar/partition/refinement/fm/strategies/i_fm_strategy.h"
-#include "mt-kahypar/partition/refinement/fm/strategies/combined_strategy.h"
 #include "mt-kahypar/partition/refinement/fm/strategies/gain_cache_strategy.h"
 #include "mt-kahypar/partition/refinement/fm/strategies/unconstrained_strategy.h"
 #include "mt-kahypar/partition/refinement/fm/strategies/cooling_strategy.h"
@@ -105,7 +104,6 @@ using DefaultFMDispatcher = kahypar::meta::StaticMultiDispatchFactory<
                             kahypar::meta::Typelist<TypeTraitsList, GainTypes>>;
 
 using UnconstrainedFMDispatcher = DefaultFMDispatcher;
-using CombinedFMDispatcher = DefaultFMDispatcher;
 using CoolingFMDispatcher = DefaultFMDispatcher;
 
 using FMStrategyFactory = kahypar::meta::Factory<FMAlgorithm, IFMStrategy* (*)(const Context&, FMSharedData&)>;
@@ -119,11 +117,6 @@ using UnconstrainedFMStrategyDispatcher = kahypar::meta::StaticMultiDispatchFact
                                           UnconstrainedStrategy,
                                           IFMStrategy,
                                           kahypar::meta::Typelist<TypeTraitsList, GainTypes>>;
-
-using CombinedFMStrategyDispatcher = kahypar::meta::StaticMultiDispatchFactory<
-                                     CombinedStrategy,
-                                     IFMStrategy,
-                                     kahypar::meta::Typelist<TypeTraitsList, GainTypes>>;
 
 using CoolingFMStrategyDispatcher = kahypar::meta::StaticMultiDispatchFactory<
                                     CoolingStrategy,
