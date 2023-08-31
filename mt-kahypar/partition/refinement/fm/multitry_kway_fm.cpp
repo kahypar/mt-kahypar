@@ -325,26 +325,24 @@ namespace mt_kahypar {
       tbb::parallel_for(0UL, moves.size(), [&](const size_t i) {
         Move& r_move = moves[i];
         if (r_move.isValid() && move_tracker.wasNodeMovedInThisRound(r_move.node)) {
-          ASSERT(r_move.to == phg.partID(r_move.node), V(phg.partID(r_move.node)) << V(r_move.to));
+          ASSERT(r_move.to == phg.partID(r_move.node));
           Move& first_move = move_tracker.getMove(move_tracker.moveOfNode[r_move.node]);
-          ASSERT(r_move.node == first_move.node && r_move.from == first_move.to,
-                 V(r_move.node) << V(first_move.node) << V(r_move.from) << V(first_move.to));
+          ASSERT(r_move.node == first_move.node && r_move.from == first_move.to);
           if (first_move.from == r_move.to) {
-            // If rebalancing undid the move, we simply delete it. However, since this means that the global rollback
-            // won't see that the node was moved, we need to update the gain cache entry (the rollback won't update it).
-            // TODO(maas): is there a less hacky way for doing this?
+            // if rebalancing undid the move, we simply delete it
             move_tracker.moveOfNode[r_move.node] = 0;
             first_move.invalidate();
             r_move.invalidate();
-            gain_cache.recomputeInvalidTerms(phg, r_move.node);
           } else {
+            // "merge" the moves
             r_move.from = first_move.from;
             first_move.invalidate();
           }
         }
-      });
+      }, tbb::static_partitioner());
     }
 
+    // NOTE: We re-insert invalid moves to ensure the gain cache is updated correctly by the global rollback
     // For now we use a sequential implementation, which is probably fast enough (since this is a single scan trough
     // the move sequence). We might replace it with a parallel implementation later.
     vec<HypernodeWeight> current_part_weights = initialPartWeights;
@@ -367,12 +365,12 @@ namespace mt_kahypar {
     const MoveID num_moves = move_tracker.numPerformedMoves();
     for (MoveID move_id = 0; move_id < num_moves; ++move_id) {
       const Move& m = move_order[move_id];
+      tmp_move_order[next_move_index] = m;
+      ++next_move_index;
       if (m.isValid()) {
         const HypernodeWeight hn_weight = phg.nodeWeight(m.node);
         current_part_weights[m.from] -= hn_weight;
         current_part_weights[m.to] += hn_weight;
-        tmp_move_order[next_move_index] = m;
-        ++next_move_index;
         // insert rebalancing moves if necessary
         insert_moves_to_balance_part(m.to);
       }
@@ -384,10 +382,8 @@ namespace mt_kahypar {
         const MoveID move_index_for_part = current_rebalancing_move_index[part];
         const Move& m = rebalancing_moves_by_part[part][move_index_for_part];
         ++current_rebalancing_move_index[part];
-        if (m.isValid()) {
-          tmp_move_order[next_move_index] = m;
-          ++next_move_index;
-        }
+        tmp_move_order[next_move_index] = m;
+        ++next_move_index;
       }
     }
 
@@ -399,7 +395,9 @@ namespace mt_kahypar {
     move_tracker.runningMoveID.store(first_move_id + next_move_index);
     tbb::parallel_for(ID(0), next_move_index, [&](const MoveID move_id) {
       const Move& m = move_tracker.moveOrder[move_id];
-      move_tracker.moveOfNode[m.node] = first_move_id + move_id;
+      if (m.isValid()) {
+        move_tracker.moveOfNode[m.node] = first_move_id + move_id;
+      }
     }, tbb::static_partitioner());
 
   }
@@ -417,12 +415,12 @@ namespace mt_kahypar {
       const MoveID move_index_for_part = current_rebalancing_move_index[part];
       const Move& m = rebalancing_moves_by_part[part][move_index_for_part];
       ++current_rebalancing_move_index[part];
+      tmp_move_order[next_move_index] = m;
+      ++next_move_index;
       if (m.isValid()) {
         const HypernodeWeight hn_weight = phg.nodeWeight(m.node);
         current_part_weights[m.from] -= hn_weight;
         current_part_weights[m.to] += hn_weight;
-        tmp_move_order[next_move_index] = m;
-        ++next_move_index;
 
         if (current_part_weights[m.to] > max_part_weights[m.to]) {
           // edge case: it is possible that the rebalancing move itself causes new imbalance -> call recursively
