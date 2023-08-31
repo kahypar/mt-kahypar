@@ -80,9 +80,11 @@ struct GlobalMoveTracker {
 
   bool wasNodeMovedInThisRound(HypernodeID u) const {
     const MoveID m_id = moveOfNode[u];
-    return m_id >= firstMoveID
-           && m_id < runningMoveID.load(std::memory_order_relaxed)  // active move ID
-           && moveOrder[m_id - firstMoveID].isValid();      // not reverted already
+    if (m_id >= firstMoveID && m_id < runningMoveID.load(std::memory_order_relaxed)) {   // active move ID
+      ASSERT(moveOrder[m_id - firstMoveID].node == u);
+      return moveOrder[m_id - firstMoveID].isValid();  // not reverted already
+    }
+    return false;
   }
 
   MoveID numPerformedMoves() const {

@@ -373,6 +373,10 @@ namespace mt_kahypar {
         current_part_weights[m.to] += hn_weight;
         // insert rebalancing moves if necessary
         insert_moves_to_balance_part(m.to);
+      } else {
+        // setting moveOfNode to zero is necessary because, after replacing the move sequence,
+        // wasNodeMovedInThisRound() could falsely return true otherwise
+        move_tracker.moveOfNode[m.node] = 0;
       }
     }
 
@@ -399,7 +403,6 @@ namespace mt_kahypar {
         move_tracker.moveOfNode[m.node] = first_move_id + move_id;
       }
     }, tbb::static_partitioner());
-
   }
 
   template<typename TypeTraits, typename GainTypes>
