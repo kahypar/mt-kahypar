@@ -32,14 +32,13 @@ namespace mt_kahypar {
   Gain UnconstrainedFMData::estimatePenaltyForImbalancedMove(PartitionID to,
                                                              HypernodeWeight initial_imbalance,
                                                              HypernodeWeight moved_weight) const {
-    ASSERT(initialized);
+    ASSERT(initialized && to != kInvalidPartition);
     size_t bucketId = 0;
-    while (initial_imbalance + moved_weight > bucket_weights[indexForBucket(to, bucketId)]
-           && bucketId < NUM_BUCKETS) {
-      ++bucketId;
+    while (bucketId < NUM_BUCKETS && initial_imbalance + moved_weight > bucket_weights[indexForBucket(to, bucketId)]) {
       initial_imbalance -= bucket_weights[indexForBucket(to, bucketId)];
+      ++bucketId;
     }
-    return (bucketId >= NUM_BUCKETS) ? std::numeric_limits<Gain>::max()
+    return (bucketId == NUM_BUCKETS) ? std::numeric_limits<Gain>::max()
               : std::ceil(moved_weight * gainPerWeightForBucket(bucketId));
   }
 
