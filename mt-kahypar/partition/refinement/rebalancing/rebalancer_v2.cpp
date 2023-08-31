@@ -199,6 +199,10 @@ namespace impl {
         }
         if (best_id == -1) return false;
         if (!_pqs[best_id].lock.tryLock()) continue;
+        if (_pqs[best_id].pq.empty()) {
+          _pqs[best_id].lock.unlock();
+          continue;
+        }
         if (lockedModifyPQ(best_id)) return true;
       }
     }
