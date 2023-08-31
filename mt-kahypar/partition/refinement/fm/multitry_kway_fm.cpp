@@ -68,9 +68,6 @@ namespace mt_kahypar {
   std::vector<HypernodeWeight> setupMaxPartWeights(const Context& context) {
     double max_part_weight_scaling = context.refinement.fm.rollback_balance_violation_factor;
     std::vector<HypernodeWeight> max_part_weights = context.partition.perfect_balance_part_weights;
-    if (!context.refinement.fm.rebalancing_use_violation_factor) {
-      max_part_weight_scaling = 1.0;
-    }
     if (max_part_weight_scaling == 0.0) {
       for (PartitionID i = 0; i < context.partition.k; ++i) {
         max_part_weights[i] = std::numeric_limits<HypernodeWeight>::max();

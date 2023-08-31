@@ -453,10 +453,6 @@ namespace mt_kahypar {
              po::value<double>((initial_partitioning ? &context.initial_partitioning.refinement.fm.unconstrained_upper_bound :
                               &context.refinement.fm.unconstrained_upper_bound))->value_name("<double>")->default_value(0.0),
              "Still use upper limit for imbalance with unconstrained FM, expressed as a factor of the max part weight (default = 0 = no limit).")
-            ((initial_partitioning ? "i-r-fm-rebalancing-use-violation-factor" : "r-fm-rebalancing-use-violation-factor"),
-             po::value<bool>((initial_partitioning ? &context.initial_partitioning.refinement.fm.rebalancing_use_violation_factor :
-                              &context.refinement.fm.rebalancing_use_violation_factor))->value_name("<bool>")->default_value(true),
-             "Whether the rollback balance violation factor is also applied to rebalancing (for unconstrained FM).")
             ((initial_partitioning ? "i-r-fm-unconstrained-rounds" : "r-fm-unconstrained-rounds"),
              po::value<size_t>((initial_partitioning ? &context.initial_partitioning.refinement.fm.unconstrained_rounds :
                               &context.refinement.fm.unconstrained_rounds))->value_name("<size_t>")->default_value(1),

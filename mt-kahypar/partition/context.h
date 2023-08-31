@@ -159,7 +159,6 @@ struct FMParameters {
   mutable bool obey_minimal_parallelism = false;
   bool release_nodes = true;
 
-  bool rebalancing_use_violation_factor = true;
   double treshold_border_node_inclusion = 0.75;
   double unconstrained_upper_bound = 0.0;
 
