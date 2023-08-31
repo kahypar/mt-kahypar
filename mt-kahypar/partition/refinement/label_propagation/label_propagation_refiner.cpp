@@ -234,7 +234,7 @@ namespace mt_kahypar {
       if (current_part != _old_part[hn]) {
         activateNodeAndNeighbors(hypergraph, next_active_nodes, hn, false);
         if ( _gain_cache.isInitialized() ) {
-          _gain_cache.recomputePenaltyTerm(hypergraph, hn);
+          _gain_cache.recomputeInvalidTerms(hypergraph, hn);
         }
       }
     };

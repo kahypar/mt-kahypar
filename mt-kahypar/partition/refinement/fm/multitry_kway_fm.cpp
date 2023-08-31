@@ -158,11 +158,13 @@ namespace mt_kahypar {
           return true;
         }());
 
-        if (!PartitionedHypergraph::is_graph) {  // TODO add check for whether the rebalancer uses the gain table.
+        if (!PartitionedHypergraph::is_graph) {
+          // TODO: for new objective functions the recalculation might also be necessary for graphs...
           tbb::parallel_for(MoveID(0), sharedData.moveTracker.numPerformedMoves(), [&](const MoveID i) {
-            gain_cache.recomputePenaltyTerm(phg, sharedData.moveTracker.moveOrder[i].node);
+            gain_cache.recomputeInvalidTerms(phg, sharedData.moveTracker.moveOrder[i].node);
           });
         }
+        HEAVY_REFINEMENT_ASSERT(phg.checkTrackedPartitionInformation(gain_cache));
 
         tmp_metrics.imbalance = metrics::imbalance(phg, context);
         rebalancer.setMaxPartWeightsForRound(max_part_weights);
@@ -314,26 +316,33 @@ namespace mt_kahypar {
       return true;
     }());
 
-    GlobalMoveTracker& move_tracker =  sharedData.moveTracker;
-    // check the rebalancing moves for nodes that are moved twice
+    GlobalMoveTracker& move_tracker = sharedData.moveTracker;
+    // Check the rebalancing moves for nodes that are moved twice. Double moves violate the precondition of the global
+    // rollback, which requires that each node is moved at most once. Thus we "merge" the moves of any node
+    // that is moved twice (e.g., 0 -> 2 -> 1 becomes 0 -> 1)
     for (PartitionID part = 0; part < context.partition.k; ++part) {
       vec<Move>& moves = rebalancing_moves_by_part[part];
       tbb::parallel_for(0UL, moves.size(), [&](const size_t i) {
         Move& r_move = moves[i];
         if (r_move.isValid() && move_tracker.wasNodeMovedInThisRound(r_move.node)) {
+          ASSERT(r_move.to == phg.partID(r_move.node), V(phg.partID(r_move.node)) << V(r_move.to));
           Move& first_move = move_tracker.getMove(move_tracker.moveOfNode[r_move.node]);
-          ASSERT(r_move.node == first_move.node && r_move.from == first_move.to);
+          ASSERT(r_move.node == first_move.node && r_move.from == first_move.to,
+                 V(r_move.node) << V(first_move.node) << V(r_move.from) << V(first_move.to));
           if (first_move.from == r_move.to) {
-            // node not moved anymore (important for gain recalculation!)
+            // If rebalancing undid the move, we simply delete it. However, since this means that the global rollback
+            // won't see that the node was moved, we need to update the gain cache entry (the rollback won't update it).
+            // TODO(maas): is there a less hacky way for doing this?
             move_tracker.moveOfNode[r_move.node] = 0;
             first_move.invalidate();
             r_move.invalidate();
+            gain_cache.recomputeInvalidTerms(phg, r_move.node);
           } else {
             r_move.from = first_move.from;
             first_move.invalidate();
           }
         }
-      }, tbb::static_partitioner());
+      });
     }
 
     // For now we use a sequential implementation, which is probably fast enough (since this is a single scan trough

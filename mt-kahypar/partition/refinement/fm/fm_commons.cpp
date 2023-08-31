@@ -87,7 +87,7 @@ namespace mt_kahypar {
     } else {
       tbb::parallel_for(static_cast<PartitionID>(0), context.partition.k, [&](const PartitionID k) {
         add_range_fn(k * NUM_BUCKETS, (k + 1) * NUM_BUCKETS);
-      });
+      }, tbb::static_partitioner());
     }
     initialized = true;
   }
