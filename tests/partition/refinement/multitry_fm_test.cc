@@ -33,16 +33,17 @@
 #include "mt-kahypar/partition/refinement/gains/gain_definitions.h"
 #include "mt-kahypar/partition/refinement/fm/strategies/gain_cache_strategy.h"
 #include "mt-kahypar/partition/initial_partitioning/bfs_initial_partitioner.h"
-#include "mt-kahypar/partition/refinement/rebalancing/rebalancer.h"
+#include "mt-kahypar/partition/refinement/rebalancing/rebalancer_v2.h"
 
 using ::testing::Test;
 
 namespace mt_kahypar {
 
-template <typename TypeTraitsT, PartitionID k>
+template <typename TypeTraitsT, PartitionID k, FMAlgorithm alg>
 struct TestConfig {
   using TypeTraits = TypeTraitsT;
   static constexpr PartitionID K = k;
+  static constexpr FMAlgorithm ALG = alg;
 };
 
 template<typename Config>
@@ -85,8 +86,13 @@ class MultiTryFMTest : public Test {
     context.initial_partitioning.mode = Mode::deep_multilevel;
     context.initial_partitioning.runs = 1;
 
-    context.refinement.fm.algorithm = FMAlgorithm::kway_fm;
+    context.refinement.fm.algorithm = Config::ALG;
     context.refinement.fm.multitry_rounds = 10;
+    if (context.refinement.fm.algorithm == FMAlgorithm::unconstrained) {
+      context.refinement.fm.unconstrained_rounds = 10;
+      context.refinement.fm.imbalance_penalty_min = 0.5;
+      context.refinement.fm.imbalance_penalty_max = 0.5;
+    }
     context.refinement.fm.num_seed_nodes = 5;
     context.refinement.fm.rollback_balance_violation_factor = 1.0;
 
@@ -101,7 +107,7 @@ class MultiTryFMTest : public Test {
     context.setupPartWeights(hypergraph.totalWeight());
     initialPartition();
 
-    rebalancer = std::make_unique<Rebalancer<TypeTraits, Km1GainTypes>>(hypergraph.initialNumNodes(), context, gain_cache);
+    rebalancer = std::make_unique<RebalancerV2<TypeTraits, Km1GainTypes>>(hypergraph.initialNumNodes(), context, gain_cache);
     refiner = std::make_unique<Refiner>(hypergraph.initialNumNodes(),
       hypergraph.initialNumEdges(), context, gain_cache, *rebalancer);
     mt_kahypar_partitioned_hypergraph_t phg = utils::partitioned_hg_cast(partitioned_hypergraph);
@@ -131,18 +137,23 @@ class MultiTryFMTest : public Test {
 };
 
 
-typedef ::testing::Types<TestConfig<StaticHypergraphTypeTraits, 2>,
-                         TestConfig<StaticHypergraphTypeTraits, 4>,
-                         TestConfig<StaticHypergraphTypeTraits, 8>,
-                         TestConfig<StaticHypergraphTypeTraits, 2>,
-                         TestConfig<StaticHypergraphTypeTraits, 4>,
-                         TestConfig<StaticHypergraphTypeTraits, 8>
-                         ENABLE_HIGHEST_QUALITY(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA 2>)
-                         ENABLE_HIGHEST_QUALITY(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA 4>)
-                         ENABLE_HIGHEST_QUALITY(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA 8>)
-                         ENABLE_HIGHEST_QUALITY(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA 2>)
-                         ENABLE_HIGHEST_QUALITY(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA 4>)
-                         ENABLE_HIGHEST_QUALITY(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA 8>) > TestConfigs;
+typedef ::testing::Types<TestConfig<StaticHypergraphTypeTraits, 2, FMAlgorithm::kway_fm>,
+                         TestConfig<StaticHypergraphTypeTraits, 4, FMAlgorithm::kway_fm>,
+                         TestConfig<StaticHypergraphTypeTraits, 8, FMAlgorithm::kway_fm>,
+                         TestConfig<StaticHypergraphTypeTraits, 128, FMAlgorithm::kway_fm>
+                         ENABLE_HIGHEST_QUALITY(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA 2 COMMA FMAlgorithm::kway_fm>)
+                         ENABLE_HIGHEST_QUALITY(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA 4 COMMA FMAlgorithm::kway_fm>)
+                         ENABLE_HIGHEST_QUALITY(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA 8 COMMA FMAlgorithm::kway_fm>)
+                         ENABLE_HIGHEST_QUALITY(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA 128 COMMA FMAlgorithm::kway_fm>),
+                         // unconstrained
+                         TestConfig<StaticHypergraphTypeTraits, 2, FMAlgorithm::unconstrained>,
+                         TestConfig<StaticHypergraphTypeTraits, 4, FMAlgorithm::unconstrained>,
+                         TestConfig<StaticHypergraphTypeTraits, 8, FMAlgorithm::unconstrained>,
+                         TestConfig<StaticHypergraphTypeTraits, 128, FMAlgorithm::unconstrained>
+                         ENABLE_HIGHEST_QUALITY(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA 2 COMMA FMAlgorithm::unconstrained>)
+                         ENABLE_HIGHEST_QUALITY(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA 4 COMMA FMAlgorithm::unconstrained>)
+                         ENABLE_HIGHEST_QUALITY(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA 8 COMMA FMAlgorithm::unconstrained>)
+                         ENABLE_HIGHEST_QUALITY(COMMA TestConfig<DynamicHypergraphTypeTraits COMMA 128 COMMA FMAlgorithm::unconstrained>) > TestConfigs;
 
 TYPED_TEST_CASE(MultiTryFMTest, TestConfigs);
 
