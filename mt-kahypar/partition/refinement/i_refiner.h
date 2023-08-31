@@ -77,11 +77,6 @@ class IRebalancer: public IRefiner {
  public:
   virtual ~IRebalancer() = default;
 
-  // setup allowed part weights for next call to refine (otherwise, part weights from context are used)
-  void setMaxPartWeightsForRound(const std::vector<HypernodeWeight>& max_part_weights) {
-    setMaxPartWeightsForRoundImpl(max_part_weights);
-  }
-
   bool refineAndOutputMoves(mt_kahypar_partitioned_hypergraph_t& hypergraph,
                             const parallel::scalable_vector<HypernodeID>& refinement_nodes,
                             parallel::scalable_vector<parallel::scalable_vector<Move>>& moves_by_part,
@@ -94,7 +89,6 @@ class IRebalancer: public IRefiner {
   IRebalancer() = default;
 
  private:
-  virtual void setMaxPartWeightsForRoundImpl(const std::vector<HypernodeWeight>& max_part_weights) = 0;
 
   virtual bool refineAndOutputMovesImpl(mt_kahypar_partitioned_hypergraph_t& hypergraph,
                                         const parallel::scalable_vector<HypernodeID>& refinement_nodes,

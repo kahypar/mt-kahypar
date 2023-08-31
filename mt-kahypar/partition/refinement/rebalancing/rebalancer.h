@@ -95,10 +95,6 @@ public:
 
   void initializeImpl(mt_kahypar_partitioned_hypergraph_t&) final { }
 
-  void setMaxPartWeightsForRoundImpl(const std::vector<HypernodeWeight>&) {
-    ALWAYS_ASSERT(false, "not implemented");
-  }
-
   bool refineAndOutputMovesImpl(mt_kahypar_partitioned_hypergraph_t&,
                                 const vec<HypernodeID>&,
                                 vec<vec<Move>>&,

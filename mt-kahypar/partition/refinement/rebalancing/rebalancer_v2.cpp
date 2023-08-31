@@ -501,12 +501,6 @@ void RebalancerV2<TypeTraits, GainTypes>::initializeImpl(mt_kahypar_partitioned_
   unused(phg);
 }
 
-
-template <typename TypeTraits, typename GainTypes>
-void RebalancerV2<TypeTraits, GainTypes>::setMaxPartWeightsForRoundImpl(const std::vector<HypernodeWeight>& max_part_weights) {
-  _max_part_weights = &max_part_weights[0];
-}
-
 template <typename TypeTraits, typename GainTypes>
 bool RebalancerV2<TypeTraits, GainTypes>::refineAndOutputMovesImpl(mt_kahypar_partitioned_hypergraph_t& hypergraph,
                               const vec<HypernodeID>& ,

@@ -102,8 +102,6 @@ private:
 
   void initializeImpl(mt_kahypar_partitioned_hypergraph_t& hypergraph) final;
 
-  void setMaxPartWeightsForRoundImpl(const std::vector<HypernodeWeight>& max_part_weights) final;
-
   bool refineAndOutputMovesImpl(mt_kahypar_partitioned_hypergraph_t& hypergraph,
                                 const vec<HypernodeID>& refinement_nodes,
                                 vec<vec<Move>>& moves_by_part,

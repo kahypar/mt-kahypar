@@ -164,7 +164,6 @@ namespace mt_kahypar {
         HEAVY_REFINEMENT_ASSERT(phg.checkTrackedPartitionInformation(gain_cache));
 
         tmp_metrics.imbalance = metrics::imbalance(phg, context);
-        rebalancer.setMaxPartWeightsForRound(max_part_weights);
         rebalancer.refineAndOutputMoves(hypergraph, {}, moves_by_part, tmp_metrics, current_time_limit);
         timer.stop_timer("rebalance_fm");
 
