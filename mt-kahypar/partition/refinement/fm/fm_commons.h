@@ -153,16 +153,19 @@ struct NodeTracker {
 struct UnconstrainedFMData {
   using AtomicWeight = parallel::IntegralAtomicWrapper<HypernodeWeight>;
   using BucketID = uint32_t;
+  using AtomicBucketID = parallel::IntegralAtomicWrapper<BucketID>;
 
   // TODO(maas): in weighted graphs the constant number of buckets might be problematic
   static constexpr BucketID NUM_BUCKETS = 16;
   static constexpr double BUCKET_RANGE = 1.5;
+  static constexpr double FALLBACK_TRESHOLD = 0.75;
 
   bool initialized = false;
   PartitionID current_k;
   parallel::scalable_vector<HypernodeWeight> bucket_weights;
   parallel::scalable_vector<AtomicWeight> virtual_weight_delta;
   tbb::enumerable_thread_specific<parallel::scalable_vector<HypernodeWeight>> local_bucket_weights;
+  parallel::scalable_vector<parallel::scalable_vector<HypernodeWeight>> fallback_bucket_weights;
   kahypar::ds::FastResetFlagArray<> rebalancing_nodes;
 
   explicit UnconstrainedFMData():
