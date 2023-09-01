@@ -152,9 +152,10 @@ struct NodeTracker {
 // gain for moves that violate the balance constraint
 struct UnconstrainedFMData {
   using AtomicWeight = parallel::IntegralAtomicWrapper<HypernodeWeight>;
+  using BucketID = uint32_t;
 
   // TODO(maas): in weighted graphs the constant number of buckets might be problematic
-  static constexpr size_t NUM_BUCKETS = 16;
+  static constexpr BucketID NUM_BUCKETS = 16;
   static constexpr double BUCKET_RANGE = 1.5;
 
   bool initialized = false;
@@ -181,32 +182,24 @@ struct UnconstrainedFMData {
     return initialized && rebalancing_nodes[hn];
   }
 
+  void reset();
+
   void changeNumberOfBlocks(PartitionID new_k) {
     if (new_k != current_k) {
       current_k = new_k;
       local_bucket_weights = tbb::enumerable_thread_specific<vec<HypernodeWeight>>(new_k * NUM_BUCKETS);
-      reset();
+      initialized = false;
     }
-  }
-
-  void reset() {
-    rebalancing_nodes.reset();
-    bucket_weights.assign(current_k * NUM_BUCKETS, 0);
-    virtual_weight_delta.assign(current_k, AtomicWeight(0));
-    for (auto& local_weights: local_bucket_weights) {
-      local_weights.assign(current_k * NUM_BUCKETS, 0);
-    }
-    initialized = false;
   }
 
  private:
-  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE size_t indexForBucket(PartitionID block, size_t bucketId) const {
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE size_t indexForBucket(PartitionID block, BucketID bucketId) const {
     ASSERT(bucketId < NUM_BUCKETS && block * NUM_BUCKETS + bucketId < bucket_weights.size());
     return block * NUM_BUCKETS + bucketId;
   }
 
   // upper bound of gain values in bucket
-  double gainPerWeightForBucket(size_t bucketId) const {
+  double gainPerWeightForBucket(BucketID bucketId) const {
     // TODO: test other value than 1.5
     ASSERT(bucketId < NUM_BUCKETS);
     if (bucketId > 1) {
@@ -218,7 +211,7 @@ struct UnconstrainedFMData {
     }
   }
 
-  size_t bucketForGainPerWeight(double gainPerWeight) const {
+  BucketID bucketForGainPerWeight(double gainPerWeight) const {
     if (gainPerWeight >= 1) {
       return 2 + std::ceil(std::log(gainPerWeight) / std::log(BUCKET_RANGE));
     } else if (gainPerWeight > 0.5) {

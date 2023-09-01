@@ -34,7 +34,7 @@ namespace mt_kahypar {
                                                              HypernodeWeight moved_weight) const {
     ASSERT(initialized && to != kInvalidPartition);
     // TODO(maas): test whether its faster to save the previous position locally
-    size_t bucketId = 0;
+    BucketID bucketId = 0;
     while (bucketId < NUM_BUCKETS && initial_imbalance + moved_weight > bucket_weights[indexForBucket(to, bucketId)]) {
       ++bucketId;
     }
@@ -44,8 +44,8 @@ namespace mt_kahypar {
 
   template<typename PartitionedHypergraphT>
   void UnconstrainedFMData::initialize(const Context& context, const PartitionedHypergraphT& phg) {
-    ASSERT(!initialized);
     changeNumberOfBlocks(context.partition.k);
+    reset();
 
     double bn_treshold = context.refinement.fm.treshold_border_node_inclusion;
     // collect nodes and fill buckets
@@ -62,7 +62,7 @@ namespace mt_kahypar {
         }
       }
       if (static_cast<double>(internal_weight) >= bn_treshold * total_incident_weight) {
-        const size_t bucketId = bucketForGainPerWeight(static_cast<double>(internal_weight) / hn_weight);
+        const BucketID bucketId = bucketForGainPerWeight(static_cast<double>(internal_weight) / hn_weight);
         if (bucketId < NUM_BUCKETS) {
           auto& local_weights = local_bucket_weights.local();
           local_weights[indexForBucket(phg.partID(hn), bucketId)] += hn_weight;
@@ -89,6 +89,17 @@ namespace mt_kahypar {
     }, tbb::static_partitioner());
 
     initialized = true;
+  }
+
+  void UnconstrainedFMData::reset() {
+    rebalancing_nodes.reset();
+    bucket_weights.assign(current_k * NUM_BUCKETS, 0);
+    virtual_weight_delta.assign(current_k, AtomicWeight(0));
+    for (auto& local_weights: local_bucket_weights) {
+      local_weights.assign(current_k * NUM_BUCKETS, 0);
+    }
+    fallback_bucket_weights.assign(current_k, {});
+    initialized = false;
   }
 
   namespace {

@@ -141,7 +141,6 @@ namespace mt_kahypar {
       timer.stop_timer("find_moves");
 
       if (is_unconstrained && !isBalanced(phg, max_part_weights)) {
-        DBG << "[unconstrained FM] Starting Rebalancing";
         vec<vec<Move>> moves_by_part;
 
         // compute rebalancing moves
@@ -173,10 +172,6 @@ namespace mt_kahypar {
       timer.start_timer("rollback", "Rollback to Best Solution");
       HyperedgeWeight improvement = globalRollback.revertToBestPrefix(phg, sharedData, initialPartWeights);
       timer.stop_timer("rollback");
-
-      if (is_unconstrained) {
-        sharedData.unconstrained.reset();
-      }
 
       const double roundImprovementFraction = improvementFraction(improvement,
         metrics.quality - overall_improvement);
