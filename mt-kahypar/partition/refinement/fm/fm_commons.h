@@ -290,6 +290,8 @@ struct FMSharedData {
       refinementNodes.tls_queues.resize(numThreads);
     }, [&] {
       targetPart.resize(numNodes, kInvalidPartition);
+    }, [&] {
+      unconstrained.rebalancing_nodes.setSize(numNodes);
     });
   }
 
@@ -300,10 +302,6 @@ struct FMSharedData {
 
   FMSharedData() :
     FMSharedData(0, 0) { }
-
-  void initializeUnconstrainedData(size_t numNodes) {
-    unconstrained.rebalancing_nodes.setSize(numNodes);
-  }
 
   void memoryConsumption(utils::MemoryTreeNode* parent) const {
     ASSERT(parent);

@@ -59,9 +59,6 @@ namespace mt_kahypar {
     if (context.refinement.fm.obey_minimal_parallelism) {
       sharedData.finishedTasksLimit = std::min(UL(8), context.shared_memory.num_threads);
     }
-    if (fm_strategy->includesUnconstrained()) {
-      sharedData.initializeUnconstrainedData(num_hypernodes);
-    }
   }
 
   // helper function for rebalancing
