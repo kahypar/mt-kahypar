@@ -33,9 +33,9 @@ namespace mt_kahypar {
                                                              HypernodeWeight initial_imbalance,
                                                              HypernodeWeight moved_weight) const {
     ASSERT(initialized && to != kInvalidPartition);
+    // TODO(maas): test whether its faster to save the previous position locally
     size_t bucketId = 0;
     while (bucketId < NUM_BUCKETS && initial_imbalance + moved_weight > bucket_weights[indexForBucket(to, bucketId)]) {
-      initial_imbalance -= bucket_weights[indexForBucket(to, bucketId)];
       ++bucketId;
     }
     return (bucketId == NUM_BUCKETS) ? std::numeric_limits<Gain>::max()
@@ -71,8 +71,8 @@ namespace mt_kahypar {
       }
     });
 
-    // sum the bucket weight, so we know which buckets should be moved completely
-    auto add_range_fn = [&](size_t start, size_t end) {
+    // for each block compute prefix sum of bucket weights, which is later used for estimating penalties
+    auto compute_prefix_sum_for_range = [&](size_t start, size_t end) {
       for (const auto& local_weights: local_bucket_weights) {
         ASSERT(bucket_weights.size() == local_weights.size());
         for (size_t i = start; i < end; ++i) {
@@ -80,15 +80,14 @@ namespace mt_kahypar {
           bucket_weights[i] += local_weights[i];
         }
       }
+      for (size_t i = start; i + 1 < end; ++i) {
+        bucket_weights[i + 1] += bucket_weights[i];
+      }
     };
+    tbb::parallel_for(static_cast<PartitionID>(0), context.partition.k, [&](const PartitionID k) {
+      compute_prefix_sum_for_range(k * NUM_BUCKETS, (k + 1) * NUM_BUCKETS);
+    }, tbb::static_partitioner());
 
-    if (context.partition.k < 64) {
-      add_range_fn(0, bucket_weights.size());
-    } else {
-      tbb::parallel_for(static_cast<PartitionID>(0), context.partition.k, [&](const PartitionID k) {
-        add_range_fn(k * NUM_BUCKETS, (k + 1) * NUM_BUCKETS);
-      }, tbb::static_partitioner());
-    }
     initialized = true;
   }
 
