@@ -338,7 +338,7 @@ namespace mt_kahypar {
       }, tbb::static_partitioner());
     }
 
-    // NOTE: We re-insert invalid moves to ensure the gain cache is updated correctly by the global rollback
+    // NOTE: We re-insert invalid rebalancing moves to ensure the gain cache is updated correctly by the global rollback
     // For now we use a sequential implementation, which is probably fast enough (since this is a single scan trough
     // the move sequence). We might replace it with a parallel implementation later.
     vec<HypernodeWeight> current_part_weights = initialPartWeights;
@@ -361,12 +361,12 @@ namespace mt_kahypar {
     const MoveID num_moves = move_tracker.numPerformedMoves();
     for (MoveID move_id = 0; move_id < num_moves; ++move_id) {
       const Move& m = move_order[move_id];
-      tmp_move_order[next_move_index] = m;
-      ++next_move_index;
       if (m.isValid()) {
         const HypernodeWeight hn_weight = phg.nodeWeight(m.node);
         current_part_weights[m.from] -= hn_weight;
         current_part_weights[m.to] += hn_weight;
+        tmp_move_order[next_move_index] = m;
+        ++next_move_index;
         // insert rebalancing moves if necessary
         insert_moves_to_balance_part(m.to);
       } else {
