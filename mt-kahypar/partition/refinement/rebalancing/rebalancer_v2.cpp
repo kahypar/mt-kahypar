@@ -36,7 +36,6 @@ namespace impl {
         const HypernodeWeight to_weight = phg.partWeight(i);
         const HyperedgeWeight benefit = gain_cache.benefitTerm(u, i);
         if ((benefit > to_benefit || (benefit == to_benefit && to_weight < best_to_weight)) &&
-        //  TODO swap this for relaxed max part weights?
             to_weight + wu <= context.partition.max_part_weights[i]) {
           to_benefit = benefit;
           to = i;
@@ -322,7 +321,7 @@ namespace impl {
         const PartitionID from = phg.partID(m.node);
         _node_state[m.node].markAsMovedAndUnlock();
 
-        if (phg.partWeight(from) <= _max_part_weights[from]) {
+        if (phg.partWeight(from) <= _context.partition.max_part_weights[from]) {
           impl::deactivateOverloadedBlock(&_is_overloaded[from], &num_overloaded_blocks);
           continue;
         }
@@ -331,7 +330,7 @@ namespace impl {
         size_t move_id = 0;
         bool moved = phg.changeNodePart(
                       _gain_cache, m.node, m.from, m.to,
-                      _max_part_weights[m.to],
+                      _context.partition.max_part_weights[m.to],
                       [&] { move_id = __atomic_fetch_add(&global_move_id, 1, __ATOMIC_RELAXED); },
                       [&](const SyncronizedEdgeUpdate& sync_update) {
                         local_attributed_gain += AttributedGains::gain(sync_update);
@@ -417,9 +416,6 @@ namespace impl {
                                                                    Metrics& best_metric) {
     auto& phg = utils::cast<PartitionedHypergraph>(hypergraph);
 
-    if (_max_part_weights == nullptr) {
-      _max_part_weights = &_context.partition.max_part_weights[0];
-    }
     if (!_gain_cache.isInitialized()) {
       _gain_cache.initializeGainCache(phg);
     }
@@ -427,7 +423,7 @@ namespace impl {
     _overloaded_blocks.clear();
     _is_overloaded.assign(phg.k(), false);
     for (PartitionID k = 0; k < phg.k(); ++k) {
-      if (phg.partWeight(k) > _max_part_weights[k]) {
+      if (phg.partWeight(k) > _context.partition.max_part_weights[k]) {
         _overloaded_blocks.push_back(k);
         _is_overloaded[k] = 1;
       }
@@ -450,12 +446,10 @@ namespace impl {
 
     size_t num_overloaded_blocks = 0;
     for (PartitionID b = 0; b < phg.k(); ++b) {
-      if (phg.partWeight(b) > _max_part_weights[b]) {
+      if (phg.partWeight(b) > _context.partition.max_part_weights[b]) {
         num_overloaded_blocks++;
       }
     }
-
-    _max_part_weights = nullptr;
 
     phg.doParallelForAllNodes([&](HypernodeID u) {
       _node_state[u].reset();
@@ -473,7 +467,6 @@ template <typename TypeTraits, typename GainTypes>
 RebalancerV2<TypeTraits, GainTypes>::RebalancerV2(
         HypernodeID num_nodes, const Context& context, GainCache& gain_cache) :
         _context(context),
-        _max_part_weights(nullptr),
         _gain_cache(gain_cache),
         _current_k(_context.partition.k),
         _gain(context),

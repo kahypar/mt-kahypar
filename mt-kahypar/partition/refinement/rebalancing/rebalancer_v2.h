@@ -113,7 +113,6 @@ private:
                               Metrics& best_metric);
 
   const Context& _context;
-  const HypernodeWeight* _max_part_weights;
   GainCache& _gain_cache;
   PartitionID _current_k;
   GainCalculator _gain;
