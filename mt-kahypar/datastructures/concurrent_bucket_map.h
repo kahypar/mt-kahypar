@@ -72,15 +72,6 @@ class ConcurrentBucketMap {
     _num_buckets(align_to_next_power_of_two(
       BUCKET_FACTOR * std::thread::hardware_concurrency())),
     _mod_mask(_num_buckets - 1),
-    _estimated_num_insertions(0),
-    _spin_locks(_num_buckets),
-    _buckets(_num_buckets) { }
-
-  ConcurrentBucketMap(const size_t bucket_factor) :
-    _num_buckets(align_to_next_power_of_two(
-      bucket_factor * std::thread::hardware_concurrency())),
-    _mod_mask(_num_buckets - 1),
-    _estimated_num_insertions(0),
     _spin_locks(_num_buckets),
     _buckets(_num_buckets) { }
 
@@ -88,11 +79,11 @@ class ConcurrentBucketMap {
   ConcurrentBucketMap & operator= (const ConcurrentBucketMap &) = delete;
 
   ConcurrentBucketMap(ConcurrentBucketMap&& other) :
-    _num_buckets(other._num_buckets),
+    _num_buckets(align_to_next_power_of_two(
+      BUCKET_FACTOR * std::thread::hardware_concurrency())),
     _mod_mask(_num_buckets - 1),
-    _estimated_num_insertions(other._estimated_num_insertions),
     _spin_locks(_num_buckets),
-    _buckets(std::move(other._buckets)) { }
+    _buckets(std::move(other._buffer)) { }
 
   template<typename F>
   void doParallelForAllBuckets(const F& f) {
@@ -115,15 +106,12 @@ class ConcurrentBucketMap {
   // ! Reserves memory in each bucket such that the estimated number of insertions
   // ! can be handled without the need (with high probability) of expensive bucket resizing.
   void reserve_for_estimated_number_of_insertions(const size_t estimated_num_insertions) {
-    if (estimated_num_insertions > _estimated_num_insertions) {
-      _estimated_num_insertions = estimated_num_insertions;
-      // ! Assumption is that keys are evenly distributed among buckets (with a small buffer)
-      const size_t estimated_bucket_size = std::max(
-        static_cast<size_t>( 1.5 * estimated_num_insertions ) / _num_buckets, UL(1));
-      tbb::parallel_for(UL(0), _num_buckets, [&](const size_t i) {
-        _buckets[i].reserve(estimated_bucket_size);
-      });
-    }
+    // ! Assumption is that keys are evenly distributed among buckets (with a small buffer)
+    const size_t estimated_bucket_size = std::max(
+      static_cast<size_t>( 1.5 * estimated_num_insertions ) / _num_buckets, UL(1));
+    tbb::parallel_for(UL(0), _num_buckets, [&](const size_t i) {
+      _buckets[i].reserve(estimated_bucket_size);
+    });
   }
 
   // ! Inserts a key-value pair
@@ -165,7 +153,6 @@ class ConcurrentBucketMap {
 
   const size_t _num_buckets;
   const size_t _mod_mask;
-  size_t _estimated_num_insertions;
   std::vector<SpinLock> _spin_locks;
   parallel::scalable_vector<Bucket> _buckets;
 };
