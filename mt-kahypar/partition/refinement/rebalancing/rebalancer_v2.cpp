@@ -223,17 +223,6 @@ namespace impl {
 } // namespace impl
 
 
-/*
- *  TODO parameter tuning experiments
- *  1) test gain vs gain/weight
- *  2) test num PQs to probe
- *  3) scale up num PQs to probe if
- *      a) only little work is left
- *      b) many threads are active
- *  4) test impact of initial distribution scheme and power of k choices for k > 2
- *  5) slow down once we're "close" to being balanced
- */
-
   template <typename TypeTraits, typename GainTypes>
   void RebalancerV2<TypeTraits, GainTypes>::insertNodesInOverloadedBlocks(mt_kahypar_partitioned_hypergraph_t& hypergraph) {
     auto& phg = utils::cast<PartitionedHypergraph>(hypergraph);
@@ -384,9 +373,6 @@ namespace impl {
                   float new_gain = impl::transformGain(new_gain_int, phg.nodeWeight(v));
                   pq.adjustKey(v, new_gain);
                 }
-                // TODO when should we unlock nodes? right after its target part is set? or only now?
-                // only now means it can't be moved when it's about to receive an update and
-                // it can't be updated when it's about to be moved.
                 _node_state[v].unlock();
               }
 
