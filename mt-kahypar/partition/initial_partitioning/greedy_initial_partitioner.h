@@ -39,8 +39,8 @@ class GreedyInitialPartitioner : public IInitialPartitioner {
   using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
   using GainComputationPolicy = GainPolicyT<TypeTraits>;
   using PQSelectionPolicy = PQSelectionPolicyT<TypeTraits>;
-  using DeltaFunction = std::function<void (const SyncronizedEdgeUpdate&)>;
-  #define NOOP_FUNC [] (const SyncronizedEdgeUpdate&) { }
+  using DeltaFunction = std::function<void (const SynchronizedEdgeUpdate&)>;
+  #define NOOP_FUNC [] (const SynchronizedEdgeUpdate&) { }
 
   static constexpr bool debug = false;
   static constexpr bool enable_heavy_assert = false;

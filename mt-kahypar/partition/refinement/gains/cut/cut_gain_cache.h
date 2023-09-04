@@ -159,14 +159,14 @@ class CutGainCache {
 
   // ! This function returns true if the corresponding syncronized edge update triggers
   // ! a gain cache update.
-  static bool triggersDeltaGainUpdate(const SyncronizedEdgeUpdate& sync_update);
+  static bool triggersDeltaGainUpdate(const SynchronizedEdgeUpdate& sync_update);
 
   // ! The partitioned (hyper)graph call this function when its updates its internal
   // ! data structures before calling the delta gain update function. The partitioned
   // ! (hyper)graph holds a lock for the corresponding (hyper)edge when calling this
   // ! function. Thus, it is guaranteed that no other thread will modify the hyperedge.
   template<typename PartitionedHypergraph>
-  void notifyBeforeDeltaGainUpdate(const PartitionedHypergraph&, const SyncronizedEdgeUpdate&) {
+  void notifyBeforeDeltaGainUpdate(const PartitionedHypergraph&, const SynchronizedEdgeUpdate&) {
     // Do nothing
   }
 
@@ -177,7 +177,7 @@ class CutGainCache {
   // ! corresponding hyperedge.
   template<typename PartitionedHypergraph>
   void deltaGainUpdate(const PartitionedHypergraph& partitioned_hg,
-                       const SyncronizedEdgeUpdate& sync_update);
+                       const SynchronizedEdgeUpdate& sync_update);
 
   // ####################### Uncontraction #######################
 
@@ -401,7 +401,7 @@ class DeltaCutGainCache {
   template<typename PartitionedHypergraph>
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
   void deltaGainUpdate(const PartitionedHypergraph& partitioned_hg,
-                       const SyncronizedEdgeUpdate& sync_update) {
+                       const SynchronizedEdgeUpdate& sync_update) {
     const HypernodeID edge_size = sync_update.edge_size;
     if ( edge_size > 1 ) {
       const HyperedgeID he = sync_update.he;

@@ -102,7 +102,7 @@ class ADeltaPartitionedGraph : public Test {
   void changeNodePartWithGainCacheUpdate(const HypernodeID hn,
                                          const PartitionID from,
                                          const PartitionID to) {
-    auto delta_gain_update = [&](const SyncronizedEdgeUpdate& sync_update) {
+    auto delta_gain_update = [&](const SynchronizedEdgeUpdate& sync_update) {
       delta_gain_cache->deltaGainUpdate(*delta_phg, sync_update);
     };
     delta_phg->changeNodePart(hn, from, to, 1000, delta_gain_update);

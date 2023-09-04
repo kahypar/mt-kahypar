@@ -240,7 +240,7 @@ class LocalUnconstrainedStrategy {
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
   void deltaGainUpdates(PartitionedHypergraph& phg,
                         GainCache& gain_cache,
-                        const SyncronizedEdgeUpdate& sync_update) {
+                        const SynchronizedEdgeUpdate& sync_update) {
     gain_cache.deltaGainUpdate(phg, sync_update);
   }
 

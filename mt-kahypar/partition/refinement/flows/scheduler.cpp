@@ -292,7 +292,7 @@ HyperedgeWeight FlowRefinementScheduler<TypeTraits, GainTypes>::applyMoves(const
 
   HyperedgeWeight improvement = 0;
   vec<NewCutHyperedge> new_cut_hes;
-  auto delta_func = [&](const SyncronizedEdgeUpdate& sync_update) {
+  auto delta_func = [&](const SynchronizedEdgeUpdate& sync_update) {
     improvement -= AttributedGains::gain(sync_update);
 
     // Collect hyperedges with new blocks in its connectivity set

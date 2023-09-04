@@ -55,7 +55,7 @@ bool SequentialTwoWayFmRefiner<TypeTraits>::refine(Metrics& best_metrics, std::m
     _he_state[he] = HEState::FREE;
   }
 
-  auto border_vertex_update = [&](const SyncronizedEdgeUpdate& sync_update) {
+  auto border_vertex_update = [&](const SynchronizedEdgeUpdate& sync_update) {
                             if ( sync_update.edge_size > 1 ) {
                               if ( sync_update.pin_count_in_from_part_after == 0 ) {
                                 _border_vertices.becameNonCutHyperedge(_phg, sync_update.he, _vertex_state);

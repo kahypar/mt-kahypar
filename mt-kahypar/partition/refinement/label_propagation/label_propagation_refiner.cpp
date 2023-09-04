@@ -118,7 +118,7 @@ namespace mt_kahypar {
     _gain.reset();
     // This function is passed as lambda to the changeNodePart function and used
     // to calculate the "real" delta of a move (in terms of the used objective function).
-    auto objective_delta = [&](const SyncronizedEdgeUpdate& sync_update) {
+    auto objective_delta = [&](const SynchronizedEdgeUpdate& sync_update) {
       _gain.computeDeltaForHyperedge(sync_update);
     };
 
@@ -201,7 +201,7 @@ namespace mt_kahypar {
     DBG << "[LP] Imbalance after rebalancing: " << current_metrics.imbalance << ", quality: " << current_metrics.quality;
 
     if (current_metrics.quality > best_metrics.quality) { // rollback and stop LP
-      auto noop_obj_fn = [](const SyncronizedEdgeUpdate&) { };
+      auto noop_obj_fn = [](const SynchronizedEdgeUpdate&) { };
       current_metrics = best_metrics;
 
       if ( _context.refinement.label_propagation.execute_sequential ) {

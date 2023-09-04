@@ -38,7 +38,7 @@ namespace mt_kahypar {
  * attributed gain value.
  */
 struct SteinerTreeAttributedGains {
-  static HyperedgeWeight gain(const SyncronizedEdgeUpdate& sync_update) {
+  static HyperedgeWeight gain(const SynchronizedEdgeUpdate& sync_update) {
     ASSERT(sync_update.target_graph);
     ds::Bitset& connectivity_set = *sync_update.connectivity_set_after;
     // Distance between blocks of the hyperedge after the syncronized edge update

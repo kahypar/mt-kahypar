@@ -60,7 +60,7 @@ namespace mt_kahypar {
 
       // This function is passed as lambda to the changeNodePart function and used
       // to calculate the "real" delta of a move (in terms of the used objective function).
-      auto objective_delta = [&](const SyncronizedEdgeUpdate& sync_update) {
+      auto objective_delta = [&](const SynchronizedEdgeUpdate& sync_update) {
         _gain.computeDeltaForHyperedge(sync_update);
       };
 

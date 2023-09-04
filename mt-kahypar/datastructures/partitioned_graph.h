@@ -63,10 +63,10 @@ private:
   static_assert(!Hypergraph::is_partitioned,  "Only unpartitioned hypergraphs are allowed");
 
   using Self = PartitionedGraph<Hypergraph>;
-  using NotificationFunc = std::function<void (SyncronizedEdgeUpdate&)>;
-  using DeltaFunction = std::function<void (const SyncronizedEdgeUpdate&)>;
-  #define NOOP_NOTIFY_FUNC [] (const SyncronizedEdgeUpdate&) { }
-  #define NOOP_FUNC [] (const SyncronizedEdgeUpdate&) { }
+  using NotificationFunc = std::function<void (SynchronizedEdgeUpdate&)>;
+  using DeltaFunction = std::function<void (const SynchronizedEdgeUpdate&)>;
+  #define NOOP_NOTIFY_FUNC [] (const SynchronizedEdgeUpdate&) { }
+  #define NOOP_FUNC [] (const SynchronizedEdgeUpdate&) { }
 
   // Factory
   using HypergraphFactory = typename Hypergraph::Factory;
@@ -584,7 +584,7 @@ private:
                       HypernodeWeight max_weight_to,
                       SuccessFunc&& report_success,
                       const DeltaFunction& delta_func) {
-    auto my_delta_func = [&](const SyncronizedEdgeUpdate& sync_update) {
+    auto my_delta_func = [&](const SynchronizedEdgeUpdate& sync_update) {
       delta_func(sync_update);
       gain_cache.deltaGainUpdate(*this, sync_update);
     };
@@ -593,7 +593,7 @@ private:
         report_success, my_delta_func, NOOP_NOTIFY_FUNC);
     } else {
       return changeNodePartImpl<true>(u, from, to, max_weight_to,
-        report_success, my_delta_func, [&](SyncronizedEdgeUpdate& sync_update) {
+        report_success, my_delta_func, [&](SynchronizedEdgeUpdate& sync_update) {
           gain_cache.notifyBeforeDeltaGainUpdate(*this, sync_update);
         });
     }
@@ -1062,7 +1062,7 @@ private:
       _part_weights[from].fetch_sub(weight, std::memory_order_relaxed);
       report_success();
       DBG << "<<< Start changing node part: " << V(u) << " - " << V(from) << " - " << V(to);
-      SyncronizedEdgeUpdate sync_update;
+      SynchronizedEdgeUpdate sync_update;
       sync_update.from = from;
       sync_update.to = to;
       sync_update.target_graph = _target_graph;
@@ -1112,7 +1112,7 @@ private:
   // node u is moved to the block 'to'.
   template<bool notify>
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
-  PartitionID synchronizeMoveOnEdge(SyncronizedEdgeUpdate& sync_update,
+  PartitionID synchronizeMoveOnEdge(SynchronizedEdgeUpdate& sync_update,
                                     const HyperedgeID edge,
                                     const HypernodeID u,
                                     const PartitionID to,

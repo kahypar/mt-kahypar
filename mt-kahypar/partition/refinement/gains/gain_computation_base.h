@@ -140,7 +140,7 @@ class GainComputationBase {
     return best_move;
   }
 
-  inline void computeDeltaForHyperedge(const SyncronizedEdgeUpdate& sync_update) {
+  inline void computeDeltaForHyperedge(const SynchronizedEdgeUpdate& sync_update) {
     _deltas.local() += AttributedGains::gain(sync_update);
   }
 

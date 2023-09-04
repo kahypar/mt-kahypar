@@ -258,7 +258,7 @@ namespace mt_kahypar {
     for ( const PartitionID& block : phg.connectivitySet(e) ) {
       pin_counts.setPinCountInPart(block, phg.pinCountInPart(e, block));
     }
-    SyncronizedEdgeUpdate sync_update;
+    SynchronizedEdgeUpdate sync_update;
     sync_update.he = e;
     sync_update.edge_weight = phg.edgeWeight(e);
     sync_update.edge_size = phg.edgeSize(e);
@@ -311,7 +311,7 @@ namespace mt_kahypar {
                                                                                             const HyperedgeID& e) {
     if ( !phg.isSinglePin(e) ) {
       GlobalMoveTracker& tracker = sharedData.moveTracker;
-      SyncronizedEdgeUpdate sync_update;
+      SynchronizedEdgeUpdate sync_update;
       sync_update.he = e;
       sync_update.edge_weight = phg.edgeWeight(e);
       sync_update.edge_size = phg.edgeSize(e);
@@ -446,7 +446,7 @@ namespace mt_kahypar {
     // roll forward sequentially
     Gain best_gain = 0, gain_sum = 0;
     MoveID best_index = 0;
-    auto attributed_gains = [&](const SyncronizedEdgeUpdate& sync_update) {
+    auto attributed_gains = [&](const SynchronizedEdgeUpdate& sync_update) {
       gain_sum -= AttributedGains::gain(sync_update);
     };
     for (MoveID localMoveID = 0; localMoveID < numMoves; ++localMoveID) {
@@ -523,7 +523,7 @@ namespace mt_kahypar {
         continue;
 
       Gain gain = 0;
-      auto attributed_gains = [&](const SyncronizedEdgeUpdate& sync_update) {
+      auto attributed_gains = [&](const SynchronizedEdgeUpdate& sync_update) {
         gain -= AttributedGains::gain(sync_update);
       };
 

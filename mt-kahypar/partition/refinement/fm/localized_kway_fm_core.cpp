@@ -132,7 +132,7 @@ namespace mt_kahypar {
     StopRule stopRule(phg.initialNumNodes());
     Move move;
 
-    auto delta_func = [&](const SyncronizedEdgeUpdate& sync_update) {
+    auto delta_func = [&](const SynchronizedEdgeUpdate& sync_update) {
       // Gains of the pins of a hyperedge can only change in the following situations.
       if ( GainCache::triggersDeltaGainUpdate(sync_update) ) {
         edgesWithGainChanges.push_back(sync_update.he);
@@ -276,7 +276,7 @@ namespace mt_kahypar {
 
     bool is_last_move = false;
 
-    auto delta_gain_func = [&](const SyncronizedEdgeUpdate& sync_update) {
+    auto delta_gain_func = [&](const SynchronizedEdgeUpdate& sync_update) {
       // Gains of the pins of a hyperedge can only change in the following situations.
       if ( is_last_move && GainCache::triggersDeltaGainUpdate(sync_update) ) {
         // This vector is used by the acquireOrUpdateNeighbor function to expand to neighbors

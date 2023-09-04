@@ -140,7 +140,7 @@ void moveAllNodesOfHypergraphRandom(HyperGraph& hypergraph,
 
   tbb::enumerable_thread_specific<HyperedgeWeight> deltas(0);
 
-  auto objective_delta = [&](const SyncronizedEdgeUpdate& sync_update) {
+  auto objective_delta = [&](const SynchronizedEdgeUpdate& sync_update) {
                            if (objective == Objective::km1) {
                              deltas.local() += Km1AttributedGains::gain(sync_update);
                            } else if (objective == Objective::cut) {

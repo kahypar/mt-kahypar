@@ -186,7 +186,7 @@ class SteinerTreeGainCache {
 
   // ! This function returns true if the corresponding syncronized edge update triggers
   // ! a gain cache update.
-  static bool triggersDeltaGainUpdate(const SyncronizedEdgeUpdate& sync_update);
+  static bool triggersDeltaGainUpdate(const SynchronizedEdgeUpdate& sync_update);
 
   // ! The partitioned (hyper)graph call this function when its updates its internal
   // ! data structures before calling the delta gain update function. The partitioned
@@ -194,7 +194,7 @@ class SteinerTreeGainCache {
   // ! function. Thus, it is guaranteed that no other thread will modify the hyperedge.
   template<typename PartitionedHypergraph>
   void notifyBeforeDeltaGainUpdate(const PartitionedHypergraph& partitioned_hg,
-                                const SyncronizedEdgeUpdate& sync_update);
+                                const SynchronizedEdgeUpdate& sync_update);
 
   // ! This functions implements the delta gain updates for the steiner tree metric.
   // ! When moving a node from its current block from to a target block to, we iterate
@@ -203,7 +203,7 @@ class SteinerTreeGainCache {
   // ! corresponding hyperedge.
   template<typename PartitionedHypergraph>
   void deltaGainUpdate(const PartitionedHypergraph& partitioned_hg,
-                       const SyncronizedEdgeUpdate& sync_update);
+                       const SynchronizedEdgeUpdate& sync_update);
 
   // ####################### Uncontraction #######################
 
@@ -322,7 +322,7 @@ class SteinerTreeGainCache {
   // ! Updates the adjacent blocks of a node based on a synronized hyperedge update
   template<typename PartitionedHypergraph>
   void updateAdjacentBlocks(const PartitionedHypergraph& partitioned_hg,
-                            const SyncronizedEdgeUpdate& sync_update);
+                            const SynchronizedEdgeUpdate& sync_update);
 
   // ! Increments the number of incident edges of node u that contains pins of block to.
   // ! If the value increases to one, we add the block to the connectivity set of the node
@@ -500,7 +500,7 @@ class DeltaSteinerTreeGainCache {
   template<typename PartitionedHypergraph>
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
   void deltaGainUpdate(const PartitionedHypergraph& partitioned_hg,
-                       const SyncronizedEdgeUpdate& sync_update) {
+                       const SynchronizedEdgeUpdate& sync_update) {
     ASSERT(sync_update.connectivity_set_after);
     ASSERT(sync_update.target_graph);
     const HyperedgeID he = sync_update.he;
@@ -665,7 +665,7 @@ class DeltaSteinerTreeGainCache {
   }
 
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
-  void reconstructConnectivitySetBeforeMove(const SyncronizedEdgeUpdate& sync_update,
+  void reconstructConnectivitySetBeforeMove(const SynchronizedEdgeUpdate& sync_update,
                                             ds::Bitset& connectivity_set) {
     if ( sync_update.pin_count_in_from_part_after == 0 ) {
       connectivity_set.set(sync_update.from);
@@ -678,7 +678,7 @@ class DeltaSteinerTreeGainCache {
   // ! Updates the adjacent blocks of a node based on a synronized hyperedge update
   template<typename PartitionedHypergraph>
   void updateAdjacentBlocks(const PartitionedHypergraph& partitioned_hg,
-                            const SyncronizedEdgeUpdate& sync_update) {
+                            const SynchronizedEdgeUpdate& sync_update) {
     if ( partitioned_hg.edgeSize(sync_update.he) <= _large_he_threshold ) {
       if ( sync_update.pin_count_in_from_part_after == 0 ) {
         for ( const HypernodeID& pin : partitioned_hg.pins(sync_update.he) ) {

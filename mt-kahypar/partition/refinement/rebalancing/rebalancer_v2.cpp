@@ -307,7 +307,7 @@ namespace impl {
                       _gain_cache, m.node, m.from, m.to,
                       _context.partition.max_part_weights[m.to],
                       [&] { move_id = __atomic_fetch_add(&global_move_id, 1, __ATOMIC_RELAXED); },
-                      [&](const SyncronizedEdgeUpdate& sync_update) {
+                      [&](const SynchronizedEdgeUpdate& sync_update) {
                         local_attributed_gain += AttributedGains::gain(sync_update);
                         if (!PartitionedHypergraph::is_graph && GainCache::triggersDeltaGainUpdate(sync_update)) {
                           edges_with_gain_changes.push_back(sync_update.he);
