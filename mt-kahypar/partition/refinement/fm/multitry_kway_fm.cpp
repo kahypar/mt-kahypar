@@ -112,7 +112,7 @@ namespace mt_kahypar {
       const bool is_unconstrained = fm_strategy->isUnconstrainedRound(round);
       if (is_unconstrained) {
         timer.start_timer("initialize_data_unconstrained", "Initialize Data for Unc. FM");
-        sharedData.unconstrained.initialize(context, phg);
+        sharedData.unconstrained.initialize<TypeTraits, GainTypes>(context, phg, gain_cache);
         timer.stop_timer("initialize_data_unconstrained");
       }
 

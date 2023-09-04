@@ -27,6 +27,7 @@
 #include <algorithm>
 #include <limits>
 
+#include "mt-kahypar/partition/refinement/gains/gain_definitions.h"
 #include "mt-kahypar/datastructures/sparse_map.h"
 #include "mt-kahypar/partition/refinement/fm/fm_commons.h"
 
@@ -68,11 +69,12 @@ namespace mt_kahypar {
               std::numeric_limits<Gain>::max() : std::ceil(moved_weight * gainPerWeightForBucket(bucketId));
   }
 
-  template<typename PartitionedHypergraphT>
-  void UnconstrainedFMData::initialize(const Context& context, const PartitionedHypergraphT& phg) {
-    changeNumberOfBlocks(context.partition.k);
-    reset();
 
+  template<typename TypeTraits, typename GainTypes>
+  void UnconstrainedFMData::InitializationHelper<TypeTraits, GainTypes>::initialize(
+            UnconstrainedFMData& data, const Context& context,
+            const typename TypeTraits::PartitionedHypergraph& phg,
+            const typename GainTypes::GainCache& gain_cache) {
     auto get_node_stats = [&](const HypernodeID hypernode) {
       HyperedgeWeight total_incident_weight = 0;
       HyperedgeWeight internal_weight = 0;
@@ -99,16 +101,17 @@ namespace mt_kahypar {
         const BucketID bucketId = bucketForGainPerWeight(static_cast<double>(internal_weight) / hn_weight);
         if (bucketId < NUM_BUCKETS) {
           local_inserted_weight.local() += hn_weight;
-          auto& local_weights = local_bucket_weights.local();
-          local_weights[indexForBucket(phg.partID(hn), bucketId)] += hn_weight;
-          rebalancing_nodes.set(hn, true);
+          auto& local_weights = data.local_bucket_weights.local();
+          local_weights[data.indexForBucket(phg.partID(hn), bucketId)] += hn_weight;
+          data.rebalancing_nodes.set(hn, true);
         }
       }
     });
 
+    auto& bucket_weights = data.bucket_weights;
     // for each block compute prefix sum of bucket weights, which is later used for estimating penalties
     auto compute_prefix_sum_for_range = [&](size_t start, size_t end) {
-      for (const auto& local_weights: local_bucket_weights) {
+      for (const auto& local_weights: data.local_bucket_weights) {
         ASSERT(bucket_weights.size() == local_weights.size());
         for (size_t i = start; i < end; ++i) {
           ASSERT(i < local_weights.size());
@@ -189,9 +192,10 @@ namespace mt_kahypar {
         }
       });
 
+      auto& fallback_bucket_weights = data.fallback_bucket_weights;
       // resize vectors accordingly, set rank to zero if no fallback is required for this block
       tbb::parallel_for(static_cast<PartitionID>(0), context.partition.k, [&](const PartitionID block) {
-        const HypernodeWeight handled_weight = bucket_weights[indexForBucket(block, NUM_BUCKETS - 1)];
+        const HypernodeWeight handled_weight = bucket_weights[data.indexForBucket(block, NUM_BUCKETS - 1)];
         const HypernodeWeight fallback_weight = weight_per_block[block];
         if (static_cast<double>(handled_weight) / (handled_weight + fallback_weight) >= FALLBACK_TRESHOLD) {
           max_rank_per_block[block].store(0);
@@ -223,7 +227,7 @@ namespace mt_kahypar {
       tbb::parallel_for(static_cast<PartitionID>(0), context.partition.k, [&](const PartitionID block) {
         auto& weights = fallback_bucket_weights[block];
         if (!weights.empty()) {
-          weights[0] += bucket_weights[indexForBucket(block, NUM_BUCKETS - 1)];
+          weights[0] += bucket_weights[data.indexForBucket(block, NUM_BUCKETS - 1)];
           for (size_t  i = 0; i + 1 < weights.size(); ++i) {
             weights[i + 1] += weights[i];
           }
@@ -231,7 +235,7 @@ namespace mt_kahypar {
       }, tbb::static_partitioner());
     }
 
-    initialized = true;
+    data.initialized = true;
   }
 
   void UnconstrainedFMData::reset() {
@@ -246,8 +250,8 @@ namespace mt_kahypar {
   }
 
   namespace {
-  #define UNCONSTRAINED_FM_INITIALIZE(X) void UnconstrainedFMData::initialize(const Context& context, const X& phg)
+  #define UNCONSTRAINED_FM_INITIALIZATION(X, Y) UnconstrainedFMData::InitializationHelper<X, Y>;
   }
 
-  INSTANTIATE_FUNC_WITH_PARTITIONED_HG(UNCONSTRAINED_FM_INITIALIZE)
+  INSTANTIATE_CLASS_WITH_TYPE_TRAITS_AND_GAIN_TYPES(UNCONSTRAINED_FM_INITIALIZATION)
 }

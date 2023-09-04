@@ -176,8 +176,15 @@ struct UnconstrainedFMData {
     local_bucket_weights(),
     rebalancing_nodes() { }
 
-  template<typename PartitionedHypergraphT>
-  void initialize(const Context& context, const PartitionedHypergraphT& phg);
+  template<typename TypeTraits, typename GainTypes>
+  void initialize(const Context& context,
+                  const typename TypeTraits::PartitionedHypergraph& phg,
+                  const typename GainTypes::GainCache& gain_cache) {
+    changeNumberOfBlocks(context.partition.k);
+    reset();
+
+    InitializationHelper<TypeTraits, GainTypes>::initialize(*this, context, phg, gain_cache);
+  }
 
   Gain estimatePenaltyForImbalancedMove(PartitionID to, HypernodeWeight initial_imbalance, HypernodeWeight moved_weight) const;
 
@@ -196,13 +203,15 @@ struct UnconstrainedFMData {
   }
 
  private:
+ friend class InitializationHelper;
+
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE size_t indexForBucket(PartitionID block, BucketID bucketId) const {
     ASSERT(bucketId < NUM_BUCKETS && block * NUM_BUCKETS + bucketId < bucket_weights.size());
     return block * NUM_BUCKETS + bucketId;
   }
 
   // upper bound of gain values in bucket
-  double gainPerWeightForBucket(BucketID bucketId) const {
+  static double gainPerWeightForBucket(BucketID bucketId) {
     // TODO: test other value than 1.5
     if (bucketId > 1) {
       return std::pow(BUCKET_FACTOR, bucketId - 2);
@@ -213,7 +222,7 @@ struct UnconstrainedFMData {
     }
   }
 
-  BucketID bucketForGainPerWeight(double gainPerWeight) const {
+  static BucketID bucketForGainPerWeight(double gainPerWeight) {
     if (gainPerWeight >= 1) {
       return 2 + std::ceil(std::log(gainPerWeight) / std::log(BUCKET_FACTOR));
     } else if (gainPerWeight > 0.5) {
@@ -224,6 +233,13 @@ struct UnconstrainedFMData {
       return 0;
     }
   }
+
+  template<typename TypeTraits, typename GainTypes>
+  struct InitializationHelper {
+    static void initialize(UnconstrainedFMData& data, const Context& context,
+                           const typename TypeTraits::PartitionedHypergraph& phg,
+                           const typename GainTypes::GainCache& gain_cache);
+  };
 };
 
 
