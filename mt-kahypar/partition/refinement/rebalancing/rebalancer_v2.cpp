@@ -242,14 +242,16 @@ namespace impl {
       return impl::AccessToken(seed.fetch_add(1, std::memory_order_relaxed), num_pqs);
     });
 
+    // insert nodes into PQs
     phg.doParallelForAllNodes([&](HypernodeID u) {
       const PartitionID b = phg.partID(u);
       if (!_is_overloaded[b] || phg.isFixed(u)) return;
 
-      _node_state[u].markAsMovable();
       auto [target, gain] = impl::computeBestTargetBlock(phg, _context, _gain_cache, u, phg.partID(u));
-      _target_part[u] = target;
+      if (target == kInvalidPartition) return;
 
+      _node_state[u].markAsMovable();
+      _target_part[u] = target;
 
       auto& token = ets_tokens.local();
       int my_pq_id = -1;
@@ -259,7 +261,6 @@ namespace impl {
           break;
         }
       }
-
       _pqs[my_pq_id].pq.insert(u, gain);
       _pqs[my_pq_id].lock.unlock();
       _pq_id[u] = my_pq_id;
