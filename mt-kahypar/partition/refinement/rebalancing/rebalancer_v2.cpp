@@ -241,8 +241,6 @@ namespace impl {
     tbb::enumerable_thread_specific<impl::AccessToken> ets_tokens([&]() {
       return impl::AccessToken(seed.fetch_add(1, std::memory_order_relaxed), num_pqs);
     });
-    static constexpr size_t NUM_GAIN_BUCKETS = 12;
-    vec<vec<size_t>> freq(num_pqs, vec<size_t>(NUM_GAIN_BUCKETS, 0));
 
     phg.doParallelForAllNodes([&](HypernodeID u) {
       const PartitionID b = phg.partID(u);
@@ -252,23 +250,11 @@ namespace impl {
       auto [target, gain] = impl::computeBestTargetBlock(phg, _context, _gain_cache, u, phg.partID(u));
       _target_part[u] = target;
 
-      size_t bucket_id;
-      if (gain > 0.0) bucket_id = 0;
-      else if (gain == 0.0) bucket_id = 1;
-      else {
-        float x = std::log2(-gain);
-        bucket_id = std::min<size_t>(2 + x, NUM_GAIN_BUCKETS - 1);
-      }
-
 
       auto& token = ets_tokens.local();
       int my_pq_id = -1;
       while (true) {
-        auto two_ids = token.getTwoRandomPQs();
-        my_pq_id = two_ids[0];
-        if (freq[two_ids[0]][bucket_id] > freq[two_ids[1]][bucket_id]) {
-          my_pq_id = two_ids[1];
-        }
+        my_pq_id = token.getRandomPQ();
         if (_pqs[my_pq_id].lock.tryLock()) {
           break;
         }
@@ -276,7 +262,6 @@ namespace impl {
 
       _pqs[my_pq_id].pq.insert(u, gain);
       _pqs[my_pq_id].lock.unlock();
-      __atomic_fetch_add(&freq[my_pq_id][bucket_id], 1, __ATOMIC_RELAXED);
       _pq_id[u] = my_pq_id;
     });
 
