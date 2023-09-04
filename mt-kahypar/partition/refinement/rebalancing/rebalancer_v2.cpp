@@ -379,7 +379,7 @@ namespace impl {
             auto& pq = gpq.pq;
             if (gpq.lock.tryLock()) {
               for (HypernodeID v : nodes_to_update[my_pq_id]) {
-                if (pq.contains(v)) {
+                if (pq.contains(v) && _target_part[v] != kInvalidPartition) {
                   Gain new_gain_int = _gain_cache.gain(v, phg.partID(v), _target_part[v]);
                   float new_gain = impl::transformGain(new_gain_int, phg.nodeWeight(v));
                   pq.adjustKey(v, new_gain);
