@@ -49,13 +49,23 @@ namespace mt_kahypar {
                                                              HypernodeWeight initial_imbalance,
                                                              HypernodeWeight moved_weight) const {
     ASSERT(initialized && to != kInvalidPartition);
-    // TODO(maas): test whether its faster to save the previous position locally
+    // TODO(maas): test whether it is faster to save the previous position locally
     BucketID bucketId = 0;
-    while (bucketId < NUM_BUCKETS && initial_imbalance + moved_weight > bucket_weights[indexForBucket(to, bucketId)]) {
+    while (bucketId < NUM_BUCKETS
+           && initial_imbalance + moved_weight > bucket_weights[indexForBucket(to, bucketId)]) {
       ++bucketId;
     }
-    return (bucketId == NUM_BUCKETS) ? std::numeric_limits<Gain>::max()
-              : std::ceil(moved_weight * gainPerWeightForBucket(bucketId));
+    if (bucketId < NUM_BUCKETS) {
+      return std::ceil(moved_weight * gainPerWeightForBucket(bucketId));
+    }
+
+    // fallback case (it should be very unlikely that fallback_bucket_weights contains elements)
+    while (bucketId < NUM_BUCKETS + fallback_bucket_weights[to].size()
+           && initial_imbalance + moved_weight > fallback_bucket_weights[to][bucketId - NUM_BUCKETS]) {
+      ++bucketId;
+    }
+    return (bucketId == NUM_BUCKETS + fallback_bucket_weights[to].size()) ?
+              std::numeric_limits<Gain>::max() : std::ceil(moved_weight * gainPerWeightForBucket(bucketId));
   }
 
   template<typename PartitionedHypergraphT>

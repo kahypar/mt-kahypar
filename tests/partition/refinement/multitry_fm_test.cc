@@ -29,6 +29,7 @@
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/io/hypergraph_factory.h"
+#include "mt-kahypar/partition/refinement/fm/fm_commons.h"
 #include "mt-kahypar/partition/refinement/fm/multitry_kway_fm.h"
 #include "mt-kahypar/partition/refinement/gains/gain_definitions.h"
 #include "mt-kahypar/partition/refinement/fm/strategies/gain_cache_strategy.h"
@@ -250,5 +251,41 @@ TYPED_TEST(MultiTryFMTest, WorksWithRefinementNodes) {
   ASSERT_EQ(metrics::quality(phg_with_larger_k, this->context.partition.objective),
             this->metrics.quality);
 }*/
+
+TEST(UnconstrainedFMDataTest, CorrectlyComputesPenalty) {
+  using TypeTraits = StaticHypergraphTypeTraits;
+  using Hypergraph = typename TypeTraits::Hypergraph;
+  using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
+  using HypergraphFactory = typename Hypergraph::Factory;
+
+  Context context;
+  context.partition.k = 2;
+
+  // use a super-heavy edge to trigger the fallback case
+  std::vector<HyperedgeWeight> he_weights{ 1, 10000 };
+  Hypergraph hg = HypergraphFactory::construct(4, 2, { {0, 1}, {2, 3} }, he_weights.data());
+  PartitionedHypergraph phg(2, hg);
+  phg.setOnlyNodePart(0, 0);
+  phg.setOnlyNodePart(1, 0);
+  phg.setOnlyNodePart(2, 1);
+  phg.setOnlyNodePart(3, 1);
+  phg.initializePartition();
+
+  UnconstrainedFMData ufm_data;
+  ufm_data.rebalancing_nodes.setSize(4);
+  ufm_data.initialize(context, phg);
+
+  ASSERT_EQ(0, ufm_data.estimatePenaltyForImbalancedMove(0, -1, -1));
+  ASSERT_LE(1.0, ufm_data.estimatePenaltyForImbalancedMove(0, 0, 1));
+  ASSERT_GE(1.5, ufm_data.estimatePenaltyForImbalancedMove(0, 0, 1));
+  ASSERT_LE(2.0, ufm_data.estimatePenaltyForImbalancedMove(0, 0, 2));
+  ASSERT_GE(3.0, ufm_data.estimatePenaltyForImbalancedMove(0, 0, 2));
+
+  ASSERT_EQ(0, ufm_data.estimatePenaltyForImbalancedMove(1, -1, -1));
+  ASSERT_LE(10000, ufm_data.estimatePenaltyForImbalancedMove(1, 0, 1));
+  ASSERT_GE(15000, ufm_data.estimatePenaltyForImbalancedMove(1, 0, 1));
+  ASSERT_LE(20000, ufm_data.estimatePenaltyForImbalancedMove(1, 0, 2));
+  ASSERT_GE(30000, ufm_data.estimatePenaltyForImbalancedMove(1, 0, 2));
+}
 
 }  // namespace mt_kahypar

@@ -157,7 +157,7 @@ struct UnconstrainedFMData {
 
   // TODO(maas): in weighted graphs the constant number of buckets might be problematic
   static constexpr BucketID NUM_BUCKETS = 16;
-  static constexpr double BUCKET_RANGE = 1.5;
+  static constexpr double BUCKET_FACTOR = 1.5;
   static constexpr double FALLBACK_TRESHOLD = 0.75;
 
   bool initialized = false;
@@ -204,9 +204,8 @@ struct UnconstrainedFMData {
   // upper bound of gain values in bucket
   double gainPerWeightForBucket(BucketID bucketId) const {
     // TODO: test other value than 1.5
-    ASSERT(bucketId < NUM_BUCKETS);
     if (bucketId > 1) {
-      return std::pow(BUCKET_RANGE, bucketId - 2);
+      return std::pow(BUCKET_FACTOR, bucketId - 2);
     } else if (bucketId == 1) {
       return 0.5;
     } else {
@@ -216,7 +215,7 @@ struct UnconstrainedFMData {
 
   BucketID bucketForGainPerWeight(double gainPerWeight) const {
     if (gainPerWeight >= 1) {
-      return 2 + std::ceil(std::log(gainPerWeight) / std::log(BUCKET_RANGE));
+      return 2 + std::ceil(std::log(gainPerWeight) / std::log(BUCKET_FACTOR));
     } else if (gainPerWeight > 0.5) {
       return 2;
     } else if (gainPerWeight > 0) {
