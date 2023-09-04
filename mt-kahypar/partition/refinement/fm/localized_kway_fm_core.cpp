@@ -52,11 +52,7 @@ namespace mt_kahypar {
       deltaPhg.clear();
       deltaPhg.setPartitionedHypergraph(&phg);
       delta_gain_cache.clear();
-      if ( phg.hasFixedVertices() ) {
-        internalFindMoves<true>(phg, fm_strategy);
-      } else {
-        internalFindMoves<false>(phg, fm_strategy);
-      }
+      internalFindMoves(phg, fm_strategy);
       return true;
     } else {
       return false;
@@ -113,7 +109,7 @@ namespace mt_kahypar {
 
 
   template<typename TypeTraits, typename GainTypes>
-  template<bool has_fixed_vertices, typename DispatchedFMStrategy>
+  template<typename DispatchedFMStrategy>
   void LocalizedKWayFM<TypeTraits, GainTypes>::internalFindMoves(PartitionedHypergraph& phg,
                                                                  DispatchedFMStrategy& fm_strategy) {
     StopRule stopRule(phg.initialNumNodes());
@@ -203,7 +199,12 @@ namespace mt_kahypar {
           break;
         }
 
-        acquireOrUpdateNeighbors<has_fixed_vertices>(deltaPhg, delta_gain_cache, move, fm_strategy);
+        if (phg.hasFixedVertices()) {
+          acquireOrUpdateNeighbors<true>(deltaPhg, delta_gain_cache, move, fm_strategy);
+        } else {
+          acquireOrUpdateNeighbors<false>(deltaPhg, delta_gain_cache, move, fm_strategy);
+        }
+
       }
     }
 

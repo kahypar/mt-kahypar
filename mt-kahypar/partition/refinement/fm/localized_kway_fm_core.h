@@ -88,7 +88,7 @@ public:
   FMStats stats;
 
 private:
-  template<bool has_fixed_vertices, typename DispatchedFMStrategy>
+  template<typename DispatchedFMStrategy>
   void internalFindMoves(PartitionedHypergraph& phg, DispatchedFMStrategy& fm_strategy);
 
   template<bool has_fixed_vertices, typename PHG, typename CACHE, typename DispatchedFMStrategy>
