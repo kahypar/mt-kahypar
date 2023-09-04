@@ -158,8 +158,13 @@ namespace impl {
         gpq.top_key = pq.empty() ? std::numeric_limits<float>::min() : pq.topKey();
       } else {
         // gain was updated by success_func in this case
-        pq.adjustKey(node, gain_in_pq);
-        gpq.top_key = pq.topKey();
+        if (_target_part[node] != kInvalidPartition) {
+          pq.adjustKey(node, gain_in_pq);
+          gpq.top_key = pq.topKey();
+        } else {
+          pq.deleteTop();
+          gpq.top_key = pq.empty() ? std::numeric_limits<float>::min() : pq.topKey();
+        }
       }
       gpq.lock.unlock();
       return success;
@@ -354,10 +359,14 @@ namespace impl {
             auto& pq = gpq.pq;
             if (gpq.lock.tryLock()) {
               for (HypernodeID v : nodes_to_update[my_pq_id]) {
-                if (pq.contains(v) && _target_part[v] != kInvalidPartition) {
-                  Gain new_gain_int = _gain_cache.gain(v, phg.partID(v), _target_part[v]);
-                  float new_gain = impl::transformGain(new_gain_int, phg.nodeWeight(v));
-                  pq.adjustKey(v, new_gain);
+                if (pq.contains(v)) {
+                  if (_target_part[v] != kInvalidPartition) {
+                    Gain new_gain_int = _gain_cache.gain(v, phg.partID(v), _target_part[v]);
+                    float new_gain = impl::transformGain(new_gain_int, phg.nodeWeight(v));
+                    pq.adjustKey(v, new_gain);
+                  } else {
+                    pq.remove(v);
+                  }
                 }
                 _node_state[v].unlock();
               }
