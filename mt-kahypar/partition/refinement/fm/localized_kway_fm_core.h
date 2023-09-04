@@ -88,24 +88,13 @@ public:
   FMStats stats;
 
 private:
-  template<bool use_delta, bool has_fixed_vertices, typename DispatchedFMStrategy>
+  template<bool has_fixed_vertices, typename DispatchedFMStrategy>
   void internalFindMoves(PartitionedHypergraph& phg, DispatchedFMStrategy& fm_strategy);
 
   template<bool has_fixed_vertices, typename PHG, typename CACHE, typename DispatchedFMStrategy>
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
   void acquireOrUpdateNeighbors(PHG& phg, CACHE& gain_cache, const Move& move, DispatchedFMStrategy& fm_strategy);
 
-
-  // ! Makes moves applied on delta hypergraph visible on the global partitioned hypergraph.
-  template<typename DispatchedFMStrategy>
-  void applyBestLocalPrefixToSharedPartition(PartitionedHypergraph& phg,
-                                             DispatchedFMStrategy& fm_strategy,
-                                             const size_t best_index_locally_observed);
-
-  // ! Rollback to the best improvement found during local search in case we applied moves
-  // ! directly on the global partitioned hypergraph.
-  template<typename DispatchedFMStrategy>
-  void revertToBestLocalPrefix(PartitionedHypergraph& phg, DispatchedFMStrategy& fm_strategy, size_t bestGainIndex);
 
  private:
 
