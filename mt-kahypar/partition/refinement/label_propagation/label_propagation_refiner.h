@@ -107,7 +107,13 @@ class LabelPropagationRefiner final : public IRefiner {
 
   void updateNodeData(PartitionedHypergraph& hypergraph,
                       NextActiveNodes& next_active_nodes,
+                      bool should_update_gain_cache,
                       vec<vec<Move>>* rebalance_moves_by_part = nullptr);
+
+  template<typename F>
+  void forEachMovedNode(const PartitionedHypergraph& hypergraph,
+                        F node_fn,
+                        const vec<vec<Move>>* rebalance_moves_by_part = nullptr);
 
   template<bool unconstrained, typename F>
   bool moveVertex(PartitionedHypergraph& hypergraph,
@@ -173,6 +179,7 @@ class LabelPropagationRefiner final : public IRefiner {
   void initializeImpl(mt_kahypar_partitioned_hypergraph_t&) final;
 
   template<bool unconstrained, typename F>
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
   bool changeNodePart(PartitionedHypergraph& phg,
                       const HypernodeID hn,
                       const PartitionID from,
