@@ -76,14 +76,14 @@ namespace mt_kahypar {
             const typename TypeTraits::PartitionedHypergraph& phg,
             const typename GainTypes::GainCache& gain_cache) {
     auto get_node_stats = [&](const HypernodeID hypernode) {
+      // TODO(maas): we might want to save the total incident weight in the hypergraph data structure
+      // at some point in the future
       HyperedgeWeight total_incident_weight = 0;
-      HyperedgeWeight internal_weight = 0;
       for (const HyperedgeID& he : phg.incidentEdges(hypernode)) {
         total_incident_weight += phg.edgeWeight(he);
-        if (phg.connectivity(he) == 1) {
-          internal_weight += phg.edgeWeight(he);
-        }
       }
+      HyperedgeWeight internal_weight = gain_cache.penaltyTerm(hypernode, phg.partID(hypernode));
+      ASSERT(internal_weight == gain_cache.recomputePenaltyTerm(phg, hypernode));
       return std::make_pair(internal_weight, total_incident_weight);
     };
 
