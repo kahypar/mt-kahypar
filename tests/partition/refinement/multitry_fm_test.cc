@@ -270,9 +270,12 @@ TEST(UnconstrainedFMDataTest, CorrectlyComputesPenalty) {
   phg.setOnlyNodePart(3, 1);
   phg.initializePartition();
 
+  Km1GainCache gain_cache;
+  gain_cache.initializeGainCache(phg);
+
   UnconstrainedFMData ufm_data;
   ufm_data.rebalancing_nodes.setSize(4);
-  ufm_data.initialize(context, phg);
+  ufm_data.initialize<TypeTraits, Km1GainTypes>(context, phg, gain_cache);
 
   ASSERT_EQ(0, ufm_data.estimatePenaltyForImbalancedMove(0, -1, -1));
   ASSERT_LE(1.0, ufm_data.estimatePenaltyForImbalancedMove(0, 0, 1));
