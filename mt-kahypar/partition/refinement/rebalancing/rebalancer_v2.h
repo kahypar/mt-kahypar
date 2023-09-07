@@ -79,7 +79,6 @@ private:
   using GainCache = typename GainTypes::GainCache;
   using GainCalculator = typename GainTypes::GainComputation;
   using AttributedGains = typename GainTypes::AttributedGains;
-  using RatingMap = typename GainCalculator::RatingMap;
 
   static constexpr bool debug = false;
   static constexpr bool enable_heavy_assert = false;
