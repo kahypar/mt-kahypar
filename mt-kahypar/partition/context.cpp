@@ -540,7 +540,7 @@ namespace mt_kahypar {
     initial_partitioning.refinement.flows.algorithm = FlowAlgorithm::do_nothing;
 
     // refinement
-    refinement.rebalancer = RebalancingAlgorithm::simple_rebalancer;
+    refinement.rebalancer = RebalancingAlgorithm::rebalancer;
     refinement.refine_until_no_improvement = false;
 
     // refinement -> label propagation
@@ -662,7 +662,7 @@ namespace mt_kahypar {
     initial_partitioning.refinement.flows.algorithm = FlowAlgorithm::do_nothing;
 
     // refinement
-    refinement.rebalancer = RebalancingAlgorithm::simple_rebalancer;
+    refinement.rebalancer = RebalancingAlgorithm::rebalancer;
     refinement.refine_until_no_improvement = false;
 
     // refinement -> label propagation
@@ -764,7 +764,7 @@ namespace mt_kahypar {
     initial_partitioning.refinement.global_fm.use_global_fm = false;
 
     // refinement
-    refinement.rebalancer = RebalancingAlgorithm::simple_rebalancer;
+    refinement.rebalancer = RebalancingAlgorithm::rebalancer;
     refinement.refine_until_no_improvement = true;
     refinement.max_batch_size = 1000;
     refinement.min_border_vertices_per_thread = 50;
@@ -893,7 +893,7 @@ namespace mt_kahypar {
     initial_partitioning.refinement.flows.algorithm = FlowAlgorithm::do_nothing;
 
     // refinement
-    refinement.rebalancer = RebalancingAlgorithm::simple_rebalancer;
+    refinement.rebalancer = RebalancingAlgorithm::rebalancer;
     refinement.refine_until_no_improvement = false;
 
     // refinement -> label propagation
