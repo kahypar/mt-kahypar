@@ -62,7 +62,7 @@ public:
     context(context),
     thisSearch(0),
     deltaPhg(context),
-    neighborDeduplicator(numNodes, 0),
+    neighborDeduplicator(PartitionedHypergraph::is_graph ? 0 : numNodes, 0),
     gain_cache(gainCache),
     delta_gain_cache(gainCache),
     sharedData(sharedData),
@@ -113,7 +113,7 @@ private:
 
   // ! Used after a move. Stores whether a neighbor of the just moved vertex has already been updated.
   vec<HypernodeID> neighborDeduplicator;
-  HypernodeID deduplicationTime = 0;
+  HypernodeID deduplicationTime = 1;
 
   // ! Stores hyperedges whose pins's gains may have changed after vertex move
   vec<HyperedgeID> edgesWithGainChanges;

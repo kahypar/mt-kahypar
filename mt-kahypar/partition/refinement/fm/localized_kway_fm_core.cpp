@@ -78,32 +78,43 @@ namespace mt_kahypar {
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
   void LocalizedKWayFM<TypeTraits, GainTypes>::acquireOrUpdateNeighbors(PHG& phg, CACHE& gain_cache, const Move& move,
                                                                         DispatchedFMStrategy& fm_strategy) {
-    // Note: In theory we should acquire/update all neighbors. It just turned out that this works fine
-    // Actually: only vertices incident to edges with gain changes can become new boundary vertices.
-    // Vertices that already were boundary vertices, can still be considered later since they are in the task queue
-    // --> actually not that bad
-    for (HyperedgeID e : edgesWithGainChanges) {
-      if (phg.edgeSize(e) < context.partition.ignore_hyperedge_size_threshold) {
-        for (HypernodeID v : phg.pins(e)) {
-          if constexpr ( has_fixed_vertices ) {
-            if ( phg.isFixed(v) ) continue;
-          }
-          if (neighborDeduplicator[v] != deduplicationTime) {
-            SearchID searchOfV = sharedData.nodeTracker.searchOfNode[v].load(std::memory_order_relaxed);
-            if (searchOfV == thisSearch) {
-              fm_strategy.updateGain(phg, gain_cache, v, move);
-            } else if (sharedData.nodeTracker.tryAcquireNode(v, thisSearch)) {
-              fm_strategy.insertIntoPQ(phg, gain_cache, v);
+    auto updateOrAcquire = [&](const HypernodeID v) {
+      SearchID searchOfV = sharedData.nodeTracker.searchOfNode[v].load(std::memory_order_relaxed);
+      if (searchOfV == thisSearch) {
+        fm_strategy.updateGain(phg, gain_cache, v, move);
+      } else if (sharedData.nodeTracker.tryAcquireNode(v, thisSearch)) {
+        fm_strategy.insertIntoPQ(phg, gain_cache, v);
+      }
+    };
+
+    if constexpr (PartitionedHypergraph::is_graph) {
+      // simplified case for graphs: neighbors can't be duplicated
+      for (HyperedgeID e : phg.incidentEdges(move.node)) {
+        HypernodeID v = phg.edgeTarget(e);
+        if ( has_fixed_vertices && phg.isFixed(v) ) continue;
+
+        updateOrAcquire(v);
+      }
+    } else {
+      // Note: only vertices incident to edges with gain changes can become new boundary vertices.
+      // Vertices that already were boundary vertices, can still be considered later since they are in the task queue
+      for (HyperedgeID e : edgesWithGainChanges) {
+        if (phg.edgeSize(e) < context.partition.ignore_hyperedge_size_threshold) {
+          for (HypernodeID v : phg.pins(e)) {
+            if ( has_fixed_vertices && phg.isFixed(v) ) continue;
+
+            if (neighborDeduplicator[v] != deduplicationTime) {
+              updateOrAcquire(v);
+              neighborDeduplicator[v] = deduplicationTime;
             }
-            neighborDeduplicator[v] = deduplicationTime;
           }
         }
       }
-    }
 
-    if (++deduplicationTime == 0) {
-      neighborDeduplicator.assign(neighborDeduplicator.size(), 0);
-      deduplicationTime = 1;
+      if (++deduplicationTime == 0) {
+        neighborDeduplicator.assign(neighborDeduplicator.size(), 0);
+        deduplicationTime = 1;
+      }
     }
   }
 
@@ -158,7 +169,7 @@ namespace mt_kahypar {
       } else {
         moved = deltaPhg.changeNodePart(move.node, move.from, move.to, allowed_weight,
                                         [&](const SynchronizedEdgeUpdate& sync_update) {
-          if (GainCache::triggersDeltaGainUpdate(sync_update)) {
+          if (!PartitionedHypergraph::is_graph && GainCache::triggersDeltaGainUpdate(sync_update)) {
             edgesWithGainChanges.push_back(sync_update.he);
           }
           delta_gain_cache.deltaGainUpdate(deltaPhg, sync_update);
