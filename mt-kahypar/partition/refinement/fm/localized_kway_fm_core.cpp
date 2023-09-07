@@ -212,9 +212,6 @@ namespace mt_kahypar {
       }
 
       if (moved) {
-        if (DispatchedFMStrategy::is_unconstrained && sharedData.unconstrained.isRebalancingNode(move.node)) {
-          runStats.rebalancing_node_moves++; // TODO: remove
-        }
         runStats.moves++;
         estimatedImprovement += move.gain;
         localMoves.emplace_back(move, move_id);

@@ -339,7 +339,6 @@ struct FMStats {
   size_t local_reverts = 0;
   size_t task_queue_reinsertions = 0;
   size_t best_prefix_mismatch = 0;
-  size_t rebalancing_node_moves = 0;
   Gain estimated_improvement = 0;
 
 
@@ -351,7 +350,6 @@ struct FMStats {
     local_reverts = 0;
     task_queue_reinsertions = 0;
     best_prefix_mismatch = 0;
-    rebalancing_node_moves = 0;
     estimated_improvement = 0;
   }
 
@@ -363,7 +361,6 @@ struct FMStats {
     other.local_reverts += local_reverts;
     other.task_queue_reinsertions += task_queue_reinsertions;
     other.best_prefix_mismatch += best_prefix_mismatch;
-    other.rebalancing_node_moves += rebalancing_node_moves;
     other.estimated_improvement += estimated_improvement;
     clear();
   }
@@ -372,7 +369,7 @@ struct FMStats {
     std::stringstream os;
     os  << V(retries) << " " << V(extractions) << " " << V(pushes) << " "
         << V(moves) << " " << V(local_reverts) << " " << V(estimated_improvement) << " "
-        << V(best_prefix_mismatch) <<  " " << V(rebalancing_node_moves);
+        << V(best_prefix_mismatch);
     return os.str();
   }
 };
