@@ -26,6 +26,7 @@
 
 #pragma once
 
+#include "mt-kahypar/datastructures/priority_queue.h"
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/metrics.h"
 #include "mt-kahypar/partition/refinement/i_refiner.h"
