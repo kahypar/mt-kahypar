@@ -151,8 +151,7 @@ namespace mt_kahypar {
           return true;
         }());
 
-        if (!PartitionedHypergraph::is_graph) {
-          // TODO: for new objective functions the recalculation might also be necessary for graphs...
+        if constexpr (GainCache::invalidates_entries) {
           tbb::parallel_for(MoveID(0), sharedData.moveTracker.numPerformedMoves(), [&](const MoveID i) {
             gain_cache.recomputeInvalidTerms(phg, sharedData.moveTracker.moveOrder[i].node);
           });

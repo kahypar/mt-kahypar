@@ -180,9 +180,11 @@ namespace mt_kahypar {
     });
 
     // recompute penalty term values since they are potentially invalid
-    tbb::parallel_for(MoveID(0), numMoves, [&](const MoveID i) {
-      gain_cache.recomputeInvalidTerms(phg, move_order[i].node);
-    });
+    if constexpr (GainCache::invalidates_entries) {
+      tbb::parallel_for(MoveID(0), numMoves, [&](const MoveID i) {
+        gain_cache.recomputeInvalidTerms(phg, move_order[i].node);
+      });
+    }
 
     sharedData.moveTracker.reset();
 
@@ -482,9 +484,11 @@ namespace mt_kahypar {
       }
     });
 
-    tbb::parallel_for(0U, numMoves, [&](const MoveID i) {
-      gain_cache.recomputeInvalidTerms(phg, move_order[i].node);
-    });
+    if constexpr (GainCache::invalidates_entries) {
+      tbb::parallel_for(0U, numMoves, [&](const MoveID i) {
+        gain_cache.recomputeInvalidTerms(phg, move_order[i].node);
+      });
+    }
 
     tracker.reset();
 

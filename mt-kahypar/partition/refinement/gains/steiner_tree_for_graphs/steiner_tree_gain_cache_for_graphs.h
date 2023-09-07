@@ -102,6 +102,7 @@ class GraphSteinerTreeGainCache {
   static constexpr GainPolicy TYPE = GainPolicy::steiner_tree_for_graphs;
   static constexpr bool requires_notification_before_update = true;
   static constexpr bool initializes_gain_cache_entry_after_batch_uncontractions = true;
+  static constexpr bool invalidates_entries = false;
 
   GraphSteinerTreeGainCache() :
     _is_initialized(false),

@@ -61,6 +61,7 @@ class GraphCutGainCache {
   static constexpr GainPolicy TYPE = GainPolicy::cut_for_graphs;
   static constexpr bool requires_notification_before_update = false;
   static constexpr bool initializes_gain_cache_entry_after_batch_uncontractions = false;
+  static constexpr bool invalidates_entries = false;
 
   using AdjacentBlocksIterator = IntegerRangeIterator<PartitionID>::const_iterator;
 

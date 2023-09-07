@@ -113,7 +113,7 @@ namespace mt_kahypar {
                               Metrics& best_metrics,
                               vec<vec<Move>>& rebalance_moves_by_part) {
     Metrics current_metrics = best_metrics;
-    const bool should_update_gain_cache = !PartitionedHypergraph::is_graph && _gain_cache.isInitialized();
+    const bool should_update_gain_cache = GainCache::invalidates_entries && _gain_cache.isInitialized();
     _visited_he.reset();
     _next_active.reset();
     _gain.reset();
@@ -202,7 +202,7 @@ namespace mt_kahypar {
     timer.stop_timer("rebalance_lp");
     DBG << "[LP] Imbalance after rebalancing: " << current_metrics.imbalance << ", quality: " << current_metrics.quality;
 
-    const bool should_update_gain_cache = !PartitionedHypergraph::is_graph && _gain_cache.isInitialized();
+    const bool should_update_gain_cache = GainCache::invalidates_entries && _gain_cache.isInitialized();
     if (current_metrics.quality > best_metrics.quality) { // rollback and stop LP
       auto noop_obj_fn = [](const SynchronizedEdgeUpdate&) { };
       current_metrics = best_metrics;
