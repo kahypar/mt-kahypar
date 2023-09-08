@@ -427,8 +427,6 @@ namespace mt_kahypar {
     if (!gain_cache.isInitialized()) {
       gain_cache.initializeGainCache(phg);
     }
-    rebalancer.initialize(hypergraph);
-
     is_initialized = true;
   }
 

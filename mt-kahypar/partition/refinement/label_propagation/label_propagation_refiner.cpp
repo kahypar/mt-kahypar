@@ -316,7 +316,7 @@ namespace mt_kahypar {
 
   template <typename TypeTraits, typename GainTypes>
   void LabelPropagationRefiner<TypeTraits, GainTypes>::initializeImpl(mt_kahypar_partitioned_hypergraph_t& phg) {
-    _rebalancer.initialize(phg);  // TODO: probably wrong place for this
+    unused(phg);
   }
 
   template <typename TypeTraits, typename GainTypes>

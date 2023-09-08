@@ -211,6 +211,10 @@ namespace mt_kahypar {
       improvement_found = false;
       const HyperedgeWeight metric_before = _current_metrics.quality;
 
+      if ( _rebalancer && _context.refinement.rebalancer != RebalancingAlgorithm::do_nothing ) {
+        _rebalancer->initialize(phg);
+      }
+
       if ( _label_propagation && _context.refinement.label_propagation.algorithm != LabelPropagationAlgorithm::do_nothing ) {
         _timer.start_timer("initialize_lp_refiner", "Initialize LP Refiner");
         _label_propagation->initialize(phg);
