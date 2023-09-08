@@ -108,8 +108,15 @@ private:
                                 Metrics& best_metrics,
                                 const double);
 
+  bool refineAndOutputMovesLinearImpl(mt_kahypar_partitioned_hypergraph_t& hypergraph,
+                                      const vec<HypernodeID>& refinement_nodes,
+                                      vec<Move>& moves,
+                                      Metrics& best_metrics,
+                                      const double);
+
   bool refineInternalParallel(mt_kahypar_partitioned_hypergraph_t& hypergraph,
                               vec<vec<Move>>* moves_by_part,
+                              vec<Move>* moves_linear,
                               Metrics& best_metric);
 
   const Context& _context;

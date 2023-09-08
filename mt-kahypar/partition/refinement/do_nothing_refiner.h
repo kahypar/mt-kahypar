@@ -60,5 +60,13 @@ class DoNothingRefiner final : public IRebalancer {
                                         const double) override final {
     return false;
   }
+
+  virtual bool refineAndOutputMovesLinearImpl(mt_kahypar_partitioned_hypergraph_t&,
+                                              const parallel::scalable_vector<HypernodeID>&,
+                                              parallel::scalable_vector<Move>&,
+                                              Metrics&,
+                                              const double) override final {
+    return false;
+  }
 };
 }  // namespace kahypar
