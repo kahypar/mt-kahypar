@@ -65,7 +65,7 @@ class LabelPropagationRefiner final : public IRefiner {
     _current_num_edges(kInvalidHyperedge),
     _gain(context),
     _active_nodes(),
-    _active_node_was_moved(num_hypernodes, uint8_t(false)),
+    _active_node_was_moved(2 * num_hypernodes, uint8_t(false)),
     _old_part(_context.refinement.label_propagation.unconstrained ? num_hypernodes : 0, kInvalidPartition),
     _next_active(num_hypernodes),
     _visited_he(Hypergraph::is_graph ? 0 : num_hyperedges),
@@ -93,85 +93,28 @@ class LabelPropagationRefiner final : public IRefiner {
 
   void labelPropagation(PartitionedHypergraph& phg, Metrics& best_metrics);
 
-  template<bool unconstrained>
   bool labelPropagationRound(PartitionedHypergraph& hypergraph,
                              NextActiveNodes& next_active_nodes,
                              Metrics& best_metrics,
-                             vec<vec<Move>>& rebalance_moves_by_part);
+                             vec<Move>& rebalance_moves,
+                             bool unconstrained_lp);
+
+  template<bool unconstrained>
+  void moveActiveNodes(PartitionedHypergraph& hypergraph, NextActiveNodes& next_active_nodes);
 
   bool applyRebalancing(PartitionedHypergraph& hypergraph,
-                        NextActiveNodes& next_active_nodes,
                         Metrics& best_metrics,
                         Metrics& current_metrics,
-                        vec<vec<Move>>& rebalance_moves_by_part);
-
-  void updateNodeData(PartitionedHypergraph& hypergraph,
-                      NextActiveNodes& next_active_nodes,
-                      bool should_update_gain_cache,
-                      vec<vec<Move>>* rebalance_moves_by_part = nullptr);
+                        vec<Move>& rebalance_moves);
 
   template<typename F>
-  void forEachMovedNode(const PartitionedHypergraph& hypergraph,
-                        F node_fn,
-                        const vec<vec<Move>>* rebalance_moves_by_part = nullptr);
+  void forEachMovedNode(F node_fn);
 
   template<bool unconstrained, typename F>
   bool moveVertex(PartitionedHypergraph& hypergraph,
                   const HypernodeID hn,
                   NextActiveNodes& next_active_nodes,
-                  const F& objective_delta) {
-    bool is_moved = false;
-    ASSERT(hn != kInvalidHypernode);
-    if ( hypergraph.isBorderNode(hn) && !hypergraph.isFixed(hn) ) {
-      ASSERT(hypergraph.nodeIsEnabled(hn));
-
-      Move best_move = _gain.computeMaxGainMove(hypergraph, hn, false, false, unconstrained);
-      // We perform a move if it either improves the solution quality or, in case of a
-      // zero gain move, the balance of the solution.
-      const bool positive_gain = best_move.gain < 0;
-      const bool zero_gain_move = (_context.refinement.label_propagation.rebalancing &&
-                                    best_move.gain == 0 &&
-                                    hypergraph.partWeight(best_move.from) - 1 >
-                                    hypergraph.partWeight(best_move.to) + 1 &&
-                                    hypergraph.partWeight(best_move.to) <
-                                    _context.partition.perfect_balance_part_weights[best_move.to]);
-      const bool perform_move = positive_gain || zero_gain_move;
-      if (best_move.from != best_move.to && perform_move) {
-        PartitionID from = best_move.from;
-        PartitionID to = best_move.to;
-
-        Gain delta_before = _gain.localDelta();
-        bool changed_part = changeNodePart<unconstrained>(hypergraph, hn, from, to, objective_delta);
-        ASSERT(!unconstrained || changed_part);
-        is_moved = true;
-        if (unconstrained || changed_part) {
-          // In case the move to block 'to' was successful, we verify that the "real" gain
-          // of the move is either equal to our computed gain or if not, still improves
-          // the solution quality.
-          Gain move_delta = _gain.localDelta() - delta_before;
-          bool accept_move = (move_delta == best_move.gain || move_delta <= 0);
-          if (accept_move) {
-            DBG << "Move hypernode" << hn << "from block" << from << "to block" << to
-                << "with gain" << best_move.gain << "( Real Gain: " << move_delta << ")";
-            if constexpr (!unconstrained) {
-              // in unconstrained case, we don't want to activate neighbors if the move is undone
-              // by the rebalancing
-              activateNodeAndNeighbors(hypergraph, next_active_nodes, hn, true);
-            }
-          } else {
-            DBG << "Revert move of hypernode" << hn << "from block" << from << "to block" << to
-                << "( Expected Gain:" << best_move.gain << ", Real Gain:" << move_delta << ")";
-            // In case, the real gain is not equal with the computed gain and
-            // worsen the solution quality we revert the move.
-            ASSERT(hypergraph.partID(hn) == to);
-            changeNodePart<unconstrained>(hypergraph, hn, to, from, objective_delta);
-          }
-        }
-      }
-    }
-
-    return is_moved;
-  }
+                  const F& objective_delta);
 
   void initializeActiveNodes(PartitionedHypergraph& hypergraph,
                              const parallel::scalable_vector<HypernodeID>& refinement_nodes);
@@ -179,7 +122,6 @@ class LabelPropagationRefiner final : public IRefiner {
   void initializeImpl(mt_kahypar_partitioned_hypergraph_t&) final;
 
   template<bool unconstrained, typename F>
-  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
   bool changeNodePart(PartitionedHypergraph& phg,
                       const HypernodeID hn,
                       const PartitionID from,
