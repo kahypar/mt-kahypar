@@ -266,10 +266,15 @@ namespace mt_kahypar {
     // append to active nodes so they are included for gain cache updates and rollback
     _active_nodes.reserve(_active_nodes.size() + rebalance_moves.size());
     for (const Move& m: rebalance_moves) {
-      if (m.from == _old_part[m.node]) {
+      bool old_part_unintialized = _might_be_uninitialized && !_old_part_is_initialized[m.node];
+      if (old_part_unintialized || m.from == _old_part[m.node]) {
         size_t i = _active_nodes.size();
         _active_nodes.push_back(m.node);
         _active_node_was_moved[i] = uint8_t(true);
+        if (old_part_unintialized) {
+          _old_part[m.node] = m.from;
+          _old_part_is_initialized.set(m.node, true);
+        }
       }
     }
     timer.stop_timer("rebalance_lp");
@@ -281,6 +286,7 @@ namespace mt_kahypar {
 
       forEachMovedNode([&](size_t j) {
         const HypernodeID hn = _active_nodes[j];
+        ASSERT(!_might_be_uninitialized || _old_part_is_initialized[hn]);
         if (hypergraph.partID(hn) != _old_part[hn]) {
           changeNodePart<true>(hypergraph, hn, hypergraph.partID(hn), _old_part[hn], noop_obj_fn);
         }
@@ -319,6 +325,7 @@ namespace mt_kahypar {
                               const parallel::scalable_vector<HypernodeID>& refinement_nodes) {
     _active_nodes.clear();
     if ( refinement_nodes.empty() ) {
+      _might_be_uninitialized = false;
       if ( _context.refinement.label_propagation.execute_sequential ) {
         for ( const HypernodeID hn : hypergraph.nodes() ) {
           if ( _context.refinement.label_propagation.rebalancing || hypergraph.isBorderNode(hn) ) {
@@ -346,8 +353,26 @@ namespace mt_kahypar {
         _active_nodes = tmp_active_nodes.copy_parallel();
       }
     } else {
-      ASSERT(!_context.refinement.label_propagation.unconstrained, "unconstrained LP not yet available for n-level");
       _active_nodes = refinement_nodes;
+
+      if ( _context.refinement.label_propagation.unconstrained ) {
+        auto set_old_part = [&](const size_t& i) {
+          const HypernodeID hn = refinement_nodes[i];
+          _old_part[hn] = hypergraph.partID(hn);
+          _old_part_is_initialized.set(hn, true);
+        };
+
+        // we don't want to scan the whole graph for localized LP
+        _might_be_uninitialized = true;
+        _old_part_is_initialized.reset();
+        if ( _context.refinement.label_propagation.execute_sequential ) {
+          for (size_t i = 0; i < refinement_nodes.size(); ++i) {
+            set_old_part(i);
+          }
+        } else {
+          tbb::parallel_for(UL(0), refinement_nodes.size(), set_old_part);
+        }
+      }
     }
 
     _next_active.reset();

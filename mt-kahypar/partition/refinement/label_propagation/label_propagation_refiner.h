@@ -58,6 +58,7 @@ class LabelPropagationRefiner final : public IRefiner {
                                    const Context& context,
                                    GainCache& gain_cache,
                                    IRebalancer& rb) :
+    _might_be_uninitialized(false),
     _context(context),
     _gain_cache(gain_cache),
     _current_k(context.partition.k),
@@ -67,6 +68,7 @@ class LabelPropagationRefiner final : public IRefiner {
     _active_nodes(),
     _active_node_was_moved(2 * num_hypernodes, uint8_t(false)),
     _old_part(_context.refinement.label_propagation.unconstrained ? num_hypernodes : 0, kInvalidPartition),
+    _old_part_is_initialized(_context.refinement.label_propagation.unconstrained ? num_hypernodes : 0),
     _next_active(num_hypernodes),
     _visited_he(Hypergraph::is_graph ? 0 : num_hyperedges),
     _rebalancer(rb) { }
@@ -142,9 +144,14 @@ class LabelPropagationRefiner final : public IRefiner {
                                 const HypernodeID hn,
                                 bool activate_moved) {
     auto activate = [&](const HypernodeID hn) {
-      if (activate_moved || hypergraph.partID(hn) == _old_part[hn]) {
+      bool old_part_unintialized = _might_be_uninitialized && !_old_part_is_initialized[hn];
+      if (activate_moved || old_part_unintialized || hypergraph.partID(hn) == _old_part[hn]) {
         if ( _next_active.compare_and_set_to_true(hn) ) {
           next_active_nodes.stream(hn);
+          if ( old_part_unintialized ) {
+            _old_part[hn] = hypergraph.partID(hn);
+            _old_part_is_initialized.set(hn, true);
+          }
         }
       }
     };
@@ -169,6 +176,7 @@ class LabelPropagationRefiner final : public IRefiner {
     }
 
     if ( activate_moved && _next_active.compare_and_set_to_true(hn) ) {
+      ASSERT(!_might_be_uninitialized);
       next_active_nodes.stream(hn);
     }
   }
@@ -185,6 +193,7 @@ class LabelPropagationRefiner final : public IRefiner {
     }
   }
 
+  bool _might_be_uninitialized;
   const Context& _context;
   GainCache& _gain_cache;
   PartitionID _current_k;
@@ -194,6 +203,7 @@ class LabelPropagationRefiner final : public IRefiner {
   ActiveNodes _active_nodes;
   parallel::scalable_vector<uint8_t> _active_node_was_moved;
   parallel::scalable_vector<PartitionID> _old_part;
+  kahypar::ds::FastResetFlagArray<> _old_part_is_initialized;
   ds::ThreadSafeFastResetFlagArray<> _next_active;
   kahypar::ds::FastResetFlagArray<> _visited_he;
   IRebalancer& _rebalancer;
