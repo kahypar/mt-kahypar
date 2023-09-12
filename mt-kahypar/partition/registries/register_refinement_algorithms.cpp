@@ -26,11 +26,12 @@
  ******************************************************************************/
 
 #include "kahypar-resources/meta/registrar.h"
-#include "mt-kahypar/partition/context.h"
 
+#include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/factories.h"
 #include "mt-kahypar/partition/refinement/do_nothing_refiner.h"
 #include "mt-kahypar/partition/refinement/flows/do_nothing_refiner.h"
+#include "mt-kahypar/partition/refinement/gains/gain_definitions.h"
 
 #define REGISTER_DISPATCHED_LP_REFINER(id, dispatcher, ...)                                            \
   static kahypar::meta::Registrar<LabelPropagationFactory> register_ ## dispatcher(                    \
@@ -134,6 +135,21 @@
   })
 
 namespace mt_kahypar {
+kahypar::meta::PolicyBase& getCombinedTraitsPolicy(mt_kahypar_partition_type_t partition_type, GainPolicy gain_policy) {
+  switch ( partition_type ) {
+    case MULTILEVEL_HYPERGRAPH_PARTITIONING: SWITCH_HYPERGRAPH_GAIN_TYPES(StaticHypergraphTypeTraits, gain_policy);
+    case MULTILEVEL_GRAPH_PARTITIONING: SWITCH_GRAPH_GAIN_TYPES(StaticGraphTypeTraits, gain_policy);
+    case N_LEVEL_HYPERGRAPH_PARTITIONING: SWITCH_HYPERGRAPH_GAIN_TYPES(DynamicHypergraphTypeTraits, gain_policy);
+    case N_LEVEL_GRAPH_PARTITIONING: SWITCH_GRAPH_GAIN_TYPES(DynamicGraphTypeTraits, gain_policy);
+    case LARGE_K_PARTITIONING: SWITCH_HYPERGRAPH_GAIN_TYPES(LargeKHypergraphTypeTraits, gain_policy);
+    default: {
+      LOG << "Invalid partition type";
+      std::exit(-1);
+    }
+  }
+}
+
+
 REGISTER_DISPATCHED_LP_REFINER(LabelPropagationAlgorithm::label_propagation,
                                LabelPropagationDispatcher,
                                kahypar::meta::PolicyRegistry<mt_kahypar_partition_type_t>::getInstance().getPolicy(

@@ -132,6 +132,19 @@ struct SteinerTreeForGraphsTypes : public kahypar::meta::PolicyBase {
 #endif
 #endif
 
+template<typename TypeTraits, typename GainTypes>
+struct CombinedTraits : public kahypar::meta::PolicyBase {
+  using Hypergraph = typename TypeTraits::Hypergraph;
+  using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
+
+  using GainComputation = typename GainTypes::GainComputation;
+  using AttributedGains = typename GainTypes::AttributedGains;
+  using GainCache = typename GainTypes::GainCache;
+  using DeltaGainCache = typename GainTypes::DeltaGainCache;
+  using Rollback = typename GainTypes::Rollback;
+  using FlowNetworkConstruction = typename GainTypes::FlowNetworkConstruction;
+};
+
 
 using GainTypes = kahypar::meta::Typelist<Km1GainTypes,
                                           CutGainTypes
@@ -140,6 +153,42 @@ using GainTypes = kahypar::meta::Typelist<Km1GainTypes,
                                           ENABLE_GRAPHS(COMMA CutGainForGraphsTypes)
                                           ENABLE_GRAPHS(ENABLE_STEINER_TREE(COMMA SteinerTreeForGraphsTypes))>;
 
+#define _LIST_HYPERGRAPH_COMBINATIONS(TYPE_TRAITS)                                     \
+  CombinedTraits<TYPE_TRAITS, Km1GainTypes>,                                           \
+  CombinedTraits<TYPE_TRAITS, CutGainTypes>                                            \
+  ENABLE_SOED(COMMA CombinedTraits<TYPE_TRAITS COMMA SoedGainTypes>)                   \
+  ENABLE_STEINER_TREE(COMMA CombinedTraits<TYPE_TRAITS COMMA SteinerTreeGainTypes>)
+
+#define _LIST_GRAPH_COMBINATIONS(TYPE_TRAITS)                                             \
+  CombinedTraits<TYPE_TRAITS, CutGainForGraphsTypes>                                      \
+  ENABLE_STEINER_TREE(COMMA CombinedTraits<TYPE_TRAITS COMMA SteinerTreeForGraphsTypes>)
+
+using ValidTraitCombinations = kahypar::meta::Typelist<_LIST_HYPERGRAPH_COMBINATIONS(StaticHypergraphTypeTraits)
+                                                       ENABLE_GRAPHS(COMMA _LIST_GRAPH_COMBINATIONS(StaticGraphTypeTraits))
+                                                       ENABLE_HIGHEST_QUALITY(COMMA _LIST_HYPERGRAPH_COMBINATIONS(DynamicHypergraphTypeTraits))
+                                                       ENABLE_HIGHEST_QUALITY_FOR_GRAPHS(COMMA _LIST_GRAPH_COMBINATIONS(DynamicGraphTypeTraits))
+                                                       ENABLE_LARGE_K(COMMA _LIST_HYPERGRAPH_COMBINATIONS(LargeKHypergraphTypeTraits))>;
+
+
+#define _INSTANTIATE_CLASS_MACRO_FOR_HYPERGRAPH_COMBINATIONS(C, TYPE_TRAITS)                  \
+  template class C(CombinedTraits<TYPE_TRAITS COMMA Km1GainTypes>);                                \
+  template class C(CombinedTraits<TYPE_TRAITS COMMA CutGainTypes>);                                \
+  ENABLE_SOED(template class C(CombinedTraits<TYPE_TRAITS COMMA SoedGainTypes>);)                  \
+  ENABLE_STEINER_TREE(template class C(CombinedTraits<TYPE_TRAITS COMMA SteinerTreeGainTypes>);)
+
+#define _INSTANTIATE_CLASS_MACRO_FOR_GRAPH_COMBINATIONS(C, TYPE_TRAITS)                           \
+  template class C(CombinedTraits<TYPE_TRAITS COMMA CutGainForGraphsTypes>);                           \
+  ENABLE_STEINER_TREE(template class C(CombinedTraits<TYPE_TRAITS COMMA SteinerTreeForGraphsTypes>);)
+
+
+#define INSTANTIATE_CLASS_WITH_VALID_TRAITS(C)                                                                    \
+  _INSTANTIATE_CLASS_MACRO_FOR_HYPERGRAPH_COMBINATIONS(C, StaticHypergraphTypeTraits)                             \
+  ENABLE_GRAPHS(_INSTANTIATE_CLASS_MACRO_FOR_GRAPH_COMBINATIONS(C, StaticGraphTypeTraits))                        \
+  ENABLE_HIGHEST_QUALITY(_INSTANTIATE_CLASS_MACRO_FOR_HYPERGRAPH_COMBINATIONS(C, DynamicHypergraphTypeTraits))    \
+  ENABLE_HIGHEST_QUALITY_FOR_GRAPHS(_INSTANTIATE_CLASS_MACRO_FOR_GRAPH_COMBINATIONS(C, DynamicGraphTypeTraits))   \
+  ENABLE_LARGE_K(_INSTANTIATE_CLASS_MACRO_FOR_HYPERGRAPH_COMBINATIONS(C, LargeKHypergraphTypeTraits))
+
+
 #define INSTANTIATE_CLASS_WITH_TYPE_TRAITS_AND_GAIN_TYPES(C)                                                                 \
   INSTANTIATE_CLASS_MACRO_WITH_TYPE_TRAITS_AND_OTHER_CLASS(C, Km1GainTypes)                                                  \
   INSTANTIATE_CLASS_MACRO_WITH_TYPE_TRAITS_AND_OTHER_CLASS(C, CutGainTypes)                                                  \
@@ -147,5 +196,37 @@ using GainTypes = kahypar::meta::Typelist<Km1GainTypes,
   ENABLE_STEINER_TREE(INSTANTIATE_CLASS_MACRO_WITH_TYPE_TRAITS_AND_OTHER_CLASS(C, SteinerTreeGainTypes))                     \
   ENABLE_GRAPHS(INSTANTIATE_CLASS_MACRO_WITH_TYPE_TRAITS_AND_OTHER_CLASS(C, CutGainForGraphsTypes))                          \
   ENABLE_GRAPHS(ENABLE_STEINER_TREE(INSTANTIATE_CLASS_MACRO_WITH_TYPE_TRAITS_AND_OTHER_CLASS(C, SteinerTreeForGraphsTypes)))
+
+
+// functionality for retrieving combined policy of partition type and gain
+#define _RETURN_COMBINED_POLICY(TYPE_TRAITS, GAIN_TYPES) {      \
+  static CombinedTraits<TYPE_TRAITS, GAIN_TYPES> traits;        \
+  return traits;                                                \
+}
+
+#define SWITCH_HYPERGRAPH_GAIN_TYPES(TYPE_TRAITS, gain_policy) {                              \
+  switch ( gain_policy ) {                                                                    \
+    case GainPolicy::km1: _RETURN_COMBINED_POLICY(TYPE_TRAITS, Km1GainTypes)                  \
+    case GainPolicy::cut: _RETURN_COMBINED_POLICY(TYPE_TRAITS, CutGainTypes)                  \
+    case GainPolicy::soed: ENABLE_SOED(_RETURN_COMBINED_POLICY(TYPE_TRAITS, SoedGainTypes))   \
+    case GainPolicy::steiner_tree:                                                            \
+      ENABLE_STEINER_TREE(_RETURN_COMBINED_POLICY(TYPE_TRAITS, SteinerTreeGainTypes))         \
+    default: {                                                                                \
+      ERROR("Invalid gain policy type");                                                      \
+    }                                                                                         \
+  }                                                                                           \
+}
+
+#define SWITCH_GRAPH_GAIN_TYPES(TYPE_TRAITS, gain_policy) {                                                   \
+  switch ( gain_policy ) {                                                                                    \
+    case GainPolicy::cut_for_graphs:                                                                          \
+      ENABLE_GRAPHS(_RETURN_COMBINED_POLICY(TYPE_TRAITS, CutGainForGraphsTypes))                              \
+    case GainPolicy::steiner_tree_for_graphs:                                                                 \
+      ENABLE_STEINER_TREE(ENABLE_GRAPHS(_RETURN_COMBINED_POLICY(TYPE_TRAITS, SteinerTreeForGraphsTypes)))     \
+    default: {                                                                                                \
+      ERROR("Invalid gain policy type");                                                                      \
+    }                                                                                                         \
+  }                                                                                                           \
+}
 
 }  // namespace mt_kahypar
