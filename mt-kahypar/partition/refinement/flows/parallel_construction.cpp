@@ -36,10 +36,10 @@
 
 namespace mt_kahypar {
 
-template<typename TypeTraits, typename GainTypes>
-typename ParallelConstruction<TypeTraits, GainTypes>::TmpHyperedge
-ParallelConstruction<TypeTraits, GainTypes>::DynamicIdenticalNetDetection::get(
-  const size_t he_hash, const vec<whfc::Node>& pins) {
+template<typename CombinedTraits>
+typename ParallelConstruction<CombinedTraits>::TmpHyperedge
+ParallelConstruction<CombinedTraits>::DynamicIdenticalNetDetection::get(const size_t he_hash,
+                                                                        const vec<whfc::Node>& pins) {
   const size_t bucket_idx = he_hash % _hash_buckets.size();
   if ( __atomic_load_n(&_hash_buckets[bucket_idx].threshold, __ATOMIC_RELAXED) == _threshold ) {
     // There exists already some hyperedges with the same hash
@@ -65,8 +65,8 @@ ParallelConstruction<TypeTraits, GainTypes>::DynamicIdenticalNetDetection::get(
   return TmpHyperedge { 0, std::numeric_limits<size_t>::max(), whfc::invalidHyperedge };
 }
 
-template<typename TypeTraits, typename GainTypes>
-void ParallelConstruction<TypeTraits, GainTypes>::DynamicIdenticalNetDetection::add(const TmpHyperedge& tmp_he) {
+template<typename CombinedTraits>
+void ParallelConstruction<CombinedTraits>::DynamicIdenticalNetDetection::add(const TmpHyperedge& tmp_he) {
   const size_t bucket_idx = tmp_he.hash % _hash_buckets.size();
   uint32_t expected = __atomic_load_n(&_hash_buckets[bucket_idx].threshold, __ATOMIC_RELAXED);
   uint32_t desired = _threshold - 1;
@@ -81,12 +81,12 @@ void ParallelConstruction<TypeTraits, GainTypes>::DynamicIdenticalNetDetection::
   _hash_buckets[bucket_idx].identical_nets.push_back(ThresholdHyperedge { tmp_he, _threshold });
 }
 
-template<typename TypeTraits, typename GainTypes>
-FlowProblem ParallelConstruction<TypeTraits, GainTypes>::constructFlowHypergraph(const PartitionedHypergraph& phg,
-                                                                                 const Subhypergraph& sub_hg,
-                                                                                 const PartitionID block_0,
-                                                                                 const PartitionID block_1,
-                                                                                 vec<HypernodeID>& whfc_to_node) {
+template<typename CombinedTraits>
+FlowProblem ParallelConstruction<CombinedTraits>::constructFlowHypergraph(const PartitionedHypergraph& phg,
+                                                                          const Subhypergraph& sub_hg,
+                                                                          const PartitionID block_0,
+                                                                          const PartitionID block_1,
+                                                                          vec<HypernodeID>& whfc_to_node) {
   FlowProblem flow_problem;
   const double density = static_cast<double>(phg.initialNumEdges()) / phg.initialNumNodes();
   const double avg_he_size = static_cast<double>(phg.initialNumPins()) / phg.initialNumEdges();
@@ -126,13 +126,13 @@ FlowProblem ParallelConstruction<TypeTraits, GainTypes>::constructFlowHypergraph
   return flow_problem;
 }
 
-template<typename TypeTraits, typename GainTypes>
-FlowProblem ParallelConstruction<TypeTraits, GainTypes>::constructFlowHypergraph(const PartitionedHypergraph& phg,
-                                                                                 const Subhypergraph& sub_hg,
-                                                                                 const PartitionID block_0,
-                                                                                 const PartitionID block_1,
-                                                                                 vec<HypernodeID>& whfc_to_node,
-                                                                                 const bool default_construction) {
+template<typename CombinedTraits>
+FlowProblem ParallelConstruction<CombinedTraits>::constructFlowHypergraph(const PartitionedHypergraph& phg,
+                                                                          const Subhypergraph& sub_hg,
+                                                                          const PartitionID block_0,
+                                                                          const PartitionID block_1,
+                                                                          vec<HypernodeID>& whfc_to_node,
+                                                                          const bool default_construction) {
   FlowProblem flow_problem;
   if ( default_construction ) {
     // This algorithm iterates over all hyperedges and checks for all pins if
@@ -170,12 +170,12 @@ FlowProblem ParallelConstruction<TypeTraits, GainTypes>::constructFlowHypergraph
   return flow_problem;
 }
 
-template<typename TypeTraits, typename GainTypes>
-FlowProblem ParallelConstruction<TypeTraits, GainTypes>::constructDefault(const PartitionedHypergraph& phg,
-                                                                          const Subhypergraph& sub_hg,
-                                                                          const PartitionID block_0,
-                                                                          const PartitionID block_1,
-                                                                          vec<HypernodeID>& whfc_to_node) {
+template<typename CombinedTraits>
+FlowProblem ParallelConstruction<CombinedTraits>::constructDefault(const PartitionedHypergraph& phg,
+                                                                   const Subhypergraph& sub_hg,
+                                                                   const PartitionID block_0,
+                                                                   const PartitionID block_1,
+                                                                   vec<HypernodeID>& whfc_to_node) {
   ASSERT(block_0 != kInvalidPartition && block_1 != kInvalidPartition);
   FlowProblem flow_problem;
   flow_problem.total_cut = 0;
@@ -334,12 +334,12 @@ FlowProblem ParallelConstruction<TypeTraits, GainTypes>::constructDefault(const 
   return flow_problem;
 }
 
-template<typename TypeTraits, typename GainTypes>
-FlowProblem ParallelConstruction<TypeTraits, GainTypes>::constructOptimizedForLargeHEs(const PartitionedHypergraph& phg,
-                                                                                       const Subhypergraph& sub_hg,
-                                                                                       const PartitionID block_0,
-                                                                                       const PartitionID block_1,
-                                                                                       vec<HypernodeID>& whfc_to_node) {
+template<typename CombinedTraits>
+FlowProblem ParallelConstruction<CombinedTraits>::constructOptimizedForLargeHEs(const PartitionedHypergraph& phg,
+                                                                                const Subhypergraph& sub_hg,
+                                                                                const PartitionID block_0,
+                                                                                const PartitionID block_1,
+                                                                                vec<HypernodeID>& whfc_to_node) {
   ASSERT(block_0 != kInvalidPartition && block_1 != kInvalidPartition);
   FlowProblem flow_problem;
   flow_problem.total_cut = 0;
@@ -565,13 +565,13 @@ class BFSQueue {
 };
 }
 
-template<typename TypeTraits, typename GainTypes>
-void ParallelConstruction<TypeTraits, GainTypes>::determineDistanceFromCut(const PartitionedHypergraph& phg,
-                                                                           const whfc::Node source,
-                                                                           const whfc::Node sink,
-                                                                           const PartitionID block_0,
-                                                                           const PartitionID block_1,
-                                                                           const vec<HypernodeID>& whfc_to_node) {
+template<typename CombinedTraits>
+void ParallelConstruction<CombinedTraits>::determineDistanceFromCut(const PartitionedHypergraph& phg,
+                                                                    const whfc::Node source,
+                                                                    const whfc::Node sink,
+                                                                    const PartitionID block_0,
+                                                                    const PartitionID block_1,
+                                                                    const vec<HypernodeID>& whfc_to_node) {
   auto& distances = _hfc.cs.border_nodes.distance;
   distances.assign(_flow_hg.numNodes(), whfc::HopDistance(0));
   _visited_hns.resize(_flow_hg.numNodes() + _flow_hg.numHyperedges());
@@ -640,9 +640,9 @@ void ParallelConstruction<TypeTraits, GainTypes>::determineDistanceFromCut(const
 }
 
 namespace {
-#define PARALLEL_CONSTRUCTION(X, Y) ParallelConstruction<X, Y>
+#define PARALLEL_CONSTRUCTION(X) ParallelConstruction<X>
 }
 
-INSTANTIATE_CLASS_WITH_TYPE_TRAITS_AND_GAIN_TYPES(PARALLEL_CONSTRUCTION)
+INSTANTIATE_CLASS_WITH_VALID_TRAITS(PARALLEL_CONSTRUCTION)
 
 } // namespace mt_kahypar

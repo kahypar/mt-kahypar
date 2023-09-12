@@ -70,11 +70,11 @@ namespace mt_kahypar {
   }
 
 
-  template<typename TypeTraits, typename GainTypes>
-  void UnconstrainedFMData::InitializationHelper<TypeTraits, GainTypes>::initialize(
+  template<typename CombinedTraits>
+  void UnconstrainedFMData::InitializationHelper<CombinedTraits>::initialize(
             UnconstrainedFMData& data, const Context& context,
-            const typename TypeTraits::PartitionedHypergraph& phg,
-            const typename GainTypes::GainCache& gain_cache) {
+            const typename CombinedTraits::PartitionedHypergraph& phg,
+            const typename CombinedTraits::GainCache& gain_cache) {
     auto get_node_stats = [&](const HypernodeID hypernode) {
       // TODO(maas): we might want to save the total incident weight in the hypergraph data structure
       // at some point in the future
@@ -250,8 +250,8 @@ namespace mt_kahypar {
   }
 
   namespace {
-  #define UNCONSTRAINED_FM_INITIALIZATION(X, Y) UnconstrainedFMData::InitializationHelper<X, Y>;
+  #define UNCONSTRAINED_FM_INITIALIZATION(X) UnconstrainedFMData::InitializationHelper<X>
   }
 
-  INSTANTIATE_CLASS_WITH_TYPE_TRAITS_AND_GAIN_TYPES(UNCONSTRAINED_FM_INITIALIZATION)
+  INSTANTIATE_CLASS_WITH_VALID_TRAITS(UNCONSTRAINED_FM_INITIALIZATION)
 }

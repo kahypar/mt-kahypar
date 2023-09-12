@@ -132,8 +132,11 @@ struct SteinerTreeForGraphsTypes : public kahypar::meta::PolicyBase {
 #endif
 #endif
 
-template<typename TypeTraits, typename GainTypes>
+template<typename TypeTraitsT, typename GainTypesT>
 struct CombinedTraits : public kahypar::meta::PolicyBase {
+  using TypeTraits = TypeTraitsT;
+  using GainTypes = GainTypesT;
+
   using Hypergraph = typename TypeTraits::Hypergraph;
   using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
 
@@ -187,15 +190,6 @@ using ValidTraitCombinations = kahypar::meta::Typelist<_LIST_HYPERGRAPH_COMBINAT
   ENABLE_HIGHEST_QUALITY(_INSTANTIATE_CLASS_MACRO_FOR_HYPERGRAPH_COMBINATIONS(C, DynamicHypergraphTypeTraits))    \
   ENABLE_HIGHEST_QUALITY_FOR_GRAPHS(_INSTANTIATE_CLASS_MACRO_FOR_GRAPH_COMBINATIONS(C, DynamicGraphTypeTraits))   \
   ENABLE_LARGE_K(_INSTANTIATE_CLASS_MACRO_FOR_HYPERGRAPH_COMBINATIONS(C, LargeKHypergraphTypeTraits))
-
-
-#define INSTANTIATE_CLASS_WITH_TYPE_TRAITS_AND_GAIN_TYPES(C)                                                                 \
-  INSTANTIATE_CLASS_MACRO_WITH_TYPE_TRAITS_AND_OTHER_CLASS(C, Km1GainTypes)                                                  \
-  INSTANTIATE_CLASS_MACRO_WITH_TYPE_TRAITS_AND_OTHER_CLASS(C, CutGainTypes)                                                  \
-  ENABLE_SOED(INSTANTIATE_CLASS_MACRO_WITH_TYPE_TRAITS_AND_OTHER_CLASS(C, SoedGainTypes))                                    \
-  ENABLE_STEINER_TREE(INSTANTIATE_CLASS_MACRO_WITH_TYPE_TRAITS_AND_OTHER_CLASS(C, SteinerTreeGainTypes))                     \
-  ENABLE_GRAPHS(INSTANTIATE_CLASS_MACRO_WITH_TYPE_TRAITS_AND_OTHER_CLASS(C, CutGainForGraphsTypes))                          \
-  ENABLE_GRAPHS(ENABLE_STEINER_TREE(INSTANTIATE_CLASS_MACRO_WITH_TYPE_TRAITS_AND_OTHER_CLASS(C, SteinerTreeForGraphsTypes)))
 
 
 // functionality for retrieving combined policy of partition type and gain

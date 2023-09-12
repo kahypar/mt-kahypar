@@ -34,10 +34,10 @@
 
 namespace mt_kahypar {
 
-  template<typename TypeTraits, typename GainTypes>
+  template<typename CombinedTraits>
   template<typename DispatchedFMStrategy>
-  bool LocalizedKWayFM<TypeTraits, GainTypes>::findMoves(DispatchedFMStrategy& fm_strategy, PartitionedHypergraph& phg,
-                                                         size_t taskID, size_t numSeeds) {
+  bool LocalizedKWayFM<CombinedTraits>::findMoves(DispatchedFMStrategy& fm_strategy, PartitionedHypergraph& phg,
+                                                  size_t taskID, size_t numSeeds) {
     localMoves.clear();
     thisSearch = ++sharedData.nodeTracker.highestActiveSearchID;
 
@@ -73,11 +73,11 @@ namespace mt_kahypar {
     return std::make_pair(p, w);
   }
 
-  template<typename TypeTraits, typename GainTypes>
+  template<typename CombinedTraits>
   template<bool has_fixed_vertices, typename PHG, typename CACHE, typename DispatchedFMStrategy>
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
-  void LocalizedKWayFM<TypeTraits, GainTypes>::acquireOrUpdateNeighbors(PHG& phg, CACHE& gain_cache, const Move& move,
-                                                                        DispatchedFMStrategy& fm_strategy) {
+  void LocalizedKWayFM<CombinedTraits>::acquireOrUpdateNeighbors(PHG& phg, CACHE& gain_cache, const Move& move,
+                                                                 DispatchedFMStrategy& fm_strategy) {
     auto updateOrAcquire = [&](const HypernodeID v) {
       SearchID searchOfV = sharedData.nodeTracker.searchOfNode[v].load(std::memory_order_relaxed);
       if (searchOfV == thisSearch) {
@@ -119,10 +119,10 @@ namespace mt_kahypar {
   }
 
 
-  template<typename TypeTraits, typename GainTypes>
+  template<typename CombinedTraits>
   template<typename DispatchedFMStrategy>
-  void LocalizedKWayFM<TypeTraits, GainTypes>::internalFindMoves(PartitionedHypergraph& phg,
-                                                                 DispatchedFMStrategy& fm_strategy) {
+  void LocalizedKWayFM<CombinedTraits>::internalFindMoves(PartitionedHypergraph& phg,
+                                                          DispatchedFMStrategy& fm_strategy) {
     StopRule stopRule(phg.initialNumNodes());
     Move move;
 
@@ -225,8 +225,8 @@ namespace mt_kahypar {
   }
 
 
-  template<typename TypeTraits, typename GainTypes>
-  void LocalizedKWayFM<TypeTraits, GainTypes>::changeNumberOfBlocks(const PartitionID new_k) {
+  template<typename CombinedTraits>
+  void LocalizedKWayFM<CombinedTraits>::changeNumberOfBlocks(const PartitionID new_k) {
     deltaPhg.changeNumberOfBlocks(new_k);
     blockPQ.resize(new_k);
     for ( VertexPriorityQueue& pq : vertexPQs ) {
@@ -237,8 +237,8 @@ namespace mt_kahypar {
     }
   }
 
-  template<typename TypeTraits, typename GainTypes>
-  void LocalizedKWayFM<TypeTraits, GainTypes>::memoryConsumption(utils::MemoryTreeNode *parent) const {
+  template<typename CombinedTraits>
+  void LocalizedKWayFM<CombinedTraits>::memoryConsumption(utils::MemoryTreeNode *parent) const {
     ASSERT(parent);
 
     utils::MemoryTreeNode *localized_fm_node = parent->addChild("Localized k-Way FM");
@@ -262,13 +262,13 @@ namespace mt_kahypar {
   }
 
   namespace {
-  #define LOCALIZED_KWAY_FM(X, Y) LocalizedKWayFM<X, Y>;                                                      \
-    template bool LocalizedKWayFM<X, Y>::findMoves(LocalUnconstrainedStrategy&,                               \
-                    typename LocalizedKWayFM<X, Y>::PartitionedHypergraph&, size_t, size_t);                  \
-    template bool LocalizedKWayFM<X, Y>::findMoves(LocalGainCacheStrategy&,                                   \
-                    typename LocalizedKWayFM<X, Y>::PartitionedHypergraph&, size_t, size_t)
+  #define LOCALIZED_KWAY_FM(X) LocalizedKWayFM<X>;                                                      \
+    template bool LocalizedKWayFM<X>::findMoves(LocalUnconstrainedStrategy&,                            \
+                    typename LocalizedKWayFM<X>::PartitionedHypergraph&, size_t, size_t);               \
+    template bool LocalizedKWayFM<X>::findMoves(LocalGainCacheStrategy&,                                \
+                    typename LocalizedKWayFM<X>::PartitionedHypergraph&, size_t, size_t)
   }
 
-  INSTANTIATE_CLASS_WITH_TYPE_TRAITS_AND_GAIN_TYPES(LOCALIZED_KWAY_FM)
+  INSTANTIATE_CLASS_WITH_VALID_TRAITS(LOCALIZED_KWAY_FM)
 
 }   // namespace mt_kahypar

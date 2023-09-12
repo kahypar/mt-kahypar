@@ -110,26 +110,12 @@ using TypeTraitsList = kahypar::meta::Typelist<StaticHypergraphTypeTraits
   ENABLE_HIGHEST_QUALITY(template class C<DynamicPartitionedHypergraph>;)        \
   ENABLE_HIGHEST_QUALITY_FOR_GRAPHS(template class C<DynamicPartitionedGraph>;)
 
-#define INSTANTIATE_CLASS_MACRO_WITH_TYPE_TRAITS(C)                            \
-  template class C(StaticHypergraphTypeTraits);                                \
-  ENABLE_GRAPHS(template class C(StaticGraphTypeTraits);)                      \
-  ENABLE_HIGHEST_QUALITY(template class C(DynamicHypergraphTypeTraits);)        \
-  ENABLE_HIGHEST_QUALITY_FOR_GRAPHS(template class C(DynamicGraphTypeTraits);)  \
-  ENABLE_LARGE_K(template class C(LargeKHypergraphTypeTraits);)
-
 #define INSTANTIATE_CLASS_WITH_TYPE_TRAITS(C)                                   \
   template class C<StaticHypergraphTypeTraits>;                                 \
   ENABLE_GRAPHS(template class C<StaticGraphTypeTraits>;)                       \
   ENABLE_HIGHEST_QUALITY(template class C<DynamicHypergraphTypeTraits>;)         \
   ENABLE_HIGHEST_QUALITY_FOR_GRAPHS(template class C<DynamicGraphTypeTraits>;)   \
   ENABLE_LARGE_K(template class C<LargeKHypergraphTypeTraits>;)
-
-#define INSTANTIATE_CLASS_MACRO_WITH_TYPE_TRAITS_AND_OTHER_CLASS(C, Other)            \
-  template class C(StaticHypergraphTypeTraits, Other);                                \
-  ENABLE_GRAPHS(template class C(StaticGraphTypeTraits, Other);)                      \
-  ENABLE_HIGHEST_QUALITY(template class C(DynamicHypergraphTypeTraits, Other);)        \
-  ENABLE_HIGHEST_QUALITY_FOR_GRAPHS(template class C(DynamicGraphTypeTraits, Other);)  \
-  ENABLE_LARGE_K(template class C(LargeKHypergraphTypeTraits, Other);)
 
 
 using HighResClockTimepoint = std::chrono::time_point<std::chrono::high_resolution_clock>;

@@ -79,7 +79,7 @@ TEST(RollbackTests, GainRecalculationAndRollsbackCorrectly) {
 
   FMSharedData sharedData(hg.initialNumNodes(), false);
 
-  GlobalRollback<TypeTraits, Km1GainTypes> grb(
+  GlobalRollback<CombinedTraits<TypeTraits, Km1GainTypes>> grb(
     hg.initialNumEdges(), context, gain_cache);
   auto performMove = [&](Move m) {
     if (phg.changeNodePart(gain_cache, m.node, m.from, m.to)) {
@@ -136,7 +136,7 @@ TEST(RollbackTests, GainRecalculation2) {
 
   FMSharedData sharedData(hg.initialNumNodes(), false);
 
-  GlobalRollback<TypeTraits, Km1GainTypes> grb(
+  GlobalRollback<CombinedTraits<TypeTraits, Km1GainTypes>> grb(
     hg.initialNumEdges(), context, gain_cache);
 
   auto performUpdates = [&](Move& m) {

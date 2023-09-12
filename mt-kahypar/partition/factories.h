@@ -88,7 +88,7 @@ using LabelPropagationFactory = kahypar::meta::Factory<LabelPropagationAlgorithm
 using LabelPropagationDispatcher = kahypar::meta::StaticMultiDispatchFactory<
                                         LabelPropagationRefiner,
                                         IRefiner,
-                                        kahypar::meta::Typelist<TypeTraitsList, GainTypes>>;
+                                        kahypar::meta::Typelist<ValidTraitCombinations>>;
 
 using DeterministicLabelPropagationDispatcher = kahypar::meta::StaticMultiDispatchFactory<
                                                   DeterministicLabelPropagationRefiner,
@@ -101,7 +101,7 @@ using FMFactory = kahypar::meta::Factory<FMAlgorithm,
 using DefaultFMDispatcher = kahypar::meta::StaticMultiDispatchFactory<
                             MultiTryKWayFM,
                             IRefiner,
-                            kahypar::meta::Typelist<TypeTraitsList, GainTypes>>;
+                            kahypar::meta::Typelist<ValidTraitCombinations>>;
 
 using UnconstrainedFMDispatcher = DefaultFMDispatcher;
 
@@ -110,12 +110,12 @@ using FMStrategyFactory = kahypar::meta::Factory<FMAlgorithm, IFMStrategy* (*)(c
 using GainCacheFMStrategyDispatcher = kahypar::meta::StaticMultiDispatchFactory<
                                       GainCacheStrategy,
                                       IFMStrategy,
-                                      kahypar::meta::Typelist<TypeTraitsList, GainTypes>>;
+                                      kahypar::meta::Typelist<ValidTraitCombinations>>;
 
 using UnconstrainedFMStrategyDispatcher = kahypar::meta::StaticMultiDispatchFactory<
                                           UnconstrainedStrategy,
                                           IFMStrategy,
-                                          kahypar::meta::Typelist<TypeTraitsList, GainTypes>>;
+                                          kahypar::meta::Typelist<ValidTraitCombinations>>;
 
 using FlowSchedulerFactory = kahypar::meta::Factory<FlowAlgorithm,
                               IRefiner* (*)(const HypernodeID, const HyperedgeID, const Context&, gain_cache_t)>;
@@ -123,19 +123,19 @@ using FlowSchedulerFactory = kahypar::meta::Factory<FlowAlgorithm,
 using FlowSchedulerDispatcher = kahypar::meta::StaticMultiDispatchFactory<
                                   FlowRefinementScheduler,
                                   IRefiner,
-                                  kahypar::meta::Typelist<TypeTraitsList, GainTypes>>;
+                                  kahypar::meta::Typelist<ValidTraitCombinations>>;
 
 using RebalancerFactory = kahypar::meta::Factory<RebalancingAlgorithm, IRebalancer* (*)(HypernodeID, const Context&, gain_cache_t)>;
 
 using SimpleRebalancerDispatcher = kahypar::meta::StaticMultiDispatchFactory<
                                    SimpleRebalancer,
                                    IRebalancer,
-                                   kahypar::meta::Typelist<TypeTraitsList, GainTypes>>;
+                                   kahypar::meta::Typelist<ValidTraitCombinations>>;
 
 using AdvancedRebalancerDispatcher = kahypar::meta::StaticMultiDispatchFactory<
                                      AdvancedRebalancer,
                                      IRebalancer,
-                                     kahypar::meta::Typelist<TypeTraitsList, GainTypes>>;
+                                     kahypar::meta::Typelist<ValidTraitCombinations>>;
 
 using FlowRefinementFactory = kahypar::meta::Factory<FlowAlgorithm,
                               IFlowRefiner* (*)(const HyperedgeID, const Context&)>;
@@ -143,5 +143,5 @@ using FlowRefinementFactory = kahypar::meta::Factory<FlowAlgorithm,
 using FlowRefinementDispatcher = kahypar::meta::StaticMultiDispatchFactory<
                                   FlowRefiner,
                                   IFlowRefiner,
-                                  kahypar::meta::Typelist<TypeTraitsList, GainTypes>>;
+                                  kahypar::meta::Typelist<ValidTraitCombinations>>;
 }  // namespace mt_kahypar

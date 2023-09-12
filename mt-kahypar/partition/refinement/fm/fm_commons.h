@@ -155,11 +155,11 @@ class UnconstrainedFMData {
   using BucketID = uint32_t;
   using AtomicBucketID = parallel::IntegralAtomicWrapper<BucketID>;
 
-  template<typename TypeTraits, typename GainTypes>
+  template<typename CombinedTraits>
   struct InitializationHelper {
     static void initialize(UnconstrainedFMData& data, const Context& context,
-                           const typename TypeTraits::PartitionedHypergraph& phg,
-                           const typename GainTypes::GainCache& gain_cache);
+                           const typename CombinedTraits::PartitionedHypergraph& phg,
+                           const typename CombinedTraits::GainCache& gain_cache);
   };
 
   static constexpr BucketID NUM_BUCKETS = 16;
@@ -175,14 +175,14 @@ class UnconstrainedFMData {
     local_bucket_weights(),
     rebalancing_nodes(num_nodes) { }
 
-  template<typename TypeTraits, typename GainTypes>
+  template<typename CombinedTraits>
   void initialize(const Context& context,
-                  const typename TypeTraits::PartitionedHypergraph& phg,
-                  const typename GainTypes::GainCache& gain_cache) {
+                  const typename CombinedTraits::PartitionedHypergraph& phg,
+                  const typename CombinedTraits::GainCache& gain_cache) {
     changeNumberOfBlocks(context.partition.k);
     reset();
 
-    InitializationHelper<TypeTraits, GainTypes>::initialize(*this, context, phg, gain_cache);
+    InitializationHelper<CombinedTraits>::initialize(*this, context, phg, gain_cache);
   }
 
   Gain estimatePenaltyForImbalancedMove(PartitionID to, HypernodeWeight initial_imbalance, HypernodeWeight moved_weight) const;
@@ -207,7 +207,7 @@ class UnconstrainedFMData {
   }
 
  private:
-  template<typename TypeTraits, typename GainTypes>
+  template<typename CombinedTraits>
   friend class InitializationHelper;
 
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE size_t indexForBucket(PartitionID block, BucketID bucketId) const {

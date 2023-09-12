@@ -40,13 +40,13 @@
 
 
 namespace mt_kahypar {
-template <typename TypeTraits, typename GainTypes>
+template <typename CombinedTraits>
 class LabelPropagationRefiner final : public IRefiner {
  private:
-  using Hypergraph = typename TypeTraits::Hypergraph;
-  using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
-  using GainCache = typename GainTypes::GainCache;
-  using GainCalculator = typename GainTypes::GainComputation;
+  using Hypergraph = typename CombinedTraits::Hypergraph;
+  using PartitionedHypergraph = typename CombinedTraits::PartitionedHypergraph;
+  using GainCache = typename CombinedTraits::GainCache;
+  using GainCalculator = typename CombinedTraits::GainComputation;
   using ActiveNodes = parallel::scalable_vector<HypernodeID>;
   using NextActiveNodes = ds::StreamingVector<HypernodeID>;
 

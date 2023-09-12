@@ -113,10 +113,10 @@ class AFlowHypergraphConstructor : public Test {
   vec<HypernodeID> whfc_to_node;
 };
 
-typedef ::testing::Types<Config<SequentialConstruction<TypeTraits, Km1GainTypes>, whfc::SequentialPushRelabel, true>,
-                         Config<SequentialConstruction<TypeTraits, Km1GainTypes>, whfc::SequentialPushRelabel, false>,
-                         Config<ParallelConstruction<TypeTraits, Km1GainTypes>, whfc::ParallelPushRelabel, true>,
-                         Config<ParallelConstruction<TypeTraits, Km1GainTypes>, whfc::ParallelPushRelabel, false> > TestConfigs;
+typedef ::testing::Types<Config<SequentialConstruction<CombinedTraits<TypeTraits, Km1GainTypes>>, whfc::SequentialPushRelabel, true>,
+                         Config<SequentialConstruction<CombinedTraits<TypeTraits, Km1GainTypes>>, whfc::SequentialPushRelabel, false>,
+                         Config<ParallelConstruction<CombinedTraits<TypeTraits, Km1GainTypes>>, whfc::ParallelPushRelabel, true>,
+                         Config<ParallelConstruction<CombinedTraits<TypeTraits, Km1GainTypes>>, whfc::ParallelPushRelabel, false> > TestConfigs;
 
 TYPED_TEST_CASE(AFlowHypergraphConstructor, TestConfigs);
 

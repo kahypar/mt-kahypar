@@ -152,10 +152,7 @@ kahypar::meta::PolicyBase& getCombinedTraitsPolicy(mt_kahypar_partition_type_t p
 
 REGISTER_DISPATCHED_LP_REFINER(LabelPropagationAlgorithm::label_propagation,
                                LabelPropagationDispatcher,
-                               kahypar::meta::PolicyRegistry<mt_kahypar_partition_type_t>::getInstance().getPolicy(
-                                context.partition.partition_type),
-                               kahypar::meta::PolicyRegistry<GainPolicy>::getInstance().getPolicy(
-                                context.partition.gain_policy));
+                               getCombinedTraitsPolicy(context.partition.partition_type, context.partition.gain_policy));
 REGISTER_DISPATCHED_LP_REFINER(LabelPropagationAlgorithm::deterministic,
                                DeterministicLabelPropagationDispatcher,
                                kahypar::meta::PolicyRegistry<mt_kahypar_partition_type_t>::getInstance().getPolicy(
@@ -166,58 +163,34 @@ REGISTER_LP_REFINER(LabelPropagationAlgorithm::do_nothing, DoNothingRefiner, 1);
 
 REGISTER_DISPATCHED_FM_REFINER(FMAlgorithm::kway_fm,
                                DefaultFMDispatcher,
-                               kahypar::meta::PolicyRegistry<mt_kahypar_partition_type_t>::getInstance().getPolicy(
-                                context.partition.partition_type),
-                               kahypar::meta::PolicyRegistry<GainPolicy>::getInstance().getPolicy(
-                                context.partition.gain_policy));
+                               getCombinedTraitsPolicy(context.partition.partition_type, context.partition.gain_policy));
 REGISTER_DISPATCHED_FM_REFINER(FMAlgorithm::unconstrained_fm,
                                UnconstrainedFMDispatcher,
-                               kahypar::meta::PolicyRegistry<mt_kahypar_partition_type_t>::getInstance().getPolicy(
-                                context.partition.partition_type),
-                               kahypar::meta::PolicyRegistry<GainPolicy>::getInstance().getPolicy(
-                                context.partition.gain_policy));
+                               getCombinedTraitsPolicy(context.partition.partition_type, context.partition.gain_policy));
 REGISTER_FM_REFINER(FMAlgorithm::do_nothing, DoNothingRefiner, 3);
 
 REGISTER_DISPATCHED_FM_STRATEGY(FMAlgorithm::kway_fm,
                                 GainCacheFMStrategyDispatcher,
-                                kahypar::meta::PolicyRegistry<mt_kahypar_partition_type_t>::getInstance().getPolicy(
-                                 context.partition.partition_type),
-                                kahypar::meta::PolicyRegistry<GainPolicy>::getInstance().getPolicy(
-                                 context.partition.gain_policy));
+                                getCombinedTraitsPolicy(context.partition.partition_type, context.partition.gain_policy));
 REGISTER_DISPATCHED_FM_STRATEGY(FMAlgorithm::unconstrained_fm,
                                 UnconstrainedFMStrategyDispatcher,
-                                kahypar::meta::PolicyRegistry<mt_kahypar_partition_type_t>::getInstance().getPolicy(
-                                 context.partition.partition_type),
-                                kahypar::meta::PolicyRegistry<GainPolicy>::getInstance().getPolicy(
-                                 context.partition.gain_policy));
+                                getCombinedTraitsPolicy(context.partition.partition_type, context.partition.gain_policy));
 
 REGISTER_DISPATCHED_FLOW_SCHEDULER(FlowAlgorithm::flow_cutter,
                                    FlowSchedulerDispatcher,
-                                   kahypar::meta::PolicyRegistry<mt_kahypar_partition_type_t>::getInstance().getPolicy(
-                                    context.partition.partition_type),
-                                   kahypar::meta::PolicyRegistry<GainPolicy>::getInstance().getPolicy(
-                                     context.partition.gain_policy));
+                                   getCombinedTraitsPolicy(context.partition.partition_type, context.partition.gain_policy));
 REGISTER_FLOW_SCHEDULER(FlowAlgorithm::do_nothing, DoNothingRefiner, 4);
 
 REGISTER_DISPATCHED_REBALANCER(RebalancingAlgorithm::simple_rebalancer,
                                SimpleRebalancerDispatcher,
-                               kahypar::meta::PolicyRegistry<mt_kahypar_partition_type_t>::getInstance().getPolicy(
-                                context.partition.partition_type),
-                               kahypar::meta::PolicyRegistry<GainPolicy>::getInstance().getPolicy(
-                                context.partition.gain_policy));
+                               getCombinedTraitsPolicy(context.partition.partition_type, context.partition.gain_policy));
 REGISTER_DISPATCHED_REBALANCER(RebalancingAlgorithm::advanced_rebalancer,
-                                 AdvancedRebalancerDispatcher,
-                                 kahypar::meta::PolicyRegistry<mt_kahypar_partition_type_t>::getInstance().getPolicy(
-                                         context.partition.partition_type),
-                                 kahypar::meta::PolicyRegistry<GainPolicy>::getInstance().getPolicy(
-                                         context.partition.gain_policy));
+                               AdvancedRebalancerDispatcher,
+                               getCombinedTraitsPolicy(context.partition.partition_type, context.partition.gain_policy));
 REGISTER_REBALANCER(RebalancingAlgorithm::do_nothing, DoNothingRefiner, 5);
 
 REGISTER_DISPATCHED_FLOW_REFINER(FlowAlgorithm::flow_cutter,
-                                  FlowRefinementDispatcher,
-                                  kahypar::meta::PolicyRegistry<mt_kahypar_partition_type_t>::getInstance().getPolicy(
-                                   context.partition.partition_type),
-                                  kahypar::meta::PolicyRegistry<GainPolicy>::getInstance().getPolicy(
-                                    context.partition.gain_policy));
+                                 FlowRefinementDispatcher,
+                                 getCombinedTraitsPolicy(context.partition.partition_type, context.partition.gain_policy));
 REGISTER_FLOW_REFINER(FlowAlgorithm::do_nothing, DoNothingFlowRefiner, 6);
 }  // namespace mt_kahypar

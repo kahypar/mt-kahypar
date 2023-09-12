@@ -45,12 +45,12 @@
 
 namespace mt_kahypar {
 
-template<typename TypeTraits, typename GainTypes>
+template<typename CombinedTraits>
 class FlowRefiner final : public IFlowRefiner {
 
   static constexpr bool debug = false;
 
-  using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
+  using PartitionedHypergraph = typename CombinedTraits::PartitionedHypergraph;
 
  public:
   explicit FlowRefiner(const HyperedgeID num_hyperedges,
@@ -128,7 +128,7 @@ class FlowRefiner final : public IFlowRefiner {
   whfc::HyperFlowCutter<whfc::ParallelPushRelabel> _parallel_hfc;
 
   vec<HypernodeID> _whfc_to_node;
-  SequentialConstruction<TypeTraits, GainTypes> _sequential_construction;
-  ParallelConstruction<TypeTraits, GainTypes> _parallel_construction;
+  SequentialConstruction<CombinedTraits> _sequential_construction;
+  ParallelConstruction<CombinedTraits> _parallel_construction;
 };
 }  // namespace mt_kahypar
