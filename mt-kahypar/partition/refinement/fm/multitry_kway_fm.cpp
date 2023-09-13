@@ -309,7 +309,7 @@ namespace mt_kahypar {
     // that is moved twice (e.g., 0 -> 2 -> 1 becomes 0 -> 1)
     for (PartitionID part = 0; part < context.partition.k; ++part) {
       vec<Move>& moves = rebalancing_moves_by_part[part];
-      tbb::parallel_for(0UL, moves.size(), [&](const size_t i) {
+      tbb::parallel_for(UL(0), moves.size(), [&](const size_t i) {
         Move& r_move = moves[i];
         if (r_move.isValid() && move_tracker.wasNodeMovedInThisRound(r_move.node)) {
           ASSERT(r_move.to == phg.partID(r_move.node));
