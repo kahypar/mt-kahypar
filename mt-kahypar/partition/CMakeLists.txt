@@ -6,6 +6,7 @@ add_subdirectory(mapping)
 add_subdirectory(registries)
 
 set(PartitionSources
+        deep_multilevel.cpp
         partitioner.cpp
         partitioner_facade.cpp
         multilevel.cpp
@@ -14,7 +15,6 @@ set(PartitionSources
         conversion.cpp
         metrics.cpp
         recursive_bipartitioning.cpp
-        deep_multilevel.cpp
         )
 
 foreach(modtarget IN LISTS PARTITIONING_SUITE_TARGETS)
