@@ -455,7 +455,7 @@ namespace mt_kahypar {
              "Still use upper limit for imbalance with unconstrained FM, expressed as a factor of the max part weight (default = 0 = no limit).")
             ((initial_partitioning ? "i-r-fm-unconstrained-rounds" : "r-fm-unconstrained-rounds"),
              po::value<size_t>((initial_partitioning ? &context.initial_partitioning.refinement.fm.unconstrained_rounds :
-                              &context.refinement.fm.unconstrained_rounds))->value_name("<size_t>")->default_value(1),
+                              &context.refinement.fm.unconstrained_rounds))->value_name("<size_t>")->default_value(8),
              "Unconstrained FM: Number of rounds that are unconstrained.")
             ((initial_partitioning ? "i-r-fm-imbalance-penalty-min" : "r-fm-imbalance-penalty-min"),
              po::value<double>((initial_partitioning ? &context.initial_partitioning.refinement.fm.imbalance_penalty_min :

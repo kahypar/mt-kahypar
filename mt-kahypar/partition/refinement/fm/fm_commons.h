@@ -325,7 +325,6 @@ struct FMSharedData {
     utils::MemoryTreeNode* node_tracker_node = shared_fm_data_node->addChild("Node Tracker");
     node_tracker_node->updateSize(nodeTracker.searchOfNode.capacity() * sizeof(SearchID));
     refinementNodes.memoryConsumption(shared_fm_data_node);
-    // TODO(maas): unconstrained FM data
   }
 };
 

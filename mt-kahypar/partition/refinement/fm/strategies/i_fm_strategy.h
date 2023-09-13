@@ -1,9 +1,9 @@
 /*******************************************************************************
  * MIT License
  *
- * This file is part of KaHyPar.
+ * This file is part of Mt-KaHyPar.
  *
- * Copyright (C) 2014 Sebastian Schlag <sebastian.schlag@kit.edu>
+ * Copyright (C) 2023 Nikolai Maas <nikolai.maas@kit.edu>
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
