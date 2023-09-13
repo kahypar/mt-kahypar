@@ -31,10 +31,6 @@
 #include "mt-kahypar/partition/refinement/fm/strategies/i_fm_strategy.h"
 
 
-// TODO: HIGH_DEGREE_THRESHOLD in PartitionedHypergraph/PartitionedGraph might be problematic
-// for unconstrained refinement
-
-
 namespace mt_kahypar {
 
   /*
@@ -271,7 +267,6 @@ private:
                                                                  const GainCache& gain_cache,
                                                                  const HypernodeID u,
                                                                  const PartitionID from) const {
-    // TODO(maas): bonus for balancing moves?!
     const HypernodeWeight wu = phg.nodeWeight(u);
     const HypernodeWeight from_weight = phg.partWeight(from);
     PartitionID to = kInvalidPartition;

@@ -155,7 +155,6 @@ struct UnconstrainedFMData {
   using BucketID = uint32_t;
   using AtomicBucketID = parallel::IntegralAtomicWrapper<BucketID>;
 
-  // TODO(maas): in weighted graphs the constant number of buckets might be problematic
   static constexpr BucketID NUM_BUCKETS = 16;
   static constexpr double BUCKET_FACTOR = 1.5;
   static constexpr double FALLBACK_TRESHOLD = 0.75;
@@ -212,7 +211,6 @@ struct UnconstrainedFMData {
 
   // upper bound of gain values in bucket
   static double gainPerWeightForBucket(BucketID bucketId) {
-    // TODO: test other value than 1.5
     if (bucketId > 1) {
       return std::pow(BUCKET_FACTOR, bucketId - 2);
     } else if (bucketId == 1) {

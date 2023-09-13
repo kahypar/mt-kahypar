@@ -50,7 +50,7 @@ namespace mt_kahypar {
                                                              HypernodeWeight initial_imbalance,
                                                              HypernodeWeight moved_weight) const {
     ASSERT(initialized && to != kInvalidPartition);
-    // TODO(maas): test whether it is faster to save the previous position locally
+    // TODO test whether it is faster to save the previous position locally
     BucketID bucketId = 0;
     while (bucketId < NUM_BUCKETS
            && initial_imbalance + moved_weight > bucket_weights[indexForBucket(to, bucketId)]) {
