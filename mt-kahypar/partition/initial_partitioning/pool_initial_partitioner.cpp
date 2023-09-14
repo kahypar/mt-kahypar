@@ -29,7 +29,8 @@
 #include "tbb/task_group.h"
 
 #include "mt-kahypar/definitions.h"
-#include "mt-kahypar/partition/registries/register_initial_partitioning_algorithms.h"
+#include "mt-kahypar/partition/initial_partitioning/i_initial_partitioner.h"
+#include "mt-kahypar/partition/initial_partitioning/initial_partitioning_data_container.h"
 #include "mt-kahypar/utils/cast.h"
 #include "mt-kahypar/utils/exception.h"
 

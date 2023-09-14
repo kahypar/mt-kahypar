@@ -3,6 +3,7 @@ set(RegistrySources
         register_refinement_algorithms.cpp
         register_policies.cpp
         register_coarsening_algorithms.cpp
+        register_initial_partitioning_algorithms.cpp
         )
 
 foreach(modtarget IN LISTS PARTITIONING_SUITE_TARGETS)
