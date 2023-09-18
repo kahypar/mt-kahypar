@@ -32,7 +32,7 @@
 
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/io/hypergraph_factory.h"
-#include "mt-kahypar/partition/refinement/rebalancing/rebalancer.h"
+#include "mt-kahypar/partition/refinement/rebalancing/simple_rebalancer.h"
 #include "mt-kahypar/partition/refinement/gains/gain_definitions.h"
 
 using ::testing::Test;
@@ -43,7 +43,7 @@ namespace {
   using TypeTraits = StaticHypergraphTypeTraits;
   using Hypergraph = typename TypeTraits::Hypergraph;
   using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
-  using Km1Rebalancer = Rebalancer<TypeTraits, Km1GainTypes>;
+  using Km1Rebalancer = SimpleRebalancer<TypeTraits, Km1GainTypes>;
 }
 
 

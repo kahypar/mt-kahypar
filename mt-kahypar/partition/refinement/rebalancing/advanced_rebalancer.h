@@ -75,7 +75,7 @@ namespace rebalancer {
 
 
 template <typename TypeTraits, typename GainTypes>
-class RebalancerV2 final : public IRebalancer {
+class AdvancedRebalancer final : public IRebalancer {
 private:
   using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
   using GainCache = typename GainTypes::GainCache;
@@ -87,11 +87,11 @@ private:
 
 public:
 
-  explicit RebalancerV2(HypernodeID num_nodes,
+  explicit AdvancedRebalancer(HypernodeID num_nodes,
                         const Context& context,
                         GainCache& gain_cache);
 
-  explicit RebalancerV2(HypernodeID num_nodes,
+  explicit AdvancedRebalancer(HypernodeID num_nodes,
                         const Context& context,
                         gain_cache_t gain_cache);
 

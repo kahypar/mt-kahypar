@@ -182,13 +182,13 @@ REGISTER_DISPATCHED_FLOW_SCHEDULER(FlowAlgorithm::flow_cutter,
 REGISTER_FLOW_SCHEDULER(FlowAlgorithm::do_nothing, DoNothingRefiner, 4);
 
 REGISTER_DISPATCHED_REBALANCER(RebalancingAlgorithm::simple_rebalancer,
-                               RebalancerDispatcher,
+                               SimpleRebalancerDispatcher,
                                kahypar::meta::PolicyRegistry<mt_kahypar_partition_type_t>::getInstance().getPolicy(
                                 context.partition.partition_type),
                                kahypar::meta::PolicyRegistry<GainPolicy>::getInstance().getPolicy(
                                 context.partition.gain_policy));
-REGISTER_DISPATCHED_REBALANCER(RebalancingAlgorithm::rebalancer,
-                                 RebalancerV2Dispatcher,
+REGISTER_DISPATCHED_REBALANCER(RebalancingAlgorithm::advanced_rebalancer,
+                                 AdvancedRebalancerDispatcher,
                                  kahypar::meta::PolicyRegistry<mt_kahypar_partition_type_t>::getInstance().getPolicy(
                                          context.partition.partition_type),
                                  kahypar::meta::PolicyRegistry<GainPolicy>::getInstance().getPolicy(

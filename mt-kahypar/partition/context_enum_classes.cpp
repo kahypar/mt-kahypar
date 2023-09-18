@@ -250,7 +250,7 @@ namespace mt_kahypar {
   std::ostream & operator<< (std::ostream& os, const RebalancingAlgorithm& algo) {
       switch (algo) {
         case RebalancingAlgorithm::simple_rebalancer: return os << "simple_rebalancer";
-        case RebalancingAlgorithm::rebalancer: return os << "rebalancer";
+        case RebalancingAlgorithm::advanced_rebalancer: return os << "advanced_rebalancer";
         case RebalancingAlgorithm::do_nothing: return os << "do_nothing";
           // omit default case to trigger compiler warning for missing cases
       }
@@ -469,8 +469,8 @@ namespace mt_kahypar {
   RebalancingAlgorithm rebalancingAlgorithmFromString(const std::string& type) {
     if (type == "simple_rebalancer") {
       return RebalancingAlgorithm::simple_rebalancer;
-    } else if (type == "rebalancer") {
-      return RebalancingAlgorithm::rebalancer;
+    } else if (type == "advanced_rebalancer") {
+      return RebalancingAlgorithm::advanced_rebalancer;
     } else if (type == "do_nothing") {
       return RebalancingAlgorithm::do_nothing;
     }

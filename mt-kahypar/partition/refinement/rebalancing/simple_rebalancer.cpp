@@ -25,7 +25,7 @@
  * SOFTWARE.
  ******************************************************************************/
 
-#include "mt-kahypar/partition/refinement/rebalancing//rebalancer.h"
+#include "mt-kahypar/partition/refinement/rebalancing/simple_rebalancer.h"
 
 
 #include <boost/dynamic_bitset.hpp>
@@ -43,10 +43,10 @@
 namespace mt_kahypar {
 
   template <typename TypeTraits, typename GainTypes>
-  bool Rebalancer<TypeTraits, GainTypes>::refineImpl(mt_kahypar_partitioned_hypergraph_t& hypergraph,
-                                                     const vec<HypernodeID>&,
-                                                     Metrics& best_metrics,
-                                                     double) {
+  bool SimpleRebalancer<TypeTraits, GainTypes>::refineImpl(mt_kahypar_partitioned_hypergraph_t& hypergraph,
+                                                           const vec<HypernodeID>&,
+                                                           Metrics& best_metrics,
+                                                           double) {
     PartitionedHypergraph& phg = utils::cast<PartitionedHypergraph>(hypergraph);
     resizeDataStructuresForCurrentK();
     // If partition is imbalanced, rebalancer is activated
@@ -186,7 +186,7 @@ namespace mt_kahypar {
   }
 
   template <typename TypeTraits, typename GainTypes>
-  vec<Move> Rebalancer<TypeTraits, GainTypes>::repairEmptyBlocks(PartitionedHypergraph& phg) {
+  vec<Move> SimpleRebalancer<TypeTraits, GainTypes>::repairEmptyBlocks(PartitionedHypergraph& phg) {
     // First detect if there are any empty blocks.
     const size_t k = size_t(_context.partition.k);
     boost::dynamic_bitset<> is_empty(k);
@@ -291,9 +291,9 @@ namespace mt_kahypar {
 
   // explicitly instantiate so the compiler can generate them when compiling this cpp file
   namespace {
-  #define REBALANCER(X, Y) Rebalancer<X, Y>
+  #define SIMPLE_REBALANCER(X, Y) SimpleRebalancer<X, Y>
   }
 
   // explicitly instantiate so the compiler can generate them when compiling this cpp file
-  INSTANTIATE_CLASS_WITH_TYPE_TRAITS_AND_GAIN_TYPES(REBALANCER)
+  INSTANTIATE_CLASS_WITH_TYPE_TRAITS_AND_GAIN_TYPES(SIMPLE_REBALANCER)
 }

@@ -523,7 +523,7 @@ namespace mt_kahypar {
                      })->default_value("do_nothing"),
              "Rebalancer Algorithm:\n"
              "- simple_rebalancer\n"
-             "- rebalancer\n"
+             "- advanced_rebalancer\n"
              "- do_nothing");
     return options;
   }

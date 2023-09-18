@@ -40,7 +40,7 @@
 
 namespace mt_kahypar {
 template <typename TypeTraits, typename GainTypes>
-class Rebalancer final : public IRebalancer {
+class SimpleRebalancer final : public IRebalancer {
  private:
   using PartitionedHypergraph = typename TypeTraits::PartitionedHypergraph;
   using GainCache = typename GainTypes::GainCache;
@@ -71,23 +71,23 @@ public:
     MovePQ pq;
   };
 
-  explicit Rebalancer(const Context& context) :
+  explicit SimpleRebalancer(const Context& context) :
     _context(context),
     _current_k(context.partition.k),
     _gain(context),
     _part_weights(_context.partition.k) { }
 
-  explicit Rebalancer(HypernodeID , const Context& context, GainCache&) :
-    Rebalancer(context) { }
+  explicit SimpleRebalancer(HypernodeID , const Context& context, GainCache&) :
+    SimpleRebalancer(context) { }
 
-  explicit Rebalancer(HypernodeID num_nodes, const Context& context, gain_cache_t gain_cache) :
-    Rebalancer(num_nodes, context, GainCachePtr::cast<GainCache>(gain_cache)) {}
+  explicit SimpleRebalancer(HypernodeID num_nodes, const Context& context, gain_cache_t gain_cache) :
+    SimpleRebalancer(num_nodes, context, GainCachePtr::cast<GainCache>(gain_cache)) {}
 
-  Rebalancer(const Rebalancer&) = delete;
-  Rebalancer(Rebalancer&&) = delete;
+  SimpleRebalancer(const SimpleRebalancer&) = delete;
+  SimpleRebalancer(SimpleRebalancer&&) = delete;
 
-  Rebalancer & operator= (const Rebalancer &) = delete;
-  Rebalancer & operator= (Rebalancer &&) = delete;
+  SimpleRebalancer & operator= (const SimpleRebalancer &) = delete;
+  SimpleRebalancer & operator= (SimpleRebalancer &&) = delete;
 
   bool refineImpl(mt_kahypar_partitioned_hypergraph_t& hypergraph,
                   const vec<HypernodeID>&,

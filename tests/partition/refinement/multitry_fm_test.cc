@@ -34,7 +34,7 @@
 #include "mt-kahypar/partition/refinement/gains/gain_definitions.h"
 #include "mt-kahypar/partition/refinement/fm/strategies/gain_cache_strategy.h"
 #include "mt-kahypar/partition/initial_partitioning/bfs_initial_partitioner.h"
-#include "mt-kahypar/partition/refinement/rebalancing/rebalancer_v2.h"
+#include "mt-kahypar/partition/refinement/rebalancing/advanced_rebalancer.h"
 
 using ::testing::Test;
 
@@ -108,7 +108,7 @@ class MultiTryFMTest : public Test {
     context.setupPartWeights(hypergraph.totalWeight());
     initialPartition();
 
-    rebalancer = std::make_unique<RebalancerV2<TypeTraits, Km1GainTypes>>(hypergraph.initialNumNodes(), context, gain_cache);
+    rebalancer = std::make_unique<AdvancedRebalancer<TypeTraits, Km1GainTypes>>(hypergraph.initialNumNodes(), context, gain_cache);
     refiner = std::make_unique<Refiner>(hypergraph.initialNumNodes(),
       hypergraph.initialNumEdges(), context, gain_cache, *rebalancer);
     mt_kahypar_partitioned_hypergraph_t phg = utils::partitioned_hg_cast(partitioned_hypergraph);

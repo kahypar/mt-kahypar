@@ -24,7 +24,7 @@
  * SOFTWARE.
  ******************************************************************************/
 
-#include "mt-kahypar/partition/refinement/rebalancing/rebalancer_v2.h"
+#include "mt-kahypar/partition/refinement/rebalancing/advanced_rebalancer.h"
 
 #include <optional>
 
@@ -255,7 +255,7 @@ namespace impl {
 
 
   template <typename TypeTraits, typename GainTypes>
-  void RebalancerV2<TypeTraits, GainTypes>::insertNodesInOverloadedBlocks(mt_kahypar_partitioned_hypergraph_t& hypergraph) {
+  void AdvancedRebalancer<TypeTraits, GainTypes>::insertNodesInOverloadedBlocks(mt_kahypar_partitioned_hypergraph_t& hypergraph) {
     auto& phg = utils::cast<PartitionedHypergraph>(hypergraph);
 
     // init PQs if not done before
@@ -306,7 +306,7 @@ namespace impl {
   }
 
   template <typename TypeTraits, typename GainTypes>
-  std::pair<int64_t, size_t> RebalancerV2<TypeTraits, GainTypes>::findMoves(mt_kahypar_partitioned_hypergraph_t& hypergraph) {
+  std::pair<int64_t, size_t> AdvancedRebalancer<TypeTraits, GainTypes>::findMoves(mt_kahypar_partitioned_hypergraph_t& hypergraph) {
     auto& phg = utils::cast<PartitionedHypergraph>(hypergraph);
     int64_t attributed_gain = 0;
     size_t global_move_id = 0;
@@ -418,10 +418,10 @@ namespace impl {
   }
 
   template <typename TypeTraits, typename GainTypes>
-  bool RebalancerV2<TypeTraits, GainTypes>::refineInternalParallel(mt_kahypar_partitioned_hypergraph_t& hypergraph,
-                                                                   vec<vec<Move>>* moves_by_part,
-                                                                   vec<Move>* moves_linear,
-                                                                   Metrics& best_metric) {
+  bool AdvancedRebalancer<TypeTraits, GainTypes>::refineInternalParallel(mt_kahypar_partitioned_hypergraph_t& hypergraph,
+                                                                         vec<vec<Move>>* moves_by_part,
+                                                                         vec<Move>* moves_linear,
+                                                                         Metrics& best_metric) {
     auto& phg = utils::cast<PartitionedHypergraph>(hypergraph);
 
     if (!_gain_cache.isInitialized()) {
@@ -478,7 +478,7 @@ namespace impl {
 
 
 template <typename TypeTraits, typename GainTypes>
-RebalancerV2<TypeTraits, GainTypes>::RebalancerV2(
+AdvancedRebalancer<TypeTraits, GainTypes>::AdvancedRebalancer(
         HypernodeID num_nodes, const Context& context, GainCache& gain_cache) :
         _context(context),
         _gain_cache(gain_cache),
@@ -491,47 +491,47 @@ RebalancerV2<TypeTraits, GainTypes>::RebalancerV2(
         _node_state(num_nodes) { }
 
 template <typename TypeTraits, typename GainTypes>
-RebalancerV2<TypeTraits, GainTypes>::RebalancerV2(
+AdvancedRebalancer<TypeTraits, GainTypes>::AdvancedRebalancer(
         HypernodeID num_nodes, const Context& context, gain_cache_t gain_cache) :
-        RebalancerV2(num_nodes, context, GainCachePtr::cast<GainCache>(gain_cache)) { }
+        AdvancedRebalancer(num_nodes, context, GainCachePtr::cast<GainCache>(gain_cache)) { }
 
 
 template <typename TypeTraits, typename GainTypes>
-bool RebalancerV2<TypeTraits, GainTypes>::refineImpl(mt_kahypar_partitioned_hypergraph_t& hypergraph,
+bool AdvancedRebalancer<TypeTraits, GainTypes>::refineImpl(mt_kahypar_partitioned_hypergraph_t& hypergraph,
                 const vec<HypernodeID>& , Metrics& best_metrics, double) {
   return refineInternalParallel(hypergraph, nullptr, nullptr, best_metrics);
 }
 
 template <typename TypeTraits, typename GainTypes>
-void RebalancerV2<TypeTraits, GainTypes>::initializeImpl(mt_kahypar_partitioned_hypergraph_t& hypergraph) {
+void AdvancedRebalancer<TypeTraits, GainTypes>::initializeImpl(mt_kahypar_partitioned_hypergraph_t& hypergraph) {
   auto& phg = utils::cast<PartitionedHypergraph>(hypergraph);
   unused(phg);
 }
 
 template <typename TypeTraits, typename GainTypes>
-bool RebalancerV2<TypeTraits, GainTypes>::refineAndOutputMovesImpl(mt_kahypar_partitioned_hypergraph_t& hypergraph,
-                                                                   const vec<HypernodeID>& ,
-                                                                   vec<vec<Move>>& moves_by_part,
-                                                                   Metrics& best_metrics,
-                                                                   const double) {
+bool AdvancedRebalancer<TypeTraits, GainTypes>::refineAndOutputMovesImpl(mt_kahypar_partitioned_hypergraph_t& hypergraph,
+                                                                         const vec<HypernodeID>& ,
+                                                                         vec<vec<Move>>& moves_by_part,
+                                                                         Metrics& best_metrics,
+                                                                         const double) {
   return refineInternalParallel(hypergraph, &moves_by_part, nullptr, best_metrics);
 }
 
 template <typename TypeTraits, typename GainTypes>
-bool RebalancerV2<TypeTraits, GainTypes>::refineAndOutputMovesLinearImpl(mt_kahypar_partitioned_hypergraph_t& hypergraph,
-                                                                         const vec<HypernodeID>& ,
-                                                                         vec<Move>& moves,
-                                                                         Metrics& best_metrics,
-                                                                         const double) {
+bool AdvancedRebalancer<TypeTraits, GainTypes>::refineAndOutputMovesLinearImpl(mt_kahypar_partitioned_hypergraph_t& hypergraph,
+                                                                               const vec<HypernodeID>& ,
+                                                                               vec<Move>& moves,
+                                                                               Metrics& best_metrics,
+                                                                               const double) {
   return refineInternalParallel(hypergraph, nullptr, &moves, best_metrics);
 }
 
 // explicitly instantiate so the compiler can generate them when compiling this cpp file
 namespace {
-  #define REBALANCER_V2(X, Y) RebalancerV2<X, Y>
+  #define ADVANCED_REBALANCER(X, Y) AdvancedRebalancer<X, Y>
 }
 
 // explicitly instantiate so the compiler can generate them when compiling this cpp file
-INSTANTIATE_CLASS_WITH_TYPE_TRAITS_AND_GAIN_TYPES(REBALANCER_V2)
+INSTANTIATE_CLASS_WITH_TYPE_TRAITS_AND_GAIN_TYPES(ADVANCED_REBALANCER)
 
 }   // namespace mt_kahypar

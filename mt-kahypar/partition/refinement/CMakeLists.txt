@@ -5,8 +5,8 @@ set(RefinementSources
         fm/global_rollback.cpp
         fm/sequential_twoway_fm_refiner.cpp
         label_propagation/label_propagation_refiner.cpp
-        rebalancing/rebalancer.cpp
-        rebalancing/rebalancer_v2.cpp
+        rebalancing/simple_rebalancer.cpp
+        rebalancing/advanced_rebalancer.cpp
         deterministic/deterministic_label_propagation.cpp
         flows/refiner_adapter.cpp
         flows/problem_construction.cpp
